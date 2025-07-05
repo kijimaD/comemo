@@ -50,7 +50,7 @@ Date:   Tue Apr 8 11:11:35 2014 -0400
     R=khr
     CC=dave, golang-codereviews
     https://golang.org/cl/85180043
-
+---
  src/pkg/reflect/all_test.go    | 81 ++++++++++++++++++++++++++++++++++++++++++
  src/pkg/reflect/export_test.go |  1 +
  src/pkg/reflect/value.go       | 13 +++++--
@@ -61,3 +61,507 @@ Date:   Tue Apr 8 11:11:35 2014 -0400
  src/pkg/runtime/panic.c        |  2 +-
  src/pkg/runtime/runtime.h      |  2 +-
  9 files changed, 167 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index c1f95d6049..c81f525094 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -3716,3 +3716,84 @@ func TestFieldByIndexNil(t *testing.T) {
+ 
+ 	t.Fatalf("did not panic")
+ }
++
++// Given
++//	type Outer struct {
++//		*Inner
++//		...
++//	}
++// the compiler generates the implementation of (*Outer).M dispatching to the embedded Inner.
++// The implementation is logically:
++//	func (p *Outer) M() {
++//		(p.Inner).M()
++//	}
++// but since the only change here is the replacement of one pointer receiver with another,
++// the actual generated code overwrites the original receiver with the p.Inner pointer and
++// then jumps to the M method expecting the *Inner receiver.
++//
++// During reflect.Value.Call, we create an argument frame and the associated data structures
++// to describe it to the garbage collector, populate the frame, call reflect.call to
++// run a function call using that frame, and then copy the results back out of the frame.
++// The reflect.call function does a memmove of the frame structure onto the
++// stack (to set up the inputs), runs the call, and the memmoves the stack back to
++// the frame structure (to preserve the outputs).
++//
++// Originally reflect.call did not distinguish inputs from outputs: both memmoves
++// were for the full stack frame. However, in the case where the called function was
++// one of these wrappers, the rewritten receiver is almost certainly a different type
++// than the original receiver. This is not a problem on the stack, where we use the
++// program counter to determine the type information and understand that
++// during (*Outer).M the receiver is an *Outer while during (*Inner).M the receiver in the same
++// memory word is now an *Inner. But in the statically typed argument frame created
++// by reflect, the receiver is always an *Outer. Copying the modified receiver pointer
++// off the stack into the frame will store an *Inner there, and then if a garbage collection
++// happens to scan that argument frame before it is discarded, it will scan the *Inner
++// memory as if it were an *Outer. If the two have different memory layouts, the
++// collection will intepret the memory incorrectly.
++//
++// One such possible incorrect interpretation is to treat two arbitrary memory words
++// (Inner.P1 and Inner.P2 below) as an interface (Outer.R below). Because interpreting
++// an interface requires dereferencing the itab word, the misinterpretation will try to
++// deference Inner.P1, causing a crash during garbage collection.
++//
++// This came up in a real program in issue 7725.
++
++type Outer struct {
++	*Inner
++	R io.Reader
++}
++
++type Inner struct {
++	X  *Outer
++	P1 uintptr
++	P2 uintptr
++}
++
++func (pi *Inner) M() {
++	// Clear references to pi so that the only way the
++	// garbage collection will find the pointer is in the
++	// argument frame, typed as a *Outer.
++	pi.X.Inner = nil
++
++	// Set up an interface value that will cause a crash.
++	// P1 = 1 is a non-zero, so the interface looks non-nil.
++	// P2 = pi ensures that the data word points into the
++	// allocated heap; if not the collection skips the interface
++	// value as irrelevant, without dereferencing P1.
++	pi.P1 = 1
++	pi.P2 = uintptr(unsafe.Pointer(pi))
++}
++
++func TestCallMethodJump(t *testing.T) {
++	// In reflect.Value.Call, trigger a garbage collection after reflect.call
++	// returns but before the args frame has been discarded.
++	// This is a little clumsy but makes the failure repeatable.
++	*CallGC = true
++
++	p := &Outer{Inner: new(Inner)}
++	p.Inner.X = p
++	ValueOf(p).Method(0).Call(nil)
++
++	// Stop garbage collecting during reflect.call.
++	*CallGC = false
++}
+diff --git a/src/pkg/reflect/export_test.go b/src/pkg/reflect/export_test.go
+index cd8cf2cf2c..0778ad37f5 100644
+--- a/src/pkg/reflect/export_test.go
++++ b/src/pkg/reflect/export_test.go
+@@ -16,3 +16,4 @@ func IsRO(v Value) bool {
+ }
+ 
+ var ArrayOf = arrayOf
++var CallGC = &callGC
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 8b3f55e03c..a14b3a2f80 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -424,6 +424,8 @@ func (v Value) CallSlice(in []Value) []Value {
+ 	return v.call("CallSlice", in)
+ }
+ 
++var callGC bool // for testing; see TestCallMethodJump
++
+ var makeFuncStubFn = makeFuncStub
+ var makeFuncStubCode = **(**uintptr)(unsafe.Pointer(&makeFuncStubFn))
+ var methodValueCallFn = methodValueCall
+@@ -560,7 +562,12 @@ func (v Value) call(op string, in []Value) []Value {
+ 	}
+ 
+ 	// Call.
+-	call(fn, args, uint32(frametype.size))
++	call(fn, args, uint32(frametype.size), uint32(retOffset))
++
++	// For testing; see TestCallMethodJump.
++	if callGC {
++		runtime.GC()
++	}
+ 
+ 	// Copy return values out of args.
+ 	ret := make([]Value, nout)
+@@ -751,7 +758,7 @@ func callMethod(ctxt *methodValue, frame unsafe.Pointer) {
+ 	memmove(unsafe.Pointer(uintptr(args)+ptrSize), frame, argSize-ptrSize)
+ 
+ 	// Call.
+-	call(fn, args, uint32(frametype.size))
++	call(fn, args, uint32(frametype.size), uint32(retOffset))
+ 
+ 	// Copy return values. On amd64p32, the beginning of return values
+ 	// is 64-bit aligned, so the caller's frame layout (which doesn't have
+@@ -2658,7 +2665,7 @@ func mapiterkey(it unsafe.Pointer) (key unsafe.Pointer)
+ func mapiternext(it unsafe.Pointer)
+ func maplen(m unsafe.Pointer) int
+ 
+-func call(fn, arg unsafe.Pointer, n uint32)
++func call(fn, arg unsafe.Pointer, n uint32, retoffset uint32)
+ func ifaceE2I(t *rtype, src interface{}, dst unsafe.Pointer)
+ 
+ // Dummy annotation marking that the value x escapes,
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index ee9697c537..e7ea093a41 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -311,7 +311,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-12
+ 	JMP	AX
+ // Note: can't just "JMP runtime·NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-12
++TEXT reflect·call(SB), NOSPLIT, $0-16
+ 	MOVL	argsize+8(FP), CX
+ 	DISPATCH(call16, 16)
+ 	DISPATCH(call32, 32)
+@@ -344,7 +344,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-12
+ 	JMP	AX
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;	\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-16;	\
+ 	/* copy arguments to stack */		\
+ 	MOVL	argptr+4(FP), SI;		\
+ 	MOVL	argsize+8(FP), CX;		\
+@@ -357,7 +357,11 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;	\
+ 	/* copy return values back */		\
+ 	MOVL	argptr+4(FP), DI;		\
+ 	MOVL	argsize+8(FP), CX;		\
++	MOVL	retoffset+12(FP), BX;		\
+ 	MOVL	SP, SI;				\
++	ADDL	BX, DI;				\
++	ADDL	BX, SI;				\
++	SUBL	BX, CX;				\
+ 	REP;MOVSB;				\
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index fa6d8693ff..eeda9aa7f4 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -289,7 +289,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $0-20
+ 	JMP	AX
+ // Note: can't just "JMP runtime·NAME(SB)" - bad inlining results.
+ 
+-TEXT reflect·call(SB), NOSPLIT, $0-20
++TEXT reflect·call(SB), NOSPLIT, $0-24
+ 	MOVLQZX argsize+16(FP), CX
+ 	DISPATCH(call16, 16)
+ 	DISPATCH(call32, 32)
+@@ -322,7 +322,7 @@ TEXT reflect·call(SB), NOSPLIT, $0-20
+ 	JMP	AX
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-20;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-24;	\
+ 	/* copy arguments to stack */		\
+ 	MOVQ	argptr+8(FP), SI;		\
+ 	MOVLQZX argsize+16(FP), CX;		\
+@@ -334,7 +334,11 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-20;		\
+ 	/* copy return values back */		\
+ 	MOVQ	argptr+8(FP), DI;		\
+ 	MOVLQZX	argsize+16(FP), CX;		\
++	MOVLQZX retoffset+20(FP), BX;		\
+ 	MOVQ	SP, SI;				\
++	ADDQ	BX, DI;				\
++	ADDQ	BX, SI;				\
++	SUBQ	BX, CX;				\
+ 	REP;MOVSB;				\
+ 	RET
+ 
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 3aed51f490..e1464a07b2 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -269,7 +269,7 @@ TEXT runtime·newstackcall(SB), NOSPLIT, $-4-12
+ 	MOVW	$runtime·NAME(SB), R1;	\
+ 	B	(R1)
+ 
+-TEXT reflect·call(SB), NOSPLIT, $-4-12
++TEXT reflect·call(SB), NOSPLIT, $-4-16
+ 	MOVW	argsize+8(FP), R0
+ 	DISPATCH(call16, 16)
+ 	DISPATCH(call32, 32)
+@@ -302,7 +302,7 @@ TEXT reflect·call(SB), NOSPLIT, $-4-12
+ 	B	(R1)
+ 
+ #define CALLFN(NAME,MAXSIZE)			\
+-TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
++TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-16;	\
+ 	/* copy arguments to stack */		\
+ 	MOVW	argptr+4(FP), R0;		\
+ 	MOVW	argsize+8(FP), R2;		\
+@@ -320,7 +320,11 @@ TEXT runtime·NAME(SB), WRAPPER, $MAXSIZE-12;		\
+ 	/* copy return values back */		\
+ 	MOVW	argptr+4(FP), R0;		\
+ 	MOVW	argsize+8(FP), R2;		\
++	MOVW	retoffset+12(FP), R3;		\
+ 	ADD	$4, SP, R1;			\
++	ADD	R3, R1;				\
++	ADD	R3, R0;				\
++	SUB	R3, R2;				\
+ 	CMP	$0, R2;				\
+ 	RET.EQ	;				\
+ 	MOVBU.P	1(R1), R5;			\
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 9f92e99f44..24e4cf6816 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -55,6 +55,7 @@
+ #include "malloc.h"
+ #include "stack.h"
+ #include "mgc0.h"
++#include "chan.h"
+ #include "race.h"
+ #include "type.h"
+ #include "typekind.h"
+@@ -796,9 +797,6 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 	for(;;) {
+ 		// Each iteration scans the block b of length n, queueing pointers in
+ 		// the work buffer.
+-		if(Debug > 1) {
+-			runtime·printf("scanblock %p %D\n", b, (int64)n);
+-		}
+ 
+ 		if(CollectStats) {
+ 			runtime·xadd64(&gcstats.nbytes, n);
+@@ -807,6 +805,9 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 		}
+ 
+ 		if(ti != 0) {
++			if(Debug > 1) {
++				runtime·printf("scanblock %p %D ti %p\n", b, (int64)n, ti);
++			}
+ 			pc = (uintptr*)(ti & ~(uintptr)PC_BITS);
+ 			precise_type = (ti & PRECISE);
+ 			stack_top.elemsize = pc[0];
+@@ -862,14 +863,22 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 					pc = chanProg;
+ 					break;
+ 				default:
++					if(Debug > 1)
++						runtime·printf("scanblock %p %D type %p %S\n", b, (int64)n, type, *t->string);
+ 					runtime·throw("scanblock: invalid type");
+ 					return;
+ 				}
++				if(Debug > 1)
++					runtime·printf("scanblock %p %D type %p %S pc=%p\n", b, (int64)n, type, *t->string, pc);
+ 			} else {
+ 				pc = defaultProg;
++				if(Debug > 1)
++					runtime·printf("scanblock %p %D unknown type\n", b, (int64)n);
+ 			}
+ 		} else {
+ 			pc = defaultProg;
++			if(Debug > 1)
++				runtime·printf("scanblock %p %D no span types\n", b, (int64)n);
+ 		}
+ 
+ 		if(IgnorePreciseGC)
+@@ -877,7 +886,6 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 
+ 		pc++;
+ 		stack_top.b = (uintptr)b;
+-
+ 		end_b = (uintptr)b + n - PtrSize;
+ 
+ 	for(;;) {
+@@ -890,6 +898,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 		case GC_PTR:
+ 			obj = *(void**)(stack_top.b + pc[1]);
+ 			objti = pc[2];
++			if(Debug > 2)
++				runtime·printf("gc_ptr @%p: %p ti=%p\n", stack_top.b+pc[1], obj, objti);
+ 			pc += 3;
+ 			if(Debug)
+ 				checkptr(obj, objti);
+@@ -897,6 +907,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 
+ 		case GC_SLICE:
+ 			sliceptr = (Slice*)(stack_top.b + pc[1]);
++			if(Debug > 2)
++				runtime·printf("gc_slice @%p: %p/%D/%D\n", sliceptr, sliceptr->array, (int64)sliceptr->len, (int64)sliceptr->cap);
+ 			if(sliceptr->cap != 0) {
+ 				obj = sliceptr->array;
+ 				// Can't use slice element type for scanning,
+@@ -910,11 +922,15 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 
+ 		case GC_APTR:
+ 			obj = *(void**)(stack_top.b + pc[1]);
++			if(Debug > 2)
++				runtime·printf("gc_aptr @%p: %p\n", stack_top.b+pc[1], obj);
+ 			pc += 2;
+ 			break;
+ 
+ 		case GC_STRING:
+ 			stringptr = (String*)(stack_top.b + pc[1]);
++			if(Debug > 2)
++				runtime·printf("gc_string @%p: %p/%D\n", stack_top.b+pc[1], stringptr->str, (int64)stringptr->len);
+ 			if(stringptr->len != 0)
+ 				markonly(stringptr->str);
+ 			pc += 2;
+@@ -923,6 +939,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 		case GC_EFACE:
+ 			eface = (Eface*)(stack_top.b + pc[1]);
+ 			pc += 2;
++			if(Debug > 2)
++				runtime·printf("gc_eface @%p: %p %p\n", stack_top.b+pc[1], eface->type, eface->data);
+ 			if(eface->type == nil)
+ 				continue;
+ 
+@@ -953,6 +971,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 		case GC_IFACE:
+ 			iface = (Iface*)(stack_top.b + pc[1]);
+ 			pc += 2;
++			if(Debug > 2)
++				runtime·printf("gc_iface @%p: %p/%p %p\n", stack_top.b+pc[1], iface->tab, nil, iface->data);
+ 			if(iface->tab == nil)
+ 				continue;
+ 			
+@@ -983,6 +1003,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 		case GC_DEFAULT_PTR:
+ 			while(stack_top.b <= end_b) {
+ 				obj = *(byte**)stack_top.b;
++				if(Debug > 2)
++					runtime·printf("gc_default_ptr @%p: %p\n", stack_top.b, obj);
+ 				stack_top.b += PtrSize;
+ 				if(obj >= arena_start && obj < arena_used) {
+ 					*sbuf.ptr.pos++ = (PtrTarget){obj, 0};
+@@ -1062,6 +1084,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 			objti = pc[3];
+ 			pc += 4;
+ 
++			if(Debug > 2)
++				runtime·printf("gc_region @%p: %D %p\n", stack_top.b+pc[1], (int64)size, objti);
+ 			*sbuf.obj.pos++ = (Obj){obj, size, objti};
+ 			if(sbuf.obj.pos == sbuf.obj.end)
+ 				flushobjbuf(&sbuf);
+@@ -1069,6 +1093,8 @@ scanblock(Workbuf *wbuf, bool keepworking)
+ 
+ 		case GC_CHAN_PTR:
+ 			chan = *(Hchan**)(stack_top.b + pc[1]);
++			if(Debug > 2 && chan != nil)
++				runtime·printf("gc_chan_ptr @%p: %p/%D/%D %p\n", stack_top.b+pc[1], chan, (int64)chan->qcount, (int64)chan->dataqsiz, pc[2]);
+ 			if(chan == nil) {
+ 				pc += 3;
+ 				continue;
+@@ -1462,6 +1488,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 			case BitsPointer:
+ 				p = *(byte**)scanp;
+ 				if(p != nil) {
++					if(Debug > 2)
++						runtime·printf("frame %s @%p: ptr %p\n", runtime·funcname(f), scanp, p);
+ 					if(precise && (p < (byte*)PageSize || (uintptr)p == PoisonGC || (uintptr)p == PoisonStack)) {
+ 						// Looks like a junk value in a pointer slot.
+ 						// Liveness analysis wrong?
+@@ -1489,6 +1517,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 				}
+ 				switch(word & 3) {
+ 				case BitsString:
++					if(Debug > 2)
++						runtime·printf("frame %s @%p: string %p/%D\n", runtime·funcname(f), p, ((String*)p)->str, (int64)((String*)p)->len);
+ 					if(((String*)p)->len != 0)
+ 						markonly(((String*)p)->str);
+ 					break;
+@@ -1506,6 +1536,8 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 							i = 32;
+ 						i /= BitsPerPointer;
+ 					}
++					if(Debug > 2)
++						runtime·printf("frame %s @%p: slice %p/%D/%D\n", runtime·funcname(f), p, ((Slice*)p)->array, (int64)((Slice*)p)->len, (int64)((Slice*)p)->cap);
+ 					if(((Slice*)p)->cap < ((Slice*)p)->len) {
+ 						m->traceback = 2;
+ 						runtime·printf("bad slice in frame %s at %p: %p/%p/%p\n", runtime·funcname(f), p, ((byte**)p)[0], ((byte**)p)[1], ((byte**)p)[2]);
+@@ -1516,8 +1548,15 @@ scanbitvector(Func *f, bool precise, byte *scanp, BitVector *bv, bool afterprolo
+ 					break;
+ 				case BitsIface:
+ 				case BitsEface:
+-					if(*(byte**)p != nil)
++					if(*(byte**)p != nil) {
++						if(Debug > 2) {
++							if((word&3) == BitsEface)
++								runtime·printf("frame %s @%p: eface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
++							else
++								runtime·printf("frame %s @%p: iface %p %p\n", runtime·funcname(f), p, ((uintptr*)p)[0], ((uintptr*)p)[1]);
++						}
+ 						scaninterfacedata(word & 3, p, afterprologue, wbufp);
++					}
+ 					break;
+ 				}
+ 			}
+@@ -1561,10 +1600,14 @@ scanframe(Stkframe *frame, void *wbufp)
+ 		if(stackmap == nil) {
+ 			// No locals information, scan everything.
+ 			size = frame->varp - (byte*)frame->sp;
++			if(Debug > 2)
++				runtime·printf("frame %s unsized locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
+ 			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+ 		} else if(stackmap->n < 0) {
+ 			// Locals size information, scan just the locals.
+ 			size = -stackmap->n;
++			if(Debug > 2)
++				runtime·printf("frame %s conservative locals %p+%p\n", runtime·funcname(f), frame->varp-size, size);
+ 			enqueue1(wbufp, (Obj){frame->varp - size, size, 0});
+ 		} else if(stackmap->n > 0) {
+ 			// Locals bitmap information, scan just the pointers in
+@@ -1588,8 +1631,11 @@ scanframe(Stkframe *frame, void *wbufp)
+ 	if(stackmap != nil) {
+ 		bv = runtime·stackmapdata(stackmap, pcdata);
+ 		scanbitvector(f, precise, frame->argp, &bv, true, wbufp);
+-	} else
++	} else {
++		if(Debug > 2)
++			runtime·printf("frame %s conservative args %p+%p\n", runtime·funcname(f), frame->argp, (uintptr)frame->arglen);
+ 		enqueue1(wbufp, (Obj){frame->argp, frame->arglen, 0});
++	}
+ 	return true;
+ }
+ 
+@@ -1653,6 +1699,8 @@ addstackroots(G *gp, Workbuf **wbufp)
+ 				runtime·printf("scanstack inconsistent: g%D#%d sp=%p not in [%p,%p]\n", gp->goid, n, sp, guard-StackGuard, stk);
+ 				runtime·throw("scanstack");
+ 			}
++			if(Debug > 2)
++				runtime·printf("conservative stack %p+%p\n", (byte*)sp, (uintptr)stk-sp);
+ 			enqueue1(wbufp, (Obj){(byte*)sp, (uintptr)stk - sp, (uintptr)defaultProg | PRECISE | LOOP});
+ 			sp = stk->gobuf.sp;
+ 			guard = stk->stackguard;
+@@ -2619,7 +2667,7 @@ runfinq(void)
+ 					if(!runtime·ifaceE2I2((InterfaceType*)f->fint, ef1, (Iface*)frame))
+ 						runtime·throw("invalid type conversion in runfinq");
+ 				}
+-				reflect·call(f->fn, frame, framesz);
++				reflect·call(f->fn, frame, framesz, framesz);
+ 				f->fn = nil;
+ 				f->arg = nil;
+ 				f->ot = nil;
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 3af8cb67aa..a5dbb7b9cc 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -184,7 +184,7 @@ rundefer(void)
+ 
+ 	while((d = g->defer) != nil) {
+ 		g->defer = d->link;
+-		reflect·call(d->fn, (byte*)d->args, d->siz);
++		reflect·call(d->fn, (byte*)d->args, d->siz, d->siz);
+ 		freedefer(d);
+ 	}
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0ba1238734..27efc8a31c 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1074,7 +1074,7 @@ void	runtime·printhex(uint64);
+ void	runtime·printslice(Slice);
+ void	runtime·printcomplex(Complex128);
+ void	runtime·newstackcall(FuncVal*, byte*, uint32);
+-void	reflect·call(FuncVal*, byte*, uint32);
++void	reflect·call(FuncVal*, byte*, uint32, uint32);
+ void	runtime·panic(Eface);
+ void	runtime·panicindex(void);
+ void	runtime·panicslice(void);

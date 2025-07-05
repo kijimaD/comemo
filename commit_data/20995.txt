@@ -15,6 +15,22 @@ Date:   Tue Nov 4 09:43:37 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/166110043
-
+---
  src/cmd/gc/lex.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 2303b442cd..523ba37aa7 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -344,8 +344,8 @@ main(int argc, char *argv[])
+ 					break;
+ 				}
+ 			}
+-			if(j == nelem(debugtab))
+-				fatal("unknown debug information -d '%s'\n", f[i]);
++			if(debugtab[j].name == nil)
++				sysfatal("unknown debug information -d '%s'\n", f[i]);
+ 		}
+ 	}
+ 

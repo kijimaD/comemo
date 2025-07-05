@@ -9,6 +9,30 @@ Date:   Fri Feb 3 17:36:25 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5631046
-
+---
  src/pkg/reflect/all_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 63b127d102..8ae977912b 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1528,6 +1528,18 @@ func TestAddr(t *testing.T) {
+ 	if p.X != 4 {
+ 		t.Errorf("Addr.Elem.Set valued to set value in top value")
+ 	}
++
++	// Verify that taking the address of a type gives us a pointer
++	// which we can convert back using the usual interface
++	// notation.
++	var s struct {
++		B *bool
++	}
++	ps := ValueOf(&s).Elem().Field(0).Addr().Interface()
++	*(ps.(**bool)) = new(bool)
++	if s.B == nil {
++		t.Errorf("Addr.Interface direct assignment failed")
++	}
+ }
+ 
+ func noAlloc(t *testing.T, n int, f func(int)) {

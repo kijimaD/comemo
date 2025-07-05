@@ -14,7 +14,39 @@ Date:   Thu Feb 11 11:46:24 2021 -0500
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/examples/types.go2 | 3 +++
  src/go/types/typexpr.go         | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/go/types/examples/types.go2 b/src/go/types/examples/types.go2
+index 5aa624c131..4dba4f0e57 100644
+--- a/src/go/types/examples/types.go2
++++ b/src/go/types/examples/types.go2
+@@ -112,6 +112,9 @@ type I1[T any] interface{
+ 	m1(T)
+ }
+ 
++// There is no such thing as a variadic generic type.
++type _[T ... /* ERROR invalid use of ... */ interface{}] struct{}
++
+ // Generic interfaces may be embedded as one would expect.
+ type I2 interface {
+ 	I1(int)     // method!
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index a6b7314dd5..bca0a6664f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -488,6 +488,12 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		typ.elem = check.varType(e.Elt)
+ 		return typ
+ 
++	case *ast.Ellipsis:
++		// dots are handled explicitly where they are legal
++		// (array composite literals and parameter lists)
++		check.error(e, _InvalidDotDotDot, "invalid use of '...'")
++		check.use(e.Elt)
++
+ 	case *ast.StructType:
+ 		typ := new(Struct)
+ 		def.setUnderlying(typ)

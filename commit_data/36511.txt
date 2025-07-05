@@ -13,6 +13,20 @@ Date:   Sun Mar 18 02:36:40 2018 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 429e03676c..573ef05fdc 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -731,7 +731,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+-		if t.failed {
++		if t.Failed() {
+ 			atomic.AddUint32(&numFailed, 1)
+ 		}
+ 

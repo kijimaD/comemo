@@ -7,6 +7,20 @@ Date:   Tue Jan 10 07:43:48 2012 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5531060
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index e451b3a03b..4d21cf20c3 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -259,7 +259,7 @@ func matchPattern(pattern string) func(name string) bool {
+ }
+ 
+ // allPackages returns all the packages that can be found
+-// under the $GOPATH directories and $GOROOT matching what.
++// under the $GOPATH directories and $GOROOT matching pattern.
+ // The pattern is either "all" (all packages), "std" (standard packages)
+ // or a path including "...".
+ func allPackages(pattern string) []string {

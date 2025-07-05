@@ -7,6 +7,20 @@ Date:   Fri Sep 10 15:50:29 2010 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/2111045
-
+---
  src/pkg/net/resolv_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/resolv_windows.go b/src/pkg/net/resolv_windows.go
+index b86a25ad21..f6c9085012 100644
+--- a/src/pkg/net/resolv_windows.go
++++ b/src/pkg/net/resolv_windows.go
+@@ -54,7 +54,7 @@ func LookupSRV(name string) (cname string, addrs []*SRV, err os.Error) {
+ 	i := 0
+ 	for p := r; p != nil && p.Type == syscall.DNS_TYPE_SRV; p = p.Next {
+ 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
+-		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))), v.Port, v.Priority, v.Weight}
++		addrs[i] = &SRV{syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]), v.Port, v.Priority, v.Weight}
+ 		i++
+ 	}
+ 	addrs = addrs[0:i]

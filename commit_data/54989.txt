@@ -12,6 +12,22 @@ Date:   Thu Dec 1 09:24:06 2022 -0800
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/crypto/x509/verify.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index cb6479f345..0b01f8b475 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -925,6 +925,10 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
+ 
+ 		err = candidate.isValid(certType, currentChain, opts)
+ 		if err != nil {
++			if hintErr == nil {
++				hintErr = err
++				hintCert = candidate
++			}
+ 			return
+ 		}
+ 

@@ -16,10 +16,212 @@ Date:   Fri Feb 16 15:35:35 2018 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/doc/exports.go          | 36 ++++++++++++++++++++++++++++++++----
  src/go/doc/testdata/g.0.golden | 32 ++++++++++++++++++++++++++++++++
  src/go/doc/testdata/g.1.golden | 34 ++++++++++++++++++++++++++++++++++
  src/go/doc/testdata/g.2.golden | 32 ++++++++++++++++++++++++++++++++
  src/go/doc/testdata/g.go       | 25 +++++++++++++++++++++++++
  5 files changed, 155 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/doc/exports.go b/src/go/doc/exports.go
+index 40cbb22797..ccdefcb967 100644
+--- a/src/go/doc/exports.go
++++ b/src/go/doc/exports.go
+@@ -25,6 +25,21 @@ func filterIdentList(list []*ast.Ident) []*ast.Ident {
+ 	return list[0:j]
+ }
+ 
++var underscore = ast.NewIdent("_")
++
++// updateIdentList replaces all unexported identifiers with underscore
++// and reports whether at least one exported name exists.
++func updateIdentList(list []*ast.Ident) (hasExported bool) {
++	for i, x := range list {
++		if ast.IsExported(x.Name) {
++			hasExported = true
++		} else {
++			list[i] = underscore
++		}
++	}
++	return hasExported
++}
++
+ // hasExportedName reports whether list contains any exported names.
+ //
+ func hasExportedName(list []*ast.Ident) bool {
+@@ -156,10 +171,23 @@ func (r *reader) filterSpec(spec ast.Spec) bool {
+ 		// always keep imports so we can collect them
+ 		return true
+ 	case *ast.ValueSpec:
+-		s.Names = filterIdentList(s.Names)
+-		if len(s.Names) > 0 {
+-			r.filterType(nil, s.Type)
+-			return true
++		if len(s.Values) > 0 || s.Type == nil && len(s.Values) == 0 {
++			// If there are values declared on RHS, just replace the unexported
++			// identifiers on the LHS with underscore, so that it matches
++			// the sequence of expression on the RHS.
++			//
++			// Similarly, if there are no type and values, then this expression
++			// must be following an iota expression, where order matters.
++			if updateIdentList(s.Names) {
++				r.filterType(nil, s.Type)
++				return true
++			}
++		} else {
++			s.Names = filterIdentList(s.Names)
++			if len(s.Names) > 0 {
++				r.filterType(nil, s.Type)
++				return true
++			}
+ 		}
+ 	case *ast.TypeSpec:
+ 		if name := s.Name.Name; ast.IsExported(name) {
+diff --git a/src/go/doc/testdata/g.0.golden b/src/go/doc/testdata/g.0.golden
+new file mode 100644
+index 0000000000..487cf06ae5
+--- /dev/null
++++ b/src/go/doc/testdata/g.0.golden
+@@ -0,0 +1,32 @@
++// The package g is a go/doc test for mixed exported/unexported ...
++PACKAGE g
++
++IMPORTPATH
++	testdata/g
++
++FILENAMES
++	testdata/g.go
++
++CONSTANTS
++	// 
++	const (
++		A, _	= iota, iota
++		_, D
++		E, _
++		G, H
++	)
++
++
++VARIABLES
++	// 
++	var (
++		_, C2, _	= 1, 2, 3
++		C4, _, C6	= 4, 5, 6
++		_, C8, _	= 7, 8, 9
++	)
++
++	// 
++	var (
++		_, X = f()
++	)
++
+diff --git a/src/go/doc/testdata/g.1.golden b/src/go/doc/testdata/g.1.golden
+new file mode 100644
+index 0000000000..438441ac54
+--- /dev/null
++++ b/src/go/doc/testdata/g.1.golden
+@@ -0,0 +1,34 @@
++// The package g is a go/doc test for mixed exported/unexported ...
++PACKAGE g
++
++IMPORTPATH
++	testdata/g
++
++FILENAMES
++	testdata/g.go
++
++CONSTANTS
++	// 
++	const (
++		A, b	= iota, iota
++		c, D
++		E, f
++		G, H
++	)
++
++
++VARIABLES
++	// 
++	var (
++		c1, C2, c3	= 1, 2, 3
++		C4, c5, C6	= 4, 5, 6
++		c7, C8, c9	= 7, 8, 9
++		xx, yy, zz	= 0, 0, 0	// all unexported and hidden
++	)
++
++	// 
++	var (
++		x, X	= f()
++		y, z	= f()
++	)
++
+diff --git a/src/go/doc/testdata/g.2.golden b/src/go/doc/testdata/g.2.golden
+new file mode 100644
+index 0000000000..487cf06ae5
+--- /dev/null
++++ b/src/go/doc/testdata/g.2.golden
+@@ -0,0 +1,32 @@
++// The package g is a go/doc test for mixed exported/unexported ...
++PACKAGE g
++
++IMPORTPATH
++	testdata/g
++
++FILENAMES
++	testdata/g.go
++
++CONSTANTS
++	// 
++	const (
++		A, _	= iota, iota
++		_, D
++		E, _
++		G, H
++	)
++
++
++VARIABLES
++	// 
++	var (
++		_, C2, _	= 1, 2, 3
++		C4, _, C6	= 4, 5, 6
++		_, C8, _	= 7, 8, 9
++	)
++
++	// 
++	var (
++		_, X = f()
++	)
++
+diff --git a/src/go/doc/testdata/g.go b/src/go/doc/testdata/g.go
+new file mode 100644
+index 0000000000..ceeb417443
+--- /dev/null
++++ b/src/go/doc/testdata/g.go
+@@ -0,0 +1,25 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The package g is a go/doc test for mixed exported/unexported values.
++package g
++
++const (
++	A, b = iota, iota
++	c, D
++	E, f
++	G, H
++)
++
++var (
++	c1, C2, c3 = 1, 2, 3
++	C4, c5, C6 = 4, 5, 6
++	c7, C8, c9 = 7, 8, 9
++	xx, yy, zz = 0, 0, 0 // all unexported and hidden
++)
++
++var (
++	x, X = f()
++	y, z = f()
++)

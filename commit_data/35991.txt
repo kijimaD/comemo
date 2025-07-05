@@ -57,6 +57,33 @@ Date:   Tue Mar 27 13:24:45 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 291ca91c61..abfdfc1b24 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -963,7 +963,10 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			}
+ 
+ 			// Save the starting state for use by merge edges.
+-			var regList []startReg
++			// We append to a stack allocated variable that we'll
++			// later copy into s.startRegs in one fell swoop, to save
++			// on allocations.
++			regList := make([]startReg, 0, 32)
+ 			for r := register(0); r < s.numRegs; r++ {
+ 				v := s.regs[r].v
+ 				if v == nil {
+@@ -976,7 +979,8 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 				regList = append(regList, startReg{r, v, s.regs[r].c, s.values[v.ID].uses.pos})
+ 			}
+-			s.startRegs[b.ID] = regList
++			s.startRegs[b.ID] = make([]startReg, len(regList))
++			copy(s.startRegs[b.ID], regList)
+ 
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("after phis\n")

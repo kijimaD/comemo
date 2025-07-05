@@ -22,7 +22,7 @@ Date:   Thu Mar 16 21:33:03 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          | 15 ++++++
  src/cmd/compile/internal/gc/asm_test.go        | 28 +++++++++++
  src/cmd/compile/internal/gc/builtin.go         |  1 +
@@ -34,3 +34,367 @@ Date:   Thu Mar 16 21:33:03 2017 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 54 ++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 64 ++++++++++++++++++++++++++
  10 files changed, 228 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 20fc49c926..4faad77a65 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -767,6 +767,21 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpAMD64POPCNTQ, ssa.OpAMD64POPCNTL:
++		if v.Args[0].Reg() != v.Reg() {
++			// POPCNT on Intel has a false dependency on the destination register.
++			// Zero the destination to break the dependency.
++			p := s.Prog(x86.AMOVQ)
++			p.From.Type = obj.TYPE_CONST
++			p.From.Offset = 0
++			p.To.Type = obj.TYPE_REG
++			p.To.Reg = v.Reg()
++		}
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+ 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
+ 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b904c44fe6..dd96bec282 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -699,6 +699,34 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tBSRQ\t"},
+ 	},
++	{
++		`
++		func pop1(x uint64) int {
++			return bits.OnesCount64(x)
++		}`,
++		[]string{"\tPOPCNTQ\t", "support_popcnt"},
++	},
++	{
++		`
++		func pop2(x uint32) int {
++			return bits.OnesCount32(x)
++		}`,
++		[]string{"\tPOPCNTL\t", "support_popcnt"},
++	},
++	{
++		`
++		func pop3(x uint16) int {
++			return bits.OnesCount16(x)
++		}`,
++		[]string{"\tPOPCNTL\t", "support_popcnt"},
++	},
++	{
++		`
++		func pop4(x uint) int {
++			return bits.OnesCount(x)
++		}`,
++		[]string{"\tPOPCNTQ\t", "support_popcnt"},
++	},
+ 	// see issue 19595.
+ 	// We want to merge load+op in f58, but not in f59.
+ 	{
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 294fc4fc16..eae6f20d80 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -142,6 +142,7 @@ var runtimeDecls = [...]struct {
+ 	{"racewriterange", funcTag, 111},
+ 	{"msanread", funcTag, 111},
+ 	{"msanwrite", funcTag, 111},
++	{"support_popcnt", varTag, 11},
+ }
+ 
+ func runtimeTypes() []*Type {
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index b89f0a3c02..7f4846db9d 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -187,3 +187,6 @@ func racewriterange(addr, size uintptr)
+ // memory sanitizer
+ func msanread(addr, size uintptr)
+ func msanwrite(addr, size uintptr)
++
++// architecture variants
++var support_popcnt bool
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ad81858186..a0cc83d82f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2823,6 +2823,54 @@ func init() {
+ 			return s.newValue1(ssa.OpBitRev64, Types[TINT], args[0])
+ 		},
+ 		sys.ARM64)
++	makeOnesCount := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TBOOL], Sym: Linksym(syslook("support_popcnt").Sym)})
++			addr := s.entryNewValue1A(ssa.OpAddr, Types[TBOOL].PtrTo(), aux, s.sb)
++			v := s.newValue2(ssa.OpLoad, Types[TBOOL], addr, s.mem())
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely // most machines have popcnt nowadays
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			op := op64
++			if s.config.IntSize == 4 {
++				op = op32
++			}
++			s.vars[n] = s.newValue1(op, Types[TINT], args[0])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			a := s.call(n, callNormal)
++			s.vars[n] = s.newValue2(ssa.OpLoad, Types[TINT], a, s.mem())
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, Types[TINT])
++		}
++	}
++	addF("math/bits", "OnesCount64",
++		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount64),
++		sys.AMD64)
++	addF("math/bits", "OnesCount32",
++		makeOnesCount(ssa.OpPopCount32, ssa.OpPopCount32),
++		sys.AMD64)
++	addF("math/bits", "OnesCount16",
++		makeOnesCount(ssa.OpPopCount16, ssa.OpPopCount16),
++		sys.AMD64)
++	// Note: no OnesCount8, the Go implementation is faster - just a table load.
++	addF("math/bits", "OnesCount",
++		makeOnesCount(ssa.OpPopCount64, ssa.OpPopCount32),
++		sys.AMD64)
+ 
+ 	/******** sync/atomic ********/
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index ac45cd71e5..b7cbe37472 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -106,6 +106,11 @@
+ (Bswap64 x) -> (BSWAPQ x)
+ (Bswap32 x) -> (BSWAPL x)
+ 
++(PopCount64 x) -> (POPCNTQ x)
++(PopCount32 x) -> (POPCNTL x)
++(PopCount16 x) -> (POPCNTL (MOVWQZX <types.UInt32> x))
++(PopCount8 x) -> (POPCNTL (MOVBQZX <types.UInt32> x))
++
+ (Sqrt x) -> (SQRTSD x)
+ 
+ // Lowering extension
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index a859c63aa4..d9e5fd5b7a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -323,6 +323,11 @@ func init() {
+ 		{name: "BSWAPQ", argLength: 1, reg: gp11, asm: "BSWAPQ", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+ 		{name: "BSWAPL", argLength: 1, reg: gp11, asm: "BSWAPL", resultInArg0: true, clobberFlags: true}, // arg0 swap bytes
+ 
++		// POPCNT instructions aren't guaranteed to be on the target platform (they are SSE4).
++		// Any use must be preceded by a successful check of runtime.support_popcnt.
++		{name: "POPCNTQ", argLength: 1, reg: gp11, asm: "POPCNTQ", clobberFlags: true}, // count number of set bits in arg0
++		{name: "POPCNTL", argLength: 1, reg: gp11, asm: "POPCNTL", clobberFlags: true}, // count number of set bits in arg0
++
+ 		{name: "SQRTSD", argLength: 1, reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
+ 
+ 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 7991f32679..300a54524b 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -250,6 +250,11 @@ var genericOps = []opData{
+ 	{name: "BitRev32", argLength: 1}, // Reverse the bits in arg[0]
+ 	{name: "BitRev64", argLength: 1}, // Reverse the bits in arg[0]
+ 
++	{name: "PopCount8", argLength: 1},  // Count bits in arg[0]
++	{name: "PopCount16", argLength: 1}, // Count bits in arg[0]
++	{name: "PopCount32", argLength: 1}, // Count bits in arg[0]
++	{name: "PopCount64", argLength: 1}, // Count bits in arg[0]
++
+ 	{name: "Sqrt", argLength: 1}, // sqrt(arg0), float64 only
+ 
+ 	// Data movement, max argument length for Phi is indefinite so just pick
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index daeaf64c62..48bc15773e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -538,6 +538,8 @@ const (
+ 	OpAMD64CMOVLEQ
+ 	OpAMD64BSWAPQ
+ 	OpAMD64BSWAPL
++	OpAMD64POPCNTQ
++	OpAMD64POPCNTL
+ 	OpAMD64SQRTSD
+ 	OpAMD64SBBQcarrymask
+ 	OpAMD64SBBLcarrymask
+@@ -1778,6 +1780,10 @@ const (
+ 	OpBitRev16
+ 	OpBitRev32
+ 	OpBitRev64
++	OpPopCount8
++	OpPopCount16
++	OpPopCount32
++	OpPopCount64
+ 	OpSqrt
+ 	OpPhi
+ 	OpCopy
+@@ -6368,6 +6374,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "POPCNTQ",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.APOPCNTQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
++	{
++		name:         "POPCNTL",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.APOPCNTL,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++			outputs: []outputInfo{
++				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
++			},
++		},
++	},
+ 	{
+ 		name:   "SQRTSD",
+ 		argLen: 1,
+@@ -21680,6 +21714,26 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "PopCount8",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "PopCount16",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "PopCount32",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "PopCount64",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Sqrt",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 91e05456e0..df72064b76 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -686,6 +686,14 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpOr8(v)
+ 	case OpOrB:
+ 		return rewriteValueAMD64_OpOrB(v)
++	case OpPopCount16:
++		return rewriteValueAMD64_OpPopCount16(v)
++	case OpPopCount32:
++		return rewriteValueAMD64_OpPopCount32(v)
++	case OpPopCount64:
++		return rewriteValueAMD64_OpPopCount64(v)
++	case OpPopCount8:
++		return rewriteValueAMD64_OpPopCount8(v)
+ 	case OpRound32F:
+ 		return rewriteValueAMD64_OpRound32F(v)
+ 	case OpRound64F:
+@@ -33467,6 +33475,62 @@ func rewriteValueAMD64_OpOrB(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpPopCount16(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (PopCount16 x)
++	// cond:
++	// result: (POPCNTL (MOVWQZX <types.UInt32> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpAMD64POPCNTL)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVWQZX, types.UInt32)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueAMD64_OpPopCount32(v *Value) bool {
++	// match: (PopCount32 x)
++	// cond:
++	// result: (POPCNTL x)
++	for {
++		x := v.Args[0]
++		v.reset(OpAMD64POPCNTL)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueAMD64_OpPopCount64(v *Value) bool {
++	// match: (PopCount64 x)
++	// cond:
++	// result: (POPCNTQ x)
++	for {
++		x := v.Args[0]
++		v.reset(OpAMD64POPCNTQ)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueAMD64_OpPopCount8(v *Value) bool {
++	b := v.Block
++	_ = b
++	types := &b.Func.Config.Types
++	_ = types
++	// match: (PopCount8 x)
++	// cond:
++	// result: (POPCNTL (MOVBQZX <types.UInt32> x))
++	for {
++		x := v.Args[0]
++		v.reset(OpAMD64POPCNTL)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVBQZX, types.UInt32)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpRound32F(v *Value) bool {
+ 	// match: (Round32F x)
+ 	// cond:

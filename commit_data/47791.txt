@@ -12,6 +12,24 @@ Date:   Sun Apr 11 21:06:24 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal_windows_test.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/os/signal/signal_windows_test.go b/src/os/signal/signal_windows_test.go
+index 4640428587..9b14551572 100644
+--- a/src/os/signal/signal_windows_test.go
++++ b/src/os/signal/signal_windows_test.go
+@@ -56,11 +56,7 @@ func main() {
+ 	}
+ }
+ `
+-	tmp, err := os.MkdirTemp("", "TestCtrlBreak")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmp)
++	tmp := t.TempDir()
+ 
+ 	// write ctrlbreak.go
+ 	name := filepath.Join(tmp, "ctlbreak")

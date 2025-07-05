@@ -7,6 +7,38 @@ Date:   Wed Dec 5 15:26:18 2012 +1100
     R=dave, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/6873046
-
+---
  src/pkg/net/fd_windows.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index b88c5d474b..44b6663af9 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -300,7 +300,6 @@ func allocFD(fd syscall.Handle, family, sotype int, net string) *netFD {
+ 		net:    net,
+ 		closec: make(chan bool),
+ 	}
+-	runtime.SetFinalizer(netfd, (*netFD).Close)
+ 	return netfd
+ }
+ 
+@@ -319,6 +318,7 @@ func newFD(fd syscall.Handle, family, proto int, net string) (*netFD, error) {
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.laddr = laddr
+ 	fd.raddr = raddr
++	runtime.SetFinalizer(fd, (*netFD).closesocket)
+ }
+ 
+ func (fd *netFD) connect(ra syscall.Sockaddr) error {
+@@ -398,6 +398,10 @@ func (fd *netFD) CloseWrite() error {
+ 	return fd.shutdown(syscall.SHUT_WR)
+ }
+ 
++func (fd *netFD) closesocket() error {
++	return closesocket(fd.sysfd)
++}
++
+ // Read from network.
+ 
+ type readOp struct {

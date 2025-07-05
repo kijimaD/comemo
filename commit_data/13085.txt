@@ -7,6 +7,23 @@ Date:   Thu May 17 11:34:28 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6210062
-
+---
  src/pkg/runtime/gc_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 7770e499ad..fdbe13ebbe 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -10,6 +10,11 @@ import (
+ )
+ 
+ func TestGcSys(t *testing.T) {
++	if runtime.GOARCH != "amd64" {
++		// TODO(adg): remove this when precise gc is implemented
++		t.Logf("skipping on non-amd64 systems")
++		return
++	}
+ 	memstats := new(runtime.MemStats)
+ 	runtime.GC()
+ 	runtime.ReadMemStats(memstats)

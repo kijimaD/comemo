@@ -7,6 +7,30 @@ Date:   Wed May 29 11:46:14 2013 -0700
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/9738045
-
+---
  src/cmd/gc/bv.c | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/cmd/gc/bv.c b/src/cmd/gc/bv.c
+index 929834097f..e3edd720af 100644
+--- a/src/cmd/gc/bv.c
++++ b/src/cmd/gc/bv.c
+@@ -78,18 +78,3 @@ bvisempty(Bvec *bv)
+ 			return 0;
+ 	return 1;
+ }
+-
+-int bvcmp(Bvec *bv1, Bvec *bv2)
+-{
+-	int32 i;
+-
+-	if(bv1->n != bv2->n) {
+-		fatal("bvcmp: size %d != %d\n", bv1->n, bv2->n);
+-	}
+-	for(i = 0; i < bv1->n; i += WORDBITS) {
+-		if(bv1->b[i / WORDBITS] != bv2->b[i / WORDBITS]) {
+-			fatal("bvcmp: element %x != %x @ %d\n", bv1->b[i/WORDBITS], bv2->b[i/WORDBITS], i/WORDBITS);
+-		}
+-	}
+-	return 0;
+-}

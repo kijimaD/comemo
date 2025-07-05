@@ -9,6 +9,19 @@ Date:   Wed Nov 4 21:20:33 2015 -0500
     Change-Id: Ied760ac37e2fc21ef951ae872136dc3bfd49bf9f
     Reviewed-on: https://go-review.googlesource.com/16671
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/root_unix.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/x509/root_unix.go b/src/crypto/x509/root_unix.go
+index 8d3b2fbb23..9f06f9dabb 100644
+--- a/src/crypto/x509/root_unix.go
++++ b/src/crypto/x509/root_unix.go
+@@ -11,6 +11,7 @@ import "io/ioutil"
+ // Possible directories with certificate files; stop after successfully
+ // reading at least one file from a directory.
+ var certDirectories = []string{
++	"/etc/ssl/certs",               // SLES10/SLES11, https://golang.org/issue/12139
+ 	"/system/etc/security/cacerts", // Android
+ }
+ 

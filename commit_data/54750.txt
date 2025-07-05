@@ -44,6 +44,41 @@ Date:   Tue Nov 8 16:49:53 2022 +0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/bits/bits.go | 13 +++++++++----
  1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 6ca4bfe9a6..c1c7b7978a 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -516,10 +516,6 @@ func Div32(hi, lo, y uint32) (quo, rem uint32) {
+ // half in parameter hi and the lower half in parameter lo.
+ // Div64 panics for y == 0 (division by zero) or y <= hi (quotient overflow).
+ func Div64(hi, lo, y uint64) (quo, rem uint64) {
+-	const (
+-		two32  = 1 << 32
+-		mask32 = two32 - 1
+-	)
+ 	if y == 0 {
+ 		panic(divideError)
+ 	}
+@@ -527,9 +523,18 @@ func Div64(hi, lo, y uint64) (quo, rem uint64) {
+ 		panic(overflowError)
+ 	}
+ 
++	// If high part is zero, we can directly return the results.
++	if hi == 0 {
++		return lo / y, lo % y
++	}
++
+ 	s := uint(LeadingZeros64(y))
+ 	y <<= s
+ 
++	const (
++		two32  = 1 << 32
++		mask32 = two32 - 1
++	)
+ 	yn1 := y >> 32
+ 	yn0 := y & mask32
+ 	un32 := hi<<s | lo>>(64-s)

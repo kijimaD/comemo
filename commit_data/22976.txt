@@ -9,7 +9,40 @@ Date:   Thu Apr 16 15:18:27 2015 -0400
     Change-Id: I5430e4a9eb5d8b7d0e3963657092bede67439056
     Reviewed-on: https://go-review.googlesource.com/9003
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 8 ++++++++
  src/fmt/print.go    | 2 ++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 96505b8271..c06f9a1fcf 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -686,6 +686,14 @@ var fmtTests = []struct {
+ 	// Issue 8965.
+ 	{"%v", reflect.ValueOf(A{}).Field(0).String(), "<int Value>"}, // Equivalent to the old way.
+ 	{"%v", reflect.ValueOf(A{}).Field(0), "0"},                    // Sees inside the field.
++
++	// verbs apply to the extracted value too.
++	{"%s", reflect.ValueOf("hello"), "hello"},
++	{"%q", reflect.ValueOf("hello"), `"hello"`},
++	{"%#04x", reflect.ValueOf(256), "0x0100"},
++
++	// invalid reflect.Value doesn't crash.
++	{"%v", reflect.Value{}, "<invalid reflect.Value>"},
+ }
+ 
+ // zeroFill generates zero-filled strings of the specified width. The length
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index c8038f09a8..8e35a890ec 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -847,6 +847,8 @@ func (p *pp) printReflectValue(value reflect.Value, verb rune, depth int) (wasSt
+ 	p.value = value
+ BigSwitch:
+ 	switch f := value; f.Kind() {
++	case reflect.Invalid:
++		p.buf.WriteString("<invalid reflect.Value>")
+ 	case reflect.Bool:
+ 		p.fmtBool(f.Bool(), verb)
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:

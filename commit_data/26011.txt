@@ -9,6 +9,20 @@ Date:   Thu Dec 10 19:57:46 2015 +0000
     Change-Id: I04c9a44437414177e2fee260518cfe53a67e6364
     Reviewed-on: https://go-review.googlesource.com/17684
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/syscall/mksysnum_plan9.sh | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/syscall/mksysnum_plan9.sh b/src/syscall/mksysnum_plan9.sh
+index fc619f0903..cd29dd55cf 100755
+--- a/src/syscall/mksysnum_plan9.sh
++++ b/src/syscall/mksysnum_plan9.sh
+@@ -1,8 +1,6 @@
+ #!/bin/sh
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+ COMMAND="mksysnum_plan9.sh $@"

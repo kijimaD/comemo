@@ -9,6 +9,34 @@ Date:   Wed Mar 30 14:24:32 2011 -0700
     R=r, rsc1
     CC=golang-dev
     https://golang.org/cl/4326044
-
+---
  test/env.go | 9 ++++++---
  1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/test/env.go b/test/env.go
+index 16b2076447..28113bcb06 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -6,7 +6,10 @@
+ 
+ package main
+ 
+-import os "os"
++import (
++	"os"
++	"runtime"
++)
+ 
+ func main() {
+ 	ga, e0 := os.Getenverror("GOARCH")
+@@ -14,8 +17,8 @@ func main() {
+ 		print("$GOARCH: ", e0.String(), "\n")
+ 		os.Exit(1)
+ 	}
+-	if ga != "amd64" && ga != "386" && ga != "arm" {
+-		print("$GOARCH=", ga, "\n")
++	if ga != runtime.GOARCH {
++		print("$GOARCH=", ga, "!= runtime.GOARCH=", runtime.GOARCH, "\n")
+ 		os.Exit(1)
+ 	}
+ 	xxx, e1 := os.Getenverror("DOES_NOT_EXIST")

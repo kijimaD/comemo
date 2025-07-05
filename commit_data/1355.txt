@@ -8,7 +8,38 @@ Date:   Tue Dec 16 17:45:28 2008 -0800
     DELTA=8  (7 added, 0 deleted, 1 changed)
     OCL=21379
     CL=21379
-
+---
  src/cmd/gc/go.y | 7 +++++++
  test/golden.out | 2 +-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 7f67cdb89e..19299a7f19 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -2038,5 +2038,12 @@ latype:
+ 		YYERROR;
+ 	}
+ 
++nametype:
++	LNAME
++	{
++		yyerror("no type %s", $1->name);
++		YYERROR;
++	}
++
+ /**/
+ 
+diff --git a/test/golden.out b/test/golden.out
+index 17f62ddf8d..feb0a4566e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -240,7 +240,7 @@ fixedbugs/bug074.go:6: syntax error near string
+ fixedbugs/bug074.go:7: x: undefined
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: syntax error near x
++fixedbugs/bug081.go:5: no type x
+ 
+ =========== fixedbugs/bug083.go
+ fixedbugs/bug083.dir/bug1.go:5: syntax error near T0

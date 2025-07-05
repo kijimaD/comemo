@@ -14,7 +14,52 @@ Date:   Wed Jul 28 12:32:08 2021 -0400
     Trust: Michael Matloob <matloob@golang.org>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go |  3 +++
  src/cmd/go/testdata/script/work.txt      | 14 ++++++++++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index d2957a34c4..4fbe563cb8 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -1083,6 +1083,9 @@ func updateEagerRoots(ctx context.Context, direct map[string]bool, rs *Requireme
+ 		}
+ 		roots = append(roots, min...)
+ 	}
++	if MainModules.Len() > 1 {
++		module.Sort(roots)
++	}
+ 	if rs.depth == eager && reflect.DeepEqual(roots, rs.rootModules) && reflect.DeepEqual(direct, rs.direct) {
+ 		// The root set is unchanged and rs was already eager, so keep rs to
+ 		// preserve its cached ModuleGraph (if any).
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 0d820fffc2..eeaf92eaec 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -36,6 +36,11 @@ cp go.work.backup go.work
+ cp go.work.d go.work
+ go run example.com/d
+ 
++# Test that we don't run into "newRequirements called with unsorted roots"
++# panic with unsorted main modules.
++cp go.work.backwards go.work
++go run example.com/d
++
+ -- go.work.dup --
+ go 1.17
+ 
+@@ -109,3 +114,12 @@ import "example.com/b/lib"
+ func main() {
+ 	lib.Hello()
+ }
++
++-- go.work.backwards --
++go 1.18
++
++directory (
++    d
++    b
++    a
++)
+\ No newline at end of file

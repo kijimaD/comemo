@@ -7,6 +7,18 @@ Date:   Fri Dec 16 15:52:30 2011 +1100
     R=golang-dev, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5490051
-
+---
  src/pkg/go/build/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index 1a18e00b88..68c731749a 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -18,5 +18,6 @@ include ../../../Make.pkg
+ syslist.go: ../../../Make.inc Makefile
+ 	echo '// Generated automatically by make.' >$@
+ 	echo 'package build' >>$@
++	echo >>$@
+ 	echo 'const goosList = "$(GOOS_LIST)"' >>$@
+ 	echo 'const goarchList = "$(GOARCH_LIST)"' >>$@

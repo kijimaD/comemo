@@ -12,6 +12,21 @@ Date:   Fri Nov 13 08:55:44 2015 +1300
     Change-Id: Iab128899e65c51d90f6704e3e1b2fc9326e3a1c2
     Reviewed-on: https://go-review.googlesource.com/16853
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os1_linux.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index d59ca3915e..aa62faa0f1 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -293,7 +293,8 @@ func setsig(i int32, fn uintptr, restart bool) {
+ 		fn = funcPC(sigtramp)
+ 	}
+ 	sa.sa_handler = fn
+-	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 {
++	// Qemu rejects rt_sigaction of SIGRTMAX (64).
++	if rt_sigaction(uintptr(i), &sa, nil, unsafe.Sizeof(sa.sa_mask)) != 0 && i != 64 {
+ 		throw("rt_sigaction failure")
+ 	}
+ }

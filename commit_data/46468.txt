@@ -26,9 +26,71 @@ Date:   Sat Jan 2 00:39:14 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/inline/inl.go          | 2 +-
  src/cmd/compile/internal/typecheck/func.go      | 2 +-
  src/cmd/compile/internal/typecheck/typecheck.go | 2 +-
  src/cmd/compile/internal/walk/closure.go        | 4 ++--
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index a70c3ae362..31b97a3787 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -866,7 +866,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 			vas.Y = typecheck.NodNil()
+ 			vas.Y.SetType(param.Type)
+ 		} else {
+-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type).(ir.Ntype), nil)
++			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
+ 			lit.List.Set(varargs)
+ 			vas.Y = lit
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 2bc911882f..296755028d 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -21,7 +21,7 @@ func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
+ 		n = NodNil()
+ 		n.SetType(typ)
+ 	} else {
+-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
++		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 		lit.List.Append(args...)
+ 		lit.SetImplicit(true)
+ 		n = lit
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index c8d82443a1..0822a4624c 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1686,7 +1686,7 @@ func stringtoruneslit(n *ir.ConvExpr) ir.Node {
+ 		i++
+ 	}
+ 
+-	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()).(ir.Ntype), nil)
++	nn := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(n.Type()), nil)
+ 	nn.List.Set(l)
+ 	return Expr(nn)
+ }
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index d4eb4eb8a3..62d2a362b1 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -129,7 +129,7 @@ func walkClosure(clo *ir.ClosureExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typ := typecheck.ClosureType(clo)
+ 
+-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
++	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 	clos.SetEsc(clo.Esc())
+ 	clos.List.Set(append([]ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, fn.Nname)}, closureArgs(clo)...))
+ 
+@@ -194,7 +194,7 @@ func walkCallPart(n *ir.SelectorExpr, init *ir.Nodes) ir.Node {
+ 
+ 	typ := typecheck.PartialCallType(n)
+ 
+-	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ).(ir.Ntype), nil)
++	clos := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+ 	clos.SetEsc(n.Esc())
+ 	clos.List = []ir.Node{ir.NewUnaryExpr(base.Pos, ir.OCFUNC, typecheck.MethodValueWrapper(n).Nname), n.X}
+ 

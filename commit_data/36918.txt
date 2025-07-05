@@ -13,6 +13,21 @@ Date:   Mon Jun 11 09:40:45 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/net/sendfile_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 3418d7f243..acf1cd9955 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -94,7 +94,8 @@ func TestSendfile(t *testing.T) {
+ }
+ 
+ func TestSendfileParts(t *testing.T) {
+-	if runtime.GOOS == "freebsd" {
++	switch runtime.GOOS {
++	case "dragonfly", "freebsd", "solaris":
+ 		t.Skipf("skipping on %s (see golang.org/issue/25809 for details)", runtime.GOOS)
+ 	}
+ 

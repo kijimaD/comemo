@@ -14,7 +14,7 @@ Date:   Fri Mar 25 14:50:44 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4317043
-
+---
  src/Make.pkg                       |  3 +++
  src/cmd/gofix/Makefile             |  3 +++
  src/cmd/goinstall/Makefile         |  3 +++
@@ -25,3 +25,181 @@ Date:   Fri Mar 25 14:50:44 2011 -0700
  src/pkg/testing/testing.go         | 12 ++++++++++++
  src/run.bash                       |  4 ++--
  9 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index d8d034dfa3..8eadb111ca 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -60,6 +60,9 @@ CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* *.cgo[12].*
+ test:
+ 	gotest
+ 
++testshort:
++	gotest -test.short
++
+ bench:
+ 	gotest -test.bench=. -test.run="Do not run tests"
+ 
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 9383f5ac64..4143e0cbe1 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -15,3 +15,6 @@ include ../../Make.cmd
+ 
+ test:
+ 	gotest
++
++testshort:
++	gotest -test.short
+diff --git a/src/cmd/goinstall/Makefile b/src/cmd/goinstall/Makefile
+index 6900bcb61d..aaf202ee79 100644
+--- a/src/cmd/goinstall/Makefile
++++ b/src/cmd/goinstall/Makefile
+@@ -24,3 +24,6 @@ syslist.go:
+ 
+ test:
+ 	gotest
++
++testshort:
++	gotest -test.short
+diff --git a/src/cmd/gotest/doc.go b/src/cmd/gotest/doc.go
+index 04e426bab3..015622c817 100644
+--- a/src/cmd/gotest/doc.go
++++ b/src/cmd/gotest/doc.go
+@@ -66,5 +66,9 @@ the environment variable GOGC=off to disable the garbage collector,
+ provided the test can run in the available memory without garbage
+ collection.
+ 
++The -test.short package tells long-running tests to shorten their
++run time. It is off by default but set by all.bash so installations
++of the Go tree can do a sanity check but not spend time running the
++full test suite.
+ */
+ package documentation
+diff --git a/src/cmd/gotype/Makefile b/src/cmd/gotype/Makefile
+index 929fc52de1..18171945df 100644
+--- a/src/cmd/gotype/Makefile
++++ b/src/cmd/gotype/Makefile
+@@ -12,3 +12,6 @@ include ../../Make.cmd
+ 
+ test:
+ 	gotest
++
++testshort:
++	gotest -test.short
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 3a2a479f5e..51300c0880 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -222,6 +222,7 @@ clean.dirs: $(addsuffix .clean, $(DIRS))
+ install.dirs: $(addsuffix .install, $(DIRS))
+ nuke.dirs: $(addsuffix .nuke, $(DIRS))
+ test.dirs: $(addsuffix .test, $(TEST))
++testshort.dirs: $(addsuffix .testshort, $(TEST))
+ bench.dirs: $(addsuffix .bench, $(BENCH))
+ 
+ %.clean:
+@@ -236,6 +237,9 @@ bench.dirs: $(addsuffix .bench, $(BENCH))
+ %.test:
+ 	+$(MAKE) -C $* test
+ 
++%.testshort:
++	+$(MAKE) -C $* testshort
++
+ %.bench:
+ 	+$(MAKE) -C $* bench	
+ 
+@@ -245,6 +249,8 @@ install: install.dirs
+ 
+ test:	test.dirs
+ 
++testshort: testshort.dirs
++
+ bench:	bench.dirs ../../test/garbage.bench
+ 
+ nuke: nuke.dirs
+diff --git a/src/pkg/crypto/ecdsa/ecdsa_test.go b/src/pkg/crypto/ecdsa/ecdsa_test.go
+index cc22b7a52f..24c1d735bd 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa_test.go
++++ b/src/pkg/crypto/ecdsa/ecdsa_test.go
+@@ -26,6 +26,9 @@ func testKeyGeneration(t *testing.T, c *elliptic.Curve, tag string) {
+ 
+ func TestKeyGeneration(t *testing.T) {
+ 	testKeyGeneration(t, elliptic.P224(), "p224")
++	if testing.Short() {
++		return
++	}
+ 	testKeyGeneration(t, elliptic.P256(), "p256")
+ 	testKeyGeneration(t, elliptic.P384(), "p384")
+ 	testKeyGeneration(t, elliptic.P521(), "p521")
+@@ -53,6 +56,9 @@ func testSignAndVerify(t *testing.T, c *elliptic.Curve, tag string) {
+ 
+ func TestSignAndVerify(t *testing.T) {
+ 	testSignAndVerify(t, elliptic.P224(), "p224")
++	if testing.Short() {
++		return
++	}
+ 	testSignAndVerify(t, elliptic.P256(), "p256")
+ 	testSignAndVerify(t, elliptic.P384(), "p384")
+ 	testSignAndVerify(t, elliptic.P521(), "p521")
+@@ -214,5 +220,8 @@ func TestVectors(t *testing.T) {
+ 		if Verify(&pub, hashed, r, s) != test.ok {
+ 			t.Errorf("%d: bad result", i)
+ 		}
++		if testing.Short() {
++			break
++		}
+ 	}
+ }
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index ab8cf999a2..cdc9826290 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -48,6 +48,13 @@ import (
+ )
+ 
+ var (
++	// The short flag requests that tests run more quickly, but its functionality
++	// is provided by test writers themselves.  The testing package is just its
++	// home.  The all.bash installation script sets it to make installation more
++	// efficient, but by default the flag is off so a plain "gotest" will do a
++	// full test of the package.
++	short = flag.Bool("test.short", false, "run smaller test suite to save time")
++
+ 	// Report as tests are run; default is silent for success.
+ 	chatty         = flag.Bool("test.v", false, "verbose: print additional output")
+ 	match          = flag.String("test.run", "", "regular expression to select tests to run")
+@@ -56,6 +63,11 @@ var (
+ 	cpuProfile     = flag.String("test.cpuprofile", "", "write a cpu profile to the named file during execution")
+ )
+ 
++// Short reports whether the -test.short flag is set.
++func Short() bool {
++	return *short
++}
++
+ 
+ // Insert final newline if needed and tabs after internal newlines.
+ func tabify(s string) string {
+diff --git a/src/run.bash b/src/run.bash
+index be90af0da6..dd80d3ab64 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -39,7 +39,7 @@ if $rebuild; then
+ fi
+ 
+ (xcd pkg
+-gomake test
++gomake testshort
+ ) || exit $?
+ 
+ (xcd pkg/sync;
+@@ -47,7 +47,7 @@ if $rebuild; then
+ 	gomake clean;
+ 	time gomake
+ fi
+-GOMAXPROCS=10 gomake test
++GOMAXPROCS=10 gomake testshort
+ ) || exit $?
+ 
+ [ "$GOARCH" == arm ] ||

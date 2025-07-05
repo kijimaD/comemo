@@ -9,6 +9,47 @@ Date:   Fri Jun 12 15:34:43 2020 -0700
     Change-Id: If98ecffbfd976cb66a87b1cce4e82b3ddee1639e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237738
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 22 +++++++++++-----------
  1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index d6e238ef2f..80f0e00932 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -374,17 +374,6 @@ Do not send CLs removing the interior tags from such phrases.
+   in mind.
+ </p>
+ 
+-<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
+-  <dd>
+-    <p><!-- CL 222637 -->
+-      The package now defines the
+-      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
+-      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
+-      PE file format.
+-    </p>
+-  </dd>
+-</dl><!-- debug/pe -->
+-
+ <dl id="crypto"><dt><a href="/pkg/crypto/">crypto</a></dt>
+   <dd>
+     <p><!-- CL 231417, CL 225460 -->
+@@ -551,6 +540,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- crypto/x509/pkix -->
+ 
++<dl id="debug/pe"><dt><a href="/pkg/debug/pe/">debug/pe</a></dt>
++  <dd>
++    <p><!-- CL 222637 -->
++      The package now defines the
++      <code>IMAGE_FILE</code>, <code>IMAGE_SUBSYSTEM</code>,
++      and <code>IMAGE_DLLCHARACTERISTICS</code> constants used by the
++      PE file format.
++    </p>
++  </dd>
++</dl><!-- debug/pe -->
++
+ <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+   <dd>
+     <p><!-- CL 191783 -->

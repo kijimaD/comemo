@@ -18,6 +18,25 @@ Date:   Fri Mar 31 16:15:51 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/pem/pem_test.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 6a85a60431..7ab0e8f61d 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -207,9 +207,10 @@ func TestLineBreaker(t *testing.T) {
+ 
+ func TestFuzz(t *testing.T) {
+ 	testRoundtrip := func(block Block) bool {
+-		for key := range block.Headers {
+-			if strings.Contains(key, ":") {
+-				// Keys with colons cannot be encoded.
++		for key, val := range block.Headers {
++			if strings.ContainsAny(key, ":\r\n") || strings.ContainsAny(val, "\r\n") || strings.TrimSpace(key) != key || strings.TrimSpace(val) != val {
++				// Keys with colons or newlines cannot be encoded.
++				// Keys/values with surrounding spaces might lose theirs.
+ 				return true
+ 			}
+ 		}

@@ -18,6 +18,20 @@ Date:   Wed Nov 16 12:04:32 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 0157d7198b..77d7e86fb2 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -315,7 +315,7 @@ var globalRand = New(new(lockedSource))
+ // Alternately, set GODEBUG=randautoseed=0 in the environment
+ // before making any calls to functions in this package.
+ //
+-// Note: Programs that call Seed and then expect a specific sequence
++// Deprecated: Programs that call Seed and then expect a specific sequence
+ // of results from the global random source (using functions such as Int)
+ // can be broken when a dependency changes how much it consumes
+ // from the global random source. To avoid such breakages, programs

@@ -37,7 +37,43 @@ Date:   Mon Mar 30 02:03:03 2015 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/reflect/type.go  | 4 ++--
  src/runtime/iface.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 8cfae98e08..48d9b85797 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1150,7 +1150,7 @@ func implements(T, V *rtype) bool {
+ 		for j := 0; j < len(v.methods); j++ {
+ 			tm := &t.methods[i]
+ 			vm := &v.methods[j]
+-			if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
++			if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.typ == tm.typ {
+ 				if i++; i >= len(t.methods) {
+ 					return true
+ 				}
+@@ -1167,7 +1167,7 @@ func implements(T, V *rtype) bool {
+ 	for j := 0; j < len(v.methods); j++ {
+ 		tm := &t.methods[i]
+ 		vm := &v.methods[j]
+-		if vm.name == tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
++		if *vm.name == *tm.name && vm.pkgPath == tm.pkgPath && vm.mtyp == tm.typ {
+ 			if i++; i >= len(t.methods) {
+ 				return true
+ 			}
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 0d4989b2e5..656bb4b8e5 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -94,7 +94,7 @@ search:
+ 		itype := i._type
+ 		for ; j < nt; j++ {
+ 			t := &x.mhdr[j]
+-			if t.mtyp == itype && t.name == iname && t.pkgpath == ipkgpath {
++			if t.mtyp == itype && (t.name == iname || *t.name == *iname) && t.pkgpath == ipkgpath {
+ 				if m != nil {
+ 					*(*unsafe.Pointer)(add(unsafe.Pointer(&m.fun[0]), uintptr(k)*ptrSize)) = t.ifn
+ 				}

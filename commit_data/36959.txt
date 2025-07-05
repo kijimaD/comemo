@@ -14,7 +14,34 @@ Date:   Tue Jun 12 16:40:52 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go            | 2 +-
  src/cmd/go/internal/list/list.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3494601e69..d37942b738 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -579,7 +579,7 @@
+ //
+ // Usage:
+ //
+-// 	go list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-list] [-test] [build flags] [packages]
++// 	go list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-test] [build flags] [packages]
+ //
+ // List lists the packages named by the import paths, one per line.
+ //
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d519dcc5e0..218999c7e8 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ var CmdList = &base.Command{
+-	UsageLine: "list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-list] [-test] [build flags] [packages]",
++	UsageLine: "list [-cgo] [-deps] [-e] [-export] [-f format] [-json] [-test] [build flags] [packages]",
+ 	Short:     "list packages",
+ 	Long: `
+ List lists the packages named by the import paths, one per line.

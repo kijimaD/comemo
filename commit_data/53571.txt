@@ -14,6 +14,21 @@ Date:   Wed Jun 15 17:35:41 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/poll/fd_windows.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 1ca281b2a4..1af2011f94 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -500,8 +500,7 @@ func (fd *FD) readConsole(b []byte) (int, error) {
+ 					}
+ 				}
+ 			}
+-			n := utf8.EncodeRune(buf[len(buf):cap(buf)], r)
+-			buf = buf[:len(buf)+n]
++			buf = utf8.AppendRune(buf, r)
+ 		}
+ 		fd.readbyte = buf
+ 		fd.readbyteOffset = 0

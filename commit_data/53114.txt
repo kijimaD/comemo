@@ -21,7 +21,36 @@ Date:   Tue Jul 12 10:48:47 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modindex/read.go | 3 +++
  src/go/build/build.go                | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 38ddfec70f..707f17e1ab 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -139,6 +139,9 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ 	if !errors.Is(err, errNotFromModuleCache) {
+ 		return nil, err
+ 	}
++	if cfg.BuildContext.Compiler == "gccgo" && str.HasPathPrefix(modroot, cfg.GOROOTsrc) {
++		return nil, err // gccgo has no sources for GOROOT packages.
++	}
+ 	return openIndexPackage(modroot, pkgdir)
+ }
+ 
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index bfe3f444ca..dfb37b8f34 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -715,6 +715,9 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				tried.goroot = dir
+ 			}
+ 			if ctxt.Compiler == "gccgo" && goroot.IsStandardPackage(ctxt.GOROOT, ctxt.Compiler, path) {
++				// TODO(bcmills): Setting p.Dir here is misleading, because gccgo
++				// doesn't actually load its standard-library packages from this
++				// directory. See if we can leave it unset.
+ 				p.Dir = ctxt.joinPath(ctxt.GOROOT, "src", path)
+ 				p.Goroot = true
+ 				p.Root = ctxt.GOROOT

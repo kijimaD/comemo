@@ -18,7 +18,7 @@ Date:   Mon Dec 21 10:29:21 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/18085
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_cgo_test.go                      | 390 +-------------------
  src/runtime/crash_test.go                          | 399 +++++----------------
  src/runtime/gc_test.go                             |  48 +--
@@ -44,3 +44,2217 @@ Date:   Mon Dec 21 10:29:21 2015 -0500
  src/runtime/testdata/testprognet/main.go           |  35 ++
  src/runtime/testdata/testprognet/net.go            |  29 ++
  24 files changed, 991 insertions(+), 817 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 0f2678ad4c..346a80f0ae 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -21,18 +21,18 @@ func TestCgoSignalDeadlock(t *testing.T) {
+ 	if testing.Short() && runtime.GOOS == "windows" {
+ 		t.Skip("Skipping in short mode") // takes up to 64 seconds
+ 	}
+-	got := executeTest(t, cgoSignalDeadlockSource, nil)
++	got := runTestProg(t, "testprogcgo", "CgoSignalDeadlock")
+ 	want := "OK\n"
+ 	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+ 
+ func TestCgoTraceback(t *testing.T) {
+-	got := executeTest(t, cgoTracebackSource, nil)
++	got := runTestProg(t, "testprogcgo", "CgoTraceback")
+ 	want := "OK\n"
+ 	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+ 
+@@ -48,10 +48,10 @@ func TestCgoCallbackGC(t *testing.T) {
+ 			t.Skip("too slow for arm builders")
+ 		}
+ 	}
+-	got := executeTest(t, cgoCallbackGCSource, nil)
++	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
+ 	want := "OK\n"
+ 	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+ 
+@@ -59,11 +59,7 @@ func TestCgoExternalThreadPanic(t *testing.T) {
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	csrc := cgoExternalThreadPanicC
+-	if runtime.GOOS == "windows" {
+-		csrc = cgoExternalThreadPanicC_windows
+-	}
+-	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", csrc)
++	got := runTestProg(t, "testprogcgo", "CgoExternalThreadPanic")
+ 	want := "panic: BOOM"
+ 	if !strings.Contains(got, want) {
+ 		t.Fatalf("want failure containing %q. output:\n%s\n", want, got)
+@@ -94,10 +90,10 @@ func TestCgoExternalThreadSIGPROF(t *testing.T) {
+ 		// ppc64 (issue #8912)
+ 		t.Skipf("no external linking on ppc64")
+ 	}
+-	got := executeTest(t, cgoExternalThreadSIGPROFSource, nil)
++	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSIGPROF")
+ 	want := "OK\n"
+ 	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+ 
+@@ -107,10 +103,10 @@ func TestCgoExternalThreadSignal(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no pthreads on %s", runtime.GOOS)
+ 	}
+-	got := executeTest(t, cgoExternalThreadSignalSource, nil)
++	got := runTestProg(t, "testprogcgo", "CgoExternalThreadSignal")
+ 	want := "OK\n"
+ 	if got != want {
+-		t.Fatalf("expected %q, but got %q", want, got)
++		t.Fatalf("expected %q, but got:\n%s", want, got)
+ 	}
+ }
+ 
+@@ -119,371 +115,9 @@ func TestCgoDLLImports(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+ 		t.Skip("skipping windows specific test")
+ 	}
+-	got := executeTest(t, cgoDLLImportsMainSource, nil, "a/a.go", cgoDLLImportsPkgSource)
++	got := runTestProg(t, "testprogcgo", "CgoDLLImportsMain")
+ 	want := "OK\n"
+ 	if got != want {
+ 		t.Fatalf("expected %q, but got %v", want, got)
+ 	}
+ }
+-
+-const cgoSignalDeadlockSource = `
+-package main
+-
+-import "C"
+-
+-import (
+-	"fmt"
+-	"runtime"
+-	"time"
+-)
+-
+-func main() {
+-	runtime.GOMAXPROCS(100)
+-	ping := make(chan bool)
+-	go func() {
+-		for i := 0; ; i++ {
+-			runtime.Gosched()
+-			select {
+-			case done := <-ping:
+-				if done {
+-					ping <- true
+-					return
+-				}
+-				ping <- true
+-			default:
+-			}
+-			func() {
+-				defer func() {
+-					recover()
+-				}()
+-				var s *string
+-				*s = ""
+-			}()
+-		}
+-	}()
+-	time.Sleep(time.Millisecond)
+-	for i := 0; i < 64; i++ {
+-		go func() {
+-			runtime.LockOSThread()
+-			select {}
+-		}()
+-		go func() {
+-			runtime.LockOSThread()
+-			select {}
+-		}()
+-		time.Sleep(time.Millisecond)
+-		ping <- false
+-		select {
+-		case <-ping:
+-		case <-time.After(time.Second):
+-			fmt.Printf("HANG\n")
+-			return
+-		}
+-	}
+-	ping <- true
+-	select {
+-	case <-ping:
+-	case <-time.After(time.Second):
+-		fmt.Printf("HANG\n")
+-		return
+-	}
+-	fmt.Printf("OK\n")
+-}
+-`
+-
+-const cgoTracebackSource = `
+-package main
+-
+-/* void foo(void) {} */
+-import "C"
+-
+-import (
+-	"fmt"
+-	"runtime"
+-)
+-
+-func main() {
+-	C.foo()
+-	buf := make([]byte, 1)
+-	runtime.Stack(buf, true)
+-	fmt.Printf("OK\n")
+-}
+-`
+-
+-const cgoCallbackGCSource = `
+-package main
+-
+-import "runtime"
+-
+-/*
+-#include <pthread.h>
+-
+-void go_callback();
+-
+-static void *thr(void *arg) {
+-    go_callback();
+-    return 0;
+-}
+-
+-static void foo() {
+-    pthread_t th;
+-    pthread_attr_t attr;
+-    pthread_attr_init(&attr);
+-    pthread_attr_setstacksize(&attr, 256 << 10);
+-    pthread_create(&th, &attr, thr, 0);
+-    pthread_join(th, 0);
+-}
+-*/
+-import "C"
+-import "fmt"
+-
+-//export go_callback
+-func go_callback() {
+-	runtime.GC()
+-	grow()
+-	runtime.GC()
+-}
+-
+-var cnt int
+-
+-func grow() {
+-	x := 10000
+-	sum := 0
+-	if grow1(&x, &sum) == 0 {
+-		panic("bad")
+-	}
+-}
+-
+-func grow1(x, sum *int) int {
+-	if *x == 0 {
+-		return *sum + 1
+-	}
+-	*x--
+-	sum1 := *sum + *x
+-	return grow1(x, &sum1)
+-}
+-
+-func main() {
+-	const P = 100
+-	done := make(chan bool)
+-	// allocate a bunch of stack frames and spray them with pointers
+-	for i := 0; i < P; i++ {
+-		go func() {
+-			grow()
+-			done <- true
+-		}()
+-	}
+-	for i := 0; i < P; i++ {
+-		<-done
+-	}
+-	// now give these stack frames to cgo callbacks
+-	for i := 0; i < P; i++ {
+-		go func() {
+-			C.foo()
+-			done <- true
+-		}()
+-	}
+-	for i := 0; i < P; i++ {
+-		<-done
+-	}
+-	fmt.Printf("OK\n")
+-}
+-`
+-
+-const cgoExternalThreadPanicSource = `
+-package main
+-
+-// void start(void);
+-import "C"
+-
+-func main() {
+-	C.start()
+-	select {}
+-}
+-
+-//export gopanic
+-func gopanic() {
+-	panic("BOOM")
+-}
+-`
+-
+-const cgoExternalThreadPanicC = `
+-#include <stdlib.h>
+-#include <stdio.h>
+-#include <pthread.h>
+-
+-void gopanic(void);
+-
+-static void*
+-die(void* x)
+-{
+-	gopanic();
+-	return 0;
+-}
+-
+-void
+-start(void)
+-{
+-	pthread_t t;
+-	if(pthread_create(&t, 0, die, 0) != 0)
+-		printf("pthread_create failed\n");
+-}
+-`
+-
+-const cgoExternalThreadPanicC_windows = `
+-#include <stdlib.h>
+-#include <stdio.h>
+-
+-void gopanic(void);
+-
+-static void*
+-die(void* x)
+-{
+-	gopanic();
+-	return 0;
+-}
+-
+-void
+-start(void)
+-{
+-	if(_beginthreadex(0, 0, die, 0, 0, 0) != 0)
+-		printf("_beginthreadex failed\n");
+-}
+-`
+-
+-const cgoExternalThreadSIGPROFSource = `
+-package main
+-
+-/*
+-#include <stdint.h>
+-#include <signal.h>
+-#include <pthread.h>
+-
+-volatile int32_t spinlock;
+-
+-static void *thread1(void *p) {
+-	(void)p;
+-	while (spinlock == 0)
+-		;
+-	pthread_kill(pthread_self(), SIGPROF);
+-	spinlock = 0;
+-	return NULL;
+-}
+-__attribute__((constructor)) void issue9456() {
+-	pthread_t tid;
+-	pthread_create(&tid, 0, thread1, NULL);
+-}
+-*/
+-import "C"
+-
+-import (
+-	"runtime"
+-	"sync/atomic"
+-	"unsafe"
+-)
+-
+-func main() {
+-	// This test intends to test that sending SIGPROF to foreign threads
+-	// before we make any cgo call will not abort the whole process, so
+-	// we cannot make any cgo call here. See https://golang.org/issue/9456.
+-	atomic.StoreInt32((*int32)(unsafe.Pointer(&C.spinlock)), 1)
+-	for atomic.LoadInt32((*int32)(unsafe.Pointer(&C.spinlock))) == 1 {
+-		runtime.Gosched()
+-	}
+-	println("OK")
+-}
+-`
+-
+-const cgoExternalThreadSignalSource = `
+-package main
+-
+-/*
+-#include <pthread.h>
+-
+-void **nullptr;
+-
+-void *crash(void *p) {
+-	*nullptr = p;
+-	return 0;
+-}
+-
+-int start_crashing_thread(void) {
+-	pthread_t tid;
+-	return pthread_create(&tid, 0, crash, 0);
+-}
+-*/
+-import "C"
+-
+-import (
+-	"fmt"
+-	"os"
+-	"os/exec"
+-	"time"
+-)
+-
+-func main() {
+-	if len(os.Args) > 1 && os.Args[1] == "crash" {
+-		i := C.start_crashing_thread()
+-		if i != 0 {
+-			fmt.Println("pthread_create failed:", i)
+-			// Exit with 0 because parent expects us to crash.
+-			return
+-		}
+-
+-		// We should crash immediately, but give it plenty of
+-		// time before failing (by exiting 0) in case we are
+-		// running on a slow system.
+-		time.Sleep(5 * time.Second)
+-		return
+-	}
+-
+-	out, err := exec.Command(os.Args[0], "crash").CombinedOutput()
+-	if err == nil {
+-		fmt.Println("C signal did not crash as expected\n")
+-		fmt.Printf("%s\n", out)
+-		os.Exit(1)
+-	}
+-
+-	fmt.Println("OK")
+-}
+-`
+-
+-const cgoDLLImportsMainSource = `
+-package main
+-
+-/*
+-#include <windows.h>
+-
+-DWORD getthread() {
+-	return GetCurrentThreadId();
+-}
+-*/
+-import "C"
+-
+-import "./a"
+-
+-func main() {
+-	C.getthread()
+-	a.GetThread()
+-	println("OK")
+-}
+-`
+-
+-const cgoDLLImportsPkgSource = `
+-package a
+-
+-/*
+-#cgo CFLAGS: -mnop-fun-dllimport
+-
+-#include <windows.h>
+-
+-DWORD agetthread() {
+-	return GetCurrentThreadId();
+-}
+-*/
+-import "C"
+-
+-func GetThread() uint32 {
+-	return uint32(C.agetthread())
+-}
+-`
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 8efce4da2d..1c985a9599 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -16,9 +16,18 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"testing"
+-	"text/template"
+ )
+ 
++var toRemove []string
++
++func TestMain(m *testing.M) {
++	status := m.Run()
++	for _, file := range toRemove {
++		os.RemoveAll(file)
++	}
++	os.Exit(status)
++}
++
+ func testEnv(cmd *exec.Cmd) *exec.Cmd {
+ 	if cmd.Env != nil {
+ 		panic("environment already set")
+@@ -38,55 +47,63 @@ func testEnv(cmd *exec.Cmd) *exec.Cmd {
+ 	return cmd
+ }
+ 
+-func executeTest(t *testing.T, templ string, data interface{}, extra ...string) string {
+-	testenv.MustHaveGoBuild(t)
++var testprog struct {
++	sync.Mutex
++	dir    string
++	target map[string]buildexe
++}
+ 
+-	checkStaleRuntime(t)
++type buildexe struct {
++	exe string
++	err error
++}
+ 
+-	st := template.Must(template.New("crashSource").Parse(templ))
++func runTestProg(t *testing.T, binary, name string) string {
++	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := ioutil.TempDir("", "go-build")
++	exe, err := buildTestProg(t, binary)
+ 	if err != nil {
+-		t.Fatalf("failed to create temp directory: %v", err)
++		t.Fatal(err)
+ 	}
+-	defer os.RemoveAll(dir)
++	got, _ := testEnv(exec.Command(exe, name)).CombinedOutput()
++	return string(got)
++}
+ 
+-	src := filepath.Join(dir, "main.go")
+-	f, err := os.Create(src)
+-	if err != nil {
+-		t.Fatalf("failed to create file: %v", err)
+-	}
+-	err = st.Execute(f, data)
+-	if err != nil {
+-		f.Close()
+-		t.Fatalf("failed to execute template: %v", err)
+-	}
+-	if err := f.Close(); err != nil {
+-		t.Fatalf("failed to close file: %v", err)
+-	}
++func buildTestProg(t *testing.T, binary string) (string, error) {
++	checkStaleRuntime(t)
+ 
+-	for i := 0; i < len(extra); i += 2 {
+-		fname := extra[i]
+-		contents := extra[i+1]
+-		if d, _ := filepath.Split(fname); d != "" {
+-			if err := os.Mkdir(filepath.Join(dir, d), 0755); err != nil {
+-				t.Fatal(err)
+-			}
+-		}
+-		if err := ioutil.WriteFile(filepath.Join(dir, fname), []byte(contents), 0666); err != nil {
+-			t.Fatal(err)
++	testprog.Lock()
++	defer testprog.Unlock()
++	if testprog.dir == "" {
++		dir, err := ioutil.TempDir("", "go-build")
++		if err != nil {
++			t.Fatalf("failed to create temp directory: %v", err)
+ 		}
++		testprog.dir = dir
++		toRemove = append(toRemove, dir)
++	}
++
++	if testprog.target == nil {
++		testprog.target = make(map[string]buildexe)
++	}
++	target, ok := testprog.target[binary]
++	if ok {
++		return target.exe, target.err
+ 	}
+ 
+-	cmd := exec.Command("go", "build", "-o", "a.exe")
+-	cmd.Dir = dir
++	exe := filepath.Join(testprog.dir, binary+".exe")
++	cmd := exec.Command("go", "build", "-o", exe)
++	cmd.Dir = "testdata/" + binary
+ 	out, err := testEnv(cmd).CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("building source: %v\n%s", err, out)
++		exe = ""
++		target.err = fmt.Errorf("building %s: %v\n%s", binary, err, out)
++		testprog.target[binary] = target
++		return "", err
+ 	}
+-
+-	got, _ := testEnv(exec.Command(filepath.Join(dir, "a.exe"))).CombinedOutput()
+-	return string(got)
++	target.exe = exe
++	testprog.target[binary] = target
++	return exe, nil
+ }
+ 
+ var (
+@@ -115,7 +132,12 @@ func testCrashHandler(t *testing.T, cgo bool) {
+ 	type crashTest struct {
+ 		Cgo bool
+ 	}
+-	output := executeTest(t, crashSource, &crashTest{Cgo: cgo})
++	var output string
++	if cgo {
++		output = runTestProg(t, "testprogcgo", "Crash")
++	} else {
++		output = runTestProg(t, "testprog", "Crash")
++	}
+ 	want := "main: recovered done\nnew-thread: recovered done\nsecond-new-thread: recovered done\nmain-again: recovered done\n"
+ 	if output != want {
+ 		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+@@ -126,8 +148,8 @@ func TestCrashHandler(t *testing.T) {
+ 	testCrashHandler(t, false)
+ }
+ 
+-func testDeadlock(t *testing.T, source string) {
+-	output := executeTest(t, source, nil)
++func testDeadlock(t *testing.T, name string) {
++	output := runTestProg(t, "testprog", name)
+ 	want := "fatal error: all goroutines are asleep - deadlock!\n"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+@@ -135,23 +157,23 @@ func testDeadlock(t *testing.T, source string) {
+ }
+ 
+ func TestSimpleDeadlock(t *testing.T) {
+-	testDeadlock(t, simpleDeadlockSource)
++	testDeadlock(t, "SimpleDeadlock")
+ }
+ 
+ func TestInitDeadlock(t *testing.T) {
+-	testDeadlock(t, initDeadlockSource)
++	testDeadlock(t, "InitDeadlock")
+ }
+ 
+ func TestLockedDeadlock(t *testing.T) {
+-	testDeadlock(t, lockedDeadlockSource)
++	testDeadlock(t, "LockedDeadlock")
+ }
+ 
+ func TestLockedDeadlock2(t *testing.T) {
+-	testDeadlock(t, lockedDeadlockSource2)
++	testDeadlock(t, "LockedDeadlock2")
+ }
+ 
+ func TestGoexitDeadlock(t *testing.T) {
+-	output := executeTest(t, goexitDeadlockSource, nil)
++	output := runTestProg(t, "testprog", "GoexitDeadlock")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.Contains(output, want) {
+ 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+@@ -159,15 +181,15 @@ func TestGoexitDeadlock(t *testing.T) {
+ }
+ 
+ func TestStackOverflow(t *testing.T) {
+-	output := executeTest(t, stackOverflowSource, nil)
+-	want := "runtime: goroutine stack exceeds 4194304-byte limit\nfatal error: stack overflow"
++	output := runTestProg(t, "testprog", "StackOverflow")
++	want := "runtime: goroutine stack exceeds 1474560-byte limit\nfatal error: stack overflow"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+ func TestThreadExhaustion(t *testing.T) {
+-	output := executeTest(t, threadExhaustionSource, nil)
++	output := runTestProg(t, "testprog", "ThreadExhaustion")
+ 	want := "runtime: program exceeds 10-thread limit\nfatal error: thread exhaustion"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+@@ -175,7 +197,7 @@ func TestThreadExhaustion(t *testing.T) {
+ }
+ 
+ func TestRecursivePanic(t *testing.T) {
+-	output := executeTest(t, recursivePanicSource, nil)
++	output := runTestProg(t, "testprog", "RecursivePanic")
+ 	want := `wrap: bad
+ panic: again
+ 
+@@ -187,7 +209,7 @@ panic: again
+ }
+ 
+ func TestGoexitCrash(t *testing.T) {
+-	output := executeTest(t, goexitExitSource, nil)
++	output := runTestProg(t, "testprog", "GoexitExit")
+ 	want := "no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.Contains(output, want) {
+ 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+@@ -211,15 +233,15 @@ func TestGoexitDefer(t *testing.T) {
+ }
+ 
+ func TestGoNil(t *testing.T) {
+-	output := executeTest(t, goNilSource, nil)
++	output := runTestProg(t, "testprog", "GoNil")
+ 	want := "go of nil func value"
+ 	if !strings.Contains(output, want) {
+ 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+ 	}
+ }
+ 
+-func TestMainGoroutineId(t *testing.T) {
+-	output := executeTest(t, mainGoroutineIdSource, nil)
++func TestMainGoroutineID(t *testing.T) {
++	output := runTestProg(t, "testprog", "MainGoroutineID")
+ 	want := "panic: test\n\ngoroutine 1 [running]:\n"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+@@ -227,7 +249,7 @@ func TestMainGoroutineId(t *testing.T) {
+ }
+ 
+ func TestNoHelperGoroutines(t *testing.T) {
+-	output := executeTest(t, noHelperGoroutinesSource, nil)
++	output := runTestProg(t, "testprog", "NoHelperGoroutines")
+ 	matches := regexp.MustCompile(`goroutine [0-9]+ \[`).FindAllStringSubmatch(output, -1)
+ 	if len(matches) != 1 || matches[0][0] != "goroutine 1 [" {
+ 		t.Fatalf("want to see only goroutine 1, see:\n%s", output)
+@@ -235,7 +257,7 @@ func TestNoHelperGoroutines(t *testing.T) {
+ }
+ 
+ func TestBreakpoint(t *testing.T) {
+-	output := executeTest(t, breakpointSource, nil)
++	output := runTestProg(t, "testprog", "Breakpoint")
+ 	want := "runtime.Breakpoint()"
+ 	if !strings.Contains(output, want) {
+ 		t.Fatalf("output:\n%s\n\nwant output containing: %s", output, want)
+@@ -253,293 +275,34 @@ import (
+ {{if .Cgo}}
+ import "C"
+ {{end}}
+-
+-func test(name string) {
+-	defer func() {
+-		if x := recover(); x != nil {
+-			fmt.Printf(" recovered")
+-		}
+-		fmt.Printf(" done\n")
+-	}()
+-	fmt.Printf("%s:", name)
+-	var s *string
+-	_ = *s
+-	fmt.Print("SHOULD NOT BE HERE")
+-}
+-
+-func testInNewThread(name string) {
+-	c := make(chan bool)
+-	go func() {
+-		runtime.LockOSThread()
+-		test(name)
+-		c <- true
+-	}()
+-	<-c
+-}
+-
+-func main() {
+-	runtime.LockOSThread()
+-	test("main")
+-	testInNewThread("new-thread")
+-	testInNewThread("second-new-thread")
+-	test("main-again")
+-}
+-`
+-
+-const simpleDeadlockSource = `
+-package main
+-func main() {
+-	select {}
+-}
+-`
+-
+-const initDeadlockSource = `
+-package main
+-func init() {
+-	select {}
+-}
+-func main() {
+-}
+-`
+-
+-const lockedDeadlockSource = `
+-package main
+-import "runtime"
+-func main() {
+-	runtime.LockOSThread()
+-	select {}
+-}
+-`
+-
+-const lockedDeadlockSource2 = `
+-package main
+-import (
+-	"runtime"
+-	"time"
+-)
+-func main() {
+-	go func() {
+-		runtime.LockOSThread()
+-		select {}
+-	}()
+-	time.Sleep(time.Millisecond)
+-	select {}
+-}
+-`
+-
+-const goexitDeadlockSource = `
+-package main
+-import (
+-      "runtime"
+-)
+-
+-func F() {
+-      for i := 0; i < 10; i++ {
+-      }
+-}
+-
+-func main() {
+-      go F()
+-      go F()
+-      runtime.Goexit()
+-}
+-`
+-
+-const stackOverflowSource = `
+-package main
+-
+-import "runtime/debug"
+-
+-func main() {
+-	debug.SetMaxStack(4<<20)
+-	f(make([]byte, 10))
+-}
+-
+-func f(x []byte) byte {
+-	var buf [64<<10]byte
+-	return x[0] + f(buf[:])
+-}
+-`
+-
+-const threadExhaustionSource = `
+-package main
+-
+-import (
+-	"runtime"
+-	"runtime/debug"
+-)
+-
+-func main() {
+-	debug.SetMaxThreads(10)
+-	c := make(chan int)
+-	for i := 0; i < 100; i++ {
+-		go func() {
+-			runtime.LockOSThread()
+-			c <- 0
+-			select{}
+-		}()
+-		<-c
+-	}
+-}
+-`
+-
+-const recursivePanicSource = `
+-package main
+-
+-import (
+-	"fmt"
+-)
+-
+-func main() {
+-	func() {
+-		defer func() {
+-			fmt.Println(recover())
+-		}()
+-		var x [8192]byte
+-		func(x [8192]byte) {
+-			defer func() {
+-				if err := recover(); err != nil {
+-					panic("wrap: " + err.(string))
+-				}
+-			}()
+-			panic("bad")
+-		}(x)
+-	}()
+-	panic("again")
+-}
+-`
+-
+-const goexitExitSource = `
+-package main
+-
+-import (
+-	"runtime"
+-	"time"
+-)
+-
+-func main() {
+-	go func() {
+-		time.Sleep(time.Millisecond)
+-	}()
+-	i := 0
+-	runtime.SetFinalizer(&i, func(p *int) {})
+-	runtime.GC()
+-	runtime.Goexit()
+-}
+-`
+-
+-const goNilSource = `
+-package main
+-
+-func main() {
+-	defer func() {
+-		recover()
+-	}()
+-	var f func()
+-	go f()
+-	select{}
+-}
+-`
+-
+-const mainGoroutineIdSource = `
+-package main
+-func main() {
+-	panic("test")
+-}
+-`
+-
+-const noHelperGoroutinesSource = `
+-package main
+-import (
+-	"runtime"
+-	"time"
+-)
+-func init() {
+-	i := 0
+-	runtime.SetFinalizer(&i, func(p *int) {})
+-	time.AfterFunc(time.Hour, func() {})
+-	panic("oops")
+-}
+-func main() {
+-}
+-`
+-
+-const breakpointSource = `
+-package main
+-import "runtime"
+-func main() {
+-	runtime.Breakpoint()
+-}
+ `
+ 
+ func TestGoexitInPanic(t *testing.T) {
+ 	// see issue 8774: this code used to trigger an infinite recursion
+-	output := executeTest(t, goexitInPanicSource, nil)
++	output := runTestProg(t, "testprog", "GoexitInPanic")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+-const goexitInPanicSource = `
+-package main
+-import "runtime"
+-func main() {
+-	go func() {
+-		defer func() {
+-			runtime.Goexit()
+-		}()
+-		panic("hello")
+-	}()
+-	runtime.Goexit()
+-}
+-`
+-
+ func TestPanicAfterGoexit(t *testing.T) {
+ 	// an uncaught panic should still work after goexit
+-	output := executeTest(t, panicAfterGoexitSource, nil)
++	output := runTestProg(t, "testprog", "PanicAfterGoexit")
+ 	want := "panic: hello"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+-const panicAfterGoexitSource = `
+-package main
+-import "runtime"
+-func main() {
+-	defer func() {
+-		panic("hello")
+-	}()
+-	runtime.Goexit()
+-}
+-`
+-
+ func TestRecoveredPanicAfterGoexit(t *testing.T) {
+-	output := executeTest(t, recoveredPanicAfterGoexitSource, nil)
++	output := runTestProg(t, "testprog", "RecoveredPanicAfterGoexit")
+ 	want := "fatal error: no goroutines (main called runtime.Goexit) - deadlock!"
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+-const recoveredPanicAfterGoexitSource = `
+-package main
+-import "runtime"
+-func main() {
+-	defer func() {
+-		defer func() {
+-			r := recover()
+-			if r == nil {
+-				panic("bad recover")
+-			}
+-		}()
+-		panic("hello")
+-	}()
+-	runtime.Goexit()
+-}
+-`
+-
+ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 	// 1. defer a function that recovers
+ 	// 2. defer a function that panics
+@@ -561,7 +324,7 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ }
+ 
+ func TestNetpollDeadlock(t *testing.T) {
+-	output := executeTest(t, netpollDeadlockSource, nil)
++	output := runTestProg(t, "testprognet", "NetpollDeadlock")
+ 	want := "done\n"
+ 	if !strings.HasSuffix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index ce61059e85..c8c96bb4ee 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -19,59 +19,13 @@ func TestGcSys(t *testing.T) {
+ 	if os.Getenv("GOGC") == "off" {
+ 		t.Skip("skipping test; GOGC=off in environment")
+ 	}
+-	data := struct{ Short bool }{testing.Short()}
+-	got := executeTest(t, testGCSysSource, &data)
++	got := runTestProg(t, "testprog", "GCSys")
+ 	want := "OK\n"
+ 	if got != want {
+ 		t.Fatalf("expected %q, but got %q", want, got)
+ 	}
+ }
+ 
+-const testGCSysSource = `
+-package main
+-
+-import (
+-	"fmt"
+-	"runtime"
+-)
+-
+-func main() {
+-	runtime.GOMAXPROCS(1)
+-	memstats := new(runtime.MemStats)
+-	runtime.GC()
+-	runtime.ReadMemStats(memstats)
+-	sys := memstats.Sys
+-
+-	runtime.MemProfileRate = 0 // disable profiler
+-
+-	itercount := 1000000
+-{{if .Short}}
+-	itercount = 100000
+-{{end}}
+-	for i := 0; i < itercount; i++ {
+-		workthegc()
+-	}
+-
+-	// Should only be using a few MB.
+-	// We allocated 100 MB or (if not short) 1 GB.
+-	runtime.ReadMemStats(memstats)
+-	if sys > memstats.Sys {
+-		sys = 0
+-	} else {
+-		sys = memstats.Sys - sys
+-	}
+-	if sys > 16<<20 {
+-		fmt.Printf("using too much memory: %d bytes\n", sys)
+-		return
+-	}
+-	fmt.Printf("OK\n")
+-}
+-
+-func workthegc() []byte {
+-	return make([]byte, 1029)
+-}
+-`
+-
+ func TestGcDeepNesting(t *testing.T) {
+ 	type T [2][2][2][2][2][2][2][2][2][2]*int
+ 	a := new(T)
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index c0213086b3..30798f723d 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -329,48 +329,13 @@ func TestPreemptionGC(t *testing.T) {
+ }
+ 
+ func TestGCFairness(t *testing.T) {
+-	output := executeTest(t, testGCFairnessSource, nil)
++	output := runTestProg(t, "testprog", "GCFairness")
+ 	want := "OK\n"
+ 	if output != want {
+ 		t.Fatalf("want %s, got %s\n", want, output)
+ 	}
+ }
+ 
+-const testGCFairnessSource = `
+-package main
+-
+-import (
+-	"fmt"
+-	"os"
+-	"runtime"
+-	"time"
+-)
+-
+-func main() {
+-	runtime.GOMAXPROCS(1)
+-	f, err := os.Open("/dev/null")
+-	if os.IsNotExist(err) {
+-		// This test tests what it is intended to test only if writes are fast.
+-		// If there is no /dev/null, we just don't execute the test.
+-		fmt.Println("OK")
+-		return
+-	}
+-	if err != nil {
+-		fmt.Println(err)
+-		os.Exit(1)
+-	}
+-	for i := 0; i < 2; i++ {
+-		go func() {
+-			for {
+-				f.Write([]byte("."))
+-			}
+-		}()
+-	}
+-	time.Sleep(10 * time.Millisecond)
+-	fmt.Println("OK")
+-}
+-`
+-
+ func TestPingPongHog(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index dfda950bdd..318a5532e5 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -125,7 +125,7 @@ func TestStringW(t *testing.T) {
+ }
+ 
+ func TestLargeStringConcat(t *testing.T) {
+-	output := executeTest(t, largeStringConcatSource, nil)
++	output := runTestProg(t, "testprog", "stringconcat")
+ 	want := "panic: " + strings.Repeat("0", 1<<10) + strings.Repeat("1", 1<<10) +
+ 		strings.Repeat("2", 1<<10) + strings.Repeat("3", 1<<10)
+ 	if !strings.HasPrefix(output, want) {
+@@ -133,19 +133,6 @@ func TestLargeStringConcat(t *testing.T) {
+ 	}
+ }
+ 
+-var largeStringConcatSource = `
+-package main
+-import "strings"
+-func main() {
+-	s0 := strings.Repeat("0", 1<<10)
+-	s1 := strings.Repeat("1", 1<<10)
+-	s2 := strings.Repeat("2", 1<<10)
+-	s3 := strings.Repeat("3", 1<<10)
+-	s := s0 + s1 + s2 + s3
+-	panic(s)
+-}
+-`
+-
+ func TestGostringnocopy(t *testing.T) {
+ 	max := *runtime.Maxstring
+ 	b := make([]byte, max+10)
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 30630bc904..79807035cc 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -500,7 +500,7 @@ func TestOutputDebugString(t *testing.T) {
+ }
+ 
+ func TestRaiseException(t *testing.T) {
+-	o := executeTest(t, raiseExceptionSource, nil)
++	o := runTestProg(t, "testprog", "RaiseException")
+ 	if strings.Contains(o, "RaiseException should not return") {
+ 		t.Fatalf("RaiseException did not crash program: %v", o)
+ 	}
+@@ -509,35 +509,13 @@ func TestRaiseException(t *testing.T) {
+ 	}
+ }
+ 
+-const raiseExceptionSource = `
+-package main
+-import "syscall"
+-func main() {
+-	const EXCEPTION_NONCONTINUABLE = 1
+-	mod := syscall.MustLoadDLL("kernel32.dll")
+-	proc := mod.MustFindProc("RaiseException")
+-	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
+-	println("RaiseException should not return")
+-}
+-`
+-
+ func TestZeroDivisionException(t *testing.T) {
+-	o := executeTest(t, zeroDivisionExceptionSource, nil)
++	o := runTestProg(t, "testprog", "ZeroDivisionException")
+ 	if !strings.Contains(o, "panic: runtime error: integer divide by zero") {
+ 		t.Fatalf("No stack trace: %v", o)
+ 	}
+ }
+ 
+-const zeroDivisionExceptionSource = `
+-package main
+-func main() {
+-	x := 1
+-	y := 0
+-	z := x / y
+-	println(z)
+-}
+-`
+-
+ func TestWERDialogue(t *testing.T) {
+ 	if os.Getenv("TESTING_WER_DIALOGUE") == "1" {
+ 		defer os.Exit(0)
+diff --git a/src/runtime/testdata/testprog/crash.go b/src/runtime/testdata/testprog/crash.go
+new file mode 100644
+index 0000000000..3d7c7c6aab
+--- /dev/null
++++ b/src/runtime/testdata/testprog/crash.go
+@@ -0,0 +1,45 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func init() {
++	register("Crash", Crash)
++}
++
++func test(name string) {
++	defer func() {
++		if x := recover(); x != nil {
++			fmt.Printf(" recovered")
++		}
++		fmt.Printf(" done\n")
++	}()
++	fmt.Printf("%s:", name)
++	var s *string
++	_ = *s
++	fmt.Print("SHOULD NOT BE HERE")
++}
++
++func testInNewThread(name string) {
++	c := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++		test(name)
++		c <- true
++	}()
++	<-c
++}
++
++func Crash() {
++	runtime.LockOSThread()
++	test("main")
++	testInNewThread("new-thread")
++	testInNewThread("second-new-thread")
++	test("main-again")
++}
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+new file mode 100644
+index 0000000000..7f0a0cd1e0
+--- /dev/null
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -0,0 +1,173 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++	"runtime/debug"
++	"time"
++)
++
++func init() {
++	registerInit("InitDeadlock", InitDeadlock)
++	registerInit("NoHelperGoroutines", NoHelperGoroutines)
++
++	register("SimpleDeadlock", SimpleDeadlock)
++	register("LockedDeadlock", LockedDeadlock)
++	register("LockedDeadlock2", LockedDeadlock2)
++	register("GoexitDeadlock", GoexitDeadlock)
++	register("StackOverflow", StackOverflow)
++	register("ThreadExhaustion", ThreadExhaustion)
++	register("RecursivePanic", RecursivePanic)
++	register("GoexitExit", GoexitExit)
++	register("GoNil", GoNil)
++	register("MainGoroutineID", MainGoroutineID)
++	register("Breakpoint", Breakpoint)
++	register("GoexitInPanic", GoexitInPanic)
++	register("PanicAfterGoexit", PanicAfterGoexit)
++	register("RecoveredPanicAfterGoexit", RecoveredPanicAfterGoexit)
++
++}
++
++func SimpleDeadlock() {
++	select {}
++	panic("not reached")
++}
++
++func InitDeadlock() {
++	select {}
++	panic("not reached")
++}
++
++func LockedDeadlock() {
++	runtime.LockOSThread()
++	select {}
++}
++
++func LockedDeadlock2() {
++	go func() {
++		runtime.LockOSThread()
++		select {}
++	}()
++	time.Sleep(time.Millisecond)
++	select {}
++}
++
++func GoexitDeadlock() {
++	F := func() {
++		for i := 0; i < 10; i++ {
++		}
++	}
++
++	go F()
++	go F()
++	runtime.Goexit()
++}
++
++func StackOverflow() {
++	var f func() byte
++	f = func() byte {
++		var buf [64 << 10]byte
++		return buf[0] + f()
++	}
++	debug.SetMaxStack(1474560)
++	f()
++}
++
++func ThreadExhaustion() {
++	debug.SetMaxThreads(10)
++	c := make(chan int)
++	for i := 0; i < 100; i++ {
++		go func() {
++			runtime.LockOSThread()
++			c <- 0
++			select {}
++		}()
++		<-c
++	}
++}
++
++func RecursivePanic() {
++	func() {
++		defer func() {
++			fmt.Println(recover())
++		}()
++		var x [8192]byte
++		func(x [8192]byte) {
++			defer func() {
++				if err := recover(); err != nil {
++					panic("wrap: " + err.(string))
++				}
++			}()
++			panic("bad")
++		}(x)
++	}()
++	panic("again")
++}
++
++func GoexitExit() {
++	go func() {
++		time.Sleep(time.Millisecond)
++	}()
++	i := 0
++	runtime.SetFinalizer(&i, func(p *int) {})
++	runtime.GC()
++	runtime.Goexit()
++}
++
++func GoNil() {
++	defer func() {
++		recover()
++	}()
++	var f func()
++	go f()
++	select {}
++}
++
++func MainGoroutineID() {
++	panic("test")
++}
++
++func NoHelperGoroutines() {
++	i := 0
++	runtime.SetFinalizer(&i, func(p *int) {})
++	time.AfterFunc(time.Hour, func() {})
++	panic("oops")
++}
++
++func Breakpoint() {
++	runtime.Breakpoint()
++}
++
++func GoexitInPanic() {
++	go func() {
++		defer func() {
++			runtime.Goexit()
++		}()
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
++
++func PanicAfterGoexit() {
++	defer func() {
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
++
++func RecoveredPanicAfterGoexit() {
++	defer func() {
++		defer func() {
++			r := recover()
++			if r == nil {
++				panic("bad recover")
++			}
++		}()
++		panic("hello")
++	}()
++	runtime.Goexit()
++}
+diff --git a/src/runtime/testdata/testprog/gc.go b/src/runtime/testdata/testprog/gc.go
+new file mode 100644
+index 0000000000..9bb367c0d1
+--- /dev/null
++++ b/src/runtime/testdata/testprog/gc.go
+@@ -0,0 +1,74 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++	"time"
++)
++
++func init() {
++	register("GCFairness", GCFairness)
++	register("GCSys", GCSys)
++}
++
++func GCSys() {
++	runtime.GOMAXPROCS(1)
++	memstats := new(runtime.MemStats)
++	runtime.GC()
++	runtime.ReadMemStats(memstats)
++	sys := memstats.Sys
++
++	runtime.MemProfileRate = 0 // disable profiler
++
++	itercount := 100000
++	for i := 0; i < itercount; i++ {
++		workthegc()
++	}
++
++	// Should only be using a few MB.
++	// We allocated 100 MB or (if not short) 1 GB.
++	runtime.ReadMemStats(memstats)
++	if sys > memstats.Sys {
++		sys = 0
++	} else {
++		sys = memstats.Sys - sys
++	}
++	if sys > 16<<20 {
++		fmt.Printf("using too much memory: %d bytes\n", sys)
++		return
++	}
++	fmt.Printf("OK\n")
++}
++
++func workthegc() []byte {
++	return make([]byte, 1029)
++}
++
++func GCFairness() {
++	runtime.GOMAXPROCS(1)
++	f, err := os.Open("/dev/null")
++	if os.IsNotExist(err) {
++		// This test tests what it is intended to test only if writes are fast.
++		// If there is no /dev/null, we just don't execute the test.
++		fmt.Println("OK")
++		return
++	}
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++	for i := 0; i < 2; i++ {
++		go func() {
++			for {
++				f.Write([]byte("."))
++			}
++		}()
++	}
++	time.Sleep(10 * time.Millisecond)
++	fmt.Println("OK")
++}
+diff --git a/src/runtime/testdata/testprog/main.go b/src/runtime/testdata/testprog/main.go
+new file mode 100644
+index 0000000000..5784865ea2
+--- /dev/null
++++ b/src/runtime/testdata/testprog/main.go
+@@ -0,0 +1,35 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++var cmds = map[string]func(){}
++
++func register(name string, f func()) {
++	if cmds[name] != nil {
++		panic("duplicate registration: " + name)
++	}
++	cmds[name] = f
++}
++
++func registerInit(name string, f func()) {
++	if len(os.Args) >= 2 && os.Args[1] == name {
++		f()
++	}
++}
++
++func main() {
++	if len(os.Args) < 2 {
++		println("usage: "+os.Args[0]+" name-of-test")
++		return
++	}
++	f := cmds[os.Args[1]]
++	if f == nil {
++		println("unknown function: " + os.Args[1])
++		return
++	}
++	f()
++}
+diff --git a/src/runtime/testdata/testprog/stringconcat.go b/src/runtime/testdata/testprog/stringconcat.go
+new file mode 100644
+index 0000000000..9dddf1969f
+--- /dev/null
++++ b/src/runtime/testdata/testprog/stringconcat.go
+@@ -0,0 +1,20 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "strings"
++
++func init() {
++	register("stringconcat", stringconcat)
++}
++
++func stringconcat() {
++	s0 := strings.Repeat("0", 1<<10)
++	s1 := strings.Repeat("1", 1<<10)
++	s2 := strings.Repeat("2", 1<<10)
++	s3 := strings.Repeat("3", 1<<10)
++	s := s0 + s1 + s2 + s3
++	panic(s)
++}
+diff --git a/src/runtime/testdata/testprog/syscall_windows.go b/src/runtime/testdata/testprog/syscall_windows.go
+new file mode 100644
+index 0000000000..73165be187
+--- /dev/null
++++ b/src/runtime/testdata/testprog/syscall_windows.go
+@@ -0,0 +1,27 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "syscall"
++
++func init() {
++	register("RaiseException", RaiseException)
++	register("ZeroDivisionException", ZeroDivisionException)
++}
++
++func RaiseException() {
++	const EXCEPTION_NONCONTINUABLE = 1
++	mod := syscall.MustLoadDLL("kernel32.dll")
++	proc := mod.MustFindProc("RaiseException")
++	proc.Call(0xbad, EXCEPTION_NONCONTINUABLE, 0, 0)
++	println("RaiseException should not return")
++}
++
++func ZeroDivisionException() {
++	x := 1
++	y := 0
++	z := x / y
++	println(z)
++}
+diff --git a/src/runtime/testdata/testprogcgo/callback.go b/src/runtime/testdata/testprogcgo/callback.go
+new file mode 100644
+index 0000000000..10e248a159
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/callback.go
+@@ -0,0 +1,89 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++/*
++#include <pthread.h>
++
++void go_callback();
++
++static void *thr(void *arg) {
++    go_callback();
++    return 0;
++}
++
++static void foo() {
++    pthread_t th;
++    pthread_attr_t attr;
++    pthread_attr_init(&attr);
++    pthread_attr_setstacksize(&attr, 256 << 10);
++    pthread_create(&th, &attr, thr, 0);
++    pthread_join(th, 0);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func init() {
++	register("CgoCallbackGC", CgoCallbackGC)
++}
++
++//export go_callback
++func go_callback() {
++	runtime.GC()
++	grow()
++	runtime.GC()
++}
++
++var cnt int
++
++func grow() {
++	x := 10000
++	sum := 0
++	if grow1(&x, &sum) == 0 {
++		panic("bad")
++	}
++}
++
++func grow1(x, sum *int) int {
++	if *x == 0 {
++		return *sum + 1
++	}
++	*x--
++	sum1 := *sum + *x
++	return grow1(x, &sum1)
++}
++
++func CgoCallbackGC() {
++	const P = 100
++	done := make(chan bool)
++	// allocate a bunch of stack frames and spray them with pointers
++	for i := 0; i < P; i++ {
++		go func() {
++			grow()
++			done <- true
++		}()
++	}
++	for i := 0; i < P; i++ {
++		<-done
++	}
++	// now give these stack frames to cgo callbacks
++	for i := 0; i < P; i++ {
++		go func() {
++			C.foo()
++			done <- true
++		}()
++	}
++	for i := 0; i < P; i++ {
++		<-done
++	}
++	fmt.Printf("OK\n")
++}
+diff --git a/src/runtime/testdata/testprogcgo/cgo.go b/src/runtime/testdata/testprogcgo/cgo.go
+new file mode 100644
+index 0000000000..cf1af8268c
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/cgo.go
+@@ -0,0 +1,80 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++void foo1(void) {}
++*/
++import "C"
++import (
++	"fmt"
++	"runtime"
++	"time"
++)
++
++func init() {
++	register("CgoSignalDeadlock", CgoSignalDeadlock)
++	register("CgoTraceback", CgoTraceback)
++}
++
++func CgoSignalDeadlock() {
++	runtime.GOMAXPROCS(100)
++	ping := make(chan bool)
++	go func() {
++		for i := 0; ; i++ {
++			runtime.Gosched()
++			select {
++			case done := <-ping:
++				if done {
++					ping <- true
++					return
++				}
++				ping <- true
++			default:
++			}
++			func() {
++				defer func() {
++					recover()
++				}()
++				var s *string
++				*s = ""
++			}()
++		}
++	}()
++	time.Sleep(time.Millisecond)
++	for i := 0; i < 64; i++ {
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		go func() {
++			runtime.LockOSThread()
++			select {}
++		}()
++		time.Sleep(time.Millisecond)
++		ping <- false
++		select {
++		case <-ping:
++		case <-time.After(time.Second):
++			fmt.Printf("HANG\n")
++			return
++		}
++	}
++	ping <- true
++	select {
++	case <-ping:
++	case <-time.After(time.Second):
++		fmt.Printf("HANG\n")
++		return
++	}
++	fmt.Printf("OK\n")
++}
++
++func CgoTraceback() {
++	C.foo1()
++	buf := make([]byte, 1)
++	runtime.Stack(buf, true)
++	fmt.Printf("OK\n")
++}
+diff --git a/src/runtime/testdata/testprogcgo/crash.go b/src/runtime/testdata/testprogcgo/crash.go
+new file mode 100644
+index 0000000000..3d7c7c6aab
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/crash.go
+@@ -0,0 +1,45 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++func init() {
++	register("Crash", Crash)
++}
++
++func test(name string) {
++	defer func() {
++		if x := recover(); x != nil {
++			fmt.Printf(" recovered")
++		}
++		fmt.Printf(" done\n")
++	}()
++	fmt.Printf("%s:", name)
++	var s *string
++	_ = *s
++	fmt.Print("SHOULD NOT BE HERE")
++}
++
++func testInNewThread(name string) {
++	c := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++		test(name)
++		c <- true
++	}()
++	<-c
++}
++
++func Crash() {
++	runtime.LockOSThread()
++	test("main")
++	testInNewThread("new-thread")
++	testInNewThread("second-new-thread")
++	test("main-again")
++}
+diff --git a/src/runtime/testdata/testprogcgo/dll_windows.go b/src/runtime/testdata/testprogcgo/dll_windows.go
+new file mode 100644
+index 0000000000..a0647ef212
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/dll_windows.go
+@@ -0,0 +1,25 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <windows.h>
++
++DWORD getthread() {
++	return GetCurrentThreadId();
++}
++*/
++import "C"
++import "./windows"
++
++func init() {
++	register("CgoDLLImportsMain", CgoDLLImportsMain)
++}
++
++func CgoDLLImportsMain() {
++	C.getthread()
++	windows.GetThread()
++	println("OK")
++}
+diff --git a/src/runtime/testdata/testprogcgo/main.go b/src/runtime/testdata/testprogcgo/main.go
+new file mode 100644
+index 0000000000..5784865ea2
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/main.go
+@@ -0,0 +1,35 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++var cmds = map[string]func(){}
++
++func register(name string, f func()) {
++	if cmds[name] != nil {
++		panic("duplicate registration: " + name)
++	}
++	cmds[name] = f
++}
++
++func registerInit(name string, f func()) {
++	if len(os.Args) >= 2 && os.Args[1] == name {
++		f()
++	}
++}
++
++func main() {
++	if len(os.Args) < 2 {
++		println("usage: "+os.Args[0]+" name-of-test")
++		return
++	}
++	f := cmds[os.Args[1]]
++	if f == nil {
++		println("unknown function: " + os.Args[1])
++		return
++	}
++	f()
++}
+diff --git a/src/runtime/testdata/testprogcgo/threadpanic.go b/src/runtime/testdata/testprogcgo/threadpanic.go
+new file mode 100644
+index 0000000000..3c9baba71a
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/threadpanic.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9
++
++package main
++
++// void start(void);
++import "C"
++
++func init() {
++	register("CgoExternalThreadPanic", CgoExternalThreadPanic)
++}
++
++func CgoExternalThreadPanic() {
++	C.start()
++	select {}
++}
++
++//export gopanic
++func gopanic() {
++	panic("BOOM")
++}
+diff --git a/src/runtime/testdata/testprogcgo/threadpanic_unix.c b/src/runtime/testdata/testprogcgo/threadpanic_unix.c
+new file mode 100644
+index 0000000000..dea8160365
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/threadpanic_unix.c
+@@ -0,0 +1,26 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++#include <stdlib.h>
++#include <stdio.h>
++#include <pthread.h>
++
++void gopanic(void);
++
++static void*
++die(void* x)
++{
++	gopanic();
++	return 0;
++}
++
++void
++start(void)
++{
++	pthread_t t;
++	if(pthread_create(&t, 0, die, 0) != 0)
++		printf("pthread_create failed\n");
++}
+diff --git a/src/runtime/testdata/testprogcgo/threadpanic_windows.c b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+new file mode 100644
+index 0000000000..0a19ffaa12
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/threadpanic_windows.c
+@@ -0,0 +1,22 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdlib.h>
++#include <stdio.h>
++
++void gopanic(void);
++
++static void*
++die(void* x)
++{
++	gopanic();
++	return 0;
++}
++
++void
++start(void)
++{
++	if(_beginthreadex(0, 0, die, 0, 0, 0) != 0)
++		printf("_beginthreadex failed\n");
++}
+diff --git a/src/runtime/testdata/testprogcgo/threadprof.go b/src/runtime/testdata/testprogcgo/threadprof.go
+new file mode 100644
+index 0000000000..03e35d2a9e
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/threadprof.go
+@@ -0,0 +1,93 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !plan9,!windows
++
++package main
++
++/*
++#include <stdint.h>
++#include <signal.h>
++#include <pthread.h>
++
++volatile int32_t spinlock;
++
++static void *thread1(void *p) {
++	(void)p;
++	while (spinlock == 0)
++		;
++	pthread_kill(pthread_self(), SIGPROF);
++	spinlock = 0;
++	return NULL;
++}
++__attribute__((constructor)) void issue9456() {
++	pthread_t tid;
++	pthread_create(&tid, 0, thread1, NULL);
++}
++
++void **nullptr;
++
++void *crash(void *p) {
++	*nullptr = p;
++	return 0;
++}
++
++int start_crashing_thread(void) {
++	pthread_t tid;
++	return pthread_create(&tid, 0, crash, 0);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"runtime"
++	"sync/atomic"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	register("CgoExternalThreadSIGPROF", CgoExternalThreadSIGPROF)
++	register("CgoExternalThreadSignal", CgoExternalThreadSignal)
++}
++
++func CgoExternalThreadSIGPROF() {
++	// This test intends to test that sending SIGPROF to foreign threads
++	// before we make any cgo call will not abort the whole process, so
++	// we cannot make any cgo call here. See https://golang.org/issue/9456.
++	atomic.StoreInt32((*int32)(unsafe.Pointer(&C.spinlock)), 1)
++	for atomic.LoadInt32((*int32)(unsafe.Pointer(&C.spinlock))) == 1 {
++		runtime.Gosched()
++	}
++	println("OK")
++}
++
++func CgoExternalThreadSignal() {
++	if len(os.Args) > 2 && os.Args[2] == "crash" {
++		i := C.start_crashing_thread()
++		if i != 0 {
++			fmt.Println("pthread_create failed:", i)
++			// Exit with 0 because parent expects us to crash.
++			return
++		}
++
++		// We should crash immediately, but give it plenty of
++		// time before failing (by exiting 0) in case we are
++		// running on a slow system.
++		time.Sleep(5 * time.Second)
++		return
++	}
++
++	out, err := exec.Command(os.Args[0], "CgoExternalThreadSignal", "crash").CombinedOutput()
++	if err == nil {
++		fmt.Println("C signal did not crash as expected\n")
++		fmt.Printf("%s\n", out)
++		os.Exit(1)
++	}
++
++	fmt.Println("OK")
++}
+diff --git a/src/runtime/testdata/testprogcgo/windows/win.go b/src/runtime/testdata/testprogcgo/windows/win.go
+new file mode 100644
+index 0000000000..f2eabb9548
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/windows/win.go
+@@ -0,0 +1,16 @@
++package windows
++
++/*
++#cgo CFLAGS: -mnop-fun-dllimport
++
++#include <windows.h>
++
++DWORD agetthread() {
++	return GetCurrentThreadId();
++}
++*/
++import "C"
++
++func GetThread() uint32 {
++	return uint32(C.agetthread())
++}
+diff --git a/src/runtime/testdata/testprognet/main.go b/src/runtime/testdata/testprognet/main.go
+new file mode 100644
+index 0000000000..5784865ea2
+--- /dev/null
++++ b/src/runtime/testdata/testprognet/main.go
+@@ -0,0 +1,35 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "os"
++
++var cmds = map[string]func(){}
++
++func register(name string, f func()) {
++	if cmds[name] != nil {
++		panic("duplicate registration: " + name)
++	}
++	cmds[name] = f
++}
++
++func registerInit(name string, f func()) {
++	if len(os.Args) >= 2 && os.Args[1] == name {
++		f()
++	}
++}
++
++func main() {
++	if len(os.Args) < 2 {
++		println("usage: "+os.Args[0]+" name-of-test")
++		return
++	}
++	f := cmds[os.Args[1]]
++	if f == nil {
++		println("unknown function: " + os.Args[1])
++		return
++	}
++	f()
++}
+diff --git a/src/runtime/testdata/testprognet/net.go b/src/runtime/testdata/testprognet/net.go
+new file mode 100644
+index 0000000000..c1a7f3f132
+--- /dev/null
++++ b/src/runtime/testdata/testprognet/net.go
+@@ -0,0 +1,29 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"net"
++)
++
++func init() {
++	registerInit("NetpollDeadlock", NetpollDeadlockInit)
++	register("NetpollDeadlock", NetpollDeadlock)
++}
++
++func NetpollDeadlockInit() {
++	fmt.Println("dialing")
++	c, err := net.Dial("tcp", "localhost:14356")
++	if err == nil {
++		c.Close()
++	} else {
++		fmt.Println("error: ", err)
++	}
++}
++
++func NetpollDeadlock() {
++	fmt.Println("done")
++}

@@ -19,9 +19,235 @@ Date:   Sat Oct 16 17:53:31 2021 +1100
     Trust: Michael Matloob <matloob@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 13 +++-
  src/cmd/go/internal/vcs/vcs.go                     | 86 +++++++++++++++++-----
  .../go/testdata/script/version_buildvcs_git.txt    | 13 +++-
  src/cmd/go/testdata/script/version_buildvcs_hg.txt | 12 ++-
  4 files changed, 97 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a5be48a49b..dfe7849516 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -25,6 +25,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"time"
+ 	"unicode"
+ 	"unicode/utf8"
+ 
+@@ -2364,10 +2365,14 @@ func (p *Package) setBuildInfo() {
+ 			setVCSError(err)
+ 			return
+ 		}
+-		info.Settings = append(info.Settings, []debug.BuildSetting{
+-			{Key: vcsCmd.Cmd + "revision", Value: st.Revision},
+-			{Key: vcsCmd.Cmd + "uncommitted", Value: strconv.FormatBool(st.Uncommitted)},
+-		}...)
++		if st.Revision != "" {
++			appendSetting(vcsCmd.Cmd+"revision", st.Revision)
++		}
++		if !st.CommitTime.IsZero() {
++			stamp := st.CommitTime.UTC().Format(time.RFC3339Nano)
++			appendSetting(vcsCmd.Cmd+"committime", stamp)
++		}
++		appendSetting(vcsCmd.Cmd+"uncommitted", strconv.FormatBool(st.Uncommitted))
+ 	}
+ 
+ 	text, err := info.MarshalText()
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index d1272b66e9..941bd57147 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -18,8 +18,10 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"strconv"
+ 	"strings"
+ 	"sync"
++	"time"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+@@ -54,8 +56,9 @@ type Cmd struct {
+ 
+ // Status is the current state of a local repository.
+ type Status struct {
+-	Revision    string
+-	Uncommitted bool
++	Revision    string    // Optional.
++	CommitTime  time.Time // Optional.
++	Uncommitted bool      // Required.
+ }
+ 
+ var defaultSecureScheme = map[string]bool{
+@@ -159,24 +162,52 @@ func hgRemoteRepo(vcsHg *Cmd, rootDir string) (remoteRepo string, err error) {
+ }
+ 
+ func hgStatus(vcsHg *Cmd, rootDir string) (Status, error) {
+-	out, err := vcsHg.runOutputVerboseOnly(rootDir, "identify -i")
++	// Output changeset ID and seconds since epoch.
++	out, err := vcsHg.runOutputVerboseOnly(rootDir, `log -l1 -T {node}:{date(date,"%s")}`)
+ 	if err != nil {
+ 		return Status{}, err
+ 	}
+-	rev := strings.TrimSpace(string(out))
+-	uncommitted := strings.HasSuffix(rev, "+")
+-	if uncommitted {
+-		// "+" means a tracked file is edited.
+-		rev = rev[:len(rev)-len("+")]
+-	} else {
+-		// Also look for untracked files.
+-		out, err = vcsHg.runOutputVerboseOnly(rootDir, "status -u")
++
++	// Successful execution without output indicates an empty repo (no commits).
++	var rev string
++	var commitTime time.Time
++	if len(out) > 0 {
++		rev, commitTime, err = parseRevTime(out)
+ 		if err != nil {
+ 			return Status{}, err
+ 		}
+-		uncommitted = len(out) > 0
+ 	}
+-	return Status{Revision: rev, Uncommitted: uncommitted}, nil
++
++	// Also look for untracked files.
++	out, err = vcsHg.runOutputVerboseOnly(rootDir, "status")
++	if err != nil {
++		return Status{}, err
++	}
++	uncommitted := len(out) > 0
++
++	return Status{
++		Revision:    rev,
++		CommitTime:  commitTime,
++		Uncommitted: uncommitted,
++	}, nil
++}
++
++// parseRevTime parses commit details in "revision:seconds" format.
++func parseRevTime(out []byte) (string, time.Time, error) {
++	buf := string(bytes.TrimSpace(out))
++
++	i := strings.IndexByte(buf, ':')
++	if i < 1 {
++		return "", time.Time{}, errors.New("unrecognized VCS tool output")
++	}
++	rev := buf[:i]
++
++	secs, err := strconv.ParseInt(string(buf[i+1:]), 10, 64)
++	if err != nil {
++		return "", time.Time{}, fmt.Errorf("unrecognized VCS tool output: %v", err)
++	}
++
++	return rev, time.Unix(secs, 0), nil
+ }
+ 
+ // vcsGit describes how to use Git.
+@@ -263,18 +294,33 @@ func gitRemoteRepo(vcsGit *Cmd, rootDir string) (remoteRepo string, err error) {
+ 	return "", errParse
+ }
+ 
+-func gitStatus(cmd *Cmd, repoDir string) (Status, error) {
+-	out, err := cmd.runOutputVerboseOnly(repoDir, "rev-parse HEAD")
++func gitStatus(vcsGit *Cmd, rootDir string) (Status, error) {
++	out, err := vcsGit.runOutputVerboseOnly(rootDir, "status --porcelain")
+ 	if err != nil {
+ 		return Status{}, err
+ 	}
+-	rev := string(bytes.TrimSpace(out))
+-	out, err = cmd.runOutputVerboseOnly(repoDir, "status --porcelain")
+-	if err != nil {
++	uncommitted := len(out) > 0
++
++	// "git status" works for empty repositories, but "git show" does not.
++	// Assume there are no commits in the repo when "git show" fails with
++	// uncommitted files and skip tagging revision / committime.
++	var rev string
++	var commitTime time.Time
++	out, err = vcsGit.runOutputVerboseOnly(rootDir, "show -s --format=%H:%ct")
++	if err != nil && !uncommitted {
+ 		return Status{}, err
++	} else if err == nil {
++		rev, commitTime, err = parseRevTime(out)
++		if err != nil {
++			return Status{}, err
++		}
+ 	}
+-	uncommitted := len(out) != 0
+-	return Status{Revision: rev, Uncommitted: uncommitted}, nil
++
++	return Status{
++		Revision:    rev,
++		CommitTime:  commitTime,
++		Uncommitted: uncommitted,
++	}, nil
+ }
+ 
+ // vcsBzr describes how to use Bazaar.
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+index 78ce2e835e..3d56c6d8b4 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -28,16 +28,25 @@ cd ..
+ env PATH=$oldpath
+ rm .git
+ 
+-# If there is a repository in a parent directory, there should be VCS info.
++# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+ exec git init
+ exec git config user.email gopher@golang.org
+ exec git config user.name 'J.R. Gopher'
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout gitrevision
++! stdout gitcommittime
++stdout '^\tbuild\tgituncommitted\ttrue$'
++rm $GOBIN/a$GOEXE
++
++# Revision and commit time are tagged for repositories with commits.
+ exec git add -A
+ exec git commit -m 'initial commit'
+-cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tgitrevision\t'
++stdout '^\tbuild\tgitcommittime\t'
+ stdout '^\tbuild\tgituncommitted\tfalse$'
+ rm $GOBIN/a$GOEXE
+ 
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_hg.txt b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+index 9dcb8dd950..df4938742d 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_hg.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+@@ -29,14 +29,24 @@ cd ..
+ env PATH=$oldpath
+ rm .hg
+ 
+-# If there is a repository in a parent directory, there should be VCS info.
++# If there is an empty repository in a parent directory, only "uncommitted" is tagged.
+ exec hg init
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++! stdout hgrevision
++! stdout hgcommittime
++stdout '^\tbuild\thguncommitted\ttrue$'
++cd ..
++
++# Revision and commit time are tagged for repositories with commits.
+ exec hg add a README
+ exec hg commit -m 'initial commit'
+ cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\thgrevision\t'
++stdout '^\tbuild\thgcommittime\t'
+ stdout '^\tbuild\thguncommitted\tfalse$'
+ rm $GOBIN/a$GOEXE
+ 

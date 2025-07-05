@@ -23,7 +23,39 @@ Date:   Sun Jul 9 22:24:12 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/work/security.go                           | 1 +
  src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt | 8 ++++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index c3d62ddc23..3b3eba536c 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -90,6 +90,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-f(no-)?use-linker-plugin`), // safe if -B is not used; we don't permit -B
+ 	re(`-f(no-)?visibility-inlines-hidden`),
+ 	re(`-fsanitize=(.+)`),
++	re(`-fsanitize-undefined-strip-path-components=(-)?[0-9]+`),
+ 	re(`-ftemplate-depth-(.+)`),
+ 	re(`-ftls-model=(global-dynamic|local-dynamic|initial-exec|local-exec)`),
+ 	re(`-fvisibility=(.+)`),
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+index 6dc30bedb9..b4b2d14b11 100644
+--- a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -56,6 +56,14 @@ env CGO_CFLAGS=-fprofile-instr-generate
+ go build -x -n -o dummy.exe ./usesInternalCgo
+ stderr preferlinkext
+ 
++# Trimming file information for the UndefinedBehaviorSanitizer is permitted for internal linking.
++env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=-1
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-fsanitize-undefined-strip-path-components=2
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++
+ # The -fdebug-prefix-map=path is permitted for internal linking.
+ env CGO_CFLAGS=-fdebug-prefix-map=/some/sandbox/execroot/workspace=/tmp/new
+ go build -x -n -o dummy.exe ./usesInternalCgo

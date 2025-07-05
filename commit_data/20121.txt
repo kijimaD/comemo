@@ -8,8 +8,143 @@ Date:   Mon Aug 18 21:06:56 2014 -0400
     R=golang-codereviews, rminnich, iant
     CC=golang-codereviews, r
     https://golang.org/cl/125140043
-
+---
  src/cmd/6l/asm.c   | 17 +++++++++++++----
  src/cmd/ld/data.c  | 10 +++++++---
  src/liblink/asm6.c | 29 ++++++++---------------------
  3 files changed, 28 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index e251e32ca9..c7f6c65d00 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -290,7 +290,6 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 		break;
+ 		
+ 	case R_CALL:
+-	case R_PCREL:
+ 		if(r->siz == 4) {
+ 			if(r->xsym->type == SDYNIMPORT)
+ 				VPUT(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
+@@ -299,7 +298,14 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 		} else
+ 			return -1;
+ 		break;
+-	
++
++	case R_PCREL:
++		if(r->siz == 4) {
++			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
++		} else
++			return -1;
++		break;
++
+ 	case R_TLS:
+ 		if(r->siz == 4) {
+ 			if(flag_shared)
+@@ -323,7 +329,7 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 	
+ 	rs = r->xsym;
+ 
+-	if(rs->type == SHOSTOBJ) {
++	if(rs->type == SHOSTOBJ || r->type == R_PCREL) {
+ 		if(rs->dynid < 0) {
+ 			diag("reloc %d to non-macho symbol %s type=%d", r->type, rs->name, rs->type);
+ 			return -1;
+@@ -345,10 +351,13 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		v |= MACHO_X86_64_RELOC_UNSIGNED<<28;
+ 		break;
+ 	case R_CALL:
+-	case R_PCREL:
+ 		v |= 1<<24; // pc-relative bit
+ 		v |= MACHO_X86_64_RELOC_BRANCH<<28;
+ 		break;
++	case R_PCREL:
++		// NOTE: Only works with 'external' relocation. Forced above.
++		v |= 1<<24; // pc-relative bit
++		v |= MACHO_X86_64_RELOC_SIGNED<<28;
+ 	}
+ 	
+ 	switch(r->siz) {
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index f76ac0129c..a988e807e6 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -281,9 +281,13 @@ relocsym(LSym *s)
+ 					if(thechar == '6')
+ 						o = 0;
+ 				} else if(HEADTYPE == Hdarwin) {
+-					if(rs->type != SHOSTOBJ)
+-						o += symaddr(rs) - rs->sect->vaddr;
+-					o -= r->off; // WTF?
++					if(r->type == R_CALL) {
++						if(rs->type != SHOSTOBJ)
++							o += symaddr(rs) - rs->sect->vaddr;
++						o -= r->off; // relative to section offset, not symbol
++					} else {
++						o += r->siz;
++					}
+ 				} else {
+ 					diag("unhandled pcrel relocation for %s", headstring);
+ 				}
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index fa329777d0..e25c85053a 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -1932,10 +1932,7 @@ oclass(Link *ctxt, Addr *a)
+ 				switch(a->index) {
+ 				case D_EXTERN:
+ 				case D_STATIC:
+-					if(ctxt->flag_shared || ctxt->headtype == Hnacl)
+-						return Yiauto;
+-					else
+-						return Yi32;	/* TO DO: Yi64 */
++					return Yiauto; // use pc-relative addressing
+ 				case D_AUTO:
+ 				case D_PARAM:
+ 					return Yiauto;
+@@ -2290,15 +2287,12 @@ vaddr(Link *ctxt, Addr *a, Reloc *r)
+ 		r->sym = s;
+ 		r->add = v;
+ 		v = 0;
+-		if(ctxt->flag_shared || ctxt->headtype == Hnacl) {
+-			if(s->type == STLSBSS) {
+-				r->xadd = r->add - r->siz;
+-				r->type = R_TLS;
+-				r->xsym = s;
+-			} else
+-				r->type = R_PCREL;
+-		} else
+-			r->type = R_ADDR;
++		r->type = R_PCREL;
++		if(s->type == STLSBSS) {
++			r->xadd = r->add - r->siz;
++			r->type = R_TLS;
++			r->xsym = s;
++		}
+ 		break;
+ 	
+ 	case D_INDIR+D_TLS:
+@@ -2333,13 +2327,6 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 			switch(t) {
+ 			default:
+ 				goto bad;
+-			case D_STATIC:
+-			case D_EXTERN:
+-				if(ctxt->flag_shared || ctxt->headtype == Hnacl)
+-					goto bad;
+-				t = D_NONE;
+-				v = vaddr(ctxt, a, &rel);
+-				break;
+ 			case D_AUTO:
+ 			case D_PARAM:
+ 				t = D_SP;
+@@ -2399,7 +2386,7 @@ asmandsz(Link *ctxt, Addr *a, int r, int rex, int m64)
+ 
+ 	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
+ 	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
+-		if((ctxt->flag_shared || ctxt->headtype == Hnacl) && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
++		if(t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
+ 			*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 			goto putrelv;
+ 		}

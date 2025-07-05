@@ -14,8 +14,86 @@ Date:   Wed May 6 12:25:56 2015 -0400
     Change-Id: Ic6f160b64efdc1bbed02097ee03050f8cd0ab1b8
     Reviewed-on: https://go-review.googlesource.com/9789
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/gc/syntax.go    |  1 -
  src/cmd/internal/gc/typecheck.go | 23 -----------------------
  src/cmd/internal/gc/walk.go      | 20 --------------------
  3 files changed, 44 deletions(-)
+
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 7c9fb8d2b8..70c6f3f567 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -48,7 +48,6 @@ type Node struct {
+ 	Assigned    bool   // is the variable ever assigned to
+ 	Captured    bool   // is the variable captured by a closure
+ 	Byval       bool   // is the variable captured by value or by reference
+-	Reslice     bool   // this is a reslice x = x[0:y] or x = append(x, ...)
+ 	Likely      int8   // likeliness of if statement
+ 	Hasbreak    bool   // has break statement
+ 	Needzero    bool   // if it contains pointers, needs to be zeroed on function entry
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 6daf842474..fdd393d0cf 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -3360,29 +3360,6 @@ func typecheckas(n *Node) {
+ 	if n.Left.Typecheck == 0 {
+ 		typecheck(&n.Left, Erv|Easgn)
+ 	}
+-
+-	// Recognize slices being updated in place, for better code generation later.
+-	// Don't rewrite if using race detector, to avoid needing to teach race detector
+-	// about this optimization.
+-	if n.Left != nil && n.Left.Op != OINDEXMAP && n.Right != nil && flag_race == 0 {
+-		switch n.Right.Op {
+-		// For x = x[0:y], x can be updated in place, without touching pointer.
+-		// TODO(rsc): Reenable once it is actually updated in place without touching the pointer.
+-		case OSLICE, OSLICE3, OSLICESTR:
+-			if false && samesafeexpr(n.Left, n.Right.Left) && (n.Right.Right.Left == nil || iszero(n.Right.Right.Left)) {
+-				n.Right.Reslice = true
+-			}
+-
+-			// For x = append(x, ...), x can be updated in place when there is capacity,
+-		// without touching the pointer; otherwise the emitted code to growslice
+-		// can take care of updating the pointer, and only in that case.
+-		// TODO(rsc): Reenable once the emitted code does update the pointer.
+-		case OAPPEND:
+-			if false && n.Right.List != nil && samesafeexpr(n.Left, n.Right.List.N) {
+-				n.Right.Reslice = true
+-			}
+-		}
+-	}
+ }
+ 
+ func checkassignto(src *Type, dst *Node) {
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c32a8137d6..c8a5c7e2f3 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2185,26 +2185,6 @@ func needwritebarrier(l *Node, r *Node) bool {
+ 		return false
+ 	}
+ 
+-	// No write barrier for reslice: x = x[0:y] or x = append(x, ...).
+-	// Both are compiled to modify x directly.
+-	// In the case of append, a write barrier may still be needed
+-	// if the underlying array grows, but the append code can
+-	// generate the write barrier directly in that case.
+-	// (It does not yet, but the cost of the write barrier will be
+-	// small compared to the cost of the allocation.)
+-	if r.Reslice {
+-		switch r.Op {
+-		case OSLICE, OSLICE3, OSLICESTR, OAPPEND:
+-			break
+-
+-		default:
+-			Dump("bad reslice-l", l)
+-			Dump("bad reslice-r", r)
+-		}
+-
+-		return false
+-	}
+-
+ 	// Otherwise, be conservative and use write barrier.
+ 	return true
+ }

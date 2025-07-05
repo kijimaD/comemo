@@ -7,6 +7,20 @@ Date:   Mon Mar 7 11:00:57 2011 -0800
     R=r, adg
     CC=golang-dev
     https://golang.org/cl/4256052
-
+---
  misc/dashboard/builder/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+index a28658a957..419aff7ee5 100644
+--- a/misc/dashboard/builder/doc.go
++++ b/misc/dashboard/builder/doc.go
+@@ -39,7 +39,7 @@ Optional flags:
+   -release: Build and deliver binary release archive
+ 
+   -rev=N: Build revision N and exit
+-  
++
+   -cmd="./all.bash": Build command (specify absolute or relative to go/src)
+ 
+   -v: Verbose logging

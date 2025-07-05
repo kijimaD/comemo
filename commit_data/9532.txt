@@ -7,6 +7,23 @@ Date:   Mon Aug 29 09:35:08 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4966045
-
+---
  src/pkg/time/zoneinfo_plan9.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 57e605e0d6..577ef85bd6 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -67,9 +67,9 @@ func setupTestingZone() {
+ 	l, _ := f.Seek(0, 2)
+ 	f.Seek(0, 0)
+ 	buf := make([]byte, l)
+-	_, err := f.Read(buf)
++	_, err = f.Read(buf)
+ 	if err != nil {
+ 		return
+ 	}
+-	zones = parseZones(buf)
++	zones = parseZones(string(buf))
+ }

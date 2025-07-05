@@ -17,8 +17,121 @@ Date:   Thu Mar 10 10:01:35 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/stmt.go       |  2 +-
  src/cmd/compile/internal/noder/stencil.go | 20 ++++++++++
  test/typeparam/issue51522b.go             | 62 +++++++++++++++++++++++++++++++
  3 files changed, 83 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index e7d0d873b7..80bd205436 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -362,7 +362,7 @@ func NewSendStmt(pos src.XPos, ch, value Node) *SendStmt {
+ 	return n
+ }
+ 
+-// A SwitchStmt is a switch statement: switch Init; Expr { Cases }.
++// A SwitchStmt is a switch statement: switch Init; Tag { Cases }.
+ type SwitchStmt struct {
+ 	miniStmt
+ 	Tag      Node
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 9d17d5ffd1..cd586cab78 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1179,6 +1179,26 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			subst.g.newInsts = append(subst.g.newInsts, m.(*ir.ClosureExpr).Func)
+ 			m.(*ir.ClosureExpr).SetInit(subst.list(x.Init()))
+ 
++		case ir.OSWITCH:
++			m := m.(*ir.SwitchStmt)
++			if m.Tag != nil && m.Tag.Op() == ir.OTYPESW {
++				break // Nothing to do here for type switches.
++			}
++			if m.Tag != nil && !m.Tag.Type().IsInterface() && m.Tag.Type().HasShape() {
++				// To implement a switch on a value that is or has a type parameter, we first convert
++				// that thing we're switching on to an interface{}.
++				m.Tag = assignconvfn(m.Tag, types.Types[types.TINTER])
++			}
++			for _, c := range m.Cases {
++				for i, x := range c.List {
++					// If we have a case that is or has a type parameter, convert that case
++					// to an interface{}.
++					if !x.Type().IsInterface() && x.Type().HasShape() {
++						c.List[i] = assignconvfn(x, types.Types[types.TINTER])
++					}
++				}
++			}
++
+ 		}
+ 		return m
+ 	}
+diff --git a/test/typeparam/issue51522b.go b/test/typeparam/issue51522b.go
+new file mode 100644
+index 0000000000..115b6b9c42
+--- /dev/null
++++ b/test/typeparam/issue51522b.go
+@@ -0,0 +1,62 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[T comparable](i any) {
++	var t T
++
++	switch i {
++	case t:
++		// ok
++	default:
++		println("FAIL: switch i")
++	}
++
++	switch t {
++	case i:
++		// ok
++	default:
++		println("FAIL: switch t")
++	}
++}
++
++type myint int
++
++func (m myint) foo() {
++}
++
++type fooer interface {
++	foo()
++}
++
++type comparableFoo interface {
++	comparable
++	foo()
++}
++
++func g[T comparableFoo](i fooer) {
++	var t T
++
++	switch i {
++	case t:
++		// ok
++	default:
++		println("FAIL: switch i")
++	}
++
++	switch t {
++	case i:
++		// ok
++	default:
++		println("FAIL: switch t")
++	}
++}
++
++func main() {
++	f[int](0)
++	g[myint](myint(0))
++}

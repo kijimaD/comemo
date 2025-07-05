@@ -9,6 +9,24 @@ Date:   Fri Jun 5 18:05:39 2020 +0200
     Change-Id: I6c7a7e9c91f7691a6ba2a7ac4dad92c64b48962f
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236658
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index d17888732b..0c345f22e2 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -395,7 +395,11 @@ TODO
+ <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+   <dd>
+     <p><!-- CL 212597 -->
+-      TODO: <a href="https://golang.org/cl/212597">https://golang.org/cl/212597</a>: reject path separators in TempDir, TempFile pattern
++      <a href="/pkg/io/ioutil/#TempDir"><code>TempDir</code></a> and
++      <a href="/pkg/io/ioutil/#TempFile"><code>TempFile</code></a>
++      now reject patterns that contain path separators.
++      That is, calls such as <code>ioutil.TempFile("/tmp",</code> <code>"../base*")</code> will no longer succeed.
++      This prevents unintended directory traversal.
+     </p>
+   </dd>
+ </dl><!-- io/ioutil -->

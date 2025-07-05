@@ -14,9 +14,151 @@ Date:   Mon Apr 23 15:39:02 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6098051
-
+---
  src/pkg/text/template/exec.go             | 27 +++++++++++++++++++--------
  src/pkg/text/template/exec_test.go        |  5 +++++
  src/pkg/text/template/parse/parse.go      | 10 ----------
  src/pkg/text/template/parse/parse_test.go |  1 -
  4 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index feb434a3be..b8d23d43f9 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -12,6 +12,8 @@ import (
+ 	"sort"
+ 	"strings"
+ 	"text/template/parse"
++	"unicode"
++	"unicode/utf8"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+@@ -414,9 +416,13 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 		return s.evalCall(dot, method, fieldName, args, final)
+ 	}
+ 	hasArgs := len(args) > 1 || final.IsValid()
+-	// It's not a method; is it a field of a struct?
++	// It's not a method; must be a field of a struct or an element of a map. The receiver must not be nil.
+ 	receiver, isNil := indirect(receiver)
+-	if receiver.Kind() == reflect.Struct {
++	if isNil {
++		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
++	}
++	switch receiver.Kind() {
++	case reflect.Struct:
+ 		tField, ok := receiver.Type().FieldByName(fieldName)
+ 		if ok {
+ 			field := receiver.FieldByIndex(tField.Index)
+@@ -428,9 +434,11 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 				return field
+ 			}
+ 		}
+-	}
+-	// If it's a map, attempt to use the field name as a key.
+-	if receiver.Kind() == reflect.Map {
++		if !isExported(fieldName) {
++			s.errorf("%s is not an exported field of struct type %s", fieldName, typ)
++		}
++	case reflect.Map:
++		// If it's a map, attempt to use the field name as a key.
+ 		nameVal := reflect.ValueOf(fieldName)
+ 		if nameVal.Type().AssignableTo(receiver.Type().Key()) {
+ 			if hasArgs {
+@@ -439,13 +447,16 @@ func (s *state) evalField(dot reflect.Value, fieldName string, args []parse.Node
+ 			return receiver.MapIndex(nameVal)
+ 		}
+ 	}
+-	if isNil {
+-		s.errorf("nil pointer evaluating %s.%s", typ, fieldName)
+-	}
+ 	s.errorf("can't evaluate field %s in type %s", fieldName, typ)
+ 	panic("not reached")
+ }
+ 
++// isExported reports whether the field name (which starts with a period) can be accessed.
++func isExported(fieldName string) bool {
++	r, _ := utf8.DecodeRuneInString(fieldName[1:]) // drop the period
++	return unicode.IsUpper(r)
++}
++
+ var (
+ 	errorType       = reflect.TypeOf((*error)(nil)).Elem()
+ 	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+diff --git a/src/pkg/text/template/exec_test.go b/src/pkg/text/template/exec_test.go
+index 37d25f470c..8f6c67bbaa 100644
+--- a/src/pkg/text/template/exec_test.go
++++ b/src/pkg/text/template/exec_test.go
+@@ -65,6 +65,8 @@ type T struct {
+ 	VariadicFuncInt func(int, ...string) string
+ 	// Template to test evaluation of templates.
+ 	Tmpl *Template
++	// Unexported field; cannot be accessed by template.
++	unexported int
+ }
+ 
+ type U struct {
+@@ -232,6 +234,7 @@ var execTests = []execTest{
+ 	// Fields of structs.
+ 	{".X", "-{{.X}}-", "-x-", tVal, true},
+ 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
++	{".unexported", "{{.unexported}}", "", tVal, false},
+ 
+ 	// Fields on maps.
+ 	{"map .one", "{{.MSI.one}}", "1", tVal, true},
+@@ -473,6 +476,8 @@ var execTests = []execTest{
+ 	// Pipelined arg was not being type-checked.
+ 	{"bug8a", "{{3|oneArg}}", "", tVal, false},
+ 	{"bug8b", "{{4|dddArg 3}}", "", tVal, false},
++	// A bug was introduced that broke map lookups for lower-case names.
++	{"bug9", "{{.cause}}", "neglect", map[string]string{"cause": "neglect"}, true},
+ }
+ 
+ func zeroArgs() string {
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index cbb1686a7f..7970b5fcc6 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -14,7 +14,6 @@ import (
+ 	"runtime"
+ 	"strconv"
+ 	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // Tree is the representation of a single parsed template.
+@@ -474,9 +473,6 @@ Loop:
+ 		case itemVariable:
+ 			cmd.append(t.useVar(token.val))
+ 		case itemField:
+-			if !isExported(token.val) {
+-				t.errorf("field %q not exported; cannot be evaluated", token.val)
+-			}
+ 			cmd.append(newField(token.val))
+ 		case itemBool:
+ 			cmd.append(newBool(token.val == "true"))
+@@ -502,12 +498,6 @@ Loop:
+ 	return cmd
+ }
+ 
+-// isExported reports whether the field name (which starts with a period) can be accessed.
+-func isExported(fieldName string) bool {
+-	r, _ := utf8.DecodeRuneInString(fieldName[1:]) // drop the period
+-	return unicode.IsUpper(r)
+-}
+-
+ // hasFunction reports if a function name exists in the Tree's maps.
+ func (t *Tree) hasFunction(name string) bool {
+ 	for _, funcMap := range t.funcs {
+diff --git a/src/pkg/text/template/parse/parse_test.go b/src/pkg/text/template/parse/parse_test.go
+index fb98613fe1..b2e788238d 100644
+--- a/src/pkg/text/template/parse/parse_test.go
++++ b/src/pkg/text/template/parse/parse_test.go
+@@ -230,7 +230,6 @@ var parseTests = []parseTest{
+ 	{"invalid punctuation", "{{printf 3, 4}}", hasError, ""},
+ 	{"multidecl outside range", "{{with $v, $u := 3}}{{end}}", hasError, ""},
+ 	{"too many decls in range", "{{range $u, $v, $w := 3}}{{end}}", hasError, ""},
+-	{"unexported field", "{{.local}}", hasError, ""},
+ 	// Equals (and other chars) do not assignments make (yet).
+ 	{"bug0a", "{{$x := 0}}{{$x}}", noError, "{{$x := 0}}{{$x}}"},
+ 	{"bug0b", "{{$x = 1}}{{$x}}", hasError, ""},

@@ -28,7 +28,7 @@ Date:   Sun Mar 27 10:21:48 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      |  2 --
  src/cmd/compile/internal/gc/main.go    |  4 ---
  src/cmd/compile/internal/gc/obj.go     |  6 +++++
@@ -42,3 +42,374 @@ Date:   Sun Mar 27 10:21:48 2016 -0400
  src/runtime/runtime1.go                |  8 +++---
  src/runtime/symtab.go                  |  3 ++-
  12 files changed, 99 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index d9b28ff8e6..5df49b56d6 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -171,8 +171,6 @@ var msanpkg *Pkg // package runtime/msan
+ 
+ var typepkg *Pkg // fake package for runtime type info (headers)
+ 
+-var typelinkpkg *Pkg // fake package for runtime type info (data)
+-
+ var unsafepkg *Pkg // package unsafe
+ 
+ var trackpkg *Pkg // fake package for field tracking
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 26acf8861f..45a510d577 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -126,10 +126,6 @@ func Main() {
+ 	itabpkg.Name = "go.itab"
+ 	itabpkg.Prefix = "go.itab" // not go%2eitab
+ 
+-	typelinkpkg = mkpkg("go.typelink")
+-	typelinkpkg.Name = "go.typelink"
+-	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
+-
+ 	itablinkpkg = mkpkg("go.itablink")
+ 	itablinkpkg.Name = "go.itablink"
+ 	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 23c8be645c..eed0ed6e24 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -321,6 +321,12 @@ func dsymptrLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
+ 	return off
+ }
+ 
++func dsymptrOffLSym(s *obj.LSym, off int, x *obj.LSym, xoff int) int {
++	s.WriteOff(Ctxt, int64(off), x, int64(xoff))
++	off += 4
++	return off
++}
++
+ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nam.Op != ONAME {
+ 		Fatalf("gdata nam op %v", opnames[nam.Op])
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index df9ef27b7a..ea67634260 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -879,7 +879,7 @@ func tracksym(t *Type, f *Field) *Sym {
+ 	return Pkglookup(Tconv(t, FmtLeft)+"."+f.Sym.Name, trackpkg)
+ }
+ 
+-func typelinksym(t *Type) *Sym {
++func typelinkLSym(t *Type) *obj.LSym {
+ 	// %-uT is what the generated Type's string field says.
+ 	// It uses (ambiguous) package names instead of import paths.
+ 	// %-T is the complete, unambiguous type name.
+@@ -889,13 +889,8 @@ func typelinksym(t *Type) *Sym {
+ 	// ensure the types appear sorted by their string field. The
+ 	// names are a little long but they are discarded by the linker
+ 	// and do not end up in the symbol table of the final binary.
+-	p := Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
+-
+-	s := Pkglookup(p, typelinkpkg)
+-
+-	//print("typelinksym: %s -> %+S\n", p, s);
+-
+-	return s
++	name := "go.typelink." + Tconv(t, FmtLeft|FmtUnsigned) + "\t" + Tconv(t, FmtLeft)
++	return obj.Linklookup(Ctxt, name, 0)
+ }
+ 
+ func typesymprefix(prefix string, t *Type) *Sym {
+@@ -1298,9 +1293,9 @@ ok:
+ 	if t.Sym == nil {
+ 		switch t.Etype {
+ 		case TPTR32, TPTR64, TARRAY, TCHAN, TFUNC, TMAP, TSTRUCT:
+-			slink := typelinksym(t)
+-			dsymptr(slink, 0, s, 0)
+-			ggloblsym(slink, int32(Widthptr), int16(dupok|obj.RODATA))
++			slink := typelinkLSym(t)
++			dsymptrOffLSym(slink, 0, Linksym(s), 0)
++			ggloblLSym(slink, 4, int16(dupok|obj.RODATA))
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 37ab70bb0e..546ff37269 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -111,17 +111,36 @@ func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
+ // rsym and roff specify the relocation for the address.
+ func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
+ 	if siz != ctxt.Arch.PtrSize {
+-		ctxt.Diag("WriteAddr: bad address size: %d", siz)
++		ctxt.Diag("WriteAddr: bad address size %d in %s", siz, s.Name)
+ 	}
+ 	s.prepwrite(ctxt, off, siz)
+ 	r := Addrel(s)
+ 	r.Off = int32(off)
++	if int64(r.Off) != off {
++		ctxt.Diag("WriteAddr: off overflow %d in %s", off, s.Name)
++	}
+ 	r.Siz = uint8(siz)
+ 	r.Sym = rsym
+ 	r.Type = R_ADDR
+ 	r.Add = roff
+ }
+ 
++// WriteOff writes a 4 byte offset to rsym+roff into s at offset off.
++// After linking the 4 bytes stored at s+off will be
++// rsym+roff-(start of section that s is in).
++func (s *LSym) WriteOff(ctxt *Link, off int64, rsym *LSym, roff int64) {
++	s.prepwrite(ctxt, off, 4)
++	r := Addrel(s)
++	r.Off = int32(off)
++	if int64(r.Off) != off {
++		ctxt.Diag("WriteOff: off overflow %d in %s", off, s.Name)
++	}
++	r.Siz = 4
++	r.Sym = rsym
++	r.Type = R_ADDROFF
++	r.Add = roff
++}
++
+ // WriteString writes a string of size siz into s at offset off.
+ func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
+ 	if siz < len(str) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 62175f9ed8..d44d4398b1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -457,6 +457,9 @@ const (
+ 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
+ 	// by loading the address into a register with two instructions (lui, ori).
+ 	R_ADDRMIPS
++	// R_ADDROFF resolves to an offset from the beginning of the section holding
++	// the data being relocated to the referenced symbol.
++	R_ADDROFF
+ 	R_SIZE
+ 	R_CALL
+ 	R_CALLARM
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index ae7c287f59..cf51b0a908 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -525,6 +525,9 @@ func relocsym(s *LSym) {
+ 			}
+ 			o = Symaddr(r.Sym) + r.Add - int64(r.Sym.Sect.Vaddr)
+ 
++		case obj.R_ADDROFF:
++			o = Symaddr(r.Sym) - int64(r.Sym.Sect.Vaddr) + r.Add
++
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case obj.R_CALL, obj.R_GOTPCREL, obj.R_PCREL:
+ 			if Linkmode == LinkExternal && r.Sym != nil && r.Sym.Type != obj.SCONST && (r.Sym.Sect != Ctxt.Cursym.Sect || r.Type == obj.R_GOTPCREL) {
+@@ -1599,6 +1602,10 @@ func dodata() {
+ 	sect.Vaddr = 0
+ 	Linklookup(Ctxt, "runtime.rodata", 0).Sect = sect
+ 	Linklookup(Ctxt, "runtime.erodata", 0).Sect = sect
++	if !UseRelro() {
++		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
++		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
++	}
+ 	for ; s != nil && s.Type < obj.STYPERELRO; s = s.Next {
+ 		datsize = aligndatsize(datsize, s)
+ 		s.Sect = sect
+@@ -1631,6 +1638,8 @@ func dodata() {
+ 		sect.Align = maxalign(s, obj.STYPELINK-1)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+ 		sect.Vaddr = 0
++		Linklookup(Ctxt, "runtime.types", 0).Sect = sect
++		Linklookup(Ctxt, "runtime.etypes", 0).Sect = sect
+ 		for ; s != nil && s.Type < obj.STYPELINK; s = s.Next {
+ 			datsize = aligndatsize(datsize, s)
+ 			if s.Outer != nil && s.Outer.Sect != nil && s.Outer.Sect != sect {
+@@ -1970,10 +1979,12 @@ func address() {
+ 	} else {
+ 		rodata = text.Next
+ 	}
++	var relrodata *Section
+ 	typelink := rodata.Next
+ 	if UseRelro() {
+ 		// There is another section (.data.rel.ro) when building a shared
+ 		// object on elf systems.
++		relrodata = typelink
+ 		typelink = typelink.Next
+ 	}
+ 	itablink := typelink.Next
+@@ -2007,6 +2018,11 @@ func address() {
+ 		s.Value = int64(sectSym.Sect.Vaddr + 16)
+ 	}
+ 
++	types := relrodata
++	if types == nil {
++		types = rodata
++	}
++
+ 	xdefine("runtime.text", obj.STEXT, int64(text.Vaddr))
+ 	xdefine("runtime.etext", obj.STEXT, int64(text.Vaddr+text.Length))
+ 	if HEADTYPE == obj.Hwindows {
+@@ -2014,6 +2030,8 @@ func address() {
+ 	}
+ 	xdefine("runtime.rodata", obj.SRODATA, int64(rodata.Vaddr))
+ 	xdefine("runtime.erodata", obj.SRODATA, int64(rodata.Vaddr+rodata.Length))
++	xdefine("runtime.types", obj.SRODATA, int64(types.Vaddr))
++	xdefine("runtime.etypes", obj.SRODATA, int64(types.Vaddr+types.Length))
+ 	xdefine("runtime.typelink", obj.SRODATA, int64(typelink.Vaddr))
+ 	xdefine("runtime.etypelink", obj.SRODATA, int64(typelink.Vaddr+typelink.Length))
+ 	xdefine("runtime.itablink", obj.SRODATA, int64(itablink.Vaddr))
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index ae0b17c259..678ed38730 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -329,6 +329,8 @@ func symtab() {
+ 	xdefine("runtime.eitablink", obj.SRODATA, 0)
+ 	xdefine("runtime.rodata", obj.SRODATA, 0)
+ 	xdefine("runtime.erodata", obj.SRODATA, 0)
++	xdefine("runtime.types", obj.SRODATA, 0)
++	xdefine("runtime.etypes", obj.SRODATA, 0)
+ 	xdefine("runtime.noptrdata", obj.SNOPTRDATA, 0)
+ 	xdefine("runtime.enoptrdata", obj.SNOPTRDATA, 0)
+ 	xdefine("runtime.data", obj.SDATA, 0)
+@@ -537,6 +539,8 @@ func symtab() {
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.end", 0))
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcdata", 0))
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.gcbss", 0))
++	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.types", 0))
++	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.etypes", 0))
+ 	// The typelinks slice
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.typelink", 0))
+ 	adduint(Ctxt, moduledata, uint64(ntypelinks))
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index ddc64b46be..037c953718 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -46,9 +46,11 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 
+ func TypeLinks() []string {
+ 	var r []string
+-	for _, m := range typelinks() {
+-		for _, t := range m {
+-			r = append(r, t.string)
++	sections, offset := typelinks()
++	for i, offs := range offset {
++		rodata := sections[i]
++		for _, off := range offs {
++			r = append(r, rtypeOff(rodata, off).string)
+ 		}
+ 	}
+ 	return r
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 8f13acf26e..7104fde60a 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1558,30 +1558,48 @@ func haveIdenticalUnderlyingType(T, V *rtype) bool {
+ }
+ 
+ // typelinks is implemented in package runtime.
+-// It returns a slice of all the 'typelink' information in the binary,
+-// which is to say a slice of known types, sorted by string.
++// It returns a slice of the sections in each module,
++// and a slice of *rtype offsets in each module.
++//
++// The types in each module are sorted by string. That is, the first
++// two linked types of the first module are:
++//
++//	d0 := sections[0]
++//	t1 := (*rtype)(add(d0, offset[0][0]))
++//	t2 := (*rtype)(add(d0, offset[0][1]))
++//
++// and
++//
++//	t1.string < t2.string
++//
+ // Note that strings are not unique identifiers for types:
+ // there can be more than one with a given string.
+ // Only types we might want to look up are included:
+ // pointers, channels, maps, slices, and arrays.
+-func typelinks() [][]*rtype
++func typelinks() (sections []unsafe.Pointer, offset [][]int32)
++
++func rtypeOff(section unsafe.Pointer, off int32) *rtype {
++	return (*rtype)(add(section, uintptr(off)))
++}
+ 
+ // typesByString returns the subslice of typelinks() whose elements have
+ // the given string representation.
+ // It may be empty (no known types with that string) or may have
+ // multiple elements (multiple types with that string).
+ func typesByString(s string) []*rtype {
+-	typs := typelinks()
++	sections, offset := typelinks()
+ 	var ret []*rtype
+ 
+-	for _, typ := range typs {
++	for offsI, offs := range offset {
++		section := sections[offsI]
++
+ 		// We are looking for the first index i where the string becomes >= s.
+ 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].string >= s).
+-		i, j := 0, len(typ)
++		i, j := 0, len(offs)
+ 		for i < j {
+ 			h := i + (j-i)/2 // avoid overflow when computing h
+ 			// i ≤ h < j
+-			if !(typ[h].string >= s) {
++			if !(rtypeOff(section, offs[h]).string >= s) {
+ 				i = h + 1 // preserves f(i-1) == false
+ 			} else {
+ 				j = h // preserves f(j) == true
+@@ -1592,17 +1610,12 @@ func typesByString(s string) []*rtype {
+ 		// Having found the first, linear scan forward to find the last.
+ 		// We could do a second binary search, but the caller is going
+ 		// to do a linear scan anyway.
+-		j = i
+-		for j < len(typ) && typ[j].string == s {
+-			j++
+-		}
+-
+-		if j > i {
+-			if ret == nil {
+-				ret = typ[i:j:j]
+-			} else {
+-				ret = append(ret, typ[i:j]...)
++		for j := i; j < len(offs); j++ {
++			typ := rtypeOff(section, offs[j])
++			if typ.string != s {
++				break
+ 			}
++			ret = append(ret, typ)
+ 		}
+ 	}
+ 	return ret
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 95bebac593..e1956569fd 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -477,10 +477,12 @@ func gomcache() *mcache {
+ }
+ 
+ //go:linkname reflect_typelinks reflect.typelinks
+-func reflect_typelinks() [][]*_type {
+-	ret := [][]*_type{firstmoduledata.typelinks}
++func reflect_typelinks() ([]unsafe.Pointer, [][]int32) {
++	sections := []unsafe.Pointer{unsafe.Pointer(firstmoduledata.types)}
++	ret := [][]int32{firstmoduledata.typelinks}
+ 	for datap := firstmoduledata.next; datap != nil; datap = datap.next {
++		sections = append(sections, unsafe.Pointer(datap.types))
+ 		ret = append(ret, datap.typelinks)
+ 	}
+-	return ret
++	return sections, ret
+ }
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 158bdcea0d..8c70f22c1f 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -127,8 +127,9 @@ type moduledata struct {
+ 	bss, ebss             uintptr
+ 	noptrbss, enoptrbss   uintptr
+ 	end, gcdata, gcbss    uintptr
++	types, etypes         uintptr
+ 
+-	typelinks []*_type
++	typelinks []int32 // offsets from types
+ 	itablinks []*itab
+ 
+ 	modulename   string

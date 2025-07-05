@@ -7,6 +7,26 @@ Date:   Thu Jun 14 11:44:00 2012 +1000
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6298079
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index dda8239a6e..9863106108 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -45,6 +45,14 @@ bug</a> that can lead to memory corruption.
+ It also includes several minor code and documentation fixes.
+ </p>
+ 
++<p>
++go1.0.2 (released 2012/06/13) was issued to fix two bugs in the implementation
++of maps using struct or array keys: 
++<a href="http://code.google.com/p/go/issues/detail?id=3695">issue 3695</a> and
++<a href="http://code.google.com/p/go/issues/detail?id=3573">issue 3573</a>.
++It also includes many minor code and documentation fixes.
++</p>
++
+ <p>
+ See the <a href="http://code.google.com/p/go/source/list?name=release-branch.go1">go1 release branch history</a> for the complete list of changes.
+ </p>

@@ -19,6 +19,23 @@ Date:   Thu Sep 22 09:37:28 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/29592
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mfinal.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 9bad6f0aa3..b3f30dd5ae 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -226,8 +226,9 @@ func runfinq() {
+ //
+ // SetFinalizer(obj, nil) clears any finalizer associated with obj.
+ //
+-// The argument obj must be a pointer to an object allocated by
+-// calling new or by taking the address of a composite literal.
++// The argument obj must be a pointer to an object allocated by calling
++// new, by taking the address of a composite literal, or by taking the
++// address of a local variable.
+ // The argument finalizer must be a function that takes a single argument
+ // to which obj's type can be assigned, and can have arbitrary ignored return
+ // values. If either of these is not true, SetFinalizer aborts the

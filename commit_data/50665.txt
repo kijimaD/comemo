@@ -26,8 +26,437 @@ Date:   Fri Sep 17 10:07:41 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go | 146 +----------------------------
  src/cmd/compile/internal/base/flag.go  |  36 ++++----
  src/cmd/internal/objabi/flag.go        | 164 +++++++++++++++++++++++++++++++++
  3 files changed, 187 insertions(+), 159 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index e2245e1c26..37e345bd7f 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -6,15 +6,6 @@
+ 
+ package base
+ 
+-import (
+-	"fmt"
+-	"log"
+-	"os"
+-	"reflect"
+-	"strconv"
+-	"strings"
+-)
+-
+ // Debug holds the parsed debugging configuration values.
+ var Debug DebugFlags
+ 
+@@ -26,7 +17,7 @@ var Debug DebugFlags
+ // Each setting is name=value; for ints, name is short for name=1.
+ type DebugFlags struct {
+ 	Append               int    `help:"print information about append compilation"`
+-	Checkptr             int    `help:"instrument unsafe pointer conversions"`
++	Checkptr             int    `help:"instrument unsafe pointer conversions\n0: instrumentation disabled\n1: conversions involving unsafe.Pointer are instrumented\n2: conversions to unsafe.Pointer force heap allocation"`
+ 	Closure              int    `help:"print information about closure compilation"`
+ 	DclStack             int    `help:"run internal dclstack check"`
+ 	Defer                int    `help:"print information about defer compilation"`
+@@ -40,7 +31,7 @@ type DebugFlags struct {
+ 	LocationLists        int    `help:"print information about DWARF location list creation"`
+ 	Nil                  int    `help:"print information about nil checks"`
+ 	NoOpenDefer          int    `help:"disable open-coded defers"`
+-	PCTab                string `help:"print named pc-value table"`
++	PCTab                string `help:"print named pc-value table\nOne of: pctospadj, pctofile, pctoline, pctoinline, pctopcdata"`
+ 	Panic                int    `help:"show all compiler panics"`
+ 	Slice                int    `help:"print information about slice compilation"`
+ 	SoftFloat            int    `help:"force compiler to emit soft-float code"`
+@@ -52,141 +43,10 @@ type DebugFlags struct {
+ 	WB                   int    `help:"print information about write barriers"`
+ 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+ 
+-	any bool // set when any of the values have been set
+-}
+-
+-// Any reports whether any of the debug flags have been set.
+-func (d *DebugFlags) Any() bool { return d.any }
+-
+-type debugField struct {
+-	name string
+-	help string
+-	val  interface{} // *int or *string
+-}
+-
+-var debugTab []debugField
+-
+-func init() {
+-	v := reflect.ValueOf(&Debug).Elem()
+-	t := v.Type()
+-	for i := 0; i < t.NumField(); i++ {
+-		f := t.Field(i)
+-		if f.Name == "any" {
+-			continue
+-		}
+-		name := strings.ToLower(f.Name)
+-		help := f.Tag.Get("help")
+-		if help == "" {
+-			panic(fmt.Sprintf("base.Debug.%s is missing help text", f.Name))
+-		}
+-		ptr := v.Field(i).Addr().Interface()
+-		switch ptr.(type) {
+-		default:
+-			panic(fmt.Sprintf("base.Debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
+-		case *int, *string:
+-			// ok
+-		}
+-		debugTab = append(debugTab, debugField{name, help, ptr})
+-	}
++	Any bool // set when any of the debug flags have been set
+ }
+ 
+ // DebugSSA is called to set a -d ssa/... option.
+ // If nil, those options are reported as invalid options.
+ // If DebugSSA returns a non-empty string, that text is reported as a compiler error.
+ var DebugSSA func(phase, flag string, val int, valString string) string
+-
+-// parseDebug parses the -d debug string argument.
+-func parseDebug(debugstr string) {
+-	// parse -d argument
+-	if debugstr == "" {
+-		return
+-	}
+-	Debug.any = true
+-Split:
+-	for _, name := range strings.Split(debugstr, ",") {
+-		if name == "" {
+-			continue
+-		}
+-		// display help about the -d option itself and quit
+-		if name == "help" {
+-			fmt.Print(debugHelpHeader)
+-			maxLen := len("ssa/help")
+-			for _, t := range debugTab {
+-				if len(t.name) > maxLen {
+-					maxLen = len(t.name)
+-				}
+-			}
+-			for _, t := range debugTab {
+-				fmt.Printf("\t%-*s\t%s\n", maxLen, t.name, t.help)
+-			}
+-			// ssa options have their own help
+-			fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
+-			fmt.Print(debugHelpFooter)
+-			os.Exit(0)
+-		}
+-		val, valstring, haveInt := 1, "", true
+-		if i := strings.IndexAny(name, "=:"); i >= 0 {
+-			var err error
+-			name, valstring = name[:i], name[i+1:]
+-			val, err = strconv.Atoi(valstring)
+-			if err != nil {
+-				val, haveInt = 1, false
+-			}
+-		}
+-		for _, t := range debugTab {
+-			if t.name != name {
+-				continue
+-			}
+-			switch vp := t.val.(type) {
+-			case nil:
+-				// Ignore
+-			case *string:
+-				*vp = valstring
+-			case *int:
+-				if !haveInt {
+-					log.Fatalf("invalid debug value %v", name)
+-				}
+-				*vp = val
+-			default:
+-				panic("bad debugtab type")
+-			}
+-			continue Split
+-		}
+-		// special case for ssa for now
+-		if DebugSSA != nil && strings.HasPrefix(name, "ssa/") {
+-			// expect form ssa/phase/flag
+-			// e.g. -d=ssa/generic_cse/time
+-			// _ in phase name also matches space
+-			phase := name[4:]
+-			flag := "debug" // default flag is debug
+-			if i := strings.Index(phase, "/"); i >= 0 {
+-				flag = phase[i+1:]
+-				phase = phase[:i]
+-			}
+-			err := DebugSSA(phase, flag, val, valstring)
+-			if err != "" {
+-				log.Fatalf(err)
+-			}
+-			continue Split
+-		}
+-		log.Fatalf("unknown debug key -d %s\n", name)
+-	}
+-}
+-
+-const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+-
+-<key> is one of:
+-
+-`
+-
+-const debugHelpFooter = `
+-<value> is key-specific.
+-
+-Key "checkptr" supports values:
+-	"0": instrumentation disabled
+-	"1": conversions involving unsafe.Pointer are instrumented
+-	"2": conversions to unsafe.Pointer force heap allocation
+-
+-Key "pctab" supports values:
+-	"pctospadj", "pctofile", "pctoline", "pctoinline", "pctopcdata"
+-`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 9d630ce97a..f38eaa91c0 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -64,19 +64,19 @@ type CmdFlags struct {
+ 	// V is added by objabi.AddVersionFlag
+ 	W CountFlag "help:\"debug parse tree after type checking\""
+ 
+-	LowerC int          "help:\"concurrency during compilation (1 means no concurrency)\""
+-	LowerD func(string) "help:\"enable debugging settings; try -d help\""
+-	LowerE CountFlag    "help:\"no limit on number of errors reported\""
+-	LowerH CountFlag    "help:\"halt on error\""
+-	LowerJ CountFlag    "help:\"debug runtime-initialized variables\""
+-	LowerL CountFlag    "help:\"disable inlining\""
+-	LowerM CountFlag    "help:\"print optimization decisions\""
+-	LowerO string       "help:\"write output to `file`\""
+-	LowerP *string      "help:\"set expected package import `path`\"" // &Ctxt.Pkgpath, set below
+-	LowerR CountFlag    "help:\"debug generated wrappers\""
+-	LowerT bool         "help:\"enable tracing for debugging the compiler\""
+-	LowerW CountFlag    "help:\"debug type checking\""
+-	LowerV *bool        "help:\"increase debug verbosity\""
++	LowerC int        "help:\"concurrency during compilation (1 means no concurrency)\""
++	LowerD flag.Value "help:\"enable debugging settings; try -d help\""
++	LowerE CountFlag  "help:\"no limit on number of errors reported\""
++	LowerH CountFlag  "help:\"halt on error\""
++	LowerJ CountFlag  "help:\"debug runtime-initialized variables\""
++	LowerL CountFlag  "help:\"disable inlining\""
++	LowerM CountFlag  "help:\"print optimization decisions\""
++	LowerO string     "help:\"write output to `file`\""
++	LowerP *string    "help:\"set expected package import `path`\"" // &Ctxt.Pkgpath, set below
++	LowerR CountFlag  "help:\"debug generated wrappers\""
++	LowerT bool       "help:\"enable tracing for debugging the compiler\""
++	LowerW CountFlag  "help:\"debug type checking\""
++	LowerV *bool      "help:\"increase debug verbosity\""
+ 
+ 	// Special characters
+ 	Percent          int  "flag:\"%\" help:\"debug non-static initializers\""
+@@ -145,7 +145,7 @@ func ParseFlags() {
+ 	Flag.I = addImportDir
+ 
+ 	Flag.LowerC = 1
+-	Flag.LowerD = parseDebug
++	Flag.LowerD = objabi.NewDebugFlag(&Debug, DebugSSA)
+ 	Flag.LowerP = &Ctxt.Pkgpath
+ 	Flag.LowerV = &Ctxt.Debugvlog
+ 
+@@ -331,7 +331,11 @@ func registerFlags() {
+ 			f := v.Field(i).Interface().(func(string))
+ 			objabi.Flagfn1(name, help, f)
+ 		default:
+-			panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
++			if val, ok := v.Field(i).Interface().(flag.Value); ok {
++				flag.Var(val, name, help)
++			} else {
++				panic(fmt.Sprintf("base.Flag.%s has unexpected type %s", f.Name, f.Type))
++			}
+ 		}
+ 	}
+ }
+@@ -359,7 +363,7 @@ func concurrentBackendAllowed() bool {
+ 	// while writing the object file, and that is non-concurrent.
+ 	// Adding Debug_vlog, however, causes Debug.S to also print
+ 	// while flushing the plist, which happens concurrently.
+-	if Ctxt.Debugvlog || Debug.Any() || Flag.Live > 0 {
++	if Ctxt.Debugvlog || Debug.Any || Flag.Live > 0 {
+ 		return false
+ 	}
+ 	// TODO: Test and delete this condition.
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index e41fc570b0..f75c054fcb 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -13,6 +13,8 @@ import (
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
++	"reflect"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -202,3 +204,165 @@ func DecodeArg(arg string) string {
+ 	}
+ 	return b.String()
+ }
++
++type debugField struct {
++	name string
++	help string
++	val  interface{} // *int or *string
++}
++
++type DebugFlag struct {
++	tab map[string]debugField
++	any *bool
++
++	debugSSA DebugSSA
++}
++
++// A DebugSSA function is called to set a -d ssa/... option.
++// If nil, those options are reported as invalid options.
++// If DebugSSA returns a non-empty string, that text is reported as a compiler error.
++// If phase is "help", it should print usage information and terminate the process.
++type DebugSSA func(phase, flag string, val int, valString string) string
++
++// NewDebugFlag constructs a DebugFlag for the fields of debug, which
++// must be a pointer to a struct.
++//
++// Each field of *debug is a different value, named for the lower-case of the field name.
++// Each field must be an int or string and must have a `help` struct tag.
++// There may be an "Any bool" field, which will be set if any debug flags are set.
++//
++// The returned flag takes a comma-separated list of settings.
++// Each setting is name=value; for ints, name is short for name=1.
++//
++// If debugSSA is non-nil, any debug flags of the form ssa/... will be
++// passed to debugSSA for processing.
++func NewDebugFlag(debug interface{}, debugSSA DebugSSA) *DebugFlag {
++	flag := &DebugFlag{
++		tab:      make(map[string]debugField),
++		debugSSA: debugSSA,
++	}
++
++	v := reflect.ValueOf(debug).Elem()
++	t := v.Type()
++	for i := 0; i < t.NumField(); i++ {
++		f := t.Field(i)
++		ptr := v.Field(i).Addr().Interface()
++		if f.Name == "Any" {
++			switch ptr := ptr.(type) {
++			default:
++				panic("debug.Any must have type bool")
++			case *bool:
++				flag.any = ptr
++			}
++			continue
++		}
++		name := strings.ToLower(f.Name)
++		help := f.Tag.Get("help")
++		if help == "" {
++			panic(fmt.Sprintf("debug.%s is missing help text", f.Name))
++		}
++		switch ptr.(type) {
++		default:
++			panic(fmt.Sprintf("debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
++		case *int, *string:
++			// ok
++		}
++		flag.tab[name] = debugField{name, help, ptr}
++	}
++
++	return flag
++}
++
++func (f *DebugFlag) Set(debugstr string) error {
++	if debugstr == "" {
++		return nil
++	}
++	if f.any != nil {
++		*f.any = true
++	}
++	for _, name := range strings.Split(debugstr, ",") {
++		if name == "" {
++			continue
++		}
++		// display help about the debug option itself and quit
++		if name == "help" {
++			fmt.Print(debugHelpHeader)
++			maxLen, names := 0, []string{}
++			if f.debugSSA != nil {
++				maxLen = len("ssa/help")
++			}
++			for name := range f.tab {
++				if len(name) > maxLen {
++					maxLen = len(name)
++				}
++				names = append(names, name)
++			}
++			sort.Strings(names)
++			// Indent multi-line help messages.
++			nl := fmt.Sprintf("\n\t%-*s\t", maxLen, "")
++			for _, name := range names {
++				help := f.tab[name].help
++				fmt.Printf("\t%-*s\t%s\n", maxLen, name, strings.Replace(help, "\n", nl, -1))
++			}
++			if f.debugSSA != nil {
++				// ssa options have their own help
++				fmt.Printf("\t%-*s\t%s\n", maxLen, "ssa/help", "print help about SSA debugging")
++			}
++			os.Exit(0)
++		}
++
++		val, valstring, haveInt := 1, "", true
++		if i := strings.IndexAny(name, "=:"); i >= 0 {
++			var err error
++			name, valstring = name[:i], name[i+1:]
++			val, err = strconv.Atoi(valstring)
++			if err != nil {
++				val, haveInt = 1, false
++			}
++		}
++
++		if t, ok := f.tab[name]; ok {
++			switch vp := t.val.(type) {
++			case nil:
++				// Ignore
++			case *string:
++				*vp = valstring
++			case *int:
++				if !haveInt {
++					log.Fatalf("invalid debug value %v", name)
++				}
++				*vp = val
++			default:
++				panic("bad debugtab type")
++			}
++		} else if f.debugSSA != nil && strings.HasPrefix(name, "ssa/") {
++			// expect form ssa/phase/flag
++			// e.g. -d=ssa/generic_cse/time
++			// _ in phase name also matches space
++			phase := name[4:]
++			flag := "debug" // default flag is debug
++			if i := strings.Index(phase, "/"); i >= 0 {
++				flag = phase[i+1:]
++				phase = phase[:i]
++			}
++			err := f.debugSSA(phase, flag, val, valstring)
++			if err != "" {
++				log.Fatalf(err)
++			}
++		} else {
++			return fmt.Errorf("unknown debug key %s\n", name)
++		}
++	}
++
++	return nil
++}
++
++const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
++
++<key> is one of:
++
++`
++
++func (f *DebugFlag) String() string {
++	return ""
++}

@@ -12,7 +12,81 @@ Date:   Thu Apr 4 12:46:50 2019 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      |  9 +++++++--
  src/math/big/int_test.go | 18 +++++++++++++-----
  2 files changed, 20 insertions(+), 7 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index afad1bc961..8e52f0ab27 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -463,7 +463,8 @@ func (x *Int) TrailingZeroBits() uint {
+ }
+ 
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+-// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
++// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1. If m > 0, y < 0,
++// and x and n are not relatively prime, z is unchanged and nil is returned.
+ //
+ // Modular exponentation of inputs of a particular size is not a
+ // cryptographically constant-time operation.
+@@ -475,7 +476,11 @@ func (z *Int) Exp(x, y, m *Int) *Int {
+ 			return z.SetInt64(1)
+ 		}
+ 		// for y < 0: x**y mod m == (x**(-1))**|y| mod m
+-		xWords = new(Int).ModInverse(x, m).abs
++		inverse := new(Int).ModInverse(x, m)
++		if inverse == nil {
++			return nil
++		}
++		xWords = inverse.abs
+ 	}
+ 	yWords := y.abs
+ 
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 2435b3610c..ade973b207 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -533,6 +533,9 @@ var expTests = []struct {
+ 	{"1", "0", "", "1"},
+ 	{"-10", "0", "", "1"},
+ 	{"1234", "-1", "", "1"},
++	{"1234", "-1", "0", "1"},
++	{"17", "-100", "1234", "865"},
++	{"2", "-100", "1234", ""},
+ 
+ 	// m == 1
+ 	{"0", "0", "1", "0"},
+@@ -605,10 +608,15 @@ func TestExp(t *testing.T) {
+ 	for i, test := range expTests {
+ 		x, ok1 := new(Int).SetString(test.x, 0)
+ 		y, ok2 := new(Int).SetString(test.y, 0)
+-		out, ok3 := new(Int).SetString(test.out, 0)
+ 
+-		var ok4 bool
+-		var m *Int
++		var ok3, ok4 bool
++		var out, m *Int
++
++		if len(test.out) == 0 {
++			out, ok3 = nil, true
++		} else {
++			out, ok3 = new(Int).SetString(test.out, 0)
++		}
+ 
+ 		if len(test.m) == 0 {
+ 			m, ok4 = nil, true
+@@ -622,10 +630,10 @@ func TestExp(t *testing.T) {
+ 		}
+ 
+ 		z1 := new(Int).Exp(x, y, m)
+-		if !isNormalized(z1) {
++		if z1 != nil && !isNormalized(z1) {
+ 			t.Errorf("#%d: %v is not normalized", i, *z1)
+ 		}
+-		if z1.Cmp(out) != 0 {
++		if !(z1 == nil && out == nil || z1.Cmp(out) == 0) {
+ 			t.Errorf("#%d: got %x want %x", i, z1, out)
+ 		}
+ 

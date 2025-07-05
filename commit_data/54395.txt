@@ -19,9 +19,142 @@ Date:   Wed Oct 12 16:24:34 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testsanitizers/asan_test.go               | 42 ++++++++++++++++++++++
  .../testsanitizers/testdata/asan_linkerx/main.go   | 28 +++++++++++++++
  .../testsanitizers/testdata/asan_linkerx/p/p.go    | 12 +++++++
  src/cmd/link/internal/ld/data.go                   | 10 +++---
  4 files changed, 88 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index 67d097cf16..932cfb1b60 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -5,6 +5,7 @@
+ package sanitizers_test
+ 
+ import (
++	"fmt"
+ 	"strings"
+ 	"testing"
+ )
+@@ -97,3 +98,44 @@ func TestASAN(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestASANLinkerX(t *testing.T) {
++	// Test ASAN with linker's -X flag (see issue 56175).
++	goos, err := goEnv("GOOS")
++	if err != nil {
++		t.Fatal(err)
++	}
++	goarch, err := goEnv("GOARCH")
++	if err != nil {
++		t.Fatal(err)
++	}
++	// The asan tests require support for the -asan option.
++	if !aSanSupported(goos, goarch) {
++		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
++	}
++	if !compilerRequiredAsanVersion(goos, goarch) {
++		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
++	}
++
++	t.Parallel()
++	requireOvercommit(t)
++	config := configure("address")
++	config.skipIfCSanitizerBroken(t)
++
++	dir := newTempDir(t)
++	defer dir.RemoveAll(t)
++
++	var ldflags string
++	for i := 1; i <= 10; i++ {
++		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=misc/cgo/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
++	}
++
++	// build the binary
++	outPath := dir.Join("main.exe")
++	cmd := config.goCmd("build", "-ldflags="+ldflags, "-o", outPath)
++	cmd.Dir = srcPath("asan_linkerx")
++	mustRun(t, cmd)
++
++	// run the binary
++	mustRun(t, hangProneCmd(outPath))
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_linkerx/main.go b/misc/cgo/testsanitizers/testdata/asan_linkerx/main.go
+new file mode 100644
+index 0000000000..bbd6127d90
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_linkerx/main.go
+@@ -0,0 +1,28 @@
++package main
++
++import "misc/cgo/testsanitizers/testdata/asan_linkerx/p"
++
++func pstring(s *string) {
++	println(*s)
++}
++
++func main() {
++	all := []*string{
++		&S1, &S2, &S3, &S4, &S5, &S6, &S7, &S8, &S9, &S10,
++		&p.S1, &p.S2, &p.S3, &p.S4, &p.S5, &p.S6, &p.S7, &p.S8, &p.S9, &p.S10,
++	}
++	for _, ps := range all {
++		pstring(ps)
++	}
++}
++
++var S1 string
++var S2 string
++var S3 string
++var S4 string
++var S5 string
++var S6 string
++var S7 string
++var S8 string
++var S9 string
++var S10 string
+diff --git a/misc/cgo/testsanitizers/testdata/asan_linkerx/p/p.go b/misc/cgo/testsanitizers/testdata/asan_linkerx/p/p.go
+new file mode 100644
+index 0000000000..c31f00109d
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_linkerx/p/p.go
+@@ -0,0 +1,12 @@
++package p
++
++var S1 string
++var S2 string
++var S3 string
++var S4 string
++var S5 string
++var S6 string
++var S7 string
++var S8 string
++var S9 string
++var S10 string
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c23eac08a4..1848cd7a5e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1127,12 +1127,14 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	sbld.Addstring(value)
+ 	sbld.SetType(sym.SRODATA)
+ 
+-	bld.SetSize(0)
+-	bld.SetData(make([]byte, 0, arch.PtrSize*2))
++	// Don't reset the variable's size. String variable usually has size of
++	// 2*PtrSize, but in ASAN build it can be larger due to red zone.
++	// (See issue 56175.)
++	bld.SetData(make([]byte, arch.PtrSize*2))
+ 	bld.SetReadOnly(false)
+ 	bld.ResetRelocs()
+-	bld.AddAddrPlus(arch, sbld.Sym(), 0)
+-	bld.AddUint(arch, uint64(len(value)))
++	bld.SetAddrPlus(arch, 0, sbld.Sym(), 0)
++	bld.SetUint(arch, int64(arch.PtrSize), uint64(len(value)))
+ }
+ 
+ func (ctxt *Link) dostrdata() {

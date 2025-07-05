@@ -7,6 +7,29 @@ Date:   Thu Dec 17 17:28:22 2009 -0800
     R=dho, phf
     CC=golang-dev
     https://golang.org/cl/180082
-
+---
  src/Make.pkg | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 489aa78c27..890f43d490 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -41,7 +41,7 @@ GOFILES+=$(patsubst %.go,%.cgo1.go,$(CGOFILES))
+ GOFILES+=_cgo_gotypes.go
+ OFILES+=_cgo_defun.$O
+ GCC_OFILES=$(patsubst %.go,%.cgo2.o,$(CGOFILES))
+-INSTALLFILES+=$(pkgdir)/$(dir)/$(TARG).so
++INSTALLFILES+=$(pkgdir)/$(TARG).so
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ endif
+ 
+@@ -148,7 +148,7 @@ _cgo_defun.$O: _cgo_defun.c
+ _cgo_.so: $(GCC_OFILES)
+ 	gcc $(_CGO_CFLAGS_$(GOARCH)) -o $@ $(GCC_OFILES) $(CGO_LDFLAGS)  $(_CGO_LDFLAGS_$(GOOS))
+ 
+-$(pkgdir)/$(dir)/$(TARG).so: _cgo_.so
++$(pkgdir)/$(TARG).so: _cgo_.so
+ 	@test -d $(QUOTED_GOROOT/pkg && mkdir -p $(pkgdir)/$(dir)
+ 	cp _cgo_.so "$@"
+ 

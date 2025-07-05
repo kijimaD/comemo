@@ -20,6 +20,23 @@ Date:   Sat Jan 19 23:13:01 2013 +0900
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7137063
-
+---
  src/pkg/net/tcpsock_posix.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 4f9159566f..bd5a2a2877 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -26,11 +26,6 @@ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+ 		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port}
+ 	case *syscall.SockaddrInet6:
+ 		return &TCPAddr{IP: sa.Addr[0:], Port: sa.Port, Zone: zoneToString(int(sa.ZoneId))}
+-	default:
+-		if sa != nil {
+-			// Diagnose when we will turn a non-nil sockaddr into a nil.
+-			panic("unexpected type in sockaddrToTCP")
+-		}
+ 	}
+ 	return nil
+ }

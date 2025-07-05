@@ -16,7 +16,34 @@ Date:   Sat Feb 26 13:58:54 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                        | 2 +-
  src/cmd/go/testdata/script/mod_install_pkg_version.txt | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index d68f43a7c9..fdc00f95dc 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3001,7 +3001,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 	patterns := make([]string, len(args))
+ 	for i, arg := range args {
+ 		if !strings.HasSuffix(arg, "@"+version) {
+-			return nil, fmt.Errorf("%s: all arguments must have the same version (@%s)", arg, version)
++			return nil, fmt.Errorf("%s: all arguments must refer to packages in the same module at the same version (@%s)", arg, version)
+ 		}
+ 		p := arg[:len(arg)-len(version)-1]
+ 		switch {
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 14153b8e9e..e3f59fc152 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -106,7 +106,7 @@ stdout '^example.com/cmd v1.0.0$'
+ env GO111MODULE=auto
+ 
+ ! go install example.com/cmd/a@v1.0.0 example.com/cmd/b@latest
+-stderr '^go: example.com/cmd/b@latest: all arguments must have the same version \(@v1.0.0\)$'
++stderr '^go: example.com/cmd/b@latest: all arguments must refer to packages in the same module at the same version \(@v1.0.0\)$'
+ 
+ 
+ # 'go install pkg@version' should report an error if the arguments are in

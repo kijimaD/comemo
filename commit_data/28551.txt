@@ -20,6 +20,32 @@ Date:   Thu Jun 2 15:00:34 2016 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/cgo/test/issue9400/asm_386.s | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/issue9400/asm_386.s b/misc/cgo/test/issue9400/asm_386.s
+index 83ca38531a..7f158b5c39 100644
+--- a/misc/cgo/test/issue9400/asm_386.s
++++ b/misc/cgo/test/issue9400/asm_386.s
+@@ -7,17 +7,18 @@
+ #include "textflag.h"
+ 
+ TEXT ·RewindAndSetgid(SB),NOSPLIT,$0-0
++	MOVL	$·Baton(SB), BX
+ 	// Rewind stack pointer so anything that happens on the stack
+ 	// will clobber the test pattern created by the caller
+ 	ADDL	$(1024 * 8), SP
+ 
+ 	// Ask signaller to setgid
+-	MOVL	$1, ·Baton(SB)
++	MOVL	$1, (BX)
+ 
+ 	// Wait for setgid completion
+ loop:
+ 	PAUSE
+-	MOVL	·Baton(SB), AX
++	MOVL	(BX), AX
+ 	CMPL	AX, $0
+ 	JNE	loop
+ 

@@ -10,6 +10,28 @@ Date:   Sat Jun 24 20:54:47 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/signal_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 7866aae3c4..6cf05f5d3e 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -313,6 +314,8 @@ func TestAtomicStop(t *testing.T) {
+ 		t.Fatal("atomicStopTestProgram returned")
+ 	}
+ 
++	testenv.MustHaveExec(t)
++
+ 	const execs = 10
+ 	for i := 0; i < execs; i++ {
+ 		cmd := exec.Command(os.Args[0], "-test.run=TestAtomicStop")

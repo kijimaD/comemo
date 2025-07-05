@@ -7,6 +7,39 @@ Date:   Tue Nov 15 11:02:04 2011 -0500
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5373096
-
+---
  src/pkg/strconv/ftoa_test.go | 24 ++++++++++++++++++++++++
  1 file changed, 24 insertions(+)
+
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index 6d361a138e..8bac5da452 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -148,3 +148,27 @@ func TestFtoa(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkFtoa64Decimal(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Ftoa64(33909, 'g', -1)
++	}
++}
++
++func BenchmarkFtoa64Float(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Ftoa64(339.7784, 'g', -1)
++	}
++}
++
++func BenchmarkFtoa64FloatExp(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Ftoa64(-5.09e75, 'g', -1)
++	}
++}
++
++func BenchmarkFtoa64Big(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Ftoa64(123456789123456789123456789, 'g', -1)
++	}
++}

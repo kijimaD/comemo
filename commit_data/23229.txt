@@ -9,8 +9,45 @@ Date:   Thu Apr 30 19:10:59 2015 -0700
     Change-Id: I6ec69013027213c5e7adedd2edb89dea6af876d9
     Reviewed-on: https://go-review.googlesource.com/9563
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/cover/doc.go  | 2 +-
  src/cmd/cover/func.go | 2 --
  src/cmd/cover/html.go | 2 --
  3 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/cover/doc.go b/src/cmd/cover/doc.go
+index c90f4606f7..636d7e08d9 100644
+--- a/src/cmd/cover/doc.go
++++ b/src/cmd/cover/doc.go
+@@ -18,4 +18,4 @@ For usage information, please see:
+ 	go help testflag
+ 	go tool cover -help
+ */
+-package main // import "golang.org/x/tools/cmd/cover"
++package main
+diff --git a/src/cmd/cover/func.go b/src/cmd/cover/func.go
+index 41d9fceca5..d5a41305ac 100644
+--- a/src/cmd/cover/func.go
++++ b/src/cmd/cover/func.go
+@@ -16,8 +16,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"text/tabwriter"
+-
+-	"golang.org/x/tools/cover"
+ )
+ 
+ // funcOutput takes two file names as arguments, a coverage profile to read as input and an output
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index f6b226406a..a9a6a3a04f 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -16,8 +16,6 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+-
+-	"golang.org/x/tools/cover"
+ )
+ 
+ // htmlOutput reads the profile data from profile and generates an HTML

@@ -8,7 +8,41 @@ Date:   Wed Aug 6 15:12:08 2014 -0400
     R=minux
     CC=golang-codereviews
     https://golang.org/cl/120690043
-
+---
  src/cmd/dist/build.c   | 2 ++
  src/cmd/dist/buildgc.c | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 70b7fb1056..2e0f5b6360 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -524,6 +524,7 @@ static struct {
+ 		"anames5.c",
+ 		"anames6.c",
+ 		"anames8.c",
++		"anames9.c",
+ 	}},
+ 	{"cmd/cc", {
+ 		"-pgen.c",
+@@ -622,6 +623,7 @@ static struct {
+ 	{"anames5.c", mkanames},
+ 	{"anames6.c", mkanames},
+ 	{"anames8.c", mkanames},
++	{"anames9.c", mkanames},
+ 	{"zasm_", mkzasm},
+ 	{"zdefaultcc.go", mkzdefaultcc},
+ 	{"zsys_", mkzsys},
+diff --git a/src/cmd/dist/buildgc.c b/src/cmd/dist/buildgc.c
+index 66adf6857c..1c33297587 100644
+--- a/src/cmd/dist/buildgc.c
++++ b/src/cmd/dist/buildgc.c
+@@ -63,7 +63,7 @@ gcopnames(char *dir, char *file)
+ 	vfree(&fields);
+ }
+ 
+-// mkanames reads [568].out.h and writes anames[568].c
++// mkanames reads [5689].out.h and writes anames[5689].c
+ // The format is much the same as the Go opcodes above.
+ // it also writes out cnames array for C_* constants.
+ void

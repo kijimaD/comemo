@@ -36,7 +36,7 @@ Date:   Mon Sep 25 06:48:50 2017 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s      |  62 +++++++++++++
  src/cmd/asm/internal/asm/testdata/armerror.s |  14 +++
  src/cmd/internal/obj/arm/a.out.go            |   8 +-
@@ -44,3 +44,397 @@ Date:   Mon Sep 25 06:48:50 2017 +0000
  src/cmd/internal/obj/arm/anames5.go          |   1 +
  src/cmd/internal/obj/arm/asm5.go             | 134 +++++++++++++++++++++------
  6 files changed, 192 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 662ab180d7..61c2d409a9 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -985,6 +985,40 @@ jmp_label_3:
+ 	REVSH	R1, R2               // b12fffe6
+ 	RBIT	R1, R2               // 312fffe6
+ 
++// XTAB/XTAH/XTABU/XTAHU
++	XTAB	R2@>0, R8            // 7280a8e6
++	XTAB	R2@>8, R8            // 7284a8e6
++	XTAB	R2@>16, R8           // 7288a8e6
++	XTAB	R2@>24, R8           // 728ca8e6
++	XTAH	R3@>0, R9            // 7390b9e6
++	XTAH	R3@>8, R9            // 7394b9e6
++	XTAH	R3@>16, R9           // 7398b9e6
++	XTAH	R3@>24, R9           // 739cb9e6
++	XTABU	R4@>0, R7            // 7470e7e6
++	XTABU	R4@>8, R7            // 7474e7e6
++	XTABU	R4@>16, R7           // 7478e7e6
++	XTABU	R4@>24, R7           // 747ce7e6
++	XTAHU	R5@>0, R1            // 7510f1e6
++	XTAHU	R5@>8, R1            // 7514f1e6
++	XTAHU	R5@>16, R1           // 7518f1e6
++	XTAHU	R5@>24, R1           // 751cf1e6
++	XTAB	R2@>0, R4, R8        // 7280a4e6
++	XTAB	R2@>8, R4, R8        // 7284a4e6
++	XTAB	R2@>16, R4, R8       // 7288a4e6
++	XTAB	R2@>24, R4, R8       // 728ca4e6
++	XTAH	R3@>0, R4, R9        // 7390b4e6
++	XTAH	R3@>8, R4, R9        // 7394b4e6
++	XTAH	R3@>16, R4, R9       // 7398b4e6
++	XTAH	R3@>24, R4, R9       // 739cb4e6
++	XTABU	R4@>0, R0, R7        // 7470e0e6
++	XTABU	R4@>8, R0, R7        // 7474e0e6
++	XTABU	R4@>16, R0, R7       // 7478e0e6
++	XTABU	R4@>24, R0, R7       // 747ce0e6
++	XTAHU	R5@>0, R9, R1        // 7510f9e6
++	XTAHU	R5@>8, R9, R1        // 7514f9e6
++	XTAHU	R5@>16, R9, R1       // 7518f9e6
++	XTAHU	R5@>24, R9, R1       // 751cf9e6
++
+ // DIVHW R0, R1, R2: R1 / R0 -> R2
+ 	DIVHW	R0, R1, R2           // 11f012e7
+ 	DIVUHW	R0, R1, R2           // 11f032e7
+@@ -1152,6 +1186,10 @@ jmp_label_3:
+ // MOVW
+ 	MOVW	R3, R4                                            // 0340a0e1
+ 	MOVW	R9, R2                                            // 0920a0e1
++	MOVW	R5>>1, R2                                         // a520a0e1
++	MOVW	R5<<1, R2                                         // 8520a0e1
++	MOVW	R5->1, R2                                         // c520a0e1
++	MOVW	R5@>1, R2                                         // e520a0e1
+ 	MOVW	$0xff, R9            // MOVW $255, R9             // ff90a0e3
+ 	MOVW	$0xff000000, R9      // MOVW $4278190080, R9      // ff94a0e3
+ 	MOVW	$0xff(R0), R1        // MOVW $255(R0), R1         // ff1080e2
+@@ -1394,6 +1432,18 @@ jmp_label_3:
+ 	MOVB.U	R0<<0(R1), R2                                     // d02011e1
+ 	MOVB.W	R0<<0(R1), R2                                     // d020b1e1
+ 	MOVB.P	R0<<0(R1), R2                                     // d02091e0
++	MOVBS	R2@>0, R8                                         // 7280afe6
++	MOVBS	R2@>8, R8                                         // 7284afe6
++	MOVBS	R2@>16, R8                                        // 7288afe6
++	MOVBS	R2@>24, R8                                        // 728cafe6
++	MOVB	R2@>0, R8                                         // 7280afe6
++	MOVB	R2@>8, R8                                         // 7284afe6
++	MOVB	R2@>16, R8                                        // 7288afe6
++	MOVB	R2@>24, R8                                        // 728cafe6
++	MOVBU	R4@>0, R7                                         // 7470efe6
++	MOVBU	R4@>8, R7                                         // 7474efe6
++	MOVBU	R4@>16, R7                                        // 7478efe6
++	MOVBU	R4@>24, R7                                        // 747cefe6
+ 
+ // MOVH
+ 	MOVH	R3, R4                                            // 0340a0e1
+@@ -1520,6 +1570,18 @@ jmp_label_3:
+ 	MOVHU.U	R2, R5<<0(R1)                                     // b52001e1
+ 	MOVHU.W	R2, R5<<0(R1)                                     // b520a1e1
+ 	MOVHU.P	R2, R5<<0(R1)                                     // b52081e0
++	MOVHS	R3@>0, R9                                         // 7390bfe6
++	MOVHS	R3@>8, R9                                         // 7394bfe6
++	MOVHS	R3@>16, R9                                        // 7398bfe6
++	MOVHS	R3@>24, R9                                        // 739cbfe6
++	MOVH	R3@>0, R9                                         // 7390bfe6
++	MOVH	R3@>8, R9                                         // 7394bfe6
++	MOVH	R3@>16, R9                                        // 7398bfe6
++	MOVH	R3@>24, R9                                        // 739cbfe6
++	MOVHU	R5@>0, R1                                         // 7510ffe6
++	MOVHU	R5@>8, R1                                         // 7514ffe6
++	MOVHU	R5@>16, R1                                        // 7518ffe6
++	MOVHU	R5@>24, R1                                        // 751cffe6
+ 
+ //
+ // END
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index b41b57ca1d..0467c052ec 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -147,5 +147,19 @@ TEXT errors(SB),$0
+ 	BFX	$-2, $4, R2, R3    // ERROR "wrong width or LSB"
+ 	BFXU	$4, R2, R5, R2     // ERROR "missing or wrong LSB"
+ 	BFXU	$4, R2, R5         // ERROR "missing or wrong LSB"
++	MOVB	R0>>8, R2          // ERROR "illegal shift"
++	MOVH	R0<<16, R2         // ERROR "illegal shift"
++	MOVBS	R0->8, R2          // ERROR "illegal shift"
++	MOVHS	R0<<24, R2         // ERROR "illegal shift"
++	MOVBU	R0->24, R2         // ERROR "illegal shift"
++	MOVHU	R0@>1, R2          // ERROR "illegal shift"
++	XTAB	R0>>8, R2          // ERROR "illegal shift"
++	XTAH	R0<<16, R2         // ERROR "illegal shift"
++	XTABU	R0->24, R2         // ERROR "illegal shift"
++	XTAHU	R0@>1, R2          // ERROR "illegal shift"
++	XTAB	R0>>8, R5, R2      // ERROR "illegal shift"
++	XTAH	R0<<16, R5, R2     // ERROR "illegal shift"
++	XTABU	R0->24, R5, R2     // ERROR "illegal shift"
++	XTAHU	R0@>1, R5, R2      // ERROR "illegal shift"
+ 
+ 	END
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 9053e6727b..385937ff6b 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -116,7 +116,8 @@ const (
+ 	C_REGREG
+ 	C_REGREG2
+ 	C_REGLIST
+-	C_SHIFT
++	C_SHIFT     /* register shift R>>x */
++	C_SHIFTADDR /* memory address with shifted offset R>>x(R) */
+ 	C_FREG
+ 	C_PSR
+ 	C_FCR
+@@ -312,6 +313,11 @@ const (
+ 	AREVSH
+ 	ARBIT
+ 
++	AXTAB
++	AXTAH
++	AXTABU
++	AXTAHU
++
+ 	ABFX
+ 	ABFXU
+ 
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index a30513ed94..75921f4580 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -125,6 +125,10 @@ var Anames = []string{
+ 	"REV16",
+ 	"REVSH",
+ 	"RBIT",
++	"XTAB",
++	"XTAH",
++	"XTABU",
++	"XTAHU",
+ 	"BFX",
+ 	"BFXU",
+ 	"MULWT",
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index bb98d3b081..f2743b91d6 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -11,6 +11,7 @@ var cnames5 = []string{
+ 	"REGREG2",
+ 	"REGLIST",
+ 	"SHIFT",
++	"SHIFTADDR",
+ 	"FREG",
+ 	"PSR",
+ 	"FCR",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 479005f294..78f3978265 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -194,6 +194,15 @@ var optab = []Optab{
+ 	{AMOVW, C_SOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
+ 	{AMOVBU, C_SAUTO, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+ 	{AMOVBU, C_SOREG, C_NONE, C_REG, 21, 4, 0, 0, 0},
++	{AXTAB, C_SHIFT, C_REG, C_REG, 22, 4, 0, 0, 0},
++	{AXTAB, C_SHIFT, C_NONE, C_REG, 22, 4, 0, 0, 0},
++	{AMOVW, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVB, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVBS, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVBU, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVH, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVHS, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
++	{AMOVHU, C_SHIFT, C_NONE, C_REG, 23, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+ 	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+ 	{AMOVW, C_REG, C_NONE, C_ADDR, 64, 8, 0, LTO | LPCREL, 4},
+@@ -238,20 +247,20 @@ var optab = []Optab{
+ 	{ANEGF, C_FREG, C_NONE, C_FREG, 55, 4, 0, 0, 0},
+ 	{AMOVW, C_REG, C_NONE, C_FCR, 56, 4, 0, 0, 0},
+ 	{AMOVW, C_FCR, C_NONE, C_REG, 57, 4, 0, 0, 0},
+-	{AMOVW, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
+-	{AMOVBU, C_SHIFT, C_NONE, C_REG, 59, 4, 0, 0, 0},
+-	{AMOVB, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+-	{AMOVBS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+-	{AMOVH, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+-	{AMOVHS, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+-	{AMOVHU, C_SHIFT, C_NONE, C_REG, 60, 4, 0, 0, 0},
+-	{AMOVW, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+-	{AMOVB, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+-	{AMOVBS, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+-	{AMOVBU, C_REG, C_NONE, C_SHIFT, 61, 4, 0, 0, 0},
+-	{AMOVH, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
+-	{AMOVHS, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
+-	{AMOVHU, C_REG, C_NONE, C_SHIFT, 62, 4, 0, 0, 0},
++	{AMOVW, C_SHIFTADDR, C_NONE, C_REG, 59, 4, 0, 0, 0},
++	{AMOVBU, C_SHIFTADDR, C_NONE, C_REG, 59, 4, 0, 0, 0},
++	{AMOVB, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVBS, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVH, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVHS, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVHU, C_SHIFTADDR, C_NONE, C_REG, 60, 4, 0, 0, 0},
++	{AMOVW, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
++	{AMOVB, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
++	{AMOVBS, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
++	{AMOVBU, C_REG, C_NONE, C_SHIFTADDR, 61, 4, 0, 0, 0},
++	{AMOVH, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
++	{AMOVHS, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
++	{AMOVHU, C_REG, C_NONE, C_SHIFTADDR, 62, 4, 0, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
+ 	{AMOVH, C_REG, C_NONE, C_HOREG, 70, 4, 0, 0, 0},
+ 	{AMOVHS, C_REG, C_NONE, C_HAUTO, 70, 4, REGSP, 0, 0},
+@@ -1151,7 +1160,13 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 		return C_REGLIST
+ 
+ 	case obj.TYPE_SHIFT:
+-		return C_SHIFT
++		if a.Reg == 0 {
++			// register shift R>>i
++			return C_SHIFT
++		} else {
++			// memory address with shifted offset R>>i(R)
++			return C_SHIFTADDR
++		}
+ 
+ 	case obj.TYPE_MEM:
+ 		switch a.Name {
+@@ -1373,19 +1388,14 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 
+ 	// check illegal base register
+ 	switch a1 {
+-	case C_SHIFT:
+-		if p.From.Reg == 0 { // no base register
+-			break
+-		}
+-		fallthrough
+-	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG:
++	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFTADDR:
+ 		if p.From.Reg < REG_R0 || REG_R15 < p.From.Reg {
+ 			c.ctxt.Diag("illegal base register: %v", p)
+ 		}
+ 	default:
+ 	}
+ 	switch a3 {
+-	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFT:
++	case C_SOREG, C_LOREG, C_HOREG, C_FOREG, C_ROREG, C_HFOREG, C_SROREG, C_SHIFTADDR:
+ 		if p.To.Reg < REG_R0 || REG_R15 < p.To.Reg {
+ 			c.ctxt.Diag("illegal base register: %v", p)
+ 		}
+@@ -1720,6 +1730,11 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AREVSH, r0)
+ 			opset(ARBIT, r0)
+ 
++		case AXTAB:
++			opset(AXTAH, r0)
++			opset(AXTABU, r0)
++			opset(AXTAHU, r0)
++
+ 		case ALDREX,
+ 			ASTREX,
+ 			ALDREXD,
+@@ -2100,6 +2115,32 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			o1 |= 1 << 22
+ 		}
+ 
++	case 22: /* XTAB R@>i, [R], R */
++		o1 = c.oprrr(p, p.As, int(p.Scond))
++		switch p.From.Offset &^ 0xf {
++		// only 0/8/16/24 bits rotation is accepted
++		case SHIFT_RR, SHIFT_RR | 8<<7, SHIFT_RR | 16<<7, SHIFT_RR | 24<<7:
++			o1 |= uint32(p.From.Offset) & 0xc0f
++		default:
++			c.ctxt.Diag("illegal shift: %v", p)
++		}
++		rt := p.To.Reg
++		r := p.Reg
++		if r == 0 {
++			r = rt
++		}
++		o1 |= (uint32(rt)&15)<<12 | (uint32(r)&15)<<16
++
++	case 23: /* MOVW/MOVB/MOVH R@>i, R */
++		switch p.As {
++		case AMOVW:
++			o1 = c.mov(p)
++		case AMOVBU, AMOVBS, AMOVB, AMOVHU, AMOVHS, AMOVH:
++			o1 = c.movxt(p)
++		default:
++			c.ctxt.Diag("illegal combination: %v", p)
++		}
++
+ 	case 30: /* mov/movb/movbu R,L(R) */
+ 		o1 = c.omvl(p, &p.To, REGTMP)
+ 
+@@ -2322,15 +2363,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 59: /* movw/bu R<<I(R),R -> ldr indexed */
+ 		if p.From.Reg == 0 {
+-			if p.As != AMOVW {
+-				c.ctxt.Diag("byte MOV from shifter operand")
+-			}
+-			o1 = c.mov(p)
++			c.ctxt.Diag("source operand is not a memory address: %v", p)
+ 			break
+ 		}
+-
+ 		if p.From.Offset&(1<<4) != 0 {
+ 			c.ctxt.Diag("bad shift in LDR")
++			break
+ 		}
+ 		o1 = c.olrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
+ 		if p.As == AMOVBU {
+@@ -2339,13 +2377,12 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 
+ 	case 60: /* movb R(R),R -> ldrsb indexed */
+ 		if p.From.Reg == 0 {
+-			c.ctxt.Diag("byte MOV from shifter operand")
+-			o1 = c.mov(p)
++			c.ctxt.Diag("source operand is not a memory address: %v", p)
+ 			break
+ 		}
+-
+ 		if p.From.Offset&(^0xf) != 0 {
+ 			c.ctxt.Diag("bad shift: %v", p)
++			break
+ 		}
+ 		o1 = c.olhrr(int(p.From.Offset), int(p.From.Reg), int(p.To.Reg), int(p.Scond))
+ 		switch p.As {
+@@ -2789,6 +2826,31 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	return
+ }
+ 
++func (c *ctxt5) movxt(p *obj.Prog) uint32 {
++	o1 := ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
++	switch p.As {
++	case AMOVB, AMOVBS:
++		o1 |= 0x6af<<16 | 0x7<<4
++	case AMOVH, AMOVHS:
++		o1 |= 0x6bf<<16 | 0x7<<4
++	case AMOVBU:
++		o1 |= 0x6ef<<16 | 0x7<<4
++	case AMOVHU:
++		o1 |= 0x6ff<<16 | 0x7<<4
++	default:
++		c.ctxt.Diag("illegal combination: %v", p)
++	}
++	switch p.From.Offset &^ 0xf {
++	// only 0/8/16/24 bits rotation is accepted
++	case SHIFT_RR, SHIFT_RR | 8<<7, SHIFT_RR | 16<<7, SHIFT_RR | 24<<7:
++		o1 |= uint32(p.From.Offset) & 0xc0f
++	default:
++		c.ctxt.Diag("illegal shift: %v", p)
++	}
++	o1 |= (uint32(p.To.Reg) & 15) << 12
++	return o1
++}
++
+ func (c *ctxt5) mov(p *obj.Prog) uint32 {
+ 	c.aclass(&p.From)
+ 	o1 := c.oprrr(p, p.As, int(p.Scond))
+@@ -3000,6 +3062,18 @@ func (c *ctxt5) oprrr(p *obj.Prog, a obj.As, sc int) uint32 {
+ 	case ABFXU:
+ 		return o | 0x3f<<21 | 0x5<<4
+ 
++	case AXTAB:
++		return o | 0x6a<<20 | 0x7<<4
++
++	case AXTAH:
++		return o | 0x6b<<20 | 0x7<<4
++
++	case AXTABU:
++		return o | 0x6e<<20 | 0x7<<4
++
++	case AXTAHU:
++		return o | 0x6f<<20 | 0x7<<4
++
+ 		// CLZ doesn't support .nil
+ 	case ACLZ:
+ 		return o&(0xf<<28) | 0x16f<<16 | 0xf1<<4

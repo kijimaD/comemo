@@ -8,6 +8,20 @@ Date:   Sat Aug 16 14:04:15 2014 +1000
     R=gobot, dave
     CC=golang-codereviews, iant, rsc
     https://golang.org/cl/114420043
-
+---
  src/cmd/ld/data.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index c0dc3d05f2..1919123b49 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -145,7 +145,7 @@ relocsym(LSym *s)
+ 			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz, 0, s->np);
+ 			continue;
+ 		}
+-		if(r->sym != S && (r->sym->type & SMASK == 0 || r->sym->type & SMASK == SXREF)) {
++		if(r->sym != S && ((r->sym->type & SMASK) == 0 || (r->sym->type & SMASK) == SXREF)) {
+ 			diag("%s: not defined", r->sym->name);
+ 			continue;
+ 		}

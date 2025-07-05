@@ -28,7 +28,7 @@ Date:   Wed Aug 31 07:37:14 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4969051
-
+---
  src/cmd/5g/gobj.c      |  59 ++-----
  src/cmd/5g/gsubr.c     |  37 ++++-
  src/cmd/6g/gobj.c      |  58 ++-----
@@ -45,3 +45,1462 @@ Date:   Wed Aug 31 07:37:14 2011 -0400
  test/golden.out        |   3 -
  test/sinit.go          | 219 ++++++++++++++++++++++----
  15 files changed, 741 insertions(+), 258 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 4d1566a49c..9f728dee76 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -268,54 +268,6 @@ dumpfuncs(void)
+ 	}
+ }
+ 
+-/* deferred DATA output */
+-static Prog *strdat;
+-static Prog *estrdat;
+-static int gflag;
+-static Prog *savepc;
+-
+-void
+-data(void)
+-{
+-	gflag = debug['g'];
+-	debug['g'] = 0;
+-
+-	if(estrdat == nil) {
+-		strdat = mal(sizeof(*pc));
+-		clearp(strdat);
+-		estrdat = strdat;
+-	}
+-	if(savepc)
+-		fatal("data phase error");
+-	savepc = pc;
+-	pc = estrdat;
+-}
+-
+-void
+-text(void)
+-{
+-	if(!savepc)
+-		fatal("text phase error");
+-	debug['g'] = gflag;
+-	estrdat = pc;
+-	pc = savepc;
+-	savepc = nil;
+-}
+-
+-void
+-dumpdata(void)
+-{
+-	Prog *p;
+-
+-	if(estrdat == nil)
+-		return;
+-	*pc = *strdat;
+-	if(gflag)
+-		for(p=pc; p!=estrdat; p=p->link)
+-			print("%P\n", p);
+-	pc = estrdat;
+-}
+-
+ int
+ dsname(Sym *sym, int off, char *t, int n)
+ {
+@@ -381,6 +333,17 @@ gdata(Node *nam, Node *nr, int wid)
+ 	Prog *p;
+ 	vlong v;
+ 
++	if(nr->op == OLITERAL) {
++		switch(nr->val.ctype) {
++		case CTCPLX:
++			gdatacomplex(nam, nr->val.u.cval);
++			return;
++		case CTSTR:
++			gdatastring(nam, nr->val.u.sval);
++			return;
++		}
++	}
++
+ 	if(wid == 8 && is64(nr->type)) {
+ 		v = mpgetfix(nr->val.u.xval);
+ 		p = gins(ADATA, nam, nodintconst(v));
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index c9a2efa559..dc49e90cab 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -52,6 +52,10 @@ clearp(Prog *p)
+ 	pcloc++;
+ }
+ 
++static int ddumped;
++static Prog *dfirst;
++static Prog *dpc;
++
+ /*
+  * generate and return proc with p->as = as,
+  * linked into program.  pc is next instruction.
+@@ -61,10 +65,22 @@ prog(int as)
+ {
+ 	Prog *p;
+ 
+-	p = pc;
+-	pc = mal(sizeof(*pc));
+-
+-	clearp(pc);
++	if(as == ADATA || as == AGLOBL) {
++		if(ddumped)
++			fatal("already dumped data");
++		if(dpc == nil) {
++			dpc = mal(sizeof(*dpc));
++			dfirst = dpc;
++		}
++		p = dpc;
++		dpc = mal(sizeof(*dpc));
++		p->link = dpc;
++	} else {
++		p = pc;
++		pc = mal(sizeof(*pc));
++		clearp(pc);
++		p->link = pc;
++	}
+ 
+ 	if(lineno == 0) {
+ 		if(debug['K'])
+@@ -73,10 +89,21 @@ prog(int as)
+ 
+ 	p->as = as;
+ 	p->lineno = lineno;
+-	p->link = pc;
+ 	return p;
+ }
+ 
++void
++dumpdata(void)
++{
++	ddumped = 1;
++	if(dfirst == nil)
++		return;
++	newplist();
++	*pc = *dfirst;
++	pc = dpc;
++	clearp(pc);
++}
++
+ /*
+  * generate a branch.
+  * t is ignored.
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index e94759b71b..4dcce39c8f 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -280,54 +280,6 @@ dumpfuncs(void)
+ 	}
+ }
+ 
+-/* deferred DATA output */
+-static Prog *strdat;
+-static Prog *estrdat;
+-static int gflag;
+-static Prog *savepc;
+-
+-void
+-data(void)
+-{
+-	gflag = debug['g'];
+-	debug['g'] = 0;
+-
+-	if(estrdat == nil) {
+-		strdat = mal(sizeof(*pc));
+-		clearp(strdat);
+-		estrdat = strdat;
+-	}
+-	if(savepc)
+-		fatal("data phase error");
+-	savepc = pc;
+-	pc = estrdat;
+-}
+-
+-void
+-text(void)
+-{
+-	if(!savepc)
+-		fatal("text phase error");
+-	debug['g'] = gflag;
+-	estrdat = pc;
+-	pc = savepc;
+-	savepc = nil;
+-}
+-
+-void
+-dumpdata(void)
+-{
+-	Prog *p;
+-
+-	if(estrdat == nil)
+-		return;
+-	*pc = *strdat;
+-	if(gflag)
+-		for(p=pc; p!=estrdat; p=p->link)
+-			print("%P\n", p);
+-	pc = estrdat;
+-}
+-
+ int
+ dsname(Sym *s, int off, char *t, int n)
+ {
+@@ -383,6 +335,16 @@ gdata(Node *nam, Node *nr, int wid)
+ {
+ 	Prog *p;
+ 
++	if(nr->op == OLITERAL) {
++		switch(nr->val.ctype) {
++		case CTCPLX:
++			gdatacomplex(nam, nr->val.u.cval);
++			return;
++		case CTSTR:
++			gdatastring(nam, nr->val.u.sval);
++			return;
++		}
++	}
+ 	p = gins(ADATA, nam, nr);
+ 	p->from.scale = wid;
+ }
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 546d69139f..7b7fa12a86 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -48,6 +48,10 @@ clearp(Prog *p)
+ 	pcloc++;
+ }
+ 
++static int ddumped;
++static Prog *dfirst;
++static Prog *dpc;
++
+ /*
+  * generate and return proc with p->as = as,
+  * linked into program. pc is next instruction.
+@@ -57,10 +61,22 @@ prog(int as)
+ {
+ 	Prog *p;
+ 
+-	p = pc;
+-	pc = mal(sizeof(*pc));
+-
+-	clearp(pc);
++	if(as == ADATA || as == AGLOBL) {
++		if(ddumped)
++			fatal("already dumped data");
++		if(dpc == nil) {
++			dpc = mal(sizeof(*dpc));
++			dfirst = dpc;
++		}
++		p = dpc;
++		dpc = mal(sizeof(*dpc));
++		p->link = dpc;
++	} else {
++		p = pc;
++		pc = mal(sizeof(*pc));
++		clearp(pc);
++		p->link = pc;
++	}
+ 
+ 	if(lineno == 0) {
+ 		if(debug['K'])
+@@ -69,10 +85,21 @@ prog(int as)
+ 
+ 	p->as = as;
+ 	p->lineno = lineno;
+-	p->link = pc;
+ 	return p;
+ }
+ 
++void
++dumpdata(void)
++{
++	ddumped = 1;
++	if(dfirst == nil)
++		return;
++	newplist();
++	*pc = *dfirst;
++	pc = dpc;
++	clearp(pc);
++}
++
+ /*
+  * generate a branch.
+  * t is ignored.
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 0d6aaf60f6..e23ee9e270 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -161,12 +161,6 @@ void	complexmove(Node*, Node*);
+ void	complexgen(Node*, Node*);
+ void	complexbool(int, Node*, Node*, int, Prog*);
+ 
+-/*
+- * gobj.c
+- */
+-void	data(void);
+-void	text(void);
+-
+ /*
+  * list.c
+  */
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 7b3cabb3df..7025a536e1 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -278,54 +278,6 @@ dumpfuncs(void)
+ 	}
+ }
+ 
+-/* deferred DATA output */
+-static Prog *strdat;
+-static Prog *estrdat;
+-static int gflag;
+-static Prog *savepc;
+-
+-void
+-data(void)
+-{
+-	gflag = debug['g'];
+-	debug['g'] = 0;
+-
+-	if(estrdat == nil) {
+-		strdat = mal(sizeof(*pc));
+-		clearp(strdat);
+-		estrdat = strdat;
+-	}
+-	if(savepc)
+-		fatal("data phase error");
+-	savepc = pc;
+-	pc = estrdat;
+-}
+-
+-void
+-text(void)
+-{
+-	if(!savepc)
+-		fatal("text phase error");
+-	debug['g'] = gflag;
+-	estrdat = pc;
+-	pc = savepc;
+-	savepc = nil;
+-}
+-
+-void
+-dumpdata(void)
+-{
+-	Prog *p;
+-
+-	if(estrdat == nil)
+-		return;
+-	*pc = *strdat;
+-	if(gflag)
+-		for(p=pc; p!=estrdat; p=p->link)
+-			print("%P\n", p);
+-	pc = estrdat;
+-}
+-
+ int
+ dsname(Sym *s, int off, char *t, int n)
+ {
+@@ -382,6 +334,17 @@ gdata(Node *nam, Node *nr, int wid)
+ 	Prog *p;
+ 	vlong v;
+ 
++	if(nr->op == OLITERAL) {
++		switch(nr->val.ctype) {
++		case CTCPLX:
++			gdatacomplex(nam, nr->val.u.cval);
++			return;
++		case CTSTR:
++			gdatastring(nam, nr->val.u.sval);
++			return;
++		}
++	}
++
+ 	if(wid == 8 && is64(nr->type)) {
+ 		v = mpgetfix(nr->val.u.xval);
+ 		p = gins(ADATA, nam, nodintconst(v));
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 9ca7573089..c44bd684d5 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -50,6 +50,10 @@ clearp(Prog *p)
+ 	pcloc++;
+ }
+ 
++static int ddumped;
++static Prog *dfirst;
++static Prog *dpc;
++
+ /*
+  * generate and return proc with p->as = as,
+  * linked into program.  pc is next instruction.
+@@ -59,10 +63,22 @@ prog(int as)
+ {
+ 	Prog *p;
+ 
+-	p = pc;
+-	pc = mal(sizeof(*pc));
+-
+-	clearp(pc);
++	if(as == ADATA || as == AGLOBL) {
++		if(ddumped)
++			fatal("already dumped data");
++		if(dpc == nil) {
++			dpc = mal(sizeof(*dpc));
++			dfirst = dpc;
++		}
++		p = dpc;
++		dpc = mal(sizeof(*dpc));
++		p->link = dpc;
++	} else {
++		p = pc;
++		pc = mal(sizeof(*pc));
++		clearp(pc);
++		p->link = pc;
++	}
+ 
+ 	if(lineno == 0) {
+ 		if(debug['K'])
+@@ -71,10 +87,21 @@ prog(int as)
+ 
+ 	p->as = as;
+ 	p->lineno = lineno;
+-	p->link = pc;
+ 	return p;
+ }
+ 
++void
++dumpdata(void)
++{
++	ddumped = 1;
++	if(dfirst == nil)
++		return;
++	newplist();
++	*pc = *dfirst;
++	pc = dpc;
++	clearp(pc);
++}
++
+ /*
+  * generate a branch.
+  * t is ignored.
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index e66056bb98..135a8102ed 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -1101,7 +1101,7 @@ cmpslit(Node *l, Node *r)
+ int
+ smallintconst(Node *n)
+ {
+-	if(n->op == OLITERAL && n->type != T)
++	if(n->op == OLITERAL && n->val.ctype == CTINT && n->type != T)
+ 	switch(simtype[n->type->etype]) {
+ 	case TINT8:
+ 	case TUINT8:
+@@ -1112,6 +1112,7 @@ smallintconst(Node *n)
+ 	case TBOOL:
+ 	case TPTR32:
+ 		return 1;
++	case TIDEAL:
+ 	case TINT64:
+ 	case TUINT64:
+ 		if(mpcmpfixfix(n->val.u.xval, minintval[TINT32]) < 0
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ad2dd48ffe..4367c9cb40 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -200,6 +200,27 @@ struct	Type
+ };
+ #define	T	((Type*)0)
+ 
++typedef struct InitEntry InitEntry;
++typedef struct InitPlan InitPlan;
++
++struct InitEntry
++{
++	vlong xoffset;  // struct, array only
++	Node *key;  // map only
++	Node *expr;
++};
++
++struct InitPlan
++{
++	vlong lit;  // bytes of initialized non-zero literals
++	vlong zero;  // bytes of zeros
++	vlong expr;  // bytes of run-time computed expressions
++
++	InitEntry *e;
++	int len;
++	int cap;
++};
++
+ enum
+ {
+ 	EscUnknown,
+@@ -239,8 +260,8 @@ struct	Node
+ 	uchar	walkdef;
+ 	uchar	typecheck;
+ 	uchar	local;
++	uchar	dodata;
+ 	uchar	initorder;
+-	uchar	dodata;		// compile literal assignment as data statement
+ 	uchar	used;
+ 	uchar	isddd;
+ 	uchar	pun;		// don't registerize variable ONAME
+@@ -281,6 +302,9 @@ struct	Node
+ 
+ 	// OPACK
+ 	Pkg*	pkg;
++	
++	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
++	InitPlan*	initplan;
+ 
+ 	// Escape analysis.
+ 	NodeList* escflowsrc;	// flow(this, src)
+@@ -1306,8 +1330,6 @@ Prog*	unpatch(Prog*);
+ void	zfile(Biobuf *b, char *p, int n);
+ void	zhist(Biobuf *b, int line, vlong offset);
+ void	zname(Biobuf *b, Sym *s, int t);
+-void	data(void);
+-void	text(void);
+ 
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"B"	Mpint*
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index ef5c3214d4..d6fe6f65db 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -31,10 +31,6 @@ dumpobj(void)
+ 
+ 	outhist(bout);
+ 
+-	// add nil plist w AEND to catch
+-	// auto-generated trampolines, data
+-	newplist();
+-
+ 	dumpglobls();
+ 	dumptypestructs();
+ 	dumpdata();
+@@ -279,8 +275,7 @@ stringsym(char *s, int len)
+ 	if(sym->flags & SymUniq)
+ 		return sym;
+ 	sym->flags |= SymUniq;
+-	
+-	data();
++
+ 	off = 0;
+ 	
+ 	// string header
+@@ -297,7 +292,6 @@ stringsym(char *s, int len)
+ 	off = duint8(sym, off, 0);  // terminating NUL for runtime
+ 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
+ 	ggloblsym(sym, off, 1);
+-	text();
+-	
++
+ 	return sym;	
+ }
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 045a2aa275..ca7d08e511 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -142,7 +142,6 @@ methods(Type *t)
+ 	Type *f, *mt, *it, *this;
+ 	Sig *a, *b;
+ 	Sym *method;
+-	Prog *oldlist;
+ 
+ 	// named method type
+ 	mt = methtype(t);
+@@ -158,7 +157,6 @@ methods(Type *t)
+ 	// make list of methods for t,
+ 	// generating code if necessary.
+ 	a = nil;
+-	oldlist = nil;
+ 	for(f=mt->xmethod; f; f=f->down) {
+ 		if(f->type->etype != TFUNC)
+ 			continue;
+@@ -197,8 +195,6 @@ methods(Type *t)
+ 		if(!(a->isym->flags & SymSiggen)) {
+ 			a->isym->flags |= SymSiggen;
+ 			if(!eqtype(this, it) || this->width < types[tptr]->width) {
+-				if(oldlist == nil)
+-					oldlist = pc;
+ 				// Is okay to call genwrapper here always,
+ 				// but we can generate more efficient code
+ 				// using genembedtramp if all that is necessary
+@@ -214,8 +210,6 @@ methods(Type *t)
+ 		if(!(a->tsym->flags & SymSiggen)) {
+ 			a->tsym->flags |= SymSiggen;
+ 			if(!eqtype(this, t)) {
+-				if(oldlist == nil)
+-					oldlist = pc;
+ 				if(isptr[t->etype] && isptr[this->etype]
+ 				&& f->embedded && !isifacemethod(f->type))
+ 					genembedtramp(t, f, a->tsym, 0);
+@@ -225,16 +219,6 @@ methods(Type *t)
+ 		}
+ 	}
+ 
+-	// restore data output
+-	if(oldlist) {
+-		// old list ended with AEND; change to ANOP
+-		// so that the trampolines that follow can be found.
+-		nopout(oldlist);
+-
+-		// start new data list
+-		newplist();
+-	}
+-
+ 	return lsort(a, sigcmp);
+ }
+ 
+@@ -247,11 +231,9 @@ imethods(Type *t)
+ 	Sig *a, *all, *last;
+ 	Type *f;
+ 	Sym *method, *isym;
+-	Prog *oldlist;
+ 
+ 	all = nil;
+ 	last = nil;
+-	oldlist = nil;
+ 	for(f=t->type; f; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("imethods: not field");
+@@ -289,21 +271,9 @@ imethods(Type *t)
+ 		isym = methodsym(method, t, 0);
+ 		if(!(isym->flags & SymSiggen)) {
+ 			isym->flags |= SymSiggen;
+-			if(oldlist == nil)
+-				oldlist = pc;
+ 			genwrapper(t, f, isym, 0);
+ 		}
+ 	}
+-
+-	if(oldlist) {
+-		// old list ended with AEND; change to ANOP
+-		// so that the trampolines that follow can be found.
+-		nopout(oldlist);
+-
+-		// start new data list
+-		newplist();
+-	}
+-
+ 	return all;
+ }
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 1b92781b52..ed2b709156 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -10,9 +10,20 @@
+ #include	<libc.h>
+ #include	"go.h"
+ 
++enum
++{
++	InitNotStarted = 0,
++	InitDone = 1,
++	InitPending = 2,
++};
++
++static int iszero(Node*);
++static void initplan(Node*);
+ static NodeList *initlist;
+ static void init2(Node*, NodeList**);
+ static void init2list(NodeList*, NodeList**);
++static int staticinit(Node*, NodeList**);
++static Node *staticname(Type*, int);
+ 
+ static void
+ init1(Node *n, NodeList **out)
+@@ -33,16 +44,16 @@ init1(Node *n, NodeList **out)
+ 	case PFUNC:
+ 		break;
+ 	default:
+-		if(isblank(n) && n->defn != N && !n->defn->initorder) {
+-			n->defn->initorder = 1;
++		if(isblank(n) && n->defn != N && n->defn->initorder == InitNotStarted) {
++			n->defn->initorder = InitDone;
+ 			*out = list(*out, n->defn);
+ 		}
+ 		return;
+ 	}
+ 
+-	if(n->initorder == 1)
++	if(n->initorder == InitDone)
+ 		return;
+-	if(n->initorder == 2) {
++	if(n->initorder == InitPending) {
+ 		if(n->class == PFUNC)
+ 			return;
+ 		
+@@ -65,7 +76,7 @@ init1(Node *n, NodeList **out)
+ 		print("\t%L %S\n", n->lineno, n->sym);
+ 		errorexit();
+ 	}
+-	n->initorder = 2;
++	n->initorder = InitPending;
+ 	l = malloc(sizeof *l);
+ 	l->next = initlist;
+ 	l->n = n;
+@@ -86,20 +97,38 @@ init1(Node *n, NodeList **out)
+ 		case OAS:
+ 			if(n->defn->left != n)
+ 				goto bad;
++		/*
+ 			n->defn->dodata = 1;
+ 			init1(n->defn->right, out);
+ 			if(debug['j'])
+ 				print("%S\n", n->sym);
+ 			*out = list(*out, n->defn);
+ 			break;
++		*/
++			if(1) {
++				init1(n->defn->right, out);
++				if(debug['j'])
++					print("%S\n", n->sym);
++				if(!staticinit(n, out)) {
++if(debug['%']) dump("nonstatic", n->defn);
++					*out = list(*out, n->defn);
++				}
++			} else if(0) {
++				n->defn->dodata = 1;
++				init1(n->defn->right, out);
++				if(debug['j'])
++					print("%S\n", n->sym);
++				*out = list(*out, n->defn);
++			}
++			break;
+ 		
+ 		case OAS2FUNC:
+ 		case OAS2MAPR:
+ 		case OAS2DOTTYPE:
+ 		case OAS2RECV:
+-			if(n->defn->initorder)
++			if(n->defn->initorder != InitNotStarted)
+ 				break;
+-			n->defn->initorder = 1;
++			n->defn->initorder = InitDone;
+ 			for(l=n->defn->rlist; l; l=l->next)
+ 				init1(l->n, out);
+ 			*out = list(*out, n->defn);
+@@ -111,7 +140,7 @@ init1(Node *n, NodeList **out)
+ 	if(l->n != n)
+ 		fatal("bad initlist");
+ 	free(l);
+-	n->initorder = 1;
++	n->initorder = InitDone;
+ 	return;
+ 
+ bad:
+@@ -123,7 +152,7 @@ bad:
+ static void
+ init2(Node *n, NodeList **out)
+ {
+-	if(n == N || n->initorder == 1)
++	if(n == N || n->initorder == InitDone)
+ 		return;
+ 	init1(n, out);
+ 	init2(n->left, out);
+@@ -143,7 +172,6 @@ init2list(NodeList *l, NodeList **out)
+ 		init2(l->n, out);
+ }
+ 
+-
+ static void
+ initreorder(NodeList *l, NodeList **out)
+ {
+@@ -167,12 +195,220 @@ NodeList*
+ initfix(NodeList *l)
+ {
+ 	NodeList *lout;
++	int lno;
+ 
+ 	lout = nil;
++	lno = lineno;
+ 	initreorder(l, &lout);
++	lineno = lno;
+ 	return lout;
+ }
+ 
++/*
++ * compilation of top-level (static) assignments
++ * into DATA statements if at all possible.
++ */
++
++static int staticassign(Node*, Node*, NodeList**);
++
++static int
++staticinit(Node *n, NodeList **out)
++{
++	Node *l, *r;
++
++	if(n->op != ONAME || n->class != PEXTERN || n->defn == N || n->defn->op != OAS)
++		fatal("staticinit");
++
++	lineno = n->lineno;
++	l = n->defn->left;
++	r = n->defn->right;
++	return staticassign(l, r, out);
++}
++
++// like staticassign but we are copying an already
++// initialized value r.
++static int
++staticcopy(Node *l, Node *r, NodeList **out)
++{
++	int i;
++	InitEntry *e;
++	InitPlan *p;
++	Node *a, *ll, *rr, *orig, n1;
++
++	if(r->op != ONAME || r->class != PEXTERN || r->sym->pkg != localpkg)
++		return 0;
++	if(r->defn == N)	// zeroed
++		return 1;
++	if(r->defn->op != OAS)
++		return 0;
++	orig = r;
++	r = r->defn->right;
++	
++	switch(r->op) {
++	case ONAME:
++		if(staticcopy(l, r, out))
++			return 1;
++		*out = list(*out, nod(OAS, l, r));
++		return 1;
++	
++	case OLITERAL:
++		if(iszero(r))
++			return 1;
++		gdata(l, r, l->type->width);
++		return 1;
++
++	case OADDR:
++		switch(r->left->op) {
++		case ONAME:
++			gdata(l, r, l->type->width);
++			return 1;
++		case OARRAYLIT:
++		case OSTRUCTLIT:
++		case OMAPLIT:
++			// copy pointer
++			gdata(l, nod(OADDR, r->nname, N), l->type->width);
++			return 1;
++		}
++		break;
++
++	case OARRAYLIT:
++		if(isslice(r->type)) {
++			// copy slice
++			a = r->nname;
++			n1 = *l;
++			n1.xoffset = l->xoffset + Array_array;
++			gdata(&n1, nod(OADDR, a, N), widthptr);
++			n1.xoffset = l->xoffset + Array_nel;
++			gdata(&n1, r->right, 4);
++			n1.xoffset = l->xoffset + Array_cap;
++			gdata(&n1, r->right, 4);
++			return 1;
++		}
++		// fall through
++	case OSTRUCTLIT:
++		p = r->initplan;
++		n1 = *l;
++		for(i=0; i<p->len; i++) {
++			e = &p->e[i];
++			n1.xoffset = l->xoffset + e->xoffset;
++			n1.type = e->expr->type;
++			if(e->expr->op == OLITERAL)
++				gdata(&n1, e->expr, n1.type->width);
++			else if(staticassign(&n1, e->expr, out)) {
++				// Done
++			} else {
++				// Requires computation, but we're
++				// copying someone else's computation.
++				ll = nod(OXXX, N, N);
++				*ll = n1;
++				rr = nod(OXXX, N, N);
++				*rr = *orig;
++				rr->type = ll->type;
++				rr->xoffset += e->xoffset;
++				*out = list(*out, nod(OAS, ll, rr));
++			}
++		}
++		return 1;
++	}
++	return 0;
++}
++
++static int
++staticassign(Node *l, Node *r, NodeList **out)
++{
++	Node *a, n1;
++	Type *ta;
++	InitPlan *p;
++	InitEntry *e;
++	int i;
++	
++	switch(r->op) {
++	default:
++		//dump("not static", r);
++		break;
++	
++	case ONAME:
++		if(r->class == PEXTERN && r->sym->pkg == localpkg)
++			return staticcopy(l, r, out);
++		break;
++
++	case OLITERAL:
++		if(iszero(r))
++			return 1;
++		gdata(l, r, l->type->width);
++		return 1;
++
++	case OADDR:
++		switch(r->left->op) {
++		default:
++			//dump("not static addr", r);
++			break;
++
++		case ONAME:
++			gdata(l, r, l->type->width);
++			return 1;
++		
++		case OARRAYLIT:
++		case OMAPLIT:
++		case OSTRUCTLIT:
++			// Init pointer.
++			a = staticname(r->left->type, 1);
++			r->nname = a;
++			gdata(l, nod(OADDR, a, N), l->type->width);
++			// Init underlying literal.
++			if(!staticassign(a, r->left, out))
++				*out = list(*out, nod(OAS, a, r->left));
++			return 1;
++		}
++		break;
++
++	case OARRAYLIT:
++		initplan(r);
++		if(isslice(r->type)) {
++			// Init slice.
++			ta = typ(TARRAY);
++			ta->type = r->type->type;
++			ta->bound = mpgetfix(r->right->val.u.xval);
++			a = staticname(ta, 1);
++			r->nname = a;
++			n1 = *l;
++			n1.xoffset = l->xoffset + Array_array;
++			gdata(&n1, nod(OADDR, a, N), widthptr);
++			n1.xoffset = l->xoffset + Array_nel;
++			gdata(&n1, r->right, 4);
++			n1.xoffset = l->xoffset + Array_cap;
++			gdata(&n1, r->right, 4);
++			// Fall through to init underlying array.
++			l = a;
++		}
++		// fall through
++	case OSTRUCTLIT:
++		initplan(r);
++		p = r->initplan;
++		n1 = *l;
++		for(i=0; i<p->len; i++) {
++			e = &p->e[i];
++			n1.xoffset = l->xoffset + e->xoffset;
++			n1.type = e->expr->type;
++			if(e->expr->op == OLITERAL)
++				gdata(&n1, e->expr, n1.type->width);
++			else if(staticassign(&n1, e->expr, out)) {
++				// done
++			} else {
++				a = nod(OXXX, N, N);
++				*a = n1;
++				*out = list(*out, nod(OAS, a, e->expr));
++			}
++		}
++		return 1;
++
++	case OMAPLIT:
++		// TODO: Table-driven map insert.
++		break;
++	}
++	return 0;
++}
++
+ /*
+  * from here down is the walk analysis
+  * of composite literals.
+@@ -924,18 +1160,15 @@ gen_as_init(Node *n)
+ 	case TPTR64:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-		gused(N); // in case the data is the dest of a goto
+ 		gdata(&nam, nr, nr->type->width);
+ 		break;
+ 
+ 	case TCOMPLEX64:
+ 	case TCOMPLEX128:
+-		gused(N); // in case the data is the dest of a goto
+ 		gdatacomplex(&nam, nr->val.u.cval);
+ 		break;
+ 
+ 	case TSTRING:
+-		gused(N); // in case the data is the dest of a goto
+ 		gdatastring(&nam, nr->val.u.sval);
+ 		break;
+ 	}
+@@ -976,3 +1209,149 @@ no:
+ 	return 0;
+ }
+ 
++static int iszero(Node*);
++static int isvaluelit(Node*);
++static InitEntry* entry(InitPlan*);
++static void addvalue(InitPlan*, vlong, Node*, Node*);
++
++static void
++initplan(Node *n)
++{
++	InitPlan *p;
++	Node *a;
++	NodeList *l;
++
++	if(n->initplan != nil)
++		return;
++	p = mal(sizeof *p);
++	n->initplan = p;
++	switch(n->op) {
++	default:
++		fatal("initplan");
++	case OARRAYLIT:
++		for(l=n->list; l; l=l->next) {
++			a = l->n;
++			if(a->op != OKEY || !smallintconst(a->left))
++				fatal("initplan arraylit");
++			addvalue(p, n->type->type->width*mpgetfix(a->left->val.u.xval), N, a->right);
++		}
++		break;
++	case OSTRUCTLIT:
++		for(l=n->list; l; l=l->next) {
++			a = l->n;
++			if(a->op != OKEY || a->left->type == T)
++				fatal("initplan structlit");
++			addvalue(p, a->left->type->width, N, a->right);
++		}
++		break;
++	case OMAPLIT:
++		for(l=n->list; l; l=l->next) {
++			a = l->n;
++			if(a->op != OKEY)
++				fatal("initplan maplit");
++			addvalue(p, -1, a->left, a->right);
++		}
++		break;
++	}
++}
++
++static void
++addvalue(InitPlan *p, vlong xoffset, Node *key, Node *n)
++{
++	int i;
++	InitPlan *q;
++	InitEntry *e;
++
++	// special case: zero can be dropped entirely
++	if(iszero(n)) {
++		p->zero += n->type->width;
++		return;
++	}
++	
++	// special case: inline struct and array (not slice) literals
++	if(isvaluelit(n)) {
++		initplan(n);
++		q = n->initplan;
++		for(i=0; i<q->len; i++) {
++			e = entry(p);
++			*e = q->e[i];
++			e->xoffset += xoffset;
++		}
++		return;
++	}
++	
++	// add to plan
++	if(n->op == OLITERAL)
++		p->lit += n->type->width;
++	else
++		p->expr += n->type->width;
++
++	e = entry(p);
++	e->xoffset = xoffset;
++	e->expr = n;
++}
++
++static int
++iszero(Node *n)
++{
++	NodeList *l;
++
++	switch(n->op) {
++	case OLITERAL:
++		switch(n->val.ctype) {
++		default:
++			dump("unexpected literal", n);
++			fatal("iszero");
++	
++		case CTNIL:
++			return 1;
++		
++		case CTSTR:
++			return n->val.u.sval == nil || n->val.u.sval->len == 0;
++	
++		case CTBOOL:
++			return n->val.u.bval == 0;
++			
++		case CTINT:
++			return mpcmpfixc(n->val.u.xval, 0) == 0;
++	
++		case CTFLT:
++			return mpcmpfltc(n->val.u.fval, 0) == 0;
++	
++		case CTCPLX:
++			return mpcmpfltc(&n->val.u.cval->real, 0) == 0 && mpcmpfltc(&n->val.u.cval->imag, 0) == 0;
++		}
++		break;
++	case OARRAYLIT:
++		if(isslice(n->type))
++			break;
++		// fall through
++	case OSTRUCTLIT:
++		for(l=n->list; l; l=l->next)
++			if(!iszero(l->n->right))
++				return 0;
++		return 1;
++	}
++	return 0;
++}
++
++static int
++isvaluelit(Node *n)
++{
++	return (n->op == OARRAYLIT && isfixedarray(n->type)) || n->op == OSTRUCTLIT;
++}
++
++static InitEntry*
++entry(InitPlan *p)
++{
++	if(p->len >= p->cap) {
++		if(p->cap == 0)
++			p->cap = 4;
++		else
++			p->cap *= 2;
++		p->e = realloc(p->e, p->cap*sizeof p->e[0]);
++		if(p->e == nil)
++			fatal("out of memory");
++	}
++	return &p->e[p->len++];
++}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 08a69d17cc..7b10f33f08 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -153,7 +153,7 @@ typecheck(Node **np, int top)
+ 	}
+ 
+ 	if(n->typecheck == 2) {
+-		yyerror("typechecking loop");
++		yyerror("typechecking loop involving %#N", n);
+ 		lineno = lno;
+ 		return n;
+ 	}
+@@ -2103,6 +2103,7 @@ typecheckcomplit(Node **np)
+ 					yyerror("implicit assignment of unexported field '%s' in %T literal", s->name, t);
+ 				ll->n = assignconv(ll->n, f->type, "field value");
+ 				ll->n = nod(OKEY, newname(f->sym), ll->n);
++				ll->n->left->type = f;
+ 				ll->n->left->typecheck = 1;
+ 				f = f->down;
+ 			}
+@@ -2132,14 +2133,15 @@ typecheckcomplit(Node **np)
+ 				// before we do the lookup.
+ 				if(s->pkg != localpkg)
+ 					s = lookup(s->name);
+-				l->left = newname(s);
+-				l->left->typecheck = 1;
+ 				f = lookdot1(s, t, t->type, 0);
+ 				typecheck(&l->right, Erv);
+ 				if(f == nil) {
+ 					yyerror("unknown %T field '%s' in struct literal", t, s->name);
+ 					continue;
+ 				}
++				l->left = newname(s);
++				l->left->typecheck = 1;
++				l->left->type = f;
+ 				s = f->sym;
+ 				fielddup(newname(s), hash, nhash);
+ 				l->right = assignconv(l->right, f->type, "field value");
+diff --git a/test/golden.out b/test/golden.out
+index d2a104b798..624b2119f9 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -42,9 +42,6 @@ hello, world
+ =========== ./sigchld.go
+ survived SIGCHLD
+ 
+-=========== ./sinit.go
+-FAIL
+-
+ =========== ./turing.go
+ Hello World!
+ 
+diff --git a/test/sinit.go b/test/sinit.go
+index 2adb931e14..5cd3a4567b 100644
+--- a/test/sinit.go
++++ b/test/sinit.go
+@@ -1,4 +1,4 @@
+-// $G -S $D/$F.go | egrep initdone >/dev/null && echo FAIL || true
++// $G -S $D/$F.go | egrep initdone >/dev/null && echo BUG sinit || true
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,45 +9,45 @@ package p
+ // Should be no init func in the assembly.
+ // All these initializations should be done at link time.
+ 
+-type	S	struct{ a,b,c int }
+-type	SS	struct{ aa,bb,cc S }
+-type	SA	struct{ a,b,c [3]int }
+-type	SC	struct{ a,b,c []int }
++type S struct{ a, b, c int }
++type SS struct{ aa, bb, cc S }
++type SA struct{ a, b, c [3]int }
++type SC struct{ a, b, c []int }
+ 
+ var (
+-	zero = 2
+-	one = 1
+-	pi = 3.14
+-	slice = []byte{1,2,3}
+-	sliceInt = []int{1,2,3}
+-	hello = "hello, world"
+-	bytes = []byte("hello, world")
+-	four, five = 4, 5
+-	x, y = 0.1, "hello"
+-	nilslice []byte = nil
+-	nilmap map[string]int = nil
+-	nilfunc func() = nil
+-	nilchan chan int = nil
+-	nilptr *byte = nil
++	zero                      = 2
++	one                       = 1
++	pi                        = 3.14
++	slice                     = []byte{1, 2, 3}
++	sliceInt                  = []int{1, 2, 3}
++	hello                     = "hello, world"
++	bytes                     = []byte("hello, world")
++	four, five                = 4, 5
++	x, y                      = 0.1, "hello"
++	nilslice   []byte         = nil
++	nilmap     map[string]int = nil
++	nilfunc    func()         = nil
++	nilchan    chan int       = nil
++	nilptr     *byte          = nil
+ )
+ 
+-var	a	= [3]int{1001, 1002, 1003}
+-var	s	= S{1101, 1102, 1103}
+-var	c	= []int{1201, 1202, 1203}
++var a = [3]int{1001, 1002, 1003}
++var s = S{1101, 1102, 1103}
++var c = []int{1201, 1202, 1203}
+ 
+-var	aa	= [3][3]int{[3]int{2001,2002,2003}, [3]int{2004,2005,2006}, [3]int{2007,2008,2009}}
+-var	as	= [3]S{S{2101,2102,2103},S{2104,2105,2106},S{2107,2108,2109}}
+-var	ac	= [3][]int{[]int{2201,2202,2203}, []int{2204,2205,2206}, []int{2207,2208,2209}}
++var aa = [3][3]int{[3]int{2001, 2002, 2003}, [3]int{2004, 2005, 2006}, [3]int{2007, 2008, 2009}}
++var as = [3]S{S{2101, 2102, 2103}, S{2104, 2105, 2106}, S{2107, 2108, 2109}}
++var ac = [3][]int{[]int{2201, 2202, 2203}, []int{2204, 2205, 2206}, []int{2207, 2208, 2209}}
+ 
+-var	sa	= SA{[3]int{3001,3002,3003},[3]int{3004,3005,3006},[3]int{3007,3008,3009}}
+-var	ss	= SS{S{3101,3102,3103},S{3104,3105,3106},S{3107,3108,3109}}
+-var	sc	= SC{[]int{3201,3202,3203},[]int{3204,3205,3206},[]int{3207,3208,3209}}
++var sa = SA{[3]int{3001, 3002, 3003}, [3]int{3004, 3005, 3006}, [3]int{3007, 3008, 3009}}
++var ss = SS{S{3101, 3102, 3103}, S{3104, 3105, 3106}, S{3107, 3108, 3109}}
++var sc = SC{[]int{3201, 3202, 3203}, []int{3204, 3205, 3206}, []int{3207, 3208, 3209}}
+ 
+-var	ca	= [][3]int{[3]int{4001,4002,4003}, [3]int{4004,4005,4006}, [3]int{4007,4008,4009}}
+-var	cs	= []S{S{4101,4102,4103},S{4104,4105,4106},S{4107,4108,4109}}
+-var	cc	= [][]int{[]int{4201,4202,4203}, []int{4204,4205,4206}, []int{4207,4208,4209}}
++var ca = [][3]int{[3]int{4001, 4002, 4003}, [3]int{4004, 4005, 4006}, [3]int{4007, 4008, 4009}}
++var cs = []S{S{4101, 4102, 4103}, S{4104, 4105, 4106}, S{4107, 4108, 4109}}
++var cc = [][]int{[]int{4201, 4202, 4203}, []int{4204, 4205, 4206}, []int{4207, 4208, 4209}}
+ 
+-var	answers	= [...]int {
++var answers = [...]int{
+ 	// s
+ 	1101, 1102, 1103,
+ 
+@@ -98,3 +98,158 @@ var	answers	= [...]int {
+ 	2008, 2208, 2308, 4008, 4208, 4308, 5008, 5208, 5308,
+ 	2009, 2209, 2309, 4009, 4209, 4309, 5009, 5209, 5309,
+ }
++
++var (
++	copy_zero = zero
++	copy_one = one
++	copy_pi = pi
++	copy_slice = slice
++	copy_sliceInt = sliceInt
++	copy_hello = hello
++	copy_bytes = bytes
++	copy_four, copy_five = four, five
++	copy_x, copy_y = x, y
++	copy_nilslice = nilslice
++	copy_nilmap = nilmap
++	copy_nilfunc = nilfunc
++	copy_nilchan = nilchan
++	copy_nilptr = nilptr
++)
++
++var copy_a = a
++var copy_s = s
++var copy_c = c
++
++var copy_aa = aa
++var copy_as = as
++var copy_ac = ac
++
++var copy_sa = sa
++var copy_ss = ss
++var copy_sc = sc
++
++var copy_ca = ca
++var copy_cs = cs
++var copy_cc = cc
++
++var copy_answers = answers
++
++var bx bool
++var b0 = false
++var b1 = true
++
++var fx float32
++var f0 = float32(0)
++var f1 = float32(1)
++
++var gx float64
++var g0 = float64(0)
++var g1 = float64(1)
++
++var ix int
++var i0 = 0
++var i1 = 1
++
++var jx uint
++var j0 = uint(0)
++var j1 = uint(1)
++
++var cx complex64
++var c0 = complex64(0)
++var c1 = complex64(1)
++
++var dx complex128
++var d0 = complex128(0)
++var d1 = complex128(1)
++
++var sx []int
++var s0 = []int{0, 0, 0}
++var s1 = []int{1, 2, 3}
++
++func fi() int
++
++var ax [10]int
++var a0 = [10]int{0, 0, 0}
++var a1 = [10]int{1, 2, 3, 4}
++
++type T struct{ X, Y int }
++
++var tx T
++var t0 = T{}
++var t0a = T{0, 0}
++var t0b = T{X: 0}
++var t1 = T{X: 1, Y: 2}
++var t1a = T{3, 4}
++
++var psx *[]int
++var ps0 = &[]int{0, 0, 0}
++var ps1 = &[]int{1, 2, 3}
++
++var pax *[10]int
++var pa0 = &[10]int{0, 0, 0}
++var pa1 = &[10]int{1, 2, 3}
++
++var ptx *T
++var pt0 = &T{}
++var pt0a = &T{0, 0}
++var pt0b = &T{X: 0}
++var pt1 = &T{X: 1, Y: 2}
++var pt1a = &T{3, 4}
++
++var copy_bx = bx
++var copy_b0 = b0
++var copy_b1 = b1
++
++var copy_fx = fx
++var copy_f0 = f0
++var copy_f1 = f1
++
++var copy_gx = gx
++var copy_g0 = g0
++var copy_g1 = g1
++
++var copy_ix = ix
++var copy_i0 = i0
++var copy_i1 = i1
++
++var copy_jx = jx
++var copy_j0 = j0
++var copy_j1 = j1
++
++var copy_cx = cx
++var copy_c0 = c0
++var copy_c1 = c1
++
++var copy_dx = dx
++var copy_d0 = d0
++var copy_d1 = d1
++
++var copy_sx = sx
++var copy_s0 = s0
++var copy_s1 = s1
++
++var copy_ax = ax
++var copy_a0 = a0
++var copy_a1 = a1
++
++var copy_tx = tx
++var copy_t0 = t0
++var copy_t0a = t0a
++var copy_t0b = t0b
++var copy_t1 = t1
++var copy_t1a = t1a
++
++var copy_psx = psx
++var copy_ps0 = ps0
++var copy_ps1 = ps1
++
++var copy_pax = pax
++var copy_pa0 = pa0
++var copy_pa1 = pa1
++
++var copy_ptx = ptx
++var copy_pt0 = pt0
++var copy_pt0a = pt0a
++var copy_pt0b = pt0b
++var copy_pt1 = pt1
++var copy_pt1a = pt1a

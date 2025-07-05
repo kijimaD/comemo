@@ -21,7 +21,7 @@ Date:   Wed Apr 28 12:57:38 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/go1.17.html                                    | 17 +++-
  src/cmd/go.mod                                     |  3 +
  src/cmd/go/internal/modload/modfile.go             |  2 +-
@@ -39,3 +39,852 @@ Date:   Wed Apr 28 12:57:38 2021 -0400
  .../testdata/script/mod_tidy_convergence_loop.txt  | 59 +++++++++++++-
  src/cmd/vendor/modules.txt                         |  3 +
  16 files changed, 396 insertions(+), 61 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index ef4086d2a5..be3b4e6d71 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -43,7 +43,22 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="go-command">Go command</h3>
+ 
+-<h4 id="modules">Modules</h4>
++<h4 id="lazy-loading">Lazy module loading</h4>
++
++<p><!-- golang.org/issue/36460 -->
++  If a module specifies <code>go</code> <code>1.17</code> or higher in its
++  <code>go.mod</code> file, its transitive requirements are now loaded lazily,
++  avoding the need to download or read <code>go.mod</code> files for
++  otherwise-irrelevant dependencies. To support lazy loading, in Go 1.17 modules
++  the <code>go</code> command maintains <em>explicit</em> requirements in
++  the <code>go.mod</code> file for every dependency that provides any package
++  transitively imported by any package or test within the module.
++  See <a href="https://golang.org/design/36460-lazy-module-loading">the design
++  document</a> for more detail.
++  <!-- TODO(bcmills): replace the design-doc link with proper documentation. -->
++</p>
++
++<h4 id="module-deprecation-comments">Module deprecation comments</h4>
+ 
+ <p><!-- golang.org/issue/40357 -->
+   Module authors may deprecate a module by adding a
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c5f3271a9d..1487025268 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,9 +4,12 @@ go 1.17
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
++	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+ 	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
+ 	golang.org/x/mod v0.4.3-0.20210409134425-858fdbee9c24
++	golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57 // indirect
+ 	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
+ 	golang.org/x/tools v0.1.1-0.20210422170518-f946a157eefe
++	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 7b92a2b7ab..cd08fa5859 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -41,7 +41,7 @@ const (
+ 	// go117EnableLazyLoading toggles whether lazy-loading code paths should be
+ 	// active. It will be removed once the lazy loading implementation is stable
+ 	// and well-tested.
+-	go117EnableLazyLoading = false
++	go117EnableLazyLoading = true
+ 
+ 	// go1117LazyTODO is a constant that exists only until lazy loading is
+ 	// implemented. Its use indicates a condition that will need to change if the
+diff --git a/src/cmd/go/testdata/script/mod_all.txt b/src/cmd/go/testdata/script/mod_all.txt
+index aac66292d6..090eeee22d 100644
+--- a/src/cmd/go/testdata/script/mod_all.txt
++++ b/src/cmd/go/testdata/script/mod_all.txt
+@@ -189,19 +189,22 @@ stdout '^example.com/main/testonly_test \[example.com/main/testonly.test\]$'
+ 
+ rm vendor
+ 
+-# Convert all modules to go 1.16 to enable lazy loading.
+-go mod edit -go=1.16 a/go.mod
+-go mod edit -go=1.16 b/go.mod
+-go mod edit -go=1.16 c/go.mod
+-go mod edit -go=1.16 d/go.mod
+-go mod edit -go=1.16 q/go.mod
+-go mod edit -go=1.16 r/go.mod
+-go mod edit -go=1.16 s/go.mod
+-go mod edit -go=1.16 t/go.mod
+-go mod edit -go=1.16 u/go.mod
+-go mod edit -go=1.16 w/go.mod
+-go mod edit -go=1.16 x/go.mod
+-go mod edit -go=1.16
++# Convert all modules to go 1.17 to enable lazy loading.
++go mod edit -go=1.17 a/go.mod
++go mod edit -go=1.17 b/go.mod
++go mod edit -go=1.17 c/go.mod
++go mod edit -go=1.17 d/go.mod
++go mod edit -go=1.17 q/go.mod
++go mod edit -go=1.17 r/go.mod
++go mod edit -go=1.17 s/go.mod
++go mod edit -go=1.17 t/go.mod
++go mod edit -go=1.17 u/go.mod
++go mod edit -go=1.17 w/go.mod
++go mod edit -go=1.17 x/go.mod
++go mod edit -go=1.17
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
+ 
+ # With lazy loading, 'go list all' with neither -mod=vendor nor -test should
+ # match -mod=vendor without -test in 1.15.
+@@ -282,20 +285,41 @@ stdout '^example.com/t_test \[example.com/t.test\]$'
+ stdout '^example.com/u.test$'
+ stdout '^example.com/u_test \[example.com/u.test\]$'
+ 
++# 'go list -m all' should cover all of the modules providing packages in
++# 'go list -test -deps all', but should exclude modules d and x,
++# which are not relevant to the main module and are outside of the
++# lazy-loading horizon.
+ 
+-# TODO(#36460):
+-# 'go list -m all' should exactly cover the packages in 'go list -test all'.
++go list -m -f $MODFMT all
++stdout -count=10 '^.'
++stdout '^example.com/a$'
++stdout '^example.com/b$'
++stdout '^example.com/c$'
++! stdout '^example.com/d$'
++stdout '^example.com/main$'
++stdout '^example.com/q$'
++stdout '^example.com/r$'
++stdout '^example.com/s$'
++stdout '^example.com/t$'
++stdout '^example.com/u$'
++stdout '^example.com/w$'
++! stdout '^example.com/x$'
+ 
+ -- go.mod --
+ module example.com/main
+ 
++// Note: this go.mod file initially specifies go 1.15,
++// but includes some redundant roots so that it
++// also already obeys the 1.17 lazy loading invariants.
+ go 1.15
+ 
+ require (
+ 	example.com/a v0.1.0
+ 	example.com/b v0.1.0
+ 	example.com/q v0.1.0
++	example.com/r v0.1.0 // indirect
+ 	example.com/t v0.1.0
++	example.com/u v0.1.0 // indirect
+ )
+ 
+ replace (
+diff --git a/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt b/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt
+index 8f6793edf5..789d42d24d 100644
+--- a/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt
++++ b/src/cmd/go/testdata/script/mod_get_missing_ziphash.txt
+@@ -29,7 +29,7 @@ go build -n use
+ -- go.mod --
+ module use
+ 
+-go 1.17
++go 1.16
+ 
+ require rsc.io/quote v1.5.2
+ -- go.sum.tidy --
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 9a803c4218..b024fce174 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -67,9 +67,9 @@ cd tmp
+ go mod init tmp
+ go mod edit -require=rsc.io/fortune@v1.0.0
+ ! go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
++stderr '^rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ ! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
++stderr '^rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ go get -d rsc.io/fortune@v1.0.0
+ go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+ exists $GOPATH/bin/fortune$GOEXE
+diff --git a/src/cmd/go/testdata/script/mod_lazy_downgrade.txt b/src/cmd/go/testdata/script/mod_lazy_downgrade.txt
+index 1e84820f81..2f815fef22 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_downgrade.txt
+@@ -1,5 +1,5 @@
+ # This test illustrates the interaction between lazy loading and downgrading in
+-# 'go get.
++# 'go get'.
+ 
+ # The package import graph used in this test looks like:
+ #
+@@ -46,7 +46,7 @@ go list -m all
+ # outside of the deepening scan should not affect the downgrade.
+ 
+ cp go.mod.orig go.mod
+-go mod edit -go=1.16
++go mod edit -go=1.17
+ 
+ go list -m all
+ stdout '^example.com/a v0.1.0 '
+@@ -59,12 +59,50 @@ stdout '^example.com/a v0.1.0 '
+ stdout '^example.com/b v0.2.0 '
+ stdout '^example.com/c v0.1.0 '
+ 
++# At this point, b.2 is still an explicit root, so its dependency on c
++# is still tracked, and it will still be downgraded away if we remove c.
++# ('go get' never makes a root into a non-root. Only 'go mod tidy' does that.)
++
+ go get -d example.com/c@none
+ go list -m all
+-! stdout '^example.com/a '  # TODO(#36460): example.com/a v0.1.0
+-! stdout '^example.com/b '  # TODO(#36460): example.com/b v0.1.0
++! stdout '^example.com/a '
++! stdout '^example.com/b '
+ ! stdout '^example.com/c '
+ 
++
++# This time, we drop the explicit 'b' root by downgrading it to v0.1.0
++# (the version required by a.1) and running 'go mod tidy'.
++# It is still selected at v0.1.0 (as a dependency of a),
++# but its dependency on c is now pruned from the module graph, so it doesn't
++# result in any downgrades to b or a if we run 'go get c@none'.
++
++cp go.mod.orig go.mod
++go mod edit -go=1.17
++
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.3.0 '
++stdout '^example.com/c v0.2.0 '
++
++go get -d example.com/c@v0.1.0 example.com/b@v0.1.0
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.1.0 '
++stdout '^example.com/c v0.1.0 '
++
++go mod tidy
++go list -m all
++stdout '^example.com/a v0.1.0 '
++stdout '^example.com/b v0.1.0 '
++! stdout '^example.com/c '
++
++go get -d example.com/c@none
++go list -m all
++stdout '^example.com/a v0.1.0'
++stdout '^example.com/b v0.1.0'
++! stdout '^example.com/c '
++
++
+ -- go.mod --
+ module example.com/lazy
+ 
+@@ -91,7 +129,7 @@ import _ "example.com/a"
+ -- a/go.mod --
+ module example.com/a
+ 
+-go 1.15
++go 1.17
+ 
+ require example.com/b v0.1.0
+ -- a/a.go --
+@@ -104,7 +142,7 @@ import _ "example.com/b"
+ -- b1/go.mod --
+ module example.com/b
+ 
+-go 1.15
++go 1.17
+ 
+ require example.com/c v0.1.0
+ -- b1/b.go --
+@@ -116,7 +154,7 @@ import _ "example.com/c"
+ -- b2/go.mod --
+ module example.com/b
+ 
+-go 1.15
++go 1.17
+ 
+ require example.com/c v0.1.0
+ -- b2/b.go --
+@@ -128,7 +166,7 @@ import _ "example.com/c"
+ -- b3/go.mod --
+ module example.com/b
+ 
+-go 1.15
++go 1.17
+ 
+ require example.com/c v0.2.0
+ -- b3/b.go --
+@@ -140,6 +178,6 @@ import _ "example.com/c"
+ -- c/go.mod --
+ module example.com/c
+ 
+-go 1.15
++go 1.17
+ -- c/c.go --
+ package c
+diff --git a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+index 4ad8cbf8ee..3dc1515df2 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_import_allmod.txt
+@@ -53,8 +53,8 @@ stdout '^c v0.1.0 '
+ 
+ cp m.go.orig m.go
+ cp go.mod.orig go.mod
+-go mod edit -go=1.16
+-go mod edit -go=1.16 go.mod.new
++go mod edit -go=1.17
++go mod edit -go=1.17 go.mod.new
+ 
+ cp go.mod go.mod.orig
+ go mod tidy
+@@ -63,14 +63,15 @@ cmp go.mod.orig go.mod
+ go list -m all
+ stdout '^a v0.1.0 '
+ stdout '^b v0.1.0 '
+-stdout '^c v0.1.0 '  # TODO(#36460): This should be pruned out.
++! stdout '^c '
+ 
+-# After adding a new import of b/y,
+-# the import of c from b/y should again resolve to the version required by b.
++# After adding a new direct import of b/y,
++# the existing verison of b should be promoted to a root,
++# bringing the version of c required by b into the build list.
+ 
+ cp m.go.new m.go
+ go mod tidy
+-cmp go.mod.new go.mod
++cmp go.mod.lazy go.mod
+ 
+ go list -m all
+ stdout '^a v0.1.0 '
+@@ -124,6 +125,23 @@ require (
+ 	b v0.1.0
+ )
+ 
++replace (
++	a v0.1.0 => ./a1
++	b v0.1.0 => ./b1
++	c v0.1.0 => ./c1
++	c v0.2.0 => ./c2
++)
++-- go.mod.lazy --
++module m
++
++go 1.17
++
++require (
++	a v0.1.0
++	b v0.1.0
++	c v0.1.0 // indirect
++)
++
+ replace (
+ 	a v0.1.0 => ./a1
+ 	b v0.1.0 => ./b1
+@@ -133,7 +151,7 @@ replace (
+ -- a1/go.mod --
+ module a
+ 
+-go 1.16
++go 1.17
+ 
+ require b v0.1.0
+ -- a1/a.go --
+@@ -145,7 +163,7 @@ import _ "b/x"
+ -- b1/go.mod --
+ module b
+ 
+-go 1.16
++go 1.17
+ 
+ require c v0.1.0
+ -- b1/x/x.go --
+@@ -161,7 +179,7 @@ func CVersion() string {
+ -- c1/go.mod --
+ module c
+ 
+-go 1.16
++go 1.17
+ -- c1/c.go --
+ package c
+ 
+diff --git a/src/cmd/go/testdata/script/mod_lazy_new_import.txt b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+index 1be61a1561..86b14b64b6 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_new_import.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_new_import.txt
+@@ -5,7 +5,7 @@
+ #
+ # lazy ---- a/x ---- b
+ #     \
+-#      ---- a/y ---- c
++#      ---- a/y (new) ---- c
+ #
+ # Where a/x and x/y are disjoint packages, but both contained in module a.
+ #
+@@ -35,14 +35,29 @@ go list -m all
+ stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
+ cmp go.mod go.mod.old
+ 
+-# TODO(#36460):
++# Now, we repeat the test with a lazy main module.
+ cp lazy.go.old lazy.go
+-cp go.mod.old go.mod
+-go mod edit -go=1.16
++cp go.mod.117 go.mod
++
++# Before adding a new import, the go.mod file should
++# enumerate modules for all packages already imported.
++go list all
++cmp go.mod go.mod.117
+ 
+ # When a new import is found, we should perform a deepening scan of the existing
+ # dependencies and add a requirement on the version required by those
+ # dependencies — not re-resolve 'latest'.
++cp lazy.go.new lazy.go
++
++! go list all
++stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy$'
++
++go mod tidy
++go list all
++go list -m all
++stdout '^example.com/c v0.1.0' # not v0.2.0 as would be resolved by 'latest'
++
++cmp go.mod go.mod.new
+ 
+ 
+ -- go.mod --
+@@ -52,6 +67,39 @@ go 1.15
+ 
+ require example.com/a v0.1.0
+ 
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++)
++-- go.mod.117 --
++module example.com/lazy
++
++go 1.17
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.1.0 // indirect
++)
++
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++)
++-- go.mod.new --
++module example.com/lazy
++
++go 1.17
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.1.0 // indirect
++	example.com/c v0.1.0 // indirect
++)
++
+ replace (
+ 	example.com/a v0.1.0 => ./a
+ 	example.com/b v0.1.0 => ./b
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt b/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt
+index 9cdfad79f6..7d07eb60aa 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_test_horizon.txt
+@@ -32,12 +32,12 @@ stdout '^c v0.2.0 '
+ # but the irrelevant dependency on c v0.2.0 should be pruned out,
+ # leaving only the relevant dependency on c v0.1.0.
+ 
+-go mod edit -go=1.16
++go mod edit -go=1.17
+ go list -m c
+-stdout '^c v0.2.0'  # TODO(#36460): v0.1.0
++stdout '^c v0.1.0'
+ 
+ [!short] go test -v x
+-[!short] stdout ' c v0.2.0$'  # TODO(#36460): v0.1.0
++[!short] stdout ' c v0.1.0$'
+ 
+ -- m.go --
+ package m
+@@ -66,7 +66,7 @@ replace (
+ -- a1/go.mod --
+ module a
+ 
+-go 1.16
++go 1.17
+ 
+ require b v0.1.0
+ -- a1/a.go --
+@@ -78,7 +78,7 @@ import _ "b"
+ -- b1/go.mod --
+ module b
+ 
+-go 1.16
++go 1.17
+ 
+ require c v0.2.0
+ -- b1/b.go --
+@@ -97,7 +97,7 @@ func TestCVersion(t *testing.T) {
+ -- c1/go.mod --
+ module c
+ 
+-go 1.16
++go 1.17
+ -- c1/c.go --
+ package c
+ 
+@@ -105,7 +105,7 @@ const Version = "v0.1.0"
+ -- c2/go.mod --
+ module c
+ 
+-go 1.16
++go 1.17
+ -- c2/c.go --
+ package c
+ 
+@@ -113,7 +113,7 @@ const Version = "v0.2.0"
+ -- x1/go.mod --
+ module x
+ 
+-go 1.16
++go 1.17
+ 
+ require c v0.1.0
+ -- x1/x.go --
+diff --git a/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+index ca6c55040e..722712d1f2 100644
+--- a/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
++++ b/src/cmd/go/testdata/script/mod_lazy_test_of_test_dep.txt
+@@ -21,12 +21,13 @@ cp go.mod go.mod.old
+ go mod tidy
+ cmp go.mod go.mod.old
+ 
++
+ # In Go 1.15 mode, 'go list -m all' includes modules needed by the
+ # transitive closure of tests of dependencies of tests of dependencies of ….
+ 
+ go list -m all
+-stdout 'example.com/b v0.1.0'
+-stdout 'example.com/c v0.1.0'
++stdout '^example.com/b v0.1.0 '
++stdout '^example.com/c v0.1.0 '
+ cmp go.mod go.mod.old
+ 
+ # 'go test' (or equivalent) of any such dependency, no matter how remote, does
+@@ -36,18 +37,24 @@ go list -test -deps example.com/a
+ stdout example.com/b
+ ! stdout example.com/c
+ 
+-[!short] go test -c example.com/a
++[!short] go test -c -o $devnull example.com/a
+ [!short] cmp go.mod go.mod.old
+ 
+ go list -test -deps example.com/b
+ stdout example.com/c
+ 
+-[!short] go test -c example.com/b
++[!short] go test -c -o $devnull example.com/b
+ [!short] cmp go.mod go.mod.old
+ 
+-# TODO(#36460):
++go mod edit -go=1.17 a/go.mod
++go mod edit -go=1.17 b1/go.mod
++go mod edit -go=1.17 b2/go.mod
++go mod edit -go=1.17 c1/go.mod
++go mod edit -go=1.17 c2/go.mod
++go mod edit -go=1.17
++
+ 
+-# After changing to 'go 1.16` uniformly, 'go list -m all' should prune out
++# After changing to 'go 1.17` uniformly, 'go list -m all' should prune out
+ # example.com/c, because it is not imported by any package (or test of a package)
+ # transitively imported by the main module.
+ #
+@@ -62,10 +69,66 @@ stdout example.com/c
+ # version of its module.
+ 
+ # However, if we reach c by running successive tests starting from the main
+-# module, we should end up with exactly the version require by c, with an update
++# module, we should end up with exactly the version required by b, with an update
+ # to the go.mod file as soon as we test a test dependency that is not itself in
+ # "all".
+ 
++cp go.mod go.mod.117
++go mod tidy
++cmp go.mod go.mod.117
++
++go list -m all
++stdout '^example.com/b v0.1.0 '
++! stdout '^example.com/c '
++
++# 'go test' of a package (transitively) imported by the main module
++# should work without changes to the go.mod file.
++
++go list -test -deps example.com/a
++stdout example.com/b
++! stdout example.com/c
++
++[!short] go test -c -o $devnull example.com/a
++
++# However, 'go test' of a package that is itself a dependency should require an
++# update to the go.mod file.
++! go list -test -deps example.com/b
++
++	# TODO(#36460): The hint here is wrong. We should suggest
++	# 'go get -t example.com/b@v0.1.0' instead of 'go mod tidy'.
++stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
++
++[!short] ! go test -c -o $devnull example.com/b
++[!short] stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
++
++go get -t example.com/b@v0.1.0
++go list -test -deps example.com/b
++stdout example.com/c
++
++[!short] go test -c -o $devnull example.com/b
++
++# The update should bring the version required by b, not the latest version of c.
++
++go list -m example.com/c
++stdout '^example.com/c v0.1.0 '
++
++cmp go.mod go.mod.b
++
++
++# We should reach the same state if we arrive at it via `go test -mod=mod`.
++
++cp go.mod.117 go.mod
++
++[short] go list -mod=mod -test -deps example.com/a
++[!short] go test -mod=mod -c -o $devnull example.com/a
++
++[short] go list -mod=mod -test -deps example.com/b
++[!short] go test -mod=mod -c -o $devnull example.com/b
++
++cmp go.mod go.mod.b
++
++
++
+ -- go.mod --
+ module example.com/lazy
+ 
+@@ -73,6 +136,23 @@ go 1.15
+ 
+ require example.com/a v0.1.0
+ 
++replace (
++	example.com/a v0.1.0 => ./a
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++)
++-- go.mod.b --
++module example.com/lazy
++
++go 1.17
++
++require (
++	example.com/a v0.1.0
++	example.com/b v0.1.0 // indirect
++)
++
+ replace (
+ 	example.com/a v0.1.0 => ./a
+ 	example.com/b v0.1.0 => ./b1
+diff --git a/src/cmd/go/testdata/script/mod_list_sums.txt b/src/cmd/go/testdata/script/mod_list_sums.txt
+new file mode 100644
+index 0000000000..e5f80d7fb6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_sums.txt
+@@ -0,0 +1,35 @@
++# https://golang.org/issue/41297: 'go list -m' should not require go.sum with
++# -versions or when all args are version queries.
++
++go mod init m
++go mod edit -require=rsc.io/quote@v1.5.1
++
++# 'go list' currently loads the whole build list, even when listing only
++# non-dependencies.
++#
++# TODO(#41297): Thes should not be errors.
++
++! go list -m -mod=readonly rsc.io/quote@latest
++stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
++
++! go list -m -mod=readonly -versions rsc.io/quote
++stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
++
++# Incidentally fetching the required version of a module records its checksum,
++# just because it happens to be in the build list, and recording the checksum
++# triggers an error under -mod=readonly.
++#
++# TODO(#41297): This should not be an error.
++! go list -m -mod=readonly rsc.io/quote@<v1.5.2
++stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
++! stderr '^go: updates to go.sum needed, disabled by -mod=readonly$'
++
++# Attempting to list the versions of a module that is not a root dependency
++# causes the build list to be resolved (so that the selected version can *also*
++# be identified, even though it is not relevant to this particular output).
++# That, in turn, causes us to need checksums for the go.sum files for the
++# modules in the module graph.
++#
++# TODO(#41297): This should not be an error either.
++! go list -m -mod=readonly -versions rsc.io/sampler
++stderr '^go list -m: rsc\.io/quote@v1\.5\.1: missing go\.sum entry; to add it:\n\tgo mod download rsc\.io/quote$'
+diff --git a/src/cmd/go/testdata/script/mod_run_pkg_version.txt b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+index 48462230b6..3c3ed27e91 100644
+--- a/src/cmd/go/testdata/script/mod_run_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_run_pkg_version.txt
+@@ -64,9 +64,9 @@ cd tmp
+ go mod init tmp
+ go mod edit -require=rsc.io/fortune@v1.0.0
+ ! go run -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
++stderr '^rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ ! go run -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
++stderr '^rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ cd ..
+ rm tmp
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_convergence.txt b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+index de85d23e5d..22c8fc66c5 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_convergence.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_convergence.txt
+@@ -84,8 +84,22 @@ go mod tidy
+ cmp go.mod go.mod.postget
+ 
+ 
++# The 'tidy' logic for a lazy main module is somewhat different from that for an
++# eager main module, but the overall behavior is the same.
+ 
+-# TODO(#36460): Repeat this test with a lazy main module.
++cp go.mod.orig go.mod
++go mod edit -go=1.17 go.mod
++go mod edit -go=1.17 go.mod.tidye
++go mod edit -go=1.17 go.mod.postget
++
++go mod tidy -e
++cmp go.mod go.mod.tidye
++stderr '^go: found example\.net/y in example\.net/y v0.2.0$'
++stderr '^example\.net/m imports\n\texample\.net/x: package example\.net/x provided by example\.net/x at latest version v0\.1\.0 but not at required version v0\.2\.0-pre$'
++
++go get -d example.net/x@v0.1.0 example.net/y@v0.1.0
++go mod tidy
++cmp go.mod go.mod.postget
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt b/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
+index efcd8f2a55..3c4d3244d5 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_convergence_loop.txt
+@@ -101,7 +101,64 @@ go mod tidy -e
+ cmp go.mod go.mod.postget
+ 
+ 
+-# TODO(#36460): Repeat this test with a lazy main module.
++# The 'tidy' logic for a lazy main module requires more iterations to converge,
++# because it is willing to drop dependencies on non-root modules that do not
++# otherwise provide imported packages.
++#
++# On the first iteration, it adds x.1 as a root, which upgrades z and w,
++# dropping w.1's requirement on y. w.1 was initially a root, so the upgraded
++# w.2-pre is retained as a root.
++#
++# On the second iteration, it adds y.1 as a root, which upgrades w and x,
++# dropping x.1's requirement on z. x.1 was added as a root in the previous step,
++# so the upgraded x.2-pre is retained as a root.
++#
++# On the third iteration, it adds z.1 as a root, which upgrades x and y.
++# x and y were already roots (from the previous steps), so their upgraded versions
++# are retained (not dropped) and the iteration stops.
++#
++# At that point, we have z.1 as a root providing package z,
++# and w, x, and y have all been upgraded to no longer provide any packages.
++# So only z is retained as a new root.
++#
++# (From the above, we can see that in a lazy module we still cycle through the
++# same possible root states, but in a different order from the eager case.)
++#
++# TODO(bcmills): if we retained the upgrades on w, x, and y (since they are
++# lexical prefixes for unresolved packages w, x, and y, respectively), then 'go
++# mod tidy -e' itself would become stable and no longer cycle through states.
++
++cp go.mod.orig go.mod
++go mod edit -go=1.17 go.mod
++cp go.mod go.mod.117
++go mod edit -go=1.17 go.mod.tidye1
++go mod edit -go=1.17 go.mod.tidye2
++go mod edit -go=1.17 go.mod.tidye3
++go mod edit -go=1.17 go.mod.postget
++
++go list -m all
++
++go mod tidy -e
++cmp go.mod go.mod.tidye3
++
++go mod tidy -e
++cmp go.mod go.mod.tidye2
++
++go mod tidy -e
++cmp go.mod go.mod.tidye1
++
++go mod tidy -e
++cmp go.mod go.mod.117
++
++
++# As in the eager case, for the lazy module the fully-upgraded dependency graph
++# becomes empty, and the empty graph is stable.
++
++go get -d example.net/w@v0.2.0-pre example.net/x@v0.2.0-pre example.net/y@v0.2.0-pre example.net/z@v0.2.0-pre
++go mod tidy -e
++cmp go.mod go.mod.postget
++go mod tidy -e
++cmp go.mod go.mod.postget
+ 
+ 
+ -- m.go --
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9229d2dc8b..0457b374b0 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -16,6 +16,7 @@ github.com/google/pprof/third_party/d3
+ github.com/google/pprof/third_party/d3flamegraph
+ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639
++## explicit
+ github.com/ianlancetaylor/demangle
+ # golang.org/x/arch v0.0.0-20210308155006-05f8f0431f72
+ ## explicit
+@@ -39,6 +40,7 @@ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+ # golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57
++## explicit
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+@@ -91,5 +93,6 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
++## explicit
+ golang.org/x/xerrors
+ golang.org/x/xerrors/internal

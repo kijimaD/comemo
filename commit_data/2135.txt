@@ -8,8 +8,60 @@ Date:   Mon May 4 22:12:13 2009 -0700
     DELTA=6  (1 added, 0 deleted, 5 changed)
     OCL=28242
     CL=28256
-
+---
  src/lib/strings.go   | 4 ++--
  src/lib/utf8.go      | 5 +++--
  src/lib/utf8_test.go | 2 +-
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/strings.go b/src/lib/strings.go
+index 5ce4a8dae3..33adab2499 100644
+--- a/src/lib/strings.go
++++ b/src/lib/strings.go
+@@ -10,7 +10,7 @@ import "utf8"
+ // Explode splits s into an array of UTF-8 sequences, one per Unicode character (still strings).
+ // Invalid UTF-8 sequences become correct encodings of U+FFF8.
+ func Explode(s string) []string {
+-	a := make([]string, utf8.RuneCountInString(s, 0, len(s)));
++	a := make([]string, utf8.RuneCountInString(s));
+ 	j := 0;
+ 	var size, rune int;
+ 	for i := 0; i < len(a); i++ {
+@@ -24,7 +24,7 @@ func Explode(s string) []string {
+ // Count counts the number of non-overlapping instances of sep in s.
+ func Count(s, sep string) int {
+ 	if sep == "" {
+-		return utf8.RuneCountInString(s, 0, len(s))+1
++		return utf8.RuneCountInString(s)+1
+ 	}
+ 	c := sep[0];
+ 	n := 0;
+diff --git a/src/lib/utf8.go b/src/lib/utf8.go
+index ff55df8021..5ce59894b5 100644
+--- a/src/lib/utf8.go
++++ b/src/lib/utf8.go
+@@ -273,8 +273,9 @@ func RuneCount(p []byte) int {
+ }
+ 
+ // RuneCountInString is like RuneCount but its input is a string.
+-func RuneCountInString(s string, i int, l int) int {
+-	ei := i + l;
++func RuneCountInString(s string) int {
++	ei := len(s);
++	i := 0;
+ 	n := 0;
+ 	for n = 0; i < ei; n++ {
+ 		if s[i] < RuneSelf {
+diff --git a/src/lib/utf8_test.go b/src/lib/utf8_test.go
+index 1f29cb82d9..3ba5ee2b83 100644
+--- a/src/lib/utf8_test.go
++++ b/src/lib/utf8_test.go
+@@ -169,7 +169,7 @@ var runecounttests = []RuneCountTest {
+ func TestRuneCount(t *testing.T) {
+ 	for i := 0; i < len(runecounttests); i++ {
+ 		tt := runecounttests[i];
+-		if out := utf8.RuneCountInString(tt.in, 0, len(tt.in)); out != tt.out {
++		if out := utf8.RuneCountInString(tt.in); out != tt.out {
+ 			t.Errorf("RuneCountInString(%q) = %d, want %d", tt.in, out, tt.out);
+ 		}
+ 		if out := utf8.RuneCount(bytes(tt.in)); out != tt.out {

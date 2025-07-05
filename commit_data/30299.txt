@@ -17,7 +17,7 @@ Date:   Sun Oct 30 15:31:21 2016 -0400
     Change-Id: I7ce966ca82d04e8507c0bcb8ea4ad946809b1ef5
     Reviewed-on: https://go-review.googlesource.com/32355
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/src/host/host.go           | 43 ++++++++++++++++++++++++--
  misc/cgo/testplugin/src/plugin1/plugin1.go     |  2 ++
  misc/cgo/testplugin/src/sub/plugin1/plugin1.go | 20 ++++++++++++
@@ -31,3 +31,383 @@ Date:   Sun Oct 30 15:31:21 2016 -0400
  src/runtime/plugin.go                          | 41 ++++++++++++++----------
  src/runtime/symtab.go                          |  1 +
  12 files changed, 119 insertions(+), 40 deletions(-)
+
+diff --git a/misc/cgo/testplugin/src/host/host.go b/misc/cgo/testplugin/src/host/host.go
+index d11d660d95..0fe28663c7 100644
+--- a/misc/cgo/testplugin/src/host/host.go
++++ b/misc/cgo/testplugin/src/host/host.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"fmt"
+ 	"log"
++	"path/filepath"
+ 	"plugin"
+ 
+ 	"common"
+@@ -36,15 +37,51 @@ func main() {
+ 		log.Fatalf(`Lookup("Seven") failed: %v`, err)
+ 	}
+ 	if got, want := *seven.(*int), 7; got != want {
+-		log.Fatalf("via lookup plugin1.Seven=%d, want %d", got, want)
++		log.Fatalf("plugin1.Seven=%d, want %d", got, want)
+ 	}
+ 
+ 	readFunc, err := p.Lookup("ReadCommonX")
+ 	if err != nil {
+-		log.Fatalf(`Lookup("ReadCommonX") failed: %v`, err)
++		log.Fatalf(`plugin1.Lookup("ReadCommonX") failed: %v`, err)
+ 	}
+ 	if got := readFunc.(func() int)(); got != wantX {
+-		log.Fatalf("via lookup plugin1.ReadCommonX()=%d, want %d", got, wantX)
++		log.Fatalf("plugin1.ReadCommonX()=%d, want %d", got, wantX)
++	}
++
++	// sub/plugin1.so is a different plugin with the same name as
++	// the already loaded plugin. It also depends on common. Test
++	// that we can load the different plugin, it is actually
++	// different, and that it sees the same common package.
++	subpPath, err := filepath.Abs("sub/plugin1.so")
++	if err != nil {
++		log.Fatalf("filepath.Abs(%q) failed: %v", subpPath, err)
++	}
++	subp, err := plugin.Open(subpPath)
++	if err != nil {
++		log.Fatalf("plugin.Open(%q) failed: %v", subpPath, err)
++	}
++
++	readFunc, err = subp.Lookup("ReadCommonX")
++	if err != nil {
++		log.Fatalf(`sub/plugin1.Lookup("ReadCommonX") failed: %v`, err)
++	}
++	if got := readFunc.(func() int)(); got != wantX {
++		log.Fatalf("sub/plugin1.ReadCommonX()=%d, want %d", got, wantX)
++	}
++
++	subf, err := subp.Lookup("F")
++	if err != nil {
++		log.Fatalf(`sub/plugin1.Lookup("F") failed: %v`, err)
++	}
++	if gotf := subf.(func() int)(); gotf != 17 {
++		log.Fatalf(`sub/plugin1.F()=%d, want 17`, gotf)
++	}
++	f, err := p.Lookup("F")
++	if err != nil {
++		log.Fatalf(`plugin1.Lookup("F") failed: %v`, err)
++	}
++	if gotf := f.(func() int)(); gotf != 3 {
++		log.Fatalf(`plugin1.F()=%d, want 17`, gotf)
+ 	}
+ 
+ 	fmt.Println("PASS")
+diff --git a/misc/cgo/testplugin/src/plugin1/plugin1.go b/misc/cgo/testplugin/src/plugin1/plugin1.go
+index 704959672f..c3966f3401 100644
+--- a/misc/cgo/testplugin/src/plugin1/plugin1.go
++++ b/misc/cgo/testplugin/src/plugin1/plugin1.go
+@@ -9,6 +9,8 @@ import "C"
+ 
+ import "common"
+ 
++func F() int { return 3 }
++
+ func ReadCommonX() int {
+ 	return common.X
+ }
+diff --git a/misc/cgo/testplugin/src/sub/plugin1/plugin1.go b/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
+new file mode 100644
+index 0000000000..4ed76c7caf
+--- /dev/null
++++ b/misc/cgo/testplugin/src/sub/plugin1/plugin1.go
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// // No C code required.
++import "C"
++
++import "common"
++
++func F() int { return 17 }
++
++func ReadCommonX() int {
++	return common.X
++}
++
++func main() {
++	panic("plugin1.main called")
++}
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index 452d5c0a59..7a40934e0e 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -15,13 +15,15 @@ goos=$(go env GOOS)
+ goarch=$(go env GOARCH)
+ 
+ function cleanup() {
+-	rm -f plugin1.so host pkg
++	rm -rf plugin1.so host pkg sub
+ }
+ trap cleanup EXIT
+ 
+-rm -rf pkg
++rm -rf pkg sub
++mkdir sub
+ 
+ GOPATH=$(pwd) go build -buildmode=plugin plugin1
++GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+ GOPATH=$(pwd) go build host
+ 
+ LD_LIBRARY_PATH=$(pwd) ./host
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index cd4636e7a8..641fa09360 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2546,6 +2546,9 @@ func (gcToolchain) ld(b *builder, root *action, out string, allactions []*action
+ 	if root.p.omitDWARF {
+ 		ldflags = append(ldflags, "-w")
+ 	}
++	if buildBuildmode == "plugin" {
++		ldflags = append(ldflags, "-pluginpath", root.p.ImportPath)
++	}
+ 
+ 	// If the user has not specified the -extld option, then specify the
+ 	// appropriate linker. In case of C++ code, use the compiler named
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index ffaead7ba0..16fddf2345 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -85,6 +85,8 @@ Flags:
+ 		Link with C/C++ memory sanitizer support.
+ 	-o file
+ 		Write output to file (default a.out, or a.out.exe on Windows).
++	-pluginpath path
++		The path name used to prefix exported plugin symbols.
+ 	-r dir1:dir2:...
+ 		Set the ELF dynamic linker search path.
+ 	-race
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 85af07d5af..2fd92f6726 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -37,7 +37,6 @@ import (
+ 	"flag"
+ 	"log"
+ 	"os"
+-	"path/filepath"
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+@@ -59,6 +58,7 @@ var (
+ 	flagBuildid = flag.String("buildid", "", "record `id` as Go toolchain build id")
+ 
+ 	flagOutfile    = flag.String("o", "", "write output to `file`")
++	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
+ 	FlagLinkshared = flag.Bool("linkshared", false, "link against installed Go shared libraries")
+ 
+ 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
+@@ -175,8 +175,7 @@ func Main() {
+ 			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
+ 		}
+ 	case BuildmodePlugin:
+-		pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
+-		addlibpath(ctxt, "command line", "command line", flag.Arg(0), pluginName, "")
++		addlibpath(ctxt, "command line", "command line", flag.Arg(0), *flagPluginPath, "")
+ 	default:
+ 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+ 	}
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 74d2d3d93a..ef96c04067 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -603,6 +603,12 @@ func (ctxt *Link) symtab() {
+ 		adduint(ctxt, moduledata, 0)
+ 		adduint(ctxt, moduledata, 0)
+ 	}
++	if Buildmode == BuildmodePlugin {
++		addgostring(ctxt, moduledata, "go.link.thispluginpath", *flagPluginPath)
++	} else {
++		adduint(ctxt, moduledata, 0)
++		adduint(ctxt, moduledata, 0)
++	}
+ 	if len(ctxt.Shlibs) > 0 {
+ 		thismodulename := filepath.Base(*flagOutfile)
+ 		switch Buildmode {
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index 93ae23f3f1..e812a2f677 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -18,9 +18,9 @@ package plugin
+ 
+ // Plugin is a loaded Go plugin.
+ type Plugin struct {
+-	name   string
+-	loaded chan struct{} // closed when loaded
+-	syms   map[string]interface{}
++	pluginpath string
++	loaded     chan struct{} // closed when loaded
++	syms       map[string]interface{}
+ }
+ 
+ // Open opens a Go plugin.
+diff --git a/src/plugin/plugin_dlopen.go b/src/plugin/plugin_dlopen.go
+index e881b258e0..4a3eb3d861 100644
+--- a/src/plugin/plugin_dlopen.go
++++ b/src/plugin/plugin_dlopen.go
+@@ -49,10 +49,10 @@ func open(name string) (*Plugin, error) {
+ 	}
+ 	C.free(unsafe.Pointer(cRelName))
+ 
+-	path := C.GoString(cPath)
++	filepath := C.GoString(cPath)
+ 
+ 	pluginsMu.Lock()
+-	if p := plugins[path]; p != nil {
++	if p := plugins[filepath]; p != nil {
+ 		pluginsMu.Unlock()
+ 		<-p.loaded
+ 		return p, nil
+@@ -65,26 +65,25 @@ func open(name string) (*Plugin, error) {
+ 	}
+ 	// TODO(crawshaw): look for plugin note, confirm it is a Go plugin
+ 	// and it was built with the correct toolchain.
+-	// TODO(crawshaw): get full plugin name from note.
+ 	if len(name) > 3 && name[len(name)-3:] == ".so" {
+ 		name = name[:len(name)-3]
+ 	}
+ 
+-	syms := lastmoduleinit()
++	pluginpath, syms := lastmoduleinit()
+ 	if plugins == nil {
+ 		plugins = make(map[string]*Plugin)
+ 	}
+ 	// This function can be called from the init function of a plugin.
+ 	// Drop a placeholder in the map so subsequent opens can wait on it.
+ 	p := &Plugin{
+-		name:   name,
+-		loaded: make(chan struct{}),
+-		syms:   syms,
++		pluginpath: pluginpath,
++		loaded:     make(chan struct{}),
++		syms:       syms,
+ 	}
+-	plugins[path] = p
++	plugins[filepath] = p
+ 	pluginsMu.Unlock()
+ 
+-	initStr := C.CString(name + ".init")
++	initStr := C.CString(pluginpath + ".init")
+ 	initFuncPC := C.pluginLookup(h, initStr, &cErr)
+ 	C.free(unsafe.Pointer(initStr))
+ 	if initFuncPC != nil {
+@@ -101,7 +100,7 @@ func open(name string) (*Plugin, error) {
+ 			symName = symName[1:]
+ 		}
+ 
+-		cname := C.CString(name + "." + symName)
++		cname := C.CString(pluginpath + "." + symName)
+ 		p := C.pluginLookup(h, cname, &cErr)
+ 		C.free(unsafe.Pointer(cname))
+ 		if p == nil {
+@@ -123,7 +122,7 @@ func lookup(p *Plugin, symName string) (Symbol, error) {
+ 	if s := p.syms[symName]; s != nil {
+ 		return s, nil
+ 	}
+-	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.name)
++	return nil, errors.New("plugin: symbol " + symName + " not found in plugin " + p.pluginpath)
+ }
+ 
+ var (
+@@ -131,4 +130,5 @@ var (
+ 	plugins   map[string]*Plugin
+ )
+ 
+-func lastmoduleinit() map[string]interface{} // in package runtime
++// lastmoduleinit is defined in package runtime
++func lastmoduleinit() (pluginpath string, syms map[string]interface{})
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+index 4a85a1f500..91fc275a65 100644
+--- a/src/runtime/plugin.go
++++ b/src/runtime/plugin.go
+@@ -7,7 +7,7 @@ package runtime
+ import "unsafe"
+ 
+ //go:linkname plugin_lastmoduleinit plugin.lastmoduleinit
+-func plugin_lastmoduleinit() map[string]interface{} {
++func plugin_lastmoduleinit() (path string, syms map[string]interface{}) {
+ 	md := firstmoduledata.next
+ 	if md == nil {
+ 		throw("runtime: no plugin module data")
+@@ -19,20 +19,27 @@ func plugin_lastmoduleinit() map[string]interface{} {
+ 		throw("runtime: plugin already initialized")
+ 	}
+ 
+-	if fmd := &firstmoduledata; inRange(fmd.text, fmd.etext, md.text, md.etext) ||
+-		inRange(fmd.bss, fmd.ebss, md.bss, md.ebss) ||
+-		inRange(fmd.data, fmd.edata, md.data, md.edata) ||
+-		inRange(fmd.types, fmd.etypes, md.types, md.etypes) {
+-		println("plugin: new module data overlaps with firstmoduledata")
+-		println("\tfirstmoduledata.text-etext=", hex(fmd.text), "-", hex(fmd.etext))
+-		println("\tfirstmoduledata.bss-ebss=", hex(fmd.bss), "-", hex(fmd.ebss))
+-		println("\tfirstmoduledata.data-edata=", hex(fmd.data), "-", hex(fmd.edata))
+-		println("\tfirstmoduledata.types-etypes=", hex(fmd.types), "-", hex(fmd.etypes))
+-		println("\tmd.text-etext=", hex(md.text), "-", hex(md.etext))
+-		println("\tmd.bss-ebss=", hex(md.bss), "-", hex(md.ebss))
+-		println("\tmd.data-edata=", hex(md.data), "-", hex(md.edata))
+-		println("\tmd.types-etypes=", hex(md.types), "-", hex(md.etypes))
+-		throw("plugin: new module data overlaps with firstmoduledata")
++	for pmd := &firstmoduledata; pmd != md; pmd = pmd.next {
++		if pmd.pluginpath == md.pluginpath {
++			println("plugin: plugin", md.pluginpath, "already loaded")
++			throw("plugin: plugin already loaded")
++		}
++
++		if inRange(pmd.text, pmd.etext, md.text, md.etext) ||
++			inRange(pmd.bss, pmd.ebss, md.bss, md.ebss) ||
++			inRange(pmd.data, pmd.edata, md.data, md.edata) ||
++			inRange(pmd.types, pmd.etypes, md.types, md.etypes) {
++			println("plugin: new module data overlaps with previous moduledata")
++			println("\tpmd.text-etext=", hex(pmd.text), "-", hex(pmd.etext))
++			println("\tpmd.bss-ebss=", hex(pmd.bss), "-", hex(pmd.ebss))
++			println("\tpmd.data-edata=", hex(pmd.data), "-", hex(pmd.edata))
++			println("\tpmd.types-etypes=", hex(pmd.types), "-", hex(pmd.etypes))
++			println("\tmd.text-etext=", hex(md.text), "-", hex(md.etext))
++			println("\tmd.bss-ebss=", hex(md.bss), "-", hex(md.ebss))
++			println("\tmd.data-edata=", hex(md.data), "-", hex(md.edata))
++			println("\tmd.types-etypes=", hex(md.types), "-", hex(md.etypes))
++			throw("plugin: new module data overlaps with previous moduledata")
++		}
+ 	}
+ 
+ 	// Initialize the freshly loaded module.
+@@ -54,7 +61,7 @@ func plugin_lastmoduleinit() map[string]interface{} {
+ 	// Because functions are handled specially in the plugin package,
+ 	// function symbol names are prefixed here with '.' to avoid
+ 	// a dependency on the reflect package.
+-	syms := make(map[string]interface{}, len(md.ptab))
++	syms = make(map[string]interface{}, len(md.ptab))
+ 	for _, ptab := range md.ptab {
+ 		symName := resolveNameOff(unsafe.Pointer(md.types), ptab.name)
+ 		t := (*_type)(unsafe.Pointer(md.types)).typeOff(ptab.typ)
+@@ -68,7 +75,7 @@ func plugin_lastmoduleinit() map[string]interface{} {
+ 		}
+ 		syms[name] = val
+ 	}
+-	return syms
++	return md.pluginpath, syms
+ }
+ 
+ // inRange reports whether v0 or v1 are in the range [r0, r1].
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 24d63b70c0..98b5f900e6 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -201,6 +201,7 @@ type moduledata struct {
+ 
+ 	ptab []ptabEntry
+ 
++	pluginpath   string
+ 	modulename   string
+ 	modulehashes []modulehash
+ 

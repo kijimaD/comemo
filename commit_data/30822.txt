@@ -15,7 +15,7 @@ Date:   Tue Dec 6 17:08:06 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Lazar <lazard@golang.org>
-
+---
  src/cmd/compile/fmt_test.go                  |  1 +
  src/cmd/compile/internal/gc/const.go         |  7 ++--
  src/cmd/compile/internal/gc/dcl.go           |  5 +--
@@ -44,3 +44,1216 @@ Date:   Tue Dec 6 17:08:06 2016 -0800
  src/cmd/dist/buildtool.go                    |  1 +
  src/cmd/internal/src/src.go                  | 11 ++++++
  27 files changed, 181 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 1a648084f7..2490e37e24 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -654,6 +654,7 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/syntax.token %q":            "",
+ 	"cmd/compile/internal/syntax.token %s":            "",
+ 	"cmd/internal/obj.As %v":                          "",
++	"cmd/internal/src.Pos %d":                         "",
+ 	"error %v":                                        "",
+ 	"float64 %.2f":                                    "",
+ 	"float64 %.3f":                                    "",
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 2b255589f9..0575b0f789 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -4,7 +4,10 @@
+ 
+ package gc
+ 
+-import "strings"
++import (
++	"cmd/internal/src"
++	"strings"
++)
+ 
+ // Ctype describes the constant kind of an "ideal" (untyped) constant.
+ type Ctype int8
+@@ -676,7 +679,7 @@ func evconst(n *Node) {
+ 
+ 	nr := n.Right
+ 	var rv Val
+-	var lno int32
++	var lno src.Pos
+ 	var wr EType
+ 	var v Val
+ 	var norig *Node
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3cdd71df0d..460764af3a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"sort"
+ 	"strings"
+@@ -287,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ // declare constants from grammar
+ // new_name_list [[type] = expr_list]
+ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
+-	lno := int32(0) // default is to leave line number alone in listtreecopy
++	lno := src.Pos(0) // default is to leave line number alone in listtreecopy
+ 	if len(cl) == 0 {
+ 		if t != nil {
+ 			yyerror("const declaration cannot have type without expression")
+@@ -1344,7 +1345,7 @@ type nowritebarrierrecChecker struct {
+ type nowritebarrierrecCall struct {
+ 	target *Node
+ 	depth  int
+-	lineno int32
++	lineno src.Pos
+ }
+ 
+ func checknowritebarrierrec() {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ff33e9c1c4..f54d058ebb 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ )
+ 
+ const (
+@@ -42,10 +43,10 @@ type Sym struct {
+ 
+ 	// saved and restored by dcopy
+ 	Pkg        *Pkg
+-	Name       string // object name
+-	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+-	Block      int32  // blocknumber to catch redeclaration
+-	Lastlineno int32  // last declaration for diagnostic
++	Name       string  // object name
++	Def        *Node   // definition: ONAME OTYPE OPACK or OLITERAL
++	Block      int32   // blocknumber to catch redeclaration
++	Lastlineno src.Pos // last declaration for diagnostic
+ 
+ 	Label   *Node // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 1e8636347a..c2784cd6af 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -45,7 +45,7 @@ func Prog(as obj.As) *obj.Prog {
+ 	}
+ 
+ 	p.As = as
+-	p.Lineno = lineno
++	p.Lineno = int32(lineno) // TODO(gri) fix this
+ 	return p
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 7b2fcf89ba..bdca1b1d76 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -27,7 +27,10 @@
+ 
+ package gc
+ 
+-import "fmt"
++import (
++	"cmd/internal/src"
++	"fmt"
++)
+ 
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+ // the ->sym can be re-used in the local package, so peel it off the receiver's type.
+@@ -1014,13 +1017,13 @@ func (subst *inlsubst) node(n *Node) *Node {
+ }
+ 
+ // Plaster over linenumbers
+-func setlnolist(ll Nodes, lno int32) {
++func setlnolist(ll Nodes, lno src.Pos) {
+ 	for _, n := range ll.Slice() {
+ 		setlno(n, lno)
+ 	}
+ }
+ 
+-func setlno(n *Node, lno int32) {
++func setlno(n *Node, lno src.Pos) {
+ 	if n == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 87f9bf27cc..00dc975f2c 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -7,16 +7,17 @@ package gc
+ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"strings"
+ )
+ 
+ // lexlineno is the line number _after_ the most recently read rune.
+ // In particular, it's advanced (or rewound) as newlines are read (or unread).
+-var lexlineno int32
++var lexlineno src.Pos
+ 
+ // lineno is the line number at the start of the most recently lexed token.
+-var lineno int32
++var lineno src.Pos
+ 
+ func isSpace(c rune) bool {
+ 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 75f58a731c..4ed7f1c5dc 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -11,6 +11,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+@@ -878,7 +879,7 @@ func importfile(f *Val, indent []byte) {
+ 	}
+ }
+ 
+-func pkgnotused(lineno int32, path string, name string) {
++func pkgnotused(lineno src.Pos, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+ 	// Note that this handles both renamed imports and imports of
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a501cb67b6..8d3babc544 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -5,13 +5,13 @@
+ package gc
+ 
+ import (
++	"cmd/compile/internal/syntax"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+ 	"unicode/utf8"
+-
+-	"cmd/compile/internal/syntax"
+ )
+ 
+ func parseFile(filename string) {
+@@ -40,7 +40,7 @@ func parseFile(filename string) {
+ 
+ // noder transforms package syntax's AST into a Nod tree.
+ type noder struct {
+-	baseline  int32
++	baseline  src.Pos
+ 	linknames []int // tracks //go:linkname lines
+ }
+ 
+@@ -50,7 +50,7 @@ func (p *noder) file(file *syntax.File) {
+ 
+ 	xtop = append(xtop, p.decls(file.DeclList)...)
+ 
+-	lexlineno = p.baseline + int32(file.Lines) - 1
++	lexlineno = p.baseline + src.Pos(file.Lines) - 1
+ 	lineno = lexlineno
+ }
+ 
+@@ -231,7 +231,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 		yyerror("can only use //go:noescape with external func implementations")
+ 	}
+ 	f.Func.Pragma = pragma
+-	lineno = p.baseline + int32(fun.EndLine) - 1
++	lineno = p.baseline + src.Pos(fun.EndLine) - 1
+ 	f.Func.Endlineno = lineno
+ 
+ 	funcbody(f)
+@@ -357,14 +357,14 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 			l[i] = p.wrapname(expr.ElemList[i], e)
+ 		}
+ 		n.List.Set(l)
+-		lineno = p.baseline + int32(expr.EndLine) - 1
++		lineno = p.baseline + src.Pos(expr.EndLine) - 1
+ 		return n
+ 	case *syntax.KeyValueExpr:
+ 		return p.nod(expr, OKEY, p.expr(expr.Key), p.wrapname(expr.Value, p.expr(expr.Value)))
+ 	case *syntax.FuncLit:
+ 		closurehdr(p.typeExpr(expr.Type))
+ 		body := p.stmts(expr.Body)
+-		lineno = p.baseline + int32(expr.EndLine) - 1
++		lineno = p.baseline + src.Pos(expr.EndLine) - 1
+ 		return p.setlineno(expr, closurebody(body))
+ 	case *syntax.ParenExpr:
+ 		return p.nod(expr, OPAREN, p.expr(expr.X), nil)
+@@ -985,8 +985,8 @@ func (p *noder) nod(orig syntax.Node, op Op, left, right *Node) *Node {
+ 	return p.setlineno(orig, nod(op, left, right))
+ }
+ 
+-func (p *noder) setlineno(src syntax.Node, dst *Node) *Node {
+-	l := int32(src.Line())
++func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
++	l := src.Pos(src_.Line())
+ 	if l == 0 {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+@@ -999,7 +999,7 @@ func (p *noder) lineno(n syntax.Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	l := int32(n.Line())
++	l := src.Pos(n.Line())
+ 	if l == 0 {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return
+@@ -1011,7 +1011,7 @@ func (p *noder) error(err error) {
+ 	line := p.baseline
+ 	var msg string
+ 	if err, ok := err.(syntax.Error); ok {
+-		line += int32(err.Line) - 1
++		line += src.Pos(err.Line) - 1
+ 		msg = err.Msg
+ 	} else {
+ 		msg = err.Error()
+@@ -1039,7 +1039,7 @@ func (p *noder) pragma(pos, line int, text string) syntax.Pragma {
+ 		if n <= 0 {
+ 			break
+ 		}
+-		lexlineno = p.baseline + int32(line)
++		lexlineno = p.baseline + src.Pos(line)
+ 		linehistupdate(text[5:i], n)
+ 
+ 	case strings.HasPrefix(text, "go:linkname "):
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 643ba79d63..d76d7d845e 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"sort"
+@@ -311,7 +312,7 @@ func compile(fn *Node) {
+ 		assertI2I2 = Sysfunc("assertI2I2")
+ 	}
+ 
+-	defer func(lno int32) {
++	defer func(lno src.Pos) {
+ 		lineno = lno
+ 	}(setlineno(fn))
+ 
+diff --git a/src/cmd/compile/internal/gc/phi.go b/src/cmd/compile/internal/gc/phi.go
+index 0d4dbb5b2e..309ad43bb8 100644
+--- a/src/cmd/compile/internal/gc/phi.go
++++ b/src/cmd/compile/internal/gc/phi.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/src"
+ 	"container/heap"
+ 	"fmt"
+ )
+@@ -499,7 +500,7 @@ loop:
+ }
+ 
+ // lookupVarOutgoing finds the variable's value at the end of block b.
+-func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line int32) *ssa.Value {
++func (s *simplePhiState) lookupVarOutgoing(b *ssa.Block, t ssa.Type, var_ *Node, line src.Pos) *ssa.Value {
+ 	for {
+ 		if v := s.defvars[b.ID][var_]; v != nil {
+ 			return v
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 5fa864568f..a6f3735bdf 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -17,6 +17,7 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"crypto/md5"
+ 	"fmt"
+@@ -1253,7 +1254,7 @@ func livenessepilogue(lv *Liveness) {
+ 						if !n.Name.Needzero {
+ 							n.Name.Needzero = true
+ 							if debuglive >= 1 {
+-								Warnl(p.Lineno, "%v: %L is ambiguously live", Curfn.Func.Nname, n)
++								Warnl(src.Pos(p.Lineno), "%v: %L is ambiguously live", Curfn.Func.Nname, n)
+ 							}
+ 						}
+ 					}
+@@ -1344,7 +1345,7 @@ func livenessepilogue(lv *Liveness) {
+ 						}
+ 						n := lv.vars[j]
+ 						if n.Class != PPARAM {
+-							yyerrorl(p.Lineno, "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
++							yyerrorl(src.Pos(p.Lineno), "internal error: %v %L recorded as live on entry, p.Pc=%v", Curfn.Func.Nname, n, p.Pc)
+ 						}
+ 					}
+ 				}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 55ee3c01dc..8df8adee59 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -14,6 +14,7 @@ import (
+ 
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -228,7 +229,7 @@ type state struct {
+ 	sb       *ssa.Value
+ 
+ 	// line number stack. The current line number is top of stack
+-	line []int32
++	line []src.Pos
+ 
+ 	// list of panic calls by function name and line number.
+ 	// Used to deduplicate panic calls.
+@@ -242,12 +243,12 @@ type state struct {
+ 
+ 	cgoUnsafeArgs bool
+ 	noWB          bool
+-	WBLineno      int32 // line number of first write barrier. 0=no write barriers
++	WBLineno      src.Pos // line number of first write barrier. 0=no write barriers
+ }
+ 
+ type funcLine struct {
+ 	f    *Node
+-	line int32
++	line src.Pos
+ }
+ 
+ type ssaLabel struct {
+@@ -278,11 +279,13 @@ func (s *state) label(sym *Sym) *ssaLabel {
+ 	return lab
+ }
+ 
+-func (s *state) Logf(msg string, args ...interface{})              { s.config.Logf(msg, args...) }
+-func (s *state) Log() bool                                         { return s.config.Log() }
+-func (s *state) Fatalf(msg string, args ...interface{})            { s.config.Fatalf(s.peekLine(), msg, args...) }
+-func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+-func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
++func (s *state) Logf(msg string, args ...interface{})   { s.config.Logf(msg, args...) }
++func (s *state) Log() bool                              { return s.config.Log() }
++func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peekLine(), msg, args...) }
++func (s *state) Warnl(line src.Pos, msg string, args ...interface{}) {
++	s.config.Warnl(line, msg, args...)
++}
++func (s *state) Debug_checknil() bool { return s.config.Debug_checknil() }
+ 
+ var (
+ 	// dummy node for the memory variable
+@@ -328,7 +331,7 @@ func (s *state) endBlock() *ssa.Block {
+ }
+ 
+ // pushLine pushes a line number on the line number stack.
+-func (s *state) pushLine(line int32) {
++func (s *state) pushLine(line src.Pos) {
+ 	if line == 0 {
+ 		// the frontend may emit node with line number missing,
+ 		// use the parent line number in this case.
+@@ -346,7 +349,7 @@ func (s *state) popLine() {
+ }
+ 
+ // peekLine peek the top of the line number stack.
+-func (s *state) peekLine() int32 {
++func (s *state) peekLine() src.Pos {
+ 	return s.line[len(s.line)-1]
+ }
+ 
+@@ -2358,7 +2361,7 @@ const (
+ // If deref is true, rightIsVolatile reports whether right points to volatile (clobbered by a call) storage.
+ // Include a write barrier if wb is true.
+ // skip indicates assignments (at the top level) that can be avoided.
+-func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32, skip skipMask, rightIsVolatile bool) {
++func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line src.Pos, skip skipMask, rightIsVolatile bool) {
+ 	if left.Op == ONAME && isblank(left) {
+ 		return
+ 	}
+@@ -3257,7 +3260,7 @@ func canSSAType(t *Type) bool {
+ }
+ 
+ // exprPtr evaluates n to a pointer and nil-checks it.
+-func (s *state) exprPtr(n *Node, bounded bool, lineno int32) *ssa.Value {
++func (s *state) exprPtr(n *Node, bounded bool, lineno src.Pos) *ssa.Value {
+ 	p := s.expr(n)
+ 	if bounded || n.NonNil {
+ 		if s.f.Config.Debug_checknil() && lineno > 1 {
+@@ -3405,7 +3408,7 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ // insertWBmove inserts the assignment *left = *right including a write barrier.
+ // t is the type being assigned.
+ // If right == nil, then we're zeroing *left.
+-func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
++func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, rightIsVolatile bool) {
+ 	// if writeBarrier.enabled {
+ 	//   typedmemmove(&t, left, right)
+ 	// } else {
+@@ -3453,7 +3456,7 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 
+ // insertWBstore inserts the assignment *left = right including a write barrier.
+ // t is the type being assigned.
+-func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line int32, skip skipMask) {
++func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, skip skipMask) {
+ 	// store scalar fields
+ 	// if writeBarrier.enabled {
+ 	//   writebarrierptr for pointer fields
+@@ -4378,7 +4381,7 @@ func (s *SSAGenState) Pc() *obj.Prog {
+ }
+ 
+ // SetLineno sets the current source line number.
+-func (s *SSAGenState) SetLineno(l int32) {
++func (s *SSAGenState) SetLineno(l src.Pos) {
+ 	lineno = l
+ }
+ 
+@@ -4955,7 +4958,7 @@ func (e *ssaExport) CanSSA(t ssa.Type) bool {
+ 	return canSSAType(t.(*Type))
+ }
+ 
+-func (e *ssaExport) Line(line int32) string {
++func (e *ssaExport) Line(line src.Pos) string {
+ 	return linestr(line)
+ }
+ 
+@@ -4971,14 +4974,14 @@ func (e *ssaExport) Log() bool {
+ }
+ 
+ // Fatal reports a compiler error and exits.
+-func (e *ssaExport) Fatalf(line int32, msg string, args ...interface{}) {
++func (e *ssaExport) Fatalf(line src.Pos, msg string, args ...interface{}) {
+ 	lineno = line
+ 	Fatalf(msg, args...)
+ }
+ 
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+-func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
++func (e *ssaExport) Warnl(line src.Pos, fmt_ string, args ...interface{}) {
+ 	Warnl(line, fmt_, args...)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 9b9a3f1210..49bb92beac 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -7,6 +7,7 @@ package gc
+ import (
+ 	"bytes"
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -20,7 +21,7 @@ import (
+ )
+ 
+ type Error struct {
+-	lineno int32
++	lineno src.Pos
+ 	msg    string
+ }
+ 
+@@ -44,7 +45,7 @@ func adderrorname(n *Node) {
+ 	}
+ }
+ 
+-func adderr(line int32, format string, args ...interface{}) {
++func adderr(line src.Pos, format string, args ...interface{}) {
+ 	errors = append(errors, Error{
+ 		lineno: line,
+ 		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
+@@ -85,7 +86,7 @@ func hcrash() {
+ 	}
+ }
+ 
+-func linestr(line int32) string {
++func linestr(line src.Pos) string {
+ 	return Ctxt.Line(int(line))
+ }
+ 
+@@ -93,12 +94,12 @@ func linestr(line int32) string {
+ // It is used to avoid multiple error messages on the same
+ // line.
+ var lasterror struct {
+-	syntax int32  // line of last syntax error
+-	other  int32  // line of last non-syntax error
+-	msg    string // error message of last non-syntax error
++	syntax src.Pos // line of last syntax error
++	other  src.Pos // line of last non-syntax error
++	msg    string  // error message of last non-syntax error
+ }
+ 
+-func yyerrorl(line int32, format string, args ...interface{}) {
++func yyerrorl(line src.Pos, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
+ 
+ 	if strings.HasPrefix(msg, "syntax error") {
+@@ -142,7 +143,7 @@ func Warn(fmt_ string, args ...interface{}) {
+ 	hcrash()
+ }
+ 
+-func Warnl(line int32, fmt_ string, args ...interface{}) {
++func Warnl(line src.Pos, fmt_ string, args ...interface{}) {
+ 	adderr(line, fmt_, args...)
+ 	if Debug['m'] != 0 {
+ 		flusherrors()
+@@ -200,7 +201,7 @@ func linehistupdate(file string, off int) {
+ 	Ctxt.LineHist.Update(int(lexlineno), file, off)
+ }
+ 
+-func setlineno(n *Node) int32 {
++func setlineno(n *Node) src.Pos {
+ 	lno := lineno
+ 	if n != nil {
+ 		switch n.Op {
+@@ -475,7 +476,7 @@ func nodbool(b bool) *Node {
+ // Copies of iota ONONAME nodes are assigned the current
+ // value of iota_. If lineno != 0, it sets the line number
+ // of newly allocated nodes to lineno.
+-func treecopy(n *Node, lineno int32) *Node {
++func treecopy(n *Node, lineno src.Pos) *Node {
+ 	if n == nil {
+ 		return nil
+ 	}
+@@ -1991,7 +1992,7 @@ func Simsimtype(t *Type) EType {
+ 	return et
+ }
+ 
+-func listtreecopy(l []*Node, lineno int32) []*Node {
++func listtreecopy(l []*Node, lineno src.Pos) []*Node {
+ 	var out []*Node
+ 	for _, n := range l {
+ 		out = append(out, treecopy(n, lineno))
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8848bb5955..20044a5d62 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -6,6 +6,8 @@
+ 
+ package gc
+ 
++import "cmd/internal/src"
++
+ // A Node is a single node in the syntax tree.
+ // Actually the syntax tree is a syntax DAG, because there is only one
+ // node with Op=ONAME for a given instance of a variable x.
+@@ -42,7 +44,7 @@ type Node struct {
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+-	Lineno int32
++	Lineno src.Pos
+ 
+ 	Esc uint16 // EscXXX
+ 
+@@ -308,8 +310,8 @@ type Func struct {
+ 
+ 	Label int32 // largest auto-generated label in this function
+ 
+-	Endlineno int32
+-	WBLineno  int32 // line number of first write barrier
++	Endlineno src.Pos
++	WBLineno  src.Pos // line number of first write barrier
+ 
+ 	Pragma          Pragma // go:xxx function annotations
+ 	Dupok           bool   // duplicate definitions ok
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 29048f1a19..229763ddef 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -11,6 +11,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/src"
+ 	"fmt"
+ )
+ 
+@@ -149,9 +150,9 @@ type Type struct {
+ 	sliceOf *Type
+ 	ptrTo   *Type
+ 
+-	Sym    *Sym  // symbol containing name, for named types
+-	Vargen int32 // unique name for OTYPE/ONAME
+-	Lineno int32 // line at which this type was declared, implicitly or explicitly
++	Sym    *Sym    // symbol containing name, for named types
++	Vargen int32   // unique name for OTYPE/ONAME
++	Lineno src.Pos // line at which this type was declared, implicitly or explicitly
+ 
+ 	Etype      EType // kind of type
+ 	Noalg      bool  // suppress hash and eq algorithm generation
+@@ -182,7 +183,7 @@ func (t *Type) MapType() *MapType {
+ // ForwardType contains Type fields specific to forward types.
+ type ForwardType struct {
+ 	Copyto      []*Node // where to copy the eventual value to
+-	Embedlineno int32   // first use of this type as an embedded type
++	Embedlineno src.Pos // first use of this type as an embedded type
+ }
+ 
+ // ForwardType returns t's extra forward-type-specific fields.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 23c60fa0d0..27bb6ed954 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ 	"strings"
+@@ -3499,7 +3500,7 @@ func domethod(n *Node) {
+ 
+ type mapqueueval struct {
+ 	n   *Node
+-	lno int32
++	lno src.Pos
+ }
+ 
+ // tracks the line numbers at which forward types are first used as map keys
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index e1c2f6d2ce..57e657bacc 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"cmd/internal/src"
++	"fmt"
++)
+ 
+ // Block represents a basic block in the control flow graph of a function.
+ type Block struct {
+@@ -13,7 +16,7 @@ type Block struct {
+ 	ID ID
+ 
+ 	// Line number for block's control operation
+-	Line int32
++	Line src.Pos
+ 
+ 	// The kind of block this is.
+ 	Kind BlockKind
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 919386e889..031925e2fd 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"crypto/sha1"
+ 	"fmt"
+ 	"os"
+@@ -88,10 +89,10 @@ type Logger interface {
+ 	Log() bool
+ 
+ 	// Fatal reports a compiler error and exits.
+-	Fatalf(line int32, msg string, args ...interface{})
++	Fatalf(line src.Pos, msg string, args ...interface{})
+ 
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+-	Warnl(line int32, fmt_ string, args ...interface{})
++	Warnl(line src.Pos, fmt_ string, args ...interface{})
+ 
+ 	// Fowards the Debug flags from gc
+ 	Debug_checknil() bool
+@@ -120,7 +121,7 @@ type Frontend interface {
+ 	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+ 
+ 	// Line returns a string describing the given line number.
+-	Line(int32) string
++	Line(src.Pos) string
+ 
+ 	// AllocFrame assigns frame offsets to all live auto variables.
+ 	AllocFrame(f *Func)
+@@ -338,12 +339,14 @@ func (c *Config) NewFunc() *Func {
+ 	return f
+ }
+ 
+-func (c *Config) Logf(msg string, args ...interface{})               { c.fe.Logf(msg, args...) }
+-func (c *Config) Log() bool                                          { return c.fe.Log() }
+-func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fatalf(line, msg, args...) }
+-func (c *Config) Warnl(line int32, msg string, args ...interface{})  { c.fe.Warnl(line, msg, args...) }
+-func (c *Config) Debug_checknil() bool                               { return c.fe.Debug_checknil() }
+-func (c *Config) Debug_wb() bool                                     { return c.fe.Debug_wb() }
++func (c *Config) Logf(msg string, args ...interface{}) { c.fe.Logf(msg, args...) }
++func (c *Config) Log() bool                            { return c.fe.Log() }
++func (c *Config) Fatalf(line src.Pos, msg string, args ...interface{}) {
++	c.fe.Fatalf(line, msg, args...)
++}
++func (c *Config) Warnl(line src.Pos, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
++func (c *Config) Debug_checknil() bool                                { return c.fe.Debug_checknil() }
++func (c *Config) Debug_wb() bool                                      { return c.fe.Debug_wb() }
+ 
+ func (c *Config) logDebugHashMatch(evname, name string) {
+ 	file := c.logfiles[evname]
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 3a9357dfae..fdb70ae3ed 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
++	"cmd/internal/src"
+ 	"testing"
+ )
+ 
+@@ -62,7 +63,7 @@ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+ func (d DummyFrontend) SplitArray(s LocalSlot) LocalSlot {
+ 	return LocalSlot{s.N, s.Type.ElemType(), s.Off}
+ }
+-func (DummyFrontend) Line(line int32) string {
++func (DummyFrontend) Line(_ src.Pos) string {
+ 	return "unknown.go:0"
+ }
+ func (DummyFrontend) AllocFrame(f *Func) {
+@@ -74,10 +75,10 @@ func (DummyFrontend) Syslook(s string) interface{} {
+ func (d DummyFrontend) Logf(msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+ func (d DummyFrontend) Log() bool                            { return true }
+ 
+-func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
+-func (d DummyFrontend) Warnl(line int32, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Debug_checknil() bool                               { return false }
+-func (d DummyFrontend) Debug_wb() bool                                     { return false }
++func (d DummyFrontend) Fatalf(_ src.Pos, msg string, args ...interface{}) { d.t.Fatalf(msg, args...) }
++func (d DummyFrontend) Warnl(_ src.Pos, msg string, args ...interface{})  { d.t.Logf(msg, args...) }
++func (d DummyFrontend) Debug_checknil() bool                              { return false }
++func (d DummyFrontend) Debug_wb() bool                                    { return false }
+ 
+ func (d DummyFrontend) TypeBool() Type    { return TypeBool }
+ func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7b2097bcae..eeccd8dd92 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ 	"strings"
+@@ -79,7 +80,7 @@ func (f *Func) retSparseSet(ss *sparseSet) {
+ }
+ 
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+-func (f *Func) newValue(op Op, t Type, b *Block, line int32) *Value {
++func (f *Func) newValue(op Op, t Type, b *Block, line src.Pos) *Value {
+ 	var v *Value
+ 	if f.freeValues != nil {
+ 		v = f.freeValues
+@@ -186,7 +187,7 @@ func (f *Func) freeBlock(b *Block) {
+ }
+ 
+ // NewValue0 returns a new value in the block with no arguments and zero aux values.
+-func (b *Block) NewValue0(line int32, op Op, t Type) *Value {
++func (b *Block) NewValue0(line src.Pos, op Op, t Type) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:0]
+@@ -194,7 +195,7 @@ func (b *Block) NewValue0(line int32, op Op, t Type) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an auxint value.
+-func (b *Block) NewValue0I(line int32, op Op, t Type, auxint int64) *Value {
++func (b *Block) NewValue0I(line src.Pos, op Op, t Type, auxint int64) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:0]
+@@ -202,7 +203,7 @@ func (b *Block) NewValue0I(line int32, op Op, t Type, auxint int64) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and an aux value.
+-func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
++func (b *Block) NewValue0A(line src.Pos, op Op, t Type, aux interface{}) *Value {
+ 	if _, ok := aux.(int64); ok {
+ 		// Disallow int64 aux values. They should be in the auxint field instead.
+ 		// Maybe we want to allow this at some point, but for now we disallow it
+@@ -217,7 +218,7 @@ func (b *Block) NewValue0A(line int32, op Op, t Type, aux interface{}) *Value {
+ }
+ 
+ // NewValue returns a new value in the block with no arguments and both an auxint and aux values.
+-func (b *Block) NewValue0IA(line int32, op Op, t Type, auxint int64, aux interface{}) *Value {
++func (b *Block) NewValue0IA(line src.Pos, op Op, t Type, auxint int64, aux interface{}) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -226,7 +227,7 @@ func (b *Block) NewValue0IA(line int32, op Op, t Type, auxint int64, aux interfa
+ }
+ 
+ // NewValue1 returns a new value in the block with one argument and zero aux values.
+-func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
++func (b *Block) NewValue1(line src.Pos, op Op, t Type, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:1]
+@@ -236,7 +237,7 @@ func (b *Block) NewValue1(line int32, op Op, t Type, arg *Value) *Value {
+ }
+ 
+ // NewValue1I returns a new value in the block with one argument and an auxint value.
+-func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value) *Value {
++func (b *Block) NewValue1I(line src.Pos, op Op, t Type, auxint int64, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:1]
+@@ -246,7 +247,7 @@ func (b *Block) NewValue1I(line int32, op Op, t Type, auxint int64, arg *Value)
+ }
+ 
+ // NewValue1A returns a new value in the block with one argument and an aux value.
+-func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1A(line src.Pos, op Op, t Type, aux interface{}, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Aux = aux
+@@ -257,7 +258,7 @@ func (b *Block) NewValue1A(line int32, op Op, t Type, aux interface{}, arg *Valu
+ }
+ 
+ // NewValue1IA returns a new value in the block with one argument and both an auxint and aux values.
+-func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
++func (b *Block) NewValue1IA(line src.Pos, op Op, t Type, auxint int64, aux interface{}, arg *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Aux = aux
+@@ -268,7 +269,7 @@ func (b *Block) NewValue1IA(line int32, op Op, t Type, auxint int64, aux interfa
+ }
+ 
+ // NewValue2 returns a new value in the block with two arguments and zero aux values.
+-func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2(line src.Pos, op Op, t Type, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:2]
+@@ -280,7 +281,7 @@ func (b *Block) NewValue2(line int32, op Op, t Type, arg0, arg1 *Value) *Value {
+ }
+ 
+ // NewValue2I returns a new value in the block with two arguments and an auxint value.
+-func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
++func (b *Block) NewValue2I(line src.Pos, op Op, t Type, auxint int64, arg0, arg1 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:2]
+@@ -292,7 +293,7 @@ func (b *Block) NewValue2I(line int32, op Op, t Type, auxint int64, arg0, arg1 *
+ }
+ 
+ // NewValue3 returns a new value in the block with three arguments and zero aux values.
+-func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
++func (b *Block) NewValue3(line src.Pos, op Op, t Type, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = v.argstorage[:3]
+@@ -306,7 +307,7 @@ func (b *Block) NewValue3(line int32, op Op, t Type, arg0, arg1, arg2 *Value) *V
+ }
+ 
+ // NewValue3I returns a new value in the block with three arguments and an auxint value.
+-func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
++func (b *Block) NewValue3I(line src.Pos, op Op, t Type, auxint int64, arg0, arg1, arg2 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = auxint
+ 	v.Args = v.argstorage[:3]
+@@ -320,7 +321,7 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, auxint int64, arg0, arg1,
+ }
+ 
+ // NewValue4 returns a new value in the block with four arguments and zero aux values.
+-func (b *Block) NewValue4(line int32, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
++func (b *Block) NewValue4(line src.Pos, op Op, t Type, arg0, arg1, arg2, arg3 *Value) *Value {
+ 	v := b.Func.newValue(op, t, b, line)
+ 	v.AuxInt = 0
+ 	v.Args = []*Value{arg0, arg1, arg2, arg3}
+@@ -332,7 +333,7 @@ func (b *Block) NewValue4(line int32, op Op, t Type, arg0, arg1, arg2, arg3 *Val
+ }
+ 
+ // constVal returns a constant value for c.
+-func (f *Func) constVal(line int32, op Op, t Type, c int64, setAux bool) *Value {
++func (f *Func) constVal(line src.Pos, op Op, t Type, c int64, setAux bool) *Value {
+ 	if f.constants == nil {
+ 		f.constants = make(map[int64][]*Value)
+ 	}
+@@ -367,42 +368,42 @@ const (
+ )
+ 
+ // ConstInt returns an int constant representing its argument.
+-func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
++func (f *Func) ConstBool(line src.Pos, t Type, c bool) *Value {
+ 	i := int64(0)
+ 	if c {
+ 		i = 1
+ 	}
+ 	return f.constVal(line, OpConstBool, t, i, true)
+ }
+-func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
++func (f *Func) ConstInt8(line src.Pos, t Type, c int8) *Value {
+ 	return f.constVal(line, OpConst8, t, int64(c), true)
+ }
+-func (f *Func) ConstInt16(line int32, t Type, c int16) *Value {
++func (f *Func) ConstInt16(line src.Pos, t Type, c int16) *Value {
+ 	return f.constVal(line, OpConst16, t, int64(c), true)
+ }
+-func (f *Func) ConstInt32(line int32, t Type, c int32) *Value {
++func (f *Func) ConstInt32(line src.Pos, t Type, c int32) *Value {
+ 	return f.constVal(line, OpConst32, t, int64(c), true)
+ }
+-func (f *Func) ConstInt64(line int32, t Type, c int64) *Value {
++func (f *Func) ConstInt64(line src.Pos, t Type, c int64) *Value {
+ 	return f.constVal(line, OpConst64, t, c, true)
+ }
+-func (f *Func) ConstFloat32(line int32, t Type, c float64) *Value {
++func (f *Func) ConstFloat32(line src.Pos, t Type, c float64) *Value {
+ 	return f.constVal(line, OpConst32F, t, int64(math.Float64bits(float64(float32(c)))), true)
+ }
+-func (f *Func) ConstFloat64(line int32, t Type, c float64) *Value {
++func (f *Func) ConstFloat64(line src.Pos, t Type, c float64) *Value {
+ 	return f.constVal(line, OpConst64F, t, int64(math.Float64bits(c)), true)
+ }
+ 
+-func (f *Func) ConstSlice(line int32, t Type) *Value {
++func (f *Func) ConstSlice(line src.Pos, t Type) *Value {
+ 	return f.constVal(line, OpConstSlice, t, constSliceMagic, false)
+ }
+-func (f *Func) ConstInterface(line int32, t Type) *Value {
++func (f *Func) ConstInterface(line src.Pos, t Type) *Value {
+ 	return f.constVal(line, OpConstInterface, t, constInterfaceMagic, false)
+ }
+-func (f *Func) ConstNil(line int32, t Type) *Value {
++func (f *Func) ConstNil(line src.Pos, t Type) *Value {
+ 	return f.constVal(line, OpConstNil, t, constNilMagic, false)
+ }
+-func (f *Func) ConstEmptyString(line int32, t Type) *Value {
++func (f *Func) ConstEmptyString(line src.Pos, t Type) *Value {
+ 	v := f.constVal(line, OpConstString, t, constEmptyStringMagic, false)
+ 	v.Aux = ""
+ 	return v
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2b66982340..9eecbdf57c 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -107,6 +107,7 @@ package ssa
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"unsafe"
+ )
+@@ -180,9 +181,9 @@ func pickReg(r regMask) register {
+ }
+ 
+ type use struct {
+-	dist int32 // distance from start of the block to a use of a value
+-	line int32 // line number of the use
+-	next *use  // linked list of uses of a value in nondecreasing dist order
++	dist int32   // distance from start of the block to a use of a value
++	line src.Pos // line number of the use
++	next *use    // linked list of uses of a value in nondecreasing dist order
+ }
+ 
+ type valState struct {
+@@ -287,8 +288,8 @@ type endReg struct {
+ 
+ type startReg struct {
+ 	r    register
+-	vid  ID    // pre-regalloc value needed in this register
+-	line int32 // line number of use of this register
++	vid  ID      // pre-regalloc value needed in this register
++	line src.Pos // line number of use of this register
+ }
+ 
+ // freeReg frees up register r. Any current user of r is kicked out.
+@@ -410,7 +411,7 @@ func (s *regAllocState) allocReg(mask regMask, v *Value) register {
+ // allocated register is marked nospill so the assignment cannot be
+ // undone until the caller allows it by clearing nospill. Returns a
+ // *Value which is either v or a copy of v allocated to the chosen register.
+-func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line int32) *Value {
++func (s *regAllocState) allocValToReg(v *Value, mask regMask, nospill bool, line src.Pos) *Value {
+ 	vi := &s.values[v.ID]
+ 
+ 	// Check if v is already in a requested register.
+@@ -617,7 +618,7 @@ func (s *regAllocState) init(f *Func) {
+ 
+ // Adds a use record for id at distance dist from the start of the block.
+ // All calls to addUse must happen with nonincreasing dist.
+-func (s *regAllocState) addUse(id ID, dist int32, line int32) {
++func (s *regAllocState) addUse(id ID, dist int32, line src.Pos) {
+ 	r := s.freeUseRecords
+ 	if r != nil {
+ 		s.freeUseRecords = r.next
+@@ -1878,17 +1879,17 @@ type edgeState struct {
+ }
+ 
+ type contentRecord struct {
+-	vid   ID     // pre-regalloc value
+-	c     *Value // cached value
+-	final bool   // this is a satisfied destination
+-	line  int32  // line number of use of the value
++	vid   ID      // pre-regalloc value
++	c     *Value  // cached value
++	final bool    // this is a satisfied destination
++	line  src.Pos // line number of use of the value
+ }
+ 
+ type dstRecord struct {
+ 	loc    Location // register or stack slot
+ 	vid    ID       // pre-regalloc value it should contain
+ 	splice **Value  // place to store reference to the generating instruction
+-	line   int32    // line number of use of this location
++	line   src.Pos  // line number of use of this location
+ }
+ 
+ // setup initializes the edge state for shuffling.
+@@ -2017,7 +2018,7 @@ func (e *edgeState) process() {
+ 
+ // processDest generates code to put value vid into location loc. Returns true
+ // if progress was made.
+-func (e *edgeState) processDest(loc Location, vid ID, splice **Value, line int32) bool {
++func (e *edgeState) processDest(loc Location, vid ID, splice **Value, line src.Pos) bool {
+ 	occupant := e.contents[loc]
+ 	if occupant.vid == vid {
+ 		// Value is already in the correct place.
+@@ -2139,7 +2140,7 @@ func (e *edgeState) processDest(loc Location, vid ID, splice **Value, line int32
+ }
+ 
+ // set changes the contents of location loc to hold the given value and its cached representative.
+-func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, line int32) {
++func (e *edgeState) set(loc Location, vid ID, c *Value, final bool, line src.Pos) {
+ 	e.s.f.setHome(c, loc)
+ 	e.erase(loc)
+ 	e.contents[loc] = contentRecord{vid, c, final, line}
+@@ -2290,9 +2291,9 @@ func (v *Value) rematerializeable() bool {
+ }
+ 
+ type liveInfo struct {
+-	ID   ID    // ID of value
+-	dist int32 // # of instructions before next use
+-	line int32 // line number of next use
++	ID   ID      // ID of value
++	dist int32   // # of instructions before next use
++	line src.Pos // line number of next use
+ }
+ 
+ // dblock contains information about desired & avoid registers at the end of a block.
+diff --git a/src/cmd/compile/internal/ssa/sparsemap.go b/src/cmd/compile/internal/ssa/sparsemap.go
+index 70c4f6190c..3bc4eb9d78 100644
+--- a/src/cmd/compile/internal/ssa/sparsemap.go
++++ b/src/cmd/compile/internal/ssa/sparsemap.go
+@@ -4,13 +4,15 @@
+ 
+ package ssa
+ 
++import "cmd/internal/src"
++
+ // from http://research.swtch.com/sparse
+ // in turn, from Briggs and Torczon
+ 
+ type sparseEntry struct {
+ 	key ID
+ 	val int32
+-	aux int32
++	aux src.Pos
+ }
+ 
+ type sparseMap struct {
+@@ -43,7 +45,7 @@ func (s *sparseMap) get(k ID) int32 {
+ 	return -1
+ }
+ 
+-func (s *sparseMap) set(k ID, v, a int32) {
++func (s *sparseMap) set(k ID, v int32, a src.Pos) {
+ 	i := s.sparse[k]
+ 	if i < int32(len(s.dense)) && s.dense[i].key == k {
+ 		s.dense[i].val = v
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 489ed3545f..6cec9db735 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -5,6 +5,7 @@
+ package ssa
+ 
+ import (
++	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+ )
+@@ -37,7 +38,7 @@ type Value struct {
+ 	Block *Block
+ 
+ 	// Source line number
+-	Line int32
++	Line src.Pos
+ 
+ 	// Use count. Each appearance in Value.Args and Block.Control counts once.
+ 	Uses int32
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 1eb4d7bb1a..a68e66edd8 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "fmt"
++import (
++	"cmd/internal/src"
++	"fmt"
++)
+ 
+ // writebarrier expands write barrier ops (StoreWB, MoveWB, etc.) into
+ // branches and runtime calls, like
+@@ -237,7 +240,7 @@ func writebarrier(f *Func) {
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+ // if valIsVolatile, it moves val into temp space before making the call.
+-func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++func wbcall(line src.Pos, b *Block, fn interface{}, typ interface{}, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+ 	config := b.Func.Config
+ 
+ 	var tmp GCNode
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index b0b9b2579d..716f994243 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -54,6 +54,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/obj/ppc64",
+ 	"cmd/internal/obj/s390x",
+ 	"cmd/internal/obj/x86",
++	"cmd/internal/src",
+ 	"cmd/internal/sys",
+ 	"cmd/link",
+ 	"cmd/link/internal/amd64",
+diff --git a/src/cmd/internal/src/src.go b/src/cmd/internal/src/src.go
+new file mode 100644
+index 0000000000..2c3aef9efe
+--- /dev/null
++++ b/src/cmd/internal/src/src.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package src implements source positions.
++package src
++
++// A Pos represents a source position.
++// It is an index into the global line table, which
++// maps a Pos to a file name and source line number.
++type Pos int32

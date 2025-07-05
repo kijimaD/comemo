@@ -9,6 +9,25 @@ Date:   Wed Jan 22 12:19:11 2014 +1100
     R=iant, rsc, gobot
     CC=golang-codereviews
     https://golang.org/cl/54790044
-
+---
  src/cmd/go/build.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c78f228105..bfadec68ea 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -350,7 +350,12 @@ func init() {
+ 	var err error
+ 	archChar, err = build.ArchChar(goarch)
+ 	if err != nil {
+-		fatalf("%s", err)
++		if _, isgc := buildToolchain.(gcToolchain); isgc {
++			fatalf("%s", err)
++		}
++		// archChar is only required for gcToolchain, if we're using
++		// another toolchain leave it blank.
++		archChar = ""
+ 	}
+ }
+ 

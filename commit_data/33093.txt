@@ -7,6 +7,21 @@ Date:   Fri Jul 7 11:12:22 2017 -0400
     Change-Id: If1c602176e0bea66924983eab8edd5e450228b68
     Reviewed-on: https://go-review.googlesource.com/47792
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.9.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 9110ab7de4..c5281d7b34 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -168,7 +168,8 @@ type T1 = T2
+ </p>
+ 
+ <p> <!-- CL 44210, CL 40095 -->
+-  The compiler now includes lexical scopes in the generated DWARF, allowing
++  The compiler now includes lexical scopes in the generated DWARF if the
++  <code>-N -l</code> flags are provided, allowing
+   debuggers to hide variables that are not in scope. The <code>.debug_info</code>
+   section is now DWARF version 4.
+ </p>

@@ -14,7 +14,7 @@ Date:   Thu Feb 13 20:05:55 2014 +0100
     R=rsc, iant, gobot
     CC=golang-codereviews
     https://golang.org/cl/57170052
-
+---
  src/lib9/errstr.c       |  3 ++-
  src/lib9/fmt/dorfmt.c   |  1 -
  src/lib9/fmt/errfmt.c   | 32 ++++++++++++++++++++++++++++++++
@@ -26,3 +26,193 @@ Date:   Thu Feb 13 20:05:55 2014 +0100
  src/lib9/utf/utfrune.c  |  4 ++--
  src/lib9/utf/utfutf.c   |  3 ++-
  10 files changed, 47 insertions(+), 13 deletions(-)
+
+diff --git a/src/lib9/errstr.c b/src/lib9/errstr.c
+index f42f2b5384..9d919755d1 100644
+--- a/src/lib9/errstr.c
++++ b/src/lib9/errstr.c
+@@ -1,3 +1,5 @@
++// +build !plan9
++
+ /*
+ Plan 9 from User Space src/lib9/errstr.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/errstr.c
+@@ -32,7 +34,6 @@ THE SOFTWARE.
+ 
+ #include <u.h>
+ #include <errno.h>
+-#include <string.h>
+ #include <libc.h>
+ 
+ enum
+diff --git a/src/lib9/fmt/dorfmt.c b/src/lib9/fmt/dorfmt.c
+index c18d9ee5db..f760d47e5e 100644
+--- a/src/lib9/fmt/dorfmt.c
++++ b/src/lib9/fmt/dorfmt.c
+@@ -61,5 +61,4 @@ dorfmt(Fmt *f, const Rune *fmt)
+ 		if(fmt == nil)
+ 			return -1;
+ 	}
+-	return 0;		/* not reached */
+ }
+diff --git a/src/lib9/fmt/errfmt.c b/src/lib9/fmt/errfmt.c
+new file mode 100644
+index 0000000000..a86709398e
+--- /dev/null
++++ b/src/lib9/fmt/errfmt.c
+@@ -0,0 +1,32 @@
++// +build plan9
++
++/*
++ * The authors of this software are Rob Pike and Ken Thompson,
++ * with contributions from Mike Burrows and Sean Dorward.
++ *
++ *     Copyright (c) 2002-2006 by Lucent Technologies.
++ *     Portions Copyright (c) 2004 Google Inc.
++ * 
++ * Permission to use, copy, modify, and distribute this software for any
++ * purpose without fee is hereby granted, provided that this entire notice
++ * is included in all copies of any software which is or includes a copy
++ * or modification of this software and in all copies of the supporting
++ * documentation for such software.
++ * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
++ * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES 
++ * NOR GOOGLE INC MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING 
++ * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
++ */
++
++#include <u.h>
++#include <libc.h>
++#include "fmtdef.h"
++
++int
++__errfmt(Fmt *f)
++{
++	char buf[ERRMAX];
++
++	rerrstr(buf, sizeof buf);
++	return __fmtcpy(f, buf, utflen(buf), strlen(buf));
++}
+diff --git a/src/lib9/fmt/fltfmt.c b/src/lib9/fmt/fltfmt.c
+index dec6f8480c..6fe8192211 100644
+--- a/src/lib9/fmt/fltfmt.c
++++ b/src/lib9/fmt/fltfmt.c
+@@ -154,6 +154,7 @@ xsub1(char *a, int n)
+ 	 * so that it has a nonzero first digit.
+ 	 */
+ 	abort();
++	return 0;
+ }
+ 
+ /*
+@@ -180,7 +181,7 @@ xfmtexp(char *p, int e, int ucase)
+ 		se[i++] = '0';
+ 	while(i > 0)
+ 		*p++ = se[--i];
+-	*p++ = '\0';
++	*p = '\0';
+ }
+ 
+ /*
+@@ -192,7 +193,8 @@ xfmtexp(char *p, int e, int ucase)
+ static void
+ xdtoa(double f, char *s, int *exp, int *neg, int *ns)
+ {
+-	int d, e2, e, ee, i, ndigit, oerrno;
++	int d, e2, e, ee, i, ndigit;
++	int oerrno;
+ 	char c;
+ 	char tmp[NSIGNIF+10];
+ 	double g;
+diff --git a/src/lib9/fmt/fmtfd.c b/src/lib9/fmt/fmtfd.c
+index c32abf1154..dde05b7a5e 100644
+--- a/src/lib9/fmt/fmtfd.c
++++ b/src/lib9/fmt/fmtfd.c
+@@ -43,7 +43,7 @@ fmtfdinit(Fmt *f, int fd, char *buf, int size)
+ 	f->to = buf;
+ 	f->stop = buf + size;
+ 	f->flush = __fmtFdFlush;
+-	f->farg = (void*)(uintptr_t)fd;
++	f->farg = (void*)(uintptr)fd;
+ 	f->flags = 0;
+ 	f->nfmt = 0;
+ 	fmtlocaleinit(f, nil, nil, nil);
+diff --git a/src/lib9/utf/utfecpy.c b/src/lib9/utf/utfecpy.c
+index 2eca85ef66..8540664608 100644
+--- a/src/lib9/utf/utfecpy.c
++++ b/src/lib9/utf/utfecpy.c
+@@ -11,8 +11,8 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#define _BSD_SOURCE 1
+-#include <string.h>
++#include <u.h>
++#include <libc.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+diff --git a/src/lib9/utf/utflen.c b/src/lib9/utf/utflen.c
+index 42fcb33abf..9b961856a5 100644
+--- a/src/lib9/utf/utflen.c
++++ b/src/lib9/utf/utflen.c
+@@ -32,5 +32,4 @@ utflen(const char *s)
+ 			s += chartorune(&rune, s);
+ 		n++;
+ 	}
+-	return 0;
+ }
+diff --git a/src/lib9/utf/utfrrune.c b/src/lib9/utf/utfrrune.c
+index 9e28af82a5..b1ea93b423 100644
+--- a/src/lib9/utf/utfrrune.c
++++ b/src/lib9/utf/utfrrune.c
+@@ -11,7 +11,8 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <string.h>
++#include <u.h>
++#include <libc.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+@@ -42,5 +43,4 @@ utfrrune(const char *s, Rune c)
+ 			s1 = s;
+ 		s += c1;
+ 	}
+-	return 0;
+ }
+diff --git a/src/lib9/utf/utfrune.c b/src/lib9/utf/utfrune.c
+index 0136b28213..44675c9892 100644
+--- a/src/lib9/utf/utfrune.c
++++ b/src/lib9/utf/utfrune.c
+@@ -11,7 +11,8 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <string.h>
++#include <u.h>
++#include <libc.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 
+@@ -41,5 +42,4 @@ utfrune(const char *s, Rune c)
+ 			return (char*)s;
+ 		s += n;
+ 	}
+-	return 0;
+ }
+diff --git a/src/lib9/utf/utfutf.c b/src/lib9/utf/utfutf.c
+index e46ddd9233..05335b23e8 100644
+--- a/src/lib9/utf/utfutf.c
++++ b/src/lib9/utf/utfutf.c
+@@ -11,7 +11,8 @@
+  * REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING THE MERCHANTABILITY
+  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+-#include <string.h>
++#include <u.h>
++#include <libc.h>
+ #include "utf.h"
+ #include "utfdef.h"
+ 

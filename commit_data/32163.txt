@@ -17,7 +17,7 @@ Date:   Sat Apr 8 20:31:09 2017 -0700
     Change-Id: Ia1ae213bd3f6cab1c5e492501c8d43ce61a7ee89
     Reviewed-on: https://go-review.googlesource.com/40112
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/deps.go                 |   5 +-
  src/cmd/go/alldocs.go                |   6 +-
  src/cmd/go/go_test.go                |  25 ++++-
@@ -27,3 +27,660 @@ Date:   Sat Apr 8 20:31:09 2017 -0700
  src/cmd/go/internal/vet/vetflag.go   |  99 +++++++++++++++++++
  src/cmd/vet/main.go                  |   2 +
  8 files changed, 306 insertions(+), 168 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index a731fb766d..158157eac0 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -21,10 +21,11 @@ var builddeps = map[string][]string{
+ 	"cmd/go/internal/load":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/str", "compress/flate", "compress/zlib", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/run":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/str":               {"bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/test":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/test":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/tool":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/version":           {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/cfg", "cmd/go/internal/str", "context", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"cmd/go/internal/vet":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go/internal/cmdflag":           {"cmd/go/internal/base", "flag", "fmt", "os", "strconv", "strings"},
++	"cmd/go/internal/vet":               {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/cmdflag", "cmd/go/internal/load", "cmd/go/internal/str", "cmd/go/internal/work", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"cmd/go/internal/web":               {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+ 	"cmd/go/internal/work":              {"bufio", "bytes", "cmd/go/internal/base", "cmd/go/internal/buildid", "cmd/go/internal/cfg", "cmd/go/internal/load", "cmd/go/internal/str", "compress/flate", "compress/zlib", "container/heap", "context", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding/binary", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "hash/adler32", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "io/ioutil", "log", "math", "math/bits", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"compress/flate":                    {"bufio", "bytes", "errors", "fmt", "internal/poll", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "internal/syscall/windows/sysdll", "io", "math", "math/bits", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7474ffaf5b..f52d8d2a44 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -798,15 +798,13 @@
+ //
+ // Usage:
+ //
+-// 	go vet [-n] [-x] [build flags] [packages]
++// 	go vet [-n] [-x] [build flags] [vet flags] [packages]
+ //
+ // Vet runs the Go vet command on the packages named by the import paths.
+ //
+-// For more about vet, see 'go doc cmd/vet'.
++// For more about vet and its flags, see 'go doc cmd/vet'.
+ // For more about specifying packages, see 'go help packages'.
+ //
+-// To run the vet tool with specific options, run 'go tool vet'.
+-//
+ // The -n flag prints commands that would be executed.
+ // The -x flag prints commands as they are executed.
+ //
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f384cd8afc..94ab73749d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2650,8 +2650,6 @@ func TestGoGetInternalWildcard(t *testing.T) {
+ }
+ 
+ func TestGoVetWithExternalTests(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+@@ -2662,15 +2660,32 @@ func TestGoVetWithExternalTests(t *testing.T) {
+ }
+ 
+ func TestGoVetWithTags(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	tg.run("install", "cmd/vet")
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+ 	tg.runFail("vet", "-tags", "tagtest", "vetpkg")
+-	tg.grepBoth(`c\.go.*wrong number of args for format`, "go get vetpkg did not run scan tagged file")
++	tg.grepBoth(`c\.go.*wrong number of args for format`, "go vet vetpkg did not run scan tagged file")
++}
++
++func TestGoVetWithFlagsOn(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.run("install", "cmd/vet")
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("vet", "-printf", "vetpkg")
++	tg.grepBoth("missing argument for Printf", "go vet -printf vetpkg did not find missing argument for Printf")
++}
++
++func TestGoVetWithFlagsOff(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.run("install", "cmd/vet")
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("vet", "-printf=false", "vetpkg")
+ }
+ 
+ // Issue 9767, 19769.
+diff --git a/src/cmd/go/internal/cmdflag/flag.go b/src/cmd/go/internal/cmdflag/flag.go
+new file mode 100644
+index 0000000000..7ab3022127
+--- /dev/null
++++ b/src/cmd/go/internal/cmdflag/flag.go
+@@ -0,0 +1,123 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cmdflag handles flag processing common to several go tools.
++package cmdflag
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"strconv"
++	"strings"
++
++	"cmd/go/internal/base"
++)
++
++// The flag handling part of go commands such as test is large and distracting.
++// We can't use the standard flag package because some of the flags from
++// our command line are for us, and some are for the binary we're running,
++// and some are for both.
++
++// Defn defines a flag we know about.
++type Defn struct {
++	Name       string     // Name on command line.
++	BoolVar    *bool      // If it's a boolean flag, this points to it.
++	Value      flag.Value // The flag.Value represented.
++	PassToTest bool       // Pass to the test binary? Used only by go test.
++	Present    bool       // Flag has been seen.
++}
++
++// IsBool reports whether v is a bool flag.
++func IsBool(v flag.Value) bool {
++	vv, ok := v.(interface {
++		IsBoolFlag() bool
++	})
++	if ok {
++		return vv.IsBoolFlag()
++	}
++	return false
++}
++
++// SetBool sets the addressed boolean to the value.
++func SetBool(cmd string, flag *bool, value string) {
++	x, err := strconv.ParseBool(value)
++	if err != nil {
++		SyntaxError(cmd, "illegal bool flag value "+value)
++	}
++	*flag = x
++}
++
++// SetInt sets the addressed integer to the value.
++func SetInt(cmd string, flag *int, value string) {
++	x, err := strconv.Atoi(value)
++	if err != nil {
++		SyntaxError(cmd, "illegal int flag value "+value)
++	}
++	*flag = x
++}
++
++// SyntaxError reports an argument syntax error and exits the program.
++func SyntaxError(cmd, msg string) {
++	fmt.Fprintf(os.Stderr, "go %s: %s\n", cmd, msg)
++	if cmd == "test" {
++		fmt.Fprintf(os.Stderr, `run "go help %s" or "go help testflag" for more information`+"\n", cmd)
++	} else {
++		fmt.Fprintf(os.Stderr, `run "go help %s" for more information`+"\n", cmd)
++	}
++	os.Exit(2)
++}
++
++// Parse sees if argument i is present in the definitions and if so,
++// returns its definition, value, and whether it consumed an extra word.
++// If the flag begins (cmd+".") it is ignored for the purpose of this function.
++func Parse(cmd string, defns []*Defn, args []string, i int) (f *Defn, value string, extra bool) {
++	arg := args[i]
++	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
++		arg = arg[1:]
++	}
++	switch arg {
++	case "-?", "-h", "-help":
++		base.Usage()
++	}
++	if arg == "" || arg[0] != '-' {
++		return
++	}
++	name := arg[1:]
++	// If there's already a prefix such as "test.", drop it for now.
++	name = strings.TrimPrefix(name, cmd+".")
++	equals := strings.Index(name, "=")
++	if equals >= 0 {
++		value = name[equals+1:]
++		name = name[:equals]
++	}
++	for _, f = range defns {
++		if name == f.Name {
++			// Booleans are special because they have modes -x, -x=true, -x=false.
++			if f.BoolVar != nil || IsBool(f.Value) {
++				if equals < 0 { // Otherwise, it's been set and will be verified in SetBool.
++					value = "true"
++				} else {
++					// verify it parses
++					SetBool(cmd, new(bool), value)
++				}
++			} else { // Non-booleans must have a value.
++				extra = equals < 0
++				if extra {
++					if i+1 >= len(args) {
++						SyntaxError(cmd, "missing argument for flag "+f.Name)
++					}
++					value = args[i+1]
++				}
++			}
++			if f.Present {
++				SyntaxError(cmd, f.Name+" flag may be set only once")
++			}
++			f.Present = true
++			return
++		}
++	}
++	f = nil
++	return
++}
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index a89afb312e..288156c819 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -6,64 +6,55 @@ package test
+ 
+ import (
+ 	"flag"
+-	"fmt"
+ 	"os"
+-	"strconv"
+ 	"strings"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ )
+ 
++const cmd = "test"
++
+ // The flag handling part of go test is large and distracting.
+ // We can't use the flag package because some of the flags from
+ // our command line are for us, and some are for 6.out, and
+ // some are for both.
+ 
+-// testFlagSpec defines a flag we know about.
+-type testFlagSpec struct {
+-	name       string
+-	boolVar    *bool
+-	flagValue  flag.Value
+-	passToTest bool // pass to Test
+-	multiOK    bool // OK to have multiple instances
+-	present    bool // flag has been seen
+-}
+-
+ // testFlagDefn is the set of flags we process.
+-var testFlagDefn = []*testFlagSpec{
++var testFlagDefn = []*cmdflag.Defn{
+ 	// local.
+-	{name: "c", boolVar: &testC},
+-	{name: "i", boolVar: &cfg.BuildI},
+-	{name: "o"},
+-	{name: "cover", boolVar: &testCover},
+-	{name: "covermode"},
+-	{name: "coverpkg"},
+-	{name: "exec"},
+-
+-	// passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
+-	{name: "bench", passToTest: true},
+-	{name: "benchmem", boolVar: new(bool), passToTest: true},
+-	{name: "benchtime", passToTest: true},
+-	{name: "count", passToTest: true},
+-	{name: "coverprofile", passToTest: true},
+-	{name: "cpu", passToTest: true},
+-	{name: "cpuprofile", passToTest: true},
+-	{name: "memprofile", passToTest: true},
+-	{name: "memprofilerate", passToTest: true},
+-	{name: "blockprofile", passToTest: true},
+-	{name: "blockprofilerate", passToTest: true},
+-	{name: "mutexprofile", passToTest: true},
+-	{name: "mutexprofilefraction", passToTest: true},
+-	{name: "outputdir", passToTest: true},
+-	{name: "parallel", passToTest: true},
+-	{name: "run", passToTest: true},
+-	{name: "short", boolVar: new(bool), passToTest: true},
+-	{name: "timeout", passToTest: true},
+-	{name: "trace", passToTest: true},
+-	{name: "v", boolVar: &testV, passToTest: true},
++	{Name: "c", BoolVar: &testC},
++	{Name: "i", BoolVar: &cfg.BuildI},
++	{Name: "o"},
++	{Name: "cover", BoolVar: &testCover},
++	{Name: "covermode"},
++	{Name: "coverpkg"},
++	{Name: "exec"},
++
++	// Passed to 6.out, adding a "test." prefix to the name if necessary: -v becomes -test.v.
++	{Name: "bench", PassToTest: true},
++	{Name: "benchmem", BoolVar: new(bool), PassToTest: true},
++	{Name: "benchtime", PassToTest: true},
++	{Name: "count", PassToTest: true},
++	{Name: "coverprofile", PassToTest: true},
++	{Name: "cpu", PassToTest: true},
++	{Name: "cpuprofile", PassToTest: true},
++	{Name: "memprofile", PassToTest: true},
++	{Name: "memprofilerate", PassToTest: true},
++	{Name: "blockprofile", PassToTest: true},
++	{Name: "blockprofilerate", PassToTest: true},
++	{Name: "mutexprofile", PassToTest: true},
++	{Name: "mutexprofilefraction", PassToTest: true},
++	{Name: "outputdir", PassToTest: true},
++	{Name: "parallel", PassToTest: true},
++	{Name: "run", PassToTest: true},
++	{Name: "short", BoolVar: new(bool), PassToTest: true},
++	{Name: "timeout", PassToTest: true},
++	{Name: "trace", PassToTest: true},
++	{Name: "v", BoolVar: &testV, PassToTest: true},
+ }
+ 
+ // add build flags to testFlagDefn
+@@ -75,9 +66,9 @@ func init() {
+ 			// test overrides the build -v flag
+ 			return
+ 		}
+-		testFlagDefn = append(testFlagDefn, &testFlagSpec{
+-			name:      f.Name,
+-			flagValue: f.Value,
++		testFlagDefn = append(testFlagDefn, &cmdflag.Defn{
++			Name:  f.Name,
++			Value: f.Value,
+ 		})
+ 	})
+ }
+@@ -112,7 +103,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			inPkg = false
+ 		}
+ 
+-		f, value, extraWord := testFlag(args, i)
++		f, value, extraWord := cmdflag.Parse(cmd, testFlagDefn, args, i)
+ 		if f == nil {
+ 			// This is a flag we do not know; we must assume
+ 			// that any args we see after this might be flag
+@@ -131,24 +122,24 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			passToTest = append(passToTest, args[i])
+ 			continue
+ 		}
+-		if f.flagValue != nil {
+-			if err := f.flagValue.Set(value); err != nil {
+-				base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
++		if f.Value != nil {
++			if err := f.Value.Set(value); err != nil {
++				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
+ 			}
+ 		} else {
+ 			// Test-only flags.
+-			// Arguably should be handled by f.flagValue, but aren't.
+-			switch f.name {
++			// Arguably should be handled by f.Value, but aren't.
++			switch f.Name {
+ 			// bool flags.
+ 			case "c", "i", "v", "cover":
+-				setBoolFlag(f.boolVar, value)
++				cmdflag.SetBool(cmd, f.BoolVar, value)
+ 			case "o":
+ 				testO = value
+ 				testNeedBinary = true
+ 			case "exec":
+ 				xcmd, err := str.SplitQuotedFields(value)
+ 				if err != nil {
+-					base.Fatalf("invalid flag argument for -%s: %v", f.name, err)
++					base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
+ 				}
+ 				work.ExecCmd = xcmd
+ 			case "bench":
+@@ -186,8 +177,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		if extraWord {
+ 			i++
+ 		}
+-		if f.passToTest {
+-			passToTest = append(passToTest, "-test."+f.name+"="+value)
++		if f.PassToTest {
++			passToTest = append(passToTest, "-test."+f.Name+"="+value)
+ 		}
+ 	}
+ 
+@@ -211,89 +202,3 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 	passToTest = append(passToTest, explicitArgs...)
+ 	return
+ }
+-
+-// testFlag sees if argument i is a known flag and returns its definition, value, and whether it consumed an extra word.
+-func testFlag(args []string, i int) (f *testFlagSpec, value string, extra bool) {
+-	arg := args[i]
+-	if strings.HasPrefix(arg, "--") { // reduce two minuses to one
+-		arg = arg[1:]
+-	}
+-	switch arg {
+-	case "-?", "-h", "-help":
+-		base.Usage()
+-	}
+-	if arg == "" || arg[0] != '-' {
+-		return
+-	}
+-	name := arg[1:]
+-	// If there's already "test.", drop it for now.
+-	name = strings.TrimPrefix(name, "test.")
+-	equals := strings.Index(name, "=")
+-	if equals >= 0 {
+-		value = name[equals+1:]
+-		name = name[:equals]
+-	}
+-	for _, f = range testFlagDefn {
+-		if name == f.name {
+-			// Booleans are special because they have modes -x, -x=true, -x=false.
+-			if f.boolVar != nil || isBoolFlag(f.flagValue) {
+-				if equals < 0 { // otherwise, it's been set and will be verified in setBoolFlag
+-					value = "true"
+-				} else {
+-					// verify it parses
+-					setBoolFlag(new(bool), value)
+-				}
+-			} else { // Non-booleans must have a value.
+-				extra = equals < 0
+-				if extra {
+-					if i+1 >= len(args) {
+-						testSyntaxError("missing argument for flag " + f.name)
+-					}
+-					value = args[i+1]
+-				}
+-			}
+-			if f.present && !f.multiOK {
+-				testSyntaxError(f.name + " flag may be set only once")
+-			}
+-			f.present = true
+-			return
+-		}
+-	}
+-	f = nil
+-	return
+-}
+-
+-// isBoolFlag reports whether v is a bool flag.
+-func isBoolFlag(v flag.Value) bool {
+-	vv, ok := v.(interface {
+-		IsBoolFlag() bool
+-	})
+-	if ok {
+-		return vv.IsBoolFlag()
+-	}
+-	return false
+-}
+-
+-// setBoolFlag sets the addressed boolean to the value.
+-func setBoolFlag(flag *bool, value string) {
+-	x, err := strconv.ParseBool(value)
+-	if err != nil {
+-		testSyntaxError("illegal bool flag value " + value)
+-	}
+-	*flag = x
+-}
+-
+-// setIntFlag sets the addressed integer to the value.
+-func setIntFlag(flag *int, value string) {
+-	x, err := strconv.Atoi(value)
+-	if err != nil {
+-		testSyntaxError("illegal int flag value " + value)
+-	}
+-	*flag = x
+-}
+-
+-func testSyntaxError(msg string) {
+-	fmt.Fprintf(os.Stderr, "go test: %s\n", msg)
+-	fmt.Fprintf(os.Stderr, `run "go help test" or "go help testflag" for more information`+"\n")
+-	os.Exit(2)
+-}
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 2bd4fafe95..ddacd085b0 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -12,25 +12,19 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+-	"cmd/go/internal/work"
+ )
+ 
+-func init() {
+-	work.AddBuildFlags(CmdVet)
+-}
+-
+ var CmdVet = &base.Command{
+-	Run:       runVet,
+-	UsageLine: "vet [-n] [-x] [build flags] [packages]",
+-	Short:     "run go tool vet on packages",
++	Run:         runVet,
++	CustomFlags: true,
++	UsageLine:   "vet [-n] [-x] [build flags] [vet flags] [packages]",
++	Short:       "run go tool vet on packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about vet, see 'go doc cmd/vet'.
++For more about vet and its flags, see 'go doc cmd/vet'.
+ For more about specifying packages, see 'go help packages'.
+ 
+-To run the vet tool with specific options, run 'go tool vet'.
+-
+ The -n flag prints commands that would be executed.
+ The -x flag prints commands as they are executed.
+ 
+@@ -41,21 +35,22 @@ See also: go fmt, go fix.
+ }
+ 
+ func runVet(cmd *base.Command, args []string) {
+-	for _, p := range load.Packages(args) {
++	vetFlags, packages := vetFlags(args)
++	for _, p := range load.Packages(packages) {
+ 		// Vet expects to be given a set of files all from the same package.
+ 		// Run once for package p and once for package p_test.
+ 		if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles) > 0 {
+-			runVetFiles(p, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
++			runVetFiles(p, vetFlags, str.StringList(p.GoFiles, p.CgoFiles, p.TestGoFiles, p.SFiles))
+ 		}
+ 		if len(p.XTestGoFiles) > 0 {
+-			runVetFiles(p, str.StringList(p.XTestGoFiles))
++			runVetFiles(p, vetFlags, str.StringList(p.XTestGoFiles))
+ 		}
+ 	}
+ }
+ 
+-func runVetFiles(p *load.Package, files []string) {
++func runVetFiles(p *load.Package, flags, files []string) {
+ 	for i := range files {
+ 		files[i] = filepath.Join(p.Dir, files[i])
+ 	}
+-	base.Run(cfg.BuildToolexec, base.Tool("vet"), base.RelPaths(files))
++	base.Run(cfg.BuildToolexec, base.Tool("vet"), flags, base.RelPaths(files))
+ }
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+new file mode 100644
+index 0000000000..8cd21bb72b
+--- /dev/null
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -0,0 +1,99 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vet
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"strings"
++
++	"cmd/go/internal/base"
++	"cmd/go/internal/cmdflag"
++	"cmd/go/internal/work"
++)
++
++const cmd = "vet"
++
++// vetFlagDefn is the set of flags we process.
++var vetFlagDefn = []*cmdflag.Defn{
++	// Note: Some flags, in particular -tags and -v, are known to
++	// vet but also defined as build flags. This works fine, so we
++	// don't define them here but use AddBuildFlags to init them.
++	// However some, like -x, are known to the build but not
++	// to vet. We handle them in vetFlags.
++
++	// local.
++	{Name: "all", BoolVar: new(bool)},
++	{Name: "asmdecl", BoolVar: new(bool)},
++	{Name: "assign", BoolVar: new(bool)},
++	{Name: "atomic", BoolVar: new(bool)},
++	{Name: "bool", BoolVar: new(bool)},
++	{Name: "buildtags", BoolVar: new(bool)},
++	{Name: "cgocall", BoolVar: new(bool)},
++	{Name: "composites", BoolVar: new(bool)},
++	{Name: "copylocks", BoolVar: new(bool)},
++	{Name: "httpresponse", BoolVar: new(bool)},
++	{Name: "lostcancel", BoolVar: new(bool)},
++	{Name: "methods", BoolVar: new(bool)},
++	{Name: "nilfunc", BoolVar: new(bool)},
++	{Name: "printf", BoolVar: new(bool)},
++	{Name: "printfuncs"},
++	{Name: "rangeloops", BoolVar: new(bool)},
++	{Name: "shadow", BoolVar: new(bool)},
++	{Name: "shadowstrict", BoolVar: new(bool)},
++	{Name: "source", BoolVar: new(bool)},
++	{Name: "structtags", BoolVar: new(bool)},
++	{Name: "tests", BoolVar: new(bool)},
++	{Name: "unreachable", BoolVar: new(bool)},
++	{Name: "unsafeptr", BoolVar: new(bool)},
++	{Name: "unusedfuncs"},
++	{Name: "unusedresult", BoolVar: new(bool)},
++	{Name: "unusedstringmethods"},
++}
++
++// add build flags to vetFlagDefn.
++func init() {
++	var cmd base.Command
++	work.AddBuildFlags(&cmd)
++	cmd.Flag.VisitAll(func(f *flag.Flag) {
++		vetFlagDefn = append(vetFlagDefn, &cmdflag.Defn{
++			Name:  f.Name,
++			Value: f.Value,
++		})
++	})
++}
++
++// vetFlags processes the command line, splitting it at the first non-flag
++// into the list of flags and list of packages.
++func vetFlags(args []string) (passToVet, packageNames []string) {
++	for i := 0; i < len(args); i++ {
++		if !strings.HasPrefix(args[i], "-") {
++			return args[:i], args[i:]
++		}
++
++		f, value, extraWord := cmdflag.Parse(cmd, vetFlagDefn, args, i)
++		if f == nil {
++			fmt.Fprintf(os.Stderr, "vet: flag %q not defined\n", args[i])
++			fmt.Fprintf(os.Stderr, "Run \"go help vet\" for more information\n")
++			os.Exit(2)
++		}
++		if f.Value != nil {
++			if err := f.Value.Set(value); err != nil {
++				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
++			}
++			switch f.Name {
++			// Flags known to the build but not to vet, so must be dropped.
++			case "x", "n":
++				args = append(args[:i], args[i+1:]...)
++				i--
++			}
++		}
++		if extraWord {
++			i++
++		}
++	}
++	return args, nil
++}
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index ec4cb72797..8c7b2be9c7 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -23,6 +23,8 @@ import (
+ 	"strings"
+ )
+ 
++// Important! If you add flags here, make sure to update cmd/go/internal/vet/vetflag.go.
++
+ var (
+ 	verbose = flag.Bool("v", false, "verbose")
+ 	source  = flag.Bool("source", false, "import from source instead of compiled object files")

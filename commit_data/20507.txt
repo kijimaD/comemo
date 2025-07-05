@@ -16,7 +16,7 @@ Date:   Sun Sep 14 21:25:44 2014 -0400
     R=alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/144830043
-
+---
  src/runtime/os_windows.c       |  32 +++++---
  src/runtime/runtime.h          |   4 +-
  src/runtime/syscall_windows.c  | 166 -----------------------------------------
@@ -25,3 +25,456 @@ Date:   Sun Sep 14 21:25:44 2014 -0400
  src/syscall/asm_windows.s      |  13 ----
  src/syscall/dll_windows.go     |   2 +-
  7 files changed, 138 insertions(+), 191 deletions(-)
+
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 61cfdb5bf1..6c8f137ee5 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -78,6 +78,20 @@ extern uintptr runtime·externalthreadhandlerp;
+ void runtime·externalthreadhandler(void);
+ void runtime·sigtramp(void);
+ 
++#pragma textflag NOSPLIT
++uintptr
++runtime·getLoadLibrary(void)
++{
++	return (uintptr)runtime·LoadLibrary;
++}
++
++#pragma textflag NOSPLIT
++uintptr
++runtime·getGetProcAddress(void)
++{
++	return (uintptr)runtime·GetProcAddress;
++}
++
+ static int32
+ getproccount(void)
+ {
+@@ -326,7 +340,7 @@ runtime·nanotime(void)
+ static void*
+ stdcall(void *fn)
+ {
+-	g->m->libcall.fn = fn;
++	g->m->libcall.fn = (uintptr)fn;
+ 	if(g->m->profilehz != 0) {
+ 		// leave pc/sp for cpu profiler
+ 		g->m->libcallg = g;
+@@ -345,7 +359,7 @@ void*
+ runtime·stdcall0(void *fn)
+ {
+ 	g->m->libcall.n = 0;
+-	g->m->libcall.args = &fn;  // it's unused but must be non-nil, otherwise crashes
++	g->m->libcall.args = (uintptr)&fn;  // it's unused but must be non-nil, otherwise crashes
+ 	return stdcall(fn);
+ }
+ 
+@@ -355,7 +369,7 @@ runtime·stdcall1(void *fn, uintptr a0)
+ {
+ 	USED(a0);
+ 	g->m->libcall.n = 1;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -365,7 +379,7 @@ runtime·stdcall2(void *fn, uintptr a0, uintptr a1)
+ {
+ 	USED(a0, a1);
+ 	g->m->libcall.n = 2;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -375,7 +389,7 @@ runtime·stdcall3(void *fn, uintptr a0, uintptr a1, uintptr a2)
+ {
+ 	USED(a0, a1, a2);
+ 	g->m->libcall.n = 3;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -385,7 +399,7 @@ runtime·stdcall4(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3)
+ {
+ 	USED(a0, a1, a2, a3);
+ 	g->m->libcall.n = 4;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -395,7 +409,7 @@ runtime·stdcall5(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
+ {
+ 	USED(a0, a1, a2, a3, a4);
+ 	g->m->libcall.n = 5;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -405,7 +419,7 @@ runtime·stdcall6(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
+ {
+ 	USED(a0, a1, a2, a3, a4, a5);
+ 	g->m->libcall.n = 6;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+@@ -415,7 +429,7 @@ runtime·stdcall7(void *fn, uintptr a0, uintptr a1, uintptr a2, uintptr a3, uint
+ {
+ 	USED(a0, a1, a2, a3, a4, a5, a6);
+ 	g->m->libcall.n = 7;
+-	g->m->libcall.args = &a0;
++	g->m->libcall.args = (uintptr)&a0;
+ 	return stdcall(fn);
+ }
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 37728b4130..abd53c4ba1 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -248,9 +248,9 @@ struct	GCStats
+ 
+ struct	LibCall
+ {
+-	void*	fn;
++	uintptr	fn;
+ 	uintptr	n;	// number of parameters
+-	void*	args;	// parameters
++	uintptr	args;	// parameters
+ 	uintptr	r1;	// return values
+ 	uintptr	r2;
+ 	uintptr	err;	// error number
+diff --git a/src/runtime/syscall_windows.c b/src/runtime/syscall_windows.c
+deleted file mode 100644
+index e7903b5171..0000000000
+--- a/src/runtime/syscall_windows.c
++++ /dev/null
+@@ -1,166 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "os_GOOS.h"
+-#include "cgocall.h"
+-#include "textflag.h"
+-
+-typedef struct HandleErr HandleErr;
+-typedef struct SyscallErr SyscallErr;
+-
+-struct HandleErr {
+-	uintptr handle;
+-	uintptr err;
+-};
+-
+-struct SyscallErr {
+-	uintptr r1;
+-	uintptr r2;
+-	uintptr err;
+-};
+-
+-#pragma textflag NOSPLIT
+-HandleErr
+-syscall·loadlibrary(uint16 *filename)
+-{
+-	LibCall c;
+-	HandleErr r;
+-
+-	c.fn = runtime·LoadLibrary;
+-	c.n = 1;
+-	c.args = &filename;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	r.handle = c.r1;
+-	if(r.handle == 0)
+-		r.err = c.err;
+-	else
+-		r.err = 0;
+-	return r;
+-}
+-
+-#pragma textflag NOSPLIT
+-HandleErr
+-syscall·getprocaddress(uintptr handle, int8 *procname)
+-{
+-	LibCall c;
+-	HandleErr r;
+-
+-	USED(procname);
+-	c.fn = runtime·GetProcAddress;
+-	c.n = 2;
+-	c.args = &handle;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	r.handle = c.r1;
+-	if(r.handle == 0)
+-		r.err = c.err;
+-	else
+-		r.err = 0;
+-	return r;
+-}
+-
+-#pragma textflag NOSPLIT
+-SyscallErr
+-syscall·Syscall(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3)
+-{
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	return (SyscallErr){c.r1, c.r2, c.err};
+-}
+-
+-#pragma textflag NOSPLIT
+-SyscallErr
+-syscall·Syscall6(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6)
+-{
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	return (SyscallErr){c.r1, c.r2, c.err};
+-}
+-
+-#pragma textflag NOSPLIT
+-SyscallErr
+-syscall·Syscall9(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9)
+-{
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	return (SyscallErr){c.r1, c.r2, c.err};
+-}
+-
+-#pragma textflag NOSPLIT
+-SyscallErr
+-syscall·Syscall12(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9, uintptr a10, uintptr a11, uintptr a12)
+-{
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	USED(a10);
+-	USED(a11);
+-	USED(a12);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	return (SyscallErr){c.r1, c.r2, c.err};
+-}
+-
+-#pragma textflag NOSPLIT
+-SyscallErr
+-syscall·Syscall15(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9, uintptr a10, uintptr a11, uintptr a12, uintptr a13, uintptr a14, uintptr a15)
+-{
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	USED(a10);
+-	USED(a11);
+-	USED(a12);
+-	USED(a13);
+-	USED(a14);
+-	USED(a15);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall_errno(runtime·asmstdcall, &c);
+-	return (SyscallErr){c.r1, c.r2, c.err};
+-}
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 0592c57e1d..959c675f4f 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -86,3 +86,85 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 
+ 	return callbackasmAddr(n)
+ }
++
++func getLoadLibrary() uintptr
++
++//go:nosplit
++func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
++	var c libcall
++	c.fn = getLoadLibrary()
++	c.n = 1
++	c.args = uintptr(unsafe.Pointer(&filename))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	handle = c.r1
++	if handle == 0 {
++		err = c.err
++	}
++	return
++}
++
++func getGetProcAddress() uintptr
++
++//go:nosplit
++func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
++	var c libcall
++	c.fn = getGetProcAddress()
++	c.n = 2
++	c.args = uintptr(unsafe.Pointer(&handle))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	outhandle = c.r1
++	if outhandle == 0 {
++		err = c.err
++	}
++	return
++}
++
++//go:nosplit
++func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
++	var c libcall
++	c.fn = fn
++	c.n = nargs
++	c.args = uintptr(unsafe.Pointer(&a1))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	return c.r1, c.r2, c.err
++}
++
++//go:nosplit
++func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
++	var c libcall
++	c.fn = fn
++	c.n = nargs
++	c.args = uintptr(unsafe.Pointer(&a1))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	return c.r1, c.r2, c.err
++}
++
++//go:nosplit
++func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
++	var c libcall
++	c.fn = fn
++	c.n = nargs
++	c.args = uintptr(unsafe.Pointer(&a1))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	return c.r1, c.r2, c.err
++}
++
++//go:nosplit
++func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
++	var c libcall
++	c.fn = fn
++	c.n = nargs
++	c.args = uintptr(unsafe.Pointer(&a1))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	return c.r1, c.r2, c.err
++}
++
++//go:nosplit
++func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
++	var c libcall
++	c.fn = fn
++	c.n = nargs
++	c.args = uintptr(unsafe.Pointer(&a1))
++	cgocall_errno(unsafe.Pointer(funcPC(asmstdcall)), unsafe.Pointer(&c))
++	return c.r1, c.r2, c.err
++}
+diff --git a/src/runtime/thunk_windows.s b/src/runtime/thunk_windows.s
+new file mode 100644
+index 0000000000..7ccb98fd4d
+--- /dev/null
++++ b/src/runtime/thunk_windows.s
+@@ -0,0 +1,30 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "zasm_GOOS_GOARCH.h"
++#include "textflag.h"
++
++TEXT syscall·Syscall(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_Syscall(SB)
++
++TEXT syscall·Syscall6(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_Syscall6(SB)
++
++TEXT syscall·Syscall9(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_Syscall9(SB)
++
++TEXT syscall·Syscall12(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_Syscall12(SB)
++
++TEXT syscall·Syscall15(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_Syscall15(SB)
++
++TEXT syscall·loadlibrary(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_loadlibrary(SB)
++
++TEXT syscall·getprocaddress(SB),NOSPLIT,$0-0
++	JMP	runtime·syscall_getprocaddress(SB)
++
++TEXT syscall·compileCallback(SB),NOSPLIT,$0
++	JMP	runtime·compileCallback(SB)
+diff --git a/src/syscall/asm_windows.s b/src/syscall/asm_windows.s
+deleted file mode 100644
+index abb6641a25..0000000000
+--- a/src/syscall/asm_windows.s
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//
+-// System calls for Windows are implemented in ../runtime/syscall_windows.goc
+-//
+-
+-#include "textflag.h"
+-
+-// func compileCallback(fn interface{}, cleanstack bool) uintptr
+-TEXT ·compileCallback(SB),NOSPLIT,$0
+-	JMP	runtime·compileCallback(SB)
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index c2394682d9..18663b486b 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -19,7 +19,7 @@ type DLLError struct {
+ 
+ func (e *DLLError) Error() string { return e.Msg }
+ 
+-// Implemented in ../runtime/syscall_windows.goc.
++// Implemented in ../runtime/syscall_windows.go.
+ func Syscall(trap, nargs, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall9(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err Errno)

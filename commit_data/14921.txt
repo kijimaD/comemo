@@ -9,9 +9,83 @@ Date:   Fri Jan 18 22:36:43 2013 +0100
     R=golang-dev, daniel.morsing, rsc
     CC=golang-dev
     https://golang.org/cl/7141047
-
+---
  src/cmd/6g/cgen.c           | 2 +-
  src/cmd/gc/go.h             | 6 +++---
  test/fixedbugs/bug385_64.go | 8 +++++++-
  test/fixedbugs/issue4348.go | 5 ++++-
  4 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index eff81e2a7e..41694100b5 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1329,7 +1329,7 @@ void
+ sgen(Node *n, Node *ns, int64 w)
+ {
+ 	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
+-	int32 c, q, odst, osrc;
++	vlong c, q, odst, osrc;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index adca665ef7..5e929d3c5b 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -320,7 +320,7 @@ struct	Node
+ 	int32	lineno;
+ 	int32	endlineno;
+ 	vlong	xoffset;
+-	int32	stkdelta;	// offset added by stack frame compaction phase.
++	vlong	stkdelta;	// offset added by stack frame compaction phase.
+ 	int32	ostk;
+ 	int32	iota;
+ 	uint32	walkgen;
+@@ -912,8 +912,8 @@ EXTERN	int	loophack;
+ EXTERN	int32	iota;
+ EXTERN	NodeList*	lastconst;
+ EXTERN	Node*	lasttype;
+-EXTERN	int32	maxarg;
+-EXTERN	int32	stksize;		// stack size for current frame
++EXTERN	vlong	maxarg;
++EXTERN	vlong	stksize;		// stack size for current frame
+ EXTERN	int32	blockgen;		// max block number
+ EXTERN	int32	block;			// current block number
+ EXTERN	int	hasdefer;		// flag that curfn has defer statetment
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+index 8c7b9d5208..f8ccb42a9b 100644
+--- a/test/fixedbugs/bug385_64.go
++++ b/test/fixedbugs/bug385_64.go
+@@ -8,11 +8,17 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Issue 2444
++// Issue 4666: issue with arrays of exactly 4GB.
+ 
+ package main
+-func main() {  // ERROR "stack frame too large"
++
++func main() { // ERROR "stack frame too large"
+ 	var arr [1000200030]int32
+ 	arr_bkup := arr
+ 	_ = arr_bkup
+ }
+ 
++func F() { // ERROR "stack frame too large"
++	var arr [1 << 30]int32
++	_ = arr[42]
++}
+diff --git a/test/fixedbugs/issue4348.go b/test/fixedbugs/issue4348.go
+index c86964754c..e1d172e9d2 100644
+--- a/test/fixedbugs/issue4348.go
++++ b/test/fixedbugs/issue4348.go
+@@ -1,4 +1,7 @@
+-// compile
++// skip
++
++// NOTE: this test is now skipped because the relevant code
++// is rejected after fixing issue 4666.
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -9,7 +9,7 @@ Date:   Mon Jul 16 14:03:11 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6395053
-
+---
  src/cmd/vet/doc.go       | 16 ++++++++++++----
  src/cmd/vet/main.go      | 14 ++++++++++++++
  src/cmd/vet/method.go    | 10 ++++++++++
@@ -17,3 +17,188 @@ Date:   Mon Jul 16 14:03:11 2012 -0700
  src/cmd/vet/structtag.go |  7 +++++++
  src/cmd/vet/taglit.go    |  7 +++++++
  6 files changed, 53 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index 620964aafb..be51ec8077 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -9,9 +9,12 @@ calls whose arguments do not align with the format string. Vet uses heuristics
+ that do not guarantee all reports are genuine problems, but it can find errors
+ not caught by the compilers.
+ 
++By default all checks are performed, but if explicit flags are provided, only
++those identified by the flags are performed.
++
+ Available checks:
+ 
+-1. Printf family
++1. Printf family, flag -printf
+ 
+ Suspicious calls to functions in the Printf family, including any functions
+ with these names:
+@@ -28,7 +31,7 @@ complains about arguments that look like format descriptor strings.
+ It also checks for errors such as using a Writer as the first argument of
+ Printf.
+ 
+-2. Methods
++2. Methods, flag -methods
+ 
+ Non-standard signatures for methods with familiar names, including:
+ 	Format GobEncode GobDecode MarshalJSON MarshalXML
+@@ -36,16 +39,21 @@ Non-standard signatures for methods with familiar names, including:
+ 	UnmarshalJSON UnreadByte UnreadRune WriteByte
+ 	WriteTo
+ 
+-3. Struct tags
++3. Struct tags, flag -structtags
+ 
+ Struct tags that do not follow the format understood by reflect.StructTag.Get.
+ 
++4. Untagged composite literals, flag -composites
++
++Composite struct literals that do not used the type-tagged syntax.
++
++
+ Usage:
+ 
+ 	go tool vet [flag] [file.go ...]
+ 	go tool vet [flag] [directory ...] # Scan all .go files under directory, recursively
+ 
+-The flags are:
++The other flags are:
+ 	-v
+ 		Verbose mode
+ 	-printfuncs
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 625133315f..d2a7c6e55b 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -23,6 +23,15 @@ import (
+ var verbose = flag.Bool("v", false, "verbose")
+ var exitCode = 0
+ 
++// Flags to control which checks to perform
++var (
++	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
++	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
++	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
++	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
++	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
++)
++
+ // setExit sets the value for os.Exit when it is called, later.  It
+ // remembers the highest value.
+ func setExit(err int) {
+@@ -50,6 +59,11 @@ func main() {
+ 	flag.Usage = Usage
+ 	flag.Parse()
+ 
++	// If a check is named explicitly, turn off the 'all' flag.
++	if *vetMethods || *vetPrintf || *vetStructTags || *vetUntaggedLiteral {
++		*vetAll = false
++	}
++
+ 	if *printfuncs != "" {
+ 		for _, name := range strings.Split(*printfuncs, ",") {
+ 			if len(name) == 0 {
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index 41cb40ff9e..41df96cec5 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -55,6 +55,9 @@ var canonicalMethods = map[string]MethodSig{
+ }
+ 
+ func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
++	if !*vetMethods && !*vetAll {
++		return
++	}
+ 	// Expected input/output.
+ 	expect, ok := canonicalMethods[id.Name]
+ 	if !ok {
+@@ -159,3 +162,10 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+ 	printer.Fprint(&f.b, f.fset, actual)
+ 	return f.b.String() == expect
+ }
++
++func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
++}
++
++type BadInterfaceUsedInTests interface {
++	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
++}
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index f7d7604853..0a9e45dc8a 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -43,6 +43,9 @@ var printList = map[string]int{
+ 
+ // checkCall triggers the print-specific checks if the call invokes a print function.
+ func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
++	if !*vetPrintf && !*vetAll {
++		return
++	}
+ 	name := strings.ToLower(Name)
+ 	if skip, ok := printfList[name]; ok {
+ 		f.checkPrintf(call, Name, skip)
+@@ -290,17 +293,6 @@ func BadFunctionUsedInTests() {
+ 	f.Warnf(0, "%#s", "hello")   // ERROR "unrecognized printf flag"
+ }
+ 
+-type BadTypeUsedInTests struct {
+-	X int "hello" // ERROR "struct field tag"
+-}
+-
+-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
+-}
+-
+-type BadInterfaceUsedInTests interface {
+-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
+-}
+-
+ // printf is used by the test.
+ func printf(format string, args ...interface{}) {
+ 	panic("don't call - testing only")
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index ea2a9d8638..4aab2d086f 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -14,6 +14,9 @@ import (
+ 
+ // checkField checks a struct field tag.
+ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
++	if !*vetStructTags && !*vetAll {
++		return
++	}
+ 	if field.Tag == nil {
+ 		return
+ 	}
+@@ -32,3 +35,7 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+ 		return
+ 	}
+ }
++
++type BadTypeUsedInTests struct {
++	X int "hello" // ERROR "struct field tag"
++}
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index c3c4f3234b..b136e05e20 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -14,6 +14,9 @@ import (
+ // checkUntaggedLiteral checks if a composite literal is an struct literal with
+ // untagged fields.
+ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
++	if !*vetUntaggedLiteral && !*vetAll {
++		return
++	}
+ 	// Check if the CompositeLit contains an untagged field.
+ 	allKeyValue := true
+ 	for _, e := range c.Elts {
+@@ -119,3 +122,7 @@ var untaggedLiteralWhitelist = map[string]bool{
+ 	"image.Point":         true,
+ 	"image.Rectangle":     true,
+ }
++
++type BadTag struct {
++	S string `this is a bad tag`
++}

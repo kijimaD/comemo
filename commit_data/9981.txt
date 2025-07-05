@@ -7,6 +7,20 @@ Date:   Fri Oct 14 15:06:11 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/5172042
-
+---
  src/pkg/asn1/asn1.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index 39b676b419..e7bd62ee0a 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -516,6 +516,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 				result, err = parseIA5String(innerBytes)
+ 			case tagT61String:
+ 				result, err = parseT61String(innerBytes)
++			case tagUTF8String:
++				result, err = parseUTF8String(innerBytes)
+ 			case tagInteger:
+ 				result, err = parseInt64(innerBytes)
+ 			case tagBitString:

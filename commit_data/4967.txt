@@ -11,8 +11,57 @@ Date:   Sun Feb 28 21:15:56 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/217064
-
+---
  src/pkg/fmt/fmt_test.go | 1 +
  src/pkg/fmt/format.go   | 3 ++-
  src/pkg/fmt/print.go    | 4 +++-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b54c25899f..3752b35264 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -86,6 +86,7 @@ var fmttests = []fmtTest{
+ 
+ 	// width
+ 	fmtTest{"%5s", "abc", "  abc"},
++	fmtTest{"%2s", "\u263a", " \u263a"},
+ 	fmtTest{"%-5s", "abc", "abc  "},
+ 	fmtTest{"%05s", "abc", "00abc"},
+ 
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 38b234414f..88ef3504e7 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -7,6 +7,7 @@ package fmt
+ import (
+ 	"bytes"
+ 	"strconv"
++	"utf8"
+ )
+ 
+ const (
+@@ -127,7 +128,7 @@ func (f *fmt) padString(s string) {
+ 	var padding []byte
+ 	var left, right int
+ 	if f.widPresent && f.wid != 0 {
+-		padding, left, right = f.computePadding(len(s))
++		padding, left, right = f.computePadding(utf8.RuneCountInString(s))
+ 	}
+ 	if left > 0 {
+ 		f.writePadding(left, padding)
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index ecb8adbc37..37405424bb 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -43,7 +43,9 @@
+ 	For numeric values, the width and precision flags control
+ 	formatting; width sets the width of the field, precision the
+ 	number of places after the decimal, if appropriate.  The
+-	format %6.2f prints 123.45.
++	format %6.2f prints 123.45. The width of a field is the number
++	of Unicode code points in the string. This differs from C's printf where
++	the field width is the number of bytes.
+ 
+ 	Other flags:
+ 		+	always print a sign for numeric values

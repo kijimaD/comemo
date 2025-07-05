@@ -10,8 +10,92 @@ Date:   Wed Aug 24 13:22:54 2016 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/testenv/testenv.go         |  8 +++++---
  src/internal/testenv/testenv_notwin.go  |  6 +++---
  src/internal/testenv/testenv_windows.go | 17 +++++++++++++----
  3 files changed, 21 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 7aff89928e..f99ec26557 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -129,14 +129,16 @@ func MustHaveExternalNetwork(t *testing.T) {
+ 
+ // HasSymlink reports whether the current system can use os.Symlink.
+ func HasSymlink() bool {
+-	return hasSymlink()
++	ok, _ := hasSymlink()
++	return ok
+ }
+ 
+ // MustHaveSymlink reports whether the current system can use os.Symlink.
+ // If not, MustHaveSymlink calls t.Skip with an explanation.
+ func MustHaveSymlink(t *testing.T) {
+-	if !HasSymlink() {
+-		t.Skipf("skipping test: cannot make symlinks on %s/%s", runtime.GOOS, runtime.GOARCH)
++	ok, reason := hasSymlink()
++	if !ok {
++		t.Skipf("skipping test: cannot make symlinks on %s/%s%s", runtime.GOOS, runtime.GOARCH, reason)
+ 	}
+ }
+ 
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+index 16673029aa..d8ce6cd385 100644
+--- a/src/internal/testenv/testenv_notwin.go
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -10,11 +10,11 @@ import (
+ 	"runtime"
+ )
+ 
+-func hasSymlink() bool {
++func hasSymlink() (ok bool, reason string) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl", "plan9":
+-		return false
++		return false, ""
+ 	}
+ 
+-	return true
++	return true, ""
+ }
+diff --git a/src/internal/testenv/testenv_windows.go b/src/internal/testenv/testenv_windows.go
+index 042c0f2867..e593f64711 100644
+--- a/src/internal/testenv/testenv_windows.go
++++ b/src/internal/testenv/testenv_windows.go
+@@ -13,7 +13,7 @@ import (
+ )
+ 
+ var symlinkOnce sync.Once
+-var winHasSymlink = true
++var winSymlinkErr error
+ 
+ func initWinHasSymlink() {
+ 	tmpdir, err := ioutil.TempDir("", "symtest")
+@@ -27,14 +27,23 @@ func initWinHasSymlink() {
+ 		err = err.(*os.LinkError).Err
+ 		switch err {
+ 		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
+-			winHasSymlink = false
++			winSymlinkErr = err
+ 		}
+ 	}
+ 	os.Remove("target")
+ }
+ 
+-func hasSymlink() bool {
++func hasSymlink() (ok bool, reason string) {
+ 	symlinkOnce.Do(initWinHasSymlink)
+ 
+-	return winHasSymlink
++	switch winSymlinkErr {
++	case nil:
++		return true, ""
++	case syscall.EWINDOWS:
++		return false, ": symlinks are not supported on your version of Windows"
++	case syscall.ERROR_PRIVILEGE_NOT_HELD:
++		return false, ": you don't have enough privileges to create symlinks"
++	}
++
++	return false, ""
+ }

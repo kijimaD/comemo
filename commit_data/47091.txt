@@ -12,7 +12,7 @@ Date:   Wed Feb 17 01:48:21 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/ssa/value.go                               | 2 +-
  .../testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt   | 2 +-
  src/cmd/go/testdata/script/mod_empty_err.txt                        | 2 +-
@@ -36,3 +36,374 @@ Date:   Wed Feb 17 01:48:21 2021 +0000
  src/runtime/mgcscavenge.go                                          | 2 +-
  test/prove.go                                                       | 2 +-
  22 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index d000b7cce0..6539631b9c 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -484,7 +484,7 @@ func (v *Value) removeable() bool {
+ 	if v.Type.IsMemory() {
+ 		// All memory ops aren't needed here, but we do need
+ 		// to keep calls at least (because they might have
+-		// syncronization operations we can't see).
++		// synchronization operations we can't see).
+ 		return false
+ 	}
+ 	if v.Op.HasSideEffects() {
+diff --git a/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt b/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt
+index 8f9e49176c..edf5d48788 100644
+--- a/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt
++++ b/src/cmd/go/testdata/mod/example.com_split-incompatible_subpkg_v0.1.0.txt
+@@ -1,6 +1,6 @@
+ Written by hand.
+ Test case for getting a package that has been moved to a nested module,
+-with a +incompatible verison (and thus no go.mod file) at the root module.
++with a +incompatible version (and thus no go.mod file) at the root module.
+ 
+ -- .mod --
+ module example.com/split-incompatible/subpkg
+diff --git a/src/cmd/go/testdata/script/mod_empty_err.txt b/src/cmd/go/testdata/script/mod_empty_err.txt
+index 982e6b2e51..c4359bcccc 100644
+--- a/src/cmd/go/testdata/script/mod_empty_err.txt
++++ b/src/cmd/go/testdata/script/mod_empty_err.txt
+@@ -1,4 +1,4 @@
+-# This test checks error messages for non-existant packages in module mode.
++# This test checks error messages for non-existent packages in module mode.
+ # Veries golang.org/issue/35414
+ env GO111MODULE=on
+ cd $WORK
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 8f01b5d242..7b45f1a209 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -200,7 +200,7 @@ stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example
+ go install cmd/addr2line
+ ! stderr .
+ 
+-# 'go run' with a verison should fail due to syntax.
++# 'go run' with a version should fail due to syntax.
+ ! go run example.com/printversion@v1.0.0
+ stderr 'can only use path@version syntax with'
+ 
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+index 3f7360b659..3b2791cb89 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_fail.txt
+@@ -14,7 +14,7 @@ stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"comma
+ stdout -count=1 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:38: error from sub-2\\n"}'
+ 
+ -- chatty_parallel_test.go --
+-package chatty_paralell_test
++package chatty_parallel_test
+ 
+ import (
+ 	"testing"
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+index 4a86d74f19..58b5ab7267 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success.txt
+@@ -13,7 +13,7 @@ stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"comma
+ stdout -count=2 '{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"=== CONT  TestChattyParallel/sub-2\\n"}\n{"Time":"[0-9TZ:.+-]{20,40}","Action":"output","Package":"command-line-arguments","Test":"TestChattyParallel/sub-2","Output":"    chatty_parallel_test.go:32: this is sub-2\\n"}'
+ 
+ -- chatty_parallel_test.go --
+-package chatty_paralell_test
++package chatty_parallel_test
+ 
+ import (
+ 	"testing"
+diff --git a/src/cmd/go/testdata/script/test_chatty_parallel_success_sleepy.txt b/src/cmd/go/testdata/script/test_chatty_parallel_success_sleepy.txt
+index 5952a87bea..e651a7ed24 100644
+--- a/src/cmd/go/testdata/script/test_chatty_parallel_success_sleepy.txt
++++ b/src/cmd/go/testdata/script/test_chatty_parallel_success_sleepy.txt
+@@ -5,7 +5,7 @@ go test -parallel 3 chatty_parallel_test.go -v
+ stdout '--- PASS: TestFast \([0-9.]{4}s\)\n=== CONT  TestSlow\n    chatty_parallel_test.go:31: this is the second TestSlow log\n--- PASS: TestSlow \([0-9.]{4}s\)'
+ 
+ -- chatty_parallel_test.go --
+-package chatty_paralell_test
++package chatty_parallel_test
+ 
+ import (
+ 	"testing"
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index cb4eb842b4..c284a9cf0d 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -173,7 +173,7 @@ func TestParseGoobj(t *testing.T) {
+ 			continue
+ 		}
+ 		if e.Type != EntryGoObj {
+-			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
++			t.Errorf("wrong type of object: want EntryGoObj, got %v", e.Type)
+ 		}
+ 		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
+ 			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+@@ -204,7 +204,7 @@ func TestParseArchive(t *testing.T) {
+ 			continue
+ 		}
+ 		if e.Type != EntryGoObj {
+-			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
++			t.Errorf("wrong type of object: want EntryGoObj, got %v", e.Type)
+ 		}
+ 		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
+ 			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index d1b838f676..247cc695f0 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -481,7 +481,7 @@ func (r *RefFlags) SetFlag2(x uint8) { r[9] = x }
+ 
+ func (r *RefFlags) Write(w *Writer) { w.Bytes(r[:]) }
+ 
+-// Used to construct an artifically large array type when reading an
++// Used to construct an artificially large array type when reading an
+ // item from the object file relocs section or aux sym section (needs
+ // to work on 32-bit as well as 64-bit). See issue 41621.
+ const huge = (1<<31 - 1) / RelocSize
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 85f0570e5d..b031afbc36 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -383,7 +383,7 @@ func (w *writer) Sym(s *LSym) {
+ 
+ func (w *writer) Hash64(s *LSym) {
+ 	if !s.ContentAddressable() || len(s.R) != 0 {
+-		panic("Hash of non-content-addresable symbol")
++		panic("Hash of non-content-addressable symbol")
+ 	}
+ 	b := contentHash64(s)
+ 	w.Bytes(b[:])
+@@ -391,7 +391,7 @@ func (w *writer) Hash64(s *LSym) {
+ 
+ func (w *writer) Hash(s *LSym) {
+ 	if !s.ContentAddressable() {
+-		panic("Hash of non-content-addresable symbol")
++		panic("Hash of non-content-addressable symbol")
+ 	}
+ 	b := w.contentHash(s)
+ 	w.Bytes(b[:])
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index 67c4f9a62b..7af81335fb 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -37,7 +37,7 @@ func funcpctab(ctxt *Link, func_ *LSym, desc string, valfunc func(*Link, *LSym,
+ 	oldval := val
+ 	fn := func_.Func()
+ 	if fn.Text == nil {
+-		// Return the emtpy symbol we've built so far.
++		// Return the empty symbol we've built so far.
+ 		return sym
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a6b85ac4a0..fa670d5c18 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1887,7 +1887,7 @@ func lookForJCC(p *obj.Prog) *obj.Prog {
+ func fusedJump(p *obj.Prog) (bool, uint8) {
+ 	var fusedSize uint8
+ 
+-	// The first instruction in a macro fused pair may be preceeded by the LOCK prefix,
++	// The first instruction in a macro fused pair may be preceded by the LOCK prefix,
+ 	// or possibly an XACQUIRE/XRELEASE prefix followed by a LOCK prefix. If it is, we
+ 	// need to be careful to insert any padding before the locks rather than directly after them.
+ 
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index fb733117be..61b64f4f5a 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -50,7 +50,7 @@ type pclntab struct {
+ }
+ 
+ // addGeneratedSym adds a generator symbol to pclntab, returning the new Sym.
+-// It is the caller's responsibilty to save they symbol in state.
++// It is the caller's responsibility to save they symbol in state.
+ func (state *pclntab) addGeneratedSym(ctxt *Link, name string, size int64, f generatorFunc) loader.Sym {
+ 	size = Rnd(size, int64(ctxt.Arch.PtrSize))
+ 	state.size += size
+@@ -360,7 +360,7 @@ func (state *pclntab) generateFilenameTabs(ctxt *Link, compUnits []*sym.Compilat
+ 	// then not loading extra filenames), and just use the hash value of the
+ 	// symbol name to do this cataloging.
+ 	//
+-	// TOOD: Store filenames as symbols. (Note this would be easiest if you
++	// TODO: Store filenames as symbols. (Note this would be easiest if you
+ 	// also move strings to ALWAYS using the larger content addressable hash
+ 	// function, and use that hash value for uniqueness testing.)
+ 	cuEntries := make([]goobj.CUFileIndex, len(compUnits))
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 68dc3de273..c05309a141 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1547,7 +1547,7 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
+ // regular compiler-generated Go symbols), but in the case of
+ // building with "-linkshared" (when a symbol is read from a
+ // shared library), will hold the library name.
+-// NOTE: this correspondes to sym.Symbol.File field.
++// NOTE: this corresponds to sym.Symbol.File field.
+ func (l *Loader) SymPkg(i Sym) string {
+ 	if f, ok := l.symPkg[i]; ok {
+ 		return f
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 12b0254123..0e6c5a6370 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -1528,7 +1528,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
+ 					}
+ 					if c.DidResume {
+ 						return nil
+-						// The SCTs and OCSP Responce are dropped on resumption.
++						// The SCTs and OCSP Response are dropped on resumption.
+ 						// See http://golang.org/issue/39075.
+ 					}
+ 					if len(c.OCSPResponse) == 0 {
+@@ -1569,7 +1569,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
+ 					}
+ 					if c.DidResume {
+ 						return nil
+-						// The SCTs and OCSP Responce are dropped on resumption.
++						// The SCTs and OCSP Response are dropped on resumption.
+ 						// See http://golang.org/issue/39075.
+ 					}
+ 					if len(c.OCSPResponse) == 0 {
+@@ -1619,7 +1619,7 @@ func testVerifyConnection(t *testing.T, version uint16) {
+ 					}
+ 					if c.DidResume {
+ 						return nil
+-						// The SCTs and OCSP Responce are dropped on resumption.
++						// The SCTs and OCSP Response are dropped on resumption.
+ 						// See http://golang.org/issue/39075.
+ 					}
+ 					if len(c.OCSPResponse) == 0 {
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index 01b242a4ea..5b9e5d4020 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -78,7 +78,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
+ 			// Go supports Linux >= 2.6.33, so the system call
+ 			// may not be present.
+ 			//
+-			// If we see ENOSYS, we have certainly not transfered
++			// If we see ENOSYS, we have certainly not transferred
+ 			// any data, so we can tell the caller that we
+ 			// couldn't handle the transfer and let them fall
+ 			// back to more generic code.
+@@ -91,13 +91,13 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
+ 			// Prior to Linux 5.3, it was not possible to
+ 			// copy_file_range across file systems. Similarly to
+ 			// the ENOSYS case above, if we see EXDEV, we have
+-			// not transfered any data, and we can let the caller
++			// not transferred any data, and we can let the caller
+ 			// fall back to generic code.
+ 			//
+ 			// As for EINVAL, that is what we see if, for example,
+ 			// dst or src refer to a pipe rather than a regular
+ 			// file. This is another case where no data has been
+-			// transfered, so we consider it unhandled.
++			// transferred, so we consider it unhandled.
+ 			//
+ 			// If src and dst are on CIFS, we can see EIO.
+ 			// See issue #42334.
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index 1d145dadb0..cb6a59abdb 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -106,7 +106,7 @@ func TestCopyFileRange(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if n != int64(len(data)) {
+-				t.Fatalf("transfered %d, want %d", n, len(data))
++				t.Fatalf("transferred %d, want %d", n, len(data))
+ 			}
+ 			if !hook.called {
+ 				t.Fatalf("should have called poll.CopyFileRange")
+@@ -130,7 +130,7 @@ func TestCopyFileRange(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if n != int64(len(data)) {
+-				t.Fatalf("transfered %d, want %d", n, len(data))
++				t.Fatalf("transferred %d, want %d", n, len(data))
+ 			}
+ 			if !hook.called {
+ 				t.Fatalf("should have called poll.CopyFileRange")
+@@ -162,7 +162,7 @@ func TestCopyFileRange(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 			if n != int64(len(data)) {
+-				t.Fatalf("transfered %d, want %d", n, len(data))
++				t.Fatalf("transferred %d, want %d", n, len(data))
+ 			}
+ 			if !hook.called {
+ 				t.Fatalf("should have called poll.CopyFileRange")
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 756bbbeccf..003d6a9fb3 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -631,7 +631,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
+ 	// channel. See issue 40641 for more details on the problem.
+ 	//
+ 	// The way we try to induce this failure is to set up two
+-	// goroutines: a sender and a reciever that communicate across
++	// goroutines: a sender and a receiver that communicate across
+ 	// a channel. We try to set up a situation where the sender
+ 	// grows its stack temporarily then *fully* blocks on a channel
+ 	// often. Meanwhile a GC is triggered so that we try to get a
+@@ -671,7 +671,7 @@ func TestNoShrinkStackWhileParking(t *testing.T) {
+ 		go send(c, done)
+ 		// Wait a little bit before triggering
+ 		// the GC to make sure the sender and
+-		// reciever have gotten into their groove.
++		// receiver have gotten into their groove.
+ 		time.Sleep(50 * time.Microsecond)
+ 		runtime.GC()
+ 		<-done
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index 702bf5f24c..7d45debaca 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -220,7 +220,7 @@ func releaseLockRank(rank lockRank) {
+ func lockWithRankMayAcquire(l *mutex, rank lockRank) {
+ 	gp := getg()
+ 	if gp.m.locksHeldLen == 0 {
+-		// No possibilty of lock ordering problem if no other locks held
++		// No possibility of lock ordering problem if no other locks held
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 3e8dbda0ca..ce3bac9d8f 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -481,7 +481,7 @@ func readMetrics(samplesp unsafe.Pointer, len int, cap int) {
+ 
+ 	// Acquire the metricsSema but with handoff. This operation
+ 	// is expensive enough that queueing up goroutines and handing
+-	// off between them will be noticably better-behaved.
++	// off between them will be noticeably better-behaved.
+ 	semacquire1(&metricsSema, true, 0, 0)
+ 
+ 	// Ensure the map is initialized.
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index a7c5bc49b8..46a40632bf 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -207,7 +207,7 @@ func wakeScavenger() {
+ 		// Ready the goroutine by injecting it. We use injectglist instead
+ 		// of ready or goready in order to allow us to run this function
+ 		// without a P. injectglist also avoids placing the goroutine in
+-		// the current P's runnext slot, which is desireable to prevent
++		// the current P's runnext slot, which is desirable to prevent
+ 		// the scavenger from interfering with user goroutine scheduling
+ 		// too much.
+ 		var list gList
+diff --git a/test/prove.go b/test/prove.go
+index af9c06a6f7..83b0380838 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1013,7 +1013,7 @@ func sh64noopt(n int64) int64 {
+ // opt, an earlier pass, has already replaced it.
+ // The fix for this issue allows prove to zero a right shift that was added as
+ // part of the less-than-optimal reqwrite. That change by prove then allows
+-// lateopt to clean up all the unneccesary parts of the original division
++// lateopt to clean up all the unnecessary parts of the original division
+ // replacement. See issue #36159.
+ func divShiftClean(n int) int {
+ 	if n < 0 {

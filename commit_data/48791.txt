@@ -22,9 +22,231 @@ Date:   Mon Jun 7 10:04:12 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/error_test.go          | 20 +++++-----
  src/go/parser/parser.go              | 74 ++++++++++++++++++++++++++++++++----
  src/go/parser/testdata/interface.go2 | 37 ++++++++++++++++++
  src/go/types/exprstring_test.go      | 34 +++++++++++++++++
  4 files changed, 149 insertions(+), 16 deletions(-)
+
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index f4f0a5240a..e22ab12451 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -186,16 +186,18 @@ func TestErrors(t *testing.T) {
+ 	}
+ 	for _, d := range list {
+ 		name := d.Name()
+-		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+-			mode := DeclarationErrors | AllErrors
+-			if strings.HasSuffix(name, ".go2") {
+-				if !typeparams.Enabled {
+-					continue
++		t.Run(name, func(t *testing.T) {
++			if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
++				mode := DeclarationErrors | AllErrors
++				if strings.HasSuffix(name, ".go2") {
++					if !typeparams.Enabled {
++						return
++					}
++				} else {
++					mode |= typeparams.DisallowParsing
+ 				}
+-			} else {
+-				mode |= typeparams.DisallowParsing
++				checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+ 			}
+-			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+-		}
++		})
+ 	}
+ }
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 3965641713..5ccba02e5c 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -980,6 +980,7 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 				list := []ast.Expr{x}
+ 				if p.atComma("type argument list", token.RBRACK) {
+ 					p.exprLev++
++					p.next()
+ 					for p.tok != token.RBRACK && p.tok != token.EOF {
+ 						list = append(list, p.parseType())
+ 						if !p.atComma("type argument list", token.RBRACK) {
+@@ -1011,11 +1012,56 @@ func (p *parser) parseMethodSpec() *ast.Field {
+ 			typ = p.parseTypeInstance(typ)
+ 		}
+ 	}
+-	p.expectSemi() // call before accessing p.linecomment
+ 
+-	spec := &ast.Field{Doc: doc, Names: idents, Type: typ, Comment: p.lineComment}
++	// Comment is added at the callsite: the field below may joined with
++	// additional type specs using '|'.
++	// TODO(rfindley) this should be refactored.
++	// TODO(rfindley) add more tests for comment handling.
++	return &ast.Field{Doc: doc, Names: idents, Type: typ}
++}
+ 
+-	return spec
++func (p *parser) embeddedElem(f *ast.Field) *ast.Field {
++	if p.trace {
++		defer un(trace(p, "EmbeddedElem"))
++	}
++	if f == nil {
++		f = new(ast.Field)
++		f.Type = p.embeddedTerm()
++	}
++	for p.tok == token.OR {
++		t := new(ast.BinaryExpr)
++		t.OpPos = p.pos
++		t.Op = token.OR
++		p.next()
++		t.X = f.Type
++		t.Y = p.embeddedTerm()
++		f.Type = t
++	}
++	return f
++}
++
++func (p *parser) embeddedTerm() ast.Expr {
++	if p.trace {
++		defer un(trace(p, "EmbeddedTerm"))
++	}
++	if p.tok == token.TILDE {
++		t := new(ast.UnaryExpr)
++		t.OpPos = p.pos
++		t.Op = token.TILDE
++		p.next()
++		t.X = p.parseType()
++		return t
++	}
++
++	t := p.tryIdentOrType()
++	if t == nil {
++		pos := p.pos
++		p.errorExpected(pos, "~ term or type")
++		p.advance(exprEnd)
++		return &ast.BadExpr{From: pos, To: p.pos}
++	}
++
++	return t
+ }
+ 
+ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+@@ -1026,10 +1072,24 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 	pos := p.expect(token.INTERFACE)
+ 	lbrace := p.expect(token.LBRACE)
+ 	var list []*ast.Field
+-	for p.tok == token.IDENT || p.parseTypeParams() && p.tok == token.TYPE {
+-		if p.tok == token.IDENT {
+-			list = append(list, p.parseMethodSpec())
+-		} else {
++	for p.tok == token.IDENT || p.parseTypeParams() && (p.tok == token.TYPE || p.tok == token.TILDE) {
++		switch p.tok {
++		case token.IDENT:
++			f := p.parseMethodSpec()
++			if f.Names == nil && p.parseTypeParams() {
++				f = p.embeddedElem(f)
++			}
++			p.expectSemi()
++			f.Comment = p.lineComment
++			list = append(list, f)
++		case token.TILDE:
++			f := p.embeddedElem(nil)
++			p.expectSemi()
++			f.Comment = p.lineComment
++			list = append(list, f)
++		case token.TYPE:
++			// TODO(rfindley): remove TypeList syntax and refactor the clauses above.
++
+ 			// all types in a type list share the same field name "type"
+ 			// (since type is a keyword, a Go program cannot have that field name)
+ 			name := []*ast.Ident{{NamePos: p.pos, Name: "type"}}
+diff --git a/src/go/parser/testdata/interface.go2 b/src/go/parser/testdata/interface.go2
+new file mode 100644
+index 0000000000..c631055202
+--- /dev/null
++++ b/src/go/parser/testdata/interface.go2
+@@ -0,0 +1,37 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains test cases for interfaces containing
++// constraint elements.
++//
++// For now, we accept both ordinary type lists and the
++// more complex constraint elements.
++
++package p
++
++type _ interface {
++	m()
++	type int
++	type int, string
++	E
++}
++
++type _ interface {
++	m()
++	~int
++	int | string
++	int | ~string
++	~int | ~string
++}
++
++
++type _ interface {
++	m()
++	~int
++	T[int, string] | string
++	int | ~T[string, struct{}]
++	~int | ~string
++	type bool, int, float64
++}
++
+diff --git a/src/go/types/exprstring_test.go b/src/go/types/exprstring_test.go
+index 51102881c9..a67f6a978a 100644
+--- a/src/go/types/exprstring_test.go
++++ b/src/go/types/exprstring_test.go
+@@ -27,6 +27,40 @@ var testExprs = []testEntry{
+ 	{"func(x int) complex128 {}", "(func(x int) complex128 literal)"},
+ 	{"[]int{1, 2, 3}", "([]int literal)"},
+ 
++	// type expressions
++	dup("[1 << 10]byte"),
++	dup("[]int"),
++	dup("*int"),
++	dup("struct{x int}"),
++	dup("func()"),
++	dup("func(int, float32) string"),
++	dup("interface{m()}"),
++	dup("interface{m() string; n(x int)}"),
++	dup("interface{type int}"),
++
++	// The following exprs do not get formatted correctly: each element in the
++	// type list is printed on a separate line. This is left as a placeholder
++	// until type lists are removed.
++	// TODO(rfindley): remove this once type lists are gone.
++	// dup("interface{type int, float64, string}"),
++	// dup("interface{type int; m()}"),
++	// dup("interface{type int, float64, string; m() string; n(x int)}"),
++	dup("map[string]int"),
++	dup("chan E"),
++	dup("<-chan E"),
++	dup("chan<- E"),
++
++	// new interfaces
++	dup("interface{int}"),
++	dup("interface{~int}"),
++	dup("interface{~int}"),
++	dup("interface{int | string}"),
++	dup("interface{~int | ~string; float64; m()}"),
++
++	// See above.
++	// dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
++	dup("interface{~T[int, string] | string}"),
++
+ 	// non-type expressions
+ 	dup("(x)"),
+ 	dup("x.f"),

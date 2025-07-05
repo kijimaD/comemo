@@ -14,9 +14,163 @@ Date:   Wed Jul 22 13:30:49 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/target.go |  3 +--
  src/cmd/link/internal/ld/xcoff.go  | 21 ++++++++++-------
  src/cmd/link/internal/ppc64/asm.go | 47 ++++++++++++++++++++++++++------------
  src/cmd/link/internal/ppc64/obj.go |  1 +
  4 files changed, 47 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/target.go b/src/cmd/link/internal/ld/target.go
+index 2dafe9bb1f..ffe7c52617 100644
+--- a/src/cmd/link/internal/ld/target.go
++++ b/src/cmd/link/internal/ld/target.go
+@@ -184,6 +184,5 @@ func (t *Target) IsBigEndian() bool {
+ 
+ // Temporary helper.
+ func (t *Target) StreamExtRelocs() bool {
+-	return (t.IsELF || t.IsDarwin() || t.IsWindows()) &&
+-		(t.IsAMD64() || t.Is386() || t.IsARM() || t.IsARM64() || t.IsMIPS() || t.IsMIPS64() || t.IsS390X())
++	return true
+ }
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 9e3b8e2a0c..3d1677e278 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1695,27 +1695,32 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
+ 				break
+ 			}
+ 
++			// Compute external relocations on the go, and pass to Xcoffreloc1 to stream out.
+ 			// Relocation must be ordered by address, so create a list of sorted indices.
+-			relocs := ldr.ExtRelocs(s)
++			relocs := ldr.Relocs(s)
+ 			sorted := make([]int, relocs.Count())
+ 			for i := 0; i < relocs.Count(); i++ {
+ 				sorted[i] = i
+ 			}
+ 			sort.Slice(sorted, func(i, j int) bool {
+-				return relocs.At(sorted[i]).Off() < relocs.At(sorted[j]).Off()
++				return relocs.At2(sorted[i]).Off() < relocs.At2(sorted[j]).Off()
+ 			})
+ 
+ 			for _, ri := range sorted {
+-				r := relocs.At(ri)
+-
+-				if r.Xsym == 0 {
++				r := relocs.At2(ri)
++				rr, ok := extreloc(ctxt, ldr, s, r, ri)
++				if !ok {
++					continue
++				}
++				if rr.Xsym == 0 {
+ 					ldr.Errorf(s, "missing xsym in relocation")
+ 					continue
+ 				}
+-				if ldr.SymDynid(r.Xsym) < 0 {
+-					ldr.Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(r.Xsym), ldr.SymType(r.Sym()), ldr.SymDynid(r.Xsym))
++				if ldr.SymDynid(rr.Xsym) < 0 {
++					ldr.Errorf(s, "reloc %s to non-coff symbol %s (outer=%s) %d %d", r.Type(), ldr.SymName(r.Sym()), ldr.SymName(rr.Xsym), ldr.SymType(r.Sym()), ldr.SymDynid(rr.Xsym))
+ 				}
+-				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, r, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
++				rv := loader.ExtRelocView{Reloc2: r, ExtReloc: rr}
++				if !thearch.Xcoffreloc1(ctxt.Arch, ctxt.Out, ldr, s, rv, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-base)) {
+ 					ldr.Errorf(s, "unsupported obj reloc %d(%s)/%d to %s", r.Type(), r.Type(), r.Siz(), ldr.SymName(r.Sym()))
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 7dca8703a8..1daed8ac44 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -804,7 +804,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		// value with the current addresses.
+ 		switch rt := r.Type(); rt {
+ 		default:
+-			if target.IsAIX() {
++			if !target.IsAIX() {
+ 				return val, nExtReloc, false
+ 			}
+ 		case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
+@@ -813,8 +813,6 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 			if rt == objabi.R_POWER_TLS_IE {
+ 				nExtReloc = 2 // need two ELF relocations, see elfreloc1
+ 			}
+-			rr.Xadd = r.Add()
+-			rr.Xsym = rs
+ 			return val, nExtReloc, true
+ 		case objabi.R_ADDRPOWER,
+ 			objabi.R_ADDRPOWER_DS,
+@@ -823,23 +821,11 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 			objabi.R_ADDRPOWER_GOT,
+ 			objabi.R_ADDRPOWER_PCREL:
+ 			nExtReloc = 2 // need two ELF relocations, see elfreloc1
+-
+-			// set up addend for eventual relocation via outer symbol.
+-			rs, off := ld.FoldSubSymbolOffset(ldr, rs)
+-			rr.Xadd = r.Add() + off
+-			rst := ldr.SymType(rs)
+-			if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
+-				ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
+-			}
+-			rr.Xsym = rs
+-
+ 			if !target.IsAIX() {
+ 				return val, nExtReloc, true
+ 			}
+ 		case objabi.R_CALLPOWER:
+ 			nExtReloc = 1
+-			rr.Xsym = rs
+-			rr.Xadd = r.Add()
+ 			if !target.IsAIX() {
+ 				return val, nExtReloc, true
+ 			}
+@@ -980,6 +966,37 @@ overflow:
+ 	return t
+ }
+ 
++func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc2, s loader.Sym) (loader.ExtReloc, bool) {
++	rs := ldr.ResolveABIAlias(r.Sym())
++	var rr loader.ExtReloc
++	switch r.Type() {
++	case objabi.R_POWER_TLS, objabi.R_POWER_TLS_LE, objabi.R_POWER_TLS_IE:
++		rr.Xadd = r.Add()
++		rr.Xsym = rs
++		return rr, true
++	case objabi.R_ADDRPOWER,
++		objabi.R_ADDRPOWER_DS,
++		objabi.R_ADDRPOWER_TOCREL,
++		objabi.R_ADDRPOWER_TOCREL_DS,
++		objabi.R_ADDRPOWER_GOT,
++		objabi.R_ADDRPOWER_PCREL:
++		// set up addend for eventual relocation via outer symbol.
++		rs, off := ld.FoldSubSymbolOffset(ldr, rs)
++		rr.Xadd = r.Add() + off
++		rst := ldr.SymType(rs)
++		if rst != sym.SHOSTOBJ && rst != sym.SDYNIMPORT && rst != sym.SUNDEFEXT && ldr.SymSect(rs) == nil {
++			ldr.Errorf(s, "missing section for %s", ldr.SymName(rs))
++		}
++		rr.Xsym = rs
++		return rr, true
++	case objabi.R_CALLPOWER:
++		rr.Xsym = rs
++		rr.Xadd = r.Add()
++		return rr, true
++	}
++	return rr, false
++}
++
+ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
+ 	if ldr.SymPlt(s) >= 0 {
+ 		return
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 31823444dd..ef4393f489 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -54,6 +54,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
++		Extreloc:         extreloc,
+ 		Elfreloc1:        elfreloc1,
+ 		ElfrelocSize:     24,
+ 		Elfsetupplt:      elfsetupplt,

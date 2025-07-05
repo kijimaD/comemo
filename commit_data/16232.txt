@@ -7,6 +7,25 @@ Date:   Fri Apr 26 11:08:50 2013 +0400
     R=golang-dev, adg, r
     CC=golang-dev
     https://golang.org/cl/8819046
-
+---
  src/pkg/time/sleep_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index 9908e220f0..1322f06114 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -60,10 +60,11 @@ func TestAfterStress(t *testing.T) {
+ 			Sleep(Nanosecond)
+ 		}
+ 	}()
+-	c := Tick(1)
++	ticker := NewTicker(1)
+ 	for i := 0; i < 100; i++ {
+-		<-c
++		<-ticker.C
+ 	}
++	ticker.Stop()
+ 	atomic.StoreUint32(&stop, 1)
+ }
+ 

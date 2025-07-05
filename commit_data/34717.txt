@@ -15,7 +15,7 @@ Date:   Wed Nov 8 22:01:18 2017 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/test2json/test2json.go          | 398 +++++++++++++++++++++++
  src/cmd/internal/test2json/test2json_test.go     | 277 ++++++++++++++++
  src/cmd/internal/test2json/testdata/ascii.json   |  10 +
@@ -28,3 +28,1438 @@ Date:   Wed Nov 8 22:01:18 2017 -0500
  src/cmd/internal/test2json/testdata/vet.test     |  97 ++++++
  src/cmd/test2json/main.go                        | 101 ++++++
  11 files changed, 1368 insertions(+)
+
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+new file mode 100644
+index 0000000000..fa08e34a98
+--- /dev/null
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -0,0 +1,398 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package test2json implements conversion of test binary output to JSON.
++// It is used by cmd/test2json and cmd/go.
++//
++// See the cmd/test2json documentation for details of the JSON encoding.
++package test2json
++
++import (
++	"bytes"
++	"encoding/json"
++	"fmt"
++	"io"
++	"strconv"
++	"strings"
++	"time"
++	"unicode/utf8"
++)
++
++// Mode controls details of the conversion.
++type Mode int
++
++const (
++	Timestamp Mode = 1 << iota // include Time in events
++)
++
++// event is the JSON struct we emit.
++type event struct {
++	Time    *time.Time `json:",omitempty"`
++	Action  string
++	Package string     `json:",omitempty"`
++	Test    string     `json:",omitempty"`
++	Elapsed *float64   `json:",omitempty"`
++	Output  *textBytes `json:",omitempty"`
++}
++
++// textBytes is a hack to get JSON to emit a []byte as a string
++// without actually copying it to a string.
++// It implements encoding.TextMarshaler, which returns its text form as a []byte,
++// and then json encodes that text form as a string (which was our goal).
++type textBytes []byte
++
++func (b textBytes) MarshalText() ([]byte, error) { return b, nil }
++
++// A converter holds the state of a test-to-JSON conversion.
++// It implements io.WriteCloser; the caller writes test output in,
++// and the converter writes JSON output to w.
++type converter struct {
++	w        io.Writer  // JSON output stream
++	pkg      string     // package to name in events
++	mode     Mode       // mode bits
++	start    time.Time  // time converter started
++	testName string     // name of current test, for output attribution
++	report   []*event   // pending test result reports (nested for subtests)
++	passed   bool       // whether we've seen the final whole-package PASS line
++	input    lineBuffer // input buffer
++	output   lineBuffer // output buffer
++}
++
++// inBuffer and outBuffer are the input and output buffer sizes.
++// They're variables so that they can be reduced during testing.
++//
++// The input buffer needs to be able to hold any single test
++// directive line we want to recognize, like:
++//
++//     <many spaces> --- PASS: very/nested/s/u/b/t/e/s/t
++//
++// If anyone reports a test directive line > 4k not working, it will
++// be defensible to suggest they restructure their test or test names.
++//
++// The output buffer must be >= utf8.UTFMax, so that it can
++// accumulate any single UTF8 sequence. Lines that fit entirely
++// within the output buffer are emitted in single output events.
++// Otherwise they are split into multiple events.
++// The output buffer size therefore limits the size of the encoding
++// of a single JSON output event. 1k seems like a reasonable balance
++// between wanting to avoid splitting an output line and not wanting to
++// generate enormous output events.
++var (
++	inBuffer  = 4096
++	outBuffer = 1024
++)
++
++// NewConverter returns a "test to json" converter.
++// Writes on the returned writer are written as JSON to w,
++// with minimal delay.
++//
++// The writes to w are whole JSON events ending in \n,
++// so that it is safe to run multiple tests writing to multiple converters
++// writing to a single underlying output stream w.
++// As long as the underlying output w can handle concurrent writes
++// from multiple goroutines, the result will be a JSON stream
++// describing the relative ordering of execution in all the concurrent tests.
++//
++// The mode flag adjusts the behavior of the converter.
++// Passing ModeTime includes event timestamps and elapsed times.
++//
++// The pkg string, if present, specifies the import path to
++// report in the JSON stream.
++func NewConverter(w io.Writer, pkg string, mode Mode) io.WriteCloser {
++	c := new(converter)
++	*c = converter{
++		w:     w,
++		pkg:   pkg,
++		mode:  mode,
++		start: time.Now(),
++		input: lineBuffer{
++			b:    make([]byte, 0, inBuffer),
++			line: c.handleInputLine,
++			part: c.output.write,
++		},
++		output: lineBuffer{
++			b:    make([]byte, 0, outBuffer),
++			line: c.writeOutputEvent,
++			part: c.writeOutputEvent,
++		},
++	}
++	return c
++}
++
++// Write writes the test input to the converter.
++func (c *converter) Write(b []byte) (int, error) {
++	c.input.write(b)
++	return len(b), nil
++}
++
++var (
++	bigPass = []byte("PASS\n")
++	bigFail = []byte("FAIL\n")
++
++	updates = [][]byte{
++		[]byte("=== RUN   "),
++		[]byte("=== PAUSE "),
++		[]byte("=== CONT  "),
++	}
++
++	reports = [][]byte{
++		[]byte("--- PASS: "),
++		[]byte("--- FAIL: "),
++	}
++
++	fourSpace = []byte("    ")
++)
++
++// handleInputLine handles a single whole test output line.
++// It must write the line to c.output but may choose to do so
++// before or after emitting other events.
++func (c *converter) handleInputLine(line []byte) {
++	// Final PASS or FAIL.
++	if bytes.Equal(line, bigPass) || bytes.Equal(line, bigFail) {
++		c.flushReport(0)
++		c.output.write(line)
++		c.passed = bytes.Equal(line, bigPass)
++		return
++	}
++
++	// "=== RUN   "
++	// "=== PAUSE "
++	// "=== CONT  "
++	origLine := line
++	ok := false
++	indent := 0
++	for _, magic := range updates {
++		if bytes.HasPrefix(line, magic) {
++			ok = true
++			break
++		}
++	}
++	if !ok {
++		// "--- PASS: "
++		// "--- FAIL: "
++		// but possibly indented.
++		for bytes.HasPrefix(line, fourSpace) {
++			line = line[4:]
++			indent++
++		}
++		for _, magic := range reports {
++			if bytes.HasPrefix(line, magic) {
++				ok = true
++				break
++			}
++		}
++	}
++
++	if !ok {
++		// Not a special test output line.
++		c.output.write(origLine)
++		return
++	}
++
++	// Parse out action and test name.
++	action := strings.ToLower(strings.TrimSuffix(strings.TrimSpace(string(line[4:4+6])), ":"))
++	name := strings.TrimSpace(string(line[4+6:]))
++
++	e := &event{Action: action}
++	if line[0] == '-' { // PASS or FAIL report
++		// Parse out elapsed time.
++		if i := strings.Index(name, " ("); i >= 0 {
++			if strings.HasSuffix(name, "s)") {
++				t, err := strconv.ParseFloat(name[i+2:len(name)-2], 64)
++				if err == nil {
++					if c.mode&Timestamp != 0 {
++						e.Elapsed = &t
++					}
++				}
++			}
++			name = name[:i]
++		}
++		if len(c.report) < indent {
++			// Nested deeper than expected.
++			// Treat this line as plain output.
++			return
++		}
++		// Flush reports at this indentation level or deeper.
++		c.flushReport(indent)
++		e.Test = name
++		c.testName = name
++		c.report = append(c.report, e)
++		c.output.write(origLine)
++		return
++	}
++	// === update.
++	// Finish any pending PASS/FAIL reports.
++	c.flushReport(0)
++	c.testName = name
++
++	if action == "pause" {
++		// For a pause, we want to write the pause notification before
++		// delivering the pause event, just so it doesn't look like the test
++		// is generating output immediately after being paused.
++		c.output.write(origLine)
++	}
++	c.writeEvent(e)
++	if action != "pause" {
++		c.output.write(origLine)
++	}
++
++	return
++}
++
++// flushReport flushes all pending PASS/FAIL reports at levels >= depth.
++func (c *converter) flushReport(depth int) {
++	c.testName = ""
++	for len(c.report) > depth {
++		e := c.report[len(c.report)-1]
++		c.report = c.report[:len(c.report)-1]
++		c.writeEvent(e)
++	}
++}
++
++// Close marks the end of the go test output.
++// It flushes any pending input and then output (only partial lines at this point)
++// and then emits the final overall package-level pass/fail event.
++func (c *converter) Close() error {
++	c.input.flush()
++	c.output.flush()
++	e := &event{Action: "fail"}
++	if c.passed {
++		e.Action = "pass"
++	}
++	if c.mode&Timestamp != 0 {
++		dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
++		e.Elapsed = &dt
++	}
++	c.writeEvent(e)
++	return nil
++}
++
++// writeOutputEvent writes a single output event with the given bytes.
++func (c *converter) writeOutputEvent(out []byte) {
++	c.writeEvent(&event{
++		Action: "output",
++		Output: (*textBytes)(&out),
++	})
++}
++
++// writeEvent writes a single event.
++// It adds the package, time (if requested), and test name (if needed).
++func (c *converter) writeEvent(e *event) {
++	e.Package = c.pkg
++	if c.mode&Timestamp != 0 {
++		t := time.Now()
++		e.Time = &t
++	}
++	if e.Test == "" {
++		e.Test = c.testName
++	}
++	js, err := json.Marshal(e)
++	if err != nil {
++		// Should not happen - event is valid for json.Marshal.
++		c.w.Write([]byte(fmt.Sprintf("testjson internal error: %v\n", err)))
++		return
++	}
++	js = append(js, '\n')
++	c.w.Write(js)
++}
++
++// A lineBuffer is an I/O buffer that reacts to writes by invoking
++// input-processing callbacks on whole lines or (for long lines that
++// have been split) line fragments.
++//
++// It should be initialized with b set to a buffer of length 0 but non-zero capacity,
++// and line and part set to the desired input processors.
++// The lineBuffer will call line(x) for any whole line x (including the final newline)
++// that fits entirely in cap(b). It will handle input lines longer than cap(b) by
++// calling part(x) for sections of the line. The line will be split at UTF8 boundaries,
++// and the final call to part for a long line includes the final newline.
++type lineBuffer struct {
++	b    []byte       // buffer
++	mid  bool         // whether we're in the middle of a long line
++	line func([]byte) // line callback
++	part func([]byte) // partial line callback
++}
++
++// write writes b to the buffer.
++func (l *lineBuffer) write(b []byte) {
++	for len(b) > 0 {
++		// Copy what we can into b.
++		m := copy(l.b[len(l.b):cap(l.b)], b)
++		l.b = l.b[:len(l.b)+m]
++		b = b[m:]
++
++		// Process lines in b.
++		i := 0
++		for i < len(l.b) {
++			j := bytes.IndexByte(l.b[i:], '\n')
++			if j < 0 {
++				break
++			}
++			e := i + j + 1
++			if l.mid {
++				// Found the end of a partial line.
++				l.part(l.b[i:e])
++				l.mid = false
++			} else {
++				// Found a whole line.
++				l.line(l.b[i:e])
++			}
++			i = e
++		}
++
++		// Whatever's left in l.b is a line fragment.
++		if i == 0 && len(l.b) == cap(l.b) {
++			// The whole buffer is a fragment.
++			// Emit it as the beginning (or continuation) of a partial line.
++			t := trimUTF8(l.b)
++			l.part(l.b[:t])
++			l.b = l.b[:copy(l.b, l.b[t:])]
++			l.mid = true
++		}
++
++		// There's room for more input.
++		// Slide it down in hope of completing the line.
++		if i > 0 {
++			l.b = l.b[:copy(l.b, l.b[i:])]
++		}
++	}
++}
++
++// flush flushes the line buffer.
++func (l *lineBuffer) flush() {
++	if len(l.b) > 0 {
++		// Must be a line without a \n, so a partial line.
++		l.part(l.b)
++		l.b = l.b[:0]
++	}
++}
++
++// trimUTF8 returns a length t as close to len(b) as possible such that b[:t]
++// does not end in the middle of a possibly-valid UTF-8 sequence.
++//
++// If a large text buffer must be split before position i at the latest,
++// splitting at position trimUTF(b[:i]) avoids splitting a UTF-8 sequence.
++func trimUTF8(b []byte) int {
++	// Scan backward to find non-continuation byte.
++	for i := 1; i < utf8.UTFMax && i <= len(b); i++ {
++		if c := b[len(b)-i]; c&0xc0 != 0x80 {
++			switch {
++			case c&0xe0 == 0xc0:
++				if i < 2 {
++					return len(b) - i
++				}
++			case c&0xf0 == 0xe0:
++				if i < 3 {
++					return len(b) - i
++				}
++			case c&0xf8 == 0xf0:
++				if i < 4 {
++					return len(b) - i
++				}
++			}
++			break
++		}
++	}
++	return len(b)
++}
+diff --git a/src/cmd/internal/test2json/test2json_test.go b/src/cmd/internal/test2json/test2json_test.go
+new file mode 100644
+index 0000000000..4683907888
+--- /dev/null
++++ b/src/cmd/internal/test2json/test2json_test.go
+@@ -0,0 +1,277 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test2json
++
++import (
++	"bytes"
++	"encoding/json"
++	"flag"
++	"fmt"
++	"io"
++	"io/ioutil"
++	"path/filepath"
++	"reflect"
++	"strings"
++	"testing"
++	"unicode/utf8"
++)
++
++var update = flag.Bool("update", false, "rewrite testdata/*.json files")
++
++func TestGolden(t *testing.T) {
++	files, err := filepath.Glob("testdata/*.test")
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, file := range files {
++		name := strings.TrimSuffix(filepath.Base(file), ".test")
++		t.Run(name, func(t *testing.T) {
++			orig, err := ioutil.ReadFile(file)
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			// Test one line written to c at a time.
++			// Assume that's the most likely to be handled correctly.
++			var buf bytes.Buffer
++			c := NewConverter(&buf, "", 0)
++			in := append([]byte{}, orig...)
++			for _, line := range bytes.SplitAfter(in, []byte("\n")) {
++				writeAndKill(c, line)
++			}
++			c.Close()
++
++			if *update {
++				js := strings.TrimSuffix(file, ".test") + ".json"
++				t.Logf("rewriting %s", js)
++				if err := ioutil.WriteFile(js, buf.Bytes(), 0666); err != nil {
++					t.Fatal(err)
++				}
++				return
++			}
++
++			want, err := ioutil.ReadFile(strings.TrimSuffix(file, ".test") + ".json")
++			if err != nil {
++				t.Fatal(err)
++			}
++			diffJSON(t, buf.Bytes(), want)
++			if t.Failed() {
++				// If the line-at-a-time conversion fails, no point testing boundary conditions.
++				return
++			}
++
++			// Write entire input in bulk.
++			t.Run("bulk", func(t *testing.T) {
++				buf.Reset()
++				c = NewConverter(&buf, "", 0)
++				in = append([]byte{}, orig...)
++				writeAndKill(c, in)
++				c.Close()
++				diffJSON(t, buf.Bytes(), want)
++			})
++
++			// Write 2 bytes at a time on even boundaries.
++			t.Run("even2", func(t *testing.T) {
++				buf.Reset()
++				c = NewConverter(&buf, "", 0)
++				in = append([]byte{}, orig...)
++				for i := 0; i < len(in); i += 2 {
++					if i+2 <= len(in) {
++						writeAndKill(c, in[i:i+2])
++					} else {
++						writeAndKill(c, in[i:])
++					}
++				}
++				c.Close()
++				diffJSON(t, buf.Bytes(), want)
++			})
++
++			// Write 2 bytes at a time on odd boundaries.
++			t.Run("odd2", func(t *testing.T) {
++				buf.Reset()
++				c = NewConverter(&buf, "", 0)
++				in = append([]byte{}, orig...)
++				if len(in) > 0 {
++					writeAndKill(c, in[:1])
++				}
++				for i := 1; i < len(in); i += 2 {
++					if i+2 <= len(in) {
++						writeAndKill(c, in[i:i+2])
++					} else {
++						writeAndKill(c, in[i:])
++					}
++				}
++				c.Close()
++				diffJSON(t, buf.Bytes(), want)
++			})
++
++			// Test with very small output buffers, to check that
++			// UTF8 sequences are not broken up.
++			for b := 5; b <= 8; b++ {
++				t.Run(fmt.Sprintf("tiny%d", b), func(t *testing.T) {
++					oldIn := inBuffer
++					oldOut := outBuffer
++					defer func() {
++						inBuffer = oldIn
++						outBuffer = oldOut
++					}()
++					inBuffer = 64
++					outBuffer = b
++					buf.Reset()
++					c = NewConverter(&buf, "", 0)
++					in = append([]byte{}, orig...)
++					writeAndKill(c, in)
++					c.Close()
++					diffJSON(t, buf.Bytes(), want)
++				})
++			}
++		})
++	}
++}
++
++// writeAndKill writes b to w and then fills b with Zs.
++// The filling makes sure that if w is holding onto b for
++// future use, that future use will have obviously wrong data.
++func writeAndKill(w io.Writer, b []byte) {
++	w.Write(b)
++	for i := range b {
++		b[i] = 'Z'
++	}
++}
++
++// diffJSON diffs the stream we have against the stream we want
++// and fails the test with a useful message if they don't match.
++func diffJSON(t *testing.T, have, want []byte) {
++	t.Helper()
++	type event map[string]interface{}
++
++	// Parse into events, one per line.
++	parseEvents := func(b []byte) ([]event, []string) {
++		t.Helper()
++		var events []event
++		var lines []string
++		for _, line := range bytes.SplitAfter(b, []byte("\n")) {
++			if len(line) > 0 {
++				line = bytes.TrimSpace(line)
++				var e event
++				err := json.Unmarshal(line, &e)
++				if err != nil {
++					t.Errorf("unmarshal %s: %v", b, err)
++					continue
++				}
++				events = append(events, e)
++				lines = append(lines, string(line))
++			}
++		}
++		return events, lines
++	}
++	haveEvents, haveLines := parseEvents(have)
++	wantEvents, wantLines := parseEvents(want)
++	if t.Failed() {
++		return
++	}
++
++	// Make sure the events we have match the events we want.
++	// At each step we're matching haveEvents[i] against wantEvents[j].
++	// i and j can move independently due to choices about exactly
++	// how to break up text in "output" events.
++	i := 0
++	j := 0
++
++	// Fail reports a failure at the current i,j and stops the test.
++	// It shows the events around the current positions,
++	// with the current positions marked.
++	fail := func() {
++		var buf bytes.Buffer
++		show := func(i int, lines []string) {
++			for k := -2; k < 5; k++ {
++				marker := ""
++				if k == 0 {
++					marker = "» "
++				}
++				if 0 <= i+k && i+k < len(lines) {
++					fmt.Fprintf(&buf, "\t%s%s\n", marker, lines[i+k])
++				}
++			}
++			if i >= len(lines) {
++				// show marker after end of input
++				fmt.Fprintf(&buf, "\t» \n")
++			}
++		}
++		fmt.Fprintf(&buf, "have:\n")
++		show(i, haveLines)
++		fmt.Fprintf(&buf, "want:\n")
++		show(j, wantLines)
++		t.Fatal(buf.String())
++	}
++
++	var outputTest string             // current "Test" key in "output" events
++	var wantOutput, haveOutput string // collected "Output" of those events
++
++	// getTest returns the "Test" setting, or "" if it is missing.
++	getTest := func(e event) string {
++		s, _ := e["Test"].(string)
++		return s
++	}
++
++	// checkOutput collects output from the haveEvents for the current outputTest
++	// and then checks that the collected output matches the wanted output.
++	checkOutput := func() {
++		for i < len(haveEvents) && haveEvents[i]["Action"] == "output" && getTest(haveEvents[i]) == outputTest {
++			haveOutput += haveEvents[i]["Output"].(string)
++			i++
++		}
++		if haveOutput != wantOutput {
++			t.Errorf("output mismatch for Test=%q:\nhave %q\nwant %q", outputTest, haveOutput, wantOutput)
++			fail()
++		}
++		haveOutput = ""
++		wantOutput = ""
++	}
++
++	// Walk through wantEvents matching against haveEvents.
++	for j = range wantEvents {
++		e := wantEvents[j]
++		if e["Action"] == "output" && getTest(e) == outputTest {
++			wantOutput += e["Output"].(string)
++			continue
++		}
++		checkOutput()
++		if e["Action"] == "output" {
++			outputTest = getTest(e)
++			wantOutput += e["Output"].(string)
++			continue
++		}
++		if i >= len(haveEvents) {
++			t.Errorf("early end of event stream: missing event")
++			fail()
++		}
++		if !reflect.DeepEqual(haveEvents[i], e) {
++			t.Errorf("events out of sync")
++			fail()
++		}
++		i++
++	}
++	checkOutput()
++	if i < len(haveEvents) {
++		t.Errorf("extra events in stream")
++		fail()
++	}
++}
++
++func TestTrimUTF8(t *testing.T) {
++	s := "hello α ☺ 😂 world" // α is 2-byte, ☺ is 3-byte, 😂 is 4-byte
++	b := []byte(s)
++	for i := 0; i < len(s); i++ {
++		j := trimUTF8(b[:i])
++		u := string([]rune(s[:j])) + string([]rune(s[j:]))
++		if u != s {
++			t.Errorf("trimUTF8(%q) = %d (-%d), not at boundary (split: %q %q)", s[:i], j, i-j, s[:j], s[j:])
++		}
++		if utf8.FullRune(b[j:i]) {
++			t.Errorf("trimUTF8(%q) = %d (-%d), too early (missed: %q)", s[:j], j, i-j, s[j:i])
++		}
++	}
++}
+diff --git a/src/cmd/internal/test2json/testdata/ascii.json b/src/cmd/internal/test2json/testdata/ascii.json
+new file mode 100644
+index 0000000000..67fccfc112
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/ascii.json
+@@ -0,0 +1,10 @@
++{"Action":"run","Test":"TestAscii"}
++{"Action":"output","Test":"TestAscii","Output":"=== RUN   TestAscii\n"}
++{"Action":"output","Test":"TestAscii","Output":"I can eat glass, and it doesn't hurt me. I can eat glass, and it doesn't hurt me.\n"}
++{"Action":"output","Test":"TestAscii","Output":"I CAN EAT GLASS, AND IT DOESN'T HURT ME. I CAN EAT GLASS, AND IT DOESN'T HURT ME.\n"}
++{"Action":"output","Test":"TestAscii","Output":"--- PASS: TestAscii\n"}
++{"Action":"output","Test":"TestAscii","Output":"    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.\n"}
++{"Action":"output","Test":"TestAscii","Output":"    V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR. V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR.\n"}
++{"Action":"pass","Test":"TestAscii"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/ascii.test b/src/cmd/internal/test2json/testdata/ascii.test
+new file mode 100644
+index 0000000000..4ff7453430
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/ascii.test
+@@ -0,0 +1,7 @@
++=== RUN   TestAscii
++I can eat glass, and it doesn't hurt me. I can eat glass, and it doesn't hurt me.
++I CAN EAT GLASS, AND IT DOESN'T HURT ME. I CAN EAT GLASS, AND IT DOESN'T HURT ME.
++--- PASS: TestAscii
++    i can eat glass, and it doesn't hurt me. i can eat glass, and it doesn't hurt me.
++    V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR. V PNA RNG TYNFF, NAQ VG QBRFA'G UHEG ZR.
++PASS
+diff --git a/src/cmd/internal/test2json/testdata/smiley.json b/src/cmd/internal/test2json/testdata/smiley.json
+new file mode 100644
+index 0000000000..afa990d7c0
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/smiley.json
+@@ -0,0 +1,182 @@
++{"Action":"run","Test":"Test☺☹"}
++{"Action":"output","Test":"Test☺☹","Output":"=== RUN   Test☺☹\n"}
++{"Action":"output","Test":"Test☺☹","Output":"=== PAUSE Test☺☹\n"}
++{"Action":"pause","Test":"Test☺☹"}
++{"Action":"run","Test":"Test☺☹Asm"}
++{"Action":"output","Test":"Test☺☹Asm","Output":"=== RUN   Test☺☹Asm\n"}
++{"Action":"output","Test":"Test☺☹Asm","Output":"=== PAUSE Test☺☹Asm\n"}
++{"Action":"pause","Test":"Test☺☹Asm"}
++{"Action":"run","Test":"Test☺☹Dirs"}
++{"Action":"output","Test":"Test☺☹Dirs","Output":"=== RUN   Test☺☹Dirs\n"}
++{"Action":"output","Test":"Test☺☹Dirs","Output":"=== PAUSE Test☺☹Dirs\n"}
++{"Action":"pause","Test":"Test☺☹Dirs"}
++{"Action":"run","Test":"TestTags"}
++{"Action":"output","Test":"TestTags","Output":"=== RUN   TestTags\n"}
++{"Action":"output","Test":"TestTags","Output":"=== PAUSE TestTags\n"}
++{"Action":"pause","Test":"TestTags"}
++{"Action":"run","Test":"Test☺☹Verbose"}
++{"Action":"output","Test":"Test☺☹Verbose","Output":"=== RUN   Test☺☹Verbose\n"}
++{"Action":"output","Test":"Test☺☹Verbose","Output":"=== PAUSE Test☺☹Verbose\n"}
++{"Action":"pause","Test":"Test☺☹Verbose"}
++{"Action":"cont","Test":"Test☺☹"}
++{"Action":"output","Test":"Test☺☹","Output":"=== CONT  Test☺☹\n"}
++{"Action":"cont","Test":"TestTags"}
++{"Action":"output","Test":"TestTags","Output":"=== CONT  TestTags\n"}
++{"Action":"cont","Test":"Test☺☹Verbose"}
++{"Action":"output","Test":"Test☺☹Verbose","Output":"=== CONT  Test☺☹Verbose\n"}
++{"Action":"run","Test":"TestTags/testtag"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== RUN   TestTags/testtag\n"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== PAUSE TestTags/testtag\n"}
++{"Action":"pause","Test":"TestTags/testtag"}
++{"Action":"cont","Test":"Test☺☹Dirs"}
++{"Action":"output","Test":"Test☺☹Dirs","Output":"=== CONT  Test☺☹Dirs\n"}
++{"Action":"cont","Test":"Test☺☹Asm"}
++{"Action":"output","Test":"Test☺☹Asm","Output":"=== CONT  Test☺☹Asm\n"}
++{"Action":"run","Test":"Test☺☹/0"}
++{"Action":"output","Test":"Test☺☹/0","Output":"=== RUN   Test☺☹/0\n"}
++{"Action":"output","Test":"Test☺☹/0","Output":"=== PAUSE Test☺☹/0\n"}
++{"Action":"pause","Test":"Test☺☹/0"}
++{"Action":"run","Test":"Test☺☹/1"}
++{"Action":"output","Test":"Test☺☹/1","Output":"=== RUN   Test☺☹/1\n"}
++{"Action":"output","Test":"Test☺☹/1","Output":"=== PAUSE Test☺☹/1\n"}
++{"Action":"pause","Test":"Test☺☹/1"}
++{"Action":"run","Test":"Test☺☹/2"}
++{"Action":"output","Test":"Test☺☹/2","Output":"=== RUN   Test☺☹/2\n"}
++{"Action":"output","Test":"Test☺☹/2","Output":"=== PAUSE Test☺☹/2\n"}
++{"Action":"pause","Test":"Test☺☹/2"}
++{"Action":"run","Test":"Test☺☹/3"}
++{"Action":"output","Test":"Test☺☹/3","Output":"=== RUN   Test☺☹/3\n"}
++{"Action":"output","Test":"Test☺☹/3","Output":"=== PAUSE Test☺☹/3\n"}
++{"Action":"pause","Test":"Test☺☹/3"}
++{"Action":"run","Test":"Test☺☹/4"}
++{"Action":"output","Test":"Test☺☹/4","Output":"=== RUN   Test☺☹/4\n"}
++{"Action":"run","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== RUN   TestTags/x_testtag_y\n"}
++{"Action":"output","Test":"Test☺☹/4","Output":"=== PAUSE Test☺☹/4\n"}
++{"Action":"pause","Test":"Test☺☹/4"}
++{"Action":"run","Test":"Test☺☹/5"}
++{"Action":"output","Test":"Test☺☹/5","Output":"=== RUN   Test☺☹/5\n"}
++{"Action":"output","Test":"Test☺☹/5","Output":"=== PAUSE Test☺☹/5\n"}
++{"Action":"pause","Test":"Test☺☹/5"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== PAUSE TestTags/x_testtag_y\n"}
++{"Action":"pause","Test":"TestTags/x_testtag_y"}
++{"Action":"run","Test":"Test☺☹/6"}
++{"Action":"output","Test":"Test☺☹/6","Output":"=== RUN   Test☺☹/6\n"}
++{"Action":"run","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== RUN   TestTags/x,testtag,y\n"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== PAUSE TestTags/x,testtag,y\n"}
++{"Action":"pause","Test":"TestTags/x,testtag,y"}
++{"Action":"run","Test":"Test☺☹Dirs/testingpkg"}
++{"Action":"output","Test":"Test☺☹Dirs/testingpkg","Output":"=== RUN   Test☺☹Dirs/testingpkg\n"}
++{"Action":"output","Test":"Test☺☹/6","Output":"=== PAUSE Test☺☹/6\n"}
++{"Action":"pause","Test":"Test☺☹/6"}
++{"Action":"cont","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== CONT  TestTags/x,testtag,y\n"}
++{"Action":"output","Test":"Test☺☹Dirs/testingpkg","Output":"=== PAUSE Test☺☹Dirs/testingpkg\n"}
++{"Action":"pause","Test":"Test☺☹Dirs/testingpkg"}
++{"Action":"run","Test":"Test☺☹Dirs/divergent"}
++{"Action":"output","Test":"Test☺☹Dirs/divergent","Output":"=== RUN   Test☺☹Dirs/divergent\n"}
++{"Action":"run","Test":"Test☺☹/7"}
++{"Action":"output","Test":"Test☺☹/7","Output":"=== RUN   Test☺☹/7\n"}
++{"Action":"output","Test":"Test☺☹/7","Output":"=== PAUSE Test☺☹/7\n"}
++{"Action":"pause","Test":"Test☺☹/7"}
++{"Action":"output","Test":"Test☺☹Dirs/divergent","Output":"=== PAUSE Test☺☹Dirs/divergent\n"}
++{"Action":"pause","Test":"Test☺☹Dirs/divergent"}
++{"Action":"cont","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== CONT  TestTags/x_testtag_y\n"}
++{"Action":"cont","Test":"TestTags/testtag"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== CONT  TestTags/testtag\n"}
++{"Action":"run","Test":"Test☺☹Dirs/buildtag"}
++{"Action":"output","Test":"Test☺☹Dirs/buildtag","Output":"=== RUN   Test☺☹Dirs/buildtag\n"}
++{"Action":"output","Test":"Test☺☹Dirs/buildtag","Output":"=== PAUSE Test☺☹Dirs/buildtag\n"}
++{"Action":"pause","Test":"Test☺☹Dirs/buildtag"}
++{"Action":"cont","Test":"Test☺☹/0"}
++{"Action":"output","Test":"Test☺☹/0","Output":"=== CONT  Test☺☹/0\n"}
++{"Action":"cont","Test":"Test☺☹/4"}
++{"Action":"output","Test":"Test☺☹/4","Output":"=== CONT  Test☺☹/4\n"}
++{"Action":"run","Test":"Test☺☹Dirs/incomplete"}
++{"Action":"output","Test":"Test☺☹Dirs/incomplete","Output":"=== RUN   Test☺☹Dirs/incomplete\n"}
++{"Action":"output","Test":"Test☺☹Dirs/incomplete","Output":"=== PAUSE Test☺☹Dirs/incomplete\n"}
++{"Action":"pause","Test":"Test☺☹Dirs/incomplete"}
++{"Action":"run","Test":"Test☺☹Dirs/cgo"}
++{"Action":"output","Test":"Test☺☹Dirs/cgo","Output":"=== RUN   Test☺☹Dirs/cgo\n"}
++{"Action":"output","Test":"Test☺☹Dirs/cgo","Output":"=== PAUSE Test☺☹Dirs/cgo\n"}
++{"Action":"pause","Test":"Test☺☹Dirs/cgo"}
++{"Action":"cont","Test":"Test☺☹/7"}
++{"Action":"output","Test":"Test☺☹/7","Output":"=== CONT  Test☺☹/7\n"}
++{"Action":"cont","Test":"Test☺☹/6"}
++{"Action":"output","Test":"Test☺☹/6","Output":"=== CONT  Test☺☹/6\n"}
++{"Action":"output","Test":"Test☺☹Verbose","Output":"--- PASS: Test☺☹Verbose (0.04s)\n"}
++{"Action":"pass","Test":"Test☺☹Verbose"}
++{"Action":"cont","Test":"Test☺☹/5"}
++{"Action":"output","Test":"Test☺☹/5","Output":"=== CONT  Test☺☹/5\n"}
++{"Action":"cont","Test":"Test☺☹/3"}
++{"Action":"output","Test":"Test☺☹/3","Output":"=== CONT  Test☺☹/3\n"}
++{"Action":"cont","Test":"Test☺☹/2"}
++{"Action":"output","Test":"Test☺☹/2","Output":"=== CONT  Test☺☹/2\n"}
++{"Action":"output","Test":"TestTags","Output":"--- PASS: TestTags (0.00s)\n"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    --- PASS: TestTags/x_testtag_y (0.04s)\n"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    \tvet_test.go:187: -tags=x testtag y\n"}
++{"Action":"pass","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    --- PASS: TestTags/x,testtag,y (0.04s)\n"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    \tvet_test.go:187: -tags=x,testtag,y\n"}
++{"Action":"pass","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/testtag","Output":"    --- PASS: TestTags/testtag (0.04s)\n"}
++{"Action":"output","Test":"TestTags/testtag","Output":"    \tvet_test.go:187: -tags=testtag\n"}
++{"Action":"pass","Test":"TestTags/testtag"}
++{"Action":"pass","Test":"TestTags"}
++{"Action":"cont","Test":"Test☺☹/1"}
++{"Action":"output","Test":"Test☺☹/1","Output":"=== CONT  Test☺☹/1\n"}
++{"Action":"cont","Test":"Test☺☹Dirs/testingpkg"}
++{"Action":"output","Test":"Test☺☹Dirs/testingpkg","Output":"=== CONT  Test☺☹Dirs/testingpkg\n"}
++{"Action":"cont","Test":"Test☺☹Dirs/buildtag"}
++{"Action":"output","Test":"Test☺☹Dirs/buildtag","Output":"=== CONT  Test☺☹Dirs/buildtag\n"}
++{"Action":"cont","Test":"Test☺☹Dirs/divergent"}
++{"Action":"output","Test":"Test☺☹Dirs/divergent","Output":"=== CONT  Test☺☹Dirs/divergent\n"}
++{"Action":"cont","Test":"Test☺☹Dirs/incomplete"}
++{"Action":"output","Test":"Test☺☹Dirs/incomplete","Output":"=== CONT  Test☺☹Dirs/incomplete\n"}
++{"Action":"cont","Test":"Test☺☹Dirs/cgo"}
++{"Action":"output","Test":"Test☺☹Dirs/cgo","Output":"=== CONT  Test☺☹Dirs/cgo\n"}
++{"Action":"output","Test":"Test☺☹","Output":"--- PASS: Test☺☹ (0.39s)\n"}
++{"Action":"output","Test":"Test☺☹/5","Output":"    --- PASS: Test☺☹/5 (0.07s)\n"}
++{"Action":"output","Test":"Test☺☹/5","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/5"}
++{"Action":"output","Test":"Test☺☹/3","Output":"    --- PASS: Test☺☹/3 (0.07s)\n"}
++{"Action":"output","Test":"Test☺☹/3","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/3"}
++{"Action":"output","Test":"Test☺☹/6","Output":"    --- PASS: Test☺☹/6 (0.07s)\n"}
++{"Action":"output","Test":"Test☺☹/6","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/6"}
++{"Action":"output","Test":"Test☺☹/2","Output":"    --- PASS: Test☺☹/2 (0.07s)\n"}
++{"Action":"output","Test":"Test☺☹/2","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/2"}
++{"Action":"output","Test":"Test☺☹/0","Output":"    --- PASS: Test☺☹/0 (0.13s)\n"}
++{"Action":"output","Test":"Test☺☹/0","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/0"}
++{"Action":"output","Test":"Test☺☹/4","Output":"    --- PASS: Test☺☹/4 (0.16s)\n"}
++{"Action":"output","Test":"Test☺☹/4","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/4"}
++{"Action":"output","Test":"Test☺☹/1","Output":"    --- PASS: Test☺☹/1 (0.07s)\n"}
++{"Action":"output","Test":"Test☺☹/1","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/1"}
++{"Action":"output","Test":"Test☺☹/7","Output":"    --- PASS: Test☺☹/7 (0.19s)\n"}
++{"Action":"output","Test":"Test☺☹/7","Output":"    \tvet_test.go:114: φιλεσ: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
++{"Action":"pass","Test":"Test☺☹/7"}
++{"Action":"pass","Test":"Test☺☹"}
++{"Action":"output","Test":"Test☺☹Dirs","Output":"--- PASS: Test☺☹Dirs (0.01s)\n"}
++{"Action":"output","Test":"Test☺☹Dirs/testingpkg","Output":"    --- PASS: Test☺☹Dirs/testingpkg (0.06s)\n"}
++{"Action":"pass","Test":"Test☺☹Dirs/testingpkg"}
++{"Action":"output","Test":"Test☺☹Dirs/divergent","Output":"    --- PASS: Test☺☹Dirs/divergent (0.05s)\n"}
++{"Action":"pass","Test":"Test☺☹Dirs/divergent"}
++{"Action":"output","Test":"Test☺☹Dirs/buildtag","Output":"    --- PASS: Test☺☹Dirs/buildtag (0.06s)\n"}
++{"Action":"pass","Test":"Test☺☹Dirs/buildtag"}
++{"Action":"output","Test":"Test☺☹Dirs/incomplete","Output":"    --- PASS: Test☺☹Dirs/incomplete (0.05s)\n"}
++{"Action":"pass","Test":"Test☺☹Dirs/incomplete"}
++{"Action":"output","Test":"Test☺☹Dirs/cgo","Output":"    --- PASS: Test☺☹Dirs/cgo (0.04s)\n"}
++{"Action":"pass","Test":"Test☺☹Dirs/cgo"}
++{"Action":"pass","Test":"Test☺☹Dirs"}
++{"Action":"output","Test":"Test☺☹Asm","Output":"--- PASS: Test☺☹Asm (0.75s)\n"}
++{"Action":"pass","Test":"Test☺☹Asm"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"output","Output":"ok  \tcmd/vet\t(cached)\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/smiley.test b/src/cmd/internal/test2json/testdata/smiley.test
+new file mode 100644
+index 0000000000..05edf5a312
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/smiley.test
+@@ -0,0 +1,97 @@
++=== RUN   Test☺☹
++=== PAUSE Test☺☹
++=== RUN   Test☺☹Asm
++=== PAUSE Test☺☹Asm
++=== RUN   Test☺☹Dirs
++=== PAUSE Test☺☹Dirs
++=== RUN   TestTags
++=== PAUSE TestTags
++=== RUN   Test☺☹Verbose
++=== PAUSE Test☺☹Verbose
++=== CONT  Test☺☹
++=== CONT  TestTags
++=== CONT  Test☺☹Verbose
++=== RUN   TestTags/testtag
++=== PAUSE TestTags/testtag
++=== CONT  Test☺☹Dirs
++=== CONT  Test☺☹Asm
++=== RUN   Test☺☹/0
++=== PAUSE Test☺☹/0
++=== RUN   Test☺☹/1
++=== PAUSE Test☺☹/1
++=== RUN   Test☺☹/2
++=== PAUSE Test☺☹/2
++=== RUN   Test☺☹/3
++=== PAUSE Test☺☹/3
++=== RUN   Test☺☹/4
++=== RUN   TestTags/x_testtag_y
++=== PAUSE Test☺☹/4
++=== RUN   Test☺☹/5
++=== PAUSE Test☺☹/5
++=== PAUSE TestTags/x_testtag_y
++=== RUN   Test☺☹/6
++=== RUN   TestTags/x,testtag,y
++=== PAUSE TestTags/x,testtag,y
++=== RUN   Test☺☹Dirs/testingpkg
++=== PAUSE Test☺☹/6
++=== CONT  TestTags/x,testtag,y
++=== PAUSE Test☺☹Dirs/testingpkg
++=== RUN   Test☺☹Dirs/divergent
++=== RUN   Test☺☹/7
++=== PAUSE Test☺☹/7
++=== PAUSE Test☺☹Dirs/divergent
++=== CONT  TestTags/x_testtag_y
++=== CONT  TestTags/testtag
++=== RUN   Test☺☹Dirs/buildtag
++=== PAUSE Test☺☹Dirs/buildtag
++=== CONT  Test☺☹/0
++=== CONT  Test☺☹/4
++=== RUN   Test☺☹Dirs/incomplete
++=== PAUSE Test☺☹Dirs/incomplete
++=== RUN   Test☺☹Dirs/cgo
++=== PAUSE Test☺☹Dirs/cgo
++=== CONT  Test☺☹/7
++=== CONT  Test☺☹/6
++--- PASS: Test☺☹Verbose (0.04s)
++=== CONT  Test☺☹/5
++=== CONT  Test☺☹/3
++=== CONT  Test☺☹/2
++--- PASS: TestTags (0.00s)
++    --- PASS: TestTags/x_testtag_y (0.04s)
++    	vet_test.go:187: -tags=x testtag y
++    --- PASS: TestTags/x,testtag,y (0.04s)
++    	vet_test.go:187: -tags=x,testtag,y
++    --- PASS: TestTags/testtag (0.04s)
++    	vet_test.go:187: -tags=testtag
++=== CONT  Test☺☹/1
++=== CONT  Test☺☹Dirs/testingpkg
++=== CONT  Test☺☹Dirs/buildtag
++=== CONT  Test☺☹Dirs/divergent
++=== CONT  Test☺☹Dirs/incomplete
++=== CONT  Test☺☹Dirs/cgo
++--- PASS: Test☺☹ (0.39s)
++    --- PASS: Test☺☹/5 (0.07s)
++    	vet_test.go:114: φιλεσ: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
++    --- PASS: Test☺☹/3 (0.07s)
++    	vet_test.go:114: φιλεσ: ["testdata/composite.go" "testdata/nilfunc.go"]
++    --- PASS: Test☺☹/6 (0.07s)
++    	vet_test.go:114: φιλεσ: ["testdata/copylock_range.go" "testdata/shadow.go"]
++    --- PASS: Test☺☹/2 (0.07s)
++    	vet_test.go:114: φιλεσ: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
++    --- PASS: Test☺☹/0 (0.13s)
++    	vet_test.go:114: φιλεσ: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
++    --- PASS: Test☺☹/4 (0.16s)
++    	vet_test.go:114: φιλεσ: ["testdata/copylock.go" "testdata/print.go"]
++    --- PASS: Test☺☹/1 (0.07s)
++    	vet_test.go:114: φιλεσ: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
++    --- PASS: Test☺☹/7 (0.19s)
++    	vet_test.go:114: φιλεσ: ["testdata/deadcode.go" "testdata/shift.go"]
++--- PASS: Test☺☹Dirs (0.01s)
++    --- PASS: Test☺☹Dirs/testingpkg (0.06s)
++    --- PASS: Test☺☹Dirs/divergent (0.05s)
++    --- PASS: Test☺☹Dirs/buildtag (0.06s)
++    --- PASS: Test☺☹Dirs/incomplete (0.05s)
++    --- PASS: Test☺☹Dirs/cgo (0.04s)
++--- PASS: Test☺☹Asm (0.75s)
++PASS
++ok  	cmd/vet	(cached)
+diff --git a/src/cmd/internal/test2json/testdata/unicode.json b/src/cmd/internal/test2json/testdata/unicode.json
+new file mode 100644
+index 0000000000..9cfb5f2d49
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/unicode.json
+@@ -0,0 +1,10 @@
++{"Action":"run","Test":"TestUnicode"}
++{"Action":"output","Test":"TestUnicode","Output":"=== RUN   TestUnicode\n"}
++{"Action":"output","Test":"TestUnicode","Output":"Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα. Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα.\n"}
++{"Action":"output","Test":"TestUnicode","Output":"私はガラスを食べられます。それは私を傷つけません。私はガラスを食べられます。それは私を傷つけません。\n"}
++{"Action":"output","Test":"TestUnicode","Output":"--- PASS: TestUnicode\n"}
++{"Action":"output","Test":"TestUnicode","Output":"    ฉันกินกระจกได้ แต่มันไม่ทำให้ฉันเจ็บ ฉันกินกระจกได้ แต่มันไม่ทำให้ฉันเจ็บ\n"}
++{"Action":"output","Test":"TestUnicode","Output":"    אני יכול לאכול זכוכית וזה לא מזיק לי. אני יכול לאכול זכוכית וזה לא מזיק לי.\n"}
++{"Action":"pass","Test":"TestUnicode"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/unicode.test b/src/cmd/internal/test2json/testdata/unicode.test
+new file mode 100644
+index 0000000000..58c620d5f7
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/unicode.test
+@@ -0,0 +1,7 @@
++=== RUN   TestUnicode
++Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα. Μπορώ να φάω σπασμένα γυαλιά χωρίς να πάθω τίποτα.
++私はガラスを食べられます。それは私を傷つけません。私はガラスを食べられます。それは私を傷つけません。
++--- PASS: TestUnicode
++    ฉันกินกระจกได้ แต่มันไม่ทำให้ฉันเจ็บ ฉันกินกระจกได้ แต่มันไม่ทำให้ฉันเจ็บ
++    אני יכול לאכול זכוכית וזה לא מזיק לי. אני יכול לאכול זכוכית וזה לא מזיק לי.
++PASS
+diff --git a/src/cmd/internal/test2json/testdata/vet.json b/src/cmd/internal/test2json/testdata/vet.json
+new file mode 100644
+index 0000000000..8c5921d686
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/vet.json
+@@ -0,0 +1,182 @@
++{"Action":"run","Test":"TestVet"}
++{"Action":"output","Test":"TestVet","Output":"=== RUN   TestVet\n"}
++{"Action":"output","Test":"TestVet","Output":"=== PAUSE TestVet\n"}
++{"Action":"pause","Test":"TestVet"}
++{"Action":"run","Test":"TestVetAsm"}
++{"Action":"output","Test":"TestVetAsm","Output":"=== RUN   TestVetAsm\n"}
++{"Action":"output","Test":"TestVetAsm","Output":"=== PAUSE TestVetAsm\n"}
++{"Action":"pause","Test":"TestVetAsm"}
++{"Action":"run","Test":"TestVetDirs"}
++{"Action":"output","Test":"TestVetDirs","Output":"=== RUN   TestVetDirs\n"}
++{"Action":"output","Test":"TestVetDirs","Output":"=== PAUSE TestVetDirs\n"}
++{"Action":"pause","Test":"TestVetDirs"}
++{"Action":"run","Test":"TestTags"}
++{"Action":"output","Test":"TestTags","Output":"=== RUN   TestTags\n"}
++{"Action":"output","Test":"TestTags","Output":"=== PAUSE TestTags\n"}
++{"Action":"pause","Test":"TestTags"}
++{"Action":"run","Test":"TestVetVerbose"}
++{"Action":"output","Test":"TestVetVerbose","Output":"=== RUN   TestVetVerbose\n"}
++{"Action":"output","Test":"TestVetVerbose","Output":"=== PAUSE TestVetVerbose\n"}
++{"Action":"pause","Test":"TestVetVerbose"}
++{"Action":"cont","Test":"TestVet"}
++{"Action":"output","Test":"TestVet","Output":"=== CONT  TestVet\n"}
++{"Action":"cont","Test":"TestTags"}
++{"Action":"output","Test":"TestTags","Output":"=== CONT  TestTags\n"}
++{"Action":"cont","Test":"TestVetVerbose"}
++{"Action":"output","Test":"TestVetVerbose","Output":"=== CONT  TestVetVerbose\n"}
++{"Action":"run","Test":"TestTags/testtag"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== RUN   TestTags/testtag\n"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== PAUSE TestTags/testtag\n"}
++{"Action":"pause","Test":"TestTags/testtag"}
++{"Action":"cont","Test":"TestVetDirs"}
++{"Action":"output","Test":"TestVetDirs","Output":"=== CONT  TestVetDirs\n"}
++{"Action":"cont","Test":"TestVetAsm"}
++{"Action":"output","Test":"TestVetAsm","Output":"=== CONT  TestVetAsm\n"}
++{"Action":"run","Test":"TestVet/0"}
++{"Action":"output","Test":"TestVet/0","Output":"=== RUN   TestVet/0\n"}
++{"Action":"output","Test":"TestVet/0","Output":"=== PAUSE TestVet/0\n"}
++{"Action":"pause","Test":"TestVet/0"}
++{"Action":"run","Test":"TestVet/1"}
++{"Action":"output","Test":"TestVet/1","Output":"=== RUN   TestVet/1\n"}
++{"Action":"output","Test":"TestVet/1","Output":"=== PAUSE TestVet/1\n"}
++{"Action":"pause","Test":"TestVet/1"}
++{"Action":"run","Test":"TestVet/2"}
++{"Action":"output","Test":"TestVet/2","Output":"=== RUN   TestVet/2\n"}
++{"Action":"output","Test":"TestVet/2","Output":"=== PAUSE TestVet/2\n"}
++{"Action":"pause","Test":"TestVet/2"}
++{"Action":"run","Test":"TestVet/3"}
++{"Action":"output","Test":"TestVet/3","Output":"=== RUN   TestVet/3\n"}
++{"Action":"output","Test":"TestVet/3","Output":"=== PAUSE TestVet/3\n"}
++{"Action":"pause","Test":"TestVet/3"}
++{"Action":"run","Test":"TestVet/4"}
++{"Action":"output","Test":"TestVet/4","Output":"=== RUN   TestVet/4\n"}
++{"Action":"run","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== RUN   TestTags/x_testtag_y\n"}
++{"Action":"output","Test":"TestVet/4","Output":"=== PAUSE TestVet/4\n"}
++{"Action":"pause","Test":"TestVet/4"}
++{"Action":"run","Test":"TestVet/5"}
++{"Action":"output","Test":"TestVet/5","Output":"=== RUN   TestVet/5\n"}
++{"Action":"output","Test":"TestVet/5","Output":"=== PAUSE TestVet/5\n"}
++{"Action":"pause","Test":"TestVet/5"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== PAUSE TestTags/x_testtag_y\n"}
++{"Action":"pause","Test":"TestTags/x_testtag_y"}
++{"Action":"run","Test":"TestVet/6"}
++{"Action":"output","Test":"TestVet/6","Output":"=== RUN   TestVet/6\n"}
++{"Action":"run","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== RUN   TestTags/x,testtag,y\n"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== PAUSE TestTags/x,testtag,y\n"}
++{"Action":"pause","Test":"TestTags/x,testtag,y"}
++{"Action":"run","Test":"TestVetDirs/testingpkg"}
++{"Action":"output","Test":"TestVetDirs/testingpkg","Output":"=== RUN   TestVetDirs/testingpkg\n"}
++{"Action":"output","Test":"TestVet/6","Output":"=== PAUSE TestVet/6\n"}
++{"Action":"pause","Test":"TestVet/6"}
++{"Action":"cont","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"=== CONT  TestTags/x,testtag,y\n"}
++{"Action":"output","Test":"TestVetDirs/testingpkg","Output":"=== PAUSE TestVetDirs/testingpkg\n"}
++{"Action":"pause","Test":"TestVetDirs/testingpkg"}
++{"Action":"run","Test":"TestVetDirs/divergent"}
++{"Action":"output","Test":"TestVetDirs/divergent","Output":"=== RUN   TestVetDirs/divergent\n"}
++{"Action":"run","Test":"TestVet/7"}
++{"Action":"output","Test":"TestVet/7","Output":"=== RUN   TestVet/7\n"}
++{"Action":"output","Test":"TestVet/7","Output":"=== PAUSE TestVet/7\n"}
++{"Action":"pause","Test":"TestVet/7"}
++{"Action":"output","Test":"TestVetDirs/divergent","Output":"=== PAUSE TestVetDirs/divergent\n"}
++{"Action":"pause","Test":"TestVetDirs/divergent"}
++{"Action":"cont","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"=== CONT  TestTags/x_testtag_y\n"}
++{"Action":"cont","Test":"TestTags/testtag"}
++{"Action":"output","Test":"TestTags/testtag","Output":"=== CONT  TestTags/testtag\n"}
++{"Action":"run","Test":"TestVetDirs/buildtag"}
++{"Action":"output","Test":"TestVetDirs/buildtag","Output":"=== RUN   TestVetDirs/buildtag\n"}
++{"Action":"output","Test":"TestVetDirs/buildtag","Output":"=== PAUSE TestVetDirs/buildtag\n"}
++{"Action":"pause","Test":"TestVetDirs/buildtag"}
++{"Action":"cont","Test":"TestVet/0"}
++{"Action":"output","Test":"TestVet/0","Output":"=== CONT  TestVet/0\n"}
++{"Action":"cont","Test":"TestVet/4"}
++{"Action":"output","Test":"TestVet/4","Output":"=== CONT  TestVet/4\n"}
++{"Action":"run","Test":"TestVetDirs/incomplete"}
++{"Action":"output","Test":"TestVetDirs/incomplete","Output":"=== RUN   TestVetDirs/incomplete\n"}
++{"Action":"output","Test":"TestVetDirs/incomplete","Output":"=== PAUSE TestVetDirs/incomplete\n"}
++{"Action":"pause","Test":"TestVetDirs/incomplete"}
++{"Action":"run","Test":"TestVetDirs/cgo"}
++{"Action":"output","Test":"TestVetDirs/cgo","Output":"=== RUN   TestVetDirs/cgo\n"}
++{"Action":"output","Test":"TestVetDirs/cgo","Output":"=== PAUSE TestVetDirs/cgo\n"}
++{"Action":"pause","Test":"TestVetDirs/cgo"}
++{"Action":"cont","Test":"TestVet/7"}
++{"Action":"output","Test":"TestVet/7","Output":"=== CONT  TestVet/7\n"}
++{"Action":"cont","Test":"TestVet/6"}
++{"Action":"output","Test":"TestVet/6","Output":"=== CONT  TestVet/6\n"}
++{"Action":"output","Test":"TestVetVerbose","Output":"--- PASS: TestVetVerbose (0.04s)\n"}
++{"Action":"pass","Test":"TestVetVerbose"}
++{"Action":"cont","Test":"TestVet/5"}
++{"Action":"output","Test":"TestVet/5","Output":"=== CONT  TestVet/5\n"}
++{"Action":"cont","Test":"TestVet/3"}
++{"Action":"output","Test":"TestVet/3","Output":"=== CONT  TestVet/3\n"}
++{"Action":"cont","Test":"TestVet/2"}
++{"Action":"output","Test":"TestVet/2","Output":"=== CONT  TestVet/2\n"}
++{"Action":"output","Test":"TestTags","Output":"--- PASS: TestTags (0.00s)\n"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    --- PASS: TestTags/x_testtag_y (0.04s)\n"}
++{"Action":"output","Test":"TestTags/x_testtag_y","Output":"    \tvet_test.go:187: -tags=x testtag y\n"}
++{"Action":"pass","Test":"TestTags/x_testtag_y"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    --- PASS: TestTags/x,testtag,y (0.04s)\n"}
++{"Action":"output","Test":"TestTags/x,testtag,y","Output":"    \tvet_test.go:187: -tags=x,testtag,y\n"}
++{"Action":"pass","Test":"TestTags/x,testtag,y"}
++{"Action":"output","Test":"TestTags/testtag","Output":"    --- PASS: TestTags/testtag (0.04s)\n"}
++{"Action":"output","Test":"TestTags/testtag","Output":"    \tvet_test.go:187: -tags=testtag\n"}
++{"Action":"pass","Test":"TestTags/testtag"}
++{"Action":"pass","Test":"TestTags"}
++{"Action":"cont","Test":"TestVet/1"}
++{"Action":"output","Test":"TestVet/1","Output":"=== CONT  TestVet/1\n"}
++{"Action":"cont","Test":"TestVetDirs/testingpkg"}
++{"Action":"output","Test":"TestVetDirs/testingpkg","Output":"=== CONT  TestVetDirs/testingpkg\n"}
++{"Action":"cont","Test":"TestVetDirs/buildtag"}
++{"Action":"output","Test":"TestVetDirs/buildtag","Output":"=== CONT  TestVetDirs/buildtag\n"}
++{"Action":"cont","Test":"TestVetDirs/divergent"}
++{"Action":"output","Test":"TestVetDirs/divergent","Output":"=== CONT  TestVetDirs/divergent\n"}
++{"Action":"cont","Test":"TestVetDirs/incomplete"}
++{"Action":"output","Test":"TestVetDirs/incomplete","Output":"=== CONT  TestVetDirs/incomplete\n"}
++{"Action":"cont","Test":"TestVetDirs/cgo"}
++{"Action":"output","Test":"TestVetDirs/cgo","Output":"=== CONT  TestVetDirs/cgo\n"}
++{"Action":"output","Test":"TestVet","Output":"--- PASS: TestVet (0.39s)\n"}
++{"Action":"output","Test":"TestVet/5","Output":"    --- PASS: TestVet/5 (0.07s)\n"}
++{"Action":"output","Test":"TestVet/5","Output":"    \tvet_test.go:114: files: [\"testdata/copylock_func.go\" \"testdata/rangeloop.go\"]\n"}
++{"Action":"pass","Test":"TestVet/5"}
++{"Action":"output","Test":"TestVet/3","Output":"    --- PASS: TestVet/3 (0.07s)\n"}
++{"Action":"output","Test":"TestVet/3","Output":"    \tvet_test.go:114: files: [\"testdata/composite.go\" \"testdata/nilfunc.go\"]\n"}
++{"Action":"pass","Test":"TestVet/3"}
++{"Action":"output","Test":"TestVet/6","Output":"    --- PASS: TestVet/6 (0.07s)\n"}
++{"Action":"output","Test":"TestVet/6","Output":"    \tvet_test.go:114: files: [\"testdata/copylock_range.go\" \"testdata/shadow.go\"]\n"}
++{"Action":"pass","Test":"TestVet/6"}
++{"Action":"output","Test":"TestVet/2","Output":"    --- PASS: TestVet/2 (0.07s)\n"}
++{"Action":"output","Test":"TestVet/2","Output":"    \tvet_test.go:114: files: [\"testdata/bool.go\" \"testdata/method.go\" \"testdata/unused.go\"]\n"}
++{"Action":"pass","Test":"TestVet/2"}
++{"Action":"output","Test":"TestVet/0","Output":"    --- PASS: TestVet/0 (0.13s)\n"}
++{"Action":"output","Test":"TestVet/0","Output":"    \tvet_test.go:114: files: [\"testdata/assign.go\" \"testdata/httpresponse.go\" \"testdata/structtag.go\"]\n"}
++{"Action":"pass","Test":"TestVet/0"}
++{"Action":"output","Test":"TestVet/4","Output":"    --- PASS: TestVet/4 (0.16s)\n"}
++{"Action":"output","Test":"TestVet/4","Output":"    \tvet_test.go:114: files: [\"testdata/copylock.go\" \"testdata/print.go\"]\n"}
++{"Action":"pass","Test":"TestVet/4"}
++{"Action":"output","Test":"TestVet/1","Output":"    --- PASS: TestVet/1 (0.07s)\n"}
++{"Action":"output","Test":"TestVet/1","Output":"    \tvet_test.go:114: files: [\"testdata/atomic.go\" \"testdata/lostcancel.go\" \"testdata/unsafeptr.go\"]\n"}
++{"Action":"pass","Test":"TestVet/1"}
++{"Action":"output","Test":"TestVet/7","Output":"    --- PASS: TestVet/7 (0.19s)\n"}
++{"Action":"output","Test":"TestVet/7","Output":"    \tvet_test.go:114: files: [\"testdata/deadcode.go\" \"testdata/shift.go\"]\n"}
++{"Action":"pass","Test":"TestVet/7"}
++{"Action":"pass","Test":"TestVet"}
++{"Action":"output","Test":"TestVetDirs","Output":"--- PASS: TestVetDirs (0.01s)\n"}
++{"Action":"output","Test":"TestVetDirs/testingpkg","Output":"    --- PASS: TestVetDirs/testingpkg (0.06s)\n"}
++{"Action":"pass","Test":"TestVetDirs/testingpkg"}
++{"Action":"output","Test":"TestVetDirs/divergent","Output":"    --- PASS: TestVetDirs/divergent (0.05s)\n"}
++{"Action":"pass","Test":"TestVetDirs/divergent"}
++{"Action":"output","Test":"TestVetDirs/buildtag","Output":"    --- PASS: TestVetDirs/buildtag (0.06s)\n"}
++{"Action":"pass","Test":"TestVetDirs/buildtag"}
++{"Action":"output","Test":"TestVetDirs/incomplete","Output":"    --- PASS: TestVetDirs/incomplete (0.05s)\n"}
++{"Action":"pass","Test":"TestVetDirs/incomplete"}
++{"Action":"output","Test":"TestVetDirs/cgo","Output":"    --- PASS: TestVetDirs/cgo (0.04s)\n"}
++{"Action":"pass","Test":"TestVetDirs/cgo"}
++{"Action":"pass","Test":"TestVetDirs"}
++{"Action":"output","Test":"TestVetAsm","Output":"--- PASS: TestVetAsm (0.75s)\n"}
++{"Action":"pass","Test":"TestVetAsm"}
++{"Action":"output","Output":"PASS\n"}
++{"Action":"output","Output":"ok  \tcmd/vet\t(cached)\n"}
++{"Action":"pass"}
+diff --git a/src/cmd/internal/test2json/testdata/vet.test b/src/cmd/internal/test2json/testdata/vet.test
+new file mode 100644
+index 0000000000..3389559cb8
+--- /dev/null
++++ b/src/cmd/internal/test2json/testdata/vet.test
+@@ -0,0 +1,97 @@
++=== RUN   TestVet
++=== PAUSE TestVet
++=== RUN   TestVetAsm
++=== PAUSE TestVetAsm
++=== RUN   TestVetDirs
++=== PAUSE TestVetDirs
++=== RUN   TestTags
++=== PAUSE TestTags
++=== RUN   TestVetVerbose
++=== PAUSE TestVetVerbose
++=== CONT  TestVet
++=== CONT  TestTags
++=== CONT  TestVetVerbose
++=== RUN   TestTags/testtag
++=== PAUSE TestTags/testtag
++=== CONT  TestVetDirs
++=== CONT  TestVetAsm
++=== RUN   TestVet/0
++=== PAUSE TestVet/0
++=== RUN   TestVet/1
++=== PAUSE TestVet/1
++=== RUN   TestVet/2
++=== PAUSE TestVet/2
++=== RUN   TestVet/3
++=== PAUSE TestVet/3
++=== RUN   TestVet/4
++=== RUN   TestTags/x_testtag_y
++=== PAUSE TestVet/4
++=== RUN   TestVet/5
++=== PAUSE TestVet/5
++=== PAUSE TestTags/x_testtag_y
++=== RUN   TestVet/6
++=== RUN   TestTags/x,testtag,y
++=== PAUSE TestTags/x,testtag,y
++=== RUN   TestVetDirs/testingpkg
++=== PAUSE TestVet/6
++=== CONT  TestTags/x,testtag,y
++=== PAUSE TestVetDirs/testingpkg
++=== RUN   TestVetDirs/divergent
++=== RUN   TestVet/7
++=== PAUSE TestVet/7
++=== PAUSE TestVetDirs/divergent
++=== CONT  TestTags/x_testtag_y
++=== CONT  TestTags/testtag
++=== RUN   TestVetDirs/buildtag
++=== PAUSE TestVetDirs/buildtag
++=== CONT  TestVet/0
++=== CONT  TestVet/4
++=== RUN   TestVetDirs/incomplete
++=== PAUSE TestVetDirs/incomplete
++=== RUN   TestVetDirs/cgo
++=== PAUSE TestVetDirs/cgo
++=== CONT  TestVet/7
++=== CONT  TestVet/6
++--- PASS: TestVetVerbose (0.04s)
++=== CONT  TestVet/5
++=== CONT  TestVet/3
++=== CONT  TestVet/2
++--- PASS: TestTags (0.00s)
++    --- PASS: TestTags/x_testtag_y (0.04s)
++    	vet_test.go:187: -tags=x testtag y
++    --- PASS: TestTags/x,testtag,y (0.04s)
++    	vet_test.go:187: -tags=x,testtag,y
++    --- PASS: TestTags/testtag (0.04s)
++    	vet_test.go:187: -tags=testtag
++=== CONT  TestVet/1
++=== CONT  TestVetDirs/testingpkg
++=== CONT  TestVetDirs/buildtag
++=== CONT  TestVetDirs/divergent
++=== CONT  TestVetDirs/incomplete
++=== CONT  TestVetDirs/cgo
++--- PASS: TestVet (0.39s)
++    --- PASS: TestVet/5 (0.07s)
++    	vet_test.go:114: files: ["testdata/copylock_func.go" "testdata/rangeloop.go"]
++    --- PASS: TestVet/3 (0.07s)
++    	vet_test.go:114: files: ["testdata/composite.go" "testdata/nilfunc.go"]
++    --- PASS: TestVet/6 (0.07s)
++    	vet_test.go:114: files: ["testdata/copylock_range.go" "testdata/shadow.go"]
++    --- PASS: TestVet/2 (0.07s)
++    	vet_test.go:114: files: ["testdata/bool.go" "testdata/method.go" "testdata/unused.go"]
++    --- PASS: TestVet/0 (0.13s)
++    	vet_test.go:114: files: ["testdata/assign.go" "testdata/httpresponse.go" "testdata/structtag.go"]
++    --- PASS: TestVet/4 (0.16s)
++    	vet_test.go:114: files: ["testdata/copylock.go" "testdata/print.go"]
++    --- PASS: TestVet/1 (0.07s)
++    	vet_test.go:114: files: ["testdata/atomic.go" "testdata/lostcancel.go" "testdata/unsafeptr.go"]
++    --- PASS: TestVet/7 (0.19s)
++    	vet_test.go:114: files: ["testdata/deadcode.go" "testdata/shift.go"]
++--- PASS: TestVetDirs (0.01s)
++    --- PASS: TestVetDirs/testingpkg (0.06s)
++    --- PASS: TestVetDirs/divergent (0.05s)
++    --- PASS: TestVetDirs/buildtag (0.06s)
++    --- PASS: TestVetDirs/incomplete (0.05s)
++    --- PASS: TestVetDirs/cgo (0.04s)
++--- PASS: TestVetAsm (0.75s)
++PASS
++ok  	cmd/vet	(cached)
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+new file mode 100644
+index 0000000000..0c8193760f
+--- /dev/null
++++ b/src/cmd/test2json/main.go
+@@ -0,0 +1,101 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test2json converts go test output to a machine-readable JSON stream.
++//
++// Usage:
++//
++//	go test ... | go tool test2json [-p pkg] [-t]
++//	./test.out 2>&1 | go tool test2json [-p pkg] [-t]
++//
++// Test2json expects to read go test output from standard input.
++// It writes a corresponding stream of JSON events to standard output.
++// There is no unnecessary input or output buffering, so that
++// the JSON stream can be read for “live updates” of test status.
++//
++// The -p flag sets the package reported in each test event.
++//
++// The -t flag requests that time stamps be added to each test event.
++//
++// Output Format
++//
++// The JSON stream is a newline-separated sequence of TestEvent objects
++// corresponding to the Go struct:
++//
++//	type TestEvent struct {
++//		Time    time.Time
++//		Event   string
++//		Package string
++//		Test    string
++//		Elapsed float64 // seconds
++//		Output  string
++//	}
++//
++// The Time field holds the time the event happened.
++// It is conventionally omitted for cached test results.
++//
++// The Event field is one of a fixed set of event descriptions:
++//
++//	run    - the test has started running
++//	pause  - the test has been paused
++//	cont   - the test has continued running
++//	pass   - the test passed
++//	fail   - the test failed
++//	output - the test printed output
++//
++// The Package field, if present, specifies the package being tested.
++// When the go command runs parallel tests in -json mode, events from
++// different tests are interlaced; the Package field allows readers to
++// separate them.
++//
++// The Test field, if present, specifies the test or example, or benchmark
++// function that caused the event. Events for the overall package test
++// do not set Test.
++//
++// The Elapsed field is set for "pass" and "fail" events. It gives the time
++// elapsed for the specific test or the overall package test that passed or failed.
++//
++// The Output field is set for Event == "output" and is a portion of the test's output
++// (standard output and standard error merged together). The output is
++// unmodified except that invalid UTF-8 output from a test is coerced
++// into valid UTF-8 by use of replacement characters. With that one exception,
++// the concatenation of the Output fields of all output events is the exact
++// output of the test execution.
++//
++package main
++
++import (
++	"flag"
++	"fmt"
++	"io"
++	"os"
++
++	"cmd/internal/test2json"
++)
++
++var (
++	flagP = flag.String("p", "", "report `pkg` as the package being tested in each event")
++	flagT = flag.Bool("t", false, "include timestamps in events")
++)
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: go test ... | go tool test2json [-p pkg] [-t]\n")
++	os.Exit(2)
++}
++
++func main() {
++	flag.Usage = usage
++	flag.Parse()
++	if flag.NArg() > 0 {
++		usage()
++	}
++
++	var mode test2json.Mode
++	if *flagT {
++		mode |= test2json.Timestamp
++	}
++	c := test2json.NewConverter(os.Stdout, *flagP, mode)
++	defer c.Close()
++	io.Copy(c, os.Stdin)
++}

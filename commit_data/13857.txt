@@ -8,6 +8,22 @@ Date:   Tue Sep 18 11:01:10 2012 -0700
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6536047
-
+---
  src/pkg/builtin/builtin.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/builtin/builtin.go b/src/pkg/builtin/builtin.go
+index e81616ca41..a30943b894 100644
+--- a/src/pkg/builtin/builtin.go
++++ b/src/pkg/builtin/builtin.go
+@@ -81,9 +81,8 @@ type uintptr uintptr
+ // integer values.
+ type byte byte
+ 
+-// rune is an alias for int and is equivalent to int in all ways. It is
++// rune is an alias for int32 and is equivalent to int32 in all ways. It is
+ // used, by convention, to distinguish character values from integer values.
+-// In a future version of Go, it will change to an alias of int32.
+ type rune rune
+ 
+ // Type is here for the purposes of documentation only. It is a stand-in

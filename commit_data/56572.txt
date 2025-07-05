@@ -18,9 +18,71 @@ Date:   Mon Feb 6 07:18:53 2023 +0100
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Jakub Ciolek <jakub@ciolek.dev>
-
+---
  src/cmd/compile/internal/ssa/block.go               | 3 ++-
  src/cmd/compile/internal/ssa/critical.go            | 5 -----
  src/cmd/compile/internal/ssa/deadcode.go            | 1 -
  src/cmd/compile/internal/ssa/fuse_branchredirect.go | 1 -
  4 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 9a1dc8e7d1..e7776b2316 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -341,7 +341,7 @@ func (b *Block) swapSuccessors() {
+ //	if v.Op != OpPhi {
+ //	    continue
+ //	}
+-//	b.removeArg(v, i)
++//	b.removePhiArg(v, i)
+ //
+ // }
+ func (b *Block) removePhiArg(phi *Value, i int) {
+@@ -353,6 +353,7 @@ func (b *Block) removePhiArg(phi *Value, i int) {
+ 	phi.Args[i] = phi.Args[n]
+ 	phi.Args[n] = nil
+ 	phi.Args = phi.Args[:n]
++	phielimValue(phi)
+ }
+ 
+ // LackingPos indicates whether b is a block whose position should be inherited
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index ddf1c0fa89..f14bb93e6d 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -96,11 +96,6 @@ func critical(f *Func) {
+ 
+ 				// splitting occasionally leads to a phi having
+ 				// a single argument (occurs with -N)
+-				// TODO(cuonglm,khr): replace this with phielimValue, and
+-				//                    make removePhiArg incorporates that.
+-				if len(b.Preds) == 1 {
+-					phi.Op = OpCopy
+-				}
+ 				// Don't increment i in this case because we moved
+ 				// an unprocessed predecessor down into slot i.
+ 			} else {
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index bd4282ecdb..52cc7f2ca7 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -330,7 +330,6 @@ func (b *Block) removeEdge(i int) {
+ 			continue
+ 		}
+ 		c.removePhiArg(v, j)
+-		phielimValue(v)
+ 		// Note: this is trickier than it looks. Replacing
+ 		// a Phi with a Copy can in general cause problems because
+ 		// Phi and Copy don't have exactly the same semantics.
+diff --git a/src/cmd/compile/internal/ssa/fuse_branchredirect.go b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+index 59570968a2..153c2a56b7 100644
+--- a/src/cmd/compile/internal/ssa/fuse_branchredirect.go
++++ b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+@@ -82,7 +82,6 @@ func fuseBranchRedirect(f *Func) bool {
+ 						continue
+ 					}
+ 					b.removePhiArg(v, k)
+-					phielimValue(v)
+ 				}
+ 				// Fix up child to have one more predecessor.
+ 				child.Preds = append(child.Preds, Edge{p, pk.i})

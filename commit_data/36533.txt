@@ -9,6 +9,37 @@ Date:   Thu May 3 12:33:13 2018 +0200
     Change-Id: Ideb903427d153d0ff35e5164b7e79426b83b1afb
     Reviewed-on: https://go-review.googlesource.com/111336
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d50eb1fc08..e911fa01ab 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -697,9 +697,9 @@
+ // a non-nil Error field; other information may or may not be missing
+ // (zeroed).
+ //
+-// The -test flag causes list to add to its output test binaries for the
+-// named packages that have tests, to make information about test
+-// binary construction available to source code analysis tools.
++// The -test flag causes list to report not only the named packages
++// but also their test binaries (for packages with tests), to convey to
++// source code analysis tools exactly how test binaries are constructed.
+ // The reported import path for a test binary is the import path of
+ // the package followed by a ".test" suffix, as in "math/rand.test".
+ // When building a test, it is sometimes necessary to rebuild certain
+@@ -1094,9 +1094,9 @@
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+-//	GOMIPS64
+-//		For GOARCH=mips64{,le}, whether to use floating point instructions.
+-//		Valid values are hardfloat (default), softfloat.
++// 	GOMIPS64
++// 		For GOARCH=mips64{,le}, whether to use floating point instructions.
++// 		Valid values are hardfloat (default), softfloat.
+ //
+ // Special-purpose environment variables:
+ //

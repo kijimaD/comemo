@@ -13,6 +13,28 @@ Date:   Mon Feb 28 21:21:40 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/importer/ureader.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index 1b61f37dc8..a22cd2bb53 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -375,12 +375,12 @@ func (pr *pkgReader) objIdx(idx int) (*types2.Package, string) {
+ 		return objPkg, objName
+ 	}
+ 
+-	dict := pr.objDictIdx(idx)
++	objPkg.Scope().InsertLazy(objName, func() types2.Object {
++		dict := pr.objDictIdx(idx)
+ 
+-	r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
+-	r.dict = dict
++		r := pr.newReader(pkgbits.RelocObj, idx, pkgbits.SyncObject1)
++		r.dict = dict
+ 
+-	objPkg.Scope().InsertLazy(objName, func() types2.Object {
+ 		switch tag {
+ 		default:
+ 			panic("weird")

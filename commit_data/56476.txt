@@ -10,7 +10,7 @@ Date:   Fri Apr 14 18:18:01 2023 -0400
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf.go      |  2 +-
  src/cmd/link/internal/ld/dwarf_test.go | 20 +++++++++----------
  src/internal/reflectlite/type.go       | 10 +++-------
@@ -19,3 +19,294 @@ Date:   Fri Apr 14 18:18:01 2023 -0400
  src/runtime/chan.go                    |  6 +++---
  src/runtime/type.go                    |  8 ++------
  7 files changed, 48 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 5b5660ffc9..b9383e28b9 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1804,7 +1804,7 @@ func dwarfGenerateDebugInfo(ctxt *Link) {
+ 	for _, typ := range []string{
+ 		"type:runtime._type",
+ 		"type:internal/abi.ArrayType",
+-		"type:runtime.chantype",
++		"type:internal/abi.ChanType",
+ 		"type:runtime.functype",
+ 		"type:runtime.maptype",
+ 		"type:runtime.ptrtype",
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 808bd644cd..c8715922d8 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -56,16 +56,16 @@ func TestRuntimeTypesPresent(t *testing.T) {
+ 	}
+ 
+ 	want := map[string]bool{
+-		"runtime._type": true,
+-		// "runtime.arraytype":     true,
+-		"runtime.chantype":      true,
+-		"runtime.functype":      true,
+-		"runtime.maptype":       true,
+-		"runtime.ptrtype":       true,
+-		"runtime.slicetype":     true,
+-		"runtime.structtype":    true,
+-		"runtime.interfacetype": true,
+-		"runtime.itab":          true,
++		"runtime._type":          true,
++		"internal/abi.ArrayType": true,
++		"internal/abi.ChanType":  true,
++		"runtime.functype":       true,
++		"runtime.maptype":        true,
++		"runtime.ptrtype":        true,
++		"runtime.slicetype":      true,
++		"runtime.structtype":     true,
++		"runtime.interfacetype":  true,
++		"runtime.itab":           true,
+ 	}
+ 
+ 	found := findTypes(t, dwarf, want)
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index d562cbe874..cbc82c0ffc 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -114,11 +114,7 @@ const (
+ type arrayType = abi.ArrayType
+ 
+ // chanType represents a channel type.
+-type chanType struct {
+-	rtype
+-	elem *rtype  // channel element type
+-	dir  uintptr // channel direction (chanDir)
+-}
++type chanType = abi.ChanType
+ 
+ // funcType represents a function type.
+ //
+@@ -373,7 +369,7 @@ func (t *rtype) chanDir() chanDir {
+ 		panic("reflect: chanDir of non-chan type")
+ 	}
+ 	tt := (*chanType)(unsafe.Pointer(t))
+-	return chanDir(tt.dir)
++	return chanDir(tt.Dir)
+ }
+ 
+ func toRType(t *abi.Type) *rtype {
+@@ -387,7 +383,7 @@ func (t *rtype) Elem() Type {
+ 		return toType(toRType(tt.Elem))
+ 	case abi.Chan:
+ 		tt := (*chanType)(unsafe.Pointer(t))
+-		return toType(tt.elem)
++		return toType(toRType(tt.Elem))
+ 	case abi.Map:
+ 		tt := (*mapType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 178bbecce0..820fe6cd1e 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -302,11 +302,7 @@ const (
+ type arrayType = abi.ArrayType
+ 
+ // chanType represents a channel type.
+-type chanType struct {
+-	rtype
+-	elem *rtype  // channel element type
+-	dir  uintptr // channel direction (ChanDir)
+-}
++type chanType = abi.ChanType
+ 
+ // funcType represents a function type.
+ //
+@@ -803,7 +799,7 @@ func (t *rtype) ChanDir() ChanDir {
+ 		panic("reflect: ChanDir of non-chan type " + t.String())
+ 	}
+ 	tt := (*chanType)(unsafe.Pointer(t))
+-	return ChanDir(tt.dir)
++	return ChanDir(tt.Dir)
+ }
+ 
+ func (t *rtype) IsVariadic() bool {
+@@ -825,7 +821,7 @@ func (t *rtype) Elem() Type {
+ 		return toType(toRType(tt.Elem))
+ 	case Chan:
+ 		tt := (*chanType)(unsafe.Pointer(t))
+-		return toType(tt.elem)
++		return toType(toRType(tt.Elem))
+ 	case Map:
+ 		tt := (*mapType)(unsafe.Pointer(t))
+ 		return toType(tt.elem)
+@@ -1759,7 +1755,7 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	}
+ 	for _, tt := range typesByString(s) {
+ 		ch := (*chanType)(unsafe.Pointer(tt))
+-		if ch.elem == typ && ch.dir == uintptr(dir) {
++		if ch.Elem == &typ.t && ch.Dir == abi.ChanDir(dir) {
+ 			ti, _ := lookupCache.LoadOrStore(ckey, tt)
+ 			return ti.(Type)
+ 		}
+@@ -1769,13 +1765,13 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	var ichan any = (chan unsafe.Pointer)(nil)
+ 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
+ 	ch := *prototype
+-	ch.t.TFlag = abi.TFlagRegularMemory
+-	ch.dir = uintptr(dir)
+-	ch.t.Str = resolveReflectName(newName(s, "", false, false))
+-	ch.t.Hash = fnv1(typ.t.Hash, 'c', byte(dir))
+-	ch.elem = typ
++	ch.TFlag = abi.TFlagRegularMemory
++	ch.Dir = abi.ChanDir(dir)
++	ch.Str = resolveReflectName(newName(s, "", false, false))
++	ch.Hash = fnv1(typ.t.Hash, 'c', byte(dir))
++	ch.Elem = &typ.t
+ 
+-	ti, _ := lookupCache.LoadOrStore(ckey, &ch.rtype)
++	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&ch.Type))
+ 	return ti.(Type)
+ }
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 638c0a1ca2..35649f6aed 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2175,14 +2175,15 @@ func (v Value) Recv() (x Value, ok bool) {
+ // v is known to be a channel.
+ func (v Value) recv(nb bool) (val Value, ok bool) {
+ 	tt := (*chanType)(unsafe.Pointer(v.typ))
+-	if ChanDir(tt.dir)&RecvDir == 0 {
++	if ChanDir(tt.Dir)&RecvDir == 0 {
+ 		panic("reflect: recv on send-only channel")
+ 	}
+-	t := tt.elem
+-	val = Value{t, nil, flag(t.Kind())}
++	t := tt.Elem
++	rt := toRType(t)
++	val = Value{rt, nil, flag(t.Kind())}
+ 	var p unsafe.Pointer
+-	if ifaceIndir(t) {
+-		p = unsafe_New(t)
++	if ifaceIndir(rt) {
++		p = unsafe_New(rt)
+ 		val.ptr = p
+ 		val.flag |= flagIndir
+ 	} else {
+@@ -2208,11 +2209,11 @@ func (v Value) Send(x Value) {
+ // v is known to be a channel.
+ func (v Value) send(x Value, nb bool) (selected bool) {
+ 	tt := (*chanType)(unsafe.Pointer(v.typ))
+-	if ChanDir(tt.dir)&SendDir == 0 {
++	if ChanDir(tt.Dir)&SendDir == 0 {
+ 		panic("reflect: send on recv-only channel")
+ 	}
+ 	x.mustBeExported()
+-	x = x.assignTo("reflect.Value.Send", tt.elem, nil)
++	x = x.assignTo("reflect.Value.Send", toRType(tt.Elem), nil)
+ 	var p unsafe.Pointer
+ 	if x.flag&flagIndir != 0 {
+ 		p = x.ptr
+@@ -3028,17 +3029,17 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 			ch.mustBe(Chan)
+ 			ch.mustBeExported()
+ 			tt := (*chanType)(unsafe.Pointer(ch.typ))
+-			if ChanDir(tt.dir)&SendDir == 0 {
++			if ChanDir(tt.Dir)&SendDir == 0 {
+ 				panic("reflect.Select: SendDir case using recv-only channel")
+ 			}
+ 			rc.ch = ch.pointer()
+-			rc.typ = &tt.rtype
++			rc.typ = toRType(&tt.Type)
+ 			v := c.Send
+ 			if !v.IsValid() {
+ 				panic("reflect.Select: SendDir case missing Send value")
+ 			}
+ 			v.mustBeExported()
+-			v = v.assignTo("reflect.Select", tt.elem, nil)
++			v = v.assignTo("reflect.Select", toRType(tt.Elem), nil)
+ 			if v.flag&flagIndir != 0 {
+ 				rc.val = v.ptr
+ 			} else {
+@@ -3056,25 +3057,26 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 			ch.mustBe(Chan)
+ 			ch.mustBeExported()
+ 			tt := (*chanType)(unsafe.Pointer(ch.typ))
+-			if ChanDir(tt.dir)&RecvDir == 0 {
++			if ChanDir(tt.Dir)&RecvDir == 0 {
+ 				panic("reflect.Select: RecvDir case using send-only channel")
+ 			}
+ 			rc.ch = ch.pointer()
+-			rc.typ = &tt.rtype
+-			rc.val = unsafe_New(tt.elem)
++			rc.typ = toRType(&tt.Type)
++			rc.val = unsafe_New(toRType(tt.Elem))
+ 		}
+ 	}
+ 
+ 	chosen, recvOK = rselect(runcases)
+ 	if runcases[chosen].dir == SelectRecv {
+ 		tt := (*chanType)(unsafe.Pointer(runcases[chosen].typ))
+-		t := tt.elem
++		t := tt.Elem
++		rt := toRType(t)
+ 		p := runcases[chosen].val
+ 		fl := flag(t.Kind())
+-		if ifaceIndir(t) {
+-			recv = Value{t, p, fl | flagIndir}
++		if ifaceIndir(rt) {
++			recv = Value{rt, p, fl | flagIndir}
+ 		} else {
+-			recv = Value{t, *(*unsafe.Pointer)(p), fl}
++			recv = Value{rt, *(*unsafe.Pointer)(p), fl}
+ 		}
+ 	}
+ 	return chosen, recv, recvOK
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index db8ed8c863..0a8578d435 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -70,7 +70,7 @@ func makechan64(t *chantype, size int64) *hchan {
+ }
+ 
+ func makechan(t *chantype, size int) *hchan {
+-	elem := t.elem
++	elem := t.Elem
+ 
+ 	// compiler checks this but be safe.
+ 	if elem.Size_ >= 1<<16 {
+@@ -104,11 +104,11 @@ func makechan(t *chantype, size int) *hchan {
+ 	default:
+ 		// Elements contain pointers.
+ 		c = new(hchan)
+-		c.buf = mallocgc(mem, elem, true)
++		c.buf = mallocgc(mem, toType(elem), true)
+ 	}
+ 
+ 	c.elemsize = uint16(elem.Size_)
+-	c.elemtype = elem
++	c.elemtype = toType(elem)
+ 	c.dataqsiz = uint(size)
+ 	lockInit(&c.lock, lockRankHchan)
+ 
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index bc8ded2821..3e86888ff6 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -278,11 +278,7 @@ func (mt *maptype) hashMightPanic() bool { // true if hash function might panic
+ 
+ type arraytype = abi.ArrayType
+ 
+-type chantype struct {
+-	typ  _type
+-	elem *_type
+-	dir  uintptr
+-}
++type chantype = abi.ChanType
+ 
+ type slicetype struct {
+ 	typ  _type
+@@ -506,7 +502,7 @@ func typesEqual(t, v *_type, seen map[_typePair]struct{}) bool {
+ 	case kindChan:
+ 		ct := (*chantype)(unsafe.Pointer(t))
+ 		cv := (*chantype)(unsafe.Pointer(v))
+-		return ct.dir == cv.dir && typesEqual(ct.elem, cv.elem, seen)
++		return ct.Dir == cv.Dir && typesEqual(toType(ct.Elem), toType(cv.Elem), seen)
+ 	case kindFunc:
+ 		ft := (*functype)(unsafe.Pointer(t))
+ 		fv := (*functype)(unsafe.Pointer(v))

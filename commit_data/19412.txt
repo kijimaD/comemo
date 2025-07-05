@@ -10,8 +10,153 @@ Date:   Tue May 20 10:46:44 2014 -0700
     R=rsc, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/96480043
-
+---
  src/cmd/go/doc.go  | 45 ++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/go/help.go | 40 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/go/main.go |  1 +
  3 files changed, 83 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 05dc9c2bdf..9840804ce7 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -33,6 +33,7 @@ Use "go help [command]" for more information about a command.
+ Additional help topics:
+ 
+     c           calling between Go and C
++    filetype    file types
+     gopath      GOPATH environment variable
+     importpath  import path syntax
+     packages    description of package lists
+@@ -69,7 +70,8 @@ name is the base name of the containing directory.
+ 
+ The -i flag installs the packages that are dependencies of the target.
+ 
+-The build flags are shared by the build, install, run, and test commands:
++The build flags are shared by the build, clean, get, install, list, run,
++and test commands:
+ 
+ 	-a
+ 		force rebuilding of packages that are already up-to-date.
+@@ -144,6 +146,7 @@ source directories corresponding to the import paths:
+ 	DIR(.exe)        from go build
+ 	DIR.test(.exe)   from go test -c
+ 	MAINFILE(.exe)   from go build MAINFILE.go
++	*.so             from SWIG
+ 
+ In the list, DIR represents the final path element of the
+ directory, and MAINFILE is the base name of any Go source
+@@ -238,8 +241,7 @@ The -u flag instructs get to use the network to update the named packages
+ and their dependencies.  By default, get uses the network to check out
+ missing packages but does not use it to look for updates to existing packages.
+ 
+-Get also accepts all the flags in the 'go build' and 'go install' commands,
+-to control the installation. See 'go help build'.
++Get also accepts build flags to control the installation. See 'go help build'.
+ 
+ When checking out or updating a package, get looks for a branch or tag
+ that matches the locally installed version of Go. The most important
+@@ -516,6 +518,43 @@ compiler.  The CC or CXX environment variables may be set to determine
+ the C or C++ compiler, respectively, to use.
+ 
+ 
++File types
++
++The go command examines the contents of a restricted set of files
++in each directory. It identifies which files to examine based on
++the extension of the file name. These extensions are:
++
++	.go
++		Go source files.
++	.c, .h
++		C source files.
++		If the package uses cgo, these will be compiled with the
++		OS-native compiler (typically gcc); otherwise they will be
++		compiled with the Go-specific support compiler,
++		5c, 6c, or 8c, etc. as appropriate.
++	.cc, .cpp, .cxx, .hh, .hpp, .hxx
++		C++ source files. Only useful with cgo or SWIG, and always
++		compiled with the OS-native compiler.
++	.m
++		Objective-C source files. Only useful with cgo, and always
++		compiled with the OS-native compiler.
++	.s, .S
++		Assembler source files.
++		If the package uses cgo, these will be assembled with the
++		OS-native assembler (typically gcc (sic)); otherwise they
++		will be assembled with the Go-specific support assembler,
++		5a, 6a, or 8a, etc., as appropriate.
++	.swig, .swigcxx
++		SWIG definition files.
++	.syso
++		System object files.
++
++Files of each of these types except .syso may contain build
++constraints, but the go command stops scanning for build constraints
++at the first item in the file that is not a blank line or //-style
++line comment.
++
++
+ GOPATH environment variable
+ 
+ The Go path is used to resolve import statements.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 0142deee9f..40da7e1f5e 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -295,3 +295,43 @@ but new packages are always downloaded into the first directory
+ in the list.
+ 	`,
+ }
++
++var helpFileType = &Command{
++	UsageLine: "filetype",
++	Short:     "file types",
++	Long: `
++The go command examines the contents of a restricted set of files
++in each directory. It identifies which files to examine based on
++the extension of the file name. These extensions are:
++
++	.go
++		Go source files.
++	.c, .h
++		C source files.
++		If the package uses cgo, these will be compiled with the
++		OS-native compiler (typically gcc); otherwise they will be
++		compiled with the Go-specific support compiler,
++		5c, 6c, or 8c, etc. as appropriate.
++	.cc, .cpp, .cxx, .hh, .hpp, .hxx
++		C++ source files. Only useful with cgo or SWIG, and always
++		compiled with the OS-native compiler.
++	.m
++		Objective-C source files. Only useful with cgo, and always
++		compiled with the OS-native compiler.
++	.s, .S
++		Assembler source files.
++		If the package uses cgo, these will be assembled with the
++		OS-native assembler (typically gcc (sic)); otherwise they
++		will be assembled with the Go-specific support assembler,
++		5a, 6a, or 8a, etc., as appropriate.
++	.swig, .swigcxx
++		SWIG definition files.
++	.syso
++		System object files.
++
++Files of each of these types except .syso may contain build
++constraints, but the go command stops scanning for build constraints
++at the first item in the file that is not a blank line or //-style
++line comment.
++	`,
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 7f4c75866c..5b1194aaa3 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -89,6 +89,7 @@ var commands = []*Command{
+ 	cmdVet,
+ 
+ 	helpC,
++	helpFileType,
+ 	helpGopath,
+ 	helpImportPath,
+ 	helpPackages,

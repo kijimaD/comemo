@@ -14,7 +14,81 @@ Date:   Fri Apr 24 09:43:49 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go  | 26 ++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/walk.go | 19 ++++---------------
  2 files changed, 30 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index fcf14768fb..1130a4c17b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -664,6 +664,32 @@ func eqfield(p *Node, q *Node, field *types.Sym) *Node {
+ 	return ne
+ }
+ 
++// eqstring returns the nodes
++//   len(s) == len(t)
++// and
++//   memequal(s.ptr, t.ptr, len(s))
++// which can be used to construct string equality comparison.
++// eqlen must be evaluated before eqmem, and shortcircuiting is required.
++func eqstring(s, t *Node) (eqlen, eqmem *Node) {
++	s = conv(s, types.Types[TSTRING])
++	t = conv(t, types.Types[TSTRING])
++	sptr := nod(OSPTR, s, nil)
++	tptr := nod(OSPTR, t, nil)
++	slen := conv(nod(OLEN, s, nil), types.Types[TUINTPTR])
++	tlen := conv(nod(OLEN, t, nil), types.Types[TUINTPTR])
++
++	fn := syslook("memequal")
++	fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
++	call := nod(OCALL, fn, nil)
++	call.List.Append(sptr, tptr, slen.copy())
++	call = typecheck(call, ctxExpr|ctxMultiOK)
++
++	cmp := nod(OEQ, slen, tlen)
++	cmp = typecheck(cmp, ctxExpr)
++	cmp.Type = types.Types[TBOOL]
++	return cmp, call
++}
++
+ // eqmem returns the node
+ // 	memequal(&p.field, &q.field [, size])
+ func eqmem(p *Node, q *Node, field *types.Sym, size int64) *Node {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8589c3e72b..5dd98efc75 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3518,27 +3518,16 @@ func walkcompareString(n *Node, init *Nodes) *Node {
+ 		// prepare for rewrite below
+ 		n.Left = cheapexpr(n.Left, init)
+ 		n.Right = cheapexpr(n.Right, init)
+-
+-		lstr := conv(n.Left, types.Types[TSTRING])
+-		rstr := conv(n.Right, types.Types[TSTRING])
+-		lptr := nod(OSPTR, lstr, nil)
+-		rptr := nod(OSPTR, rstr, nil)
+-		llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
+-		rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
+-
+-		fn := syslook("memequal")
+-		fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
+-		r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
+-
++		eqlen, eqmem := eqstring(n.Left, n.Right)
+ 		// quick check of len before full compare for == or !=.
+ 		// memequal then tests equality up to length len.
+ 		if n.Op == OEQ {
+ 			// len(left) == len(right) && memequal(left, right, len)
+-			r = nod(OANDAND, nod(OEQ, llen, rlen), r)
++			r = nod(OANDAND, eqlen, eqmem)
+ 		} else {
+ 			// len(left) != len(right) || !memequal(left, right, len)
+-			r = nod(ONOT, r, nil)
+-			r = nod(OOROR, nod(ONE, llen, rlen), r)
++			eqlen.Op = ONE
++			r = nod(OOROR, eqlen, nod(ONOT, eqmem, nil))
+ 		}
+ 	} else {
+ 		// sys_cmpstring(s1, s2) :: 0

@@ -14,6 +14,20 @@ Date:   Tue Nov 6 15:07:46 2018 -0500
     Change-Id: Ia94728ecead879c8d223eb6cee6c102a8af1c86e
     Reviewed-on: https://go-review.googlesource.com/c/147937
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index c203873b13..bc0b0b6387 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1271,7 +1271,7 @@ func gccgoPkgpathToSymbolNew(ppath string) string {
+ 	for _, c := range []byte(ppath) {
+ 		switch {
+ 		case 'A' <= c && c <= 'Z', 'a' <= c && c <= 'z',
+-			'0' <= c && c <= '9', '_' == c:
++			'0' <= c && c <= '9', c == '_', c == '.':
+ 			bsl = append(bsl, c)
+ 		default:
+ 			changed = true

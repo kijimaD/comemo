@@ -19,6 +19,32 @@ Date:   Mon Mar 17 20:00:44 2014 -0700
     R=cmang
     CC=golang-codereviews
     https://golang.org/cl/77210043
-
+---
  test/fixedbugs/issue7525.go | 19 -------------------
  1 file changed, 19 deletions(-)
+
+diff --git a/test/fixedbugs/issue7525.go b/test/fixedbugs/issue7525.go
+deleted file mode 100644
+index 6ded706098..0000000000
+--- a/test/fixedbugs/issue7525.go
++++ /dev/null
+@@ -1,19 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Issue 7525: self-referential array types.
+-
+-package main
+-
+-import "unsafe"
+-
+-var x struct {
+-	a [unsafe.Sizeof(x.a)]int // ERROR "array bound|invalid array"
+-	b [unsafe.Offsetof(x.b)]int // ERROR "array bound|invalid array"
+-	c [unsafe.Alignof(x.c)]int // ERROR "array bound|invalid array"
+-	d [len(x.d)]int // ERROR "array bound|invalid array"
+-	e [cap(x.e)]int // ERROR "array bound|invalid array"
+-}

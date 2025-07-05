@@ -26,7 +26,7 @@ Date:   Wed Nov 4 11:14:19 2015 -0800
     Change-Id: I1ab28182263238d9bcaf6a42804e5da2a87d8778
     Reviewed-on: https://go-review.googlesource.com/16741
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/cgo_test.go         |   1 +
  misc/cgo/test/issue9510.go        |  24 +++++++
  misc/cgo/test/issue9510a/a.go     |  15 +++++
@@ -37,3 +37,548 @@ Date:   Wed Nov 4 11:14:19 2015 -0800
  src/cmd/link/internal/ld/ldelf.go |   2 +-
  src/cmd/link/internal/ld/lib.go   |  48 +++++++++-----
  9 files changed, 272 insertions(+), 71 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 948a0eab64..0880047953 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -62,6 +62,7 @@ func Test8811(t *testing.T)                  { test8811(t) }
+ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
+ func Test9026(t *testing.T)                  { test9026(t) }
++func Test9510(t *testing.T)                  { test9510(t) }
+ func Test9557(t *testing.T)                  { test9557(t) }
+ func Test10303(t *testing.T)                 { test10303(t, 10) }
+ func Test11925(t *testing.T)                 { test11925(t) }
+diff --git a/misc/cgo/test/issue9510.go b/misc/cgo/test/issue9510.go
+new file mode 100644
+index 0000000000..a940bfba6f
+--- /dev/null
++++ b/misc/cgo/test/issue9510.go
+@@ -0,0 +1,24 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can link together two different cgo packages that both
++// use the same libgcc function.
++
++package cgotest
++
++import (
++	"runtime"
++	"testing"
++
++	"./issue9510a"
++	"./issue9510b"
++)
++
++func test9510(t *testing.T) {
++	if runtime.GOARCH == "arm" {
++		t.Skip("skipping because libgcc may be a Thumb library")
++	}
++	issue9510a.F(1, 1)
++	issue9510b.F(1, 1)
++}
+diff --git a/misc/cgo/test/issue9510a/a.go b/misc/cgo/test/issue9510a/a.go
+new file mode 100644
+index 0000000000..1a5224b8c6
+--- /dev/null
++++ b/misc/cgo/test/issue9510a/a.go
+@@ -0,0 +1,15 @@
++package issue9510a
++
++/*
++static double csquare(double a, double b) {
++	__complex__ double d;
++	__real__ d = a;
++	__imag__ d = b;
++	return __real__ (d * d);
++}
++*/
++import "C"
++
++func F(a, b float64) float64 {
++	return float64(C.csquare(C.double(a), C.double(b)))
++}
+diff --git a/misc/cgo/test/issue9510b/b.go b/misc/cgo/test/issue9510b/b.go
+new file mode 100644
+index 0000000000..5016b39597
+--- /dev/null
++++ b/misc/cgo/test/issue9510b/b.go
+@@ -0,0 +1,15 @@
++package issue9510b
++
++/*
++static double csquare(double a, double b) {
++	__complex__ double d;
++	__real__ d = a;
++	__imag__ d = b;
++	return __real__ (d * d);
++}
++*/
++import "C"
++
++func F(a, b float64) float64 {
++	return float64(C.csquare(C.double(a), C.double(b)))
++}
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 54e3fdf040..e06fca63d5 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -1002,6 +1003,7 @@ func cmdbootstrap() {
+ 	setup()
+ 
+ 	checkCC()
++	copyLibgcc()
+ 	bootstrapBuildTools()
+ 
+ 	// For the main bootstrap, building for host os/arch.
+@@ -1110,6 +1112,53 @@ func checkCC() {
+ 	}
+ }
+ 
++// copyLibgcc copies the C compiler's libgcc into the pkg directory.
++func copyLibgcc() {
++	if !needCC() {
++		return
++	}
++	var args []string
++	switch goarch {
++	case "386":
++		args = []string{"-m32"}
++	case "amd64", "amd64p32":
++		args = []string{"-m64"}
++	case "arm":
++		args = []string{"-marm"}
++	}
++	args = append(args, "--print-libgcc-file-name")
++	output, err := exec.Command(defaultcctarget, args...).Output()
++	if err != nil {
++		fatal("cannot find libgcc file name: %v", err)
++	}
++	libgcc := strings.TrimSpace(string(output))
++	if len(libgcc) == 0 {
++		return
++	}
++	in, err := os.Open(libgcc)
++	if err != nil {
++		if os.IsNotExist(err) {
++			return
++		}
++		fatal("cannot open libgcc for copying: %v", err)
++	}
++	defer in.Close()
++	outdir := filepath.Join(goroot, "pkg", "libgcc", goos+"_"+goarch)
++	if err := os.MkdirAll(outdir, 0777); err != nil {
++		fatal("cannot create libgcc.a directory: %v", err)
++	}
++	out, err := os.Create(filepath.Join(outdir, "libgcc"))
++	if err != nil {
++		fatal("cannot create libgcc.a for copying: %v", err)
++	}
++	if _, err := io.Copy(out, in); err != nil {
++		fatal("error copying libgcc: %v", err)
++	}
++	if err := out.Close(); err != nil {
++		fatal("error closing new libgcc: %v", err)
++	}
++}
++
+ func defaulttarg() string {
+ 	// xgetwd might return a path with symlinks fully resolved, and if
+ 	// there happens to be symlinks in goroot, then the hasprefix test
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 13e98c4a8b..c29f6a78a0 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2753,43 +2753,6 @@ func gccgoCleanPkgpath(p *Package) string {
+ 	return strings.Map(clean, gccgoPkgpath(p))
+ }
+ 
+-// libgcc returns the filename for libgcc, as determined by invoking gcc with
+-// the -print-libgcc-file-name option.
+-func (b *builder) libgcc(p *Package) (string, error) {
+-	var buf bytes.Buffer
+-
+-	gccCmd := b.gccCmd(p.Dir)
+-
+-	prev := b.print
+-	if buildN {
+-		// In -n mode we temporarily swap out the builder's
+-		// print function to capture the command-line. This
+-		// let's us assign it to $LIBGCC and produce a valid
+-		// buildscript for cgo packages.
+-		b.print = func(a ...interface{}) (int, error) {
+-			return fmt.Fprint(&buf, a...)
+-		}
+-	}
+-	f, err := b.runOut(p.Dir, p.ImportPath, nil, gccCmd, "-print-libgcc-file-name")
+-	if err != nil {
+-		return "", fmt.Errorf("gcc -print-libgcc-file-name: %v (%s)", err, f)
+-	}
+-	if buildN {
+-		s := fmt.Sprintf("LIBGCC=$(%s)\n", buf.Next(buf.Len()-1))
+-		b.print = prev
+-		b.print(s)
+-		return "$LIBGCC", nil
+-	}
+-
+-	// The compiler might not be able to find libgcc, and in that case,
+-	// it will simply return "libgcc.a", which is of no use to us.
+-	if !filepath.IsAbs(string(f)) {
+-		return "", nil
+-	}
+-
+-	return strings.Trim(string(f), "\r\n"), nil
+-}
+-
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	return b.ccompile(p, out, flags, cfile, b.gccCmd(p.Dir))
+@@ -2915,12 +2878,6 @@ func (b *builder) cflags(p *Package, def bool) (cppflags, cflags, cxxflags, ldfl
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+-var (
+-	cgoLibGccFile     string
+-	cgoLibGccErr      error
+-	cgoLibGccFileOnce sync.Once
+-)
+-
+ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
+ 	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoLDFLAGS := b.cflags(p, true)
+ 	_, cgoexeCFLAGS, _, _ := b.cflags(p, false)
+@@ -3049,22 +3006,12 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		}
+ 	}
+ 
+-	cgoLibGccFileOnce.Do(func() {
+-		cgoLibGccFile, cgoLibGccErr = b.libgcc(p)
+-	})
+-	if cgoLibGccFile == "" && cgoLibGccErr != nil {
+-		return nil, nil, err
+-	}
+-
+ 	var staticLibs []string
+ 	if goos == "windows" {
+-		// libmingw32 and libmingwex might also use libgcc, so libgcc must come last,
+-		// and they also have some inter-dependencies, so must use linker groups.
++		// libmingw32 and libmingwex have some inter-dependencies,
++		// so must use linker groups.
+ 		staticLibs = []string{"-Wl,--start-group", "-lmingwex", "-lmingw32", "-Wl,--end-group"}
+ 	}
+-	if cgoLibGccFile != "" {
+-		staticLibs = append(staticLibs, cgoLibGccFile)
+-	}
+ 
+ 	cflags := stringList(cgoCPPFLAGS, cgoCFLAGS)
+ 	for _, cfile := range cfiles {
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index a596e9a969..860a94df02 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -30,6 +30,13 @@
+ 
+ package ld
+ 
++import (
++	"cmd/internal/obj"
++	"encoding/binary"
++	"fmt"
++	"os"
++)
++
+ const (
+ 	SARMAG  = 8
+ 	SAR_HDR = 16 + 44
+@@ -48,3 +55,128 @@ type ArHdr struct {
+ 	size string
+ 	fmag string
+ }
++
++// hostArchive reads an archive file holding host objects and links in
++// required objects.  The general format is the same as a Go archive
++// file, but it has an armap listing symbols and the objects that
++// define them.  This is used for the compiler support library
++// libgcc.a.
++func hostArchive(name string) {
++	f, err := obj.Bopenr(name)
++	if err != nil {
++		if os.IsNotExist(err) {
++			// It's OK if we don't have a libgcc file at all.
++			return
++		}
++		Exitf("cannot open file %s: %v", name, err)
++	}
++	defer obj.Bterm(f)
++
++	magbuf := make([]byte, len(ARMAG))
++	if obj.Bread(f, magbuf) != len(magbuf) {
++		Exitf("file %s too short", name)
++	}
++
++	var arhdr ArHdr
++	l := nextar(f, obj.Boffset(f), &arhdr)
++	if l <= 0 {
++		Exitf("%s missing armap", name)
++	}
++
++	var armap archiveMap
++	if arhdr.name == "/" || arhdr.name == "/SYM64/" {
++		armap = readArmap(name, f, arhdr)
++	} else {
++		Exitf("%s missing armap", name)
++	}
++
++	loaded := make(map[uint64]bool)
++	any := true
++	for any {
++		var load []uint64
++		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++			for _, r := range s.R {
++				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
++					if off := armap[r.Sym.Name]; off != 0 && !loaded[off] {
++						load = append(load, off)
++						loaded[off] = true
++					}
++				}
++			}
++		}
++
++		for _, off := range load {
++			l := nextar(f, int64(off), &arhdr)
++			if l <= 0 {
++				Exitf("%s missing archive entry at offset %d", name, off)
++			}
++			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
++			l = atolwhex(arhdr.size)
++
++			h := ldobj(f, "libgcc", l, pname, name, ArchiveObj)
++			obj.Bseek(f, h.off, 0)
++			h.ld(f, h.pkg, h.length, h.pn)
++		}
++
++		any = len(load) > 0
++	}
++}
++
++// archiveMap is an archive symbol map: a mapping from symbol name to
++// offset within the archive file.
++type archiveMap map[string]uint64
++
++// readArmap reads the archive symbol map.
++func readArmap(filename string, f *obj.Biobuf, arhdr ArHdr) archiveMap {
++	is64 := arhdr.name == "/SYM64/"
++	wordSize := 4
++	if is64 {
++		wordSize = 8
++	}
++
++	l := atolwhex(arhdr.size)
++	contents := make([]byte, l)
++	if obj.Bread(f, contents) != int(l) {
++		Exitf("short read from %s", filename)
++	}
++
++	var c uint64
++	if is64 {
++		c = binary.BigEndian.Uint64(contents)
++	} else {
++		c = uint64(binary.BigEndian.Uint32(contents))
++	}
++	contents = contents[wordSize:]
++
++	ret := make(archiveMap)
++
++	names := contents[c*uint64(wordSize):]
++	for i := uint64(0); i < c; i++ {
++		n := 0
++		for names[n] != 0 {
++			n++
++		}
++		name := string(names[:n])
++		names = names[n+1:]
++
++		// For Mach-O and PE/386 files we strip a leading
++		// underscore from the symbol name.
++		if goos == "darwin" || (goos == "windows" && goarch == "386") {
++			if name[0] == '_' && len(name) > 1 {
++				name = name[1:]
++			}
++		}
++
++		var off uint64
++		if is64 {
++			off = binary.BigEndian.Uint64(contents)
++		} else {
++			off = uint64(binary.BigEndian.Uint32(contents))
++		}
++		contents = contents[wordSize:]
++
++		ret[name] = off
++	}
++
++	return ret
++}
+diff --git a/src/cmd/link/internal/ld/ldelf.go b/src/cmd/link/internal/ld/ldelf.go
+index 280edcdb39..66bf61321d 100644
+--- a/src/cmd/link/internal/ld/ldelf.go
++++ b/src/cmd/link/internal/ld/ldelf.go
+@@ -1076,7 +1076,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+ 
+ 		case ElfSymBindWeak:
+ 			if needSym != 0 {
+-				s = linknewsym(Ctxt, sym.name, 0)
++				s = Linklookup(Ctxt, sym.name, 0)
+ 				if sym.other == 2 {
+ 					s.Type |= obj.SHIDDEN
+ 				}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e2ffa1a123..9749355ddb 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -642,6 +642,22 @@ func loadlib() {
+ 	// In internal link mode, read the host object files.
+ 	if Linkmode == LinkInternal {
+ 		hostobjs()
++
++		// If we have any undefined symbols in external
++		// objects, try to read them from our copy of the C
++		// compiler support library, libgcc.a.
++		any := false
++		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++			for _, r := range s.R {
++				if r.Sym != nil && r.Sym.Type&obj.SMASK == obj.SXREF {
++					any = true
++					break
++				}
++			}
++		}
++		if any {
++			hostArchive(fmt.Sprintf("%s/pkg/libgcc/%s_%s/libgcc", goroot, goos, goarch))
++		}
+ 	} else {
+ 		hostlinksetup()
+ 	}
+@@ -819,7 +835,7 @@ var internalpkg = []string{
+ 	"runtime/msan",
+ }
+ 
+-func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) {
++func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg string, length int64, pn string, file string) *Hostobj {
+ 	isinternal := false
+ 	for i := 0; i < len(internalpkg); i++ {
+ 		if pkg == internalpkg[i] {
+@@ -852,6 +868,7 @@ func ldhostobj(ld func(*obj.Biobuf, string, int64, string), f *obj.Biobuf, pkg s
+ 	h.file = file
+ 	h.off = obj.Boffset(f)
+ 	h.length = length
++	return h
+ }
+ 
+ func hostobjs() {
+@@ -1190,7 +1207,10 @@ func hostlink() {
+ 	}
+ }
+ 
+-func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) {
++// ldobj loads an input object.  If it is a host object (an object
++// compiled by a non-Go compiler) it returns the Hostobj pointer.  If
++// it is a Go object, it returns nil.
++func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, whence int) *Hostobj {
+ 	eof := obj.Boffset(f) + length
+ 
+ 	start := obj.Boffset(f)
+@@ -1202,18 +1222,15 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 
+ 	magic := uint32(c1)<<24 | uint32(c2)<<16 | uint32(c3)<<8 | uint32(c4)
+ 	if magic == 0x7f454c46 { // \x7F E L F
+-		ldhostobj(ldelf, f, pkg, length, pn, file)
+-		return
++		return ldhostobj(ldelf, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if magic&^1 == 0xfeedface || magic&^0x01000000 == 0xcefaedfe {
+-		ldhostobj(ldmacho, f, pkg, length, pn, file)
+-		return
++		return ldhostobj(ldmacho, f, pkg, length, pn, file)
+ 	}
+ 
+ 	if c1 == 0x4c && c2 == 0x01 || c1 == 0x64 && c2 == 0x86 {
+-		ldhostobj(ldpe, f, pkg, length, pn, file)
+-		return
++		return ldhostobj(ldpe, f, pkg, length, pn, file)
+ 	}
+ 
+ 	/* check the header */
+@@ -1221,10 +1238,10 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	if line == "" {
+ 		if obj.Blinelen(f) > 0 {
+ 			Diag("%s: not an object file", pn)
+-			return
++			return nil
+ 		}
+ 		Diag("truncated object file: %s", pn)
+-		return
++		return nil
+ 	}
+ 
+ 	if !strings.HasPrefix(line, "go object ") {
+@@ -1235,11 +1252,11 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 		if line == Thestring {
+ 			// old header format: just $GOOS
+ 			Diag("%s: stale object file", pn)
+-			return
++			return nil
+ 		}
+ 
+ 		Diag("%s: not an object file", pn)
+-		return
++		return nil
+ 	}
+ 
+ 	// First, check that the basic goos, goarch, and version match.
+@@ -1248,7 +1265,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	line = strings.TrimRight(line, "\n")
+ 	if !strings.HasPrefix(line[10:]+" ", t) && Debug['f'] == 0 {
+ 		Diag("%s: object is [%s] expected [%s]", pn, line[10:], t)
+-		return
++		return nil
+ 	}
+ 
+ 	// Second, check that longer lines match each other exactly,
+@@ -1259,7 +1276,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 			theline = line[10:]
+ 		} else if theline != line[10:] {
+ 			Diag("%s: object is [%s] expected [%s]", pn, line[10:], theline)
+-			return
++			return nil
+ 		}
+ 	}
+ 
+@@ -1275,7 +1292,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 		c3 = obj.Bgetc(f)
+ 		if c3 == obj.Beof {
+ 			Diag("truncated object file: %s", pn)
+-			return
++			return nil
+ 		}
+ 	}
+ 
+@@ -1286,6 +1303,7 @@ func ldobj(f *obj.Biobuf, pkg string, length int64, pn string, file string, when
+ 	obj.Bseek(f, import1, 0)
+ 
+ 	ldobjfile(Ctxt, f, pkg, eof-obj.Boffset(f), pn)
++	return nil
+ }
+ 
+ func readelfsymboldata(f *elf.File, sym *elf.Symbol) []byte {

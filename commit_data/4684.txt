@@ -8,7 +8,7 @@ Date:   Tue Jan 26 10:40:28 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/194078
-
+---
  src/cmd/gc/go.y             | 71 ++++++++++++++++++++-------------------------
  src/cmd/gc/print.c          |  8 +++--
  src/cmd/gc/subr.c           | 14 +++++----
@@ -19,3 +19,492 @@ Date:   Tue Jan 26 10:40:28 2010 -0800
  test/import2.go             | 42 +++++++++++++++++++++++++++
  test/import3.go             | 54 ++++++++++++++++++++++++++++++++++
  9 files changed, 183 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index d73311fff5..db9b0db5b8 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -73,7 +73,7 @@
+ 
+ %type	<node>	convtype dotdotdot
+ %type	<node>	indcl interfacetype structtype ptrtype
+-%type	<node>	chantype non_chan_type othertype non_fn_type fntype
++%type	<node>	recvchantype non_recvchantype othertype fnret_type fntype
+ 
+ %type	<sym>	hidden_importsym hidden_pkg_importsym
+ 
+@@ -86,8 +86,8 @@
+ %type	<list>	hidden_structdcl_list ohidden_structdcl_list
+ 
+ %type	<type>	hidden_type hidden_type_misc hidden_pkgtype
+-%type	<type>	hidden_type_func hidden_type_non_func
+-%type	<type>	hidden_type_chan hidden_type_non_chan
++%type	<type>	hidden_type_func
++%type	<type>	hidden_type_recv_chan hidden_type_non_recv_chan
+ 
+ %left		LOROR
+ %left		LANDAND
+@@ -923,7 +923,7 @@ dotdotdot:
+ 	}
+ 
+ ntype:
+-	chantype
++	recvchantype
+ |	fntype
+ |	othertype
+ |	ptrtype
+@@ -934,19 +934,15 @@ ntype:
+ 	}
+ 
+ non_expr_type:
+-	chantype
++	recvchantype
+ |	fntype
+ |	othertype
+ |	'*' non_expr_type
+ 	{
+ 		$$ = nod(OIND, $2, N);
+ 	}
+-|	'(' non_expr_type ')'
+-	{
+-		$$ = $2;
+-	}
+ 
+-non_chan_type:
++non_recvchantype:
+ 	fntype
+ |	othertype
+ |	ptrtype
+@@ -956,8 +952,9 @@ non_chan_type:
+ 		$$ = $2;
+ 	}
+ 
+-non_fn_type:
+-	chantype
++fnret_type:
++	recvchantype
++|	fntype
+ |	othertype
+ |	ptrtype
+ |	dotname
+@@ -986,12 +983,12 @@ othertype:
+ 		// array literal of nelem
+ 		$$ = nod(OTARRAY, $2, $4);
+ 	}
+-|	LCOMM LCHAN ntype
++|	LCHAN non_recvchantype
+ 	{
+-		$$ = nod(OTCHAN, $3, N);
+-		$$->etype = Crecv;
++		$$ = nod(OTCHAN, $2, N);
++		$$->etype = Cboth;
+ 	}
+-|	LCHAN LCOMM non_chan_type
++|	LCHAN LCOMM ntype
+ 	{
+ 		$$ = nod(OTCHAN, $3, N);
+ 		$$->etype = Csend;
+@@ -1009,11 +1006,11 @@ ptrtype:
+ 		$$ = nod(OIND, $2, N);
+ 	}
+ 
+-chantype:
+-	LCHAN ntype
++recvchantype:
++	LCOMM LCHAN ntype
+ 	{
+-		$$ = nod(OTCHAN, $2, N);
+-		$$->etype = Cboth;
++		$$ = nod(OTCHAN, $3, N);
++		$$->etype = Crecv;
+ 	}
+ 
+ structtype:
+@@ -1132,7 +1129,7 @@ fnres:
+ 	{
+ 		$$ = nil;
+ 	}
+-|	non_fn_type
++|	fnret_type
+ 	{
+ 		$$ = list1(nod(ODCLFIELD, N, $1));
+ 	}
+@@ -1588,17 +1585,13 @@ hidden_pkgtype:
+ 
+ hidden_type:
+ 	hidden_type_misc
+-|	hidden_type_chan
++|	hidden_type_recv_chan
+ |	hidden_type_func
+ 
+-hidden_type_non_chan:
++hidden_type_non_recv_chan:
+ 	hidden_type_misc
+ |	hidden_type_func
+ 
+-hidden_type_non_func:
+-	hidden_type_misc
+-|	hidden_type_chan
+-
+ hidden_type_misc:
+ 	hidden_importsym
+ 	{
+@@ -1639,22 +1632,22 @@ hidden_type_misc:
+ 	{
+ 		$$ = ptrto($2);
+ 	}
+-|	LCOMM LCHAN hidden_type
++|	LCHAN hidden_type_non_recv_chan
+ 	{
+ 		$$ = typ(TCHAN);
+-		$$->type = $3;
+-		$$->chan = Crecv;
++		$$->type = $2;
++		$$->chan = Cboth;
+ 	}
+-|	LCHAN LCOMM hidden_type_non_chan
++|	LCHAN '(' hidden_type_recv_chan ')'
+ 	{
+ 		$$ = typ(TCHAN);
+ 		$$->type = $3;
+-		$$->chan = Csend;
++		$$->chan = Cboth;
+ 	}
+-|	LCHAN LCOMM '(' hidden_type_chan ')'
++|	LCHAN LCOMM hidden_type
+ 	{
+ 		$$ = typ(TCHAN);
+-		$$->type = $4;
++		$$->type = $3;
+ 		$$->chan = Csend;
+ 	}
+ |	LDDD
+@@ -1662,12 +1655,12 @@ hidden_type_misc:
+ 		$$ = typ(TDDD);
+ 	}
+ 
+-hidden_type_chan:
+-	LCHAN hidden_type
++hidden_type_recv_chan:
++	LCOMM LCHAN hidden_type
+ 	{
+ 		$$ = typ(TCHAN);
+-		$$->type = $2;
+-		$$->chan = Cboth;
++		$$->type = $3;
++		$$->chan = Crecv;
+ 	}
+ 
+ hidden_type_func:
+@@ -1723,7 +1716,7 @@ hidden_funres:
+ 	{
+ 		$$ = $2;
+ 	}
+-|	hidden_type_non_func
++|	hidden_type
+ 	{
+ 		$$ = list1(nod(ODCLFIELD, N, typenod($1)));
+ 	}
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index bbb7b0fbd2..91f012d8b8 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -7,7 +7,6 @@
+ enum
+ {
+ 	PFIXME = 0,
+-	PCHAN = 0,
+ };
+ 
+ void
+@@ -173,7 +172,12 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			exprfmt(f, n->left, 0);
+ 		} else {
+ 			fmtprint(f, " ");
+-			exprfmt(f, n->left, PCHAN);
++			if(n->left->op == OTCHAN && n->left->etype == Crecv) {
++				fmtprint(f, "(");
++				exprfmt(f, n->left, 0);
++				fmtprint(f, ")");
++			} else
++				exprfmt(f, n->left, 0);
+ 		}
+ 		break;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e8aaabcc46..74ca4cc2cf 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -292,7 +292,7 @@ Sym*
+ restrictlookup(char *name, Pkg *pkg)
+ {
+ 	if(!exportname(name) && pkg != localpkg)
+-		yyerror("cannot refer to unexported name %s.%s", pkg, name);
++		yyerror("cannot refer to unexported name %s.%s", pkg->name, name);
+ 	return pkglookup(name, pkg);
+ }
+ 
+@@ -1105,10 +1105,10 @@ Tpretty(Fmt *fp, Type *t)
+ 		case Crecv:
+ 			return fmtprint(fp, "<-chan %T", t->type);
+ 		case Csend:
+-			if(t->type != T && t->type->etype == TCHAN)
+-				return fmtprint(fp, "chan<- (%T)", t->type);
+ 			return fmtprint(fp, "chan<- %T", t->type);
+ 		}
++		if(t->type != T && t->type->etype == TCHAN && t->type->chan == Crecv)
++			return fmtprint(fp, "chan (%T)", t->type);
+ 		return fmtprint(fp, "chan %T", t->type);
+ 
+ 	case TMAP:
+@@ -1150,10 +1150,14 @@ Tpretty(Fmt *fp, Type *t)
+ 				fmtprint(fp, " ?unknown-type?");
+ 				break;
+ 			}
+-			if(t1->etype != TFIELD && t1->etype != TFUNC) {
++			if(t1->etype != TFIELD) {
+ 				fmtprint(fp, " %T", t1);
+ 				break;
+ 			}
++			if(t1->sym == S) {
++				fmtprint(fp, " %T", t1->type);
++				break;
++			}
+ 		default:
+ 			t1 = getoutargx(t)->type;
+ 			fmtprint(fp, " (");
+@@ -1180,7 +1184,7 @@ Tpretty(Fmt *fp, Type *t)
+ 	case TINTER:
+ 		fmtprint(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			fmtprint(fp, " %hS %hhT", t1->sym, t1->type);
++			fmtprint(fp, " %hS%hhT", t1->sym, t1->type);
+ 			if(t1->down)
+ 				fmtprint(fp, ";");
+ 		}
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index f9721f6b4a..221ca06dfe 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -150,7 +150,7 @@ var typeTests = []pair{
+ 			b()
+ 		})
+ 	}{},
+-		"interface { a (func(func(int) (int)) (func(func(int)) (int))); b () }",
++		"interface { a(func(func(int) int) func(func(int)) int); b() }",
+ 	},
+ }
+ 
+diff --git a/test/bugs/bug249.go b/test/bugs/bug249.go
+deleted file mode 100644
+index 642170d072..0000000000
+--- a/test/bugs/bug249.go
++++ /dev/null
+@@ -1,39 +0,0 @@
+-// errchk $G $D/$F.go
+-
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-var c1 chan<- chan int
+-var c2 chan<- (chan int) // same type as c1 according to gccgo, gofmt
+-var c3 chan (<-chan int) // same type as c1 according to 6g
+-
+-func main() {
+-	c1 = c2 // this should be ok, bug 6g doesn't accept it
+-	c1 = c3 // ERROR "chan"
+-}
+-
+-/*
+-Channel types are parsed differently by 6g then by gccgo and gofmt.
+-The channel type specification ( http://golang.org/doc/go_spec.html#Channel_types )
+-says that a channel type is either
+-
+-	chan ElementType
+-	chan <- ElementType
+-	<-chan ElementType
+-
+-which indicates that the <- binds to the chan token (not to the ElementType).
+-So:
+-
+-chan <- chan int
+-
+-should be parsed as
+-
+-chan<- (chan int)
+-
+-Both gccgo and gofmt adhere to this, while 6g parses this as
+-
+-chan (<-chan int)
+-*/
+diff --git a/test/fixedbugs/bug249.go b/test/fixedbugs/bug249.go
+new file mode 100644
+index 0000000000..b88a444292
+--- /dev/null
++++ b/test/fixedbugs/bug249.go
+@@ -0,0 +1,39 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var c1 chan <- chan int = (chan<- (chan int))(nil)
++var c2 chan <- chan int = (chan (<-chan int))(nil)  // ERROR "chan"
++var c3 <- chan chan int = (<-chan (chan int))(nil)
++var c4 chan chan <- int = (chan (chan<- int))(nil)
++
++var c5 <- chan <- chan int = (<-chan (<-chan int))(nil)
++var c6 chan <- <- chan int = (chan<- (<-chan int))(nil)
++var c7 chan <- chan <- int = (chan<- (chan<- int))(nil)
++
++var c8 <- chan <- chan chan int = (<-chan (<-chan (chan int)))(nil)
++var c9 <- chan chan <- chan int = (<-chan (chan<- (chan int)))(nil)
++var c10 chan <- <- chan chan int = (chan<- (<-chan (chan int)))(nil)
++var c11 chan <- chan <- chan int = (chan<- (chan<- (chan int)))(nil)
++var c12 chan chan <- <- chan int = (chan (chan<- (<-chan int)))(nil)
++var c13 chan chan <- chan <- int = (chan (chan<- (chan<- int)))(nil)
++
++var r1 chan<- (chan int) = (chan <- chan int)(nil)
++var r2 chan (<-chan int) = (chan <- chan int)(nil)  // ERROR "chan"
++var r3 <-chan (chan int) = (<- chan chan int)(nil)
++var r4 chan (chan<- int) = (chan chan <- int)(nil)
++
++var r5 <-chan (<-chan int) = (<- chan <- chan int)(nil)
++var r6 chan<- (<-chan int) = (chan <- <- chan int)(nil)
++var r7 chan<- (chan<- int) = (chan <- chan <- int)(nil)
++
++var r8 <-chan (<-chan (chan int)) = (<- chan <- chan chan int)(nil)
++var r9 <-chan (chan<- (chan int)) = (<- chan chan <- chan int)(nil)
++var r10 chan<- (<-chan (chan int)) = (chan <- <- chan chan int)(nil)
++var r11 chan<- (chan<- (chan int)) = (chan <- chan <- chan int)(nil)
++var r12 chan (chan<- (<-chan int)) = (chan chan <- <- chan int)(nil)
++var r13 chan (chan<- (chan<- int)) = (chan chan <- chan <- int)(nil)
+diff --git a/test/golden.out b/test/golden.out
+index af57491180..d87842e4ff 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -154,10 +154,3 @@ BUG: tuple evaluation order
+ bugs/bug246.go:17: cannot convert 0 to type unsafe.Pointer
+ bugs/bug246.go:17: cannot convert 0 (type uintptr) to type *int in conversion
+ BUG: bug246
+-
+-=========== bugs/bug249.go
+-BUG: errchk: bugs/bug249.go:15: missing expected error: 'chan'
+-errchk: bugs/bug249.go: unmatched error messages:
+-==================================================
+-bugs/bug249.go:14: cannot use c2 (type chan<- (chan int)) as type chan <-chan int in assignment
+-==================================================
+diff --git a/test/import2.go b/test/import2.go
+new file mode 100644
+index 0000000000..0efc285fac
+--- /dev/null
++++ b/test/import2.go
+@@ -0,0 +1,42 @@
++// true  # used by import3
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var C1 chan <- chan int = (chan<- (chan int))(nil)
++var C2 chan (<- chan int) = (chan (<-chan int))(nil)
++var C3 <- chan chan int = (<-chan (chan int))(nil)
++var C4 chan chan <- int = (chan (chan<- int))(nil)
++
++var C5 <- chan <- chan int = (<-chan (<-chan int))(nil)
++var C6 chan <- <- chan int = (chan<- (<-chan int))(nil)
++var C7 chan <- chan <- int = (chan<- (chan<- int))(nil)
++
++var C8 <- chan <- chan chan int = (<-chan (<-chan (chan int)))(nil)
++var C9 <- chan chan <- chan int = (<-chan (chan<- (chan int)))(nil)
++var C10 chan <- <- chan chan int = (chan<- (<-chan (chan int)))(nil)
++var C11 chan <- chan <- chan int = (chan<- (chan<- (chan int)))(nil)
++var C12 chan chan <- <- chan int = (chan (chan<- (<-chan int)))(nil)
++var C13 chan chan <- chan <- int = (chan (chan<- (chan<- int)))(nil)
++
++var R1 chan<- (chan int) = (chan <- chan int)(nil)
++var R3 <-chan (chan int) = (<- chan chan int)(nil)
++var R4 chan (chan<- int) = (chan chan <- int)(nil)
++
++var R5 <-chan (<-chan int) = (<- chan <- chan int)(nil)
++var R6 chan<- (<-chan int) = (chan <- <- chan int)(nil)
++var R7 chan<- (chan<- int) = (chan <- chan <- int)(nil)
++
++var R8 <-chan (<-chan (chan int)) = (<- chan <- chan chan int)(nil)
++var R9 <-chan (chan<- (chan int)) = (<- chan chan <- chan int)(nil)
++var R10 chan<- (<-chan (chan int)) = (chan <- <- chan chan int)(nil)
++var R11 chan<- (chan<- (chan int)) = (chan <- chan <- chan int)(nil)
++var R12 chan (chan<- (<-chan int)) = (chan chan <- <- chan int)(nil)
++var R13 chan (chan<- (chan<- int)) = (chan chan <- chan <- int)(nil)
++
++var F1 func() func() int
++func F2() func() func() int
++func F3(func() func() int)
+diff --git a/test/import3.go b/test/import3.go
+new file mode 100644
+index 0000000000..e4900b93dd
+--- /dev/null
++++ b/test/import3.go
+@@ -0,0 +1,54 @@
++// $G $D/import2.go && $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that all the types from import2.go made it
++// intact and with the same meaning, by assigning to or using them.
++
++package main
++
++import "./import2"
++
++func f3(func() func() int)
++
++func main() {
++	p.F3(p.F1)
++	p.F3(p.F2())
++	f3(p.F1)
++	f3(p.F2())
++
++	p.C1 = (chan<- (chan int))(nil)
++	p.C2 = (chan (<-chan int))(nil)
++	p.C3 = (<-chan (chan int))(nil)
++	p.C4 = (chan (chan<- int))(nil)
++
++	p.C5 = (<-chan (<-chan int))(nil)
++	p.C6 = (chan<- (<-chan int))(nil)
++	p.C7 = (chan<- (chan<- int))(nil)
++
++	p.C8 = (<-chan (<-chan (chan int)))(nil)
++	p.C9 = (<-chan (chan<- (chan int)))(nil)
++	p.C10 = (chan<- (<-chan (chan int)))(nil)
++	p.C11 = (chan<- (chan<- (chan int)))(nil)
++	p.C12 = (chan (chan<- (<-chan int)))(nil)
++	p.C13 = (chan (chan<- (chan<- int)))(nil)
++
++	p.R1 = (chan <- chan int)(nil)
++	p.R3 = (<- chan chan int)(nil)
++	p.R4 = (chan chan <- int)(nil)
++
++	p.R5 = (<- chan <- chan int)(nil)
++	p.R6 = (chan <- <- chan int)(nil)
++	p.R7 = (chan <- chan <- int)(nil)
++
++	p.R8 = (<- chan <- chan chan int)(nil)
++	p.R9 = (<- chan chan <- chan int)(nil)
++	p.R10 = (chan <- <- chan chan int)(nil)
++	p.R11 = (chan <- chan <- chan int)(nil)
++	p.R12 = (chan chan <- <- chan int)(nil)
++	p.R13 = (chan chan <- chan <- int)(nil)
++
++}
++

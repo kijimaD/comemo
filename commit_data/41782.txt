@@ -14,7 +14,7 @@ Date:   Thu Oct 24 15:17:16 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go |  7 +++----
  src/cmd/go/internal/modfetch/codehost/git.go      | 14 +++++++-------
  src/cmd/go/internal/modfetch/codehost/git_test.go | 16 ++++++----------
@@ -22,3 +22,197 @@ Date:   Thu Oct 24 15:17:16 2019 -0400
  src/cmd/go/internal/modfetch/codehost/vcs.go      | 12 ++++++------
  src/cmd/go/internal/modfetch/coderepo.go          |  9 +++------
  6 files changed, 26 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index a4e50d692a..5867288c96 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -73,11 +73,10 @@ type Repo interface {
+ 	// ReadZip downloads a zip file for the subdir subdirectory
+ 	// of the given revision to a new file in a given temporary directory.
+ 	// It should refuse to read more than maxSize bytes.
+-	// It returns a ReadCloser for a streamed copy of the zip file,
+-	// along with the actual subdirectory (possibly shorter than subdir)
+-	// contained in the zip file. All files in the zip file are expected to be
++	// It returns a ReadCloser for a streamed copy of the zip file.
++	// All files in the zip file are expected to be
+ 	// nested in a single top-level directory, whose name is not specified.
+-	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error)
++	ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error)
+ 
+ 	// RecentTag returns the most recent tag on rev or one of its predecessors
+ 	// with the given prefix and major version.
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 64d4573c71..4a08f8ded6 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -795,7 +795,7 @@ func (r *gitRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	return false, err
+ }
+ 
+-func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
++func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+ 	// TODO: Use maxSize or drop it.
+ 	args := []string{}
+ 	if subdir != "" {
+@@ -803,17 +803,17 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	}
+ 	info, err := r.Stat(rev) // download rev into local git repo
+ 	if err != nil {
+-		return nil, "", err
++		return nil, err
+ 	}
+ 
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+-		return nil, "", err
++		return nil, err
+ 	}
+ 	defer unlock()
+ 
+ 	if err := ensureGitAttributes(r.dir); err != nil {
+-		return nil, "", err
++		return nil, err
+ 	}
+ 
+ 	// Incredibly, git produces different archives depending on whether
+@@ -824,12 +824,12 @@ func (r *gitRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	archive, err := Run(r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+ 	if err != nil {
+ 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
+-			return nil, "", os.ErrNotExist
++			return nil, os.ErrNotExist
+ 		}
+-		return nil, "", err
++		return nil, err
+ 	}
+ 
+-	return ioutil.NopCloser(bytes.NewReader(archive)), "", nil
++	return ioutil.NopCloser(bytes.NewReader(archive)), nil
+ }
+ 
+ // ensureGitAttributes makes sure export-subst and export-ignore features are
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index da9e705040..39c904f92c 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -246,12 +246,11 @@ func TestReadFile(t *testing.T) {
+ }
+ 
+ var readZipTests = []struct {
+-	repo         string
+-	rev          string
+-	subdir       string
+-	actualSubdir string
+-	err          string
+-	files        map[string]uint64
++	repo   string
++	rev    string
++	subdir string
++	err    string
++	files  map[string]uint64
+ }{
+ 	{
+ 		repo:   gitrepo1,
+@@ -408,7 +407,7 @@ func TestReadZip(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			rc, actualSubdir, err := r.ReadZip(tt.rev, tt.subdir, 100000)
++			rc, err := r.ReadZip(tt.rev, tt.subdir, 100000)
+ 			if err != nil {
+ 				if tt.err == "" {
+ 					t.Fatalf("ReadZip: unexpected error %v", err)
+@@ -425,9 +424,6 @@ func TestReadZip(t *testing.T) {
+ 			if tt.err != "" {
+ 				t.Fatalf("ReadZip: no error, wanted %v", tt.err)
+ 			}
+-			if actualSubdir != tt.actualSubdir {
+-				t.Fatalf("ReadZip: actualSubdir = %q, want %q", actualSubdir, tt.actualSubdir)
+-			}
+ 			zipdata, err := ioutil.ReadAll(rc)
+ 			if err != nil {
+ 				t.Fatal(err)
+diff --git a/src/cmd/go/internal/modfetch/codehost/shell.go b/src/cmd/go/internal/modfetch/codehost/shell.go
+index 7b813c3740..835bc53c0d 100644
+--- a/src/cmd/go/internal/modfetch/codehost/shell.go
++++ b/src/cmd/go/internal/modfetch/codehost/shell.go
+@@ -109,7 +109,7 @@ func main() {
+ 			if subdir == "-" {
+ 				subdir = ""
+ 			}
+-			rc, _, err := repo.ReadZip(f[1], subdir, 10<<20)
++			rc, err := repo.ReadZip(f[1], subdir, 10<<20)
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "?%s\n", err)
+ 				continue
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 48238f176c..c9f77bf3b2 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -417,14 +417,14 @@ func (r *vcsRepo) DescendsFrom(rev, tag string) (bool, error) {
+ 	return false, vcsErrorf("DescendsFrom not implemented")
+ }
+ 
+-func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, actualSubdir string, err error) {
++func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser, err error) {
+ 	if r.cmd.readZip == nil {
+-		return nil, "", vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
++		return nil, vcsErrorf("ReadZip not implemented for %s", r.cmd.vcs)
+ 	}
+ 
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+-		return nil, "", err
++		return nil, err
+ 	}
+ 	defer unlock()
+ 
+@@ -433,7 +433,7 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	}
+ 	f, err := ioutil.TempFile("", "go-readzip-*.zip")
+ 	if err != nil {
+-		return nil, "", err
++		return nil, err
+ 	}
+ 	if r.cmd.vcs == "fossil" {
+ 		// If you run
+@@ -454,9 +454,9 @@ func (r *vcsRepo) ReadZip(rev, subdir string, maxSize int64) (zip io.ReadCloser,
+ 	if err != nil {
+ 		f.Close()
+ 		os.Remove(f.Name())
+-		return nil, "", err
++		return nil, err
+ 	}
+-	return &deleteCloser{f}, "", nil
++	return &deleteCloser{f}, nil
+ }
+ 
+ // deleteCloser is a file that gets deleted on Close.
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 588f7a8d67..600b2e75c3 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -780,19 +780,16 @@ func (r *codeRepo) Zip(dst io.Writer, version string) error {
+ 		}
+ 	}
+ 
+-	rev, dir, _, err := r.findDir(version)
++	rev, subdir, _, err := r.findDir(version)
+ 	if err != nil {
+ 		return err
+ 	}
+-	dl, actualDir, err := r.code.ReadZip(rev, dir, codehost.MaxZipFile)
++	dl, err := r.code.ReadZip(rev, subdir, codehost.MaxZipFile)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	defer dl.Close()
+-	if actualDir != "" && !hasPathPrefix(dir, actualDir) {
+-		return fmt.Errorf("internal error: downloading %v %v: dir=%q but actualDir=%q", r.modPath, rev, dir, actualDir)
+-	}
+-	subdir := strings.Trim(strings.TrimPrefix(dir, actualDir), "/")
++	subdir = strings.Trim(subdir, "/")
+ 
+ 	// Spool to local file.
+ 	f, err := ioutil.TempFile("", "go-codehost-")

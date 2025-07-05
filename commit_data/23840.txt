@@ -13,10 +13,161 @@ Date:   Tue Jun 16 15:36:06 2015 +1000
     Change-Id: Iaaeb5b800126492f36415a439c333a218fe4ab67
     Reviewed-on: https://go-review.googlesource.com/11119
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testsovar/cgoso.go  | 43 +++++++++++++++++++++++++++++++++++++++++++
  misc/cgo/testsovar/cgoso_c.c |  7 +++++++
  misc/cgo/testsovar/cgoso_c.h | 17 +++++++++++++++++
  misc/cgo/testsovar/main.go   | 13 +++++++++++++
  src/cmd/dist/test.go         | 20 +++++++++++++++++---
  5 files changed, 97 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/testsovar/cgoso.go b/misc/cgo/testsovar/cgoso.go
+new file mode 100644
+index 0000000000..88d44c2c6e
+--- /dev/null
++++ b/misc/cgo/testsovar/cgoso.go
+@@ -0,0 +1,43 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgosotest
++
++// This test verifies that Go can access C variables
++// in shared object file via cgo.
++
++/*
++// intentionally write the same LDFLAGS differently
++// to test correct handling of LDFLAGS.
++#cgo windows CFLAGS: -DIMPORT_DLL
++#cgo linux LDFLAGS: -L. -lcgosotest
++#cgo dragonfly LDFLAGS: -L. -l cgosotest
++#cgo freebsd LDFLAGS: -L. -l cgosotest
++#cgo openbsd LDFLAGS: -L. -l cgosotest
++#cgo solaris LDFLAGS: -L. -lcgosotest
++#cgo netbsd LDFLAGS: -L. libcgosotest.so
++#cgo darwin LDFLAGS: -L. libcgosotest.dylib
++#cgo windows LDFLAGS: -L. libcgosotest.dll
++
++#include "cgoso_c.h"
++
++const char* getVar() {
++	    return exported_var;
++}
++*/
++import "C"
++
++import "fmt"
++
++func Test() {
++	const want = "Hello world"
++	got := C.GoString(C.getVar())
++	if got != want {
++		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
++	}
++	got = C.GoString(C.exported_var)
++	if got != want {
++		panic(fmt.Sprintf("testExportedVar: got %q, but want %q", got, want))
++	}
++}
+diff --git a/misc/cgo/testsovar/cgoso_c.c b/misc/cgo/testsovar/cgoso_c.c
+new file mode 100644
+index 0000000000..a448c01342
+--- /dev/null
++++ b/misc/cgo/testsovar/cgoso_c.c
+@@ -0,0 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++const char *exported_var = "Hello world";
+diff --git a/misc/cgo/testsovar/cgoso_c.h b/misc/cgo/testsovar/cgoso_c.h
+new file mode 100644
+index 0000000000..ab304cdcaa
+--- /dev/null
++++ b/misc/cgo/testsovar/cgoso_c.h
+@@ -0,0 +1,17 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++#ifdef WIN32
++#if defined(EXPORT_DLL)
++#    define VAR __declspec(dllexport)
++#elif defined(IMPORT_DLL)
++#    define VAR __declspec(dllimport)
++#endif
++#else
++#    define VAR
++#endif
++
++VAR const char *exported_var;
+diff --git a/misc/cgo/testsovar/main.go b/misc/cgo/testsovar/main.go
+new file mode 100644
+index 0000000000..9c8a1c4e66
+--- /dev/null
++++ b/misc/cgo/testsovar/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++import "."
++
++func main() {
++	cgosotest.Test()
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8246dbb249..6f1b43cfce 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -414,8 +414,21 @@ func (t *tester) registerTests() {
+ 			t.tests = append(t.tests, distTest{
+ 				name:    "testso",
+ 				heading: "../misc/cgo/testso",
+-				fn:      t.cgoTestSO,
++				fn: func() error {
++					return t.cgoTestSO("misc/cgo/testso")
++				},
+ 			})
++			if t.goos == "darwin" {
++				fmt.Println("Skipping misc/cgo/testsovar test. See issue 10360 for details.")
++			} else {
++				t.tests = append(t.tests, distTest{
++					name:    "testsovar",
++					heading: "../misc/cgo/testsovar",
++					fn: func() error {
++						return t.cgoTestSO("misc/cgo/testsovar")
++					},
++				})
++			}
+ 		}
+ 		if t.supportedBuildmode("c-archive") {
+ 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "./test.bash")
+@@ -724,8 +737,8 @@ func (t *tester) cgoTestSOSupported() bool {
+ 	return true
+ }
+ 
+-func (t *tester) cgoTestSO() error {
+-	dir := filepath.Join(t.goroot, "misc/cgo/testso")
++func (t *tester) cgoTestSO(testpath string) error {
++	dir := filepath.Join(t.goroot, testpath)
+ 
+ 	// build shared object
+ 	output, err := exec.Command("go", "env", "CC").Output()
+@@ -750,6 +763,7 @@ func (t *tester) cgoTestSO() error {
+ 		args = append(args, "-undefined", "suppress", "-flat_namespace")
+ 	case "windows":
+ 		ext = "dll"
++		args = append(args, "-DEXPORT_DLL")
+ 	}
+ 	sofname := "libcgosotest." + ext
+ 	args = append(args, "-o", sofname, "cgoso_c.c")

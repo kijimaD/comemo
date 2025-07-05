@@ -19,7 +19,46 @@ Date:   Tue Sep 29 16:40:57 2020 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                    |  5 +++--
  src/cmd/go/testdata/script/mod_install_pkg_version.txt | 11 +++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 9d05eadda5..3344242489 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -163,8 +163,9 @@ func Init() {
+ 		// Running 'go mod init': go.mod will be created in current directory.
+ 		modRoot = base.Cwd
+ 	} else if RootMode == NoRoot {
+-		// TODO(jayconrod): report an error if -mod -modfile is explicitly set on
+-		// the command line. Ignore those flags if they come from GOFLAGS.
++		if cfg.ModFile != "" && !base.InGOFLAGS("-modfile") {
++			base.Fatalf("go: -modfile cannot be used with commands that ignore the current module")
++		}
+ 		modRoot = ""
+ 	} else {
+ 		modRoot = findModuleRoot(base.Cwd)
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 7e6d4e8e7c..dc4a329688 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -26,6 +26,17 @@ rm $GOPATH/bin/a
+ cd ..
+ 
+ 
++# 'go install -modfile=x.mod pkg@version' reports an error, but only if
++# -modfile is specified explicitly on the command line.
++cd m
++env GOFLAGS=-modfile=go.mod
++go install example.com/cmd/a@latest  # same as above
++env GOFLAGS=
++! go install -modfile=go.mod example.com/cmd/a@latest
++stderr '^go: -modfile cannot be used with commands that ignore the current module$'
++cd ..
++
++
+ # Every test case requires linking, so we only cover the most important cases
+ # when -short is set.
+ [short] stop

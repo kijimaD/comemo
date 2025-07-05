@@ -12,6 +12,20 @@ Date:   Tue May 31 14:07:38 2016 -0700
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm_arm.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index df6bde61ee..f02297e8f0 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -626,7 +626,7 @@ havem:
+ 	BL	runtime·cgocallbackg(SB)
+ 
+ 	// Restore g->sched (== m->curg->sched) from saved values.
+-	MOVW	4(R13), R5
++	MOVW	0(R13), R5
+ 	MOVW	R5, (g_sched+gobuf_pc)(g)
+ 	MOVW	$12(R13), R4
+ 	MOVW	R4, (g_sched+gobuf_sp)(g)

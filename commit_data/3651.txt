@@ -7,8 +7,73 @@ Date:   Sun Oct 25 11:59:58 2009 -0700
     
     R=rsc
     http://go/go-review/1014009
-
+---
  src/cmd/5l/obj.c         | 9 +++++++++
  src/cmd/gotest/gotest    | 8 +++++++-
  test/interface/embed1.go | 2 +-
  3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 45751e8c5e..805d39544e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -432,9 +432,11 @@ ldobj1(Biobuf *f, int64 len, char *pn)
+ 	int v, o, r, skip;
+ 	uint32 sig;
+ 	char *name;
++	int ntext;
+ 	int32 eof;
+ 	char src[1024];
+ 
++	ntext = 0;
+ 	eof = Boffset(f) + len;
+ 	di = S;
+ 	src[0] = 0;
+@@ -657,6 +659,13 @@ loop:
+ 		break;
+ 
+ 	case ATEXT:
++		s = p->from.sym;
++		if(ntext++ == 0 && s->type != 0 && s->type != SXREF) {
++			/* redefinition, so file has probably been seen before */
++			if(debug['v'])
++				Bprint(&bso, "skipping: %s: redefinition: %s", pn, s->name);
++			return;
++		}
+ 		setarch(p);
+ 		setthumb(p);
+ 		p->align = 4;
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 212abbf755..e274ef9b81 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -22,6 +22,12 @@ nacl)
+ 	E="nacl"
+ esac
+ 
++# TODO(kaib): proper emulator strategy
++case x"$GOARCH" in
++xarm)
++	E="qemu-arm -cpu cortex-a8"
++esac
++
+ # Allow overrides
+ GC=${_GC:-$GC}
+ GL=${GL:-$LD}
+@@ -131,5 +137,5 @@ importpath=$(make -s importpath)
+ }>_testmain.go
+ 
+ $GC _testmain.go
+-$GL _testmain.$O _test/$importpath.a $xofile
++$GL _testmain.$O
+ $E ./$O.out "$@"
+diff --git a/test/interface/embed1.go b/test/interface/embed1.go
+index b3fe06f47b..6e15031eab 100644
+--- a/test/interface/embed1.go
++++ b/test/interface/embed1.go
+@@ -1,4 +1,4 @@
+-// $G $D/embed0.go && $G $D/$F.go && $L embed0.$A $F.$A && ./$A.out
++// $G $D/embed0.go && $G $D/$F.go && $L $F.$A && ./$A.out
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

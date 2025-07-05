@@ -9,6 +9,20 @@ Date:   Sat Dec 29 21:48:25 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7032043
-
+---
  src/pkg/runtime/panic.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index f94f1443cc..c96007dd16 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -455,7 +455,7 @@ void
+ runtime·throw(int8 *s)
+ {
+ 	runtime·startpanic();
+-	runtime·printf("throw: %s\n", s);
++	runtime·printf("fatal error: %s\n", s);
+ 	runtime·dopanic(0);
+ 	*(int32*)0 = 0;	// not reached
+ 	runtime·exit(1);	// even more not reached

@@ -13,7 +13,7 @@ Date:   Mon Apr 5 12:51:09 2010 -0700
     R=kaib, dpx
     CC=golang-dev
     https://golang.org/cl/884041
-
+---
  src/cmd/5l/asm.c                       |   6 +-
  src/cmd/5l/noop.c                      |   4 +-
  src/cmd/5l/pass.c                      |   2 +-
@@ -50,3 +50,1687 @@ Date:   Mon Apr 5 12:51:09 2010 -0700
  test/run                               |   1 +
  test/run-arm                           |   1 +
  35 files changed, 620 insertions(+), 341 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index f7cbccec57..79050a9d02 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -393,8 +393,8 @@ asmb(void)
+ 	int32 t, etext;
+ 	int a, dynsym;
+ 	uint32 va, fo, w, symo, startva;
++	uint32 symdatva = SYMDATVA;
+ 	int strtabsize;
+-	vlong symdatva = SYMDATVA;
+ 	Optab *o;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+@@ -522,6 +522,10 @@ asmb(void)
+ 		if(dlm)
+ 			asmdyn();
+ 		cflush();
++		seek(cout, symo, 0);
++		lputl(symsize);
++		lputl(lcsize);
++		cflush();
+ 	}
+ 	else if(dlm){
+ 		seek(cout, HEADR+textsize+datsize, 0);
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index bcc48e1117..41d235a098 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -399,7 +399,7 @@ noops(void)
+ 				p->as = AMOVW;
+ 				p->scond = C_SCOND_LO;
+ 				p->from.type = D_CONST;
+-				p->from.offset = (curtext->to.offset2 & ~7) + 4;
++				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+ 				p->to.type = D_REG;
+ 				p->to.reg = 2;
+ 
+@@ -449,7 +449,7 @@ noops(void)
+ 				p = appendp(p);
+ 				p->as = AMOVW;
+ 				p->from.type = D_CONST;
+-				p->from.offset = (curtext->to.offset2 & ~7) + 4;
++				p->from.offset = ((curtext->to.offset2 + 3) & ~3) + 4;
+ 				p->to.type = D_REG;
+ 				p->to.reg = 2;
+ 
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 42fb3f720f..fcdee69449 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -232,7 +232,7 @@ loop:
+ 	}
+ 	if(a == AB) {
+ 		q = p->cond;
+-		if(q != P) {
++		if(q != P && q->as != ATEXT) {
+ 			p->mark |= FOLL;
+ 			p = q;
+ 			if(!(p->mark & FOLL))
+diff --git a/src/pkg/runtime/386/arch.h b/src/pkg/runtime/386/arch.h
+new file mode 100644
+index 0000000000..d95c7aa810
+--- /dev/null
++++ b/src/pkg/runtime/386/arch.h
+@@ -0,0 +1,3 @@
++enum {
++	thechar = '8'
++};
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 862c2746c9..0002a3e104 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -311,6 +311,10 @@ TEXT	·setcallerpc+0(SB),7,$0
+ 	MOVL	BX, -4(AX)		// set calling pc
+ 	RET
+ 
++TEXT getcallersp(SB), 7, $0
++	MOVL	sp+0(FP), AX
++	RET
++
+ TEXT ldt0setup(SB),7,$16
+ 	// set up ldt 7 to point at tls0
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 8828426c71..3ce8ba2422 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -18,7 +18,7 @@ CFLAGS_64=-D_64BIT
+ # can enable optimizations again.
+ CFLAGS_arm=-N
+ CFLAGS_mingw=-D__MINGW__
+-CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
++CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
+ 	error.go\
+diff --git a/src/pkg/runtime/amd64/arch.h b/src/pkg/runtime/amd64/arch.h
+new file mode 100644
+index 0000000000..fe10fd89f9
+--- /dev/null
++++ b/src/pkg/runtime/amd64/arch.h
+@@ -0,0 +1,3 @@
++enum {
++	thechar = '6'
++};
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 9c966c5871..8fbc9802c2 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -311,3 +311,29 @@ TEXT stackcheck(SB), 7, $0
+ 	INT	$3
+ 	RET
+ 
++TEXT	·memclr(SB),7,$0
++	MOVQ	8(SP), DI		// arg 1 addr
++	MOVL	16(SP), CX		// arg 2 count
++	ADDL	$7, CX
++	SHRL	$3, CX
++	MOVQ	$0, AX
++	CLD
++	REP
++	STOSQ
++	RET
++
++TEXT	·getcallerpc+0(SB),7,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	-8(AX),AX		// get calling pc
++	RET
++
++TEXT	·setcallerpc+0(SB),7,$0
++	MOVQ	x+0(FP),AX		// addr of first arg
++	MOVQ	x+8(FP), BX
++	MOVQ	BX, -8(AX)		// set calling pc
++	RET
++
++TEXT getcallersp(SB),7,$0
++	MOVQ	sp+0(FP), AX
++	RET
++
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 37c06d092d..840e61bfd8 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -99,7 +99,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 m)
+ }
+ 
+ void
+-traceback(byte *pc0, byte *sp, G *g)
++traceback(byte *pc0, byte *sp, byte*, G *g)
+ {
+ 	gentraceback(pc0, sp, g, 0, nil, 100);
+ }
+@@ -111,7 +111,7 @@ callers(int32 skip, uintptr *pcbuf, int32 m)
+ 
+ 	// our caller's pc, sp.
+ 	sp = (byte*)&skip;
+-	pc = *(byte**)(sp-sizeof(uintptr));
++	pc = ·getcallerpc(&skip);
+ 
+ 	return gentraceback(pc, sp, g, skip, pcbuf, m);
+ }
+diff --git a/src/pkg/runtime/arm/arch.h b/src/pkg/runtime/arm/arch.h
+new file mode 100644
+index 0000000000..3ddb626ddd
+--- /dev/null
++++ b/src/pkg/runtime/arm/arch.h
+@@ -0,0 +1,3 @@
++enum {
++	thechar = '5'
++};
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 19fa1cc2e3..1144ff2a17 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -85,8 +85,7 @@ TEXT _dep_dummy(SB),7,$0
+ 
+ TEXT	breakpoint(SB),7,$0
+ 	BL	abort(SB)
+-//	BYTE $0xcc
+-//	RET
++	RET
+ 
+ /*
+  *  go-routine
+@@ -133,7 +132,7 @@ TEXT gogocall(SB), 7, $-4
+ // R1 frame size
+ // R2 arg size
+ // R3 prolog's LR
+-// NB. we do not save R0 because the we've forced 5c to pass all arguments
++// NB. we do not save R0 because we've forced 5c to pass all arguments
+ // on the stack.
+ // using frame size $-4 means do not save LR on stack.
+ TEXT ·morestack(SB),7,$-4
+@@ -215,8 +214,7 @@ TEXT jmpdefer(SB), 7, $0
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+ 	MOVW	4(SP), R0		// fn
+-	MOVW	8(SP), R1
+-	MOVW	$-4(R1), SP	// correct for sp pointing to arg0, past stored lr
++	MOVW	8(SP), SP
+ 	B		(R0)
+ 
+ TEXT	·memclr(SB),7,$20
+@@ -241,6 +239,11 @@ TEXT	·setcallerpc+0(SB),7,$-4
+ 	MOVW	R0, 0(SP)
+ 	RET
+ 
++TEXT	getcallersp(SB),7,$-4
++	MOVW	0(FP), R0
++	MOVW	$-4(R0), R0
++	RET
++
+ // runcgo(void(*fn)(void*), void *arg)
+ // Just call fn(arg), but first align the stack
+ // appropriately for the gcc ABI.
+@@ -260,7 +263,7 @@ TEXT	runcgo(SB),7,$16
+ TEXT emptyfunc(SB),0,$0
+ 	RET
+ 
+-TEXT abort(SB),7,$0
++TEXT abort(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+diff --git a/src/pkg/runtime/arm/softfloat.c b/src/pkg/runtime/arm/softfloat.c
+index a71b251138..50ccd1546e 100644
+--- a/src/pkg/runtime/arm/softfloat.c
++++ b/src/pkg/runtime/arm/softfloat.c
+@@ -4,24 +4,24 @@
+ 
+ #include "runtime.h"
+ 
+-// returns number of bytes that the fp instruction is occupying
++// returns number of words that the fp instruction is occupying
+ static uint32
+ isfltinstr(uint32 *pc)
+ {
+ 	uint32 i;
+ 	uint32 c;
+-	
++
+ 	i = *pc;
+ 	c = i >> 25 & 7;
+-	
++
+ 	switch(c) {
+ 	case 6: // 110
+ //printf(" %p coproc multi: %x\n", pc, i);
+-		return 4;
++		return 1;
+ 	case 7: // 111
+ 		if (i>>24 & 1) return 0; // ignore swi
+ //printf(" %p coproc %x\n", pc, i);
+-		return 4;
++		return 1;
+ 	}
+ 
+ 	// lookahead for virtual instructions that span multiple arm instructions
+@@ -30,7 +30,7 @@ isfltinstr(uint32 *pc)
+ 		((*(pc + 2) & 0x0f000000) >> 24);
+ 	if(c == 0x50d) {
+ //printf(" %p coproc const %x\n", pc, i);
+-		return 12;
++		return 3;
+ 	}
+ 
+ //printf(" %p %x\n", pc, i);
+@@ -42,7 +42,7 @@ uint32*
+ _sfloat2(uint32 *lr, uint32 r0)
+ {
+ 	uint32 skip;
+-	
++
+ //printf("softfloat: pre %p\n", lr);
+ 	while(skip = isfltinstr(lr))
+ 		lr += skip;
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index edddafe865..5d32980f6f 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -4,17 +4,95 @@
+ 
+ #include "runtime.h"
+ 
+-// TODO(rsc): Move this into portable code, with calls to a
+-// machine-dependent isclosure() function.
++static int32
++gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 m)
++{
++	byte *p;
++	int32 i, n, iter;
++	uintptr pc, lr, tracepc;
++	Stktop *stk;
++	Func *f;
++	
++	pc = (uintptr)pc0;
++	lr = (uintptr)lr0;
++
++	// If the PC is zero, it's likely a nil function call.
++	// Start in the caller's frame.
++	if(pc == 0) {
++		pc = lr;
++		lr = 0;
++	}
++
++	n = 0;
++	stk = (Stktop*)g->stackbase;
++	for(iter = 0; iter < 100 && n < m; iter++) {	// iter avoids looping forever
++		if(pc == (uintptr)·lessstack) {
++			// Hit top of stack segment.  Unwind to next segment.
++			pc = (uintptr)stk->gobuf.pc;
++			sp = stk->gobuf.sp;
++			lr = *(uintptr*)sp;
++			stk = (Stktop*)stk->stackbase;
++			continue;
++		}
++		if(pc <= 0x1000 || (f = findfunc(pc-4)) == nil) {
++			// TODO: Check for closure.
++			break;
++		}
++		
++		// Found an actual function worth reporting.
++		if(skip > 0)
++			skip--;
++		else if(pcbuf != nil)
++			pcbuf[n++] = pc;
++		else {
++			// Print during crash.
++			//	main+0xf /home/rsc/go/src/runtime/x.go:23
++			//		main(0x1, 0x2, 0x3)
++			printf("%S", f->name);
++			if(pc > f->entry)
++				printf("+%p", (uintptr)(pc - f->entry));
++			tracepc = pc;	// back up to CALL instruction for funcline.
++			if(n > 0 && pc > f->entry)
++				tracepc -= sizeof(uintptr);
++			printf(" %S:%d\n", f->src, funcline(f, tracepc));
++			printf("\t%S(", f->name);
++			for(i = 0; i < f->args; i++) {
++				if(i != 0)
++					prints(", ");
++				·printhex(((uintptr*)sp)[1+i]);
++				if(i >= 4) {
++					prints(", ...");
++					break;
++				}
++			}
++			prints(")\n");
++			n++;
++		}
++		
++		if(lr == 0)
++			lr = *(uintptr*)sp;
++		pc = lr;
++		lr = 0;
++		if(f->frame >= 0)
++			sp += f->frame;
++	}
++	return n;		
++}
+ 
+ void
+-traceback(byte *pc0, byte *sp, G *g)
++traceback(byte *pc0, byte *sp, byte *lr, G *g)
+ {
++	gentraceback(pc0, sp, lr, g, 0, nil, 100);
+ }
+ 
+ // func caller(n int) (pc uintptr, file string, line int, ok bool)
+ int32
+ callers(int32 skip, uintptr *pcbuf, int32 m)
+ {
+-	return 0;
++	byte *pc, *sp;
++	
++	sp = getcallersp(&skip);
++	pc = ·getcallerpc(&skip);
++
++	return gentraceback(pc, sp, 0, g, skip, pcbuf, m);
+ }
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index 7978739a6d..6fe5f308fe 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -65,7 +65,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)r->eip, (void*)r->esp, m->curg);
++		traceback((void*)r->eip, (void*)r->esp, 0, m->curg);
+ 		tracebackothers(m->curg);
+ 		dumpregs(r);
+ 	}
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index bf1bca994f..beb55decf6 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -73,7 +73,7 @@ sighandler(int32 sig, Siginfo *info, void *context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)r->rip, (void*)r->rsp, (void*)r->r15);
++		traceback((void*)r->rip, (void*)r->rsp, 0, (void*)r->r15);
+ 		tracebackothers((void*)r->r15);
+ 		dumpregs(r);
+ 	}
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 50b50d5de0..6d3460ff06 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -93,28 +93,6 @@ TEXT	notok(SB),7,$0
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	·memclr(SB),7,$0
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), CX		// arg 2 count
+-	ADDL	$7, CX
+-	SHRL	$3, CX
+-	MOVQ	$0, AX
+-	CLD
+-	REP
+-	STOSQ
+-	RET
+-
+-TEXT	·getcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	-8(AX),AX		// get calling pc
+-	RET
+-
+-TEXT	·setcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	x+8(FP), BX
+-	MOVQ	BX, -8(AX)		// set calling pc
+-	RET
+-
+ TEXT sigaltstack(SB),7,$0
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index d6877675a9..3529d1a58b 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -73,7 +73,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)mc->mc_eip, (void*)mc->mc_esp, m->curg);
++		traceback((void*)mc->mc_eip, (void*)mc->mc_esp, 0, m->curg);
+ 		tracebackothers(m->curg);
+ 		dumpregs(mc);
+ 	}
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index d59259b4f6..dc0e1eb586 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -81,7 +81,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)mc->mc_rip, (void*)mc->mc_rsp, (void*)mc->mc_r15);
++		traceback((void*)mc->mc_rip, (void*)mc->mc_rsp, 0, (void*)mc->mc_r15);
+ 		tracebackothers((void*)mc->mc_r15);
+ 		dumpregs(mc);
+ 	}
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 6fc96a0be3..506db29f8e 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -73,7 +73,6 @@ TEXT gettime(SB), 7, $32
+ 	MOVL	BX, (DI)
+ 	RET
+ 
+-
+ TEXT	sigaction(SB),7,$-8
+ 	MOVL	8(SP), DI		// arg 1 sig
+ 	MOVQ	16(SP), SI		// arg 2 act
+@@ -110,28 +109,6 @@ TEXT	notok(SB),7,$-8
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	·memclr(SB),7,$-8
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), CX		// arg 2 count
+-	ADDL	$7, CX
+-	SHRL	$3, CX
+-	MOVQ	$0, AX
+-	CLD
+-	REP
+-	STOSQ
+-	RET
+-
+-TEXT	·getcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	-8(AX),AX		// get calling pc
+-	RET
+-
+-TEXT	·setcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	x+8(FP), BX
+-	MOVQ	BX, -8(AX)		// set calling pc
+-	RET
+-
+ TEXT sigaltstack(SB),7,$-8
+ 	MOVQ	new+8(SP), DI
+ 	MOVQ	old+16(SP), SI
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index c540083021..87e6779b5e 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -70,7 +70,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->eip, (void*)sc->esp, m->curg);
++		traceback((void*)sc->eip, (void*)sc->esp, 0, m->curg);
+ 		tracebackothers(m->curg);
+ 		dumpregs(sc);
+ 	}
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index dba6fb10dc..87a5a638b3 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -80,7 +80,7 @@ sighandler(int32 sig, Siginfo* info, void* context)
+ 	printf("\n");
+ 
+ 	if(gotraceback()){
+-		traceback((void*)sc->rip, (void*)sc->rsp, (void*)sc->r15);
++		traceback((void*)sc->rip, (void*)sc->rsp, 0, (void*)sc->r15);
+ 		tracebackothers((void*)sc->r15);
+ 		dumpregs(sc);
+ 	}
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 78bb39ad62..882ccf1d26 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -98,28 +98,6 @@ TEXT	notok(SB),7,$0
+ 	MOVQ	BP, (BP)
+ 	RET
+ 
+-TEXT	·memclr(SB),7,$0-16
+-	MOVQ	8(SP), DI		// arg 1 addr
+-	MOVL	16(SP), CX		// arg 2 count (cannot be zero)
+-	ADDL	$7, CX
+-	SHRL	$3, CX
+-	MOVQ	$0, AX
+-	CLD
+-	REP
+-	STOSQ
+-	RET
+-
+-TEXT	·getcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	-8(AX),AX		// get calling pc
+-	RET
+-
+-TEXT	·setcallerpc+0(SB),7,$0
+-	MOVQ	x+0(FP),AX		// addr of first arg
+-	MOVQ	x+8(FP), BX
+-	MOVQ	BX, -8(AX)		// set calling pc
+-	RET
+-
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT	futex(SB),7,$0
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+index caad669895..2159831588 100644
+--- a/src/pkg/runtime/linux/arm/defs.h
++++ b/src/pkg/runtime/linux/arm/defs.h
+@@ -1,4 +1,4 @@
+-// godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include defs_arm.c
++// godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c
+ 
+ // MACHINE GENERATED - DO NOT EDIT.
+ 
+@@ -19,9 +19,73 @@ enum {
+ // Types
+ #pragma pack on
+ 
++typedef struct Sigset Sigset;
++struct Sigset {
++	uint32 sig[2];
++};
++
++typedef struct Sigaction Sigaction;
++struct Sigaction {
++	void *sa_handler;
++	uint32 sa_flags;
++	void *sa_restorer;
++	Sigset sa_mask;
++};
++
+ typedef struct Timespec Timespec;
+ struct Timespec {
+ 	int32 tv_sec;
+ 	int32 tv_nsec;
+ };
++
++typedef struct Sigaltstack Sigaltstack;
++struct Sigaltstack {
++	void *ss_sp;
++	int32 ss_flags;
++	uint32 ss_size;
++};
++
++typedef struct Sigcontext Sigcontext;
++struct Sigcontext {
++	uint32 trap_no;
++	uint32 error_code;
++	uint32 oldmask;
++	uint32 arm_r0;
++	uint32 arm_r1;
++	uint32 arm_r2;
++	uint32 arm_r3;
++	uint32 arm_r4;
++	uint32 arm_r5;
++	uint32 arm_r6;
++	uint32 arm_r7;
++	uint32 arm_r8;
++	uint32 arm_r9;
++	uint32 arm_r10;
++	uint32 arm_fp;
++	uint32 arm_ip;
++	uint32 arm_sp;
++	uint32 arm_lr;
++	uint32 arm_pc;
++	uint32 arm_cpsr;
++	uint32 fault_address;
++};
++
++typedef struct Ucontext Ucontext;
++struct Ucontext {
++	uint32 uc_flags;
++	Ucontext *uc_link;
++	Sigaltstack uc_stack;
++	Sigcontext uc_mcontext;
++	Sigset uc_sigmask;
++	int32 __unused[30];
++	uint32 uc_regspace[128];
++};
++
++typedef struct Siginfo Siginfo;
++struct Siginfo {
++	int32 si_signo;
++	int32 si_errno;
++	int32 si_code;
++	uint8 _sifields[4];
++};
+ #pragma pack off
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 2400575481..d1d8bc08c7 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -7,25 +7,31 @@
+ #include "signals.h"
+ #include "os.h"
+ 
+-void dumpregs(void) {}
+-// void
+-// dumpregs(Sigcontext *r)
+-// {
+-// 	printf("eax     %X\n", r->eax);
+-// 	printf("ebx     %X\n", r->ebx);
+-// 	printf("ecx     %X\n", r->ecx);
+-// 	printf("edx     %X\n", r->edx);
+-// 	printf("edi     %X\n", r->edi);
+-// 	printf("esi     %X\n", r->esi);
+-// 	printf("ebp     %X\n", r->ebp);
+-// 	printf("esp     %X\n", r->esp);
+-// 	printf("eip     %X\n", r->eip);
+-// 	printf("eflags  %X\n", r->eflags);
+-// 	printf("cs      %X\n", r->cs);
+-// 	printf("fs      %X\n", r->fs);
+-// 	printf("gs      %X\n", r->gs);
+-// }
+-
++void
++dumpregs(Sigcontext *r)
++{
++	printf("trap    %x\n", r->trap_no);
++	printf("error   %x\n", r->error_code);
++	printf("oldmask %x\n", r->oldmask);
++	printf("r0      %x\n", r->arm_r0);
++	printf("r1      %x\n", r->arm_r1);
++	printf("r2      %x\n", r->arm_r2);
++	printf("r3      %x\n", r->arm_r3);
++	printf("r4      %x\n", r->arm_r4);
++	printf("r5      %x\n", r->arm_r5);
++	printf("r6      %x\n", r->arm_r6);
++	printf("r7      %x\n", r->arm_r7);
++	printf("r8      %x\n", r->arm_r8);
++	printf("r9      %x\n", r->arm_r9);
++	printf("r10     %x\n", r->arm_r10);
++	printf("fp      %x\n", r->arm_fp);
++	printf("ip      %x\n", r->arm_ip);
++	printf("sp      %x\n", r->arm_sp);
++	printf("lr      %x\n", r->arm_lr);
++	printf("pc      %x\n", r->arm_pc);
++	printf("cpsr    %x\n", r->arm_cpsr);
++	printf("fault   %x\n", r->fault_address);
++}
+ 
+ /*
+  * This assembler routine takes the args from registers, puts them on the stack,
+@@ -43,70 +49,79 @@ signame(int32 sig)
+ 	return gostring((byte*)sigtab[sig].name);
+ }
+ 
+-void sighandler(void) {}
+-// void
+-// sighandler(int32 sig, Siginfo* info, void* context)
+-// {
+-// 	Ucontext *uc;
+-// 	Sigcontext *sc;
+-
+-// 	if(panicking)	// traceback already printed
+-// 		exit(2);
+-// 	panicking = 1;
+-
+-// 	uc = context;
+-// 	sc = &uc->uc_mcontext;
+-
+-// 	if(sig < 0 || sig >= NSIG)
+-// 		printf("Signal %d\n", sig);
+-// 	else
+-// 		printf("%s\n", sigtab[sig].name);
++void
++sighandler(int32 sig, Siginfo *info, void *context)
++{
++	Ucontext *uc;
++	Sigcontext *sc;
+ 
+-// 	printf("Faulting address: %p\n", *(void**)info->_sifields);
+-// 	printf("pc=%X\n", sc->eip);
+-// 	printf("\n");
++	if(sigtab[sig].flags & SigQueue) {
++		if(sigsend(sig) || (sigtab[sig].flags & SigIgnore))
++			return;
++		exit(2);	// SIGINT, SIGTERM, etc
++	}
+ 
+-// 	if(gotraceback()){
+-// 		traceback((void*)sc->eip, (void*)sc->esp, m->curg);
+-// 		tracebackothers(m->curg);
+-// 		dumpregs(sc);
+-// 	}
++	if(panicking)	// traceback already printed
++		exit(2);
++	panicking = 1;
+ 
+-// 	breakpoint();
+-// 	exit(2);
+-// }
++	if(sig < 0 || sig >= NSIG)
++		printf("Signal %d\n", sig);
++	else
++		printf("%s\n", sigtab[sig].name);
++
++	uc = context;
++	sc = &uc->uc_mcontext;
++
++	printf("Faulting address: %p\n", sc->fault_address);
++	printf("PC=%x\n", sc->arm_pc);
++	printf("\n");
++
++	if(gotraceback()){
++		traceback((void*)sc->arm_pc, (void*)sc->arm_sp, (void*)sc->arm_lr, m->curg);
++		tracebackothers(m->curg);
++		printf("\n");
++		dumpregs(sc);
++	}
++
++//	breakpoint();
++	exit(2);
++}
+ 
+ void
+ signalstack(byte *p, int32 n)
+ {
+-// 	Sigaltstack st;
++	Sigaltstack st;
+ 
+-// 	st.ss_sp = p;
+-// 	st.ss_size = n;
+-// 	st.ss_flags = 0;
+-// 	sigaltstack(&st, nil);
++	st.ss_sp = p;
++	st.ss_size = n;
++	st.ss_flags = 0;
++	sigaltstack(&st, nil);
+ }
+ 
+ void
+ initsig(void)
+ {
+-// 	static Sigaction sa;
+-
+-// 	int32 i;
+-// 	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-// 	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
+-// 	sa.sa_restorer = (void*)sigreturn;
+-// 	for(i = 0; i<NSIG; i++) {
+-// 		if(sigtab[i].flags) {
+-// 			if(sigtab[i].flags & SigCatch)
+-// 				*(void**)sa._u = (void*)sigtramp;	// handler
+-// 			else
+-// 				*(void**)sa._u = (void*)sigignore;	// handler
+-// 			if(sigtab[i].flags & SigRestart)
+-// 				sa.sa_flags |= SA_RESTART;
+-// 			else
+-// 				sa.sa_flags &= ~SA_RESTART;
+-// 			rt_sigaction(i, &sa, nil, 8);
+-// 		}
+-// 	}
++	static Sigaction sa;
++
++	siginit();
++
++	int32 i;
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	sa.sa_mask.sig[0] = 0xFFFFFFFF;
++	sa.sa_mask.sig[1] = 0xFFFFFFFF;
++	sa.sa_restorer = (void*)sigreturn;
++	for(i = 0; i<NSIG; i++) {
++		if(sigtab[i].flags) {
++			if(sigtab[i].flags & (SigCatch | SigQueue))
++				sa.sa_handler = (void*)sigtramp;
++			else
++				sa.sa_handler = (void*)sigignore;
++			if(sigtab[i].flags & SigRestart)
++				sa.sa_flags |= SA_RESTART;
++			else
++				sa.sa_flags &= ~SA_RESTART;
++			rt_sigaction(i, &sa, nil, 8);
++		}
++	}
+ }
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 78c03db3e5..f30aed0012 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -18,6 +18,9 @@
+ #define SYS_write (SYS_BASE + 4)
+ #define SYS_gettimeofday (SYS_BASE + 78)
+ #define SYS_clone (SYS_BASE + 120)
++#define SYS_rt_sigreturn (SYS_BASE + 173)
++#define SYS_rt_sigaction (SYS_BASE + 174)
++#define SYS_sigaltstack (SYS_BASE + 186)
+ #define SYS_mmap2 (SYS_BASE + 192)
+ #define SYS_gettid (SYS_BASE + 224)
+ #define SYS_futex (SYS_BASE + 240)
+@@ -175,3 +178,39 @@ TEXT cacheflush(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT sigaltstack(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	$SYS_sigaltstack, R7
++	SWI	$0
++	RET
++
++TEXT sigignore(SB),7,$0
++	RET
++
++TEXT sigreturn(SB),7,$0
++	MOVW	R0, R0
++	B	abort(SB)
++	RET
++
++TEXT sigtramp(SB),7,$24
++	MOVW	m_gsignal(m), g
++	MOVW	R0, 4(R13)
++	MOVW	R1, 8(R13)
++	MOVW	R2, 12(R13)
++	BL	sighandler(SB)
++	RET
++
++TEXT rt_sigaction(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOVW	8(FP), R2
++	MOVW	12(FP), R3
++	MOVW	$SYS_rt_sigaction, R7
++	SWI	$0
++	RET
++
++TEXT sigreturn(SB),7,$0
++	MOVW	$SYS_rt_sigreturn, R7
++	SWI	$0
++	RET
+diff --git a/src/pkg/runtime/linux/defs_arm.c b/src/pkg/runtime/linux/defs_arm.c
+index eaec051549..01d6bfcdc1 100644
+--- a/src/pkg/runtime/linux/defs_arm.c
++++ b/src/pkg/runtime/linux/defs_arm.c
+@@ -4,8 +4,7 @@
+ 
+ /*
+  * Input to godefs
+-	godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f
+- -I/usr/local/google/src/linux-2.6.28/include defs_arm.c >arm/defs.h
++	godefs -carm-gcc -f -I/usr/local/google/src/linux-2.6.28/arch/arm/include -f -I/usr/local/google/src/linux-2.6.28/include -f-D__KERNEL__ -f-D__ARCH_SI_UID_T=int defs_arm.c >arm/defs.h
+ 
+  * Another input file for ARM defs.h
+  */
+@@ -14,6 +13,7 @@
+ #include <asm/mman.h>
+ #include <asm/sigcontext.h>
+ #include <asm/ucontext.h>
++#include <asm/siginfo.h>
+ 
+ /*
+ #include <sys/signal.h>
+@@ -38,17 +38,18 @@ enum {
+ 	$SA_SIGINFO = SA_SIGINFO
+ };
+ 
+-
+-
+-
+-//typedef struct _fpreg $Fpreg;
+-//typedef struct _fpxreg $Fpxreg;
+-//typedef struct _xmmreg $Xmmreg;
+-//typedef struct _fpstate $Fpstate;
++typedef sigset_t $Sigset;
++typedef struct sigaction $Sigaction;
+ typedef struct timespec $Timespec;
+-//typedef struct timeval $Timeval;
+-// typedef struct sigaction $Sigaction;
+-// typedef siginfo_t $Siginfo;
+-// typedef struct sigaltstack $Sigaltstack;
+-// typedef struct sigcontext $Sigcontext;
+-// typedef struct ucontext $Ucontext;
++typedef struct sigaltstack $Sigaltstack;
++typedef struct sigcontext $Sigcontext;
++typedef struct ucontext $Ucontext;
++
++struct xsiginfo {
++	int si_signo;
++	int si_errno;
++	int si_code;
++	char _sifields[4];
++};
++
++typedef struct xsiginfo $Siginfo;
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+index fd6ccffc39..387fd43215 100644
+--- a/src/pkg/runtime/linux/os.h
++++ b/src/pkg/runtime/linux/os.h
+@@ -8,3 +8,5 @@ int32	clone(int32, void*, M*, G*, void(*)(void));
+ 
+ struct Sigaction;
+ void	rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
++
++void	sigaltstack(Sigaltstack*, Sigaltstack*);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3dd9977922..8473cd26f5 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -157,7 +157,7 @@ tracebackothers(G *me)
+ 		if(g == me || g->status == Gdead)
+ 			continue;
+ 		printf("\ngoroutine %d [%d]:\n", g->goid, g->status);
+-		traceback(g->sched.pc, g->sched.sp, g);
++		traceback(g->sched.pc, g->sched.sp, 0, g);
+ 	}
+ }
+ 
+@@ -468,7 +468,7 @@ scheduler(void)
+ 			// each call to deferproc.
+ 			// (the pc we're returning to does pop pop
+ 			// before it tests the return value.)
+-			gp->sched.sp = d->sp - 2*sizeof(uintptr);
++			gp->sched.sp = getcallersp(d->sp - 2*sizeof(uintptr));
+ 			gp->sched.pc = d->pc;
+ 			free(d);
+ 			gogo(&gp->sched, 1);
+@@ -714,7 +714,8 @@ newstack(void)
+ 	frame = m->moreframe;
+ 	args = m->moreargs;
+ 	g1 = m->curg;
+-	
++
++
+ 	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
+ 		// special case: called from reflect.call (frame == 1)
+ 		// to call code with an arbitrary argument size,
+@@ -883,7 +884,7 @@ void
+ 	d = g->defer;
+ 	if(d == nil)
+ 		return;
+-	sp = (byte*)&arg0;
++	sp = getcallersp(&arg0);
+ 	if(d->sp != sp)
+ 		return;
+ 	mcpy(d->sp, d->args, d->siz);
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 27c59218c7..9a027d430e 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -32,9 +32,8 @@ panic(int32 unused)
+ 	panicking++;
+ 
+ 	printf("\npanic PC=%X\n", (uint64)(uintptr)&unused);
+-	sp = (uint8*)&unused;
+ 	if(gotraceback()){
+-		traceback(·getcallerpc(&unused), sp, g);
++		traceback(·getcallerpc(&unused), getcallersp(&unused), 0, g);
+ 		tracebackothers(g);
+ 	}
+ 	breakpoint();  // so we can grab it in a debugger
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 415dddb867..0b770ad0e1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -384,7 +384,7 @@ String	gostring(byte*);
+ String	gostringw(uint16*);
+ void	initsig(void);
+ int32	gotraceback(void);
+-void	traceback(uint8 *pc, uint8 *sp, G* gp);
++void	traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+ void	tracebackothers(G*);
+ int32	open(byte*, int32, ...);
+ int32	write(int32, void*, int32);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 9e69ab4bfd..b571d21eca 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -15,6 +15,7 @@
+ #include "runtime.h"
+ #include "defs.h"
+ #include "os.h"
++#include "arch.h"
+ 
+ // TODO(rsc): Move this *under* the text segment.
+ // Then define names for these addresses instead of hard-coding magic ones.
+@@ -102,6 +103,8 @@ dofunc(Sym *sym)
+ 	switch(sym->symtype) {
+ 	case 't':
+ 	case 'T':
++	case 'l':
++	case 'L':
+ 		if(strcmp(sym->name, (byte*)"etext") == 0)
+ 			break;
+ 		if(func == nil) {
+@@ -111,10 +114,12 @@ dofunc(Sym *sym)
+ 		f = &func[nfunc++];
+ 		f->name = gostring(sym->name);
+ 		f->entry = sym->value;
++		if(sym->symtype == 'L' || sym->symtype == 'l')
++			f->frame = -sizeof(uintptr);
+ 		break;
+ 	case 'm':
+ 		if(nfunc > 0 && func != nil)
+-			func[nfunc-1].frame = sym->value;
++			func[nfunc-1].frame += sym->value;
+ 		break;
+ 	case 'p':
+ 		if(nfunc > 0 && func != nil) {
+@@ -233,8 +238,6 @@ dosrcline(Sym *sym)
+ 	}
+ }
+ 
+-enum { PcQuant = 1 };
+-
+ // Interpret pc/ln table, saving the subpiece for each func.
+ static void
+ splitpcln(void)
+@@ -244,6 +247,16 @@ splitpcln(void)
+ 	byte *p, *ep;
+ 	Func *f, *ef;
+ 	int32 *v;
++	int32 pcquant;
++	
++	switch(thechar) {
++	case '5':
++		pcquant = 4;
++		break;
++	default:	// 6, 8
++		pcquant = 1;
++		break;
++	}
+ 
+ 	// TODO(rsc): Remove once TODO at top of file is done.
+ 	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
+@@ -266,7 +279,7 @@ splitpcln(void)
+ 	ef = func + nfunc;
+ 	pc = func[0].entry;	// text base
+ 	f->pcln.array = p;
+-	f->pc0 = pc - PcQuant;
++	f->pc0 = pc - pcquant;
+ 	line = 0;
+ 	for(; p < ep; p++) {
+ 		if(f < ef && pc > (f+1)->entry) {
+@@ -286,9 +299,9 @@ splitpcln(void)
+ 		} else if(*p <= 128) {
+ 			line -= *p - 64;
+ 		} else {
+-			pc += PcQuant*(*p - 129);
++			pc += pcquant*(*p - 129);
+ 		}
+-		pc += PcQuant;
++		pc += pcquant;
+ 	}
+ 	if(f < ef) {
+ 		f->pcln.len = p - f->pcln.array;
+@@ -306,6 +319,16 @@ funcline(Func *f, uint64 targetpc)
+ 	byte *p, *ep;
+ 	uintptr pc;
+ 	int32 line;
++	int32 pcquant;
++	
++	switch(thechar) {
++	case '5':
++		pcquant = 4;
++		break;
++	default:	// 6, 8
++		pcquant = 1;
++		break;
++	}
+ 
+ 	p = f->pcln.array;
+ 	ep = p + f->pcln.len;
+@@ -320,9 +343,9 @@ funcline(Func *f, uint64 targetpc)
+ 		} else if(*p <= 128) {
+ 			line -= *p - 64;
+ 		} else {
+-			pc += PcQuant*(*p - 129);
++			pc += pcquant*(*p - 129);
+ 		}
+-		pc += PcQuant;
++		pc += pcquant;
+ 	}
+ 	return line;
+ }
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index 8a101a9ec6..a6f4dba4db 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -1,32 +1,161 @@
+-235.go
+-assign.go
+-blank1.go
++./235.go
++./64bit.go
++./assign.go
++./bigalg.go
++./blank.go
++./blank1.go
++./chancap.go
++./char_lit.go
++./closedchan.go
++./closure.go
++./cmp1.go
++./complit.go
++./compos.go
++./const.go
++./const1.go
++./const2.go
++./const3.go
++./convert.go
++./convert3.go
++./convlit.go
++./convlit1.go
++./copy.go
++./ddd.go
++./ddd1.go
++./ddd2.go
++./ddd3.go
++./decl.go
++./declbad.go
++./defer.go
++./empty.go
++./escape.go
++./for.go
++./func1.go
++./func2.go
++./func3.go
++./func4.go
++./func5.go
++./gc.go
++./gc1.go
++./hashmap.go
++./hilbert.go
++./if.go
++./if1.go
++./import.go
++./import1.go
++./import2.go
++./import3.go
++./import4.go
++./indirect.go
++./indirect1.go
++./initcomma.go
++./initializerr.go
++./initsyscall.go
++./int_lit.go
++./intcvt.go
++./iota.go
++./literal.go
++./malloc1.go
++./mallocrand.go
++./mallocrep.go
++./mallocrep1.go
++./map.go
++./method.go
++./method1.go
++./method2.go
++./method3.go
++./named.go
++./named1.go
++./nil.go
++./parentype.go
++./range.go
++./recover1.go
++./rename.go
++./rename1.go
++./runtime.go
++./sieve.go
++./simassign.go
++./stack.go
++./string_lit.go
++./stringrange.go
++./switch.go
++./switch1.go
++./test0.go
++./typeswitch.go
++./typeswitch2.go
++./utf.go
++./varinit.go
++./vectors.go
++ken/array.go
++ken/chan.go
++ken/chan1.go
++ken/complit.go
++ken/divconst.go
++ken/divmod.go
++ken/embed.go
++ken/for.go
++ken/interbasic.go
++ken/interfun.go
++ken/litfun.go
++ken/mfunc.go
++ken/modconst.go
++ken/ptrfun.go
++ken/ptrvar.go
++ken/range.go
++ken/robfor.go
++ken/robif.go
++ken/shift.go
++ken/simpbool.go
++ken/simpfun.go
++ken/simpvar.go
++ken/slicearray.go
++ken/sliceslice.go
++ken/strvar.go
+ chan/fifo.go
+-chan/nonblock.go
++chan/goroutines.go
+ chan/perm.go
+ chan/powser1.go
+ chan/powser2.go
+ chan/select.go
++chan/select2.go
+ chan/sieve1.go
+ chan/sieve2.go
+-chancap.go
+-char_lit.go
+-closedchan.go
+-closure.go
+-cmp1.go
+-cmp2.go
+-cmp3.go
+-cmp4.go
+-cmp5.go
+-compos.go
+-const1.go
+-const2.go
+-convert3.go
+-convlit.go
+-convlit1.go
+-declbad.go
+-empty.go
+-escape.go
++interface/bigdata.go
++interface/convert.go
++interface/convert1.go
++interface/convert2.go
++interface/embed.go
++interface/embed0.go
++interface/embed1.go
++interface/explicit.go
++interface/pointer.go
++interface/receiver.go
++interface/receiver1.go
++interface/recursive.go
++interface/struct.go
++nilptr/arrayindex.go
++nilptr/arrayindex1.go
++nilptr/arraytoslice.go
++nilptr/arraytoslice1.go
++nilptr/arraytoslice2.go
++nilptr/slicearray.go
++nilptr/structfield.go
++nilptr/structfield1.go
++nilptr/structfield2.go
++nilptr/structfieldaddr.go
++syntax/forvar.go
++syntax/import.go
++syntax/interface.go
++syntax/semi1.go
++syntax/semi2.go
++syntax/semi3.go
++syntax/semi4.go
++syntax/semi5.go
++syntax/semi6.go
++syntax/semi7.go
++syntax/slice.go
++syntax/vareq.go
++syntax/vareq1.go
+ fixedbugs/bug000.go
+ fixedbugs/bug001.go
+ fixedbugs/bug002.go
+@@ -37,11 +166,12 @@ fixedbugs/bug006.go
+ fixedbugs/bug007.go
+ fixedbugs/bug008.go
+ fixedbugs/bug009.go
++fixedbugs/bug010.go
++fixedbugs/bug011.go
+ fixedbugs/bug012.go
+ fixedbugs/bug013.go
+ fixedbugs/bug014.go
+ fixedbugs/bug015.go
+-fixedbugs/bug016.go
+ fixedbugs/bug017.go
+ fixedbugs/bug020.go
+ fixedbugs/bug021.go
+@@ -49,7 +179,6 @@ fixedbugs/bug022.go
+ fixedbugs/bug023.go
+ fixedbugs/bug024.go
+ fixedbugs/bug026.go
+-fixedbugs/bug027.go
+ fixedbugs/bug028.go
+ fixedbugs/bug030.go
+ fixedbugs/bug031.go
+@@ -61,6 +190,7 @@ fixedbugs/bug039.go
+ fixedbugs/bug040.go
+ fixedbugs/bug045.go
+ fixedbugs/bug046.go
++fixedbugs/bug047.go
+ fixedbugs/bug048.go
+ fixedbugs/bug049.go
+ fixedbugs/bug050.go
+@@ -69,6 +199,7 @@ fixedbugs/bug052.go
+ fixedbugs/bug053.go
+ fixedbugs/bug054.go
+ fixedbugs/bug055.go
++fixedbugs/bug056.go
+ fixedbugs/bug057.go
+ fixedbugs/bug058.go
+ fixedbugs/bug059.go
+@@ -79,10 +210,8 @@ fixedbugs/bug063.go
+ fixedbugs/bug064.go
+ fixedbugs/bug065.go
+ fixedbugs/bug066.go
+-fixedbugs/bug067.go
+ fixedbugs/bug068.go
+ fixedbugs/bug069.go
+-fixedbugs/bug070.go
+ fixedbugs/bug071.go
+ fixedbugs/bug072.go
+ fixedbugs/bug073.go
+@@ -92,7 +221,6 @@ fixedbugs/bug076.go
+ fixedbugs/bug077.go
+ fixedbugs/bug078.go
+ fixedbugs/bug080.go
+-fixedbugs/bug081.go
+ fixedbugs/bug082.go
+ fixedbugs/bug083.go
+ fixedbugs/bug084.go
+@@ -104,7 +232,6 @@ fixedbugs/bug089.go
+ fixedbugs/bug090.go
+ fixedbugs/bug091.go
+ fixedbugs/bug092.go
+-fixedbugs/bug093.go
+ fixedbugs/bug094.go
+ fixedbugs/bug096.go
+ fixedbugs/bug097.go
+@@ -121,7 +248,6 @@ fixedbugs/bug109.go
+ fixedbugs/bug110.go
+ fixedbugs/bug111.go
+ fixedbugs/bug112.go
+-fixedbugs/bug113.go
+ fixedbugs/bug114.go
+ fixedbugs/bug115.go
+ fixedbugs/bug116.go
+@@ -151,13 +277,11 @@ fixedbugs/bug144.go
+ fixedbugs/bug145.go
+ fixedbugs/bug146.go
+ fixedbugs/bug147.go
+-fixedbugs/bug148.go
+ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
+ fixedbugs/bug152.go
+ fixedbugs/bug153.go
+-fixedbugs/bug154.go
+ fixedbugs/bug155.go
+ fixedbugs/bug156.go
+ fixedbugs/bug157.go
+@@ -178,12 +302,14 @@ fixedbugs/bug173.go
+ fixedbugs/bug174.go
+ fixedbugs/bug175.go
+ fixedbugs/bug176.go
++fixedbugs/bug177.go
+ fixedbugs/bug178.go
+ fixedbugs/bug179.go
+ fixedbugs/bug180.go
+ fixedbugs/bug181.go
+ fixedbugs/bug182.go
+ fixedbugs/bug183.go
++fixedbugs/bug184.go
+ fixedbugs/bug185.go
+ fixedbugs/bug186.go
+ fixedbugs/bug187.go
+@@ -206,93 +332,56 @@ fixedbugs/bug203.go
+ fixedbugs/bug204.go
+ fixedbugs/bug205.go
+ fixedbugs/bug206.go
++fixedbugs/bug207.go
+ fixedbugs/bug208.go
+ fixedbugs/bug209.go
+ fixedbugs/bug211.go
+ fixedbugs/bug212.go
+ fixedbugs/bug213.go
+-for.go
+-func1.go
+-func2.go
+-func3.go
+-func4.go
+-func5.go
+-gc.go
+-hashmap.go
+-helloworld.go
+-if.go
+-if1.go
+-import.go
+-import1.go
+-indirect.go
+-indirect1.go
+-initcomma.go
+-initializerr.go
+-initsyscall.go
+-int_lit.go
+-intcvt.go
+-interface/bigdata.go
+-interface/convert.go
+-interface/convert1.go
+-interface/convert2.go
+-interface/embed.go
+-interface/embed0.go
+-interface/embed1.go
+-interface/explicit.go
+-interface/fail.go
+-interface/pointer.go
+-interface/receiver.go
+-interface/receiver1.go
+-interface/recursive.go
+-interface/returntype.go
+-interface/struct.go
+-iota.go
+-ken/array.go
+-ken/chan1.go
+-ken/complit.go
+-ken/divmod.go
+-ken/embed.go
+-ken/for.go
+-ken/interbasic.go
+-ken/interfun.go
+-ken/intervar.go
+-ken/label.go
+-ken/litfun.go
+-ken/mfunc.go
+-ken/ptrfun.go
+-ken/ptrvar.go
+-ken/range.go
+-ken/rob1.go
+-ken/rob2.go
+-ken/robfor.go
+-ken/robif.go
+-ken/shift.go
+-ken/simpbool.go
+-ken/simpfun.go
+-ken/simpprint.go
+-ken/simpswitch.go
+-ken/simpvar.go
+-ken/string.go
+-ken/strvar.go
+-method.go
+-method1.go
+-method2.go
+-method3.go
+-named1.go
+-nil.go
+-parentype.go
+-printbig.go
+-range.go
+-rename1.go
+-runtime.go
+-sieve.go
+-sigchld.go
+-simassign.go
+-string_lit.go
+-switch.go
+-switch1.go
+-test0.go
+-turing.go
+-utf.go
+-varinit.go
+-vectors.go
++fixedbugs/bug214.go
++fixedbugs/bug215.go
++fixedbugs/bug216.go
++fixedbugs/bug217.go
++fixedbugs/bug218.go
++fixedbugs/bug219.go
++fixedbugs/bug220.go
++fixedbugs/bug222.go
++fixedbugs/bug223.go
++fixedbugs/bug224.go
++fixedbugs/bug225.go
++fixedbugs/bug226.go
++fixedbugs/bug227.go
++fixedbugs/bug228.go
++fixedbugs/bug229.go
++fixedbugs/bug230.go
++fixedbugs/bug231.go
++fixedbugs/bug232.go
++fixedbugs/bug233.go
++fixedbugs/bug234.go
++fixedbugs/bug235.go
++fixedbugs/bug236.go
++fixedbugs/bug237.go
++fixedbugs/bug238.go
++fixedbugs/bug239.go
++fixedbugs/bug240.go
++fixedbugs/bug241.go
++fixedbugs/bug242.go
++fixedbugs/bug244.go
++fixedbugs/bug245.go
++fixedbugs/bug246.go
++fixedbugs/bug247.go
++fixedbugs/bug248.go
++fixedbugs/bug249.go
++fixedbugs/bug250.go
++fixedbugs/bug251.go
++fixedbugs/bug252.go
++fixedbugs/bug253.go
++fixedbugs/bug254.go
++fixedbugs/bug255.go
++fixedbugs/bug256.go
++fixedbugs/bug257.go
++fixedbugs/bug259.go
++fixedbugs/bug261.go
++fixedbugs/bug262.go
++fixedbugs/bug263.go
++fixedbugs/bug265.go
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index fa89104cac..f1c72913db 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -3,32 +3,24 @@
+ PASS
+ 
+ =========== cmp2.go
+-comparing uncomparable type []int
+-throw: interface compare
++panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== cmp3.go
+-comparing uncomparable type []int
+-throw: interface compare
++panic: runtime error: comparing uncomparable type []int
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== cmp4.go
+-hash of unhashable type []int
+-throw: interface hash
++panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== cmp5.go
+-hash of unhashable type []int
+-throw: interface hash
++panic: runtime error: hash of unhashable type []int
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:11: constant -3 overflows uint
+@@ -62,22 +54,21 @@ fixedbugs/bug081.go:9: typechecking loop
+ M
+ 
+ =========== fixedbugs/bug113.go
+-interface is int, not int32
+-throw: interface conversion
++panic: interface conversion: interface is int, not int32
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== fixedbugs/bug148.go
+ 2 3
+-interface is main.T, not main.T
+-throw: interface conversion
++panic: interface conversion: interface is main.T, not main.T
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== fixedbugs/bug154.go
+-[1]   Segmentation fault      "${@}"
++SIGSEGV: segmentation violation
++Faulting address: 0x0
++PC=0x255b4
++
+ BUG: should not panic
+ 
+ =========== fixedbugs/bug206.go
+@@ -87,18 +78,14 @@ BUG: bug206
+ hello, world
+ 
+ =========== interface/fail.go
+-*main.S is not main.I: missing method Foo
+-throw: interface conversion
++panic: interface conversion: *main.S is not main.I: missing method Foo
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== interface/returntype.go
+-*main.S is not main.I2: missing method Name
+-throw: interface conversion
++panic: interface conversion: *main.S is not main.I2: missing method Name
+ 
+ panic PC=xxx
+-[1]   Segmentation fault      "${@}"
+ 
+ =========== ken/intervar.go
+  print 1 bio 2 file 3 -- abc
+diff --git a/test/run b/test/run
+index 74e6a9063f..473bef1472 100755
+--- a/test/run
++++ b/test/run
+@@ -87,6 +87,7 @@ done | # clean up some stack noise
+ 		/^Trace\/BPT trap/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
++		/Segmentation fault/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 
+ rm  -f $RUNFILE $TMP1FILE $TMP2FILE *.$A $A.out
+diff --git a/test/run-arm b/test/run-arm
+index 0b764a7fa5..86f2bd2d61 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -67,6 +67,7 @@ done | # clean up some stack noise
+ 		/^Trace\/breakpoint trap/d
+ 		/^Trace\/BPT trap/d
+ 		s!'$GOROOT'!$GOROOT!g
++		/Segmentation fault/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out

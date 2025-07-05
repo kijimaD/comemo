@@ -39,7 +39,7 @@ Date:   Tue May 9 15:40:41 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/495447
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                 | 12 +++-
  src/cmd/go/internal/load/test.go                |  6 +-
  src/cmd/go/internal/test/test.go                | 74 ++++++++++++++++---
@@ -51,3 +51,553 @@ Date:   Tue May 9 15:40:41 2023 -0400
  src/go/build/deps_test.go                       |  3 +
  src/internal/coverage/covcmd/cmddefs.go         | 17 +++++
  10 files changed, 276 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 3e852603c4..1801cfd824 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -227,9 +227,8 @@ type PackageInternal struct {
+ 	LocalPrefix       string               // interpret ./ and ../ imports relative to this prefix
+ 	ExeName           string               // desired name for temporary executable
+ 	FuzzInstrument    bool                 // package should be instrumented for fuzzing
+-	CoverMode         string               // preprocess Go source files with the coverage tool in this mode
++	Cover             CoverSetup           // coverage mode and other setup info of -cover is being applied to this package
+ 	CoverVars         map[string]*CoverVar // variables created by coverage analysis
+-	CoverageCfg       string               // coverage info config file path (passed to compiler)
+ 	OmitDebug         bool                 // tell linker not to write debug information
+ 	GobinSubdir       bool                 // install target would be subdir of GOBIN
+ 	BuildInfo         *debug.BuildInfo     // add this info to package main
+@@ -376,6 +375,13 @@ type CoverVar struct {
+ 	Var  string // name of count struct
+ }
+ 
++// CoverSetup holds parameters related to coverage setup for a given package (covermode, etc).
++type CoverSetup struct {
++	Mode    string // coverage mode for this package
++	Cfg     string // path to config file to pass to "go tool cover"
++	GenMeta bool   // ask cover tool to emit a static meta data if set
++}
++
+ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
+ 	p.Internal.Build = pp
+ 
+@@ -3495,7 +3501,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
+ 		}
+ 
+ 		// Mark package for instrumentation.
+-		p.Internal.CoverMode = cmode
++		p.Internal.Cover.Mode = cmode
+ 		covered = append(covered, p)
+ 
+ 		// Force import of sync/atomic into package if atomic mode.
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index de2caa3128..d09ababfdd 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -388,15 +388,15 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 				// it contains p's Go files), whereas pmain contains only
+ 				// test harness code (don't want to instrument it, and
+ 				// we don't want coverage hooks in the pkg init).
+-				ptest.Internal.CoverMode = p.Internal.CoverMode
+-				pmain.Internal.CoverMode = "testmain"
++				ptest.Internal.Cover.Mode = p.Internal.Cover.Mode
++				pmain.Internal.Cover.Mode = "testmain"
+ 			}
+ 			// Should we apply coverage analysis locally, only for this
+ 			// package and only for this test? Yes, if -cover is on but
+ 			// -coverpkg has not specified a list of packages for global
+ 			// coverage.
+ 			if cover.Local {
+-				ptest.Internal.CoverMode = cover.Mode
++				ptest.Internal.Cover.Mode = cover.Mode
+ 
+ 				if !cfg.Experiment.CoverageRedesign {
+ 					var coverFiles []string
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 4c181dbcd2..c10dd1dfdc 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -896,16 +896,35 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	// Prepare build + run + print actions for all packages being tested.
+-	for _, p := range pkgs {
+-		// sync/atomic import is inserted by the cover tool if we're
+-		// using atomic mode (and not compiling sync/atomic package itself).
+-		// See #18486 and #57445.
+-		if cfg.BuildCover && cfg.BuildCoverMode == "atomic" &&
+-			p.ImportPath != "sync/atomic" {
+-			load.EnsureImport(p, "sync/atomic")
++	if cfg.BuildCover {
++		for _, p := range pkgs {
++			// sync/atomic import is inserted by the cover tool if
++			// we're using atomic mode (and not compiling
++			// sync/atomic package itself). See #18486 and #57445.
++			// Note that this needs to be done prior to any of the
++			// builderTest invocations below, due to the fact that
++			// a given package in the 'pkgs' list may import
++			// package Q which appears later in the list (if this
++			// happens we'll wind up building the Q compile action
++			// before updating its deps to include sync/atomic).
++			if cfg.BuildCoverMode == "atomic" && p.ImportPath != "sync/atomic" {
++				load.EnsureImport(p, "sync/atomic")
++			}
++			// Tag the package for static meta-data generation if no
++			// test files (this works only with the new coverage
++			// design). Do this here (as opposed to in builderTest) so
++			// as to handle the case where we're testing multiple
++			// packages and one of the earlier packages imports a
++			// later package.
++			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 &&
++				cfg.Experiment.CoverageRedesign {
++				p.Internal.Cover.GenMeta = true
++			}
+ 		}
++	}
+ 
++	// Prepare build + run + print actions for all packages being tested.
++	for _, p := range pkgs {
+ 		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p])
+ 		if err != nil {
+ 			str := err.Error()
+@@ -970,6 +989,12 @@ var windowsBadWords = []string{
+ 
+ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
++		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
++			if !p.Internal.Cover.GenMeta {
++				panic("internal error: Cover.GenMeta should already be set")
++			}
++			p.Internal.Cover.Mode = cfg.BuildCoverMode
++		}
+ 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+ 		run := &work.Action{
+ 			Mode:       "test run",
+@@ -1257,8 +1282,37 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		return nil
+ 	}
+ 
++	coverProfTempFile := func(a *work.Action) string {
++		return a.Objdir + "_cover_.out"
++	}
++
+ 	if p := a.Package; len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+-		fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
++		reportNoTestFiles := true
++		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
++			mf, err := work.BuildActionCoverMetaFile(a)
++			if err != nil {
++				return err
++			} else if mf != "" {
++				reportNoTestFiles = false
++				// Write out "percent statements covered".
++				if err := work.WriteCoveragePercent(b, a, mf, stdout); err != nil {
++					return err
++				}
++				// If -coverprofile is in effect, then generate a
++				// coverage profile fragment for this package and
++				// merge it with the final -coverprofile output file.
++				if coverMerge.f != nil {
++					cp := coverProfTempFile(a)
++					if err := work.WriteCoverageProfile(b, a, mf, cp, stdout); err != nil {
++						return err
++					}
++					mergeCoverProfile(stdout, cp)
++				}
++			}
++		}
++		if reportNoTestFiles {
++			fmt.Fprintf(stdout, "?   \t%s\t[no test files]\n", p.ImportPath)
++		}
+ 		return nil
+ 	}
+ 
+@@ -1349,7 +1403,7 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 		// Write coverage to temporary profile, for merging later.
+ 		for i, arg := range args {
+ 			if strings.HasPrefix(arg, "-test.coverprofile=") {
+-				args[i] = "-test.coverprofile=" + a.Objdir + "_cover_.out"
++				args[i] = "-test.coverprofile=" + coverProfTempFile(a)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 7bde857bcc..9ccc23c275 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -14,6 +14,7 @@ import (
+ 	"debug/elf"
+ 	"encoding/json"
+ 	"fmt"
++	"internal/coverage/covcmd"
+ 	"internal/platform"
+ 	"os"
+ 	"path/filepath"
+@@ -436,6 +437,32 @@ func (b *Builder) AutoAction(mode, depMode BuildMode, p *load.Package) *Action {
+ 	return b.CompileAction(mode, depMode, p)
+ }
+ 
++// buildActor implements the Actor interface for package build
++// actions. For most package builds this simply means invoking th
++// *Builder.build method; in the case of "go test -cover" for
++// a package with no test files, we stores some additional state
++// information in the build actor to help with reporting.
++type buildActor struct {
++	// name of static meta-data file fragment emitted by the cover
++	// tool as part of the package build action, for selected
++	// "go test -cover" runs.
++	covMetaFileName string
++}
++
++// newBuildActor returns a new buildActor object, setting up the
++// covMetaFileName field if 'genCoverMeta' flag is set.
++func newBuildActor(p *load.Package, genCoverMeta bool) *buildActor {
++	ba := &buildActor{}
++	if genCoverMeta {
++		ba.covMetaFileName = covcmd.MetaFileForPackage(p.ImportPath)
++	}
++	return ba
++}
++
++func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
++	return b.build(ctx, a)
++}
++
+ // CompileAction returns the action for compiling and possibly installing
+ // (according to mode) the given package. The resulting action is only
+ // for building packages (archives), never for linking executables.
+@@ -459,7 +486,7 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 		a := &Action{
+ 			Mode:    "build",
+ 			Package: p,
+-			Actor:   ActorFunc((*Builder).build),
++			Actor:   newBuildActor(p, p.Internal.Cover.GenMeta),
+ 			Objdir:  b.NewObjdir(),
+ 		}
+ 
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+new file mode 100644
+index 0000000000..42c0e18fd7
+--- /dev/null
++++ b/src/cmd/go/internal/work/cover.go
+@@ -0,0 +1,95 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Action graph execution methods related to coverage.
++
++package work
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"cmd/go/internal/str"
++	"fmt"
++	"internal/coverage/covcmd"
++	"io"
++	"os"
++	"path/filepath"
++)
++
++// CovData invokes "go tool covdata" with the specified arguments
++// as part of the execution of action 'a'.
++func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
++	cmdline := str.StringList(cmdargs...)
++	args := append([]string{}, cfg.BuildToolexec...)
++	args = append(args, base.Tool("covdata"))
++	args = append(args, cmdline...)
++	return b.runOut(a, a.Objdir, nil, args)
++}
++
++// BuildActionCoverMetaFile locates and returns the path of the
++// meta-data file written by the "go tool cover" step as part of the
++// build action for the "go test -cover" run action 'runAct'. Note
++// that if the package has no functions the meta-data file will exist
++// but will be empty; in this case the return is an empty string.
++func BuildActionCoverMetaFile(runAct *Action) (string, error) {
++	p := runAct.Package
++	for i := range runAct.Deps {
++		pred := runAct.Deps[i]
++		if pred.Mode != "build" || pred.Package == nil {
++			continue
++		}
++		if pred.Package.ImportPath == p.ImportPath {
++			metaFile := pred.Objdir + covcmd.MetaFileForPackage(p.ImportPath)
++			f, err := os.Open(metaFile)
++			if err != nil {
++				return "", err
++			}
++			defer f.Close()
++			fi, err2 := f.Stat()
++			if err2 != nil {
++				return "", err2
++			}
++			if fi.Size() == 0 {
++				return "", nil
++			}
++			return metaFile, nil
++		}
++	}
++	return "", fmt.Errorf("internal error: unable to locate build action for package %q run action", p.ImportPath)
++}
++
++// WriteCoveragePercent writes out to the writer 'w' a "percent
++// statements covered" for the package whose test-run action is
++// 'runAct', based on the meta-data file 'mf'. This helper is used in
++// cases where a user runs "go test -cover" on a package that has
++// functions but no tests; in the normal case (package has tests)
++// the percentage is written by the test binary when it runs.
++func WriteCoveragePercent(b *Builder, runAct *Action, mf string, w io.Writer) error {
++	dir := filepath.Dir(mf)
++	output, cerr := b.CovData(runAct, "percent", "-i", dir)
++	if cerr != nil {
++		p := runAct.Package
++		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
++			p.Desc(), string(output))
++	}
++	_, werr := w.Write(output)
++	return werr
++}
++
++// WriteCoverageProfile writes out a coverage profile fragment for the
++// package whose test-run action is 'runAct'; content is written to
++// the file 'outf' based on the coverage meta-data info found in
++// 'mf'. This helper is used in cases where a user runs "go test
++// -cover" on a package that has functions but no tests.
++func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writer) error {
++	dir := filepath.Dir(mf)
++	output, err := b.CovData(runAct, "textfmt", "-i", dir, "-o", outf)
++	if err != nil {
++		p := runAct.Package
++		return formatOutput(b.WorkDir, p.Dir, p.ImportPath,
++			p.Desc(), string(output))
++	}
++	_, werr := w.Write(output)
++	return werr
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 5ef962f333..e6b11274fc 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -309,8 +309,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		}
+ 		// TODO(rsc): Should we include the SWIG version?
+ 	}
+-	if p.Internal.CoverMode != "" {
+-		fmt.Fprintf(h, "cover %q %q\n", p.Internal.CoverMode, b.toolID("cover"))
++	if p.Internal.Cover.Mode != "" {
++		fmt.Fprintf(h, "cover %q %q\n", p.Internal.Cover.Mode, b.toolID("cover"))
+ 	}
+ 	if p.Internal.FuzzInstrument {
+ 		if fuzzFlags := fuzzInstrumentFlags(); fuzzFlags != nil {
+@@ -440,6 +440,7 @@ const (
+ 	needCgoHdr
+ 	needVet
+ 	needCompiledGoFiles
++	needCovMetaFile
+ 	needStale
+ )
+ 
+@@ -456,9 +457,11 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 	}
+ 
+ 	cachedBuild := false
++	needCovMeta := p.Internal.Cover.GenMeta
+ 	need := bit(needBuild, !b.IsCmdList && a.needBuild || b.NeedExport) |
+ 		bit(needCgoHdr, b.needCgoHdr(a)) |
+ 		bit(needVet, a.needVet) |
++		bit(needCovMetaFile, needCovMeta) |
+ 		bit(needCompiledGoFiles, b.NeedCompiledGoFiles)
+ 
+ 	if !p.BinaryOnly {
+@@ -549,6 +552,15 @@ func (b *Builder) build(ctx context.Context, a *Action) (err error) {
+ 		}
+ 	}
+ 
++	// Load cached coverage meta-data file fragment, but only if we're
++	// skipping the main build (cachedBuild==true).
++	if cachedBuild && need&needCovMetaFile != 0 {
++		bact := a.Actor.(*buildActor)
++		if err := b.loadCachedObjdirFile(a, cache.Default(), bact.covMetaFileName); err == nil {
++			need &^= needCovMetaFile
++		}
++	}
++
+ 	// Load cached vet config, but only if that's all we have left
+ 	// (need == needVet, not testing just the one bit).
+ 	// If we are going to do a full build anyway,
+@@ -629,7 +641,7 @@ OverlayLoop:
+ 	}
+ 
+ 	// If we're doing coverage, preprocess the .go files and put them in the work directory
+-	if p.Internal.CoverMode != "" {
++	if p.Internal.Cover.Mode != "" {
+ 		outfiles := []string{}
+ 		infiles := []string{}
+ 		for i, file := range str.StringList(gofiles, cgofiles) {
+@@ -684,7 +696,7 @@ OverlayLoop:
+ 				// users to break things.
+ 				sum := sha256.Sum256([]byte(a.Package.ImportPath))
+ 				coverVar := fmt.Sprintf("goCover_%x_", sum[:6])
+-				mode := a.Package.Internal.CoverMode
++				mode := a.Package.Internal.Cover.Mode
+ 				if mode == "" {
+ 					panic("covermode should be set at this point")
+ 				}
+@@ -700,7 +712,10 @@ OverlayLoop:
+ 				// the package with the compiler, so set covermode to
+ 				// the empty string so as to signal that we need to do
+ 				// that.
+-				p.Internal.CoverMode = ""
++				p.Internal.Cover.Mode = ""
++			}
++			if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
++				b.cacheObjdirFile(a, cache.Default(), ba.covMetaFileName)
+ 			}
+ 		}
+ 	}
+@@ -2024,7 +2039,7 @@ func (b *Builder) cover(a *Action, dst, src string, varName string) error {
+ 	return b.run(a, a.Objdir, "cover "+a.Package.ImportPath, nil,
+ 		cfg.BuildToolexec,
+ 		base.Tool("cover"),
+-		"-mode", a.Package.Internal.CoverMode,
++		"-mode", a.Package.Internal.Cover.Mode,
+ 		"-var", varName,
+ 		"-o", dst,
+ 		src)
+@@ -2063,7 +2078,7 @@ func (b *Builder) cover2(a *Action, infiles, outfiles []string, varName string,
+ 
+ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsfile string, outfiles []string) error {
+ 	p := a.Package
+-	p.Internal.CoverageCfg = a.Objdir + "coveragecfg"
++	p.Internal.Cover.Cfg = a.Objdir + "coveragecfg"
+ 	pcfg := covcmd.CoverPkgConfig{
+ 		PkgPath: p.ImportPath,
+ 		PkgName: p.Name,
+@@ -2072,9 +2087,12 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
+ 		// test -cover" to select it. This may change in the future
+ 		// depending on user demand.
+ 		Granularity: "perblock",
+-		OutConfig:   p.Internal.CoverageCfg,
++		OutConfig:   p.Internal.Cover.Cfg,
+ 		Local:       p.Internal.Local,
+ 	}
++	if ba, ok := a.Actor.(*buildActor); ok && ba.covMetaFileName != "" {
++		pcfg.EmitMetaFile = a.Objdir + ba.covMetaFileName
++	}
+ 	if a.Package.Module != nil {
+ 		pcfg.ModulePath = a.Package.Module.Path
+ 	}
+@@ -2082,6 +2100,7 @@ func (b *Builder) writeCoverPkgInputs(a *Action, pconfigfile string, covoutputsf
+ 	if err != nil {
+ 		return err
+ 	}
++	data = append(data, '\n')
+ 	if err := b.writeFile(pconfigfile, data); err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 5ced6eebd4..c2fed647c9 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -110,8 +110,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if strings.HasPrefix(ToolchainVersion, "go1") && !strings.Contains(os.Args[0], "go_bootstrap") {
+ 		defaultGcFlags = append(defaultGcFlags, "-goversion", ToolchainVersion)
+ 	}
+-	if p.Internal.CoverageCfg != "" {
+-		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.CoverageCfg)
++	if p.Internal.Cover.Cfg != "" {
++		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
+ 	}
+ 	if p.Internal.PGOProfile != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+p.Internal.PGOProfile)
+diff --git a/src/cmd/go/testdata/script/cover_statements.txt b/src/cmd/go/testdata/script/cover_statements.txt
+index 4f3c9ca2f2..24b5751154 100644
+--- a/src/cmd/go/testdata/script/cover_statements.txt
++++ b/src/cmd/go/testdata/script/cover_statements.txt
+@@ -1,9 +1,36 @@
+ [short] skip
++
++# Initial run with simple coverage.
+ go test -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
+-stdout 'pkg1	\[no test files\]'
++[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
++[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
++stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
++stdout 'pkg3	\S+	coverage: 100.0% of statements'
++stdout 'pkg4	\S+	coverage: \[no statements\]'
++
++# Second run to make sure that caching works properly.
++go test -x -cover ./pkg1 ./pkg2 ./pkg3 ./pkg4
++[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
++[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
+ stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
+ stdout 'pkg3	\S+	coverage: 100.0% of statements'
+ stdout 'pkg4	\S+	coverage: \[no statements\]'
++[GOEXPERIMENT:coverageredesign] ! stderr 'link(\.exe"?)? -'
++! stderr 'compile(\.exe"?)? -'
++! stderr 'cover(\.exe"?)? -'
++[GOEXPERIMENT:coverageredesign] stderr 'covdata(\.exe"?)? percent'
++
++# Now add in -coverprofile.
++go test -cover -coverprofile=cov.dat ./pkg1 ./pkg2 ./pkg3 ./pkg4
++[!GOEXPERIMENT:coverageredesign] stdout 'pkg1	\[no test files\]'
++[GOEXPERIMENT:coverageredesign] stdout 'pkg1		coverage: 0.0% of statements'
++stdout 'pkg2	\S+	coverage: 0.0% of statements \[no tests to run\]'
++stdout 'pkg3	\S+	coverage: 100.0% of statements'
++stdout 'pkg4	\S+	coverage: \[no statements\]'
++
++# Validate
++go tool cover -func=cov.dat
++[GOEXPERIMENT:coverageredesign] stdout 'pkg1/a.go:5:\s+F\s+0.0%'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 187dff74cf..a7c85929ae 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -624,6 +624,9 @@ var depsRules = `
+ 	internal/coverage/cmerge
+ 	< internal/coverage/cformat;
+ 
++	internal/coverage, crypto/sha256, FMT
++	< internal/coverage/covcmd;
++
+     encoding/json,
+ 	runtime/debug,
+ 	internal/coverage/calloc,
+diff --git a/src/internal/coverage/covcmd/cmddefs.go b/src/internal/coverage/covcmd/cmddefs.go
+index e8ce204825..cb848d3e48 100644
+--- a/src/internal/coverage/covcmd/cmddefs.go
++++ b/src/internal/coverage/covcmd/cmddefs.go
+@@ -4,6 +4,12 @@
+ 
+ package covcmd
+ 
++import (
++	"crypto/sha256"
++	"fmt"
++	"internal/coverage"
++)
++
+ // CoverPkgConfig is a bundle of information passed from the Go
+ // command to the cover command during "go build -cover" runs. The
+ // Go command creates and fills in a struct as below, then passes
+@@ -78,3 +84,14 @@ type CoverFixupConfig struct {
+ 	// Counter granularity (perblock or perfunc).
+ 	CounterGranularity string
+ }
++
++// MetaFileForPackage returns the expected name of the meta-data file
++// for the package whose import path is 'importPath' in cases where
++// we're using meta-data generated by the cover tool, as opposed to a
++// meta-data file created at runtime.
++func MetaFileForPackage(importPath string) string {
++	var r [32]byte
++	sum := sha256.Sum256([]byte(importPath))
++	copy(r[:], sum[:])
++	return coverage.MetaFilePref + fmt.Sprintf(".%x", r)
++}

@@ -126,7 +126,107 @@ Date:   Sun Apr 10 09:08:00 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 30 +++++++++++++++++-------------
  src/runtime/slice.go               |  6 ++++++
  2 files changed, 23 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7c5f906d76..d69559d945 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -337,12 +337,13 @@ var (
+ 	memVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "mem"}}
+ 
+ 	// dummy nodes for temporary variables
+-	ptrVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ptr"}}
+-	capVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
+-	typVar   = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
+-	idataVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
+-	okVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
+-	deltaVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "delta"}}
++	ptrVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ptr"}}
++	newlenVar = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "newlen"}}
++	capVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "cap"}}
++	typVar    = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "typ"}}
++	idataVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "idata"}}
++	okVar     = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "ok"}}
++	deltaVar  = Node{Op: ONAME, Class: Pxxx, Sym: &Sym{Name: "delta"}}
+ )
+ 
+ // startBlock sets the current block we're generating code in to b.
+@@ -2089,15 +2090,16 @@ func (s *state) expr(n *Node) *ssa.Value {
+ // exprAppend converts an OAPPEND node n to an ssa.Value, adds it to s, and returns the Value.
+ func (s *state) exprAppend(n *Node) *ssa.Value {
+ 	// append(s, e1, e2, e3).  Compile like:
+-	// ptr,len,cap := s
++	// ptr, len, cap := s
+ 	// newlen := len + 3
+ 	// if newlen > s.cap {
+-	//     ptr,_,cap = growslice(s, newlen)
++	//     ptr, len, cap = growslice(s, newlen)
++	//     newlen = len + 3 // recalculate to avoid a spill
+ 	// }
+ 	// *(ptr+len) = e1
+ 	// *(ptr+len+1) = e2
+ 	// *(ptr+len+2) = e3
+-	// makeslice(ptr,newlen,cap)
++	// makeslice(ptr, newlen, cap)
+ 
+ 	et := n.Type.Elem()
+ 	pt := Ptrto(et)
+@@ -2117,6 +2119,7 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
+ 	nl := s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+ 	cmp := s.newValue2(s.ssaOp(OGT, Types[TINT]), Types[TBOOL], nl, c)
+ 	s.vars[&ptrVar] = p
++	s.vars[&newlenVar] = nl
+ 	s.vars[&capVar] = c
+ 	b := s.endBlock()
+ 	b.Kind = ssa.BlockIf
+@@ -2132,8 +2135,7 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
+ 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
+ 
+ 	s.vars[&ptrVar] = r[0]
+-	// Note: we don't need to read r[1], the result's length. It will be nl.
+-	// (or maybe we should, we just have to spill/restore nl otherwise?)
++	s.vars[&newlenVar] = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], r[1], s.constInt(Types[TINT], nargs))
+ 	s.vars[&capVar] = r[2]
+ 	b = s.endBlock()
+ 	b.AddEdgeTo(assign)
+@@ -2154,8 +2156,9 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
+ 		}
+ 	}
+ 
+-	p = s.variable(&ptrVar, pt)          // generates phi for ptr
+-	c = s.variable(&capVar, Types[TINT]) // generates phi for cap
++	p = s.variable(&ptrVar, pt)              // generates phi for ptr
++	nl = s.variable(&newlenVar, Types[TINT]) // generates phi for nl
++	c = s.variable(&capVar, Types[TINT])     // generates phi for cap
+ 	p2 := s.newValue2(ssa.OpPtrIndex, pt, p, l)
+ 	// TODO: just one write barrier call for all of these writes?
+ 	// TODO: maybe just one writeBarrier.enabled check?
+@@ -2178,6 +2181,7 @@ func (s *state) exprAppend(n *Node) *ssa.Value {
+ 
+ 	// make result
+ 	delete(s.vars, &ptrVar)
++	delete(s.vars, &newlenVar)
+ 	delete(s.vars, &capVar)
+ 	return s.newValue3(ssa.OpSliceMake, n.Type, p, nl, c)
+ }
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 0bc0299f72..4ab221056c 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -37,6 +37,12 @@ func makeslice(t *slicetype, len64, cap64 int64) slice {
+ // It is passed the slice type, the old slice, and the desired new minimum capacity,
+ // and it returns a new slice with at least that capacity, with the old data
+ // copied into it.
++// The new slice's length is set to the old slice's length,
++// NOT to the new requested capacity.
++// This is for codegen convenience. The old slice's length is used immediately
++// to calculate where to write new values during an append.
++// TODO: When the old backend is gone, reconsider this decision.
++// The SSA backend might prefer the new length or to return only ptr/cap and save stack space.
+ func growslice(t *slicetype, old slice, cap int) slice {
+ 	if raceenabled {
+ 		callerpc := getcallerpc(unsafe.Pointer(&t))

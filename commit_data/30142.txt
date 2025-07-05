@@ -15,7 +15,7 @@ Date:   Fri Oct 21 12:41:15 2016 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/go_test.go                         | 11 +++++++++++
  src/cmd/go/pkg.go                             | 19 ++++++++++++-------
  src/cmd/go/testdata/src/dupload/dupload.go    |  8 ++++++++
@@ -23,3 +23,101 @@ Date:   Fri Oct 21 12:41:15 2016 -0400
  src/cmd/go/testdata/src/dupload/p2/p2.go      |  2 ++
  src/cmd/go/testdata/src/dupload/vendor/p/p.go |  1 +
  6 files changed, 35 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 26b2dce0a6..b02581be7b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2912,6 +2912,17 @@ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+ 	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
+ }
+ 
++// Issue 17119 more duplicate load errors
++func TestIssue17119(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.runFail("build", "dupload")
++	tg.grepBothNot("duplicate load|internal error", "internal error")
++}
++
+ func TestFatalInBenchmarkCauseNonZeroExitStatus(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index a779f864ee..22241f597f 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -970,6 +970,15 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	// Build list of imported packages and full dependency list.
+ 	imports := make([]*Package, 0, len(p.Imports))
+ 	deps := make(map[string]*Package)
++	save := func(path string, p1 *Package) {
++		// The same import path could produce an error or not,
++		// depending on what tries to import it.
++		// Prefer to record entries with errors, so we can report them.
++		if deps[path] == nil || p1.Error != nil {
++			deps[path] = p1
++		}
++	}
++
+ 	for i, path := range importPaths {
+ 		if path == "C" {
+ 			continue
+@@ -1013,15 +1022,11 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		if i < len(p.Imports) {
+ 			p.Imports[i] = path
+ 		}
+-		deps[path] = p1
++
++		save(path, p1)
+ 		imports = append(imports, p1)
+ 		for _, dep := range p1.deps {
+-			// The same import path could produce an error or not,
+-			// depending on what tries to import it.
+-			// Prefer to record entries with errors, so we can report them.
+-			if deps[dep.ImportPath] == nil || dep.Error != nil {
+-				deps[dep.ImportPath] = dep
+-			}
++			save(dep.ImportPath, dep)
+ 		}
+ 		if p1.Incomplete {
+ 			p.Incomplete = true
+diff --git a/src/cmd/go/testdata/src/dupload/dupload.go b/src/cmd/go/testdata/src/dupload/dupload.go
+new file mode 100644
+index 0000000000..3cf98aaa7a
+--- /dev/null
++++ b/src/cmd/go/testdata/src/dupload/dupload.go
+@@ -0,0 +1,8 @@
++package main
++
++import (
++	_"dupload/p2"
++	_ "p"
++)
++
++func main() {}
+diff --git a/src/cmd/go/testdata/src/dupload/p/p.go b/src/cmd/go/testdata/src/dupload/p/p.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/dupload/p/p.go
+@@ -0,0 +1 @@
++package p
+diff --git a/src/cmd/go/testdata/src/dupload/p2/p2.go b/src/cmd/go/testdata/src/dupload/p2/p2.go
+new file mode 100644
+index 0000000000..40f5a5b07c
+--- /dev/null
++++ b/src/cmd/go/testdata/src/dupload/p2/p2.go
+@@ -0,0 +1,2 @@
++package p2
++import _ "dupload/vendor/p"
+diff --git a/src/cmd/go/testdata/src/dupload/vendor/p/p.go b/src/cmd/go/testdata/src/dupload/vendor/p/p.go
+new file mode 100644
+index 0000000000..c89cd18d0f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/dupload/vendor/p/p.go
+@@ -0,0 +1 @@
++package p

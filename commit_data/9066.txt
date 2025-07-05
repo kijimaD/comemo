@@ -9,9 +9,115 @@ Date:   Wed Jul 13 16:29:37 2011 -0700
     R=fshahriar, rsc
     CC=golang-dev
     https://golang.org/cl/4683044
-
+---
  src/pkg/os/exec.go       |  5 +++++
  src/pkg/os/exec_plan9.go | 22 ++++++++++++++++++++++
  src/pkg/os/exec_posix.go |  5 -----
  src/pkg/os/file_plan9.go | 15 ---------------
  4 files changed, 27 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index 40e6c1774e..33e223fd29 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -46,6 +46,11 @@ type ProcAttr struct {
+ 	Sys *syscall.SysProcAttr
+ }
+ 
++// A Signal can represent any operating system signal.
++type Signal interface {
++	String() string
++}
++
+ // Getpid returns the process id of the caller.
+ func Getpid() int { return syscall.Getpid() }
+ 
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 2590dd67de..6f0722a222 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -38,6 +38,27 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err E
+ 	return newProcess(pid, h), nil
+ }
+ 
++// Plan9Note implements the Signal interface on Plan 9.
++type Plan9Note string
++
++func (note Plan9Note) String() string {
++	return string(note)
++}
++
++func (p *Process) Signal(sig Signal) Error {
++	if p.done {
++		return NewError("os: process already finished")
++	}
++
++	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/note", O_WRONLY, 0)
++	if iserror(e) {
++		return NewSyscallError("signal", e)
++	}
++	defer f.Close()
++	_, e = f.Write([]byte(sig.String()))
++	return e
++}
++
+ // Kill causes the Process to exit immediately.
+ func (p *Process) Kill() Error {
+ 	f, e := OpenFile("/proc/"+itoa(p.Pid)+"/ctl", O_WRONLY, 0)
+@@ -85,6 +106,7 @@ func (p *Process) Wait(options int) (w *Waitmsg, err Error) {
+ 		}
+ 
+ 		if waitmsg.Pid == p.Pid {
++			p.done = true
+ 			break
+ 		}
+ 	}
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index e2097700e9..813b968467 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -9,11 +9,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// A Signal can represent any operating system signal.
+-type Signal interface {
+-	String() string
+-}
+-
+ type UnixSignal int32
+ 
+ func (sig UnixSignal) String() string {
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 03792191ec..f196ea9a65 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -14,7 +14,6 @@ type File struct {
+ 	fd      int
+ 	name    string
+ 	dirinfo *dirInfo // nil unless directory being read
+-	nepipe  int      // number of consecutive EPIPE in Write
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+@@ -273,20 +272,6 @@ func Chmod(name string, mode uint32) Error {
+ 	return nil
+ }
+ 
+-// ChownPlan9 changes the uid and gid strings of the named file.
+-func ChownPlan9(name, uid, gid string) Error {
+-	var d Dir
+-	d.Null()
+-
+-	d.Uid = uid
+-	d.Gid = gid
+-
+-	if e := syscall.Wstat(name, pdir(nil, &d)); iserror(e) {
+-		return &PathError{"chown_plan9", name, e}
+-	}
+-	return nil
+-}
+-
+ // Chtimes changes the access and modification times of the named
+ // file, similar to the Unix utime() or utimes() functions.
+ //

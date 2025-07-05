@@ -13,9 +13,832 @@ Date:   Fri Jul 31 17:11:34 2009 -0700
     DELTA=228  (57 added, 35 deleted, 136 changed)
     OCL=32606
     CL=32608
-
+---
  usr/austin/eval/decls.go |  20 ++---
  usr/austin/eval/expr.go  |  99 ++++++++++++-------------
  usr/austin/eval/scope.go |   2 +-
  usr/austin/eval/type.go  | 185 +++++++++++++++++++++++++++--------------------
  4 files changed, 164 insertions(+), 142 deletions(-)
+
+diff --git a/usr/austin/eval/decls.go b/usr/austin/eval/decls.go
+index 1ab5c97a71..3b1ed70ae8 100644
+--- a/usr/austin/eval/decls.go
++++ b/usr/austin/eval/decls.go
+@@ -16,15 +16,17 @@ import (
+ type Value interface
+ 
+ type Type interface {
+-	// literal returns this type with all names recursively
+-	// stripped.  This should only be used when determining
+-	// assignment compatibility.  To strip a named type for use in
+-	// a type switch, use .rep().
+-	literal() Type;
+-	// rep returns the representative type.  If this is a named
+-	// type, this is the unnamed underlying type.  Otherwise, this
+-	// is an identity operation.
+-	rep() Type;
++	// compat returns whether this type is compatible with another
++	// type.  If conv is false, this is normal compatibility,
++	// where two named types are compatible only if they are the
++	// same named type.  If conv if true, this is conversion
++	// compatibility, where two named types are conversion
++	// compatible if their definitions are conversion compatible.
++	compat(o Type, conv bool) bool;
++	// lit returns this type's literal.  If this is a named type,
++	// this is the unnamed underlying type.  Otherwise, this is an
++	// identity operation.
++	lit() Type;
+ 	// isBoolean returns true if this is a boolean type.
+ 	isBoolean() bool;
+ 	// isInteger returns true if this is an integer type.
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 1231e22586..3ebd493fe5 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -230,7 +230,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+ 	}
+ 
+ 	// Check bounds
+-	if t, ok := t.rep().(BoundedType); ok {
++	if t, ok := t.lit().(BoundedType); ok {
+ 		if rat.Cmp(t.minVal()) < 0 {
+ 			a.diag("constant %v underflows %v", ratToString(rat), t);
+ 			return nil;
+@@ -244,7 +244,7 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+ 	// Convert rat to type t.
+ 	res := a.copy();
+ 	res.t = t;
+-	switch t := t.rep().(type) {
++	switch t := t.lit().(type) {
+ 	case *uintType:
+ 		n, d := rat.Value();
+ 		f := n.Quo(bignum.MakeInt(false, d));
+@@ -410,7 +410,7 @@ func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
+ 			rt = a.rs[i].t;
+ 		}
+ 
+-		if lt.literal() != rt.literal() {
++		if !lt.compat(rt, false) {
+ 			if len(a.rs) == 1 {
+ 				a.rs[0].diag("illegal operand types for %s\n\t%v\n\t%v", a.errOp, lt, rt);
+ 			} else {
+@@ -606,8 +606,8 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
+ 	}
+ 
+ 	// Type check object
+-	if lt, ok := l.t.rep().(*PtrType); ok {
+-		if et, ok := lt.Elem.rep().(*ArrayType); ok {
++	if lt, ok := l.t.lit().(*PtrType); ok {
++		if et, ok := lt.Elem.lit().(*ArrayType); ok {
+ 			// Automatic dereference
+ 			nl := l.copy();
+ 			nl.t = et;
+@@ -620,7 +620,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
+ 	intIndex := false;
+ 	var maxIndex int64 = -1;
+ 
+-	switch lt := l.t.rep().(type) {
++	switch lt := l.t.lit().(type) {
+ 	case *ArrayType:
+ 		at = lt.Elem;
+ 		intIndex = true;
+@@ -649,7 +649,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
+ 		// XXX(Spec) It's unclear if ideal floats with no
+ 		// fractional part are allowed here.  6g allows it.  I
+ 		// believe that's wrong.
+-		switch _ := r.t.rep().(type) {
++		switch _ := r.t.lit().(type) {
+ 		case *idealIntType:
+ 			val := r.asIdealInt()();
+ 			if val.IsNeg() || (maxIndex != -1 && val.Cmp(bignum.Int(maxIndex)) >= 0) {
+@@ -683,7 +683,7 @@ func (a *exprCompiler) DoIndexExpr(x *ast.IndexExpr) {
+ 	a.t = at;
+ 
+ 	// Compile
+-	switch lt := l.t.rep().(type) {
++	switch lt := l.t.lit().(type) {
+ 	case *ArrayType:
+ 		a.t = lt.Elem;
+ 		// TODO(austin) Bounds check
+@@ -750,7 +750,7 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
+ 	// type of that type is still whatever it's defined to.  Thus,
+ 	// in "type Foo int", Foo is still an integer type and in
+ 	// "type Foo func()", Foo is a function type.
+-	lt, ok := l.t.rep().(*FuncType);
++	lt, ok := l.t.lit().(*FuncType);
+ 	if !ok {
+ 		a.diag("cannot call non-function type %v", l.t);
+ 		return;
+@@ -807,7 +807,7 @@ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
+ 		return;
+ 	}
+ 
+-	switch vt := v.t.rep().(type) {
++	switch vt := v.t.lit().(type) {
+ 	case *PtrType:
+ 		a.t = vt.Elem;
+ 		a.genStarOp(v);
+@@ -956,12 +956,9 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 		}
+ 	}
+ 
+-	// XXX(Spec) "The operand types in binary operations must be
+-	// compatible" should say the types must be *identical*.
+-
+ 	// Useful type predicates
+-	same := func() bool {
+-		return l.t == r.t;
++	compat := func() bool {
++		return l.t.compat(r.t, false);
+ 	};
+ 	integers := func() bool {
+ 		return l.t.isInteger() && r.t.isInteger();
+@@ -980,21 +977,21 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 	// Type check
+ 	switch op {
+ 	case token.ADD:
+-		if !same() || (!integers() && !floats() && !strings()) {
++		if !compat() || (!integers() && !floats() && !strings()) {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
+ 		a.t = l.t;
+ 
+ 	case token.SUB, token.MUL, token.QUO:
+-		if !same() || (!integers() && !floats()) {
++		if !compat() || (!integers() && !floats()) {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
+ 		a.t = l.t;
+ 
+ 	case token.REM, token.AND, token.OR, token.XOR, token.AND_NOT:
+-		if !same() || !integers() {
++		if !compat() || !integers() {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
+@@ -1037,7 +1034,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 					log.Crashf("conversion to uintType succeeded, but conversion to idealIntType failed");
+ 				}
+ 			}
+-		} else if _, ok := r.t.rep().(*uintType); !ok {
++		} else if _, ok := r.t.lit().(*uintType); !ok {
+ 			a.diag("right operand of shift must be unsigned");
+ 			return;
+ 		}
+@@ -1089,7 +1086,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 		// to everything except arrays and structs, and there
+ 		// are some restrictions on when it applies to slices.
+ 
+-		if !same() || (!integers() && !floats() && !strings()) {
++		if !compat() || (!integers() && !floats() && !strings()) {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
+@@ -1118,10 +1115,6 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 		// is very difficult to parse.  It's explained much
+ 		// better in the Comparison Compatibility section.
+ 
+-		// XXX(Spec) Comparison compatibility: "Values of any
+-		// type may be compared to other values of compatible
+-		// static type."  Should be *identical* static type.
+-
+ 		// XXX(Spec) Comparison compatibility: "Function
+ 		// values are equal if they refer to the same
+ 		// function." is rather vague.  It should probably be
+@@ -1136,7 +1129,7 @@ func (a *exprCompiler) doBinaryExpr(op token.Token, l, r *exprCompiler) {
+ 
+ 		// TODO(austin) Deal with remaining special cases
+ 
+-		if !same() {
++		if !compat() {
+ 			a.diagOpTypes(op, origlt, origrt);
+ 			return;
+ 		}
+@@ -1302,7 +1295,7 @@ func (a *compiler) compileArrayLen(b *block, expr ast.Expr) (int64, bool) {
+ 		}
+ 	}
+ 
+-	switch _ := lenExpr.t.rep().(type) {
++	switch _ := lenExpr.t.lit().(type) {
+ 	case *intType:
+ 		return lenExpr.evalInt(nil), true;
+ 	case *uintType:
+@@ -1394,7 +1387,7 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
+ 	if ec == nil {
+ 		return nil, errors.GetError(scanner.Sorted);
+ 	}
+-	switch t := ec.t.rep().(type) {
++	switch t := ec.t.lit().(type) {
+ 	case *boolType:
+ 		return &Expr{t, func(f *Frame, out Value) { out.(BoolValue).Set(ec.evalBool(f)) }}, nil;
+ 	case *uintType:
+@@ -1424,7 +1417,7 @@ func CompileExpr(scope *Scope, expr ast.Expr) (*Expr, os.Error) {
+  */
+ 
+ func (a *exprCompiler) genConstant(v Value) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		val := v.(BoolValue).Get();
+ 		a.evalBool = func(f *Frame) bool { return val };
+@@ -1462,7 +1455,7 @@ func (a *exprCompiler) genConstant(v Value) {
+ 
+ func (a *exprCompiler) genIdentOp(level int, index int) {
+ 	a.evalAddr = func(f *Frame) Value { return f.Get(level, index) };
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return f.Get(level, index).(BoolValue).Get() };
+ 	case *uintType:
+@@ -1487,7 +1480,7 @@ func (a *exprCompiler) genIdentOp(level int, index int) {
+ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
+ 	lf := l.asArray();
+ 	rf := r.asInt();
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return lf(f).Elem(rf(f)).(BoolValue).Get() };
+ 	case *uintType:
+@@ -1511,7 +1504,7 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
+ 
+ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+ 	a.exec = func(f *Frame) { call(f) };
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return call(f)[0].(BoolValue).Get() };
+ 	case *uintType:
+@@ -1538,7 +1531,7 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+ func (a *exprCompiler) genStarOp(v *exprCompiler) {
+ 	vf := v.asPtr();
+ 	a.evalAddr = func(f *Frame) Value { return vf(f) };
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return vf(f).(BoolValue).Get() };
+ 	case *uintType:
+@@ -1561,7 +1554,7 @@ func (a *exprCompiler) genStarOp(v *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		vf := v.asUint();
+ 		a.evalUint = func(f *Frame) uint64 { return -vf(f) };
+@@ -1585,7 +1578,7 @@ func (a *exprCompiler) genUnaryOpNeg(v *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genUnaryOpNot(v *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+ 		vf := v.asBool();
+ 		a.evalBool = func(f *Frame) bool { return !vf(f) };
+@@ -1595,7 +1588,7 @@ func (a *exprCompiler) genUnaryOpNot(v *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		vf := v.asUint();
+ 		a.evalUint = func(f *Frame) uint64 { return ^vf(f) };
+@@ -1612,7 +1605,7 @@ func (a *exprCompiler) genUnaryOpXor(v *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1645,7 +1638,7 @@ func (a *exprCompiler) genBinOpAdd(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1674,7 +1667,7 @@ func (a *exprCompiler) genBinOpSub(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1703,7 +1696,7 @@ func (a *exprCompiler) genBinOpMul(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1732,7 +1725,7 @@ func (a *exprCompiler) genBinOpQuo(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1752,7 +1745,7 @@ func (a *exprCompiler) genBinOpRem(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1772,7 +1765,7 @@ func (a *exprCompiler) genBinOpAnd(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1792,7 +1785,7 @@ func (a *exprCompiler) genBinOpOr(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1812,7 +1805,7 @@ func (a *exprCompiler) genBinOpXor(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1832,7 +1825,7 @@ func (a *exprCompiler) genBinOpAndNot(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1847,7 +1840,7 @@ func (a *exprCompiler) genBinOpShl(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
+-	switch _ := a.t.rep().(type) {
++	switch _ := a.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1862,7 +1855,7 @@ func (a *exprCompiler) genBinOpShr(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1895,7 +1888,7 @@ func (a *exprCompiler) genBinOpLss(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1928,7 +1921,7 @@ func (a *exprCompiler) genBinOpGtr(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1961,7 +1954,7 @@ func (a *exprCompiler) genBinOpLeq(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *uintType:
+ 		lf := l.asUint();
+ 		rf := r.asUint();
+@@ -1994,7 +1987,7 @@ func (a *exprCompiler) genBinOpGeq(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *boolType:
+ 		lf := l.asBool();
+ 		rf := r.asBool();
+@@ -2039,7 +2032,7 @@ func (a *exprCompiler) genBinOpEql(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler) {
+-	switch _ := l.t.rep().(type) {
++	switch _ := l.t.lit().(type) {
+ 	case *boolType:
+ 		lf := l.asBool();
+ 		rf := r.asBool();
+@@ -2084,7 +2077,7 @@ func (a *exprCompiler) genBinOpNeq(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func genAssign(lt Type, r *exprCompiler) (func(lv Value, f *Frame)) {
+-	switch _ := lt.rep().(type) {
++	switch _ := lt.lit().(type) {
+ 	case *boolType:
+ 		rf := r.asBool();
+ 		return func(lv Value, f *Frame) { lv.(BoolValue).Set(rf(f)) };
+diff --git a/usr/austin/eval/scope.go b/usr/austin/eval/scope.go
+index b218110692..d32a37a367 100644
+--- a/usr/austin/eval/scope.go
++++ b/usr/austin/eval/scope.go
+@@ -86,7 +86,7 @@ func (b *block) DefineType(name string, pos token.Position, t Type) Type {
+ 	}
+ 	// We take the representative type of t because multiple
+ 	// levels of naming are useless.
+-	nt := &NamedType{pos, name, t.rep()};
++	nt := &NamedType{pos, name, t.lit()};
+ 	b.defs[name] = nt;
+ 	return nt;
+ }
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index f326935878..8c12974ab1 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -127,11 +127,12 @@ type boolType struct {
+ 
+ var BoolType = universe.DefineType("bool", universePos, &boolType{});
+ 
+-func (t *boolType) literal() Type {
+-	return t;
++func (t *boolType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*boolType);
++	return ok;
+ }
+ 
+-func (t *boolType) rep() Type {
++func (t *boolType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -181,11 +182,12 @@ func init() {
+ 	universe.defs["byte"] = universe.defs["uint8"];
+ }
+ 
+-func (t *uintType) literal() Type {
+-	return t;
++func (t *uintType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*uintType);
++	return ok && t == t2;;
+ }
+ 
+-func (t *uintType) rep() Type {
++func (t *uintType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -241,11 +243,12 @@ var (
+ 	IntType   = universe.DefineType("int",   universePos, &intType{commonType{}, 0,  "int"});
+ )
+ 
+-func (t *intType) literal() Type {
+-	return t;
++func (t *intType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*intType);
++	return ok && t == t2;
+ }
+ 
+-func (t *intType) rep() Type {
++func (t *intType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -285,11 +288,12 @@ type idealIntType struct {
+ 
+ var IdealIntType Type = &idealIntType{}
+ 
+-func (t *idealIntType) literal() Type {
+-	return t;
++func (t *idealIntType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*idealIntType);
++	return ok;
+ }
+ 
+-func (t *idealIntType) rep() Type {
++func (t *idealIntType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -326,11 +330,12 @@ var (
+ 	FloatType   = universe.DefineType("float",   universePos, &floatType{commonType{}, 0,  "float"});
+ )
+ 
+-func (t *floatType) literal() Type {
+-	return t;
++func (t *floatType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*floatType);
++	return ok && t == t2;
+ }
+ 
+-func (t *floatType) rep() Type {
++func (t *floatType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -389,11 +394,12 @@ type idealFloatType struct {
+ 
+ var IdealFloatType Type = &idealFloatType{};
+ 
+-func (t *idealFloatType) literal() Type {
+-	return t;
++func (t *idealFloatType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*idealFloatType);
++	return ok;
+ }
+ 
+-func (t *idealFloatType) rep() Type {
++func (t *idealFloatType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -421,11 +427,12 @@ type stringType struct {
+ 
+ var StringType = universe.DefineType("string", universePos, &stringType{});
+ 
+-func (t *stringType) literal() Type {
+-	return t;
++func (t *stringType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*stringType);
++	return ok;
+ }
+ 
+-func (t *stringType) rep() Type {
++func (t *stringType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -443,15 +450,14 @@ type ArrayType struct {
+ 	commonType;
+ 	Len int64;
+ 	Elem Type;
+-	lit Type;
+ }
+ 
+ var arrayTypes = make(map[int64] map[Type] *ArrayType);
+ 
+-func NewArrayType(len int64, elem Type) *ArrayType {
+-	// Two array types are identical if they have identical
+-	// element types and the same array length.
++// Two array types are identical if they have identical element types
++// and the same array length.
+ 
++func NewArrayType(len int64, elem Type) *ArrayType {
+ 	ts, ok := arrayTypes[len];
+ 	if !ok {
+ 		ts = make(map[Type] *ArrayType);
+@@ -459,20 +465,21 @@ func NewArrayType(len int64, elem Type) *ArrayType {
+ 	}
+ 	t, ok := ts[elem];
+ 	if !ok {
+-		t = &ArrayType{commonType{}, len, elem, nil};
++		t = &ArrayType{commonType{}, len, elem};
+ 		ts[elem] = t;
+ 	}
+ 	return t;
+ }
+ 
+-func (t *ArrayType) literal() Type {
+-	if t.lit == nil {
+-		t.lit = NewArrayType(t.Len, t.Elem.literal());
++func (t *ArrayType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*ArrayType);
++	if !ok {
++		return false;
+ 	}
+-	return t.lit;
++	return t.Len == t2.Len && t.Elem.compat(t2.Elem, conv);
+ }
+ 
+-func (t *ArrayType) rep() Type {
++func (t *ArrayType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -489,31 +496,30 @@ func (t *ArrayType) Zero() Value
+ type PtrType struct {
+ 	commonType;
+ 	Elem Type;
+-	lit Type;
+ }
+ 
+ var ptrTypes = make(map[Type] *PtrType)
+ 
+-func NewPtrType(elem Type) *PtrType {
+-	// Two pointer types are identical if they have identical base
+-	// types.
++// Two pointer types are identical if they have identical base types.
+ 
++func NewPtrType(elem Type) *PtrType {
+ 	t, ok := ptrTypes[elem];
+ 	if !ok {
+-		t = &PtrType{commonType{}, elem, nil};
++		t = &PtrType{commonType{}, elem};
+ 		ptrTypes[elem] = t;
+ 	}
+ 	return t;
+ }
+ 
+-func (t *PtrType) literal() Type {
+-	if t.lit == nil {
+-		t.lit = NewPtrType(t.Elem.literal());
++func (t *PtrType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*PtrType);
++	if !ok {
++		return false;
+ 	}
+-	return t.lit;
++	return t.Elem.compat(t2.Elem, conv);
+ }
+ 
+-func (t *PtrType) rep() Type {
++func (t *PtrType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -533,19 +539,17 @@ type FuncType struct {
+ 	In []Type;
+ 	Variadic bool;
+ 	Out []Type;
+-	lit Type;
+ }
+ 
+ var funcTypes = newTypeArrayMap();
+ var variadicFuncTypes = newTypeArrayMap();
+ 
+-func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
+-	// Two function types are identical if they have the same
+-	// number of parameters and result values and if corresponding
+-	// parameter and result types are identical. All "..."
+-	// parameters have identical type. Parameter and result names
+-	// are not required to match.
++// Two function types are identical if they have the same number of
++// parameters and result values and if corresponding parameter and
++// result types are identical. All "..." parameters have identical
++// type. Parameter and result names are not required to match.
+ 
++func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
+ 	inMap := funcTypes;
+ 	if variadic {
+ 		inMap = variadicFuncTypes;
+@@ -562,29 +566,33 @@ func NewFuncType(in []Type, variadic bool, out []Type) *FuncType {
+ 		return tI.(*FuncType);
+ 	}
+ 
+-	t := &FuncType{commonType{}, in, variadic, out, nil};
++	t := &FuncType{commonType{}, in, variadic, out};
+ 	outMap.Put(out, t);
+ 	return t;
+ }
+ 
+-func (t *FuncType) literal() Type {
+-	if t.lit == nil {
+-		in := make([]Type, len(t.In));
+-		for i := 0; i < len(in); i++ {
+-			in[i] = t.In[i].literal();
++func (t *FuncType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*FuncType);
++	if !ok {
++		return false;
++	}
++	if len(t.In) != len(t2.In) || t.Variadic != t2.Variadic || len(t.Out) != len(t2.Out) {
++		return false;
++	}
++	for i := range t.In {
++		if !t.In[i].compat(t2.In[i], conv) {
++			return false;
+ 		}
+-
+-		out := make([]Type, len(t.Out));
+-		for i := 0; i < len(out); i++ {
+-			out[i] = t.Out[i].literal();
++	}
++	for i := range t.Out {
++		if !t.Out[i].compat(t2.Out[i], conv) {
++			return false;
+ 		}
+-
+-		t.lit = NewFuncType(in, t.Variadic, out);
+ 	}
+-	return t.lit;
++	return true;
+ }
+ 
+-func (t *FuncType) rep() Type {
++func (t *FuncType) lit() Type {
+ 	return t;
+ }
+ 
+@@ -683,12 +691,28 @@ type NamedType struct {
+ 	//methods map[string] XXX;
+ }
+ 
+-func (t *NamedType) literal() Type {
+-	return t.def.literal();
++func (t *NamedType) compat(o Type, conv bool) bool {
++	t2, ok := o.(*NamedType);
++	if ok {
++		if conv {
++			// Two named types are conversion compatible
++			// if their literals are conversion
++			// compatible.
++			return t.def.compat(t2.def, conv);
++		} else {
++			// Two named types are compatible if their
++			// type names originate in the same type
++			// declaration.
++			return t == t2;
++		}
++	}
++	// A named and an unnamed type are compatible if the
++	// respective type literals are compatible.
++	return o.compat(t.def, conv);
+ }
+ 
+-func (t *NamedType) rep() Type {
+-	return t.def.rep();
++func (t *NamedType) lit() Type {
++	return t.def.lit();
+ }
+ 
+ func (t *NamedType) isBoolean() bool {
+@@ -725,7 +749,6 @@ func (t *NamedType) Zero() Value {
+ type MultiType struct {
+ 	commonType;
+ 	Elems []Type;
+-	lit Type;
+ }
+ 
+ var multiTypes = newTypeArrayMap()
+@@ -735,26 +758,30 @@ func NewMultiType(elems []Type) *MultiType {
+ 		return t.(*MultiType);
+ 	}
+ 
+-	t := &MultiType{commonType{}, elems, nil};
++	t := &MultiType{commonType{}, elems};
+ 	multiTypes.Put(elems, t);
+ 	return t;
+ }
+ 
+-var EmptyType Type = NewMultiType([]Type{});
+-
+-func (t *MultiType) literal() Type {
+-	if t.lit == nil {
+-		elems := make([]Type, len(t.Elems));
+-		for i, e := range t.Elems {
+-			elems[i] = e.literal();
++func (t *MultiType) compat(o Type, conv bool) bool {
++	t2, ok := o.lit().(*MultiType);
++	if !ok {
++		return false;
++	}
++	if len(t.Elems) != len(t2.Elems) {
++		return false;
++	}
++	for i := range t.Elems {
++		if !t.Elems[i].compat(t2.Elems[i], conv) {
++			return false;
+ 		}
+-
+-		t.lit = NewMultiType(elems);
+ 	}
+-	return t.lit;
++	return true;
+ }
+ 
+-func (t *MultiType) rep() Type {
++var EmptyType Type = NewMultiType([]Type{});
++
++func (t *MultiType) lit() Type {
+ 	return t;
+ }
+ 

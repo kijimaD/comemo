@@ -20,7 +20,7 @@ Date:   Wed Jun 1 15:26:53 2011 -0700
     R=r, n13m3y3r, rsc, gustavo, alex.brainman, dsymonds, r, adg, duzy.chan, mike.rosset, kevlar
     CC=golang-dev
     https://golang.org/cl/4552052
-
+---
  misc/dashboard/builder/exec.go      |  53 ++---
  misc/goplay/goplay.go               |  28 +--
  src/cmd/gofix/main.go               |  14 +-
@@ -33,3 +33,1158 @@ Date:   Wed Jun 1 15:26:53 2011 -0700
  src/pkg/http/cgi/host.go            |  44 +++--
  src/pkg/http/cgi/host_test.go       |  23 +--
  11 files changed, 408 insertions(+), 471 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index a7ef933084..0db5091365 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -19,16 +19,11 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ 		log.Println("run", argv)
+ 	}
+ 	argv = useBash(argv)
+-	bin, err := lookPath(argv[0])
+-	if err != nil {
+-		return err
+-	}
+-	p, err := exec.Run(bin, argv, envv, dir,
+-		exec.DevNull, exec.DevNull, exec.PassThrough)
+-	if err != nil {
+-		return err
+-	}
+-	return p.Close()
++	cmd := exec.Command(argv[0], argv[1:]...)
++	cmd.Dir = dir
++	cmd.Env = envv
++	cmd.Stderr = os.Stderr
++	return cmd.Run()
+ }
+ 
+ // runLog runs a process and returns the combined stdout/stderr, 
+@@ -38,16 +33,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string,
+ 		log.Println("runLog", argv)
+ 	}
+ 	argv = useBash(argv)
+-	bin, err := lookPath(argv[0])
+-	if err != nil {
+-		return
+-	}
+-	p, err := exec.Run(bin, argv, envv, dir,
+-		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-	if err != nil {
+-		return
+-	}
+-	defer p.Close()
++
+ 	b := new(bytes.Buffer)
+ 	var w io.Writer = b
+ 	if logfile != "" {
+@@ -58,23 +44,22 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string,
+ 		defer f.Close()
+ 		w = io.MultiWriter(f, b)
+ 	}
+-	_, err = io.Copy(w, p.Stdout)
+-	if err != nil {
+-		return
+-	}
+-	wait, err := p.Wait(0)
++
++	cmd := exec.Command(argv[0], argv[1:]...)
++	cmd.Dir = dir
++	cmd.Env = envv
++	cmd.Stdout = w
++	cmd.Stderr = w
++
++	err = cmd.Run()
++	output = b.String()
+ 	if err != nil {
++		if ws, ok := err.(*os.Waitmsg); ok {
++			exitStatus = ws.ExitStatus()
++		}
+ 		return
+ 	}
+-	return b.String(), wait.WaitStatus.ExitStatus(), nil
+-}
+-
+-// lookPath looks for cmd in $PATH if cmd does not begin with / or ./ or ../.
+-func lookPath(cmd string) (string, os.Error) {
+-	if strings.HasPrefix(cmd, "/") || strings.HasPrefix(cmd, "./") || strings.HasPrefix(cmd, "../") {
+-		return cmd, nil
+-	}
+-	return exec.LookPath(cmd)
++	return
+ }
+ 
+ // useBash prefixes a list of args with 'bash' if the first argument
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index f3e2ff5651..f1dc1bca53 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -5,7 +5,6 @@
+ package main
+ 
+ import (
+-	"bytes"
+ 	"exec"
+ 	"flag"
+ 	"http"
+@@ -140,32 +139,7 @@ func error(w http.ResponseWriter, out []byte, err os.Error) {
+ 
+ // run executes the specified command and returns its output and an error.
+ func run(cmd ...string) ([]byte, os.Error) {
+-	// find the specified binary
+-	bin, err := exec.LookPath(cmd[0])
+-	if err != nil {
+-		// report binary as well as the error
+-		return nil, os.NewError(cmd[0] + ": " + err.String())
+-	}
+-
+-	// run the binary and read its combined stdout and stderr into a buffer
+-	p, err := exec.Run(bin, cmd, os.Environ(), "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-	if err != nil {
+-		return nil, err
+-	}
+-	var buf bytes.Buffer
+-	io.Copy(&buf, p.Stdout)
+-	w, err := p.Wait(0)
+-	p.Close()
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	// set the error return value if the program had a non-zero exit status
+-	if !w.Exited() || w.ExitStatus() != 0 {
+-		err = os.ErrorString("running " + cmd[0] + ": " + w.String())
+-	}
+-
+-	return buf.Bytes(), err
++	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+ }
+ 
+ var frontPage, output *template.Template // HTML templates
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index 4f7e923e3d..ba2061a000 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -248,17 +248,5 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	f1.Write(b1)
+ 	f2.Write(b2)
+ 
+-	diffcmd, err := exec.LookPath("diff")
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	c, err := exec.Run(diffcmd, []string{"diff", f1.Name(), f2.Name()}, nil, "",
+-		exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer c.Close()
+-
+-	return ioutil.ReadAll(c.Stdout)
++	return exec.Command("diff", f1.Name(), f2.Name()).CombinedOutput()
+ }
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 5dd801d904..16bcd3c4df 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -245,14 +245,14 @@ func gofmtMain() {
+ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	f1, err := ioutil.TempFile("", "gofmt")
+ 	if err != nil {
+-		return nil, err
++		return
+ 	}
+ 	defer os.Remove(f1.Name())
+ 	defer f1.Close()
+ 
+ 	f2, err := ioutil.TempFile("", "gofmt")
+ 	if err != nil {
+-		return nil, err
++		return
+ 	}
+ 	defer os.Remove(f2.Name())
+ 	defer f2.Close()
+@@ -260,17 +260,5 @@ func diff(b1, b2 []byte) (data []byte, err os.Error) {
+ 	f1.Write(b1)
+ 	f2.Write(b2)
+ 
+-	diffcmd, err := exec.LookPath("diff")
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	c, err := exec.Run(diffcmd, []string{"diff", "-u", f1.Name(), f2.Name()},
+-		nil, "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-	if err != nil {
+-		return nil, err
+-	}
+-	defer c.Close()
+-
+-	return ioutil.ReadAll(c.Stdout)
++	return exec.Command("diff", "-u", f1.Name(), f2.Name()).CombinedOutput()
+ }
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 9434c05606..721e719d26 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -12,7 +12,6 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/token"
+-	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -246,37 +245,22 @@ func quietRun(dir string, stdin []byte, cmd ...string) os.Error {
+ }
+ 
+ // genRun implements run and quietRun.
+-func genRun(dir string, stdin []byte, cmd []string, quiet bool) os.Error {
+-	bin, err := exec.LookPath(cmd[0])
++func genRun(dir string, stdin []byte, arg []string, quiet bool) os.Error {
++	cmd := exec.Command(arg[0], arg[1:]...)
++	cmd.Stdin = bytes.NewBuffer(stdin)
++	cmd.Dir = dir
++	vlogf("%s: %s %s\n", dir, cmd.Path, strings.Join(arg[1:], " "))
++	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		return err
+-	}
+-	p, err := exec.Run(bin, cmd, os.Environ(), dir, exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+-	vlogf("%s: %s %s\n", dir, bin, strings.Join(cmd[1:], " "))
+-	if err != nil {
+-		return err
+-	}
+-	go func() {
+-		p.Stdin.Write(stdin)
+-		p.Stdin.Close()
+-	}()
+-	var buf bytes.Buffer
+-	io.Copy(&buf, p.Stdout)
+-	w, err := p.Wait(0)
+-	p.Close()
+-	if err != nil {
+-		return err
+-	}
+-	if !w.Exited() || w.ExitStatus() != 0 {
+ 		if !quiet || *verbose {
+ 			if dir != "" {
+ 				dir = "cd " + dir + "; "
+ 			}
+-			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", argv0, dir, strings.Join(cmd, " "))
+-			os.Stderr.Write(buf.Bytes())
+-			fmt.Fprintf(os.Stderr, "--- %s\n", w)
++			fmt.Fprintf(os.Stderr, "%s: === %s%s\n", cmd.Path, dir, strings.Join(cmd.Args, " "))
++			os.Stderr.Write(out)
++			fmt.Fprintf(os.Stderr, "--- %s\n", err)
+ 		}
+-		return os.ErrorString("running " + cmd[0] + ": " + w.String())
++		return os.ErrorString("running " + arg[0] + ": " + err.String())
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/hgpatch/main.go b/src/cmd/hgpatch/main.go
+index 2dcb5234c7..8ee3422e29 100644
+--- a/src/cmd/hgpatch/main.go
++++ b/src/cmd/hgpatch/main.go
+@@ -10,7 +10,6 @@ import (
+ 	"exec"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"patch"
+@@ -333,6 +332,7 @@ func run(argv []string, input []byte) (out string, err os.Error) {
+ 		err = os.EINVAL
+ 		goto Error
+ 	}
++
+ 	prog, ok := lookPathCache[argv[0]]
+ 	if !ok {
+ 		prog, err = exec.LookPath(argv[0])
+@@ -341,40 +341,15 @@ func run(argv []string, input []byte) (out string, err os.Error) {
+ 		}
+ 		lookPathCache[argv[0]] = prog
+ 	}
+-	// fmt.Fprintf(os.Stderr, "%v\n", argv);
+-	var cmd *exec.Cmd
+-	if len(input) == 0 {
+-		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.DevNull, exec.Pipe, exec.MergeWithStdout)
+-		if err != nil {
+-			goto Error
+-		}
+-	} else {
+-		cmd, err = exec.Run(prog, argv, os.Environ(), "", exec.Pipe, exec.Pipe, exec.MergeWithStdout)
+-		if err != nil {
+-			goto Error
+-		}
+-		go func() {
+-			cmd.Stdin.Write(input)
+-			cmd.Stdin.Close()
+-		}()
+-	}
+-	defer cmd.Close()
+-	var buf bytes.Buffer
+-	_, err = io.Copy(&buf, cmd.Stdout)
+-	out = buf.String()
+-	if err != nil {
+-		cmd.Wait(0)
+-		goto Error
+-	}
+-	w, err := cmd.Wait(0)
+-	if err != nil {
+-		goto Error
++
++	cmd := exec.Command(prog, argv[1:]...)
++	if len(input) > 0 {
++		cmd.Stdin = bytes.NewBuffer(input)
+ 	}
+-	if !w.Exited() || w.ExitStatus() != 0 {
+-		err = w
+-		goto Error
++	bs, err := cmd.CombinedOutput()
++	if err == nil {
++		return string(bs), nil
+ 	}
+-	return
+ 
+ Error:
+ 	err = &runError{dup(argv), err}
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 043f847283..a724ad0b1c 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -7,33 +7,13 @@
+ // adjustments.
+ package exec
+ 
+-// BUG(r): This package should be made even easier to use or merged into os.
+-
+ import (
++	"bytes"
++	"io"
+ 	"os"
+ 	"strconv"
+ )
+ 
+-// Arguments to Run.
+-const (
+-	DevNull = iota
+-	PassThrough
+-	Pipe
+-	MergeWithStdout
+-)
+-
+-// A Cmd represents a running command.
+-// Stdin, Stdout, and Stderr are Files representing pipes
+-// connected to the running command's standard input, output, and error,
+-// or else nil, depending on the arguments to Run.
+-// Process represents the underlying operating system process.
+-type Cmd struct {
+-	Stdin   *os.File
+-	Stdout  *os.File
+-	Stderr  *os.File
+-	Process *os.Process
+-}
+-
+ // PathError records the name of a binary that was not
+ // found on the current $PATH.
+ type PathError struct {
+@@ -44,161 +24,261 @@ func (e *PathError) String() string {
+ 	return "command " + strconv.Quote(e.Name) + " not found in $PATH"
+ }
+ 
+-// Given mode (DevNull, etc), return file for child
+-// and file to record in Cmd structure.
+-func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+-	switch mode {
+-	case DevNull:
+-		rw := os.O_WRONLY
+-		if fd == 0 {
+-			rw = os.O_RDONLY
+-		}
+-		f, err := os.OpenFile(os.DevNull, rw, 0)
+-		return f, nil, err
+-	case PassThrough:
+-		switch fd {
+-		case 0:
+-			return os.Stdin, nil, nil
+-		case 1:
+-			return os.Stdout, nil, nil
+-		case 2:
+-			return os.Stderr, nil, nil
+-		}
+-	case Pipe:
+-		r, w, err := os.Pipe()
+-		if err != nil {
+-			return nil, nil, err
+-		}
+-		if fd == 0 {
+-			return r, w, nil
+-		}
+-		return w, r, nil
+-	}
+-	return nil, nil, os.EINVAL
++// Cmd represents an external command being prepared or run.
++type Cmd struct {
++	// Path is the path of the command to run.
++	//
++	// This is the only field that must be set to a non-zero
++	// value.
++	Path string
++
++	// Args is the command line arguments, including the command as Args[0].
++	// If Args is empty, Run uses {Path}.
++	// 
++	// In typical use, both Path and Args are set by calling Command.
++	Args []string
++
++	// Env specifies the environment of the process.
++	// If Env is nil, Run uses the current process's environment.
++	Env []string
++
++	// Dir specifies the working directory of the command.
++	// If Dir is the empty string, Run runs the command in the
++	// process's current directory.
++	Dir string
++
++	// Stdin specifies the process's standard input.
++	// If Stdin is nil, the process reads from DevNull.
++	Stdin io.Reader
++
++	// Stdout and Stderr specify the process's standard output and error.
++	//
++	// If either is nil, Run connects the
++	// corresponding file descriptor to /dev/null.
++	//
++	// If Stdout and Stderr are are the same writer, at most one
++	// goroutine at a time will call Write.
++	Stdout io.Writer
++	Stderr io.Writer
++
++	err             os.Error // last error (from LookPath, stdin, stdout, stderr)
++	process         *os.Process
++	childFiles      []*os.File
++	closeAfterStart []*os.File
++	closeAfterWait  []*os.File
++	goroutine       []func() os.Error
++	errch           chan os.Error // one send per goroutine
+ }
+ 
+-// Run starts the named binary running with
+-// arguments argv and environment envv.
+-// If the dir argument is not empty, the child changes
+-// into the directory before executing the binary.
+-// It returns a pointer to a new Cmd representing
+-// the command or an error.
++// Command returns the Cmd struct to execute the named program with
++// the given arguments.
+ //
+-// The arguments stdin, stdout, and stderr
+-// specify how to handle standard input, output, and error.
+-// The choices are DevNull (connect to /dev/null),
+-// PassThrough (connect to the current process's standard stream),
+-// Pipe (connect to an operating system pipe), and
+-// MergeWithStdout (only for standard error; use the same
+-// file descriptor as was used for standard output).
+-// If an argument is Pipe, then the corresponding field (Stdin, Stdout, Stderr)
+-// of the returned Cmd is the other end of the pipe.
+-// Otherwise the field in Cmd is nil.
+-func Run(name string, argv, envv []string, dir string, stdin, stdout, stderr int) (c *Cmd, err os.Error) {
+-	c = new(Cmd)
+-	var fd [3]*os.File
+-
+-	if fd[0], c.Stdin, err = modeToFiles(stdin, 0); err != nil {
+-		goto Error
+-	}
+-	if fd[1], c.Stdout, err = modeToFiles(stdout, 1); err != nil {
+-		goto Error
+-	}
+-	if stderr == MergeWithStdout {
+-		fd[2] = fd[1]
+-	} else if fd[2], c.Stderr, err = modeToFiles(stderr, 2); err != nil {
+-		goto Error
+-	}
+-
+-	// Run command.
+-	c.Process, err = os.StartProcess(name, argv, &os.ProcAttr{Dir: dir, Files: fd[:], Env: envv})
++// It sets Path and Args in the returned structure and zeroes the
++// other fields.
++//
++// If name contains no path separators, Command uses LookPath to
++// resolve the path to a complete name if possible. Otherwise it uses
++// name directly.
++//
++// The returned Cmd's Args is constructed from the command name
++// followed by the elements of arg, so arg should not include the
++// command name itself. For example, Command("echo", "hello")
++func Command(name string, arg ...string) *Cmd {
++	aname, err := LookPath(name)
+ 	if err != nil {
+-		goto Error
++		aname = name
+ 	}
+-	if fd[0] != os.Stdin {
+-		fd[0].Close()
++	return &Cmd{
++		Path: aname,
++		Args: append([]string{name}, arg...),
++		err:  err,
+ 	}
+-	if fd[1] != os.Stdout {
+-		fd[1].Close()
++}
++
++// interfaceEqual protects against panics from doing equality tests on
++// two interface with non-comparable underlying types
++func interfaceEqual(a, b interface{}) bool {
++	defer func() {
++		recover()
++	}()
++	return a == b
++}
++
++func (c *Cmd) envv() []string {
++	if c.Env != nil {
++		return c.Env
+ 	}
+-	if fd[2] != os.Stderr && fd[2] != fd[1] {
+-		fd[2].Close()
++	return os.Environ()
++}
++
++func (c *Cmd) argv() []string {
++	if len(c.Args) > 0 {
++		return c.Args
+ 	}
+-	return c, nil
++	return []string{c.Path}
++}
+ 
+-Error:
+-	if fd[0] != os.Stdin && fd[0] != nil {
+-		fd[0].Close()
++func (c *Cmd) stdin() (f *os.File, err os.Error) {
++	if c.Stdin == nil {
++		f, err = os.Open(os.DevNull)
++		c.closeAfterStart = append(c.closeAfterStart, f)
++		return
+ 	}
+-	if fd[1] != os.Stdout && fd[1] != nil {
+-		fd[1].Close()
++
++	if f, ok := c.Stdin.(*os.File); ok {
++		return f, nil
+ 	}
+-	if fd[2] != os.Stderr && fd[2] != nil && fd[2] != fd[1] {
+-		fd[2].Close()
++
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		return
+ 	}
+-	if c.Stdin != nil {
+-		c.Stdin.Close()
++
++	c.closeAfterStart = append(c.closeAfterStart, pr)
++	c.closeAfterWait = append(c.closeAfterWait, pw)
++	c.goroutine = append(c.goroutine, func() os.Error {
++		_, err := io.Copy(pw, c.Stdin)
++		if err1 := pw.Close(); err == nil {
++			err = err1
++		}
++		return err
++	})
++	return pr, nil
++}
++
++func (c *Cmd) stdout() (f *os.File, err os.Error) {
++	return c.writerDescriptor(c.Stdout)
++}
++
++func (c *Cmd) stderr() (f *os.File, err os.Error) {
++	if c.Stderr != nil && interfaceEqual(c.Stderr, c.Stdout) {
++		return c.childFiles[1], nil
+ 	}
+-	if c.Stdout != nil {
+-		c.Stdout.Close()
++	return c.writerDescriptor(c.Stderr)
++}
++
++func (c *Cmd) writerDescriptor(w io.Writer) (f *os.File, err os.Error) {
++	if w == nil {
++		f, err = os.OpenFile(os.DevNull, os.O_WRONLY, 0)
++		c.closeAfterStart = append(c.closeAfterStart, f)
++		return
+ 	}
+-	if c.Stderr != nil {
+-		c.Stderr.Close()
++
++	if f, ok := w.(*os.File); ok {
++		return f, nil
+ 	}
+-	if c.Process != nil {
+-		c.Process.Release()
++
++	pr, pw, err := os.Pipe()
++	if err != nil {
++		return
+ 	}
+-	return nil, err
++
++	c.closeAfterStart = append(c.closeAfterStart, pw)
++	c.closeAfterWait = append(c.closeAfterWait, pr)
++	c.goroutine = append(c.goroutine, func() os.Error {
++		_, err := io.Copy(w, pr)
++		return err
++	})
++	return pw, nil
+ }
+ 
+-// Wait waits for the running command c,
+-// returning the Waitmsg returned when the process exits.
+-// The options are passed to the process's Wait method.
+-// Setting options to 0 waits for c to exit;
+-// other options cause Wait to return for other
+-// process events; see package os for details.
+-func (c *Cmd) Wait(options int) (*os.Waitmsg, os.Error) {
+-	if c.Process == nil {
+-		return nil, os.ErrorString("exec: invalid use of Cmd.Wait")
+-	}
+-	w, err := c.Process.Wait(options)
+-	if w != nil && (w.Exited() || w.Signaled()) {
+-		c.Process.Release()
+-		c.Process = nil
++// Run runs the specified command and waits for it to complete.
++//
++// The returned error is nil if the command runs, has no problems
++// copying stdin, stdout, and stderr, and exits with a zero exit
++// status.
++//
++// If the command fails to run or doesn't complete successfully, the
++// error is of type *os.Waitmsg. Other error types may be
++// returned for I/O problems.
++func (c *Cmd) Run() os.Error {
++	if err := c.Start(); err != nil {
++		return err
+ 	}
+-	return w, err
++	return c.Wait()
+ }
+ 
+-// Close waits for the running command c to exit,
+-// if it hasn't already, and then closes the non-nil file descriptors
+-// c.Stdin, c.Stdout, and c.Stderr.
+-func (c *Cmd) Close() os.Error {
+-	if c.Process != nil {
+-		// Loop on interrupt, but
+-		// ignore other errors -- maybe
+-		// caller has already waited for pid.
+-		_, err := c.Wait(0)
+-		for err == os.EINTR {
+-			_, err = c.Wait(0)
++func (c *Cmd) Start() os.Error {
++	if c.err != nil {
++		return c.err
++	}
++	if c.process != nil {
++		return os.NewError("exec: already started")
++	}
++
++	type F func(*Cmd) (*os.File, os.Error)
++	for _, setupFd := range []F{(*Cmd).stdin, (*Cmd).stdout, (*Cmd).stderr} {
++		fd, err := setupFd(c)
++		if err != nil {
++			return err
+ 		}
++		c.childFiles = append(c.childFiles, fd)
+ 	}
+ 
+-	// Close the FDs that are still open.
+ 	var err os.Error
+-	if c.Stdin != nil && c.Stdin.Fd() >= 0 {
+-		if err1 := c.Stdin.Close(); err1 != nil {
+-			err = err1
+-		}
++	c.process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
++		Dir:   c.Dir,
++		Files: c.childFiles,
++		Env:   c.envv(),
++	})
++	if err != nil {
++		return err
+ 	}
+-	if c.Stdout != nil && c.Stdout.Fd() >= 0 {
+-		if err1 := c.Stdout.Close(); err1 != nil && err != nil {
+-			err = err1
+-		}
++
++	for _, fd := range c.closeAfterStart {
++		fd.Close()
+ 	}
+-	if c.Stderr != nil && c.Stderr != c.Stdout && c.Stderr.Fd() >= 0 {
+-		if err1 := c.Stderr.Close(); err1 != nil && err != nil {
+-			err = err1
++
++	c.errch = make(chan os.Error, len(c.goroutine))
++	for _, fn := range c.goroutine {
++		go func(fn func() os.Error) {
++			c.errch <- fn()
++		}(fn)
++	}
++
++	return nil
++}
++
++func (c *Cmd) Wait() os.Error {
++	if c.process == nil {
++		return os.NewError("exec: not started")
++	}
++	msg, err := c.process.Wait(0)
++
++	var copyError os.Error
++	for _ = range c.goroutine {
++		if err := <-c.errch; err != nil && copyError == nil {
++			copyError = err
+ 		}
+ 	}
+-	return err
++
++	for _, fd := range c.closeAfterWait {
++		fd.Close()
++	}
++
++	if err != nil {
++		return err
++	} else if !msg.Exited() || msg.ExitStatus() != 0 {
++		return msg
++	}
++
++	return copyError
++}
++
++// Output runs the command and returns its standard output.
++func (c *Cmd) Output() ([]byte, os.Error) {
++	var b bytes.Buffer
++	c.Stdout = &b
++	err := c.Run()
++	return b.Bytes(), err
++}
++
++// CombinedOutput runs the command and returns its combined standard
++// output and standard error.
++func (c *Cmd) CombinedOutput() ([]byte, os.Error) {
++	var b bytes.Buffer
++	c.Stdout = &b
++	c.Stderr = &b
++	err := c.Run()
++	return b.Bytes(), err
+ }
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 362b41c013..041d527e01 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -5,163 +5,139 @@
+ package exec
+ 
+ import (
++	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"testing"
+ 	"os"
++	"strconv"
++	"strings"
+ )
+ 
+-func run(argv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+-	exe, err := LookPath(argv[0])
+-	if err != nil {
+-		return nil, err
+-	}
+-	return Run(exe, argv, nil, "", stdin, stdout, stderr)
++func helperCommand(s ...string) *Cmd {
++	cs := []string{"-test.run=exec.TestHelperProcess", "--"}
++	cs = append(cs, s...)
++	cmd := Command(os.Args[0], cs...)
++	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
++	return cmd
+ }
+ 
+-func TestRunCat(t *testing.T) {
+-	cmd, err := run([]string{"cat"}, Pipe, Pipe, DevNull)
+-	if err != nil {
+-		t.Fatal("run:", err)
+-	}
+-	io.WriteString(cmd.Stdin, "hello, world\n")
+-	cmd.Stdin.Close()
+-	buf, err := ioutil.ReadAll(cmd.Stdout)
++func TestEcho(t *testing.T) {
++	bs, err := helperCommand("echo", "foo bar", "baz").Output()
+ 	if err != nil {
+-		t.Fatal("read:", err)
++		t.Errorf("echo: %v", err)
+ 	}
+-	if string(buf) != "hello, world\n" {
+-		t.Fatalf("read: got %q", buf)
+-	}
+-	if err = cmd.Close(); err != nil {
+-		t.Fatal("close:", err)
++	if g, e := string(bs), "foo bar baz\n"; g != e {
++		t.Errorf("echo: want %q, got %q", e, g)
+ 	}
+ }
+ 
+-func TestRunEcho(t *testing.T) {
+-	cmd, err := run([]string{"bash", "-c", "echo hello world"},
+-		DevNull, Pipe, DevNull)
+-	if err != nil {
+-		t.Fatal("run:", err)
+-	}
+-	buf, err := ioutil.ReadAll(cmd.Stdout)
++func TestCatStdin(t *testing.T) {
++	// Cat, testing stdin and stdout.
++	input := "Input string\nLine 2"
++	p := helperCommand("cat")
++	p.Stdin = strings.NewReader(input)
++	bs, err := p.Output()
+ 	if err != nil {
+-		t.Fatal("read:", err)
+-	}
+-	if string(buf) != "hello world\n" {
+-		t.Fatalf("read: got %q", buf)
++		t.Errorf("cat: %v", err)
+ 	}
+-	if err = cmd.Close(); err != nil {
+-		t.Fatal("close:", err)
++	s := string(bs)
++	if s != input {
++		t.Errorf("cat: want %q, got %q", input, s)
+ 	}
+ }
+ 
+-func TestStderr(t *testing.T) {
+-	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
+-		DevNull, DevNull, Pipe)
+-	if err != nil {
+-		t.Fatal("run:", err)
++func TestCatGoodAndBadFile(t *testing.T) {
++	// Testing combined output and error values.
++	bs, err := helperCommand("cat", "/bogus/file.foo", "exec_test.go").CombinedOutput()
++	if _, ok := err.(*os.Waitmsg); !ok {
++		t.Errorf("expected Waitmsg from cat combined; got %T: %v", err, err)
+ 	}
+-	buf, err := ioutil.ReadAll(cmd.Stderr)
+-	if err != nil {
+-		t.Fatal("read:", err)
++	s := string(bs)
++	sp := strings.Split(s, "\n", 2)
++	if len(sp) != 2 {
++		t.Fatalf("expected two lines from cat; got %q", s)
+ 	}
+-	if string(buf) != "hello world\n" {
+-		t.Fatalf("read: got %q", buf)
++	errLine, body := sp[0], sp[1]
++	if !strings.HasPrefix(errLine, "Error: open /bogus/file.foo") {
++		t.Errorf("expected stderr to complain about file; got %q", errLine)
+ 	}
+-	if err = cmd.Close(); err != nil {
+-		t.Fatal("close:", err)
++	if !strings.Contains(body, "func TestHelperProcess(t *testing.T)") {
++		t.Errorf("expected test code; got %q (len %d)", body, len(body))
+ 	}
+ }
+ 
+-func TestMergeWithStdout(t *testing.T) {
+-	cmd, err := run([]string{"bash", "-c", "echo hello world 1>&2"},
+-		DevNull, Pipe, MergeWithStdout)
+-	if err != nil {
+-		t.Fatal("run:", err)
+-	}
+-	buf, err := ioutil.ReadAll(cmd.Stdout)
+-	if err != nil {
+-		t.Fatal("read:", err)
+-	}
+-	if string(buf) != "hello world\n" {
+-		t.Fatalf("read: got %q", buf)
+-	}
+-	if err = cmd.Close(); err != nil {
+-		t.Fatal("close:", err)
++
++func TestNoExistBinary(t *testing.T) {
++	// Can't run a non-existent binary
++	err := Command("/no-exist-binary").Run()
++	if err == nil {
++		t.Error("expected error from /no-exist-binary")
+ 	}
+ }
+ 
+-func TestAddEnvVar(t *testing.T) {
+-	err := os.Setenv("NEWVAR", "hello world")
+-	if err != nil {
+-		t.Fatal("setenv:", err)
+-	}
+-	cmd, err := run([]string{"bash", "-c", "echo $NEWVAR"},
+-		DevNull, Pipe, DevNull)
+-	if err != nil {
+-		t.Fatal("run:", err)
+-	}
+-	buf, err := ioutil.ReadAll(cmd.Stdout)
+-	if err != nil {
+-		t.Fatal("read:", err)
+-	}
+-	if string(buf) != "hello world\n" {
+-		t.Fatalf("read: got %q", buf)
+-	}
+-	if err = cmd.Close(); err != nil {
+-		t.Fatal("close:", err)
++func TestExitStatus(t *testing.T) {
++	// Test that exit values are returned correctly
++	err := helperCommand("exit", "42").Run()
++	if werr, ok := err.(*os.Waitmsg); ok {
++		if s, e := werr.String(), "exit status 42"; s != e {
++			t.Errorf("from exit 42 got exit %q, want %q", s, e)
++		}
++	} else {
++		t.Fatalf("expected Waitmsg from exit 42; got %T: %v", err, err)
+ 	}
+ }
+ 
+-var tryargs = []string{
+-	`2`,
+-	`2 `,
+-	"2 \t",
+-	`2" "`,
+-	`2 ab `,
+-	`2 "ab" `,
+-	`2 \ `,
+-	`2 \\ `,
+-	`2 \" `,
+-	`2 \`,
+-	`2\`,
+-	`2"`,
+-	`2\"`,
+-	`2 "`,
+-	`2 \"`,
+-	``,
+-	`2 ^ `,
+-	`2 \^`,
+-}
++// TestHelperProcess isn't a real test. It's used as a helper process
++// for TestParameterRun.
++func TestHelperProcess(*testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++	defer os.Exit(0)
+ 
+-func TestArgs(t *testing.T) {
+-	for _, a := range tryargs {
+-		argv := []string{
+-			"awk",
+-			`BEGIN{printf("%s|%s|%s",ARGV[1],ARGV[2],ARGV[3])}`,
+-			"/dev/null",
+-			a,
+-			"EOF",
+-		}
+-		exe, err := LookPath(argv[0])
+-		if err != nil {
+-			t.Fatal("run:", err)
+-		}
+-		cmd, err := Run(exe, argv, nil, "", DevNull, Pipe, DevNull)
+-		if err != nil {
+-			t.Fatal("run:", err)
++	args := os.Args
++	for len(args) > 0 {
++		if args[0] == "--" {
++			args = args[1:]
++			break
+ 		}
+-		buf, err := ioutil.ReadAll(cmd.Stdout)
+-		if err != nil {
+-			t.Fatal("read:", err)
++		args = args[1:]
++	}
++	if len(args) == 0 {
++		fmt.Fprintf(os.Stderr, "No command\n")
++		os.Exit(2)
++	}
++
++	cmd, args := args[0], args[1:]
++	switch cmd {
++	case "echo":
++		iargs := []interface{}{}
++		for _, s := range args {
++			iargs = append(iargs, s)
+ 		}
+-		expect := "/dev/null|" + a + "|EOF"
+-		if string(buf) != expect {
+-			t.Errorf("read: got %q expect %q", buf, expect)
++		fmt.Println(iargs...)
++	case "cat":
++		if len(args) == 0 {
++			io.Copy(os.Stdout, os.Stdin)
++			return
+ 		}
+-		if err = cmd.Close(); err != nil {
+-			t.Fatal("close:", err)
++		exit := 0
++		for _, fn := range args {
++			f, err := os.Open(fn)
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
++				exit = 2
++			} else {
++				defer f.Close()
++				io.Copy(os.Stdout, f)
++			}
+ 		}
++		os.Exit(exit)
++	case "exit":
++		n, _ := strconv.Atoi(args[0])
++		os.Exit(n)
++	default:
++		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
++		os.Exit(2)
+ 	}
+ }
+diff --git a/src/pkg/go/types/gcimporter_test.go b/src/pkg/go/types/gcimporter_test.go
+index 50e70f29c5..10240add53 100644
+--- a/src/pkg/go/types/gcimporter_test.go
++++ b/src/pkg/go/types/gcimporter_test.go
+@@ -37,24 +37,14 @@ func init() {
+ 
+ 
+ func compile(t *testing.T, dirname, filename string) {
+-	cmd, err := exec.Run(gcPath, []string{gcPath, filename}, nil, dirname, exec.DevNull, exec.Pipe, exec.MergeWithStdout)
++	cmd := exec.Command(gcPath, filename)
++	cmd.Dir = dirname
++	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Errorf("%s %s failed: %s", gcName, filename, err)
+ 		return
+ 	}
+-	defer cmd.Close()
+-
+-	msg, err := cmd.Wait(0)
+-	if err != nil {
+-		t.Errorf("%s %s failed: %s", gcName, filename, err)
+-		return
+-	}
+-
+-	if !msg.Exited() || msg.ExitStatus() != 0 {
+-		t.Errorf("%s %s failed: exit status = %d", gcName, filename, msg.ExitStatus())
+-		output, _ := ioutil.ReadAll(cmd.Stdout)
+-		t.Log(string(output))
+-	}
++	t.Logf("%s", string(out))
+ }
+ 
+ 
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 7e4ccf881d..c283191ef2 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -156,34 +156,38 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		cwd = "."
+ 	}
+ 
+-	args := []string{h.Path}
+-	args = append(args, h.Args...)
+-
+-	cmd, err := exec.Run(
+-		pathBase,
+-		args,
+-		env,
+-		cwd,
+-		exec.Pipe,        // stdin
+-		exec.Pipe,        // stdout
+-		exec.PassThrough, // stderr (for now)
+-	)
+-	if err != nil {
++	internalError := func(err os.Error) {
+ 		rw.WriteHeader(http.StatusInternalServerError)
+ 		h.printf("CGI error: %v", err)
++	}
++
++	stdoutRead, stdoutWrite, err := os.Pipe()
++	if err != nil {
++		internalError(err)
+ 		return
+ 	}
+-	defer func() {
+-		cmd.Stdin.Close()
+-		cmd.Stdout.Close()
+-		cmd.Wait(0) // no zombies
+-	}()
+ 
++	cmd := &exec.Cmd{
++		Path:   pathBase,
++		Args:   append([]string{h.Path}, h.Args...),
++		Dir:    cwd,
++		Env:    env,
++		Stdout: stdoutWrite,
++		Stderr: os.Stderr, // for now
++	}
+ 	if req.ContentLength != 0 {
+-		go io.Copy(cmd.Stdin, req.Body)
++		cmd.Stdin = req.Body
++	}
++
++	err = cmd.Start()
++	if err != nil {
++		internalError(err)
++		return
+ 	}
++	stdoutWrite.Close()
++	defer cmd.Wait()
+ 
+-	linebody, _ := bufio.NewReaderSize(cmd.Stdout, 1024)
++	linebody, _ := bufio.NewReaderSize(stdoutRead, 1024)
+ 	headers := make(http.Header)
+ 	statusCode := 0
+ 	for {
+diff --git a/src/pkg/http/cgi/host_test.go b/src/pkg/http/cgi/host_test.go
+index 9ac085f2f3..bbdb715cf9 100644
+--- a/src/pkg/http/cgi/host_test.go
++++ b/src/pkg/http/cgi/host_test.go
+@@ -17,20 +17,6 @@ import (
+ 	"testing"
+ )
+ 
+-var cgiScriptWorks = canRun("./testdata/test.cgi")
+-
+-func canRun(s string) bool {
+-	c, err := exec.Run(s, []string{s}, nil, ".", exec.DevNull, exec.DevNull, exec.DevNull)
+-	if err != nil {
+-		return false
+-	}
+-	w, err := c.Wait(0)
+-	if err != nil {
+-		return false
+-	}
+-	return w.Exited() && w.ExitStatus() == 0
+-}
+-
+ func newRequest(httpreq string) *http.Request {
+ 	buf := bufio.NewReader(strings.NewReader(httpreq))
+ 	req, err := http.ReadRequest(buf)
+@@ -76,8 +62,15 @@ readlines:
+ 	return rw
+ }
+ 
++var cgiTested = false
++var cgiWorks bool
++
+ func skipTest(t *testing.T) bool {
+-	if !cgiScriptWorks {
++	if !cgiTested {
++		cgiTested = true
++		cgiWorks = exec.Command("./testdata/test.cgi").Run() == nil
++	}
++	if !cgiWorks {
+ 		// No Perl on Windows, needed by test.cgi
+ 		// TODO: make the child process be Go, not Perl.
+ 		t.Logf("Skipping test: test.cgi failed.")

@@ -18,6 +18,24 @@ Date:   Thu Aug 22 18:04:57 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/obj.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index c85268c120..be13b27892 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -288,7 +288,11 @@ func addGCLocals() {
+ 			}
+ 		}
+ 		if x := s.Func.StackObjects; x != nil {
+-			ggloblsym(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
++			attr := int16(obj.RODATA)
++			if s.DuplicateOK() {
++				attr |= obj.DUPOK
++			}
++			ggloblsym(x, int32(len(x.P)), attr)
+ 		}
+ 	}
+ }

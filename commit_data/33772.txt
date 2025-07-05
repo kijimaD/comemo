@@ -14,7 +14,58 @@ Date:   Tue Sep 5 18:49:36 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go  | 16 +---------------
  src/cmd/compile/internal/gc/universe.go |  5 +----
  2 files changed, 2 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3ac8136704..076b8a91e2 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -601,8 +601,6 @@ func isInlineable(n *Node) bool {
+ 	return false
+ }
+ 
+-var errorInterface *types.Type // lazily initialized
+-
+ func (p *exporter) typ(t *types.Type) {
+ 	if t == nil {
+ 		Fatalf("exporter: nil type")
+@@ -654,19 +652,7 @@ func (p *exporter) typ(t *types.Type) {
+ 		p.qualifiedName(tsym)
+ 
+ 		// write underlying type
+-		orig := t.Orig
+-		if orig == types.Errortype {
+-			// The error type is the only predeclared type which has
+-			// a composite underlying type. When we encode that type,
+-			// make sure to encode the underlying interface rather than
+-			// the named type again. See also the comment in universe.go
+-			// regarding the errortype and issue #15920.
+-			if errorInterface == nil {
+-				errorInterface = makeErrorInterface()
+-			}
+-			orig = errorInterface
+-		}
+-		p.typ(orig)
++		p.typ(t.Orig)
+ 
+ 		// interfaces don't have associated methods
+ 		if t.Orig.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 31a15d272d..ea901db744 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -385,10 +385,7 @@ func lexinit1() {
+ 	s := builtinpkg.Lookup("error")
+ 	types.Errortype = makeErrorInterface()
+ 	types.Errortype.Sym = s
+-	// TODO: If we can prove that it's safe to set errortype.Orig here
+-	// than we don't need the special errortype/errorInterface case in
+-	// bexport.go. See also issue #15920.
+-	// errortype.Orig = makeErrorInterface()
++	types.Errortype.Orig = makeErrorInterface()
+ 	s.Def = asTypesNode(typenod(types.Errortype))
+ 
+ 	// We create separate byte and rune types for better error messages

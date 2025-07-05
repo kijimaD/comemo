@@ -15,7 +15,7 @@ Date:   Mon Sep 5 15:38:18 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/poll/{fd_writev_illumos.go => fd_writev_solaris.go}   | 2 --
  src/internal/poll/{iovec_illumos.go => iovec_solaris.go}           | 2 --
  src/internal/poll/writev.go                                        | 7 ++++++-
@@ -23,3 +23,108 @@ Date:   Mon Sep 5 15:38:18 2022 +0200
  src/net/writev_test.go                                             | 2 +-
  src/net/writev_unix.go                                             | 2 +-
  6 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/poll/fd_writev_illumos.go b/src/internal/poll/fd_writev_solaris.go
+similarity index 94%
+rename from src/internal/poll/fd_writev_illumos.go
+rename to src/internal/poll/fd_writev_solaris.go
+index 79190c2f63..d20f20114e 100644
+--- a/src/internal/poll/fd_writev_illumos.go
++++ b/src/internal/poll/fd_writev_solaris.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build illumos
+-
+ package poll
+ 
+ import (
+diff --git a/src/internal/poll/iovec_illumos.go b/src/internal/poll/iovec_solaris.go
+similarity index 94%
+rename from src/internal/poll/iovec_illumos.go
+rename to src/internal/poll/iovec_solaris.go
+index 00a65d7995..e68f833d2d 100644
+--- a/src/internal/poll/iovec_illumos.go
++++ b/src/internal/poll/iovec_solaris.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build illumos
+-
+ package poll
+ 
+ import (
+diff --git a/src/internal/poll/writev.go b/src/internal/poll/writev.go
+index cd600b63d7..4086c705fd 100644
+--- a/src/internal/poll/writev.go
++++ b/src/internal/poll/writev.go
+@@ -2,12 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package poll
+ 
+ import (
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -29,6 +30,10 @@ func (fd *FD) Writev(v *[][]byte) (int64, error) {
+ 	// 1024 and this seems conservative enough for now. Darwin's
+ 	// UIO_MAXIOV also seems to be 1024.
+ 	maxVec := 1024
++	if runtime.GOOS == "solaris" {
++		// IOV_MAX is set to XOPEN_IOV_MAX on Solaris.
++		maxVec = 16
++	}
+ 
+ 	var n int64
+ 	var err error
+diff --git a/src/internal/syscall/unix/writev_illumos.go b/src/internal/syscall/unix/writev_solaris.go
+similarity index 96%
+rename from src/internal/syscall/unix/writev_illumos.go
+rename to src/internal/syscall/unix/writev_solaris.go
+index ee31be1302..d4895eef9e 100644
+--- a/src/internal/syscall/unix/writev_illumos.go
++++ b/src/internal/syscall/unix/writev_solaris.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build illumos
+-
+ package unix
+ 
+ import (
+diff --git a/src/net/writev_test.go b/src/net/writev_test.go
+index 18795a457a..81b14774f9 100644
+--- a/src/net/writev_test.go
++++ b/src/net/writev_test.go
+@@ -153,7 +153,7 @@ func testBuffer_writeTo(t *testing.T, chunks int, useCopy bool) {
+ 
+ 		var wantSum int
+ 		switch runtime.GOOS {
+-		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd":
++		case "android", "darwin", "ios", "dragonfly", "freebsd", "illumos", "linux", "netbsd", "openbsd", "solaris":
+ 			var wantMinCalls int
+ 			wantSum = want.Len()
+ 			v := chunks
+diff --git a/src/net/writev_unix.go b/src/net/writev_unix.go
+index 51ab29dc31..3318fc5f6f 100644
+--- a/src/net/writev_unix.go
++++ b/src/net/writev_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
++//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+ package net
+ 

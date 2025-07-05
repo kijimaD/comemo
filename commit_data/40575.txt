@@ -15,8 +15,100 @@ Date:   Mon May 20 06:58:15 2019 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modcmd/graph.go    |  9 +++++++++
  src/cmd/go/internal/modcmd/verify.go   |  9 +++++++++
  src/cmd/go/testdata/script/mod_off.txt | 31 +++++++++++++++++++++++++++++++
  3 files changed, 49 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 5825c6d8ca..8fcb84f280 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -8,6 +8,7 @@ package modcmd
+ 
+ import (
+ 	"bufio"
++	"cmd/go/internal/cfg"
+ 	"os"
+ 	"sort"
+ 
+@@ -33,6 +34,14 @@ func runGraph(cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go mod graph: graph takes no arguments")
+ 	}
++	// Checks go mod expected behavior
++	if !modload.Enabled() {
++		if cfg.Getenv("GO111MODULE") == "off" {
++			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
++		} else {
++			base.Fatalf("go: cannot find main module; see 'go help modules'")
++		}
++	}
+ 	modload.LoadBuildList()
+ 
+ 	reqs := modload.MinReqs()
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index 381c18d58f..81fc44dc97 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -6,6 +6,7 @@ package modcmd
+ 
+ import (
+ 	"bytes"
++	"cmd/go/internal/cfg"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -36,6 +37,14 @@ func runVerify(cmd *base.Command, args []string) {
+ 		// NOTE(rsc): Could take a module pattern.
+ 		base.Fatalf("go mod verify: verify takes no arguments")
+ 	}
++	// Checks go mod expected behavior
++	if !modload.Enabled() {
++		if cfg.Getenv("GO111MODULE") == "off" {
++			base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
++		} else {
++			base.Fatalf("go: cannot find main module; see 'go help modules'")
++		}
++	}
+ 	ok := true
+ 	for _, mod := range modload.LoadBuildList()[1:] {
+ 		ok = verifyMod(mod) && ok
+diff --git a/src/cmd/go/testdata/script/mod_off.txt b/src/cmd/go/testdata/script/mod_off.txt
+new file mode 100644
+index 0000000000..bc0a7861f4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_off.txt
+@@ -0,0 +1,31 @@
++env GO111MODULE=off
++
++# This script tests that running go mod with
++# GO111MODULE=off when outside of GOPATH will fatal
++# with an error message, even with some source code in the directory and a go.mod.
++! go mod init
++stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod graph
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod verify
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++
++# Same result in an empty directory
++mkdir z
++cd z
++! go mod init
++stderr 'go mod init: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod graph
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++! go mod verify
++stderr 'go: modules disabled by GO111MODULE=off; see ''go help modules'''
++
++-- sample.go --
++package sample
++
++func main() {}
++
++-- go.mod --
++module sample
++
++go 1.12

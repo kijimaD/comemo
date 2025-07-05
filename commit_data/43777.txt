@@ -11,6 +11,24 @@ Date:   Thu Apr 23 08:43:29 2020 -0400
     Change-Id: I7bd78e7b3b7618943705b616f62ea78c4a1b68d0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229603
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 987feeb284..ba0cff3ff6 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1075,6 +1075,12 @@ func (l *Loader) SetSymAlign(i Sym, align int32) {
+ 
+ // SymValue returns the section of the i-th symbol. i is global index.
+ func (l *Loader) SymSect(i Sym) *sym.Section {
++	if int(i) >= len(l.symSects) {
++		// symSects is extended lazily -- it the sym in question is
++		// outside the range of the existing slice, then we assume its
++		// section has not yet been set.
++		return nil
++	}
+ 	return l.sects[l.symSects[i]]
+ }
+ 

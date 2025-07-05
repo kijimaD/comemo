@@ -10,6 +10,31 @@ Date:   Wed Jan 7 16:46:29 2015 -0800
     Reviewed-on: https://go-review.googlesource.com/2502
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/issue9321.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/issue9321.go b/test/fixedbugs/issue9321.go
+index 06cb5a6e36..e850d8f200 100644
+--- a/test/fixedbugs/issue9321.go
++++ b/test/fixedbugs/issue9321.go
+@@ -17,7 +17,7 @@ func test() {
+ 	var wg sync.WaitGroup
+ 	wg.Add(2)
+ 	test := func() {
+-		for i := 0; i < 100; i++ {
++		for i := 0; i < 10; i++ {
+ 			buf := &bytes.Buffer{}
+ 			pprof.Lookup("goroutine").WriteTo(buf, 2)
+ 		}
+@@ -30,8 +30,8 @@ func test() {
+ }
+ 
+ func main() {
+-	runtime.GOMAXPROCS(2)
+-	for i := 0; i < 100; i++ {
++	runtime.GOMAXPROCS(4)
++	for i := 0; i < 10; i++ {
+ 		test()
+ 	}
+ }

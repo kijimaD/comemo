@@ -11,6 +11,21 @@ Date:   Wed May 23 11:36:24 2012 +0800
     R=golang-dev, dave, rsc
     CC=golang-dev
     https://golang.org/cl/6220073
-
+---
  src/cmd/ld/ldelf.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 5100b3f4e3..1f58573a68 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -575,6 +575,9 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		}
+ 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
+ 			continue;
++		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
++		if(sym.sym == S)
++			continue;
+ 		sect = obj->sect+sym.shndx;
+ 		if(sect->sym == nil) {
+ 			diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type);

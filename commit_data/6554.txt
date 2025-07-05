@@ -7,6 +7,23 @@ Date:   Tue Oct 19 09:26:11 2010 +1100
     R=rsc, r2, r
     CC=golang-dev
     https://golang.org/cl/2550041
-
+---
  src/cmd/gc/doc.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 7798f9bf85..45db1acf1b 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -25,7 +25,10 @@ other packages. It is therefore not necessary when compiling client C of
+ package P to read the files of P's dependencies, only the compiled output
+ of P.
+ 
+-Usage: 6g [flags] *.go  (or 8g or 5g)
++Usage:
++	6g [flags] file...
++The specified files must be Go source files and all part of the same package.
++Substitute 6g with 8g or 5g where appropriate.
+ 
+ Flags:
+ 	-o file

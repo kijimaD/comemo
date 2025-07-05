@@ -9,8 +9,205 @@ Date:   Tue Apr 27 13:27:48 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/962045
-
+---
  src/pkg/go/printer/nodes.go                   | 15 +++++-
  src/pkg/go/printer/testdata/statements.golden | 76 ++++++++++++++++++---------
  src/pkg/go/printer/testdata/statements.input  | 51 +++++++++++-------
  3 files changed, 96 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index dbbcf4e83f..dd2b497f5a 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -950,14 +950,25 @@ func (p *printer) block(s *ast.BlockStmt, indent int) {
+ }
+ 
+ 
++func isTypeName(x ast.Expr) bool {
++	switch t := x.(type) {
++	case *ast.Ident:
++		return true
++	case *ast.SelectorExpr:
++		return isTypeName(t.X)
++	}
++	return false
++}
++
++
+ // TODO(gri): Decide if this should be used more broadly. The printing code
+ //            knows when to insert parentheses for precedence reasons, but
+ //            need to be careful to keep them around type expressions.
+ func stripParens(x ast.Expr, inControlClause bool) ast.Expr {
+ 	for px, hasParens := x.(*ast.ParenExpr); hasParens; px, hasParens = x.(*ast.ParenExpr) {
+ 		x = px.X
+-		if _, isCompositeLit := x.(*ast.CompositeLit); isCompositeLit && inControlClause {
+-			// composite literals inside control clauses need parens;
++		if cx, isCompositeLit := x.(*ast.CompositeLit); inControlClause && isCompositeLit && isTypeName(cx.Type) {
++			// composite literals inside control clauses need parens if they start with a type name;
+ 			// don't strip innermost layer
+ 			return px
+ 		}
+diff --git a/src/pkg/go/printer/testdata/statements.golden b/src/pkg/go/printer/testdata/statements.golden
+index 455a4d632c..e3076aefc3 100644
+--- a/src/pkg/go/printer/testdata/statements.golden
++++ b/src/pkg/go/printer/testdata/statements.golden
+@@ -144,7 +144,7 @@ func _() {
+ 	for x := range []int{} {
+ 		use(x)
+ 	}
+-	for x := range ([]int{}) {
++	for x := range []int{} {
+ 		use(x)
+ 	}	// no parens printed
+ }
+@@ -152,39 +152,63 @@ func _() {
+ 
+ // Don't remove mandatory parentheses around composite literals in control clauses.
+ func _() {
++	// strip no parentheses - no composite literals or composite literals don't start with a type name
+ 	if x {
+-	}	// no ()'s
++	}
+ 	if x {
+-	}	// no ()'s
+-	if ([]T{}) {
+-	}	// ()
+-	if ([]T{}) {
+-	}	// ()
+-	if ([]T{}) {
+-	}	// ()
++	}
++	if []T{} {
++	}
++	if []T{} {
++	}
++	if []T{} {
++	}
+ 
+ 	for x {
+-	}	// no ()'s
++	}
+ 	for x {
+-	}	// no ()'s
+-	for ([]T{}) {
+-	}	// ()
+-	for ([]T{}) {
+-	}	// ()
+-	for ([]T{}) {
+-	}	// ()
++	}
++	for []T{} {
++	}
++	for []T{} {
++	}
++	for []T{} {
++	}
+ 
+ 	switch x {
+-	}	// no ()'s
++	}
+ 	switch x {
+-	}	// no ()'s
+-	switch ([]T{}) {
+-	}	// ()
+-	switch ([]T{}) {
+-	}	// ()
+-
+-	for _ = range ([]T{T{42}}) {
+-	}	// ()
++	}
++	switch []T{} {
++	}
++	switch []T{} {
++	}
++
++	for _ = range []T{T{42}} {
++	}
++
++	// leave parentheses - composite literals start with a type name
++	if (T{}) {
++	}
++	if (T{}) {
++	}
++	if (T{}) {
++	}
++
++	for (T{}) {
++	}
++	for (T{}) {
++	}
++	for (T{}) {
++	}
++
++	switch (T{}) {
++	}
++	switch (T{}) {
++	}
++
++	for _ = range (T1{T{42}}) {
++	}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/statements.input b/src/pkg/go/printer/testdata/statements.input
+index 60133ea485..a92911a362 100644
+--- a/src/pkg/go/printer/testdata/statements.input
++++ b/src/pkg/go/printer/testdata/statements.input
+@@ -113,24 +113,39 @@ func _() {
+ 
+ // Don't remove mandatory parentheses around composite literals in control clauses.
+ func _() {
+-	if (x) {}                // no ()'s
+-	if (((x))) {}            // no ()'s
+-	if ([]T{}) {}            // ()
+-	if (([]T{})) {}          // ()
+-	if ; (((([]T{})))) {}    // ()
+-
+-	for (x) {}                // no ()'s
+-	for (((x))) {}            // no ()'s
+-	for ([]T{}) {}            // ()
+-	for (([]T{})) {}          // ()
+-	for ; (((([]T{})))) ; {}  // ()
+-
+-	switch (x) {}                // no ()'s
+-	switch (((x))) {}            // no ()'s
+-	switch ([]T{}) {}            // ()
+-	switch (([]T{})) {}          // ()
+-
+-	for _ = range ((([]T{T{42}}))) {}  // ()
++	// strip parentheses - no composite literals or composite literals don't start with a type name
++	if (x) {}
++	if (((x))) {}
++	if ([]T{}) {}
++	if (([]T{})) {}
++	if ; (((([]T{})))) {}
++
++	for (x) {}
++	for (((x))) {}
++	for ([]T{}) {}
++	for (([]T{})) {}
++	for ; (((([]T{})))) ; {}
++
++	switch (x) {}
++	switch (((x))) {}
++	switch ([]T{}) {}
++	switch ; (((([]T{})))) {}
++
++	for _ = range ((([]T{T{42}}))) {}
++
++	// leave parentheses - composite literals start with a type name
++	if (T{}) {}
++	if ((T{})) {}
++	if ; ((((T{})))) {}
++
++	for (T{}) {}
++	for ((T{})) {}
++	for ; ((((T{})))) ; {}
++
++	switch (T{}) {}
++	switch ; ((((T{})))) {}
++
++	for _ = range (((T1{T{42}}))) {}
+ }
+ 
+ 

@@ -11,7 +11,35 @@ Date:   Mon Feb 2 18:53:24 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3740
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  doc/go1.5.txt   | 1 +
  src/cmd/ld/pe.c | 4 +++-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f1b443417d..f45ca068de 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -19,6 +19,7 @@ testing/quick: support generation of arrays (https://golang.org/cl/3865)
+ Tools:
+ 
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
++cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+ 
+ Performance:
+ 
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index c26cd5264a..e45beb62b5 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -646,7 +646,9 @@ asmbpe(void)
+ 	addpersrc();
+ 
+ 	fh.NumberOfSections = nsect;
+-	fh.TimeDateStamp = time(0);
++	// Being able to produce identical output for identical input is
++	// much more beneficial than having build timestamp in the header.
++	fh.TimeDateStamp = 0;
+ 	fh.Characteristics = IMAGE_FILE_RELOCS_STRIPPED|
+ 		IMAGE_FILE_EXECUTABLE_IMAGE|IMAGE_FILE_DEBUG_STRIPPED;
+ 	if (pe64) {

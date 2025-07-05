@@ -13,6 +13,35 @@ Date:   Wed Apr 9 06:41:14 2014 +0200
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/85680043
-
+---
  src/pkg/runtime/env_plan9.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/env_plan9.c b/src/pkg/runtime/env_plan9.c
+index 599319c755..f732c9f294 100644
+--- a/src/pkg/runtime/env_plan9.c
++++ b/src/pkg/runtime/env_plan9.c
+@@ -12,6 +12,7 @@ runtime·getenv(int8 *s)
+ 	intgo len;
+ 	byte file[128];
+ 	byte *p;
++	static byte b[128];
+ 
+ 	len = runtime·findnull((byte*)s);
+ 	if(len > sizeof file-6)
+@@ -25,7 +26,14 @@ runtime·getenv(int8 *s)
+ 	if(fd < 0)
+ 		return nil;
+ 	n = runtime·seek(fd, 0, 2);
+-	p = runtime·malloc(n+1);
++	if(runtime·strcmp((byte*)s, (byte*)"GOTRACEBACK") == 0){
++		// should not call malloc
++		if(n >= sizeof b)
++			return nil;
++		runtime·memclr(b, sizeof b);
++		p = b;
++	}else
++		p = runtime·malloc(n+1);
+ 	r = runtime·pread(fd, p, n, 0);
+ 	runtime·close(fd);
+ 	if(r < 0)

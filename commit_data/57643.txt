@@ -13,7 +13,57 @@ Date:   Sat Aug 19 22:32:08 2023 -0700
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/devirtualize/devirtualize.go |  6 +-----
  src/cmd/compile/internal/typecheck/expr.go            | 12 +++++++++---
  2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index 93882a3496..ae9f24d9a5 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -129,11 +129,7 @@ func staticCall(call *ir.CallExpr) {
+ 		call.SetOp(ir.OCALLINTER)
+ 		call.X = x
+ 	default:
+-		// TODO(mdempsky): Turn back into Fatalf after more testing.
+-		if base.Flag.LowerM != 0 {
+-			base.WarnfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
+-		}
+-		return
++		base.FatalfAt(call.Pos(), "failed to devirtualize %v (%v)", x, x.Op())
+ 	}
+ 
+ 	// Duplicated logic from typecheck for function call return
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index edf0472567..7e685ab569 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -469,7 +469,9 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
+ // inserted too.
+ func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
+ 	n := Expr(ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)).(*ir.SelectorExpr)
+-	// TODO(mdempsky): Assert n is ODOT/ODOTPTR.
++	if n.Op() != ir.ODOT && n.Op() != ir.ODOTPTR {
++		base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
++	}
+ 	return n
+ }
+ 
+@@ -483,10 +485,14 @@ func XDotMethod(pos src.XPos, x ir.Node, sym *types.Sym, callee bool) *ir.Select
+ 	n := ir.NewSelectorExpr(pos, ir.OXDOT, x, sym)
+ 	if callee {
+ 		n = Callee(n).(*ir.SelectorExpr)
+-		// TODO(mdempsky): Assert n is ODOTMETH/ODOTINTER.
++		if n.Op() != ir.ODOTMETH && n.Op() != ir.ODOTINTER {
++			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
++		}
+ 	} else {
+ 		n = Expr(n).(*ir.SelectorExpr)
+-		// TODO(mdempsky): Assert n is OMETHVALUE.
++		if n.Op() != ir.OMETHVALUE {
++			base.FatalfAt(pos, "unexpected result op: %v (%v)", n.Op(), n)
++		}
+ 	}
+ 	return n
+ }

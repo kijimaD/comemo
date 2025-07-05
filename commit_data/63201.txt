@@ -15,7 +15,45 @@ Date:   Thu May 22 09:12:48 2025 -0700
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@google.com>
-
+---
  src/cmd/doc/main.go             | 10 +---------
  src/cmd/go/internal/load/pkg.go |  2 +-
  2 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 22db39ecc9..ccd8512006 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -259,18 +259,10 @@ func doPkgsite(urlPath string) error {
+ 	signal.Ignore(signalsToIgnore...)
+ 
+ 	const version = "v0.0.0-20250520201116-40659211760d"
+-	docatversion := "golang.org/x/pkgsite/cmd/internal/doc@" + version
+-	// First download the module and then try to run with GOPROXY=off to circumvent
+-	// the deprecation check. This will allow the pkgsite command to run if it's
+-	// in the module cache but there's no network.
+-	if _, err := runCmd(nil, "go", "mod", "download", docatversion); err != nil {
+-		return err
+-	}
+-	cmd := exec.Command("go", "run", docatversion,
++	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+ 		"-gorepo", buildCtx.GOROOT,
+ 		"-http", addr,
+ 		"-open", path)
+-	cmd.Env = append(os.Environ(), "GOPROXY=off")
+ 	cmd.Stdout = os.Stderr
+ 	cmd.Stderr = os.Stderr
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 34e8c90b2f..e913f98852 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3410,7 +3410,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 	}
+ 	rootMod := qrs[0].Mod
+ 	deprecation, err := modload.CheckDeprecation(ctx, rootMod)
+-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
++	if err != nil {
+ 		return nil, fmt.Errorf("%s: %w", args[0], err)
+ 	}
+ 	if deprecation != "" {

@@ -15,6 +15,23 @@ Date:   Sat Jul 18 23:22:18 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12392
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/mgc.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 068372439f..e0818d6441 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -770,8 +770,9 @@ var work struct {
+ 	initialHeapLive uint64
+ }
+ 
+-// GC runs a garbage collection. It might block the entire program until the
+-// collection is complete.
++// GC runs a garbage collection and blocks the caller until the
++// garbage collection is complete. It may also block the entire
++// program.
+ func GC() {
+ 	startGC(gcForceBlockMode)
+ }

@@ -18,7 +18,137 @@ Date:   Wed Oct 21 05:09:26 2020 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go          | 18 ++++++-
  src/cmd/go/testdata/script/clean_binary.txt | 78 +++++++++++++++++++++++++++++
  2 files changed, 94 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 095c3cc713..87933f04f3 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -276,6 +276,8 @@ func clean(p *load.Package) {
+ 		allRemove = append(allRemove,
+ 			elem,
+ 			elem+".exe",
++			p.DefaultExecName(),
++			p.DefaultExecName()+".exe",
+ 		)
+ 	}
+ 
+@@ -283,16 +285,28 @@ func clean(p *load.Package) {
+ 	allRemove = append(allRemove,
+ 		elem+".test",
+ 		elem+".test.exe",
++		p.DefaultExecName()+".test",
++		p.DefaultExecName()+".test.exe",
+ 	)
+ 
+-	// Remove a potential executable for each .go file in the directory that
++	// Remove a potential executable, test executable for each .go file in the directory that
+ 	// is not part of the directory's package.
+ 	for _, dir := range dirs {
+ 		name := dir.Name()
+ 		if packageFile[name] {
+ 			continue
+ 		}
+-		if !dir.IsDir() && strings.HasSuffix(name, ".go") {
++
++		if dir.IsDir() {
++			continue
++		}
++
++		if strings.HasSuffix(name, "_test.go") {
++			base := name[:len(name)-len("_test.go")]
++			allRemove = append(allRemove, base+".test", base+".test.exe")
++		}
++
++		if strings.HasSuffix(name, ".go") {
+ 			// TODO(adg,rsc): check that this .go file is actually
+ 			// in "package main", and therefore capable of building
+ 			// to an executable file.
+diff --git a/src/cmd/go/testdata/script/clean_binary.txt b/src/cmd/go/testdata/script/clean_binary.txt
+new file mode 100644
+index 0000000000..7335f8a4c7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/clean_binary.txt
+@@ -0,0 +1,78 @@
++# Build something to create the executable, including several cases
++[short] skip
++
++# --------------------- clean executables -------------------------
++
++# case1: test file-named executable 'main'
++env GO111MODULE=on
++
++! exists main$GOEXE
++go build main.go
++exists -exec main$GOEXE
++go clean
++! exists main$GOEXE
++
++# case2: test module-named executable 'a.b.c'
++! exists a.b.c$GOEXE
++go build
++exists -exec a.b.c$GOEXE
++go clean
++! exists a.b.c$GOEXE
++
++# case3: directory-named executable 'src'
++env GO111MODULE=off
++
++! exists src$GOEXE
++go build
++exists -exec src$GOEXE
++go clean
++! exists src$GOEXE
++
++# --------------------- clean test files -------------------------
++
++# case1: test file-named test file
++env GO111MODULE=on
++
++! exists main.test$GOEXE
++go test -c main_test.go
++exists -exec main.test$GOEXE
++go clean
++! exists main.test$GOEXE
++
++# case2: test module-named test file
++! exists a.b.c.test$GOEXE
++go test -c
++exists -exec a.b.c.test$GOEXE
++go clean
++! exists a.b.c.test$GOEXE
++
++# case3: test directory-based test file
++env GO111MODULE=off
++
++! exists src.test$GOEXE
++go test -c
++exists -exec src.test$GOEXE
++go clean
++! exists src.test$GOEXE
++
++-- main.go --
++package main
++
++import "fmt"
++
++func main() {
++	fmt.Println("hello!")
++}
++
++-- main_test.go --
++package main
++
++import "testing"
++
++func TestSomething(t *testing.T) {
++}
++
++-- go.mod --
++module example.com/a.b.c/v2
++
++go 1.12
+\ No newline at end of file

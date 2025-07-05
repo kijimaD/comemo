@@ -18,7 +18,7 @@ Date:   Fri Jan 31 15:41:03 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217305
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go.mod                                 | 4 ++--
  src/cmd/go.sum                                 | 6 ++++--
  src/cmd/vendor/modules.txt                     | 4 ++--
@@ -27,3 +27,106 @@ Date:   Fri Jan 31 15:41:03 2020 -0800
  src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go | 2 +-
  src/vendor/modules.txt                         | 2 +-
  7 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index fddae5b84d..da8d6b8288 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,6 +8,6 @@ require (
+ 	golang.org/x/arch v0.0.0-20190815191158-8a70ba74b3a1
+ 	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
+ 	golang.org/x/mod v0.2.0
+-	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
++	golang.org/x/sys v0.0.0-20200131233351-9e5cf931a04b // indirect
++	golang.org/x/tools v0.0.0-20200131233409-575de47986ce
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 186222f1cf..a4c29e2de9 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,12 +16,14 @@ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLL
+ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+-golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200131233351-9e5cf931a04b h1:ahtIOvqocajzNYaudmOTIwviK1X7yj/+RoTtKdwEwXA=
++golang.org/x/sys v0.0.0-20200131233351-9e5cf931a04b/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0 h1:g61tztE5qeGQ89tm6NTjjM9VPIm088od1l6aSorWRWg=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e h1:aZzprAO9/8oim3qStq3wc1Xuxx4QmAGriC4VU4ojemQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
++golang.org/x/tools v0.0.0-20200131233409-575de47986ce h1:Uglradbb4KfUWaYasZhlsDsGRwHHvRsHoNAEONef0W8=
++golang.org/x/tools v0.0.0-20200131233409-575de47986ce/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 h1:/atklqdjdhuosWIl6AIbOeHJjicWYPqR9bpxqxYG2pA=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 67697b4bf9..475bfaa5ce 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -40,11 +40,11 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
++# golang.org/x/sys v0.0.0-20200131233351-9e5cf931a04b
+ ## explicit
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e
++# golang.org/x/tools v0.0.0-20200131233409-575de47986ce
+ ## explicit
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+diff --git a/src/go.mod b/src/go.mod
+index 72114080ce..a003f71b5a 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -5,6 +5,6 @@ go 1.14
+ require (
+ 	golang.org/x/crypto v0.0.0-20200128174031-69ecbb4d6d5d
+ 	golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933
+-	golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 // indirect
++	golang.org/x/sys v0.0.0-20200201011859-915c9c3d4ccf // indirect
+ 	golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 9f24502dc2..14aa96f333 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -6,8 +6,8 @@ golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933 h1:e6HwijUxhDe+hPNjZQQn9bA5P
+ golang.org/x/net v0.0.0-20191126235420-ef20fe5d7933/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8 h1:2WjIC11WRITGlVWmyLXKjzIVj1ZwoWZ//tadeUUV6/o=
+-golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20200201011859-915c9c3d4ccf h1:+4j7oujXP478CVb/AFvHJmVX5+Pczx2NGts5yirA0oY=
++golang.org/x/sys v0.0.0-20200201011859-915c9c3d4ccf/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f h1:wYBuYA3M/ZC3iBpL1jKHNRNEK7d8D3JoJmM+zx6rLVQ=
+ golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+index fe9feb7980..80f4da97e2 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+@@ -1,4 +1,4 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 0944c9a533..c702be0bda 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.0.0-20190529130038-5219a1e1c5f8
++# golang.org/x/sys v0.0.0-20200201011859-915c9c3d4ccf
+ ## explicit
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.3.3-0.20191031172631-4b67af870c6f

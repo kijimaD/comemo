@@ -7,6 +7,19 @@ Date:   Fri Aug 30 15:32:51 2013 +1000
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13324046
-
+---
  doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 455e6bdb3c..991762eed0 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -31,6 +31,7 @@ cmd/go: delete 'go doc' (CL 12974043).
+ archive/zip: add File.DataOffset accessor (CL 12784045).
+ bufio: add Reset methods to Reader and Writer (CL 12603049).
+ compress/bzip2: support concatenated files (CL 12387044).
++compress/flate: implement Reset method on Writer (CL 12265043).
+ container/heap: added Fix (CL 12265043).
+ container/list: added MoveBefore and MoveAfter (CL 12021044).
+ crypto/cipher: AES-GCM mode (CL 12375043).

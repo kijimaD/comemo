@@ -17,7 +17,52 @@ Date:   Fri Oct 25 00:50:00 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/arm64/ggen.go | 12 ++++++++----
  src/cmd/compile/internal/gc/go.go      |  8 ++++++--
  2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index dbe7495cca..f698919e9b 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -44,12 +44,16 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.To.Sym = gc.Duffzero
+ 		p.To.Offset = 4 * (64 - cnt/(2*int64(gc.Widthptr)))
+ 	} else {
+-		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, arm64.REGTMP, 0)
++		// Not using REGTMP, so this is async preemptible (async preemption clobbers REGTMP).
++		// We are at the function entry, where no register is live, so it is okay to clobber
++		// other registers
++		const rtmp = arm64.REG_R20
++		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, rtmp, 0)
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGSP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+-		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT1, 0)
++		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, rtmp, 0, obj.TYPE_REG, arm64.REGRT1, 0)
+ 		p.Reg = arm64.REGRT1
+-		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, arm64.REGTMP, 0)
+-		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, arm64.REGTMP, 0, obj.TYPE_REG, arm64.REGRT2, 0)
++		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, rtmp, 0)
++		p = pp.Appendpp(p, arm64.AADD, obj.TYPE_REG, rtmp, 0, obj.TYPE_REG, arm64.REGRT2, 0)
+ 		p.Reg = arm64.REGRT1
+ 		p = pp.Appendpp(p, arm64.AMOVD, obj.TYPE_REG, arm64.REGZERO, 0, obj.TYPE_MEM, arm64.REGRT1, int64(gc.Widthptr))
+ 		p.Scond = arm64.C_XPRE
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c14fb4d3fa..025b276c20 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -256,8 +256,12 @@ type Arch struct {
+ 	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
+ 	SoftFloat bool
+ 
+-	PadFrame     func(int64) int64
+-	ZeroRange    func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
++	PadFrame func(int64) int64
++
++	// ZeroRange zeroes a range of memory on stack. It is only inserted
++	// at function entry, and it is ok to clobber registers.
++	ZeroRange func(*Progs, *obj.Prog, int64, int64, *uint32) *obj.Prog
++
+ 	Ginsnop      func(*Progs) *obj.Prog
+ 	Ginsnopdefer func(*Progs) *obj.Prog // special ginsnop for deferreturn
+ 

@@ -7,8 +7,165 @@ Date:   Fri Sep 4 08:30:15 2015 +1200
     Change-Id: Iffe8ccb55b2c555b2cb8c168cebfbfd5892212df
     Reviewed-on: https://go-review.googlesource.com/14236
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go    | 29 +++++++------
  src/cmd/link/internal/ppc64/asm.go | 84 +++++++++++++++++++++++++++++++++++---
  src/cmd/link/internal/ppc64/obj.go |  3 ++
  3 files changed, 98 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 8c2f9aad78..b274e4524b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -564,18 +564,23 @@ const (
+ 	R_PPC_EMB_BIT_FLD     = 115
+ 	R_PPC_EMB_RELSDA      = 116
+ 
+-	R_PPC64_REL24       = R_PPC_REL24
+-	R_PPC64_JMP_SLOT    = R_PPC_JMP_SLOT
+-	R_PPC64_ADDR64      = 38
+-	R_PPC64_TOC16       = 47
+-	R_PPC64_TOC16_LO    = 48
+-	R_PPC64_TOC16_HI    = 49
+-	R_PPC64_TOC16_HA    = 50
+-	R_PPC64_TOC16_DS    = 63
+-	R_PPC64_TOC16_LO_DS = 64
+-	R_PPC64_REL16_LO    = 250
+-	R_PPC64_REL16_HI    = 251
+-	R_PPC64_REL16_HA    = 252
++	R_PPC64_ADDR32       = R_PPC_ADDR32
++	R_PPC64_ADDR16_LO    = R_PPC_ADDR16_LO
++	R_PPC64_ADDR16_HA    = R_PPC_ADDR16_HA
++	R_PPC64_REL24        = R_PPC_REL24
++	R_PPC64_JMP_SLOT     = R_PPC_JMP_SLOT
++	R_PPC64_TPREL16      = R_PPC_TPREL16
++	R_PPC64_ADDR64       = 38
++	R_PPC64_TOC16        = 47
++	R_PPC64_TOC16_LO     = 48
++	R_PPC64_TOC16_HI     = 49
++	R_PPC64_TOC16_HA     = 50
++	R_PPC64_ADDR16_LO_DS = 57
++	R_PPC64_TOC16_DS     = 63
++	R_PPC64_TOC16_LO_DS  = 64
++	R_PPC64_REL16_LO     = 250
++	R_PPC64_REL16_HI     = 251
++	R_PPC64_REL16_HA     = 252
+ 
+ 	R_SPARC_NONE     = 0
+ 	R_SPARC_8        = 1
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index e6dbec23eb..cdcfb3d076 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -293,8 +293,48 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ }
+ 
+ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+-	// TODO(minux)
+-	return -1
++	ld.Thearch.Vput(uint64(sectoff))
++
++	elfsym := r.Xsym.ElfsymForReloc()
++	switch r.Type {
++	default:
++		return -1
++
++	case obj.R_ADDR:
++		switch r.Siz {
++		case 4:
++			ld.Thearch.Vput(ld.R_PPC64_ADDR32 | uint64(elfsym)<<32)
++		case 8:
++			ld.Thearch.Vput(ld.R_PPC64_ADDR64 | uint64(elfsym)<<32)
++		default:
++			return -1
++		}
++
++	case obj.R_POWER_TLS_LE:
++		ld.Thearch.Vput(ld.R_PPC64_TPREL16 | uint64(elfsym)<<32)
++
++	case obj.R_ADDRPOWER:
++		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
++		ld.Thearch.Vput(uint64(r.Xadd))
++		ld.Thearch.Vput(uint64(sectoff + 4))
++		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO | uint64(elfsym)<<32)
++
++	case obj.R_ADDRPOWER_DS:
++		ld.Thearch.Vput(ld.R_PPC64_ADDR16_HA | uint64(elfsym)<<32)
++		ld.Thearch.Vput(uint64(r.Xadd))
++		ld.Thearch.Vput(uint64(sectoff + 4))
++		ld.Thearch.Vput(ld.R_PPC64_ADDR16_LO_DS | uint64(elfsym)<<32)
++
++	case obj.R_CALLPOWER:
++		if r.Siz != 4 {
++			return -1
++		}
++		ld.Thearch.Vput(ld.R_PPC64_REL24 | uint64(elfsym)<<32)
++
++	}
++	ld.Thearch.Vput(uint64(r.Xadd))
++
++	return 0
+ }
+ 
+ func elfsetupplt() {
+@@ -381,10 +421,42 @@ func archrelocaddr(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 
+ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 	if ld.Linkmode == ld.LinkExternal {
+-		// TODO(minux): translate R_ADDRPOWER and R_CALLPOWER into standard ELF relocations.
+-		// R_ADDRPOWER corresponds to R_PPC_ADDR16_HA and R_PPC_ADDR16_LO.
+-		// R_CALLPOWER corresponds to R_PPC_REL24.
+-		return -1
++		switch r.Type {
++		default:
++			return -1
++
++		case obj.R_POWER_TLS_LE:
++			r.Done = 0
++			// check Outer is nil, Type is TLSBSS?
++			r.Xadd = r.Add
++			r.Xsym = r.Sym
++			return 0
++
++		case obj.R_ADDRPOWER,
++			obj.R_ADDRPOWER_DS:
++			r.Done = 0
++
++			// set up addend for eventual relocation via outer symbol.
++			rs := r.Sym
++			r.Xadd = r.Add
++			for rs.Outer != nil {
++				r.Xadd += ld.Symaddr(rs) - ld.Symaddr(rs.Outer)
++				rs = rs.Outer
++			}
++
++			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
++				ld.Diag("missing section for %s", rs.Name)
++			}
++			r.Xsym = rs
++
++			return 0
++
++		case obj.R_CALLPOWER:
++			r.Done = 0
++			r.Xsym = r.Sym
++			r.Xadd = r.Add
++			return 0
++		}
+ 	}
+ 
+ 	switch r.Type {
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index e2c98fc59e..0fb401161c 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -111,6 +111,9 @@ func archinit() {
+ 		if ld.Linkmode == ld.LinkExternal && obj.Getgoextlinkenabled() != "1" {
+ 			log.Fatalf("cannot use -linkmode=external with -H %s", ld.Headstr(int(ld.HEADTYPE)))
+ 		}
++
++	case obj.Hlinux:
++		break
+ 	}
+ 
+ 	switch ld.HEADTYPE {

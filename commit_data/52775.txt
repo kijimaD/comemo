@@ -11,6 +11,20 @@ Date:   Wed May 25 22:39:37 2022 +0900
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  doc/go1.19.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 7a427cd08a..a2abd957f4 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -355,7 +355,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 397255 -->
+-      <a href="/pkg/strconv/#strconv.Quote"><code>strconv.Quote</code></a>
++      <a href="/pkg/strconv/#Quote"><code>Quote</code></a>
+       and related functions now quote the rune 007F as <code>\x7f</code>,
+       not <code>\u007f</code>.
+     </p>

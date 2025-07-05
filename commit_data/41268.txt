@@ -19,7 +19,93 @@ Date:   Wed Sep 18 16:59:17 2019 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/search.go              | 22 ++++++-----
  src/cmd/go/testdata/script/mod_in_testdata_dir.txt | 45 ++++++++++++++++++++++
  2 files changed, 58 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index d82386eca3..98c384161b 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -48,16 +48,20 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 				return nil
+ 			}
+ 
+-			// Don't use GOROOT/src but do walk down into it.
+-			if path == root && importPathRoot == "" {
+-				return nil
+-			}
+-
+ 			want := true
+-			// Avoid .foo, _foo, and testdata directory trees.
+-			_, elem := filepath.Split(path)
+-			if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
+-				want = false
++			elem := ""
++
++			// Don't use GOROOT/src but do walk down into it.
++			if path == root {
++				if importPathRoot == "" {
++					return nil
++				}
++			} else {
++				// Avoid .foo, _foo, and testdata subdirectory trees.
++				_, elem = filepath.Split(path)
++				if strings.HasPrefix(elem, ".") || strings.HasPrefix(elem, "_") || elem == "testdata" {
++					want = false
++				}
+ 			}
+ 
+ 			name := importPathRoot + filepath.ToSlash(path[len(root):])
+diff --git a/src/cmd/go/testdata/script/mod_in_testdata_dir.txt b/src/cmd/go/testdata/script/mod_in_testdata_dir.txt
+new file mode 100644
+index 0000000000..f582569798
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_in_testdata_dir.txt
+@@ -0,0 +1,45 @@
++# Regression test for golang.org/issue/28481:
++# 'mod tidy' removed dependencies if the module root was
++# within a directory named 'testdata' or '_foo'.
++
++env GO111MODULE=on
++
++# A module should be allowed in a directory named testdata.
++cd $WORK/testdata
++go mod init testdata.tld/foo
++
++# Building a package within that module should resolve its dependencies.
++go build
++grep 'rsc.io/quote' go.mod
++
++# Tidying the module should preserve those dependencies.
++go mod tidy
++grep 'rsc.io/quote' go.mod
++
++[short] stop
++
++# Vendoring the module's dependencies should work too.
++go mod vendor
++exists vendor/rsc.io/quote
++
++# The same should work in directories with names starting with underscores.
++cd $WORK/_ignored
++go mod init testdata.tld/foo
++
++go build
++grep 'rsc.io/quote' go.mod
++
++go mod tidy
++grep 'rsc.io/quote' go.mod
++
++go mod vendor
++exists vendor/rsc.io/quote
++
++-- $WORK/testdata/main.go --
++package foo
++
++import _ "rsc.io/quote"
++-- $WORK/_ignored/main.go --
++package foo
++
++import _ "rsc.io/quote"

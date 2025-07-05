@@ -20,7 +20,111 @@ Date:   Tue Oct 8 15:05:41 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/go/build/build.go      | 32 +++++++++++++++++++-------------
  src/go/build/build_test.go | 40 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 526d2fe27e..deeda35c2a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1008,8 +1008,12 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 		return errNoModules
+ 	}
+ 
+-	// If modules are not enabled, then the in-process code works fine and we should keep using it.
+-	switch os.Getenv("GO111MODULE") {
++	// Predict whether module aware mode is enabled by checking the value of
++	// GO111MODULE and looking for a go.mod file in the source directory or
++	// one of its parents. Running 'go env GOMOD' in the source directory would
++	// give a canonical answer, but we'd prefer not to execute another command.
++	go111Module := os.Getenv("GO111MODULE")
++	switch go111Module {
+ 	case "off":
+ 		return errNoModules
+ 	default: // "", "on", "auto", anything else
+@@ -1031,19 +1035,21 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 		}
+ 	}
+ 
+-	// Look to see if there is a go.mod.
++	// Unless GO111MODULE=on, look to see if there is a go.mod.
+ 	// Since go1.13, it doesn't matter if we're inside GOPATH.
+-	parent := absSrcDir
+-	for {
+-		info, err := os.Stat(filepath.Join(parent, "go.mod"))
+-		if err == nil && !info.IsDir() {
+-			break
+-		}
+-		d := filepath.Dir(parent)
+-		if len(d) >= len(parent) {
+-			return errNoModules // reached top of file system, no go.mod
++	if go111Module != "on" {
++		parent := absSrcDir
++		for {
++			info, err := os.Stat(filepath.Join(parent, "go.mod"))
++			if err == nil && !info.IsDir() {
++				break
++			}
++			d := filepath.Dir(parent)
++			if len(d) >= len(parent) {
++				return errNoModules // reached top of file system, no go.mod
++			}
++			parent = d
+ 		}
+-		parent = d
+ 	}
+ 
+ 	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 47a46f8c32..7040a1b85b 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -420,6 +420,46 @@ func TestImportVendorParentFailure(t *testing.T) {
+ 	}
+ }
+ 
++// Check that a package is loaded in module mode if GO111MODULE=on, even when
++// no go.mod file is present. It should fail to resolve packages outside std.
++// Verifies golang.org/issue/34669.
++func TestImportPackageOutsideModule(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// Disable module fetching for this test so that 'go list' fails quickly
++	// without trying to find the latest version of a module.
++	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
++	os.Setenv("GOPROXY", "off")
++
++	// Create a GOPATH in a temporary directory. We don't use testdata
++	// because it's in GOROOT, which interferes with the module heuristic.
++	gopath, err := ioutil.TempDir("", "gobuild-notmodule")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(gopath)
++	if err := os.MkdirAll(filepath.Join(gopath, "src/example.com/p"), 0777); err != nil {
++		t.Fatal(err)
++	}
++	if err := ioutil.WriteFile(filepath.Join(gopath, "src/example.com/p/p.go"), []byte("package p"), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
++	os.Setenv("GO111MODULE", "on")
++	defer os.Setenv("GOPATH", os.Getenv("GOPATH"))
++	os.Setenv("GOPATH", gopath)
++	ctxt := Default
++	ctxt.GOPATH = gopath
++
++	want := "cannot find module providing package"
++	if _, err := ctxt.Import("example.com/p", gopath, FindOnly); err == nil {
++		t.Fatal("importing package when no go.mod is present succeeded unexpectedly")
++	} else if errStr := err.Error(); !strings.Contains(errStr, want) {
++		t.Fatalf("error when importing package when no go.mod is present: got %q; want %q", errStr, want)
++	}
++}
++
+ func TestImportDirTarget(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default

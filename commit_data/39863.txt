@@ -17,7 +17,7 @@ Date:   Tue Mar 26 15:00:00 2019 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169020
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testso/so_test.go             | 15 ++++++++++++---
  misc/cgo/testso/testdata/cgoso.c       |  2 +-
  misc/cgo/testso/testdata/cgoso.go      |  1 +
@@ -26,3 +26,154 @@ Date:   Tue Mar 26 15:00:00 2019 +0100
  misc/cgo/testsovar/so_test.go          | 15 ++++++++++++---
  misc/cgo/testsovar/testdata/cgoso.go   |  1 +
  7 files changed, 37 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testso/so_test.go b/misc/cgo/testso/so_test.go
+index 68388caa90..9c7f272439 100644
+--- a/misc/cgo/testso/so_test.go
++++ b/misc/cgo/testso/so_test.go
+@@ -28,9 +28,6 @@ func requireTestSOSupported(t *testing.T) {
+ 		if runtime.GOOS == "linux" {
+ 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+ 		}
+-		if runtime.GOOS == "aix" {
+-			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
+-		}
+ 	case "mips64le", "mips64":
+ 		t.Skip("External linking not implemented on mips64.")
+ 	}
+@@ -85,6 +82,8 @@ func TestSO(t *testing.T) {
+ 	case "windows":
+ 		ext = "dll"
+ 		args = append(args, "-DEXPORT_DLL")
++	case "aix":
++		ext = "so.1"
+ 	}
+ 	sofname := "libcgosotest." + ext
+ 	args = append(args, "-o", sofname, "cgoso_c.c")
+@@ -98,6 +97,16 @@ func TestSO(t *testing.T) {
+ 	}
+ 	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+ 
++	if runtime.GOOS == "aix" {
++		// Shared object must be wrapped by an archive
++		cmd = exec.Command("ar", "-X64", "-q", "libcgosotest.a", "libcgosotest.so.1")
++		cmd.Dir = modRoot
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		}
++	}
++
+ 	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
+ 	cmd.Dir = modRoot
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+diff --git a/misc/cgo/testso/testdata/cgoso.c b/misc/cgo/testso/testdata/cgoso.c
+index 917f472d36..612e5d335a 100644
+--- a/misc/cgo/testso/testdata/cgoso.c
++++ b/misc/cgo/testso/testdata/cgoso.c
+@@ -4,7 +4,7 @@
+ 
+ #include "_cgo_export.h"
+ 
+-#ifdef WIN32
++#if defined(WIN32) || defined(_AIX)
+ extern void setCallback(void *);
+ void init() {
+ 	setCallback(goCallback);
+diff --git a/misc/cgo/testso/testdata/cgoso.go b/misc/cgo/testso/testdata/cgoso.go
+index 29814fa43a..bba5de3312 100644
+--- a/misc/cgo/testso/testdata/cgoso.go
++++ b/misc/cgo/testso/testdata/cgoso.go
+@@ -15,6 +15,7 @@ package cgosotest
+ #cgo netbsd LDFLAGS: -L. libcgosotest.so
+ #cgo darwin LDFLAGS: -L. libcgosotest.dylib
+ #cgo windows LDFLAGS: -L. libcgosotest.dll
++#cgo aix LDFLAGS: -L. -l cgosotest
+ 
+ void init(void);
+ void sofunc(void);
+diff --git a/misc/cgo/testso/testdata/cgoso_c.c b/misc/cgo/testso/testdata/cgoso_c.c
+index 7a38022b54..e5015ed5e8 100644
+--- a/misc/cgo/testso/testdata/cgoso_c.c
++++ b/misc/cgo/testso/testdata/cgoso_c.c
+@@ -14,6 +14,15 @@ __declspec(dllexport) void setCallback(void *f)
+ 	goCallback = (void (*)())f;
+ }
+ __declspec(dllexport) void sofunc(void);
++#elif defined(_AIX)
++// AIX doesn't allow the creation of a shared object with an
++// undefined symbol. It's possible to bypass this problem by
++// using -Wl,-G and -Wl,-brtl option which allows run-time linking.
++// However, that's not how most of AIX shared object works.
++// Therefore, it's better to consider goCallback as a pointer and
++// to set up during an init function.
++void (*goCallback)(void);
++void setCallback(void *f) { goCallback = f; }
+ #else
+ extern void goCallback(void);
+ void setCallback(void *f) { (void)f; }
+diff --git a/misc/cgo/testso/testdata/cgoso_unix.go b/misc/cgo/testso/testdata/cgoso_unix.go
+index 49cdeaa2f5..1860694f1e 100644
+--- a/misc/cgo/testso/testdata/cgoso_unix.go
++++ b/misc/cgo/testso/testdata/cgoso_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly freebsd linux netbsd solaris
++// +build aix dragonfly freebsd linux netbsd solaris
+ 
+ package cgosotest
+ 
+diff --git a/misc/cgo/testsovar/so_test.go b/misc/cgo/testsovar/so_test.go
+index 68388caa90..9c7f272439 100644
+--- a/misc/cgo/testsovar/so_test.go
++++ b/misc/cgo/testsovar/so_test.go
+@@ -28,9 +28,6 @@ func requireTestSOSupported(t *testing.T) {
+ 		if runtime.GOOS == "linux" {
+ 			t.Skip("External linking not implemented on aix/ppc64 (issue #8912).")
+ 		}
+-		if runtime.GOOS == "aix" {
+-			t.Skip("Using shared object isn't yet available on aix/ppc64 (issue #30565)")
+-		}
+ 	case "mips64le", "mips64":
+ 		t.Skip("External linking not implemented on mips64.")
+ 	}
+@@ -85,6 +82,8 @@ func TestSO(t *testing.T) {
+ 	case "windows":
+ 		ext = "dll"
+ 		args = append(args, "-DEXPORT_DLL")
++	case "aix":
++		ext = "so.1"
+ 	}
+ 	sofname := "libcgosotest." + ext
+ 	args = append(args, "-o", sofname, "cgoso_c.c")
+@@ -98,6 +97,16 @@ func TestSO(t *testing.T) {
+ 	}
+ 	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
+ 
++	if runtime.GOOS == "aix" {
++		// Shared object must be wrapped by an archive
++		cmd = exec.Command("ar", "-X64", "-q", "libcgosotest.a", "libcgosotest.so.1")
++		cmd.Dir = modRoot
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		}
++	}
++
+ 	cmd = exec.Command("go", "build", "-o", "main.exe", "main.go")
+ 	cmd.Dir = modRoot
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+diff --git a/misc/cgo/testsovar/testdata/cgoso.go b/misc/cgo/testsovar/testdata/cgoso.go
+index 88d44c2c6e..9c7f95e92e 100644
+--- a/misc/cgo/testsovar/testdata/cgoso.go
++++ b/misc/cgo/testsovar/testdata/cgoso.go
+@@ -19,6 +19,7 @@ package cgosotest
+ #cgo netbsd LDFLAGS: -L. libcgosotest.so
+ #cgo darwin LDFLAGS: -L. libcgosotest.dylib
+ #cgo windows LDFLAGS: -L. libcgosotest.dll
++#cgo aix LDFLAGS: -L. -l cgosotest
+ 
+ #include "cgoso_c.h"
+ 

@@ -16,6 +16,19 @@ Date:   Tue Apr 18 13:48:14 2023 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 12f2f69ee3..bfbf1e8e97 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -899,6 +899,7 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 		"src/internal/coverage/rtcov",
+ 		"src/internal/cpu",
+ 		"src/internal/goarch",
++		"src/internal/godebugs",
+ 		"src/internal/goexperiment",
+ 		"src/internal/goos",
+ 		"src/internal/coverage/rtcov",

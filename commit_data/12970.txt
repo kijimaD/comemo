@@ -7,7 +7,103 @@ Date:   Thu Apr 26 14:24:53 2012 +0800
     R=adg, dsymonds
     CC=golang-dev
     https://golang.org/cl/5849053
-
+---
  src/cmd/godoc/README.godoc-app     | 29 +++++------------------------
  src/cmd/godoc/setup-godoc-app.bash | 10 +++++-----
  2 files changed, 10 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/godoc/README.godoc-app b/src/cmd/godoc/README.godoc-app
+index 88cfee41e1..cff7d387c1 100644
+--- a/src/cmd/godoc/README.godoc-app
++++ b/src/cmd/godoc/README.godoc-app
+@@ -8,8 +8,8 @@ godoc on appengine
+ Prerequisites
+ -------------
+ 
+-* Go appengine SDK 1.5.5 - 2011-10-11
+-  http://code.google.com/appengine/downloads.html#Google_App_Engine_SDK_for_Go
++* Go appengine SDK
++  https://developers.google.com/appengine/downloads#Google_App_Engine_SDK_for_Go
+ 
+ * Go sources at tip under $GOROOT
+ 
+@@ -23,10 +23,6 @@ Directory structure
+ * $APPDIR contains the following entries (this may change depending on
+   app-engine release and version of godoc):
+ 
+-	alt/
+-		encoding/binary/
+-		go/*
+-		index/suffixarray/
+ 	app.yaml
+ 	godoc.zip
+ 	godoc/
+@@ -36,31 +32,16 @@ Directory structure
+   For instance:
+ 
+ 	application: godoc-app
+-	version: 1-5-5
++	version: 1
+ 	runtime: go
+-	api_version: 3
++	api_version: go1
+ 
+ 	handlers:
+ 	- url: /.*
+ 	  script: _go_app
+ 
+ * The godoc/ directory contains a copy of the files under $GOROOT/src/cmd/godoc
+-  with modifications:
+-
+-	- doc.go is excluded (it belongs to pseudo-package ÒdocumentationÓ)
+-	- main.go is excluded (appinit.go is taking its place)
+-
+-  Additional manual modifications are required to refer to the alt/ packages
+-  where the app-engine library is not up-to-date with the godoc version.
+-
+-* The alt/ directory contains up-to-date copies of Go packages that a tip-based
+-  godoc is dependent on but which do not yet exist in the current app-engine SDK.
+-  At the time of this writing (10/14/2011) this is the entire go directory tree
+-  (for the missing FileSet serialization code in go/token) as well as the
+-  index/suffixarray package (for the missing suffix array serialization code).
+-  The latest (alt/)index/suffixarray package internally requires the latest
+-  version of encoding/binary, which is why it also needs to be present under
+-  alt/.
++  with doc.go excluded (it belongs to pseudo-package "documentation")
+ 
+ 
+ Configuring and running godoc
+diff --git a/src/cmd/godoc/setup-godoc-app.bash b/src/cmd/godoc/setup-godoc-app.bash
+index 755d965d57..b8dc4dcf99 100644
+--- a/src/cmd/godoc/setup-godoc-app.bash
++++ b/src/cmd/godoc/setup-godoc-app.bash
+@@ -44,8 +44,8 @@ getArgs() {
+ 	if [ ! -d $GOROOT ]; then
+ 		error "$GOROOT is not a directory"
+ 	fi
+-	if [ ! -x $GOROOT/src/cmd/godoc/godoc ]; then
+-		error "$GOROOT/src/cmd/godoc/godoc does not exist or is not executable"
++	if [ ! -x $GOROOT/bin/godoc ]; then
++		error "$GOROOT/bin/godoc does not exist or is not executable"
+ 	fi
+ 	if [ ! -d $APPDIR ]; then
+ 		error "$APPDIR is not a directory"
+@@ -72,15 +72,15 @@ cleanup() {
+ 
+ makeZipfile() {
+ 	echo "*** make $APPDIR/$ZIPFILE"
+-	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
++	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.xml -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i \*.ico
+ }
+ 
+ makeIndexfile() {
+ 	echo "*** make $APPDIR/$INDEXFILE"
+ 	OUT=/tmp/godoc.out
+-	$GOROOT/src/cmd/godoc/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
++	$GOROOT/bin/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
+ 	if [ $? != 0 ]; then
+-		error "$GOROOT/src/cmd/godoc/godoc failed - see $OUT for details"
++		error "$GOROOT/bin/godoc failed - see $OUT for details"
+ 	fi
+ }
+ 

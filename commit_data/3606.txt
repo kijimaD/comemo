@@ -8,6 +8,31 @@ Date:   Tue Oct 20 13:30:32 2009 -0700
     DELTA=5  (0 added, 4 deleted, 1 changed)
     OCL=35930
     CL=35930
-
+---
  src/cmd/gofmt/gofmt.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index c751e0c3d9..3c9131de7b 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -25,7 +25,7 @@ var (
+ 
+ 	// debugging support
+ 	comments	= flag.Bool("comments", true, "print comments");
+-	trace		= flag.Bool("trace", false, "print names of processed files to stderr and parse traces to stdout");
++	trace		= flag.Bool("trace", false, "print parse trace");
+ 
+ 	// layout control
+ 	align		= flag.Bool("align", true, "align columns");
+@@ -80,10 +80,6 @@ func isGoFile(d *os.Dir) bool {
+ 
+ 
+ func processFile(filename string) os.Error {
+-	if *trace {
+-		fmt.Fprintln(os.Stderr, filename);
+-	}
+-
+ 	src, err := io.ReadFile(filename);
+ 	if err != nil {
+ 		return err;

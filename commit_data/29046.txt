@@ -12,9 +12,119 @@ Date:   Thu Aug 18 19:07:59 2016 +0900
     Reviewed-on: https://go-review.googlesource.com/27331
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go               |  2 +-
  src/internal/testenv/testenv.go         | 13 +++++++++++
  src/internal/testenv/testenv_notwin.go  | 20 +++++++++++++++++
  src/internal/testenv/testenv_windows.go | 40 +++++++++++++++++++++++++++++++++
  4 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5b2529129c..caacb14f7e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -180,7 +180,7 @@ var pkgDeps = map[string][]string{
+ 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+-	"internal/testenv": {"L2", "OS", "flag", "testing"},
++	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
+ 
+ 	// L4 is defined as L3+fmt+log+time, because in general once
+ 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index f134f6b04a..7aff89928e 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -127,6 +127,19 @@ func MustHaveExternalNetwork(t *testing.T) {
+ 	}
+ }
+ 
++// HasSymlink reports whether the current system can use os.Symlink.
++func HasSymlink() bool {
++	return hasSymlink()
++}
++
++// MustHaveSymlink reports whether the current system can use os.Symlink.
++// If not, MustHaveSymlink calls t.Skip with an explanation.
++func MustHaveSymlink(t *testing.T) {
++	if !HasSymlink() {
++		t.Skipf("skipping test: cannot make symlinks on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++}
++
+ var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+ 
+ func SkipFlaky(t *testing.T, issue int) {
+diff --git a/src/internal/testenv/testenv_notwin.go b/src/internal/testenv/testenv_notwin.go
+new file mode 100644
+index 0000000000..16673029aa
+--- /dev/null
++++ b/src/internal/testenv/testenv_notwin.go
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++package testenv
++
++import (
++	"runtime"
++)
++
++func hasSymlink() bool {
++	switch runtime.GOOS {
++	case "android", "nacl", "plan9":
++		return false
++	}
++
++	return true
++}
+diff --git a/src/internal/testenv/testenv_windows.go b/src/internal/testenv/testenv_windows.go
+new file mode 100644
+index 0000000000..042c0f2867
+--- /dev/null
++++ b/src/internal/testenv/testenv_windows.go
+@@ -0,0 +1,40 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testenv
++
++import (
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"sync"
++	"syscall"
++)
++
++var symlinkOnce sync.Once
++var winHasSymlink = true
++
++func initWinHasSymlink() {
++	tmpdir, err := ioutil.TempDir("", "symtest")
++	if err != nil {
++		panic("failed to create temp directory: " + err.Error())
++	}
++	defer os.RemoveAll(tmpdir)
++
++	err = os.Symlink("target", filepath.Join(tmpdir, "symlink"))
++	if err != nil {
++		err = err.(*os.LinkError).Err
++		switch err {
++		case syscall.EWINDOWS, syscall.ERROR_PRIVILEGE_NOT_HELD:
++			winHasSymlink = false
++		}
++	}
++	os.Remove("target")
++}
++
++func hasSymlink() bool {
++	symlinkOnce.Do(initWinHasSymlink)
++
++	return winHasSymlink
++}

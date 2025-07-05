@@ -15,7 +15,54 @@ Date:   Wed Feb 1 20:30:35 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/unify.go | 8 ++++++--
  src/go/types/unify.go                    | 8 ++++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 5043125a91..abf159d5a2 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -240,12 +240,16 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		if traceInference {
+ 			u.tracef("under %s ≡ %s", nx, y)
+ 		}
+-		return u.nify(nx.under(), y, p)
++		x = nx.under()
++		// Per the spec, a defined type cannot have an underlying type
++		// that is a type parameter.
++		assert(!isTypeParam(x))
+ 	} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+-		return u.nify(x, ny.under(), p)
++		y = ny.under()
++		assert(!isTypeParam(y))
+ 	}
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index 36023f1179..886e84183c 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -242,12 +242,16 @@ func (u *unifier) nify(x, y Type, p *ifacePair) (result bool) {
+ 		if traceInference {
+ 			u.tracef("under %s ≡ %s", nx, y)
+ 		}
+-		return u.nify(nx.under(), y, p)
++		x = nx.under()
++		// Per the spec, a defined type cannot have an underlying type
++		// that is a type parameter.
++		assert(!isTypeParam(x))
+ 	} else if ny, _ := y.(*Named); ny != nil && !hasName(x) {
+ 		if traceInference {
+ 			u.tracef("%s ≡ under %s", x, ny)
+ 		}
+-		return u.nify(x, ny.under(), p)
++		y = ny.under()
++		assert(!isTypeParam(y))
+ 	}
+ 
+ 	// Cases where at least one of x or y is a type parameter recorded with u.

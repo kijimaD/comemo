@@ -14,7 +14,7 @@ Date:   Fri Mar 4 09:49:32 2022 +0100
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_bsd.go               | 26 ++++++++++++--------------
  src/syscall/exec_libc2.go             | 23 +++++++++++++++++++----
  src/syscall/syscall_darwin.go         |  2 ++
@@ -30,3 +30,315 @@ Date:   Fri Mar 4 09:49:32 2022 +0100
  src/syscall/zsyscall_openbsd_arm64.go | 14 ++++++++++++++
  src/syscall/zsyscall_openbsd_arm64.s  |  2 ++
  14 files changed, 101 insertions(+), 19 deletions(-)
+
+diff --git a/src/syscall/exec_bsd.go b/src/syscall/exec_bsd.go
+index 148f5a91aa..530b48cb70 100644
+--- a/src/syscall/exec_bsd.go
++++ b/src/syscall/exec_bsd.go
+@@ -181,18 +181,17 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		switch runtime.GOOS {
+-		case "netbsd":
++		if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+ 			_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-		default:
++		} else {
+ 			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		}
++		if err1 != 0 {
++			goto childerror
+ 		}
+ 		pipe = nextfd
+ 		nextfd++
+@@ -202,18 +201,17 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+-			switch runtime.GOOS {
+-			case "netbsd":
++			if runtime.GOOS == "netbsd" || (runtime.GOOS == "openbsd" && runtime.GOARCH == "mips64") {
+ 				_, _, err1 = RawSyscall(_SYS_DUP3, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
+-				if err1 != 0 {
+-					goto childerror
+-				}
+-			default:
++			} else {
+ 				_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+ 				if err1 != 0 {
+ 					goto childerror
+ 				}
+-				RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++				_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			}
++			if err1 != 0 {
++				goto childerror
+ 			}
+ 			fd[i] = nextfd
+ 			nextfd++
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index b05f053bbf..91a39ba1b8 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ import (
+ 	"internal/abi"
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -180,11 +181,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// Pass 1: look for fd[i] < i and move those up above len(fd)
+ 	// so that pass 2 won't stomp on an fd it needs later.
+ 	if pipe < nextfd {
+-		_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(pipe), uintptr(nextfd), 0)
++		if runtime.GOOS == "openbsd" {
++			_, _, err1 = rawSyscall(dupTrampoline, uintptr(pipe), uintptr(nextfd), O_CLOEXEC)
++		} else {
++			_, _, err1 = rawSyscall(dupTrampoline, uintptr(pipe), uintptr(nextfd), 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		}
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
+-		rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 		pipe = nextfd
+ 		nextfd++
+ 	}
+@@ -193,11 +201,18 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 			if nextfd == pipe { // don't stomp on pipe
+ 				nextfd++
+ 			}
+-			_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_dup2_trampoline), uintptr(fd[i]), uintptr(nextfd), 0)
++			if runtime.GOOS == "openbsd" {
++				_, _, err1 = rawSyscall(dupTrampoline, uintptr(fd[i]), uintptr(nextfd), O_CLOEXEC)
++			} else {
++				_, _, err1 = rawSyscall(dupTrampoline, uintptr(fd[i]), uintptr(nextfd), 0)
++				if err1 != 0 {
++					goto childerror
++				}
++				_, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			}
+ 			if err1 != 0 {
+ 				goto childerror
+ 			}
+-			rawSyscall(abi.FuncPCABI0(libc_fcntl_trampoline), uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+ 			fd[i] = nextfd
+ 			nextfd++
+ 		}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 902d6e77e1..87fb5c2f62 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -17,6 +17,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
++
+ type SockaddrDatalink struct {
+ 	Len    uint8
+ 	Family uint8
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index fa939ec5c8..30a95316e8 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -136,6 +136,7 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Close(fd int) (err error)
+ //sys	Dup(fd int) (nfd int, err error)
+ //sys	Dup2(from int, to int) (err error)
++//sys	dup3(from int, to int, flags int) (err error)
+ //sys	Fchdir(fd int) (err error)
+ //sys	Fchflags(fd int, flags int) (err error)
+ //sys	Fchmod(fd int, mode uint32) (err error)
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 15b68fd0fc..516d02975c 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -10,6 +10,8 @@ import (
+ 	"internal/abi"
+ )
+ 
++var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
++
+ func init() {
+ 	execveOpenBSD = execve
+ }
+diff --git a/src/syscall/syscall_openbsd_mips64.go b/src/syscall/syscall_openbsd_mips64.go
+index e8ae2e9911..4508ad99b4 100644
+--- a/src/syscall/syscall_openbsd_mips64.go
++++ b/src/syscall/syscall_openbsd_mips64.go
+@@ -4,7 +4,7 @@
+ 
+ package syscall
+ 
+-const _SYS_DUP3 = 0
++const _SYS_DUP3 = SYS_DUP3
+ 
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index 5f95d7a9c6..2dcc4b2739 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -551,6 +551,20 @@ func libc_dup2_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func dup3(from int, to int, flags int) (err error) {
++	_, _, e1 := syscall(abi.FuncPCABI0(libc_dup3_trampoline), uintptr(from), uintptr(to), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_dup3_trampoline()
++
++//go:cgo_import_dynamic libc_dup3 dup3 "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_fchdir_trampoline), uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_386.s b/src/syscall/zsyscall_openbsd_386.s
+index d47a4f480d..e2c58625bb 100644
+--- a/src/syscall/zsyscall_openbsd_386.s
++++ b/src/syscall/zsyscall_openbsd_386.s
+@@ -69,6 +69,8 @@ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
++TEXT ·libc_dup3_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_dup3(SB)
+ TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+ TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 189bf887e6..8d4cb9c1e1 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -551,6 +551,20 @@ func libc_dup2_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func dup3(from int, to int, flags int) (err error) {
++	_, _, e1 := syscall(abi.FuncPCABI0(libc_dup3_trampoline), uintptr(from), uintptr(to), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_dup3_trampoline()
++
++//go:cgo_import_dynamic libc_dup3 dup3 "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_fchdir_trampoline), uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_amd64.s b/src/syscall/zsyscall_openbsd_amd64.s
+index e5c5dde930..964c9ed9e1 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.s
++++ b/src/syscall/zsyscall_openbsd_amd64.s
+@@ -69,6 +69,8 @@ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
++TEXT ·libc_dup3_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_dup3(SB)
+ TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+ TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index c7513a3ac9..d45bc02fbd 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -551,6 +551,20 @@ func libc_dup2_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func dup3(from int, to int, flags int) (err error) {
++	_, _, e1 := syscall(abi.FuncPCABI0(libc_dup3_trampoline), uintptr(from), uintptr(to), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_dup3_trampoline()
++
++//go:cgo_import_dynamic libc_dup3 dup3 "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_fchdir_trampoline), uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm.s b/src/syscall/zsyscall_openbsd_arm.s
+index d33f3aa3e0..5975780edb 100644
+--- a/src/syscall/zsyscall_openbsd_arm.s
++++ b/src/syscall/zsyscall_openbsd_arm.s
+@@ -69,6 +69,8 @@ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
++TEXT ·libc_dup3_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_dup3(SB)
+ TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+ TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm64.go b/src/syscall/zsyscall_openbsd_arm64.go
+index 293b703600..e060b092fe 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.go
++++ b/src/syscall/zsyscall_openbsd_arm64.go
+@@ -551,6 +551,20 @@ func libc_dup2_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func dup3(from int, to int, flags int) (err error) {
++	_, _, e1 := syscall(abi.FuncPCABI0(libc_dup3_trampoline), uintptr(from), uintptr(to), uintptr(flags))
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_dup3_trampoline()
++
++//go:cgo_import_dynamic libc_dup3 dup3 "libc.so"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func Fchdir(fd int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_fchdir_trampoline), uintptr(fd), 0, 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_openbsd_arm64.s b/src/syscall/zsyscall_openbsd_arm64.s
+index 37778b1db5..2c4a0b0faf 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.s
++++ b/src/syscall/zsyscall_openbsd_arm64.s
+@@ -69,6 +69,8 @@ TEXT ·libc_dup_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup(SB)
+ TEXT ·libc_dup2_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_dup2(SB)
++TEXT ·libc_dup3_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_dup3(SB)
+ TEXT ·libc_fchdir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fchdir(SB)
+ TEXT ·libc_fchflags_trampoline(SB),NOSPLIT,$0-0

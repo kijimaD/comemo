@@ -7,6 +7,36 @@ Date:   Wed Jul 22 19:19:40 2015 -0700
     Change-Id: I1af486a69960b9b66d5c2c9bbfcf7db6ef075d8c
     Reviewed-on: https://go-review.googlesource.com/12563
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9b5606a32f..4e1e582b02 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -675,6 +675,8 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OSUB, TINT64}:  ssa.OpSub64,
+ 	opAndType{OSUB, TUINT64}: ssa.OpSub64U,
+ 
++	opAndType{ONOT, TBOOL}: ssa.OpNot,
++
+ 	opAndType{OMINUS, TINT8}:   ssa.OpNeg8,
+ 	opAndType{OMINUS, TUINT8}:  ssa.OpNeg8U,
+ 	opAndType{OMINUS, TINT16}:  ssa.OpNeg16,
+@@ -710,6 +712,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OEQ, TUINT32}: ssa.OpEq32,
+ 	opAndType{OEQ, TINT64}:  ssa.OpEq64,
+ 	opAndType{OEQ, TUINT64}: ssa.OpEq64,
++	opAndType{OEQ, TPTR64}:  ssa.OpEq64,
+ 
+ 	opAndType{ONE, TINT8}:   ssa.OpNeq8,
+ 	opAndType{ONE, TUINT8}:  ssa.OpNeq8,
+@@ -719,6 +722,7 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{ONE, TUINT32}: ssa.OpNeq32,
+ 	opAndType{ONE, TINT64}:  ssa.OpNeq64,
+ 	opAndType{ONE, TUINT64}: ssa.OpNeq64,
++	opAndType{ONE, TPTR64}:  ssa.OpNeq64,
+ 
+ 	opAndType{OLT, TINT8}:   ssa.OpLess8,
+ 	opAndType{OLT, TUINT8}:  ssa.OpLess8U,

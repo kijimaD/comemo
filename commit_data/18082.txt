@@ -13,6 +13,20 @@ Date:   Fri Dec 20 03:58:27 2013 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7572049
-
+---
  src/cmd/ld/lib.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 138a91787d..18c27876ee 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -574,6 +574,8 @@ hostlink(void)
+ 	}
+ 	if(HEADTYPE == Hdarwin)
+ 		argv[argc++] = "-Wl,-no_pie,-pagezero_size,4000000";
++	if(HEADTYPE == Hopenbsd)
++		argv[argc++] = "-Wl,-nopie";
+ 	
+ 	if(iself && AssumeGoldLinker)
+ 		argv[argc++] = "-Wl,--rosegment";

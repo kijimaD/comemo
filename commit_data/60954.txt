@@ -10,6 +10,53 @@ Date:   Thu Sep 12 14:14:34 2024 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/pprof/pprof_test.go | 14 +++-----------
  1 file changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 0b4e353bb1..6d03c6464b 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -21,6 +21,7 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"runtime/debug"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -520,15 +521,6 @@ func diffCPUTime(t *testing.T, f func()) (user, system time.Duration) {
+ 	return 0, 0
+ }
+ 
+-func contains(slice []string, s string) bool {
+-	for i := range slice {
+-		if slice[i] == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+ // stackContains matches if a function named spec appears anywhere in the stack trace.
+ func stackContains(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool {
+ 	for _, loc := range stk {
+@@ -1877,7 +1869,7 @@ func stackContainsLabeled(spec string, count uintptr, stk []*profile.Location, l
+ 	if !ok {
+ 		panic("missing = in key/value spec")
+ 	}
+-	if !contains(labels[k], v) {
++	if !slices.Contains(labels[k], v) {
+ 		return false
+ 	}
+ 	return stackContains(base, count, stk, labels)
+@@ -1994,7 +1986,7 @@ func TestLabelSystemstack(t *testing.T) {
+ 	// * labelHog should always be labeled.
+ 	// * The label should _only_ appear on labelHog and the Do call above.
+ 	for _, s := range p.Sample {
+-		isLabeled := s.Label != nil && contains(s.Label["key"], "value")
++		isLabeled := s.Label != nil && slices.Contains(s.Label["key"], "value")
+ 		var (
+ 			mayBeLabeled     bool
+ 			mustBeLabeled    string

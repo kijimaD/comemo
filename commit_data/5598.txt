@@ -7,6 +7,30 @@ Date:   Thu Jun 3 00:56:53 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1503041
-
+---
  src/pkg/xml/xml.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 44c42c0359..cd67f6e265 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -158,9 +158,8 @@ type Parser struct {
+ 	//	"lt": "<",
+ 	//	"gt": ">",
+ 	//	"amp": "&",
+-	//	"pos": "'",
++	//	"apos": "'",
+ 	//	"quot": `"`,
+-	//
+ 	Entity map[string]string
+ 
+ 	r         io.ReadByter
+@@ -222,7 +221,6 @@ func NewParser(r io.Reader) *Parser {
+ // set to the URL identifying its name space when known.
+ // If Token encounters an unrecognized name space prefix,
+ // it uses the prefix as the Space rather than report an error.
+-//
+ func (p *Parser) Token() (t Token, err os.Error) {
+ 	if p.nextToken != nil {
+ 		t = p.nextToken

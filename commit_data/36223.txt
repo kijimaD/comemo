@@ -14,6 +14,43 @@ Date:   Wed Apr 11 19:20:10 2018 -0700
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Run-TryBot: Daniel Theophanes <kardianos@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/database/sql/sql.go | 14 ++------------
  1 file changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index beccf7fec1..d192dd95b8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -2455,17 +2455,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
+ func rowsiFromStatement(ctx context.Context, ci driver.Conn, ds *driverStmt, args ...interface{}) (driver.Rows, error) {
+ 	ds.Lock()
+ 	defer ds.Unlock()
+-
+ 	dargs, err := driverArgsConnLocked(ci, ds, args)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+-	rowsi, err := ctxDriverStmtQuery(ctx, ds.si, dargs)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return rowsi, nil
++	return ctxDriverStmtQuery(ctx, ds.si, dargs)
+ }
+ 
+ // QueryRowContext executes a prepared query statement with the given arguments.
+@@ -2986,11 +2980,7 @@ func (r *Row) Scan(dest ...interface{}) error {
+ 		return err
+ 	}
+ 	// Make sure the query can be processed to completion with no errors.
+-	if err := r.rows.Close(); err != nil {
+-		return err
+-	}
+-
+-	return nil
++	return r.rows.Close()
+ }
+ 
+ // A Result summarizes an executed SQL command.

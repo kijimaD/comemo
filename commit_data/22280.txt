@@ -11,10 +11,82 @@ Date:   Tue Mar 3 09:30:07 2015 -0800
     Change-Id: I6be054d30bf1f383c12b4c7626abd5f8ae22b22e
     Reviewed-on: https://go-review.googlesource.com/6631
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/asm/internal/arch/arch.go           | 3 ++-
  src/cmd/asm/internal/asm/testdata/386.out   | 3 ++-
  src/cmd/asm/internal/asm/testdata/386.s     | 4 ++++
  src/cmd/asm/internal/asm/testdata/amd64.out | 3 ++-
  src/cmd/asm/internal/asm/testdata/amd64.s   | 4 ++++
  5 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 79e2f722ac..4156d3c104 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/obj/ppc64"
+ 	"cmd/internal/obj/x86" // == amd64
+ 	"fmt"
++	"strings"
+ )
+ 
+ // Pseudo-registers whose names are the constant name without the leading R.
+@@ -77,7 +78,7 @@ func Set(GOARCH string) *Arch {
+ }
+ 
+ func jump386(word string) bool {
+-	return word[0] == 'J' || word == "CALL"
++	return word[0] == 'J' || word == "CALL" || strings.HasPrefix(word, "LOOP")
+ }
+ 
+ func arch386() *Arch {
+diff --git a/src/cmd/asm/internal/asm/testdata/386.out b/src/cmd/asm/internal/asm/testdata/386.out
+index 59c7f89e92..8ac94db82b 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.out
++++ b/src/cmd/asm/internal/asm/testdata/386.out
+@@ -45,4 +45,5 @@
+ 75 00045 (testdata/386.s:75)	CMPPD	X0,foo+4(SB)
+ 78 00046 (testdata/386.s:78)	PINSRD	(AX),$1,X0
+ 79 00047 (testdata/386.s:79)	PINSRD	foo+4(FP),$2,X0
+-82 00048 (testdata/386.s:82)	RET	,
++83 00048 (testdata/386.s:83)	LOOP	,
++86 00049 (testdata/386.s:86)	RET	,
+diff --git a/src/cmd/asm/internal/asm/testdata/386.s b/src/cmd/asm/internal/asm/testdata/386.s
+index 67c48d0fc3..6bee39f3d4 100644
+--- a/src/cmd/asm/internal/asm/testdata/386.s
++++ b/src/cmd/asm/internal/asm/testdata/386.s
+@@ -78,5 +78,9 @@ label:
+ 	PINSRD	$1, (AX), X0
+ 	PINSRD	$2, foo+4(FP), X0
+ 
++// Was bug: LOOP is a branch instruction.
++loop:
++	LOOP	loop
++
+ // LTYPE0 nonnon	{ outcode(int($1), &$2); }
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.out b/src/cmd/asm/internal/asm/testdata/amd64.out
+index a17ae0f472..e647a5c6bd 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.out
++++ b/src/cmd/asm/internal/asm/testdata/amd64.out
+@@ -53,4 +53,5 @@
+ 86 00053 (testdata/amd64.s:86)	PINSRW	R11,$4,AX
+ 87 00054 (testdata/amd64.s:87)	PINSRW	foo+4(SB),$4,AX
+ 90 00055 (testdata/amd64.s:90)	RETFL	$4,
+-93 00056 (testdata/amd64.s:93)	RET	,
++94 00056 (testdata/amd64.s:94)	LOOP	,
++97 00057 (testdata/amd64.s:97)	RET	,
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64.s b/src/cmd/asm/internal/asm/testdata/amd64.s
+index cb925f2475..eb13a1f96e 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64.s
+@@ -89,5 +89,9 @@ label:
+ // LTYPERT spec10	{ outcode($1, &$2); }
+ 	RETFL	$4
+ 
++// Was bug: LOOP is a branch instruction.
++loop:
++	LOOP	loop
++
+ // LTYPE0 nonnon	{ outcode($1, &$2); }
+ 	RET

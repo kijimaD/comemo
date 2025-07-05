@@ -8,7 +8,52 @@ Date:   Thu Nov 24 08:51:47 2011 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5435068
-
+---
  doc/effective_go.html | 4 ++--
  doc/effective_go.tmpl | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index f0d0ffa53b..8ce72fc196 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2046,7 +2046,7 @@ It's easy to write a function to print the arguments.
+ </p>
+ <pre>
+ func ArgServer() {
+-    for i, s := range os.Args {
++    for _, s := range os.Args {
+         fmt.Println(s)
+     }
+ }
+@@ -2084,7 +2084,7 @@ to have the right signature.
+ <pre>
+ // Argument server.
+ func ArgServer(w http.ResponseWriter, req *http.Request) {
+-    for i, s := range os.Args {
++    for _, s := range os.Args {
+         fmt.Fprintln(w, s)
+     }
+ }
+diff --git a/doc/effective_go.tmpl b/doc/effective_go.tmpl
+index b9ba469d41..bd19f95d34 100644
+--- a/doc/effective_go.tmpl
++++ b/doc/effective_go.tmpl
+@@ -1984,7 +1984,7 @@ It's easy to write a function to print the arguments.
+ </p>
+ <pre>
+ func ArgServer() {
+-    for i, s := range os.Args {
++    for _, s := range os.Args {
+         fmt.Println(s)
+     }
+ }
+@@ -2022,7 +2022,7 @@ to have the right signature.
+ <pre>
+ // Argument server.
+ func ArgServer(w http.ResponseWriter, req *http.Request) {
+-    for i, s := range os.Args {
++    for _, s := range os.Args {
+         fmt.Fprintln(w, s)
+     }
+ }

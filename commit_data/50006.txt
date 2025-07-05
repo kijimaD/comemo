@@ -45,9 +45,372 @@ Date:   Fri Aug 13 08:58:40 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: David Chase <drchase@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/cgocall.go           |   7 ++
  src/runtime/os_linux.go          | 147 ++++++++++++++++++++++++++++++++++++---
  src/runtime/pprof/pprof_test.go  | 101 +++++++++++++++++++++++++++
  src/runtime/pprof/rusage_test.go |  40 +++++++++++
  4 files changed, 286 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 2f3c609907..694b3e66cd 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -291,6 +291,13 @@ func cgocallbackg1(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 		<-main_init_done
+ 	}
+ 
++	// Check whether the profiler needs to be turned on or off; this route to
++	// run Go code does not use runtime.execute, so bypasses the check there.
++	hz := sched.profilehz
++	if gp.m.profilehz != hz {
++		setThreadCPUProfiler(hz)
++	}
++
+ 	// Add entry to defer stack in case of panic.
+ 	restore := true
+ 	defer unwindm(&restore)
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index d307c472b8..a4646577cb 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -7,10 +7,21 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+-type mOS struct{}
++type mOS struct {
++	// profileTimer holds the ID of the POSIX interval timer for profiling CPU
++	// usage on this thread.
++	//
++	// It is valid when the profileTimerValid field is non-zero. A thread
++	// creates and manages its own timer, and these fields are read and written
++	// only by this thread. But because some of the reads on profileTimerValid
++	// are in signal handling code, access to that field uses atomic operations.
++	profileTimer      int32
++	profileTimerValid uint32
++}
+ 
+ //go:noescape
+ func futex(addr unsafe.Pointer, op int32, val uint32, ts, addr2 unsafe.Pointer, val3 uint32) int32
+@@ -518,18 +529,136 @@ func signalM(mp *m, sig int) {
+ 	tgkill(getpid(), int(mp.procid), sig)
+ }
+ 
++// go118UseTimerCreateProfiler enables the per-thread CPU profiler. Platforms
++// with support for SetCgoTraceback do some signal handling in assembly; do not
++// enable it for them until the changes to those code paths are in place.
++const go118UseTimerCreateProfiler = GOARCH != "amd64" && GOARCH != "ppc64le"
++
++// validSIGPROF compares this signal delivery's code against the signal sources
++// that the profiler uses, returning whether the delivery should be processed.
++// To be processed, a signal delivery from a known profiling mechanism should
++// correspond to the best profiling mechanism available to this thread. Signals
++// from other sources are always considered valid.
++//
++//go:nosplit
++func validSIGPROF(mp *m, c *sigctxt) bool {
++	code := int32(c.sigcode())
++	setitimer := code == _SI_KERNEL
++	timer_create := code == _SI_TIMER
++
++	if !(setitimer || timer_create) {
++		// The signal doesn't correspond to a profiling mechanism that the
++		// runtime enables itself. There's no reason to process it, but there's
++		// no reason to ignore it either.
++		return true
++	}
++
++	if mp == nil {
++		// Since we don't have an M, we can't check if there's an active
++		// per-thread timer for this thread. We don't know how long this thread
++		// has been around, and if it happened to interact with the Go scheduler
++		// at a time when profiling was active (causing it to have a per-thread
++		// timer). But it may have never interacted with the Go scheduler, or
++		// never while profiling was active. To avoid double-counting, process
++		// only signals from setitimer.
++		//
++		// When a custom cgo traceback function has been registered (on
++		// platforms that support runtime.SetCgoTraceback), SIGPROF signals
++		// delivered to a thread that cannot find a matching M do this check in
++		// the assembly implementations of runtime.cgoSigtramp.
++		return setitimer
++	}
++
++	// Having an M means the thread interacts with the Go scheduler, and we can
++	// check whether there's an active per-thread timer for this thread.
++	if atomic.Load(&mp.profileTimerValid) != 0 {
++		// If this M has its own per-thread CPU profiling interval timer, we
++		// should track the SIGPROF signals that come from that timer (for
++		// accurate reporting of its CPU usage; see issue 35057) and ignore any
++		// that it gets from the process-wide setitimer (to not over-count its
++		// CPU consumption).
++		return timer_create
++	}
++
++	// No active per-thread timer means the only valid profiler is setitimer.
++	return setitimer
++}
++
+ func setProcessCPUProfiler(hz int32) {
+ 	setProcessCPUProfilerTimer(hz)
+ }
+ 
+ func setThreadCPUProfiler(hz int32) {
+-	setThreadCPUProfilerHz(hz)
+-}
++	mp := getg().m
++	mp.profilehz = hz
+ 
+-//go:nosplit
+-func validSIGPROF(mp *m, c *sigctxt) bool {
+-	// Once the profiler for Linux uses timer_create, this function will need to
+-	// do more than return true. But so long as the only profiling timer in use
+-	// is setitimer, returning true is correct.
+-	return true
++	if !go118UseTimerCreateProfiler {
++		return
++	}
++
++	// destroy any active timer
++	if atomic.Load(&mp.profileTimerValid) != 0 {
++		timerid := mp.profileTimer
++		atomic.Store(&mp.profileTimerValid, 0)
++		mp.profileTimer = 0
++
++		ret := timer_delete(timerid)
++		if ret != 0 {
++			print("runtime: failed to disable profiling timer; timer_delete(", timerid, ") errno=", -ret, "\n")
++			throw("timer_delete")
++		}
++	}
++
++	if hz == 0 {
++		// If the goal was to disable profiling for this thread, then the job's done.
++		return
++	}
++
++	// The period of the timer should be 1/Hz. For every "1/Hz" of additional
++	// work, the user should expect one additional sample in the profile.
++	//
++	// But to scale down to very small amounts of application work, to observe
++	// even CPU usage of "one tenth" of the requested period, set the initial
++	// timing delay in a different way: So that "one tenth" of a period of CPU
++	// spend shows up as a 10% chance of one sample (for an expected value of
++	// 0.1 samples), and so that "two and six tenths" periods of CPU spend show
++	// up as a 60% chance of 3 samples and a 40% chance of 2 samples (for an
++	// expected value of 2.6). Set the initial delay to a value in the unifom
++	// random distribution between 0 and the desired period. And because "0"
++	// means "disable timer", add 1 so the half-open interval [0,period) turns
++	// into (0,period].
++	//
++	// Otherwise, this would show up as a bias away from short-lived threads and
++	// from threads that are only occasionally active: for example, when the
++	// garbage collector runs on a mostly-idle system, the additional threads it
++	// activates may do a couple milliseconds of GC-related work and nothing
++	// else in the few seconds that the profiler observes.
++	spec := new(itimerspec)
++	spec.it_value.setNsec(1 + int64(fastrandn(uint32(1e9/hz))))
++	spec.it_interval.setNsec(1e9 / int64(hz))
++
++	var timerid int32
++	sevp := &sigevent{
++		notify:                 _SIGEV_THREAD_ID,
++		signo:                  _SIGPROF,
++		sigev_notify_thread_id: int32(mp.procid),
++	}
++	ret := timer_create(_CLOCK_THREAD_CPUTIME_ID, sevp, &timerid)
++	if ret != 0 {
++		// If we cannot create a timer for this M, leave profileTimerValid false
++		// to fall back to the process-wide setitimer profiler.
++		return
++	}
++
++	ret = timer_settime(timerid, 0, spec, nil)
++	if ret != 0 {
++		print("runtime: failed to configure profiling timer; timer_settime(", timerid,
++			", 0, {interval: {",
++			spec.it_interval.tv_sec, "s + ", spec.it_interval.tv_nsec, "ns} value: {",
++			spec.it_value.tv_sec, "s + ", spec.it_value.tv_nsec, "ns}}, nil) errno=", -ret, "\n")
++		throw("timer_settime")
++	}
++
++	mp.profileTimer = timerid
++	atomic.Store(&mp.profileTimerValid, 1)
+ }
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 5b9ad50746..8c34d39ad5 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -79,6 +79,10 @@ func cpuHog2(x int) int {
+ 	return foo
+ }
+ 
++func cpuHog3(x int) int {
++	return cpuHog0(x, 1e5)
++}
++
+ // Return a list of functions that we don't want to ever appear in CPU
+ // profiles. For gccgo, that list includes the sigprof handler itself.
+ func avoidFunctions() []string {
+@@ -107,6 +111,93 @@ func TestCPUProfileMultithreaded(t *testing.T) {
+ 	})
+ }
+ 
++func TestCPUProfileMultithreadMagnitude(t *testing.T) {
++	if runtime.GOOS != "linux" {
++		t.Skip("issue 35057 is only confirmed on Linux")
++	}
++
++	// Run a workload in a single goroutine, then run copies of the same
++	// workload in several goroutines. For both the serial and parallel cases,
++	// the CPU time the process measures with its own profiler should match the
++	// total CPU usage that the OS reports.
++	//
++	// We could also check that increases in parallelism (GOMAXPROCS) lead to a
++	// linear increase in the CPU usage reported by both the OS and the
++	// profiler, but without a guarantee of exclusive access to CPU resources
++	// that is likely to be a flaky test.
++
++	// Require the smaller value to be within 10%, or 40% in short mode.
++	maxDiff := 0.10
++	if testing.Short() {
++		maxDiff = 0.40
++	}
++
++	parallelism := runtime.GOMAXPROCS(0)
++
++	var cpuTime1, cpuTimeN time.Duration
++	p := testCPUProfile(t, stackContains, []string{"runtime/pprof.cpuHog1", "runtime/pprof.cpuHog3"}, avoidFunctions(), func(dur time.Duration) {
++		cpuTime1 = diffCPUTime(t, func() {
++			// Consume CPU in one goroutine
++			cpuHogger(cpuHog1, &salt1, dur)
++		})
++
++		cpuTimeN = diffCPUTime(t, func() {
++			// Next, consume CPU in several goroutines
++			var wg sync.WaitGroup
++			var once sync.Once
++			for i := 0; i < parallelism; i++ {
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					var salt = 0
++					cpuHogger(cpuHog3, &salt, dur)
++					once.Do(func() { salt1 = salt })
++				}()
++			}
++			wg.Wait()
++		})
++	})
++
++	for i, unit := range []string{"count", "nanoseconds"} {
++		if have, want := p.SampleType[i].Unit, unit; have != want {
++			t.Errorf("pN SampleType[%d]; %q != %q", i, have, want)
++		}
++	}
++
++	var value1, valueN time.Duration
++	for _, sample := range p.Sample {
++		if stackContains("runtime/pprof.cpuHog1", uintptr(sample.Value[0]), sample.Location, sample.Label) {
++			value1 += time.Duration(sample.Value[1]) * time.Nanosecond
++		}
++		if stackContains("runtime/pprof.cpuHog3", uintptr(sample.Value[0]), sample.Location, sample.Label) {
++			valueN += time.Duration(sample.Value[1]) * time.Nanosecond
++		}
++	}
++
++	compare := func(a, b time.Duration, maxDiff float64) func(*testing.T) {
++		return func(t *testing.T) {
++			t.Logf("compare %s vs %s", a, b)
++			if a <= 0 || b <= 0 {
++				t.Errorf("Expected both time reports to be positive")
++				return
++			}
++
++			if a < b {
++				a, b = b, a
++			}
++
++			diff := float64(a-b) / float64(a)
++			if diff > maxDiff {
++				t.Errorf("CPU usage reports are too different (limit -%.1f%%, got -%.1f%%)", maxDiff*100, diff*100)
++			}
++		}
++	}
++
++	// check that the OS's perspective matches what the Go runtime measures
++	t.Run("serial execution OS vs pprof", compare(cpuTime1, value1, maxDiff))
++	t.Run("parallel execution OS vs pprof", compare(cpuTimeN, valueN, maxDiff))
++}
++
+ // containsInlinedCall reports whether the function body for the function f is
+ // known to contain an inlined function call within the first maxBytes bytes.
+ func containsInlinedCall(f interface{}, maxBytes int) bool {
+@@ -350,6 +441,16 @@ func testCPUProfile(t *testing.T, matches matchFunc, need []string, avoid []stri
+ 	return nil
+ }
+ 
++var diffCPUTimeImpl func(f func()) time.Duration
++
++func diffCPUTime(t *testing.T, f func()) time.Duration {
++	if fn := diffCPUTimeImpl; fn != nil {
++		return fn(f)
++	}
++	t.Fatalf("cannot measure CPU time on GOOS=%s GOARCH=%s", runtime.GOOS, runtime.GOARCH)
++	return 0
++}
++
+ func contains(slice []string, s string) bool {
+ 	for i := range slice {
+ 		if slice[i] == s {
+diff --git a/src/runtime/pprof/rusage_test.go b/src/runtime/pprof/rusage_test.go
+new file mode 100644
+index 0000000000..66b1b3bbe1
+--- /dev/null
++++ b/src/runtime/pprof/rusage_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || freebsd || linux || netbsd || openbsd
++// +build darwin freebsd linux netbsd openbsd
++
++package pprof
++
++import (
++	"syscall"
++	"time"
++)
++
++func init() {
++	diffCPUTimeImpl = diffCPUTimeRUsage
++}
++
++func diffCPUTimeRUsage(f func()) time.Duration {
++	ok := true
++	var before, after syscall.Rusage
++
++	err := syscall.Getrusage(syscall.RUSAGE_SELF, &before)
++	if err != nil {
++		ok = false
++	}
++
++	f()
++
++	err = syscall.Getrusage(syscall.RUSAGE_SELF, &after)
++	if err != nil {
++		ok = false
++	}
++
++	if !ok {
++		return 0
++	}
++
++	return time.Duration((after.Utime.Nano() + after.Stime.Nano()) - (before.Utime.Nano() + before.Stime.Nano()))
++}

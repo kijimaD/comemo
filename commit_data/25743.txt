@@ -7,7 +7,56 @@ Date:   Wed Nov 18 11:24:48 2015 -0800
     Change-Id: Ie24d56422ae2196198a6c306716fa867c1442d6e
     Reviewed-on: https://go-review.googlesource.com/17043
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/parser.go | 17 +++++++++++------
  test/fixedbugs/issue4468.go           |  8 ++++++--
  2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index a3ecf92c08..f2f84eed4c 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1391,13 +1391,18 @@ func (p *parser) pseudocall() *Node {
+ 		defer p.trace("pseudocall")()
+ 	}
+ 
+-	// The expression in go/defer must not be parenthesized;
+-	// don't drop ()'s so we can report an error.
+-	x := p.pexpr(true /* keep_parens */)
+-	if x.Op != OCALL {
+-		Yyerror("argument to go/defer must be function call")
++	x := p.pexpr(true) // keep_parens so we can report error below
++	switch x.Op {
++	case OCALL:
++		return x
++	case OPAREN:
++		Yyerror("expression in go/defer must not be parenthesized")
++		// already progressed, no need to advance
++	default:
++		Yyerror("expression in go/defer must be function call")
++		// already progressed, no need to advance
+ 	}
+-	return x
++	return nil
+ }
+ 
+ // go.y:pexpr (partial)
+diff --git a/test/fixedbugs/issue4468.go b/test/fixedbugs/issue4468.go
+index ef0b46bcf6..f8821052af 100644
+--- a/test/fixedbugs/issue4468.go
++++ b/test/fixedbugs/issue4468.go
+@@ -19,8 +19,12 @@ type S struct {
+ }
+ 
+ func F() {
+-	go (F())	// ERROR "must be function call"
+-	defer (F())	// ERROR "must be function call"
++	go F            // ERROR "must be function call"
++	defer F         // ERROR "must be function call"
++	go (F)		// ERROR "must be function call|must not be parenthesized"
++	defer (F)	// ERROR "must be function call|must not be parenthesized"
++	go (F())	// ERROR "must be function call|must not be parenthesized"
++	defer (F())	// ERROR "must be function call|must not be parenthesized"
+ 	var s S
+ 	(&s.t).F()
+ 	go (&s.t).F()

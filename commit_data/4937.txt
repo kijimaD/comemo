@@ -9,7 +9,7 @@ Date:   Wed Feb 24 13:24:37 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223041
-
+---
  src/pkg/exp/eval/expr.go                        |  8 +++---
  src/pkg/exp/eval/expr1.go                       | 36 +++++++++++--------------
  src/pkg/exp/eval/stmt.go                        |  2 +-
@@ -20,3 +20,221 @@ Date:   Wed Feb 24 13:24:37 2010 -0800
  src/pkg/reflect/all_test.go                     |  2 +-
  src/pkg/template/template_test.go               |  2 +-
  9 files changed, 41 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 94714943c6..f875bb0052 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -303,7 +303,7 @@ func (a *assignCompiler) allowMapForms(nls int) {
+ // a function that expects an l-value and the frame in which to
+ // evaluate the RHS expressions.  The l-value must have exactly the
+ // type given by lt.  Returns nil if type checking fails.
+-func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
++func (a *assignCompiler) compile(b *block, lt Type) func(Value, *Thread) {
+ 	lmt, isMT := lt.(*MultiType)
+ 	rmt, isUnpack := a.rmt, a.isUnpack
+ 
+@@ -446,7 +446,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
+ // compileAssign compiles an assignment operation without the full
+ // generality of an assignCompiler.  See assignCompiler for a
+ // description of the arguments.
+-func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) (func(Value, *Thread)) {
++func (a *compiler) compileAssign(pos token.Position, b *block, lt Type, rs []*expr, errOp, errPosName string) func(Value, *Thread) {
+ 	ac, ok := a.checkAssign(pos, rs, errOp, errPosName)
+ 	if !ok {
+ 		return nil
+@@ -836,8 +836,8 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 	// TODO(austin) Now that the expression compiler works on
+ 	// semantic values instead of AST's, there should be a much
+ 	// better way of doing this.
+-	var find func(Type, int, string) (func(*expr) *expr)
+-	find = func(t Type, depth int, pathName string) (func(*expr) *expr) {
++	var find func(Type, int, string) func(*expr) *expr
++	find = func(t Type, depth int, pathName string) func(*expr) *expr {
+ 		// Don't bother looking if we've found something shallower
+ 		if bestDepth != -1 && bestDepth < depth {
+ 			return nil
+diff --git a/src/pkg/exp/eval/expr1.go b/src/pkg/exp/eval/expr1.go
+index a77e40fb0a..28da8eea1b 100644
+--- a/src/pkg/exp/eval/expr1.go
++++ b/src/pkg/exp/eval/expr1.go
+@@ -12,40 +12,36 @@ import (
+  * "As" functions.  These retrieve evaluator functions from an
+  * expr, panicking if the requested evaluator has the wrong type.
+  */
+-func (a *expr) asBool() (func(*Thread) bool) { return a.eval.(func(*Thread) bool) }
+-func (a *expr) asUint() (func(*Thread) uint64) {
+-	return a.eval.(func(*Thread) uint64)
+-}
+-func (a *expr) asInt() (func(*Thread) int64) { return a.eval.(func(*Thread) int64) }
+-func (a *expr) asIdealInt() (func() *bignum.Integer) {
++func (a *expr) asBool() func(*Thread) bool   { return a.eval.(func(*Thread) bool) }
++func (a *expr) asUint() func(*Thread) uint64 { return a.eval.(func(*Thread) uint64) }
++func (a *expr) asInt() func(*Thread) int64   { return a.eval.(func(*Thread) int64) }
++func (a *expr) asIdealInt() func() *bignum.Integer {
+ 	return a.eval.(func() *bignum.Integer)
+ }
+-func (a *expr) asFloat() (func(*Thread) float64) {
++func (a *expr) asFloat() func(*Thread) float64 {
+ 	return a.eval.(func(*Thread) float64)
+ }
+-func (a *expr) asIdealFloat() (func() *bignum.Rational) {
++func (a *expr) asIdealFloat() func() *bignum.Rational {
+ 	return a.eval.(func() *bignum.Rational)
+ }
+-func (a *expr) asString() (func(*Thread) string) {
++func (a *expr) asString() func(*Thread) string {
+ 	return a.eval.(func(*Thread) string)
+ }
+-func (a *expr) asArray() (func(*Thread) ArrayValue) {
++func (a *expr) asArray() func(*Thread) ArrayValue {
+ 	return a.eval.(func(*Thread) ArrayValue)
+ }
+-func (a *expr) asStruct() (func(*Thread) StructValue) {
++func (a *expr) asStruct() func(*Thread) StructValue {
+ 	return a.eval.(func(*Thread) StructValue)
+ }
+-func (a *expr) asPtr() (func(*Thread) Value) { return a.eval.(func(*Thread) Value) }
+-func (a *expr) asFunc() (func(*Thread) Func) { return a.eval.(func(*Thread) Func) }
+-func (a *expr) asSlice() (func(*Thread) Slice) {
+-	return a.eval.(func(*Thread) Slice)
+-}
+-func (a *expr) asMap() (func(*Thread) Map) { return a.eval.(func(*Thread) Map) }
+-func (a *expr) asMulti() (func(*Thread) []Value) {
++func (a *expr) asPtr() func(*Thread) Value   { return a.eval.(func(*Thread) Value) }
++func (a *expr) asFunc() func(*Thread) Func   { return a.eval.(func(*Thread) Func) }
++func (a *expr) asSlice() func(*Thread) Slice { return a.eval.(func(*Thread) Slice) }
++func (a *expr) asMap() func(*Thread) Map     { return a.eval.(func(*Thread) Map) }
++func (a *expr) asMulti() func(*Thread) []Value {
+ 	return a.eval.(func(*Thread) []Value)
+ }
+ 
+-func (a *expr) asInterface() (func(*Thread) interface{}) {
++func (a *expr) asInterface() func(*Thread) interface{} {
+ 	switch sf := a.eval.(type) {
+ 	case func(t *Thread) bool:
+ 		return func(t *Thread) interface{} { return sf(t) }
+@@ -1871,7 +1867,7 @@ func (a *expr) genBinOpNeq(l, r *expr) {
+ 	}
+ }
+ 
+-func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
++func genAssign(lt Type, r *expr) func(lv Value, t *Thread) {
+ 	switch lt.lit().(type) {
+ 	case *boolType:
+ 		rf := r.asBool()
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 758e479f89..75b934b3d8 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -1226,7 +1226,7 @@ func (a *blockCompiler) exit() { a.block.exit() }
+  * Function compiler
+  */
+ 
+-func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) (func(*Thread) Func) {
++func (a *compiler) compileFunc(b *block, decl *FuncDecl, body *ast.BlockStmt) func(*Thread) Func {
+ 	// Create body scope
+ 	//
+ 	// The scope of a parameter or result is the body of the
+diff --git a/src/pkg/exp/iterable/iterable.go b/src/pkg/exp/iterable/iterable.go
+index b1ae0e90fe..416a70836e 100644
+--- a/src/pkg/exp/iterable/iterable.go
++++ b/src/pkg/exp/iterable/iterable.go
+@@ -18,7 +18,7 @@ type Iterable interface {
+ 	Iter() <-chan interface{}
+ }
+ 
+-func not(f func(interface{}) bool) (func(interface{}) bool) {
++func not(f func(interface{}) bool) func(interface{}) bool {
+ 	return func(e interface{}) bool { return !f(e) }
+ }
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index dd6b1db6b2..6096751bd9 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -241,19 +241,13 @@ func (p *printer) signature(params, result []*ast.Field, multiLine *bool) {
+ 	p.parameters(params, multiLine)
+ 	if result != nil {
+ 		p.print(blank)
+-
+ 		if len(result) == 1 && result[0].Names == nil {
+-			// single anonymous result; no ()'s unless it's a function type
+-			f := result[0]
+-			if _, isFtyp := f.Type.(*ast.FuncType); !isFtyp {
+-				p.expr(f.Type, multiLine)
+-				return
+-			}
++			// single anonymous result; no ()'s
++			p.expr(result[0].Type, multiLine)
++			return
+ 		}
+-
+ 		p.parameters(result, multiLine)
+ 	}
+-	return
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 9998103cfe..b15e52ad64 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -471,6 +471,13 @@ func _() {
+ }
+ 
+ 
++// formatting of function results
++func _() func()				{}
++func _() func(int)			{ return nil }
++func _() func(int) int			{ return nil }
++func _() func(int) func(int) func()	{ return nil }
++
++
+ // formatting of consecutive single-line functions
+ func _()	{}
+ func _()	{}
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index fd80cb626c..1d1dc45f0c 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -468,6 +468,13 @@ func _() {
+ }
+ 
+ 
++// formatting of function results
++func _() func() {}
++func _() func(int) { return nil }
++func _() func(int) int { return nil }
++func _() func(int) func(int) func() { return nil }
++
++
+ // formatting of consecutive single-line functions
+ func _() {}
+ func _() {}
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 221ca06dfe..67bfe9eaf0 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -146,7 +146,7 @@ var typeTests = []pair{
+ 	},
+ 	pair{struct {
+ 		x (interface {
+-			a(func(func(int) int) (func(func(int)) int))
++			a(func(func(int) int) func(func(int)) int)
+ 			b()
+ 		})
+ 	}{},
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index fe279a4d16..460a3a4b1e 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -72,7 +72,7 @@ func plus1(v interface{}) string {
+ 	return fmt.Sprint(i + 1)
+ }
+ 
+-func writer(f func(interface{}) string) (func(io.Writer, interface{}, string)) {
++func writer(f func(interface{}) string) func(io.Writer, interface{}, string) {
+ 	return func(w io.Writer, v interface{}, format string) {
+ 		io.WriteString(w, f(v))
+ 	}

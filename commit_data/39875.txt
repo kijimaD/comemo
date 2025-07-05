@@ -11,6 +11,26 @@ Date:   Wed Mar 27 18:00:24 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime-lldb_test.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index fe3a0eb90d..c7b769ce83 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -151,7 +151,13 @@ func TestLldbPython(t *testing.T) {
+ 	src := filepath.Join(dir, "main.go")
+ 	err = ioutil.WriteFile(src, []byte(lldbHelloSource), 0644)
+ 	if err != nil {
+-		t.Fatalf("failed to create file: %v", err)
++		t.Fatalf("failed to create src file: %v", err)
++	}
++
++	mod := filepath.Join(dir, "go.mod")
++	err = ioutil.WriteFile(mod, []byte("module lldbtest"), 0644)
++	if err != nil {
++		t.Fatalf("failed to create mod file: %v", err)
+ 	}
+ 
+ 	// As of 2018-07-17, lldb doesn't support compressed DWARF, so

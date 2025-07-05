@@ -11,7 +11,67 @@ Date:   Thu Jul 14 17:29:29 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/panic.go | 9 ++++-----
  src/runtime/proc.go  | 4 ++--
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 3783e3dede..a3e676fea4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -837,7 +837,7 @@ func gopanic(e any) {
+ 	p.link = gp._panic
+ 	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
+ 
+-	atomic.Xadd(&runningPanicDefers, 1)
++	runningPanicDefers.Add(1)
+ 
+ 	// By calculating getcallerpc/getcallersp here, we avoid scanning the
+ 	// gopanic frame (stack scanning is slow...)
+@@ -917,7 +917,7 @@ func gopanic(e any) {
+ 				mcall(recovery)
+ 				throw("bypassed recovery failed") // mcall should not return
+ 			}
+-			atomic.Xadd(&runningPanicDefers, -1)
++			runningPanicDefers.Add(-1)
+ 
+ 			// After a recover, remove any remaining non-started,
+ 			// open-coded defer entries, since the corresponding defers
+@@ -1067,9 +1067,8 @@ func fatal(s string) {
+ }
+ 
+ // runningPanicDefers is non-zero while running deferred functions for panic.
+-// runningPanicDefers is incremented and decremented atomically.
+ // This is used to try hard to get a panic stack trace out when exiting.
+-var runningPanicDefers uint32
++var runningPanicDefers atomic.Uint32
+ 
+ // panicking is non-zero when crashing the program for an unrecovered panic.
+ // panicking is incremented and decremented atomically.
+@@ -1155,7 +1154,7 @@ func fatalpanic(msgs *_panic) {
+ 			// startpanic_m set panicking, which will
+ 			// block main from exiting, so now OK to
+ 			// decrement runningPanicDefers.
+-			atomic.Xadd(&runningPanicDefers, -1)
++			runningPanicDefers.Add(-1)
+ 
+ 			printpanics(msgs)
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cea7f37d13..33219419f9 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -256,10 +256,10 @@ func main() {
+ 	// another goroutine at the same time as main returns,
+ 	// let the other goroutine finish printing the panic trace.
+ 	// Once it does, it will exit. See issues 3934 and 20018.
+-	if atomic.Load(&runningPanicDefers) != 0 {
++	if runningPanicDefers.Load() != 0 {
+ 		// Running deferred functions should not take long.
+ 		for c := 0; c < 1000; c++ {
+-			if atomic.Load(&runningPanicDefers) == 0 {
++			if runningPanicDefers.Load() == 0 {
+ 				break
+ 			}
+ 			Gosched()

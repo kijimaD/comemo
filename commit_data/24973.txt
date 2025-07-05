@@ -7,6 +7,22 @@ Date:   Sat Sep 12 14:14:02 2015 -0700
     Change-Id: I1e5993e0e56481ce838c0e3979b1a3052e72dba5
     Reviewed-on: https://go-review.googlesource.com/14535
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a0bd07d681..7da49fc6f0 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1633,6 +1633,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 		s.startBlock(bResult)
+ 		return s.variable(n, Types[TBOOL])
++	case OCOMPLEX:
++		r := s.expr(n.Left)
++		i := s.expr(n.Right)
++		return s.newValue2(ssa.OpComplexMake, n.Type, r, i)
+ 
+ 	// unary ops
+ 	case OMINUS:

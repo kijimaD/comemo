@@ -9,7 +9,7 @@ Date:   Wed Oct 12 11:46:50 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5245055
-
+---
  src/pkg/Makefile                          | 2 +-
  src/pkg/{ => old}/netchan/Makefile        | 6 +++---
  src/pkg/{ => old}/netchan/common.go       | 0
@@ -17,3 +17,56 @@ Date:   Wed Oct 12 11:46:50 2011 -0700
  src/pkg/{ => old}/netchan/import.go       | 0
  src/pkg/{ => old}/netchan/netchan_test.go | 0
  6 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index dafc2048d9..79f9882d08 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -130,7 +130,7 @@ DIRS=\
+ 	net\
+ 	net/dict\
+ 	net/textproto\
+-	netchan\
++	old/netchan\
+ 	old/regexp\
+ 	old/template\
+ 	os\
+diff --git a/src/pkg/netchan/Makefile b/src/pkg/old/netchan/Makefile
+similarity index 74%
+rename from src/pkg/netchan/Makefile
+rename to src/pkg/old/netchan/Makefile
+index 9b9fdcf59f..c8f4125252 100644
+--- a/src/pkg/netchan/Makefile
++++ b/src/pkg/old/netchan/Makefile
+@@ -2,12 +2,12 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
++include ../../../Make.inc
+ 
+-TARG=netchan
++TARG=old/netchan
+ GOFILES=\
+ 	common.go\
+ 	export.go\
+ 	import.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/netchan/common.go b/src/pkg/old/netchan/common.go
+similarity index 100%
+rename from src/pkg/netchan/common.go
+rename to src/pkg/old/netchan/common.go
+diff --git a/src/pkg/netchan/export.go b/src/pkg/old/netchan/export.go
+similarity index 100%
+rename from src/pkg/netchan/export.go
+rename to src/pkg/old/netchan/export.go
+diff --git a/src/pkg/netchan/import.go b/src/pkg/old/netchan/import.go
+similarity index 100%
+rename from src/pkg/netchan/import.go
+rename to src/pkg/old/netchan/import.go
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/old/netchan/netchan_test.go
+similarity index 100%
+rename from src/pkg/netchan/netchan_test.go
+rename to src/pkg/old/netchan/netchan_test.go

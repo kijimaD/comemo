@@ -10,6 +10,19 @@ Date:   Wed Sep 9 20:39:31 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/14470
     Run-TryBot: Todd Neal <todd@tneal.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  test/run.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/run.go b/test/run.go
+index de2044704c..57b386de99 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -636,6 +636,7 @@ func (t *test) run() {
+ 		}
+ 
+ 	case "run":
++		useTmp = false
+ 		ssaMain = true
+ 		out, err := runcmd(append([]string{"go", "run", t.goFileName()}, args...)...)
+ 		if err != nil {

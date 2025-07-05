@@ -9,7 +9,70 @@ Date:   Mon Sep 27 14:09:10 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2279042
-
+---
  src/cmd/gc/subr.c           |  9 ++++++++-
  src/pkg/reflect/all_test.go | 20 ++++++++++++++++++++
  2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3ba1519cf5..91a012187f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2935,6 +2935,11 @@ expandmeth(Sym *s, Type *t)
+ 	if(t == T || t->xmethod != nil)
+ 		return;
+ 
++	// mark top-level method symbols
++	// so that expand1 doesn't consider them.
++	for(f=t->method; f != nil; f=f->down)
++		f->sym->flags |= SymUniq;
++
+ 	// generate all reachable methods
+ 	slist = nil;
+ 	expand1(t, nelem(dotlist)-1, 0);
+@@ -2954,6 +2959,9 @@ expandmeth(Sym *s, Type *t)
+ 		}
+ 	}
+ 
++	for(f=t->method; f != nil; f=f->down)
++		f->sym->flags &= ~SymUniq;
++
+ 	t->xmethod = t->method;
+ 	for(sl=slist; sl!=nil; sl=sl->link) {
+ 		if(sl->good) {
+@@ -2965,7 +2973,6 @@ expandmeth(Sym *s, Type *t)
+ 				f->embedded = 2;
+ 			f->down = t->xmethod;
+ 			t->xmethod = f;
+-
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index dc01890945..61d7f2c247 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1287,3 +1287,23 @@ func TestDotDotDot(t *testing.T) {
+ 	}
+ 	t.Error(s)
+ }
++
++type inner struct{}
++
++type outer struct {
++	inner
++}
++
++func (*inner) m() {}
++func (*outer) m() {}
++
++func TestNestedMethods(t *testing.T) {
++	typ := Typeof((*outer)(nil))
++	if typ.NumMethod() != 1 || typ.Method(0).Func.Get() != NewValue((*outer).m).(*FuncValue).Get() {
++		t.Errorf("Wrong method table for outer: (m=%p)", (*outer).m)
++		for i := 0; i < typ.NumMethod(); i++ {
++			m := typ.Method(i)
++			t.Errorf("\t%d: %s %#x\n", i, m.Name, m.Func.Get())
++		}
++	}
++}

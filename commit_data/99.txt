@@ -5,8 +5,57 @@ Date:   Fri Jun 6 13:54:59 2008 -0700
     code gen bug in ++ and --
     
     SVN=121476
-
+---
  src/cmd/6g/gen.c  | 6 ++----
  src/cmd/gc/go.h   | 1 -
  src/cmd/gc/subr.c | 2 --
  3 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 700057405d..09b90ac3a3 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -694,16 +694,14 @@ cgen_asop(Node *nl, Node *nr, int op)
+ 	regalloc(&n1, nl->type, N);
+ 	if(nl->addable) {
+ 		cgen(nr, &n1);
+-		gins(a, nl, &n1);
+-		gmove(&n1, nl);
++		gins(a, &n1, nl);
+ 		regfree(&n1);
+ 		return;
+ 	}
+ 
+ 	igen(nl, &n2, N);
+ 	cgen(nr, &n1);
+-	gins(a, &n2, &n1);
+-	gmove(&n1, &n2);
++	gins(a, &n1, &n2);
+ 	regfree(&n1);
+ 	regfree(&n2);
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4cd88d94db..199497abf0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -208,7 +208,6 @@ enum
+ 	OEQ, ONE, OLT, OLE, OGE, OGT,
+ 	OADD, OSUB, OOR, OXOR,
+ 	OMUL, ODIV, OMOD, OLSH, ORSH, OAND,
+-	ODEC, OINC,
+ 	OLEN,
+ 	OFUNC,
+ 	OLABEL,
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6f1ad12ab2..efbef36c43 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -606,8 +606,6 @@ opnames[] =
+ 	[OOROR]		= "OROR",
+ 	[OOR]		= "OR",
+ 	[OPLUS]		= "PLUS",
+-	[ODEC]		= "DEC",
+-	[OINC]		= "INC",
+ 	[OREGISTER]	= "REGISTER",
+ 	[OINDREG]	= "INDREG",
+ 	[OSEND]		= "SEND",

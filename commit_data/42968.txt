@@ -13,7 +13,7 @@ Date:   Mon Jan 13 11:30:52 2020 -0500
     Change-Id: I394844da1ffc0dcde7f5862c41ed8efa7c5ca088
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214429
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 99 ----------------------
  src/cmd/go/testdata/rundir/sub/sub.go              |  1 -
  src/cmd/go/testdata/rundir/x.go                    |  1 -
@@ -24,3 +24,272 @@ Date:   Mon Jan 13 11:30:52 2020 -0500
  .../go/testdata/script/install_shadow_gopath.txt   | 19 +++++
  src/cmd/go/testdata/script/run_dirs.txt            | 11 +++
  9 files changed, 76 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b0cbeee8be..2e63de44f3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1102,42 +1102,6 @@ func TestAccidentalGitCheckout(t *testing.T) {
+ 	}
+ }
+ 
+-func TestVersionControlErrorMessageIncludesCorrectDirectory(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata/shadow/root1"))
+-	tg.runFail("get", "-u", "foo")
+-
+-	// TODO(iant): We should not have to use strconv.Quote here.
+-	// The code in vcs.go should be changed so that it is not required.
+-	quoted := strconv.Quote(filepath.Join("testdata", "shadow", "root1", "src", "foo"))
+-	quoted = quoted[1 : len(quoted)-1]
+-
+-	tg.grepStderr(regexp.QuoteMeta(quoted), "go get -u error does not mention shadow/root1/src/foo")
+-}
+-
+-// Issue 21895
+-func TestMSanAndRaceRequireCgo(t *testing.T) {
+-	if !canMSan && !canRace {
+-		t.Skip("skipping because both msan and the race detector are not supported")
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.tempFile("triv.go", `package main; func main() {}`)
+-	tg.setenv("CGO_ENABLED", "0")
+-	if canRace {
+-		tg.runFail("install", "-race", "triv.go")
+-		tg.grepStderr("-race requires cgo", "did not correctly report that -race requires cgo")
+-		tg.grepStderrNot("-msan", "reported that -msan instead of -race requires cgo")
+-	}
+-	if canMSan {
+-		tg.runFail("install", "-msan", "triv.go")
+-		tg.grepStderr("-msan requires cgo", "did not correctly report that -msan requires cgo")
+-		tg.grepStderrNot("-race", "reported that -race instead of -msan requires cgo")
+-	}
+-}
+-
+ func TestPackageMainTestCompilerFlags(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+@@ -1776,28 +1740,6 @@ func main() {
+ 	tg.run("run", tg.path("foo.go"))
+ }
+ 
+-// cmd/cgo: undefined reference when linking a C-library using gccgo
+-func TestIssue7573(t *testing.T) {
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	testenv.MustHaveExecPath(t, "gccgo")
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.tempFile("src/cgoref/cgoref.go", `
+-package main
+-// #cgo LDFLAGS: -L alibpath -lalib
+-// void f(void) {}
+-import "C"
+-
+-func main() { C.f() }`)
+-	tg.setenv("GOPATH", tg.path("."))
+-	tg.run("build", "-n", "-compiler", "gccgo", "cgoref")
+-	tg.grepStderr(`gccgo.*\-L [^ ]*alibpath \-lalib`, `no Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage`)
+-}
+-
+ func TestListTemplateContextFunction(t *testing.T) {
+ 	t.Parallel()
+ 	for _, tt := range []struct {
+@@ -1986,16 +1928,6 @@ func TestImportLocal(t *testing.T) {
+ 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
+ }
+ 
+-func TestGoRunDirs(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.cd("testdata/rundir")
+-	tg.runFail("run", "x.go", "sub/sub.go")
+-	tg.grepStderr("named files must all be in one directory; have ./ and sub/", "wrong output")
+-	tg.runFail("run", "sub/sub.go", "x.go")
+-	tg.grepStderr("named files must all be in one directory; have sub/ and ./", "wrong output")
+-}
+-
+ func TestGoInstallPkgdir(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no standard packages")
+ 	tooSlow(t)
+@@ -2013,26 +1945,6 @@ func TestGoInstallPkgdir(t *testing.T) {
+ 	tg.mustExist(filepath.Join(pkg, "sync/atomic.a"))
+ }
+ 
+-func TestGoInstallShadowedGOPATH(t *testing.T) {
+-	// golang.org/issue/3652.
+-	// go get foo.io (not foo.io/subdir) was not working consistently.
+-
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("gopath1")+string(filepath.ListSeparator)+tg.path("gopath2"))
+-
+-	tg.tempDir("gopath1/src/test")
+-	tg.tempDir("gopath2/src/test")
+-	tg.tempFile("gopath2/src/test/main.go", "package main\nfunc main(){}\n")
+-
+-	tg.cd(tg.path("gopath2/src/test"))
+-	tg.runFail("install")
+-	tg.grepStderr("no install location for.*gopath2.src.test: hidden by .*gopath1.src.test", "missing error")
+-}
+-
+ func TestGoBuildGOPATHOrder(t *testing.T) {
+ 	// golang.org/issue/14176#issuecomment-179895769
+ 	// golang.org/issue/14192
+@@ -2353,17 +2265,6 @@ func main() {
+ 	tg.run("build", "-o", exe, "p")
+ }
+ 
+-func TestBuildTagsNoComma(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no standard packages")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", tg.path("go"))
+-	tg.run("build", "-tags", "tag1 tag2", "math")
+-	tg.runFail("build", "-tags", "tag1,tag2 tag3", "math")
+-	tg.grepBoth("space-separated list contains comma", "-tags with a comma-separated list didn't error")
+-}
+-
+ func copyFile(src, dst string, perm os.FileMode) error {
+ 	sf, err := os.Open(src)
+ 	if err != nil {
+diff --git a/src/cmd/go/testdata/rundir/sub/sub.go b/src/cmd/go/testdata/rundir/sub/sub.go
+deleted file mode 100644
+index 06ab7d0f9a..0000000000
+--- a/src/cmd/go/testdata/rundir/sub/sub.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package main
+diff --git a/src/cmd/go/testdata/rundir/x.go b/src/cmd/go/testdata/rundir/x.go
+deleted file mode 100644
+index 06ab7d0f9a..0000000000
+--- a/src/cmd/go/testdata/rundir/x.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package main
+diff --git a/src/cmd/go/testdata/script/build_tags_no_comma.txt b/src/cmd/go/testdata/script/build_tags_no_comma.txt
+new file mode 100644
+index 0000000000..f3eb28202a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_tags_no_comma.txt
+@@ -0,0 +1,4 @@
++[gccgo] skip 'gccgo has no standard packages'
++go build -tags 'tag1 tag2' math
++! go build -tags 'tag1,tag2 tag3' math
++stderr 'space-separated list contains comma'
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/gccgo_link_c.txt b/src/cmd/go/testdata/script/gccgo_link_c.txt
+new file mode 100644
+index 0000000000..422adea93d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gccgo_link_c.txt
+@@ -0,0 +1,16 @@
++# Issue #7573
++# cmd/cgo: undefined reference when linking a C-library using gccgo
++
++[!cgo] skip
++[!gccgo] skip
++
++go build -r -compiler gccgo cgoref
++stderr 'gccgo.*\-L [^ ]*alibpath \-lalib' # make sure that Go-inline "#cgo LDFLAGS:" ("-L alibpath -lalib") passed to gccgo linking stage
++
++-- cgoref/cgoref.go --
++package main
++// #cgo LDFLAGS: -L alibpath -lalib
++// void f(void) {}
++import "C"
++
++func main() { C.f() }
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/get_vcs_error_message.txt b/src/cmd/go/testdata/script/get_vcs_error_message.txt
+new file mode 100644
+index 0000000000..e2404cc8d9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_vcs_error_message.txt
+@@ -0,0 +1,8 @@
++# Test that the Version Control error message includes the correct directory
++! go get -u foo
++stderr gopath(\\\\|/)src(\\\\|/)foo
++
++-- foo/foo.go --
++package foo
++-- math/math.go --
++package math
+diff --git a/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt b/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt
+new file mode 100644
+index 0000000000..7985cd2ab2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_msan_and_race_require_cgo.txt
+@@ -0,0 +1,18 @@
++# Tests Issue #21895
++
++[!msan] [!race] skip 'skipping because both msan and the race detector are not supported'
++
++env CGO_ENABLED=0
++
++[race] ! go install -race triv.go
++[race] stderr '-race requires cgo'
++[race] ! stderr '-msan'
++
++[msan] ! go install -msan triv.go
++[msan] stderr '-msan requires cgo'
++[msan] ! stderr '-race'
++
++-- triv.go --
++package main
++
++func main() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/install_shadow_gopath.txt b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+new file mode 100644
+index 0000000000..e51cb91bce
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_shadow_gopath.txt
+@@ -0,0 +1,19 @@
++# Tests Issue #3562
++# go get foo.io (not foo.io/subdir) was not working consistently.
++
++[!net] skip
++
++env GOPATH=$WORK/gopath1:$WORK/gopath2
++
++mkdir $WORK/gopath1/src/test
++mkdir $WORK/gopath2/src/test
++cp main.go $WORK/gopath2/src/test/main.go
++cd $WORK/gopath2/src/test
++
++! go install
++stderr 'no install location for.*gopath2.src.test: hidden by .*gopath1.src.test'
++
++-- main.go --
++package main
++
++func main() {}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/run_dirs.txt b/src/cmd/go/testdata/script/run_dirs.txt
+new file mode 100644
+index 0000000000..538a6ac6f3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_dirs.txt
+@@ -0,0 +1,11 @@
++cd rundir
++
++! go run x.go sub/sub.go
++stderr 'named files must all be in one directory; have ./ and sub/'
++! go run sub/sub.go x.go
++stderr 'named files must all be in one directory; have sub/ and ./'
++
++-- rundir/sub/sub.go --
++package main
++-- rundir/x.go --
++package main

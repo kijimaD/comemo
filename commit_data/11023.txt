@@ -9,6 +9,20 @@ Date:   Wed Jan 4 17:14:56 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5509043
-
+---
  src/pkg/unsafe/unsafe.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/unsafe/unsafe.go b/src/pkg/unsafe/unsafe.go
+index c49f54d34c..4955c2f224 100644
+--- a/src/pkg/unsafe/unsafe.go
++++ b/src/pkg/unsafe/unsafe.go
+@@ -52,7 +52,7 @@ func Unreflect(typ interface{}, addr Pointer) (ret interface{})
+ 
+ // New allocates and returns a pointer to memory for a new value of the given type.
+ // The typ is assumed to hold a pointer to a runtime type.
+-// Callers should use reflect.MakeZero instead of invoking unsafe.New directly.
++// Callers should use reflect.New or reflect.Zero instead of invoking unsafe.New directly.
+ func New(typ interface{}) Pointer
+ 
+ // NewArray allocates and returns a pointer to an array of n elements of the given type.

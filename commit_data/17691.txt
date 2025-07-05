@@ -14,7 +14,7 @@ Date:   Tue Sep 24 13:15:49 2013 +1000
     R=golang-dev
     CC=golang-dev, mikioh.mikioh, rsc
     https://golang.org/cl/13422044
-
+---
  src/pkg/net/fd_plan9.go           |  4 ++++
  src/pkg/net/fd_unix.go            |  7 +++++++
  src/pkg/net/fd_windows.go         | 19 +++++++++++++++++++
@@ -24,3 +24,198 @@ Date:   Tue Sep 24 13:15:49 2013 +1000
  src/pkg/net/protoconn_test.go     | 13 ++-----------
  src/pkg/syscall/ztypes_windows.go |  1 +
  8 files changed, 47 insertions(+), 50 deletions(-)
+
+diff --git a/src/pkg/net/fd_plan9.go b/src/pkg/net/fd_plan9.go
+index 38515f20e3..acc8294021 100644
+--- a/src/pkg/net/fd_plan9.go
++++ b/src/pkg/net/fd_plan9.go
+@@ -125,3 +125,7 @@ func setReadBuffer(fd *netFD, bytes int) error {
+ func setWriteBuffer(fd *netFD, bytes int) error {
+ 	return syscall.EPLAN9
+ }
++
++func skipRawSocketTests() (skip bool, skipmsg string, err error) {
++	return true, "skipping test on plan9", nil
++}
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index 2e62ba0ec4..9ed4f75364 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -473,3 +473,10 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ func closesocket(s int) error {
+ 	return syscall.Close(s)
+ }
++
++func skipRawSocketTests() (skip bool, skipmsg string, err error) {
++	if os.Getuid() != 0 {
++		return true, "skipping test; must be root", nil
++	}
++	return false, "", nil
++}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index d480fb4057..64d56c73e0 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -568,6 +568,25 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	return netfd, nil
+ }
+ 
++func skipRawSocketTests() (skip bool, skipmsg string, err error) {
++	// From http://msdn.microsoft.com/en-us/library/windows/desktop/ms740548.aspx:
++	// Note: To use a socket of type SOCK_RAW requires administrative privileges.
++	// Users running Winsock applications that use raw sockets must be a member of
++	// the Administrators group on the local computer, otherwise raw socket calls
++	// will fail with an error code of WSAEACCES. On Windows Vista and later, access
++	// for raw sockets is enforced at socket creation. In earlier versions of Windows,
++	// access for raw sockets is enforced during other socket operations.
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, 0)
++	if err == syscall.WSAEACCES {
++		return true, "skipping test; no access to raw socket allowed", nil
++	}
++	if err != nil {
++		return true, "", err
++	}
++	defer syscall.Closesocket(s)
++	return false, "", nil
++}
++
+ // Unimplemented functions.
+ 
+ func (fd *netFD) dup() (*os.File, error) {
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 13c977cac4..ea183f1d3e 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -59,6 +59,14 @@ func init() {
+ 	}
+ }
+ 
++func skipRawSocketTest(t *testing.T) (skip bool, skipmsg string) {
++	skip, skipmsg, err := skipRawSocketTests()
++	if err != nil {
++		t.Fatal(err)
++	}
++	return skip, skipmsg
++}
++
+ func TestResolveIPAddr(t *testing.T) {
+ 	for _, tt := range resolveIPAddrTests {
+ 		addr, err := ResolveIPAddr(tt.net, tt.litAddrOrName)
+@@ -80,17 +88,8 @@ var icmpEchoTests = []struct {
+ }
+ 
+ func TestConnICMPEcho(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	case "windows":
+-		if testing.Short() || !*testExternal {
+-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+-		}
+-	default:
+-		if os.Getuid() != 0 {
+-			t.Skip("skipping test; must be root")
+-		}
++	if skip, skipmsg := skipRawSocketTest(t); skip {
++		t.Skip(skipmsg)
+ 	}
+ 
+ 	for i, tt := range icmpEchoTests {
+@@ -157,17 +156,8 @@ func TestConnICMPEcho(t *testing.T) {
+ }
+ 
+ func TestPacketConnICMPEcho(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	case "windows":
+-		if testing.Short() || !*testExternal {
+-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+-		}
+-	default:
+-		if os.Getuid() != 0 {
+-			t.Skip("skipping test; must be root")
+-		}
++	if skip, skipmsg := skipRawSocketTest(t); skip {
++		t.Skip(skipmsg)
+ 	}
+ 
+ 	for i, tt := range icmpEchoTests {
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 31a650aa28..5660fd42f8 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -25,10 +25,6 @@ var ipv4MulticastListenerTests = []struct {
+ // port.
+ func TestIPv4MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "windows":
+-		if testing.Short() || !*testExternal {
+-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+-		}
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index e64457bd37..53e8be9c89 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -26,20 +26,9 @@ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
+ 	case "udp":
+ 		return []byte("UDP PACKETCONN TEST"), nil
+ 	case "ip":
+-		switch runtime.GOOS {
+-		case "plan9":
++		if skip, skipmsg := skipRawSocketTest(t); skip {
+ 			return nil, func() {
+-				t.Logf("skipping %q test on %q", net, runtime.GOOS)
+-			}
+-		case "windows":
+-			if testing.Short() || !*testExternal {
+-				t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+-			}
+-		default:
+-			if os.Getuid() != 0 {
+-				return nil, func() {
+-					t.Logf("skipping %q test; must be root", net)
+-				}
++				t.Logf(skipmsg)
+ 			}
+ 		}
+ 		b, err := (&icmpMessage{
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 2c268a91d2..5a8958b086 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -173,17 +173,8 @@ func TestUDPConnSpecificMethods(t *testing.T) {
+ }
+ 
+ func TestIPConnSpecificMethods(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "plan9":
+-		t.Skipf("skipping test on %q", runtime.GOOS)
+-	case "windows":
+-		if testing.Short() || !*testExternal {
+-			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
+-		}
+-	default:
+-		if os.Getuid() != 0 {
+-			t.Skipf("skipping test; must be root")
+-		}
++	if skip, skipmsg := skipRawSocketTest(t); skip {
++		t.Skip(skipmsg)
+ 	}
+ 
+ 	la, err := ResolveIPAddr("ip4", "127.0.0.1")
+diff --git a/src/pkg/syscall/ztypes_windows.go b/src/pkg/syscall/ztypes_windows.go
+index e706e89f99..bdc15ce3bc 100644
+--- a/src/pkg/syscall/ztypes_windows.go
++++ b/src/pkg/syscall/ztypes_windows.go
+@@ -22,6 +22,7 @@ const (
+ 	ERROR_OPERATION_ABORTED   Errno = 995
+ 	ERROR_IO_PENDING          Errno = 997
+ 	ERROR_NOT_FOUND           Errno = 1168
++	WSAEACCES                 Errno = 10013
+ )
+ 
+ const (

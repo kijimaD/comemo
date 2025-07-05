@@ -27,9 +27,112 @@ Date:   Mon Nov 1 13:45:21 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/udpsock.go       | 12 ++++++++++++
  src/net/udpsock_plan9.go | 19 +++++++++++++++++++
  src/net/udpsock_posix.go | 25 +++++++++++++++++++++++++
  src/net/udpsock_test.go  |  2 +-
  4 files changed, 57 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index a829789a1b..622b1f83fb 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -167,6 +167,18 @@ func (c *UDPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	return n, addr, err
+ }
+ 
++// ReadFromUDPAddrPort acts like ReadFrom but returns a netip.AddrPort.
++func (c *UDPConn) ReadFromUDPAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
++	if !c.ok() {
++		return 0, netip.AddrPort{}, syscall.EINVAL
++	}
++	n, addr, err = c.readFromAddrPort(b)
++	if err != nil {
++		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++	}
++	return n, addr, err
++}
++
+ // ReadMsgUDP reads a message from c, copying the payload into b and
+ // the associated out-of-band data into oob. It returns the number of
+ // bytes copied into b, the number of bytes copied into oob, the flags
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index dfb81a8d0c..732a3b07ee 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -29,6 +29,25 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+ 	return n, addr, nil
+ }
+ 
++func (c *UDPConn) readFromAddrPort(b []byte) (int, netip.AddrPort, error) {
++	// TODO: optimize. The equivalent code on posix is alloc-free.
++	buf := make([]byte, udpHeaderSize+len(b))
++	m, err := c.fd.Read(buf)
++	if err != nil {
++		return 0, netip.AddrPort{}, err
++	}
++	if m < udpHeaderSize {
++		return 0, netip.AddrPort{}, errors.New("short read reading UDP header")
++	}
++	buf = buf[:m]
++
++	h, buf := unmarshalUDPHeader(buf)
++	n := copy(b, buf)
++	ip, _ := netip.AddrFromSlice(h.raddr)
++	addr := netip.AddrPortFrom(ip, h.rport)
++	return n, addr, nil
++}
++
+ func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+ 	return 0, 0, 0, netip.AddrPort{}, syscall.EPLAN9
+ }
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index 718d11e60f..c93994f836 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -69,6 +69,31 @@ func (c *UDPConn) readFrom(b []byte, addr *UDPAddr) (int, *UDPAddr, error) {
+ 	return n, addr, err
+ }
+ 
++func (c *UDPConn) readFromAddrPort(b []byte) (n int, addr netip.AddrPort, err error) {
++	var ip netip.Addr
++	var port int
++	switch c.fd.family {
++	case syscall.AF_INET:
++		var from syscall.SockaddrInet4
++		n, err = c.fd.readFromInet4(b, &from)
++		if err == nil {
++			ip = netip.AddrFrom4(from.Addr)
++			port = from.Port
++		}
++	case syscall.AF_INET6:
++		var from syscall.SockaddrInet6
++		n, err = c.fd.readFromInet6(b, &from)
++		if err == nil {
++			ip = netip.AddrFrom16(from.Addr).WithZone(zoneCache.name(int(from.ZoneId)))
++			port = from.Port
++		}
++	}
++	if err == nil {
++		addr = netip.AddrPortFrom(ip, uint16(port))
++	}
++	return n, addr, err
++}
++
+ func (c *UDPConn) readMsg(b, oob []byte) (n, oobn, flags int, addr netip.AddrPort, err error) {
+ 	var sa syscall.Sockaddr
+ 	n, oobn, flags, sa, err = c.fd.readMsg(b, oob, 0)
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 371d9af511..7eef6f64af 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -533,7 +533,7 @@ func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+-		_, _, err = conn.ReadFromUDP(buf) // TODO: create and use ReadFromUDPAddrPort
++		_, _, err = conn.ReadFromUDPAddrPort(buf)
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}

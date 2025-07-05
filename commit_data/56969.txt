@@ -15,8 +15,87 @@ Date:   Thu May 25 16:35:17 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/operand.go          | 16 ++++++++++++----
  src/go/types/operand.go                             | 16 ++++++++++++----
  src/internal/types/testdata/fixedbugs/issue54424.go | 12 ++++++++++++
  3 files changed, 36 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index db9a6d8478..0469b000bb 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -290,13 +290,21 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 		return true, 0
+ 	}
+ 
+-	// T is an interface type and x implements T and T is not a type parameter.
+-	// Also handle the case where T is a pointer to an interface.
++	// T is an interface type, but not a type parameter, and V implements T.
++	// Also handle the case where T is a pointer to an interface so that we get
++	// the Checker.implements error cause.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(x.Pos(), V, T, false, cause) {
++		if check.implements(x.Pos(), V, T, false, cause) {
++			return true, 0
++		}
++		// V doesn't implement T but V may still be assignable to T if V
++		// is a type parameter; do not report an error in that case yet.
++		if Vp == nil {
+ 			return false, InvalidIfaceAssign
+ 		}
+-		return true, 0
++		if cause != nil {
++			*cause = ""
++		}
+ 	}
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 449b2ebb07..d7719fdaaf 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -277,13 +277,21 @@ func (x *operand) assignableTo(check *Checker, T Type, cause *string) (bool, Cod
+ 		return true, 0
+ 	}
+ 
+-	// T is an interface type and x implements T and T is not a type parameter.
+-	// Also handle the case where T is a pointer to an interface.
++	// T is an interface type, but not a type parameter, and V implements T.
++	// Also handle the case where T is a pointer to an interface so that we get
++	// the Checker.implements error cause.
+ 	if _, ok := Tu.(*Interface); ok && Tp == nil || isInterfacePtr(Tu) {
+-		if !check.implements(x.Pos(), V, T, false, cause) {
++		if check.implements(x.Pos(), V, T, false, cause) {
++			return true, 0
++		}
++		// V doesn't implement T but V may still be assignable to T if V
++		// is a type parameter; do not report an error in that case yet.
++		if Vp == nil {
+ 			return false, InvalidIfaceAssign
+ 		}
+-		return true, 0
++		if cause != nil {
++			*cause = ""
++		}
+ 	}
+ 
+ 	// If V is an interface, check if a missing type assertion is the problem.
+diff --git a/src/internal/types/testdata/fixedbugs/issue54424.go b/src/internal/types/testdata/fixedbugs/issue54424.go
+new file mode 100644
+index 0000000000..ebfb83db09
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue54424.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[P ~*T, T any]() {
++	var p P
++	var tp *T
++	tp = p // this assignment is valid
++	_ = tp
++}

@@ -17,7 +17,177 @@ Date:   Fri Jul 21 13:49:06 2023 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/dist/test.go     | 77 ++++++++++++++++--------------------------------
  src/cmd/dist/testjson.go | 18 +++++++++++
  2 files changed, 44 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1db76a8e9a..5ae1b650aa 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -81,34 +81,21 @@ type tester struct {
+ 	worklist []*work
+ }
+ 
++// work tracks command execution for a test.
+ type work struct {
+-	dt    *distTest
+-	cmd   *exec.Cmd // Must write stdout/stderr to work.out
+-	flush func()    // If non-nil, called after cmd.Run
+-	start chan bool
+-	out   bytes.Buffer
+-	err   error
+-	end   chan bool
++	dt    *distTest     // unique test name, etc.
++	cmd   *exec.Cmd     // must write stdout/stderr to out
++	flush func()        // if non-nil, called after cmd.Run
++	start chan bool     // a true means to start, a false means to skip
++	out   bytes.Buffer  // combined stdout/stderr from cmd
++	err   error         // work result
++	end   chan struct{} // a value means cmd ended (or was skipped)
+ }
+ 
+ // printSkip prints a skip message for all of work.
+ func (w *work) printSkip(t *tester, msg string) {
+ 	if t.json {
+-		type event struct {
+-			Time    time.Time
+-			Action  string
+-			Package string
+-			Output  string `json:",omitempty"`
+-		}
+-		enc := json.NewEncoder(&w.out)
+-		ev := event{Time: time.Now(), Package: w.dt.name, Action: "start"}
+-		enc.Encode(ev)
+-		ev.Action = "output"
+-		ev.Output = msg
+-		enc.Encode(ev)
+-		ev.Action = "skip"
+-		ev.Output = ""
+-		enc.Encode(ev)
++		synthesizeSkipEvent(json.NewEncoder(&w.out), w.dt.name, msg)
+ 		return
+ 	}
+ 	fmt.Fprintln(&w.out, msg)
+@@ -525,6 +512,18 @@ func (opts *goTest) packages() []string {
+ 	return pkgs
+ }
+ 
++// printSkip prints a skip message for all of goTest.
++func (opts *goTest) printSkip(t *tester, msg string) {
++	if t.json {
++		enc := json.NewEncoder(os.Stdout)
++		for _, pkg := range opts.packages() {
++			synthesizeSkipEvent(enc, pkg, msg)
++		}
++		return
++	}
++	fmt.Println(msg)
++}
++
+ // ranGoTest and stdMatches are state closed over by the stdlib
+ // testing func in registerStdTest below. The tests are run
+ // sequentially, so there's no need for locks.
+@@ -955,7 +954,7 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
+ 			if skipFunc != nil {
+ 				msg, skip := skipFunc(dt)
+ 				if skip {
+-					t.printSkip(test, msg)
++					test.printSkip(t, msg)
+ 					return nil
+ 				}
+ 			}
+@@ -983,30 +982,6 @@ func (t *tester) registerTest(heading string, test *goTest, opts ...registerTest
+ 	}
+ }
+ 
+-func (t *tester) printSkip(test *goTest, msg string) {
+-	if !t.json {
+-		fmt.Println(msg)
+-		return
+-	}
+-	type event struct {
+-		Time    time.Time
+-		Action  string
+-		Package string
+-		Output  string `json:",omitempty"`
+-	}
+-	out := json.NewEncoder(os.Stdout)
+-	for _, pkg := range test.packages() {
+-		ev := event{Time: time.Now(), Package: testName(pkg, test.variant), Action: "start"}
+-		out.Encode(ev)
+-		ev.Action = "output"
+-		ev.Output = msg
+-		out.Encode(ev)
+-		ev.Action = "skip"
+-		ev.Output = ""
+-		out.Encode(ev)
+-	}
+-}
+-
+ // dirCmd constructs a Cmd intended to be run in the foreground.
+ // The command will be run in dir, and Stdout and Stderr will go to os.Stdout
+ // and os.Stderr.
+@@ -1268,8 +1243,8 @@ func (t *tester) registerCgoTests(heading string) {
+ 	}
+ }
+ 
+-// run pending test commands, in parallel, emitting headers as appropriate.
+-// When finished, emit header for nextTest, which is going to run after the
++// runPending runs pending test commands, in parallel, emitting headers as appropriate.
++// When finished, it emits header for nextTest, which is going to run after the
+ // pending commands are done (and runPending returns).
+ // A test should call runPending if it wants to make sure that it is not
+ // running in parallel with earlier tests, or if it has some other reason
+@@ -1279,7 +1254,7 @@ func (t *tester) runPending(nextTest *distTest) {
+ 	t.worklist = nil
+ 	for _, w := range worklist {
+ 		w.start = make(chan bool)
+-		w.end = make(chan bool)
++		w.end = make(chan struct{})
+ 		// w.cmd must be set up to write to w.out. We can't check that, but we
+ 		// can check for easy mistakes.
+ 		if w.cmd.Stdout == nil || w.cmd.Stdout == os.Stdout || w.cmd.Stderr == nil || w.cmd.Stderr == os.Stderr {
+@@ -1305,7 +1280,7 @@ func (t *tester) runPending(nextTest *distTest) {
+ 				}
+ 			}
+ 			timelog("end", w.dt.name)
+-			w.end <- true
++			w.end <- struct{}{}
+ 		}(w)
+ 	}
+ 
+diff --git a/src/cmd/dist/testjson.go b/src/cmd/dist/testjson.go
+index 7408f95d12..62045932a9 100644
+--- a/src/cmd/dist/testjson.go
++++ b/src/cmd/dist/testjson.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"sync"
++	"time"
+ )
+ 
+ // lockedWriter serializes Write calls to an underlying Writer.
+@@ -184,3 +185,20 @@ func (v jsonValue) MarshalJSON() ([]byte, error) {
+ 	err := marshal1(v)
+ 	return buf.Bytes(), err
+ }
++
++func synthesizeSkipEvent(enc *json.Encoder, pkg, msg string) {
++	type event struct {
++		Time    time.Time
++		Action  string
++		Package string
++		Output  string `json:",omitempty"`
++	}
++	ev := event{Time: time.Now(), Package: pkg, Action: "start"}
++	enc.Encode(ev)
++	ev.Action = "output"
++	ev.Output = msg
++	enc.Encode(ev)
++	ev.Action = "skip"
++	ev.Output = ""
++	enc.Encode(ev)
++}

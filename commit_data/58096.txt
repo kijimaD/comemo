@@ -77,7 +77,7 @@ Date:   Tue May 16 13:31:11 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/495452
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/test/test.go                   | 132 +++++++++++++++++--
  src/cmd/go/internal/work/cover.go                  |  57 +++++++++
  src/cmd/go/internal/work/exec.go                   |  20 +--
@@ -85,3 +85,679 @@ Date:   Tue May 16 13:31:11 2023 -0400
  .../go/testdata/script/cover_coverpkg_partial.txt  | 141 +++++++++++++++++++++
  .../testdata/script/cover_coverpkg_with_init.txt   | 130 +++++++++++++++++++
  6 files changed, 461 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index c10dd1dfdc..165b4b4c0a 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -9,6 +9,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"fmt"
++	"internal/coverage"
+ 	"internal/platform"
+ 	"io"
+ 	"io/fs"
+@@ -848,6 +849,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	}()
+ 
+ 	var builds, runs, prints []*work.Action
++	var writeCoverMetaAct *work.Action
+ 
+ 	if cfg.BuildCoverPkg != nil {
+ 		match := make([]func(*load.Package) bool, len(cfg.BuildCoverPkg))
+@@ -859,6 +861,61 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		// patterns.
+ 		plist := load.TestPackageList(ctx, pkgOpts, pkgs)
+ 		testCoverPkgs = load.SelectCoverPackages(plist, match, "test")
++		if cfg.Experiment.CoverageRedesign && len(testCoverPkgs) > 0 {
++			// create a new singleton action that will collect up the
++			// meta-data files from all of the packages mentioned in
++			// "-coverpkg" and write them to a summary file. This new
++			// action will depend on all the build actions for the
++			// test packages, and all the run actions for these
++			// packages will depend on it. Motivating example:
++			// supposed we have a top level directory with three
++			// package subdirs, "a", "b", and "c", and
++			// from the top level, a user runs "go test -coverpkg=./... ./...".
++			// This will result in (roughly) the following action graph:
++			//
++			//	build("a")       build("b")         build("c")
++			//	    |               |                   |
++			//	link("a.test")   link("b.test")     link("c.test")
++			//	    |               |                   |
++			//	run("a.test")    run("b.test")      run("c.test")
++			//	    |               |                   |
++			//	  print          print              print
++			//
++			// When -coverpkg=<pattern> is in effect, we want to
++			// express the coverage percentage for each package as a
++			// fraction of *all* the statements that match the
++			// pattern, hence if "c" doesn't import "a", we need to
++			// pass as meta-data file for "a" (emitted during the
++			// package "a" build) to the package "c" run action, so
++			// that it can be incorporated with "c"'s regular
++			// metadata. To do this, we add edges from each compile
++			// action to a "writeCoverMeta" action, then from the
++			// writeCoverMeta action to each run action. Updated
++			// graph:
++			//
++			//	build("a")       build("b")         build("c")
++			//	    |   \       /   |               /   |
++			//	    |    v     v    |              /    |
++			//	    |   writemeta <-|-------------+     |
++			//	    |         |||   |                   |
++			//	    |         ||\   |                   |
++			//	link("a.test")/\ \  link("b.test")      link("c.test")
++			//	    |        /  \ +-|--------------+    |
++			//	    |       /    \  |               \   |
++			//	    |      v      v |                v  |
++			//	run("a.test")    run("b.test")      run("c.test")
++			//	    |               |                   |
++			//	  print          print              print
++			//
++			writeCoverMetaAct = &work.Action{
++				Mode:   "write coverage meta-data file",
++				Actor:  work.ActorFunc(work.WriteCoverMetaFilesFile),
++				Objdir: b.NewObjdir(),
++			}
++			for _, p := range testCoverPkgs {
++				p.Internal.Cover.GenMeta = true
++			}
++		}
+ 	}
+ 
+ 	// Inform the compiler that it should instrument the binary at
+@@ -915,8 +972,11 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 			// design). Do this here (as opposed to in builderTest) so
+ 			// as to handle the case where we're testing multiple
+ 			// packages and one of the earlier packages imports a
+-			// later package.
++			// later package. Note that if -coverpkg is in effect
++			// p.Internal.Cover.GenMeta will wind up being set for
++			// all matching packages.
+ 			if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 &&
++				cfg.BuildCoverPkg == nil &&
+ 				cfg.Experiment.CoverageRedesign {
+ 				p.Internal.Cover.GenMeta = true
+ 			}
+@@ -925,7 +985,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Prepare build + run + print actions for all packages being tested.
+ 	for _, p := range pkgs {
+-		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p])
++		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+ 		if err != nil {
+ 			str := err.Error()
+ 			str = strings.TrimPrefix(str, "\n")
+@@ -987,13 +1047,12 @@ var windowsBadWords = []string{
+ 	"update",
+ }
+ 
+-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool) (buildAction, runAction, printAction *work.Action, err error) {
++func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, err error) {
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+-			if !p.Internal.Cover.GenMeta {
+-				panic("internal error: Cover.GenMeta should already be set")
++			if p.Internal.Cover.GenMeta {
++				p.Internal.Cover.Mode = cfg.BuildCoverMode
+ 			}
+-			p.Internal.Cover.Mode = cfg.BuildCoverMode
+ 		}
+ 		build := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
+ 		run := &work.Action{
+@@ -1003,6 +1062,23 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			Package:    p,
+ 			IgnoreFail: true, // run (prepare output) even if build failed
+ 		}
++		if writeCoverMetaAct != nil {
++			// There is no real "run" for this package (since there
++			// are no tests), but if coverage is turned on, we can
++			// collect coverage data for the code in the package by
++			// asking cmd/cover for a static meta-data file as part of
++			// the package build. This static meta-data file is then
++			// consumed by a pseudo-action (writeCoverMetaAct) that
++			// adds it to a summary file, then this summary file is
++			// consumed by the various "run test" actions. Below we
++			// add a dependence edge between the build action and the
++			// "write meta files" pseudo-action, and then another dep
++			// from writeCoverMetaAct to the run action. See the
++			// comment in runTest() at the definition of
++			// writeCoverMetaAct for more details.
++			run.Deps = append(run.Deps, writeCoverMetaAct)
++			writeCoverMetaAct.Deps = append(writeCoverMetaAct.Deps, build)
++		}
+ 		addTestVet(b, p, run, nil)
+ 		print := &work.Action{
+ 			Mode:       "test print",
+@@ -1140,22 +1216,42 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			runAction = installAction // make sure runAction != nil even if not running test
+ 		}
+ 	}
++
+ 	var vetRunAction *work.Action
+ 	if testC {
+ 		printAction = &work.Action{Mode: "test print (nop)", Package: p, Deps: []*work.Action{runAction}} // nop
+ 		vetRunAction = printAction
+ 	} else {
+ 		// run test
+-		r := new(runTestActor)
++		rta := &runTestActor{
++			writeCoverMetaAct: writeCoverMetaAct,
++		}
+ 		runAction = &work.Action{
+ 			Mode:       "test run",
+-			Actor:      r,
++			Actor:      rta,
+ 			Deps:       []*work.Action{buildAction},
+ 			Package:    p,
+ 			IgnoreFail: true, // run (prepare output) even if build failed
+-			TryCache:   r.c.tryCache,
+-			Objdir:     testDir,
++			TryCache:   rta.c.tryCache,
++		}
++		if writeCoverMetaAct != nil {
++			// If writeCoverMetaAct != nil, this indicates that our
++			// "go test -coverpkg" run actions will need to read the
++			// meta-files summary file written by writeCoverMetaAct,
++			// so add a dependence edge from writeCoverMetaAct to the
++			// run action.
++			runAction.Deps = append(runAction.Deps, writeCoverMetaAct)
++			if !p.IsTestOnly() {
++				// Package p is not test only, meaning that the build
++				// action for p may generate a static meta-data file.
++				// Add a dependence edge from p to writeCoverMetaAct,
++				// which needs to know the name of that meta-data
++				// file.
++				compileAction := b.CompileAction(work.ModeBuild, work.ModeBuild, p)
++				writeCoverMetaAct.Deps = append(writeCoverMetaAct.Deps, compileAction)
++			}
+ 		}
++		runAction.Objdir = testDir
+ 		vetRunAction = runAction
+ 		cleanAction = &work.Action{
+ 			Mode:       "test clean",
+@@ -1217,6 +1313,12 @@ var tooManyFuzzTestsToFuzz = []byte("\ntesting: warning: -fuzz matches more than
+ type runTestActor struct {
+ 	c runCache
+ 
++	// writeCoverMetaAct points to the pseudo-action for collecting
++	// coverage meta-data files for selected -cover test runs. See the
++	// comment in runTest at the definition of writeCoverMetaAct for
++	// more details.
++	writeCoverMetaAct *work.Action
++
+ 	// sequencing of json start messages, to preserve test order
+ 	prev <-chan struct{} // wait to start until prev is closed
+ 	next chan<- struct{} // close next once the next test can start.
+@@ -1391,6 +1493,16 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 			base.Fatalf("failed to create temporary dir: %v", err)
+ 		}
+ 		coverdirArg = append(coverdirArg, "-test.gocoverdir="+gcd)
++		if r.writeCoverMetaAct != nil {
++			// Copy the meta-files file over into the test's coverdir
++			// directory so that the coverage runtime support will be
++			// able to find it.
++			src := r.writeCoverMetaAct.Objdir + coverage.MetaFilesFileName
++			dst := filepath.Join(gcd, coverage.MetaFilesFileName)
++			if err := b.CopyFile(dst, src, 0666, false); err != nil {
++				return err
++			}
++		}
+ 		// Even though we are passing the -test.gocoverdir option to
+ 		// the test binary, also set GOCOVERDIR as well. This is
+ 		// intended to help with tests that run "go build" to build
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index 42c0e18fd7..9e87995611 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -10,7 +10,10 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
++	"context"
++	"encoding/json"
+ 	"fmt"
++	"internal/coverage"
+ 	"internal/coverage/covcmd"
+ 	"io"
+ 	"os"
+@@ -93,3 +96,57 @@ func WriteCoverageProfile(b *Builder, runAct *Action, mf, outf string, w io.Writ
+ 	_, werr := w.Write(output)
+ 	return werr
+ }
++
++// WriteCoverMetaFilesFile writes out a summary file ("meta-files
++// file") as part of the action function for the "writeCoverMeta"
++// pseudo action employed during "go test -coverpkg" runs where there
++// are multiple tests and multiple packages covered. It builds up a
++// table mapping package import path to meta-data file fragment and
++// writes it out to a file where it can be read by the various test
++// run actions. Note that this function has to be called A) after the
++// build actions are complete for all packages being tested, and B)
++// before any of the "run test" actions for those packages happen.
++// This requirement is enforced by adding making this action ("a")
++// dependent on all test package build actions, and making all test
++// run actions dependent on this action.
++func WriteCoverMetaFilesFile(b *Builder, ctx context.Context, a *Action) error {
++	// Build the metafilecollection object.
++	var collection coverage.MetaFileCollection
++	for i := range a.Deps {
++		dep := a.Deps[i]
++		if dep.Mode != "build" {
++			panic("unexpected mode " + dep.Mode)
++		}
++		metaFilesFile := dep.Objdir + covcmd.MetaFileForPackage(dep.Package.ImportPath)
++		// Check to make sure the meta-data file fragment exists
++		//  and has content (may be empty if package has no functions).
++		if fi, err := os.Stat(metaFilesFile); err != nil {
++			continue
++		} else if fi.Size() == 0 {
++			continue
++		}
++		collection.ImportPaths = append(collection.ImportPaths, dep.Package.ImportPath)
++		collection.MetaFileFragments = append(collection.MetaFileFragments, metaFilesFile)
++	}
++
++	// Serialize it.
++	data, err := json.Marshal(collection)
++	if err != nil {
++		return fmt.Errorf("marshal MetaFileCollection: %v", err)
++	}
++	data = append(data, '\n') // makes -x output more readable
++
++	// Create the directory for this action's objdir and
++	// then write out the serialized collection
++	// to a file in the directory.
++	if err := b.Mkdir(a.Objdir); err != nil {
++		return err
++	}
++	mfpath := a.Objdir + coverage.MetaFilesFileName
++	if err := b.writeFile(mfpath, data); err != nil {
++		return fmt.Errorf("writing metafiles file: %v", err)
++	}
++
++	// We're done.
++	return nil
++}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e6b11274fc..8560f74506 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -619,7 +619,7 @@ OverlayLoop:
+ 				from := mkAbs(p.Dir, fs[i])
+ 				opath, _ := fsys.OverlayPath(from)
+ 				dst := objdir + filepath.Base(fs[i])
+-				if err := b.copyFile(dst, opath, 0666, false); err != nil {
++				if err := b.CopyFile(dst, opath, 0666, false); err != nil {
+ 					return err
+ 				}
+ 				a.nonGoOverlay[from] = dst
+@@ -894,17 +894,17 @@ OverlayLoop:
+ 		switch {
+ 		case strings.HasSuffix(name, _goos_goarch):
+ 			targ := file[:len(name)-len(_goos_goarch)] + "_GOOS_GOARCH." + ext
+-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
++			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+ 				return err
+ 			}
+ 		case strings.HasSuffix(name, _goarch):
+ 			targ := file[:len(name)-len(_goarch)] + "_GOARCH." + ext
+-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
++			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+ 				return err
+ 			}
+ 		case strings.HasSuffix(name, _goos):
+ 			targ := file[:len(name)-len(_goos)] + "_GOOS." + ext
+-			if err := b.copyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
++			if err := b.CopyFile(objdir+targ, filepath.Join(p.Dir, file), 0666, true); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -1029,7 +1029,7 @@ func (b *Builder) loadCachedObjdirFile(a *Action, c cache.Cache, name string) er
+ 	if err != nil {
+ 		return err
+ 	}
+-	return b.copyFile(a.Objdir+name, cached, 0666, true)
++	return b.CopyFile(a.Objdir+name, cached, 0666, true)
+ }
+ 
+ func (b *Builder) cacheCgoHdr(a *Action) {
+@@ -1884,7 +1884,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool)
+ 
+ 	// If the source is in the build cache, we need to copy it.
+ 	if strings.HasPrefix(src, cache.DefaultDir()) {
+-		return b.copyFile(dst, src, perm, force)
++		return b.CopyFile(dst, src, perm, force)
+ 	}
+ 
+ 	// On Windows, always copy the file, so that we respect the NTFS
+@@ -1892,7 +1892,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool)
+ 	// What matters here is not cfg.Goos (the system we are building
+ 	// for) but runtime.GOOS (the system we are building on).
+ 	if runtime.GOOS == "windows" {
+-		return b.copyFile(dst, src, perm, force)
++		return b.CopyFile(dst, src, perm, force)
+ 	}
+ 
+ 	// If the destination directory has the group sticky bit set,
+@@ -1900,7 +1900,7 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool)
+ 	// https://golang.org/issue/18878
+ 	if fi, err := os.Stat(filepath.Dir(dst)); err == nil {
+ 		if fi.IsDir() && (fi.Mode()&fs.ModeSetgid) != 0 {
+-			return b.copyFile(dst, src, perm, force)
++			return b.CopyFile(dst, src, perm, force)
+ 		}
+ 	}
+ 
+@@ -1930,11 +1930,11 @@ func (b *Builder) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool)
+ 		}
+ 	}
+ 
+-	return b.copyFile(dst, src, perm, force)
++	return b.CopyFile(dst, src, perm, force)
+ }
+ 
+ // copyFile is like 'cp src dst'.
+-func (b *Builder) copyFile(dst, src string, perm fs.FileMode, force bool) error {
++func (b *Builder) CopyFile(dst, src string, perm fs.FileMode, force bool) error {
+ 	if cfg.BuildN || cfg.BuildX {
+ 		b.Showcmd("", "cp %s %s", src, dst)
+ 		if cfg.BuildN {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 8ca85be88d..0e9498988a 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -299,7 +299,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 	readAndRemoveCgoFlags := func(archive string) (string, error) {
+ 		newID++
+ 		newArchive := root.Objdir + fmt.Sprintf("_pkg%d_.a", newID)
+-		if err := b.copyFile(newArchive, archive, 0666, false); err != nil {
++		if err := b.CopyFile(newArchive, archive, 0666, false); err != nil {
+ 			return "", err
+ 		}
+ 		if cfg.BuildN || cfg.BuildX {
+diff --git a/src/cmd/go/testdata/script/cover_coverpkg_partial.txt b/src/cmd/go/testdata/script/cover_coverpkg_partial.txt
+new file mode 100644
+index 0000000000..524024101a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_coverpkg_partial.txt
+@@ -0,0 +1,141 @@
++
++# Testcase related to #58770 and #24570. This is intended to ensure
++# that coverage collection works in situations where we're testing a
++# collection of packages and supplying a -coverpkg pattern that
++# matches some but not all of the collection. In addition, some of the
++# packages have Go code but no tests, and other packages have tests
++# but no Go code. Package breakdown:
++#
++# Package         Code?           Tests?          Stmts           Imports
++# a               yes             yes             2               f
++# b               yes             yes             1               a, d
++# c               yes             yes             3               ---
++# d               yes             no              1               ---
++# e               no              yes             0               a, b
++# f               yes             no              3               ---
++#
++
++[short] skip
++[!GOEXPERIMENT:coverageredesign] skip
++
++# Test all packages with -coverpkg=./...
++go test -coverprofile=cov.p -coverpkg=./... ./...
++stdout '^ok\s+M/a\s+\S+\s+coverage: 50.0% of statements in ./...'
++stdout '^ok\s+M/b\s+\S+\s+coverage: 60.0% of statements in ./...'
++stdout '^ok\s+M/c\s+\S+\s+coverage: 30.0% of statements in ./...'
++stdout '^\s*M/d\s+coverage: 0.0% of statements'
++stdout '^\s*M/f\s+coverage: 0.0% of statements'
++
++# Test just the test-only package ./e but with -coverpkg=./...
++# Total number of statements should be 7 (e.g. a/b/d/f but not c)
++# and covered percent should be 6/7 (we hit everything in the
++# coverpkg pattern except the func in "d").
++go test -coverprofile=bar.p -coverpkg=./... ./e
++stdout '^ok\s+M/e\s+\S+\s+coverage: 85.7% of statements in ./...'
++
++# Test b and f with -coverpkg set to a/d/f. Total of 6 statements
++# in a/d/f, again we hit everything except DFunc.
++go test -coverprofile=baz.p -coverpkg=./a,./d,./f ./b ./f
++stdout '^ok\s+M/b\s+\S+\s+coverage: 83.3% of statements in ./a, ./d, ./f'
++stdout '^\s*M/f\s+coverage: 0.0% of statements'
++
++-- a/a.go --
++package a
++
++import "M/f"
++
++var G int
++
++func AFunc() int {
++	G = 1
++	return f.Id()
++}
++-- a/a_test.go --
++package a
++
++import "testing"
++
++func TestA(t *testing.T) {
++	if AFunc() != 42 {
++		t.Fatalf("bad!")
++	}
++}
++-- b/b.go --
++package b
++
++import (
++	"M/a"
++	"M/d"
++)
++
++func BFunc() int {
++	return -d.FortyTwo + a.AFunc()
++}
++-- b/b_test.go --
++package b
++
++import "testing"
++
++func TestB(t *testing.T) {
++	if BFunc() == 1010101 {
++		t.Fatalf("bad!")
++	}
++}
++-- c/c.go --
++package c
++
++var G int
++
++func CFunc(x, y int) int {
++	G += x
++	G -= y
++	return x + y
++}
++-- c/c_test.go --
++package c
++
++import "testing"
++
++func TestC(t *testing.T) {
++	if CFunc(10, 10) == 1010101 {
++		t.Fatalf("bad!")
++	}
++}
++-- d/d.go --
++package d
++
++const FortyTwo = 42
++
++func DFunc() int {
++  return FortyTwo
++}
++
++-- e/e_test.go --
++package e
++
++import (
++	"M/a"
++	"M/b"
++	"testing"
++)
++
++func TestBlah(t *testing.T) {
++	if b.BFunc() == 1010101 {
++		t.Fatalf("bad")
++	}
++	a.AFunc()
++}
++-- f/f.go --
++package f
++
++var F int
++
++func Id() int {
++	F += 9
++	F *= 2
++	return 42
++}
++-- go.mod --
++module M
++
++go 1.21
+diff --git a/src/cmd/go/testdata/script/cover_coverpkg_with_init.txt b/src/cmd/go/testdata/script/cover_coverpkg_with_init.txt
+new file mode 100644
+index 0000000000..7a89102547
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_coverpkg_with_init.txt
+@@ -0,0 +1,130 @@
++
++# Testcase inspired by issue #58770, intended to verify that we're
++# doing the right thing when running "go test -coverpkg=./... ./..."
++# on a collection of packages where some have init functions and some
++# do not, some have tests and some do not.
++
++[short] skip
++[!GOEXPERIMENT:coverageredesign] skip
++
++# Verify correct statements percentages. We have a total of 10
++# statements in the packages matched by "./..."; package "a" (for
++# example) has two statements so we expect 20.0% stmts covered. Go
++# 1.19 would print 50% here (due to force importing of all ./...
++# packages); prior to the fix for #58770 Go 1.20 would show 100%
++# coverage. For packages "x" and "f" (which have no tests), check for
++# 0% stmts covered (as opposed to "no test files").
++
++go test -count=1 -coverprofile=cov.dat -coverpkg=./... ./...
++stdout '^\s*\?\s+M/n\s+\[no test files\]'
++stdout '^\s*M/x\s+coverage: 0.0% of statements'
++stdout '^\s*M/f\s+coverage: 0.0% of statements'
++stdout '^ok\s+M/a\s+\S+\s+coverage: 30.0% of statements in ./...'
++stdout '^ok\s+M/b\s+\S+\s+coverage: 20.0% of statements in ./...'
++stdout '^ok\s+M/main\s+\S+\s+coverage: 80.0% of statements in ./...'
++
++# Check for selected elements in the collected coverprofile as well.
++
++go tool cover -func=cov.dat
++stdout '^M/x/x.go:3:\s+XFunc\s+0.0%'
++stdout '^M/b/b.go:7:\s+BFunc\s+100.0%'
++stdout '^total:\s+\(statements\)\s+80.0%'
++
++-- go.mod --
++module M
++
++go 1.21
++-- a/a.go --
++package a
++
++import "M/f"
++
++func init() {
++	println("package 'a' init: launch the missiles!")
++}
++
++func AFunc() int {
++	return f.Id()
++}
++-- a/a_test.go --
++package a
++
++import "testing"
++
++func TestA(t *testing.T) {
++	if AFunc() != 42 {
++		t.Fatalf("bad!")
++	}
++}
++-- b/b.go --
++package b
++
++func init() {
++	println("package 'b' init: release the kraken")
++}
++
++func BFunc() int {
++	return -42
++}
++-- b/b_test.go --
++package b
++
++import "testing"
++
++func TestB(t *testing.T) {
++	if BFunc() != -42 {
++		t.Fatalf("bad!")
++	}
++}
++-- f/f.go --
++package f
++
++func Id() int {
++     return 42
++}
++-- main/main.go --
++package main
++
++import (
++	"M/a"
++	"M/b"
++)
++
++func MFunc() string {
++	return "42"
++}
++
++func M2Func() int {
++	return a.AFunc() + b.BFunc()
++}
++
++func init() {
++	println("package 'main' init")
++}
++
++func main() {
++	println(a.AFunc() + b.BFunc())
++}
++-- main/main_test.go --
++package main
++
++import "testing"
++
++func TestMain(t *testing.T) {
++	if MFunc() != "42" {
++		t.Fatalf("bad!")
++	}
++	if M2Func() != 0 {
++		t.Fatalf("also bad!")
++	}
++}
++-- n/n.go --
++package n
++
++type N int
++-- x/x.go --
++package x
++
++func XFunc() int {
++	return 2 * 2
++}

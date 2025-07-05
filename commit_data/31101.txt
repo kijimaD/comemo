@@ -9,7 +9,7 @@ Date:   Mon Oct 31 16:20:42 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go       | 18 +++++++-----------
  src/cmd/compile/internal/gc/go.go        |  2 --
  src/cmd/compile/internal/gc/main.go      |  1 -
@@ -18,3 +18,209 @@ Date:   Mon Oct 31 16:20:42 2016 -0700
  src/cmd/compile/internal/gc/syntax.go    |  2 +-
  src/cmd/compile/internal/gc/typecheck.go |  7 +++++--
  7 files changed, 17 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 6cf970dbad..2a678dc2c0 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -288,7 +288,7 @@ func variter(vl []*Node, t *Node, el []*Node) []*Node {
+ 
+ // declare constants from grammar
+ // new_name_list [[type] = expr_list]
+-func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
++func constiter(vl []*Node, t *Node, cl []*Node, iotaVal int64) []*Node {
+ 	var lno src.XPos // default is to leave line number alone in listtreecopy
+ 	if len(cl) == 0 {
+ 		if t != nil {
+@@ -301,31 +301,29 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
+ 		lastconst = cl
+ 		lasttype = t
+ 	}
+-	clcopy := listtreecopy(cl, lno)
+ 
+ 	var vv []*Node
+-	for _, v := range vl {
+-		if len(clcopy) == 0 {
++	for i, v := range vl {
++		if i >= len(cl) {
+ 			yyerror("missing value in const declaration")
+ 			break
+ 		}
+ 
+-		c := clcopy[0]
+-		clcopy = clcopy[1:]
++		c := treecopy(cl[i], lno)
+ 
+ 		v.Op = OLITERAL
+ 		declare(v, dclcontext)
+ 
+ 		v.Name.Param.Ntype = t
+ 		v.Name.Defn = c
++		v.SetIota(iotaVal)
+ 
+ 		vv = append(vv, nod(ODCLCONST, v, nil))
+ 	}
+ 
+-	if len(clcopy) != 0 {
++	if len(cl) > len(vl) {
+ 		yyerror("extra expression in const declaration")
+ 	}
+-	iota_ += 1
+ 	return vv
+ }
+ 
+@@ -401,9 +399,7 @@ func oldname(s *Sym) *Node {
+ 		// Maybe a top-level declaration will come along later to
+ 		// define s. resolve will check s.Def again once all input
+ 		// source has been processed.
+-		n = newnoname(s)
+-		n.SetIota(iota_) // save current iota value in const declarations
+-		return n
++		return newnoname(s)
+ 	}
+ 
+ 	if Curfn != nil && n.Op == ONAME && n.Name.Funcdepth > 0 && n.Name.Funcdepth != funcdepth {
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 07c4d03b8b..a460b415d8 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -223,8 +223,6 @@ var dclcontext Class // PEXTERN/PAUTO
+ 
+ var statuniqgen int // name generator for static temps
+ 
+-var iota_ int64
+-
+ var lastconst []*Node
+ 
+ var lasttype *Node
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a9f041c4c3..d1dbe45c71 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -679,7 +679,6 @@ func findpkg(name string) (file string, ok bool) {
+ // but does not make them visible to user code.
+ func loadsys() {
+ 	block = 1
+-	iota_ = -1000000
+ 
+ 	importpkg = Runtimepkg
+ 	typecheckok = true
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e4378544f0..2de5b18f7c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -85,7 +85,6 @@ type linkname struct {
+ 
+ func (p *noder) node() {
+ 	block = 1
+-	iota_ = -1000000
+ 	imported_unsafe = false
+ 
+ 	p.lineno(p.file.PkgName)
+@@ -134,22 +133,18 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 		case *syntax.ConstDecl:
+ 			// Tricky to handle golang.org/issue/15550 correctly.
+ 
+-			prevIota := iota_
+-
+ 			if decl.Group == nil || decl.Group != lastConstGroup {
+ 				iotaVal = 0
+ 				lastConstRHS = nil
+ 			}
+ 
+-			iota_ = iotaVal
+ 			lastconst = lastConstRHS
+ 
+-			l = append(l, p.constDecl(decl)...)
++			l = append(l, p.constDecl(decl, iotaVal)...)
+ 
+ 			lastConstRHS = lastconst
+ 			lastconst = nil
+ 
+-			iota_ = prevIota
+ 			iotaVal++
+ 
+ 			lastConstGroup = decl.Group
+@@ -227,7 +222,7 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	return variter(names, typ, exprs)
+ }
+ 
+-func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
++func (p *noder) constDecl(decl *syntax.ConstDecl, iotaVal int64) []*Node {
+ 	names := p.declNames(decl.NameList)
+ 	typ := p.typeExprOrNil(decl.Type)
+ 
+@@ -236,7 +231,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl) []*Node {
+ 		exprs = p.exprList(decl.Values)
+ 	}
+ 
+-	return constiter(names, typ, exprs)
++	return constiter(names, typ, exprs, iotaVal)
+ }
+ 
+ func (p *noder) typeDecl(decl *syntax.TypeDecl) *Node {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 6a5e1a478e..c7baea9837 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -476,28 +476,13 @@ func treecopy(n *Node, pos src.XPos) *Node {
+ 		}
+ 		return &m
+ 
+-	case ONONAME:
+-		if n.Sym == lookup("iota") {
+-			// Not sure yet whether this is the real iota,
+-			// but make a copy of the Node* just in case,
+-			// so that all the copies of this const definition
+-			// don't have the same iota value.
+-			m := *n
+-			if pos.IsKnown() {
+-				m.Pos = pos
+-			}
+-			m.SetIota(iota_)
+-			return &m
+-		}
+-		return n
+-
+ 	case OPACK:
+ 		// OPACK nodes are never valid in const value declarations,
+ 		// but allow them like any other declared symbol to avoid
+ 		// crashing (golang.org/issue/11361).
+ 		fallthrough
+ 
+-	case ONAME, OLITERAL, OTYPE:
++	case ONAME, ONONAME, OLITERAL, OTYPE:
+ 		return n
+ 
+ 	}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 923055c962..b0cf77d479 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -43,7 +43,7 @@ type Node struct {
+ 	// - ODOT, ODOTPTR, and OINDREGSP use it to indicate offset relative to their base address.
+ 	// - OSTRUCTKEY uses it to store the named field's offset.
+ 	// - OXCASE and OXFALL use it to validate the use of fallthrough.
+-	// - ONONAME uses it to store the current value of iota, see Node.Iota
++	// - Named OLITERALs use it to to store their ambient iota value.
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 1467189458..51fc7fd442 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -36,8 +36,11 @@ func resolve(n *Node) *Node {
+ 		if r != nil {
+ 			if r.Op != OIOTA {
+ 				n = r
+-			} else if n.Iota() >= 0 {
+-				n = nodintconst(n.Iota())
++			} else if len(typecheckdefstack) > 0 {
++				x := typecheckdefstack[len(typecheckdefstack)-1]
++				if x.Op == OLITERAL {
++					n = nodintconst(x.Iota())
++				}
+ 			}
+ 		}
+ 	}

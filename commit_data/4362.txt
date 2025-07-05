@@ -6,6 +6,24 @@ Date:   Wed Dec 9 14:39:41 2009 -0800
     
     R=r
     https://golang.org/cl/171046
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index f15f4d2da5..edbaf73025 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -409,10 +409,10 @@ The reviewer approves the change by replying with a mail that says
+ <code>LGTM</code>: looks good to me.
+ </p>
+ 
+-<h3>Submit the change</h3>
++<h3>Submit the change after the review</h3>
+ 
+ <p>
+-Once the code has been <code>LGTM</code>'ed, it is time to submit
++After the code has been <code>LGTM</code>'ed, it is time to submit
+ it to the Mercurial repository.
+ If you are a committer, you can run:
+ </p>

@@ -16,6 +16,38 @@ Date:   Sat Nov 10 06:58:36 2018 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go | 13 +------------
  1 file changed, 1 insertion(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 509579d21f..9bfdaffa62 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -493,7 +493,7 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+-	case ODOT:
++	case ODOT, ODOTPTR:
+ 		usefield(n)
+ 		n.Left = walkexpr(n.Left, init)
+ 
+@@ -508,17 +508,6 @@ opswitch:
+ 			n.List.Set1(itabname(n.Type, n.Left.Type))
+ 		}
+ 
+-	case ODOTPTR:
+-		usefield(n)
+-		if n.Op == ODOTPTR && n.Left.Type.Elem().Width == 0 {
+-			// No actual copy will be generated, so emit an explicit nil check.
+-			n.Left = cheapexpr(n.Left, init)
+-
+-			checknil(n.Left, init)
+-		}
+-
+-		n.Left = walkexpr(n.Left, init)
+-
+ 	case OLEN, OCAP:
+ 		if isRuneCount(n) {
+ 			// Replace len([]rune(string)) with runtime.countrunes(string).

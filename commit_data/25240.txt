@@ -11,9 +11,71 @@ Date:   Mon Oct 12 08:56:05 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go | 2 +-
  src/cmd/go/build.go   | 4 ++++
  src/cmd/go/go_test.go | 9 +++++++++
  src/cmd/go/help.go    | 2 +-
  4 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d11a5a00f7..228ad19de4 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -886,7 +886,7 @@ DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
+ so that you can add DIR/bin to your PATH to get at the
+ installed commands.  If the GOBIN environment variable is
+ set, commands are installed to the directory it names instead
+-of DIR/bin.
++of DIR/bin. GOBIN must be an absolute path.
+ 
+ Here's an example directory layout:
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0166e9126b..677e34c2b1 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -501,6 +501,10 @@ func libname(args []string) string {
+ }
+ 
+ func runInstall(cmd *Command, args []string) {
++	if gobin != "" && !filepath.IsAbs(gobin) {
++		fatalf("cannot install, GOBIN must be an absolute path")
++	}
++
+ 	raceInit()
+ 	buildModeInit()
+ 	pkgs := pkgsFilter(packagesForBuild(args))
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index ab78fe9a88..a4c91c960a 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1145,6 +1145,15 @@ func TestInstallFailsWithNoBuildableFiles(t *testing.T) {
+ 	tg.grepStderr("no buildable Go source files", "go install cgotest did not report 'no buildable Go Source files'")
+ }
+ 
++func TestRelativeGOBINFail(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.tempFile("triv.go", `package main; func main() {}`)
++	tg.setenv("GOBIN", ".")
++	tg.runFail("install")
++	tg.grepStderr("cannot install, GOBIN must be an absolute path", "go install must fail if $GOBIN is a relative path")
++}
++
+ // Test that without $GOBIN set, binaries get installed
+ // into the GOPATH bin directory.
+ func TestInstallIntoGOPATH(t *testing.T) {
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 034dfc3cac..244451d3eb 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -307,7 +307,7 @@ DIR/bin/quux, not DIR/bin/foo/quux.  The "foo/" prefix is stripped
+ so that you can add DIR/bin to your PATH to get at the
+ installed commands.  If the GOBIN environment variable is
+ set, commands are installed to the directory it names instead
+-of DIR/bin.
++of DIR/bin. GOBIN must be an absolute path.
+ 
+ Here's an example directory layout:
+ 

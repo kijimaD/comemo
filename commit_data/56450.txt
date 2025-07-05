@@ -12,6 +12,20 @@ Date:   Tue May 9 13:02:26 2023 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 05734c5e98..66c1bfc41a 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2612,7 +2612,7 @@ func (b *Builder) ccompile(a *Action, p *load.Package, outfile string, flags []s
+ 				from = m.Dir
+ 				toPath = m.Path
+ 				if m.Version != "" {
+-					m.Path += "@" + m.Version
++					toPath += "@" + m.Version
+ 				}
+ 			}
+ 			// -fdebug-prefix-map (or -ffile-prefix-map) requires an absolute "to"

@@ -15,7 +15,7 @@ Date:   Thu Sep 22 20:45:53 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go     | 24 ++++++-----------
  src/cmd/compile/internal/types2/expr.go            |  2 +-
  src/go/types/conversions.go                        | 24 ++++++-----------
@@ -25,3 +25,330 @@ Date:   Thu Sep 22 20:45:53 2022 -0700
  .../types/testdata/fixedbugs/issue49296.go         |  6 ++---
  src/internal/types/testdata/spec/conversions.go    | 30 +++++++++++-----------
  8 files changed, 40 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index eb12b63262..3b6a804335 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -57,7 +57,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 				return true
+ 			}
+ 			if !constConvertibleTo(u, nil) {
+-				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
++				cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
+ 				return false
+ 			}
+ 			return true
+@@ -72,19 +72,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	if !ok {
+ 		var err error_
+ 		err.code = _InvalidConversion
+-		if check.conf.CompilerErrorMessages {
+-			if cause != "" {
+-				// Add colon at end of line if we have a following cause.
+-				err.errorf(x, "cannot convert %s to type %s:", x, T)
+-				err.errorf(nopos, cause)
+-			} else {
+-				err.errorf(x, "cannot convert %s to type %s", x, T)
+-			}
++		if cause != "" {
++			err.errorf(x, "cannot convert %s to type %s:", x, T)
++			err.errorf(nopos, cause)
+ 		} else {
+-			err.errorf(x, "cannot convert %s to %s", x, T)
+-			if cause != "" {
+-				err.errorf(nopos, cause)
+-			}
++			err.errorf(x, "cannot convert %s to type %s", x, T)
+ 		}
+ 		check.report(&err)
+ 		x.mode = invalid
+@@ -250,7 +242,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					return false // no specific types
+ 				}
+ 				if !x.convertibleTo(check, T.typ, cause) {
+-					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
++					errorf("cannot convert %s (in %s) to type %s (in %s)", V.typ, Vp, T.typ, Tp)
+ 					return false
+ 				}
+ 				return true
+@@ -264,7 +256,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 			}
+ 			x.typ = V.typ
+ 			if !x.convertibleTo(check, T, cause) {
+-				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
++				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, T)
+ 				return false
+ 			}
+ 			return true
+@@ -275,7 +267,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				return false // no specific types
+ 			}
+ 			if !x.convertibleTo(check, T.typ, cause) {
+-				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
++				errorf("cannot convert %s to type %s (in %s)", x.typ, T.typ, Tp)
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index d3e54d051b..25c822dba8 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -476,7 +476,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
+ }
+ 
+ func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
+-	msg := "cannot convert %s to %s"
++	msg := "cannot convert %s to type %s"
+ 	switch code {
+ 	case _TruncatedFloat:
+ 		msg = "%s truncated to %s"
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index edb983ddb9..43842a4132 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -58,7 +58,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 				return true
+ 			}
+ 			if !constConvertibleTo(u, nil) {
+-				cause = check.sprintf("cannot convert %s to %s (in %s)", x, u, T)
++				cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
+ 				return false
+ 			}
+ 			return true
+@@ -73,19 +73,11 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	if !ok {
+ 		var err error_
+ 		err.code = _InvalidConversion
+-		if compilerErrorMessages {
+-			if cause != "" {
+-				// Add colon at end of line if we have a following cause.
+-				err.errorf(x.Pos(), "cannot convert %s to type %s:", x, T)
+-				err.errorf(token.NoPos, cause)
+-			} else {
+-				err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
+-			}
++		if cause != "" {
++			err.errorf(x.Pos(), "cannot convert %s to type %s:", x, T)
++			err.errorf(token.NoPos, cause)
+ 		} else {
+-			err.errorf(x.Pos(), "cannot convert %s to %s", x, T)
+-			if cause != "" {
+-				err.errorf(token.NoPos, cause)
+-			}
++			err.errorf(x.Pos(), "cannot convert %s to type %s", x, T)
+ 		}
+ 		check.report(&err)
+ 		x.mode = invalid
+@@ -249,7 +241,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					return false // no specific types
+ 				}
+ 				if !x.convertibleTo(check, T.typ, cause) {
+-					errorf("cannot convert %s (in %s) to %s (in %s)", V.typ, Vp, T.typ, Tp)
++					errorf("cannot convert %s (in %s) to type %s (in %s)", V.typ, Vp, T.typ, Tp)
+ 					return false
+ 				}
+ 				return true
+@@ -263,7 +255,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 			}
+ 			x.typ = V.typ
+ 			if !x.convertibleTo(check, T, cause) {
+-				errorf("cannot convert %s (in %s) to %s", V.typ, Vp, T)
++				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, T)
+ 				return false
+ 			}
+ 			return true
+@@ -274,7 +266,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				return false // no specific types
+ 			}
+ 			if !x.convertibleTo(check, T.typ, cause) {
+-				errorf("cannot convert %s to %s (in %s)", x.typ, T.typ, Tp)
++				errorf("cannot convert %s to type %s (in %s)", x.typ, T.typ, Tp)
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index be03f2f423..cc1db30fef 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -463,7 +463,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
+ }
+ 
+ func (check *Checker) invalidConversion(code errorCode, x *operand, target Type) {
+-	msg := "cannot convert %s to %s"
++	msg := "cannot convert %s to type %s"
+ 	switch code {
+ 	case _TruncatedFloat:
+ 		msg = "%s truncated to %s"
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index f4932a8309..c4bce41473 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -855,7 +855,7 @@ func Slice1() {
+ 	unsafe.Slice(1, 2, 3) // ERROR too many arguments
+ 	unsafe.Slice(1 /* ERROR is not a pointer */ , 2)
+ 	unsafe.Slice(nil /* ERROR nil is not a pointer */ , 0)
+-	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.Slice(&x, "foo" /* ERROR cannot convert .* to type int */ )
+ 	unsafe.Slice(&x, 1.2 /* ERROR truncated to int */ )
+ 	unsafe.Slice(&x, - /* ERROR must not be negative */ 1)
+ 	unsafe /* ERROR not used */ .Slice(&x, 0)
+@@ -881,7 +881,7 @@ func String1() {
+ 	unsafe.String()        // ERROR not enough arguments
+ 	unsafe.String(1, 2, 3) // ERROR too many arguments
+ 	unsafe.String(1 /* ERROR cannot use 1 */ , 2)
+-	unsafe.String(&b, "foo" /* ERROR cannot convert .* to int */ )
++	unsafe.String(&b, "foo" /* ERROR cannot convert .* to type int */ )
+ 	unsafe.String(&b, 1.2 /* ERROR truncated to int */ )
+ 	unsafe.String(&b, - /* ERROR must not be negative */ 1)
+ 	unsafe /* ERROR not used */ .String(&b, 0)
+diff --git a/src/internal/types/testdata/fixedbugs/issue49247.go b/src/internal/types/testdata/fixedbugs/issue49247.go
+index 3f25e0ee35..5be6001c7d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49247.go
++++ b/src/internal/types/testdata/fixedbugs/issue49247.go
+@@ -11,10 +11,10 @@ type integer interface {
+ 
+ func Add1024[T integer](s []T) {
+ 	for i, v := range s {
+-		s[i] = v + 1024 // ERROR cannot convert 1024 \(untyped int constant\) to T
++		s[i] = v + 1024 // ERROR cannot convert 1024 \(untyped int constant\) to type T
+ 	}
+ }
+ 
+ func f[T interface{ int8 }]() {
+-	println(T(1024 /* ERROR cannot convert 1024 \(untyped int value\) to T */))
++	println(T(1024 /* ERROR cannot convert 1024 \(untyped int value\) to type T */))
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49296.go b/src/internal/types/testdata/fixedbugs/issue49296.go
+index eaa8e4dc7d..98ad6f5409 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49296.go
++++ b/src/internal/types/testdata/fixedbugs/issue49296.go
+@@ -9,9 +9,9 @@ func _[
+         T1 []int,
+         T2 ~float64 | ~complex128 | chan int,
+ ]() {
+-        _ = T0(nil /* ERROR cannot convert nil to T0 */ )
+-        _ = T1(1 /* ERROR cannot convert 1 .* to T1 */ )
+-        _ = T2(2 /* ERROR cannot convert 2 .* to T2 */ )
++        _ = T0(nil /* ERROR cannot convert nil to type T0 */ )
++        _ = T1(1 /* ERROR cannot convert 1 .* to type T1 */ )
++        _ = T2(2 /* ERROR cannot convert 2 .* to type T2 */ )
+ }
+ 
+ // test case from issue
+diff --git a/src/internal/types/testdata/spec/conversions.go b/src/internal/types/testdata/spec/conversions.go
+index e8fa4c5300..773f0917f2 100644
+--- a/src/internal/types/testdata/spec/conversions.go
++++ b/src/internal/types/testdata/spec/conversions.go
+@@ -19,7 +19,7 @@ func _[T ~byte]() {
+ 
+ func _[T ~string]() T                { return T('a') }
+ func _[T ~int | ~string]() T         { return T('a') }
+-func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to T */) }
++func _[T ~byte | ~int | ~string]() T { return T(256 /* ERROR cannot convert 256 .* to type T */) }
+ 
+ // implicit conversions never convert to string
+ func _[T ~string]() {
+@@ -34,10 +34,10 @@ func _[
+ 	T3 ~int | ~float64 | ~bool,
+ 	T4 ~int | ~string,
+ ]() {
+-	_ = T1(0 /* ERROR cannot convert 0 .* to T1\n\tT1 does not contain specific types */)
+-	_ = T2(1 /* ERROR cannot convert 1 .* to T2\n\tT2 does not contain specific types */)
+-	_ = T3(2 /* ERROR cannot convert 2 .* to T3\n\tcannot convert 2 .* to bool \(in T3\) */)
+-	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to T4\n\tcannot convert 3.14 .* to int \(in T4\) */)
++	_ = T1(0 /* ERROR cannot convert 0 .* to type T1:\n\tT1 does not contain specific types */)
++	_ = T2(1 /* ERROR cannot convert 1 .* to type T2:\n\tT2 does not contain specific types */)
++	_ = T3(2 /* ERROR cannot convert 2 .* to type T3:\n\tcannot convert 2 .* to type bool \(in T3\) */)
++	_ = T4(3.14 /* ERROR cannot convert 3.14 .* to type T4:\n\tcannot convert 3.14 .* to type int \(in T4\) */)
+ }
+ 
+ // "x is assignable to T"
+@@ -66,7 +66,7 @@ func _[X Foo, T Bar](x X) T       { return T(x) }
+ func _[X Foo | Bar, T Bar](x X) T { return T(x) }
+ func _[X Foo, T Foo | Bar](x X) T { return T(x) }
+ func _[X Foo, T Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to T\n\tcannot convert Foo \(in X\) to Far \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Foo\) to type T:\n\tcannot convert Foo \(in X\) to type Far \(in T\) */)
+ }
+ 
+ // "x's type and T are unnamed pointer types and their pointer base types
+@@ -76,7 +76,7 @@ func _[X ~*Foo, T ~*Bar](x X) T         { return T(x) }
+ func _[X ~*Foo | ~*Bar, T ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Foo | ~*Bar](x X) T { return T(x) }
+ func _[X ~*Foo, T ~*Far](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to T\n\tcannot convert \*Foo \(in X\) to \*Far \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*Foo\) to type T:\n\tcannot convert \*Foo \(in X\) to type \*Far \(in T\) */)
+ }
+ 
+ // Verify that the defined types in constraints are considered for the rule above.
+@@ -109,14 +109,14 @@ func _[X Float, T Float](x X) T    { return T(x) }
+ 
+ func _[X, T Integer | Unsigned | Float](x X) T { return T(x) }
+ func _[X, T Integer | ~string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to T\n\tcannot convert string \(in X\) to int \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~string\) to type T:\n\tcannot convert string \(in X\) to type int \(in T\) */)
+ }
+ 
+ // "x's type and T are both complex types"
+ 
+ func _[X, T Complex](x X) T { return T(x) }
+ func _[X, T Float | Complex](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to T\n\tcannot convert float32 \(in X\) to complex64 \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Float \| Complex\) to type T:\n\tcannot convert float32 \(in X\) to type complex64 \(in T\) */)
+ }
+ 
+ // "x is an integer or a slice of bytes or runes and T is a string type"
+@@ -129,7 +129,7 @@ func _[T ~string](x myInt) T    { return T(x) }
+ func _[X Integer](x X) string   { return string(x) }
+ func _[X Integer](x X) myString { return myString(x) }
+ func _[X Integer](x X) *string {
+-	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to \*string\n\tcannot convert int \(in X\) to \*string */)
++	return (*string)(x /* ERROR cannot convert x \(variable of type X constrained by Integer\) to type \*string:\n\tcannot convert int \(in X\) to type \*string */)
+ }
+ 
+ func _[T ~string](x []byte) T                           { return T(x) }
+@@ -138,7 +138,7 @@ func _[X ~[]byte, T ~string](x X) T                     { return T(x) }
+ func _[X ~[]rune, T ~string](x X) T                     { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~string](x X) T { return T(x) }
+ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to T\n\tcannot convert int \(in X\) to \*string \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by Integer \| ~\[\]byte \| ~\[\]rune\) to type T:\n\tcannot convert int \(in X\) to type \*string \(in T\) */)
+ }
+ 
+ // "x is a string and T is a slice of bytes or runes"
+@@ -146,14 +146,14 @@ func _[X Integer | ~[]byte | ~[]rune, T ~*string](x X) T {
+ func _[T ~[]byte](x string) T { return T(x) }
+ func _[T ~[]rune](x string) T { return T(x) }
+ func _[T ~[]rune](x *string) T {
+-	return T(x /* ERROR cannot convert x \(variable of type \*string\) to T\n\tcannot convert \*string to \[\]rune \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type \*string\) to type T:\n\tcannot convert \*string to type \[\]rune \(in T\) */)
+ }
+ 
+ func _[X ~string, T ~[]byte](x X) T           { return T(x) }
+ func _[X ~string, T ~[]rune](x X) T           { return T(x) }
+ func _[X ~string, T ~[]byte | ~[]rune](x X) T { return T(x) }
+ func _[X ~*string, T ~[]byte | ~[]rune](x X) T {
+-	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to T\n\tcannot convert \*string \(in X\) to \[\]byte \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type X constrained by ~\*string\) to type T:\n\tcannot convert \*string \(in X\) to type \[\]byte \(in T\) */)
+ }
+ 
+ // package unsafe:
+@@ -164,7 +164,7 @@ type myUintptr uintptr
+ func _[X ~uintptr](x X) unsafe.Pointer  { return unsafe.Pointer(x) }
+ func _[T unsafe.Pointer](x myUintptr) T { return T(x) }
+ func _[T unsafe.Pointer](x int64) T {
+-	return T(x /* ERROR cannot convert x \(variable of type int64\) to T\n\tcannot convert int64 to unsafe\.Pointer \(in T\) */)
++	return T(x /* ERROR cannot convert x \(variable of type int64\) to type T:\n\tcannot convert int64 to type unsafe\.Pointer \(in T\) */)
+ }
+ 
+ // "and vice versa"
+@@ -173,7 +173,7 @@ func _[T ~uintptr](x unsafe.Pointer) T  { return T(x) }
+ func _[X unsafe.Pointer](x X) uintptr   { return uintptr(x) }
+ func _[X unsafe.Pointer](x X) myUintptr { return myUintptr(x) }
+ func _[X unsafe.Pointer](x X) int64 {
+-	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to int64\n\tcannot convert unsafe\.Pointer \(in X\) to int64 */)
++	return int64(x /* ERROR cannot convert x \(variable of type X constrained by unsafe\.Pointer\) to type int64:\n\tcannot convert unsafe\.Pointer \(in X\) to type int64 */)
+ }
+ 
+ // "x is a slice, T is an array or pointer-to-array type,

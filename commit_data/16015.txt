@@ -7,6 +7,22 @@ Date:   Sat Mar 30 15:53:44 2013 +1100
     R=dsymonds, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/8094047
-
+---
  misc/dashboard/codereview/dashboard/people.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/misc/dashboard/codereview/dashboard/people.go b/misc/dashboard/codereview/dashboard/people.go
+index 45de03b1e3..21bd8f89cd 100644
+--- a/misc/dashboard/codereview/dashboard/people.go
++++ b/misc/dashboard/codereview/dashboard/people.go
+@@ -47,8 +47,9 @@ func init() {
+ 		"dvyukov":  "dvyukov@google.com",
+ 		"gustavo":  "gustavo@niemeyer.net",
+ 		"jsing":    "jsing@google.com",
+-		"mikioh":   "mikioh.mikioh@gmail.com",
++		"mikio":    "mikioh.mikioh@gmail.com",
+ 		"minux":    "minux.ma@gmail.com",
++		"remy":     "remyoudompheng@gmail.com",
+ 		"rminnich": "rminnich@gmail.com",
+ 	}
+ 	for p, e := range others {

@@ -21,8 +21,76 @@ Date:   Thu Apr 29 10:02:01 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/315169
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go          | 17 ++++++++++++++---
  src/cmd/compile/internal/types2/decl.go                 |  2 +-
  .../compile/internal/types2/testdata/check/go1_16.src   | 13 +++++++++++++
  3 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 51be50e9ad..30201e2b7f 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -38,8 +38,10 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	}
+ 
+ 	if !ok {
+-		check.errorf(x, "cannot convert %s to %s", x, T)
+-		x.mode = invalid
++		if x.mode != invalid {
++			check.errorf(x, "cannot convert %s to %s", x, T)
++			x.mode = invalid
++		}
+ 		return
+ 	}
+ 
+@@ -141,7 +143,16 @@ func (x *operand) convertibleTo(check *Checker, T Type) bool {
+ 		if p := asPointer(T); p != nil {
+ 			if a := asArray(p.Elem()); a != nil {
+ 				if check.identical(s.Elem(), a.Elem()) {
+-					return true
++					if check == nil || check.allowVersion(check.pkg, 1, 17) {
++						return true
++					}
++					// check != nil
++					if check.conf.CompilerErrorMessages {
++						check.error(x, "conversion of slices to array pointers only supported as of -lang=go1.17")
++					} else {
++						check.error(x, "conversion of slices to array pointers requires go1.17 or later")
++					}
++					x.mode = invalid // avoid follow-up error
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 4966f19892..1333e4c0ec 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -601,7 +601,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 
+ 	if alias {
+ 		// type alias declaration
+-		if !check.allowVersion(obj.pkg, 1, 9) {
++		if !check.allowVersion(check.pkg, 1, 9) {
+ 			if check.conf.CompilerErrorMessages {
+ 				check.error(tdecl, "type aliases only supported as of -lang=go1.9")
+ 			} else {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_16.src b/src/cmd/compile/internal/types2/testdata/check/go1_16.src
+new file mode 100644
+index 0000000000..fdf5c99d7e
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_16.src
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check Go language version-specific errors.
++
++package go1_16 // go1.16
++
++type Slice []byte
++type Array [8]byte
++
++var s Slice
++var p = (*Array)(s /* ERROR requires go1.17 or later */ )

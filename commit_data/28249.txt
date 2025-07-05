@@ -21,7 +21,44 @@ Date:   Sat May 7 07:24:39 2016 +0200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 2 +-
  src/cmd/go/build.go                    | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index 0174e31015..ab14c007a9 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -84,7 +84,7 @@ func init() {
+ 		cc = append(cc, []string{"-framework", "CoreFoundation", "-framework", "Foundation"}...)
+ 	}
+ 	libgodir = GOOS + "_" + GOARCH
+-	if GOOS == "darwin" && GOARCH == "arm" {
++	if GOOS == "darwin" && (GOARCH == "arm" || GOARCH == "arm64") {
+ 		libgodir = GOOS + "_" + GOARCH + "_shared"
+ 	}
+ 	cc = append(cc, "-I", filepath.Join("pkg", libgodir))
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6bef09b66b..e0cb216b8c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -335,7 +335,7 @@ func buildModeInit() {
+ 			return p
+ 		}
+ 		switch platform {
+-		case "darwin/arm":
++		case "darwin/arm", "darwin/arm64":
+ 			codegenArg = "-shared"
+ 		default:
+ 		}
+@@ -361,6 +361,9 @@ func buildModeInit() {
+ 		case "android/arm", "android/arm64", "android/amd64", "android/386":
+ 			codegenArg = "-shared"
+ 			ldBuildmode = "pie"
++		case "darwin/arm", "darwin/arm64":
++			codegenArg = "-shared"
++			fallthrough
+ 		default:
+ 			ldBuildmode = "exe"
+ 		}

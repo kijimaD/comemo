@@ -7,7 +7,67 @@ Date:   Mon Jan 23 01:34:35 2012 -0200
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5564045
-
+---
  src/pkg/encoding/xml/marshal_test.go | 20 ++++++++++++++++++++
  src/pkg/encoding/xml/typeinfo.go     |  3 +--
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal_test.go b/src/pkg/encoding/xml/marshal_test.go
+index 6beff17019..10871fd129 100644
+--- a/src/pkg/encoding/xml/marshal_test.go
++++ b/src/pkg/encoding/xml/marshal_test.go
+@@ -188,6 +188,10 @@ type PresenceTest struct {
+ 	Exists *struct{}
+ }
+ 
++type IgnoreTest struct {
++	PublicSecret string `xml:"-"`
++}
++
+ type MyBytes []byte
+ 
+ type Data struct {
+@@ -592,6 +596,22 @@ var marshalTests = []struct {
+ 		},
+ 		ExpectXML: `<RecurseA><A>a1</A><B><A><A>a2</A></A><B>b1</B></B></RecurseA>`,
+ 	},
++
++	// Test ignoring fields via "-" tag
++	{
++		ExpectXML: `<IgnoreTest></IgnoreTest>`,
++		Value:     &IgnoreTest{},
++	},
++	{
++		ExpectXML:   `<IgnoreTest></IgnoreTest>`,
++		Value:       &IgnoreTest{PublicSecret: "can't tell"},
++		MarshalOnly: true,
++	},
++	{
++		ExpectXML:     `<IgnoreTest><PublicSecret>ignore me</PublicSecret></IgnoreTest>`,
++		Value:         &IgnoreTest{},
++		UnmarshalOnly: true,
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index 36b35ed2ee..2bf2c6b303 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -37,7 +37,6 @@ const (
+ 	fAny
+ 
+ 	// TODO:
+-	//fIgnore
+ 	//fOmitEmpty
+ 
+ 	fMode = fElement | fAttr | fCharData | fInnerXml | fComment | fAny
+@@ -62,7 +61,7 @@ func getTypeInfo(typ reflect.Type) (*typeInfo, error) {
+ 		n := typ.NumField()
+ 		for i := 0; i < n; i++ {
+ 			f := typ.Field(i)
+-			if f.PkgPath != "" {
++			if f.PkgPath != "" || f.Tag.Get("xml") == "-" {
+ 				continue // Private field
+ 			}
+ 

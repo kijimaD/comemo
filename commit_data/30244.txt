@@ -15,9 +15,236 @@ Date:   Tue Oct 18 11:06:28 2016 -0400
     Change-Id: Ib37ac5e39f578447dbd6b36a6a54117d5624784d
     Reviewed-on: https://go-review.googlesource.com/31451
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 38 ++++++++++++++++++--------
  src/cmd/compile/internal/ssa/gen/genericOps.go |  2 +-
  src/cmd/compile/internal/ssa/opGen.go          |  7 +++++
  src/cmd/compile/internal/ssa/writebarrier.go   | 35 +++++++++++++++++-------
  4 files changed, 59 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1afbce2835..9863c18b29 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -686,7 +686,7 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 		var r *ssa.Value
+ 		var isVolatile bool
+-		needwb := n.Op == OASWB && rhs != nil
++		needwb := n.Op == OASWB
+ 		deref := !canSSAType(t)
+ 		if deref {
+ 			if rhs == nil {
+@@ -2390,14 +2390,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, line int32,
+ 	}
+ 	if deref {
+ 		// Treat as a mem->mem move.
+-		if right == nil {
+-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
+-			return
+-		}
+ 		if wb && !ssa.IsStackAddr(addr) {
+ 			s.insertWBmove(t, addr, right, line, rightIsVolatile)
+ 			return
+ 		}
++		if right == nil {
++			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
++			return
++		}
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
+ 		return
+ 	}
+@@ -3295,12 +3295,21 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 
+ // insertWBmove inserts the assignment *left = *right including a write barrier.
+ // t is the type being assigned.
++// If right == nil, then we're zeroing *left.
+ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightIsVolatile bool) {
+ 	// if writeBarrier.enabled {
+ 	//   typedmemmove(&t, left, right)
+ 	// } else {
+ 	//   *left = *right
+ 	// }
++	//
++	// or
++	//
++	// if writeBarrier.enabled {
++	//   typedmemclr(&t, left)
++	// } else {
++	//   *left = zeroValue
++	// }
+ 
+ 	if s.noWB {
+ 		s.Error("write barrier prohibited")
+@@ -3309,15 +3318,20 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line int32, rightI
+ 		s.WBLineno = left.Line
+ 	}
+ 
+-	var op ssa.Op
+-	if rightIsVolatile {
+-		op = ssa.OpMoveWBVolatile
++	var val *ssa.Value
++	if right == nil {
++		val = s.newValue2I(ssa.OpZeroWB, ssa.TypeMem, sizeAlignAuxInt(t), left, s.mem())
+ 	} else {
+-		op = ssa.OpMoveWB
++		var op ssa.Op
++		if rightIsVolatile {
++			op = ssa.OpMoveWBVolatile
++		} else {
++			op = ssa.OpMoveWB
++		}
++		val = s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+ 	}
+-	move := s.newValue3I(op, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+-	move.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
+-	s.vars[&memVar] = move
++	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: typenamesym(t)}
++	s.vars[&memVar] = val
+ 
+ 	// WB ops will be expanded to branches at writebarrier phase.
+ 	// To make it easy, we put WB ops at the end of a block, so
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 5a570c40c1..d935e74b9f 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -320,7 +320,7 @@ var genericOps = []opData{
+ 	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                  // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
+ 	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
+ 	{name: "MoveWBVolatile", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory. Src is volatile, i.e. needs to move to a temp space before calling typedmemmove.
+-	// maybe we'll need a ZeroWB for the new barrier
++	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign"},         // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
+ 
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1178175b80..e889787c4e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1658,6 +1658,7 @@ const (
+ 	OpStoreWB
+ 	OpMoveWB
+ 	OpMoveWBVolatile
++	OpZeroWB
+ 	OpClosureCall
+ 	OpStaticCall
+ 	OpDeferCall
+@@ -19404,6 +19405,12 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  3,
+ 		generic: true,
+ 	},
++	{
++		name:    "ZeroWB",
++		auxType: auxSymSizeAndAlign,
++		argLen:  2,
++		generic: true,
++	},
+ 	{
+ 		name:    "ClosureCall",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 2eb549ce59..b914154b48 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -28,7 +28,7 @@ import "fmt"
+ // number of blocks as fuse merges blocks introduced in this phase.
+ func writebarrier(f *Func) {
+ 	var sb, sp, wbaddr *Value
+-	var writebarrierptr, typedmemmove interface{} // *gc.Sym
++	var writebarrierptr, typedmemmove, typedmemclr interface{} // *gc.Sym
+ 	var storeWBs, others []*Value
+ 	var wbs *sparseSet
+ 	for _, b := range f.Blocks { // range loop is safe since the blocks we added contain no WB stores
+@@ -43,6 +43,9 @@ func writebarrier(f *Func) {
+ 					case OpMoveWB, OpMoveWBVolatile:
+ 						v.Op = OpMove
+ 						v.Aux = nil
++					case OpZeroWB:
++						v.Op = OpZero
++						v.Aux = nil
+ 					}
+ 					continue
+ 				}
+@@ -69,6 +72,7 @@ func writebarrier(f *Func) {
+ 					wbaddr = f.Entry.NewValue1A(initln, OpAddr, f.Config.fe.TypeUInt32().PtrTo(), wbsym, sb)
+ 					writebarrierptr = f.Config.fe.Syslook("writebarrierptr")
+ 					typedmemmove = f.Config.fe.Syslook("typedmemmove")
++					typedmemclr = f.Config.fe.Syslook("typedmemclr")
+ 
+ 					wbs = f.newSparseSet(f.NumValues())
+ 					defer f.retSparseSet(wbs)
+@@ -82,7 +86,7 @@ func writebarrier(f *Func) {
+ 				others = others[:0]
+ 				wbs.clear()
+ 				for _, w := range b.Values[i:] {
+-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
++					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
+ 						storeWBs = append(storeWBs, w)
+ 						wbs.add(w.ID)
+ 					} else {
+@@ -92,7 +96,7 @@ func writebarrier(f *Func) {
+ 
+ 				// make sure that no value in this block depends on WB stores
+ 				for _, w := range b.Values {
+-					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile {
++					if w.Op == OpStoreWB || w.Op == OpMoveWB || w.Op == OpMoveWBVolatile || w.Op == OpZeroWB {
+ 						continue
+ 					}
+ 					for _, a := range w.Args {
+@@ -136,10 +140,10 @@ func writebarrier(f *Func) {
+ 				memThen := mem
+ 				memElse := mem
+ 				for _, w := range storeWBs {
++					var val *Value
+ 					ptr := w.Args[0]
+-					val := w.Args[1]
+ 					siz := w.AuxInt
+-					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile
++					typ := w.Aux // only non-nil for MoveWB, MoveWBVolatile, ZeroWB
+ 
+ 					var op Op
+ 					var fn interface{} // *gc.Sym
+@@ -147,16 +151,25 @@ func writebarrier(f *Func) {
+ 					case OpStoreWB:
+ 						op = OpStore
+ 						fn = writebarrierptr
++						val = w.Args[1]
+ 					case OpMoveWB, OpMoveWBVolatile:
+ 						op = OpMove
+ 						fn = typedmemmove
++						val = w.Args[1]
++					case OpZeroWB:
++						op = OpZero
++						fn = typedmemclr
+ 					}
+ 
+ 					// then block: emit write barrier call
+ 					memThen = wbcall(line, bThen, fn, typ, ptr, val, memThen, sp, sb, w.Op == OpMoveWBVolatile)
+ 
+ 					// else block: normal store
+-					memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
++					if op == OpZero {
++						memElse = bElse.NewValue2I(line, op, TypeMem, siz, ptr, memElse)
++					} else {
++						memElse = bElse.NewValue3I(line, op, TypeMem, siz, ptr, val, memElse)
++					}
+ 				}
+ 
+ 				// merge memory
+@@ -226,10 +239,12 @@ func wbcall(line int32, b *Block, fn interface{}, typ interface{}, ptr, val, mem
+ 	mem = b.NewValue3I(line, OpStore, TypeMem, ptr.Type.Size(), arg, ptr, mem)
+ 	off += ptr.Type.Size()
+ 
+-	off = round(off, val.Type.Alignment())
+-	arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
+-	mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
+-	off += val.Type.Size()
++	if val != nil {
++		off = round(off, val.Type.Alignment())
++		arg = b.NewValue1I(line, OpOffPtr, val.Type.PtrTo(), off, sp)
++		mem = b.NewValue3I(line, OpStore, TypeMem, val.Type.Size(), arg, val, mem)
++		off += val.Type.Size()
++	}
+ 	off = round(off, config.PtrSize)
+ 
+ 	// issue call

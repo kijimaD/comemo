@@ -8,7 +8,213 @@ Date:   Thu Jul 2 16:57:46 2009 -0700
     DELTA=113  (89 added, 9 deleted, 15 changed)
     OCL=31087
     CL=31096
-
+---
  src/pkg/strconv/itoa.go      | 41 +++++++++++++++------
  src/pkg/strconv/itoa_test.go | 87 ++++++++++++++++++++++++++++++++++++++------
  2 files changed, 104 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/strconv/itoa.go b/src/pkg/strconv/itoa.go
+index 7f693ea8cf..c6985f4384 100644
+--- a/src/pkg/strconv/itoa.go
++++ b/src/pkg/strconv/itoa.go
+@@ -4,17 +4,12 @@
+ 
+ package strconv
+ 
+-// Itob64 returns the string representation of i in the given base.
+-func Itob64(i int64, base uint) string {
+-	if i == 0 {
++// Uitob64 returns the string representation of i in the given base.
++func Uitob64(u uint64, base uint) string {
++	if u == 0 {
+ 		return "0"
+ 	}
+ 
+-	u := uint64(i);
+-	if i < 0 {
+-		u = -u;
+-	}
+-
+ 	// Assemble decimal in reverse order.
+ 	var buf [32]byte;
+ 	j := len(buf);
+@@ -25,12 +20,19 @@ func Itob64(i int64, base uint) string {
+ 		u /= b;
+ 	}
+ 
+-	if i < 0 {	// add sign
+-		j--;
+-		buf[j] = '-'
++	return string(buf[j:len(buf)])
++}
++
++// Itob64 returns the string representation of i in the given base.
++func Itob64(i int64, base uint) string {
++	if i == 0 {
++		return "0"
+ 	}
+ 
+-	return string(buf[j:len(buf)])
++	if i < 0 {
++		return "-" + Uitob64(-uint64(i), base);
++	}
++	return Uitob64(uint64(i), base);
+ }
+ 
+ // Itoa64 returns the decimal string representation of i.
+@@ -38,6 +40,16 @@ func Itoa64(i int64) string {
+ 	return Itob64(i, 10);
+ }
+ 
++// Uitoa64 returns the decimal string representation of i.
++func Uitoa64(i uint64) string {
++	return Uitob64(i, 10);
++}
++
++// Uitob returns the string representation of i in the given base.
++func Uitob(i uint, base uint) string {
++	return Uitob64(uint64(i), base);
++}
++
+ // Itob returns the string representation of i in the given base.
+ func Itob(i int, base uint) string {
+ 	return Itob64(int64(i), base);
+@@ -47,3 +59,8 @@ func Itob(i int, base uint) string {
+ func Itoa(i int) string {
+ 	return Itob64(int64(i), 10);
+ }
++
++// Uitoa returns the decimal string representation of i.
++func Uitoa(i uint) string {
++	return Uitob64(uint64(i), 10);
++}
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index 34caf9a325..998c306239 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -60,21 +60,35 @@ var itob64tests = []itob64Test {
+ }
+ 
+ func TestItoa(t *testing.T) {
+-	for i := 0; i < len(itob64tests); i++ {
+-		test := itob64tests[i];
+-
++	for i, test := range itob64tests {
+ 		s := strconv.Itob64(test.in, test.base);
+ 		if s != test.out {
+ 			t.Errorf("strconv.Itob64(%v, %v) = %v want %v\n",
+ 				test.in, test.base, s, test.out);
+ 		}
+ 
++		if test.in >= 0 {
++			s := strconv.Uitob64(uint64(test.in), test.base);
++			if s != test.out {
++				t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
++					test.in, test.base, s, test.out);
++			}
++		}
++
+ 		if int64(int(test.in)) == test.in {
+ 			s := strconv.Itob(int(test.in), test.base);
+ 			if s != test.out {
+ 				t.Errorf("strconv.Itob(%v, %v) = %v want %v\n",
+ 					test.in, test.base, s, test.out);
+ 			}
++
++			if test.in >= 0  {
++				s := strconv.Uitob(uint(test.in), test.base);
++				if s != test.out {
++					t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
++						test.in, test.base, s, test.out);
++				}
++			}
+ 		}
+ 
+ 		if test.base == 10 {
+@@ -84,28 +98,77 @@ func TestItoa(t *testing.T) {
+ 					test.in, s, test.out);
+ 			}
+ 
++			if test.in >= 0 {
++				s := strconv.Uitob64(uint64(test.in), test.base);
++				if s != test.out {
++					t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
++						test.in, test.base, s, test.out);
++				}
++			}
++
+ 			if int64(int(test.in)) == test.in {
+ 				s := strconv.Itoa(int(test.in));
+ 				if s != test.out {
+ 					t.Errorf("strconv.Itoa(%v) = %v want %v\n",
+ 						test.in, s, test.out);
+ 				}
++
++				if test.in >= 0 {
++					s := strconv.Uitoa(uint(test.in));
++					if s != test.out {
++						t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
++							test.in, s, test.out);
++					}
++				}
+ 			}
+ 		}
+ 	}
+ }
+ 
+-// TODO: Use once there is a strconv.uitoa
+-type uitoa64Test struct {
++type uitob64Test struct {
+ 	in uint64;
++	base uint;
+ 	out string;
+ }
+ 
+-// TODO: should be able to call this atoui64tests.
+-var uitoa64tests = []uitoa64Test {
+-	uitoa64Test{ 1<<63-1, "9223372036854775807" },
+-	uitoa64Test{ 1<<63, "9223372036854775808" },
+-	uitoa64Test{ 1<<63+1, "9223372036854775809" },
+-	uitoa64Test{ 1<<64-2, "18446744073709551614" },
+-	uitoa64Test{ 1<<64-1, "18446744073709551615" },
++var uitob64tests = []uitob64Test {
++	uitob64Test{ 1<<63-1, 10, "9223372036854775807" },
++	uitob64Test{ 1<<63, 10, "9223372036854775808" },
++	uitob64Test{ 1<<63+1, 10, "9223372036854775809" },
++	uitob64Test{ 1<<64-2, 10, "18446744073709551614" },
++	uitob64Test{ 1<<64-1, 10, "18446744073709551615" },
++}
++
++func TestUitoa(t *testing.T) {
++	for i, test := range uitob64tests {
++		s := strconv.Uitob64(test.in, test.base);
++		if s != test.out {
++			t.Errorf("strconv.Uitob64(%v, %v) = %v want %v\n",
++				test.in, test.base, s, test.out);
++		}
++
++		if uint64(uint(test.in)) == test.in {
++			s := strconv.Uitob(uint(test.in), test.base);
++			if s != test.out {
++				t.Errorf("strconv.Uitob(%v, %v) = %v want %v\n",
++					test.in, test.base, s, test.out);
++			}
++		}
++
++		if test.base == 10 {
++			s := strconv.Uitoa64(test.in);
++			if s != test.out {
++				t.Errorf("strconv.Uitoa64(%v) = %v want %v\n",
++					test.in, s, test.out);
++			}
++
++			if uint64(uint(test.in)) == test.in {
++				s := strconv.Uitoa(uint(test.in));
++				if s != test.out {
++					t.Errorf("strconv.Uitoa(%v) = %v want %v\n",
++						test.in, s, test.out);
++				}
++			}
++		}
++	}
+ }

@@ -15,6 +15,20 @@ Date:   Tue Feb 18 18:28:35 2020 +0000
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index a446e48fdc..0c34245f62 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -343,8 +343,6 @@ appropriately.)
+   visible changes.
+ </p>
+ 
+-<!-- TODO: Maybe CL 200439? -->
+-
+ <h2 id="compiler">Compiler</h2>
+ 
+ <p><!-- CL 162237 -->

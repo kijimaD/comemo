@@ -23,7 +23,7 @@ Date:   Wed Jan 6 21:16:01 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/18432
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  misc/cgo/test/issue7978.go            |  4 ++--
  src/runtime/mprof.go                  |  5 +++++
  src/runtime/proc.go                   |  8 +++++++-
@@ -31,3 +31,171 @@ Date:   Wed Jan 6 21:16:01 2016 -0500
  src/runtime/runtime2.go               |  9 ++++++---
  src/runtime/testdata/testprog/misc.go | 15 +++++++++++++++
  6 files changed, 53 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/issue7978.go b/misc/cgo/test/issue7978.go
+index 094ccc1839..e8f340f8b8 100644
+--- a/misc/cgo/test/issue7978.go
++++ b/misc/cgo/test/issue7978.go
+@@ -110,13 +110,13 @@ func test7978(t *testing.T) {
+ 	go issue7978go()
+ 	// test in c code, before callback
+ 	issue7978wait(0, 1)
+-	issue7978check(t, "runtime.cgocall(", "", 1)
++	issue7978check(t, "_Cfunc_issue7978c(", "", 1)
+ 	// test in go code, during callback
+ 	issue7978wait(2, 3)
+ 	issue7978check(t, "test.issue7978cb(", "test.issue7978go", 3)
+ 	// test in c code, after callback
+ 	issue7978wait(4, 5)
+-	issue7978check(t, "runtime.cgocall(", "runtime.cgocallback", 1)
++	issue7978check(t, "_Cfunc_issue7978c(", "_cgoexpwrap", 1)
+ 	// test in go code, after return from cgo
+ 	issue7978wait(6, 7)
+ 	issue7978check(t, "test.issue7978go(", "", 3)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 684ab0b055..eb7231aec2 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -576,12 +576,17 @@ func Stack(buf []byte, all bool) int {
+ 		pc := getcallerpc(unsafe.Pointer(&buf))
+ 		systemstack(func() {
+ 			g0 := getg()
++			// Force traceback=1 to override GOTRACEBACK setting,
++			// so that Stack's results are consistent.
++			// GOTRACEBACK is only about crash dumps.
++			g0.m.traceback = 1
+ 			g0.writebuf = buf[0:0:len(buf)]
+ 			goroutineheader(gp)
+ 			traceback(pc, sp, 0, gp)
+ 			if all {
+ 				tracebackothers(gp)
+ 			}
++			g0.m.traceback = 0
+ 			n = len(g0.writebuf)
+ 			g0.writebuf = nil
+ 		})
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 545e134cc2..be1bb815d5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2167,6 +2167,9 @@ func goexit0(gp *g) {
+ 	_g_ := getg()
+ 
+ 	casgstatus(gp, _Grunning, _Gdead)
++	if isSystemGoroutine(gp) {
++		atomic.Xadd(&sched.ngsys, -1)
++	}
+ 	gp.m = nil
+ 	gp.lockedm = nil
+ 	_g_.m.lockedg = nil
+@@ -2698,6 +2701,9 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	gostartcallfn(&newg.sched, fn)
+ 	newg.gopc = callerpc
+ 	newg.startpc = fn.fn
++	if isSystemGoroutine(newg) {
++		atomic.Xadd(&sched.ngsys, +1)
++	}
+ 	casgstatus(newg, _Gdead, _Grunnable)
+ 
+ 	if _p_.goidcache == _p_.goidcacheend {
+@@ -2890,7 +2896,7 @@ func badunlockosthread() {
+ }
+ 
+ func gcount() int32 {
+-	n := int32(allglen) - sched.ngfree
++	n := int32(allglen) - sched.ngfree - int32(atomic.Load(&sched.ngsys))
+ 	for i := 0; ; i++ {
+ 		_p_ := allp[i]
+ 		if _p_ == nil {
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 30798f723d..f3e90bcbd7 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"net"
+ 	"runtime"
+ 	"runtime/debug"
++	"strings"
+ 	"sync"
+ 	"sync/atomic"
+ 	"syscall"
+@@ -336,6 +337,23 @@ func TestGCFairness(t *testing.T) {
+ 	}
+ }
+ 
++func TestNumGoroutine(t *testing.T) {
++	output := runTestProg(t, "testprog", "NumGoroutine")
++	want := "1\n"
++	if output != want {
++		t.Fatalf("want %q, got %q", want, output)
++	}
++
++	buf := make([]byte, 1<<20)
++	buf = buf[:runtime.Stack(buf, true)]
++
++	n := runtime.NumGoroutine()
++
++	if nstk := strings.Count(string(buf), "goroutine "); n != nstk {
++		t.Fatalf("NumGoroutine=%d, but found %d goroutines in stack dump", n, nstk)
++	}
++}
++
+ func TestPingPongHog(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in -short mode")
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index d9a449b68b..54c4686f79 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -408,9 +408,11 @@ const (
+ )
+ 
+ type schedt struct {
+-	lock mutex
++	// accessed atomically. keep at top to ensure alignment on 32-bit systems.
++	goidgen  uint64
++	lastpoll uint64
+ 
+-	goidgen uint64
++	lock mutex
+ 
+ 	midle        muintptr // idle m's waiting for work
+ 	nmidle       int32    // number of idle m's waiting for work
+@@ -418,6 +420,8 @@ type schedt struct {
+ 	mcount       int32    // number of m's that have been created
+ 	maxmcount    int32    // maximum number of m's allowed (or die)
+ 
++	ngsys uint32 // number of system goroutines; updated atomically
++
+ 	pidle      puintptr // idle p's
+ 	npidle     uint32
+ 	nmspinning uint32 // See "Worker thread parking/unparking" comment in proc.go.
+@@ -445,7 +449,6 @@ type schedt struct {
+ 	stopnote   note
+ 	sysmonwait uint32
+ 	sysmonnote note
+-	lastpoll   uint64
+ 
+ 	// safepointFn should be called on each P at the next GC
+ 	// safepoint if p.runSafePointFn is set.
+diff --git a/src/runtime/testdata/testprog/misc.go b/src/runtime/testdata/testprog/misc.go
+new file mode 100644
+index 0000000000..237680fc87
+--- /dev/null
++++ b/src/runtime/testdata/testprog/misc.go
+@@ -0,0 +1,15 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++func init() {
++	register("NumGoroutine", NumGoroutine)
++}
++
++func NumGoroutine() {
++	println(runtime.NumGoroutine())
++}

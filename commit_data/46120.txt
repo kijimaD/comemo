@@ -21,7 +21,7 @@ Date:   Sun Dec 6 18:28:49 2020 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go        |  5 +++--
  src/cmd/compile/internal/gc/order.go      |  6 +++---
  src/cmd/compile/internal/gc/pgen.go       | 28 ++++++++++++++--------------
@@ -29,3 +29,349 @@ Date:   Sun Dec 6 18:28:49 2020 -0800
  src/cmd/compile/internal/ssa/deadstore.go | 10 +++++-----
  src/cmd/compile/internal/ssa/debug.go     |  8 ++++----
  6 files changed, 44 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f965fa6325..37e5167c25 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -205,7 +205,7 @@ func caninl(fn *ir.Func) {
+ 	visitor := hairyVisitor{
+ 		budget:        inlineMaxBudget,
+ 		extraCallCost: cc,
+-		usedLocals:    make(map[ir.Node]bool),
++		usedLocals:    make(map[*ir.Name]bool),
+ 	}
+ 	if visitor.tooHairy(fn) {
+ 		reason = visitor.reason
+@@ -292,7 +292,7 @@ type hairyVisitor struct {
+ 	budget        int32
+ 	reason        string
+ 	extraCallCost int32
+-	usedLocals    map[ir.Node]bool
++	usedLocals    map[*ir.Name]bool
+ 	do            func(ir.Node) error
+ }
+ 
+@@ -431,6 +431,7 @@ func (v *hairyVisitor) doNode(n ir.Node) error {
+ 		}
+ 
+ 	case ir.ONAME:
++		n := n.(*ir.Name)
+ 		if n.Class() == ir.PAUTO {
+ 			v.usedLocals[n] = true
+ 		}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 39b78c9819..c3645256a6 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -63,7 +63,7 @@ func order(fn *ir.Func) {
+ // newTemp allocates a new temporary with the given type,
+ // pushes it onto the temp stack, and returns it.
+ // If clear is true, newTemp emits code to zero the temporary.
+-func (o *Order) newTemp(t *types.Type, clear bool) ir.Node {
++func (o *Order) newTemp(t *types.Type, clear bool) *ir.Name {
+ 	var v *ir.Name
+ 	// Note: LongString is close to the type equality we want,
+ 	// but not exactly. We still need to double-check with types.Identical.
+@@ -107,11 +107,11 @@ func (o *Order) copyExpr(n ir.Node) ir.Node {
+ // (The other candidate would be map access, but map access
+ // returns a pointer to the result data instead of taking a pointer
+ // to be filled in.)
+-func (o *Order) copyExprClear(n ir.Node) ir.Node {
++func (o *Order) copyExprClear(n ir.Node) *ir.Name {
+ 	return o.copyExpr1(n, true)
+ }
+ 
+-func (o *Order) copyExpr1(n ir.Node, clear bool) ir.Node {
++func (o *Order) copyExpr1(n ir.Node, clear bool) *ir.Name {
+ 	t := n.Type()
+ 	v := o.newTemp(t, clear)
+ 	a := ir.Nod(ir.OAS, v, n)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a7b19953ba..5b04e10657 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -438,7 +438,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	// which used to use the ONAME form.
+ 	isODCLFUNC := infosym.Name == ""
+ 
+-	var apdecls []ir.Node
++	var apdecls []*ir.Name
+ 	// Populate decls for fn.
+ 	if isODCLFUNC {
+ 		for _, n := range fn.Dcl {
+@@ -495,7 +495,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	return scopes, inlcalls
+ }
+ 
+-func declPos(decl ir.Node) src.XPos {
++func declPos(decl *ir.Name) src.XPos {
+ 	if decl.Name().Defn != nil && (decl.Name().Captured() || decl.Name().Byval()) {
+ 		// It's not clear which position is correct for captured variables here:
+ 		// * decl.Pos is the wrong position for captured variables, in the inner
+@@ -518,10 +518,10 @@ func declPos(decl ir.Node) src.XPos {
+ 
+ // createSimpleVars creates a DWARF entry for every variable declared in the
+ // function, claiming that they are permanently on the stack.
+-func createSimpleVars(fnsym *obj.LSym, apDecls []ir.Node) ([]ir.Node, []*dwarf.Var, map[ir.Node]bool) {
++func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+ 	var vars []*dwarf.Var
+-	var decls []ir.Node
+-	selected := make(map[ir.Node]bool)
++	var decls []*ir.Name
++	selected := make(map[*ir.Name]bool)
+ 	for _, n := range apDecls {
+ 		if ir.IsAutoTmp(n) {
+ 			continue
+@@ -534,7 +534,7 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []ir.Node) ([]ir.Node, []*dwarf.V
+ 	return decls, vars, selected
+ }
+ 
+-func createSimpleVar(fnsym *obj.LSym, n ir.Node) *dwarf.Var {
++func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	var abbrev int
+ 	offs := n.Offset()
+ 
+@@ -585,13 +585,13 @@ func createSimpleVar(fnsym *obj.LSym, n ir.Node) *dwarf.Var {
+ 
+ // createComplexVars creates recomposed DWARF vars with location lists,
+ // suitable for describing optimized code.
+-func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]ir.Node, []*dwarf.Var, map[ir.Node]bool) {
++func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, map[*ir.Name]bool) {
+ 	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+ 
+ 	// Produce a DWARF variable entry for each user variable.
+-	var decls []ir.Node
++	var decls []*ir.Name
+ 	var vars []*dwarf.Var
+-	ssaVars := make(map[ir.Node]bool)
++	ssaVars := make(map[*ir.Name]bool)
+ 
+ 	for varID, dvar := range debugInfo.Vars {
+ 		n := dvar
+@@ -611,11 +611,11 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]ir.Node, []*dwarf.Var, m
+ 
+ // createDwarfVars process fn, returning a list of DWARF variables and the
+ // Nodes they represent.
+-func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.Node) ([]ir.Node, []*dwarf.Var) {
++func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var) {
+ 	// Collect a raw list of DWARF vars.
+ 	var vars []*dwarf.Var
+-	var decls []ir.Node
+-	var selected map[ir.Node]bool
++	var decls []*ir.Name
++	var selected map[*ir.Name]bool
+ 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
+ 		decls, vars, selected = createComplexVars(fnsym, fn)
+ 	} else {
+@@ -714,9 +714,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.
+ // function that is not local to the package being compiled, then the
+ // names of the variables may have been "versioned" to avoid conflicts
+ // with local vars; disregard this versioning when sorting.
+-func preInliningDcls(fnsym *obj.LSym) []ir.Node {
++func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
+ 	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*ir.Func)
+-	var rdcl []ir.Node
++	var rdcl []*ir.Name
+ 	for _, n := range fn.Inl.Dcl {
+ 		c := n.Sym().Name[0]
+ 		// Avoid reporting "_" parameters, since if there are more than
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e8f345d8f6..9539e9cc8a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -410,7 +410,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 
+ 	// Generate addresses of local declarations
+-	s.decladdrs = map[ir.Node]*ssa.Value{}
++	s.decladdrs = map[*ir.Name]*ssa.Value{}
+ 	var args []ssa.Param
+ 	var results []ssa.Param
+ 	for _, n := range fn.Dcl {
+@@ -576,7 +576,7 @@ type openDeferInfo struct {
+ 	// function call are stored.
+ 	argVals []*ssa.Value
+ 	// The nodes representing the argtmps where the args of the defer are stored
+-	argNodes []ir.Node
++	argNodes []*ir.Name
+ }
+ 
+ type state struct {
+@@ -613,7 +613,7 @@ type state struct {
+ 	defvars []map[ir.Node]*ssa.Value
+ 
+ 	// addresses of PPARAM and PPARAMOUT variables.
+-	decladdrs map[ir.Node]*ssa.Value
++	decladdrs map[*ir.Name]*ssa.Value
+ 
+ 	// starting values. Memory, stack pointer, and globals pointer
+ 	startmem *ssa.Value
+@@ -633,7 +633,7 @@ type state struct {
+ 	panics map[funcLine]*ssa.Block
+ 
+ 	// list of PPARAMOUT (return) variables.
+-	returns []ir.Node
++	returns []*ir.Name
+ 
+ 	cgoUnsafeArgs bool
+ 	hasdefer      bool // whether the function contains a defer statement
+@@ -685,7 +685,7 @@ func (s *state) Fatalf(msg string, args ...interface{}) {
+ func (s *state) Warnl(pos src.XPos, msg string, args ...interface{}) { s.f.Warnl(pos, msg, args...) }
+ func (s *state) Debug_checknil() bool                                { return s.f.Frontend().Debug_checknil() }
+ 
+-func ssaMarker(name string) ir.Node {
++func ssaMarker(name string) *ir.Name {
+ 	return NewName(&types.Sym{Name: name})
+ }
+ 
+@@ -1571,7 +1571,7 @@ func (s *state) exit() *ssa.Block {
+ 	for _, n := range s.returns {
+ 		addr := s.decladdrs[n]
+ 		val := s.variable(n, n.Type())
+-		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n.(*ir.Name), s.mem())
++		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+ 		s.store(n.Type(), addr, val)
+ 		// TODO: if val is ever spilled, we'd like to use the
+ 		// PPARAMOUT slot for spilling it. That won't happen
+@@ -4224,7 +4224,7 @@ func (s *state) openDeferRecord(n ir.Node) {
+ 	s.stmtList(n.List())
+ 
+ 	var args []*ssa.Value
+-	var argNodes []ir.Node
++	var argNodes []*ir.Name
+ 
+ 	opendefer := &openDeferInfo{
+ 		n: n,
+@@ -4467,7 +4467,7 @@ func (s *state) openDeferExit() {
+ 		}
+ 		for _, argNode := range r.argNodes {
+ 			if argNode.Type().HasPointers() {
+-				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode.(*ir.Name), s.mem(), false)
++				s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, argNode, s.mem(), false)
+ 			}
+ 		}
+ 
+@@ -4838,6 +4838,7 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 	t := types.NewPtr(n.Type())
+ 	switch n.Op() {
+ 	case ir.ONAME:
++		n := n.(*ir.Name)
+ 		switch n.Class() {
+ 		case ir.PEXTERN:
+ 			// global variable
+@@ -4855,17 +4856,17 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			}
+ 			if n == nodfp {
+ 				// Special arg that points to the frame pointer (Used by ORECOVER).
+-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.startmem)
++				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
+ 			}
+ 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			return nil
+ 		case ir.PAUTO:
+-			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), !ir.IsAutoTmp(n))
++			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), !ir.IsAutoTmp(n))
+ 
+ 		case ir.PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+-			return s.newValue2Apos(ssa.OpLocalAddr, t, n.(*ir.Name), s.sp, s.mem(), true)
++			return s.newValue2Apos(ssa.OpLocalAddr, t, n, s.sp, s.mem(), true)
+ 		default:
+ 			s.Fatalf("variable address class %v not implemented", n.Class())
+ 			return nil
+@@ -6196,15 +6197,15 @@ func (s *SSAGenState) DebugFriendlySetPosFrom(v *ssa.Value) {
+ 	}
+ }
+ 
+-// byXoffset implements sort.Interface for []*Node using Xoffset as the ordering.
+-type byXoffset []ir.Node
++// byXoffset implements sort.Interface for []*ir.Name using Xoffset as the ordering.
++type byXoffset []*ir.Name
+ 
+ func (s byXoffset) Len() int           { return len(s) }
+ func (s byXoffset) Less(i, j int) bool { return s[i].Offset() < s[j].Offset() }
+ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func emitStackObjects(e *ssafn, pp *Progs) {
+-	var vars []ir.Node
++	var vars []*ir.Name
+ 	for _, n := range e.curfn.Dcl {
+ 		if livenessShouldTrack(n) && n.Addrtaken() {
+ 			vars = append(vars, n)
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index d0446a0311..a68c82ba97 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -137,9 +137,9 @@ func dse(f *Func) {
+ // reaches stores then we delete all the stores. The other operations will then
+ // be eliminated by the dead code elimination pass.
+ func elimDeadAutosGeneric(f *Func) {
+-	addr := make(map[*Value]ir.Node) // values that the address of the auto reaches
+-	elim := make(map[*Value]ir.Node) // values that could be eliminated if the auto is
+-	used := make(map[ir.Node]bool)   // used autos that must be kept
++	addr := make(map[*Value]*ir.Name) // values that the address of the auto reaches
++	elim := make(map[*Value]*ir.Name) // values that could be eliminated if the auto is
++	used := make(map[*ir.Name]bool)   // used autos that must be kept
+ 
+ 	// visit the value and report whether any of the maps are updated
+ 	visit := func(v *Value) (changed bool) {
+@@ -222,7 +222,7 @@ func elimDeadAutosGeneric(f *Func) {
+ 		}
+ 
+ 		// Propagate any auto addresses through v.
+-		var node ir.Node
++		var node *ir.Name
+ 		for _, a := range args {
+ 			if n, ok := addr[a]; ok && !used[n] {
+ 				if node == nil {
+@@ -299,7 +299,7 @@ func elimUnreadAutos(f *Func) {
+ 	// Loop over all ops that affect autos taking note of which
+ 	// autos we need and also stores that we might be able to
+ 	// eliminate.
+-	seen := make(map[ir.Node]bool)
++	seen := make(map[*ir.Name]bool)
+ 	var stores []*Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 405817dbe1..68b6ab5fe9 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -25,7 +25,7 @@ type FuncDebug struct {
+ 	// Slots is all the slots used in the debug info, indexed by their SlotID.
+ 	Slots []LocalSlot
+ 	// The user variables, indexed by VarID.
+-	Vars []ir.Node
++	Vars []*ir.Name
+ 	// The slots that make up each variable, indexed by VarID.
+ 	VarSlots [][]SlotID
+ 	// The location list data, indexed by VarID. Must be processed by PutLocationList.
+@@ -166,7 +166,7 @@ func (s *debugState) logf(msg string, args ...interface{}) {
+ type debugState struct {
+ 	// See FuncDebug.
+ 	slots    []LocalSlot
+-	vars     []ir.Node
++	vars     []*ir.Name
+ 	varSlots [][]SlotID
+ 	lists    [][]byte
+ 
+@@ -190,7 +190,7 @@ type debugState struct {
+ 	// The pending location list entry for each user variable, indexed by VarID.
+ 	pendingEntries []pendingEntry
+ 
+-	varParts           map[ir.Node][]SlotID
++	varParts           map[*ir.Name][]SlotID
+ 	blockDebug         []BlockDebug
+ 	pendingSlotLocs    []VarLoc
+ 	liveSlots          []liveSlot
+@@ -347,7 +347,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	}
+ 
+ 	if state.varParts == nil {
+-		state.varParts = make(map[ir.Node][]SlotID)
++		state.varParts = make(map[*ir.Name][]SlotID)
+ 	} else {
+ 		for n := range state.varParts {
+ 			delete(state.varParts, n)

@@ -11,6 +11,20 @@ Date:   Fri Feb 6 15:57:02 2009 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=24294
     CL=24603
-
+---
  test/func4.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/func4.go b/test/func4.go
+index 843e6d341b..f9e394fdf7 100644
+--- a/test/func4.go
++++ b/test/func4.go
+@@ -9,6 +9,6 @@ package main
+ var notmain func()
+ 
+ func main() {
+-	var x = &main;		// ERROR "address of function"
+-	main = notmain;	// ERROR "assign to function"
++	var x = &main;		// ERROR "address of function|invalid"
++	main = notmain;	// ERROR "assign to function|invalid"
+ }

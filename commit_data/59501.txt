@@ -13,6 +13,20 @@ Date:   Tue Mar 19 07:04:15 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2e3ad3232b..06180f8dea 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3152,7 +3152,7 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 		// In theory, we should set b.Likely here based on context.
+ 		// However, gc only gives us likeliness hints
+ 		// in a single place, for plain OIF statements,
+-		// and passing around context is finnicky, so don't bother for now.
++		// and passing around context is finicky, so don't bother for now.
+ 
+ 		bRight := s.f.NewBlock(ssa.BlockPlain)
+ 		bResult := s.f.NewBlock(ssa.BlockPlain)

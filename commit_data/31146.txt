@@ -24,6 +24,27 @@ Date:   Wed Jan 11 13:58:20 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/fuse.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fuse.go b/src/cmd/compile/internal/ssa/fuse.go
+index d5940da439..94a96120fa 100644
+--- a/src/cmd/compile/internal/ssa/fuse.go
++++ b/src/cmd/compile/internal/ssa/fuse.go
+@@ -121,7 +121,14 @@ func fuseBlockPlain(b *Block) bool {
+ 	// move all of b's values to c.
+ 	for _, v := range b.Values {
+ 		v.Block = c
+-		c.Values = append(c.Values, v)
++	}
++	// Use whichever value slice is larger, in the hopes of avoiding growth.
++	// However, take care to avoid c.Values pointing to b.valstorage.
++	// See golang.org/issue/18602.
++	if cap(c.Values) >= cap(b.Values) || len(b.Values) <= len(b.valstorage) {
++		c.Values = append(c.Values, b.Values...)
++	} else {
++		c.Values = append(b.Values, c.Values...)
+ 	}
+ 
+ 	// replace b->c edge with preds(b) -> c

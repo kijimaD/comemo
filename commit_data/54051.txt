@@ -20,7 +20,34 @@ Date:   Mon Sep 19 17:21:20 2022 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/wait_unimp.go | 2 +-
  src/os/wait_wait6.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 721b9f9f7e..bc93e44cf9 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -6,7 +6,7 @@
+ // waitid/wait6. netbsd implements wait6, but that is causing test
+ // failures, see issue #48789.
+ 
+-//go:build aix || darwin || (js && wasm) || netbsd || openbsd || solaris
++//go:build aix || darwin || (js && wasm) || openbsd || solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index d395dac40b..1464576b7c 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd
++//go:build dragonfly || freebsd || netbsd
+ 
+ package os
+ 

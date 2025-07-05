@@ -11,7 +11,7 @@ Date:   Wed Feb 24 16:17:11 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/223043
-
+---
  src/cmd/cgo/ast.go                          | 12 ++++---
  src/cmd/cgo/gcc.go                          |  6 ++--
  src/pkg/exp/eval/typec.go                   | 56 ++++++++++++-----------------
@@ -24,3 +24,598 @@ Date:   Wed Feb 24 16:17:11 2010 -0800
  src/pkg/go/printer/testdata/comments.golden |  8 +++++
  src/pkg/go/printer/testdata/comments.input  |  8 +++++
  11 files changed, 151 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 2cc771e16f..d6bcdb4879 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -164,6 +164,10 @@ func walk(x interface{}, p *Prog, context string) {
+ 	// These are ordered and grouped to match ../../pkg/go/ast/ast.go
+ 	case *ast.Field:
+ 		walk(&n.Type, p, "type")
++	case *ast.FieldList:
++		for _, f := range n.List {
++			walk(f, p, context)
++		}
+ 	case *ast.BadExpr:
+ 	case *ast.Ident:
+ 	case *ast.Ellipsis:
+@@ -211,7 +215,9 @@ func walk(x interface{}, p *Prog, context string) {
+ 		walk(n.Fields, p, "field")
+ 	case *ast.FuncType:
+ 		walk(n.Params, p, "field")
+-		walk(n.Results, p, "field")
++		if n.Results != nil {
++			walk(n.Results, p, "field")
++		}
+ 	case *ast.InterfaceType:
+ 		walk(n.Methods, p, "field")
+ 	case *ast.MapType:
+@@ -313,10 +319,6 @@ func walk(x interface{}, p *Prog, context string) {
+ 		for i := range n {
+ 			walk(&n[i], p, context)
+ 		}
+-	case []*ast.Field:
+-		for _, f := range n {
+-			walk(f, p, context)
+-		}
+ 	case []ast.Stmt:
+ 		for _, s := range n {
+ 			walk(s, p, context)
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 7b5c7906f0..01c4836841 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -703,8 +703,8 @@ func (c *typeConv) FuncType(dtype *dwarf.FuncType) *FuncType {
+ 		Params: p,
+ 		Result: r,
+ 		Go: &ast.FuncType{
+-			Params: gp,
+-			Results: gr,
++			Params: &ast.FieldList{List: gp},
++			Results: &ast.FieldList{List: gr},
+ 		},
+ 	}
+ }
+@@ -796,6 +796,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 		fatal("struct size calculation error")
+ 	}
+ 	csyntax += "}"
+-	expr = &ast.StructType{Fields: fld}
++	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
+ 	return
+ }
+diff --git a/src/pkg/exp/eval/typec.go b/src/pkg/exp/eval/typec.go
+index 0addc7dfb8..80ac078a25 100644
+--- a/src/pkg/exp/eval/typec.go
++++ b/src/pkg/exp/eval/typec.go
+@@ -86,43 +86,33 @@ func (a *typeCompiler) compileArrayType(x *ast.ArrayType, allowRec bool) Type {
+ 	return NewArrayType(l, elem)
+ }
+ 
+-func countFields(fs []*ast.Field) int {
+-	n := 0
+-	for _, f := range fs {
+-		if f.Names == nil {
+-			n++
+-		} else {
+-			n += len(f.Names)
+-		}
+-	}
+-	return n
+-}
+-
+-func (a *typeCompiler) compileFields(fs []*ast.Field, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
+-	n := countFields(fs)
++func (a *typeCompiler) compileFields(fields *ast.FieldList, allowRec bool) ([]Type, []*ast.Ident, []token.Position, bool) {
++	n := fields.NumFields()
+ 	ts := make([]Type, n)
+ 	ns := make([]*ast.Ident, n)
+ 	ps := make([]token.Position, n)
+-
+ 	bad := false
+-	i := 0
+-	for _, f := range fs {
+-		t := a.compileType(f.Type, allowRec)
+-		if t == nil {
+-			bad = true
+-		}
+-		if f.Names == nil {
+-			ns[i] = nil
+-			ts[i] = t
+-			ps[i] = f.Type.Pos()
+-			i++
+-			continue
+-		}
+-		for _, n := range f.Names {
+-			ns[i] = n
+-			ts[i] = t
+-			ps[i] = n.Pos()
+-			i++
++
++	if fields != nil {
++		i := 0
++		for _, f := range fields.List {
++			t := a.compileType(f.Type, allowRec)
++			if t == nil {
++				bad = true
++			}
++			if f.Names == nil {
++				ns[i] = nil
++				ts[i] = t
++				ps[i] = f.Type.Pos()
++				i++
++				continue
++			}
++			for _, n := range f.Names {
++				ns[i] = n
++				ts[i] = t
++				ps[i] = n.Pos()
++				i++
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 4773efaf64..83a63dba44 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -102,6 +102,30 @@ func (f *Field) Pos() token.Position {
+ }
+ 
+ 
++// A FieldList represents a list of Fields, enclosed by parentheses or braces.
++type FieldList struct {
++	Opening token.Position // position of opening parenthesis/brace
++	List    []*Field       // field list
++	Closing token.Position // position of closing parenthesis/brace
++}
++
++
++// NumFields returns the number of (named and anonymous fields) in a FieldList.
++func (f *FieldList) NumFields() int {
++	n := 0
++	if f != nil {
++		for _, g := range f.List {
++			m := len(g.Names)
++			if m == 0 {
++				m = 1 // anonymous field
++			}
++			n += m
++		}
++	}
++	return n
++}
++
++
+ // An expression is represented by a tree consisting of one
+ // or more of the following concrete expression nodes.
+ //
+@@ -253,29 +277,25 @@ type (
+ 
+ 	// A StructType node represents a struct type.
+ 	StructType struct {
+-		token.Position                // position of "struct" keyword
+-		Lbrace         token.Position // position of "{"
+-		Fields         []*Field       // list of field declarations
+-		Rbrace         token.Position // position of "}"
+-		Incomplete     bool           // true if (source) fields are missing in the Fields list
++		token.Position            // position of "struct" keyword
++		Fields         *FieldList // list of field declarations
++		Incomplete     bool       // true if (source) fields are missing in the Fields list
+ 	}
+ 
+ 	// Pointer types are represented via StarExpr nodes.
+ 
+ 	// A FuncType node represents a function type.
+ 	FuncType struct {
+-		token.Position          // position of "func" keyword
+-		Params         []*Field // (incoming) parameters
+-		Results        []*Field // (outgoing) results
++		token.Position            // position of "func" keyword
++		Params         *FieldList // (incoming) parameters
++		Results        *FieldList // (outgoing) results
+ 	}
+ 
+ 	// An InterfaceType node represents an interface type.
+ 	InterfaceType struct {
+-		token.Position                // position of "interface" keyword
+-		Lbrace         token.Position // position of "{"
+-		Methods        []*Field       // list of methods
+-		Rbrace         token.Position // position of "}"
+-		Incomplete     bool           // true if (source) methods are missing in the Methods list
++		token.Position            // position of "interface" keyword
++		Methods        *FieldList // list of methods
++		Incomplete     bool       // true if (source) methods are missing in the Methods list
+ 	}
+ 
+ 	// A MapType node represents a map type.
+@@ -669,7 +689,7 @@ type (
+ 	// A FuncDecl node represents a function declaration.
+ 	FuncDecl struct {
+ 		Doc  *CommentGroup // associated documentation; or nil
+-		Recv *Field        // receiver (methods); or nil (functions)
++		Recv *FieldList    // receiver (methods); or nil (functions)
+ 		Name *Ident        // function/method name
+ 		Type *FuncType     // position of Func keyword, parameters and results
+ 		Body *BlockStmt    // function body; or nil (forward declaration)
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 4f1f0ab477..bad1a58b41 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -36,7 +36,11 @@ func isExportedType(typ Expr) bool {
+ }
+ 
+ 
+-func filterFieldList(list []*Field, incomplete *bool) []*Field {
++func filterFieldList(fields *FieldList, incomplete *bool) {
++	if fields == nil {
++		return
++	}
++	list := fields.List
+ 	j := 0
+ 	for _, f := range list {
+ 		exported := false
+@@ -65,12 +69,15 @@ func filterFieldList(list []*Field, incomplete *bool) []*Field {
+ 	if j < len(list) {
+ 		*incomplete = true
+ 	}
+-	return list[0:j]
++	fields.List = list[0:j]
+ }
+ 
+ 
+-func filterParamList(list []*Field) {
+-	for _, f := range list {
++func filterParamList(fields *FieldList) {
++	if fields == nil {
++		return
++	}
++	for _, f := range fields.List {
+ 		filterType(f.Type)
+ 	}
+ }
+@@ -83,12 +90,12 @@ func filterType(typ Expr) {
+ 	case *ArrayType:
+ 		filterType(t.Elt)
+ 	case *StructType:
+-		t.Fields = filterFieldList(t.Fields, &t.Incomplete)
++		filterFieldList(t.Fields, &t.Incomplete)
+ 	case *FuncType:
+ 		filterParamList(t.Params)
+ 		filterParamList(t.Results)
+ 	case *InterfaceType:
+-		t.Methods = filterFieldList(t.Methods, &t.Incomplete)
++		filterFieldList(t.Methods, &t.Incomplete)
+ 	case *MapType:
+ 		filterType(t.Key)
+ 		filterType(t.Value)
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index 641aae0c91..2137ddaa46 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -72,6 +72,11 @@ func Walk(v Visitor, node interface{}) {
+ 		Walk(v, n.Tag)
+ 		walkCommentGroup(v, n.Comment)
+ 
++	case *FieldList:
++		for _, f := range n.List {
++			Walk(v, f)
++		}
++
+ 	// Expressions
+ 	case *BadExpr, *Ident, *Ellipsis, *BasicLit:
+ 		// nothing to do
+@@ -134,7 +139,9 @@ func Walk(v Visitor, node interface{}) {
+ 
+ 	case *FuncType:
+ 		Walk(v, n.Params)
+-		Walk(v, n.Results)
++		if n.Results != nil {
++			Walk(v, n.Results)
++		}
+ 
+ 	case *InterfaceType:
+ 		Walk(v, n.Methods)
+@@ -287,11 +294,6 @@ func Walk(v Visitor, node interface{}) {
+ 			Walk(v, f)
+ 		}
+ 
+-	case []*Field:
+-		for _, x := range n {
+-			Walk(v, x)
+-		}
+-
+ 	case []*Ident:
+ 		for _, x := range n {
+ 			Walk(v, x)
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index ba7cf45c35..1bf4969337 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -153,7 +153,7 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+ 	// determine if it should be associated with a type
+ 	if fun.Recv != nil {
+ 		// method
+-		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.Type))
++		typ := doc.lookupTypeDoc(baseTypeName(fun.Recv.List[0].Type))
+ 		if typ != nil {
+ 			// exported receiver type
+ 			typ.methods[name] = fun
+@@ -168,8 +168,8 @@ func (doc *docReader) addFunc(fun *ast.FuncDecl) {
+ 
+ 	// perhaps a factory function
+ 	// determine result type, if any
+-	if len(fun.Type.Results) >= 1 {
+-		res := fun.Type.Results[0]
++	if fun.Type.Results.NumFields() >= 1 {
++		res := fun.Type.Results.List[0]
+ 		if len(res.Names) <= 1 {
+ 			// exactly one (named or anonymous) result associated
+ 			// with the first type in result signature (there may
+@@ -398,7 +398,7 @@ func makeFuncDocs(m map[string]*ast.FuncDecl) []*FuncDoc {
+ 		doc.Doc = CommentText(f.Doc)
+ 		f.Doc = nil // doc consumed - remove from ast.FuncDecl node
+ 		if f.Recv != nil {
+-			doc.Recv = f.Recv.Type
++			doc.Recv = f.Recv.List[0].Type
+ 		}
+ 		doc.Name = f.Name.Name()
+ 		doc.Decl = f
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 22e14167a0..48b9a63c2e 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -572,7 +572,7 @@ func (p *parser) parseStructType() *ast.StructType {
+ 	// TODO(gri) The struct scope shouldn't get lost.
+ 	p.declFieldList(ast.NewScope(nil), fields)
+ 
+-	return &ast.StructType{pos, lbrace, fields, rbrace, false}
++	return &ast.StructType{pos, &ast.FieldList{lbrace, fields, rbrace}, false}
+ }
+ 
+ 
+@@ -679,44 +679,44 @@ func (p *parser) parseParameterList(ellipsisOk bool) []*ast.Field {
+ }
+ 
+ 
+-func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) []*ast.Field {
++func (p *parser) parseParameters(scope *ast.Scope, ellipsisOk bool) *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Parameters"))
+ 	}
+ 
+ 	var params []*ast.Field
+-	p.expect(token.LPAREN)
++	lparen := p.expect(token.LPAREN)
+ 	if p.tok != token.RPAREN {
+ 		params = p.parseParameterList(ellipsisOk)
+ 		p.declFieldList(scope, params)
+ 	}
+-	p.expect(token.RPAREN)
++	rparen := p.expect(token.RPAREN)
+ 
+-	return params
++	return &ast.FieldList{lparen, params, rparen}
+ }
+ 
+ 
+-func (p *parser) parseResult(scope *ast.Scope) []*ast.Field {
++func (p *parser) parseResult(scope *ast.Scope) *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Result"))
+ 	}
+ 
+-	var results []*ast.Field
+ 	if p.tok == token.LPAREN {
+-		results = p.parseParameters(scope, false)
+-	} else {
+-		typ := p.tryType()
+-		if typ != nil {
+-			results = make([]*ast.Field, 1)
+-			results[0] = &ast.Field{Type: typ}
+-		}
++		return p.parseParameters(scope, false)
++	}
++
++	typ := p.tryType()
++	if typ != nil {
++		list := make([]*ast.Field, 1)
++		list[0] = &ast.Field{Type: typ}
++		return &ast.FieldList{List: list}
+ 	}
+ 
+-	return results
++	return nil
+ }
+ 
+ 
+-func (p *parser) parseSignature(scope *ast.Scope) (params []*ast.Field, results []*ast.Field) {
++func (p *parser) parseSignature(scope *ast.Scope) (params, results *ast.FieldList) {
+ 	if p.trace {
+ 		defer un(trace(p, "Signature"))
+ 	}
+@@ -787,7 +787,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 	// TODO(gri) The interface scope shouldn't get lost.
+ 	p.declFieldList(ast.NewScope(nil), methods)
+ 
+-	return &ast.InterfaceType{pos, lbrace, methods, rbrace, false}
++	return &ast.InterfaceType{pos, &ast.FieldList{lbrace, methods, rbrace}, false}
+ }
+ 
+ 
+@@ -1942,7 +1942,7 @@ func (p *parser) parseGenDecl(keyword token.Token, f parseSpecFunction) *ast.Gen
+ }
+ 
+ 
+-func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
++func (p *parser) parseReceiver(scope *ast.Scope) *ast.FieldList {
+ 	if p.trace {
+ 		defer un(trace(p, "Receiver"))
+ 	}
+@@ -1951,12 +1951,12 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
+ 	par := p.parseParameters(scope, false)
+ 
+ 	// must have exactly one receiver
+-	if len(par) != 1 || len(par) == 1 && len(par[0].Names) > 1 {
++	if par.NumFields() != 1 {
+ 		p.errorExpected(pos, "exactly one receiver")
+-		return &ast.Field{Type: &ast.BadExpr{noPos}}
++		par.List = []*ast.Field{&ast.Field{Type: &ast.BadExpr{noPos}}}
+ 	}
+ 
+-	recv := par[0]
++	recv := par.List[0]
+ 
+ 	// recv type must be TypeName or *TypeName
+ 	base := recv.Type
+@@ -1967,7 +1967,7 @@ func (p *parser) parseReceiver(scope *ast.Scope) *ast.Field {
+ 		p.errorExpected(base.Pos(), "type name")
+ 	}
+ 
+-	return recv
++	return par
+ }
+ 
+ 
+@@ -1980,7 +1980,7 @@ func (p *parser) parseFuncDecl() *ast.FuncDecl {
+ 	pos := p.expect(token.FUNC)
+ 	scope := ast.NewScope(p.funcScope)
+ 
+-	var recv *ast.Field
++	var recv *ast.FieldList
+ 	if p.tok == token.LPAREN {
+ 		recv = p.parseReceiver(scope)
+ 	}
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 6096751bd9..f546f3f2a0 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -218,10 +218,10 @@ func (p *printer) exprList(prev token.Position, list []ast.Expr, depth int, mode
+ 
+ 
+ // Sets multiLine to true if the the parameter list spans multiple lines.
+-func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
+-	p.print(token.LPAREN)
+-	if len(list) > 0 {
+-		for i, par := range list {
++func (p *printer) parameters(fields *ast.FieldList, multiLine *bool) {
++	p.print(fields.Opening, token.LPAREN)
++	if len(fields.List) > 0 {
++		for i, par := range fields.List {
+ 			if i > 0 {
+ 				p.print(token.COMMA, blank)
+ 			}
+@@ -232,18 +232,19 @@ func (p *printer) parameters(list []*ast.Field, multiLine *bool) {
+ 			p.expr(par.Type, multiLine)
+ 		}
+ 	}
+-	p.print(token.RPAREN)
++	p.print(fields.Closing, token.RPAREN)
+ }
+ 
+ 
+ // Sets multiLine to true if the signature spans multiple lines.
+-func (p *printer) signature(params, result []*ast.Field, multiLine *bool) {
++func (p *printer) signature(params, result *ast.FieldList, multiLine *bool) {
+ 	p.parameters(params, multiLine)
+-	if result != nil {
++	n := result.NumFields()
++	if n > 0 {
+ 		p.print(blank)
+-		if len(result) == 1 && result[0].Names == nil {
++		if n == 1 && result.List[0].Names == nil {
+ 			// single anonymous result; no ()'s
+-			p.expr(result[0].Type, multiLine)
++			p.expr(result.List[0].Type, multiLine)
+ 			return
+ 		}
+ 		p.parameters(result, multiLine)
+@@ -289,7 +290,11 @@ func (p *printer) setLineComment(text string) {
+ }
+ 
+ 
+-func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isIncomplete bool, ctxt exprContext) {
++func (p *printer) fieldList(fields *ast.FieldList, isIncomplete bool, ctxt exprContext) {
++	lbrace := fields.Opening
++	list := fields.List
++	rbrace := fields.Closing
++
+ 	if !isIncomplete && !p.commentBefore(rbrace) {
+ 		// possibly a one-line struct/interface
+ 		if len(list) == 0 {
+@@ -711,7 +716,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.StructType:
+ 		p.print(token.STRUCT)
+-		p.fieldList(x.Lbrace, x.Fields, x.Rbrace, x.Incomplete, ctxt|structType)
++		p.fieldList(x.Fields, x.Incomplete, ctxt|structType)
+ 
+ 	case *ast.FuncType:
+ 		p.print(token.FUNC)
+@@ -719,7 +724,7 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 
+ 	case *ast.InterfaceType:
+ 		p.print(token.INTERFACE)
+-		p.fieldList(x.Lbrace, x.Methods, x.Rbrace, x.Incomplete, ctxt)
++		p.fieldList(x.Methods, x.Incomplete, ctxt)
+ 
+ 	case *ast.MapType:
+ 		p.print(token.MAP, token.LBRACK)
+@@ -1209,15 +1214,9 @@ func distance(from, to token.Position) int {
+ func (p *printer) funcDecl(d *ast.FuncDecl, multiLine *bool) {
+ 	p.setComment(d.Doc)
+ 	p.print(d.Pos(), token.FUNC, blank)
+-	if recv := d.Recv; recv != nil {
+-		// method: print receiver
+-		p.print(token.LPAREN)
+-		if len(recv.Names) > 0 {
+-			p.expr(recv.Names[0], multiLine)
+-			p.print(blank)
+-		}
+-		p.expr(recv.Type, multiLine)
+-		p.print(token.RPAREN, blank)
++	if d.Recv != nil {
++		p.parameters(d.Recv, multiLine) // method: print receiver
++		p.print(blank)
+ 	}
+ 	p.expr(d.Name, multiLine)
+ 	p.signature(d.Type.Params, d.Type.Results, multiLine)
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 2d4f434442..4242688f56 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -381,6 +381,14 @@ func _() {
+ // Some interesting interspersed comments
+ func _( /* this */ x /* is */ /* an */ int)	{}
+ 
++func _( /* no params */ )	{}
++
++func _() {
++	f( /* no args */ )
++}
++
++func ( /* comment1 */ T /* comment2 */ ) _()	{}
++
+ 
+ // Line comments with tabs
+ func _() {
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index eec88bf95b..427065a8f1 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -382,6 +382,14 @@ func _() {
+ func _(/* this */x/* is *//* an */ int) {
+ }
+ 
++func _(/* no params */) {}
++
++func _() {
++	f(/* no args */)
++}
++
++func (/* comment1 */ T /* comment2 */) _() {}
++
+ 
+ // Line comments with tabs
+ func _() {

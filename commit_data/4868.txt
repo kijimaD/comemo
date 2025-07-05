@@ -7,6 +7,20 @@ Date:   Tue Feb 16 17:30:33 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/210043
-
+---
  src/cmd/gc/subr.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7072d95e42..8b0ce600b3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1539,7 +1539,7 @@ Zconv(Fmt *fp)
+ 		switch(r) {
+ 		case Runeerror:
+ 			if(n == 1) {
+-				fmtprint(fp, "\\x%02x", *(s-1));
++				fmtprint(fp, "\\x%02x", (uchar)*(s-1));
+ 				break;
+ 			}
+ 			// fall through

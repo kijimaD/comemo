@@ -16,6 +16,22 @@ Date:   Tue Jul 31 21:31:19 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d48fc7958d..20e794b4be 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -652,6 +652,10 @@ func (p *Package) recordTypedefs1(dtype dwarf.Type, visited map[dwarf.Type]bool)
+ 	visited[dtype] = true
+ 	switch dt := dtype.(type) {
+ 	case *dwarf.TypedefType:
++		if strings.HasPrefix(dt.Name, "__builtin") {
++			// Don't look inside builtin types. There be dragons.
++			return
++		}
+ 		if !p.typedefs[dt.Name] {
+ 			p.typedefs[dt.Name] = true
+ 			p.typedefList = append(p.typedefList, dt.Name)

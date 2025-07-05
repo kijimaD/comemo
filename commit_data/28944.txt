@@ -13,6 +13,18 @@ Date:   Wed Aug 17 13:18:43 2016 -0700
     Change-Id: Ic02d8537e776fa1dd5694d3af07a28c4d840d14b
     Reviewed-on: https://go-review.googlesource.com/27239
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/hmac/hmac.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index a748107838..9ef9c448ee 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -94,5 +94,5 @@ func Equal(mac1, mac2 []byte) bool {
+ 	// We don't have to be constant time if the lengths of the MACs are
+ 	// different as that suggests that a completely different hash function
+ 	// was used.
+-	return len(mac1) == len(mac2) && subtle.ConstantTimeCompare(mac1, mac2) == 1
++	return subtle.ConstantTimeCompare(mac1, mac2) == 1
+ }

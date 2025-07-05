@@ -12,7 +12,7 @@ Date:   Mon Apr 26 14:32:23 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go          |  8 ++++----
  src/cmd/compile/internal/ir/func.go             |  5 ++++-
  src/cmd/compile/internal/typecheck/func.go      |  7 ++++---
@@ -21,3 +21,197 @@ Date:   Mon Apr 26 14:32:23 2021 -0700
  src/cmd/compile/internal/types/sym.go           |  8 ++++++--
  src/cmd/compile/internal/types/type.go          | 27 ++++++++++++++++---------
  7 files changed, 42 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e07bb3b324..a6829e9835 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -53,8 +53,8 @@ const (
+ 	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
+ )
+ 
++// InlinePackage finds functions that can be inlined and clones them before walk expands them.
+ func InlinePackage() {
+-	// Find functions that can be inlined and clone them before walk expands them.
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
+ 		numfns := numNonClosures(list)
+ 		for _, n := range list {
+@@ -74,8 +74,8 @@ func InlinePackage() {
+ }
+ 
+ // CanInline determines whether fn is inlineable.
+-// If so, CanInline saves fn->nbody in fn->inl and substitutes it with a copy.
+-// fn and ->nbody will already have been typechecked.
++// If so, CanInline saves copies of fn.Body and fn.Dcl in fn.Inl.
++// fn and fn.Body will already have been typechecked.
+ func CanInline(fn *ir.Func) {
+ 	if fn.Nname == nil {
+ 		base.Fatalf("CanInline no nname %+v", fn)
+@@ -520,7 +520,7 @@ func inlcopy(n ir.Node) ir.Node {
+ 	return edit(n)
+ }
+ 
+-// Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
++// InlineCalls/inlnode walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+ func InlineCalls(fn *ir.Func) {
+ 	savefn := ir.CurFunc
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 385866b3c8..20fe965711 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -160,7 +160,10 @@ func (f *Func) LinksymABI(abi obj.ABI) *obj.LSym { return f.Nname.LinksymABI(abi
+ type Inline struct {
+ 	Cost int32 // heuristic cost of inlining this function
+ 
+-	// Copies of Func.Dcl and Nbody for use during inlining.
++	// Copies of Func.Dcl and Func.Body for use during inlining. Copies are
++	// needed because the function's dcl/body may be changed by later compiler
++	// transformations. These fields are also populated when a function from
++	// another package is imported.
+ 	Dcl  []*Name
+ 	Body []Node
+ }
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index e154c39269..f381e1dbdc 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -105,8 +105,9 @@ func PartialCallType(n *ir.SelectorExpr) *types.Type {
+ // typechecking an inline body, as opposed to the body of a real function.
+ var inTypeCheckInl bool
+ 
+-// Lazy typechecking of imported bodies. For local functions, CanInline will set ->typecheck
+-// because they're a copy of an already checked body.
++// ImportedBody returns immediately if the inlining information for fn is
++// populated. Otherwise, fn must be an imported function. If so, ImportedBody
++// loads in the dcls and body for fn, and typechecks as needed.
+ func ImportedBody(fn *ir.Func) {
+ 	if fn.Inl.Body != nil {
+ 		return
+@@ -180,7 +181,7 @@ func fnpkg(fn *ir.Name) *types.Pkg {
+ 	return fn.Sym().Pkg
+ }
+ 
+-// closurename generates a new unique name for a closure within
++// ClosureName generates a new unique name for a closure within
+ // outerfunc.
+ func ClosureName(outerfunc *ir.Func) *types.Sym {
+ 	outer := "glob."
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 00f6a6e483..a5ddbb5a74 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -42,6 +42,9 @@ var (
+ 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
+ )
+ 
++// expandDecl returns immediately if n is already a Name node. Otherwise, n should
++// be an Ident node, and expandDecl reads in the definition of the specified
++// identifier from the appropriate package.
+ func expandDecl(n ir.Node) ir.Node {
+ 	if n, ok := n.(*ir.Name); ok {
+ 		return n
+@@ -61,6 +64,8 @@ func expandDecl(n ir.Node) ir.Node {
+ 	return r.doDecl(n.Sym())
+ }
+ 
++// ImportBody reads in the dcls and body of an imported function (which should not
++// yet have been read in).
+ func ImportBody(fn *ir.Func) {
+ 	if fn.Inl.Body != nil {
+ 		base.Fatalf("%v already has inline body", fn)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 4c5472137a..95f7b50259 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -66,6 +66,8 @@ func FuncBody(n *ir.Func) {
+ 
+ var importlist []*ir.Func
+ 
++// AllImportedBodies reads in the bodies of all imported functions and typechecks
++// them, if needed.
+ func AllImportedBodies() {
+ 	for _, n := range importlist {
+ 		if n.Inl != nil {
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index 9a32a01a1a..534cf7e237 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -32,8 +32,12 @@ type Sym struct {
+ 	Pkg  *Pkg
+ 	Name string // object name
+ 
+-	// saved and restored by Pushdcl/Popdcl
+-	Def        Object   // definition: ONAME OTYPE OPACK or OLITERAL
++	// Def, Block, and Lastlineno are saved and restored by Pushdcl/Popdcl.
++
++	// The unique ONAME, OTYPE, OPACK, or OLITERAL node that this symbol is
++	// bound to within the current scope. (Most parts of the compiler should
++	// prefer passing the Node directly, rather than relying on this field.)
++	Def        Object
+ 	Block      int32    // blocknumber to catch redeclaration
+ 	Lastlineno src.XPos // last declaration for diagnostic
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 88fc409733..1a9aa6916a 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -11,9 +11,9 @@ import (
+ 	"sync"
+ )
+ 
+-// IRNode represents an ir.Node, but without needing to import cmd/compile/internal/ir,
++// Object represents an ir.Node, but without needing to import cmd/compile/internal/ir,
+ // which would cause an import cycle. The uses in other packages must type assert
+-// values of type IRNode to ir.Node or a more specific type.
++// values of type Object to ir.Node or a more specific type.
+ type Object interface {
+ 	Pos() src.XPos
+ 	Sym() *Sym
+@@ -157,12 +157,15 @@ type Type struct {
+ 	// Width is the width of this Type in bytes.
+ 	Width int64 // valid if Align > 0
+ 
+-	methods    Fields
++	// list of base methods (excluding embedding)
++	methods Fields
++	// list of all methods (including embedding)
+ 	allMethods Fields
+ 
+ 	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
+-	nod        Object
+-	underlying *Type // original type (type literal or predefined type)
++	nod Object
++	// the underlying type (type literal or predeclared type) for a defined type
++	underlying *Type
+ 
+ 	// Cache of composite types, with this type being the element type.
+ 	cache struct {
+@@ -423,8 +426,11 @@ type Slice struct {
+ 	Elem *Type // element type
+ }
+ 
+-// A Field represents a field in a struct or a method in an interface or
+-// associated with a named type.
++// A Field is a (Sym, Type) pairing along with some other information, and,
++// depending on the context, is used to represent:
++//  - a field in a struct
++//  - a method in an interface or associated with a named type
++//  - a function parameter
+ type Field struct {
+ 	flags bitset8
+ 
+@@ -1656,9 +1662,10 @@ var (
+ )
+ 
+ // NewNamed returns a new named type for the given type name. obj should be an
+-// ir.Name. The new type is incomplete, and the underlying type should be set
+-// later via SetUnderlying(). References to the type are maintained until the type
+-// is filled in, so those references can be updated when the type is complete.
++// ir.Name. The new type is incomplete (marked as TFORW kind), and the underlying
++// type should be set later via SetUnderlying(). References to the type are
++// maintained until the type is filled in, so those references can be updated when
++// the type is complete.
+ func NewNamed(obj Object) *Type {
+ 	t := New(TFORW)
+ 	t.sym = obj.Sym()

@@ -16,9 +16,80 @@ Date:   Thu Sep 9 08:09:57 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  6 ++++++
  test/typeparam/issue48276a.go             | 19 +++++++++++++++++++
  test/typeparam/issue48276a.out            |  1 +
  test/typeparam/issue48276b.go             | 15 +++++++++++++++
  4 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 1c22fc2ac0..a524ddc2a0 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1177,6 +1177,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 
+ 		case ir.OCONVIFACE:
+ 			x := x.(*ir.ConvExpr)
++			if m.Type().IsEmptyInterface() && m.(*ir.ConvExpr).X.Type().IsEmptyInterface() {
++				// Was T->interface{}, after stenciling it is now interface{}->interface{}.
++				// No longer need the conversion. See issue 48276.
++				m.(*ir.ConvExpr).SetOp(ir.OCONVNOP)
++				break
++			}
+ 			// Note: x's argument is still typed as a type parameter.
+ 			// m's argument now has an instantiated type.
+ 			if x.X.Type().HasTParam() || (x.X.Type().IsInterface() && x.Type().HasTParam()) {
+diff --git a/test/typeparam/issue48276a.go b/test/typeparam/issue48276a.go
+new file mode 100644
+index 0000000000..060ac3eb7f
+--- /dev/null
++++ b/test/typeparam/issue48276a.go
+@@ -0,0 +1,19 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++func main() {
++	IsZero[interface{}]("")
++}
++
++func IsZero[T comparable](val T) bool {
++	var zero T
++	fmt.Printf("%v:%v\n", zero, val)
++	return val != zero
++}
+diff --git a/test/typeparam/issue48276a.out b/test/typeparam/issue48276a.out
+new file mode 100644
+index 0000000000..7e8a8a9a2e
+--- /dev/null
++++ b/test/typeparam/issue48276a.out
+@@ -0,0 +1 @@
++<nil>:
+diff --git a/test/typeparam/issue48276b.go b/test/typeparam/issue48276b.go
+new file mode 100644
+index 0000000000..67c3e3d9f5
+--- /dev/null
++++ b/test/typeparam/issue48276b.go
+@@ -0,0 +1,15 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	f[interface{}](nil)
++}
++
++func f[T any](x T) {
++	var _ interface{} = x
++}

@@ -15,6 +15,20 @@ Date:   Wed May 8 15:46:40 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/addrselect.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+index 4f07032c4a..caff09b377 100644
+--- a/src/net/addrselect.go
++++ b/src/net/addrselect.go
+@@ -42,7 +42,7 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
+ // number is irrelevant.
+ func srcAddrs(addrs []IPAddr) []netip.Addr {
+ 	srcs := make([]netip.Addr, len(addrs))
+-	dst := UDPAddr{Port: 9}
++	dst := UDPAddr{Port: 53}
+ 	for i := range addrs {
+ 		dst.IP = addrs[i].IP
+ 		dst.Zone = addrs[i].Zone

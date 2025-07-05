@@ -17,7 +17,43 @@ Date:   Fri Dec 1 00:16:24 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/noder/helpers.go | 2 ++
  test/range3.go                            | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 1f7b497599..f9e3838fd9 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -99,6 +99,8 @@ func idealType(tv syntax.TypeAndValue) types2.Type {
+ 			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
+ 		case types2.UntypedString:
+ 			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
++		case types2.UntypedRune:
++			typ = types2.Typ[types2.Int32] // range over rune
+ 		default:
+ 			return nil
+ 		}
+diff --git a/test/range3.go b/test/range3.go
+index 4f770a2b70..f58a398f94 100644
+--- a/test/range3.go
++++ b/test/range3.go
+@@ -74,9 +74,17 @@ func testint4() {
+ 	}
+ }
+ 
++// Issue #64471.
++func testint5() {
++	for i := range 'a' {
++		var _ *rune = &i // ensure i has type rune
++	}
++}
++
+ func main() {
+ 	testint1()
+ 	testint2()
+ 	testint3()
+ 	testint4()
++	testint5()
+ }

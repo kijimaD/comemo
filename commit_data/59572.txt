@@ -14,7 +14,7 @@ Date:   Fri Mar 22 23:31:44 2024 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go | 2 +-
  src/cmd/compile/internal/ssa/dom_test.go           | 2 +-
  src/cmd/compile/internal/ssa/passbm_test.go        | 2 +-
@@ -47,3 +47,520 @@ Date:   Fri Mar 22 23:31:44 2024 +0800
  test/typeparam/graph.go                            | 5 +++--
  test/typeparam/list2.go                            | 2 +-
  31 files changed, 45 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 1fb502ac2a..9ed7d73af9 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -338,7 +338,7 @@ func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab
+ 	fmt.Fprintf(w, "%s// %s\n", funcInlHeur.props.ToString("// "), comDelimiter)
+ 	data, err := json.Marshal(funcInlHeur.props)
+ 	if err != nil {
+-		return fmt.Errorf("marshall error %v\n", err)
++		return fmt.Errorf("marshal error %v\n", err)
+ 	}
+ 	fmt.Fprintf(w, "// %s\n", string(data))
+ 	dumpCallSiteComments(w, funcInlHeur.cstab, ecst)
+diff --git a/src/cmd/compile/internal/ssa/dom_test.go b/src/cmd/compile/internal/ssa/dom_test.go
+index fa517183c2..945b46fce4 100644
+--- a/src/cmd/compile/internal/ssa/dom_test.go
++++ b/src/cmd/compile/internal/ssa/dom_test.go
+@@ -40,7 +40,7 @@ func genLinear(size int) []bloc {
+ 	return blocs
+ }
+ 
+-// genLinear creates an array of blocks that alternate between
++// genFwdBack creates an array of blocks that alternate between
+ // b_n -> [b_n+1], b_n -> [b_n+1, b_n-1] , b_n -> [b_n+1, b_n+2]
+ func genFwdBack(size int) []bloc {
+ 	var blocs []bloc
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index 3fd3eb579b..239d31a40b 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -47,7 +47,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
+ 	}
+ }
+ 
+-// benchFnPass runs passFunc across a function with b.N blocks.
++// benchFnBlock runs passFunc across a function with b.N blocks.
+ func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := testConfig(b)
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+index 7d665655d5..0859431b02 100644
+--- a/src/cmd/compile/internal/test/pgo_inl_test.go
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -166,7 +166,7 @@ func TestPGOIntendedInlining(t *testing.T) {
+ 	testPGOIntendedInlining(t, dir, profFile)
+ }
+ 
+-// TestPGOIntendedInlining tests that specific functions are inlined when PGO
++// TestPGOPreprocessInlining tests that specific functions are inlined when PGO
+ // is applied to the exact source that was profiled.
+ func TestPGOPreprocessInlining(t *testing.T) {
+ 	wd, err := os.Getwd()
+@@ -187,7 +187,7 @@ func TestPGOPreprocessInlining(t *testing.T) {
+ 	testPGOIntendedInlining(t, dir, preProfFile)
+ }
+ 
+-// TestPGOIntendedInlining tests that specific functions are inlined when PGO
++// TestPGOIntendedInliningShiftedLines tests that specific functions are inlined when PGO
+ // is applied to the modified source.
+ func TestPGOIntendedInliningShiftedLines(t *testing.T) {
+ 	wd, err := os.Getwd()
+diff --git a/src/cmd/dist/supported_test.go b/src/cmd/dist/supported_test.go
+index 27c0b92514..3c0564e63a 100644
+--- a/src/cmd/dist/supported_test.go
++++ b/src/cmd/dist/supported_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"testing"
+ )
+ 
+-// TestSupportedBuildModes tests that dist and the main tools agree on
++// TestSupported tests that dist and the main tools agree on
+ // which build modes are supported for a given target. We do things
+ // this way because the dist tool needs to be buildable directly by
+ // the bootstrap compiler, and as such can't import internal packages.
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 81bf86b688..6f4d23182a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1592,7 +1592,7 @@ func raceDetectorSupported(goos, goarch string) bool {
+ 	}
+ }
+ 
+-// buildModeSupports is a copy of the function
++// buildModeSupported is a copy of the function
+ // internal/platform.BuildModeSupported, which can't be used here
+ // because cmd/dist can not import internal packages during bootstrap.
+ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+diff --git a/src/cmd/go/internal/modindex/scan.go b/src/cmd/go/internal/modindex/scan.go
+index 6ca73e29f5..2a2c3ea2c2 100644
+--- a/src/cmd/go/internal/modindex/scan.go
++++ b/src/cmd/go/internal/modindex/scan.go
+@@ -104,7 +104,7 @@ type parseError struct {
+ 
+ // parseErrorToString converts the error from parsing the file into a string
+ // representation. A nil error is converted to an empty string, and all other
+-// errors are converted to a JSON-marshalled parseError struct, with ErrorList
++// errors are converted to a JSON-marshaled parseError struct, with ErrorList
+ // set for errors of type scanner.ErrorList, and ErrorString set to the error's
+ // string representation for all other errors.
+ func parseErrorToString(err error) string {
+@@ -126,7 +126,7 @@ func parseErrorToString(err error) string {
+ 
+ // parseErrorFromString converts a string produced by parseErrorToString back
+ // to an error.  An empty string is converted to a nil error, and all
+-// other strings are expected to be JSON-marshalled parseError structs.
++// other strings are expected to be JSON-marshaled parseError structs.
+ // The two functions are meant to preserve the structure of an
+ // error of type scanner.ErrorList in a round trip, but may not preserve the
+ // structure of other errors.
+diff --git a/src/cmd/go/internal/modinfo/info.go b/src/cmd/go/internal/modinfo/info.go
+index 336f99245a..ee73c5e07b 100644
+--- a/src/cmd/go/internal/modinfo/info.go
++++ b/src/cmd/go/internal/modinfo/info.go
+@@ -43,7 +43,7 @@ type moduleErrorNoMethods ModuleError
+ 
+ // UnmarshalJSON accepts both {"Err":"text"} and "text",
+ // so that the output of go mod download -json can still
+-// be unmarshalled into a ModulePublic during -reuse processing.
++// be unmarshaled into a ModulePublic during -reuse processing.
+ func (e *ModuleError) UnmarshalJSON(data []byte) error {
+ 	if len(data) > 0 && data[0] == '"' {
+ 		return json.Unmarshal(data, &e.Err)
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index ecd35ff8b1..50c752c2cc 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -916,7 +916,7 @@ func removeAll(dir string) error {
+ }
+ 
+ // Sleep sleeps for the given Go duration or until the script's context is
+-// cancelled, whichever happens first.
++// canceled, whichever happens first.
+ func Sleep() Cmd {
+ 	return Command(
+ 		CmdUsage{
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 0c494c0514..fa660bafc8 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -180,7 +180,7 @@ func tbFromContext(ctx context.Context) (testing.TB, bool) {
+ 	return t.(testing.TB), true
+ }
+ 
+-// initScriptState creates the initial directory structure in s for unpacking a
++// initScriptDirs creates the initial directory structure in s for unpacking a
+ // cmd/go script.
+ func initScriptDirs(t testing.TB, s *script.State) (telemetryDir string) {
+ 	must := func(err error) {
+diff --git a/src/context/context.go b/src/context/context.go
+index e95f553804..30adfe987d 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -295,7 +295,7 @@ func Cause(c Context) error {
+ }
+ 
+ // AfterFunc arranges to call f in its own goroutine after ctx is done
+-// (cancelled or timed out).
++// (canceled or timed out).
+ // If ctx is already done, AfterFunc calls f immediately in its own goroutine.
+ //
+ // Multiple calls to AfterFunc on a context operate independently;
+diff --git a/src/context/x_test.go b/src/context/x_test.go
+index e9b0576281..2c66ed42b2 100644
+--- a/src/context/x_test.go
++++ b/src/context/x_test.go
+@@ -1064,7 +1064,7 @@ func TestAfterFuncNotCalledAfterStop(t *testing.T) {
+ 	}
+ }
+ 
+-// This test verifies that cancelling a context does not block waiting for AfterFuncs to finish.
++// This test verifies that canceling a context does not block waiting for AfterFuncs to finish.
+ func TestAfterFuncCalledAsynchronously(t *testing.T) {
+ 	ctx, cancel := WithCancel(Background())
+ 	donec := make(chan struct{})
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 0e4669866e..30c5f00091 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -1040,7 +1040,7 @@ func (c *Conn) writeRecordLocked(typ recordType, data []byte) (int, error) {
+ }
+ 
+ // writeHandshakeRecord writes a handshake message to the connection and updates
+-// the record layer state. If transcript is non-nil the marshalled message is
++// the record layer state. If transcript is non-nil the marshaled message is
+ // written to it.
+ func (c *Conn) writeHandshakeRecord(msg handshakeMessage, transcript transcriptHash) (int, error) {
+ 	c.out.Lock()
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 15db760716..ff0b479f04 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -998,7 +998,7 @@ func TestHandshakeServerSNI(t *testing.T) {
+ 	runServerTestTLS12(t, test)
+ }
+ 
+-// TestHandshakeServerSNICertForName is similar to TestHandshakeServerSNI, but
++// TestHandshakeServerSNIGetCertificate is similar to TestHandshakeServerSNI, but
+ // tests the dynamic GetCertificate method
+ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
+ 	config := testConfig.Clone()
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index bbe11f7945..3e26941573 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1574,7 +1574,7 @@ var emptyASN1Subject = []byte{0x30, 0}
+ // The PolicyIdentifier and Policies fields are both used to marshal certificate
+ // policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
+ // GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
+-// be marshalled instead of the PolicyIdentifier field. The Policies field can
++// be marshaled instead of the PolicyIdentifier field. The Policies field can
+ // be used to marshal policy OIDs which have components that are larger than 31
+ // bits.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
+diff --git a/src/encoding/xml/read_test.go b/src/encoding/xml/read_test.go
+index ce99894295..f0f7b31ccc 100644
+--- a/src/encoding/xml/read_test.go
++++ b/src/encoding/xml/read_test.go
+@@ -1093,7 +1093,7 @@ func TestUnmarshalIntoNil(t *testing.T) {
+ 	err := Unmarshal([]byte("<T><A>1</A></T>"), nilPointer)
+ 
+ 	if err == nil {
+-		t.Fatalf("no error in unmarshalling")
++		t.Fatalf("no error in unmarshaling")
+ 	}
+ 
+ }
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index a6763fd547..b2a06a7639 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -1091,10 +1091,10 @@ func TestIssue7113(t *testing.T) {
+ 	}
+ 
+ 	if a.XMLName.Space != structSpace {
+-		t.Errorf("overidding with empty namespace: unmarshalling, got %s, want %s\n", a.XMLName.Space, structSpace)
++		t.Errorf("overidding with empty namespace: unmarshaling, got %s, want %s\n", a.XMLName.Space, structSpace)
+ 	}
+ 	if len(a.C.XMLName.Space) != 0 {
+-		t.Fatalf("overidding with empty namespace: unmarshalling, got %s, want empty\n", a.C.XMLName.Space)
++		t.Fatalf("overidding with empty namespace: unmarshaling, got %s, want empty\n", a.C.XMLName.Space)
+ 	}
+ 
+ 	var b []byte
+@@ -1106,7 +1106,7 @@ func TestIssue7113(t *testing.T) {
+ 		t.Errorf("overidding with empty namespace: marshaling, got %s in C tag which should be empty\n", a.C.XMLName.Space)
+ 	}
+ 	if string(b) != xmlTest {
+-		t.Fatalf("overidding with empty namespace: marshalling, got %s, want %s\n", b, xmlTest)
++		t.Fatalf("overidding with empty namespace: marshaling, got %s, want %s\n", b, xmlTest)
+ 	}
+ 	var c A
+ 	err = Unmarshal(b, &c)
+diff --git a/src/go/doc/comment/testdata/README.md b/src/go/doc/comment/testdata/README.md
+index d6f2c54960..ef6adfa922 100644
+--- a/src/go/doc/comment/testdata/README.md
++++ b/src/go/doc/comment/testdata/README.md
+@@ -24,7 +24,7 @@ The remaining files contain the expected output for the named format generated b
+ “html” for Printer.HTML, “markdown” for Printer.Markdown, and “text” for Printer.Text.
+ The format can also be “dump” for a textual dump of the raw data structures.
+ 
+-The text before the `-- input --` line, if present, is JSON to be unmarshalled
++The text before the `-- input --` line, if present, is JSON to be unmarshaled
+ to initialize a comment.Printer. For example, this test case sets the Printer's
+ TextWidth field to 20:
+ 
+diff --git a/src/go/doc/comment/testdata_test.go b/src/go/doc/comment/testdata_test.go
+index 0676d864b2..740760c048 100644
+--- a/src/go/doc/comment/testdata_test.go
++++ b/src/go/doc/comment/testdata_test.go
+@@ -57,7 +57,7 @@ func TestTestdata(t *testing.T) {
+ 			if len(a.Comment) > 0 {
+ 				err := json.Unmarshal(a.Comment, &pr)
+ 				if err != nil {
+-					t.Fatalf("unmarshalling top json: %v", err)
++					t.Fatalf("unmarshaling top json: %v", err)
+ 				}
+ 			}
+ 			if len(a.Files) < 1 || a.Files[0].Name != "input" {
+diff --git a/src/html/template/js.go b/src/html/template/js.go
+index d911ada26d..d1463dee14 100644
+--- a/src/html/template/js.go
++++ b/src/html/template/js.go
+@@ -171,7 +171,7 @@ func jsValEscaper(args ...any) string {
+ 	// cyclic data. This may be an unacceptable DoS risk.
+ 	b, err := json.Marshal(a)
+ 	if err != nil {
+-		// While the standard JSON marshaller does not include user controlled
++		// While the standard JSON marshaler does not include user controlled
+ 		// information in the error message, if a type has a MarshalJSON method,
+ 		// the content of the error message is not guaranteed. Since we insert
+ 		// the error into the template, as part of a comment, we attempt to
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index fb4e1d3705..e406c8c400 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -196,7 +196,7 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 
+ 	// Main event loop.
+ 	// Do not return until all workers have terminated. We avoid a deadlock by
+-	// receiving messages from workers even after ctx is cancelled.
++	// receiving messages from workers even after ctx is canceled.
+ 	activeWorkers := len(workers)
+ 	statTicker := time.NewTicker(3 * time.Second)
+ 	defer statTicker.Stop()
+@@ -223,8 +223,8 @@ func CoordinateFuzzing(ctx context.Context, opts CoordinateFuzzingOpts) (err err
+ 
+ 		select {
+ 		case <-doneC:
+-			// Interrupted, cancelled, or timed out.
+-			// stop sets doneC to nil so we don't busy wait here.
++			// Interrupted, canceled, or timed out.
++			// stop sets doneC to nil, so we don't busy wait here.
+ 			stop(ctx.Err())
+ 
+ 		case err := <-errC:
+@@ -653,7 +653,7 @@ type coordinator struct {
+ }
+ 
+ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+-	// Make sure all of the seed corpus has marshalled data.
++	// Make sure all the seed corpus has marshaled data.
+ 	for i := range opts.Seed {
+ 		if opts.Seed[i].Data == nil && opts.Seed[i].Values != nil {
+ 			opts.Seed[i].Data = marshalCorpusFile(opts.Seed[i].Values...)
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index c952670995..e8a7421778 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -89,7 +89,7 @@ func (w *worker) cleanup() error {
+ 
+ // coordinate runs the test binary to perform fuzzing.
+ //
+-// coordinate loops until ctx is cancelled or a fatal error is encountered.
++// coordinate loops until ctx is canceled or a fatal error is encountered.
+ // If a test process terminates unexpectedly while fuzzing, coordinate will
+ // attempt to restart and continue unless the termination can be attributed
+ // to an interruption (from a timer or the user).
+@@ -1026,7 +1026,7 @@ func (wc *workerClient) minimize(ctx context.Context, entryIn CorpusEntry, args
+ 				return entryIn, minimizeResponse{}, retErr
+ 			}
+ 			// An unrecoverable error occurred during minimization. mem now
+-			// holds the raw, unmarshalled bytes of entryIn.Values[i] that
++			// holds the raw, unmarshaled bytes of entryIn.Values[i] that
+ 			// caused the error.
+ 			switch entryOut.Values[i].(type) {
+ 			case string:
+@@ -1148,7 +1148,7 @@ func (wc *workerClient) ping(ctx context.Context) error {
+ }
+ 
+ // callLocked sends an RPC from the coordinator to the worker process and waits
+-// for the response. The callLocked may be cancelled with ctx.
++// for the response. The callLocked may be canceled with ctx.
+ func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err error) {
+ 	enc := json.NewEncoder(wc.fuzzIn)
+ 	dec := json.NewDecoder(&contextReader{ctx: ctx, r: wc.fuzzOut})
+@@ -1158,7 +1158,7 @@ func (wc *workerClient) callLocked(ctx context.Context, c call, resp any) (err e
+ 	return dec.Decode(resp)
+ }
+ 
+-// contextReader wraps a Reader with a Context. If the context is cancelled
++// contextReader wraps a Reader with a Context. If the context is canceled
+ // while the underlying reader is blocked, Read returns immediately.
+ //
+ // This is useful for reading from a pipe. Closing a pipe file descriptor does
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 0f62fdeb11..1858e495d2 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -42,7 +42,7 @@ func (eai addrinfoErrno) isAddrinfoErrno() {}
+ // context is cancellable. It is intended for use with calls that don't support context
+ // cancellation (cgo, syscalls). blocking func may still be running after this function finishes.
+ // For the duration of the execution of the blocking function, the thread is 'acquired' using [acquireThread],
+-// blocking might not be executed when the context gets cancelled early.
++// blocking might not be executed when the context gets canceled early.
+ func doBlockingWithCtx[T any](ctx context.Context, lookupName string, blocking func() (T, error)) (T, error) {
+ 	if err := acquireThread(ctx); err != nil {
+ 		var zero T
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 744bbf1ad1..e8baa486a4 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -754,7 +754,7 @@ func testTransportMaxConnsPerHostDialCancellation(t *testing.T, mode testMode) {
+ 	tr := c.Transport.(*Transport)
+ 	tr.MaxConnsPerHost = 1
+ 
+-	// This request is cancelled when dial is queued, which preempts dialing.
++	// This request is canceled when dial is queued, which preempts dialing.
+ 	ctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 	SetPendingDialHooks(cancel, nil)
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index ee57ac4771..35e4e7e792 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -777,7 +777,7 @@ func (c *Cmd) watchCtx(resultc chan<- ctxResult) {
+ 		} else if errors.Is(interruptErr, os.ErrProcessDone) {
+ 			// The process already finished: we just didn't notice it yet.
+ 			// (Perhaps c.Wait hadn't been called, or perhaps it happened to race with
+-			// c.ctx being cancelled.) Don't inject a needless error.
++			// c.ctx being canceled.) Don't inject a needless error.
+ 		} else {
+ 			err = wrappedError{
+ 				prefix: "exec: canceling Cmd",
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index c4b89e0199..c749de99db 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1366,7 +1366,7 @@ func TestWaitInterrupt(t *testing.T) {
+ 	})
+ 
+ 	// With a very long WaitDelay and no Cancel function, we should wait for the
+-	// process to exit even if the command's Context is cancelled.
++	// process to exit even if the command's Context is canceled.
+ 	t.Run("WaitDelay", func(t *testing.T) {
+ 		if runtime.GOOS == "windows" {
+ 			t.Skipf("skipping: os.Interrupt is not implemented on Windows")
+@@ -1404,7 +1404,7 @@ func TestWaitInterrupt(t *testing.T) {
+ 		}
+ 	})
+ 
+-	// If the context is cancelled and the Cancel function sends os.Kill,
++	// If the context is canceled and the Cancel function sends os.Kill,
+ 	// the process should be terminated immediately, and its output
+ 	// pipes should be closed (causing Wait to return) after WaitDelay
+ 	// even if a child process is still writing to them.
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index a12b8589f0..4b00f3a0f7 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -247,7 +247,7 @@ type pkfunc struct {
+ }
+ 
+ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]struct{}) error {
+-	// Unmarshall the information on available aux metafiles into
++	// Unmarshal the information on available aux metafiles into
+ 	// a MetaFileCollection struct.
+ 	var mfc coverage.MetaFileCollection
+ 	data, err := os.ReadFile(metafiles)
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index 3f70429497..c3c10af723 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -249,7 +249,7 @@ func netpollQueueTimer(delay int64) (signaled bool) {
+ 	// A wait completion packet can only be associated with one timer at a time,
+ 	// so we need to cancel the previous one if it exists. This wouldn't be necessary
+ 	// if the poller would only be woken up by the timer, in which case the association
+-	// would be automatically cancelled, but it can also be woken up by other events,
++	// would be automatically canceled, but it can also be woken up by other events,
+ 	// such as a netpollBreak, so we can get to this point with a timer that hasn't
+ 	// expired yet. In this case, the completion packet can still be picked up by
+ 	// another thread, so defer the cancellation until it is really necessary.
+@@ -271,7 +271,7 @@ func netpollQueueTimer(delay int64) (signaled bool) {
+ 			throw("runtime: netpoll failed")
+ 		}
+ 	case STATUS_PENDING:
+-		// STATUS_PENDING is returned if the wait operation can't be cancelled yet.
++		// STATUS_PENDING is returned if the wait operation can't be canceled yet.
+ 		// This can happen if this thread was woken up by another event, such as a netpollBreak,
+ 		// and the timer expired just while calling NtCancelWaitCompletionPacket, in which case
+ 		// this call fails to cancel the association to avoid a race condition.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5c06aea5f8..9c1325a609 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1306,7 +1306,7 @@ func (c *common) Setenv(key, value string) {
+ 	}
+ }
+ 
+-// panicHanding controls the panic handling used by runCleanup.
++// panicHandling controls the panic handling used by runCleanup.
+ type panicHandling int
+ 
+ const (
+diff --git a/test/typeparam/graph.go b/test/typeparam/graph.go
+index 5cd1faa76f..544318647b 100644
+--- a/test/typeparam/graph.go
++++ b/test/typeparam/graph.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ )
+ 
+-// _Equal reports whether two slices are equal: the same length and all
++// _SliceEqual reports whether two slices are equal: the same length and all
+ // elements equal. All floating point NaNs are considered equal.
+ func _SliceEqual[Elem comparable](s1, s2 []Elem) bool {
+ 	if len(s1) != len(s2) {
+@@ -42,7 +42,7 @@ type _NodeC[_Edge any] interface {
+ 	Edges() []_Edge
+ }
+ 
+-// Edgec is the constraints on an edge in a graph, given the _Node type.
++// _EdgeC is the constraints on an edge in a graph, given the _Node type.
+ type _EdgeC[_Node any] interface {
+ 	comparable
+ 	Nodes() (a, b _Node)
+@@ -153,6 +153,7 @@ func (m mazeRoom) Edges() []mazeEdge {
+ }
+ 
+ // Nodes returns the rooms connected by an edge.
++//
+ //go:noinline
+ func (e mazeEdge) Nodes() (mazeRoom, mazeRoom) {
+ 	m1, ok := zork[e.from]
+diff --git a/test/typeparam/list2.go b/test/typeparam/list2.go
+index 111ac787e5..0b976f0b18 100644
+--- a/test/typeparam/list2.go
++++ b/test/typeparam/list2.go
+@@ -14,7 +14,7 @@ import (
+ 	"strconv"
+ )
+ 
+-// Element is an element of a linked list.
++// _Element is an element of a linked list.
+ type _Element[T any] struct {
+ 	// Next and previous pointers in the doubly-linked list of elements.
+ 	// To simplify the implementation, internally a list l is implemented

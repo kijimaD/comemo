@@ -20,7 +20,7 @@ Date:   Sat Nov 4 23:05:05 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/_builtin/runtime.go |  1 -
  src/cmd/compile/internal/typecheck/builtin.go          |  2 +-
  src/runtime/mbarrier.go                                | 12 ++++++------
@@ -28,3 +28,162 @@ Date:   Sat Nov 4 23:05:05 2023 +0000
  src/runtime/mgc.go                                     |  4 +---
  src/runtime/mgcmark.go                                 |  4 ++--
  6 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 3fc45ab80d..f16d0d48e5 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -160,7 +160,6 @@ func closechan(hchan any)
+ var writeBarrier struct {
+ 	enabled bool
+ 	pad     [3]byte
+-	needed  bool
+ 	cgo     bool
+ 	alignme uint64
+ }
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index f8d8de53ce..96ddba8151 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -340,7 +340,7 @@ func runtimeTypes() []*types.Type {
+ 	typs[102] = types.NewChan(typs[2], types.Csend)
+ 	typs[103] = newSig(params(typs[102], typs[3]), nil)
+ 	typs[104] = types.NewArray(typs[0], 3)
+-	typs[105] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("needed"), typs[6]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
++	typs[105] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[104]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+ 	typs[106] = newSig(params(typs[1], typs[3], typs[3]), nil)
+ 	typs[107] = newSig(params(typs[1], typs[3]), nil)
+ 	typs[108] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 159a298155..456155e548 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -153,7 +153,7 @@ func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
+ 	if dst == src {
+ 		return
+ 	}
+-	if writeBarrier.needed && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.PtrBytes)
+ 	}
+ 	// There's a race here: if some other goroutine can write to
+@@ -222,7 +222,7 @@ func reflectlite_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ //
+ //go:nosplit
+ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *abi.RegArgs) {
+-	if writeBarrier.needed && typ != nil && typ.PtrBytes != 0 && size >= goarch.PtrSize {
++	if writeBarrier.enabled && typ != nil && typ.PtrBytes != 0 && size >= goarch.PtrSize {
+ 		bulkBarrierPreWrite(uintptr(dst), uintptr(src), size)
+ 	}
+ 	memmove(dst, src, size)
+@@ -277,7 +277,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ 	// and growslice and reflect_typedslicecopy check for pointers
+ 	// before calling typedslicecopy.
+ 	size := uintptr(n) * typ.Size_
+-	if writeBarrier.needed {
++	if writeBarrier.enabled {
+ 		pwsize := size - typ.Size_ + typ.PtrBytes
+ 		bulkBarrierPreWrite(uintptr(dstPtr), uintptr(srcPtr), pwsize)
+ 	}
+@@ -307,7 +307,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ //
+ //go:nosplit
+ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+-	if writeBarrier.needed && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, typ.PtrBytes)
+ 	}
+ 	memclrNoHeapPointers(ptr, typ.Size_)
+@@ -320,7 +320,7 @@ func reflect_typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 
+ //go:linkname reflect_typedmemclrpartial reflect.typedmemclrpartial
+ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintptr) {
+-	if writeBarrier.needed && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+ 	}
+ 	memclrNoHeapPointers(ptr, size)
+@@ -329,7 +329,7 @@ func reflect_typedmemclrpartial(typ *_type, ptr unsafe.Pointer, off, size uintpt
+ //go:linkname reflect_typedarrayclear reflect.typedarrayclear
+ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+ 	size := typ.Size_ * uintptr(len)
+-	if writeBarrier.needed && typ.PtrBytes != 0 {
++	if writeBarrier.enabled && typ.PtrBytes != 0 {
+ 		bulkBarrierPreWrite(uintptr(ptr), 0, size)
+ 	}
+ 	memclrNoHeapPointers(ptr, size)
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index bae90c665a..2bcf454797 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -563,7 +563,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr) {
+ 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
+ 		throw("bulkBarrierPreWrite: unaligned arguments")
+ 	}
+-	if !writeBarrier.needed {
++	if !writeBarrier.enabled {
+ 		return
+ 	}
+ 	if s := spanOf(dst); s == nil {
+@@ -633,7 +633,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr) {
+ 	if (dst|src|size)&(goarch.PtrSize-1) != 0 {
+ 		throw("bulkBarrierPreWrite: unaligned arguments")
+ 	}
+-	if !writeBarrier.needed {
++	if !writeBarrier.enabled {
+ 		return
+ 	}
+ 	buf := &getg().m.p.ptr().wbBuf
+@@ -718,7 +718,7 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+-	if !writeBarrier.needed {
++	if !writeBarrier.enabled {
+ 		return
+ 	}
+ 	ptrmask := typ.GCData
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f7f7eb4528..8a4c58888e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -218,7 +218,6 @@ var gcphase uint32
+ var writeBarrier struct {
+ 	enabled bool    // compiler emits a check of this before calling write barrier
+ 	pad     [3]byte // compiler uses 32-bit load for "enabled" field
+-	needed  bool    // identical to enabled, for now (TODO: dedup)
+ 	alignme uint64  // guarantee alignment so that compiler can use a 32 or 64-bit load
+ }
+ 
+@@ -236,8 +235,7 @@ const (
+ //go:nosplit
+ func setGCPhase(x uint32) {
+ 	atomic.Store(&gcphase, x)
+-	writeBarrier.needed = gcphase == _GCmark || gcphase == _GCmarktermination
+-	writeBarrier.enabled = writeBarrier.needed
++	writeBarrier.enabled = gcphase == _GCmark || gcphase == _GCmarktermination
+ }
+ 
+ // gcMarkWorkerMode represents the mode that a concurrent mark worker
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index aff6c2fb99..adf1d4fa28 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1064,7 +1064,7 @@ func gcDrainMarkWorkerFractional(gcw *gcWork) {
+ //
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+-	if !writeBarrier.needed {
++	if !writeBarrier.enabled {
+ 		throw("gcDrain phase incorrect")
+ 	}
+ 
+@@ -1178,7 +1178,7 @@ done:
+ //go:nowritebarrier
+ //go:systemstack
+ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+-	if !writeBarrier.needed {
++	if !writeBarrier.enabled {
+ 		throw("gcDrainN phase incorrect")
+ 	}
+ 

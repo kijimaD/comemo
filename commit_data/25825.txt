@@ -12,6 +12,35 @@ Date:   Thu Nov 19 11:25:55 2015 -0500
     Change-Id: Ia5ca2dc59e6268bce8d8b4c87055bd0f6e19bed2
     Reviewed-on: https://go-review.googlesource.com/17052
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgcmark.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 6deb09adbf..e9f673abc8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -504,6 +504,12 @@ func gcWakeAllAssists() {
+ // credit. This first satisfies blocked assists on the
+ // work.assistQueue and then flushes any remaining credit to
+ // gcController.bgScanCredit.
++//
++// Write barriers are disallowed because this is used by gcDrain after
++// it has ensured that all work is drained and this must preserve that
++// condition.
++//
++//go:nowritebarrierrec
+ func gcFlushBgCredit(scanWork int64) {
+ 	if work.assistQueue.head == 0 {
+ 		// Fast path; there are no blocked assists. There's a
+@@ -846,6 +852,10 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 		}
+ 	}
+ 
++	// In blocking mode, write barriers are not allowed after this
++	// point because we must preserve the condition that the work
++	// buffers are empty.
++
+ 	// Flush remaining scan work credit.
+ 	if gcw.scanWork > 0 {
+ 		atomic.Xaddint64(&gcController.scanWork, gcw.scanWork)

@@ -8,9 +8,177 @@ Date:   Sun Aug 4 23:32:06 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12311045
-
+---
  src/pkg/runtime/malloc.goc | 65 +++-------------------------------------------
  src/pkg/runtime/malloc.h   |  3 +--
  src/pkg/runtime/mgc0.c     |  2 +-
  src/pkg/runtime/mheap.c    |  2 --
  4 files changed, 6 insertions(+), 66 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 67da7ed846..9ab8e0756d 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -116,7 +116,7 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 
+ 	m->mallocing = 0;
+ 	if(UseSpanType && !(flag & FlagNoPointers) && typ != 0 && m->settype_bufsize == nelem(m->settype_buf))
+-		runtime·settype_flush(m, false);
++		runtime·settype_flush(m);
+ 	m->locks--;
+ 	if(m->locks == 0 && g->preempt)  // restore the preemption request in case we've cleared it in newstack
+ 		g->stackguard0 = StackPreempt;
+@@ -563,14 +563,13 @@ runtime·persistentalloc(uintptr size, uintptr align)
+ static Lock settype_lock;
+ 
+ void
+-runtime·settype_flush(M *mp, bool sysalloc)
++runtime·settype_flush(M *mp)
+ {
+ 	uintptr *buf, *endbuf;
+ 	uintptr size, ofs, j, t;
+ 	uintptr ntypes, nbytes2, nbytes3;
+ 	uintptr *data2;
+ 	byte *data3;
+-	bool sysalloc3;
+ 	void *v;
+ 	uintptr typ, p;
+ 	MSpan *s;
+@@ -605,20 +604,9 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 		case MTypes_Empty:
+ 			ntypes = (s->npages << PageShift) / size;
+ 			nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+-
+-			if(!sysalloc) {
+-				data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+-			} else {
+-				data3 = runtime·SysAlloc(nbytes3);
+-				if(data3 == nil)
+-					runtime·throw("runtime: cannot allocate memory");
+-				if(0) runtime·printf("settype(0->3): SysAlloc(%x) --> %p\n", (uint32)nbytes3, data3);
+-			}
+-
++			data3 = runtime·mallocgc(nbytes3, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+ 			s->types.compression = MTypes_Bytes;
+-			s->types.sysalloc = sysalloc;
+ 			s->types.data = (uintptr)data3;
+-
+ 			((uintptr*)data3)[1] = typ;
+ 			data3[8*sizeof(uintptr) + ofs] = 1;
+ 			break;
+@@ -643,20 +631,8 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 			} else {
+ 				ntypes = (s->npages << PageShift) / size;
+ 				nbytes2 = ntypes * sizeof(uintptr);
+-
+-				if(!sysalloc) {
+-					data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+-				} else {
+-					data2 = runtime·SysAlloc(nbytes2);
+-					if(data2 == nil)
+-						runtime·throw("runtime: cannot allocate memory");
+-					if(0) runtime·printf("settype.(3->2): SysAlloc(%x) --> %p\n", (uint32)nbytes2, data2);
+-				}
+-
+-				sysalloc3 = s->types.sysalloc;
+-
++				data2 = runtime·mallocgc(nbytes2, 0, FlagNoProfiling|FlagNoPointers|FlagNoInvokeGC);
+ 				s->types.compression = MTypes_Words;
+-				s->types.sysalloc = sysalloc;
+ 				s->types.data = (uintptr)data2;
+ 
+ 				// Move the contents of data3 to data2. Then deallocate data3.
+@@ -665,12 +641,6 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 					t = ((uintptr*)data3)[t];
+ 					data2[j] = t;
+ 				}
+-				if(sysalloc3) {
+-					nbytes3 = 8*sizeof(uintptr) + 1*ntypes;
+-					if(0) runtime·printf("settype.(3->2): SysFree(%p,%x)\n", data3, (uint32)nbytes3);
+-					runtime·SysFree(data3, nbytes3);
+-				}
+-
+ 				data2[ofs] = typ;
+ 			}
+ 			break;
+@@ -681,33 +651,6 @@ runtime·settype_flush(M *mp, bool sysalloc)
+ 	mp->settype_bufsize = 0;
+ }
+ 
+-void
+-runtime·settype_sysfree(MSpan *s)
+-{
+-	uintptr ntypes, nbytes;
+-
+-	if(!s->types.sysalloc)
+-		return;
+-
+-	nbytes = (uintptr)-1;
+-
+-	switch (s->types.compression) {
+-	case MTypes_Words:
+-		ntypes = (s->npages << PageShift) / s->elemsize;
+-		nbytes = ntypes * sizeof(uintptr);
+-		break;
+-	case MTypes_Bytes:
+-		ntypes = (s->npages << PageShift) / s->elemsize;
+-		nbytes = 8*sizeof(uintptr) + 1*ntypes;
+-		break;
+-	}
+-
+-	if(nbytes != (uintptr)-1) {
+-		if(0) runtime·printf("settype: SysFree(%p,%x)\n", (void*)s->types.data, (uint32)nbytes);
+-		runtime·SysFree((void*)s->types.data, nbytes);
+-	}
+-}
+-
+ uintptr
+ runtime·gettype(void *v)
+ {
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 584fc83486..20cf6fb96b 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -334,7 +334,6 @@ enum
+ struct MTypes
+ {
+ 	byte	compression;	// one of MTypes_*
+-	bool	sysalloc;	// whether (void*)data is from runtime·SysAlloc
+ 	uintptr	data;
+ };
+ 
+@@ -459,7 +458,7 @@ void	runtime·purgecachedstats(MCache*);
+ void*	runtime·cnew(Type*);
+ void*	runtime·cnewarray(Type*, intgo);
+ 
+-void	runtime·settype_flush(M*, bool);
++void	runtime·settype_flush(M*);
+ void	runtime·settype_sysfree(MSpan*);
+ uintptr	runtime·gettype(void*);
+ 
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 3f56a799e2..b72199847e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -2084,7 +2084,7 @@ gc(struct gc_args *args)
+ 		runtime·memclr((byte*)&gcstats, sizeof(gcstats));
+ 
+ 	for(mp=runtime·allm; mp; mp=mp->alllink)
+-		runtime·settype_flush(mp, false);
++		runtime·settype_flush(mp);
+ 
+ 	heap0 = 0;
+ 	obj0 = 0;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 6dd5fa9bf9..53aa714336 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -330,8 +330,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 	MSpan *t;
+ 	PageID p;
+ 
+-	if(s->types.sysalloc)
+-		runtime·settype_sysfree(s);
+ 	s->types.compression = MTypes_Empty;
+ 
+ 	if(s->state != MSpanInUse || s->ref != 0) {

@@ -20,10 +20,93 @@ Date:   Thu Feb 2 14:09:27 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5606048
-
+---
  src/pkg/runtime/asm_386.s   |  9 +++++++++
  src/pkg/runtime/asm_amd64.s |  7 +++++++
  src/pkg/runtime/asm_arm.s   | 10 ++++++++++
  src/pkg/runtime/proc.c      |  2 +-
  src/pkg/runtime/runtime.h   |  1 +
  5 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 52400637be..c242af8296 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -524,6 +524,15 @@ TEXT runtime·getcallersp(SB), 7, $0
+ 	MOVL	sp+0(FP), AX
+ 	RET
+ 
++// int64 runtime·cputicks(void), so really
++// void runtime·cputicks(int64 *ticks)
++TEXT runtime·cputicks(SB),7,$0
++	BYTE	$0x0F; BYTE $0x31;     // RDTSC; not supported by 8a
++	MOVL	ret+0(FP), DI
++	MOVL	AX, 0(DI)
++	MOVL	DX, 4(DI)
++	RET
++
+ TEXT runtime·ldt0setup(SB),7,$16
+ 	// set up ldt 7 to point at tls0
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 308a66036e..9a660b5b73 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -568,4 +568,11 @@ TEXT runtime·getcallersp(SB),7,$0
+ 	MOVQ	sp+0(FP), AX
+ 	RET
+ 
++// int64 runtime·cputicks(void)
++TEXT runtime·cputicks(SB),7,$0
++	RDTSC
++	SHLQ	$32, DX
++	ADDQ	DX, AX
++	RET
++
+ GLOBL runtime·tls0(SB), $64
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 42c7677e1e..58b18626fe 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -265,6 +265,16 @@ TEXT runtime·getcallersp(SB),7,$-4
+ TEXT runtime·emptyfunc(SB),0,$0
+ 	RET
+ 
++// int64 runtime·cputicks(), so really
++// void runtime·cputicks(int64 *ticks)
++// stubbed: return int64(0)
++TEXT runtime·cputicks(SB),7,$0
++	MOVW    0(FP), R1
++	MOVW	$0, R0
++	MOVW    R0, 0(R1)
++	MOVW    R0, 4(R1)
++	RET
++
+ TEXT runtime·abort(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index cb45a0c299..5bb690aaa8 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -332,7 +332,7 @@ mcommoninit(M *m)
+ 	runtime·atomicstorep(&runtime·allm, m);
+ 
+ 	m->id = runtime·sched.mcount++;
+-	m->fastrand = 0x49f6428aUL + m->id;
++	m->fastrand = 0x49f6428aUL + m->id + runtime·cputicks();
+ 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
+ 	runtime·FixAlloc_Init(m->stackalloc, FixedStack, runtime·SysAlloc, nil, nil);
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index df2cd149f2..692992150a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -566,6 +566,7 @@ void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
+ void	runtime·resetcpuprofiler(int32);
+ void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+ void	runtime·usleep(uint32);
++int64	runtime·cputicks(void);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"d"	int32

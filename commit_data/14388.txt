@@ -20,7 +20,7 @@ Date:   Tue Nov 13 12:56:28 2012 +0900
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/6525048
-
+---
  src/pkg/net/ipraw_test.go      | 30 ++++++++++++++++++++++
  src/pkg/net/iprawsock_posix.go |  4 +--
  src/pkg/net/tcp_test.go        | 30 ++++++++++++++++++++++
@@ -30,3 +30,263 @@ Date:   Tue Nov 13 12:56:28 2012 +0900
  src/pkg/net/udpsock_plan9.go   |  2 +-
  src/pkg/net/udpsock_posix.go   |  2 +-
  8 files changed, 130 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 29d5984bdf..43b02aef2e 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -206,3 +206,33 @@ func parseICMPEchoReply(b []byte) (id, seqnum int) {
+ 	seqnum = int(b[6])<<8 | int(b[7])
+ 	return
+ }
++
++var ipConnLocalNameTests = []struct {
++	net   string
++	laddr *IPAddr
++}{
++	{"ip4:icmp", &IPAddr{IP: IPv4(127, 0, 0, 1)}},
++	{"ip4:icmp", &IPAddr{}},
++	{"ip4:icmp", nil},
++}
++
++func TestIPConnLocalName(t *testing.T) {
++	if os.Getuid() != 0 {
++		t.Logf("skipping test; must be root")
++		return
++	}
++
++	for _, tt := range ipConnLocalNameTests {
++		c, err := ListenIP(tt.net, tt.laddr)
++		if err != nil {
++			t.Errorf("ListenIP failed: %v", err)
++			return
++		}
++		defer c.Close()
++		la := c.LocalAddr()
++		if la == nil {
++			t.Error("IPConn.LocalAddr failed")
++			return
++		}
++	}
++}
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index 4d8b5341d9..00e87cfbf0 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -175,7 +175,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
+ 	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(netProto)
+ 	}
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
+@@ -199,7 +199,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	switch net {
+ 	case "ip", "ip4", "ip6":
+ 	default:
+-		return nil, UnknownNetworkError(net)
++		return nil, UnknownNetworkError(netProto)
+ 	}
+ 	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+ 	if err != nil {
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index 53daf5b099..f6e4df30a8 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -116,3 +116,33 @@ func benchmarkTCP(b *testing.B, persistent, timeout bool) {
+ 		sem <- true
+ 	}
+ }
++
++var tcpListenerNameTests = []struct {
++	net   string
++	laddr *TCPAddr
++}{
++	{"tcp4", &TCPAddr{IP: IPv4(127, 0, 0, 1)}},
++	{"tcp4", &TCPAddr{}},
++	{"tcp4", nil},
++}
++
++func TestTCPListenerName(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
++		return
++	}
++
++	for _, tt := range tcpListenerNameTests {
++		ln, err := ListenTCP(tt.net, tt.laddr)
++		if err != nil {
++			t.Errorf("ListenTCP failed: %v", err)
++			return
++		}
++		defer ln.Close()
++		la := ln.Addr()
++		if a, ok := la.(*TCPAddr); !ok || a.Port == 0 {
++			t.Errorf("got %v; expected a proper address with non-zero port number", la)
++			return
++		}
++	}
++}
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index a77633b355..d4d39e80f4 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -89,7 +89,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		laddr = &TCPAddr{}
+ 	}
+ 	l1, err := listenPlan9(net, laddr)
+ 	if err != nil {
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 09654a4b58..7b827f1e97 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -143,14 +143,18 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ // which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+ // as the local address for the connection.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+-	return dialTCP(net, laddr, raddr, noDeadline)
+-}
+-
+-func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
++	return dialTCP(net, laddr, raddr, noDeadline)
++}
+ 
++func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+ 	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+@@ -224,25 +228,6 @@ type TCPListener struct {
+ 	fd *netFD
+ }
+ 
+-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+-// Net must be "tcp", "tcp4", or "tcp6".
+-// If laddr has a port of 0, it means to listen on some available port.
+-// The caller can use l.Addr() to retrieve the chosen address.
+-func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+-	if err != nil {
+-		return nil, err
+-	}
+-	err = syscall.Listen(fd.sysfd, listenerBacklog)
+-	if err != nil {
+-		closesocket(fd.sysfd)
+-		return nil, &OpError{"listen", net, laddr, err}
+-	}
+-	l := new(TCPListener)
+-	l.fd = fd
+-	return l, nil
+-}
+-
+ // AcceptTCP accepts the next incoming call and returns the new connection
+ // and the remote address.
+ func (l *TCPListener) AcceptTCP() (c *TCPConn, err error) {
+@@ -291,3 +276,30 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ // It is the caller's responsibility to close f when finished.
+ // Closing l does not affect f, and closing f does not affect l.
+ func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
++
++// ListenTCP announces on the TCP address laddr and returns a TCP listener.
++// Net must be "tcp", "tcp4", or "tcp6".
++// If laddr has a port of 0, it means to listen on some available port.
++// The caller can use l.Addr() to retrieve the chosen address.
++func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
++	switch net {
++	case "tcp", "tcp4", "tcp6":
++	default:
++		return nil, UnknownNetworkError(net)
++	}
++	if laddr == nil {
++		laddr = &TCPAddr{}
++	}
++	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
++	if err != nil {
++		return nil, err
++	}
++	err = syscall.Listen(fd.sysfd, listenerBacklog)
++	if err != nil {
++		closesocket(fd.sysfd)
++		return nil, &OpError{"listen", net, laddr, err}
++	}
++	l := new(TCPListener)
++	l.fd = fd
++	return l, nil
++}
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index f80d3b5a9c..37b904f324 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -87,3 +87,33 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
+ 		t.Fatal("Write should fail")
+ 	}
+ }
++
++var udpConnLocalNameTests = []struct {
++	net   string
++	laddr *UDPAddr
++}{
++	{"udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)}},
++	{"udp4", &UDPAddr{}},
++	{"udp4", nil},
++}
++
++func TestUDPConnLocalName(t *testing.T) {
++	if testing.Short() || !*testExternal {
++		t.Logf("skipping test to avoid external network")
++		return
++	}
++
++	for _, tt := range udpConnLocalNameTests {
++		c, err := ListenUDP(tt.net, tt.laddr)
++		if err != nil {
++			t.Errorf("ListenUDP failed: %v", err)
++			return
++		}
++		defer c.Close()
++		la := c.LocalAddr()
++		if a, ok := la.(*UDPAddr); !ok || a.Port == 0 {
++			t.Errorf("got %v; expected a proper address with non-zero port number", la)
++			return
++		}
++	}
++}
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index c04660baa2..767a421cba 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -184,7 +184,7 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		laddr = &UDPAddr{}
+ 	}
+ 	l, err := listenPlan9(net, laddr)
+ 	if err != nil {
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index f6e2c17c3c..d7329bf32f 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -193,7 +193,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 	if laddr == nil {
+-		return nil, &OpError{"listen", net, nil, errMissingAddress}
++		laddr = &UDPAddr{}
+ 	}
+ 	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {

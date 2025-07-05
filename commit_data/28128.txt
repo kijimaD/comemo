@@ -25,10 +25,209 @@ Date:   Sun Apr 17 21:26:23 2016 -0400
     Change-Id: I1ae16b0ce0e2641d2bdc7d7eabc94dd35f6e9318
     Reviewed-on: https://go-review.googlesource.com/22195
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/aes/asm_s390x.s   | 33 +++++++++++++++++++
  src/crypto/aes/ctr_s390x.go  | 76 ++++++++++++++++++++++++++++++++++++++++++++
  src/crypto/aes/modes.go      |  7 ++++
  src/crypto/aes/modes_test.go | 21 ++++++++++++
  src/crypto/cipher/ctr.go     | 10 ++++++
  5 files changed, 147 insertions(+)
+
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index da9a559ed6..e31415a420 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -58,3 +58,36 @@ loop:
+ 	XOR	R0, R0
+ 	MVC	$16, 0(R1), 0(R8) // update iv
+ 	RET
++
++// func xorBytes(dst, a, b []byte) int
++TEXT ·xorBytes(SB),NOSPLIT,$0-80
++	MOVD	dst_base+0(FP), R1
++	MOVD	a_base+24(FP), R2
++	MOVD	b_base+48(FP), R3
++	MOVD	a_len+32(FP), R4
++	MOVD	b_len+56(FP), R5
++	CMPBLE	R4, R5, skip
++	MOVD	R5, R4
++skip:
++	MOVD	R4, ret+72(FP)
++	MOVD	$0, R5
++	CMPBLT	R4, $8, tail
++loop:
++	MOVD	0(R2)(R5*1), R7
++	MOVD	0(R3)(R5*1), R8
++	XOR	R7, R8
++	MOVD	R8, 0(R1)(R5*1)
++	LAY	8(R5), R5
++	SUB	$8, R4
++	CMPBGE	R4, $8, loop
++tail:
++	CMPBEQ	R4, $0, done
++	MOVB	0(R2)(R5*1), R7
++	MOVB	0(R3)(R5*1), R8
++	XOR	R7, R8
++	MOVB	R8, 0(R1)(R5*1)
++	LAY	1(R5), R5
++	SUB	$1, R4
++	BR	tail
++done:
++	RET
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+new file mode 100644
+index 0000000000..94dea5ccdf
+--- /dev/null
++++ b/src/crypto/aes/ctr_s390x.go
+@@ -0,0 +1,76 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/cipher"
++	"unsafe"
++)
++
++// Assert that aesCipherAsm implements the ctrAble interface.
++var _ ctrAble = (*aesCipherAsm)(nil)
++
++// xorBytes xors the contents of a and b and places the resulting values into
++// dst. If a and b are not the same length then the number of bytes processed
++// will be equal to the length of shorter of the two. Returns the number
++// of bytes processed.
++//go:noescape
++func xorBytes(dst, a, b []byte) int
++
++// streamBufferSize is the number of bytes of encrypted counter values to cache.
++const streamBufferSize = 32 * BlockSize
++
++type aesctr struct {
++	block   *aesCipherAsm          // block cipher
++	ctr     [2]uint64              // next value of the counter (big endian)
++	buffer  []byte                 // buffer for the encrypted counter values
++	storage [streamBufferSize]byte // array backing buffer slice
++}
++
++// NewCTR returns a Stream which encrypts/decrypts using the AES block
++// cipher in counter mode. The length of iv must be the same as BlockSize.
++func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
++	if len(iv) != BlockSize {
++		panic("cipher.NewCTR: IV length must equal block size")
++	}
++	var ac aesctr
++	ac.block = c
++	ac.ctr[0] = *(*uint64)(unsafe.Pointer((&iv[0]))) // high bits
++	ac.ctr[1] = *(*uint64)(unsafe.Pointer((&iv[8]))) // low bits
++	ac.buffer = ac.storage[:0]
++	return &ac
++}
++
++func (c *aesctr) refill() {
++	// Fill up the buffer with an incrementing count.
++	c.buffer = c.storage[:streamBufferSize]
++	c0, c1 := c.ctr[0], c.ctr[1]
++	for i := 0; i < streamBufferSize; i += BlockSize {
++		b0 := (*uint64)(unsafe.Pointer(&c.buffer[i]))
++		b1 := (*uint64)(unsafe.Pointer(&c.buffer[i+BlockSize/2]))
++		*b0, *b1 = c0, c1
++		// Increment in big endian: c0 is high, c1 is low.
++		c1++
++		if c1 == 0 {
++			// add carry
++			c0++
++		}
++	}
++	c.ctr[0], c.ctr[1] = c0, c1
++	// Encrypt the buffer using AES in ECB mode.
++	cryptBlocks(c.block.function, &c.block.key[0], &c.buffer[0], &c.buffer[0], streamBufferSize)
++}
++
++func (c *aesctr) XORKeyStream(dst, src []byte) {
++	for len(src) > 0 {
++		if len(c.buffer) == 0 {
++			c.refill()
++		}
++		n := xorBytes(dst, src, c.buffer)
++		c.buffer = c.buffer[n:]
++		src = src[n:]
++		dst = dst[n:]
++	}
++}
+diff --git a/src/crypto/aes/modes.go b/src/crypto/aes/modes.go
+index f65ec045a1..1623fc16e2 100644
+--- a/src/crypto/aes/modes.go
++++ b/src/crypto/aes/modes.go
+@@ -28,3 +28,10 @@ type cbcEncAble interface {
+ type cbcDecAble interface {
+ 	NewCBCDecrypter(iv []byte) cipher.BlockMode
+ }
++
++// ctrAble is implemented by cipher.Blocks that can provide an optimized
++// implementation of CTR through the cipher.Stream interface.
++// See crypto/cipher/ctr.go.
++type ctrAble interface {
++	NewCTR(iv []byte) cipher.Stream
++}
+diff --git a/src/crypto/aes/modes_test.go b/src/crypto/aes/modes_test.go
+index f2486717af..8c2e5f0560 100644
+--- a/src/crypto/aes/modes_test.go
++++ b/src/crypto/aes/modes_test.go
+@@ -34,6 +34,9 @@ func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {
+ func (*testBlock) NewCBCDecrypter([]byte) cipher.BlockMode {
+ 	return &testBlockMode{}
+ }
++func (*testBlock) NewCTR([]byte) cipher.Stream {
++	return &testStream{}
++}
+ 
+ // testAEAD implements the cipher.AEAD interface.
+ type testAEAD struct{}
+@@ -89,3 +92,21 @@ func TestCBCDecAble(t *testing.T) {
+ 		t.Fatalf("cipher.NewCBCDecrypter did not use cbcDecAble interface")
+ 	}
+ }
++
++// testStream implements the cipher.Stream interface.
++type testStream struct{}
++
++func (*testStream) XORKeyStream(a, b []byte) {}
++func (*testStream) InAESPackage() bool       { return true }
++
++// Test the ctrAble interface is detected correctly by the cipher package.
++func TestCTRAble(t *testing.T) {
++	b := cipher.Block(&testBlock{})
++	if _, ok := b.(ctrAble); !ok {
++		t.Fatalf("testBlock does not implement the ctrAble interface")
++	}
++	s := cipher.NewCTR(b, []byte{})
++	if _, ok := s.(testInterface); !ok {
++		t.Fatalf("cipher.NewCTR did not use ctrAble interface")
++	}
++}
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 16baa6d17d..75f46cfe51 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -21,9 +21,19 @@ type ctr struct {
+ 
+ const streamBufferSize = 512
+ 
++// ctrAble is an interface implemented by ciphers that have a specific optimized
++// implementation of CTR, like crypto/aes. NewCTR will check for this interface
++// and return the specific Stream if found.
++type ctrAble interface {
++	NewCTR(iv []byte) Stream
++}
++
+ // NewCTR returns a Stream which encrypts/decrypts using the given Block in
+ // counter mode. The length of iv must be the same as the Block's block size.
+ func NewCTR(block Block, iv []byte) Stream {
++	if ctr, ok := block.(ctrAble); ok {
++		return ctr.NewCTR(iv)
++	}
+ 	if len(iv) != block.BlockSize() {
+ 		panic("cipher.NewCTR: IV length must equal block size")
+ 	}

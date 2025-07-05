@@ -9,7 +9,152 @@ Date:   Mon Nov 7 14:44:06 2011 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5365043
-
+---
  src/cmd/gofix/import_test.go | 97 +++++++++++++++++++++++++++++++++++++++++---
  src/pkg/go/ast/import.go     | 10 ++++-
  2 files changed, 101 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gofix/import_test.go b/src/cmd/gofix/import_test.go
+index 4a9259f409..a06dc821fb 100644
+--- a/src/cmd/gofix/import_test.go
++++ b/src/cmd/gofix/import_test.go
+@@ -264,6 +264,90 @@ import (
+ 	"io"
+ 	"os"
+ )
++`,
++	},
++	{
++		Name: "import.14",
++		Fn:   rewriteImportFn("asn1", "encoding/asn1"),
++		In: `package main
++
++import (
++	"asn1"
++	"crypto"
++	"crypto/rsa"
++	_ "crypto/sha1"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"time"
++)
++
++var x = 1
++`,
++		Out: `package main
++
++import (
++	"crypto"
++	"crypto/rsa"
++	_ "crypto/sha1"
++	"crypto/x509"
++	"crypto/x509/pkix"
++	"encoding/asn1"
++	"time"
++)
++
++var x = 1
++`,
++	},
++	{
++		Name: "import.15",
++		Fn:   rewriteImportFn("url", "net/url"),
++		In: `package main
++
++import (
++	"bufio"
++	"net"
++	"path"
++	"url"
++)
++
++var x = 1 // comment on x, not on url
++`,
++		Out: `package main
++
++import (
++	"bufio"
++	"net"
++	"net/url"
++	"path"
++)
++
++var x = 1 // comment on x, not on url
++`,
++	},
++	{
++		Name: "import.16",
++		Fn:   rewriteImportFn("http", "net/http", "template", "text/template"),
++		In: `package main
++
++import (
++	"flag"
++	"http"
++	"log"
++	"template"
++)
++
++var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
++`,
++		Out: `package main
++
++import (
++	"flag"
++	"log"
++	"net/http"
++	"text/template"
++)
++
++var addr = flag.String("addr", ":1718", "http service address") // Q=17, R=18
+ `,
+ 	},
+ }
+@@ -288,12 +372,15 @@ func deleteImportFn(path string) func(*ast.File) bool {
+ 	}
+ }
+ 
+-func rewriteImportFn(old, new string) func(*ast.File) bool {
++func rewriteImportFn(oldnew ...string) func(*ast.File) bool {
+ 	return func(f *ast.File) bool {
+-		if imports(f, old) {
+-			rewriteImport(f, old, new)
+-			return true
++		fixed := false
++		for i := 0; i < len(oldnew); i += 2 {
++			if imports(f, oldnew[i]) {
++				rewriteImport(f, oldnew[i], oldnew[i+1])
++				fixed = true
++			}
+ 		}
+-		return false
++		return fixed
+ 	}
+ }
+diff --git a/src/pkg/go/ast/import.go b/src/pkg/go/ast/import.go
+index c64e9bbdc6..894fecdaa7 100644
+--- a/src/pkg/go/ast/import.go
++++ b/src/pkg/go/ast/import.go
+@@ -67,7 +67,12 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
+ 	// Record positions for specs.
+ 	pos := make([]posSpan, len(specs))
+ 	for i, s := range specs {
+-		pos[i] = posSpan{s.Pos(), s.End()}
++		// Cannot use s.End(), because it looks at len(s.Path.Value),
++		// and that string might have gotten longer or shorter.
++		// Instead, use s.Pos()+1, which is guaranteed to be > s.Pos()
++		// and still before the original end of the string, since any
++		// string literal must be at least 2 characters ("" or ``).
++		pos[i] = posSpan{s.Pos(), s.Pos() + 1}
+ 	}
+ 
+ 	// Identify comments in this range.
+@@ -107,6 +112,9 @@ func sortSpecs(fset *token.FileSet, f *File, specs []Spec) {
+ 	sort.Sort(byImportPath(specs))
+ 	for i, s := range specs {
+ 		s := s.(*ImportSpec)
++		if s.Name != nil {
++			s.Name.NamePos = pos[i].Start
++		}
+ 		s.Path.ValuePos = pos[i].Start
+ 		s.EndPos = pos[i].End
+ 		for _, g := range importComment[s] {

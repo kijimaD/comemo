@@ -13,6 +13,20 @@ Date:   Sat Oct 24 22:11:51 2020 +0000
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index e3580698fd..fc7e3e4485 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -434,7 +434,7 @@ type DB struct {
+ 	maxIdleTimeClosed int64 // Total number of connections closed due to idle time.
+ 	maxLifetimeClosed int64 // Total number of connections closed due to max connection lifetime limit.
+ 
+-	stop func() // stop cancels the connection opener and the session resetter.
++	stop func() // stop cancels the connection opener.
+ }
+ 
+ // connReuseStrategy determines how (*DB).conn returns database connections.

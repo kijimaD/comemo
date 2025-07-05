@@ -12,7 +12,7 @@ Date:   Thu Apr 20 16:08:13 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/486915
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Bypass: Austin Clements <austin@google.com>
-
+---
  src/runtime/asm_386.s           |  2 +-
  src/runtime/asm_amd64.s         |  2 +-
  src/runtime/asm_arm.s           |  2 +-
@@ -35,3 +35,526 @@ Date:   Thu Apr 20 16:08:13 2023 +0000
  src/runtime/sys_windows_386.s   |  2 +-
  src/runtime/sys_windows_amd64.s |  2 +-
  21 files changed, 62 insertions(+), 62 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index febe27089f..f07fc6bdb4 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -186,7 +186,7 @@ nocpuinfo:
+ 	// update stackguard after _cgo_init
+ 	MOVL	$runtime·g0(SB), CX
+ 	MOVL	(g_stack+stack_lo)(CX), AX
+-	ADDL	$const_stackGuard, AX
++	ADDL	$const__StackGuard, AX
+ 	MOVL	AX, g_stackguard0(CX)
+ 	MOVL	AX, g_stackguard1(CX)
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 7fb1ae2cff..0603934cb8 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -222,7 +222,7 @@ nocpuinfo:
+ 	// update stackguard after _cgo_init
+ 	MOVQ	$runtime·g0(SB), CX
+ 	MOVQ	(g_stack+stack_lo)(CX), AX
+-	ADDQ	$const_stackGuard, AX
++	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(CX)
+ 	MOVQ	AX, g_stackguard1(CX)
+ 
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 01621245dc..569165ed19 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -151,7 +151,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|NOFRAME|TOPFRAME,$0
+ 
+ 	// update stackguard after _cgo_init
+ 	MOVW	(g_stack+stack_lo)(g), R0
+-	ADD	$const_stackGuard, R0
++	ADD	$const__StackGuard, R0
+ 	MOVW	R0, g_stackguard0(g)
+ 	MOVW	R0, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 6fe04a6445..143ea38fbe 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -59,7 +59,7 @@ nocgo:
+ 	BL	runtime·save_g(SB)
+ 	// update stackguard after _cgo_init
+ 	MOVD	(g_stack+stack_lo)(g), R0
+-	ADD	$const_stackGuard, R0
++	ADD	$const__StackGuard, R0
+ 	MOVD	R0, g_stackguard0(g)
+ 	MOVD	R0, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 6029dbc8c3..4f6cb10893 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -39,7 +39,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVV	(g_stack+stack_lo)(g), R19
+-	ADDV	$const_stackGuard, R19
++	ADDV	$const__StackGuard, R19
+ 	MOVV	R19, g_stackguard0(g)
+ 	MOVV	R19, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index e6eb13f00a..8d1f6506da 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -41,7 +41,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVV	(g_stack+stack_lo)(g), R1
+-	ADDV	$const_stackGuard, R1
++	ADDV	$const__StackGuard, R1
+ 	MOVV	R1, g_stackguard0(g)
+ 	MOVV	R1, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index fc81e76354..33d37b2d02 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -42,7 +42,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVW	(g_stack+stack_lo)(g), R1
+-	ADD	$const_stackGuard, R1
++	ADD	$const__StackGuard, R1
+ 	MOVW	R1, g_stackguard0(g)
+ 	MOVW	R1, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 1e17291d78..67b0eba87a 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -67,7 +67,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVD	(g_stack+stack_lo)(g), R3
+-	ADD	$const_stackGuard, R3
++	ADD	$const__StackGuard, R3
+ 	MOVD	R3, g_stackguard0(g)
+ 	MOVD	R3, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 759bae24b5..7626f69684 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -36,7 +36,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOV	(g_stack+stack_lo)(g), T0
+-	ADD	$const_stackGuard, T0
++	ADD	$const__StackGuard, T0
+ 	MOV	T0, g_stackguard0(g)
+ 	MOV	T0, g_stackguard1(g)
+ 
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index d427c07de4..e8fa10dee6 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -126,7 +126,7 @@ TEXT runtime·rt0_go(SB),NOSPLIT|TOPFRAME,$0
+ nocgo:
+ 	// update stackguard after _cgo_init
+ 	MOVD	(g_stack+stack_lo)(g), R2
+-	ADD	$const_stackGuard, R2
++	ADD	$const__StackGuard, R2
+ 	MOVD	R2, g_stackguard0(g)
+ 	MOVD	R2, g_stackguard1(g)
+ 
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index fb008f873a..10b445837e 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -993,7 +993,7 @@ func minit() {
+ 		throw("bad g0 stack")
+ 	}
+ 	g0.stack.lo = base
+-	g0.stackguard0 = g0.stack.lo + stackGuard
++	g0.stackguard0 = g0.stack.lo + _StackGuard
+ 	g0.stackguard1 = g0.stackguard0
+ 	// Sanity check the SP.
+ 	stackcheck()
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 925b38be10..e19e6d3d7a 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -172,7 +172,7 @@ func suspendG(gp *g) suspendGState {
+ 			// _Gscan bit and thus own the stack.
+ 			gp.preemptStop = false
+ 			gp.preempt = false
+-			gp.stackguard0 = gp.stack.lo + stackGuard
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+ 			// The goroutine was already at a safe-point
+ 			// and we've now locked that in.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b176c62fcf..ae218da513 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -832,7 +832,7 @@ func mcommoninit(mp *m, id int64) {
+ 
+ 	mpreinit(mp)
+ 	if mp.gsignal != nil {
+-		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + stackGuard
++		mp.gsignal.stackguard1 = mp.gsignal.stack.lo + _StackGuard
+ 	}
+ 
+ 	// Add to allm so garbage collector doesn't free g->m
+@@ -1446,7 +1446,7 @@ func mstart0() {
+ 	}
+ 	// Initialize stack guard so that we can start calling regular
+ 	// Go code.
+-	gp.stackguard0 = gp.stack.lo + stackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 	// This is the g0, so we can also call go:systemstack
+ 	// functions, which check stackguard1.
+ 	gp.stackguard1 = gp.stackguard0
+@@ -1940,7 +1940,7 @@ func needm() {
+ 	gp := getg()
+ 	gp.stack.hi = getcallersp() + 1024
+ 	gp.stack.lo = getcallersp() - 32*1024
+-	gp.stackguard0 = gp.stack.lo + stackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+ 	// Initialize this thread to use the m.
+ 	asminit()
+@@ -2640,7 +2640,7 @@ func execute(gp *g, inheritTime bool) {
+ 	casgstatus(gp, _Grunnable, _Grunning)
+ 	gp.waitsince = 0
+ 	gp.preempt = false
+-	gp.stackguard0 = gp.stack.lo + stackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 	if !inheritTime {
+ 		mp.p.ptr().schedtick++
+ 	}
+@@ -3955,8 +3955,8 @@ func exitsyscall() {
+ 			// restore the preemption request in case we've cleared it in newstack
+ 			gp.stackguard0 = stackPreempt
+ 		} else {
+-			// otherwise restore the real stackGuard, we've spoiled it in entersyscall/entersyscallblock
+-			gp.stackguard0 = gp.stack.lo + stackGuard
++			// otherwise restore the real _StackGuard, we've spoiled it in entersyscall/entersyscallblock
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 		}
+ 		gp.throwsplit = false
+ 
+@@ -4137,7 +4137,7 @@ func syscall_runtime_BeforeFork() {
+ 
+ 	// This function is called before fork in syscall package.
+ 	// Code between fork and exec must not allocate memory nor even try to grow stack.
+-	// Here we spoil g.stackguard0 to reliably detect any attempts to grow stack.
++	// Here we spoil g->_StackGuard to reliably detect any attempts to grow stack.
+ 	// runtime_AfterFork will undo this in parent process, but not in child.
+ 	gp.stackguard0 = stackFork
+ }
+@@ -4150,7 +4150,7 @@ func syscall_runtime_AfterFork() {
+ 	gp := getg().m.curg
+ 
+ 	// See the comments in beforefork.
+-	gp.stackguard0 = gp.stack.lo + stackGuard
++	gp.stackguard0 = gp.stack.lo + _StackGuard
+ 
+ 	msigrestore(gp.m.sigmask)
+ 
+@@ -4220,11 +4220,11 @@ func syscall_runtime_AfterExec() {
+ func malg(stacksize int32) *g {
+ 	newg := new(g)
+ 	if stacksize >= 0 {
+-		stacksize = round2(stackSystem + stacksize)
++		stacksize = round2(_StackSystem + stacksize)
+ 		systemstack(func() {
+ 			newg.stack = stackalloc(uint32(stacksize))
+ 		})
+-		newg.stackguard0 = newg.stack.lo + stackGuard
++		newg.stackguard0 = newg.stack.lo + _StackGuard
+ 		newg.stackguard1 = ^uintptr(0)
+ 		// Clear the bottom word of the stack. We record g
+ 		// there on gsignal stack during VDSO on ARM and ARM64.
+@@ -4263,7 +4263,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr) *g {
+ 	pp := mp.p.ptr()
+ 	newg := gfget(pp)
+ 	if newg == nil {
+-		newg = malg(stackMin)
++		newg = malg(_StackMin)
+ 		casgstatus(newg, _Gidle, _Gdead)
+ 		allgadd(newg) // publishes with a g->status of Gdead so GC scanner doesn't look at uninitialized stack.
+ 	}
+@@ -4467,7 +4467,7 @@ retry:
+ 		systemstack(func() {
+ 			gp.stack = stackalloc(startingStackSize)
+ 		})
+-		gp.stackguard0 = gp.stack.lo + stackGuard
++		gp.stackguard0 = gp.stack.lo + _StackGuard
+ 	} else {
+ 		if raceenabled {
+ 			racemalloc(unsafe.Pointer(gp.stack.lo), gp.stack.hi-gp.stack.lo)
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 65bed433c3..98c5c84c01 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -286,7 +286,7 @@ func check() {
+ 
+ 	testAtomic64()
+ 
+-	if fixedStack != round2(fixedStack) {
++	if _FixedStack != round2(_FixedStack) {
+ 		throw("FixedStack is not power-of-2")
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 8b0d281ac9..33e6ef27f0 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -1307,8 +1307,8 @@ func setGsignalStack(st *stackt, old *gsignalStack) {
+ 	stsp := uintptr(unsafe.Pointer(st.ss_sp))
+ 	gp.m.gsignal.stack.lo = stsp
+ 	gp.m.gsignal.stack.hi = stsp + st.ss_size
+-	gp.m.gsignal.stackguard0 = stsp + stackGuard
+-	gp.m.gsignal.stackguard1 = stsp + stackGuard
++	gp.m.gsignal.stackguard0 = stsp + _StackGuard
++	gp.m.gsignal.stackguard1 = stsp + _StackGuard
+ }
+ 
+ // restoreGsignalStack restores the gsignal stack to the value it had
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 8e0e39cb26..59c261ac19 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -321,7 +321,7 @@ func winthrow(info *exceptionrecord, r *context, gp *g) {
+ 	// g0 stack bounds so we have room to print the traceback. If
+ 	// this somehow overflows the stack, the OS will trap it.
+ 	g0.stack.lo = 0
+-	g0.stackguard0 = g0.stack.lo + stackGuard
++	g0.stackguard0 = g0.stack.lo + _StackGuard
+ 	g0.stackguard1 = g0.stackguard0
+ 
+ 	print("Exception ", hex(info.exceptioncode), " ", hex(info.exceptioninformation[0]), " ", hex(info.exceptioninformation[1]), " ", hex(r.ip()), "\n")
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 03b969716f..708a6ee2e5 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -65,25 +65,25 @@ functions to make sure that this limit cannot be violated.
+ */
+ 
+ const (
+-	// stackSystem is a number of additional bytes to add
++	// StackSystem is a number of additional bytes to add
+ 	// to each stack below the usual guard area for OS-specific
+ 	// purposes like signal handling. Used on Windows, Plan 9,
+ 	// and iOS because they do not use a separate stack.
+-	stackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*goarch.IsArm64*1024
++	_StackSystem = goos.IsWindows*512*goarch.PtrSize + goos.IsPlan9*512 + goos.IsIos*goarch.IsArm64*1024
+ 
+ 	// The minimum size of stack used by Go code
+-	stackMin = 2048
++	_StackMin = 2048
+ 
+ 	// The minimum stack size to allocate.
+-	// The hackery here rounds fixedStack0 up to a power of 2.
+-	fixedStack0 = stackMin + stackSystem
+-	fixedStack1 = fixedStack0 - 1
+-	fixedStack2 = fixedStack1 | (fixedStack1 >> 1)
+-	fixedStack3 = fixedStack2 | (fixedStack2 >> 2)
+-	fixedStack4 = fixedStack3 | (fixedStack3 >> 4)
+-	fixedStack5 = fixedStack4 | (fixedStack4 >> 8)
+-	fixedStack6 = fixedStack5 | (fixedStack5 >> 16)
+-	fixedStack  = fixedStack6 + 1
++	// The hackery here rounds FixedStack0 up to a power of 2.
++	_FixedStack0 = _StackMin + _StackSystem
++	_FixedStack1 = _FixedStack0 - 1
++	_FixedStack2 = _FixedStack1 | (_FixedStack1 >> 1)
++	_FixedStack3 = _FixedStack2 | (_FixedStack2 >> 2)
++	_FixedStack4 = _FixedStack3 | (_FixedStack3 >> 4)
++	_FixedStack5 = _FixedStack4 | (_FixedStack4 >> 8)
++	_FixedStack6 = _FixedStack5 | (_FixedStack5 >> 16)
++	_FixedStack  = _FixedStack6 + 1
+ 
+ 	// stackNosplit is the maximum number of bytes that a chain of NOSPLIT
+ 	// functions can use.
+@@ -96,7 +96,7 @@ const (
+ 	// The guard leaves enough room for a stackNosplit chain of NOSPLIT calls
+ 	// plus one stackSmall frame plus stackSystem bytes for the OS.
+ 	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+-	stackGuard = stackNosplit + stackSystem + abi.StackSmall
++	_StackGuard = stackNosplit + _StackSystem + abi.StackSmall
+ )
+ 
+ const (
+@@ -204,7 +204,7 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 			throw("bad manualFreeList")
+ 		}
+ 		osStackAlloc(s)
+-		s.elemsize = fixedStack << order
++		s.elemsize = _FixedStack << order
+ 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
+ 			x := gclinkptr(s.base() + i)
+ 			x.ptr().next = s.manualFreeList
+@@ -279,7 +279,7 @@ func stackcacherefill(c *mcache, order uint8) {
+ 		x := stackpoolalloc(order)
+ 		x.ptr().next = list
+ 		list = x
+-		size += fixedStack << order
++		size += _FixedStack << order
+ 	}
+ 	unlock(&stackpool[order].item.mu)
+ 	c.stackcache[order].list = list
+@@ -298,7 +298,7 @@ func stackcacherelease(c *mcache, order uint8) {
+ 		y := x.ptr().next
+ 		stackpoolfree(x, order)
+ 		x = y
+-		size -= fixedStack << order
++		size -= _FixedStack << order
+ 	}
+ 	unlock(&stackpool[order].item.mu)
+ 	c.stackcache[order].list = x
+@@ -358,10 +358,10 @@ func stackalloc(n uint32) stack {
+ 	// If we need a stack of a bigger size, we fall back on allocating
+ 	// a dedicated span.
+ 	var v unsafe.Pointer
+-	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
++	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+ 		order := uint8(0)
+ 		n2 := n
+-		for n2 > fixedStack {
++		for n2 > _FixedStack {
+ 			order++
+ 			n2 >>= 1
+ 		}
+@@ -461,10 +461,10 @@ func stackfree(stk stack) {
+ 	if asanenabled {
+ 		asanpoison(v, n)
+ 	}
+-	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
++	if n < _FixedStack<<_NumStackOrders && n < _StackCacheSize {
+ 		order := uint8(0)
+ 		n2 := n
+-		for n2 > fixedStack {
++		for n2 > _FixedStack {
+ 			order++
+ 			n2 >>= 1
+ 		}
+@@ -928,7 +928,7 @@ func copystack(gp *g, newsize uintptr) {
+ 
+ 	// Swap out old stack for new one
+ 	gp.stack = new
+-	gp.stackguard0 = new.lo + stackGuard // NOTE: might clobber a preempt request
++	gp.stackguard0 = new.lo + _StackGuard // NOTE: might clobber a preempt request
+ 	gp.sched.sp = new.hi - used
+ 	gp.stktopsp += adjinfo.delta
+ 
+@@ -1030,7 +1030,7 @@ func newstack() {
+ 		if !canPreemptM(thisg.m) {
+ 			// Let the goroutine keep running for now.
+ 			// gp->preempt is set, so it will be preempted next time.
+-			gp.stackguard0 = gp.stack.lo + stackGuard
++			gp.stackguard0 = gp.stack.lo + _StackGuard
+ 			gogo(&gp.sched) // never return
+ 		}
+ 	}
+@@ -1086,7 +1086,7 @@ func newstack() {
+ 	// recheck the bounds on return.)
+ 	if f := findfunc(gp.sched.pc); f.valid() {
+ 		max := uintptr(funcMaxSPDelta(f))
+-		needed := max + stackGuard
++		needed := max + _StackGuard
+ 		used := gp.stack.hi - gp.sched.sp
+ 		for newsize-used < needed {
+ 			newsize *= 2
+@@ -1201,7 +1201,7 @@ func shrinkstack(gp *g) {
+ 	newsize := oldsize / 2
+ 	// Don't shrink the allocation below the minimum-sized stack
+ 	// allocation.
+-	if newsize < fixedStack {
++	if newsize < _FixedStack {
+ 		return
+ 	}
+ 	// Compute how much of the stack is currently in use and only
+@@ -1307,7 +1307,7 @@ func morestackc() {
+ // It is a power of 2, and between _FixedStack and maxstacksize, inclusive.
+ // startingStackSize is updated every GC by tracking the average size of
+ // stacks scanned during the GC.
+-var startingStackSize uint32 = fixedStack
++var startingStackSize uint32 = _FixedStack
+ 
+ func gcComputeStartingStackSize() {
+ 	if debug.adaptivestackstart == 0 {
+@@ -1333,17 +1333,17 @@ func gcComputeStartingStackSize() {
+ 		p.scannedStacks = 0
+ 	}
+ 	if scannedStacks == 0 {
+-		startingStackSize = fixedStack
++		startingStackSize = _FixedStack
+ 		return
+ 	}
+-	avg := scannedStackSize/scannedStacks + stackGuard
+-	// Note: we add stackGuard to ensure that a goroutine that
++	avg := scannedStackSize/scannedStacks + _StackGuard
++	// Note: we add _StackGuard to ensure that a goroutine that
+ 	// uses the average space will not trigger a growth.
+ 	if avg > uint64(maxstacksize) {
+ 		avg = uint64(maxstacksize)
+ 	}
+-	if avg < fixedStack {
+-		avg = fixedStack
++	if avg < _FixedStack {
++		avg = _FixedStack
+ 	}
+ 	// Note: maxstacksize fits in 30 bits, so avg also does.
+ 	startingStackSize = uint32(round2(int32(avg)))
+diff --git a/src/runtime/sys_aix_ppc64.s b/src/runtime/sys_aix_ppc64.s
+index 66081977b1..ab18c5eb00 100644
+--- a/src/runtime/sys_aix_ppc64.s
++++ b/src/runtime/sys_aix_ppc64.s
+@@ -210,7 +210,7 @@ TEXT tstart<>(SB),NOSPLIT,$0
+ 	MOVD	R3, (g_stack+stack_hi)(g)
+ 	SUB	$(const_threadStackSize), R3		// stack size
+ 	MOVD	R3, (g_stack+stack_lo)(g)
+-	ADD	$const_stackGuard, R3
++	ADD	$const__StackGuard, R3
+ 	MOVD	R3, g_stackguard0(g)
+ 	MOVD	R3, g_stackguard1(g)
+ 
+diff --git a/src/runtime/sys_solaris_amd64.s b/src/runtime/sys_solaris_amd64.s
+index 7a80020ba3..a29dd4f735 100644
+--- a/src/runtime/sys_solaris_amd64.s
++++ b/src/runtime/sys_solaris_amd64.s
+@@ -105,7 +105,7 @@ TEXT runtime·tstart_sysvicall(SB),NOSPLIT,$0
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(0x100000), AX		// stack size
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+-	ADDQ	$const_stackGuard, AX
++	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
+ 	MOVQ	AX, g_stackguard1(DX)
+ 
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index c1cc788aba..e16993e699 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -181,7 +181,7 @@ TEXT tstart<>(SB),NOSPLIT,$8-4
+ 	MOVL	AX, (g_stack+stack_hi)(DX)
+ 	SUBL	$(64*1024), AX		// initial stack size (adjusted later)
+ 	MOVL	AX, (g_stack+stack_lo)(DX)
+-	ADDL	$const_stackGuard, AX
++	ADDL	$const__StackGuard, AX
+ 	MOVL	AX, g_stackguard0(DX)
+ 	MOVL	AX, g_stackguard1(DX)
+ 
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 9699c9679c..ecbe8d3329 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -208,7 +208,7 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	AX, (g_stack+stack_hi)(DX)
+ 	SUBQ	$(64*1024), AX		// initial stack size (adjusted later)
+ 	MOVQ	AX, (g_stack+stack_lo)(DX)
+-	ADDQ	$const_stackGuard, AX
++	ADDQ	$const__StackGuard, AX
+ 	MOVQ	AX, g_stackguard0(DX)
+ 	MOVQ	AX, g_stackguard1(DX)
+ 

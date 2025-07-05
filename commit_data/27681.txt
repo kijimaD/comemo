@@ -26,9 +26,93 @@ Date:   Thu Mar 31 16:05:23 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/reader.go        |  3 +++
  src/bytes/reader_test.go   | 20 ++++++++++++++++++++
  src/strings/reader.go      |  3 +++
  src/strings/reader_test.go | 20 ++++++++++++++++++++
  4 files changed, 46 insertions(+)
+
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 5941ebdab4..7aa30578b3 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -146,5 +146,8 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 	return
+ }
+ 
++// Reset resets the Reader to be reading from b.
++func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
++
+ // NewReader returns a new Reader reading from b.
+ func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }
+diff --git a/src/bytes/reader_test.go b/src/bytes/reader_test.go
+index b929a28260..add985d57e 100644
+--- a/src/bytes/reader_test.go
++++ b/src/bytes/reader_test.go
+@@ -256,3 +256,23 @@ func TestReaderLenSize(t *testing.T) {
+ 		t.Errorf("Size = %d; want 3", r.Size())
+ 	}
+ }
++
++func TestReaderReset(t *testing.T) {
++	r := NewReader([]byte("世界"))
++	if _, _, err := r.ReadRune(); err != nil {
++		t.Errorf("ReadRune: unexpected error: %v", err)
++	}
++
++	const want = "abcdef"
++	r.Reset([]byte(want))
++	if err := r.UnreadRune(); err == nil {
++		t.Errorf("UnreadRune: expected error, got nil")
++	}
++	buf, err := ioutil.ReadAll(r)
++	if err != nil {
++		t.Errorf("ReadAll: unexpected error: %v", err)
++	}
++	if got := string(buf); got != want {
++		t.Errorf("ReadAll: got %q, want %q", got, want)
++	}
++}
+diff --git a/src/strings/reader.go b/src/strings/reader.go
+index 248e55245c..737873c099 100644
+--- a/src/strings/reader.go
++++ b/src/strings/reader.go
+@@ -145,6 +145,9 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 	return
+ }
+ 
++// Reset resets the Reader to be reading from s.
++func (r *Reader) Reset(s string) { *r = Reader{s, 0, -1} }
++
+ // NewReader returns a new Reader reading from s.
+ // It is similar to bytes.NewBufferString but more efficient and read-only.
+ func NewReader(s string) *Reader { return &Reader{s, 0, -1} }
+diff --git a/src/strings/reader_test.go b/src/strings/reader_test.go
+index 5003a37be4..7bca2e89a1 100644
+--- a/src/strings/reader_test.go
++++ b/src/strings/reader_test.go
+@@ -170,3 +170,23 @@ func TestReaderLenSize(t *testing.T) {
+ 		t.Errorf("Size = %d; want 3", r.Size())
+ 	}
+ }
++
++func TestReaderReset(t *testing.T) {
++	r := strings.NewReader("世界")
++	if _, _, err := r.ReadRune(); err != nil {
++		t.Errorf("ReadRune: unexpected error: %v", err)
++	}
++
++	const want = "abcdef"
++	r.Reset(want)
++	if err := r.UnreadRune(); err == nil {
++		t.Errorf("UnreadRune: expected error, got nil")
++	}
++	buf, err := ioutil.ReadAll(r)
++	if err != nil {
++		t.Errorf("ReadAll: unexpected error: %v", err)
++	}
++	if got := string(buf); got != want {
++		t.Errorf("ReadAll: got %q, want %q", got, want)
++	}
++}

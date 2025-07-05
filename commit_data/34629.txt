@@ -34,8 +34,236 @@ Date:   Thu Nov 2 19:54:46 2017 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go |  13 ++-
  test/closure3.dir/main.go          | 173 +++++++++++++++++++++++++++++++++++++
  test/closure3.go                   |  10 +++
  3 files changed, 194 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index a509d2d648..ea31da9b15 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -661,8 +661,17 @@ func reassigned(n *Node) (bool, *Node) {
+ 	if n.Name.Curfn == nil {
+ 		return true, nil
+ 	}
++	f := n.Name.Curfn
++	// There just might be a good reason for this although this can be pretty surprising:
++	// local variables inside a closure have Curfn pointing to the OCLOSURE node instead
++	// of the corresponding ODCLFUNC.
++	// We need to walk the function body to check for reassignments so we follow the
++	// linkage to the ODCLFUNC node as that is where body is held.
++	if f.Op == OCLOSURE {
++		f = f.Func.Closure
++	}
+ 	v := reassignVisitor{name: n}
+-	a := v.visitList(n.Name.Curfn.Nbody)
++	a := v.visitList(f.Nbody)
+ 	return a != nil, a
+ }
+ 
+@@ -680,7 +689,7 @@ func (v *reassignVisitor) visit(n *Node) *Node {
+ 			return n
+ 		}
+ 		return nil
+-	case OAS2, OAS2FUNC:
++	case OAS2, OAS2FUNC, OAS2MAPR, OAS2DOTTYPE:
+ 		for _, p := range n.List.Slice() {
+ 			if p == v.name && n != v.name.Name.Defn {
+ 				return n
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+new file mode 100644
+index 0000000000..5629a522d7
+--- /dev/null
++++ b/test/closure3.dir/main.go
+@@ -0,0 +1,173 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check correctness of various closure corner cases that
++// that are expected to be inlined
++
++package main
++
++var ok bool
++var sink int
++
++func main() {
++	{
++		if x := func() int { // ERROR "can inline main.func1"
++			return 1
++		}(); x != 1 { // ERROR "inlining call to main.func1"
++			panic("x != 1")
++		}
++		if x := func() int { // ERROR "can inline main.func2" "func literal does not escape"
++			return 1
++		}; x() != 1 { // ERROR "inlining call to main.func2"
++			panic("x() != 1")
++		}
++	}
++
++	{
++		if y := func(x int) int { // ERROR "can inline main.func3"
++			return x + 2
++		}(40); y != 42 { // ERROR "inlining call to main.func3"
++			panic("y != 42")
++		}
++		if y := func(x int) int { // ERROR "can inline main.func4" "func literal does not escape"
++			return x + 2
++		}; y(40) != 42 { // ERROR "inlining call to main.func4"
++			panic("y(40) != 42")
++		}
++	}
++
++	{
++		y := func(x int) int { // ERROR "can inline main.func5" "func literal does not escape"
++			return x + 2
++		}
++		y = func(x int) int { // ERROR "can inline main.func6" "func literal does not escape"
++			return x + 1
++		}
++		if y(40) != 41 {
++			panic("y(40) != 41")
++		}
++	}
++
++	{
++		func() { // ERROR "func literal does not escape"
++			y := func(x int) int { // ERROR "can inline main.func7.1" "func literal does not escape"
++				return x + 2
++			}
++			y = func(x int) int { // ERROR "can inline main.func7.2" "func literal does not escape"
++				return x + 1
++			}
++			if y(40) != 41 {
++				panic("y(40) != 41")
++			}
++		}()
++	}
++
++	{
++		y := func(x int) int { // ERROR "can inline main.func8" "func literal does not escape"
++			return x + 2
++		}
++		y, sink = func(x int) int { // ERROR "can inline main.func9" "func literal does not escape"
++			return x + 1
++		}, 42
++		if y(40) != 41 {
++			panic("y(40) != 41")
++		}
++	}
++
++	{
++		func() { // ERROR "func literal does not escape"
++			y := func(x int) int { // ERROR "can inline main.func10.1" "func literal does not escape"
++				return x + 2
++			}
++			y, sink = func(x int) int { // ERROR "can inline main.func10.2" "func literal does not escape"
++				return x + 1
++			}, 42
++			if y(40) != 41 {
++				panic("y(40) != 41")
++			}
++		}()
++	}
++
++	{
++		y := func(x int) int { // ERROR "can inline main.func11" "func literal does not escape"
++			return x + 2
++		}
++		y, sink = func() (func(int)int, int) { // ERROR "func literal does not escape"
++			return func(x int) int { // ERROR "can inline main.func12" "func literal escapes"
++				return x + 1
++			}, 42
++		}()
++		if y(40) != 41 {
++			panic("y(40) != 41")
++		}
++	}
++
++	{
++		func() { // ERROR "func literal does not escape"
++			y := func(x int) int { // ERROR "can inline main.func13.1" "func literal does not escape"
++				return x + 2
++			}
++			y, sink = func() (func(int) int, int) { // ERROR "func literal does not escape"
++				return func(x int) int { // ERROR "can inline main.func13.2" "func literal escapes"
++					return x + 1
++				}, 42
++			}()
++			if y(40) != 41 {
++				panic("y(40) != 41")
++			}
++		}()
++	}
++
++	{
++		y := func(x int) int { // ERROR "can inline main.func14" "func literal does not escape"
++			return x + 2
++		}
++		y, ok = map[int]func(int)int { // ERROR "does not escape"
++			0: func (x int) int { return x + 1 }, // ERROR "can inline main.func15" "func literal escapes"
++		}[0]
++		if y(40) != 41 {
++			panic("y(40) != 41")
++		}
++	}
++
++	{
++		func() { // ERROR "func literal does not escape"
++			y := func(x int) int { // ERROR "can inline main.func16.1" "func literal does not escape"
++				return x + 2
++			}
++			y, ok = map[int]func(int) int{// ERROR "does not escape"
++				0: func(x int) int { return x + 1 }, // ERROR "can inline main.func16.2" "func literal escapes"
++			}[0]
++			if y(40) != 41 {
++				panic("y(40) != 41")
++			}
++		}()
++	}
++
++	{
++		y := func(x int) int { // ERROR "can inline main.func17" "func literal does not escape"
++			return x + 2
++		}
++		y, ok = interface{}(func (x int) int { // ERROR "can inline main.func18" "does not escape"
++			return x + 1
++		}).(func(int)int)
++		if y(40) != 41 {
++			panic("y(40) != 41")
++		}
++	}
++
++	{
++		func() { // ERROR "func literal does not escape"
++			y := func(x int) int { // ERROR "can inline main.func19.1" "func literal does not escape"
++				return x + 2
++			}
++			y, ok = interface{}(func(x int) int { // ERROR "can inline main.func19.2" "does not escape"
++				return x + 1
++			}).(func(int) int)
++			if y(40) != 41 {
++				panic("y(40) != 41")
++			}
++		}()
++	}
++}
+diff --git a/test/closure3.go b/test/closure3.go
+new file mode 100644
+index 0000000000..263d8fcb47
+--- /dev/null
++++ b/test/closure3.go
+@@ -0,0 +1,10 @@
++// errorcheckandrundir -0 -m
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check correctness of various closure corner cases that
++// that are expected to be inlined
++
++package ignored

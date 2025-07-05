@@ -24,7 +24,7 @@ Date:   Mon Apr 4 23:42:14 2011 -0700
     R=golang-dev, bradfitzwork, rsc, r2
     CC=golang-dev
     https://golang.org/cl/4357052
-
+---
  misc/dashboard/builder/exec.go           |   2 +-
  misc/goplay/goplay.go                    |   2 +-
  src/cmd/cgo/main.go                      |   2 +-
@@ -85,3 +85,1314 @@ Date:   Mon Apr 4 23:42:14 2011 -0700
  src/pkg/strconv/fp_test.go               |   2 +-
  src/pkg/testing/testing.go               |   4 +-
  59 files changed, 291 insertions(+), 106 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 53ea93ac58..c122d4a07c 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -49,7 +49,7 @@ func runLog(envv []string, logfile, dir string, argv ...string) (output string,
+ 	b := new(bytes.Buffer)
+ 	var w io.Writer = b
+ 	if logfile != "" {
+-		f, err := os.Open(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
++		f, err := os.Create(logfile)
+ 		if err != nil {
+ 			return
+ 		}
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 3ca5ed80c6..f887fbbda7 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -83,7 +83,7 @@ func Compile(w http.ResponseWriter, req *http.Request) {
+ 	}
+ 
+ 	// write request Body to x.go
+-	f, err := os.Open(src, os.O_CREAT|os.O_WRONLY|os.O_TRUNC, 0666)
++	f, err := os.Create(src)
+ 	if err != nil {
+ 		error(w, nil, err)
+ 		return
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 2dc662de54..584e547087 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -203,7 +203,7 @@ func main() {
+ 	// Use the beginning of the md5 of the input to disambiguate.
+ 	h := md5.New()
+ 	for _, input := range goFiles {
+-		f, err := os.Open(input, os.O_RDONLY, 0)
++		f, err := os.Open(input)
+ 		if err != nil {
+ 			fatal("%s", err)
+ 		}
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index 56258f2cdc..b4f56e31e0 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -95,7 +95,7 @@ func isName(s string) bool {
+ }
+ 
+ func creat(name string) *os.File {
+-	f, err := os.Open(name, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
++	f, err := os.Create(name)
+ 	if err != nil {
+ 		fatal("%s", err)
+ 	}
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index bda63a9f60..24087eb880 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -115,7 +115,7 @@ func (st *Codestep) String() string {
+ 
+ // loadCodewalk reads a codewalk from the named XML file.
+ func loadCodewalk(file string) (*Codewalk, os.Error) {
+-	f, err := os.Open(file, os.O_RDONLY, 0)
++	f, err := os.Open(file)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 5af4d15cb5..5938d0b74a 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -624,7 +624,7 @@ func pkgName(filename string) string {
+ // failed (that is, if the file was not added), it returns file == nil.
+ func (x *Indexer) addFile(filename string, goFile bool) (file *token.File, ast *ast.File) {
+ 	// open file
+-	f, err := os.Open(filename, os.O_RDONLY, 0)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index 9517aee7ab..593b51ce00 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -155,7 +155,7 @@ func isTextFile(filename string) bool {
+ 
+ 	// the extension is not known; read an initial chunk
+ 	// of the file and check if it looks like text
+-	f, err := os.Open(filename, os.O_RDONLY, 0)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return false
+ 	}
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index f60b503d4b..474a9ba29e 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -9,6 +9,7 @@ GOFILES=\
+ 	fix.go\
+ 	netdial.go\
+ 	main.go\
++	osopen.go\
+ 	httpserver.go\
+ 	procattr.go\
+ 
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index e4802cdb89..c02137679f 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -93,7 +93,7 @@ func processFile(filename string, useStdin bool) os.Error {
+ 	if useStdin {
+ 		f = os.Stdin
+ 	} else {
+-		f, err = os.Open(filename, os.O_RDONLY, 0)
++		f, err = os.Open(filename)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/gofix/osopen.go b/src/cmd/gofix/osopen.go
+new file mode 100644
+index 0000000000..4b9812477e
+--- /dev/null
++++ b/src/cmd/gofix/osopen.go
+@@ -0,0 +1,109 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var osopenFix = fix{
++	"osopen",
++	osopen,
++	`Adapt os.Open calls to new, easier API and rename O_CREAT O_CREATE.
++
++	http://codereview.appspot.com/4357052
++`,
++}
++
++func init() {
++	register(osopenFix)
++}
++
++func osopen(f *ast.File) bool {
++	if !imports(f, "os") {
++		return false
++	}
++
++	fixed := false
++	rewrite(f, func(n interface{}) {
++		// Rename O_CREAT to O_CREATE.
++		if expr, ok := n.(ast.Expr); ok && isPkgDot(expr, "os", "O_CREAT") {
++			expr.(*ast.SelectorExpr).Sel.Name = "O_CREATE"
++			return
++		}
++
++		// Fix up calls to Open.
++		call, ok := n.(*ast.CallExpr)
++		if !ok || len(call.Args) != 3 {
++			return
++		}
++		if !isPkgDot(call.Fun, "os", "Open") {
++			return
++		}
++		sel := call.Fun.(*ast.SelectorExpr)
++		args := call.Args
++		// os.Open(a, os.O_RDONLY, c) -> os.Open(a)
++		if isPkgDot(args[1], "os", "O_RDONLY") || isPkgDot(args[1], "syscall", "O_RDONLY") {
++			call.Args = call.Args[0:1]
++			fixed = true
++			return
++		}
++		// os.Open(a, createlike_flags, c) -> os.Create(a, c)
++		if isCreateFlag(args[1]) {
++			sel.Sel.Name = "Create"
++			if !isSimplePerm(args[2]) {
++				warn(sel.Pos(), "rewrote os.Open to os.Create with permission not 0666")
++			}
++			call.Args = args[0:1]
++			fixed = true
++			return
++		}
++		// Fallback: os.Open(a, b, c) -> os.OpenFile(a, b, c)
++		sel.Sel.Name = "OpenFile"
++		fixed = true
++	})
++	return fixed
++}
++
++func isCreateFlag(flag ast.Expr) bool {
++	foundCreate := false
++	foundTrunc := false
++	// OR'ing of flags: is O_CREATE on?  + or | would be fine; we just look for os.O_CREATE
++	// and don't worry about the actual opeator.
++	p := flag.Pos()
++	for {
++		lhs := flag
++		expr, isBinary := flag.(*ast.BinaryExpr)
++		if isBinary {
++			lhs = expr.Y
++		}
++		if isPkgDot(lhs, "os", "O_CREATE") {
++			foundCreate = true
++		}
++		if isPkgDot(lhs, "os", "O_TRUNC") {
++			foundTrunc = true
++		}
++		if !isBinary {
++			break
++		}
++		flag = expr.X
++	}
++	if foundCreate && !foundTrunc {
++		warn(p, "rewrote os.Open with O_CREATE but not O_TRUNC to os.Create")
++	}
++	return foundCreate
++}
++
++func isSimplePerm(perm ast.Expr) bool {
++	basicLit, ok := perm.(*ast.BasicLit)
++	if !ok {
++		return false
++	}
++	switch basicLit.Value {
++	case "0666":
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/gofix/osopen_test.go b/src/cmd/gofix/osopen_test.go
+new file mode 100644
+index 0000000000..b662b62db5
+--- /dev/null
++++ b/src/cmd/gofix/osopen_test.go
+@@ -0,0 +1,53 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(osopenTests)
++}
++
++var osopenTests = []testCase{
++	{
++		Name: "osopen.0",
++		In: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	os.OpenFile(a, b, c)
++	os.Open(a, os.O_RDONLY, 0)
++	os.Open(a, os.O_RDONLY, 0666)
++	os.Open(a, os.O_RDWR, 0)
++	os.Open(a, os.O_CREAT, 0666)
++	os.Open(a, os.O_CREAT|os.O_TRUNC, 0664)
++	os.Open(a, os.O_CREATE, 0666)
++	os.Open(a, os.O_CREATE|os.O_TRUNC, 0664)
++	os.Open(a, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++	_ = os.O_CREAT
++}
++`,
++		Out: `package main
++
++import (
++	"os"
++)
++
++func f() {
++	os.OpenFile(a, b, c)
++	os.Open(a)
++	os.Open(a)
++	os.OpenFile(a, os.O_RDWR, 0)
++	os.Create(a)
++	os.Create(a)
++	os.Create(a)
++	os.Create(a)
++	os.Create(a)
++	_ = os.O_CREATE
++}
++`,
++	},
++}
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 1e85581571..1ed5b9b993 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -135,7 +135,7 @@ func processFile(f *os.File) os.Error {
+ 
+ 
+ func processFileByName(filename string) os.Error {
+-	file, err := os.Open(filename, os.O_RDONLY, 0)
++	file, err := os.Open(filename)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -194,7 +194,7 @@ func gofmtMain() {
+ 	}
+ 
+ 	if *cpuprofile != "" {
+-		f, err := os.Open(*cpuprofile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++		f, err := os.Create(*cpuprofile)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "creating cpu profile: %s\n", err)
+ 			exitCode = 2
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 34441be45d..6d5d34884c 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -120,7 +120,7 @@ func logPackage(pkg string) {
+ 	if installedPkgs[pkg] {
+ 		return
+ 	}
+-	fout, err := os.Open(logfile, os.O_WRONLY|os.O_APPEND|os.O_CREAT, 0644)
++	fout, err := os.Create(logfile)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: %s\n", argv0, err)
+ 		return
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index 280e9ea4f7..0e617903cf 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -39,7 +39,7 @@ type dirInfo struct {
+ // The imports map keys are package paths imported by listed Go files,
+ // and the values are the Go files importing the respective package paths.
+ func scanDir(dir string, allowMain bool) (info *dirInfo, err os.Error) {
+-	f, err := os.Open(dir, os.O_RDONLY, 0)
++	f, err := os.Open(dir)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index b692063931..d62bf79017 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -159,7 +159,7 @@ func getTestFileNames() {
+ 		}
+ 	}
+ 	for _, n := range names {
+-		fd, err := os.Open(n, os.O_RDONLY, 0)
++		fd, err := os.Open(n)
+ 		if err != nil {
+ 			Fatalf("%s: %s", n, err)
+ 		}
+@@ -313,7 +313,7 @@ func doRun(argv []string, returnStdout bool) string {
+ 
+ // writeTestmainGo generates the test program to be compiled, "./_testmain.go".
+ func writeTestmainGo() {
+-	f, err := os.Open("_testmain.go", os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
++	f, err := os.Create("_testmain.go")
+ 	if err != nil {
+ 		Fatalf("can't create _testmain.go: %s", err)
+ 	}
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+index 5fa9e28592..10694a327c 100644
+--- a/src/cmd/gotype/gotype.go
++++ b/src/cmd/gotype/gotype.go
+@@ -130,7 +130,7 @@ func isGoFilename(filename string) bool {
+ 
+ 
+ func processDirectory(dirname string) {
+-	f, err := os.Open(dirname, os.O_RDONLY, 0)
++	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		report(err)
+ 		return
+diff --git a/src/cmd/goyacc/goyacc.go b/src/cmd/goyacc/goyacc.go
+index 32816b7009..2a1ed46fc7 100644
+--- a/src/cmd/goyacc/goyacc.go
++++ b/src/cmd/goyacc/goyacc.go
+@@ -1361,7 +1361,7 @@ func openup() {
+ 
+ 	foutput = nil
+ 	if vflag != "" {
+-		foutput = create(vflag, 0666)
++		foutput = create(vflag)
+ 		if foutput == nil {
+ 			error("can't create file %v", vflag)
+ 		}
+@@ -1371,7 +1371,7 @@ func openup() {
+ 	if oflag == "" {
+ 		oflag = "y.go"
+ 	}
+-	ftable = create(oflag, 0666)
++	ftable = create(oflag)
+ 	if ftable == nil {
+ 		error("can't create file %v", oflag)
+ 	}
+@@ -3036,7 +3036,7 @@ func write(f *bufio.Writer, b []byte, n int) int {
+ }
+ 
+ func open(s string) *bufio.Reader {
+-	fi, err := os.Open(s, os.O_RDONLY, 0)
++	fi, err := os.Open(s)
+ 	if err != nil {
+ 		error("error opening %v: %v", s, err)
+ 	}
+@@ -3044,12 +3044,12 @@ func open(s string) *bufio.Reader {
+ 	return bufio.NewReader(fi)
+ }
+ 
+-func create(s string, m uint32) *bufio.Writer {
+-	fo, err := os.Open(s, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, m)
++func create(s string) *bufio.Writer {
++	fo, err := os.Create(s)
+ 	if err != nil {
+-		error("error opening %v: %v", s, err)
++		error("error creating %v: %v", s, err)
+ 	}
+-	//fmt.Printf("create %v mode %v\n", s, m);
++	//fmt.Printf("create %v mode %v\n", s);
+ 	return bufio.NewWriter(fo)
+ }
+ 
+diff --git a/src/cmd/goyacc/units.y b/src/cmd/goyacc/units.y
+index 5d3f9aca24..c1c1409c76 100644
+--- a/src/cmd/goyacc/units.y
++++ b/src/cmd/goyacc/units.y
+@@ -299,7 +299,7 @@ func main() {
+ 		file = flag.Arg(0)
+ 	}
+ 
+-	f, err := os.Open(file, os.O_RDONLY, 0)
++	f, err := os.Open(file)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "error opening %v: %v\n", file, err)
+ 		os.Exit(1)
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index aa4c797fb6..32fc8f9151 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -113,7 +113,7 @@ var untarTests = []*untarTest{
+ func TestReader(t *testing.T) {
+ testLoop:
+ 	for i, test := range untarTests {
+-		f, err := os.Open(test.file, os.O_RDONLY, 0444)
++		f, err := os.Open(test.file)
+ 		if err != nil {
+ 			t.Errorf("test %d: Unexpected error: %v", i, err)
+ 			continue
+@@ -143,7 +143,7 @@ testLoop:
+ }
+ 
+ func TestPartialRead(t *testing.T) {
+-	f, err := os.Open("testdata/gnu.tar", os.O_RDONLY, 0444)
++	f, err := os.Open("testdata/gnu.tar")
+ 	if err != nil {
+ 		t.Fatalf("Unexpected error: %v", err)
+ 	}
+@@ -181,7 +181,7 @@ func TestPartialRead(t *testing.T) {
+ 
+ func TestIncrementalRead(t *testing.T) {
+ 	test := gnuTarTest
+-	f, err := os.Open(test.file, os.O_RDONLY, 0444)
++	f, err := os.Open(test.file)
+ 	if err != nil {
+ 		t.Fatalf("Unexpected error: %v", err)
+ 	}
+@@ -235,7 +235,7 @@ func TestIncrementalRead(t *testing.T) {
+ 
+ func TestNonSeekable(t *testing.T) {
+ 	test := gnuTarTest
+-	f, err := os.Open(test.file, os.O_RDONLY, 0444)
++	f, err := os.Open(test.file)
+ 	if err != nil {
+ 		t.Fatalf("Unexpected error: %v", err)
+ 	}
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index ac53b20d19..543007abfe 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -49,7 +49,7 @@ func (f *File) hasDataDescriptor() bool {
+ 
+ // OpenReader will open the Zip file specified by name and return a Reader.
+ func OpenReader(name string) (*Reader, os.Error) {
+-	f, err := os.Open(name, os.O_RDONLY, 0644)
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/compress/lzw/writer_test.go b/src/pkg/compress/lzw/writer_test.go
+index 2e0a8de0a8..e5815a03d5 100644
+--- a/src/pkg/compress/lzw/writer_test.go
++++ b/src/pkg/compress/lzw/writer_test.go
+@@ -21,7 +21,7 @@ var filenames = []string{
+ // the given options yields equivalent bytes to the original file.
+ func testFile(t *testing.T, fn string, order Order, litWidth int) {
+ 	// Read the file, as golden output.
+-	golden, err := os.Open(fn, os.O_RDONLY, 0400)
++	golden, err := os.Open(fn)
+ 	if err != nil {
+ 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err)
+ 		return
+@@ -29,7 +29,7 @@ func testFile(t *testing.T, fn string, order Order, litWidth int) {
+ 	defer golden.Close()
+ 
+ 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
+-	raw, err := os.Open(fn, os.O_RDONLY, 0400)
++	raw, err := os.Open(fn)
+ 	if err != nil {
+ 		t.Errorf("%s (order=%d litWidth=%d): %v", fn, order, litWidth, err)
+ 		return
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index 5a13ba8257..7eb1cd4949 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -20,7 +20,7 @@ var filenames = []string{
+ // yields equivalent bytes to the original file.
+ func testFileLevel(t *testing.T, fn string, level int) {
+ 	// Read the file, as golden output.
+-	golden, err := os.Open(fn, os.O_RDONLY, 0444)
++	golden, err := os.Open(fn)
+ 	if err != nil {
+ 		t.Errorf("%s (level=%d): %v", fn, level, err)
+ 		return
+@@ -28,7 +28,7 @@ func testFileLevel(t *testing.T, fn string, level int) {
+ 	defer golden.Close()
+ 
+ 	// Read the file again, and push it through a pipe that compresses at the write end, and decompresses at the read end.
+-	raw, err := os.Open(fn, os.O_RDONLY, 0444)
++	raw, err := os.Open(fn)
+ 	if err != nil {
+ 		t.Errorf("%s (level=%d): %v", fn, level, err)
+ 		return
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 66b72c0766..3a06aa8b14 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -32,7 +32,7 @@ func (r *devReader) Read(b []byte) (n int, err os.Error) {
+ 	r.mu.Lock()
+ 	defer r.mu.Unlock()
+ 	if r.f == nil {
+-		f, err := os.Open(r.name, os.O_RDONLY, 0)
++		f, err := os.Open(r.name)
+ 		if f == nil {
+ 			return 0, err
+ 		}
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index ee77f949fc..5c783fd296 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -50,7 +50,7 @@ func main() {
+ 		return
+ 	}
+ 
+-	certOut, err := os.Open("cert.pem", os.O_WRONLY|os.O_CREAT, 0644)
++	certOut, err := os.Create("cert.pem")
+ 	if err != nil {
+ 		log.Fatalf("failed to open cert.pem for writing: %s", err)
+ 		return
+@@ -59,7 +59,7 @@ func main() {
+ 	certOut.Close()
+ 	log.Print("written cert.pem\n")
+ 
+-	keyOut, err := os.Open("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
++	keyOut, err := os.OpenFile("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
+ 	if err != nil {
+ 		log.Print("failed to open key.pem for writing:", err)
+ 		return
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 60f913f457..6fdcda6d48 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -144,7 +144,7 @@ func (e *FormatError) String() string {
+ 
+ // Open opens the named file using os.Open and prepares it for use as an ELF binary.
+ func Open(name string) (*File, os.Error) {
+-	f, err := os.Open(name, os.O_RDONLY, 0)
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/debug/macho/file.go b/src/pkg/debug/macho/file.go
+index fd8da9449a..a777d873cf 100644
+--- a/src/pkg/debug/macho/file.go
++++ b/src/pkg/debug/macho/file.go
+@@ -159,7 +159,7 @@ func (e *FormatError) String() string {
+ 
+ // Open opens the named file using os.Open and prepares it for use as a Mach-O binary.
+ func Open(name string) (*File, os.Error) {
+-	f, err := os.Open(name, os.O_RDONLY, 0)
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/debug/pe/file.go b/src/pkg/debug/pe/file.go
+index b99131e5ed..6a14e50f96 100644
+--- a/src/pkg/debug/pe/file.go
++++ b/src/pkg/debug/pe/file.go
+@@ -87,7 +87,7 @@ func (e *FormatError) String() string {
+ 
+ // Open opens the named file using os.Open and prepares it for use as a PE binary.
+ func Open(name string) (*File, os.Error) {
+-	f, err := os.Open(name, os.O_RDONLY, 0)
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/debug/proc/proc_linux.go b/src/pkg/debug/proc/proc_linux.go
+index 6890a2221e..17c8fa529f 100644
+--- a/src/pkg/debug/proc/proc_linux.go
++++ b/src/pkg/debug/proc/proc_linux.go
+@@ -1184,7 +1184,7 @@ func (p *process) attachThread(tid int) (*thread, os.Error) {
+ // attachAllThreads attaches to all threads in a process.
+ func (p *process) attachAllThreads() os.Error {
+ 	taskPath := "/proc/" + strconv.Itoa(p.pid) + "/task"
+-	taskDir, err := os.Open(taskPath, os.O_RDONLY, 0)
++	taskDir, err := os.Open(taskPath)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 44e3b65bec..75ce09990a 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -49,7 +49,7 @@ func modeToFiles(mode, fd int) (*os.File, *os.File, os.Error) {
+ 		if fd == 0 {
+ 			rw = os.O_RDONLY
+ 		}
+-		f, err := os.Open(os.DevNull, rw, 0)
++		f, err := os.OpenFile(os.DevNull, rw, 0)
+ 		return f, nil, err
+ 	case PassThrough:
+ 		switch fd {
+diff --git a/src/pkg/exp/draw/x11/auth.go b/src/pkg/exp/draw/x11/auth.go
+index 896dedf05c..d48936ac17 100644
+--- a/src/pkg/exp/draw/x11/auth.go
++++ b/src/pkg/exp/draw/x11/auth.go
+@@ -53,7 +53,7 @@ func readAuth(displayStr string) (name, data string, err os.Error) {
+ 		}
+ 		fn = home + "/.Xauthority"
+ 	}
+-	r, err := os.Open(fn, os.O_RDONLY, 0444)
++	r, err := os.Open(fn)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/exp/ogle/cmd.go b/src/pkg/exp/ogle/cmd.go
+index ba056e88ba..813d3a875a 100644
+--- a/src/pkg/exp/ogle/cmd.go
++++ b/src/pkg/exp/ogle/cmd.go
+@@ -170,7 +170,7 @@ func cmdLoad(args []byte) os.Error {
+ 	}
+ 
+ 	// Get symbols
+-	f, err := os.Open(fname, os.O_RDONLY, 0)
++	f, err := os.Open(fname)
+ 	if err != nil {
+ 		tproc.Detach()
+ 		return err
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index fc4ae09439..b4780e0578 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -183,7 +183,7 @@ func ParseFiles(fset *token.FileSet, filenames []string, mode uint) (pkgs map[st
+ // error are returned.
+ //
+ func ParseDir(fset *token.FileSet, path string, filter func(*os.FileInfo) bool, mode uint) (map[string]*ast.Package, os.Error) {
+-	fd, err := os.Open(path, os.O_RDONLY, 0)
++	fd, err := os.Open(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/gob/dump.go b/src/pkg/gob/dump.go
+index a05510566e..1555f0fbbd 100644
+--- a/src/pkg/gob/dump.go
++++ b/src/pkg/gob/dump.go
+@@ -12,7 +12,7 @@ func main() {
+ 	var err os.Error
+ 	file := os.Stdin
+ 	if len(os.Args) > 1 {
+-		file, err = os.Open(os.Args[1], os.O_RDONLY, 0)
++		file, err = os.Open(os.Args[1])
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "dump: %s\n", err)
+ 			os.Exit(1)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index d153533b58..fe955436c8 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -28,7 +28,7 @@ func pipeErr(err os.Error) io.Reader {
+ }
+ 
+ func readDat(filename string, c chan io.Reader) {
+-	f, err := os.Open("testdata/webkit/"+filename, os.O_RDONLY, 0600)
++	f, err := os.Open("testdata/webkit/" + filename)
+ 	if err != nil {
+ 		c <- pipeErr(err)
+ 		return
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 2997b57998..7b2cc7f93f 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -72,7 +72,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 		return
+ 	}
+ 
+-	f, err := os.Open(name, os.O_RDONLY, 0)
++	f, err := os.Open(name)
+ 	if err != nil {
+ 		// TODO expose actual error?
+ 		NotFound(w, r)
+@@ -113,7 +113,7 @@ func serveFile(w ResponseWriter, r *Request, name string, redirect bool) {
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+ 		index := name + filepath.FromSlash(indexPage)
+-		ff, err := os.Open(index, os.O_RDONLY, 0)
++		ff, err := os.Open(index)
+ 		if err == nil {
+ 			defer ff.Close()
+ 			dd, err := ff.Stat()
+diff --git a/src/pkg/image/decode_test.go b/src/pkg/image/decode_test.go
+index 5b87344c50..0716ad9055 100644
+--- a/src/pkg/image/decode_test.go
++++ b/src/pkg/image/decode_test.go
+@@ -34,7 +34,7 @@ var imageTests = []imageTest{
+ }
+ 
+ func decode(filename string) (image.Image, string, os.Error) {
+-	f, err := os.Open(filename, os.O_RDONLY, 0400)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return nil, "", err
+ 	}
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 0b2058d51a..efa6336d79 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -41,7 +41,7 @@ var filenamesShort = []string{
+ }
+ 
+ func readPng(filename string) (image.Image, os.Error) {
+-	f, err := os.Open(filename, os.O_RDONLY, 0444)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -191,7 +191,7 @@ func TestReader(t *testing.T) {
+ 		defer piper.Close()
+ 
+ 		// Read the .sng file.
+-		sf, err := os.Open("testdata/pngsuite/"+fn+".sng", os.O_RDONLY, 0444)
++		sf, err := os.Open("testdata/pngsuite/" + fn + ".sng")
+ 		if err != nil {
+ 			t.Error(fn, err)
+ 			continue
+diff --git a/src/pkg/io/ioutil/ioutil.go b/src/pkg/io/ioutil/ioutil.go
+index ed6c310eb4..57d797e851 100644
+--- a/src/pkg/io/ioutil/ioutil.go
++++ b/src/pkg/io/ioutil/ioutil.go
+@@ -28,7 +28,7 @@ func ReadAll(r io.Reader) ([]byte, os.Error) {
+ 
+ // ReadFile reads the file named by filename and returns the contents.
+ func ReadFile(filename string) ([]byte, os.Error) {
+-	f, err := os.Open(filename, os.O_RDONLY, 0)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -52,7 +52,7 @@ func ReadFile(filename string) ([]byte, os.Error) {
+ // If the file does not exist, WriteFile creates it with permissions perm;
+ // otherwise WriteFile truncates it before writing.
+ func WriteFile(filename string, data []byte, perm uint32) os.Error {
+-	f, err := os.Open(filename, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, perm)
++	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -74,7 +74,7 @@ func (f fileInfoList) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+ // ReadDir reads the directory named by dirname and returns
+ // a list of sorted directory entries.
+ func ReadDir(dirname string) ([]*os.FileInfo, os.Error) {
+-	f, err := os.Open(dirname, os.O_RDONLY, 0)
++	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 62f8849c0a..8e681bdc3b 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -48,7 +48,7 @@ func TempFile(dir, prefix string) (f *os.File, err os.Error) {
+ 	nconflict := 0
+ 	for i := 0; i < 10000; i++ {
+ 		name := filepath.Join(dir, prefix+nextSuffix())
+-		f, err = os.Open(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
++		f, err = os.OpenFile(name, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+ 		if pe, ok := err.(*os.PathError); ok && pe.Error == os.EEXIST {
+ 			if nconflict++; nconflict > 10 {
+ 				rand = reseed()
+diff --git a/src/pkg/mime/type.go b/src/pkg/mime/type.go
+index a10b780ae9..6fe0ed5fd5 100644
+--- a/src/pkg/mime/type.go
++++ b/src/pkg/mime/type.go
+@@ -33,7 +33,7 @@ var mimeTypes = map[string]string{
+ var mimeLock sync.RWMutex
+ 
+ func loadMimeFile(filename string) {
+-	f, err := os.Open(filename, os.O_RDONLY, 0666)
++	f, err := os.Open(filename)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/net/parse.go b/src/pkg/net/parse.go
+index 2bc0db4655..de46830d29 100644
+--- a/src/pkg/net/parse.go
++++ b/src/pkg/net/parse.go
+@@ -63,7 +63,7 @@ func (f *file) readLine() (s string, ok bool) {
+ }
+ 
+ func open(name string) (*file, os.Error) {
+-	fd, err := os.Open(name, os.O_RDONLY, 0)
++	fd, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/parse_test.go b/src/pkg/net/parse_test.go
+index 2b7784eee2..226f354d30 100644
+--- a/src/pkg/net/parse_test.go
++++ b/src/pkg/net/parse_test.go
+@@ -18,7 +18,7 @@ func TestReadLine(t *testing.T) {
+ 	}
+ 	filename := "/etc/services" // a nice big file
+ 
+-	fd, err := os.Open(filename, os.O_RDONLY, 0)
++	fd, err := os.Open(filename)
+ 	if err != nil {
+ 		t.Fatalf("open %s: %v", filename, err)
+ 	}
+diff --git a/src/pkg/os/env_plan9.go b/src/pkg/os/env_plan9.go
+index a73f5d8079..14df55ed0e 100644
+--- a/src/pkg/os/env_plan9.go
++++ b/src/pkg/os/env_plan9.go
+@@ -17,7 +17,7 @@ func Getenverror(key string) (value string, err Error) {
+ 	if len(key) == 0 {
+ 		return "", EINVAL
+ 	}
+-	f, e := Open("/env/"+key, O_RDONLY, 0)
++	f, e := Open("/env/" + key)
+ 	if iserror(e) {
+ 		return "", ENOENV
+ 	}
+@@ -46,7 +46,7 @@ func Setenv(key, value string) Error {
+ 		return EINVAL
+ 	}
+ 
+-	f, e := Open("/env/"+key, O_WRONLY|O_CREAT, 0666)
++	f, e := Create("/env/" + key)
+ 	if iserror(e) {
+ 		return e
+ 	}
+@@ -66,7 +66,7 @@ func Clearenv() {
+ func Environ() []string {
+ 	env := make([]string, 0, 100)
+ 
+-	f, e := Open("/env", O_RDONLY, 0)
++	f, e := Open("/env")
+ 	if iserror(e) {
+ 		panic(e)
+ 	}
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index f14d00dd1e..3aad802345 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -51,14 +51,13 @@ const (
+ 	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
+ 	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
+ 	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
+-	O_CREAT    int = syscall.O_CREAT    // create a new file if none exists.
+-	O_EXCL     int = syscall.O_EXCL     // used with O_CREAT, file must not exist
++	O_CREATE   int = syscall.O_CREAT    // create a new file if none exists.
++	O_EXCL     int = syscall.O_EXCL     // used with O_CREATE, file must not exist
+ 	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
+ 	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
+ 	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
+ 	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
+ 	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
+-	O_CREATE   int = O_CREAT            // create a new file if none exists.
+ )
+ 
+ // Seek whence values.
+@@ -215,3 +214,20 @@ func (f *File) Chdir() Error {
+ 	}
+ 	return nil
+ }
++
++// Open opens the named file for reading.  If successful, methods on
++// the returned file can be used for reading; the associated file
++// descriptor has mode O_RDONLY.
++// It returns the File and an Error, if any.
++func Open(name string) (file *File, err Error) {
++	return OpenFile(name, O_RDONLY, 0)
++}
++
++// Create creates the named file mode 0666 (before umask), truncating
++// it if it already exists.  If successful, methods on the returned
++// File can be used for I/O; the associated file descriptor has mode
++// O_RDWR.
++// It returns the File and an Error, if any.
++func Create(name string) (file *File, err Error) {
++	return OpenFile(name, O_RDWR|O_CREATE|O_TRUNC, 0666)
++}
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index 2de9efc643..b79256c51e 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -17,16 +17,18 @@ func epipecheck(file *File, e syscall.Error) {
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+ 
+-// Open opens the named file with specified flag (O_RDONLY etc.) and perm.
+-// If successful, methods on the returned File can be used for I/O.
++// OpenFile is the generalized open call; most users will use Open
++// or Create instead.  It opens the named file with specified flag
++// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
++// methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm uint32) (file *File, err Error) {
++func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	var fd int
+ 	var e syscall.Error
+ 
+ 	syscall.ForkLock.RLock()
+-	if flag&O_CREAT == O_CREAT {
+-		fd, e = syscall.Create(name, flag & ^O_CREAT, perm)
++	if flag&O_CREATE == O_CREATE {
++		fd, e = syscall.Create(name, flag & ^O_CREATE, perm)
+ 	} else {
+ 		fd, e = syscall.Open(name, flag)
+ 	}
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 9edfaddfcd..f2b94f4c2d 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -20,10 +20,12 @@ type dirInfo struct {
+ // On Unix-like systems, it is "/dev/null"; on Windows, "NUL".
+ const DevNull = "/dev/null"
+ 
+-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+-// if applicable.  If successful, methods on the returned File can be used for I/O.
++// OpenFile is the generalized open call; most users will use Open
++// or Create instead.  It opens the named file with specified flag
++// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
++// methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm uint32) (file *File, err Error) {
++func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	r, e := syscall.Open(name, flag|syscall.O_CLOEXEC, perm)
+ 	if e != 0 {
+ 		return nil, &PathError{"open", name, Errno(e)}
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index d14c38e17f..16dd4b6e04 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -46,10 +46,12 @@ func openDir(name string) (file *File, err Error) {
+ 	return f, nil
+ }
+ 
+-// Open opens the named file with specified flag (O_RDONLY etc.) and perm, (0666 etc.)
+-// if applicable.  If successful, methods on the returned File can be used for I/O.
++// OpenFile is the generalized open call; most users will use Open
++// or Create instead.  It opens the named file with specified flag
++// (O_RDONLY etc.) and perm, (0666 etc.) if applicable.  If successful,
++// methods on the returned File can be used for I/O.
+ // It returns the File and an Error, if any.
+-func Open(name string, flag int, perm uint32) (file *File, err Error) {
++func OpenFile(name string, flag int, perm uint32) (file *File, err Error) {
+ 	// TODO(brainman): not sure about my logic of assuming it is dir first, then fall back to file
+ 	r, e := openDir(name)
+ 	if e == nil {
+@@ -166,7 +168,7 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ // Truncate changes the size of the named file.
+ // If the file is a symbolic link, it changes the size of the link's target.
+ func Truncate(name string, size int64) Error {
+-	f, e := Open(name, O_WRONLY|O_CREAT, 0666)
++	f, e := Open(name, O_WRONLY|O_CREATE, 0666)
+ 	if e != nil {
+ 		return e
+ 	}
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 49aaea865f..4c142ad3ab 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -54,7 +54,7 @@ func Getwd() (string, Error) {
+ 		if len(parent) >= 1024 { // Sanity check
+ 			return "", ENAMETOOLONG
+ 		}
+-		fd, err := Open(parent, O_RDONLY, 0)
++		fd, err := Open(parent)
+ 		if err != nil {
+ 			return "", err
+ 		}
+diff --git a/src/pkg/os/inotify/inotify_linux_test.go b/src/pkg/os/inotify/inotify_linux_test.go
+index 79c3bfa36e..f5d1f8384d 100644
+--- a/src/pkg/os/inotify/inotify_linux_test.go
++++ b/src/pkg/os/inotify/inotify_linux_test.go
+@@ -51,7 +51,7 @@ func TestInotifyEvents(t *testing.T) {
+ 
+ 	// Create a file
+ 	// This should add at least one event to the inotify event queue
+-	_, err = os.Open(testFile, os.O_WRONLY|os.O_CREAT, 0666)
++	_, err = os.OpenFile(testFile, os.O_WRONLY|os.O_CREATE, 0666)
+ 	if err != nil {
+ 		t.Fatalf("creating test file failed: %s", err)
+ 	}
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 1f34e54f5f..394440b308 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -60,7 +60,7 @@ var sysdir = func() (sd *sysDir) {
+ }()
+ 
+ func size(name string, t *testing.T) int64 {
+-	file, err := Open(name, O_RDONLY, 0)
++	file, err := Open(name)
+ 	defer file.Close()
+ 	if err != nil {
+ 		t.Fatal("open failed:", err)
+@@ -125,7 +125,7 @@ func TestStat(t *testing.T) {
+ 
+ func TestFstat(t *testing.T) {
+ 	path := sfdir + "/" + sfname
+-	file, err1 := Open(path, O_RDONLY, 0)
++	file, err1 := Open(path)
+ 	defer file.Close()
+ 	if err1 != nil {
+ 		t.Fatal("open failed:", err1)
+@@ -159,7 +159,7 @@ func TestLstat(t *testing.T) {
+ }
+ 
+ func testReaddirnames(dir string, contents []string, t *testing.T) {
+-	file, err := Open(dir, O_RDONLY, 0)
++	file, err := Open(dir)
+ 	defer file.Close()
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err)
+@@ -188,7 +188,7 @@ func testReaddirnames(dir string, contents []string, t *testing.T) {
+ }
+ 
+ func testReaddir(dir string, contents []string, t *testing.T) {
+-	file, err := Open(dir, O_RDONLY, 0)
++	file, err := Open(dir)
+ 	defer file.Close()
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err)
+@@ -249,7 +249,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	if syscall.OS == "windows" {
+ 		dir = Getenv("SystemRoot") + "\\system32"
+ 	}
+-	file, err := Open(dir, O_RDONLY, 0)
++	file, err := Open(dir)
+ 	defer file.Close()
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err)
+@@ -258,7 +258,7 @@ func TestReaddirnamesOneAtATime(t *testing.T) {
+ 	if err1 != nil {
+ 		t.Fatalf("readdirnames %q failed: %v", dir, err1)
+ 	}
+-	file1, err2 := Open(dir, O_RDONLY, 0)
++	file1, err2 := Open(dir)
+ 	if err2 != nil {
+ 		t.Fatalf("open %q failed: %v", dir, err2)
+ 	}
+@@ -277,7 +277,7 @@ func TestHardLink(t *testing.T) {
+ 	}
+ 	from, to := "hardlinktestfrom", "hardlinktestto"
+ 	Remove(from) // Just in case.
+-	file, err := Open(to, O_CREAT|O_WRONLY, 0666)
++	file, err := Create(to)
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", to, err)
+ 	}
+@@ -310,7 +310,7 @@ func TestSymLink(t *testing.T) {
+ 	}
+ 	from, to := "symlinktestfrom", "symlinktestto"
+ 	Remove(from) // Just in case.
+-	file, err := Open(to, O_CREAT|O_WRONLY, 0666)
++	file, err := Create(to)
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", to, err)
+ 	}
+@@ -358,7 +358,7 @@ func TestSymLink(t *testing.T) {
+ 	if s != to {
+ 		t.Fatalf("after symlink %q != %q", s, to)
+ 	}
+-	file, err = Open(from, O_RDONLY, 0)
++	file, err = Open(from)
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", from, err)
+ 	}
+@@ -392,7 +392,7 @@ func TestLongSymlink(t *testing.T) {
+ func TestRename(t *testing.T) {
+ 	from, to := "renamefrom", "renameto"
+ 	Remove(to) // Just in case.
+-	file, err := Open(from, O_CREAT|O_WRONLY, 0666)
++	file, err := Create(from)
+ 	if err != nil {
+ 		t.Fatalf("open %q failed: %v", to, err)
+ 	}
+@@ -619,7 +619,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 	if syscall.OS == "windows" {
+ 		return
+ 	}
+-	fd, err := Open(".", O_RDONLY, 0)
++	fd, err := Open(".")
+ 	if err != nil {
+ 		t.Fatalf("Open .: %s", err)
+ 	}
+@@ -631,7 +631,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 			if mode == 0 {
+ 				err = Chdir(d)
+ 			} else {
+-				fd1, err := Open(d, O_RDONLY, 0)
++				fd1, err := Open(d)
+ 				if err != nil {
+ 					t.Errorf("Open %s: %s", d, err)
+ 					continue
+@@ -740,7 +740,7 @@ var openErrorTests = []openErrorTest{
+ 
+ func TestOpenError(t *testing.T) {
+ 	for _, tt := range openErrorTests {
+-		f, err := Open(tt.path, tt.mode, 0)
++		f, err := OpenFile(tt.path, tt.mode, 0)
+ 		if err == nil {
+ 			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode)
+ 			f.Close()
+@@ -846,7 +846,7 @@ func TestWriteAt(t *testing.T) {
+ }
+ 
+ func writeFile(t *testing.T, fname string, flag int, text string) string {
+-	f, err := Open(fname, flag, 0666)
++	f, err := OpenFile(fname, flag, 0666)
+ 	if err != nil {
+ 		t.Fatalf("Open: %v", err)
+ 	}
+@@ -865,7 +865,7 @@ func writeFile(t *testing.T, fname string, flag int, text string) string {
+ func TestAppend(t *testing.T) {
+ 	const f = "append.txt"
+ 	defer Remove(f)
+-	s := writeFile(t, f, O_CREAT|O_TRUNC|O_RDWR, "new")
++	s := writeFile(t, f, O_CREATE|O_TRUNC|O_RDWR, "new")
+ 	if s != "new" {
+ 		t.Fatalf("writeFile: have %q want %q", s, "new")
+ 	}
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 318dc735bf..0eb3ee5036 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -80,7 +80,7 @@ func RemoveAll(path string) Error {
+ 	}
+ 
+ 	// Directory.
+-	fd, err := Open(path, O_RDONLY, 0)
++	fd, err := Open(path)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index d30e904fff..483bb63953 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -29,7 +29,7 @@ func TestMkdirAll(t *testing.T) {
+ 
+ 	// Make file.
+ 	fpath := path + "/file"
+-	_, err = Open(fpath, O_WRONLY|O_CREAT, 0666)
++	_, err = Create(fpath)
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+ 	}
+@@ -72,7 +72,7 @@ func TestRemoveAll(t *testing.T) {
+ 	if err := MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err)
+ 	}
+-	fd, err := Open(fpath, O_WRONLY|O_CREAT, 0666)
++	fd, err := Create(fpath)
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+ 	}
+@@ -88,12 +88,12 @@ func TestRemoveAll(t *testing.T) {
+ 	if err = MkdirAll(dpath, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", dpath, err)
+ 	}
+-	fd, err = Open(fpath, O_WRONLY|O_CREAT, 0666)
++	fd, err = Create(fpath)
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+ 	}
+ 	fd.Close()
+-	fd, err = Open(dpath+"/file", O_WRONLY|O_CREAT, 0666)
++	fd, err = Create(dpath + "/file")
+ 	if err != nil {
+ 		t.Fatalf("create %q: %s", fpath, err)
+ 	}
+@@ -121,7 +121,7 @@ func TestRemoveAll(t *testing.T) {
+ 		}
+ 
+ 		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
+-			fd, err = Open(s, O_WRONLY|O_CREAT, 0666)
++			fd, err = Create(s)
+ 			if err != nil {
+ 				t.Fatalf("create %q: %s", s, err)
+ 			}
+diff --git a/src/pkg/os/sys_linux.go b/src/pkg/os/sys_linux.go
+index b82d295d3d..408d667c7c 100644
+--- a/src/pkg/os/sys_linux.go
++++ b/src/pkg/os/sys_linux.go
+@@ -9,7 +9,7 @@ package os
+ 
+ // Hostname returns the host name reported by the kernel.
+ func Hostname() (name string, err Error) {
+-	f, err := Open("/proc/sys/kernel/hostname", O_RDONLY, 0)
++	f, err := Open("/proc/sys/kernel/hostname")
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/pkg/os/sys_plan9.go b/src/pkg/os/sys_plan9.go
+index ac44445af3..f6af28b611 100644
+--- a/src/pkg/os/sys_plan9.go
++++ b/src/pkg/os/sys_plan9.go
+@@ -8,7 +8,7 @@ package os
+ 
+ 
+ func Hostname() (name string, err Error) {
+-	f, err := Open("#c/sysname", O_RDONLY, 0)
++	f, err := Open("#c/sysname")
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index 3b36d18ef7..a05bb5f7e7 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -263,7 +263,7 @@ func glob(dir, pattern string, matches []string) (m []string, e os.Error) {
+ 	if !fi.IsDirectory() {
+ 		return
+ 	}
+-	d, err := os.Open(dir, os.O_RDONLY, 0666)
++	d, err := os.Open(dir)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 4907dac937..de673a7257 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -280,7 +280,7 @@ func walk(path string, f *os.FileInfo, v Visitor, errors chan<- os.Error) {
+ // a list of sorted directory entries.
+ // Copied from io/ioutil to avoid the circular import.
+ func readDir(dirname string) ([]*os.FileInfo, os.Error) {
+-	f, err := os.Open(dirname, os.O_RDONLY, 0)
++	f, err := os.Open(dirname)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 7ef69461ee..b3b6eb5aba 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -249,7 +249,7 @@ func walkTree(n *Node, path string, f func(path string, n *Node)) {
+ func makeTree(t *testing.T) {
+ 	walkTree(tree, tree.name, func(path string, n *Node) {
+ 		if n.entries == nil {
+-			fd, err := os.Open(path, os.O_CREAT, 0660)
++			fd, err := os.Create(path)
+ 			if err != nil {
+ 				t.Errorf("makeTree: %v", err)
+ 			}
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 305adcc0c4..34baeee39b 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -94,7 +94,7 @@ func myatof32(s string) (f float32, ok bool) {
+ }
+ 
+ func TestFp(t *testing.T) {
+-	f, err := os.Open("testfp.txt", os.O_RDONLY, 0)
++	f, err := os.Open("testfp.txt")
+ 	if err != nil {
+ 		t.Fatal("testfp: open testfp.txt:", err.String())
+ 	}
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 6d303cc6f2..1e65528ef9 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -212,7 +212,7 @@ func before() {
+ 		runtime.MemProfileRate = *memProfileRate
+ 	}
+ 	if *cpuProfile != "" {
+-		f, err := os.Open(*cpuProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
++		f, err := os.Create(*cpuProfile)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: %s", err)
+ 			return
+@@ -233,7 +233,7 @@ func after() {
+ 		pprof.StopCPUProfile() // flushes profile to disk
+ 	}
+ 	if *memProfile != "" {
+-		f, err := os.Open(*memProfile, os.O_WRONLY|os.O_CREAT|os.O_TRUNC, 0666)
++		f, err := os.Create(*memProfile)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "testing: %s", err)
+ 			return

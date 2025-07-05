@@ -7,8 +7,65 @@ Date:   Thu Feb 2 11:04:09 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5622048
-
+---
  test/fixedbugs/bug404.dir/one.go | 19 +++++++++++++++++++
  test/fixedbugs/bug404.dir/two.go | 12 ++++++++++++
  test/fixedbugs/bug404.go         |  7 +++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/test/fixedbugs/bug404.dir/one.go b/test/fixedbugs/bug404.dir/one.go
+new file mode 100644
+index 0000000000..2024eb007c
+--- /dev/null
++++ b/test/fixedbugs/bug404.dir/one.go
+@@ -0,0 +1,19 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package one
++
++type T1 int
++type T2 []T1
++type T3 T2
++
++func F1(T2) {
++}
++
++func (p *T1) M1() T3 {
++	return nil
++}
++
++func (p T3) M2() {
++}
+diff --git a/test/fixedbugs/bug404.dir/two.go b/test/fixedbugs/bug404.dir/two.go
+new file mode 100644
+index 0000000000..162eae7124
+--- /dev/null
++++ b/test/fixedbugs/bug404.dir/two.go
+@@ -0,0 +1,12 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The gccgo compiler would fail on the import statement.
++// two.go:10:13: error: use of undefined type ‘one.T2’
++
++package two
++
++import "./one"
++
++var V one.T3
+diff --git a/test/fixedbugs/bug404.go b/test/fixedbugs/bug404.go
+new file mode 100644
+index 0000000000..ac9e575bb5
+--- /dev/null
++++ b/test/fixedbugs/bug404.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

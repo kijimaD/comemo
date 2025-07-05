@@ -6,7 +6,7 @@ Date:   Thu Nov 19 16:42:05 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/157082
-
+---
  src/cmd/cgo/ast.go                             |  3 +++
  src/pkg/exp/eval/expr.go                       | 23 ++++++++++++++---------
  src/pkg/go/ast/ast.go                          | 12 ++++++++++--
@@ -17,3 +17,253 @@ Date:   Thu Nov 19 16:42:05 2009 -0800
  src/pkg/go/printer/testdata/expressions.input  |  5 +++++
  src/pkg/go/printer/testdata/expressions.raw    |  5 +++++
  9 files changed, 74 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index f739c355aa..ccaef69d15 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -178,6 +178,9 @@ func walk(x interface{}, p *Prog, context string) {
+ 	case *ast.IndexExpr:
+ 		walk(&n.X, p, "expr");
+ 		walk(&n.Index, p, "expr");
++	case *ast.SliceExpr:
++		walk(&n.X, p, "expr");
++		walk(&n.Index, p, "expr");
+ 		if n.End != nil {
+ 			walk(&n.End, p, "expr")
+ 		}
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 265ba98d2b..85f72b8106 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -581,21 +581,26 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		return ei.compileIdent(a.block, a.constant, callCtx, x.Value)
+ 
+ 	case *ast.IndexExpr:
+-		if x.End != nil {
+-			arr := a.compile(x.X, false);
+-			lo := a.compile(x.Index, false);
+-			hi := a.compile(x.End, false);
+-			if arr == nil || lo == nil || hi == nil {
+-				return nil
+-			}
+-			return ei.compileSliceExpr(arr, lo, hi);
+-		}
+ 		l, r := a.compile(x.X, false), a.compile(x.Index, false);
+ 		if l == nil || r == nil {
+ 			return nil
+ 		}
+ 		return ei.compileIndexExpr(l, r);
+ 
++	case *ast.SliceExpr:
++		end := x.End;
++		if end == nil {
++			// TODO: set end to len(x.X)
++			panic("unimplemented")
++		}
++		arr := a.compile(x.X, false);
++		lo := a.compile(x.Index, false);
++		hi := a.compile(end, false);
++		if arr == nil || lo == nil || hi == nil {
++			return nil
++		}
++		return ei.compileSliceExpr(arr, lo, hi);
++
+ 	case *ast.KeyValueExpr:
+ 		goto notimpl
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 1dfe2a7ea4..60a90050c3 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -172,10 +172,16 @@ type (
+ 		Sel	*Ident;	// field selector
+ 	};
+ 
+-	// An IndexExpr node represents an expression followed by an index or slice.
++	// An IndexExpr node represents an expression followed by an index.
+ 	IndexExpr	struct {
+ 		X	Expr;	// expression
+-		Index	Expr;	// index expression or beginning of slice range
++		Index	Expr;	// index expression
++	};
++
++	// An SliceExpr node represents an expression followed by slice indices.
++	SliceExpr	struct {
++		X	Expr;	// expression
++		Index	Expr;	// beginning of slice range
+ 		End	Expr;	// end of slice range; or nil
+ 	};
+ 
+@@ -305,6 +311,7 @@ func (x *FuncLit) Pos() token.Position		{ return x.Type.Pos() }
+ func (x *CompositeLit) Pos() token.Position	{ return x.Type.Pos() }
+ func (x *SelectorExpr) Pos() token.Position	{ return x.X.Pos() }
+ func (x *IndexExpr) Pos() token.Position	{ return x.X.Pos() }
++func (x *SliceExpr) Pos() token.Position	{ return x.X.Pos() }
+ func (x *TypeAssertExpr) Pos() token.Position	{ return x.X.Pos() }
+ func (x *CallExpr) Pos() token.Position		{ return x.Fun.Pos() }
+ func (x *BinaryExpr) Pos() token.Position	{ return x.X.Pos() }
+@@ -323,6 +330,7 @@ func (x *CompositeLit) exprNode()	{}
+ func (x *ParenExpr) exprNode()		{}
+ func (x *SelectorExpr) exprNode()	{}
+ func (x *IndexExpr) exprNode()		{}
++func (x *SliceExpr) exprNode()		{}
+ func (x *TypeAssertExpr) exprNode()	{}
+ func (x *CallExpr) exprNode()		{}
+ func (x *StarExpr) exprNode()		{}
+diff --git a/src/pkg/go/ast/walk.go b/src/pkg/go/ast/walk.go
+index c1ed366215..08c3992192 100644
+--- a/src/pkg/go/ast/walk.go
++++ b/src/pkg/go/ast/walk.go
+@@ -129,6 +129,10 @@ func Walk(v Visitor, node interface{}) {
+ 	case *IndexExpr:
+ 		Walk(v, n.X);
+ 		Walk(v, n.Index);
++
++	case *SliceExpr:
++		Walk(v, n.X);
++		Walk(v, n.Index);
+ 		Walk(v, n.End);
+ 
+ 	case *TypeAssertExpr:
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index ba91ceb52b..1195a24fa6 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -962,23 +962,28 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseIndex(x ast.Expr) ast.Expr {
++func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 	if p.trace {
+-		defer un(trace(p, "Index"))
++		defer un(trace(p, "IndexOrSlice"))
+ 	}
+ 
+ 	p.expect(token.LBRACK);
+ 	p.exprLev++;
+-	begin := p.parseExpr();
+-	var end ast.Expr;
++	index := p.parseExpr();
+ 	if p.tok == token.COLON {
+ 		p.next();
+-		end = p.parseExpr();
++		var end ast.Expr;
++		if p.tok != token.RBRACK {
++			end = p.parseExpr()
++		}
++		x = &ast.SliceExpr{x, index, end};
++	} else {
++		x = &ast.IndexExpr{x, index}
+ 	}
+ 	p.exprLev--;
+ 	p.expect(token.RBRACK);
+ 
+-	return &ast.IndexExpr{x, begin, end};
++	return x;
+ }
+ 
+ 
+@@ -1072,6 +1077,7 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	case *ast.ParenExpr:
+ 	case *ast.SelectorExpr:
+ 	case *ast.IndexExpr:
++	case *ast.SliceExpr:
+ 	case *ast.TypeAssertExpr:
+ 		if t.Type == nil {
+ 			// the form X.(type) is only allowed in type switch expressions
+@@ -1168,7 +1174,7 @@ L:	for {
+ 		case token.PERIOD:
+ 			x = p.parseSelectorOrTypeAssertion(p.checkExpr(x))
+ 		case token.LBRACK:
+-			x = p.parseIndex(p.checkExpr(x))
++			x = p.parseIndexOrSlice(p.checkExpr(x))
+ 		case token.LPAREN:
+ 			x = p.parseCallOrConversion(p.checkExprOrType(x))
+ 		case token.LBRACE:
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 243c168a7f..6304830bd3 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -665,17 +665,25 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.print(token.RPAREN);
+ 
+ 	case *ast.IndexExpr:
++		// TODO(gri): should treat[] like parentheses and undo one level of depth
+ 		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine);
+ 		p.print(token.LBRACK);
+ 		p.expr0(x.Index, depth+1, multiLine);
++		p.print(token.RBRACK);
++
++	case *ast.SliceExpr:
++		// TODO(gri): should treat[] like parentheses and undo one level of depth
++		p.expr1(x.X, token.HighestPrec, 1, 0, multiLine);
++		p.print(token.LBRACK);
++		p.expr0(x.Index, depth+1, multiLine);
++		// blanks around ":" if both sides exist and either side is a binary expression
++		if depth <= 1 && x.End != nil && (isBinary(x.Index) || isBinary(x.End)) {
++			p.print(blank, token.COLON, blank)
++		} else {
++			p.print(token.COLON)
++		}
+ 		if x.End != nil {
+-			// blanks around ":" if either side is a binary expression
+-			if depth <= 1 && (isBinary(x.Index) || isBinary(x.End)) {
+-				p.print(blank, token.COLON, blank)
+-			} else {
+-				p.print(token.COLON)
+-			}
+-			p.expr0(x.End, depth+1, multiLine);
++			p.expr0(x.End, depth+1, multiLine)
+ 		}
+ 		p.print(token.RBRACK);
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 1d785d91f3..0530e81da7 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -53,6 +53,11 @@ func _() {
+ 	_ = 1 + 2*3;
+ 	_ = s[1 : 2*3];
+ 	_ = s[a : b-c];
++	_ = s[0:];
++	_ = s[a+b];
++	_ = s[a+b:];
++	_ = a[a<<b+1];
++	_ = a[a<<b+1:];
+ 	_ = s[a+b : len(s)];
+ 	_ = s[len(s):-a];
+ 	_ = s[a : len(s)+1];
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 6ccc9a8335..decb58196d 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -53,6 +53,11 @@ func _() {
+ 	_ = 1 + 2*3;
+ 	_ = s[1 : 2*3];
+ 	_ = s[a : b-c];
++	_ = s[0:];
++	_ = s[a+b];
++	_ = s[a+b :];
++	_ = a[a<<b+1];
++	_ = a[a<<b+1 :];
+ 	_ = s[a+b : len(s)];
+ 	_ = s[len(s) : -a];
+ 	_ = s[a : len(s)+1];
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 55986e2e62..3e4f326488 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -53,6 +53,11 @@ func _() {
+ 	_ = 1 + 2*3;
+ 	_ = s[1 : 2*3];
+ 	_ = s[a : b-c];
++	_ = s[0:];
++	_ = s[a+b];
++	_ = s[a+b:];
++	_ = a[a<<b+1];
++	_ = a[a<<b+1:];
+ 	_ = s[a+b : len(s)];
+ 	_ = s[len(s):-a];
+ 	_ = s[a : len(s)+1];

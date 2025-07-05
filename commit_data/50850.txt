@@ -11,6 +11,51 @@ Date:   Thu Nov 11 17:32:15 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go | 24 ++++++++++--------------
  1 file changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index d72ee8c340..6faa54475b 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -742,29 +742,25 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+ 	case *TypeParam:
+-		// TODO(gri) review this code - doesn't look quite right
+ 		assert(!tparamIsIface)
+-		ok := u.underIs(func(t Type) bool {
+-			if t == nil {
++		if !u.underIs(func(u Type) bool {
++			if u == nil {
+ 				return false
+ 			}
+-			target, _, _ := check.implicitTypeAndValue(x, t)
+-			return target != nil
+-		})
+-		if !ok {
++			t, _, _ := check.implicitTypeAndValue(x, u)
++			return t != nil
++		}) {
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+ 	case *Interface:
+ 		if tparamIsIface && isTypeParam(target) {
+-			// TODO(gri) review this code - doesn't look quite right
+-			ok := u.typeSet().underIs(func(t Type) bool {
+-				if t == nil {
++			if !u.typeSet().underIs(func(u Type) bool {
++				if u == nil {
+ 					return false
+ 				}
+-				target, _, _ := check.implicitTypeAndValue(x, t)
+-				return target != nil
+-			})
+-			if !ok {
++				t, _, _ := check.implicitTypeAndValue(x, u)
++				return t != nil
++			}) {
+ 				return nil, nil, _InvalidUntypedConversion
+ 			}
+ 			break

@@ -32,7 +32,156 @@ Date:   Thu Apr 18 12:28:13 2024 +0100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/cgo/gcc.go  | 20 +++++++++++---------
  src/cmd/cgo/main.go | 42 ++++++++++++++++++++++++++++--------------
  2 files changed, 39 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 0f90761e14..cdda88fc8e 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -193,7 +193,6 @@ func (p *Package) Translate(f *File) {
+ 	var conv typeConv
+ 	conv.Init(p.PtrSize, p.IntSize)
+ 
+-	p.loadDefines(f)
+ 	p.typedefs = map[string]bool{}
+ 	p.typedefList = nil
+ 	numTypedefs := -1
+@@ -233,12 +232,14 @@ func (p *Package) Translate(f *File) {
+ 
+ // loadDefines coerces gcc into spitting out the #defines in use
+ // in the file f and saves relevant renamings in f.Name[name].Define.
+-func (p *Package) loadDefines(f *File) {
++// Returns true if env:CC is Clang
++func (f *File) loadDefines(gccOptions []string) bool {
+ 	var b bytes.Buffer
+ 	b.WriteString(builtinProlog)
+ 	b.WriteString(f.Preamble)
+-	stdout := p.gccDefines(b.Bytes())
++	stdout := gccDefines(b.Bytes(), gccOptions)
+ 
++	var gccIsClang bool
+ 	for _, line := range strings.Split(stdout, "\n") {
+ 		if len(line) < 9 || line[0:7] != "#define" {
+ 			continue
+@@ -261,7 +262,7 @@ func (p *Package) loadDefines(f *File) {
+ 		}
+ 
+ 		if key == "__clang__" {
+-			p.GccIsClang = true
++			gccIsClang = true
+ 		}
+ 
+ 		if n := f.Name[key]; n != nil {
+@@ -271,6 +272,7 @@ func (p *Package) loadDefines(f *File) {
+ 			n.Define = val
+ 		}
+ 	}
++	return gccIsClang
+ }
+ 
+ // guessKinds tricks gcc into revealing the kind of each
+@@ -1722,7 +1724,7 @@ func checkGCCBaseCmd() ([]string, error) {
+ }
+ 
+ // gccMachine returns the gcc -m flag to use, either "-m32", "-m64" or "-marm".
+-func (p *Package) gccMachine() []string {
++func gccMachine() []string {
+ 	switch goarch {
+ 	case "amd64":
+ 		if goos == "darwin" {
+@@ -1795,7 +1797,7 @@ func (p *Package) gccCmd() []string {
+ 	}
+ 
+ 	c = append(c, p.GccOptions...)
+-	c = append(c, p.gccMachine()...)
++	c = append(c, gccMachine()...)
+ 	if goos == "aix" {
+ 		c = append(c, "-maix64")
+ 		c = append(c, "-mcmodel=large")
+@@ -2187,10 +2189,10 @@ func (p *Package) gccDebug(stdin []byte, nnames int) (d *dwarf.Data, ints []int6
+ // and returns the corresponding standard output, which is the
+ // #defines that gcc encountered while processing the input
+ // and its included files.
+-func (p *Package) gccDefines(stdin []byte) string {
++func gccDefines(stdin []byte, gccOptions []string) string {
+ 	base := append(gccBaseCmd, "-E", "-dM", "-xc")
+-	base = append(base, p.gccMachine()...)
+-	stdout, _ := runGcc(stdin, append(append(base, p.GccOptions...), "-"))
++	base = append(base, gccMachine()...)
++	stdout, _ := runGcc(stdin, append(append(base, gccOptions...), "-"))
+ 	return stdout
+ }
+ 
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 519d76c644..28a4631181 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -24,6 +24,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/notsha256"
+@@ -390,6 +391,8 @@ func main() {
+ 	// Use the beginning of the notsha256 of the input to disambiguate.
+ 	h := notsha256.New()
+ 	io.WriteString(h, *importPath)
++	var once sync.Once
++	var wg sync.WaitGroup
+ 	fs := make([]*File, len(goFiles))
+ 	for i, input := range goFiles {
+ 		if *srcDir != "" {
+@@ -411,23 +414,34 @@ func main() {
+ 			fatalf("%s", err)
+ 		}
+ 
+-		// Apply trimpath to the file path. The path won't be read from after this point.
+-		input, _ = objabi.ApplyRewrites(input, *trimpath)
+-		if strings.ContainsAny(input, "\r\n") {
+-			// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
+-			// all emit line directives, which don't permit newlines in the file path.
+-			// Bail early if we see anything newline-like in the trimmed path.
+-			fatalf("input path contains newline character: %q", input)
+-		}
+-		goFiles[i] = input
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			// Apply trimpath to the file path. The path won't be read from after this point.
++			input, _ = objabi.ApplyRewrites(input, *trimpath)
++			if strings.ContainsAny(input, "\r\n") {
++				// ParseGo, (*Package).writeOutput, and printer.Fprint in SourcePos mode
++				// all emit line directives, which don't permit newlines in the file path.
++				// Bail early if we see anything newline-like in the trimmed path.
++				fatalf("input path contains newline character: %q", input)
++			}
++			goFiles[i] = input
+ 
+-		f := new(File)
+-		f.Edit = edit.NewBuffer(b)
+-		f.ParseGo(input, b)
+-		f.ProcessCgoDirectives()
+-		fs[i] = f
++			f := new(File)
++			f.Edit = edit.NewBuffer(b)
++			f.ParseGo(input, b)
++			f.ProcessCgoDirectives()
++			gccIsClang := f.loadDefines(p.GccOptions)
++			once.Do(func() {
++				p.GccIsClang = gccIsClang
++			})
++
++			fs[i] = f
++		}()
+ 	}
+ 
++	wg.Wait()
++
+ 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
+ 
+ 	if *objDir == "" {

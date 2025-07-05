@@ -9,9 +9,74 @@ Date:   Wed Jan 8 17:50:52 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug507.dir/a.go | 13 +++++++++++++
  test/fixedbugs/bug507.dir/b.go |  9 +++++++++
  test/fixedbugs/bug507.dir/c.go |  9 +++++++++
  test/fixedbugs/bug507.go       |  9 +++++++++
  4 files changed, 40 insertions(+)
+
+diff --git a/test/fixedbugs/bug507.dir/a.go b/test/fixedbugs/bug507.dir/a.go
+new file mode 100644
+index 0000000000..0929adcfb3
+--- /dev/null
++++ b/test/fixedbugs/bug507.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I interface {
++	M()
++}
++
++type S struct {
++	I I
++}
+diff --git a/test/fixedbugs/bug507.dir/b.go b/test/fixedbugs/bug507.dir/b.go
+new file mode 100644
+index 0000000000..bddce2dd83
+--- /dev/null
++++ b/test/fixedbugs/bug507.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import . "./a"
++
++var V2 I
+diff --git a/test/fixedbugs/bug507.dir/c.go b/test/fixedbugs/bug507.dir/c.go
+new file mode 100644
+index 0000000000..e67f0fd74e
+--- /dev/null
++++ b/test/fixedbugs/bug507.dir/c.go
+@@ -0,0 +1,9 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var V1 = a.S{I: nil}
+diff --git a/test/fixedbugs/bug507.go b/test/fixedbugs/bug507.go
+new file mode 100644
+index 0000000000..2d7aa59732
+--- /dev/null
++++ b/test/fixedbugs/bug507.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo mishandled a combination of normal import and dot import.
++
++package ignored

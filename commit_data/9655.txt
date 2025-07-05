@@ -10,6 +10,21 @@ Date:   Mon Sep 12 16:18:48 2011 -0300
     R=golang-dev, adg, rsc, gustavo
     CC=golang-dev
     https://golang.org/cl/4977059
-
+---
  src/pkg/path/filepath/path.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 97a89d5191..a1457e8d22 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -259,8 +259,7 @@ func Abs(path string) (string, os.Error) {
+ }
+ 
+ // Visitor methods are invoked for corresponding file tree entries
+-// visited by Walk. The parameter path is the full path of f relative
+-// to root.
++// visited by Walk. The provided path parameter begins with root.
+ type Visitor interface {
+ 	VisitDir(path string, f *os.FileInfo) bool
+ 	VisitFile(path string, f *os.FileInfo)

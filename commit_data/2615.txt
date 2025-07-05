@@ -14,7 +14,7 @@ Date:   Tue Jul 7 10:07:15 2009 -0700
     R=ken
     OCL=31266
     CL=31266
-
+---
  src/cmd/5c/Makefile       |   6 +
  src/cmd/5c/cgen.c         | 109 +++++++-----
  src/cmd/5c/gc.h           |  10 +-
@@ -32,3 +32,2211 @@ Date:   Tue Jul 7 10:07:15 2009 -0700
  src/cmd/8c/swt.c          | 128 --------------
  src/cmd/{6c => cc}/pgen.c |  35 ++--
  16 files changed, 152 insertions(+), 1361 deletions(-)
+
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index 1aabef754f..06dfa4f3e3 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -21,6 +21,8 @@ OFILES=\
+ 	mul.$O\
+ 	reg.$O\
+ 	peep.$O\
++	pgen.$O\
++	pswt.$O\
+ 	../5l/enam.$O\
+ 
+ LIB=\
+@@ -36,3 +38,7 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)
++
++%.$O: ../cc/%.c
++	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index fd2dd0f271..bbad8a1791 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -28,10 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #include "gc.h"
+ 
+ void
+-cgen(Node *n, Node *nn, int inrel)
++_cgen(Node *n, Node *nn, int inrel)
+ {
+ 	Node *l, *r;
+ 	Prog *p1;
+@@ -75,7 +76,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 	switch(o) {
+ 	default:
+ 		regret(&nod, r);
+-		cgen(r, &nod, 0);
++		cgen(r, &nod);
+ 
+ 		regsalloc(&nod1, r);
+ 		gopcode(OAS, &nod, Z, &nod1);
+@@ -83,7 +84,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 		regfree(&nod);
+ 		nod = *n;
+ 		nod.right = &nod1;
+-		cgen(&nod, nn, 0);
++		cgen(&nod, nn);
+ 		return;
+ 
+ 	case OFUNC:
+@@ -109,7 +110,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 					regret(&nod, r);
+ 				else
+ 					regalloc(&nod, r, nn);
+-				cgen(r, &nod, 0);
++				cgen(r, &nod);
+ 				gmove(&nod, l);
+ 				if(nn != Z)
+ 					gmove(&nod, nn);
+@@ -128,10 +129,10 @@ cgen(Node *n, Node *nn, int inrel)
+ 				break;
+ 			}
+ 			regalloc(&nod, r, nn);
+-			cgen(r, &nod, 0);
++			cgen(r, &nod);
+ 		} else {
+ 			regalloc(&nod, r, nn);
+-			cgen(r, &nod, 0);
++			cgen(r, &nod);
+ 			reglcgen(&nod1, l, Z);
+ 		}
+ 		gmove(&nod, &nod1);
+@@ -144,9 +145,9 @@ cgen(Node *n, Node *nn, int inrel)
+ 		regalloc(&nod, r, nn);
+ 		if(l->complex >= r->complex) {
+ 			reglcgen(&nod1, n, Z);
+-			cgen(r, &nod, 0);
++			cgen(r, &nod);
+ 		} else {
+-			cgen(r, &nod, 0);
++			cgen(r, &nod);
+ 			reglcgen(&nod1, n, Z);
+ 		}
+ 		regalloc(&nod2, n, Z);
+@@ -169,7 +170,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 		if(nn != Z)
+ 		if((t = vlog(r)) >= 0) {
+ 			/* signed div/mod by constant power of 2 */
+-			cgen(l, nn, 0);
++			cgen(l, nn);
+ 			gopcode(OGE, nodconst(0), nn, Z);
+ 			p1 = p;
+ 			if(o == ODIV) {
+@@ -194,7 +195,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 		if(nn != Z)
+ 		if(l->op == OCONST)
+ 		if(!typefd[n->type->etype]) {
+-			cgen(r, nn, 0);
++			cgen(r, nn);
+ 			gopcode(o, Z, l, nn);
+ 			break;
+ 		}
+@@ -211,7 +212,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 		if(nn != Z)
+ 		if(r->op == OCONST)
+ 		if(!typefd[n->type->etype]) {
+-			cgen(l, nn, 0);
++			cgen(l, nn);
+ 			if(r->vconst == 0)
+ 			if(o != OAND)
+ 				break;
+@@ -235,15 +236,15 @@ cgen(Node *n, Node *nn, int inrel)
+ 		}
+ 		if(l->complex >= r->complex) {
+ 			regalloc(&nod, l, nn);
+-			cgen(l, &nod, 0);
++			cgen(l, &nod);
+ 			regalloc(&nod1, r, Z);
+-			cgen(r, &nod1, 0);
++			cgen(r, &nod1);
+ 			gopcode(o, &nod1, Z, &nod);
+ 		} else {
+ 			regalloc(&nod, r, nn);
+-			cgen(r, &nod, 0);
++			cgen(r, &nod);
+ 			regalloc(&nod1, l, Z);
+-			cgen(l, &nod1, 0);
++			cgen(l, &nod1);
+ 			gopcode(o, &nod, &nod1, &nod);
+ 		}
+ 		gopcode(OAS, &nod, Z, nn);
+@@ -272,7 +273,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 			gopcode(OAS, &nod2, Z, &nod);
+ 			gopcode(o, r, Z, &nod);
+ 			gopcode(OAS, &nod, Z, &nod2);
+-	
++
+ 			regfree(&nod);
+ 			if(l->addable < INDEXED)
+ 				regfree(&nod2);
+@@ -293,10 +294,10 @@ cgen(Node *n, Node *nn, int inrel)
+ 			else
+ 				nod2 = *l;
+ 			regalloc(&nod1, r, Z);
+-			cgen(r, &nod1, 0);
++			cgen(r, &nod1);
+ 		} else {
+ 			regalloc(&nod1, r, Z);
+-			cgen(r, &nod1, 0);
++			cgen(r, &nod1);
+ 			if(l->addable < INDEXED)
+ 				reglcgen(&nod2, l, Z);
+ 			else
+@@ -320,10 +321,10 @@ cgen(Node *n, Node *nn, int inrel)
+ 		if(l->complex >= r->complex) {
+ 			bitload(l, &nod, &nod1, &nod2, &nod4);
+ 			regalloc(&nod3, r, Z);
+-			cgen(r, &nod3, 0);
++			cgen(r, &nod3);
+ 		} else {
+ 			regalloc(&nod3, r, Z);
+-			cgen(r, &nod3, 0);
++			cgen(r, &nod3);
+ 			bitload(l, &nod, &nod1, &nod2, &nod4);
+ 		}
+ 		gmove(&nod, &nod4);
+@@ -348,7 +349,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 				diag(n, "bad function call");
+ 
+ 			regret(&nod, l->left);
+-			cgen(l->left, &nod, 0);
++			cgen(l->left, &nod);
+ 			regsalloc(&nod1, l->left);
+ 			gopcode(OAS, &nod, Z, &nod1);
+ 			regfree(&nod);
+@@ -358,7 +359,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 			nod2 = *l;
+ 			nod2.left = &nod1;
+ 			nod2.complex = 1;
+-			cgen(&nod, nn, 0);
++			cgen(&nod, nn);
+ 
+ 			return;
+ 		}
+@@ -393,11 +394,11 @@ cgen(Node *n, Node *nn, int inrel)
+ 		if(sconst(r) && (v = r->vconst+nod.xoffset) > -4096 && v < 4096) {
+ 			v = r->vconst;
+ 			r->vconst = 0;
+-			cgen(l, &nod, 0);
++			cgen(l, &nod);
+ 			nod.xoffset += v;
+ 			r->vconst = v;
+ 		} else
+-			cgen(l, &nod, 0);
++			cgen(l, &nod);
+ 		regind(&nod, n);
+ 		gopcode(OAS, &nod, Z, nn);
+ 		regfree(&nod);
+@@ -436,8 +437,8 @@ cgen(Node *n, Node *nn, int inrel)
+ 		break;
+ 
+ 	case OCOMMA:
+-		cgen(l, Z, 0);
+-		cgen(r, nn, 0);
++		cgen(l, Z);
++		cgen(r, nn);
+ 		break;
+ 
+ 	case OCAST:
+@@ -450,12 +451,12 @@ cgen(Node *n, Node *nn, int inrel)
+ 		 */
+ 		if(nocast(l->type, n->type)) {
+ 			if(nocast(n->type, nn->type)) {
+-				cgen(l, nn, 0);
++				cgen(l, nn);
+ 				break;
+ 			}
+ 		}
+ 		regalloc(&nod, l, nn);
+-		cgen(l, &nod, 0);
++		cgen(l, &nod);
+ 		regalloc(&nod1, n, &nod);
+ 		if(inrel)
+ 			gmover(&nod, &nod1);
+@@ -477,18 +478,18 @@ cgen(Node *n, Node *nn, int inrel)
+ 			}
+ 			nod.xoffset += (int32)r->vconst;
+ 			nod.type = n->type;
+-			cgen(&nod, nn, 0);
++			cgen(&nod, nn);
+ 		}
+ 		break;
+ 
+ 	case OCOND:
+ 		bcgen(l, 1);
+ 		p1 = p;
+-		cgen(r->left, nn, 0);
++		cgen(r->left, nn);
+ 		gbranch(OGOTO);
+ 		patch(p1, pc);
+ 		p1 = p;
+-		cgen(r->right, nn, 0);
++		cgen(r->right, nn);
+ 		patch(p1, pc);
+ 		break;
+ 
+@@ -586,6 +587,18 @@ cgen(Node *n, Node *nn, int inrel)
+ 	return;
+ }
+ 
++void
++cgen(Node *n, Node *nn)
++{
++	_cgen(n, nn, 0);
++}
++
++void
++cgenrel(Node *n, Node *nn)
++{
++	_cgen(n, nn, 1);
++}
++
+ void
+ reglcgen(Node *t, Node *n, Node *nn)
+ {
+@@ -609,7 +622,7 @@ reglcgen(Node *t, Node *n, Node *nn)
+ 	} else if(n->op == OINDREG) {
+ 		if((v = n->xoffset) > -4096 && v < 4096) {
+ 			n->op = OREGISTER;
+-			cgen(n, t, 0);
++			cgen(n, t);
+ 			t->xoffset += v;
+ 			n->op = OINDREG;
+ 			regind(t, n);
+@@ -668,12 +681,12 @@ lcgen(Node *n, Node *nn)
+ 		break;
+ 
+ 	case OCOMMA:
+-		cgen(n->left, n->left, 0);
++		cgen(n->left, n->left);
+ 		lcgen(n->right, nn);
+ 		break;
+ 
+ 	case OIND:
+-		cgen(n->left, nn, 0);
++		cgen(n->left, nn);
+ 		break;
+ 
+ 	case OCOND:
+@@ -718,7 +731,7 @@ boolgen(Node *n, int true, Node *nn)
+ 
+ 	default:
+ 		regalloc(&nod, n, nn);
+-		cgen(n, &nod, 0);
++		cgen(n, &nod);
+ 		o = ONE;
+ 		if(true)
+ 			o = comrel[relindex(o)];
+@@ -742,7 +755,7 @@ boolgen(Node *n, int true, Node *nn)
+ 		goto com;
+ 
+ 	case OCOMMA:
+-		cgen(l, Z, 0);
++		cgen(l, Z);
+ 		boolgen(r, true, nn);
+ 		break;
+ 
+@@ -809,7 +822,7 @@ boolgen(Node *n, int true, Node *nn)
+ 			o = comrel[relindex(o)];
+ 		if(l->complex >= FNX && r->complex >= FNX) {
+ 			regret(&nod, r);
+-			cgen(r, &nod, 1);
++			cgenrel(r, &nod);
+ 			regsalloc(&nod1, r);
+ 			gopcode(OAS, &nod, Z, &nod1);
+ 			regfree(&nod);
+@@ -820,7 +833,7 @@ boolgen(Node *n, int true, Node *nn)
+ 		}
+ 		if(sconst(l)) {
+ 			regalloc(&nod, r, nn);
+-			cgen(r, &nod, 1);
++			cgenrel(r, &nod);
+ 			o = invrel[relindex(o)];
+ 			gopcode(o, l, &nod, Z);
+ 			regfree(&nod);
+@@ -828,21 +841,21 @@ boolgen(Node *n, int true, Node *nn)
+ 		}
+ 		if(sconst(r)) {
+ 			regalloc(&nod, l, nn);
+-			cgen(l, &nod, 1);
++			cgenrel(l, &nod);
+ 			gopcode(o, r, &nod, Z);
+ 			regfree(&nod);
+ 			goto com;
+ 		}
+ 		if(l->complex >= r->complex) {
+ 			regalloc(&nod1, l, nn);
+-			cgen(l, &nod1, 1);
++			cgenrel(l, &nod1);
+ 			regalloc(&nod, r, Z);
+-			cgen(r, &nod, 1);
++			cgenrel(r, &nod);
+ 		} else {
+ 			regalloc(&nod, r, nn);
+-			cgen(r, &nod, 1);
++			cgenrel(r, &nod);
+ 			regalloc(&nod1, l, Z);
+-			cgen(l, &nod1, 1);
++			cgenrel(l, &nod1);
+ 		}
+ 		gopcode(o, &nod, &nod1, Z);
+ 		regfree(&nod);
+@@ -966,7 +979,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 				r = r->right;
+ 			}
+ 			if(nn == Z) {
+-				cgen(l, nn, 0);
++				cgen(l, nn);
+ 				continue;
+ 			}
+ 			/*
+@@ -1004,7 +1017,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 			xcom(&nod0);
+ 			nod0.addable = 0;
+ 
+-			cgen(&nod0, Z, 0);
++			cgen(&nod0, Z);
+ 		}
+ 		break;
+ 
+@@ -1034,7 +1047,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 		n = new(OFUNC, n->left, new(OLIST, nn, n->right));
+ 		n->type = types[TVOID];
+ 		n->left->type = types[TVOID];
+-		cgen(n, Z, 0);
++		cgen(n, Z);
+ 		break;
+ 
+ 	case OCOND:
+@@ -1049,7 +1062,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 		break;
+ 
+ 	case OCOMMA:
+-		cgen(n->left, Z, 0);
++		cgen(n->left, Z);
+ 		sugen(n->right, nn, w);
+ 		break;
+ 	}
+@@ -1147,7 +1160,7 @@ copy:
+ 	regalloc(&nod3, &regnode, Z);
+ 	gopcode(OAS, nodconst(w/c), Z, &nod3);
+ 	w %= c;
+-	
++
+ 	pc1 = pc;
+ 	gmovm(&nod1, &nod4, 1);
+ 	gmovm(&nod4, &nod2, 1);
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index 297a6073e1..9aa7681b2e 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #include	"../cc/cc.h"
+ #include	"../5l/5.out.h"
+ 
+@@ -93,6 +94,7 @@ struct	Case
+ 	int32	val;
+ 	int32	label;
+ 	char	def;
++	char	isv;
+ };
+ #define	C	((Case*)0)
+ 
+@@ -165,6 +167,7 @@ struct	Rgn
+ };
+ 
+ EXTERN	int32	breakpc;
++EXTERN	int32	nbreak;
+ EXTERN	Case*	cases;
+ EXTERN	Node	constnode;
+ EXTERN	Node	fconstnode;
+@@ -243,17 +246,20 @@ void	noretval(int);
+ void	usedset(Node*, int);
+ void	xcom(Node*);
+ int	bcomplex(Node*, Node*);
++Prog*	gtext(Sym*, int32);
++vlong	argsize(void);
+ 
+ /*
+  * cgen.c
+  */
+-void	cgen(Node*, Node*, int);
++void	cgen(Node*, Node*);
+ void	reglcgen(Node*, Node*, Node*);
+ void	lcgen(Node*, Node*);
+ void	bcgen(Node*, int);
+ void	boolgen(Node*, int, Node*);
+ void	sugen(Node*, Node*, int32);
+ void	layout(Node*, Node*, int, int, Node*);
++void	cgenrel(Node*, Node*);
+ 
+ /*
+  * txt.c
+@@ -296,7 +302,7 @@ void	gpseudo(int, Sym*, Node*);
+  */
+ int	swcmp(const void*, const void*);
+ void	doswit(Node*);
+-void	swit1(C1*, int, int32, Node*, Node*);
++void	swit1(C1*, int, int32, Node*);
+ void	cas(void);
+ void	bitload(Node*, Node*, Node*, Node*, Node*);
+ void	bitstore(Node*, Node*, Node*, Node*, Node*);
+diff --git a/src/cmd/5c/sgen.c b/src/cmd/5c/sgen.c
+index e18cb61680..1584ecff33 100644
+--- a/src/cmd/5c/sgen.c
++++ b/src/cmd/5c/sgen.c
+@@ -28,410 +28,16 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "gc.h"
+-
+-int32
+-argsize(void)
+-{
+-	Type *t;
+-	int32 s;
+ 
+-//print("t=%T\n", thisfn);
+-	s = 0;
+-	for(t=thisfn->down; t!=T; t=t->down) {
+-		switch(t->etype) {
+-		case TVOID:
+-			break;
+-		case TDOT:
+-			s += 64;
+-			break;
+-		default:
+-			s = align(s, t, Aarg1);
+-			s = align(s, t, Aarg2);
+-			break;
+-		}
+-//print("	%d %T\n", s, t);
+-	}
+-	return (s+7) & ~7;
+-}
++#include "gc.h"
+ 
+-void
+-codgen(Node *n, Node *nn)
++Prog*
++gtext(Sym *s, int32 stkoff)
+ {
+-	Prog *sp;
+-	Node *n1, nod, nod1;
+-
+-	cursafe = 0;
+-	curarg = 0;
+-	maxargsafe = 0;
+-
+-	/*
+-	 * isolate name
+-	 */
+-	for(n1 = nn;; n1 = n1->left) {
+-		if(n1 == Z) {
+-			diag(nn, "cant find function name");
+-			return;
+-		}
+-		if(n1->op == ONAME)
+-			break;
+-	}
+-	nearln = nn->lineno;
+-	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
++	gpseudo(ATEXT, s, nodconst(stkoff));
+ 	p->to.type = D_CONST2;
+ 	p->to.offset2 = argsize();
+-
+-	sp = p;
+-
+-	/*
+-	 * isolate first argument
+-	 */
+-	if(REGARG >= 0) {
+-		if(typesuv[thisfn->link->etype]) {
+-			nod1 = *nodret->left;
+-			nodreg(&nod, &nod1, REGARG);
+-			gopcode(OAS, &nod, Z, &nod1);
+-		} else
+-		if(firstarg && typechlp[firstargtype->etype]) {
+-			nod1 = *nodret->left;
+-			nod1.sym = firstarg;
+-			nod1.type = firstargtype;
+-			nod1.xoffset = align(0, firstargtype, Aarg1);
+-			nod1.etype = firstargtype->etype;
+-			nodreg(&nod, &nod1, REGARG);
+-			gopcode(OAS, &nod, Z, &nod1);
+-		}
+-	}
+-
+-	retok = 0;
+-	gen(n);
+-	if(!retok)
+-		if(thisfn->link->etype != TVOID)
+-			warn(Z, "no return at end of function: %s", n1->sym->name);
+-	noretval(3);
+-	gbranch(ORETURN);
+-
+-	if(!debug['N'] || debug['R'] || debug['P'])
+-		regopt(sp);
+-
+-	sp->to.offset += maxargsafe;
+-}
+-
+-void
+-supgen(Node *n)
+-{
+-	int32 spc;
+-	Prog *sp;
+-
+-	if(n == Z)
+-		return;
+-	suppress++;
+-	spc = pc;
+-	sp = lastp;
+-	gen(n);
+-	lastp = sp;
+-	pc = spc;
+-	sp->link = nil;
+-	suppress--;
+-}
+-
+-void
+-gen(Node *n)
+-{
+-	Node *l, nod;
+-	Prog *sp, *spc, *spb;
+-	Case *cn;
+-	int32 sbc, scc;
+-	int o, f;
+-
+-loop:
+-	if(n == Z)
+-		return;
+-	nearln = n->lineno;
+-	o = n->op;
+-	if(debug['G'])
+-		if(o != OLIST)
+-			print("%L %O\n", nearln, o);
+-
+-	retok = 0;
+-	switch(o) {
+-
+-	default:
+-		complex(n);
+-		cgen(n, Z, 0);
+-		break;
+-
+-	case OLIST:
+-		gen(n->left);
+-
+-	rloop:
+-		n = n->right;
+-		goto loop;
+-
+-	case ORETURN:
+-		retok = 1;
+-		complex(n);
+-		if(n->type == T)
+-			break;
+-		l = n->left;
+-		if(l == Z) {
+-			noretval(3);
+-			gbranch(ORETURN);
+-			break;
+-		}
+-		if(typesuv[n->type->etype]) {
+-			sugen(l, nodret, n->type->width);
+-			noretval(3);
+-			gbranch(ORETURN);
+-			break;
+-		}
+-		regret(&nod, n);
+-		cgen(l, &nod, 0);
+-		regfree(&nod);
+-		if(typefd[n->type->etype])
+-			noretval(1);
+-		else
+-			noretval(2);
+-		gbranch(ORETURN);
+-		break;
+-
+-	case OLABEL:
+-		l = n->left;
+-		if(l) {
+-			l->pc = pc;
+-			if(l->label)
+-				patch(l->label, pc);
+-		}
+-		gbranch(OGOTO);	/* prevent self reference in reg */
+-		patch(p, pc);
+-		goto rloop;
+-
+-	case OGOTO:
+-		retok = 1;
+-		n = n->left;
+-		if(n == Z)
+-			return;
+-		if(n->complex == 0) {
+-			diag(Z, "label undefined: %s", n->sym->name);
+-			return;
+-		}
+-		if(suppress)
+-			return;
+-		gbranch(OGOTO);
+-		if(n->pc) {
+-			patch(p, n->pc);
+-			return;
+-		}
+-		if(n->label)
+-			patch(n->label, pc-1);
+-		n->label = p;
+-		return;
+-
+-	case OCASE:
+-		l = n->left;
+-		if(cases == C)
+-			diag(n, "case/default outside a switch");
+-		if(l == Z) {
+-			cas();
+-			cases->val = 0;
+-			cases->def = 1;
+-			cases->label = pc;
+-			goto rloop;
+-		}
+-		complex(l);
+-		if(l->type == T)
+-			goto rloop;
+-		if(l->op == OCONST)
+-		if(typechl[l->type->etype]) {
+-			cas();
+-			cases->val = l->vconst;
+-			cases->def = 0;
+-			cases->label = pc;
+-			goto rloop;
+-		}
+-		diag(n, "case expression must be integer constant");
+-		goto rloop;
+-
+-	case OSWITCH:
+-		l = n->left;
+-		complex(l);
+-		if(l->type == T)
+-			break;
+-		if(!typechl[l->type->etype]) {
+-			diag(n, "switch expression must be integer");
+-			break;
+-		}
+-
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		cn = cases;
+-		cases = C;
+-		cas();
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		gen(n->right);
+-		gbranch(OGOTO);
+-		patch(p, breakpc);
+-
+-		patch(sp, pc);
+-		regalloc(&nod, l, Z);
+-		nod.type = types[TLONG];
+-		cgen(l, &nod, 0);
+-		doswit(&nod);
+-		regfree(&nod);
+-		patch(spb, pc);
+-
+-		cases = cn;
+-		breakpc = sbc;
+-		break;
+-
+-	case OWHILE:
+-	case ODWHILE:
+-		l = n->left;
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		scc = continpc;
+-		continpc = pc;
+-		gbranch(OGOTO);
+-		spc = p;
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		patch(spc, pc);
+-		if(n->op == OWHILE)
+-			patch(sp, pc);
+-		bcomplex(l, Z);		/* test */
+-		patch(p, breakpc);
+-
+-		if(n->op == ODWHILE)
+-			patch(sp, pc);
+-		gen(n->right);		/* body */
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-
+-		patch(spb, pc);
+-		continpc = scc;
+-		breakpc = sbc;
+-		break;
+-
+-	case OFOR:
+-		l = n->left;
+-		gen(l->right->left);	/* init */
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		scc = continpc;
+-		continpc = pc;
+-		gbranch(OGOTO);
+-		spc = p;
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		patch(spc, pc);
+-		gen(l->right->right);	/* inc */
+-		patch(sp, pc);
+-		if(l->left != Z) {	/* test */
+-			bcomplex(l->left, Z);
+-			patch(p, breakpc);
+-		}
+-		gen(n->right);		/* body */
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-
+-		patch(spb, pc);
+-		continpc = scc;
+-		breakpc = sbc;
+-		break;
+-
+-	case OCONTINUE:
+-		if(continpc < 0) {
+-			diag(n, "continue not in a loop");
+-			break;
+-		}
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-		break;
+-
+-	case OBREAK:
+-		if(breakpc < 0) {
+-			diag(n, "break not in a loop");
+-			break;
+-		}
+-		gbranch(OGOTO);
+-		patch(p, breakpc);
+-		break;
+-
+-	case OIF:
+-		l = n->left;
+-		if(bcomplex(l, n->right)) {
+-			if(typefd[l->type->etype])
+-				f = !l->fconst;
+-			else
+-				f = !l->vconst;
+-			if(debug['c'])
+-				print("%L const if %s\n", nearln, f ? "false" : "true");
+-			if(f) {
+-				supgen(n->right->left);
+-				gen(n->right->right);
+-			}
+-			else {
+-				gen(n->right->left);
+-				supgen(n->right->right);
+-			}
+-		}
+-		else {
+-			sp = p;
+-			if(n->right->left != Z)
+-				gen(n->right->left);
+-			if(n->right->right != Z) {
+-				gbranch(OGOTO);
+-				patch(sp, pc);
+-				sp = p;
+-				gen(n->right->right);
+-			}
+-			patch(sp, pc);
+-		}
+-		break;
+-
+-	case OSET:
+-	case OUSED:
+-		usedset(n->left, o);
+-		break;
+-	}
+-}
+-
+-void
+-usedset(Node *n, int o)
+-{
+-	if(n->op == OLIST) {
+-		usedset(n->left, o);
+-		usedset(n->right, o);
+-		return;
+-	}
+-	complex(n);
+-	switch(n->op) {
+-	case OADDR:	/* volatile */
+-		gins(ANOP, n, Z);
+-		break;
+-	case ONAME:
+-		if(o == OSET)
+-			gins(ANOP, Z, n);
+-		else
+-			gins(ANOP, n, Z);
+-		break;
+-	}
++	return p;
+ }
+ 
+ void
+@@ -651,21 +257,3 @@ xcom(Node *n)
+ 		break;
+ 	}
+ }
+-
+-int
+-bcomplex(Node *n, Node *c)
+-{
+-
+-	complex(n);
+-	if(n->type != T)
+-	if(tcompat(n, T, n->type, tnot))
+-		n->type = T;
+-	if(n->type != T) {
+-		if(c != Z && n->op == OCONST && deadheads(c))
+-			return 1;
+-		bool64(n);
+-		boolgen(n, 1, Z);
+-	} else
+-		gbranch(OGOTO);
+-	return 0;
+-}
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 28314dacaa..5f50e483c5 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -28,65 +28,11 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "gc.h"
+-
+-int
+-swcmp(const void *a1, const void *a2)
+-{
+-	C1 *p1, *p2;
+-
+-	p1 = (C1*)a1;
+-	p2 = (C1*)a2;
+-	if(p1->val < p2->val)
+-		return -1;
+-	return  p1->val > p2->val;
+-}
+ 
+-void
+-doswit(Node *n)
+-{
+-	Case *c;
+-	C1 *q, *iq;
+-	int32 def, nc, i;
+-	Node tn;
+-
+-	def = 0;
+-	nc = 0;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def) {
+-			if(def)
+-				diag(n, "more than one default in switch");
+-			def = c->label;
+-			continue;
+-		}
+-		nc++;
+-	}
+-
+-	iq = alloc(nc*sizeof(C1));
+-	q = iq;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def)
+-			continue;
+-		q->label = c->label;
+-		q->val = c->val;
+-		q++;
+-	}
+-	qsort(iq, nc, sizeof(C1), swcmp);
+-	if(debug['W'])
+-		for(i=0; i<nc; i++)
+-			print("case %2ld: = %.8lux\n", i, iq[i].val);
+-	if(def == 0)
+-		def = breakpc;
+-	for(i=0; i<nc-1; i++)
+-		if(iq[i].val == iq[i+1].val)
+-			diag(n, "duplicate cases in switch %ld", iq[i].val);
+-	regalloc(&tn, &regnode, Z);
+-	swit1(iq, nc, def, n, &tn);
+-	regfree(&tn);
+-}
++#include "gc.h"
+ 
+ void
+-swit1(C1 *q, int nc, int32 def, Node *n, Node *tn)
++swit1(C1 *q, int nc, int32 def, Node *n)
+ {
+ 	C1 *r;
+ 	int i;
+@@ -119,12 +65,12 @@ swit1(C1 *q, int nc, int32 def, Node *n, Node *tn)
+ 	sp = p;
+ 	gopcode(OEQ, nodconst(r->val), n, Z);	/* just gen the B.EQ */
+ 	patch(p, r->label);
+-	swit1(q, i, def, n, tn);
++	swit1(q, i, def, n);
+ 
+ 	if(debug['W'])
+ 		print("case < %.8lux\n", r->val);
+ 	patch(sp, pc);
+-	swit1(r+1, nc-i-1, def, n, tn);
++	swit1(r+1, nc-i-1, def, n);
+ 	return;
+ 
+ direct:
+@@ -152,16 +98,6 @@ direct:
+ 	patch(p, def);
+ }
+ 
+-void
+-cas(void)
+-{
+-	Case *c;
+-
+-	c = alloc(sizeof(*c));
+-	c->link = cases;
+-	cases = c;
+-}
+-
+ void
+ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ {
+@@ -183,7 +119,7 @@ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ 		gopcode(OAS, n3, Z, n1);
+ 	} else {
+ 		regalloc(n1, l, nn);
+-		cgen(l, n1, 0);
++		cgen(l, n1);
+ 	}
+ 	if(b->type->shift == 0 && typeu[b->type->etype]) {
+ 		v = ~0 + (1L << b->type->nbits);
+@@ -259,33 +195,6 @@ outstring(char *s, int32 n)
+ 	return r;
+ }
+ 
+-int32
+-outlstring(ushort *s, int32 n)
+-{
+-	char buf[2];
+-	int c;
+-	int32 r;
+-
+-	if(suppress)
+-		return nstring;
+-	while(nstring & 1)
+-		outstring("", 1);
+-	r = nstring;
+-	while(n > 0) {
+-		c = *s++;
+-		if(align(0, types[TCHAR], Aarg1)) {
+-			buf[0] = c>>8;
+-			buf[1] = c;
+-		} else {
+-			buf[0] = c;
+-			buf[1] = c>>8;
+-		}
+-		outstring(buf, 2);
+-		n -= sizeof(ushort);
+-	}
+-	return r;
+-}
+-
+ int
+ mulcon(Node *n, Node *nn)
+ {
+@@ -327,7 +236,7 @@ mulcon(Node *n, Node *nn)
+ 	if(p[1] == 'i')
+ 		p += 2;
+ 	regalloc(&nod1, n, nn);
+-	cgen(l, &nod1, 0);
++	cgen(l, &nod1);
+ 	vs = v;
+ 	regalloc(&nod2, n, Z);
+ 
+@@ -380,16 +289,6 @@ loop:
+ 	goto loop;
+ }
+ 
+-void
+-nullwarn(Node *l, Node *r)
+-{
+-	warn(Z, "result of operation not used");
+-	if(l != Z)
+-		cgen(l, Z, 0);
+-	if(r != Z)
+-		cgen(r, Z, 0);
+-}
+-
+ void
+ sextern(Sym *s, Node *a, int32 o, int32 w)
+ {
+@@ -692,35 +591,6 @@ zaddr(char *bp, Adr *a, int s)
+ 	return bp;
+ }
+ 
+-void
+-ieeedtod(Ieee *ieee, double native)
+-{
+-	double fr, ho, f;
+-	int exp;
+-
+-	if(native < 0) {
+-		ieeedtod(ieee, -native);
+-		ieee->h |= 0x80000000L;
+-		return;
+-	}
+-	if(native == 0) {
+-		ieee->l = 0;
+-		ieee->h = 0;
+-		return;
+-	}
+-	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
+-	fr = modf(fr*f, &ho);
+-	ieee->h = ho;
+-	ieee->h &= 0xfffffL;
+-	ieee->h |= (exp+1022L) << 20;
+-	f = 65536L;
+-	fr = modf(fr*f, &ho);
+-	ieee->l = ho;
+-	ieee->l <<= 16;
+-	ieee->l |= (int32)(fr*f);
+-}
+-
+ int32
+ align(int32 i, Type *t, int op)
+ {
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 882484f48e..9dac0312f4 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #include "gc.h"
+ 
+ void
+@@ -58,7 +59,7 @@ ginit(void)
+ 	zprog.from.name = D_NONE;
+ 	zprog.from.reg = NREG;
+ 	zprog.to = zprog.from;
+-	zprog.scond = 0xE;  
++	zprog.scond = 0xE;
+ 
+ 	regnode.op = OREGISTER;
+ 	regnode.class = CEXREG;
+@@ -200,7 +201,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
+ 			nod.left = *fnxp;
+ 			nod.right = n;
+ 			nod.type = n->type;
+-			cgen(&nod, Z, 0);
++			cgen(&nod, Z);
+ 			(*fnxp)++;
+ 		}
+ 		return;
+@@ -217,18 +218,18 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
+ 	if(REGARG >= 0 && curarg == 0 && typechlp[n->type->etype]) {
+ 		regaalloc1(tn1, n);
+ 		if(n->complex >= FNX) {
+-			cgen(*fnxp, tn1, 0);
++			cgen(*fnxp, tn1);
+ 			(*fnxp)++;
+ 		} else
+-			cgen(n, tn1, 0);
++			cgen(n, tn1);
+ 		return;
+ 	}
+ 	regalloc(tn1, n, Z);
+ 	if(n->complex >= FNX) {
+-		cgen(*fnxp, tn1, 0);
++		cgen(*fnxp, tn1);
+ 		(*fnxp)++;
+ 	} else
+-		cgen(n, tn1, 0);
++		cgen(n, tn1);
+ 	regaalloc(tn2, n);
+ 	gopcode(OAS, tn1, Z, tn2);
+ 	regfree(tn1);
+@@ -349,7 +350,7 @@ err:
+ 	return;
+ out:
+ 	reg[i]++;
+-/* 	lasti++;	*** StrongARM does register forwarding */	
++/* 	lasti++;	*** StrongARM does register forwarding */
+ 	if(lasti >= 5)
+ 		lasti = 0;
+ 	nodreg(n, tn, i);
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index fcfeb22043..b6c8d61d8f 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -39,3 +39,7 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)
++
++%.$O: ../cc/%.c
++	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++
+diff --git a/src/cmd/6c/gc.h b/src/cmd/6c/gc.h
+index 8e442c0add..735cd89098 100644
+--- a/src/cmd/6c/gc.h
++++ b/src/cmd/6c/gc.h
+@@ -174,6 +174,7 @@ EXTERN	Prog*	firstp;
+ EXTERN	Prog*	lastp;
+ EXTERN	int32	maxargsafe;
+ EXTERN	int	mnstring;
++EXTERN	int	retok;
+ EXTERN	Node*	nodrat;
+ EXTERN	Node*	nodret;
+ EXTERN	Node*	nodsafe;
+@@ -241,6 +242,8 @@ void	usedset(Node*, int);
+ void	xcom(Node*);
+ void	indx(Node*);
+ int	bcomplex(Node*, Node*);
++Prog*	gtext(Sym*, int32);
++vlong	argsize(void);
+ 
+ /*
+  * cgen.c
+@@ -256,14 +259,6 @@ int	needreg(Node*, int);
+ int	hardconst(Node*);
+ int	immconst(Node*);
+ 
+-/*
+- * cgen64.c
+- */
+-int	vaddr(Node*, int);
+-void	loadpair(Node*, Node*);
+-int	cgen64(Node*, Node*);
+-void	testv(Node*, int);
+-
+ /*
+  * txt.c
+  */
+diff --git a/src/cmd/6c/machcap.c b/src/cmd/6c/machcap.c
+index d4f6bfabec..820d9a0aa7 100644
+--- a/src/cmd/6c/machcap.c
++++ b/src/cmd/6c/machcap.c
+@@ -44,9 +44,8 @@ machcap(Node *n)
+ 	case OASLMUL:
+ 		if(typechl[n->type->etype])
+ 			return 1;
+-		if(typev[n->type->etype]) {
+-				return 1;
+-		}
++		if(typev[n->type->etype])
++			return 1;
+ 		break;
+ 
+ 	case OCOM:
+diff --git a/src/cmd/6c/pswt.c b/src/cmd/6c/pswt.c
+deleted file mode 100644
+index 02d4e64a05..0000000000
+--- a/src/cmd/6c/pswt.c
++++ /dev/null
+@@ -1,168 +0,0 @@
+-// Inferno utils/6c/swt.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/swt.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-#include "gc.h"
+-
+-int
+-swcmp(const void *a1, const void *a2)
+-{
+-	C1 *p1, *p2;
+-
+-	p1 = (C1*)a1;
+-	p2 = (C1*)a2;
+-	if(p1->val < p2->val)
+-		return -1;
+-	return p1->val > p2->val;
+-}
+-
+-void
+-doswit(Node *n)
+-{
+-	Case *c;
+-	C1 *q, *iq;
+-	int32 def, nc, i, isv;
+-
+-	def = 0;
+-	nc = 0;
+-	isv = 0;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def) {
+-			if(def)
+-				diag(n, "more than one default in switch");
+-			def = c->label;
+-			continue;
+-		}
+-		isv |= c->isv;
+-		nc++;
+-	}
+-	if(isv && !typev[n->type->etype])
+-		warn(n, "32-bit switch expression with 64-bit case constant");
+-
+-	iq = alloc(nc*sizeof(C1));
+-	q = iq;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def)
+-			continue;
+-		q->label = c->label;
+-		if(isv)
+-			q->val = c->val;
+-		else
+-			q->val = (int32)c->val;	/* cast ensures correct value for 32-bit switch on 64-bit architecture */
+-		q++;
+-	}
+-	qsort(iq, nc, sizeof(C1), swcmp);
+-	if(debug['W'])
+-	for(i=0; i<nc; i++)
+-		print("case %2ld: = %.8llux\n", i, (vlong)iq[i].val);
+-	for(i=0; i<nc-1; i++)
+-		if(iq[i].val == iq[i+1].val)
+-			diag(n, "duplicate cases in switch %lld", (vlong)iq[i].val);
+-	if(def == 0) {
+-		def = breakpc;
+-		nbreak++;
+-	}
+-	swit1(iq, nc, def, n);
+-}
+-
+-void
+-cas(void)
+-{
+-	Case *c;
+-
+-	c = alloc(sizeof(*c));
+-	c->link = cases;
+-	cases = c;
+-}
+-
+-int32
+-outlstring(ushort *s, int32 n)
+-{
+-	char buf[2];
+-	int c;
+-	int32 r;
+-
+-	if(suppress)
+-		return nstring;
+-	while(nstring & 1)
+-		outstring("", 1);
+-	r = nstring;
+-	while(n > 0) {
+-		c = *s++;
+-		if(align(0, types[TCHAR], Aarg1)) {
+-			buf[0] = c>>8;
+-			buf[1] = c;
+-		} else {
+-			buf[0] = c;
+-			buf[1] = c>>8;
+-		}
+-		outstring(buf, 2);
+-		n -= sizeof(ushort);
+-	}
+-	return r;
+-}
+-
+-void
+-nullwarn(Node *l, Node *r)
+-{
+-	warn(Z, "result of operation not used");
+-	if(l != Z)
+-		cgen(l, Z);
+-	if(r != Z)
+-		cgen(r, Z);
+-}
+-
+-void
+-ieeedtod(Ieee *ieee, double native)
+-{
+-	double fr, ho, f;
+-	int exp;
+-
+-	if(native < 0) {
+-		ieeedtod(ieee, -native);
+-		ieee->h |= 0x80000000L;
+-		return;
+-	}
+-	if(native == 0) {
+-		ieee->l = 0;
+-		ieee->h = 0;
+-		return;
+-	}
+-	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
+-	fr = modf(fr*f, &ho);
+-	ieee->h = ho;
+-	ieee->h &= 0xfffffL;
+-	ieee->h |= (exp+1022L) << 20;
+-	f = 65536L;
+-	fr = modf(fr*f, &ho);
+-	ieee->l = ho;
+-	ieee->l <<= 16;
+-	ieee->l |= (int32)(fr*f);
+-}
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index 63a86ba2db..1a5987f099 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -30,6 +30,18 @@
+ 
+ #include "gc.h"
+ 
++Prog*
++gtext(Sym *s, int32 stkoff)
++{
++	vlong v;
++
++	v = argsize() << 32;
++	v |= stkoff & 0xffffffff;
++
++	gpseudo(ATEXT, s, nodgconst(v, types[TVLONG]));
++	return p;
++}
++
+ void
+ noretval(int n)
+ {
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 75919ddfd4..0b3736b278 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -19,6 +19,8 @@ OFILES=\
+ 	list.$O\
+ 	machcap.$O\
+ 	mul.$O\
++	pgen.$O\
++	pswt.$O\
+ 	peep.$O\
+ 	reg.$O\
+ 	sgen.$O\
+@@ -39,3 +41,7 @@ clean:
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(BIN)/$(TARG)
++
++%.$O: ../cc/%.c
++	$(CC) $(CFLAGS) -c -I. -o $@ ../cc/$*.c
++
+diff --git a/src/cmd/8c/gc.h b/src/cmd/8c/gc.h
+index 55a37c42cd..9fead60e41 100644
+--- a/src/cmd/8c/gc.h
++++ b/src/cmd/8c/gc.h
+@@ -95,6 +95,7 @@ struct	Case
+ 	int32	val;
+ 	int32	label;
+ 	char	def;
++	char	isv;
+ };
+ #define	C	((Case*)0)
+ 
+@@ -162,6 +163,7 @@ struct	Rgn
+ };
+ 
+ EXTERN	int32	breakpc;
++EXTERN	int32	nbreak;
+ EXTERN	Case*	cases;
+ EXTERN	Node	constnode;
+ EXTERN	Node	fconstnode;
+@@ -240,6 +242,8 @@ void	usedset(Node*, int);
+ void	xcom(Node*);
+ void	indx(Node*);
+ int	bcomplex(Node*, Node*);
++Prog*	gtext(Sym*, int32);
++vlong	argsize(void);
+ 
+ /*
+  * cgen.c
+diff --git a/src/cmd/8c/sgen.c b/src/cmd/8c/sgen.c
+index c4d5665d83..c143c9a800 100644
+--- a/src/cmd/8c/sgen.c
++++ b/src/cmd/8c/sgen.c
+@@ -30,411 +30,13 @@
+ 
+ #include "gc.h"
+ 
+-int32
+-argsize(void)
++Prog*
++gtext(Sym *s, int32 stkoff)
+ {
+-	Type *t;
+-	int32 s;
+-
+-//print("t=%T\n", thisfn);
+-	s = 0;
+-	for(t=thisfn->down; t!=T; t=t->down) {
+-		switch(t->etype) {
+-		case TVOID:
+-			break;
+-		case TDOT:
+-			s += 64;
+-			break;
+-		default:
+-			s = align(s, t, Aarg1);
+-			s = align(s, t, Aarg2);
+-			break;
+-		}
+-//print("	%d %T\n", s, t);
+-	}
+-	return (s+7) & ~7;
+-}
+-
+-void
+-codgen(Node *n, Node *nn)
+-{
+-	Prog *sp;
+-	Node *n1, nod, nod1;
+-
+-	cursafe = 0;
+-	curarg = 0;
+-	maxargsafe = 0;
+-
+-	/*
+-	 * isolate name
+-	 */
+-	for(n1 = nn;; n1 = n1->left) {
+-		if(n1 == Z) {
+-			diag(nn, "cant find function name");
+-			return;
+-		}
+-		if(n1->op == ONAME)
+-			break;
+-	}
+-	nearln = nn->lineno;
+-
+-	gpseudo(ATEXT, n1->sym, nodconst(stkoff));
++	gpseudo(ATEXT, s, nodconst(stkoff));
+ 	p->to.type = D_CONST2;
+ 	p->to.offset2 = argsize();
+-
+-	/*
+-	 * isolate first argument
+-	 */
+-	if(REGARG) {
+-		if(typesuv[thisfn->link->etype]) {
+-			nod1 = *nodret->left;
+-			nodreg(&nod, &nod1, REGARG);
+-			gmove(&nod, &nod1);
+-		} else
+-		if(firstarg && typechlp[firstargtype->etype]) {
+-			nod1 = *nodret->left;
+-			nod1.sym = firstarg;
+-			nod1.type = firstargtype;
+-			nod1.xoffset = align(0, firstargtype, Aarg1);
+-			nod1.etype = firstargtype->etype;
+-			nodreg(&nod, &nod1, REGARG);
+-			gmove(&nod, &nod1);
+-		}
+-	}
+-
+-	sp = p;
+-	retok = 0;
+-	gen(n);
+-	if(!retok)
+-		if(thisfn->link->etype != TVOID)
+-			warn(Z, "no return at end of function: %s", n1->sym->name);
+-	noretval(3);
+-	if(thisfn && thisfn->link && typefd[thisfn->link->etype])
+-		gins(AFLDZ, Z, Z);
+-	gbranch(ORETURN);
+-
+-	if(!debug['N'] || debug['R'] || debug['P'])
+-		regopt(sp);
+-	sp->to.offset += maxargsafe;
+-}
+-
+-void
+-supgen(Node *n)
+-{
+-	int32 spc;
+-	Prog *sp;
+-
+-	if(n == Z)
+-		return;
+-	suppress++;
+-	spc = pc;
+-	sp = lastp;
+-	gen(n);
+-	lastp = sp;
+-	pc = spc;
+-	sp->link = nil;
+-	suppress--;
+-}
+-
+-void
+-gen(Node *n)
+-{
+-	Node *l, nod;
+-	Prog *sp, *spc, *spb;
+-	Case *cn;
+-	int32 sbc, scc;
+-	int f, o;
+-
+-loop:
+-	if(n == Z)
+-		return;
+-	nearln = n->lineno;
+-	o = n->op;
+-	if(debug['G'])
+-		if(o != OLIST)
+-			print("%L %O\n", nearln, o);
+-
+-	retok = 0;
+-	switch(o) {
+-
+-	default:
+-		complex(n);
+-		cgen(n, Z);
+-		break;
+-
+-	case OLIST:
+-		gen(n->left);
+-
+-	rloop:
+-		n = n->right;
+-		goto loop;
+-
+-	case ORETURN:
+-		retok = 1;
+-		complex(n);
+-		if(n->type == T)
+-			break;
+-		l = n->left;
+-		if(l == Z) {
+-			noretval(3);
+-			if(typefd[n->type->etype])
+-				gins(AFLDZ, Z, Z);
+-			gbranch(ORETURN);
+-			break;
+-		}
+-		if(typesuv[n->type->etype]) {
+-			sugen(l, nodret, n->type->width);
+-			noretval(3);
+-			gbranch(ORETURN);
+-			break;
+-		}
+-		regret(&nod, n);
+-		cgen(l, &nod);
+-		regfree(&nod);
+-		if(typefd[n->type->etype])
+-			noretval(1);
+-		else
+-			noretval(2);
+-		gbranch(ORETURN);
+-		break;
+-
+-	case OLABEL:
+-		l = n->left;
+-		if(l) {
+-			l->xoffset = pc;
+-			if(l->label)
+-				patch(l->label, pc);
+-		}
+-		gbranch(OGOTO);	/* prevent self reference in reg */
+-		patch(p, pc);
+-		goto rloop;
+-
+-	case OGOTO:
+-		retok = 1;
+-		n = n->left;
+-		if(n == Z)
+-			return;
+-		if(n->complex == 0) {
+-			diag(Z, "label undefined: %s", n->sym->name);
+-			return;
+-		}
+-		if(suppress)
+-			return;
+-		gbranch(OGOTO);
+-		if(n->xoffset) {
+-			patch(p, n->xoffset);
+-			return;
+-		}
+-		if(n->label)
+-			patch(n->label, pc-1);
+-		n->label = p;
+-		return;
+-
+-	case OCASE:
+-		l = n->left;
+-		if(cases == C)
+-			diag(n, "case/default outside a switch");
+-		if(l == Z) {
+-			cas();
+-			cases->val = 0;
+-			cases->def = 1;
+-			cases->label = pc;
+-			goto rloop;
+-		}
+-		complex(l);
+-		if(l->type == T)
+-			goto rloop;
+-		if(l->op == OCONST)
+-		if(typechl[l->type->etype]) {
+-			cas();
+-			cases->val = l->vconst;
+-			cases->def = 0;
+-			cases->label = pc;
+-			goto rloop;
+-		}
+-		diag(n, "case expression must be integer constant");
+-		goto rloop;
+-
+-	case OSWITCH:
+-		l = n->left;
+-		complex(l);
+-		if(l->type == T)
+-			break;
+-		if(!typechl[l->type->etype]) {
+-			diag(n, "switch expression must be integer");
+-			break;
+-		}
+-
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		cn = cases;
+-		cases = C;
+-		cas();
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		gen(n->right);
+-		gbranch(OGOTO);
+-		patch(p, breakpc);
+-
+-		patch(sp, pc);
+-		regalloc(&nod, l, Z);
+-		nod.type = types[TLONG];
+-		cgen(l, &nod);
+-		doswit(&nod);
+-		regfree(&nod);
+-		patch(spb, pc);
+-
+-		cases = cn;
+-		breakpc = sbc;
+-		break;
+-
+-	case OWHILE:
+-	case ODWHILE:
+-		l = n->left;
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		scc = continpc;
+-		continpc = pc;
+-		gbranch(OGOTO);
+-		spc = p;
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		patch(spc, pc);
+-		if(n->op == OWHILE)
+-			patch(sp, pc);
+-		bcomplex(l, Z);		/* test */
+-		patch(p, breakpc);
+-
+-		if(n->op == ODWHILE)
+-			patch(sp, pc);
+-		gen(n->right);		/* body */
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-
+-		patch(spb, pc);
+-		continpc = scc;
+-		breakpc = sbc;
+-		break;
+-
+-	case OFOR:
+-		l = n->left;
+-		gen(l->right->left);	/* init */
+-		gbranch(OGOTO);		/* entry */
+-		sp = p;
+-
+-		scc = continpc;
+-		continpc = pc;
+-		gbranch(OGOTO);
+-		spc = p;
+-
+-		sbc = breakpc;
+-		breakpc = pc;
+-		gbranch(OGOTO);
+-		spb = p;
+-
+-		patch(spc, pc);
+-		gen(l->right->right);	/* inc */
+-		patch(sp, pc);	
+-		if(l->left != Z) {	/* test */
+-			bcomplex(l->left, Z);
+-			patch(p, breakpc);
+-		}
+-		gen(n->right);		/* body */
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-
+-		patch(spb, pc);
+-		continpc = scc;
+-		breakpc = sbc;
+-		break;
+-
+-	case OCONTINUE:
+-		if(continpc < 0) {
+-			diag(n, "continue not in a loop");
+-			break;
+-		}
+-		gbranch(OGOTO);
+-		patch(p, continpc);
+-		break;
+-
+-	case OBREAK:
+-		if(breakpc < 0) {
+-			diag(n, "break not in a loop");
+-			break;
+-		}
+-		gbranch(OGOTO);
+-		patch(p, breakpc);
+-		break;
+-
+-	case OIF:
+-		l = n->left;
+-		if(bcomplex(l, n->right)) {
+-			if(typefd[l->type->etype])
+-				f = !l->fconst;
+-			else
+-				f = !l->vconst;
+-			if(debug['c'])
+-				print("%L const if %s\n", nearln, f ? "false" : "true");
+-			if(f) {
+-				supgen(n->right->left);
+-				gen(n->right->right);
+-			}
+-			else {
+-				gen(n->right->left);
+-				supgen(n->right->right);
+-			}
+-		}
+-		else {
+-			sp = p;
+-			if(n->right->left != Z)
+-				gen(n->right->left);
+-			if(n->right->right != Z) {
+-				gbranch(OGOTO);
+-				patch(sp, pc);
+-				sp = p;
+-				gen(n->right->right);
+-			}
+-			patch(sp, pc);
+-		}
+-		break;
+-
+-	case OSET:
+-	case OUSED:
+-		usedset(n->left, o);
+-		break;
+-	}
+-}
+-
+-void
+-usedset(Node *n, int o)
+-{
+-	if(n->op == OLIST) {
+-		usedset(n->left, o);
+-		usedset(n->right, o);
+-		return;
+-	}
+-	complex(n);
+-	switch(n->op) {
+-	case OADDR:	/* volatile */
+-		gins(ANOP, n, Z);
+-		break;
+-	case ONAME:
+-		if(o == OSET)
+-			gins(ANOP, Z, n);
+-		else
+-			gins(ANOP, n, Z);
+-		break;
+-	}
++	return p;
+ }
+ 
+ void
+@@ -872,33 +474,3 @@ indx(Node *n)
+ 		prtree(idx.basetree, "base");
+ 	}
+ }
+-
+-int
+-bcomplex(Node *n, Node *c)
+-{
+-	Node *b, nod;
+-
+-	complex(n);
+-	if(n->type != T)
+-	if(tcompat(n, T, n->type, tnot))
+-		n->type = T;
+-	if(n->type != T) {
+-		if(c != Z && n->op == OCONST && deadheads(c))
+-			return 1;
+-		if(typev[n->type->etype] && machcap(Z)) {
+-			b = &nod;
+-			b->op = ONE;
+-			b->left = n;
+-			b->right = new(0, Z, Z);
+-			*b->right = *nodconst(0);
+-			b->right->type = n->type;
+-			b->type = types[TLONG];
+-			cgen64(b, Z);
+-			return 0;
+-		}
+-		bool64(n);
+-		boolgen(n, 1, Z);
+-	} else
+-		gbranch(OGOTO);
+-	return 0;
+-}
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 6d693337ae..dc7caf3ece 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -30,58 +30,6 @@
+ 
+ #include "gc.h"
+ 
+-int
+-swcmp(const void *a1, const void *a2)
+-{
+-	C1 *p1, *p2;
+-
+-	p1 = (C1*)a1;
+-	p2 = (C1*)a2;
+-	if(p1->val < p2->val)
+-		return -1;
+-	return  p1->val > p2->val;
+-}
+-
+-void
+-doswit(Node *n)
+-{
+-	Case *c;
+-	C1 *q, *iq;
+-	int32 def, nc, i;
+-
+-	def = 0;
+-	nc = 0;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def) {
+-			if(def)
+-				diag(n, "more than one default in switch");
+-			def = c->label;
+-			continue;
+-		}
+-		nc++;
+-	}
+-
+-	iq = alloc(nc*sizeof(C1));
+-	q = iq;
+-	for(c = cases; c->link != C; c = c->link) {
+-		if(c->def)
+-			continue;
+-		q->label = c->label;
+-		q->val = c->val;
+-		q++;
+-	}
+-	qsort(iq, nc, sizeof(C1), swcmp);
+-	if(debug['W'])
+-	for(i=0; i<nc; i++)
+-		print("case %2ld: = %.8lux\n", i, iq[i].val);
+-	if(def == 0)
+-		def = breakpc;
+-	for(i=0; i<nc-1; i++)
+-		if(iq[i].val == iq[i+1].val)
+-			diag(n, "duplicate cases in switch %ld", iq[i].val);
+-	swit1(iq, nc, def, n);
+-}
+-
+ void
+ swit1(C1 *q, int nc, int32 def, Node *n)
+ {
+@@ -118,16 +66,6 @@ swit1(C1 *q, int nc, int32 def, Node *n)
+ 	swit1(r+1, nc-i-1, def, n);
+ }
+ 
+-void
+-cas(void)
+-{
+-	Case *c;
+-
+-	c = alloc(sizeof(*c));
+-	c->link = cases;
+-	cases = c;
+-}
+-
+ void
+ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ {
+@@ -219,43 +157,6 @@ outstring(char *s, int32 n)
+ 	return r;
+ }
+ 
+-int32
+-outlstring(ushort *s, int32 n)
+-{
+-	char buf[2];
+-	int c;
+-	int32 r;
+-
+-	if(suppress)
+-		return nstring;
+-	while(nstring & 1)
+-		outstring("", 1);
+-	r = nstring;
+-	while(n > 0) {
+-		c = *s++;
+-		if(align(0, types[TCHAR], Aarg1)) {
+-			buf[0] = c>>8;
+-			buf[1] = c;
+-		} else {
+-			buf[0] = c;
+-			buf[1] = c>>8;
+-		}
+-		outstring(buf, 2);
+-		n -= sizeof(ushort);
+-	}
+-	return r;
+-}
+-
+-void
+-nullwarn(Node *l, Node *r)
+-{
+-	warn(Z, "result of operation not used");
+-	if(l != Z)
+-		cgen(l, Z);
+-	if(r != Z)
+-		cgen(r, Z);
+-}
+-
+ void
+ sextern(Sym *s, Node *a, int32 o, int32 w)
+ {
+@@ -585,35 +486,6 @@ zaddr(Biobuf *b, Adr *a, int s)
+ 		Bputc(b, a->type);
+ }
+ 
+-void
+-ieeedtod(Ieee *ieee, double native)
+-{
+-	double fr, ho, f;
+-	int exp;
+-
+-	if(native < 0) {
+-		ieeedtod(ieee, -native);
+-		ieee->h |= 0x80000000L;
+-		return;
+-	}
+-	if(native == 0) {
+-		ieee->l = 0;
+-		ieee->h = 0;
+-		return;
+-	}
+-	fr = frexp(native, &exp);
+-	f = 2097152L;		/* shouldnt use fp constants here */
+-	fr = modf(fr*f, &ho);
+-	ieee->h = ho;
+-	ieee->h &= 0xfffffL;
+-	ieee->h |= (exp+1022L) << 20;
+-	f = 65536L;
+-	fr = modf(fr*f, &ho);
+-	ieee->l = ho;
+-	ieee->l <<= 16;
+-	ieee->l |= (int32)(fr*f);
+-}
+-
+ int32
+ align(int32 i, Type *t, int op)
+ {
+diff --git a/src/cmd/6c/pgen.c b/src/cmd/cc/pgen.c
+similarity index 96%
+rename from src/cmd/6c/pgen.c
+rename to src/cmd/cc/pgen.c
+index 526b17ad73..2b7402f4ea 100644
+--- a/src/cmd/6c/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -60,7 +60,6 @@ codgen(Node *n, Node *nn)
+ {
+ 	Prog *sp;
+ 	Node *n1, nod, nod1;
+-	vlong v;
+ 
+ 	cursafe = 0;
+ 	curarg = 0;
+@@ -79,22 +78,18 @@ codgen(Node *n, Node *nn)
+ 	}
+ 	nearln = nn->lineno;
+ 
+-	v = argsize() << 32;
+-	v |= stkoff & 0xffffffff;
+-
+-	gpseudo(ATEXT, n1->sym, nodgconst(v, types[TVLONG]));
+-	sp = p;
++	p = gtext(n1->sym, stkoff);
+ 
+ 	/*
+ 	 * isolate first argument
+ 	 */
+-	if(REGARG) {	
+-		if(typecmplx[thisfn->link->etype]) {
++	if(REGARG) {
++		if(typesuv[thisfn->link->etype]) {
+ 			nod1 = *nodret->left;
+ 			nodreg(&nod, &nod1, REGARG);
+ 			gmove(&nod, &nod1);
+ 		} else
+-		if(firstarg && typeword[firstargtype->etype]) {
++		if(firstarg && typechlp[firstargtype->etype]) {
+ 			nod1 = *nodret->left;
+ 			nod1.sym = firstarg;
+ 			nod1.type = firstargtype;
+@@ -105,6 +100,9 @@ codgen(Node *n, Node *nn)
+ 		}
+ 	}
+ 
++	sp = p;
++	retok = 0;
++
+ 	canreach = 1;
+ 	warnreach = 1;
+ 	gen(n);
+@@ -115,7 +113,7 @@ codgen(Node *n, Node *nn)
+ 
+ 	if(!debug['N'] || debug['R'] || debug['P'])
+ 		regopt(sp);
+-	
++
+ 	if(thechar=='6' || thechar=='7')	/* [sic] */
+ 		maxargsafe = xround(maxargsafe, 8);
+ 	sp->to.offset += maxargsafe;
+@@ -125,7 +123,7 @@ void
+ supgen(Node *n)
+ {
+ 	int owarn;
+-	int32 spc;
++	long spc;
+ 	Prog *sp;
+ 
+ 	if(n == Z)
+@@ -149,7 +147,7 @@ gen(Node *n)
+ 	Node *l, nod;
+ 	Prog *sp, *spc, *spb;
+ 	Case *cn;
+-	int32 sbc, scc;
++	long sbc, scc;
+ 	int snbreak, sncontin;
+ 	int f, o, oldreach;
+ 
+@@ -563,6 +561,7 @@ usedset(Node *n, int o)
+ int
+ bcomplex(Node *n, Node *c)
+ {
++	Node *b, nod;
+ 
+ 	complex(n);
+ 	if(n->type != T)
+@@ -574,7 +573,19 @@ bcomplex(Node *n, Node *c)
+ 	}
+ 	if(c != Z && n->op == OCONST && deadheads(c))
+ 		return 1;
++	if(typev[n->type->etype] && machcap(Z)) {
++		b = &nod;
++		b->op = ONE;
++		b->left = n;
++		b->right = new(0, Z, Z);
++		*b->right = *nodconst(0);
++		b->right->type = n->type;
++		b->type = types[TLONG];
++		cgen(b, Z);
++		return 0;
++	}
+ 	bool64(n);
+ 	boolgen(n, 1, Z);
+ 	return 0;
+ }
++

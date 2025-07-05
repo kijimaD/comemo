@@ -32,7 +32,7 @@ Date:   Sat Sep 30 16:12:34 2023 +0800
     Run-TryBot: M Zhuo <mzh@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go         | 4 ++++
  src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 3 +++
  src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go | 3 +++
@@ -40,3 +40,100 @@ Date:   Sat Sep 30 16:12:34 2023 +0800
  src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 3 +++
  src/cmd/compile/internal/ssagen/ssa.go          | 2 +-
  6 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index f8cf786920..1100878794 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -695,6 +695,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
++	case ssa.OpRISCV64LoweredPubBarrier:
++		// FENCE
++		s.Prog(v.Op.Asm())
++
+ 	case ssa.OpRISCV64LoweredRound32F, ssa.OpRISCV64LoweredRound64F:
+ 		// input is already rounded
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index e0bf00d45d..e498218c60 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -412,6 +412,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier as intrinsic
++(PubBarrier ...) => (LoweredPubBarrier ...)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 317e9150c9..741769f036 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -399,6 +399,9 @@ func init() {
+ 		// Returns a pointer to a write barrier buffer in X24.
+ 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ (gpMask | regNamed["g"])) | regNamed["X1"], outputs: []regMask{regNamed["X24"]}}, clobberFlags: true, aux: "Int64"},
+ 
++		// Do data barrier. arg0=memorys
++		{name: "LoweredPubBarrier", argLength: 1, asm: "FENCE", hasSideEffects: true},
++
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index db0f9cf291..56404830eb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2429,6 +2429,7 @@ const (
+ 	OpRISCV64LoweredGetCallerSP
+ 	OpRISCV64LoweredGetCallerPC
+ 	OpRISCV64LoweredWB
++	OpRISCV64LoweredPubBarrier
+ 	OpRISCV64LoweredPanicBoundsA
+ 	OpRISCV64LoweredPanicBoundsB
+ 	OpRISCV64LoweredPanicBoundsC
+@@ -32583,6 +32584,13 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredPubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            riscv.AFENCE,
++		reg:            regInfo{},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 0ad6433bf4..1ca03a58a9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -432,6 +432,9 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return true
+ 	case OpPanicBounds:
+ 		return rewriteValueRISCV64_OpPanicBounds(v)
++	case OpPubBarrier:
++		v.Op = OpRISCV64LoweredPubBarrier
++		return true
+ 	case OpRISCV64ADD:
+ 		return rewriteValueRISCV64_OpRISCV64ADD(v)
+ 	case OpRISCV64ADDI:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 845421ca54..af3776c38f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4147,7 +4147,7 @@ func InitTables() {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+ 			return nil
+ 		},
+-		sys.ARM64, sys.PPC64)
++		sys.ARM64, sys.PPC64, sys.RISCV64)
+ 
+ 	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
+ 	if buildcfg.GOPPC64 >= 10 {

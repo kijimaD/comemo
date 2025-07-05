@@ -11,10 +11,88 @@ Date:   Mon Jan 26 09:59:59 2009 -0800
     DELTA=26  (26 added, 0 deleted, 0 changed)
     OCL=23450
     CL=23482
-
+---
  test/bugs/bug133.dir/bug0.go |  7 +++++++
  test/bugs/bug133.dir/bug1.go |  9 +++++++++
  test/bugs/bug133.dir/bug2.go | 16 ++++++++++++++++
  test/bugs/bug133.go          |  7 +++++++
  test/golden.out              |  3 +++
  5 files changed, 42 insertions(+)
+
+diff --git a/test/bugs/bug133.dir/bug0.go b/test/bugs/bug133.dir/bug0.go
+new file mode 100644
+index 0000000000..48cd104c49
+--- /dev/null
++++ b/test/bugs/bug133.dir/bug0.go
+@@ -0,0 +1,7 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug0
++
++type T struct { i int }
+diff --git a/test/bugs/bug133.dir/bug1.go b/test/bugs/bug133.dir/bug1.go
+new file mode 100644
+index 0000000000..2ab5447e3c
+--- /dev/null
++++ b/test/bugs/bug133.dir/bug1.go
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug1
++
++import "bug0"
++
++type T struct { t bug0.T }
+diff --git a/test/bugs/bug133.dir/bug2.go b/test/bugs/bug133.dir/bug2.go
+new file mode 100644
+index 0000000000..bf39f2f6f8
+--- /dev/null
++++ b/test/bugs/bug133.dir/bug2.go
+@@ -0,0 +1,16 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug1
++
++import "bug1"
++import "bug0"
++
++type T2 struct { t bug0.T }
++
++func fn(p *T2) int {
++	// This reference should be invalid, because bug0.T.i is local
++	// to package bug0 and should not be visible in package bug1.
++	return p.t.i
++}
+diff --git a/test/bugs/bug133.go b/test/bugs/bug133.go
+new file mode 100644
+index 0000000000..2beeb074f5
+--- /dev/null
++++ b/test/bugs/bug133.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/bug0.go && $G $D/$F.dir/bug1.go && errchk $G $D/$F.dir/bug2.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored
+diff --git a/test/golden.out b/test/golden.out
+index 163242bc23..c52f213823 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -181,6 +181,9 @@ BUG: should not compile
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug133.go
++BUG: succeeds incorrectly
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

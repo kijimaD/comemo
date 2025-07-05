@@ -14,10 +14,1201 @@ Date:   Thu Jul 30 20:49:29 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  .../archive/{goobj_test.go => archive_test.go}     | 133 +++++-----
  src/cmd/internal/archive/read.go                   | 253 +++++-------------
  src/cmd/internal/archive/readnew.go                | 200 ---------------
  src/cmd/internal/bio/buf.go                        |   7 +-
  src/cmd/internal/objfile/goobj.go                  | 283 +++++++++++++++------
  5 files changed, 341 insertions(+), 535 deletions(-)
+
+diff --git a/src/cmd/internal/archive/goobj_test.go b/src/cmd/internal/archive/archive_test.go
+similarity index 75%
+rename from src/cmd/internal/archive/goobj_test.go
+rename to src/cmd/internal/archive/archive_test.go
+index 4a4d35a413..6ef0b68daa 100644
+--- a/src/cmd/internal/archive/goobj_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package goobj
++package archive
+ 
+ import (
++	"bytes"
+ 	"debug/elf"
+ 	"debug/macho"
+ 	"debug/pe"
+@@ -159,22 +160,23 @@ func TestParseGoobj(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	p, err := Parse(f, "mypkg")
++	a, err := Parse(f)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if p.Arch != runtime.GOARCH {
+-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
++	if len(a.Entries) != 2 {
++		t.Errorf("expect 2 entry, found %d", len(a.Entries))
+ 	}
+-	var found bool
+-	for _, s := range p.Syms {
+-		if s.Name == "mypkg.go1" {
+-			found = true
+-			break
++	for _, e := range a.Entries {
++		if e.Type == EntryPkgDef {
++			continue
++		}
++		if e.Type != EntryGoObj {
++			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
++		}
++		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
++			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
+ 		}
+-	}
+-	if !found {
+-		t.Errorf(`%s: symbol "mypkg.go1" not found`, path)
+ 	}
+ }
+ 
+@@ -187,28 +189,37 @@ func TestParseArchive(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	p, err := Parse(f, "mypkg")
++	a, err := Parse(f)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if p.Arch != runtime.GOARCH {
+-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
++	if len(a.Entries) != 3 {
++		t.Errorf("expect 3 entry, found %d", len(a.Entries))
+ 	}
+ 	var found1 bool
+ 	var found2 bool
+-	for _, s := range p.Syms {
+-		if s.Name == "mypkg.go1" {
++	for _, e := range a.Entries {
++		if e.Type == EntryPkgDef {
++			continue
++		}
++		if e.Type != EntryGoObj {
++			t.Errorf("wrong type of object: wnat EntryGoObj, got %v", e.Type)
++		}
++		if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
++			t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
++		}
++		if e.Name == "go1.o" {
+ 			found1 = true
+ 		}
+-		if s.Name == "mypkg.go2" {
++		if e.Name == "go2.o" {
+ 			found2 = true
+ 		}
+ 	}
+ 	if !found1 {
+-		t.Errorf(`%s: symbol "mypkg.go1" not found`, path)
++		t.Errorf(`object "go1.o" not found`)
+ 	}
+ 	if !found2 {
+-		t.Errorf(`%s: symbol "mypkg.go2" not found`, path)
++		t.Errorf(`object "go2.o" not found`)
+ 	}
+ }
+ 
+@@ -223,41 +234,47 @@ func TestParseCGOArchive(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	p, err := Parse(f, "mycgo")
++	a, err := Parse(f)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if p.Arch != runtime.GOARCH {
+-		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
+-	}
+-	var found1 bool
+-	var found2 bool
+-	for _, s := range p.Syms {
+-		if s.Name == "mycgo.go1" {
+-			found1 = true
+-		}
+-		if s.Name == "mycgo.go2" {
+-			found2 = true
+-		}
+-	}
+-	if !found1 {
+-		t.Errorf(`%s: symbol "mycgo.go1" not found`, path)
+-	}
+-	if !found2 {
+-		t.Errorf(`%s: symbol "mycgo.go2" not found`, path)
+-	}
+ 
+ 	c1 := "c1"
+ 	c2 := "c2"
+-
+-	found1 = false
+-	found2 = false
+-
+ 	switch runtime.GOOS {
+ 	case "darwin":
+ 		c1 = "_" + c1
+ 		c2 = "_" + c2
+-		for _, obj := range p.Native {
++	case "windows":
++		if runtime.GOARCH == "386" {
++			c1 = "_" + c1
++			c2 = "_" + c2
++		}
++	case "aix":
++		c1 = "." + c1
++		c2 = "." + c2
++	}
++
++	var foundgo, found1, found2 bool
++
++	for _, e := range a.Entries {
++		switch e.Type {
++		default:
++			t.Errorf("unknown object type")
++		case EntryPkgDef:
++			continue
++		case EntryGoObj:
++			foundgo = true
++			if !bytes.Contains(e.Obj.TextHeader, []byte(runtime.GOARCH)) {
++				t.Errorf("text header does not contain GOARCH %s: %q", runtime.GOARCH, e.Obj.TextHeader)
++			}
++			continue
++		case EntryNativeObj:
++		}
++
++		obj := io.NewSectionReader(f, e.Offset, e.Size)
++		switch runtime.GOOS {
++		case "darwin":
+ 			mf, err := macho.NewFile(obj)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -273,13 +290,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 					found2 = true
+ 				}
+ 			}
+-		}
+-	case "windows":
+-		if runtime.GOARCH == "386" {
+-			c1 = "_" + c1
+-			c2 = "_" + c2
+-		}
+-		for _, obj := range p.Native {
++		case "windows":
+ 			pf, err := pe.NewFile(obj)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -292,11 +303,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 					found2 = true
+ 				}
+ 			}
+-		}
+-	case "aix":
+-		c1 = "." + c1
+-		c2 = "." + c2
+-		for _, obj := range p.Native {
++		case "aix":
+ 			xf, err := xcoff.NewFile(obj)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -309,10 +316,7 @@ func TestParseCGOArchive(t *testing.T) {
+ 					found2 = true
+ 				}
+ 			}
+-		}
+-
+-	default:
+-		for _, obj := range p.Native {
++		default: // ELF
+ 			ef, err := elf.NewFile(obj)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -332,10 +336,13 @@ func TestParseCGOArchive(t *testing.T) {
+ 		}
+ 	}
+ 
++	if !foundgo {
++		t.Errorf(`go object not found`)
++	}
+ 	if !found1 {
+-		t.Errorf(`%s: symbol %q not found`, path, c1)
++		t.Errorf(`symbol %q not found`, c1)
+ 	}
+ 	if !found2 {
+-		t.Errorf(`%s: symbol %q not found`, path, c2)
++		t.Errorf(`symbol %q not found`, c2)
+ 	}
+ }
+diff --git a/src/cmd/internal/archive/read.go b/src/cmd/internal/archive/read.go
+index cb388a84cd..6875dbce75 100644
+--- a/src/cmd/internal/archive/read.go
++++ b/src/cmd/internal/archive/read.go
+@@ -2,58 +2,22 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package goobj implements reading of Go object files and archives.
+-//
+-// TODO(rsc): Decide where this package should live. (golang.org/issue/6932)
+-// TODO(rsc): Decide the appropriate integer types for various fields.
+-package goobj
++// Package archive implements reading of archive files generated by the Go
++// toolchain.
++package archive
+ 
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/bio"
+ 	"cmd/internal/goobj2"
+-	"cmd/internal/objabi"
+ 	"errors"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ 	"strconv"
+-	"strings"
+ )
+ 
+-// A Sym is a named symbol in an object file.
+-type Sym struct {
+-	SymID                // symbol identifier (name and version)
+-	Kind  objabi.SymKind // kind of symbol
+-	DupOK bool           // are duplicate definitions okay?
+-	Size  int64          // size of corresponding data
+-	Type  SymID          // symbol for Go type information
+-	Data  Data           // memory image of symbol
+-	Reloc []Reloc        // relocations to apply to Data
+-	Func  *Func          // additional data for functions
+-}
+-
+-// A SymID - the combination of Name and Version - uniquely identifies
+-// a symbol within a package.
+-type SymID struct {
+-	// Name is the name of a symbol.
+-	Name string
+-
+-	// Version is zero for symbols with global visibility.
+-	// Symbols with only file visibility (such as file-level static
+-	// declarations in C) have a non-zero version distinguishing
+-	// a symbol in one file from a symbol of the same name
+-	// in another file
+-	Version int64
+-}
+-
+-func (s SymID) String() string {
+-	if s.Version == 0 {
+-		return s.Name
+-	}
+-	return fmt.Sprintf("%s<%d>", s.Name, s.Version)
+-}
+-
+ // A Data is a reference to data stored in an object file.
+ // It records the offset and size of the data, so that a client can
+ // read the data only if necessary.
+@@ -62,88 +26,29 @@ type Data struct {
+ 	Size   int64
+ }
+ 
+-// A Reloc describes a relocation applied to a memory image to refer
+-// to an address within a particular symbol.
+-type Reloc struct {
+-	// The bytes at [Offset, Offset+Size) within the containing Sym
+-	// should be updated to refer to the address Add bytes after the start
+-	// of the symbol Sym.
+-	Offset int64
+-	Size   int64
+-	Sym    SymID
+-	Add    int64
+-
+-	// The Type records the form of address expected in the bytes
+-	// described by the previous fields: absolute, PC-relative, and so on.
+-	// TODO(rsc): The interpretation of Type is not exposed by this package.
+-	Type objabi.RelocType
+-}
+-
+-// A Var describes a variable in a function stack frame: a declared
+-// local variable, an input argument, or an output result.
+-type Var struct {
+-	// The combination of Name, Kind, and Offset uniquely
+-	// identifies a variable in a function stack frame.
+-	// Using fewer of these - in particular, using only Name - does not.
+-	Name   string // Name of variable.
+-	Kind   int64  // TODO(rsc): Define meaning.
+-	Offset int64  // Frame offset. TODO(rsc): Define meaning.
+-
+-	Type SymID // Go type for variable.
++type Archive struct {
++	f       *os.File
++	Entries []Entry
+ }
+ 
+-// Func contains additional per-symbol information specific to functions.
+-type Func struct {
+-	Args     int64                           // size in bytes of argument frame: inputs and outputs
+-	Frame    int64                           // size in bytes of local variable frame
+-	Align    uint32                          // alignment requirement in bytes for the address of the function
+-	Leaf     bool                            // function omits save of link register (ARM)
+-	NoSplit  bool                            // function omits stack split prologue
+-	TopFrame bool                            // function is the top of the call stack
+-	Var      []Var                           // detail about local variables
+-	PCSP     Data                            // PC → SP offset map
+-	PCFile   Data                            // PC → file number map (index into File)
+-	PCLine   Data                            // PC → line number map
+-	PCInline Data                            // PC → inline tree index map
+-	PCData   []Data                          // PC → runtime support data map
+-	FuncData []FuncData                      // non-PC-specific runtime support data
+-	File     map[goobj2.CUFileIndex]struct{} // set of files used in this function
+-	InlTree  []InlinedCall
++type Entry struct {
++	Name string
++	Type EntryType
++	Data
++	Obj *GoObj // nil if this entry is not a Go object file
+ }
+ 
+-// TODO: Add PCData []byte and PCDataIter (similar to liblink).
+-
+-// A FuncData is a single function-specific data value.
+-type FuncData struct {
+-	Sym    SymID // symbol holding data
+-	Offset int64 // offset into symbol for funcdata pointer
+-}
++type EntryType int
+ 
+-// An InlinedCall is a node in an InlTree.
+-// See cmd/internal/obj.InlTree for details.
+-type InlinedCall struct {
+-	Parent   int64
+-	File     goobj2.CUFileIndex
+-	Line     int64
+-	Func     SymID
+-	ParentPC int64
+-}
++const (
++	EntryPkgDef EntryType = iota
++	EntryGoObj
++	EntryNativeObj
++)
+ 
+-// A Package is a parsed Go object file or archive defining a Go package.
+-type Package struct {
+-	ImportPath string          // import path denoting this package
+-	Imports    []string        // packages imported by this package
+-	SymRefs    []SymID         // list of symbol names and versions referred to by this pack
+-	Syms       []*Sym          // symbols defined by this package
+-	MaxVersion int64           // maximum Version in any SymID in Syms
+-	Arch       string          // architecture
+-	Native     []*NativeReader // native object data (e.g. ELF)
+-	FileList   []string        // List of files for this package.
+-}
+-
+-type NativeReader struct {
+-	Name string
+-	io.ReaderAt
++type GoObj struct {
++	TextHeader []byte
++	Data
+ }
+ 
+ var (
+@@ -159,26 +64,20 @@ var (
+ 
+ // An objReader is an object file reader.
+ type objReader struct {
+-	p          *Package
+-	b          *bufio.Reader
+-	f          *os.File
+-	err        error
+-	offset     int64
+-	dataOffset int64
+-	limit      int64
+-	tmp        [256]byte
+-	pkgprefix  string
++	a      *Archive
++	b      *bio.Reader
++	err    error
++	offset int64
++	limit  int64
++	tmp    [256]byte
+ }
+ 
+-// init initializes r to read package p from f.
+-func (r *objReader) init(f *os.File, p *Package) {
+-	r.f = f
+-	r.p = p
++func (r *objReader) init(f *os.File) {
++	r.a = &Archive{f, nil}
+ 	r.offset, _ = f.Seek(0, io.SeekCurrent)
+ 	r.limit, _ = f.Seek(0, io.SeekEnd)
+ 	f.Seek(r.offset, io.SeekStart)
+-	r.b = bufio.NewReader(f)
+-	r.pkgprefix = objabi.PathToPrefix(p.ImportPath) + "."
++	r.b = bio.NewReader(f)
+ }
+ 
+ // error records that an error occurred.
+@@ -278,27 +177,16 @@ func (r *objReader) skip(n int64) {
+ 		r.readFull(r.tmp[:n])
+ 	} else {
+ 		// Seek, giving up buffered data.
+-		_, err := r.f.Seek(r.offset+n, io.SeekStart)
+-		if err != nil {
+-			r.error(err)
+-		}
++		r.b.MustSeek(r.offset+n, io.SeekStart)
+ 		r.offset += n
+-		r.b.Reset(r.f)
+ 	}
+ }
+ 
+-// Parse parses an object file or archive from f,
+-// assuming that its import path is pkgpath.
+-func Parse(f *os.File, pkgpath string) (*Package, error) {
+-	if pkgpath == "" {
+-		pkgpath = `""`
+-	}
+-	p := new(Package)
+-	p.ImportPath = pkgpath
+-
+-	var rd objReader
+-	rd.init(f, p)
+-	err := rd.readFull(rd.tmp[:8])
++// Parse parses an object file or archive from f.
++func Parse(f *os.File) (*Archive, error) {
++	var r objReader
++	r.init(f)
++	t, err := r.peek(8)
+ 	if err != nil {
+ 		if err == io.EOF {
+ 			err = io.ErrUnexpectedEOF
+@@ -310,17 +198,20 @@ func Parse(f *os.File, pkgpath string) (*Package, error) {
+ 	default:
+ 		return nil, errNotObject
+ 
+-	case bytes.Equal(rd.tmp[:8], archiveHeader):
+-		if err := rd.parseArchive(); err != nil {
++	case bytes.Equal(t, archiveHeader):
++		if err := r.parseArchive(); err != nil {
+ 			return nil, err
+ 		}
+-	case bytes.Equal(rd.tmp[:8], goobjHeader):
+-		if err := rd.parseObject(goobjHeader); err != nil {
++	case bytes.Equal(t, goobjHeader):
++		off := r.offset
++		o := &GoObj{}
++		if err := r.parseObject(o, r.limit-off); err != nil {
+ 			return nil, err
+ 		}
++		r.a.Entries = []Entry{{f.Name(), EntryGoObj, Data{off, r.limit - off}, o}}
+ 	}
+ 
+-	return p, nil
++	return r.a, nil
+ }
+ 
+ // trimSpace removes trailing spaces from b and returns the corresponding string.
+@@ -331,6 +222,7 @@ func trimSpace(b []byte) string {
+ 
+ // parseArchive parses a Unix archive of Go object files.
+ func (r *objReader) parseArchive() error {
++	r.readFull(r.tmp[:8]) // consume header (already checked)
+ 	for r.offset < r.limit {
+ 		if err := r.readFull(r.tmp[:60]); err != nil {
+ 			return err
+@@ -371,28 +263,25 @@ func (r *objReader) parseArchive() error {
+ 		}
+ 		switch name {
+ 		case "__.PKGDEF":
++			r.a.Entries = append(r.a.Entries, Entry{name, EntryPkgDef, Data{r.offset, size}, nil})
+ 			r.skip(size)
+ 		default:
+-			oldLimit := r.limit
+-			r.limit = r.offset + size
+-
++			var typ EntryType
++			var o *GoObj
++			offset := r.offset
+ 			p, err := r.peek(8)
+ 			if err != nil {
+ 				return err
+ 			}
+ 			if bytes.Equal(p, goobjHeader) {
+-				if err := r.parseObject(nil); err != nil {
+-					return fmt.Errorf("parsing archive member %q: %v", name, err)
+-				}
++				typ = EntryGoObj
++				o = &GoObj{}
++				r.parseObject(o, size)
+ 			} else {
+-				r.p.Native = append(r.p.Native, &NativeReader{
+-					Name:     name,
+-					ReaderAt: io.NewSectionReader(r.f, r.offset, size),
+-				})
++				typ = EntryNativeObj
++				r.skip(size)
+ 			}
+-
+-			r.skip(r.limit - r.offset)
+-			r.limit = oldLimit
++			r.a.Entries = append(r.a.Entries, Entry{name, typ, Data{offset, size}, o})
+ 		}
+ 		if size&1 != 0 {
+ 			r.skip(1)
+@@ -402,16 +291,12 @@ func (r *objReader) parseArchive() error {
+ }
+ 
+ // parseObject parses a single Go object file.
+-// The prefix is the bytes already read from the file,
+-// typically in order to detect that this is an object file.
+ // The object file consists of a textual header ending in "\n!\n"
+ // and then the part we want to parse begins.
+ // The format of that part is defined in a comment at the top
+ // of src/liblink/objfile.c.
+-func (r *objReader) parseObject(prefix []byte) error {
+-	r.p.MaxVersion++
++func (r *objReader) parseObject(o *GoObj, size int64) error {
+ 	h := make([]byte, 0, 256)
+-	h = append(h, prefix...)
+ 	var c1, c2, c3 byte
+ 	for {
+ 		c1, c2, c3 = c2, c3, r.readByte()
+@@ -425,12 +310,9 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 			break
+ 		}
+ 	}
+-
+-	hs := strings.Fields(string(h))
+-	if len(hs) >= 4 {
+-		r.p.Arch = hs[3]
+-	}
+-	// TODO: extract OS + build ID if/when we need it
++	o.TextHeader = h
++	o.Offset = r.offset
++	o.Size = size - int64(len(h))
+ 
+ 	p, err := r.peek(8)
+ 	if err != nil {
+@@ -439,21 +321,6 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	if !bytes.Equal(p, []byte(goobj2.Magic)) {
+ 		return r.error(errCorruptObject)
+ 	}
+-	r.readNew()
++	r.skip(o.Size)
+ 	return nil
+ }
+-
+-func (r *Reloc) String(insnOffset uint64) string {
+-	delta := r.Offset - int64(insnOffset)
+-	s := fmt.Sprintf("[%d:%d]%s", delta, delta+r.Size, r.Type)
+-	if r.Sym.Name != "" {
+-		if r.Add != 0 {
+-			return fmt.Sprintf("%s:%s+%d", s, r.Sym.Name, r.Add)
+-		}
+-		return fmt.Sprintf("%s:%s", s, r.Sym.Name)
+-	}
+-	if r.Add != 0 {
+-		return fmt.Sprintf("%s:%d", s, r.Add)
+-	}
+-	return s
+-}
+diff --git a/src/cmd/internal/archive/readnew.go b/src/cmd/internal/archive/readnew.go
+deleted file mode 100644
+index 11847942e8..0000000000
+--- a/src/cmd/internal/archive/readnew.go
++++ /dev/null
+@@ -1,200 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package goobj
+-
+-import (
+-	"cmd/internal/goobj2"
+-	"cmd/internal/objabi"
+-	"strings"
+-)
+-
+-// Read object file in new format. For now we still fill
+-// the data to the current goobj API.
+-func (r *objReader) readNew() {
+-	start := uint32(r.offset)
+-
+-	length := r.limit - r.offset
+-	objbytes := make([]byte, length)
+-	r.readFull(objbytes)
+-	rr := goobj2.NewReaderFromBytes(objbytes, false)
+-	if rr == nil {
+-		panic("cannot read object file")
+-	}
+-
+-	// Imports
+-	autolib := rr.Autolib()
+-	for _, p := range autolib {
+-		r.p.Imports = append(r.p.Imports, p.Pkg)
+-		// Ignore fingerprint (for tools like objdump which only reads one object).
+-	}
+-
+-	// Name of referenced indexed symbols.
+-	nrefName := rr.NRefName()
+-	refNames := make(map[goobj2.SymRef]string, nrefName)
+-	for i := 0; i < nrefName; i++ {
+-		rn := rr.RefName(i)
+-		refNames[rn.Sym()] = rn.Name(rr)
+-	}
+-
+-	abiToVer := func(abi uint16) int64 {
+-		var vers int64
+-		if abi == goobj2.SymABIstatic {
+-			// Static symbol
+-			vers = r.p.MaxVersion
+-		}
+-		return vers
+-	}
+-
+-	resolveSymRef := func(s goobj2.SymRef) SymID {
+-		var i uint32
+-		switch p := s.PkgIdx; p {
+-		case goobj2.PkgIdxInvalid:
+-			if s.SymIdx != 0 {
+-				panic("bad sym ref")
+-			}
+-			return SymID{}
+-		case goobj2.PkgIdxHashed64:
+-			i = s.SymIdx + uint32(rr.NSym())
+-		case goobj2.PkgIdxHashed:
+-			i = s.SymIdx + uint32(rr.NSym()+rr.NHashed64def())
+-		case goobj2.PkgIdxNone:
+-			i = s.SymIdx + uint32(rr.NSym()+rr.NHashed64def()+rr.NHasheddef())
+-		case goobj2.PkgIdxBuiltin:
+-			name, abi := goobj2.BuiltinName(int(s.SymIdx))
+-			return SymID{name, int64(abi)}
+-		case goobj2.PkgIdxSelf:
+-			i = s.SymIdx
+-		default:
+-			return SymID{refNames[s], 0}
+-		}
+-		sym := rr.Sym(i)
+-		return SymID{sym.Name(rr), abiToVer(sym.ABI())}
+-	}
+-
+-	// Read things for the current goobj API for now.
+-
+-	// File names
+-	r.p.FileList = make([]string, rr.NFile())
+-	for i := range r.p.FileList {
+-		r.p.FileList[i] = rr.File(i)
+-	}
+-
+-	// Symbols
+-	pcdataBase := start + rr.PcdataBase()
+-	ndef := uint32(rr.NSym() + rr.NHashed64def() + rr.NHasheddef() + rr.NNonpkgdef())
+-	n := ndef + uint32(rr.NNonpkgref())
+-	for i := uint32(0); i < n; i++ {
+-		osym := rr.Sym(i)
+-		if osym.Name(rr) == "" {
+-			continue // not a real symbol
+-		}
+-		// In a symbol name in an object file, "". denotes the
+-		// prefix for the package in which the object file has been found.
+-		// Expand it.
+-		name := strings.ReplaceAll(osym.Name(rr), `"".`, r.pkgprefix)
+-		symID := SymID{Name: name, Version: abiToVer(osym.ABI())}
+-		r.p.SymRefs = append(r.p.SymRefs, symID)
+-
+-		if i >= ndef {
+-			continue // not a defined symbol from here
+-		}
+-
+-		// Symbol data
+-		dataOff := rr.DataOff(i)
+-		siz := int64(rr.DataSize(i))
+-
+-		sym := Sym{
+-			SymID: symID,
+-			Kind:  objabi.SymKind(osym.Type()),
+-			DupOK: osym.Dupok(),
+-			Size:  int64(osym.Siz()),
+-			Data:  Data{int64(start + dataOff), siz},
+-		}
+-		r.p.Syms = append(r.p.Syms, &sym)
+-
+-		// Reloc
+-		relocs := rr.Relocs(i)
+-		sym.Reloc = make([]Reloc, len(relocs))
+-		for j := range relocs {
+-			rel := &relocs[j]
+-			sym.Reloc[j] = Reloc{
+-				Offset: int64(rel.Off()),
+-				Size:   int64(rel.Siz()),
+-				Type:   objabi.RelocType(rel.Type()),
+-				Add:    rel.Add(),
+-				Sym:    resolveSymRef(rel.Sym()),
+-			}
+-		}
+-
+-		// Aux symbol info
+-		isym := ^uint32(0)
+-		funcdata := make([]goobj2.SymRef, 0, 4)
+-		auxs := rr.Auxs(i)
+-		for j := range auxs {
+-			a := &auxs[j]
+-			switch a.Type() {
+-			case goobj2.AuxGotype:
+-				sym.Type = resolveSymRef(a.Sym())
+-			case goobj2.AuxFuncInfo:
+-				if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
+-					panic("funcinfo symbol not defined in current package")
+-				}
+-				isym = a.Sym().SymIdx
+-			case goobj2.AuxFuncdata:
+-				funcdata = append(funcdata, a.Sym())
+-			case goobj2.AuxDwarfInfo, goobj2.AuxDwarfLoc, goobj2.AuxDwarfRanges, goobj2.AuxDwarfLines:
+-				// nothing to do
+-			default:
+-				panic("unknown aux type")
+-			}
+-		}
+-
+-		// Symbol Info
+-		if isym == ^uint32(0) {
+-			continue
+-		}
+-		b := rr.BytesAt(rr.DataOff(isym), rr.DataSize(isym))
+-		info := goobj2.FuncInfo{}
+-		info.Read(b)
+-
+-		info.Pcdata = append(info.Pcdata, info.PcdataEnd) // for the ease of knowing where it ends
+-		f := &Func{
+-			Args:     int64(info.Args),
+-			Frame:    int64(info.Locals),
+-			NoSplit:  osym.NoSplit(),
+-			Leaf:     osym.Leaf(),
+-			TopFrame: osym.TopFrame(),
+-			PCSP:     Data{int64(pcdataBase + info.Pcsp), int64(info.Pcfile - info.Pcsp)},
+-			PCFile:   Data{int64(pcdataBase + info.Pcfile), int64(info.Pcline - info.Pcfile)},
+-			PCLine:   Data{int64(pcdataBase + info.Pcline), int64(info.Pcinline - info.Pcline)},
+-			PCInline: Data{int64(pcdataBase + info.Pcinline), int64(info.Pcdata[0] - info.Pcinline)},
+-			PCData:   make([]Data, len(info.Pcdata)-1), // -1 as we appended one above
+-			FuncData: make([]FuncData, len(info.Funcdataoff)),
+-			File:     make(map[goobj2.CUFileIndex]struct{}, len(info.File)),
+-			InlTree:  make([]InlinedCall, len(info.InlTree)),
+-		}
+-		sym.Func = f
+-		for k := range f.PCData {
+-			f.PCData[k] = Data{int64(pcdataBase + info.Pcdata[k]), int64(info.Pcdata[k+1] - info.Pcdata[k])}
+-		}
+-		for k := range f.FuncData {
+-			symID := resolveSymRef(funcdata[k])
+-			f.FuncData[k] = FuncData{symID, int64(info.Funcdataoff[k])}
+-		}
+-		for _, k := range info.File {
+-			f.File[k] = struct{}{}
+-		}
+-		for k := range f.InlTree {
+-			inl := &info.InlTree[k]
+-			f.InlTree[k] = InlinedCall{
+-				Parent:   int64(inl.Parent),
+-				File:     inl.File,
+-				Line:     int64(inl.Line),
+-				Func:     resolveSymRef(inl.Func),
+-				ParentPC: int64(inl.ParentPC),
+-			}
+-		}
+-	}
+-}
+diff --git a/src/cmd/internal/bio/buf.go b/src/cmd/internal/bio/buf.go
+index 470c9797b2..c4c251490d 100644
+--- a/src/cmd/internal/bio/buf.go
++++ b/src/cmd/internal/bio/buf.go
+@@ -40,7 +40,12 @@ func Open(name string) (*Reader, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return &Reader{f: f, Reader: bufio.NewReader(f)}, nil
++	return NewReader(f), nil
++}
++
++// NewReader returns a Reader from an open file.
++func NewReader(f *os.File) *Reader {
++	return &Reader{f: f, Reader: bufio.NewReader(f)}
+ }
+ 
+ func (r *Reader) MustSeek(offset int64, whence int) int64 {
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index a7e45b9ecb..6bf9d3bf21 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -7,95 +7,207 @@
+ package objfile
+ 
+ import (
+-	goobj "cmd/internal/archive"
++	"cmd/internal/archive"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"debug/dwarf"
+ 	"debug/gosym"
+ 	"errors"
+ 	"fmt"
++	"io"
+ 	"os"
++	"strings"
+ )
+ 
+ type goobjFile struct {
+-	goobj *goobj.Package
+-	f     *os.File // the underlying .o or .a file
++	goobj *archive.GoObj
++	r     *goobj2.Reader
++	f     *os.File
+ }
+ 
+-func openGoFile(r *os.File) (*File, error) {
+-	f, err := goobj.Parse(r, `""`)
++func openGoFile(f *os.File) (*File, error) {
++	a, err := archive.Parse(f)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	rf := &goobjFile{goobj: f, f: r}
+-	if len(f.Native) == 0 {
+-		return &File{r, []*Entry{{raw: rf}}}, nil
+-	}
+-	entries := make([]*Entry, len(f.Native)+1)
+-	entries[0] = &Entry{
+-		raw: rf,
+-	}
++	entries := make([]*Entry, 0, len(a.Entries))
+ L:
+-	for i, nr := range f.Native {
+-		for _, try := range openers {
+-			if raw, err := try(nr); err == nil {
+-				entries[i+1] = &Entry{
+-					name: nr.Name,
+-					raw:  raw,
++	for _, e := range a.Entries {
++		switch e.Type {
++		case archive.EntryPkgDef:
++			continue
++		case archive.EntryGoObj:
++			o := e.Obj
++			b := make([]byte, o.Size)
++			_, err := f.ReadAt(b, o.Offset)
++			if err != nil {
++				return nil, err
++			}
++			r := goobj2.NewReaderFromBytes(b, false)
++			entries = append(entries, &Entry{
++				name: e.Name,
++				raw:  &goobjFile{e.Obj, r, f},
++			})
++			continue
++		case archive.EntryNativeObj:
++			nr := io.NewSectionReader(f, e.Offset, e.Size)
++			for _, try := range openers {
++				if raw, err := try(nr); err == nil {
++					entries = append(entries, &Entry{
++						name: e.Name,
++						raw:  raw,
++					})
++					continue L
+ 				}
+-				continue L
+ 			}
+ 		}
+-		return nil, fmt.Errorf("open %s: unrecognized archive member %s", r.Name(), nr.Name)
++		return nil, fmt.Errorf("open %s: unrecognized archive member %s", f.Name(), e.Name)
+ 	}
+-	return &File{r, entries}, nil
++	return &File{f, entries}, nil
+ }
+ 
+-func goobjName(id goobj.SymID) string {
+-	if id.Version == 0 {
+-		return id.Name
++func goobjName(name string, ver int) string {
++	if ver == 0 {
++		return name
+ 	}
+-	return fmt.Sprintf("%s<%d>", id.Name, id.Version)
++	return fmt.Sprintf("%s<%d>", name, ver)
+ }
+ 
+-func (f *goobjFile) symbols() ([]Sym, error) {
+-	seen := make(map[goobj.SymID]bool)
++type goobjReloc struct {
++	Off  int32
++	Size uint8
++	Type objabi.RelocType
++	Add  int64
++	Sym  string
++}
+ 
++func (r goobjReloc) String(insnOffset uint64) string {
++	delta := int64(r.Off) - int64(insnOffset)
++	s := fmt.Sprintf("[%d:%d]%s", delta, delta+int64(r.Size), r.Type)
++	if r.Sym != "" {
++		if r.Add != 0 {
++			return fmt.Sprintf("%s:%s+%d", s, r.Sym, r.Add)
++		}
++		return fmt.Sprintf("%s:%s", s, r.Sym)
++	}
++	if r.Add != 0 {
++		return fmt.Sprintf("%s:%d", s, r.Add)
++	}
++	return s
++}
++
++func (f *goobjFile) symbols() ([]Sym, error) {
++	r := f.r
+ 	var syms []Sym
+-	for _, s := range f.goobj.Syms {
+-		seen[s.SymID] = true
+-		sym := Sym{Addr: uint64(s.Data.Offset), Name: goobjName(s.SymID), Size: s.Size, Type: s.Type.Name, Code: '?'}
+-		switch s.Kind {
++
++	// Name of referenced indexed symbols.
++	nrefName := r.NRefName()
++	refNames := make(map[goobj2.SymRef]string, nrefName)
++	for i := 0; i < nrefName; i++ {
++		rn := r.RefName(i)
++		refNames[rn.Sym()] = rn.Name(r)
++	}
++
++	abiToVer := func(abi uint16) int {
++		var ver int
++		if abi == goobj2.SymABIstatic {
++			// Static symbol
++			ver = 1
++		}
++		return ver
++	}
++
++	resolveSymRef := func(s goobj2.SymRef) string {
++		var i uint32
++		switch p := s.PkgIdx; p {
++		case goobj2.PkgIdxInvalid:
++			if s.SymIdx != 0 {
++				panic("bad sym ref")
++			}
++			return ""
++		case goobj2.PkgIdxHashed64:
++			i = s.SymIdx + uint32(r.NSym())
++		case goobj2.PkgIdxHashed:
++			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def())
++		case goobj2.PkgIdxNone:
++			i = s.SymIdx + uint32(r.NSym()+r.NHashed64def()+r.NHasheddef())
++		case goobj2.PkgIdxBuiltin:
++			name, abi := goobj2.BuiltinName(int(s.SymIdx))
++			return goobjName(name, abi)
++		case goobj2.PkgIdxSelf:
++			i = s.SymIdx
++		default:
++			return refNames[s]
++		}
++		sym := r.Sym(i)
++		return goobjName(sym.Name(r), abiToVer(sym.ABI()))
++	}
++
++	// Defined symbols
++	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
++	for i := uint32(0); i < ndef; i++ {
++		osym := r.Sym(i)
++		if osym.Name(r) == "" {
++			continue // not a real symbol
++		}
++		name := osym.Name(r)
++		ver := osym.ABI()
++		name = goobjName(name, abiToVer(ver))
++		typ := objabi.SymKind(osym.Type())
++		var code rune = '?'
++		switch typ {
+ 		case objabi.STEXT:
+-			sym.Code = 'T'
++			code = 'T'
+ 		case objabi.SRODATA:
+-			sym.Code = 'R'
++			code = 'R'
+ 		case objabi.SDATA:
+-			sym.Code = 'D'
++			code = 'D'
+ 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+-			sym.Code = 'B'
++			code = 'B'
+ 		}
+-		if s.Version != 0 {
+-			sym.Code += 'a' - 'A'
++		if ver >= goobj2.SymABIstatic {
++			code += 'a' - 'A'
+ 		}
+-		for i, r := range s.Reloc {
+-			sym.Relocs = append(sym.Relocs, Reloc{Addr: uint64(s.Data.Offset) + uint64(r.Offset), Size: uint64(r.Size), Stringer: &s.Reloc[i]})
++
++		sym := Sym{
++			Name: name,
++			Addr: uint64(r.DataOff(i)),
++			Size: int64(osym.Siz()),
++			Code: code,
+ 		}
+-		syms = append(syms, sym)
+-	}
+ 
+-	for _, s := range f.goobj.Syms {
+-		for _, r := range s.Reloc {
+-			if !seen[r.Sym] {
+-				seen[r.Sym] = true
+-				sym := Sym{Name: goobjName(r.Sym), Code: 'U'}
+-				if s.Version != 0 {
+-					// should not happen but handle anyway
+-					sym.Code = 'u'
+-				}
+-				syms = append(syms, sym)
++		relocs := r.Relocs(i)
++		sym.Relocs = make([]Reloc, len(relocs))
++		for j := range relocs {
++			rel := &relocs[j]
++			sym.Relocs[j] = Reloc{
++				Addr: uint64(r.DataOff(i)) + uint64(rel.Off()),
++				Size: uint64(rel.Siz()),
++				Stringer: goobjReloc{
++					Off:  rel.Off(),
++					Size: rel.Siz(),
++					Type: objabi.RelocType(rel.Type()),
++					Add:  rel.Add(),
++					Sym:  resolveSymRef(rel.Sym()),
++				},
+ 			}
+ 		}
++
++		syms = append(syms, sym)
++	}
++
++	// Referenced symbols
++	n := ndef + uint32(r.NNonpkgref())
++	for i := ndef; i < n; i++ {
++		osym := r.Sym(i)
++		sym := Sym{Name: osym.Name(r), Code: 'U'}
++		syms = append(syms, sym)
++	}
++	for i := 0; i < nrefName; i++ {
++		rn := r.RefName(i)
++		sym := Sym{Name: rn.Name(r), Code: 'U'}
++		syms = append(syms, sym)
+ 	}
+ 
+ 	return syms, nil
+@@ -112,9 +224,11 @@ func (f *goobjFile) pcln() (textStart uint64, symtab, pclntab []byte, err error)
+ // This function implements the Liner interface in preference to pcln() above.
+ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 	// TODO: this is really inefficient. Binary search? Memoize last result?
++	r := f.r
+ 	var arch *sys.Arch
++	archname := f.goarch()
+ 	for _, a := range sys.Archs {
+-		if a.Name == f.goobj.Arch {
++		if a.Name == archname {
+ 			arch = a
+ 			break
+ 		}
+@@ -122,29 +236,43 @@ func (f *goobjFile) PCToLine(pc uint64) (string, int, *gosym.Func) {
+ 	if arch == nil {
+ 		return "", 0, nil
+ 	}
+-	for _, s := range f.goobj.Syms {
+-		if pc < uint64(s.Data.Offset) || pc >= uint64(s.Data.Offset+s.Data.Size) {
++	pcdataBase := r.PcdataBase()
++	ndef := uint32(r.NSym() + r.NHashed64def() + r.NHasheddef() + r.NNonpkgdef())
++	for i := uint32(0); i < ndef; i++ {
++		osym := r.Sym(i)
++		addr := uint64(r.DataOff(i))
++		if pc < addr || pc >= addr+uint64(osym.Siz()) {
+ 			continue
+ 		}
+-		if s.Func == nil {
+-			return "", 0, nil
+-		}
+-		pcfile := make([]byte, s.Func.PCFile.Size)
+-		_, err := f.f.ReadAt(pcfile, s.Func.PCFile.Offset)
+-		if err != nil {
+-			return "", 0, nil
++		isym := ^uint32(0)
++		auxs := r.Auxs(i)
++		for j := range auxs {
++			a := &auxs[j]
++			if a.Type() != goobj2.AuxFuncInfo {
++				continue
++			}
++			if a.Sym().PkgIdx != goobj2.PkgIdxSelf {
++				panic("funcinfo symbol not defined in current package")
++			}
++			isym = a.Sym().SymIdx
+ 		}
+-		fileID := int(pcValue(pcfile, pc-uint64(s.Data.Offset), arch))
+-		fileName := f.goobj.FileList[fileID]
+-		pcline := make([]byte, s.Func.PCLine.Size)
+-		_, err = f.f.ReadAt(pcline, s.Func.PCLine.Offset)
+-		if err != nil {
+-			return "", 0, nil
++		if isym == ^uint32(0) {
++			continue
+ 		}
+-		line := int(pcValue(pcline, pc-uint64(s.Data.Offset), arch))
++		b := r.BytesAt(r.DataOff(isym), r.DataSize(isym))
++		var info *goobj2.FuncInfo
++		lengths := info.ReadFuncInfoLengths(b)
++		off, end := info.ReadPcline(b)
++		pcline := r.BytesAt(pcdataBase+off, int(end-off))
++		line := int(pcValue(pcline, pc-addr, arch))
++		off, end = info.ReadPcfile(b)
++		pcfile := r.BytesAt(pcdataBase+off, int(end-off))
++		fileID := pcValue(pcfile, pc-addr, arch)
++		globalFileID := info.ReadFile(b, lengths.FileOff, uint32(fileID))
++		fileName := r.File(int(globalFileID))
+ 		// Note: we provide only the name in the Func structure.
+ 		// We could provide more if needed.
+-		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: s.Name}}
++		return fileName, line, &gosym.Func{Sym: &gosym.Sym{Name: osym.Name(r)}}
+ 	}
+ 	return "", 0, nil
+ }
+@@ -198,18 +326,17 @@ func readvarint(p *[]byte) uint32 {
+ 
+ // We treat the whole object file as the text section.
+ func (f *goobjFile) text() (textStart uint64, text []byte, err error) {
+-	var info os.FileInfo
+-	info, err = f.f.Stat()
+-	if err != nil {
+-		return
+-	}
+-	text = make([]byte, info.Size())
+-	_, err = f.f.ReadAt(text, 0)
++	text = make([]byte, f.goobj.Size)
++	_, err = f.f.ReadAt(text, int64(f.goobj.Offset))
+ 	return
+ }
+ 
+ func (f *goobjFile) goarch() string {
+-	return f.goobj.Arch
++	hs := strings.Fields(string(f.goobj.TextHeader))
++	if len(hs) >= 4 {
++		return hs[3]
++	}
++	return ""
+ }
+ 
+ func (f *goobjFile) loadAddress() (uint64, error) {

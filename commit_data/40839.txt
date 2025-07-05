@@ -11,8 +11,77 @@ Date:   Wed Jul 17 18:55:18 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.13.html                   | 11 +++++++++++
  src/cmd/go/alldocs.go             | 11 +++++++----
  src/cmd/go/internal/modget/get.go | 11 +++++++----
  3 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 2b56f756e1..11190a1611 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -282,6 +282,17 @@ go env -w GOSUMDB=off
+   major and minor versions as the version found in the build list.
+ </p>
+ 
++<p><!-- CL 184440 -->
++  If a module passed as an argument to <code>go</code> <code>get</code>
++  without a version suffix is already required at a newer version than the
++  latest released version, it will remain at the newer version. This is
++  consistent with the behavior of the <code>-u</code> flag for module
++  dependencies. This prevents unexpected downgrades from pre-release versions.
++  The new version suffix <code>@upgrade</code> explicitly requests this
++  behavior. <code>@latest</code> explicitly requests the latest version
++  regardless of the current version.
++</p>
++
+ <h4 id="version-validation">Version validation</h4><!-- CL 181881 -->
+ 
+ <p>
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7999024ce2..42b02c8171 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -566,11 +566,14 @@
+ // The first step is to resolve which dependencies to add.
+ //
+ // For each named package or package pattern, get must decide which version of
+-// the corresponding module to use. By default, get chooses the latest tagged
++// the corresponding module to use. By default, get looks up the latest tagged
+ // release version, such as v0.4.5 or v1.2.3. If there are no tagged release
+-// versions, get chooses the latest tagged pre-release version, such as
+-// v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
+-// known commit.
++// versions, get looks up the latest tagged pre-release version, such as
++// v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
++// known commit. If the module is not already required at a later version
++// (for example, a pre-release newer than the latest release), get will use
++// the version it looked up. Otherwise, get will use the currently
++// required version.
+ //
+ // This default version selection can be overridden by adding an @version
+ // suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 58aa7e3181..84b1ac1b01 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -39,11 +39,14 @@ and then builds and installs them.
+ The first step is to resolve which dependencies to add.
+ 
+ For each named package or package pattern, get must decide which version of
+-the corresponding module to use. By default, get chooses the latest tagged
++the corresponding module to use. By default, get looks up the latest tagged
+ release version, such as v0.4.5 or v1.2.3. If there are no tagged release
+-versions, get chooses the latest tagged pre-release version, such as
+-v0.0.1-pre1. If there are no tagged versions at all, get chooses the latest
+-known commit.
++versions, get looks up the latest tagged pre-release version, such as
++v0.0.1-pre1. If there are no tagged versions at all, get looks up the latest
++known commit. If the module is not already required at a later version
++(for example, a pre-release newer than the latest release), get will use
++the version it looked up. Otherwise, get will use the currently
++required version.
+ 
+ This default version selection can be overridden by adding an @version
+ suffix to the package argument, as in 'go get golang.org/x/text@v0.3.0'.

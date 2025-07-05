@@ -40,7 +40,7 @@ Date:   Mon Nov 4 19:43:45 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205317
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 12 ++++++------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules     |  2 +-
@@ -58,3 +58,351 @@ Date:   Mon Nov 4 19:43:45 2019 -0500
  src/math/fma.go                                |  5 +++--
  test/codegen/math.go                           |  2 +-
  16 files changed, 44 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f76b6d4c02..6b5a6a3bdf 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3561,12 +3561,12 @@ func init() {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[TFLOAT64], args[0], args[1])
+ 		},
+ 		sys.PPC64, sys.Wasm)
+-	addF("math", "Fma",
++	addF("math", "FMA",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			return s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
++			return s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
+ 		},
+ 		sys.ARM64, sys.PPC64, sys.S390X)
+-	addF("math", "Fma",
++	addF("math", "FMA",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if !s.config.UseFMA {
+ 				a := s.call(n, callNormal)
+@@ -3587,7 +3587,7 @@ func init() {
+ 
+ 			// We have the intrinsic - use it directly.
+ 			s.startBlock(bTrue)
+-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
++			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
+ 			s.endBlock().AddEdgeTo(bEnd)
+ 
+ 			// Call the pure Go version.
+@@ -3601,7 +3601,7 @@ func init() {
+ 			return s.variable(n, types.Types[TFLOAT64])
+ 		},
+ 		sys.AMD64)
+-	addF("math", "Fma",
++	addF("math", "FMA",
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			if !s.config.UseFMA {
+ 				a := s.call(n, callNormal)
+@@ -3622,7 +3622,7 @@ func init() {
+ 
+ 			// We have the intrinsic - use it directly.
+ 			s.startBlock(bTrue)
+-			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
++			s.vars[n] = s.newValue3(ssa.OpFMA, types.Types[TFLOAT64], args[0], args[1], args[2])
+ 			s.endBlock().AddEdgeTo(bEnd)
+ 
+ 			// Call the pure Go version.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 65f229169a..2d662d5ae6 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -110,7 +110,7 @@
+ (Floor x)	-> (ROUNDSD [1] x)
+ (Ceil x)  	-> (ROUNDSD [2] x)
+ (Trunc x) 	-> (ROUNDSD [3] x)
+-(Fma x y z) -> (VFMADD231SD z x y)
++(FMA x y z) -> (VFMADD231SD z x y)
+ 
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index c1c73e23ec..160545e02b 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -211,7 +211,7 @@
+ (Round(32|64)F x) -> x
+ 
+ // fused-multiply-add
+-(Fma x y z) -> (FMULAD z x y)
++(FMA x y z) -> (FMULAD z x y)
+ 
+ // comparisons
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index f0033a0526..a9bf64488e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -90,7 +90,7 @@
+ (Round x) -> (FRINTAD x)
+ (RoundToEven x) -> (FRINTND x)
+ (Trunc x) -> (FRINTZD x)
+-(Fma x y z) -> (FMADDD z x y)
++(FMA x y z) -> (FMADDD z x y)
+ 
+ // lowering rotates
+ (RotateLeft8 <t> x (MOVDconst [c])) -> (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index 13fe1ab2e9..fc37074117 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -68,7 +68,7 @@
+ (Round x) -> (FROUND x)
+ (Copysign x y) -> (FCPSGN y x)
+ (Abs x) -> (FABS x)
+-(Fma x y z) -> (FMADD x y z)
++(FMA x y z) -> (FMADD x y z)
+ 
+ // Lowering constants
+ (Const(64|32|16|8)  [val]) -> (MOVDconst [val])
+@@ -1349,7 +1349,7 @@
+ 
+ // The 2 byte store appears after the 4 byte store so that the
+ // match for the 2 byte store is not done first.
+-// If the 4 byte store is based on the 2 byte store then there are 
++// If the 4 byte store is based on the 2 byte store then there are
+ // variations on the MOVDaddr subrule that would require additional
+ // rules to be written.
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 2c56c66581..3635aeb915 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -139,7 +139,7 @@
+ (Trunc       x) -> (FIDBR [5] x)
+ (RoundToEven x) -> (FIDBR [4] x)
+ (Round       x) -> (FIDBR [1] x)
+-(Fma     x y z) -> (FMADD z x y)
++(FMA     x y z) -> (FMADD z x y)
+ 
+ // Atomic loads and stores.
+ // The SYNC instruction (fast-BCR-serialization) prevents store-load
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 1ffca8118f..aa9d570396 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -314,7 +314,7 @@ var genericOps = []opData{
+ 	//
+ 	// When the multiply is an infinity times a zero, the result is NaN.
+ 	// See section 7.2 in ieee754.
+-	{name: "Fma", argLength: 3}, // compute (a*b)+c without intermediate rounding
++	{name: "FMA", argLength: 3}, // compute (a*b)+c without intermediate rounding
+ 
+ 	// Data movement. Max argument length for Phi is indefinite.
+ 	{name: "Phi", argLength: -1, zeroWidth: true}, // select an argument based on which predecessor block we came from
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e9a709467e..f4370bc38d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2428,7 +2428,7 @@ const (
+ 	OpRoundToEven
+ 	OpAbs
+ 	OpCopysign
+-	OpFma
++	OpFMA
+ 	OpPhi
+ 	OpCopy
+ 	OpConvert
+@@ -30743,7 +30743,7 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Fma",
++		name:    "FMA",
+ 		argLen:  3,
+ 		generic: true,
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4f02554e1a..4945d1974e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -770,8 +770,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpEqPtr_0(v)
+ 	case OpFloor:
+ 		return rewriteValueAMD64_OpFloor_0(v)
+-	case OpFma:
+-		return rewriteValueAMD64_OpFma_0(v)
++	case OpFMA:
++		return rewriteValueAMD64_OpFMA_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueAMD64_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -52222,8 +52222,8 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueAMD64_OpFma_0(v *Value) bool {
+-	// match: (Fma x y z)
++func rewriteValueAMD64_OpFMA_0(v *Value) bool {
++	// match: (FMA x y z)
+ 	// result: (VFMADD231SD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 8cb534d8f6..fb7a7570f2 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -538,8 +538,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpEqB_0(v)
+ 	case OpEqPtr:
+ 		return rewriteValueARM_OpEqPtr_0(v)
+-	case OpFma:
+-		return rewriteValueARM_OpFma_0(v)
++	case OpFMA:
++		return rewriteValueARM_OpFMA_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueARM_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -17161,8 +17161,8 @@ func rewriteValueARM_OpEqPtr_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpFma_0(v *Value) bool {
+-	// match: (Fma x y z)
++func rewriteValueARM_OpFMA_0(v *Value) bool {
++	// match: (FMA x y z)
+ 	// result: (FMULAD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index e9bde5ec8a..c372865d0a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -573,8 +573,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpEqPtr_0(v)
+ 	case OpFloor:
+ 		return rewriteValueARM64_OpFloor_0(v)
+-	case OpFma:
+-		return rewriteValueARM64_OpFma_0(v)
++	case OpFMA:
++		return rewriteValueARM64_OpFMA_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueARM64_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -28583,8 +28583,8 @@ func rewriteValueARM64_OpFloor_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpFma_0(v *Value) bool {
+-	// match: (Fma x y z)
++func rewriteValueARM64_OpFMA_0(v *Value) bool {
++	// match: (FMA x y z)
+ 	// result: (FMADDD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index a95364ece4..4d282a6730 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -183,8 +183,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpEqPtr_0(v)
+ 	case OpFloor:
+ 		return rewriteValuePPC64_OpFloor_0(v)
+-	case OpFma:
+-		return rewriteValuePPC64_OpFma_0(v)
++	case OpFMA:
++		return rewriteValuePPC64_OpFMA_0(v)
+ 	case OpGeq16:
+ 		return rewriteValuePPC64_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -2007,8 +2007,8 @@ func rewriteValuePPC64_OpFloor_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpFma_0(v *Value) bool {
+-	// match: (Fma x y z)
++func rewriteValuePPC64_OpFMA_0(v *Value) bool {
++	// match: (FMA x y z)
+ 	// result: (FMADD x y z)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 645e8f2d9a..429e3d5be0 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -168,8 +168,8 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpEqPtr_0(v)
+ 	case OpFloor:
+ 		return rewriteValueS390X_OpFloor_0(v)
+-	case OpFma:
+-		return rewriteValueS390X_OpFma_0(v)
++	case OpFMA:
++		return rewriteValueS390X_OpFMA_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueS390X_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -1939,8 +1939,8 @@ func rewriteValueS390X_OpFloor_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpFma_0(v *Value) bool {
+-	// match: (Fma x y z)
++func rewriteValueS390X_OpFMA_0(v *Value) bool {
++	// match: (FMA x y z)
+ 	// result: (FMADD z x y)
+ 	for {
+ 		z := v.Args[2]
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index e8fa2b8b66..e9621e6dc9 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -3053,11 +3053,11 @@ func TestYn(t *testing.T) {
+ 	}
+ }
+ 
+-func TestFma(t *testing.T) {
++func TestFMA(t *testing.T) {
+ 	for _, c := range fmaC {
+-		got := Fma(c.x, c.y, c.z)
++		got := FMA(c.x, c.y, c.z)
+ 		if !alike(got, c.want) {
+-			t.Errorf("Fma(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
++			t.Errorf("FMA(%g,%g,%g) == %g; want %g", c.x, c.y, c.z, got, c.want)
+ 		}
+ 	}
+ }
+@@ -3793,10 +3793,10 @@ func BenchmarkFloat32frombits(b *testing.B) {
+ 	GlobalF = float64(x)
+ }
+ 
+-func BenchmarkFma(b *testing.B) {
++func BenchmarkFMA(b *testing.B) {
+ 	x := 0.0
+ 	for i := 0; i < b.N; i++ {
+-		x = Fma(E, Pi, x)
++		x = FMA(E, Pi, x)
+ 	}
+ 	GlobalF = x
+ }
+diff --git a/src/math/fma.go b/src/math/fma.go
+index 76249229b2..db78dfa5e1 100644
+--- a/src/math/fma.go
++++ b/src/math/fma.go
+@@ -90,8 +90,9 @@ func split(b uint64) (sign uint32, exp int32, mantissa uint64) {
+ 	return
+ }
+ 
+-// Fma returns x * y + z, computed with only one rounding.
+-func Fma(x, y, z float64) float64 {
++// FMA returns x * y + z, computed with only one rounding.
++// (That is, FMA returns the fused multiply-add of x, y, and z.)
++func FMA(x, y, z float64) float64 {
+ 	bx, by, bz := Float64bits(x), Float64bits(y), Float64bits(z)
+ 
+ 	// Inf or NaN or zero involved. At most one rounding will occur.
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 751406d732..80e5d60d96 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -114,7 +114,7 @@ func fma(x, y, z float64) float64 {
+ 	// s390x:"FMADD"
+ 	// ppc64:"FMADD"
+ 	// ppc64le:"FMADD"
+-	return math.Fma(x, y, z)
++	return math.FMA(x, y, z)
+ }
+ 
+ func fromFloat64(f64 float64) uint64 {

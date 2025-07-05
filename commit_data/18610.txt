@@ -22,7 +22,7 @@ Date:   Mon Feb 24 10:57:46 2014 -0500
     R=golang-codereviews, dvyukov, alex.brainman, stephen.gutekanst, dave, rsc, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/53010043
-
+---
  src/pkg/net/fd_poll_runtime.go    |  5 ++++-
  src/pkg/runtime/netpoll.goc       |  5 +++++
  src/pkg/runtime/sys_linux_386.s   |  4 ++--
@@ -32,3 +32,158 @@ Date:   Mon Feb 24 10:57:46 2014 -0500
  src/pkg/time/sleep.go             | 12 +++++-------
  src/pkg/time/tick.go              |  2 +-
  8 files changed, 24 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/fd_poll_runtime.go b/src/pkg/net/fd_poll_runtime.go
+index e2b2768864..549e19cd3f 100644
+--- a/src/pkg/net/fd_poll_runtime.go
++++ b/src/pkg/net/fd_poll_runtime.go
+@@ -12,6 +12,9 @@ import (
+ 	"time"
+ )
+ 
++// runtimeNano returns the current value of the runtime clock in nanoseconds.
++func runtimeNano() int64
++
+ func runtime_pollServerInit()
+ func runtime_pollOpen(fd uintptr) (uintptr, int)
+ func runtime_pollClose(ctx uintptr)
+@@ -128,7 +131,7 @@ func (fd *netFD) setWriteDeadline(t time.Time) error {
+ }
+ 
+ func setDeadlineImpl(fd *netFD, t time.Time, mode int) error {
+-	d := t.UnixNano()
++	d := runtimeNano() + int64(t.Sub(time.Now()))
+ 	if t.IsZero() {
+ 		d = 0
+ 	}
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 3f00707337..e78c02c9a7 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -83,6 +83,11 @@ static FuncVal deadlineFn	= {(void(*)(void))deadline};
+ static FuncVal readDeadlineFn	= {(void(*)(void))readDeadline};
+ static FuncVal writeDeadlineFn	= {(void(*)(void))writeDeadline};
+ 
++// runtimeNano returns the current value of the runtime clock in nanoseconds.
++func runtimeNano() (ns int64) {
++	ns = runtime·nanotime();
++}
++
+ func runtime_pollServerInit() {
+ 	runtime·netpollinit();
+ }
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index fcda739db4..cdd729957c 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -106,7 +106,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-24
+ // func now() (sec int64, nsec int32)
+ TEXT time·now(SB), NOSPLIT, $32
+ 	MOVL	$265, AX			// syscall - clock_gettime
+-	MOVL	$0, BX
++	MOVL	$0, BX		// CLOCK_REALTIME
+ 	LEAL	8(SP), CX
+ 	MOVL	$0, DX
+ 	CALL	*runtime·_vdso(SB)
+@@ -123,7 +123,7 @@ TEXT time·now(SB), NOSPLIT, $32
+ // void nanotime(int64 *nsec)
+ TEXT runtime·nanotime(SB), NOSPLIT, $32
+ 	MOVL	$265, AX			// syscall - clock_gettime
+-	MOVL	$0, BX
++	MOVL	$1, BX		// CLOCK_MONOTONIC
+ 	LEAL	8(SP), CX
+ 	MOVL	$0, DX
+ 	CALL	*runtime·_vdso(SB)
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 481841a674..74dc871db7 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -136,7 +136,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$16
+ 	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
+ 	CMPQ	AX, $0
+ 	JEQ	fallback_gtod_nt
+-	MOVL	$0, DI // CLOCK_REALTIME
++	MOVL	$1, DI // CLOCK_MONOTONIC
+ 	LEAQ	0(SP), SI
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+diff --git a/src/pkg/runtime/time.goc b/src/pkg/runtime/time.goc
+index 061d01cf2d..e73a364a1a 100644
+--- a/src/pkg/runtime/time.goc
++++ b/src/pkg/runtime/time.goc
+@@ -26,6 +26,11 @@ static void dumptimers(int8*);
+ 
+ // time.now is implemented in assembly.
+ 
++// runtimeNano returns the current value of the runtime clock in nanoseconds.
++func runtimeNano() (ns int64) {
++	ns = runtime·nanotime();
++}
++
+ // Sleep puts the current goroutine to sleep for at least ns nanoseconds.
+ func Sleep(ns int64) {
+ 	runtime·tsleep(ns, "sleep");
+diff --git a/src/pkg/time/internal_test.go b/src/pkg/time/internal_test.go
+index 4ba6d478de..2243d3668d 100644
+--- a/src/pkg/time/internal_test.go
++++ b/src/pkg/time/internal_test.go
+@@ -29,7 +29,7 @@ func CheckRuntimeTimerOverflow() error {
+ 	// detection logic in NewTimer: we're testing the underlying
+ 	// runtime.addtimer function.
+ 	r := &runtimeTimer{
+-		when: nano() + (1<<63 - 1),
++		when: runtimeNano() + (1<<63 - 1),
+ 		f:    empty,
+ 		arg:  nil,
+ 	}
+diff --git a/src/pkg/time/sleep.go b/src/pkg/time/sleep.go
+index 4f55bebe62..6a03f417bd 100644
+--- a/src/pkg/time/sleep.go
++++ b/src/pkg/time/sleep.go
+@@ -8,10 +8,8 @@ package time
+ // A negative or zero duration causes Sleep to return immediately.
+ func Sleep(d Duration)
+ 
+-func nano() int64 {
+-	sec, nsec := now()
+-	return sec*1e9 + int64(nsec)
+-}
++// runtimeNano returns the current value of the runtime clock in nanoseconds.
++func runtimeNano() int64
+ 
+ // Interface to timers implemented in package runtime.
+ // Must be in sync with ../runtime/runtime.h:/^struct.Timer$
+@@ -29,9 +27,9 @@ type runtimeTimer struct {
+ // zero because of an overflow, MaxInt64 is returned.
+ func when(d Duration) int64 {
+ 	if d <= 0 {
+-		return nano()
++		return runtimeNano()
+ 	}
+-	t := nano() + int64(d)
++	t := runtimeNano() + int64(d)
+ 	if t < 0 {
+ 		t = 1<<63 - 1 // math.MaxInt64
+ 	}
+@@ -92,7 +90,7 @@ func sendTime(now int64, c interface{}) {
+ 	// the desired behavior when the reader gets behind,
+ 	// because the sends are periodic.
+ 	select {
+-	case c.(chan Time) <- Unix(0, now):
++	case c.(chan Time) <- Now():
+ 	default:
+ 	}
+ }
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 3b42b66cfe..19007841e1 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -29,7 +29,7 @@ func NewTicker(d Duration) *Ticker {
+ 	t := &Ticker{
+ 		C: c,
+ 		r: runtimeTimer{
+-			when:   nano() + int64(d),
++			when:   when(d),
+ 			period: int64(d),
+ 			f:      sendTime,
+ 			arg:    c,

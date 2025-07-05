@@ -17,7 +17,135 @@ Date:   Fri Feb 17 16:07:47 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 43 ++++++++++++++++++++------------
  test/inline_literal.go             | 50 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 77 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 6e3ee91ae3..6b8c958d91 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -977,7 +977,12 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		return n
+ 
+ 	case OLITERAL, OTYPE:
+-		return n
++		// If n is a named constant or type, we can continue
++		// using it in the inline copy. Otherwise, make a copy
++		// so we can update the line number.
++		if n.Sym != nil {
++			return n
++		}
+ 
+ 		// Since we don't handle bodies with closures, this return is guaranteed to belong to the current inlined function.
+ 
+@@ -1015,24 +1020,24 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		m.Left = newname(lookup(p))
+ 
+ 		return m
+-	default:
+-		m := nod(OXXX, nil, nil)
+-		*m = *n
+-		m.Ninit.Set(nil)
+-
+-		if n.Op == OCLOSURE {
+-			Fatalf("cannot inline function containing closure: %+v", n)
+-		}
++	}
+ 
+-		m.Left = subst.node(n.Left)
+-		m.Right = subst.node(n.Right)
+-		m.List.Set(subst.list(n.List))
+-		m.Rlist.Set(subst.list(n.Rlist))
+-		m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
+-		m.Nbody.Set(subst.list(n.Nbody))
++	m := nod(OXXX, nil, nil)
++	*m = *n
++	m.Ninit.Set(nil)
+ 
+-		return m
++	if n.Op == OCLOSURE {
++		Fatalf("cannot inline function containing closure: %+v", n)
+ 	}
++
++	m.Left = subst.node(n.Left)
++	m.Right = subst.node(n.Right)
++	m.List.Set(subst.list(n.List))
++	m.Rlist.Set(subst.list(n.Rlist))
++	m.Ninit.Set(append(m.Ninit.Slice(), subst.list(n.Ninit)...))
++	m.Nbody.Set(subst.list(n.Nbody))
++
++	return m
+ }
+ 
+ // setPos is a visitor to update position info with a new inlining index.
+@@ -1051,6 +1056,12 @@ func (s *setPos) node(n *Node) {
+ 	if n == nil {
+ 		return
+ 	}
++	if n.Op == OLITERAL || n.Op == OTYPE {
++		if n.Sym != nil {
++			// This node is not a copy, so don't clobber position.
++			return
++		}
++	}
+ 
+ 	// don't clobber names, unless they're freshly synthesized
+ 	if n.Op != ONAME || !n.Pos.IsKnown() {
+diff --git a/test/inline_literal.go b/test/inline_literal.go
+new file mode 100644
+index 0000000000..53c6c05b18
+--- /dev/null
++++ b/test/inline_literal.go
+@@ -0,0 +1,50 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"log"
++	"reflect"
++	"runtime"
++)
++
++func hello() string {
++	return "Hello World" // line 16
++}
++
++func foo() string { // line 19
++	x := hello() // line 20
++	y := hello() // line 21
++	return x + y // line 22
++}
++
++func bar() string {
++	x := hello() // line 26
++	return x
++}
++
++// funcPC returns the PC for the func value f.
++func funcPC(f interface{}) uintptr {
++	return reflect.ValueOf(f).Pointer()
++}
++
++// Test for issue #15453. Previously, line 26 would appear in foo().
++func main() {
++	pc := funcPC(foo)
++	f := runtime.FuncForPC(pc)
++	for ; runtime.FuncForPC(pc) == f; pc++ {
++		file, line := f.FileLine(pc)
++		if line == 0 {
++			continue
++		}
++		// Line 16 can appear inside foo() because PC-line table has
++		// innermost line numbers after inlining.
++		if line != 16 && !(line >= 19 && line <= 22) {
++			log.Fatalf("unexpected line at PC=%d: %s:%d\n", pc, file, line)
++		}
++	}
++}

@@ -25,7 +25,86 @@ Date:   Thu Jun 28 16:22:21 2018 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/schedule.go | 22 +++++++++++++++++++++-
  test/fixedbugs/issue26105.go             | 25 +++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index f1783a9532..c62c0c47e2 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -310,6 +310,7 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 	// A constant bound allows this to be stack-allocated. 64 is
+ 	// enough to cover almost every storeOrder call.
+ 	stores := make([]*Value, 0, 64)
++	var vardefs map[interface{}]*Value // OpAddr must depend on Vardef for Node
+ 	hasNilCheck := false
+ 	sset.clear() // sset is the set of stores that are used in other values
+ 	for _, v := range values {
+@@ -323,6 +324,12 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 		if v.Op == OpNilCheck {
+ 			hasNilCheck = true
+ 		}
++		if v.Op == OpVarDef {
++			if vardefs == nil { // Lazy init, not all blocks have vardefs
++				vardefs = make(map[interface{}]*Value)
++			}
++			vardefs[v.Aux] = v
++		}
+ 	}
+ 	if len(stores) == 0 || !hasNilCheck && f.pass.name == "nilcheckelim" {
+ 		// there is no store, the order does not matter
+@@ -386,7 +393,20 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 				stack = stack[:len(stack)-1]
+ 				continue
+ 			}
+-
++			if w.Op == OpAddr {
++				// OpAddr depends only on relevant VarDef
++				vn := int32(0)
++				if vardefs != nil {
++					if a := vardefs[w.Aux]; a != nil { // if nil, it is in some other block, or global or arg
++						vn = storeNumber[a.ID]
++					}
++				}
++				vn += 2
++				storeNumber[w.ID] = vn
++				count[vn]++
++				stack = stack[:len(stack)-1]
++				continue
++			}
+ 			max := int32(0) // latest store dependency
+ 			argsdone := true
+ 			for _, a := range w.Args {
+diff --git a/test/fixedbugs/issue26105.go b/test/fixedbugs/issue26105.go
+new file mode 100644
+index 0000000000..88a5f162f3
+--- /dev/null
++++ b/test/fixedbugs/issue26105.go
+@@ -0,0 +1,25 @@
++// compile
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Triggers a bug in writebarrier, which inserts one
++// between (first block) OpAddr x and (second block) a VarDef x,
++// which are then in the wrong order and unable to be
++// properly scheduled.
++
++package q
++
++var S interface{}
++
++func F(n int) {
++	fun := func(x int) int {
++		S = 1
++		return n
++	}
++	i := fun(([]int{})[n])
++
++	var fc [2]chan int
++	S = (([1][2]chan int{fc})[i][i])
++}

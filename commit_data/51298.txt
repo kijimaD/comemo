@@ -23,10 +23,120 @@ Date:   Wed Jan 5 16:19:19 2022 +0700
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go        |  5 ++++
  src/cmd/compile/internal/typecheck/subr.go |  2 +-
  test/typeparam/issue50437.dir/a.go         | 43 ++++++++++++++++++++++++++++++
  test/typeparam/issue50437.dir/b.go         | 11 ++++++++
  test/typeparam/issue50437.go               |  7 +++++
  5 files changed, 67 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ed81ef7bc0..669e53d932 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -248,7 +248,12 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		// If any new fully-instantiated types were referenced during
+ 		// inlining, we need to create needed instantiations.
+ 		if len(typecheck.GetInstTypeList()) > 0 {
++			// typecheck.IncrementalAddrtaken must be false when loading
++			// an inlined body. See comment in typecheck.ImportedBody function.
++			old := typecheck.IncrementalAddrtaken
++			typecheck.IncrementalAddrtaken = false
+ 			noder.BuildInstantiations(false)
++			typecheck.IncrementalAddrtaken = old
+ 		}
+ 	}
+ 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 5b5b043715..da5e9645ea 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -80,7 +80,7 @@ func markAddrOf(n ir.Node) ir.Node {
+ 	if IncrementalAddrtaken {
+ 		// We can only do incremental addrtaken computation when it is ok
+ 		// to typecheck the argument of the OADDR. That's only safe after the
+-		// main typecheck has completed.
++		// main typecheck has completed, and not loading the inlined body.
+ 		// The argument to OADDR needs to be typechecked because &x[i] takes
+ 		// the address of x if x is an array, but not if x is a slice.
+ 		// Note: OuterValue doesn't work correctly until n is typechecked.
+diff --git a/test/typeparam/issue50437.dir/a.go b/test/typeparam/issue50437.dir/a.go
+new file mode 100644
+index 0000000000..4a136b52ae
+--- /dev/null
++++ b/test/typeparam/issue50437.dir/a.go
+@@ -0,0 +1,43 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type MarshalOptions struct {
++	*typedArshalers[MarshalOptions]
++}
++
++func Marshal(in interface{}) (out []byte, err error) {
++	return MarshalOptions{}.Marshal(in)
++}
++
++func (mo MarshalOptions) Marshal(in interface{}) (out []byte, err error) {
++	err = mo.MarshalNext(in)
++	return nil, err
++}
++
++func (mo MarshalOptions) MarshalNext(in interface{}) error {
++	a := new(arshaler)
++	a.marshal = func(MarshalOptions) error { return nil }
++	return a.marshal(mo)
++}
++
++type arshaler struct {
++	marshal func(MarshalOptions) error
++}
++
++type typedArshalers[Options any] struct {
++	m M
++}
++
++func (a *typedArshalers[Options]) lookup(fnc func(Options) error) (func(Options) error, bool) {
++	a.m.Load(nil)
++	return fnc, false
++}
++
++type M struct {}
++
++func (m *M) Load(key any) (value any, ok bool) {
++	return
++}
+diff --git a/test/typeparam/issue50437.dir/b.go b/test/typeparam/issue50437.dir/b.go
+new file mode 100644
+index 0000000000..afddc3f330
+--- /dev/null
++++ b/test/typeparam/issue50437.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func f() {
++	a.Marshal(map[int]int{})
++}
+diff --git a/test/typeparam/issue50437.go b/test/typeparam/issue50437.go
+new file mode 100644
+index 0000000000..87b4ff46c1
+--- /dev/null
++++ b/test/typeparam/issue50437.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

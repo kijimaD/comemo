@@ -12,6 +12,20 @@ Date:   Fri Sep 26 15:15:48 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/146340044
-
+---
  src/cmd/go/pkg.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index eafaa8ee67..7f7a3b04fd 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -690,7 +690,7 @@ func computeStale(pkgs ...*Package) {
+ // "go1.X[.Y]" for Go releases, and "devel +hash" at tip.
+ // Determine whether we are in a released copy by
+ // inspecting the version.
+-var isGoRelease = !strings.HasPrefix(runtime.Version(), "go1")
++var isGoRelease = strings.HasPrefix(runtime.Version(), "go1")
+ 
+ // isStale reports whether package p needs to be rebuilt.
+ func isStale(p *Package, topRoot map[string]bool) bool {

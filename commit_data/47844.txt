@@ -16,6 +16,21 @@ Date:   Tue Apr 13 18:01:59 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 8b30632665..42d9d58971 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -306,8 +306,7 @@ func (o *orderState) mapKeyTemp(t *types.Type, n ir.Node) ir.Node {
+ 		if kt.Align < nt.Align {
+ 			base.Fatalf("mapKeyTemp: key type is not sufficiently aligned, kt=%v nt=%v", kt, nt)
+ 		}
+-		clear := base.Flag.Cfg.Instrumenting // clear tmp if instrumenting, as it may be live at an inserted race call
+-		tmp := o.newTemp(kt, clear)
++		tmp := o.newTemp(kt, true)
+ 		// *(*nt)(&tmp) = n
+ 		var e ir.Node = typecheck.NodAddr(tmp)
+ 		e = ir.NewConvExpr(n.Pos(), ir.OCONVNOP, nt.PtrTo(), e)

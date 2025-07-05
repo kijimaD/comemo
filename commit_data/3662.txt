@@ -12,10 +12,210 @@ Date:   Tue Oct 27 16:08:12 2009 -0700
     
     R=rsc
     http://go/go-review/1015016
-
+---
  doc/style.css          |  5 ++++
  lib/godoc/godoc.html   | 22 ++++++++--------
  lib/godoc/search.html  |  2 +-
  src/cmd/godoc/godoc.go |  1 +
  src/cmd/godoc/index.go | 68 +++++++++++++++++++++++++++++++++++++++++---------
  5 files changed, 74 insertions(+), 24 deletions(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index 84c29c077b..d2dd7c9022 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -167,6 +167,11 @@ span.highlight {
+ /* ------------------------------------------------------------------------- */
+ /* Styles used by infoClassFmt */
+ 
++a.package {
++  text-decoration: none;
++  background-color: #FFFFFF;
++}
++
+ a.import {
+   text-decoration: none;
+   background-color: #D8D8D8;
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index b77a1301bb..df8ee882a0 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -25,26 +25,26 @@
+ 
+ <div id="linkList">
+   <ul>
+-    <li class="navhead"><a href="/">Home</a></li>
++    <li class="navhead"><a href="/" class="noline">Home</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Documents</li>
+-    <li><a href="/doc/go_spec.html">Language Specification</a></li>
+-    <li><a href="/doc/go_mem.html">Memory Model</a></li>
+-    <li><a href="/doc/go_tutorial.html">Tutorial</a></li>
+-    <li><a href="/doc/effective_go.html">Effective Go</a></li>
+-    <li><a href="/doc/go_faq.html">FAQ</a></li>
+-    <li><a href="/doc/go_lang_faq.html">Language Design FAQ</a></li>
+-    <li><a href="/doc/go_for_cpp_programmers.html">Go for C++ Programmers</a></li>
++    <li><a href="/doc/go_spec.html" class="noline">Language Specification</a></li>
++    <li><a href="/doc/go_mem.html" class="noline">Memory Model</a></li>
++    <li><a href="/doc/go_tutorial.html" class="noline">Tutorial</a></li>
++    <li><a href="/doc/effective_go.html" class="noline">Effective Go</a></li>
++    <li><a href="/doc/go_faq.html" class="noline">FAQ</a></li>
++    <li><a href="/doc/go_lang_faq.html" class="noline">Language Design FAQ</a></li>
++    <li><a href="/doc/go_for_cpp_programmers.html" class="noline">Go for C++ Programmers</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">How To</li>
+-    <li><a href="/doc/install.html">Install Go</a></li>
+-    <li><a href="/doc/contribute.html">Contribute code</a></li>
++    <li><a href="/doc/install.html" class="noline">Install Go</a></li>
++    <li><a href="/doc/contribute.html" class="noline">Contribute code</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Programming</li>
+-    <li><a href="/pkg">Package documentation</a></li>
++    <li><a href="/pkg" class="noline">Package documentation</a></li>
+ 
+     <li class="blank">&nbsp;</li>
+     <li class="navhead">Go code search</li>
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 419a9f8d0d..e054dd5b0b 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -25,7 +25,7 @@
+ 			<h3>package {Pak.Name|html}</h3>
+ 			{.repeated section Files}
+ 				{.repeated section Infos}
+-					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}">{File.Path|html}:{@|infoLine}</a>
++					<a href="{File.Path|html}?h={Query|html}#L{@|infoLine}" class="noline">{File.Path|html}:{@|infoLine}</a>
+ 					<pre>{@|infoSnippet}</pre>
+ 				{.end}
+ 			{.end}
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 168c816f92..845c9e510b 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -349,6 +349,7 @@ func linkFmt(w io.Writer, x interface{}, format string) {
+ 
+ 
+ var infoClasses = [nKinds]string{
++	"package",	// PackageClause
+ 	"import",	// ImportDecl
+ 	"const",	// ConstDecl
+ 	"type",	// TypeDecl
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index 1cd6c5ca5d..9db87a7d44 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -101,7 +101,8 @@ type SpotInfo uint32
+ type SpotKind uint32
+ 
+ const (
+-	ImportDecl	SpotKind	= iota;
++	PackageClause	SpotKind	= iota;
++	ImportDecl;
+ 	ConstDecl;
+ 	TypeDecl;
+ 	VarDecl;
+@@ -112,6 +113,15 @@ const (
+ )
+ 
+ 
++func init() {
++	// sanity check: if nKinds is too large, the SpotInfo
++	// accessor functions may need to be updated
++	if nKinds > 8 {
++		panic();
++	}
++}
++
++
+ // makeSpotInfo makes a SpotInfo.
+ func makeSpotInfo(kind SpotKind, lori int, isIndex bool) SpotInfo {
+ 	// encode lori: bits [4..32)
+@@ -159,8 +169,9 @@ type Pak struct {
+ }
+ 
+ 
++// Paks are sorted by name (primary key) and by import path (secondary key).
+ func (p *Pak) less(q *Pak) bool {
+-	return p.Path < q.Path || p.Name < q.Name;
++	return p.Name < q.Name || p.Name == q.Name && p.Path < q.Path;
+ }
+ 
+ 
+@@ -196,24 +207,46 @@ type FileRun struct {
+ }
+ 
+ 
++func (f *FileRun) Len() int {
++	return len(f.Infos);
++}
++func (f *FileRun) Less(i, j int) bool {
++	return f.Infos[i].less(f.Infos[j]);
++}
++func (f *FileRun) Swap(i, j int) {
++	f.Infos[i], f.Infos[j] = f.Infos[j], f.Infos[i];
++}
++
++
+ // newFileRun allocates a new *FileRun from the Spot run [i, j) in h.
+ func newFileRun(h *RunList, i, j int) interface{} {
+ 	file := h.At(i).(Spot).File;
+-	lines := make([]SpotInfo, j-i);
+-	prev := 0;
++	infos := make([]SpotInfo, j-i);
+ 	k := 0;
+ 	for ; i < j; i++ {
+-		info := h.At(i).(Spot).Info;
+-		// ignore line duplicates
+-		// (if lori is a snippet index it is unique - no need to check IsIndex())
+-		lori := info.Lori();
+-		if lori != prev {
+-			lines[k] = info;
+-			prev = lori;
++		infos[k] = h.At(i).(Spot).Info;
++		k++;
++	}
++	run := &FileRun{file, infos};
++	// Spots were sorted by file to create this run.
++	// Within this run, sort them by line number.
++	sort.Sort(run);
++	// Remove duplicates: Both the lori and kind field
++	// must be the same for duplicate, and since the
++	// isIndex field is always the same for all infos
++	// in one list we can simply compare the entire
++	// info.
++	k = 0;
++	var prev SpotInfo;
++	for i, x := range infos {
++		if x != prev || i == 0 {
++			infos[k] = x;
+ 			k++;
++			prev = x;
+ 		}
+ 	}
+-	return &FileRun{file, lines[0:k]};
++	run.Infos = infos[0:k];
++	return run;
+ }
+ 
+ 
+@@ -500,6 +533,17 @@ func (x *Indexer) Visit(node interface{}) bool {
+ 			ast.Walk(x, n.Type);
+ 		}
+ 
++	case *ast.File:
++		x.visitComment(n.Doc);
++		x.decl = nil;
++		x.visitIdent(PackageClause, n.Name);
++		for _, d := range n.Decls {
++			ast.Walk(x, d);
++		}
++		// don't visit package level comments for now
++		// to avoid duplicate visiting from individual
++		// nodes
++
+ 	default:
+ 		return true;
+ 	}

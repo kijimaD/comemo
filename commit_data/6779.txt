@@ -9,10 +9,278 @@ Date:   Fri Nov 19 16:17:58 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3183043
-
+---
  src/pkg/crypto/cipher/Makefile     |  4 +-
  src/pkg/crypto/cipher/cfb.go       | 64 +++++++++++++++++++++++++++
  src/pkg/crypto/cipher/cfb_test.go  | 35 +++++++++++++++
  src/pkg/crypto/cipher/ocfb.go      | 91 ++++++++++++++++++++++++++++++++++++++
  src/pkg/crypto/cipher/ocfb_test.go | 39 ++++++++++++++++
  5 files changed, 232 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/cipher/Makefile b/src/pkg/crypto/cipher/Makefile
+index 6ebfe79f30..d7e8a7a13a 100644
+--- a/src/pkg/crypto/cipher/Makefile
++++ b/src/pkg/crypto/cipher/Makefile
+@@ -9,6 +9,8 @@ GOFILES=\
+ 	cbc.go\
+ 	cipher.go\
+ 	ctr.go\
+-	io.go
++	io.go\
++	ocfb.go\
++	cfb.go
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/crypto/cipher/cfb.go b/src/pkg/crypto/cipher/cfb.go
+new file mode 100644
+index 0000000000..d14165a865
+--- /dev/null
++++ b/src/pkg/crypto/cipher/cfb.go
+@@ -0,0 +1,64 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CFB (Cipher Feedback) Mode.
++
++package cipher
++
++type cfb struct {
++	b       Block
++	out     []byte
++	outUsed int
++	decrypt bool
++}
++
++// NewCFBEncrypter returns a Stream which encrypts with cipher feedback mode,
++// using the given Block. The iv must be the same length as the Block's block
++// size.
++func NewCFBEncrypter(block Block, iv []byte) Stream {
++	return newCFB(block, iv, false)
++}
++
++// NewCFBDecrypter returns a Stream which decrypts with cipher feedback mode,
++// using the given Block. The iv must be the same length as the Block's block
++// size.
++func NewCFBDecrypter(block Block, iv []byte) Stream {
++	return newCFB(block, iv, true)
++}
++
++func newCFB(block Block, iv []byte, decrypt bool) Stream {
++	blockSize := block.BlockSize()
++	if len(iv) != blockSize {
++		return nil
++	}
++
++	x := &cfb{
++		b:       block,
++		out:     make([]byte, blockSize),
++		outUsed: 0,
++		decrypt: decrypt,
++	}
++	block.Encrypt(x.out, iv)
++
++	return x
++}
++
++func (x *cfb) XORKeyStream(dst, src []byte) {
++	for i := 0; i < len(src); i++ {
++		if x.outUsed == len(x.out) {
++			x.b.Encrypt(x.out, x.out)
++			x.outUsed = 0
++		}
++
++		if x.decrypt {
++			t := src[i]
++			dst[i] = src[i] ^ x.out[x.outUsed]
++			x.out[x.outUsed] = t
++		} else {
++			x.out[x.outUsed] ^= src[i]
++			dst[i] = x.out[x.outUsed]
++		}
++		x.outUsed++
++	}
++}
+diff --git a/src/pkg/crypto/cipher/cfb_test.go b/src/pkg/crypto/cipher/cfb_test.go
+new file mode 100644
+index 0000000000..9547bfceb7
+--- /dev/null
++++ b/src/pkg/crypto/cipher/cfb_test.go
+@@ -0,0 +1,35 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++import (
++	"bytes"
++	"crypto/aes"
++	"crypto/rand"
++	"testing"
++)
++
++func TestCFB(t *testing.T) {
++	block, err := aes.NewCipher(commonKey128)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	plaintext := []byte("this is the plaintext")
++	iv := make([]byte, block.BlockSize())
++	rand.Reader.Read(iv)
++	cfb := NewCFBEncrypter(block, iv)
++	ciphertext := make([]byte, len(plaintext))
++	cfb.XORKeyStream(ciphertext, plaintext)
++
++	cfbdec := NewCFBDecrypter(block, iv)
++	plaintextCopy := make([]byte, len(plaintext))
++	cfbdec.XORKeyStream(plaintextCopy, ciphertext)
++
++	if !bytes.Equal(plaintextCopy, plaintext) {
++		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)
++	}
++}
+diff --git a/src/pkg/crypto/cipher/ocfb.go b/src/pkg/crypto/cipher/ocfb.go
+new file mode 100644
+index 0000000000..08565dc5f8
+--- /dev/null
++++ b/src/pkg/crypto/cipher/ocfb.go
+@@ -0,0 +1,91 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// OpenPGP CFB Mode. http://tools.ietf.org/html/rfc4880#section-13.9
++
++package cipher
++
++type ocfb struct {
++	b       Block
++	fre     []byte
++	outUsed int
++}
++
++// NewOCFBEncrypter returns a Stream which encrypts data with OpenPGP's cipher
++// feedback mode using the given Block, and an initial amount of ciphertext.
++// randData must be random bytes and be the same length as the Block's block
++// size.
++func NewOCFBEncrypter(block Block, randData []byte) (Stream, []byte) {
++	blockSize := block.BlockSize()
++	if len(randData) != blockSize {
++		return nil, nil
++	}
++
++	x := &ocfb{
++		b:       block,
++		fre:     make([]byte, blockSize),
++		outUsed: 0,
++	}
++	prefix := make([]byte, blockSize+2)
++
++	block.Encrypt(x.fre, x.fre)
++	for i := 0; i < blockSize; i++ {
++		prefix[i] = randData[i] ^ x.fre[i]
++	}
++
++	block.Encrypt(x.fre, prefix[:blockSize])
++	prefix[blockSize] = x.fre[0] ^ randData[blockSize-2]
++	prefix[blockSize+1] = x.fre[1] ^ randData[blockSize-1]
++
++	block.Encrypt(x.fre, prefix[2:])
++	return x, prefix
++}
++
++// NewOCFBDecrypter returns a Stream which decrypts data with OpenPGP's cipher
++// feedback mode using the given Block. Prefix must be the first blockSize + 2
++// bytes of the ciphertext, where blockSize is the Block's block size. If an
++// incorrect key is detected then nil is returned.
++func NewOCFBDecrypter(block Block, prefix []byte) Stream {
++	blockSize := block.BlockSize()
++	if len(prefix) != blockSize+2 {
++		return nil
++	}
++
++	x := &ocfb{
++		b:       block,
++		fre:     make([]byte, blockSize),
++		outUsed: 0,
++	}
++	prefixCopy := make([]byte, len(prefix))
++	copy(prefixCopy, prefix)
++
++	block.Encrypt(x.fre, x.fre)
++	for i := 0; i < blockSize; i++ {
++		prefixCopy[i] ^= x.fre[i]
++	}
++
++	block.Encrypt(x.fre, prefix[:blockSize])
++	prefixCopy[blockSize] ^= x.fre[0]
++	prefixCopy[blockSize+1] ^= x.fre[1]
++
++	if prefixCopy[blockSize-2] != prefixCopy[blockSize] ||
++		prefixCopy[blockSize-1] != prefixCopy[blockSize+1] {
++		return nil
++	}
++
++	block.Encrypt(x.fre, prefix[2:])
++	return x
++}
++
++func (x *ocfb) XORKeyStream(dst, src []byte) {
++	for i := 0; i < len(src); i++ {
++		if x.outUsed == len(x.fre) {
++			x.b.Encrypt(x.fre, x.fre)
++			x.outUsed = 0
++		}
++
++		dst[i] = x.fre[x.outUsed] ^ src[i]
++		x.outUsed++
++	}
++}
+diff --git a/src/pkg/crypto/cipher/ocfb_test.go b/src/pkg/crypto/cipher/ocfb_test.go
+new file mode 100644
+index 0000000000..289bb7c91e
+--- /dev/null
++++ b/src/pkg/crypto/cipher/ocfb_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher
++
++import (
++	"bytes"
++	"crypto/aes"
++	"crypto/rand"
++	"testing"
++)
++
++func TestOCFB(t *testing.T) {
++	block, err := aes.NewCipher(commonKey128)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	plaintext := []byte("this is the plaintext")
++	randData := make([]byte, block.BlockSize())
++	rand.Reader.Read(randData)
++	ocfb, prefix := NewOCFBEncrypter(block, randData)
++	ciphertext := make([]byte, len(plaintext))
++	ocfb.XORKeyStream(ciphertext, plaintext)
++
++	ocfbdec := NewOCFBDecrypter(block, prefix)
++	if ocfbdec == nil {
++		t.Error("NewOCFBDecrypter failed")
++		return
++	}
++	plaintextCopy := make([]byte, len(plaintext))
++	ocfbdec.XORKeyStream(plaintextCopy, ciphertext)
++
++	if !bytes.Equal(plaintextCopy, plaintext) {
++		t.Errorf("got: %x, want: %x", plaintextCopy, plaintext)
++	}
++}

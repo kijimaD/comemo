@@ -28,7 +28,7 @@ Date:   Mon Jun 16 23:51:18 2014 -0700
     TBR=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/105260044
-
+---
  src/cmd/gc/fmt.c   | 2 +-
  src/cmd/gc/go.h    | 2 --
  src/cmd/gc/go.y    | 2 --
@@ -36,3 +36,105 @@ Date:   Mon Jun 16 23:51:18 2014 -0700
  src/cmd/gc/pgen.c  | 2 --
  src/cmd/gc/y.tab.c | 2 --
  6 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 8c2f8b98f1..b5f8a834f1 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -649,7 +649,7 @@ typefmt(Fmt *fp, Type *t)
+ 
+ 		if(t->funarg) {
+ 			fmtstrcpy(fp, "(");
+-			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape"/"nosplit" tags
++			if(fmtmode == FTypeId || fmtmode == FErr) {	// no argument names on function signature, and no "noescape" tags
+ 				for(t1=t->type; t1!=T; t1=t1->down)
+ 					if(t1->down)
+ 						fmtprint(fp, "%hT, ", t1);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index a5a464e23d..413e71069d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -269,7 +269,6 @@ struct	Node
+ 	uchar	colas;		// OAS resulting from :=
+ 	uchar	diag;		// already printed error about this
+ 	uchar	noescape;	// func arguments do not escape
+-	uchar	nosplit;	// func should not execute on separate stack
+ 	uchar	builtin;	// built-in name, like len or close
+ 	uchar	walkdef;
+ 	uchar	typecheck;
+@@ -981,7 +980,6 @@ EXTERN	char*	flag_installsuffix;
+ EXTERN	int	flag_race;
+ EXTERN	int	flag_largemodel;
+ EXTERN	int	noescape;
+-EXTERN	int	nosplit;
+ EXTERN	int	debuglive;
+ EXTERN	Link*	ctxt;
+ 
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index e351fa731c..2f354f723f 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1311,7 +1311,6 @@ xfndcl:
+ 		$$->nbody = $3;
+ 		$$->endlineno = lineno;
+ 		$$->noescape = noescape;
+-		$$->nosplit = nosplit;
+ 		funcbody($$);
+ 	}
+ 
+@@ -1496,7 +1495,6 @@ xdcl_list:
+ 			testdclstack();
+ 		nointerface = 0;
+ 		noescape = 0;
+-		nosplit = 0;
+ 	}
+ 
+ vardcl_list:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c90cbef890..a50101c429 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1592,10 +1592,6 @@ go:
+ 		noescape = 1;
+ 		goto out;
+ 	}
+-	if(strcmp(lexbuf, "go:nosplit") == 0) {
+-		nosplit = 1;
+-		goto out;
+-	}
+ 	
+ out:
+ 	return c;
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index cabba6824e..40620c3dad 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -229,8 +229,6 @@ compile(Node *fn)
+ 		ptxt->TEXTFLAG |= WRAPPER;
+ 	if(fn->needctxt)
+ 		ptxt->TEXTFLAG |= NEEDCTXT;
+-	if(fn->nosplit)
+-		ptxt->TEXTFLAG |= NOSPLIT;
+ 
+ 	// Clumsy but important.
+ 	// See test/recover.go for test cases and src/pkg/reflect/value.go
+diff --git a/src/cmd/gc/y.tab.c b/src/cmd/gc/y.tab.c
+index c389f2324d..08d8ecff20 100644
+--- a/src/cmd/gc/y.tab.c
++++ b/src/cmd/gc/y.tab.c
+@@ -3828,7 +3828,6 @@ yyreduce:
+ 		(yyval.node)->nbody = (yyvsp[(3) - (3)].list);
+ 		(yyval.node)->endlineno = lineno;
+ 		(yyval.node)->noescape = noescape;
+-		(yyval.node)->nosplit = nosplit;
+ 		funcbody((yyval.node));
+ 	}
+     break;
+@@ -4038,7 +4037,6 @@ yyreduce:
+ 			testdclstack();
+ 		nointerface = 0;
+ 		noescape = 0;
+-		nosplit = 0;
+ 	}
+     break;
+ 

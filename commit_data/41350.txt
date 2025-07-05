@@ -7,6 +7,20 @@ Date:   Thu Sep 26 10:07:34 2019 +0200
     Change-Id: I59446965b198767af60d617da29b5c2e457829ba
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197477
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  SECURITY.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/SECURITY.md b/SECURITY.md
+index 35995eeb68..9e92e8b1ea 100644
+--- a/SECURITY.md
++++ b/SECURITY.md
+@@ -2,7 +2,7 @@
+ 
+ ## Supported Versions
+ 
+-We support the past two Go releases (for example, Go 1.11.x and Go 1.12.x).
++We support the past two Go releases (for example, Go 1.12.x and Go 1.13.x).
+ 
+ See https://golang.org/wiki/Go-Release-Cycle and in particular the
+ [Release Maintenance](https://github.com/golang/go/wiki/Go-Release-Cycle#release-maintenance)

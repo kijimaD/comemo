@@ -18,6 +18,61 @@ Date:   Thu Nov 17 17:38:20 2022 +0100
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/io/fs/walk_test.go | 22 ++++++++--------------
  1 file changed, 8 insertions(+), 14 deletions(-)
+
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index 04358beb24..40f4e1ab9d 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -53,7 +53,7 @@ func walkTree(n *Node, path string, f func(path string, n *Node)) {
+ 	}
+ }
+ 
+-func makeTree(t *testing.T) FS {
++func makeTree() FS {
+ 	fsys := fstest.MapFS{}
+ 	walkTree(tree, tree.name, func(path string, n *Node) {
+ 		if n.entries == nil {
+@@ -65,17 +65,6 @@ func makeTree(t *testing.T) FS {
+ 	return fsys
+ }
+ 
+-func markTree(n *Node) { walkTree(n, "", func(path string, n *Node) { n.mark++ }) }
+-
+-func checkMarks(t *testing.T, report bool) {
+-	walkTree(tree, tree.name, func(path string, n *Node) {
+-		if n.mark != 1 && report {
+-			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
+-		}
+-		n.mark = 0
+-	})
+-}
+-
+ // Assumes that each node name is unique. Good enough for a test.
+ // If clear is true, any incoming error is cleared before return. The errors
+ // are always accumulated, though.
+@@ -108,7 +97,7 @@ func TestWalkDir(t *testing.T) {
+ 	}
+ 	defer os.Chdir(origDir)
+ 
+-	fsys := makeTree(t)
++	fsys := makeTree()
+ 	errors := make([]error, 0, 10)
+ 	clear := true
+ 	markFn := func(path string, entry DirEntry, err error) error {
+@@ -122,7 +111,12 @@ func TestWalkDir(t *testing.T) {
+ 	if len(errors) != 0 {
+ 		t.Fatalf("unexpected errors: %s", errors)
+ 	}
+-	checkMarks(t, true)
++	walkTree(tree, tree.name, func(path string, n *Node) {
++		if n.mark != 1 {
++			t.Errorf("node %s mark = %d; expected 1", path, n.mark)
++		}
++		n.mark = 0
++	})
+ }
+ 
+ func TestIssue51617(t *testing.T) {

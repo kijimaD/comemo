@@ -9,6 +9,25 @@ Date:   Tue Dec 13 14:40:28 2011 -0500
     R=agl, bradfitz
     CC=golang-dev, rsc
     https://golang.org/cl/5477079
-
+---
  src/pkg/crypto/ocsp/ocsp_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/ocsp/ocsp_test.go b/src/pkg/crypto/ocsp/ocsp_test.go
+index bacca558b4..49d8ea29b9 100644
+--- a/src/pkg/crypto/ocsp/ocsp_test.go
++++ b/src/pkg/crypto/ocsp/ocsp_test.go
+@@ -23,11 +23,11 @@ func TestOCSPDecode(t *testing.T) {
+ 		NextUpdate:       time.Date(2010, 7, 7, 18, 35, 17, 0, time.UTC),
+ 	}
+ 
+-	if !reflect.DeepEqual(resp.ThisUpdate, resp.ThisUpdate) {
++	if !reflect.DeepEqual(resp.ThisUpdate, expected.ThisUpdate) {
+ 		t.Errorf("resp.ThisUpdate: got %d, want %d", resp.ThisUpdate, expected.ThisUpdate)
+ 	}
+ 
+-	if !reflect.DeepEqual(resp.NextUpdate, resp.NextUpdate) {
++	if !reflect.DeepEqual(resp.NextUpdate, expected.NextUpdate) {
+ 		t.Errorf("resp.NextUpdate: got %d, want %d", resp.NextUpdate, expected.NextUpdate)
+ 	}
+ 

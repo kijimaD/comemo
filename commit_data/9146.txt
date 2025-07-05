@@ -10,6 +10,105 @@ Date:   Wed Jul 20 14:28:55 2011 -0400
     R=rsc, ken
     CC=golang-dev
     https://golang.org/cl/4816041
-
+---
  src/pkg/runtime/chan.c | 34 +++++++++-------------------------
  1 file changed, 9 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 926bde723c..0fdf771968 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -6,6 +6,7 @@
+ #include "type.h"
+ 
+ #define	MAXALIGN	7
++#define	NOSELGEN	1
+ 
+ static	int32	debug	= 0;
+ 
+@@ -87,7 +88,6 @@ static	SudoG*	dequeue(WaitQ*, Hchan*);
+ static	void	enqueue(WaitQ*, SudoG*);
+ static	SudoG*	allocsg(Hchan*);
+ static	void	freesg(Hchan*, SudoG*);
+-static	uint32	fastrandn(uint32);
+ static	void	destroychan(Hchan*);
+ 
+ Hchan*
+@@ -215,7 +215,7 @@ runtime·chansend(Hchan *c, byte *ep, bool *pres)
+ 
+ 	mysg.elem = ep;
+ 	mysg.g = g;
+-	mysg.selgen = g->selgen;
++	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->sendq, &mysg);
+@@ -243,7 +243,7 @@ asynch:
+ 		}
+ 		mysg.g = g;
+ 		mysg.elem = nil;
+-		mysg.selgen = g->selgen;
++		mysg.selgen = NOSELGEN;
+ 		g->status = Gwaiting;
+ 		enqueue(&c->sendq, &mysg);
+ 		runtime·unlock(c);
+@@ -322,7 +322,7 @@ runtime·chanrecv(Hchan* c, byte *ep, bool *selected, bool *received)
+ 
+ 	mysg.elem = ep;
+ 	mysg.g = g;
+-	mysg.selgen = g->selgen;
++	mysg.selgen = NOSELGEN;
+ 	g->param = nil;
+ 	g->status = Gwaiting;
+ 	enqueue(&c->recvq, &mysg);
+@@ -354,7 +354,7 @@ asynch:
+ 		}
+ 		mysg.g = g;
+ 		mysg.elem = nil;
+-		mysg.selgen = g->selgen;
++		mysg.selgen = NOSELGEN;
+ 		g->status = Gwaiting;
+ 		enqueue(&c->recvq, &mysg);
+ 		runtime·unlock(c);
+@@ -854,7 +854,7 @@ selectgo(Select **selp)
+ 		sel->order[i] = i;
+ 	for(i=1; i<sel->ncase; i++) {
+ 		o = sel->order[i];
+-		j = fastrandn(i+1);
++		j = runtime·fastrand1()%(i+1);
+ 		sel->order[i] = sel->order[j];
+ 		sel->order[j] = o;
+ 	}
+@@ -1151,7 +1151,9 @@ loop:
+ 	q->first = sgp->link;
+ 
+ 	// if sgp is stale, ignore it
+-	if(!runtime·cas(&sgp->g->selgen, sgp->selgen, sgp->selgen + 1)) {
++	if(sgp->selgen != NOSELGEN &&
++		(sgp->selgen != sgp->g->selgen ||
++		!runtime·cas(&sgp->g->selgen, sgp->selgen, sgp->selgen + 2))) {
+ 		//prints("INVALID PSEUDOG POINTER\n");
+ 		freesg(c, sgp);
+ 		goto loop;
+@@ -1220,21 +1222,3 @@ freesg(Hchan *c, SudoG *sg)
+ 		c->free = sg;
+ 	}
+ }
+-
+-static uint32
+-fastrandn(uint32 n)
+-{
+-	uint32 max, r;
+-
+-	if(n <= 1)
+-		return 0;
+-
+-	r = runtime·fastrand1();
+-	if(r < (1ULL<<31)-n)  // avoid computing max in common case
+-		return r%n;
+-
+-	max = (1ULL<<31)/n * n;
+-	while(r >= max)
+-		r = runtime·fastrand1();
+-	return r%n;
+-}

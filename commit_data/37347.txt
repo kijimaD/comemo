@@ -10,6 +10,24 @@ Date:   Thu Jul 19 11:06:56 2018 +0100
     Change-Id: Ie76a798916ef36509c88e171a04bb2cf2a3d7e8e
     Reviewed-on: https://go-review.googlesource.com/124917
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/go1.11.html | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 3be9c40fc2..0266efa386 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -815,12 +815,6 @@ for k := range m {
+   {{"{{"}} end {{"}}"}}
+   v: {{"{{"}} $v {{"}}"}} {{"{{"}}/* "changed" */{{"}}"}}</pre>
+ 
+-    <p>
+-      This required backwards-incompatible changes to the <code>text/template/parse</code>
+-      package, but was deemed acceptable since the package's documentation clearly states
+-      that it isn't intended for general use.
+-    </p>
+-
+     <p><!-- CL 95215 -->
+       In previous versions untyped <code>nil</code> values passed to
+       template functions were ignored. They are now passed as normal

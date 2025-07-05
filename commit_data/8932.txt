@@ -7,8 +7,92 @@ Date:   Sat Jul 2 14:07:06 2011 +1000
     R=rsc, mattn.jp
     CC=golang-dev
     https://golang.org/cl/4627065
-
+---
  src/cmd/godoc/godoc.go   | 11 ++++++++++-
  src/cmd/godoc/main.go    |  6 +++++-
  src/cmd/godoc/mapping.go | 12 ++++++------
  3 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 8209781225..20ebd31835 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -9,6 +9,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/build"
+ 	"go/doc"
+ 	"go/printer"
+ 	"go/token"
+@@ -83,7 +84,15 @@ var (
+ 
+ 
+ func initHandlers() {
+-	fsMap.Init(*pkgPath)
++	paths := filepath.SplitList(*pkgPath)
++	for _, t := range build.Path {
++		if t.Goroot {
++			continue
++		}
++		paths = append(paths, t.SrcDir())
++	}
++	fsMap.Init(paths)
++
+ 	fileServer = http.FileServer(http.Dir(*goroot))
+ 	cmdHandler = httpHandler{"/cmd/", filepath.Join(*goroot, "src", "cmd"), false}
+ 	pkgHandler = httpHandler{"/pkg/", filepath.Join(*goroot, "src", "pkg"), true}
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 55f6031bc4..51fcf8dd05 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -31,6 +31,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
++	"go/build"
+ 	"http"
+ 	_ "http/pprof" // to serve /debug/pprof/*
+ 	"io"
+@@ -332,7 +333,10 @@ func main() {
+ 	}
+ 	relpath := path
+ 	abspath := path
+-	if !filepath.IsAbs(path) {
++	if t, pkg, err := build.FindTree(path); err == nil {
++		relpath = pkg
++		abspath = filepath.Join(t.SrcDir(), pkg)
++	} else if !filepath.IsAbs(path) {
+ 		abspath = absolutePath(path, pkgHandler.fsRoot)
+ 	} else {
+ 		relpath = relativeURL(path)
+diff --git a/src/cmd/godoc/mapping.go b/src/cmd/godoc/mapping.go
+index 73f1881a2d..83f34810cc 100644
+--- a/src/cmd/godoc/mapping.go
++++ b/src/cmd/godoc/mapping.go
+@@ -59,10 +59,10 @@ type mapping struct {
+ }
+ 
+ 
+-// Init initializes the Mapping from a list of paths separated by
+-// filepath.ListSeparator. Empty paths are ignored; relative paths
+-// are assumed to be relative to the current working directory and
+-// converted to absolute paths. For each path of the form:
++// Init initializes the Mapping from a list of paths.
++// Empty paths are ignored; relative paths are assumed to be relative to
++// the current working directory and converted to absolute paths.
++// For each path of the form:
+ //
+ //	dirname/localname
+ //
+@@ -80,8 +80,8 @@ type mapping struct {
+ //	user   -> /home/user
+ //	public -> /home/build/public
+ //
+-func (m *Mapping) Init(paths string) {
+-	pathlist := canonicalizePaths(filepath.SplitList(paths), nil)
++func (m *Mapping) Init(paths []string) {
++	pathlist := canonicalizePaths(paths, nil)
+ 	list := make([]mapping, len(pathlist))
+ 
+ 	// create mapping list

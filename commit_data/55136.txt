@@ -16,6 +16,19 @@ Date:   Tue Jan 17 11:30:48 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Alan Donovan <adonovan@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/os/file.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 6781b54da0..3d71ac068e 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -338,6 +338,7 @@ var lstat = Lstat
+ // Rename renames (moves) oldpath to newpath.
+ // If newpath already exists and is not a directory, Rename replaces it.
+ // OS-specific restrictions may apply when oldpath and newpath are in different directories.
++// Even within the same directory, on non-Unix platforms Rename is not an atomic operation.
+ // If there is an error, it will be of type *LinkError.
+ func Rename(oldpath, newpath string) error {
+ 	return rename(oldpath, newpath)

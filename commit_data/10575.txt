@@ -8,6 +8,20 @@ Date:   Thu Dec 1 11:44:17 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5449057
-
+---
  src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index d09735763f..082a51a162 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -515,7 +515,7 @@ func quote(s string) string {
+ 	return "\"" + s + "\""
+ }
+ 
+-// String is the string representation of a ParseError.
++// Error returns the string representation of a ParseError.
+ func (e *ParseError) Error() string {
+ 	if e.Message == "" {
+ 		return "parsing time " +

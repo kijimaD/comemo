@@ -12,6 +12,19 @@ Date:   Tue Apr 10 09:57:14 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/elf.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index c8a4fe6e61..6f96b3e3bc 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -289,6 +289,7 @@ var machineStrings = []intName{
+ 	{60, "EM_ST100"},
+ 	{61, "EM_TINYJ"},
+ 	{62, "EM_X86_64"},
++	{183, "EM_AARCH64"},
+ 
+ 	/* Non-standard or deprecated. */
+ 	{6, "EM_486"},

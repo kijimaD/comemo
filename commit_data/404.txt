@@ -8,8 +8,28 @@ Date:   Mon Jul 21 17:10:49 2008 -0700
     DELTA=4  (4 added, 0 deleted, 0 changed)
     OCL=13328
     CL=13328
-
+---
  lib/place-holder      | 2 ++
  pkg/place-holder      | 2 ++
  src/cmd/gc/mksys.bash | 0
  3 files changed, 4 insertions(+)
+
+diff --git a/lib/place-holder b/lib/place-holder
+new file mode 100644
+index 0000000000..aa084c8aa8
+--- /dev/null
++++ b/lib/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/pkg/place-holder b/pkg/place-holder
+new file mode 100644
+index 0000000000..aa084c8aa8
+--- /dev/null
++++ b/pkg/place-holder
+@@ -0,0 +1,2 @@
++perforce does not maintain empty directories.
++this file helps.
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+old mode 100644
+new mode 100755

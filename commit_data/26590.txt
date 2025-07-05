@@ -18,7 +18,43 @@ Date:   Fri Feb 12 10:07:36 2016 -0800
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go |  2 +-
  test/writebarrier.go               | 14 ++++++++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 836834f8bd..b756055668 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -836,7 +836,7 @@ func gen(n *Node) {
+ 		Cgen_as_wb(n.Left, n.Right, true)
+ 
+ 	case OAS2DOTTYPE:
+-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, false)
++		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 9b741a60df..dcd20a0225 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -144,3 +144,17 @@ type T8 struct {
+ func f16(x []T8, y T8) []T8 {
+ 	return append(x, y) // ERROR "write barrier"
+ }
++
++func t1(i interface{}) **int {
++	// From issue 14306, make sure we have write barriers in a type switch
++	// where the assigned variable escapes.
++	switch x := i.(type) { // ERROR "write barrier"
++	case *int:
++		return &x
++	}
++	switch y := i.(type) { // no write barrier here
++	case **int:
++		return y
++	}
++	return nil
++}

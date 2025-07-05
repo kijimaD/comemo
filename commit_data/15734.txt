@@ -7,6 +7,44 @@ Date:   Tue Mar 12 14:35:14 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6727046
-
+---
  src/pkg/html/template/template.go | 22 ++++++++++++++--------
  1 file changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index 768cee7d5f..e183898d50 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -45,18 +45,24 @@ func (t *Template) Templates() []*Template {
+ 	return m
+ }
+ 
+-// Execute applies a parsed template to the specified data object,
+-// writing the output to wr.
+-func (t *Template) Execute(wr io.Writer, data interface{}) (err error) {
++// escape escapes all associated templates.
++func (t *Template) escape() error {
+ 	t.nameSpace.mu.Lock()
++	defer t.nameSpace.mu.Unlock()
+ 	if !t.escaped {
+-		if err = escapeTemplates(t, t.Name()); err != nil {
+-			t.escaped = true
++		if err := escapeTemplates(t, t.Name()); err != nil {
++			return err
+ 		}
++		t.escaped = true
+ 	}
+-	t.nameSpace.mu.Unlock()
+-	if err != nil {
+-		return
++	return nil
++}
++
++// Execute applies a parsed template to the specified data object,
++// writing the output to wr.
++func (t *Template) Execute(wr io.Writer, data interface{}) error {
++	if err := t.escape(); err != nil {
++		return err
+ 	}
+ 	return t.text.Execute(wr, data)
+ }

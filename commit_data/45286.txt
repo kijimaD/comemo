@@ -12,6 +12,20 @@ Date:   Sat Oct 17 00:25:58 2020 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 75e03435e0..cbaa8c3aac 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -27,7 +27,7 @@ type Interface interface {
+ 	//
+ 	// Note that floating-point comparison (the < operator on float32 or float64 values)
+ 	// is not a transitive ordering when not-a-number (NaN) values are involved.
+-	// See Float64Slice.Less a correctly implementation for floating-point values.
++	// See Float64Slice.Less for a correct implementation for floating-point values.
+ 	Less(i, j int) bool
+ 
+ 	// Swap swaps the elements with indexes i and j.

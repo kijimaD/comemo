@@ -35,7 +35,7 @@ Date:   Fri Jul 12 12:12:56 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/11205043
-
+---
  src/cmd/5l/noop.c            | 21 +++++++++----
  src/cmd/6l/pass.c            | 38 ++++++++++++++++++++----
  src/cmd/8l/pass.c            | 31 ++++++++++++++++++--
@@ -43,3 +43,337 @@ Date:   Fri Jul 12 12:12:56 2013 -0400
  src/pkg/runtime/stack.c      |  2 +-
  src/pkg/runtime/stack.h      |  2 +-
  6 files changed, 149 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index ace03ffd6b..88bff318d1 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -209,15 +209,22 @@ noops(void)
+ 						p->from.reg = 1;
+ 						p->reg = 2;
+ 					} else {
+-						// such a large stack we need to protect against wraparound
++						// Such a large stack we need to protect against wraparound
+ 						// if SP is close to zero.
+ 						//	SP-stackguard+StackGuard < framesize + (StackGuard-StackSmall)
+ 						// The +StackGuard on both sides is required to keep the left side positive:
+ 						// SP is allowed to be slightly below stackguard. See stack.h.
+-						//	MOVW $StackGuard(SP), R2
+-						//	SUB R1, R2
+-						//	MOVW $(autosize+(StackGuard-StackSmall)), R3
+-						//	CMP R3, R2
++						//	CMP $StackPreempt, R1
++						//	MOVW.NE $StackGuard(SP), R2
++						//	SUB.NE R1, R2
++						//	MOVW.NE $(autosize+(StackGuard-StackSmall)), R3
++						//	CMP.NE R3, R2
++						p = appendp(p);
++						p->as = ACMP;
++						p->from.type = D_CONST;
++						p->from.offset = (uint32)StackPreempt;
++						p->reg = 1;
++
+ 						p = appendp(p);
+ 						p->as = AMOVW;
+ 						p->from.type = D_CONST;
+@@ -225,6 +232,7 @@ noops(void)
+ 						p->from.offset = StackGuard;
+ 						p->to.type = D_REG;
+ 						p->to.reg = 2;
++						p->scond = C_SCOND_NE;
+ 						
+ 						p = appendp(p);
+ 						p->as = ASUB;
+@@ -232,6 +240,7 @@ noops(void)
+ 						p->from.reg = 1;
+ 						p->to.type = D_REG;
+ 						p->to.reg = 2;
++						p->scond = C_SCOND_NE;
+ 						
+ 						p = appendp(p);
+ 						p->as = AMOVW;
+@@ -239,12 +248,14 @@ noops(void)
+ 						p->from.offset = autosize + (StackGuard - StackSmall);
+ 						p->to.type = D_REG;
+ 						p->to.reg = 3;
++						p->scond = C_SCOND_NE;
+ 						
+ 						p = appendp(p);
+ 						p->as = ACMP;
+ 						p->from.type = D_REG;
+ 						p->from.reg = 3;
+ 						p->reg = 2;
++						p->scond = C_SCOND_NE;
+ 					}
+ 					
+ 					// MOVW.LS		$autosize, R1
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 31d42eee45..77defed394 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -438,6 +438,7 @@ dostkoff(void)
+ 		}
+ 
+ 		q = P;
++		q1 = P;
+ 		if((p->from.scale & NOSPLIT) && autoffset >= StackSmall)
+ 			diag("nosplit func likely to overflow stack");
+ 
+@@ -497,6 +498,7 @@ dostkoff(void)
+ 				q1->pcond = p;
+ 			}
+ 
++			q1 = P;
+ 			if(autoffset <= StackSmall) {
+ 				// small stack: SP <= stackguard
+ 				//	CMPQ SP, stackguard
+@@ -519,14 +521,38 @@ dostkoff(void)
+ 				p->from.type = D_AX;
+ 				p->to.type = D_INDIR+D_CX;
+ 			} else {
+-				// such a large stack we need to protect against wraparound
+-				// if SP is close to zero:
++				// Such a large stack we need to protect against wraparound.
++				// If SP is close to zero:
+ 				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+ 				// The +StackGuard on both sides is required to keep the left side positive:
+ 				// SP is allowed to be slightly below stackguard. See stack.h.
++				//
++				// Preemption sets stackguard to StackPreempt, a very large value.
++				// That breaks the math above, so we have to check for that explicitly.
++				//	MOVQ	stackguard, CX
++				//	CMPQ	CX, $StackPreempt
++				//	JEQ	label-of-call-to-morestack
+ 				//	LEAQ	StackGuard(SP), AX
+-				//	SUBQ	stackguard, AX
++				//	SUBQ	CX, AX
+ 				//	CMPQ	AX, $(autoffset+(StackGuard-StackSmall))
++
++				p = appendp(p);
++				p->as = AMOVQ;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 0;
++				p->to.type = D_SI;
++
++				p = appendp(p);
++				p->as = ACMPQ;
++				p->from.type = D_SI;
++				p->to.type = D_CONST;
++				p->to.offset = StackPreempt;
++
++				p = appendp(p);
++				p->as = AJEQ;
++				p->to.type = D_BRANCH;
++				q1 = p;
++
+ 				p = appendp(p);
+ 				p->as = ALEAQ;
+ 				p->from.type = D_INDIR+D_SP;
+@@ -535,8 +561,7 @@ dostkoff(void)
+ 				
+ 				p = appendp(p);
+ 				p->as = ASUBQ;
+-				p->from.type = D_INDIR+D_CX;
+-				p->from.offset = 0;
++				p->from.type = D_SI;
+ 				p->to.type = D_AX;
+ 				
+ 				p = appendp(p);
+@@ -550,7 +575,6 @@ dostkoff(void)
+ 			p = appendp(p);
+ 			p->as = AJHI;
+ 			p->to.type = D_BRANCH;
+-			p->to.offset = 4;
+ 			q = p;
+ 
+ 			// If we ask for more stack, we'll get a minimum of StackMin bytes.
+@@ -627,6 +651,8 @@ dostkoff(void)
+ 
+ 		if(q != P)
+ 			q->pcond = p->link;
++		if(q1 != P)
++			q1->pcond = q->link;
+ 
+ 		if(autoffset) {
+ 			p = appendp(p);
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index d5bebe1684..2f6b96c61d 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -439,6 +439,7 @@ dostkoff(void)
+ 			autoffset = 0;
+ 
+ 		q = P;
++		q1 = P;
+ 		if(pmorestack != P)
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);	// load g into CX
+@@ -525,6 +526,7 @@ dostkoff(void)
+ 				p->as = ANOP;
+ 				q1->pcond = p;
+ 			}
++			q1 = P;
+ 
+ 			if(autoffset <= StackSmall) {
+ 				// small stack: SP <= stackguard
+@@ -548,14 +550,37 @@ dostkoff(void)
+ 				p->from.type = D_AX;
+ 				p->to.type = D_INDIR+D_CX;
+ 			} else {
+-				// such a large stack we need to protect against wraparound
++				// Such a large stack we need to protect against wraparound
+ 				// if SP is close to zero.
+ 				//	SP-stackguard+StackGuard <= framesize + (StackGuard-StackSmall)
+ 				// The +StackGuard on both sides is required to keep the left side positive:
+ 				// SP is allowed to be slightly below stackguard. See stack.h.
++				//
++				// Preemption sets stackguard to StackPreempt, a very large value.
++				// That breaks the math above, so we have to check for that explicitly.
++				//	MOVL	stackguard, CX
++				//	CMPL	CX, $StackPreempt
++				//	JEQ	label-of-call-to-morestack
+ 				//	LEAL	StackGuard(SP), AX
+ 				//	SUBL	stackguard, AX
+ 				//	CMPL	AX, $(autoffset+(StackGuard-StackSmall))
++				p = appendp(p);
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = 0;
++				p->to.type = D_SI;
++
++				p = appendp(p);
++				p->as = ACMPL;
++				p->from.type = D_SI;
++				p->to.type = D_CONST;
++				p->to.offset = (uint32)StackPreempt;
++
++				p = appendp(p);
++				p->as = AJEQ;
++				p->to.type = D_BRANCH;
++				q1 = p;
++
+ 				p = appendp(p);
+ 				p->as = ALEAL;
+ 				p->from.type = D_INDIR+D_SP;
+@@ -564,7 +589,7 @@ dostkoff(void)
+ 				
+ 				p = appendp(p);
+ 				p->as = ASUBL;
+-				p->from.type = D_INDIR+D_CX;
++				p->from.type = D_SI;
+ 				p->from.offset = 0;
+ 				p->to.type = D_AX;
+ 				
+@@ -618,6 +643,8 @@ dostkoff(void)
+ 
+ 		if(q != P)
+ 			q->pcond = p->link;
++		if(q1 != P)
++			q1->pcond = q->link;
+ 
+ 		if(autoffset) {
+ 			p = appendp(p);
+diff --git a/src/pkg/runtime/proc_test.go b/src/pkg/runtime/proc_test.go
+index 8f3b407375..0e28d5a2d1 100644
+--- a/src/pkg/runtime/proc_test.go
++++ b/src/pkg/runtime/proc_test.go
+@@ -219,6 +219,76 @@ func stackGrowthRecursive(i int) {
+ 	}
+ }
+ 
++func TestPreemptSplitBig(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in -short mode")
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	stop := make(chan int)
++	go big(stop)
++	for i := 0; i < 3; i++ {
++		time.Sleep(1 * time.Microsecond) // let big start running
++		runtime.GC()
++	}
++	close(stop)
++}
++
++func big(stop chan int) int {
++	n := 0
++	for {
++		// delay so that gc is sure to have asked for a preemption
++		for i := int64(0); i < 1e9; i++ {
++			n++
++		}
++
++		// call bigframe, which used to miss the preemption in its prologue.
++		bigframe(stop)
++
++		// check if we've been asked to stop.
++		select {
++		case <-stop:
++			return n
++		}
++	}
++}
++
++func bigframe(stop chan int) int {
++	// not splitting the stack will overflow.
++	// small will notice that it needs a stack split and will
++	// catch the overflow.
++	var x [8192]byte
++	return small(stop, &x)
++}
++
++func small(stop chan int, x *[8192]byte) int {
++	for i := range x {
++		x[i] = byte(i)
++	}
++	sum := 0
++	for i := range x {
++		sum += int(x[i])
++	}
++
++	// keep small from being a leaf function, which might
++	// make it not do any stack check at all.
++	nonleaf(stop)
++
++	return sum
++}
++
++func nonleaf(stop chan int) bool {
++	// do something that won't be inlined:
++	select {
++	case <-stop:
++		return true
++	default:
++		return false
++	}
++}
++
++func poll() {
++}
++
+ func TestSchedLocalQueue(t *testing.T) {
+ 	runtime.TestSchedLocalQueue1()
+ }
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 2150d5ec1f..9de692bba4 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -241,7 +241,7 @@ runtime·newstack(void)
+ 		runtime·throw("runtime: stack split argsize");
+ 	}
+ 
+-	if(gp->stackguard0 == StackPreempt) {
++	if(gp->stackguard0 == (uintptr)StackPreempt) {
+ 		if(gp == m->g0)
+ 			runtime·throw("runtime: preempt g0");
+ 		if(oldstatus == Grunning && (m->p == nil || m->p->status != Prunning))
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index f56d4a7263..2784a8620f 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -109,4 +109,4 @@ enum {
+ // Stored into g->stackguard0 to cause split stack check failure.
+ // Must be greater than any real sp.
+ // 0xfffffade in hex.
+-#define StackPreempt ((uintptr)-1314)
++#define StackPreempt ((uint64)-1314)

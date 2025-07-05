@@ -7,10 +7,184 @@ Date:   Thu Mar 5 15:57:03 2009 -0800
     R=ken
     OCL=25787
     CL=25791
-
+---
  src/cmd/gc/go.y                    | 54 ++++++++++++++++++++++++++++++--------
  src/cmd/gc/lex.c                   |  3 +++
  test/{bugs => fixedbugs}/bug085.go |  0
  test/{bugs => fixedbugs}/bug129.go |  0
  test/golden.out                    | 12 +--------
  5 files changed, 47 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index fb905292d3..e5a8faf22e 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -55,7 +55,7 @@
+ %type	<node>		simple_stmt osimple_stmt range_stmt semi_stmt
+ %type	<node>		expr uexpr pexpr expr_list oexpr oexpr_list expr_list_r
+ %type	<node>		exprsym3_list_r exprsym3
+-%type	<node>		name onew_name new_name new_name_list_r new_field
++%type	<node>		name labelname onew_name new_name new_name_list_r new_field
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl interfacedcl1
+ %type	<node>		structdcl_list_r structdcl embed
+@@ -95,6 +95,23 @@
+ %left			'{'
+ %left			Condition
+ 
++/*
++ * resolve LPACKAGE vs not in favor of LPACKAGE
++ */
++%left			NotPackage
++%left			LPACKAGE
++
++/*
++ * resolve '.' vs not in favor of '.'
++ */
++%left			NotDot
++%left			'.'
++
++/*
++ * resolve '(' vs not in favor of '('
++ */
++%left			NotParen
++%left			'('
+ 
+ %%
+ file:
+@@ -107,6 +124,7 @@ file:
+ 	}
+ 
+ package:
++	%prec NotPackage
+ 	{
+ 		yyerror("package statement must be first");
+ 		mkpackage("main");
+@@ -776,6 +794,8 @@ pexpr:
+ 	{
+ 		$$ = nod(OLITERAL, N, N);
+ 		$$->val = $1;
++		if($1.ctype == CTSTR)
++			$$->type = types[TSTRING];
+ 	}
+ |	laconst
+ 	{
+@@ -999,6 +1019,25 @@ name:
+ 	{
+ 		$$ = oldname($1);
+ 	}
++	/*
++	 * this rule introduces 1 reduce/reduce conflict
++	 * with the rule lpack: LPACK above.
++	 * the reduce/reduce conflict is only with
++	 * lookahead '.', in which case the correct
++	 * resolution is the lpack rule.  (and it wins
++	 * because it is above.)
++	 */
++|	LPACK	%prec NotDot
++	{
++		$$ = oldname($1);
++	}
++
++labelname:
++	name
++|	keyword
++	{
++		$$ = oldname($1);
++	}
+ 
+ convtype:
+ 	latype
+@@ -1311,6 +1350,7 @@ Afnres:
+ 	}
+ 
+ Bfnres:
++	%prec NotParen
+ 	{
+ 		$$ = N;
+ 	}
+@@ -1515,7 +1555,7 @@ Astmt:
+ 	{
+ 		$$ = N;
+ 	}
+-|	new_name ':'
++|	labelname ':'
+ 	{
+ 		$$ = nod(OLABEL, $1, N);
+ 	}
+@@ -1961,15 +2001,7 @@ lpack:
+ 	}
+ 
+ laconst:
+-	LPACK
+-	{
+-		// for LALR(1) reasons, using laconst works here
+-		// but lname does not.  even so, the messages make
+-		// more sense saying "var" instead of "const".
+-		yyerror("%s is package, not var", $1->name);
+-		YYERROR;
+-	}
+-|	LATYPE
++	LATYPE
+ 	{
+ 		yyerror("%s is type, not var", $1->name);
+ 		YYERROR;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a0fb124f3f..3f7f2638be 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1341,6 +1341,9 @@ mkpackage(char* pkg)
+ 			s->opackage = package;
+ 		}
+ 
++	// declare this name as a package
++	lookup(package)->lexical = LPACK;
++
+ 	if(outfile == nil) {
+ 		// BOTCH need to get .6 from backend
+ 		p = strrchr(infile, '/');
+diff --git a/test/bugs/bug085.go b/test/fixedbugs/bug085.go
+similarity index 100%
+rename from test/bugs/bug085.go
+rename to test/fixedbugs/bug085.go
+diff --git a/test/bugs/bug129.go b/test/fixedbugs/bug129.go
+similarity index 100%
+rename from test/bugs/bug129.go
+rename to test/fixedbugs/bug129.go
+diff --git a/test/golden.out b/test/golden.out
+index 6e2ca9a726..bb1e2cb44b 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -42,9 +42,7 @@ errchk: ./convlit.go: unmatched error messages:
+ ./convlit.go:11: overflow converting constant to int
+ ./convlit.go:12: overflow converting constant to float
+ ./convlit.go:8: cannot convert non-integer constant to int
+-./convlit.go:9: cannot convert non-integer constant to int
+-./convlit.go:11: overflow converting constant to int
+-./convlit.go:11: fatal error: too many errors
++./convlit.go:8: fatal error: too many errors
+ ==================================================
+ 
+ =========== ./helloworld.go
+@@ -117,10 +115,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug085.go
+-bugs/bug085.go:8: P: undefined
+-BUG: fails incorrectly
+-
+ =========== bugs/bug087.go
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+ bugs/bug087.go:8: illegal combination of literals LEN 9
+@@ -146,10 +140,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug125.go
+ BUG: errchk: command succeeded unexpectedly:  6g bugs/bug125.go
+ 
+-=========== bugs/bug129.go
+-bugs/bug129.go:6: syscall is package, not var
+-BUG129
+-
+ =========== bugs/bug131.go
+ BUG: should not compile
+ 

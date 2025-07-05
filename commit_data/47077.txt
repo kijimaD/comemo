@@ -23,7 +23,7 @@ Date:   Wed Dec 9 14:59:40 2020 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM.rules     |  4 ++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules   |  4 ++++
  src/cmd/compile/internal/ssa/gen/MIPS.rules    |  4 ++++
@@ -35,3 +35,254 @@ Date:   Wed Dec 9 14:59:40 2020 -0800
  src/cmd/compile/internal/ssa/rewriteMIPS64.go  | 17 +++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 17 +++++++++++++++++
  10 files changed, 105 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index de0df363e4..cbafd12a4f 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -546,6 +546,10 @@
+ // MOVWnop doesn't emit instruction, only for ensuring the type.
+ (MOVWreg x) && x.Uses == 1 => (MOVWnop x)
+ 
++// TODO: we should be able to get rid of MOVWnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVWnop (MOVWconst [c])) => (MOVWconst [c])
++
+ // mul by constant
+ (MUL x (MOVWconst [c])) && int32(c) == -1 => (RSBconst [0] x)
+ (MUL _ (MOVWconst [0])) => (MOVWconst [0])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index a0e2a0d5e2..4531c38a7a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1127,6 +1127,10 @@
+ // MOVDnop doesn't emit instruction, only for ensuring the type.
+ (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
+ 
++// TODO: we should be able to get rid of MOVDnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
++
+ // fold constant into arithmatic ops
+ (ADD x (MOVDconst [c])) => (ADDconst [c] x)
+ (SUB x (MOVDconst [c])) => (SUBconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 8ad2c90ac3..bc1ce82940 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -559,6 +559,10 @@
+ // MOVWnop doesn't emit instruction, only for ensuring the type.
+ (MOVWreg x) && x.Uses == 1 => (MOVWnop x)
+ 
++// TODO: we should be able to get rid of MOVWnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVWnop (MOVWconst [c])) => (MOVWconst [c])
++
+ // fold constant into arithmatic ops
+ (ADD x (MOVWconst [c])) => (ADDconst [c] x)
+ (SUB x (MOVWconst [c])) => (SUBconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index 088c9b1ac4..e3f7633274 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -558,6 +558,10 @@
+ // MOVVnop doesn't emit instruction, only for ensuring the type.
+ (MOVVreg x) && x.Uses == 1 => (MOVVnop x)
+ 
++// TODO: we should be able to get rid of MOVVnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVVnop (MOVVconst [c])) => (MOVVconst [c])
++
+ // fold constant into arithmatic ops
+ (ADDV x (MOVVconst [c])) && is32Bit(c) => (ADDVconst [c] x)
+ (SUBV x (MOVVconst [c])) && is32Bit(c) => (SUBVconst [c] x)
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index 15361fd37a..9119ebc0e8 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -673,6 +673,10 @@
+ // MOVnop does not emit an instruction, only for ensuring the type.
+ (MOVDreg x) && x.Uses == 1 => (MOVDnop x)
+ 
++// TODO: we should be able to get rid of MOVDnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
++
+ // Fold constant into immediate instructions where possible.
+ (ADD (MOVBconst [val]) x) => (ADDI [int64(val)] x)
+ (ADD (MOVHconst [val]) x) => (ADDI [int64(val)] x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index c958aae2c4..1adbceb0ad 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -202,6 +202,8 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpARMMOVWloadshiftRA(v)
+ 	case OpARMMOVWloadshiftRL:
+ 		return rewriteValueARM_OpARMMOVWloadshiftRL(v)
++	case OpARMMOVWnop:
++		return rewriteValueARM_OpARMMOVWnop(v)
+ 	case OpARMMOVWreg:
+ 		return rewriteValueARM_OpARMMOVWreg(v)
+ 	case OpARMMOVWstore:
+@@ -6501,6 +6503,21 @@ func rewriteValueARM_OpARMMOVWloadshiftRL(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpARMMOVWnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVWnop (MOVWconst [c]))
++	// result: (MOVWconst [c])
++	for {
++		if v_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := auxIntToInt32(v_0.AuxInt)
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int32ToAuxInt(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpARMMOVWreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVWreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ff1156d901..ba146c7043 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -189,6 +189,8 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64MOVDloadidx(v)
+ 	case OpARM64MOVDloadidx8:
+ 		return rewriteValueARM64_OpARM64MOVDloadidx8(v)
++	case OpARM64MOVDnop:
++		return rewriteValueARM64_OpARM64MOVDnop(v)
+ 	case OpARM64MOVDreg:
+ 		return rewriteValueARM64_OpARM64MOVDreg(v)
+ 	case OpARM64MOVDstore:
+@@ -9011,6 +9013,21 @@ func rewriteValueARM64_OpARM64MOVDloadidx8(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64MOVDnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVDnop (MOVDconst [c]))
++	// result: (MOVDconst [c])
++	for {
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64MOVDreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVDreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 3fc5527955..0c074364df 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -297,6 +297,8 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpMIPSMOVHstorezero(v)
+ 	case OpMIPSMOVWload:
+ 		return rewriteValueMIPS_OpMIPSMOVWload(v)
++	case OpMIPSMOVWnop:
++		return rewriteValueMIPS_OpMIPSMOVWnop(v)
+ 	case OpMIPSMOVWreg:
+ 		return rewriteValueMIPS_OpMIPSMOVWreg(v)
+ 	case OpMIPSMOVWstore:
+@@ -3647,6 +3649,21 @@ func rewriteValueMIPS_OpMIPSMOVWload(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueMIPS_OpMIPSMOVWnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVWnop (MOVWconst [c]))
++	// result: (MOVWconst [c])
++	for {
++		if v_0.Op != OpMIPSMOVWconst {
++			break
++		}
++		c := auxIntToInt32(v_0.AuxInt)
++		v.reset(OpMIPSMOVWconst)
++		v.AuxInt = int32ToAuxInt(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueMIPS_OpMIPSMOVWreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVWreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index d78f6089af..073cf8726c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -339,6 +339,8 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpMIPS64MOVHstorezero(v)
+ 	case OpMIPS64MOVVload:
+ 		return rewriteValueMIPS64_OpMIPS64MOVVload(v)
++	case OpMIPS64MOVVnop:
++		return rewriteValueMIPS64_OpMIPS64MOVVnop(v)
+ 	case OpMIPS64MOVVreg:
+ 		return rewriteValueMIPS64_OpMIPS64MOVVreg(v)
+ 	case OpMIPS64MOVVstore:
+@@ -3584,6 +3586,21 @@ func rewriteValueMIPS64_OpMIPS64MOVVload(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueMIPS64_OpMIPS64MOVVnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVVnop (MOVVconst [c]))
++	// result: (MOVVconst [c])
++	for {
++		if v_0.Op != OpMIPS64MOVVconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpMIPS64MOVVconst)
++		v.AuxInt = int64ToAuxInt(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueMIPS64_OpMIPS64MOVVreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVVreg x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 1abdf1aa06..bc47d76e87 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -435,6 +435,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64MOVDconst(v)
+ 	case OpRISCV64MOVDload:
+ 		return rewriteValueRISCV64_OpRISCV64MOVDload(v)
++	case OpRISCV64MOVDnop:
++		return rewriteValueRISCV64_OpRISCV64MOVDnop(v)
+ 	case OpRISCV64MOVDreg:
+ 		return rewriteValueRISCV64_OpRISCV64MOVDreg(v)
+ 	case OpRISCV64MOVDstore:
+@@ -3349,6 +3351,21 @@ func rewriteValueRISCV64_OpRISCV64MOVDload(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64MOVDnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVDnop (MOVDconst [c]))
++	// result: (MOVDconst [c])
++	for {
++		if v_0.Op != OpRISCV64MOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpRISCV64MOVDconst)
++		v.AuxInt = int64ToAuxInt(c)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64MOVDreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVDreg x)

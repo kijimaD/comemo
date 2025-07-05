@@ -37,6 +37,26 @@ Date:   Fri Feb 14 10:23:44 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/load.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 58e2141f65..89d906f194 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -655,13 +655,13 @@ func (ld *loader) load(roots func() []string) {
+ 				if err.newMissingVersion != "" {
+ 					base.Fatalf("go: %s: package provided by %s at latest version %s but not at required version %s", pkg.stackText(), err.Module.Path, err.Module.Version, err.newMissingVersion)
+ 				}
++				fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
+ 				if added[pkg.path] {
+ 					base.Fatalf("go: %s: looping trying to add package", pkg.stackText())
+ 				}
+ 				added[pkg.path] = true
+ 				numAdded++
+ 				if !haveMod[err.Module] {
+-					fmt.Fprintf(os.Stderr, "go: found %s in %s %s\n", pkg.path, err.Module.Path, err.Module.Version)
+ 					haveMod[err.Module] = true
+ 					modAddedBy[err.Module] = pkg
+ 					buildList = append(buildList, err.Module)

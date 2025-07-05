@@ -11,6 +11,21 @@ Date:   Tue Oct 25 05:56:03 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/all/main.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index a4c43763f3..e0926e1114 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -177,9 +177,6 @@ var ignorePathPrefixes = [...]string{
+ 	"cmd/go/testdata/",
+ 	"cmd/vet/testdata/",
+ 	"go/printer/testdata/",
+-	// cmd/compile/internal/big is a vendored copy of math/big.
+-	// Ignore it so that we only have to deal with math/big issues once.
+-	"cmd/compile/internal/big/",
+ }
+ 
+ func vetPlatforms(pp []platform) {

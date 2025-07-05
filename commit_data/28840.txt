@@ -51,7 +51,7 @@ Date:   Wed Aug 3 13:00:49 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules | 34 ++++++++++++++++-------
  src/cmd/compile/internal/ssa/regalloc.go   |  6 ++++
  src/cmd/compile/internal/ssa/rewrite386.go | 40 +++++++++++++--------------
@@ -60,3 +60,481 @@ Date:   Wed Aug 3 13:00:49 2016 -0700
  src/cmd/internal/obj/x86/obj6.go           | 25 +++++++++++++++--
  src/cmd/link/internal/x86/asm.go           | 44 ++++++++++++++++++++----------
  7 files changed, 120 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 46edb6f66f..921eb06265 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -669,15 +669,21 @@
+ 
+ // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
+ // what variables are being read/written by the ops.
++// Note: we turn off this merging for operations on globals when building position-independent code.
++// PIC needs a spare register to load the PC into. For loads from globals into integer registers we use
++// the target register, but for other loads and all stores, we need a free register. Having the LEAL be
++// a separate instruction gives us that register.
+ (MOVLload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVLload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ (MOVWload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVWload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ (MOVBload  [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVBload  [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVSSload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVSSload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVSSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+-(MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVSDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 
+ (MOVBLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+@@ -685,22 +691,30 @@
+ (MOVWLSXload [off1] {sym1} (LEAL [off2] {sym2} base) mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
+ 	(MOVWLSXload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 
+-(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVSSstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVSSstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVSSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2) ->
++(MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++  && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVSDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 
+-(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++(MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++  && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+-(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++(MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++  && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+-(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) ->
++(MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++  && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared) ->
+ 	(MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 
+ // generating indexed loads and stores
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 708569d8e3..10c5c6388a 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -488,6 +488,12 @@ func (s *regAllocState) init(f *Func) {
+ 			s.allocatable &^= 1 << 9 // R9
+ 		case "arm64":
+ 			// nothing to do?
++		case "386":
++			// nothing to do.
++			// Note that for Flag_shared (position independent code)
++			// we do need to be careful, but that carefulness is hidden
++			// in the rewrite rules so we always have a free register
++			// available for global load/stores. See gen/386.rules (search for Flag_shared).
+ 		default:
+ 			s.f.Config.fe.Unimplementedf(0, "arch %s not implemented", s.f.Config.arch)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index d54a9cbc08..caccf88b7a 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -2863,7 +2863,7 @@ func rewriteValue386_Op386MOVBstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2877,7 +2877,7 @@ func rewriteValue386_Op386MOVBstore(v *Value, config *Config) bool {
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVBstore)
+@@ -3062,7 +3062,7 @@ func rewriteValue386_Op386MOVBstoreconst(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)   && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVBstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	for {
+ 		sc := v.AuxInt
+@@ -3075,7 +3075,7 @@ func rewriteValue386_Op386MOVBstoreconst(v *Value, config *Config) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVBstoreconst)
+@@ -3725,7 +3725,7 @@ func rewriteValue386_Op386MOVLstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVLstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVLstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3739,7 +3739,7 @@ func rewriteValue386_Op386MOVLstore(v *Value, config *Config) bool {
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLstore)
+@@ -3861,7 +3861,7 @@ func rewriteValue386_Op386MOVLstoreconst(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)   && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVLstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	for {
+ 		sc := v.AuxInt
+@@ -3874,7 +3874,7 @@ func rewriteValue386_Op386MOVLstoreconst(v *Value, config *Config) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVLstoreconst)
+@@ -4240,7 +4240,7 @@ func rewriteValue386_Op386MOVSDload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVSDload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVSDload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4253,7 +4253,7 @@ func rewriteValue386_Op386MOVSDload(v *Value, config *Config) bool {
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSDload)
+@@ -4468,7 +4468,7 @@ func rewriteValue386_Op386MOVSDstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVSDstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVSDstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4482,7 +4482,7 @@ func rewriteValue386_Op386MOVSDstore(v *Value, config *Config) bool {
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSDstore)
+@@ -4710,7 +4710,7 @@ func rewriteValue386_Op386MOVSSload(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVSSload [off1] {sym1} (LEAL [off2] {sym2} base) mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVSSload [off1+off2] {mergeSym(sym1,sym2)} base mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4723,7 +4723,7 @@ func rewriteValue386_Op386MOVSSload(v *Value, config *Config) bool {
+ 		sym2 := v_0.Aux
+ 		base := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSSload)
+@@ -4938,7 +4938,7 @@ func rewriteValue386_Op386MOVSSstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVSSstore [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVSSstore [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4952,7 +4952,7 @@ func rewriteValue386_Op386MOVSSstore(v *Value, config *Config) bool {
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVSSstore)
+@@ -5696,7 +5696,7 @@ func rewriteValue386_Op386MOVWstore(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem)
+-	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)
++	// cond: is32Bit(off1+off2) && canMergeSym(sym1, sym2)   && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVWstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -5710,7 +5710,7 @@ func rewriteValue386_Op386MOVWstore(v *Value, config *Config) bool {
+ 		base := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2)) {
++		if !(is32Bit(off1+off2) && canMergeSym(sym1, sym2) && (base.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVWstore)
+@@ -5923,7 +5923,7 @@ func rewriteValue386_Op386MOVWstoreconst(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)   && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)
+ 	// result: (MOVWstoreconst [ValAndOff(sc).add(off)] {mergeSym(sym1, sym2)} ptr mem)
+ 	for {
+ 		sc := v.AuxInt
+@@ -5936,7 +5936,7 @@ func rewriteValue386_Op386MOVWstoreconst(v *Value, config *Config) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off)) {
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd(off) && (ptr.Op != OpSB || !b.Func.Config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(Op386MOVWstoreconst)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index f83afa1a58..03ab8d3af3 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -653,15 +653,15 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		// See the comments in cmd/internal/obj/x86/obj6.go
+ 		// near CanUse1InsnTLS for a detailed explanation of these instructions.
+ 		if x86.CanUse1InsnTLS(gc.Ctxt) {
+-			// MOVQ (TLS), r
++			// MOVL (TLS), r
+ 			p := gc.Prog(x86.AMOVL)
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Reg = x86.REG_TLS
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+ 		} else {
+-			// MOVQ TLS, r
+-			// MOVQ (r)(TLS*1), r
++			// MOVL TLS, r
++			// MOVL (r)(TLS*1), r
+ 			p := gc.Prog(x86.AMOVL)
+ 			p.From.Type = obj.TYPE_REG
+ 			p.From.Reg = x86.REG_TLS
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 676da40ba5..8a299fefe3 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2835,7 +2835,9 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 				goto bad
+ 			}
+ 			if p.Mode == 32 && ctxt.Flag_shared {
+-				base = REG_CX
++				// The base register has already been set. It holds the PC
++				// of this instruction returned by a PC-reading thunk.
++				// See obj6.go:rewriteToPcrel.
+ 			} else {
+ 				base = REG_NONE
+ 			}
+@@ -2880,7 +2882,9 @@ func asmandsz(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r int, rex int, m64 int)
+ 			ctxt.Diag("bad addr: %v", p)
+ 		}
+ 		if p.Mode == 32 && ctxt.Flag_shared {
+-			base = REG_CX
++			// The base register has already been set. It holds the PC
++			// of this instruction returned by a PC-reading thunk.
++			// See obj6.go:rewriteToPcrel.
+ 		} else {
+ 			base = REG_NONE
+ 		}
+@@ -4016,25 +4020,26 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 							obj.Hnacl:
+ 							if ctxt.Flag_shared {
+ 								// Note that this is not generating the same insns as the other cases.
+-								//     MOV TLS, R_to
++								//     MOV TLS, dst
+ 								// becomes
+-								//     call __x86.get_pc_thunk.cx
+-								//     movl (gotpc + g@gotntpoff)(%ecx),$R_To
++								//     call __x86.get_pc_thunk.dst
++								//     movl (gotpc + g@gotntpoff)(dst), dst
+ 								// which is encoded as
+-								//     call __x86.get_pc_thunk.cx
+-								//     movq 0(%ecx), R_to
++								//     call __x86.get_pc_thunk.dst
++								//     movq 0(dst), dst
+ 								// and R_CALL & R_TLS_IE relocs. This all assumes the only tls variable we access
+ 								// is g, which we can't check here, but will when we assemble the second
+ 								// instruction.
++								dst := p.To.Reg
+ 								ctxt.AsmBuf.Put1(0xe8)
+ 								r = obj.Addrel(ctxt.Cursym)
+ 								r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+ 								r.Type = obj.R_CALL
+ 								r.Siz = 4
+-								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
++								r.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
+ 								ctxt.AsmBuf.PutInt32(0)
+ 
+-								ctxt.AsmBuf.Put2(0x8B, byte(2<<6|reg[REG_CX]|(reg[p.To.Reg]<<3)))
++								ctxt.AsmBuf.Put2(0x8B, byte(2<<6|reg[dst]|(reg[dst]<<3)))
+ 								r = obj.Addrel(ctxt.Cursym)
+ 								r.Off = int32(p.Pc + int64(ctxt.AsmBuf.Len()))
+ 								r.Type = obj.R_TLS_IE
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 75638a0183..9a47ae16ed 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -36,6 +36,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"math"
++	"strings"
+ )
+ 
+ func CanUse1InsnTLS(ctxt *obj.Link) bool {
+@@ -509,7 +510,7 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 		return
+ 	}
+ 	// Any Prog (aside from the above special cases) with an Addr with Name ==
+-	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.cx
++	// NAME_EXTERN, NAME_STATIC or NAME_GOTREF has a CALL __x86.get_pc_thunk.XX
+ 	// inserted before it.
+ 	isName := func(a *obj.Addr) bool {
+ 		if a.Sym == nil || (a.Type != obj.TYPE_MEM && a.Type != obj.TYPE_ADDR) || a.Reg != 0 {
+@@ -542,12 +543,23 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 	if !isName(&p.From) && !isName(&p.To) && (p.From3 == nil || !isName(p.From3)) {
+ 		return
+ 	}
++	var dst int16 = REG_CX
++	if isName(&p.From) && p.To.Type == obj.TYPE_REG {
++		switch p.As {
++		case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
++			dst = p.To.Reg
++			// Special case: clobber the destination register with
++			// the PC so we don't have to clobber CX.
++			// The SSA backend depends on CX not being clobbered across these instructions.
++			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
++		}
++	}
+ 	q := obj.Appendp(ctxt, p)
+ 	q.RegTo2 = 1
+ 	r := obj.Appendp(ctxt, q)
+ 	r.RegTo2 = 1
+ 	q.As = obj.ACALL
+-	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk.cx", 0)
++	q.To.Sym = obj.Linklookup(ctxt, "__x86.get_pc_thunk."+strings.ToLower(Rconv(int(dst))), 0)
+ 	q.To.Type = obj.TYPE_MEM
+ 	q.To.Name = obj.NAME_EXTERN
+ 	q.To.Sym.Local = true
+@@ -557,6 +569,15 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 	r.From3 = p.From3
+ 	r.Reg = p.Reg
+ 	r.To = p.To
++	if isName(&p.From) {
++		r.From.Reg = dst
++	}
++	if isName(&p.To) {
++		r.To.Reg = dst
++	}
++	if p.From3 != nil && isName(p.From3) {
++		r.From3.Reg = dst
++	}
+ 	obj.Nopout(p)
+ }
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index cc8f96f27f..b826d70619 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -55,21 +55,37 @@ func gentext() {
+ 		return
+ 	}
+ 
+-	thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk.cx", 0)
+-	thunkfunc.Type = obj.STEXT
+-	thunkfunc.Attr |= ld.AttrLocal
+-	thunkfunc.Attr |= ld.AttrReachable
+-	o := func(op ...uint8) {
+-		for _, op1 := range op {
+-			ld.Adduint8(ld.Ctxt, thunkfunc, op1)
++	// Generate little thunks that load the PC of the next instruction into a register.
++	for _, r := range [...]struct {
++		name string
++		num  uint8
++	}{
++		{"ax", 0},
++		{"cx", 1},
++		{"dx", 2},
++		{"bx", 3},
++		// sp
++		{"bp", 5},
++		{"si", 6},
++		{"di", 7},
++	} {
++		thunkfunc := ld.Linklookup(ld.Ctxt, "__x86.get_pc_thunk."+r.name, 0)
++		thunkfunc.Type = obj.STEXT
++		thunkfunc.Attr |= ld.AttrLocal
++		thunkfunc.Attr |= ld.AttrReachable //TODO: remove?
++		o := func(op ...uint8) {
++			for _, op1 := range op {
++				ld.Adduint8(ld.Ctxt, thunkfunc, op1)
++			}
+ 		}
+-	}
+-	// 8b 0c 24	mov    (%esp),%ecx
+-	o(0x8b, 0x0c, 0x24)
+-	// c3		ret
+-	o(0xc3)
++		// 8b 04 24	mov    (%esp),%eax
++		// Destination register is in bits 3-5 of the middle byte, so add that in.
++		o(0x8b, 0x04+r.num<<3, 0x24)
++		// c3		ret
++		o(0xc3)
+ 
+-	ld.Ctxt.Textp = append(ld.Ctxt.Textp, thunkfunc)
++		ld.Ctxt.Textp = append(ld.Ctxt.Textp, thunkfunc)
++	}
+ 
+ 	addmoduledata := ld.Linklookup(ld.Ctxt, "runtime.addmoduledata", 0)
+ 	if addmoduledata.Type == obj.STEXT {
+@@ -84,7 +100,7 @@ func gentext() {
+ 	initfunc.Type = obj.STEXT
+ 	initfunc.Attr |= ld.AttrLocal
+ 	initfunc.Attr |= ld.AttrReachable
+-	o = func(op ...uint8) {
++	o := func(op ...uint8) {
+ 		for _, op1 := range op {
+ 			ld.Adduint8(ld.Ctxt, initfunc, op1)
+ 		}

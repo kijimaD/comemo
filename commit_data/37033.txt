@@ -15,9 +15,274 @@ Date:   Tue Jun 19 16:53:18 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gccgoimporter/ar.go                | 148 +++++++++++++++++++++
  src/go/internal/gccgoimporter/importer.go          |  50 ++++---
  src/go/internal/gccgoimporter/importer_test.go     |   1 +
  .../internal/gccgoimporter/testdata/libimportsar.a | Bin 0 -> 9302 bytes
  4 files changed, 178 insertions(+), 21 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/ar.go b/src/go/internal/gccgoimporter/ar.go
+new file mode 100644
+index 0000000000..ebd08b8f35
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/ar.go
+@@ -0,0 +1,148 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gccgoimporter
++
++import (
++	"bytes"
++	"debug/elf"
++	"errors"
++	"fmt"
++	"io"
++	"strconv"
++	"strings"
++)
++
++// Magic strings for different archive file formats.
++const (
++	armag  = "!<arch>\n"
++	armagt = "!<thin>\n"
++	armagb = "<bigaf>\n"
++)
++
++// Offsets and sizes for fields in a standard archive header.
++const (
++	arNameOff  = 0
++	arNameSize = 16
++	arDateOff  = arNameOff + arNameSize
++	arDateSize = 12
++	arUIDOff   = arDateOff + arDateSize
++	arUIDSize  = 6
++	arGIDOff   = arUIDOff + arUIDSize
++	arGIDSize  = 6
++	arModeOff  = arGIDOff + arGIDSize
++	arModeSize = 8
++	arSizeOff  = arModeOff + arModeSize
++	arSizeSize = 10
++	arFmagOff  = arSizeOff + arSizeSize
++	arFmagSize = 2
++
++	arHdrSize = arFmagOff + arFmagSize
++)
++
++// The contents of the fmag field of a standard archive header.
++const arfmag = "`\n"
++
++// arExportData takes an archive file and returns a ReadSeeker for the
++// export data in that file. This assumes that there is only one
++// object in the archive containing export data, which is not quite
++// what gccgo does; gccgo concatenates together all the export data
++// for all the objects in the file.  In practice that case does not arise.
++func arExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
++	if _, err := archive.Seek(0, io.SeekStart); err != nil {
++		return nil, err
++	}
++
++	var buf [len(armag)]byte
++	if _, err := archive.Read(buf[:]); err != nil {
++		return nil, err
++	}
++
++	switch string(buf[:]) {
++	case armag:
++		return standardArExportData(archive)
++	case armagt:
++		return nil, errors.New("unsupported thin archive")
++	case armagb:
++		return nil, errors.New("unsupported AIX big archive")
++	default:
++		return nil, fmt.Errorf("unrecognized archive file format %q", buf[:])
++	}
++}
++
++// standardArExportData returns export data form a standard archive.
++func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
++	off := int64(len(armag))
++	for {
++		var hdrBuf [arHdrSize]byte
++		if _, err := archive.Read(hdrBuf[:]); err != nil {
++			return nil, err
++		}
++		off += arHdrSize
++
++		if bytes.Compare(hdrBuf[arFmagOff:arFmagOff+arFmagSize], []byte(arfmag)) != 0 {
++			return nil, fmt.Errorf("archive header format header (%q)", hdrBuf[:])
++		}
++
++		size, err := strconv.ParseInt(strings.TrimSpace(string(hdrBuf[arSizeOff:arSizeOff+arSizeSize])), 10, 64)
++		if err != nil {
++			return nil, fmt.Errorf("error parsing size in archive header (%q): %v", hdrBuf[:], err)
++		}
++
++		fn := hdrBuf[arNameOff : arNameOff+arNameSize]
++		if fn[0] == '/' && (fn[1] == ' ' || fn[1] == '/' || bytes.Compare(fn[:8], []byte("/SYM64/ ")) == 0) {
++			// Archive symbol table or extended name table,
++			// which we don't care about.
++		} else {
++			archiveAt := readerAtFromSeeker(archive)
++			ret, err := elfFromAr(io.NewSectionReader(archiveAt, off, size))
++			if ret != nil || err != nil {
++				return ret, err
++			}
++		}
++
++		if size&1 != 0 {
++			size++
++		}
++		off += size
++		if _, err := archive.Seek(off, io.SeekStart); err != nil {
++			return nil, err
++		}
++	}
++}
++
++// elfFromAr tries to get export data from an archive member as an ELF file.
++// If there is no export data, this returns nil, nil.
++func elfFromAr(member *io.SectionReader) (io.ReadSeeker, error) {
++	ef, err := elf.NewFile(member)
++	if err != nil {
++		return nil, err
++	}
++	sec := ef.Section(".go_export")
++	if sec == nil {
++		return nil, nil
++	}
++	return sec.Open(), nil
++}
++
++// readerAtFromSeeker turns an io.ReadSeeker into an io.ReaderAt.
++// This is only safe because there won't be any concurrent seeks
++// while this code is executing.
++func readerAtFromSeeker(rs io.ReadSeeker) io.ReaderAt {
++	if ret, ok := rs.(io.ReaderAt); ok {
++		return ret
++	}
++	return seekerReadAt{rs}
++}
++
++type seekerReadAt struct {
++	seeker io.ReadSeeker
++}
++
++func (sra seekerReadAt) ReadAt(p []byte, off int64) (int, error) {
++	if _, err := sra.seeker.Seek(off, io.SeekStart); err != nil {
++		return 0, err
++	}
++	return sra.seeker.Read(p)
++}
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index d4998cf2a2..159cc50719 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -6,13 +6,11 @@
+ package gccgoimporter // import "go/internal/gccgoimporter"
+ 
+ import (
+-	"bytes"
+ 	"debug/elf"
+ 	"fmt"
+ 	"go/types"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ )
+@@ -98,18 +96,8 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 		return
+ 
+ 	case archiveMagic:
+-		// TODO(pcc): Read the archive directly instead of using "ar".
+-		f.Close()
+-		closer = nil
+-
+-		cmd := exec.Command("ar", "p", fpath)
+-		var out []byte
+-		out, err = cmd.Output()
+-		if err != nil {
+-			return
+-		}
+-
+-		elfreader = bytes.NewReader(out)
++		reader, err = arExportData(f)
++		return
+ 
+ 	default:
+ 		elfreader = f
+@@ -189,17 +177,24 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
+ 			reader = r
+ 		}
+ 
+-		var magic [4]byte
+-		_, err = reader.Read(magic[:])
++		var magics string
++		magics, err = readMagic(reader)
+ 		if err != nil {
+ 			return
+ 		}
+-		_, err = reader.Seek(0, io.SeekStart)
+-		if err != nil {
+-			return
++
++		if magics == archiveMagic {
++			reader, err = arExportData(reader)
++			if err != nil {
++				return
++			}
++			magics, err = readMagic(reader)
++			if err != nil {
++				return
++			}
+ 		}
+ 
+-		switch string(magic[:]) {
++		switch magics {
+ 		case gccgov1Magic, gccgov2Magic:
+ 			var p parser
+ 			p.init(fpath, reader, imports)
+@@ -230,9 +225,22 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
+ 		// 	}
+ 
+ 		default:
+-			err = fmt.Errorf("unrecognized magic string: %q", string(magic[:]))
++			err = fmt.Errorf("unrecognized magic string: %q", magics)
+ 		}
+ 
+ 		return
+ 	}
+ }
++
++// readMagic reads the four bytes at the start of a ReadSeeker and
++// returns them as a string.
++func readMagic(reader io.ReadSeeker) (string, error) {
++	var magic [4]byte
++	if _, err := reader.Read(magic[:]); err != nil {
++		return "", err
++	}
++	if _, err := reader.Seek(0, io.SeekStart); err != nil {
++		return "", err
++	}
++	return string(magic[:]), nil
++}
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 01ab47a445..5a699687bd 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -101,6 +101,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "unicode", name: "IsUpper", want: "func IsUpper(r rune) bool"},
+ 	{pkgpath: "unicode", name: "MaxRune", want: "const MaxRune untyped rune", wantval: "1114111"},
+ 	{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
++	{pkgpath: "importsar", name: "Hello", want: "var Hello string"},
+ 	{pkgpath: "alias", name: "IntAlias2", want: "type IntAlias2 = Int"},
+ 	{pkgpath: "escapeinfo", name: "NewT", want: "func NewT(data []byte) *T"},
+ }
+diff --git a/src/go/internal/gccgoimporter/testdata/libimportsar.a b/src/go/internal/gccgoimporter/testdata/libimportsar.a
+new file mode 100644
+index 0000000000..6f30758151
+Binary files /dev/null and b/src/go/internal/gccgoimporter/testdata/libimportsar.a differ

@@ -17,6 +17,27 @@ Date:   Tue Mar 19 10:40:52 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <martisch@uos.de>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 305fcc4952..91a2fc22ff 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1864,10 +1864,14 @@ func span6(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		if p.As == AADJSP {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = REG_SP
++			// Generate 'ADDQ $x, SP' or 'SUBQ $x, SP', with x positive.
++			// One exception: It is smaller to encode $-0x80 than $0x80.
++			// For that case, flip the sign and the op:
++			// Instead of 'ADDQ $0x80, SP', generate 'SUBQ $-0x80, SP'.
+ 			switch v := p.From.Offset; {
+ 			case v == 0:
+ 				p.As = obj.ANOP
+-			case v < 0:
++			case v == 0x80 || (v < 0 && v != -0x80):
+ 				p.As = spadjop(ctxt, AADDL, AADDQ)
+ 				p.From.Offset *= -1
+ 			default:

@@ -11,6 +11,18 @@ Date:   Wed Sep 8 13:57:12 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2156046
-
+---
  test/fixedbugs/bug298.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug298.go b/test/fixedbugs/bug298.go
+index 9b329aedfc..fe4a99a780 100644
+--- a/test/fixedbugs/bug298.go
++++ b/test/fixedbugs/bug298.go
+@@ -7,5 +7,5 @@
+ package ddd
+ 
+ func Sum() int
+-	for i := range []int{} { return i }  // ERROR "return outside function"
++	for i := range []int{} { return i }  // ERROR "return outside function|expected"
+ 

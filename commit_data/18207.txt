@@ -13,6 +13,20 @@ Date:   Thu Jan 9 14:51:23 2014 -0800
     R=golang-codereviews, bradfitz, adonovan
     CC=golang-codereviews
     https://golang.org/cl/49740045
-
+---
  src/pkg/go/parser/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c4523318f2..d8cde99de2 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1752,7 +1752,7 @@ func (p *parser) makeExpr(s ast.Stmt) ast.Expr {
+ 	if es, isExpr := s.(*ast.ExprStmt); isExpr {
+ 		return p.checkExpr(es.X)
+ 	}
+-	p.error(s.Pos(), "expected condition, found simple statement")
++	p.error(s.Pos(), "expected condition, found simple statement (missing parentheses around composite literal?)")
+ 	return &ast.BadExpr{From: s.Pos(), To: s.End()}
+ }
+ 

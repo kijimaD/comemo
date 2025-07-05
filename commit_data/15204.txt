@@ -16,7 +16,7 @@ Date:   Mon Feb 11 13:33:11 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7305075
-
+---
  src/cmd/vet/atomic.go    |  2 +-
  src/cmd/vet/buildtag.go  |  2 +-
  src/cmd/vet/main.go      | 36 ++++++++++++++++++++++--------------
@@ -26,3 +26,187 @@ Date:   Mon Feb 11 13:33:11 2013 -0800
  src/cmd/vet/structtag.go |  4 ++--
  src/cmd/vet/taglit.go    | 11 ++++++++---
  8 files changed, 39 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/vet/atomic.go b/src/cmd/vet/atomic.go
+index 7a76e9b915..9c7ae7dbfc 100644
+--- a/src/cmd/vet/atomic.go
++++ b/src/cmd/vet/atomic.go
+@@ -13,7 +13,7 @@ import (
+ // checkAtomicAssignment walks the assignment statement checking for comomon
+ // mistaken usage of atomic package, such as: x = atomic.AddUint64(&x, 1)
+ func (f *File) checkAtomicAssignment(n *ast.AssignStmt) {
+-	if !*vetAtomic && !*vetAll {
++	if !vet("atomic") {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/vet/buildtag.go b/src/cmd/vet/buildtag.go
+index 2fd6625de9..bd1dd2d378 100644
+--- a/src/cmd/vet/buildtag.go
++++ b/src/cmd/vet/buildtag.go
+@@ -25,7 +25,7 @@ var (
+ 
+ // checkBuildTag checks that build tags are in the correct location and well-formed.
+ func checkBuildTag(name string, data []byte) {
+-	if !*vetBuildTags && !*vetAll {
++	if !vet("buildtags") {
+ 		return
+ 	}
+ 	lines := bytes.SplitAfter(data, nl)
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 22e3073869..c7676e22f1 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -25,18 +25,23 @@ import (
+ var verbose = flag.Bool("v", false, "verbose")
+ var exitCode = 0
+ 
+-// Flags to control which checks to perform.
+-// NOTE: Add new flags to the if statement at the top of func main too.
+-var (
+-	vetAll             = flag.Bool("all", true, "check everything; disabled if any explicit check is requested")
+-	vetAtomic          = flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package")
+-	vetBuildTags       = flag.Bool("buildtags", false, "check that +build tags are valid")
+-	vetMethods         = flag.Bool("methods", false, "check that canonically named methods are canonically defined")
+-	vetPrintf          = flag.Bool("printf", false, "check printf-like invocations")
+-	vetStructTags      = flag.Bool("structtags", false, "check that struct field tags have canonical format")
+-	vetRangeLoops      = flag.Bool("rangeloops", false, "check that range loop variables are used correctly")
+-	vetUntaggedLiteral = flag.Bool("composites", false, "check that composite literals used type-tagged elements")
+-)
++// Flags to control which checks to perform. "all" is set to true here, and disabled later if
++// a flag is set explicitly.
++var report = map[string]*bool{
++	"all":        flag.Bool("all", true, "check everything; disabled if any explicit check is requested"),
++	"atomic":     flag.Bool("atomic", false, "check for common mistaken usages of the sync/atomic package"),
++	"buildtags":  flag.Bool("buildtags", false, "check that +build tags are valid"),
++	"composites": flag.Bool("composites", false, "check that composite literals used type-tagged elements"),
++	"methods":    flag.Bool("methods", false, "check that canonically named methods are canonically defined"),
++	"printf":     flag.Bool("printf", false, "check printf-like invocations"),
++	"structtags": flag.Bool("structtags", false, "check that struct field tags have canonical format"),
++	"rangeloops": flag.Bool("rangeloops", false, "check that range loop variables are used correctly"),
++}
++
++// vet tells whether to report errors for the named check, a flag name.
++func vet(name string) bool {
++	return *report["all"] || *report[name]
++}
+ 
+ // setExit sets the value for os.Exit when it is called, later.  It
+ // remembers the highest value.
+@@ -66,8 +71,11 @@ func main() {
+ 	flag.Parse()
+ 
+ 	// If a check is named explicitly, turn off the 'all' flag.
+-	if *vetAtomic || *vetBuildTags || *vetMethods || *vetPrintf || *vetStructTags || *vetRangeLoops || *vetUntaggedLiteral {
+-		*vetAll = false
++	for name, ptr := range report {
++		if name != "all" && *ptr {
++			*report["all"] = false
++			break
++		}
+ 	}
+ 
+ 	if *printfuncs != "" {
+diff --git a/src/cmd/vet/method.go b/src/cmd/vet/method.go
+index dcfa8a02f3..a01873df1c 100644
+--- a/src/cmd/vet/method.go
++++ b/src/cmd/vet/method.go
+@@ -55,7 +55,7 @@ var canonicalMethods = map[string]MethodSig{
+ }
+ 
+ func (f *File) checkCanonicalMethod(id *ast.Ident, t *ast.FuncType) {
+-	if !*vetMethods && !*vetAll {
++	if !vet("methods") {
+ 		return
+ 	}
+ 	// Expected input/output.
+@@ -161,9 +161,9 @@ func (f *File) matchParamType(expect string, actual ast.Expr) bool {
+ 	return f.b.String() == expect
+ }
+ 
+-func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "method Scan[(]x fmt.ScanState, c byte[)] should have signature Scan[(]fmt.ScanState, rune[)] error"
++func (t *BadTypeUsedInTests) Scan(x fmt.ScanState, c byte) { // ERROR "should have signature Scan"
+ }
+ 
+ type BadInterfaceUsedInTests interface {
+-	ReadByte() byte // ERROR "method ReadByte[(][)] byte should have signature ReadByte[(][)] [(]byte, error[)]"
++	ReadByte() byte // ERROR "should have signature ReadByte"
+ }
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index ea85edac1d..1fe112b482 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -44,7 +44,7 @@ var printList = map[string]int{
+ 
+ // checkCall triggers the print-specific checks if the call invokes a print function.
+ func (f *File) checkFmtPrintfCall(call *ast.CallExpr, Name string) {
+-	if !*vetPrintf && !*vetAll {
++	if !vet("printf") {
+ 		return
+ 	}
+ 	name := strings.ToLower(Name)
+diff --git a/src/cmd/vet/rangeloop.go b/src/cmd/vet/rangeloop.go
+index 71cbc11579..1687fcb8a2 100644
+--- a/src/cmd/vet/rangeloop.go
++++ b/src/cmd/vet/rangeloop.go
+@@ -27,7 +27,7 @@ import "go/ast"
+ // its index or value variables are used unsafely inside goroutines or deferred
+ // function literals.
+ func checkRangeLoop(f *File, n *ast.RangeStmt) {
+-	if !*vetRangeLoops && !*vetAll {
++	if !vet("rangeloops") {
+ 		return
+ 	}
+ 	key, _ := n.Key.(*ast.Ident)
+diff --git a/src/cmd/vet/structtag.go b/src/cmd/vet/structtag.go
+index 4aab2d086f..4a04bb5b63 100644
+--- a/src/cmd/vet/structtag.go
++++ b/src/cmd/vet/structtag.go
+@@ -14,7 +14,7 @@ import (
+ 
+ // checkField checks a struct field tag.
+ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+-	if !*vetStructTags && !*vetAll {
++	if !vet("structtags") {
+ 		return
+ 	}
+ 	if field.Tag == nil {
+@@ -37,5 +37,5 @@ func (f *File) checkCanonicalFieldTag(field *ast.Field) {
+ }
+ 
+ type BadTypeUsedInTests struct {
+-	X int "hello" // ERROR "struct field tag"
++	X int "hello" // ERROR "not compatible with reflect.StructTag.Get"
+ }
+diff --git a/src/cmd/vet/taglit.go b/src/cmd/vet/taglit.go
+index ccc78cc353..6171efea48 100644
+--- a/src/cmd/vet/taglit.go
++++ b/src/cmd/vet/taglit.go
+@@ -9,12 +9,14 @@ package main
+ import (
+ 	"go/ast"
+ 	"strings"
++
++	"flag" // for test
+ )
+ 
+ // checkUntaggedLiteral checks if a composite literal is an struct literal with
+ // untagged fields.
+ func (f *File) checkUntaggedLiteral(c *ast.CompositeLit) {
+-	if !*vetUntaggedLiteral && !*vetAll {
++	if !vet("composites") {
+ 		return
+ 	}
+ 	// Check if the CompositeLit contains an untagged field.
+@@ -123,6 +125,9 @@ var untaggedLiteralWhitelist = map[string]bool{
+ 	"image.Rectangle":     true,
+ }
+ 
+-type BadTag struct {
+-	S string `this is a bad tag` // ERROR "not compatible with reflect.StructTag.Get"
++var BadStructLiteralUsedInTests = flag.Flag{ // ERROR "untagged fields"
++	"Name",
++	"Usage",
++	nil, // Value
++	"DefValue",
+ }

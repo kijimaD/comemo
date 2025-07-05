@@ -14,8 +14,244 @@ Date:   Wed Dec 29 22:02:45 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/archive/zip/reader.go           |  60 ++++++++++++++++++++------
  src/archive/zip/reader_test.go      |  84 ++++++++++++++++++++++++++++++++++++
  src/archive/zip/testdata/dupdir.zip | Bin 0 -> 458 bytes
  3 files changed, 131 insertions(+), 13 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index d875c7be25..906f3d308a 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -662,6 +662,7 @@ type fileListEntry struct {
+ 	name  string
+ 	file  *File
+ 	isDir bool
++	isDup bool
+ }
+ 
+ type fileInfoDirEntry interface {
+@@ -669,11 +670,14 @@ type fileInfoDirEntry interface {
+ 	fs.DirEntry
+ }
+ 
+-func (e *fileListEntry) stat() fileInfoDirEntry {
++func (e *fileListEntry) stat() (fileInfoDirEntry, error) {
++	if e.isDup {
++		return nil, errors.New(e.name + ": duplicate entries in zip file")
++	}
+ 	if !e.isDir {
+-		return headerFileInfo{&e.file.FileHeader}
++		return headerFileInfo{&e.file.FileHeader}, nil
+ 	}
+-	return e
++	return e, nil
+ }
+ 
+ // Only used for directories.
+@@ -708,17 +712,37 @@ func toValidName(name string) string {
+ 
+ func (r *Reader) initFileList() {
+ 	r.fileListOnce.Do(func() {
++		// files and knownDirs map from a file/directory name
++		// to an index into the r.fileList entry that we are
++		// building. They are used to mark duplicate entries.
++		files := make(map[string]int)
++		knownDirs := make(map[string]int)
++
++		// dirs[name] is true if name is known to be a directory,
++		// because it appears as a prefix in a path.
+ 		dirs := make(map[string]bool)
+-		knownDirs := make(map[string]bool)
++
+ 		for _, file := range r.File {
+ 			isDir := len(file.Name) > 0 && file.Name[len(file.Name)-1] == '/'
+ 			name := toValidName(file.Name)
+ 			if name == "" {
+ 				continue
+ 			}
++
++			if idx, ok := files[name]; ok {
++				r.fileList[idx].isDup = true
++				continue
++			}
++			if idx, ok := knownDirs[name]; ok {
++				r.fileList[idx].isDup = true
++				continue
++			}
++
+ 			for dir := path.Dir(name); dir != "."; dir = path.Dir(dir) {
+ 				dirs[dir] = true
+ 			}
++
++			idx := len(r.fileList)
+ 			entry := fileListEntry{
+ 				name:  name,
+ 				file:  file,
+@@ -726,17 +750,23 @@ func (r *Reader) initFileList() {
+ 			}
+ 			r.fileList = append(r.fileList, entry)
+ 			if isDir {
+-				knownDirs[name] = true
++				knownDirs[name] = idx
++			} else {
++				files[name] = idx
+ 			}
+ 		}
+ 		for dir := range dirs {
+-			if !knownDirs[dir] {
+-				entry := fileListEntry{
+-					name:  dir,
+-					file:  nil,
+-					isDir: true,
++			if _, ok := knownDirs[dir]; !ok {
++				if idx, ok := files[dir]; ok {
++					r.fileList[idx].isDup = true
++				} else {
++					entry := fileListEntry{
++						name:  dir,
++						file:  nil,
++						isDir: true,
++					}
++					r.fileList = append(r.fileList, entry)
+ 				}
+-				r.fileList = append(r.fileList, entry)
+ 			}
+ 		}
+ 
+@@ -831,7 +861,7 @@ type openDir struct {
+ }
+ 
+ func (d *openDir) Close() error               { return nil }
+-func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat(), nil }
++func (d *openDir) Stat() (fs.FileInfo, error) { return d.e.stat() }
+ 
+ func (d *openDir) Read([]byte) (int, error) {
+ 	return 0, &fs.PathError{Op: "read", Path: d.e.name, Err: errors.New("is a directory")}
+@@ -850,7 +880,11 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
+ 	}
+ 	list := make([]fs.DirEntry, n)
+ 	for i := range list {
+-		list[i] = d.files[d.offset+i].stat()
++		s, err := d.files[d.offset+i].stat()
++		if err != nil {
++			return nil, err
++		}
++		list[i] = s
+ 	}
+ 	d.offset += n
+ 	return list, nil
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 4c1e82b9d4..41e720aae7 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -505,6 +505,35 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	{
++		Name: "dupdir.zip",
++		File: []ZipTestFile{
++			{
++				Name:     "a/",
++				Content:  []byte{},
++				Mode:     fs.ModeDir | 0666,
++				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
++			},
++			{
++				Name:     "a/b",
++				Content:  []byte{},
++				Mode:     0666,
++				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
++			},
++			{
++				Name:     "a/b/",
++				Content:  []byte{},
++				Mode:     fs.ModeDir | 0666,
++				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
++			},
++			{
++				Name:     "a/b/c",
++				Content:  []byte{},
++				Mode:     0666,
++				Modified: time.Date(2021, 12, 29, 0, 0, 0, 0, timeZone(0)),
++			},
++		},
++	},
+ }
+ 
+ func TestReader(t *testing.T) {
+@@ -1141,6 +1170,7 @@ func TestFS(t *testing.T) {
+ 			[]string{"a/b/c"},
+ 		},
+ 	} {
++		test := test
+ 		t.Run(test.file, func(t *testing.T) {
+ 			t.Parallel()
+ 			z, err := OpenReader(test.file)
+@@ -1155,6 +1185,60 @@ func TestFS(t *testing.T) {
+ 	}
+ }
+ 
++func TestFSWalk(t *testing.T) {
++	for _, test := range []struct {
++		file    string
++		want    []string
++		wantErr bool
++	}{
++		{
++			file: "testdata/unix.zip",
++			want: []string{".", "dir", "dir/bar", "dir/empty", "hello", "readonly"},
++		},
++		{
++			file: "testdata/subdir.zip",
++			want: []string{".", "a", "a/b", "a/b/c"},
++		},
++		{
++			file:    "testdata/dupdir.zip",
++			wantErr: true,
++		},
++	} {
++		test := test
++		t.Run(test.file, func(t *testing.T) {
++			t.Parallel()
++			z, err := OpenReader(test.file)
++			if err != nil {
++				t.Fatal(err)
++			}
++			var files []string
++			sawErr := false
++			err = fs.WalkDir(z, ".", func(path string, d fs.DirEntry, err error) error {
++				if err != nil {
++					if !test.wantErr {
++						t.Errorf("%s: %v", path, err)
++					}
++					sawErr = true
++					return nil
++				}
++				files = append(files, path)
++				return nil
++			})
++			if err != nil {
++				t.Errorf("fs.WalkDir error: %v", err)
++			}
++			if test.wantErr && !sawErr {
++				t.Error("succeeded but want error")
++			} else if !test.wantErr && sawErr {
++				t.Error("unexpected error")
++			}
++			if test.want != nil && !reflect.DeepEqual(files, test.want) {
++				t.Errorf("got %v want %v", files, test.want)
++			}
++		})
++	}
++}
++
+ func TestFSModTime(t *testing.T) {
+ 	t.Parallel()
+ 	z, err := OpenReader("testdata/subdir.zip")
+diff --git a/src/archive/zip/testdata/dupdir.zip b/src/archive/zip/testdata/dupdir.zip
+new file mode 100644
+index 0000000000..292720b7f0
+Binary files /dev/null and b/src/archive/zip/testdata/dupdir.zip differ

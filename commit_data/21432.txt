@@ -9,7 +9,51 @@ Date:   Mon Jan 5 16:39:34 2015 -0500
     Change-Id: I3b86745d38e09093fe2f4b918d774bd6608727d7
     Reviewed-on: https://go-review.googlesource.com/2313
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      |  5 ++++-
  src/math/big/int_test.go | 15 +++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index d22e39e7c9..b6c7070d9d 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -736,8 +736,11 @@ func (z *Int) binaryGCD(a, b *Int) *Int {
+ 
+ // ProbablyPrime performs n Miller-Rabin tests to check whether x is prime.
+ // If it returns true, x is prime with probability 1 - 1/4^n.
+-// If it returns false, x is not prime.
++// If it returns false, x is not prime. n must be >0.
+ func (x *Int) ProbablyPrime(n int) bool {
++	if n <= 0 {
++		panic("non-positive n for ProbablyPrime")
++	}
+ 	return !x.neg && x.abs.probablyPrime(n)
+ }
+ 
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 6070cf325d..af3af910e9 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -989,6 +989,21 @@ func TestProbablyPrime(t *testing.T) {
+ 			break
+ 		}
+ 	}
++
++	// check that ProbablyPrime panics if n <= 0
++	c := NewInt(11) // a prime
++	for _, n := range []int{-1, 0, 1} {
++		func() {
++			defer func() {
++				if n <= 0 && recover() == nil {
++					t.Fatalf("expected panic from ProbablyPrime(%d)", n)
++				}
++			}()
++			if !c.ProbablyPrime(n) {
++				t.Fatalf("%v should be a prime", c)
++			}
++		}()
++	}
+ }
+ 
+ type intShiftTest struct {

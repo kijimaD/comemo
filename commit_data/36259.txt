@@ -14,7 +14,7 @@ Date:   Thu Apr 12 10:27:42 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/runtime/asm_386.s         | 10 +---------
  src/runtime/asm_amd64.s       | 10 +---------
  src/runtime/asm_amd64p32.s    | 10 +---------
@@ -22,3 +22,157 @@ Date:   Thu Apr 12 10:27:42 2018 +0200
  src/runtime/memclr_amd64.s    |  3 ++-
  src/runtime/runtime2.go       |  1 -
  6 files changed, 14 insertions(+), 30 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index e68f727076..28d045e416 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -184,11 +184,6 @@ eax7:
+ 	MOVL	$0, CX
+ 	CPUID
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx2 will be set back to false later.
+-	TESTL	$(1<<5), BX
+-	SETNE	runtime·support_avx2(SB)
+-
+ 	TESTL	$(1<<9), BX // ERMS
+ 	SETNE	runtime·support_erms(SB)
+ 
+@@ -197,16 +192,13 @@ osavx:
+ 	// for XMM and YMM OS support.
+ #ifndef GOOS_nacl
+ 	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	noavx
++	JNE	nocpuinfo
+ 	MOVL	$0, CX
+ 	// For XGETBV, OSXSAVE bit is required and sufficient
+ 	XGETBV
+ 	ANDL	$6, AX
+ 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-	JE nocpuinfo
+ #endif
+-noavx:
+-	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+ 	// if there is an _cgo_init, call it to let it
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 23b25bb9a4..bfec6ef410 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -147,25 +147,17 @@ eax7:
+ 	MOVL	$0, CX
+ 	CPUID
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx2 will be set back to false later.
+-	TESTL	$(1<<5), BX
+-	SETNE	runtime·support_avx2(SB)
+-
+ 	TESTL	$(1<<9), BX // ERMS
+ 	SETNE	runtime·support_erms(SB)
+ 
+ osavx:
+ 	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	noavx
++	JNE	nocpuinfo
+ 	MOVL	$0, CX
+ 	// For XGETBV, OSXSAVE bit is required and sufficient
+ 	XGETBV
+ 	ANDL	$6, AX
+ 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-	JE nocpuinfo
+-noavx:
+-	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+ 	// if there is an _cgo_init, call it.
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 63bf2b07a0..9c0d788ea5 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -67,11 +67,6 @@ eax7:
+ 	MOVL	$0, CX
+ 	CPUID
+ 
+-	// If OS support for XMM and YMM is not present
+-	// support_avx2 will be set back to false later.
+-	TESTL	$(1<<5), BX
+-	SETNE	runtime·support_avx2(SB)
+-
+ 	TESTL	$(1<<9), BX // ERMS
+ 	SETNE	runtime·support_erms(SB)
+ 
+@@ -80,16 +75,13 @@ osavx:
+ 	// for XMM and YMM OS support.
+ #ifndef GOOS_nacl
+ 	CMPB	runtime·support_osxsave(SB), $1
+-	JNE	noavx
++	JNE	nocpuinfo
+ 	MOVL	$0, CX
+ 	// For XGETBV, OSXSAVE bit is required and sufficient
+ 	XGETBV
+ 	ANDL	$6, AX
+ 	CMPL	AX, $6 // Check for OS support of XMM and YMM registers.
+-	JE nocpuinfo
+ #endif
+-noavx:
+-	MOVB $0, runtime·support_avx2(SB)
+ 
+ nocpuinfo:
+ 
+diff --git a/src/runtime/cpuflags_amd64.go b/src/runtime/cpuflags_amd64.go
+index 9d2d4fcbe2..10ab5f5b00 100644
+--- a/src/runtime/cpuflags_amd64.go
++++ b/src/runtime/cpuflags_amd64.go
+@@ -4,7 +4,15 @@
+ 
+ package runtime
+ 
+-import "internal/cpu"
++import (
++	"internal/cpu"
++	"unsafe"
++)
++
++// Offsets into internal/cpu records for use in assembly.
++const (
++	offsetX86HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
++)
+ 
+ var useAVXmemmove bool
+ 
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 244f5b4d8c..d0fd50d4f1 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -4,6 +4,7 @@
+ 
+ // +build !plan9
+ 
++#include "go_asm.h"
+ #include "textflag.h"
+ 
+ // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+@@ -36,7 +37,7 @@ tail:
+ 	JBE	_65through128
+ 	CMPQ	BX, $256
+ 	JBE	_129through256
+-	CMPB	runtime·support_avx2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JE loop_preheader_avx2
+ 	// TODO: use branch table and BSR to make this just a single dispatch
+ 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0d253233d2..51fceb8d8f 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -779,7 +779,6 @@ var (
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+-	support_avx2         bool
+ 	support_erms         bool
+ 	support_osxsave      bool
+ 	support_popcnt       bool

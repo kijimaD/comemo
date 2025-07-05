@@ -19,8 +19,49 @@ Date:   Wed Feb 29 16:37:40 2012 -0500
     R=golang-dev, r, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/5712045
-
+---
  src/pkg/path/filepath/path_plan9.go   | 2 +-
  src/pkg/path/filepath/path_unix.go    | 2 +-
  src/pkg/path/filepath/path_windows.go | 3 +--
  3 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index 17b873f1a9..cf028a75c5 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -17,7 +17,7 @@ func VolumeName(path string) string {
+ 	return ""
+ }
+ 
+-// HasPrefix tests whether the path p begins with prefix.
++// HasPrefix exists for historical compatibility and should not be used.
+ func HasPrefix(p, prefix string) bool {
+ 	return strings.HasPrefix(p, prefix)
+ }
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index c5ac71efe2..305e307272 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -19,7 +19,7 @@ func VolumeName(path string) string {
+ 	return ""
+ }
+ 
+-// HasPrefix tests whether the path p begins with prefix.
++// HasPrefix exists for historical compatibility and should not be used.
+ func HasPrefix(p, prefix string) bool {
+ 	return strings.HasPrefix(p, prefix)
+ }
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index 9692fd978c..1d1d23bfe7 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -67,8 +67,7 @@ func VolumeName(path string) (v string) {
+ 	return ""
+ }
+ 
+-// HasPrefix tests whether the path p begins with prefix.
+-// It ignores case while comparing.
++// HasPrefix exists for historical compatibility and should not be used.
+ func HasPrefix(p, prefix string) bool {
+ 	if strings.HasPrefix(p, prefix) {
+ 		return true

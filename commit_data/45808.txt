@@ -22,10 +22,206 @@ Date:   Thu Nov 19 12:40:19 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/constant/value.go              | 11 +++++++++++
  src/go/constant/value_test.go         | 35 +++++++++++++++++++++++++++++------
  src/go/types/expr.go                  | 12 ++++++++++--
  src/go/types/fixedbugs/issue20583.src | 14 ++++++++++++++
  src/go/types/stmt.go                  |  4 ++--
  5 files changed, 66 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/constant/value.go b/src/go/constant/value.go
+index 08bcb3bf87..116c7575d9 100644
+--- a/src/go/constant/value.go
++++ b/src/go/constant/value.go
+@@ -66,6 +66,11 @@ type Value interface {
+ // The spec requires at least 256 bits; typical implementations use 512 bits.
+ const prec = 512
+ 
++// TODO(gri) Consider storing "error" information in an unknownVal so clients
++//           can provide better error messages. For instance, if a number is
++//           too large (incl. infinity), that could be recorded in unknownVal.
++//           See also #20583 and #42695 for use cases.
++
+ type (
+ 	unknownVal struct{}
+ 	boolVal    bool
+@@ -297,10 +302,16 @@ func makeFloat(x *big.Float) Value {
+ 	if x.Sign() == 0 {
+ 		return floatVal0
+ 	}
++	if x.IsInf() {
++		return unknownVal{}
++	}
+ 	return floatVal{x}
+ }
+ 
+ func makeComplex(re, im Value) Value {
++	if re.Kind() == Unknown || im.Kind() == Unknown {
++		return unknownVal{}
++	}
+ 	return complexVal{re, im}
+ }
+ 
+diff --git a/src/go/constant/value_test.go b/src/go/constant/value_test.go
+index a319039fc6..1a5025cbbd 100644
+--- a/src/go/constant/value_test.go
++++ b/src/go/constant/value_test.go
+@@ -82,6 +82,11 @@ var floatTests = []string{
+ 	`1_2_3.123 = 123.123`,
+ 	`0123.01_23 = 123.0123`,
+ 
++	`1e-1000000000 = 0`,
++	`1e+1000000000 = ?`,
++	`6e5518446744 = ?`,
++	`-6e5518446744 = ?`,
++
+ 	// hexadecimal floats
+ 	`0x0.p+0 = 0.`,
+ 	`0Xdeadcafe.p-10 = 0xdeadcafe/1024`,
+@@ -117,6 +122,11 @@ var imagTests = []string{
+ 	`0.e+1i = 0i`,
+ 	`123.E-1_0i = 123e-10i`,
+ 	`01_23.e123i = 123e123i`,
++
++	`1e-1000000000i = 0i`,
++	`1e+1000000000i = ?`,
++	`6e5518446744i = ?`,
++	`-6e5518446744i = ?`,
+ }
+ 
+ func testNumbers(t *testing.T, kind token.Token, tests []string) {
+@@ -129,21 +139,32 @@ func testNumbers(t *testing.T, kind token.Token, tests []string) {
+ 
+ 		x := MakeFromLiteral(a[0], kind, 0)
+ 		var y Value
+-		if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
+-			n := MakeFromLiteral(a[1][:i], token.INT, 0)
+-			d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
+-			y = BinaryOp(n, token.QUO, d)
++		if a[1] == "?" {
++			y = MakeUnknown()
+ 		} else {
+-			y = MakeFromLiteral(a[1], kind, 0)
++			if i := strings.Index(a[1], "/"); i >= 0 && kind == token.FLOAT {
++				n := MakeFromLiteral(a[1][:i], token.INT, 0)
++				d := MakeFromLiteral(a[1][i+1:], token.INT, 0)
++				y = BinaryOp(n, token.QUO, d)
++			} else {
++				y = MakeFromLiteral(a[1], kind, 0)
++			}
++			if y.Kind() == Unknown {
++				panic(fmt.Sprintf("invalid test case: %s %d", test, y.Kind()))
++			}
+ 		}
+ 
+ 		xk := x.Kind()
+ 		yk := y.Kind()
+-		if xk != yk || xk == Unknown {
++		if xk != yk {
+ 			t.Errorf("%s: got kind %d != %d", test, xk, yk)
+ 			continue
+ 		}
+ 
++		if yk == Unknown {
++			continue
++		}
++
+ 		if !Compare(x, token.EQL, y) {
+ 			t.Errorf("%s: %s != %s", test, x, y)
+ 		}
+@@ -200,6 +221,7 @@ var opTests = []string{
+ 	`1i * 1i = -1`,
+ 	`? * 0 = ?`,
+ 	`0 * ? = ?`,
++	`0 * 1e+1000000000 = ?`,
+ 
+ 	`0 / 0 = "division_by_zero"`,
+ 	`10 / 2 = 5`,
+@@ -207,6 +229,7 @@ var opTests = []string{
+ 	`5i / 3i = 5/3`,
+ 	`? / 0 = ?`,
+ 	`0 / ? = ?`,
++	`0 * 1e+1000000000i = ?`,
+ 
+ 	`0 % 0 = "runtime_error:_integer_divide_by_zero"`, // TODO(gri) should be the same as for /
+ 	`10 % 3 = 1`,
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index b026e99ce2..5bf9c81460 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -802,7 +802,7 @@ var binaryOpPredicates = opPredicates{
+ }
+ 
+ // The binary expression e may be nil. It's passed in for better error messages only.
+-func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token) {
++func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, op token.Token, opPos token.Pos) {
+ 	var y operand
+ 
+ 	check.expr(x, lhs)
+@@ -885,6 +885,14 @@ func (check *Checker) binary(x *operand, e *ast.BinaryExpr, lhs, rhs ast.Expr, o
+ 			op = token.QUO_ASSIGN
+ 		}
+ 		x.val = constant.BinaryOp(xval, op, yval)
++		// report error if valid operands lead to an invalid result
++		if xval.Kind() != constant.Unknown && yval.Kind() != constant.Unknown && x.val.Kind() == constant.Unknown {
++			// TODO(gri) We should report exactly what went wrong. At the
++			//           moment we don't have the (go/constant) API for that.
++			//           See also TODO in go/constant/value.go.
++			check.errorf(atPos(e.OpPos), _InvalidConstVal, "constant result not representable")
++			// TODO(gri) Should we mark operands with unknown values as invalid?
++		}
+ 		// Typed constants must be representable in
+ 		// their type after each constant operation.
+ 		if isTyped(typ) {
+@@ -1542,7 +1550,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		}
+ 
+ 	case *ast.BinaryExpr:
+-		check.binary(x, e, e.X, e.Y, e.Op)
++		check.binary(x, e, e.X, e.Y, e.Op, e.OpPos)
+ 		if x.mode == invalid {
+ 			goto Error
+ 		}
+diff --git a/src/go/types/fixedbugs/issue20583.src b/src/go/types/fixedbugs/issue20583.src
+new file mode 100644
+index 0000000000..d26dbada4f
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue20583.src
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue20583
++
++const (
++	_ = 6e886451608 /* ERROR malformed constant */ /2
++	_ = 6e886451608i /* ERROR malformed constant */ /2
++	_ = 0 * 1e+1000000000 // ERROR malformed constant
++
++	x = 1e100000000
++	_ = x*x*x*x*x*x* /* ERROR not representable */ x
++)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index b1ccbf0c65..7b3f322ced 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -391,7 +391,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 
+ 		Y := &ast.BasicLit{ValuePos: s.X.Pos(), Kind: token.INT, Value: "1"} // use x's position
+-		check.binary(&x, nil, s.X, Y, op)
++		check.binary(&x, nil, s.X, Y, op, s.TokPos)
+ 		if x.mode == invalid {
+ 			return
+ 		}
+@@ -423,7 +423,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				return
+ 			}
+ 			var x operand
+-			check.binary(&x, nil, s.Lhs[0], s.Rhs[0], op)
++			check.binary(&x, nil, s.Lhs[0], s.Rhs[0], op, s.TokPos)
+ 			if x.mode == invalid {
+ 				return
+ 			}

@@ -25,7 +25,7 @@ Date:   Thu Feb 16 11:50:28 2012 +1100
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/5673053
-
+---
  src/cmd/go/test.go                      | 19 ++++---
  src/cmd/godoc/godoc.go                  | 33 +++++++++---
  src/pkg/bytes/example_test.go           |  4 +-
@@ -41,3 +41,846 @@ Date:   Thu Feb 16 11:50:28 2012 +1100
  src/pkg/text/template/example_test.go   | 46 ++++++++--------
  src/pkg/time/example_test.go            |  2 +-
  14 files changed, 213 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 56df526e74..902f583542 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -183,9 +183,9 @@ where xxx is a suffix not beginning with an upper case letter.
+ 
+ Here is an example of an example:
+ 
+-	// The output of this example function.
+ 	func ExamplePrintln() {
+ 		Println("The output of this example function.")
++		// Output: The output of this example function.
+ 	}
+ 
+ The entire test file is presented as the example when it contains a single
+@@ -717,17 +717,16 @@ func (t *testFuncs) load(filename, pkg string, seen *bool) error {
+ 		case isTest(name, "Benchmark"):
+ 			t.Benchmarks = append(t.Benchmarks, testFunc{pkg, name, ""})
+ 			*seen = true
+-		case isTest(name, "Example"):
+-			output := n.Doc.Text()
+-			if output == "" {
+-				// Don't run examples with no output.
+-				continue
+-			}
+-			t.Examples = append(t.Examples, testFunc{pkg, name, output})
+-			*seen = true
+ 		}
+ 	}
+-
++	for _, e := range ast.Examples(f) {
++		if e.Output == "" {
++			// Don't run examples with no output.
++			continue
++		}
++		t.Examples = append(t.Examples, testFunc{pkg, "Example" + e.Name, e.Output})
++		*seen = true
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 89b7b69538..5652547238 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -499,7 +499,9 @@ func startsWithUppercase(s string) bool {
+ 	return unicode.IsUpper(r)
+ }
+ 
+-func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.FileSet) string {
++var exampleOutputRx = regexp.MustCompile(`(?i)//[[:space:]]*output:`)
++
++func example_htmlFunc(funcName string, examples []*ast.Example, fset *token.FileSet) string {
+ 	var buf bytes.Buffer
+ 	for _, eg := range examples {
+ 		name := eg.Name
+@@ -517,16 +519,28 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 		}
+ 
+ 		// print code
+-		code := node_htmlFunc(eg.Body, fset)
++		cnode := &printer.CommentedNode{Node: eg.Code, Comments: eg.Comments}
++		code := node_htmlFunc(cnode, fset)
++		out := eg.Output
++
++		// additional formatting if this is a function body
+ 		if len(code) > 0 && code[0] == '{' {
+-			// unindent and remove surrounding braces
++			// unindent
+ 			code = strings.Replace(code, "\n    ", "\n", -1)
++			// remove surrounding braces
+ 			code = code[2 : len(code)-2]
++			// remove output comment
++			if loc := exampleOutputRx.FindStringIndex(code); loc != nil {
++				code = strings.TrimSpace(code[:loc[0]])
++			}
++		} else {
++			// drop output, as the output comment will appear in the code
++			out = ""
+ 		}
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+ 			Name, Code, Output string
+-		}{eg.Name, code, eg.Output})
++		}{eg.Name, code, out})
+ 		if err != nil {
+ 			log.Print(err)
+ 		}
+@@ -552,7 +566,6 @@ func example_nameFunc(s string) string {
+ func example_suffixFunc(name string) string {
+ 	_, suffix := splitExampleName(name)
+ 	return suffix
+-
+ }
+ 
+ func splitExampleName(s string) (name, suffix string) {
+@@ -966,7 +979,7 @@ type PageInfo struct {
+ 	FSet     *token.FileSet // corresponding file set
+ 	PAst     *ast.File      // nil if no single AST with package exports
+ 	PDoc     *doc.Package   // nil if no single package documentation
+-	Examples []*doc.Example // nil if no example code
++	Examples []*ast.Example // nil if no example code
+ 	Dirs     *DirList       // nil if no directory information
+ 	DirTime  time.Time      // directory time stamp
+ 	DirFlat  bool           // if set, show directory in a flat (non-indented) manner
+@@ -1115,7 +1128,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 	}
+ 
+ 	// get examples from *_test.go files
+-	var examples []*doc.Example
++	var examples []*ast.Example
+ 	filter = func(d os.FileInfo) bool {
+ 		return isGoFile(d) && strings.HasSuffix(d.Name(), "_test.go")
+ 	}
+@@ -1123,7 +1136,11 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		log.Println("parsing test files:", err)
+ 	} else {
+ 		for _, testpkg := range testpkgs {
+-			examples = append(examples, doc.Examples(testpkg)...)
++			var files []*ast.File
++			for _, f := range testpkg.Files {
++				files = append(files, f)
++			}
++			examples = append(examples, ast.Examples(files...)...)
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/bytes/example_test.go b/src/pkg/bytes/example_test.go
+index 0234a012a4..6fe8cd5a90 100644
+--- a/src/pkg/bytes/example_test.go
++++ b/src/pkg/bytes/example_test.go
+@@ -11,18 +11,18 @@ import (
+ 	"os"
+ )
+ 
+-// Hello world!
+ func ExampleBuffer() {
+ 	var b Buffer // A Buffer needs no initialization.
+ 	b.Write([]byte("Hello "))
+ 	b.Write([]byte("world!"))
+ 	b.WriteTo(os.Stdout)
++	// Output: Hello world!
+ }
+ 
+-// Gophers rule!
+ func ExampleBuffer_reader() {
+ 	// A Buffer can turn a string or a []byte into an io.Reader.
+ 	buf := NewBufferString("R29waGVycyBydWxlIQ==")
+ 	dec := base64.NewDecoder(base64.StdEncoding, buf)
+ 	io.Copy(os.Stdout, dec)
++	// Output: Gophers rule!
+ }
+diff --git a/src/pkg/container/heap/example_test.go b/src/pkg/container/heap/example_test.go
+index 861d9620dc..2050bc8359 100644
+--- a/src/pkg/container/heap/example_test.go
++++ b/src/pkg/container/heap/example_test.go
+@@ -57,7 +57,25 @@ func (pq *PriorityQueue) Pop() interface{} {
+ 	return item
+ }
+ 
+-// 99:seven 88:five 77:zero 66:nine 55:three 44:two 33:six 22:one 11:four 00:eight
++// update is not used by the example but shows how to take the top item from
++// the queue, update its priority and value, and put it back.
++func (pq *PriorityQueue) update(value string, priority int) {
++	item := heap.Pop(pq).(*Item)
++	item.value = value
++	item.priority = priority
++	heap.Push(pq, item)
++}
++
++// changePriority is not used by the example but shows how to change the
++// priority of an arbitrary item.
++func (pq *PriorityQueue) changePriority(item *Item, priority int) {
++	heap.Remove(pq, item.index)
++	item.priority = priority
++	heap.Push(pq, item)
++}
++
++// This example pushes 10 items into a PriorityQueue and takes them out in
++// order of priority.
+ func Example() {
+ 	const nItem = 10
+ 	// Random priorities for the items (a permutation of 0..9, times 11)).
+@@ -82,21 +100,6 @@ func Example() {
+ 		item := heap.Pop(&pq).(*Item)
+ 		fmt.Printf("%.2d:%s ", item.priority, item.value)
+ 	}
+-}
+-
+-// update is not used by the example but shows how to take the top item from the queue,
+-// update its priority and value, and put it back.
+-func (pq *PriorityQueue) update(value string, priority int) {
+-	item := heap.Pop(pq).(*Item)
+-	item.value = value
+-	item.priority = priority
+-	heap.Push(pq, item)
+-}
+-
+-// changePriority is not used by the example but shows how to change the priority of an arbitrary
+-// item.
+-func (pq *PriorityQueue) changePriority(item *Item, priority int) {
+-	heap.Remove(pq, item.index)
+-	item.priority = priority
+-	heap.Push(pq, item)
++	// Output:
++	// 99:seven 88:five 77:zero 66:nine 55:three 44:two 33:six 22:one 11:four 00:eight
+ }
+diff --git a/src/pkg/encoding/binary/example_test.go b/src/pkg/encoding/binary/example_test.go
+index 297d6c1ae3..405ea67891 100644
+--- a/src/pkg/encoding/binary/example_test.go
++++ b/src/pkg/encoding/binary/example_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"math"
+ )
+ 
+-// 18 2d 44 54 fb 21 09 40
+ func ExampleWrite() {
+ 	buf := new(bytes.Buffer)
+ 	var pi float64 = math.Pi
+@@ -20,9 +19,9 @@ func ExampleWrite() {
+ 		fmt.Println("binary.Write failed:", err)
+ 	}
+ 	fmt.Printf("% x", buf.Bytes())
++	// Output: 18 2d 44 54 fb 21 09 40
+ }
+ 
+-// cafebabe
+ func ExampleWrite_multi() {
+ 	buf := new(bytes.Buffer)
+ 	var data = []interface{}{
+@@ -37,9 +36,9 @@ func ExampleWrite_multi() {
+ 		}
+ 	}
+ 	fmt.Printf("%x", buf.Bytes())
++	// Output: cafebabe
+ }
+ 
+-// 3.141592653589793
+ func ExampleRead() {
+ 	var pi float64
+ 	b := []byte{0x18, 0x2d, 0x44, 0x54, 0xfb, 0x21, 0x09, 0x40}
+@@ -49,4 +48,5 @@ func ExampleRead() {
+ 		fmt.Println("binary.Read failed:", err)
+ 	}
+ 	fmt.Print(pi)
++	// Output: 3.141592653589793
+ }
+diff --git a/src/pkg/encoding/json/example_test.go b/src/pkg/encoding/json/example_test.go
+index 7f4a78c315..e4bff41008 100644
+--- a/src/pkg/encoding/json/example_test.go
++++ b/src/pkg/encoding/json/example_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"os"
+ )
+ 
+-// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
+ func ExampleMarshal() {
+ 	type ColorGroup struct {
+ 		ID     int
+@@ -27,9 +26,10 @@ func ExampleMarshal() {
+ 		fmt.Println("error:", err)
+ 	}
+ 	os.Stdout.Write(b)
++	// Output:
++	// {"ID":1,"Name":"Reds","Colors":["Crimson","Red","Ruby","Maroon"]}
+ }
+ 
+-// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
+ func ExampleUnmarshal() {
+ 	var jsonBlob = []byte(`[
+ 		{"Name": "Platypus", "Order": "Monotremata"},
+@@ -45,4 +45,6 @@ func ExampleUnmarshal() {
+ 		fmt.Println("error:", err)
+ 	}
+ 	fmt.Printf("%+v", animals)
++	// Output:
++	// [{Name:Platypus Order:Monotremata} {Name:Quoll Order:Dasyuromorphia}]
+ }
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/ast/example.go
+similarity index 56%
+rename from src/pkg/go/doc/example.go
+rename to src/pkg/go/ast/example.go
+index 1c23b0d95c..dd6bb6faa3 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/ast/example.go
+@@ -2,37 +2,37 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Extract example functions from package ASTs.
++// Extract example functions from file ASTs.
+ 
+-package doc
++package ast
+ 
+ import (
+-	"go/ast"
+-	"go/printer"
+ 	"go/token"
++	"regexp"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+ type Example struct {
+-	Name   string                 // name of the item being demonstrated
+-	Body   *printer.CommentedNode // code
+-	Output string                 // expected output
++	Name     string // name of the item being exemplified
++	Code     Node
++	Comments []*CommentGroup
++	Output   string // expected output
+ }
+ 
+-func Examples(pkg *ast.Package) []*Example {
++func Examples(files ...*File) []*Example {
+ 	var list []*Example
+-	for _, file := range pkg.Files {
++	for _, file := range files {
+ 		hasTests := false // file contains tests or benchmarks
+ 		numDecl := 0      // number of non-import declarations in the file
+ 		var flist []*Example
+ 		for _, decl := range file.Decls {
+-			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
++			if g, ok := decl.(*GenDecl); ok && g.Tok != token.IMPORT {
+ 				numDecl++
+ 				continue
+ 			}
+-			f, ok := decl.(*ast.FuncDecl)
++			f, ok := decl.(*FuncDecl)
+ 			if !ok {
+ 				continue
+ 			}
+@@ -46,25 +46,47 @@ func Examples(pkg *ast.Package) []*Example {
+ 				continue
+ 			}
+ 			flist = append(flist, &Example{
+-				Name: name[len("Example"):],
+-				Body: &printer.CommentedNode{
+-					Node:     f.Body,
+-					Comments: file.Comments,
+-				},
+-				Output: f.Doc.Text(),
++				Name:     name[len("Example"):],
++				Code:     f.Body,
++				Comments: file.Comments,
++				Output:   exampleOutput(f, file.Comments),
+ 			})
+ 		}
+ 		if !hasTests && numDecl > 1 && len(flist) == 1 {
+ 			// If this file only has one example function, some
+ 			// other top-level declarations, and no tests or
+ 			// benchmarks, use the whole file as the example.
+-			flist[0].Body.Node = file
++			flist[0].Code = file
+ 		}
+ 		list = append(list, flist...)
+ 	}
+ 	return list
+ }
+ 
++var outputPrefix = regexp.MustCompile(`(?i)^[[:space:]]*output:`)
++
++func exampleOutput(fun *FuncDecl, comments []*CommentGroup) string {
++	// find the last comment in the function
++	var last *CommentGroup
++	for _, cg := range comments {
++		if cg.Pos() < fun.Pos() {
++			continue
++		}
++		if cg.End() > fun.End() {
++			break
++		}
++		last = cg
++	}
++	if last != nil {
++		// test that it begins with the correct prefix
++		text := last.Text()
++		if loc := outputPrefix.FindStringIndex(text); loc != nil {
++			return strings.TrimSpace(text[loc[1]:])
++		}
++	}
++	return "" // no suitable comment found
++}
++
+ // isTest tells whether name looks like a test, example, or benchmark.
+ // It is a Test (say) if there is a character after Test that is not a
+ // lower-case letter. (We don't want Testiness.)
+diff --git a/src/pkg/math/big/example_test.go b/src/pkg/math/big/example_test.go
+index ba676ec0c5..078be47f95 100644
+--- a/src/pkg/math/big/example_test.go
++++ b/src/pkg/math/big/example_test.go
+@@ -10,21 +10,20 @@ import (
+ 	"math/big"
+ )
+ 
+-// 3.142
+ func ExampleRat_SetString() {
+ 	r := new(big.Rat)
+ 	r.SetString("355/113")
+ 	fmt.Println(r.FloatString(3))
++	// Output: 3.142
+ }
+ 
+-// 420
+ func ExampleInt_SetString() {
+ 	i := new(big.Int)
+ 	i.SetString("644", 8) // octal
+ 	fmt.Println(i)
++	// Output: 420
+ }
+ 
+-// 3/2
+ func ExampleRat_Scan() {
+ 	// The Scan function is rarely used directly;
+ 	// the fmt package recognizes it as an implementation of fmt.Scanner.
+@@ -35,9 +34,9 @@ func ExampleRat_Scan() {
+ 	} else {
+ 		fmt.Println(r)
+ 	}
++	// Output: 3/2
+ }
+ 
+-// 18446744073709551617
+ func ExampleInt_Scan() {
+ 	// The Scan function is rarely used directly;
+ 	// the fmt package recognizes it as an implementation of fmt.Scanner.
+@@ -48,4 +47,5 @@ func ExampleInt_Scan() {
+ 	} else {
+ 		fmt.Println(i)
+ 	}
++	// Output: 18446744073709551617
+ }
+diff --git a/src/pkg/path/example_test.go b/src/pkg/path/example_test.go
+index 82ddfab93e..fa8c28d2e1 100644
+--- a/src/pkg/path/example_test.go
++++ b/src/pkg/path/example_test.go
+@@ -9,17 +9,11 @@ import (
+ 	"path"
+ )
+ 
+-// b
+ func ExampleBase() {
+ 	fmt.Println(path.Base("/a/b"))
++	// Output: b
+ }
+ 
+-// Clean("a/c") = "a/c"
+-// Clean("a//c") = "a/c"
+-// Clean("a/c/.") = "a/c"
+-// Clean("a/c/b/..") = "a/c"
+-// Clean("/../a/c") = "/a/c"
+-// Clean("/../a/b/../././/c") = "/a/c"
+ func ExampleClean() {
+ 	paths := []string{
+ 		"a/c",
+@@ -33,29 +27,37 @@ func ExampleClean() {
+ 	for _, p := range paths {
+ 		fmt.Printf("Clean(%q) = %q\n", p, path.Clean(p))
+ 	}
++
++	// Output:
++	// Clean("a/c") = "a/c"
++	// Clean("a//c") = "a/c"
++	// Clean("a/c/.") = "a/c"
++	// Clean("a/c/b/..") = "a/c"
++	// Clean("/../a/c") = "/a/c"
++	// Clean("/../a/b/../././/c") = "/a/c"
+ }
+ 
+-// /a/b
+ func ExampleDir() {
+ 	fmt.Println(path.Dir("/a/b/c"))
++	// Output: /a/b
+ }
+ 
+-// .css
+ func ExampleExt() {
+ 	fmt.Println(path.Ext("/a/b/c/bar.css"))
++	// Output: .css
+ }
+ 
+-// true
+ func ExampleIsAbs() {
+ 	fmt.Println(path.IsAbs("/dev/null"))
++	// Output: true
+ }
+ 
+-// a/b/c
+ func ExampleJoin() {
+ 	fmt.Println(path.Join("a", "b", "c"))
++	// Output: a/b/c
+ }
+ 
+-// static/ myfile.css
+ func ExampleSplit() {
+ 	fmt.Println(path.Split("static/myfile.css"))
++	// Output: static/ myfile.css
+ }
+diff --git a/src/pkg/sort/example_test.go b/src/pkg/sort/example_test.go
+index 2224db7e13..f57d02546f 100644
+--- a/src/pkg/sort/example_test.go
++++ b/src/pkg/sort/example_test.go
+@@ -9,9 +9,9 @@ import (
+ 	"sort"
+ )
+ 
+-// [1 2 3 4 5 6]
+ func ExampleInts() {
+ 	s := []int{5, 2, 6, 3, 1, 4} // unsorted
+ 	sort.Ints(s)
+ 	fmt.Println(s)
++	// Output: [1 2 3 4 5 6]
+ }
+diff --git a/src/pkg/strings/example_test.go b/src/pkg/strings/example_test.go
+index 5ef0b93d15..0b58341133 100644
+--- a/src/pkg/strings/example_test.go
++++ b/src/pkg/strings/example_test.go
+@@ -9,134 +9,142 @@ import (
+ 	"strings"
+ )
+ 
+-// Fields are: ["foo" "bar" "baz"]
+ func ExampleFields() {
+ 	fmt.Printf("Fields are: %q", strings.Fields("  foo bar  baz   "))
++	// Output: Fields are: ["foo" "bar" "baz"]
+ }
+ 
+-// true
+-// false
+-// true
+-// true
+ func ExampleContains() {
+ 	fmt.Println(strings.Contains("seafood", "foo"))
+ 	fmt.Println(strings.Contains("seafood", "bar"))
+ 	fmt.Println(strings.Contains("seafood", ""))
+ 	fmt.Println(strings.Contains("", ""))
++	// Output:
++	// true
++	// false
++	// true
++	// true
+ }
+ 
+-// false
+-// true
+-// false
+-// false
+ func ExampleContainsAny() {
+ 	fmt.Println(strings.ContainsAny("team", "i"))
+ 	fmt.Println(strings.ContainsAny("failure", "u & i"))
+ 	fmt.Println(strings.ContainsAny("foo", ""))
+ 	fmt.Println(strings.ContainsAny("", ""))
+-
++	// Output:
++	// false
++	// true
++	// false
++	// false
+ }
+ 
+-// 3
+-// 5
+ func ExampleCount() {
+ 	fmt.Println(strings.Count("cheese", "e"))
+ 	fmt.Println(strings.Count("five", "")) // before & after each rune
++	// Output:
++	// 3
++	// 5
+ }
+ 
+-// true
+ func ExampleEqualFold() {
+ 	fmt.Println(strings.EqualFold("Go", "go"))
++	// Output: true
+ }
+ 
+-// 4
+-// -1
+ func ExampleIndex() {
+ 	fmt.Println(strings.Index("chicken", "ken"))
+ 	fmt.Println(strings.Index("chicken", "dmr"))
++	// Output:
++	// 4
++	// -1
+ }
+ 
+-// 4
+-// -1
+ func ExampleRune() {
+ 	fmt.Println(strings.IndexRune("chicken", 'k'))
+ 	fmt.Println(strings.IndexRune("chicken", 'd'))
++	// Output:
++	// 4
++	// -1
+ }
+ 
+-// 0
+-// 3
+-// -1
+ func ExampleLastIndex() {
+ 	fmt.Println(strings.Index("go gopher", "go"))
+ 	fmt.Println(strings.LastIndex("go gopher", "go"))
+ 	fmt.Println(strings.LastIndex("go gopher", "rodent"))
++	// Output:
++	// 0
++	// 3
++	// -1
+ }
+ 
+-// foo, bar, baz
+ func ExampleJoin() {
+ 	s := []string{"foo", "bar", "baz"}
+ 	fmt.Println(strings.Join(s, ", "))
++	// Output: foo, bar, baz
+ }
+ 
+-// banana
+ func ExampleRepeat() {
+ 	fmt.Println("ba" + strings.Repeat("na", 2))
++	// Output: banana
+ }
+ 
+-// oinky oinky oink
+-// moo moo moo
+ func ExampleReplace() {
+ 	fmt.Println(strings.Replace("oink oink oink", "k", "ky", 2))
+ 	fmt.Println(strings.Replace("oink oink oink", "oink", "moo", -1))
++	// Output:
++	// oinky oinky oink
++	// moo moo moo
+ }
+ 
+-// ["a" "b" "c"]
+-// ["" "man " "plan " "canal panama"]
+-// [" " "x" "y" "z" " "]
+-// [""]
+ func ExampleSplit() {
+ 	fmt.Printf("%q\n", strings.Split("a,b,c", ","))
+ 	fmt.Printf("%q\n", strings.Split("a man a plan a canal panama", "a "))
+ 	fmt.Printf("%q\n", strings.Split(" xyz ", ""))
+ 	fmt.Printf("%q\n", strings.Split("", "Bernardo O'Higgins"))
++	// Output:
++	// ["a" "b" "c"]
++	// ["" "man " "plan " "canal panama"]
++	// [" " "x" "y" "z" " "]
++	// [""]
+ }
+ 
+-// ["a" "b,c"]
+-// [] (nil = true)
+ func ExampleSplitN() {
+ 	fmt.Printf("%q\n", strings.SplitN("a,b,c", ",", 2))
+ 	z := strings.SplitN("a,b,c", ",", 0)
+ 	fmt.Printf("%q (nil = %v)\n", z, z == nil)
++	// Output:
++	// ["a" "b,c"]
++	// [] (nil = true)
+ }
+ 
+-// ["a," "b," "c"]
+ func ExampleSplitAfter() {
+ 	fmt.Printf("%q\n", strings.SplitAfter("a,b,c", ","))
++	// Output: ["a," "b," "c"]
+ }
+ 
+-// ["a," "b,c"]
+ func ExampleSplitAfterN() {
+ 	fmt.Printf("%q\n", strings.SplitAfterN("a,b,c", ",", 2))
++	// Output: ["a," "b,c"]
+ }
+ 
+-// Her Royal Highness
+ func ExampleTitle() {
+ 	fmt.Println(strings.Title("her royal highness"))
++	// Output: Her Royal Highness
+ }
+ 
+-// LOUD NOISES
+-// ХЛЕБ
+ func ExampleToTitle() {
+ 	fmt.Println(strings.ToTitle("loud noises"))
+ 	fmt.Println(strings.ToTitle("хлеб"))
++	// Output:
++	// LOUD NOISES
++	// ХЛЕБ
+ }
+ 
+-// [Achtung]
+ func ExampleTrim() {
+-	fmt.Printf("[%s]", strings.Trim(" !!! Achtung !!! ", "! "))
++	fmt.Printf("[%q]", strings.Trim(" !!! Achtung !!! ", "! "))
++	// Output: ["Achtung"]
+ }
+ 
+-// 'Gjnf oevyyvt naq gur fyvgul tbcure...
+ func ExampleMap() {
+ 	rot13 := func(r rune) rune {
+ 		switch {
+@@ -148,25 +156,26 @@ func ExampleMap() {
+ 		return r
+ 	}
+ 	fmt.Println(strings.Map(rot13, "'Twas brillig and the slithy gopher..."))
++	// Output: 'Gjnf oevyyvt naq gur fyvgul tbcure...
+ }
+ 
+-// a lone gopher
+ func ExampleTrimSpace() {
+ 	fmt.Println(strings.TrimSpace(" \t\n a lone gopher \n\t\r\n"))
++	// Output: a lone gopher
+ }
+ 
+-// This is &lt;b&gt;HTML&lt;/b&gt;!
+ func ExampleNewReplacer() {
+ 	r := strings.NewReplacer("<", "&lt;", ">", "&gt;")
+ 	fmt.Println(r.Replace("This is <b>HTML</b>!"))
++	// Output: This is &lt;b&gt;HTML&lt;/b&gt;!
+ }
+ 
+-// GOPHER
+ func ExampleToUpper() {
+ 	fmt.Println(strings.ToUpper("Gopher"))
++	// Output: GOPHER
+ }
+ 
+-// gopher
+ func ExampleToLower() {
+ 	fmt.Println(strings.ToLower("Gopher"))
++	// Output: gopher
+ }
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index d5d60eae4c..adc8c09f21 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -38,16 +38,25 @@
+ //         }
+ //     }
+ //
+-// The package also runs and verifies example code. Example functions
+-// include an introductory comment that is compared with the standard output
+-// of the function when the tests are run, as in this example of an example:
++// The package also runs and verifies example code. Example functions may
++// include a concluding comment that begins with "Output:" and is compared with
++// the standard output of the function when the tests are run, as in these
++// examples of an example:
+ //
+-//     // hello
+ //     func ExampleHello() {
+ //             fmt.Println("hello")
++//             // Output: hello
+ //     }
+ //
+-// Example functions without comments are compiled but not executed.
++//     func ExampleSalutations() {
++//             fmt.Println("hello, and")
++//             fmt.Println("goodbye")
++//             // Output:
++//             // hello, and
++//             // goodbye
++//     }
++//
++// Example functions without output comments are compiled but not executed.
+ //
+ // The naming convention to declare examples for a function F, a type T and
+ // method M on type T are:
+diff --git a/src/pkg/text/template/example_test.go b/src/pkg/text/template/example_test.go
+index b7701ea265..ad49514a8b 100644
+--- a/src/pkg/text/template/example_test.go
++++ b/src/pkg/text/template/example_test.go
+@@ -10,28 +10,6 @@ import (
+ 	"text/template"
+ )
+ 
+-// Dear Aunt Mildred,
+-// 
+-// It was a pleasure to see you at the wedding.
+-// Thank you for the lovely bone china tea set.
+-// 
+-// Best wishes,
+-// Josie
+-// 
+-// Dear Uncle John,
+-// 
+-// It is a shame you couldn't make it to the wedding.
+-// Thank you for the lovely moleskin pants.
+-// 
+-// Best wishes,
+-// Josie
+-// 
+-// Dear Cousin Rodney,
+-// 
+-// It is a shame you couldn't make it to the wedding.
+-// 
+-// Best wishes,
+-// Josie
+ func ExampleTemplate() {
+ 	// Define a template.
+ 	const letter = `
+@@ -66,4 +44,28 @@ Josie
+ 			log.Println("executing template:", err)
+ 		}
+ 	}
++
++	// Output:
++	// Dear Aunt Mildred,
++	// 
++	// It was a pleasure to see you at the wedding.
++	// Thank you for the lovely bone china tea set.
++	// 
++	// Best wishes,
++	// Josie
++	// 
++	// Dear Uncle John,
++	// 
++	// It is a shame you couldn't make it to the wedding.
++	// Thank you for the lovely moleskin pants.
++	// 
++	// Best wishes,
++	// Josie
++	// 
++	// Dear Cousin Rodney,
++	// 
++	// It is a shame you couldn't make it to the wedding.
++	// 
++	// Best wishes,
++	// Josie
+ }
+diff --git a/src/pkg/time/example_test.go b/src/pkg/time/example_test.go
+index b25e64cda3..944cc789c3 100644
+--- a/src/pkg/time/example_test.go
++++ b/src/pkg/time/example_test.go
+@@ -51,8 +51,8 @@ func ExampleMonth() {
+ 	}
+ }
+ 
+-// Go launched at 2009-11-10 15:00:00 -0800 PST
+ func ExampleDate() {
+ 	t := time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC)
+ 	fmt.Printf("Go launched at %s\n", t.Local())
++	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
+ }

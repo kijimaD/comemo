@@ -11,7 +11,94 @@ Date:   Fri Apr 3 14:33:18 2015 -0700
     Change-Id: I36e02158e3334d32b18743ec0c259fec77baa74f
     Reviewed-on: https://go-review.googlesource.com/8466
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/internal/gc/big/floatconv.go      | 50 ++++++++++++++++++++++++-------
  src/cmd/internal/gc/big/floatconv_test.go |  6 ++++
  2 files changed, 46 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/gc/big/floatconv.go b/src/cmd/internal/gc/big/floatconv.go
+index 7dc9a2800c..b929d1202c 100644
+--- a/src/cmd/internal/gc/big/floatconv.go
++++ b/src/cmd/internal/gc/big/floatconv.go
+@@ -163,24 +163,54 @@ func (z *Float) Scan(r io.ByteScanner, base int) (f *Float, b int, err error) {
+ 	}
+ 	// exp10 != 0
+ 
+-	// compute decimal exponent power
+-	expabs := exp10
+-	if expabs < 0 {
+-		expabs = -expabs
+-	}
+-	powTen := nat(nil).expNN(natTen, nat(nil).setUint64(uint64(expabs)), nil)
+-	fpowTen := new(Float).SetInt(new(Int).SetBits(powTen))
+-
+ 	// apply 10**exp10
++	p := new(Float).SetPrec(z.Prec() + 64) // use more bits for p -- TODO(gri) what is the right number?
+ 	if exp10 < 0 {
+-		z.uquo(z, fpowTen)
++		z.uquo(z, p.pow10(-exp10))
+ 	} else {
+-		z.umul(z, fpowTen)
++		z.umul(z, p.pow10(exp10))
+ 	}
+ 
+ 	return
+ }
+ 
++// These powers of 10 can be represented exactly as a float64.
++var pow10tab = [...]float64{
++	1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9,
++	1e10, 1e11, 1e12, 1e13, 1e14, 1e15, 1e16, 1e17, 1e18, 1e19,
++}
++
++// pow10 sets z to 10**n and returns z.
++// n must not be negative.
++func (z *Float) pow10(n int64) *Float {
++	if n < 0 {
++		panic("pow10 called with negative argument")
++	}
++
++	const m = int64(len(pow10tab) - 1)
++	if n <= m {
++		return z.SetFloat64(pow10tab[n])
++	}
++	// n > m
++
++	z.SetFloat64(pow10tab[m])
++	n -= m
++
++	// use more bits for f than for z
++	// TODO(gri) what is the right number?
++	f := new(Float).SetPrec(z.Prec() + 64).SetInt64(10)
++
++	for n > 0 {
++		if n&1 != 0 {
++			z.Mul(z, f)
++		}
++		f.Mul(f, f)
++		n >>= 1
++	}
++
++	return z
++}
++
+ // Parse is like z.Scan(r, base), but instead of reading from an
+ // io.ByteScanner, it parses the string s. An error is also returned
+ // if the string contains invalid or trailing bytes not belonging to
+diff --git a/src/cmd/internal/gc/big/floatconv_test.go b/src/cmd/internal/gc/big/floatconv_test.go
+index e7920d0c07..96c01eed81 100644
+--- a/src/cmd/internal/gc/big/floatconv_test.go
++++ b/src/cmd/internal/gc/big/floatconv_test.go
+@@ -330,6 +330,12 @@ func TestFloatFormat(t *testing.T) {
+ 		{"3e40", 100, 'f', 4, "30000000000000000000000000000000000000000.0000"},
+ 		{"3e40", 100, 'g', 40, "3e+40"},
+ 
++		// make sure "stupid" exponents don't stall the machine
++		{"1e1000000", 64, 'p', 0, "0x.88b3a28a05eade3ap3321929"},
++		{"1e1000000000", 64, 'p', 0, "0x.ecc5f45aa573d3p1538481529"},
++		{"1e-1000000", 64, 'p', 0, "0x.efb4542cc8ca418ap-3321928"},
++		{"1e-1000000000", 64, 'p', 0, "0x.8a64dd983a4c7dabp-1538481528"},
++
+ 		// TODO(gri) need tests for actual large Floats
+ 
+ 		{"0", 53, 'b', 0, "0"},

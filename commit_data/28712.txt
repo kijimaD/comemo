@@ -11,9 +11,76 @@ Date:   Thu Jun 30 19:24:06 2016 +0000
     Change-Id: Ic6403dc4905874916ae292ff739d33482ed8e5bf
     Reviewed-on: https://go-review.googlesource.com/24683
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.7.html                     | 2 +-
  src/cmd/compile/internal/gc/ssa.go | 4 ++--
  src/cmd/vet/doc.go                 | 4 ++--
  src/cmd/vet/lostcancel.go          | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.7.html b/doc/go1.7.html
+index 34236b4dcb..a460754794 100644
+--- a/doc/go1.7.html
++++ b/doc/go1.7.html
+@@ -291,7 +291,7 @@ To avoid confusion with the new <code>-tests</code> check, the old, unadvertised
+ <p id="vet_lostcancel">
+ The <code>vet</code> command also has a new check,
+ <code>-lostcancel</code>, which detects failure to call the
+-cancellation function returned by the <code>WithCancel</code>,
++cancelation function returned by the <code>WithCancel</code>,
+ <code>WithTimeout</code>, and <code>WithDeadline</code> functions in
+ Go 1.7's new <code>context</code> package (see <a
+ href='#context'>below</a>).
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index c0e6045216..7f55da621c 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1731,7 +1731,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			addop := ssa.OpAdd64F
+ 			subop := ssa.OpSub64F
+ 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+-			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
++			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancelation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+@@ -1769,7 +1769,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			subop := ssa.OpSub64F
+ 			divop := ssa.OpDiv64F
+ 			pt := floatForComplex(n.Type) // Could be Float32 or Float64
+-			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancellation error
++			wt := Types[TFLOAT64]         // Compute in Float64 to minimize cancelation error
+ 
+ 			areal := s.newValue1(ssa.OpComplexReal, pt, a)
+ 			breal := s.newValue1(ssa.OpComplexReal, pt, b)
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index bb8dcf171f..69d5f9cc78 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -91,11 +91,11 @@ Flag: -tests
+ Mistakes involving tests including functions with incorrect names or signatures
+ and example tests that document identifiers not in the package.
+ 
+-Failure to call the cancellation function returned by context.WithCancel.
++Failure to call the cancelation function returned by context.WithCancel.
+ 
+ Flag: -lostcancel
+ 
+-The cancellation function returned by context.WithCancel, WithTimeout,
++The cancelation function returned by context.WithCancel, WithTimeout,
+ and WithDeadline must be called or the new context will remain live
+ until its parent context is cancelled.
+ (The background context is never cancelled.)
+diff --git a/src/cmd/vet/lostcancel.go b/src/cmd/vet/lostcancel.go
+index 3649e138b9..11c3c47783 100644
+--- a/src/cmd/vet/lostcancel.go
++++ b/src/cmd/vet/lostcancel.go
+@@ -14,7 +14,7 @@ import (
+ 
+ func init() {
+ 	register("lostcancel",
+-		"check for failure to call cancellation function returned by context.WithCancel",
++		"check for failure to call cancelation function returned by context.WithCancel",
+ 		checkLostCancel,
+ 		funcDecl, funcLit)
+ }

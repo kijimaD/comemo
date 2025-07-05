@@ -16,6 +16,36 @@ Date:   Fri Aug 30 09:28:26 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13241046
-
+---
  src/pkg/net/ipsock.go | 18 ++++++++++++++++++
  1 file changed, 18 insertions(+)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index 10a51f490d..20407872d7 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -40,6 +40,24 @@ type netaddr interface {
+ 	toAddr() Addr
+ }
+ 
++// An addrList represents a list of network endpoint addresses.
++type addrList []netaddr
++
++func (al addrList) toAddr() Addr {
++	switch len(al) {
++	case 0:
++		return nil
++	case 1:
++		return al[0].toAddr()
++	default:
++		// For now, we'll roughly pick first one without
++		// considering dealing with any preferences such as
++		// DNS TTL, transport path quality, network routing
++		// information.
++		return al[0].toAddr()
++	}
++}
++
+ var errNoSuitableAddress = errors.New("no suitable address found")
+ 
+ // firstFavoriteAddr returns an address that implemets netaddr

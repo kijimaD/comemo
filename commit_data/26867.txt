@@ -11,8 +11,110 @@ Date:   Mon Feb 29 20:20:13 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go                  | 27 ----------------------
  .../internal/gc/{mparith3.go => mpfloat.go}        | 19 +++++++++++++++
  .../compile/internal/gc/{mparith2.go => mpint.go}  |  9 +++++++-
  3 files changed, 27 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index df460f8ddc..ce3ad003c0 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"bytes"
+-	"cmd/compile/internal/big"
+ 	"cmd/internal/obj"
+ )
+ 
+@@ -17,32 +16,6 @@ const (
+ 	MaxStackVarSize = 10 * 1024 * 1024
+ )
+ 
+-const (
+-	// Maximum size in bits for Mpints before signalling
+-	// overflow and also mantissa precision for Mpflts.
+-	Mpprec = 512
+-	// Turn on for constant arithmetic debugging output.
+-	Mpdebug = false
+-)
+-
+-// Mpint represents an integer constant.
+-type Mpint struct {
+-	Val  big.Int
+-	Ovf  bool // set if Val overflowed compiler limit (sticky)
+-	Rune bool // set if syntax indicates default type rune
+-}
+-
+-// Mpflt represents a floating-point constant.
+-type Mpflt struct {
+-	Val big.Float
+-}
+-
+-// Mpcplx represents a complex constant.
+-type Mpcplx struct {
+-	Real Mpflt
+-	Imag Mpflt
+-}
+-
+ type Val struct {
+ 	// U contains one of:
+ 	// bool     bool when n.ValCtype() == CTBOOL
+diff --git a/src/cmd/compile/internal/gc/mparith3.go b/src/cmd/compile/internal/gc/mpfloat.go
+similarity index 92%
+rename from src/cmd/compile/internal/gc/mparith3.go
+rename to src/cmd/compile/internal/gc/mpfloat.go
+index 5b61a9e17f..48aa1efc6d 100644
+--- a/src/cmd/compile/internal/gc/mparith3.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -13,6 +13,25 @@ import (
+ 
+ // implements float arithmetic
+ 
++const (
++	// Maximum size in bits for Mpints before signalling
++	// overflow and also mantissa precision for Mpflts.
++	Mpprec = 512
++	// Turn on for constant arithmetic debugging output.
++	Mpdebug = false
++)
++
++// Mpflt represents a floating-point constant.
++type Mpflt struct {
++	Val big.Float
++}
++
++// Mpcplx represents a complex constant.
++type Mpcplx struct {
++	Real Mpflt
++	Imag Mpflt
++}
++
+ func newMpflt() *Mpflt {
+ 	var a Mpflt
+ 	a.Val.SetPrec(Mpprec)
+diff --git a/src/cmd/compile/internal/gc/mparith2.go b/src/cmd/compile/internal/gc/mpint.go
+similarity index 96%
+rename from src/cmd/compile/internal/gc/mparith2.go
+rename to src/cmd/compile/internal/gc/mpint.go
+index 67faf29479..c2f1884b85 100644
+--- a/src/cmd/compile/internal/gc/mparith2.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -10,7 +10,14 @@ import (
+ 	"fmt"
+ )
+ 
+-/// implements fix arithmetic
++// implements integer arithmetic
++
++// Mpint represents an integer constant.
++type Mpint struct {
++	Val  big.Int
++	Ovf  bool // set if Val overflowed compiler limit (sticky)
++	Rune bool // set if syntax indicates default type rune
++}
+ 
+ func mpsetovf(a *Mpint) {
+ 	a.Val.SetUint64(1) // avoid spurious div-zero errors

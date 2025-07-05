@@ -10,6 +10,19 @@ Date:   Fri Feb 7 10:22:34 2014 +0900
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/60500044
-
+---
  src/pkg/runtime/cgo/gcc_freebsd_arm.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_arm.c b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+index 936f4a973a..6175e1d9cc 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+@@ -4,6 +4,7 @@
+ 
+ #include <sys/types.h>
+ #include <machine/sysarch.h>
++#include <sys/signalvar.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <string.h>

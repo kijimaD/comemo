@@ -12,9 +12,92 @@ Date:   Thu Jun 10 12:23:40 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/testdata/check/typeinst2.go2      |  4 ++--
  src/go/types/testdata/examples/constraints.go2 |  9 +++++++++
  src/go/types/testdata/fixedbugs/issue39634.go2 |  4 ++--
  src/go/types/union.go                          | 11 ++++++-----
  4 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index a4c9f58c09..ab56ccafc9 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -176,12 +176,12 @@ type _ interface {
+ // Interface type lists can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+-func add1[T interface{~MyInt}](x T) T {
++func add1[T interface{MyInt}](x T) T {
+ 	return x + 1
+ }
+ 
+ type MyString string
+-func double[T interface{~MyInt | ~MyString}](x T) T {
++func double[T interface{MyInt|MyString}](x T) T {
+ 	return x + x
+ }
+ 
+diff --git a/src/go/types/testdata/examples/constraints.go2 b/src/go/types/testdata/examples/constraints.go2
+index 61992e4c2a..d9805fe694 100644
+--- a/src/go/types/testdata/examples/constraints.go2
++++ b/src/go/types/testdata/examples/constraints.go2
+@@ -36,6 +36,15 @@ type (
+ 	_ interface{int|interface /* ERROR cannot use interface */ {}}
+ )
+ 
++type (
++	// Tilde is not permitted on defined types or interfaces.
++	foo int
++	bar interface{}
++	_ interface{foo}
++	_ interface{~ /* ERROR invalid use of ~ */ foo }
++	_ interface{~ /* ERROR invalid use of ~ */ bar }
++)
++
+ // Multiple embedded union elements are intersected. The order in which they
+ // appear in the interface doesn't matter since intersection is a symmetric
+ // operation.
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index 8decff5291..2a1367373f 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -36,8 +36,8 @@ func bar8[A foo8[A]](a A) {}
+ func main8() {}
+ 
+ // crash 9
+-type foo9[A any] interface { ~ /* ERROR cannot use interface */ foo9 [A] }
+-func _() { var _ = new(foo9 /* ERROR interface contains type constraints */ [int]) }
++type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
++func _() { var _ = new(foo9 /* ERROR illegal cycle */ [int]) }
+ 
+ // crash 12
+ var u /* ERROR cycle */ , i [func /* ERROR used as value */ /* ERROR used as value */ (u, c /* ERROR undeclared */ /* ERROR undeclared */ ) {}(0, len /* ERROR must be called */ /* ERROR must be called */ )]c /* ERROR undeclared */ /* ERROR undeclared */
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 4eda874eb8..690b734d76 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -109,17 +109,18 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 			}
+ 
+ 			u := under(t)
+-			if tilde[i] {
+-				// TODO(rfindley) enable this check once we have converted tests
+-				// if !Identical(u, t) {
+-				// 	check.errorf(x, "invalid use of ~ (underlying type of %s is %s)", t, u)
+-				// }
++			if tilde[i] && !Identical(u, t) {
++				check.errorf(x, _Todo, "invalid use of ~ (underlying type of %s is %s)", t, u)
++				continue // don't report another error for t
+ 			}
+ 			if _, ok := u.(*Interface); ok {
++				// A single type with a ~ is a single-term union.
+ 				check.errorf(atPos(pos), _Todo, "cannot use interface %s with ~ or inside a union (implementation restriction)", t)
++				continue // don't report another error for t
+ 			}
+ 
+ 			// Complain about duplicate entries a|a, but also a|~a, and ~a|~a.
++			// TODO(gri) We should also exclude myint|~int since myint is included in ~int.
+ 			if includes(types[:i], t) {
+ 				// TODO(rfindley) this currently doesn't print the ~ if present
+ 				check.softErrorf(atPos(pos), _Todo, "duplicate term %s in union element", t)

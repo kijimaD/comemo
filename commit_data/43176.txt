@@ -25,10 +25,301 @@ Date:   Thu Apr 11 22:54:18 2019 -0600
     Change-Id: I0f39a4171a5be44f64305f18dc57f6c29f19dba7
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172838
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/go/build/deps_test.go    |   2 +-
  src/math/cmplx/cmath_test.go |  34 +++++++++++++
  src/math/cmplx/tan.go        | 119 ++++++++++++++++++++++++++++++++++++++-----
  src/math/huge_test.go        |  16 ++++++
  src/math/trig_reduce.go      |  16 ++++--
  5 files changed, 167 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c59ac72aa0..efb11814e7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -65,7 +65,7 @@ var pkgDeps = map[string][]string{
+ 	// but not Unicode tables.
+ 	"math":          {"internal/cpu", "unsafe", "math/bits"},
+ 	"math/bits":     {"unsafe"},
+-	"math/cmplx":    {"math"},
++	"math/cmplx":    {"math", "math/bits"},
+ 	"math/rand":     {"L0", "math"},
+ 	"strconv":       {"L0", "unicode/utf8", "math", "math/bits"},
+ 	"unicode/utf16": {},
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index 57ba76a767..1b076c881c 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -291,6 +291,35 @@ var tanh = []complex128{
+ 	(-1.0000000491604982429364892e+00 - 2.901873195374433112227349e-08i),
+ }
+ 
++// huge values along the real axis for testing reducePi in Tan
++var hugeIn = []complex128{
++	1 << 28,
++	1 << 29,
++	1 << 30,
++	1 << 35,
++	-1 << 120,
++	1 << 240,
++	1 << 300,
++	-1 << 480,
++	1234567891234567 << 180,
++	-1234567891234567 << 300,
++}
++
++// Results for tanHuge[i] calculated with https://github.com/robpike/ivy
++// using 4096 bits of working precision.
++var tanHuge = []complex128{
++	5.95641897939639421,
++	-0.34551069233430392,
++	-0.78469661331920043,
++	0.84276385870875983,
++	0.40806638884180424,
++	-0.37603456702698076,
++	4.60901287677810962,
++	3.39135965054779932,
++	-6.76813854009065030,
++	-0.76417695016604922,
++}
++
+ // special cases
+ var vcAbsSC = []complex128{
+ 	NaN(),
+@@ -805,6 +834,11 @@ func TestTan(t *testing.T) {
+ 			t.Errorf("Tan(%g) = %g, want %g", vc[i], f, tan[i])
+ 		}
+ 	}
++	for i, x := range hugeIn {
++		if f := Tan(x); !cSoclose(tanHuge[i], f, 3e-15) {
++			t.Errorf("Tan(%g) = %g, want %g", x, f, tanHuge[i])
++		}
++	}
+ 	for i := 0; i < len(vcTanSC); i++ {
+ 		if f := Tan(vcTanSC[i]); !cAlike(tanSC[i], f) {
+ 			t.Errorf("Tan(%g) = %g, want %g", vcTanSC[i], f, tanSC[i])
+diff --git a/src/math/cmplx/tan.go b/src/math/cmplx/tan.go
+index 0243ea0417..714fb8c45b 100644
+--- a/src/math/cmplx/tan.go
++++ b/src/math/cmplx/tan.go
+@@ -4,7 +4,10 @@
+ 
+ package cmplx
+ 
+-import "math"
++import (
++	"math"
++	"math/bits"
++)
+ 
+ // The original C code, the long comment, and the constants
+ // below are from http://netlib.sandia.gov/cephes/c9x-complex/clog.c.
+@@ -42,7 +45,7 @@ import "math"
+ //            cos 2x  +  cosh 2y
+ //
+ // On the real axis the denominator is zero at odd multiples
+-// of PI/2.  The denominator is evaluated by its Taylor
++// of PI/2. The denominator is evaluated by its Taylor
+ // series near these points.
+ //
+ // ctan(z) = -i ctanh(iz).
+@@ -88,22 +91,110 @@ func Tanh(x complex128) complex128 {
+ 	return complex(math.Sinh(2*real(x))/d, math.Sin(2*imag(x))/d)
+ }
+ 
+-// Program to subtract nearest integer multiple of PI
++// reducePi reduces the input argument x to the range (-Pi/2, Pi/2].
++// x must be greater than or equal to 0. For small arguments it
++// uses Cody-Waite reduction in 3 float64 parts based on:
++// "Elementary Function Evaluation:  Algorithms and Implementation"
++// Jean-Michel Muller, 1997.
++// For very large arguments it uses Payne-Hanek range reduction based on:
++// "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"
++// K. C. Ng et al, March 24, 1992.
+ func reducePi(x float64) float64 {
++	// reduceThreshold is the maximum value of x where the reduction using
++	// Cody-Waite reduction still gives accurate results. This threshold
++	// is set by t*PIn being representable as a float64 without error
++	// where t is given by t = floor(x * (1 / Pi)) and PIn are the leading partial
++	// terms of Pi. Since the leading terms, PI1 and PI2 below, have 30 and 32
++	// trailing zero bits respectively, t should have less than 30 significant bits.
++	//	t < 1<<30  -> floor(x*(1/Pi)+0.5) < 1<<30 -> x < (1<<30-1) * Pi - 0.5
++	// So, conservatively we can take x < 1<<30.
++	const reduceThreshold float64 = 1 << 30
++	if math.Abs(x) < reduceThreshold {
++		// Use Cody-Waite reduction in three parts.
++		const (
++			// PI1, PI2 and PI3 comprise an extended precision value of PI
++			// such that PI ~= PI1 + PI2 + PI3. The parts are chosen so
++			// that PI1 and PI2 have an approximately equal number of trailing
++			// zero bits. This ensures that t*PI1 and t*PI2 are exact for
++			// large integer values of t. The full precision PI3 ensures the
++			// approximation of PI is accurate to 102 bits to handle cancellation
++			// during subtraction.
++			PI1 = 3.141592502593994      // 0x400921fb40000000
++			PI2 = 1.5099578831723193e-07 // 0x3e84442d00000000
++			PI3 = 1.0780605716316238e-14 // 0x3d08469898cc5170
++		)
++		t := x / math.Pi
++		t += 0.5
++		t = float64(int64(t)) // int64(t) = the multiple
++		return ((x - t*PI1) - t*PI2) - t*PI3
++	}
++	// Must apply Payne-Hanek range reduction
+ 	const (
+-		// extended precision value of PI:
+-		DP1 = 3.14159265160560607910e0   // ?? 0x400921fb54000000
+-		DP2 = 1.98418714791870343106e-9  // ?? 0x3e210b4610000000
+-		DP3 = 1.14423774522196636802e-17 // ?? 0x3c6a62633145c06e
++		mask     = 0x7FF
++		shift    = 64 - 11 - 1
++		bias     = 1023
++		fracMask = 1<<shift - 1
+ 	)
+-	t := x / math.Pi
+-	if t >= 0 {
+-		t += 0.5
+-	} else {
+-		t -= 0.5
++	// Extract out the integer and exponent such that,
++	// x = ix * 2 ** exp.
++	ix := math.Float64bits(x)
++	exp := int(ix>>shift&mask) - bias - shift
++	ix &= fracMask
++	ix |= 1 << shift
++
++	// mPi is the binary digits of 1/Pi as a uint64 array,
++	// that is, 1/Pi = Sum mPi[i]*2^(-64*i).
++	// 19 64-bit digits give 1216 bits of precision
++	// to handle the largest possible float64 exponent.
++	var mPi = [...]uint64{
++		0x0000000000000000,
++		0x517cc1b727220a94,
++		0xfe13abe8fa9a6ee0,
++		0x6db14acc9e21c820,
++		0xff28b1d5ef5de2b0,
++		0xdb92371d2126e970,
++		0x0324977504e8c90e,
++		0x7f0ef58e5894d39f,
++		0x74411afa975da242,
++		0x74ce38135a2fbf20,
++		0x9cc8eb1cc1a99cfa,
++		0x4e422fc5defc941d,
++		0x8ffc4bffef02cc07,
++		0xf79788c5ad05368f,
++		0xb69b3f6793e584db,
++		0xa7a31fb34f2ff516,
++		0xba93dd63f5f2f8bd,
++		0x9e839cfbc5294975,
++		0x35fdafd88fc6ae84,
++		0x2b0198237e3db5d5,
++	}
++	// Use the exponent to extract the 3 appropriate uint64 digits from mPi,
++	// B ~ (z0, z1, z2), such that the product leading digit has the exponent -64.
++	// Note, exp >= 50 since x >= reduceThreshold and exp < 971 for maximum float64.
++	digit, bitshift := uint(exp+64)/64, uint(exp+64)%64
++	z0 := (mPi[digit] << bitshift) | (mPi[digit+1] >> (64 - bitshift))
++	z1 := (mPi[digit+1] << bitshift) | (mPi[digit+2] >> (64 - bitshift))
++	z2 := (mPi[digit+2] << bitshift) | (mPi[digit+3] >> (64 - bitshift))
++	// Multiply mantissa by the digits and extract the upper two digits (hi, lo).
++	z2hi, _ := bits.Mul64(z2, ix)
++	z1hi, z1lo := bits.Mul64(z1, ix)
++	z0lo := z0 * ix
++	lo, c := bits.Add64(z1lo, z2hi, 0)
++	hi, _ := bits.Add64(z0lo, z1hi, c)
++	// Find the magnitude of the fraction.
++	lz := uint(bits.LeadingZeros64(hi))
++	e := uint64(bias - (lz + 1))
++	// Clear implicit mantissa bit and shift into place.
++	hi = (hi << (lz + 1)) | (lo >> (64 - (lz + 1)))
++	hi >>= 64 - shift
++	// Include the exponent and convert to a float.
++	hi |= e << shift
++	x = math.Float64frombits(hi)
++	// map to (-Pi/2, Pi/2]
++	if x > 0.5 {
++		x--
+ 	}
+-	t = float64(int64(t)) // int64(t) = the multiple
+-	return ((x - t*DP1) - t*DP2) - t*DP3
++	return math.Pi * x
+ }
+ 
+ // Taylor series expansion for cosh(2y) - cos(2x)
+diff --git a/src/math/huge_test.go b/src/math/huge_test.go
+index 0b45dbf5b1..9448edc339 100644
+--- a/src/math/huge_test.go
++++ b/src/math/huge_test.go
+@@ -16,6 +16,10 @@ import (
+ 
+ // Inputs to test trig_reduce
+ var trigHuge = []float64{
++	1 << 28,
++	1 << 29,
++	1 << 30,
++	1 << 35,
+ 	1 << 120,
+ 	1 << 240,
+ 	1 << 480,
+@@ -29,6 +33,10 @@ var trigHuge = []float64{
+ // 102 decimal digits (1 << 120, 1 << 240, 1 << 480, 1234567891234567 << 180)
+ // were confirmed via https://keisan.casio.com/
+ var cosHuge = []float64{
++	-0.16556897949057876,
++	-0.94517382606089662,
++	0.78670712294118812,
++	-0.76466301249635305,
+ 	-0.92587902285483787,
+ 	0.93601042593353793,
+ 	-0.28282777640193788,
+@@ -38,6 +46,10 @@ var cosHuge = []float64{
+ }
+ 
+ var sinHuge = []float64{
++	-0.98619821183697566,
++	0.32656766301856334,
++	-0.61732641504604217,
++	-0.64443035102329113,
+ 	0.37782010936075202,
+ 	-0.35197227524865778,
+ 	0.95917070894368716,
+@@ -47,6 +59,10 @@ var sinHuge = []float64{
+ }
+ 
+ var tanHuge = []float64{
++	5.95641897939639421,
++	-0.34551069233430392,
++	-0.78469661331920043,
++	0.84276385870875983,
+ 	-0.40806638884180424,
+ 	-0.37603456702698076,
+ 	-3.39135965054779932,
+diff --git a/src/math/trig_reduce.go b/src/math/trig_reduce.go
+index 6f8eaba9b9..5cdf4fa013 100644
+--- a/src/math/trig_reduce.go
++++ b/src/math/trig_reduce.go
+@@ -8,13 +8,19 @@ import (
+ 	"math/bits"
+ )
+ 
+-// reduceThreshold is the maximum value where the reduction using Pi/4
+-// in 3 float64 parts still gives accurate results.  Above this
+-// threshold Payne-Hanek range reduction must be used.
+-const reduceThreshold = (1 << 52) / (4 / Pi)
++// reduceThreshold is the maximum value of x where the reduction using Pi/4
++// in 3 float64 parts still gives accurate results. This threshold
++// is set by y*C being representable as a float64 without error
++// where y is given by y = floor(x * (4 / Pi)) and C is the leading partial
++// terms of 4/Pi. Since the leading terms (PI4A and PI4B in sin.go) have 30
++// and 32 trailing zero bits, y should have less than 30 significant bits.
++//	y < 1<<30  -> floor(x*4/Pi) < 1<<30 -> x < (1<<30 - 1) * Pi/4
++// So, conservatively we can take x < 1<<29.
++// Above this threshold Payne-Hanek range reduction must be used.
++const reduceThreshold = 1 << 29
+ 
+ // trigReduce implements Payne-Hanek range reduction by Pi/4
+-// for x > 0.  It returns the integer part mod 8 (j) and
++// for x > 0. It returns the integer part mod 8 (j) and
+ // the fractional part (z) of x / (Pi/4).
+ // The implementation is based on:
+ // "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"

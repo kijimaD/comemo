@@ -7,7 +7,32 @@ Date:   Tue Dec 4 10:14:21 2012 +1100
     R=golang-dev, remyoudompheng, iant
     CC=golang-dev
     https://golang.org/cl/6863055
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e251e09f5f..bb81a7221e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -79,6 +79,7 @@ Dean Prichard <dean.prichard@gmail.com>
+ Devon H. O'Dell <devon.odell@gmail.com>
+ Dmitry Chestnykh <dchest@gmail.com>
+ Eden Li <eden.li@gmail.com>
++Egon Elbre <egonelbre@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
+ Emil Hessman <c.emil.hessman@gmail.com>
+ Eoghan Sherry <ejsherry@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a7f21df760..0d43576683 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -132,6 +132,7 @@ Devon H. O'Dell <devon.odell@gmail.com>
+ Dmitriy Vyukov <dvyukov@google.com>
+ Dmitry Chestnykh <dchest@gmail.com>
+ Eden Li <eden.li@gmail.com>
++Egon Elbre <egonelbre@gmail.com>
+ Eivind Uggedal <eivind@uggedal.com>
+ Emil Hessman <c.emil.hessman@gmail.com>
+ Eoghan Sherry <ejsherry@gmail.com>

@@ -18,6 +18,49 @@ Date:   Tue May 17 17:52:43 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/testdata/testprogcgo/threadpprof.go | 15 ++++++++++-----
  1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index ec5e750da9..70717e0099 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -17,6 +17,8 @@ package main
+ int threadSalt1;
+ int threadSalt2;
+ 
++static pthread_t tid;
++
+ void cpuHogThread() {
+ 	int foo = threadSalt1;
+ 	int i;
+@@ -42,12 +44,16 @@ struct cgoTracebackArg {
+ };
+ 
+ // pprofCgoThreadTraceback is passed to runtime.SetCgoTraceback.
+-// For testing purposes it pretends that all CPU hits in C code are in cpuHog.
++// For testing purposes it pretends that all CPU hits on the cpuHog
++// C thread are in cpuHog.
+ void pprofCgoThreadTraceback(void* parg) {
+ 	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
+-	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
+-	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
+-	arg->buf[2] = 0;
++	if (pthread_self() == tid) {
++		arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
++		arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
++		arg->buf[2] = 0;
++	} else
++		arg->buf[0] = 0;
+ }
+ 
+ static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+@@ -58,7 +64,6 @@ static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+ }
+ 
+ void runCPUHogThread(void) {
+-	pthread_t tid;
+ 	pthread_create(&tid, 0, cpuHogDriver, 0);
+ }
+ */

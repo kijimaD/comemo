@@ -16,8 +16,97 @@ Date:   Fri Jun 9 19:14:55 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/metrics/description.go | 18 ++++++++++++------
  src/runtime/metrics/doc.go         | 11 ++++++++++-
  src/runtime/mstats.go              | 12 +++++++++++-
  3 files changed, 33 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index aea51c7f75..745691b24f 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -339,9 +339,11 @@ var allDesc = []Description{
+ 		Kind: KindUint64,
+ 	},
+ 	{
+-		Name:        "/memory/classes/heap/stacks:bytes",
+-		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use.",
+-		Kind:        KindUint64,
++		Name: "/memory/classes/heap/stacks:bytes",
++		Description: "Memory allocated from the heap that is reserved for stack space, whether or not it is currently in-use. " +
++			"Currently, this represents all stack memory for goroutines. It also includes all OS thread stacks in non-cgo programs. " +
++			"Note that stacks may be allocated differently in the future, and this may change.",
++		Kind: KindUint64,
+ 	},
+ 	{
+ 		Name:        "/memory/classes/heap/unused:bytes",
+@@ -374,9 +376,13 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 	},
+ 	{
+-		Name:        "/memory/classes/os-stacks:bytes",
+-		Description: "Stack memory allocated by the underlying operating system.",
+-		Kind:        KindUint64,
++		Name: "/memory/classes/os-stacks:bytes",
++		Description: "Stack memory allocated by the underlying operating system. " +
++			"In non-cgo programs this metric is currently zero. This may change in the future." +
++			"In cgo programs this metric includes OS thread stacks allocated directly from the OS. " +
++			"Currently, this only accounts for one stack in c-shared and c-archive build modes, " +
++			"and other sources of stacks from the OS are not measured. This too may change in the future.",
++		Kind: KindUint64,
+ 	},
+ 	{
+ 		Name:        "/memory/classes/other:bytes",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 5238bcea8e..5c52f78477 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -318,7 +318,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/memory/classes/heap/stacks:bytes
+ 		Memory allocated from the heap that is reserved for stack space,
+-		whether or not it is currently in-use.
++		whether or not it is currently in-use. Currently, this
++		represents all stack memory for goroutines. It also includes all
++		OS thread stacks in non-cgo programs. Note that stacks may be
++		allocated differently in the future, and this may change.
+ 
+ 	/memory/classes/heap/unused:bytes
+ 		Memory that is reserved for heap objects but is not currently
+@@ -345,6 +348,12 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/memory/classes/os-stacks:bytes
+ 		Stack memory allocated by the underlying operating system.
++		In non-cgo programs this metric is currently zero. This may
++		change in the future.In cgo programs this metric includes
++		OS thread stacks allocated directly from the OS. Currently,
++		this only accounts for one stack in c-shared and c-archive build
++		modes, and other sources of stacks from the OS are not measured.
++		This too may change in the future.
+ 
+ 	/memory/classes/other:bytes
+ 		Memory used by execution trace buffers, structures for debugging
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 9a247b87b5..9cdc565137 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -199,7 +199,17 @@ type MemStats struct {
+ 	// StackSys is bytes of stack memory obtained from the OS.
+ 	//
+ 	// StackSys is StackInuse, plus any memory obtained directly
+-	// from the OS for OS thread stacks (which should be minimal).
++	// from the OS for OS thread stacks.
++	//
++	// In non-cgo programs this metric is currently equal to StackInuse
++	// (but this should not be relied upon, and the value may change in
++	// the future).
++	//
++	// In cgo programs this metric includes OS thread stacks allocated
++	// directly from the OS. Currently, this only accounts for one stack in
++	// c-shared and c-archive build modes and other sources of stacks from
++	// the OS (notably, any allocated by C code) are not currently measured.
++	// Note this too may change in the future.
+ 	StackSys uint64
+ 
+ 	// Off-heap memory statistics.

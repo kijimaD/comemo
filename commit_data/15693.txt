@@ -9,7 +9,32 @@ Date:   Mon Mar 11 16:36:11 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7544044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 310069139f..e4641d0fa9 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -54,6 +54,7 @@ Casey Marshall <casey.marshall@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
+ Chris Farmiloe <chrisfarms@gmail.com>
++Chris Howey <howeyc@gmail.com>
+ Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 057001e805..4ec69c7896 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -98,6 +98,7 @@ Casey Marshall <casey.marshall@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Dollin <ehog.hedge@gmail.com>
+ Chris Farmiloe <chrisfarms@gmail.com>
++Chris Howey <howeyc@gmail.com>
+ Chris Hundt <hundt@google.com>
+ Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
+ Chris Lennert <calennert@gmail.com>

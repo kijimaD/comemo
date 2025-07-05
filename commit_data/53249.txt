@@ -43,6 +43,28 @@ Date:   Wed May 11 16:18:37 2022 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/context/context.go | 10 ++--------
  1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 1070111efa..04ac080402 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -360,14 +360,8 @@ func (c *cancelCtx) Done() <-chan struct{} {
+ 	if d != nil {
+ 		return d.(chan struct{})
+ 	}
+-	c.mu.Lock()
+-	defer c.mu.Unlock()
+-	d = c.done.Load()
+-	if d == nil {
+-		d = make(chan struct{})
+-		c.done.Store(d)
+-	}
+-	return d.(chan struct{})
++	c.done.CompareAndSwap(nil, make(chan struct{}))
++	return c.done.Load().(chan struct{})
+ }
+ 
+ func (c *cancelCtx) Err() error {

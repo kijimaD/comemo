@@ -9,6 +9,20 @@ Date:   Wed Jun 8 12:05:40 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4584047
-
+---
  src/cmd/gofmt/test.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index f60ff9b32d..5dce2ed7a3 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -36,7 +36,7 @@ apply1() {
+ 	# the following files are skipped because they are test cases
+ 	# for syntax errors and thus won't parse in the first place:
+ 	case `basename "$F"` in
+-	func3.go | const2.go | char_lit1.go | blank1.go | \
++	func3.go | const2.go | char_lit1.go | blank1.go | ddd1.go | \
+ 	bug014.go | bug050.go |  bug068.go |  bug083.go | bug088.go | \
+ 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+ 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \

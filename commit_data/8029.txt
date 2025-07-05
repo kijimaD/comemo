@@ -7,7 +7,7 @@ Date:   Fri Apr 8 12:27:58 2011 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4353043
-
+---
  src/cmd/gofmt/rewrite.go               |  80 ++++++++++----------
  src/pkg/asn1/asn1.go                   |  72 +++++++++---------
  src/pkg/asn1/asn1_test.go              |   6 +-
@@ -49,3 +49,3669 @@ Date:   Fri Apr 8 12:27:58 2011 -0400
  test/interface/fake.go                 |  24 +++---
  test/ken/cplx3.go                      |   6 +-
  40 files changed, 693 insertions(+), 686 deletions(-)
+
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index fbcd46aa29..4590ccb58b 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -54,7 +54,7 @@ func rewriteFile(pattern, replace ast.Expr, p *ast.File) *ast.File {
+ 	var f func(val reflect.Value) reflect.Value // f is recursive
+ 	f = func(val reflect.Value) reflect.Value {
+ 		for k := range m {
+-			m[k] = nil, false
++			m[k] = reflect.Value{}, false
+ 		}
+ 		val = apply(f, val)
+ 		if match(m, pat, val) {
+@@ -78,28 +78,28 @@ func setValue(x, y reflect.Value) {
+ 			panic(x)
+ 		}
+ 	}()
+-	x.SetValue(y)
++	x.Set(y)
+ }
+ 
+ 
+ // apply replaces each AST field x in val with f(x), returning val.
+ // To avoid extra conversions, f operates on the reflect.Value form.
+ func apply(f func(reflect.Value) reflect.Value, val reflect.Value) reflect.Value {
+-	if val == nil {
+-		return nil
++	if !val.IsValid() {
++		return reflect.Value{}
+ 	}
+-	switch v := reflect.Indirect(val).(type) {
+-	case *reflect.SliceValue:
++	switch v := reflect.Indirect(val); v.Kind() {
++	case reflect.Slice:
+ 		for i := 0; i < v.Len(); i++ {
+-			e := v.Elem(i)
++			e := v.Index(i)
+ 			setValue(e, f(e))
+ 		}
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		for i := 0; i < v.NumField(); i++ {
+ 			e := v.Field(i)
+ 			setValue(e, f(e))
+ 		}
+-	case *reflect.InterfaceValue:
++	case reflect.Interface:
+ 		e := v.Elem()
+ 		setValue(v, f(e))
+ 	}
+@@ -124,9 +124,9 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 	// Wildcard matches any expression.  If it appears multiple
+ 	// times in the pattern, it must match the same expression
+ 	// each time.
+-	if m != nil && pattern != nil && pattern.Type() == identType {
++	if m != nil && pattern.IsValid() && pattern.Type() == identType {
+ 		name := pattern.Interface().(*ast.Ident).Name
+-		if isWildcard(name) && val != nil {
++		if isWildcard(name) && val.IsValid() {
+ 			// wildcards only match expressions
+ 			if _, ok := val.Interface().(ast.Expr); ok {
+ 				if old, ok := m[name]; ok {
+@@ -139,8 +139,8 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 	}
+ 
+ 	// Otherwise, pattern and val must match recursively.
+-	if pattern == nil || val == nil {
+-		return pattern == nil && val == nil
++	if !pattern.IsValid() || !val.IsValid() {
++		return !pattern.IsValid() && !val.IsValid()
+ 	}
+ 	if pattern.Type() != val.Type() {
+ 		return false
+@@ -163,25 +163,25 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 
+ 	p := reflect.Indirect(pattern)
+ 	v := reflect.Indirect(val)
+-	if p == nil || v == nil {
+-		return p == nil && v == nil
++	if !p.IsValid() || !v.IsValid() {
++		return !p.IsValid() && !v.IsValid()
+ 	}
+ 
+-	switch p := p.(type) {
+-	case *reflect.SliceValue:
+-		v := v.(*reflect.SliceValue)
++	switch p.Kind() {
++	case reflect.Slice:
++		v := v
+ 		if p.Len() != v.Len() {
+ 			return false
+ 		}
+ 		for i := 0; i < p.Len(); i++ {
+-			if !match(m, p.Elem(i), v.Elem(i)) {
++			if !match(m, p.Index(i), v.Index(i)) {
+ 				return false
+ 			}
+ 		}
+ 		return true
+ 
+-	case *reflect.StructValue:
+-		v := v.(*reflect.StructValue)
++	case reflect.Struct:
++		v := v
+ 		if p.NumField() != v.NumField() {
+ 			return false
+ 		}
+@@ -192,8 +192,8 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ 		}
+ 		return true
+ 
+-	case *reflect.InterfaceValue:
+-		v := v.(*reflect.InterfaceValue)
++	case reflect.Interface:
++		v := v
+ 		return match(m, p.Elem(), v.Elem())
+ 	}
+ 
+@@ -207,8 +207,8 @@ func match(m map[string]reflect.Value, pattern, val reflect.Value) bool {
+ // if m == nil, subst returns a copy of pattern and doesn't change the line
+ // number information.
+ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value) reflect.Value {
+-	if pattern == nil {
+-		return nil
++	if !pattern.IsValid() {
++		return reflect.Value{}
+ 	}
+ 
+ 	// Wildcard gets replaced with map value.
+@@ -216,12 +216,12 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 		name := pattern.Interface().(*ast.Ident).Name
+ 		if isWildcard(name) {
+ 			if old, ok := m[name]; ok {
+-				return subst(nil, old, nil)
++				return subst(nil, old, reflect.Value{})
+ 			}
+ 		}
+ 	}
+ 
+-	if pos != nil && pattern.Type() == positionType {
++	if pos.IsValid() && pattern.Type() == positionType {
+ 		// use new position only if old position was valid in the first place
+ 		if old := pattern.Interface().(token.Pos); !old.IsValid() {
+ 			return pattern
+@@ -230,29 +230,29 @@ func subst(m map[string]reflect.Value, pattern reflect.Value, pos reflect.Value)
+ 	}
+ 
+ 	// Otherwise copy.
+-	switch p := pattern.(type) {
+-	case *reflect.SliceValue:
+-		v := reflect.MakeSlice(p.Type().(*reflect.SliceType), p.Len(), p.Len())
++	switch p := pattern; p.Kind() {
++	case reflect.Slice:
++		v := reflect.MakeSlice(p.Type(), p.Len(), p.Len())
+ 		for i := 0; i < p.Len(); i++ {
+-			v.Elem(i).SetValue(subst(m, p.Elem(i), pos))
++			v.Index(i).Set(subst(m, p.Index(i), pos))
+ 		}
+ 		return v
+ 
+-	case *reflect.StructValue:
+-		v := reflect.MakeZero(p.Type()).(*reflect.StructValue)
++	case reflect.Struct:
++		v := reflect.Zero(p.Type())
+ 		for i := 0; i < p.NumField(); i++ {
+-			v.Field(i).SetValue(subst(m, p.Field(i), pos))
++			v.Field(i).Set(subst(m, p.Field(i), pos))
+ 		}
+ 		return v
+ 
+-	case *reflect.PtrValue:
+-		v := reflect.MakeZero(p.Type()).(*reflect.PtrValue)
+-		v.PointTo(subst(m, p.Elem(), pos))
++	case reflect.Ptr:
++		v := reflect.Zero(p.Type())
++		v.Set(subst(m, p.Elem(), pos).Addr())
+ 		return v
+ 
+-	case *reflect.InterfaceValue:
+-		v := reflect.MakeZero(p.Type()).(*reflect.InterfaceValue)
+-		v.SetValue(subst(m, p.Elem(), pos))
++	case reflect.Interface:
++		v := reflect.Zero(p.Type())
++		v.Set(subst(m, p.Elem(), pos))
+ 		return v
+ 	}
+ 
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index c5314517b3..9026359395 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -373,7 +373,7 @@ func parseTagAndLength(bytes []byte, initOffset int) (ret tagAndLength, offset i
+ // parseSequenceOf is used for SEQUENCE OF and SET OF values. It tries to parse
+ // a number of ASN.1 values from the given byte array and returns them as a
+ // slice of Go values of the given type.
+-func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflect.Type) (ret *reflect.SliceValue, err os.Error) {
++func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type) (ret reflect.Value, err os.Error) {
+ 	expectedTag, compoundType, ok := getUniversalType(elemType)
+ 	if !ok {
+ 		err = StructuralError{"unknown Go type for slice"}
+@@ -409,7 +409,7 @@ func parseSequenceOf(bytes []byte, sliceType *reflect.SliceType, elemType reflec
+ 	params := fieldParameters{}
+ 	offset := 0
+ 	for i := 0; i < numElements; i++ {
+-		offset, err = parseField(ret.Elem(i), bytes, offset, params)
++		offset, err = parseField(ret.Index(i), bytes, offset, params)
+ 		if err != nil {
+ 			return
+ 		}
+@@ -461,13 +461,13 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		}
+ 		result := RawValue{t.class, t.tag, t.isCompound, bytes[offset : offset+t.length], bytes[initOffset : offset+t.length]}
+ 		offset += t.length
+-		v.(*reflect.StructValue).Set(reflect.NewValue(result).(*reflect.StructValue))
++		v.Set(reflect.NewValue(result))
+ 		return
+ 	}
+ 
+ 	// Deal with the ANY type.
+-	if ifaceType, ok := fieldType.(*reflect.InterfaceType); ok && ifaceType.NumMethod() == 0 {
+-		ifaceValue := v.(*reflect.InterfaceValue)
++	if ifaceType := fieldType; ifaceType.Kind() == reflect.Interface && ifaceType.NumMethod() == 0 {
++		ifaceValue := v
+ 		var t tagAndLength
+ 		t, offset, err = parseTagAndLength(bytes, offset)
+ 		if err != nil {
+@@ -537,8 +537,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 					return
+ 				}
+ 
+-				flagValue := v.(*reflect.BoolValue)
+-				flagValue.Set(true)
++				flagValue := v
++				flagValue.SetBool(true)
+ 				return
+ 			}
+ 		} else {
+@@ -606,23 +606,23 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	switch fieldType {
+ 	case objectIdentifierType:
+ 		newSlice, err1 := parseObjectIdentifier(innerBytes)
+-		sliceValue := v.(*reflect.SliceValue)
+-		sliceValue.Set(reflect.MakeSlice(sliceValue.Type().(*reflect.SliceType), len(newSlice), len(newSlice)))
++		sliceValue := v
++		sliceValue.Set(reflect.MakeSlice(sliceValue.Type(), len(newSlice), len(newSlice)))
+ 		if err1 == nil {
+-			reflect.Copy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue))
++			reflect.Copy(sliceValue, reflect.NewValue(newSlice))
+ 		}
+ 		err = err1
+ 		return
+ 	case bitStringType:
+-		structValue := v.(*reflect.StructValue)
++		structValue := v
+ 		bs, err1 := parseBitString(innerBytes)
+ 		if err1 == nil {
+-			structValue.Set(reflect.NewValue(bs).(*reflect.StructValue))
++			structValue.Set(reflect.NewValue(bs))
+ 		}
+ 		err = err1
+ 		return
+ 	case timeType:
+-		ptrValue := v.(*reflect.PtrValue)
++		ptrValue := v
+ 		var time *time.Time
+ 		var err1 os.Error
+ 		if universalTag == tagUTCTime {
+@@ -631,55 +631,55 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			time, err1 = parseGeneralizedTime(innerBytes)
+ 		}
+ 		if err1 == nil {
+-			ptrValue.Set(reflect.NewValue(time).(*reflect.PtrValue))
++			ptrValue.Set(reflect.NewValue(time))
+ 		}
+ 		err = err1
+ 		return
+ 	case enumeratedType:
+ 		parsedInt, err1 := parseInt(innerBytes)
+-		enumValue := v.(*reflect.IntValue)
++		enumValue := v
+ 		if err1 == nil {
+-			enumValue.Set(int64(parsedInt))
++			enumValue.SetInt(int64(parsedInt))
+ 		}
+ 		err = err1
+ 		return
+ 	case flagType:
+-		flagValue := v.(*reflect.BoolValue)
+-		flagValue.Set(true)
++		flagValue := v
++		flagValue.SetBool(true)
+ 		return
+ 	}
+-	switch val := v.(type) {
+-	case *reflect.BoolValue:
++	switch val := v; val.Kind() {
++	case reflect.Bool:
+ 		parsedBool, err1 := parseBool(innerBytes)
+ 		if err1 == nil {
+-			val.Set(parsedBool)
++			val.SetBool(parsedBool)
+ 		}
+ 		err = err1
+ 		return
+-	case *reflect.IntValue:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		switch val.Type().Kind() {
+ 		case reflect.Int:
+ 			parsedInt, err1 := parseInt(innerBytes)
+ 			if err1 == nil {
+-				val.Set(int64(parsedInt))
++				val.SetInt(int64(parsedInt))
+ 			}
+ 			err = err1
+ 			return
+ 		case reflect.Int64:
+ 			parsedInt, err1 := parseInt64(innerBytes)
+ 			if err1 == nil {
+-				val.Set(parsedInt)
++				val.SetInt(parsedInt)
+ 			}
+ 			err = err1
+ 			return
+ 		}
+-	case *reflect.StructValue:
+-		structType := fieldType.(*reflect.StructType)
++	case reflect.Struct:
++		structType := fieldType
+ 
+ 		if structType.NumField() > 0 &&
+ 			structType.Field(0).Type == rawContentsType {
+ 			bytes := bytes[initOffset:offset]
+-			val.Field(0).SetValue(reflect.NewValue(RawContent(bytes)))
++			val.Field(0).Set(reflect.NewValue(RawContent(bytes)))
+ 		}
+ 
+ 		innerOffset := 0
+@@ -697,11 +697,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		// adding elements to the end has been used in X.509 as the
+ 		// version numbers have increased.
+ 		return
+-	case *reflect.SliceValue:
+-		sliceType := fieldType.(*reflect.SliceType)
++	case reflect.Slice:
++		sliceType := fieldType
+ 		if sliceType.Elem().Kind() == reflect.Uint8 {
+ 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
+-			reflect.Copy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
++			reflect.Copy(val, reflect.NewValue(innerBytes))
+ 			return
+ 		}
+ 		newSlice, err1 := parseSequenceOf(innerBytes, sliceType, sliceType.Elem())
+@@ -710,7 +710,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		}
+ 		err = err1
+ 		return
+-	case *reflect.StringValue:
++	case reflect.String:
+ 		var v string
+ 		switch universalTag {
+ 		case tagPrintableString:
+@@ -729,7 +729,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
+ 		}
+ 		if err == nil {
+-			val.Set(v)
++			val.SetString(v)
+ 		}
+ 		return
+ 	}
+@@ -748,9 +748,9 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ 	if params.defaultValue == nil {
+ 		return
+ 	}
+-	switch val := v.(type) {
+-	case *reflect.IntValue:
+-		val.Set(*params.defaultValue)
++	switch val := v; val.Kind() {
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		val.SetInt(*params.defaultValue)
+ 	}
+ 	return
+ }
+@@ -806,7 +806,7 @@ func Unmarshal(b []byte, val interface{}) (rest []byte, err os.Error) {
+ // UnmarshalWithParams allows field parameters to be specified for the
+ // top-level element. The form of the params is the same as the field tags.
+ func UnmarshalWithParams(b []byte, val interface{}, params string) (rest []byte, err os.Error) {
+-	v := reflect.NewValue(val).(*reflect.PtrValue).Elem()
++	v := reflect.NewValue(val).Elem()
+ 	offset, err := parseField(v, b, 0, parseFieldParameters(params))
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index b7767656a4..018c534eb8 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -309,9 +309,9 @@ var unmarshalTestData []unmarshalTest = []unmarshalTest{
+ 
+ func TestUnmarshal(t *testing.T) {
+ 	for i, test := range unmarshalTestData {
+-		pv := reflect.MakeZero(reflect.NewValue(test.out).Type())
+-		zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
+-		pv.(*reflect.PtrValue).PointTo(zv)
++		pv := reflect.Zero(reflect.NewValue(test.out).Type())
++		zv := reflect.Zero(pv.Type().Elem())
++		pv.Set(zv.Addr())
+ 		val := pv.Interface()
+ 		_, err := Unmarshal(test.in, val)
+ 		if err != nil {
+diff --git a/src/pkg/asn1/common.go b/src/pkg/asn1/common.go
+index f2254a41bb..1589877477 100644
+--- a/src/pkg/asn1/common.go
++++ b/src/pkg/asn1/common.go
+@@ -133,14 +133,14 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
+ 	case enumeratedType:
+ 		return tagEnum, false, true
+ 	}
+-	switch t := t.(type) {
+-	case *reflect.BoolType:
++	switch t.Kind() {
++	case reflect.Bool:
+ 		return tagBoolean, false, true
+-	case *reflect.IntType:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return tagInteger, false, true
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		return tagSequence, true, true
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		if t.Elem().Kind() == reflect.Uint8 {
+ 			return tagOctetString, false, true
+ 		}
+@@ -148,7 +148,7 @@ func getUniversalType(t reflect.Type) (tagNumber int, isCompound, ok bool) {
+ 			return tagSet, true, true
+ 		}
+ 		return tagSequence, true, true
+-	case *reflect.StringType:
++	case reflect.String:
+ 		return tagPrintableString, false, true
+ 	}
+ 	return 0, false, false
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 57b8f20ba7..dfcc15eb20 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -314,28 +314,28 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		return marshalObjectIdentifier(out, value.Interface().(ObjectIdentifier))
+ 	}
+ 
+-	switch v := value.(type) {
+-	case *reflect.BoolValue:
+-		if v.Get() {
++	switch v := value; v.Kind() {
++	case reflect.Bool:
++		if v.Bool() {
+ 			return out.WriteByte(255)
+ 		} else {
+ 			return out.WriteByte(0)
+ 		}
+-	case *reflect.IntValue:
+-		return marshalInt64(out, int64(v.Get()))
+-	case *reflect.StructValue:
+-		t := v.Type().(*reflect.StructType)
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		return marshalInt64(out, int64(v.Int()))
++	case reflect.Struct:
++		t := v.Type()
+ 
+ 		startingField := 0
+ 
+ 		// If the first element of the structure is a non-empty
+ 		// RawContents, then we don't bother serialising the rest.
+ 		if t.NumField() > 0 && t.Field(0).Type == rawContentsType {
+-			s := v.Field(0).(*reflect.SliceValue)
++			s := v.Field(0)
+ 			if s.Len() > 0 {
+ 				bytes := make([]byte, s.Len())
+ 				for i := 0; i < s.Len(); i++ {
+-					bytes[i] = uint8(s.Elem(i).(*reflect.UintValue).Get())
++					bytes[i] = uint8(s.Index(i).Uint())
+ 				}
+ 				/* The RawContents will contain the tag and
+ 				 * length fields but we'll also be writing
+@@ -357,12 +357,12 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 			}
+ 		}
+ 		return
+-	case *reflect.SliceValue:
+-		sliceType := v.Type().(*reflect.SliceType)
++	case reflect.Slice:
++		sliceType := v.Type()
+ 		if sliceType.Elem().Kind() == reflect.Uint8 {
+ 			bytes := make([]byte, v.Len())
+ 			for i := 0; i < v.Len(); i++ {
+-				bytes[i] = uint8(v.Elem(i).(*reflect.UintValue).Get())
++				bytes[i] = uint8(v.Index(i).Uint())
+ 			}
+ 			_, err = out.Write(bytes)
+ 			return
+@@ -372,17 +372,17 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		for i := 0; i < v.Len(); i++ {
+ 			var pre *forkableWriter
+ 			pre, out = out.fork()
+-			err = marshalField(pre, v.Elem(i), params)
++			err = marshalField(pre, v.Index(i), params)
+ 			if err != nil {
+ 				return
+ 			}
+ 		}
+ 		return
+-	case *reflect.StringValue:
++	case reflect.String:
+ 		if params.stringType == tagIA5String {
+-			return marshalIA5String(out, v.Get())
++			return marshalIA5String(out, v.String())
+ 		} else {
+-			return marshalPrintableString(out, v.Get())
++			return marshalPrintableString(out, v.String())
+ 		}
+ 		return
+ 	}
+@@ -392,7 +392,7 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 
+ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters) (err os.Error) {
+ 	// If the field is an interface{} then recurse into it.
+-	if v, ok := v.(*reflect.InterfaceValue); ok && v.Type().(*reflect.InterfaceType).NumMethod() == 0 {
++	if v.Kind() == reflect.Interface && v.Type().NumMethod() == 0 {
+ 		return marshalField(out, v.Elem(), params)
+ 	}
+ 
+@@ -406,7 +406,7 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		return
+ 	}
+ 
+-	if params.optional && reflect.DeepEqual(v.Interface(), reflect.MakeZero(v.Type()).Interface()) {
++	if params.optional && reflect.DeepEqual(v.Interface(), reflect.Zero(v.Type()).Interface()) {
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index ee2f23dbba..dafe7e777c 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -126,10 +126,10 @@ func (bigEndian) GoString() string { return "binary.BigEndian" }
+ // and written to successive fields of the data.
+ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+ 	var v reflect.Value
+-	switch d := reflect.NewValue(data).(type) {
+-	case *reflect.PtrValue:
++	switch d := reflect.NewValue(data); d.Kind() {
++	case reflect.Ptr:
+ 		v = d.Elem()
+-	case *reflect.SliceValue:
++	case reflect.Slice:
+ 		v = d
+ 	default:
+ 		return os.NewError("binary.Read: invalid type " + d.Type().String())
+@@ -168,8 +168,8 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+ }
+ 
+ func TotalSize(v reflect.Value) int {
+-	if sv, ok := v.(*reflect.SliceValue); ok {
+-		elem := sizeof(v.Type().(*reflect.SliceType).Elem())
++	if sv := v; sv.Kind() == reflect.Slice {
++		elem := sizeof(v.Type().Elem())
+ 		if elem < 0 {
+ 			return -1
+ 		}
+@@ -179,15 +179,15 @@ func TotalSize(v reflect.Value) int {
+ }
+ 
+ func sizeof(v reflect.Type) int {
+-	switch t := v.(type) {
+-	case *reflect.ArrayType:
++	switch t := v; t.Kind() {
++	case reflect.Array:
+ 		n := sizeof(t.Elem())
+ 		if n < 0 {
+ 			return -1
+ 		}
+ 		return t.Len() * n
+ 
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		sum := 0
+ 		for i, n := 0, t.NumField(); i < n; i++ {
+ 			s := sizeof(t.Field(i).Type)
+@@ -198,7 +198,7 @@ func sizeof(v reflect.Type) int {
+ 		}
+ 		return sum
+ 
+-	case *reflect.UintType, *reflect.IntType, *reflect.FloatType, *reflect.ComplexType:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128:
+ 		switch t := t.Kind(); t {
+ 		case reflect.Int, reflect.Uint, reflect.Uintptr:
+ 			return -1
+@@ -279,65 +279,65 @@ func (d *decoder) int64() int64 { return int64(d.uint64()) }
+ func (e *encoder) int64(x int64) { e.uint64(uint64(x)) }
+ 
+ func (d *decoder) value(v reflect.Value) {
+-	switch v := v.(type) {
+-	case *reflect.ArrayValue:
++	switch v.Kind() {
++	case reflect.Array:
+ 		l := v.Len()
+ 		for i := 0; i < l; i++ {
+-			d.value(v.Elem(i))
++			d.value(v.Index(i))
+ 		}
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		l := v.NumField()
+ 		for i := 0; i < l; i++ {
+ 			d.value(v.Field(i))
+ 		}
+ 
+-	case *reflect.SliceValue:
++	case reflect.Slice:
+ 		l := v.Len()
+ 		for i := 0; i < l; i++ {
+-			d.value(v.Elem(i))
++			d.value(v.Index(i))
+ 		}
+ 
+-	case *reflect.IntValue:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		switch v.Type().Kind() {
+ 		case reflect.Int8:
+-			v.Set(int64(d.int8()))
++			v.SetInt(int64(d.int8()))
+ 		case reflect.Int16:
+-			v.Set(int64(d.int16()))
++			v.SetInt(int64(d.int16()))
+ 		case reflect.Int32:
+-			v.Set(int64(d.int32()))
++			v.SetInt(int64(d.int32()))
+ 		case reflect.Int64:
+-			v.Set(d.int64())
++			v.SetInt(d.int64())
+ 		}
+ 
+-	case *reflect.UintValue:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		switch v.Type().Kind() {
+ 		case reflect.Uint8:
+-			v.Set(uint64(d.uint8()))
++			v.SetUint(uint64(d.uint8()))
+ 		case reflect.Uint16:
+-			v.Set(uint64(d.uint16()))
++			v.SetUint(uint64(d.uint16()))
+ 		case reflect.Uint32:
+-			v.Set(uint64(d.uint32()))
++			v.SetUint(uint64(d.uint32()))
+ 		case reflect.Uint64:
+-			v.Set(d.uint64())
++			v.SetUint(d.uint64())
+ 		}
+ 
+-	case *reflect.FloatValue:
++	case reflect.Float32, reflect.Float64:
+ 		switch v.Type().Kind() {
+ 		case reflect.Float32:
+-			v.Set(float64(math.Float32frombits(d.uint32())))
++			v.SetFloat(float64(math.Float32frombits(d.uint32())))
+ 		case reflect.Float64:
+-			v.Set(math.Float64frombits(d.uint64()))
++			v.SetFloat(math.Float64frombits(d.uint64()))
+ 		}
+ 
+-	case *reflect.ComplexValue:
++	case reflect.Complex64, reflect.Complex128:
+ 		switch v.Type().Kind() {
+ 		case reflect.Complex64:
+-			v.Set(complex(
++			v.SetComplex(complex(
+ 				float64(math.Float32frombits(d.uint32())),
+ 				float64(math.Float32frombits(d.uint32())),
+ 			))
+ 		case reflect.Complex128:
+-			v.Set(complex(
++			v.SetComplex(complex(
+ 				math.Float64frombits(d.uint64()),
+ 				math.Float64frombits(d.uint64()),
+ 			))
+@@ -346,63 +346,63 @@ func (d *decoder) value(v reflect.Value) {
+ }
+ 
+ func (e *encoder) value(v reflect.Value) {
+-	switch v := v.(type) {
+-	case *reflect.ArrayValue:
++	switch v.Kind() {
++	case reflect.Array:
+ 		l := v.Len()
+ 		for i := 0; i < l; i++ {
+-			e.value(v.Elem(i))
++			e.value(v.Index(i))
+ 		}
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		l := v.NumField()
+ 		for i := 0; i < l; i++ {
+ 			e.value(v.Field(i))
+ 		}
+-	case *reflect.SliceValue:
++	case reflect.Slice:
+ 		l := v.Len()
+ 		for i := 0; i < l; i++ {
+-			e.value(v.Elem(i))
++			e.value(v.Index(i))
+ 		}
+ 
+-	case *reflect.IntValue:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		switch v.Type().Kind() {
+ 		case reflect.Int8:
+-			e.int8(int8(v.Get()))
++			e.int8(int8(v.Int()))
+ 		case reflect.Int16:
+-			e.int16(int16(v.Get()))
++			e.int16(int16(v.Int()))
+ 		case reflect.Int32:
+-			e.int32(int32(v.Get()))
++			e.int32(int32(v.Int()))
+ 		case reflect.Int64:
+-			e.int64(v.Get())
++			e.int64(v.Int())
+ 		}
+ 
+-	case *reflect.UintValue:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		switch v.Type().Kind() {
+ 		case reflect.Uint8:
+-			e.uint8(uint8(v.Get()))
++			e.uint8(uint8(v.Uint()))
+ 		case reflect.Uint16:
+-			e.uint16(uint16(v.Get()))
++			e.uint16(uint16(v.Uint()))
+ 		case reflect.Uint32:
+-			e.uint32(uint32(v.Get()))
++			e.uint32(uint32(v.Uint()))
+ 		case reflect.Uint64:
+-			e.uint64(v.Get())
++			e.uint64(v.Uint())
+ 		}
+ 
+-	case *reflect.FloatValue:
++	case reflect.Float32, reflect.Float64:
+ 		switch v.Type().Kind() {
+ 		case reflect.Float32:
+-			e.uint32(math.Float32bits(float32(v.Get())))
++			e.uint32(math.Float32bits(float32(v.Float())))
+ 		case reflect.Float64:
+-			e.uint64(math.Float64bits(v.Get()))
++			e.uint64(math.Float64bits(v.Float()))
+ 		}
+ 
+-	case *reflect.ComplexValue:
++	case reflect.Complex64, reflect.Complex128:
+ 		switch v.Type().Kind() {
+ 		case reflect.Complex64:
+-			x := v.Get()
++			x := v.Complex()
+ 			e.uint32(math.Float32bits(float32(real(x))))
+ 			e.uint32(math.Float32bits(float32(imag(x))))
+ 		case reflect.Complex128:
+-			x := v.Get()
++			x := v.Complex()
+ 			e.uint64(math.Float64bits(real(x)))
+ 			e.uint64(math.Float64bits(imag(x)))
+ 		}
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index e09ec489fd..d1fc1bfd3b 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -152,7 +152,7 @@ func TestWriteT(t *testing.T) {
+ 		t.Errorf("WriteT: have nil, want non-nil")
+ 	}
+ 
+-	tv := reflect.Indirect(reflect.NewValue(ts)).(*reflect.StructValue)
++	tv := reflect.Indirect(reflect.NewValue(ts))
+ 	for i, n := 0, tv.NumField(); i < n; i++ {
+ 		err = Write(buf, BigEndian, tv.Field(i).Interface())
+ 		if err == nil {
+diff --git a/src/pkg/exp/datafmt/datafmt.go b/src/pkg/exp/datafmt/datafmt.go
+index 46c412342a..6d816fc2d3 100644
+--- a/src/pkg/exp/datafmt/datafmt.go
++++ b/src/pkg/exp/datafmt/datafmt.go
+@@ -408,20 +408,20 @@ func (s *State) error(msg string) {
+ //
+ 
+ func typename(typ reflect.Type) string {
+-	switch typ.(type) {
+-	case *reflect.ArrayType:
++	switch typ.Kind() {
++	case reflect.Array:
+ 		return "array"
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		return "array"
+-	case *reflect.ChanType:
++	case reflect.Chan:
+ 		return "chan"
+-	case *reflect.FuncType:
++	case reflect.Func:
+ 		return "func"
+-	case *reflect.InterfaceType:
++	case reflect.Interface:
+ 		return "interface"
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		return "map"
+-	case *reflect.PtrType:
++	case reflect.Ptr:
+ 		return "ptr"
+ 	}
+ 	return typ.String()
+@@ -519,38 +519,38 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 
+ 		case "*":
+ 			// indirection: operation is type-specific
+-			switch v := value.(type) {
+-			case *reflect.ArrayValue:
++			switch v := value; v.Kind() {
++			case reflect.Array:
+ 				if v.Len() <= index {
+ 					return false
+ 				}
+-				value = v.Elem(index)
++				value = v.Index(index)
+ 
+-			case *reflect.SliceValue:
++			case reflect.Slice:
+ 				if v.IsNil() || v.Len() <= index {
+ 					return false
+ 				}
+-				value = v.Elem(index)
++				value = v.Index(index)
+ 
+-			case *reflect.MapValue:
++			case reflect.Map:
+ 				s.error("reflection support for maps incomplete")
+ 
+-			case *reflect.PtrValue:
++			case reflect.Ptr:
+ 				if v.IsNil() {
+ 					return false
+ 				}
+ 				value = v.Elem()
+ 
+-			case *reflect.InterfaceValue:
++			case reflect.Interface:
+ 				if v.IsNil() {
+ 					return false
+ 				}
+ 				value = v.Elem()
+ 
+-			case *reflect.ChanValue:
++			case reflect.Chan:
+ 				s.error("reflection support for chans incomplete")
+ 
+-			case *reflect.FuncValue:
++			case reflect.Func:
+ 				s.error("reflection support for funcs incomplete")
+ 
+ 			default:
+@@ -560,9 +560,9 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 		default:
+ 			// value is value of named field
+ 			var field reflect.Value
+-			if sval, ok := value.(*reflect.StructValue); ok {
++			if sval := value; sval.Kind() == reflect.Struct {
+ 				field = sval.FieldByName(t.fieldName)
+-				if field == nil {
++				if !field.IsValid() {
+ 					// TODO consider just returning false in this case
+ 					s.error(fmt.Sprintf("error: no field `%s` in `%s`", t.fieldName, value.Type()))
+ 				}
+@@ -672,7 +672,7 @@ func (f Format) Eval(env Environment, args ...interface{}) ([]byte, os.Error) {
+ 	go func() {
+ 		for _, v := range args {
+ 			fld := reflect.NewValue(v)
+-			if fld == nil {
++			if !fld.IsValid() {
+ 				errors <- os.NewError("nil argument")
+ 				return
+ 			}
+diff --git a/src/pkg/exp/eval/bridge.go b/src/pkg/exp/eval/bridge.go
+index 12835c4c02..24fdaf44d1 100644
+--- a/src/pkg/exp/eval/bridge.go
++++ b/src/pkg/exp/eval/bridge.go
+@@ -34,17 +34,17 @@ func TypeFromNative(t reflect.Type) Type {
+ 	}
+ 
+ 	var et Type
+-	switch t := t.(type) {
+-	case *reflect.BoolType:
++	switch t.Kind() {
++	case reflect.Bool:
+ 		et = BoolType
+-	case *reflect.FloatType:
++	case reflect.Float32, reflect.Float64:
+ 		switch t.Kind() {
+ 		case reflect.Float32:
+ 			et = Float32Type
+ 		case reflect.Float64:
+ 			et = Float64Type
+ 		}
+-	case *reflect.IntType:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		switch t.Kind() {
+ 		case reflect.Int16:
+ 			et = Int16Type
+@@ -57,7 +57,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 		case reflect.Int:
+ 			et = IntType
+ 		}
+-	case *reflect.UintType:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		switch t.Kind() {
+ 		case reflect.Uint16:
+ 			et = Uint16Type
+@@ -72,16 +72,16 @@ func TypeFromNative(t reflect.Type) Type {
+ 		case reflect.Uintptr:
+ 			et = UintptrType
+ 		}
+-	case *reflect.StringType:
++	case reflect.String:
+ 		et = StringType
+-	case *reflect.ArrayType:
++	case reflect.Array:
+ 		et = NewArrayType(int64(t.Len()), TypeFromNative(t.Elem()))
+-	case *reflect.ChanType:
++	case reflect.Chan:
+ 		log.Panicf("%T not implemented", t)
+-	case *reflect.FuncType:
++	case reflect.Func:
+ 		nin := t.NumIn()
+ 		// Variadic functions have DotDotDotType at the end
+-		variadic := t.DotDotDot()
++		variadic := t.IsVariadic()
+ 		if variadic {
+ 			nin--
+ 		}
+@@ -94,15 +94,15 @@ func TypeFromNative(t reflect.Type) Type {
+ 			out[i] = TypeFromNative(t.Out(i))
+ 		}
+ 		et = NewFuncType(in, variadic, out)
+-	case *reflect.InterfaceType:
++	case reflect.Interface:
+ 		log.Panicf("%T not implemented", t)
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		log.Panicf("%T not implemented", t)
+-	case *reflect.PtrType:
++	case reflect.Ptr:
+ 		et = NewPtrType(TypeFromNative(t.Elem()))
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		et = NewSliceType(TypeFromNative(t.Elem()))
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		n := t.NumField()
+ 		fields := make([]StructField, n)
+ 		for i := 0; i < n; i++ {
+@@ -113,7 +113,7 @@ func TypeFromNative(t reflect.Type) Type {
+ 			fields[i].Anonymous = sf.Anonymous
+ 		}
+ 		et = NewStructType(fields)
+-	case *reflect.UnsafePointerType:
++	case reflect.UnsafePointer:
+ 		log.Panicf("%T not implemented", t)
+ 	default:
+ 		log.Panicf("unexpected reflect.Type: %T", t)
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 3f272ce4b6..0d6dfe9234 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -86,7 +86,7 @@ func hashTypeArray(key []Type) uintptr {
+ 		if t == nil {
+ 			continue
+ 		}
+-		addr := reflect.NewValue(t).(*reflect.PtrValue).Get()
++		addr := reflect.NewValue(t).Pointer()
+ 		hash ^= addr
+ 	}
+ 	return hash
+diff --git a/src/pkg/exp/ogle/process.go b/src/pkg/exp/ogle/process.go
+index 58e830aa68..e4f44b6fc0 100644
+--- a/src/pkg/exp/ogle/process.go
++++ b/src/pkg/exp/ogle/process.go
+@@ -226,8 +226,8 @@ func (p *Process) bootstrap() {
+ 	p.runtime.G = newManualType(eval.TypeOfNative(rt1G{}), p.Arch)
+ 
+ 	// Get addresses of type.*runtime.XType for discrimination.
+-	rtv := reflect.Indirect(reflect.NewValue(&p.runtime)).(*reflect.StructValue)
+-	rtvt := rtv.Type().(*reflect.StructType)
++	rtv := reflect.Indirect(reflect.NewValue(&p.runtime))
++	rtvt := rtv.Type()
+ 	for i := 0; i < rtv.NumField(); i++ {
+ 		n := rtvt.Field(i).Name
+ 		if n[0] != 'P' || n[1] < 'A' || n[1] > 'Z' {
+@@ -237,7 +237,7 @@ func (p *Process) bootstrap() {
+ 		if sym == nil {
+ 			continue
+ 		}
+-		rtv.Field(i).(*reflect.UintValue).Set(sym.Value)
++		rtv.Field(i).SetUint(sym.Value)
+ 	}
+ 
+ 	// Get runtime field indexes
+diff --git a/src/pkg/exp/ogle/rruntime.go b/src/pkg/exp/ogle/rruntime.go
+index 33f1935b89..e234f31861 100644
+--- a/src/pkg/exp/ogle/rruntime.go
++++ b/src/pkg/exp/ogle/rruntime.go
+@@ -236,9 +236,9 @@ type runtimeValues struct {
+ // indexes gathered from the remoteTypes recorded in a runtimeValues
+ // structure.
+ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
+-	outv := reflect.Indirect(reflect.NewValue(out)).(*reflect.StructValue)
+-	outt := outv.Type().(*reflect.StructType)
+-	runtimev := reflect.Indirect(reflect.NewValue(runtime)).(*reflect.StructValue)
++	outv := reflect.Indirect(reflect.NewValue(out))
++	outt := outv.Type()
++	runtimev := reflect.Indirect(reflect.NewValue(runtime))
+ 
+ 	// out contains fields corresponding to each runtime type
+ 	for i := 0; i < outt.NumField(); i++ {
+@@ -260,12 +260,12 @@ func fillRuntimeIndexes(runtime *runtimeValues, out *runtimeIndexes) {
+ 		}
+ 
+ 		// Fill this field of out
+-		outStructv := outv.Field(i).(*reflect.StructValue)
+-		outStructt := outStructv.Type().(*reflect.StructType)
++		outStructv := outv.Field(i)
++		outStructt := outStructv.Type()
+ 		for j := 0; j < outStructt.NumField(); j++ {
+-			f := outStructv.Field(j).(*reflect.IntValue)
++			f := outStructv.Field(j)
+ 			name := outStructt.Field(j).Name
+-			f.Set(int64(indexes[name]))
++			f.SetInt(int64(indexes[name]))
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 4b68051188..e3dc775cf2 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -256,9 +256,9 @@ func Sprintln(a ...interface{}) string {
+ // Get the i'th arg of the struct value.
+ // If the arg itself is an interface, return a value for
+ // the thing inside the interface, not the interface itself.
+-func getField(v *reflect.StructValue, i int) reflect.Value {
++func getField(v reflect.Value, i int) reflect.Value {
+ 	val := v.Field(i)
+-	if i, ok := val.(*reflect.InterfaceValue); ok {
++	if i := val; i.Kind() == reflect.Interface {
+ 		if inter := i.Interface(); inter != nil {
+ 			return reflect.NewValue(inter)
+ 		}
+@@ -278,11 +278,6 @@ func parsenum(s string, start, end int) (num int, isnum bool, newi int) {
+ 	return
+ }
+ 
+-// Reflection values like reflect.FuncValue implement this method. We use it for %p.
+-type uintptrGetter interface {
+-	Get() uintptr
+-}
+-
+ func (p *pp) unknownType(v interface{}) {
+ 	if v == nil {
+ 		p.buf.Write(nilAngleBytes)
+@@ -521,9 +516,9 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
+ 
+ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSyntax bool) {
+ 	var u uintptr
+-	switch value.(type) {
+-	case *reflect.ChanValue, *reflect.FuncValue, *reflect.MapValue, *reflect.PtrValue, *reflect.SliceValue, *reflect.UnsafePointerValue:
+-		u = value.(uintptrGetter).Get()
++	switch value.Kind() {
++	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
++		u = value.Pointer()
+ 	default:
+ 		p.badVerb(verb, field)
+ 		return
+@@ -659,35 +654,35 @@ func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth
+ 	value := reflect.NewValue(field)
+ 
+ BigSwitch:
+-	switch f := value.(type) {
+-	case *reflect.BoolValue:
+-		p.fmtBool(f.Get(), verb, field)
+-	case *reflect.IntValue:
+-		p.fmtInt64(f.Get(), verb, field)
+-	case *reflect.UintValue:
+-		p.fmtUint64(uint64(f.Get()), verb, goSyntax, field)
+-	case *reflect.FloatValue:
++	switch f := value; f.Kind() {
++	case reflect.Bool:
++		p.fmtBool(f.Bool(), verb, field)
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		p.fmtInt64(f.Int(), verb, field)
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		p.fmtUint64(uint64(f.Uint()), verb, goSyntax, field)
++	case reflect.Float32, reflect.Float64:
+ 		if f.Type().Size() == 4 {
+-			p.fmtFloat32(float32(f.Get()), verb, field)
++			p.fmtFloat32(float32(f.Float()), verb, field)
+ 		} else {
+-			p.fmtFloat64(float64(f.Get()), verb, field)
++			p.fmtFloat64(float64(f.Float()), verb, field)
+ 		}
+-	case *reflect.ComplexValue:
++	case reflect.Complex64, reflect.Complex128:
+ 		if f.Type().Size() == 8 {
+-			p.fmtComplex64(complex64(f.Get()), verb, field)
++			p.fmtComplex64(complex64(f.Complex()), verb, field)
+ 		} else {
+-			p.fmtComplex128(complex128(f.Get()), verb, field)
++			p.fmtComplex128(complex128(f.Complex()), verb, field)
+ 		}
+-	case *reflect.StringValue:
+-		p.fmtString(f.Get(), verb, goSyntax, field)
+-	case *reflect.MapValue:
++	case reflect.String:
++		p.fmtString(f.String(), verb, goSyntax, field)
++	case reflect.Map:
+ 		if goSyntax {
+ 			p.buf.WriteString(f.Type().String())
+ 			p.buf.WriteByte('{')
+ 		} else {
+ 			p.buf.Write(mapBytes)
+ 		}
+-		keys := f.Keys()
++		keys := f.MapKeys()
+ 		for i, key := range keys {
+ 			if i > 0 {
+ 				if goSyntax {
+@@ -698,20 +693,20 @@ BigSwitch:
+ 			}
+ 			p.printField(key.Interface(), verb, plus, goSyntax, depth+1)
+ 			p.buf.WriteByte(':')
+-			p.printField(f.Elem(key).Interface(), verb, plus, goSyntax, depth+1)
++			p.printField(f.MapIndex(key).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte(']')
+ 		}
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		if goSyntax {
+ 			p.buf.WriteString(reflect.Typeof(field).String())
+ 		}
+ 		p.add('{')
+ 		v := f
+-		t := v.Type().(*reflect.StructType)
++		t := v.Type()
+ 		for i := 0; i < v.NumField(); i++ {
+ 			if i > 0 {
+ 				if goSyntax {
+@@ -729,9 +724,9 @@ BigSwitch:
+ 			p.printField(getField(v, i).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+ 		p.buf.WriteByte('}')
+-	case *reflect.InterfaceValue:
++	case reflect.Interface:
+ 		value := f.Elem()
+-		if value == nil {
++		if !value.IsValid() {
+ 			if goSyntax {
+ 				p.buf.WriteString(reflect.Typeof(field).String())
+ 				p.buf.Write(nilParenBytes)
+@@ -741,9 +736,9 @@ BigSwitch:
+ 		} else {
+ 			return p.printField(value.Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+-	case reflect.ArrayOrSliceValue:
++	case reflect.Array, reflect.Slice:
+ 		// Byte slices are special.
+-		if f.Type().(reflect.ArrayOrSliceType).Elem().Kind() == reflect.Uint8 {
++		if f.Type().Elem().Kind() == reflect.Uint8 {
+ 			// We know it's a slice of bytes, but we also know it does not have static type
+ 			// []byte, or it would have been caught above.  Therefore we cannot convert
+ 			// it directly in the (slightly) obvious way: f.Interface().([]byte); it doesn't have
+@@ -753,7 +748,7 @@ BigSwitch:
+ 			// if reflection could help a little more.
+ 			bytes := make([]byte, f.Len())
+ 			for i := range bytes {
+-				bytes[i] = byte(f.Elem(i).(*reflect.UintValue).Get())
++				bytes[i] = byte(f.Index(i).Uint())
+ 			}
+ 			p.fmtBytes(bytes, verb, goSyntax, depth, field)
+ 			return verb == 's'
+@@ -772,24 +767,24 @@ BigSwitch:
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(f.Elem(i).Interface(), verb, plus, goSyntax, depth+1)
++			p.printField(f.Index(i).Interface(), verb, plus, goSyntax, depth+1)
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteByte('}')
+ 		} else {
+ 			p.buf.WriteByte(']')
+ 		}
+-	case *reflect.PtrValue:
+-		v := f.Get()
++	case reflect.Ptr:
++		v := f.Pointer()
+ 		// pointer to array or slice or struct?  ok at top level
+ 		// but not embedded (avoid loops)
+ 		if v != 0 && depth == 0 {
+-			switch a := f.Elem().(type) {
+-			case reflect.ArrayOrSliceValue:
++			switch a := f.Elem(); a.Kind() {
++			case reflect.Array, reflect.Slice:
+ 				p.buf.WriteByte('&')
+ 				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+-			case *reflect.StructValue:
++			case reflect.Struct:
+ 				p.buf.WriteByte('&')
+ 				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+@@ -813,7 +808,7 @@ BigSwitch:
+ 			break
+ 		}
+ 		p.fmt0x64(uint64(v), true)
+-	case *reflect.ChanValue, *reflect.FuncValue, *reflect.UnsafePointerValue:
++	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
+ 		p.fmtPointer(field, value, verb, goSyntax)
+ 	default:
+ 		p.unknownType(f)
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 36271a8d46..b1b3975e25 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -909,36 +909,36 @@ func (s *ss) scanOne(verb int, field interface{}) {
+ 		*v = []byte(s.convertString(verb))
+ 	default:
+ 		val := reflect.NewValue(v)
+-		ptr, ok := val.(*reflect.PtrValue)
+-		if !ok {
++		ptr := val
++		if ptr.Kind() != reflect.Ptr {
+ 			s.errorString("Scan: type not a pointer: " + val.Type().String())
+ 			return
+ 		}
+-		switch v := ptr.Elem().(type) {
+-		case *reflect.BoolValue:
+-			v.Set(s.scanBool(verb))
+-		case *reflect.IntValue:
+-			v.Set(s.scanInt(verb, v.Type().Bits()))
+-		case *reflect.UintValue:
+-			v.Set(s.scanUint(verb, v.Type().Bits()))
+-		case *reflect.StringValue:
+-			v.Set(s.convertString(verb))
+-		case *reflect.SliceValue:
++		switch v := ptr.Elem(); v.Kind() {
++		case reflect.Bool:
++			v.SetBool(s.scanBool(verb))
++		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++			v.SetInt(s.scanInt(verb, v.Type().Bits()))
++		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++			v.SetUint(s.scanUint(verb, v.Type().Bits()))
++		case reflect.String:
++			v.SetString(s.convertString(verb))
++		case reflect.Slice:
+ 			// For now, can only handle (renamed) []byte.
+-			typ := v.Type().(*reflect.SliceType)
++			typ := v.Type()
+ 			if typ.Elem().Kind() != reflect.Uint8 {
+ 				goto CantHandle
+ 			}
+ 			str := s.convertString(verb)
+ 			v.Set(reflect.MakeSlice(typ, len(str), len(str)))
+ 			for i := 0; i < len(str); i++ {
+-				v.Elem(i).(*reflect.UintValue).Set(uint64(str[i]))
++				v.Index(i).SetUint(uint64(str[i]))
+ 			}
+-		case *reflect.FloatValue:
++		case reflect.Float32, reflect.Float64:
+ 			s.skipSpace(false)
+-			v.Set(s.convertFloat(s.floatToken(), v.Type().Bits()))
+-		case *reflect.ComplexValue:
+-			v.Set(s.scanComplex(verb, v.Type().Bits()))
++			v.SetFloat(s.convertFloat(s.floatToken(), v.Type().Bits()))
++		case reflect.Complex64, reflect.Complex128:
++			v.SetComplex(s.scanComplex(verb, v.Type().Bits()))
+ 		default:
+ 		CantHandle:
+ 			s.errorString("Scan: can't handle type: " + val.Type().String())
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index 8d2e6f5c64..b8b3ac9754 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -371,7 +371,7 @@ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}
+ 		}
+ 		// The incoming value may be a pointer
+ 		v := reflect.NewValue(test.in)
+-		if p, ok := v.(*reflect.PtrValue); ok {
++		if p := v; p.Kind() == reflect.Ptr {
+ 			v = p.Elem()
+ 		}
+ 		val := v.Interface()
+@@ -410,7 +410,7 @@ func TestScanf(t *testing.T) {
+ 		}
+ 		// The incoming value may be a pointer
+ 		v := reflect.NewValue(test.in)
+-		if p, ok := v.(*reflect.PtrValue); ok {
++		if p := v; p.Kind() == reflect.Ptr {
+ 			v = p.Elem()
+ 		}
+ 		val := v.Interface()
+@@ -486,7 +486,7 @@ func TestInf(t *testing.T) {
+ }
+ 
+ func testScanfMulti(name string, t *testing.T) {
+-	sliceType := reflect.Typeof(make([]interface{}, 1)).(*reflect.SliceType)
++	sliceType := reflect.Typeof(make([]interface{}, 1))
+ 	for _, test := range multiTests {
+ 		var r io.Reader
+ 		if name == "StringReader" {
+@@ -513,8 +513,8 @@ func testScanfMulti(name string, t *testing.T) {
+ 		// Convert the slice of pointers into a slice of values
+ 		resultVal := reflect.MakeSlice(sliceType, n, n)
+ 		for i := 0; i < n; i++ {
+-			v := reflect.NewValue(test.in[i]).(*reflect.PtrValue).Elem()
+-			resultVal.Elem(i).(*reflect.InterfaceValue).Set(v)
++			v := reflect.NewValue(test.in[i]).Elem()
++			resultVal.Index(i).Set(v)
+ 		}
+ 		result := resultVal.Interface()
+ 		if !reflect.DeepEqual(result, test.out) {
+diff --git a/src/pkg/go/ast/print.go b/src/pkg/go/ast/print.go
+index 82c334ece6..f4b2fc8f44 100644
+--- a/src/pkg/go/ast/print.go
++++ b/src/pkg/go/ast/print.go
+@@ -21,11 +21,12 @@ type FieldFilter func(name string, value reflect.Value) bool
+ 
+ // NotNilFilter returns true for field values that are not nil;
+ // it returns false otherwise.
+-func NotNilFilter(_ string, value reflect.Value) bool {
+-	v, ok := value.(interface {
+-		IsNil() bool
+-	})
+-	return !ok || !v.IsNil()
++func NotNilFilter(_ string, v reflect.Value) bool {
++	switch v.Kind() {
++	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
++		return !v.IsNil()
++	}
++	return false
+ }
+ 
+ 
+@@ -147,23 +148,23 @@ func (p *printer) print(x reflect.Value) {
+ 		return
+ 	}
+ 
+-	switch v := x.(type) {
+-	case *reflect.InterfaceValue:
++	switch v := x; v.Kind() {
++	case reflect.Interface:
+ 		p.print(v.Elem())
+ 
+-	case *reflect.MapValue:
++	case reflect.Map:
+ 		p.printf("%s (len = %d) {\n", x.Type().String(), v.Len())
+ 		p.indent++
+-		for _, key := range v.Keys() {
++		for _, key := range v.MapKeys() {
+ 			p.print(key)
+ 			p.printf(": ")
+-			p.print(v.Elem(key))
++			p.print(v.MapIndex(key))
+ 			p.printf("\n")
+ 		}
+ 		p.indent--
+ 		p.printf("}")
+ 
+-	case *reflect.PtrValue:
++	case reflect.Ptr:
+ 		p.printf("*")
+ 		// type-checked ASTs may contain cycles - use ptrmap
+ 		// to keep track of objects that have been printed
+@@ -176,7 +177,7 @@ func (p *printer) print(x reflect.Value) {
+ 			p.print(v.Elem())
+ 		}
+ 
+-	case *reflect.SliceValue:
++	case reflect.Slice:
+ 		if s, ok := v.Interface().([]byte); ok {
+ 			p.printf("%#q", s)
+ 			return
+@@ -185,16 +186,16 @@ func (p *printer) print(x reflect.Value) {
+ 		p.indent++
+ 		for i, n := 0, v.Len(); i < n; i++ {
+ 			p.printf("%d: ", i)
+-			p.print(v.Elem(i))
++			p.print(v.Index(i))
+ 			p.printf("\n")
+ 		}
+ 		p.indent--
+ 		p.printf("}")
+ 
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		p.printf("%s {\n", x.Type().String())
+ 		p.indent++
+-		t := v.Type().(*reflect.StructType)
++		t := v.Type()
+ 		for i, n := 0, t.NumField(); i < n; i++ {
+ 			name := t.Field(i).Name
+ 			value := v.Field(i)
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index f8159d4ea3..51fac798d1 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -486,7 +486,7 @@ func (dec *Decoder) decodeSingle(engine *decEngine, ut *userTypeInfo, p uintptr)
+ // This state cannot arise for decodeSingle, which is called directly
+ // from the user's value, not from the innards of an engine.
+ func (dec *Decoder) decodeStruct(engine *decEngine, ut *userTypeInfo, p uintptr, indir int) {
+-	p = allocate(ut.base.(*reflect.StructType), p, indir)
++	p = allocate(ut.base, p, indir)
+ 	state := dec.newDecoderState(&dec.buf)
+ 	state.fieldnum = -1
+ 	basep := p
+@@ -567,7 +567,7 @@ func (dec *Decoder) decodeArrayHelper(state *decoderState, p uintptr, elemOp dec
+ // decodeArray decodes an array and stores it through p, that is, p points to the zeroth element.
+ // The length is an unsigned integer preceding the elements.  Even though the length is redundant
+ // (it's part of the type), it's a useful check and is included in the encoding.
+-func (dec *Decoder) decodeArray(atyp *reflect.ArrayType, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeArray(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, length, indir, elemIndir int, ovfl os.ErrorString) {
+ 	if indir > 0 {
+ 		p = allocate(atyp, p, 1) // All but the last level has been allocated by dec.Indirect
+ 	}
+@@ -593,24 +593,24 @@ func decodeIntoValue(state *decoderState, op decOp, indir int, v reflect.Value,
+ // Maps are encoded as a length followed by key:value pairs.
+ // Because the internals of maps are not visible to us, we must
+ // use reflection rather than pointer magic.
+-func (dec *Decoder) decodeMap(mtyp *reflect.MapType, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeMap(mtyp reflect.Type, state *decoderState, p uintptr, keyOp, elemOp decOp, indir, keyIndir, elemIndir int, ovfl os.ErrorString) {
+ 	if indir > 0 {
+ 		p = allocate(mtyp, p, 1) // All but the last level has been allocated by dec.Indirect
+ 	}
+ 	up := unsafe.Pointer(p)
+ 	if *(*unsafe.Pointer)(up) == nil { // maps are represented as a pointer in the runtime
+ 		// Allocate map.
+-		*(*unsafe.Pointer)(up) = unsafe.Pointer(reflect.MakeMap(mtyp).Get())
++		*(*unsafe.Pointer)(up) = unsafe.Pointer(reflect.MakeMap(mtyp).Pointer())
+ 	}
+ 	// Maps cannot be accessed by moving addresses around the way
+ 	// that slices etc. can.  We must recover a full reflection value for
+ 	// the iteration.
+-	v := reflect.NewValue(unsafe.Unreflect(mtyp, unsafe.Pointer(p))).(*reflect.MapValue)
++	v := reflect.NewValue(unsafe.Unreflect(mtyp, unsafe.Pointer(p)))
+ 	n := int(state.decodeUint())
+ 	for i := 0; i < n; i++ {
+-		key := decodeIntoValue(state, keyOp, keyIndir, reflect.MakeZero(mtyp.Key()), ovfl)
+-		elem := decodeIntoValue(state, elemOp, elemIndir, reflect.MakeZero(mtyp.Elem()), ovfl)
+-		v.SetElem(key, elem)
++		key := decodeIntoValue(state, keyOp, keyIndir, reflect.Zero(mtyp.Key()), ovfl)
++		elem := decodeIntoValue(state, elemOp, elemIndir, reflect.Zero(mtyp.Elem()), ovfl)
++		v.SetMapIndex(key, elem)
+ 	}
+ }
+ 
+@@ -643,7 +643,7 @@ func (dec *Decoder) ignoreMap(state *decoderState, keyOp, elemOp decOp) {
+ 
+ // decodeSlice decodes a slice and stores the slice header through p.
+ // Slices are encoded as an unsigned length followed by the elements.
+-func (dec *Decoder) decodeSlice(atyp *reflect.SliceType, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
++func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintptr, elemOp decOp, elemWid uintptr, indir, elemIndir int, ovfl os.ErrorString) {
+ 	n := int(uintptr(state.decodeUint()))
+ 	if indir > 0 {
+ 		up := unsafe.Pointer(p)
+@@ -673,7 +673,7 @@ func (dec *Decoder) ignoreSlice(state *decoderState, elemOp decOp) {
+ // This dance avoids manually checking that the value satisfies the
+ // interface.
+ // TODO(rsc): avoid panic+recover after fixing issue 327.
+-func setInterfaceValue(ivalue *reflect.InterfaceValue, value reflect.Value) {
++func setInterfaceValue(ivalue reflect.Value, value reflect.Value) {
+ 	defer func() {
+ 		if e := recover(); e != nil {
+ 			error(e.(os.Error))
+@@ -685,9 +685,9 @@ func setInterfaceValue(ivalue *reflect.InterfaceValue, value reflect.Value) {
+ // decodeInterface decodes an interface value and stores it through p.
+ // Interfaces are encoded as the name of a concrete type followed by a value.
+ // If the name is empty, the value is nil and no value is sent.
+-func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decoderState, p uintptr, indir int) {
++func (dec *Decoder) decodeInterface(ityp reflect.Type, state *decoderState, p uintptr, indir int) {
+ 	// Create an interface reflect.Value.  We need one even for the nil case.
+-	ivalue := reflect.MakeZero(ityp).(*reflect.InterfaceValue)
++	ivalue := reflect.Zero(ityp)
+ 	// Read the name of the concrete type.
+ 	b := make([]byte, state.decodeUint())
+ 	state.b.Read(b)
+@@ -695,7 +695,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decoderS
+ 	if name == "" {
+ 		// Copy the representation of the nil interface value to the target.
+ 		// This is horribly unsafe and special.
+-		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.Get()
++		*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
+ 		return
+ 	}
+ 	// The concrete type must be registered.
+@@ -712,7 +712,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decoderS
+ 	// in case we want to ignore the value by skipping it completely).
+ 	state.decodeUint()
+ 	// Read the concrete value.
+-	value := reflect.MakeZero(typ)
++	value := reflect.Zero(typ)
+ 	dec.decodeValue(concreteId, value)
+ 	if dec.err != nil {
+ 		error(dec.err)
+@@ -726,7 +726,7 @@ func (dec *Decoder) decodeInterface(ityp *reflect.InterfaceType, state *decoderS
+ 	setInterfaceValue(ivalue, value)
+ 	// Copy the representation of the interface value to the target.
+ 	// This is horribly unsafe and special.
+-	*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.Get()
++	*(*[2]uintptr)(unsafe.Pointer(p)) = ivalue.InterfaceData()
+ }
+ 
+ // ignoreInterface discards the data for an interface value with no destination.
+@@ -823,8 +823,8 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 	if op == nil {
+ 		inProgress[rt] = &op
+ 		// Special cases
+-		switch t := typ.(type) {
+-		case *reflect.ArrayType:
++		switch t := typ; t.Kind() {
++		case reflect.Array:
+ 			name = "element of " + name
+ 			elemId := dec.wireType[wireId].ArrayT.Elem
+ 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name, inProgress)
+@@ -833,7 +833,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 				state.dec.decodeArray(t, state, uintptr(p), *elemOp, t.Elem().Size(), t.Len(), i.indir, elemIndir, ovfl)
+ 			}
+ 
+-		case *reflect.MapType:
++		case reflect.Map:
+ 			name = "element of " + name
+ 			keyId := dec.wireType[wireId].MapT.Key
+ 			elemId := dec.wireType[wireId].MapT.Elem
+@@ -845,7 +845,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 				state.dec.decodeMap(t, state, uintptr(up), *keyOp, *elemOp, i.indir, keyIndir, elemIndir, ovfl)
+ 			}
+ 
+-		case *reflect.SliceType:
++		case reflect.Slice:
+ 			name = "element of " + name
+ 			if t.Elem().Kind() == reflect.Uint8 {
+ 				op = decUint8Array
+@@ -863,7 +863,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 				state.dec.decodeSlice(t, state, uintptr(p), *elemOp, t.Elem().Size(), i.indir, elemIndir, ovfl)
+ 			}
+ 
+-		case *reflect.StructType:
++		case reflect.Struct:
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			enginePtr, err := dec.getDecEnginePtr(wireId, userType(typ))
+ 			if err != nil {
+@@ -873,7 +873,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 				// indirect through enginePtr to delay evaluation for recursive structs.
+ 				dec.decodeStruct(*enginePtr, userType(typ), uintptr(p), i.indir)
+ 			}
+-		case *reflect.InterfaceType:
++		case reflect.Interface:
+ 			op = func(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 				state.dec.decodeInterface(t, state, uintptr(p), i.indir)
+ 			}
+@@ -956,7 +956,7 @@ func (dec *Decoder) gobDecodeOpFor(ut *userTypeInfo) (*decOp, int) {
+ 		rt = reflect.PtrTo(rt)
+ 	} else if ut.decIndir > 0 {
+ 		for i := int8(0); i < ut.decIndir; i++ {
+-			rt = rt.(*reflect.PtrType).Elem()
++			rt = rt.Elem()
+ 		}
+ 	}
+ 	var op decOp
+@@ -999,37 +999,37 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ 	if ut.isGobDecoder { // This test trumps all others.
+ 		return true
+ 	}
+-	switch t := ut.base.(type) {
++	switch t := ut.base; t.Kind() {
+ 	default:
+ 		// chan, etc: cannot handle.
+ 		return false
+-	case *reflect.BoolType:
++	case reflect.Bool:
+ 		return fw == tBool
+-	case *reflect.IntType:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return fw == tInt
+-	case *reflect.UintType:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		return fw == tUint
+-	case *reflect.FloatType:
++	case reflect.Float32, reflect.Float64:
+ 		return fw == tFloat
+-	case *reflect.ComplexType:
++	case reflect.Complex64, reflect.Complex128:
+ 		return fw == tComplex
+-	case *reflect.StringType:
++	case reflect.String:
+ 		return fw == tString
+-	case *reflect.InterfaceType:
++	case reflect.Interface:
+ 		return fw == tInterface
+-	case *reflect.ArrayType:
++	case reflect.Array:
+ 		if !ok || wire.ArrayT == nil {
+ 			return false
+ 		}
+ 		array := wire.ArrayT
+ 		return t.Len() == array.Len && dec.compatibleType(t.Elem(), array.Elem, inProgress)
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		if !ok || wire.MapT == nil {
+ 			return false
+ 		}
+ 		MapType := wire.MapT
+ 		return dec.compatibleType(t.Key(), MapType.Key, inProgress) && dec.compatibleType(t.Elem(), MapType.Elem, inProgress)
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		// Is it an array of bytes?
+ 		if t.Elem().Kind() == reflect.Uint8 {
+ 			return fw == tBytes
+@@ -1043,7 +1043,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ 		}
+ 		elem := userType(t.Elem()).base
+ 		return sw != nil && dec.compatibleType(elem, sw.Elem, inProgress)
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		return true
+ 	}
+ 	return true
+@@ -1093,8 +1093,9 @@ func (dec *Decoder) compileIgnoreSingle(remoteId typeId) (engine *decEngine, err
+ // it calls out to compileSingle.
+ func (dec *Decoder) compileDec(remoteId typeId, ut *userTypeInfo) (engine *decEngine, err os.Error) {
+ 	rt := ut.base
+-	srt, ok := rt.(*reflect.StructType)
+-	if !ok || ut.isGobDecoder {
++	srt := rt
++	if srt.Kind() != reflect.Struct ||
++		ut.isGobDecoder {
+ 		return dec.compileSingle(remoteId, ut)
+ 	}
+ 	var wireStruct *structType
+@@ -1189,7 +1190,7 @@ func (dec *Decoder) getIgnoreEnginePtr(wireId typeId) (enginePtr **decEngine, er
+ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
+ 	defer catchError(&dec.err)
+ 	// If the value is nil, it means we should just ignore this item.
+-	if val == nil {
++	if !val.IsValid() {
+ 		dec.decodeIgnoredValue(wireId)
+ 		return
+ 	}
+@@ -1206,7 +1207,7 @@ func (dec *Decoder) decodeValue(wireId typeId, val reflect.Value) {
+ 		return
+ 	}
+ 	engine := *enginePtr
+-	if st, ok := base.(*reflect.StructType); ok && !ut.isGobDecoder {
++	if st := base; st.Kind() == reflect.Struct && !ut.isGobDecoder {
+ 		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
+ 			name := base.Name()
+ 			errorf("gob: type mismatch: no fields matched compiling decoder for %s", name)
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 34364161aa..a631c27a2b 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -159,7 +159,7 @@ func (dec *Decoder) decodeTypeSequence(isInterface bool) typeId {
+ // data item received, and must be a pointer.
+ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 	if e == nil {
+-		return dec.DecodeValue(nil)
++		return dec.DecodeValue(reflect.Value{})
+ 	}
+ 	value := reflect.NewValue(e)
+ 	// If e represents a value as opposed to a pointer, the answer won't
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 5cfdb583a1..36bde08aa8 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -396,10 +396,10 @@ func (enc *Encoder) encodeArray(b *bytes.Buffer, p uintptr, op encOp, elemWid ui
+ 
+ // encodeReflectValue is a helper for maps. It encodes the value v.
+ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir int) {
+-	for i := 0; i < indir && v != nil; i++ {
++	for i := 0; i < indir && v.IsValid(); i++ {
+ 		v = reflect.Indirect(v)
+ 	}
+-	if v == nil {
++	if !v.IsValid() {
+ 		errorf("gob: encodeReflectValue: nil element")
+ 	}
+ 	op(nil, state, unsafe.Pointer(v.UnsafeAddr()))
+@@ -408,15 +408,15 @@ func encodeReflectValue(state *encoderState, v reflect.Value, op encOp, indir in
+ // encodeMap encodes a map as unsigned count followed by key:value pairs.
+ // Because map internals are not exposed, we must use reflection rather than
+ // addresses.
+-func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elemOp encOp, keyIndir, elemIndir int) {
++func (enc *Encoder) encodeMap(b *bytes.Buffer, mv reflect.Value, keyOp, elemOp encOp, keyIndir, elemIndir int) {
+ 	state := enc.newEncoderState(b)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+-	keys := mv.Keys()
++	keys := mv.MapKeys()
+ 	state.encodeUint(uint64(len(keys)))
+ 	for _, key := range keys {
+ 		encodeReflectValue(state, key, keyOp, keyIndir)
+-		encodeReflectValue(state, mv.Elem(key), elemOp, elemIndir)
++		encodeReflectValue(state, mv.MapIndex(key), elemOp, elemIndir)
+ 	}
+ 	enc.freeEncoderState(state)
+ }
+@@ -426,7 +426,7 @@ func (enc *Encoder) encodeMap(b *bytes.Buffer, mv *reflect.MapValue, keyOp, elem
+ // by the type identifier (which might require defining that type right now), followed
+ // by the concrete value.  A nil value gets sent as the empty string for the name,
+ // followed by no value.
+-func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv *reflect.InterfaceValue) {
++func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	state := enc.newEncoderState(b)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+@@ -525,8 +525,8 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 	if op == nil {
+ 		inProgress[rt] = &op
+ 		// Special cases
+-		switch t := typ.(type) {
+-		case *reflect.SliceType:
++		switch t := typ; t.Kind() {
++		case reflect.Slice:
+ 			if t.Elem().Kind() == reflect.Uint8 {
+ 				op = encUint8Array
+ 				break
+@@ -541,14 +541,14 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				state.update(i)
+ 				state.enc.encodeArray(state.b, slice.Data, *elemOp, t.Elem().Size(), indir, int(slice.Len))
+ 			}
+-		case *reflect.ArrayType:
++		case reflect.Array:
+ 			// True arrays have size in the type.
+ 			elemOp, indir := enc.encOpFor(t.Elem(), inProgress)
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				state.update(i)
+ 				state.enc.encodeArray(state.b, uintptr(p), *elemOp, t.Elem().Size(), indir, t.Len())
+ 			}
+-		case *reflect.MapType:
++		case reflect.Map:
+ 			keyOp, keyIndir := enc.encOpFor(t.Key(), inProgress)
+ 			elemOp, elemIndir := enc.encOpFor(t.Elem(), inProgress)
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+@@ -556,14 +556,14 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				// that slices etc. can.  We must recover a full reflection value for
+ 				// the iteration.
+ 				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer(p)))
+-				mv := reflect.Indirect(v).(*reflect.MapValue)
++				mv := reflect.Indirect(v)
+ 				if !state.sendZero && mv.Len() == 0 {
+ 					return
+ 				}
+ 				state.update(i)
+ 				state.enc.encodeMap(state.b, mv, *keyOp, *elemOp, keyIndir, elemIndir)
+ 			}
+-		case *reflect.StructType:
++		case reflect.Struct:
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			enc.getEncEngine(userType(typ))
+ 			info := mustGetTypeInfo(typ)
+@@ -572,13 +572,13 @@ func (enc *Encoder) encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp
+ 				// indirect through info to delay evaluation for recursive structs
+ 				state.enc.encodeStruct(state.b, info.encoder, uintptr(p))
+ 			}
+-		case *reflect.InterfaceType:
++		case reflect.Interface:
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				// Interfaces transmit the name and contents of the concrete
+ 				// value they contain.
+ 				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer(p)))
+-				iv := reflect.Indirect(v).(*reflect.InterfaceValue)
+-				if !state.sendZero && (iv == nil || iv.IsNil()) {
++				iv := reflect.Indirect(v)
++				if !state.sendZero && (!iv.IsValid() || iv.IsNil()) {
+ 					return
+ 				}
+ 				state.update(i)
+@@ -611,7 +611,7 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 		rt = reflect.PtrTo(rt)
+ 	} else if ut.encIndir > 0 {
+ 		for i := int8(0); i < ut.encIndir; i++ {
+-			rt = rt.(*reflect.PtrType).Elem()
++			rt = rt.Elem()
+ 		}
+ 	}
+ 	var op encOp
+@@ -631,14 +631,15 @@ func (enc *Encoder) gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ 
+ // compileEnc returns the engine to compile the type.
+ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
+-	srt, isStruct := ut.base.(*reflect.StructType)
++	srt := ut.base
+ 	engine := new(encEngine)
+ 	seen := make(map[reflect.Type]*encOp)
+ 	rt := ut.base
+ 	if ut.isGobEncoder {
+ 		rt = ut.user
+ 	}
+-	if !ut.isGobEncoder && isStruct {
++	if !ut.isGobEncoder &&
++		srt.Kind() == reflect.Struct {
+ 		for fieldNum, wireFieldNum := 0, 0; fieldNum < srt.NumField(); fieldNum++ {
+ 			f := srt.Field(fieldNum)
+ 			if !isExported(f.Name) {
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index e52a4de29f..928f3b244b 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -109,12 +109,12 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 		enc.sent[ut.user] = info.id
+ 	}
+ 	// Now send the inner types
+-	switch st := actual.(type) {
+-	case *reflect.StructType:
++	switch st := actual; st.Kind() {
++	case reflect.Struct:
+ 		for i := 0; i < st.NumField(); i++ {
+ 			enc.sendType(w, state, st.Field(i).Type)
+ 		}
+-	case reflect.ArrayOrSliceType:
++	case reflect.Array, reflect.Slice:
+ 		enc.sendType(w, state, st.Elem())
+ 	}
+ 	return true
+@@ -130,27 +130,27 @@ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Typ
+ 	}
+ 
+ 	// It's a concrete value, so drill down to the base type.
+-	switch rt := ut.base.(type) {
++	switch rt := ut.base; rt.Kind() {
+ 	default:
+ 		// Basic types and interfaces do not need to be described.
+ 		return
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		// If it's []uint8, don't send; it's considered basic.
+ 		if rt.Elem().Kind() == reflect.Uint8 {
+ 			return
+ 		}
+ 		// Otherwise we do send.
+ 		break
+-	case *reflect.ArrayType:
++	case reflect.Array:
+ 		// arrays must be sent so we know their lengths and element types.
+ 		break
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		// maps must be sent so we know their lengths and key/value types.
+ 		break
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		// structs must be sent so we know their fields.
+ 		break
+-	case *reflect.ChanType, *reflect.FuncType:
++	case reflect.Chan, reflect.Func:
+ 		// Probably a bad field in a struct.
+ 		enc.badType(rt)
+ 		return
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index a0c713b81d..3d5dfdb86e 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -339,7 +339,7 @@ func TestSingletons(t *testing.T) {
+ 			continue
+ 		}
+ 		// Get rid of the pointer in the rhs
+-		val := reflect.NewValue(test.out).(*reflect.PtrValue).Elem().Interface()
++		val := reflect.NewValue(test.out).Elem().Interface()
+ 		if !reflect.DeepEqual(test.in, val) {
+ 			t.Errorf("decoding singleton: expected %v got %v", test.in, val)
+ 		}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 305d41980a..8fd174841b 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -60,8 +60,8 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 	// half speed. If they meet up, there's a cycle.
+ 	slowpoke := ut.base // walks half as fast as ut.base
+ 	for {
+-		pt, ok := ut.base.(*reflect.PtrType)
+-		if !ok {
++		pt := ut.base
++		if pt.Kind() != reflect.Ptr {
+ 			break
+ 		}
+ 		ut.base = pt.Elem()
+@@ -70,7 +70,7 @@ func validUserType(rt reflect.Type) (ut *userTypeInfo, err os.Error) {
+ 			return nil, os.ErrorString("can't represent recursive pointer type " + ut.base.String())
+ 		}
+ 		if ut.indir%2 == 0 {
+-			slowpoke = slowpoke.(*reflect.PtrType).Elem()
++			slowpoke = slowpoke.Elem()
+ 		}
+ 		ut.indir++
+ 	}
+@@ -96,13 +96,13 @@ func implements(typ reflect.Type, check func(typ reflect.Type) bool) bool {
+ 
+ // gobEncoderCheck makes the type assertion a boolean function.
+ func gobEncoderCheck(typ reflect.Type) bool {
+-	_, ok := reflect.MakeZero(typ).Interface().(GobEncoder)
++	_, ok := reflect.Zero(typ).Interface().(GobEncoder)
+ 	return ok
+ }
+ 
+ // gobDecoderCheck makes the type assertion a boolean function.
+ func gobDecoderCheck(typ reflect.Type) bool {
+-	_, ok := reflect.MakeZero(typ).Interface().(GobDecoder)
++	_, ok := reflect.Zero(typ).Interface().(GobDecoder)
+ 	return ok
+ }
+ 
+@@ -121,7 +121,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
+ 		if implements(rt, check) {
+ 			return true, indir
+ 		}
+-		if p, ok := rt.(*reflect.PtrType); ok {
++		if p := rt; p.Kind() == reflect.Ptr {
+ 			indir++
+ 			if indir > 100 { // insane number of indirections
+ 				return false, 0
+@@ -132,7 +132,7 @@ func implementsInterface(typ reflect.Type, check func(typ reflect.Type) bool) (s
+ 		break
+ 	}
+ 	// No luck yet, but if this is a base type (non-pointer), the pointer might satisfy.
+-	if _, ok := typ.(*reflect.PtrType); !ok {
++	if typ.Kind() != reflect.Ptr {
+ 		// Not a pointer, but does the pointer work?
+ 		if implements(reflect.PtrTo(typ), check) {
+ 			return true, -1
+@@ -431,30 +431,30 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 	}()
+ 	// Install the top-level type before the subtypes (e.g. struct before
+ 	// fields) so recursive types can be constructed safely.
+-	switch t := rt.(type) {
++	switch t := rt; t.Kind() {
+ 	// All basic types are easy: they are predefined.
+-	case *reflect.BoolType:
++	case reflect.Bool:
+ 		return tBool.gobType(), nil
+ 
+-	case *reflect.IntType:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		return tInt.gobType(), nil
+ 
+-	case *reflect.UintType:
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		return tUint.gobType(), nil
+ 
+-	case *reflect.FloatType:
++	case reflect.Float32, reflect.Float64:
+ 		return tFloat.gobType(), nil
+ 
+-	case *reflect.ComplexType:
++	case reflect.Complex64, reflect.Complex128:
+ 		return tComplex.gobType(), nil
+ 
+-	case *reflect.StringType:
++	case reflect.String:
+ 		return tString.gobType(), nil
+ 
+-	case *reflect.InterfaceType:
++	case reflect.Interface:
+ 		return tInterface.gobType(), nil
+ 
+-	case *reflect.ArrayType:
++	case reflect.Array:
+ 		at := newArrayType(name)
+ 		types[rt] = at
+ 		type0, err = getBaseType("", t.Elem())
+@@ -472,7 +472,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		at.init(type0, t.Len())
+ 		return at, nil
+ 
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		mt := newMapType(name)
+ 		types[rt] = mt
+ 		type0, err = getBaseType("", t.Key())
+@@ -486,7 +486,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		mt.init(type0, type1)
+ 		return mt, nil
+ 
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		// []byte == []uint8 is a special case
+ 		if t.Elem().Kind() == reflect.Uint8 {
+ 			return tBytes.gobType(), nil
+@@ -500,7 +500,7 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, os.
+ 		st.init(type0)
+ 		return st, nil
+ 
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		st := newStructType(name)
+ 		types[rt] = st
+ 		idToType[st.id()] = st
+@@ -569,7 +569,7 @@ func checkId(want, got typeId) {
+ // used for building the basic types; called only from init().  the incoming
+ // interface always refers to a pointer.
+ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+-	rt := reflect.Typeof(e).(*reflect.PtrType).Elem()
++	rt := reflect.Typeof(e).Elem()
+ 	_, present := types[rt]
+ 	if present {
+ 		panic("bootstrap type already present: " + name + ", " + rt.String())
+@@ -658,17 +658,17 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, os.Error) {
+ 	}
+ 
+ 	t := info.id.gobType()
+-	switch typ := rt.(type) {
+-	case *reflect.ArrayType:
++	switch typ := rt; typ.Kind() {
++	case reflect.Array:
+ 		info.wire = &wireType{ArrayT: t.(*arrayType)}
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		info.wire = &wireType{MapT: t.(*mapType)}
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		// []byte == []uint8 is a special case handled separately
+ 		if typ.Elem().Kind() != reflect.Uint8 {
+ 			info.wire = &wireType{SliceT: t.(*sliceType)}
+ 		}
+-	case *reflect.StructType:
++	case reflect.Struct:
+ 		info.wire = &wireType{StructT: t.(*structType)}
+ 	}
+ 	typeInfoMap[rt] = info
+@@ -752,7 +752,7 @@ func Register(value interface{}) {
+ 	// Dereference one pointer looking for a named type.
+ 	star := ""
+ 	if rt.Name() == "" {
+-		if pt, ok := rt.(*reflect.PtrType); ok {
++		if pt := rt; pt.Kind() == reflect.Ptr {
+ 			star = "*"
+ 			rt = pt
+ 		}
+diff --git a/src/pkg/http/response_test.go b/src/pkg/http/response_test.go
+index ef67fdd2dc..314f05b36c 100644
+--- a/src/pkg/http/response_test.go
++++ b/src/pkg/http/response_test.go
+@@ -251,8 +251,8 @@ func TestReadResponse(t *testing.T) {
+ }
+ 
+ func diff(t *testing.T, prefix string, have, want interface{}) {
+-	hv := reflect.NewValue(have).(*reflect.PtrValue).Elem().(*reflect.StructValue)
+-	wv := reflect.NewValue(want).(*reflect.PtrValue).Elem().(*reflect.StructValue)
++	hv := reflect.NewValue(have).Elem()
++	wv := reflect.NewValue(want).Elem()
+ 	if hv.Type() != wv.Type() {
+ 		t.Errorf("%s: type mismatch %v vs %v", prefix, hv.Type(), wv.Type())
+ 	}
+@@ -260,7 +260,7 @@ func diff(t *testing.T, prefix string, have, want interface{}) {
+ 		hf := hv.Field(i).Interface()
+ 		wf := wv.Field(i).Interface()
+ 		if !reflect.DeepEqual(hf, wf) {
+-			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().(*reflect.StructType).Field(i).Name, hf, wf)
++			t.Errorf("%s: %s = %v want %v", prefix, hv.Type().Field(i).Name, hf, wf)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 501230c0c0..a5fd33912e 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -87,7 +87,7 @@ func (e *UnmarshalTypeError) String() string {
+ // led to an unexported (and therefore unwritable) struct field.
+ type UnmarshalFieldError struct {
+ 	Key   string
+-	Type  *reflect.StructType
++	Type  reflect.Type
+ 	Field reflect.StructField
+ }
+ 
+@@ -106,7 +106,7 @@ func (e *InvalidUnmarshalError) String() string {
+ 		return "json: Unmarshal(nil)"
+ 	}
+ 
+-	if _, ok := e.Type.(*reflect.PtrType); !ok {
++	if e.Type.Kind() != reflect.Ptr {
+ 		return "json: Unmarshal(non-pointer " + e.Type.String() + ")"
+ 	}
+ 	return "json: Unmarshal(nil " + e.Type.String() + ")"
+@@ -123,8 +123,9 @@ func (d *decodeState) unmarshal(v interface{}) (err os.Error) {
+ 	}()
+ 
+ 	rv := reflect.NewValue(v)
+-	pv, ok := rv.(*reflect.PtrValue)
+-	if !ok || pv.IsNil() {
++	pv := rv
++	if pv.Kind() != reflect.Ptr ||
++		pv.IsNil() {
+ 		return &InvalidUnmarshalError{reflect.Typeof(v)}
+ 	}
+ 
+@@ -215,7 +216,7 @@ func (d *decodeState) scanWhile(op int) int {
+ // value decodes a JSON value from d.data[d.off:] into the value.
+ // it updates d.off to point past the decoded value.
+ func (d *decodeState) value(v reflect.Value) {
+-	if v == nil {
++	if !v.IsValid() {
+ 		_, rest, err := nextValue(d.data[d.off:], &d.nextscan)
+ 		if err != nil {
+ 			d.error(err)
+@@ -262,20 +263,21 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
+ 			_, isUnmarshaler = v.Interface().(Unmarshaler)
+ 		}
+ 
+-		if iv, ok := v.(*reflect.InterfaceValue); ok && !iv.IsNil() {
++		if iv := v; iv.Kind() == reflect.Interface && !iv.IsNil() {
+ 			v = iv.Elem()
+ 			continue
+ 		}
+-		pv, ok := v.(*reflect.PtrValue)
+-		if !ok {
++		pv := v
++		if pv.Kind() != reflect.Ptr {
+ 			break
+ 		}
+-		_, isptrptr := pv.Elem().(*reflect.PtrValue)
+-		if !isptrptr && wantptr && !isUnmarshaler {
++
++		if pv.Elem().Kind() != reflect.Ptr &&
++			wantptr && !isUnmarshaler {
+ 			return nil, pv
+ 		}
+ 		if pv.IsNil() {
+-			pv.PointTo(reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem()))
++			pv.Set(reflect.Zero(pv.Type().Elem()).Addr())
+ 		}
+ 		if isUnmarshaler {
+ 			// Using v.Interface().(Unmarshaler)
+@@ -286,7 +288,7 @@ func (d *decodeState) indirect(v reflect.Value, wantptr bool) (Unmarshaler, refl
+ 			// This is an unfortunate consequence of reflect.
+ 			// An alternative would be to look up the
+ 			// UnmarshalJSON method and return a FuncValue.
+-			return v.Interface().(Unmarshaler), nil
++			return v.Interface().(Unmarshaler), reflect.Value{}
+ 		}
+ 		v = pv.Elem()
+ 	}
+@@ -309,22 +311,23 @@ func (d *decodeState) array(v reflect.Value) {
+ 	v = pv
+ 
+ 	// Decoding into nil interface?  Switch to non-reflect code.
+-	iv, ok := v.(*reflect.InterfaceValue)
++	iv := v
++	ok := iv.Kind() == reflect.Interface
+ 	if ok {
+ 		iv.Set(reflect.NewValue(d.arrayInterface()))
+ 		return
+ 	}
+ 
+ 	// Check type of target.
+-	av, ok := v.(reflect.ArrayOrSliceValue)
+-	if !ok {
++	av := v
++	if av.Kind() != reflect.Array && av.Kind() != reflect.Slice {
+ 		d.saveError(&UnmarshalTypeError{"array", v.Type()})
+ 		d.off--
+ 		d.next()
+ 		return
+ 	}
+ 
+-	sv, _ := v.(*reflect.SliceValue)
++	sv := v
+ 
+ 	i := 0
+ 	for {
+@@ -339,26 +342,26 @@ func (d *decodeState) array(v reflect.Value) {
+ 		d.scan.undo(op)
+ 
+ 		// Get element of array, growing if necessary.
+-		if i >= av.Cap() && sv != nil {
++		if i >= av.Cap() && sv.IsValid() {
+ 			newcap := sv.Cap() + sv.Cap()/2
+ 			if newcap < 4 {
+ 				newcap = 4
+ 			}
+-			newv := reflect.MakeSlice(sv.Type().(*reflect.SliceType), sv.Len(), newcap)
++			newv := reflect.MakeSlice(sv.Type(), sv.Len(), newcap)
+ 			reflect.Copy(newv, sv)
+ 			sv.Set(newv)
+ 		}
+-		if i >= av.Len() && sv != nil {
++		if i >= av.Len() && sv.IsValid() {
+ 			// Must be slice; gave up on array during i >= av.Cap().
+ 			sv.SetLen(i + 1)
+ 		}
+ 
+ 		// Decode into element.
+ 		if i < av.Len() {
+-			d.value(av.Elem(i))
++			d.value(av.Index(i))
+ 		} else {
+ 			// Ran out of fixed array: skip.
+-			d.value(nil)
++			d.value(reflect.Value{})
+ 		}
+ 		i++
+ 
+@@ -372,11 +375,11 @@ func (d *decodeState) array(v reflect.Value) {
+ 		}
+ 	}
+ 	if i < av.Len() {
+-		if sv == nil {
++		if !sv.IsValid() {
+ 			// Array.  Zero the rest.
+-			z := reflect.MakeZero(av.Type().(*reflect.ArrayType).Elem())
++			z := reflect.Zero(av.Type().Elem())
+ 			for ; i < av.Len(); i++ {
+-				av.Elem(i).SetValue(z)
++				av.Index(i).Set(z)
+ 			}
+ 		} else {
+ 			sv.SetLen(i)
+@@ -405,36 +408,36 @@ func (d *decodeState) object(v reflect.Value) {
+ 	v = pv
+ 
+ 	// Decoding into nil interface?  Switch to non-reflect code.
+-	iv, ok := v.(*reflect.InterfaceValue)
+-	if ok {
++	iv := v
++	if iv.Kind() == reflect.Interface {
+ 		iv.Set(reflect.NewValue(d.objectInterface()))
+ 		return
+ 	}
+ 
+ 	// Check type of target: struct or map[string]T
+ 	var (
+-		mv *reflect.MapValue
+-		sv *reflect.StructValue
++		mv reflect.Value
++		sv reflect.Value
+ 	)
+-	switch v := v.(type) {
+-	case *reflect.MapValue:
++	switch v.Kind() {
++	case reflect.Map:
+ 		// map must have string type
+-		t := v.Type().(*reflect.MapType)
++		t := v.Type()
+ 		if t.Key() != reflect.Typeof("") {
+ 			d.saveError(&UnmarshalTypeError{"object", v.Type()})
+ 			break
+ 		}
+ 		mv = v
+ 		if mv.IsNil() {
+-			mv.SetValue(reflect.MakeMap(t))
++			mv.Set(reflect.MakeMap(t))
+ 		}
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		sv = v
+ 	default:
+ 		d.saveError(&UnmarshalTypeError{"object", v.Type()})
+ 	}
+ 
+-	if mv == nil && sv == nil {
++	if !mv.IsValid() && !sv.IsValid() {
+ 		d.off--
+ 		d.next() // skip over { } in input
+ 		return
+@@ -462,12 +465,12 @@ func (d *decodeState) object(v reflect.Value) {
+ 
+ 		// Figure out field corresponding to key.
+ 		var subv reflect.Value
+-		if mv != nil {
+-			subv = reflect.MakeZero(mv.Type().(*reflect.MapType).Elem())
++		if mv.IsValid() {
++			subv = reflect.Zero(mv.Type().Elem())
+ 		} else {
+ 			var f reflect.StructField
+ 			var ok bool
+-			st := sv.Type().(*reflect.StructType)
++			st := sv.Type()
+ 			// First try for field with that tag.
+ 			if isValidTag(key) {
+ 				for i := 0; i < sv.NumField(); i++ {
+@@ -510,8 +513,8 @@ func (d *decodeState) object(v reflect.Value) {
+ 
+ 		// Write value back to map;
+ 		// if using struct, subv points into struct already.
+-		if mv != nil {
+-			mv.SetElem(reflect.NewValue(key), subv)
++		if mv.IsValid() {
++			mv.SetMapIndex(reflect.NewValue(key), subv)
+ 		}
+ 
+ 		// Next token must be , or }.
+@@ -552,21 +555,21 @@ func (d *decodeState) literal(v reflect.Value) {
+ 
+ 	switch c := item[0]; c {
+ 	case 'n': // null
+-		switch v.(type) {
++		switch v.Kind() {
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"null", v.Type()})
+-		case *reflect.InterfaceValue, *reflect.PtrValue, *reflect.MapValue:
+-			v.SetValue(nil)
++		case reflect.Interface, reflect.Ptr, reflect.Map:
++			v.Set(reflect.Zero(v.Type()))
+ 		}
+ 
+ 	case 't', 'f': // true, false
+ 		value := c == 't'
+-		switch v := v.(type) {
++		switch v.Kind() {
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"bool", v.Type()})
+-		case *reflect.BoolValue:
+-			v.Set(value)
+-		case *reflect.InterfaceValue:
++		case reflect.Bool:
++			v.SetBool(value)
++		case reflect.Interface:
+ 			v.Set(reflect.NewValue(value))
+ 		}
+ 
+@@ -575,10 +578,10 @@ func (d *decodeState) literal(v reflect.Value) {
+ 		if !ok {
+ 			d.error(errPhase)
+ 		}
+-		switch v := v.(type) {
++		switch v.Kind() {
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"string", v.Type()})
+-		case *reflect.SliceValue:
++		case reflect.Slice:
+ 			if v.Type() != byteSliceType {
+ 				d.saveError(&UnmarshalTypeError{"string", v.Type()})
+ 				break
+@@ -589,10 +592,10 @@ func (d *decodeState) literal(v reflect.Value) {
+ 				d.saveError(err)
+ 				break
+ 			}
+-			v.Set(reflect.NewValue(b[0:n]).(*reflect.SliceValue))
+-		case *reflect.StringValue:
+-			v.Set(string(s))
+-		case *reflect.InterfaceValue:
++			v.Set(reflect.NewValue(b[0:n]))
++		case reflect.String:
++			v.SetString(string(s))
++		case reflect.Interface:
+ 			v.Set(reflect.NewValue(string(s)))
+ 		}
+ 
+@@ -601,10 +604,10 @@ func (d *decodeState) literal(v reflect.Value) {
+ 			d.error(errPhase)
+ 		}
+ 		s := string(item)
+-		switch v := v.(type) {
++		switch v.Kind() {
+ 		default:
+ 			d.error(&UnmarshalTypeError{"number", v.Type()})
+-		case *reflect.InterfaceValue:
++		case reflect.Interface:
+ 			n, err := strconv.Atof64(s)
+ 			if err != nil {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+@@ -612,29 +615,29 @@ func (d *decodeState) literal(v reflect.Value) {
+ 			}
+ 			v.Set(reflect.NewValue(n))
+ 
+-		case *reflect.IntValue:
++		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 			n, err := strconv.Atoi64(s)
+-			if err != nil || v.Overflow(n) {
++			if err != nil || v.OverflowInt(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+-			v.Set(n)
++			v.SetInt(n)
+ 
+-		case *reflect.UintValue:
++		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 			n, err := strconv.Atoui64(s)
+-			if err != nil || v.Overflow(n) {
++			if err != nil || v.OverflowUint(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+-			v.Set(n)
++			v.SetUint(n)
+ 
+-		case *reflect.FloatValue:
++		case reflect.Float32, reflect.Float64:
+ 			n, err := strconv.AtofN(s, v.Type().Bits())
+-			if err != nil || v.Overflow(n) {
++			if err != nil || v.OverflowFloat(n) {
+ 				d.saveError(&UnmarshalTypeError{"number " + s, v.Type()})
+ 				break
+ 			}
+-			v.Set(n)
++			v.SetFloat(n)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index aad8b635f2..49135c4bfe 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -21,7 +21,7 @@ type tx struct {
+ 	x int
+ }
+ 
+-var txType = reflect.Typeof((*tx)(nil)).(*reflect.PtrType).Elem().(*reflect.StructType)
++var txType = reflect.Typeof((*tx)(nil)).Elem()
+ 
+ // A type that can unmarshal itself.
+ 
+@@ -138,8 +138,8 @@ func TestUnmarshal(t *testing.T) {
+ 			continue
+ 		}
+ 		// v = new(right-type)
+-		v := reflect.NewValue(tt.ptr).(*reflect.PtrValue)
+-		v.PointTo(reflect.MakeZero(v.Type().(*reflect.PtrType).Elem()))
++		v := reflect.NewValue(tt.ptr)
++		v.Set(reflect.Zero(v.Type().Elem()).Addr())
+ 		if err := Unmarshal([]byte(in), v.Interface()); !reflect.DeepEqual(err, tt.err) {
+ 			t.Errorf("#%d: %v want %v", i, err, tt.err)
+ 			continue
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 26ce47039f..dfa3c59da5 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -183,7 +183,7 @@ func (e *encodeState) error(err os.Error) {
+ var byteSliceType = reflect.Typeof([]byte(nil))
+ 
+ func (e *encodeState) reflectValue(v reflect.Value) {
+-	if v == nil {
++	if !v.IsValid() {
+ 		e.WriteString("null")
+ 		return
+ 	}
+@@ -200,30 +200,30 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		return
+ 	}
+ 
+-	switch v := v.(type) {
+-	case *reflect.BoolValue:
+-		x := v.Get()
++	switch v.Kind() {
++	case reflect.Bool:
++		x := v.Bool()
+ 		if x {
+ 			e.WriteString("true")
+ 		} else {
+ 			e.WriteString("false")
+ 		}
+ 
+-	case *reflect.IntValue:
+-		e.WriteString(strconv.Itoa64(v.Get()))
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		e.WriteString(strconv.Itoa64(v.Int()))
+ 
+-	case *reflect.UintValue:
+-		e.WriteString(strconv.Uitoa64(v.Get()))
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		e.WriteString(strconv.Uitoa64(v.Uint()))
+ 
+-	case *reflect.FloatValue:
+-		e.WriteString(strconv.FtoaN(v.Get(), 'g', -1, v.Type().Bits()))
++	case reflect.Float32, reflect.Float64:
++		e.WriteString(strconv.FtoaN(v.Float(), 'g', -1, v.Type().Bits()))
+ 
+-	case *reflect.StringValue:
+-		e.string(v.Get())
++	case reflect.String:
++		e.string(v.String())
+ 
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		e.WriteByte('{')
+-		t := v.Type().(*reflect.StructType)
++		t := v.Type()
+ 		n := v.NumField()
+ 		first := true
+ 		for i := 0; i < n; i++ {
+@@ -246,8 +246,8 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 		}
+ 		e.WriteByte('}')
+ 
+-	case *reflect.MapValue:
+-		if _, ok := v.Type().(*reflect.MapType).Key().(*reflect.StringType); !ok {
++	case reflect.Map:
++		if v.Type().Key().Kind() != reflect.String {
+ 			e.error(&UnsupportedTypeError{v.Type()})
+ 		}
+ 		if v.IsNil() {
+@@ -255,19 +255,19 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 			break
+ 		}
+ 		e.WriteByte('{')
+-		var sv stringValues = v.Keys()
++		var sv stringValues = v.MapKeys()
+ 		sort.Sort(sv)
+ 		for i, k := range sv {
+ 			if i > 0 {
+ 				e.WriteByte(',')
+ 			}
+-			e.string(k.(*reflect.StringValue).Get())
++			e.string(k.String())
+ 			e.WriteByte(':')
+-			e.reflectValue(v.Elem(k))
++			e.reflectValue(v.MapIndex(k))
+ 		}
+ 		e.WriteByte('}')
+ 
+-	case reflect.ArrayOrSliceValue:
++	case reflect.Array, reflect.Slice:
+ 		if v.Type() == byteSliceType {
+ 			e.WriteByte('"')
+ 			s := v.Interface().([]byte)
+@@ -292,11 +292,11 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 			if i > 0 {
+ 				e.WriteByte(',')
+ 			}
+-			e.reflectValue(v.Elem(i))
++			e.reflectValue(v.Index(i))
+ 		}
+ 		e.WriteByte(']')
+ 
+-	case interfaceOrPtrValue:
++	case reflect.Interface, reflect.Ptr:
+ 		if v.IsNil() {
+ 			e.WriteString("null")
+ 			return
+@@ -328,7 +328,7 @@ type stringValues []reflect.Value
+ func (sv stringValues) Len() int           { return len(sv) }
+ func (sv stringValues) Swap(i, j int)      { sv[i], sv[j] = sv[j], sv[i] }
+ func (sv stringValues) Less(i, j int) bool { return sv.get(i) < sv.get(j) }
+-func (sv stringValues) get(i int) string   { return sv[i].(*reflect.StringValue).Get() }
++func (sv stringValues) get(i int) string   { return sv[i].String() }
+ 
+ func (e *encodeState) string(s string) {
+ 	e.WriteByte('"')
+diff --git a/src/pkg/net/dnsmsg.go b/src/pkg/net/dnsmsg.go
+index 5209c1a06a..546e713a0d 100644
+--- a/src/pkg/net/dnsmsg.go
++++ b/src/pkg/net/dnsmsg.go
+@@ -390,18 +390,18 @@ Loop:
+ // TODO(rsc): Move into generic library?
+ // Pack a reflect.StructValue into msg.  Struct members can only be uint16, uint32, string,
+ // [n]byte, and other (often anonymous) structs.
+-func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
++func packStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool) {
+ 	for i := 0; i < val.NumField(); i++ {
+-		f := val.Type().(*reflect.StructType).Field(i)
+-		switch fv := val.Field(i).(type) {
++		f := val.Type().Field(i)
++		switch fv := val.Field(i); fv.Kind() {
+ 		default:
+ 		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+-		case *reflect.StructValue:
++		case reflect.Struct:
+ 			off, ok = packStructValue(fv, msg, off)
+-		case *reflect.UintValue:
+-			i := fv.Get()
++		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++			i := fv.Uint()
+ 			switch fv.Type().Kind() {
+ 			default:
+ 				goto BadType
+@@ -422,20 +422,20 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 				msg[off+3] = byte(i)
+ 				off += 4
+ 			}
+-		case *reflect.ArrayValue:
+-			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
++		case reflect.Array:
++			if fv.Type().Elem().Kind() != reflect.Uint8 {
+ 				goto BadType
+ 			}
+ 			n := fv.Len()
+ 			if off+n > len(msg) {
+ 				return len(msg), false
+ 			}
+-			reflect.Copy(reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue), fv)
++			reflect.Copy(reflect.NewValue(msg[off:off+n]), fv)
+ 			off += n
+-		case *reflect.StringValue:
++		case reflect.String:
+ 			// There are multiple string encodings.
+ 			// The tag distinguishes ordinary strings from domain names.
+-			s := fv.Get()
++			s := fv.String()
+ 			switch f.Tag {
+ 			default:
+ 				fmt.Fprintf(os.Stderr, "net: dns: unknown string tag %v", f.Tag)
+@@ -459,8 +459,8 @@ func packStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, o
+ 	return off, true
+ }
+ 
+-func structValue(any interface{}) *reflect.StructValue {
+-	return reflect.NewValue(any).(*reflect.PtrValue).Elem().(*reflect.StructValue)
++func structValue(any interface{}) reflect.Value {
++	return reflect.NewValue(any).Elem()
+ }
+ 
+ func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+@@ -471,17 +471,17 @@ func packStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ // TODO(rsc): Move into generic library?
+ // Unpack a reflect.StructValue from msg.
+ // Same restrictions as packStructValue.
+-func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int, ok bool) {
++func unpackStructValue(val reflect.Value, msg []byte, off int) (off1 int, ok bool) {
+ 	for i := 0; i < val.NumField(); i++ {
+-		f := val.Type().(*reflect.StructType).Field(i)
+-		switch fv := val.Field(i).(type) {
++		f := val.Type().Field(i)
++		switch fv := val.Field(i); fv.Kind() {
+ 		default:
+ 		BadType:
+ 			fmt.Fprintf(os.Stderr, "net: dns: unknown packing type %v", f.Type)
+ 			return len(msg), false
+-		case *reflect.StructValue:
++		case reflect.Struct:
+ 			off, ok = unpackStructValue(fv, msg, off)
+-		case *reflect.UintValue:
++		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 			switch fv.Type().Kind() {
+ 			default:
+ 				goto BadType
+@@ -490,27 +490,27 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 					return len(msg), false
+ 				}
+ 				i := uint16(msg[off])<<8 | uint16(msg[off+1])
+-				fv.Set(uint64(i))
++				fv.SetUint(uint64(i))
+ 				off += 2
+ 			case reflect.Uint32:
+ 				if off+4 > len(msg) {
+ 					return len(msg), false
+ 				}
+ 				i := uint32(msg[off])<<24 | uint32(msg[off+1])<<16 | uint32(msg[off+2])<<8 | uint32(msg[off+3])
+-				fv.Set(uint64(i))
++				fv.SetUint(uint64(i))
+ 				off += 4
+ 			}
+-		case *reflect.ArrayValue:
+-			if fv.Type().(*reflect.ArrayType).Elem().Kind() != reflect.Uint8 {
++		case reflect.Array:
++			if fv.Type().Elem().Kind() != reflect.Uint8 {
+ 				goto BadType
+ 			}
+ 			n := fv.Len()
+ 			if off+n > len(msg) {
+ 				return len(msg), false
+ 			}
+-			reflect.Copy(fv, reflect.NewValue(msg[off:off+n]).(*reflect.SliceValue))
++			reflect.Copy(fv, reflect.NewValue(msg[off:off+n]))
+ 			off += n
+-		case *reflect.StringValue:
++		case reflect.String:
+ 			var s string
+ 			switch f.Tag {
+ 			default:
+@@ -534,7 +534,7 @@ func unpackStructValue(val *reflect.StructValue, msg []byte, off int) (off1 int,
+ 				off += n
+ 				s = string(b)
+ 			}
+-			fv.Set(s)
++			fv.SetString(s)
+ 		}
+ 	}
+ 	return off, true
+@@ -550,23 +550,23 @@ func unpackStruct(any interface{}, msg []byte, off int) (off1 int, ok bool) {
+ // but does look for an "ipv4" tag on uint32 variables
+ // and the "ipv6" tag on array variables,
+ // printing them as IP addresses.
+-func printStructValue(val *reflect.StructValue) string {
++func printStructValue(val reflect.Value) string {
+ 	s := "{"
+ 	for i := 0; i < val.NumField(); i++ {
+ 		if i > 0 {
+ 			s += ", "
+ 		}
+-		f := val.Type().(*reflect.StructType).Field(i)
++		f := val.Type().Field(i)
+ 		if !f.Anonymous {
+ 			s += f.Name + "="
+ 		}
+ 		fval := val.Field(i)
+-		if fv, ok := fval.(*reflect.StructValue); ok {
++		if fv := fval; fv.Kind() == reflect.Struct {
+ 			s += printStructValue(fv)
+-		} else if fv, ok := fval.(*reflect.UintValue); ok && f.Tag == "ipv4" {
+-			i := fv.Get()
++		} else if fv := fval; (fv.Kind() == reflect.Uint || fv.Kind() == reflect.Uint8 || fv.Kind() == reflect.Uint16 || fv.Kind() == reflect.Uint32 || fv.Kind() == reflect.Uint64 || fv.Kind() == reflect.Uintptr) && f.Tag == "ipv4" {
++			i := fv.Uint()
+ 			s += IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i)).String()
+-		} else if fv, ok := fval.(*reflect.ArrayValue); ok && f.Tag == "ipv6" {
++		} else if fv := fval; fv.Kind() == reflect.Array && f.Tag == "ipv6" {
+ 			i := fv.Interface().([]byte)
+ 			s += IP(i).String()
+ 		} else {
+diff --git a/src/pkg/netchan/common.go b/src/pkg/netchan/common.go
+index d2cd8efc55..a319391bf1 100644
+--- a/src/pkg/netchan/common.go
++++ b/src/pkg/netchan/common.go
+@@ -73,7 +73,7 @@ type unackedCounter interface {
+ 
+ // A channel and its direction.
+ type chanDir struct {
+-	ch  *reflect.ChanValue
++	ch  reflect.Value
+ 	dir Dir
+ }
+ 
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index e91e777e30..2209f04e8a 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -221,7 +221,7 @@ func (client *expClient) serveSend(hdr header) {
+ 		return
+ 	}
+ 	// Create a new value for each received item.
+-	val := reflect.MakeZero(nch.ch.Type().(*reflect.ChanType).Elem())
++	val := reflect.Zero(nch.ch.Type().Elem())
+ 	if err := client.decode(val); err != nil {
+ 		expLog("value decode:", err, "; type ", nch.ch.Type())
+ 		return
+@@ -340,26 +340,26 @@ func (exp *Exporter) Sync(timeout int64) os.Error {
+ 	return exp.clientSet.sync(timeout)
+ }
+ 
+-func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
+-	chanType, ok := reflect.Typeof(chT).(*reflect.ChanType)
+-	if !ok {
+-		return nil, os.ErrorString("not a channel")
++func checkChan(chT interface{}, dir Dir) (reflect.Value, os.Error) {
++	chanType := reflect.Typeof(chT)
++	if chanType.Kind() != reflect.Chan {
++		return reflect.Value{}, os.ErrorString("not a channel")
+ 	}
+ 	if dir != Send && dir != Recv {
+-		return nil, os.ErrorString("unknown channel direction")
++		return reflect.Value{}, os.ErrorString("unknown channel direction")
+ 	}
+-	switch chanType.Dir() {
++	switch chanType.ChanDir() {
+ 	case reflect.BothDir:
+ 	case reflect.SendDir:
+ 		if dir != Recv {
+-			return nil, os.ErrorString("to import/export with Send, must provide <-chan")
++			return reflect.Value{}, os.ErrorString("to import/export with Send, must provide <-chan")
+ 		}
+ 	case reflect.RecvDir:
+ 		if dir != Send {
+-			return nil, os.ErrorString("to import/export with Recv, must provide chan<-")
++			return reflect.Value{}, os.ErrorString("to import/export with Recv, must provide chan<-")
+ 		}
+ 	}
+-	return reflect.NewValue(chT).(*reflect.ChanValue), nil
++	return reflect.NewValue(chT), nil
+ }
+ 
+ // Export exports a channel of a given type and specified direction.  The
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index 8ba5df9a51..9921486bdf 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -133,7 +133,7 @@ func (imp *Importer) run() {
+ 		ackHdr.SeqNum = hdr.SeqNum
+ 		imp.encode(ackHdr, payAck, nil)
+ 		// Create a new value for each received item.
+-		value := reflect.MakeZero(nch.ch.Type().(*reflect.ChanType).Elem())
++		value := reflect.Zero(nch.ch.Type().Elem())
+ 		if e := imp.decode(value); e != nil {
+ 			impLog("importer value decode:", e)
+ 			return
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 1cc8c3173a..af31a65cc9 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -133,13 +133,13 @@ const (
+ // Precompute the reflect type for os.Error.  Can't use os.Error directly
+ // because Typeof takes an empty interface value.  This is annoying.
+ var unusedError *os.Error
+-var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
++var typeOfOsError = reflect.Typeof(unusedError).Elem()
+ 
+ type methodType struct {
+ 	sync.Mutex // protects counters
+ 	method     reflect.Method
+-	ArgType    *reflect.PtrType
+-	ReplyType  *reflect.PtrType
++	ArgType    reflect.Type
++	ReplyType  reflect.Type
+ 	numCalls   uint
+ }
+ 
+@@ -252,13 +252,14 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 			log.Println("method", mname, "has wrong number of ins:", mtype.NumIn())
+ 			continue
+ 		}
+-		argType, ok := mtype.In(1).(*reflect.PtrType)
++		argType := mtype.In(1)
++		ok := argType.Kind() == reflect.Ptr
+ 		if !ok {
+ 			log.Println(mname, "arg type not a pointer:", mtype.In(1))
+ 			continue
+ 		}
+-		replyType, ok := mtype.In(2).(*reflect.PtrType)
+-		if !ok {
++		replyType := mtype.In(2)
++		if replyType.Kind() != reflect.Ptr {
+ 			log.Println(mname, "reply type not a pointer:", mtype.In(2))
+ 			continue
+ 		}
+@@ -296,9 +297,9 @@ type InvalidRequest struct{}
+ 
+ var invalidRequest = InvalidRequest{}
+ 
+-func _new(t *reflect.PtrType) *reflect.PtrValue {
+-	v := reflect.MakeZero(t).(*reflect.PtrValue)
+-	v.PointTo(reflect.MakeZero(t.Elem()))
++func _new(t reflect.Type) reflect.Value {
++	v := reflect.Zero(t)
++	v.Set(reflect.Zero(t.Elem()).Addr())
+ 	return v
+ }
+ 
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index ba06de4e3a..28872dbee4 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -621,7 +621,7 @@ func (t *Template) parse() {
+ // Evaluate interfaces and pointers looking for a value that can look up the name, via a
+ // struct field, method, or map key, and return the result of the lookup.
+ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value {
+-	for v != nil {
++	for v.IsValid() {
+ 		typ := v.Type()
+ 		if n := v.Type().NumMethod(); n > 0 {
+ 			for i := 0; i < n; i++ {
+@@ -635,23 +635,23 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
+ 				}
+ 			}
+ 		}
+-		switch av := v.(type) {
+-		case *reflect.PtrValue:
++		switch av := v; av.Kind() {
++		case reflect.Ptr:
+ 			v = av.Elem()
+-		case *reflect.InterfaceValue:
++		case reflect.Interface:
+ 			v = av.Elem()
+-		case *reflect.StructValue:
++		case reflect.Struct:
+ 			if !isExported(name) {
+ 				t.execError(st, t.linenum, "name not exported: %s in type %s", name, st.data.Type())
+ 			}
+ 			return av.FieldByName(name)
+-		case *reflect.MapValue:
+-			if v := av.Elem(reflect.NewValue(name)); v != nil {
++		case reflect.Map:
++			if v := av.MapIndex(reflect.NewValue(name)); v.IsValid() {
+ 				return v
+ 			}
+-			return reflect.MakeZero(typ.(*reflect.MapType).Elem())
++			return reflect.Zero(typ.Elem())
+ 		default:
+-			return nil
++			return reflect.Value{}
+ 		}
+ 	}
+ 	return v
+@@ -661,8 +661,8 @@ func (t *Template) lookup(st *state, v reflect.Value, name string) reflect.Value
+ // It is forgiving: if the value is not a pointer, it returns it rather than giving
+ // an error.  If the pointer is nil, it is returned as is.
+ func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
+-	for i := numLevels; v != nil && i > 0; i++ {
+-		if p, ok := v.(*reflect.PtrValue); ok {
++	for i := numLevels; v.IsValid() && i > 0; i++ {
++		if p := v; p.Kind() == reflect.Ptr {
+ 			if p.IsNil() {
+ 				return v
+ 			}
+@@ -677,11 +677,11 @@ func indirectPtr(v reflect.Value, numLevels int) reflect.Value {
+ // Walk v through pointers and interfaces, extracting the elements within.
+ func indirect(v reflect.Value) reflect.Value {
+ loop:
+-	for v != nil {
+-		switch av := v.(type) {
+-		case *reflect.PtrValue:
++	for v.IsValid() {
++		switch av := v; av.Kind() {
++		case reflect.Ptr:
+ 			v = av.Elem()
+-		case *reflect.InterfaceValue:
++		case reflect.Interface:
+ 			v = av.Elem()
+ 		default:
+ 			break loop
+@@ -708,8 +708,8 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
+ 	for _, elem := range strings.Split(s, ".", -1) {
+ 		// Look up field; data must be a struct or map.
+ 		data = t.lookup(st, data, elem)
+-		if data == nil {
+-			return nil
++		if !data.IsValid() {
++			return reflect.Value{}
+ 		}
+ 	}
+ 	return indirectPtr(data, numStars)
+@@ -718,21 +718,21 @@ func (t *Template) findVar(st *state, s string) reflect.Value {
+ // Is there no data to look at?
+ func empty(v reflect.Value) bool {
+ 	v = indirect(v)
+-	if v == nil {
++	if !v.IsValid() {
+ 		return true
+ 	}
+-	switch v := v.(type) {
+-	case *reflect.BoolValue:
+-		return v.Get() == false
+-	case *reflect.StringValue:
+-		return v.Get() == ""
+-	case *reflect.StructValue:
++	switch v.Kind() {
++	case reflect.Bool:
++		return v.Bool() == false
++	case reflect.String:
++		return v.String() == ""
++	case reflect.Struct:
+ 		return false
+-	case *reflect.MapValue:
++	case reflect.Map:
+ 		return false
+-	case *reflect.ArrayValue:
++	case reflect.Array:
+ 		return v.Len() == 0
+-	case *reflect.SliceValue:
++	case reflect.Slice:
+ 		return v.Len() == 0
+ 	}
+ 	return false
+@@ -741,7 +741,7 @@ func empty(v reflect.Value) bool {
+ // Look up a variable or method, up through the parent if necessary.
+ func (t *Template) varValue(name string, st *state) reflect.Value {
+ 	field := t.findVar(st, name)
+-	if field == nil {
++	if !field.IsValid() {
+ 		if st.parent == nil {
+ 			t.execError(st, t.linenum, "name not found: %s in type %s", name, st.data.Type())
+ 		}
+@@ -812,7 +812,7 @@ func (t *Template) execute(start, end int, st *state) {
+ func (t *Template) executeSection(s *sectionElement, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+ 	field := t.varValue(s.field, st)
+-	if field == nil {
++	if !field.IsValid() {
+ 		t.execError(st, s.linenum, ".section: cannot find field %s in %s", s.field, st.data.Type())
+ 	}
+ 	st = st.clone(field)
+@@ -835,29 +835,30 @@ func (t *Template) executeSection(s *sectionElement, st *state) {
+ }
+ 
+ // Return the result of calling the Iter method on v, or nil.
+-func iter(v reflect.Value) *reflect.ChanValue {
++func iter(v reflect.Value) reflect.Value {
+ 	for j := 0; j < v.Type().NumMethod(); j++ {
+ 		mth := v.Type().Method(j)
+ 		fv := v.Method(j)
+-		ft := fv.Type().(*reflect.FuncType)
++		ft := fv.Type()
+ 		// TODO(rsc): NumIn() should return 0 here, because ft is from a curried FuncValue.
+ 		if mth.Name != "Iter" || ft.NumIn() != 1 || ft.NumOut() != 1 {
+ 			continue
+ 		}
+-		ct, ok := ft.Out(0).(*reflect.ChanType)
+-		if !ok || ct.Dir()&reflect.RecvDir == 0 {
++		ct := ft.Out(0)
++		if ct.Kind() != reflect.Chan ||
++			ct.ChanDir()&reflect.RecvDir == 0 {
+ 			continue
+ 		}
+-		return fv.Call(nil)[0].(*reflect.ChanValue)
++		return fv.Call(nil)[0]
+ 	}
+-	return nil
++	return reflect.Value{}
+ }
+ 
+ // Execute a .repeated section
+ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 	// Find driver data for this section.  It must be in the current struct.
+ 	field := t.varValue(r.field, st)
+-	if field == nil {
++	if !field.IsValid() {
+ 		t.execError(st, r.linenum, ".repeated: cannot find field %s in %s", r.field, st.data.Type())
+ 	}
+ 	field = indirect(field)
+@@ -885,15 +886,15 @@ func (t *Template) executeRepeated(r *repeatedElement, st *state) {
+ 		}
+ 	}
+ 
+-	if array, ok := field.(reflect.ArrayOrSliceValue); ok {
++	if array := field; array.Kind() == reflect.Array || array.Kind() == reflect.Slice {
+ 		for j := 0; j < array.Len(); j++ {
+-			loopBody(st.clone(array.Elem(j)))
++			loopBody(st.clone(array.Index(j)))
+ 		}
+-	} else if m, ok := field.(*reflect.MapValue); ok {
+-		for _, key := range m.Keys() {
+-			loopBody(st.clone(m.Elem(key)))
++	} else if m := field; m.Kind() == reflect.Map {
++		for _, key := range m.MapKeys() {
++			loopBody(st.clone(m.MapIndex(key)))
+ 		}
+-	} else if ch := iter(field); ch != nil {
++	} else if ch := iter(field); ch.IsValid() {
+ 		for {
+ 			e, ok := ch.Recv()
+ 			if !ok {
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index a5568b0483..152dbad323 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -53,14 +53,14 @@ const complexSize = 50
+ // If the type implements the Generator interface, that will be used.
+ // Note: in order to create arbitrary values for structs, all the members must be public.
+ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+-	if m, ok := reflect.MakeZero(t).Interface().(Generator); ok {
++	if m, ok := reflect.Zero(t).Interface().(Generator); ok {
+ 		return m.Generate(rand, complexSize), true
+ 	}
+ 
+-	switch concrete := t.(type) {
+-	case *reflect.BoolType:
++	switch concrete := t; concrete.Kind() {
++	case reflect.Bool:
+ 		return reflect.NewValue(rand.Int()&1 == 0), true
+-	case *reflect.FloatType, *reflect.IntType, *reflect.UintType, *reflect.ComplexType:
++	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.Complex64, reflect.Complex128:
+ 		switch t.Kind() {
+ 		case reflect.Float32:
+ 			return reflect.NewValue(randFloat32(rand)), true
+@@ -93,56 +93,56 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 		case reflect.Uintptr:
+ 			return reflect.NewValue(uintptr(randInt64(rand))), true
+ 		}
+-	case *reflect.MapType:
++	case reflect.Map:
+ 		numElems := rand.Intn(complexSize)
+ 		m := reflect.MakeMap(concrete)
+ 		for i := 0; i < numElems; i++ {
+ 			key, ok1 := Value(concrete.Key(), rand)
+ 			value, ok2 := Value(concrete.Elem(), rand)
+ 			if !ok1 || !ok2 {
+-				return nil, false
++				return reflect.Value{}, false
+ 			}
+-			m.SetElem(key, value)
++			m.SetMapIndex(key, value)
+ 		}
+ 		return m, true
+-	case *reflect.PtrType:
++	case reflect.Ptr:
+ 		v, ok := Value(concrete.Elem(), rand)
+ 		if !ok {
+-			return nil, false
++			return reflect.Value{}, false
+ 		}
+-		p := reflect.MakeZero(concrete)
+-		p.(*reflect.PtrValue).PointTo(v)
++		p := reflect.Zero(concrete)
++		p.Set(v.Addr())
+ 		return p, true
+-	case *reflect.SliceType:
++	case reflect.Slice:
+ 		numElems := rand.Intn(complexSize)
+ 		s := reflect.MakeSlice(concrete, numElems, numElems)
+ 		for i := 0; i < numElems; i++ {
+ 			v, ok := Value(concrete.Elem(), rand)
+ 			if !ok {
+-				return nil, false
++				return reflect.Value{}, false
+ 			}
+-			s.Elem(i).SetValue(v)
++			s.Index(i).Set(v)
+ 		}
+ 		return s, true
+-	case *reflect.StringType:
++	case reflect.String:
+ 		numChars := rand.Intn(complexSize)
+ 		codePoints := make([]int, numChars)
+ 		for i := 0; i < numChars; i++ {
+ 			codePoints[i] = rand.Intn(0x10ffff)
+ 		}
+ 		return reflect.NewValue(string(codePoints)), true
+-	case *reflect.StructType:
+-		s := reflect.MakeZero(t).(*reflect.StructValue)
++	case reflect.Struct:
++		s := reflect.Zero(t)
+ 		for i := 0; i < s.NumField(); i++ {
+ 			v, ok := Value(concrete.Field(i).Type, rand)
+ 			if !ok {
+-				return nil, false
++				return reflect.Value{}, false
+ 			}
+-			s.Field(i).SetValue(v)
++			s.Field(i).Set(v)
+ 		}
+ 		return s, true
+ 	default:
+-		return nil, false
++		return reflect.Value{}, false
+ 	}
+ 
+ 	return
+@@ -247,7 +247,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
+ 		err = SetupError("function returns more than one value.")
+ 		return
+ 	}
+-	if _, ok := fType.Out(0).(*reflect.BoolType); !ok {
++	if fType.Out(0).Kind() != reflect.Bool {
+ 		err = SetupError("function does not return a bool")
+ 		return
+ 	}
+@@ -262,7 +262,7 @@ func Check(function interface{}, config *Config) (err os.Error) {
+ 			return
+ 		}
+ 
+-		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
++		if !f.Call(arguments)[0].Bool() {
+ 			err = &CheckError{i + 1, toInterfaces(arguments)}
+ 			return
+ 		}
+@@ -320,7 +320,7 @@ func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
+ 
+ // arbitraryValues writes Values to args such that args contains Values
+ // suitable for calling f.
+-func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, rand *rand.Rand) (err os.Error) {
++func arbitraryValues(args []reflect.Value, f reflect.Type, config *Config, rand *rand.Rand) (err os.Error) {
+ 	if config.Values != nil {
+ 		config.Values(args, rand)
+ 		return
+@@ -338,12 +338,13 @@ func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config,
+ 	return
+ }
+ 
+-func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, ok bool) {
+-	v, ok = reflect.NewValue(f).(*reflect.FuncValue)
++func functionAndType(f interface{}) (v reflect.Value, t reflect.Type, ok bool) {
++	v = reflect.NewValue(f)
++	ok = v.Kind() == reflect.Func
+ 	if !ok {
+ 		return
+ 	}
+-	t = v.Type().(*reflect.FuncType)
++	t = v.Type()
+ 	return
+ }
+ 
+diff --git a/src/pkg/testing/script/script.go b/src/pkg/testing/script/script.go
+index b341b1f896..b180184970 100644
+--- a/src/pkg/testing/script/script.go
++++ b/src/pkg/testing/script/script.go
+@@ -134,16 +134,16 @@ type empty struct {
+ }
+ 
+ func newEmptyInterface(e empty) reflect.Value {
+-	return reflect.NewValue(e).(*reflect.StructValue).Field(0)
++	return reflect.NewValue(e).Field(0)
+ }
+ 
+ func (s Send) send() {
+ 	// With reflect.ChanValue.Send, we must match the types exactly. So, if
+ 	// s.Channel is a chan interface{} we convert s.Value to an interface{}
+ 	// first.
+-	c := reflect.NewValue(s.Channel).(*reflect.ChanValue)
++	c := reflect.NewValue(s.Channel)
+ 	var v reflect.Value
+-	if iface, ok := c.Type().(*reflect.ChanType).Elem().(*reflect.InterfaceType); ok && iface.NumMethod() == 0 {
++	if iface := c.Type().Elem(); iface.Kind() == reflect.Interface && iface.NumMethod() == 0 {
+ 		v = newEmptyInterface(empty{s.Value})
+ 	} else {
+ 		v = reflect.NewValue(s.Value)
+@@ -162,7 +162,7 @@ func (s Close) getSend() sendAction { return s }
+ 
+ func (s Close) getChannel() interface{} { return s.Channel }
+ 
+-func (s Close) send() { reflect.NewValue(s.Channel).(*reflect.ChanValue).Close() }
++func (s Close) send() { reflect.NewValue(s.Channel).Close() }
+ 
+ // A ReceivedUnexpected error results if no active Events match a value
+ // received from a channel.
+@@ -278,7 +278,7 @@ func getChannels(events []*Event) ([]interface{}, os.Error) {
+ 			continue
+ 		}
+ 		c := event.action.getChannel()
+-		if _, ok := reflect.NewValue(c).(*reflect.ChanValue); !ok {
++		if reflect.NewValue(c).Kind() != reflect.Chan {
+ 			return nil, SetupError("one of the channel values is not a channel")
+ 		}
+ 
+@@ -303,7 +303,7 @@ func getChannels(events []*Event) ([]interface{}, os.Error) {
+ // channel repeatedly, wrapping them up as either a channelRecv or
+ // channelClosed structure, and forwards them to the multiplex channel.
+ func recvValues(multiplex chan<- interface{}, channel interface{}) {
+-	c := reflect.NewValue(channel).(*reflect.ChanValue)
++	c := reflect.NewValue(channel)
+ 
+ 	for {
+ 		v, ok := c.Recv()
+diff --git a/src/pkg/try/try.go b/src/pkg/try/try.go
+index af31d0d2cf..1171c80c2a 100644
+--- a/src/pkg/try/try.go
++++ b/src/pkg/try/try.go
+@@ -90,13 +90,13 @@ func tryMethod(pkg, firstArg string, method reflect.Method, args []interface{})
+ // tryFunction sees if fn satisfies the arguments.
+ func tryFunction(pkg, name string, fn interface{}, args []interface{}) {
+ 	defer func() { recover() }()
+-	rfn := reflect.NewValue(fn).(*reflect.FuncValue)
+-	typ := rfn.Type().(*reflect.FuncType)
++	rfn := reflect.NewValue(fn)
++	typ := rfn.Type()
+ 	tryOneFunction(pkg, "", name, typ, rfn, args)
+ }
+ 
+ // tryOneFunction is the common code for tryMethod and tryFunction.
+-func tryOneFunction(pkg, firstArg, name string, typ *reflect.FuncType, rfn *reflect.FuncValue, args []interface{}) {
++func tryOneFunction(pkg, firstArg, name string, typ reflect.Type, rfn reflect.Value, args []interface{}) {
+ 	// Any results?
+ 	if typ.NumOut() == 0 {
+ 		return // Nothing to do.
+@@ -166,7 +166,7 @@ func compatible(arg interface{}, typ reflect.Type) bool {
+ 	}
+ 	if arg == nil {
+ 		// nil is OK if the type is an interface.
+-		if _, ok := typ.(*reflect.InterfaceType); ok {
++		if typ.Kind() == reflect.Interface {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 9ae3bb8eee..a3ddb9d4ce 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -139,8 +139,8 @@ import (
+ // to a freshly allocated value and then mapping the element to that value.
+ //
+ func Unmarshal(r io.Reader, val interface{}) os.Error {
+-	v, ok := reflect.NewValue(val).(*reflect.PtrValue)
+-	if !ok {
++	v := reflect.NewValue(val)
++	if v.Kind() != reflect.Ptr {
+ 		return os.NewError("non-pointer passed to Unmarshal")
+ 	}
+ 	p := NewParser(r)
+@@ -176,8 +176,8 @@ func (e *TagPathError) String() string {
+ // Passing a nil start element indicates that Unmarshal should
+ // read the token stream to find the start element.
+ func (p *Parser) Unmarshal(val interface{}, start *StartElement) os.Error {
+-	v, ok := reflect.NewValue(val).(*reflect.PtrValue)
+-	if !ok {
++	v := reflect.NewValue(val)
++	if v.Kind() != reflect.Ptr {
+ 		return os.NewError("non-pointer passed to Unmarshal")
+ 	}
+ 	return p.unmarshal(v.Elem(), start)
+@@ -219,10 +219,10 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		}
+ 	}
+ 
+-	if pv, ok := val.(*reflect.PtrValue); ok {
+-		if pv.Get() == 0 {
+-			zv := reflect.MakeZero(pv.Type().(*reflect.PtrType).Elem())
+-			pv.PointTo(zv)
++	if pv := val; pv.Kind() == reflect.Ptr {
++		if pv.Pointer() == 0 {
++			zv := reflect.Zero(pv.Type().Elem())
++			pv.Set(zv.Addr())
+ 			val = zv
+ 		} else {
+ 			val = pv.Elem()
+@@ -237,17 +237,17 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		saveXML      reflect.Value
+ 		saveXMLIndex int
+ 		saveXMLData  []byte
+-		sv           *reflect.StructValue
+-		styp         *reflect.StructType
++		sv           reflect.Value
++		styp         reflect.Type
+ 		fieldPaths   map[string]pathInfo
+ 	)
+ 
+-	switch v := val.(type) {
++	switch v := val; v.Kind() {
+ 	default:
+ 		return os.ErrorString("unknown type " + v.Type().String())
+ 
+-	case *reflect.SliceValue:
+-		typ := v.Type().(*reflect.SliceType)
++	case reflect.Slice:
++		typ := v.Type()
+ 		if typ.Elem().Kind() == reflect.Uint8 {
+ 			// []byte
+ 			saveData = v
+@@ -269,23 +269,23 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 		v.SetLen(n + 1)
+ 
+ 		// Recur to read element into slice.
+-		if err := p.unmarshal(v.Elem(n), start); err != nil {
++		if err := p.unmarshal(v.Index(n), start); err != nil {
+ 			v.SetLen(n)
+ 			return err
+ 		}
+ 		return nil
+ 
+-	case *reflect.BoolValue, *reflect.FloatValue, *reflect.IntValue, *reflect.UintValue, *reflect.StringValue:
++	case reflect.Bool, reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr, reflect.String:
+ 		saveData = v
+ 
+-	case *reflect.StructValue:
++	case reflect.Struct:
+ 		if _, ok := v.Interface().(Name); ok {
+-			v.Set(reflect.NewValue(start.Name).(*reflect.StructValue))
++			v.Set(reflect.NewValue(start.Name))
+ 			break
+ 		}
+ 
+ 		sv = v
+-		typ := sv.Type().(*reflect.StructType)
++		typ := sv.Type()
+ 		styp = typ
+ 		// Assign name.
+ 		if f, ok := typ.FieldByName("XMLName"); ok {
+@@ -316,7 +316,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 			if _, ok := v.Interface().(Name); !ok {
+ 				return UnmarshalError(sv.Type().String() + " field XMLName does not have type xml.Name")
+ 			}
+-			v.(*reflect.StructValue).Set(reflect.NewValue(start.Name).(*reflect.StructValue))
++			v.Set(reflect.NewValue(start.Name))
+ 		}
+ 
+ 		// Assign attributes.
+@@ -325,8 +325,8 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 			f := typ.Field(i)
+ 			switch f.Tag {
+ 			case "attr":
+-				strv, ok := sv.FieldByIndex(f.Index).(*reflect.StringValue)
+-				if !ok {
++				strv := sv.FieldByIndex(f.Index)
++				if strv.Kind() != reflect.String {
+ 					return UnmarshalError(sv.Type().String() + " field " + f.Name + " has attr tag but is not type string")
+ 				}
+ 				// Look for attribute.
+@@ -338,20 +338,20 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 						break
+ 					}
+ 				}
+-				strv.Set(val)
++				strv.SetString(val)
+ 
+ 			case "comment":
+-				if saveComment == nil {
++				if !saveComment.IsValid() {
+ 					saveComment = sv.FieldByIndex(f.Index)
+ 				}
+ 
+ 			case "chardata":
+-				if saveData == nil {
++				if !saveData.IsValid() {
+ 					saveData = sv.FieldByIndex(f.Index)
+ 				}
+ 
+ 			case "innerxml":
+-				if saveXML == nil {
++				if !saveXML.IsValid() {
+ 					saveXML = sv.FieldByIndex(f.Index)
+ 					if p.saved == nil {
+ 						saveXMLIndex = 0
+@@ -387,7 +387,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ Loop:
+ 	for {
+ 		var savedOffset int
+-		if saveXML != nil {
++		if saveXML.IsValid() {
+ 			savedOffset = p.savedOffset()
+ 		}
+ 		tok, err := p.Token()
+@@ -398,7 +398,7 @@ Loop:
+ 		case StartElement:
+ 			// Sub-element.
+ 			// Look up by tag name.
+-			if sv != nil {
++			if sv.IsValid() {
+ 				k := fieldName(t.Name.Local)
+ 
+ 				if fieldPaths != nil {
+@@ -437,7 +437,7 @@ Loop:
+ 			}
+ 
+ 		case EndElement:
+-			if saveXML != nil {
++			if saveXML.IsValid() {
+ 				saveXMLData = p.saved.Bytes()[saveXMLIndex:savedOffset]
+ 				if saveXMLIndex == 0 {
+ 					p.saved = nil
+@@ -446,12 +446,12 @@ Loop:
+ 			break Loop
+ 
+ 		case CharData:
+-			if saveData != nil {
++			if saveData.IsValid() {
+ 				data = append(data, t...)
+ 			}
+ 
+ 		case Comment:
+-			if saveComment != nil {
++			if saveComment.IsValid() {
+ 				comment = append(comment, t...)
+ 			}
+ 		}
+@@ -479,50 +479,50 @@ Loop:
+ 	}
+ 
+ 	// Save accumulated data and comments
+-	switch t := saveData.(type) {
+-	case nil:
++	switch t := saveData; t.Kind() {
++	case reflect.Invalid:
+ 		// Probably a comment, handled below
+ 	default:
+ 		return os.ErrorString("cannot happen: unknown type " + t.Type().String())
+-	case *reflect.IntValue:
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 		if !getInt64() {
+ 			return err
+ 		}
+-		t.Set(itmp)
+-	case *reflect.UintValue:
++		t.SetInt(itmp)
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 		if !getUint64() {
+ 			return err
+ 		}
+-		t.Set(utmp)
+-	case *reflect.FloatValue:
++		t.SetUint(utmp)
++	case reflect.Float32, reflect.Float64:
+ 		if !getFloat64() {
+ 			return err
+ 		}
+-		t.Set(ftmp)
+-	case *reflect.BoolValue:
++		t.SetFloat(ftmp)
++	case reflect.Bool:
+ 		value, err := strconv.Atob(strings.TrimSpace(string(data)))
+ 		if err != nil {
+ 			return err
+ 		}
+-		t.Set(value)
+-	case *reflect.StringValue:
+-		t.Set(string(data))
+-	case *reflect.SliceValue:
+-		t.Set(reflect.NewValue(data).(*reflect.SliceValue))
++		t.SetBool(value)
++	case reflect.String:
++		t.SetString(string(data))
++	case reflect.Slice:
++		t.Set(reflect.NewValue(data))
+ 	}
+ 
+-	switch t := saveComment.(type) {
+-	case *reflect.StringValue:
+-		t.Set(string(comment))
+-	case *reflect.SliceValue:
+-		t.Set(reflect.NewValue(comment).(*reflect.SliceValue))
++	switch t := saveComment; t.Kind() {
++	case reflect.String:
++		t.SetString(string(comment))
++	case reflect.Slice:
++		t.Set(reflect.NewValue(comment))
+ 	}
+ 
+-	switch t := saveXML.(type) {
+-	case *reflect.StringValue:
+-		t.Set(string(saveXMLData))
+-	case *reflect.SliceValue:
+-		t.Set(reflect.NewValue(saveXMLData).(*reflect.SliceValue))
++	switch t := saveXML; t.Kind() {
++	case reflect.String:
++		t.SetString(string(saveXMLData))
++	case reflect.Slice:
++		t.Set(reflect.NewValue(saveXMLData))
+ 	}
+ 
+ 	return nil
+@@ -537,7 +537,7 @@ type pathInfo struct {
+ // paths map with all paths leading to it ("a", "a>b", and "a>b>c").
+ // It is okay for paths to share a common, shorter prefix but not ok
+ // for one path to itself be a prefix of another.
+-func addFieldPath(sv *reflect.StructValue, paths map[string]pathInfo, path string, fieldIdx []int) os.Error {
++func addFieldPath(sv reflect.Value, paths map[string]pathInfo, path string, fieldIdx []int) os.Error {
+ 	if info, found := paths[path]; found {
+ 		return tagError(sv, info.fieldIdx, fieldIdx)
+ 	}
+@@ -560,8 +560,8 @@ func addFieldPath(sv *reflect.StructValue, paths map[string]pathInfo, path strin
+ 
+ }
+ 
+-func tagError(sv *reflect.StructValue, idx1 []int, idx2 []int) os.Error {
+-	t := sv.Type().(*reflect.StructType)
++func tagError(sv reflect.Value, idx1 []int, idx2 []int) os.Error {
++	t := sv.Type()
+ 	f1 := t.FieldByIndex(idx1)
+ 	f2 := t.FieldByIndex(idx2)
+ 	return &TagPathError{t, f1.Name, f1.Tag, f2.Name, f2.Tag}
+@@ -569,7 +569,7 @@ func tagError(sv *reflect.StructValue, idx1 []int, idx2 []int) os.Error {
+ 
+ // unmarshalPaths walks down an XML structure looking for
+ // wanted paths, and calls unmarshal on them.
+-func (p *Parser) unmarshalPaths(sv *reflect.StructValue, paths map[string]pathInfo, path string, start *StartElement) os.Error {
++func (p *Parser) unmarshalPaths(sv reflect.Value, paths map[string]pathInfo, path string, start *StartElement) os.Error {
+ 	if info, _ := paths[path]; info.complete {
+ 		return p.unmarshal(sv.FieldByIndex(info.fieldIdx), start)
+ 	}
+diff --git a/src/pkg/xml/read_test.go b/src/pkg/xml/read_test.go
+index a6b9a8ed18..0e28e73a63 100644
+--- a/src/pkg/xml/read_test.go
++++ b/src/pkg/xml/read_test.go
+@@ -288,8 +288,8 @@ var pathTests = []interface{}{
+ 
+ func TestUnmarshalPaths(t *testing.T) {
+ 	for _, pt := range pathTests {
+-		p := reflect.MakeZero(reflect.NewValue(pt).Type()).(*reflect.PtrValue)
+-		p.PointTo(reflect.MakeZero(p.Type().(*reflect.PtrType).Elem()))
++		p := reflect.Zero(reflect.NewValue(pt).Type())
++		p.Set(reflect.Zero(p.Type().Elem()).Addr())
+ 		v := p.Interface()
+ 		if err := Unmarshal(StringReader(pathTestString), v); err != nil {
+ 			t.Fatalf("Unmarshal: %s", err)
+diff --git a/test/fixedbugs/bug177.go b/test/fixedbugs/bug177.go
+index 84ff59d2f5..aec382388c 100644
+--- a/test/fixedbugs/bug177.go
++++ b/test/fixedbugs/bug177.go
+@@ -5,23 +5,26 @@
+ // license that can be found in the LICENSE file.
+ 
+ package main
++
+ import "reflect"
+-type S1 struct { i int }
+-type S2 struct { S1 }
++
++type S1 struct{ i int }
++type S2 struct{ S1 }
++
+ func main() {
+-	typ := reflect.Typeof(S2{}).(*reflect.StructType);
+-	f := typ.Field(0);
++	typ := reflect.Typeof(S2{})
++	f := typ.Field(0)
+ 	if f.Name != "S1" || f.Anonymous != true {
+-		println("BUG: ", f.Name, f.Anonymous);
+-		return;
++		println("BUG: ", f.Name, f.Anonymous)
++		return
+ 	}
+-	f, ok := typ.FieldByName("S1");
++	f, ok := typ.FieldByName("S1")
+ 	if !ok {
+-		println("BUG: missing S1");
+-		return;
++		println("BUG: missing S1")
++		return
+ 	}
+ 	if !f.Anonymous {
+-		println("BUG: S1 is not anonymous");
+-		return;
++		println("BUG: S1 is not anonymous")
++		return
+ 	}
+ }
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index 5cf3be052c..de8505d8da 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -46,34 +46,34 @@ func main() {
+ 	x.t = add("abc", "def")
+ 	x.u = 1
+ 	x.v = 2
+-	x.w = 1<<28
+-	x.x = 2<<28
++	x.w = 1 << 28
++	x.x = 2 << 28
+ 	x.y = 0x12345678
+ 	x.z = x.y
+ 
+ 	// check mem and string
+ 	v := reflect.NewValue(x)
+-	i := v.(*reflect.StructValue).Field(0)
+-	j := v.(*reflect.StructValue).Field(1)
++	i := v.Field(0)
++	j := v.Field(1)
+ 	assert(i.Interface() == j.Interface())
+ 
+-	s := v.(*reflect.StructValue).Field(2)
+-	t := v.(*reflect.StructValue).Field(3)
++	s := v.Field(2)
++	t := v.Field(3)
+ 	assert(s.Interface() == t.Interface())
+ 
+ 	// make sure different values are different.
+ 	// make sure whole word is being compared,
+ 	// not just a single byte.
+-	i = v.(*reflect.StructValue).Field(4)
+-	j = v.(*reflect.StructValue).Field(5)
++	i = v.Field(4)
++	j = v.Field(5)
+ 	assert(i.Interface() != j.Interface())
+ 
+-	i = v.(*reflect.StructValue).Field(6)
+-	j = v.(*reflect.StructValue).Field(7)
++	i = v.Field(6)
++	j = v.Field(7)
+ 	assert(i.Interface() != j.Interface())
+ 
+-	i = v.(*reflect.StructValue).Field(8)
+-	j = v.(*reflect.StructValue).Field(9)
++	i = v.Field(8)
++	j = v.Field(9)
+ 	assert(i.Interface() == j.Interface())
+ }
+ 
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index 83acc15ff7..979e53f56c 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -25,9 +25,9 @@ func main() {
+ 	println(c)
+ 
+ 	var a interface{}
+-	switch c := reflect.NewValue(a).(type) {
+-	case *reflect.ComplexValue:
+-		v := c.Get()
++	switch c := reflect.NewValue(a); c.Kind() {
++	case reflect.Complex64, reflect.Complex128:
++		v := c.Complex()
+ 		_, _ = complex128(v), true
+ 	}
+ }

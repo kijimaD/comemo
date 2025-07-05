@@ -17,6 +17,32 @@ Date:   Mon Mar 20 23:27:04 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/sync/cond_test.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/sync/cond_test.go b/src/sync/cond_test.go
+index 859cae59bc..aa134e3c1d 100644
+--- a/src/sync/cond_test.go
++++ b/src/sync/cond_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"runtime"
+ 	. "sync"
+ 	"testing"
+-	"time"
+ )
+ 
+ func TestCondSignal(t *testing.T) {
+@@ -228,11 +227,7 @@ func TestCondSignalStealing(t *testing.T) {
+ 		}()
+ 
+ 		// Check that the first waiter does get signaled.
+-		select {
+-		case <-ch:
+-		case <-time.After(2 * time.Second):
+-			t.Fatalf("First waiter didn't get broadcast.")
+-		}
++		<-ch
+ 
+ 		// Release the second waiter in case it didn't get the
+ 		// broadcast.

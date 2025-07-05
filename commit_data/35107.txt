@@ -9,6 +9,34 @@ Date:   Wed Dec 13 15:57:46 2017 -0800
     Change-Id: I5a5bae77a744c7a2ecb75172846e6461a98ee8af
     Reviewed-on: https://go-review.googlesource.com/83916
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  doc/diagnostics.html | 16 +++++++++++++---
  1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/doc/diagnostics.html b/doc/diagnostics.html
+index 7a37dd98e4..f9d230e6bc 100644
+--- a/doc/diagnostics.html
++++ b/doc/diagnostics.html
+@@ -185,9 +185,19 @@ handler on :7777 at /custom_debug_path/profile:
+ 
+ <p>
+ <pre>
+-mux := http.NewServeMux()
+-mux.HandleFunc("/custom_debug_path/profile", pprof.Profile)
+-http.ListenAndServe(":7777", mux)
++package main
++
++import (
++	"log"
++	"net/http"
++	"net/http/pprof"
++)
++
++func main() {
++	mux := http.NewServeMux()
++	mux.HandleFunc("/custom_debug_path/profile", pprof.Profile)
++	log.Fatal(http.ListenAndServe(":7777", mux))
++}
+ </pre>
+ </p>
+ 

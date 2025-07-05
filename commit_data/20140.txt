@@ -10,6 +10,21 @@ Date:   Tue Aug 19 19:32:27 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews
     https://golang.org/cl/127520043
-
+---
  src/pkg/runtime/gc_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 383af5be3d..816fc89b04 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -165,7 +165,8 @@ func TestGcLastTime(t *testing.T) {
+ 		t.Fatalf("bad last GC time: got %v, want [%v, %v]", last, t0, t1)
+ 	}
+ 	pause := ms.PauseNs[(ms.NumGC+255)%256]
+-	if pause == 0 || pause > 10e9 {
++	// Due to timer granularity pause can actually be 0 on windows.
++	if (pause == 0 && runtime.GOOS != "windows") || pause > 10e9 {
+ 		t.Fatalf("bad last GC pause: got %v, want [0, 10e9]", pause)
+ 	}
+ }

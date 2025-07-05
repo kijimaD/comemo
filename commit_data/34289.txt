@@ -12,8 +12,63 @@ Date:   Fri Oct 13 11:05:12 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go   |  2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
  src/cmd/compile/internal/ssa/opGen.go        | 10 ++++++----
  3 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index d407c73cd5..f5f46fad2c 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -444,7 +444,7 @@ func init() {
+ 		// I.e., if f calls g "calls" getcallerpc,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+-		{name: "LoweredGetCallerPC", reg: gp01},
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 653b5d61e3..699554ab2e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -555,7 +555,7 @@ func init() {
+ 		// I.e., if f calls g "calls" getcallerpc,
+ 		// the result should be the PC within f that g will return to.
+ 		// See runtime/stubs.go for a more detailed discussion.
+-		{name: "LoweredGetCallerPC", reg: gp01},
++		{name: "LoweredGetCallerPC", reg: gp01, rematerializeable: true},
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 		//arg0=ptr,arg1=mem, returns void.  Faults if ptr is nil.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9c289bacaf..e8249b9e09 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4341,8 +4341,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetCallerPC",
+-		argLen: 0,
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 239}, // AX CX DX BX BP SI DI
+@@ -8118,8 +8119,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "LoweredGetCallerPC",
+-		argLen: 0,
++		name:              "LoweredGetCallerPC",
++		argLen:            0,
++		rematerializeable: true,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15

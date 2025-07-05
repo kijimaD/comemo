@@ -9,7 +9,7 @@ Date:   Mon Oct 24 22:40:31 2016 +0200
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/cmplx/tan.go | 8 ++++----
  src/math/expm1.go     | 2 +-
  src/math/jn.go        | 2 +-
@@ -18,3 +18,140 @@ Date:   Mon Oct 24 22:40:31 2016 +0200
  src/math/sincos.go    | 4 ++--
  src/math/tan.go       | 4 ++--
  7 files changed, 17 insertions(+), 18 deletions(-)
+
+diff --git a/src/math/cmplx/tan.go b/src/math/cmplx/tan.go
+index 9485315d8d..03c351ad67 100644
+--- a/src/math/cmplx/tan.go
++++ b/src/math/cmplx/tan.go
+@@ -120,9 +120,9 @@ func tanSeries(z complex128) float64 {
+ 	rn := 0.0
+ 	d := 0.0
+ 	for {
+-		rn += 1
++		rn++
+ 		f *= rn
+-		rn += 1
++		rn++
+ 		f *= rn
+ 		x2 *= x
+ 		y2 *= y
+@@ -130,9 +130,9 @@ func tanSeries(z complex128) float64 {
+ 		t /= f
+ 		d += t
+ 
+-		rn += 1
++		rn++
+ 		f *= rn
+-		rn += 1
++		rn++
+ 		f *= rn
+ 		x2 *= x
+ 		y2 *= y
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index 8ce67e5e61..7dd75a88f4 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -229,7 +229,7 @@ func expm1(x float64) float64 {
+ 		}
+ 		t := Float64frombits(uint64(0x3ff-k) << 52) // 2**-k
+ 		y := x - (e + t)
+-		y += 1
++		y++
+ 		y = Float64frombits(Float64bits(y) + uint64(k)<<52) // add k to y's exponent
+ 		return y
+ 	}
+diff --git a/src/math/jn.go b/src/math/jn.go
+index 721112f77c..342278257a 100644
+--- a/src/math/jn.go
++++ b/src/math/jn.go
+@@ -174,7 +174,7 @@ func Jn(n int, x float64) float64 {
+ 			q1 := w*z - 1
+ 			k := 1
+ 			for q1 < 1e9 {
+-				k += 1
++				k++
+ 				z += h
+ 				q0, q1 = q1, z*q1-q0
+ 			}
+diff --git a/src/math/log1p.go b/src/math/log1p.go
+index d1bddfb100..b128a1620c 100644
+--- a/src/math/log1p.go
++++ b/src/math/log1p.go
+@@ -167,7 +167,7 @@ func log1p(x float64) float64 {
+ 		if iu < 0x0006a09e667f3bcd { // mantissa of Sqrt(2)
+ 			u = Float64frombits(iu | 0x3ff0000000000000) // normalize u
+ 		} else {
+-			k += 1
++			k++
+ 			u = Float64frombits(iu | 0x3fe0000000000000) // normalize u/2
+ 			iu = (0x0010000000000000 - iu) >> 2
+ 		}
+@@ -179,10 +179,9 @@ func log1p(x float64) float64 {
+ 		if f == 0 {
+ 			if k == 0 {
+ 				return 0
+-			} else {
+-				c += float64(k) * Ln2Lo
+-				return float64(k)*Ln2Hi + c
+ 			}
++			c += float64(k) * Ln2Lo
++			return float64(k)*Ln2Hi + c
+ 		}
+ 		R = hfsq * (1.0 - 0.66666666666666666*f) // avoid division
+ 		if k == 0 {
+diff --git a/src/math/sin.go b/src/math/sin.go
+index ed85f21be4..7a75a5f63d 100644
+--- a/src/math/sin.go
++++ b/src/math/sin.go
+@@ -140,8 +140,8 @@ func cos(x float64) float64 {
+ 
+ 	// map zeros to origin
+ 	if j&1 == 1 {
+-		j += 1
+-		y += 1
++		j++
++		y++
+ 	}
+ 	j &= 7 // octant modulo 2Pi radians (360 degrees)
+ 	if j > 3 {
+@@ -200,8 +200,8 @@ func sin(x float64) float64 {
+ 
+ 	// map zeros to origin
+ 	if j&1 == 1 {
+-		j += 1
+-		y += 1
++		j++
++		y++
+ 	}
+ 	j &= 7 // octant modulo 2Pi radians (360 degrees)
+ 	// reflect in x axis
+diff --git a/src/math/sincos.go b/src/math/sincos.go
+index 7180303199..6e663d0c58 100644
+--- a/src/math/sincos.go
++++ b/src/math/sincos.go
+@@ -40,8 +40,8 @@ func sincos(x float64) (sin, cos float64) {
+ 	y := float64(j)      // integer part of x/(Pi/4), as float
+ 
+ 	if j&1 == 1 { // map zeros to origin
+-		j += 1
+-		y += 1
++		j++
++		y++
+ 	}
+ 	j &= 7     // octant modulo 2Pi radians (360 degrees)
+ 	if j > 3 { // reflect in x axis
+diff --git a/src/math/tan.go b/src/math/tan.go
+index 285eff1aba..aa2fb37e81 100644
+--- a/src/math/tan.go
++++ b/src/math/tan.go
+@@ -108,8 +108,8 @@ func tan(x float64) float64 {
+ 
+ 	/* map zeros and singularities to origin */
+ 	if j&1 == 1 {
+-		j += 1
+-		y += 1
++		j++
++		y++
+ 	}
+ 
+ 	z := ((x - y*PI4A) - y*PI4B) - y*PI4C

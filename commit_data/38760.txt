@@ -19,6 +19,39 @@ Date:   Fri Nov 16 22:53:04 2018 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/softfloat.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/softfloat.go b/src/cmd/compile/internal/ssa/softfloat.go
+index b41819c6ad..4b578b133b 100644
+--- a/src/cmd/compile/internal/ssa/softfloat.go
++++ b/src/cmd/compile/internal/ssa/softfloat.go
+@@ -4,7 +4,10 @@
+ 
+ package ssa
+ 
+-import "math"
++import (
++	"cmd/compile/internal/types"
++	"math"
++)
+ 
+ func softfloat(f *Func) {
+ 	if !f.Config.SoftFloat {
+@@ -53,6 +56,15 @@ func softfloat(f *Func) {
+ 					v.Type = f.Config.Types.UInt64
+ 				}
+ 				newInt64 = newInt64 || v.Type.Size() == 8
++			} else if (v.Op == OpStore || v.Op == OpZero || v.Op == OpMove) && v.Aux.(*types.Type).IsFloat() {
++				switch size := v.Aux.(*types.Type).Size(); size {
++				case 4:
++					v.Aux = f.Config.Types.UInt32
++				case 8:
++					v.Aux = f.Config.Types.UInt64
++				default:
++					v.Fatalf("bad float type with size %d", size)
++				}
+ 			}
+ 		}
+ 	}

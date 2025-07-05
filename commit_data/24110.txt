@@ -13,7 +13,53 @@ Date:   Tue Jun 30 20:14:30 2015 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/all_test.go | 4 ++++
  src/math/expm1.go    | 8 ++++----
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 84061be264..6286584e0c 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -946,16 +946,20 @@ var expSC = []float64{
+ 
+ var vfexpm1SC = []float64{
+ 	Inf(-1),
++	-710,
+ 	Copysign(0, -1),
+ 	0,
++	710,
+ 	Inf(1),
+ 	NaN(),
+ }
+ var expm1SC = []float64{
++	-1,
+ 	-1,
+ 	Copysign(0, -1),
+ 	0,
+ 	Inf(1),
++	Inf(1),
+ 	NaN(),
+ }
+ 
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index 8f56e15cc4..064e131161 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -158,11 +158,11 @@ func expm1(x float64) float64 {
+ 
+ 	// filter out huge argument
+ 	if absx >= Ln2X56 { // if |x| >= 56 * ln2
+-		if absx >= Othreshold { // if |x| >= 709.78...
+-			return Inf(1) // overflow
+-		}
+ 		if sign {
+-			return -1 // x < -56*ln2, return -1.0
++			return -1 // x < -56*ln2, return -1
++		}
++		if absx >= Othreshold { // if |x| >= 709.78...
++			return Inf(1)
+ 		}
+ 	}
+ 

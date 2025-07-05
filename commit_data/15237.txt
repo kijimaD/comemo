@@ -41,7 +41,52 @@ Date:   Thu Feb 14 19:35:38 2013 +1100
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/7300098
-
+---
  src/pkg/net/textproto/reader.go    | 13 ++++++++++++-
  src/pkg/net/textproto/textproto.go |  5 +++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/textproto/reader.go b/src/pkg/net/textproto/reader.go
+index 855350c31f..b61bea8621 100644
+--- a/src/pkg/net/textproto/reader.go
++++ b/src/pkg/net/textproto/reader.go
+@@ -128,6 +128,17 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
+ 		return line, nil
+ 	}
+ 
++	// Optimistically assume that we have started to buffer the next line
++	// and it starts with an ASCII letter (the next header key), so we can
++	// avoid copying that buffered data around in memory and skipping over
++	// non-existent whitespace.
++	if r.R.Buffered() > 1 {
++		peek, err := r.R.Peek(1)
++		if err == nil && isASCIILetter(peek[0]) {
++			return trim(line), nil
++		}
++	}
++
+ 	// ReadByte or the next readLineSlice will flush the read buffer;
+ 	// copy the slice into buf.
+ 	r.buf = append(r.buf[:0], trim(line)...)
+@@ -445,7 +456,7 @@ func (r *Reader) ReadDotLines() ([]string, error) {
+ //	}
+ //
+ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+-	m := make(MIMEHeader)
++	m := make(MIMEHeader, 4)
+ 	for {
+ 		kv, err := r.readContinuedLineSlice()
+ 		if len(kv) == 0 {
+diff --git a/src/pkg/net/textproto/textproto.go b/src/pkg/net/textproto/textproto.go
+index e7ad8773dc..eb6ced1c52 100644
+--- a/src/pkg/net/textproto/textproto.go
++++ b/src/pkg/net/textproto/textproto.go
+@@ -147,3 +147,8 @@ func TrimBytes(b []byte) []byte {
+ func isASCIISpace(b byte) bool {
+ 	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
+ }
++
++func isASCIILetter(b byte) bool {
++	b |= 0x20 // make lower case
++	return 'a' <= b && b <= 'z'
++}

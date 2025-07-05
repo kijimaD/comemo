@@ -9,6 +9,83 @@ Date:   Fri Aug 5 09:20:13 2011 +1000
     R=rsc, dave
     CC=golang-dev
     https://golang.org/cl/4846044
-
+---
  src/pkg/net/interface_linux.go | 29 ++++++++++-------------------
  1 file changed, 10 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 5af531dee6..3d2a0bb9f8 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -190,10 +190,8 @@ func newAddr(attrs []syscall.NetlinkRouteAttr, family int) []Addr {
+ // addresses for a specific interface.
+ func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+ 	var (
+-		ifi    *Interface
+-		err    os.Error
+-		ifmat4 []Addr
+-		ifmat6 []Addr
++		ifi *Interface
++		err os.Error
+ 	)
+ 
+ 	if ifindex > 0 {
+@@ -203,20 +201,13 @@ func interfaceMulticastAddrTable(ifindex int) ([]Addr, os.Error) {
+ 		}
+ 	}
+ 
+-	ifmat4, err = parseProcNetIGMP(ifi)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	ifmat6, err = parseProcNetIGMP6(ifi)
+-	if err != nil {
+-		return nil, err
+-	}
++	ifmat4 := parseProcNetIGMP(ifi)
++	ifmat6 := parseProcNetIGMP6(ifi)
+ 
+ 	return append(ifmat4, ifmat6...), nil
+ }
+ 
+-func parseProcNetIGMP(ifi *Interface) ([]Addr, os.Error) {
++func parseProcNetIGMP(ifi *Interface) []Addr {
+ 	var (
+ 		ifmat []Addr
+ 		name  string
+@@ -224,7 +215,7 @@ func parseProcNetIGMP(ifi *Interface) ([]Addr, os.Error) {
+ 
+ 	fd, err := open("/proc/net/igmp")
+ 	if err != nil {
+-		return nil, err
++		return nil
+ 	}
+ 	defer fd.close()
+ 
+@@ -244,15 +235,15 @@ func parseProcNetIGMP(ifi *Interface) ([]Addr, os.Error) {
+ 		}
+ 	}
+ 
+-	return ifmat, nil
++	return ifmat
+ }
+ 
+-func parseProcNetIGMP6(ifi *Interface) ([]Addr, os.Error) {
++func parseProcNetIGMP6(ifi *Interface) []Addr {
+ 	var ifmat []Addr
+ 
+ 	fd, err := open("/proc/net/igmp6")
+ 	if err != nil {
+-		return nil, err
++		return nil
+ 	}
+ 	defer fd.close()
+ 
+@@ -267,5 +258,5 @@ func parseProcNetIGMP6(ifi *Interface) ([]Addr, os.Error) {
+ 		}
+ 	}
+ 
+-	return ifmat, nil
++	return ifmat
+ }

@@ -7,6 +7,25 @@ Date:   Tue Mar 20 16:50:51 2012 -0700
     R=golang-dev, gri, r, r
     CC=golang-dev
     https://golang.org/cl/5866046
-
+---
  doc/effective_go.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 984533706c..f93a8645d9 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2711,11 +2711,11 @@ field for recoverable failures.
+ 
+ <pre>
+ for try := 0; try &lt; 2; try++ {
+-    file, err = os.Open(filename)
++    file, err = os.Create(filename)
+     if err == nil {
+         return
+     }
+-    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == os.ENOSPC {
++    if e, ok := err.(*os.PathError); ok &amp;&amp; e.Err == syscall.ENOSPC {
+         deleteTempFiles()  // Recover some space.
+         continue
+     }

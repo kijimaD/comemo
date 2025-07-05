@@ -13,8 +13,138 @@ Date:   Thu Apr 30 15:00:51 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/9561
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/export_test.go    | 14 ++++++++++++++
  src/net/http/transport.go      | 19 +++++++++++++++++++
  src/net/http/transport_test.go | 23 ++++++++++++++++++++++-
  3 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index b656aa9731..0457be50da 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -10,9 +10,17 @@ package http
+ import (
+ 	"net"
+ 	"net/url"
++	"sync"
+ 	"time"
+ )
+ 
++func init() {
++	// We only want to pay for this cost during testing.
++	// When not under test, these values are always nil
++	// and never assigned to.
++	testHookMu = new(sync.Mutex)
++}
++
+ func NewLoggingConn(baseName string, c net.Conn) net.Conn {
+ 	return newLoggingConn(baseName, c)
+ }
+@@ -86,6 +94,12 @@ func SetEnterRoundTripHook(f func()) {
+ 	testHookEnterRoundTrip = f
+ }
+ 
++func SetReadLoopBeforeNextReadHook(f func()) {
++	testHookMu.Lock()
++	defer testHookMu.Unlock()
++	testHookReadLoopBeforeNextRead = f
++}
++
+ func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
+ 	f := func() <-chan time.Time {
+ 		return ch
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e31ae93e2a..5de5d944af 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -877,6 +877,11 @@ func (pc *persistConn) readLoop() {
+ 	eofc := make(chan struct{})
+ 	defer close(eofc) // unblock reader on errors
+ 
++	// Read this once, before loop starts. (to avoid races in tests)
++	testHookMu.Lock()
++	testHookReadLoopBeforeNextRead := testHookReadLoopBeforeNextRead
++	testHookMu.Unlock()
++
+ 	alive := true
+ 	for alive {
+ 		pb, err := pc.br.Peek(1)
+@@ -993,6 +998,10 @@ func (pc *persistConn) readLoop() {
+ 				pc.wroteRequest() &&
+ 				pc.t.putIdleConn(pc)
+ 		}
++
++		if hook := testHookReadLoopBeforeNextRead; hook != nil {
++			hook()
++		}
+ 	}
+ 	pc.close()
+ }
+@@ -1090,6 +1099,8 @@ var errRequestCanceled = errors.New("net/http: request canceled")
+ var (
+ 	testHookPersistConnClosedGotRes func()
+ 	testHookEnterRoundTrip          func()
++	testHookMu                      sync.Locker = fakeLocker{} // guards following
++	testHookReadLoopBeforeNextRead  func()
+ )
+ 
+ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err error) {
+@@ -1344,3 +1355,11 @@ func (nr noteEOFReader) Read(p []byte) (n int, err error) {
+ 	}
+ 	return
+ }
++
++// fakeLocker is a sync.Locker which does nothing. It's used to guard
++// test-only fields when not under test, to avoid runtime atomic
++// overhead.
++type fakeLocker struct{}
++
++func (fakeLocker) Lock()   {}
++func (fakeLocker) Unlock() {}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index d20ba13208..ace58896b8 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1827,6 +1827,11 @@ func TestIdleConnChannelLeak(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 
++	const nReqs = 5
++	didRead := make(chan bool, nReqs)
++	SetReadLoopBeforeNextReadHook(func() { didRead <- true })
++	defer SetReadLoopBeforeNextReadHook(nil)
++
+ 	tr := &Transport{
+ 		Dial: func(netw, addr string) (net.Conn, error) {
+ 			return net.Dial(netw, ts.Listener.Addr().String())
+@@ -1839,12 +1844,28 @@ func TestIdleConnChannelLeak(t *testing.T) {
+ 	// First, without keep-alives.
+ 	for _, disableKeep := range []bool{true, false} {
+ 		tr.DisableKeepAlives = disableKeep
+-		for i := 0; i < 5; i++ {
++		for i := 0; i < nReqs; i++ {
+ 			_, err := c.Get(fmt.Sprintf("http://foo-host-%d.tld/", i))
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
++			// Note: no res.Body.Close is needed here, since the
++			// response Content-Length is zero. Perhaps the test
++			// should be more explicit and use a HEAD, but tests
++			// elsewhere guarantee that zero byte responses generate
++			// a "Content-Length: 0" instead of chunking.
++		}
++
++		// At this point, each of the 5 Transport.readLoop goroutines
++		// are scheduling noting that there are no response bodies (see
++		// earlier comment), and are then calling putIdleConn, which
++		// decrements this count. Usually that happens quickly, which is
++		// why this test has seemed to work for ages. But it's still
++		// racey: we have wait for them to finish first. See Issue 10427
++		for i := 0; i < nReqs; i++ {
++			<-didRead
+ 		}
++
+ 		if got := tr.IdleConnChMapSizeForTesting(); got != 0 {
+ 			t.Fatalf("ForDisableKeepAlives = %v, map size = %d; want 0", disableKeep, got)
+ 		}

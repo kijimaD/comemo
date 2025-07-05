@@ -9,8 +9,152 @@ Date:   Sat Apr 6 20:07:07 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8457043
-
+---
  src/pkg/runtime/lock_futex.c | 14 +++++++-------
  src/pkg/runtime/lock_sema.c  | 16 ++++++++--------
  src/pkg/runtime/runtime.h    | 10 ++++++----
  3 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 9b1f5f6db4..07aab2d7be 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -41,7 +41,7 @@ runtime·lock(Lock *l)
+ 		runtime·throw("runtime·lock: lock count");
+ 
+ 	// Speculative grab for lock.
+-	v = runtime·xchg(&l->key, MUTEX_LOCKED);
++	v = runtime·xchg((uint32*)&l->key, MUTEX_LOCKED);
+ 	if(v == MUTEX_UNLOCKED)
+ 		return;
+ 
+@@ -64,7 +64,7 @@ runtime·lock(Lock *l)
+ 		// Try for lock, spinning.
+ 		for(i = 0; i < spin; i++) {
+ 			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
+ 					return;
+ 			runtime·procyield(ACTIVE_SPIN_CNT);
+ 		}
+@@ -72,17 +72,17 @@ runtime·lock(Lock *l)
+ 		// Try for lock, rescheduling.
+ 		for(i=0; i < PASSIVE_SPIN; i++) {
+ 			while(l->key == MUTEX_UNLOCKED)
+-				if(runtime·cas(&l->key, MUTEX_UNLOCKED, wait))
++				if(runtime·cas((uint32*)&l->key, MUTEX_UNLOCKED, wait))
+ 					return;
+ 			runtime·osyield();
+ 		}
+ 
+ 		// Sleep.
+-		v = runtime·xchg(&l->key, MUTEX_SLEEPING);
++		v = runtime·xchg((uint32*)&l->key, MUTEX_SLEEPING);
+ 		if(v == MUTEX_UNLOCKED)
+ 			return;
+ 		wait = MUTEX_SLEEPING;
+-		runtime·futexsleep(&l->key, MUTEX_SLEEPING, -1);
++		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
+ 	}
+ }
+ 
+@@ -94,11 +94,11 @@ runtime·unlock(Lock *l)
+ 	if(--m->locks < 0)
+ 		runtime·throw("runtime·unlock: lock count");
+ 
+-	v = runtime·xchg(&l->key, MUTEX_UNLOCKED);
++	v = runtime·xchg((uint32*)&l->key, MUTEX_UNLOCKED);
+ 	if(v == MUTEX_UNLOCKED)
+ 		runtime·throw("unlock of unlocked lock");
+ 	if(v == MUTEX_SLEEPING)
+-		runtime·futexwakeup(&l->key, 1);
++		runtime·futexwakeup((uint32*)&l->key, 1);
+ }
+ 
+ // One-time notifications.
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 1d9c37fdb6..210460f33d 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -41,7 +41,7 @@ runtime·lock(Lock *l)
+ 		runtime·throw("runtime·lock: lock count");
+ 
+ 	// Speculative grab for lock.
+-	if(runtime·casp(&l->waitm, nil, (void*)LOCKED))
++	if(runtime·casp((void**)&l->key, nil, (void*)LOCKED))
+ 		return;
+ 
+ 	if(m->waitsema == 0)
+@@ -54,10 +54,10 @@ runtime·lock(Lock *l)
+ 		spin = ACTIVE_SPIN;
+ 
+ 	for(i=0;; i++) {
+-		v = (uintptr)runtime·atomicloadp(&l->waitm);
++		v = (uintptr)runtime·atomicloadp((void**)&l->key);
+ 		if((v&LOCKED) == 0) {
+ unlocked:
+-			if(runtime·casp(&l->waitm, (void*)v, (void*)(v|LOCKED)))
++			if(runtime·casp((void**)&l->key, (void*)v, (void*)(v|LOCKED)))
+ 				return;
+ 			i = 0;
+ 		}
+@@ -72,9 +72,9 @@ unlocked:
+ 			// Queue this M.
+ 			for(;;) {
+ 				m->nextwaitm = (void*)(v&~LOCKED);
+-				if(runtime·casp(&l->waitm, (void*)v, (void*)((uintptr)m|LOCKED)))
++				if(runtime·casp((void**)&l->key, (void*)v, (void*)((uintptr)m|LOCKED)))
+ 					break;
+-				v = (uintptr)runtime·atomicloadp(&l->waitm);
++				v = (uintptr)runtime·atomicloadp((void**)&l->key);
+ 				if((v&LOCKED) == 0)
+ 					goto unlocked;
+ 			}
+@@ -97,15 +97,15 @@ runtime·unlock(Lock *l)
+ 		runtime·throw("runtime·unlock: lock count");
+ 
+ 	for(;;) {
+-		v = (uintptr)runtime·atomicloadp(&l->waitm);
++		v = (uintptr)runtime·atomicloadp((void**)&l->key);
+ 		if(v == LOCKED) {
+-			if(runtime·casp(&l->waitm, (void*)LOCKED, nil))
++			if(runtime·casp((void**)&l->key, (void*)LOCKED, nil))
+ 				break;
+ 		} else {
+ 			// Other M's are waiting for the lock.
+ 			// Dequeue an M.
+ 			mp = (void*)(v&~LOCKED);
+-			if(runtime·casp(&l->waitm, (void*)v, mp->nextwaitm)) {
++			if(runtime·casp((void**)&l->key, (void*)v, mp->nextwaitm)) {
+ 				// Dequeued an M.  Wake it.
+ 				runtime·semawakeup(mp);
+ 				break;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index bafad35122..8e604221b1 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -50,7 +50,7 @@ typedef	uint8			byte;
+ typedef	struct	Func		Func;
+ typedef	struct	G		G;
+ typedef	struct	Gobuf		Gobuf;
+-typedef	union	Lock		Lock;
++typedef	struct	Lock		Lock;
+ typedef	struct	M		M;
+ typedef	struct	P		P;
+ typedef	struct	Mem		Mem;
+@@ -156,10 +156,12 @@ enum
+ /*
+  * structures
+  */
+-union	Lock
++struct	Lock
+ {
+-	uint32	key;	// futex-based impl
+-	M*	waitm;	// linked list of waiting M's (sema-based impl)
++	// Futex-based impl treats it as uint32 key,
++	// while sema-based impl as M* waitm.
++	// Used to be a union, but unions break precise GC.
++	uintptr	key;
+ };
+ union	Note
+ {

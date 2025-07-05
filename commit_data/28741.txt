@@ -11,6 +11,30 @@ Date:   Sat Jul 9 17:24:45 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/server.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 7c3237c4cd..9bf4d667e2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -775,9 +775,6 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 		return nil, badRequestError("unsupported protocol version")
+ 	}
+ 
+-	ctx, cancelCtx := context.WithCancel(ctx)
+-	req.ctx = ctx
+-
+ 	c.lastMethod = req.Method
+ 	c.r.setInfiniteReadLimit()
+ 
+@@ -804,6 +801,8 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 	}
+ 	delete(req.Header, "Host")
+ 
++	ctx, cancelCtx := context.WithCancel(ctx)
++	req.ctx = ctx
+ 	req.RemoteAddr = c.remoteAddr
+ 	req.TLS = c.tlsState
+ 	if body, ok := req.Body.(*body); ok {

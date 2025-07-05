@@ -24,7 +24,7 @@ Date:   Thu Apr 2 08:53:27 2015 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/progs/cgo1.go            |   3 +-
  doc/progs/cgo2.go            |   3 +-
  doc/progs/cgo3.go            |   3 +-
@@ -77,3 +77,878 @@ Date:   Thu Apr 2 08:53:27 2015 -0700
  doc/progs/update.bash        |  15 ---
  src/cmd/dist/test.go         |   4 +-
  51 files changed, 228 insertions(+), 240 deletions(-)
+
+diff --git a/doc/progs/cgo1.go b/doc/progs/cgo1.go
+index 805fe3c9c5..d559e13931 100644
+--- a/doc/progs/cgo1.go
++++ b/doc/progs/cgo1.go
+@@ -1,8 +1,7 @@
+-// skip
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package rand
+ 
+ /*
+diff --git a/doc/progs/cgo2.go b/doc/progs/cgo2.go
+index b9e9f7d970..da07aa49e6 100644
+--- a/doc/progs/cgo2.go
++++ b/doc/progs/cgo2.go
+@@ -1,8 +1,7 @@
+-// skip
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package rand2
+ 
+ /*
+diff --git a/doc/progs/cgo3.go b/doc/progs/cgo3.go
+index c4f4791e8c..d5cedf4960 100644
+--- a/doc/progs/cgo3.go
++++ b/doc/progs/cgo3.go
+@@ -1,8 +1,7 @@
+-// skip
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package print
+ 
+ // #include <stdio.h>
+diff --git a/doc/progs/cgo4.go b/doc/progs/cgo4.go
+index 30b8935723..dbb07e84fe 100644
+--- a/doc/progs/cgo4.go
++++ b/doc/progs/cgo4.go
+@@ -1,8 +1,7 @@
+-// skip
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package print
+ 
+ // #include <stdio.h>
+diff --git a/doc/progs/defer.go b/doc/progs/defer.go
+index 006a474b5d..2e11020abf 100644
+--- a/doc/progs/defer.go
++++ b/doc/progs/defer.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/defer.out b/doc/progs/defer.out
+deleted file mode 100644
+index 0cdf53a271..0000000000
+--- a/doc/progs/defer.out
++++ /dev/null
+@@ -1,3 +0,0 @@
+-0
+-3210
+-2
+diff --git a/doc/progs/defer2.go b/doc/progs/defer2.go
+index ff7eaf9d89..cad66b0702 100644
+--- a/doc/progs/defer2.go
++++ b/doc/progs/defer2.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/defer2.out b/doc/progs/defer2.out
+deleted file mode 100644
+index 6110685cd8..0000000000
+--- a/doc/progs/defer2.out
++++ /dev/null
+@@ -1,12 +0,0 @@
+-Calling g.
+-Printing in g 0
+-Printing in g 1
+-Printing in g 2
+-Printing in g 3
+-Panicking!
+-Defer in g 3
+-Defer in g 2
+-Defer in g 1
+-Defer in g 0
+-Recovered in f 4
+-Returned normally from f.
+diff --git a/doc/progs/eff_bytesize.go b/doc/progs/eff_bytesize.go
+index a0c3d50585..b45961114d 100644
+--- a/doc/progs/eff_bytesize.go
++++ b/doc/progs/eff_bytesize.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/eff_bytesize.out b/doc/progs/eff_bytesize.out
+deleted file mode 100644
+index df763f3b30..0000000000
+--- a/doc/progs/eff_bytesize.out
++++ /dev/null
+@@ -1 +0,0 @@
+-1.00YB 9.09TB
+diff --git a/doc/progs/eff_qr.go b/doc/progs/eff_qr.go
+index 861131ddf5..89de459f7d 100644
+--- a/doc/progs/eff_qr.go
++++ b/doc/progs/eff_qr.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/eff_sequence.go b/doc/progs/eff_sequence.go
+index c9b18ba935..11c885abf8 100644
+--- a/doc/progs/eff_sequence.go
++++ b/doc/progs/eff_sequence.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/eff_sequence.out b/doc/progs/eff_sequence.out
+deleted file mode 100644
+index fd01a7d47c..0000000000
+--- a/doc/progs/eff_sequence.out
++++ /dev/null
+@@ -1 +0,0 @@
+-[-1 2 6 16 44]
+diff --git a/doc/progs/eff_unused1.go b/doc/progs/eff_unused1.go
+index f990a19f77..285d55eee5 100644
+--- a/doc/progs/eff_unused1.go
++++ b/doc/progs/eff_unused1.go
+@@ -1,5 +1,3 @@
+-// skip
+-
+ package main
+ 
+ import (
+diff --git a/doc/progs/eff_unused2.go b/doc/progs/eff_unused2.go
+index 3e6e041c76..92eb74e053 100644
+--- a/doc/progs/eff_unused2.go
++++ b/doc/progs/eff_unused2.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ package main
+ 
+ import (
+diff --git a/doc/progs/error.go b/doc/progs/error.go
+index 57854c5fe5..e776cdba17 100644
+--- a/doc/progs/error.go
++++ b/doc/progs/error.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/error2.go b/doc/progs/error2.go
+index aad1dc8e8e..2b0e0c3563 100644
+--- a/doc/progs/error2.go
++++ b/doc/progs/error2.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/error3.go b/doc/progs/error3.go
+index 9f1b300727..e4e57e077b 100644
+--- a/doc/progs/error3.go
++++ b/doc/progs/error3.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/error4.go b/doc/progs/error4.go
+index d40fc6eb23..8b2f3049de 100644
+--- a/doc/progs/error4.go
++++ b/doc/progs/error4.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/go1.go b/doc/progs/go1.go
+index a4dc64d469..50fd93441f 100644
+--- a/doc/progs/go1.go
++++ b/doc/progs/go1.go
+@@ -1,6 +1,3 @@
+-// compile
+-// this file will output a list of filenames in cwd, not suitable for cmpout
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/gobs1.go b/doc/progs/gobs1.go
+index d95f765d81..7077ca159f 100644
+--- a/doc/progs/gobs1.go
++++ b/doc/progs/gobs1.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/gobs2.go b/doc/progs/gobs2.go
+index acd18382f7..85bb41cdca 100644
+--- a/doc/progs/gobs2.go
++++ b/doc/progs/gobs2.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_draw.go b/doc/progs/image_draw.go
+index 0a1f7acb1a..bb73c8a714 100644
+--- a/doc/progs/image_draw.go
++++ b/doc/progs/image_draw.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package1.go b/doc/progs/image_package1.go
+index d331834fc6..c4c401e729 100644
+--- a/doc/progs/image_package1.go
++++ b/doc/progs/image_package1.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package1.out b/doc/progs/image_package1.out
+deleted file mode 100644
+index 809b31bf60..0000000000
+--- a/doc/progs/image_package1.out
++++ /dev/null
+@@ -1 +0,0 @@
+-X is 2 Y is 1
+diff --git a/doc/progs/image_package2.go b/doc/progs/image_package2.go
+index e5b78b4852..fcb5d9fd03 100644
+--- a/doc/progs/image_package2.go
++++ b/doc/progs/image_package2.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package2.out b/doc/progs/image_package2.out
+deleted file mode 100644
+index 616d3078b4..0000000000
+--- a/doc/progs/image_package2.out
++++ /dev/null
+@@ -1 +0,0 @@
+-3 4 false
+diff --git a/doc/progs/image_package3.go b/doc/progs/image_package3.go
+index 95d72a0b2e..13d0f08079 100644
+--- a/doc/progs/image_package3.go
++++ b/doc/progs/image_package3.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package3.out b/doc/progs/image_package3.out
+deleted file mode 100644
+index 3fe35dea55..0000000000
+--- a/doc/progs/image_package3.out
++++ /dev/null
+@@ -1 +0,0 @@
+-3 4 true
+diff --git a/doc/progs/image_package4.go b/doc/progs/image_package4.go
+index ec0e4613d5..c46fddf07a 100644
+--- a/doc/progs/image_package4.go
++++ b/doc/progs/image_package4.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package4.out b/doc/progs/image_package4.out
+deleted file mode 100644
+index cb1b7776b5..0000000000
+--- a/doc/progs/image_package4.out
++++ /dev/null
+@@ -1 +0,0 @@
+-image.Point{X:2, Y:1}
+diff --git a/doc/progs/image_package5.go b/doc/progs/image_package5.go
+index b9e27d6dad..0bb5c7608e 100644
+--- a/doc/progs/image_package5.go
++++ b/doc/progs/image_package5.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package5.out b/doc/progs/image_package5.out
+deleted file mode 100644
+index 2da80c1fb9..0000000000
+--- a/doc/progs/image_package5.out
++++ /dev/null
+@@ -1 +0,0 @@
+-{255 0 0 255}
+diff --git a/doc/progs/image_package6.go b/doc/progs/image_package6.go
+index 5e6eefa04a..62eeecdb92 100644
+--- a/doc/progs/image_package6.go
++++ b/doc/progs/image_package6.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/image_package6.out b/doc/progs/image_package6.out
+deleted file mode 100644
+index fcd13c0c08..0000000000
+--- a/doc/progs/image_package6.out
++++ /dev/null
+@@ -1,2 +0,0 @@
+-8 4
+-true
+diff --git a/doc/progs/interface.go b/doc/progs/interface.go
+index 6972b72871..c2925d590d 100644
+--- a/doc/progs/interface.go
++++ b/doc/progs/interface.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/interface2.go b/doc/progs/interface2.go
+index 85e7d51636..a541d94e48 100644
+--- a/doc/progs/interface2.go
++++ b/doc/progs/interface2.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/interface2.out b/doc/progs/interface2.out
+deleted file mode 100644
+index 085bd017ad..0000000000
+--- a/doc/progs/interface2.out
++++ /dev/null
+@@ -1 +0,0 @@
+-type: float64
+diff --git a/doc/progs/json1.go b/doc/progs/json1.go
+index 887d7d1830..9e10f4743d 100644
+--- a/doc/progs/json1.go
++++ b/doc/progs/json1.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/json2.go b/doc/progs/json2.go
+index f358feaa29..6089ae6710 100644
+--- a/doc/progs/json2.go
++++ b/doc/progs/json2.go
+@@ -1,5 +1,3 @@
+-// cmpout
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/json2.out b/doc/progs/json2.out
+deleted file mode 100644
+index 8f2dea57df..0000000000
+--- a/doc/progs/json2.out
++++ /dev/null
+@@ -1,2 +0,0 @@
+-the circle's area 24.227111172875365
+-the reciprocal of i is 0.3601008282319049
+diff --git a/doc/progs/json3.go b/doc/progs/json3.go
+index 41eb3730c5..a04fdfa506 100644
+--- a/doc/progs/json3.go
++++ b/doc/progs/json3.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/json4.go b/doc/progs/json4.go
+index ee38f31ad9..4926302206 100644
+--- a/doc/progs/json4.go
++++ b/doc/progs/json4.go
+@@ -1,5 +1,3 @@
+-// run
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/json5.go b/doc/progs/json5.go
+index 9ab972df89..6d7a4ca8c4 100644
+--- a/doc/progs/json5.go
++++ b/doc/progs/json5.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/run b/doc/progs/run
+deleted file mode 100755
+index 6e680b83bf..0000000000
+--- a/doc/progs/run
++++ /dev/null
+@@ -1,125 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-goos=$(go env GOOS)
+-
+-defer_panic_recover="
+-	defer
+-	defer2
+-"
+-
+-effective_go="
+-	eff_bytesize
+-	eff_qr
+-	eff_sequence
+-	eff_unused2
+-"
+-
+-error_handling="
+-	error
+-	error2
+-	error3
+-	error4
+-"
+-
+-law_of_reflection="
+-	interface
+-	interface2
+-"
+-
+-c_go_cgo="
+-	cgo1
+-	cgo2
+-	cgo3
+-	cgo4
+-"
+-# cgo1 and cgo2 don't run on freebsd, srandom has a different signature
+-if [ "$goos" == "freebsd" ]; then
+-	c_go_cgo="cgo3 cgo4"
+-fi
+-# cgo1 and cgo2 don't run on netbsd, srandom has a different signature
+-# cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly
+-if [ "$goos" == "netbsd" ]; then
+-	c_go_cgo=""
+-fi
+-# cgo3 and cgo4 don't run on openbsd, since cgo cannot handle stdout correctly
+-if [ "$goos" == "openbsd" ]; then
+-	c_go_cgo="cgo1 cgo2"
+-fi
+-if [ "$CGO_ENABLED" != 1 ]; then
+-	c_go_cgo=""
+-fi
+-
+-timeout="
+-	timeout1
+-	timeout2
+-"
+-
+-gobs="
+-	gobs1
+-	gobs2
+-"
+-
+-json="
+-	json1
+-	json2
+-	json3
+-	json4
+-	json5
+-"
+-
+-image_package="
+-	image_package1
+-	image_package2
+-	image_package3
+-	image_package4
+-	image_package5
+-	image_package6
+-"
+-
+-all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo $timeout $gobs $json $image_package slices go1)
+-
+-for i in $all; do
+-	go build $i.go
+-done
+-
+-# Write to temporary file to avoid mingw bash bug.
+-TMPFILE="${TMPDIR:-/tmp}/gotest3.$USER"
+-
+-function testit {
+-	./$1 >"$TMPFILE" 2>&1 || true
+-	x=$(echo $(cat "$TMPFILE")) # extra echo canonicalizes
+-	if ! echo "$x" | grep "$2" > /dev/null
+-	then
+-		echo $1 failed: '"'$x'"' is not '"'$2'"'
+-	fi
+-}
+-
+-
+-testit defer '^0 3210 2$'
+-testit defer2 '^Calling g. Printing in g 0 Printing in g 1 Printing in g 2 Printing in g 3 Panicking! Defer in g 3 Defer in g 2 Defer in g 1 Defer in g 0 Recovered in f 4 Returned normally from f.$'
+-
+-testit eff_bytesize '^1.00YB 9.09TB$'
+-testit eff_sequence '^\[-1 2 6 16 44\]$'
+-
+-testit go1 '^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$'
+-
+-testit interface2 "^type: float64$"
+-
+-testit json1 "^$"
+-testit json2 "the reciprocal of i is"
+-testit json3 "Age is int 6"
+-testit json4 "^$"
+-
+-testit image_package1 "^X is 2 Y is 1$"
+-testit image_package2 "^3 4 false$"
+-testit image_package3 "^3 4 true$"
+-testit image_package4 "^image.Point{X:2, Y:1}$"
+-testit image_package5 "^{255 0 0 255}$"
+-testit image_package6 "^8 4 true$"
+-
+-rm -f $all "$TMPFILE"
+diff --git a/doc/progs/run.go b/doc/progs/run.go
+new file mode 100755
+index 0000000000..a664f07871
+--- /dev/null
++++ b/doc/progs/run.go
+@@ -0,0 +1,220 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// run runs the docs tests found in this directory.
++package main
++
++import (
++	"bytes"
++	"flag"
++	"fmt"
++	"os"
++	"os/exec"
++	"regexp"
++	"runtime"
++	"strings"
++)
++
++const usage = `go run run.go [tests]
++
++run.go runs the docs tests in this directory.
++If no tests are provided, it runs all tests.
++Tests may be specified without their .go suffix.
++`
++
++func main() {
++	flag.Usage = func() {
++		fmt.Fprintf(os.Stderr, usage)
++		flag.PrintDefaults()
++		os.Exit(2)
++	}
++
++	flag.Parse()
++	if flag.NArg() == 0 {
++		// run all tests
++		fixcgo()
++	} else {
++		// run specified tests
++		onlyTest(flag.Args()...)
++	}
++
++	// ratec limits the number of tests running concurrently.
++	// None of the tests are intensive, so don't bother
++	// trying to manually adjust for slow builders.
++	ratec := make(chan bool, runtime.NumCPU())
++	errc := make(chan error, len(tests))
++
++	for _, tt := range tests {
++		tt := tt
++		ratec <- true
++		go func() {
++			errc <- test(tt.file, tt.want)
++			<-ratec
++		}()
++	}
++
++	var rc int
++	for range tests {
++		if err := <-errc; err != nil {
++			fmt.Fprintln(os.Stderr, err)
++			rc = 1
++		}
++	}
++	os.Exit(rc)
++}
++
++// test builds the test in the given file.
++// If want is non-empty, test also runs the test
++// and checks that the output matches the regexp want.
++func test(file, want string) error {
++	// Build the program.
++	cmd := exec.Command("go", "build", file+".go")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("go build %s.go failed: %v\nOutput:\n%s", file, err, out)
++	}
++	defer os.Remove(file)
++
++	// Only run the test if we have output to check.
++	if want == "" {
++		return nil
++	}
++
++	cmd = exec.Command("./" + file)
++	out, err = cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("./%s failed: %v\nOutput:\n%s", file, err, out)
++	}
++
++	// Canonicalize output.
++	out = bytes.TrimRight(out, "\n")
++	out = bytes.Replace(out, []byte{'\n'}, []byte{' '}, -1)
++
++	// Check the result.
++	match, err := regexp.Match(want, out)
++	if err != nil {
++		return fmt.Errorf("failed to parse regexp %q: %v", want, err)
++	}
++	if !match {
++		return fmt.Errorf("%s.go:\n%q\ndoes not match %s", file, out, want)
++	}
++
++	return nil
++}
++
++type testcase struct {
++	file string
++	want string
++}
++
++var tests = []testcase{
++	// defer_panic_recover
++	{"defer", `^0 3210 2$`},
++	{"defer2", `^Calling g. Printing in g 0 Printing in g 1 Printing in g 2 Printing in g 3 Panicking! Defer in g 3 Defer in g 2 Defer in g 1 Defer in g 0 Recovered in f 4 Returned normally from f.$`},
++
++	// effective_go
++	{"eff_bytesize", `^1.00YB 9.09TB$`},
++	{"eff_qr", ""},
++	{"eff_sequence", `^\[-1 2 6 16 44\]$`},
++	{"eff_unused2", ""},
++
++	// error_handling
++	{"error", ""},
++	{"error2", ""},
++	{"error3", ""},
++	{"error4", ""},
++
++	// law_of_reflection
++	{"interface", ""},
++	{"interface2", `^type: float64$`},
++
++	// c_go_cgo
++	{"cgo1", ""},
++	{"cgo2", ""},
++	{"cgo3", ""},
++	{"cgo4", ""},
++
++	// timeout
++	{"timeout1", ""},
++	{"timeout2", ""},
++
++	// gobs
++	{"gobs1", ""},
++	{"gobs2", ""},
++
++	// json
++	{"json1", `^$`},
++	{"json2", `the reciprocal of i is`},
++	{"json3", `Age is int 6`},
++	{"json4", `^$`},
++	{"json5", ""},
++
++	// image_package
++	{"image_package1", `^X is 2 Y is 1$`},
++	{"image_package2", `^3 4 false$`},
++	{"image_package3", `^3 4 true$`},
++	{"image_package4", `^image.Point{X:2, Y:1}$`},
++	{"image_package5", `^{255 0 0 255}$`},
++	{"image_package6", `^8 4 true$`},
++
++	// other
++	{"go1", `^Christmas is a holiday: true Sleeping for 0.123s.*go1.go already exists$`},
++	{"slices", ""},
++}
++
++func onlyTest(files ...string) {
++	var new []testcase
++NextFile:
++	for _, file := range files {
++		file = strings.TrimSuffix(file, ".go")
++		for _, tt := range tests {
++			if tt.file == file {
++				new = append(new, tt)
++				continue NextFile
++			}
++		}
++		fmt.Fprintf(os.Stderr, "test %s.go not found\n", file)
++		os.Exit(1)
++	}
++	tests = new
++}
++
++func skipTest(file string) {
++	for i, tt := range tests {
++		if tt.file == file {
++			copy(tests[i:], tests[i+1:])
++			tests = tests[:len(tests)-1]
++			return
++		}
++	}
++	panic("delete(" + file + "): not found")
++}
++
++func fixcgo() {
++	if os.Getenv("CGO_ENABLED") != "1" {
++		skipTest("cgo1")
++		skipTest("cgo2")
++		skipTest("cgo3")
++		skipTest("cgo4")
++		return
++	}
++
++	switch runtime.GOOS {
++	case "freebsd":
++		// cgo1 and cgo2 don't run on freebsd, srandom has a different signature
++		skipTest("cgo1")
++		skipTest("cgo2")
++	case "netbsd":
++		// cgo1 and cgo2 don't run on netbsd, srandom has a different signature
++		skipTest("cgo1")
++		skipTest("cgo2")
++		// cgo3 and cgo4 don't run on netbsd, since cgo cannot handle stdout correctly
++		skipTest("cgo3")
++		skipTest("cgo4")
++	case "openbsd":
++		// cgo3 and cgo4 don't run on openbsd and solaris, since cgo cannot handle stdout correctly
++		skipTest("cgo3")
++		skipTest("cgo4")
++	}
++}
+diff --git a/doc/progs/slices.go b/doc/progs/slices.go
+index f9af5feaa0..967a3e76bd 100644
+--- a/doc/progs/slices.go
++++ b/doc/progs/slices.go
+@@ -1,5 +1,3 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/doc/progs/timeout1.go b/doc/progs/timeout1.go
+index fbc39caac2..353ba6908e 100644
+--- a/doc/progs/timeout1.go
++++ b/doc/progs/timeout1.go
+@@ -1,8 +1,7 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package timeout
+ 
+ import (
+diff --git a/doc/progs/timeout2.go b/doc/progs/timeout2.go
+index a12bc2ab1c..b0d34eabf8 100644
+--- a/doc/progs/timeout2.go
++++ b/doc/progs/timeout2.go
+@@ -1,8 +1,7 @@
+-// compile
+-
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package query
+ 
+ type Conn string
+diff --git a/doc/progs/update.bash b/doc/progs/update.bash
+deleted file mode 100755
+index d4ecfbeba7..0000000000
+--- a/doc/progs/update.bash
++++ /dev/null
+@@ -1,15 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2012 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-rm -f *.out *.rej *.orig [568].out
+-
+-for i in *.go; do
+-	if grep -q '^// cmpout$' $i; then
+-		echo $i
+-		go run $i &> ${i/.go/.out}
+-	fi
+-done
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b0ffdcfbc0..e0988b0b8c 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -154,7 +154,7 @@ func (t *tester) registerTests() {
+ 	}
+ 	// ranGoTest and stdMatches are state closed over by the
+ 	// stdlib testing func below. The tests are run sequentially,
+-	// so there'no need for locks.
++	// so there's no need for locks.
+ 	var (
+ 		ranGoTest  bool
+ 		stdMatches []string
+@@ -280,7 +280,7 @@ func (t *tester) registerTests() {
+ 		}
+ 	}
+ 	if t.hasBash() && t.goos != "nacl" && t.goos != "android" && !iOS {
+-		t.registerTest("doc_progs", "../doc/progs", "time", "./run")
++		t.registerTest("doc_progs", "../doc/progs", "time", "go", "run", "run.go")
+ 		t.registerTest("wiki", "../doc/articles/wiki", "./test.bash")
+ 		t.registerTest("codewalk", "../doc/codewalk", "time", "./run")
+ 		t.registerTest("shootout", "../test/bench/shootout", "time", "./timing.sh", "-test")

@@ -27,9 +27,127 @@ Date:   Tue Aug 5 17:10:15 2014 -0700
     R=golang-codereviews, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/106260044
-
+---
  misc/cgo/testgodefs/anonunion.go | 26 ++++++++++++++++++++++++++
  misc/cgo/testgodefs/main.go      | 12 ++++++++++++
  misc/cgo/testgodefs/test.bash    | 20 ++++++++++++++++++++
  src/cmd/cgo/gcc.go               | 23 +++++++++++++++++++++--
  4 files changed, 79 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testgodefs/anonunion.go b/misc/cgo/testgodefs/anonunion.go
+new file mode 100644
+index 0000000000..7bc736b9d1
+--- /dev/null
++++ b/misc/cgo/testgodefs/anonunion.go
+@@ -0,0 +1,26 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++// This file tests that when cgo -godefs sees a struct with a field
++// that is an anonymous union, the first field in the union is
++// promoted to become a field of the struct.  See issue 6677 for
++// background.
++
++/*
++typedef struct {
++	union {
++		long l;
++		int c;
++	};
++} t;
++*/
++import "C"
++
++// Input for cgo -godefs.
++
++type T C.t
+diff --git a/misc/cgo/testgodefs/main.go b/misc/cgo/testgodefs/main.go
+new file mode 100644
+index 0000000000..eaf91bc111
+--- /dev/null
++++ b/misc/cgo/testgodefs/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Test that the struct field in anonunion.go was promoted.
++var v1 T
++var v2 = v1.L
++
++func main() {
++}
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+new file mode 100755
+index 0000000000..cfbeae7dc9
+--- /dev/null
++++ b/misc/cgo/testgodefs/test.bash
+@@ -0,0 +1,20 @@
++# Copyright 2014 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# We are testing cgo -godefs, which translates Go files that use
++# import "C" into Go files with Go definitions of types defined in the
++# import "C" block.  Add more tests here.
++FILE_PREFIXES="anonunion"
++
++RM=
++for FP in $FILE_PREFIXES
++do
++  go tool cgo -godefs ${FP}.go > ${FP}_defs.go
++  RM="${RM} ${FP}_defs.go"
++done
++
++go build . && ./testgodefs
++EXIT=$?
++rm -rf _obj testgodefs ${RM}
++exit $EXIT
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 7a802102d9..13e8340291 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1548,7 +1548,27 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 			fld = c.pad(fld, f.ByteOffset-off)
+ 			off = f.ByteOffset
+ 		}
+-		t := c.Type(f.Type, pos)
++
++		name := f.Name
++		ft := f.Type
++
++		// In godefs or cdefs mode, if this field is a C11
++		// anonymous union then treat the first field in the
++		// union as the field in the struct.  This handles
++		// cases like the glibc <sys/resource.h> file; see
++		// issue 6677.
++		if *godefs || *cdefs {
++			if st, ok := f.Type.(*dwarf.StructType); ok && name == "" && st.Kind == "union" && len(st.Field) > 0 && !used[st.Field[0].Name] {
++				name = st.Field[0].Name
++				ident[name] = name
++				ft = st.Field[0].Type
++			}
++		}
++
++		// TODO: Handle fields that are anonymous structs by
++		// promoting the fields of the inner struct.
++
++		t := c.Type(ft, pos)
+ 		tgo := t.Go
+ 		size := t.Size
+ 		talign := t.Align
+@@ -1577,7 +1597,6 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 		}
+ 		n := len(fld)
+ 		fld = fld[0 : n+1]
+-		name := f.Name
+ 		if name == "" {
+ 			name = fmt.Sprintf("anon%d", anon)
+ 			anon++

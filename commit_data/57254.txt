@@ -12,7 +12,52 @@ Date:   Tue Jun 27 10:05:56 2023 +0700
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/walk/range.go | 15 ---------------
  src/cmd/compile/internal/walk/walk.go  |  3 ---
  2 files changed, 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 38479b323f..a751af2242 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -564,18 +564,3 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
+ 	typecheck.Stmts(n.Body)
+ 	return walkStmt(n)
+ }
+-
+-// addptr returns (*T)(uintptr(p) + n).
+-func addptr(p ir.Node, n int64) ir.Node {
+-	t := p.Type()
+-
+-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
+-	p.SetType(types.Types[types.TUINTPTR])
+-
+-	p = ir.NewBinaryExpr(base.Pos, ir.OADD, p, ir.NewInt(base.Pos, n))
+-
+-	p = ir.NewConvExpr(base.Pos, ir.OCONVNOP, nil, p)
+-	p.SetType(t)
+-
+-	return p
+-}
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 778b95d547..8e4aa985bb 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -5,7 +5,6 @@
+ package walk
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 
+ 	"cmd/compile/internal/base"
+@@ -98,8 +97,6 @@ func convas(n *ir.AssignStmt, init *ir.Nodes) *ir.AssignStmt {
+ 	return n
+ }
+ 
+-var stop = errors.New("stop")
+-
+ func vmkcall(fn ir.Node, t *types.Type, init *ir.Nodes, va []ir.Node) *ir.CallExpr {
+ 	if init == nil {
+ 		base.Fatalf("mkcall with nil init: %v", fn)

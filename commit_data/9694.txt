@@ -55,7 +55,7 @@ Date:   Thu Sep 15 08:51:55 2011 -0700
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/4962067
-
+---
  src/pkg/exp/template/html/Makefile        |   1 +
  src/pkg/exp/template/html/content.go      |  83 ++++++++++
  src/pkg/exp/template/html/content_test.go | 196 +++++++++++++++++++++++
@@ -68,3 +68,1103 @@ Date:   Thu Sep 15 08:51:55 2011 -0700
  src/pkg/exp/template/html/js.go           |  54 +++++--
  src/pkg/exp/template/html/url.go          |  12 +-
  11 files changed, 639 insertions(+), 144 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/Makefile b/src/pkg/exp/template/html/Makefile
+index 0398c78fd6..e53270c9c8 100644
+--- a/src/pkg/exp/template/html/Makefile
++++ b/src/pkg/exp/template/html/Makefile
+@@ -7,6 +7,7 @@ include ../../../../Make.inc
+ TARG=exp/template/html
+ GOFILES=\
+ 	clone.go\
++	content.go\
+ 	context.go\
+ 	css.go\
+ 	doc.go\
+diff --git a/src/pkg/exp/template/html/content.go b/src/pkg/exp/template/html/content.go
+new file mode 100644
+index 0000000000..4f79200405
+--- /dev/null
++++ b/src/pkg/exp/template/html/content.go
+@@ -0,0 +1,83 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"fmt"
++)
++
++// Strings of content from a trusted source.
++type (
++	// CSS encapsulates known safe content that matches any of:
++	// (1) The CSS3 stylesheet production, such as `p { color: purple }`.
++	// (2) The CSS3 rule production, such as `a[href=~"https:"].foo#bar`.
++	// (3) CSS3 declaration productions, such as `color: red; margin: 2px`.
++	// (4) The CSS3 value production, such as `rgba(0, 0, 255, 127)`.
++	// See http://www.w3.org/TR/css3-syntax/#style
++	CSS string
++
++	// HTML encapsulates a known safe HTML document fragment.
++	// Should not be used for HTML from a third-party, or HTML with
++	// unclosed tags or comments. The outputs of a sound HTML sanitizer
++	// and a template escaped by this package are fine for use with HTML.
++	HTML string
++
++	// JS encapsulates a known safe EcmaScript5 Expression, or example,
++	// `(x + y * z())`. 
++	// Template authors are responsible for ensuring that typed expressions
++	// do not break the intended precedence and that there is no
++	// statement/expression ambiguity as when passing an expression like
++	// "{ foo: bar() }\n['foo']()", which is both a valid Expression and a
++	// valid Program with a very different meaning.
++	JS string
++
++	// JSStr encapsulates a sequence of characters meant to be embedded
++	// between quotes in a JavaScript expression.
++	// The string must match a series of StringCharacters:
++	// StringCharacter :: SourceCharacter but not `\` or LineTerminator
++	//                  | EscapeSequence
++	// Note that LineContinuations are not allowed.
++	// JSStr("foo\\nbar") is fine, but JSStr("foo\\\nbar") is not.
++	JSStr string
++
++	// URL encapsulates a known safe URL as defined in RFC 3896.
++	// A URL like `javascript:checkThatFormNotEditedBeforeLeavingPage()`
++	// from a trusted source should go in the page, but by default dynamic
++	// `javascript:` URLs are filtered out since they are a frequently
++	// exploited injection vector.
++	URL string
++)
++
++type contentType uint8
++
++const (
++	contentTypePlain contentType = iota
++	contentTypeCSS
++	contentTypeHTML
++	contentTypeJS
++	contentTypeJSStr
++	contentTypeURL
++)
++
++// stringify converts its arguments to a string and the type of the content.
++func stringify(args ...interface{}) (string, contentType) {
++	if len(args) == 1 {
++		switch s := args[0].(type) {
++		case string:
++			return s, contentTypePlain
++		case CSS:
++			return string(s), contentTypeCSS
++		case HTML:
++			return string(s), contentTypeHTML
++		case JS:
++			return string(s), contentTypeJS
++		case JSStr:
++			return string(s), contentTypeJSStr
++		case URL:
++			return string(s), contentTypeURL
++		}
++	}
++	return fmt.Sprint(args...), contentTypePlain
++}
+diff --git a/src/pkg/exp/template/html/content_test.go b/src/pkg/exp/template/html/content_test.go
+new file mode 100644
+index 0000000000..caef5ade8e
+--- /dev/null
++++ b/src/pkg/exp/template/html/content_test.go
+@@ -0,0 +1,196 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"bytes"
++	"strings"
++	"template"
++	"testing"
++)
++
++func TestTypedContent(t *testing.T) {
++	data := []interface{}{
++		`<b> "foo%" O'Reilly &bar;`,
++		CSS(`a[href =~ "//example.com"]#foo`),
++		HTML(`Hello, <b>World</b> &amp;tc!`),
++		JS(`c && alert("Hello, World!");`),
++		JSStr(`Hello, World & O'Reilly\x21`),
++		URL(`greeting=H%69&addressee=(World)`),
++	}
++
++	// For each content sensitive escaper, see how it does on
++	// each of the typed strings above.
++	tests := []struct {
++		// A template containing a single {{.}}.
++		input string
++		want  []string
++	}{
++		{
++			`<style>{{.}} { color: blue }</style>`,
++			[]string{
++				`ZgotmplZ`,
++				// Allowed but not escaped.
++				`a[href =~ "//example.com"]#foo`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++			},
++		},
++		{
++			`<div style="{{.}}">`,
++			[]string{
++				`ZgotmplZ`,
++				// Allowed and HTML escaped.
++				`a[href =~ &#34;//example.com&#34;]#foo`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++				`ZgotmplZ`,
++			},
++		},
++		{
++			`{{.}}`,
++			[]string{
++				`&lt;b&gt; &#34;foo%&#34; O&#39;Reilly &amp;bar;`,
++				`a[href =~ &#34;//example.com&#34;]#foo`,
++				// Not escaped.
++				`Hello, <b>World</b> &amp;tc!`,
++				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
++				`Hello, World &amp; O&#39;Reilly\x21`,
++				`greeting=H%69&amp;addressee=(World)`,
++			},
++		},
++		{
++			`<a title={{.}}>`,
++			[]string{
++				`&lt;b&gt;&#32;&#34;foo%&#34;&#32;O&#39;Reilly&#32;&amp;bar;`,
++				`a[href&#32;&#61;~&#32;&#34;//example.com&#34;]#foo`,
++				// Tags stripped, spaces escaped, entity not re-escaped.
++				`Hello,&#32;World&#32;&amp;tc!`,
++				`c&#32;&amp;&amp;&#32;alert(&#34;Hello,&#32;World!&#34;);`,
++				`Hello,&#32;World&#32;&amp;&#32;O&#39;Reilly\x21`,
++				`greeting&#61;H%69&amp;addressee&#61;(World)`,
++			},
++		},
++		{
++			`<a title='{{.}}'>`,
++			[]string{
++				`&lt;b&gt; &#34;foo%&#34; O&#39;Reilly &amp;bar;`,
++				`a[href =~ &#34;//example.com&#34;]#foo`,
++				// Tags stripped, entity not re-escaped.
++				`Hello, World &amp;tc!`,
++				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
++				`Hello, World &amp; O&#39;Reilly\x21`,
++				`greeting=H%69&amp;addressee=(World)`,
++			},
++		},
++		{
++			`<textarea>{{.}}</textarea>`,
++			[]string{
++				`&lt;b&gt; &#34;foo%&#34; O&#39;Reilly &amp;bar;`,
++				`a[href =~ &#34;//example.com&#34;]#foo`,
++				// Angle brackets escaped to prevent injection of close tags, entity not re-escaped.
++				`Hello, &lt;b&gt;World&lt;/b&gt; &amp;tc!`,
++				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
++				`Hello, World &amp; O&#39;Reilly\x21`,
++				`greeting=H%69&amp;addressee=(World)`,
++			},
++		},
++		{
++			`<script>alert({{.}})</script>`,
++			[]string{
++				`"\u003cb\u003e \"foo%\" O'Reilly &bar;"`,
++				`"a[href =~ \"//example.com\"]#foo"`,
++				`"Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;tc!"`,
++				// Not escaped.
++				`c && alert("Hello, World!");`,
++				// Escape sequence not over-escaped.
++				`"Hello, World & O'Reilly\x21"`,
++				`"greeting=H%69&addressee=(World)"`,
++			},
++		},
++		{
++			`<button onclick="alert({{.}})">`,
++			[]string{
++				`&#34;\u003cb\u003e \&#34;foo%\&#34; O&#39;Reilly &amp;bar;&#34;`,
++				`&#34;a[href =~ \&#34;//example.com\&#34;]#foo&#34;`,
++				`&#34;Hello, \u003cb\u003eWorld\u003c/b\u003e &amp;amp;tc!&#34;`,
++				// Not JS escaped but HTML escaped.
++				`c &amp;&amp; alert(&#34;Hello, World!&#34;);`,
++				// Escape sequence not over-escaped.
++				`&#34;Hello, World &amp; O&#39;Reilly\x21&#34;`,
++				`&#34;greeting=H%69&amp;addressee=(World)&#34;`,
++			},
++		},
++		{
++			`<script>alert("{{.}}")</script>`,
++			[]string{
++				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
++				`a[href =~ \x22\/\/example.com\x22]#foo`,
++				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
++				`c \x26\x26 alert(\x22Hello, World!\x22);`,
++				// Escape sequence not over-escaped.
++				`Hello, World \x26 O\x27Reilly\x21`,
++				`greeting=H%69\x26addressee=(World)`,
++			},
++		},
++		{
++			`<button onclick='alert("{{.}}")'>`,
++			[]string{
++				`\x3cb\x3e \x22foo%\x22 O\x27Reilly \x26bar;`,
++				`a[href =~ \x22\/\/example.com\x22]#foo`,
++				`Hello, \x3cb\x3eWorld\x3c\/b\x3e \x26amp;tc!`,
++				`c \x26\x26 alert(\x22Hello, World!\x22);`,
++				// Escape sequence not over-escaped.
++				`Hello, World \x26 O\x27Reilly\x21`,
++				`greeting=H%69\x26addressee=(World)`,
++			},
++		},
++		{
++			`<a href="?q={{.}}">`,
++			[]string{
++				`%3cb%3e%20%22foo%25%22%20O%27Reilly%20%26bar%3b`,
++				`a%5bhref%20%3d~%20%22%2f%2fexample.com%22%5d%23foo`,
++				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
++				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
++				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
++				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is done.
++				`greeting=H%69&amp;addressee=%28World%29`,
++			},
++		},
++		{
++			`<style>body { background: url('?img={{.}}') }</style>`,
++			[]string{
++				`%3cb%3e%20%22foo%25%22%20O%27Reilly%20%26bar%3b`,
++				`a%5bhref%20%3d~%20%22%2f%2fexample.com%22%5d%23foo`,
++				`Hello%2c%20%3cb%3eWorld%3c%2fb%3e%20%26amp%3btc%21`,
++				`c%20%26%26%20alert%28%22Hello%2c%20World%21%22%29%3b`,
++				`Hello%2c%20World%20%26%20O%27Reilly%5cx21`,
++				// Quotes and parens are escaped but %69 is not over-escaped. HTML escaping is not done.
++				`greeting=H%69&addressee=%28World%29`,
++			},
++		},
++	}
++
++	for _, test := range tests {
++		tmpl := template.Must(Escape(template.Must(template.New("x").Parse(test.input))))
++		pre := strings.Index(test.input, "{{.}}")
++		post := len(test.input) - (pre + 5)
++		var b bytes.Buffer
++		for i, x := range data {
++			b.Reset()
++			if err := tmpl.Execute(&b, x); err != nil {
++				t.Errorf("%q with %v: %s", test.input, x, err)
++				continue
++			}
++			if want, got := test.want[i], b.String()[pre:b.Len()-post]; want != got {
++				t.Errorf("%q with %v:\nwant\n\t%q,\ngot\n\t%q\n", test.input, x, want, got)
++				continue
++			}
++		}
++	}
++}
+diff --git a/src/pkg/exp/template/html/css.go b/src/pkg/exp/template/html/css.go
+index 79c603f801..d881328c93 100644
+--- a/src/pkg/exp/template/html/css.go
++++ b/src/pkg/exp/template/html/css.go
+@@ -146,7 +146,7 @@ func skipCSSSpace(c []byte) []byte {
+ 
+ // cssEscaper escapes HTML and CSS special characters using \<hex>+ escapes.
+ func cssEscaper(args ...interface{}) string {
+-	s := stringify(args...)
++	s, _ := stringify(args...)
+ 	var b bytes.Buffer
+ 	written := 0
+ 	for i, r := range s {
+@@ -218,7 +218,11 @@ var mozBindingBytes = []byte("mozbinding")
+ // It filters out unsafe values, such as those that affect token boundaries,
+ // and anything that might execute scripts.
+ func cssValueFilter(args ...interface{}) string {
+-	s, id := decodeCSS([]byte(stringify(args...))), make([]byte, 0, 64)
++	s, t := stringify(args...)
++	if t == contentTypeCSS {
++		return s
++	}
++	b, id := decodeCSS([]byte(s)), make([]byte, 0, 64)
+ 
+ 	// CSS3 error handling is specified as honoring string boundaries per
+ 	// http://www.w3.org/TR/css3-syntax/#error-handling :
+@@ -231,14 +235,14 @@ func cssValueFilter(args ...interface{}) string {
+ 	// So we need to make sure that values do not have mismatched bracket
+ 	// or quote characters to prevent the browser from restarting parsing
+ 	// inside a string that might embed JavaScript source.
+-	for i, c := range s {
++	for i, c := range b {
+ 		switch c {
+ 		case 0, '"', '\'', '(', ')', '/', ';', '@', '[', '\\', ']', '`', '{', '}':
+ 			return filterFailsafe
+ 		case '-':
+ 			// Disallow <!-- or -->.
+ 			// -- should not appear in valid identifiers.
+-			if i != 0 && '-' == s[i-1] {
++			if i != 0 && '-' == b[i-1] {
+ 				return filterFailsafe
+ 			}
+ 		default:
+@@ -251,5 +255,5 @@ func cssValueFilter(args ...interface{}) string {
+ 	if bytes.Index(id, expressionBytes) != -1 || bytes.Index(id, mozBindingBytes) != -1 {
+ 		return filterFailsafe
+ 	}
+-	return string(s)
++	return string(b)
+ }
+diff --git a/src/pkg/exp/template/html/doc.go b/src/pkg/exp/template/html/doc.go
+index 4344a981f8..2751ce834b 100644
+--- a/src/pkg/exp/template/html/doc.go
++++ b/src/pkg/exp/template/html/doc.go
+@@ -313,11 +313,8 @@ plain text string in the appropriate context.
+ When a data value is not plain text, you can make sure it is not over-escaped
+ by marking it with its type.
+ 
+-A value that implements interface TypedStringer can carry known-safe content.
+-
+-  type safeHTML struct{}
+-  func (s safeHTML) String() string { return `<b>World</b>` }
+-  func (s safeHTML) ContentType() ContentType { return ContentTypeHTML }
++Types HTML, JS, URL, and others from content.go can carry safe content that is
++exempted from escaping.
+ 
+ The template
+ 
+@@ -325,7 +322,7 @@ The template
+ 
+ can be invoked with
+ 
+-  tmpl.Execute(out, safeHTML{})
++  tmpl.Execute(out, HTML(`<b>World</b>`))
+ 
+ to produce
+ 
+@@ -335,35 +332,7 @@ instead of the
+ 
+   Hello, &lt;b&gt;World&lt;b&gt;!
+ 
+-which would have been produced if {{.}} did not implement TypedStringer.
+-
+-ContentTypeHTML attaches to a well-formed HTML DocumentFragment.
+-Do not use it for HTML from a third-party, or HTML with unclosed tags or
+-comments. The outputs of a sound HTML sanitizer and a template escaped by
+-this package are examples of ContentTypeHTML.
+-
+-ContentTypeCSS attaches to a well-formed safe content that matches:
+-(1) The CSS3 stylesheet production, for example `p { color: purple }`
+-(2) The CSS3 rule production, for example `a[href=~"https:"].foo#bar`
+-(3) CSS3 declaration productions, for example `color: red; margin: 2px`
+-(4) The CSS3 value production, for example `rgba(0, 0, 255, 127)`
+-
+-ContentTypeJS attaches to a well-formed JavaScript (EcmaScript5) Expression
+-production, for example `(x + y * z())`. Template authors are responsible
+-for ensuring that typed expressions do not break the intended precedence and
+-that there is no statement/expression ambiguity as when passing an expression
+-like "{ foo: bar() }\n['foo']()" which is both a valid Expression and a valid
+-Program with a very different meaning.
+-
+-ContentTypeJSStr attaches to a snippet of \-escaped characters that could be
+-quoted to form a JavaScript string literal. For example, foo\nbar with quotes
+-around it makes a valid JavaScript string literal.
+-
+-ContentTypeURL attaches to a URL fragment from a trusted source.
+-A URL like `javascript:checkThatFormNotEditedBeforeLeavingPage()`
+-from a trusted source should go in the page, but by default dynamic
+-`javascript:` URLs are filtered out since they are a frequently
+-successfully exploited injection vector.
++that would have been produced if {{.}} was a regular string.
+ 
+ 
+ Security Model
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 6be703127f..b0acf48df8 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -70,17 +70,30 @@ func EscapeSet(s *template.Set, names ...string) (*template.Set, os.Error) {
+ 
+ // funcMap maps command names to functions that render their inputs safe.
+ var funcMap = template.FuncMap{
++	"exp_template_html_attrescaper":     attrEscaper,
+ 	"exp_template_html_cssescaper":      cssEscaper,
+ 	"exp_template_html_cssvaluefilter":  cssValueFilter,
++	"exp_template_html_htmlescaper":     htmlEscaper,
+ 	"exp_template_html_jsregexpescaper": jsRegexpEscaper,
+ 	"exp_template_html_jsstrescaper":    jsStrEscaper,
+ 	"exp_template_html_jsvalescaper":    jsValEscaper,
+ 	"exp_template_html_nospaceescaper":  htmlNospaceEscaper,
++	"exp_template_html_rcdataescaper":   rcdataEscaper,
+ 	"exp_template_html_urlescaper":      urlEscaper,
+ 	"exp_template_html_urlfilter":       urlFilter,
+ 	"exp_template_html_urlnormalizer":   urlNormalizer,
+ }
+ 
++// equivEscapers matches contextual escapers to equivalent template builtins.
++var equivEscapers = map[string]string{
++	"exp_template_html_attrescaper":    "html",
++	"exp_template_html_htmlescaper":    "html",
++	"exp_template_html_nospaceescaper": "html",
++	"exp_template_html_rcdataescaper":  "html",
++	"exp_template_html_urlescaper":     "urlquery",
++	"exp_template_html_urlnormalizer":  "urlquery",
++}
++
+ // escaper collects type inferences about templates and changes needed to make
+ // templates injection safe.
+ type escaper struct {
+@@ -103,7 +116,7 @@ type escaper struct {
+ }
+ 
+ // filterFailsafe is an innocuous word that is emitted in place of unsafe values
+-// by sanitizer functions.  It is not a keyword in any programming language,
++// by sanitizer functions. It is not a keyword in any programming language,
+ // contains no special characters, is not empty, and when it appears in output
+ // it is distinct enough that a developer can find the source of the problem
+ // via a search engine.
+@@ -174,7 +187,9 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	case stateCSS:
+ 		s = append(s, "exp_template_html_cssvaluefilter")
+ 	case stateText:
+-		s = append(s, "html")
++		s = append(s, "exp_template_html_htmlescaper")
++	case stateRCDATA:
++		s = append(s, "exp_template_html_rcdataescaper")
+ 	}
+ 	switch c.delim {
+ 	case delimNone:
+@@ -182,7 +197,7 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 	case delimSpaceOrTagEnd:
+ 		s = append(s, "exp_template_html_nospaceescaper")
+ 	default:
+-		s = append(s, "html")
++		s = append(s, "exp_template_html_attrescaper")
+ 	}
+ 	if _, ok := e.actionNodeEdits[n]; ok {
+ 		panic(fmt.Sprintf("node %s shared between templates", n))
+@@ -206,7 +221,10 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	idents := p.Cmds
+ 	for i := n - 1; i >= 0; i-- {
+ 		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
+-			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
++			if id, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
++				if id.Ident == "noescape" {
++					return
++				}
+ 				continue
+ 			}
+ 		}
+@@ -214,7 +232,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	}
+ 	dups := 0
+ 	for _, id := range idents {
+-		if s[dups] == (id.Args[0].(*parse.IdentifierNode)).Ident {
++		if escFnsEq(s[dups], (id.Args[0].(*parse.IdentifierNode)).Ident) {
+ 			dups++
+ 			if dups == len(s) {
+ 				return
+@@ -225,7 +243,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	copy(newCmds, p.Cmds)
+ 	// Merge existing identifier commands with the sanitizers needed.
+ 	for _, id := range idents {
+-		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s)
++		i := indexOfStr((id.Args[0].(*parse.IdentifierNode)).Ident, s, escFnsEq)
+ 		if i != -1 {
+ 			for _, name := range s[:i] {
+ 				newCmds = append(newCmds, newIdentCmd(name))
+@@ -241,16 +259,27 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	p.Cmds = newCmds
+ }
+ 
+-// indexOfStr is the least i such that strs[i] == s or -1 if s is not in strs.
+-func indexOfStr(s string, strs []string) int {
++// indexOfStr is the first i such that eq(s, strs[i]) or -1 if s was not found.
++func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
+ 	for i, t := range strs {
+-		if s == t {
++		if eq(s, t) {
+ 			return i
+ 		}
+ 	}
+ 	return -1
+ }
+ 
++// escFnsEq returns whether the two escaping functions are equivalent.
++func escFnsEq(a, b string) bool {
++	if e := equivEscapers[a]; e != "" {
++		a = e
++	}
++	if e := equivEscapers[b]; e != "" {
++		b = e
++	}
++	return a == b
++}
++
+ // newIdentCmd produces a command containing a single identifier node.
+ func newIdentCmd(identifier string) *parse.CommandNode {
+ 	return &parse.CommandNode{
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 051e8703ac..0ab326ceb0 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -6,6 +6,7 @@ package html
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"os"
+ 	"strings"
+ 	"template"
+@@ -20,6 +21,7 @@ func TestEscape(t *testing.T) {
+ 		A, E    []string
+ 		N       int
+ 		Z       *int
++		W       HTML
+ 	}{
+ 		F: false,
+ 		T: true,
+@@ -30,6 +32,7 @@ func TestEscape(t *testing.T) {
+ 		E: []string{},
+ 		N: 42,
+ 		Z: nil,
++		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+ 	}
+ 
+ 	tests := []struct {
+@@ -358,11 +361,47 @@ func TestEscape(t *testing.T) {
+ 			// TODO: Elide comment.
+ 			"<b>Hello, <!-- name of world -->&lt;Cincinatti&gt;</b>",
+ 		},
++		{
++			"typed HTML in text",
++			`{{.W}}`,
++			`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`,
++		},
++		{
++			"typed HTML in attribute",
++			`<div title="{{.W}}">`,
++			`<div title="&iexcl;Hello, O&#39;World!">`,
++		},
++		{
++			"typed HTML in script",
++			`<button onclick="alert({{.W}})">`,
++			`<button onclick="alert(&#34;&amp;iexcl;\u003cb class=\&#34;foo\&#34;\u003eHello\u003c/b\u003e, \u003ctextarea\u003eO&#39;World\u003c/textarea\u003e!&#34;)">`,
++		},
++		{
++			"typed HTML in RCDATA",
++			`<textarea>{{.W}}</textarea>`,
++			`<textarea>&iexcl;&lt;b class=&#34;foo&#34;&gt;Hello&lt;/b&gt;, &lt;textarea&gt;O&#39;World&lt;/textarea&gt;!</textarea>`,
++		},
++		{
++			"range in textarea",
++			"<textarea>{{range .A}}{{.}}{{end}}</textarea>",
++			"<textarea>&lt;a&gt;&lt;b&gt;</textarea>",
++		},
++		{
++			"auditable exemption from escaping",
++			"{{range .A}}{{. | noescape}}{{end}}",
++			"<a><b>",
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+-		tmpl := template.Must(template.New(test.name).Parse(test.input))
+-		tmpl = template.Must(Escape(tmpl))
++		tmpl := template.New(test.name)
++		// TODO: Move noescape into template/func.go
++		tmpl.Funcs(template.FuncMap{
++			"noescape": func(a ...interface{}) string {
++				return fmt.Sprint(a...)
++			},
++		})
++		tmpl = template.Must(Escape(template.Must(tmpl.Parse(test.input))))
+ 		b := new(bytes.Buffer)
+ 		if err := tmpl.Execute(b, data); err != nil {
+ 			t.Errorf("%s: template execution failed: %s", test.name, err)
+diff --git a/src/pkg/exp/template/html/html.go b/src/pkg/exp/template/html/html.go
+index 0523322b02..8805e7ad3d 100644
+--- a/src/pkg/exp/template/html/html.go
++++ b/src/pkg/exp/template/html/html.go
+@@ -12,86 +12,147 @@ import (
+ 
+ // htmlNospaceEscaper escapes for inclusion in unquoted attribute values.
+ func htmlNospaceEscaper(args ...interface{}) string {
+-	s := stringify(args...)
+-	// The set of runes escaped is the union of the HTML specials and
+-	// those determined by running the JS below in browsers:
++	s, t := stringify(args...)
++	if t == contentTypeHTML {
++		return htmlReplacer(stripTags(s), htmlNospaceNormReplacementTable, false)
++	}
++	return htmlReplacer(s, htmlNospaceReplacementTable, false)
++}
+ 
+-	// <div id=d></div>
+-	// <script>(function () {
+-	// var a = [], d = document.getElementById("d"), i, c, s;
+-	// for (i = 0; i < 0x10000; ++i) {
+-	//   c = String.fromCharCode(i);
+-	//   d.innerHTML = "<span title=" + c + "lt" + c + "></span>"
+-	//   s = d.getElementsByTagName("SPAN")[0];
+-	//   if (!s || s.title !== c + "lt" + c) { a.push(i.toString(16)); }
+-	// }
+-	// document.write(a.join(", "));
+-	// })()</script>
++// attrEscaper escapes for inclusion in quoted attribute values.
++func attrEscaper(args ...interface{}) string {
++	s, t := stringify(args...)
++	if t == contentTypeHTML {
++		return htmlReplacer(stripTags(s), htmlNormReplacementTable, true)
++	}
++	return htmlReplacer(s, htmlReplacementTable, true)
++}
+ 
+-	var b bytes.Buffer
+-	written := 0
++// rcdataEscaper escapes for inclusion in an RCDATA element body.
++func rcdataEscaper(args ...interface{}) string {
++	s, t := stringify(args...)
++	if t == contentTypeHTML {
++		return htmlReplacer(s, htmlNormReplacementTable, true)
++	}
++	return htmlReplacer(s, htmlReplacementTable, true)
++}
++
++// htmlEscaper escapes for inclusion in HTML text.
++func htmlEscaper(args ...interface{}) string {
++	s, t := stringify(args...)
++	if t == contentTypeHTML {
++		return s
++	}
++	return htmlReplacer(s, htmlReplacementTable, true)
++}
++
++// htmlReplacementTable contains the runes that need to be escaped
++// inside a quoted attribute value or in a text node.
++var htmlReplacementTable = []string{
++	// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state: "
++	// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
++	// CHARACTER character to the current attribute's value.
++	// "
++	// and similarly
++	// http://www.w3.org/TR/html5/tokenization.html#before-attribute-value-state
++	0:    "\uFFFD",
++	'"':  "&#34;",
++	'&':  "&amp;",
++	'\'': "&#39;",
++	'+':  "&#43;",
++	'<':  "&lt;",
++	'>':  "&gt;",
++}
++
++// htmlNormReplacementTable is like htmlReplacementTable but without '&' to
++// avoid over-encoding existing entities.
++var htmlNormReplacementTable = []string{
++	0:    "\uFFFD",
++	'"':  "&#34;",
++	'\'': "&#39;",
++	'+':  "&#43;",
++	'<':  "&lt;",
++	'>':  "&gt;",
++}
++
++// htmlNospaceReplacementTable contains the runes that need to be escaped
++// inside an unquoted attribute value.
++// The set of runes escaped is the union of the HTML specials and
++// those determined by running the JS below in browsers:
++// <div id=d></div>
++// <script>(function () {
++// var a = [], d = document.getElementById("d"), i, c, s;
++// for (i = 0; i < 0x10000; ++i) {
++//   c = String.fromCharCode(i);
++//   d.innerHTML = "<span title=" + c + "lt" + c + "></span>"
++//   s = d.getElementsByTagName("SPAN")[0];
++//   if (!s || s.title !== c + "lt" + c) { a.push(i.toString(16)); }
++// }
++// document.write(a.join(", "));
++// })()</script>
++var htmlNospaceReplacementTable = []string{
++	0:    "&#xfffd;",
++	'\t': "&#9;",
++	'\n': "&#10;",
++	'\v': "&#11;",
++	'\f': "&#12;",
++	'\r': "&#13;",
++	' ':  "&#32;",
++	'"':  "&#34;",
++	'&':  "&amp;",
++	'\'': "&#39;",
++	'+':  "&#43;",
++	'<':  "&lt;",
++	'=':  "&#61;",
++	'>':  "&gt;",
++	// A parse error in the attribute value (unquoted) and 
++	// before attribute value states.
++	// Treated as a quoting character by IE.
++	'`': "&#96;",
++}
++
++// htmlNospaceNormReplacementTable is like htmlNospaceReplacementTable but
++// without '&' to avoid over-encoding existing entities.
++var htmlNospaceNormReplacementTable = []string{
++	0:    "&#xfffd;",
++	'\t': "&#9;",
++	'\n': "&#10;",
++	'\v': "&#11;",
++	'\f': "&#12;",
++	'\r': "&#13;",
++	' ':  "&#32;",
++	'"':  "&#34;",
++	'\'': "&#39;",
++	'+':  "&#43;",
++	'<':  "&lt;",
++	'=':  "&#61;",
++	'>':  "&gt;",
++	// A parse error in the attribute value (unquoted) and 
++	// before attribute value states.
++	// Treated as a quoting character by IE.
++	'`': "&#96;",
++}
++
++// htmlReplacer returns s with runes replaced acccording to replacementTable
++// and when badRunes is true, certain bad runes are allowed through unescaped.
++func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
++	written, b := 0, new(bytes.Buffer)
+ 	for i, r := range s {
+-		var repl string
+-		switch r {
+-		case 0:
+-			// http://www.w3.org/TR/html5/tokenization.html#attribute-value-unquoted-state: "
+-			// U+0000 NULL Parse error. Append a U+FFFD REPLACEMENT
+-			// CHARACTER character to the current attribute's value.
+-			// "
+-			// and similarly
+-			// http://www.w3.org/TR/html5/tokenization.html#before-attribute-value-state
+-			repl = "\uFFFD"
+-		case '\t':
+-			repl = "&#9;"
+-		case '\n':
+-			repl = "&#10;"
+-		case '\v':
+-			repl = "&#11;"
+-		case '\f':
+-			repl = "&#12;"
+-		case '\r':
+-			repl = "&#13;"
+-		case ' ':
+-			repl = "&#32;"
+-		case '"':
+-			repl = "&#34;"
+-		case '&':
+-			repl = "&amp;"
+-		case '\'':
+-			repl = "&#39;"
+-		case '+':
+-			repl = "&#43;"
+-		case '<':
+-			repl = "&lt;"
+-		case '=':
+-			repl = "&#61;"
+-		case '>':
+-			repl = "&gt;"
+-		case '`':
+-			// A parse error in the attribute value (unquoted) and 
+-			// before attribute value states.
+-			// Treated as a quoting character by IE.
+-			repl = "&#96;"
+-		default:
+-			// IE does not allow the ranges below raw in attributes.
+-			if 0xfdd0 <= r && r <= 0xfdef || 0xfff0 <= r && r <= 0xffff {
++		if r < len(replacementTable) {
++			if repl := replacementTable[r]; len(repl) != 0 {
+ 				b.WriteString(s[written:i])
+-				b.WriteString("&#x")
+-				b.WriteByte("0123456789abcdef"[r>>24])
+-				b.WriteByte("0123456789abcdef"[r>>16&0xf])
+-				b.WriteByte("0123456789abcdef"[r>>8&0xf])
+-				b.WriteByte("0123456789abcdef"[r&0xf])
+-				b.WriteByte(';')
+-				fmt.Fprintf(&b, "&#x%x;", r)
++				b.WriteString(repl)
++				// Valid as long as replacementTable doesn't 
++				// include anything above 0x7f.
+ 				written = i + utf8.RuneLen(r)
+ 			}
+-			continue
++		} else if badRunes {
++			// No-op.
++			// IE does not allow these ranges in unquoted attrs.
++		} else if 0xfdd0 <= r && r <= 0xfdef || 0xfff0 <= r && r <= 0xffff {
++			fmt.Fprintf(b, "%s&#x%x;", s[written:i], r)
++			written = i + utf8.RuneLen(r)
+ 		}
+-		b.WriteString(s[written:i])
+-		b.WriteString(repl)
+-		// Valid as long as we don't include any cases above in the
+-		// 0x80-0xff range.
+-		written = i + utf8.RuneLen(r)
+ 	}
+ 	if written == 0 {
+ 		return s
+@@ -99,3 +160,48 @@ func htmlNospaceEscaper(args ...interface{}) string {
+ 	b.WriteString(s[written:])
+ 	return b.String()
+ }
++
++// stripTags takes a snippet of HTML and returns only the text content.
++// For example, `<b>&iexcl;Hi!</b> <script>...</script>` -> `&iexcl;Hi! `.
++func stripTags(html string) string {
++	var b bytes.Buffer
++	s, c := []byte(html), context{}
++	// Using the transition funcs helps us avoid mangling
++	// `<div title="1>2">` or `I <3 Ponies!`.
++	for len(s) > 0 {
++		if c.delim == delimNone {
++			d, t := transitionFunc[c.state](c, s)
++			if c.state == stateText || c.state == stateRCDATA {
++				i := len(s) - len(t)
++				// Emit text up to the start of the tag or comment.
++				if d.state != c.state {
++					for j := i - 1; j >= 0; j-- {
++						if s[j] == '<' {
++							i = j
++							break
++						}
++					}
++				}
++				b.Write(s[:i])
++			}
++			c, s = d, t
++			continue
++		}
++		i := bytes.IndexAny(s, delimEnds[c.delim])
++		if i == -1 {
++			break
++		}
++		if c.delim != delimSpaceOrTagEnd {
++			// Consume any quote.
++			i++
++		}
++		c, s = context{state: stateTag, element: c.element}, s[i:]
++	}
++	if c.state == stateText {
++		if b.Len() == 0 {
++			return html
++		}
++		b.Write(s)
++	}
++	return b.String()
++}
+diff --git a/src/pkg/exp/template/html/html_test.go b/src/pkg/exp/template/html/html_test.go
+index 2b118c5bb8..2866fdd0ce 100644
+--- a/src/pkg/exp/template/html/html_test.go
++++ b/src/pkg/exp/template/html/html_test.go
+@@ -19,9 +19,9 @@ func TestHTMLNospaceEscaper(t *testing.T) {
+ 		`PQRSTUVWXYZ[\]^_` +
+ 		"`abcdefghijklmno" +
+ 		"pqrstuvwxyz{|}~\x7f" +
+-		"\u00A0\u0100\u2028\u2029\ufeff\U0001D11E")
++		"\u00A0\u0100\u2028\u2029\ufeff\ufdec\U0001D11E")
+ 
+-	want := ("\ufffd\x01\x02\x03\x04\x05\x06\x07" +
++	want := ("&#xfffd;\x01\x02\x03\x04\x05\x06\x07" +
+ 		"\x08&#9;&#10;&#11;&#12;&#13;\x0E\x0F" +
+ 		"\x10\x11\x12\x13\x14\x15\x16\x17" +
+ 		"\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f" +
+@@ -31,7 +31,7 @@ func TestHTMLNospaceEscaper(t *testing.T) {
+ 		`PQRSTUVWXYZ[\]^_` +
+ 		`&#96;abcdefghijklmno` +
+ 		`pqrstuvwxyz{|}~` + "\u007f" +
+-		"\u00A0\u0100\u2028\u2029\ufeff\U0001D11E")
++		"\u00A0\u0100\u2028\u2029\ufeff&#xfdec;\U0001D11E")
+ 
+ 	got := htmlNospaceEscaper(input)
+ 	if got != want {
+@@ -44,6 +44,30 @@ func TestHTMLNospaceEscaper(t *testing.T) {
+ 	}
+ }
+ 
++func TestStripTags(t *testing.T) {
++	tests := []struct {
++		input, want string
++	}{
++		{"", ""},
++		{"Hello, World!", "Hello, World!"},
++		{"foo&amp;bar", "foo&amp;bar"},
++		{`Hello <a href="www.example.com/">World</a>!`, "Hello World!"},
++		{"Foo <textarea>Bar</textarea> Baz", "Foo Bar Baz"},
++		{"Foo <!-- Bar --> Baz", "Foo  Baz"},
++		{"<", "<"},
++		{"foo < bar", "foo < bar"},
++		{`Foo<script type="text/javascript">alert(1337)</script>Bar`, "FooBar"},
++		{`Foo<div title="1>2">Bar`, "FooBar"},
++		{`I <3 Ponies!`, `I <3 Ponies!`},
++	}
++
++	for _, test := range tests {
++		if got := stripTags(test.input); got != test.want {
++			t.Errorf("%q: want %q, got %q", test.input, test.want, got)
++		}
++	}
++}
++
+ func BenchmarkHTMLNospaceEscaper(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		htmlNospaceEscaper("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
+@@ -55,3 +79,15 @@ func BenchmarkHTMLNospaceEscaperNoSpecials(b *testing.B) {
+ 		htmlNospaceEscaper("The_quick,_brown_fox_jumps_over_the_lazy_dog.")
+ 	}
+ }
++
++func BenchmarkStripTags(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		stripTags("The <i>quick</i>,\r\n<span style='color:brown'>brown</span> fox jumps\u2028over the <canine class=\"lazy\">dog</canine>")
++	}
++}
++
++func BenchmarkStripTagsNoSpecials(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		stripTags("The quick, brown fox jumps over the lazy dog.")
++	}
++}
+diff --git a/src/pkg/exp/template/html/js.go b/src/pkg/exp/template/html/js.go
+index f9251a053b..4318b00acb 100644
+--- a/src/pkg/exp/template/html/js.go
++++ b/src/pkg/exp/template/html/js.go
+@@ -123,6 +123,17 @@ func jsValEscaper(args ...interface{}) string {
+ 	var a interface{}
+ 	if len(args) == 1 {
+ 		a = args[0]
++		switch t := a.(type) {
++		case JS:
++			return string(t)
++		case JSStr:
++			// TODO: normalize quotes.
++			return `"` + string(t) + `"`
++		case json.Marshaler:
++			// Do not treat as a Stringer.
++		case fmt.Stringer:
++			a = t.String()
++		}
+ 	} else {
+ 		a = fmt.Sprint(args...)
+ 	}
+@@ -166,7 +177,11 @@ func jsValEscaper(args ...interface{}) string {
+ // JavaScript source, in JavaScript embedded in an HTML5 <script> element,
+ // or in an HTML5 event handler attribute such as onclick.
+ func jsStrEscaper(args ...interface{}) string {
+-	return replace(stringify(args...), jsStrReplacementTable)
++	s, t := stringify(args...)
++	if t == contentTypeJSStr {
++		return replace(s, jsStrNormReplacementTable)
++	}
++	return replace(s, jsStrReplacementTable)
+ }
+ 
+ // jsRegexpEscaper behaves like jsStrEscaper but escapes regular expression
+@@ -174,7 +189,8 @@ func jsStrEscaper(args ...interface{}) string {
+ // expression literal. /foo{{.X}}bar/ matches the string "foo" followed by
+ // the literal text of {{.X}} followed by the string "bar".
+ func jsRegexpEscaper(args ...interface{}) string {
+-	s := replace(stringify(args...), jsRegexpReplacementTable)
++	s, _ := stringify(args...)
++	s = replace(s, jsRegexpReplacementTable)
+ 	if s == "" {
+ 		// /{{.X}}/ should not produce a line comment when .X == "".
+ 		return "(?:)"
+@@ -182,21 +198,11 @@ func jsRegexpEscaper(args ...interface{}) string {
+ 	return s
+ }
+ 
+-// stringify is an optimized form of fmt.Sprint.
+-func stringify(args ...interface{}) string {
+-	if len(args) == 1 {
+-		if s, ok := args[0].(string); ok {
+-			return s
+-		}
+-	}
+-	return fmt.Sprint(args...)
+-}
+-
+ // replace replaces each rune r of s with replacementTable[r], provided that
+ // r < len(replacementTable). If replacementTable[r] is the empty string then
+ // no replacement is made.
+-// It also replaces the runes '\u2028' and '\u2029' with the strings
+-// `\u2028` and `\u2029`. Note the different quotes used.
++// It also replaces runes U+2028 and U+2029 with the raw strings `\u2028` and
++// `\u2029`.
+ func replace(s string, replacementTable []string) string {
+ 	var b bytes.Buffer
+ 	written := 0
+@@ -242,6 +248,26 @@ var jsStrReplacementTable = []string{
+ 	'\\': `\\`,
+ }
+ 
++// jsStrNormReplacementTable is like jsStrReplacementTable but does not
++// overencode existing escapes since this table has no entry for `\`.
++var jsStrNormReplacementTable = []string{
++	0:    `\0`,
++	'\t': `\t`,
++	'\n': `\n`,
++	'\v': `\x0b`, // "\v" == "v" on IE 6.
++	'\f': `\f`,
++	'\r': `\r`,
++	// Encode HTML specials as hex so the output can be embedded
++	// in HTML attributes without further encoding.
++	'"':  `\x22`,
++	'&':  `\x26`,
++	'\'': `\x27`,
++	'+':  `\x2b`,
++	'/':  `\/`,
++	'<':  `\x3c`,
++	'>':  `\x3e`,
++}
++
+ var jsRegexpReplacementTable = []string{
+ 	0:    `\0`,
+ 	'\t': `\t`,
+diff --git a/src/pkg/exp/template/html/url.go b/src/pkg/exp/template/html/url.go
+index 768fedb5ba..8a43e63645 100644
+--- a/src/pkg/exp/template/html/url.go
++++ b/src/pkg/exp/template/html/url.go
+@@ -13,7 +13,10 @@ import (
+ // urlFilter returns the HTML equivalent of its input unless it contains an
+ // unsafe protocol in which case it defangs the entire URL.
+ func urlFilter(args ...interface{}) string {
+-	s := stringify(args...)
++	s, t := stringify(args...)
++	if t == contentTypeURL {
++		return urlProcessor(true, s)
++	}
+ 	i := strings.IndexRune(s, ':')
+ 	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
+ 		protocol := strings.ToLower(s[:i])
+@@ -36,7 +39,7 @@ func urlEscaper(args ...interface{}) string {
+ 
+ // urlEscaper normalizes URL content so it can be embedded in a quote-delimited
+ // string or parenthesis delimited url(...).
+-// The normalizer does not encode all HTML specials.  Specifically, it does not
++// The normalizer does not encode all HTML specials. Specifically, it does not
+ // encode '&' so correct embedding in an HTML attribute requires escaping of
+ // '&' to '&amp;'.
+ func urlNormalizer(args ...interface{}) string {
+@@ -46,7 +49,10 @@ func urlNormalizer(args ...interface{}) string {
+ // urlProcessor normalizes (when norm is true) or escapes its input to produce
+ // a valid hierarchical or opaque URL part.
+ func urlProcessor(norm bool, args ...interface{}) string {
+-	s := stringify(args...)
++	s, t := stringify(args...)
++	if t == contentTypeURL {
++		norm = true
++	}
+ 	var b bytes.Buffer
+ 	written := 0
+ 	// The byte loop below assumes that all URLs use UTF-8 as the

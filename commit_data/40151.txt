@@ -12,6 +12,38 @@ Date:   Mon Apr 22 15:39:57 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/scc.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index 80d5be6549..fec71953a4 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -117,13 +117,6 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 		return min
+ 	}
+ 
+-	min = v.visitcodelist(n.Ninit, min)
+-	min = v.visitcode(n.Left, min)
+-	min = v.visitcode(n.Right, min)
+-	min = v.visitcodelist(n.List, min)
+-	min = v.visitcodelist(n.Nbody, min)
+-	min = v.visitcodelist(n.Rlist, min)
+-
+ 	switch n.Op {
+ 	case OCALLFUNC, OCALLMETH:
+ 		fn := asNode(n.Left.Type.Nname())
+@@ -141,5 +134,12 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 		}
+ 	}
+ 
++	min = v.visitcodelist(n.Ninit, min)
++	min = v.visitcode(n.Left, min)
++	min = v.visitcode(n.Right, min)
++	min = v.visitcodelist(n.List, min)
++	min = v.visitcodelist(n.Nbody, min)
++	min = v.visitcodelist(n.Rlist, min)
++
+ 	return min
+ }

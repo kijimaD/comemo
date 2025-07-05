@@ -12,7 +12,62 @@ Date:   Sun Dec 6 17:35:12 2015 -0500
     Change-Id: Iaa2b14fca2d8c4d883d3824e2efc82b3e6fe2624
     Reviewed-on: https://go-review.googlesource.com/17459
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/dist/buildruntime.go | 6 ++----
  src/runtime/proc.go          | 6 ++++--
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index c1a9b817f8..6e802219ba 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -16,12 +16,11 @@ import (
+ 
+ // mkzversion writes zversion.go:
+ //
+-//	package runtime
++//	package sys
+ //	const DefaultGoroot = <goroot>
+ //	const TheVersion = <version>
+ //	const Goexperiment = <goexperiment>
+ //	const StackGuardMultiplier = <multiplier value>
+-//	const BuildVersion = <build version>
+ //
+ func mkzversion(dir, file string) {
+ 	out := fmt.Sprintf(
+@@ -32,8 +31,7 @@ func mkzversion(dir, file string) {
+ 			"const DefaultGoroot = `%s`\n"+
+ 			"const TheVersion = `%s`\n"+
+ 			"const Goexperiment = `%s`\n"+
+-			"const StackGuardMultiplier = %d\n\n"+
+-			"var BuildVersion = TheVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
++			"const StackGuardMultiplier = %d\n\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"), stackGuardMultiplier())
+ 
+ 	writefile(out, file, writeSkipSame)
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d75af10206..04e4c7c548 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -10,6 +10,8 @@ import (
+ 	"unsafe"
+ )
+ 
++var buildVersion = sys.TheVersion
++
+ // Goroutine scheduler
+ // The scheduler's job is to distribute ready-to-run goroutines over worker threads.
+ //
+@@ -445,10 +447,10 @@ func schedinit() {
+ 		throw("unknown runnable goroutine during bootstrap")
+ 	}
+ 
+-	if sys.BuildVersion == "" {
++	if buildVersion == "" {
+ 		// Condition should never trigger.  This code just serves
+ 		// to ensure runtime·buildVersion is kept in the resulting binary.
+-		sys.BuildVersion = "unknown"
++		buildVersion = "unknown"
+ 	}
+ }
+ 

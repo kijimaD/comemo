@@ -22,7 +22,98 @@ Date:   Fri Mar 8 23:17:23 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Nicolas Hillegeer <aktau@google.com>
-
+---
  src/runtime/mgc.go  | 10 +++++-----
  src/runtime/proc.go | 12 +++++++-----
  2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 4ea55eceb6..55ae765657 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -749,12 +749,12 @@ func gcStart(trigger gcTrigger) {
+ 	// Use maxprocs instead of stwprocs here because the total time
+ 	// computed in the CPU stats is based on maxprocs, and we want them
+ 	// to be comparable.
+-	work.cpuStats.accumulateGCPauseTime(nanotime()-work.tSweepTerm, work.maxprocs)
++	work.cpuStats.accumulateGCPauseTime(nanotime()-stw.finishedStopping, work.maxprocs)
+ 
+ 	// Concurrent mark.
+ 	systemstack(func() {
+ 		now = startTheWorldWithSema(0, stw)
+-		work.pauseNS += now - stw.start
++		work.pauseNS += now - stw.startedStopping
+ 		work.tMark = now
+ 
+ 		// Release the CPU limiter.
+@@ -895,7 +895,7 @@ top:
+ 		getg().m.preemptoff = ""
+ 		systemstack(func() {
+ 			now := startTheWorldWithSema(0, stw)
+-			work.pauseNS += now - stw.start
++			work.pauseNS += now - stw.startedStopping
+ 		})
+ 		semrelease(&worldsema)
+ 		goto top
+@@ -1015,7 +1015,7 @@ func gcMarkTermination(stw worldStop) {
+ 	now := nanotime()
+ 	sec, nsec, _ := time_now()
+ 	unixNow := sec*1e9 + int64(nsec)
+-	work.pauseNS += now - stw.start
++	work.pauseNS += now - stw.startedStopping
+ 	work.tEnd = now
+ 	atomic.Store64(&memstats.last_gc_unix, uint64(unixNow)) // must be Unix time to make sense to user
+ 	atomic.Store64(&memstats.last_gc_nanotime, uint64(now)) // monotonic time for us
+@@ -1031,7 +1031,7 @@ func gcMarkTermination(stw worldStop) {
+ 	//
+ 	// Pass gcMarkPhase=true to accumulate so we can get all the latest GC CPU stats
+ 	// in there too.
+-	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.maxprocs)
++	work.cpuStats.accumulateGCPauseTime(now-stw.finishedStopping, work.maxprocs)
+ 	work.cpuStats.accumulate(now, true)
+ 
+ 	// Compute overall GC CPU utilization.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a6813169c7..1aad8e3c63 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1322,8 +1322,9 @@ var stwReasonStrings = [...]string{
+ // worldStop provides context from the stop-the-world required by the
+ // start-the-world.
+ type worldStop struct {
+-	reason stwReason
+-	start  int64
++	reason           stwReason
++	startedStopping  int64
++	finishedStopping int64
+ }
+ 
+ // Temporary variable for stopTheWorld, when it can't write to the stack.
+@@ -1522,7 +1523,8 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 		}
+ 	}
+ 
+-	startTime := nanotime() - start
++	finish := nanotime()
++	startTime := finish - start
+ 	if reason.isGC() {
+ 		sched.stwStoppingTimeGC.record(startTime)
+ 	} else {
+@@ -1554,7 +1556,7 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 
+ 	worldStopped()
+ 
+-	return worldStop{reason: reason, start: start}
++	return worldStop{reason: reason, startedStopping: start, finishedStopping: finish}
+ }
+ 
+ // reason is the same STW reason passed to stopTheWorld. start is the start
+@@ -1610,7 +1612,7 @@ func startTheWorldWithSema(now int64, w worldStop) int64 {
+ 	if now == 0 {
+ 		now = nanotime()
+ 	}
+-	totalTime := now - w.start
++	totalTime := now - w.startedStopping
+ 	if w.reason.isGC() {
+ 		sched.stwTotalTimeGC.record(totalTime)
+ 	} else {

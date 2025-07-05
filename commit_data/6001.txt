@@ -18,9 +18,135 @@ Date:   Wed Aug 11 21:25:52 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1936044
-
+---
  src/cmd/gofmt/test.sh              |  3 ++-
  src/pkg/go/parser/parser.go        | 10 +++++++---
  src/pkg/go/scanner/scanner.go      | 10 +++++++---
  src/pkg/go/scanner/scanner_test.go | 17 ++++++++++++-----
  4 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index a8309421a7..133cc8a64f 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -41,7 +41,8 @@ apply1() {
+ 	bug106.go | bug121.go | bug125.go | bug133.go | bug160.go | \
+ 	bug163.go | bug166.go | bug169.go | bug217.go | bug222.go | \
+ 	bug226.go | bug228.go | bug248.go | bug274.go | bug280.go | \
+-	bug282.go | bug287.go | bug298.go | bug299.go | bug300.go ) return ;;
++	bug282.go | bug287.go | bug298.go | bug299.go | bug300.go | \
++	bug302.go ) return ;;
+ 	esac
+ 	# the following directories are skipped because they contain test
+ 	# cases for syntax errors and thus won't parse in the first place:
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index a492e738f7..51ed2f2eb1 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -245,9 +245,13 @@ func (p *parser) errorExpected(pos token.Position, msg string) {
+ 	if pos.Offset == p.pos.Offset {
+ 		// the error happened at the current position;
+ 		// make the error message more specific
+-		msg += ", found '" + p.tok.String() + "'"
+-		if p.tok.IsLiteral() {
+-			msg += " " + string(p.lit)
++		if p.tok == token.SEMICOLON && p.lit[0] == '\n' {
++			msg += ", found newline"
++		} else {
++			msg += ", found '" + p.tok.String() + "'"
++			if p.tok.IsLiteral() {
++				msg += " " + string(p.lit)
++			}
+ 		}
+ 	}
+ 	p.Error(pos, msg)
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index e5ac9d7729..a623e7331e 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -499,12 +499,16 @@ func (S *Scanner) switch4(tok0, tok1 token.Token, ch2 int, tok2, tok3 token.Toke
+ }
+ 
+ 
+-var semicolon = []byte{';'}
++var newline = []byte{'\n'}
+ 
+ // Scan scans the next token and returns the token position pos,
+ // the token tok, and the literal text lit corresponding to the
+ // token. The source end is indicated by token.EOF.
+ //
++// If the returned token is token.SEMICOLON, the corresponding
++// literal value is ";" if the semicolon was present in the source,
++// and "\n" if the semicolon was inserted because of a newline.
++//
+ // For more tolerant parsing, Scan will return a valid token if
+ // possible even if a syntax error was encountered. Thus, even
+ // if the resulting token sequence contains no illegal tokens,
+@@ -541,7 +545,7 @@ scanAgain:
+ 			// set in the first place and exited early
+ 			// from S.skipWhitespace()
+ 			S.insertSemi = false // newline consumed
+-			return pos, token.SEMICOLON, semicolon
++			return pos, token.SEMICOLON, newline
+ 		case '"':
+ 			insertSemi = true
+ 			tok = token.STRING
+@@ -609,7 +613,7 @@ scanAgain:
+ 					S.offset = pos.Offset + 1
+ 					S.ch = '/'
+ 					S.insertSemi = false // newline consumed
+-					return pos, token.SEMICOLON, semicolon
++					return pos, token.SEMICOLON, newline
+ 				}
+ 				S.scanComment(pos)
+ 				if S.mode&ScanComments == 0 {
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 002a81dd9e..c3bb9d023b 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -269,6 +269,12 @@ func checkSemi(t *testing.T, line string, mode uint) {
+ 	pos, tok, lit := S.Scan()
+ 	for tok != token.EOF {
+ 		if tok == token.ILLEGAL {
++			// the illegal token literal indicates what
++			// kind of semicolon literal to expect
++			semiLit := "\n"
++			if lit[0] == '#' {
++				semiLit = ";"
++			}
+ 			// next token must be a semicolon
+ 			offs := pos.Offset + 1
+ 			pos, tok, lit = S.Scan()
+@@ -276,8 +282,8 @@ func checkSemi(t *testing.T, line string, mode uint) {
+ 				if pos.Offset != offs {
+ 					t.Errorf("bad offset for %q: got %d, expected %d", line, pos.Offset, offs)
+ 				}
+-				if string(lit) != ";" {
+-					t.Errorf(`bad literal for %q: got %q, expected ";"`, line, lit)
++				if string(lit) != semiLit {
++					t.Errorf(`bad literal for %q: got %q, expected %q`, line, lit, semiLit)
+ 				}
+ 			} else {
+ 				t.Errorf("bad token for %q: got %s, expected ;", line, tok.String())
+@@ -291,9 +297,10 @@ func checkSemi(t *testing.T, line string, mode uint) {
+ 
+ 
+ var lines = []string{
+-	// the $ character indicates where a semicolon is expected
++	// # indicates a semicolon present in the source
++	// $ indicates an automatically inserted semicolon
+ 	"",
+-	"$;",
++	"#;",
+ 	"foo$\n",
+ 	"123$\n",
+ 	"1.2$\n",
+@@ -354,7 +361,7 @@ var lines = []string{
+ 	")$\n",
+ 	"]$\n",
+ 	"}$\n",
+-	"$;\n",
++	"#;\n",
+ 	":\n",
+ 
+ 	"break$\n",

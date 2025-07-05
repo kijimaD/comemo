@@ -12,8 +12,72 @@ Date:   Thu Mar 14 17:08:25 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                          |  3 ++-
  src/cmd/go/internal/clean/clean.go             | 14 ++++++++++++--
  src/cmd/go/testdata/script/mod_clean_cache.txt |  5 ++---
  3 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index d037d86bff..55371c1215 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -202,7 +202,8 @@
+ // so go clean is mainly concerned with object files left by other
+ // tools or by manual invocations of go build.
+ //
+-// Specifically, clean removes the following files from each of the
++// If a package argument is given or the -i or -r flag is set,
++// clean removes the following files from each of the
+ // source directories corresponding to the import paths:
+ //
+ // 	_obj/            old object directory, left from Makefiles
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 27121ed2ae..3389d5f18b 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -33,7 +33,8 @@ The go command builds most objects in a temporary directory,
+ so go clean is mainly concerned with object files left by other
+ tools or by manual invocations of go build.
+ 
+-Specifically, clean removes the following files from each of the
++If a package argument is given or the -i or -r flag is set,
++clean removes the following files from each of the
+ source directories corresponding to the import paths:
+ 
+ 	_obj/            old object directory, left from Makefiles
+@@ -105,7 +106,16 @@ func init() {
+ }
+ 
+ func runClean(cmd *base.Command, args []string) {
+-	if len(args) > 0 || !modload.Enabled() || modload.HasModRoot() {
++	// golang.org/issue/29925: only load packages before cleaning if
++	// either the flags and arguments explicitly imply a package,
++	// or no other target (such as a cache) was requested to be cleaned.
++	cleanPkg := len(args) > 0 || cleanI || cleanR
++	if (!modload.Enabled() || modload.HasModRoot()) &&
++		!cleanCache && !cleanModcache && !cleanTestcache {
++		cleanPkg = true
++	}
++
++	if cleanPkg {
+ 		for _, pkg := range load.PackagesAndErrors(args) {
+ 			clean(pkg)
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_clean_cache.txt b/src/cmd/go/testdata/script/mod_clean_cache.txt
+index a9519f9d90..01fbc381e0 100644
+--- a/src/cmd/go/testdata/script/mod_clean_cache.txt
++++ b/src/cmd/go/testdata/script/mod_clean_cache.txt
+@@ -30,10 +30,9 @@ go clean -r -modcache
+ ! exists ../replaced/test.out  # BUG: should still exist
+ 
+ # 'go clean -modcache' should not download anything before cleaning.
+-# BUG(golang.org/issue/28680): Today, it does.
+ go mod edit -require rsc.io/quote@v1.99999999.0-not-a-real-version
+-! go clean -modcache    # BUG: should succeed
+-stderr 'finding rsc.io' # BUG: should not resolve module
++go clean -modcache
++! stderr 'finding rsc.io'
+ go mod edit -droprequire rsc.io/quote
+ 
+ -- go.mod --

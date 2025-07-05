@@ -13,10 +13,76 @@ Date:   Mon Aug 19 12:05:33 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/12812044
-
+---
  test/slice3err.go    | 2 +-
  test/syntax/semi1.go | 2 +-
  test/syntax/semi2.go | 2 +-
  test/syntax/semi3.go | 2 +-
  test/syntax/semi4.go | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/test/slice3err.go b/test/slice3err.go
+index c48ebfeaee..906b007035 100644
+--- a/test/slice3err.go
++++ b/test/slice3err.go
+@@ -20,7 +20,7 @@ func f() {
+ 	_ = array[::] // ERROR "middle index required in 3-index slice" "final index required in 3-index slice"
+ 	_ = array[i::] // ERROR "middle index required in 3-index slice" "final index required in 3-index slice"
+ 	_ = array[:j:] // ERROR "final index required in 3-index slice"
+-	_ = array[i:j:] // ERROR  "final index required in 3-index slice"
++	_ = array[i:j:] // ERROR "final index required in 3-index slice"
+ 	_ = array[::k] // ERROR "middle index required in 3-index slice"
+ 	_ = array[i::k] // ERROR "middle index required in 3-index slice"
+ 	_ = array[:j:k]
+diff --git a/test/syntax/semi1.go b/test/syntax/semi1.go
+index 8fbfb206ad..cc30f26546 100644
+--- a/test/syntax/semi1.go
++++ b/test/syntax/semi1.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	if x; y		// ERROR "unexpected semicolon or newline before .?{.?|undefined"
++	if x; y		// ERROR "missing { after if clause|undefined"
+ 	{
+ 		z	// GCCGO_ERROR "undefined"
+ 
+diff --git a/test/syntax/semi2.go b/test/syntax/semi2.go
+index cfb0ed17b7..61b8bf6d4f 100644
+--- a/test/syntax/semi2.go
++++ b/test/syntax/semi2.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch x; y	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
++	switch x; y	// ERROR "missing { after switch clause|undefined"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi3.go b/test/syntax/semi3.go
+index 645af7354a..bb87520c52 100644
+--- a/test/syntax/semi3.go
++++ b/test/syntax/semi3.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	for x; y; z	// ERROR "unexpected semicolon or newline before .?{.?|undefined"
++	for x; y; z	// ERROR "missing { after for clause|undefined"
+ 	{
+ 		z	// GCCGO_ERROR "undefined"
+ 
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index e192348aa2..00fa3f575f 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+-	{		// ERROR "unexpected semicolon or newline before .?{.?"
++	{		// ERROR "missing { after for clause"
+ 		z	// GCCGO_ERROR "undefined"
+ 
+ 

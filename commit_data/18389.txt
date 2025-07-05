@@ -9,6 +9,38 @@ Date:   Fri Jan 31 18:09:53 2014 +0400
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/58710043
-
+---
  src/pkg/runtime/chan_test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/chan_test.go b/src/pkg/runtime/chan_test.go
+index 6123ba67a9..a855edb47c 100644
+--- a/src/pkg/runtime/chan_test.go
++++ b/src/pkg/runtime/chan_test.go
+@@ -136,10 +136,10 @@ func TestChan(t *testing.T) {
+ 			for i := 0; i < 100; i++ {
+ 				v, ok := <-c
+ 				if !ok {
+-					t.Fatalf("chan[%d]: receive failed, expected %v", n, i)
++					t.Fatalf("chan[%d]: receive failed, expected %v", chanCap, i)
+ 				}
+ 				if v != i {
+-					t.Fatalf("chan[%d]: received %v, expected %v", n, v, i)
++					t.Fatalf("chan[%d]: received %v, expected %v", chanCap, v, i)
+ 				}
+ 			}
+ 
+@@ -172,11 +172,11 @@ func TestChan(t *testing.T) {
+ 				}
+ 			}
+ 			if len(recv) != L {
+-				t.Fatalf("chan[%d]: received %v values, expected %v", n, len(recv), L)
++				t.Fatalf("chan[%d]: received %v values, expected %v", chanCap, len(recv), L)
+ 			}
+ 			for _, v := range recv {
+ 				if v != P {
+-					t.Fatalf("chan[%d]: received %v values, expected %v", n, v, P)
++					t.Fatalf("chan[%d]: received %v values, expected %v", chanCap, v, P)
+ 				}
+ 			}
+ 		}

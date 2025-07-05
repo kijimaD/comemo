@@ -15,7 +15,49 @@ Date:   Thu May 3 12:28:43 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strconv/itoa.go      |  5 ++---
  src/strconv/itoa_test.go | 12 ++++++++----
  2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 394716ccd7..8afe7af251 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -57,11 +57,10 @@ func AppendUint(dst []byte, i uint64, base int) []byte {
+ 
+ // small returns the string for an i with 0 <= i < nSmalls.
+ func small(i int) string {
+-	off := 0
+ 	if i < 10 {
+-		off = 1
++		return digits[i : i+1]
+ 	}
+-	return smallsString[i*2+off : i*2+2]
++	return smallsString[i*2 : i*2+2]
+ }
+ 
+ const nSmalls = 100
+diff --git a/src/strconv/itoa_test.go b/src/strconv/itoa_test.go
+index 89c2de6941..b5ee3aa828 100644
+--- a/src/strconv/itoa_test.go
++++ b/src/strconv/itoa_test.go
+@@ -200,10 +200,14 @@ func BenchmarkAppendUint(b *testing.B) {
+ }
+ 
+ func BenchmarkFormatIntSmall(b *testing.B) {
+-	const smallInt = 42
+-	for i := 0; i < b.N; i++ {
+-		s := FormatInt(smallInt, 10)
+-		BenchSink += len(s)
++	smallInts := []int64{7, 42}
++	for _, smallInt := range smallInts {
++		b.Run(Itoa(int(smallInt)), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				s := FormatInt(smallInt, 10)
++				BenchSink += len(s)
++			}
++		})
+ 	}
+ }
+ 

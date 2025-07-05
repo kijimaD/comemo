@@ -11,6 +11,27 @@ Date:   Fri Oct 20 14:20:48 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index f172492128..5772ebe806 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -117,6 +117,15 @@ func caninl(fn *Node) {
+ 		return
+ 	}
+ 
++	// The nowritebarrierrec checker currently works at function
++	// granularity, so inlining yeswritebarrierrec functions can
++	// confuse it (#22342). As a workaround, disallow inlining
++	// them for now.
++	if fn.Func.Pragma&Yeswritebarrierrec != 0 {
++		reason = "marked go:yeswritebarrierrec"
++		return
++	}
++
+ 	// If fn has no body (is defined outside of Go), cannot inline it.
+ 	if fn.Nbody.Len() == 0 {
+ 		reason = "no function body"

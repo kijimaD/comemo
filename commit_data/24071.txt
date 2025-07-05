@@ -14,7 +14,76 @@ Date:   Fri Jul 3 11:34:18 2015 +1000
     Change-Id: Ic88c537b2b0c710cf517888f3dd15cb702dd142f
     Reviewed-on: https://go-review.googlesource.com/11858
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/image/draw/bench_test.go | 24 +++++++++++++++++++++++-
  src/image/draw/draw.go       |  1 +
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/draw/bench_test.go b/src/image/draw/bench_test.go
+index 51145d1127..7b89f95d11 100644
+--- a/src/image/draw/bench_test.go
++++ b/src/image/draw/bench_test.go
+@@ -7,6 +7,7 @@ package draw
+ import (
+ 	"image"
+ 	"image/color"
++	"reflect"
+ 	"testing"
+ )
+ 
+@@ -15,6 +16,11 @@ const (
+ 	srcw, srch = 400, 300
+ )
+ 
++var palette = color.Palette{
++	color.Black,
++	color.White,
++}
++
+ // bench benchmarks drawing src and mask images onto a dst image with the
+ // given op and the color models to create those images from.
+ // The created images' pixels are initialized to non-zero values.
+@@ -50,7 +56,19 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 		}
+ 		dst = dst1
+ 	default:
+-		b.Fatal("unknown destination color model", dcm)
++		// The == operator isn't defined on a color.Palette (a slice), so we
++		// use reflection.
++		if reflect.DeepEqual(dcm, palette) {
++			dst1 := image.NewPaletted(image.Rect(0, 0, dstw, dsth), palette)
++			for y := 0; y < dsth; y++ {
++				for x := 0; x < dstw; x++ {
++					dst1.SetColorIndex(x, y, uint8(x^y)&1)
++				}
++			}
++			dst = dst1
++		} else {
++			b.Fatal("unknown destination color model", dcm)
++		}
+ 	}
+ 
+ 	var src image.Image
+@@ -218,6 +236,10 @@ func BenchmarkRGBA(b *testing.B) {
+ 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+ }
+ 
++func BenchmarkPaletted(b *testing.B) {
++	bench(b, palette, color.RGBAModel, nil, Src)
++}
++
+ // The BenchmarkGenericFoo functions exercise the generic, slow-path code.
+ 
+ func BenchmarkGenericOver(b *testing.B) {
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index ee1126cd08..3087c07ff5 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -176,6 +176,7 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 	case *image.Paletted:
+ 		if op == Src && mask == nil && !processBackward(dst, r, src, sp) {
+ 			drawPaletted(dst0, r, src, sp, false)
++			return
+ 		}
+ 	}
+ 

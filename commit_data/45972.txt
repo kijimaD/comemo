@@ -20,7 +20,7 @@ Date:   Mon Nov 30 21:38:49 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go |   3 +-
  test/alias2.go                       |   4 +-
  test/append1.go                      |  10 ++--
@@ -33,3 +33,611 @@ Date:   Mon Nov 30 21:38:49 2020 -0800
  test/convert2.go                     |  74 +++++++++++------------
  test/run.go                          | 112 ++++++++++++++++++++++++++++++++++-
  11 files changed, 208 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 0cbea2c461..1cdb6bc08c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -83,7 +83,8 @@ func parseFiles(filenames []string, allowGenerics bool) (lines uint) {
+ 		}
+ 
+ 		conf := types2.Config{
+-			InferFromConstraints: true,
++			InferFromConstraints:  true,
++			CompilerErrorMessages: true,
+ 			Error: func(err error) {
+ 				terr := err.(types2.Error)
+ 				if len(terr.Msg) > 0 && terr.Msg[0] == '\t' {
+diff --git a/test/alias2.go b/test/alias2.go
+index 1c141ac490..d7b5dccb68 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -36,7 +36,7 @@ type (
+ 
+ // Methods can be declared on the original named type and the alias.
+ func (T0) m1()  {} // GCCGO_ERROR "previous"
+-func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|redefinition of .m1."
++func (*T0) m1() {} // ERROR "method redeclared: T0\.m1|T0\.m1 redeclared in this block|redefinition of .m1."
+ func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+ func (A0) m1()  {} // ERROR "T0\.m1 redeclared in this block|redefinition of .m1."
+ func (A0) m2()  {}
+@@ -90,7 +90,7 @@ func _() {
+ 
+ // Invalid type alias declarations.
+ 
+-type _ = reflect.ValueOf // ERROR "reflect.ValueOf is not a type|expected type"
++type _ = reflect.ValueOf // ERROR "reflect.ValueOf .*is not a type|expected type"
+ 
+ func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
+ func (A2) m() {} // ERROR "invalid receiver type"
+diff --git a/test/append1.go b/test/append1.go
+index 0fe24c0956..9dab120b25 100644
+--- a/test/append1.go
++++ b/test/append1.go
+@@ -13,10 +13,10 @@ func main() {
+ 
+ 	s := make([]int, 8)
+ 
+-	_ = append()           // ERROR "missing arguments to append"
+-	_ = append(s...)       // ERROR "cannot use ... on first argument"
+-	_ = append(s, 2, s...) // ERROR "too many arguments to append"
++	_ = append()           // ERROR "missing arguments to append|not enough arguments for append"
++	_ = append(s...)       // ERROR "cannot use ... on first argument|not enough arguments in call to append"
++	_ = append(s, 2, s...) // ERROR "too many arguments to append|too many arguments in call to append"
+ 
+-	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append"
+-	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make"
++	_ = append(s, make([]int, 0))     // ERROR "cannot use make.* as type int in append|cannot use make.* as int value"
++	_ = append(s, make([]int, -1)...) // ERROR "negative len argument in make|index -1.* must not be negative"
+ }
+diff --git a/test/assign.go b/test/assign.go
+index 6611f8ce3e..549f42eb80 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -42,7 +42,7 @@ func main() {
+ 		_ = x
+ 	}
+ 	{
+-		x := sync.Mutex{key: 0} // ERROR "(unknown|assignment).*Mutex"
++		x := sync.Mutex{key: 0} // ERROR "(unknown|assignment).*Mutex|unknown field.* in struct literal"
+ 		_ = x
+ 	}
+ 	{
+@@ -56,13 +56,13 @@ func main() {
+ 	{
+ 		var x = 1
+ 		{
+-			x, x := 2, 3 // ERROR "x repeated on left side of :="
++			x, x := 2, 3 // ERROR "x repeated on left side of :=|x redeclared in this block"
+ 			_ = x
+ 		}
+ 		_ = x
+ 	}
+ 	{
+-		a, a := 1, 2 // ERROR "a repeated on left side of :="
++		a, a := 1, 2 // ERROR "a repeated on left side of :=|a redeclared in this block"
+ 		_ = a
+ 	}
+ }
+diff --git a/test/blank1.go b/test/blank1.go
+index c9a8e6a290..3c981cd5eb 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -25,8 +25,8 @@ func main() {
+ 	_()	// ERROR "cannot use .* as value"
+ 	x := _+1	// ERROR "cannot use .* as value"
+ 	_ = x
+-	_ = t._ // ERROR "cannot refer to blank field|invalid use of"
++	_ = t._ // ERROR "cannot refer to blank field|invalid use of|t._ undefined"
+ 
+       var v1, v2 T
+-      _ = v1 == v2 // ERROR "cannot be compared|non-comparable"
++      _ = v1 == v2 // ERROR "cannot be compared|non-comparable|cannot compare v1 == v2"
+ }
+diff --git a/test/cannotassign.go b/test/cannotassign.go
+index 0de04ecad0..27e62890c5 100644
+--- a/test/cannotassign.go
++++ b/test/cannotassign.go
+@@ -10,24 +10,24 @@ package main
+ 
+ func main() {
+ 	var s string = "hello"
+-	s[1:2] = "a" // ERROR "cannot assign to .* \(strings are immutable\)"
+-	s[3] = "b"   // ERROR "cannot assign to .* \(strings are immutable\)"
++	s[1:2] = "a" // ERROR "cannot assign to .* (\(strings are immutable\))?"
++	s[3] = "b"   // ERROR "cannot assign to .* (\(strings are immutable\))?"
+ 
+ 	const n int = 1
+ 	const cs string = "hello"
+-	n = 2        // ERROR "cannot assign to .* \(declared const\)"
+-	cs = "hi"    // ERROR "cannot assign to .* \(declared const\)"
+-	true = false // ERROR "cannot assign to .* \(declared const\)"
++	n = 2        // ERROR "cannot assign to .* (\(declared const\))?"
++	cs = "hi"    // ERROR "cannot assign to .* (\(declared const\))?"
++	true = false // ERROR "cannot assign to .* (\(declared const\))?"
+ 
+ 	var m map[int]struct{ n int }
+ 	m[0].n = 7 // ERROR "cannot assign to struct field .* in map$"
+ 
+-	1 = 7         // ERROR "cannot assign to 1$"
+-	"hi" = 7      // ERROR `cannot assign to "hi"$`
+-	nil = 7       // ERROR "cannot assign to nil$"
+-	len("") = 7   // ERROR `cannot assign to len\(""\)$`
+-	[]int{} = nil // ERROR "cannot assign to \[\]int\{\}$"
++	1 = 7         // ERROR "cannot assign to 1"
++	"hi" = 7      // ERROR `cannot assign to "hi"`
++	nil = 7       // ERROR "cannot assign to nil"
++	len("") = 7   // ERROR `cannot assign to len\(""\)`
++	[]int{} = nil // ERROR "cannot assign to \[\]int\{\}"
+ 
+ 	var x int = 7
+-	x + 1 = 7 // ERROR "cannot assign to x \+ 1$"
++	x + 1 = 7 // ERROR "cannot assign to x \+ 1"
+ }
+diff --git a/test/cmp6.go b/test/cmp6.go
+index 7cf76044ef..704ead2caa 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -63,16 +63,16 @@ func main() {
+ 	use(a3 == a3) // ERROR "invalid operation|invalid comparison"
+ 
+ 	// Comparison of structs should have a good message
+-	use(t3 == t3) // ERROR "struct|expected"
+-	use(t4 == t4) // ERROR "cannot be compared|non-comparable"
++	use(t3 == t3) // ERROR "struct|expected|cannot compare"
++	use(t4 == t4) // ERROR "cannot be compared|non-comparable|cannot compare"
+ 
+ 	// Slices, functions, and maps too.
+ 	var x []int
+ 	var f func()
+ 	var m map[int]int
+-	use(x == x) // ERROR "slice can only be compared to nil"
+-	use(f == f) // ERROR "func can only be compared to nil"
+-	use(m == m) // ERROR "map can only be compared to nil"
++	use(x == x) // ERROR "slice can only be compared to nil|cannot compare"
++	use(f == f) // ERROR "func can only be compared to nil|cannot compare"
++	use(m == m) // ERROR "map can only be compared to nil|cannot compare"
+ 
+ 	// Comparison with interface that cannot return true
+ 	// (would panic).
+diff --git a/test/const1.go b/test/const1.go
+index 3fd5b55522..1efe688cb9 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -30,43 +30,43 @@ const (
+ )
+ 
+ var (
+-	a1 = Int8 * 100              // ERROR "overflow"
++	a1 = Int8 * 100              // ERROR "overflow|cannot convert"
+ 	a2 = Int8 * -1               // OK
+-	a3 = Int8 * 1000             // ERROR "overflow"
+-	a4 = Int8 * int8(1000)       // ERROR "overflow"
+-	a5 = int8(Int8 * 1000)       // ERROR "overflow"
+-	a6 = int8(Int8 * int8(1000)) // ERROR "overflow"
+-	a7 = Int8 - 2*Int8 - 2*Int8  // ERROR "overflow"
+-	a8 = Int8 * Const / 100      // ERROR "overflow"
++	a3 = Int8 * 1000             // ERROR "overflow|cannot convert"
++	a4 = Int8 * int8(1000)       // ERROR "overflow|cannot convert"
++	a5 = int8(Int8 * 1000)       // ERROR "overflow|cannot convert"
++	a6 = int8(Int8 * int8(1000)) // ERROR "overflow|cannot convert"
++	a7 = Int8 - 2*Int8 - 2*Int8  // ERROR "overflow|cannot convert"
++	a8 = Int8 * Const / 100      // ERROR "overflow|cannot convert"
+ 	a9 = Int8 * (Const / 100)    // OK
+ 
+-	b1        = Uint8 * Uint8         // ERROR "overflow"
+-	b2        = Uint8 * -1            // ERROR "overflow"
++	b1        = Uint8 * Uint8         // ERROR "overflow|cannot convert"
++	b2        = Uint8 * -1            // ERROR "overflow|cannot convert"
+ 	b3        = Uint8 - Uint8         // OK
+-	b4        = Uint8 - Uint8 - Uint8 // ERROR "overflow"
+-	b5        = uint8(^0)             // ERROR "overflow"
++	b4        = Uint8 - Uint8 - Uint8 // ERROR "overflow|cannot convert"
++	b5        = uint8(^0)             // ERROR "overflow|cannot convert"
+ 	b5a       = int64(^0)             // OK
+ 	b6        = ^uint8(0)             // OK
+ 	b6a       = ^int64(0)             // OK
+-	b7        = uint8(Minus1)         // ERROR "overflow"
+-	b8        = uint8(int8(-1))       // ERROR "overflow"
+-	b8a       = uint8(-1)             // ERROR "overflow"
++	b7        = uint8(Minus1)         // ERROR "overflow|cannot convert"
++	b8        = uint8(int8(-1))       // ERROR "overflow|cannot convert"
++	b8a       = uint8(-1)             // ERROR "overflow|cannot convert"
+ 	b9   byte = (1 << 10) >> 8        // OK
+-	b10  byte = (1 << 10)             // ERROR "overflow"
+-	b11  byte = (byte(1) << 10) >> 8  // ERROR "overflow"
+-	b12  byte = 1000                  // ERROR "overflow"
+-	b13  byte = byte(1000)            // ERROR "overflow"
+-	b14  byte = byte(100) * byte(100) // ERROR "overflow"
+-	b15  byte = byte(100) * 100       // ERROR "overflow"
+-	b16  byte = byte(0) * 1000        // ERROR "overflow"
++	b10  byte = (1 << 10)             // ERROR "overflow|cannot convert"
++	b11  byte = (byte(1) << 10) >> 8  // ERROR "overflow|cannot convert"
++	b12  byte = 1000                  // ERROR "overflow|cannot convert"
++	b13  byte = byte(1000)            // ERROR "overflow|cannot convert"
++	b14  byte = byte(100) * byte(100) // ERROR "overflow|cannot convert"
++	b15  byte = byte(100) * 100       // ERROR "overflow|cannot convert"
++	b16  byte = byte(0) * 1000        // ERROR "overflow|cannot convert"
+ 	b16a byte = 0 * 1000              // OK
+-	b17  byte = byte(0) * byte(1000)  // ERROR "overflow"
++	b17  byte = byte(0) * byte(1000)  // ERROR "overflow|cannot convert"
+ 	b18  byte = Uint8 / 0             // ERROR "division by zero"
+ 
+ 	c1 float64 = Big
+-	c2 float64 = Big * Big          // ERROR "overflow"
+-	c3 float64 = float64(Big) * Big // ERROR "overflow"
+-	c4         = Big * Big          // ERROR "overflow"
++	c2 float64 = Big * Big          // ERROR "overflow|cannot convert"
++	c3 float64 = float64(Big) * Big // ERROR "overflow|cannot convert"
++	c4         = Big * Big          // ERROR "overflow|cannot convert"
+ 	c5         = Big / 0            // ERROR "division by zero"
+ 	c6         = 1000 % 1e3         // ERROR "invalid operation|expected integer type"
+ )
+@@ -87,8 +87,8 @@ func main() {
+ 	f(Bool)             // ERROR "convert|wrong type|cannot|incompatible"
+ }
+ 
+-const ptr = nil // ERROR "const.*nil"
++const ptr = nil // ERROR "const.*nil|not constant"
+ const _ = string([]byte(nil)) // ERROR "is not a? ?constant"
+ const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
+-const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant"
+-const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant"
++const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
++const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type|is not a constant|not constant"
+diff --git a/test/const2.go b/test/const2.go
+index d104a2fa71..f0de37be15 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -11,7 +11,7 @@ package main
+ 
+ const (
+ 	A int = 1
+-	B byte;	// ERROR "type without expr|expected .=."
++	B byte;	// ERROR "type without expr|expected .=.|missing init expr"
+ )
+ 
+ const LargeA = 1000000000000000000
+@@ -23,7 +23,7 @@ const AlsoLargeA = LargeA << 400 << 400 >> 400 >> 400 // GC_ERROR "constant shif
+ // Issue #42732.
+ 
+ const a = 1e+500000000
+-const b = a * a // ERROR "constant multiplication overflow"
++const b = a * a // ERROR "constant multiplication overflow|not representable"
+ const c = b * b
+ 
+ const MaxInt512 = (1<<256 - 1) * (1<<256 + 1)
+diff --git a/test/convert2.go b/test/convert2.go
+index c500638929..e7044b2453 100644
+--- a/test/convert2.go
++++ b/test/convert2.go
+@@ -22,7 +22,7 @@ func _() {
+ 	var t T
+ 	var u struct{}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = u
+ 	s = S(s)
+ 	s = S(t)
+@@ -42,12 +42,12 @@ func _() {
+ 		x int "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = T(u)
+ }
+ 
+@@ -63,12 +63,12 @@ func _() {
+ 		x E "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = T(u)
+ }
+ 
+@@ -91,12 +91,12 @@ func _() {
+ 		} "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = T(u)
+ }
+ 
+@@ -117,12 +117,12 @@ func _() {
+ 		x E2 "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = S(s)
+ 	s = S(t) // ERROR "cannot convert"
+ 	s = S(u) // ERROR "cannot convert"
+-	t = u    // ERROR "cannot use .* in assignment"
++	t = u    // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = T(u)
+ }
+ 
+@@ -142,12 +142,12 @@ func _() {
+ 	var t T
+ 	var u struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = S(s)
+ 	s = S(t)
+ 	s = S(u) // ERROR "cannot convert"
+-	t = u    // ERROR "cannot use .* in assignment"
++	t = u    // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = T(u) // ERROR "cannot convert"
+ }
+ 
+@@ -160,12 +160,12 @@ func _() {
+ 	var t *T
+ 	var u *struct{}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u)
+ }
+ 
+@@ -180,12 +180,12 @@ func _() {
+ 		x int "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u)
+ }
+ 
+@@ -201,12 +201,12 @@ func _() {
+ 		x E "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u)
+ }
+ 
+@@ -229,12 +229,12 @@ func _() {
+ 		} "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u)
+-	t = u // ERROR "cannot use .* in assignment"
++	t = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u)
+ }
+ 
+@@ -255,12 +255,12 @@ func _() {
+ 		x E2 "bar"
+ 	}
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t) // ERROR "cannot convert"
+ 	s = (*S)(u) // ERROR "cannot convert"
+-	t = u       // ERROR "cannot use .* in assignment"
++	t = u       // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u)
+ }
+ 
+@@ -280,12 +280,12 @@ func _() {
+ 	var t *T
+ 	var u *struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u) // ERROR "cannot convert"
+-	t = u       // ERROR "cannot use .* in assignment"
++	t = u       // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u) // ERROR "cannot convert"
+ }
+ 
+@@ -305,11 +305,11 @@ func _() {
+ 	var t *T
+ 	var u *struct{ f func(E) }
+ 	s = s
+-	s = t // ERROR "cannot use .* in assignment"
+-	s = u // ERROR "cannot use .* in assignment"
++	s = t // ERROR "cannot use .* in assignment|incompatible type"
++	s = u // ERROR "cannot use .* in assignment|incompatible type"
+ 	s = (*S)(s)
+ 	s = (*S)(t)
+ 	s = (*S)(u) // ERROR "cannot convert"
+-	t = u       // ERROR "cannot use .* in assignment"
++	t = u       // ERROR "cannot use .* in assignment|incompatible type"
+ 	t = (*T)(u) // ERROR "cannot convert"
+ }
+diff --git a/test/run.go b/test/run.go
+index 7422e6922d..319aed5ac1 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -39,6 +39,7 @@ var (
+ 	runSkips       = flag.Bool("run_skips", false, "run skipped tests (ignore skip and build tags)")
+ 	linkshared     = flag.Bool("linkshared", false, "")
+ 	updateErrors   = flag.Bool("update_errors", false, "update error messages in test file based on compiler output")
++	newTypechecker = flag.Bool("G", false, "generics typechecker. if set, run basic errorcheck tests also with new typechecker")
+ 	runoutputLimit = flag.Int("l", defaultRunOutputLimit(), "number of parallel runoutput tests to run")
+ 
+ 	shard  = flag.Int("shard", 0, "shard index to run. Only applicable if -shards is non-zero.")
+@@ -740,7 +741,116 @@ func (t *test) run() {
+ 			t.updateErrors(string(out), long)
+ 		}
+ 		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
+-		return
++
++		if t.err != nil || !*newTypechecker {
++			return
++		}
++
++		// The following is temporary scaffolding to get types2 typechecker
++		// up and running against the existing test cases. The explicitly
++		// listed files don't pass yet, usually because the error messages
++		// are slightly different (this list is not complete). Any errorcheck
++		// tests that require output from analysis phases past intial type-
++		// checking are also excluded since these phases are not running yet.
++		// We can get rid of this code once types2 is fully plugged in.
++
++		// For now we're done when we can't handle the file or some of the flags.
++		// The first goal is to eliminate the file list; the second goal is to
++		// eliminate the flag list.
++
++		// Excluded files.
++		for _, file := range []string{
++			"complit1",
++			"const2",
++			"convlit.go",
++			"copy1.go",
++			"ddd1.go",
++			"devirt.go",
++			"directive.go",
++			"float_lit3.go",
++			"func1.go",
++			"funcdup.go",
++			"funcdup2.go",
++			"goto.go",
++			"import1.go",
++			"import5.go",
++			"import6.go",
++			"init.go",
++			"initializerr.go",
++			"initloop.go",
++			"label.go",
++			"label1.go",
++			"makechan.go",
++			"makemap.go",
++			"makenew.go",
++			"map1.go",
++			"method2.go",
++			"method6.go",
++			"named1.go",
++			"rename1.go",
++			"runtime.go",
++			"shift1.go",
++			"slice3err.go",
++			"switch3.go",
++			"switch5.go",
++			"switch6.go",
++			"switch7.go",
++			"typecheck.go",
++			"typecheckloop.go",
++			"typeswitch3.go",
++			"undef.go",
++			"varerr.go",
++		} {
++			if strings.Contains(long, file) {
++				return // cannot handle file
++			}
++		}
++
++		// Excluded flags.
++		for _, flag := range flags {
++			for _, pattern := range []string{
++				"-+",
++				"-m",
++				"-live",
++				"wb",
++				"append",
++				"slice",
++				"ssa/check_bce/debug",
++				"ssa/intrinsics/debug",
++				"ssa/prove/debug",
++				"ssa/likelyadjust/debug",
++				"ssa/insert_resched_checks/off",
++				"ssa/phiopt/debug",
++				"defer",
++				"nil",
++			} {
++				if strings.Contains(flag, pattern) {
++					return // cannot handle flag
++				}
++			}
++		}
++
++		// Run errorcheck again with -G option (new typechecker).
++		cmdline = []string{goTool(), "tool", "compile", "-G", "-C", "-e", "-o", "a.o"}
++		// No need to add -dynlink even if linkshared if we're just checking for errors...
++		cmdline = append(cmdline, flags...)
++		cmdline = append(cmdline, long)
++		out, err = runcmd(cmdline...)
++		if wantError {
++			if err == nil {
++				t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
++				return
++			}
++		} else {
++			if err != nil {
++				t.err = err
++				return
++			}
++		}
++		if *updateErrors {
++			t.updateErrors(string(out), long)
++		}
++		t.err = t.errorCheck(string(out), wantAuto, long, t.gofile)
+ 
+ 	case "compile":
+ 		// Compile Go file.

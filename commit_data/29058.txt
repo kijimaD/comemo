@@ -18,6 +18,20 @@ Date:   Tue Jul 26 12:22:45 2016 +0900
     Change-Id: I6bf4e2e7247143fa54bbcf9cef7a8ae1ede1b35c
     Reviewed-on: https://go-review.googlesource.com/25220
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/tcpsock.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 7cffcc58cb..ce6e009451 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -81,7 +81,7 @@ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	}
+ 	n, err := c.readFrom(r)
+ 	if err != nil && err != io.EOF {
+-		err = &OpError{Op: "read", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		err = &OpError{Op: "readfrom", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
+ 	}
+ 	return n, err
+ }

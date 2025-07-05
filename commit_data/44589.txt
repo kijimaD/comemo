@@ -23,9 +23,347 @@ Date:   Sat Aug 8 07:58:04 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 118 ++++++++---------------------------
  src/cmd/compile/internal/gc/ssa.go   |  19 +-----
  src/cmd/compile/internal/ssa/func.go |  11 +---
  test/fixedbugs/issue40629.go         |  69 ++++++++++++++++++++
  4 files changed, 99 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b366c8a4a0..0cb2661997 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -140,24 +140,14 @@ type Liveness struct {
+ 	regMaps     []liveRegMask
+ 
+ 	cache progeffectscache
+-
+-	// These are only populated if open-coded defers are being used.
+-	// List of vars/stack slots storing defer args
+-	openDeferVars []openDeferVarInfo
+-	// Map from defer arg OpVarDef to the block where the OpVarDef occurs.
+-	openDeferVardefToBlockMap map[*Node]*ssa.Block
+-	// Map of blocks that cannot reach a return or exit (panic)
+-	nonReturnBlocks map[*ssa.Block]bool
+-}
+-
+-type openDeferVarInfo struct {
+-	n         *Node // Var/stack slot storing a defer arg
+-	varsIndex int   // Index of variable in lv.vars
+ }
+ 
+ // LivenessMap maps from *ssa.Value to LivenessIndex.
+ type LivenessMap struct {
+ 	vals map[ssa.ID]LivenessIndex
++	// The set of live, pointer-containing variables at the deferreturn
++	// call (only set when open-coded defers are used).
++	deferreturn LivenessIndex
+ }
+ 
+ func (m *LivenessMap) reset() {
+@@ -168,6 +158,7 @@ func (m *LivenessMap) reset() {
+ 			delete(m.vals, k)
+ 		}
+ 	}
++	m.deferreturn = LivenessInvalid
+ }
+ 
+ func (m *LivenessMap) set(v *ssa.Value, i LivenessIndex) {
+@@ -542,7 +533,7 @@ func newliveness(fn *Node, f *ssa.Func, vars []*Node, idx map[*Node]int32, stkpt
+ 		if cap(lc.be) >= f.NumBlocks() {
+ 			lv.be = lc.be[:f.NumBlocks()]
+ 		}
+-		lv.livenessMap = LivenessMap{lc.livenessMap.vals}
++		lv.livenessMap = LivenessMap{vals: lc.livenessMap.vals, deferreturn: LivenessInvalid}
+ 		lc.livenessMap.vals = nil
+ 	}
+ 	if lv.be == nil {
+@@ -893,58 +884,12 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+ func (lv *Liveness) prologue() {
+ 	lv.initcache()
+ 
+-	if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() {
+-		lv.openDeferVardefToBlockMap = make(map[*Node]*ssa.Block)
+-		for i, n := range lv.vars {
+-			if n.Name.OpenDeferSlot() {
+-				lv.openDeferVars = append(lv.openDeferVars, openDeferVarInfo{n: n, varsIndex: i})
+-			}
+-		}
+-
+-		// Find any blocks that cannot reach a return or a BlockExit
+-		// (panic) -- these must be because of an infinite loop.
+-		reachesRet := make(map[ssa.ID]bool)
+-		blockList := make([]*ssa.Block, 0, 256)
+-
+-		for _, b := range lv.f.Blocks {
+-			if b.Kind == ssa.BlockRet || b.Kind == ssa.BlockRetJmp || b.Kind == ssa.BlockExit {
+-				blockList = append(blockList, b)
+-			}
+-		}
+-
+-		for len(blockList) > 0 {
+-			b := blockList[0]
+-			blockList = blockList[1:]
+-			if reachesRet[b.ID] {
+-				continue
+-			}
+-			reachesRet[b.ID] = true
+-			for _, e := range b.Preds {
+-				blockList = append(blockList, e.Block())
+-			}
+-		}
+-
+-		lv.nonReturnBlocks = make(map[*ssa.Block]bool)
+-		for _, b := range lv.f.Blocks {
+-			if !reachesRet[b.ID] {
+-				lv.nonReturnBlocks[b] = true
+-				//fmt.Println("No reach ret", lv.f.Name, b.ID, b.Kind)
+-			}
+-		}
+-	}
+-
+ 	for _, b := range lv.f.Blocks {
+ 		be := lv.blockEffects(b)
+ 
+ 		// Walk the block instructions backward and update the block
+ 		// effects with the each prog effects.
+ 		for j := len(b.Values) - 1; j >= 0; j-- {
+-			if b.Values[j].Op == ssa.OpVarDef {
+-				n := b.Values[j].Aux.(*Node)
+-				if n.Name.OpenDeferSlot() {
+-					lv.openDeferVardefToBlockMap[n] = b
+-				}
+-			}
+ 			pos, e := lv.valueEffects(b.Values[j])
+ 			regUevar, regKill := lv.regEffects(b.Values[j])
+ 			if e&varkill != 0 {
+@@ -961,20 +906,6 @@ func (lv *Liveness) prologue() {
+ 	}
+ }
+ 
+-// markDeferVarsLive marks each variable storing an open-coded defer arg as
+-// specially live in block b if the variable definition dominates block b.
+-func (lv *Liveness) markDeferVarsLive(b *ssa.Block, newliveout *varRegVec) {
+-	// Only force computation of dominators if we have a block where we need
+-	// to specially mark defer args live.
+-	sdom := lv.f.Sdom()
+-	for _, info := range lv.openDeferVars {
+-		defB := lv.openDeferVardefToBlockMap[info.n]
+-		if sdom.IsAncestorEq(defB, b) {
+-			newliveout.vars.Set(int32(info.varsIndex))
+-		}
+-	}
+-}
+-
+ // Solve the liveness dataflow equations.
+ func (lv *Liveness) solve() {
+ 	// These temporary bitvectors exist to avoid successive allocations and
+@@ -1018,23 +949,6 @@ func (lv *Liveness) solve() {
+ 				}
+ 			}
+ 
+-			if lv.fn.Func.HasDefer() && !lv.fn.Func.OpenCodedDeferDisallowed() &&
+-				(b.Kind == ssa.BlockExit || lv.nonReturnBlocks[b]) {
+-				// Open-coded defer args slots must be live
+-				// everywhere in a function, since a panic can
+-				// occur (almost) anywhere. Force all appropriate
+-				// defer arg slots to be live in BlockExit (panic)
+-				// blocks and in blocks that do not reach a return
+-				// (because of infinite loop).
+-				//
+-				// We are assuming that the defer exit code at
+-				// BlockReturn/BlockReturnJmp accesses all of the
+-				// defer args (with pointers), and so keeps them
+-				// live. This analysis may have to be adjusted if
+-				// that changes (because of optimizations).
+-				lv.markDeferVarsLive(b, &newliveout)
+-			}
+-
+ 			if !be.liveout.Eq(newliveout) {
+ 				change = true
+ 				be.liveout.Copy(newliveout)
+@@ -1087,6 +1001,17 @@ func (lv *Liveness) epilogue() {
+ 				n.Name.SetNeedzero(true)
+ 				livedefer.Set(int32(i))
+ 			}
++			if n.Name.OpenDeferSlot() {
++				// Open-coded defer args slots must be live
++				// everywhere in a function, since a panic can
++				// occur (almost) anywhere. Because it is live
++				// everywhere, it must be zeroed on entry.
++				livedefer.Set(int32(i))
++				// It was already marked as Needzero when created.
++				if !n.Name.Needzero() {
++					Fatalf("all pointer-containing defer arg slots should have Needzero set")
++				}
++			}
+ 		}
+ 	}
+ 
+@@ -1188,6 +1113,17 @@ func (lv *Liveness) epilogue() {
+ 		lv.compact(b)
+ 	}
+ 
++	// If we have an open-coded deferreturn call, make a liveness map for it.
++	if lv.fn.Func.OpenCodedDeferDisallowed() {
++		lv.livenessMap.deferreturn = LivenessInvalid
++	} else {
++		lv.livenessMap.deferreturn = LivenessIndex{
++			stackMapIndex: lv.stackMapSet.add(livedefer),
++			regMapIndex:   0, // entry regMap, containing no live registers
++			isUnsafePoint: false,
++		}
++	}
++
+ 	// Done compacting. Throw out the stack map set.
+ 	lv.stackMaps = lv.stackMapSet.extractUniqe()
+ 	lv.stackMapSet = bvecSet{}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index d4d23a2956..5d0098b4e6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4318,12 +4318,6 @@ func (s *state) openDeferExit() {
+ 			}
+ 		}
+ 
+-		if i == len(s.openDefers)-1 {
+-			// Record the call of the first defer. This will be used
+-			// to set liveness info for the deferreturn (which is also
+-			// used for any location that causes a runtime panic)
+-			s.f.LastDeferExit = call
+-		}
+ 		s.endBlock()
+ 		s.startBlock(bEnd)
+ 	}
+@@ -5807,11 +5801,6 @@ type SSAGenState struct {
+ 
+ 	// wasm: The number of values on the WebAssembly stack. This is only used as a safeguard.
+ 	OnWasmStackSkipped int
+-
+-	// Liveness index for the first function call in the final defer exit code
+-	// path that we generated. All defer functions and args should be live at
+-	// this point. This will be used to set the liveness for the deferreturn.
+-	lastDeferLiveness LivenessIndex
+ }
+ 
+ // Prog appends a new Prog.
+@@ -6056,12 +6045,6 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				// instruction.
+ 				s.pp.nextLive = s.livenessMap.Get(v)
+ 
+-				// Remember the liveness index of the first defer call of
+-				// the last defer exit
+-				if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
+-					s.lastDeferLiveness = s.pp.nextLive
+-				}
+-
+ 				// Special case for first line in function; move it to the start.
+ 				if firstPos != src.NoXPos {
+ 					s.SetPos(firstPos)
+@@ -6122,7 +6105,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		// When doing open-coded defers, generate a disconnected call to
+ 		// deferreturn and a return. This will be used to during panic
+ 		// recovery to unwind the stack and return back to the runtime.
+-		s.pp.nextLive = s.lastDeferLiveness
++		s.pp.nextLive = s.livenessMap.deferreturn
+ 		gencallret(pp, Deferreturn)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7cf72a8e37..4b9189fb3e 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -33,15 +33,8 @@ type Func struct {
+ 	Blocks []*Block    // unordered set of all basic blocks (note: not indexable by ID)
+ 	Entry  *Block      // the entry basic block
+ 
+-	// If we are using open-coded defers, this is the first call to a deferred
+-	// function in the final defer exit sequence that we generated. This call
+-	// should be after all defer statements, and will have all args, etc. of
+-	// all defer calls as live. The liveness info of this call will be used
+-	// for the deferreturn/ret segment generated for functions with open-coded
+-	// defers.
+-	LastDeferExit *Value
+-	bid           idAlloc // block ID allocator
+-	vid           idAlloc // value ID allocator
++	bid idAlloc // block ID allocator
++	vid idAlloc // value ID allocator
+ 
+ 	// Given an environment variable used for debug hash match,
+ 	// what file (if any) receives the yes/no logging?
+diff --git a/test/fixedbugs/issue40629.go b/test/fixedbugs/issue40629.go
+new file mode 100644
+index 0000000000..c6ef408f49
+--- /dev/null
++++ b/test/fixedbugs/issue40629.go
+@@ -0,0 +1,69 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++const N = 40
++
++func main() {
++	var x [N]int // stack-allocated memory
++	for i := range x {
++		x[i] = 0x999
++	}
++
++	// This defer checks to see if x is uncorrupted.
++	defer func(p *[N]int) {
++		recover()
++		for i := range p {
++			if p[i] != 0x999 {
++				for j := range p {
++					fmt.Printf("p[%d]=0x%x\n", j, p[j])
++				}
++				panic("corrupted stack variable")
++			}
++		}
++	}(&x)
++
++	// This defer starts a new goroutine, which will (hopefully)
++	// overwrite x on the garbage stack.
++	defer func() {
++		c := make(chan bool)
++		go func() {
++			useStack(1000)
++			c <- true
++		}()
++		<-c
++
++	}()
++
++	// This defer causes a stack copy.
++	// The old stack is now garbage.
++	defer func() {
++		useStack(1000)
++	}()
++
++	// Trigger a segfault.
++	*g = 0
++
++	// Make the return statement unreachable.
++	// That makes the stack map at the deferreturn call empty.
++	// In particular, the argument to the first defer is not
++	// marked as a pointer, so it doesn't get adjusted
++	// during the stack copy.
++	for {
++	}
++}
++
++var g *int64
++
++func useStack(n int) {
++	if n == 0 {
++		return
++	}
++	useStack(n - 1)
++}

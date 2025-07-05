@@ -8,6 +8,26 @@ Date:   Wed Apr 6 12:37:17 2011 -0700
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4384041
-
+---
  src/pkg/exec/exec.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 75ce09990a..5398eb8e0c 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -2,9 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The exec package runs external commands.
++// The exec package runs external commands. It wraps os.StartProcess
++// to make it easier to remap stdin and stdout, connect I/O with pipes,
++// and do other adjustments.
+ package exec
+ 
++// BUG(r): This package should be made even easier to use or merged into os.
++
+ import (
+ 	"os"
+ 	"strconv"

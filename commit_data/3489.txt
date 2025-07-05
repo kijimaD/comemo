@@ -8,7 +8,52 @@ Date:   Fri Oct 9 15:28:09 2009 -0700
     DELTA=23  (22 added, 1 deleted, 0 changed)
     OCL=35529
     CL=35537
-
+---
  test/bugs/bug209.go | 18 ++++++++++++++++++
  test/golden.out     |  5 ++++-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug209.go b/test/bugs/bug209.go
+new file mode 100644
+index 0000000000..978016a3ba
+--- /dev/null
++++ b/test/bugs/bug209.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var buf [10]int;
++	for ; len(buf); {  // ERROR "bool"
++	}
++}
++
++/*
++uetli:/home/gri/go/test/bugs gri$ 6g bug209.go
++bug209.go:5: Bus error
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 42a1cec846..4646081ae7 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -39,7 +39,6 @@ hello, world
+ 7! = 5040
+ 8! = 40320
+ 9! = 362880
+-10! = 3628800
+ 
+ =========== ./printbig.go
+ -9223372036854775808
+@@ -167,3 +166,7 @@ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
++
++=========== bugs/bug209.go
++bugs/bug209.go:11: BUG: should compile
++Bus error               $G $D/$F.go

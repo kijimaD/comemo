@@ -9,8 +9,119 @@ Date:   Mon May 28 10:55:39 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6245060
-
+---
  src/pkg/net/http/header.go      | 35 +++++++++++++++++++++++++++++++++
  src/pkg/net/http/header_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/request.go     |  8 --------
  3 files changed, 78 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index b107c312da..7987036222 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -76,3 +76,38 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ // the rest are converted to lowercase.  For example, the
+ // canonical key for "accept-encoding" is "Accept-Encoding".
+ func CanonicalHeaderKey(s string) string { return textproto.CanonicalMIMEHeaderKey(s) }
++
++// hasToken returns whether token appears with v, ASCII
++// case-insensitive, with space or comma boundaries.
++// token must be all lowercase.
++// v may contain mixed cased.
++func hasToken(v, token string) bool {
++	if len(token) > len(v) || token == "" {
++		return false
++	}
++	if v == token {
++		return true
++	}
++	for sp := 0; sp <= len(v)-len(token); sp++ {
++		// Check that first character is good.
++		if b := v[sp]; b != token[0] && b|0x20 != token[0] {
++			continue
++		}
++		// Check that start pos is on a valid token boundary.
++		if sp > 0 && !isTokenBoundary(v[sp-1]) {
++			continue
++		}
++		// Check that end pos is on a valid token boundary.
++		if endPos := sp + len(token); endPos != len(v) && !isTokenBoundary(v[endPos]) {
++			continue
++		}
++		if strings.EqualFold(v[sp:sp+len(token)], token) {
++			return true
++		}
++	}
++	return false
++}
++
++func isTokenBoundary(b byte) bool {
++	return b == ' ' || b == ',' || b == '\t'
++}
+diff --git a/src/pkg/net/http/header_test.go b/src/pkg/net/http/header_test.go
+index ccdee8a97b..fee5756b77 100644
+--- a/src/pkg/net/http/header_test.go
++++ b/src/pkg/net/http/header_test.go
+@@ -79,3 +79,46 @@ func TestHeaderWrite(t *testing.T) {
+ 		buf.Reset()
+ 	}
+ }
++
++type hasTokenTest struct {
++	header string
++	token  string
++	want   bool
++}
++
++var hasTokenTests = []hasTokenTest{
++	{"", "", false},
++	{"", "foo", false},
++	{"foo", "foo", true},
++	{"foo ", "foo", true},
++	{" foo", "foo", true},
++	{" foo ", "foo", true},
++	{"foo,bar", "foo", true},
++	{"bar,foo", "foo", true},
++	{"bar, foo", "foo", true},
++	{"bar,foo, baz", "foo", true},
++	{"bar, foo,baz", "foo", true},
++	{"bar,foo, baz", "foo", true},
++	{"bar, foo, baz", "foo", true},
++	{"FOO", "foo", true},
++	{"FOO ", "foo", true},
++	{" FOO", "foo", true},
++	{" FOO ", "foo", true},
++	{"FOO,BAR", "foo", true},
++	{"BAR,FOO", "foo", true},
++	{"BAR, FOO", "foo", true},
++	{"BAR,FOO, baz", "foo", true},
++	{"BAR, FOO,BAZ", "foo", true},
++	{"BAR,FOO, BAZ", "foo", true},
++	{"BAR, FOO, BAZ", "foo", true},
++	{"foobar", "foo", false},
++	{"barfoo ", "foo", false},
++}
++
++func TestHasToken(t *testing.T) {
++	for _, tt := range hasTokenTests {
++		if hasToken(tt.header, tt.token) != tt.want {
++			t.Errorf("hasToken(%q, %q) = %v; want %v", tt.header, tt.token, !tt.want, tt.want)
++		}
++	}
++}
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 219db483b4..784dd6b322 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -745,11 +745,3 @@ func (r *Request) wantsHttp10KeepAlive() bool {
+ func (r *Request) wantsClose() bool {
+ 	return hasToken(r.Header.Get("Connection"), "close")
+ }
+-
+-func hasToken(s, token string) bool {
+-	if s == "" {
+-		return false
+-	}
+-	// TODO This is a poor implementation of the RFC. See http://golang.org/issue/3535
+-	return strings.Contains(strings.ToLower(s), token)
+-}

@@ -21,7 +21,7 @@ Date:   Wed Sep 9 18:03:41 2015 -0700
     Change-Id: I42e2fd809a4bf81301ab993e29ad9f203ce48eb0
     Reviewed-on: https://go-review.googlesource.com/14462
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 44 +++--------------
  src/cmd/compile/internal/ssa/check.go          | 18 +++----
  src/cmd/compile/internal/ssa/critical.go       |  2 +-
@@ -29,3 +29,408 @@ Date:   Wed Sep 9 18:03:41 2015 -0700
  src/cmd/compile/internal/ssa/gen/genericOps.go | 25 +++++-----
  src/cmd/compile/internal/ssa/opGen.go          | 12 ++---
  6 files changed, 71 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b29c328814..35d9e6a690 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -74,9 +74,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	// Allocate starting block
+ 	s.f.Entry = s.f.NewBlock(ssa.BlockPlain)
+ 
+-	// Allocate exit block
+-	s.exit = s.f.NewBlock(ssa.BlockExit)
+-
+ 	// Allocate starting values
+ 	s.vars = map[*Node]*ssa.Value{}
+ 	s.labels = map[string]*ssaLabel{}
+@@ -121,14 +118,8 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
+ 		b.Control = m
+-		b.AddEdgeTo(s.exit)
+ 	}
+ 
+-	// Finish up exit block
+-	s.startBlock(s.exit)
+-	s.exit.Control = s.mem()
+-	s.endBlock()
+-
+ 	// Check that we used all labels
+ 	for name, lab := range s.labels {
+ 		if !lab.used() && !lab.reported {
+@@ -181,9 +172,6 @@ type state struct {
+ 	// function we're building
+ 	f *ssa.Func
+ 
+-	// exit block that "return" jumps to (and panics jump to)
+-	exit *ssa.Block
+-
+ 	// labels and labeled control flow nodes (OFOR, OSWITCH, OSELECT) in f
+ 	labels       map[string]*ssaLabel
+ 	labeledNodes map[*Node]*ssaLabel
+@@ -582,7 +570,6 @@ func (s *state) stmt(n *Node) {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
+ 		b.Control = m
+-		b.AddEdgeTo(s.exit)
+ 	case ORETJMP:
+ 		s.stmtList(n.List)
+ 		m := s.mem()
+@@ -590,7 +577,6 @@ func (s *state) stmt(n *Node) {
+ 		b.Kind = ssa.BlockRetJmp
+ 		b.Aux = n.Left.Sym
+ 		b.Control = m
+-		b.AddEdgeTo(s.exit)
+ 
+ 	case OCONTINUE, OBREAK:
+ 		var op string
+@@ -776,7 +762,6 @@ func (s *state) stmt(n *Node) {
+ 		b.Kind = ssa.BlockCall
+ 		b.Control = r
+ 		b.AddEdgeTo(bNext)
+-		b.AddEdgeTo(s.exit)
+ 		s.startBlock(bNext)
+ 
+ 	default:
+@@ -1859,7 +1844,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		b.Kind = ssa.BlockCall
+ 		b.Control = call
+ 		b.AddEdgeTo(bNext)
+-		b.AddEdgeTo(s.exit)
+ 
+ 		// read result from stack at the start of the fallthrough block
+ 		s.startBlock(bNext)
+@@ -2154,11 +2138,12 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bNext)
+ 	b.AddEdgeTo(bPanic)
+-	bPanic.AddEdgeTo(s.exit)
+ 	s.startBlock(bPanic)
+ 	// TODO: implicit nil checks somehow?
+-	s.vars[&memvar] = s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
++	chk := s.newValue2(ssa.OpPanicNilCheck, ssa.TypeMem, ptr, s.mem())
+ 	s.endBlock()
++	bPanic.Kind = ssa.BlockExit
++	bPanic.Control = chk
+ 	s.startBlock(bNext)
+ }
+ 
+@@ -2200,12 +2185,13 @@ func (s *state) check(cmp *ssa.Value, panicOp ssa.Op) {
+ 	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	b.AddEdgeTo(bNext)
+ 	b.AddEdgeTo(bPanic)
+-	bPanic.AddEdgeTo(s.exit)
+ 	s.startBlock(bPanic)
+ 	// The panic check takes/returns memory to ensure that the right
+ 	// memory state is observed if the panic happens.
+-	s.vars[&memvar] = s.newValue1(panicOp, ssa.TypeMem, s.mem())
++	chk := s.newValue1(panicOp, ssa.TypeMem, s.mem())
+ 	s.endBlock()
++	bPanic.Kind = ssa.BlockExit
++	bPanic.Control = chk
+ 	s.startBlock(bNext)
+ }
+ 
+@@ -3492,18 +3478,8 @@ func genFPJump(s *genState, b, next *ssa.Block, jumps *[2][2]floatingEQNEJump) {
+ func (s *genState) genBlock(b, next *ssa.Block) {
+ 	lineno = b.Line
+ 
+-	// after a panic call, don't emit any branch code
+-	if len(b.Values) > 0 {
+-		switch b.Values[len(b.Values)-1].Op {
+-		case ssa.OpAMD64LoweredPanicNilCheck,
+-			ssa.OpAMD64LoweredPanicIndexCheck,
+-			ssa.OpAMD64LoweredPanicSliceCheck:
+-			return
+-		}
+-	}
+-
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
++	case ssa.BlockPlain, ssa.BlockCall:
+ 		if b.Succs[0] != next {
+ 			p := Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+@@ -3520,12 +3496,6 @@ func (s *genState) genBlock(b, next *ssa.Block) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = Linksym(b.Aux.(*Sym))
+-	case ssa.BlockCall:
+-		if b.Succs[0] != next {
+-			p := Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.branches = append(s.branches, branch{p, b.Succs[0]})
+-		}
+ 
+ 	case ssa.BlockAMD64EQF:
+ 		genFPJump(s, b, next, &eqfJumps)
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 9747585f4a..44ce4a3c71 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -60,8 +60,8 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+ 		case BlockRet:
+-			if len(b.Succs) != 1 {
+-				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
++			if len(b.Succs) != 0 {
++				f.Fatalf("ret block %s has successors", b)
+ 			}
+ 			if b.Control == nil {
+ 				f.Fatalf("ret block %s has nil control %s", b)
+@@ -69,12 +69,9 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+-			if b.Succs[0].Kind != BlockExit {
+-				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
+-			}
+ 		case BlockRetJmp:
+-			if len(b.Succs) != 1 {
+-				f.Fatalf("retjmp block %s len(Succs)==%d, want 1", b, len(b.Succs))
++			if len(b.Succs) != 0 {
++				f.Fatalf("retjmp block %s len(Succs)==%d, want 0", b, len(b.Succs))
+ 			}
+ 			if b.Control == nil {
+ 				f.Fatalf("retjmp block %s has nil control %s", b)
+@@ -82,9 +79,6 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("retjmp block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+-			if b.Succs[0].Kind != BlockExit {
+-				f.Fatalf("retjmp block %s has successor %s, not Exit", b, b.Succs[0].Kind)
+-			}
+ 			if b.Aux == nil {
+ 				f.Fatalf("retjmp block %s has nil Aux field", b)
+ 			}
+@@ -119,8 +113,8 @@ func checkFunc(f *Func) {
+ 				f.Fatalf("if block %s has non-bool control value %s", b, b.Control.LongString())
+ 			}
+ 		case BlockCall:
+-			if len(b.Succs) != 2 {
+-				f.Fatalf("call block %s len(Succs)==%d, want 2", b, len(b.Succs))
++			if len(b.Succs) != 1 {
++				f.Fatalf("call block %s len(Succs)==%d, want 1", b, len(b.Succs))
+ 			}
+ 			if b.Control == nil {
+ 				f.Fatalf("call block %s has no control value", b)
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index 439d4823e5..ba75450875 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -9,7 +9,7 @@ package ssa
+ // Regalloc wants a critical-edge-free CFG so it can implement phi values.
+ func critical(f *Func) {
+ 	for _, b := range f.Blocks {
+-		if len(b.Preds) <= 1 || b.Kind == BlockExit {
++		if len(b.Preds) <= 1 {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index b6fda0c953..2267281237 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -54,12 +54,13 @@ func postorder(f *Func) []*Block {
+ 
+ type linkedBlocks func(*Block) []*Block
+ 
+-// dfs performs a depth first search over the blocks. dfnum contains a mapping
++// dfs performs a depth first search over the blocks starting at the set of
++// blocks in the entries list (in arbitrary order). dfnum contains a mapping
+ // from block id to an int indicating the order the block was reached or
+ // notFound if the block was not reached.  order contains a mapping from dfnum
+-// to block
+-func dfs(entry *Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent []*Block) {
+-	maxBlockID := entry.Func.NumBlocks()
++// to block.
++func dfs(entries []*Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent []*Block) {
++	maxBlockID := entries[0].Func.NumBlocks()
+ 
+ 	dfnum = make([]int, maxBlockID)
+ 	order = make([]*Block, maxBlockID)
+@@ -67,23 +68,28 @@ func dfs(entry *Block, succFn linkedBlocks) (dfnum []int, order []*Block, parent
+ 
+ 	n := 0
+ 	s := make([]*Block, 0, 256)
+-	s = append(s, entry)
+-	parent[entry.ID] = entry
+-	for len(s) > 0 {
+-		node := s[len(s)-1]
+-		s = s[:len(s)-1]
+-
+-		n++
+-		for _, w := range succFn(node) {
+-			// if it has a dfnum, we've already visited it
+-			if dfnum[w.ID] == notFound {
+-				s = append(s, w)
+-				parent[w.ID] = node
+-				dfnum[w.ID] = notExplored
++	for _, entry := range entries {
++		if dfnum[entry.ID] != notFound {
++			continue // already found from a previous entry
++		}
++		s = append(s, entry)
++		parent[entry.ID] = entry
++		for len(s) > 0 {
++			node := s[len(s)-1]
++			s = s[:len(s)-1]
++
++			n++
++			for _, w := range succFn(node) {
++				// if it has a dfnum, we've already visited it
++				if dfnum[w.ID] == notFound {
++					s = append(s, w)
++					parent[w.ID] = node
++					dfnum[w.ID] = notExplored
++				}
+ 			}
++			dfnum[node.ID] = n
++			order[n] = node
+ 		}
+-		dfnum[node.ID] = n
+-		order[n] = node
+ 	}
+ 
+ 	return
+@@ -98,7 +104,7 @@ func dominators(f *Func) []*Block {
+ 
+ 	//TODO: benchmark and try to find criteria for swapping between
+ 	// dominatorsSimple and dominatorsLT
+-	return dominatorsLT(f.Entry, preds, succs)
++	return dominatorsLT([]*Block{f.Entry}, preds, succs)
+ }
+ 
+ // postDominators computes the post-dominator tree for f.
+@@ -110,35 +116,36 @@ func postDominators(f *Func) []*Block {
+ 		return nil
+ 	}
+ 
+-	// find the exit block, maybe store it as f.Exit instead?
+-	var exit *Block
++	// find the exit blocks
++	var exits []*Block
+ 	for i := len(f.Blocks) - 1; i >= 0; i-- {
+-		if f.Blocks[i].Kind == BlockExit {
+-			exit = f.Blocks[i]
++		switch f.Blocks[i].Kind {
++		case BlockExit, BlockRet, BlockRetJmp, BlockCall:
++			exits = append(exits, f.Blocks[i])
+ 			break
+ 		}
+ 	}
+ 
+-	// infite loop with no exit
+-	if exit == nil {
++	// infinite loop with no exit
++	if exits == nil {
+ 		return make([]*Block, f.NumBlocks())
+ 	}
+-	return dominatorsLT(exit, succs, preds)
++	return dominatorsLT(exits, succs, preds)
+ }
+ 
+ // dominatorsLt runs Lengauer-Tarjan to compute a dominator tree starting at
+ // entry and using predFn/succFn to find predecessors/successors to allow
+ // computing both dominator and post-dominator trees.
+-func dominatorsLT(entry *Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
++func dominatorsLT(entries []*Block, predFn linkedBlocks, succFn linkedBlocks) []*Block {
+ 	// Based on Lengauer-Tarjan from Modern Compiler Implementation in C -
+ 	// Appel with optimizations from Finding Dominators in Practice -
+ 	// Georgiadis
+ 
+ 	// Step 1. Carry out a depth first search of the problem graph. Number
+ 	// the vertices from 1 to n as they are reached during the search.
+-	dfnum, vertex, parent := dfs(entry, succFn)
++	dfnum, vertex, parent := dfs(entries, succFn)
+ 
+-	maxBlockID := entry.Func.NumBlocks()
++	maxBlockID := entries[0].Func.NumBlocks()
+ 	semi := make([]*Block, maxBlockID)
+ 	samedom := make([]*Block, maxBlockID)
+ 	idom := make([]*Block, maxBlockID)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 1c26946781..a9497644e8 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -366,24 +366,27 @@ var genericOps = []opData{
+ 	{name: "VarKill"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ }
+ 
+-//     kind           control    successors
+-//   ------------------------------------------
+-//     Exit        return mem                []
+-//      Ret        return mem            [exit]
++//     kind           control    successors       implicit exit
++//   ----------------------------------------------------------
++//     Exit        return mem                []             yes
++//      Ret        return mem                []             yes
++//   RetJmp        return mem                []             yes
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+-//     Call               mem   [nopanic, exit]  (control opcode should be OpCall or OpStaticCall)
++//     Call               mem            [next]             yes  (control opcode should be OpCall or OpStaticCall)
+ //    First               nil    [always,never]
+ 
+ var genericBlocks = []blockData{
+-	{name: "Exit"},   // no successors.  There should only be 1 of these.
+-	{name: "Dead"},   // no successors; determined to be dead but not yet removed
+ 	{name: "Plain"},  // a single successor
+ 	{name: "If"},     // 2 successors, if control goto Succs[0] else goto Succs[1]
+-	{name: "Call"},   // 2 successors, normal return and panic
+-	{name: "First"},  // 2 successors, always takes the first one (second is dead)
+-	{name: "Ret"},    // 1 successor, branches to exit
+-	{name: "RetJmp"}, // 1 successor, branches to exit.  Jumps to b.Aux.(*gc.Sym)
++	{name: "Call"},   // 1 successor, control is call op (of memory type)
++	{name: "Ret"},    // no successors, control value is memory result
++	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
++	{name: "Exit"},   // no successors, control value generates a panic
++
++	// transient block states used for dead code removal
++	{name: "First"}, // 2 successors, always takes the first one (second is dead)
++	{name: "Dead"},  // no successors; determined to be dead but not yet removed
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index bca6654158..7918c209a4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -22,14 +22,14 @@ const (
+ 	BlockAMD64ORD
+ 	BlockAMD64NAN
+ 
+-	BlockExit
+-	BlockDead
+ 	BlockPlain
+ 	BlockIf
+ 	BlockCall
+-	BlockFirst
+ 	BlockRet
+ 	BlockRetJmp
++	BlockExit
++	BlockFirst
++	BlockDead
+ )
+ 
+ var blockString = [...]string{
+@@ -50,14 +50,14 @@ var blockString = [...]string{
+ 	BlockAMD64ORD: "ORD",
+ 	BlockAMD64NAN: "NAN",
+ 
+-	BlockExit:   "Exit",
+-	BlockDead:   "Dead",
+ 	BlockPlain:  "Plain",
+ 	BlockIf:     "If",
+ 	BlockCall:   "Call",
+-	BlockFirst:  "First",
+ 	BlockRet:    "Ret",
+ 	BlockRetJmp: "RetJmp",
++	BlockExit:   "Exit",
++	BlockFirst:  "First",
++	BlockDead:   "Dead",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }

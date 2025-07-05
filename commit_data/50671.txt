@@ -9,6 +9,29 @@ Date:   Fri Nov 5 10:40:31 2021 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 0d8bf87992..1ca281b2a4 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -593,7 +593,7 @@ func (fd *FD) ReadFrom(buf []byte) (int, syscall.Sockaddr, error) {
+ 	return n, sa, nil
+ }
+ 
+-// ReadFrom wraps the recvfrom network call for IPv4.
++// ReadFromInet4 wraps the recvfrom network call for IPv4.
+ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil
+@@ -622,7 +622,7 @@ func (fd *FD) ReadFromInet4(buf []byte, sa4 *syscall.SockaddrInet4) (int, error)
+ 	return n, err
+ }
+ 
+-// ReadFrom wraps the recvfrom network call for IPv6.
++// ReadFromInet6 wraps the recvfrom network call for IPv6.
+ func (fd *FD) ReadFromInet6(buf []byte, sa6 *syscall.SockaddrInet6) (int, error) {
+ 	if len(buf) == 0 {
+ 		return 0, nil

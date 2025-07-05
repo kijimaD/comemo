@@ -8,6 +8,20 @@ Date:   Wed Jul 16 12:27:25 2014 -0700
     R=golang-codereviews, gobot, r
     CC=golang-codereviews
     https://golang.org/cl/114850043
-
+---
  src/pkg/flag/flag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 5797cc79d4..fa7760550c 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -830,7 +830,7 @@ func Parsed() bool {
+ }
+ 
+ // CommandLine is the default set of command-line flags, parsed from os.Args.
+-// The top-level functions such as BoolVar, Arg, and on are wrappers for the
++// The top-level functions such as BoolVar, Arg, and so on are wrappers for the
+ // methods of CommandLine.
+ var CommandLine = NewFlagSet(os.Args[0], ExitOnError)
+ 

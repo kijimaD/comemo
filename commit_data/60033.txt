@@ -16,7 +16,60 @@ Date:   Mon May 6 12:21:37 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/runtime/asm.s   | 31 -------------------------------
  src/runtime/proc.go |  2 +-
  2 files changed, 1 insertion(+), 32 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index b4bcb04cd1..f487e44100 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -13,34 +13,3 @@ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ 	RET
+ 
+-#ifndef GOARCH_386
+-#ifndef GOARCH_arm
+-#ifndef GOARCH_amd64
+-#ifndef GOARCH_arm64
+-#ifndef GOARCH_loong64
+-#ifndef GOARCH_mips
+-#ifndef GOARCH_mipsle
+-#ifndef GOARCH_mips64
+-#ifndef GOARCH_mips64le
+-#ifndef GOARCH_ppc64
+-#ifndef GOARCH_ppc64le
+-#ifndef GOARCH_riscv64
+-#ifndef GOARCH_s390x
+-#ifndef GOARCH_wasm
+-// stub to appease shared build mode.
+-TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+-	UNDEF
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+-#endif
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 13a8d70186..140f06d03d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -578,7 +578,7 @@ func switchToCrashStack(fn func()) {
+ // Disable crash stack on Windows for now. Apparently, throwing an exception
+ // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
+ // hangs the process (see issue 63938).
+-const crashStackImplemented = (GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
++const crashStackImplemented = GOOS != "windows"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

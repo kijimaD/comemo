@@ -8,6 +8,30 @@ Date:   Wed Jul 26 09:46:58 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/51250
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/plugin/plugin.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index 3dc7964048..c774465812 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -4,8 +4,6 @@
+ 
+ // Package plugin implements loading and symbol resolution of Go plugins.
+ //
+-// Currently plugins only work on Linux.
+-//
+ // A plugin is a Go main package with exported functions and variables that
+ // has been built with:
+ //
+@@ -14,6 +12,9 @@
+ // When a plugin is first opened, the init functions of all packages not
+ // already part of the program are called. The main function is not run.
+ // A plugin is only initialized once, and cannot be closed.
++//
++// The plugin support is currently incomplete, only supports Linux,
++// and has known bugs. Please report any issues.
+ package plugin
+ 
+ // Plugin is a loaded Go plugin.

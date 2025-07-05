@@ -36,7 +36,7 @@ Date:   Tue Mar 27 13:50:08 2018 -0700
     Change-Id: I70d1dd32ad6340e6fdb691e6d5a01452f58e97f3
     Reviewed-on: https://go-review.googlesource.com/102817
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go            |   6 +
  src/cmd/compile/internal/gc/racewalk.go      | 516 +--------------------------
  src/cmd/compile/internal/gc/ssa.go           |  83 ++++-
@@ -44,3 +44,853 @@ Date:   Tue Mar 27 13:50:08 2018 -0700
  src/cmd/compile/internal/gc/walk.go          |  44 ++-
  src/cmd/compile/internal/ssa/writebarrier.go |  34 ++
  6 files changed, 167 insertions(+), 519 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index ac52269f48..2d7d4d84a9 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -298,6 +298,12 @@ var (
+ 	gcWriteBarrier,
+ 	typedmemmove,
+ 	typedmemclr,
++	raceread,
++	racewrite,
++	racereadrange,
++	racewriterange,
++	msanread,
++	msanwrite,
+ 	Udiv *obj.LSym
+ 
+ 	// GO386=387
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 5392d809ae..3b8e1bdc58 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -7,26 +7,20 @@ package gc
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"fmt"
+-	"strings"
+ )
+ 
+-// The instrument pass modifies the code tree for instrumentation.
++// The racewalk pass is currently handled in two parts.
+ //
+-// For flag_race it modifies the function as follows:
++// First, for flag_race, it inserts calls to racefuncenter and
++// racefuncexit at the start and end (respectively) of each
++// function. This is handled below.
+ //
+-// 1. It inserts a call to racefuncenterfp at the beginning of each function.
+-// 2. It inserts a call to racefuncexit at the end of each function.
+-// 3. It inserts a call to raceread before each memory read.
+-// 4. It inserts a call to racewrite before each memory write.
+-//
+-// For flag_msan:
+-//
+-// 1. It inserts a call to msanread before each memory read.
+-// 2. It inserts a call to msanwrite before each memory write.
+-//
+-// The rewriting is not yet complete. Certain nodes are not rewritten
+-// but should be.
++// Second, during buildssa, it inserts appropriate instrumentation
++// calls immediately before each memory load or store. This is handled
++// by the (*state).instrument method in ssa.go, so here we just set
++// the Func.InstrumentBody flag as needed. For background on why this
++// is done during SSA construction rather than a separate SSA pass,
++// see issue #19054.
+ 
+ // TODO(dvyukov): do not instrument initialization as writes:
+ // a := make([]int, 10)
+@@ -57,500 +51,24 @@ func instrument(fn *Node) {
+ 	}
+ 
+ 	if !flag_race || !ispkgin(norace_inst_pkgs) {
+-		instrumentlist(fn.Nbody, nil)
+-
+-		// nothing interesting for race detector in fn->enter
+-		instrumentlist(fn.Func.Exit, nil)
++		fn.Func.SetInstrumentBody(true)
+ 	}
+ 
+ 	if flag_race {
++		lno := lineno
++		lineno = src.NoXPos
++
+ 		// nodpc is the PC of the caller as extracted by
+ 		// getcallerpc. We use -widthptr(FP) for x86.
+ 		// BUG: this will not work on arm.
+ 		nodpc := nodfp.copy()
+ 		nodpc.Type = types.Types[TUINTPTR]
+ 		nodpc.Xoffset = int64(-Widthptr)
+-		savedLineno := lineno
+-		lineno = src.NoXPos
+-		nd := mkcall("racefuncenter", nil, nil, nodpc)
+-
+-		fn.Func.Enter.Prepend(nd)
+-		nd = mkcall("racefuncexit", nil, nil)
+-		fn.Func.Exit.Append(nd)
+ 		fn.Func.Dcl = append(fn.Func.Dcl, nodpc)
+-		lineno = savedLineno
+-	}
+-
+-	if Debug['W'] != 0 {
+-		s := fmt.Sprintf("after instrument %v", fn.Func.Nname.Sym)
+-		dumplist(s, fn.Nbody)
+-		s = fmt.Sprintf("enter %v", fn.Func.Nname.Sym)
+-		dumplist(s, fn.Func.Enter)
+-		s = fmt.Sprintf("exit %v", fn.Func.Nname.Sym)
+-		dumplist(s, fn.Func.Exit)
+-	}
+-}
+-
+-func instrumentlist(l Nodes, init *Nodes) {
+-	s := l.Slice()
+-	for i := range s {
+-		var instr Nodes
+-		instrumentnode(&s[i], &instr, flagRead, flagRun)
+-		if init == nil {
+-			s[i].Ninit.AppendNodes(&instr)
+-		} else {
+-			init.AppendNodes(&instr)
+-		}
+-	}
+-}
+ 
+-// walkexpr and walkstmt combined
+-// walks the tree and adds calls to the
+-// instrumentation code to top-level (statement) nodes' init
+-func instrumentnode(np **Node, init *Nodes, wr, skip bool) {
+-	n := *np
++		fn.Func.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
++		fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+ 
+-	if n == nil {
+-		return
+-	}
+-
+-	if Debug['w'] > 1 {
+-		Dump("instrument-before", n)
+-	}
+-	setlineno(n)
+-	if init == nil {
+-		Fatalf("instrument: bad init list")
++		lineno = lno
+ 	}
+-	if init == &n.Ninit {
+-		// If init == &n->ninit and n->ninit is non-nil,
+-		// instrumentnode might append it to itself.
+-		// nil it out and handle it separately before putting it back.
+-		l := n.Ninit
+-
+-		n.Ninit.Set(nil)
+-		instrumentlist(l, nil)
+-		instrumentnode(&n, &l, wr, skip) // recurse with nil n->ninit
+-		appendinit(&n, l)
+-		*np = n
+-		return
+-	}
+-
+-	instrumentlist(n.Ninit, nil)
+-
+-	switch n.Op {
+-	default:
+-		Fatalf("instrument: unknown node type %v", n.Op)
+-
+-	case OAS, OAS2FUNC:
+-		instrumentnode(&n.Left, init, flagWrite, flagRun)
+-		instrumentnode(&n.Right, init, flagRead, flagRun)
+-
+-		// can't matter
+-	case OCFUNC, OVARKILL, OVARLIVE:
+-
+-	case OBLOCK:
+-		ls := n.List.Slice()
+-		afterCall := false
+-		for i := range ls {
+-			op := ls[i].Op
+-			// Scan past OAS nodes copying results off stack.
+-			// Those must not be instrumented, because the
+-			// instrumentation calls will smash the results.
+-			// The assignments are to temporaries, so they cannot
+-			// be involved in races and need not be instrumented.
+-			if afterCall && op == OAS && iscallret(ls[i].Right) {
+-				continue
+-			}
+-			instrumentnode(&ls[i], &ls[i].Ninit, flagRead, flagRun)
+-			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
+-		}
+-
+-	case ODEFER, OPROC:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-	case OCALLINTER:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-	case OCALLFUNC:
+-		// Note that runtime.typedslicecopy is the only
+-		// assignment-like function call in the AST at this
+-		// point (between walk and SSA); since we don't
+-		// instrument it here, typedslicecopy is manually
+-		// instrumented in runtime. Calls to the write barrier
+-		// and typedmemmove are created later by SSA, so those
+-		// still appear as OAS nodes at this point.
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-	case ONOT,
+-		OMINUS,
+-		OPLUS,
+-		OREAL,
+-		OIMAG,
+-		OCOM:
+-		instrumentnode(&n.Left, init, wr, flagRun)
+-
+-	case ODOTINTER:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-	case ODOT:
+-		instrumentnode(&n.Left, init, flagRead, flagSkip)
+-		callinstr(&n, init, wr, skip)
+-
+-	case ODOTPTR, // dst = (*x).f with implicit *; otherwise it's ODOT+OIND
+-		OIND: // *p
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-		callinstr(&n, init, wr, skip)
+-
+-	case OSPTR, OLEN, OCAP:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-		if n.Left.Type.IsMap() {
+-			n1 := nod(OCONVNOP, n.Left, nil)
+-			n1.Type = types.NewPtr(types.Types[TUINT8])
+-			n1 = nod(OIND, n1, nil)
+-			n1 = typecheck(n1, Erv)
+-			callinstr(&n1, init, flagRead, skip)
+-		}
+-
+-	case OLSH, ORSH, OAND, OANDNOT, OOR, OXOR, OSUB,
+-		OMUL, OEQ, ONE, OLT, OLE, OGE, OGT, OADD, OCOMPLEX:
+-		instrumentnode(&n.Left, init, wr, flagRun)
+-		instrumentnode(&n.Right, init, wr, flagRun)
+-
+-	case OANDAND, OOROR:
+-		instrumentnode(&n.Left, init, wr, flagRun)
+-
+-		// walk has ensured the node has moved to a location where
+-		// side effects are safe.
+-		// n->right may not be executed,
+-		// so instrumentation goes to n->right->ninit, not init.
+-		instrumentnode(&n.Right, &n.Right.Ninit, wr, flagRun)
+-
+-	case ONAME:
+-		callinstr(&n, init, wr, skip)
+-
+-	case OCONV, OCONVNOP:
+-		instrumentnode(&n.Left, init, wr, flagRun)
+-
+-	case ODIV, OMOD:
+-		instrumentnode(&n.Left, init, wr, flagRun)
+-		instrumentnode(&n.Right, init, wr, flagRun)
+-
+-	case OINDEX:
+-		if !n.Left.Type.IsArray() {
+-			instrumentnode(&n.Left, init, flagRead, flagRun)
+-		} else if !islvalue(n.Left) {
+-			// index of unaddressable array, like Map[k][i].
+-			instrumentnode(&n.Left, init, wr, flagRun)
+-
+-			instrumentnode(&n.Right, init, flagRead, flagRun)
+-			break
+-		}
+-
+-		instrumentnode(&n.Right, init, flagRead, flagRun)
+-		if !n.Left.Type.IsString() {
+-			callinstr(&n, init, wr, skip)
+-		}
+-
+-	case OSLICE, OSLICEARR, OSLICE3, OSLICE3ARR, OSLICESTR:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-		low, high, max := n.SliceBounds()
+-		instrumentnode(&low, init, flagRead, flagRun)
+-		instrumentnode(&high, init, flagRead, flagRun)
+-		instrumentnode(&max, init, flagRead, flagRun)
+-		n.SetSliceBounds(low, high, max)
+-
+-	case OADDR:
+-		instrumentnode(&n.Left, init, flagRead, flagSkip)
+-
+-		// n->left is Type* which is not interesting.
+-	case OEFACE:
+-		instrumentnode(&n.Right, init, flagRead, flagRun)
+-
+-	case OITAB, OIDATA, OSTRARRAYBYTETMP:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-	case OAS2DOTTYPE:
+-		instrumentnode(&n.Left, init, flagWrite, flagRun)
+-		instrumentnode(&n.Right, init, flagRead, flagRun)
+-
+-	case ODOTTYPE, ODOTTYPE2:
+-		instrumentnode(&n.Left, init, flagRead, flagRun)
+-
+-		// should not appear in AST by now
+-	case OSEND,
+-		ORECV,
+-		OCLOSE,
+-		ONEW,
+-		OXCASE,
+-		OCASE,
+-		OPANIC,
+-		ORECOVER,
+-		OCONVIFACE,
+-		OCMPIFACE,
+-		OMAKECHAN,
+-		OMAKEMAP,
+-		OMAKESLICE,
+-		OCALL,
+-		OCOPY,
+-		OAPPEND,
+-		ORUNESTR,
+-		OARRAYBYTESTR,
+-		OARRAYRUNESTR,
+-		OSTRARRAYBYTE,
+-		OSTRARRAYRUNE,
+-		OINDEXMAP,
+-		// lowered to call
+-		OCMPSTR,
+-		OADDSTR,
+-		OCALLPART,
+-		// lowered to PTRLIT
+-		OCLOSURE,  // lowered to PTRLIT
+-		ORANGE,    // lowered to ordinary for loop
+-		OARRAYLIT, // lowered to assignments
+-		OSLICELIT,
+-		OMAPLIT,
+-		OSTRUCTLIT,
+-		OAS2,
+-		OAS2RECV,
+-		OAS2MAPR,
+-		OASOP:
+-		Fatalf("instrument: %v must be lowered by now", n.Op)
+-
+-	case OGETG:
+-		Fatalf("instrument: OGETG can happen only in runtime which we don't instrument")
+-
+-	case OFOR, OFORUNTIL:
+-		if n.Left != nil {
+-			instrumentnode(&n.Left, &n.Left.Ninit, flagRead, flagRun)
+-		}
+-		if n.Right != nil {
+-			instrumentnode(&n.Right, &n.Right.Ninit, flagRead, flagRun)
+-		}
+-
+-	case OIF, OSWITCH:
+-		if n.Left != nil {
+-			instrumentnode(&n.Left, &n.Left.Ninit, flagRead, flagRun)
+-		}
+-
+-		// just do generic traversal
+-	case OCALLMETH,
+-		ORETURN,
+-		ORETJMP,
+-		OSELECT,
+-		OEMPTY,
+-		OBREAK,
+-		OCONTINUE,
+-		OFALL,
+-		OGOTO,
+-		OLABEL:
+-
+-		// does not require instrumentation
+-	case OPRINT, // don't bother instrumenting it
+-		OPRINTN,     // don't bother instrumenting it
+-		OCHECKNIL,   // always followed by a read.
+-		OCLOSUREVAR, // immutable pointer to captured variable
+-		ODOTMETH,    // either part of CALLMETH or CALLPART (lowered to PTRLIT)
+-		OINDREGSP,   // at this stage, only n(SP) nodes from nodarg
+-		ODCL,        // declarations (without value) cannot be races
+-		ODCLCONST,
+-		ODCLTYPE,
+-		OTYPE,
+-		ONONAME,
+-		OLITERAL,
+-		OTYPESW: // ignored by code generation, do not instrument.
+-	}
+-
+-	if n.Op != OBLOCK { // OBLOCK is handled above in a special way.
+-		instrumentlist(n.List, init)
+-	}
+-	instrumentlist(n.Nbody, nil)
+-	instrumentlist(n.Rlist, nil)
+-	*np = n
+-}
+-
+-func isartificial(n *Node) bool {
+-	// compiler-emitted artificial things that we do not want to instrument,
+-	// can't possibly participate in a data race.
+-	// can't be seen by C/C++ and therefore irrelevant for msan.
+-	if n.Op == ONAME && n.Sym != nil && n.Sym.Name != "" {
+-		if n.Sym.Name == "_" {
+-			return true
+-		}
+-
+-		// autotmp's are always local
+-		if n.IsAutoTmp() {
+-			return true
+-		}
+-
+-		// statictmp's are read-only
+-		if strings.HasPrefix(n.Sym.Name, "statictmp_") {
+-			return true
+-		}
+-
+-		// go.itab is accessed only by the compiler and runtime (assume safe)
+-		if n.Sym.Pkg != nil && n.Sym.Pkg.Name != "" && n.Sym.Pkg.Name == "go.itab" {
+-			return true
+-		}
+-	}
+-
+-	return false
+-}
+-
+-const (
+-	flagWrite = true
+-	flagRead  = !flagWrite
+-	flagSkip  = true
+-	flagRun   = !flagSkip
+-)
+-
+-func callinstr(np **Node, init *Nodes, wr, skip bool) {
+-	n := *np
+-
+-	//fmt.Printf("callinstr for %v [ %v ] etype=%v class=%v\n",
+-	//	n, n.Op, n.Type.Etype, n.Class)
+-
+-	if skip || n.Type == nil || n.Type.Etype >= TIDEAL {
+-		return
+-	}
+-	t := n.Type
+-	// dowidth may not have been called for PEXTERN.
+-	dowidth(t)
+-	w := t.Width
+-	if w == BADWIDTH {
+-		Fatalf("instrument: %v badwidth", t)
+-	}
+-	if w == 0 {
+-		return // can't race on zero-sized things
+-	}
+-	if isartificial(n) {
+-		return
+-	}
+-
+-	b := outervalue(n)
+-
+-	// it skips e.g. stores to ... parameter array
+-	if isartificial(b) {
+-		return
+-	}
+-	class := b.Class()
+-
+-	// BUG: we _may_ want to instrument PAUTO sometimes
+-	// e.g. if we've got a local variable/method receiver
+-	// that has got a pointer inside. Whether it points to
+-	// the heap or not is impossible to know at compile time
+-	if class == PAUTOHEAP || class == PEXTERN || b.Op == OINDEX || b.Op == ODOTPTR || b.Op == OIND {
+-		hasCalls := false
+-		inspect(n, func(n *Node) bool {
+-			switch n.Op {
+-			case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER:
+-				hasCalls = true
+-			}
+-			return !hasCalls
+-		})
+-		if hasCalls {
+-			n = detachexpr(n, init)
+-			*np = n
+-		}
+-
+-		n = treecopy(n, src.NoXPos)
+-		makeaddable(n)
+-		var f *Node
+-		if flag_msan {
+-			name := "msanread"
+-			if wr {
+-				name = "msanwrite"
+-			}
+-			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
+-		} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
+-			// for composite objects we have to write every address
+-			// because a write might happen to any subobject.
+-			// composites with only one element don't have subobjects, though.
+-			name := "racereadrange"
+-			if wr {
+-				name = "racewriterange"
+-			}
+-			f = mkcall(name, nil, init, uintptraddr(n), nodintconst(w))
+-		} else if flag_race {
+-			// for non-composite objects we can write just the start
+-			// address, as any write must write the first byte.
+-			name := "raceread"
+-			if wr {
+-				name = "racewrite"
+-			}
+-			f = mkcall(name, nil, init, uintptraddr(n))
+-		}
+-
+-		init.Append(f)
+-	}
+-}
+-
+-// makeaddable returns a node whose memory location is the
+-// same as n, but which is addressable in the Go language
+-// sense.
+-// This is different from functions like cheapexpr that may make
+-// a copy of their argument.
+-func makeaddable(n *Node) {
+-	// The arguments to uintptraddr technically have an address but
+-	// may not be addressable in the Go sense: for example, in the case
+-	// of T(v).Field where T is a struct type and v is
+-	// an addressable value.
+-	switch n.Op {
+-	case OINDEX:
+-		if n.Left.Type.IsArray() {
+-			makeaddable(n.Left)
+-		}
+-
+-		// Turn T(v).Field into v.Field
+-	case ODOT, OXDOT:
+-		if n.Left.Op == OCONVNOP {
+-			n.Left = n.Left.Left
+-		}
+-		makeaddable(n.Left)
+-
+-		// nothing to do
+-	}
+-}
+-
+-func uintptraddr(n *Node) *Node {
+-	r := nod(OADDR, n, nil)
+-	r.SetBounded(true)
+-	r = conv(r, types.Types[TUNSAFEPTR])
+-	r = conv(r, types.Types[TUINTPTR])
+-	return r
+-}
+-
+-func detachexpr(n *Node, init *Nodes) *Node {
+-	addr := nod(OADDR, n, nil)
+-	l := temp(types.NewPtr(n.Type))
+-	as := nod(OAS, l, addr)
+-	as = typecheck(as, Etop)
+-	as = walkexpr(as, init)
+-	init.Append(as)
+-	ind := nod(OIND, l, nil)
+-	ind = typecheck(ind, Erv)
+-	ind = walkexpr(ind, init)
+-	return ind
+-}
+-
+-// appendinit is like addinit in subr.go
+-// but appends rather than prepends.
+-func appendinit(np **Node, init Nodes) {
+-	if init.Len() == 0 {
+-		return
+-	}
+-
+-	n := *np
+-	switch n.Op {
+-	// There may be multiple refs to this node;
+-	// introduce OCONVNOP to hold init list.
+-	case ONAME, OLITERAL:
+-		n = nod(OCONVNOP, n, nil)
+-
+-		n.Type = n.Left.Type
+-		n.SetTypecheck(1)
+-		*np = n
+-	}
+-
+-	n.Ninit.AppendNodes(&init)
+-	n.SetHasCall(true)
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 47bfb05b9c..177e0aaafb 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -74,6 +74,12 @@ func initssaconfig() {
+ 	gcWriteBarrier = sysfunc("gcWriteBarrier")
+ 	typedmemmove = sysfunc("typedmemmove")
+ 	typedmemclr = sysfunc("typedmemclr")
++	raceread = sysfunc("raceread")
++	racewrite = sysfunc("racewrite")
++	racereadrange = sysfunc("racereadrange")
++	racewriterange = sysfunc("racewriterange")
++	msanread = sysfunc("msanread")
++	msanwrite = sysfunc("msanwrite")
+ 	Udiv = sysfunc("udiv")
+ 
+ 	// GO386=387 runtime functions
+@@ -567,7 +573,62 @@ func (s *state) newValueOrSfCall2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Valu
+ 	return s.newValue2(op, t, arg0, arg1)
+ }
+ 
++func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
++	if !s.curfn.Func.InstrumentBody() {
++		return
++	}
++
++	w := t.Size()
++	if w == 0 {
++		return // can't race on zero-sized things
++	}
++
++	if ssa.IsSanitizerSafeAddr(addr) {
++		return
++	}
++
++	var fn *obj.LSym
++	needWidth := false
++
++	if flag_msan {
++		fn = msanread
++		if wr {
++			fn = msanwrite
++		}
++		needWidth = true
++	} else if flag_race && t.NumComponents(types.CountBlankFields) > 1 {
++		// for composite objects we have to write every address
++		// because a write might happen to any subobject.
++		// composites with only one element don't have subobjects, though.
++		fn = racereadrange
++		if wr {
++			fn = racewriterange
++		}
++		needWidth = true
++	} else if flag_race {
++		// for non-composite objects we can write just the start
++		// address, as any write must write the first byte.
++		fn = raceread
++		if wr {
++			fn = racewrite
++		}
++	} else {
++		panic("unreachable")
++	}
++
++	args := []*ssa.Value{addr}
++	if needWidth {
++		args = append(args, s.constInt(types.Types[TUINTPTR], w))
++	}
++	s.rtcall(fn, true, nil, args...)
++}
++
+ func (s *state) load(t *types.Type, src *ssa.Value) *ssa.Value {
++	s.instrument(t, src, false)
++	return s.rawLoad(t, src)
++}
++
++func (s *state) rawLoad(t *types.Type, src *ssa.Value) *ssa.Value {
+ 	return s.newValue2(ssa.OpLoad, t, src, s.mem())
+ }
+ 
+@@ -576,12 +637,15 @@ func (s *state) store(t *types.Type, dst, val *ssa.Value) {
+ }
+ 
+ func (s *state) zero(t *types.Type, dst *ssa.Value) {
++	s.instrument(t, dst, true)
+ 	store := s.newValue2I(ssa.OpZero, types.TypeMem, t.Size(), dst, s.mem())
+ 	store.Aux = t
+ 	s.vars[&memVar] = store
+ }
+ 
+ func (s *state) move(t *types.Type, dst, src *ssa.Value) {
++	s.instrument(t, src, false)
++	s.instrument(t, dst, true)
+ 	store := s.newValue3I(ssa.OpMove, types.TypeMem, t.Size(), dst, src, s.mem())
+ 	store.Aux = t
+ 	s.vars[&memVar] = store
+@@ -3431,7 +3495,12 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	case k == callGo:
+ 		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
+ 	case closure != nil:
+-		codeptr = s.load(types.Types[TUINTPTR], closure)
++		// rawLoad because loading the code pointer from a
++		// closure is always safe, but IsSanitizerSafeAddr
++		// can't always figure that out currently, and it's
++		// critical that we not clobber any arguments already
++		// stored onto the stack.
++		codeptr = s.rawLoad(types.Types[TUINTPTR], closure)
+ 		call = s.newValue3(ssa.OpClosureCall, types.TypeMem, codeptr, closure, s.mem())
+ 	case codeptr != nil:
+ 		call = s.newValue2(ssa.OpInterCall, types.TypeMem, codeptr, s.mem())
+@@ -3643,6 +3712,14 @@ func canSSAType(t *types.Type) bool {
+ 		}
+ 		return false
+ 	case TSTRUCT:
++		// When instrumenting, don't SSA structs with more
++		// than one field. Otherwise, an access like "x.f" may
++		// be compiled into a full load of x, which can
++		// introduce false dependencies on other "x.g" fields.
++		if instrumenting && t.NumFields() > 1 {
++			return false
++		}
++
+ 		if t.NumFields() > ssa.MaxStruct {
+ 			return false
+ 		}
+@@ -3795,8 +3872,10 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*types.Type, args .
+ 	return res
+ }
+ 
+-/// do *left = right for type t.
++// do *left = right for type t.
+ func (s *state) storeType(t *types.Type, left, right *ssa.Value, skip skipMask, leftIsStmt bool) {
++	s.instrument(t, left, true)
++
+ 	if skip == 0 && (!types.Haspointers(t) || ssa.IsStackAddr(left)) {
+ 		// Known to not have write barrier. Store the whole type.
+ 		s.vars[&memVar] = s.newValue3Apos(ssa.OpStore, types.TypeMem, t, left, right, s.mem(), leftIsStmt)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 1b856b1518..1f13cf68c3 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -532,6 +532,7 @@ const (
+ 	funcNilCheckDisabled    // disable nil checks when compiling this function
+ 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
+ 	funcExportInline        // include inline body in export data
++	funcInstrumentBody      // add race/msan instrumentation during SSA construction
+ )
+ 
+ func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
+@@ -543,6 +544,7 @@ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
+ func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
+ func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
+ func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
++func (f *Func) InstrumentBody() bool      { return f.flags&funcInstrumentBody != 0 }
+ 
+ func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
+@@ -553,6 +555,7 @@ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
+ func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
+ func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
++func (f *Func) SetInstrumentBody(b bool)      { f.flags.set(funcInstrumentBody, b) }
+ 
+ func (f *Func) setWBPos(pos src.XPos) {
+ 	if Debug_wb != 0 {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1f2f5c68c2..27df285a63 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2288,19 +2288,25 @@ func convas(n *Node, init *Nodes) *Node {
+ // then it is done first. otherwise must
+ // make temp variables
+ func reorder1(all []*Node) []*Node {
+-	if len(all) == 1 {
+-		return all
+-	}
++	// When instrumenting, force all arguments into temporary
++	// variables to prevent instrumentation calls from clobbering
++	// arguments already on the stack.
+ 
+ 	funcCalls := 0
+-	for _, n := range all {
+-		updateHasCall(n)
+-		if n.HasCall() {
+-			funcCalls++
++	if !instrumenting {
++		if len(all) == 1 {
++			return all
++		}
++
++		for _, n := range all {
++			updateHasCall(n)
++			if n.HasCall() {
++				funcCalls++
++			}
++		}
++		if funcCalls == 0 {
++			return all
+ 		}
+-	}
+-	if funcCalls == 0 {
+-		return all
+ 	}
+ 
+ 	var g []*Node // fncalls assigned to tempnames
+@@ -2308,15 +2314,17 @@ func reorder1(all []*Node) []*Node {
+ 	var r []*Node // non fncalls and tempnames assigned to stack
+ 	d := 0
+ 	for _, n := range all {
+-		if !n.HasCall() {
+-			r = append(r, n)
+-			continue
+-		}
++		if !instrumenting {
++			if !n.HasCall() {
++				r = append(r, n)
++				continue
++			}
+ 
+-		d++
+-		if d == funcCalls {
+-			f = n
+-			continue
++			d++
++			if d == funcCalls {
++				f = n
++				continue
++			}
+ 		}
+ 
+ 		// make assignment of fncall to tempname
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index b11b87de23..f72299be5e 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"strings"
+ )
+ 
+ // needwb returns whether we need write barrier for store op v.
+@@ -348,6 +349,39 @@ func IsStackAddr(v *Value) bool {
+ 	return false
+ }
+ 
++// IsSanitizerSafeAddr reports whether v is known to be an address
++// that doesn't need instrumentation.
++func IsSanitizerSafeAddr(v *Value) bool {
++	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
++		v = v.Args[0]
++	}
++	switch v.Op {
++	case OpSP:
++		// Stack addresses are always safe.
++		return true
++	case OpITab, OpStringPtr, OpGetClosurePtr:
++		// Itabs, string data, and closure fields are
++		// read-only once initialized.
++		return true
++	case OpAddr:
++		switch v.Args[0].Op {
++		case OpSP:
++			return true
++		case OpSB:
++			sym := v.Aux.(*obj.LSym)
++			// TODO(mdempsky): Find a cleaner way to
++			// detect this. It would be nice if we could
++			// test sym.Type==objabi.SRODATA, but we don't
++			// initialize sym.Type until after function
++			// compilation.
++			if strings.HasPrefix(sym.Name, `"".statictmp_`) {
++				return true
++			}
++		}
++	}
++	return false
++}
++
+ // isVolatile returns whether v is a pointer to argument region on stack which
+ // will be clobbered by a function call.
+ func isVolatile(v *Value) bool {

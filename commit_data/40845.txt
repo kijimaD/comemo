@@ -15,6 +15,20 @@ Date:   Tue Jul 23 18:27:06 2019 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/help/help.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index d373771ab5..edb4a2a23c 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -63,7 +63,7 @@ Args:
+ 		// helpSuccess is the help command using as many args as possible that would succeed.
+ 		helpSuccess := "go help"
+ 		if i > 0 {
+-			helpSuccess = " " + strings.Join(args[:i], " ")
++			helpSuccess += " " + strings.Join(args[:i], " ")
+ 		}
+ 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
+ 		base.SetExitStatus(2) // failed at 'go help cmd'

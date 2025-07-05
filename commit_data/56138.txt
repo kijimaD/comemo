@@ -18,8 +18,165 @@ Date:   Wed Mar 29 10:28:33 2023 +0200
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/os/os_test.go               | 21 ++++----------------
  src/syscall/syscall_windows.go  | 43 ++++++++++++++++++++++++++++++++++++++++-
  src/syscall/zsyscall_windows.go | 10 ++++++++++
  3 files changed, 56 insertions(+), 18 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index d049357b1a..55651d8ace 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1447,11 +1447,6 @@ func testChtimes(t *testing.T, name string) {
+ }
+ 
+ func TestFileChdir(t *testing.T) {
+-	// TODO(brainman): file.Chdir() is not implemented on windows.
+-	if runtime.GOOS == "windows" {
+-		return
+-	}
+-
+ 	wd, err := Getwd()
+ 	if err != nil {
+ 		t.Fatalf("Getwd: %s", err)
+@@ -1476,16 +1471,12 @@ func TestFileChdir(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Getwd: %s", err)
+ 	}
+-	if wdNew != wd {
++	if !equal(wdNew, wd) {
+ 		t.Fatalf("fd.Chdir failed, got %s, want %s", wdNew, wd)
+ 	}
+ }
+ 
+ func TestChdirAndGetwd(t *testing.T) {
+-	// TODO(brainman): file.Chdir() is not implemented on windows.
+-	if runtime.GOOS == "windows" {
+-		return
+-	}
+ 	fd, err := Open(".")
+ 	if err != nil {
+ 		t.Fatalf("Open .: %s", err)
+@@ -1499,13 +1490,9 @@ func TestChdirAndGetwd(t *testing.T) {
+ 		dirs = []string{"/system/bin"}
+ 	case "plan9":
+ 		dirs = []string{"/", "/usr"}
+-	case "ios":
++	case "ios", "windows":
+ 		dirs = nil
+-		for _, d := range []string{"d1", "d2"} {
+-			dir, err := MkdirTemp("", d)
+-			if err != nil {
+-				t.Fatalf("TempDir: %v", err)
+-			}
++		for _, dir := range []string{t.TempDir(), t.TempDir()} {
+ 			// Expand symlinks so path equality tests work.
+ 			dir, err = filepath.EvalSymlinks(dir)
+ 			if err != nil {
+@@ -1549,7 +1536,7 @@ func TestChdirAndGetwd(t *testing.T) {
+ 				fd.Close()
+ 				t.Fatalf("Getwd in %s: %s", d, err1)
+ 			}
+-			if pwd != d {
++			if !equal(pwd, d) {
+ 				fd.Close()
+ 				t.Fatalf("Getwd returned %q want %q", pwd, d)
+ 			}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 9f660c1f52..c34f0199ea 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -143,6 +143,7 @@ func (e Errno) Error() string {
+ }
+ 
+ const (
++	_ERROR_NOT_ENOUGH_MEMORY    = Errno(8)
+ 	_ERROR_NOT_SUPPORTED        = Errno(50)
+ 	_ERROR_BAD_NETPATH          = Errno(53)
+ 	_ERROR_CALL_NOT_IMPLEMENTED = Errno(120)
+@@ -311,6 +312,7 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	initializeProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, attrcount uint32, flags uint32, size *uintptr) (err error) = InitializeProcThreadAttributeList
+ //sys	deleteProcThreadAttributeList(attrlist *_PROC_THREAD_ATTRIBUTE_LIST) = DeleteProcThreadAttributeList
+ //sys	updateProcThreadAttribute(attrlist *_PROC_THREAD_ATTRIBUTE_LIST, flags uint32, attr uintptr, value unsafe.Pointer, size uintptr, prevvalue unsafe.Pointer, returnedsize *uintptr) (err error) = UpdateProcThreadAttribute
++//sys	getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) [n == 0 || n >= filePathSize] = kernel32.GetFinalPathNameByHandleW
+ 
+ // syscall interface implementation for other packages
+ 
+@@ -1193,8 +1195,47 @@ func Getppid() (ppid int) {
+ 	return int(pe.ParentProcessID)
+ }
+ 
++func fdpath(fd Handle, buf []uint16) ([]uint16, error) {
++	const (
++		FILE_NAME_NORMALIZED = 0
++		VOLUME_NAME_DOS      = 0
++	)
++	for {
++		n, err := getFinalPathNameByHandle(fd, &buf[0], uint32(len(buf)), FILE_NAME_NORMALIZED|VOLUME_NAME_DOS)
++		if err == nil {
++			buf = buf[:n]
++			break
++		}
++		if err != _ERROR_NOT_ENOUGH_MEMORY {
++			return nil, err
++		}
++		buf = append(buf, make([]uint16, n-uint32(len(buf)))...)
++	}
++	return buf, nil
++}
++
++func Fchdir(fd Handle) (err error) {
++	var buf [MAX_PATH + 1]uint16
++	path, err := fdpath(fd, buf[:])
++	if err != nil {
++		return err
++	}
++	// When using VOLUME_NAME_DOS, the path is always pefixed by "\\?\".
++	// That prefix tells the Windows APIs to disable all string parsing and to send
++	// the string that follows it straight to the file system.
++	// Although SetCurrentDirectory and GetCurrentDirectory do support the "\\?\" prefix,
++	// some other Windows APIs don't. If the prefix is not removed here, it will leak
++	// to Getwd, and we don't want such a general-purpose function to always return a
++	// path with the "\\?\" prefix after Fchdir is called.
++	// The downside is that APIs that do support it will parse the path and try to normalize it,
++	// when it's already normalized.
++	if len(path) >= 4 && path[0] == '\\' && path[1] == '\\' && path[2] == '?' && path[3] == '\\' {
++		path = path[4:]
++	}
++	return SetCurrentDirectory(&path[0])
++}
++
+ // TODO(brainman): fix all needed for os
+-func Fchdir(fd Handle) (err error)             { return EWINDOWS }
+ func Link(oldpath, newpath string) (err error) { return EWINDOWS }
+ func Symlink(path, link string) (err error)    { return EWINDOWS }
+ 
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 7f26d40e67..68c29d809e 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -119,6 +119,7 @@ var (
+ 	procGetFileAttributesW                 = modkernel32.NewProc("GetFileAttributesW")
+ 	procGetFileInformationByHandle         = modkernel32.NewProc("GetFileInformationByHandle")
+ 	procGetFileType                        = modkernel32.NewProc("GetFileType")
++	procGetFinalPathNameByHandleW          = modkernel32.NewProc("GetFinalPathNameByHandleW")
+ 	procGetFullPathNameW                   = modkernel32.NewProc("GetFullPathNameW")
+ 	procGetLastError                       = modkernel32.NewProc("GetLastError")
+ 	procGetLongPathNameW                   = modkernel32.NewProc("GetLongPathNameW")
+@@ -779,6 +780,15 @@ func GetFileType(filehandle Handle) (n uint32, err error) {
+ 	return
+ }
+ 
++func getFinalPathNameByHandle(file Handle, filePath *uint16, filePathSize uint32, flags uint32) (n uint32, err error) {
++	r0, _, e1 := Syscall6(procGetFinalPathNameByHandleW.Addr(), 4, uintptr(file), uintptr(unsafe.Pointer(filePath)), uintptr(filePathSize), uintptr(flags), 0, 0)
++	n = uint32(r0)
++	if n == 0 || n >= filePathSize {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) {
+ 	r0, _, e1 := Syscall6(procGetFullPathNameW.Addr(), 4, uintptr(unsafe.Pointer(path)), uintptr(buflen), uintptr(unsafe.Pointer(buf)), uintptr(unsafe.Pointer(fname)), 0, 0)
+ 	n = uint32(r0)

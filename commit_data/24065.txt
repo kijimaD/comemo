@@ -11,6 +11,24 @@ Date:   Wed Jul 1 20:37:25 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/11835
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 389d2868e8..1dba9b22a5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -77,6 +77,12 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		case PAUTO:
+ 			aux := &ssa.AutoSymbol{Typ: n.Type, Offset: -1, Sym: n.Sym} // offset TBD by SSA pass
+ 			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		default:
++			str := ""
++			if n.Class&PHEAP != 0 {
++				str = ",heap"
++			}
++			s.Unimplementedf("local variable %v with class %s%s unimplemented", n, classnames[n.Class&^PHEAP], str)
+ 		}
+ 	}
+ 	// nodfp is a special argument which is the function's FP.

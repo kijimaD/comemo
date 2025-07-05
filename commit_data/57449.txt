@@ -16,8 +16,146 @@ Date:   Tue Aug 8 01:14:22 2023 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/56353.txt        |  1 +
  src/slices/slices.go      | 16 ++++++++
  src/slices/slices_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 115 insertions(+)
+
+diff --git a/api/next/56353.txt b/api/next/56353.txt
+new file mode 100644
+index 0000000000..c2504a7f63
+--- /dev/null
++++ b/api/next/56353.txt
+@@ -0,0 +1 @@
++pkg slices, func Concat[$0 interface{ ~[]$1 }, $1 interface{}](...$0) $0 #56353
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 725d91d8f5..a4d9f7e3f5 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -493,3 +493,19 @@ func Reverse[S ~[]E, E any](s S) {
+ 		s[i], s[j] = s[j], s[i]
+ 	}
+ }
++
++// Concat returns a new slice concatenating the passed in slices.
++func Concat[S ~[]E, E any](slices ...S) S {
++	size := 0
++	for _, s := range slices {
++		size += len(s)
++		if size < 0 {
++			panic("len out of range")
++		}
++	}
++	newslice := Grow[S](nil, size)
++	for _, s := range slices {
++		newslice = append(newslice, s...)
++	}
++	return newslice
++}
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 8ea93c66d7..ac779f5bd9 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -1055,3 +1055,101 @@ func TestInference(t *testing.T) {
+ 		t.Errorf("Reverse(%v) = %v, want %v", S{4, 5, 6}, s2, want)
+ 	}
+ }
++
++func TestConcat(t *testing.T) {
++	cases := []struct {
++		s    [][]int
++		want []int
++	}{
++		{
++			s:    [][]int{nil},
++			want: nil,
++		},
++		{
++			s:    [][]int{{1}},
++			want: []int{1},
++		},
++		{
++			s:    [][]int{{1}, {2}},
++			want: []int{1, 2},
++		},
++		{
++			s:    [][]int{{1}, nil, {2}},
++			want: []int{1, 2},
++		},
++	}
++	for _, tc := range cases {
++		got := Concat(tc.s...)
++		if !Equal(tc.want, got) {
++			t.Errorf("Concat(%v) = %v, want %v", tc.s, got, tc.want)
++		}
++		var sink []int
++		allocs := testing.AllocsPerRun(5, func() {
++			sink = Concat(tc.s...)
++		})
++		_ = sink
++		if allocs > 1 {
++			errorf := t.Errorf
++			if testenv.OptimizationOff() || race.Enabled {
++				errorf = t.Logf
++			}
++			errorf("Concat(%v) allocated %v times; want 1", tc.s, allocs)
++		}
++	}
++}
++
++func TestConcat_too_large(t *testing.T) {
++	// Use zero length element to minimize memory in testing
++	type void struct{}
++	cases := []struct {
++		lengths     []int
++		shouldPanic bool
++	}{
++		{
++			lengths:     []int{0, 0},
++			shouldPanic: false,
++		},
++		{
++			lengths:     []int{math.MaxInt, 0},
++			shouldPanic: false,
++		},
++		{
++			lengths:     []int{0, math.MaxInt},
++			shouldPanic: false,
++		},
++		{
++			lengths:     []int{math.MaxInt - 1, 1},
++			shouldPanic: false,
++		},
++		{
++			lengths:     []int{math.MaxInt - 1, 1, 1},
++			shouldPanic: true,
++		},
++		{
++			lengths:     []int{math.MaxInt, 1},
++			shouldPanic: true,
++		},
++		{
++			lengths:     []int{math.MaxInt, math.MaxInt},
++			shouldPanic: true,
++		},
++	}
++	for _, tc := range cases {
++		var r any
++		ss := make([][]void, 0, len(tc.lengths))
++		for _, l := range tc.lengths {
++			s := make([]void, l)
++			ss = append(ss, s)
++		}
++		func() {
++			defer func() {
++				r = recover()
++			}()
++			_ = Concat(ss...)
++		}()
++		if didPanic := r != nil; didPanic != tc.shouldPanic {
++			t.Errorf("slices.Concat(lens(%v)) got panic == %v",
++				tc.lengths, didPanic)
++		}
++	}
++}

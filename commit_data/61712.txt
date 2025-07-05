@@ -11,7 +11,7 @@ Date:   Wed Nov 13 14:13:57 2024 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  api/next/67002.txt                              |   2 +
  src/internal/syscall/unix/at_wasip1.go          |  22 ++++-
  src/internal/syscall/windows/at_windows.go      |   9 ++
@@ -24,3 +24,433 @@ Date:   Wed Nov 13 14:13:57 2024 +0100
  src/os/stat_wasip1.go                           |   9 ++
  src/syscall/types_windows.go                    |   1 +
  11 files changed, 254 insertions(+), 1 deletion(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 00248e1070..fc839e95e4 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -1,10 +1,12 @@
+ pkg os, func OpenRoot(string) (*Root, error) #67002
+ pkg os, method (*Root) Close() error #67002
+ pkg os, method (*Root) Create(string) (*File, error) #67002
++pkg os, method (*Root) Lstat(string) (fs.FileInfo, error) #67002
+ pkg os, method (*Root) Mkdir(string, fs.FileMode) error #67002
+ pkg os, method (*Root) Name() string #67002
+ pkg os, method (*Root) Open(string) (*File, error) #67002
+ pkg os, method (*Root) OpenFile(string, int, fs.FileMode) (*File, error) #67002
+ pkg os, method (*Root) OpenRoot(string) (*Root, error) #67002
+ pkg os, method (*Root) Remove(string) error #67002
++pkg os, method (*Root) Stat(string) (fs.FileInfo, error) #67002
+ pkg os, type Root struct #67002
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 2be7ef3630..cd0cb4b7e4 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -11,6 +11,7 @@ import (
+ 	"unsafe"
+ )
+ 
++// The values of these constants are not part of the WASI API.
+ const (
+ 	// UTIME_OMIT is the sentinel value to indicate that a time value should not
+ 	// be changed. It is useful for example to indicate for example with UtimesNano
+@@ -18,7 +19,8 @@ const (
+ 	// Its value must match syscall/fs_wasip1.go
+ 	UTIME_OMIT = -0x2
+ 
+-	AT_REMOVEDIR = 0x200
++	AT_REMOVEDIR        = 0x200
++	AT_SYMLINK_NOFOLLOW = 0x100
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+@@ -49,6 +51,24 @@ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+ 	return syscall.Openat(dirfd, path, flags, perm)
+ }
+ 
++func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
++	var filestatFlags uint32
++	if flags&AT_SYMLINK_NOFOLLOW == 0 {
++		filestatFlags |= syscall.LOOKUP_SYMLINK_FOLLOW
++	}
++	return errnoErr(path_filestat_get(
++		int32(dirfd),
++		uint32(filestatFlags),
++		unsafe.StringData(path),
++		size(len(path)),
++		unsafe.Pointer(stat),
++	))
++}
++
++//go:wasmimport wasi_snapshot_preview1 path_filestat_get
++//go:noescape
++func path_filestat_get(fd int32, flags uint32, path *byte, pathLen size, buf unsafe.Pointer) syscall.Errno
++
+ func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
+ 	var nwritten size
+ 	errno := path_readlink(
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 72780139a0..18429773c0 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -19,6 +19,7 @@ import (
+ const (
+ 	O_DIRECTORY    = 0x100000   // target must be a directory
+ 	O_NOFOLLOW_ANY = 0x20000000 // disallow symlinks anywhere in the path
++	O_OPEN_REPARSE = 0x40000000 // FILE_OPEN_REPARSE_POINT, used by Lstat
+ )
+ 
+ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall.Handle, e1 error) {
+@@ -37,6 +38,10 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 	case syscall.O_RDWR:
+ 		access = FILE_GENERIC_READ | FILE_GENERIC_WRITE
+ 		options |= FILE_NON_DIRECTORY_FILE
++	default:
++		// Stat opens files without requesting read or write permissions,
++		// but we still need to request SYNCHRONIZE.
++		access = SYNCHRONIZE
+ 	}
+ 	if flag&syscall.O_CREAT != 0 {
+ 		access |= FILE_GENERIC_WRITE
+@@ -70,6 +75,10 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 		return syscall.InvalidHandle, err
+ 	}
+ 
++	if flag&O_OPEN_REPARSE != 0 {
++		options |= FILE_OPEN_REPARSE_POINT
++	}
++
+ 	// We don't use FILE_OVERWRITE/FILE_OVERWRITE_IF, because when opening
+ 	// a file with FILE_ATTRIBUTE_READONLY these will replace an existing
+ 	// file with a new, read-only one.
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index f6fbf199bf..c848f92d1f 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -41,6 +41,7 @@ const (
+ 	ERROR_LOCK_FAILED            syscall.Errno = 167
+ 	ERROR_NO_TOKEN               syscall.Errno = 1008
+ 	ERROR_NO_UNICODE_TRANSLATION syscall.Errno = 1113
++	ERROR_CANT_ACCESS_FILE       syscall.Errno = 1920
+ )
+ 
+ const (
+diff --git a/src/os/root.go b/src/os/root.go
+index 55455d2c94..1070698f4d 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -126,6 +126,22 @@ func (r *Root) Remove(name string) error {
+ 	return rootRemove(r, name)
+ }
+ 
++// Stat returns a [FileInfo] describing the named file in the root.
++// See [Stat] for more details.
++func (r *Root) Stat(name string) (FileInfo, error) {
++	r.logStat(name)
++	return rootStat(r, name, false)
++}
++
++// Lstat returns a [FileInfo] describing the named file in the root.
++// If the file is a symbolic link, the returned FileInfo
++// describes the symbolic link.
++// See [Lstat] for more details.
++func (r *Root) Lstat(name string) (FileInfo, error) {
++	r.logStat(name)
++	return rootStat(r, name, true)
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+@@ -134,6 +150,14 @@ func (r *Root) logOpen(name string) {
+ 	}
+ }
+ 
++func (r *Root) logStat(name string) {
++	if log := testlog.Logger(); log != nil {
++		// This won't be right if r's name has changed since it was opened,
++		// but it's the best we can do.
++		log.Stat(joinPath(r.Name(), name))
++	}
++}
++
+ // splitPathInRoot splits a path into components
+ // and joins it with the given prefix and suffix.
+ //
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index d59720a7b7..8d5ead32b9 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -75,6 +75,26 @@ func rootOpenFileNolog(r *Root, name string, flag int, perm FileMode) (*File, er
+ 	return f, nil
+ }
+ 
++func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
++	var fi FileInfo
++	var err error
++	if lstat {
++		err = checkPathEscapesLstat(r, name)
++		if err == nil {
++			fi, err = Lstat(joinPath(r.root.name, name))
++		}
++	} else {
++		err = checkPathEscapes(r, name)
++		if err == nil {
++			fi, err = Stat(joinPath(r.root.name, name))
++		}
++	}
++	if err != nil {
++		return nil, &PathError{Op: "statat", Path: name, Err: underlyingError(err)}
++	}
++	return fi, nil
++}
++
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	if err := checkPathEscapes(r, name); err != nil {
+ 		return &PathError{Op: "mkdirat", Path: name, Err: err}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 70c378cef8..1cff474b93 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -509,6 +509,67 @@ func TestRootOpenFileAsRoot(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootStat(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			const content = "content"
++			if target != "" {
++				if err := os.WriteFile(target, []byte(content), 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++
++			fi, err := root.Stat(test.open)
++			if errEndsTest(t, err, test.wantError, "root.Stat(%q)", test.open) {
++				return
++			}
++			if got, want := fi.Name(), filepath.Base(test.open); got != want {
++				t.Errorf("root.Stat(%q).Name() = %q, want %q", test.open, got, want)
++			}
++			if got, want := fi.Size(), int64(len(content)); got != want {
++				t.Errorf("root.Stat(%q).Size() = %v, want %v", test.open, got, want)
++			}
++		})
++	}
++}
++
++func TestRootLstat(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			const content = "content"
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// Lstat will stat the final link, rather than following it.
++				wantError = false
++			} else if target != "" {
++				if err := os.WriteFile(target, []byte(content), 0o666); err != nil {
++					t.Fatal(err)
++				}
++			}
++
++			fi, err := root.Lstat(test.open)
++			if errEndsTest(t, err, wantError, "root.Stat(%q)", test.open) {
++				return
++			}
++			if got, want := fi.Name(), filepath.Base(test.open); got != want {
++				t.Errorf("root.Stat(%q).Name() = %q, want %q", test.open, got, want)
++			}
++			if test.ltarget == "" {
++				if got := fi.Mode(); got&os.ModeSymlink != 0 {
++					t.Errorf("root.Stat(%q).Mode() = %v, want non-symlink", test.open, got)
++				}
++				if got, want := fi.Size(), int64(len(content)); got != want {
++					t.Errorf("root.Stat(%q).Size() = %v, want %v", test.open, got, want)
++				}
++			} else {
++				if got := fi.Mode(); got&os.ModeSymlink == 0 {
++					t.Errorf("root.Stat(%q).Mode() = %v, want symlink", test.open, got)
++				}
++			}
++		})
++	}
++}
++
+ // A rootConsistencyTest is a test case comparing os.Root behavior with
+ // the corresponding non-Root function.
+ //
+@@ -599,6 +660,24 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
+ 		"link => target",
+ 	},
+ 	open: "link/",
++}, {
++	name: "symlink slash dot",
++	fs: []string{
++		"target/file",
++		"link => target",
++	},
++	open: "link/.",
++}, {
++	name: "file symlink slash",
++	fs: []string{
++		"target",
++		"link => target",
++	},
++	open: "link/",
++	detailedErrorMismatch: func(t *testing.T) bool {
++		// os.Create returns ENOTDIR or EISDIR depending on the platform.
++		return runtime.GOOS == "js"
++	},
+ }, {
+ 	name: "unresolved symlink",
+ 	fs: []string{
+@@ -817,6 +896,42 @@ func TestRootConsistencyRemove(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyStat(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var fi os.FileInfo
++			var err error
++			if r == nil {
++				fi, err = os.Stat(path)
++			} else {
++				fi, err = r.Stat(path)
++			}
++			if err != nil {
++				return "", err
++			}
++			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
++		})
++	}
++}
++
++func TestRootConsistencyLstat(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			var fi os.FileInfo
++			var err error
++			if r == nil {
++				fi, err = os.Lstat(path)
++			} else {
++				fi, err = r.Lstat(path)
++			}
++			if err != nil {
++				return "", err
++			}
++			return fmt.Sprintf("name:%q size:%v mode:%v isdir:%v", fi.Name(), fi.Size(), fi.Mode(), fi.IsDir()), nil
++		})
++	}
++}
++
+ func TestRootRenameAfterOpen(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 6f8f9c8e3e..568c47506e 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -113,6 +113,24 @@ func rootOpenDir(parent int, name string) (int, error) {
+ 	return fd, err
+ }
+ 
++func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
++	fi, err := doInRoot(r, name, func(parent sysfdType, n string) (FileInfo, error) {
++		var fs fileStat
++		if err := unix.Fstatat(parent, n, &fs.sys, unix.AT_SYMLINK_NOFOLLOW); err != nil {
++			return nil, err
++		}
++		fillFileStatFromSys(&fs, name)
++		if !lstat && fs.Mode()&ModeSymlink != 0 {
++			return nil, checkSymlink(parent, n, syscall.ELOOP)
++		}
++		return &fs, nil
++	})
++	if err != nil {
++		return nil, &PathError{Op: "statat", Path: name, Err: err}
++	}
++	return fi, nil
++}
++
+ func mkdirat(fd int, name string, perm FileMode) error {
+ 	return ignoringEINTR(func() error {
+ 		return unix.Mkdirat(fd, name, syscallMode(perm))
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 68f938de93..dcc311cf86 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -198,6 +198,40 @@ func rootOpenDir(parent syscall.Handle, name string) (syscall.Handle, error) {
+ 	return h, err
+ }
+ 
++func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
++	if len(name) > 0 && IsPathSeparator(name[len(name)-1]) {
++		// When a filename ends with a path separator,
++		// Lstat behaves like Stat.
++		//
++		// This behavior is not based on a principled decision here,
++		// merely the empirical evidence that Lstat behaves this way.
++		lstat = false
++	}
++	fi, err := doInRoot(r, name, func(parent syscall.Handle, n string) (FileInfo, error) {
++		fd, err := openat(parent, n, windows.O_OPEN_REPARSE, 0)
++		if err != nil {
++			return nil, err
++		}
++		defer syscall.CloseHandle(fd)
++		fi, err := statHandle(name, fd)
++		if err != nil {
++			return nil, err
++		}
++		if !lstat && fi.(*fileStat).isReparseTagNameSurrogate() {
++			link, err := readReparseLinkHandle(fd)
++			if err != nil {
++				return nil, err
++			}
++			return nil, errSymlink(link)
++		}
++		return fi, nil
++	})
++	if err != nil {
++		return nil, &PathError{Op: "statat", Path: name, Err: err}
++	}
++	return fi, nil
++}
++
+ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
+ 	return windows.Mkdirat(dirfd, name, syscallMode(perm))
+ }
+diff --git a/src/os/stat_wasip1.go b/src/os/stat_wasip1.go
+index 85a3649889..8561e44680 100644
+--- a/src/os/stat_wasip1.go
++++ b/src/os/stat_wasip1.go
+@@ -32,6 +32,15 @@ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	case syscall.FILETYPE_SYMBOLIC_LINK:
+ 		fs.mode |= ModeSymlink
+ 	}
++
++	// WASI does not support unix-like permissions, but Go programs are likely
++	// to expect the permission bits to not be zero so we set defaults to help
++	// avoid breaking applications that are migrating to WASM.
++	if fs.sys.Filetype == syscall.FILETYPE_DIRECTORY {
++		fs.mode |= 0700
++	} else {
++		fs.mode |= 0600
++	}
+ }
+ 
+ // For testing.
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index b0fae8a5dc..fa34053178 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -48,6 +48,7 @@ const (
+ 	O_CLOEXEC      = 0x80000
+ 	o_DIRECTORY    = 0x100000   // used by internal/syscall/windows
+ 	o_NOFOLLOW_ANY = 0x20000000 // used by internal/syscall/windows
++	o_OPEN_REPARSE = 0x40000000 // used by internal/syscall/windows
+ )
+ 
+ const (

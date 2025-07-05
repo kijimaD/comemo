@@ -20,7 +20,7 @@ Date:   Fri Jun 25 11:07:28 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/builtin.go      |  5 +++--
  .../compile/internal/typecheck/builtin/runtime.go  |  5 +++--
  src/cmd/compile/internal/typecheck/func.go         |  7 ++++++
@@ -31,3 +31,252 @@ Date:   Fri Jun 25 11:07:28 2021 -0700
  src/runtime/testdata/testprog/checkptr.go          | 13 +++++++++++
  test/unsafebuiltins.go                             |  7 ++++--
  9 files changed, 83 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 67a894c7ed..833b17b414 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -138,6 +138,7 @@ var runtimeDecls = [...]struct {
+ 	{"growslice", funcTag, 116},
+ 	{"unsafeslice", funcTag, 117},
+ 	{"unsafeslice64", funcTag, 118},
++	{"unsafeslicecheckptr", funcTag, 118},
+ 	{"memmove", funcTag, 119},
+ 	{"memclrNoHeapPointers", funcTag, 120},
+ 	{"memclrHasPointers", funcTag, 120},
+@@ -341,8 +342,8 @@ func runtimeTypes() []*types.Type {
+ 	typs[114] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+ 	typs[115] = types.NewSlice(typs[2])
+ 	typs[116] = newSig(params(typs[1], typs[115], typs[15]), params(typs[115]))
+-	typs[117] = newSig(params(typs[1], typs[15]), nil)
+-	typs[118] = newSig(params(typs[1], typs[22]), nil)
++	typs[117] = newSig(params(typs[1], typs[7], typs[15]), nil)
++	typs[118] = newSig(params(typs[1], typs[7], typs[22]), nil)
+ 	typs[119] = newSig(params(typs[3], typs[3], typs[5]), nil)
+ 	typs[120] = newSig(params(typs[7], typs[5]), nil)
+ 	typs[121] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index ebeaeae79e..2b29ea3c08 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -183,8 +183,9 @@ func makeslice(typ *byte, len int, cap int) unsafe.Pointer
+ func makeslice64(typ *byte, len int64, cap int64) unsafe.Pointer
+ func makeslicecopy(typ *byte, tolen int, fromlen int, from unsafe.Pointer) unsafe.Pointer
+ func growslice(typ *byte, old []any, cap int) (ary []any)
+-func unsafeslice(typ *byte, len int)
+-func unsafeslice64(typ *byte, len int64)
++func unsafeslice(typ *byte, ptr unsafe.Pointer, len int)
++func unsafeslice64(typ *byte, ptr unsafe.Pointer, len int64)
++func unsafeslicecheckptr(typ *byte, ptr unsafe.Pointer, len int64)
+ 
+ func memmove(to *any, frm *any, length uintptr)
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index a6dfbbf569..fbcc784627 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -1018,7 +1018,14 @@ func tcUnsafeSlice(n *ir.BinaryExpr) *ir.BinaryExpr {
+ 	t := n.X.Type()
+ 	if !t.IsPtr() {
+ 		base.Errorf("first argument to unsafe.Slice must be pointer; have %L", t)
++	} else if t.Elem().NotInHeap() {
++		// TODO(mdempsky): This can be relaxed, but should only affect the
++		// Go runtime itself. End users should only see //go:notinheap
++		// types due to incomplete C structs in cgo, and those types don't
++		// have a meaningful size anyway.
++		base.Errorf("unsafe.Slice of incomplete (or unallocatable) type not allowed")
+ 	}
++
+ 	if !checkunsafeslice(&n.Y) {
+ 		n.SetType(nil)
+ 		return n
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 62eb4298f4..1f08e4d312 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -654,36 +654,28 @@ func walkRecover(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ }
+ 
+ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
++	ptr := safeExpr(n.X, init)
+ 	len := safeExpr(n.Y, init)
+ 
+ 	fnname := "unsafeslice64"
+-	argtype := types.Types[types.TINT64]
++	lenType := types.Types[types.TINT64]
+ 
+ 	// Type checking guarantees that TIDEAL len/cap are positive and fit in an int.
+ 	// The case of len or cap overflow when converting TUINT or TUINTPTR to TINT
+ 	// will be handled by the negative range checks in unsafeslice during runtime.
+-	if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
++	if ir.ShouldCheckPtr(ir.CurFunc, 1) {
++		fnname = "unsafeslicecheckptr"
++		// for simplicity, unsafeslicecheckptr always uses int64
++	} else if len.Type().IsKind(types.TIDEAL) || len.Type().Size() <= types.Types[types.TUINT].Size() {
+ 		fnname = "unsafeslice"
+-		argtype = types.Types[types.TINT]
++		lenType = types.Types[types.TINT]
+ 	}
+ 
+ 	t := n.Type()
+ 
+-	// Call runtime.unsafeslice[64] to check that the length argument is
+-	// non-negative and smaller than the max length allowed for the
+-	// element type.
++	// Call runtime.unsafeslice{,64,checkptr} to check ptr and len.
+ 	fn := typecheck.LookupRuntime(fnname)
+-	init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(len, argtype)))
+-
+-	ptr := walkExpr(n.X, init)
+-
+-	c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, ptr)
+-	c.SetTypecheck(1)
+-	init.Append(c)
+-
+-	// TODO(mdempsky): checkptr instrumentation. Maybe merge into length
+-	// check above, along with nil check? Need to be careful about
+-	// notinheap pointers though: can't pass them as unsafe.Pointer.
++	init.Append(mkcall1(fn, nil, init, reflectdata.TypePtr(t.Elem()), typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]), typecheck.Conv(len, lenType)))
+ 
+ 	h := ir.NewSliceHeaderExpr(n.Pos(), t,
+ 		typecheck.Conv(ptr, types.Types[types.TUNSAFEPTR]),
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index 59891a06a5..d42950844b 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -16,11 +16,30 @@ func checkptrAlignment(p unsafe.Pointer, elem *_type, n uintptr) {
+ 	}
+ 
+ 	// Check that (*[n]elem)(p) doesn't straddle multiple heap objects.
+-	if size := n * elem.size; size > 1 && checkptrBase(p) != checkptrBase(add(p, size-1)) {
++	// TODO(mdempsky): Fix #46938 so we don't need to worry about overflow here.
++	if checkptrStraddles(p, n*elem.size) {
+ 		throw("checkptr: converted pointer straddles multiple allocations")
+ 	}
+ }
+ 
++// checkptrStraddles reports whether the first size-bytes of memory
++// addressed by ptr is known to straddle more than one Go allocation.
++func checkptrStraddles(ptr unsafe.Pointer, size uintptr) bool {
++	if size <= 1 {
++		return false
++	}
++
++	end := add(ptr, size-1)
++	if uintptr(end) < uintptr(ptr) {
++		return true
++	}
++
++	// TODO(mdempsky): Detect when [ptr, end] contains Go allocations,
++	// but neither ptr nor end point into one themselves.
++
++	return checkptrBase(ptr) != checkptrBase(end)
++}
++
+ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
+ 	if 0 < uintptr(p) && uintptr(p) < minLegalPointer {
+ 		throw("checkptr: pointer arithmetic computed bad pointer value")
+diff --git a/src/runtime/checkptr_test.go b/src/runtime/checkptr_test.go
+index 194cc1243a..2a5c364e97 100644
+--- a/src/runtime/checkptr_test.go
++++ b/src/runtime/checkptr_test.go
+@@ -30,6 +30,8 @@ func TestCheckPtr(t *testing.T) {
+ 		{"CheckPtrArithmetic2", "fatal error: checkptr: pointer arithmetic result points to invalid allocation\n"},
+ 		{"CheckPtrSize", "fatal error: checkptr: converted pointer straddles multiple allocations\n"},
+ 		{"CheckPtrSmall", "fatal error: checkptr: pointer arithmetic computed bad pointer value\n"},
++		{"CheckPtrSliceOK", ""},
++		{"CheckPtrSliceFail", "fatal error: checkptr: unsafe.Slice result straddles multiple allocations\n"},
+ 	}
+ 
+ 	for _, tc := range testCases {
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index f9d4154acf..01cdcaeee3 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -112,19 +112,37 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ 	return makeslice(et, len, cap)
+ }
+ 
+-func unsafeslice(et *_type, len int) {
++func unsafeslice(et *_type, ptr unsafe.Pointer, len int) {
++	if len == 0 {
++		return
++	}
++
++	if ptr == nil {
++		panic(errorString("unsafe.Slice: ptr is nil and len is not zero"))
++	}
++
+ 	mem, overflow := math.MulUintptr(et.size, uintptr(len))
+ 	if overflow || mem > maxAlloc || len < 0 {
+ 		panicunsafeslicelen()
+ 	}
+ }
+ 
+-func unsafeslice64(et *_type, len64 int64) {
++func unsafeslice64(et *_type, ptr unsafe.Pointer, len64 int64) {
+ 	len := int(len64)
+ 	if int64(len) != len64 {
+ 		panicunsafeslicelen()
+ 	}
+-	unsafeslice(et, len)
++	unsafeslice(et, ptr, len)
++}
++
++func unsafeslicecheckptr(et *_type, ptr unsafe.Pointer, len64 int64) {
++	unsafeslice64(et, ptr, len64)
++
++	// Check that underlying array doesn't straddle multiple heap objects.
++	// unsafeslice64 has already checked for overflow.
++	if checkptrStraddles(ptr, uintptr(len64)*et.size) {
++		throw("checkptr: unsafe.Slice result straddles multiple allocations")
++	}
+ }
+ 
+ func panicunsafeslicelen() {
+diff --git a/src/runtime/testdata/testprog/checkptr.go b/src/runtime/testdata/testprog/checkptr.go
+index e0a2794f4c..f76b64ad96 100644
+--- a/src/runtime/testdata/testprog/checkptr.go
++++ b/src/runtime/testdata/testprog/checkptr.go
+@@ -13,6 +13,8 @@ func init() {
+ 	register("CheckPtrArithmetic2", CheckPtrArithmetic2)
+ 	register("CheckPtrSize", CheckPtrSize)
+ 	register("CheckPtrSmall", CheckPtrSmall)
++	register("CheckPtrSliceOK", CheckPtrSliceOK)
++	register("CheckPtrSliceFail", CheckPtrSliceFail)
+ }
+ 
+ func CheckPtrAlignmentNoPtr() {
+@@ -49,3 +51,14 @@ func CheckPtrSize() {
+ func CheckPtrSmall() {
+ 	sink2 = unsafe.Pointer(uintptr(1))
+ }
++
++func CheckPtrSliceOK() {
++	p := new([4]int64)
++	sink2 = unsafe.Slice(&p[1], 3)
++}
++
++func CheckPtrSliceFail() {
++	p := new(int64)
++	sink2 = p
++	sink2 = unsafe.Slice(p, 100)
++}
+diff --git a/test/unsafebuiltins.go b/test/unsafebuiltins.go
+index c10f8084a7..4c940aa855 100644
+--- a/test/unsafebuiltins.go
++++ b/test/unsafebuiltins.go
+@@ -30,8 +30,11 @@ func main() {
+ 		assert(len(s) == len(p))
+ 		assert(cap(s) == len(p))
+ 
+-		// nil pointer
+-		mustPanic(func() { _ = unsafe.Slice((*int)(nil), 0) })
++		// nil pointer with zero length returns nil
++		assert(unsafe.Slice((*int)(nil), 0) == nil)
++
++		// nil pointer with positive length panics
++		mustPanic(func() { _ = unsafe.Slice((*int)(nil), 1) })
+ 
+ 		// negative length
+ 		var neg int = -1

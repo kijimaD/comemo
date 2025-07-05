@@ -28,10 +28,126 @@ Date:   Mon Nov 2 16:58:38 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go |  1 +
  src/runtime/malloc.go                   |  9 ++++++++-
  src/runtime/mcache.go                   |  7 ++-----
  src/runtime/mgcscavenge.go              |  3 +++
  src/runtime/mheap.go                    | 12 ++++++++++++
  5 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index afa6b98315..02735e50fb 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -51,6 +51,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"funcPC",
+ 			"getArgInfoFast",
+ 			"getm",
++			"getMCache",
+ 			"isDirectIface",
+ 			"itabHashFunc",
+ 			"noescape",
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 4b798d129c..551acd0796 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -975,6 +975,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	shouldhelpgc := false
+ 	dataSize := size
+ 	c := getMCache()
++	if c == nil {
++		throw("mallocgc called without a P or outside bootstrapping")
++	}
+ 	var span *mspan
+ 	var x unsafe.Pointer
+ 	noscan := typ == nil || typ.ptrdata == 0
+@@ -1202,7 +1205,11 @@ func reflect_unsafe_NewArray(typ *_type, n int) unsafe.Pointer {
+ }
+ 
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+-	getMCache().nextSample = nextSample()
++	c := getMCache()
++	if c == nil {
++		throw("profilealloc called without a P or outside bootstrapping")
++	}
++	c.nextSample = nextSample()
+ 	mProf_Malloc(x, size)
+ }
+ 
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index c9342a41c9..847a5dedf3 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -124,8 +124,8 @@ func freemcache(c *mcache) {
+ 
+ // getMCache is a convenience function which tries to obtain an mcache.
+ //
+-// Must be running with a P when called (so the caller must be in a
+-// non-preemptible state) or must be called during bootstrapping.
++// Returns nil if we're not bootstrapping or we don't have a P. The caller's
++// P must not change, so we must be in a non-preemptible state.
+ func getMCache() *mcache {
+ 	// Grab the mcache, since that's where stats live.
+ 	pp := getg().m.p.ptr()
+@@ -136,9 +136,6 @@ func getMCache() *mcache {
+ 		// mcache0 is cleared when bootstrapping is complete,
+ 		// by procresize.
+ 		c = mcache0
+-		if c == nil {
+-			throw("getMCache called with no P or outside bootstrapping")
+-		}
+ 	} else {
+ 		c = pp.mcache
+ 	}
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index a242577bd9..ab4e28a60b 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -734,6 +734,9 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr
+ 
+ 	// Update consistent accounting too.
+ 	c := getMCache()
++	if c == nil {
++		throw("scavengeRangeLocked called without a P or outside bootstrapping")
++	}
+ 	stats := memstats.heapStats.acquire(c)
+ 	atomic.Xaddint64(&stats.committed, -nbytes)
+ 	atomic.Xaddint64(&stats.released, nbytes)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 66a59cb999..6b29f34a82 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1247,6 +1247,10 @@ HaveSpan:
+ 	}
+ 	// Update consistent stats.
+ 	c := getMCache()
++	if c == nil {
++		// TODO(mknyszek): Remove this and handle this case to fix #42339.
++		throw("allocSpan called without P or outside bootstrapping")
++	}
+ 	stats := memstats.heapStats.acquire(c)
+ 	atomic.Xaddint64(&stats.committed, int64(scav))
+ 	atomic.Xaddint64(&stats.released, -int64(scav))
+@@ -1341,6 +1345,10 @@ func (h *mheap) grow(npage uintptr) bool {
+ 		// just add directly to heap_released.
+ 		atomic.Xadd64(&memstats.heap_released, int64(asize))
+ 		c := getMCache()
++		if c == nil {
++			// TODO(mknyszek): Remove this and handle this case to fix #42339.
++			throw("grow called without P or outside bootstrapping")
++		}
+ 		stats := memstats.heapStats.acquire(c)
+ 		atomic.Xaddint64(&stats.released, int64(asize))
+ 		memstats.heapStats.release(c)
+@@ -1440,6 +1448,10 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 	}
+ 	// Update consistent stats.
+ 	c := getMCache()
++	if c == nil {
++		// TODO(mknyszek): Remove this and handle this case to fix #42339.
++		throw("freeSpanLocked called without P or outside bootstrapping")
++	}
+ 	stats := memstats.heapStats.acquire(c)
+ 	switch typ {
+ 	case spanAllocHeap:

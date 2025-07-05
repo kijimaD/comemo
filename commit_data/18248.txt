@@ -7,6 +7,16 @@ Date:   Tue Jan 14 12:27:51 2014 -0800
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/52240043
-
+---
  doc/go1.3.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index 66aa79a0cb..27a72e4a90 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -1,3 +1,4 @@
++cmd/gofmt: remove -tabwidth and -tabs flags (CL 52170043)
+ liblink: pull linker i/o into separate liblink C library (CL 35790044)
+ misc/dist: renamed misc/makerelease (CL 39920043)
+ syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)

@@ -8,8 +8,69 @@ Date:   Tue Oct 4 21:15:42 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/30358
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go                 |  7 +++++++
  src/runtime/panic.go                      |  5 +++++
  src/runtime/testdata/testprog/deadlock.go | 11 +++++++++++
  3 files changed, 23 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9d87957c2a..e352540ac2 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -444,6 +444,13 @@ func TestPanicDeadlockSyscall(t *testing.T) {
+ 	testPanicDeadlock(t, "SyscallInPanic", "1\n2\npanic: 3\n\n")
+ }
+ 
++func TestPanicLoop(t *testing.T) {
++	output := runTestProg(t, "testprog", "PanicLoop")
++	if want := "panic while printing panic value"; !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++}
++
+ func TestMemPprof(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+ 
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 9e456372b3..9e108cc437 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -376,6 +376,11 @@ func Goexit() {
+ // Used when crashing with panicking.
+ // This must match types handled by printany.
+ func preprintpanics(p *_panic) {
++	defer func() {
++		if recover() != nil {
++			throw("panic while printing panic value")
++		}
++	}()
+ 	for p != nil {
+ 		switch v := p.arg.(type) {
+ 		case error:
+diff --git a/src/runtime/testdata/testprog/deadlock.go b/src/runtime/testdata/testprog/deadlock.go
+index c938fcfb56..ca2be57911 100644
+--- a/src/runtime/testdata/testprog/deadlock.go
++++ b/src/runtime/testdata/testprog/deadlock.go
+@@ -32,6 +32,7 @@ func init() {
+ 	register("PanicTraceback", PanicTraceback)
+ 	register("GoschedInPanic", GoschedInPanic)
+ 	register("SyscallInPanic", SyscallInPanic)
++	register("PanicLoop", PanicLoop)
+ }
+ 
+ func SimpleDeadlock() {
+@@ -214,3 +215,13 @@ func pt2() {
+ 	}()
+ 	panic("hello")
+ }
++
++type panicError struct{}
++
++func (*panicError) Error() string {
++	panic("double error")
++}
++
++func PanicLoop() {
++	panic(&panicError{})
++}

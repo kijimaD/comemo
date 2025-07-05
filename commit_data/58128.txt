@@ -14,7 +14,40 @@ Date:   Wed Oct 4 03:23:54 2023 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/bufio/bufio.go | 5 +----
  src/bufio/scan.go  | 4 +---
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index 8469b9eff7..1266383f93 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -50,11 +50,8 @@ func NewReaderSize(rd io.Reader, size int) *Reader {
+ 	if ok && len(b.buf) >= size {
+ 		return b
+ 	}
+-	if size < minReadBufferSize {
+-		size = minReadBufferSize
+-	}
+ 	r := new(Reader)
+-	r.reset(make([]byte, size), rd)
++	r.reset(make([]byte, max(size, minReadBufferSize)), rd)
+ 	return r
+ }
+ 
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index 5c2782f438..d8dcf13ca1 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -198,9 +198,7 @@ func (s *Scanner) Scan() bool {
+ 			if newSize == 0 {
+ 				newSize = startBufSize
+ 			}
+-			if newSize > s.maxTokenSize {
+-				newSize = s.maxTokenSize
+-			}
++			newSize = min(newSize, s.maxTokenSize)
+ 			newBuf := make([]byte, newSize)
+ 			copy(newBuf, s.buf[s.start:s.end])
+ 			s.buf = newBuf

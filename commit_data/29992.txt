@@ -12,7 +12,7 @@ Date:   Wed Oct 19 12:47:59 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go  |  6 +++---
  src/cmd/internal/obj/mips/asm0.go   |  4 ++--
  src/cmd/internal/obj/ppc64/asm9.go  |  4 ++--
@@ -33,3 +33,424 @@ Date:   Wed Oct 19 12:47:59 2016 -0700
  src/cmd/link/internal/x86/l.go      | 10 +++++-----
  src/cmd/link/internal/x86/obj.go    | 10 +++++-----
  19 files changed, 81 insertions(+), 81 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 89c737291c..523055b6f3 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -39,7 +39,7 @@ import (
+ )
+ 
+ const (
+-	FuncAlign = 16
++	funcAlign = 16
+ )
+ 
+ const (
+@@ -633,7 +633,7 @@ func span7(ctxt *obj.Link, cursym *obj.LSym) {
+ 		}
+ 	}
+ 
+-	c += -c & (FuncAlign - 1)
++	c += -c & (funcAlign - 1)
+ 	cursym.Size = c
+ 
+ 	/*
+@@ -806,7 +806,7 @@ func addpool(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) {
+ 		ctxt.Elitrl.Link = q
+ 	}
+ 	ctxt.Elitrl = q
+-	pool.size = -pool.size & (FuncAlign - 1)
++	pool.size = -pool.size & (funcAlign - 1)
+ 	pool.size += uint32(sz)
+ 	p.Pcond = q
+ }
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 81e8d5ba63..bac4a70900 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -39,7 +39,7 @@ import (
+ // Instruction layout.
+ 
+ const (
+-	FuncAlign = 8
++	funcAlign = 8
+ )
+ 
+ const (
+@@ -418,7 +418,7 @@ func span0(ctxt *obj.Link, cursym *obj.LSym) {
+ 		cursym.Size = c
+ 	}
+ 
+-	c += -c & (FuncAlign - 1)
++	c += -c & (funcAlign - 1)
+ 	cursym.Size = c
+ 
+ 	/*
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 7c9d83a7d1..0b3e667f60 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -40,7 +40,7 @@ import (
+ // Instruction layout.
+ 
+ const (
+-	FuncAlign = 8
++	funcAlign = 8
+ )
+ 
+ const (
+@@ -569,7 +569,7 @@ func span9(ctxt *obj.Link, cursym *obj.LSym) {
+ 		cursym.Size = c
+ 	}
+ 
+-	c += -c & (FuncAlign - 1)
++	c += -c & (funcAlign - 1)
+ 	cursym.Size = c
+ 
+ 	/*
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 1e4baf8bdc..270670474b 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -38,7 +38,7 @@ import (
+ 
+ // instruction layout.
+ const (
+-	FuncAlign = 16
++	funcAlign = 16
+ )
+ 
+ type Optab struct {
+@@ -433,8 +433,8 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	cursym.Size = int64(len(buffer))
+-	if cursym.Size%FuncAlign != 0 {
+-		cursym.Size += FuncAlign - (cursym.Size % FuncAlign)
++	if cursym.Size%funcAlign != 0 {
++		cursym.Size += funcAlign - (cursym.Size % funcAlign)
+ 	}
+ 	cursym.Grow(cursym.Size)
+ 	copy(cursym.P, buffer)
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 7efc30e03c..f7fa9a2edc 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -56,7 +56,7 @@ const (
+ 	//
+ 	LoopAlign  = 16
+ 	MaxLoopPad = 0
+-	FuncAlign  = 16
++	funcAlign  = 16
+ )
+ 
+ type Optab struct {
+diff --git a/src/cmd/link/internal/amd64/l.go b/src/cmd/link/internal/amd64/l.go
+index 2024f162be..393da6bf28 100644
+--- a/src/cmd/link/internal/amd64/l.go
++++ b/src/cmd/link/internal/amd64/l.go
+@@ -31,13 +31,13 @@
+ package amd64
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 1  // min data alignment
+-	FuncAlign = 16
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 7
+-	DWARFREGLR = 16
++	dwarfRegSP = 7
++	dwarfRegLR = 16
+ )
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 729b4371e0..1b1f4ac771 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -43,11 +43,11 @@ func Init() {
+ 		ld.SysArch = sys.ArchAMD64P32
+ 	}
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/arm/l.go b/src/cmd/link/internal/arm/l.go
+index 91718de545..a83d26bf06 100644
+--- a/src/cmd/link/internal/arm/l.go
++++ b/src/cmd/link/internal/arm/l.go
+@@ -63,13 +63,13 @@ package arm
+ // THE SOFTWARE.
+ 
+ const (
+-	MaxAlign  = 8 // max data alignment
+-	MinAlign  = 1 // min data alignment
+-	FuncAlign = 4 // single-instruction alignment
++	maxAlign  = 8 // max data alignment
++	minAlign  = 1 // min data alignment
++	funcAlign = 4 // single-instruction alignment
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 13
+-	DWARFREGLR = 14
++	dwarfRegSP = 13
++	dwarfRegLR = 14
+ )
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 775203d4eb..4feaa096a7 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -40,11 +40,11 @@ import (
+ func Init() {
+ 	ld.SysArch = sys.ArchARM
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/arm64/l.go b/src/cmd/link/internal/arm64/l.go
+index b0ece1670f..50b88e479f 100644
+--- a/src/cmd/link/internal/arm64/l.go
++++ b/src/cmd/link/internal/arm64/l.go
+@@ -62,13 +62,13 @@ package arm64
+ // THE SOFTWARE.
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 1  // min data alignment
+-	FuncAlign = 8
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 8
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 31
+-	DWARFREGLR = 30
++	dwarfRegSP = 31
++	dwarfRegLR = 30
+ )
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index c8d12f2aef..7d49163e90 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -40,11 +40,11 @@ import (
+ func Init() {
+ 	ld.SysArch = sys.ArchARM64
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/mips64/l.go b/src/cmd/link/internal/mips64/l.go
+index edf7170363..d794122f0b 100644
+--- a/src/cmd/link/internal/mips64/l.go
++++ b/src/cmd/link/internal/mips64/l.go
+@@ -62,13 +62,13 @@ package mips64
+ // THE SOFTWARE.
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 1  // min data alignment
+-	FuncAlign = 8
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 8
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 29
+-	DWARFREGLR = 31
++	dwarfRegSP = 29
++	dwarfRegLR = 31
+ )
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 564a10ab51..b79cd9df4f 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -44,11 +44,11 @@ func Init() {
+ 		ld.SysArch = sys.ArchMIPS64
+ 	}
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/ppc64/l.go b/src/cmd/link/internal/ppc64/l.go
+index 64b05e035c..f7ae33dd25 100644
+--- a/src/cmd/link/internal/ppc64/l.go
++++ b/src/cmd/link/internal/ppc64/l.go
+@@ -62,13 +62,13 @@ package ppc64
+ // THE SOFTWARE.
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 1  // min data alignment
+-	FuncAlign = 8
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 8
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 1
+-	DWARFREGLR = 65
++	dwarfRegSP = 1
++	dwarfRegLR = 65
+ )
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 92cb1e8ebe..6eff2f416d 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -44,11 +44,11 @@ func Init() {
+ 		ld.SysArch = sys.ArchPPC64
+ 	}
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/s390x/l.go b/src/cmd/link/internal/s390x/l.go
+index 401dbbad4a..87d10ee782 100644
+--- a/src/cmd/link/internal/s390x/l.go
++++ b/src/cmd/link/internal/s390x/l.go
+@@ -62,13 +62,13 @@ package s390x
+ // THE SOFTWARE.
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 2  // min data alignment
+-	FuncAlign = 16
++	maxAlign  = 32 // max data alignment
++	minAlign  = 2  // min data alignment
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 15
+-	DWARFREGLR = 14
++	dwarfRegSP = 15
++	dwarfRegLR = 14
+ )
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 6c1e193954..eea8978080 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -40,11 +40,11 @@ import (
+ func Init() {
+ 	ld.SysArch = sys.ArchS390X
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit
+diff --git a/src/cmd/link/internal/x86/l.go b/src/cmd/link/internal/x86/l.go
+index 80df96bece..0f104eab57 100644
+--- a/src/cmd/link/internal/x86/l.go
++++ b/src/cmd/link/internal/x86/l.go
+@@ -31,13 +31,13 @@
+ package x86
+ 
+ const (
+-	MaxAlign  = 32 // max data alignment
+-	MinAlign  = 1  // min data alignment
+-	FuncAlign = 16
++	maxAlign  = 32 // max data alignment
++	minAlign  = 1  // min data alignment
++	funcAlign = 16
+ )
+ 
+ /* Used by ../internal/ld/dwarf.go */
+ const (
+-	DWARFREGSP = 4
+-	DWARFREGLR = 8
++	dwarfRegSP = 4
++	dwarfRegLR = 8
+ )
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index f35114f3b2..ea213be7c7 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -40,11 +40,11 @@ import (
+ func Init() {
+ 	ld.SysArch = sys.Arch386
+ 
+-	ld.Thearch.Funcalign = FuncAlign
+-	ld.Thearch.Maxalign = MaxAlign
+-	ld.Thearch.Minalign = MinAlign
+-	ld.Thearch.Dwarfregsp = DWARFREGSP
+-	ld.Thearch.Dwarfreglr = DWARFREGLR
++	ld.Thearch.Funcalign = funcAlign
++	ld.Thearch.Maxalign = maxAlign
++	ld.Thearch.Minalign = minAlign
++	ld.Thearch.Dwarfregsp = dwarfRegSP
++	ld.Thearch.Dwarfreglr = dwarfRegLR
+ 
+ 	ld.Thearch.Adddynrel = adddynrel
+ 	ld.Thearch.Archinit = archinit

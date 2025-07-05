@@ -57,7 +57,7 @@ Date:   Mon Mar 7 10:37:42 2011 -0500
     R=iant
     CC=golang-dev
     https://golang.org/cl/4253054
-
+---
  misc/cgo/stdio/Makefile                        |   3 -
  misc/cgo/stdio/hello.go                        |  20 +-
  misc/cgo/test/Makefile                         |  23 +++
@@ -80,3 +80,1985 @@ Date:   Mon Mar 7 10:37:42 2011 -0500
  src/pkg/runtime/proc.c                         | 226 ++++++++++------------
  src/pkg/runtime/runtime.h                      |  11 +-
  21 files changed, 907 insertions(+), 419 deletions(-)
+
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index fc925e607b..3f7a4c01c3 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -6,10 +6,7 @@ include ../../../src/Make.inc
+ 
+ TARG=stdio
+ CGOFILES=\
+-	align.go\
+ 	file.go\
+-	test.go\
+-	test1.go\
+ 
+ CLEANFILES+=hello fib chain run.out
+ 
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 9cb6e6884c..58fc6d574b 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -4,26 +4,8 @@
+ 
+ package main
+ 
+-import (
+-	"os"
+-	"stdio"
+-)
++import "stdio"
+ 
+ func main() {
+ 	stdio.Stdout.WriteString(stdio.Greeting + "\n")
+-
+-	l := stdio.Atol("123")
+-	if l != 123 {
+-		println("Atol 123: ", l)
+-		panic("bad atol")
+-	}
+-
+-	n, err := stdio.Strtol("asdf", 123)
+-	if n != 0 || err != os.EINVAL {
+-		println("Strtol: ", n, err)
+-		panic("bad atoi2")
+-	}
+-
+-	stdio.TestAlign()
+-	stdio.TestEnum()
+ }
+diff --git a/misc/cgo/test/Makefile b/misc/cgo/test/Makefile
+new file mode 100644
+index 0000000000..893540d979
+--- /dev/null
++++ b/misc/cgo/test/Makefile
+@@ -0,0 +1,23 @@
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../src/Make.inc
++
++TARG=runtime/cgotest
++
++CGOFILES=\
++	align.go\
++	basic.go\
++	callback.go\
++	issue1222.go\
++	issue1328.go\
++	issue1560.go\
++
++CGO_OFILES=\
++	callback_c.o\
++
++OFILES=\
++	runtime.$O\
++
++include ../../../src/Make.pkg
+diff --git a/misc/cgo/stdio/align.go b/misc/cgo/test/align.go
+similarity index 82%
+rename from misc/cgo/stdio/align.go
+rename to misc/cgo/test/align.go
+index 6cdfd902f4..2d2979595c 100644
+--- a/misc/cgo/stdio/align.go
++++ b/misc/cgo/test/align.go
+@@ -1,4 +1,4 @@
+-package stdio
++package cgotest
+ 
+ /*
+ #include <stdio.h>
+@@ -55,24 +55,18 @@ void cTest(SDL_KeyboardEvent *event) {
+ import "C"
+ 
+ import (
+-	"fmt"
+-	"syscall"
++	"testing"
+ )
+ 
+-func TestAlign() {
+-	if syscall.ARCH == "amd64" {
+-		// alignment is known to be broken on amd64.
+-		// http://code.google.com/p/go/issues/detail?id=609
+-		return
+-	}
++func TestAlign(t *testing.T) {
+ 	var evt C.SDL_KeyboardEvent
+ 	C.makeEvent(&evt)
+ 	if C.same(&evt, evt.typ, evt.which, evt.state, evt.keysym.scancode, evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode) == 0 {
+-		fmt.Println("*** bad alignment")
++		t.Error("*** bad alignment")
+ 		C.cTest(&evt)
+-		fmt.Printf("Go: %#x %#x %#x %#x %#x %#x %#x\n",
++		t.Errorf("Go: %#x %#x %#x %#x %#x %#x %#x\n",
+ 			evt.typ, evt.which, evt.state, evt.keysym.scancode,
+ 			evt.keysym.sym, evt.keysym.mod, evt.keysym.unicode)
+-		fmt.Println(evt)
++		t.Error(evt)
+ 	}
+ }
+diff --git a/misc/cgo/stdio/test.go b/misc/cgo/test/basic.go
+similarity index 80%
+rename from misc/cgo/stdio/test.go
+rename to misc/cgo/test/basic.go
+index 8f21603ca3..a94074c52e 100644
+--- a/misc/cgo/stdio/test.go
++++ b/misc/cgo/test/basic.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file contains test cases for cgo.
++// Basic test cases for cgo.
+ 
+-package stdio
++package cgotest
+ 
+ /*
+ #include <stdio.h>
+@@ -52,6 +52,7 @@ struct ibv_context {
+ import "C"
+ import (
+ 	"os"
++	"testing"
+ 	"unsafe"
+ )
+ 
+@@ -89,38 +90,35 @@ func Atol(s string) int {
+ 	return int(n)
+ }
+ 
+-func TestConst() {
++func TestConst(t *testing.T) {
+ 	C.myConstFunc(nil, 0, nil)
+ }
+ 
+-func TestEnum() {
++func TestEnum(t *testing.T) {
+ 	if C.Enum1 != 1 || C.Enum2 != 2 {
+-		println("bad enum", C.Enum1, C.Enum2)
++		t.Error("bad enum", C.Enum1, C.Enum2)
+ 	}
+ }
+ 
+-func TestAtol() {
++func TestAtol(t *testing.T) {
+ 	l := Atol("123")
+ 	if l != 123 {
+-		println("Atol 123: ", l)
+-		panic("bad atol")
++		t.Error("Atol 123: ", l)
+ 	}
+ }
+ 
+-func TestErrno() {
++func TestErrno(t *testing.T) {
+ 	n, err := Strtol("asdf", 123)
+ 	if n != 0 || err != os.EINVAL {
+-		println("Strtol: ", n, err)
+-		panic("bad strtol")
++		t.Error("Strtol: ", n, err)
+ 	}
+ }
+ 
+-func TestMultipleAssign() {
+-	p := C.CString("123")
++func TestMultipleAssign(t *testing.T) {
++	p := C.CString("234")
+ 	n, m := C.strtol(p, nil, 345), C.strtol(p, nil, 10)
+ 	if n != 0 || m != 234 {
+-		println("Strtol x2: ", n, m)
+-		panic("bad strtol x2")
++		t.Fatal("Strtol x2: ", n, m)
+ 	}
+ 	C.free(unsafe.Pointer(p))
+ }
+@@ -134,11 +132,3 @@ var (
+ type Context struct {
+ 	ctx *C.struct_ibv_context
+ }
+-
+-func Test() {
+-	TestAlign()
+-	TestAtol()
+-	TestEnum()
+-	TestErrno()
+-	TestConst()
+-}
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+new file mode 100644
+index 0000000000..b4e6c191a2
+--- /dev/null
++++ b/misc/cgo/test/callback.go
+@@ -0,0 +1,136 @@
++package cgotest
++
++/*
++void callback(void *f);
++void callGoFoo(void) {
++	extern void goFoo(void);
++	goFoo();
++}
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++	"unsafe"
++)
++
++// nestedCall calls into C, back into Go, and finally to f.
++func nestedCall(f func()) {
++	// NOTE: Depends on representation of f.
++	// callback(x) calls goCallback(x)
++	C.callback(*(*unsafe.Pointer)(unsafe.Pointer(&f)))
++}
++
++//export goCallback
++func goCallback(p unsafe.Pointer) {
++	(*(*func())(unsafe.Pointer(&p)))()
++}
++
++func TestCallback(t *testing.T) {
++	var x = false
++	nestedCall(func(){x = true})
++	if !x {
++		t.Fatal("nestedCall did not call func")
++	}
++}
++
++func TestCallbackGC(t *testing.T) {
++	nestedCall(runtime.GC)
++}
++
++func lockedOSThread() bool  // in runtime.c
++
++func TestCallbackPanic(t *testing.T) {
++	// Make sure panic during callback unwinds properly.
++	if lockedOSThread() {
++		t.Fatal("locked OS thread on entry to TestCallbackPanic")
++	}
++	defer func() {
++		s := recover()
++		if s == nil {
++			t.Fatal("did not panic")
++		}
++		if s.(string) != "callback panic" {
++			t.Fatal("wrong panic:", s)
++		}
++		if lockedOSThread() {
++			t.Fatal("locked OS thread on exit from TestCallbackPanic")
++		}
++	}()
++	nestedCall(func(){panic("callback panic")})
++	panic("nestedCall returned")
++}
++
++func TestCallbackPanicLoop(t *testing.T) {
++	// Make sure we don't blow out m->g0 stack.
++	for i := 0; i < 100000; i++ {
++		TestCallbackPanic(t)
++	}
++}
++
++func TestCallbackPanicLocked(t *testing.T) {
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
++	if !lockedOSThread() {
++		t.Fatal("runtime.LockOSThread didn't")
++	}
++	defer func() {
++		s := recover()
++		if s == nil {
++			t.Fatal("did not panic")
++		}
++		if s.(string) != "callback panic" {
++			t.Fatal("wrong panic:", s)
++		}
++		if !lockedOSThread() {
++			t.Fatal("lost lock on OS thread after panic")
++		}
++	}()
++	nestedCall(func(){panic("callback panic")})
++	panic("nestedCall returned")
++}
++
++// Callback with zero arguments used to make the stack misaligned,
++// which broke the garbage collector and other things.
++func TestZeroArgCallback(t *testing.T) {
++	defer func() {
++		s := recover()
++		if s != nil {
++			t.Fatal("panic during callback:", s)
++		}
++	}()
++	C.callGoFoo()
++}
++
++//export goFoo
++func goFoo() {
++	x := 1
++	for i := 0; i < 10000; i++ {
++		// variadic call mallocs + writes to 
++		variadic(x, x, x)
++		if x != 1 {
++			panic("bad x")
++		}
++	}
++}
++
++func variadic(x ...interface{}) {}
++
++func TestBlocking(t *testing.T) {
++	c := make(chan int)
++	go func() {
++		for i := 0; i < 10; i++ {
++			c <- <-c
++		}
++	}()
++	nestedCall(func(){
++		for i := 0; i < 10; i++ {
++			c <- i
++			if j := <-c; j != i {
++				t.Errorf("out of sync %d != %d", j, i)
++			}
++		}
++	})
++}
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+new file mode 100644
+index 0000000000..5983a5e115
+--- /dev/null
++++ b/misc/cgo/test/callback_c.c
+@@ -0,0 +1,12 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <sys/types.h>
++#include "_cgo_export.h"
++
++void
++callback(void *f)
++{
++	goCallback(f);
++}
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+new file mode 100644
+index 0000000000..9b9f1f9d8b
+--- /dev/null
++++ b/misc/cgo/test/cgo_test.go
+@@ -0,0 +1,6 @@
++package cgotest
++
++// dummy file so gotest thinks there are tests.
++// the actual tests are in the main go files, next
++// to the code they test.
++
+diff --git a/misc/cgo/stdio/test1.go b/misc/cgo/test/issue1222.go
+similarity index 96%
+rename from misc/cgo/stdio/test1.go
+rename to misc/cgo/test/issue1222.go
+index dce2ef83c5..c396a0c418 100644
+--- a/misc/cgo/stdio/test1.go
++++ b/misc/cgo/test/issue1222.go
+@@ -4,7 +4,7 @@
+ 
+ // This file contains test cases for cgo.
+ 
+-package stdio
++package cgotest
+ 
+ /*
+ // issue 1222
+diff --git a/misc/cgo/test/issue1328.go b/misc/cgo/test/issue1328.go
+new file mode 100644
+index 0000000000..f29d7057e9
+--- /dev/null
++++ b/misc/cgo/test/issue1328.go
+@@ -0,0 +1,30 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++// extern void BackIntoGo(void);
++// void IntoC() { BackIntoGo(); }
++import "C"
++
++//export BackIntoGo
++func BackIntoGo() {
++	x := 1
++
++	for i := 0; i < 10000; i++ {
++		xvariadic(x)
++		if x != 1 {
++			panic("x is not 1?")
++		}
++	}
++}
++
++func xvariadic(x ...interface{}) {
++}
++
++func Test1328(t *testing.T) {
++	C.IntoC()
++}
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+new file mode 100644
+index 0000000000..b5feafce5d
+--- /dev/null
++++ b/misc/cgo/test/issue1560.go
+@@ -0,0 +1,46 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++#include <unistd.h>
++
++extern void BackgroundSleep(int);
++void twoSleep(int n) {
++	BackgroundSleep(n);
++	sleep(n);
++}
++*/
++import "C"
++
++import (
++	"testing"
++	"time"
++)
++
++var sleepDone = make(chan bool)
++
++func parallelSleep(n int) {
++	C.twoSleep(C.int(n))
++	<-sleepDone
++}
++
++//export BackgroundSleep
++func BackgroundSleep(n int){
++	go func(){
++		C.sleep(C.uint(n))
++		sleepDone <- true
++	}()
++}
++
++func TestParallelSleep(t *testing.T) {
++	dt := -time.Nanoseconds()
++	parallelSleep(1)
++	dt += time.Nanoseconds()
++	// bug used to run sleeps in serial, producing a 2-second delay.
++	if dt >= 1.3e9 {
++		t.Fatalf("parallel 1-second sleeps slept for %f seconds", float64(dt)/1e9)
++	}
++}
+diff --git a/misc/cgo/test/runtime.c b/misc/cgo/test/runtime.c
+new file mode 100644
+index 0000000000..e087c76220
+--- /dev/null
++++ b/misc/cgo/test/runtime.c
+@@ -0,0 +1,21 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Expose some runtime functions for testing.
++
++typedef char bool;
++
++bool runtime·lockedOSThread(void);
++
++static void
++FLUSH(void*)
++{
++}
++
++void
++·lockedOSThread(bool b)
++{
++	b = runtime·lockedOSThread();
++	FLUSH(&b);
++}
+diff --git a/src/clean.bash b/src/clean.bash
+index 7969e2cd06..596c2fea7c 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -21,6 +21,7 @@ fi
+ rm -f "$GOROOT"/lib/*.a
+ for i in lib9 libbio libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
++	../misc/cgo/life ../misc/cgo/test \
+ 	../test/bench ../test/garbage
+ do
+ 	gomake -C "$GOROOT/src/$i" clean
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 74e1df0da4..598fc68464 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -105,7 +105,7 @@ TEXT runtime·breakpoint(SB),7,$0
+  *  go-routine
+  */
+ 
+-// uintptr gosave(Gobuf*)
++// void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), 7, $0
+ 	MOVL	4(SP), AX		// gobuf
+@@ -116,7 +116,6 @@ TEXT runtime·gosave(SB), 7, $0
+ 	get_tls(CX)
+ 	MOVL	g(CX), BX
+ 	MOVL	BX, gobuf_g(AX)
+-	MOVL	$0, AX			// return 0
+ 	RET
+ 
+ // void gogo(Gobuf*, uintptr)
+@@ -148,6 +147,35 @@ TEXT runtime·gogocall(SB), 7, $0
+ 	JMP	AX
+ 	POPL	BX	// not reached
+ 
++// void mcall(void (*fn)(G*))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return.  It should gogo(&g->gobuf)
++// to keep running g.
++TEXT runtime·mcall(SB), 7, $0
++	MOVL	fn+0(FP), DI
++	
++	get_tls(CX)
++	MOVL	g(CX), AX	// save state in g->gobuf
++	MOVL	0(SP), BX	// caller's PC
++	MOVL	BX, (g_sched+gobuf_pc)(AX)
++	LEAL	4(SP), BX	// caller's SP
++	MOVL	BX, (g_sched+gobuf_sp)(AX)
++	MOVL	AX, (g_sched+gobuf_g)(AX)
++
++	// switch to m->g0 & its stack, call fn
++	MOVL	m(CX), BX
++	MOVL	m_g0(BX), SI
++	CMPL	SI, AX	// if g == m->g0 call badmcall
++	JNE	2(PC)
++	CALL	runtime·badmcall(SB)
++	MOVL	SI, g(CX)	// g = m->g0
++	MOVL	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->gobuf.sp
++	PUSHL	AX
++	CALL	DI
++	POPL	AX
++	CALL	runtime·badmcall2(SB)
++	RET
++
+ /*
+  * support for morestack
+  */
+@@ -183,10 +211,10 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVL	0(SP), AX
+ 	MOVL	AX, m_morepc(BX)
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BP
+ 	MOVL	BP, g(CX)
+-	MOVL	(m_sched+gobuf_sp)(BX), AX
++	MOVL	(g_sched+gobuf_sp)(BP), AX
+ 	MOVL	-4(AX), BX	// fault if CALL would, before smashing SP
+ 	MOVL	AX, SP
+ 	CALL	runtime·newstack(SB)
+@@ -226,11 +254,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	CX, m_moreargsize(BX)	// f's argument size
+ 	MOVL	$1, m_moreframesize(BX)	// f's frame size
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVL	m_g0(BX), BP
+ 	get_tls(CX)
+ 	MOVL	BP, g(CX)
+-	MOVL	(m_sched+gobuf_sp)(BX), SP
++	MOVL	(g_sched+gobuf_sp)(BP), SP
+ 	CALL	runtime·newstack(SB)
+ 	MOVL	$0, 0x1103	// crash if newstack returns
+ 	RET
+@@ -243,10 +271,10 @@ TEXT runtime·lessstack(SB), 7, $0
+ 	MOVL	m(CX), BX
+ 	MOVL	AX, m_cret(BX)
+ 
+-	// Call oldstack on m's scheduling stack.
+-	MOVL	m_g0(BX), DX
+-	MOVL	DX, g(CX)
+-	MOVL	(m_sched+gobuf_sp)(BX), SP
++	// Call oldstack on m->g0's stack.
++	MOVL	m_g0(BX), BP
++	MOVL	BP, g(CX)
++	MOVL	(g_sched+gobuf_sp)(BP), SP
+ 	CALL	runtime·oldstack(SB)
+ 	MOVL	$0, 0x1004	// crash if oldstack returns
+ 	RET
+@@ -302,6 +330,133 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	SUBL	$5, (SP)	// return to CALL again
+ 	JMP	AX	// but first run the deferred function
+ 
++// Dummy function to use in saved gobuf.PC,
++// to match SP pointing at a return address.
++// The gobuf.PC is unused by the contortions here
++// but setting it to return will make the traceback code work.
++TEXT return<>(SB),7,$0
++	RET
++
++// asmcgocall(void(*fn)(void*), void *arg)
++// Call fn(arg) on the scheduler stack,
++// aligned appropriately for the gcc ABI.
++// See cgocall.c for more details.
++TEXT runtime·asmcgocall(SB),7,$0
++	MOVL	fn+0(FP), AX
++	MOVL	arg+4(FP), BX
++	MOVL	SP, DX
++
++	// Figure out if we need to switch to m->g0 stack.
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	get_tls(CX)
++	MOVL	m(CX), BP
++	MOVL	m_g0(BP), SI
++	MOVL	g(CX), DI
++	CMPL	SI, DI
++	JEQ	6(PC)
++	MOVL	SP, (g_sched+gobuf_sp)(DI)
++	MOVL	$return<>(SB), (g_sched+gobuf_pc)(DI)
++	MOVL	DI, (g_sched+gobuf_g)(DI)
++	MOVL	SI, g(CX)
++	MOVL	(g_sched+gobuf_sp)(SI), SP
++
++	// Now on a scheduling stack (a pthread-created stack).
++	SUBL	$32, SP
++	ANDL	$~15, SP	// alignment, perhaps unnecessary
++	MOVL	DI, 8(SP)	// save g
++	MOVL	DX, 4(SP)	// save SP
++	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
++	CALL	AX
++
++	// Restore registers, g, stack pointer.
++	get_tls(CX)
++	MOVL	8(SP), DI
++	MOVL	DI, g(CX)
++	MOVL	4(SP), SP
++	RET
++
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// See cgocall.c for more details.
++TEXT runtime·cgocallback(SB),7,$12
++	MOVL	fn+0(FP), AX
++	MOVL	frame+4(FP), BX
++	MOVL	framesize+8(FP), DX
++
++	// Save current m->g0->sched.sp on stack and then set it to SP.
++	get_tls(CX)
++	MOVL	m(CX), BP
++	MOVL	m_g0(BP), SI
++	PUSHL	(g_sched+gobuf_sp)(SI)
++	MOVL	SP, (g_sched+gobuf_sp)(SI)
++
++	// Switch to m->curg stack and call runtime.cgocallback
++	// with the three arguments.  Because we are taking over
++	// the execution of m->curg but *not* resuming what had
++	// been running, we need to save that information (m->curg->gobuf)
++	// so that we can restore it when we're done. 
++	// We can restore m->curg->gobuf.sp easily, because calling
++	// runtime.cgocallback leaves SP unchanged upon return.
++	// To save m->curg->gobuf.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallback is going to return to that
++	// PC (because we defined cgocallback to have
++	// a frame size of 12, the same amount that we use below),
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	MOVL	m_curg(BP), SI
++	MOVL	SI, g(CX)
++	MOVL	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
++
++	// Push gobuf.pc
++	MOVL	(g_sched+gobuf_pc)(SI), BP
++	SUBL	$4, DI
++	MOVL	BP, 0(DI)
++
++	// Push arguments to cgocallbackg.
++	// Frame size here must match the frame size above
++	// to trick traceback routines into doing the right thing.
++	SUBL	$12, DI
++	MOVL	AX, 0(DI)
++	MOVL	BX, 4(DI)
++	MOVL	DX, 8(DI)
++	
++	// Switch stack and make the call.
++	MOVL	DI, SP
++	CALL	runtime·cgocallbackg(SB)
++
++	// Restore g->gobuf (== m->curg->gobuf) from saved values.
++	get_tls(CX)
++	MOVL	g(CX), SI
++	MOVL	12(SP), BP
++	MOVL	BP, (g_sched+gobuf_pc)(SI)
++	LEAL	(12+4)(SP), DI
++	MOVL	DI, (g_sched+gobuf_sp)(SI)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVL	m(CX), BP
++	MOVL	m_g0(BP), SI
++	MOVL	SI, g(CX)
++	MOVL	(g_sched+gobuf_sp)(SI), SP
++	POPL	(g_sched+gobuf_sp)(SI)
++
++	// Done!
++	RET
++
++// check that SP is in range [g->stackbase, g->stackguard)
++TEXT runtime·stackcheck(SB), 7, $0
++	get_tls(CX)
++	MOVL	g(CX), AX
++	CMPL	g_stackbase(AX), SP
++	JHI	2(PC)
++	INT	$3
++	CMPL	SP, g_stackguard(AX)
++	JHI	2(PC)
++	INT	$3
++	RET
++
+ TEXT runtime·memclr(SB),7,$0
+ 	MOVL	4(SP), DI		// arg 1 addr
+ 	MOVL	8(SP), CX		// arg 2 count
+@@ -345,82 +500,4 @@ TEXT runtime·emptyfunc(SB),0,$0
+ TEXT runtime·abort(SB),7,$0
+ 	INT $0x3
+ 
+-// runcgo(void(*fn)(void*), void *arg)
+-// Call fn(arg) on the scheduler stack,
+-// aligned appropriately for the gcc ABI.
+-TEXT runtime·runcgo(SB),7,$16
+-	MOVL	fn+0(FP), AX
+-	MOVL	arg+4(FP), BX
+-	MOVL	SP, CX
+-
+-	// Figure out if we need to switch to m->g0 stack.
+-	get_tls(DI)
+-	MOVL	m(DI), DX
+-	MOVL	m_g0(DX), SI
+-	CMPL	g(DI), SI
+-	JEQ	2(PC)
+-	MOVL	(m_sched+gobuf_sp)(DX), SP
+-
+-	// Now on a scheduling stack (a pthread-created stack).
+-	SUBL	$16, SP
+-	ANDL	$~15, SP	// alignment for gcc ABI
+-	MOVL	g(DI), BP
+-	MOVL	BP, 8(SP)
+-	MOVL	SI, g(DI)
+-	MOVL	CX, 4(SP)
+-	MOVL	BX, 0(SP)
+-	CALL	AX
+-	
+-	// Back; switch to original g and stack, re-establish
+-	// "DF is clear" invariant.
+-	CLD
+-	get_tls(DI)
+-	MOVL	8(SP), SI
+-	MOVL	SI, g(DI)
+-	MOVL	4(SP), SP
+-	RET
+-
+-// runcgocallback(G *g1, void* sp, void (*fn)(void))
+-// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
+-// the new stack.
+-TEXT runtime·runcgocallback(SB),7,$32
+-	MOVL	g1+0(FP), DX
+-	MOVL	sp+4(FP), AX
+-	MOVL	fn+8(FP), BX
+-
+-	// We are running on m's scheduler stack.  Save current SP
+-	// into m->sched.sp so that a recursive call to runcgo doesn't
+-	// clobber our stack, and also so that we can restore
+-	// the SP when the call finishes.  Reusing m->sched.sp
+-	// for this purpose depends on the fact that there is only
+-	// one possible gosave of m->sched.
+-	get_tls(CX)
+-	MOVL	DX, g(CX)
+-	MOVL	m(CX), CX
+-	MOVL	SP, (m_sched+gobuf_sp)(CX)
+-
+-	// Set new SP, call fn
+-	MOVL	AX, SP
+-	CALL	BX
+-
+-	// Restore old g and SP, return
+-	get_tls(CX)
+-	MOVL	m(CX), DX
+-	MOVL	m_g0(DX), BX
+-	MOVL	BX, g(CX)
+-	MOVL	(m_sched+gobuf_sp)(DX), SP
+-	RET
+-
+-// check that SP is in range [g->stackbase, g->stackguard)
+-TEXT runtime·stackcheck(SB), 7, $0
+-	get_tls(CX)
+-	MOVL	g(CX), AX
+-	CMPL	g_stackbase(AX), SP
+-	JHI	2(PC)
+-	INT	$3
+-	CMPL	SP, g_stackguard(AX)
+-	JHI	2(PC)
+-	INT	$3
+-	RET
+-
+ GLOBL runtime·tls0(SB), $32
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index cc05435f76..a611985c54 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -89,7 +89,7 @@ TEXT runtime·breakpoint(SB),7,$0
+  *  go-routine
+  */
+ 
+-// uintptr gosave(Gobuf*)
++// void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), 7, $0
+ 	MOVQ	8(SP), AX		// gobuf
+@@ -100,7 +100,6 @@ TEXT runtime·gosave(SB), 7, $0
+ 	get_tls(CX)
+ 	MOVQ	g(CX), BX
+ 	MOVQ	BX, gobuf_g(AX)
+-	MOVL	$0, AX			// return 0
+ 	RET
+ 
+ // void gogo(Gobuf*, uintptr)
+@@ -132,6 +131,35 @@ TEXT runtime·gogocall(SB), 7, $0
+ 	JMP	AX
+ 	POPQ	BX	// not reached
+ 
++// void mcall(void (*fn)(G*))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return.  It should gogo(&g->gobuf)
++// to keep running g.
++TEXT runtime·mcall(SB), 7, $0
++	MOVQ	fn+0(FP), DI
++	
++	get_tls(CX)
++	MOVQ	g(CX), AX	// save state in g->gobuf
++	MOVQ	0(SP), BX	// caller's PC
++	MOVQ	BX, (g_sched+gobuf_pc)(AX)
++	LEAQ	8(SP), BX	// caller's SP
++	MOVQ	BX, (g_sched+gobuf_sp)(AX)
++	MOVQ	AX, (g_sched+gobuf_g)(AX)
++
++	// switch to m->g0 & its stack, call fn
++	MOVQ	m(CX), BX
++	MOVQ	m_g0(BX), SI
++	CMPQ	SI, AX	// if g == m->g0 call badmcall
++	JNE	2(PC)
++	CALL	runtime·badmcall(SB)
++	MOVQ	SI, g(CX)	// g = m->g0
++	MOVQ	(g_sched+gobuf_sp)(SI), SP	// sp = m->g0->gobuf.sp
++	PUSHQ	AX
++	CALL	DI
++	POPQ	AX
++	CALL	runtime·badmcall2(SB)
++	RET
++
+ /*
+  * support for morestack
+  */
+@@ -160,10 +188,10 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVQ	0(SP), AX
+ 	MOVQ	AX, m_morepc(BX)
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BP
+ 	MOVQ	BP, g(CX)
+-	MOVQ	(m_sched+gobuf_sp)(BX), SP
++	MOVQ	(g_sched+gobuf_sp)(BP), SP
+ 	CALL	runtime·newstack(SB)
+ 	MOVQ	$0, 0x1003	// crash if newstack returns
+ 	RET
+@@ -201,11 +229,11 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	CX, m_moreargsize(BX)	// f's argument size
+ 	MOVL	$1, m_moreframesize(BX)	// f's frame size
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVQ	m_g0(BX), BP
+ 	get_tls(CX)
+ 	MOVQ	BP, g(CX)
+-	MOVQ	(m_sched+gobuf_sp)(BX), SP
++	MOVQ	(g_sched+gobuf_sp)(BP), SP
+ 	CALL	runtime·newstack(SB)
+ 	MOVQ	$0, 0x1103	// crash if newstack returns
+ 	RET
+@@ -217,10 +245,10 @@ TEXT runtime·lessstack(SB), 7, $0
+ 	MOVQ	m(CX), BX
+ 	MOVQ	AX, m_cret(BX)
+ 
+-	// Call oldstack on m's scheduling stack.
+-	MOVQ	m_g0(BX), DX
+-	MOVQ	DX, g(CX)
+-	MOVQ	(m_sched+gobuf_sp)(BX), SP
++	// Call oldstack on m->g0's stack.
++	MOVQ	m_g0(BX), BP
++	MOVQ	BP, g(CX)
++	MOVQ	(g_sched+gobuf_sp)(BP), SP
+ 	CALL	runtime·oldstack(SB)
+ 	MOVQ	$0, 0x1004	// crash if oldstack returns
+ 	RET
+@@ -336,7 +364,6 @@ TEXT runtime·casp(SB), 7, $0
+ 	MOVL	$1, AX
+ 	RET
+ 
+-
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+@@ -349,68 +376,119 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	SUBQ	$5, (SP)	// return to CALL again
+ 	JMP	AX	// but first run the deferred function
+ 
+-// runcgo(void(*fn)(void*), void *arg)
++// Dummy function to use in saved gobuf.PC,
++// to match SP pointing at a return address.
++// The gobuf.PC is unused by the contortions here
++// but setting it to return will make the traceback code work.
++TEXT return<>(SB),7,$0
++	RET
++
++// asmcgocall(void(*fn)(void*), void *arg)
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+-TEXT runtime·runcgo(SB),7,$32
+-	MOVQ	fn+0(FP), R12
+-	MOVQ	arg+8(FP), R13
+-	MOVQ	SP, CX
++// See cgocall.c for more details.
++TEXT runtime·asmcgocall(SB),7,$0
++	MOVQ	fn+0(FP), AX
++	MOVQ	arg+8(FP), BX
++	MOVQ	SP, DX
+ 
+ 	// Figure out if we need to switch to m->g0 stack.
+-	get_tls(DI)
+-	MOVQ	m(DI), DX
+-	MOVQ	m_g0(DX), SI
+-	CMPQ	g(DI), SI
+-	JEQ	2(PC)
+-	MOVQ	(m_sched+gobuf_sp)(DX), SP
++	// We get called to create new OS threads too, and those
++	// come in on the m->g0 stack already.
++	get_tls(CX)
++	MOVQ	m(CX), BP
++	MOVQ	m_g0(BP), SI
++	MOVQ	g(CX), DI
++	CMPQ	SI, DI
++	JEQ	6(PC)
++	MOVQ	SP, (g_sched+gobuf_sp)(DI)
++	MOVQ	$return<>(SB), (g_sched+gobuf_pc)(DI)
++	MOVQ	DI, (g_sched+gobuf_g)(DI)
++	MOVQ	SI, g(CX)
++	MOVQ	(g_sched+gobuf_sp)(SI), SP
+ 
+ 	// Now on a scheduling stack (a pthread-created stack).
+ 	SUBQ	$32, SP
+ 	ANDQ	$~15, SP	// alignment for gcc ABI
+-	MOVQ	g(DI), BP
+-	MOVQ	BP, 16(SP)
+-	MOVQ	SI, g(DI)
+-	MOVQ	CX, 8(SP)
+-	MOVQ	R13, DI		// DI = first argument in AMD64 ABI
+-	CALL	R12
++	MOVQ	DI, 16(SP)	// save g
++	MOVQ	DX, 8(SP)	// save SP
++	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
++	CALL	AX
+ 
+ 	// Restore registers, g, stack pointer.
+-	get_tls(DI)
+-	MOVQ	16(SP), SI
+-	MOVQ	SI, g(DI)
++	get_tls(CX)
++	MOVQ	16(SP), DI
++	MOVQ	DI, g(CX)
+ 	MOVQ	8(SP), SP
+ 	RET
+ 
+-// runcgocallback(G *g1, void* sp, void (*fn)(void))
+-// Switch to g1 and sp, call fn, switch back.  fn's arguments are on
+-// the new stack.
+-TEXT runtime·runcgocallback(SB),7,$48
+-	MOVQ	g1+0(FP), DX
+-	MOVQ	sp+8(FP), AX
+-	MOVQ	fp+16(FP), BX
+-
+-	// We are running on m's scheduler stack.  Save current SP
+-	// into m->sched.sp so that a recursive call to runcgo doesn't
+-	// clobber our stack, and also so that we can restore
+-	// the SP when the call finishes.  Reusing m->sched.sp
+-	// for this purpose depends on the fact that there is only
+-	// one possible gosave of m->sched.
+-	get_tls(CX)
+-	MOVQ	DX, g(CX)
+-	MOVQ	m(CX), CX
+-	MOVQ	SP, (m_sched+gobuf_sp)(CX)
+-
+-	// Set new SP, call fn
+-	MOVQ	AX, SP
+-	CALL	BX
++// cgocallback(void (*fn)(void*), void *frame, uintptr framesize)
++// See cgocall.c for more details.
++TEXT runtime·cgocallback(SB),7,$24
++	MOVQ	fn+0(FP), AX
++	MOVQ	frame+8(FP), BX
++	MOVQ	framesize+16(FP), DX
+ 
+-	// Restore old g and SP, return
++	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	get_tls(CX)
+-	MOVQ	m(CX), DX
+-	MOVQ	m_g0(DX), BX
+-	MOVQ	BX, g(CX)
+-	MOVQ	(m_sched+gobuf_sp)(DX), SP
++	MOVQ	m(CX), BP
++	MOVQ	m_g0(BP), SI
++	PUSHQ	(g_sched+gobuf_sp)(SI)
++	MOVQ	SP, (g_sched+gobuf_sp)(SI)
++
++	// Switch to m->curg stack and call runtime.cgocallback
++	// with the three arguments.  Because we are taking over
++	// the execution of m->curg but *not* resuming what had
++	// been running, we need to save that information (m->curg->gobuf)
++	// so that we can restore it when we're done. 
++	// We can restore m->curg->gobuf.sp easily, because calling
++	// runtime.cgocallback leaves SP unchanged upon return.
++	// To save m->curg->gobuf.pc, we push it onto the stack.
++	// This has the added benefit that it looks to the traceback
++	// routine like cgocallback is going to return to that
++	// PC (because we defined cgocallback to have
++	// a frame size of 24, the same amount that we use below),
++	// so that the traceback will seamlessly trace back into
++	// the earlier calls.
++	MOVQ	m_curg(BP), SI
++	MOVQ	SI, g(CX)
++	MOVQ	(g_sched+gobuf_sp)(SI), DI  // prepare stack as DI
++
++	// Push gobuf.pc
++	MOVQ	(g_sched+gobuf_pc)(SI), BP
++	SUBQ	$8, DI
++	MOVQ	BP, 0(DI)
++
++	// Push arguments to cgocallbackg.
++	// Frame size here must match the frame size above
++	// to trick traceback routines into doing the right thing.
++	SUBQ	$24, DI
++	MOVQ	AX, 0(DI)
++	MOVQ	BX, 8(DI)
++	MOVQ	DX, 16(DI)
++	
++	// Switch stack and make the call.
++	MOVQ	DI, SP
++	CALL	runtime·cgocallbackg(SB)
++
++	// Restore g->gobuf (== m->curg->gobuf) from saved values.
++	get_tls(CX)
++	MOVQ	g(CX), SI
++	MOVQ	24(SP), BP
++	MOVQ	BP, (g_sched+gobuf_pc)(SI)
++	LEAQ	(24+8)(SP), DI
++	MOVQ	DI, (g_sched+gobuf_sp)(SI)
++
++	// Switch back to m->g0's stack and restore m->g0->sched.sp.
++	// (Unlike m->curg, the g0 goroutine never uses sched.pc,
++	// so we do not have to restore it.)
++	MOVQ	m(CX), BP
++	MOVQ	m_g0(BP), SI
++	MOVQ	SI, g(CX)
++	MOVQ	(g_sched+gobuf_sp)(SI), SP
++	POPQ	(g_sched+gobuf_sp)(SI)
++
++	// Done!
+ 	RET
+ 
+ // check that SP is in range [g->stackbase, g->stackguard)
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index f9fe7e6283..4d36606a76 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -93,14 +93,13 @@ TEXT runtime·breakpoint(SB),7,$0
+  *  go-routine
+  */
+ 
+-// uintptr gosave(Gobuf*)
++// void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB), 7, $-4
+ 	MOVW	0(FP), R0		// gobuf
+ 	MOVW	SP, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+ 	MOVW	g, gobuf_g(R0)
+-	MOVW	$0, R0			// return 0
+ 	RET
+ 
+ // void gogo(Gobuf*, uintptr)
+@@ -127,6 +126,30 @@ TEXT runtime·gogocall(SB), 7, $-4
+ 	MOVW	gobuf_pc(R0), LR
+ 	MOVW	R1, PC
+ 
++// void mcall(void (*fn)(G*))
++// Switch to m->g0's stack, call fn(g).
++// Fn must never return.  It should gogo(&g->gobuf)
++// to keep running g.
++TEXT runtime·mcall(SB), 7, $-4
++	MOVW	fn+0(FP), R0
++
++	// Save caller state in g->gobuf.
++	MOVW	SP, (g_sched+gobuf_sp)(g)
++	MOVW	LR, (g_sched+gobuf_pc)(g)
++	MOVW	g, (g_sched+gobuf_g)(g)
++
++	// Switch to m->g0 & its stack, call fn.
++	MOVW	g, R1
++	MOVW	m_g0(m), g
++	CMP	g, R1
++	BL.EQ	runtime·badmcall(SB)
++	MOVW	(g_sched+gobuf_sp)(g), SP
++	SUB	$8, SP
++	MOVW	R1, 4(SP)
++	BL	(R0)
++	BL	runtime·badmcall2(SB)
++	RET
++
+ /*
+  * support for morestack
+  */
+@@ -159,9 +182,9 @@ TEXT runtime·morestack(SB),7,$-4
+ 	// Set m->morepc to f's PC.
+ 	MOVW	LR, m_morepc(m)
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+-	MOVW	(m_sched+gobuf_sp)(m), SP
++	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	B	runtime·newstack(SB)
+ 
+ // Called from reflection library.  Mimics morestack,
+@@ -192,9 +215,9 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	$1, R3
+ 	MOVW	R3, m_moreframesize(m)		// f's frame size
+ 
+-	// Call newstack on m's scheduling stack.
++	// Call newstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+-	MOVW	(m_sched+gobuf_sp)(m), SP
++	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	B	runtime·newstack(SB)
+ 
+ // Return point when leaving stack.
+@@ -203,9 +226,9 @@ TEXT runtime·lessstack(SB), 7, $-4
+ 	// Save return value in m->cret
+ 	MOVW	R0, m_cret(m)
+ 
+-	// Call oldstack on m's scheduling stack.
++	// Call oldstack on m->g0's stack.
+ 	MOVW	m_g0(m), g
+-	MOVW	(m_sched+gobuf_sp)(m), SP
++	MOVW	(g_sched+gobuf_sp)(g), SP
+ 	B	runtime·oldstack(SB)
+ 
+ // void jmpdefer(fn, sp);
+@@ -221,6 +244,12 @@ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+ 	B		(R0)
+ 
++TEXT	runtime·asmcgocall(SB),7,$0
++	B	runtime·cgounimpl(SB)
++
++TEXT	runtime·cgocallback(SB),7,$0
++	B	runtime·cgounimpl(SB)
++
+ TEXT runtime·memclr(SB),7,$20
+ 	MOVW	0(FP), R0
+ 	MOVW	$0, R1		// c = 0
+@@ -248,22 +277,6 @@ TEXT runtime·getcallersp(SB),7,$-4
+ 	MOVW	$-4(R0), R0
+ 	RET
+ 
+-// runcgo(void(*fn)(void*), void *arg)
+-// Just call fn(arg), but first align the stack
+-// appropriately for the gcc ABI.
+-// TODO(kaib): figure out the arm-gcc ABI
+-TEXT runtime·runcgo(SB),7,$16
+-	BL	runtime·abort(SB)
+-//	MOVL	fn+0(FP), AX
+-//	MOVL	arg+4(FP), BX
+-//	MOVL	SP, CX
+-//	ANDL	$~15, SP	// alignment for gcc ABI
+-//	MOVL	CX, 4(SP)
+-//	MOVL	BX, 0(SP)
+-//	CALL	AX
+-//	MOVL	4(SP), SP
+-//	RET
+-
+ TEXT runtime·emptyfunc(SB),0,$0
+ 	RET
+ 
+@@ -271,10 +284,6 @@ TEXT runtime·abort(SB),7,$-4
+ 	MOVW	$0, R0
+ 	MOVW	(R0), R1
+ 
+-TEXT runtime·runcgocallback(SB),7,$0
+-	MOVW	$0, R0
+-	MOVW	(R0), R1
+-
+ // bool armcas(int32 *val, int32 old, int32 new)
+ // Atomically:
+ //	if(*val == old){
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 741e8f0b8c..58f287e906 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -3,18 +3,97 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "stack.h"
+ #include "cgocall.h"
+ 
++// Cgo call and callback support.
++//
++// To call into the C function f from Go, the cgo-generated code calls
++// runtime.cgocall(_cgo_Cfunc_f, frame), where _cgo_Cfunc_f is a
++// gcc-compiled function written by cgo.
++//
++// runtime.cgocall (below) locks g to m, calls entersyscall
++// so as not to block other goroutines or the garbage collector,
++// and then calls runtime.asmcgocall(_cgo_Cfunc_f, frame). 
++//
++// runtime.asmcgocall (in $GOARCH/asm.s) switches to the m->g0 stack
++// (assumed to be an operating system-allocated stack, so safe to run
++// gcc-compiled code on) and calls _cgo_Cfunc_f(frame).
++//
++// _cgo_Cfunc_f invokes the actual C function f with arguments
++// taken from the frame structure, records the results in the frame,
++// and returns to runtime.asmcgocall.
++//
++// After it regains control, runtime.asmcgocall switches back to the
++// original g (m->curg)'s stack and returns to runtime.cgocall.
++//
++// After it regains control, runtime.cgocall calls exitsyscall, which blocks
++// until this m can run Go code without violating the $GOMAXPROCS limit,
++// and then unlocks g from m.
++//
++// The above description skipped over the possibility of the gcc-compiled
++// function f calling back into Go.  If that happens, we continue down
++// the rabbit hole during the execution of f.
++//
++// To make it possible for gcc-compiled C code to call a Go function p.GoF,
++// cgo writes a gcc-compiled function named GoF (not p.GoF, since gcc doesn't
++// know about packages).  The gcc-compiled C function f calls GoF.
++//
++// GoF calls crosscall2(_cgoexp_GoF, frame, framesize).  Crosscall2
++// (in cgo/$GOOS.S, a gcc-compiled assembly file) is a two-argument
++// adapter from the gcc function call ABI to the 6c function call ABI.
++// It is called from gcc to call 6c functions.  In this case it calls
++// _cgoexp_GoF(frame, framesize), still running on m->g0's stack
++// and outside the $GOMAXPROCS limit.  Thus, this code cannot yet
++// call arbitrary Go code directly and must be careful not to allocate
++// memory or use up m->g0's stack.
++//
++// _cgoexp_GoF calls runtime.cgocallback(p.GoF, frame, framesize).
++// (The reason for having _cgoexp_GoF instead of writing a crosscall3
++// to make this call directly is that _cgoexp_GoF, because it is compiled
++// with 6c instead of gcc, can refer to dotted names like
++// runtime.cgocallback and p.GoF.)
++//
++// runtime.cgocallback (in $GOOS/asm.s) switches from m->g0's
++// stack to the original g (m->curg)'s stack, on which it calls
++// runtime.cgocallbackg(p.GoF, frame, framesize).
++// As part of the stack switch, runtime.cgocallback saves the current
++// SP as m->g0->sched.sp, so that any use of m->g0's stack during the
++// execution of the callback will be done below the existing stack frames.
++// Before overwriting m->g0->sched.sp, it pushes the old value on the
++// m->g0 stack, so that it can be restored later.
++//
++// runtime.cgocallbackg (below) is now running on a real goroutine
++// stack (not an m->g0 stack).  First it calls runtime.exitsyscall, which will
++// block until the $GOMAXPROCS limit allows running this goroutine.
++// Once exitsyscall has returned, it is safe to do things like call the memory
++// allocator or invoke the Go callback function p.GoF.  runtime.cgocallback
++// first defers a function to unwind m->g0.sched.sp, so that if p.GoF
++// panics, m->g0.sched.sp will be restored to its old value: the m->g0 stack
++// and the m->curg stack will be unwound in lock step.
++// Then it calls p.GoF.  Finally it pops but does not execute the deferred
++// function, calls runtime.entersyscall, and returns to runtime.cgocallback.
++//
++// After it regains control, runtime.cgocallback switches back to
++// m->g0's stack (the pointer is still in m->g0.sched.sp), restores the old
++// m->g0.sched.sp value from the stack, and returns to _cgoexp_GoF.
++//
++// _cgoexp_GoF immediately returns to crosscall2, which restores the
++// callee-save registers for gcc and returns to GoF, which returns to f.
++
+ void *initcgo;	/* filled in by dynamic linker when Cgo is available */
+ int64 ncgocall;
+-void runtime·entersyscall(void);
+-void runtime·exitsyscall(void);
++
++static void unlockm(void);
++static void unwindm(void);
++
++// Call from Go to C.
+ 
+ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+-	G *oldlock;
++	Defer *d;
+ 
+ 	if(!runtime·iscgo)
+ 		runtime·throw("cgocall unavailable");
+@@ -28,61 +107,49 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * Lock g to m to ensure we stay on the same stack if we do a
+ 	 * cgo callback.
+ 	 */
+-	oldlock = m->lockedg;
+-	m->lockedg = g;
+-	g->lockedm = m;
++	d = nil;
++	if(m->lockedg == nil) {
++		m->lockedg = g;
++		g->lockedm = m;
++
++		// Add entry to defer stack in case of panic.
++		d = runtime·malloc(sizeof(*d));
++		d->fn = (byte*)unlockm;
++		d->siz = 0;
++		d->link = g->defer;
++		d->argp = (void*)-1;  // unused because unwindm never recovers
++		g->defer = d;
++	}
+ 
+ 	/*
+ 	 * Announce we are entering a system call
+ 	 * so that the scheduler knows to create another
+ 	 * M to run goroutines while we are in the
+ 	 * foreign code.
++	 *
++	 * The call to asmcgocall is guaranteed not to
++	 * split the stack and does not allocate memory,
++	 * so it is safe to call while "in a system call", outside
++	 * the $GOMAXPROCS accounting.
+ 	 */
+ 	runtime·entersyscall();
+-	runtime·runcgo(fn, arg);
++	runtime·asmcgocall(fn, arg);
+ 	runtime·exitsyscall();
+ 
+-	m->lockedg = oldlock;
+-	if(oldlock == nil)
+-		g->lockedm = nil;
+-
+-	return;
++	if(d != nil) {
++		if(g->defer != d || d->fn != (byte*)unlockm)
++			runtime·throw("runtime: bad defer entry in cgocallback");
++		g->defer = d->link;
++		runtime·free(d);
++		unlockm();
++	}
+ }
+ 
+-// When a C function calls back into Go, the wrapper function will
+-// call this.  This switches to a Go stack, copies the arguments
+-// (arg/argsize) on to the stack, calls the function, copies the
+-// arguments back where they came from, and finally returns to the old
+-// stack.
+-void
+-runtime·cgocallback(void (*fn)(void), void *arg, int32 argsize)
++static void
++unlockm(void)
+ {
+-	Gobuf oldsched, oldg1sched;
+-	G *g1;
+-	void *sp;
+-
+-	if(g != m->g0)
+-		runtime·throw("bad g in cgocallback");
+-
+-	g1 = m->curg;
+-	oldsched = m->sched;
+-	oldg1sched = g1->sched;
+-
+-	runtime·startcgocallback(g1);
+-
+-	sp = g1->sched.sp - argsize;
+-	if(sp < g1->stackguard - StackGuard - StackSystem + 8) // +8 for return address
+-		runtime·throw("g stack overflow in cgocallback");
+-	runtime·mcpy(sp, arg, argsize);
+-
+-	runtime·runcgocallback(g1, sp, fn);
+-
+-	runtime·mcpy(arg, sp, argsize);
+-
+-	runtime·endcgocallback(g1);
+-
+-	m->sched = oldsched;
+-	g1->sched = oldg1sched;
++	m->lockedg = nil;
++	g->lockedm = nil;
+ }
+ 
+ void
+@@ -92,6 +159,8 @@ runtime·Cgocalls(int64 ret)
+ 	FLUSH(&ret);
+ }
+ 
++// Helper functions for cgo code.
++
+ void (*_cgo_malloc)(void*);
+ void (*_cgo_free)(void*);
+ 
+@@ -115,3 +184,63 @@ runtime·cfree(void *p)
+ 	runtime·cgocall(_cgo_free, p);
+ }
+ 
++// Call from C back to Go.
++
++void
++runtime·cgocallbackg(void (*fn)(void), void *arg, uintptr argsize)
++{
++	Defer *d;
++
++	if(g != m->curg)
++		runtime·throw("runtime: bad g in cgocallback");
++
++	runtime·exitsyscall();	// coming out of cgo call
++
++	// Add entry to defer stack in case of panic.
++	d = runtime·malloc(sizeof(*d));
++	d->fn = (byte*)unwindm;
++	d->siz = 0;
++	d->link = g->defer;
++	d->argp = (void*)-1;  // unused because unwindm never recovers
++	g->defer = d;
++
++	// Invoke callback.
++	reflect·call((byte*)fn, arg, argsize);
++
++	// Pop defer.
++	// Do not unwind m->g0->sched.sp.
++	// Our caller, cgocallback, will do that.
++	if(g->defer != d || d->fn != (byte*)unwindm)
++		runtime·throw("runtime: bad defer entry in cgocallback");
++	g->defer = d->link;
++	runtime·free(d);
++
++	runtime·entersyscall();	// going back to cgo call
++}
++
++static void
++unwindm(void)
++{
++	// Restore sp saved by cgocallback during
++	// unwind of g's stack (see comment at top of file).
++	switch(thechar){
++	default:
++		runtime·throw("runtime: unwindm not implemented");
++	case '8':
++	case '6':
++		m->g0->sched.sp = *(void**)m->g0->sched.sp;
++		break;
++	}
++}
++
++void
++runtime·badcgocallback(void)	// called from assembly
++{
++	runtime·throw("runtime: misaligned stack in cgocallback");
++}
++
++void
++runtime·cgounimpl(void)	// called from (incomplete) assembly
++{
++	runtime·throw("runtime: cgo not implemented");
++}
+diff --git a/src/pkg/runtime/cgocall.h b/src/pkg/runtime/cgocall.h
+index 1ad954eb12..253661a7e7 100644
+--- a/src/pkg/runtime/cgocall.h
++++ b/src/pkg/runtime/cgocall.h
+@@ -7,6 +7,6 @@
+  */
+ 
+ void runtime·cgocall(void (*fn)(void*), void*);
+-void runtime·cgocallback(void (*fn)(void), void*, int32);
++void runtime·cgocallback(void (*fn)(void), void*, uintptr);
+ void *runtime·cmalloc(uintptr);
+ void runtime·cfree(void*);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 7c175b308a..e0b2da6a96 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -379,8 +379,6 @@ mark(void)
+ 		case Gdead:
+ 			break;
+ 		case Grunning:
+-		case Grecovery:
+-		case Gstackalloc:
+ 			if(gp != g)
+ 				runtime·throw("mark - world not stopped");
+ 			scanstack(gp);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index db6072b5ce..3d076632fb 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -12,6 +12,9 @@
+ bool	runtime·iscgo;
+ 
+ static void unwindstack(G*, byte*);
++static void schedule(G*);
++static void acquireproc(void);
++static void releaseproc(void);
+ 
+ typedef struct Sched Sched;
+ 
+@@ -280,7 +283,7 @@ readylocked(G *g)
+ 	}
+ 
+ 	// Mark runnable.
+-	if(g->status == Grunnable || g->status == Grunning || g->status == Grecovery || g->status == Gstackalloc) {
++	if(g->status == Grunnable || g->status == Grunning) {
+ 		runtime·printf("goroutine %d has status %d\n", g->goid, g->status);
+ 		runtime·throw("bad g->status in ready");
+ 	}
+@@ -419,8 +422,15 @@ runtime·mstart(void)
+ 		runtime·throw("bad runtime·mstart");
+ 	if(m->mcache == nil)
+ 		m->mcache = runtime·allocmcache();
++
++	// Record top of stack for use by mcall.
++	// Once we call schedule we're never coming back,
++	// so other calls can reuse this stack space.
++	runtime·gosave(&m->g0->sched);
++	m->g0->sched.pc = (void*)-1;  // make sure it is never used
++
+ 	runtime·minit();
+-	scheduler();
++	schedule(nil);
+ }
+ 
+ // When running with cgo, we call libcgo_thread_start
+@@ -454,7 +464,7 @@ matchmg(void)
+ 		if((m = mget(g)) == nil){
+ 			m = runtime·malloc(sizeof(M));
+ 			// Add to runtime·allm so garbage collector doesn't free m
+-			// when it is just in a register (R14 on amd64).
++			// when it is just in a register or thread-local storage.
+ 			m->alllink = runtime·allm;
+ 			runtime·allm = m;
+ 			m->id = runtime·sched.mcount++;
+@@ -469,7 +479,7 @@ matchmg(void)
+ 				ts.m = m;
+ 				ts.g = m->g0;
+ 				ts.fn = runtime·mstart;
+-				runtime·runcgo(libcgo_thread_start, &ts);
++				runtime·asmcgocall(libcgo_thread_start, &ts);
+ 			} else {
+ 				if(Windows)
+ 					// windows will layout sched stack on os stack
+@@ -483,58 +493,17 @@ matchmg(void)
+ 	}
+ }
+ 
+-// Scheduler loop: find g to run, run it, repeat.
++// One round of scheduler: find a goroutine and run it.
++// The argument is the goroutine that was running before
++// schedule was called, or nil if this is the first call.
++// Never returns.
+ static void
+-scheduler(void)
++schedule(G *gp)
+ {
+-	G* gp;
+-
+ 	runtime·lock(&runtime·sched);
+-	if(runtime·gosave(&m->sched) != 0){
+-		gp = m->curg;
+-		if(gp->status == Grecovery) {
+-			// switched to scheduler to get stack unwound.
+-			// don't go through the full scheduling logic.
+-			Defer *d;
+-
+-			d = gp->defer;
+-			gp->defer = d->link;
+-			
+-			// unwind to the stack frame with d's arguments in it.
+-			unwindstack(gp, d->argp);
+-
+-			// make the deferproc for this d return again,
+-			// this time returning 1.  function will jump to
+-			// standard return epilogue.
+-			// the -2*sizeof(uintptr) makes up for the
+-			// two extra words that are on the stack at
+-			// each call to deferproc.
+-			// (the pc we're returning to does pop pop
+-			// before it tests the return value.)
+-			// on the arm there are 2 saved LRs mixed in too.
+-			if(thechar == '5')
+-				gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
+-			else
+-				gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
+-			gp->sched.pc = d->pc;
+-			gp->status = Grunning;
+-			runtime·free(d);
+-			runtime·gogo(&gp->sched, 1);
+-		}
+-		
+-		if(gp->status == Gstackalloc) {
+-			// switched to scheduler stack to call stackalloc.
+-			gp->param = runtime·stackalloc((uintptr)gp->param);
+-			gp->status = Grunning;
+-			runtime·gogo(&gp->sched, 1);
+-		}
+-
+-		// Jumped here via runtime·gosave/gogo, so didn't
+-		// execute lock(&runtime·sched) above.
+-		runtime·lock(&runtime·sched);
+-
++	if(gp != nil) {
+ 		if(runtime·sched.predawn)
+-			runtime·throw("init sleeping");
++			runtime·throw("init rescheduling");
+ 
+ 		// Just finished running gp.
+ 		gp->m = nil;
+@@ -545,8 +514,6 @@ scheduler(void)
+ 		switch(gp->status){
+ 		case Grunnable:
+ 		case Gdead:
+-		case Grecovery:
+-		case Gstackalloc:
+ 			// Shouldn't have been running!
+ 			runtime·throw("bad gp->status in sched");
+ 		case Grunning:
+@@ -581,7 +548,7 @@ scheduler(void)
+ 	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
+ 		runtime·gogocall(&gp->sched, (void(*)(void))gp->entry);
+ 	}
+-	runtime·gogo(&gp->sched, 1);
++	runtime·gogo(&gp->sched, 0);
+ }
+ 
+ // Enter scheduler.  If g->status is Grunning,
+@@ -595,8 +562,7 @@ runtime·gosched(void)
+ 		runtime·throw("gosched holding locks");
+ 	if(g == m->g0)
+ 		runtime·throw("gosched of g0");
+-	if(runtime·gosave(&g->sched) == 0)
+-		runtime·gogo(&m->sched, 1);
++	runtime·mcall(schedule);
+ }
+ 
+ // The goroutine g is about to enter a system call.
+@@ -605,19 +571,20 @@ runtime·gosched(void)
+ // not from the low-level system calls used by the runtime.
+ // Entersyscall cannot split the stack: the runtime·gosave must
+ // make g->sched refer to the caller's stack pointer.
++// It's okay to call matchmg and notewakeup even after
++// decrementing mcpu, because we haven't released the
++// sched lock yet.
+ #pragma textflag 7
+ void
+ runtime·entersyscall(void)
+ {
+-	runtime·lock(&runtime·sched);
+ 	// Leave SP around for gc and traceback.
+ 	// Do before notewakeup so that gc
+ 	// never sees Gsyscall with wrong stack.
+ 	runtime·gosave(&g->sched);
+-	if(runtime·sched.predawn) {
+-		runtime·unlock(&runtime·sched);
++	if(runtime·sched.predawn)
+ 		return;
+-	}
++	runtime·lock(&runtime·sched);
+ 	g->status = Gsyscall;
+ 	runtime·sched.mcpu--;
+ 	runtime·sched.msyscall++;
+@@ -637,11 +604,10 @@ runtime·entersyscall(void)
+ void
+ runtime·exitsyscall(void)
+ {
+-	runtime·lock(&runtime·sched);
+-	if(runtime·sched.predawn) {
+-		runtime·unlock(&runtime·sched);
++	if(runtime·sched.predawn)
+ 		return;
+-	}
++
++	runtime·lock(&runtime·sched);
+ 	runtime·sched.msyscall--;
+ 	runtime·sched.mcpu++;
+ 	// Fast path - if there's room for this m, we're done.
+@@ -664,60 +630,6 @@ runtime·exitsyscall(void)
+ 	runtime·gosched();
+ }
+ 
+-// Restore the position of m's scheduler stack if we unwind the stack
+-// through a cgo callback.
+-static void
+-runtime·unwindcgocallback(void **spaddr, void *sp)
+-{
+-	*spaddr = sp;
+-}
+-
+-// Start scheduling g1 again for a cgo callback.
+-void
+-runtime·startcgocallback(G* g1)
+-{
+-	Defer *d;
+-
+-	runtime·lock(&runtime·sched);
+-	g1->status = Grunning;
+-	runtime·sched.msyscall--;
+-	runtime·sched.mcpu++;
+-	runtime·unlock(&runtime·sched);
+-
+-	// Add an entry to the defer stack which restores the old
+-	// position of m's scheduler stack.  This is so that if the
+-	// code we are calling panics, we won't lose the space on the
+-	// scheduler stack.  Note that we are locked to this m here.
+-	d = runtime·malloc(sizeof(*d) + 2*sizeof(void*) - sizeof(d->args));
+-	d->fn = (byte*)runtime·unwindcgocallback;
+-	d->siz = 2 * sizeof(uintptr);
+-	((void**)d->args)[0] = &m->sched.sp;
+-	((void**)d->args)[1] = m->sched.sp;
+-	d->link = g1->defer;
+-	g1->defer = d;
+-}
+-
+-// Stop scheduling g1 after a cgo callback.
+-void
+-runtime·endcgocallback(G* g1)
+-{
+-	Defer *d;
+-
+-	runtime·lock(&runtime·sched);
+-	g1->status = Gsyscall;
+-	runtime·sched.mcpu--;
+-	runtime·sched.msyscall++;
+-	runtime·unlock(&runtime·sched);
+-
+-	// Remove the entry on the defer stack added by
+-	// startcgocallback.
+-	d = g1->defer;
+-	if (d == nil || d->fn != (byte*)runtime·unwindcgocallback)
+-		runtime·throw("bad defer entry in endcgocallback");
+-	g1->defer = d->link;
+-	runtime·free(d);
+-}
+-
+ void
+ runtime·oldstack(void)
+ {
+@@ -767,6 +679,10 @@ runtime·newstack(void)
+ 		runtime·printf("runtime: split stack overflow: %p < %p\n", m->morebuf.sp, g1->stackguard - StackGuard);
+ 		runtime·throw("runtime: split stack overflow");
+ 	}
++	if(argsize % sizeof(uintptr) != 0) {
++		runtime·printf("runtime: stack split with misaligned argsize %d\n", argsize);
++		runtime·throw("runtime: stack split argsize");
++	}
+ 
+ 	reflectcall = framesize==1;
+ 	if(reflectcall)
+@@ -831,12 +747,18 @@ runtime·newstack(void)
+ 	*(int32*)345 = 123;	// never return
+ }
+ 
++static void
++mstackalloc(G *gp)
++{
++	gp->param = runtime·stackalloc((uintptr)gp->param);
++	runtime·gogo(&gp->sched, 0);
++}
++
+ G*
+ runtime·malg(int32 stacksize)
+ {
+ 	G *newg;
+ 	byte *stk;
+-	int32 oldstatus;
+ 
+ 	newg = runtime·malloc(sizeof(G));
+ 	if(stacksize >= 0) {
+@@ -845,17 +767,10 @@ runtime·malg(int32 stacksize)
+ 			stk = runtime·stackalloc(StackSystem + stacksize);
+ 		} else {
+ 			// have to call stackalloc on scheduler stack.
+-			oldstatus = g->status;
+ 			g->param = (void*)(StackSystem + stacksize);
+-			g->status = Gstackalloc;
+-			// next two lines are runtime·gosched without the check
+-			// of m->locks.  we're almost certainly holding a lock,
+-			// but this is not a real rescheduling so it's okay.
+-			if(runtime·gosave(&g->sched) == 0)
+-				runtime·gogo(&m->sched, 1);
++			runtime·mcall(mstackalloc);
+ 			stk = g->param;
+ 			g->param = nil;
+-			g->status = oldstatus;
+ 		}
+ 		newg->stack0 = stk;
+ 		newg->stackguard = stk + StackSystem + StackGuard;
+@@ -1040,6 +955,8 @@ printpanics(Panic *p)
+ 		runtime·printf(" [recovered]");
+ 	runtime·printf("\n");
+ }
++
++static void recovery(G*);
+ 	
+ void
+ runtime·panic(Eface e)
+@@ -1070,9 +987,8 @@ runtime·panic(Eface e)
+ 			// for scheduler to find.
+ 			d->link = g->defer;
+ 			g->defer = d;
+-			g->status = Grecovery;
+-			runtime·gosched();
+-			runtime·throw("recovery failed"); // gosched should not return
++			runtime·mcall(recovery);
++			runtime·throw("recovery failed"); // mcall should not return
+ 		}
+ 		runtime·free(d);
+ 	}
+@@ -1083,6 +999,36 @@ runtime·panic(Eface e)
+ 	runtime·dopanic(0);
+ }
+ 
++static void
++recovery(G *gp)
++{
++	Defer *d;
++
++	// Rewind gp's stack; we're running on m->g0's stack.
++	d = gp->defer;
++	gp->defer = d->link;
++	
++	// Unwind to the stack frame with d's arguments in it.
++	unwindstack(gp, d->argp);
++
++	// Make the deferproc for this d return again,
++	// this time returning 1.  The calling function will
++	// jump to the standard return epilogue.
++	// The -2*sizeof(uintptr) makes up for the
++	// two extra words that are on the stack at
++	// each call to deferproc.
++	// (The pc we're returning to does pop pop
++	// before it tests the return value.)
++	// On the arm there are 2 saved LRs mixed in too.
++	if(thechar == '5')
++		gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
++	else
++		gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
++	gp->sched.pc = d->pc;
++	runtime·free(d);
++	runtime·gogo(&gp->sched, 1);
++}
++
+ #pragma textflag 7	/* no split, or else g->stackguard is not the stack for fp */
+ void
+ runtime·recover(byte *argp, Eface ret)
+@@ -1238,6 +1184,12 @@ runtime·UnlockOSThread(void)
+ 	g->lockedm = nil;
+ }
+ 
++bool
++runtime·lockedOSThread(void)
++{
++	return g->lockedm != nil && m->lockedg != nil;
++}
++
+ // for testing of wire, unwire
+ void
+ runtime·mid(uint32 ret)
+@@ -1258,3 +1210,15 @@ runtime·mcount(void)
+ {
+ 	return runtime·sched.mcount;
+ }
++
++void
++runtime·badmcall(void)  // called from assembly
++{
++	runtime·throw("runtime: mcall called on m->g0 stack");
++}
++
++void
++runtime·badmcall2(void)  // called from assembly
++{
++	runtime·throw("runtime: mcall function returned");
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 85dca54f7d..fe78dac826 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -103,8 +103,6 @@ enum
+ 	Gwaiting,
+ 	Gmoribund,
+ 	Gdead,
+-	Grecovery,
+-	Gstackalloc,
+ };
+ enum
+ {
+@@ -219,7 +217,6 @@ struct	M
+ 	uint64	procid;		// for debuggers, but offset not hard-coded
+ 	G*	gsignal;	// signal-handling G
+ 	uint32	tls[8];		// thread-local storage (for 386 extern register)
+-	Gobuf	sched;	// scheduling stack
+ 	G*	curg;		// current running goroutine
+ 	int32	id;
+ 	int32	mallocing;
+@@ -385,7 +382,7 @@ int32	runtime·charntorune(int32*, uint8*, int32);
+ 
+ void	runtime·gogo(Gobuf*, uintptr);
+ void	runtime·gogocall(Gobuf*, void(*)(void));
+-uintptr	runtime·gosave(Gobuf*);
++void	runtime·gosave(Gobuf*);
+ void	runtime·lessstack(void);
+ void	runtime·goargs(void);
+ void	runtime·goenvs(void);
+@@ -442,17 +439,15 @@ void	runtime·walkfintab(void (*fn)(void*));
+ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
++void	runtime·mcall(void(*)(G*));
+ 
+ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);
+ void	runtime·gosched(void);
+ void	runtime·goexit(void);
+-void	runtime·runcgo(void (*fn)(void*), void*);
+-void	runtime·runcgocallback(G*, void*, void (*fn)());
++void	runtime·asmcgocall(void (*fn)(void*), void*);
+ void	runtime·entersyscall(void);
+ void	runtime·exitsyscall(void);
+-void	runtime·startcgocallback(G*);
+-void	runtime·endcgocallback(G*);
+ G*	runtime·newproc1(byte*, byte*, int32, int32, void*);
+ void	runtime·siginit(void);
+ bool	runtime·sigsend(int32 sig);

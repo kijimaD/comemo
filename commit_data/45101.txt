@@ -14,7 +14,7 @@ Date:   Thu Oct 1 14:49:33 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go  |   7 +-
  src/cmd/compile/internal/gc/float_test.go  |  19 --
  src/cmd/compile/internal/gc/go.go          |   5 -
@@ -52,3 +52,1674 @@ Date:   Thu Oct 1 14:49:33 2020 -0700
  test/codegen/memops.go                     |  32 +--
  test/run.go                                |  12 +-
  36 files changed, 97 insertions(+), 796 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 0759b7d10f..15202dc5dc 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -353,12 +353,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ }
+ 
+ func Test386EndToEnd(t *testing.T) {
+-	defer func(old string) { objabi.GO386 = old }(objabi.GO386)
+-	for _, go386 := range []string{"387", "sse2"} {
+-		t.Logf("GO386=%v", go386)
+-		objabi.GO386 = go386
+-		testEndToEnd(t, "386", "386")
+-	}
++	testEndToEnd(t, "386", "386")
+ }
+ 
+ func TestARMEndToEnd(t *testing.T) {
+diff --git a/src/cmd/compile/internal/gc/float_test.go b/src/cmd/compile/internal/gc/float_test.go
+index 6ae363be22..c619d25705 100644
+--- a/src/cmd/compile/internal/gc/float_test.go
++++ b/src/cmd/compile/internal/gc/float_test.go
+@@ -6,17 +6,9 @@ package gc
+ 
+ import (
+ 	"math"
+-	"os"
+-	"runtime"
+ 	"testing"
+ )
+ 
+-// For GO386=387, make sure fucomi* opcodes are not used
+-// for comparison operations.
+-// Note that this test will fail only on a Pentium MMX
+-// processor (with GOARCH=386 GO386=387), as it just runs
+-// some code and looks for an unimplemented instruction fault.
+-
+ //go:noinline
+ func compare1(a, b float64) bool {
+ 	return a < b
+@@ -137,9 +129,6 @@ func TestFloatCompareFolded(t *testing.T) {
+ 	}
+ }
+ 
+-// For GO386=387, make sure fucomi* opcodes are not used
+-// for float->int conversions.
+-
+ //go:noinline
+ func cvt1(a float64) uint64 {
+ 	return uint64(a)
+@@ -370,14 +359,6 @@ func TestFloat32StoreToLoadConstantFold(t *testing.T) {
+ 	// are not converted to quiet NaN (qNaN) values during compilation.
+ 	// See issue #27193 for more information.
+ 
+-	// TODO: this method for detecting 387 won't work if the compiler has been
+-	// built using GOARCH=386 GO386=387 and either the target is a different
+-	// architecture or the GO386=387 environment variable is not set when the
+-	// test is run.
+-	if runtime.GOARCH == "386" && os.Getenv("GO386") == "387" {
+-		t.Skip("signaling NaNs are not propagated on 387 (issue #27516)")
+-	}
+-
+ 	// signaling NaNs
+ 	{
+ 		const nan = uint32(0x7f800001) // sNaN
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9079ce2afc..2fbdf71055 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -259,7 +259,6 @@ type Arch struct {
+ 
+ 	REGSP     int
+ 	MAXWIDTH  int64
+-	Use387    bool // should 386 backend use 387 FP instructions instead of sse2.
+ 	SoftFloat bool
+ 
+ 	PadFrame func(int64) int64
+@@ -328,10 +327,6 @@ var (
+ 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ 
+-	// GO386=387
+-	ControlWord64trunc,
+-	ControlWord32 *obj.LSym
+-
+ 	// Wasm
+ 	WasmMove,
+ 	WasmZero,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1d50cefe54..32394c4b1a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -62,9 +62,6 @@ func initssaconfig() {
+ 	_ = types.NewPtr(types.Errortype)                                 // *error
+ 	types.NewPtrCacheEnabled = false
+ 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, *types_, Ctxt, Debug['N'] == 0)
+-	if thearch.LinkArch.Name == "386" {
+-		ssaConfig.Set387(thearch.Use387)
+-	}
+ 	ssaConfig.SoftFloat = thearch.SoftFloat
+ 	ssaConfig.Race = flag_race
+ 	ssaCaches = make([]ssa.Cache, nBackendWorkers)
+@@ -175,10 +172,6 @@ func initssaconfig() {
+ 		ExtendCheckFunc[ssa.BoundsSlice3CU] = sysvar("panicExtendSlice3CU")
+ 	}
+ 
+-	// GO386=387 runtime definitions
+-	ControlWord64trunc = sysvar("controlWord64trunc") // uint16
+-	ControlWord32 = sysvar("controlWord32")           // uint16
+-
+ 	// Wasm (all asm funcs with special ABIs)
+ 	WasmMove = sysvar("wasmMove")
+ 	WasmZero = sysvar("wasmZero")
+@@ -5946,9 +5939,7 @@ type SSAGenState struct {
+ 	// bstart remembers where each block starts (indexed by block ID)
+ 	bstart []*obj.Prog
+ 
+-	// 387 port: maps from SSE registers (REG_X?) to 387 registers (REG_F?)
+-	SSEto387 map[int16]int16
+-	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include x86-387, PPC, and Sparc V8.
++	// Some architectures require a 64-bit temporary for FP-related register shuffling. Examples include PPC and Sparc V8.
+ 	ScratchFpMem *Node
+ 
+ 	maxarg int64 // largest frame size for arguments to calls made by the function
+@@ -6115,10 +6106,6 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		progToBlock[s.pp.next] = f.Blocks[0]
+ 	}
+ 
+-	if thearch.Use387 {
+-		s.SSEto387 = map[int16]int16{}
+-	}
+-
+ 	s.ScratchFpMem = e.scratchFpMem
+ 
+ 	if Ctxt.Flag_locationlists {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 88a406deb9..649b5ba820 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -38,7 +38,6 @@ type Config struct {
+ 	useSSE         bool          // Use SSE for non-float operations
+ 	useAvg         bool          // Use optimizations that need Avg* operations
+ 	useHmul        bool          // Use optimizations that need Hmul* operations
+-	use387         bool          // GO386=387
+ 	SoftFloat      bool          //
+ 	Race           bool          // race detector enabled
+ 	NeedsFpScratch bool          // No direct move between GP and FP register sets
+@@ -387,9 +386,4 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 	return c
+ }
+ 
+-func (c *Config) Set387(b bool) {
+-	c.NeedsFpScratch = b
+-	c.use387 = b
+-}
+-
+ func (c *Config) Ctxt() *obj.Link { return c.ctxt }
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 4a8244eb27..6a0b87cab4 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -38,10 +38,8 @@
+ (Xor(32|16|8) ...) => (XORL ...)
+ 
+ (Neg(32|16|8) ...) => (NEGL ...)
+-(Neg32F x) && !config.use387 => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
+-(Neg64F x) && !config.use387 => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
+-(Neg32F x) && config.use387 => (FCHS x)
+-(Neg64F x) && config.use387 => (FCHS x)
++(Neg32F x) => (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
++(Neg64F x) => (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
+ 
+ (Com(32|16|8) ...) => (NOTL ...)
+ 
+@@ -670,8 +668,8 @@
+ 
+ // Merge load/store to op
+ ((ADD|AND|OR|XOR|SUB|MUL)L x l:(MOVLload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|AND|OR|XOR|SUB|MUL)Lload x [off] {sym} ptr mem)
+-((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) => ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
+-((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l) => ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
++((ADD|SUB|MUL|DIV)SD x l:(MOVSDload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SDload x [off] {sym} ptr mem)
++((ADD|SUB|MUL|DIV)SS x l:(MOVSSload [off] {sym} ptr mem)) && canMergeLoadClobber(v, l, x) && clobber(l) => ((ADD|SUB|MUL|DIV)SSload x [off] {sym} ptr mem)
+ (MOVLstore {sym} [off] ptr y:((ADD|AND|OR|XOR)Lload x [off] {sym} ptr mem) mem) && y.Uses==1 && clobber(y) => ((ADD|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+ (MOVLstore {sym} [off] ptr y:((ADD|SUB|AND|OR|XOR)L l:(MOVLload [off] {sym} ptr mem) x) mem) && y.Uses==1 && l.Uses==1 && clobber(y, l) =>
+ 	((ADD|SUB|AND|OR|XOR)Lmodify [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index ddabde7d3d..737b99c371 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -51,17 +51,6 @@ var regNames386 = []string{
+ 	"SB",
+ }
+ 
+-// Notes on 387 support.
+-//  - The 387 has a weird stack-register setup for floating-point registers.
+-//    We use these registers when SSE registers are not available (when GO386=387).
+-//  - We use the same register names (X0-X7) but they refer to the 387
+-//    floating-point registers. That way, most of the SSA backend is unchanged.
+-//  - The instruction generation pass maintains an SSE->387 register mapping.
+-//    This mapping is updated whenever the FP stack is pushed or popped so that
+-//    we can always find a given SSE register even when the TOS pointer has changed.
+-//  - To facilitate the mapping from SSE to 387, we enforce that
+-//    every basic block starts and ends with an empty floating-point stack.
+-
+ func init() {
+ 	// Make map from reg names to reg integers.
+ 	if len(regNames386) > 64 {
+@@ -552,9 +541,6 @@ func init() {
+ 		{name: "FlagGT_UGT"}, // signed > and unsigned <
+ 		{name: "FlagGT_ULT"}, // signed > and unsigned >
+ 
+-		// Special op for -x on 387
+-		{name: "FCHS", argLength: 1, reg: fp11},
+-
+ 		// Special ops for PIC floating-point constants.
+ 		// MOVSXconst1 loads the address of the constant-pool entry into a register.
+ 		// MOVSXconst2 loads the constant from that address.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9fe943c2e0..d7d2b24a48 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -536,7 +536,6 @@ const (
+ 	Op386FlagLT_UGT
+ 	Op386FlagGT_UGT
+ 	Op386FlagGT_ULT
+-	Op386FCHS
+ 	Op386MOVSSconst1
+ 	Op386MOVSDconst1
+ 	Op386MOVSSconst2
+@@ -6060,18 +6059,6 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
+-	{
+-		name:   "FCHS",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+-			},
+-			outputs: []outputInfo{
+-				{0, 65280}, // X0 X1 X2 X3 X4 X5 X6 X7
+-			},
+-		},
+-	},
+ 	{
+ 		name:    "MOVSSconst1",
+ 		auxType: auxFloat32,
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 64c6aed3e7..691530ec0b 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -625,9 +625,6 @@ func (s *regAllocState) init(f *Func) {
+ 			s.f.fe.Fatalf(src.NoXPos, "arch %s not implemented", s.f.Config.arch)
+ 		}
+ 	}
+-	if s.f.Config.use387 {
+-		s.allocatable &^= 1 << 15 // X7 disallowed (one 387 register is used as scratch space during SSE->387 generation in ../x86/387.go)
+-	}
+ 
+ 	// Linear scan register allocation can be influenced by the order in which blocks appear.
+ 	// Decouple the register allocation order from the generated block order.
+@@ -1024,9 +1021,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				if phiRegs[i] != noRegister {
+ 					continue
+ 				}
+-				if s.f.Config.use387 && v.Type.IsFloat() {
+-					continue // 387 can't handle floats in registers between blocks
+-				}
+ 				m := s.compatRegs(v.Type) &^ phiUsed &^ s.used
+ 				if m != 0 {
+ 					r := pickReg(m)
+@@ -1528,11 +1522,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			s.freeUseRecords = u
+ 		}
+ 
+-		// Spill any values that can't live across basic block boundaries.
+-		if s.f.Config.use387 {
+-			s.freeRegs(s.f.Config.fpRegMask)
+-		}
+-
+ 		// If we are approaching a merge point and we are the primary
+ 		// predecessor of it, find live values that we use soon after
+ 		// the merge point and promote them to registers now.
+@@ -1562,9 +1551,6 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					continue
+ 				}
+ 				v := s.orig[vid]
+-				if s.f.Config.use387 && v.Type.IsFloat() {
+-					continue // 387 can't handle floats in registers between blocks
+-				}
+ 				m := s.compatRegs(v.Type) &^ s.used
+ 				if m&^desired.avoid != 0 {
+ 					m &^= desired.avoid
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index fc1e0541b2..0f08160f44 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -1310,10 +1310,8 @@ func rewriteValue386_Op386ADDLmodify(v *Value) bool {
+ func rewriteValue386_Op386ADDSD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (ADDSD x l:(MOVSDload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (ADDSDload x [off] {sym} ptr mem)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1326,7 +1324,7 @@ func rewriteValue386_Op386ADDSD(v *Value) bool {
+ 			sym := auxToSym(l.Aux)
+ 			mem := l.Args[1]
+ 			ptr := l.Args[0]
+-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 				continue
+ 			}
+ 			v.reset(Op386ADDSDload)
+@@ -1395,10 +1393,8 @@ func rewriteValue386_Op386ADDSDload(v *Value) bool {
+ func rewriteValue386_Op386ADDSS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (ADDSS x l:(MOVSSload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (ADDSSload x [off] {sym} ptr mem)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -1411,7 +1407,7 @@ func rewriteValue386_Op386ADDSS(v *Value) bool {
+ 			sym := auxToSym(l.Aux)
+ 			mem := l.Args[1]
+ 			ptr := l.Args[0]
+-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 				continue
+ 			}
+ 			v.reset(Op386ADDSSload)
+@@ -2640,10 +2636,8 @@ func rewriteValue386_Op386CMPWload(v *Value) bool {
+ func rewriteValue386_Op386DIVSD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (DIVSD x l:(MOVSDload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (DIVSDload x [off] {sym} ptr mem)
+ 	for {
+ 		x := v_0
+@@ -2655,7 +2649,7 @@ func rewriteValue386_Op386DIVSD(v *Value) bool {
+ 		sym := auxToSym(l.Aux)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 			break
+ 		}
+ 		v.reset(Op386DIVSDload)
+@@ -2722,10 +2716,8 @@ func rewriteValue386_Op386DIVSDload(v *Value) bool {
+ func rewriteValue386_Op386DIVSS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (DIVSS x l:(MOVSSload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (DIVSSload x [off] {sym} ptr mem)
+ 	for {
+ 		x := v_0
+@@ -2737,7 +2729,7 @@ func rewriteValue386_Op386DIVSS(v *Value) bool {
+ 		sym := auxToSym(l.Aux)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 			break
+ 		}
+ 		v.reset(Op386DIVSSload)
+@@ -6104,10 +6096,8 @@ func rewriteValue386_Op386MULLload(v *Value) bool {
+ func rewriteValue386_Op386MULSD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (MULSD x l:(MOVSDload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (MULSDload x [off] {sym} ptr mem)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -6120,7 +6110,7 @@ func rewriteValue386_Op386MULSD(v *Value) bool {
+ 			sym := auxToSym(l.Aux)
+ 			mem := l.Args[1]
+ 			ptr := l.Args[0]
+-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 				continue
+ 			}
+ 			v.reset(Op386MULSDload)
+@@ -6189,10 +6179,8 @@ func rewriteValue386_Op386MULSDload(v *Value) bool {
+ func rewriteValue386_Op386MULSS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (MULSS x l:(MOVSSload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (MULSSload x [off] {sym} ptr mem)
+ 	for {
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+@@ -6205,7 +6193,7 @@ func rewriteValue386_Op386MULSS(v *Value) bool {
+ 			sym := auxToSym(l.Aux)
+ 			mem := l.Args[1]
+ 			ptr := l.Args[0]
+-			if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++			if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 				continue
+ 			}
+ 			v.reset(Op386MULSSload)
+@@ -8187,10 +8175,8 @@ func rewriteValue386_Op386SUBLmodify(v *Value) bool {
+ func rewriteValue386_Op386SUBSD(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (SUBSD x l:(MOVSDload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (SUBSDload x [off] {sym} ptr mem)
+ 	for {
+ 		x := v_0
+@@ -8202,7 +8188,7 @@ func rewriteValue386_Op386SUBSD(v *Value) bool {
+ 		sym := auxToSym(l.Aux)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 			break
+ 		}
+ 		v.reset(Op386SUBSDload)
+@@ -8269,10 +8255,8 @@ func rewriteValue386_Op386SUBSDload(v *Value) bool {
+ func rewriteValue386_Op386SUBSS(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+-	b := v.Block
+-	config := b.Func.Config
+ 	// match: (SUBSS x l:(MOVSSload [off] {sym} ptr mem))
+-	// cond: canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)
++	// cond: canMergeLoadClobber(v, l, x) && clobber(l)
+ 	// result: (SUBSSload x [off] {sym} ptr mem)
+ 	for {
+ 		x := v_0
+@@ -8284,7 +8268,7 @@ func rewriteValue386_Op386SUBSS(v *Value) bool {
+ 		sym := auxToSym(l.Aux)
+ 		mem := l.Args[1]
+ 		ptr := l.Args[0]
+-		if !(canMergeLoadClobber(v, l, x) && !config.use387 && clobber(l)) {
++		if !(canMergeLoadClobber(v, l, x) && clobber(l)) {
+ 			break
+ 		}
+ 		v.reset(Op386SUBSSload)
+@@ -10043,68 +10027,32 @@ func rewriteValue386_OpMove(v *Value) bool {
+ func rewriteValue386_OpNeg32F(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Neg32F x)
+-	// cond: !config.use387
+ 	// result: (PXOR x (MOVSSconst <typ.Float32> [float32(math.Copysign(0, -1))]))
+ 	for {
+ 		x := v_0
+-		if !(!config.use387) {
+-			break
+-		}
+ 		v.reset(Op386PXOR)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVSSconst, typ.Float32)
+ 		v0.AuxInt = float32ToAuxInt(float32(math.Copysign(0, -1)))
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
+-	// match: (Neg32F x)
+-	// cond: config.use387
+-	// result: (FCHS x)
+-	for {
+-		x := v_0
+-		if !(config.use387) {
+-			break
+-		}
+-		v.reset(Op386FCHS)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+ }
+ func rewriteValue386_OpNeg64F(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Neg64F x)
+-	// cond: !config.use387
+ 	// result: (PXOR x (MOVSDconst <typ.Float64> [math.Copysign(0, -1)]))
+ 	for {
+ 		x := v_0
+-		if !(!config.use387) {
+-			break
+-		}
+ 		v.reset(Op386PXOR)
+ 		v0 := b.NewValue0(v.Pos, Op386MOVSDconst, typ.Float64)
+ 		v0.AuxInt = float64ToAuxInt(math.Copysign(0, -1))
+ 		v.AddArg2(x, v0)
+ 		return true
+ 	}
+-	// match: (Neg64F x)
+-	// cond: config.use387
+-	// result: (FCHS x)
+-	for {
+-		x := v_0
+-		if !(config.use387) {
+-			break
+-		}
+-		v.reset(Op386FCHS)
+-		v.AddArg(x)
+-		return true
+-	}
+-	return false
+ }
+ func rewriteValue386_OpNeq16(v *Value) bool {
+ 	v_1 := v.Args[1]
+diff --git a/src/cmd/compile/internal/x86/387.go b/src/cmd/compile/internal/x86/387.go
+deleted file mode 100644
+index 594adb2cd5..0000000000
+--- a/src/cmd/compile/internal/x86/387.go
++++ /dev/null
+@@ -1,403 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package x86
+-
+-import (
+-	"cmd/compile/internal/gc"
+-	"cmd/compile/internal/ssa"
+-	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+-	"cmd/internal/obj/x86"
+-	"math"
+-)
+-
+-// Generates code for v using 387 instructions.
+-func ssaGenValue387(s *gc.SSAGenState, v *ssa.Value) {
+-	// The SSA compiler pretends that it has an SSE backend.
+-	// If we don't have one of those, we need to translate
+-	// all the SSE ops to equivalent 387 ops. That's what this
+-	// function does.
+-
+-	switch v.Op {
+-	case ssa.Op386MOVSSconst, ssa.Op386MOVSDconst:
+-		iv := uint64(v.AuxInt)
+-		if iv == 0x0000000000000000 { // +0.0
+-			s.Prog(x86.AFLDZ)
+-		} else if iv == 0x3ff0000000000000 { // +1.0
+-			s.Prog(x86.AFLD1)
+-		} else if iv == 0x8000000000000000 { // -0.0
+-			s.Prog(x86.AFLDZ)
+-			s.Prog(x86.AFCHS)
+-		} else if iv == 0xbff0000000000000 { // -1.0
+-			s.Prog(x86.AFLD1)
+-			s.Prog(x86.AFCHS)
+-		} else if iv == 0x400921fb54442d18 { // +pi
+-			s.Prog(x86.AFLDPI)
+-		} else if iv == 0xc00921fb54442d18 { // -pi
+-			s.Prog(x86.AFLDPI)
+-			s.Prog(x86.AFCHS)
+-		} else { // others
+-			p := s.Prog(loadPush(v.Type))
+-			p.From.Type = obj.TYPE_FCONST
+-			p.From.Val = math.Float64frombits(iv)
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = x86.REG_F0
+-		}
+-		popAndSave(s, v)
+-
+-	case ssa.Op386MOVSSconst2, ssa.Op386MOVSDconst2:
+-		p := s.Prog(loadPush(v.Type))
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = v.Args[0].Reg()
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		popAndSave(s, v)
+-
+-	case ssa.Op386MOVSSload, ssa.Op386MOVSDload, ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1, ssa.Op386MOVSSloadidx4, ssa.Op386MOVSDloadidx8:
+-		p := s.Prog(loadPush(v.Type))
+-		p.From.Type = obj.TYPE_MEM
+-		p.From.Reg = v.Args[0].Reg()
+-		gc.AddAux(&p.From, v)
+-		switch v.Op {
+-		case ssa.Op386MOVSSloadidx1, ssa.Op386MOVSDloadidx1:
+-			p.From.Scale = 1
+-			p.From.Index = v.Args[1].Reg()
+-			if p.From.Index == x86.REG_SP {
+-				p.From.Reg, p.From.Index = p.From.Index, p.From.Reg
+-			}
+-		case ssa.Op386MOVSSloadidx4:
+-			p.From.Scale = 4
+-			p.From.Index = v.Args[1].Reg()
+-		case ssa.Op386MOVSDloadidx8:
+-			p.From.Scale = 8
+-			p.From.Index = v.Args[1].Reg()
+-		}
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		popAndSave(s, v)
+-
+-	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore:
+-		// Push to-be-stored value on top of stack.
+-		push(s, v.Args[1])
+-
+-		// Pop and store value.
+-		var op obj.As
+-		switch v.Op {
+-		case ssa.Op386MOVSSstore:
+-			op = x86.AFMOVFP
+-		case ssa.Op386MOVSDstore:
+-			op = x86.AFMOVDP
+-		}
+-		p := s.Prog(op)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = v.Args[0].Reg()
+-		gc.AddAux(&p.To, v)
+-
+-	case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1, ssa.Op386MOVSSstoreidx4, ssa.Op386MOVSDstoreidx8:
+-		push(s, v.Args[2])
+-		var op obj.As
+-		switch v.Op {
+-		case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSSstoreidx4:
+-			op = x86.AFMOVFP
+-		case ssa.Op386MOVSDstoreidx1, ssa.Op386MOVSDstoreidx8:
+-			op = x86.AFMOVDP
+-		}
+-		p := s.Prog(op)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Reg = v.Args[0].Reg()
+-		gc.AddAux(&p.To, v)
+-		switch v.Op {
+-		case ssa.Op386MOVSSstoreidx1, ssa.Op386MOVSDstoreidx1:
+-			p.To.Scale = 1
+-			p.To.Index = v.Args[1].Reg()
+-			if p.To.Index == x86.REG_SP {
+-				p.To.Reg, p.To.Index = p.To.Index, p.To.Reg
+-			}
+-		case ssa.Op386MOVSSstoreidx4:
+-			p.To.Scale = 4
+-			p.To.Index = v.Args[1].Reg()
+-		case ssa.Op386MOVSDstoreidx8:
+-			p.To.Scale = 8
+-			p.To.Index = v.Args[1].Reg()
+-		}
+-
+-	case ssa.Op386ADDSS, ssa.Op386ADDSD, ssa.Op386SUBSS, ssa.Op386SUBSD,
+-		ssa.Op386MULSS, ssa.Op386MULSD, ssa.Op386DIVSS, ssa.Op386DIVSD:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-
+-		// Push arg1 on top of stack
+-		push(s, v.Args[1])
+-
+-		// Set precision if needed.  64 bits is the default.
+-		switch v.Op {
+-		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
+-			// Save AX so we can use it as scratch space.
+-			p := s.Prog(x86.AMOVL)
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = x86.REG_AX
+-			s.AddrScratch(&p.To)
+-			// Install a 32-bit version of the control word.
+-			installControlWord(s, gc.ControlWord32, x86.REG_AX)
+-			// Restore AX.
+-			p = s.Prog(x86.AMOVL)
+-			s.AddrScratch(&p.From)
+-			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = x86.REG_AX
+-		}
+-
+-		var op obj.As
+-		switch v.Op {
+-		case ssa.Op386ADDSS, ssa.Op386ADDSD:
+-			op = x86.AFADDDP
+-		case ssa.Op386SUBSS, ssa.Op386SUBSD:
+-			op = x86.AFSUBDP
+-		case ssa.Op386MULSS, ssa.Op386MULSD:
+-			op = x86.AFMULDP
+-		case ssa.Op386DIVSS, ssa.Op386DIVSD:
+-			op = x86.AFDIVDP
+-		}
+-		p := s.Prog(op)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = s.SSEto387[v.Reg()] + 1
+-
+-		// Restore precision if needed.
+-		switch v.Op {
+-		case ssa.Op386ADDSS, ssa.Op386SUBSS, ssa.Op386MULSS, ssa.Op386DIVSS:
+-			restoreControlWord(s)
+-		}
+-
+-	case ssa.Op386UCOMISS, ssa.Op386UCOMISD:
+-		push(s, v.Args[0])
+-
+-		// Compare.
+-		p := s.Prog(x86.AFUCOMP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = s.SSEto387[v.Args[1].Reg()] + 1
+-
+-		// Save AX.
+-		p = s.Prog(x86.AMOVL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
+-		s.AddrScratch(&p.To)
+-
+-		// Move status word into AX.
+-		p = s.Prog(x86.AFSTSW)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-
+-		// Then move the flags we need to the integer flags.
+-		s.Prog(x86.ASAHF)
+-
+-		// Restore AX.
+-		p = s.Prog(x86.AMOVL)
+-		s.AddrScratch(&p.From)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-
+-	case ssa.Op386SQRTSD:
+-		push(s, v.Args[0])
+-		s.Prog(x86.AFSQRT)
+-		popAndSave(s, v)
+-
+-	case ssa.Op386FCHS:
+-		push(s, v.Args[0])
+-		s.Prog(x86.AFCHS)
+-		popAndSave(s, v)
+-
+-	case ssa.Op386CVTSL2SS, ssa.Op386CVTSL2SD:
+-		p := s.Prog(x86.AMOVL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = v.Args[0].Reg()
+-		s.AddrScratch(&p.To)
+-		p = s.Prog(x86.AFMOVL)
+-		s.AddrScratch(&p.From)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		popAndSave(s, v)
+-
+-	case ssa.Op386CVTTSD2SL, ssa.Op386CVTTSS2SL:
+-		push(s, v.Args[0])
+-
+-		// Load control word which truncates (rounds towards zero).
+-		installControlWord(s, gc.ControlWord64trunc, v.Reg())
+-
+-		// Now do the conversion.
+-		p := s.Prog(x86.AFMOVLP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		s.AddrScratch(&p.To)
+-		p = s.Prog(x86.AMOVL)
+-		s.AddrScratch(&p.From)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = v.Reg()
+-
+-		// Restore control word.
+-		restoreControlWord(s)
+-
+-	case ssa.Op386CVTSS2SD:
+-		// float32 -> float64 is a nop
+-		push(s, v.Args[0])
+-		popAndSave(s, v)
+-
+-	case ssa.Op386CVTSD2SS:
+-		// Round to nearest float32.
+-		push(s, v.Args[0])
+-		p := s.Prog(x86.AFMOVFP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		s.AddrScratch(&p.To)
+-		p = s.Prog(x86.AFMOVF)
+-		s.AddrScratch(&p.From)
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		popAndSave(s, v)
+-
+-	case ssa.OpLoadReg:
+-		if !v.Type.IsFloat() {
+-			ssaGenValue(s, v)
+-			return
+-		}
+-		// Load+push the value we need.
+-		p := s.Prog(loadPush(v.Type))
+-		gc.AddrAuto(&p.From, v.Args[0])
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		// Move the value to its assigned register.
+-		popAndSave(s, v)
+-
+-	case ssa.OpStoreReg:
+-		if !v.Type.IsFloat() {
+-			ssaGenValue(s, v)
+-			return
+-		}
+-		push(s, v.Args[0])
+-		var op obj.As
+-		switch v.Type.Size() {
+-		case 4:
+-			op = x86.AFMOVFP
+-		case 8:
+-			op = x86.AFMOVDP
+-		}
+-		p := s.Prog(op)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		gc.AddrAuto(&p.To, v)
+-
+-	case ssa.OpCopy:
+-		if !v.Type.IsFloat() {
+-			ssaGenValue(s, v)
+-			return
+-		}
+-		push(s, v.Args[0])
+-		popAndSave(s, v)
+-
+-	case ssa.Op386CALLstatic, ssa.Op386CALLclosure, ssa.Op386CALLinter:
+-		flush387(s) // Calls must empty the FP stack.
+-		fallthrough // then issue the call as normal
+-	default:
+-		ssaGenValue(s, v)
+-	}
+-}
+-
+-// push pushes v onto the floating-point stack.  v must be in a register.
+-func push(s *gc.SSAGenState, v *ssa.Value) {
+-	p := s.Prog(x86.AFMOVD)
+-	p.From.Type = obj.TYPE_REG
+-	p.From.Reg = s.SSEto387[v.Reg()]
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = x86.REG_F0
+-}
+-
+-// popAndSave pops a value off of the floating-point stack and stores
+-// it in the register assigned to v.
+-func popAndSave(s *gc.SSAGenState, v *ssa.Value) {
+-	r := v.Reg()
+-	if _, ok := s.SSEto387[r]; ok {
+-		// Pop value, write to correct register.
+-		p := s.Prog(x86.AFMOVDP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = s.SSEto387[v.Reg()] + 1
+-	} else {
+-		// Don't actually pop value. This 387 register is now the
+-		// new home for the not-yet-assigned-a-home SSE register.
+-		// Increase the register mapping of all other registers by one.
+-		for rSSE, r387 := range s.SSEto387 {
+-			s.SSEto387[rSSE] = r387 + 1
+-		}
+-		s.SSEto387[r] = x86.REG_F0
+-	}
+-}
+-
+-// loadPush returns the opcode for load+push of the given type.
+-func loadPush(t *types.Type) obj.As {
+-	if t.Size() == 4 {
+-		return x86.AFMOVF
+-	}
+-	return x86.AFMOVD
+-}
+-
+-// flush387 removes all entries from the 387 floating-point stack.
+-func flush387(s *gc.SSAGenState) {
+-	for k := range s.SSEto387 {
+-		p := s.Prog(x86.AFMOVDP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_F0
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_F0
+-		delete(s.SSEto387, k)
+-	}
+-}
+-
+-func ssaGenBlock387(s *gc.SSAGenState, b, next *ssa.Block) {
+-	// Empty the 387's FP stack before the block ends.
+-	flush387(s)
+-
+-	ssaGenBlock(s, b, next)
+-}
+-
+-// installControlWord saves the current floating-point control
+-// word and installs a new one loaded from cw.
+-// scratchReg must be an unused register.
+-// This call must be paired with restoreControlWord.
+-// Bytes 4-5 of the scratch space (s.AddrScratch) are used between
+-// this call and restoreControlWord.
+-func installControlWord(s *gc.SSAGenState, cw *obj.LSym, scratchReg int16) {
+-	// Save current control word.
+-	p := s.Prog(x86.AFSTCW)
+-	s.AddrScratch(&p.To)
+-	p.To.Offset += 4
+-
+-	// Materialize address of new control word.
+-	// Note: this must be a seperate instruction to handle PIE correctly.
+-	// See issue 41503.
+-	p = s.Prog(x86.ALEAL)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Name = obj.NAME_EXTERN
+-	p.From.Sym = cw
+-	p.To.Type = obj.TYPE_REG
+-	p.To.Reg = scratchReg
+-
+-	// Load replacement control word.
+-	p = s.Prog(x86.AFLDCW)
+-	p.From.Type = obj.TYPE_MEM
+-	p.From.Reg = scratchReg
+-}
+-func restoreControlWord(s *gc.SSAGenState) {
+-	p := s.Prog(x86.AFLDCW)
+-	s.AddrScratch(&p.From)
+-	p.From.Offset += 4
+-}
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index 56c6989d93..2d20b6a6d0 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -7,26 +7,13 @@ package x86
+ import (
+ 	"cmd/compile/internal/gc"
+ 	"cmd/internal/obj/x86"
+-	"cmd/internal/objabi"
+-	"fmt"
+-	"os"
+ )
+ 
+ func Init(arch *gc.Arch) {
+ 	arch.LinkArch = &x86.Link386
+ 	arch.REGSP = x86.REGSP
+-	switch v := objabi.GO386; v {
+-	case "387":
+-		arch.Use387 = true
+-		arch.SSAGenValue = ssaGenValue387
+-		arch.SSAGenBlock = ssaGenBlock387
+-	case "sse2":
+-		arch.SSAGenValue = ssaGenValue
+-		arch.SSAGenBlock = ssaGenBlock
+-	default:
+-		fmt.Fprintf(os.Stderr, "unsupported setting GO386=%s\n", v)
+-		gc.Exit(1)
+-	}
++	arch.SSAGenValue = ssaGenValue
++	arch.SSAGenBlock = ssaGenBlock
+ 	arch.MAXWIDTH = (1 << 32) - 1
+ 
+ 	arch.ZeroRange = zerorange
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index c21ac32297..74a4570770 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -852,8 +852,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+-	case ssa.Op386FCHS:
+-		v.Fatalf("FCHS in non-387 mode")
+ 	case ssa.OpClobber:
+ 		p := s.Prog(x86.AMOVL)
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 3ac742fa55..5d62c1e8fa 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -30,7 +30,6 @@ var (
+ 	gohostos         string
+ 	goos             string
+ 	goarm            string
+-	go386            string
+ 	gomips           string
+ 	gomips64         string
+ 	goppc64          string
+@@ -142,16 +141,6 @@ func xinit() {
+ 	}
+ 	goarm = b
+ 
+-	b = os.Getenv("GO386")
+-	if b == "" {
+-		if cansse2() {
+-			b = "sse2"
+-		} else {
+-			b = "387"
+-		}
+-	}
+-	go386 = b
+-
+ 	b = os.Getenv("GOMIPS")
+ 	if b == "" {
+ 		b = "hardfloat"
+@@ -223,7 +212,6 @@ func xinit() {
+ 	defaultldso = os.Getenv("GO_LDSO")
+ 
+ 	// For tools being invoked but also for os.ExpandEnv.
+-	os.Setenv("GO386", go386)
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOARM", goarm)
+ 	os.Setenv("GOHOSTARCH", gohostarch)
+@@ -1165,9 +1153,6 @@ func cmdenv() {
+ 	if goarch == "arm" {
+ 		xprintf(format, "GOARM", goarm)
+ 	}
+-	if goarch == "386" {
+-		xprintf(format, "GO386", go386)
+-	}
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		xprintf(format, "GOMIPS", gomips)
+ 	}
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 2744951597..67d1d72db4 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -41,7 +41,6 @@ func mkzversion(dir, file string) {
+ //	package objabi
+ //
+ //	const defaultGOROOT = <goroot>
+-//	const defaultGO386 = <go386>
+ //	const defaultGOARM = <goarm>
+ //	const defaultGOMIPS = <gomips>
+ //	const defaultGOMIPS64 = <gomips64>
+@@ -70,7 +69,6 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+diff --git a/src/cmd/dist/cpuid_386.s b/src/cmd/dist/cpuid_386.s
+deleted file mode 100644
+index 65fbb2dcb7..0000000000
+--- a/src/cmd/dist/cpuid_386.s
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !gccgo
+-
+-TEXT ·cpuid(SB),$0-8
+-	MOVL ax+4(FP), AX
+-	CPUID
+-	MOVL info+0(FP), DI
+-	MOVL AX, 0(DI)
+-	MOVL BX, 4(DI)
+-	MOVL CX, 8(DI)
+-	MOVL DX, 12(DI)
+-	RET
+-
+diff --git a/src/cmd/dist/cpuid_amd64.s b/src/cmd/dist/cpuid_amd64.s
+deleted file mode 100644
+index ea0b9d4dc9..0000000000
+--- a/src/cmd/dist/cpuid_amd64.s
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !gccgo
+-
+-TEXT ·cpuid(SB),$0-12
+-	MOVL ax+8(FP), AX
+-	CPUID
+-	MOVQ info+0(FP), DI
+-	MOVL AX, 0(DI)
+-	MOVL BX, 4(DI)
+-	MOVL CX, 8(DI)
+-	MOVL DX, 12(DI)
+-	RET
+-
+diff --git a/src/cmd/dist/cpuid_default.s b/src/cmd/dist/cpuid_default.s
+deleted file mode 100644
+index 6412a507a9..0000000000
+--- a/src/cmd/dist/cpuid_default.s
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !386,!amd64,!gccgo
+-
+-#include "textflag.h"
+-
+-TEXT ·cpuid(SB),NOSPLIT,$0-0
+-	RET
+diff --git a/src/cmd/dist/util_gc.go b/src/cmd/dist/util_gc.go
+index 698beef704..17a0e6fbb5 100644
+--- a/src/cmd/dist/util_gc.go
++++ b/src/cmd/dist/util_gc.go
+@@ -6,18 +6,6 @@
+ 
+ package main
+ 
+-func cpuid(info *[4]uint32, ax uint32)
+-
+-func cansse2() bool {
+-	if gohostarch != "386" && gohostarch != "amd64" {
+-		return false
+-	}
+-
+-	var info [4]uint32
+-	cpuid(&info, 1)
+-	return info[3]&(1<<26) != 0 // SSE2
+-}
+-
+ // useVFPv1 tries to execute one VFPv1 instruction on ARM.
+ // It will crash the current process if VFPv1 is missing.
+ func useVFPv1()
+diff --git a/src/cmd/dist/util_gccgo.go b/src/cmd/dist/util_gccgo.go
+index f9f01dc048..dc897236fb 100644
+--- a/src/cmd/dist/util_gccgo.go
++++ b/src/cmd/dist/util_gccgo.go
+@@ -6,19 +6,6 @@
+ 
+ package main
+ 
+-/*
+-int supports_sse2() {
+-#if defined(__i386__) || defined(__x86_64__)
+-	return __builtin_cpu_supports("sse2");
+-#else
+-	return 0;
+-#endif
+-}
+-*/
+-import "C"
+-
+-func cansse2() bool { return C.supports_sse2() != 0 }
+-
+ func useVFPv1() {}
+ 
+ func useVFPv3() {}
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 4bc87008ff..500682ed02 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1853,9 +1853,6 @@
+ // 	GOARM
+ // 		For GOARCH=arm, the ARM architecture for which to compile.
+ // 		Valid values are 5, 6, 7.
+-// 	GO386
+-// 		For GOARCH=386, the floating point instruction set.
+-// 		Valid values are 387, sse2.
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 9bf1db73ef..ebbaf04115 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -244,7 +244,6 @@ var (
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(objabi.GOARM))
+-	GO386    = envOr("GO386", objabi.GO386)
+ 	GOMIPS   = envOr("GOMIPS", objabi.GOMIPS)
+ 	GOMIPS64 = envOr("GOMIPS64", objabi.GOMIPS64)
+ 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", objabi.GOPPC64))
+@@ -268,8 +267,6 @@ func GetArchEnv() (key, val string) {
+ 	switch Goarch {
+ 	case "arm":
+ 		return "GOARM", GOARM
+-	case "386":
+-		return "GO386", GO386
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 7bd75f7305..ee0bb0d0b2 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -497,7 +497,10 @@ func lineToKey(line string) string {
+ }
+ 
+ // sortKeyValues sorts a sequence of lines by key.
+-// It differs from sort.Strings in that GO386= sorts after GO=.
++// It differs from sort.Strings in that keys which are GOx where x is an ASCII
++// character smaller than = sort after GO=.
++// (There are no such keys currently. It used to matter for GO386 which was
++// removed in Go 1.16.)
+ func sortKeyValues(lines []string) {
+ 	sort.Slice(lines, func(i, j int) bool {
+ 		return lineToKey(lines[i]) < lineToKey(lines[j])
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 0ae5fd7ca9..befa10a0e4 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -581,9 +581,6 @@ Architecture-specific environment variables:
+ 	GOARM
+ 		For GOARCH=arm, the ARM architecture for which to compile.
+ 		Valid values are 5, 6, 7.
+-	GO386
+-		For GOARCH=386, the floating point instruction set.
+-		Valid values are 387, sse2.
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 51fc2b588d..e68b322c7d 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -271,7 +271,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
+ 		}
+ 
+-		// GO386, GOARM, GOMIPS, etc.
++		// GOARM, GOMIPS, etc.
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+@@ -1175,7 +1175,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 			fmt.Fprintf(h, "linkflags %q\n", p.Internal.Ldflags)
+ 		}
+ 
+-		// GO386, GOARM, GOMIPS, etc.
++		// GOARM, GOMIPS, etc.
+ 		key, val := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index b81b73a022..cedb2d0a26 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -24,7 +24,6 @@ var (
+ 	GOROOT   = envOr("GOROOT", defaultGOROOT)
+ 	GOARCH   = envOr("GOARCH", defaultGOARCH)
+ 	GOOS     = envOr("GOOS", defaultGOOS)
+-	GO386    = envOr("GO386", defaultGO386)
+ 	GOAMD64  = goamd64()
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+@@ -136,6 +135,14 @@ func init() {
+ 	if GOARCH != "amd64" {
+ 		Regabi_enabled = 0
+ 	}
++
++	if v := os.Getenv("GO386"); v != "" && v != "sse2" {
++		msg := fmt.Sprintf("unsupported setting GO386=%s", v)
++		if v == "387" {
++			msg += ". 387 support was dropped in Go 1.16. Consider using gccgo instead."
++		}
++		log.Fatal(msg)
++	}
+ }
+ 
+ // Note: must agree with runtime.framepointer_enabled.
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index bdbe9df3e7..023429e441 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -32,7 +32,6 @@ const KnownEnv = `
+ 	FC
+ 	GCCGO
+ 	GO111MODULE
+-	GO386
+ 	GOARCH
+ 	GOARM
+ 	GOBIN
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index ec87ec0c8a..0684eab973 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4265,24 +4265,6 @@ var gFloat32 float32
+ 
+ func TestConvertNaNs(t *testing.T) {
+ 	const snan uint32 = 0x7f800001
+-
+-	// Test to see if a store followed by a load of a signaling NaN
+-	// maintains the signaling bit. The only platform known to fail
+-	// this test is 386,GO386=387. The real test below will always fail
+-	// if the platform can't even store+load a float without mucking
+-	// with the bits.
+-	gFloat32 = math.Float32frombits(snan)
+-	runtime.Gosched() // make sure we don't optimize the store/load away
+-	r := math.Float32bits(gFloat32)
+-	if r != snan {
+-		// This should only happen on 386,GO386=387. We have no way to
+-		// test for 387, so we just make sure we're at least on 386.
+-		if runtime.GOARCH != "386" {
+-			t.Errorf("store/load of sNaN not faithful")
+-		}
+-		t.Skip("skipping test, float store+load not faithful")
+-	}
+-
+ 	type myFloat32 float32
+ 	x := V(myFloat32(math.Float32frombits(snan)))
+ 	y := x.Convert(TypeOf(float32(0)))
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index c2e14cdcd6..c5bfb0f207 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -190,40 +190,25 @@ func (l *layout) restore() {
+ func gen386() {
+ 	p("PUSHFL")
+ 
+-	// Save general purpose registers.
++	// Assign stack offsets.
+ 	var l = layout{sp: "SP"}
+ 	for _, reg := range regNames386 {
+-		if reg == "SP" || strings.HasPrefix(reg, "X") {
++		if reg == "SP" {
+ 			continue
+ 		}
+-		l.add("MOVL", reg, 4)
+-	}
+-
+-	// Save the 387 state.
+-	l.addSpecial(
+-		"FSAVE %d(SP)\nFLDCW runtime·controlWord64(SB)",
+-		"FRSTOR %d(SP)",
+-		108)
+-
+-	// Save SSE state only if supported.
+-	lSSE := layout{stack: l.stack, sp: "SP"}
+-	for i := 0; i < 8; i++ {
+-		lSSE.add("MOVUPS", fmt.Sprintf("X%d", i), 16)
++		if strings.HasPrefix(reg, "X") {
++			l.add("MOVUPS", reg, 16)
++		} else {
++			l.add("MOVL", reg, 4)
++		}
+ 	}
+ 
+-	p("ADJSP $%d", lSSE.stack)
++	p("ADJSP $%d", l.stack)
+ 	p("NOP SP")
+ 	l.save()
+-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse")
+-	lSSE.save()
+-	label("nosse:")
+ 	p("CALL ·asyncPreempt2(SB)")
+-	p("CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1\nJNE nosse2")
+-	lSSE.restore()
+-	label("nosse2:")
+ 	l.restore()
+-	p("ADJSP $%d", -lSSE.stack)
+-
++	p("ADJSP $%d", -l.stack)
+ 	p("POPFL")
+ 	p("RET")
+ }
+diff --git a/src/runtime/preempt_386.s b/src/runtime/preempt_386.s
+index a00ac8f385..5c9b8ea224 100644
+--- a/src/runtime/preempt_386.s
++++ b/src/runtime/preempt_386.s
+@@ -5,7 +5,7 @@
+ 
+ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	PUSHFL
+-	ADJSP $264
++	ADJSP $156
+ 	NOP SP
+ 	MOVL AX, 0(SP)
+ 	MOVL CX, 4(SP)
+@@ -14,32 +14,23 @@ TEXT ·asyncPreempt(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVL BP, 16(SP)
+ 	MOVL SI, 20(SP)
+ 	MOVL DI, 24(SP)
+-	FSAVE 28(SP)
+-	FLDCW runtime·controlWord64(SB)
+-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE nosse
+-	MOVUPS X0, 136(SP)
+-	MOVUPS X1, 152(SP)
+-	MOVUPS X2, 168(SP)
+-	MOVUPS X3, 184(SP)
+-	MOVUPS X4, 200(SP)
+-	MOVUPS X5, 216(SP)
+-	MOVUPS X6, 232(SP)
+-	MOVUPS X7, 248(SP)
+-nosse:
++	MOVUPS X0, 28(SP)
++	MOVUPS X1, 44(SP)
++	MOVUPS X2, 60(SP)
++	MOVUPS X3, 76(SP)
++	MOVUPS X4, 92(SP)
++	MOVUPS X5, 108(SP)
++	MOVUPS X6, 124(SP)
++	MOVUPS X7, 140(SP)
+ 	CALL ·asyncPreempt2(SB)
+-	CMPB internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+-	JNE nosse2
+-	MOVUPS 248(SP), X7
+-	MOVUPS 232(SP), X6
+-	MOVUPS 216(SP), X5
+-	MOVUPS 200(SP), X4
+-	MOVUPS 184(SP), X3
+-	MOVUPS 168(SP), X2
+-	MOVUPS 152(SP), X1
+-	MOVUPS 136(SP), X0
+-nosse2:
+-	FRSTOR 28(SP)
++	MOVUPS 140(SP), X7
++	MOVUPS 124(SP), X6
++	MOVUPS 108(SP), X5
++	MOVUPS 92(SP), X4
++	MOVUPS 76(SP), X3
++	MOVUPS 60(SP), X2
++	MOVUPS 44(SP), X1
++	MOVUPS 28(SP), X0
+ 	MOVL 24(SP), DI
+ 	MOVL 20(SP), SI
+ 	MOVL 16(SP), BP
+@@ -47,6 +38,6 @@ nosse2:
+ 	MOVL 8(SP), DX
+ 	MOVL 4(SP), CX
+ 	MOVL 0(SP), AX
+-	ADJSP $-264
++	ADJSP $-156
+ 	POPFL
+ 	RET
+diff --git a/src/runtime/vlrt.go b/src/runtime/vlrt.go
+index 38e0b32801..996c0611fd 100644
+--- a/src/runtime/vlrt.go
++++ b/src/runtime/vlrt.go
+@@ -263,7 +263,7 @@ func slowdodiv(n, d uint64) (q, r uint64) {
+ 	return q, n
+ }
+ 
+-// Floating point control word values for GOARCH=386 GO386=387.
++// Floating point control word values.
+ // Bits 0-5 are bits to disable floating-point exceptions.
+ // Bits 8-9 are the precision control:
+ //   0 = single precision a.k.a. float32
+@@ -273,6 +273,5 @@ func slowdodiv(n, d uint64) (q, r uint64) {
+ //   3 = round toward zero
+ var (
+ 	controlWord64      uint16 = 0x3f + 2<<8 + 0<<10
+-	controlWord32             = 0x3f + 0<<8 + 0<<10
+-	controlWord64trunc        = 0x3f + 2<<8 + 3<<10
++	controlWord64trunc uint16 = 0x3f + 2<<8 + 3<<10
+ )
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 0bdb66a376..30f39a8da1 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -125,7 +125,7 @@ func Mul_n120(n int) int {
+ func MulMemSrc(a []uint32, b []float32) {
+ 	// 386:`IMULL\s4\([A-Z]+\),\s[A-Z]+`
+ 	a[0] *= a[1]
+-	// 386/sse2:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
++	// 386:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+ 	// amd64:`MULSS\s4\([A-Z]+\),\sX[0-9]+`
+ 	b[0] *= b[1]
+ }
+@@ -167,7 +167,7 @@ func MergeMuls5(a, n int) int {
+ // -------------- //
+ 
+ func DivMemSrc(a []float64) {
+-	// 386/sse2:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
++	// 386:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+ 	// amd64:`DIVSD\s8\([A-Z]+\),\sX[0-9]+`
+ 	a[0] /= a[1]
+ }
+@@ -211,7 +211,7 @@ func ConstDivs(n1 uint, n2 int) (uint, int) {
+ 
+ func FloatDivs(a []float32) float32 {
+ 	// amd64:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+-	// 386/sse2:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
++	// 386:`DIVSS\s8\([A-Z]+\),\sX[0-9]+`
+ 	return a[1] / a[2]
+ }
+ 
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 3fae1a327c..d115800a67 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -6,8 +6,6 @@
+ 
+ package codegen
+ 
+-import "math"
+-
+ // This file contains codegen tests related to arithmetic
+ // simplifications and optimizations on float types.
+ // For codegen tests on integer types, see arithmetic.go.
+@@ -17,8 +15,7 @@ import "math"
+ // --------------------- //
+ 
+ func Mul2(f float64) float64 {
+-	// 386/sse2:"ADDSD",-"MULSD"
+-	// 386/387:"FADDDP",-"FMULDP"
++	// 386:"ADDSD",-"MULSD"
+ 	// amd64:"ADDSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD"
+ 	// arm64:"FADDD",-"FMULD"
+@@ -28,8 +25,7 @@ func Mul2(f float64) float64 {
+ }
+ 
+ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+-	// 386/sse2:"MULSD",-"DIVSD"
+-	// 386/387:"FMULDP",-"FDIVDP"
++	// 386:"MULSD",-"DIVSD"
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+@@ -37,8 +33,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// ppc64le:"FMUL",-"FDIV"
+ 	x := f1 / 16.0
+ 
+-	// 386/sse2:"MULSD",-"DIVSD"
+-	// 386/387:"FMULDP",-"FDIVDP"
++	// 386:"MULSD",-"DIVSD"
+ 	// amd64:"MULSD",-"DIVSD"
+ 	// arm/7:"MULD",-"DIVD"
+ 	// arm64:"FMULD",-"FDIVD"
+@@ -46,8 +41,7 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	// ppc64le:"FMUL",-"FDIVD"
+ 	y := f2 / 0.125
+ 
+-	// 386/sse2:"ADDSD",-"DIVSD",-"MULSD"
+-	// 386/387:"FADDDP",-"FDIVDP",-"FMULDP"
++	// 386:"ADDSD",-"DIVSD",-"MULSD"
+ 	// amd64:"ADDSD",-"DIVSD",-"MULSD"
+ 	// arm/7:"ADDD",-"MULD",-"DIVD"
+ 	// arm64:"FADDD",-"FMULD",-"FDIVD"
+@@ -58,11 +52,6 @@ func DivPow2(f1, f2, f3 float64) (float64, float64, float64) {
+ 	return x, y, z
+ }
+ 
+-func getPi() float64 {
+-	// 386/387:"FLDPI"
+-	return math.Pi
+-}
+-
+ func indexLoad(b0 []float32, b1 float32, idx int) float32 {
+ 	// arm64:`FMOVS\s\(R[0-9]+\)\(R[0-9]+\),\sF[0-9]+`
+ 	return b0[idx] * b1
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 1ebfda0405..fe678eea23 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -46,7 +46,7 @@ func approx(x float64) {
+ 
+ func sqrt(x float64) float64 {
+ 	// amd64:"SQRTSD"
+-	// 386/387:"FSQRT" 386/sse2:"SQRTSD"
++	// 386:"SQRTSD"
+ 	// arm64:"FSQRTD"
+ 	// arm/7:"SQRTD"
+ 	// mips/hardfloat:"SQRTD" mips/softfloat:-"SQRTD"
+diff --git a/test/codegen/memops.go b/test/codegen/memops.go
+index a234283146..4b003ad861 100644
+--- a/test/codegen/memops.go
++++ b/test/codegen/memops.go
+@@ -175,33 +175,33 @@ func idxInt64(x, y []int64, i int) {
+ 
+ func idxFloat32(x, y []float32, i int) {
+ 	var t float32
+-	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+-	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	// amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
++	//   386: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\), X[0-9]+`
+ 	t = x[i+1]
+-	//    amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+-	// 386/sse2: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
++	// amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
++	//   386: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*4\)`
+ 	y[i+1] = t
+-	//    amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
+-	// 386/sse2: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
++	// amd64: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
++	//   386: `MOVSS\t4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\), X[0-9]+`
+ 	t = x[16*i+1]
+-	//    amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
+-	// 386/sse2: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
++	// amd64: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
++	//   386: `MOVSS\tX[0-9]+, 4\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[14]\)`
+ 	y[16*i+1] = t
+ }
+ 
+ func idxFloat64(x, y []float64, i int) {
+ 	var t float64
+-	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+-	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	// amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
++	//   386: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\), X[0-9]+`
+ 	t = x[i+1]
+-	//    amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+-	// 386/sse2: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	// amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
++	//   386: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*8\)`
+ 	y[i+1] = t
+-	//    amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
+-	// 386/sse2: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
++	// amd64: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
++	//   386: `MOVSD\t8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\), X[0-9]+`
+ 	t = x[16*i+1]
+-	//    amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
+-	// 386/sse2: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
++	// amd64: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
++	//   386: `MOVSD\tX[0-9]+, 8\([A-Z]+[0-9]*\)\([A-Z]+[0-9]*\*[18]\)`
+ 	y[16*i+1] = t
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 95b94b7277..77710fd89a 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1489,7 +1489,7 @@ var (
+ 	// value[0] is the variant-changing environment variable, and values[1:]
+ 	// are the supported variants.
+ 	archVariants = map[string][]string{
+-		"386":     {"GO386", "387", "sse2"},
++		"386":     {},
+ 		"amd64":   {},
+ 		"arm":     {"GOARM", "5", "6", "7"},
+ 		"arm64":   {},
+@@ -1511,12 +1511,12 @@ type wantedAsmOpcode struct {
+ 	found    bool           // true if the opcode check matched at least one in the output
+ }
+ 
+-// A build environment triplet separated by slashes (eg: linux/386/sse2).
++// A build environment triplet separated by slashes (eg: linux/arm/7).
+ // The third field can be empty if the arch does not support variants (eg: "plan9/amd64/")
+ type buildEnv string
+ 
+ // Environ returns the environment it represents in cmd.Environ() "key=val" format
+-// For instance, "linux/386/sse2".Environ() returns {"GOOS=linux", "GOARCH=386", "GO386=sse2"}
++// For instance, "linux/arm/7".Environ() returns {"GOOS=linux", "GOARCH=arm", "GOARM=7"}
+ func (b buildEnv) Environ() []string {
+ 	fields := strings.Split(string(b), "/")
+ 	if len(fields) != 3 {
+@@ -1571,11 +1571,11 @@ func (t *test) wantedAsmOpcodes(fn string) asmChecks {
+ 
+ 			var arch, subarch, os string
+ 			switch {
+-			case archspec[2] != "": // 3 components: "linux/386/sse2"
++			case archspec[2] != "": // 3 components: "linux/arm/7"
+ 				os, arch, subarch = archspec[0], archspec[1][1:], archspec[2][1:]
+-			case archspec[1] != "": // 2 components: "386/sse2"
++			case archspec[1] != "": // 2 components: "arm/7"
+ 				os, arch, subarch = "linux", archspec[0], archspec[1][1:]
+-			default: // 1 component: "386"
++			default: // 1 component: "arm"
+ 				os, arch, subarch = "linux", archspec[0], ""
+ 				if arch == "wasm" {
+ 					os = "js"

@@ -16,7 +16,7 @@ Date:   Wed Aug 12 17:41:54 2020 +0800
     Trust: Eric Fang <eric.fang@arm.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s          |  80 ++++++++++++++
  src/cmd/asm/internal/asm/testdata/arm64enc.s       |   2 +-
  src/cmd/asm/internal/asm/testdata/arm64error.s     |   5 +
@@ -24,3 +24,505 @@ Date:   Wed Aug 12 17:41:54 2020 +0800
  src/cmd/internal/obj/arm64/asm7.go                 | 121 ++++++++++++++++++++-
  .../internal/obj/arm64/specialoperand_string.go    | 120 ++++++++++++++++----
  6 files changed, 383 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 1413bdf476..7866cf1db0 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1630,4 +1630,84 @@ again:
+ 	MSR	R17, ZCR_EL1                       // 111218d5
+ 	SYS	$32768, R1                         // 018008d5
+ 	SYS	$32768                             // 1f8008d5
++
++// TLBI instruction
++	TLBI	VMALLE1IS                          // 1f8308d5
++	TLBI	VMALLE1                            // 1f8708d5
++	TLBI	ALLE2IS                            // 1f830cd5
++	TLBI	ALLE1IS                            // 9f830cd5
++	TLBI	VMALLS12E1IS                       // df830cd5
++	TLBI	ALLE2                              // 1f870cd5
++	TLBI	ALLE1                              // 9f870cd5
++	TLBI	VMALLS12E1                         // df870cd5
++	TLBI	ALLE3IS                            // 1f830ed5
++	TLBI	ALLE3                              // 1f870ed5
++	TLBI	VMALLE1OS                          // 1f8108d5
++	TLBI	ALLE2OS                            // 1f810cd5
++	TLBI	ALLE1OS                            // 9f810cd5
++	TLBI	VMALLS12E1OS                       // df810cd5
++	TLBI	ALLE3OS                            // 1f810ed5
++	TLBI	VAE1IS, R0                         // 208308d5
++	TLBI	ASIDE1IS, R1                       // 418308d5
++	TLBI	VAAE1IS, R2                        // 628308d5
++	TLBI	VALE1IS, R3                        // a38308d5
++	TLBI	VAALE1IS, R4                       // e48308d5
++	TLBI	VAE1, R5                           // 258708d5
++	TLBI	ASIDE1, R6                         // 468708d5
++	TLBI	VAAE1, R7                          // 678708d5
++	TLBI	VALE1, R8                          // a88708d5
++	TLBI	VAALE1, R9                         // e98708d5
++	TLBI	IPAS2E1IS, R10                     // 2a800cd5
++	TLBI	IPAS2LE1IS, R11                    // ab800cd5
++	TLBI	VAE2IS, R12                        // 2c830cd5
++	TLBI	VALE2IS, R13                       // ad830cd5
++	TLBI	IPAS2E1, R14                       // 2e840cd5
++	TLBI	IPAS2LE1, R15                      // af840cd5
++	TLBI	VAE2, R16                          // 30870cd5
++	TLBI	VALE2, R17                         // b1870cd5
++	TLBI	VAE3IS, ZR                         // 3f830ed5
++	TLBI	VALE3IS, R19                       // b3830ed5
++	TLBI	VAE3, R20                          // 34870ed5
++	TLBI	VALE3, R21                         // b5870ed5
++	TLBI	VAE1OS, R22                        // 368108d5
++	TLBI	ASIDE1OS, R23                      // 578108d5
++	TLBI	VAAE1OS, R24                       // 788108d5
++	TLBI	VALE1OS, R25                       // b98108d5
++	TLBI	VAALE1OS, R26                      // fa8108d5
++	TLBI	RVAE1IS, R27                       // 3b8208d5
++	TLBI	RVAAE1IS, ZR                       // 7f8208d5
++	TLBI	RVALE1IS, R29                      // bd8208d5
++	TLBI	RVAALE1IS, R30                     // fe8208d5
++	TLBI	RVAE1OS, ZR                        // 3f8508d5
++	TLBI	RVAAE1OS, R0                       // 608508d5
++	TLBI	RVALE1OS, R1                       // a18508d5
++	TLBI	RVAALE1OS, R2                      // e28508d5
++	TLBI	RVAE1, R3                          // 238608d5
++	TLBI	RVAAE1, R4                         // 648608d5
++	TLBI	RVALE1, R5                         // a58608d5
++	TLBI	RVAALE1, R6                        // e68608d5
++	TLBI	RIPAS2E1IS, R7                     // 47800cd5
++	TLBI	RIPAS2LE1IS, R8                    // c8800cd5
++	TLBI	VAE2OS, R9                         // 29810cd5
++	TLBI	VALE2OS, R10                       // aa810cd5
++	TLBI	RVAE2IS, R11                       // 2b820cd5
++	TLBI	RVALE2IS, R12                      // ac820cd5
++	TLBI	IPAS2E1OS, R13                     // 0d840cd5
++	TLBI	RIPAS2E1, R14                      // 4e840cd5
++	TLBI	RIPAS2E1OS, R15                    // 6f840cd5
++	TLBI	IPAS2LE1OS, R16                    // 90840cd5
++	TLBI	RIPAS2LE1, R17                     // d1840cd5
++	TLBI	RIPAS2LE1OS, ZR                    // ff840cd5
++	TLBI	RVAE2OS, R19                       // 33850cd5
++	TLBI	RVALE2OS, R20                      // b4850cd5
++	TLBI	RVAE2, R21                         // 35860cd5
++	TLBI	RVALE2, R22                        // b6860cd5
++	TLBI	VAE3OS, R23                        // 37810ed5
++	TLBI	VALE3OS, R24                       // b8810ed5
++	TLBI	RVAE3IS, R25                       // 39820ed5
++	TLBI	RVALE3IS, R26                      // ba820ed5
++	TLBI	RVAE3OS, R27                       // 3b850ed5
++	TLBI	RVALE3OS, ZR                       // bf850ed5
++	TLBI	RVAE3, R29                         // 3d860ed5
++	TLBI	RVALE3, R30                        // be860ed5
+ 	END
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64enc.s b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+index a29862822d..f08e953c98 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64enc.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64enc.s
+@@ -397,7 +397,7 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$-8
+    SXTH R17, R25                              // 393e4093
+    SXTW R0, R27                               // 1b7c4093
+    SYSL $285440, R12                          // 0c5b2cd5
+-   //TODO TLBI
++   TLBI VAE1IS, R1                            // 218308d5
+    TSTW $0x80000007, R9                       // TSTW $2147483655, R9          // 3f0d0172
+    TST $0xfffffff0, LR                        // TST $4294967280, R30          // df6f7cf2
+    TSTW R10@>21, R2                           // 5f54ca6a
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 033c4cda6c..a41f180bb6 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -432,4 +432,9 @@ TEXT errors(SB),$0
+ 	STP	(R26, R27), 700(R2)                              // ERROR "cannot use REGTMP as source"
+ 	MOVK	$0, R10                                          // ERROR "zero shifts cannot be handled correctly"
+ 	MOVK	$(0<<32), R10                                    // ERROR "zero shifts cannot be handled correctly"
++	TLBI	PLDL1KEEP                                        // ERROR "illegal argument"
++	TLBI	VMALLE1IS, R0                                    // ERROR "extraneous register at operand 2"
++	TLBI	ALLE3OS, ZR                                      // ERROR "extraneous register at operand 2"
++	TLBI	VAE1IS                                           // ERROR "missing register at operand 2"
++	TLBI	RVALE3                                           // ERROR "missing register at operand 2"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 489651bad2..c34b00db70 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -1074,6 +1074,86 @@ const (
+ 	SPOP_PSTL3KEEP
+ 	SPOP_PSTL3STRM
+ 
++	// TLBI
++	SPOP_VMALLE1IS
++	SPOP_VAE1IS
++	SPOP_ASIDE1IS
++	SPOP_VAAE1IS
++	SPOP_VALE1IS
++	SPOP_VAALE1IS
++	SPOP_VMALLE1
++	SPOP_VAE1
++	SPOP_ASIDE1
++	SPOP_VAAE1
++	SPOP_VALE1
++	SPOP_VAALE1
++	SPOP_IPAS2E1IS
++	SPOP_IPAS2LE1IS
++	SPOP_ALLE2IS
++	SPOP_VAE2IS
++	SPOP_ALLE1IS
++	SPOP_VALE2IS
++	SPOP_VMALLS12E1IS
++	SPOP_IPAS2E1
++	SPOP_IPAS2LE1
++	SPOP_ALLE2
++	SPOP_VAE2
++	SPOP_ALLE1
++	SPOP_VALE2
++	SPOP_VMALLS12E1
++	SPOP_ALLE3IS
++	SPOP_VAE3IS
++	SPOP_VALE3IS
++	SPOP_ALLE3
++	SPOP_VAE3
++	SPOP_VALE3
++	SPOP_VMALLE1OS
++	SPOP_VAE1OS
++	SPOP_ASIDE1OS
++	SPOP_VAAE1OS
++	SPOP_VALE1OS
++	SPOP_VAALE1OS
++	SPOP_RVAE1IS
++	SPOP_RVAAE1IS
++	SPOP_RVALE1IS
++	SPOP_RVAALE1IS
++	SPOP_RVAE1OS
++	SPOP_RVAAE1OS
++	SPOP_RVALE1OS
++	SPOP_RVAALE1OS
++	SPOP_RVAE1
++	SPOP_RVAAE1
++	SPOP_RVALE1
++	SPOP_RVAALE1
++	SPOP_RIPAS2E1IS
++	SPOP_RIPAS2LE1IS
++	SPOP_ALLE2OS
++	SPOP_VAE2OS
++	SPOP_ALLE1OS
++	SPOP_VALE2OS
++	SPOP_VMALLS12E1OS
++	SPOP_RVAE2IS
++	SPOP_RVALE2IS
++	SPOP_IPAS2E1OS
++	SPOP_RIPAS2E1
++	SPOP_RIPAS2E1OS
++	SPOP_IPAS2LE1OS
++	SPOP_RIPAS2LE1
++	SPOP_RIPAS2LE1OS
++	SPOP_RVAE2OS
++	SPOP_RVALE2OS
++	SPOP_RVAE2
++	SPOP_RVALE2
++	SPOP_ALLE3OS
++	SPOP_VAE3OS
++	SPOP_VALE3OS
++	SPOP_RVAE3IS
++	SPOP_RVALE3IS
++	SPOP_RVAE3OS
++	SPOP_RVALE3OS
++	SPOP_RVAE3
++	SPOP_RVALE3
++
+ 	// PSTATE fields
+ 	SPOP_DAIFSet
+ 	SPOP_DAIFClr
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 6081b52c8a..7e1ae15513 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -846,6 +846,8 @@ var optab = []Optab{
+ 	{ASYS, C_VCON, C_NONE, C_NONE, C_NONE, 50, 4, 0, 0, 0},
+ 	{ASYS, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
+ 	{ASYSL, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
++	{ATLBI, C_SPOP, C_NONE, C_NONE, C_NONE, 107, 4, 0, 0, 0},
++	{ATLBI, C_SPOP, C_NONE, C_NONE, C_REG, 107, 4, 0, 0, 0},
+ 
+ 	/* encryption instructions */
+ 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, 29, 4, 0, 0, 0}, // for compatibility with old code
+@@ -905,6 +907,99 @@ var prfopfield = map[SpecialOperand]uint32{
+ 	SPOP_PSTL3STRM: 21,
+ }
+ 
++// sysInstFields helps convert SYS alias instructions to SYS instructions.
++// For example, the format of TLBI is: TLBI <tlbi_op>{, <Xt>}.
++// It's equivalent to: SYS #<op1>, C8, <Cm>, #<op2>{, <Xt>}.
++// The field hasOperand2 indicates whether Xt is required. It helps to check
++// some combinations that may be undefined, such as TLBI VMALLE1IS, R0.
++var sysInstFields = map[SpecialOperand]struct {
++	op1         uint8
++	cn          uint8
++	cm          uint8
++	op2         uint8
++	hasOperand2 bool
++}{
++	// TLBI
++	SPOP_VMALLE1IS:    {0, 8, 3, 0, false},
++	SPOP_VAE1IS:       {0, 8, 3, 1, true},
++	SPOP_ASIDE1IS:     {0, 8, 3, 2, true},
++	SPOP_VAAE1IS:      {0, 8, 3, 3, true},
++	SPOP_VALE1IS:      {0, 8, 3, 5, true},
++	SPOP_VAALE1IS:     {0, 8, 3, 7, true},
++	SPOP_VMALLE1:      {0, 8, 7, 0, false},
++	SPOP_VAE1:         {0, 8, 7, 1, true},
++	SPOP_ASIDE1:       {0, 8, 7, 2, true},
++	SPOP_VAAE1:        {0, 8, 7, 3, true},
++	SPOP_VALE1:        {0, 8, 7, 5, true},
++	SPOP_VAALE1:       {0, 8, 7, 7, true},
++	SPOP_IPAS2E1IS:    {4, 8, 0, 1, true},
++	SPOP_IPAS2LE1IS:   {4, 8, 0, 5, true},
++	SPOP_ALLE2IS:      {4, 8, 3, 0, false},
++	SPOP_VAE2IS:       {4, 8, 3, 1, true},
++	SPOP_ALLE1IS:      {4, 8, 3, 4, false},
++	SPOP_VALE2IS:      {4, 8, 3, 5, true},
++	SPOP_VMALLS12E1IS: {4, 8, 3, 6, false},
++	SPOP_IPAS2E1:      {4, 8, 4, 1, true},
++	SPOP_IPAS2LE1:     {4, 8, 4, 5, true},
++	SPOP_ALLE2:        {4, 8, 7, 0, false},
++	SPOP_VAE2:         {4, 8, 7, 1, true},
++	SPOP_ALLE1:        {4, 8, 7, 4, false},
++	SPOP_VALE2:        {4, 8, 7, 5, true},
++	SPOP_VMALLS12E1:   {4, 8, 7, 6, false},
++	SPOP_ALLE3IS:      {6, 8, 3, 0, false},
++	SPOP_VAE3IS:       {6, 8, 3, 1, true},
++	SPOP_VALE3IS:      {6, 8, 3, 5, true},
++	SPOP_ALLE3:        {6, 8, 7, 0, false},
++	SPOP_VAE3:         {6, 8, 7, 1, true},
++	SPOP_VALE3:        {6, 8, 7, 5, true},
++	SPOP_VMALLE1OS:    {0, 8, 1, 0, false},
++	SPOP_VAE1OS:       {0, 8, 1, 1, true},
++	SPOP_ASIDE1OS:     {0, 8, 1, 2, true},
++	SPOP_VAAE1OS:      {0, 8, 1, 3, true},
++	SPOP_VALE1OS:      {0, 8, 1, 5, true},
++	SPOP_VAALE1OS:     {0, 8, 1, 7, true},
++	SPOP_RVAE1IS:      {0, 8, 2, 1, true},
++	SPOP_RVAAE1IS:     {0, 8, 2, 3, true},
++	SPOP_RVALE1IS:     {0, 8, 2, 5, true},
++	SPOP_RVAALE1IS:    {0, 8, 2, 7, true},
++	SPOP_RVAE1OS:      {0, 8, 5, 1, true},
++	SPOP_RVAAE1OS:     {0, 8, 5, 3, true},
++	SPOP_RVALE1OS:     {0, 8, 5, 5, true},
++	SPOP_RVAALE1OS:    {0, 8, 5, 7, true},
++	SPOP_RVAE1:        {0, 8, 6, 1, true},
++	SPOP_RVAAE1:       {0, 8, 6, 3, true},
++	SPOP_RVALE1:       {0, 8, 6, 5, true},
++	SPOP_RVAALE1:      {0, 8, 6, 7, true},
++	SPOP_RIPAS2E1IS:   {4, 8, 0, 2, true},
++	SPOP_RIPAS2LE1IS:  {4, 8, 0, 6, true},
++	SPOP_ALLE2OS:      {4, 8, 1, 0, false},
++	SPOP_VAE2OS:       {4, 8, 1, 1, true},
++	SPOP_ALLE1OS:      {4, 8, 1, 4, false},
++	SPOP_VALE2OS:      {4, 8, 1, 5, true},
++	SPOP_VMALLS12E1OS: {4, 8, 1, 6, false},
++	SPOP_RVAE2IS:      {4, 8, 2, 1, true},
++	SPOP_RVALE2IS:     {4, 8, 2, 5, true},
++	SPOP_IPAS2E1OS:    {4, 8, 4, 0, true},
++	SPOP_RIPAS2E1:     {4, 8, 4, 2, true},
++	SPOP_RIPAS2E1OS:   {4, 8, 4, 3, true},
++	SPOP_IPAS2LE1OS:   {4, 8, 4, 4, true},
++	SPOP_RIPAS2LE1:    {4, 8, 4, 6, true},
++	SPOP_RIPAS2LE1OS:  {4, 8, 4, 7, true},
++	SPOP_RVAE2OS:      {4, 8, 5, 1, true},
++	SPOP_RVALE2OS:     {4, 8, 5, 5, true},
++	SPOP_RVAE2:        {4, 8, 6, 1, true},
++	SPOP_RVALE2:       {4, 8, 6, 5, true},
++	SPOP_ALLE3OS:      {6, 8, 1, 0, false},
++	SPOP_VAE3OS:       {6, 8, 1, 1, true},
++	SPOP_VALE3OS:      {6, 8, 1, 5, true},
++	SPOP_RVAE3IS:      {6, 8, 2, 1, true},
++	SPOP_RVALE3IS:     {6, 8, 2, 5, true},
++	SPOP_RVAE3OS:      {6, 8, 5, 1, true},
++	SPOP_RVALE3OS:     {6, 8, 5, 5, true},
++	SPOP_RVAE3:        {6, 8, 6, 1, true},
++	SPOP_RVALE3:       {6, 8, 6, 5, true},
++}
++
+ // Used for padinng NOOP instruction
+ const OP_NOOP = 0xd503201f
+ 
+@@ -2870,7 +2965,9 @@ func buildop(ctxt *obj.Link) {
+ 			oprangeset(AAT, t)
+ 			oprangeset(ADC, t)
+ 			oprangeset(AIC, t)
+-			oprangeset(ATLBI, t)
++
++		case ATLBI:
++			break
+ 
+ 		case ASYSL, AHINT:
+ 			break
+@@ -4138,8 +4235,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= uint32(p.From.Offset)
+ 		if p.To.Type == obj.TYPE_REG {
+ 			o1 |= uint32(p.To.Reg & 31)
+-		} else if p.Reg != 0 {
+-			o1 |= uint32(p.Reg & 31)
+ 		} else {
+ 			o1 |= 0x1F
+ 		}
+@@ -5513,6 +5608,26 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			c.ctxt.Diag("illegal destination register: %v\n", p)
+ 		}
+ 		o1 |= enc | uint32(rs&31)<<16 | uint32(rb&31)<<5 | uint32(rt&31)
++
++	case 107: /* tlbi */
++		op, ok := sysInstFields[SpecialOperand(p.From.Offset)]
++		if !ok || (p.As == ATLBI && op.cn != 8) {
++			c.ctxt.Diag("illegal argument: %v\n", p)
++			break
++		}
++		o1 = c.opirr(p, p.As)
++		if op.hasOperand2 {
++			if p.To.Reg == 0 {
++				c.ctxt.Diag("missing register at operand 2: %v\n", p)
++			}
++			o1 |= uint32(p.To.Reg & 0x1F)
++		} else {
++			if p.To.Reg != 0 || p.Reg != 0 {
++				c.ctxt.Diag("extraneous register at operand 2: %v\n", p)
++			}
++			o1 |= uint32(0x1F)
++		}
++		o1 |= uint32(SYSARG4(int(op.op1), int(op.cn), int(op.cm), int(op.op2)))
+ 	}
+ 	out[0] = o1
+ 	out[1] = o2
+diff --git a/src/cmd/internal/obj/arm64/specialoperand_string.go b/src/cmd/internal/obj/arm64/specialoperand_string.go
+index eaaf109052..0818649c93 100644
+--- a/src/cmd/internal/obj/arm64/specialoperand_string.go
++++ b/src/cmd/internal/obj/arm64/specialoperand_string.go
+@@ -27,30 +27,108 @@ func _() {
+ 	_ = x[SPOP_PSTL2STRM-15]
+ 	_ = x[SPOP_PSTL3KEEP-16]
+ 	_ = x[SPOP_PSTL3STRM-17]
+-	_ = x[SPOP_DAIFSet-18]
+-	_ = x[SPOP_DAIFClr-19]
+-	_ = x[SPOP_EQ-20]
+-	_ = x[SPOP_NE-21]
+-	_ = x[SPOP_HS-22]
+-	_ = x[SPOP_LO-23]
+-	_ = x[SPOP_MI-24]
+-	_ = x[SPOP_PL-25]
+-	_ = x[SPOP_VS-26]
+-	_ = x[SPOP_VC-27]
+-	_ = x[SPOP_HI-28]
+-	_ = x[SPOP_LS-29]
+-	_ = x[SPOP_GE-30]
+-	_ = x[SPOP_LT-31]
+-	_ = x[SPOP_GT-32]
+-	_ = x[SPOP_LE-33]
+-	_ = x[SPOP_AL-34]
+-	_ = x[SPOP_NV-35]
+-	_ = x[SPOP_END-36]
++	_ = x[SPOP_VMALLE1IS-18]
++	_ = x[SPOP_VAE1IS-19]
++	_ = x[SPOP_ASIDE1IS-20]
++	_ = x[SPOP_VAAE1IS-21]
++	_ = x[SPOP_VALE1IS-22]
++	_ = x[SPOP_VAALE1IS-23]
++	_ = x[SPOP_VMALLE1-24]
++	_ = x[SPOP_VAE1-25]
++	_ = x[SPOP_ASIDE1-26]
++	_ = x[SPOP_VAAE1-27]
++	_ = x[SPOP_VALE1-28]
++	_ = x[SPOP_VAALE1-29]
++	_ = x[SPOP_IPAS2E1IS-30]
++	_ = x[SPOP_IPAS2LE1IS-31]
++	_ = x[SPOP_ALLE2IS-32]
++	_ = x[SPOP_VAE2IS-33]
++	_ = x[SPOP_ALLE1IS-34]
++	_ = x[SPOP_VALE2IS-35]
++	_ = x[SPOP_VMALLS12E1IS-36]
++	_ = x[SPOP_IPAS2E1-37]
++	_ = x[SPOP_IPAS2LE1-38]
++	_ = x[SPOP_ALLE2-39]
++	_ = x[SPOP_VAE2-40]
++	_ = x[SPOP_ALLE1-41]
++	_ = x[SPOP_VALE2-42]
++	_ = x[SPOP_VMALLS12E1-43]
++	_ = x[SPOP_ALLE3IS-44]
++	_ = x[SPOP_VAE3IS-45]
++	_ = x[SPOP_VALE3IS-46]
++	_ = x[SPOP_ALLE3-47]
++	_ = x[SPOP_VAE3-48]
++	_ = x[SPOP_VALE3-49]
++	_ = x[SPOP_VMALLE1OS-50]
++	_ = x[SPOP_VAE1OS-51]
++	_ = x[SPOP_ASIDE1OS-52]
++	_ = x[SPOP_VAAE1OS-53]
++	_ = x[SPOP_VALE1OS-54]
++	_ = x[SPOP_VAALE1OS-55]
++	_ = x[SPOP_RVAE1IS-56]
++	_ = x[SPOP_RVAAE1IS-57]
++	_ = x[SPOP_RVALE1IS-58]
++	_ = x[SPOP_RVAALE1IS-59]
++	_ = x[SPOP_RVAE1OS-60]
++	_ = x[SPOP_RVAAE1OS-61]
++	_ = x[SPOP_RVALE1OS-62]
++	_ = x[SPOP_RVAALE1OS-63]
++	_ = x[SPOP_RVAE1-64]
++	_ = x[SPOP_RVAAE1-65]
++	_ = x[SPOP_RVALE1-66]
++	_ = x[SPOP_RVAALE1-67]
++	_ = x[SPOP_RIPAS2E1IS-68]
++	_ = x[SPOP_RIPAS2LE1IS-69]
++	_ = x[SPOP_ALLE2OS-70]
++	_ = x[SPOP_VAE2OS-71]
++	_ = x[SPOP_ALLE1OS-72]
++	_ = x[SPOP_VALE2OS-73]
++	_ = x[SPOP_VMALLS12E1OS-74]
++	_ = x[SPOP_RVAE2IS-75]
++	_ = x[SPOP_RVALE2IS-76]
++	_ = x[SPOP_IPAS2E1OS-77]
++	_ = x[SPOP_RIPAS2E1-78]
++	_ = x[SPOP_RIPAS2E1OS-79]
++	_ = x[SPOP_IPAS2LE1OS-80]
++	_ = x[SPOP_RIPAS2LE1-81]
++	_ = x[SPOP_RIPAS2LE1OS-82]
++	_ = x[SPOP_RVAE2OS-83]
++	_ = x[SPOP_RVALE2OS-84]
++	_ = x[SPOP_RVAE2-85]
++	_ = x[SPOP_RVALE2-86]
++	_ = x[SPOP_ALLE3OS-87]
++	_ = x[SPOP_VAE3OS-88]
++	_ = x[SPOP_VALE3OS-89]
++	_ = x[SPOP_RVAE3IS-90]
++	_ = x[SPOP_RVALE3IS-91]
++	_ = x[SPOP_RVAE3OS-92]
++	_ = x[SPOP_RVALE3OS-93]
++	_ = x[SPOP_RVAE3-94]
++	_ = x[SPOP_RVALE3-95]
++	_ = x[SPOP_DAIFSet-96]
++	_ = x[SPOP_DAIFClr-97]
++	_ = x[SPOP_EQ-98]
++	_ = x[SPOP_NE-99]
++	_ = x[SPOP_HS-100]
++	_ = x[SPOP_LO-101]
++	_ = x[SPOP_MI-102]
++	_ = x[SPOP_PL-103]
++	_ = x[SPOP_VS-104]
++	_ = x[SPOP_VC-105]
++	_ = x[SPOP_HI-106]
++	_ = x[SPOP_LS-107]
++	_ = x[SPOP_GE-108]
++	_ = x[SPOP_LT-109]
++	_ = x[SPOP_GT-110]
++	_ = x[SPOP_LE-111]
++	_ = x[SPOP_AL-112]
++	_ = x[SPOP_NV-113]
++	_ = x[SPOP_END-114]
+ }
+ 
+-const _SpecialOperand_name = "PLDL1KEEPPLDL1STRMPLDL2KEEPPLDL2STRMPLDL3KEEPPLDL3STRMPLIL1KEEPPLIL1STRMPLIL2KEEPPLIL2STRMPLIL3KEEPPLIL3STRMPSTL1KEEPPSTL1STRMPSTL2KEEPPSTL2STRMPSTL3KEEPPSTL3STRMDAIFSetDAIFClrEQNEHSLOMIPLVSVCHILSGELTGTLEALNVEND"
++const _SpecialOperand_name = "PLDL1KEEPPLDL1STRMPLDL2KEEPPLDL2STRMPLDL3KEEPPLDL3STRMPLIL1KEEPPLIL1STRMPLIL2KEEPPLIL2STRMPLIL3KEEPPLIL3STRMPSTL1KEEPPSTL1STRMPSTL2KEEPPSTL2STRMPSTL3KEEPPSTL3STRMVMALLE1ISVAE1ISASIDE1ISVAAE1ISVALE1ISVAALE1ISVMALLE1VAE1ASIDE1VAAE1VALE1VAALE1IPAS2E1ISIPAS2LE1ISALLE2ISVAE2ISALLE1ISVALE2ISVMALLS12E1ISIPAS2E1IPAS2LE1ALLE2VAE2ALLE1VALE2VMALLS12E1ALLE3ISVAE3ISVALE3ISALLE3VAE3VALE3VMALLE1OSVAE1OSASIDE1OSVAAE1OSVALE1OSVAALE1OSRVAE1ISRVAAE1ISRVALE1ISRVAALE1ISRVAE1OSRVAAE1OSRVALE1OSRVAALE1OSRVAE1RVAAE1RVALE1RVAALE1RIPAS2E1ISRIPAS2LE1ISALLE2OSVAE2OSALLE1OSVALE2OSVMALLS12E1OSRVAE2ISRVALE2ISIPAS2E1OSRIPAS2E1RIPAS2E1OSIPAS2LE1OSRIPAS2LE1RIPAS2LE1OSRVAE2OSRVALE2OSRVAE2RVALE2ALLE3OSVAE3OSVALE3OSRVAE3ISRVALE3ISRVAE3OSRVALE3OSRVAE3RVALE3DAIFSetDAIFClrEQNEHSLOMIPLVSVCHILSGELTGTLEALNVEND"
+ 
+-var _SpecialOperand_index = [...]uint8{0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135, 144, 153, 162, 169, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 211}
++var _SpecialOperand_index = [...]uint16{0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135, 144, 153, 162, 171, 177, 185, 192, 199, 207, 214, 218, 224, 229, 234, 240, 249, 259, 266, 272, 279, 286, 298, 305, 313, 318, 322, 327, 332, 342, 349, 355, 362, 367, 371, 376, 385, 391, 399, 406, 413, 421, 428, 436, 444, 453, 460, 468, 476, 485, 490, 496, 502, 509, 519, 530, 537, 543, 550, 557, 569, 576, 584, 593, 601, 611, 621, 630, 641, 648, 656, 661, 667, 674, 680, 687, 694, 702, 709, 717, 722, 728, 735, 742, 744, 746, 748, 750, 752, 754, 756, 758, 760, 762, 764, 766, 768, 770, 772, 774, 777}
+ 
+ func (i SpecialOperand) String() string {
+ 	if i < 0 || i >= SpecialOperand(len(_SpecialOperand_index)-1) {

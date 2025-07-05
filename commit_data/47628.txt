@@ -16,9 +16,106 @@ Date:   Thu Apr 1 11:11:04 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        | 14 ++++----------
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go |  5 +++--
  src/cmd/compile/internal/ssagen/abi.go       |  7 +++++++
  4 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 2c767d36d7..8142ba7984 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -824,10 +824,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux2(&p.To, v, sc.Off64())
+ 	case ssa.OpAMD64MOVOstorezero:
+-		if s.ABI != obj.ABIInternal {
+-			v.Fatalf("MOVOstorezero can be only used in ABIInternal functions")
+-		}
+-		if !objabi.Experiment.RegabiG {
++		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -918,10 +915,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64DUFFZERO:
+-		if s.ABI != obj.ABIInternal {
+-			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
+-		}
+-		if !objabi.Experiment.RegabiG {
++		if !objabi.Experiment.RegabiG || s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+ 		}
+@@ -1004,8 +998,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// Closure pointer is DX.
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+-		if objabi.Experiment.RegabiG {
+-			v.Fatalf("LoweredGetG should not appear in new ABI")
++		if objabi.Experiment.RegabiG && s.ABI == obj.ABIInternal {
++			v.Fatalf("LoweredGetG should not appear in ABIInternal")
+ 		}
+ 		r := v.Reg()
+ 		getgFromTLS(s, r)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 98cd865182..839d4a330e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -460,7 +460,7 @@
+ (IsInBounds idx len) => (SETB (CMPQ idx len))
+ (IsSliceInBounds idx len) => (SETBE (CMPQ idx len))
+ (NilCheck ...) => (LoweredNilCheck ...)
+-(GetG mem) && !objabi.Experiment.RegabiG => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
++(GetG mem) && !(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal) => (LoweredGetG mem) // only lower in old ABI. in new ABI we have a G register.
+ (GetClosurePtr ...) => (LoweredGetClosurePtr ...)
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ (GetCallerSP ...) => (LoweredGetCallerSP ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ce94fdb952..1f56b70816 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4,6 +4,7 @@
+ package ssa
+ 
+ import "math"
++import "cmd/internal/obj"
+ import "cmd/internal/objabi"
+ import "cmd/compile/internal/types"
+ 
+@@ -30465,11 +30466,11 @@ func rewriteValueAMD64_OpFloor(v *Value) bool {
+ func rewriteValueAMD64_OpGetG(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (GetG mem)
+-	// cond: !objabi.Experiment.RegabiG
++	// cond: !(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)
+ 	// result: (LoweredGetG mem)
+ 	for {
+ 		mem := v_0
+-		if !(!objabi.Experiment.RegabiG) {
++		if !(!(objabi.Experiment.RegabiG && v.Block.Func.OwnAux.Fn.ABI() == obj.ABIInternal)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64LoweredGetG)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 9c203838a5..61d065cea8 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -146,6 +146,13 @@ func (s *SymABIs) GenABIWrappers() {
+ 			fn.ABI = defABI
+ 		}
+ 
++		if fn.Pragma&ir.CgoUnsafeArgs != 0 {
++			// CgoUnsafeArgs indicates the function (or its callee) uses
++			// offsets to dispatch arguments, which currently using ABI0
++			// frame layout. Pin it to ABI0.
++			fn.ABI = obj.ABI0
++		}
++
+ 		// Apply references.
+ 		if abis, ok := s.refs[symName]; ok {
+ 			fn.ABIRefs |= abis

@@ -11,8 +11,289 @@ Date:   Tue Apr 21 19:43:18 2015 +0000
     Change-Id: I61db6b2431b3ba0d2b3ece5bab7a04194239c34b
     Reviewed-on: https://go-review.googlesource.com/9174
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter.go      | 90 +++++++++------------------
  src/go/internal/gcimporter/gcimporter_test.go | 22 ++-----
  src/go/types/package.go                       |  6 +-
  3 files changed, 35 insertions(+), 83 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 6aba5394c9..b7e2babb60 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -14,7 +14,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"text/scanner"
+@@ -75,18 +74,18 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ }
+ 
+ // ImportData imports a package by reading the gc-generated export data,
+-// adds the corresponding package object to the packages map indexed by id,
++// adds the corresponding package object to the imports map indexed by id,
+ // and returns the object.
+ //
+-// The packages map must contains all packages already imported. The data
++// The imports map must contains all packages already imported. The data
+ // reader position must be the beginning of the export data section. The
+ // filename is only used in error messages.
+ //
+-// If packages[id] contains the completely imported package, that package
++// If imports[id] contains the completely imported package, that package
+ // can be used directly, and there is no need to call this function (but
+ // there is also no harm but for extra time used).
+ //
+-func ImportData(packages map[string]*types.Package, filename, id string, data io.Reader) (pkg *types.Package, err error) {
++func ImportData(imports map[string]*types.Package, filename, id string, data io.Reader) (pkg *types.Package, err error) {
+ 	// support for parser error handling
+ 	defer func() {
+ 		switch r := recover().(type) {
+@@ -100,18 +99,18 @@ func ImportData(packages map[string]*types.Package, filename, id string, data io
+ 	}()
+ 
+ 	var p parser
+-	p.init(filename, id, data, packages)
++	p.init(filename, id, data, imports)
+ 	pkg = p.parseExport()
+ 
+ 	return
+ }
+ 
+ // Import imports a gc-generated package given its import path, adds the
+-// corresponding package object to the packages map, and returns the object.
++// corresponding package object to the imports map, and returns the object.
+ // Local import paths are interpreted relative to the current working directory.
+-// The packages map must contain all packages already imported.
++// The imports map must contains all packages already imported.
+ //
+-func Import(packages map[string]*types.Package, path string) (pkg *types.Package, err error) {
++func Import(imports map[string]*types.Package, path string) (pkg *types.Package, err error) {
+ 	// package "unsafe" is handled by the type checker
+ 	if path == "unsafe" {
+ 		panic(`gcimporter.Import called for package "unsafe"`)
+@@ -132,7 +131,7 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
+ 	}
+ 
+ 	// no need to re-import if the package was imported completely before
+-	if pkg = packages[id]; pkg != nil && pkg.Complete() {
++	if pkg = imports[id]; pkg != nil && pkg.Complete() {
+ 		return
+ 	}
+ 
+@@ -154,7 +153,7 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
+ 		return
+ 	}
+ 
+-	pkg, err = ImportData(packages, filename, id, buf)
++	pkg, err = ImportData(imports, filename, id, buf)
+ 
+ 	return
+ }
+@@ -171,15 +170,14 @@ func Import(packages map[string]*types.Package, path string) (pkg *types.Package
+ // parser parses the exports inside a gc compiler-produced
+ // object/archive file and populates its scope with the results.
+ type parser struct {
+-	scanner    scanner.Scanner
+-	tok        rune                      // current token
+-	lit        string                    // literal string; only valid for Ident, Int, String tokens
+-	id         string                    // package id of imported package
+-	sharedPkgs map[string]*types.Package // package id -> package object (across importer)
+-	localPkgs  map[string]*types.Package // package id -> package object (just this package)
++	scanner scanner.Scanner
++	tok     rune                      // current token
++	lit     string                    // literal string; only valid for Ident, Int, String tokens
++	id      string                    // package id of imported package
++	imports map[string]*types.Package // package id -> package object
+ }
+ 
+-func (p *parser) init(filename, id string, src io.Reader, packages map[string]*types.Package) {
++func (p *parser) init(filename, id string, src io.Reader, imports map[string]*types.Package) {
+ 	p.scanner.Init(src)
+ 	p.scanner.Error = func(_ *scanner.Scanner, msg string) { p.error(msg) }
+ 	p.scanner.Mode = scanner.ScanIdents | scanner.ScanInts | scanner.ScanChars | scanner.ScanStrings | scanner.ScanComments | scanner.SkipComments
+@@ -187,10 +185,10 @@ func (p *parser) init(filename, id string, src io.Reader, packages map[string]*t
+ 	p.scanner.Filename = filename // for good error messages
+ 	p.next()
+ 	p.id = id
+-	p.sharedPkgs = packages
++	p.imports = imports
+ 	if debug {
+-		// check consistency of packages map
+-		for _, pkg := range packages {
++		// check consistency of imports map
++		for _, pkg := range imports {
+ 			if pkg.Name() == "" {
+ 				fmt.Printf("no package name for %s\n", pkg.Path())
+ 			}
+@@ -336,32 +334,17 @@ func (p *parser) parseQualifiedName() (id, name string) {
+ 
+ // getPkg returns the package for a given id. If the package is
+ // not found but we have a package name, create the package and
+-// add it to the p.localPkgs and p.sharedPkgs maps.
+-//
+-// id identifies a package, usually by a canonical package path like
+-// "encoding/json" but possibly by a non-canonical import path like
+-// "./json".
++// add it to the p.imports map.
+ //
+ func (p *parser) getPkg(id, name string) *types.Package {
+-	// package unsafe is not in the packages maps - handle explicitly
++	// package unsafe is not in the imports map - handle explicitly
+ 	if id == "unsafe" {
+ 		return types.Unsafe
+ 	}
+-
+-	pkg := p.localPkgs[id]
++	pkg := p.imports[id]
+ 	if pkg == nil && name != "" {
+-		// first import of id from this package
+-		pkg = p.sharedPkgs[id]
+-		if pkg == nil {
+-			// first import of id by this importer
+-			pkg = types.NewPackage(id, name)
+-			p.sharedPkgs[id] = pkg
+-		}
+-
+-		if p.localPkgs == nil {
+-			p.localPkgs = make(map[string]*types.Package)
+-		}
+-		p.localPkgs[id] = pkg
++		pkg = types.NewPackage(id, name)
++		p.imports[id] = pkg
+ 	}
+ 	return pkg
+ }
+@@ -422,21 +405,21 @@ func (p *parser) parseMapType() types.Type {
+ //
+ // If materializePkg is set, the returned package is guaranteed to be set.
+ // For fully qualified names, the returned package may be a fake package
+-// (without name, scope, and not in the p.sharedPkgs map), created for the
++// (without name, scope, and not in the p.imports map), created for the
+ // sole purpose of providing a package path. Fake packages are created
+-// when the package id is not found in the p.sharedPkgs map; in that case
++// when the package id is not found in the p.imports map; in that case
+ // we cannot create a real package because we don't have a package name.
+ // For non-qualified names, the returned package is the imported package.
+ //
+ func (p *parser) parseName(materializePkg bool) (pkg *types.Package, name string) {
+ 	switch p.tok {
+ 	case scanner.Ident:
+-		pkg = p.sharedPkgs[p.id]
++		pkg = p.imports[p.id]
+ 		name = p.lit
+ 		p.next()
+ 	case '?':
+ 		// anonymous
+-		pkg = p.sharedPkgs[p.id]
++		pkg = p.imports[p.id]
+ 		p.next()
+ 	case '@':
+ 		// exported name prefixed with package path
+@@ -967,25 +950,8 @@ func (p *parser) parseExport() *types.Package {
+ 		p.errorf("expected no scanner errors, got %d", n)
+ 	}
+ 
+-	// Record all referenced packages as imports.
+-	var imports []*types.Package
+-	for id, pkg2 := range p.localPkgs {
+-		if id == p.id {
+-			continue // avoid self-edge
+-		}
+-		imports = append(imports, pkg2)
+-	}
+-	sort.Sort(byPath(imports))
+-	pkg.SetImports(imports)
+-
+ 	// package was imported completely and without errors
+ 	pkg.MarkComplete()
+ 
+ 	return pkg
+ }
+-
+-type byPath []*types.Package
+-
+-func (a byPath) Len() int           { return len(a) }
+-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index ef4a23298c..edd33bf844 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -5,7 +5,6 @@
+ package gcimporter
+ 
+ import (
+-	"fmt"
+ 	"go/build"
+ 	"io/ioutil"
+ 	"os"
+@@ -59,15 +58,15 @@ func compile(t *testing.T, dirname, filename string) string {
+ // as if all tested packages were imported into a single package.
+ var imports = make(map[string]*types.Package)
+ 
+-func testPath(t *testing.T, path string) *types.Package {
++func testPath(t *testing.T, path string) bool {
+ 	t0 := time.Now()
+-	pkg, err := Import(imports, path)
++	_, err := Import(imports, path)
+ 	if err != nil {
+ 		t.Errorf("testPath(%s): %s", path, err)
+-		return nil
++		return false
+ 	}
+ 	t.Logf("testPath(%s): %v", path, time.Since(t0))
+-	return pkg
++	return true
+ }
+ 
+ const maxTime = 30 * time.Second
+@@ -89,7 +88,7 @@ func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ 			for _, ext := range pkgExts {
+ 				if strings.HasSuffix(f.Name(), ext) {
+ 					name := f.Name()[0 : len(f.Name())-len(ext)] // remove extension
+-					if testPath(t, filepath.Join(dir, name)) != nil {
++					if testPath(t, filepath.Join(dir, name)) {
+ 						nimports++
+ 					}
+ 				}
+@@ -119,17 +118,8 @@ func TestImport(t *testing.T) {
+ 	}
+ 
+ 	nimports := 0
+-	if pkg := testPath(t, "./testdata/exports"); pkg != nil {
++	if testPath(t, "./testdata/exports") {
+ 		nimports++
+-		// The package's Imports should include all the types
+-		// referenced by the exportdata, which may be more than
+-		// the import statements in the package's source, but
+-		// fewer than the transitive closure of dependencies.
+-		want := `[package ast ("go/ast") package token ("go/token") package runtime ("runtime")]`
+-		got := fmt.Sprint(pkg.Imports())
+-		if got != want {
+-			t.Errorf(`Package("exports").Imports() = %s, want %s`, got, want)
+-		}
+ 	}
+ 	nimports += testDir(t, "", time.Now().Add(maxTime)) // installed packages
+ 	t.Logf("tested %d imports", nimports)
+diff --git a/src/go/types/package.go b/src/go/types/package.go
+index 9a540c3cea..366ca3948d 100644
+--- a/src/go/types/package.go
++++ b/src/go/types/package.go
+@@ -45,12 +45,8 @@ func (pkg *Package) Complete() bool { return pkg.complete }
+ // MarkComplete marks a package as complete.
+ func (pkg *Package) MarkComplete() { pkg.complete = true }
+ 
+-// Imports returns the list of packages directly imported by
++// Imports returns the list of packages explicitly imported by
+ // pkg; the list is in source order. Package unsafe is excluded.
+-//
+-// If pkg was loaded from export data, Imports includes packages that
+-// provide package-level objects referenced by pkg.  This may be more or
+-// less than the set of packages directly imported by pkg's source code.
+ func (pkg *Package) Imports() []*Package { return pkg.imports }
+ 
+ // SetImports sets the list of explicitly imported packages to list.

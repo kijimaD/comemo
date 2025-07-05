@@ -7,6 +7,33 @@ Date:   Wed Dec 5 20:32:12 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/6890047
-
+---
  test/fixedbugs/issue4468.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/test/fixedbugs/issue4468.go b/test/fixedbugs/issue4468.go
+index c9d7699e26..ef0b46bcf6 100644
+--- a/test/fixedbugs/issue4468.go
++++ b/test/fixedbugs/issue4468.go
+@@ -8,7 +8,21 @@
+ 
+ package p
+ 
++type T int
++
++func (t *T) F() T {
++	return *t
++}
++
++type S struct {
++	t T
++}
++
+ func F() {
+ 	go (F())	// ERROR "must be function call"
+ 	defer (F())	// ERROR "must be function call"
++	var s S
++	(&s.t).F()
++	go (&s.t).F()
++	defer (&s.t).F()
+ }

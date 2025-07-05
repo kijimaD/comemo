@@ -16,8 +16,76 @@ Date:   Tue Oct 29 09:27:57 2019 -0700
     Change-Id: Ie8160760e8db1138f9031888d654eaeab202128c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/204039
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/syntax/dumper_test.go  |  3 +--
  src/cmd/compile/internal/syntax/printer_test.go | 11 ++++++++++-
  src/cmd/compile/internal/syntax/scanner_test.go |  3 +++
  3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/dumper_test.go b/src/cmd/compile/internal/syntax/dumper_test.go
+index 32337eb6f1..f84bd2d705 100644
+--- a/src/cmd/compile/internal/syntax/dumper_test.go
++++ b/src/cmd/compile/internal/syntax/dumper_test.go
+@@ -5,7 +5,6 @@
+ package syntax
+ 
+ import (
+-	"os"
+ 	"testing"
+ )
+ 
+@@ -21,6 +20,6 @@ func TestDump(t *testing.T) {
+ 	}
+ 
+ 	if ast != nil {
+-		Fdump(os.Stdout, ast)
++		Fdump(testOut(), ast)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index bc78f01265..c3b9aca229 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -6,6 +6,8 @@ package syntax
+ 
+ import (
+ 	"fmt"
++	"io"
++	"io/ioutil"
+ 	"os"
+ 	"strings"
+ 	"testing"
+@@ -23,7 +25,7 @@ func TestPrint(t *testing.T) {
+ 	}
+ 
+ 	if ast != nil {
+-		Fprint(os.Stdout, ast, true)
++		Fprint(testOut(), ast, true)
+ 		fmt.Println()
+ 	}
+ }
+@@ -44,3 +46,10 @@ func TestPrintString(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func testOut() io.Writer {
++	if testing.Verbose() {
++		return os.Stdout
++	}
++	return ioutil.Discard
++}
+diff --git a/src/cmd/compile/internal/syntax/scanner_test.go b/src/cmd/compile/internal/syntax/scanner_test.go
+index 717deb9073..d76231a4af 100644
+--- a/src/cmd/compile/internal/syntax/scanner_test.go
++++ b/src/cmd/compile/internal/syntax/scanner_test.go
+@@ -30,6 +30,9 @@ func TestScanner(t *testing.T) {
+ 		if s.tok == _EOF {
+ 			break
+ 		}
++		if !testing.Verbose() {
++			continue
++		}
+ 		switch s.tok {
+ 		case _Name:
+ 			fmt.Println(s.line, s.tok, "=>", s.lit)

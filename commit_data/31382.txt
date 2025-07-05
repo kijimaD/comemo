@@ -9,6 +9,24 @@ Date:   Tue Feb 14 16:11:35 2017 -0500
     Change-Id: I3a80d03a4aa556614626067a8fd698b3b00f4290
     Reviewed-on: https://go-review.googlesource.com/36962
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/pprof/pprof.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index c88844e837..7dc38369e6 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -565,8 +565,12 @@ func writeHeap(w io.Writer, debug int) error {
+ 	fmt.Fprintf(w, "# OtherSys = %d\n", s.OtherSys)
+ 
+ 	fmt.Fprintf(w, "# NextGC = %d\n", s.NextGC)
++	fmt.Fprintf(w, "# LastGC = %d\n", s.LastGC)
+ 	fmt.Fprintf(w, "# PauseNs = %d\n", s.PauseNs)
++	fmt.Fprintf(w, "# PauseEnd = %d\n", s.PauseEnd)
+ 	fmt.Fprintf(w, "# NumGC = %d\n", s.NumGC)
++	fmt.Fprintf(w, "# NumForcedGC = %d\n", s.NumForcedGC)
++	fmt.Fprintf(w, "# GCCPUFraction = %v\n", s.GCCPUFraction)
+ 	fmt.Fprintf(w, "# DebugGC = %v\n", s.DebugGC)
+ 
+ 	tw.Flush()

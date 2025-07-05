@@ -37,10 +37,226 @@ Date:   Sat Mar 23 16:20:35 2019 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/cover/cover.go     | 19 +------------------
  src/cmd/doc/main.go        | 23 +++++++----------------
  src/go/ast/ast.go          | 15 ++++-----------
  src/go/token/token.go      | 34 +++++++++++++++++++++++++++++++++-
  src/go/token/token_test.go | 33 +++++++++++++++++++++++++++++++++
  5 files changed, 78 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 2394e57977..1748606c5e 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -16,7 +16,6 @@ import (
+ 	"log"
+ 	"os"
+ 	"sort"
+-	"unicode"
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
+@@ -117,7 +116,7 @@ func parseFlags() error {
+ 		return fmt.Errorf("too many options")
+ 	}
+ 
+-	if *varVar != "" && !isValidIdentifier(*varVar) {
++	if *varVar != "" && !token.IsIdentifier(*varVar) {
+ 		return fmt.Errorf("-var: %q is not a valid identifier", *varVar)
+ 	}
+ 
+@@ -685,22 +684,6 @@ func (f *File) addVariables(w io.Writer) {
+ 	}
+ }
+ 
+-func isValidIdentifier(ident string) bool {
+-	if len(ident) == 0 {
+-		return false
+-	}
+-	for i, c := range ident {
+-		if i > 0 && unicode.IsDigit(c) {
+-			continue
+-		}
+-		if c == '_' || unicode.IsLetter(c) {
+-			continue
+-		}
+-		return false
+-	}
+-	return true
+-}
+-
+ // It is possible for positions to repeat when there is a line
+ // directive that does not specify column information and the input
+ // has not been passed through gofmt.
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index ec15ec5826..9b24c5874f 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -42,6 +42,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"go/token"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -333,28 +334,18 @@ func parseSymbol(str string) (symbol, method string) {
+ 	case 1:
+ 	case 2:
+ 		method = elem[1]
+-		isIdentifier(method)
++		if !token.IsIdentifier(method) {
++			log.Fatalf("invalid identifier %q", method)
++		}
+ 	default:
+ 		log.Printf("too many periods in symbol specification")
+ 		usage()
+ 	}
+ 	symbol = elem[0]
+-	isIdentifier(symbol)
+-	return
+-}
+-
+-// isIdentifier checks that the name is valid Go identifier, and
+-// logs and exits if it is not.
+-func isIdentifier(name string) {
+-	if len(name) == 0 {
+-		log.Fatal("empty symbol")
+-	}
+-	for i, ch := range name {
+-		if unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch) {
+-			continue
+-		}
+-		log.Fatalf("invalid identifier %q", name)
++	if !token.IsIdentifier(symbol) {
++		log.Fatalf("invalid identifier %q", symbol)
+ 	}
++	return
+ }
+ 
+ // isExported reports whether the name is an exported identifier.
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index fd109507b8..d8f6f668cc 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -10,8 +10,6 @@ package ast
+ import (
+ 	"go/token"
+ 	"strings"
+-	"unicode"
+-	"unicode/utf8"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -523,18 +521,13 @@ func (*ChanType) exprNode()      {}
+ //
+ func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
+ 
+-// IsExported reports whether name is an exported Go symbol
+-// (that is, whether it begins with an upper-case letter).
++// IsExported reports whether name starts with an upper-case letter.
+ //
+-func IsExported(name string) bool {
+-	ch, _ := utf8.DecodeRuneInString(name)
+-	return unicode.IsUpper(ch)
+-}
++func IsExported(name string) bool { return token.IsExported(name) }
+ 
+-// IsExported reports whether id is an exported Go symbol
+-// (that is, whether it begins with an uppercase letter).
++// IsExported reports whether id starts with an upper-case letter.
+ //
+-func (id *Ident) IsExported() bool { return IsExported(id.Name) }
++func (id *Ident) IsExported() bool { return token.IsExported(id.Name) }
+ 
+ func (id *Ident) String() string {
+ 	if id != nil {
+diff --git a/src/go/token/token.go b/src/go/token/token.go
+index 865f63f4a1..96a1079ec3 100644
+--- a/src/go/token/token.go
++++ b/src/go/token/token.go
+@@ -7,7 +7,11 @@
+ //
+ package token
+ 
+-import "strconv"
++import (
++	"strconv"
++	"unicode"
++	"unicode/utf8"
++)
+ 
+ // Token is the set of lexical tokens of the Go programming language.
+ type Token int
+@@ -306,3 +310,31 @@ func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator
+ // it returns false otherwise.
+ //
+ func (tok Token) IsKeyword() bool { return keyword_beg < tok && tok < keyword_end }
++
++// IsExported reports whether name starts with an upper-case letter.
++//
++func IsExported(name string) bool {
++	ch, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(ch)
++}
++
++// IsKeyword reports whether name is a Go keyword, such as "func" or "return".
++//
++func IsKeyword(name string) bool {
++	// TODO: opt: use a perfect hash function instead of a global map.
++	_, ok := keywords[name]
++	return ok
++}
++
++// IsIdentifier reports whether name is a Go identifier, that is, a non-empty
++// string made up of letters, digits, and underscores, where the first character
++// is not a digit. Keywords are not identifiers.
++//
++func IsIdentifier(name string) bool {
++	for i, c := range name {
++		if !unicode.IsLetter(c) && c != '_' && (i == 0 || !unicode.IsDigit(c)) {
++			return false
++		}
++	}
++	return name != "" && !IsKeyword(name)
++}
+diff --git a/src/go/token/token_test.go b/src/go/token/token_test.go
+new file mode 100644
+index 0000000000..eff38cc928
+--- /dev/null
++++ b/src/go/token/token_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package token
++
++import "testing"
++
++func TestIsIdentifier(t *testing.T) {
++	tests := []struct {
++		name string
++		in   string
++		want bool
++	}{
++		{"Empty", "", false},
++		{"Space", " ", false},
++		{"SpaceSuffix", "foo ", false},
++		{"Number", "123", false},
++		{"Keyword", "func", false},
++
++		{"LettersASCII", "foo", true},
++		{"MixedASCII", "_bar123", true},
++		{"UppercaseKeyword", "Func", true},
++		{"LettersUnicode", "fóö", true},
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			if got := IsIdentifier(test.in); got != test.want {
++				t.Fatalf("IsIdentifier(%q) = %t, want %v", test.in, got, test.want)
++			}
++		})
++	}
++}

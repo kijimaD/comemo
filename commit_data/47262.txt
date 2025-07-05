@@ -13,8 +13,48 @@ Date:   Sun Mar 7 14:48:08 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/decompose.go | 2 +-
  src/cmd/compile/internal/ssa/rewrite.go   | 2 +-
  src/cmd/compile/internal/ssa/value.go     | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index ea988e44f6..ba48b6b3b9 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -24,7 +24,7 @@ func decomposeBuiltIn(f *Func) {
+ 	}
+ 
+ 	// Decompose other values
+-	// Note: deadcode is false because we need to keep the original
++	// Note: Leave dead values because we need to keep the original
+ 	// values around so the name component resolution below can still work.
+ 	applyRewrite(f, rewriteBlockdec, rewriteValuedec, leaveDeadValues)
+ 	if f.Config.RegSize == 4 {
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 07bbdb8813..5c56b2b346 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -27,7 +27,7 @@ const (
+ 	removeDeadValues                 = true
+ )
+ 
+-// deadcode indicates that rewrite should try to remove any values that become dead.
++// deadcode indicates whether rewrite should try to remove any values that become dead.
+ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValueChoice) {
+ 	// repeat rewrites until we find no more rewrites
+ 	pendingLines := f.cachedLineStarts // Holds statement boundaries that need to be moved to a new value/block
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index c20fc87e90..6cc2b2ab8b 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -499,7 +499,7 @@ func (v *Value) removeable() bool {
+ 		return false
+ 	}
+ 	if v.Type.IsMemory() {
+-		// All memory ops aren't needed here, but we do need
++		// We don't need to preserve all memory ops, but we do need
+ 		// to keep calls at least (because they might have
+ 		// synchronization operations we can't see).
+ 		return false

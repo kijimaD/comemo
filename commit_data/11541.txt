@@ -7,7 +7,7 @@ Date:   Wed Feb 1 16:08:31 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5484076
-
+---
  src/pkg/math/acosh.go     |  4 +---
  src/pkg/math/asinh.go     |  4 +---
  src/pkg/math/atan2.go     | 14 ++++++--------
@@ -38,3 +38,740 @@ Date:   Wed Feb 1 16:08:31 2012 +0100
  src/pkg/math/sqrt.go      |  4 +---
  src/pkg/math/tan.go       |  6 ++----
  29 files changed, 69 insertions(+), 143 deletions(-)
+
+diff --git a/src/pkg/math/acosh.go b/src/pkg/math/acosh.go
+index 8d556377f5..c6c8645e1a 100644
+--- a/src/pkg/math/acosh.go
++++ b/src/pkg/math/acosh.go
+@@ -44,11 +44,9 @@ func Acosh(x float64) float64 {
+ 		Ln2   = 6.93147180559945286227e-01 // 0x3FE62E42FEFA39EF
+ 		Large = 1 << 28                    // 2**28
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN
+-	// when compiler does it for us
+ 	// first case is special case
+ 	switch {
+-	case x < 1 || x != x: // x < 1 || IsNaN(x):
++	case x < 1 || IsNaN(x):
+ 		return NaN()
+ 	case x == 1:
+ 		return 0
+diff --git a/src/pkg/math/asinh.go b/src/pkg/math/asinh.go
+index f786dd9f8f..0defbb9bef 100644
+--- a/src/pkg/math/asinh.go
++++ b/src/pkg/math/asinh.go
+@@ -42,10 +42,8 @@ func Asinh(x float64) float64 {
+ 		NearZero = 1.0 / (1 << 28)            // 2**-28
+ 		Large    = 1 << 28                    // 2**28
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+-	if x != x || x > MaxFloat64 || x < -MaxFloat64 { // IsNaN(x) || IsInf(x, 0)
++	if IsNaN(x) || IsInf(x, 0) {
+ 		return x
+ 	}
+ 	sign := false
+diff --git a/src/pkg/math/atan2.go b/src/pkg/math/atan2.go
+index 3d1b52a5cc..d84b332c99 100644
+--- a/src/pkg/math/atan2.go
++++ b/src/pkg/math/atan2.go
+@@ -29,11 +29,9 @@ package math
+ func Atan2(y, x float64) float64
+ 
+ func atan2(y, x float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case y != y || x != x: // IsNaN(y) || IsNaN(x):
++	case IsNaN(y) || IsNaN(x):
+ 		return NaN()
+ 	case y == 0:
+ 		if x >= 0 && !Signbit(x) {
+@@ -42,22 +40,22 @@ func atan2(y, x float64) float64 {
+ 		return Copysign(Pi, y)
+ 	case x == 0:
+ 		return Copysign(Pi/2, y)
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
+-		if x > MaxFloat64 { // IsInf(x, 1) {
++	case IsInf(x, 0):
++		if IsInf(x, 1) {
+ 			switch {
+-			case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
++			case IsInf(y, 0):
+ 				return Copysign(Pi/4, y)
+ 			default:
+ 				return Copysign(0, y)
+ 			}
+ 		}
+ 		switch {
+-		case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y, -1) || IsInf(y, 1):
++		case IsInf(y, 0):
+ 			return Copysign(3*Pi/4, y)
+ 		default:
+ 			return Copysign(Pi, y)
+ 		}
+-	case y < -MaxFloat64 || y > MaxFloat64: //IsInf(y, 0):
++	case IsInf(y, 0):
+ 		return Copysign(Pi/2, y)
+ 	}
+ 
+diff --git a/src/pkg/math/atanh.go b/src/pkg/math/atanh.go
+index e150673c70..5b5d468559 100644
+--- a/src/pkg/math/atanh.go
++++ b/src/pkg/math/atanh.go
+@@ -46,11 +46,9 @@ package math
+ //	Atanh(NaN) = NaN
+ func Atanh(x float64) float64 {
+ 	const NearZero = 1.0 / (1 << 28) // 2**-28
+-	// TODO(rsc): Remove manual inlining of IsNaN
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x < -1 || x > 1 || x != x: // x < -1 || x > 1 || IsNaN(x):
++	case x < -1 || x > 1 || IsNaN(x):
+ 		return NaN()
+ 	case x == 1:
+ 		return Inf(1)
+diff --git a/src/pkg/math/cbrt.go b/src/pkg/math/cbrt.go
+index 09edc0eae8..8c43f0afbc 100644
+--- a/src/pkg/math/cbrt.go
++++ b/src/pkg/math/cbrt.go
+@@ -33,11 +33,9 @@ func Cbrt(x float64) float64 {
+ 		C3 = 6.46502159e-02
+ 		C4 = 1.412333954e-01
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x == 0 || x != x || x < -MaxFloat64 || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 0):
++	case x == 0 || IsNaN(x) || IsInf(x, 0):
+ 		return x
+ 	}
+ 	sign := false
+diff --git a/src/pkg/math/dim.go b/src/pkg/math/dim.go
+index 16363ac7f5..1c634d415f 100644
+--- a/src/pkg/math/dim.go
++++ b/src/pkg/math/dim.go
+@@ -26,13 +26,11 @@ func dim(x, y float64) float64 {
+ func Max(x, y float64) float64
+ 
+ func max(x, y float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x > MaxFloat64 || y > MaxFloat64: // IsInf(x, 1) || IsInf(y, 1):
++	case IsInf(x, 1) || IsInf(y, 1):
+ 		return Inf(1)
+-	case x != x || y != y: // IsNaN(x) || IsNaN(y):
++	case IsNaN(x) || IsNaN(y):
+ 		return NaN()
+ 	case x == 0 && x == y:
+ 		if Signbit(x) {
+@@ -55,13 +53,11 @@ func max(x, y float64) float64 {
+ func Min(x, y float64) float64
+ 
+ func min(x, y float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x < -MaxFloat64 || y < -MaxFloat64: // IsInf(x, -1) || IsInf(y, -1):
++	case IsInf(x, -1) || IsInf(y, -1):
+ 		return Inf(-1)
+-	case x != x || y != y: // IsNaN(x) || IsNaN(y):
++	case IsNaN(x) || IsNaN(y):
+ 		return NaN()
+ 	case x == 0 && x == y:
+ 		if Signbit(x) {
+diff --git a/src/pkg/math/erf.go b/src/pkg/math/erf.go
+index 6d3d9b7c53..87c70c2512 100644
+--- a/src/pkg/math/erf.go
++++ b/src/pkg/math/erf.go
+@@ -191,14 +191,12 @@ func Erf(x float64) float64 {
+ 		Small    = 1.0 / (1 << 28)        // 2**-28
+ 	)
+ 	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+-	case x != x: // IsNaN(x):
++	case IsNaN(x):
+ 		return NaN()
+-	case x > MaxFloat64: // IsInf(x, 1):
++	case IsInf(x, 1):
+ 		return 1
+-	case x < -MaxFloat64: // IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return -1
+ 	}
+ 	sign := false
+@@ -267,14 +265,12 @@ func Erf(x float64) float64 {
+ func Erfc(x float64) float64 {
+ 	const Tiny = 1.0 / (1 << 56) // 2**-56
+ 	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+-	case x != x: // IsNaN(x):
++	case IsNaN(x):
+ 		return NaN()
+-	case x > MaxFloat64: // IsInf(x, 1):
++	case IsInf(x, 1):
+ 		return 0
+-	case x < -MaxFloat64: // IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return 2
+ 	}
+ 	sign := false
+diff --git a/src/pkg/math/exp.go b/src/pkg/math/exp.go
+index 2a1710a6d7..f31585fa77 100644
+--- a/src/pkg/math/exp.go
++++ b/src/pkg/math/exp.go
+@@ -100,13 +100,11 @@ func exp(x float64) float64 {
+ 		NearZero  = 1.0 / (1 << 28) // 2**-28
+ 	)
+ 
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
++	case IsNaN(x) || IsInf(x, 1):
+ 		return x
+-	case x < -MaxFloat64: // IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return 0
+ 	case x > Overflow:
+ 		return Inf(1)
+@@ -145,13 +143,11 @@ func exp2(x float64) float64 {
+ 		Underflow = -1.0740e+03
+ 	)
+ 
+-	// TODO: remove manual inlining of IsNaN and IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
++	case IsNaN(x) || IsInf(x, 1):
+ 		return x
+-	case x < -MaxFloat64: // IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return 0
+ 	case x > Overflow:
+ 		return Inf(1)
+diff --git a/src/pkg/math/expm1.go b/src/pkg/math/expm1.go
+index 15fc25f135..8f56e15cc4 100644
+--- a/src/pkg/math/expm1.go
++++ b/src/pkg/math/expm1.go
+@@ -142,12 +142,10 @@ func expm1(x float64) float64 {
+ 	)
+ 
+ 	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+-	case x > MaxFloat64 || x != x: // IsInf(x, 1) || IsNaN(x):
++	case IsInf(x, 1) || IsNaN(x):
+ 		return x
+-	case x < -MaxFloat64: // IsInf(x, -1):
++	case IsInf(x, -1):
+ 		return -1
+ 	}
+ 
+diff --git a/src/pkg/math/floor.go b/src/pkg/math/floor.go
+index a7090f5e4a..9d30629c5e 100644
+--- a/src/pkg/math/floor.go
++++ b/src/pkg/math/floor.go
+@@ -13,9 +13,7 @@ package math
+ func Floor(x float64) float64
+ 
+ func floor(x float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
++	if x == 0 || IsNaN(x) || IsInf(x, 0) {
+ 		return x
+ 	}
+ 	if x < 0 {
+@@ -50,9 +48,7 @@ func ceil(x float64) float64 {
+ func Trunc(x float64) float64
+ 
+ func trunc(x float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+-	if x == 0 || x != x || x > MaxFloat64 || x < -MaxFloat64 { // x == 0 || IsNaN(x) || IsInf(x, 0)
++	if x == 0 || IsNaN(x) || IsInf(x, 0) {
+ 		return x
+ 	}
+ 	d, _ := Modf(x)
+diff --git a/src/pkg/math/frexp.go b/src/pkg/math/frexp.go
+index b5458d7639..0e26feb666 100644
+--- a/src/pkg/math/frexp.go
++++ b/src/pkg/math/frexp.go
+@@ -16,13 +16,11 @@ package math
+ func Frexp(f float64) (frac float64, exp int)
+ 
+ func frexp(f float64) (frac float64, exp int) {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+ 	case f == 0:
+ 		return f, 0 // correctly return -0
+-	case f < -MaxFloat64 || f > MaxFloat64 || f != f: // IsInf(f, 0) || IsNaN(f):
++	case IsInf(f, 0) || IsNaN(f):
+ 		return f, 0
+ 	}
+ 	f, exp = normalize(f)
+diff --git a/src/pkg/math/gamma.go b/src/pkg/math/gamma.go
+index 7365d8e775..2385a53b8a 100644
+--- a/src/pkg/math/gamma.go
++++ b/src/pkg/math/gamma.go
+@@ -121,7 +121,7 @@ func Gamma(x float64) float64 {
+ 	const Euler = 0.57721566490153286060651209008240243104215933593992 // A001620
+ 	// special cases
+ 	switch {
+-	case x < -MaxFloat64 || x != x: // IsInf(x, -1) || IsNaN(x):
++	case IsInf(x, -1) || IsNaN(x):
+ 		return x
+ 	case x < -170.5674972726612 || x > 171.61447887182298:
+ 		return Inf(1)
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 233257b522..df4d3eb709 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -17,13 +17,11 @@ package math
+ func Hypot(p, q float64) float64
+ 
+ func hypot(p, q float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case p < -MaxFloat64 || p > MaxFloat64 || q < -MaxFloat64 || q > MaxFloat64: // IsInf(p, 0) || IsInf(q, 0):
++	case IsInf(p, 0) || IsInf(q, 0):
+ 		return Inf(1)
+-	case p != p || q != q: // IsNaN(p) || IsNaN(q):
++	case IsNaN(p) || IsNaN(q):
+ 		return NaN()
+ 	}
+ 	if p < 0 {
+diff --git a/src/pkg/math/j0.go b/src/pkg/math/j0.go
+index 5aaf4ab9cf..c20a9b22a8 100644
+--- a/src/pkg/math/j0.go
++++ b/src/pkg/math/j0.go
+@@ -89,13 +89,11 @@ func J0(x float64) float64 {
+ 		S03 = 5.13546550207318111446e-07  // 0x3EA13B54CE84D5A9
+ 		S04 = 1.16614003333790000205e-09  // 0x3E1408BCF4745D8F
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x: // IsNaN(x)
++	case IsNaN(x):
+ 		return x
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return 0
+ 	case x == 0:
+ 		return 1
+@@ -171,13 +169,11 @@ func Y0(x float64) float64 {
+ 		V03    = 2.59150851840457805467e-07  // 0x3E91642D7FF202FD
+ 		V04    = 4.41110311332675467403e-10  // 0x3DFE50183BD6D9EF
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x < 0 || x != x: // x < 0 || IsNaN(x):
++	case x < 0 || IsNaN(x):
+ 		return NaN()
+-	case x > MaxFloat64: // IsInf(x, 1):
++	case IsInf(x, 1):
+ 		return 0
+ 	case x == 0:
+ 		return Inf(-1)
+diff --git a/src/pkg/math/j1.go b/src/pkg/math/j1.go
+index 278162e9d3..7ac186b72a 100644
+--- a/src/pkg/math/j1.go
++++ b/src/pkg/math/j1.go
+@@ -86,13 +86,11 @@ func J1(x float64) float64 {
+ 		S04 = 5.04636257076217042715e-09  // 0x3E35AC88C97DFF2C
+ 		S05 = 1.23542274426137913908e-11  // 0x3DAB2ACFCFB97ED8
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x: // IsNaN(x)
++	case IsNaN(x):
+ 		return x
+-	case x < -MaxFloat64 || x > MaxFloat64 || x == 0: // IsInf(x, 0) || x == 0:
++	case IsInf(x, 0) || x == 0:
+ 		return 0
+ 	}
+ 
+@@ -168,13 +166,11 @@ func Y1(x float64) float64 {
+ 		V03    = 6.22741452364621501295e-09  // 0x3E3ABF1D5BA69A86
+ 		V04    = 1.66559246207992079114e-11  // 0x3DB25039DACA772A
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x < 0 || x != x: // x < 0 || IsNaN(x):
++	case x < 0 || IsNaN(x):
+ 		return NaN()
+-	case x > MaxFloat64: // IsInf(x, 1):
++	case IsInf(x, 1):
+ 		return 0
+ 	case x == 0:
+ 		return Inf(-1)
+diff --git a/src/pkg/math/jn.go b/src/pkg/math/jn.go
+index 1878df5b5a..a7909eb24c 100644
+--- a/src/pkg/math/jn.go
++++ b/src/pkg/math/jn.go
+@@ -55,13 +55,11 @@ func Jn(n int, x float64) float64 {
+ 		TwoM29 = 1.0 / (1 << 29) // 2**-29 0x3e10000000000000
+ 		Two302 = 1 << 302        // 2**302 0x52D0000000000000
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x: // IsNaN(x)
++	case IsNaN(x):
+ 		return x
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return 0
+ 	}
+ 	// J(-n, x) = (-1)**n * J(n, x), J(n, -x) = (-1)**n * J(n, x)
+@@ -236,13 +234,11 @@ func Jn(n int, x float64) float64 {
+ //	Y1(n, NaN) = NaN
+ func Yn(n int, x float64) float64 {
+ 	const Two302 = 1 << 302 // 2**302 0x52D0000000000000
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x < 0 || x != x: // x < 0 || IsNaN(x):
++	case x < 0 || IsNaN(x):
+ 		return NaN()
+-	case x > MaxFloat64: // IsInf(x, 1)
++	case IsInf(x, 1):
+ 		return 0
+ 	}
+ 
+@@ -299,7 +295,7 @@ func Yn(n int, x float64) float64 {
+ 		a := Y0(x)
+ 		b = Y1(x)
+ 		// quit if b is -inf
+-		for i := 1; i < n && b >= -MaxFloat64; i++ { // for i := 1; i < n && !IsInf(b, -1); i++ {
++		for i := 1; i < n && !IsInf(b, -1); i++ {
+ 			a, b = b, (float64(i+i)/x)*b-a
+ 		}
+ 	}
+diff --git a/src/pkg/math/ldexp.go b/src/pkg/math/ldexp.go
+index 95342301bf..b5d2a5e7e8 100644
+--- a/src/pkg/math/ldexp.go
++++ b/src/pkg/math/ldexp.go
+@@ -14,13 +14,11 @@ package math
+ func Ldexp(frac float64, exp int) float64
+ 
+ func ldexp(frac float64, exp int) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+ 	case frac == 0:
+ 		return frac // correctly return -0
+-	case frac < -MaxFloat64 || frac > MaxFloat64 || frac != frac: // IsInf(frac, 0) || IsNaN(frac):
++	case IsInf(frac, 0) || IsNaN(frac):
+ 		return frac
+ 	}
+ 	frac, e := normalize(frac)
+diff --git a/src/pkg/math/lgamma.go b/src/pkg/math/lgamma.go
+index e2bad69dc0..6a02c412d9 100644
+--- a/src/pkg/math/lgamma.go
++++ b/src/pkg/math/lgamma.go
+@@ -183,15 +183,13 @@ func Lgamma(x float64) (lgamma float64, sign int) {
+ 		// Tt = -(tail of Tf)
+ 		Tt = -3.63867699703950536541e-18 // 0xBC50C7CAA48A971F
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	sign = 1
+ 	switch {
+-	case x != x: // IsNaN(x):
++	case IsNaN(x):
+ 		lgamma = x
+ 		return
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		lgamma = x
+ 		return
+ 	case x == 0:
+diff --git a/src/pkg/math/log.go b/src/pkg/math/log.go
+index 1d467fbda9..818f00a73f 100644
+--- a/src/pkg/math/log.go
++++ b/src/pkg/math/log.go
+@@ -92,11 +92,9 @@ func log(x float64) float64 {
+ 		L7    = 1.479819860511658591e-01   /* 3FC2F112 DF3E5244 */
+ 	)
+ 
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x || x > MaxFloat64: // IsNaN(x) || IsInf(x, 1):
++	case IsNaN(x) || IsInf(x, 1):
+ 		return x
+ 	case x < 0:
+ 		return NaN()
+diff --git a/src/pkg/math/log1p.go b/src/pkg/math/log1p.go
+index dee7f2b64b..12b98684c3 100644
+--- a/src/pkg/math/log1p.go
++++ b/src/pkg/math/log1p.go
+@@ -113,14 +113,12 @@ func log1p(x float64) float64 {
+ 	)
+ 
+ 	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+-	case x < -1 || x != x: // x < -1 || IsNaN(x): // includes -Inf
++	case x < -1 || IsNaN(x): // includes -Inf
+ 		return NaN()
+ 	case x == -1:
+ 		return Inf(-1)
+-	case x > MaxFloat64: // IsInf(x, 1):
++	case IsInf(x, 1):
+ 		return Inf(1)
+ 	}
+ 
+diff --git a/src/pkg/math/logb.go b/src/pkg/math/logb.go
+index 072281ddf9..d32f9f1000 100644
+--- a/src/pkg/math/logb.go
++++ b/src/pkg/math/logb.go
+@@ -11,15 +11,13 @@ package math
+ //	Logb(0) = -Inf
+ //	Logb(NaN) = NaN
+ func Logb(x float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+ 	case x == 0:
+ 		return Inf(-1)
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return Inf(1)
+-	case x != x: // IsNaN(x):
++	case IsNaN(x):
+ 		return x
+ 	}
+ 	return float64(ilogb(x))
+@@ -32,15 +30,13 @@ func Logb(x float64) float64 {
+ //	Ilogb(0) = MinInt32
+ //	Ilogb(NaN) = MaxInt32
+ func Ilogb(x float64) int {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+ 	case x == 0:
+ 		return MinInt32
+-	case x != x: // IsNaN(x):
++	case IsNaN(x):
+ 		return MaxInt32
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return MaxInt32
+ 	}
+ 	return ilogb(x)
+diff --git a/src/pkg/math/mod.go b/src/pkg/math/mod.go
+index c1f244d67b..e1a414e5f9 100644
+--- a/src/pkg/math/mod.go
++++ b/src/pkg/math/mod.go
+@@ -21,9 +21,7 @@ package math
+ func Mod(x, y float64) float64
+ 
+ func mod(x, y float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us.
+-	if y == 0 || x > MaxFloat64 || x < -MaxFloat64 || x != x || y != y { // y == 0 || IsInf(x, 0) || IsNaN(x) || IsNan(y)
++	if y == 0 || IsInf(x, 0) || IsNaN(x) || IsNaN(y) {
+ 		return NaN()
+ 	}
+ 	if y < 0 {
+diff --git a/src/pkg/math/nextafter.go b/src/pkg/math/nextafter.go
+index e7723baacf..7c4b5bcdfe 100644
+--- a/src/pkg/math/nextafter.go
++++ b/src/pkg/math/nextafter.go
+@@ -11,10 +11,8 @@ package math
+ //      Nextafter(NaN, y) = NaN
+ //      Nextafter(x, NaN) = NaN
+ func Nextafter(x, y float64) (r float64) {
+-	// TODO(rsc): Remove manual inlining of IsNaN
+-	// when compiler does it for us
+ 	switch {
+-	case x != x || y != y: // IsNaN(x) || IsNaN(y): // special case
++	case IsNaN(x) || IsNaN(y): // special case
+ 		r = NaN()
+ 	case x == y:
+ 		r = x
+diff --git a/src/pkg/math/pow.go b/src/pkg/math/pow.go
+index f0f52c5cd4..77af25648a 100644
+--- a/src/pkg/math/pow.go
++++ b/src/pkg/math/pow.go
+@@ -36,8 +36,6 @@ func isOddInt(x float64) bool {
+ //	Pow(-Inf, y) = Pow(-0, -y)
+ //	Pow(x, y) = NaN for finite x < 0 and finite non-integer y
+ func Pow(x, y float64) float64 {
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+ 	case y == 0 || x == 1:
+ 		return 1
+@@ -47,7 +45,7 @@ func Pow(x, y float64) float64 {
+ 		return Sqrt(x)
+ 	case y == -0.5:
+ 		return 1 / Sqrt(x)
+-	case x != x || y != y: // IsNaN(x) || IsNaN(y):
++	case IsNaN(x) || IsNaN(y):
+ 		return NaN()
+ 	case x == 0:
+ 		switch {
+@@ -62,7 +60,7 @@ func Pow(x, y float64) float64 {
+ 			}
+ 			return 0
+ 		}
+-	case y > MaxFloat64 || y < -MaxFloat64: // IsInf(y, 0):
++	case IsInf(y, 0):
+ 		switch {
+ 		case x == -1:
+ 			return 1
+@@ -71,7 +69,7 @@ func Pow(x, y float64) float64 {
+ 		default:
+ 			return Inf(1)
+ 		}
+-	case x > MaxFloat64 || x < -MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		if IsInf(x, -1) {
+ 			return Pow(1/x, -y) // Pow(-0, -y)
+ 		}
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+index 69d23e58e4..41efd79085 100644
+--- a/src/pkg/math/remainder.go
++++ b/src/pkg/math/remainder.go
+@@ -41,13 +41,11 @@ func remainder(x, y float64) float64 {
+ 		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
+ 		HalfMax = MaxFloat64 / 2
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x || y != y || x < -MaxFloat64 || x > MaxFloat64 || y == 0: // IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
++	case IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
+ 		return NaN()
+-	case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y):
++	case IsInf(y, 0):
+ 		return x
+ 	}
+ 	sign := false
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 176ac229ab..8beb8bbe34 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -123,11 +123,9 @@ func cos(x float64) float64 {
+ 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+ 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
++	case IsNaN(x) || IsInf(x, 0):
+ 		return NaN()
+ 	}
+ 
+@@ -182,13 +180,11 @@ func sin(x float64) float64 {
+ 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+ 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x == 0 || x != x: // x == 0 || IsNaN():
++	case x == 0 || IsNaN(x):
+ 		return x // return ±0 || NaN()
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return NaN()
+ 	}
+ 
+diff --git a/src/pkg/math/sincos.go b/src/pkg/math/sincos.go
+index ff6c3281d6..7300429207 100644
+--- a/src/pkg/math/sincos.go
++++ b/src/pkg/math/sincos.go
+@@ -21,13 +21,11 @@ func sincos(x float64) (sin, cos float64) {
+ 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+ 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+ 	case x == 0:
+ 		return x, 1 // return ±0.0, 1.0
+-	case x != x || x < -MaxFloat64 || x > MaxFloat64: // IsNaN(x) || IsInf(x, 0):
++	case IsNaN(x) || IsInf(x, 0):
+ 		return NaN(), NaN()
+ 	}
+ 
+diff --git a/src/pkg/math/sqrt.go b/src/pkg/math/sqrt.go
+index d0b5535f29..21336df2ae 100644
+--- a/src/pkg/math/sqrt.go
++++ b/src/pkg/math/sqrt.go
+@@ -100,10 +100,8 @@ func Sqrt(x float64) float64
+ //	Sqrt(NaN) = NaN
+ func sqrt(x float64) float64 {
+ 	// special cases
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	switch {
+-	case x == 0 || x != x || x > MaxFloat64: // x == 0 || IsNaN(x) || IsInf(x, 1):
++	case x == 0 || IsNaN(x) || IsInf(x, 1):
+ 		return x
+ 	case x < 0:
+ 		return NaN()
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index 4e722e1ad2..b2f29cc3b3 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -88,13 +88,11 @@ func tan(x float64) float64 {
+ 		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+ 		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
+ 	)
+-	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
+-	// when compiler does it for us
+ 	// special cases
+ 	switch {
+-	case x == 0 || x != x: // x == 0 || IsNaN():
++	case x == 0 || IsNaN(x):
+ 		return x // return ±0 || NaN()
+-	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++	case IsInf(x, 0):
+ 		return NaN()
+ 	}
+ 

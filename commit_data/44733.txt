@@ -27,7 +27,7 @@ Date:   Fri Aug 21 20:20:12 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/gc/escape.go        |  3 +++
  src/cmd/compile/internal/gc/pgen_test.go     | 10 +---------
  src/cmd/compile/internal/gc/plive.go         | 14 +++++++-------
@@ -45,3 +45,440 @@ Date:   Fri Aug 21 20:20:12 2020 -0700
  src/runtime/runtime2.go                      |  5 +----
  test/notinheap2.go                           | 12 ++++++++++--
  16 files changed, 54 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index ddf89f6159..d5cca4a38b 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1029,6 +1029,9 @@ func (e *Escape) newLoc(n *Node, transient bool) *EscLocation {
+ 	if e.curfn == nil {
+ 		Fatalf("e.curfn isn't set")
+ 	}
++	if n != nil && n.Type != nil && n.Type.NotInHeap() {
++		yyerrorl(n.Pos, "%v is go:notinheap; stack allocation disallowed", n.Type)
++	}
+ 
+ 	n = canonicalNode(n)
+ 	loc := &EscLocation{
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 41f0808a1c..b1db29825c 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -20,7 +20,7 @@ func typeWithoutPointers() *types.Type {
+ 
+ func typeWithPointers() *types.Type {
+ 	t := types.New(TSTRUCT)
+-	f := &types.Field{Type: types.New(TPTR)}
++	f := &types.Field{Type: types.NewPtr(types.New(TINT))}
+ 	t.SetFields([]*types.Field{f})
+ 	return t
+ }
+@@ -181,14 +181,6 @@ func TestStackvarSort(t *testing.T) {
+ 		nodeWithClass(Node{Type: &types.Type{}, Sym: &types.Sym{Name: "xyz"}}, PAUTO),
+ 		nodeWithClass(Node{Type: typeWithoutPointers(), Sym: &types.Sym{}}, PAUTO),
+ 	}
+-	// haspointers updates Type.Haspointers as a side effect, so
+-	// exercise this function on all inputs so that reflect.DeepEqual
+-	// doesn't produce false positives.
+-	for i := range want {
+-		want[i].Type.HasPointers()
+-		inp[i].Type.HasPointers()
+-	}
+-
+ 	sort.Sort(byStackVar(inp))
+ 	if !reflect.DeepEqual(want, inp) {
+ 		t.Error("sort failed")
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 398bfe5baa..8976ed657a 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -436,7 +436,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+ 		case ssa.LocalSlot:
+ 			return mask
+ 		case *ssa.Register:
+-			if ptrOnly && !v.Type.HasHeapPointer() {
++			if ptrOnly && !v.Type.HasPointers() {
+ 				return mask
+ 			}
+ 			regs[0] = loc
+@@ -451,7 +451,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+ 				if loc1 == nil {
+ 					continue
+ 				}
+-				if ptrOnly && !v.Type.FieldType(i).HasHeapPointer() {
++				if ptrOnly && !v.Type.FieldType(i).HasPointers() {
+ 					continue
+ 				}
+ 				regs[nreg] = loc1.(*ssa.Register)
+@@ -568,13 +568,13 @@ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
+ 		Fatalf("onebitwalktype1: invalid initial alignment: type %v has alignment %d, but offset is %v", t, t.Align, off)
+ 	}
++	if !t.HasPointers() {
++		// Note: this case ensures that pointers to go:notinheap types
++		// are not considered pointers by garbage collection and stack copying.
++		return
++	}
+ 
+ 	switch t.Etype {
+-	case TINT8, TUINT8, TINT16, TUINT16,
+-		TINT32, TUINT32, TINT64, TUINT64,
+-		TINT, TUINT, TUINTPTR, TBOOL,
+-		TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128:
+-
+ 	case TPTR, TUNSAFEPTR, TFUNC, TCHAN, TMAP:
+ 		if off&int64(Widthptr-1) != 0 {
+ 			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index d78a5f0d8d..5434b0167a 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -586,7 +586,7 @@ func arrayClear(n, v1, v2, a *Node) bool {
+ 	n.Nbody.Append(nod(OAS, hn, tmp))
+ 
+ 	var fn *Node
+-	if a.Type.Elem().HasHeapPointer() {
++	if a.Type.Elem().HasPointers() {
+ 		// memclrHasPointers(hp, hn)
+ 		Curfn.Func.setWBPos(stmt.Pos)
+ 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 77f88d8996..90ecb50d6a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1156,6 +1156,9 @@ opswitch:
+ 		}
+ 
+ 	case ONEW:
++		if n.Type.Elem().NotInHeap() {
++			yyerror("%v is go:notinheap; heap allocation disallowed", n.Type.Elem())
++		}
+ 		if n.Esc == EscNone {
+ 			if n.Type.Elem().Width >= maxImplicitStackVarSize {
+ 				Fatalf("large ONEW with EscNone: %v", n)
+@@ -1324,6 +1327,9 @@ opswitch:
+ 			l = r
+ 		}
+ 		t := n.Type
++		if t.Elem().NotInHeap() {
++			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
++		}
+ 		if n.Esc == EscNone {
+ 			if !isSmallMakeSlice(n) {
+ 				Fatalf("non-small OMAKESLICE with EscNone: %v", n)
+@@ -1365,10 +1371,6 @@ opswitch:
+ 			// When len and cap can fit into int, use makeslice instead of
+ 			// makeslice64, which is faster and shorter on 32 bit platforms.
+ 
+-			if t.Elem().NotInHeap() {
+-				yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
+-			}
+-
+ 			len, cap := l, r
+ 
+ 			fnname := "makeslice64"
+@@ -1403,7 +1405,7 @@ opswitch:
+ 
+ 		t := n.Type
+ 		if t.Elem().NotInHeap() {
+-			Fatalf("%v is go:notinheap; heap allocation disallowed", t.Elem())
++			yyerror("%v is go:notinheap; heap allocation disallowed", t.Elem())
+ 		}
+ 
+ 		length := conv(n.Left, types.Types[TINT])
+@@ -2012,9 +2014,6 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ }
+ 
+ func callnew(t *types.Type) *Node {
+-	if t.NotInHeap() {
+-		yyerror("%v is go:notinheap; heap allocation disallowed", t)
+-	}
+ 	dowidth(t)
+ 	n := nod(ONEWOBJ, typename(t), nil)
+ 	n.Type = types.NewPtr(t)
+@@ -2589,7 +2588,7 @@ func mapfast(t *types.Type) int {
+ 	}
+ 	switch algtype(t.Key()) {
+ 	case AMEM32:
+-		if !t.Key().HasHeapPointer() {
++		if !t.Key().HasPointers() {
+ 			return mapfast32
+ 		}
+ 		if Widthptr == 4 {
+@@ -2597,7 +2596,7 @@ func mapfast(t *types.Type) int {
+ 		}
+ 		Fatalf("small pointer %v", t.Key())
+ 	case AMEM64:
+-		if !t.Key().HasHeapPointer() {
++		if !t.Key().HasPointers() {
+ 			return mapfast64
+ 		}
+ 		if Widthptr == 8 {
+@@ -2744,7 +2743,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	nodes.Append(nod(OAS, s, nt))
+ 
+ 	var ncopy *Node
+-	if elemtype.HasHeapPointer() {
++	if elemtype.HasPointers() {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
+ 		nptr1.Type = s.Type
+@@ -3082,7 +3081,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ // Also works if b is a string.
+ //
+ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+-	if n.Left.Type.Elem().HasHeapPointer() {
++	if n.Left.Type.Elem().HasPointers() {
+ 		Curfn.Func.setWBPos(n.Pos)
+ 		fn := writebarrierfn("typedslicecopy", n.Left.Type.Elem(), n.Right.Type.Elem())
+ 		n.Left = cheapexpr(n.Left, init)
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index c59ec4c77d..6e72e3825c 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -139,7 +139,7 @@ func decomposeStringPhi(v *Value) {
+ 
+ func decomposeSlicePhi(v *Value) {
+ 	types := &v.Block.Func.Config.Types
+-	ptrType := types.BytePtr
++	ptrType := v.Type.Elem().PtrTo()
+ 	lenType := types.Int
+ 
+ 	ptr := v.Block.NewValue0(v.Pos, OpPhi, ptrType)
+diff --git a/src/cmd/compile/internal/ssa/gen/dec.rules b/src/cmd/compile/internal/ssa/gen/dec.rules
+index 3fd2be409f..4c677f8418 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec.rules
+@@ -66,14 +66,14 @@
+     (Load <typ.Int>
+       (OffPtr <typ.IntPtr> [2*config.PtrSize] ptr)
+       mem))
+-(Store dst (SliceMake ptr len cap) mem) =>
++(Store {t} dst (SliceMake ptr len cap) mem) =>
+   (Store {typ.Int}
+     (OffPtr <typ.IntPtr> [2*config.PtrSize] dst)
+     cap
+     (Store {typ.Int}
+       (OffPtr <typ.IntPtr> [config.PtrSize] dst)
+       len
+-      (Store {typ.BytePtr} dst ptr mem)))
++      (Store {t.Elem().PtrTo()} dst ptr mem)))
+ 
+ // interface ops
+ (ITab (IMake itab _)) => itab
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 6b24371ac7..d1bad529e7 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -235,7 +235,7 @@ func nilcheckelim2(f *Func) {
+ 				continue
+ 			}
+ 			if v.Type.IsMemory() || v.Type.IsTuple() && v.Type.FieldType(1).IsMemory() {
+-				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasHeapPointer()) {
++				if v.Op == OpVarKill || v.Op == OpVarLive || (v.Op == OpVarDef && !v.Aux.(GCNode).Typ().HasPointers()) {
+ 					// These ops don't really change memory.
+ 					continue
+ 					// Note: OpVarDef requires that the defined variable not have pointers.
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index cef781ffaa..e0fa9768d9 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -328,9 +328,10 @@ func rewriteValuedec_OpStore(v *Value) bool {
+ 		v.AddArg3(v0, len, v1)
+ 		return true
+ 	}
+-	// match: (Store dst (SliceMake ptr len cap) mem)
+-	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [2*config.PtrSize] dst) cap (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {typ.BytePtr} dst ptr mem)))
++	// match: (Store {t} dst (SliceMake ptr len cap) mem)
++	// result: (Store {typ.Int} (OffPtr <typ.IntPtr> [2*config.PtrSize] dst) cap (Store {typ.Int} (OffPtr <typ.IntPtr> [config.PtrSize] dst) len (Store {t.Elem().PtrTo()} dst ptr mem)))
+ 	for {
++		t := auxToType(v.Aux)
+ 		dst := v_0
+ 		if v_1.Op != OpSliceMake {
+ 			break
+@@ -350,7 +351,7 @@ func rewriteValuedec_OpStore(v *Value) bool {
+ 		v2.AuxInt = int64ToAuxInt(config.PtrSize)
+ 		v2.AddArg(dst)
+ 		v3 := b.NewValue0(v.Pos, OpStore, types.TypeMem)
+-		v3.Aux = typeToAux(typ.BytePtr)
++		v3.Aux = typeToAux(t.Elem().PtrTo())
+ 		v3.AddArg3(dst, ptr, mem)
+ 		v1.AddArg3(v2, len, v3)
+ 		v.AddArg3(v0, cap, v1)
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index c7fb059475..214798a1ab 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -31,7 +31,7 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
+ 	if !ok {
+ 		v.Fatalf("store aux is not a type: %s", v.LongString())
+ 	}
+-	if !t.HasHeapPointer() {
++	if !t.HasPointers() {
+ 		return false
+ 	}
+ 	if IsStackAddr(v.Args[0]) {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 20ae856bba..e4b3d885d9 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1398,14 +1398,9 @@ func (t *Type) IsUntyped() bool {
+ 	return false
+ }
+ 
+-// TODO(austin): We probably only need HasHeapPointer. See
+-// golang.org/cl/73412 for discussion.
+-
++// HasPointers reports whether t contains a heap pointer.
++// Note that this function ignores pointers to go:notinheap types.
+ func (t *Type) HasPointers() bool {
+-	return t.hasPointers1(false)
+-}
+-
+-func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
+ 	switch t.Etype {
+ 	case TINT, TUINT, TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64,
+ 		TUINT64, TUINTPTR, TFLOAT32, TFLOAT64, TCOMPLEX64, TCOMPLEX128, TBOOL, TSSA:
+@@ -1415,34 +1410,27 @@ func (t *Type) hasPointers1(ignoreNotInHeap bool) bool {
+ 		if t.NumElem() == 0 { // empty array has no pointers
+ 			return false
+ 		}
+-		return t.Elem().hasPointers1(ignoreNotInHeap)
++		return t.Elem().HasPointers()
+ 
+ 	case TSTRUCT:
+ 		for _, t1 := range t.Fields().Slice() {
+-			if t1.Type.hasPointers1(ignoreNotInHeap) {
++			if t1.Type.HasPointers() {
+ 				return true
+ 			}
+ 		}
+ 		return false
+ 
+ 	case TPTR, TSLICE:
+-		return !(ignoreNotInHeap && t.Elem().NotInHeap())
++		return !t.Elem().NotInHeap()
+ 
+ 	case TTUPLE:
+ 		ttup := t.Extra.(*Tuple)
+-		return ttup.first.hasPointers1(ignoreNotInHeap) || ttup.second.hasPointers1(ignoreNotInHeap)
++		return ttup.first.HasPointers() || ttup.second.HasPointers()
+ 	}
+ 
+ 	return true
+ }
+ 
+-// HasHeapPointer reports whether t contains a heap pointer.
+-// This is used for write barrier insertion, so it ignores
+-// pointers to go:notinheap types.
+-func (t *Type) HasHeapPointer() bool {
+-	return t.hasPointers1(true)
+-}
+-
+ func (t *Type) Symbol() *obj.LSym {
+ 	return TypeLinkSym(t)
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d591fdc4e9..3307000c51 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -981,9 +981,8 @@ func MapHashCheck(m interface{}, k interface{}) (uintptr, uintptr) {
+ }
+ 
+ func MSpanCountAlloc(bits []byte) int {
+-	s := mspan{
+-		nelems:     uintptr(len(bits) * 8),
+-		gcmarkBits: (*gcBits)(unsafe.Pointer(&bits[0])),
+-	}
++	s := (*mspan)(mheap_.spanalloc.alloc())
++	s.nelems = uintptr(len(bits) * 8)
++	s.gcmarkBits = (*gcBits)(unsafe.Pointer(&bits[0]))
+ 	return s.countAlloc()
+ }
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 2b84945471..79df59d6d6 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -837,7 +837,8 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		x := state.head
+ 		state.head = x.next
+ 		if stackTraceDebug {
+-			for _, obj := range x.obj[:x.nobj] {
++			for i := 0; i < x.nobj; i++ {
++				obj := &x.obj[i]
+ 				if obj.typ == nil { // reachable
+ 					continue
+ 				}
+diff --git a/src/runtime/mgcstack.go b/src/runtime/mgcstack.go
+index 211d882fa6..8eb941a328 100644
+--- a/src/runtime/mgcstack.go
++++ b/src/runtime/mgcstack.go
+@@ -167,8 +167,6 @@ func (obj *stackObject) setType(typ *_type) {
+ 
+ // A stackScanState keeps track of the state used during the GC walk
+ // of a goroutine.
+-//
+-//go:notinheap
+ type stackScanState struct {
+ 	cache pcvalueCache
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b7d0739e54..64c6cc7198 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -909,15 +909,12 @@ type _defer struct {
+ 
+ // A _panic holds information about an active panic.
+ //
+-// This is marked go:notinheap because _panic values must only ever
+-// live on the stack.
++// A _panic value must only ever live on the stack.
+ //
+ // The argp and link fields are stack pointers, but don't need special
+ // handling during stack growth: because they are pointer-typed and
+ // _panic values only live on the stack, regular stack pointer
+ // adjustment takes care of them.
+-//
+-//go:notinheap
+ type _panic struct {
+ 	argp      unsafe.Pointer // pointer to arguments of deferred call run during panic; cannot move - known to liblink
+ 	arg       interface{}    // argument to panic
+diff --git a/test/notinheap2.go b/test/notinheap2.go
+index 944f2993ab..de1e6db1d3 100644
+--- a/test/notinheap2.go
++++ b/test/notinheap2.go
+@@ -13,12 +13,14 @@ type nih struct {
+ 	next *nih
+ }
+ 
+-// Globals and stack variables are okay.
++// Global variables are okay.
+ 
+ var x nih
+ 
++// Stack variables are not okay.
++
+ func f() {
+-	var y nih
++	var y nih // ERROR "nih is go:notinheap; stack allocation disallowed"
+ 	x = y
+ }
+ 
+@@ -26,11 +28,17 @@ func f() {
+ 
+ var y *nih
+ var z []nih
++var w []nih
++var n int
+ 
+ func g() {
+ 	y = new(nih)       // ERROR "heap allocation disallowed"
+ 	z = make([]nih, 1) // ERROR "heap allocation disallowed"
+ 	z = append(z, x)   // ERROR "heap allocation disallowed"
++	// Test for special case of OMAKESLICECOPY
++	x := make([]nih, n) // ERROR "heap allocation disallowed"
++	copy(x, z)
++	z = x
+ }
+ 
+ // Writes don't produce write barriers.

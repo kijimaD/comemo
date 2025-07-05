@@ -10,7 +10,7 @@ Date:   Fri Apr 22 09:30:30 2011 -0700
     R=rsc, r, bradfitzwork
     CC=golang-dev
     https://golang.org/cl/4440057
-
+---
  src/pkg/Makefile                |   1 +
  src/pkg/os/user/Makefile        |  26 ++++++++++
  src/pkg/os/user/lookup_stubs.go |  19 ++++++++
@@ -18,3 +18,291 @@ Date:   Fri Apr 22 09:30:30 2011 -0700
  src/pkg/os/user/user.go         |  35 ++++++++++++++
  src/pkg/os/user/user_test.go    |  61 +++++++++++++++++++++++
  6 files changed, 246 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index d3ec7dd290..44d4473fcb 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -120,6 +120,7 @@ DIRS=\
+ 	netchan\
+ 	os\
+ 	os/signal\
++	os/user\
+ 	patch\
+ 	path\
+ 	path/filepath\
+diff --git a/src/pkg/os/user/Makefile b/src/pkg/os/user/Makefile
+new file mode 100644
+index 0000000000..731f7999ac
+--- /dev/null
++++ b/src/pkg/os/user/Makefile
+@@ -0,0 +1,26 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=os/user
++GOFILES=\
++	user.go\
++
++ifneq ($(GOARCH),arm)
++CGOFILES_linux=\
++	lookup_unix.go
++CGOFILES_freebsd=\
++	lookup_unix.go
++CGOFILES_darwin=\
++	lookup_unix.go
++endif
++
++ifneq ($(CGOFILES_$(GOOS)),)
++CGOFILES+=$(CGOFILES_$(GOOS))
++else
++GOFILES+=lookup_stubs.go
++endif
++
++include ../../../Make.pkg
+diff --git a/src/pkg/os/user/lookup_stubs.go b/src/pkg/os/user/lookup_stubs.go
+new file mode 100644
+index 0000000000..2f08f70fd5
+--- /dev/null
++++ b/src/pkg/os/user/lookup_stubs.go
+@@ -0,0 +1,19 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package user
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++)
++
++func Lookup(username string) (*User, os.Error) {
++	return nil, fmt.Errorf("user: Lookup not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
++}
++
++func LookupId(int) (*User, os.Error) {
++	return nil, fmt.Errorf("user: LookupId not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
++}
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+new file mode 100644
+index 0000000000..678de802b5
+--- /dev/null
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -0,0 +1,104 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package user
++
++import (
++	"fmt"
++	"os"
++	"runtime"
++	"strings"
++	"unsafe"
++)
++
++/*
++#include <unistd.h>
++#include <sys/types.h>
++#include <pwd.h>
++#include <stdlib.h>
++
++static int mygetpwuid_r(int uid, struct passwd *pwd,
++	char *buf, size_t buflen, struct passwd **result) {
++ return getpwuid_r(uid, pwd, buf, buflen, result);
++}
++*/
++import "C"
++
++// Lookup looks up a user by username. If the user cannot be found,
++// the returned error is of type UnknownUserError.
++func Lookup(username string) (*User, os.Error) {
++	return lookup(-1, username, true)
++}
++
++// LookupId looks up a user by userid. If the user cannot be found,
++// the returned error is of type UnknownUserIdError.
++func LookupId(uid int) (*User, os.Error) {
++	return lookup(uid, "", false)
++}
++
++func lookup(uid int, username string, lookupByName bool) (*User, os.Error) {
++	var pwd C.struct_passwd
++	var result *C.struct_passwd
++
++	var bufSize C.long
++	if runtime.GOOS == "freebsd" {
++		// FreeBSD doesn't have _SC_GETPW_R_SIZE_MAX
++		// and just returns -1.  So just use the same
++		// size that Linux returns
++		bufSize = 1024
++	} else {
++		bufSize = C.sysconf(C._SC_GETPW_R_SIZE_MAX)
++		if bufSize <= 0 || bufSize > 1<<20 {
++			return nil, fmt.Errorf("user: unreasonable _SC_GETPW_R_SIZE_MAX of %d", bufSize)
++		}
++	}
++	buf := C.malloc(C.size_t(bufSize))
++	defer C.free(buf)
++	var rv C.int
++	if lookupByName {
++		nameC := C.CString(username)
++		defer C.free(unsafe.Pointer(nameC))
++		rv = C.getpwnam_r(nameC,
++			&pwd,
++			(*C.char)(buf),
++			C.size_t(bufSize),
++			&result)
++		if rv != 0 {
++			return nil, fmt.Errorf("user: lookup username %s: %s", username, os.Errno(rv))
++		}
++		if result == nil {
++			return nil, UnknownUserError(username)
++		}
++	} else {
++		// mygetpwuid_r is a wrapper around getpwuid_r to
++		// to avoid using uid_t because C.uid_t(uid) for
++		// unknown reasons doesn't work on linux.
++		rv = C.mygetpwuid_r(C.int(uid),
++			&pwd,
++			(*C.char)(buf),
++			C.size_t(bufSize),
++			&result)
++		if rv != 0 {
++			return nil, fmt.Errorf("user: lookup userid %d: %s", uid, os.Errno(rv))
++		}
++		if result == nil {
++			return nil, UnknownUserIdError(uid)
++		}
++	}
++	u := &User{
++		Uid:      int(pwd.pw_uid),
++		Gid:      int(pwd.pw_gid),
++		Username: C.GoString(pwd.pw_name),
++		Name:     C.GoString(pwd.pw_gecos),
++		HomeDir:  C.GoString(pwd.pw_dir),
++	}
++	// The pw_gecos field isn't quite standardized.  Some docs
++	// say: "It is expected to be a comma separated list of
++	// personal data where the first item is the full name of the
++	// user."
++	if i := strings.Index(u.Name, ","); i >= 0 {
++		u.Name = u.Name[:i]
++	}
++	return u, nil
++}
+diff --git a/src/pkg/os/user/user.go b/src/pkg/os/user/user.go
+new file mode 100644
+index 0000000000..dd009211d7
+--- /dev/null
++++ b/src/pkg/os/user/user.go
+@@ -0,0 +1,35 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package user allows user account lookups by name or id.
++package user
++
++import (
++	"strconv"
++)
++
++// User represents a user account.
++type User struct {
++	Uid      int // user id
++	Gid      int // primary group id
++	Username string
++	Name     string
++	HomeDir  string
++}
++
++// UnknownUserIdError is returned by LookupId when
++// a user cannot be found.
++type UnknownUserIdError int
++
++func (e UnknownUserIdError) String() string {
++	return "user: unknown userid " + strconv.Itoa(int(e))
++}
++
++// UnknownUserError is returned by Lookup when
++// a user cannot be found.
++type UnknownUserError string
++
++func (e UnknownUserError) String() string {
++	return "user: unknown user " + string(e)
++}
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+new file mode 100644
+index 0000000000..2c142bf181
+--- /dev/null
++++ b/src/pkg/os/user/user_test.go
+@@ -0,0 +1,61 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package user
++
++import (
++	"os"
++	"reflect"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func skip(t *testing.T) bool {
++	if runtime.GOARCH == "arm" {
++		t.Logf("user: cgo not implemented on arm; skipping tests")
++		return true
++	}
++
++	if runtime.GOOS == "linux" || runtime.GOOS == "freebsd" || runtime.GOOS == "darwin" {
++		return false
++	}
++
++	t.Logf("user: Lookup not implemented on %s; skipping test", runtime.GOOS)
++	return true
++}
++
++func TestLookup(t *testing.T) {
++	if skip(t) {
++		return
++	}
++
++	// Test LookupId on the current user
++	uid := syscall.Getuid()
++	u, err := LookupId(uid)
++	if err != nil {
++		t.Fatalf("LookupId: %v", err)
++	}
++	if e, g := uid, u.Uid; e != g {
++		t.Errorf("expected Uid of %d; got %d", e, g)
++	}
++	fi, err := os.Stat(u.HomeDir)
++	if err != nil || !fi.IsDirectory() {
++		t.Errorf("expected a valid HomeDir; stat(%q): err=%v, IsDirectory=%v", err, fi.IsDirectory())
++	}
++	if u.Username == "" {
++		t.Fatalf("didn't get a username")
++	}
++
++	// Test Lookup by username, using the username from LookupId
++	un, err := Lookup(u.Username)
++	if err != nil {
++		t.Fatalf("Lookup: %v", err)
++	}
++	if !reflect.DeepEqual(u, un) {
++		t.Errorf("Lookup by userid vs. name didn't match\n"+
++			"LookupId(%d): %#v\n"+
++			"Lookup(%q): %#v\n",uid, u, u.Username, un)
++	}
++}

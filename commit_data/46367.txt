@@ -23,10 +23,147 @@ Date:   Wed Dec 16 16:37:56 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go                | 11 +++++++++++
  src/cmd/go/internal/modload/init.go                     |  6 +++++-
  src/cmd/go/internal/modload/query.go                    | 10 +++-------
  src/cmd/go/internal/str/str.go                          | 14 ++++++++++++++
  src/cmd/go/testdata/script/mod_get_promote_implicit.txt |  6 ++++++
  5 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 896adebbb1..45f220a6ee 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -28,6 +28,11 @@ import (
+ //
+ var buildList []module.Version
+ 
++// additionalExplicitRequirements is a list of modules paths for which
++// WriteGoMod should record explicit requirements, even if they would be
++// selected without those requirements. Each path must also appear in buildList.
++var additionalExplicitRequirements []string
++
+ // capVersionSlice returns s with its cap reduced to its length.
+ func capVersionSlice(s []module.Version) []module.Version {
+ 	return s[:len(s):len(s)]
+@@ -121,6 +126,12 @@ func EditBuildList(ctx context.Context, add, mustSelect []module.Version) error
+ 
+ 	if !inconsistent {
+ 		buildList = final
++		additionalExplicitRequirements = make([]string, 0, len(mustSelect))
++		for _, m := range mustSelect {
++			if m.Version != "none" {
++				additionalExplicitRequirements = append(additionalExplicitRequirements, m.Path)
++			}
++		}
+ 		return nil
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 3f70d04145..445ebb262f 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -15,6 +15,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"path/filepath"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -27,6 +28,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/str"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+@@ -845,13 +847,15 @@ func AllowWriteGoMod() {
+ // MinReqs returns a Reqs with minimal additional dependencies of Target,
+ // as will be written to go.mod.
+ func MinReqs() mvs.Reqs {
+-	var retain []string
++	retain := append([]string{}, additionalExplicitRequirements...)
+ 	for _, m := range buildList[1:] {
+ 		_, explicit := index.require[m]
+ 		if explicit || loaded.direct[m.Path] {
+ 			retain = append(retain, m.Path)
+ 		}
+ 	}
++	sort.Strings(retain)
++	str.Uniq(&retain)
+ 	min, err := mvs.Req(Target, retain, &mvsReqs{buildList: buildList})
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index e35e0fc16e..8affd179bb 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -21,6 +21,7 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 
+ 	"golang.org/x/mod/module"
+@@ -1005,13 +1006,8 @@ func (rr *replacementRepo) Versions(prefix string) ([]string, error) {
+ 	sort.Slice(versions, func(i, j int) bool {
+ 		return semver.Compare(versions[i], versions[j]) < 0
+ 	})
+-	uniq := versions[:1]
+-	for _, v := range versions {
+-		if v != uniq[len(uniq)-1] {
+-			uniq = append(uniq, v)
+-		}
+-	}
+-	return uniq, nil
++	str.Uniq(&versions)
++	return versions, nil
+ }
+ 
+ func (rr *replacementRepo) Stat(rev string) (*modfetch.RevInfo, error) {
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/go/internal/str/str.go
+index 0413ed8e69..9106ebf74d 100644
+--- a/src/cmd/go/internal/str/str.go
++++ b/src/cmd/go/internal/str/str.go
+@@ -96,6 +96,20 @@ func Contains(x []string, s string) bool {
+ 	return false
+ }
+ 
++// Uniq removes consecutive duplicate strings from ss.
++func Uniq(ss *[]string) {
++	if len(*ss) <= 1 {
++		return
++	}
++	uniq := (*ss)[:1]
++	for _, s := range *ss {
++		if s != uniq[len(uniq)-1] {
++			uniq = append(uniq, s)
++		}
++	}
++	*ss = uniq
++}
++
+ func isSpaceByte(c byte) bool {
+ 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_promote_implicit.txt b/src/cmd/go/testdata/script/mod_get_promote_implicit.txt
+index 33f6a299e2..c64e0c0f70 100644
+--- a/src/cmd/go/testdata/script/mod_get_promote_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_get_promote_implicit.txt
+@@ -14,6 +14,12 @@ go get -d m/use-indirect
+ cmp go.mod go.mod.use
+ cp go.mod.orig go.mod
+ 
++# We can also promote implicit requirements using 'go get' on them, or their
++# packages. This gives us "// indirect" requirements, since 'go get' doesn't
++# know they're needed by the main module. See #43131 for the rationale.
++go get -d indirect-with-pkg indirect-without-pkg
++cmp go.mod go.mod.indirect
++
+ -- go.mod.orig --
+ module m
+ 

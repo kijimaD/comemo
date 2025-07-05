@@ -9,7 +9,63 @@ Date:   Wed Apr 2 10:19:28 2014 +0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/82560043
-
+---
  src/pkg/runtime/malloc.goc     | 11 ++++++++++-
  src/pkg/runtime/mfinal_test.go | 21 +++++++++++++++++++++
  2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index c463abb110..6fee8932df 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -885,11 +885,20 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	// because we use &runtime·zerobase for all such allocations.
+ 	if(ot->elem != nil && ot->elem->size == 0)
+ 		return;
++	// The following check is required for cases when a user passes a pointer to composite literal,
++	// but compiler makes it a pointer to global. For example:
++	//	var Foo = &Object{}
++	//	func main() {
++	//		runtime.SetFinalizer(Foo, nil)
++	//	}
++	// See issue 7656.
++	if((byte*)obj.data < runtime·mheap.arena_start || runtime·mheap.arena_used <= (byte*)obj.data)
++		return;
+ 	if(!runtime·mlookup(obj.data, &base, &size, nil) || obj.data != base) {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+ 		if(ot->elem == nil || (ot->elem->kind&KindNoPointers) == 0 || ot->elem->size >= TinySize) {
+-			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block\n");
++			runtime·printf("runtime.SetFinalizer: pointer not at beginning of allocated block (%p)\n", obj.data);
+ 			goto throw;
+ 		}
+ 	}
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+index 41213138d2..6b53888ab6 100644
+--- a/src/pkg/runtime/mfinal_test.go
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -216,3 +216,24 @@ func TestEmptyString(t *testing.T) {
+ }
+ 
+ var ssglobal string
++
++// Test for issue 7656.
++func TestFinalizerOnGlobal(t *testing.T) {
++	runtime.SetFinalizer(Foo1, func(p *Object1) {})
++	runtime.SetFinalizer(Foo2, func(p *Object2) {})
++	runtime.SetFinalizer(Foo1, nil)
++	runtime.SetFinalizer(Foo2, nil)
++}
++
++type Object1 struct {
++	Something []byte
++}
++
++type Object2 struct {
++	Something byte
++}
++
++var (
++	Foo2 = &Object2{}
++	Foo1 = &Object1{}
++)

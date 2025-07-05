@@ -16,7 +16,34 @@ Date:   Tue Nov 10 02:31:28 2020 -0800
     Trust: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s | 2 ++
  src/cmd/internal/obj/s390x/asmz.go        | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 03b84cfa62..7c5d26be33 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -412,6 +412,8 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	UNDEF                          // 00000000
+ 	NOPH                           // 0700
+ 
++	SYNC                           // 07e0
++
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+ 	VAH	V3, V4, V4              // e743400010f3
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index f0f9d5cefc..06921085c9 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -3700,7 +3700,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		}
+ 
+ 	case 80: // sync
+-		zRR(op_BCR, uint32(NotEqual), 0, asm)
++		zRR(op_BCR, 14, 0, asm) // fast-BCR-serialization
+ 
+ 	case 81: // float to fixed and fixed to float moves (no conversion)
+ 		switch p.As {

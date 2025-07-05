@@ -17,6 +17,21 @@ Date:   Thu Jun 30 22:06:26 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/dnsconfig_unix.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index 94cd09ec71..3ba6d44fc3 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -109,6 +109,9 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 					// https://www.freebsd.org/cgi/man.cgi?query=resolv.conf&sektion=5&manpath=freebsd-release-ports
+ 					// https://man.openbsd.org/resolv.conf.5
+ 					conf.useTCP = true
++				case s == "edns0":
++					// We use EDNS by default.
++					// Ignore this option.
+ 				default:
+ 					conf.unknownOpt = true
+ 				}

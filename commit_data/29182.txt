@@ -15,8 +15,88 @@ Date:   Tue Aug 30 11:15:38 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go      |  6 +++---
  src/cmd/compile/internal/gc/type.go     | 27 ++++++---------------------
  src/cmd/compile/internal/gc/universe.go |  6 +++---
  3 files changed, 12 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 7c2d2a43cf..c487c237eb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1034,9 +1034,9 @@ func functype0(t *Type, this *Node, in, out []*Node) {
+ 	if this != nil {
+ 		rcvr = []*Node{this}
+ 	}
+-	*t.RecvsP() = tofunargs(rcvr, FunargRcvr)
+-	*t.ResultsP() = tofunargs(out, FunargResults)
+-	*t.ParamsP() = tofunargs(in, FunargParams)
++	t.FuncType().Receiver = tofunargs(rcvr, FunargRcvr)
++	t.FuncType().Results = tofunargs(out, FunargResults)
++	t.FuncType().Params = tofunargs(in, FunargParams)
+ 
+ 	checkdupfields("argument", t.Recvs(), t.Results(), t.Params())
+ 
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 12cb3b5993..ac038f465d 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -569,9 +569,9 @@ func substAny(t *Type, types *[]*Type) *Type {
+ 				results = results.Copy()
+ 			}
+ 			t = t.Copy()
+-			*t.RecvsP() = recvs
+-			*t.ResultsP() = results
+-			*t.ParamsP() = params
++			t.FuncType().Receiver = recvs
++			t.FuncType().Results = results
++			t.FuncType().Params = params
+ 		}
+ 
+ 	case TSTRUCT:
+@@ -676,24 +676,9 @@ func (t *Type) wantEtype(et EType) {
+ 	}
+ }
+ 
+-func (t *Type) RecvsP() **Type {
+-	t.wantEtype(TFUNC)
+-	return &t.Extra.(*FuncType).Receiver
+-}
+-
+-func (t *Type) ParamsP() **Type {
+-	t.wantEtype(TFUNC)
+-	return &t.Extra.(*FuncType).Params
+-}
+-
+-func (t *Type) ResultsP() **Type {
+-	t.wantEtype(TFUNC)
+-	return &t.Extra.(*FuncType).Results
+-}
+-
+-func (t *Type) Recvs() *Type   { return *t.RecvsP() }
+-func (t *Type) Params() *Type  { return *t.ParamsP() }
+-func (t *Type) Results() *Type { return *t.ResultsP() }
++func (t *Type) Recvs() *Type   { return t.FuncType().Receiver }
++func (t *Type) Params() *Type  { return t.FuncType().Params }
++func (t *Type) Results() *Type { return t.FuncType().Results }
+ 
+ // Recv returns the receiver of function type t, if any.
+ func (t *Type) Recv() *Field {
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 270d4c3770..1e5650ffc2 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -375,9 +375,9 @@ func makeErrorInterface() *Type {
+ 	out.SetFields([]*Field{field})
+ 
+ 	f := typ(TFUNC)
+-	*f.RecvsP() = rcvr
+-	*f.ResultsP() = out
+-	*f.ParamsP() = in
++	f.FuncType().Receiver = rcvr
++	f.FuncType().Results = out
++	f.FuncType().Params = in
+ 
+ 	t := typ(TINTER)
+ 	field = newField()

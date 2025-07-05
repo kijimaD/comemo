@@ -18,6 +18,40 @@ Date:   Thu Mar 24 16:03:07 2016 +0100
     Change-Id: I023610e014b327f8d66f1d2fd2e54dd0e56f2be0
     Reviewed-on: https://go-review.googlesource.com/21074
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  misc/ios/go_darwin_arm_exec.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 6420dd1d94..6f0b98f112 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -34,6 +34,7 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"sync"
++	"syscall"
+ 	"time"
+ )
+ 
+@@ -76,6 +77,20 @@ func main() {
+ 		log.Fatal(err)
+ 	}
+ 
++	// This wrapper uses complicated machinery to run iOS binaries. It
++	// works, but only when running one binary at a time.
++	// Use a file lock to make sure only one wrapper is running at a time.
++	//
++	// The lock file is never deleted, to avoid concurrent locks on distinct
++	// files with the same path.
++	lockName := filepath.Join(os.TempDir(), "go_darwin_arm_exec.lock")
++	lock, err := os.OpenFile(lockName, os.O_CREATE|os.O_RDONLY, 0666)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := syscall.Flock(int(lock.Fd()), syscall.LOCK_EX); err != nil {
++		log.Fatal(err)
++	}
+ 	// Approximately 1 in a 100 binaries fail to start. If it happens,
+ 	// try again. These failures happen for several reasons beyond
+ 	// our control, but all of them are safe to retry as they happen

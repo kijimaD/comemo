@@ -27,7 +27,152 @@ Date:   Thu Nov 13 13:34:20 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/174110043
-
+---
  src/cmd/6g/reg.c | 50 +-------------------------------------------------
  src/cmd/8g/reg.c | 48 +-----------------------------------------------
  2 files changed, 2 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index afd3f1056e..4ce2f4db00 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1019,52 +1019,12 @@ paint1(Reg *r, int bn)
+ 	}
+ }
+ 
+-uint32
+-regset(Reg *r, uint32 bb)
+-{
+-	uint32 b, set;
+-	Adr v;
+-	int c;
+-
+-	set = 0;
+-	v = zprog.from;
+-	while(b = bb & ~(bb-1)) {
+-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
+-		if(v.type == 0)
+-			fatal("zero v.type for %#ux", b);
+-		c = copyu(r->f.prog, &v, nil);
+-		if(c == 3)
+-			set |= b;
+-		bb &= ~b;
+-	}
+-	return set;
+-}
+-
+-uint32
+-reguse(Reg *r, uint32 bb)
+-{
+-	uint32 b, set;
+-	Adr v;
+-	int c;
+-
+-	set = 0;
+-	v = zprog.from;
+-	while(b = bb & ~(bb-1)) {
+-		v.type = b & 0xFFFF? BtoR(b): BtoF(b);
+-		c = copyu(r->f.prog, &v, nil);
+-		if(c == 1 || c == 2 || c == 4)
+-			set |= b;
+-		bb &= ~b;
+-	}
+-	return set;
+-}
+-
+ uint32
+ paint2(Reg *r, int bn)
+ {
+ 	Reg *r1;
+ 	int z;
+-	uint64 bb, vreg, x;
++	uint64 bb, vreg;
+ 
+ 	z = bn/64;
+ 	bb = 1LL << (bn%64);
+@@ -1108,14 +1068,6 @@ paint2(Reg *r, int bn)
+ 			break;
+ 	}
+ 
+-	bb = vreg;
+-	for(; r; r=(Reg*)r->f.s1) {
+-		x = r->regu & ~bb;
+-		if(x) {
+-			vreg |= reguse(r, x);
+-			bb |= regset(r, x);
+-		}
+-	}
+ 	return vreg;
+ }
+ 
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 0fbe684821..79d60bed55 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -995,50 +995,12 @@ paint1(Reg *r, int bn)
+ 	}
+ }
+ 
+-uint32
+-regset(Reg *r, uint32 bb)
+-{
+-	uint32 b, set;
+-	Adr v;
+-	int c;
+-
+-	set = 0;
+-	v = zprog.from;
+-	while(b = bb & ~(bb-1)) {
+-		v.type = b & 0xFF ? BtoR(b): BtoF(b);
+-		c = copyu(r->f.prog, &v, nil);
+-		if(c == 3)
+-			set |= b;
+-		bb &= ~b;
+-	}
+-	return set;
+-}
+-
+-uint32
+-reguse(Reg *r, uint32 bb)
+-{
+-	uint32 b, set;
+-	Adr v;
+-	int c;
+-
+-	set = 0;
+-	v = zprog.from;
+-	while(b = bb & ~(bb-1)) {
+-		v.type = b & 0xFF ? BtoR(b): BtoF(b);
+-		c = copyu(r->f.prog, &v, nil);
+-		if(c == 1 || c == 2 || c == 4)
+-			set |= b;
+-		bb &= ~b;
+-	}
+-	return set;
+-}
+-
+ uint32
+ paint2(Reg *r, int bn)
+ {
+ 	Reg *r1;
+ 	int z;
+-	uint64 bb, vreg, x;
++	uint64 bb, vreg;
+ 
+ 	z = bn/64;
+ 	bb = 1LL << (bn%64);
+@@ -1082,14 +1044,6 @@ paint2(Reg *r, int bn)
+ 			break;
+ 	}
+ 
+-	bb = vreg;
+-	for(; r; r=(Reg*)r->f.s1) {
+-		x = r->regu & ~bb;
+-		if(x) {
+-			vreg |= reguse(r, x);
+-			bb |= regset(r, x);
+-		}
+-	}
+ 	return vreg;
+ }
+ 

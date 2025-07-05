@@ -509,3 +509,101 @@ Date:   Fri Jun 8 18:28:11 2018 -0400
  test/run.go                                        |  84 ++-
  test/sigchld.go                                    |   2 +-
  495 files changed, 8462 insertions(+), 2549 deletions(-)
+
+diff --cc src/crypto/ecdsa/ecdsa.go
+index 6a47cc7d98,2bab14cbb9..bae3f03e5d
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@@ -27,7 -26,8 +27,9 @@@ import 
+  	"errors"
+  	"io"
+  	"math/big"
+ +	"unsafe"
++ 
++ 	"crypto/internal/randutil"
+  )
+  
+  // A invertible implements fast inverse mod Curve.Params().N
+@@@ -176,15 -154,8 +178,17 @@@ var errZeroParam = errors.New("zero par
+  // returns the signature as a pair of integers. The security of the private key
+  // depends on the entropy of rand.
+  func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++ 	randutil.MaybeReadByte(rand)
++ 
+ +	if boring.Enabled && rand == boring.RandReader {
+ +		b, err := boringPrivateKey(priv)
+ +		if err != nil {
+ +			return nil, nil, err
+ +		}
+ +		return boring.SignECDSA(b, hash)
+ +	}
+ +	boring.UnreachableExceptTests()
+ +
+  	// Get min(log2(q) / 2, 256) bits of entropy from rand.
+  	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+  	if entropylen > 32 {
+diff --cc src/crypto/rsa/pkcs1v15.go
+index f77fc00761,37790acb98..b617840c79
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@@ -35,7 -36,9 +37,9 @@@ type PKCS1v15DecryptOptions struct 
+  //
+  // WARNING: use of this function to encrypt plaintexts other than
+  // session keys is dangerous. Use RSA OAEP in new protocols.
+ -func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+ -	randutil.MaybeReadByte(rand)
+ +func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+++	randutil.MaybeReadByte(random)
++ 
+  	if err := checkPub(pub); err != nil {
+  		return nil, err
+  	}
+diff --cc src/crypto/rsa/rsa.go
+index 9302ea8535,ad32d3e3ad..6cbcfe5449
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@@ -32,7 -31,8 +32,9 @@@ import 
+  	"io"
+  	"math"
+  	"math/big"
+ +	"unsafe"
++ 
++ 	"crypto/internal/randutil"
+  )
+  
+  var bigZero = big.NewInt(0)
+@@@ -224,32 -220,8 +226,34 @@@ func GenerateKey(random io.Reader, bit
+  // [1] US patent 4405829 (1972, expired)
+  // [2] http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+  func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
++ 	randutil.MaybeReadByte(random)
++ 
+ +	if boring.Enabled && random == boring.RandReader && nprimes == 2 && (bits == 2048 || bits == 3072) {
+ +		N, E, D, P, Q, Dp, Dq, Qinv, err := boring.GenerateKeyRSA(bits)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+ +		e64 := E.Int64()
+ +		if !E.IsInt64() || int64(int(e64)) != e64 {
+ +			return nil, errors.New("crypto/rsa: generated key exponent too large")
+ +		}
+ +		key := &PrivateKey{
+ +			PublicKey: PublicKey{
+ +				N: N,
+ +				E: int(e64),
+ +			},
+ +			D:      D,
+ +			Primes: []*big.Int{P, Q},
+ +			Precomputed: PrecomputedValues{
+ +				Dp:        Dp,
+ +				Dq:        Dq,
+ +				Qinv:      Qinv,
+ +				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+ +			},
+ +		}
+ +		return key, nil
+ +	}
+ +
+  	priv := new(PrivateKey)
+  	priv.E = 65537
+  

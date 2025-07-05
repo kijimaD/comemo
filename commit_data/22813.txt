@@ -7,6 +7,27 @@ Date:   Thu Apr 9 13:11:53 2015 -0700
     Change-Id: Ia0944e7b47193465d3ec37fc8dc46dea9b5dcc6b
     Reviewed-on: https://go-review.googlesource.com/8710
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/float.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 35ad2567e7..d46c046e67 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -65,13 +65,12 @@ type Float struct {
+ 	exp  int32
+ }
+ 
+-// Float operations that would lead to a NaN under IEEE-754 rules cause
+-// a run-time panic of ErrNaN type.
++// An ErrNaN panic is raised by a Float operation that would lead to
++// a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
+ type ErrNaN struct {
+ 	msg string
+ }
+ 
+-// ErrNan implements the error interface.
+ func (err ErrNaN) Error() string {
+ 	return err.msg
+ }

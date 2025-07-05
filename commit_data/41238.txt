@@ -38,7 +38,80 @@ Date:   Tue Sep 17 14:39:54 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/main.go    | 41 +++++++++++++++--------------
  src/cmd/compile/internal/ssa/gen/rulegen.go |  1 -
  2 files changed, 21 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 783ac1bd30..db40057743 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -392,34 +392,35 @@ func genOp() {
+ 
+ 	// Check that the arch genfile handles all the arch-specific opcodes.
+ 	// This is very much a hack, but it is better than nothing.
+-	var wg sync.WaitGroup
++	//
++	// Do a single regexp pass to record all ops being handled in a map, and
++	// then compare that with the ops list. This is much faster than one
++	// regexp pass per opcode.
+ 	for _, a := range archs {
+ 		if a.genfile == "" {
+ 			continue
+ 		}
+ 
+-		a := a
+-		wg.Add(1)
+-		go func() {
+-			src, err := ioutil.ReadFile(a.genfile)
+-			if err != nil {
+-				log.Fatalf("can't read %s: %v", a.genfile, err)
+-			}
++		pattern := fmt.Sprintf(`\Wssa\.Op%s([a-zA-Z0-9_]+)\W`, a.name)
++		rxOp, err := regexp.Compile(pattern)
++		if err != nil {
++			log.Fatalf("bad opcode regexp %s: %v", pattern, err)
++		}
+ 
+-			for _, v := range a.ops {
+-				pattern := fmt.Sprintf(`\Wssa\.Op%s%s\W`, a.name, v.name)
+-				match, err := regexp.Match(pattern, src)
+-				if err != nil {
+-					log.Fatalf("bad opcode regexp %s: %v", pattern, err)
+-				}
+-				if !match {
+-					log.Fatalf("Op%s%s has no code generation in %s", a.name, v.name, a.genfile)
+-				}
++		src, err := ioutil.ReadFile(a.genfile)
++		if err != nil {
++			log.Fatalf("can't read %s: %v", a.genfile, err)
++		}
++		seen := make(map[string]bool, len(a.ops))
++		for _, m := range rxOp.FindAllSubmatch(src, -1) {
++			seen[string(m[1])] = true
++		}
++		for _, op := range a.ops {
++			if !seen[op.name] {
++				log.Fatalf("Op%s%s has no code generation in %s", a.name, op.name, a.genfile)
+ 			}
+-			wg.Done()
+-		}()
++		}
+ 	}
+-	wg.Wait()
+ }
+ 
+ // Name returns the name of the architecture for use in Op* and Block* enumerations.
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index ed3ed75638..215f051370 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -636,7 +636,6 @@ type bodyBase struct {
+ 	canFail bool
+ }
+ 
+-func (w *bodyBase) body() []Statement { return w.list }
+ func (w *bodyBase) add(nodes ...Statement) {
+ 	w.list = append(w.list, nodes...)
+ 	for _, node := range nodes {

@@ -11,6 +11,27 @@ Date:   Sun Mar 15 18:21:08 2015 -0400
     Change-Id: I6e2f50931c0f387881271484a726ac2308518cf4
     Reviewed-on: https://go-review.googlesource.com/7602
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go_mem.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index 5dd48ff7fb..143f3b2ff2 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -322,11 +322,11 @@ var limit = make(chan int, 3)
+ 
+ func main() {
+ 	for _, w := range work {
+-		go func() {
+-			limit <- 1
++		go func(w func()) {
++			limit &lt;- 1
+ 			w()
+-			<-limit
+-		}()
++			&lt;-limit
++		}(w)
+ 	}
+ 	select{}
+ }

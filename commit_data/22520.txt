@@ -11,7 +11,7 @@ Date:   Thu Mar 19 19:42:16 2015 -0400
     Change-Id: I254f1582be4eb1f2d7fbba05335a91c6bf0c7f02
     Reviewed-on: https://go-review.googlesource.com/7861
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/asm_386.s        |  8 ++++++++
  src/runtime/asm_amd64.s      |  8 ++++++++
  src/runtime/asm_ppc64x.s     | 34 ++++++++++++++++++++++++++++++++--
@@ -22,3 +22,222 @@ Date:   Thu Mar 19 19:42:16 2015 -0400
  src/runtime/atomic_ppc64x.go |  5 +++++
  src/runtime/mgc.go           | 11 -----------
  9 files changed, 96 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 745095a6b1..b5b793deec 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -608,6 +608,14 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-5
+ 	ORB	BX, (AX)
+ 	RET
+ 
++// void	runtime·atomicand8(byte volatile*, byte);
++TEXT runtime·atomicand8(SB), NOSPLIT, $0-5
++	MOVL	ptr+0(FP), AX
++	MOVB	val+4(FP), BX
++	LOCK
++	ANDB	BX, (AX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 09fbb51337..3039358d23 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -588,6 +588,14 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
+ 	ORB	BX, (AX)
+ 	RET
+ 
++// void	runtime·atomicand8(byte volatile*, byte);
++TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
++	MOVQ	ptr+0(FP), AX
++	MOVB	val+8(FP), BX
++	LOCK
++	ANDB	BX, (AX)
++	RET
++
+ // void jmpdefer(fn, sp);
+ // called from deferreturn.
+ // 1. pop the caller
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 0a056b93a9..048477c5e2 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -609,12 +609,42 @@ TEXT runtime·atomicor8(SB), NOSPLIT, $0-9
+ 	// Shift val for aligned ptr.  R4 = val << R6
+ 	SLD	R6, R4, R4
+ 
+-atomicor8_again:
++again:
+ 	SYNC
+ 	LWAR	(R5), R6
+ 	OR	R4, R6
+ 	STWCCC	R6, (R5)
+-	BNE	atomicor8_again
++	BNE	again
++	SYNC
++	ISYNC
++	RETURN
++
++// void	runtime·atomicand8(byte volatile*, byte);
++TEXT runtime·atomicand8(SB), NOSPLIT, $0-9
++	MOVD	ptr+0(FP), R3
++	MOVBZ	val+8(FP), R4
++	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	// R5 = (R3 << 0) & ~3
++	RLDCR	$0, R3, $~3, R5
++	// Compute val shift.
++#ifdef GOARCH_ppc64
++	// Big endian.  ptr = ptr ^ 3
++	XOR	$3, R3
++#endif
++	// R6 = ((ptr & 3) * 8) = (ptr << 3) & (3*8)
++	RLDC	$3, R3, $(3*8), R6
++	// Shift val for aligned ptr.  R4 = val << R6 | ^(0xFF << R6)
++	MOVD	$0xFF, R7
++	SLD	R6, R4
++	SLD	R6, R7
++	XOR $-1, R7
++	OR	R7, R4
++again:
++	SYNC
++	LWAR	(R5), R6
++	AND	R4, R6
++	STWCCC	R6, (R5)
++	BNE	again
+ 	SYNC
+ 	ISYNC
+ 	RETURN
+diff --git a/src/runtime/atomic_386.go b/src/runtime/atomic_386.go
+index 0171d907a3..7828c66c98 100644
+--- a/src/runtime/atomic_386.go
++++ b/src/runtime/atomic_386.go
+@@ -57,9 +57,14 @@ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ //go:noescape
+ func atomicload64(ptr *uint64) uint64
+ 
++//go:noescape
++func atomicand8(ptr *uint8, val uint8)
++
+ //go:noescape
+ func atomicor8(ptr *uint8, val uint8)
+ 
++// NOTE: Do not add atomicxor8 (XOR is not idempotent).
++
+ //go:noescape
+ func cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/atomic_amd64x.go b/src/runtime/atomic_amd64x.go
+index c5355f6a4e..e539387bc7 100644
+--- a/src/runtime/atomic_amd64x.go
++++ b/src/runtime/atomic_amd64x.go
+@@ -48,9 +48,14 @@ func xchgp1(ptr unsafe.Pointer, new unsafe.Pointer) unsafe.Pointer
+ //go:noescape
+ func xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
++//go:noescape
++func atomicand8(ptr *uint8, val uint8)
++
+ //go:noescape
+ func atomicor8(ptr *uint8, val uint8)
+ 
++// NOTE: Do not add atomicxor8 (XOR is not idempotent).
++
+ //go:noescape
+ func cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/atomic_arm.go b/src/runtime/atomic_arm.go
+index ff73144626..00cc1837fd 100644
+--- a/src/runtime/atomic_arm.go
++++ b/src/runtime/atomic_arm.go
+@@ -153,3 +153,19 @@ func atomicor8(addr *uint8, v uint8) {
+ 		}
+ 	}
+ }
++
++//go:nosplit
++func atomicand8(addr *uint8, v uint8) {
++	// Align down to 4 bytes and use 32-bit CAS.
++	uaddr := uintptr(unsafe.Pointer(addr))
++	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
++	mask := 0xFF << ((uaddr & 3) * 8)      // little endian
++	word := uint32(v) << ((uaddr & 3) * 8) // little endian
++	word |= ^mask
++	for {
++		old := *addr32
++		if cas(addr32, old, old&word) {
++			return
++		}
++	}
++}
+diff --git a/src/runtime/atomic_arm64.go b/src/runtime/atomic_arm64.go
+index 83ca4dd49a..6a78a8dc6e 100644
+--- a/src/runtime/atomic_arm64.go
++++ b/src/runtime/atomic_arm64.go
+@@ -48,6 +48,23 @@ func atomicor8(addr *uint8, v uint8) {
+ 	}
+ }
+ 
++//go:nosplit
++func atomicand8(addr *uint8, v uint8) {
++	// TODO(dfc) implement this in asm.
++	// Align down to 4 bytes and use 32-bit CAS.
++	uaddr := uintptr(unsafe.Pointer(addr))
++	addr32 := (*uint32)(unsafe.Pointer(uaddr &^ 3))
++	word := uint32(v) << ((uaddr & 3) * 8)    // little endian
++	mask := uint32(0xFF) << ((uaddr & 3) * 8) // little endian
++	word |= ^mask
++	for {
++		old := *addr32
++		if cas(addr32, old, old&word) {
++			return
++		}
++	}
++}
++
+ //go:noescape
+ func cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/atomic_ppc64x.go b/src/runtime/atomic_ppc64x.go
+index 65dd9fc50c..17c642d815 100644
+--- a/src/runtime/atomic_ppc64x.go
++++ b/src/runtime/atomic_ppc64x.go
+@@ -35,9 +35,14 @@ func atomicload64(ptr *uint64) uint64
+ //go:noescape
+ func atomicloadp(ptr unsafe.Pointer) unsafe.Pointer
+ 
++//go:noescape
++func atomicand8(ptr *uint8, val uint8)
++
+ //go:noescape
+ func atomicor8(ptr *uint8, val uint8)
+ 
++// NOTE: Do not add atomicxor8 (XOR is not idempotent).
++
+ //go:noescape
+ func cas64(ptr *uint64, old, new uint64) bool
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9d98740067..b82569bb3e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -142,17 +142,6 @@ func have_cgo_allocate() bool {
+ 	return &weak_cgo_allocate != nil
+ }
+ 
+-// Slow for now as we serialize this, since this is on a debug path
+-// speed is not critical at this point.
+-var andlock mutex
+-
+-//go:nowritebarrier
+-func atomicand8(src *byte, val byte) {
+-	lock(&andlock)
+-	*src &= val
+-	unlock(&andlock)
+-}
+-
+ var gcdatamask bitvector
+ var gcbssmask bitvector
+ 

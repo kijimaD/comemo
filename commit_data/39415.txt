@@ -14,6 +14,19 @@ Date:   Wed Feb 27 12:25:59 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/dwarf_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 710457aeb9..880b2ced6d 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -44,6 +44,7 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 	defer os.RemoveAll(tmpDir)
+ 
+ 	for _, prog := range []string{"testprog", "testprogcgo"} {
++		prog := prog
+ 		t.Run(prog, func(t *testing.T) {
+ 			t.Parallel()
+ 

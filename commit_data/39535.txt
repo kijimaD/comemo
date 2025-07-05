@@ -12,7 +12,41 @@ Date:   Tue Mar 5 09:28:50 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/search.go           | 5 +++++
  src/cmd/go/testdata/script/mod_vendor_build.txt | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 7d8852d01d..45e7ee2674 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -112,6 +112,11 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 		walkPkgs(cfg.GOROOTsrc, "")
+ 	}
+ 
++	if cfg.BuildMod == "vendor" {
++		walkPkgs(filepath.Join(ModRoot(), "vendor"), "")
++		return pkgs
++	}
++
+ 	for _, mod := range modules {
+ 		if !treeCanMatch(mod.Path) {
+ 			continue
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+index 7b304dbb70..01ee2d202a 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_build.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -19,6 +19,12 @@ cmp go.mod go.mod.good
+ go list -mod=vendor
+ cmp go.mod go.mod.good
+ 
++# With a clean (and empty) module cache, 'go list -mod=vendor' should not download modules.
++go clean -modcache
++env GOPROXY=off
++! go list ...
++go list -mod=vendor ...
++
+ -- go.mod --
+ module m
+ 

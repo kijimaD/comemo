@@ -7,6 +7,19 @@ Date:   Tue Nov 8 18:23:43 2016 +0000
     Change-Id: I43617e6dfd5b8227a8ef907dc22c00188de87b94
     Reviewed-on: https://go-review.googlesource.com/32915
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.8.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index ae9c455620..01a0924a04 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -396,6 +396,7 @@ image/color: improve speed of RGBA methods (CL 31773)
+ image/draw: optimize drawFillOver as drawFillSrc for opaque fills (CL 28790)
+ math/big: avoid allocation in float.{Add, Sub} when there's no aliasing (CL 23568)
+ math/big: make division faster (CL 30613)
++math/big: slightly faster float->decimal conversion (CL 31250)
+ math/big: use array instead of slice for deBruijn lookups (CL 26663)
+ math/big: uses SIMD for some math big functions on s390x (CL 32211)
+ math: speed up Gamma(+Inf) (CL 31370)

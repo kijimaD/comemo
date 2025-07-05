@@ -15,8 +15,233 @@ Date:   Sun Feb 10 22:44:03 2019 +0200
     Change-Id: I63188c422848cee3d383a64dc4d046e3a1767c63
     Reviewed-on: https://go-review.googlesource.com/c/go/+/161762
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/doc.go       |  5 +++
  src/text/template/exec_test.go | 33 ++++++++++++++-
  src/text/template/funcs.go     | 93 ++++++++++++++++++++++++++++++++++--------
  3 files changed, 114 insertions(+), 17 deletions(-)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 0179dec5c3..dbffaa4958 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -328,6 +328,11 @@ Predefined global functions are named as follows.
+ 		Returns the result of indexing its first argument by the
+ 		following arguments. Thus "index x 1 2 3" is, in Go syntax,
+ 		x[1][2][3]. Each indexed item must be a map, slice, or array.
++	slice
++		slice returns the result of slicing its first argument by the
++		remaining arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2],
++		while "slice x" is x[:], "slice x 1" is x[1:], and "slice x 1 2 3"
++		is x[1:2:3]. The first argument must be a string, slice, or array.
+ 	js
+ 		Returns the escaped JavaScript equivalent of the textual
+ 		representation of its arguments.
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 63ccd5c3c0..81f9e04476 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -23,7 +23,7 @@ type T struct {
+ 	True        bool
+ 	I           int
+ 	U16         uint16
+-	X           string
++	X, S        string
+ 	FloatZero   float64
+ 	ComplexZero complex128
+ 	// Nested structs.
+@@ -36,8 +36,11 @@ type T struct {
+ 	W1, W2 *W
+ 	// Slices
+ 	SI      []int
++	SICap   []int
+ 	SIEmpty []int
+ 	SB      []bool
++	// Arrays
++	AI [3]int
+ 	// Maps
+ 	MSI      map[string]int
+ 	MSIone   map[string]int // one element, for deterministic output
+@@ -122,12 +125,15 @@ var tVal = &T{
+ 	I:      17,
+ 	U16:    16,
+ 	X:      "x",
++	S:      "xyz",
+ 	U:      &U{"v"},
+ 	V0:     V{6666},
+ 	V1:     &V{7777}, // leave V2 as nil
+ 	W0:     W{888},
+ 	W1:     &W{999}, // leave W2 as nil
+ 	SI:     []int{3, 4, 5},
++	SICap:  make([]int, 5, 10),
++	AI:     [3]int{3, 4, 5},
+ 	SB:     []bool{true, false},
+ 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+ 	MSIone: map[string]int{"one": 1},
+@@ -491,6 +497,31 @@ var execTests = []execTest{
+ 	{"map MI8S", "{{index .MI8S 3}}", "i83", tVal, true},
+ 	{"map MUI8S", "{{index .MUI8S 2}}", "u82", tVal, true},
+ 
++	// Slicing.
++	{"slice[:]", "{{slice .SI}}", "[3 4 5]", tVal, true},
++	{"slice[1:]", "{{slice .SI 1}}", "[4 5]", tVal, true},
++	{"slice[1:2]", "{{slice .SI 1 2}}", "[4]", tVal, true},
++	{"slice[-1:]", "{{slice .SI -1}}", "", tVal, false},
++	{"slice[1:-2]", "{{slice .SI 1 -2}}", "", tVal, false},
++	{"slice[1:2:-1]", "{{slice .SI 1 2 -1}}", "", tVal, false},
++	{"slice[2:1]", "{{slice .SI 2 1}}", "", tVal, false},
++	{"slice[2:2:1]", "{{slice .SI 2 2 1}}", "", tVal, false},
++	{"out of range", "{{slice .SI 4 5}}", "", tVal, false},
++	{"out of range", "{{slice .SI 2 2 5}}", "", tVal, false},
++	{"len(s) < indexes < cap(s)", "{{slice .SICap 6 10}}", "[0 0 0 0]", tVal, true},
++	{"len(s) < indexes < cap(s)", "{{slice .SICap 6 10 10}}", "[0 0 0 0]", tVal, true},
++	{"indexes > cap(s)", "{{slice .SICap 10 11}}", "", tVal, false},
++	{"indexes > cap(s)", "{{slice .SICap 6 10 11}}", "", tVal, false},
++	{"array[:]", "{{slice .AI}}", "[3 4 5]", tVal, true},
++	{"array[1:]", "{{slice .AI 1}}", "[4 5]", tVal, true},
++	{"array[1:2]", "{{slice .AI 1 2}}", "[4]", tVal, true},
++	{"string[:]", "{{slice .S}}", "xyz", tVal, true},
++	{"string[0:1]", "{{slice .S 0 1}}", "x", tVal, true},
++	{"string[1:]", "{{slice .S 1}}", "yz", tVal, true},
++	{"string[1:2]", "{{slice .S 1 2}}", "y", tVal, true},
++	{"out of range", "{{slice .S 1 5}}", "", tVal, false},
++	{"3-index slice of string", "{{slice .S 1 2 2}}", "", tVal, false},
++
+ 	// Len.
+ 	{"slice", "{{len .SI}}", "3", tVal, true},
+ 	{"map", "{{len .MSI }}", "3", tVal, true},
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index a626247c2c..248dbcf22e 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -34,6 +34,7 @@ var builtins = FuncMap{
+ 	"call":     call,
+ 	"html":     HTMLEscaper,
+ 	"index":    index,
++	"slice":    slice,
+ 	"js":       JSEscaper,
+ 	"len":      length,
+ 	"not":      not,
+@@ -159,17 +160,36 @@ func intLike(typ reflect.Kind) bool {
+ 	return false
+ }
+ 
++// indexArg checks if a reflect.Value can be used as an index, and converts it to int if possible.
++func indexArg(index reflect.Value, cap int) (int, error) {
++	var x int64
++	switch index.Kind() {
++	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
++		x = index.Int()
++	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
++		x = int64(index.Uint())
++	case reflect.Invalid:
++		return 0, fmt.Errorf("cannot index slice/array with nil")
++	default:
++		return 0, fmt.Errorf("cannot index slice/array with type %s", index.Type())
++	}
++	if x < 0 || int(x) < 0 || int(x) > cap {
++		return 0, fmt.Errorf("index out of range: %d", x)
++	}
++	return int(x), nil
++}
++
+ // Indexing.
+ 
+ // index returns the result of indexing its first argument by the following
+ // arguments. Thus "index x 1 2 3" is, in Go syntax, x[1][2][3]. Each
+ // indexed item must be a map, slice, or array.
+-func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error) {
++func index(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
+ 	v := indirectInterface(item)
+ 	if !v.IsValid() {
+ 		return reflect.Value{}, fmt.Errorf("index of untyped nil")
+ 	}
+-	for _, i := range indices {
++	for _, i := range indexes {
+ 		index := indirectInterface(i)
+ 		var isNil bool
+ 		if v, isNil = indirect(v); isNil {
+@@ -177,21 +197,11 @@ func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error)
+ 		}
+ 		switch v.Kind() {
+ 		case reflect.Array, reflect.Slice, reflect.String:
+-			var x int64
+-			switch index.Kind() {
+-			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-				x = index.Int()
+-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-				x = int64(index.Uint())
+-			case reflect.Invalid:
+-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with nil")
+-			default:
+-				return reflect.Value{}, fmt.Errorf("cannot index slice/array with type %s", index.Type())
+-			}
+-			if x < 0 || x >= int64(v.Len()) {
+-				return reflect.Value{}, fmt.Errorf("index out of range: %d", x)
++			x, err := indexArg(index, v.Len())
++			if err != nil {
++				return reflect.Value{}, err
+ 			}
+-			v = v.Index(int(x))
++			v = v.Index(x)
+ 		case reflect.Map:
+ 			index, err := prepareArg(index, v.Type().Key())
+ 			if err != nil {
+@@ -212,6 +222,57 @@ func index(item reflect.Value, indices ...reflect.Value) (reflect.Value, error)
+ 	return v, nil
+ }
+ 
++// Slicing.
++
++// slice returns the result of slicing its first argument by the remaining
++// arguments. Thus "slice x 1 2" is, in Go syntax, x[1:2], while "slice x"
++// is x[:], "slice x 1" is x[1:], and "slice x 1 2 3" is x[1:2:3]. The first
++// argument must be a string, slice, or array.
++func slice(item reflect.Value, indexes ...reflect.Value) (reflect.Value, error) {
++	var (
++		cap int
++		v   = indirectInterface(item)
++	)
++	if !v.IsValid() {
++		return reflect.Value{}, fmt.Errorf("slice of untyped nil")
++	}
++	if len(indexes) > 3 {
++		return reflect.Value{}, fmt.Errorf("too many slice indexes: %d", len(indexes))
++	}
++	switch v.Kind() {
++	case reflect.String:
++		if len(indexes) == 3 {
++			return reflect.Value{}, fmt.Errorf("cannot 3-index slice a string")
++		}
++		cap = v.Len()
++	case reflect.Array, reflect.Slice:
++		cap = v.Cap()
++	default:
++		return reflect.Value{}, fmt.Errorf("can't slice item of type %s", v.Type())
++	}
++	// set default values for cases item[:], item[i:].
++	idx := [3]int{0, v.Len()}
++	for i, index := range indexes {
++		x, err := indexArg(index, cap)
++		if err != nil {
++			return reflect.Value{}, err
++		}
++		idx[i] = x
++	}
++	// given item[i:j], make sure i <= j.
++	if idx[0] > idx[1] {
++		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[0], idx[1])
++	}
++	if len(indexes) < 3 {
++		return item.Slice(idx[0], idx[1]), nil
++	}
++	// given item[i:j:k], make sure i <= j <= k.
++	if idx[1] > idx[2] {
++		return reflect.Value{}, fmt.Errorf("invalid slice index: %d > %d", idx[1], idx[2])
++	}
++	return item.Slice3(idx[0], idx[1], idx[2]), nil
++}
++
+ // Length
+ 
+ // length returns the length of the item, with an error if it has no defined length.

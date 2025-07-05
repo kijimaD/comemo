@@ -11,6 +11,20 @@ Date:   Sun Mar 24 11:38:57 2013 +0100
     R=golang-dev, ality, minux.ma
     CC=golang-dev
     https://golang.org/cl/7665047
-
+---
  src/cmd/cc/funct.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/funct.c b/src/cmd/cc/funct.c
+index 0571519871..7921277b42 100644
+--- a/src/cmd/cc/funct.c
++++ b/src/cmd/cc/funct.c
+@@ -269,7 +269,7 @@ dclfunct(Type *t, Sym *s)
+ 		goto bad;
+ 
+ 	f = alloc(sizeof(*f));
+-	for(o=0; o<sizeof(f->sym); o++)
++	for(o=0; o<nelem(f->sym); o++)
+ 		f->sym[o] = S;
+ 
+ 	t->funct = f;

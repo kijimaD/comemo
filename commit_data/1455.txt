@@ -8,6 +8,29 @@ Date:   Fri Jan 9 15:13:26 2009 -0800
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=22452
     CL=22455
-
+---
  doc/progs/server.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index 7a21e43963..cdf2b2e8cf 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -24,7 +24,7 @@ func Server(op *BinOp, service chan *Request) {
+ }
+ 
+ func StartServer(op *BinOp) chan *Request {
+-	req := new(chan *Request);
++	req := make(chan *Request);
+ 	go Server(op, req);
+ 	return req;
+ }
+@@ -37,7 +37,7 @@ func main() {
+ 		req := &reqs[i];
+ 		req.a = i;
+ 		req.b = i + N;
+-		req.replyc = new(chan int);
++		req.replyc = make(chan int);
+ 		adder <- req;
+ 	}
+ 	for i := N-1; i >= 0; i-- {   // doesn't matter what order

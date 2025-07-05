@@ -15,6 +15,42 @@ Date:   Mon Jun 29 19:22:34 2020 -0400
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/net/ipsock_plan9.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index a5d722d3a1..9db01b090d 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -311,25 +311,25 @@ func toLocal(a Addr, net string) Addr {
+ // plan9LocalAddr returns a Plan 9 local address string.
+ // See setladdrport at https://9p.io/sources/plan9/sys/src/9/ip/devip.c.
+ func plan9LocalAddr(addr Addr) string {
+-	ip := ""
++	var ip IP
+ 	port := 0
+ 	switch a := addr.(type) {
+ 	case *TCPAddr:
+ 		if a != nil {
+-			ip = ipEmptyString(a.IP)
++			ip = a.IP
+ 			port = a.Port
+ 		}
+ 	case *UDPAddr:
+ 		if a != nil {
+-			ip = ipEmptyString(a.IP)
++			ip = a.IP
+ 			port = a.Port
+ 		}
+ 	}
+-	if ip == "" {
++	if len(ip) == 0 || ip.IsUnspecified() {
+ 		if port == 0 {
+ 			return ""
+ 		}
+ 		return itoa(port)
+ 	}
+-	return ip + "!" + itoa(port)
++	return ip.String() + "!" + itoa(port)
+ }

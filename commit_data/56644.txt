@@ -13,10 +13,146 @@ Date:   Wed May 17 16:36:07 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/extern.go      | 10 ++++++----
  src/runtime/mgcscavenge.go |  9 +++++----
  src/runtime/mgcsweep.go    | 14 +++++++++++---
  src/runtime/mheap.go       |  6 ++++--
  src/runtime/mpagealloc.go  | 12 ++++++++----
  5 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 189b4d4bb9..9ad9fb7f3d 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -158,11 +158,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	scavenger as well as the total amount of memory returned to the operating system
+ 	and an estimate of physical memory utilization. The format of this line is subject
+ 	to change, but currently it is:
+-		scav # KiB work, # KiB total, #% util
++		scav # KiB work (bg), # KiB work (eager), # KiB total, #% util
+ 	where the fields are as follows:
+-		# KiB work   the amount of memory returned to the OS since the last line
+-		# KiB total  the total amount of memory returned to the OS
+-		#% util      the fraction of all unscavenged memory which is in-use
++		# KiB work (bg)    the amount of memory returned to the OS in the background since
++		                   the last line
++		# KiB work (eager) the amount of memory returned to the OS eagerly since the last line
++		# KiB now          the amount of address space currently returned to the OS
++		#% util            the fraction of all unscavenged heap memory which is in-use
+ 	If the line ends with "(forced)", then scavenging was forced by a
+ 	debug.FreeOSMemory() call.
+ 
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 782a2e696e..3f95bb0465 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -658,7 +658,7 @@ func bgscavenge(c chan int) {
+ 			scavenger.park()
+ 			continue
+ 		}
+-		atomic.Xadduintptr(&mheap_.pages.scav.released, released)
++		mheap_.pages.scav.releasedBg.Add(released)
+ 		scavenger.sleep(workTime)
+ 	}
+ }
+@@ -696,13 +696,14 @@ func (p *pageAlloc) scavenge(nbytes uintptr, shouldStop func() bool, force bool)
+ // application.
+ //
+ // scavenger.lock must be held.
+-func printScavTrace(released uintptr, forced bool) {
++func printScavTrace(releasedBg, releasedEager uintptr, forced bool) {
+ 	assertLockHeld(&scavenger.lock)
+ 
+ 	printlock()
+ 	print("scav ",
+-		released>>10, " KiB work, ",
+-		gcController.heapReleased.load()>>10, " KiB total, ",
++		releasedBg>>10, " KiB work (bg), ",
++		releasedEager>>10, " KiB work (eager), ",
++		gcController.heapReleased.load()>>10, " KiB now, ",
+ 		(gcController.heapInUse.load()*100)/heapRetained(), "% util",
+ 	)
+ 	if forced {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 4b0d655a9d..e0e5bf0aef 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -425,9 +425,17 @@ func sweepone() uintptr {
+ 		if debug.scavtrace > 0 {
+ 			systemstack(func() {
+ 				lock(&mheap_.lock)
+-				released := atomic.Loaduintptr(&mheap_.pages.scav.released)
+-				printScavTrace(released, false)
+-				atomic.Storeuintptr(&mheap_.pages.scav.released, 0)
++
++				// Get released stats.
++				releasedBg := mheap_.pages.scav.releasedBg.Load()
++				releasedEager := mheap_.pages.scav.releasedEager.Load()
++
++				// Print the line.
++				printScavTrace(releasedBg, releasedEager, false)
++
++				// Update the stats.
++				mheap_.pages.scav.releasedBg.Add(-releasedBg)
++				mheap_.pages.scav.releasedEager.Add(-releasedEager)
+ 				unlock(&mheap_.lock)
+ 			})
+ 		}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index fd6a8a715a..d69822b143 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1323,10 +1323,12 @@ HaveSpan:
+ 		track := pp.limiterEvent.start(limiterEventScavengeAssist, start)
+ 
+ 		// Scavenge, but back out if the limiter turns on.
+-		h.pages.scavenge(bytesToScavenge, func() bool {
++		released := h.pages.scavenge(bytesToScavenge, func() bool {
+ 			return gcCPULimiter.limiting()
+ 		}, forceScavenge)
+ 
++		mheap_.pages.scav.releasedEager.Add(released)
++
+ 		// Finish up accounting.
+ 		now = nanotime()
+ 		if track {
+@@ -1658,7 +1660,7 @@ func (h *mheap) scavengeAll() {
+ 	gp.m.mallocing--
+ 
+ 	if debug.scavtrace > 0 {
+-		printScavTrace(released, true)
++		printScavTrace(0, released, true)
+ 	}
+ }
+ 
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 12ae474a4d..ed53a5672b 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -48,6 +48,7 @@
+ package runtime
+ 
+ import (
++	"runtime/internal/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -270,10 +271,13 @@ type pageAlloc struct {
+ 		// scavenge.
+ 		index scavengeIndex
+ 
+-		// released is the amount of memory released this scavenge cycle.
+-		//
+-		// Updated atomically.
+-		released uintptr
++		// releasedBg is the amount of memory released in the background this
++		// scavenge cycle.
++		releasedBg atomic.Uintptr
++
++		// releasedEager is the amount of memory released eagerly this scavenge
++		// cycle.
++		releasedEager atomic.Uintptr
+ 	}
+ 
+ 	// mheap_.lock. This level of indirection makes it possible

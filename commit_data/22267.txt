@@ -16,7 +16,7 @@ Date:   Mon Mar 2 20:16:48 2015 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/export_test.go        |  5 +++++
  src/runtime/os_nacl.go            |  5 +++++
  src/runtime/os_windows.go         | 16 +++++++++++++++-
@@ -39,3 +39,758 @@ Date:   Mon Mar 2 20:16:48 2015 -0800
  src/runtime/sys_openbsd_386.s     |  8 ++++++++
  src/runtime/sys_openbsd_amd64.s   |  8 ++++++++
  21 files changed, 187 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a5d923e860..d5068ba81d 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -117,3 +117,8 @@ var Gostringnocopy = gostringnocopy
+ var Maxstring = &maxstring
+ 
+ type Uintreg uintreg
++
++var Open = open
++var Close = close
++var Read = read
++var Write = write
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 138b984625..a6a796cd76 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -52,3 +52,8 @@ func sigpanic() {
+ 
+ func raiseproc(sig int32) {
+ }
++
++// Stubs so tests can link correctly.  These should never be called.
++func open(name *byte, mode, perm int32) int32
++func close(fd int32) int32
++func read(fd int32, p unsafe.Pointer, n int32) int32
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 3cce67f5a7..744dc66ccc 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe" // for go:linkname
++import "unsafe"
+ 
+ type stdFunction *byte
+ 
+@@ -39,3 +39,17 @@ func sigpanic() {
+ 	}
+ 	throw("fault")
+ }
++
++// Stubs so tests can link correctly.  These should never be called.
++func open(name *byte, mode, perm int32) int32 {
++	throw("unimplemented")
++	return -1
++}
++func close(fd int32) int32 {
++	throw("unimplemented")
++	return -1
++}
++func read(fd int32, p unsafe.Pointer, n int32) int32 {
++	throw("unimplemented")
++	return -1
++}
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 09884200e4..983442f1db 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -292,3 +292,29 @@ func TestTrailingZero(t *testing.T) {
+ 		t.Errorf("sizeof(%#v)==%d, want 0", T5{}, unsafe.Sizeof(T5{}))
+ 	}
+ }
++
++func TestBadOpen(t *testing.T) {
++	if GOOS == "windows" || GOOS == "nacl" {
++		t.Skip("skipping OS that doesn't have open/read/write/close")
++	}
++	// make sure we get the correct error code if open fails.  Same for
++	// read/write/close on the resulting -1 fd.  See issue 10052.
++	nonfile := []byte("/notreallyafile")
++	fd := Open(&nonfile[0], 0, 0)
++	if fd != -1 {
++		t.Errorf("open(\"%s\")=%d, want -1", string(nonfile), fd)
++	}
++	var buf [32]byte
++	r := Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
++	if r != -1 {
++		t.Errorf("read()=%d, want -1", r)
++	}
++	w := Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
++	if w != -1 {
++		t.Errorf("write()=%d, want -1", w)
++	}
++	c := Close(-1)
++	if c != -1 {
++		t.Errorf("close()=%d, want -1", c)
++	}
++}
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 46857a6e1b..20d6b72f62 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -29,24 +29,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$0
+ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index a6ab6bcf2d..f856e95905 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -38,6 +38,8 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$(0x2000000+5), AX	// syscall entry
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -45,6 +47,8 @@ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$(0x2000000+6), AX	// syscall entry
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -54,6 +58,8 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+3), AX	// syscall entry
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -63,6 +69,8 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$(0x2000000+4), AX	// syscall entry
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 0ca42626e8..5cb8601a6b 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -48,6 +48,7 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	perm+8(FP), R2
+ 	MOVW	$SYS_open, R12
+ 	SWI	$0x80
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -55,6 +56,7 @@ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	MOVW	$SYS_close, R12
+ 	SWI	$0x80
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+@@ -64,6 +66,7 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_write, R12
+ 	SWI	$0x80
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -73,6 +76,7 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_read, R12
+ 	SWI	$0x80
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_dragonfly_386.s b/src/runtime/sys_dragonfly_386.s
+index bb4903ef67..fa215daf26 100644
+--- a/src/runtime/sys_dragonfly_386.s
++++ b/src/runtime/sys_dragonfly_386.s
+@@ -85,24 +85,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$16
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index 2f2942ae19..9b4e057b62 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -77,6 +77,8 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -84,6 +86,8 @@ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -93,6 +97,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -102,6 +108,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$4, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index d1f67c3fcc..bd2cc9438f 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -62,24 +62,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index eac0319d0b..f2001f2560 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -67,6 +67,8 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -74,6 +76,8 @@ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -83,6 +87,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -92,6 +98,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$4, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 6568738b3d..613c1dceed 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -93,6 +93,7 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW perm+8(FP), R2	// arg 3 perm
+ 	MOVW $SYS_open, R7
+ 	SWI $0
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -102,6 +103,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_read, R7
+ 	SWI $0
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -111,6 +113,7 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_write, R7
+ 	SWI $0
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -118,6 +121,7 @@ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW fd+0(FP), R0	// arg 1 fd
+ 	MOVW $SYS_close, R7
+ 	SWI $0
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 2acce484cc..7d53aad59a 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -30,6 +30,9 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVL	mode+4(FP), CX
+ 	MOVL	perm+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -37,6 +40,9 @@ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVL	$6, AX		// syscall - close
+ 	MOVL	fd+0(FP), BX
+ 	CALL	*runtime·_vdso(SB)
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+@@ -46,6 +52,9 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	p+4(FP), CX
+ 	MOVL	n+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -55,6 +64,9 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	p+4(FP), CX
+ 	MOVL	n+8(FP), DX
+ 	CALL	*runtime·_vdso(SB)
++	CMPL	AX, $0xfffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index aac741b713..134d649b06 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -28,6 +28,9 @@ TEXT runtime·open(SB),NOSPLIT,$0-20
+ 	MOVL	perm+12(FP), DX
+ 	MOVL	$2, AX			// syscall entry
+ 	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -35,6 +38,9 @@ TEXT runtime·close(SB),NOSPLIT,$0-12
+ 	MOVL	fd+0(FP), DI
+ 	MOVL	$3, AX			// syscall entry
+ 	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -44,6 +50,9 @@ TEXT runtime·write(SB),NOSPLIT,$0-28
+ 	MOVL	n+16(FP), DX
+ 	MOVL	$1, AX			// syscall entry
+ 	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -53,6 +62,9 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
+ 	MOVL	n+16(FP), DX
+ 	MOVL	$0, AX			// syscall entry
+ 	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 844a02a297..fa07ef88d6 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -57,6 +57,9 @@ TEXT runtime·open(SB),NOSPLIT,$0
+ 	MOVW	perm+8(FP), R2
+ 	MOVW	$SYS_open, R7
+ 	SWI	$0
++	MOVW	$0xfffff001, R1
++	CMP	R1, R0
++	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -64,6 +67,9 @@ TEXT runtime·close(SB),NOSPLIT,$0
+ 	MOVW	fd+0(FP), R0
+ 	MOVW	$SYS_close, R7
+ 	SWI	$0
++	MOVW	$0xfffff001, R1
++	CMP	R1, R0
++	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+@@ -73,6 +79,9 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_write, R7
+ 	SWI	$0
++	MOVW	$0xfffff001, R1
++	CMP	R1, R0
++	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -82,6 +91,9 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_read, R7
+ 	SWI	$0
++	MOVW	$0xfffff001, R1
++	CMP	R1, R0
++	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 1f2a5af50a..3070893258 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -62,12 +62,16 @@ TEXT runtime·open(SB),NOSPLIT,$-8-20
+ 	MOVW	mode+8(FP), R4
+ 	MOVW	perm+12(FP), R5
+ 	SYSCALL	$SYS_open
++	BVC	2(PC)
++	MOVW	$-1, R3
+ 	MOVW	R3, ret+16(FP)
+ 	RETURN
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8-12
+ 	MOVW	fd+0(FP), R3
+ 	SYSCALL	$SYS_close
++	BVC	2(PC)
++	MOVW	$-1, R3
+ 	MOVW	R3, ret+8(FP)
+ 	RETURN
+ 
+@@ -76,6 +80,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8-28
+ 	MOVD	p+8(FP), R4
+ 	MOVW	n+16(FP), R5
+ 	SYSCALL	$SYS_write
++	BVC	2(PC)
++	MOVW	$-1, R3
+ 	MOVW	R3, ret+24(FP)
+ 	RETURN
+ 
+@@ -84,6 +90,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8-28
+ 	MOVD	p+8(FP), R4
+ 	MOVW	n+16(FP), R5
+ 	SYSCALL	$SYS_read
++	BVC	2(PC)
++	MOVW	$-1, R3
+ 	MOVW	R3, ret+24(FP)
+ 	RETURN
+ 
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index 509d6d4a85..e0fc926fb9 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -27,24 +27,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 83de9111dd..88ca323aaf 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -91,6 +91,8 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -98,6 +100,8 @@ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -107,6 +111,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -116,6 +122,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 - nbyte
+ 	MOVL	$4, AX			// sys_write
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 5628967ee7..b421022831 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -29,12 +29,14 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVW mode+4(FP), R1
+ 	MOVW perm+8(FP), R2
+ 	SWI $0xa00005
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVW fd+0(FP), R0
+ 	SWI $0xa00006
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+@@ -43,6 +45,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVW p+4(FP), R1
+ 	MOVW n+8(FP), R2
+ 	SWI $0xa00003
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -51,6 +54,7 @@ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVW	p+4(FP), R1	// arg 2 - buf
+ 	MOVW	n+8(FP), R2	// arg 3 - nbyte
+ 	SWI $0xa00004	// sys_write
++	MOVW.CS	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 93907577ea..86774de003 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -31,24 +31,32 @@ TEXT runtime·exit1(SB),NOSPLIT,$8
+ TEXT runtime·open(SB),NOSPLIT,$-4
+ 	MOVL	$5, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$-4
+ 	MOVL	$6, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
++	JAE	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index f1ee4a9ce1..1e809b7e80 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -101,6 +101,8 @@ TEXT runtime·open(SB),NOSPLIT,$-8
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+ 	MOVL	$5, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+@@ -108,6 +110,8 @@ TEXT runtime·close(SB),NOSPLIT,$-8
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVL	$6, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+@@ -117,6 +121,8 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 count
+ 	MOVL	$3, AX
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -126,6 +132,8 @@ TEXT runtime·write(SB),NOSPLIT,$-8
+ 	MOVL	n+16(FP), DX		// arg 3 - nbyte
+ 	MOVL	$4, AX			// sys_write
+ 	SYSCALL
++	JCC	2(PC)
++	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 

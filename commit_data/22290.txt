@@ -22,10 +22,204 @@ Date:   Tue Feb 3 00:33:02 2015 +0300
     Reviewed-on: https://go-review.googlesource.com/3742
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/mcache.go   |  2 --
  src/runtime/mgc.go      | 22 ++++++++++-------
  src/runtime/proc.go     | 65 +++++++++++++++++++++++++++++++++++--------------
  src/runtime/proc1.go    |  5 ++++
  src/runtime/runtime2.go |  7 ++++++
  5 files changed, 72 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index ec9ccb4abb..9ff4259ce9 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -24,8 +24,6 @@ type mcache struct {
+ 
+ 	stackcache [_NumStackOrders]stackfreelist
+ 
+-	sudogcache *sudog
+-
+ 	// Local allocator stats, flushed during GC.
+ 	local_nlookup    uintptr                  // number of pointer lookups
+ 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 830bf879d4..5417d3a291 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -628,6 +628,19 @@ func clearpools() {
+ 		poolcleanup()
+ 	}
+ 
++	// Clear central sudog cache.
++	// Leave per-P caches alone, they have strictly bounded size.
++	// Disconnect cached list before dropping it on the floor,
++	// so that a dangling ref to one entry does not pin all of them.
++	lock(&sched.sudoglock)
++	var sg, sgnext *sudog
++	for sg = sched.sudogcache; sg != nil; sg = sgnext {
++		sgnext = sg.next
++		sg.next = nil
++	}
++	sched.sudogcache = nil
++	unlock(&sched.sudoglock)
++
+ 	for _, p := range &allp {
+ 		if p == nil {
+ 			break
+@@ -636,15 +649,6 @@ func clearpools() {
+ 		if c := p.mcache; c != nil {
+ 			c.tiny = nil
+ 			c.tinyoffset = 0
+-
+-			// disconnect cached list before dropping it on the floor,
+-			// so that a dangling ref to one entry does not pin all of them.
+-			var sg, sgnext *sudog
+-			for sg = c.sudogcache; sg != nil; sg = sgnext {
+-				sgnext = sg.next
+-				sg.next = nil
+-			}
+-			c.sudogcache = nil
+ 		}
+ 
+ 		// clear defer pools
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d251c314d4..d83b1bebf4 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -167,17 +167,6 @@ func goready(gp *g) {
+ 
+ //go:nosplit
+ func acquireSudog() *sudog {
+-	c := gomcache()
+-	s := c.sudogcache
+-	if s != nil {
+-		if s.elem != nil {
+-			throw("acquireSudog: found s.elem != nil in cache")
+-		}
+-		c.sudogcache = s.next
+-		s.next = nil
+-		return s
+-	}
+-
+ 	// Delicate dance: the semaphore implementation calls
+ 	// acquireSudog, acquireSudog calls new(sudog),
+ 	// new calls malloc, malloc can call the garbage collector,
+@@ -187,12 +176,31 @@ func acquireSudog() *sudog {
+ 	// The acquirem/releasem increments m.locks during new(sudog),
+ 	// which keeps the garbage collector from being invoked.
+ 	mp := acquirem()
+-	p := new(sudog)
+-	if p.elem != nil {
+-		throw("acquireSudog: found p.elem != nil after new")
++	pp := mp.p
++	if len(pp.sudogcache) == 0 {
++		lock(&sched.sudoglock)
++		// First, try to grab a batch from central cache.
++		for len(pp.sudogcache) < cap(pp.sudogcache)/2 && sched.sudogcache != nil {
++			s := sched.sudogcache
++			sched.sudogcache = s.next
++			s.next = nil
++			pp.sudogcache = append(pp.sudogcache, s)
++		}
++		unlock(&sched.sudoglock)
++		// If the central cache is empty, allocate a new one.
++		if len(pp.sudogcache) == 0 {
++			pp.sudogcache = append(pp.sudogcache, new(sudog))
++		}
++	}
++	ln := len(pp.sudogcache)
++	s := pp.sudogcache[ln-1]
++	pp.sudogcache[ln-1] = nil
++	pp.sudogcache = pp.sudogcache[:ln-1]
++	if s.elem != nil {
++		throw("acquireSudog: found s.elem != nil in cache")
+ 	}
+ 	releasem(mp)
+-	return p
++	return s
+ }
+ 
+ //go:nosplit
+@@ -216,9 +224,30 @@ func releaseSudog(s *sudog) {
+ 	if gp.param != nil {
+ 		throw("runtime: releaseSudog with non-nil gp.param")
+ 	}
+-	c := gomcache()
+-	s.next = c.sudogcache
+-	c.sudogcache = s
++	mp := acquirem() // avoid rescheduling to another P
++	pp := mp.p
++	if len(pp.sudogcache) == cap(pp.sudogcache) {
++		// Transfer half of local cache to the central cache.
++		var first, last *sudog
++		for len(pp.sudogcache) > cap(pp.sudogcache)/2 {
++			ln := len(pp.sudogcache)
++			p := pp.sudogcache[ln-1]
++			pp.sudogcache[ln-1] = nil
++			pp.sudogcache = pp.sudogcache[:ln-1]
++			if first == nil {
++				first = p
++			} else {
++				last.next = p
++			}
++			last = p
++		}
++		lock(&sched.sudoglock)
++		last.next = sched.sudogcache
++		sched.sudogcache = first
++		unlock(&sched.sudoglock)
++	}
++	pp.sudogcache = append(pp.sudogcache, s)
++	releasem(mp)
+ }
+ 
+ // funcPC returns the entry PC of the function f.
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index f3248a5351..906528c0ab 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -2483,6 +2483,7 @@ func procresize(nprocs int32) *p {
+ 			pp = new(p)
+ 			pp.id = i
+ 			pp.status = _Pgcstop
++			pp.sudogcache = pp.sudogbuf[:0]
+ 			atomicstorep(unsafe.Pointer(&allp[i]), unsafe.Pointer(pp))
+ 		}
+ 		if pp.mcache == nil {
+@@ -2521,6 +2522,10 @@ func procresize(nprocs int32) *p {
+ 			}
+ 			sched.runqsize++
+ 		}
++		for i := range &p.sudogbuf {
++			p.sudogbuf[i] = nil
++		}
++		p.sudogcache = p.sudogbuf[:0]
+ 		freemcache(p.mcache)
+ 		p.mcache = nil
+ 		gfpurge(p)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ea2d55dbb6..81d39fb48e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -329,6 +329,9 @@ type p struct {
+ 	gfree    *g
+ 	gfreecnt int32
+ 
++	sudogcache []*sudog
++	sudogbuf   [128]*sudog
++
+ 	tracebuf *traceBuf
+ 
+ 	pad [64]byte
+@@ -365,6 +368,10 @@ type schedt struct {
+ 	gfree  *g
+ 	ngfree int32
+ 
++	// Central cache of sudog structs.
++	sudoglock  mutex
++	sudogcache *sudog
++
+ 	gcwaiting  uint32 // gc is waiting to run
+ 	stopwait   int32
+ 	stopnote   note

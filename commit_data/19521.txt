@@ -10,6 +10,21 @@ Date:   Thu Jun 12 13:31:13 2014 +1000
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/107950043
-
+---
  doc/docs.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index edbd89ee46..bb2d52dcba 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -97,6 +97,9 @@ one goroutine can be guaranteed to observe values produced by writes to the
+ same variable in a different goroutine.
+ </p>
+ 
++<h3 id="release"><a href="/doc/devel/release.html">Release History</a></h3>
++<p>A summary of the changes between Go releases.</p>
++
+ 
+ <h2 id="articles">Articles</h2>
+ 

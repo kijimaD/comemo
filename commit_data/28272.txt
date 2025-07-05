@@ -11,6 +11,30 @@ Date:   Tue May 10 09:10:43 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue15604.go | 17 +++++++++++++++++
  1 file changed, 17 insertions(+)
+
+diff --git a/test/fixedbugs/issue15604.go b/test/fixedbugs/issue15604.go
+new file mode 100644
+index 0000000000..4dc0b0b054
+--- /dev/null
++++ b/test/fixedbugs/issue15604.go
+@@ -0,0 +1,17 @@
++// compile
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bug
++
++import "os"
++
++func f(err error) {
++	var ok bool
++	if err, ok = err.(*os.PathError); ok {
++		if err == os.ErrNotExist {
++		}
++	}
++}

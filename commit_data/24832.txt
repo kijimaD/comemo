@@ -17,10 +17,97 @@ Date:   Thu Sep 3 09:09:59 2015 -0700
     Change-Id: Ifd69e6c00e90338ed147e7cb351b5100dc0364df
     Reviewed-on: https://go-review.googlesource.com/14254
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  2 ++
  src/cmd/compile/internal/ssa/check.go          | 10 ++++++++++
  src/cmd/compile/internal/ssa/critical.go       |  2 +-
  src/cmd/compile/internal/ssa/gen/genericOps.go |  1 +
  src/cmd/compile/internal/ssa/opGen.go          |  2 ++
  5 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 77c822787d..f0cad90d40 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -562,6 +562,7 @@ func (s *state) stmt(n *Node) {
+ 	case ORETURN:
+ 		s.stmtList(n.List)
+ 		b := s.endBlock()
++		b.Kind = ssa.BlockRet
+ 		b.AddEdgeTo(s.exit)
+ 
+ 	case OCONTINUE, OBREAK:
+@@ -3358,6 +3359,7 @@ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 			branches = append(branches, branch{p, b.Succs[0]})
+ 		}
+ 	case ssa.BlockExit:
++	case ssa.BlockRet:
+ 		Prog(obj.ARET)
+ 	case ssa.BlockCall:
+ 		if b.Succs[0] != next {
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 0c2bc4c7f1..68ba25a272 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -59,6 +59,16 @@ func checkFunc(f *Func) {
+ 			if !b.Control.Type.IsMemory() {
+ 				f.Fatalf("exit block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
++		case BlockRet:
++			if len(b.Succs) != 1 {
++				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
++			}
++			if b.Control != nil {
++				f.Fatalf("ret block %s has non-nil control %s", b, b.Control.LongString())
++			}
++			if b.Succs[0].Kind != BlockExit {
++				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
++			}
+ 		case BlockDead:
+ 			if len(b.Succs) != 0 {
+ 				f.Fatalf("dead block %s has successors", b)
+diff --git a/src/cmd/compile/internal/ssa/critical.go b/src/cmd/compile/internal/ssa/critical.go
+index ba75450875..439d4823e5 100644
+--- a/src/cmd/compile/internal/ssa/critical.go
++++ b/src/cmd/compile/internal/ssa/critical.go
+@@ -9,7 +9,7 @@ package ssa
+ // Regalloc wants a critical-edge-free CFG so it can implement phi values.
+ func critical(f *Func) {
+ 	for _, b := range f.Blocks {
+-		if len(b.Preds) <= 1 {
++		if len(b.Preds) <= 1 || b.Kind == BlockExit {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index d17f207a80..59b90adfe5 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -375,6 +375,7 @@ var genericBlocks = []blockData{
+ 	{name: "If"},    // 2 successors, if control goto Succs[0] else goto Succs[1]
+ 	{name: "Call"},  // 2 successors, normal return and panic
+ 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
++	{name: "Ret"},   // 1 successor, branches to exit
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f4c74fe340..a61c31ad5a 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -28,6 +28,7 @@ const (
+ 	BlockIf
+ 	BlockCall
+ 	BlockFirst
++	BlockRet
+ )
+ 
+ var blockString = [...]string{
+@@ -54,6 +55,7 @@ var blockString = [...]string{
+ 	BlockIf:    "If",
+ 	BlockCall:  "Call",
+ 	BlockFirst: "First",
++	BlockRet:   "Ret",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }

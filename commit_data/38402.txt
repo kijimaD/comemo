@@ -13,6 +13,30 @@ Date:   Tue Oct 23 15:15:37 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/stmtlines_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/stmtlines_test.go b/src/cmd/compile/internal/ssa/stmtlines_test.go
+index c0fc7adab5..6fc0239ffe 100644
+--- a/src/cmd/compile/internal/ssa/stmtlines_test.go
++++ b/src/cmd/compile/internal/ssa/stmtlines_test.go
+@@ -1,6 +1,7 @@
+ package ssa_test
+ 
+ import (
++	"cmd/internal/xcoff"
+ 	"debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
+@@ -25,6 +26,10 @@ func open(path string) (*dwarf.Data, error) {
+ 		return fh.DWARF()
+ 	}
+ 
++	if fh, err := xcoff.Open(path); err == nil {
++		return fh.DWARF()
++	}
++
+ 	return nil, fmt.Errorf("unrecognized executable format")
+ }
+ 

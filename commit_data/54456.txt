@@ -11,7 +11,80 @@ Date:   Tue Oct 18 13:33:32 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 16 ++--------------
  src/go/types/issues_test.go                    | 16 ++--------------
  2 files changed, 4 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index afce7e2715..f1d402b792 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -46,14 +46,8 @@ var (
+ 	_ = (interface{})("foo")
+ 	_ = (interface{})(nil)
+ )`
+-	f := mustParse(t, src)
+-
+-	var conf Config
+ 	types := make(map[syntax.Expr]TypeAndValue)
+-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	mustTypecheck(t, "p", src, &Info{Types: types})
+ 
+ 	for x, tv := range types {
+ 		var want Type
+@@ -91,14 +85,8 @@ func f() int {
+ 	return 0
+ }
+ `
+-	f := mustParse(t, src)
+-
+-	var conf Config
+ 	types := make(map[syntax.Expr]TypeAndValue)
+-	_, err := conf.Check(f.PkgName.Value, []*syntax.File{f}, &Info{Types: types})
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	mustTypecheck(t, "p", src, &Info{Types: types})
+ 
+ 	want := Typ[Int]
+ 	n := 0
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index b96f68d575..0045f30148 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -49,14 +49,8 @@ var (
+ 	_ = (interface{})("foo")
+ 	_ = (interface{})(nil)
+ )`
+-	f := mustParse(t, src)
+-
+-	var conf Config
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	mustTypecheck(t, "p", src, &Info{Types: types})
+ 
+ 	for x, tv := range types {
+ 		var want Type
+@@ -94,14 +88,8 @@ func f() int {
+ 	return 0
+ }
+ `
+-	f := mustParse(t, src)
+-
+-	var conf Config
+ 	types := make(map[ast.Expr]TypeAndValue)
+-	_, err := conf.Check(f.Name.Name, fset, []*ast.File{f}, &Info{Types: types})
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	mustTypecheck(t, "p", src, &Info{Types: types})
+ 
+ 	want := Typ[Int]
+ 	n := 0

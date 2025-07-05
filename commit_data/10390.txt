@@ -10,8 +10,90 @@ Date:   Mon Nov 14 16:10:58 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5375091
-
+---
  src/pkg/fmt/fmt_test.go  | 4 ++++
  src/pkg/fmt/print.go     | 8 ++++++++
  src/pkg/fmt/scan_test.go | 8 ++++----
  3 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index db83f85f95..6370560d0b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -357,6 +357,10 @@ var fmttests = []struct {
+ 	{"%#v", map[string]B{"a": {1, 2}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}}`},
+ 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
+ 	{"%#v", SI{}, `fmt_test.SI{I:interface {}(nil)}`},
++	{"%#v", []int(nil), `[]int(nil)`},
++	{"%#v", []int{}, `[]int{}`},
++	{"%#v", map[int]byte(nil), `map[int] uint8(nil)`},
++	{"%#v", map[int]byte{}, `map[int] uint8{}`},
+ 
+ 	// slices with other formats
+ 	{"%#x", []int{1, 2, 15}, `[0x1 0x2 0xf]`},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index bfa88d1870..7143e07a36 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -795,6 +795,10 @@ BigSwitch:
+ 	case reflect.Map:
+ 		if goSyntax {
+ 			p.buf.WriteString(f.Type().String())
++			if f.IsNil() {
++				p.buf.WriteString("(nil)")
++				break
++			}
+ 			p.buf.WriteByte('{')
+ 		} else {
+ 			p.buf.Write(mapBytes)
+@@ -873,6 +877,10 @@ BigSwitch:
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteString(value.Type().String())
++			if f.IsNil() {
++				p.buf.WriteString("(nil)")
++				break
++			}
+ 			p.buf.WriteByte('{')
+ 		} else {
+ 			p.buf.WriteByte('[')
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index d3c39be607..0689bf3b6e 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -324,7 +324,7 @@ var x, y Xs
+ var z IntString
+ 
+ var multiTests = []ScanfMultiTest{
+-	{"", "", nil, nil, ""},
++	{"", "", []interface{}{}, []interface{}{}, ""},
+ 	{"%d", "23", args(&i), args(23), ""},
+ 	{"%2s%3s", "22333", args(&s, &t), args("22", "333"), ""},
+ 	{"%2d%3d", "44555", args(&i, &j), args(44, 555), ""},
+@@ -378,7 +378,7 @@ func testScan(name string, t *testing.T, scan func(r io.Reader, a ...interface{}
+ 		}
+ 		val := v.Interface()
+ 		if !reflect.DeepEqual(val, test.out) {
+-			t.Errorf("%s scanning %q: expected %v got %v, type %T", name, test.text, test.out, val, val)
++			t.Errorf("%s scanning %q: expected %#v got %#v, type %T", name, test.text, test.out, val, val)
+ 		}
+ 	}
+ }
+@@ -417,7 +417,7 @@ func TestScanf(t *testing.T) {
+ 		}
+ 		val := v.Interface()
+ 		if !reflect.DeepEqual(val, test.out) {
+-			t.Errorf("scanning (%q, %q): expected %v got %v, type %T", test.format, test.text, test.out, val, val)
++			t.Errorf("scanning (%q, %q): expected %#v got %#v, type %T", test.format, test.text, test.out, val, val)
+ 		}
+ 	}
+ }
+@@ -520,7 +520,7 @@ func testScanfMulti(name string, t *testing.T) {
+ 		}
+ 		result := resultVal.Interface()
+ 		if !reflect.DeepEqual(result, test.out) {
+-			t.Errorf("scanning (%q, %q): expected %v got %v", test.format, test.text, test.out, result)
++			t.Errorf("scanning (%q, %q): expected %#v got %#v", test.format, test.text, test.out, result)
+ 		}
+ 	}
+ }

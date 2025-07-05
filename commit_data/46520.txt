@@ -18,8 +18,290 @@ Date:   Wed Jan 6 14:32:03 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  doc/go1.16.html         |  11 ----
  src/reflect/all_test.go | 170 ------------------------------------------------
  src/reflect/type.go     |  43 +++---------
  3 files changed, 9 insertions(+), 215 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 3e564f8af6..3645e018b2 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -845,17 +845,6 @@ func TestFoo(t *testing.T) {
+   </dd>
+ </dl><!-- path/filepath -->
+ 
+-<dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+-  <dd>
+-    <p><!-- CL 248341, golang.org/issues/40281 -->
+-      <a href="/pkg/reflect/#StructTag"><code>StructTag</code></a>
+-      now allows multiple space-separated keys in key:value pairs,
+-      as in <code>`json xml:"field1"`</code> (equivalent to
+-      <code>`json:"field1" xml:"field1"`</code>).
+-    </p>
+-  </dd>
+-</dl><!-- reflect -->
+-
+ <dl id="runtime/debug"><dt><a href="/pkg/runtime/debug/">runtime/debug</a></dt>
+   <dd>
+     <p><!-- CL 249677 -->
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index b01158635f..1225d6177d 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7168,176 +7168,6 @@ func TestMapIterDelete1(t *testing.T) {
+ 	}
+ }
+ 
+-func TestStructTagLookup(t *testing.T) {
+-	var tests = []struct {
+-		tag           StructTag
+-		key           string
+-		expectedValue string
+-		expectedOK    bool
+-	}{
+-		{
+-			tag:           `json:"json_value_1"`,
+-			key:           "json",
+-			expectedValue: "json_value_1",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json:"json_value_2" xml:"xml_value_2"`,
+-			key:           "json",
+-			expectedValue: "json_value_2",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json:"json_value_3" xml:"xml_value_3"`,
+-			key:           "xml",
+-			expectedValue: "xml_value_3",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `bson json:"shared_value_4"`,
+-			key:           "json",
+-			expectedValue: "shared_value_4",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `bson json:"shared_value_5"`,
+-			key:           "bson",
+-			expectedValue: "shared_value_5",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json bson xml form:"field_1,omitempty" other:"value_1"`,
+-			key:           "xml",
+-			expectedValue: "field_1,omitempty",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json bson xml form:"field_2,omitempty" other:"value_2"`,
+-			key:           "form",
+-			expectedValue: "field_2,omitempty",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json bson xml form:"field_3,omitempty" other:"value_3"`,
+-			key:           "other",
+-			expectedValue: "value_3",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json    bson    xml    form:"field_4" other:"value_4"`,
+-			key:           "json",
+-			expectedValue: "field_4",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json    bson    xml    form:"field_5" other:"value_5"`,
+-			key:           "non_existing",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `json "json_6"`,
+-			key:           "json",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `json:"json_7" bson "bson_7"`,
+-			key:           "json",
+-			expectedValue: "json_7",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `json:"json_8" xml "xml_8"`,
+-			key:           "xml",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `json    bson    xml    form "form_9" other:"value_9"`,
+-			key:           "bson",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `json bson xml form "form_10" other:"value_10"`,
+-			key:           "other",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `json bson xml form:"form_11" other "value_11"`,
+-			key:           "json",
+-			expectedValue: "form_11",
+-			expectedOK:    true,
+-		},
+-		{
+-			tag:           `tag1`,
+-			key:           "tag1",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `tag2 :"hello_2"`,
+-			key:           "tag2",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           `tag3: "hello_3"`,
+-			key:           "tag3",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "json\x7fbson: \"hello_4\"",
+-			key:           "json",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "json\x7fbson: \"hello_5\"",
+-			key:           "bson",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "json bson:\x7f\"hello_6\"",
+-			key:           "json",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "json bson:\x7f\"hello_7\"",
+-			key:           "bson",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "json\x09bson:\"hello_8\"",
+-			key:           "json",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-		{
+-			tag:           "a\x7fb json:\"val\"",
+-			key:           "json",
+-			expectedValue: "",
+-			expectedOK:    false,
+-		},
+-	}
+-
+-	for _, test := range tests {
+-		v, ok := test.tag.Lookup(test.key)
+-		if v != test.expectedValue {
+-			t.Errorf("struct tag lookup failed, got %s, want %s", v, test.expectedValue)
+-		}
+-		if ok != test.expectedOK {
+-			t.Errorf("struct tag lookup failed, got %t, want %t", ok, test.expectedOK)
+-		}
+-	}
+-}
+-
+ // iterateToString returns the set of elements
+ // returned by an iterator in readable form.
+ func iterateToString(it *MapIter) string {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1f1e70d485..a1cdf45e15 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1104,16 +1104,12 @@ type StructField struct {
+ 
+ // A StructTag is the tag string in a struct field.
+ //
+-// By convention, tag strings are a mapping of keys to values.
+-// The format is key:"value". Each key is a non-empty string consisting
+-// of non-control characters other than space (U+0020 ' '),
+-// quote (U+0022 '"'), and colon (U+003A ':'). Each value is quoted
+-// using U+0022 '"' characters and Go string literal syntax.
+-// Multiple key-value mappings are separated by zero or more spaces, as in
+-//   key1:"value1" key2:"value2"
+-// Multiple keys may map to a single shared value by separating the keys
+-// with spaces, as in
+-//   key1 key2:"value"
++// By convention, tag strings are a concatenation of
++// optionally space-separated key:"value" pairs.
++// Each key is a non-empty string consisting of non-control
++// characters other than space (U+0020 ' '), quote (U+0022 '"'),
++// and colon (U+003A ':').  Each value is quoted using U+0022 '"'
++// characters and Go string literal syntax.
+ type StructTag string
+ 
+ // Get returns the value associated with key in the tag string.
+@@ -1136,9 +1132,6 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ 	// When modifying this code, also update the validateStructTag code
+ 	// in cmd/vet/structtag.go.
+ 
+-	// keyFound indicates that such key on the left side has already been found.
+-	var keyFound bool
+-
+ 	for tag != "" {
+ 		// Skip leading space.
+ 		i := 0
+@@ -1158,29 +1151,11 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ 		for i < len(tag) && tag[i] > ' ' && tag[i] != ':' && tag[i] != '"' && tag[i] != 0x7f {
+ 			i++
+ 		}
+-		if i == 0 || i+1 >= len(tag) || tag[i] < ' ' || tag[i] == 0x7f {
++		if i == 0 || i+1 >= len(tag) || tag[i] != ':' || tag[i+1] != '"' {
+ 			break
+ 		}
+ 		name := string(tag[:i])
+-		tag = tag[i:]
+-
+-		// If we found a space char here - assume that we have a tag with
+-		// multiple keys.
+-		if tag[0] == ' ' {
+-			if name == key {
+-				keyFound = true
+-			}
+-			continue
+-		}
+-
+-		// Spaces were filtered above so we assume that here we have
+-		// only valid tag value started with `:"`.
+-		if tag[0] != ':' || tag[1] != '"' {
+-			break
+-		}
+-
+-		// Remove the colon leaving tag at the start of the quoted string.
+-		tag = tag[1:]
++		tag = tag[i+1:]
+ 
+ 		// Scan quoted string to find value.
+ 		i = 1
+@@ -1196,7 +1171,7 @@ func (tag StructTag) Lookup(key string) (value string, ok bool) {
+ 		qvalue := string(tag[:i+1])
+ 		tag = tag[i+1:]
+ 
+-		if key == name || keyFound {
++		if key == name {
+ 			value, err := strconv.Unquote(qvalue)
+ 			if err != nil {
+ 				break

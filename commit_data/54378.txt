@@ -20,6 +20,32 @@ Date:   Wed Oct 12 13:29:01 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/os/wait_wait6.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 1464576b7c..e5cf87b135 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -11,7 +11,10 @@ import (
+ 	"syscall"
+ )
+ 
+-const _P_PID = 0
++const (
++	_P_PID        = 0 // everywhere except for NetBSD?
++	_P_PID_NETBSD = 1 // on NetBSD, 0 is P_ALL
++)
+ 
+ // blockUntilWaitable attempts to block until a call to p.Wait will
+ // succeed immediately, and reports whether it has done so.
+@@ -26,6 +29,8 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0, 0)
+ 		} else if runtime.GOOS == "freebsd" && runtime.GOARCH == "arm" {
+ 			_, _, errno = syscall.Syscall9(syscall.SYS_WAIT6, _P_PID, 0, uintptr(p.Pid), 0, 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0, 0)
++		} else if runtime.GOOS == "netbsd" {
++			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID_NETBSD, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+ 		} else {
+ 			_, _, errno = syscall.Syscall6(syscall.SYS_WAIT6, _P_PID, uintptr(p.Pid), 0, syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+ 		}

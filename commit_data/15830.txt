@@ -7,7 +7,7 @@ Date:   Wed Mar 20 02:40:29 2013 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7884045
-
+---
  src/pkg/runtime/arch_386.h      | 4 ++++
  src/pkg/runtime/arch_amd64.h    | 4 ++++
  src/pkg/runtime/arch_arm.h      | 4 ++++
@@ -18,3 +18,115 @@ Date:   Wed Mar 20 02:40:29 2013 +0900
  src/pkg/runtime/signals_plan9.h | 4 ++++
  src/pkg/runtime/string_test.go  | 4 ++++
  9 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index 4df795f712..62ed11b402 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ enum {
+ 	thechar = '8',
+ 	BigEndian = 0,
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index e83dc91056..a5e43ca8d0 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index f6af58514f..bb65d3faf1 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 7ee329ff5c..68c0f4750b 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -1,5 +1,6 @@
+-// Use of this source file is governed by a BSD-style
+-// license that can be found in the LICENSE file.`
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/os_freebsd.h b/src/pkg/runtime/os_freebsd.h
+index 3d631bfc80..e9be1362c1 100644
+--- a/src/pkg/runtime/os_freebsd.h
++++ b/src/pkg/runtime/os_freebsd.h
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #define SS_DISABLE 4
+ 
+ int32	runtime·thr_new(ThrParam*, int32);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index d4b874f4c2..936334cac6 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -1,5 +1,6 @@
+-// Use of this source file is governed by a BSD-style
+-// license that can be found in the LICENSE file.`
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 2c34f0ef99..4ce64f9f2a 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -1,5 +1,6 @@
+-// Use of this source file is governed by a BSD-style
+-// license that can be found in the LICENSE file.`
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+ #include "defs_GOOS_GOARCH.h"
+diff --git a/src/pkg/runtime/signals_plan9.h b/src/pkg/runtime/signals_plan9.h
+index 0f1165e2a8..f9bec65fcb 100644
+--- a/src/pkg/runtime/signals_plan9.h
++++ b/src/pkg/runtime/signals_plan9.h
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #define N SigNotify
+ #define T SigThrow
+ #define P SigPanic
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index 8f13f0f428..6ba3c1d292 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime_test
+ 
+ import (

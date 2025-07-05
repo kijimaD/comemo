@@ -9,6 +9,20 @@ Date:   Tue May 24 15:50:02 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/subtle/constant_time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/subtle/constant_time.go b/src/crypto/subtle/constant_time.go
+index 6f80e7c58d..11312b8dd4 100644
+--- a/src/crypto/subtle/constant_time.go
++++ b/src/crypto/subtle/constant_time.go
+@@ -6,7 +6,7 @@
+ // code but require careful thought to use correctly.
+ package subtle
+ 
+-// ConstantTimeCompare returns 1 iff the two slices, x
++// ConstantTimeCompare returns 1 if and only if the two slices, x
+ // and y, have equal contents. The time taken is a function of the length of
+ // the slices and is independent of the contents.
+ func ConstantTimeCompare(x, y []byte) int {

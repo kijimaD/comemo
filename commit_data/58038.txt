@@ -18,10 +18,182 @@ Date:   Thu Sep 7 12:41:37 2023 +0200
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/os_windows.go       | 23 ++++++++++++++++++++---
  src/runtime/sys_windows_386.s   | 11 +++--------
  src/runtime/sys_windows_amd64.s | 16 ++++------------
  src/runtime/sys_windows_arm.s   | 13 +++----------
  src/runtime/sys_windows_arm64.s | 11 +++--------
  5 files changed, 33 insertions(+), 41 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index e52f9e6bd5..576988e107 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -955,6 +955,22 @@ func mdestroy(mp *m) {
+ 	}
+ }
+ 
++// asmstdcall_trampoline calls asmstdcall converting from Go to C calling convention.
++func asmstdcall_trampoline(args unsafe.Pointer)
++
++// stdcall_no_g calls asmstdcall on os stack without using g.
++//
++//go:nosplit
++func stdcall_no_g(fn stdFunction, n int, args uintptr) uintptr {
++	libcall := libcall{
++		fn:   uintptr(unsafe.Pointer(fn)),
++		n:    uintptr(n),
++		args: args,
++	}
++	asmstdcall_trampoline(noescape(unsafe.Pointer(&libcall)))
++	return libcall.r1
++}
++
+ // Calling stdcall on os stack.
+ // May run during STW, so write barriers are not allowed.
+ //
+@@ -1054,16 +1070,17 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 
+ // These must run on the system stack only.
+ func usleep2(dt int32)
+-func switchtothread()
+ 
+ //go:nosplit
+ func osyield_no_g() {
+-	switchtothread()
++	stdcall_no_g(_SwitchToThread, 0, 0)
+ }
+ 
+ //go:nosplit
+ func osyield() {
+-	systemstack(switchtothread)
++	systemstack(func() {
++		stdcall0(_SwitchToThread)
++	})
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 2efde4515b..c8d4bf93a7 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -11,6 +11,9 @@
+ #define TEB_TlsSlots 0xE10
+ #define TEB_ArbitraryPtr 0x14
+ 
++TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
++	JMP	runtime·asmstdcall(SB)
++
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 	MOVL	fn+0(FP), BX
+@@ -248,14 +251,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20-4
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// Runs on OS stack.
+-TEXT runtime·switchtothread(SB),NOSPLIT,$0
+-	MOVL	SP, BP
+-	MOVL	runtime·_SwitchToThread(SB), AX
+-	CALL	AX
+-	MOVL	BP, SP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ loop:
+ 	MOVL	(_INTERRUPT_TIME+time_hi1), AX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 7a7905e56a..af2b52735d 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -12,6 +12,10 @@
+ #define TEB_TlsSlots 0x1480
+ #define TEB_ArbitraryPtr 0x28
+ 
++TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
++	MOVQ	AX, CX
++	JMP	runtime·asmstdcall(SB)
++
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+ 	MOVQ	SP, AX
+@@ -258,18 +262,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$48-4
+ 	MOVQ	40(SP), SP
+ 	RET
+ 
+-// Runs on OS stack.
+-TEXT runtime·switchtothread(SB),NOSPLIT,$0
+-	MOVQ	SP, AX
+-	ANDQ	$~15, SP	// alignment as per Windows requirement
+-	SUBQ	$(48), SP	// room for SP and 4 args as per Windows requirement
+-				// plus one extra word to keep stack 16 bytes aligned
+-	MOVQ	AX, 32(SP)
+-	MOVQ	runtime·_SwitchToThread(SB), AX
+-	CALL	AX
+-	MOVQ	32(SP), SP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ 	MOVQ	$_INTERRUPT_TIME, DI
+ 	MOVQ	time_lo(DI), AX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index c9fca19981..4b941e40ae 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -9,6 +9,9 @@
+ 
+ // Note: For system ABI, R0-R3 are args, R4-R11 are callee-save.
+ 
++TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
++	B	runtime·asmstdcall(SB)
++
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVM.DB.W [R4, R5, R14], (R13)	// push {r4, r5, lr}
+@@ -211,16 +214,6 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
+ 	MOVW	R4, R13			// Restore SP
+ 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+ 
+-// Runs on OS stack.
+-TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+-	MOVM.DB.W [R4, R14], (R13)  	// push {R4, lr}
+-	MOVW    R13, R4
+-	BIC	$0x7, R13		// alignment for ABI
+-	MOVW	runtime·_SwitchToThread(SB), R0
+-	BL	(R0)
+-	MOVW 	R4, R13			// restore stack pointer
+-	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+-
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	B	runtime·armPublicationBarrier(SB)
+ 
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 2781c3c7d0..4818994ed4 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -19,6 +19,9 @@
+ //
+ // load_g and save_g (in tls_arm64.s) clobber R27 (REGTMP) and R0.
+ 
++TEXT runtime·asmstdcall_trampoline<ABIInternal>(SB),NOSPLIT,$0
++	B	runtime·asmstdcall(SB)
++
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),NOSPLIT,$16
+ 	STP	(R19, R20), 16(RSP) // save old R19, R20
+@@ -240,14 +243,6 @@ TEXT runtime·usleep2(SB),NOSPLIT,$32-4
+ 	ADD	$16, RSP
+ 	RET
+ 
+-// Runs on OS stack.
+-TEXT runtime·switchtothread(SB),NOSPLIT,$16-0
+-	MOVD	runtime·_SwitchToThread(SB), R0
+-	SUB	$16, RSP	// skip over saved frame pointer below RSP
+-	BL	(R0)
+-	ADD	$16, RSP
+-	RET
+-
+ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ 	MOVD	$_INTERRUPT_TIME, R3
+ 	MOVD	time_lo(R3), R0

@@ -11,7 +11,95 @@ Date:   Wed Feb 22 23:21:56 2012 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5683077
-
+---
  src/pkg/go/parser/parser.go      | 17 +++++++++++++++++
  src/pkg/go/parser/parser_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index c1e6190448..a122baf087 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -14,6 +14,9 @@ import (
+ 	"go/ast"
+ 	"go/scanner"
+ 	"go/token"
++	"strconv"
++	"strings"
++	"unicode"
+ )
+ 
+ // The parser structure holds the parser's internal state.
+@@ -1913,6 +1916,17 @@ func (p *parser) parseStmt() (s ast.Stmt) {
+ 
+ type parseSpecFunction func(p *parser, doc *ast.CommentGroup, iota int) ast.Spec
+ 
++func isValidImport(lit string) bool {
++	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
++	s, _ := strconv.Unquote(lit) // go/scanner returns a legal string literal
++	for _, r := range s {
++		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
++			return false
++		}
++	}
++	return s != ""
++}
++
+ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 	if p.trace {
+ 		defer un(trace(p, "ImportSpec"))
+@@ -1929,6 +1943,9 @@ func parseImportSpec(p *parser, doc *ast.CommentGroup, _ int) ast.Spec {
+ 
+ 	var path *ast.BasicLit
+ 	if p.tok == token.STRING {
++		if !isValidImport(p.lit) {
++			p.error(p.pos, "invalid import path: "+p.lit)
++		}
+ 		path = &ast.BasicLit{ValuePos: p.pos, Kind: p.tok, Value: p.lit}
+ 		p.next()
+ 	} else {
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index a3ee8525de..da0df14741 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -5,6 +5,7 @@
+ package parser
+ 
+ import (
++	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"os"
+@@ -204,3 +205,32 @@ func TestVarScope(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var imports = map[string]bool{
++	"a":        true,
++	"a/b":      true,
++	"a.b":      true,
++	"m\x61th":  true,
++	"greek/αβ": true,
++	"":         false,
++	"\x00":     false,
++	"\x7f":     false,
++	"a!":       false,
++	"a b":      false,
++	`a\b`:      false,
++	"`a`":      false,
++	"\x80\x80": false,
++}
++
++func TestImports(t *testing.T) {
++	for path, isValid := range imports {
++		src := fmt.Sprintf("package p; import %q", path)
++		_, err := ParseFile(fset, "", src, 0)
++		switch {
++		case err != nil && isValid:
++			t.Errorf("ParseFile(%s): got %v; expected no error", src, err)
++		case err == nil && !isValid:
++			t.Errorf("ParseFile(%s): got no error; expected one", src)
++		}
++	}
++}

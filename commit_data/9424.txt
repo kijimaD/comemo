@@ -10,7 +10,47 @@ Date:   Sat Aug 20 12:39:38 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/4928042
-
+---
  src/cmd/godoc/godoc.go | 14 +++++++++++++-
  src/cmd/godoc/main.go  |  2 +-
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b8a8394043..3d29db5199 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -540,7 +540,19 @@ func readTemplate(name string) *template.Template {
+ 			path = defaultpath
+ 		}
+ 	}
+-	return template.Must(template.New(name).Funcs(fmap).ParseFile(path))
++
++	// use underlying file system fs to read the template file
++	// (cannot use template ParseFile functions directly)
++	data, err := fs.ReadFile(path)
++	if err != nil {
++		log.Fatal("readTemplate: ", err)
++	}
++	// be explicit with errors (for app engine use)
++	t, err := template.New(name).Funcs(fmap).Parse(string(data))
++	if err != nil {
++		log.Fatal("readTemplate: ", err)
++	}
++	return t
+ }
+ 
+ var (
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 89b12b9acb..48bfa2477e 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -250,8 +250,8 @@ func main() {
+ 		fsHttp = NewHttpZipFS(rc, *goroot)
+ 	}
+ 
+-	initHandlers()
+ 	readTemplates()
++	initHandlers()
+ 
+ 	if *httpAddr != "" {
+ 		// HTTP server mode.

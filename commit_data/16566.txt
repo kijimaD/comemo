@@ -7,7 +7,7 @@ Date:   Thu Jun 13 16:38:44 2013 +0400
     R=golang-dev, dave
     CC=golang-dev
     https://golang.org/cl/10259043
-
+---
  src/pkg/runtime/race.c       | 22 +++++++++++-----------
  src/pkg/runtime/race.h       |  4 ++--
  src/pkg/runtime/race/race.go |  8 ++++----
@@ -15,3 +15,228 @@ Date:   Thu Jun 13 16:38:44 2013 +0400
  src/pkg/runtime/slice.c      | 18 +++++++++---------
  src/pkg/runtime/string.goc   |  4 ++--
  6 files changed, 30 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 3a094896f9..765a4b5502 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -16,8 +16,8 @@ void runtime∕race·Finalize(void);
+ void runtime∕race·FinalizerGoroutine(uintptr racectx);
+ void runtime∕race·Read(uintptr racectx, void *addr, void *pc);
+ void runtime∕race·Write(uintptr racectx, void *addr, void *pc);
+-void runtime∕race·ReadRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
+-void runtime∕race·WriteRange(uintptr racectx, void *addr, uintptr sz, uintptr step, void *pc);
++void runtime∕race·ReadRange(uintptr racectx, void *addr, uintptr sz, void *pc);
++void runtime∕race·WriteRange(uintptr racectx, void *addr, uintptr sz, void *pc);
+ void runtime∕race·FuncEnter(uintptr racectx, void *pc);
+ void runtime∕race·FuncExit(uintptr racectx);
+ void runtime∕race·Malloc(uintptr racectx, void *p, uintptr sz, void *pc);
+@@ -189,7 +189,7 @@ runtime·racereadpc(void *addr, void *callpc, void *pc)
+ }
+ 
+ static void
+-rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc, bool write)
++rangeaccess(void *addr, uintptr size, uintptr callpc, uintptr pc, bool write)
+ {
+ 	uintptr racectx;
+ 
+@@ -202,9 +202,9 @@ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc,
+ 			runtime∕race·FuncEnter(racectx, (void*)callpc);
+ 		}
+ 		if(write)
+-			runtime∕race·WriteRange(racectx, addr, size, step, (void*)pc);
++			runtime∕race·WriteRange(racectx, addr, size, (void*)pc);
+ 		else
+-			runtime∕race·ReadRange(racectx, addr, size, step, (void*)pc);
++			runtime∕race·ReadRange(racectx, addr, size, (void*)pc);
+ 		if(callpc)
+ 			runtime∕race·FuncExit(racectx);
+ 		m->racecall = false;
+@@ -212,15 +212,15 @@ rangeaccess(void *addr, uintptr size, uintptr step, uintptr callpc, uintptr pc,
+ }
+ 
+ void
+-runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
++runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+-	rangeaccess(addr, sz, step, (uintptr)callpc, (uintptr)pc, true);
++	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, true);
+ }
+ 
+ void
+-runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
++runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+-	rangeaccess(addr, sz, step, (uintptr)callpc, (uintptr)pc, false);
++	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, false);
+ }
+ 
+ void
+@@ -335,7 +335,7 @@ runtime·RaceWrite(void *addr)
+ void
+ runtime·RaceReadRange(void *addr, intgo len)
+ {
+-	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), false);
++	rangeaccess(addr, len, 0, (uintptr)runtime·getcallerpc(&addr), false);
+ }
+ 
+ // func RaceWriteRange(addr unsafe.Pointer, len int)
+@@ -343,7 +343,7 @@ runtime·RaceReadRange(void *addr, intgo len)
+ void
+ runtime·RaceWriteRange(void *addr, intgo len)
+ {
+-	rangeaccess(addr, len, 1, 0, (uintptr)runtime·getcallerpc(&addr), true);
++	rangeaccess(addr, len, 0, (uintptr)runtime·getcallerpc(&addr), true);
+ }
+ 
+ // func RaceDisable()
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index 432a8a97d1..971783bf0c 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -22,8 +22,8 @@ uintptr	runtime·racegostart(void *pc);
+ void	runtime·racegoend(void);
+ void	runtime·racewritepc(void *addr, void *callpc, void *pc);
+ void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+-void	runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc);
+-void	runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc);
++void	runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc);
++void	runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc);
+ void	runtime·racefingo(void);
+ void	runtime·raceacquire(void *addr);
+ void	runtime·raceacquireg(G *gp, void *addr);
+diff --git a/src/pkg/runtime/race/race.go b/src/pkg/runtime/race/race.go
+index ee13057e36..5b44bde835 100644
+--- a/src/pkg/runtime/race/race.go
++++ b/src/pkg/runtime/race/race.go
+@@ -56,14 +56,14 @@ func Write(racectx uintptr, addr, pc uintptr) {
+ 	C.__tsan_write(unsafe.Pointer(racectx), unsafe.Pointer(addr), unsafe.Pointer(pc))
+ }
+ 
+-func ReadRange(racectx uintptr, addr, sz, step, pc uintptr) {
++func ReadRange(racectx uintptr, addr, sz, pc uintptr) {
+ 	C.__tsan_read_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
+-		C.long(sz), C.long(step), unsafe.Pointer(pc))
++		C.long(sz), 0 /*step is unused*/, unsafe.Pointer(pc))
+ }
+ 
+-func WriteRange(racectx uintptr, addr, sz, step, pc uintptr) {
++func WriteRange(racectx uintptr, addr, sz, pc uintptr) {
+ 	C.__tsan_write_range(unsafe.Pointer(racectx), unsafe.Pointer(addr),
+-		C.long(sz), C.long(step), unsafe.Pointer(pc))
++		C.long(sz), 0 /*step is unused*/, unsafe.Pointer(pc))
+ }
+ 
+ func FuncEnter(racectx uintptr, pc uintptr) {
+diff --git a/src/pkg/runtime/race0.c b/src/pkg/runtime/race0.c
+index 1c5f05a7e1..0ebc099838 100644
+--- a/src/pkg/runtime/race0.c
++++ b/src/pkg/runtime/race0.c
+@@ -43,21 +43,19 @@ runtime·racereadpc(void *addr, void *callpc, void *pc)
+ }
+ 
+ void
+-runtime·racewriterangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
++runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+ 	USED(addr);
+ 	USED(sz);
+-	USED(step);
+ 	USED(callpc);
+ 	USED(pc);
+ }
+ 
+ void
+-runtime·racereadrangepc(void *addr, uintptr sz, uintptr step, void *callpc, void *pc)
++runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ {
+ 	USED(addr);
+ 	USED(sz);
+-	USED(step);
+ 	USED(callpc);
+ 	USED(pc);
+ }
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index fe1290d63c..3adbe51837 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -82,12 +82,12 @@ runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+ 		pc = runtime·getcallerpc(&t);
+ 		// read x[:len]
+ 		if(m > x.cap)
+-			runtime·racereadrangepc(x.array, x.len*w, w, pc, runtime·appendslice);
++			runtime·racereadrangepc(x.array, x.len*w, pc, runtime·appendslice);
+ 		// read y
+-		runtime·racereadrangepc(y.array, y.len*w, w, pc, runtime·appendslice);
++		runtime·racereadrangepc(y.array, y.len*w, pc, runtime·appendslice);
+ 		// write x[len(x):len(x)+len(y)]
+ 		if(m <= x.cap)
+-			runtime·racewriterangepc(ret.array+ret.len*w, y.len*w, w, pc, runtime·appendslice);
++			runtime·racewriterangepc(ret.array+ret.len*w, y.len*w, pc, runtime·appendslice);
+ 	}
+ 
+ 	// A very common case is appending bytes. Small appends can avoid the overhead of memmove.
+@@ -138,10 +138,10 @@ runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+ 		pc = runtime·getcallerpc(&t);
+ 		// read x[:len]
+ 		if(m > x.cap)
+-			runtime·racereadrangepc(x.array, x.len, 1, pc, runtime·appendstr);
++			runtime·racereadrangepc(x.array, x.len, pc, runtime·appendstr);
+ 		// write x[len(x):len(x)+len(y)]
+ 		if(m <= x.cap)
+-			runtime·racewriterangepc(ret.array+ret.len, y.len, 1, pc, runtime·appendstr);
++			runtime·racewriterangepc(ret.array+ret.len, y.len, pc, runtime·appendstr);
+ 	}
+ 
+ 	// Small appends can avoid the overhead of memmove.
+@@ -176,7 +176,7 @@ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)
+ 
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&t);
+-		runtime·racereadrangepc(old.array, old.len*t->elem->size, t->elem->size, pc, runtime·growslice);
++		runtime·racereadrangepc(old.array, old.len*t->elem->size, pc, runtime·growslice);
+ 	}
+ 
+ 	growslice1(t, old, cap, &ret);
+@@ -234,8 +234,8 @@ runtime·copy(Slice to, Slice fm, uintptr width, intgo ret)
+ 
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&to);
+-		runtime·racewriterangepc(to.array, ret*width, width, pc, runtime·copy);
+-		runtime·racereadrangepc(fm.array, ret*width, width, pc, runtime·copy);
++		runtime·racewriterangepc(to.array, ret*width, pc, runtime·copy);
++		runtime·racereadrangepc(fm.array, ret*width, pc, runtime·copy);
+ 	}
+ 
+ 	if(ret == 1 && width == 1) {	// common case worth about 2x to do here
+@@ -277,7 +277,7 @@ runtime·slicestringcopy(Slice to, String fm, intgo ret)
+ 
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&to);
+-		runtime·racewriterangepc(to.array, ret, 1, pc, runtime·slicestringcopy);
++		runtime·racewriterangepc(to.array, ret, pc, runtime·slicestringcopy);
+ 	}
+ 
+ 	runtime·memmove(to.array, fm.str, ret);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index bc88d09a8b..30639f9bb6 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -240,7 +240,7 @@ func slicebytetostring(b Slice) (s String) {
+ 
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&b);
+-		runtime·racereadrangepc(b.array, b.len, 1, pc, runtime·slicebytetostring);
++		runtime·racereadrangepc(b.array, b.len, pc, runtime·slicebytetostring);
+ 	}
+ 	s = gostringsize(b.len);
+ 	runtime·memmove(s.str, b.array, s.len);
+@@ -261,7 +261,7 @@ func slicerunetostring(b Slice) (s String) {
+ 
+ 	if(raceenabled) {
+ 		pc = runtime·getcallerpc(&b);
+-		runtime·racereadrangepc(b.array, b.len*sizeof(*a), sizeof(*a), pc, runtime·slicerunetostring);
++		runtime·racereadrangepc(b.array, b.len*sizeof(*a), pc, runtime·slicerunetostring);
+ 	}
+ 	a = (int32*)b.array;
+ 	siz1 = 0;

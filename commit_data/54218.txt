@@ -11,6 +11,19 @@ Date:   Wed Sep 28 18:12:55 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/fs.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 3feef8f2b0..d007e763c3 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -642,7 +642,6 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 			defer ff.Close()
+ 			dd, err := ff.Stat()
+ 			if err == nil {
+-				name = index
+ 				d = dd
+ 				f = ff
+ 			}

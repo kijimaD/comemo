@@ -12,7 +12,7 @@ Date:   Mon Nov 13 08:57:14 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
-
+---
  src/cmd/cgo/internal/test/issue4339.c             | 4 ++++
  src/cmd/cgo/internal/test/issue4339.h             | 4 ++++
  src/cmd/cgo/internal/test/issue8756.go            | 4 ++++
@@ -34,3 +34,242 @@ Date:   Mon Nov 13 08:57:14 2023 +0000
  src/runtime/pprof/label_test.go                   | 4 ++++
  src/runtime/test_amd64.s                          | 4 ++++
  20 files changed, 80 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/test/issue4339.c b/src/cmd/cgo/internal/test/issue4339.c
+index 15d0004078..d0e64878d1 100644
+--- a/src/cmd/cgo/internal/test/issue4339.c
++++ b/src/cmd/cgo/internal/test/issue4339.c
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include <stdio.h>
+ #include "issue4339.h"
+ 
+diff --git a/src/cmd/cgo/internal/test/issue4339.h b/src/cmd/cgo/internal/test/issue4339.h
+index 20f6cebb6b..99a09960e2 100644
+--- a/src/cmd/cgo/internal/test/issue4339.h
++++ b/src/cmd/cgo/internal/test/issue4339.h
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ typedef struct Issue4339 Issue4339;
+ 
+ struct Issue4339 {
+diff --git a/src/cmd/cgo/internal/test/issue8756.go b/src/cmd/cgo/internal/test/issue8756.go
+index 817f449e96..d8eadfde6d 100644
+--- a/src/cmd/cgo/internal/test/issue8756.go
++++ b/src/cmd/cgo/internal/test/issue8756.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package cgotest
+ 
+ /*
+diff --git a/src/cmd/cgo/internal/test/issue8756/issue8756.go b/src/cmd/cgo/internal/test/issue8756/issue8756.go
+index 223397f067..02a1424b9f 100644
+--- a/src/cmd/cgo/internal/test/issue8756/issue8756.go
++++ b/src/cmd/cgo/internal/test/issue8756/issue8756.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package issue8756
+ 
+ /*
+diff --git a/src/cmd/cgo/internal/test/issue8828/trivial.go b/src/cmd/cgo/internal/test/issue8828/trivial.go
+index e7b9a4e573..9f2619654f 100644
+--- a/src/cmd/cgo/internal/test/issue8828/trivial.go
++++ b/src/cmd/cgo/internal/test/issue8828/trivial.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package issue8828
+ 
+ //void foo();
+diff --git a/src/cmd/cgo/internal/test/issue9026/issue9026.go b/src/cmd/cgo/internal/test/issue9026/issue9026.go
+index ff269ca9eb..13bc180321 100644
+--- a/src/cmd/cgo/internal/test/issue9026/issue9026.go
++++ b/src/cmd/cgo/internal/test/issue9026/issue9026.go
+@@ -1,3 +1,7 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package issue9026
+ 
+ // This file appears in its own package since the assertion tests the
+diff --git a/src/cmd/cgo/internal/test/issue9510a/a.go b/src/cmd/cgo/internal/test/issue9510a/a.go
+index 1a5224b8c6..f0a0128d10 100644
+--- a/src/cmd/cgo/internal/test/issue9510a/a.go
++++ b/src/cmd/cgo/internal/test/issue9510a/a.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package issue9510a
+ 
+ /*
+diff --git a/src/cmd/cgo/internal/test/issue9510b/b.go b/src/cmd/cgo/internal/test/issue9510b/b.go
+index 5016b39597..6e22508c32 100644
+--- a/src/cmd/cgo/internal/test/issue9510b/b.go
++++ b/src/cmd/cgo/internal/test/issue9510b/b.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package issue9510b
+ 
+ /*
+diff --git a/src/cmd/compile/internal/ssa/_gen/allocators.go b/src/cmd/compile/internal/ssa/_gen/allocators.go
+index 5c72fe8be1..5869a61e82 100644
+--- a/src/cmd/compile/internal/ssa/_gen/allocators.go
++++ b/src/cmd/compile/internal/ssa/_gen/allocators.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package main
+ 
+ // TODO: should we share backing storage for similarly-shaped types?
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index 2e32afe2a6..6c89b1e185 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package ssa
+ 
+ import (
+diff --git a/src/cmd/compile/internal/test/logic_test.go b/src/cmd/compile/internal/test/logic_test.go
+index 1d7043ff60..0e46b5faef 100644
+--- a/src/cmd/compile/internal/test/logic_test.go
++++ b/src/cmd/compile/internal/test/logic_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package test
+ 
+ import "testing"
+diff --git a/src/cmd/compile/internal/test/math_test.go b/src/cmd/compile/internal/test/math_test.go
+index 6bcb4601ba..1febe9d42b 100644
+--- a/src/cmd/compile/internal/test/math_test.go
++++ b/src/cmd/compile/internal/test/math_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package test
+ 
+ import (
+diff --git a/src/cmd/compile/internal/test/test.go b/src/cmd/compile/internal/test/test.go
+index 56e5404079..195c65a9ea 100644
+--- a/src/cmd/compile/internal/test/test.go
++++ b/src/cmd/compile/internal/test/test.go
+@@ -1 +1,5 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package test
+diff --git a/src/internal/trace/v2/version/version.go b/src/internal/trace/v2/version/version.go
+index deb8f2b9fc..bb4df8469e 100644
+--- a/src/internal/trace/v2/version/version.go
++++ b/src/internal/trace/v2/version/version.go
+@@ -1,3 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package version
+ 
+ import (
+diff --git a/src/log/slog/internal/benchmarks/handlers_test.go b/src/log/slog/internal/benchmarks/handlers_test.go
+index 6c00c80286..0e0fbf169f 100644
+--- a/src/log/slog/internal/benchmarks/handlers_test.go
++++ b/src/log/slog/internal/benchmarks/handlers_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package benchmarks
+ 
+ import (
+diff --git a/src/net/http/responsecontroller_test.go b/src/net/http/responsecontroller_test.go
+index 5828f3795a..f1dcc79ef8 100644
+--- a/src/net/http/responsecontroller_test.go
++++ b/src/net/http/responsecontroller_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package http_test
+ 
+ import (
+diff --git a/src/runtime/internal/sys/intrinsics_test.go b/src/runtime/internal/sys/intrinsics_test.go
+index bf75f19848..6799885001 100644
+--- a/src/runtime/internal/sys/intrinsics_test.go
++++ b/src/runtime/internal/sys/intrinsics_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package sys_test
+ 
+ import (
+diff --git a/src/runtime/netpoll_os_test.go b/src/runtime/netpoll_os_test.go
+index b96b9f3ee3..1e375f88c7 100644
+--- a/src/runtime/netpoll_os_test.go
++++ b/src/runtime/netpoll_os_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package runtime_test
+ 
+ import (
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index fcb00bde50..cefd9a53e2 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package pprof
+ 
+ import (
+diff --git a/src/runtime/test_amd64.s b/src/runtime/test_amd64.s
+index 80fa8c9948..cc4bc6296d 100644
+--- a/src/runtime/test_amd64.s
++++ b/src/runtime/test_amd64.s
+@@ -1,3 +1,7 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // Create a large frame to force stack growth. See #62326.
+ TEXT ·testSPWrite(SB),0,$16384-0
+ 	// Write to SP

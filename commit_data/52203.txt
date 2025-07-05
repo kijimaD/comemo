@@ -10,6 +10,65 @@ Date:   Thu Apr 14 13:14:18 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  test/codegen/switch.go | 50 ++++++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 50 insertions(+)
+
+diff --git a/test/codegen/switch.go b/test/codegen/switch.go
+index 2ac817d14c..a6566834a8 100644
+--- a/test/codegen/switch.go
++++ b/test/codegen/switch.go
+@@ -20,3 +20,53 @@ func f(x string) int {
+ 		return -3
+ 	}
+ }
++
++// use jump tables for 8+ int cases
++func square(x int) int {
++	// amd64:`JMP\s\(.*\)\(.*\)$`
++	switch x {
++	case 1:
++		return 1
++	case 2:
++		return 4
++	case 3:
++		return 9
++	case 4:
++		return 16
++	case 5:
++		return 25
++	case 6:
++		return 36
++	case 7:
++		return 49
++	case 8:
++		return 64
++	default:
++		return x * x
++	}
++}
++
++// use jump tables for 8+ string lengths
++func length(x string) int {
++	// amd64:`JMP\s\(.*\)\(.*\)$`
++	switch x {
++	case "a":
++		return 1
++	case "bb":
++		return 2
++	case "ccc":
++		return 3
++	case "dddd":
++		return 4
++	case "eeeee":
++		return 5
++	case "ffffff":
++		return 6
++	case "ggggggg":
++		return 7
++	case "hhhhhhhh":
++		return 8
++	default:
++		return len(x)
++	}
++}

@@ -14,6 +14,20 @@ Date:   Thu Feb 25 03:03:45 2021 +0000
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+index 6fe429e85a..272b080d88 100644
+--- a/src/cmd/compile/internal/ssa/rewrite_test.go
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -13,7 +13,7 @@ func TestMove(t *testing.T) {
+ 	copy(x[1:], x[:])
+ 	for i := 1; i < len(x); i++ {
+ 		if int(x[i]) != i {
+-			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d insted of %d in position %d", int(x[i]), i, i+1)
++			t.Errorf("Memmove got converted to OpMove in alias-unsafe way. Got %d instead of %d in position %d", int(x[i]), i, i+1)
+ 		}
+ 	}
+ }

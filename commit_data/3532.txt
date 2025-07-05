@@ -9,8 +9,152 @@ Date:   Wed Oct 14 11:53:55 2009 -0700
     DELTA=36  (14 added, 4 deleted, 18 changed)
     OCL=35717
     CL=35719
-
+---
  doc/go_lang_faq.html | 14 ++++++++++++++
  doc/go_tutorial.html | 30 +++++++++++++-----------------
  doc/go_tutorial.txt  | 10 +++++-----
  3 files changed, 32 insertions(+), 22 deletions(-)
+
+diff --git a/doc/go_lang_faq.html b/doc/go_lang_faq.html
+index 5125d57696..21466437ff 100644
+--- a/doc/go_lang_faq.html
++++ b/doc/go_lang_faq.html
+@@ -354,6 +354,20 @@ will not invalidate any existing programs&mdash;but without a clear idea of what
+ equality of structs and arrays should mean, it was simpler to leave it out for now.
+ </p>
+ 
++<h3 id="references">
++Why are maps, slices, and channels references while arrays are values?</h3>
++<p>
++There's a lot of history on that topic.  Early on, maps and channels
++were syntactically pointers and it was impossible to declare or use a
++non-pointer instance.  Also, we struggled with how arrays should work.
++Eventually we decided that the strict separation of pointers and
++values made the language harder to use.  Introducing reference types,
++including slices to handle the reference form of arrays, resolved
++these issues.  Reference types add some regrettable complexity to the
++language but they have a large effect on usability: Go became a more
++productive, comfortable language when they were introduced.
++</p>
++
+ <h2 id="concurrency">Concurrency</h2>
+ 
+ <h3 id="csp">
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index 27710ed268..cdf1443e9e 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -147,7 +147,7 @@ or we could go even shorter and write the idiom
+ </pre>
+ <p>
+ The <code>:=</code> operator is used a lot in Go to represent an initializing declaration.
+-(For those who know Sawzall, its <code>:=</code> construct is the same, but notice
++(For those who know Limbo, its <code>:=</code> construct is the same, but notice
+ that Go has no colon after the name in a full <code>var</code> declaration.
+ Also, for simplicity of parsing, <code>:=</code> only works inside functions, not at
+ the top level.)
+@@ -878,9 +878,9 @@ argument.  It's easier in many cases in Go.  Instead of <code>%llud</code> you
+ can just say <code>%d</code>; <code>Printf</code> knows the size and signedness of the
+ integer and can do the right thing for you.  The snippet
+ <p>
+-<pre> <!-- progs/print.go NR==6 NR==7 -->
+-06    
+-07    import &quot;fmt&quot;
++<pre> <!-- progs/print.go NR==10 NR==11 -->
++10        var u64 uint64 = 1&lt;&lt;64-1;
++11        fmt.Printf(&quot;%d %d\n&quot;, u64, int64(u64));
+ </pre>
+ <p>
+ prints
+@@ -892,11 +892,11 @@ prints
+ In fact, if you're lazy the format <code>%v</code> will print, in a simple
+ appropriate style, any value, even an array or structure.  The output of
+ <p>
+-<pre> <!-- progs/print.go NR==10 NR==13 -->
+-10        var u64 uint64 = 1&lt;&lt;64-1;
+-11        fmt.Printf(&quot;%d %d\n&quot;, u64, int64(u64));
+-<p>
+-13        // harder stuff
++<pre> <!-- progs/print.go NR==14 NR==17 -->
++14        type T struct { a int; b string };
++15        t := T{77, &quot;Sunset Strip&quot;};
++16        a := []int{1, 2, 3, 4};
++17        fmt.Printf(&quot;%v %v %v\n&quot;, u64, t, a);
+ </pre>
+ <p>
+ is
+@@ -912,9 +912,9 @@ of <code>%v</code> while <code>Println</code> automatically inserts spaces betwe
+ and adds a newline.  The output of each of these two lines is identical
+ to that of the <code>Printf</code> call above.
+ <p>
+-<pre> <!-- progs/print.go NR==14 NR==15 -->
+-14        type T struct { a int; b string };
+-15        t := T{77, &quot;Sunset Strip&quot;};
++<pre> <!-- progs/print.go NR==18 NR==19 -->
++18        fmt.Print(u64, &quot; &quot;, t, &quot; &quot;, a, &quot;\n&quot;);
++19        fmt.Println(u64, t, a);
+ </pre>
+ <p>
+ If you have your own type you'd like <code>Printf</code> or <code>Print</code> to format,
+@@ -923,11 +923,7 @@ routines will examine the value to inquire whether it implements
+ the method and if so, use it rather than some other formatting.
+ Here's a simple example.
+ <p>
+-<pre> <!-- progs/print_string.go NR==5 END -->
+-05    package main
+-<p>
+-07    import &quot;fmt&quot;
+-<p>
++<pre> <!-- progs/print_string.go NR==9 END -->
+ 09    type testType struct { a int; b string }
+ <p>
+ 11    func (t *testType) String() string {
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index dd7cd9fd87..3c7dfd1e60 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -103,7 +103,7 @@ or we could go even shorter and write the idiom
+ 	s := "";
+ 
+ The ":=" operator is used a lot in Go to represent an initializing declaration.
+-(For those who know Sawzall, its ":=" construct is the same, but notice
++(For those who know Limbo, its ":=" construct is the same, but notice
+ that Go has no colon after the name in a full "var" declaration.
+ Also, for simplicity of parsing, ":=" only works inside functions, not at
+ the top level.)
+@@ -567,7 +567,7 @@ argument.  It's easier in many cases in Go.  Instead of "%llud" you
+ can just say "%d"; "Printf" knows the size and signedness of the
+ integer and can do the right thing for you.  The snippet
+ 
+---PROG progs/print.go 'NR==6' 'NR==7'
++--PROG progs/print.go 'NR==10' 'NR==11'
+ 
+ prints
+ 
+@@ -576,7 +576,7 @@ prints
+ In fact, if you're lazy the format "%v" will print, in a simple
+ appropriate style, any value, even an array or structure.  The output of
+ 
+---PROG progs/print.go 'NR==10' 'NR==13'
++--PROG progs/print.go 'NR==14' 'NR==17'
+ 
+ is
+ 
+@@ -589,7 +589,7 @@ of "%v" while "Println" automatically inserts spaces between arguments
+ and adds a newline.  The output of each of these two lines is identical
+ to that of the "Printf" call above.
+ 
+---PROG progs/print.go 'NR==14' 'NR==15'
++--PROG progs/print.go 'NR==18' 'NR==19'
+ 
+ If you have your own type you'd like "Printf" or "Print" to format,
+ just give it a "String()" method that returns a string.  The print
+@@ -597,7 +597,7 @@ routines will examine the value to inquire whether it implements
+ the method and if so, use it rather than some other formatting.
+ Here's a simple example.
+ 
+---PROG progs/print_string.go 'NR==5' END
++--PROG progs/print_string.go 'NR==9' END
+ 
+ Since "*T" has a "String()" method, the
+ default formatter for that type will use it and produce the output

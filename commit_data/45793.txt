@@ -35,9 +35,105 @@ Date:   Wed Nov 18 12:08:59 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go      |  1 +
  src/cmd/compile/internal/gc/typecheck.go | 15 ++-------------
  src/cmd/compile/internal/gc/walk.go      |  5 ++++-
  test/fixedbugs/issue42686.go             | 11 +++++++++++
  4 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index d1097e8236..f0a913275a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -89,6 +89,7 @@ var debugtab = []struct {
+ 	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
+ 	{"softfloat", "force compiler to emit soft-float code", &Debug_softfloat},
+ 	{"defer", "print information about defer compilation", &Debug_defer},
++	{"fieldtrack", "enable fieldtracking", &objabi.Fieldtrack_enabled},
+ }
+ 
+ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index cbba5ff79c..c0b05035f0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -6,7 +6,6 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/objabi"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -2442,15 +2441,6 @@ func derefall(t *types.Type) *types.Type {
+ 	return t
+ }
+ 
+-type typeSymKey struct {
+-	t *types.Type
+-	s *types.Sym
+-}
+-
+-// dotField maps (*types.Type, *types.Sym) pairs to the corresponding struct field (*types.Type with Etype==TFIELD).
+-// It is a cache for use during usefield in walk.go, only enabled when field tracking.
+-var dotField = map[typeSymKey]*types.Field{}
+-
+ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 	s := n.Sym
+ 
+@@ -2481,9 +2471,6 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 		}
+ 		n.Xoffset = f1.Offset
+ 		n.Type = f1.Type
+-		if objabi.Fieldtrack_enabled > 0 {
+-			dotField[typeSymKey{t.Orig, s}] = f1
+-		}
+ 		if t.IsInterface() {
+ 			if n.Left.Type.IsPtr() {
+ 				n.Left = nod(ODEREF, n.Left, nil) // implicitstar
+@@ -2492,6 +2479,8 @@ func lookdot(n *Node, t *types.Type, dostrcmp int) *types.Field {
+ 			}
+ 
+ 			n.Op = ODOTINTER
++		} else {
++			n.SetOpt(f1)
+ 		}
+ 
+ 		return f1
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 82898c8167..a7b6e7fcb3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3734,10 +3734,13 @@ func usefield(n *Node) {
+ 	if t.IsPtr() {
+ 		t = t.Elem()
+ 	}
+-	field := dotField[typeSymKey{t.Orig, n.Sym}]
++	field := n.Opt().(*types.Field)
+ 	if field == nil {
+ 		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
+ 	}
++	if field.Sym != n.Sym || field.Offset != n.Xoffset {
++		Fatalf("field inconsistency: %v,%v != %v,%v", field.Sym, field.Offset, n.Sym, n.Xoffset)
++	}
+ 	if !strings.Contains(field.Note, "go:\"track\"") {
+ 		return
+ 	}
+diff --git a/test/fixedbugs/issue42686.go b/test/fixedbugs/issue42686.go
+new file mode 100644
+index 0000000000..962bdd35cb
+--- /dev/null
++++ b/test/fixedbugs/issue42686.go
+@@ -0,0 +1,11 @@
++// compile -d=fieldtrack
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func a(x struct{ f int }) { _ = x.f }
++
++func b() { a(struct{ f int }{}) }

@@ -9,9 +9,125 @@ Date:   Wed Jan 9 11:32:16 2013 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7058052
-
+---
  src/pkg/go/printer/nodes.go                     | 11 +++++++++--
  src/pkg/go/printer/printer.go                   |  2 +-
  src/pkg/go/printer/testdata/declarations.golden | 25 +++++++++++++++++++++++++
  src/pkg/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
  4 files changed, 60 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 3bed0cc657..ee0bbf1eda 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -307,7 +307,7 @@ func (p *printer) parameters(fields *ast.FieldList) {
+ 				p.print(blank)
+ 			}
+ 			// parameter type
+-			p.expr(par.Type)
++			p.expr(stripParensAlways(par.Type))
+ 			prevLine = parLineEnd
+ 		}
+ 		// if the closing ")" is on a separate line from the last parameter,
+@@ -336,7 +336,7 @@ func (p *printer) signature(params, result *ast.FieldList) {
+ 		p.print(blank)
+ 		if n == 1 && result.List[0].Names == nil {
+ 			// single anonymous result; no ()'s
+-			p.expr(result.List[0].Type)
++			p.expr(stripParensAlways(result.List[0].Type))
+ 			return
+ 		}
+ 		p.parameters(result)
+@@ -959,6 +959,13 @@ func stripParens(x ast.Expr) ast.Expr {
+ 	return x
+ }
+ 
++func stripParensAlways(x ast.Expr) ast.Expr {
++	if x, ok := x.(*ast.ParenExpr); ok {
++		return stripParensAlways(x.X)
++	}
++	return x
++}
++
+ func (p *printer) controlClause(isForStmt bool, init ast.Stmt, expr ast.Expr, post ast.Stmt) {
+ 	p.print(blank)
+ 	needsBlank := false
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 5d75f09167..f1c07bd3be 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -1230,7 +1230,7 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
+ 	}
+ 
+ 	// flush tabwriter, if any
+-	if tw, _ := (output).(*tabwriter.Writer); tw != nil {
++	if tw, _ := output.(*tabwriter.Writer); tw != nil {
+ 		err = tw.Flush()
+ 	}
+ 
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 21bbf2b2d4..0ad72d349e 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -887,3 +887,28 @@ type _ interface {
+ 		r string,
+ 		x ...int)
+ }
++
++// omit superfluous parentheses in parameter lists
++func _(int)
++func _(int)
++func _(x int)
++func _(x int)
++func _(x, y int)
++func _(x, y int)
++
++func _() int
++func _() int
++func _() int
++
++func _() (x int)
++func _() (x int)
++func _() (x int)
++
++// special cases: some channel types require parentheses
++func _(x chan (<-chan int))
++func _(x chan (<-chan int))
++func _(x chan (<-chan int))
++
++func _(x chan<- (chan int))
++func _(x chan<- (chan int))
++func _(x chan<- (chan int))
+diff --git a/src/pkg/go/printer/testdata/declarations.input b/src/pkg/go/printer/testdata/declarations.input
+index 6ac0036992..455c0c6c19 100644
+--- a/src/pkg/go/printer/testdata/declarations.input
++++ b/src/pkg/go/printer/testdata/declarations.input
+@@ -896,3 +896,28 @@ p, q,
+ r string,
+ 		x ...int)
+ }
++
++// omit superfluous parentheses in parameter lists
++func _((int))
++func _((((((int))))))
++func _(x (int))
++func _(x (((((int))))))
++func _(x, y (int))
++func _(x, y (((((int))))))
++
++func _() (int)
++func _() ((int))
++func _() ((((((int))))))
++
++func _() (x int)
++func _() (x (int))
++func _() (x (((((int))))))
++
++// special cases: some channel types require parentheses
++func _(x chan(<-chan int))
++func _(x (chan(<-chan int)))
++func _(x ((((chan(<-chan int))))))
++
++func _(x chan<-(chan int))
++func _(x (chan<-(chan int)))
++func _(x ((((chan<-(chan int))))))

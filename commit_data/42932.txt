@@ -16,7 +16,47 @@ Date:   Thu Feb 13 06:02:10 2020 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go                  |  5 +++++
  src/cmd/go/testdata/script/mod_vendor_unused_only.txt | 17 +++++++++++++++++
  2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 0c00d1222e..8509ceb7a8 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -123,6 +123,11 @@ func runVendor(cmd *base.Command, args []string) {
+ 		fmt.Fprintf(os.Stderr, "go: no dependencies to vendor\n")
+ 		return
+ 	}
++
++	if err := os.MkdirAll(vdir, 0777); err != nil {
++		base.Fatalf("go mod vendor: %v", err)
++	}
++
+ 	if err := ioutil.WriteFile(filepath.Join(vdir, "modules.txt"), buf.Bytes(), 0666); err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_vendor_unused_only.txt b/src/cmd/go/testdata/script/mod_vendor_unused_only.txt
+new file mode 100644
+index 0000000000..839c6453cf
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_vendor_unused_only.txt
+@@ -0,0 +1,17 @@
++# Ensure that we generate a vendor/modules.txt file even when the only
++# requirements in go.mod are unused.  Regression test for
++# golang.org/issue/36580
++
++env GO111MODULE=on
++
++go mod vendor
++cmp go1.14-modules.txt vendor/modules.txt
++
++-- go.mod --
++module example.com/m
++go 1.14
++
++require example.com v1.0.0 // indirect
++-- go1.14-modules.txt --
++# example.com v1.0.0
++## explicit

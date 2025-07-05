@@ -13,7 +13,7 @@ Date:   Mon Sep 24 20:57:01 2012 -0400
     R=iant, r, bradfitz, remyoudompheng
     CC=golang-dev
     https://golang.org/cl/6550058
-
+---
  doc/go1.1.html                   |  65 +++++++++++++++++++++++++
  doc/go_faq.html                  |   9 ++--
  src/cmd/6g/galign.c              |   6 +--
@@ -26,3 +26,594 @@ Date:   Mon Sep 24 20:57:01 2012 -0400
  src/pkg/runtime/runtime.h        |   4 +-
  test/index.go                    |   5 ++
  11 files changed, 154 insertions(+), 81 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+new file mode 100644
+index 0000000000..f5380a73ad
+--- /dev/null
++++ b/doc/go1.1.html
+@@ -0,0 +1,65 @@
++<!--{
++	"Title": "Go 1.1 Release Notes",
++	"Path":  "/doc/go1.1"
++	"Template": true
++}-->
++
++<h2 id="introduction">Introduction to Go 1.1</h2>
++
++TODO
++ - overview
++ - link back to Go 1 and also Go 1 Compatibility docs.
++
++<h2 id="language">Changes to the language</h2>
++
++TODO
++
++<h2 id="impl">Changes to the implementations and tools</h2>
++
++TODO: more
++
++<h3 id="int">Size of int on 64-bit platforms</h3>
++
++<p>
++The language allows the implementation to choose whether the <code>int</code> type and <code>uint</code> types are 32 or 64 bits. Previous Go implementations made <code>int</code> and <code>uint</code> 32 bits on all systems. Both the gc and gccgo implementations (TODO: check that gccgo does) <a href="http://golang.org/issue/2188">now make <code>int</code> and <code>uint</code> 64 bits on 64-bit platforms such as AMD64/x86-64</a>.
++Among other things, this enables the allocation of slices with
++more than 2 billion elements on 64-bit platforms.
++</p>
++
++<p>
++<em>Updating</em>:
++Most programs will be unaffected by this change.
++Because Go does not allow implicit conversions between distinct
++<a href="/ref/spec#Numeric_types">numeric types</a>,
++no programs will stop compiling due to this change.
++However, programs that contain implicit assumptions
++that <code>int</code> is only 32 bits may change behavior.
++For example, this code prints a positive number on 64-bit systems and
++a negative one on 32-bit systems:
++
++<pre>
++x := ^uint32(0) // x is 0xffffffff
++i := int(x)     // i is -1 on 32-bit systems, 0xffffffff on 64-bit
++fmt.Println(i)
++</pre>
++
++<p>Portable code intending 32-bit sign extension (yielding -1 on all systems)
++would instead say:
++</p>
++
++<pre>
++i := int(int32(x))
++</pre>
++
++<h3 id="asm">Assembler</h3>
++
++<p>
++Due to the <a href="#int">int</a> and TODO: OTHER changes,
++the placement of function arguments on the stack has changed.
++Functions written in assembly will need to be revised at least
++to adjust frame pointer offsets.
++</p>
++
++<h2 id="library">Changes to the standard library</h2>
++
++TODO
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index b7fdb7b568..1da4d5037a 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1,5 +1,6 @@
+ <!--{
+-	"Title": "FAQ"
++	"Title": "FAQ",
++	"Path": "/doc/faq"
+ }-->
+ 
+ <h2 id="Origins">Origins</h2>
+@@ -1052,9 +1053,11 @@ Why is <code>int</code> 32 bits on 64 bit machines?</h3>
+ <p>
+ The sizes of <code>int</code> and <code>uint</code> are implementation-specific
+ but the same as each other on a given platform.
+-The 64 bit Go compilers (both gc and gccgo) use a 32 bit representation for
+-<code>int</code>.  Code that relies on a particular
++For portability, code that relies on a particular
+ size of value should use an explicitly sized type, like <code>int64</code>.
++Prior to Go 1.1, the 64-bit Go compilers (both gc and gccgo) used
++a 32-bit representation for <code>int</code>. As of Go 1.1 they use
++a 64-bit representation.
+ On the other hand, floating-point scalars and complex
+ numbers are always sized: <code>float32</code>, <code>complex64</code>,
+ etc., because programmers should be aware of precision when using
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index a5d10eb575..526c04c06a 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -17,8 +17,8 @@ vlong MAXWIDTH = 1LL<<50;
+  */
+ Typedef	typedefs[] =
+ {
+-	"int",		TINT,		TINT32,
+-	"uint",		TUINT,		TUINT32,
++	"int",		TINT,		TINT64,
++	"uint",		TUINT,		TUINT64,
+ 	"uintptr",	TUINTPTR,	TUINT64,
+ 	0
+ };
+@@ -27,7 +27,7 @@ void
+ betypeinit(void)
+ {
+ 	widthptr = 8;
+-	widthint = 4;
++	widthint = 8;
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 408107f2cd..c2ae007790 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -41,7 +41,7 @@ enum
+ {
+ 	thechar = '6',
+ 	PtrSize = 8,
+-	IntSize = 4,
++	IntSize = 8,
+ 	
+ 	// Loop alignment constants:
+ 	// want to align loop entry to LoopAlign-byte boundary,
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index a4ff51933e..83104e412c 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -132,7 +132,7 @@ var ptrSizeMap = map[string]int64{
+ 
+ var intSizeMap = map[string]int64{
+ 	"386":   4,
+-	"amd64": 4,
++	"amd64": 8,
+ 	"arm":   4,
+ }
+ 
+diff --git a/src/cmd/dist/goc2c.c b/src/cmd/dist/goc2c.c
+index cd14e6bc80..a103bce8d9 100644
+--- a/src/cmd/dist/goc2c.c
++++ b/src/cmd/dist/goc2c.c
+@@ -28,7 +28,7 @@ static Buf *output;
+ 
+ enum
+ {
+-	use64bitint = 0,
++	use64bitint = 1,
+ };
+ 
+ static int
+diff --git a/src/pkg/bytes/asm_amd64.s b/src/pkg/bytes/asm_amd64.s
+index 5302df13d9..482422642e 100644
+--- a/src/pkg/bytes/asm_amd64.s
++++ b/src/pkg/bytes/asm_amd64.s
+@@ -4,11 +4,11 @@
+ 
+ TEXT ·IndexByte(SB),7,$0
+ 	MOVQ s+0(FP), SI
+-	MOVL s+8(FP), BX
+-	MOVB c+16(FP), AL
++	MOVQ s+8(FP), BX
++	MOVB c+24(FP), AL
+ 	MOVQ SI, DI
+ 
+-	CMPL BX, $16
++	CMPQ BX, $16
+ 	JLT small
+ 
+ 	// round up to first 16-byte boundary
+@@ -63,15 +63,15 @@ condition:
+ 	JZ success
+ 
+ failure:
+-	MOVL $-1, r+24(FP)
++	MOVQ $-1, r+32(FP)
+ 	RET
+ 
+ // handle for lengths < 16
+ small:
+-	MOVL BX, CX
++	MOVQ BX, CX
+ 	REPN; SCASB
+ 	JZ success
+-	MOVL $-1, r+24(FP)
++	MOVQ $-1, r+32(FP)
+ 	RET
+ 
+ // we've found the chunk containing the byte
+@@ -81,28 +81,28 @@ ssesuccess:
+ 	BSFW DX, DX
+ 	SUBQ SI, DI
+ 	ADDQ DI, DX
+-	MOVL DX, r+24(FP)
++	MOVQ DX, r+32(FP)
+ 	RET
+ 
+ success:
+ 	SUBQ SI, DI
+ 	SUBL $1, DI
+-	MOVL DI, r+24(FP)
++	MOVQ DI, r+32(FP)
+ 	RET
+ 
+ TEXT ·Equal(SB),7,$0
+-	MOVL	a+8(FP), BX
+-	MOVL	b+24(FP), CX
++	MOVQ	a+8(FP), BX
++	MOVQ	b+32(FP), CX
+ 	MOVL	$0, AX
+-	CMPL	BX, CX
++	CMPQ	BX, CX
+ 	JNE	eqret
+ 	MOVQ	a+0(FP), SI
+-	MOVQ	b+16(FP), DI
++	MOVQ	b+24(FP), DI
+ 	CLD
+ 	REP; CMPSB
+ 	MOVL	$1, DX
+ 	CMOVLEQ	DX, AX
+ eqret:
+-	MOVB	AX, r+32(FP)
++	MOVB	AX, r+48(FP)
+ 	RET
+ 
+diff --git a/src/pkg/hash/crc32/crc32_amd64.s b/src/pkg/hash/crc32/crc32_amd64.s
+index 67139c7a2c..6e6a364ee8 100644
+--- a/src/pkg/hash/crc32/crc32_amd64.s
++++ b/src/pkg/hash/crc32/crc32_amd64.s
+@@ -6,12 +6,12 @@
+ TEXT ·castagnoliSSE42(SB),7,$0
+ 	MOVL crc+0(FP), AX  // CRC value
+ 	MOVQ p+8(FP), SI  // data pointer
+-	MOVL p+16(FP), CX  // len(p)
++	MOVQ p+16(FP), CX  // len(p)
+ 
+ 	NOTL AX
+ 
+ 	/* If there's less than 8 bytes to process, we do it byte-by-byte. */
+-	CMPL CX, $8
++	CMPQ CX, $8
+ 	JL cleanup
+ 
+ 	/* Process individual bytes until the input is 8-byte aligned. */
+@@ -21,13 +21,13 @@ startup:
+ 	JZ aligned
+ 
+ 	CRC32B (SI), AX
+-	DECL CX
++	DECQ CX
+ 	INCQ SI
+ 	JMP startup
+ 
+ aligned:
+ 	/* The input is now 8-byte aligned and we can process 8-byte chunks. */
+-	CMPL CX, $8
++	CMPQ CX, $8
+ 	JL cleanup
+ 
+ 	CRC32Q (SI), AX
+@@ -37,7 +37,7 @@ aligned:
+ 
+ cleanup:
+ 	/* We may have some bytes left over that we process one at a time. */
+-	CMPL CX, $0
++	CMPQ CX, $0
+ 	JE done
+ 
+ 	CRC32B (SI), AX
+@@ -47,7 +47,7 @@ cleanup:
+ 
+ done:
+ 	NOTL AX
+-	MOVL AX, r+24(FP)
++	MOVL AX, r+32(FP)
+ 	RET
+ 
+ // func haveSSE42() bool
+diff --git a/src/pkg/math/big/arith_amd64.s b/src/pkg/math/big/arith_amd64.s
+index 47f4370640..d859645029 100644
+--- a/src/pkg/math/big/arith_amd64.s
++++ b/src/pkg/math/big/arith_amd64.s
+@@ -36,9 +36,9 @@ TEXT ·divWW(SB),7,$0
+ 
+ // func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB),7,$0
+-	MOVL z+8(FP), DI
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), R9
++	MOVQ z+8(FP), DI
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), R9
+ 	MOVQ z+0(FP), R10
+ 
+ 	MOVQ $0, CX		// c = 0
+@@ -83,16 +83,16 @@ L1:	// n > 0
+ 	SUBQ $1, DI		// n--
+ 	JG L1			// if n > 0 goto L1
+ 
+-E1:	MOVQ CX, c+48(FP)	// return c
++E1:	MOVQ CX, c+72(FP)	// return c
+ 	RET
+ 
+ 
+ // func subVV(z, x, y []Word) (c Word)
+ // (same as addVV except for SBBQ instead of ADCQ and label names)
+ TEXT ·subVV(SB),7,$0
+-	MOVL z+8(FP), DI
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), R9
++	MOVQ z+8(FP), DI
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), R9
+ 	MOVQ z+0(FP), R10
+ 
+ 	MOVQ $0, CX		// c = 0
+@@ -137,15 +137,15 @@ L2:	// n > 0
+ 	SUBQ $1, DI		// n--
+ 	JG L2			// if n > 0 goto L2
+ 
+-E2:	MOVQ CX, c+48(FP)	// return c
++E2:	MOVQ CX, c+72(FP)	// return c
+ 	RET
+ 
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+ TEXT ·addVW(SB),7,$0
+-	MOVL z+8(FP), DI
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), CX	// c = y
++	MOVQ z+8(FP), DI
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), CX	// c = y
+ 	MOVQ z+0(FP), R10
+ 
+ 	MOVQ $0, SI		// i = 0
+@@ -188,16 +188,16 @@ L3:	// n > 0
+ 	SUBQ $1, DI		// n--
+ 	JG L3			// if n > 0 goto L3
+ 
+-E3:	MOVQ CX, c+40(FP)	// return c
++E3:	MOVQ CX, c+56(FP)	// return c
+ 	RET
+ 
+ 
+ // func subVW(z, x []Word, y Word) (c Word)
+ // (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
+ TEXT ·subVW(SB),7,$0
+-	MOVL z+8(FP), DI
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), CX	// c = y
++	MOVQ z+8(FP), DI
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), CX	// c = y
+ 	MOVQ z+0(FP), R10
+ 	
+ 	MOVQ $0, SI		// i = 0
+@@ -241,26 +241,26 @@ L4:	// n > 0
+ 	SUBQ $1, DI		// n--
+ 	JG L4			// if n > 0 goto L4
+ 
+-E4:	MOVQ CX, c+40(FP)	// return c
++E4:	MOVQ CX, c+56(FP)	// return c
+ 	RET
+ 
+ 
+ // func shlVU(z, x []Word, s uint) (c Word)
+ TEXT ·shlVU(SB),7,$0
+-	MOVL z+8(FP), BX	// i = z
+-	SUBL $1, BX		// i--
++	MOVQ z+8(FP), BX	// i = z
++	SUBQ $1, BX		// i--
+ 	JL X8b			// i < 0	(n <= 0)
+ 
+ 	// n > 0
+ 	MOVQ z+0(FP), R10
+-	MOVQ x+16(FP), R8
+-	MOVL s+32(FP), CX
++	MOVQ x+24(FP), R8
++	MOVQ s+48(FP), CX
+ 	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
+ 	MOVQ $0, DX
+ 	SHLQ CX, DX:AX		// w1>>ŝ
+-	MOVQ DX, c+40(FP)
++	MOVQ DX, c+56(FP)
+ 
+-	CMPL BX, $0
++	CMPQ BX, $0
+ 	JLE X8a			// i <= 0
+ 
+ 	// i > 0
+@@ -268,7 +268,7 @@ L8:	MOVQ AX, DX		// w = w1
+ 	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
+ 	SHLQ CX, DX:AX		// w<<s | w1>>ŝ
+ 	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
+-	SUBL $1, BX		// i--
++	SUBQ $1, BX		// i--
+ 	JG L8			// i > 0
+ 
+ 	// i <= 0
+@@ -276,24 +276,24 @@ X8a:	SHLQ CX, AX		// w1<<s
+ 	MOVQ AX, (R10)		// z[0] = w1<<s
+ 	RET
+ 
+-X8b:	MOVQ $0, c+40(FP)
++X8b:	MOVQ $0, c+56(FP)
+ 	RET
+ 
+ 
+ // func shrVU(z, x []Word, s uint) (c Word)
+ TEXT ·shrVU(SB),7,$0
+-	MOVL z+8(FP), R11
+-	SUBL $1, R11		// n--
++	MOVQ z+8(FP), R11
++	SUBQ $1, R11		// n--
+ 	JL X9b			// n < 0	(n <= 0)
+ 
+ 	// n > 0
+ 	MOVQ z+0(FP), R10
+-	MOVQ x+16(FP), R8
+-	MOVL s+32(FP), CX
++	MOVQ x+24(FP), R8
++	MOVQ s+48(FP), CX
+ 	MOVQ (R8), AX		// w1 = x[0]
+ 	MOVQ $0, DX
+ 	SHRQ CX, DX:AX		// w1<<ŝ
+-	MOVQ DX, c+40(FP)
++	MOVQ DX, c+56(FP)
+ 
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E9
+@@ -303,7 +303,7 @@ L9:	MOVQ AX, DX		// w = w1
+ 	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
+ 	SHRQ CX, DX:AX		// w>>s | w1<<ŝ
+ 	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
+-	ADDL $1, BX		// i++
++	ADDQ $1, BX		// i++
+ 	
+ E9:	CMPQ BX, R11
+ 	JL L9			// i < n-1
+@@ -313,17 +313,17 @@ X9a:	SHRQ CX, AX		// w1>>s
+ 	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
+ 	RET
+ 
+-X9b:	MOVQ $0, c+40(FP)
++X9b:	MOVQ $0, c+56(FP)
+ 	RET
+ 
+ 
+ // func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ TEXT ·mulAddVWW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), R9
+-	MOVQ r+40(FP), CX	// c = r
+-	MOVL z+8(FP), R11
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), R9
++	MOVQ r+56(FP), CX	// c = r
++	MOVQ z+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	JMP E5
+ 
+@@ -333,21 +333,21 @@ L5:	MOVQ (R8)(BX*8), AX
+ 	ADCQ $0, DX
+ 	MOVQ AX, (R10)(BX*8)
+ 	MOVQ DX, CX
+-	ADDL $1, BX		// i++
++	ADDQ $1, BX		// i++
+ 
+ E5:	CMPQ BX, R11		// i < n
+ 	JL L5
+ 
+-	MOVQ CX, c+48(FP)
++	MOVQ CX, c+64(FP)
+ 	RET
+ 
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+ TEXT ·addMulVVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+-	MOVQ x+16(FP), R8
+-	MOVQ y+32(FP), R9
+-	MOVL z+8(FP), R11
++	MOVQ x+24(FP), R8
++	MOVQ y+48(FP), R9
++	MOVQ z+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, CX		// c = 0
+ 	JMP E6
+@@ -359,41 +359,41 @@ L6:	MOVQ (R8)(BX*8), AX
+ 	ADDQ AX, (R10)(BX*8)
+ 	ADCQ $0, DX
+ 	MOVQ DX, CX
+-	ADDL $1, BX		// i++
++	ADDQ $1, BX		// i++
+ 
+ E6:	CMPQ BX, R11		// i < n
+ 	JL L6
+ 
+-	MOVQ CX, c+40(FP)
++	MOVQ CX, c+56(FP)
+ 	RET
+ 
+ 
+ // func divWVW(z []Word, xn Word, x []Word, y Word) (r Word)
+ TEXT ·divWVW(SB),7,$0
+ 	MOVQ z+0(FP), R10
+-	MOVQ xn+16(FP), DX	// r = xn
+-	MOVQ x+24(FP), R8
+-	MOVQ y+40(FP), R9
+-	MOVL z+8(FP), BX	// i = z
++	MOVQ xn+24(FP), DX	// r = xn
++	MOVQ x+32(FP), R8
++	MOVQ y+56(FP), R9
++	MOVQ z+8(FP), BX	// i = z
+ 	JMP E7
+ 
+ L7:	MOVQ (R8)(BX*8), AX
+ 	DIVQ R9
+ 	MOVQ AX, (R10)(BX*8)
+ 
+-E7:	SUBL $1, BX		// i--
++E7:	SUBQ $1, BX		// i--
+ 	JGE L7			// i >= 0
+ 
+-	MOVQ DX, r+48(FP)
++	MOVQ DX, r+64(FP)
+ 	RET
+ 
+ // func bitLen(x Word) (n int)
+ TEXT ·bitLen(SB),7,$0
+ 	BSRQ x+0(FP), AX
+ 	JZ Z1
+-	ADDL $1, AX
+-	MOVL AX, n+8(FP)
++	ADDQ $1, AX
++	MOVQ AX, n+8(FP)
+ 	RET
+ 
+-Z1:	MOVL $0, n+8(FP)
++Z1:	MOVQ $0, n+8(FP)
+ 	RET
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8ae1e175a7..4bcd860168 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -19,8 +19,8 @@ typedef	double			float64;
+ #ifdef _64BIT
+ typedef	uint64		uintptr;
+ typedef	int64		intptr;
+-typedef	int32		intgo; // Go's int
+-typedef	uint32		uintgo; // Go's uint
++typedef	int64		intgo; // Go's int
++typedef	uint64		uintgo; // Go's uint
+ #else
+ typedef	uint32		uintptr;
+ typedef	int32		intptr;
+diff --git a/test/index.go b/test/index.go
+index 447d708969..122b2a5724 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -21,6 +21,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"os"
++	"runtime"
+ )
+ 
+ const prolog = `
+@@ -224,6 +225,10 @@ func main() {
+ 				// the next pass from running.
+ 				// So run it as a separate check.
+ 				thisPass = 1
++			} else if i == "i64big" || i == "i64bigger" && runtime.GOARCH == "amd64" {
++				// On amd64, these huge numbers do fit in an int, so they are not
++				// rejected at compile time.
++				thisPass = 0
+ 			} else {
+ 				thisPass = 2
+ 			}

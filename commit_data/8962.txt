@@ -7,6 +7,20 @@ Date:   Thu Jul 7 07:00:48 2011 +1000
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4636087
-
+---
  src/pkg/exp/template/funcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/exp/template/funcs.go
+index 2ca4342de0..6d781beca8 100644
+--- a/src/pkg/exp/template/funcs.go
++++ b/src/pkg/exp/template/funcs.go
+@@ -89,7 +89,7 @@ func index(item interface{}, indices ...interface{}) (interface{}, os.Error) {
+ 			switch index.Kind() {
+ 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+ 				x = index.Int()
+-			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
++			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+ 				x = int64(index.Uint())
+ 			default:
+ 				return nil, fmt.Errorf("cannot index slice/array with type %s", index.Type())

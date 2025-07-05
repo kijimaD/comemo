@@ -7,7 +7,7 @@ Date:   Sat Sep 10 09:35:25 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4996041
-
+---
  doc/docs.html           | 45 ++++++++++++++++++++++++++++++++++++++++++---
  src/cmd/cgo/doc.go      |  3 +++
  src/cmd/godoc/doc.go    |  3 +++
@@ -15,3 +15,141 @@ Date:   Sat Sep 10 09:35:25 2011 +1000
  src/pkg/json/encode.go  |  3 +++
  src/pkg/reflect/type.go |  3 +++
  6 files changed, 57 insertions(+), 3 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 9fd3dcebed..ce833fdd1a 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -29,9 +29,9 @@ Slides from a 3-day course about the Go programming language.
+ A more thorough introduction than the tutorial.
+ </p>
+ <ul>
+-<li><a href="GoCourseDay1.pdf">Day 1: Basics</a> <small>[270KB PDF]</small>
+-<li><a href="GoCourseDay2.pdf">Day 2: Types, Methods, Interfaces</a> <small>[270KB PDF]</small>
+-<li><a href="GoCourseDay3.pdf">Day 3: Concurrency and Communication</a> <small>[180KB PDF]</small>
++<li><a href="GoCourseDay1.pdf">Day 1: Basics</a> <small>[270KB PDF]</small></li>
++<li><a href="GoCourseDay2.pdf">Day 2: Types, Methods, Interfaces</a> <small>[270KB PDF]</small></li>
++<li><a href="GoCourseDay3.pdf">Day 3: Concurrency and Communication</a> <small>[180KB PDF]</small></li>
+ </ul>
+ 
+ <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>
+@@ -62,12 +62,51 @@ and closures.
+ <p>
+ Guided tours of Go programs. 
+ </p>
++<ul>
++<li><a href="/doc/codewalk/functions">First-Class Functions in Go</a></li>
++<li><a href="/doc/codewalk/markov">Generating arbitrary text: a Markov chain algorithm</a></li>
++<li><a href="/doc/codewalk/sharemem">Share Memory by Communicating</a></li>
++</ul>
+ 
+ <h3 id="go_for_cpp_programmers"><a href="go_for_cpp_programmers.html">Go for C++ Programmers</a></h3>
+ <p>
+ An introduction to Go for C++ programmers.
+ </p>
+ 
++<h2 id="articles">Go Articles</h2>
++
++<p>
++Notable articles from the <a href="http://blog.golang.org/">Go Blog</a>.
++</p>
++
++<h3>Language</h3>
++
++<ul>
++<li><a href="http://blog.golang.org/2010/04/json-rpc-tale-of-interfaces.html">JSON-RPC: a tale of interfaces</a></li>
++<li><a href="http://blog.golang.org/2010/07/gos-declaration-syntax.html">Go's Declaration Syntax</a></li>
++<li><a href="http://blog.golang.org/2010/08/defer-panic-and-recover.html">Defer, Panic, and Recover</a></li>
++<li><a href="http://blog.golang.org/2010/09/go-concurrency-patterns-timing-out-and.html">Go Concurrency Patterns: Timing out, moving on</a></li>
++<li><a href="http://blog.golang.org/2011/01/go-slices-usage-and-internals.html">Go Slices: usage and internals</a></li>
++<li><a href="http://blog.golang.org/2011/05/gif-decoder-exercise-in-go-interfaces.html">A GIF decoder: an exercise in Go interfaces</a></li>
++<li><a href="http://blog.golang.org/2011/07/error-handling-and-go.html">Error Handling and Go</a></li>
++</ul>
++
++<h3>Packages</h3>
++
++<ul>
++<li><a href="http://blog.golang.org/2011/01/json-and-go.html">JSON and Go</a> - using the <a href="/pkg/json/">json</a> package.</li>
++<li><a href="http://blog.golang.org/2011/03/gobs-of-data.html">Gobs of data</a> - the design and use of the <a href="/pkg/gob/">gob</a> package.</li>
++<li><a href="http://blog.golang.org/2011/09/laws-of-reflection.html">The Laws of Reflection</a> - the fundamentals of the <a href="/pkg/reflect/">reflect</a> package.</li>
++</ul>
++
++<h3>Tools</h3>
++
++<ul>
++<li><a href="http://blog.golang.org/2011/03/c-go-cgo.html">C? Go? Cgo!</a> - linking against C code with <a href="/cmd/cgo/">cgo</a>.</li>
++<li><a href="http://blog.golang.org/2011/03/godoc-documenting-go-code.html">Godoc: documenting Go code</a> - writing good documentation for <a href="/cmd/godoc/">godoc</a>.</li>
++<li><a href="http://blog.golang.org/2011/06/profiling-go-programs.html">Profiling Go Programs</a></li>
++</ul>
++
+ <h2 id="tutorials_nonenglish">Non-English Documentation</h2>
+ 
+ <h3 id="docs_be">Belarusian &mdash; Беларуская</h3>
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 7faece81c8..dc9edd6fd3 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -95,5 +95,8 @@ process of using cgo.  See $GOROOT/misc/cgo/stdio and
+ $GOROOT/misc/cgo/gmp for examples.
+ 
+ Cgo does not yet work with gccgo.
++
++See "C? Go? Cgo!" for an introduction to using cgo:
++http://blog.golang.org/2011/03/c-go-cgo.html
+ */
+ package documentation
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 813527d280..3f0b8e4589 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -137,5 +137,8 @@ one may run godoc as follows:
+ 
+ 	godoc -http=:6060 -zip=go.zip -goroot=$HOME/go
+ 
++
++See "Godoc: documenting Go code" for how to write good comments for godoc:
++http://blog.golang.org/2011/03/godoc-documenting-go-code.html
+ */
+ package documentation
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index 35d882afb7..a9284ced7f 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -221,6 +221,9 @@ In summary, a gob stream looks like
+ 
+ where * signifies zero or more repetitions and the type id of a value must
+ be predefined or be defined before the value in the stream.
++
++See "Gobs of data" for a design discussion of the gob wire format:
++http://blog.golang.org/2011/03/gobs-of-data.html
+ */
+ package gob
+ 
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 5b4e616f71..16be5e2af1 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -4,6 +4,9 @@
+ 
+ // Package json implements encoding and decoding of JSON objects as defined in
+ // RFC 4627.
++//
++// See "JSON and Go" for an introduction to this package:
++// http://blog.golang.org/2011/01/json-and-go.html
+ package json
+ 
+ import (
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index c9a9edc73d..7416329251 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -10,6 +10,9 @@
+ // A call to ValueOf returns a Value representing the run-time data.
+ // Zero takes a Type and returns a Value representing a zero value
+ // for that type.
++//
++// See "The Laws of Reflection" for an introduction to reflection in Go:
++// http://blog.golang.org/2011/09/laws-of-reflection.html
+ package reflect
+ 
+ import (

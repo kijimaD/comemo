@@ -9,7 +9,7 @@ Date:   Wed Jul 8 09:40:33 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/crypto.go            |  2 +-
  src/crypto/rsa/example_test.go  |  2 +-
  src/crypto/rsa/pkcs1v15.go      | 14 +++++++-------
@@ -22,3 +22,313 @@ Date:   Wed Jul 8 09:40:33 2020 -0400
  src/crypto/x509/pkcs8.go        |  6 +++---
  src/crypto/x509/x509.go         |  2 +-
  11 files changed, 32 insertions(+), 32 deletions(-)
+
+diff --git a/src/crypto/crypto.go b/src/crypto/crypto.go
+index 49484812a6..ce473b5afe 100644
+--- a/src/crypto/crypto.go
++++ b/src/crypto/crypto.go
+@@ -164,7 +164,7 @@ type Signer interface {
+ 
+ 	// Sign signs digest with the private key, possibly using entropy from
+ 	// rand. For an RSA key, the resulting signature should be either a
+-	// PKCS#1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
++	// PKCS #1 v1.5 or PSS signature (as indicated by opts). For an (EC)DSA
+ 	// key, it should be a DER-serialised, ASN.1 signature structure.
+ 	//
+ 	// Hash implements the SignerOpts interface and, in most cases, one can
+diff --git a/src/crypto/rsa/example_test.go b/src/crypto/rsa/example_test.go
+index 1435b70146..ce5c2d91cd 100644
+--- a/src/crypto/rsa/example_test.go
++++ b/src/crypto/rsa/example_test.go
+@@ -27,7 +27,7 @@ import (
+ // exponentiation is larger than the modulus. (Otherwise it could be
+ // decrypted with a square-root.)
+ //
+-// In these designs, when using PKCS#1 v1.5, it's vitally important to
++// In these designs, when using PKCS #1 v1.5, it's vitally important to
+ // avoid disclosing whether the received RSA message was well-formed
+ // (that is, whether the result of decrypting is a correctly padded
+ // message) because this leaks secret information.
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 3208119ae1..0cbd6d0045 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -14,9 +14,9 @@ import (
+ 	"crypto/internal/randutil"
+ )
+ 
+-// This file implements encryption and decryption using PKCS#1 v1.5 padding.
++// This file implements encryption and decryption using PKCS #1 v1.5 padding.
+ 
+-// PKCS1v15DecrypterOpts is for passing options to PKCS#1 v1.5 decryption using
++// PKCS1v15DecrypterOpts is for passing options to PKCS #1 v1.5 decryption using
+ // the crypto.Decrypter interface.
+ type PKCS1v15DecryptOptions struct {
+ 	// SessionKeyLen is the length of the session key that is being
+@@ -27,7 +27,7 @@ type PKCS1v15DecryptOptions struct {
+ }
+ 
+ // EncryptPKCS1v15 encrypts the given message with RSA and the padding
+-// scheme from PKCS#1 v1.5.  The message must be no longer than the
++// scheme from PKCS #1 v1.5.  The message must be no longer than the
+ // length of the public modulus minus 11 bytes.
+ //
+ // The rand parameter is used as a source of entropy to ensure that
+@@ -64,7 +64,7 @@ func EncryptPKCS1v15(rand io.Reader, pub *PublicKey, msg []byte) ([]byte, error)
+ 	return c.FillBytes(em), nil
+ }
+ 
+-// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
++// DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
+ // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
+ //
+ // Note that whether this function returns an error or not discloses secret
+@@ -86,7 +86,7 @@ func DecryptPKCS1v15(rand io.Reader, priv *PrivateKey, ciphertext []byte) ([]byt
+ 	return out[index:], nil
+ }
+ 
+-// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS#1 v1.5.
++// DecryptPKCS1v15SessionKey decrypts a session key using RSA and the padding scheme from PKCS #1 v1.5.
+ // If rand != nil, it uses RSA blinding to avoid timing side-channel attacks.
+ // It returns an error if the ciphertext is the wrong length or if the
+ // ciphertext is greater than the public modulus. Otherwise, no error is
+@@ -216,7 +216,7 @@ var hashPrefixes = map[crypto.Hash][]byte{
+ }
+ 
+ // SignPKCS1v15 calculates the signature of hashed using
+-// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS#1 v1.5.  Note that hashed must
++// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS #1 v1.5.  Note that hashed must
+ // be the result of hashing the input message using the given hash
+ // function. If hash is zero, hashed is signed directly. This isn't
+ // advisable except for interoperability.
+@@ -258,7 +258,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ 	return c.FillBytes(em), nil
+ }
+ 
+-// VerifyPKCS1v15 verifies an RSA PKCS#1 v1.5 signature.
++// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
+ // hashed is the result of hashing the input message using the given hash
+ // function and sig is the signature. A valid signature is indicated by
+ // returning a nil error. If hash is zero then hashed is used directly. This
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index b414b44148..178ade666a 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package rsa implements RSA encryption as specified in PKCS#1 and RFC 8017.
++// Package rsa implements RSA encryption as specified in PKCS #1 and RFC 8017.
+ //
+ // RSA is a single, fundamental operation that is used in this package to
+ // implement either public-key encryption or public-key signatures.
+ //
+-// The original specification for encryption and signatures with RSA is PKCS#1
++// The original specification for encryption and signatures with RSA is PKCS #1
+ // and the terms "RSA encryption" and "RSA signatures" by default refer to
+-// PKCS#1 version 1.5. However, that specification has flaws and new designs
++// PKCS #1 version 1.5. However, that specification has flaws and new designs
+ // should use version 2, usually called by just OAEP and PSS, where
+ // possible.
+ //
+@@ -134,7 +134,7 @@ func (priv *PrivateKey) Equal(x crypto.PrivateKey) bool {
+ }
+ 
+ // Sign signs digest with priv, reading randomness from rand. If opts is a
+-// *PSSOptions then the PSS algorithm will be used, otherwise PKCS#1 v1.5 will
++// *PSSOptions then the PSS algorithm will be used, otherwise PKCS #1 v1.5 will
+ // be used. digest must be the result of hashing the input message using
+ // opts.HashFunc().
+ //
+@@ -150,7 +150,7 @@ func (priv *PrivateKey) Sign(rand io.Reader, digest []byte, opts crypto.SignerOp
+ }
+ 
+ // Decrypt decrypts ciphertext with priv. If opts is nil or of type
+-// *PKCS1v15DecryptOptions then PKCS#1 v1.5 decryption is performed. Otherwise
++// *PKCS1v15DecryptOptions then PKCS #1 v1.5 decryption is performed. Otherwise
+ // opts must have type *OAEPOptions and OAEP decryption is done.
+ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.DecrypterOpts) (plaintext []byte, err error) {
+ 	if opts == nil {
+@@ -186,7 +186,7 @@ type PrecomputedValues struct {
+ 
+ 	// CRTValues is used for the 3rd and subsequent primes. Due to a
+ 	// historical accident, the CRT for the first two primes is handled
+-	// differently in PKCS#1 and interoperability is sufficiently
++	// differently in PKCS #1 and interoperability is sufficiently
+ 	// important that we mirror this.
+ 	CRTValues []CRTValue
+ }
+@@ -360,7 +360,7 @@ func incCounter(c *[4]byte) {
+ }
+ 
+ // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
+-// specified in PKCS#1 v2.1.
++// specified in PKCS #1 v2.1.
+ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ 	var counter [4]byte
+ 	var digest []byte
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index ad5f9a2e43..a9df0da6d6 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -155,9 +155,9 @@ var rsaSignatureSchemes = []struct {
+ 	{PSSWithSHA256, crypto.SHA256.Size()*2 + 2, VersionTLS13},
+ 	{PSSWithSHA384, crypto.SHA384.Size()*2 + 2, VersionTLS13},
+ 	{PSSWithSHA512, crypto.SHA512.Size()*2 + 2, VersionTLS13},
+-	// PKCS#1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
++	// PKCS #1 v1.5 uses prefixes from hashPrefixes in crypto/rsa, and requires
+ 	//    emLen >= len(prefix) + hLen + 11
+-	// TLS 1.3 dropped support for PKCS#1 v1.5 in favor of RSA-PSS.
++	// TLS 1.3 dropped support for PKCS #1 v1.5 in favor of RSA-PSS.
+ 	{PKCS1WithSHA256, 19 + crypto.SHA256.Size() + 11, VersionTLS12},
+ 	{PKCS1WithSHA384, 19 + crypto.SHA384.Size() + 11, VersionTLS12},
+ 	{PKCS1WithSHA512, 19 + crypto.SHA512.Size() + 11, VersionTLS12},
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 03aa861a1d..7e6534bd46 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -40,7 +40,7 @@ func (ka rsaKeyAgreement) processClientKeyExchange(config *Config, cert *Certifi
+ 	if !ok {
+ 		return nil, errors.New("tls: certificate private key does not implement crypto.Decrypter")
+ 	}
+-	// Perform constant time RSA PKCS#1 v1.5 decryption
++	// Perform constant time RSA PKCS #1 v1.5 decryption
+ 	preMasterSecret, err := priv.Decrypt(config.rand(), ciphertext, &rsa.PKCS1v15DecryptOptions{SessionKeyLen: 48})
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 1c5173e281..454aa0bbbc 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -365,7 +365,7 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ }
+ 
+ // Attempt to parse the given private key DER block. OpenSSL 0.9.8 generates
+-// PKCS#1 private keys by default, while OpenSSL 1.0.0 generates PKCS#8 keys.
++// PKCS #1 private keys by default, while OpenSSL 1.0.0 generates PKCS #8 keys.
+ // OpenSSL ecparam generates SEC1 EC private keys for ECDSA. We try all three.
+ func parsePrivateKey(der []byte) (crypto.PrivateKey, error) {
+ 	if key, err := x509.ParsePKCS1PrivateKey(der); err == nil {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index d5238026da..198423414b 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1443,7 +1443,7 @@ func (s brokenSigner) Sign(rand io.Reader, digest []byte, opts crypto.SignerOpts
+ }
+ 
+ // TestPKCS1OnlyCert uses a client certificate with a broken crypto.Signer that
+-// always makes PKCS#1 v1.5 signatures, so can't be used with RSA-PSS.
++// always makes PKCS #1 v1.5 signatures, so can't be used with RSA-PSS.
+ func TestPKCS1OnlyCert(t *testing.T) {
+ 	clientConfig := testConfig.Clone()
+ 	clientConfig.Certificates = []Certificate{{
+@@ -1451,7 +1451,7 @@ func TestPKCS1OnlyCert(t *testing.T) {
+ 		PrivateKey:  brokenSigner{testRSAPrivateKey},
+ 	}}
+ 	serverConfig := testConfig.Clone()
+-	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS#1 v1.5
++	serverConfig.MaxVersion = VersionTLS12 // TLS 1.3 doesn't support PKCS #1 v1.5
+ 	serverConfig.ClientAuth = RequireAnyClientCert
+ 
+ 	// If RSA-PSS is selected, the handshake should fail.
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index a48c6f9d64..f9d384018a 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -11,7 +11,7 @@ import (
+ 	"math/big"
+ )
+ 
+-// pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
++// pkcs1PrivateKey is a structure which mirrors the PKCS #1 ASN.1 for an RSA private key.
+ type pkcs1PrivateKey struct {
+ 	Version int
+ 	N       *big.Int
+@@ -35,13 +35,13 @@ type pkcs1AdditionalRSAPrime struct {
+ 	Coeff *big.Int
+ }
+ 
+-// pkcs1PublicKey reflects the ASN.1 structure of a PKCS#1 public key.
++// pkcs1PublicKey reflects the ASN.1 structure of a PKCS #1 public key.
+ type pkcs1PublicKey struct {
+ 	N *big.Int
+ 	E int
+ }
+ 
+-// ParsePKCS1PrivateKey parses an RSA private key in PKCS#1, ASN.1 DER form.
++// ParsePKCS1PrivateKey parses an RSA private key in PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
+ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+@@ -96,7 +96,7 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	return key, nil
+ }
+ 
+-// MarshalPKCS1PrivateKey converts an RSA private key to PKCS#1, ASN.1 DER form.
++// MarshalPKCS1PrivateKey converts an RSA private key to PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PRIVATE KEY".
+ // For a more flexible key format which is not RSA specific, use
+@@ -132,7 +132,7 @@ func MarshalPKCS1PrivateKey(key *rsa.PrivateKey) []byte {
+ 	return b
+ }
+ 
+-// ParsePKCS1PublicKey parses an RSA public key in PKCS#1, ASN.1 DER form.
++// ParsePKCS1PublicKey parses an RSA public key in PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+@@ -161,7 +161,7 @@ func ParsePKCS1PublicKey(der []byte) (*rsa.PublicKey, error) {
+ 	}, nil
+ }
+ 
+-// MarshalPKCS1PublicKey converts an RSA public key to PKCS#1, ASN.1 DER form.
++// MarshalPKCS1PublicKey converts an RSA public key to PKCS #1, ASN.1 DER form.
+ //
+ // This kind of key is commonly encoded in PEM blocks of type "RSA PUBLIC KEY".
+ func MarshalPKCS1PublicKey(key *rsa.PublicKey) []byte {
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index ec4ab10c57..a5ee4cfbfe 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -14,7 +14,7 @@ import (
+ 	"fmt"
+ )
+ 
+-// pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
++// pkcs8 reflects an ASN.1, PKCS #8 PrivateKey. See
+ // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn
+ // and RFC 5208.
+ type pkcs8 struct {
+@@ -24,7 +24,7 @@ type pkcs8 struct {
+ 	// optional attributes omitted.
+ }
+ 
+-// ParsePKCS8PrivateKey parses an unencrypted private key in PKCS#8, ASN.1 DER form.
++// ParsePKCS8PrivateKey parses an unencrypted private key in PKCS #8, ASN.1 DER form.
+ //
+ // It returns a *rsa.PrivateKey, a *ecdsa.PrivateKey, or a ed25519.PrivateKey.
+ // More types might be supported in the future.
+@@ -79,7 +79,7 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	}
+ }
+ 
+-// MarshalPKCS8PrivateKey converts a private key to PKCS#8, ASN.1 DER form.
++// MarshalPKCS8PrivateKey converts a private key to PKCS #8, ASN.1 DER form.
+ //
+ // The following key types are currently supported: *rsa.PrivateKey, *ecdsa.PrivateKey
+ // and ed25519.PrivateKey. Unsupported key types result in an error.
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 9cc3acdb3f..8ce57fb1ec 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -2349,7 +2349,7 @@ type certificateRequest struct {
+ 	SignatureValue     asn1.BitString
+ }
+ 
+-// oidExtensionRequest is a PKCS#9 OBJECT IDENTIFIER that indicates requested
++// oidExtensionRequest is a PKCS #9 OBJECT IDENTIFIER that indicates requested
+ // extensions in a CSR.
+ var oidExtensionRequest = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 9, 14}
+ 

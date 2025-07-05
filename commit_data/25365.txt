@@ -7,6 +7,37 @@ Date:   Thu Oct 22 10:04:23 2015 -0700
     Change-Id: I9cbbfcf55ce3cccb6f14b9ffe6777567dcdad9c9
     Reviewed-on: https://go-review.googlesource.com/16179
     Reviewed-by: Chris Manghane <cmang@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index b6d44d5fc3..1949427ad3 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -816,7 +816,7 @@ func stmtfmt(n *Node) string {
+ 			f += Nconv(n.Right, 0)
+ 		}
+ 
+-		// Don't export "v = <N>" initializing statements, hope they're always
++	// Don't export "v = <N>" initializing statements, hope they're always
+ 	// preceded by the DCL which will be re-parsed and typecheck to reproduce
+ 	// the "v = <N>" again.
+ 	case OAS, OASWB:
+@@ -1127,7 +1127,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 		return Vconv(n.Val(), 0)
+ 
+-		// Special case: name used as local variable in export.
++	// Special case: name used as local variable in export.
+ 	// _ becomes ~b%d internally; print as _ for export
+ 	case ONAME:
+ 		if (fmtmode == FExp || fmtmode == FErr) && n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+@@ -1149,7 +1149,6 @@ func exprfmt(n *Node, prec int) string {
+ 		}
+ 		fallthrough
+ 
+-		//fallthrough
+ 	case OPACK, ONONAME:
+ 		return Sconv(n.Sym, 0)
+ 

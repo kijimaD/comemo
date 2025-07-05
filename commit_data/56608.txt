@@ -16,7 +16,7 @@ Date:   Wed May 17 09:57:34 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/poll/fcntl_libc.go                    | 14 ------------
  src/internal/poll/fcntl_syscall.go                 | 20 -----------------
  src/internal/poll/fcntl_wasm.go                    | 14 ------------
@@ -32,3 +32,348 @@ Date:   Wed May 17 09:57:34 2023 +0200
  src/net/fcntl_syscall_test.go                      | 20 -----------------
  src/net/unixsock_readmsg_test.go                   |  3 ++-
  14 files changed, 52 insertions(+), 142 deletions(-)
+
+diff --git a/src/internal/poll/fcntl_libc.go b/src/internal/poll/fcntl_libc.go
+deleted file mode 100644
+index 529b8e123a..0000000000
+--- a/src/internal/poll/fcntl_libc.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || darwin || (openbsd && !mips64) || solaris
+-
+-package poll
+-
+-import _ "unsafe" // for go:linkname
+-
+-// Implemented in the syscall package.
+-//
+-//go:linkname fcntl syscall.fcntl
+-func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/internal/poll/fcntl_syscall.go b/src/internal/poll/fcntl_syscall.go
+deleted file mode 100644
+index bbfc8a8be5..0000000000
+--- a/src/internal/poll/fcntl_syscall.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+-
+-package poll
+-
+-import (
+-	"internal/syscall/unix"
+-	"syscall"
+-)
+-
+-func fcntl(fd int, cmd int, arg int) (int, error) {
+-	r, _, e := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), uintptr(cmd), uintptr(arg))
+-	if e != 0 {
+-		return int(r), syscall.Errno(e)
+-	}
+-	return int(r), nil
+-}
+diff --git a/src/internal/poll/fcntl_wasm.go b/src/internal/poll/fcntl_wasm.go
+deleted file mode 100644
+index ab77e4d791..0000000000
+--- a/src/internal/poll/fcntl_wasm.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (js && wasm) || wasip1
+-
+-package poll
+-
+-import "syscall"
+-
+-// fcntl not supported on js/wasm or wasip1/wasm.
+-func fcntl(fd int, cmd int, arg int) (int, error) {
+-	return 0, syscall.ENOSYS
+-}
+diff --git a/src/internal/poll/fd_fsync_darwin.go b/src/internal/poll/fd_fsync_darwin.go
+index 48e7596922..731b7fd5bd 100644
+--- a/src/internal/poll/fd_fsync_darwin.go
++++ b/src/internal/poll/fd_fsync_darwin.go
+@@ -4,7 +4,10 @@
+ 
+ package poll
+ 
+-import "syscall"
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
+ 
+ // Fsync invokes SYS_FCNTL with SYS_FULLFSYNC because
+ // on OS X, SYS_FSYNC doesn't fully flush contents to disk.
+@@ -15,7 +18,7 @@ func (fd *FD) Fsync() error {
+ 	}
+ 	defer fd.decref()
+ 	return ignoringEINTR(func() error {
+-		_, err := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
++		_, err := unix.Fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
+ 		return err
+ 	})
+ }
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index efc25f6a51..0175b91ecf 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -653,18 +653,18 @@ var dupCloexecUnsupported atomic.Bool
+ // DupCloseOnExec dups fd and marks it close-on-exec.
+ func DupCloseOnExec(fd int) (int, string, error) {
+ 	if syscall.F_DUPFD_CLOEXEC != 0 && !dupCloexecUnsupported.Load() {
+-		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+-		if e1 == nil {
++		r0, err := unix.Fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
++		if err == nil {
+ 			return r0, "", nil
+ 		}
+-		switch e1.(syscall.Errno) {
++		switch err {
+ 		case syscall.EINVAL, syscall.ENOSYS:
+ 			// Old kernel, or js/wasm (which returns
+ 			// ENOSYS). Fall back to the portable way from
+ 			// now on.
+ 			dupCloexecUnsupported.Store(true)
+ 		default:
+-			return -1, "fcntl", e1
++			return -1, "fcntl", err
+ 		}
+ 	}
+ 	return dupCloseOnExecOld(fd)
+diff --git a/src/internal/poll/splice_linux.go b/src/internal/poll/splice_linux.go
+index ae7e42d0e6..9505c5dcfc 100644
+--- a/src/internal/poll/splice_linux.go
++++ b/src/internal/poll/splice_linux.go
+@@ -5,6 +5,7 @@
+ package poll
+ 
+ import (
++	"internal/syscall/unix"
+ 	"runtime"
+ 	"sync"
+ 	"syscall"
+@@ -220,7 +221,7 @@ func newPipe() *splicePipe {
+ 	// Set the pipe buffer size to maxSpliceSize to optimize that.
+ 	// Ignore errors here, as a smaller buffer size will work,
+ 	// although it will require more system calls.
+-	fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
++	unix.Fcntl(fds[0], syscall.F_SETPIPE_SZ, maxSpliceSize)
+ 
+ 	return &splicePipe{splicePipeFields: splicePipeFields{rfd: fds[0], wfd: fds[1]}}
+ }
+diff --git a/src/internal/syscall/unix/fcntl_linux_32bit.go b/src/internal/syscall/unix/fcntl_linux_32bit.go
+deleted file mode 100644
+index 7b39ee72bc..0000000000
+--- a/src/internal/syscall/unix/fcntl_linux_32bit.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// On 32-bit Linux systems, use SYS_FCNTL64.
+-// If you change the build tags here, see syscall/flock_linux_32bit.go.
+-
+-//go:build (linux && 386) || (linux && arm) || (linux && mips) || (linux && mipsle)
+-
+-package unix
+-
+-import "syscall"
+-
+-func init() {
+-	FcntlSyscall = syscall.SYS_FCNTL64
+-}
+diff --git a/src/internal/syscall/unix/fcntl_unix.go b/src/internal/syscall/unix/fcntl_unix.go
+new file mode 100644
+index 0000000000..104c5a33fc
+--- /dev/null
++++ b/src/internal/syscall/unix/fcntl_unix.go
+@@ -0,0 +1,25 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package unix
++
++import (
++	"syscall"
++	_ "unsafe" // for go:linkname
++)
++
++// Implemented in the runtime package.
++//
++//go:linkname fcntl runtime.fcntl
++func fcntl(fd int32, cmd int32, arg int32) int32
++
++func Fcntl(fd int, cmd int, arg int) (int, error) {
++	val := fcntl(int32(fd), int32(cmd), int32(arg))
++	if val < 0 {
++		return 0, syscall.Errno(-val)
++	}
++	return int(val), nil
++}
+diff --git a/src/internal/syscall/unix/fcntl_wasm.go b/src/internal/syscall/unix/fcntl_wasm.go
+new file mode 100644
+index 0000000000..c63027398f
+--- /dev/null
++++ b/src/internal/syscall/unix/fcntl_wasm.go
+@@ -0,0 +1,11 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import "syscall"
++
++func Fcntl(fd int, cmd int, arg int) (int, error) {
++	return 0, syscall.ENOSYS
++}
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+deleted file mode 100644
+index 6c6f0674d6..0000000000
+--- a/src/internal/syscall/unix/nonblocking.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+-
+-package unix
+-
+-import "syscall"
+-
+-// FcntlSyscall is the number for the fcntl system call. This is
+-// usually SYS_FCNTL, but can be overridden to SYS_FCNTL64.
+-var FcntlSyscall uintptr = syscall.SYS_FCNTL
+-
+-func IsNonblock(fd int) (nonblocking bool, err error) {
+-	flag, _, e1 := syscall.Syscall(FcntlSyscall, uintptr(fd), uintptr(syscall.F_GETFL), 0)
+-	if e1 != 0 {
+-		return false, e1
+-	}
+-	return flag&syscall.O_NONBLOCK != 0, nil
+-}
+-
+-func HasNonblockFlag(flag int) bool {
+-	return flag&syscall.O_NONBLOCK != 0
+-}
+diff --git a/src/internal/syscall/unix/nonblocking_libc.go b/src/internal/syscall/unix/nonblocking_unix.go
+similarity index 58%
+rename from src/internal/syscall/unix/nonblocking_libc.go
+rename to src/internal/syscall/unix/nonblocking_unix.go
+index 1310dbf8ce..fc0bc27916 100644
+--- a/src/internal/syscall/unix/nonblocking_libc.go
++++ b/src/internal/syscall/unix/nonblocking_unix.go
+@@ -2,17 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || (openbsd && !mips64) || solaris
++//go:build unix
+ 
+ package unix
+ 
+-import (
+-	"syscall"
+-	_ "unsafe" // for go:linkname
+-)
++import "syscall"
+ 
+ func IsNonblock(fd int) (nonblocking bool, err error) {
+-	flag, e1 := fcntl(fd, syscall.F_GETFL, 0)
++	flag, e1 := Fcntl(fd, syscall.F_GETFL, 0)
+ 	if e1 != nil {
+ 		return false, e1
+ 	}
+@@ -22,8 +19,3 @@ func IsNonblock(fd int) (nonblocking bool, err error) {
+ func HasNonblockFlag(flag int) bool {
+ 	return flag&syscall.O_NONBLOCK != 0
+ }
+-
+-// Implemented in the syscall package.
+-//
+-//go:linkname fcntl syscall.fcntl
+-func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/net/fcntl_libc_test.go b/src/net/fcntl_libc_test.go
+deleted file mode 100644
+index 5858865cf0..0000000000
+--- a/src/net/fcntl_libc_test.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build aix || darwin || (openbsd && !mips64) || solaris
+-
+-package net
+-
+-import _ "unsafe" // for go:linkname
+-
+-// Implemented in the syscall package.
+-//
+-//go:linkname fcntl syscall.fcntl
+-func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/net/fcntl_syscall_test.go b/src/net/fcntl_syscall_test.go
+deleted file mode 100644
+index b9ac1d3eff..0000000000
+--- a/src/net/fcntl_syscall_test.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+-
+-package net
+-
+-import (
+-	"internal/syscall/unix"
+-	"syscall"
+-)
+-
+-func fcntl(fd int, cmd int, arg int) (int, error) {
+-	r, _, e := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), uintptr(cmd), uintptr(arg))
+-	if e != 0 {
+-		return int(r), syscall.Errno(e)
+-	}
+-	return int(r), nil
+-}
+diff --git a/src/net/unixsock_readmsg_test.go b/src/net/unixsock_readmsg_test.go
+index 414f626644..2d89dc4936 100644
+--- a/src/net/unixsock_readmsg_test.go
++++ b/src/net/unixsock_readmsg_test.go
+@@ -7,6 +7,7 @@
+ package net
+ 
+ import (
++	"internal/syscall/unix"
+ 	"os"
+ 	"syscall"
+ 	"testing"
+@@ -94,7 +95,7 @@ func TestUnixConnReadMsgUnixSCMRightsCloseOnExec(t *testing.T) {
+ 		}
+ 	}()
+ 
+-	flags, err := fcntl(gotFDs[0], syscall.F_GETFD, 0)
++	flags, err := unix.Fcntl(gotFDs[0], syscall.F_GETFD, 0)
+ 	if err != nil {
+ 		t.Fatalf("Can't get flags of fd:%#v, with err:%v", gotFDs[0], err)
+ 	}

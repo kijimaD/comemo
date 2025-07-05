@@ -11,6 +11,29 @@ Date:   Thu Nov 2 19:17:13 2017 +0000
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Run-TryBot: Tom Bergan <tombergan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/transport_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 31cf917066..997a9153d0 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1113,15 +1113,14 @@ func TestTransportProxy(t *testing.T) {
+ 						Header:     make(Header),
+ 					}
+ 
+-					log.Printf("Dialing %s", r.URL.Host)
+ 					targetConn, err := net.Dial("tcp", r.URL.Host)
+ 					if err != nil {
+-						t.Errorf("net.Dial failed")
++						t.Errorf("net.Dial(%q) failed: %v", r.URL.Host, err)
+ 						return
+ 					}
+ 
+ 					if err := res.Write(clientConn); err != nil {
+-						t.Errorf("Writing 200 OK failed")
++						t.Errorf("Writing 200 OK failed: %v", err)
+ 						return
+ 					}
+ 

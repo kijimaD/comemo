@@ -25,9 +25,789 @@ Date:   Fri Oct 17 09:00:07 2014 -0700
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/156310043
-
+---
  src/encoding/gob/enc_helpers.go | 414 ++++++++++++++++++++++++++++++++++++++++
  src/encoding/gob/encgen.go      | 218 +++++++++++++++++++++
  src/encoding/gob/encode.go      |  15 +-
  src/encoding/gob/timing_test.go |  64 +++++++
  4 files changed, 708 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/gob/enc_helpers.go b/src/encoding/gob/enc_helpers.go
+new file mode 100644
+index 0000000000..1e6f307184
+--- /dev/null
++++ b/src/encoding/gob/enc_helpers.go
+@@ -0,0 +1,414 @@
++// Created by encgen --output enc_helpers.go; DO NOT EDIT
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gob
++
++import (
++	"reflect"
++)
++
++var arrayHelper = map[reflect.Kind]encHelper{
++	reflect.Bool:       encBoolArray,
++	reflect.Complex64:  encComplex64Array,
++	reflect.Complex128: encComplex128Array,
++	reflect.Float32:    encFloat32Array,
++	reflect.Float64:    encFloat64Array,
++	reflect.Int:        encIntArray,
++	reflect.Int16:      encInt16Array,
++	reflect.Int32:      encInt32Array,
++	reflect.Int64:      encInt64Array,
++	reflect.Int8:       encInt8Array,
++	reflect.String:     encStringArray,
++	reflect.Uint:       encUintArray,
++	reflect.Uint16:     encUint16Array,
++	reflect.Uint32:     encUint32Array,
++	reflect.Uint64:     encUint64Array,
++	reflect.Uintptr:    encUintptrArray,
++}
++
++var sliceHelper = map[reflect.Kind]encHelper{
++	reflect.Bool:       encBoolSlice,
++	reflect.Complex64:  encComplex64Slice,
++	reflect.Complex128: encComplex128Slice,
++	reflect.Float32:    encFloat32Slice,
++	reflect.Float64:    encFloat64Slice,
++	reflect.Int:        encIntSlice,
++	reflect.Int16:      encInt16Slice,
++	reflect.Int32:      encInt32Slice,
++	reflect.Int64:      encInt64Slice,
++	reflect.Int8:       encInt8Slice,
++	reflect.String:     encStringSlice,
++	reflect.Uint:       encUintSlice,
++	reflect.Uint16:     encUint16Slice,
++	reflect.Uint32:     encUint32Slice,
++	reflect.Uint64:     encUint64Slice,
++	reflect.Uintptr:    encUintptrSlice,
++}
++
++func encBoolArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encBoolSlice(state, v.Slice(0, v.Len()))
++}
++
++func encBoolSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]bool)
++	if !ok {
++		// It is kind bool but not type bool. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != false || state.sendZero {
++			if x {
++				state.encodeUint(1)
++			} else {
++				state.encodeUint(0)
++			}
++		}
++	}
++	return true
++}
++
++func encComplex64Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encComplex64Slice(state, v.Slice(0, v.Len()))
++}
++
++func encComplex64Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]complex64)
++	if !ok {
++		// It is kind complex64 but not type complex64. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0+0i || state.sendZero {
++			rpart := floatBits(float64(real(x)))
++			ipart := floatBits(float64(imag(x)))
++			state.encodeUint(rpart)
++			state.encodeUint(ipart)
++		}
++	}
++	return true
++}
++
++func encComplex128Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encComplex128Slice(state, v.Slice(0, v.Len()))
++}
++
++func encComplex128Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]complex128)
++	if !ok {
++		// It is kind complex128 but not type complex128. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0+0i || state.sendZero {
++			rpart := floatBits(real(x))
++			ipart := floatBits(imag(x))
++			state.encodeUint(rpart)
++			state.encodeUint(ipart)
++		}
++	}
++	return true
++}
++
++func encFloat32Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encFloat32Slice(state, v.Slice(0, v.Len()))
++}
++
++func encFloat32Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]float32)
++	if !ok {
++		// It is kind float32 but not type float32. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			bits := floatBits(float64(x))
++			state.encodeUint(bits)
++		}
++	}
++	return true
++}
++
++func encFloat64Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encFloat64Slice(state, v.Slice(0, v.Len()))
++}
++
++func encFloat64Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]float64)
++	if !ok {
++		// It is kind float64 but not type float64. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			bits := floatBits(x)
++			state.encodeUint(bits)
++		}
++	}
++	return true
++}
++
++func encIntArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encIntSlice(state, v.Slice(0, v.Len()))
++}
++
++func encIntSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]int)
++	if !ok {
++		// It is kind int but not type int. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeInt(int64(x))
++		}
++	}
++	return true
++}
++
++func encInt16Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encInt16Slice(state, v.Slice(0, v.Len()))
++}
++
++func encInt16Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]int16)
++	if !ok {
++		// It is kind int16 but not type int16. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeInt(int64(x))
++		}
++	}
++	return true
++}
++
++func encInt32Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encInt32Slice(state, v.Slice(0, v.Len()))
++}
++
++func encInt32Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]int32)
++	if !ok {
++		// It is kind int32 but not type int32. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeInt(int64(x))
++		}
++	}
++	return true
++}
++
++func encInt64Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encInt64Slice(state, v.Slice(0, v.Len()))
++}
++
++func encInt64Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]int64)
++	if !ok {
++		// It is kind int64 but not type int64. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeInt(x)
++		}
++	}
++	return true
++}
++
++func encInt8Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encInt8Slice(state, v.Slice(0, v.Len()))
++}
++
++func encInt8Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]int8)
++	if !ok {
++		// It is kind int8 but not type int8. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeInt(int64(x))
++		}
++	}
++	return true
++}
++
++func encStringArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encStringSlice(state, v.Slice(0, v.Len()))
++}
++
++func encStringSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]string)
++	if !ok {
++		// It is kind string but not type string. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != "" || state.sendZero {
++			state.encodeUint(uint64(len(x)))
++			state.b.WriteString(x)
++		}
++	}
++	return true
++}
++
++func encUintArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encUintSlice(state, v.Slice(0, v.Len()))
++}
++
++func encUintSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]uint)
++	if !ok {
++		// It is kind uint but not type uint. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeUint(uint64(x))
++		}
++	}
++	return true
++}
++
++func encUint16Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encUint16Slice(state, v.Slice(0, v.Len()))
++}
++
++func encUint16Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]uint16)
++	if !ok {
++		// It is kind uint16 but not type uint16. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeUint(uint64(x))
++		}
++	}
++	return true
++}
++
++func encUint32Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encUint32Slice(state, v.Slice(0, v.Len()))
++}
++
++func encUint32Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]uint32)
++	if !ok {
++		// It is kind uint32 but not type uint32. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeUint(uint64(x))
++		}
++	}
++	return true
++}
++
++func encUint64Array(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encUint64Slice(state, v.Slice(0, v.Len()))
++}
++
++func encUint64Slice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]uint64)
++	if !ok {
++		// It is kind uint64 but not type uint64. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeUint(x)
++		}
++	}
++	return true
++}
++
++func encUintptrArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return encUintptrSlice(state, v.Slice(0, v.Len()))
++}
++
++func encUintptrSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]uintptr)
++	if !ok {
++		// It is kind uintptr but not type uintptr. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != 0 || state.sendZero {
++			state.encodeUint(uint64(x))
++		}
++	}
++	return true
++}
+diff --git a/src/encoding/gob/encgen.go b/src/encoding/gob/encgen.go
+new file mode 100644
+index 0000000000..fa500e3dab
+--- /dev/null
++++ b/src/encoding/gob/encgen.go
+@@ -0,0 +1,218 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++// encgen writes the helper functions for encoding. Intended to be
++// used with go generate; see the invocation in encode.go.
++
++// TODO: We could do more by being unsafe. Add a -unsafe flag?
++
++package main
++
++import (
++	"bytes"
++	"flag"
++	"fmt"
++	"go/format"
++	"log"
++	"os"
++)
++
++var output = flag.String("output", "enc_helpers.go", "file name to write")
++
++type Type struct {
++	lower   string
++	upper   string
++	zero    string
++	encoder string
++}
++
++var types = []Type{
++	{
++		"bool",
++		"Bool",
++		"false",
++		`if x {
++			state.encodeUint(1)
++		} else {
++			state.encodeUint(0)
++		}`,
++	},
++	{
++		"complex64",
++		"Complex64",
++		"0+0i",
++		`rpart := floatBits(float64(real(x)))
++		ipart := floatBits(float64(imag(x)))
++		state.encodeUint(rpart)
++		state.encodeUint(ipart)`,
++	},
++	{
++		"complex128",
++		"Complex128",
++		"0+0i",
++		`rpart := floatBits(real(x))
++		ipart := floatBits(imag(x))
++		state.encodeUint(rpart)
++		state.encodeUint(ipart)`,
++	},
++	{
++		"float32",
++		"Float32",
++		"0",
++		`bits := floatBits(float64(x))
++		state.encodeUint(bits)`,
++	},
++	{
++		"float64",
++		"Float64",
++		"0",
++		`bits := floatBits(x)
++		state.encodeUint(bits)`,
++	},
++	{
++		"int",
++		"Int",
++		"0",
++		`state.encodeInt(int64(x))`,
++	},
++	{
++		"int16",
++		"Int16",
++		"0",
++		`state.encodeInt(int64(x))`,
++	},
++	{
++		"int32",
++		"Int32",
++		"0",
++		`state.encodeInt(int64(x))`,
++	},
++	{
++		"int64",
++		"Int64",
++		"0",
++		`state.encodeInt(x)`,
++	},
++	{
++		"int8",
++		"Int8",
++		"0",
++		`state.encodeInt(int64(x))`,
++	},
++	{
++		"string",
++		"String",
++		`""`,
++		`state.encodeUint(uint64(len(x)))
++		state.b.WriteString(x)`,
++	},
++	{
++		"uint",
++		"Uint",
++		"0",
++		`state.encodeUint(uint64(x))`,
++	},
++	{
++		"uint16",
++		"Uint16",
++		"0",
++		`state.encodeUint(uint64(x))`,
++	},
++	{
++		"uint32",
++		"Uint32",
++		"0",
++		`state.encodeUint(uint64(x))`,
++	},
++	{
++		"uint64",
++		"Uint64",
++		"0",
++		`state.encodeUint(x)`,
++	},
++	{
++		"uintptr",
++		"Uintptr",
++		"0",
++		`state.encodeUint(uint64(x))`,
++	},
++	// uint8 Handled separately.
++}
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("helpergen: ")
++	flag.Parse()
++	if flag.NArg() != 0 {
++		log.Fatal("usage: encgen [--output filename]")
++	}
++	var b bytes.Buffer
++	fmt.Fprintf(&b, "// Created by encgen --output %s; DO NOT EDIT\n", *output)
++	fmt.Fprint(&b, header)
++	printMaps(&b, "array", "Array")
++	fmt.Fprint(&b, "\n")
++	printMaps(&b, "slice", "Slice")
++	for _, t := range types {
++		fmt.Fprintf(&b, arrayHelper, t.lower, t.upper)
++		fmt.Fprintf(&b, sliceHelper, t.lower, t.upper, t.zero, t.encoder)
++	}
++	source, err := format.Source(b.Bytes())
++	if err != nil {
++		log.Fatal("source format error:", err)
++	}
++	fd, err := os.Create(*output)
++	_, err = fd.Write(source)
++	if err != nil {
++		log.Fatal(err)
++	}
++}
++
++func printMaps(b *bytes.Buffer, lowerClass, upperClass string) {
++	fmt.Fprintf(b, "var %sHelper = map[reflect.Kind]encHelper{\n", lowerClass)
++	for _, t := range types {
++		fmt.Fprintf(b, "reflect.%s: enc%s%s,\n", t.upper, t.upper, upperClass)
++	}
++	fmt.Fprintf(b, "}\n")
++}
++
++const header = `
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gob
++
++import (
++	"reflect"
++)
++
++`
++
++const arrayHelper = `
++func enc%[2]sArray(state *encoderState, v reflect.Value) bool {
++	// Can only slice if it is addressable.
++	if !v.CanAddr() {
++		return false
++	}
++	return enc%[2]sSlice(state, v.Slice(0, v.Len()))
++}
++`
++
++const sliceHelper = `
++func enc%[2]sSlice(state *encoderState, v reflect.Value) bool {
++	slice, ok := v.Interface().([]%[1]s)
++	if !ok {
++		// It is kind %[1]s but not type %[1]s. TODO: We can handle this unsafely.
++		return false
++	}
++	for _, x := range slice {
++		if x != %[3]s || state.sendZero {
++			%[4]s
++		}
++	}
++	return true
++}
++`
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 04a85410c6..3b8d0b4271 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:generate go run encgen.go -output enc_helpers.go
++
+ package gob
+ 
+ import (
+@@ -13,6 +15,8 @@ import (
+ 
+ const uint64Size = 8
+ 
++type encHelper func(state *encoderState, v reflect.Value) bool
++
+ // encoderState is the global execution state of an instance of the encoder.
+ // Field numbers are delta encoded and always increase. The field
+ // number is initialized to -1 so 0 comes out as delta(1). A delta of
+@@ -291,12 +295,15 @@ func (enc *Encoder) encodeStruct(b *bytes.Buffer, engine *encEngine, value refle
+ }
+ 
+ // encodeArray encodes an array.
+-func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int) {
++func (enc *Encoder) encodeArray(b *bytes.Buffer, value reflect.Value, op encOp, elemIndir int, length int, helper encHelper) {
+ 	state := enc.newEncoderState(b)
+ 	defer enc.freeEncoderState(state)
+ 	state.fieldnum = -1
+ 	state.sendZero = true
+ 	state.encodeUint(uint64(length))
++	if helper != nil && helper(state, value) {
++		return
++	}
+ 	for i := 0; i < length; i++ {
+ 		elem := value.Index(i)
+ 		if elemIndir > 0 {
+@@ -501,19 +508,21 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[
+ 			}
+ 			// Slices have a header; we decode it to find the underlying array.
+ 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
++			helper := sliceHelper[t.Elem().Kind()]
+ 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
+ 				if !state.sendZero && slice.Len() == 0 {
+ 					return
+ 				}
+ 				state.update(i)
+-				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len())
++				state.enc.encodeArray(state.b, slice, *elemOp, elemIndir, slice.Len(), helper)
+ 			}
+ 		case reflect.Array:
+ 			// True arrays have size in the type.
+ 			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
++			helper := arrayHelper[t.Elem().Kind()]
+ 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
+ 				state.update(i)
+-				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
++				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len(), helper)
+ 			}
+ 		case reflect.Map:
+ 			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
+diff --git a/src/encoding/gob/timing_test.go b/src/encoding/gob/timing_test.go
+index ec55c4d63d..abfe936e83 100644
+--- a/src/encoding/gob/timing_test.go
++++ b/src/encoding/gob/timing_test.go
+@@ -131,3 +131,67 @@ func TestCountDecodeMallocs(t *testing.T) {
+ 		t.Fatalf("mallocs per decode of type Bench: %v; wanted 4\n", allocs)
+ 	}
+ }
++
++func BenchmarkComplex128Slice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]complex128, 1000)
++	for i := range a {
++		a[i] = 1.2 + 3.4i
++	}
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		err := enc.Encode(a)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
++func BenchmarkInt32Slice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]int32, 1000)
++	for i := range a {
++		a[i] = 1234
++	}
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		err := enc.Encode(a)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
++func BenchmarkFloat64Slice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]float64, 1000)
++	for i := range a {
++		a[i] = 1.23e4
++	}
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		err := enc.Encode(a)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}
++
++func BenchmarkStringSlice(b *testing.B) {
++	var buf bytes.Buffer
++	enc := NewEncoder(&buf)
++	a := make([]string, 1000)
++	for i := range a {
++		a[i] = "now is the time"
++	}
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		err := enc.Encode(a)
++		if err != nil {
++			b.Fatal(err)
++		}
++	}
++}

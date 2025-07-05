@@ -7,6 +7,20 @@ Date:   Thu May 20 22:19:50 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1243044
-
+---
  src/cmd/gc/walk.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 86e45e12d3..3098fa525e 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -221,7 +221,7 @@ walkdef(Node *n)
+ 	if(n->op == ONONAME) {
+ 		if(!n->diag) {
+ 			n->diag = 1;
+-			yyerror("undefined: %S", n->sym);
++			yyerrorl(n->lineno, "undefined: %S", n->sym);
+ 		}
+ 		return;
+ 	}

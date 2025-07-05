@@ -12,7 +12,186 @@ Date:   Sun Dec 21 09:25:12 2014 -0800
     Change-Id: I1c5e7d2116e1ff106f11a1ef8e99bf70cf04162a
     Reviewed-on: https://go-review.googlesource.com/1923
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/fcgi/child.go     |  23 ++++++++-
  src/net/http/fcgi/fcgi_test.go | 104 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 126 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index a3beaa33a8..aba71cd5c1 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -144,6 +144,7 @@ func newChild(rwc io.ReadWriteCloser, handler http.Handler) *child {
+ 
+ func (c *child) serve() {
+ 	defer c.conn.Close()
++	defer c.cleanUp()
+ 	var rec record
+ 	for {
+ 		if err := rec.read(c.conn.rwc); err != nil {
+@@ -159,6 +160,14 @@ var errCloseConn = errors.New("fcgi: connection should be closed")
+ 
+ var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+ 
++// ErrRequestAborted is returned by Read when a handler attempts to read the
++// body of a request that has been aborted by the web server.
++var ErrRequestAborted = errors.New("fcgi: request aborted by web server")
++
++// ErrConnClosed is returned by Read when a handler attempts to read the body of
++// a request after the connection to the web server has been closed.
++var ErrConnClosed = errors.New("fcgi: connection to web server closed")
++
+ func (c *child) handleRecord(rec *record) error {
+ 	c.mu.Lock()
+ 	req, ok := c.requests[rec.h.Id]
+@@ -227,11 +236,13 @@ func (c *child) handleRecord(rec *record) error {
+ 		// If the filter role is implemented, read the data stream here.
+ 		return nil
+ 	case typeAbortRequest:
+-		println("abort")
+ 		c.mu.Lock()
+ 		delete(c.requests, rec.h.Id)
+ 		c.mu.Unlock()
+ 		c.conn.writeEndRequest(rec.h.Id, 0, statusRequestComplete)
++		if req.pw != nil {
++			req.pw.CloseWithError(ErrRequestAborted)
++		}
+ 		if !req.keepConn {
+ 			// connection will close upon return
+ 			return errCloseConn
+@@ -277,6 +288,16 @@ func (c *child) serveRequest(req *request, body io.ReadCloser) {
+ 	}
+ }
+ 
++func (c *child) cleanUp() {
++	for _, req := range c.requests {
++		if req.pw != nil {
++			// race with call to Close in c.serveRequest doesn't matter because
++			// Pipe(Reader|Writer).Close are idempotent
++			req.pw.CloseWithError(ErrConnClosed)
++		}
++	}
++}
++
+ // Serve accepts incoming FastCGI connections on the listener l, creating a new
+ // goroutine for each. The goroutine reads requests and then calls handler
+ // to reply to them.
+diff --git a/src/net/http/fcgi/fcgi_test.go b/src/net/http/fcgi/fcgi_test.go
+index 6c7e1a9ce8..74d91bf134 100644
+--- a/src/net/http/fcgi/fcgi_test.go
++++ b/src/net/http/fcgi/fcgi_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"io"
++	"io/ioutil"
++	"net/http"
+ 	"testing"
+ )
+ 
+@@ -148,3 +150,105 @@ func TestGetValues(t *testing.T) {
+ 		t.Errorf(" got: %q\nwant: %q\n", got, want)
+ 	}
+ }
++
++func nameValuePair11(nameData, valueData string) []byte {
++	return bytes.Join(
++		[][]byte{
++			{byte(len(nameData)), byte(len(valueData))},
++			[]byte(nameData),
++			[]byte(valueData),
++		},
++		nil,
++	)
++}
++
++func makeRecord(
++	recordType recType,
++	requestId uint16,
++	contentData []byte,
++) []byte {
++	requestIdB1 := byte(requestId >> 8)
++	requestIdB0 := byte(requestId)
++
++	contentLength := len(contentData)
++	contentLengthB1 := byte(contentLength >> 8)
++	contentLengthB0 := byte(contentLength)
++	return bytes.Join([][]byte{
++		{1, byte(recordType), requestIdB1, requestIdB0, contentLengthB1,
++			contentLengthB0, 0, 0},
++		contentData,
++	},
++		nil)
++}
++
++// a series of FastCGI records that start a request and begin sending the
++// request body
++var streamBeginTypeStdin = bytes.Join([][]byte{
++	// set up request 1
++	makeRecord(typeBeginRequest, 1,
++		[]byte{0, byte(roleResponder), 0, 0, 0, 0, 0, 0}),
++	// add required parameters to request 1
++	makeRecord(typeParams, 1, nameValuePair11("REQUEST_METHOD", "GET")),
++	makeRecord(typeParams, 1, nameValuePair11("SERVER_PROTOCOL", "HTTP/1.1")),
++	makeRecord(typeParams, 1, nil),
++	// begin sending body of request 1
++	makeRecord(typeStdin, 1, []byte("0123456789abcdef")),
++},
++	nil)
++
++var cleanUpTests = []struct {
++	input []byte
++	err   error
++}{
++	// confirm that child.handleRecord closes req.pw after aborting req
++	{
++		bytes.Join([][]byte{
++			streamBeginTypeStdin,
++			makeRecord(typeAbortRequest, 1, nil),
++		},
++			nil),
++		ErrRequestAborted,
++	},
++	// confirm that child.serve closes all pipes after error reading record
++	{
++		bytes.Join([][]byte{
++			streamBeginTypeStdin,
++			nil,
++		},
++			nil),
++		ErrConnClosed,
++	},
++}
++
++type nopWriteCloser struct {
++	io.ReadWriter
++}
++
++func (nopWriteCloser) Close() error {
++	return nil
++}
++
++// Test that child.serve closes the bodies of aborted requests and closes the
++// bodies of all requests before returning. Causes deadlock if either condition
++// isn't met. See issue 6934.
++func TestChildServeCleansUp(t *testing.T) {
++	for _, tt := range cleanUpTests {
++		rc := nopWriteCloser{bytes.NewBuffer(tt.input)}
++		done := make(chan bool)
++		c := newChild(rc, http.HandlerFunc(func(
++			w http.ResponseWriter,
++			r *http.Request,
++		) {
++			// block on reading body of request
++			_, err := io.Copy(ioutil.Discard, r.Body)
++			if err != tt.err {
++				t.Errorf("Expected %#v, got %#v", tt.err, err)
++			}
++			// not reached if body of request isn't closed
++			done <- true
++		}))
++		go c.serve()
++		// wait for body of request to be closed or all goroutines to block
++		<-done
++	}
++}

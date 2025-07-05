@@ -9,7 +9,61 @@ Date:   Thu Feb 28 16:58:26 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/7435046
-
+---
  src/pkg/net/http/response_test.go | 24 ++++++++++++++++++++++++
  src/pkg/net/http/transfer.go      |  7 -------
  2 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 8411964dc8..2f5f77369f 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -324,6 +324,30 @@ var respTests = []respTest{
+ 
+ 		"",
+ 	},
++
++	// golang.org/issue/4767: don't special-case multipart/byteranges responses
++	{
++		`HTTP/1.1 206 Partial Content
++Connection: close
++Content-Type: multipart/byteranges; boundary=18a75608c8f47cef
++
++some body`,
++		Response{
++			Status:     "206 Partial Content",
++			StatusCode: 206,
++			Proto:      "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Request:    dummyReq("GET"),
++			Header: Header{
++				"Content-Type": []string{"multipart/byteranges; boundary=18a75608c8f47cef"},
++			},
++			Close:         true,
++			ContentLength: -1,
++		},
++
++		"some body",
++	},
+ }
+ 
+ func TestReadResponse(t *testing.T) {
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 3b473ad75b..43c6023a3a 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -454,13 +454,6 @@ func fixLength(isResponse bool, status int, requestMethod string, header Header,
+ 		return 0, nil
+ 	}
+ 
+-	// Logic based on media type. The purpose of the following code is just
+-	// to detect whether the unsupported "multipart/byteranges" is being
+-	// used. A proper Content-Type parser is needed in the future.
+-	if strings.Contains(strings.ToLower(header.get("Content-Type")), "multipart/byteranges") {
+-		return -1, ErrNotSupported
+-	}
+-
+ 	// Body-EOF logic based on other methods (like closing, or chunked coding)
+ 	return -1, nil
+ }

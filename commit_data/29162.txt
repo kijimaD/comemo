@@ -17,8 +17,48 @@ Date:   Fri Jul 29 14:02:26 2016 -0300
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/internal/sys/arch_ppc64.go   | 2 +-
  src/runtime/internal/sys/arch_ppc64le.go | 2 +-
  src/runtime/runtime2.go                  | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index cdec63ff71..f908ce2173 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -7,7 +7,7 @@ package sys
+ const (
+ 	ArchFamily    = PPC64
+ 	BigEndian     = 1
+-	CacheLineSize = 64
++	CacheLineSize = 128
+ 	PhysPageSize  = 65536
+ 	PCQuantum     = 4
+ 	Int64Align    = 8
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index 4fd68f9ce3..3d95f9e96c 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -7,7 +7,7 @@ package sys
+ const (
+ 	ArchFamily    = PPC64
+ 	BigEndian     = 0
+-	CacheLineSize = 64
++	CacheLineSize = 128
+ 	PhysPageSize  = 65536
+ 	PCQuantum     = 4
+ 	Int64Align    = 8
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 24f85d943d..2e886742b5 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -498,7 +498,7 @@ type p struct {
+ 
+ 	runSafePointFn uint32 // if 1, run sched.safePointFn at next safe point
+ 
+-	pad [64]byte
++	pad [sys.CacheLineSize]byte
+ }
+ 
+ const (

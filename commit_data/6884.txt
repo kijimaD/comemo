@@ -11,10 +11,115 @@ Date:   Wed Dec 8 13:53:30 2010 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3420043
-
+---
  src/pkg/Makefile                | 3 +++
  src/pkg/runtime/cgocall.c       | 7 +++++--
  src/pkg/runtime/darwin/thread.c | 3 +--
  src/pkg/runtime/proc.c          | 7 ++++++-
  src/pkg/runtime/runtime.h       | 1 +
  5 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 48649846b8..22da9f98c5 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -109,6 +109,7 @@ DIRS=\
+ 	rpc\
+ 	rpc/jsonrpc\
+ 	runtime\
++	runtime/cgo\
+ 	runtime/pprof\
+ 	scanner\
+ 	smtp\
+@@ -152,6 +153,7 @@ NOTEST=\
+ 	image/jpeg\
+ 	net/dict\
+ 	rand\
++	runtime/cgo\
+ 	runtime/pprof\
+ 	syscall\
+ 	testing\
+@@ -247,3 +249,4 @@ deps:
+ -include Make.deps
+ 
+ ../cmd/cgo.install: ../libcgo.install
++runtime/cgo.install: ../cmd/cgo.install
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index b2852be8de..80ae97e7af 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -15,9 +15,12 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ {
+ 	G *oldlock;
+ 
+-	if(initcgo == nil)
++	if(!runtime·iscgo)
+ 		runtime·throw("cgocall unavailable");
+ 
++	if(fn == 0)
++		runtime·throw("cgocall nil");
++
+ 	ncgocall++;
+ 
+ 	/*
+@@ -94,7 +97,7 @@ void (*_cgo_free)(void*);
+ void*
+ runtime·cmalloc(uintptr n)
+ {
+-	struct a {
++	struct {
+ 		uint64 n;
+ 		void *ret;
+ 	} a;
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 58aa9da34a..185f0ce963 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -144,8 +144,7 @@ runtime·osinit(void)
+ 	// Register our thread-creation callback (see {amd64,386}/sys.s)
+ 	// but only if we're not using cgo.  If we are using cgo we need
+ 	// to let the C pthread libary install its own thread-creation callback.
+-	extern void (*libcgo_thread_start)(void*);
+-	if(libcgo_thread_start == nil)
++	if(!runtime·iscgo)
+ 		runtime·bsdthread_register();
+ }
+ 
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index ff8673a314..3d5ee24c49 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -8,6 +8,8 @@
+ #include "malloc.h"
+ #include "os.h"
+ 
++bool	runtime·iscgo;
++
+ static void unwindstack(G*, byte*);
+ 
+ typedef struct Sched Sched;
+@@ -426,8 +428,11 @@ matchmg(void)
+ 			runtime·allm = m;
+ 			m->id = runtime·sched.mcount++;
+ 
+-			if(libcgo_thread_start != nil) {
++			if(runtime·iscgo) {
+ 				CgoThreadStart ts;
++
++				if(libcgo_thread_start == nil)
++					runtime·throw("libcgo_thread_start missing");
+ 				// pthread_create will make us a stack.
+ 				m->g0 = runtime·malg(-1);
+ 				ts.m = m;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3f6fb77f97..ececacc82d 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -361,6 +361,7 @@ extern	int32	runtime·panicking;
+ extern	int32	runtime·fd;	// usually 1; set to 2 when panicking
+ extern	int32	runtime·gcwaiting;		// gc is waiting to run
+ int8*	runtime·goos;
++extern	bool	runtime·iscgo;
+ 
+ /*
+  * common functions and data

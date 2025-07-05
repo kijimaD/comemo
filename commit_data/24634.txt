@@ -9,6 +9,22 @@ Date:   Mon Aug 17 00:18:31 2015 -0700
     Change-Id: Ib65331b291c8fab4238ca91e085779bb954d70e8
     Reviewed-on: https://go-review.googlesource.com/13638
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/obj.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/internal/obj/obj.go b/src/cmd/internal/obj/obj.go
+index 6229bbb288..937e3b9812 100644
+--- a/src/cmd/internal/obj/obj.go
++++ b/src/cmd/internal/obj/obj.go
+@@ -229,6 +229,10 @@ func (h *LineHist) LineString(lineno int) string {
+ 	text := fmt.Sprintf("%s:%d", filename, stk.fileLineAt(lineno))
+ 	if stk.Directive && stk.Parent != nil {
+ 		stk = stk.Parent
++		filename = stk.File
++		if h.PrintFilenameOnly {
++			filename = filepath.Base(filename)
++		}
+ 		text += fmt.Sprintf("[%s:%d]", filename, stk.fileLineAt(lineno))
+ 	}
+ 	const showFullStack = false // was used by old C compilers

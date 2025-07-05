@@ -14,7 +14,115 @@ Date:   Mon Mar 22 15:00:22 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcsweep.go | 25 ++++++++++---------------
  src/runtime/mheap.go    | 34 +++++++++++++++++++++++++++++++---
  2 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index f3d6c6caa4..723217caa9 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -356,11 +356,10 @@ func (s *mspan) sweep(preserve bool) bool {
+ 	//    If such object is not marked, we need to queue all finalizers at once.
+ 	// Both 1 and 2 are possible at the same time.
+ 	hadSpecials := s.specials != nil
+-	specialp := &s.specials
+-	special := *specialp
+-	for special != nil {
++	siter := newSpecialsIter(s)
++	for siter.valid() {
+ 		// A finalizer can be set for an inner byte of an object, find object beginning.
+-		objIndex := uintptr(special.offset) / size
++		objIndex := uintptr(siter.s.offset) / size
+ 		p := s.base() + objIndex*size
+ 		mbits := s.markBitsForIndex(objIndex)
+ 		if !mbits.isMarked() {
+@@ -368,7 +367,7 @@ func (s *mspan) sweep(preserve bool) bool {
+ 			// Pass 1: see if it has at least one finalizer.
+ 			hasFin := false
+ 			endOffset := p - s.base() + size
+-			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
++			for tmp := siter.s; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
+ 				if tmp.kind == _KindSpecialFinalizer {
+ 					// Stop freeing of object if it has a finalizer.
+ 					mbits.setMarkedNonAtomic()
+@@ -377,27 +376,23 @@ func (s *mspan) sweep(preserve bool) bool {
+ 				}
+ 			}
+ 			// Pass 2: queue all finalizers _or_ handle profile record.
+-			for special != nil && uintptr(special.offset) < endOffset {
++			for siter.valid() && uintptr(siter.s.offset) < endOffset {
+ 				// Find the exact byte for which the special was setup
+ 				// (as opposed to object beginning).
++				special := siter.s
+ 				p := s.base() + uintptr(special.offset)
+ 				if special.kind == _KindSpecialFinalizer || !hasFin {
+-					// Splice out special record.
+-					y := special
+-					special = special.next
+-					*specialp = special
+-					freespecial(y, unsafe.Pointer(p), size)
++					siter.unlinkAndNext()
++					freeSpecial(special, unsafe.Pointer(p), size)
+ 				} else {
+ 					// This is profile record, but the object has finalizers (so kept alive).
+ 					// Keep special record.
+-					specialp = &special.next
+-					special = *specialp
++					siter.next()
+ 				}
+ 			}
+ 		} else {
+ 			// object is still live: keep special record
+-			specialp = &special.next
+-			special = *specialp
++			siter.next()
+ 		}
+ 	}
+ 	if hadSpecials && s.specials == nil {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 13ea337735..d7f6a88cc9 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1854,9 +1854,37 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 	}
+ }
+ 
+-// Do whatever cleanup needs to be done to deallocate s. It has
+-// already been unlinked from the mspan specials list.
+-func freespecial(s *special, p unsafe.Pointer, size uintptr) {
++// specialsIter helps iterate over specials lists.
++type specialsIter struct {
++	pprev **special
++	s     *special
++}
++
++func newSpecialsIter(span *mspan) specialsIter {
++	return specialsIter{&span.specials, span.specials}
++}
++
++func (i *specialsIter) valid() bool {
++	return i.s != nil
++}
++
++func (i *specialsIter) next() {
++	i.pprev = &i.s.next
++	i.s = *i.pprev
++}
++
++// unlinkAndNext removes the current special from the list and moves
++// the iterator to the next special. It returns the unlinked special.
++func (i *specialsIter) unlinkAndNext() *special {
++	cur := i.s
++	i.s = cur.next
++	*i.pprev = i.s
++	return cur
++}
++
++// freeSpecial performs any cleanup on special s and deallocates it.
++// s must already be unlinked from the specials list.
++func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 	switch s.kind {
+ 	case _KindSpecialFinalizer:
+ 		sf := (*specialfinalizer)(unsafe.Pointer(s))

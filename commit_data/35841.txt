@@ -11,7 +11,43 @@ Date:   Mon Mar 12 11:40:34 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/rand_test.go   | 2 +-
  src/runtime/string_test.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/rand_test.go b/src/runtime/rand_test.go
+index f8831b05f9..1b84c79d24 100644
+--- a/src/runtime/rand_test.go
++++ b/src/runtime/rand_test.go
+@@ -25,7 +25,7 @@ func BenchmarkFastrandHashiter(b *testing.B) {
+ 	}
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+-			for _ = range m {
++			for range m {
+ 				break
+ 			}
+ 		}
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 7633cfde04..c6e925d2e0 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -125,7 +125,7 @@ func BenchmarkRuneIterate(b *testing.B) {
+ 		for _, sd := range stringdata {
+ 			b.Run(sd.name, func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+-					for _ = range sd.data {
++					for range sd.data {
+ 					}
+ 				}
+ 			})
+@@ -135,7 +135,7 @@ func BenchmarkRuneIterate(b *testing.B) {
+ 		for _, sd := range stringdata {
+ 			b.Run(sd.name, func(b *testing.B) {
+ 				for i := 0; i < b.N; i++ {
+-					for _, _ = range sd.data {
++					for range sd.data {
+ 					}
+ 				}
+ 			})

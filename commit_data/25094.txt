@@ -7,7 +7,70 @@ Date:   Wed Sep 23 09:52:21 2015 -0700
     Change-Id: If886f15468680f7e1c589873066b4391eb9784b5
     Reviewed-on: https://go-review.googlesource.com/14856
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/strconv/ftoa.go      | 18 ++++++++----------
  src/strconv/ftoa_test.go |  6 +++---
  2 files changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index 468c37fafb..9ff5d1056a 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -286,25 +286,23 @@ func roundShortest(d *decimal, mant uint64, exp int, flt *floatInfo) {
+ 	// Now we can figure out the minimum number of digits required.
+ 	// Walk along until d has distinguished itself from upper and lower.
+ 	for i := 0; i < d.nd; i++ {
+-		var l, m, u byte // lower, middle, upper digits
++		l := byte('0') // lower digit
+ 		if i < lower.nd {
+ 			l = lower.d[i]
+-		} else {
+-			l = '0'
+ 		}
+-		m = d.d[i]
++		m := d.d[i]    // middle digit
++		u := byte('0') // upper digit
+ 		if i < upper.nd {
+ 			u = upper.d[i]
+-		} else {
+-			u = '0'
+ 		}
+ 
+ 		// Okay to round down (truncate) if lower has a different digit
+-		// or if lower is inclusive and is exactly the result of rounding down.
+-		okdown := l != m || (inclusive && l == m && i+1 == lower.nd)
++		// or if lower is inclusive and is exactly the result of rounding
++		// down (i.e., and we have reached the final digit of lower).
++		okdown := l != m || inclusive && i+1 == lower.nd
+ 
+-		// Okay to round up if upper has a different digit and
+-		// either upper is inclusive or upper is bigger than the result of rounding up.
++		// Okay to round up if upper has a different digit and either upper
++		// is inclusive or upper is bigger than the result of rounding up.
+ 		okup := m != u && (inclusive || m+1 < u || i+1 < upper.nd)
+ 
+ 		// If it's okay to do either, then round to the nearest one.
+diff --git a/src/strconv/ftoa_test.go b/src/strconv/ftoa_test.go
+index 1b4dcd945b..0b9f0feafa 100644
+--- a/src/strconv/ftoa_test.go
++++ b/src/strconv/ftoa_test.go
+@@ -18,7 +18,7 @@ type ftoaTest struct {
+ 	s    string
+ }
+ 
+-func fdiv(a, b float64) float64 { return a / b } // keep compiler in the dark
++func fdiv(a, b float64) float64 { return a / b }
+ 
+ const (
+ 	below1e23 = 99999999999999974834176
+@@ -94,8 +94,8 @@ var ftoatests = []ftoaTest{
+ 	{above1e23, 'f', -1, "100000000000000010000000"},
+ 	{above1e23, 'g', -1, "1.0000000000000001e+23"},
+ 
+-	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},
+-	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"},
++	{fdiv(5e-304, 1e20), 'g', -1, "5e-324"},   // avoid constant arithmetic
++	{fdiv(-5e-304, 1e20), 'g', -1, "-5e-324"}, // avoid constant arithmetic
+ 
+ 	{32, 'g', -1, "32"},
+ 	{32, 'g', 0, "3e+01"},

@@ -11,7 +11,78 @@ Date:   Thu Nov 17 16:09:15 2022 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/issues_test.go | 12 ++++++------
  src/go/types/issues_test.go                    | 12 ++++++------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index c45c536e91..1fda04b9c5 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -593,24 +593,24 @@ func TestIssue50646(t *testing.T) {
+ 	comparableType := Universe.Lookup("comparable").Type()
+ 
+ 	if !Comparable(anyType) {
+-		t.Errorf("any is not a comparable type")
++		t.Error("any is not a comparable type")
+ 	}
+ 	if !Comparable(comparableType) {
+-		t.Errorf("comparable is not a comparable type")
++		t.Error("comparable is not a comparable type")
+ 	}
+ 
+ 	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+-		t.Errorf("any implements comparable")
++		t.Error("any implements comparable")
+ 	}
+ 	if !Implements(comparableType, anyType.(*Interface)) {
+-		t.Errorf("comparable does not implement any")
++		t.Error("comparable does not implement any")
+ 	}
+ 
+ 	if AssignableTo(anyType, comparableType) {
+-		t.Errorf("any assignable to comparable")
++		t.Error("any assignable to comparable")
+ 	}
+ 	if !AssignableTo(comparableType, anyType) {
+-		t.Errorf("comparable not assignable to any")
++		t.Error("comparable not assignable to any")
+ 	}
+ }
+ 
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 5cee7a055e..02ec67ff84 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -619,24 +619,24 @@ func TestIssue50646(t *testing.T) {
+ 	comparableType := Universe.Lookup("comparable").Type()
+ 
+ 	if !Comparable(anyType) {
+-		t.Errorf("any is not a comparable type")
++		t.Error("any is not a comparable type")
+ 	}
+ 	if !Comparable(comparableType) {
+-		t.Errorf("comparable is not a comparable type")
++		t.Error("comparable is not a comparable type")
+ 	}
+ 
+ 	if Implements(anyType, comparableType.Underlying().(*Interface)) {
+-		t.Errorf("any implements comparable")
++		t.Error("any implements comparable")
+ 	}
+ 	if !Implements(comparableType, anyType.(*Interface)) {
+-		t.Errorf("comparable does not implement any")
++		t.Error("comparable does not implement any")
+ 	}
+ 
+ 	if AssignableTo(anyType, comparableType) {
+-		t.Errorf("any assignable to comparable")
++		t.Error("any assignable to comparable")
+ 	}
+ 	if !AssignableTo(comparableType, anyType) {
+-		t.Errorf("comparable not assignable to any")
++		t.Error("comparable not assignable to any")
+ 	}
+ }
+ 

@@ -9,6 +9,26 @@ Date:   Mon Jan 7 13:42:25 2013 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7057048
-
+---
  src/pkg/go/doc/example.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 9fc0b415f0..d9e8c39a54 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -84,7 +84,13 @@ func exampleOutput(b *ast.BlockStmt, comments []*ast.CommentGroup) string {
+ 		// test that it begins with the correct prefix
+ 		text := last.Text()
+ 		if loc := outputPrefix.FindStringIndex(text); loc != nil {
+-			return strings.TrimSpace(text[loc[1]:])
++			text = text[loc[1]:]
++			// Strip zero or more spaces followed by \n or a single space.
++			text = strings.TrimLeft(text, " ")
++			if len(text) > 0 && text[0] == '\n' {
++				text = text[1:]
++			}
++			return text
+ 		}
+ 	}
+ 	return "" // no suitable comment found

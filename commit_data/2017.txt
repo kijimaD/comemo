@@ -8,7 +8,62 @@ Date:   Tue Apr 14 21:25:33 2009 -0700
     DELTA=30  (30 added, 0 deleted, 0 changed)
     OCL=27470
     CL=27474
-
+---
  src/lib/template/template.go      |  1 +
  src/lib/template/template_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 30 insertions(+)
+
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 6fa8a0d633..d285ddb444 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -514,6 +514,7 @@ func (t *Template) Execute(data interface{}, wr io.Write) *os.Error {
+ 	val := reflect.NewValue(data);
+ 	ch := make(chan *os.Error);
+ 	go func() {
++		t.p = 0;
+ 		t.execute(&state{nil, ch, val, wr});
+ 		ch <- nil;	// clean return;
+ 	}();
+diff --git a/src/lib/template/template_test.go b/src/lib/template/template_test.go
+index 090a091365..e3b018845b 100644
+--- a/src/lib/template/template_test.go
++++ b/src/lib/template/template_test.go
+@@ -199,8 +199,37 @@ func TestStringDriverType(t *testing.T) {
+ 	}
+ 	var b io.ByteBuffer;
+ 	err = tmpl.Execute("hello", &b);
++	if err != nil {
++		t.Error("unexpected parse error:", err)
++	}
+ 	s := string(b.Data());
+ 	if s != "template: hello" {
+ 		t.Errorf("failed passing string as data: expected %q got %q", "template: hello", s)
+ 	}
+ }
++
++func TestTwice(t *testing.T) {
++	tmpl, err, line := Parse("template: {@}", nil);
++	if err != nil {
++		t.Error("unexpected parse error:", err)
++	}
++	var b io.ByteBuffer;
++	err = tmpl.Execute("hello", &b);
++	if err != nil {
++		t.Error("unexpected parse error:", err)
++	}
++	s := string(b.Data());
++	text := "template: hello";
++	if s != text {
++		t.Errorf("failed passing string as data: expected %q got %q", text, s);
++	}
++	err = tmpl.Execute("hello", &b);
++	if err != nil {
++		t.Error("unexpected parse error:", err)
++	}
++	s = string(b.Data());
++	text += text;
++	if s != text {
++		t.Errorf("failed passing string as data: expected %q got %q", text, s);
++	}
++}

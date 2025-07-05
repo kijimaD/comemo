@@ -25,7 +25,83 @@ Date:   Fri May 31 15:45:06 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/doc.go               |  8 ++++++--
  src/cmd/compile/internal/gc/noder.go | 32 ++++++++++++++++++++++++++------
  2 files changed, 32 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 5291a8b0eb..5b437d6804 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -216,11 +216,15 @@ not include a stack overflow check. This is most commonly used by low-level
+ runtime sources invoked at times when it is unsafe for the calling goroutine to be
+ preempted.
+ 
+-	//go:linkname localname importpath.name
++	//go:linkname localname [importpath.name]
+ 
+ The //go:linkname directive instructs the compiler to use ``importpath.name'' as the
+ object file symbol name for the variable or function declared as ``localname'' in the
+-source code. Because this directive can subvert the type system and package
++source code.
++If the ``importpath.name'' argument is omitted, the directive uses the
++symbol's default object file symbol name and only has the effect of making
++the symbol accessible to other packages.
++Because this directive can subvert the type system and package
+ modularity, it is only enabled in files that have imported "unsafe".
+ */
+ package main
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e83ae7c5eb..93d355278e 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -244,10 +244,21 @@ func (p *noder) node() {
+ 	xtop = append(xtop, p.decls(p.file.DeclList)...)
+ 
+ 	for _, n := range p.linknames {
+-		if imported_unsafe {
+-			lookup(n.local).Linkname = n.remote
+-		} else {
++		if !imported_unsafe {
+ 			p.yyerrorpos(n.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
++			continue
++		}
++		s := lookup(n.local)
++		if n.remote != "" {
++			s.Linkname = n.remote
++		} else {
++			// Use the default object symbol name if the
++			// user didn't provide one.
++			if myimportpath == "" {
++				p.yyerrorpos(n.pos, "//go:linkname requires linkname argument or -p compiler flag")
++			} else {
++				s.Linkname = objabi.PathToPrefix(myimportpath) + "." + n.local
++			}
+ 		}
+ 	}
+ 
+@@ -1476,11 +1487,20 @@ func (p *noder) pragma(pos syntax.Pos, text string) syntax.Pragma {
+ 
+ 	case strings.HasPrefix(text, "go:linkname "):
+ 		f := strings.Fields(text)
+-		if len(f) != 3 {
+-			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname linkname"})
++		if !(2 <= len(f) && len(f) <= 3) {
++			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:linkname localname [linkname]"})
+ 			break
+ 		}
+-		p.linknames = append(p.linknames, linkname{pos, f[1], f[2]})
++		// The second argument is optional. If omitted, we use
++		// the default object symbol name for this and
++		// linkname only serves to mark this symbol as
++		// something that may be referenced via the object
++		// symbol name from another package.
++		var target string
++		if len(f) == 3 {
++			target = f[2]
++		}
++		p.linknames = append(p.linknames, linkname{pos, f[1], target})
+ 
+ 	case strings.HasPrefix(text, "go:cgo_import_dynamic "):
+ 		// This is permitted for general use because Solaris

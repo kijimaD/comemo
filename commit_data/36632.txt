@@ -17,7 +17,7 @@ Date:   Thu May 10 13:33:47 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/112716
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go              |  6 +++---
  src/go/types/lookup.go           |  4 ++--
  src/go/types/methodset.go        |  2 +-
@@ -28,3 +28,262 @@ Date:   Thu May 10 13:33:47 2018 -0700
  src/go/types/typestring.go       |  4 ++--
  src/go/types/typexpr.go          | 22 +++++++++++-----------
  9 files changed, 37 insertions(+), 33 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index f202eb0c34..fcefddf488 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -161,14 +161,14 @@ type Info struct {
+ 	// in package clauses, or symbolic variables t in t := x.(type) of
+ 	// type switch headers), the corresponding objects are nil.
+ 	//
+-	// For an anonymous field, Defs returns the field *Var it defines.
++	// For an embedded field, Defs returns the field *Var it defines.
+ 	//
+ 	// Invariant: Defs[id] == nil || Defs[id].Pos() == id.Pos()
+ 	Defs map[*ast.Ident]Object
+ 
+ 	// Uses maps identifiers to the objects they denote.
+ 	//
+-	// For an anonymous field, Uses returns the *TypeName it denotes.
++	// For an embedded field, Uses returns the *TypeName it denotes.
+ 	//
+ 	// Invariant: Uses[id].Pos() != id.Pos()
+ 	Uses map[*ast.Ident]Object
+@@ -239,7 +239,7 @@ func (info *Info) TypeOf(e ast.Expr) Type {
+ // ObjectOf returns the object denoted by the specified id,
+ // or nil if not found.
+ //
+-// If id is an anonymous struct field, ObjectOf returns the field (*Var)
++// If id is an embedded struct field, ObjectOf returns the field (*Var)
+ // it uses, not the type (*TypeName) it defines.
+ //
+ // Precondition: the Uses and Defs maps are populated.
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index ee8202d9e4..f31ef9cfe9 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -19,7 +19,7 @@ package types
+ //	2) the list of all methods (method set) of an interface type; or
+ //	3) the list of fields of a struct type.
+ //
+-// The earlier index entries are the indices of the anonymous struct fields
++// The earlier index entries are the indices of the embedded struct fields
+ // traversed to get to the found entry, starting at depth 0.
+ //
+ // If no entry is found, a nil object is returned. In this case, the returned
+@@ -149,7 +149,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 					// T is a type name. If e.typ appeared multiple times at
+ 					// this depth, f.typ appears multiple times at the next
+ 					// depth.
+-					if obj == nil && f.anonymous {
++					if obj == nil && f.embedded {
+ 						typ, isPtr := deref(f.typ)
+ 						// TODO(gri) optimization: ignore types that can't
+ 						// have fields or methods (only Named, Struct, and
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index 52048d4940..2b810da728 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -132,7 +132,7 @@ func NewMethodSet(T Type) *MethodSet {
+ 					// T is a type name. If typ appeared multiple times at
+ 					// this depth, f.Type appears multiple times at the next
+ 					// depth.
+-					if f.anonymous {
++					if f.embedded {
+ 						typ, isPtr := deref(f.typ)
+ 						// TODO(gri) optimization: ignore types that can't
+ 						// have fields or methods (only Named, Struct, and
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 70a56cba83..f158e2733f 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -215,10 +215,10 @@ func (obj *TypeName) IsAlias() bool {
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
+-	anonymous bool // if set, the variable is an anonymous struct field, and name is the type name
+-	visited   bool // for initialization cycle detection
+-	isField   bool // var is struct field
+-	used      bool // set if the variable was used
++	embedded bool // if set, the variable is an embedded struct field, and name is the type name
++	visited  bool // for initialization cycle detection
++	isField  bool // var is struct field
++	used     bool // set if the variable was used
+ }
+ 
+ // NewVar returns a new variable.
+@@ -233,14 +233,18 @@ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+ }
+ 
+ // NewField returns a new variable representing a struct field.
+-// For anonymous (embedded) fields, the name is the unqualified
+-// type name under which the field is accessible.
+-func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, anonymous: anonymous, isField: true}
++// For embedded fields, the name is the unqualified type name
++/// under which the field is accessible.
++func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, token.NoPos}, embedded: embedded, isField: true}
+ }
+ 
+-// Anonymous reports whether the variable is an anonymous field.
+-func (obj *Var) Anonymous() bool { return obj.anonymous }
++// Anonymous reports whether the variable is an embedded field.
++// Same as Embedded; only present for backward-compatibility.
++func (obj *Var) Anonymous() bool { return obj.embedded }
++
++// Embedded reports whether the variable is an embedded field.
++func (obj *Var) Embedded() bool { return obj.embedded }
+ 
+ // IsField reports whether the variable is a struct field.
+ func (obj *Var) IsField() bool { return obj.isField }
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 1ca146f590..46ad4e2dc4 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -164,13 +164,13 @@ func identical(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 	case *Struct:
+ 		// Two struct types are identical if they have the same sequence of fields,
+ 		// and if corresponding fields have the same names, and identical types,
+-		// and identical tags. Two anonymous fields are considered to have the same
++		// and identical tags. Two embedded fields are considered to have the same
+ 		// name. Lower-case field names from different packages are always different.
+ 		if y, ok := y.(*Struct); ok {
+ 			if x.NumFields() == y.NumFields() {
+ 				for i, f := range x.fields {
+ 					g := y.fields[i]
+-					if f.anonymous != g.anonymous ||
++					if f.embedded != g.embedded ||
+ 						cmpTags && x.Tag(i) != y.Tag(i) ||
+ 						!f.sameId(g.pkg, g.name) ||
+ 						!identical(f.typ, g.typ, cmpTags, p) {
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index 5ad11270da..75d442bc13 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -97,7 +97,7 @@ type (
+ 		u, v, a /* ERROR "redeclared" */ float32
+ 	}
+ 	S2 struct {
+-		S0 // anonymous field
++		S0 // embedded field
+ 		S0 /* ERROR "redeclared" */ int
+ 	}
+ 	S3 struct {
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index afdbb680f8..9c52e24fa3 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -141,7 +141,7 @@ func NewStruct(fields []*Var, tags []string) *Struct {
+ 	return &Struct{fields: fields, tags: tags}
+ }
+ 
+-// NumFields returns the number of fields in the struct (including blank and anonymous fields).
++// NumFields returns the number of fields in the struct (including blank and embedded fields).
+ func (s *Struct) NumFields() int { return len(s.fields) }
+ 
+ // Field returns the i'th field for 0 <= i < NumFields().
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index a9c0bfde1f..0c007f6cd0 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -121,7 +121,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			if i > 0 {
+ 				buf.WriteString("; ")
+ 			}
+-			if !f.anonymous {
++			if !f.embedded {
+ 				buf.WriteString(f.name)
+ 				buf.WriteByte(' ')
+ 			}
+@@ -146,7 +146,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	case *Interface:
+ 		// We write the source-level methods and embedded types rather
+ 		// than the actual method set since resolved method signatures
+-		// may have non-printable cycles if parameters have anonymous
++		// may have non-printable cycles if parameters have embedded
+ 		// interface types that (directly or indirectly) embed the
+ 		// current interface. For instance, consider the result type
+ 		// of m:
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 5e48edef70..ae4358d50f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -658,7 +658,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 	// current field typ and tag
+ 	var typ Type
+ 	var tag string
+-	add := func(ident *ast.Ident, anonymous bool, pos token.Pos) {
++	add := func(ident *ast.Ident, embedded bool, pos token.Pos) {
+ 		if tag != "" && tags == nil {
+ 			tags = make([]string, len(fields))
+ 		}
+@@ -667,7 +667,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 		}
+ 
+ 		name := ident.Name
+-		fld := NewField(pos, check.pkg, name, typ, anonymous)
++		fld := NewField(pos, check.pkg, name, typ, embedded)
+ 		// spec: "Within a struct, non-blank field names must be unique."
+ 		if name == "_" || check.declareInSet(&fset, pos, fld) {
+ 			fields = append(fields, fld)
+@@ -684,13 +684,13 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 				add(name, false, name.Pos())
+ 			}
+ 		} else {
+-			// anonymous field
++			// embedded field
+ 			// spec: "An embedded type must be specified as a type name T or as a pointer
+ 			// to a non-interface type name *T, and T itself may not be a pointer type."
+ 			pos := f.Type.Pos()
+-			name := anonymousFieldIdent(f.Type)
++			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+-				check.invalidAST(pos, "anonymous field type %s has no name", f.Type)
++				check.invalidAST(pos, "embedded field type %s has no name", f.Type)
+ 				continue
+ 			}
+ 			t, isPtr := deref(typ)
+@@ -705,17 +705,17 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 
+ 				// unsafe.Pointer is treated like a regular pointer
+ 				if t.kind == UnsafePointer {
+-					check.errorf(pos, "anonymous field type cannot be unsafe.Pointer")
++					check.errorf(pos, "embedded field type cannot be unsafe.Pointer")
+ 					continue
+ 				}
+ 
+ 			case *Pointer:
+-				check.errorf(pos, "anonymous field type cannot be a pointer")
++				check.errorf(pos, "embedded field type cannot be a pointer")
+ 				continue
+ 
+ 			case *Interface:
+ 				if isPtr {
+-					check.errorf(pos, "anonymous field type cannot be a pointer to an interface")
++					check.errorf(pos, "embedded field type cannot be a pointer to an interface")
+ 					continue
+ 				}
+ 			}
+@@ -727,17 +727,17 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType, path []*TypeNa
+ 	styp.tags = tags
+ }
+ 
+-func anonymousFieldIdent(e ast.Expr) *ast.Ident {
++func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+ 	switch e := e.(type) {
+ 	case *ast.Ident:
+ 		return e
+ 	case *ast.StarExpr:
+ 		// *T is valid, but **T is not
+ 		if _, ok := e.X.(*ast.StarExpr); !ok {
+-			return anonymousFieldIdent(e.X)
++			return embeddedFieldIdent(e.X)
+ 		}
+ 	case *ast.SelectorExpr:
+ 		return e.Sel
+ 	}
+-	return nil // invalid anonymous field
++	return nil // invalid embedded field
+ }

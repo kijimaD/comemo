@@ -9,6 +9,20 @@ Date:   Mon Feb 6 13:43:11 2017 -0500
     Change-Id: I44976cadb0dc3c23eacb8cdd58429a572cd8d28a
     Reviewed-on: https://go-review.googlesource.com/36358
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 60b94d7649..488db97313 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -286,7 +286,7 @@ func (p *ReverseProxy) copyBuffer(dst io.Writer, src io.Reader, buf []byte) (int
+ 	var written int64
+ 	for {
+ 		nr, rerr := src.Read(buf)
+-		if rerr != nil && rerr != io.EOF {
++		if rerr != nil && rerr != io.EOF && rerr != context.Canceled {
+ 			p.logf("httputil: ReverseProxy read error during body copy: %v", rerr)
+ 		}
+ 		if nr > 0 {

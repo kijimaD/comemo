@@ -9,6 +9,24 @@ Date:   Thu Feb 2 21:53:52 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 5ea2d941ca..a740748d2f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -269,11 +269,10 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 			}
+ 		}
+ 
+-		needType = append(needType, n)
+-
+ 		// If this is a struct, union, or enum type name, no need to guess the kind.
+ 		if strings.HasPrefix(n.C, "struct ") || strings.HasPrefix(n.C, "union ") || strings.HasPrefix(n.C, "enum ") {
+ 			n.Kind = "type"
++			needType = append(needType, n)
+ 			continue
+ 		}
+ 

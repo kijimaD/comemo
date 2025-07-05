@@ -16,6 +16,21 @@ Date:   Tue Jan 15 19:37:17 2019 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/path/filepath/path_windows_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 3fcccfab78..d1735d39bd 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -550,6 +550,9 @@ func TestNTNamespaceSymlink(t *testing.T) {
+ 		t.Errorf(`EvalSymlinks(%q): got %q, want %q`, dirlink, got, want)
+ 	}
+ 
++	// Make sure we have sufficient privilege to run mklink command.
++	testenv.MustHaveSymlink(t)
++
+ 	file := filepath.Join(tmpdir, "file")
+ 	err = ioutil.WriteFile(file, []byte(""), 0666)
+ 	if err != nil {

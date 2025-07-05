@@ -8,10 +8,475 @@ Date:   Thu Aug 6 13:00:26 2009 -0700
     DELTA=367  (366 added, 0 deleted, 1 changed)
     OCL=32832
     CL=32836
-
+---
  test/bench/k-nucleotide.c   | 228 ++++++++++++++++++++++++++++++++++++++++++++
  test/bench/k-nucleotide.go  | 151 +++++++++++++++++++++++++++++
  test/bench/k-nucleotide.txt |  27 ++++++
  test/bench/timing.log       |   7 ++
  test/bench/timing.sh        |  12 ++-
  5 files changed, 424 insertions(+), 1 deletion(-)
+
+diff --git a/test/bench/k-nucleotide.c b/test/bench/k-nucleotide.c
+new file mode 100644
+index 0000000000..3bace391c4
+--- /dev/null
++++ b/test/bench/k-nucleotide.c
+@@ -0,0 +1,228 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++#include <stdio.h>
++#include <string.h>
++#include <ctype.h>
++#include <stdlib.h>
++#include <glib.h>
++
++typedef struct stat_s stat_t;
++struct stat_s
++{
++   const gchar *key;
++   long stat;
++};
++
++#define MAX_ELM (8192 / sizeof (stat_t))
++
++static int
++generate_frequencies (int fl, char *buffer, long buflen,
++		      GHashTable *ht, GTrashStack **ts, GPtrArray *roots, GStringChunk *sc)
++{
++   gchar *key;
++   long i;
++
++   if (fl > buflen) return 0;
++   if (fl == 0) return 0;
++
++   for (i = 0; i < buflen - fl + 1; ++i)
++     {
++	char nulled;
++	stat_t *stat;
++
++	nulled = buffer[i + fl];
++	buffer[i + fl] = '\0';
++
++	key = g_string_chunk_insert_const(sc, buffer + i);
++
++	stat = g_hash_table_lookup(ht, key);
++	if (!stat)
++	  {
++	     stat = g_trash_stack_pop(ts);
++	     if (!stat)
++	       {
++		  int j;
++
++		  stat = malloc(sizeof (stat_t) * MAX_ELM);
++		  g_ptr_array_add(roots, stat);
++
++		  for (j = 1; j < MAX_ELM; ++j)
++		    g_trash_stack_push(ts, stat + j);
++	       }
++	     stat->stat = 1;
++	     stat->key = key;
++
++	     g_hash_table_insert(ht, key, stat);
++	  }
++	else
++	  stat->stat++;
++
++	buffer[i + fl] = nulled;
++     }
++
++   return buflen - fl + 1;
++}
++
++static int
++cmp_func(gconstpointer a, gconstpointer b)
++{
++   const stat_t *left = a;
++   const stat_t *right = b;
++
++   return right->stat - left->stat;
++}
++
++static void
++sorted_list(gpointer key, gpointer value, gpointer user_data)
++{
++   stat_t *data = value;
++   GList **lst = user_data;
++
++   *lst = g_list_insert_sorted(*lst, data, cmp_func);
++}
++
++static void
++display_stat(gpointer data, gpointer user_data)
++{
++   long *total = user_data;
++   stat_t *st = data;
++
++   printf("%s %.3f\n", st->key, 100 * (float) st->stat / *total);
++}
++
++void
++write_frequencies (int fl, char *buffer, long buflen, GTrashStack **ts, GPtrArray *roots)
++{
++   GStringChunk *sc;
++   GHashTable *ht;
++   GList *lst;
++   long total;
++
++   ht = g_hash_table_new_full(g_str_hash, g_str_equal, NULL /* free key */, NULL /* free value */);
++   sc = g_string_chunk_new(buflen);
++   lst = NULL;
++
++   total = generate_frequencies (fl, buffer, buflen, ht, ts, roots, sc);
++
++   if (!total) goto on_error;
++
++   g_hash_table_foreach(ht, sorted_list, &lst);
++   g_list_foreach(lst, display_stat, &total);
++   g_list_free(lst);
++
++ on_error:
++   g_hash_table_destroy(ht);
++   g_string_chunk_free(sc);
++}
++
++void
++write_count (char *searchFor, char *buffer, long buflen, GTrashStack **ts, GPtrArray *roots)
++{
++   GStringChunk *sc;
++   GHashTable *ht;
++   stat_t *result;
++   GList *lst;
++   long total;
++   long fl;
++
++   fl = strlen(searchFor);
++
++   ht = g_hash_table_new_full(g_str_hash, g_str_equal, NULL /* free key */, NULL /* free value */);
++   sc = g_string_chunk_new(buflen);
++   lst = NULL;
++   result = NULL;
++
++   total = generate_frequencies (fl, buffer, buflen, ht, ts, roots, sc);
++
++   if (!total) goto on_error;
++
++   result = g_hash_table_lookup(ht, searchFor);
++
++ on_error:
++   printf("%ld\t%s\n", result ? result->stat : 0, searchFor);
++
++   g_hash_table_destroy(ht);
++   g_string_chunk_free(sc);
++}
++
++int
++main ()
++{
++   char buffer[4096];
++   GTrashStack *ts;
++   GPtrArray *roots;
++   GString *stuff;
++   gchar *s;
++   int len;
++
++   roots = g_ptr_array_new();
++   ts = NULL;
++
++   while (fgets(buffer, sizeof (buffer), stdin))
++     if (strncmp(buffer, ">THREE", 6) == 0)
++       break;
++
++   stuff = g_string_new(NULL);
++
++   while (fgets(buffer, sizeof (buffer), stdin))
++     {
++	size_t sz;
++
++	if (buffer[0] == '>')
++	  break;
++
++	sz = strlen(buffer);
++	if (buffer[sz - 1] == '\n')
++	  --sz;
++
++	stuff = g_string_append_len(stuff, buffer, sz);
++     }
++
++   stuff = g_string_ascii_up(stuff);
++   len = stuff->len;
++   s = g_string_free(stuff, FALSE);
++
++   write_frequencies(1, s, len, &ts, roots);
++   printf("\n");
++   write_frequencies(2, s, len, &ts, roots);
++   printf("\n");
++   write_count("GGT", s, len, &ts, roots);
++   write_count("GGTA", s, len, &ts, roots);
++   write_count("GGTATT", s, len, &ts, roots);
++   write_count("GGTATTTTAATT", s, len, &ts, roots);
++   write_count("GGTATTTTAATTTATAGT", s, len, &ts, roots);
++
++   free(s);
++
++   g_ptr_array_foreach(roots, free, NULL);
++   g_ptr_array_free(roots, TRUE);
++
++   return 0;
++}
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+new file mode 100644
+index 0000000000..1c9ce35bf2
+--- /dev/null
++++ b/test/bench/k-nucleotide.go
+@@ -0,0 +1,151 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ */
++
++package main
++
++import (
++	"bufio";
++	"bytes";
++	"fmt";
++	"io";
++	"os";
++	"sort";
++	"strings";
++)
++
++var in *bufio.Reader
++
++func count(data string, n int) map[string] int {
++	counts := make(map[string] int);
++	top := len(data) - n;
++	for i := 0; i <= top; i++ {
++		s := data[i:i+n];
++		if k, ok := counts[s]; ok {
++			counts[s] = k+1
++		} else {
++			counts[s] = 1
++		}
++	}
++	return counts
++}
++
++func countOne(data string, s string) int {
++	counts := count(data, len(s));
++	if i, ok := counts[s]; ok {
++		return i
++	}
++	return 0
++}
++
++
++type kNuc struct {
++	name	string;
++	count	int;
++}
++
++type kNucArray []kNuc
++
++func (kn kNucArray) Len() int { return len(kn) }
++func (kn kNucArray) Swap(i, j int) { kn[i], kn[j] = kn[j], kn[i] }
++func (kn kNucArray) Less(i, j int) bool {
++	if kn[i].count == kn[j].count {
++		return kn[i].name > kn[j].name	// sort down
++	}
++	return kn[i].count > kn[j].count
++}
++
++func sortedArray(m map[string] int) kNucArray {
++	kn := make(kNucArray, len(m));
++	i := 0;
++	for k, v := range m {
++		kn[i].name = k;
++		kn[i].count = v;
++		i++;
++	}
++	sort.Sort(kn);
++	return kn;
++}
++
++func print(m map[string] int) {
++	a := sortedArray(m);
++	sum := 0;
++	for _, kn := range a {
++		sum += kn.count;
++	}
++	for _, kn := range a {
++		fmt.Printf("%s %.3f\n", kn.name, 100*float64(kn.count)/float64(sum));
++	}
++}
++
++func main() {
++	in = bufio.NewReader(os.Stdin);
++	buf := new(bytes.Buffer);
++	three := strings.Bytes(">THREE ");
++	for {
++		line, err := in.ReadLineSlice('\n');
++		if err != nil {
++			fmt.Fprintln(os.Stderr, "ReadLine err:", err);
++			os.Exit(2);
++		}
++		if line[0] == '>' && bytes.Equal(line[0:len(three)], three) {
++			break;
++		}
++	}
++	data, err := io.ReadAll(in);
++	if err != nil {
++		fmt.Fprintln(os.Stderr, "ReadAll err:", err);
++		os.Exit(2);
++	}
++	// delete the newlines and convert to upper case
++	j := 0;
++	for i := 0; i < len(data); i++ {
++		if data[i] != '\n' {
++			data[j] = data[i] &^ ' ';	// upper case
++			j++
++		}
++	}
++	str := string(data[0:j]);
++
++	print(count(str, 1));
++	fmt.Print("\n");
++
++	print(count(str, 2));
++	fmt.Print("\n");
++
++	interests := []string{"GGT", "GGTA", "GGTATT", "GGTATTTTAATT", "GGTATTTTAATTTATAGT"};
++	for _, s := range interests {
++		fmt.Printf("%d %s\n", countOne(str, s), s);
++	}
++}
+diff --git a/test/bench/k-nucleotide.txt b/test/bench/k-nucleotide.txt
+new file mode 100644
+index 0000000000..d13ae7dc6d
+--- /dev/null
++++ b/test/bench/k-nucleotide.txt
+@@ -0,0 +1,27 @@
++A 30.284
++T 29.796
++C 20.312
++G 19.608
++
++AA 9.212
++AT 8.950
++TT 8.948
++TA 8.936
++CA 6.166
++CT 6.100
++AC 6.086
++TC 6.042
++AG 6.036
++GA 5.968
++TG 5.868
++GT 5.798
++CC 4.140
++GC 4.044
++CG 3.906
++GG 3.798
++
++562	GGT
++152	GGTA
++15	GGTATT
++0	GGTATTTTAATT
++0	GGTATTTTAATTTATAGT
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index 022ebe87e4..d1731386e8 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -66,3 +66,10 @@ spectral-norm 5500
+ 	gc_B spectral-norm	49.69u 0.01s 49.83r
+ 	gc spectral-norm-parallel	24.47u 0.03s 11.05r  # has shift >>1 not div /2
+ 	[using >>1 instead of /2 : gc gives 24.33u 0.00s 24.33r]
++
++August 6, 2009
++
++k-nucleotide 5000000
++	gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0	k-nucleotide.c: 10.72u 0.01s 10.74r
++	gccgo -O2 k-nucleotide.go	22.69u 0.85s 24.09r
++	gc k-nucleotide	15.63u 0.26s 16.41r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 87fd005236..7af19194f5 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -84,9 +84,19 @@ spectralnorm() {
+ 	run 'gc_B spectral-norm' $O.out -n 5500
+ }
+ 
++knucleotide() {
++	gcc -O2 fasta.c
++	a.out 1000000 > x  # should be using 25000000
++	echo 'k-nucleotide 1000000'
++	run 'gcc -O2 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include k-nucleotide.c -lglib-2.0' a.out <x
++	run 'gccgo -O2 k-nucleotide.go' a.out <x	# warning: pages badly!
++	run 'gc k-nucleotide' $O.out <x
++	rm x
++}
++
+ case $# in
+ 0)
+-	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm"
++	run="fasta revcom nbody binarytree fannkuch regexdna spectralnorm knucleotide"
+ 	;;
+ *)
+ 	run=$*

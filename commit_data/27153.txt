@@ -11,7 +11,96 @@ Date:   Fri Mar 11 18:54:37 2016 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/obj.go | 23 ++---------------------
  src/cmd/internal/obj/data.go       | 10 ++++++++--
  2 files changed, 10 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 021343868f..a2c944ba9c 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -223,16 +223,7 @@ func stringsym(s string) (hdr, data *Sym) {
+ 	symdata.Flags |= SymUniq
+ 	symdata.Def = newname(symdata)
+ 
+-	off = 0
+-	var m int
+-	for n := 0; n < len(s); n += m {
+-		m = 8
+-		if m > len(s)-n {
+-			m = len(s) - n
+-		}
+-		off = dsname(symdata, off, s[n:n+m])
+-	}
+-
++	off = dsname(symdata, 0, s)
+ 	ggloblsym(symdata, int32(off), obj.DUPOK|obj.RODATA|obj.LOCAL)
+ 
+ 	return symhdr, symdata
+@@ -241,22 +232,12 @@ func stringsym(s string) (hdr, data *Sym) {
+ var slicebytes_gen int
+ 
+ func slicebytes(nam *Node, s string, len int) {
+-	var m int
+-
+ 	slicebytes_gen++
+ 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+ 	sym := Pkglookup(symname, localpkg)
+ 	sym.Def = newname(sym)
+ 
+-	off := 0
+-	for n := 0; n < len; n += m {
+-		m = 8
+-		if m > len-n {
+-			m = len - n
+-		}
+-		off = dsname(sym, off, s[n:n+m])
+-	}
+-
++	off := dsname(sym, 0, s)
+ 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+ 	if nam.Op != ONAME {
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 1f09c9de12..e6d116610c 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -54,7 +54,7 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+ 
+ // prepwrite prepares to write data of size siz into s at offset off.
+ func (s *LSym) prepwrite(ctxt *Link, off, siz int64) {
+-	if off < 0 || siz < 0 || off >= 1<<30 || siz >= 100 {
++	if off < 0 || siz < 0 || off >= 1<<30 {
+ 		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
+ 	}
+ 	if s.Type == SBSS || s.Type == STLSBSS {
+@@ -80,7 +80,7 @@ func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
+ 	s.prepwrite(ctxt, off, siz)
+ 	switch siz {
+ 	default:
+-		ctxt.Diag("WriteInt bad integer: %d", siz)
++		ctxt.Diag("WriteInt: bad integer size: %d", siz)
+ 	case 1:
+ 		s.P[off] = byte(i)
+ 	case 2:
+@@ -95,6 +95,9 @@ func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
+ // WriteAddr writes an address of size siz into s at offset off.
+ // rsym and roff specify the relocation for the address.
+ func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
++	if siz != int64(ctxt.Arch.Ptrsize) {
++		ctxt.Diag("WriteAddr: bad address size: %d", siz)
++	}
+ 	s.prepwrite(ctxt, off, siz)
+ 	r := Addrel(s)
+ 	r.Off = int32(off)
+@@ -106,6 +109,9 @@ func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
+ 
+ // WriteString writes a string of size siz into s at offset off.
+ func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
++	if siz < int64(len(str)) {
++		ctxt.Diag("WriteString: bad string size: %d < %d", siz, len(str))
++	}
+ 	s.prepwrite(ctxt, off, siz)
+ 	copy(s.P[off:off+siz], str)
+ }

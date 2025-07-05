@@ -14,6 +14,39 @@ Date:   Wed Nov 30 13:36:25 2011 -0500
     R=golang-dev, agl, iant
     CC=golang-dev
     https://golang.org/cl/5437088
-
+---
  src/pkg/encoding/asn1/asn1_test.go | 20 ++++++++++++++------
  1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index ea1906a7b6..2e6fccf7b8 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -223,13 +223,21 @@ var utcTestData = []timeTest{
+ func TestUTCTime(t *testing.T) {
+ 	for i, test := range utcTestData {
+ 		ret, err := parseUTCTime([]byte(test.in))
+-		if (err == nil) != test.ok {
+-			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
+-		}
+-		if err == nil {
+-			if !reflect.DeepEqual(test.out, ret) {
+-				t.Errorf("#%d: Bad result: %v (expected %v)", i, ret, test.out)
++		if err != nil {
++			if test.ok {
++				t.Errorf("#%d: parseUTCTime(%q) = error %v", i, err)
+ 			}
++			continue
++		}
++		if !test.ok {
++			t.Errorf("#%d: parseUTCTime(%q) succeeded, should have failed", i)
++			continue
++		}
++		const format = "Jan _2 15:04:05 -0700 2006" // ignore zone name, just offset
++		have := ret.Format(format)
++		want := test.out.Format(format)
++		if have != want {
++			t.Errorf("#%d: parseUTCTime(%q) = %s, want %s", test.in, have, want)
+ 		}
+ 	}
+ }

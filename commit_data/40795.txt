@@ -28,7 +28,132 @@ Date:   Thu Jun 27 18:03:15 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/file.go         | 40 +++++++++++++++++++++++++++++++---------
  src/debug/elf/symbols_test.go |  4 ++++
  2 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index f92a2b0052..79ef467145 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -171,6 +171,11 @@ type Symbol struct {
+ 	Info, Other byte
+ 	Section     SectionIndex
+ 	Value, Size uint64
++
++	// Version and Library are present only for the dynamic symbol
++	// table.
++	Version string
++	Library string
+ }
+ 
+ /*
+@@ -1228,12 +1233,23 @@ func (f *File) Symbols() ([]Symbol, error) {
+ // DynamicSymbols returns the dynamic symbol table for f. The symbols
+ // will be listed in the order they appear in f.
+ //
++// If f has a symbol version table, the returned Symbols will have
++// initialized Version and Library fields.
++//
+ // For compatibility with Symbols, DynamicSymbols omits the null symbol at index 0.
+ // After retrieving the symbols as symtab, an externally supplied index x
+ // corresponds to symtab[x-1], not symtab[x].
+ func (f *File) DynamicSymbols() ([]Symbol, error) {
+-	sym, _, err := f.getSymbols(SHT_DYNSYM)
+-	return sym, err
++	sym, str, err := f.getSymbols(SHT_DYNSYM)
++	if err != nil {
++		return nil, err
++	}
++	if f.gnuVersionInit(str) {
++		for i := range sym {
++			sym[i].Library, sym[i].Version = f.gnuVersion(i)
++		}
++	}
++	return sym, nil
+ }
+ 
+ type ImportedSymbol struct {
+@@ -1256,7 +1272,8 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	for i, s := range sym {
+ 		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
+ 			all = append(all, ImportedSymbol{Name: s.Name})
+-			f.gnuVersion(i, &all[len(all)-1])
++			sym := &all[len(all)-1]
++			sym.Library, sym.Version = f.gnuVersion(i)
+ 		}
+ 	}
+ 	return all, nil
+@@ -1269,11 +1286,16 @@ type verneed struct {
+ 
+ // gnuVersionInit parses the GNU version tables
+ // for use by calls to gnuVersion.
+-func (f *File) gnuVersionInit(str []byte) {
++func (f *File) gnuVersionInit(str []byte) bool {
++	if f.gnuNeed != nil {
++		// Already initialized
++		return true
++	}
++
+ 	// Accumulate verneed information.
+ 	vn := f.SectionByType(SHT_GNU_VERNEED)
+ 	if vn == nil {
+-		return
++		return false
+ 	}
+ 	d, _ := vn.Data()
+ 
+@@ -1328,17 +1350,18 @@ func (f *File) gnuVersionInit(str []byte) {
+ 	// Versym parallels symbol table, indexing into verneed.
+ 	vs := f.SectionByType(SHT_GNU_VERSYM)
+ 	if vs == nil {
+-		return
++		return false
+ 	}
+ 	d, _ = vs.Data()
+ 
+ 	f.gnuNeed = need
+ 	f.gnuVersym = d
++	return true
+ }
+ 
+ // gnuVersion adds Library and Version information to sym,
+ // which came from offset i of the symbol table.
+-func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
++func (f *File) gnuVersion(i int) (library string, version string) {
+ 	// Each entry is two bytes.
+ 	i = (i + 1) * 2
+ 	if i >= len(f.gnuVersym) {
+@@ -1349,8 +1372,7 @@ func (f *File) gnuVersion(i int, sym *ImportedSymbol) {
+ 		return
+ 	}
+ 	n := &f.gnuNeed[j]
+-	sym.Library = n.File
+-	sym.Version = n.Name
++	return n.File, n.Name
+ }
+ 
+ // ImportedLibraries returns the names of all libraries
+diff --git a/src/debug/elf/symbols_test.go b/src/debug/elf/symbols_test.go
+index 1b79520e3c..42f02312e8 100644
+--- a/src/debug/elf/symbols_test.go
++++ b/src/debug/elf/symbols_test.go
+@@ -819,6 +819,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Section: 0x0,
+ 			Value:   0x0,
+ 			Size:    0x18C,
++			Version: "GLIBC_2.2.5",
++			Library: "libc.so.6",
+ 		},
+ 		Symbol{
+ 			Name:    "__libc_start_main",
+@@ -827,6 +829,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Section: 0x0,
+ 			Value:   0x0,
+ 			Size:    0x1C2,
++			Version: "GLIBC_2.2.5",
++			Library: "libc.so.6",
+ 		},
+ 	},
+ 	"testdata/go-relocation-test-clang-x86.obj": {},

@@ -17,9 +17,148 @@ Date:   Fri Jul 24 14:22:26 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/12658
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 24 ++++++++++++++++++++++++
  src/net/http/server.go     | 19 +++++++++++++++----
  src/net/http/transfer.go   | 11 +++++++++++
  src/net/http/transport.go  | 10 ++++------
  4 files changed, 54 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 345bac5608..61bbeb8f53 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -3034,6 +3034,30 @@ Host: foo
+ 	}
+ }
+ 
++// If a Handler finishes and there's an unread request body,
++// verify the server try to do implicit read on it before replying.
++func TestHandlerFinishSkipBigContentLengthRead(t *testing.T) {
++	conn := &testConn{closec: make(chan bool)}
++	conn.readBuf.Write([]byte(fmt.Sprintf(
++		"POST / HTTP/1.1\r\n" +
++			"Host: test\r\n" +
++			"Content-Length: 9999999999\r\n" +
++			"\r\n" + strings.Repeat("a", 1<<20))))
++
++	ls := &oneConnListener{conn}
++	var inHandlerLen int
++	go Serve(ls, HandlerFunc(func(rw ResponseWriter, req *Request) {
++		inHandlerLen = conn.readBuf.Len()
++		rw.WriteHeader(404)
++	}))
++	<-conn.closec
++	afterHandlerLen := conn.readBuf.Len()
++
++	if afterHandlerLen != inHandlerLen {
++		t.Errorf("unexpected implicit read. Read buffer went from %d -> %d", inHandlerLen, afterHandlerLen)
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index aad55d0838..8c204fb648 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -874,8 +874,14 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	if w.req.ContentLength != 0 && !w.closeAfterReply {
+ 		ecr, isExpecter := w.req.Body.(*expectContinueReader)
+ 		if !isExpecter || ecr.resp.wroteContinue {
+-			n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
+-			if n >= maxPostHandlerReadBytes {
++			var tooBig bool
++			if reqBody, ok := w.req.Body.(*body); ok && reqBody.unreadDataSize() >= maxPostHandlerReadBytes {
++				tooBig = true
++			} else {
++				n, _ := io.CopyN(ioutil.Discard, w.req.Body, maxPostHandlerReadBytes+1)
++				tooBig = n >= maxPostHandlerReadBytes
++			}
++			if tooBig {
+ 				w.requestTooLarge()
+ 				delHeader("Connection")
+ 				setHeader.connection = "close"
+@@ -1144,13 +1150,18 @@ func (w *response) shouldReuseConnection() bool {
+ 		return false
+ 	}
+ 
+-	if body, ok := w.req.Body.(*body); ok && body.didEarlyClose() {
++	if w.closedRequestBodyEarly() {
+ 		return false
+ 	}
+ 
+ 	return true
+ }
+ 
++func (w *response) closedRequestBodyEarly() bool {
++	body, ok := w.req.Body.(*body)
++	return ok && body.didEarlyClose()
++}
++
+ func (w *response) Flush() {
+ 	if !w.wroteHeader {
+ 		w.WriteHeader(StatusOK)
+@@ -1318,7 +1329,7 @@ func (c *conn) serve() {
+ 		}
+ 		w.finishRequest()
+ 		if !w.shouldReuseConnection() {
+-			if w.requestBodyLimitHit {
++			if w.requestBodyLimitHit || w.closedRequestBodyEarly() {
+ 				c.closeWriteAndWait()
+ 			}
+ 			break
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index fbbbf2417a..d1762ebbd2 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -737,6 +737,17 @@ func mergeSetHeader(dst *Header, src Header) {
+ 	}
+ }
+ 
++// unreadDataSize returns the number of bytes of unread input.
++// It returns -1 if unknown.
++func (b *body) unreadDataSize() int64 {
++	b.mu.Lock()
++	defer b.mu.Unlock()
++	if lr, ok := b.src.(*io.LimitedReader); ok {
++		return lr.N
++	}
++	return -1
++}
++
+ func (b *body) Close() error {
+ 	b.mu.Lock()
+ 	defer b.mu.Unlock()
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e7ee5c2825..b0773f1639 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1164,7 +1164,7 @@ WaitResponse:
+ 	for {
+ 		select {
+ 		case err := <-writeErrCh:
+-			if isSyscallWriteError(err) {
++			if isNetWriteError(err) {
+ 				// Issue 11745. If we failed to write the request
+ 				// body, it's possible the server just heard enough
+ 				// and already wrote to us. Prioritize the server's
+@@ -1383,14 +1383,12 @@ type fakeLocker struct{}
+ func (fakeLocker) Lock()   {}
+ func (fakeLocker) Unlock() {}
+ 
+-func isSyscallWriteError(err error) bool {
++func isNetWriteError(err error) bool {
+ 	switch e := err.(type) {
+ 	case *url.Error:
+-		return isSyscallWriteError(e.Err)
++		return isNetWriteError(e.Err)
+ 	case *net.OpError:
+-		return e.Op == "write" && isSyscallWriteError(e.Err)
+-	case *os.SyscallError:
+-		return e.Syscall == "write"
++		return e.Op == "write"
+ 	default:
+ 		return false
+ 	}

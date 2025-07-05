@@ -13,6 +13,20 @@ Date:   Thu Sep 28 07:08:51 2023 +0900
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/sync/map.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index 00b2446153..7a9eebdce3 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -8,7 +8,7 @@ import (
+ 	"sync/atomic"
+ )
+ 
+-// Map is like a Go map[interface{}]interface{} but is safe for concurrent use
++// Map is like a Go map[any]any but is safe for concurrent use
+ // by multiple goroutines without additional locking or coordination.
+ // Loads, stores, and deletes run in amortized constant time.
+ //

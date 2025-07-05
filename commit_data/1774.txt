@@ -8,9 +8,294 @@ Date:   Fri Mar 6 16:11:40 2009 -0800
     R=r
     OCL=25863
     CL=25863
-
+---
  usr/gri/pretty/Makefile      |   2 +-
  usr/gri/pretty/printer.go    | 115 +++++++------------------------------------
  usr/gri/pretty/template.go   | 105 +++++++++++++++++++++++++++++++++++++++
  usr/gri/pretty/template.html |   3 ++
  4 files changed, 128 insertions(+), 97 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index f53226617f..5efec72f77 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -44,7 +44,7 @@ parser.6:	ast.6 symboltable.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 utils.6 ast.6 symboltable.6
++printer.6:	 utils.6 ast.6 symboltable.6 template.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index cc1d5ae1e1..009dde35cb 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -15,6 +15,7 @@ import (
+ 	Utils "utils";
+ 	"token";
+ 	"ast";
++	"template";
+ 	SymbolTable "symboltable";
+ )
+ 
+@@ -389,98 +390,6 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ // ----------------------------------------------------------------------------
+ // HTML support
+ 
+-const template_name = "template.html"
+-var html_template string  // TODO should probably be []byte
+-
+-// tags for substitution in html_template
+-const body_tag = "<!--BODY-->";
+-
+-// indexes of various tags in html_template
+-var body_index int;
+-
+-func init() {
+-	fd, err0 := os.Open(template_name, os.O_RDONLY, 0);
+-	defer fd.Close();
+-	if err0 != nil {
+-		panic("cannot open html template");
+-	}
+-
+-	// TODO not sure why this didn't work
+-	/*
+-	var buf io.ByteBuffer;
+-	len, err1 := io.Copy(fd, buf);
+-	if err1 == io.ErrEOF {
+-		err1 = nil;
+-	}
+-	if err1 != nil {
+-		panic("cannot read html template");
+-	}
+-	if len == 0 {
+-		panic("html template empty");
+-	}
+-	html_template = string(buf.AllData());
+-	*/
+-
+-	var buf [8*1024]byte;
+-	len, err1 := io.Readn(fd, buf);
+-	if err1 == io.ErrEOF {
+-		err1 = nil;
+-	}
+-	if err1 != nil {
+-		panic("cannot read html template");
+-	}
+-	if len == 0 {
+-		panic("html template empty");
+-	}
+-	html_template = string(buf[0 : len]);
+-
+-	body_index = strings.Index(html_template, body_tag);
+-	if body_index < 0 {
+-		panic("html_template has no BODY tag");
+-	}
+-}
+-
+-
+-func (P *Printer) HtmlPrologue(title string) {
+-	if P.html {
+-		P.Printf("%s\n", html_template[0 : body_index]);
+-		P.Printf("<h1>%s</h1>\n", "package " + title);
+-		P.Printf("<pre>\n");
+-		/*
+-		P.TaggedString(0,
+-			"<html>\n"
+-			"<head>\n"
+-			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
+-			"	<title>" + P.htmlEscape(title) + "</title>\n"
+-			"	<style type=\"text/css\">\n"
+-			"	</style>\n"
+-			"</head>\n"
+-			"<body>\n"
+-			"<pre>\n",
+-			"", ""
+-		)
+-		*/
+-	}
+-}
+-
+-
+-func (P *Printer) HtmlEpilogue() {
+-	if P.html {
+-		P.String(0, "");  // flush
+-		P.Printf("</pre>\n");
+-		P.Printf("%s", html_template[body_index : len(html_template)]);
+-		/*
+-		P.TaggedString(0,
+-			"</pre>\n"
+-			"</body>\n"
+-			"<html>\n",
+-			"", ""
+-		)
+-		*/
+-	}
+-}
+-
+-
+ func (P *Printer) HtmlIdentifier(x *ast.Ident) {
+ 	P.String(x.Pos_, x.Str);
+ 	/*
+@@ -1182,6 +1091,13 @@ func (P *Printer) Program(p *ast.Program) {
+ // ----------------------------------------------------------------------------
+ // External interface
+ 
++var templ template.Template;
++
++func init() {
++	templ.Init("template.html");
++}
++
++
+ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 	// setup
+ 	var P Printer;
+@@ -1192,10 +1108,17 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 	text := tabwriter.New(writer, *tabwidth, 1, padchar, true, html);
+ 	P.Init(text, html, prog.Comments);
+ 
+-	// TODO would be better to make the name of the src file be the title
+-	P.HtmlPrologue(prog.Ident.Str);
+-	P.Program(prog);
+-	P.HtmlEpilogue();
++	if P.html {
++		err := templ.Apply(text, "<!--", template.Substitution {
++			"PACKAGE-->" : func() { /* P.Expr(prog.Ident); */ },
++			"BODY-->" : func() { P.Program(prog); },
++		});
++		if err != nil {
++			panic("print error - exiting");
++		}
++	} else {
++		P.Program(prog);
++	}
+ 
+ 	P.String(0, "");  // flush pending separator/newlines
+ 	err := text.Flush();
+diff --git a/usr/gri/pretty/template.go b/usr/gri/pretty/template.go
+new file mode 100644
+index 0000000000..13d72556ba
+--- /dev/null
++++ b/usr/gri/pretty/template.go
+@@ -0,0 +1,105 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package template
++
++import (
++	"os";
++	"io";
++)
++
++
++type Template struct {
++	template []byte;
++}
++
++
++func (T *Template) Init(filename string) *os.Error {
++	fd, err0 := os.Open(filename, os.O_RDONLY, 0);
++	defer fd.Close();
++	if err0 != nil {
++		return err0;
++	}
++
++	var buf io.ByteBuffer;
++	len, err1 := io.Copy(fd, &buf);
++	if err1 == io.ErrEOF {
++		err1 = nil;
++	}
++	if err1 != nil {
++		return err1;
++	}
++
++	T.template = buf.Data();
++	
++	return nil;
++}
++
++
++// Returns true if buf starts with s, returns false otherwise.
++
++func match(buf []byte, s string) bool {
++	if len(buf) < len(s) {
++		return false;
++	}
++	for i := 0; i < len(s); i++ {
++		if buf[i] != s[i] {
++			return false;
++		}
++	}
++	return true;
++}
++
++
++// Find the position of string s in buf, starting at i.
++// Returns a value < 0 if not found.
++
++func find(buf []byte, s string, i int) int {
++    if s == "" {
++        return i;
++    }
++L:	for ; i + len(s) <= len(buf); i++ {
++		for k := 0; k < len(s); k++ {
++			if buf[i+k] != s[k] {
++				continue L;
++			}
++		}
++		return i;
++    }
++    return -1
++}
++
++
++type Substitution map [string] func()
++
++func (T *Template) Apply(w io.Write, prefix string, subs Substitution) *os.Error {
++	i0 := 0;  // position from which to write from the template
++	i1 := 0;  // position from which to look for the next prefix
++	
++	for {
++		// look for a prefix
++		i2 := find(T.template, prefix, i1);  // position of prefix, if any
++		if i2 < 0 {
++			// no prefix found, we are done
++			break;
++		}
++
++		// we have a prefix, look for a matching key
++		i1 = i2 + len(prefix);
++		for key, action := range subs {
++			if match(T.template[i1 : len(T.template)], key) {
++				// found a match
++				i1 += len(key);  // next search starting pos				
++				len, err := w.Write(T.template[i0 : i2]);  // TODO handle errors
++				i0 = i1;  // skip placeholder
++				action();
++				break;
++			}
++		}
++	}
++
++	// write the rest of the template
++	len, err := w.Write(T.template[i0 : len(T.template)]);  // TODO handle errors
++	return err;
++}
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+index 8efbdfa7f3..4689bee64b 100644
+--- a/usr/gri/pretty/template.html
++++ b/usr/gri/pretty/template.html
+@@ -1,5 +1,8 @@
++<h1><!--PACKAGE--></h1>
+ 
++<pre>
+ <!--BODY-->
++</pre>
+ 
+ </div>  <!-- content -->
+ </body>

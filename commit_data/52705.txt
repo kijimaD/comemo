@@ -18,7 +18,7 @@ Date:   Wed May 18 16:46:20 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/archive/zip/reader.go                |  2 +-
  src/cmd/compile/internal/ir/stmt.go      | 12 ++++++----
  src/cmd/compile/internal/types2/api.go   |  6 ++---
@@ -42,3 +42,433 @@ Date:   Wed May 18 16:46:20 2022 -0400
  src/sync/atomic/doc.go                   |  1 -
  src/syscall/syscall_linux.go             |  1 +
  22 files changed, 66 insertions(+), 61 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 906f3d308a..da6d869db4 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -57,7 +57,7 @@ type File struct {
+ 	zip          *Reader
+ 	zipr         io.ReaderAt
+ 	headerOffset int64 // includes overall ZIP archive baseOffset
+-	zip64        bool // zip64 extended information extra field presence
++	zip64        bool  // zip64 extended information extra field presence
+ }
+ 
+ // OpenReader will open the Zip file specified by name and return a ReadCloser.
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 0e76f17440..c46debce36 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -264,11 +264,13 @@ func NewIfStmt(pos src.XPos, cond Node, body, els []Node) *IfStmt {
+ }
+ 
+ // A JumpTableStmt is used to implement switches. Its semantics are:
+-//   tmp := jt.Idx
+-//   if tmp == Cases[0] goto Targets[0]
+-//   if tmp == Cases[1] goto Targets[1]
+-//   ...
+-//   if tmp == Cases[n] goto Targets[n]
++//
++//	tmp := jt.Idx
++//	if tmp == Cases[0] goto Targets[0]
++//	if tmp == Cases[1] goto Targets[1]
++//	...
++//	if tmp == Cases[n] goto Targets[n]
++//
+ // Note that a JumpTableStmt is more like a multiway-goto than
+ // a multiway-if. In particular, the case bodies are just
+ // labels to jump to, not not full Nodes lists.
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index 54cddaee28..a739b1114d 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -420,9 +420,9 @@ func (conf *Config) Check(path string, files []*syntax.File, info *Info) (*Packa
+ // AssertableTo reports whether a value of type V can be asserted to have type T.
+ //
+ // The behavior of AssertableTo is undefined in two cases:
+-//  - if V is a generalized interface; i.e., an interface that may only be used
+-//    as a type constraint in Go code
+-//  - if T is an uninstantiated generic type
++//   - if V is a generalized interface; i.e., an interface that may only be used
++//     as a type constraint in Go code
++//   - if T is an uninstantiated generic type
+ func AssertableTo(V *Interface, T Type) bool {
+ 	// Checker.newAssertableTo suppresses errors for invalid types, so we need special
+ 	// handling here.
+diff --git a/src/cmd/pprof/doc.go b/src/cmd/pprof/doc.go
+index 6b8c28fe1d..59e1a47cd1 100644
+--- a/src/cmd/pprof/doc.go
++++ b/src/cmd/pprof/doc.go
+@@ -10,7 +10,7 @@
+ //
+ // For detailed usage information:
+ //
+-//  go tool pprof -h
++//	go tool pprof -h
+ //
+ // For an example, see https://blog.golang.org/profiling-go-programs.
+ package main
+diff --git a/src/crypto/aes/cbc_ppc64x.go b/src/crypto/aes/cbc_ppc64x.go
+index 4c9257cdd2..797023e9ec 100644
+--- a/src/crypto/aes/cbc_ppc64x.go
++++ b/src/crypto/aes/cbc_ppc64x.go
+@@ -43,6 +43,7 @@ func (b *aesCipherAsm) NewCBCDecrypter(iv []byte) cipher.BlockMode {
+ func (x *cbc) BlockSize() int { return BlockSize }
+ 
+ // cryptBlocksChain invokes the cipher message identifying encrypt or decrypt.
++//
+ //go:noescape
+ func cryptBlocksChain(src, dst *byte, length int, key *uint32, iv *byte, enc int, nr int)
+ 
+diff --git a/src/debug/dwarf/type.go b/src/debug/dwarf/type.go
+index 2049f46d70..a95c4c738f 100644
+--- a/src/debug/dwarf/type.go
++++ b/src/debug/dwarf/type.go
+@@ -155,7 +155,7 @@ type StructType struct {
+ 
+ // A StructField represents a field in a struct, union, or C++ class type.
+ //
+-// Bit Fields
++// # Bit Fields
+ //
+ // The BitSize, BitOffset, and DataBitOffset fields describe the bit
+ // size and offset of data members declared as bit fields in C/C++
+@@ -185,24 +185,24 @@ type StructType struct {
+ // Here is an example of C/C++ bit field use, along with what to
+ // expect in terms of DWARF bit offset info. Consider this code:
+ //
+-// struct S {
+-//   int q;
+-//   int j:5;
+-//   int k:6;
+-//   int m:5;
+-//   int n:8;
+-// } s;
++//	struct S {
++//		int q;
++//		int j:5;
++//		int k:6;
++//		int m:5;
++//		int n:8;
++//	} s;
+ //
+ // For the code above, one would expect to see the following for
+ // DW_AT_bit_offset values (using GCC 8):
+ //
+-//          Little   |     Big
+-//          Endian   |    Endian
+-//                   |
+-//   "j":     27     |     0
+-//   "k":     21     |     5
+-//   "m":     16     |     11
+-//   "n":     8      |     16
++//	       Little   |     Big
++//	       Endian   |    Endian
++//	                |
++//	"j":     27     |     0
++//	"k":     21     |     5
++//	"m":     16     |     11
++//	"n":     8      |     16
+ //
+ // Note that in the above the offsets are purely with respect to the
+ // containing storage unit for j/k/m/n -- these values won't vary based
+@@ -211,10 +211,10 @@ type StructType struct {
+ // If the compiler emits DW_AT_data_bit_offset, the expected values
+ // would be:
+ //
+-//   "j":     32
+-//   "k":     37
+-//   "m":     43
+-//   "n":     48
++//	"j":     32
++//	"k":     37
++//	"m":     43
++//	"n":     48
+ //
+ // Here the value 32 for "j" reflects the fact that the bit field is
+ // preceded by other data members (recall that DW_AT_data_bit_offset
+@@ -226,7 +226,6 @@ type StructType struct {
+ // non-zero bit size and bit offset, so this information is also
+ // captured for base types, but it is worth noting that it is not
+ // possible to trigger this behavior using mainstream languages.
+-//
+ type StructField struct {
+ 	Name          string
+ 	Type          Type
+diff --git a/src/debug/dwarf/type_test.go b/src/debug/dwarf/type_test.go
+index 0acc606df7..5858ef5d24 100644
+--- a/src/debug/dwarf/type_test.go
++++ b/src/debug/dwarf/type_test.go
+@@ -329,7 +329,6 @@ var bitfieldTests = map[string]string{
+ // another_struct {quix short unsigned int@0; xyz [-1]int@4; x unsigned int@4 : 1@31; array [40]long long int@8}
+ //
+ // Note the "-1" for the xyz field, which should be zero.
+-//
+ func TestBitFieldZeroArrayIssue50685(t *testing.T) {
+ 	f := "testdata/bitfields.elf4"
+ 	testTypedefs(t, elfData(t, f), "elf", bitfieldTests)
+diff --git a/src/debug/pe/symbol.go b/src/debug/pe/symbol.go
+index dfbeb11414..86a1fbc301 100644
+--- a/src/debug/pe/symbol.go
++++ b/src/debug/pe/symbol.go
+@@ -30,19 +30,19 @@ type COFFSymbol struct {
+ // symbols for a given primary symbol are placed following it in the
+ // array, e.g.
+ //
+-//   ...
+-//   k+0:  regular sym k
+-//   k+1:    1st aux symbol for k
+-//   k+2:    2nd aux symbol for k
+-//   k+3:  regular sym k+3
+-//   k+4:    1st aux symbol for k+3
+-//   k+5:  regular sym k+5
+-//   k+6:  regular sym k+6
++//	...
++//	k+0:  regular sym k
++//	k+1:    1st aux symbol for k
++//	k+2:    2nd aux symbol for k
++//	k+3:  regular sym k+3
++//	k+4:    1st aux symbol for k+3
++//	k+5:  regular sym k+5
++//	k+6:  regular sym k+6
+ //
+ // The PE format allows for several possible aux symbol formats. For
+ // more info see:
+ //
+-//     https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
++//	https://docs.microsoft.com/en-us/windows/win32/debug/pe-format#auxiliary-symbol-records
+ //
+ // At the moment this package only provides APIs for looking at
+ // aux symbols of format 5 (associated with section definition symbols).
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index 42e6ea9077..4aa22d7c92 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -40,7 +40,6 @@ func readGopackHeader(r *bufio.Reader) (name string, size int, err error) {
+ // file by reading from it. The reader must be positioned at the
+ // start of the file before calling this function. The hdr result
+ // is the string before the export data, either "$$" or "$$B".
+-//
+ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 	// Read first line to make sure this is an object file.
+ 	line, err := r.ReadSlice('\n')
+diff --git a/src/internal/diff/diff.go b/src/internal/diff/diff.go
+index e2c9e4dc65..47b2856714 100644
+--- a/src/internal/diff/diff.go
++++ b/src/internal/diff/diff.go
+@@ -43,7 +43,6 @@ type pair struct{ x, y int }
+ // Second, the name is frequently interpreted as meaning that you have
+ // to wait longer (to be patient) for the diff, meaning that it is a slower algorithm,
+ // when in fact the algorithm is faster than the standard one.
+-//
+ func Diff(oldName string, old []byte, newName string, new []byte) []byte {
+ 	if bytes.Equal(old, new) {
+ 		return nil
+diff --git a/src/io/multi.go b/src/io/multi.go
+index 909b7e4523..07a9afffda 100644
+--- a/src/io/multi.go
++++ b/src/io/multi.go
+@@ -42,7 +42,7 @@ func (mr *multiReader) Read(p []byte) (n int, err error) {
+ }
+ 
+ func (mr *multiReader) WriteTo(w Writer) (sum int64, err error) {
+-	return mr.writeToWithBuffer(w, make([]byte, 1024 * 32))
++	return mr.writeToWithBuffer(w, make([]byte, 1024*32))
+ }
+ 
+ func (mr *multiReader) writeToWithBuffer(w Writer, buf []byte) (sum int64, err error) {
+diff --git a/src/math/big/alias_test.go b/src/math/big/alias_test.go
+index c0b947cb78..36c37fb065 100644
+--- a/src/math/big/alias_test.go
++++ b/src/math/big/alias_test.go
+@@ -93,7 +93,7 @@ func (smallUint) Generate(rand *rand.Rand, size int) reflect.Value {
+ // f is a function that takes x as an argument, doesn't modify it, sets v to the
+ // result, and returns v. It is the function signature of unbound methods like
+ //
+-//     func (v *big.Int) m(x *big.Int) *big.Int
++//	func (v *big.Int) m(x *big.Int) *big.Int
+ //
+ // v and x are two random Int values. v is randomized even if it will be
+ // overwritten to test for improper buffer reuse.
+@@ -122,7 +122,7 @@ func checkAliasingOneArg(t *testing.T, f func(v, x *big.Int) *big.Int, v, x *big
+ // to the result, and returns v. It is the function signature of unbound methods
+ // like
+ //
+-//     func (v *big.Int) m(x, y *big.Int) *big.Int
++//	func (v *big.Int) m(x, y *big.Int) *big.Int
+ //
+ // v, x and y are random Int values. v is randomized even if it will be
+ // overwritten to test for improper buffer reuse.
+diff --git a/src/net/net.go b/src/net/net.go
+index 7a97b9dcfd..759d5d8aa9 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -588,7 +588,9 @@ func (e InvalidAddrError) Temporary() bool { return false }
+ //
+ // TODO(iant): We could consider changing this to os.ErrDeadlineExceeded
+ // in the future, if we make
+-//   errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
++//
++//	errors.Is(os.ErrDeadlineExceeded, context.DeadlineExceeded)
++//
+ // return true.
+ var errTimeout error = &timeoutError{}
+ 
+diff --git a/src/runtime/debug/garbage.go b/src/runtime/debug/garbage.go
+index 73dd61b83e..0f53928fe8 100644
+--- a/src/runtime/debug/garbage.go
++++ b/src/runtime/debug/garbage.go
+@@ -188,7 +188,6 @@ func SetTraceback(level string)
+ // aggressively. This limit will be respected even if GOGC=off (or,
+ // if SetGCPercent(-1) is executed).
+ //
+-//
+ // The input limit is provided as bytes, and includes all memory
+ // mapped, managed, and not released by the Go runtime. Notably, it
+ // does not account for space used by the Go binary and memory
+@@ -202,11 +201,11 @@ func SetTraceback(level string)
+ // More specifically, the following expression accurately reflects
+ // the value the runtime attempts to maintain as the limit:
+ //
+-//     runtime.MemStats.Sys - runtime.MemStats.HeapReleased
++//	runtime.MemStats.Sys - runtime.MemStats.HeapReleased
+ //
+ // or in terms of the runtime/metrics package:
+ //
+-//     /memory/classes/total:bytes - /memory/classes/heap/released:bytes
++//	/memory/classes/total:bytes - /memory/classes/heap/released:bytes
+ //
+ // A zero limit or a limit that's lower than the amount of memory
+ // used by the Go runtime may cause the garbage collector to run
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 5fdc479f9c..0ca933b25b 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -44,6 +44,7 @@ import "unsafe"
+ //
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	sysStat.add(int64(n))
+@@ -94,6 +95,7 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ //
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
++//
+ //go:nosplit
+ func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	sysStat.add(-int64(n))
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index c275c7dbc4..2487f58dc5 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -1456,6 +1456,7 @@ func (c *piController) reset() {
+ // If this returns false, the caller must NOT become an idle mark worker.
+ //
+ // nosplit because it may be called without a P.
++//
+ //go:nosplit
+ func (c *gcControllerState) addIdleMarkWorker() bool {
+ 	for {
+@@ -1483,6 +1484,7 @@ func (c *gcControllerState) addIdleMarkWorker() bool {
+ // useful for a quick check before an expensive operation.
+ //
+ // nosplit because it may be called without a P.
++//
+ //go:nosplit
+ func (c *gcControllerState) needIdleMarkWorker() bool {
+ 	p := c.idleMarkWorkers.Load()
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 154f27c961..25aea6522d 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -864,6 +864,7 @@ func syscall_runtime_doAllThreadsSyscall(trap, a1, a2, a3, a4, a5, a6 uintptr) (
+ //
+ // This function throws if the system call returns with anything other than the
+ // expected values.
++//
+ //go:nosplit
+ func runPerThreadSyscall() {
+ 	gp := getg()
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 845dcb50c4..5ab0ac3a86 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -425,7 +425,7 @@ func atoi32(s string) (int32, bool) {
+ //
+ // s must match the following regular expression:
+ //
+-//     ^[0-9]+(([KMGT]i)?B)?$
++//	^[0-9]+(([KMGT]i)?B)?$
+ //
+ // In other words, an integer byte count with an optional unit
+ // suffix. Acceptable suffixes include one of
+diff --git a/src/runtime/vdso_linux_s390x.go b/src/runtime/vdso_linux_s390x.go
+index 85f78bbef2..c1c0b1baa4 100644
+--- a/src/runtime/vdso_linux_s390x.go
++++ b/src/runtime/vdso_linux_s390x.go
+@@ -3,8 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build linux && s390x
+-// +build linux
+-// +build s390x
++// +build linux,s390x
+ 
+ package runtime
+ 
+diff --git a/src/sort/search.go b/src/sort/search.go
+index 434349416e..874e40813d 100644
+--- a/src/sort/search.go
++++ b/src/sort/search.go
+@@ -87,14 +87,15 @@ func Search(n int, f func(int) bool) int {
+ //
+ // For example, to look for a particular string in a sorted, random-access
+ // list of strings:
+-//    i, found := sort.Find(x.Len(), func(i int) int {
+-//        return strings.Compare(target, x.At(i))
+-//    })
+-//    if found {
+-//        fmt.Printf("found %s at entry %d\n", target, i)
+-//    } else {
+-//        fmt.Printf("%s not found, would insert at %d", target, i)
+-//    }
++//
++//	i, found := sort.Find(x.Len(), func(i int) int {
++//	    return strings.Compare(target, x.At(i))
++//	})
++//	if found {
++//	    fmt.Printf("found %s at entry %d\n", target, i)
++//	} else {
++//	    fmt.Printf("%s not found, would insert at %d", target, i)
++//	}
+ func Find(n int, cmp func(int) int) (i int, found bool) {
+ 	// The invariants here are similar to the ones in Search.
+ 	// Define cmp(-1) > 0 and cmp(n) <= 0
+diff --git a/src/sync/atomic/doc.go b/src/sync/atomic/doc.go
+index 805ef956d5..a7d5b46288 100644
+--- a/src/sync/atomic/doc.go
++++ b/src/sync/atomic/doc.go
+@@ -36,7 +36,6 @@
+ // The load and store operations, implemented by the LoadT and StoreT
+ // functions, are the atomic equivalents of "return *addr" and
+ // "*addr = val".
+-//
+ package atomic
+ 
+ import (
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index ab634a2cbe..e1837b91a7 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -32,6 +32,7 @@ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errn
+ 
+ //go:linkname runtime_entersyscall runtime.entersyscall
+ func runtime_entersyscall()
++
+ //go:linkname runtime_exitsyscall runtime.exitsyscall
+ func runtime_exitsyscall()
+ 

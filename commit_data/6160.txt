@@ -7,9 +7,60 @@ Date:   Thu Sep 2 14:20:02 2010 -0400
     R=dsymonds, r
     CC=golang-dev
     https://golang.org/cl/2050043
-
+---
  bin/~place-holder~ | 4 ----
  pkg/~place-holder~ | 4 ----
  src/env.bash       | 2 +-
  src/make.bash      | 6 ++++++
  4 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/bin/~place-holder~ b/bin/~place-holder~
+deleted file mode 100644
+index 04a214368b..0000000000
+--- a/bin/~place-holder~
++++ /dev/null
+@@ -1,4 +0,0 @@
+-Command binaries are installed in this directory.
+-
+-Mercurial does not maintain empty directories.
+-This file helps.
+diff --git a/pkg/~place-holder~ b/pkg/~place-holder~
+deleted file mode 100644
+index 0ea2de6eac..0000000000
+--- a/pkg/~place-holder~
++++ /dev/null
+@@ -1,4 +0,0 @@
+-Package binaries are installed in this directory tree.
+-
+-Mercurial does not maintain empty directories.
+-This file helps.
+diff --git a/src/env.bash b/src/env.bash
+index b858e069b0..d96d50cb26 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -22,7 +22,7 @@ if [ "$DIR1" != "$DIR2" ]; then
+ fi
+ 
+ export GOBIN=${GOBIN:-"$GOROOT/bin"}
+-if [ ! -d "$GOBIN" ]; then
++if [ ! -d "$GOBIN" -a "$GOBIN" != "$GOROOT/bin" ]; then
+ 	echo '$GOBIN is not a directory or does not exist' 1>&2
+ 	echo 'create it or set $GOBIN differently' 1>&2
+ 	exit 1
+diff --git a/src/make.bash b/src/make.bash
+index c778d922af..0a0f49455f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -10,6 +10,12 @@ if [ ! -f env.bash ]; then
+ fi
+ . ./env.bash
+ 
++# Create target directories
++if [ "$GOBIN" = "$GOROOT/bin" ]; then
++	mkdir -p "$GOROOT/bin"
++fi
++mkdir -p "$GOROOT/pkg"
++
+ GOROOT_FINAL=${GOROOT_FINAL:-$GOROOT}
+ 
+ MAKEFLAGS=${MAKEFLAGS:-"-j4"}

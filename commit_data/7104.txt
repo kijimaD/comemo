@@ -7,7 +7,127 @@ Date:   Wed Jan 12 15:23:21 2011 -0800
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/3760049
-
+---
  src/pkg/rpc/debug.go  | 26 +++++++++++++-------------
  src/pkg/rpc/server.go | 17 ++++++++++++-----
  2 files changed, 25 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index 6bd8a91fef..44b32e04ba 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -21,14 +21,14 @@ const debugText = `<html>
+ 	<title>Services</title>
+ 	{.repeated section @}
+ 	<hr>
+-	Service {name}
++	Service {Name}
+ 	<hr>
+ 		<table>
+ 		<th align=center>Method</th><th align=center>Calls</th>
+-		{.repeated section meth}
++		{.repeated section Method}
+ 			<tr>
+-			<td align=left font=fixed>{name}({m.argType}, {m.replyType}) os.Error</td>
+-			<td align=center>{m.numCalls}</td>
++			<td align=left font=fixed>{Name}({Type.ArgType}, {Type.ReplyType}) os.Error</td>
++			<td align=center>{Type.NumCalls}</td>
+ 			</tr>
+ 		{.end}
+ 		</table>
+@@ -39,26 +39,26 @@ const debugText = `<html>
+ var debug = template.MustParse(debugText, nil)
+ 
+ type debugMethod struct {
+-	m    *methodType
+-	name string
++	Type *methodType
++	Name string
+ }
+ 
+ type methodArray []debugMethod
+ 
+ type debugService struct {
+-	s    *service
+-	name string
+-	meth methodArray
++	Service *service
++	Name    string
++	Method  methodArray
+ }
+ 
+ type serviceArray []debugService
+ 
+ func (s serviceArray) Len() int           { return len(s) }
+-func (s serviceArray) Less(i, j int) bool { return s[i].name < s[j].name }
++func (s serviceArray) Less(i, j int) bool { return s[i].Name < s[j].Name }
+ func (s serviceArray) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func (m methodArray) Len() int           { return len(m) }
+-func (m methodArray) Less(i, j int) bool { return m[i].name < m[j].name }
++func (m methodArray) Less(i, j int) bool { return m[i].Name < m[j].Name }
+ func (m methodArray) Swap(i, j int)      { m[i], m[j] = m[j], m[i] }
+ 
+ type debugHTTP struct {
+@@ -75,10 +75,10 @@ func (server debugHTTP) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 		services[i] = debugService{service, sname, make(methodArray, len(service.method))}
+ 		j := 0
+ 		for mname, method := range service.method {
+-			services[i].meth[j] = debugMethod{method, mname}
++			services[i].Method[j] = debugMethod{method, mname}
+ 			j++
+ 		}
+-		sort.Sort(services[i].meth)
++		sort.Sort(services[i].Method)
+ 		i++
+ 	}
+ 	server.Unlock()
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 48b67914d5..5c50bcc3a3 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -137,8 +137,8 @@ var typeOfOsError = reflect.Typeof(unusedError).(*reflect.PtrType).Elem()
+ type methodType struct {
+ 	sync.Mutex // protects counters
+ 	method     reflect.Method
+-	argType    *reflect.PtrType
+-	replyType  *reflect.PtrType
++	ArgType    *reflect.PtrType
++	ReplyType  *reflect.PtrType
+ 	numCalls   uint
+ }
+ 
+@@ -285,7 +285,7 @@ func (server *Server) register(rcvr interface{}, name string, useName bool) os.E
+ 			log.Println("method", mname, "returns", returnType.String(), "not os.Error")
+ 			continue
+ 		}
+-		s.method[mname] = &methodType{method: method, argType: argType, replyType: replyType}
++		s.method[mname] = &methodType{method: method, ArgType: argType, ReplyType: replyType}
+ 	}
+ 
+ 	if len(s.method) == 0 {
+@@ -326,6 +326,13 @@ func sendResponse(sending *sync.Mutex, req *Request, reply interface{}, codec Se
+ 	sending.Unlock()
+ }
+ 
++func (m *methodType) NumCalls() (n uint) {
++	m.Lock()
++	n = m.numCalls
++	m.Unlock()
++	return n
++}
++
+ func (s *service) call(sending *sync.Mutex, mtype *methodType, req *Request, argv, replyv reflect.Value, codec ServerCodec) {
+ 	mtype.Lock()
+ 	mtype.numCalls++
+@@ -418,8 +425,8 @@ func (server *Server) ServeCodec(codec ServerCodec) {
+ 			continue
+ 		}
+ 		// Decode the argument value.
+-		argv := _new(mtype.argType)
+-		replyv := _new(mtype.replyType)
++		argv := _new(mtype.ArgType)
++		replyv := _new(mtype.ReplyType)
+ 		err = codec.ReadRequestBody(argv.Interface())
+ 		if err != nil {
+ 			log.Println("rpc: tearing down", serviceMethod[0], "connection:", err)

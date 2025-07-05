@@ -12,9 +12,437 @@ Date:   Fri Aug 3 15:42:14 2012 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6458076
-
+---
  src/pkg/crypto/ecdsa/ecdsa.go            |  6 ++-
  src/pkg/crypto/elliptic/elliptic.go      | 90 +++++++++++++++++--------------
  src/pkg/crypto/elliptic/elliptic_test.go | 38 +++++++++++++
  src/pkg/crypto/elliptic/p224.go          | 91 ++++++++++++++++++++++++--------
  4 files changed, 160 insertions(+), 65 deletions(-)
+
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index 8508e3b4f8..512d20c635 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -140,14 +140,16 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	w := new(big.Int).ModInverse(s, N)
+ 
+ 	u1 := e.Mul(e, w)
++	u1.Mod(u1, N)
+ 	u2 := w.Mul(r, w)
++	u2.Mod(u2, N)
+ 
+ 	x1, y1 := c.ScalarBaseMult(u1.Bytes())
+ 	x2, y2 := c.ScalarMult(pub.X, pub.Y, u2.Bytes())
+-	if x1.Cmp(x2) == 0 {
++	x, y := c.Add(x1, y1, x2, y2)
++	if x.Sign() == 0 && y.Sign() == 0 {
+ 		return false
+ 	}
+-	x, _ := c.Add(x1, y1, x2, y2)
+ 	x.Mod(x, N)
+ 	return x.Cmp(r) == 0
+ }
+diff --git a/src/pkg/crypto/elliptic/elliptic.go b/src/pkg/crypto/elliptic/elliptic.go
+index a3990891be..7a4ff6614c 100644
+--- a/src/pkg/crypto/elliptic/elliptic.go
++++ b/src/pkg/crypto/elliptic/elliptic.go
+@@ -31,10 +31,10 @@ type Curve interface {
+ 	// Double returns 2*(x,y)
+ 	Double(x1, y1 *big.Int) (x, y *big.Int)
+ 	// ScalarMult returns k*(Bx,By) where k is a number in big-endian form.
+-	ScalarMult(x1, y1 *big.Int, scalar []byte) (x, y *big.Int)
+-	// ScalarBaseMult returns k*G, where G is the base point of the group and k
+-	// is an integer in big-endian form.
+-	ScalarBaseMult(scalar []byte) (x, y *big.Int)
++	ScalarMult(x1, y1 *big.Int, k []byte) (x, y *big.Int)
++	// ScalarBaseMult returns k*G, where G is the base point of the group
++	// and k is an integer in big-endian form.
++	ScalarBaseMult(k []byte) (x, y *big.Int)
+ }
+ 
+ // CurveParams contains the parameters of an elliptic curve and also provides
+@@ -69,9 +69,24 @@ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+ 	return x3.Cmp(y2) == 0
+ }
+ 
++// zForAffine returns a Jacobian Z value for the affine point (x, y). If x and
++// y are zero, it assumes that they represent the point at infinity because (0,
++// 0) is not on the any of the curves handled here.
++func zForAffine(x, y *big.Int) *big.Int {
++	z := new(big.Int)
++	if x.Sign() != 0 || y.Sign() != 0 {
++		z.SetInt64(1)
++	}
++	return z
++}
++
+ // affineFromJacobian reverses the Jacobian transform. See the comment at the
+-// top of the file.
++// top of the file. If the point is ∞ it returns 0, 0.
+ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.Int) {
++	if z.Sign() == 0 {
++		return new(big.Int), new(big.Int)
++	}
++
+ 	zinv := new(big.Int).ModInverse(z, curve.P)
+ 	zinvsq := new(big.Int).Mul(zinv, zinv)
+ 
+@@ -84,14 +99,29 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
+ }
+ 
+ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+-	z := new(big.Int).SetInt64(1)
+-	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z, x2, y2, z))
++	z1 := zForAffine(x1, y1)
++	z2 := zForAffine(x2, y2)
++	return curve.affineFromJacobian(curve.addJacobian(x1, y1, z1, x2, y2, z2))
+ }
+ 
+ // addJacobian takes two points in Jacobian coordinates, (x1, y1, z1) and
+ // (x2, y2, z2) and returns their sum, also in Jacobian form.
+ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int, *big.Int, *big.Int) {
+ 	// See http://hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-3.html#addition-add-2007-bl
++	x3, y3, z3 := new(big.Int), new(big.Int), new(big.Int)
++	if z1.Sign() == 0 {
++		x3.Set(x2)
++		y3.Set(y2)
++		z3.Set(z2)
++		return x3, y3, z3
++	}
++	if z2.Sign() == 0 {
++		x3.Set(x1)
++		y3.Set(y1)
++		z3.Set(z1)
++		return x3, y3, z3
++	}
++
+ 	z1z1 := new(big.Int).Mul(z1, z1)
+ 	z1z1.Mod(z1z1, curve.P)
+ 	z2z2 := new(big.Int).Mul(z2, z2)
+@@ -102,6 +132,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ 	u2 := new(big.Int).Mul(x2, z1z1)
+ 	u2.Mod(u2, curve.P)
+ 	h := new(big.Int).Sub(u2, u1)
++	xEqual := h.Sign() == 0
+ 	if h.Sign() == -1 {
+ 		h.Add(h, curve.P)
+ 	}
+@@ -119,17 +150,21 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ 	if r.Sign() == -1 {
+ 		r.Add(r, curve.P)
+ 	}
++	yEqual := r.Sign() == 0
++	if xEqual && yEqual {
++		return curve.doubleJacobian(x1, y1, z1)
++	}
+ 	r.Lsh(r, 1)
+ 	v := new(big.Int).Mul(u1, i)
+ 
+-	x3 := new(big.Int).Set(r)
++	x3.Set(r)
+ 	x3.Mul(x3, x3)
+ 	x3.Sub(x3, j)
+ 	x3.Sub(x3, v)
+ 	x3.Sub(x3, v)
+ 	x3.Mod(x3, curve.P)
+ 
+-	y3 := new(big.Int).Set(r)
++	y3.Set(r)
+ 	v.Sub(v, x3)
+ 	y3.Mul(y3, v)
+ 	s1.Mul(s1, j)
+@@ -137,16 +172,10 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ 	y3.Sub(y3, s1)
+ 	y3.Mod(y3, curve.P)
+ 
+-	z3 := new(big.Int).Add(z1, z2)
++	z3.Add(z1, z2)
+ 	z3.Mul(z3, z3)
+ 	z3.Sub(z3, z1z1)
+-	if z3.Sign() == -1 {
+-		z3.Add(z3, curve.P)
+-	}
+ 	z3.Sub(z3, z2z2)
+-	if z3.Sign() == -1 {
+-		z3.Add(z3, curve.P)
+-	}
+ 	z3.Mul(z3, h)
+ 	z3.Mod(z3, curve.P)
+ 
+@@ -154,7 +183,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ }
+ 
+ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+-	z1 := new(big.Int).SetInt64(1)
++	z1 := zForAffine(x1, y1)
+ 	return curve.affineFromJacobian(curve.doubleJacobian(x1, y1, z1))
+ }
+ 
+@@ -219,40 +248,19 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int,
+ }
+ 
+ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+-	// We have a slight problem in that the identity of the group (the
+-	// point at infinity) cannot be represented in (x, y) form on a finite
+-	// machine. Thus the standard add/double algorithm has to be tweaked
+-	// slightly: our initial state is not the identity, but x, and we
+-	// ignore the first true bit in |k|.  If we don't find any true bits in
+-	// |k|, then we return nil, nil, because we cannot return the identity
+-	// element.
+-
+ 	Bz := new(big.Int).SetInt64(1)
+-	x := Bx
+-	y := By
+-	z := Bz
++	x, y, z := new(big.Int), new(big.Int), new(big.Int)
+ 
+-	seenFirstTrue := false
+ 	for _, byte := range k {
+ 		for bitNum := 0; bitNum < 8; bitNum++ {
+-			if seenFirstTrue {
+-				x, y, z = curve.doubleJacobian(x, y, z)
+-			}
++			x, y, z = curve.doubleJacobian(x, y, z)
+ 			if byte&0x80 == 0x80 {
+-				if !seenFirstTrue {
+-					seenFirstTrue = true
+-				} else {
+-					x, y, z = curve.addJacobian(Bx, By, Bz, x, y, z)
+-				}
++				x, y, z = curve.addJacobian(Bx, By, Bz, x, y, z)
+ 			}
+ 			byte <<= 1
+ 		}
+ 	}
+ 
+-	if !seenFirstTrue {
+-		return nil, nil
+-	}
+-
+ 	return curve.affineFromJacobian(x, y, z)
+ }
+ 
+diff --git a/src/pkg/crypto/elliptic/elliptic_test.go b/src/pkg/crypto/elliptic/elliptic_test.go
+index 1e3407ee0e..58f903966c 100644
+--- a/src/pkg/crypto/elliptic/elliptic_test.go
++++ b/src/pkg/crypto/elliptic/elliptic_test.go
+@@ -322,6 +322,44 @@ func TestGenericBaseMult(t *testing.T) {
+ 	}
+ }
+ 
++func TestInfinity(t *testing.T) {
++	tests := []struct {
++		name  string
++		curve Curve
++	}{
++		{"p224", P224()},
++		{"p256", P256()},
++	}
++
++	for _, test := range tests {
++		curve := test.curve
++		x, y := curve.ScalarBaseMult(nil)
++		if x.Sign() != 0 || y.Sign() != 0 {
++			t.Errorf("%s: x^0 != ∞", test.name)
++		}
++		x.SetInt64(0)
++		y.SetInt64(0)
++
++		x2, y2 := curve.Double(x, y)
++		if x2.Sign() != 0 || y2.Sign() != 0 {
++			t.Errorf("%s: 2∞ != ∞", test.name)
++		}
++
++		baseX := curve.Params().Gx
++		baseY := curve.Params().Gy
++
++		x3, y3 := curve.Add(baseX, baseY, x, y)
++		if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
++			t.Errorf("%s: x+∞ != x", test.name)
++		}
++
++		x4, y4 := curve.Add(x, y, baseX, baseY)
++		if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
++			t.Errorf("%s: ∞+x != x", test.name)
++		}
++	}
++}
++
+ func BenchmarkBaseMult(b *testing.B) {
+ 	b.ResetTimer()
+ 	p224 := P224()
+diff --git a/src/pkg/crypto/elliptic/p224.go b/src/pkg/crypto/elliptic/p224.go
+index 17571c2528..1f7ff3f9da 100644
+--- a/src/pkg/crypto/elliptic/p224.go
++++ b/src/pkg/crypto/elliptic/p224.go
+@@ -80,10 +80,14 @@ func (p224Curve) Add(bigX1, bigY1, bigX2, bigY2 *big.Int) (x, y *big.Int) {
+ 
+ 	p224FromBig(&x1, bigX1)
+ 	p224FromBig(&y1, bigY1)
+-	z1[0] = 1
++	if bigX1.Sign() != 0 || bigY1.Sign() != 0 {
++		z1[0] = 1
++	}
+ 	p224FromBig(&x2, bigX2)
+ 	p224FromBig(&y2, bigY2)
+-	z2[0] = 1
++	if bigX2.Sign() != 0 || bigY2.Sign() != 0 {
++		z2[0] = 1
++	}
+ 
+ 	p224AddJacobian(&x3, &y3, &z3, &x1, &y1, &z1, &x2, &y2, &z2)
+ 	return p224ToAffine(&x3, &y3, &z3)
+@@ -132,6 +136,44 @@ func (curve p224Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
+ // exactly, making the reflections during a reduce much nicer.
+ type p224FieldElement [8]uint32
+ 
++// p224P is the order of the field, represented as a p224FieldElement.
++var p224P = [8]uint32{1, 0, 0, 0xffff000, 0xfffffff, 0xfffffff, 0xfffffff, 0xfffffff}
++
++// p224IsZero returns 1 if a == 0 mod p and 0 otherwise.
++//
++// a[i] < 2**29
++func p224IsZero(a *p224FieldElement) uint32 {
++	// Since a p224FieldElement contains 224 bits there are two possible
++	// representations of 0: 0 and p.
++	var minimal p224FieldElement
++	p224Contract(&minimal, a)
++
++	var isZero, isP uint32
++	for i, v := range minimal {
++		isZero |= v
++		isP |= v - p224P[i]
++	}
++
++	// If either isZero or isP is 0, then we should return 1.
++	isZero |= isZero >> 16
++	isZero |= isZero >> 8
++	isZero |= isZero >> 4
++	isZero |= isZero >> 2
++	isZero |= isZero >> 1
++
++	isP |= isP >> 16
++	isP |= isP >> 8
++	isP |= isP >> 4
++	isP |= isP >> 2
++	isP |= isP >> 1
++
++	// For isZero and isP, the LSB is 0 iff all the bits are zero.
++	result := isZero & isP
++	result = (^result) & 1
++
++	return result
++}
++
+ // p224Add computes *out = a+b
+ //
+ // a[i] + b[i] < 2**32
+@@ -406,7 +448,7 @@ func p224Contract(out, in *p224FieldElement) {
+ 	// true.
+ 	top4AllOnes := uint32(0xffffffff)
+ 	for i := 4; i < 8; i++ {
+-		top4AllOnes &= (out[i] & bottom28Bits) - 1
++		top4AllOnes &= out[i]
+ 	}
+ 	top4AllOnes |= 0xf0000000
+ 	// Now we replicate any zero bits to all the bits in top4AllOnes.
+@@ -441,7 +483,7 @@ func p224Contract(out, in *p224FieldElement) {
+ 	out3Equal = ^uint32(int32(out3Equal<<31) >> 31)
+ 
+ 	// If out[3] > 0xffff000 then n's MSB will be zero.
+-	out3GT := ^uint32(int32(n<<31) >> 31)
++	out3GT := ^uint32(int32(n) >> 31)
+ 
+ 	mask := top4AllOnes & ((out3Equal & bottom3NonZero) | out3GT)
+ 	out[0] -= 1 & mask
+@@ -463,6 +505,9 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
+ 	var z1z1, z2z2, u1, u2, s1, s2, h, i, j, r, v p224FieldElement
+ 	var c p224LargeFieldElement
+ 
++	z1IsZero := p224IsZero(z1)
++	z2IsZero := p224IsZero(z2)
++
+ 	// Z1Z1 = Z1²
+ 	p224Square(&z1z1, z1, &c)
+ 	// Z2Z2 = Z2²
+@@ -480,6 +525,7 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
+ 	// H = U2-U1
+ 	p224Sub(&h, &u2, &u1)
+ 	p224Reduce(&h)
++	xEqual := p224IsZero(&h)
+ 	// I = (2*H)²
+ 	for j := 0; j < 8; j++ {
+ 		i[j] = h[j] << 1
+@@ -491,6 +537,11 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
+ 	// r = 2*(S2-S1)
+ 	p224Sub(&r, &s2, &s1)
+ 	p224Reduce(&r)
++	yEqual := p224IsZero(&r)
++	if xEqual == 1 && yEqual == 1 && z1IsZero == 0 && z2IsZero == 0 {
++		p224DoubleJacobian(x3, y3, z3, x1, y1, z1)
++		return
++	}
+ 	for i := 0; i < 8; i++ {
+ 		r[i] <<= 1
+ 	}
+@@ -524,6 +575,13 @@ func p224AddJacobian(x3, y3, z3, x1, y1, z1, x2, y2, z2 *p224FieldElement) {
+ 	p224Mul(&z1z1, &z1z1, &r, &c)
+ 	p224Sub(y3, &z1z1, &s1)
+ 	p224Reduce(y3)
++
++	p224CopyConditional(x3, x2, z1IsZero)
++	p224CopyConditional(x3, x1, z2IsZero)
++	p224CopyConditional(y3, y2, z1IsZero)
++	p224CopyConditional(y3, y1, z2IsZero)
++	p224CopyConditional(z3, z2, z1IsZero)
++	p224CopyConditional(z3, z1, z2IsZero)
+ }
+ 
+ // p224DoubleJacobian computes *out = a+a.
+@@ -593,22 +651,19 @@ func p224CopyConditional(out, in *p224FieldElement, control uint32) {
+ func p224ScalarMult(outX, outY, outZ, inX, inY, inZ *p224FieldElement, scalar []byte) {
+ 	var xx, yy, zz p224FieldElement
+ 	for i := 0; i < 8; i++ {
++		outX[i] = 0
++		outY[i] = 0
+ 		outZ[i] = 0
+ 	}
+ 
+-	firstBit := uint32(1)
+ 	for _, byte := range scalar {
+ 		for bitNum := uint(0); bitNum < 8; bitNum++ {
+ 			p224DoubleJacobian(outX, outY, outZ, outX, outY, outZ)
+ 			bit := uint32((byte >> (7 - bitNum)) & 1)
+ 			p224AddJacobian(&xx, &yy, &zz, inX, inY, inZ, outX, outY, outZ)
+-			p224CopyConditional(outX, inX, firstBit&bit)
+-			p224CopyConditional(outY, inY, firstBit&bit)
+-			p224CopyConditional(outZ, inZ, firstBit&bit)
+-			p224CopyConditional(outX, &xx, ^firstBit&bit)
+-			p224CopyConditional(outY, &yy, ^firstBit&bit)
+-			p224CopyConditional(outZ, &zz, ^firstBit&bit)
+-			firstBit = firstBit & ^bit
++			p224CopyConditional(outX, &xx, bit)
++			p224CopyConditional(outY, &yy, bit)
++			p224CopyConditional(outZ, &zz, bit)
+ 		}
+ 	}
+ }
+@@ -618,16 +673,8 @@ func p224ToAffine(x, y, z *p224FieldElement) (*big.Int, *big.Int) {
+ 	var zinv, zinvsq, outx, outy p224FieldElement
+ 	var tmp p224LargeFieldElement
+ 
+-	isPointAtInfinity := true
+-	for i := 0; i < 8; i++ {
+-		if z[i] != 0 {
+-			isPointAtInfinity = false
+-			break
+-		}
+-	}
+-
+-	if isPointAtInfinity {
+-		return nil, nil
++	if isPointAtInfinity := p224IsZero(z); isPointAtInfinity == 1 {
++		return new(big.Int), new(big.Int)
+ 	}
+ 
+ 	p224Invert(&zinv, z)

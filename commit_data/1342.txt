@@ -8,7 +8,57 @@ Date:   Mon Dec 15 08:56:17 2008 -0800
     DELTA=31  (31 added, 0 deleted, 0 changed)
     OCL=21043
     CL=21175
-
+---
  src/lib/Makefile     |  1 +
  src/lib/once_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 32e2918307..7221a9c3e6 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -37,6 +37,7 @@ FILES=\
+ TEST=\
+ 	bignum\
+ 	bufio\
++	once\
+ 	sort\
+ 	strings\
+ 	utf8\
+diff --git a/src/lib/once_test.go b/src/lib/once_test.go
+new file mode 100644
+index 0000000000..21a889dd3c
+--- /dev/null
++++ b/src/lib/once_test.go
+@@ -0,0 +1,31 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package once
++
++import (
++	"once";
++	"testing";
++)
++
++var ncall int;
++func Call() {
++	ncall++
++}
++
++export func TestOnce(t *testing.T) {
++	ncall = 0;
++	once.Do(&Call);
++	if ncall != 1 {
++		t.Fatalf("once.Do(&Call) didn't Call(): ncall=%d", ncall);
++	}
++	once.Do(&Call);
++	if ncall != 1 {
++		t.Fatalf("second once.Do(&Call) did Call(): ncall=%d", ncall);
++	}
++	once.Do(&Call);
++	if ncall != 1 {
++		t.Fatalf("third once.Do(&Call) did Call(): ncall=%d", ncall);
++	}
++}

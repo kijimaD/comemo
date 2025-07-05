@@ -16,7 +16,7 @@ Date:   Thu Apr 2 19:58:37 2015 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/5g/cgen64.go           |  4 +--
  src/cmd/5g/gsubr.go            |  4 +--
  src/cmd/6g/gsubr.go            |  2 +-
@@ -41,3 +41,983 @@ Date:   Thu Apr 2 19:58:37 2015 -0700
  src/cmd/internal/gc/walk.go    | 10 ++++----
  src/cmd/internal/gc/y.go       |  4 +--
  23 files changed, 103 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/5g/cgen64.go b/src/cmd/5g/cgen64.go
+index 05f2e1efdf..f7b52b683d 100644
+--- a/src/cmd/5g/cgen64.go
++++ b/src/cmd/5g/cgen64.go
+@@ -24,7 +24,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 
+ 	l := n.Left
+ 	var t1 gc.Node
+-	if l.Addable == 0 {
++	if !l.Addable {
+ 		gc.Tempname(&t1, l.Type)
+ 		gc.Cgen(l, &t1)
+ 		l = &t1
+@@ -108,7 +108,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	// setup for binary operators
+ 	r := n.Right
+ 
+-	if r != nil && r.Addable == 0 {
++	if r != nil && !r.Addable {
+ 		var t2 gc.Node
+ 		gc.Tempname(&t2, r.Type)
+ 		gc.Cgen(r, &t2)
+diff --git a/src/cmd/5g/gsubr.go b/src/cmd/5g/gsubr.go
+index fe4ed8d1f2..ed72a9a8a6 100644
+--- a/src/cmd/5g/gsubr.go
++++ b/src/cmd/5g/gsubr.go
+@@ -1090,7 +1090,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
+ 	var oary [10]int64
+ 	var nn *gc.Node
+ 	o := gc.Dotoffset(n, oary[:], &nn)
+-	if nn != nil && nn.Addable != 0 && o == 1 && oary[0] >= 0 {
++	if nn != nil && nn.Addable && o == 1 && oary[0] >= 0 {
+ 		*n1 = *nn
+ 		n1.Type = n.Type
+ 		n1.Xoffset += oary[0]
+@@ -1169,7 +1169,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 			return false
+ 		}
+ 
+-		if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
++		if nn.Addable && o == 1 && oary[0] >= 0 {
+ 			// directly addressable set of DOTs
+ 			n1 := *nn
+ 
+diff --git a/src/cmd/6g/gsubr.go b/src/cmd/6g/gsubr.go
+index 323ea69a98..e2fad6f901 100644
+--- a/src/cmd/6g/gsubr.go
++++ b/src/cmd/6g/gsubr.go
+@@ -1247,7 +1247,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 			return false
+ 		}
+ 
+-		if nn.Addable != 0 && o == 1 && oary[0] >= 0 {
++		if nn.Addable && o == 1 && oary[0] >= 0 {
+ 			// directly addressable set of DOTs
+ 			n1 := *nn
+ 
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index 5546aba3fb..0b93694f2c 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -17,7 +17,7 @@ import (
+  */
+ func igenindex(n *gc.Node, res *gc.Node, bounded bool) *obj.Prog {
+ 	if !gc.Is64(n.Type) {
+-		if n.Addable != 0 {
++		if n.Addable {
+ 			// nothing to do.
+ 			*res = *n
+ 		} else {
+@@ -58,13 +58,13 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	gc.Tempname(&tsrc, gc.Types[gc.Tptr])
+ 	var tdst gc.Node
+ 	gc.Tempname(&tdst, gc.Types[gc.Tptr])
+-	if n.Addable == 0 {
++	if !n.Addable {
+ 		gc.Agen(n, &tsrc)
+ 	}
+-	if res.Addable == 0 {
++	if !res.Addable {
+ 		gc.Agen(res, &tdst)
+ 	}
+-	if n.Addable != 0 {
++	if n.Addable {
+ 		gc.Agen(n, &src)
+ 	} else {
+ 		gmove(&tsrc, &src)
+@@ -74,7 +74,7 @@ func stackcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 		gc.Gvardef(res)
+ 	}
+ 
+-	if res.Addable != 0 {
++	if res.Addable {
+ 		gc.Agen(res, &dst)
+ 	} else {
+ 		gmove(&tdst, &dst)
+diff --git a/src/cmd/8g/cgen64.go b/src/cmd/8g/cgen64.go
+index ee04bdbaf2..7fb6549689 100644
+--- a/src/cmd/8g/cgen64.go
++++ b/src/cmd/8g/cgen64.go
+@@ -63,14 +63,14 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 
+ 	l := n.Left
+ 	r := n.Right
+-	if l.Addable == 0 {
++	if !l.Addable {
+ 		var t1 gc.Node
+ 		gc.Tempname(&t1, l.Type)
+ 		gc.Cgen(l, &t1)
+ 		l = &t1
+ 	}
+ 
+-	if r != nil && r.Addable == 0 {
++	if r != nil && !r.Addable {
+ 		var t2 gc.Node
+ 		gc.Tempname(&t2, r.Type)
+ 		gc.Cgen(r, &t2)
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index a4a373c346..115c962a00 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -637,7 +637,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
+ 		// binary
+ 		if nl.Ullman >= nr.Ullman {
+ 			gc.Cgen(nl, &f0)
+-			if nr.Addable != 0 {
++			if nr.Addable {
+ 				gins(foptoas(int(n.Op), n.Type, 0), nr, &f0)
+ 			} else {
+ 				gc.Cgen(nr, &f0)
+@@ -645,7 +645,7 @@ func cgen_float387(n *gc.Node, res *gc.Node) {
+ 			}
+ 		} else {
+ 			gc.Cgen(nr, &f0)
+-			if nl.Addable != 0 {
++			if nl.Addable {
+ 				gins(foptoas(int(n.Op), n.Type, Frev), nl, &f0)
+ 			} else {
+ 				gc.Cgen(nl, &f0)
+@@ -762,14 +762,14 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
+ 	var n2 gc.Node
+ 	var ax gc.Node
+ 	if !gc.Thearch.Use387 {
+-		if nl.Addable == 0 {
++		if !nl.Addable {
+ 			var n1 gc.Node
+ 			gc.Tempname(&n1, nl.Type)
+ 			gc.Cgen(nl, &n1)
+ 			nl = &n1
+ 		}
+ 
+-		if nr.Addable == 0 {
++		if !nr.Addable {
+ 			var tmp gc.Node
+ 			gc.Tempname(&tmp, nr.Type)
+ 			gc.Cgen(nr, &tmp)
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 929cbaedfc..76c67af23b 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -1732,7 +1732,7 @@ func dotaddable(n *gc.Node, n1 *gc.Node) bool {
+ 	var oary [10]int64
+ 	var nn *gc.Node
+ 	o := gc.Dotoffset(n, oary[:], &nn)
+-	if nn != nil && nn.Addable != 0 && o == 1 && oary[0] >= 0 {
++	if nn != nil && nn.Addable && o == 1 && oary[0] >= 0 {
+ 		*n1 = *nn
+ 		n1.Type = n.Type
+ 		n1.Xoffset += oary[0]
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index d3921f7ece..3b628ac243 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -34,7 +34,7 @@ func Cgen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	case OSLICE, OSLICEARR, OSLICESTR, OSLICE3, OSLICE3ARR:
+-		if res.Op != ONAME || res.Addable == 0 {
++		if res.Op != ONAME || !res.Addable {
+ 			var n1 Node
+ 			Tempname(&n1, n.Type)
+ 			Cgen_slice(n, &n1)
+@@ -45,7 +45,7 @@ func Cgen(n *Node, res *Node) {
+ 		return
+ 
+ 	case OEFACE:
+-		if res.Op != ONAME || res.Addable == 0 {
++		if res.Op != ONAME || !res.Addable {
+ 			var n1 Node
+ 			Tempname(&n1, n.Type)
+ 			Cgen_eface(n, &n1)
+@@ -81,7 +81,7 @@ func Cgen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
+-	if res.Addable == 0 {
++	if !res.Addable {
+ 		if n.Ullman > res.Ullman {
+ 			if Ctxt.Arch.Regsize == 4 && Is64(n.Type) {
+ 				var n1 Node
+@@ -188,7 +188,7 @@ func Cgen(n *Node, res *Node) {
+ 
+ 	if Ctxt.Arch.Thechar == '5' { // TODO(rsc): Maybe more often?
+ 		// if both are addressable, move
+-		if n.Addable != 0 && res.Addable != 0 {
++		if n.Addable && res.Addable {
+ 			if Is64(n.Type) || Is64(res.Type) || n.Op == OREGISTER || res.Op == OREGISTER || Iscomplex[n.Type.Etype] || Iscomplex[res.Type.Etype] {
+ 				Thearch.Gmove(n, res)
+ 			} else {
+@@ -203,7 +203,7 @@ func Cgen(n *Node, res *Node) {
+ 		}
+ 
+ 		// if both are not addressable, use a temporary.
+-		if n.Addable == 0 && res.Addable == 0 {
++		if !n.Addable && !res.Addable {
+ 			// could use regalloc here sometimes,
+ 			// but have to check for ullman >= UINF.
+ 			var n1 Node
+@@ -215,7 +215,7 @@ func Cgen(n *Node, res *Node) {
+ 
+ 		// if result is not addressable directly but n is,
+ 		// compute its address and then store via the address.
+-		if res.Addable == 0 {
++		if !res.Addable {
+ 			var n1 Node
+ 			Igen(res, &n1, nil)
+ 			Cgen(n, &n1)
+@@ -229,14 +229,14 @@ func Cgen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
+-	if (Ctxt.Arch.Thechar == '6' || Ctxt.Arch.Thechar == '8') && n.Addable != 0 {
++	if (Ctxt.Arch.Thechar == '6' || Ctxt.Arch.Thechar == '8') && n.Addable {
+ 		Thearch.Gmove(n, res)
+ 		return
+ 	}
+ 
+ 	if Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
+ 		// if both are addressable, move
+-		if n.Addable != 0 {
++		if n.Addable {
+ 			if n.Op == OREGISTER || res.Op == OREGISTER {
+ 				Thearch.Gmove(n, res)
+ 			} else {
+@@ -458,7 +458,7 @@ func Cgen(n *Node, res *Node) {
+ 		var n1 Node
+ 		var n2 Node
+ 		if Ctxt.Arch.Thechar == '5' {
+-			if nl.Addable != 0 && !Is64(nl.Type) {
++			if nl.Addable && !Is64(nl.Type) {
+ 				Regalloc(&n1, nl.Type, res)
+ 				Thearch.Gmove(nl, &n1)
+ 			} else {
+@@ -795,7 +795,7 @@ func cgen_norm(n, n1, res *Node) {
+ func Mgen(n *Node, n1 *Node, rg *Node) {
+ 	n1.Op = OEMPTY
+ 
+-	if n.Addable != 0 {
++	if n.Addable {
+ 		*n1 = *n
+ 		if n1.Op == OREGISTER || n1.Op == OINDREG {
+ 			reg[n.Val.U.Reg-int16(Thearch.REGMIN)]++
+@@ -832,7 +832,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
+ 		Fatal("cgenr on fat node")
+ 	}
+ 
+-	if n.Addable != 0 {
++	if n.Addable {
+ 		Regalloc(a, n.Type, res)
+ 		Thearch.Gmove(n, a)
+ 		return
+@@ -891,7 +891,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			bounded := Debug['B'] != 0 || n.Bounded
+ 			var n1 Node
+ 			var n3 Node
+-			if nr.Addable != 0 {
++			if nr.Addable {
+ 				var tmp Node
+ 				if !Isconst(nr, CTINT) {
+ 					Tempname(&tmp, Types[TINT32])
+@@ -904,7 +904,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					Regalloc(&n1, tmp.Type, nil)
+ 					Thearch.Gmove(&tmp, &n1)
+ 				}
+-			} else if nl.Addable != 0 {
++			} else if nl.Addable {
+ 				if !Isconst(nr, CTINT) {
+ 					var tmp Node
+ 					Tempname(&tmp, Types[TINT32])
+@@ -1040,7 +1040,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			var n3 Node
+ 			var tmp Node
+ 			var n1 Node
+-			if nr.Addable != 0 {
++			if nr.Addable {
+ 				// Generate &nl first, and move nr into register.
+ 				if !Isconst(nl, CTSTR) {
+ 					Igen(nl, &n3, res)
+@@ -1050,7 +1050,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 					Regalloc(&n1, tmp.Type, nil)
+ 					Thearch.Gmove(&tmp, &n1)
+ 				}
+-			} else if nl.Addable != 0 {
++			} else if nl.Addable {
+ 				// Generate nr first, and move &nl into register.
+ 				if !Isconst(nr, CTINT) {
+ 					p2 = Thearch.Igenindex(nr, &tmp, bounded)
+@@ -1201,10 +1201,10 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 		var nlen Node
+ 		var tmp Node
+ 		var n1 Node
+-		if nr.Addable != 0 {
++		if nr.Addable {
+ 			goto irad
+ 		}
+-		if nl.Addable != 0 {
++		if nl.Addable {
+ 			Cgenr(nr, &n1, nil)
+ 			if !Isconst(nl, CTSTR) {
+ 				if Isfixedarray(nl.Type) {
+@@ -1233,7 +1233,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isfixedarray(nl.Type) {
+ 				Agenr(nl, &n3, res)
+ 			} else {
+-				if nl.Addable == 0 {
++				if !nl.Addable {
+ 					if res != nil && res.Op == OREGISTER { // give up res, which we don't need yet.
+ 						Regfree(res)
+ 					}
+@@ -1432,7 +1432,7 @@ func Agen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
+-	if n.Addable != 0 {
++	if n.Addable {
+ 		if n.Op == OREGISTER {
+ 			Fatal("agen OREGISTER")
+ 		}
+@@ -1592,7 +1592,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 		*a = Node{}
+ 		a.Op = OINDREG
+ 		a.Val.U.Reg = int16(Thearch.REGSP)
+-		a.Addable = 1
++		a.Addable = true
+ 		a.Xoffset = fp.Width
+ 		if HasLinkRegister() {
+ 			a.Xoffset += int64(Ctxt.Arch.Ptrsize)
+@@ -1692,7 +1692,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 		return
+ 
+ 	case ONAME:
+-		if n.Addable == 0 || Ctxt.Arch.Thechar == '5' || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
++		if !n.Addable || Ctxt.Arch.Thechar == '5' || Ctxt.Arch.Thechar == '7' || Ctxt.Arch.Thechar == '9' {
+ 			goto def
+ 		}
+ 		var n1 Node
+@@ -1824,14 +1824,14 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 		}
+ 
+ 		if Ctxt.Arch.Regsize == 4 && Is64(nr.Type) {
+-			if nl.Addable == 0 || Isconst(nl, CTINT) {
++			if !nl.Addable || Isconst(nl, CTINT) {
+ 				var n1 Node
+ 				Tempname(&n1, nl.Type)
+ 				Cgen(nl, &n1)
+ 				nl = &n1
+ 			}
+ 
+-			if nr.Addable == 0 {
++			if !nr.Addable {
+ 				var n2 Node
+ 				Tempname(&n2, nr.Type)
+ 				Cgen(nr, &n2)
+@@ -1862,7 +1862,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 			goto cmp
+ 		}
+ 
+-		if nl.Addable == 0 && Ctxt.Arch.Thechar == '8' {
++		if !nl.Addable && Ctxt.Arch.Thechar == '8' {
+ 			Tempname(&n1, nl.Type)
+ 		} else {
+ 			Regalloc(&n1, nl.Type, nil)
+@@ -1879,7 +1879,7 @@ func Bgen(n *Node, true_ bool, likely int, to *obj.Prog) {
+ 			break
+ 		}
+ 
+-		if nr.Addable == 0 && Ctxt.Arch.Thechar == '8' {
++		if !nr.Addable && Ctxt.Arch.Thechar == '8' {
+ 			var tmp Node
+ 			Tempname(&tmp, nr.Type)
+ 			Cgen(nr, &tmp)
+@@ -2199,7 +2199,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
+ 
+ 	i = i.Left // interface
+ 
+-	if i.Addable == 0 {
++	if !i.Addable {
+ 		var tmpi Node
+ 		Tempname(&tmpi, i.Type)
+ 		Cgen(i, &tmpi)
+@@ -2304,7 +2304,7 @@ func cgen_call(n *Node, proc int) {
+ 	}
+ 
+ 	// call direct
+-	n.Left.Method = 1
++	n.Left.Method = true
+ 
+ 	Ginscall(n.Left, proc)
+ }
+@@ -2334,7 +2334,7 @@ func cgen_callret(n *Node, res *Node) {
+ 	var nod Node
+ 	nod.Op = OINDREG
+ 	nod.Val.U.Reg = int16(Thearch.REGSP)
+-	nod.Addable = 1
++	nod.Addable = true
+ 
+ 	nod.Xoffset = fp.Width
+ 	if HasLinkRegister() {
+@@ -2364,7 +2364,7 @@ func cgen_aret(n *Node, res *Node) {
+ 	var nod1 Node
+ 	nod1.Op = OINDREG
+ 	nod1.Val.U.Reg = int16(Thearch.REGSP)
+-	nod1.Addable = 1
++	nod1.Addable = true
+ 	nod1.Xoffset = fp.Width
+ 	if HasLinkRegister() {
+ 		nod1.Xoffset += int64(Ctxt.Arch.Ptrsize)
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index a5364fcb9a..62e060e7d4 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -599,7 +599,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	ptr := Nod(ONAME, nil, nil)
+ 	ptr.Sym = Lookup("rcvr")
+ 	ptr.Class = PAUTO
+-	ptr.Addable = 1
++	ptr.Addable = true
+ 	ptr.Ullman = 1
+ 	ptr.Used = true
+ 	ptr.Curfn = xfunc
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/internal/gc/cplx.go
+index fe4c38c285..ec6984c3ef 100644
+--- a/src/cmd/internal/gc/cplx.go
++++ b/src/cmd/internal/gc/cplx.go
+@@ -23,13 +23,13 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
+ 
+ 	// make both sides addable in ullman order
+ 	if nr != nil {
+-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
++		if nl.Ullman > nr.Ullman && !nl.Addable {
+ 			Tempname(&tnl, nl.Type)
+ 			Cgen(nl, &tnl)
+ 			nl = &tnl
+ 		}
+ 
+-		if nr.Addable == 0 {
++		if !nr.Addable {
+ 			var tnr Node
+ 			Tempname(&tnr, nr.Type)
+ 			Cgen(nr, &tnr)
+@@ -37,7 +37,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
+ 		}
+ 	}
+ 
+-	if nl.Addable == 0 {
++	if !nl.Addable {
+ 		Tempname(&tnl, nl.Type)
+ 		Cgen(nl, &tnl)
+ 		nl = &tnl
+@@ -83,7 +83,7 @@ func Complexbool(op int, nl *Node, nr *Node, true_ bool, likely int, to *obj.Pro
+ 
+ // break addable nc-complex into nr-real and ni-imaginary
+ func subnode(nr *Node, ni *Node, nc *Node) {
+-	if nc.Addable == 0 {
++	if !nc.Addable {
+ 		Fatal("subnode not addable")
+ 	}
+ 
+@@ -227,7 +227,7 @@ func complexmul(nl *Node, nr *Node, res *Node) {
+ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	*n = Node{}
+ 	n.Op = OLITERAL
+-	n.Addable = 1
++	n.Addable = true
+ 	ullmancalc(n)
+ 	n.Val.U.Fval = fval
+ 	n.Val.Ctype = CTFLT
+@@ -291,7 +291,7 @@ func Complexmove(f *Node, t *Node) {
+ 		Dump("complexmove-t", t)
+ 	}
+ 
+-	if t.Addable == 0 {
++	if !t.Addable {
+ 		Fatal("complexmove: to not addable")
+ 	}
+ 
+@@ -308,7 +308,7 @@ func Complexmove(f *Node, t *Node) {
+ 		TCOMPLEX64<<16 | TCOMPLEX128,
+ 		TCOMPLEX128<<16 | TCOMPLEX64,
+ 		TCOMPLEX128<<16 | TCOMPLEX128:
+-		if f.Addable == 0 || overlap_cplx(f, t) {
++		if !f.Addable || overlap_cplx(f, t) {
+ 			var tmp Node
+ 			Tempname(&tmp, f.Type)
+ 			Complexmove(f, &tmp)
+@@ -340,7 +340,7 @@ func Complexgen(n *Node, res *Node) {
+ 	// pick off float/complex opcodes
+ 	switch n.Op {
+ 	case OCOMPLEX:
+-		if res.Addable != 0 {
++		if res.Addable {
+ 			var n1 Node
+ 			var n2 Node
+ 			subnode(&n1, &n2, res)
+@@ -354,7 +354,7 @@ func Complexgen(n *Node, res *Node) {
+ 
+ 	case OREAL, OIMAG:
+ 		nl := n.Left
+-		if nl.Addable == 0 {
++		if !nl.Addable {
+ 			var tmp Node
+ 			Tempname(&tmp, nl.Type)
+ 			Complexgen(nl, &tmp)
+@@ -380,7 +380,7 @@ func Complexgen(n *Node, res *Node) {
+ 	tr := Simsimtype(n.Type)
+ 	tr = cplxsubtype(tr)
+ 	if tl != tr {
+-		if n.Addable == 0 {
++		if !n.Addable {
+ 			var n1 Node
+ 			Tempname(&n1, n.Type)
+ 			Complexmove(n, &n1)
+@@ -391,7 +391,7 @@ func Complexgen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
+-	if res.Addable == 0 {
++	if !res.Addable {
+ 		var n1 Node
+ 		Igen(res, &n1, nil)
+ 		Cgen(n, &n1)
+@@ -399,7 +399,7 @@ func Complexgen(n *Node, res *Node) {
+ 		return
+ 	}
+ 
+-	if n.Addable != 0 {
++	if n.Addable {
+ 		Complexmove(n, res)
+ 		return
+ 	}
+@@ -444,13 +444,13 @@ func Complexgen(n *Node, res *Node) {
+ 	// make both sides addable in ullman order
+ 	var tnl Node
+ 	if nr != nil {
+-		if nl.Ullman > nr.Ullman && nl.Addable == 0 {
++		if nl.Ullman > nr.Ullman && !nl.Addable {
+ 			Tempname(&tnl, nl.Type)
+ 			Cgen(nl, &tnl)
+ 			nl = &tnl
+ 		}
+ 
+-		if nr.Addable == 0 {
++		if !nr.Addable {
+ 			var tnr Node
+ 			Tempname(&tnr, nr.Type)
+ 			Cgen(nr, &tnr)
+@@ -458,7 +458,7 @@ func Complexgen(n *Node, res *Node) {
+ 		}
+ 	}
+ 
+-	if nl.Addable == 0 {
++	if !nl.Addable {
+ 		Tempname(&tnl, nl.Type)
+ 		Cgen(nl, &tnl)
+ 		nl = &tnl
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index c8375dd477..786b7b2b07 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -367,7 +367,7 @@ func newname(s *Sym) *Node {
+ 	n := Nod(ONAME, nil, nil)
+ 	n.Sym = s
+ 	n.Type = nil
+-	n.Addable = 1
++	n.Addable = true
+ 	n.Ullman = 1
+ 	n.Xoffset = 0
+ 	return n
+@@ -438,7 +438,7 @@ func oldname(s *Sym) *Node {
+ 			c.Class = PPARAMREF
+ 			c.Isddd = n.Isddd
+ 			c.Defn = n
+-			c.Addable = 0
++			c.Addable = false
+ 			c.Ullman = 2
+ 			c.Funcdepth = Funcdepth
+ 			c.Outer = n.Closure
+@@ -521,7 +521,7 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+ 	as := Nod(OAS2, nil, nil)
+ 	as.List = left
+ 	as.Rlist = right
+-	as.Colas = 1
++	as.Colas = true
+ 	as.Lineno = lno
+ 	colasdefn(left, as)
+ 
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index e5b9e56cb8..38e358a735 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -201,7 +201,7 @@ func Jconv(n *Node, flag int) string {
+ 		fmt.Fprintf(&buf, " u(%d)", n.Ullman)
+ 	}
+ 
+-	if c == 0 && n.Addable != 0 {
++	if c == 0 && n.Addable {
+ 		fmt.Fprintf(&buf, " a(%d)", n.Addable)
+ 	}
+ 
+@@ -229,7 +229,7 @@ func Jconv(n *Node, flag int) string {
+ 		}
+ 	}
+ 
+-	if n.Colas != 0 {
++	if n.Colas {
+ 		fmt.Fprintf(&buf, " colas(%d)", n.Colas)
+ 	}
+ 
+@@ -822,7 +822,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		if n.Colas != 0 && !complexinit {
++		if n.Colas && !complexinit {
+ 			f += fmt.Sprintf("%v := %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
+ 		} else {
+ 			f += fmt.Sprintf("%v = %v", Nconv(n.Left, 0), Nconv(n.Right, 0))
+@@ -841,7 +841,7 @@ func stmtfmt(n *Node) string {
+ 		f += fmt.Sprintf("%v %v= %v", Nconv(n.Left, 0), Oconv(int(n.Etype), obj.FmtSharp), Nconv(n.Right, 0))
+ 
+ 	case OAS2:
+-		if n.Colas != 0 && !complexinit {
++		if n.Colas && !complexinit {
+ 			f += fmt.Sprintf("%v := %v", Hconv(n.List, obj.FmtComma), Hconv(n.Rlist, obj.FmtComma))
+ 			break
+ 		}
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index e0659fc8a4..e52ff65845 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -61,7 +61,7 @@ func addrescapes(n *Node) {
+ 			n.Stackparam = Nod(OPARAM, n, nil)
+ 
+ 			n.Stackparam.Type = n.Type
+-			n.Stackparam.Addable = 1
++			n.Stackparam.Addable = true
+ 			if n.Xoffset == BADWIDTH {
+ 				Fatal("addrescapes before param assignment")
+ 			}
+@@ -73,7 +73,7 @@ func addrescapes(n *Node) {
+ 		case PAUTO:
+ 			n.Class |= PHEAP
+ 
+-			n.Addable = 0
++			n.Addable = false
+ 			n.Ullman = 2
+ 			n.Xoffset = 0
+ 
+@@ -332,7 +332,7 @@ func Clearslim(n *Node) {
+ 	var z Node
+ 	z.Op = OLITERAL
+ 	z.Type = n.Type
+-	z.Addable = 1
++	z.Addable = true
+ 
+ 	switch Simtype[n.Type.Etype] {
+ 	case TCOMPLEX64, TCOMPLEX128:
+@@ -749,7 +749,7 @@ func Tempname(nn *Node, t *Type) {
+ 	s.Def = n
+ 	n.Type = t
+ 	n.Class = PAUTO
+-	n.Addable = 1
++	n.Addable = true
+ 	n.Ullman = 1
+ 	n.Esc = EscNever
+ 	n.Curfn = Curfn
+@@ -1373,7 +1373,7 @@ yes:
+ }
+ 
+ func cadable(n *Node) bool {
+-	if n.Addable == 0 {
++	if !n.Addable {
+ 		// dont know how it happens,
+ 		// but it does
+ 		return false
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index 31bebf32b9..aa2eac1ff6 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -618,7 +618,7 @@ range_stmt:
+ 	{
+ 		$$ = Nod(ORANGE, nil, $4);
+ 		$$.List = $1;
+-		$$.Colas = 1;
++		$$.Colas = true;
+ 		colasdefn($1, $$);
+ 	}
+ |	LRANGE expr
+@@ -631,7 +631,7 @@ for_header:
+ 	osimple_stmt ';' osimple_stmt ';' osimple_stmt
+ 	{
+ 		// init ; test ; incr
+-		if $5 != nil && $5.Colas != 0 {
++		if $5 != nil && $5.Colas {
+ 			Yyerror("cannot declare in the for-increment");
+ 		}
+ 		$$ = Nod(OFOR, nil, nil);
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index d54f90594c..6ca8c75a83 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -133,7 +133,7 @@ func Nodreg(n *Node, t *Type, r int) {
+ 
+ 	*n = Node{}
+ 	n.Op = OREGISTER
+-	n.Addable = 1
++	n.Addable = true
+ 	ullmancalc(n)
+ 	n.Val.U.Reg = int16(r)
+ 	n.Type = t
+@@ -361,7 +361,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		if s == nil {
+ 			s = Lookup(".noname")
+ 		}
+-		if n.Method != 0 {
++		if n.Method {
+ 			if n.Type != nil {
+ 				if n.Type.Sym != nil {
+ 					if n.Type.Sym.Pkg != nil {
+@@ -520,7 +520,7 @@ func nodarg(t *Type, fp int) *Node {
+ 			Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
+ 		}
+ 		n.Xoffset = first.Width
+-		n.Addable = 1
++		n.Addable = true
+ 		goto fp
+ 	}
+ 
+@@ -546,7 +546,7 @@ func nodarg(t *Type, fp int) *Node {
+ 		Fatal("nodarg: offset not computed for %v", Tconv(t, 0))
+ 	}
+ 	n.Xoffset = t.Width
+-	n.Addable = 1
++	n.Addable = true
+ 	n.Orig = t.Nname
+ 
+ 	// Rewrite argument named _ to __,
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 9dc9b69907..ec744638a1 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -770,7 +770,7 @@ func orderstmt(n *Node, order *Order) {
+ 				// declaration (and possible allocation) until inside the case body.
+ 				// Delete the ODCL nodes here and recreate them inside the body below.
+ 				case OSELRECV, OSELRECV2:
+-					if r.Colas != 0 {
++					if r.Colas {
+ 						t = r.Ninit
+ 						if t != nil && t.N.Op == ODCL && t.N.Left == r.Left {
+ 							t = t.Next
+@@ -814,7 +814,7 @@ func orderstmt(n *Node, order *Order) {
+ 						// the conversion happens in the OAS instead.
+ 						tmp1 = r.Left
+ 
+-						if r.Colas != 0 {
++						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+ 							typecheck(&tmp2, Etop)
+ 							l.N.Ninit = list(l.N.Ninit, tmp2)
+@@ -831,7 +831,7 @@ func orderstmt(n *Node, order *Order) {
+ 					}
+ 					if r.Ntest != nil {
+ 						tmp1 = r.Ntest
+-						if r.Colas != 0 {
++						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+ 							typecheck(&tmp2, Etop)
+ 							l.N.Ninit = list(l.N.Ninit, tmp2)
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index b6c9f30b98..4100c20205 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -331,7 +331,7 @@ func Cgen_checknil(n *Node) {
+ 		Fatal("bad checknil")
+ 	}
+ 
+-	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || n.Addable == 0 || n.Op == OLITERAL {
++	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
+ 		var reg Node
+ 		Regalloc(&reg, Types[Tptr], n)
+ 		Cgen(n, &reg)
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index bd5be0f19a..77504fae2a 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -882,7 +882,7 @@ func typenamesym(t *Type) *Sym {
+ 		n := Nod(ONAME, nil, nil)
+ 		n.Sym = s
+ 		n.Type = Types[TUINT8]
+-		n.Addable = 1
++		n.Addable = true
+ 		n.Ullman = 1
+ 		n.Class = PEXTERN
+ 		n.Xoffset = 0
+@@ -899,7 +899,7 @@ func typename(t *Type) *Node {
+ 	s := typenamesym(t)
+ 	n := Nod(OADDR, s.Def, nil)
+ 	n.Type = Ptrto(s.Def.Type)
+-	n.Addable = 1
++	n.Addable = true
+ 	n.Ullman = 2
+ 	n.Typecheck = 1
+ 	return n
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index f7167363c1..96743b861c 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -529,7 +529,7 @@ func simplename(n *Node) bool {
+ 	if n.Op != ONAME {
+ 		return false
+ 	}
+-	if n.Addable == 0 {
++	if !n.Addable {
+ 		return false
+ 	}
+ 	if n.Class&PHEAP != 0 {
+@@ -1239,7 +1239,7 @@ func stataddr(nam *Node, n *Node) bool {
+ 	switch n.Op {
+ 	case ONAME:
+ 		*nam = *n
+-		return n.Addable != 0
++		return n.Addable
+ 
+ 	case ODOT:
+ 		if !stataddr(nam, n.Left) {
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 5505fe36b7..f01cda1d9d 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -669,7 +669,7 @@ func sortinter(t *Type) *Type {
+ 
+ func Nodintconst(v int64) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+-	c.Addable = 1
++	c.Addable = true
+ 	c.Val.U.Xval = new(Mpint)
+ 	Mpmovecfix(c.Val.U.Xval, v)
+ 	c.Val.Ctype = CTINT
+@@ -680,7 +680,7 @@ func Nodintconst(v int64) *Node {
+ 
+ func nodfltconst(v *Mpflt) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+-	c.Addable = 1
++	c.Addable = true
+ 	c.Val.U.Fval = newMpflt()
+ 	mpmovefltflt(c.Val.U.Fval, v)
+ 	c.Val.Ctype = CTFLT
+@@ -692,7 +692,7 @@ func nodfltconst(v *Mpflt) *Node {
+ func Nodconst(n *Node, t *Type, v int64) {
+ 	*n = Node{}
+ 	n.Op = OLITERAL
+-	n.Addable = 1
++	n.Addable = true
+ 	ullmancalc(n)
+ 	n.Val.U.Xval = new(Mpint)
+ 	Mpmovecfix(n.Val.U.Xval, v)
+@@ -2572,7 +2572,7 @@ func genhash(sym *Sym, t *Type) {
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+ 		n.List = list1(ni)
+-		n.Colas = 1
++		n.Colas = true
+ 		colasdefn(n.List, n)
+ 		ni = n.List.N
+ 
+@@ -2824,7 +2824,7 @@ func geneq(sym *Sym, t *Type) {
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+ 		nrange.List = list1(ni)
+-		nrange.Colas = 1
++		nrange.Colas = true
+ 		colasdefn(nrange.List, nrange)
+ 		ni = nrange.List.N
+ 
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 671a624c1d..736c7afda6 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -26,13 +26,13 @@ type Node struct {
+ 	Op          uint8
+ 	Nointerface bool
+ 	Ullman      uint8 // sethi/ullman number
+-	Addable     uint8 // type of addressability - 0 is not addressable
++	Addable     bool  // addressable
+ 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
+ 	Bounded     bool  // bounds check unnecessary
+ 	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+-	Method      uint8 // OCALLMETH name
++	Method      bool  // OCALLMETH is direct method call
+ 	Embedded    uint8 // ODCLFIELD embedded type
+-	Colas       uint8 // OAS resulting from :=
++	Colas       bool  // OAS resulting from :=
+ 	Diag        uint8 // already printed error about this
+ 	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+ 	Walkdef     uint8
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c845f783e5..bf91116962 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -564,16 +564,16 @@ func walkexpr(np **Node, init **NodeList) {
+ 		goto ret
+ 
+ 	case OLITERAL:
+-		n.Addable = 1
++		n.Addable = true
+ 		goto ret
+ 
+ 	case OCLOSUREVAR, OCFUNC:
+-		n.Addable = 1
++		n.Addable = true
+ 		goto ret
+ 
+ 	case ONAME:
+ 		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
+-			n.Addable = 1
++			n.Addable = true
+ 		}
+ 		goto ret
+ 
+@@ -975,7 +975,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 				l := Nod(ONAME, nil, nil)
+ 				l.Sym = sym
+ 				l.Type = Ptrto(Types[TUINT8])
+-				l.Addable = 1
++				l.Addable = true
+ 				l.Class = PEXTERN
+ 				l.Xoffset = 0
+ 				sym.Def = l
+@@ -983,7 +983,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 			}
+ 
+ 			l := Nod(OADDR, sym.Def, nil)
+-			l.Addable = 1
++			l.Addable = true
+ 			ll = list(ll, l)
+ 
+ 			if isdirectiface(n.Left.Type) {
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index cfa4ec63a2..c952e656ba 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -1733,7 +1733,7 @@ yydefault:
+ 		{
+ 			yyVAL.node = Nod(ORANGE, nil, yyDollar[4].node)
+ 			yyVAL.node.List = yyDollar[1].list
+-			yyVAL.node.Colas = 1
++			yyVAL.node.Colas = true
+ 			colasdefn(yyDollar[1].list, yyVAL.node)
+ 		}
+ 	case 69:
+@@ -1748,7 +1748,7 @@ yydefault:
+ 		//line go.y:632
+ 		{
+ 			// init ; test ; incr
+-			if yyDollar[5].node != nil && yyDollar[5].node.Colas != 0 {
++			if yyDollar[5].node != nil && yyDollar[5].node.Colas {
+ 				Yyerror("cannot declare in the for-increment")
+ 			}
+ 			yyVAL.node = Nod(OFOR, nil, nil)

@@ -14,8 +14,59 @@ Date:   Wed Mar 11 11:31:49 2015 -0700
     Change-Id: I437a3b112ce63f4d6e1fe3450fc21d8c3372602f
     Reviewed-on: https://go-review.googlesource.com/7420
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |  2 +-
  src/cmd/asm/internal/asm/testdata/arm.out | 14 ++++++++------
  src/cmd/asm/internal/asm/testdata/arm.s   |  4 ++--
  3 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 5038176f65..58c32387c0 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -56,7 +56,7 @@ func testEndToEnd(t *testing.T, goarch string) {
+ 		r := strings.Split(result, "\n")
+ 		e := strings.Split(string(expect), "\n")
+ 		if len(r) != len(e) {
+-			t.Errorf("%s: expected %d lines, got %d", len(e), len(r))
++			t.Errorf("%s: expected %d lines, got %d", goarch, len(e), len(r))
+ 		}
+ 		n := len(e)
+ 		if n > len(r) {
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.out b/src/cmd/asm/internal/asm/testdata/arm.out
+index d1e21cb20b..0e23a0273e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.out
++++ b/src/cmd/asm/internal/asm/testdata/arm.out
+@@ -45,9 +45,11 @@
+ 201 00045 (testdata/arm.s:201)	ADDD.S	F1, F2, F3
+ 202 00046 (testdata/arm.s:202)	ADDD.S	$(0.5), F2, F3
+ 208 00047 (testdata/arm.s:208)	CMPD.S	F1, F2
+-242 00048 (testdata/arm.s:242)	MULL	R1, R2, (R3, R4)
+-254 00049 (testdata/arm.s:254)	MULAWT	R1, R2, R3, R4
+-262 00050 (testdata/arm.s:262)	PLD	(R1)
+-263 00051 (testdata/arm.s:263)	PLD	4(R1)
+-272 00052 (testdata/arm.s:272)	RET
+-281 00053 (testdata/arm.s:281)	END
++232 00048 (testdata/arm.s:232)	MRC	$8301712627
++233 00049 (testdata/arm.s:233)	MRC	$8300664051
++242 00050 (testdata/arm.s:242)	MULL	R1, R2, (R3, R4)
++254 00051 (testdata/arm.s:254)	MULAWT	R1, R2, R3, R4
++262 00052 (testdata/arm.s:262)	PLD	(R1)
++263 00053 (testdata/arm.s:263)	PLD	4(R1)
++272 00054 (testdata/arm.s:272)	RET
++281 00055 (testdata/arm.s:281)	END
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 8031075da9..356391944e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -229,8 +229,8 @@ TEXT	foo(SB), 0, $0
+ //			(1<<4));			/* must be set */
+ //		outcode(AMRC, Always, &nullgen, 0, &g);
+ //	}
+-// TODO: Disabled until printout for this instruction is the same for 32 and 64 bits.
+-//	MRC.S	4, 6, R1, C2, C3, 7
++	MRC.S	4, 6, R1, C2, C3, 7
++	MCR.S	4, 6, R1, C2, C3, 7
+ 
+ //
+ // MULL r1,r2,(hi,lo)

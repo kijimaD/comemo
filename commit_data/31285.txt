@@ -43,7 +43,52 @@ Date:   Thu Feb 9 10:45:35 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/cse.go  | 12 +++++++-----
  src/cmd/compile/internal/ssa/func.go |  2 ++
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 39861b6e2a..10f3b883b4 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -30,19 +30,21 @@ func cse(f *Func) {
+ 
+ 	// Make initial coarse partitions by using a subset of the conditions above.
+ 	a := make([]*Value, 0, f.NumValues())
+-	auxIDs := auxmap{}
++	if f.auxmap == nil {
++		f.auxmap = auxmap{}
++	}
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			if auxIDs[v.Aux] == 0 {
+-				auxIDs[v.Aux] = int32(len(auxIDs)) + 1
+-			}
+ 			if v.Type.IsMemory() {
+ 				continue // memory values can never cse
+ 			}
++			if f.auxmap[v.Aux] == 0 {
++				f.auxmap[v.Aux] = int32(len(f.auxmap)) + 1
++			}
+ 			a = append(a, v)
+ 		}
+ 	}
+-	partition := partitionValues(a, auxIDs)
++	partition := partitionValues(a, f.auxmap)
+ 
+ 	// map from value id back to eqclass id
+ 	valueEqClass := make([]ID, f.NumValues())
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ea259190da..439e0b0394 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -43,6 +43,8 @@ type Func struct {
+ 	cachedSdom      SparseTree // cached dominator tree
+ 	cachedLoopnest  *loopnest  // cached loop nest information
+ 
++	auxmap auxmap // map from aux values to opaque ids used by CSE
++
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+ 

@@ -13,6 +13,20 @@ Date:   Sun Oct 16 11:25:37 2016 -0700
     Change-Id: Ia9db229f781f9042ac5c0bb824e3d7a26fb74ec5
     Reviewed-on: https://go-review.googlesource.com/31254
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 8b0c7d10af..f8ae4e72f9 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -51,7 +51,7 @@
+ 	The default format for %v is:
+ 		bool:                    %t
+ 		int, int8 etc.:          %d
+-		uint, uint8 etc.:        %d, %x if printed with %#v
++		uint, uint8 etc.:        %d, %#x if printed with %#v
+ 		float32, complex64, etc: %g
+ 		string:                  %s
+ 		chan:                    %p

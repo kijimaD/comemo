@@ -11,9 +11,161 @@ Date:   Tue Dec 12 17:46:57 2017 -0800
     Change-Id: I7cf22d17bdd0143efb6ee48981e649ffe797aed9
     Reviewed-on: https://go-review.googlesource.com/83579
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/decl.go             |  9 +--------
  src/go/types/expr.go             |  3 ++-
  src/go/types/stmt.go             |  7 ++-----
  src/go/types/testdata/const0.src | 41 ++++++++++++++++++++++++++++++++++++++++
  4 files changed, 46 insertions(+), 14 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 8faa2e1f7e..764a56ad89 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -112,7 +112,6 @@ func (check *Checker) constDecl(obj *Const, typ, init ast.Expr) {
+ 	obj.visited = true
+ 
+ 	// use the correct value of iota
+-	assert(check.iota == nil)
+ 	check.iota = obj.val
+ 	defer func() { check.iota = nil }()
+ 
+@@ -151,9 +150,6 @@ func (check *Checker) varDecl(obj *Var, lhs []*Var, typ, init ast.Expr) {
+ 	}
+ 	obj.visited = true
+ 
+-	// var declarations cannot use iota
+-	assert(check.iota == nil)
+-
+ 	// determine type, if any
+ 	if typ != nil {
+ 		obj.typ = check.typ(typ)
+@@ -234,9 +230,6 @@ func (n *Named) setUnderlying(typ Type) {
+ func (check *Checker) typeDecl(obj *TypeName, typ ast.Expr, def *Named, path []*TypeName, alias bool) {
+ 	assert(obj.typ == nil)
+ 
+-	// type declarations cannot use iota
+-	assert(check.iota == nil)
+-
+ 	if alias {
+ 
+ 		obj.typ = Typ[Invalid]
+@@ -356,7 +349,7 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	// (functions implemented elsewhere have no body)
+ 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
+ 		check.later(func() {
+-			check.funcBody(decl, obj.name, sig, fdecl.Body)
++			check.funcBody(decl, obj.name, sig, fdecl.Body, nil)
+ 		})
+ 	}
+ }
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index aec35b61c8..04d6b72bc2 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1031,12 +1031,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// init expression/func declaration which contains
+ 			// them: use existing package-level declaration info.
+ 			decl := check.decl // capture for use in closure below
++			iota := check.iota // capture for use in closure below (#22345)
+ 			// Don't type-check right away because the function may
+ 			// be part of a type definition to which the function
+ 			// body refers. Instead, type-check as soon as possible,
+ 			// but before the enclosing scope contents changes (#22992).
+ 			check.later(func() {
+-				check.funcBody(decl, "<function literal>", sig, e.Body)
++				check.funcBody(decl, "<function literal>", sig, e.Body, iota)
+ 			})
+ 			x.mode = value
+ 			x.typ = sig
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 23b395c87c..abd9d05ef2 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -13,7 +13,7 @@ import (
+ 	"sort"
+ )
+ 
+-func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt) {
++func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body *ast.BlockStmt, iota constant.Value) {
+ 	if trace {
+ 		check.trace(body.Pos(), "--- %s: %s", name, sig)
+ 		defer func() {
+@@ -34,6 +34,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 	check.context = context{
+ 		decl:  decl,
+ 		scope: sig.scope,
++		iota:  iota,
+ 		sig:   sig,
+ 	}
+ 	check.indent = 0
+@@ -290,10 +291,6 @@ L:
+ 
+ // stmt typechecks statement s.
+ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+-	// statements cannot use iota in general
+-	// (constant declarations set it explicitly)
+-	assert(check.iota == nil)
+-
+ 	// statements must end with the same top scope as they started with
+ 	if debug {
+ 		defer func(scope *Scope) {
+diff --git a/src/go/types/testdata/const0.src b/src/go/types/testdata/const0.src
+index a61717887e..19fb1bdbbe 100644
+--- a/src/go/types/testdata/const0.src
++++ b/src/go/types/testdata/const0.src
+@@ -6,6 +6,8 @@
+ 
+ package const0
+ 
++import "unsafe"
++
+ // constants declarations must be initialized by constants
+ var x = 0
+ const c0 = x /* ERROR "not constant" */
+@@ -281,6 +283,45 @@ func _() {
+ 	_ = y
+ }
+ 
++// iotas are usable inside closures in constant declarations (#22345)
++const (
++	_ = iota
++	_ = len([iota]byte{})
++	_ = unsafe.Sizeof(iota)
++	_ = unsafe.Sizeof(func() { _ = iota })
++	_ = unsafe.Sizeof(func() { var _ = iota })
++	_ = unsafe.Sizeof(func() { const _ = iota })
++	_ = unsafe.Sizeof(func() { type _ [iota]byte })
++	_ = unsafe.Sizeof(func() { func() int { return iota }() })
++)
++
++// verify inner and outer const declarations have distinct iotas
++const (
++	zero = iota
++	one  = iota
++	_    = unsafe.Sizeof(func() {
++		var x [iota]int // [2]int
++		const (
++			Zero = iota
++			One
++			Two
++			_ = unsafe.Sizeof([iota-1]int{} == x) // assert types are equal
++			_ = unsafe.Sizeof([Two]int{} == x)    // assert types are equal
++		)
++	})
++	three = iota // the sequence continues
++)
++var _ [three]int = [3]int{} // assert 'three' has correct value
++
++var (
++	_ = iota /* ERROR "iota outside constant decl" */
++	_ = unsafe.Sizeof(iota  /* ERROR "iota outside constant decl" */ )
++	_ = unsafe.Sizeof(func() { _ = iota /* ERROR "iota outside constant decl" */ })
++	_ = unsafe.Sizeof(func() { var _ = iota /* ERROR "iota outside constant decl" */ })
++	_ = unsafe.Sizeof(func() { type _ [iota /* ERROR "iota outside constant decl" */ ]byte })
++	_ = unsafe.Sizeof(func() { func() int { return iota /* ERROR "iota outside constant decl" */ }() })
++)
++
+ // constant arithmetic precision and rounding must lead to expected (integer) results
+ var _ = []int64{
+ 	0.0005 * 1e9,

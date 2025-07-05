@@ -7,8 +7,134 @@ Date:   Thu Oct 21 15:33:31 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2637041
-
+---
  misc/dashboard/builder/exec.go | 21 ++++++++++++++++-----
  misc/dashboard/builder/hg.go   |  2 +-
  misc/dashboard/builder/main.go | 14 ++++++++------
  3 files changed, 25 insertions(+), 12 deletions(-)
+
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 009c7694ea..91e991eb4c 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -3,6 +3,7 @@ package main
+ import (
+ 	"bytes"
+ 	"exec"
++	"io"
+ 	"os"
+ 	"strings"
+ )
+@@ -21,8 +22,9 @@ func run(envv []string, dir string, argv ...string) os.Error {
+ 	return p.Close()
+ }
+ 
+-// runLog runs a process and returns the combined stdout/stderr
+-func runLog(envv []string, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
++// runLog runs a process and returns the combined stdout/stderr, 
++// as well as writing it to logfile (if specified).
++func runLog(envv []string, logfile, dir string, argv ...string) (output string, exitStatus int, err os.Error) {
+ 	bin, err := pathLookup(argv[0])
+ 	if err != nil {
+ 		return
+@@ -34,15 +36,24 @@ func runLog(envv []string, dir string, argv ...string) (output string, exitStatu
+ 	}
+ 	defer p.Close()
+ 	b := new(bytes.Buffer)
+-	_, err = b.ReadFrom(p.Stdout)
++	var w io.Writer = b
++	if logfile != "" {
++		f, err := os.Open(logfile, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
++		if err != nil {
++			return
++		}
++		defer f.Close()
++		w = io.MultiWriter(f, b)
++	}
++	_, err = io.Copy(w, p.Stdout)
+ 	if err != nil {
+ 		return
+ 	}
+-	w, err := p.Wait(0)
++	wait, err := p.Wait(0)
+ 	if err != nil {
+ 		return
+ 	}
+-	return b.String(), w.WaitStatus.ExitStatus(), nil
++	return b.String(), wait.WaitStatus.ExitStatus(), nil
+ }
+ 
+ // Find bin in PATH if a relative or absolute path hasn't been specified
+diff --git a/misc/dashboard/builder/hg.go b/misc/dashboard/builder/hg.go
+index 63062cca13..5d2f63a17b 100644
+--- a/misc/dashboard/builder/hg.go
++++ b/misc/dashboard/builder/hg.go
+@@ -45,7 +45,7 @@ func getCommit(rev string) (c Commit, err os.Error) {
+ 
+ func getCommitParts(rev string) (parts []string, err os.Error) {
+ 	const format = "{rev}>{node}>{author|escape}>{date}>{desc}"
+-	s, _, err := runLog(nil, goroot,
++	s, _, err := runLog(nil, "", goroot,
+ 		"hg", "log", "-r", rev, "-l", "1", "--template", format)
+ 	if err != nil {
+ 		return
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index d7a0963b24..a27abe06d9 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -82,7 +82,7 @@ func main() {
+ 	if *buildRevision != "" {
+ 		c, err := getCommit(*buildRevision)
+ 		if err != nil {
+-			log.Exit("Error finding revision:", err)
++			log.Exit("Error finding revision: ", err)
+ 		}
+ 		for _, b := range builders {
+ 			if err := b.buildCommit(c); err != nil {
+@@ -138,7 +138,8 @@ func runBenchmark(r BenchRequest) {
+ 		"GOARCH=" + r.builder.goarch,
+ 		"PATH=" + bin + ":" + os.Getenv("PATH"),
+ 	}
+-	benchLog, _, err := runLog(env, pkg, "gomake", "bench")
++	logfile := path.Join(r.path, "bench.log")
++	benchLog, _, err := runLog(env, logfile, pkg, "gomake", "bench")
+ 	if err != nil {
+ 		log.Println(r.builder.name, "gomake bench:", err)
+ 		return
+@@ -195,7 +196,6 @@ func (b *Builder) build() bool {
+ 	if c == nil {
+ 		return false
+ 	}
+-	log.Println(b.name, "building", c.num)
+ 	err = b.buildCommit(*c)
+ 	if err != nil {
+ 		log.Println(err)
+@@ -233,6 +233,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 		}
+ 	}()
+ 
++	log.Println(b.name, "building", c.num)
++
+ 	// create place in which to do work
+ 	workpath := path.Join(buildroot, b.name+"-"+strconv.Itoa(c.num))
+ 	err = os.Mkdir(workpath, mkdirPerm)
+@@ -269,7 +271,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	srcDir := path.Join(workpath, "go", "src")
+ 
+ 	// build
+-	buildLog, status, err := runLog(env, srcDir, *buildCmd)
++	logfile := path.Join(workpath, "build.log")
++	buildLog, status, err := runLog(env, logfile, srcDir, *buildCmd)
+ 	if err != nil {
+ 		return fmt.Errorf("all.bash: %s", err)
+ 	}
+@@ -311,8 +314,7 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 		if err != nil {
+ 			return fmt.Errorf("tar: %s", err)
+ 		}
+-		err = run(nil, workpath, "python",
+-			path.Join(goroot, codePyScript),
++		err = run(nil, workpath, path.Join(goroot, codePyScript),
+ 			"-s", release,
+ 			"-p", codeProject,
+ 			"-u", b.codeUsername,

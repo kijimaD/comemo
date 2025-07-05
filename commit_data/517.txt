@@ -8,6 +8,55 @@ Date:   Mon Aug 11 13:53:50 2008 -0700
     DELTA=8  (0 added, 0 deleted, 8 changed)
     OCL=14091
     CL=14091
-
+---
  src/cmd/6g/gsubr.c | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index ba12c77515..d6dff2c0b8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1211,8 +1211,8 @@ optoas(int op, Type *t)
+ 	case CASE(OLT, TUINT16):
+ 	case CASE(OLT, TUINT32):
+ 	case CASE(OLT, TUINT64):
+-	case CASE(OGE, TFLOAT32):
+-	case CASE(OGE, TFLOAT64):
++	case CASE(OGT, TFLOAT32):
++	case CASE(OGT, TFLOAT64):
+ 		a = AJCS;
+ 		break;
+ 
+@@ -1227,8 +1227,8 @@ optoas(int op, Type *t)
+ 	case CASE(OLE, TUINT16):
+ 	case CASE(OLE, TUINT32):
+ 	case CASE(OLE, TUINT64):
+-	case CASE(OGT, TFLOAT32):
+-	case CASE(OGT, TFLOAT64):
++	case CASE(OGE, TFLOAT32):
++	case CASE(OGE, TFLOAT64):
+ 		a = AJLS;
+ 		break;
+ 
+@@ -1243,8 +1243,8 @@ optoas(int op, Type *t)
+ 	case CASE(OGT, TUINT16):
+ 	case CASE(OGT, TUINT32):
+ 	case CASE(OGT, TUINT64):
+-	case CASE(OLE, TFLOAT32):
+-	case CASE(OLE, TFLOAT64):
++	case CASE(OLT, TFLOAT32):
++	case CASE(OLT, TFLOAT64):
+ 		a = AJHI;
+ 		break;
+ 
+@@ -1259,8 +1259,8 @@ optoas(int op, Type *t)
+ 	case CASE(OGE, TUINT16):
+ 	case CASE(OGE, TUINT32):
+ 	case CASE(OGE, TUINT64):
+-	case CASE(OLT, TFLOAT32):
+-	case CASE(OLT, TFLOAT64):
++	case CASE(OLE, TFLOAT32):
++	case CASE(OLE, TFLOAT64):
+ 		a = AJCC;
+ 		break;
+ 

@@ -15,6 +15,20 @@ Date:   Sun Jul 29 15:19:17 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/match_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/path/match_test.go b/src/path/match_test.go
+index 6b0676f81f..127180e570 100644
+--- a/src/path/match_test.go
++++ b/src/path/match_test.go
+@@ -73,7 +73,7 @@ func TestMatch(t *testing.T) {
+ 	for _, tt := range matchTests {
+ 		ok, err := Match(tt.pattern, tt.s)
+ 		if ok != tt.match || err != tt.err {
+-			t.Errorf("Match(%#q, %#q) = %v, %v want %v, nil", tt.pattern, tt.s, ok, err, tt.match)
++			t.Errorf("Match(%#q, %#q) = %v, %v want %v, %v", tt.pattern, tt.s, ok, err, tt.match, tt.err)
+ 		}
+ 	}
+ }

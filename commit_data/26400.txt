@@ -15,6 +15,56 @@ Date:   Fri Jan 15 19:24:44 2016 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 30 ++++++++++++++++++++----------
  1 file changed, 20 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index a34cf3cac8..6d34978d5a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -850,7 +850,26 @@ func Elfinit() {
+ 	}
+ }
+ 
++// Make sure PT_LOAD is aligned properly and
++// that there is no gap,
++// correct ELF loaders will do this implicitly,
++// but buggy ELF loaders like the one in some
++// versions of QEMU and UPX won't.
++func fixElfPhdr(e *ElfPhdr) {
++	frag := int(e.vaddr & (e.align - 1))
++
++	e.off -= uint64(frag)
++	e.vaddr -= uint64(frag)
++	e.paddr -= uint64(frag)
++	e.filesz += uint64(frag)
++	e.memsz += uint64(frag)
++}
++
+ func elf64phdr(e *ElfPhdr) {
++	if e.type_ == PT_LOAD {
++		fixElfPhdr(e)
++	}
++
+ 	Thearch.Lput(e.type_)
+ 	Thearch.Lput(e.flags)
+ 	Thearch.Vput(e.off)
+@@ -863,16 +882,7 @@ func elf64phdr(e *ElfPhdr) {
+ 
+ func elf32phdr(e *ElfPhdr) {
+ 	if e.type_ == PT_LOAD {
+-		// Correct ELF loaders will do this implicitly,
+-		// but buggy ELF loaders like the one in some
+-		// versions of QEMU won't.
+-		frag := int(e.vaddr & (e.align - 1))
+-
+-		e.off -= uint64(frag)
+-		e.vaddr -= uint64(frag)
+-		e.paddr -= uint64(frag)
+-		e.filesz += uint64(frag)
+-		e.memsz += uint64(frag)
++		fixElfPhdr(e)
+ 	}
+ 
+ 	Thearch.Lput(e.type_)

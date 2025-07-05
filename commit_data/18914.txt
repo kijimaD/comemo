@@ -18,8 +18,101 @@ Date:   Thu Mar 20 22:22:37 2014 +0100
     R=rsc, dave, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/78100044
-
+---
  src/cmd/6g/cgen.c           |  6 ++++++
  src/cmd/8g/cgen.c           |  7 +++++++
  test/fixedbugs/issue7405.go | 51 +++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 64 insertions(+)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 72ab0857e9..102daa166d 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1061,6 +1061,12 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 	}
+ 	nr = N;
+ 
++	while(n->op == OCONVNOP) {
++		n = n->left;
++		if(n->ninit != nil)
++			genlist(n->ninit);
++	}
++
+ 	switch(n->op) {
+ 	default:
+ 	def:
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 825c360de4..a357724a98 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -935,6 +935,13 @@ bgen(Node *n, int true, int likely, Prog *to)
+ 		patch(gins(AEND, N, N), to);
+ 		return;
+ 	}
++
++	while(n->op == OCONVNOP) {
++		n = n->left;
++		if(n->ninit != nil)
++			genlist(n->ninit);
++	}
++
+ 	nl = n->left;
+ 	nr = N;
+ 
+diff --git a/test/fixedbugs/issue7405.go b/test/fixedbugs/issue7405.go
+new file mode 100644
+index 0000000000..52e1176c1c
+--- /dev/null
++++ b/test/fixedbugs/issue7405.go
+@@ -0,0 +1,51 @@
++// compile
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7405: the equality function for struct with many
++// embedded fields became more complex after fixing issue 7366,
++// leading to out of registers on 386.
++
++package p
++
++type T1 struct {
++	T2
++	T3
++	T4
++}
++
++type T2 struct {
++	Conn
++}
++
++type T3 struct {
++	PacketConn
++}
++
++type T4 struct {
++	PacketConn
++	T5
++}
++
++type T5 struct {
++	x int
++	T6
++}
++
++type T6 struct {
++	y, z int
++}
++
++type Conn interface {
++	A()
++}
++
++type PacketConn interface {
++	B()
++}
++
++func F(a, b T1) bool {
++	return a == b
++}

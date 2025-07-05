@@ -14,7 +14,42 @@ Date:   Tue Oct 25 19:33:50 2016 +0530
     Change-Id: I058abe73fcd49d3ae4e2f7b33020437cc8f290c3
     Reviewed-on: https://go-review.googlesource.com/31952
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/cmplx/cmath_test.go | 8 ++++++++
  src/math/cmplx/tan.go        | 4 +++-
  2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index d904be880d..7a5c485a31 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -759,6 +759,14 @@ func TestTanh(t *testing.T) {
+ 	}
+ }
+ 
++// See issue 17577
++func TestInfiniteLoopIntanSeries(t *testing.T) {
++	want := Inf()
++	if got := Cot(0); got != want {
++		t.Errorf("Cot(0): got %g, want %g", got, want)
++	}
++}
++
+ func BenchmarkAbs(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Abs(complex(2.5, 3.5))
+diff --git a/src/math/cmplx/tan.go b/src/math/cmplx/tan.go
+index 03c351ad67..2990552155 100644
+--- a/src/math/cmplx/tan.go
++++ b/src/math/cmplx/tan.go
+@@ -139,7 +139,9 @@ func tanSeries(z complex128) float64 {
+ 		t = y2 - x2
+ 		t /= f
+ 		d += t
+-		if math.Abs(t/d) <= MACHEP {
++		if !(math.Abs(t/d) > MACHEP) {
++			// Caution: Use ! and > instead of <= for correct behavior if t/d is NaN.
++			// See issue 17577.
+ 			break
+ 		}
+ 	}

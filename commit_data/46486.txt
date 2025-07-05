@@ -10,6 +10,20 @@ Date:   Mon Jan 4 12:58:18 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/281373
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/math/rand/gen_cooked.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/rand/gen_cooked.go b/src/math/rand/gen_cooked.go
+index 567b7a8d14..0afc10d727 100644
+--- a/src/math/rand/gen_cooked.go
++++ b/src/math/rand/gen_cooked.go
+@@ -4,7 +4,7 @@
+ 
+ // +build ignore
+ 
+-// This program computes the value of rng_cooked in rng.go,
++// This program computes the value of rngCooked in rng.go,
+ // which is used for seeding all instances of rand.Source.
+ // a 64bit and a 63bit version of the array is printed to
+ // the standard output.

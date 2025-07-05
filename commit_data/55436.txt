@@ -17,7 +17,7 @@ Date:   Thu Feb 2 10:09:10 2023 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/dwarfgen/scope_test.go          | 16 ++--------------
  src/cmd/compile/internal/importer/gcimporter_test.go     | 11 +----------
  src/cmd/compile/internal/logopt/logopt_test.go           |  8 +-------
@@ -30,3 +30,308 @@ Date:   Thu Feb 2 10:09:10 2023 +0000
  src/cmd/compile/internal/test/reproduciblebuilds_test.go |  6 +-----
  src/cmd/compile/internal/test/ssa_test.go                | 16 +++-------------
  11 files changed, 17 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/scope_test.go b/src/cmd/compile/internal/dwarfgen/scope_test.go
+index 502b66f014..5eb06183d0 100644
+--- a/src/cmd/compile/internal/dwarfgen/scope_test.go
++++ b/src/cmd/compile/internal/dwarfgen/scope_test.go
+@@ -219,13 +219,7 @@ func TestScopeRanges(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := os.MkdirTemp("", "TestScopeRanges")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	src, f := gobuild(t, dir, false, testfile)
++	src, f := gobuild(t, t.TempDir(), false, testfile)
+ 	defer f.Close()
+ 
+ 	// the compiler uses forward slashes for paths even on windows
+@@ -496,13 +490,7 @@ func TestEmptyDwarfRanges(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	dir, err := os.MkdirTemp("", "TestEmptyDwarfRanges")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	_, f := gobuild(t, dir, true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
++	_, f := gobuild(t, t.TempDir(), true, []testline{{line: "package main"}, {line: "func main(){ println(\"hello\") }"}})
+ 	defer f.Close()
+ 
+ 	dwarfData, err := f.DWARF()
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index fec6737c1d..26e43e6ba4 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -74,12 +74,8 @@ func testPath(t *testing.T, path, srcDir string) *types2.Package {
+ }
+ 
+ func mktmpdir(t *testing.T) string {
+-	tmpdir, err := os.MkdirTemp("", "gcimporter_test")
+-	if err != nil {
+-		t.Fatal("mktmpdir:", err)
+-	}
++	tmpdir := t.TempDir()
+ 	if err := os.Mkdir(filepath.Join(tmpdir, "testdata"), 0700); err != nil {
+-		os.RemoveAll(tmpdir)
+ 		t.Fatal("mktmpdir:", err)
+ 	}
+ 	return tmpdir
+@@ -106,7 +102,6 @@ func TestImportTestdata(t *testing.T) {
+ 
+ 	for testfile, wantImports := range testfiles {
+ 		tmpdir := mktmpdir(t)
+-		defer os.RemoveAll(tmpdir)
+ 
+ 		importMap := map[string]string{}
+ 		for _, pkg := range wantImports {
+@@ -149,7 +144,6 @@ func TestVersionHandling(t *testing.T) {
+ 	}
+ 
+ 	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
+ 	corruptdir := filepath.Join(tmpdir, "testdata", "versions")
+ 	if err := os.Mkdir(corruptdir, 0700); err != nil {
+ 		t.Fatal(err)
+@@ -439,7 +433,6 @@ func TestIssue13566(t *testing.T) {
+ 	}
+ 
+ 	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
+ 	testoutdir := filepath.Join(tmpdir, "testdata")
+ 
+ 	// b.go needs to be compiled from the output directory so that the compiler can
+@@ -530,7 +523,6 @@ func TestIssue15517(t *testing.T) {
+ 	}
+ 
+ 	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
+ 
+ 	compile(t, "testdata", "p.go", filepath.Join(tmpdir, "testdata"), nil)
+ 
+@@ -638,7 +630,6 @@ func importPkg(t *testing.T, path, srcDir string) *types2.Package {
+ func compileAndImportPkg(t *testing.T, name string) *types2.Package {
+ 	t.Helper()
+ 	tmpdir := mktmpdir(t)
+-	defer os.RemoveAll(tmpdir)
+ 	compile(t, "testdata", name+".go", filepath.Join(tmpdir, "testdata"), nil)
+ 	return importPkg(t, "./testdata/"+name, tmpdir)
+ }
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index eb5c31380b..1c48351ab2 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -86,13 +86,7 @@ func TestLogOpt(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "TestLogOpt")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
+-
+-	dir = fixSlash(dir) // Normalize the directory name as much as possible, for Windows testing
++	dir := fixSlash(t.TempDir()) // Normalize the directory name as much as possible, for Windows testing
+ 	src := filepath.Join(dir, "file.go")
+ 	if err := os.WriteFile(src, []byte(srcCode), 0644); err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 094d1a9340..9ac414c824 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -222,15 +222,11 @@ func testNexting(t *testing.T, base, tag, gcflags string, count int, moreArgs ..
+ 
+ 	// Use a temporary directory unless -f is specified
+ 	if !*force {
+-		tmpdir, err := os.MkdirTemp("", "debug_test")
+-		if err != nil {
+-			panic(fmt.Sprintf("Problem creating TempDir, error %v\n", err))
+-		}
++		tmpdir := t.TempDir()
+ 		tmpbase = filepath.Join(tmpdir, "test-"+base+"."+tag)
+ 		if *verbose {
+ 			fmt.Printf("Tempdir is %s\n", tmpdir)
+ 		}
+-		defer os.RemoveAll(tmpdir)
+ 	}
+ 	exe := tmpbase
+ 
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+index 8bdb3bf207..7ebc8a4884 100644
+--- a/src/cmd/compile/internal/ssa/fmahash_test.go
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -6,7 +6,6 @@ package ssa_test
+ 
+ import (
+ 	"internal/testenv"
+-	"os"
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
+@@ -31,11 +30,7 @@ func TestFmaHash(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 	gocmd := testenv.GoToolPath(t)
+-	tmpdir, err := os.MkdirTemp("", "x")
+-	if err != nil {
+-		t.Error(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 	source := filepath.Join("testdata", "fma.go")
+ 	output := filepath.Join(tmpdir, "fma.exe")
+ 	cmd := testenv.Command(t, gocmd, "build", "-o", output, source)
+diff --git a/src/cmd/compile/internal/test/fixedbugs_test.go b/src/cmd/compile/internal/test/fixedbugs_test.go
+index cf607b7e48..8ff7a60aae 100644
+--- a/src/cmd/compile/internal/test/fixedbugs_test.go
++++ b/src/cmd/compile/internal/test/fixedbugs_test.go
+@@ -58,14 +58,10 @@ func TestIssue15854b(t *testing.T) {
+ // Test that the generated assembly has line numbers (Issue #16214).
+ func TestIssue16214(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+-	dir, err := os.MkdirTemp("", "TestLineNumber")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	src := filepath.Join(dir, "x.go")
+-	err = os.WriteFile(src, []byte(issue16214src), 0644)
++	err := os.WriteFile(src, []byte(issue16214src), 0644)
+ 	if err != nil {
+ 		t.Fatalf("could not write file: %v", err)
+ 	}
+diff --git a/src/cmd/compile/internal/test/global_test.go b/src/cmd/compile/internal/test/global_test.go
+index 2cf93dc4f7..c8b3370e9c 100644
+--- a/src/cmd/compile/internal/test/global_test.go
++++ b/src/cmd/compile/internal/test/global_test.go
+@@ -20,11 +20,7 @@ func TestScanfRemoval(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// Make a directory to work in.
+-	dir, err := os.MkdirTemp("", "issue6853a-")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Create source.
+ 	src := filepath.Join(dir, "test.go")
+@@ -68,11 +64,7 @@ func TestDashS(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// Make a directory to work in.
+-	dir, err := os.MkdirTemp("", "issue14515-")
+-	if err != nil {
+-		t.Fatalf("could not create directory: %v", err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	// Create source.
+ 	src := filepath.Join(dir, "test.go")
+diff --git a/src/cmd/compile/internal/test/inst_test.go b/src/cmd/compile/internal/test/inst_test.go
+index de435de49f..069e2ffaf5 100644
+--- a/src/cmd/compile/internal/test/inst_test.go
++++ b/src/cmd/compile/internal/test/inst_test.go
+@@ -18,21 +18,14 @@ func TestInst(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveGoRun(t)
+ 
+-	var tmpdir string
+-	var err error
+-	tmpdir, err = os.MkdirTemp("", "TestDict")
+-	if err != nil {
+-		t.Fatalf("Failed to create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+ 	// Build ptrsort.go, which uses package mysort.
+ 	var output []byte
++	var err error
+ 	filename := "ptrsort.go"
+ 	exename := "ptrsort"
+ 	outname := "ptrsort.out"
+ 	gotool := testenv.GoToolPath(t)
+-	dest := filepath.Join(tmpdir, exename)
++	dest := filepath.Join(t.TempDir(), exename)
+ 	cmd := testenv.Command(t, gotool, "build", "-o", dest, filepath.Join("testdata", filename))
+ 	if output, err = cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("Failed: %v:\nOutput: %s\n", err, output)
+diff --git a/src/cmd/compile/internal/test/lang_test.go b/src/cmd/compile/internal/test/lang_test.go
+index 0b957dc3d8..34ed378cd8 100644
+--- a/src/cmd/compile/internal/test/lang_test.go
++++ b/src/cmd/compile/internal/test/lang_test.go
+@@ -22,11 +22,7 @@ func TestInvalidLang(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	dir, err := os.MkdirTemp("", "TestInvalidLang")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(dir)
++	dir := t.TempDir()
+ 
+ 	src := filepath.Join(dir, "alias.go")
+ 	if err := os.WriteFile(src, []byte(aliasSrc), 0644); err != nil {
+diff --git a/src/cmd/compile/internal/test/reproduciblebuilds_test.go b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+index a803e741b9..466e0c3a38 100644
+--- a/src/cmd/compile/internal/test/reproduciblebuilds_test.go
++++ b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+@@ -76,11 +76,7 @@ func TestIssue38068(t *testing.T) {
+ 		{tag: "serial", args: "-c=1"},
+ 		{tag: "concurrent", args: "-c=2"}}
+ 
+-	tmpdir, err := os.MkdirTemp("", "TestIssue38068")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join("testdata", "reproducible", "issue38068.go")
+ 	for i := range scenarios {
+diff --git a/src/cmd/compile/internal/test/ssa_test.go b/src/cmd/compile/internal/test/ssa_test.go
+index 0b6a675238..5f8acdc72d 100644
+--- a/src/cmd/compile/internal/test/ssa_test.go
++++ b/src/cmd/compile/internal/test/ssa_test.go
+@@ -33,14 +33,8 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+ 	}
+ 	// Write stdout into a temporary file
+-	tmpdir, ok := os.MkdirTemp("", tmpname)
+-	if ok != nil {
+-		t.Fatalf("Failed to create temporary directory")
+-	}
+-	defer os.RemoveAll(tmpdir)
+-
+-	rungo := filepath.Join(tmpdir, "run.go")
+-	ok = os.WriteFile(rungo, stdout.Bytes(), 0600)
++	rungo := filepath.Join(t.TempDir(), "run.go")
++	ok := os.WriteFile(rungo, stdout.Bytes(), 0600)
+ 	if ok != nil {
+ 		t.Fatalf("Failed to create temporary file " + rungo)
+ 	}
+@@ -79,11 +73,7 @@ func TestCode(t *testing.T) {
+ 	gotool := testenv.GoToolPath(t)
+ 
+ 	// Make a temporary directory to work in.
+-	tmpdir, err := os.MkdirTemp("", "TestCode")
+-	if err != nil {
+-		t.Fatalf("Failed to create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	// Find all the test functions (and the files containing them).
+ 	var srcs []string // files containing Test functions

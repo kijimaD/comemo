@@ -7,7 +7,44 @@ Date:   Wed Oct 10 01:30:34 2012 +0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6631054
-
+---
  misc/cgo/test/issue4029.go  |  3 +++
  misc/cgo/test/issue4029w.go | 12 ++++++++++++
  2 files changed, 15 insertions(+)
+
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index b8a0a6d985..a266cc64a0 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -2,10 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !windows
++
+ package cgotest
+ 
+ /*
+ #include <dlfcn.h> 
++#cgo linux LDFLAGS: -ldl
+ */
+ import "C"
+ 
+diff --git a/misc/cgo/test/issue4029w.go b/misc/cgo/test/issue4029w.go
+new file mode 100644
+index 0000000000..1cf43df37b
+--- /dev/null
++++ b/misc/cgo/test/issue4029w.go
+@@ -0,0 +1,12 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build windows
++
++package cgotest
++
++import "testing"
++
++func test4029(t *testing.T) {
++}

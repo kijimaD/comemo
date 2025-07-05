@@ -10,6 +10,19 @@ Date:   Wed Jan 8 11:16:48 2025 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/sync/hashtriemap.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/sync/hashtriemap.go b/src/sync/hashtriemap.go
+index 8df0e2b567..ce30f590bb 100644
+--- a/src/sync/hashtriemap.go
++++ b/src/sync/hashtriemap.go
+@@ -74,6 +74,7 @@ func (m *Map) LoadAndDelete(key any) (value any, loaded bool) {
+ }
+ 
+ // Delete deletes the value for a key.
++// If the key is not in the map, Delete does nothing.
+ func (m *Map) Delete(key any) {
+ 	m.m.Delete(key)
+ }

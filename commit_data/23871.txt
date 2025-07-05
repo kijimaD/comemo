@@ -9,6 +9,23 @@ Date:   Thu Jun 18 10:46:01 2015 -0700
     Change-Id: I78d666c20f4f7cb7116d37fd66b5f8b7d66c53c4
     Reviewed-on: https://go-review.googlesource.com/11234
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/log/log_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index 709de1e542..dd16c9d3e1 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -136,9 +136,9 @@ func TestUTCFlag(t *testing.T) {
+ 	}
+ 	// It's possible we crossed a second boundary between getting now and logging,
+ 	// so add a second and try again. This should very nearly always work.
+-	now.Add(time.Second)
++	now = now.Add(time.Second)
+ 	want = fmt.Sprintf("Test:%d/%.2d/%.2d %.2d:%.2d:%.2d hello\n",
+-		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute())
++		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+ 	if got == want {
+ 		return
+ 	}

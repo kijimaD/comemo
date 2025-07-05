@@ -13,7 +13,56 @@ Date:   Sat Sep 3 14:28:35 2022 +0800
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/internal/fuzz/mutator.go     | 5 +----
  src/internal/fuzz/sys_windows.go | 7 +------
  2 files changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/fuzz/mutator.go b/src/internal/fuzz/mutator.go
+index e26ae5a583..bb960660ae 100644
+--- a/src/internal/fuzz/mutator.go
++++ b/src/internal/fuzz/mutator.go
+@@ -8,7 +8,6 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"math"
+-	"reflect"
+ 	"unsafe"
+ )
+ 
+@@ -265,9 +264,7 @@ var byteSliceMutators = []byteSliceMutator{
+ func (m *mutator) mutateBytes(ptrB *[]byte) {
+ 	b := *ptrB
+ 	defer func() {
+-		oldHdr := (*reflect.SliceHeader)(unsafe.Pointer(ptrB))
+-		newHdr := (*reflect.SliceHeader)(unsafe.Pointer(&b))
+-		if oldHdr.Data != newHdr.Data {
++		if unsafe.SliceData(*ptrB) != unsafe.SliceData(b) {
+ 			panic("data moved to new address")
+ 		}
+ 		*ptrB = b
+diff --git a/src/internal/fuzz/sys_windows.go b/src/internal/fuzz/sys_windows.go
+index 9c006b010e..aa85be7e1c 100644
+--- a/src/internal/fuzz/sys_windows.go
++++ b/src/internal/fuzz/sys_windows.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+-	"reflect"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -51,11 +50,7 @@ func sharedMemMapFile(f *os.File, size int, removeOnClose bool) (mem *sharedMem,
+ 		return nil, err
+ 	}
+ 
+-	var region []byte
+-	header := (*reflect.SliceHeader)(unsafe.Pointer(&region))
+-	header.Data = addr
+-	header.Len = size
+-	header.Cap = size
++	region := unsafe.Slice((*byte)(unsafe.Pointer(addr)), size)
+ 	return &sharedMem{
+ 		f:             f,
+ 		region:        region,

@@ -20,9 +20,113 @@ Date:   Wed Mar 8 17:08:31 2017 -0500
     Change-Id: I0117838679ac5353789299c618ff8c326712d94d
     Reviewed-on: https://go-review.googlesource.com/37866
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go      |  8 ++------
  test/fixedbugs/issue19467.dir/mysync.go | 21 ++++++++++++++++++++
  test/fixedbugs/issue19467.dir/z.go      | 34 +++++++++++++++++++++++++++++++++
  test/fixedbugs/issue19467.go            |  7 +++++++
  4 files changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index c58d615910..328a65dc0e 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1041,16 +1041,12 @@ func methodname(s *Sym, recv *Type) *Sym {
+ 
+ 	var p string
+ 	if star {
+-		p = fmt.Sprintf("(*%v).%v", tsym, s)
++		p = fmt.Sprintf("(*%v).%v", tsym.Name, s)
+ 	} else {
+ 		p = fmt.Sprintf("%v.%v", tsym, s)
+ 	}
+ 
+-	if exportname(tsym.Name) {
+-		s = lookup(p)
+-	} else {
+-		s = Pkglookup(p, tsym.Pkg)
+-	}
++	s = Pkglookup(p, tsym.Pkg)
+ 
+ 	return s
+ }
+diff --git a/test/fixedbugs/issue19467.dir/mysync.go b/test/fixedbugs/issue19467.dir/mysync.go
+new file mode 100644
+index 0000000000..d0e6fe0989
+--- /dev/null
++++ b/test/fixedbugs/issue19467.dir/mysync.go
+@@ -0,0 +1,21 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mysync
++
++import "runtime"
++
++type WaitGroup struct {
++	Callers []uintptr
++}
++
++func (wg *WaitGroup) Add(x int) {
++	wg.Callers = make([]uintptr, 32)
++	n := runtime.Callers(1, wg.Callers)
++	wg.Callers = wg.Callers[:n]
++}
++
++func (wg *WaitGroup) Done() {
++	wg.Add(-1)
++}
+diff --git a/test/fixedbugs/issue19467.dir/z.go b/test/fixedbugs/issue19467.dir/z.go
+new file mode 100644
+index 0000000000..d381103ce7
+--- /dev/null
++++ b/test/fixedbugs/issue19467.dir/z.go
+@@ -0,0 +1,34 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./mysync"
++	"log"
++	"runtime"
++)
++
++func main() {
++	var wg mysync.WaitGroup
++	wg.Done()
++	ci := runtime.CallersFrames(wg.Callers)
++	frames := make([]runtime.Frame, 0, 4)
++	for {
++		frame, more := ci.Next()
++		frames = append(frames, frame)
++		if !more {
++			break
++		}
++	}
++	expecting := []string{
++		"mysync.(*WaitGroup).Add",
++		"mysync.(*WaitGroup).Done",
++	}
++	for i := 0; i < 2; i++ {
++		if frames[i].Function != expecting[i] {
++			log.Fatalf("frame %d: got %s, want %s", i, frames[i].Function, expecting[i])
++		}
++	}
++}
+diff --git a/test/fixedbugs/issue19467.go b/test/fixedbugs/issue19467.go
+new file mode 100644
+index 0000000000..42121575ec
+--- /dev/null
++++ b/test/fixedbugs/issue19467.go
+@@ -0,0 +1,7 @@
++// rundir -l=4
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

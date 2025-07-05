@@ -14,6 +14,28 @@ Date:   Wed Jan 29 03:18:01 2025 +0100
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index e7cc30ab07..0c234e8975 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2394,6 +2394,16 @@ func (l *Loader) checkLinkname(pkg, name string, s Sym) {
+ 			if pkg == p {
+ 				return // pkg is allowed
+ 			}
++			// crypto/internal/fips140/vX.Y.Z/... is the frozen version of
++			// crypto/internal/fips140/... and is similarly allowed.
++			if strings.HasPrefix(pkg, "crypto/internal/fips140/v") {
++				parts := strings.Split(pkg, "/")
++				parts = append(parts[:3], parts[4:]...)
++				pkg := strings.Join(parts, "/")
++				if pkg == p {
++					return
++				}
++			}
+ 		}
+ 		error()
+ 	}

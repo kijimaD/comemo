@@ -9,6 +9,19 @@ Date:   Mon Aug 16 13:31:31 2010 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/1968043
-
+---
  test/garbage/parser.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/test/garbage/parser.go b/test/garbage/parser.go
+index a0fd19a621..75bcf9aefd 100644
+--- a/test/garbage/parser.go
++++ b/test/garbage/parser.go
+@@ -115,7 +115,6 @@ var packages = []string{
+ 	"archive/tar",
+ 	"asn1",
+ 	"big",
+-	"bignum",
+ 	"bufio",
+ 	"bytes",
+ 	"cmath",

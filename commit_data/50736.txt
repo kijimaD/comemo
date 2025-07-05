@@ -18,7 +18,7 @@ Date:   Tue Nov 9 00:34:18 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go |  2 +-
  src/cmd/compile/internal/types2/builtins.go    |  8 +++---
  src/cmd/compile/internal/types2/call.go        |  2 +-
@@ -33,3 +33,368 @@ Date:   Tue Nov 9 00:34:18 2021 +0700
  src/cmd/compile/internal/types2/typestring.go  |  2 +-
  src/cmd/compile/internal/types2/typexpr.go     |  2 +-
  13 files changed, 72 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 609d7d0962..bfc5578683 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -71,7 +71,7 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 	// x.typ is typed
+ 
+ 	// A generic (non-instantiated) function value cannot be assigned to a variable.
+-	if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
++	if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
+ 		check.errorf(x, "cannot use generic function %s without instantiation in %s", x, context)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 916aed40b3..ade4c0a49f 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -294,7 +294,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// (applyTypeFunc never calls f with a type parameter)
+ 		f := func(typ Type) Type {
+ 			assert(asTypeParam(typ) == nil)
+-			if t, _ := under(typ).(*Basic); t != nil {
++			if t := asBasic(typ); t != nil {
+ 				switch t.kind {
+ 				case Float32:
+ 					return Typ[Complex64]
+@@ -418,7 +418,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// (applyTypeFunc never calls f with a type parameter)
+ 		f := func(typ Type) Type {
+ 			assert(asTypeParam(typ) == nil)
+-			if t, _ := under(typ).(*Basic); t != nil {
++			if t := asBasic(typ); t != nil {
+ 				switch t.kind {
+ 				case Complex64:
+ 					return Typ[Float32]
+@@ -704,7 +704,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			return
+ 		}
+ 
+-		typ, _ := under(x.typ).(*Pointer)
++		typ := asPointer(x.typ)
+ 		if typ == nil {
+ 			check.errorf(x, invalidArg+"%s is not a pointer", x)
+ 			return
+@@ -894,7 +894,7 @@ func makeSig(res Type, args ...Type) *Signature {
+ // otherwise it returns typ.
+ func arrayPtrDeref(typ Type) Type {
+ 	if p, ok := typ.(*Pointer); ok {
+-		if a, _ := under(p.base).(*Array); a != nil {
++		if a := asArray(p.base); a != nil {
+ 			return a
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 3a571285c1..74edd4d442 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -132,7 +132,7 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 		case 1:
+ 			check.expr(x, call.ArgList[0])
+ 			if x.mode != invalid {
+-				if t, _ := under(T).(*Interface); t != nil {
++				if t := asInterface(T); t != nil {
+ 					if !t.IsMethodSet() {
+ 						check.errorf(call, "cannot use interface %s in conversion (contains specific type constraints or is comparable)", T)
+ 						break
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 63303ca422..a8f8591243 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -39,7 +39,7 @@ func (ctxt *Context) TypeHash(typ Type, targs []Type) string {
+ 	var buf bytes.Buffer
+ 
+ 	h := newTypeHasher(&buf, ctxt)
+-	if named := asNamed(typ); named != nil && len(targs) > 0 {
++	if named, _ := typ.(*Named); named != nil && len(targs) > 0 {
+ 		// Don't use WriteType because we need to use the provided targs
+ 		// and not any targs that might already be with the *Named type.
+ 		h.typePrefix(named)
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index dd89f29762..ccabbaf0d7 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -18,7 +18,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	constArg := x.mode == constant_
+ 
+ 	constConvertibleTo := func(T Type, val *constant.Value) bool {
+-		switch t, _ := under(T).(*Basic); {
++		switch t := asBasic(T); {
+ 		case t == nil:
+ 			// nothing to do
+ 		case representableConst(x.val, check, t, val):
+@@ -173,9 +173,9 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 
+ 	// "V a slice, T is a pointer-to-array type,
+ 	// and the slice and array types have identical element types."
+-	if s, _ := under(V).(*Slice); s != nil {
+-		if p, _ := under(T).(*Pointer); p != nil {
+-			if a, _ := under(p.Elem()).(*Array); a != nil {
++	if s := asSlice(V); s != nil {
++		if p := asPointer(T); p != nil {
++			if a := asArray(p.Elem()); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+ 					if check == nil || check.allowVersion(check.pkg, 1, 17) {
+ 						return true
+@@ -262,27 +262,26 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ // use the toT convenience converters in the predicates below.
+ 
+ func isUintptr(typ Type) bool {
+-	t, _ := under(typ).(*Basic)
++	t := asBasic(typ)
+ 	return t != nil && t.kind == Uintptr
+ }
+ 
+ func isUnsafePointer(typ Type) bool {
+-	// TODO(gri): Is this under(typ).(*Basic) instead of typ.(*Basic) correct?
++	// TODO(gri): Is this asBasic(typ) instead of typ.(*Basic) correct?
+ 	//            (The former calls under(), while the latter doesn't.)
+ 	//            The spec does not say so, but gc claims it is. See also
+ 	//            issue 6326.
+-	t, _ := under(typ).(*Basic)
++	t := asBasic(typ)
+ 	return t != nil && t.kind == UnsafePointer
+ }
+ 
+ func isPointer(typ Type) bool {
+-	_, ok := under(typ).(*Pointer)
+-	return ok
++	return asPointer(typ) != nil
+ }
+ 
+ func isBytesOrRunes(typ Type) bool {
+-	if s, _ := under(typ).(*Slice); s != nil {
+-		t, _ := under(s.elem).(*Basic)
++	if s := asSlice(typ); s != nil {
++		t := asBasic(s.elem)
+ 		return t != nil && (t.kind == Byte || t.kind == Rune)
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 8125fba717..d24532d780 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -116,7 +116,7 @@ func (check *Checker) overflow(x *operand) {
+ 	// x.typ cannot be a type parameter (type
+ 	// parameters cannot be constant types).
+ 	if isTyped(x.typ) {
+-		check.representable(x, under(x.typ).(*Basic))
++		check.representable(x, asBasic(x.typ))
+ 		return
+ 	}
+ 
+@@ -617,7 +617,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 	// If the new type is not final and still untyped, just
+ 	// update the recorded type.
+ 	if !final && isUntyped(typ) {
+-		old.typ = under(typ).(*Basic)
++		old.typ = asBasic(typ)
+ 		check.untyped[x] = old
+ 		return
+ 	}
+@@ -1394,7 +1394,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 					duplicate := false
+ 					// if the key is of interface type, the type is also significant when checking for duplicates
+ 					xkey := keyVal(x.val)
+-					if IsInterface(utyp.key) {
++					if asInterface(utyp.key) != nil {
+ 						for _, vtyp := range visited[xkey] {
+ 							if Identical(vtyp, x.typ) {
+ 								duplicate = true
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index f096674536..67110704e9 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -34,7 +34,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		return false
+ 
+ 	case value:
+-		if sig, _ := under(x.typ).(*Signature); sig != nil && sig.TypeParams().Len() > 0 {
++		if sig := asSignature(x.typ); sig != nil && sig.TypeParams().Len() > 0 {
+ 			// function instantiation
+ 			return true
+ 		}
+@@ -72,7 +72,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		x.typ = typ.elem
+ 
+ 	case *Pointer:
+-		if typ, _ := under(typ.base).(*Array); typ != nil {
++		if typ := asArray(typ.base); typ != nil {
+ 			valid = true
+ 			length = typ.len
+ 			x.mode = variable
+@@ -120,7 +120,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 					mode = value
+ 				}
+ 			case *Pointer:
+-				if t, _ := under(t.base).(*Array); t != nil {
++				if t := asArray(t.base); t != nil {
+ 					l = t.len
+ 					e = t.elem
+ 				}
+@@ -245,7 +245,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 		x.typ = &Slice{elem: u.elem}
+ 
+ 	case *Pointer:
+-		if u, _ := under(u.base).(*Array); u != nil {
++		if u := asArray(u.base); u != nil {
+ 			valid = true
+ 			length = u.len
+ 			x.typ = &Slice{elem: u.elem}
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 0612400590..e0fd74482a 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -122,6 +122,7 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string) (o
+ 				seen[named] = true
+ 
+ 				// look for a matching attached method
++				named.resolve(nil)
+ 				if i, m := lookupMethod(named.methods, pkg, name); m != nil {
+ 					// potential match
+ 					// caution: method may not have a proper signature yet
+@@ -305,7 +306,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		return
+ 	}
+ 
+-	if ityp, _ := under(V).(*Interface); ityp != nil {
++	if ityp := asInterface(V); ityp != nil {
+ 		// TODO(gri) the methods are sorted - could do this more efficiently
+ 		for _, m := range T.typeSet().methods {
+ 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
+@@ -416,7 +417,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+-	if IsInterface(T) && !forceStrict {
++	if asInterface(T) != nil && !forceStrict {
+ 		return
+ 	}
+ 	return check.missingMethod(T, V, false)
+@@ -434,8 +435,8 @@ func deref(typ Type) (Type, bool) {
+ // derefStructPtr dereferences typ if it is a (named or unnamed) pointer to a
+ // (named or unnamed) struct and returns its base. Otherwise it returns typ.
+ func derefStructPtr(typ Type) Type {
+-	if p, _ := under(typ).(*Pointer); p != nil {
+-		if _, ok := under(p.base).(*Struct); ok {
++	if p := asPointer(typ); p != nil {
++		if asStruct(p.base) != nil {
+ 			return p.base
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 8d676ed8f6..7fbb91eb61 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -72,7 +72,7 @@ func hasName(t Type) bool {
+ // are not fully set up.
+ func isTyped(t Type) bool {
+ 	// isTyped is called with types that are not fully
+-	// set up. Must not call under()!
++	// set up. Must not call asBasic()!
+ 	b, _ := t.(*Basic)
+ 	return b == nil || b.info&IsUntyped == 0
+ }
+@@ -84,8 +84,7 @@ func isUntyped(t Type) bool {
+ 
+ // IsInterface reports whether t is an interface type.
+ func IsInterface(t Type) bool {
+-	_, ok := under(t).(*Interface)
+-	return ok
++	return asInterface(t) != nil
+ }
+ 
+ // isTypeParam reports whether t is a type parameter.
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index 609b6f585e..6a3d19d8ea 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -243,7 +243,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
+ func (conf *Config) offsetof(typ Type, index []int) int64 {
+ 	var o int64
+ 	for _, i := range index {
+-		s := under(typ).(*Struct)
++		s := asStruct(typ)
+ 		o += conf.offsetsof(s)[i]
+ 		typ = s.fields[i].typ
+ 	}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index d1655c55f8..300c81f5fa 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -27,8 +27,45 @@ func under(t Type) Type {
+ 	return t
+ }
+ 
++// Convenience converters
++
++func asBasic(t Type) *Basic {
++	u, _ := under(t).(*Basic)
++	return u
++}
++
++func asArray(t Type) *Array {
++	u, _ := under(t).(*Array)
++	return u
++}
++
++func asSlice(t Type) *Slice {
++	u, _ := under(t).(*Slice)
++	return u
++}
++
++func asStruct(t Type) *Struct {
++	u, _ := under(t).(*Struct)
++	return u
++}
++
++func asPointer(t Type) *Pointer {
++	u, _ := under(t).(*Pointer)
++	return u
++}
++
++func asSignature(t Type) *Signature {
++	u, _ := under(t).(*Signature)
++	return u
++}
++
++func asInterface(t Type) *Interface {
++	u, _ := under(t).(*Interface)
++	return u
++}
++
+ // If the argument to asNamed, or asTypeParam is of the respective type
+-// (possibly after resolving a *Named type), these methods return that type.
++// (possibly after expanding resolving a *Named type), these methods return that type.
+ // Otherwise the result is nil.
+ 
+ func asNamed(t Type) *Named {
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index f151f47a5e..f18a32016f 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -361,7 +361,7 @@ func (w *typeWriter) tuple(tup *Tuple, variadic bool) {
+ 				} else {
+ 					// special case:
+ 					// append(s, "foo"...) leads to signature func([]byte, string...)
+-					if t, _ := under(typ).(*Basic); t == nil || t.kind != String {
++					if t := asBasic(typ); t == nil || t.kind != String {
+ 						w.error("expected string type")
+ 						continue
+ 					}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a08e472703..dcd7cfebe8 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -148,7 +148,7 @@ func (check *Checker) varType(e syntax.Expr) Type {
+ 	// are in the middle of type-checking parameter declarations that might belong to
+ 	// interface methods. Delay this check to the end of type-checking.
+ 	check.later(func() {
+-		if t, _ := under(typ).(*Interface); t != nil {
++		if t := asInterface(typ); t != nil {
+ 			pos := syntax.StartPos(e)
+ 			tset := computeInterfaceTypeSet(check, pos, t) // TODO(gri) is this the correct position?
+ 			if !tset.IsMethodSet() {

@@ -9,6 +9,22 @@ Date:   Sat Oct 22 06:39:12 2016 -0700
     Change-Id: I76a8da24b9944647ec40ef2ca4fc93c175ff5a25
     Reviewed-on: https://go-review.googlesource.com/31723
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 429f667c14..bce9e34de1 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -158,7 +158,9 @@ type Transport struct {
+ 	// ExpectContinueTimeout, if non-zero, specifies the amount of
+ 	// time to wait for a server's first response headers after fully
+ 	// writing the request headers if the request has an
+-	// "Expect: 100-continue" header. Zero means no timeout.
++	// "Expect: 100-continue" header. Zero means no timeout and
++	// causes the body to be sent immediately, without
++	// waiting for the server to approve.
+ 	// This time does not include the time to send the request header.
+ 	ExpectContinueTimeout time.Duration
+ 

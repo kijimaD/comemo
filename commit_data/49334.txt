@@ -13,8 +13,59 @@ Date:   Fri Jul 16 12:16:21 2021 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  test/fixedbugs/issue47131.dir/a.go | 13 +++++++++++++
  test/fixedbugs/issue47131.dir/b.go | 12 ++++++++++++
  test/fixedbugs/issue47131.go       |  7 +++++++
  3 files changed, 32 insertions(+)
+
+diff --git a/test/fixedbugs/issue47131.dir/a.go b/test/fixedbugs/issue47131.dir/a.go
+new file mode 100644
+index 0000000000..6e798d1d0c
+--- /dev/null
++++ b/test/fixedbugs/issue47131.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type MyInt int
++
++type MyIntAlias = MyInt
++
++func (mia *MyIntAlias) Get() int {
++	return int(*mia)
++}
+diff --git a/test/fixedbugs/issue47131.dir/b.go b/test/fixedbugs/issue47131.dir/b.go
+new file mode 100644
+index 0000000000..c658127ca9
+--- /dev/null
++++ b/test/fixedbugs/issue47131.dir/b.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func F2() int {
++	var mia a.MyIntAlias
++	return mia.Get()
++}
+diff --git a/test/fixedbugs/issue47131.go b/test/fixedbugs/issue47131.go
+new file mode 100644
+index 0000000000..b83fbd7af1
+--- /dev/null
++++ b/test/fixedbugs/issue47131.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

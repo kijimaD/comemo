@@ -13,8 +13,96 @@ Date:   Tue Oct 4 15:56:19 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/heapdump.go | 14 ++++----------
  src/runtime/mheap.go    |  4 ----
  src/runtime/mstats.go   |  3 +--
  3 files changed, 5 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 3ad83532cf..8cdccb877a 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -437,9 +437,7 @@ func dumproots() {
+ 	dumpfields(firstmoduledata.gcbssmask)
+ 
+ 	// MSpan.types
+-	allspans := mheap_.allspans
+-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
+-		s := allspans[spanidx]
++	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+ 			// Finalizers
+ 			for sp := s.specials; sp != nil; sp = sp.next {
+@@ -462,8 +460,7 @@ func dumproots() {
+ var freemark [_PageSize / 8]bool
+ 
+ func dumpobjs() {
+-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
+-		s := mheap_.allspans[i]
++	for _, s := range mheap_.allspans {
+ 		if s.state != _MSpanInUse {
+ 			continue
+ 		}
+@@ -608,9 +605,7 @@ func dumpmemprof_callback(b *bucket, nstk uintptr, pstk *uintptr, size, allocs,
+ 
+ func dumpmemprof() {
+ 	iterate_memprof(dumpmemprof_callback)
+-	allspans := mheap_.allspans
+-	for spanidx := uint32(0); spanidx < mheap_.nspan; spanidx++ {
+-		s := allspans[spanidx]
++	for _, s := range mheap_.allspans {
+ 		if s.state != _MSpanInUse {
+ 			continue
+ 		}
+@@ -631,8 +626,7 @@ var dumphdr = []byte("go1.7 heap dump\n")
+ 
+ func mdump() {
+ 	// make sure we're done sweeping
+-	for i := uintptr(0); i < uintptr(mheap_.nspan); i++ {
+-		s := mheap_.allspans[i]
++	for _, s := range mheap_.allspans {
+ 		if s.state == _MSpanInUse {
+ 			s.ensureSwept()
+ 		}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 9d02343dbe..f6ad4a170e 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -48,14 +48,11 @@ type mheap struct {
+ 	// must ensure that allocation cannot happen around the
+ 	// access (since that may free the backing store).
+ 	allspans []*mspan // all spans out there
+-	nspan    uint32
+ 
+ 	// span lookup
+ 	spans        **mspan
+ 	spans_mapped uintptr
+ 
+-	_ uint32 // align uint64 fields on 32-bit for atomics
+-
+ 	// Proportional sweep
+ 	pagesInUse        uint64  // pages of spans in stats _MSpanInUse; R/W with mheap.lock
+ 	spanBytesAlloc    uint64  // bytes of spans allocated this cycle; updated atomically
+@@ -282,7 +279,6 @@ func recordspan(vh unsafe.Pointer, p unsafe.Pointer) {
+ 		}
+ 	}
+ 	h.allspans = append(h.allspans, s)
+-	h.nspan = uint32(len(h.allspans))
+ }
+ 
+ // inheap reports whether b is a pointer into a (potentially dead) heap object.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 38ae45bd1d..f921f02f5a 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -528,8 +528,7 @@ func updatememstats(stats *gcstats) {
+ 
+ 	// Scan all spans and count number of alive objects.
+ 	lock(&mheap_.lock)
+-	for i := uint32(0); i < mheap_.nspan; i++ {
+-		s := mheap_.allspans[i]
++	for _, s := range mheap_.allspans {
+ 		if s.state != mSpanInUse {
+ 			continue
+ 		}

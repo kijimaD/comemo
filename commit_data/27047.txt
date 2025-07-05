@@ -20,7 +20,7 @@ Date:   Tue Mar 8 15:10:26 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20440
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  54 ++++----
  src/cmd/compile/internal/gc/bexport.go   |   6 +-
  src/cmd/compile/internal/gc/bimport.go   |  40 +++---
@@ -47,3 +47,4660 @@ Date:   Tue Mar 8 15:10:26 2016 -0800
  src/cmd/compile/internal/gc/unsafe.go    |   6 +-
  src/cmd/compile/internal/gc/walk.go      | 194 +++++++++++++-------------
  25 files changed, 794 insertions(+), 811 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index f14e758f1c..2913d61fb0 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -185,13 +185,13 @@ func genhash(sym *Sym, t *Type) {
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+ 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+-	appendNodeSeqNode(&tfn.List, n)
++	tfn.List.Append(n)
+ 	np := n.Left
+ 	n = Nod(ODCLFIELD, newname(Lookup("h")), typenod(Types[TUINTPTR]))
+-	appendNodeSeqNode(&tfn.List, n)
++	tfn.List.Append(n)
+ 	nh := n.Left
+ 	n = Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])) // return value
+-	appendNodeSeqNode(&tfn.Rlist, n)
++	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+ 	typecheck(&fn.Func.Nname.Name.Param.Ntype, Etype)
+@@ -216,10 +216,10 @@ func genhash(sym *Sym, t *Type) {
+ 		n := Nod(ORANGE, nil, Nod(OIND, np, nil))
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+-		setNodeSeq(&n.List, []*Node{ni})
++		n.List.Set([]*Node{ni})
+ 		n.Colas = true
+ 		colasdefn(n.List, n)
+-		ni = nodeSeqFirst(n.List)
++		ni = n.List.First()
+ 
+ 		// h = hashel(&p[i], h)
+ 		call := Nod(OCALL, hashel, nil)
+@@ -228,8 +228,8 @@ func genhash(sym *Sym, t *Type) {
+ 		nx.Bounded = true
+ 		na := Nod(OADDR, nx, nil)
+ 		na.Etype = 1 // no escape to heap
+-		appendNodeSeqNode(&call.List, na)
+-		appendNodeSeqNode(&call.List, nh)
++		call.List.Append(na)
++		call.List.Append(nh)
+ 		n.Nbody.Append(Nod(OAS, nh, call))
+ 
+ 		fn.Nbody.Append(n)
+@@ -251,8 +251,8 @@ func genhash(sym *Sym, t *Type) {
+ 				nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
+ 				na := Nod(OADDR, nx, nil)
+ 				na.Etype = 1 // no escape to heap
+-				appendNodeSeqNode(&call.List, na)
+-				appendNodeSeqNode(&call.List, nh)
++				call.List.Append(na)
++				call.List.Append(nh)
+ 				fn.Nbody.Append(Nod(OAS, nh, call))
+ 				f = f.Down
+ 				continue
+@@ -267,9 +267,9 @@ func genhash(sym *Sym, t *Type) {
+ 			nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
+ 			na := Nod(OADDR, nx, nil)
+ 			na.Etype = 1 // no escape to heap
+-			appendNodeSeqNode(&call.List, na)
+-			appendNodeSeqNode(&call.List, nh)
+-			appendNodeSeqNode(&call.List, Nodintconst(size))
++			call.List.Append(na)
++			call.List.Append(nh)
++			call.List.Append(Nodintconst(size))
+ 			fn.Nbody.Append(Nod(OAS, nh, call))
+ 
+ 			f = next
+@@ -277,7 +277,7 @@ func genhash(sym *Sym, t *Type) {
+ 	}
+ 
+ 	r := Nod(ORETURN, nil, nil)
+-	appendNodeSeqNode(&r.List, nh)
++	r.List.Append(nh)
+ 	fn.Nbody.Append(r)
+ 
+ 	if Debug['r'] != 0 {
+@@ -339,9 +339,9 @@ func hashfor(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := Nod(OTFUNC, nil, nil)
+-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	appendNodeSeqNode(&tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	typecheck(&tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+@@ -367,13 +367,13 @@ func geneq(sym *Sym, t *Type) {
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+ 	n := Nod(ODCLFIELD, newname(Lookup("p")), typenod(Ptrto(t)))
+-	appendNodeSeqNode(&tfn.List, n)
++	tfn.List.Append(n)
+ 	np := n.Left
+ 	n = Nod(ODCLFIELD, newname(Lookup("q")), typenod(Ptrto(t)))
+-	appendNodeSeqNode(&tfn.List, n)
++	tfn.List.Append(n)
+ 	nq := n.Left
+ 	n = Nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
+-	appendNodeSeqNode(&tfn.Rlist, n)
++	tfn.Rlist.Append(n)
+ 
+ 	funchdr(fn)
+ 
+@@ -398,10 +398,10 @@ func geneq(sym *Sym, t *Type) {
+ 
+ 		ni := newname(Lookup("i"))
+ 		ni.Type = Types[TINT]
+-		setNodeSeq(&nrange.List, []*Node{ni})
++		nrange.List.Set([]*Node{ni})
+ 		nrange.Colas = true
+ 		colasdefn(nrange.List, nrange)
+-		ni = nodeSeqFirst(nrange.List)
++		ni = nrange.List.First()
+ 
+ 		// if p[i] != q[i] { return false }
+ 		nx := Nod(OINDEX, np, ni)
+@@ -413,14 +413,14 @@ func geneq(sym *Sym, t *Type) {
+ 		nif := Nod(OIF, nil, nil)
+ 		nif.Left = Nod(ONE, nx, ny)
+ 		r := Nod(ORETURN, nil, nil)
+-		appendNodeSeqNode(&r.List, Nodbool(false))
++		r.List.Append(Nodbool(false))
+ 		nif.Nbody.Append(r)
+ 		nrange.Nbody.Append(nif)
+ 		fn.Nbody.Append(nrange)
+ 
+ 		// return true
+ 		ret := Nod(ORETURN, nil, nil)
+-		appendNodeSeqNode(&ret.List, Nodbool(true))
++		ret.List.Append(Nodbool(true))
+ 		fn.Nbody.Append(ret)
+ 
+ 	case TSTRUCT:
+@@ -474,7 +474,7 @@ func geneq(sym *Sym, t *Type) {
+ 		}
+ 
+ 		ret := Nod(ORETURN, nil, nil)
+-		appendNodeSeqNode(&ret.List, and)
++		ret.List.Append(and)
+ 		fn.Nbody.Append(ret)
+ 	}
+ 
+@@ -531,10 +531,10 @@ func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
+ 	typecheck(&ny, Erv)
+ 
+ 	call := Nod(OCALL, eqmemfunc(size, nx.Type.Type, &needsize), nil)
+-	appendNodeSeqNode(&call.List, nx)
+-	appendNodeSeqNode(&call.List, ny)
++	call.List.Append(nx)
++	call.List.Append(ny)
+ 	if needsize != 0 {
+-		appendNodeSeqNode(&call.List, Nodintconst(size))
++		call.List.Append(Nodintconst(size))
+ 	}
+ 
+ 	return call
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index d0bb56a02b..97ce543f8b 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -848,7 +848,7 @@ func (p *exporter) node(n *Node) {
+ 
+ 	// expressions
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		if p.bool(nodeSeqLen(n.List) != 0) {
++		if p.bool(n.List.Len() != 0) {
+ 			p.nodeList(n.List) // TODO(gri) do we still need to export this?
+ 		}
+ 		p.nodesOrNil(n.Left, n.Right)
+@@ -970,7 +970,7 @@ func (p *exporter) node(n *Node) {
+ 		p.nodeList(n.Nbody)
+ 
+ 	case ORANGE:
+-		if p.bool(nodeSeqLen(n.List) != 0) {
++		if p.bool(n.List.Len() != 0) {
+ 			p.nodeList(n.List)
+ 		}
+ 		p.node(n.Right)
+@@ -982,7 +982,7 @@ func (p *exporter) node(n *Node) {
+ 		p.nodeList(n.List)
+ 
+ 	case OCASE, OXCASE:
+-		if p.bool(nodeSeqLen(n.List) != 0) {
++		if p.bool(n.List.Len() != 0) {
+ 			p.nodeList(n.List)
+ 		}
+ 		p.nodeList(n.Nbody)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 16993d01c2..ac4c4b1923 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -589,7 +589,7 @@ func (p *importer) node() *Node {
+ 	// expressions
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		if p.bool() {
+-			setNodeSeq(&n.List, p.nodeList())
++			n.List.Set(p.nodeList())
+ 		}
+ 		n.Left, n.Right = p.nodesOrNil()
+ 		n.Type = p.typ()
+@@ -604,19 +604,19 @@ func (p *importer) node() *Node {
+ 		n.Right = p.node()
+ 
+ 	case OADDSTR:
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 
+ 	case OPTRLIT:
+ 		n.Left = p.node()
+ 
+ 	case OSTRUCTLIT:
+ 		n.Type = p.typ()
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 		n.Implicit = p.bool()
+ 
+ 	case OARRAYLIT, OMAPLIT:
+ 		n.Type = p.typ()
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 		n.Implicit = p.bool()
+ 
+ 	case OKEY:
+@@ -635,9 +635,9 @@ func (p *importer) node() *Node {
+ 		// }
+ 		x := Nod(OCALL, p.typ().Nod, nil)
+ 		if p.bool() {
+-			setNodeSeq(&x.List, []*Node{p.node()})
++			x.List.Set([]*Node{p.node()})
+ 		} else {
+-			setNodeSeq(&x.List, p.nodeList())
++			x.List.Set(p.nodeList())
+ 		}
+ 		return x
+ 
+@@ -667,12 +667,12 @@ func (p *importer) node() *Node {
+ 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC,
+ 		ORECOVER, OPRINT, OPRINTN:
+ 		n.Left, _ = p.nodesOrNil()
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 		n.Isddd = p.bool()
+ 
+ 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+ 		n.Left = p.node()
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 		n.Isddd = p.bool()
+ 
+ 	case OCMPSTR, OCMPIFACE:
+@@ -698,45 +698,45 @@ func (p *importer) node() *Node {
+ 		n.Etype = EType(p.int())
+ 
+ 	case OAS2, OASWB:
+-		setNodeSeq(&n.List, p.nodeList())
+-		setNodeSeq(&n.Rlist, p.nodeList())
++		n.List.Set(p.nodeList())
++		n.Rlist.Set(p.nodeList())
+ 
+ 	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+-		setNodeSeq(&n.List, p.nodeList())
+-		setNodeSeq(&n.Rlist, p.nodeList())
++		n.List.Set(p.nodeList())
++		n.Rlist.Set(p.nodeList())
+ 
+ 	case ORETURN:
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 
+ 	case OPROC, ODEFER:
+ 		n.Left = p.node()
+ 
+ 	case OIF:
+-		setNodeSeq(&n.Ninit, p.nodeList())
++		n.Ninit.Set(p.nodeList())
+ 		n.Left = p.node()
+ 		n.Nbody.Set(p.nodeList())
+-		setNodeSeq(&n.Rlist, p.nodeList())
++		n.Rlist.Set(p.nodeList())
+ 
+ 	case OFOR:
+-		setNodeSeq(&n.Ninit, p.nodeList())
++		n.Ninit.Set(p.nodeList())
+ 		n.Left, n.Right = p.nodesOrNil()
+ 		n.Nbody.Set(p.nodeList())
+ 
+ 	case ORANGE:
+ 		if p.bool() {
+-			setNodeSeq(&n.List, p.nodeList())
++			n.List.Set(p.nodeList())
+ 		}
+ 		n.Right = p.node()
+ 		n.Nbody.Set(p.nodeList())
+ 
+ 	case OSELECT, OSWITCH:
+-		setNodeSeq(&n.Ninit, p.nodeList())
++		n.Ninit.Set(p.nodeList())
+ 		n.Left, _ = p.nodesOrNil()
+-		setNodeSeq(&n.List, p.nodeList())
++		n.List.Set(p.nodeList())
+ 
+ 	case OCASE, OXCASE:
+ 		if p.bool() {
+-			setNodeSeq(&n.List, p.nodeList())
++			n.List.Set(p.nodeList())
+ 		}
+ 		n.Nbody.Set(p.nodeList())
+ 
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index c9d4897977..439c52d72e 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1752,7 +1752,7 @@ func Bvgen(n, res *Node, wantTrue bool) {
+ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
+ 	init := n.Ninit
+ 	if !geninit {
+-		setNodeSeq(&n.Ninit, nil)
++		n.Ninit.Set(nil)
+ 	}
+ 	p1 := Gbranch(obj.AJMP, nil, 0)
+ 	p2 := Pc
+@@ -1762,7 +1762,7 @@ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
+ 	Bgen(n, wantTrue, 0, p2)
+ 	Thearch.Gmove(Nodbool(false), res)
+ 	Patch(p3, Pc)
+-	setNodeSeq(&n.Ninit, init)
++	n.Ninit.Set(init.Slice())
+ }
+ 
+ // bgenx is the backend for Bgen and Bvgen.
+@@ -1920,11 +1920,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		if Isfloat[nr.Type.Etype] {
+ 			// Brcom is not valid on floats when NaN is involved.
+ 			ll := n.Ninit // avoid re-genning Ninit
+-			setNodeSeq(&n.Ninit, nil)
++			n.Ninit.Set(nil)
+ 			if genval {
+ 				bgenx(n, res, true, likely, to)
+ 				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res) // res = !res
+-				setNodeSeq(&n.Ninit, ll)
++				n.Ninit.Set(ll.Slice())
+ 				return
+ 			}
+ 			p1 := Gbranch(obj.AJMP, nil, 0)
+@@ -1933,7 +1933,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			bgenx(n, res, true, -likely, p2)
+ 			Patch(Gbranch(obj.AJMP, nil, 0), to)
+ 			Patch(p2, Pc)
+-			setNodeSeq(&n.Ninit, ll)
++			n.Ninit.Set(ll.Slice())
+ 			return
+ 		}
+ 
+@@ -2799,13 +2799,13 @@ func cgen_append(n, res *Node) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+ 	}
+-	if res.Op != ONAME && !samesafeexpr(res, nodeSeqFirst(n.List)) {
++	if res.Op != ONAME && !samesafeexpr(res, n.List.First()) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+ 		Fatalf("append not lowered")
+ 	}
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		if it.N().Ullman >= UINF {
++	for _, n1 := range n.List.Slice() {
++		if n1.Ullman >= UINF {
+ 			Fatalf("append with function call arguments")
+ 		}
+ 	}
+@@ -2814,7 +2814,7 @@ func cgen_append(n, res *Node) {
+ 	//
+ 	// If res and src are the same, we can avoid writing to base and cap
+ 	// unless we grow the underlying array.
+-	needFullUpdate := !samesafeexpr(res, nodeSeqFirst(n.List))
++	needFullUpdate := !samesafeexpr(res, n.List.First())
+ 
+ 	// Copy src triple into base, len, cap.
+ 	base := temp(Types[Tptr])
+@@ -2822,7 +2822,7 @@ func cgen_append(n, res *Node) {
+ 	cap := temp(Types[TUINT])
+ 
+ 	var src Node
+-	Igen(nodeSeqFirst(n.List), &src, nil)
++	Igen(n.List.First(), &src, nil)
+ 	src.Type = Types[Tptr]
+ 	Thearch.Gmove(&src, base)
+ 	src.Type = Types[TUINT]
+@@ -2835,7 +2835,7 @@ func cgen_append(n, res *Node) {
+ 	var rlen Node
+ 	Regalloc(&rlen, Types[TUINT], nil)
+ 	Thearch.Gmove(len, &rlen)
+-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &rlen)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &rlen)
+ 	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
+ 	// Note: rlen and src are Regrealloc'ed below at the target of the
+ 	// branch we just emitted; do not reuse these Go variables for
+@@ -2905,7 +2905,7 @@ func cgen_append(n, res *Node) {
+ 	dst.Xoffset += int64(Widthptr)
+ 	Regalloc(&r1, Types[TUINT], nil)
+ 	Thearch.Gmove(len, &r1)
+-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &r1)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(n.List.Len()-1), &r1)
+ 	Thearch.Gmove(&r1, &dst)
+ 	Regfree(&r1)
+ 	dst.Xoffset += int64(Widthptr)
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index d040bdcf9a..af5c7c99a2 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -26,30 +26,29 @@ func closurehdr(ntype *Node) {
+ 	// references to these variables need to
+ 	// refer to the variables in the external
+ 	// function declared below; see walkclosure.
+-	setNodeSeq(&n.List, ntype.List)
++	n.List.Set(ntype.List.Slice())
+ 
+-	setNodeSeq(&n.Rlist, ntype.Rlist)
+-	setNodeSeq(&ntype.List, nil)
+-	setNodeSeq(&ntype.Rlist, nil)
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		name = it.N().Left
++	n.Rlist.Set(ntype.Rlist.Slice())
++	ntype.List.Set(nil)
++	ntype.Rlist.Set(nil)
++	for _, n1 := range n.List.Slice() {
++		name = n1.Left
+ 		if name != nil {
+ 			name = newname(name.Sym)
+ 		}
+-		a = Nod(ODCLFIELD, name, it.N().Right)
+-		a.Isddd = it.N().Isddd
++		a = Nod(ODCLFIELD, name, n1.Right)
++		a.Isddd = n1.Isddd
+ 		if name != nil {
+ 			name.Isddd = a.Isddd
+ 		}
+-		appendNodeSeqNode(&ntype.List, a)
++		ntype.List.Append(a)
+ 	}
+-
+-	for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
+-		name = it.N().Left
++	for _, n2 := range n.Rlist.Slice() {
++		name = n2.Left
+ 		if name != nil {
+ 			name = newname(name.Sym)
+ 		}
+-		appendNodeSeqNode(&ntype.Rlist, Nod(ODCLFIELD, name, it.N().Right))
++		ntype.Rlist.Append(Nod(ODCLFIELD, name, n2.Right))
+ 	}
+ }
+ 
+@@ -177,8 +176,8 @@ func makeclosure(func_ *Node) *Node {
+ 	// that begins by reading closure parameters.
+ 	xtype := Nod(OTFUNC, nil, nil)
+ 
+-	setNodeSeq(&xtype.List, func_.List)
+-	setNodeSeq(&xtype.Rlist, func_.Rlist)
++	xtype.List.Set(func_.List.Slice())
++	xtype.Rlist.Set(func_.Rlist.Slice())
+ 
+ 	// create the function
+ 	xfunc := Nod(ODCLFUNC, nil, nil)
+@@ -205,8 +204,8 @@ func makeclosure(func_ *Node) *Node {
+ 	func_.Func.Closure = xfunc
+ 
+ 	func_.Nbody.Set(nil)
+-	setNodeSeq(&func_.List, nil)
+-	setNodeSeq(&func_.Rlist, nil)
++	func_.List.Set(nil)
++	func_.Rlist.Set(nil)
+ 
+ 	return xfunc
+ }
+@@ -426,7 +425,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 
+ 	typ := Nod(OTSTRUCT, nil, nil)
+ 
+-	setNodeSeq(&typ.List, []*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
++	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR]))})
+ 	var typ1 *Node
+ 	for _, v := range func_.Func.Cvars.Slice() {
+ 		if v.Op == OXXX {
+@@ -436,13 +435,13 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 		if !v.Name.Byval {
+ 			typ1 = Nod(OIND, typ1, nil)
+ 		}
+-		appendNodeSeqNode(&typ.List, Nod(ODCLFIELD, newname(v.Sym), typ1))
++		typ.List.Append(Nod(ODCLFIELD, newname(v.Sym), typ1))
+ 	}
+ 
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = func_.Esc
+ 	clos.Right.Implicit = true
+-	setNodeSeq(&clos.List, append([]*Node{Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)}, func_.Func.Enter.Slice()...))
++	clos.List.Set(append([]*Node{Nod(OCFUNC, func_.Func.Closure.Func.Nname, nil)}, func_.Func.Enter.Slice()...))
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = Nod(OCONVNOP, clos, nil)
+@@ -550,7 +549,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 		l = append(l, fld)
+ 	}
+ 
+-	setNodeSeq(&xtype.List, l)
++	xtype.List.Set(l)
+ 	i = 0
+ 	l = nil
+ 	var retargs []*Node
+@@ -563,7 +562,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 		l = append(l, Nod(ODCLFIELD, n, typenod(t.Type)))
+ 	}
+ 
+-	setNodeSeq(&xtype.Rlist, l)
++	xtype.Rlist.Set(l)
+ 
+ 	xfunc.Func.Dupok = true
+ 	xfunc.Func.Nname = newfuncname(sym)
+@@ -600,14 +599,14 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	}
+ 
+ 	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
+-	setNodeSeq(&call.List, callargs)
++	call.List.Set(callargs)
+ 	call.Isddd = ddd
+ 	if t0.Outtuple == 0 {
+ 		body = append(body, call)
+ 	} else {
+ 		n := Nod(OAS2, nil, nil)
+-		setNodeSeq(&n.List, retargs)
+-		setNodeSeq(&n.Rlist, []*Node{call})
++		n.List.Set(retargs)
++		n.Rlist.Set([]*Node{call})
+ 		body = append(body, n)
+ 		n = Nod(ORETURN, nil, nil)
+ 		body = append(body, n)
+@@ -640,14 +639,14 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 	}
+ 
+ 	typ := Nod(OTSTRUCT, nil, nil)
+-	setNodeSeq(&typ.List, []*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
+-	appendNodeSeqNode(&typ.List, Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
++	typ.List.Set([]*Node{Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR]))})
++	typ.List.Append(Nod(ODCLFIELD, newname(Lookup("R")), typenod(n.Left.Type)))
+ 
+ 	clos := Nod(OCOMPLIT, nil, Nod(OIND, typ, nil))
+ 	clos.Esc = n.Esc
+ 	clos.Right.Implicit = true
+-	setNodeSeq(&clos.List, []*Node{Nod(OCFUNC, n.Func.Nname, nil)})
+-	appendNodeSeqNode(&clos.List, n.Left)
++	clos.List.Set([]*Node{Nod(OCFUNC, n.Func.Nname, nil)})
++	clos.List.Append(n.Left)
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = Nod(OCONVNOP, clos, nil)
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 0a9b3c0023..f2a3e7dee6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -543,7 +543,7 @@ func evconst(n *Node) {
+ 
+ 		// merge adjacent constants in the argument list.
+ 	case OADDSTR:
+-		s := nodeSeqSlice(n.List)
++		s := n.List.Slice()
+ 		for i1 := 0; i1 < len(s); i1++ {
+ 			if Isconst(s[i1], CTSTR) && i1+1 < len(s) && Isconst(s[i1+1], CTSTR) {
+ 				// merge from i1 up to but not including i2
+@@ -567,7 +567,7 @@ func evconst(n *Node) {
+ 			n.Op = OLITERAL
+ 			n.SetVal(s[0].Val())
+ 		} else {
+-			setNodeSeq(&n.List, s)
++			n.List.Set(s)
+ 		}
+ 
+ 		return
+@@ -1736,14 +1736,13 @@ func hascallchan(n *Node) bool {
+ 	if hascallchan(n.Left) || hascallchan(n.Right) {
+ 		return true
+ 	}
+-
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		if hascallchan(it.N()) {
++	for _, n1 := range n.List.Slice() {
++		if hascallchan(n1) {
+ 			return true
+ 		}
+ 	}
+-	for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
+-		if hascallchan(it.N()) {
++	for _, n2 := range n.Rlist.Slice() {
++		if hascallchan(n2) {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 22ab3cc066..6cda036cbb 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -228,7 +228,7 @@ func variter(vl *NodeList, t *Node, el *NodeList) *NodeList {
+ 		e := el.N
+ 		as2 := Nod(OAS2, nil, nil)
+ 		setNodeSeq(&as2.List, vl)
+-		setNodeSeqNode(&as2.Rlist, e)
++		as2.Rlist.Set([]*Node{e})
+ 		var v *Node
+ 		for ; vl != nil; vl = vl.Next {
+ 			v = vl.N
+@@ -438,17 +438,17 @@ func colasname(n *Node) bool {
+ }
+ 
+ func colasdefn(left Nodes, defn *Node) {
+-	for it := nodeSeqIterate(left); !it.Done(); it.Next() {
+-		if it.N().Sym != nil {
+-			it.N().Sym.Flags |= SymUniq
++	for _, n1 := range left.Slice() {
++		if n1.Sym != nil {
++			n1.Sym.Flags |= SymUniq
+ 		}
+ 	}
+ 
+ 	nnew := 0
+ 	nerr := 0
+ 	var n *Node
+-	for it := nodeSeqIterate(left); !it.Done(); it.Next() {
+-		n = it.N()
++	for i2, n2 := range left.Slice() {
++		n = n2
+ 		if isblank(n) {
+ 			continue
+ 		}
+@@ -474,8 +474,8 @@ func colasdefn(left Nodes, defn *Node) {
+ 		n = newname(n.Sym)
+ 		declare(n, dclcontext)
+ 		n.Name.Defn = defn
+-		appendNodeSeqNode(&defn.Ninit, Nod(ODCL, n, nil))
+-		*it.P() = n
++		defn.Ninit.Append(Nod(ODCL, n, nil))
++		left.Slice()[i2] = n
+ 	}
+ 
+ 	if nnew == 0 && nerr == 0 {
+@@ -492,11 +492,11 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+ 	colasdefn(as.List, as)
+ 
+ 	// make the tree prettier; not necessary
+-	if nodeSeqLen(as.List) == 1 && nodeSeqLen(as.Rlist) == 1 {
+-		as.Left = nodeSeqFirst(as.List)
+-		as.Right = nodeSeqFirst(as.Rlist)
+-		setNodeSeq(&as.List, nil)
+-		setNodeSeq(&as.Rlist, nil)
++	if as.List.Len() == 1 && as.Rlist.Len() == 1 {
++		as.Left = as.List.First()
++		as.Right = as.Rlist.First()
++		as.List.Set(nil)
++		as.Rlist.Set(nil)
+ 		as.Op = OAS
+ 	}
+ 
+@@ -570,7 +570,7 @@ func funcargs(nt *Node) {
+ 	// re-start the variable generation number
+ 	// we want to use small numbers for the return variables,
+ 	// so let them have the chunk starting at 1.
+-	vargen = nodeSeqLen(nt.Rlist)
++	vargen = nt.Rlist.Len()
+ 
+ 	// declare the receiver and in arguments.
+ 	// no n->defn because type checking of func header
+@@ -592,8 +592,7 @@ func funcargs(nt *Node) {
+ 	}
+ 
+ 	var n *Node
+-	for it := nodeSeqIterate(nt.List); !it.Done(); it.Next() {
+-		n = it.N()
++	for _, n = range nt.List.Slice() {
+ 		if n.Op != ODCLFIELD {
+ 			Fatalf("funcargs in %v", Oconv(n.Op, 0))
+ 		}
+@@ -609,12 +608,10 @@ func funcargs(nt *Node) {
+ 	}
+ 
+ 	// declare the out arguments.
+-	gen := nodeSeqLen(nt.List)
++	gen := nt.List.Len()
+ 	var i int = 0
+ 	var nn *Node
+-	for it := nodeSeqIterate(nt.Rlist); !it.Done(); it.Next() {
+-		n = it.N()
+-
++	for _, n = range nt.Rlist.Slice() {
+ 		if n.Op != ODCLFIELD {
+ 			Fatalf("funcargs out %v", Oconv(n.Op, 0))
+ 		}
+@@ -964,10 +961,10 @@ func tointerface0(t *Type, l []*Node) *Type {
+ 	}
+ 
+ 	tp := &t.Type
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		f := interfacefield(it.N())
++	for _, n := range l {
++		f := interfacefield(n)
+ 
+-		if it.N().Left == nil && f.Type.Etype == TINTER {
++		if n.Left == nil && f.Type.Etype == TINTER {
+ 			// embedded interface, inline methods
+ 			for t1 := f.Type.Type; t1 != nil; t1 = t1.Down {
+ 				f = typ(TFIELD)
+@@ -1536,8 +1533,8 @@ func checknowritebarrierrec() {
+ }
+ 
+ func (c *nowritebarrierrecChecker) visitcodelist(l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		c.visitcode(it.N())
++	for _, n := range l.Slice() {
++		c.visitcode(n)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 5dc434852e..a814ce13a6 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -111,8 +111,8 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ }
+ 
+ func (v *bottomUpVisitor) visitcodelist(l Nodes, min uint32) uint32 {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		min = v.visitcode(it.N(), min)
++	for _, n := range l.Slice() {
++		min = v.visitcode(n, min)
+ 	}
+ 	return min
+ }
+@@ -523,8 +523,8 @@ var looping Label
+ var nonlooping Label
+ 
+ func escloopdepthlist(e *EscState, l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		escloopdepth(e, it.N())
++	for _, n := range l.Slice() {
++		escloopdepth(e, n)
+ 	}
+ }
+ 
+@@ -567,8 +567,8 @@ func escloopdepth(e *EscState, n *Node) {
+ }
+ 
+ func esclist(e *EscState, l Nodes, up *Node) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		esc(e, it.N(), up)
++	for _, n := range l.Slice() {
++		esc(e, n, up)
+ 	}
+ }
+ 
+@@ -597,10 +597,10 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// must happen before processing of switch body,
+ 	// so before recursion.
+ 	if n.Op == OSWITCH && n.Left != nil && n.Left.Op == OTYPESW {
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() { // cases
++		for _, n1 := range n.List.Slice() { // cases
+ 			// it.N().Rlist is the variable per case
+-			if nodeSeqLen(it.N().Rlist) != 0 {
+-				e.nodeEscState(nodeSeqFirst(it.N().Rlist)).Escloopdepth = e.loopdepth
++			if n1.Rlist.Len() != 0 {
++				e.nodeEscState(n1.Rlist.First()).Escloopdepth = e.loopdepth
+ 			}
+ 		}
+ 	}
+@@ -659,7 +659,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		n.Left.Sym.Label = nil
+ 
+ 	case ORANGE:
+-		if nodeSeqLen(n.List) >= 2 {
++		if n.List.Len() >= 2 {
+ 			// Everything but fixed array is a dereference.
+ 
+ 			// If fixed array is really the address of fixed array,
+@@ -667,20 +667,20 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// dereferenced (see #12588)
+ 			if Isfixedarray(n.Type) &&
+ 				!(Isptr[n.Right.Type.Etype] && Eqtype(n.Right.Type.Type, n.Type)) {
+-				escassign(e, nodeSeqSecond(n.List), n.Right)
++				escassign(e, n.List.Second(), n.Right)
+ 			} else {
+-				escassignDereference(e, nodeSeqSecond(n.List), n.Right)
++				escassignDereference(e, n.List.Second(), n.Right)
+ 			}
+ 		}
+ 
+ 	case OSWITCH:
+ 		if n.Left != nil && n.Left.Op == OTYPESW {
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++			for _, n2 := range n.List.Slice() {
+ 				// cases
+ 				// n.Left.Right is the argument of the .(type),
+ 				// it.N().Rlist is the variable per case
+-				if nodeSeqLen(it.N().Rlist) != 0 {
+-					escassign(e, nodeSeqFirst(it.N().Rlist), n.Left.Right)
++				if n2.Rlist.Len() != 0 {
++					escassign(e, n2.Rlist.First(), n.Left.Right)
+ 				}
+ 			}
+ 		}
+@@ -721,10 +721,10 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		escassign(e, n.Left, n.Right)
+ 
+ 	case OAS2: // x,y = a,b
+-		if nodeSeqLen(n.List) == nodeSeqLen(n.Rlist) {
++		if n.List.Len() == n.Rlist.Len() {
+ 			lrit := nodeSeqIterate(n.Rlist)
+-			for llit := nodeSeqIterate(n.List); !llit.Done(); llit.Next() {
+-				escassign(e, llit.N(), lrit.N())
++			for _, n3 := range n.List.Slice() {
++				escassign(e, n3, lrit.N())
+ 				lrit.Next()
+ 			}
+ 		}
+@@ -732,7 +732,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	case OAS2RECV, // v, ok = <-ch
+ 		OAS2MAPR,    // v, ok = m[k]
+ 		OAS2DOTTYPE: // v, ok = x.(type)
+-		escassign(e, nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist))
++		escassign(e, n.List.First(), n.Rlist.First())
+ 
+ 	case OSEND: // ch <- x
+ 		escassign(e, &e.theSink, n.Right)
+@@ -750,8 +750,8 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		escassign(e, &e.theSink, n.Left.Left)
+ 
+ 		escassign(e, &e.theSink, n.Left.Right) // ODDDARG for call
+-		for it := nodeSeqIterate(n.Left.List); !it.Done(); it.Next() {
+-			escassign(e, &e.theSink, it.N())
++		for _, n4 := range n.Left.List.Slice() {
++			escassign(e, &e.theSink, n4)
+ 		}
+ 
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+@@ -759,7 +759,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 		// esccall already done on n->rlist->n. tie it's escretval to n->list
+ 	case OAS2FUNC: // x,y = f()
+-		lrit := nodeSeqIterate(e.nodeEscState(nodeSeqFirst(n.Rlist)).Escretval)
++		lrit := nodeSeqIterate(e.nodeEscState(n.Rlist.First()).Escretval)
+ 
+ 		var llit nodeSeqIterator
+ 		for llit = nodeSeqIterate(n.List); !lrit.Done() && !llit.Done(); llit.Next() {
+@@ -772,11 +772,11 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	case ORETURN:
+ 		ll := n.List
+-		if nodeSeqLen(n.List) == 1 && Curfn.Type.Outtuple > 1 {
++		if n.List.Len() == 1 && Curfn.Type.Outtuple > 1 {
+ 			// OAS2FUNC in disguise
+ 			// esccall already done on n->list->n
+ 			// tie n->list->n->escretval to curfn->dcl PPARAMOUT's
+-			ll = e.nodeEscState(nodeSeqFirst(n.List)).Escretval
++			ll = e.nodeEscState(n.List.First()).Escretval
+ 		}
+ 
+ 		llit := nodeSeqIterate(ll)
+@@ -808,13 +808,13 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			}
+ 		} else {
+ 			// append(slice1, slice2...) -- slice2 itself does not escape, but contents do.
+-			slice2 := nodeSeqSecond(n.List)
++			slice2 := n.List.Second()
+ 			escassignDereference(e, &e.theSink, slice2) // lose track of assign of dereference
+ 			if Debug['m'] > 2 {
+ 				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %v", e.curfnSym(n), Nconv(n, obj.FmtShort))
+ 			}
+ 		}
+-		escassignDereference(e, &e.theSink, nodeSeqFirst(n.List)) // The original elements are now leaked, too
++		escassignDereference(e, &e.theSink, n.List.First()) // The original elements are now leaked, too
+ 
+ 	case OCOPY:
+ 		escassignDereference(e, &e.theSink, n.Right) // lose track of assign of dereference
+@@ -831,16 +831,15 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			// Slice itself is not leaked until proven otherwise
+ 			e.track(n)
+ 		}
+-
+ 		// Link values to array/slice
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			escassign(e, n, it.N().Right)
++		for _, n5 := range n.List.Slice() {
++			escassign(e, n, n5.Right)
+ 		}
+ 
+ 		// Link values to struct.
+ 	case OSTRUCTLIT:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			escassign(e, n, it.N().Right)
++		for _, n6 := range n.List.Slice() {
++			escassign(e, n, n6.Right)
+ 		}
+ 
+ 	case OPTRLIT:
+@@ -857,11 +856,10 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 	case OMAPLIT:
+ 		e.track(n)
+-
+ 		// Keys and values make it to memory, lose track.
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			escassign(e, &e.theSink, it.N().Left)
+-			escassign(e, &e.theSink, it.N().Right)
++		for _, n7 := range n.List.Slice() {
++			escassign(e, &e.theSink, n7.Left)
++			escassign(e, &e.theSink, n7.Right)
+ 		}
+ 
+ 		// Link addresses of captured variables to closure.
+@@ -1036,8 +1034,8 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	// Flowing multiple returns to a single dst happens when
+ 	// analyzing "go f(g())": here g() flows to sink (issue 4529).
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+-		for it := nodeSeqIterate(e.nodeEscState(src).Escretval); !it.Done(); it.Next() {
+-			escflows(e, dst, it.N())
++		for _, n := range e.nodeEscState(src).Escretval.Slice() {
++			escflows(e, dst, n)
+ 		}
+ 
+ 		// A non-pointer escaping from a struct does not concern us.
+@@ -1071,7 +1069,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	case OAPPEND:
+ 		// Append returns first argument.
+ 		// Subsequent arguments are already leaked because they are operands to append.
+-		escassign(e, dst, nodeSeqFirst(src.List))
++		escassign(e, dst, src.List.First())
+ 
+ 	case OINDEX:
+ 		// Index of array preserves input value.
+@@ -1369,8 +1367,8 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	ll := n.List
+-	if nodeSeqLen(n.List) == 1 {
+-		a := nodeSeqFirst(n.List)
++	if n.List.Len() == 1 {
++		a := n.List.First()
+ 		if a.Type.Etype == TSTRUCT && a.Type.Funarg { // f(g()).
+ 			ll = e.nodeEscState(a).Escretval
+ 		}
+@@ -1379,10 +1377,10 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	if indirect {
+ 		// We know nothing!
+ 		// Leak all the parameters
+-		for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-			escassign(e, &e.theSink, it.N())
++		for _, n1 := range ll.Slice() {
++			escassign(e, &e.theSink, n1)
+ 			if Debug['m'] > 2 {
+-				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(it.N(), obj.FmtShort))
++				fmt.Printf("%v::esccall:: indirect call <- %v, untracked\n", linestr(lineno), Nconv(n1, obj.FmtShort))
+ 			}
+ 		}
+ 		// Set up bogus outputs
+@@ -1407,13 +1405,12 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 		// function in same mutually recursive group. Incorporate into flow graph.
+ 		//		print("esc local fn: %N\n", fn->ntype);
+-		if fn.Name.Defn.Esc == EscFuncUnknown || nodeSeqLen(nE.Escretval) != 0 {
++		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval.Len() != 0 {
+ 			Fatalf("graph inconsistency")
+ 		}
+-
+ 		// set up out list on this call node
+-		for it := nodeSeqIterate(fn.Name.Param.Ntype.Rlist); !it.Done(); it.Next() {
+-			appendNodeSeqNode(&nE.Escretval, it.N().Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
++		for _, n2 := range fn.Name.Param.Ntype.Rlist.Slice() {
++			nE.Escretval.Append(n2.Left) // type.rlist ->  dclfield -> ONAME (PPARAMOUT)
+ 		}
+ 
+ 		// Receiver.
+@@ -1458,7 +1455,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	// Imported or completely analyzed function. Use the escape tags.
+-	if nodeSeqLen(nE.Escretval) != 0 {
++	if nE.Escretval.Len() != 0 {
+ 		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
+@@ -1739,7 +1736,7 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		}
+ 
+ 	case OAPPEND:
+-		escwalk(e, level, dst, nodeSeqFirst(src.List))
++		escwalk(e, level, dst, src.List.First())
+ 
+ 	case ODDDARG:
+ 		if leaks {
+@@ -1756,8 +1753,8 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 		if Isfixedarray(src.Type) {
+ 			break
+ 		}
+-		for it := nodeSeqIterate(src.List); !it.Done(); it.Next() {
+-			escwalk(e, level.dec(), dst, it.N().Right)
++		for _, n1 := range src.List.Slice() {
++			escwalk(e, level.dec(), dst, n1.Right)
+ 		}
+ 
+ 		fallthrough
+@@ -1809,13 +1806,13 @@ func escwalkBody(e *EscState, level Level, dst *Node, src *Node, extraloopdepth
+ 	// See e.g. #10466
+ 	// This can only happen with functions returning a single result.
+ 	case OCALLMETH, OCALLFUNC, OCALLINTER:
+-		if nodeSeqLen(srcE.Escretval) != 0 {
++		if srcE.Escretval.Len() != 0 {
+ 			if Debug['m'] > 1 {
+ 				fmt.Printf("%v:[%d] dst %v escwalk replace src: %v with %v\n",
+ 					linestr(lineno), e.loopdepth,
+-					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(nodeSeqFirst(srcE.Escretval), obj.FmtShort))
++					Nconv(dst, obj.FmtShort), Nconv(src, obj.FmtShort), Nconv(srcE.Escretval.First(), obj.FmtShort))
+ 			}
+-			src = nodeSeqFirst(srcE.Escretval)
++			src = srcE.Escretval.First()
+ 			srcE = e.nodeEscState(src)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5c53da378d..e46dcd1903 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -107,8 +107,8 @@ func dumppkg(p *Pkg) {
+ 
+ // Look for anything we need for the inline body
+ func reexportdeplist(ll Nodes) {
+-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-		reexportdep(it.N())
++	for _, n := range ll.Slice() {
++		reexportdep(n)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index ac1d8cb106..a900376519 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -800,10 +800,10 @@ func stmtfmt(n *Node) string {
+ 	// block starting with the init statements.
+ 
+ 	// if we can just say "for" n->ninit; ... then do so
+-	simpleinit := nodeSeqLen(n.Ninit) == 1 && nodeSeqLen(nodeSeqFirst(n.Ninit).Ninit) == 0 && stmtwithinit(n.Op)
++	simpleinit := n.Ninit.Len() == 1 && n.Ninit.First().Ninit.Len() == 0 && stmtwithinit(n.Op)
+ 
+ 	// otherwise, print the inits as separate statements
+-	complexinit := nodeSeqLen(n.Ninit) != 0 && !simpleinit && (fmtmode != FErr)
++	complexinit := n.Ninit.Len() != 0 && !simpleinit && (fmtmode != FErr)
+ 
+ 	// but if it was for if/for/switch, put in an extra surrounding block to limit the scope
+ 	extrablock := complexinit && stmtwithinit(n.Op)
+@@ -885,11 +885,11 @@ func stmtfmt(n *Node) string {
+ 
+ 	case OIF:
+ 		if simpleinit {
+-			f += fmt.Sprintf("if %v; %v { %v }", nodeSeqFirst(n.Ninit), n.Left, n.Nbody)
++			f += fmt.Sprintf("if %v; %v { %v }", n.Ninit.First(), n.Left, n.Nbody)
+ 		} else {
+ 			f += fmt.Sprintf("if %v { %v }", n.Left, n.Nbody)
+ 		}
+-		if nodeSeqLen(n.Rlist) != 0 {
++		if n.Rlist.Len() != 0 {
+ 			f += fmt.Sprintf(" else { %v }", n.Rlist)
+ 		}
+ 
+@@ -901,7 +901,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += "for"
+ 		if simpleinit {
+-			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
++			f += fmt.Sprintf(" %v;", n.Ninit.First())
+ 		} else if n.Right != nil {
+ 			f += " ;"
+ 		}
+@@ -924,7 +924,7 @@ func stmtfmt(n *Node) string {
+ 			break
+ 		}
+ 
+-		if nodeSeqLen(n.List) == 0 {
++		if n.List.Len() == 0 {
+ 			f += fmt.Sprintf("for range %v { %v }", n.Right, n.Nbody)
+ 			break
+ 		}
+@@ -939,7 +939,7 @@ func stmtfmt(n *Node) string {
+ 
+ 		f += Oconv(n.Op, obj.FmtSharp)
+ 		if simpleinit {
+-			f += fmt.Sprintf(" %v;", nodeSeqFirst(n.Ninit))
++			f += fmt.Sprintf(" %v;", n.Ninit.First())
+ 		}
+ 		if n.Left != nil {
+ 			f += Nconv(n.Left, 0)
+@@ -948,7 +948,7 @@ func stmtfmt(n *Node) string {
+ 		f += fmt.Sprintf(" { %v }", n.List)
+ 
+ 	case OCASE, OXCASE:
+-		if nodeSeqLen(n.List) != 0 {
++		if n.List.Len() != 0 {
+ 			f += fmt.Sprintf("case %v: %v", Hconv(n.List, obj.FmtComma), n.Nbody)
+ 		} else {
+ 			f += fmt.Sprintf("default: %v", n.Nbody)
+@@ -1391,7 +1391,7 @@ func exprfmt(n *Node, prec int) string {
+ 		return f
+ 
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		if nodeSeqLen(n.List) != 0 { // pre-typecheck
++		if n.List.Len() != 0 { // pre-typecheck
+ 			return fmt.Sprintf("make(%v, %v)", n.Type, Hconv(n.List, obj.FmtComma))
+ 		}
+ 		if n.Right != nil {
+@@ -1450,11 +1450,11 @@ func exprfmt(n *Node, prec int) string {
+ 	case OADDSTR:
+ 		var f string
+ 		i := 0
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++		for _, n1 := range n.List.Slice() {
+ 			if i != 0 {
+ 				f += " + "
+ 			}
+-			f += exprfmt(it.N(), nprec)
++			f += exprfmt(n1, nprec)
+ 			i++
+ 		}
+ 
+@@ -1523,7 +1523,7 @@ func nodedump(n *Node, flag int) string {
+ 			return buf.String()
+ 		}
+ 
+-		if nodeSeqLen(n.Ninit) != 0 {
++		if n.Ninit.Len() != 0 {
+ 			fmt.Fprintf(&buf, "%v-init%v", Oconv(n.Op, 0), n.Ninit)
+ 			indent(&buf)
+ 		}
+@@ -1576,12 +1576,12 @@ func nodedump(n *Node, flag int) string {
+ 		if n.Right != nil {
+ 			buf.WriteString(Nconv(n.Right, 0))
+ 		}
+-		if nodeSeqLen(n.List) != 0 {
++		if n.List.Len() != 0 {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-list%v", Oconv(n.Op, 0), n.List)
+ 		}
+ 
+-		if nodeSeqLen(n.Rlist) != 0 {
++		if n.Rlist.Len() != 0 {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-rlist%v", Oconv(n.Op, 0), n.Rlist)
+ 		}
+@@ -1711,7 +1711,7 @@ func (n Nodes) String() string {
+ // Fmt '%H': NodeList.
+ // Flags: all those of %N plus ',': separate with comma's instead of semicolons.
+ func Hconv(l Nodes, flag int) string {
+-	if nodeSeqLen(l) == 0 && fmtmode == FDbg {
++	if l.Len() == 0 && fmtmode == FDbg {
+ 		return "<nil>"
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index c30d0e0d13..12c296cd22 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -216,8 +216,8 @@ func stmtlabel(n *Node) *Label {
+ 
+ // compile statements
+ func Genlist(l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		gen(it.N())
++	for _, n := range l.Slice() {
++		gen(n)
+ 	}
+ }
+ 
+@@ -440,7 +440,7 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 		r1.Type = byteptr
+ 		r2.Type = byteptr
+ 		setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+-		setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
++		call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
+ 		gen(call)
+ 		Regfree(&r1)
+ 		Regfree(&r2)
+@@ -526,7 +526,7 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	dowidth(fn.Type)
+ 	call := Nod(OCALLFUNC, fn, nil)
+ 	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
+-	setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
++	call.List.Set(ascompatte(OCALLFUNC, call, false, fn.Type.ParamsP(), call.List.Slice(), 0, nil))
+ 	gen(call)
+ 	Regfree(&r1)
+ 	Regfree(&r2)
+@@ -638,7 +638,7 @@ func gen(n *Node) {
+ 		goto ret
+ 	}
+ 
+-	if nodeSeqLen(n.Ninit) > 0 {
++	if n.Ninit.Len() > 0 {
+ 		Genlist(n.Ninit)
+ 	}
+ 
+@@ -845,7 +845,7 @@ func gen(n *Node) {
+ 		Cgen_as_wb(n.Left, n.Right, true)
+ 
+ 	case OAS2DOTTYPE:
+-		cgen_dottype(nodeSeqFirst(n.Rlist), nodeSeqFirst(n.List), nodeSeqSecond(n.List), needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)))
++		cgen_dottype(n.Rlist.First(), n.List.First(), n.List.Second(), needwritebarrier(n.List.First(), n.Rlist.First()))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index c2faff713e..69615ba0f5 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -171,8 +171,8 @@ func caninl(fn *Node) {
+ 
+ // Look for anything we want to punt on.
+ func ishairylist(ll Nodes, budget *int) bool {
+-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-		if ishairy(it.N(), budget) {
++	for _, n := range ll.Slice() {
++		if ishairy(n, budget) {
+ 			return true
+ 		}
+ 	}
+@@ -247,8 +247,8 @@ func ishairy(n *Node, budget *int) bool {
+ // the exportlist.
+ func inlcopylist(ll []*Node) []*Node {
+ 	s := make([]*Node, 0, nodeSeqLen(ll))
+-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-		s = append(s, inlcopy(it.N()))
++	for _, n := range ll {
++		s = append(s, inlcopy(n))
+ 	}
+ 	return s
+ }
+@@ -270,9 +270,9 @@ func inlcopy(n *Node) *Node {
+ 	}
+ 	m.Left = inlcopy(n.Left)
+ 	m.Right = inlcopy(n.Right)
+-	setNodeSeq(&m.List, inlcopylist(n.List.Slice()))
+-	setNodeSeq(&m.Rlist, inlcopylist(n.Rlist.Slice()))
+-	setNodeSeq(&m.Ninit, inlcopylist(n.Ninit.Slice()))
++	m.List.Set(inlcopylist(n.List.Slice()))
++	m.Rlist.Set(inlcopylist(n.Rlist.Slice()))
++	m.Ninit.Set(inlcopylist(n.Ninit.Slice()))
+ 	m.Nbody.Set(inlcopylist(n.Nbody.Slice()))
+ 
+ 	return m
+@@ -295,17 +295,17 @@ func inlconv2stmt(n *Node) {
+ 	n.Op = OBLOCK
+ 
+ 	// n->ninit stays
+-	setNodeSeq(&n.List, n.Nbody)
++	n.List.Set(n.Nbody.Slice())
+ 
+ 	n.Nbody.Set(nil)
+-	setNodeSeq(&n.Rlist, nil)
++	n.Rlist.Set(nil)
+ }
+ 
+ // Turn an OINLCALL into a single valued expression.
+ func inlconv2expr(np **Node) {
+ 	n := *np
+-	r := nodeSeqFirst(n.Rlist)
+-	addinit(&r, append(nodeSeqSlice(n.Ninit), n.Nbody.Slice()...))
++	r := n.Rlist.First()
++	addinit(&r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
+ 	*np = r
+ }
+ 
+@@ -315,18 +315,18 @@ func inlconv2expr(np **Node) {
+ // order will be preserved Used in return, oas2func and call
+ // statements.
+ func inlconv2list(n *Node) []*Node {
+-	if n.Op != OINLCALL || nodeSeqLen(n.Rlist) == 0 {
++	if n.Op != OINLCALL || n.Rlist.Len() == 0 {
+ 		Fatalf("inlconv2list %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
+-	s := nodeSeqSlice(n.Rlist)
+-	addinit(&s[0], append(nodeSeqSlice(n.Ninit), n.Nbody.Slice()...))
++	s := n.Rlist.Slice()
++	addinit(&s[0], append(n.Ninit.Slice(), n.Nbody.Slice()...))
+ 	return s
+ }
+ 
+ func inlnodelist(l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		inlnode(it.P())
++	for i := range l.Slice() {
++		inlnode(&l.Slice()[i])
+ 	}
+ }
+ 
+@@ -367,9 +367,9 @@ func inlnode(np **Node) {
+ 	lno := setlineno(n)
+ 
+ 	inlnodelist(n.Ninit)
+-	for it := nodeSeqIterate(n.Ninit); !it.Done(); it.Next() {
+-		if it.N().Op == OINLCALL {
+-			inlconv2stmt(it.N())
++	for _, n1 := range n.Ninit.Slice() {
++		if n1.Op == OINLCALL {
++			inlconv2stmt(n1)
+ 		}
+ 	}
+ 
+@@ -390,9 +390,9 @@ func inlnode(np **Node) {
+ 	inlnodelist(n.List)
+ 	switch n.Op {
+ 	case OBLOCK:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op == OINLCALL {
+-				inlconv2stmt(it.N())
++		for _, n2 := range n.List.Slice() {
++			if n2.Op == OINLCALL {
++				inlconv2stmt(n2)
+ 			}
+ 		}
+ 
+@@ -404,16 +404,16 @@ func inlnode(np **Node) {
+ 		OCALLINTER,
+ 		OAPPEND,
+ 		OCOMPLEX:
+-		if nodeSeqLen(n.List) == 1 && nodeSeqFirst(n.List).Op == OINLCALL && nodeSeqLen(nodeSeqFirst(n.List).Rlist) > 1 {
+-			setNodeSeq(&n.List, inlconv2list(nodeSeqFirst(n.List)))
++		if n.List.Len() == 1 && n.List.First().Op == OINLCALL && n.List.First().Rlist.Len() > 1 {
++			n.List.Set(inlconv2list(n.List.First()))
+ 			break
+ 		}
+ 		fallthrough
+ 
+ 	default:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op == OINLCALL {
+-				inlconv2expr(it.P())
++		for i3, n3 := range n.List.Slice() {
++			if n3.Op == OINLCALL {
++				inlconv2expr(&n.List.Slice()[i3])
+ 			}
+ 		}
+ 	}
+@@ -421,8 +421,8 @@ func inlnode(np **Node) {
+ 	inlnodelist(n.Rlist)
+ 	switch n.Op {
+ 	case OAS2FUNC:
+-		if nodeSeqFirst(n.Rlist).Op == OINLCALL {
+-			setNodeSeq(&n.Rlist, inlconv2list(nodeSeqFirst(n.Rlist)))
++		if n.Rlist.First().Op == OINLCALL {
++			n.Rlist.Set(inlconv2list(n.Rlist.First()))
+ 			n.Op = OAS2
+ 			n.Typecheck = 0
+ 			typecheck(np, Etop)
+@@ -431,12 +431,12 @@ func inlnode(np **Node) {
+ 		fallthrough
+ 
+ 	default:
+-		for it := nodeSeqIterate(n.Rlist); !it.Done(); it.Next() {
+-			if it.N().Op == OINLCALL {
++		for i4, n4 := range n.Rlist.Slice() {
++			if n4.Op == OINLCALL {
+ 				if n.Op == OIF {
+-					inlconv2stmt(it.N())
++					inlconv2stmt(n4)
+ 				} else {
+-					inlconv2expr(it.P())
++					inlconv2expr(&n.Rlist.Slice()[i4])
+ 				}
+ 			}
+ 		}
+@@ -585,7 +585,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			typecheck(&ln.Name.Inlvar, Erv)
+ 
+ 			if ln.Class&^PHEAP != PAUTO {
+-				appendNodeSeqNode(&ninit, Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
++				ninit.Append(Nod(ODCL, ln.Name.Inlvar, nil)) // otherwise gen won't emit the allocations for heapallocs
+ 			}
+ 		}
+ 	}
+@@ -603,7 +603,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			i++
+ 		}
+ 
+-		appendNodeSeqNode(&ninit, Nod(ODCL, m, nil))
++		ninit.Append(Nod(ODCL, m, nil))
+ 		inlretvars = list(inlretvars, m)
+ 	}
+ 
+@@ -625,7 +625,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		as = Nod(OAS, tinlvar(t), n.Left.Left)
+ 		if as != nil {
+ 			typecheck(&as, Etop)
+-			appendNodeSeqNode(&ninit, as)
++			ninit.Append(as)
+ 		}
+ 	}
+ 
+@@ -649,17 +649,17 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	// check if argument is actually a returned tuple from call.
+ 	multiret := 0
+ 
+-	if nodeSeqLen(n.List) == 1 {
+-		switch nodeSeqFirst(n.List).Op {
++	if n.List.Len() == 1 {
++		switch n.List.First().Op {
+ 		case OCALL, OCALLFUNC, OCALLINTER, OCALLMETH:
+-			if nodeSeqFirst(n.List).Left.Type.Outtuple > 1 {
+-				multiret = nodeSeqFirst(n.List).Left.Type.Outtuple - 1
++			if n.List.First().Left.Type.Outtuple > 1 {
++				multiret = n.List.First().Left.Type.Outtuple - 1
+ 			}
+ 		}
+ 	}
+ 
+ 	if variadic {
+-		varargcount = nodeSeqLen(n.List) + multiret
++		varargcount = n.List.Len() + multiret
+ 		if n.Left.Op != ODOTMETH {
+ 			varargcount -= fn.Type.Thistuple
+ 		}
+@@ -669,13 +669,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	// assign arguments to the parameters' temp names
+ 	as = Nod(OAS2, nil, nil)
+ 
+-	setNodeSeq(&as.Rlist, n.List)
++	as.Rlist.Set(n.List.Slice())
+ 	it := nodeSeqIterate(n.List)
+ 
+ 	// TODO: if len(nlist) == 1 but multiple args, check that n->list->n is a call?
+ 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
+ 		// non-method call to method
+-		if nodeSeqLen(n.List) == 0 {
++		if n.List.Len() == 0 {
+ 			Fatalf("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 
+@@ -688,12 +688,12 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		if t == nil {
+ 			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
+ 		}
+-		appendNodeSeqNode(&as.List, tinlvar(t))
++		as.List.Append(tinlvar(t))
+ 		it.Next() // track argument count.
+ 	}
+ 
+ 	// append ordinary arguments to LHS.
+-	chkargcount := nodeSeqLen(n.List) > 1
++	chkargcount := n.List.Len() > 1
+ 
+ 	var vararg *Node    // the slice argument to a variadic call
+ 	var varargs []*Node // the list of LHS names to put in vararg.
+@@ -706,13 +706,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 				for i = 0; i < varargcount && it.Len() != 0; i++ {
+ 					m = argvar(varargtype, i)
+ 					varargs = append(varargs, m)
+-					appendNodeSeqNode(&as.List, m)
++					as.List.Append(m)
+ 				}
+ 
+ 				break
+ 			}
+ 
+-			appendNodeSeqNode(&as.List, tinlvar(t))
++			as.List.Append(tinlvar(t))
+ 		}
+ 	} else {
+ 		// match arguments except final variadic (unless the call is dotted itself)
+@@ -724,7 +724,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			if variadic && t.Isddd {
+ 				break
+ 			}
+-			appendNodeSeqNode(&as.List, tinlvar(t))
++			as.List.Append(tinlvar(t))
+ 			t = t.Down
+ 			it.Next()
+ 		}
+@@ -736,7 +736,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			for i = 0; i < varargcount && !it.Done(); i++ {
+ 				m = argvar(varargtype, i)
+ 				varargs = append(varargs, m)
+-				appendNodeSeqNode(&as.List, m)
++				as.List.Append(m)
+ 				it.Next()
+ 			}
+ 
+@@ -750,9 +750,9 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 	}
+ 
+-	if nodeSeqLen(as.Rlist) != 0 {
++	if as.Rlist.Len() != 0 {
+ 		typecheck(&as, Etop)
+-		appendNodeSeqNode(&ninit, as)
++		ninit.Append(as)
+ 	}
+ 
+ 	// turn the variadic args into a slice.
+@@ -767,19 +767,19 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 			vararrtype.Bound = int64(varargcount)
+ 
+ 			as.Right = Nod(OCOMPLIT, nil, typenod(varargtype))
+-			setNodeSeq(&as.Right.List, varargs)
++			as.Right.List.Set(varargs)
+ 			as.Right = Nod(OSLICE, as.Right, Nod(OKEY, nil, nil))
+ 		}
+ 
+ 		typecheck(&as, Etop)
+-		appendNodeSeqNode(&ninit, as)
++		ninit.Append(as)
+ 	}
+ 
+ 	// zero the outparams
+ 	for ll := inlretvars; ll != nil; ll = ll.Next {
+ 		as = Nod(OAS, ll.N, nil)
+ 		typecheck(&as, Etop)
+-		appendNodeSeqNode(&ninit, as)
++		ninit.Append(as)
+ 	}
+ 
+ 	inlretlabel = newlabel_inl()
+@@ -795,7 +795,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 
+ 	call := Nod(OINLCALL, nil, nil)
+ 
+-	setNodeSeq(&call.Ninit, ninit)
++	call.Ninit.Set(ninit.Slice())
+ 	call.Nbody.Set(body)
+ 	setNodeSeq(&call.Rlist, inlretvars)
+ 	call.Type = n.Type
+@@ -804,11 +804,11 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	// Hide the args from setlno -- the parameters to the inlined
+ 	// call already have good line numbers that should be preserved.
+ 	args := as.Rlist
+-	setNodeSeq(&as.Rlist, nil)
++	as.Rlist.Set(nil)
+ 
+ 	setlno(call, n.Lineno)
+ 
+-	setNodeSeq(&as.Rlist, args)
++	as.Rlist.Set(args.Slice())
+ 
+ 	//dumplist("call body", body);
+ 
+@@ -900,9 +900,9 @@ func newlabel_inl() *Node {
+ // to input/output parameters with ones to the tmpnames, and
+ // substituting returns with assignments to the output.
+ func inlsubstlist(ll Nodes) []*Node {
+-	s := make([]*Node, 0, nodeSeqLen(ll))
+-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-		s = append(s, inlsubst(it.N()))
++	s := make([]*Node, 0, ll.Len())
++	for _, n := range ll.Slice() {
++		s = append(s, inlsubst(n))
+ 	}
+ 	return s
+ }
+@@ -935,18 +935,18 @@ func inlsubst(n *Node) *Node {
+ 	case ORETURN:
+ 		m := Nod(OGOTO, inlretlabel, nil)
+ 
+-		setNodeSeq(&m.Ninit, inlsubstlist(n.Ninit))
++		m.Ninit.Set(inlsubstlist(n.Ninit))
+ 
+-		if inlretvars != nil && nodeSeqLen(n.List) != 0 {
++		if inlretvars != nil && n.List.Len() != 0 {
+ 			as := Nod(OAS2, nil, nil)
+ 
+ 			// shallow copy or OINLCALL->rlist will be the same list, and later walk and typecheck may clobber that.
+ 			for ll := inlretvars; ll != nil; ll = ll.Next {
+-				appendNodeSeqNode(&as.List, ll.N)
++				as.List.Append(ll.N)
+ 			}
+-			setNodeSeq(&as.Rlist, inlsubstlist(n.List))
++			as.Rlist.Set(inlsubstlist(n.List))
+ 			typecheck(&as, Etop)
+-			appendNodeSeqNode(&m.Ninit, as)
++			m.Ninit.Append(as)
+ 		}
+ 
+ 		typechecklist(m.Ninit.Slice(), Etop)
+@@ -958,7 +958,7 @@ func inlsubst(n *Node) *Node {
+ 	case OGOTO, OLABEL:
+ 		m := Nod(OXXX, nil, nil)
+ 		*m = *n
+-		setNodeSeq(&m.Ninit, nil)
++		m.Ninit.Set(nil)
+ 		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
+ 		m.Left = newname(Lookup(p))
+ 
+@@ -967,7 +967,7 @@ func inlsubst(n *Node) *Node {
+ 
+ 	m := Nod(OXXX, nil, nil)
+ 	*m = *n
+-	setNodeSeq(&m.Ninit, nil)
++	m.Ninit.Set(nil)
+ 
+ 	if n.Op == OCLOSURE {
+ 		Fatalf("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
+@@ -975,9 +975,9 @@ func inlsubst(n *Node) *Node {
+ 
+ 	m.Left = inlsubst(n.Left)
+ 	m.Right = inlsubst(n.Right)
+-	setNodeSeq(&m.List, inlsubstlist(n.List))
+-	setNodeSeq(&m.Rlist, inlsubstlist(n.Rlist))
+-	setNodeSeq(&m.Ninit, append(nodeSeqSlice(m.Ninit), inlsubstlist(n.Ninit)...))
++	m.List.Set(inlsubstlist(n.List))
++	m.Rlist.Set(inlsubstlist(n.Rlist))
++	m.Ninit.Set(append(m.Ninit.Slice(), inlsubstlist(n.Ninit)...))
+ 	m.Nbody.Set(inlsubstlist(n.Nbody))
+ 
+ 	return m
+@@ -985,8 +985,8 @@ func inlsubst(n *Node) *Node {
+ 
+ // Plaster over linenumbers
+ func setlnolist(ll Nodes, lno int32) {
+-	for it := nodeSeqIterate(ll); !it.Done(); it.Next() {
+-		setlno(it.N(), lno)
++	for _, n := range ll.Slice() {
++		setlno(n, lno)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7f74082313..d287ae6fc3 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -250,8 +250,8 @@ func cleantemp(top ordermarker, order *Order) {
+ 
+ // Orderstmtlist orders each of the statements in the list.
+ func orderstmtlist(l Nodes, order *Order) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		orderstmt(it.N(), order)
++	for _, n := range l.Slice() {
++		orderstmt(n, order)
+ 	}
+ }
+ 
+@@ -304,17 +304,17 @@ func orderstmtinplace(np **Node) {
+ // Orderinit moves n's init list to order->out.
+ func orderinit(n *Node, order *Order) {
+ 	orderstmtlist(n.Ninit, order)
+-	setNodeSeq(&n.Ninit, nil)
++	n.Ninit.Set(nil)
+ }
+ 
+ // Ismulticall reports whether the list l is f() for a multi-value function.
+ // Such an f() could appear as the lone argument to a multi-arg function.
+ func ismulticall(l Nodes) bool {
+ 	// one arg only
+-	if nodeSeqLen(l) != 1 {
++	if l.Len() != 1 {
+ 		return false
+ 	}
+-	n := nodeSeqFirst(l)
++	n := l.First()
+ 
+ 	// must be call
+ 	switch n.Op {
+@@ -360,7 +360,7 @@ func copyret(n *Node, order *Order) Nodes {
+ func ordercallargs(l Nodes, order *Order) Nodes {
+ 	if ismulticall(l) {
+ 		// return f() where f() is multiple values.
+-		return copyret(nodeSeqFirst(l), order)
++		return copyret(l.First(), order)
+ 	} else {
+ 		orderexprlist(l, order)
+ 		return l
+@@ -443,23 +443,23 @@ func ordermapassign(n *Node, order *Order) {
+ 		var post []*Node
+ 		var m *Node
+ 		var a *Node
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op == OINDEXMAP {
+-				m = it.N()
++		for i1, n1 := range n.List.Slice() {
++			if n1.Op == OINDEXMAP {
++				m = n1
+ 				if !istemp(m.Left) {
+ 					m.Left = ordercopyexpr(m.Left, m.Left.Type, order, 0)
+ 				}
+ 				if !istemp(m.Right) {
+ 					m.Right = ordercopyexpr(m.Right, m.Right.Type, order, 0)
+ 				}
+-				*it.P() = ordertemp(m.Type, order, false)
+-				a = Nod(OAS, m, it.N())
++				n.List.Slice()[i1] = ordertemp(m.Type, order, false)
++				a = Nod(OAS, m, n.List.Slice()[i1])
+ 				typecheck(&a, Etop)
+ 				post = append(post, a)
+-			} else if instrumenting && n.Op == OAS2FUNC && !isblank(it.N()) {
+-				m = it.N()
+-				*it.P() = ordertemp(m.Type, order, false)
+-				a = Nod(OAS, m, it.N())
++			} else if instrumenting && n.Op == OAS2FUNC && !isblank(n.List.Slice()[i1]) {
++				m = n.List.Slice()[i1]
++				n.List.Slice()[i1] = ordertemp(m.Type, order, false)
++				a = Nod(OAS, m, n.List.Slice()[i1])
+ 				typecheck(&a, Etop)
+ 				post = append(post, a)
+ 			}
+@@ -546,7 +546,7 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		r := nodeSeqFirst(n.Rlist)
++		r := n.Rlist.First()
+ 		orderexpr(&r.Left, order, nil)
+ 		orderexpr(&r.Right, order, nil)
+ 
+@@ -563,7 +563,7 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		ordercall(nodeSeqFirst(n.Rlist), order)
++		ordercall(n.Rlist.First(), order)
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+@@ -574,17 +574,17 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		orderexpr(&nodeSeqFirst(n.Rlist).Left, order, nil) // i in i.(T)
+-		if isblank(nodeSeqFirst(n.List)) {
++		orderexpr(&n.Rlist.First().Left, order, nil) // i in i.(T)
++		if isblank(n.List.First()) {
+ 			order.out = append(order.out, n)
+ 		} else {
+-			typ := nodeSeqFirst(n.Rlist).Type
++			typ := n.Rlist.First().Type
+ 			tmp1 := ordertemp(typ, order, haspointers(typ))
+ 			order.out = append(order.out, n)
+-			r := Nod(OAS, nodeSeqFirst(n.List), tmp1)
++			r := Nod(OAS, n.List.First(), tmp1)
+ 			typecheck(&r, Etop)
+ 			ordermapassign(r, order)
+-			setNodeSeq(&n.List, []*Node{tmp1, nodeSeqSecond(n.List)})
++			n.List.Set([]*Node{tmp1, n.List.Second()})
+ 		}
+ 
+ 		cleantemp(t, order)
+@@ -595,23 +595,23 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexprlist(n.List, order)
+-		orderexpr(&nodeSeqFirst(n.Rlist).Left, order, nil) // arg to recv
+-		ch := nodeSeqFirst(n.Rlist).Left.Type
++		orderexpr(&n.Rlist.First().Left, order, nil) // arg to recv
++		ch := n.Rlist.First().Left.Type
+ 		tmp1 := ordertemp(ch.Type, order, haspointers(ch.Type))
+ 		var tmp2 *Node
+-		if !isblank(nodeSeqSecond(n.List)) {
+-			tmp2 = ordertemp(nodeSeqSecond(n.List).Type, order, false)
++		if !isblank(n.List.Second()) {
++			tmp2 = ordertemp(n.List.Second().Type, order, false)
+ 		} else {
+ 			tmp2 = ordertemp(Types[TBOOL], order, false)
+ 		}
+ 		order.out = append(order.out, n)
+-		r := Nod(OAS, nodeSeqFirst(n.List), tmp1)
++		r := Nod(OAS, n.List.First(), tmp1)
+ 		typecheck(&r, Etop)
+ 		ordermapassign(r, order)
+-		r = Nod(OAS, nodeSeqSecond(n.List), tmp2)
++		r = Nod(OAS, n.List.Second(), tmp2)
+ 		typecheck(&r, Etop)
+ 		ordermapassign(r, order)
+-		setNodeSeq(&n.List, []*Node{tmp1, tmp2})
++		n.List.Set([]*Node{tmp1, tmp2})
+ 		cleantemp(t, order)
+ 
+ 		// Special: does not save n onto out.
+@@ -699,10 +699,10 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Nbody.Set(append(l, n.Nbody.Slice()...))
+ 		l = nil
+ 		cleantempnopop(t, order, &l)
+-		setNodeSeq(&n.Rlist, append(l, nodeSeqSlice(n.Rlist)...))
++		n.Rlist.Set(append(l, n.Rlist.Slice()...))
+ 		poptemp(t, order)
+ 		orderblockNodes(&n.Nbody)
+-		setNodeSeq(&n.Rlist, orderblock(n.Rlist))
++		n.Rlist.Set(orderblock(n.Rlist))
+ 		order.out = append(order.out, n)
+ 
+ 		// Special: argument will be converted to interface using convT2E
+@@ -739,7 +739,7 @@ func orderstmt(n *Node, order *Order) {
+ 			if n.Right.Op == OSTRARRAYBYTE {
+ 				n.Right.Op = OSTRARRAYBYTETMP
+ 			}
+-			if nodeSeqLen(n.List) < 2 || isblank(nodeSeqSecond(n.List)) {
++			if n.List.Len() < 2 || isblank(n.List.Second()) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+ 				break
+@@ -771,9 +771,8 @@ func orderstmt(n *Node, order *Order) {
+ 			// n->alloc is the temp for the iterator.
+ 			prealloc[n] = ordertemp(Types[TUINT8], order, true)
+ 		}
+-
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			orderexprinplace(it.P(), order)
++		for i1 := range n.List.Slice() {
++			orderexprinplace(&n.List.Slice()[i1], order)
+ 		}
+ 		orderblockNodes(&n.Nbody)
+ 		order.out = append(order.out, n)
+@@ -798,16 +797,16 @@ func orderstmt(n *Node, order *Order) {
+ 		var tmp1 *Node
+ 		var tmp2 *Node
+ 		var r *Node
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op != OXCASE {
+-				Fatalf("order select case %v", Oconv(it.N().Op, 0))
++		for _, n2 := range n.List.Slice() {
++			if n2.Op != OXCASE {
++				Fatalf("order select case %v", Oconv(n2.Op, 0))
+ 			}
+-			r = it.N().Left
+-			setlineno(it.N())
++			r = n2.Left
++			setlineno(n2)
+ 
+ 			// Append any new body prologue to ninit.
+ 			// The next loop will insert ninit into nbody.
+-			if nodeSeqLen(it.N().Ninit) != 0 {
++			if n2.Ninit.Len() != 0 {
+ 				Fatalf("order select ninit")
+ 			}
+ 			if r != nil {
+@@ -826,15 +825,15 @@ func orderstmt(n *Node, order *Order) {
+ 						if itinit.Len() != 0 && itinit.N().Op == ODCL && itinit.N().Left == r.Left {
+ 							itinit.Next()
+ 						}
+-						if itinit.Len() != 0 && itinit.N().Op == ODCL && nodeSeqLen(r.List) != 0 && itinit.N().Left == nodeSeqFirst(r.List) {
++						if itinit.Len() != 0 && itinit.N().Op == ODCL && r.List.Len() != 0 && itinit.N().Left == r.List.First() {
+ 							itinit.Next()
+ 						}
+ 						if itinit.Done() {
+-							setNodeSeq(&r.Ninit, nil)
++							r.Ninit.Set(nil)
+ 						}
+ 					}
+ 
+-					if nodeSeqLen(r.Ninit) != 0 {
++					if r.Ninit.Len() != 0 {
+ 						Yyerror("ninit on select recv")
+ 						dumplist("ninit", r.Ninit)
+ 					}
+@@ -868,36 +867,35 @@ func orderstmt(n *Node, order *Order) {
+ 						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+ 							typecheck(&tmp2, Etop)
+-							appendNodeSeqNode(&it.N().Ninit, tmp2)
++							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						r.Left = ordertemp(r.Right.Left.Type.Type, order, haspointers(r.Right.Left.Type.Type))
+ 						tmp2 = Nod(OAS, tmp1, r.Left)
+ 						typecheck(&tmp2, Etop)
+-						appendNodeSeqNode(&it.N().Ninit, tmp2)
++						n2.Ninit.Append(tmp2)
+ 					}
+ 
+-					if nodeSeqLen(r.List) != 0 && isblank(nodeSeqFirst(r.List)) {
+-						setNodeSeq(&r.List, nil)
++					if r.List.Len() != 0 && isblank(r.List.First()) {
++						r.List.Set(nil)
+ 					}
+-					if nodeSeqLen(r.List) != 0 {
+-						tmp1 = nodeSeqFirst(r.List)
++					if r.List.Len() != 0 {
++						tmp1 = r.List.First()
+ 						if r.Colas {
+ 							tmp2 = Nod(ODCL, tmp1, nil)
+ 							typecheck(&tmp2, Etop)
+-							appendNodeSeqNode(&it.N().Ninit, tmp2)
++							n2.Ninit.Append(tmp2)
+ 						}
+ 
+ 						setNodeSeq(&r.List, list1(ordertemp(tmp1.Type, order, false)))
+-						tmp2 = Nod(OAS, tmp1, nodeSeqFirst(r.List))
++						tmp2 = Nod(OAS, tmp1, r.List.First())
+ 						typecheck(&tmp2, Etop)
+-						appendNodeSeqNode(&it.N().Ninit, tmp2)
++						n2.Ninit.Append(tmp2)
+ 					}
+-
+-					setNodeSeq(&it.N().Ninit, orderblock(it.N().Ninit))
++					n2.Ninit.Set(orderblock(n2.Ninit))
+ 
+ 				case OSEND:
+-					if nodeSeqLen(r.Ninit) != 0 {
++					if r.Ninit.Len() != 0 {
+ 						Yyerror("ninit on select send")
+ 						dumplist("ninit", r.Ninit)
+ 					}
+@@ -916,17 +914,16 @@ func orderstmt(n *Node, order *Order) {
+ 				}
+ 			}
+ 
+-			orderblockNodes(&it.N().Nbody)
++			orderblockNodes(&n2.Nbody)
+ 		}
+-
+ 		// Now that we have accumulated all the temporaries, clean them.
+ 		// Also insert any ninit queued during the previous loop.
+ 		// (The temporary cleaning must follow that ninit work.)
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			s := nodeSeqSlice(it.N().Ninit)
++		for _, n3 := range n.List.Slice() {
++			s := n3.Ninit.Slice()
+ 			cleantempnopop(t, order, &s)
+-			it.N().Nbody.Set(append(s, it.N().Nbody.Slice()...))
+-			setNodeSeq(&it.N().Ninit, nil)
++			n3.Nbody.Set(append(s, n3.Nbody.Slice()...))
++			n3.Ninit.Set(nil)
+ 		}
+ 
+ 		order.out = append(order.out, n)
+@@ -953,12 +950,12 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 
+ 		orderexpr(&n.Left, order, nil)
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op != OXCASE {
+-				Fatalf("order switch case %v", Oconv(it.N().Op, 0))
++		for _, n4 := range n.List.Slice() {
++			if n4.Op != OXCASE {
++				Fatalf("order switch case %v", Oconv(n4.Op, 0))
+ 			}
+-			orderexprlistinplace(it.N().List, order)
+-			orderblockNodes(&it.N().Nbody)
++			orderexprlistinplace(n4.List, order)
++			orderblockNodes(&n4.Nbody)
+ 		}
+ 
+ 		order.out = append(order.out, n)
+@@ -970,16 +967,16 @@ func orderstmt(n *Node, order *Order) {
+ 
+ // Orderexprlist orders the expression list l into order.
+ func orderexprlist(l Nodes, order *Order) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		orderexpr(it.P(), order, nil)
++	for i := range l.Slice() {
++		orderexpr(&l.Slice()[i], order, nil)
+ 	}
+ }
+ 
+ // Orderexprlist orders the expression list l but saves
+ // the side effects on the individual expression ninit lists.
+ func orderexprlistinplace(l Nodes, order *Order) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		orderexprinplace(it.P(), order)
++	for i := range l.Slice() {
++		orderexprinplace(&l.Slice()[i], order)
+ 	}
+ }
+ 
+@@ -1013,9 +1010,9 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 	case OADDSTR:
+ 		orderexprlist(n.List, order)
+ 
+-		if nodeSeqLen(n.List) > 5 {
++		if n.List.Len() > 5 {
+ 			t := typ(TARRAY)
+-			t.Bound = int64(nodeSeqLen(n.List))
++			t.Bound = int64(n.List.Len())
+ 			t.Type = Types[TSTRING]
+ 			prealloc[n] = ordertemp(t, order, false)
+ 		}
+@@ -1030,15 +1027,15 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		hasbyte := false
+ 
+ 		haslit := false
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			hasbyte = hasbyte || it.N().Op == OARRAYBYTESTR
+-			haslit = haslit || it.N().Op == OLITERAL && len(it.N().Val().U.(string)) != 0
++		for _, n1 := range n.List.Slice() {
++			hasbyte = hasbyte || n1.Op == OARRAYBYTESTR
++			haslit = haslit || n1.Op == OLITERAL && len(n1.Val().U.(string)) != 0
+ 		}
+ 
+ 		if haslit && hasbyte {
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-				if it.N().Op == OARRAYBYTESTR {
+-					it.N().Op = OARRAYBYTESTRTMP
++			for _, n2 := range n.List.Slice() {
++				if n2.Op == OARRAYBYTESTR {
++					n2.Op = OARRAYBYTESTRTMP
+ 				}
+ 			}
+ 		}
+@@ -1103,7 +1100,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		var s []*Node
+ 
+ 		cleantempnopop(mark, order, &s)
+-		setNodeSeq(&n.Right.Ninit, append(s, nodeSeqSlice(n.Right.Ninit)...))
++		n.Right.Ninit.Set(append(s, n.Right.Ninit.Slice()...))
+ 		orderexprinplace(&n.Right, order)
+ 
+ 	case OCALLFUNC,
+@@ -1130,7 +1127,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 
+ 	case OAPPEND:
+ 		setNodeSeq(&n.List, ordercallargs(n.List, order))
+-		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, nodeSeqFirst(n.List)) {
++		if lhs == nil || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.First()) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 9a5dfe946c..631275639b 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -684,7 +684,7 @@ func (p *parser) labeled_stmt(label *Node) *Node {
+ 	label.Name.Defn = ls
+ 	l := []*Node{label}
+ 	if ls != nil {
+-		if ls.Op == OBLOCK && nodeSeqLen(ls.Ninit) == 0 {
++		if ls.Op == OBLOCK && ls.Ninit.Len() == 0 {
+ 			l = append(l, ls.List.Slice()...)
+ 		} else {
+ 			l = append(l, ls)
+@@ -726,7 +726,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 					// type switch - declare variable
+ 					nn := newname(n.Sym)
+ 					declare(nn, dclcontext)
+-					setNodeSeq(&stmt.Rlist, []*Node{nn})
++					stmt.Rlist.Set([]*Node{nn})
+ 
+ 					// keep track of the instances for reporting unused
+ 					nn.Name.Defn = tswitch
+@@ -752,9 +752,9 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			} else {
+ 				n = Nod(OAS2, nil, nil)
+ 				setNodeSeq(&n.List, cases)
+-				setNodeSeq(&n.Rlist, []*Node{rhs})
++				n.Rlist.Set([]*Node{rhs})
+ 			}
+-			setNodeSeq(&stmt.List, []*Node{n})
++			stmt.List.Set([]*Node{n})
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -770,7 +770,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 			// done in casebody()
+ 			markdcl() // matching popdcl in caseblock
+ 			stmt := Nod(OXCASE, nil, nil)
+-			setNodeSeq(&stmt.List, []*Node{colas(cases, list1(rhs), lno)})
++			stmt.List.Set([]*Node{colas(cases, list1(rhs), lno)})
+ 
+ 			p.want(':') // consume ':' after declaring select cases for correct lineno
+ 			return stmt
+@@ -794,7 +794,7 @@ func (p *parser) case_(tswitch *Node) *Node {
+ 				// type switch - declare variable
+ 				nn := newname(n.Sym)
+ 				declare(nn, dclcontext)
+-				setNodeSeq(&stmt.Rlist, []*Node{nn})
++				stmt.Rlist.Set([]*Node{nn})
+ 
+ 				// keep track of the instances for reporting unused
+ 				nn.Name.Defn = tswitch
+@@ -918,7 +918,7 @@ func (p *parser) for_header() *Node {
+ 		}
+ 		h := Nod(OFOR, nil, nil)
+ 		if init != nil {
+-			setNodeSeq(&h.Ninit, []*Node{init})
++			h.Ninit.Set([]*Node{init})
+ 		}
+ 		h.Left = cond
+ 		h.Right = post
+@@ -1022,7 +1022,7 @@ func (p *parser) if_header() *Node {
+ 	init, cond, _ := p.header(false)
+ 	h := Nod(OIF, nil, nil)
+ 	if init != nil {
+-		setNodeSeq(&h.Ninit, []*Node{init})
++		h.Ninit.Set([]*Node{init})
+ 	}
+ 	h.Left = cond
+ 	return h
+@@ -1047,13 +1047,13 @@ func (p *parser) if_stmt() *Node {
+ 
+ 	if p.got(LELSE) {
+ 		if p.tok == LIF {
+-			setNodeSeq(&stmt.Rlist, []*Node{p.if_stmt()})
++			stmt.Rlist.Set([]*Node{p.if_stmt()})
+ 		} else {
+ 			cs := p.compound_stmt(true)
+-			if cs.Op == OBLOCK && nodeSeqLen(cs.Ninit) == 0 {
+-				setNodeSeq(&stmt.Rlist, cs.List)
++			if cs.Op == OBLOCK && cs.Ninit.Len() == 0 {
++				stmt.Rlist.Set(cs.List.Slice())
+ 			} else {
+-				setNodeSeq(&stmt.Rlist, []*Node{cs})
++				stmt.Rlist.Set([]*Node{cs})
+ 			}
+ 		}
+ 	}
+@@ -1553,7 +1553,7 @@ func (p *parser) complitexpr() *Node {
+ 	p.xnest--
+ 	p.want('}')
+ 
+-	setNodeSeq(&n.List, l)
++	n.List.Set(l)
+ 	return n
+ }
+ 
+@@ -1842,7 +1842,7 @@ func (p *parser) interfacetype() *Node {
+ 	p.want('}')
+ 
+ 	t := Nod(OTINTER, nil, nil)
+-	setNodeSeq(&t.List, l)
++	t.List.Set(l)
+ 	return t
+ }
+ 
+@@ -2514,7 +2514,7 @@ func (p *parser) stmt() *Node {
+ 
+ 		stmt := Nod(ORETURN, nil, nil)
+ 		setNodeSeq(&stmt.List, results)
+-		if nodeSeqLen(stmt.List) == 0 && Curfn != nil {
++		if stmt.List.Len() == 0 && Curfn != nil {
+ 			for _, ln := range Curfn.Func.Dcl {
+ 				if ln.Class == PPARAM {
+ 					continue
+@@ -2549,7 +2549,7 @@ func (p *parser) stmt_list() (l *NodeList) {
+ 		if s == missing_stmt {
+ 			break
+ 		}
+-		if s != nil && s.Op == OBLOCK && nodeSeqLen(s.Ninit) == 0 {
++		if s != nil && s.Op == OBLOCK && s.Ninit.Len() == 0 {
+ 			appendNodeSeq(&l, s.List)
+ 		} else {
+ 			appendNodeSeqNode(&l, s)
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index ab08405f42..04afc58750 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -87,11 +87,11 @@ func instrument(fn *Node) {
+ }
+ 
+ func instrumentlist(l Nodes, init *Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++	for i := range l.Slice() {
+ 		var instr Nodes
+-		instrumentnode(it.P(), &instr, 0, 0)
++		instrumentnode(&l.Slice()[i], &instr, 0, 0)
+ 		if init == nil {
+-			it.N().Ninit.AppendNodes(&instr)
++			l.Slice()[i].Ninit.AppendNodes(&instr)
+ 		} else {
+ 			init.AppendNodes(&instr)
+ 		}
+@@ -121,7 +121,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		// nil it out and handle it separately before putting it back.
+ 		l := n.Ninit
+ 
+-		setNodeSeq(&n.Ninit, nil)
++		n.Ninit.Set(nil)
+ 		instrumentlist(l, nil)
+ 		instrumentnode(&n, &l, wr, skip) // recurse with nil n->ninit
+ 		appendinit(&n, l)
+@@ -167,7 +167,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 				out = append(outn.Slice(), it.N())
+ 			}
+ 		}
+-		setNodeSeq(&n.List, out)
++		n.List.Set(out)
+ 		goto ret
+ 
+ 	case ODEFER:
+@@ -595,8 +595,8 @@ func foreachnode(n *Node, f func(*Node, interface{}), c interface{}) {
+ }
+ 
+ func foreachlist(l Nodes, f func(*Node, interface{}), c interface{}) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		foreachnode(it.N(), f, c)
++	for _, n := range l.Slice() {
++		foreachnode(n, f, c)
+ 	}
+ }
+ 
+@@ -619,7 +619,7 @@ func hascallspred(n *Node, c interface{}) {
+ // appendinit is like addinit in subr.go
+ // but appends rather than prepends.
+ func appendinit(np **Node, init Nodes) {
+-	if nodeSeqLen(init) == 0 {
++	if init.Len() == 0 {
+ 		return
+ 	}
+ 
+@@ -635,6 +635,6 @@ func appendinit(np **Node, init Nodes) {
+ 		*np = n
+ 	}
+ 
+-	appendNodeSeq(&n.Ninit, init)
++	n.Ninit.AppendNodes(&init)
+ 	n.Ullman = UINF
+ }
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 43447b4595..841c95b6e7 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -31,11 +31,10 @@ func typecheckrange(n *Node) {
+ 	if t == nil {
+ 		goto out
+ 	}
+-
+ 	// delicate little dance.  see typecheckas2
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		if it.N().Name == nil || it.N().Name.Defn != n {
+-			typecheck(it.P(), Erv|Easgn)
++	for i1, n1 := range n.List.Slice() {
++		if n1.Name == nil || n1.Name.Defn != n {
++			typecheck(&n.List.Slice()[i1], Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -66,7 +65,7 @@ func typecheckrange(n *Node) {
+ 
+ 		t1 = t.Type
+ 		t2 = nil
+-		if nodeSeqLen(n.List) == 2 {
++		if n.List.Len() == 2 {
+ 			toomany = 1
+ 		}
+ 
+@@ -75,17 +74,17 @@ func typecheckrange(n *Node) {
+ 		t2 = runetype
+ 	}
+ 
+-	if nodeSeqLen(n.List) > 2 || toomany != 0 {
++	if n.List.Len() > 2 || toomany != 0 {
+ 		Yyerror("too many variables in range")
+ 	}
+ 
+ 	v1 = nil
+-	if nodeSeqLen(n.List) != 0 {
+-		v1 = nodeSeqFirst(n.List)
++	if n.List.Len() != 0 {
++		v1 = n.List.First()
+ 	}
+ 	v2 = nil
+-	if nodeSeqLen(n.List) > 1 {
+-		v2 = nodeSeqSecond(n.List)
++	if n.List.Len() > 1 {
++		v2 = n.List.Second()
+ 	}
+ 
+ 	// this is not only a optimization but also a requirement in the spec.
+@@ -94,7 +93,7 @@ func typecheckrange(n *Node) {
+ 	// present."
+ 	if isblank(v2) {
+ 		if v1 != nil {
+-			setNodeSeq(&n.List, []*Node{v1})
++			n.List.Set([]*Node{v1})
+ 		}
+ 		v2 = nil
+ 	}
+@@ -120,10 +119,9 @@ func typecheckrange(n *Node) {
+ 	// second half of dance
+ out:
+ 	n.Typecheck = 1
+-
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		if it.N().Typecheck == 0 {
+-			typecheck(it.P(), Erv|Easgn)
++	for i2, n2 := range n.List.Slice() {
++		if n2.Typecheck == 0 {
++			typecheck(&n.List.Slice()[i2], Erv|Easgn)
+ 		}
+ 	}
+ 
+@@ -147,17 +145,17 @@ func walkrange(n *Node) {
+ 	n.Right = nil
+ 
+ 	var v1 *Node
+-	if nodeSeqLen(n.List) != 0 {
+-		v1 = nodeSeqFirst(n.List)
++	if n.List.Len() != 0 {
++		v1 = n.List.First()
+ 	}
+ 	var v2 *Node
+-	if nodeSeqLen(n.List) > 1 && !isblank(nodeSeqSecond(n.List)) {
+-		v2 = nodeSeqSecond(n.List)
++	if n.List.Len() > 1 && !isblank(n.List.Second()) {
++		v2 = n.List.Second()
+ 	}
+ 
+ 	// n->list has no meaning anymore, clear it
+ 	// to avoid erroneous processing by racewalk.
+-	setNodeSeq(&n.List, nil)
++	n.List.Set(nil)
+ 
+ 	var body []*Node
+ 	var init []*Node
+@@ -195,8 +193,8 @@ func walkrange(n *Node) {
+ 			body = []*Node{Nod(OAS, v1, hv1)}
+ 		} else {
+ 			a := Nod(OAS2, nil, nil)
+-			setNodeSeq(&a.List, []*Node{v1, v2})
+-			setNodeSeq(&a.Rlist, []*Node{hv1, Nod(OIND, hp, nil)})
++			a.List.Set([]*Node{v1, v2})
++			a.Rlist.Set([]*Node{hv1, Nod(OIND, hp, nil)})
+ 			body = []*Node{a}
+ 
+ 			// Advance pointer as part of increment.
+@@ -215,7 +213,7 @@ func walkrange(n *Node) {
+ 			tmp.Right.Typecheck = 1
+ 			a = Nod(OAS, hp, tmp)
+ 			typecheck(&a, Etop)
+-			setNodeSeq(&n.Right.Ninit, []*Node{a})
++			n.Right.Ninit.Set([]*Node{a})
+ 		}
+ 
+ 		// orderstmt allocated the iterator for us.
+@@ -250,8 +248,8 @@ func walkrange(n *Node) {
+ 			val := Nod(ODOT, hit, valname)
+ 			val = Nod(OIND, val, nil)
+ 			a := Nod(OAS2, nil, nil)
+-			setNodeSeq(&a.List, []*Node{v1, v2})
+-			setNodeSeq(&a.Rlist, []*Node{key, val})
++			a.List.Set([]*Node{v1, v2})
++			a.Rlist.Set([]*Node{key, val})
+ 			body = []*Node{a}
+ 		}
+ 
+@@ -271,9 +269,9 @@ func walkrange(n *Node) {
+ 		n.Left = Nod(ONE, hb, Nodbool(false))
+ 		a := Nod(OAS2RECV, nil, nil)
+ 		a.Typecheck = 1
+-		setNodeSeq(&a.List, []*Node{hv1, hb})
+-		setNodeSeq(&a.Rlist, []*Node{Nod(ORECV, ha, nil)})
+-		setNodeSeq(&n.Left.Ninit, []*Node{a})
++		a.List.Set([]*Node{hv1, hb})
++		a.Rlist.Set([]*Node{Nod(ORECV, ha, nil)})
++		n.Left.Ninit.Set([]*Node{a})
+ 		if v1 == nil {
+ 			body = nil
+ 		} else {
+@@ -296,13 +294,13 @@ func walkrange(n *Node) {
+ 		} else {
+ 			hv2 = temp(runetype)
+ 			a = Nod(OAS2, nil, nil)
+-			setNodeSeq(&a.List, []*Node{hv1, hv2})
++			a.List.Set([]*Node{hv1, hv2})
+ 			fn := syslook("stringiter2")
+-			setNodeSeq(&a.Rlist, []*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
++			a.Rlist.Set([]*Node{mkcall1(fn, fn.Type.Results(), nil, ha, hv1)})
+ 		}
+ 
+ 		n.Left = Nod(ONE, hv1, Nodintconst(0))
+-		setNodeSeq(&n.Left.Ninit, []*Node{Nod(OAS, ohv1, hv1), a})
++		n.Left.Ninit.Set([]*Node{Nod(OAS, ohv1, hv1), a})
+ 
+ 		body = nil
+ 		if v1 != nil {
+@@ -315,7 +313,7 @@ func walkrange(n *Node) {
+ 
+ 	n.Op = OFOR
+ 	typechecklist(init, Etop)
+-	appendNodeSeq(&n.Ninit, init)
++	n.Ninit.Append(init...)
+ 	typechecklist(n.Left.Ninit.Slice(), Etop)
+ 	typecheck(&n.Left, Erv)
+ 	typecheck(&n.Right, Etop)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 16d7575cf4..91cb086e5e 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -13,28 +13,28 @@ func typecheckselect(sel *Node) {
+ 	lno := setlineno(sel)
+ 	count := 0
+ 	typechecklist(sel.Ninit.Slice(), Etop)
+-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
++	for _, n1 := range sel.List.Slice() {
+ 		count++
+-		ncase = it.N()
++		ncase = n1
+ 		setlineno(ncase)
+ 		if ncase.Op != OXCASE {
+ 			Fatalf("typecheckselect %v", Oconv(ncase.Op, 0))
+ 		}
+ 
+-		if nodeSeqLen(ncase.List) == 0 {
++		if ncase.List.Len() == 0 {
+ 			// default
+ 			if def != nil {
+ 				Yyerror("multiple defaults in select (first at %v)", def.Line())
+ 			} else {
+ 				def = ncase
+ 			}
+-		} else if nodeSeqLen(ncase.List) > 1 {
++		} else if ncase.List.Len() > 1 {
+ 			Yyerror("select cases cannot be lists")
+ 		} else {
+ 			it2 := nodeSeqIterate(ncase.List)
+ 			n = typecheck(it2.P(), Etop)
+ 			ncase.Left = n
+-			setNodeSeq(&ncase.List, nil)
++			ncase.List.Set(nil)
+ 			setlineno(n)
+ 			switch n.Op {
+ 			default:
+@@ -57,16 +57,16 @@ func typecheckselect(sel *Node) {
+ 
+ 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+ 			case OAS2RECV:
+-				if nodeSeqFirst(n.Rlist).Op != ORECV {
++				if n.Rlist.First().Op != ORECV {
+ 					Yyerror("select assignment must have receive on right hand side")
+ 					break
+ 				}
+ 
+ 				n.Op = OSELRECV2
+-				n.Left = nodeSeqFirst(n.List)
+-				setNodeSeq(&n.List, []*Node{nodeSeqSecond(n.List)})
+-				n.Right = nodeSeqFirst(n.Rlist)
+-				setNodeSeq(&n.Rlist, nil)
++				n.Left = n.List.First()
++				n.List.Set([]*Node{n.List.Second()})
++				n.Right = n.Rlist.First()
++				n.Rlist.Set(nil)
+ 
+ 				// convert <-c into OSELRECV(N, <-c)
+ 			case ORECV:
+@@ -88,12 +88,12 @@ func typecheckselect(sel *Node) {
+ }
+ 
+ func walkselect(sel *Node) {
+-	if nodeSeqLen(sel.List) == 0 && sel.Xoffset != 0 {
++	if sel.List.Len() == 0 && sel.Xoffset != 0 {
+ 		Fatalf("double walkselect") // already rewrote
+ 	}
+ 
+ 	lno := setlineno(sel)
+-	i := nodeSeqLen(sel.List)
++	i := sel.List.Len()
+ 
+ 	// optimization: zero-case select
+ 	var init []*Node
+@@ -111,13 +111,13 @@ func walkselect(sel *Node) {
+ 	// TODO(rsc): Reenable optimization once order.go can handle it.
+ 	// golang.org/issue/7672.
+ 	if i == 1 {
+-		cas := nodeSeqFirst(sel.List)
++		cas := sel.List.First()
+ 		setlineno(cas)
+-		l := nodeSeqSlice(cas.Ninit)
++		l := cas.Ninit.Slice()
+ 		if cas.Left != nil { // not default:
+ 			n := cas.Left
+-			l = append(l, nodeSeqSlice(n.Ninit)...)
+-			setNodeSeq(&n.Ninit, nil)
++			l = append(l, n.Ninit.Slice()...)
++			n.Ninit.Set(nil)
+ 			var ch *Node
+ 			switch n.Op {
+ 			default:
+@@ -129,7 +129,7 @@ func walkselect(sel *Node) {
+ 
+ 			case OSELRECV, OSELRECV2:
+ 				ch = n.Right.Left
+-				if n.Op == OSELRECV || nodeSeqLen(n.List) == 0 {
++				if n.Op == OSELRECV || n.List.Len() == 0 {
+ 					if n.Left == nil {
+ 						n = n.Right
+ 					} else {
+@@ -144,8 +144,8 @@ func walkselect(sel *Node) {
+ 				}
+ 
+ 				n.Op = OAS2
+-				setNodeSeq(&n.List, append([]*Node{n.Left}, nodeSeqSlice(n.List)...))
+-				setNodeSeq(&n.Rlist, []*Node{n.Right})
++				n.List.Set(append([]*Node{n.Left}, n.List.Slice()...))
++				n.Rlist.Set([]*Node{n.Right})
+ 				n.Right = nil
+ 				n.Left = nil
+ 				n.Typecheck = 0
+@@ -185,7 +185,7 @@ func walkselect(sel *Node) {
+ 			typecheck(&n.Right, Erv)
+ 
+ 		case OSELRECV, OSELRECV2:
+-			if n.Op == OSELRECV2 && nodeSeqLen(n.List) == 0 {
++			if n.Op == OSELRECV2 && n.List.Len() == 0 {
+ 				n.Op = OSELRECV
+ 			}
+ 			if n.Op == OSELRECV2 {
+@@ -204,21 +204,21 @@ func walkselect(sel *Node) {
+ 	}
+ 
+ 	// optimization: two-case select but one is default: single non-blocking op.
+-	if i == 2 && (nodeSeqFirst(sel.List).Left == nil || nodeSeqSecond(sel.List).Left == nil) {
++	if i == 2 && (sel.List.First().Left == nil || sel.List.Second().Left == nil) {
+ 		var cas *Node
+ 		var dflt *Node
+-		if nodeSeqFirst(sel.List).Left == nil {
+-			cas = nodeSeqSecond(sel.List)
+-			dflt = nodeSeqFirst(sel.List)
++		if sel.List.First().Left == nil {
++			cas = sel.List.Second()
++			dflt = sel.List.First()
+ 		} else {
+-			dflt = nodeSeqSecond(sel.List)
++			dflt = sel.List.Second()
+ 			cas = nodeSeqFirst(sel.List.Slice())
+ 		}
+ 
+ 		n := cas.Left
+ 		setlineno(n)
+ 		r := Nod(OIF, nil, nil)
+-		setNodeSeq(&r.Ninit, cas.Ninit)
++		r.Ninit.Set(cas.Ninit.Slice())
+ 		switch n.Op {
+ 		default:
+ 			Fatalf("select %v", Oconv(n.Op, 0))
+@@ -233,7 +233,7 @@ func walkselect(sel *Node) {
+ 		case OSELRECV:
+ 			r = Nod(OIF, nil, nil)
+ 
+-			setNodeSeq(&r.Ninit, cas.Ninit)
++			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+ 			r.Left = mkcall1(chanfn("selectnbrecv", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, ch)
+ 
+@@ -241,20 +241,20 @@ func walkselect(sel *Node) {
+ 		case OSELRECV2:
+ 			r = Nod(OIF, nil, nil)
+ 
+-			setNodeSeq(&r.Ninit, cas.Ninit)
++			r.Ninit.Set(cas.Ninit.Slice())
+ 			ch := n.Right.Left
+-			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, nodeSeqFirst(n.List), ch)
++			r.Left = mkcall1(chanfn("selectnbrecv2", 2, ch.Type), Types[TBOOL], &r.Ninit, typename(ch.Type), n.Left, n.List.First(), ch)
+ 		}
+ 
+ 		typecheck(&r.Left, Erv)
+ 		r.Nbody.Set(cas.Nbody.Slice())
+-		setNodeSeq(&r.Rlist, append(nodeSeqSlice(dflt.Ninit), dflt.Nbody.Slice()...))
++		r.Rlist.Set(append(dflt.Ninit.Slice(), dflt.Nbody.Slice()...))
+ 		sel.Nbody.Set([]*Node{r})
+ 		goto out
+ 	}
+ 
+-	init = nodeSeqSlice(sel.Ninit)
+-	setNodeSeq(&sel.Ninit, nil)
++	init = sel.Ninit.Slice()
++	sel.Ninit.Set(nil)
+ 
+ 	// generate sel-struct
+ 	setlineno(sel)
+@@ -267,18 +267,16 @@ func walkselect(sel *Node) {
+ 	r = mkcall("newselect", nil, nil, var_, Nodintconst(selv.Type.Width), Nodintconst(sel.Xoffset))
+ 	typecheck(&r, Etop)
+ 	init = append(init, r)
+-
+ 	// register cases
+-	for it := nodeSeqIterate(sel.List); !it.Done(); it.Next() {
+-		cas = it.N()
++	for _, cas = range sel.List.Slice() {
+ 		setlineno(cas)
+ 		n = cas.Left
+ 		r = Nod(OIF, nil, nil)
+-		setNodeSeq(&r.Ninit, cas.Ninit)
+-		setNodeSeq(&cas.Ninit, nil)
++		r.Ninit.Set(cas.Ninit.Slice())
++		cas.Ninit.Set(nil)
+ 		if n != nil {
+-			appendNodeSeq(&r.Ninit, n.Ninit)
+-			setNodeSeq(&n.Ninit, nil)
++			r.Ninit.AppendNodes(&n.Ninit)
++			n.Ninit.Set(nil)
+ 		}
+ 
+ 		if n == nil {
+@@ -299,7 +297,7 @@ func walkselect(sel *Node) {
+ 
+ 				// selectrecv2(sel *byte, hchan *chan any, elem *any, received *bool) (selected bool);
+ 			case OSELRECV2:
+-				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, nodeSeqFirst(n.List))
++				r.Left = mkcall1(chanfn("selectrecv2", 2, n.Right.Left.Type), Types[TBOOL], &r.Ninit, var_, n.Right.Left, n.Left, n.List.First())
+ 			}
+ 		}
+ 
+@@ -318,7 +316,7 @@ func walkselect(sel *Node) {
+ 	sel.Nbody.Set(init)
+ 
+ out:
+-	setNodeSeq(&sel.List, nil)
++	sel.List.Set(nil)
+ 	walkstmtlist(sel.Nbody.Slice())
+ 	lineno = lno
+ }
+@@ -329,41 +327,41 @@ func selecttype(size int32) *Type {
+ 	// and then cache; and also cache Select per size.
+ 	sudog := Nod(OTSTRUCT, nil, nil)
+ 
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
+-	appendNodeSeqNode(&sudog.List, Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("g")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("selectdone")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("next")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("prev")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("nrelease")), typenod(Types[TINT32])))
++	sudog.List.Append(Nod(ODCLFIELD, newname(Lookup("waitlink")), typenod(Ptrto(Types[TUINT8]))))
+ 	typecheck(&sudog, Etype)
+ 	sudog.Type.Noalg = true
+ 	sudog.Type.Local = true
+ 
+ 	scase := Nod(OTSTRUCT, nil, nil)
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&scase.List, Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("elem")), typenod(Ptrto(Types[TUINT8]))))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("chan")), typenod(Ptrto(Types[TUINT8]))))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("pc")), typenod(Types[TUINTPTR])))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("kind")), typenod(Types[TUINT16])))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("so")), typenod(Types[TUINT16])))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("receivedp")), typenod(Ptrto(Types[TUINT8]))))
++	scase.List.Append(Nod(ODCLFIELD, newname(Lookup("releasetime")), typenod(Types[TUINT64])))
+ 	typecheck(&scase, Etype)
+ 	scase.Type.Noalg = true
+ 	scase.Type.Local = true
+ 
+ 	sel := Nod(OTSTRUCT, nil, nil)
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("tcase")), typenod(Types[TUINT16])))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("ncase")), typenod(Types[TUINT16])))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorder")), typenod(Ptrto(Types[TUINT8]))))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorder")), typenod(Ptrto(Types[TUINT8]))))
+ 	arr := Nod(OTARRAY, Nodintconst(int64(size)), scase)
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("scase")), arr))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("scase")), arr))
+ 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Ptrto(Types[TUINT8])))
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("lockorderarr")), arr))
+ 	arr = Nod(OTARRAY, Nodintconst(int64(size)), typenod(Types[TUINT16]))
+-	appendNodeSeqNode(&sel.List, Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
++	sel.List.Append(Nod(ODCLFIELD, newname(Lookup("pollorderarr")), arr))
+ 	typecheck(&sel, Etype)
+ 	sel.Type.Noalg = true
+ 	sel.Type.Local = true
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index a0ec4cc807..4b730015d9 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -30,8 +30,8 @@ func init1(n *Node, out *[]*Node) {
+ 	}
+ 	init1(n.Left, out)
+ 	init1(n.Right, out)
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		init1(it.N(), out)
++	for _, n1 := range n.List.Slice() {
++		init1(n1, out)
+ 	}
+ 
+ 	if n.Left != nil && n.Type != nil && n.Left.Op == OTYPE && n.Class == PFUNC {
+@@ -128,8 +128,8 @@ func init1(n *Node, out *[]*Node) {
+ 				break
+ 			}
+ 			defn.Initorder = InitPending
+-			for it := nodeSeqIterate(defn.Rlist); !it.Done(); it.Next() {
+-				init1(it.N(), out)
++			for _, n2 := range defn.Rlist.Slice() {
++				init1(n2, out)
+ 			}
+ 			if Debug['%'] != 0 {
+ 				Dump("nonstatic", defn)
+@@ -192,7 +192,7 @@ func init2(n *Node, out *[]*Node) {
+ 		return
+ 	}
+ 
+-	if n.Op == ONAME && nodeSeqLen(n.Ninit) != 0 {
++	if n.Op == ONAME && n.Ninit.Len() != 0 {
+ 		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
+ 	}
+ 
+@@ -213,23 +213,21 @@ func init2(n *Node, out *[]*Node) {
+ }
+ 
+ func init2list(l Nodes, out *[]*Node) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		init2(it.N(), out)
++	for _, n := range l.Slice() {
++		init2(n, out)
+ 	}
+ }
+ 
+ func initreorder(l []*Node, out *[]*Node) {
+ 	var n *Node
+-
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		n = it.N()
++	for _, n = range l {
+ 		switch n.Op {
+ 		case ODCLFUNC, ODCLCONST, ODCLTYPE:
+ 			continue
+ 		}
+ 
+ 		initreorder(n.Ninit.Slice(), out)
+-		setNodeSeq(&n.Ninit, nil)
++		n.Ninit.Set(nil)
+ 		init1(n, out)
+ 	}
+ }
+@@ -558,9 +556,8 @@ func getdyn(n *Node, top int) int {
+ 	case OSTRUCTLIT:
+ 		break
+ 	}
+-
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		value := it.N().Right
++	for _, n1 := range n.List.Slice() {
++		value := n1.Right
+ 		mode |= getdyn(value, 0)
+ 		if mode == MODEDYNAM|MODECONST {
+ 			break
+@@ -571,8 +568,7 @@ func getdyn(n *Node, top int) int {
+ }
+ 
+ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		r := it.N()
++	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("structlit: rhs not OKEY: %v", r)
+ 		}
+@@ -636,8 +632,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ }
+ 
+ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		r := it.N()
++	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("arraylit: rhs not OKEY: %v", r)
+ 		}
+@@ -784,7 +779,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a = Nod(OADDR, a, nil)
+ 	} else {
+ 		a = Nod(ONEW, nil, nil)
+-		setNodeSeq(&a.List, []*Node{typenod(t)})
++		a.List.Set([]*Node{typenod(t)})
+ 	}
+ 
+ 	a = Nod(OAS, vauto, a)
+@@ -809,10 +804,8 @@ func slicelit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	orderstmtinplace(&a)
+ 	walkstmt(&a)
+ 	init.Append(a)
+-
+ 	// put dynamics into slice (6)
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		r := it.N()
++	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("slicelit: rhs not OKEY: %v", r)
+ 		}
+@@ -858,13 +851,12 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 	nerr := nerrors
+ 
+ 	a := Nod(OMAKE, nil, nil)
+-	setNodeSeq(&a.List, []*Node{typenod(n.Type)})
++	a.List.Set([]*Node{typenod(n.Type)})
+ 	litas(var_, a, init)
+ 
+ 	// count the initializers
+ 	b := 0
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		r := it.N()
++	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+@@ -907,9 +899,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		vstat := staticname(tarr, ctxt)
+ 
+ 		b := int64(0)
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			r := it.N()
+-
++		for _, r := range n.List.Slice() {
+ 			if r.Op != OKEY {
+ 				Fatalf("maplit: rhs not OKEY: %v", r)
+ 			}
+@@ -965,7 +955,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		a = Nod(OFOR, nil, nil)
+ 		a.Nbody.Set([]*Node{r})
+ 
+-		setNodeSeq(&a.Ninit, []*Node{Nod(OAS, index, Nodintconst(0))})
++		a.Ninit.Set([]*Node{Nod(OAS, index, Nodintconst(0))})
+ 		a.Left = Nod(OLT, index, Nodintconst(tarr.Bound))
+ 		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+@@ -976,9 +966,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 	// put in dynamic entries one-at-a-time
+ 	var key, val *Node
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		r := it.N()
+-
++	for _, r := range n.List.Slice() {
+ 		if r.Op != OKEY {
+ 			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+@@ -1065,7 +1053,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 			Fatalf("anylit: not struct")
+ 		}
+ 
+-		if simplename(var_) && nodeSeqLen(n.List) > 4 {
++		if simplename(var_) && n.List.Len() > 4 {
+ 			if ctxt == 0 {
+ 				// lay out static data
+ 				vstat := staticname(t, ctxt)
+@@ -1091,7 +1079,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		}
+ 
+ 		// initialize of not completely specified
+-		if simplename(var_) || nodeSeqLen(n.List) < structcount(t) {
++		if simplename(var_) || n.List.Len() < structcount(t) {
+ 			a := Nod(OAS, var_, nil)
+ 			typecheck(&a, Etop)
+ 			walkexpr(&a, init)
+@@ -1109,7 +1097,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 			break
+ 		}
+ 
+-		if simplename(var_) && nodeSeqLen(n.List) > 4 {
++		if simplename(var_) && n.List.Len() > 4 {
+ 			if ctxt == 0 {
+ 				// lay out static data
+ 				vstat := staticname(t, ctxt)
+@@ -1135,7 +1123,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 		}
+ 
+ 		// initialize of not completely specified
+-		if simplename(var_) || int64(nodeSeqLen(n.List)) < t.Bound {
++		if simplename(var_) || int64(n.List.Len()) < t.Bound {
+ 			a := Nod(OAS, var_, nil)
+ 			typecheck(&a, Etop)
+ 			walkexpr(&a, init)
+@@ -1257,8 +1245,7 @@ func initplan(n *Node) {
+ 		Fatalf("initplan")
+ 
+ 	case OARRAYLIT:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			a := it.N()
++		for _, a := range n.List.Slice() {
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatalf("initplan arraylit")
+ 			}
+@@ -1266,8 +1253,7 @@ func initplan(n *Node) {
+ 		}
+ 
+ 	case OSTRUCTLIT:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			a := it.N()
++		for _, a := range n.List.Slice() {
+ 			if a.Op != OKEY || a.Left.Type == nil {
+ 				Fatalf("initplan structlit")
+ 			}
+@@ -1275,8 +1261,7 @@ func initplan(n *Node) {
+ 		}
+ 
+ 	case OMAPLIT:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			a := it.N()
++		for _, a := range n.List.Slice() {
+ 			if a.Op != OKEY {
+ 				Fatalf("initplan maplit")
+ 			}
+@@ -1351,8 +1336,8 @@ func iszero(n *Node) bool {
+ 
+ 		// fall through
+ 	case OSTRUCTLIT:
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if !iszero(it.N().Right) {
++		for _, n1 := range n.List.Slice() {
++			if !iszero(n1.Right) {
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8027a90f5e..e124d02b61 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -510,8 +510,8 @@ func (s *state) stmts(a Nodes) {
+ 
+ // ssaStmtList converts the statement n to SSA and adds it to s.
+ func (s *state) stmtList(l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		s.stmt(it.N())
++	for _, n := range l.Slice() {
++		s.stmt(n)
+ 	}
+ }
+ 
+@@ -559,9 +559,9 @@ func (s *state) stmt(n *Node) {
+ 		s.call(n.Left, callGo)
+ 
+ 	case OAS2DOTTYPE:
+-		res, resok := s.dottype(nodeSeqFirst(n.Rlist), true)
+-		s.assign(nodeSeqFirst(n.List), res, needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)), false, n.Lineno)
+-		s.assign(nodeSeqSecond(n.List), resok, false, false, n.Lineno)
++		res, resok := s.dottype(n.Rlist.First(), true)
++		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), false, n.Lineno)
++		s.assign(n.List.Second(), resok, false, false, n.Lineno)
+ 		return
+ 
+ 	case ODCL:
+@@ -702,7 +702,7 @@ func (s *state) stmt(n *Node) {
+ 		bThen := s.f.NewBlock(ssa.BlockPlain)
+ 		bEnd := s.f.NewBlock(ssa.BlockPlain)
+ 		var bElse *ssa.Block
+-		if nodeSeqLen(n.Rlist) != 0 {
++		if n.Rlist.Len() != 0 {
+ 			bElse = s.f.NewBlock(ssa.BlockPlain)
+ 			s.condBranch(n.Left, bThen, bElse, n.Likely)
+ 		} else {
+@@ -715,7 +715,7 @@ func (s *state) stmt(n *Node) {
+ 			b.AddEdgeTo(bEnd)
+ 		}
+ 
+-		if nodeSeqLen(n.Rlist) != 0 {
++		if n.Rlist.Len() != 0 {
+ 			s.startBlock(bElse)
+ 			s.stmtList(n.Rlist)
+ 			if b := s.endBlock(); b != nil {
+@@ -2025,14 +2025,14 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		pt := Ptrto(et)
+ 
+ 		// Evaluate slice
+-		slice := s.expr(nodeSeqFirst(n.List))
++		slice := s.expr(n.List.First())
+ 
+ 		// Allocate new blocks
+ 		grow := s.f.NewBlock(ssa.BlockPlain)
+ 		assign := s.f.NewBlock(ssa.BlockPlain)
+ 
+ 		// Decide if we need to grow
+-		nargs := int64(nodeSeqLen(n.List) - 1)
++		nargs := int64(n.List.Len() - 1)
+ 		p := s.newValue1(ssa.OpSlicePtr, pt, slice)
+ 		l := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+ 		c := s.newValue1(ssa.OpSliceCap, Types[TINT], slice)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4d4be8462d..b2647175cb 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -536,7 +536,7 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		m.Orig = m
+ 		m.Left = treecopy(n.Left, lineno)
+ 		m.Right = treecopy(n.Right, lineno)
+-		setNodeSeq(&m.List, listtreecopy(n.List.Slice(), lineno))
++		m.List.Set(listtreecopy(n.List.Slice(), lineno))
+ 		if lineno != 0 {
+ 			m.Lineno = lineno
+ 		}
+@@ -1379,7 +1379,7 @@ func ullmancalc(n *Node) {
+ 
+ 	var ul int
+ 	var ur int
+-	if nodeSeqLen(n.Ninit) != 0 {
++	if n.Ninit.Len() != 0 {
+ 		ul = UINF
+ 		goto out
+ 	}
+@@ -1497,7 +1497,7 @@ func safeexpr(n *Node, init *Nodes) *Node {
+ 		return nil
+ 	}
+ 
+-	if nodeSeqLen(n.Ninit) != 0 {
++	if n.Ninit.Len() != 0 {
+ 		walkstmtlist(n.Ninit.Slice())
+ 		init.AppendNodes(&n.Ninit)
+ 	}
+@@ -1968,8 +1968,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		l = append(l, pad)
+ 	}
+ 
+-	setNodeSeq(&t.List, append(l, in...))
+-	setNodeSeq(&t.Rlist, out)
++	t.List.Set(append(l, in...))
++	t.Rlist.Set(out)
+ 
+ 	fn := Nod(ODCLFUNC, nil, nil)
+ 	fn.Func.Nname = newname(newnam)
+@@ -2008,7 +2008,7 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 		v.U = method.Sym.Name
+ 		l = append(l, nodlit(v)) // method name
+ 		call := Nod(OCALL, syslook("panicwrap"), nil)
+-		setNodeSeq(&call.List, l)
++		call.List.Set(l)
+ 		n.Nbody.Set([]*Node{call})
+ 		fn.Nbody.Append(n)
+ 	}
+@@ -2031,11 +2031,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 	} else {
+ 		fn.Func.Wrapper = true // ignore frame for panic+recover matching
+ 		call := Nod(OCALL, dot, nil)
+-		setNodeSeq(&call.List, args)
++		call.List.Set(args)
+ 		call.Isddd = isddd
+ 		if method.Type.Outtuple > 0 {
+ 			n := Nod(ORETURN, nil, nil)
+-			setNodeSeq(&n.List, []*Node{call})
++			n.List.Set([]*Node{call})
+ 			call = n
+ 		}
+ 
+@@ -2069,10 +2069,10 @@ func hashmem(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := Nod(OTFUNC, nil, nil)
+-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	appendNodeSeqNode(&tfn.List, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+-	appendNodeSeqNode(&tfn.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.List.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
++	tfn.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	typecheck(&tfn, Etype)
+ 	n.Type = tfn.Type
+ 	return n
+@@ -2218,15 +2218,15 @@ func Simsimtype(t *Type) EType {
+ 
+ func listtreecopy(l []*Node, lineno int32) []*Node {
+ 	var out []*Node
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		out = append(out, treecopy(it.N(), lineno))
++	for _, n := range l {
++		out = append(out, treecopy(n, lineno))
+ 	}
+ 	return out
+ }
+ 
+ func liststmt(l []*Node) *Node {
+ 	n := Nod(OBLOCK, nil, nil)
+-	setNodeSeq(&n.List, l)
++	n.List.Set(l)
+ 	if nodeSeqLen(l) != 0 {
+ 		n.Lineno = nodeSeqFirst(l).Lineno
+ 	}
+@@ -2573,7 +2573,7 @@ func addinit(np **Node, init []*Node) {
+ 		*np = n
+ 	}
+ 
+-	setNodeSeq(&n.Ninit, append(nodeSeqSlice(init), nodeSeqSlice(n.Ninit)...))
++	n.Ninit.Set(append(nodeSeqSlice(init), n.Ninit.Slice()...))
+ 	n.Ullman = UINF
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 070f2cada1..d54e4d61aa 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -105,10 +105,9 @@ func typecheckswitch(n *Node) {
+ 	n.Type = t
+ 
+ 	var def *Node
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		ncase := it.N()
++	for _, ncase := range n.List.Slice() {
+ 		setlineno(n)
+-		if nodeSeqLen(ncase.List) == 0 {
++		if ncase.List.Len() == 0 {
+ 			// default
+ 			if def != nil {
+ 				Yyerror("multiple defaults in switch (first at %v)", def.Line())
+@@ -116,30 +115,30 @@ func typecheckswitch(n *Node) {
+ 				def = ncase
+ 			}
+ 		} else {
+-			for it2 := nodeSeqIterate(ncase.List); !it2.Done(); it2.Next() {
+-				setlineno(it2.N())
+-				typecheck(it2.P(), Erv|Etype)
+-				if it2.N().Type == nil || t == nil {
++			for i1, n1 := range ncase.List.Slice() {
++				setlineno(n1)
++				typecheck(&ncase.List.Slice()[i1], Erv|Etype)
++				if ncase.List.Slice()[i1].Type == nil || t == nil {
+ 					continue
+ 				}
+ 				setlineno(ncase)
+ 				switch top {
+ 				// expression switch
+ 				case Erv:
+-					defaultlit(it2.P(), t)
++					defaultlit(&ncase.List.Slice()[i1], t)
+ 					switch {
+-					case it2.N().Op == OTYPE:
+-						Yyerror("type %v is not an expression", it2.N().Type)
+-					case it2.N().Type != nil && assignop(it2.N().Type, t, nil) == 0 && assignop(t, it2.N().Type, nil) == 0:
++					case ncase.List.Slice()[i1].Op == OTYPE:
++						Yyerror("type %v is not an expression", ncase.List.Slice()[i1].Type)
++					case ncase.List.Slice()[i1].Type != nil && assignop(ncase.List.Slice()[i1].Type, t, nil) == 0 && assignop(t, ncase.List.Slice()[i1].Type, nil) == 0:
+ 						if n.Left != nil {
+-							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", it2.N(), n.Left, it2.N().Type, t)
++							Yyerror("invalid case %v in switch on %v (mismatched types %v and %v)", ncase.List.Slice()[i1], n.Left, ncase.List.Slice()[i1].Type, t)
+ 						} else {
+-							Yyerror("invalid case %v in switch (mismatched types %v and bool)", it2.N(), it2.N().Type)
++							Yyerror("invalid case %v in switch (mismatched types %v and bool)", ncase.List.Slice()[i1], ncase.List.Slice()[i1].Type)
+ 						}
+-					case nilonly != "" && !isnil(it2.N()):
+-						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", it2.N(), nilonly, n.Left)
+-					case Isinter(t) && !Isinter(it2.N().Type) && algtype1(it2.N().Type, nil) == ANOEQ:
+-						Yyerror("invalid case %v in switch (incomparable type)", Nconv(it2.N(), obj.FmtLong))
++					case nilonly != "" && !isnil(ncase.List.Slice()[i1]):
++						Yyerror("invalid case %v in switch (can only compare %s %v to nil)", ncase.List.Slice()[i1], nilonly, n.Left)
++					case Isinter(t) && !Isinter(ncase.List.Slice()[i1].Type) && algtype1(ncase.List.Slice()[i1].Type, nil) == ANOEQ:
++						Yyerror("invalid case %v in switch (incomparable type)", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
+ 					}
+ 
+ 				// type switch
+@@ -147,16 +146,16 @@ func typecheckswitch(n *Node) {
+ 					var missing, have *Type
+ 					var ptr int
+ 					switch {
+-					case it2.N().Op == OLITERAL && Istype(it2.N().Type, TNIL):
+-					case it2.N().Op != OTYPE && it2.N().Type != nil: // should this be ||?
+-						Yyerror("%v is not a type", Nconv(it2.N(), obj.FmtLong))
++					case ncase.List.Slice()[i1].Op == OLITERAL && Istype(ncase.List.Slice()[i1].Type, TNIL):
++					case ncase.List.Slice()[i1].Op != OTYPE && ncase.List.Slice()[i1].Type != nil: // should this be ||?
++						Yyerror("%v is not a type", Nconv(ncase.List.Slice()[i1], obj.FmtLong))
+ 						// reset to original type
+-						*it2.P() = n.Left.Right
+-					case it2.N().Type.Etype != TINTER && t.Etype == TINTER && !implements(it2.N().Type, t, &missing, &have, &ptr):
++						ncase.List.Slice()[i1] = n.Left.Right
++					case ncase.List.Slice()[i1].Type.Etype != TINTER && t.Etype == TINTER && !implements(ncase.List.Slice()[i1].Type, t, &missing, &have, &ptr):
+ 						if have != nil && !missing.Broke && !have.Broke {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), it2.N().Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (wrong type for %v method)\n\thave %v%v\n\twant %v%v", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym, have.Sym, Tconv(have.Type, obj.FmtShort), missing.Sym, Tconv(missing.Type, obj.FmtShort))
+ 						} else if !missing.Broke {
+-							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), it2.N().Type, missing.Sym)
++							Yyerror("impossible type switch case: %v cannot have dynamic type %v"+" (missing %v method)", Nconv(n.Left.Right, obj.FmtLong), ncase.List.Slice()[i1].Type, missing.Sym)
+ 						}
+ 					}
+ 				}
+@@ -165,11 +164,11 @@ func typecheckswitch(n *Node) {
+ 
+ 		if top == Etype && n.Type != nil {
+ 			ll := ncase.List
+-			if nodeSeqLen(ncase.Rlist) != 0 {
+-				nvar := nodeSeqFirst(ncase.Rlist)
+-				if nodeSeqLen(ll) == 1 && nodeSeqFirst(ll).Type != nil && !Istype(nodeSeqFirst(ll).Type, TNIL) {
++			if ncase.Rlist.Len() != 0 {
++				nvar := ncase.Rlist.First()
++				if ll.Len() == 1 && ll.First().Type != nil && !Istype(ll.First().Type, TNIL) {
+ 					// single entry type switch
+-					nvar.Name.Param.Ntype = typenod(nodeSeqFirst(ll).Type)
++					nvar.Name.Param.Ntype = typenod(ll.First().Type)
+ 				} else {
+ 					// multiple entry type switch or default
+ 					nvar.Name.Param.Ntype = typenod(n.Type)
+@@ -244,7 +243,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 
+ 	// enumerate the cases, and lop off the default case
+ 	cc := caseClauses(sw, s.kind)
+-	setNodeSeq(&sw.List, nil)
++	sw.List.Set(nil)
+ 	var def *Node
+ 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
+ 		def = cc[0].node.Right
+@@ -326,7 +325,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 	}
+ 	typecheck(&a.Left, Erv)
+ 	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
+-	setNodeSeq(&a.Rlist, []*Node{s.walkCases(cc[half:])})
++	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
+ 	return a
+ }
+ 
+@@ -334,7 +333,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ // It makes labels between cases and statements
+ // and deals with fallthrough, break, and unreachable statements.
+ func casebody(sw *Node, typeswvar *Node) {
+-	if nodeSeqLen(sw.List) == 0 {
++	if sw.List.Len() == 0 {
+ 		return
+ 	}
+ 
+@@ -352,10 +351,10 @@ func casebody(sw *Node, typeswvar *Node) {
+ 			Fatalf("casebody %v", Oconv(n.Op, 0))
+ 		}
+ 		n.Op = OCASE
+-		needvar := nodeSeqLen(n.List) != 1 || nodeSeqFirst(n.List).Op == OLITERAL
++		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
+ 
+ 		jmp := Nod(OGOTO, newCaseLabel(), nil)
+-		if nodeSeqLen(n.List) == 0 {
++		if n.List.Len() == 0 {
+ 			if def != nil {
+ 				Yyerror("more than one default case")
+ 			}
+@@ -364,24 +363,24 @@ func casebody(sw *Node, typeswvar *Node) {
+ 			def = n
+ 		}
+ 
+-		if nodeSeqLen(n.List) == 1 {
++		if n.List.Len() == 1 {
+ 			// one case -- reuse OCASE node
+-			n.Left = nodeSeqFirst(n.List)
++			n.Left = n.List.First()
+ 			n.Right = jmp
+-			setNodeSeq(&n.List, nil)
++			n.List.Set(nil)
+ 			cas = append(cas, n)
+ 		} else {
+ 			// expand multi-valued cases
+-			for lcit := nodeSeqIterate(n.List); !lcit.Done(); lcit.Next() {
+-				cas = append(cas, Nod(OCASE, lcit.N(), jmp))
++			for _, n1 := range n.List.Slice() {
++				cas = append(cas, Nod(OCASE, n1, jmp))
+ 			}
+ 		}
+ 
+ 		stat = append(stat, Nod(OLABEL, jmp.Left, nil))
+-		if typeswvar != nil && needvar && nodeSeqLen(n.Rlist) != 0 {
++		if typeswvar != nil && needvar && n.Rlist.Len() != 0 {
+ 			l := []*Node{
+-				Nod(ODCL, nodeSeqFirst(n.Rlist), nil),
+-				Nod(OAS, nodeSeqFirst(n.Rlist), typeswvar),
++				Nod(ODCL, n.Rlist.First(), nil),
++				Nod(OAS, n.Rlist.First(), typeswvar),
+ 			}
+ 			typecheckslice(l, Etop)
+ 			stat = append(stat, l...)
+@@ -412,7 +411,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		cas = append(cas, def)
+ 	}
+ 
+-	setNodeSeq(&sw.List, cas)
++	sw.List.Set(cas)
+ 	sw.Nbody.Set(stat)
+ 	lineno = lno
+ }
+@@ -432,8 +431,7 @@ func newCaseLabel() *Node {
+ // Kind is the kind of switch statement.
+ func caseClauses(sw *Node, kind int) []*caseClause {
+ 	var cc []*caseClause
+-	for it := nodeSeqIterate(sw.List); !it.Done(); it.Next() {
+-		n := it.N()
++	for _, n := range sw.List.Slice() {
+ 		c := new(caseClause)
+ 		cc = append(cc, c)
+ 		c.ordinal = len(cc)
+@@ -518,7 +516,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	sw.Left = nil
+ 
+ 	if cond == nil {
+-		setNodeSeq(&sw.List, nil)
++		sw.List.Set(nil)
+ 		return
+ 	}
+ 	if cond.Right == nil {
+@@ -552,7 +550,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	casebody(sw, s.facename)
+ 
+ 	cc := caseClauses(sw, switchKindType)
+-	setNodeSeq(&sw.List, nil)
++	sw.List.Set(nil)
+ 	var def *Node
+ 	if len(cc) > 0 && cc[0].typ == caseKindDefault {
+ 		def = cc[0].node.Right
+@@ -588,7 +586,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		i.Nbody.Set([]*Node{Nod(OGOTO, lbl, nil)})
+ 		// Wrap default case with label.
+ 		blk := Nod(OBLOCK, nil, nil)
+-		setNodeSeq(&blk.List, []*Node{Nod(OLABEL, lbl, nil), def})
++		blk.List.Set([]*Node{Nod(OLABEL, lbl, nil), def})
+ 		def = blk
+ 	}
+ 	typecheck(&i.Left, Erv)
+@@ -669,7 +667,7 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	if nerrors == 0 {
+ 		cas = append(cas, def)
+ 		sw.Nbody.Set(append(cas, sw.Nbody.Slice()...))
+-		setNodeSeq(&sw.List, nil)
++		sw.List.Set(nil)
+ 		walkstmtlist(sw.Nbody.Slice())
+ 	}
+ }
+@@ -679,11 +677,11 @@ func (s *typeSwitch) walk(sw *Node) {
+ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	var name *Node
+ 	var init []*Node
+-	if nodeSeqLen(t.Rlist) == 0 {
++	if t.Rlist.Len() == 0 {
+ 		name = nblank
+ 		typecheck(&nblank, Erv|Easgn)
+ 	} else {
+-		name = nodeSeqFirst(t.Rlist)
++		name = t.Rlist.First()
+ 		init = []*Node{Nod(ODCL, name, nil)}
+ 		a := Nod(OAS, name, nil)
+ 		typecheck(&a, Etop)
+@@ -691,10 +689,10 @@ func (s *typeSwitch) typeone(t *Node) *Node {
+ 	}
+ 
+ 	a := Nod(OAS2, nil, nil)
+-	setNodeSeq(&a.List, []*Node{name, s.okname}) // name, ok =
++	a.List.Set([]*Node{name, s.okname}) // name, ok =
+ 	b := Nod(ODOTTYPE, s.facename, nil)
+ 	b.Type = t.Left.Type // interface.(type)
+-	setNodeSeq(&a.Rlist, []*Node{b})
++	a.Rlist.Set([]*Node{b})
+ 	typecheck(&a, Etop)
+ 	init = append(init, a)
+ 
+@@ -729,7 +727,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 	a.Left = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+ 	typecheck(&a.Left, Erv)
+ 	a.Nbody.Set([]*Node{s.walkCases(cc[:half])})
+-	setNodeSeq(&a.Rlist, []*Node{s.walkCases(cc[half:])})
++	a.Rlist.Set([]*Node{s.walkCases(cc[half:])})
+ 	return a
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 6ac1f29b82..59748ea1fd 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -429,6 +429,26 @@ func (n *Nodes) Slice() []*Node {
+ 	return *n.slice
+ }
+ 
++// Len returns the number of entries in Nodes.
++func (n *Nodes) Len() int {
++	if n.slice == nil {
++		return 0
++	}
++	return len(*n.slice)
++}
++
++// First returns the first element of Nodes.
++// It panics if Nodes has no elements.
++func (n *Nodes) First() *Node {
++	return (*n.slice)[0]
++}
++
++// Second returns the second element of Nodes.
++// It panics if Nodes has fewer than two elements.
++func (n *Nodes) Second() *Node {
++	return (*n.slice)[1]
++}
++
+ // NodeList returns the entries in Nodes as a NodeList.
+ // Changes to the NodeList entries (as in l.N = n) will *not* be
+ // reflected in the Nodes.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 85605dc4ae..e1840ee89e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -35,8 +35,8 @@ func resolve(n *Node) *Node {
+ }
+ 
+ func typechecklist(l []*Node, top int) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		typecheck(it.P(), top)
++	for i := range l {
++		typecheck(&l[i], top)
+ 	}
+ }
+ 
+@@ -221,8 +221,8 @@ func callrecv(n *Node) bool {
+ }
+ 
+ func callrecvlist(l Nodes) bool {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		if callrecv(it.N()) {
++	for _, n := range l.Slice() {
++		if callrecv(n) {
+ 			return true
+ 		}
+ 	}
+@@ -431,7 +431,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return
+ 		}
+-		setNodeSeq(&n.List, nil)
++		n.List.Set(nil)
+ 
+ 	case OTINTER:
+ 		ok |= Etype
+@@ -704,14 +704,14 @@ OpSwitch:
+ 				n.Op = OADDSTR
+ 
+ 				if l.Op == OADDSTR {
+-					setNodeSeq(&n.List, l.List)
++					n.List.Set(l.List.Slice())
+ 				} else {
+-					setNodeSeq(&n.List, []*Node{l})
++					n.List.Set([]*Node{l})
+ 				}
+ 				if r.Op == OADDSTR {
+-					appendNodeSeq(&n.List, r.List)
++					n.List.AppendNodes(&r.List)
+ 				} else {
+-					appendNodeSeqNode(&n.List, r)
++					n.List.Append(r)
+ 				}
+ 				n.Left = nil
+ 				n.Right = nil
+@@ -1288,7 +1288,7 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		if nodeSeqLen(n.List) == 1 && !n.Isddd {
++		if n.List.Len() == 1 && !n.Isddd {
+ 			it := nodeSeqIterate(n.List)
+ 			typecheck(it.P(), Erv|Efnstruct)
+ 		} else {
+@@ -1446,22 +1446,22 @@ OpSwitch:
+ 		ok |= Erv
+ 		var r *Node
+ 		var l *Node
+-		if nodeSeqLen(n.List) == 1 {
++		if n.List.Len() == 1 {
+ 			typechecklist(n.List.Slice(), Efnstruct)
+-			if nodeSeqFirst(n.List).Op != OCALLFUNC && nodeSeqFirst(n.List).Op != OCALLMETH {
++			if n.List.First().Op != OCALLFUNC && n.List.First().Op != OCALLMETH {
+ 				Yyerror("invalid operation: complex expects two arguments")
+ 				n.Type = nil
+ 				return
+ 			}
+ 
+-			t := nodeSeqFirst(n.List).Left.Type
++			t := n.List.First().Left.Type
+ 			if t.Outtuple != 2 {
+-				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", nodeSeqFirst(n.List), t.Outtuple)
++				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Outtuple)
+ 				n.Type = nil
+ 				return
+ 			}
+ 
+-			t = nodeSeqFirst(n.List).Type.Type
++			t = n.List.First().Type.Type
+ 			l = t.Nname
+ 			r = t.Down.Nname
+ 		} else {
+@@ -1548,19 +1548,19 @@ OpSwitch:
+ 
+ 	case ODELETE:
+ 		args := n.List
+-		if nodeSeqLen(args) == 0 {
++		if args.Len() == 0 {
+ 			Yyerror("missing arguments to delete")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		if nodeSeqLen(args) == 1 {
++		if args.Len() == 1 {
+ 			Yyerror("missing second (key) argument to delete")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		if nodeSeqLen(args) != 2 {
++		if args.Len() != 2 {
+ 			Yyerror("too many arguments to delete")
+ 			n.Type = nil
+ 			return
+@@ -1568,8 +1568,8 @@ OpSwitch:
+ 
+ 		ok |= Etop
+ 		typechecklist(args.Slice(), Erv)
+-		l := nodeSeqFirst(args)
+-		r := nodeSeqSecond(args)
++		l := args.First()
++		r := args.Second()
+ 		if l.Type != nil && l.Type.Etype != TMAP {
+ 			Yyerror("first argument to delete must be map; have %v", Tconv(l.Type, obj.FmtLong))
+ 			n.Type = nil
+@@ -1584,20 +1584,20 @@ OpSwitch:
+ 	case OAPPEND:
+ 		ok |= Erv
+ 		args := n.List
+-		if nodeSeqLen(args) == 0 {
++		if args.Len() == 0 {
+ 			Yyerror("missing arguments to append")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		if nodeSeqLen(args) == 1 && !n.Isddd {
++		if args.Len() == 1 && !n.Isddd {
+ 			it := nodeSeqIterate(args)
+ 			typecheck(it.P(), Erv|Efnstruct)
+ 		} else {
+ 			typechecklist(args.Slice(), Erv)
+ 		}
+ 
+-		t := nodeSeqFirst(args).Type
++		t := args.First().Type
+ 		if t == nil {
+ 			n.Type = nil
+ 			return
+@@ -1612,7 +1612,7 @@ OpSwitch:
+ 
+ 		n.Type = t
+ 		if !Isslice(t) {
+-			if Isconst(nodeSeqFirst(args), CTNIL) {
++			if Isconst(args.First(), CTNIL) {
+ 				Yyerror("first argument to append must be typed slice; have untyped nil")
+ 				n.Type = nil
+ 				return
+@@ -1624,19 +1624,19 @@ OpSwitch:
+ 		}
+ 
+ 		if n.Isddd {
+-			if nodeSeqLen(args) == 1 {
++			if args.Len() == 1 {
+ 				Yyerror("cannot use ... on first argument to append")
+ 				n.Type = nil
+ 				return
+ 			}
+ 
+-			if nodeSeqLen(args) != 2 {
++			if args.Len() != 2 {
+ 				Yyerror("too many arguments to append")
+ 				n.Type = nil
+ 				return
+ 			}
+ 
+-			if Istype(t.Type, TUINT8) && Istype(nodeSeqSecond(args).Type, TSTRING) {
++			if Istype(t.Type, TUINT8) && Istype(args.Second().Type, TSTRING) {
+ 				it := nodeSeqIterate(args)
+ 				it.Next()
+ 				defaultlit(it.P(), Types[TSTRING])
+@@ -1645,7 +1645,7 @@ OpSwitch:
+ 
+ 			it := nodeSeqIterate(args)
+ 			it.Next()
+-			*it.P() = assignconv(nodeSeqSecond(args), t.Orig, "append")
++			*it.P() = assignconv(args.Second(), t.Orig, "append")
+ 			break OpSwitch
+ 		}
+ 
+@@ -1671,21 +1671,21 @@ OpSwitch:
+ 	case OCOPY:
+ 		ok |= Etop | Erv
+ 		args := n.List
+-		if nodeSeqLen(args) < 2 {
++		if args.Len() < 2 {
+ 			Yyerror("missing arguments to copy")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		if nodeSeqLen(args) > 2 {
++		if args.Len() > 2 {
+ 			Yyerror("too many arguments to copy")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		n.Left = nodeSeqFirst(args)
+-		n.Right = nodeSeqSecond(args)
+-		setNodeSeq(&n.List, nil)
++		n.Left = args.First()
++		n.Right = args.Second()
++		n.List.Set(nil)
+ 		n.Type = Types[TINT]
+ 		typecheck(&n.Left, Erv)
+ 		typecheck(&n.Right, Erv)
+@@ -1784,7 +1784,7 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		setNodeSeq(&n.List, nil)
++		n.List.Set(nil)
+ 		l := args.N()
+ 		args.Next()
+ 		typecheck(&l, Etype)
+@@ -1896,20 +1896,20 @@ OpSwitch:
+ 	case ONEW:
+ 		ok |= Erv
+ 		args := n.List
+-		if nodeSeqLen(args) == 0 {
++		if args.Len() == 0 {
+ 			Yyerror("missing argument to new")
+ 			n.Type = nil
+ 			return
+ 		}
+ 
+-		l := nodeSeqFirst(args)
++		l := args.First()
+ 		typecheck(&l, Etype)
+ 		t := l.Type
+ 		if t == nil {
+ 			n.Type = nil
+ 			return
+ 		}
+-		if nodeSeqLen(args) > 1 {
++		if args.Len() > 1 {
+ 			Yyerror("too many arguments to new(%v)", t)
+ 			n.Type = nil
+ 			return
+@@ -1922,12 +1922,12 @@ OpSwitch:
+ 	case OPRINT, OPRINTN:
+ 		ok |= Etop
+ 		typechecklist(n.List.Slice(), Erv|Eindir) // Eindir: address does not escape
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++		for i1, n1 := range n.List.Slice() {
+ 			// Special case for print: int constant is int64, not int.
+-			if Isconst(it.N(), CTINT) {
+-				defaultlit(it.P(), Types[TINT64])
++			if Isconst(n1, CTINT) {
++				defaultlit(&n.List.Slice()[i1], Types[TINT64])
+ 			} else {
+-				defaultlit(it.P(), nil)
++				defaultlit(&n.List.Slice()[i1], nil)
+ 			}
+ 		}
+ 
+@@ -1949,7 +1949,7 @@ OpSwitch:
+ 
+ 	case ORECOVER:
+ 		ok |= Erv | Etop
+-		if nodeSeqLen(n.List) != 0 {
++		if n.List.Len() != 0 {
+ 			Yyerror("too many arguments to recover")
+ 			n.Type = nil
+ 			return
+@@ -2093,7 +2093,7 @@ OpSwitch:
+ 
+ 	case ORETURN:
+ 		ok |= Etop
+-		if nodeSeqLen(n.List) == 1 {
++		if n.List.Len() == 1 {
+ 			typechecklist(n.List.Slice(), Erv|Efnstruct)
+ 		} else {
+ 			typechecklist(n.List.Slice(), Erv)
+@@ -2104,7 +2104,7 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		if Curfn.Type.Outnamed && nodeSeqLen(n.List) == 0 {
++		if Curfn.Type.Outnamed && n.List.Len() == 0 {
+ 			break OpSwitch
+ 		}
+ 		typecheckaste(ORETURN, nil, false, Curfn.Type.Results(), n.List, func() string { return "return argument" })
+@@ -2332,22 +2332,22 @@ func onearg(n *Node, f string, args ...interface{}) bool {
+ 	if n.Left != nil {
+ 		return true
+ 	}
+-	if nodeSeqLen(n.List) == 0 {
++	if n.List.Len() == 0 {
+ 		p := fmt.Sprintf(f, args...)
+ 		Yyerror("missing argument to %s: %v", p, n)
+ 		return false
+ 	}
+ 
+-	if nodeSeqLen(n.List) > 1 {
++	if n.List.Len() > 1 {
+ 		p := fmt.Sprintf(f, args...)
+ 		Yyerror("too many arguments to %s: %v", p, n)
+-		n.Left = nodeSeqFirst(n.List)
+-		setNodeSeq(&n.List, nil)
++		n.Left = n.List.First()
++		n.List.Set(nil)
+ 		return false
+ 	}
+ 
+-	n.Left = nodeSeqFirst(n.List)
+-	setNodeSeq(&n.List, nil)
++	n.Left = n.List.First()
++	n.List.Set(nil)
+ 	return true
+ }
+ 
+@@ -2355,26 +2355,26 @@ func twoarg(n *Node) bool {
+ 	if n.Left != nil {
+ 		return true
+ 	}
+-	if nodeSeqLen(n.List) == 0 {
++	if n.List.Len() == 0 {
+ 		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
+ 		return false
+ 	}
+ 
+-	n.Left = nodeSeqFirst(n.List)
+-	if nodeSeqLen(n.List) == 1 {
++	n.Left = n.List.First()
++	if n.List.Len() == 1 {
+ 		Yyerror("missing argument to %v - %v", Oconv(n.Op, 0), n)
+-		setNodeSeq(&n.List, nil)
++		n.List.Set(nil)
+ 		return false
+ 	}
+ 
+-	if nodeSeqLen(n.List) > 2 {
++	if n.List.Len() > 2 {
+ 		Yyerror("too many arguments to %v - %v", Oconv(n.Op, 0), n)
+-		setNodeSeq(&n.List, nil)
++		n.List.Set(nil)
+ 		return false
+ 	}
+ 
+-	n.Right = nodeSeqSecond(n.List)
+-	setNodeSeq(&n.List, nil)
++	n.Right = n.List.Second()
++	n.List.Set(nil)
+ 	return true
+ }
+ 
+@@ -2576,8 +2576,8 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ }
+ 
+ func nokeys(l Nodes) bool {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		if it.N().Op == OKEY {
++	for _, n := range l.Slice() {
++		if n.Op == OKEY {
+ 			return false
+ 		}
+ 	}
+@@ -2620,8 +2620,8 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	}
+ 
+ 	n = nil
+-	if nodeSeqLen(nl) == 1 {
+-		n = nodeSeqFirst(nl)
++	if nl.Len() == 1 {
++		n = nl.First()
+ 		if n.Type != nil {
+ 			if n.Type.Etype == TSTRUCT && n.Type.Funarg {
+ 				if !hasddd(tstruct) {
+@@ -2675,7 +2675,7 @@ func typecheckaste(op Op, call *Node, isddd bool, tstruct *Type, nl Nodes, desc
+ 	}
+ 
+ 	n1 = downcount(tstruct)
+-	n2 = nodeSeqLen(nl)
++	n2 = nl.Len()
+ 	if !hasddd(tstruct) {
+ 		if n2 > n1 {
+ 			goto toomany
+@@ -2917,8 +2917,8 @@ func typecheckcomplit(np **Node) {
+ 	}()
+ 
+ 	if n.Right == nil {
+-		if nodeSeqLen(n.List) != 0 {
+-			setlineno(nodeSeqFirst(n.List))
++		if n.List.Len() != 0 {
++			setlineno(n.List.First())
+ 		}
+ 		Yyerror("missing type in composite literal")
+ 		n.Type = nil
+@@ -2968,22 +2968,22 @@ func typecheckcomplit(np **Node) {
+ 	case TARRAY:
+ 		// Only allocate hash if there are some key/value pairs.
+ 		var hash map[int64]*Node
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op == OKEY {
++		for _, n1 := range n.List.Slice() {
++			if n1.Op == OKEY {
+ 				hash = make(map[int64]*Node)
+ 				break
+ 			}
+ 		}
+ 		length := int64(0)
+ 		i := 0
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			l := it.N()
++		for i2, n2 := range n.List.Slice() {
++			l := n2
+ 			setlineno(l)
+ 			if l.Op != OKEY {
+ 				l = Nod(OKEY, Nodintconst(int64(i)), l)
+ 				l.Left.Type = Types[TINT]
+ 				l.Left.Typecheck = 1
+-				*it.P() = l
++				n.List.Slice()[i2] = l
+ 			}
+ 
+ 			typecheck(&l.Left, Erv)
+@@ -3026,11 +3026,11 @@ func typecheckcomplit(np **Node) {
+ 	case TMAP:
+ 		hash := make(map[uint32][]*Node)
+ 		var l *Node
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			l = it.N()
++		for i3, n3 := range n.List.Slice() {
++			l = n3
+ 			setlineno(l)
+ 			if l.Op != OKEY {
+-				typecheck(it.P(), Erv)
++				typecheck(&n.List.Slice()[i3], Erv)
+ 				Yyerror("missing key in map literal")
+ 				continue
+ 			}
+@@ -3055,14 +3055,14 @@ func typecheckcomplit(np **Node) {
+ 
+ 	case TSTRUCT:
+ 		bad := 0
+-		if nodeSeqLen(n.List) != 0 && nokeys(n.List) {
++		if n.List.Len() != 0 && nokeys(n.List) {
+ 			// simple list of variables
+ 			f := t.Type
+ 
+ 			var s *Sym
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-				setlineno(it.N())
+-				typecheck(it.P(), Erv)
++			for i4, n4 := range n.List.Slice() {
++				setlineno(n4)
++				typecheck(&n.List.Slice()[i4], Erv)
+ 				if f == nil {
+ 					if bad == 0 {
+ 						Yyerror("too many values in struct initializer")
+@@ -3075,13 +3075,11 @@ func typecheckcomplit(np **Node) {
+ 				if s != nil && !exportname(s.Name) && s.Pkg != localpkg {
+ 					Yyerror("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+ 				}
+-
+ 				// No pushtype allowed here. Must name fields for that.
+-				*it.P() = assignconv(it.N(), f.Type, "field value")
+-
+-				*it.P() = Nod(OKEY, newname(f.Sym), it.N())
+-				it.N().Left.Type = f
+-				it.N().Left.Typecheck = 1
++				n.List.Slice()[i4] = assignconv(n.List.Slice()[i4], f.Type, "field value")
++				n.List.Slice()[i4] = Nod(OKEY, newname(f.Sym), n.List.Slice()[i4])
++				n.List.Slice()[i4].Left.Type = f
++				n.List.Slice()[i4].Left.Typecheck = 1
+ 				f = f.Down
+ 			}
+ 
+@@ -3096,15 +3094,15 @@ func typecheckcomplit(np **Node) {
+ 			var f *Type
+ 			var l *Node
+ 			var s1 *Sym
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-				l = it.N()
++			for i5, n5 := range n.List.Slice() {
++				l = n5
+ 				setlineno(l)
+ 				if l.Op != OKEY {
+ 					if bad == 0 {
+ 						Yyerror("mixture of field:value and value initializers")
+ 					}
+ 					bad++
+-					typecheck(it.P(), Erv)
++					typecheck(&n.List.Slice()[i5], Erv)
+ 					continue
+ 				}
+ 
+@@ -3236,8 +3234,8 @@ func checkassign(stmt *Node, n *Node) {
+ }
+ 
+ func checkassignlist(stmt *Node, l Nodes) {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		checkassign(stmt, it.N())
++	for _, n := range l.Slice() {
++		checkassign(stmt, n)
+ 	}
+ }
+ 
+@@ -3315,17 +3313,17 @@ func checkassignto(src *Type, dst *Node) {
+ }
+ 
+ func typecheckas2(n *Node) {
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++	for i1 := range n.List.Slice() {
+ 		// delicate little dance.
+-		*it.P() = resolve(it.N())
++		n.List.Slice()[i1] = resolve(n.List.Slice()[i1])
+ 
+-		if it.N().Name == nil || it.N().Name.Defn != n || it.N().Name.Param.Ntype != nil {
+-			typecheck(it.P(), Erv|Easgn)
++		if n.List.Slice()[i1].Name == nil || n.List.Slice()[i1].Name.Defn != n || n.List.Slice()[i1].Name.Param.Ntype != nil {
++			typecheck(&n.List.Slice()[i1], Erv|Easgn)
+ 		}
+ 	}
+ 
+-	cl := nodeSeqLen(n.List)
+-	cr := nodeSeqLen(n.Rlist)
++	cl := n.List.Len()
++	cr := n.Rlist.Len()
+ 	if cl > 1 && cr == 1 {
+ 		it := nodeSeqIterate(n.Rlist)
+ 		typecheck(it.P(), Erv|Efnstruct)
+@@ -3339,13 +3337,13 @@ func typecheckas2(n *Node) {
+ 	if cl == cr {
+ 		// easy
+ 		lrit := nodeSeqIterate(n.Rlist)
+-		for llit := nodeSeqIterate(n.List); !llit.Done(); llit.Next() {
+-			if llit.N().Type != nil && lrit.N().Type != nil {
+-				*lrit.P() = assignconv(lrit.N(), llit.N().Type, "assignment")
++		for _, n2 := range n.List.Slice() {
++			if n2.Type != nil && lrit.N().Type != nil {
++				*lrit.P() = assignconv(lrit.N(), n2.Type, "assignment")
+ 			}
+-			if llit.N().Name != nil && llit.N().Name.Defn == n && llit.N().Name.Param.Ntype == nil {
++			if n2.Name != nil && n2.Name.Defn == n && n2.Name.Param.Ntype == nil {
+ 				defaultlit(lrit.P(), nil)
+-				llit.N().Type = lrit.N().Type
++				n2.Type = lrit.N().Type
+ 			}
+ 			lrit.Next()
+ 		}
+@@ -3353,8 +3351,8 @@ func typecheckas2(n *Node) {
+ 		goto out
+ 	}
+ 
+-	l = nodeSeqFirst(n.List)
+-	r = nodeSeqFirst(n.Rlist)
++	l = n.List.First()
++	r = n.Rlist.First()
+ 
+ 	// x,y,z = f()
+ 	if cr == 1 {
+@@ -3372,12 +3370,12 @@ func typecheckas2(n *Node) {
+ 			}
+ 			n.Op = OAS2FUNC
+ 			t, s := IterFields(r.Type)
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-				if t.Type != nil && it.N().Type != nil {
+-					checkassignto(t.Type, it.N())
++			for _, n3 := range n.List.Slice() {
++				if t.Type != nil && n3.Type != nil {
++					checkassignto(t.Type, n3)
+ 				}
+-				if it.N().Name != nil && it.N().Name.Defn == n && it.N().Name.Param.Ntype == nil {
+-					it.N().Type = t.Type
++				if n3.Name != nil && n3.Name.Defn == n && n3.Name.Param.Ntype == nil {
++					n3.Type = t.Type
+ 				}
+ 				t = s.Next()
+ 			}
+@@ -3411,7 +3409,7 @@ func typecheckas2(n *Node) {
+ 			if l.Name != nil && l.Name.Defn == n {
+ 				l.Type = r.Type
+ 			}
+-			l := nodeSeqSecond(n.List)
++			l := n.List.Second()
+ 			if l.Type != nil && l.Type.Etype != TBOOL {
+ 				checkassignto(Types[TBOOL], l)
+ 			}
+@@ -3428,10 +3426,9 @@ mismatch:
+ 	// second half of dance
+ out:
+ 	n.Typecheck = 1
+-
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		if it.N().Typecheck == 0 {
+-			typecheck(it.P(), Erv|Easgn)
++	for i4, n4 := range n.List.Slice() {
++		if n4.Typecheck == 0 {
++			typecheck(&n.List.Slice()[i4], Erv|Easgn)
+ 		}
+ 	}
+ }
+@@ -3480,7 +3477,7 @@ func stringtoarraylit(np **Node) {
+ 	}
+ 
+ 	nn := Nod(OCOMPLIT, nil, typenod(n.Type))
+-	setNodeSeq(&nn.List, l)
++	nn.List.Set(l)
+ 	typecheck(&nn, Erv)
+ 	*np = nn
+ }
+@@ -3966,11 +3963,11 @@ func (n *Node) isterminating() bool {
+ 			return false
+ 		}
+ 		def := 0
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if !it.N().Nbody.isterminating() {
++		for _, n1 := range n.List.Slice() {
++			if !n1.Nbody.isterminating() {
+ 				return false
+ 			}
+-			if nodeSeqLen(it.N().List) == 0 { // default
++			if n1.List.Len() == 0 { // default
+ 				def = 1
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 9bfc6a5034..99e0ac82d7 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -26,12 +26,12 @@ func unsafenmagic(nn *Node) *Node {
+ 		return nil
+ 	}
+ 
+-	if nodeSeqLen(args) == 0 {
++	if args.Len() == 0 {
+ 		Yyerror("missing argument for %v", s)
+ 		return nil
+ 	}
+ 
+-	r := nodeSeqFirst(args)
++	r := args.First()
+ 
+ 	var v int64
+ 	if s.Name == "Sizeof" {
+@@ -129,7 +129,7 @@ bad:
+ 	goto ret
+ 
+ yes:
+-	if nodeSeqLen(args) > 1 {
++	if args.Len() > 1 {
+ 		Yyerror("extra arguments for %v", s)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 1db951c4e0..a53d1bddc3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -119,8 +119,7 @@ func adjustargs(n *Node, adjust int) {
+ 	var lhs *Node
+ 
+ 	callfunc := n.Left
+-	for argsit := nodeSeqIterate(callfunc.List); !argsit.Done(); argsit.Next() {
+-		arg = argsit.N()
++	for _, arg = range callfunc.List.Slice() {
+ 		if arg.Op != OAS {
+ 			Yyerror("call arg not assignment")
+ 		}
+@@ -189,7 +188,7 @@ func walkstmt(np **Node) {
+ 			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		init := n.Ninit
+-		setNodeSeq(&n.Ninit, nil)
++		n.Ninit.Set(nil)
+ 		walkexpr(&n, &init)
+ 		addinit(&n, init.Slice())
+ 		if (*np).Op == OCOPY && n.Op == OCONVNOP {
+@@ -203,7 +202,7 @@ func walkstmt(np **Node) {
+ 			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		init := n.Ninit
+-		setNodeSeq(&n.Ninit, nil)
++		n.Ninit.Set(nil)
+ 
+ 		walkexpr(&n.Left, &init)
+ 		n = mkcall1(chanfn("chanrecv1", 2, n.Left.Type), nil, &init, typename(n.Left.Type), n.Left, nodnil())
+@@ -255,7 +254,7 @@ func walkstmt(np **Node) {
+ 		if n.Left != nil {
+ 			walkstmtlist(n.Left.Ninit.Slice())
+ 			init := n.Left.Ninit
+-			setNodeSeq(&n.Left.Ninit, nil)
++			n.Left.Ninit.Set(nil)
+ 			walkexpr(&n.Left, &init)
+ 			addinit(&n.Left, init.Slice())
+ 		}
+@@ -285,10 +284,10 @@ func walkstmt(np **Node) {
+ 
+ 	case ORETURN:
+ 		walkexprlist(n.List.Slice(), &n.Ninit)
+-		if nodeSeqLen(n.List) == 0 {
++		if n.List.Len() == 0 {
+ 			break
+ 		}
+-		if (Curfn.Type.Outnamed && nodeSeqLen(n.List) > 1) || paramoutheap(Curfn) {
++		if (Curfn.Type.Outnamed && n.List.Len() > 1) || paramoutheap(Curfn) {
+ 			// assign to the function out parameters,
+ 			// so that reorder3 can fix up conflicts
+ 			var rl []*Node
+@@ -304,7 +303,7 @@ func walkstmt(np **Node) {
+ 				}
+ 			}
+ 
+-			if got, want := nodeSeqLen(n.List), len(rl); got != want {
++			if got, want := n.List.Len(), len(rl); got != want {
+ 				// order should have rewritten multi-value function calls
+ 				// with explicit OAS2FUNC nodes.
+ 				Fatalf("expected %v return arguments, have %v", want, got)
+@@ -312,7 +311,7 @@ func walkstmt(np **Node) {
+ 
+ 			if samelist(rl, n.List.Slice()) {
+ 				// special return in disguise
+-				setNodeSeq(&n.List, nil)
++				n.List.Set(nil)
+ 
+ 				break
+ 			}
+@@ -321,15 +320,15 @@ func walkstmt(np **Node) {
+ 			walkexprlistsafe(n.List.Slice(), &n.Ninit)
+ 
+ 			ll := ascompatee(n.Op, rl, n.List.Slice(), &n.Ninit)
+-			setNodeSeq(&n.List, reorder3(ll))
+-			for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-				*it.P() = applywritebarrier(it.N())
++			n.List.Set(reorder3(ll))
++			for i1 := range n.List.Slice() {
++				n.List.Slice()[i1] = applywritebarrier(n.List.Slice()[i1])
+ 			}
+ 			break
+ 		}
+ 
+ 		ll := ascompatte(n.Op, nil, false, Curfn.Type.ResultsP(), n.List.Slice(), 1, &n.Ninit)
+-		setNodeSeq(&n.List, ll)
++		n.List.Set(ll)
+ 
+ 	case ORETJMP:
+ 		break
+@@ -465,7 +464,7 @@ func walkexpr(np **Node, init *Nodes) {
+ 		Fatalf("walkexpr init == &n->ninit")
+ 	}
+ 
+-	if nodeSeqLen(n.Ninit) != 0 {
++	if n.Ninit.Len() != 0 {
+ 		walkstmtlist(n.Ninit.Slice())
+ 		init.AppendNodes(&n.Ninit)
+ 	}
+@@ -572,8 +571,8 @@ opswitch:
+ 		OCOMPLEX,
+ 		OLROT:
+ 		if n.Op == OCOMPLEX && n.Left == nil && n.Right == nil {
+-			n.Left = nodeSeqFirst(n.List)
+-			n.Right = nodeSeqSecond(n.List)
++			n.Left = n.List.First()
++			n.Right = n.List.Second()
+ 		}
+ 
+ 		walkexpr(&n.Left, init)
+@@ -633,13 +632,13 @@ opswitch:
+ 
+ 	case OCALLINTER:
+ 		t := n.Left.Type
+-		if nodeSeqLen(n.List) != 0 && nodeSeqFirst(n.List).Op == OAS {
++		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+ 		}
+ 		walkexpr(&n.Left, init)
+ 		walkexprlist(n.List.Slice(), init)
+ 		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
+-		setNodeSeq(&n.List, reorder1(ll))
++		n.List.Set(reorder1(ll))
+ 
+ 	case OCALLFUNC:
+ 		if n.Left.Op == OCLOSURE {
+@@ -647,7 +646,7 @@ opswitch:
+ 			// transformclosure already did all preparation work.
+ 
+ 			// Prepend captured variables to argument list.
+-			setNodeSeq(&n.List, append(n.Left.Func.Enter.Slice(), nodeSeqSlice(n.List)...))
++			n.List.Set(append(n.Left.Func.Enter.Slice(), n.List.Slice()...))
+ 
+ 			n.Left.Func.Enter.Set(nil)
+ 
+@@ -668,7 +667,7 @@ opswitch:
+ 		}
+ 
+ 		t := n.Left.Type
+-		if nodeSeqLen(n.List) != 0 && nodeSeqFirst(n.List).Op == OAS {
++		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+ 		}
+ 
+@@ -679,18 +678,18 @@ opswitch:
+ 			switch Thearch.Thechar {
+ 			case '5', '6', '7':
+ 				n.Op = OSQRT
+-				n.Left = nodeSeqFirst(n.List)
+-				setNodeSeq(&n.List, nil)
++				n.Left = n.List.First()
++				n.List.Set(nil)
+ 				break opswitch
+ 			}
+ 		}
+ 
+ 		ll := ascompatte(n.Op, n, n.Isddd, t.ParamsP(), n.List.Slice(), 0, init)
+-		setNodeSeq(&n.List, reorder1(ll))
++		n.List.Set(reorder1(ll))
+ 
+ 	case OCALLMETH:
+ 		t := n.Left.Type
+-		if nodeSeqLen(n.List) != 0 && nodeSeqFirst(n.List).Op == OAS {
++		if n.List.Len() != 0 && n.List.First().Op == OAS {
+ 			break
+ 		}
+ 		walkexpr(&n.Left, init)
+@@ -700,7 +699,7 @@ opswitch:
+ 		ll = append(ll, lr...)
+ 		n.Left.Left = nil
+ 		ullmancalc(n.Left)
+-		setNodeSeq(&n.List, reorder1(ll))
++		n.List.Set(reorder1(ll))
+ 
+ 	case OAS:
+ 		init.AppendNodes(&n.Ninit)
+@@ -799,7 +798,7 @@ opswitch:
+ 	case OAS2FUNC:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := nodeSeqFirst(n.Rlist)
++		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		walkexpr(&r, init)
+ 
+@@ -814,26 +813,26 @@ opswitch:
+ 	case OAS2RECV:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := nodeSeqFirst(n.Rlist)
++		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		walkexpr(&r.Left, init)
+ 		var n1 *Node
+-		if isblank(nodeSeqFirst(n.List)) {
++		if isblank(n.List.First()) {
+ 			n1 = nodnil()
+ 		} else {
+-			n1 = Nod(OADDR, nodeSeqFirst(n.List), nil)
++			n1 = Nod(OADDR, n.List.First(), nil)
+ 		}
+ 		n1.Etype = 1 // addr does not escape
+ 		fn := chanfn("chanrecv2", 2, r.Left.Type)
+-		r = mkcall1(fn, nodeSeqSecond(n.List).Type, init, typename(r.Left.Type), r.Left, n1)
+-		n = Nod(OAS, nodeSeqSecond(n.List), r)
++		r = mkcall1(fn, n.List.Second().Type, init, typename(r.Left.Type), r.Left, n1)
++		n = Nod(OAS, n.List.Second(), r)
+ 		typecheck(&n, Etop)
+ 
+ 		// a,b = m[i];
+ 	case OAS2MAPR:
+ 		init.AppendNodes(&n.Ninit)
+ 
+-		r := nodeSeqFirst(n.Rlist)
++		r := n.Rlist.First()
+ 		walkexprlistsafe(n.List.Slice(), init)
+ 		walkexpr(&r.Left, init)
+ 		walkexpr(&r.Right, init)
+@@ -867,7 +866,7 @@ opswitch:
+ 		// to:
+ 		//   var,b = mapaccess2*(t, m, i)
+ 		//   a = *var
+-		a := nodeSeqFirst(n.List)
++		a := n.List.First()
+ 
+ 		fn := mapfn(p, t)
+ 		r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
+@@ -875,8 +874,8 @@ opswitch:
+ 		// mapaccess2* returns a typed bool, but due to spec changes,
+ 		// the boolean result of i.(T) is now untyped so we make it the
+ 		// same type as the variable on the lhs.
+-		if !isblank(nodeSeqSecond(n.List)) {
+-			r.Type.Type.Down.Type = nodeSeqSecond(n.List).Type
++		if !isblank(n.List.Second()) {
++			r.Type.Type.Down.Type = n.List.Second().Type
+ 		}
+ 		setNodeSeq(&n.Rlist, list1(r))
+ 		n.Op = OAS2FUNC
+@@ -899,8 +898,8 @@ opswitch:
+ 
+ 	case ODELETE:
+ 		init.AppendNodes(&n.Ninit)
+-		map_ := nodeSeqFirst(n.List)
+-		key := nodeSeqSecond(n.List)
++		map_ := n.List.First()
++		key := n.List.Second()
+ 		walkexpr(&map_, init)
+ 		walkexpr(&key, init)
+ 
+@@ -911,7 +910,7 @@ opswitch:
+ 		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
+ 
+ 	case OAS2DOTTYPE:
+-		e := nodeSeqFirst(n.Rlist) // i.(T)
++		e := n.Rlist.First() // i.(T)
+ 		// TODO(rsc): The Isfat is for consistency with componentgen and orderexpr.
+ 		// It needs to be removed in all three places.
+ 		// That would allow inlining x.(struct{*int}) the same as x.(*int).
+@@ -932,7 +931,7 @@ opswitch:
+ 		from := e.Left // i
+ 
+ 		oktype := Types[TBOOL]
+-		ok := nodeSeqSecond(n.List)
++		ok := n.List.Second()
+ 		if !isblank(ok) {
+ 			oktype = ok.Type
+ 		}
+@@ -943,7 +942,7 @@ opswitch:
+ 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
+ 		// This is faster and shorter and allows the corresponding assertX2X2
+ 		// routines to skip nil checks on their last argument.
+-		if isblank(nodeSeqFirst(n.List)) {
++		if isblank(n.List.First()) {
+ 			var fast *Node
+ 			switch {
+ 			case fromKind == 'E' && toKind == 'T':
+@@ -967,10 +966,10 @@ opswitch:
+ 		}
+ 
+ 		var resptr *Node // &res
+-		if isblank(nodeSeqFirst(n.List)) {
++		if isblank(n.List.First()) {
+ 			resptr = nodnil()
+ 		} else {
+-			resptr = Nod(OADDR, nodeSeqFirst(n.List), nil)
++			resptr = Nod(OADDR, n.List.First(), nil)
+ 		}
+ 		resptr.Etype = 1 // addr does not escape
+ 
+@@ -1344,9 +1343,9 @@ opswitch:
+ 		}
+ 
+ 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && nodeSeqLen(n.Left.List) == 2 && Isconst(nodeSeqSecond(n.Left.List), CTSTR) && strlit(n.Right) == strlit(nodeSeqSecond(n.Left.List)) {
++		if (Op(n.Etype) == OEQ || Op(n.Etype) == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
+ 			// TODO(marvin): Fix Node.EType type union.
+-			r := Nod(Op(n.Etype), Nod(OLEN, nodeSeqFirst(n.Left.List), nil), Nodintconst(0))
++			r := Nod(Op(n.Etype), Nod(OLEN, n.Left.List.First(), nil), Nodintconst(0))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)
+ 			r.Type = n.Type
+@@ -1654,11 +1653,11 @@ func ascompatee(op Op, nl, nr []*Node, init *Nodes) []*Node {
+ 	//	expr-list = expr-list
+ 
+ 	// ensure order of evaluation for function calls
+-	for nlit := nodeSeqIterate(nl); !nlit.Done(); nlit.Next() {
+-		*nlit.P() = safeexpr(nlit.N(), init)
++	for i := range nl {
++		nl[i] = safeexpr(nl[i], init)
+ 	}
+-	for nrit := nodeSeqIterate(nr); !nrit.Done(); nrit.Next() {
+-		*nrit.P() = safeexpr(nrit.N(), init)
++	for i1 := range nr {
++		nr[i1] = safeexpr(nr[i1], init)
+ 	}
+ 
+ 	var nn []*Node
+@@ -1751,7 +1750,7 @@ func ascompatet(op Op, nl Nodes, nr **Type, fp int, init *Nodes) []*Node {
+ 	}
+ 
+ 	if !it.Done() || r != nil {
+-		Yyerror("ascompatet: assignment count mismatch: %d = %d", nodeSeqLen(nl), structcount(*nr))
++		Yyerror("ascompatet: assignment count mismatch: %d = %d", nl.Len(), structcount(*nr))
+ 	}
+ 
+ 	if ucount != 0 {
+@@ -1780,7 +1779,7 @@ func mkdotargslice(lr0, nn []*Node, l *Type, fp int, init *Nodes, ddd *Node) []*
+ 		if ddd != nil && prealloc[ddd] != nil {
+ 			prealloc[n] = prealloc[ddd] // temporary to use
+ 		}
+-		setNodeSeq(&n.List, lr0)
++		n.List.Set(lr0)
+ 		n.Esc = esc
+ 		typecheck(&n, Erv)
+ 		if n.Type == nil {
+@@ -1820,8 +1819,7 @@ func dumpnodetypes(l []*Node, what string) string {
+ 	fmt_ := ""
+ 	fmt_ += "\t"
+ 	first := 1
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		r = it.N()
++	for _, r = range l {
+ 		if first != 0 {
+ 			first = 0
+ 		} else {
+@@ -1874,8 +1872,8 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr []*Node, fp int, in
+ 		}
+ 
+ 		a = Nod(OAS2, nil, nil)
+-		setNodeSeq(&a.List, alist)
+-		setNodeSeq(&a.Rlist, lr)
++		a.List.Set(alist)
++		a.Rlist.Set(lr)
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+ 		init.Append(a)
+@@ -1962,15 +1960,14 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	walkexprlistcheap(all.Slice(), init)
+ 
+ 	calls = append(calls, mkcall("printlock", nil, init))
+-
+-	for it := nodeSeqIterate(all); !it.Done(); it.Next() {
++	for i1, n1 := range all.Slice() {
+ 		if notfirst {
+ 			calls = append(calls, mkcall("printsp", nil, init))
+ 		}
+ 
+ 		notfirst = op == OPRINTN
+ 
+-		n = it.N()
++		n = n1
+ 		if n.Op == OLITERAL {
+ 			switch n.Val().Ctype() {
+ 			case CTRUNE:
+@@ -1988,7 +1985,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 			defaultlit(&n, Types[TINT64])
+ 		}
+ 		defaultlit(&n, nil)
+-		*it.P() = n
++		all.Slice()[i1] = n
+ 		if n.Type == nil || n.Type.Etype == TFORW {
+ 			continue
+ 		}
+@@ -2045,7 +2042,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 		}
+ 
+ 		r = Nod(OCALL, on, nil)
+-		appendNodeSeqNode(&r.List, n)
++		r.List.Append(n)
+ 		calls = append(calls, r)
+ 	}
+ 
+@@ -2061,7 +2058,7 @@ func walkprint(nn *Node, init *Nodes) *Node {
+ 	r = Nod(OEMPTY, nil, nil)
+ 	typecheck(&r, Etop)
+ 	walkexpr(&r, init)
+-	setNodeSeq(&r.Ninit, calls)
++	r.Ninit.Set(calls)
+ 	return r
+ }
+ 
+@@ -2532,8 +2529,8 @@ func vmatch2(l *Node, r *Node) bool {
+ 	if vmatch2(l, r.Right) {
+ 		return true
+ 	}
+-	for it := nodeSeqIterate(r.List); !it.Done(); it.Next() {
+-		if vmatch2(l, it.N()) {
++	for _, n := range r.List.Slice() {
++		if vmatch2(l, n) {
+ 			return true
+ 		}
+ 	}
+@@ -2573,8 +2570,8 @@ func vmatch1(l *Node, r *Node) bool {
+ 	if vmatch1(l.Right, r) {
+ 		return true
+ 	}
+-	for it := nodeSeqIterate(l.List); !it.Done(); it.Next() {
+-		if vmatch1(it.N(), r) {
++	for _, n := range l.List.Slice() {
++		if vmatch1(n, r) {
+ 			return true
+ 		}
+ 	}
+@@ -2667,7 +2664,7 @@ func vmkcall(fn *Node, t *Type, init *Nodes, va []*Node) *Node {
+ 	n := fn.Type.Intuple
+ 
+ 	r := Nod(OCALL, fn, nil)
+-	setNodeSeq(&r.List, va[:n])
++	r.List.Set(va[:n])
+ 	if fn.Type.Outtuple > 0 {
+ 		typecheck(&r, Erv|Efnstruct)
+ 	} else {
+@@ -2738,7 +2735,7 @@ func writebarrierfn(name string, l *Type, r *Type) *Node {
+ 
+ func addstr(n *Node, init *Nodes) *Node {
+ 	// orderexpr rewrote OADDSTR to have a list of strings.
+-	c := nodeSeqLen(n.List)
++	c := n.List.Len()
+ 
+ 	if c < 2 {
+ 		Yyerror("addstr count %d too small", c)
+@@ -2747,9 +2744,9 @@ func addstr(n *Node, init *Nodes) *Node {
+ 	buf := nodnil()
+ 	if n.Esc == EscNone {
+ 		sz := int64(0)
+-		for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-			if it.N().Op == OLITERAL {
+-				sz += int64(len(it.N().Val().U.(string)))
++		for _, n1 := range n.List.Slice() {
++			if n1.Op == OLITERAL {
++				sz += int64(len(n1.Val().U.(string)))
+ 			}
+ 		}
+ 
+@@ -2764,9 +2761,8 @@ func addstr(n *Node, init *Nodes) *Node {
+ 
+ 	// build list of string arguments
+ 	args := []*Node{buf}
+-
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		args = append(args, conv(it.N(), Types[TSTRING]))
++	for _, n2 := range n.List.Slice() {
++		args = append(args, conv(n2, Types[TSTRING]))
+ 	}
+ 
+ 	var fn string
+@@ -2785,7 +2781,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 		if prealloc[n] != nil {
+ 			prealloc[slice] = prealloc[n]
+ 		}
+-		setNodeSeq(&slice.List, args[1:]) // skip buf arg
++		slice.List.Set(args[1:]) // skip buf arg
+ 		args = []*Node{buf}
+ 		args = append(args, slice)
+ 		slice.Esc = EscNone
+@@ -2793,7 +2789,7 @@ func addstr(n *Node, init *Nodes) *Node {
+ 
+ 	cat := syslook(fn)
+ 	r := Nod(OCALL, cat, nil)
+-	setNodeSeq(&r.List, args)
++	r.List.Set(args)
+ 	typecheck(&r, Erv)
+ 	walkexpr(&r, init)
+ 	r.Type = n.Type
+@@ -2815,16 +2811,18 @@ func addstr(n *Node, init *Nodes) *Node {
+ // l2 is allowed to be a string.
+ func appendslice(n *Node, init *Nodes) *Node {
+ 	walkexprlistsafe(n.List.Slice(), init)
++	for i1 := range
+ 
+ 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+ 	// and n are name or literal, but those may index the slice we're
+ 	// modifying here. Fix explicitly.
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
+-		*it.P() = cheapexpr(it.N(), init)
++	n.List.Slice() {
++		n.List.Slice()[i1] = cheapexpr(n.List.Slice()[i1],
++			init)
+ 	}
+ 
+-	l1 := nodeSeqFirst(n.List)
+-	l2 := nodeSeqSecond(n.List)
++	l1 := n.List.First()
++	l2 := n.List.Second()
+ 
+ 	s := temp(l1.Type) // var s []T
+ 	var l []*Node
+@@ -2934,7 +2932,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ //   }
+ //   s
+ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+-	if !samesafeexpr(dst, nodeSeqFirst(n.List)) {
++	if !samesafeexpr(dst, n.List.First()) {
+ 		it := nodeSeqIterate(n.List)
+ 		*it.P() = safeexpr(it.N(), init)
+ 		walkexpr(it.P(), init)
+@@ -2953,13 +2951,13 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 		*it.P() = cheapexpr(it.N(), init)
+ 	}
+ 
+-	nsrc := nodeSeqFirst(n.List)
++	nsrc := n.List.First()
+ 
+ 	// Resolve slice type of multi-valued return.
+ 	if Istype(nsrc.Type, TSTRUCT) {
+ 		nsrc.Type = nsrc.Type.Type.Type
+ 	}
+-	argc := nodeSeqLen(n.List) - 1
++	argc := n.List.Len() - 1
+ 	if argc < 1 {
+ 		return nsrc
+ 	}
+@@ -3098,9 +3096,9 @@ func eqfor(t *Type, needsize *int) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	ntype := Nod(OTFUNC, nil, nil)
+-	appendNodeSeqNode(&ntype.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	appendNodeSeqNode(&ntype.List, Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
+-	appendNodeSeqNode(&ntype.Rlist, Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
++	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++	ntype.List.Append(Nod(ODCLFIELD, nil, typenod(Ptrto(t))))
++	ntype.Rlist.Append(Nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+ 	typecheck(&ntype, Etype)
+ 	n.Type = ntype.Type
+ 	*needsize = 0
+@@ -3153,9 +3151,9 @@ func walkcompare(np **Node, init *Nodes) {
+ 		// x, ok := l.(type(r))
+ 		expr := Nod(OAS2, nil, nil)
+ 
+-		appendNodeSeqNode(&expr.List, x)
+-		appendNodeSeqNode(&expr.List, ok)
+-		appendNodeSeqNode(&expr.Rlist, a)
++		expr.List.Append(x)
++		expr.List.Append(ok)
++		expr.Rlist.Append(a)
+ 		typecheck(&expr, Etop)
+ 		walkexpr(&expr, init)
+ 
+@@ -3285,10 +3283,10 @@ func walkcompare(np **Node, init *Nodes) {
+ 	var needsize int
+ 	call := Nod(OCALL, eqfor(t, &needsize), nil)
+ 
+-	appendNodeSeqNode(&call.List, l)
+-	appendNodeSeqNode(&call.List, r)
++	call.List.Append(l)
++	call.List.Append(r)
+ 	if needsize != 0 {
+-		appendNodeSeqNode(&call.List, Nodintconst(t.Width))
++		call.List.Append(Nodintconst(t.Width))
+ 	}
+ 	r = call
+ 	if n.Op != OEQ {
+@@ -3841,8 +3839,8 @@ func usefield(n *Node) {
+ }
+ 
+ func candiscardlist(l Nodes) bool {
+-	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
+-		if !candiscard(it.N()) {
++	for _, n := range l.Slice() {
++		if !candiscard(n) {
+ 			return false
+ 		}
+ 	}
+@@ -3955,7 +3953,7 @@ var walkprintfunc_prgen int
+ func walkprintfunc(np **Node, init *Nodes) {
+ 	n := *np
+ 
+-	if nodeSeqLen(n.Ninit) != 0 {
++	if n.Ninit.Len() != 0 {
+ 		walkstmtlist(n.Ninit.Slice())
+ 		init.AppendNodes(&n.Ninit)
+ 	}
+@@ -3965,11 +3963,11 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 	var printargs []*Node
+ 	var a *Node
+ 	var buf string
+-	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++	for _, n1 := range n.List.Slice() {
+ 		buf = fmt.Sprintf("a%d", num)
+ 		num++
+-		a = Nod(ODCLFIELD, newname(Lookup(buf)), typenod(it.N().Type))
+-		appendNodeSeqNode(&t.List, a)
++		a = Nod(ODCLFIELD, newname(Lookup(buf)), typenod(n1.Type))
++		t.List.Append(a)
+ 		printargs = append(printargs, a.Left)
+ 	}
+ 
+@@ -3986,7 +3984,7 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 	funchdr(fn)
+ 
+ 	a = Nod(n.Op, nil, nil)
+-	setNodeSeq(&a.List, printargs)
++	a.List.Set(printargs)
+ 	typecheck(&a, Etop)
+ 	walkstmt(&a)
+ 
+@@ -4001,7 +3999,7 @@ func walkprintfunc(np **Node, init *Nodes) {
+ 
+ 	a = Nod(OCALL, nil, nil)
+ 	a.Left = fn.Func.Nname
+-	setNodeSeq(&a.List, n.List)
++	a.List.Set(n.List.Slice())
+ 	typecheck(&a, Etop)
+ 	walkexpr(&a, init)
+ 	*np = a

@@ -10,6 +10,20 @@ Date:   Tue Dec 29 10:08:30 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/280672
     Trust: Keith Randall <khr@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index ea6b5856df..6209702291 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -978,7 +978,7 @@ func (l Nodes) Format(s fmt.State, verb rune) {
+ 
+ // Dump prints the message s followed by a debug dump of n.
+ func Dump(s string, n Node) {
+-	fmt.Printf("%s [%p]%+v", s, n, n)
++	fmt.Printf("%s [%p]%+v\n", s, n, n)
+ }
+ 
+ // DumpList prints the message s followed by a debug dump of each node in the list.

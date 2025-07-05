@@ -17,7 +17,7 @@ Date:   Wed Mar 22 15:04:35 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 137 +++++++++++++++----------
  src/go/types/assignments.go                    | 133 ++++++++++++++++--------
  test/fixedbugs/bug037.go                       |   1 +
@@ -30,3 +30,453 @@ Date:   Wed Mar 22 15:04:35 2023 -0700
  test/fixedbugs/issue19012.go                   |   2 +-
  test/fixedbugs/issue48558.go                   |   8 ++
  11 files changed, 188 insertions(+), 99 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 2d6391cf59..5436c46bf1 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -305,9 +305,9 @@ func measure(x int, unit string) string {
+ 	return fmt.Sprintf("%d %s", x, unit)
+ }
+ 
+-func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+-	vars := measure(nvars, "variable")
+-	vals := measure(nvals, "value")
++func (check *Checker) assignError(rhs []syntax.Expr, l, r int) {
++	vars := measure(l, "variable")
++	vals := measure(r, "value")
+ 	rhs0 := rhs[0]
+ 
+ 	if len(rhs) == 1 {
+@@ -319,73 +319,104 @@ func (check *Checker) assignError(rhs []syntax.Expr, nvars, nvals int) {
+ 	check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
+ }
+ 
+-// If returnStmt != nil, initVars is called to type-check the assignment
+-// of return expressions, and returnStmt is the return statement.
++func (check *Checker) returnError(at poser, lhs []*Var, rhs []*operand) {
++	l, r := len(lhs), len(rhs)
++	qualifier := "not enough"
++	if r > l {
++		at = rhs[l] // report at first extra value
++		qualifier = "too many"
++	} else if r > 0 {
++		at = rhs[r-1] // report at last value
++	}
++	var err error_
++	err.code = WrongResultCount
++	err.errorf(at, "%s return values", qualifier)
++	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
++	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
++	check.report(&err)
++}
++
++// initVars type-checks assignments of initialization expressions orig_rhs
++// to variables lhs.
++// If returnStmt is non-nil, initVars type-checks the implicit assignment
++// of result expressions orig_rhs to function result parameters lhs.
+ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt syntax.Stmt) {
+-	rhs, commaOk := check.exprList(orig_rhs, len(lhs) == 2 && returnStmt == nil)
+-
+-	if len(lhs) != len(rhs) {
+-		// invalidate lhs
+-		for _, obj := range lhs {
+-			obj.used = true // avoid declared and not used errors
+-			if obj.typ == nil {
+-				obj.typ = Typ[Invalid]
+-			}
+-		}
+-		// don't report an error if we already reported one
+-		for _, x := range rhs {
+-			if x.mode == invalid {
+-				return
+-			}
++	context := "assignment"
++	if returnStmt != nil {
++		context = "return statement"
++	}
++
++	l, r := len(lhs), len(orig_rhs)
++
++	// If l == 1 and the rhs is a single call, for a better
++	// error message don't handle it as n:n mapping below.
++	isCall := false
++	if r == 1 {
++		_, isCall = unparen(orig_rhs[0]).(*syntax.CallExpr)
++	}
++
++	// If we have a n:n mapping from lhs variable to rhs expression,
++	// each value can be assigned to its corresponding variable.
++	if l == r && !isCall {
++		var x operand
++		for i, lhs := range lhs {
++			check.expr(&x, orig_rhs[i])
++			check.initVar(lhs, &x, context)
+ 		}
++		return
++	}
++
++	// If we don't have an n:n mapping, the rhs must be a single expression
++	// resulting in 2 or more values; otherwise we have an assignment mismatch.
++	if r != 1 {
+ 		if returnStmt != nil {
+-			var at poser = returnStmt
+-			qualifier := "not enough"
+-			if len(rhs) > len(lhs) {
+-				at = rhs[len(lhs)].expr // report at first extra value
+-				qualifier = "too many"
+-			} else if len(rhs) > 0 {
+-				at = rhs[len(rhs)-1].expr // report at last value
++			rhs, _ := check.exprList(orig_rhs, false)
++			check.returnError(returnStmt, lhs, rhs)
++		} else {
++			check.assignError(orig_rhs, l, r)
++		}
++		// ensure that LHS variables have a type
++		for _, v := range lhs {
++			if v.typ == nil {
++				v.typ = Typ[Invalid]
+ 			}
+-			var err error_
+-			err.code = WrongResultCount
+-			err.errorf(at, "%s return values", qualifier)
+-			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+-			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+-			check.report(&err)
+-			return
+ 		}
+-		check.assignError(orig_rhs, len(lhs), len(rhs))
++		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+-	context := "assignment"
+-	if returnStmt != nil {
+-		context = "return statement"
+-	}
+-
+-	if commaOk {
+-		check.initVar(lhs[0], rhs[0], context)
+-		check.initVar(lhs[1], rhs[1], context)
+-		check.recordCommaOkTypes(orig_rhs[0], rhs)
++	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2 && returnStmt == nil)
++	r = len(rhs)
++	if l == r {
++		for i, lhs := range lhs {
++			check.initVar(lhs, rhs[i], context)
++		}
++		if commaOk {
++			check.recordCommaOkTypes(orig_rhs[0], rhs)
++		}
+ 		return
+ 	}
+ 
+-	ok := true
+-	for i, lhs := range lhs {
+-		if check.initVar(lhs, rhs[i], context) == nil {
+-			ok = false
++	// In all other cases we have an assignment mismatch.
++	// Only report a mismatch error if there was no error
++	// on the rhs.
++	if rhs[0].mode != invalid {
++		if returnStmt != nil {
++			check.returnError(returnStmt, lhs, rhs)
++		} else {
++			check.assignError(orig_rhs, l, r)
+ 		}
+ 	}
+-
+-	// avoid follow-on "declared and not used" errors if any initialization failed
+-	if !ok {
+-		for _, lhs := range lhs {
+-			lhs.used = true
++	// ensure that LHS variables have a type
++	for _, v := range lhs {
++		if v.typ == nil {
++			v.typ = Typ[Invalid]
+ 		}
+ 	}
++	// orig_rhs[0] was already evaluated
+ }
+ 
++// assignVars type-checks assignments of expressions orig_rhs to variables lhs.
+ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	l, r := len(lhs), len(orig_rhs)
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 05049e0a6f..84b45f1403 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -303,9 +303,9 @@ func measure(x int, unit string) string {
+ 	return fmt.Sprintf("%d %s", x, unit)
+ }
+ 
+-func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+-	vars := measure(nvars, "variable")
+-	vals := measure(nvals, "value")
++func (check *Checker) assignError(rhs []ast.Expr, l, r int) {
++	vars := measure(l, "variable")
++	vals := measure(r, "value")
+ 	rhs0 := rhs[0]
+ 
+ 	if len(rhs) == 1 {
+@@ -317,61 +317,104 @@ func (check *Checker) assignError(rhs []ast.Expr, nvars, nvals int) {
+ 	check.errorf(rhs0, WrongAssignCount, "assignment mismatch: %s but %s", vars, vals)
+ }
+ 
+-// If returnStmt != nil, initVars is called to type-check the assignment
+-// of return expressions, and returnStmt is the return statement.
+-func (check *Checker) initVars(lhs []*Var, origRHS []ast.Expr, returnStmt ast.Stmt) {
+-	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2 && returnStmt == nil)
+-
+-	if len(lhs) != len(rhs) {
+-		// invalidate lhs
+-		for _, obj := range lhs {
+-			obj.used = true // avoid declared and not used errors
+-			if obj.typ == nil {
+-				obj.typ = Typ[Invalid]
+-			}
+-		}
+-		// don't report an error if we already reported one
+-		for _, x := range rhs {
+-			if x.mode == invalid {
+-				return
+-			}
++func (check *Checker) returnError(at positioner, lhs []*Var, rhs []*operand) {
++	l, r := len(lhs), len(rhs)
++	qualifier := "not enough"
++	if r > l {
++		at = rhs[l] // report at first extra value
++		qualifier = "too many"
++	} else if r > 0 {
++		at = rhs[r-1] // report at last value
++	}
++	var err error_
++	err.code = WrongResultCount
++	err.errorf(at.Pos(), "%s return values", qualifier)
++	err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
++	err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
++	check.report(&err)
++}
++
++// initVars type-checks assignments of initialization expressions orig_rhs
++// to variables lhs.
++// If returnStmt is non-nil, initVars type-checks the implicit assignment
++// of result expressions orig_rhs to function result parameters lhs.
++func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.Stmt) {
++	context := "assignment"
++	if returnStmt != nil {
++		context = "return statement"
++	}
++
++	l, r := len(lhs), len(orig_rhs)
++
++	// If l == 1 and the rhs is a single call, for a better
++	// error message don't handle it as n:n mapping below.
++	isCall := false
++	if r == 1 {
++		_, isCall = unparen(orig_rhs[0]).(*ast.CallExpr)
++	}
++
++	// If we have a n:n mapping from lhs variable to rhs expression,
++	// each value can be assigned to its corresponding variable.
++	if l == r && !isCall {
++		var x operand
++		for i, lhs := range lhs {
++			check.expr(&x, orig_rhs[i])
++			check.initVar(lhs, &x, context)
+ 		}
++		return
++	}
++
++	// If we don't have an n:n mapping, the rhs must be a single expression
++	// resulting in 2 or more values; otherwise we have an assignment mismatch.
++	if r != 1 {
+ 		if returnStmt != nil {
+-			var at positioner = returnStmt
+-			qualifier := "not enough"
+-			if len(rhs) > len(lhs) {
+-				at = rhs[len(lhs)].expr // report at first extra value
+-				qualifier = "too many"
+-			} else if len(rhs) > 0 {
+-				at = rhs[len(rhs)-1].expr // report at last value
++			rhs, _ := check.exprList(orig_rhs, false)
++			check.returnError(returnStmt, lhs, rhs)
++		} else {
++			check.assignError(orig_rhs, l, r)
++		}
++		// ensure that LHS variables have a type
++		for _, v := range lhs {
++			if v.typ == nil {
++				v.typ = Typ[Invalid]
+ 			}
+-			err := newErrorf(at, WrongResultCount, "%s return values", qualifier)
+-			err.errorf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+-			err.errorf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
+-			check.report(err)
+-			return
+ 		}
+-		check.assignError(origRHS, len(lhs), len(rhs))
++		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+-	context := "assignment"
+-	if returnStmt != nil {
+-		context = "return statement"
+-	}
+-
+-	if commaOk {
+-		check.initVar(lhs[0], rhs[0], context)
+-		check.initVar(lhs[1], rhs[1], context)
+-		check.recordCommaOkTypes(origRHS[0], rhs)
++	rhs, commaOk := check.multiExpr(orig_rhs[0], l == 2 && returnStmt == nil)
++	r = len(rhs)
++	if l == r {
++		for i, lhs := range lhs {
++			check.initVar(lhs, rhs[i], context)
++		}
++		if commaOk {
++			check.recordCommaOkTypes(orig_rhs[0], rhs)
++		}
+ 		return
+ 	}
+ 
+-	for i, lhs := range lhs {
+-		check.initVar(lhs, rhs[i], context)
++	// In all other cases we have an assignment mismatch.
++	// Only report a mismatch error if there was no error
++	// on the rhs.
++	if rhs[0].mode != invalid {
++		if returnStmt != nil {
++			check.returnError(returnStmt, lhs, rhs)
++		} else {
++			check.assignError(orig_rhs, l, r)
++		}
+ 	}
++	// ensure that LHS variables have a type
++	for _, v := range lhs {
++		if v.typ == nil {
++			v.typ = Typ[Invalid]
++		}
++	}
++	// orig_rhs[0] was already evaluated
+ }
+ 
++// assignVars type-checks assignments of expressions orig_rhs to variables lhs.
+ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+ 	l, r := len(lhs), len(orig_rhs)
+ 
+diff --git a/test/fixedbugs/bug037.go b/test/fixedbugs/bug037.go
+index f17fb3fd74..ed95cacc96 100644
+--- a/test/fixedbugs/bug037.go
++++ b/test/fixedbugs/bug037.go
+@@ -8,4 +8,5 @@ package main
+ 
+ func main() {
+ 	s := vlong(0);  // ERROR "undef"
++	_ = s
+ }
+diff --git a/test/fixedbugs/bug072.go b/test/fixedbugs/bug072.go
+index 05ad93dac2..1c0c4ee12a 100644
+--- a/test/fixedbugs/bug072.go
++++ b/test/fixedbugs/bug072.go
+@@ -8,4 +8,5 @@ package main
+ 
+ func main() {
+ 	s := string(bug);  // ERROR "undef"
++	_ = s
+ }
+diff --git a/test/fixedbugs/bug091.go b/test/fixedbugs/bug091.go
+index dbb1287a15..0e239e023a 100644
+--- a/test/fixedbugs/bug091.go
++++ b/test/fixedbugs/bug091.go
+@@ -18,6 +18,7 @@ func f2() {
+ 
+ func f3() {
+ 	i := c // ERROR "undef"
++	_ = i
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/bug103.go b/test/fixedbugs/bug103.go
+index 1cb710e368..743a3c4b4f 100644
+--- a/test/fixedbugs/bug103.go
++++ b/test/fixedbugs/bug103.go
+@@ -10,5 +10,6 @@ func f() /* no return type */ {}
+ 
+ func main() {
+ 	x := f();  // ERROR "mismatch|as value|no type"
++	_ = x
+ }
+ 
+diff --git a/test/fixedbugs/bug107.go b/test/fixedbugs/bug107.go
+index dcd8e9d113..e4b9eb1e94 100644
+--- a/test/fixedbugs/bug107.go
++++ b/test/fixedbugs/bug107.go
+@@ -11,5 +11,6 @@ func f() (os int) {
+ 	 // In the next line "os" should refer to the result variable, not
+ 	 // to the package.
+ 	 v := os.Open("", 0, 0);	// ERROR "undefined"
++	 _ = v
+ 	 return 0
+ }
+diff --git a/test/fixedbugs/bug122.go b/test/fixedbugs/bug122.go
+index 5640cf263a..0d9dcd1807 100644
+--- a/test/fixedbugs/bug122.go
++++ b/test/fixedbugs/bug122.go
+@@ -9,4 +9,5 @@ package main
+ func main() {
+ 	// should allow at most 2 sizes
+ 	a := make([]int, 10, 20, 30, 40); // ERROR "too many|expects 2 or 3 arguments; found 5"
++	_ = a
+ }
+diff --git a/test/fixedbugs/bug175.go b/test/fixedbugs/bug175.go
+index caf3168536..f19025a7a6 100644
+--- a/test/fixedbugs/bug175.go
++++ b/test/fixedbugs/bug175.go
+@@ -10,4 +10,5 @@ func f() (int, bool) { return 0, true }
+ 
+ func main() {
+ 	x, y := f(), 2 // ERROR "multi|2-valued"
++	_, _ = x, y
+ }
+diff --git a/test/fixedbugs/issue19012.go b/test/fixedbugs/issue19012.go
+index 77b2236063..c911a9a1d0 100644
+--- a/test/fixedbugs/issue19012.go
++++ b/test/fixedbugs/issue19012.go
+@@ -15,7 +15,7 @@ func f(x int, y uint) {
+ 	if true {
+ 		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
+ 	}
+-	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
++	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types" "too many return values"
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue48558.go b/test/fixedbugs/issue48558.go
+index 9ab56d9e46..590fd9b7c1 100644
+--- a/test/fixedbugs/issue48558.go
++++ b/test/fixedbugs/issue48558.go
+@@ -41,6 +41,10 @@ func _() {
+ 	a1 := f3()         // ERROR "assignment mismatch: 1 variable but f3 returns 3 values"
+ 	a2, b2 := f1()     // ERROR "assignment mismatch: 2 variables but f1 returns 1 value"
+ 	a3, b3, c3 := f2() // ERROR "assignment mismatch: 3 variables but f2 returns 2 values"
++
++	_ = a1
++	_, _ = a2, b2
++	_, _, _ = a3, b3, c3
+ }
+ 
+ type T struct{}
+@@ -66,6 +70,10 @@ func _(x T) {
+ 	a1 := x.f3()         // ERROR "assignment mismatch: 1 variable but .\.f3 returns 3 values"
+ 	a2, b2 := x.f1()     // ERROR "assignment mismatch: 2 variables but .\.f1 returns 1 value"
+ 	a3, b3, c3 := x.f2() // ERROR "assignment mismatch: 3 variables but .\.f2 returns 2 values"
++
++	_ = a1
++	_, _ = a2, b2
++	_, _, _ = a3, b3, c3
+ }
+ 
+ // some one-off cases

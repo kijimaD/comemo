@@ -11,6 +11,22 @@ Date:   Tue Feb 23 15:05:33 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/295469
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/go/build/constraint/expr.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/constraint/expr.go b/src/go/build/constraint/expr.go
+index 3b278702f8..1ef707ceac 100644
+--- a/src/go/build/constraint/expr.go
++++ b/src/go/build/constraint/expr.go
+@@ -355,8 +355,8 @@ func IsPlusBuild(line string) bool {
+ 	return ok
+ }
+ 
+-// splitGoBuild splits apart the leading //go:build prefix in line from the build expression itself.
+-// It returns "", false if the input is not a //go:build line or if the input contains multiple lines.
++// splitPlusBuild splits apart the leading // +build prefix in line from the build expression itself.
++// It returns "", false if the input is not a // +build line or if the input contains multiple lines.
+ func splitPlusBuild(line string) (expr string, ok bool) {
+ 	// A single trailing newline is OK; otherwise multiple lines are not.
+ 	if len(line) > 0 && line[len(line)-1] == '\n' {

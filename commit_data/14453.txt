@@ -8,8 +8,83 @@ Date:   Wed Nov 21 13:04:38 2012 -0800
     R=golang-dev, iant, minux.ma, bradfitz
     CC=golang-dev, vova616
     https://golang.org/cl/6782097
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue4417.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         |  2 +-
  3 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index a423195f48..4634b851c2 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -32,5 +32,6 @@ func TestLibgcc(t *testing.T)              { testLibgcc(t) }
+ func Test1635(t *testing.T)                { test1635(t) }
+ func TestPrintf(t *testing.T)              { testPrintf(t) }
+ func Test4029(t *testing.T)                { test4029(t) }
++func TestBoolAlign(t *testing.T)           { testBoolAlign(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue4417.go b/misc/cgo/test/issue4417.go
+new file mode 100644
+index 0000000000..99a9f57a0e
+--- /dev/null
++++ b/misc/cgo/test/issue4417.go
+@@ -0,0 +1,44 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4417:	cmd/cgo: bool alignment/padding issue.
++// bool alignment is wrong and causing wrong arguments when calling functions.
++//
++
++package cgotest
++
++/*
++#include <stdbool.h>
++
++static int c_bool(bool a, bool b, int c, bool d, bool e)  {
++   return c;
++}
++*/
++import "C"
++import "testing"
++
++func testBoolAlign(t *testing.T) {
++	b := C.c_bool(true, true, 10, true, false)
++	if b != 10 {
++		t.Fatalf("found %d expected 10\n", b)
++	}
++	b = C.c_bool(true, true, 5, true, true)
++	if b != 5 {
++		t.Fatalf("found %d expected 5\n", b)
++	}
++	b = C.c_bool(true, true, 3, true, false)
++	if b != 3 {
++		t.Fatalf("found %d expected 3\n", b)
++	}
++	b = C.c_bool(false, false, 1, true, false)
++	if b != 1 {
++		t.Fatalf("found %d expected 1\n", b)
++	}
++	b = C.c_bool(false, true, 200, true, false)
++	if b != 200 {
++		t.Fatalf("found %d expected 200\n", b)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 191751c40e..a974475b8a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1078,7 +1078,7 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 
+ 	case *dwarf.BoolType:
+ 		t.Go = c.bool
+-		t.Align = c.ptrSize
++		t.Align = 1
+ 
+ 	case *dwarf.CharType:
+ 		if t.Size != 1 {

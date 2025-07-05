@@ -7,6 +7,21 @@ Date:   Wed Feb 6 00:33:25 2013 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7311044
-
+---
  src/lib9/main.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib9/main.c b/src/lib9/main.c
+index 85a73f9f29..f1bde9c95f 100644
+--- a/src/lib9/main.c
++++ b/src/lib9/main.c
+@@ -30,7 +30,8 @@ THE SOFTWARE.
+ #ifdef WIN32
+ #include <windows.h>
+ 
+-static void crashhandler() {
++static void crashhandler(int sig) {
++	USED(sig);
+ 	fprint(2, "%s: internal fatal error.\n", argv0);
+ 	exit(1);
+ }

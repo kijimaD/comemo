@@ -10,6 +10,28 @@ Date:   Wed Aug 6 00:24:11 2014 -0400
     R=khr, bradfitz, dave, dan.kortschak, rsc
     CC=golang-codereviews
     https://golang.org/cl/121080043
-
+---
  src/pkg/runtime/alg.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/alg.go b/src/pkg/runtime/alg.go
+index 9d06197f27..000d4a18b7 100644
+--- a/src/pkg/runtime/alg.go
++++ b/src/pkg/runtime/alg.go
+@@ -37,13 +37,15 @@ const (
+ 	alg_max
+ )
+ 
++const nacl = GOOS == "nacl"
++
+ var use_aeshash bool
+ 
+ // in asm_*.s
+ func aeshash(p unsafe.Pointer, s uintptr, h uintptr) uintptr
+ 
+ func memhash(p unsafe.Pointer, s uintptr, h uintptr) uintptr {
+-	if use_aeshash {
++	if !nacl && use_aeshash {
+ 		return aeshash(p, s, h)
+ 	}
+ 

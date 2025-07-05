@@ -10,6 +10,31 @@ Date:   Tue Apr 24 21:36:42 2012 -0700
     R=golang-dev, agl, bradfitz, rsc, iant, dchest
     CC=golang-dev
     https://golang.org/cl/6113046
-
+---
  src/pkg/crypto/rand/rand_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/rand/rand_test.go b/src/pkg/crypto/rand/rand_test.go
+index be3a5a221d..da091ba8c7 100644
+--- a/src/pkg/crypto/rand/rand_test.go
++++ b/src/pkg/crypto/rand/rand_test.go
+@@ -7,6 +7,7 @@ package rand
+ import (
+ 	"bytes"
+ 	"compress/flate"
++	"io"
+ 	"testing"
+ )
+ 
+@@ -16,9 +17,9 @@ func TestRead(t *testing.T) {
+ 		n = 1e5
+ 	}
+ 	b := make([]byte, n)
+-	n, err := Read(b)
++	n, err := io.ReadFull(Reader, b)
+ 	if n != len(b) || err != nil {
+-		t.Fatalf("Read(buf) = %d, %s", n, err)
++		t.Fatalf("ReadFull(buf) = %d, %s", n, err)
+ 	}
+ 
+ 	var z bytes.Buffer

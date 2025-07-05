@@ -55,7 +55,7 @@ Date:   Thu Feb 20 20:58:45 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/lockrank.go |  27 ++--
  src/runtime/malloc.go   |   8 +-
  src/runtime/mcache.go   |   6 +-
@@ -64,3 +64,840 @@ Date:   Thu Feb 20 20:58:45 2020 +0000
  src/runtime/mgcsweep.go | 328 +++++++++++++++++++++++++++++++++++++++++++++++-
  src/runtime/mheap.go    |  27 ++--
  7 files changed, 620 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index d96369b1a5..f06106c8d9 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -66,8 +66,9 @@ const (
+ 	lockRankRwmutexW
+ 	lockRankRwmutexR
+ 
+-	lockRankMcentral
+-	lockRankSpine
++	lockRankMcentral // For !go115NewMCentralImpl
++	lockRankSpine    // For !go115NewMCentralImpl
++	lockRankSpanSetSpine
+ 	lockRankStackpool
+ 	lockRankStackLarge
+ 	lockRankDefer
+@@ -137,12 +138,13 @@ var lockNames = []string{
+ 	lockRankRwmutexW: "rwmutexW",
+ 	lockRankRwmutexR: "rwmutexR",
+ 
+-	lockRankMcentral:   "mcentral",
+-	lockRankSpine:      "spine",
+-	lockRankStackpool:  "stackpool",
+-	lockRankStackLarge: "stackLarge",
+-	lockRankDefer:      "defer",
+-	lockRankSudog:      "sudog",
++	lockRankMcentral:     "mcentral",
++	lockRankSpine:        "spine",
++	lockRankSpanSetSpine: "spanSetSpine",
++	lockRankStackpool:    "stackpool",
++	lockRankStackLarge:   "stackLarge",
++	lockRankDefer:        "defer",
++	lockRankSudog:        "sudog",
+ 
+ 	lockRankWbufSpans:    "wbufSpans",
+ 	lockRankMheap:        "mheap",
+@@ -214,14 +216,15 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 
+ 	lockRankMcentral:     {lockRankScavenge, lockRankForcegc, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
+ 	lockRankSpine:        {lockRankScavenge, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
+-	lockRankStackpool:    {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankTrace, lockRankTraceStackTab, lockRankNetpollInit, lockRankRwmutexR, lockRankMcentral, lockRankSpine},
+-	lockRankStackLarge:   {lockRankAssistQueue, lockRankSched, lockRankItab, lockRankHchan, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankMcentral},
++	lockRankSpanSetSpine: {lockRankScavenge, lockRankForcegc, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
++	lockRankStackpool:    {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankFin, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankTrace, lockRankTraceStackTab, lockRankNetpollInit, lockRankRwmutexR, lockRankMcentral, lockRankSpine, lockRankSpanSetSpine},
++	lockRankStackLarge:   {lockRankAssistQueue, lockRankSched, lockRankItab, lockRankHchan, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankMcentral, lockRankSpanSetSpine},
+ 	lockRankDefer:        {},
+ 	lockRankSudog:        {lockRankNotifyList, lockRankHchan},
+ 	lockRankWbufSpans:    {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankSweep, lockRankSched, lockRankAllg, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankHchan, lockRankNotifyList, lockRankTraceStrings, lockRankMspanSpecial, lockRankProf, lockRankRoot, lockRankDefer, lockRankSudog},
+-	lockRankMheap:        {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan, lockRankMspanSpecial, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankMcentral, lockRankStackpool, lockRankStackLarge, lockRankDefer, lockRankSudog, lockRankWbufSpans},
++	lockRankMheap:        {lockRankScavenge, lockRankSweepWaiters, lockRankAssistQueue, lockRankCpuprof, lockRankSweep, lockRankSched, lockRankAllg, lockRankAllp, lockRankPollDesc, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan, lockRankMspanSpecial, lockRankProf, lockRankGcBitsArenas, lockRankRoot, lockRankMcentral, lockRankStackpool, lockRankStackLarge, lockRankDefer, lockRankSudog, lockRankWbufSpans, lockRankSpanSetSpine},
+ 	lockRankMheapSpecial: {lockRankScavenge, lockRankCpuprof, lockRankSched, lockRankAllg, lockRankAllp, lockRankTimers, lockRankItab, lockRankReflectOffs, lockRankNotifyList, lockRankTraceBuf, lockRankTraceStrings, lockRankHchan},
+-	lockRankGlobalAlloc:  {lockRankProf, lockRankSpine, lockRankMheap, lockRankMheapSpecial},
++	lockRankGlobalAlloc:  {lockRankProf, lockRankSpine, lockRankSpanSetSpine, lockRankMheap, lockRankMheapSpecial},
+ 
+ 	lockRankGFree: {lockRankSched},
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 29e0071b3c..2da694d14a 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1171,10 +1171,16 @@ func largeAlloc(size uintptr, needzero bool, noscan bool) *mspan {
+ 	// pays the debt down to npage pages.
+ 	deductSweepCredit(npages*_PageSize, npages)
+ 
+-	s := mheap_.alloc(npages, makeSpanClass(0, noscan), needzero)
++	spc := makeSpanClass(0, noscan)
++	s := mheap_.alloc(npages, spc, needzero)
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
++	if go115NewMCentralImpl {
++		// Put the large span in the mcentral swept list so that it's
++		// visible to the background sweeper.
++		mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
++	}
+ 	s.limit = s.base() + size
+ 	heapBitsForAddr(s.base()).initSpan(s)
+ 	return s
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index d4fa9a012d..5bceb51ac9 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -131,7 +131,11 @@ func (c *mcache) refill(spc spanClass) {
+ 		if s.sweepgen != mheap_.sweepgen+3 {
+ 			throw("bad sweepgen in refill")
+ 		}
+-		atomic.Store(&s.sweepgen, mheap_.sweepgen)
++		if go115NewMCentralImpl {
++			mheap_.central[spc].mcentral.uncacheSpan(s)
++		} else {
++			atomic.Store(&s.sweepgen, mheap_.sweepgen)
++		}
+ 	}
+ 
+ 	// Get a new cached span from the central lists.
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index fd0035bed5..8a39f601bf 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -20,8 +20,31 @@ import "runtime/internal/atomic"
+ type mcentral struct {
+ 	lock      mutex
+ 	spanclass spanClass
+-	nonempty  mSpanList // list of spans with a free object, ie a nonempty free list
+-	empty     mSpanList // list of spans with no free objects (or cached in an mcache)
++
++	// For !go115NewMCentralImpl.
++	nonempty mSpanList // list of spans with a free object, ie a nonempty free list
++	empty    mSpanList // list of spans with no free objects (or cached in an mcache)
++
++	// partial and full contain two mspan sets: one of swept in-use
++	// spans, and one of unswept in-use spans. These two trade
++	// roles on each GC cycle. The unswept set is drained either by
++	// allocation or by the background sweeper in every GC cycle,
++	// so only two roles are necessary.
++	//
++	// sweepgen is increased by 2 on each GC cycle, so the swept
++	// spans are in partial[sweepgen/2%2] and the unswept spans are in
++	// partial[1-sweepgen/2%2]. Sweeping pops spans from the
++	// unswept set and pushes spans that are still in-use on the
++	// swept set. Likewise, allocating an in-use span pushes it
++	// on the swept set.
++	//
++	// Some parts of the sweeper can sweep arbitrary spans, and hence
++	// can't remove them from the unswept set, but will add the span
++	// to the appropriate swept list. As a result, the parts of the
++	// sweeper and mcentral that do consume from the unswept list may
++	// encounter swept spans, and these should be ignored.
++	partial [2]spanSet // list of spans with a free object
++	full    [2]spanSet // list of spans with no free objects
+ 
+ 	// nmalloc is the cumulative count of objects allocated from
+ 	// this mcentral, assuming all spans in mcaches are
+@@ -32,13 +55,151 @@ type mcentral struct {
+ // Initialize a single central free list.
+ func (c *mcentral) init(spc spanClass) {
+ 	c.spanclass = spc
+-	c.nonempty.init()
+-	c.empty.init()
+-	lockInit(&c.lock, lockRankMcentral)
++	if go115NewMCentralImpl {
++		lockInit(&c.partial[0].spineLock, lockRankSpanSetSpine)
++		lockInit(&c.partial[1].spineLock, lockRankSpanSetSpine)
++		lockInit(&c.full[0].spineLock, lockRankSpanSetSpine)
++		lockInit(&c.full[1].spineLock, lockRankSpanSetSpine)
++	} else {
++		c.nonempty.init()
++		c.empty.init()
++		lockInit(&c.lock, lockRankMcentral)
++	}
++}
++
++// partialUnswept returns the spanSet which holds partially-filled
++// unswept spans for this sweepgen.
++func (c *mcentral) partialUnswept(sweepgen uint32) *spanSet {
++	return &c.partial[1-sweepgen/2%2]
++}
++
++// partialSwept returns the spanSet which holds partially-filled
++// swept spans for this sweepgen.
++func (c *mcentral) partialSwept(sweepgen uint32) *spanSet {
++	return &c.partial[sweepgen/2%2]
++}
++
++// fullUnswept returns the spanSet which holds unswept spans without any
++// free slots for this sweepgen.
++func (c *mcentral) fullUnswept(sweepgen uint32) *spanSet {
++	return &c.full[1-sweepgen/2%2]
++}
++
++// fullSwept returns the spanSet which holds swept spans without any
++// free slots for this sweepgen.
++func (c *mcentral) fullSwept(sweepgen uint32) *spanSet {
++	return &c.full[sweepgen/2%2]
+ }
+ 
+ // Allocate a span to use in an mcache.
+ func (c *mcentral) cacheSpan() *mspan {
++	if !go115NewMCentralImpl {
++		return c.oldCacheSpan()
++	}
++	// Deduct credit for this span allocation and sweep if necessary.
++	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
++	deductSweepCredit(spanBytes, 0)
++
++	sg := mheap_.sweepgen
++
++	traceDone := false
++	if trace.enabled {
++		traceGCSweepStart()
++	}
++	var s *mspan
++
++	// Try partial swept spans first.
++	if s = c.partialSwept(sg).pop(); s != nil {
++		goto havespan
++	}
++	// Now try partial unswept spans.
++	for {
++		s = c.partialUnswept(sg).pop()
++		if s == nil {
++			break
++		}
++		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++			// We got ownership of the span, so let's sweep it and use it.
++			s.sweep(true)
++			goto havespan
++		}
++		// We failed to get ownership of the span, which means it's being or
++		// has been swept by an asynchronous sweeper that just couldn't remove it
++		// from the unswept list. That sweeper took ownership of the span and
++		// responsibility for either freeing it to the heap or putting it on the
++		// right swept list. Either way, we should just ignore it (and it's unsafe
++		// for us to do anything else).
++	}
++	// Now try full unswept spans, sweeping them and putting them into the
++	// right list if we fail to get a span.
++	for {
++		s = c.fullUnswept(sg).pop()
++		if s == nil {
++			break
++		}
++		if atomic.Load(&s.sweepgen) == sg-2 && atomic.Cas(&s.sweepgen, sg-2, sg-1) {
++			// We got ownership of the span, so let's sweep it.
++			s.sweep(true)
++			// Check if there's any free space.
++			freeIndex := s.nextFreeIndex()
++			if freeIndex != s.nelems {
++				s.freeindex = freeIndex
++				goto havespan
++			}
++			// Add it to the swept list, because sweeping didn't give us any free space.
++			c.fullSwept(sg).push(s)
++		}
++		// See comment for partial unswept spans.
++	}
++	if trace.enabled {
++		traceGCSweepDone()
++		traceDone = true
++	}
++
++	// We failed to get a span from the mcentral so get one from mheap.
++	s = c.grow()
++	if s == nil {
++		return nil
++	}
++
++	// At this point s is a span that should have free slots.
++havespan:
++	if trace.enabled && !traceDone {
++		traceGCSweepDone()
++	}
++	n := int(s.nelems) - int(s.allocCount)
++	if n == 0 || s.freeindex == s.nelems || uintptr(s.allocCount) == s.nelems {
++		throw("span has no free objects")
++	}
++	// Assume all objects from this span will be allocated in the
++	// mcache. If it gets uncached, we'll adjust this.
++	atomic.Xadd64(&c.nmalloc, int64(n))
++	usedBytes := uintptr(s.allocCount) * s.elemsize
++	atomic.Xadd64(&memstats.heap_live, int64(spanBytes)-int64(usedBytes))
++	if trace.enabled {
++		// heap_live changed.
++		traceHeapAlloc()
++	}
++	if gcBlackenEnabled != 0 {
++		// heap_live changed.
++		gcController.revise()
++	}
++	freeByteBase := s.freeindex &^ (64 - 1)
++	whichByte := freeByteBase / 8
++	// Init alloc bits cache.
++	s.refillAllocCache(whichByte)
++
++	// Adjust the allocCache so that s.freeindex corresponds to the low bit in
++	// s.allocCache.
++	s.allocCache >>= s.freeindex % 64
++
++	return s
++}
++
++// Allocate a span to use in an mcache.
++//
++// For !go115NewMCentralImpl.
++func (c *mcentral) oldCacheSpan() *mspan {
+ 	// Deduct credit for this span allocation and sweep if necessary.
+ 	spanBytes := uintptr(class_to_allocnpages[c.spanclass.sizeclass()]) * _PageSize
+ 	deductSweepCredit(spanBytes, 0)
+@@ -148,7 +309,77 @@ havespan:
+ }
+ 
+ // Return span from an mcache.
++//
++// s must have a span class corresponding to this
++// mcentral and it must not be empty.
+ func (c *mcentral) uncacheSpan(s *mspan) {
++	if !go115NewMCentralImpl {
++		c.oldUncacheSpan(s)
++		return
++	}
++	if s.allocCount == 0 {
++		throw("uncaching span but s.allocCount == 0")
++	}
++
++	sg := mheap_.sweepgen
++	stale := s.sweepgen == sg+1
++
++	// Fix up sweepgen.
++	if stale {
++		// Span was cached before sweep began. It's our
++		// responsibility to sweep it.
++		//
++		// Set sweepgen to indicate it's not cached but needs
++		// sweeping and can't be allocated from. sweep will
++		// set s.sweepgen to indicate s is swept.
++		atomic.Store(&s.sweepgen, sg-1)
++	} else {
++		// Indicate that s is no longer cached.
++		atomic.Store(&s.sweepgen, sg)
++	}
++	n := int(s.nelems) - int(s.allocCount)
++
++	// Fix up statistics.
++	if n > 0 {
++		// cacheSpan updated alloc assuming all objects on s
++		// were going to be allocated. Adjust for any that
++		// weren't. We must do this before potentially
++		// sweeping the span.
++		atomic.Xadd64(&c.nmalloc, -int64(n))
++
++		if !stale {
++			// (*mcentral).cacheSpan conservatively counted
++			// unallocated slots in heap_live. Undo this.
++			//
++			// If this span was cached before sweep, then
++			// heap_live was totally recomputed since
++			// caching this span, so we don't do this for
++			// stale spans.
++			atomic.Xadd64(&memstats.heap_live, -int64(n)*int64(s.elemsize))
++		}
++	}
++
++	// Put the span in the appropriate place.
++	if stale {
++		// It's stale, so just sweep it. Sweeping will put it on
++		// the right list.
++		s.sweep(false)
++	} else {
++		if n > 0 {
++			// Put it back on the partial swept list.
++			c.partialSwept(sg).push(s)
++		} else {
++			// There's no free space and it's not stale, so put it on the
++			// full swept list.
++			c.fullSwept(sg).push(s)
++		}
++	}
++}
++
++// Return span from an mcache.
++//
++// For !go115NewMCentralImpl.
++func (c *mcentral) oldUncacheSpan(s *mspan) {
+ 	if s.allocCount == 0 {
+ 		throw("uncaching span but s.allocCount == 0")
+ 	}
+@@ -207,6 +438,8 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ // freeSpan reports whether s was returned to the heap.
+ // If preserve=true, it does not move s (the caller
+ // must take care of it).
++//
++// For !go115NewMCentralImpl.
+ func (c *mcentral) freeSpan(s *mspan, preserve bool, wasempty bool) bool {
+ 	if sg := mheap_.sweepgen; s.sweepgen == sg+1 || s.sweepgen == sg+3 {
+ 		throw("freeSpan given cached span")
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 58b76bca70..3c4d807bac 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1320,6 +1320,7 @@ func gcStart(trigger gcTrigger) {
+ 	systemstack(func() {
+ 		finishsweep_m()
+ 	})
++
+ 	// clearpools before we start the GC. If we wait they memory will not be
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+@@ -2141,6 +2142,9 @@ func gcMark(start_time int64) {
+ 
+ // gcSweep must be called on the system stack because it acquires the heap
+ // lock. See mheap for details.
++//
++// The world must be stopped.
++//
+ //go:systemstack
+ func gcSweep(mode gcMode) {
+ 	if gcphase != _GCoff {
+@@ -2150,7 +2154,7 @@ func gcSweep(mode gcMode) {
+ 	lock(&mheap_.lock)
+ 	mheap_.sweepgen += 2
+ 	mheap_.sweepdone = 0
+-	if mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
++	if !go115NewMCentralImpl && mheap_.sweepSpans[mheap_.sweepgen/2%2].index != 0 {
+ 		// We should have drained this list during the last
+ 		// sweep phase. We certainly need to start this phase
+ 		// with an empty swept list.
+@@ -2162,6 +2166,10 @@ func gcSweep(mode gcMode) {
+ 	mheap_.reclaimCredit = 0
+ 	unlock(&mheap_.lock)
+ 
++	if go115NewMCentralImpl {
++		sweep.centralIndex.clear()
++	}
++
+ 	if !_ConcurrentSweep || mode == gcForceBlockMode {
+ 		// Special case synchronous sweep.
+ 		// Record that no proportional sweeping has to happen.
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index c63db24b33..f99a6cc122 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -10,7 +10,7 @@
+ //   can free a whole span if none of the objects are marked, but that
+ //   isn't its goal. This can be driven either synchronously by
+ //   mcentral.cacheSpan for mcentral spans, or asynchronously by
+-//   sweepone from the list of all in-use spans in mheap_.sweepSpans.
++//   sweepone, which looks at all the mcentral lists.
+ //
+ // * The span reclaimer looks for spans that contain no marked objects
+ //   and frees whole spans. This is a separate algorithm because
+@@ -40,6 +40,80 @@ type sweepdata struct {
+ 
+ 	nbgsweep    uint32
+ 	npausesweep uint32
++
++	// centralIndex is the current unswept span class.
++	// It represents an index into the mcentral span
++	// sets. Accessed and updated via its load and
++	// update methods. Not protected by a lock.
++	//
++	// Reset at mark termination.
++	// Used by mheap.nextSpanForSweep.
++	centralIndex sweepClass
++}
++
++// sweepClass is a spanClass and one bit to represent whether we're currently
++// sweeping partial or full spans.
++type sweepClass uint32
++
++const (
++	numSweepClasses            = numSpanClasses * 2
++	sweepClassDone  sweepClass = sweepClass(^uint32(0))
++)
++
++func (s *sweepClass) load() sweepClass {
++	return sweepClass(atomic.Load((*uint32)(s)))
++}
++
++func (s *sweepClass) update(sNew sweepClass) {
++	// Only update *s if its current value is less than sNew,
++	// since *s increases monotonically.
++	sOld := s.load()
++	for sOld < sNew && !atomic.Cas((*uint32)(s), uint32(sOld), uint32(sNew)) {
++		sOld = s.load()
++	}
++	// TODO(mknyszek): This isn't the only place we have
++	// an atomic monotonically increasing counter. It would
++	// be nice to have an "atomic max" which is just implemented
++	// as the above on most architectures. Some architectures
++	// like RISC-V however have native support for an atomic max.
++}
++
++func (s *sweepClass) clear() {
++	atomic.Store((*uint32)(s), 0)
++}
++
++// split returns the underlying span class as well as
++// whether we're interested in the full or partial
++// unswept lists for that class, indicated as a boolean
++// (true means "full").
++func (s sweepClass) split() (spc spanClass, full bool) {
++	return spanClass(s >> 1), s&1 == 0
++}
++
++// nextSpanForSweep finds and pops the next span for sweeping from the
++// central sweep buffers. It returns ownership of the span to the caller.
++// Returns nil if no such span exists.
++func (h *mheap) nextSpanForSweep() *mspan {
++	sg := h.sweepgen
++	for sc := sweep.centralIndex.load(); sc < numSweepClasses; sc++ {
++		spc, full := sc.split()
++		c := &h.central[spc].mcentral
++		var s *mspan
++		if full {
++			s = c.fullUnswept(sg).pop()
++		} else {
++			s = c.partialUnswept(sg).pop()
++		}
++		if s != nil {
++			// Write down that we found something so future sweepers
++			// can start from here.
++			sweep.centralIndex.update(sc)
++			return s
++		}
++	}
++	// Write down that we found nothing.
++	sweep.centralIndex.update(sweepClassDone)
++	return nil
+ }
+ 
+ // finishsweep_m ensures that all spans are swept.
+@@ -58,6 +132,19 @@ func finishsweep_m() {
+ 		sweep.npausesweep++
+ 	}
+ 
++	if go115NewMCentralImpl {
++		// Reset all the unswept buffers, which should be empty.
++		// Do this in sweep termination as opposed to mark termination
++		// so that we can catch unswept spans and reclaim blocks as
++		// soon as possible.
++		sg := mheap_.sweepgen
++		for i := range mheap_.central {
++			c := &mheap_.central[i].mcentral
++			c.partialUnswept(sg).reset()
++			c.fullUnswept(sg).reset()
++		}
++	}
++
+ 	nextMarkBitArenaEpoch()
+ }
+ 
+@@ -110,7 +197,11 @@ func sweepone() uintptr {
+ 	var s *mspan
+ 	sg := mheap_.sweepgen
+ 	for {
+-		s = mheap_.sweepSpans[1-sg/2%2].pop()
++		if go115NewMCentralImpl {
++			s = mheap_.nextSpanForSweep()
++		} else {
++			s = mheap_.sweepSpans[1-sg/2%2].pop()
++		}
+ 		if s == nil {
+ 			atomic.Store(&mheap_.sweepdone, 1)
+ 			break
+@@ -205,6 +296,239 @@ func (s *mspan) ensureSwept() {
+ // If preserve=true, don't return it to heap nor relink in mcentral lists;
+ // caller takes care of it.
+ func (s *mspan) sweep(preserve bool) bool {
++	if !go115NewMCentralImpl {
++		return s.oldSweep(preserve)
++	}
++	// It's critical that we enter this function with preemption disabled,
++	// GC must not start while we are in the middle of this function.
++	_g_ := getg()
++	if _g_.m.locks == 0 && _g_.m.mallocing == 0 && _g_ != _g_.m.g0 {
++		throw("mspan.sweep: m is not locked")
++	}
++	sweepgen := mheap_.sweepgen
++	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
++		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++		throw("mspan.sweep: bad span state")
++	}
++
++	if trace.enabled {
++		traceGCSweepSpan(s.npages * _PageSize)
++	}
++
++	atomic.Xadd64(&mheap_.pagesSwept, int64(s.npages))
++
++	spc := s.spanclass
++	size := s.elemsize
++
++	c := _g_.m.p.ptr().mcache
++
++	// The allocBits indicate which unmarked objects don't need to be
++	// processed since they were free at the end of the last GC cycle
++	// and were not allocated since then.
++	// If the allocBits index is >= s.freeindex and the bit
++	// is not marked then the object remains unallocated
++	// since the last GC.
++	// This situation is analogous to being on a freelist.
++
++	// Unlink & free special records for any objects we're about to free.
++	// Two complications here:
++	// 1. An object can have both finalizer and profile special records.
++	//    In such case we need to queue finalizer for execution,
++	//    mark the object as live and preserve the profile special.
++	// 2. A tiny object can have several finalizers setup for different offsets.
++	//    If such object is not marked, we need to queue all finalizers at once.
++	// Both 1 and 2 are possible at the same time.
++	hadSpecials := s.specials != nil
++	specialp := &s.specials
++	special := *specialp
++	for special != nil {
++		// A finalizer can be set for an inner byte of an object, find object beginning.
++		objIndex := uintptr(special.offset) / size
++		p := s.base() + objIndex*size
++		mbits := s.markBitsForIndex(objIndex)
++		if !mbits.isMarked() {
++			// This object is not marked and has at least one special record.
++			// Pass 1: see if it has at least one finalizer.
++			hasFin := false
++			endOffset := p - s.base() + size
++			for tmp := special; tmp != nil && uintptr(tmp.offset) < endOffset; tmp = tmp.next {
++				if tmp.kind == _KindSpecialFinalizer {
++					// Stop freeing of object if it has a finalizer.
++					mbits.setMarkedNonAtomic()
++					hasFin = true
++					break
++				}
++			}
++			// Pass 2: queue all finalizers _or_ handle profile record.
++			for special != nil && uintptr(special.offset) < endOffset {
++				// Find the exact byte for which the special was setup
++				// (as opposed to object beginning).
++				p := s.base() + uintptr(special.offset)
++				if special.kind == _KindSpecialFinalizer || !hasFin {
++					// Splice out special record.
++					y := special
++					special = special.next
++					*specialp = special
++					freespecial(y, unsafe.Pointer(p), size)
++				} else {
++					// This is profile record, but the object has finalizers (so kept alive).
++					// Keep special record.
++					specialp = &special.next
++					special = *specialp
++				}
++			}
++		} else {
++			// object is still live: keep special record
++			specialp = &special.next
++			special = *specialp
++		}
++	}
++	if hadSpecials && s.specials == nil {
++		spanHasNoSpecials(s)
++	}
++
++	if debug.allocfreetrace != 0 || debug.clobberfree != 0 || raceenabled || msanenabled {
++		// Find all newly freed objects. This doesn't have to
++		// efficient; allocfreetrace has massive overhead.
++		mbits := s.markBitsForBase()
++		abits := s.allocBitsForIndex(0)
++		for i := uintptr(0); i < s.nelems; i++ {
++			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
++				x := s.base() + i*s.elemsize
++				if debug.allocfreetrace != 0 {
++					tracefree(unsafe.Pointer(x), size)
++				}
++				if debug.clobberfree != 0 {
++					clobberfree(unsafe.Pointer(x), size)
++				}
++				if raceenabled {
++					racefree(unsafe.Pointer(x), size)
++				}
++				if msanenabled {
++					msanfree(unsafe.Pointer(x), size)
++				}
++			}
++			mbits.advance()
++			abits.advance()
++		}
++	}
++
++	// Count the number of free objects in this span.
++	nalloc := uint16(s.countAlloc())
++	nfreed := s.allocCount - nalloc
++	if nalloc > s.allocCount {
++		print("runtime: nelems=", s.nelems, " nalloc=", nalloc, " previous allocCount=", s.allocCount, " nfreed=", nfreed, "\n")
++		throw("sweep increased allocation count")
++	}
++
++	s.allocCount = nalloc
++	s.freeindex = 0 // reset allocation index to start of span.
++	if trace.enabled {
++		getg().m.p.ptr().traceReclaimed += uintptr(nfreed) * s.elemsize
++	}
++
++	// gcmarkBits becomes the allocBits.
++	// get a fresh cleared gcmarkBits in preparation for next GC
++	s.allocBits = s.gcmarkBits
++	s.gcmarkBits = newMarkBits(s.nelems)
++
++	// Initialize alloc bits cache.
++	s.refillAllocCache(0)
++
++	// The span must be in our exclusive ownership until we update sweepgen,
++	// check for potential races.
++	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
++		print("mspan.sweep: state=", state, " sweepgen=", s.sweepgen, " mheap.sweepgen=", sweepgen, "\n")
++		throw("mspan.sweep: bad span state after sweep")
++	}
++	if s.sweepgen == sweepgen+1 || s.sweepgen == sweepgen+3 {
++		throw("swept cached span")
++	}
++
++	// We need to set s.sweepgen = h.sweepgen only when all blocks are swept,
++	// because of the potential for a concurrent free/SetFinalizer.
++	//
++	// But we need to set it before we make the span available for allocation
++	// (return it to heap or mcentral), because allocation code assumes that a
++	// span is already swept if available for allocation.
++	//
++	// Serialization point.
++	// At this point the mark bits are cleared and allocation ready
++	// to go so release the span.
++	atomic.Store(&s.sweepgen, sweepgen)
++
++	if spc.sizeclass() != 0 {
++		// Handle spans for small objects.
++		if nfreed > 0 {
++			// Only mark the span as needing zeroing if we've freed any
++			// objects, because a fresh span that had been allocated into,
++			// wasn't totally filled, but then swept, still has all of its
++			// free slots zeroed.
++			s.needzero = 1
++			c.local_nsmallfree[spc.sizeclass()] += uintptr(nfreed)
++		}
++		if !preserve {
++			// The caller may not have removed this span from whatever
++			// unswept set its on but taken ownership of the span for
++			// sweeping by updating sweepgen. If this span still is in
++			// an unswept set, then the mcentral will pop it off the
++			// set, check its sweepgen, and ignore it.
++			if nalloc == 0 {
++				// Free totally free span directly back to the heap.
++				mheap_.freeSpan(s)
++				return true
++			}
++			// Return span back to the right mcentral list.
++			if uintptr(nalloc) == s.nelems {
++				mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
++			} else {
++				mheap_.central[spc].mcentral.partialSwept(sweepgen).push(s)
++			}
++		}
++	} else if !preserve {
++		// Handle spans for large objects.
++		if nfreed != 0 {
++			// Free large object span to heap.
++
++			// NOTE(rsc,dvyukov): The original implementation of efence
++			// in CL 22060046 used sysFree instead of sysFault, so that
++			// the operating system would eventually give the memory
++			// back to us again, so that an efence program could run
++			// longer without running out of memory. Unfortunately,
++			// calling sysFree here without any kind of adjustment of the
++			// heap data structures means that when the memory does
++			// come back to us, we have the wrong metadata for it, either in
++			// the mspan structures or in the garbage collection bitmap.
++			// Using sysFault here means that the program will run out of
++			// memory fairly quickly in efence mode, but at least it won't
++			// have mysterious crashes due to confused memory reuse.
++			// It should be possible to switch back to sysFree if we also
++			// implement and then call some kind of mheap.deleteSpan.
++			if debug.efence > 0 {
++				s.limit = 0 // prevent mlookup from finding this span
++				sysFault(unsafe.Pointer(s.base()), size)
++			} else {
++				mheap_.freeSpan(s)
++			}
++			c.local_nlargefree++
++			c.local_largefree += size
++			return true
++		}
++
++		// Add a large span directly onto the full+swept list.
++		mheap_.central[spc].mcentral.fullSwept(sweepgen).push(s)
++	}
++	return false
++}
++
++// Sweep frees or collects finalizers for blocks not marked in the mark phase.
++// It clears the mark bits in preparation for the next GC round.
++// Returns true if the span was returned to heap.
++// If preserve=true, don't return it to heap nor relink in mcentral lists;
++// caller takes care of it.
++//
++// For !go115NewMCentralImpl.
++func (s *mspan) oldSweep(preserve bool) bool {
+ 	// It's critical that we enter this function with preemption disabled,
+ 	// GC must not start while we are in the middle of this function.
+ 	_g_ := getg()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 9448748603..b7c5add40c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -44,6 +44,15 @@ const (
+ 	// Must be a multiple of the pageInUse bitmap element size and
+ 	// must also evenly divid pagesPerArena.
+ 	pagesPerReclaimerChunk = 512
++
++	// go115NewMCentralImpl is a feature flag for the new mcentral implementation.
++	//
++	// This flag depends on go115NewMarkrootSpans because the new mcentral
++	// implementation requires that markroot spans no longer rely on mgcsweepbufs.
++	// The definition of this flag helps ensure that if there's a problem with
++	// the new markroot spans implementation and it gets turned off, that the new
++	// mcentral implementation also gets turned off so the runtime isn't broken.
++	go115NewMCentralImpl = true && go115NewMarkrootSpans
+ )
+ 
+ // Main malloc heap.
+@@ -85,6 +94,8 @@ type mheap struct {
+ 	// unswept stack and pushes spans that are still in-use on the
+ 	// swept stack. Likewise, allocating an in-use span pushes it
+ 	// on the swept stack.
++	//
++	// For !go115NewMCentralImpl.
+ 	sweepSpans [2]gcSweepBuf
+ 
+ 	// _ uint32 // align uint64 fields on 32-bit for atomics
+@@ -1278,13 +1289,15 @@ HaveSpan:
+ 	h.setSpans(s.base(), npages, s)
+ 
+ 	if !manual {
+-		// Add to swept in-use list.
+-		//
+-		// This publishes the span to root marking.
+-		//
+-		// h.sweepgen is guaranteed to only change during STW,
+-		// and preemption is disabled in the page allocator.
+-		h.sweepSpans[h.sweepgen/2%2].push(s)
++		if !go115NewMCentralImpl {
++			// Add to swept in-use list.
++			//
++			// This publishes the span to root marking.
++			//
++			// h.sweepgen is guaranteed to only change during STW,
++			// and preemption is disabled in the page allocator.
++			h.sweepSpans[h.sweepgen/2%2].push(s)
++		}
+ 
+ 		// Mark in-use span in arena page bitmap.
+ 		//

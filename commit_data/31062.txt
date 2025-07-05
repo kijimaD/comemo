@@ -16,6 +16,38 @@ Date:   Thu Jan 19 22:04:45 2017 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/sigaltstack.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/sigaltstack.go b/misc/cgo/test/sigaltstack.go
+index b16adc7d88..2b7a1ec9ad 100644
+--- a/misc/cgo/test/sigaltstack.go
++++ b/misc/cgo/test/sigaltstack.go
+@@ -17,7 +17,7 @@ package cgotest
+ static stack_t oss;
+ static char signalStack[SIGSTKSZ];
+ 
+-static void changeSignalStack() {
++static void changeSignalStack(void) {
+ 	stack_t ss;
+ 	memset(&ss, 0, sizeof ss);
+ 	ss.ss_sp = signalStack;
+@@ -29,7 +29,7 @@ static void changeSignalStack() {
+ 	}
+ }
+ 
+-static void restoreSignalStack() {
++static void restoreSignalStack(void) {
+ #if (defined(__x86_64__) || defined(__i386__)) && defined(__APPLE__)
+ 	// The Darwin C library enforces a minimum that the kernel does not.
+ 	// This is OK since we allocated this much space in mpreinit,
+@@ -42,7 +42,7 @@ static void restoreSignalStack() {
+ 	}
+ }
+ 
+-static int zero() {
++static int zero(void) {
+ 	return 0;
+ }
+ */

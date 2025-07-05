@@ -16,6 +16,31 @@ Date:   Fri Sep 23 22:53:31 2022 +0900
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/testing/testing.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index b64286c005..c7d51a13e3 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1187,7 +1187,8 @@ func removeAll(path string) error {
+ // restore the environment variable to its original value
+ // after the test.
+ //
+-// This cannot be used in parallel tests.
++// Because Setenv affects the whole process, it cannot be used
++// in parallel tests or tests with parallel ancestors.
+ func (c *common) Setenv(key, value string) {
+ 	c.checkFuzzFn("Setenv")
+ 	prevValue, ok := os.LookupEnv(key)
+@@ -1324,7 +1325,8 @@ func (t *T) Parallel() {
+ // restore the environment variable to its original value
+ // after the test.
+ //
+-// This cannot be used in parallel tests.
++// Because Setenv affects the whole process, it cannot be used
++// in parallel tests or tests with parallel ancestors.
+ func (t *T) Setenv(key, value string) {
+ 	// Non-parallel subtests that have parallel ancestors may still
+ 	// run in parallel with other tests: they are only non-parallel

@@ -7,7 +7,7 @@ Date:   Wed Oct 27 17:56:32 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2757042
-
+---
  src/cmd/gc/builtin.c.boot |  2 ++
  src/cmd/gc/go.h           |  3 ++
  src/cmd/gc/lex.c          |  1 +
@@ -18,3 +18,336 @@ Date:   Wed Oct 27 17:56:32 2010 -0700
  src/cmd/gc/walk.c         | 46 +++++++++++++++++++++++++
  src/pkg/runtime/slice.c   | 86 +++++++++++++++++++++++++++++++++++++++++------
  9 files changed, 169 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 10559a900f..277f572eac 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -21,6 +21,8 @@ char *runtimeimport =
+ 	"func \"\".printsp ()\n"
+ 	"func \"\".printf ()\n"
+ 	"func \"\".concatstring ()\n"
++	"func \"\".append ()\n"
++	"func \"\".appendslice (typ *uint8, x any, y []any) any\n"
+ 	"func \"\".cmpstring (? string, ? string) int\n"
+ 	"func \"\".slicestring (? string, ? int, ? int) string\n"
+ 	"func \"\".slicestring1 (? string, ? int) string\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 91a1562f75..5b7e316fe0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -6,6 +6,8 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ 
++#undef OAPPEND
++
+ // avoid <ctype.h>
+ #undef isblank
+ #define isblank goisblank
+@@ -349,6 +351,7 @@ enum
+ 	OADD, OSUB, OOR, OXOR, OADDSTR,
+ 	OADDR,
+ 	OANDAND,
++	OAPPEND,
+ 	OARRAY,
+ 	OARRAYBYTESTR, OARRAYRUNESTR,
+ 	OSTRARRAYBYTE, OSTRARRAYRUNE,
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 05fe4e7f2a..f9d9267709 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1531,6 +1531,7 @@ static	struct
+ 	"type",		LTYPE,		Txxx,		OXXX,
+ 	"var",		LVAR,		Txxx,		OXXX,
+ 
++	"append",		LNAME,		Txxx,		OAPPEND,
+ 	"cap",		LNAME,		Txxx,		OCAP,
+ 	"close",	LNAME,		Txxx,		OCLOSE,
+ 	"closed",	LNAME,		Txxx,		OCLOSED,
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index 478aa84e3b..6bb1f026be 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -37,6 +37,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	}
+ 
+ 	switch(n->op) {
++	case OAPPEND:
+ 	case ONAME:
+ 	case ONONAME:
+ 	case OPACK:
+@@ -400,6 +401,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, ")");
+ 		break;
+ 
++	case OAPPEND:
+ 	case OCAP:
+ 	case OCLOSE:
+ 	case OCLOSED:
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 1be706fa2f..ab14341e01 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -36,6 +36,10 @@ func printf()
+ // filled in by compiler: int n, string, string, ...
+ func concatstring()
+ 
++// filled in by compiler: Type*, int n, Slice, ...
++func append()
++func appendslice(typ *byte, x any, y []any) any
++
+ func cmpstring(string, string) int
+ func slicestring(string, int, int) string
+ func slicestring1(string, int) string
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1fdc54e451..2ebacba6eb 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -810,6 +810,7 @@ goopnames[] =
+ 	[OANDAND]	= "&&",
+ 	[OANDNOT]	= "&^",
+ 	[OAND]		= "&",
++	[OAPPEND]	= "append",
+ 	[OAS]		= "=",
+ 	[OAS2]		= "=",
+ 	[OBREAK]	= "break",
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index c4f082612c..97f20e0936 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -730,7 +730,7 @@ reswitch:
+ 		typecheck(&n->left, Erv | Etype | Ecall);
+ 		l = n->left;
+ 		if(l->op == ONAME && l->etype != 0) {
+-			if(n->isddd)
++			if(n->isddd && l->etype != OAPPEND)
+ 				yyerror("invalid use of ... with builtin %#N", l);
+ 			// builtin: OLEN, OCAP, etc.
+ 			n->op = l->etype;
+@@ -905,6 +905,40 @@ reswitch:
+ 			ok |= Etop;
+ 		goto ret;
+ 
++	case OAPPEND:
++		ok |= Erv;
++		args = n->list;
++		if(args == nil) {
++			yyerror("missing arguments to append");
++			goto error;
++		}
++		typechecklist(args, Erv);
++		if((t = args->n->type) == T)
++			goto error;
++		n->type = t;
++		if(!isslice(t)) {
++			yyerror("first argument to append must be slice; have %lT", t);
++			goto error;
++		}
++		if(n->isddd) {
++			if(args->next == nil) {
++				yyerror("cannot use ... on first argument to append");
++				goto error;
++			}
++			if(args->next->next != nil) {
++				yyerror("too many arguments to append");
++				goto error;
++			}
++			args->next->n = assignconv(args->next->n, t->orig, "append");
++			goto ret;
++		}
++		for(args=args->next; args != nil; args=args->next) {
++			if(args->n->type == T)
++				continue;
++			args->n = assignconv(args->n, t->type, "append");
++		}
++		goto ret;
++
+ 	case OCOPY:
+ 		ok |= Etop|Erv;
+ 		args = n->list;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 757b6d93d6..8824ba60f3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -18,6 +18,7 @@ static	NodeList*	paramstoheap(Type **argin, int out);
+ static	NodeList*	reorder1(NodeList*);
+ static	NodeList*	reorder3(NodeList*);
+ static	Node*	addstr(Node*, NodeList**);
++static	Node*	append(Node*, NodeList**);
+ 
+ static	NodeList*	walkdefstack;
+ 
+@@ -1264,6 +1265,10 @@ walkexpr(Node **np, NodeList **init)
+ 				l);
+ 		}
+ 		goto ret;
++	
++	case OAPPEND:
++		n = append(n, init);
++		goto ret;
+ 
+ 	case OCOPY:
+ 		if(n->right->type->etype == TSTRING)
+@@ -2304,3 +2309,44 @@ addstr(Node *n, NodeList **init)
+ 	
+ 	return r;
+ }
++
++static Node*
++append(Node *n, NodeList **init)
++{
++	int i, j;
++	Node *f, *r;
++	NodeList *in, *args;
++	
++	if(n->isddd) {
++		f = syslook("appendslice", 1);
++		argtype(f, n->type);
++		argtype(f, n->type->type);
++		argtype(f, n->type);
++		r = mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
++		return r;
++	}
++
++	j = count(n->list) - 1;
++	f = syslook("append", 1);
++	f->type = T;
++	f->ntype = nod(OTFUNC, N, N);
++	in = list1(nod(ODCLFIELD, N, typenod(ptrto(types[TUINT8]))));	// type
++	in = list(in, nod(ODCLFIELD, N, typenod(types[TINT])));	// count
++	in = list(in, nod(ODCLFIELD, N, typenod(n->type)));	// slice
++	for(i=0; i<j; i++)
++		in = list(in, nod(ODCLFIELD, N, typenod(n->type->type)));
++	f->ntype->list = in;
++	f->ntype->rlist = list1(nod(ODCLFIELD, N, typenod(n->type)));
++	
++	args = list1(typename(n->type));
++	args = list(args, nodintconst(j));
++	args = concat(args, n->list);
++	
++	r = nod(OCALL, f, N);
++	r->list = args;
++	typecheck(&r, Erv);
++	walkexpr(&r, init);
++	r->type = n->type;
++
++	return r;
++}
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index d0ba4ede3f..5884cfcef7 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -8,37 +8,101 @@
+ 
+ static	int32	debug	= 0;
+ 
++static	void	makeslice(SliceType*, int32, int32, Slice*);
++	void	·slicecopy(Slice to, Slice fm, uintptr width, int32 ret);
++
+ // see also unsafe·NewArray
+ // makeslice(typ *Type, len, cap int64) (ary []any);
+ void
+ ·makeslice(SliceType *t, int64 len, int64 cap, Slice ret)
+ {
+-	uintptr size;
+-
+ 	if(len < 0 || (int32)len != len)
+ 		panicstring("makeslice: len out of range");
+ 	if(cap < len || (int32)cap != cap || cap > ((uintptr)-1) / t->elem->size)
+ 		panicstring("makeslice: cap out of range");
+ 
++	makeslice(t, len, cap, &ret);
++
++	if(debug) {
++		printf("makeslice(%S, %D, %D); ret=",
++			*t->string, len, cap);
++ 		·printslice(ret);
++	}
++}
++
++static void
++makeslice(SliceType *t, int32 len, int32 cap, Slice *ret)
++{	
++	uintptr size;
++
+ 	size = cap*t->elem->size;
+ 
+-	ret.len = len;
+-	ret.cap = cap;
++	ret->len = len;
++	ret->cap = cap;
+ 
+ 	if((t->elem->kind&KindNoPointers))
+-		ret.array = mallocgc(size, RefNoPointers, 1, 1);
++		ret->array = mallocgc(size, RefNoPointers, 1, 1);
+ 	else
+-		ret.array = mal(size);
++		ret->array = mal(size);
++}
+ 
+-	FLUSH(&ret);
++static void appendslice(SliceType*, Slice, Slice, Slice*);
+ 
+-	if(debug) {
+-		printf("makeslice(%S, %D, %D); ret=",
+-			*t->string, len, cap);
+- 		·printslice(ret);
++// append(type *Type, n int, old []T, ...,) []T
++#pragma textflag 7
++void
++·append(SliceType *t, int32 n, Slice old, ...)
++{
++	Slice sl;
++	Slice *ret;
++	
++	sl.len = n;
++	sl.array = (byte*)(&old+1);
++	ret = (Slice*)(sl.array + ((t->elem->size*n+sizeof(uintptr)-1) & ~(sizeof(uintptr)-1)));
++	appendslice(t, old, sl, ret);
++}
++
++// appendslice(type *Type, x, y, []T) []T
++void
++·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
++{
++	appendslice(t, x, y, &ret);
++}
++
++static void
++appendslice(SliceType *t, Slice x, Slice y, Slice *ret)
++{
++	Slice newx;
++	int32 m;
++	uintptr w;
++
++	if(x.len+y.len < x.len)
++		throw("append: slice overflow");
++
++	w = t->elem->size;
++	if(x.len+y.len > x.cap) {
++		m = x.cap;
++		if(m == 0)
++			m = y.len;
++		else {
++			do {
++				if(x.len < 1024)
++					m += m;
++				else
++					m += m/4;
++			} while(m < x.len+y.len);
++		}
++		makeslice(t, x.len, m, &newx);
++		memmove(newx.array, x.array, x.len*w);
++		x = newx;
+ 	}
++	memmove(x.array+x.len*w, y.array, y.len*w);
++	x.len += y.len;
++	*ret = x;
+ }
+ 
++
++
+ // sliceslice(old []any, lb uint64, hb uint64, width uint64) (ary []any);
+ void
+ ·sliceslice(Slice old, uint64 lb, uint64 hb, uint64 width, Slice ret)

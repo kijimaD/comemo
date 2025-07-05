@@ -9,7 +9,75 @@ Date:   Wed Aug 26 16:23:54 2009 -0700
     DELTA=32  (8 added, 6 deleted, 18 changed)
     OCL=33899
     CL=33916
-
+---
  src/pkg/http/client.go |  6 ++++++
  src/pkg/io/io.go       | 36 ++++++++++++++++--------------------
  2 files changed, 22 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 839241d336..9c1951d28c 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -142,6 +142,12 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 	r := io.Reader(reader);
+ 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
+ 		r = newChunkedReader(reader);
++	} else if v := resp.GetHeader("Content-Length"); v != "" {
++		n, err := strconv.Atoi64(v);
++		if err != nil {
++			return nil, &badStringError{"invalid Content-Length", v};
++		}
++		r = io.LimitReader(r, n);
+ 	}
+ 	resp.Body = readClose{ r, conn };
+ 
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index b38c0efa9a..7e9d0de189 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -214,29 +214,25 @@ func Copy(src Reader, dst Writer) (written int64, err os.Error) {
+ 	return written, err
+ }
+ 
+-// A ByteReader satisfies Reads by consuming data from a slice of bytes.
+-// Clients can call NewByteReader to create one or wrap pointers
+-// to their own slices: r := ByteReader{&data}.
+-type ByteReader struct {
+-	Data *[]byte
++// LimitReader returns a Reader that reads from r
++// but stops with os.EOF after n bytes.
++func LimitReader(r Reader, n int64) Reader {
++	return &limitedReader{r, n};
+ }
+ 
+-func (r ByteReader) Read(p []byte) (int, os.Error) {
+-	n := len(p);
+-	b := *r.Data;
+-	if len(b) == 0 {
++type limitedReader struct {
++	r Reader;
++	n int64;
++}
++
++func (l *limitedReader) Read(p []byte) (n int, err os.Error) {
++	if l.n <= 0 {
+ 		return 0, os.EOF;
+ 	}
+-	if n > len(b) {
+-		n = len(b);
++	if int64(len(p)) > l.n {
++		p = p[0:l.n];
+ 	}
+-	bytes.Copy(p, b[0:n]);
+-	*r.Data = b[n:len(b)];
+-	return n, nil;
++	n, err = l.r.Read(p);
++	l.n -= int64(n);
++	return;
+ }
+-
+-// NewByteReader returns a new ByteReader reading from data.
+-func NewByteReader(data []byte) ByteReader {
+-	return ByteReader{ &data };
+-}
+-

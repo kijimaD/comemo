@@ -7,6 +7,29 @@ Date:   Tue Aug 21 03:46:17 2018 +0000
     Change-Id: Ie4ed8b3e7d26ae53b2290a7a6e7d9888eb963edc
     Reviewed-on: https://go-review.googlesource.com/130318
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0aa69a0aba..ebbd154f3e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1005,16 +1005,13 @@
+ //
+ // Usage:
+ //
+-// 	go mod graph [-dot]
++// 	go mod graph
+ //
+ // Graph prints the module requirement graph (with replacements applied)
+ // in text form. Each line in the output has two space-separated fields: a module
+ // and one of its requirements. Each module is identified as a string of the form
+ // path@version, except for the main module, which has no @version suffix.
+ //
+-// The -dot flag generates the output in graphviz format that can be used
+-// with a tool like dot to visually render the dependency graph.
+-//
+ //
+ // Initialize new module in current directory
+ //

@@ -12,8 +12,78 @@ Date:   Thu Jan 28 17:43:45 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go  |  2 +-
  src/cmd/compile/internal/ssa/cse.go      | 28 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/regalloc.go |  6 ------
  3 files changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 048f189ffe..121c1e1a37 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -92,7 +92,7 @@ var passes = [...]pass{
+ 	{"decompose", decompose, true},
+ 	{"opt", opt, true},                // TODO: split required rules and optimizing rules
+ 	{"opt deadcode", deadcode, false}, // remove any blocks orphaned during opt
+-	{"generic cse", cse, false},
++	{"generic cse", cse, true},
+ 	{"nilcheckelim", nilcheckelim, false},
+ 	{"generic deadcode", deadcode, false},
+ 	{"fuse", fuse, false},
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 7603e17ecf..14cec12e92 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -10,6 +10,34 @@ import "sort"
+ // Values are just relinked, nothing is deleted.  A subsequent deadcode
+ // pass is required to actually remove duplicate expressions.
+ func cse(f *Func) {
++	if !f.Config.optimize {
++		// Don't do CSE in this case.  But we need to do
++		// just a little bit, to combine multiple OpSB ops.
++		// Regalloc gets very confused otherwise.
++		var sb *Value
++	outer:
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
++				if v.Op == OpSB {
++					sb = v
++					break outer
++				}
++			}
++		}
++		if sb == nil {
++			return
++		}
++		for _, b := range f.Blocks {
++			for _, v := range b.Values {
++				for i, a := range v.Args {
++					if a.Op == OpSB {
++						v.Args[i] = sb
++					}
++				}
++			}
++		}
++		return
++	}
+ 	// Two values are equivalent if they satisfy the following definition:
+ 	// equivalent(v, w):
+ 	//   v.op == w.op
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 2a92624319..1ab08b733c 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -316,12 +316,6 @@ func (s *regAllocState) assignReg(r register, v *Value, c *Value) {
+ 		fmt.Printf("assignReg %s %s/%s\n", registers[r].Name(), v, c)
+ 	}
+ 	if s.regs[r].v != nil {
+-		if v.Op == OpSB && !v.Block.Func.Config.optimize {
+-			// Rewrite rules may introduce multiple OpSB, and with
+-			// -N they don't get CSEd.  Ignore the extra assignments.
+-			s.f.setHome(c, &registers[r])
+-			return
+-		}
+ 		s.f.Fatalf("tried to assign register %d to %s/%s but it is already used by %s", r, v, c, s.regs[r].v)
+ 	}
+ 

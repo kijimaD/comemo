@@ -8,10 +8,168 @@ Date:   Wed Feb 24 15:13:39 2010 -0800
     R=petar-m
     CC=golang-dev
     https://golang.org/cl/224041
-
+---
  src/pkg/http/client.go             |  1 +
  src/pkg/http/requestwrite_test.go  | 37 +++++++++++++++++++++++++++++++++++++
  src/pkg/http/response.go           | 10 +++++++---
  src/pkg/http/responsewrite_test.go |  3 ++-
  src/pkg/http/transfer.go           | 28 +++++++++++++++++++++-------
  5 files changed, 68 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 8c2c30124f..96bd4458ba 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -139,6 +139,7 @@ func Post(url string, bodyType string, body io.Reader) (r *Response, err os.Erro
+ 	req.Method = "POST"
+ 	req.ProtoMajor = 1
+ 	req.ProtoMinor = 1
++	req.Close = true
+ 	req.Body = nopCloser{body}
+ 	req.Header = map[string]string{
+ 		"Content-Type": bodyType,
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 2b47e0b3b1..f39e8a86d5 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -82,6 +82,43 @@ var reqWriteTests = []reqWriteTest{
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
++	// HTTP/1.1 POST => chunked coding; body; empty trailer
++	reqWriteTest{
++		Request{
++			Method: "POST",
++			URL: &URL{
++				Scheme: "http",
++				Host: "www.google.com",
++				Path: "/search",
++			},
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Header: map[string]string{},
++			Close: true,
++			Body: nopCloser{bytes.NewBufferString("abcdef")},
++			TransferEncoding: []string{"chunked"},
++		},
++
++		"POST /search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Connection: close\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			"6\r\nabcdef\r\n0\r\n\r\n",
++	},
++	// default to HTTP/1.1
++	reqWriteTest{
++		Request{
++			Method: "GET",
++			RawURL: "/search",
++			Host: "www.google.com",
++		},
++
++		"GET /search HTTP/1.1\r\n" +
++			"Host: www.google.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 87ca7f1cd1..28f002d9b8 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -188,9 +188,13 @@ func (resp *Response) Write(w io.Writer) os.Error {
+ 	resp.RequestMethod = strings.ToUpper(resp.RequestMethod)
+ 
+ 	// Status line
+-	text, ok := statusText[resp.StatusCode]
+-	if !ok {
+-		text = "status code " + strconv.Itoa(resp.StatusCode)
++	text := resp.Status
++	if text == "" {
++		var ok bool
++		text, ok = statusText[resp.StatusCode]
++		if !ok {
++			text = "status code " + strconv.Itoa(resp.StatusCode)
++		}
+ 	}
+ 	io.WriteString(w, "HTTP/"+strconv.Itoa(resp.ProtoMajor)+".")
+ 	io.WriteString(w, strconv.Itoa(resp.ProtoMinor)+" ")
+diff --git a/src/pkg/http/responsewrite_test.go b/src/pkg/http/responsewrite_test.go
+index 6dd5a59123..1c7c5f72ae 100644
+--- a/src/pkg/http/responsewrite_test.go
++++ b/src/pkg/http/responsewrite_test.go
+@@ -42,10 +42,11 @@ var respWriteTests = []respWriteTest{
+ 			Body: nopCloser{bytes.NewBufferString("abcdef")},
+ 			ContentLength: 6,
+ 			TransferEncoding: []string{"chunked"},
+-			Close: true, // TODO(petar): "Connection: close" is not written
++			Close: true,
+ 		},
+ 
+ 		"HTTP/1.1 200 OK\r\n" +
++			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+ 			"6\r\nabcdef\r\n0\r\n\r\n",
+ 	},
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index a6d9a21a8d..017077a995 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -79,19 +79,27 @@ func noBodyExpected(requestMethod string) bool {
+ }
+ 
+ func (t *transferWriter) WriteHeader(w io.Writer) (err os.Error) {
++	if t.Close {
++		_, err = io.WriteString(w, "Connection: close\r\n")
++		if err != nil {
++			return
++		}
++	}
++
+ 	// Write Content-Length and/or Transfer-Encoding whose values are a
+ 	// function of the sanitized field triple (Body, ContentLength,
+ 	// TransferEncoding)
+ 	if chunked(t.TransferEncoding) {
+ 		_, err = io.WriteString(w, "Transfer-Encoding: chunked\r\n")
+-	} else {
+-		if t.ContentLength > 0 || t.ResponseToHEAD {
+-			io.WriteString(w, "Content-Length: ")
+-			_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
++		if err != nil {
++			return
++		}
++	} else if t.ContentLength > 0 || t.ResponseToHEAD {
++		io.WriteString(w, "Content-Length: ")
++		_, err = io.WriteString(w, strconv.Itoa64(t.ContentLength)+"\r\n")
++		if err != nil {
++			return
+ 		}
+-	}
+-	if err != nil {
+-		return
+ 	}
+ 
+ 	// Write Trailer header
+@@ -184,6 +192,11 @@ func readTransfer(msg interface{}, r *bufio.Reader) (err os.Error) {
+ 		t.RequestMethod = "GET"
+ 	}
+ 
++	// Default to HTTP/1.1
++	if t.ProtoMajor == 0 && t.ProtoMinor == 0 {
++		t.ProtoMajor, t.ProtoMinor = 1, 1
++	}
++
+ 	// Transfer encoding, content length
+ 	t.TransferEncoding, err = fixTransferEncoding(t.Header)
+ 	if err != nil {
+@@ -347,6 +360,7 @@ func shouldClose(major, minor int, header map[string]string) bool {
+ 		// TODO: Should split on commas, toss surrounding white space,
+ 		// and check each field.
+ 		if v == "close" {
++			header["Connection"] = "", false
+ 			return true
+ 		}
+ 	}

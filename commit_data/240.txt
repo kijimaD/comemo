@@ -5,8 +5,39 @@ Date:   Thu Jun 26 15:27:21 2008 -0700
     slight change to file names
     
     SVN=124982
-
+---
  src/runtime/Makefile                       | 2 +-
  src/runtime/sys_file.c                     | 2 +-
  src/runtime/{sys_structs.h => sys_types.h} | 0
  3 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index d555132f46..2e51fa05b3 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -39,7 +39,7 @@ clean:
+ %.$O:	%.c
+ 	$(CC) $<
+ 
+-sys_file.$O:	sys_file.c $(OS_H)
++sys_file.$O:	sys_file.c sys_types.h $(OS_H)
+ 	$(CC) -D$(GOARCH)_$(GOOS) $<
+ 
+ %.$O:	%.s
+diff --git a/src/runtime/sys_file.c b/src/runtime/sys_file.c
+index c4994947d8..f4d0c98216 100644
+--- a/src/runtime/sys_file.c
++++ b/src/runtime/sys_file.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
+-#include "sys_structs.h"
++#include "sys_types.h"
+ 
+ void
+ sys·readfile(string filein, string fileout, bool okout)
+diff --git a/src/runtime/sys_structs.h b/src/runtime/sys_types.h
+similarity index 100%
+rename from src/runtime/sys_structs.h
+rename to src/runtime/sys_types.h

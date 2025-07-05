@@ -9,6 +9,26 @@ Date:   Tue Apr 5 11:17:57 2016 -0700
     Change-Id: Ifde490e686de0d2bfe907cbe19c9197f24f5fa8e
     Reviewed-on: https://go-review.googlesource.com/21537
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/go/internal/gcimporter/bimport.go | 10 +++++++---
  1 file changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index 182e8a1044..12efb2aaf3 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -723,7 +723,11 @@ var predeclared = []types.Type{
+ 	// invalid type
+ 	types.Typ[types.Invalid], // only appears in packages with errors
+ 
+-	// TODO(mdempsky): Provide an actual Type value to represent "any"?
+-	// (Why exactly does gc emit the "any" type?)
+-	types.Typ[types.Invalid],
++	// used internally by gc; never used by this package or in .a files
++	anyType{},
+ }
++
++type anyType struct{}
++
++func (t anyType) Underlying() types.Type { return t }
++func (t anyType) String() string         { return "any" }

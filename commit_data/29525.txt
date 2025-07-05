@@ -16,7 +16,7 @@ Date:   Mon Sep 19 07:45:08 2016 -0400
     Change-Id: I118afc3986db3a1daabb5c1e6e57430888c91817
     Reviewed-on: https://go-review.googlesource.com/29390
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  20 +-
  src/cmd/compile/internal/ssa/config.go     |   8 +-
  src/cmd/compile/internal/ssa/gen/ARM.rules |  44 ++--
@@ -25,3 +25,833 @@ Date:   Mon Sep 19 07:45:08 2016 -0400
  src/cmd/compile/internal/ssa/rewriteARM.go | 367 ++++++++++++++++++++---------
  src/runtime/vlop_arm.s                     |  17 +-
  7 files changed, 316 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 9b32d4e9ce..8fc4fb28d2 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -196,21 +196,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		} else {
+ 			p.To.Name = obj.NAME_AUTO
+ 		}
+-	case ssa.OpARMDIV,
+-		ssa.OpARMDIVU,
+-		ssa.OpARMMOD,
+-		ssa.OpARMMODU:
+-		// Note: for software division the assembler rewrite these
+-		// instructions to sequence of instructions:
+-		// - it puts numerator in R11 and denominator in g.m.divmod
+-		//	and call (say) _udiv
+-		// - _udiv saves R0-R3 on stack and call udiv, restores R0-R3
+-		//	before return
+-		// - udiv does the actual work
+-		//TODO: set approperiate regmasks and call udiv directly?
+-		// need to be careful for negative case
+-		// Or, as soft div is already expensive, we don't care?
+-		fallthrough
++	case ssa.OpARMUDIVrtcall:
++		p := gc.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = obj.Linklookup(gc.Ctxt, "udiv", 0)
+ 	case ssa.OpARMADD,
+ 		ssa.OpARMADC,
+ 		ssa.OpARMSUB,
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index bd59bb36ab..7da2eb1ed7 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -230,12 +230,8 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	if c.nacl {
+ 		c.noDuffDevice = true // Don't use Duff's device on NaCl
+ 
+-		// ARM assembler rewrites DIV/MOD to runtime calls, which
+-		// clobber R12 on nacl
+-		opcodeTable[OpARMDIV].reg.clobbers |= 1 << 12  // R12
+-		opcodeTable[OpARMDIVU].reg.clobbers |= 1 << 12 // R12
+-		opcodeTable[OpARMMOD].reg.clobbers |= 1 << 12  // R12
+-		opcodeTable[OpARMMODU].reg.clobbers |= 1 << 12 // R12
++		// runtime call clobber R12 on nacl
++		opcodeTable[OpARMUDIVrtcall].reg.clobbers |= 1 << 12 // R12
+ 	}
+ 
+ 	// Assign IDs to preallocated values/blocks.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 4f863104ec..f27796a5d2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -37,21 +37,31 @@
+ 
+ (Mul32uhilo x y) -> (MULLU x y)
+ 
+-(Div32 x y) -> (DIV x y)
+-(Div32u x y) -> (DIVU x y)
+-(Div16 x y) -> (DIV (SignExt16to32 x) (SignExt16to32 y))
+-(Div16u x y) -> (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
+-(Div8 x y) -> (DIV (SignExt8to32 x) (SignExt8to32 y))
+-(Div8u x y) -> (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
++(Div32 x y) ->
++	(SUB (XOR <config.fe.TypeUInt32()>                                                                  // negate the result if one operand is negative
++		(Select0 <config.fe.TypeUInt32()> (UDIVrtcall
++			(SUB <config.fe.TypeUInt32()> (XOR x <config.fe.TypeUInt32()> (Signmask x)) (Signmask x))   // negate x if negative
++			(SUB <config.fe.TypeUInt32()> (XOR y <config.fe.TypeUInt32()> (Signmask y)) (Signmask y)))) // negate y if negative
++		(Signmask (XOR <config.fe.TypeUInt32()> x y))) (Signmask (XOR <config.fe.TypeUInt32()> x y)))
++(Div32u x y) -> (Select0 <config.fe.TypeUInt32()> (UDIVrtcall x y))
++(Div16 x y) -> (Div32 (SignExt16to32 x) (SignExt16to32 y))
++(Div16u x y) -> (Div32u (ZeroExt16to32 x) (ZeroExt16to32 y))
++(Div8 x y) -> (Div32 (SignExt8to32 x) (SignExt8to32 y))
++(Div8u x y) -> (Div32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+ (Div32F x y) -> (DIVF x y)
+ (Div64F x y) -> (DIVD x y)
+ 
+-(Mod32 x y) -> (MOD x y)
+-(Mod32u x y) -> (MODU x y)
+-(Mod16 x y) -> (MOD (SignExt16to32 x) (SignExt16to32 y))
+-(Mod16u x y) -> (MODU (ZeroExt16to32 x) (ZeroExt16to32 y))
+-(Mod8 x y) -> (MOD (SignExt8to32 x) (SignExt8to32 y))
+-(Mod8u x y) -> (MODU (ZeroExt8to32 x) (ZeroExt8to32 y))
++(Mod32 x y) ->
++	(SUB (XOR <config.fe.TypeUInt32()>                                                                  // negate the result if x is negative
++		(Select1 <config.fe.TypeUInt32()> (UDIVrtcall
++			(SUB <config.fe.TypeUInt32()> (XOR <config.fe.TypeUInt32()> x (Signmask x)) (Signmask x))   // negate x if negative
++			(SUB <config.fe.TypeUInt32()> (XOR <config.fe.TypeUInt32()> y (Signmask y)) (Signmask y)))) // negate y if negative
++		(Signmask x)) (Signmask x))
++(Mod32u x y) -> (Select1 <config.fe.TypeUInt32()> (UDIVrtcall x y))
++(Mod16 x y) -> (Mod32 (SignExt16to32 x) (SignExt16to32 y))
++(Mod16u x y) -> (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
++(Mod8 x y) -> (Mod32 (SignExt8to32 x) (SignExt8to32 y))
++(Mod8u x y) -> (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+ 
+ (And32 x y) -> (AND x y)
+ (And16 x y) -> (AND x y)
+@@ -586,8 +596,10 @@
+ (MULA (MOVWconst [c]) x a) && c%9 == 0 && isPowerOfTwo(c/9) && is32Bit(c) -> (ADD (SLLconst <x.Type> [log2(c/9)] (ADDshiftLL <x.Type> x x [3])) a)
+ 
+ // div by constant
+-(DIVU x (MOVWconst [1])) -> x
+-(DIVU x (MOVWconst [c])) && isPowerOfTwo(c) -> (SRLconst [log2(c)] x)
++(Select0 (UDIVrtcall x (MOVWconst [1]))) -> x
++(Select1 (UDIVrtcall _ (MOVWconst [1]))) -> (MOVWconst [0])
++(Select0 (UDIVrtcall x (MOVWconst [c]))) && isPowerOfTwo(c) -> (SRLconst [log2(c)] x)
++(Select1 (UDIVrtcall x (MOVWconst [c]))) && isPowerOfTwo(c) -> (ANDconst [c-1] x)
+ 
+ // constant comparisons
+ (CMPconst (MOVWconst [x]) [y]) && int32(x)==int32(y) -> (FlagEQ)
+@@ -805,8 +817,8 @@
+ (SRAconst [c] (MOVWconst [d])) -> (MOVWconst [int64(int32(d)>>uint64(c))])
+ (MUL (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c*d))])
+ (MULA (MOVWconst [c]) (MOVWconst [d]) a) -> (ADDconst [int64(int32(c*d))] a)
+-(DIV (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(int32(c)/int32(d))])
+-(DIVU (MOVWconst [c]) (MOVWconst [d])) -> (MOVWconst [int64(uint32(c)/uint32(d))])
++(Select0 (UDIVrtcall (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)/uint32(d))])
++(Select1 (UDIVrtcall (MOVWconst [c]) (MOVWconst [d]))) -> (MOVWconst [int64(uint32(c)%uint32(d))])
+ (ANDconst [c] (MOVWconst [d])) -> (MOVWconst [c&d])
+ (ANDconst [c] (ANDconst [d] x)) -> (ANDconst [c&d] x)
+ (ORconst [c] (MOVWconst [d])) -> (MOVWconst [c|d])
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 6c3497f7ce..313252ea88 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -138,10 +138,21 @@ func init() {
+ 		{name: "MUL", argLength: 2, reg: gp21, asm: "MUL", commutative: true},     // arg0 * arg1
+ 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
+ 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+-		{name: "DIV", argLength: 2, reg: gp21, asm: "DIV", clobberFlags: true},    // arg0 / arg1, signed, soft div clobbers flags
+-		{name: "DIVU", argLength: 2, reg: gp21, asm: "DIVU", clobberFlags: true},  // arg0 / arg1, unsighed
+-		{name: "MOD", argLength: 2, reg: gp21, asm: "MOD", clobberFlags: true},    // arg0 % arg1, signed
+-		{name: "MODU", argLength: 2, reg: gp21, asm: "MODU", clobberFlags: true},  // arg0 % arg1, unsigned
++
++		// udiv runtime call for soft division
++		// output0 = arg0/arg1, output1 = arg0%arg1
++		// see ../../../../../runtime/vlop_arm.s
++		{
++			name:      "UDIVrtcall",
++			argLength: 2,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
++				outputs:  []regMask{buildReg("R0"), buildReg("R1")},
++				clobbers: buildReg("R2 R3"), // also clobbers R12 on NaCl (modified in ../config.go)
++			},
++			clobberFlags: true,
++			typ:          "(UInt32,UInt32)",
++		},
+ 
+ 		{name: "ADDS", argLength: 2, reg: gp21carry, asm: "ADD", commutative: true}, // arg0 + arg1, set carry flag
+ 		{name: "ADDSconst", argLength: 1, reg: gp11carry, asm: "ADD", aux: "Int32"}, // arg0 + auxInt, set carry flag
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8ae954227c..6961b71cb7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -623,10 +623,7 @@ const (
+ 	OpARMMUL
+ 	OpARMHMUL
+ 	OpARMHMULU
+-	OpARMDIV
+-	OpARMDIVU
+-	OpARMMOD
+-	OpARMMODU
++	OpARMUDIVrtcall
+ 	OpARMADDS
+ 	OpARMADDSconst
+ 	OpARMADC
+@@ -7367,62 +7364,18 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "DIV",
++		name:         "UDIVrtcall",
+ 		argLen:       2,
+ 		clobberFlags: true,
+-		asm:          arm.ADIV,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-			},
+-			outputs: []outputInfo{
+-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-			},
+-		},
+-	},
+-	{
+-		name:         "DIVU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          arm.ADIVU,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-			},
+-			outputs: []outputInfo{
+-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-			},
+-		},
+-	},
+-	{
+-		name:         "MOD",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          arm.AMOD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-			},
+-			outputs: []outputInfo{
+-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+-			},
+-		},
+-	},
+-	{
+-		name:         "MODU",
+-		argLen:       2,
+-		clobberFlags: true,
+-		asm:          arm.AMODU,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
+-				{1, 6143}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12
++				{0, 2}, // R1
++				{1, 1}, // R0
+ 			},
++			clobbers: 12, // R2 R3
+ 			outputs: []outputInfo{
+-				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{0, 1}, // R0
++				{1, 2}, // R1
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 6da613a088..a031571786 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -110,10 +110,6 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMCMPshiftRL(v, config)
+ 	case OpARMCMPshiftRLreg:
+ 		return rewriteValueARM_OpARMCMPshiftRLreg(v, config)
+-	case OpARMDIV:
+-		return rewriteValueARM_OpARMDIV(v, config)
+-	case OpARMDIVU:
+-		return rewriteValueARM_OpARMDIVU(v, config)
+ 	case OpARMEqual:
+ 		return rewriteValueARM_OpARMEqual(v, config)
+ 	case OpARMGreaterEqual:
+@@ -676,6 +672,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpRsh8x64(v, config)
+ 	case OpRsh8x8:
+ 		return rewriteValueARM_OpRsh8x8(v, config)
++	case OpSelect0:
++		return rewriteValueARM_OpSelect0(v, config)
++	case OpSelect1:
++		return rewriteValueARM_OpSelect1(v, config)
+ 	case OpSignExt16to32:
+ 		return rewriteValueARM_OpSignExt16to32(v, config)
+ 	case OpSignExt8to16:
+@@ -4436,87 +4436,6 @@ func rewriteValueARM_OpARMCMPshiftRLreg(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueARM_OpARMDIV(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DIV (MOVWconst [c]) (MOVWconst [d]))
+-	// cond:
+-	// result: (MOVWconst [int64(int32(c)/int32(d))])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMMOVWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARMMOVWconst {
+-			break
+-		}
+-		d := v_1.AuxInt
+-		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(int32(c) / int32(d))
+-		return true
+-	}
+-	return false
+-}
+-func rewriteValueARM_OpARMDIVU(v *Value, config *Config) bool {
+-	b := v.Block
+-	_ = b
+-	// match: (DIVU x (MOVWconst [1]))
+-	// cond:
+-	// result: x
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARMMOVWconst {
+-			break
+-		}
+-		if v_1.AuxInt != 1 {
+-			break
+-		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (DIVU x (MOVWconst [c]))
+-	// cond: isPowerOfTwo(c)
+-	// result: (SRLconst [log2(c)] x)
+-	for {
+-		x := v.Args[0]
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARMMOVWconst {
+-			break
+-		}
+-		c := v_1.AuxInt
+-		if !(isPowerOfTwo(c)) {
+-			break
+-		}
+-		v.reset(OpARMSRLconst)
+-		v.AuxInt = log2(c)
+-		v.AddArg(x)
+-		return true
+-	}
+-	// match: (DIVU (MOVWconst [c]) (MOVWconst [d]))
+-	// cond:
+-	// result: (MOVWconst [int64(uint32(c)/uint32(d))])
+-	for {
+-		v_0 := v.Args[0]
+-		if v_0.Op != OpARMMOVWconst {
+-			break
+-		}
+-		c := v_0.AuxInt
+-		v_1 := v.Args[1]
+-		if v_1.Op != OpARMMOVWconst {
+-			break
+-		}
+-		d := v_1.AuxInt
+-		v.reset(OpARMMOVWconst)
+-		v.AuxInt = int64(uint32(c) / uint32(d))
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueARM_OpARMEqual(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -13347,11 +13266,11 @@ func rewriteValueARM_OpDiv16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div16 x y)
+ 	// cond:
+-	// result: (DIV (SignExt16to32 x) (SignExt16to32 y))
++	// result: (Div32 (SignExt16to32 x) (SignExt16to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIV)
++		v.reset(OpDiv32)
+ 		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -13366,11 +13285,11 @@ func rewriteValueARM_OpDiv16u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div16u x y)
+ 	// cond:
+-	// result: (DIVU (ZeroExt16to32 x) (ZeroExt16to32 y))
++	// result: (Div32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIVU)
++		v.reset(OpDiv32u)
+ 		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -13385,13 +13304,51 @@ func rewriteValueARM_OpDiv32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div32 x y)
+ 	// cond:
+-	// result: (DIV x y)
++	// result: (SUB (XOR <config.fe.TypeUInt32()> 		(Select0 <config.fe.TypeUInt32()> (UDIVrtcall 			(SUB <config.fe.TypeUInt32()> (XOR x <config.fe.TypeUInt32()> (Signmask x)) (Signmask x)) 			(SUB <config.fe.TypeUInt32()> (XOR y <config.fe.TypeUInt32()> (Signmask y)) (Signmask y)))) 		(Signmask (XOR <config.fe.TypeUInt32()> x y))) (Signmask (XOR <config.fe.TypeUInt32()> x y)))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIV)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpARMSUB)
++		v0 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpSelect0, config.fe.TypeUInt32())
++		v2 := b.NewValue0(v.Line, OpARMUDIVrtcall, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v3 := b.NewValue0(v.Line, OpARMSUB, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v5 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v3.AddArg(v4)
++		v6 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v6.AddArg(x)
++		v3.AddArg(v6)
++		v2.AddArg(v3)
++		v7 := b.NewValue0(v.Line, OpARMSUB, config.fe.TypeUInt32())
++		v8 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v8.AddArg(y)
++		v9 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v9.AddArg(y)
++		v8.AddArg(v9)
++		v7.AddArg(v8)
++		v10 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v10.AddArg(y)
++		v7.AddArg(v10)
++		v2.AddArg(v7)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v11 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v12 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v12.AddArg(x)
++		v12.AddArg(y)
++		v11.AddArg(v12)
++		v0.AddArg(v11)
++		v.AddArg(v0)
++		v13 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v14 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v14.AddArg(x)
++		v14.AddArg(y)
++		v13.AddArg(v14)
++		v.AddArg(v13)
+ 		return true
+ 	}
+ }
+@@ -13415,13 +13372,16 @@ func rewriteValueARM_OpDiv32u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div32u x y)
+ 	// cond:
+-	// result: (DIVU x y)
++	// result: (Select0 <config.fe.TypeUInt32()> (UDIVrtcall x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIVU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect0)
++		v.Type = config.fe.TypeUInt32()
++		v0 := b.NewValue0(v.Line, OpARMUDIVrtcall, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -13445,11 +13405,11 @@ func rewriteValueARM_OpDiv8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div8 x y)
+ 	// cond:
+-	// result: (DIV (SignExt8to32 x) (SignExt8to32 y))
++	// result: (Div32 (SignExt8to32 x) (SignExt8to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIV)
++		v.reset(OpDiv32)
+ 		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -13464,11 +13424,11 @@ func rewriteValueARM_OpDiv8u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Div8u x y)
+ 	// cond:
+-	// result: (DIVU (ZeroExt8to32 x) (ZeroExt8to32 y))
++	// result: (Div32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMDIVU)
++		v.reset(OpDiv32u)
+ 		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -14926,11 +14886,11 @@ func rewriteValueARM_OpMod16(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16 x y)
+ 	// cond:
+-	// result: (MOD (SignExt16to32 x) (SignExt16to32 y))
++	// result: (Mod32 (SignExt16to32 x) (SignExt16to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMOD)
++		v.reset(OpMod32)
+ 		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -14945,11 +14905,11 @@ func rewriteValueARM_OpMod16u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod16u x y)
+ 	// cond:
+-	// result: (MODU (ZeroExt16to32 x) (ZeroExt16to32 y))
++	// result: (Mod32u (ZeroExt16to32 x) (ZeroExt16to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMODU)
++		v.reset(OpMod32u)
+ 		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -14964,13 +14924,45 @@ func rewriteValueARM_OpMod32(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32 x y)
+ 	// cond:
+-	// result: (MOD x y)
++	// result: (SUB (XOR <config.fe.TypeUInt32()> 		(Select1 <config.fe.TypeUInt32()> (UDIVrtcall 			(SUB <config.fe.TypeUInt32()> (XOR <config.fe.TypeUInt32()> x (Signmask x)) (Signmask x)) 			(SUB <config.fe.TypeUInt32()> (XOR <config.fe.TypeUInt32()> y (Signmask y)) (Signmask y)))) 		(Signmask x)) (Signmask x))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMOD)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpARMSUB)
++		v0 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
++		v2 := b.NewValue0(v.Line, OpARMUDIVrtcall, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v3 := b.NewValue0(v.Line, OpARMSUB, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v5 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v3.AddArg(v4)
++		v6 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v6.AddArg(x)
++		v3.AddArg(v6)
++		v2.AddArg(v3)
++		v7 := b.NewValue0(v.Line, OpARMSUB, config.fe.TypeUInt32())
++		v8 := b.NewValue0(v.Line, OpARMXOR, config.fe.TypeUInt32())
++		v8.AddArg(y)
++		v9 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v9.AddArg(y)
++		v8.AddArg(v9)
++		v7.AddArg(v8)
++		v10 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v10.AddArg(y)
++		v7.AddArg(v10)
++		v2.AddArg(v7)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v11 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v11.AddArg(x)
++		v0.AddArg(v11)
++		v.AddArg(v0)
++		v12 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v12.AddArg(x)
++		v.AddArg(v12)
+ 		return true
+ 	}
+ }
+@@ -14979,13 +14971,16 @@ func rewriteValueARM_OpMod32u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod32u x y)
+ 	// cond:
+-	// result: (MODU x y)
++	// result: (Select1 <config.fe.TypeUInt32()> (UDIVrtcall x y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMODU)
+-		v.AddArg(x)
+-		v.AddArg(y)
++		v.reset(OpSelect1)
++		v.Type = config.fe.TypeUInt32()
++		v0 := b.NewValue0(v.Line, OpARMUDIVrtcall, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v0.AddArg(x)
++		v0.AddArg(y)
++		v.AddArg(v0)
+ 		return true
+ 	}
+ }
+@@ -14994,11 +14989,11 @@ func rewriteValueARM_OpMod8(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8 x y)
+ 	// cond:
+-	// result: (MOD (SignExt8to32 x) (SignExt8to32 y))
++	// result: (Mod32 (SignExt8to32 x) (SignExt8to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMOD)
++		v.reset(OpMod32)
+ 		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -15013,11 +15008,11 @@ func rewriteValueARM_OpMod8u(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Mod8u x y)
+ 	// cond:
+-	// result: (MODU (ZeroExt8to32 x) (ZeroExt8to32 y))
++	// result: (Mod32u (ZeroExt8to32 x) (ZeroExt8to32 y))
+ 	for {
+ 		x := v.Args[0]
+ 		y := v.Args[1]
+-		v.reset(OpARMMODU)
++		v.reset(OpMod32u)
+ 		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+@@ -16344,6 +16339,144 @@ func rewriteValueARM_OpRsh8x8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSelect0(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select0 (UDIVrtcall x (MOVWconst [1])))
++	// cond:
++	// result: x
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		if v_0_1.AuxInt != 1 {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	// match: (Select0 (UDIVrtcall x (MOVWconst [c])))
++	// cond: isPowerOfTwo(c)
++	// result: (SRLconst [log2(c)] x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0_1.AuxInt
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpARMSRLconst)
++		v.AuxInt = log2(c)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Select0 (UDIVrtcall (MOVWconst [c]) (MOVWconst [d])))
++	// cond:
++	// result: (MOVWconst [int64(uint32(c)/uint32(d))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		d := v_0_1.AuxInt
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(uint32(c) / uint32(d))
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpSelect1(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select1 (UDIVrtcall _ (MOVWconst [1])))
++	// cond:
++	// result: (MOVWconst [0])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		if v_0_1.AuxInt != 1 {
++			break
++		}
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Select1 (UDIVrtcall x (MOVWconst [c])))
++	// cond: isPowerOfTwo(c)
++	// result: (ANDconst [c-1] x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		x := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0_1.AuxInt
++		if !(isPowerOfTwo(c)) {
++			break
++		}
++		v.reset(OpARMANDconst)
++		v.AuxInt = c - 1
++		v.AddArg(x)
++		return true
++	}
++	// match: (Select1 (UDIVrtcall (MOVWconst [c]) (MOVWconst [d])))
++	// cond:
++	// result: (MOVWconst [int64(uint32(c)%uint32(d))])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMUDIVrtcall {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpARMMOVWconst {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpARMMOVWconst {
++			break
++		}
++		d := v_0_1.AuxInt
++		v.reset(OpARMMOVWconst)
++		v.AuxInt = int64(uint32(c) % uint32(d))
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpSignExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 1eb23f005c..f371601e29 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -107,6 +107,7 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
+ 	B	runtime·sigpanic(SB)
+ 
+ // func udiv(n, d uint32) (q, r uint32)
++// compiler knowns the register usage of this function
+ // Reference: 
+ // Sloss, Andrew et. al; ARM System Developer's Guide: Designing and Optimizing System Software
+ // Morgan Kaufmann; 1 edition (April 8, 2004), ISBN 978-1558608740
+@@ -117,7 +118,7 @@ TEXT runtime·_sfloatpanic(SB),NOSPLIT,$-4
+ #define Ra	R11
+ 
+ // Be careful: Ra == R11 will be used by the linker for synthesized instructions.
+-TEXT udiv<>(SB),NOSPLIT,$-4
++TEXT udiv(SB),NOSPLIT,$-4
+ 	CLZ 	Rq, Rs // find normalizing shift
+ 	MOVW.S	Rq<<Rs, Ra
+ 	MOVW	$fast_udiv_tab<>-64(SB), RM
+@@ -227,7 +228,7 @@ TEXT _divu(SB), NOSPLIT, $16-0
+ 	MOVW	RTMP, Rr		/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	BL  	udiv<>(SB)
++	BL  	udiv(SB)
+ 	MOVW	Rq, RTMP
+ 	MOVW	4(R13), Rq
+ 	MOVW	8(R13), Rr
+@@ -245,7 +246,7 @@ TEXT _modu(SB), NOSPLIT, $16-0
+ 	MOVW	RTMP, Rr		/* numerator */
+ 	MOVW	g_m(g), Rq
+ 	MOVW	m_divmod(Rq), Rq	/* denominator */
+-	BL  	udiv<>(SB)
++	BL  	udiv(SB)
+ 	MOVW	Rr, RTMP
+ 	MOVW	4(R13), Rq
+ 	MOVW	8(R13), Rr
+@@ -269,7 +270,7 @@ TEXT _div(SB),NOSPLIT,$16-0
+ 	BGE 	d2
+ 	RSB 	$0, Rq, Rq
+ d0:
+-	BL  	udiv<>(SB)  		/* none/both neg */
++	BL  	udiv(SB)  		/* none/both neg */
+ 	MOVW	Rq, RTMP
+ 	B		out1
+ d1:
+@@ -277,8 +278,8 @@ d1:
+ 	BGE 	d0
+ 	RSB 	$0, Rq, Rq
+ d2:
+-	BL  	udiv<>(SB)  		/* one neg */
+-	RSB		$0, Rq, RTMP
++	BL  	udiv(SB)  		/* one neg */
++	RSB	$0, Rq, RTMP
+ out1:
+ 	MOVW	4(R13), Rq
+ 	MOVW	8(R13), Rr
+@@ -300,11 +301,11 @@ TEXT _mod(SB),NOSPLIT,$16-0
+ 	CMP 	$0, Rr
+ 	BGE 	m1
+ 	RSB 	$0, Rr, Rr
+-	BL  	udiv<>(SB)  		/* neg numerator */
++	BL  	udiv(SB)  		/* neg numerator */
+ 	RSB 	$0, Rr, RTMP
+ 	B   	out
+ m1:
+-	BL  	udiv<>(SB)  		/* pos numerator */
++	BL  	udiv(SB)  		/* pos numerator */
+ 	MOVW	Rr, RTMP
+ out:
+ 	MOVW	4(R13), Rq

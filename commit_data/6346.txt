@@ -7,6 +7,38 @@ Date:   Thu Sep 23 10:40:07 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/2197047
-
+---
  src/pkg/http/request_test.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index cc9e78a6dc..1029971824 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -7,6 +7,7 @@ package http
+ import (
+ 	"bytes"
+ 	"reflect"
++	"regexp"
+ 	"strings"
+ 	"testing"
+ )
+@@ -140,14 +141,15 @@ func TestMultipartReader(t *testing.T) {
+ func TestRedirect(t *testing.T) {
+ 	const (
+ 		start = "http://google.com/"
+-		end   = "http://www.google.com/"
++		endRe = "^http://www\\.google\\.[a-z.]+/$"
+ 	)
++	var end = regexp.MustCompile(endRe)
+ 	r, url, err := Get(start)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	r.Body.Close()
+-	if r.StatusCode != 200 || url != end {
+-		t.Fatalf("Get(%s) got status %d at %s, want 200 at %s", start, r.StatusCode, url, end)
++	if r.StatusCode != 200 || !end.MatchString(url) {
++		t.Fatalf("Get(%s) got status %d at %q, want 200 matching %q", start, r.StatusCode, url, endRe)
+ 	}
+ }

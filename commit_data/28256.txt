@@ -46,7 +46,7 @@ Date:   Tue Apr 26 21:50:59 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/doc.go              |   7 +-
  src/cmd/compile/internal/gc/go.go   |   1 +
  src/cmd/compile/internal/gc/main.go |   3 +-
@@ -55,3 +55,448 @@ Date:   Tue Apr 26 21:50:59 2016 -0400
  src/debug/gosym/pclntab_test.go     |  16 ++++
  test/linkobj.go                     | 155 ++++++++++++++++++++++++++++++++++++
  7 files changed, 260 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 2b45e5b998..6783c2e846 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -61,7 +61,12 @@ Flags:
+ 		Look for packages in $GOROOT/pkg/$GOOS_$GOARCH_suffix
+ 		instead of $GOROOT/pkg/$GOOS_$GOARCH.
+ 	-largemodel
+-		Generated code that assumes a large memory model.
++		Generate code that assumes a large memory model.
++	-linkobj file
++		Write linker-specific object to file and compiler-specific
++		object to usual output file (as specified by -o).
++		Without this flag, the -o output is a combination of both
++		linker and compiler input.
+ 	-memprofile file
+ 		Write memory profile for the compilation to file.
+ 	-memprofilerate rate
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f9a372dcce..cbb79c0261 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -133,6 +133,7 @@ var pragcgobuf string
+ var infile string
+ 
+ var outfile string
++var linkobj string
+ 
+ var bout *bio.Writer
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 54211e4892..713ff13d85 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -178,6 +178,7 @@ func Main() {
+ 	flag.StringVar(&flag_installsuffix, "installsuffix", "", "set pkg directory `suffix`")
+ 	obj.Flagcount("j", "debug runtime-initialized variables", &Debug['j'])
+ 	obj.Flagcount("l", "disable inlining", &Debug['l'])
++	flag.StringVar(&linkobj, "linkobj", "", "write linker-specific object to `file`")
+ 	obj.Flagcount("live", "debug liveness analysis", &debuglive)
+ 	obj.Flagcount("m", "print optimization decisions", &Debug['m'])
+ 	flag.BoolVar(&flag_msan, "msan", false, "build code compatible with C/C++ memory sanitizer")
+@@ -772,7 +773,7 @@ func importfile(f *Val, indent []byte) {
+ 
+ 	if p != "empty archive" {
+ 		if !strings.HasPrefix(p, "go object ") {
+-			Yyerror("import %s: not a go object file", file)
++			Yyerror("import %s: not a go object file: %s", file, p)
+ 			errorexit()
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index ae23f95574..b5c06d165d 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -22,7 +22,34 @@ func formathdr(arhdr []byte, name string, size int64) {
+ 	copy(arhdr[:], fmt.Sprintf("%-16s%-12d%-6d%-6d%-8o%-10d`\n", name, 0, 0, 0, 0644, size))
+ }
+ 
++// These modes say which kind of object file to generate.
++// The default use of the toolchain is to set both bits,
++// generating a combined compiler+linker object, one that
++// serves to describe the package to both the compiler and the linker.
++// In fact the compiler and linker read nearly disjoint sections of
++// that file, though, so in a distributed build setting it can be more
++// efficient to split the output into two files, supplying the compiler
++// object only to future compilations and the linker object only to
++// future links.
++//
++// By default a combined object is written, but if -linkobj is specified
++// on the command line then the default -o output is a compiler object
++// and the -linkobj output is a linker object.
++const (
++	modeCompilerObj = 1 << iota
++	modeLinkerObj
++)
++
+ func dumpobj() {
++	if linkobj == "" {
++		dumpobj1(outfile, modeCompilerObj|modeLinkerObj)
++	} else {
++		dumpobj1(outfile, modeCompilerObj)
++		dumpobj1(linkobj, modeLinkerObj)
++	}
++}
++
++func dumpobj1(outfile string, mode int) {
+ 	var err error
+ 	bout, err = bio.Create(outfile)
+ 	if err != nil {
+@@ -40,8 +67,27 @@ func dumpobj() {
+ 		startobj = bout.Offset()
+ 	}
+ 
+-	fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
+-	dumpexport()
++	printheader := func() {
++		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
++		if buildid != "" {
++			fmt.Fprintf(bout, "build id %q\n", buildid)
++		}
++		if localpkg.Name == "main" {
++			fmt.Fprintf(bout, "main\n")
++		}
++		if safemode {
++			fmt.Fprintf(bout, "safe\n")
++		} else {
++			fmt.Fprintf(bout, "----\n") // room for some other tool to write "safe"
++		}
++		fmt.Fprintf(bout, "\n") // header ends with blank line
++	}
++
++	printheader()
++
++	if mode&modeCompilerObj != 0 {
++		dumpexport()
++	}
+ 
+ 	if writearchive {
+ 		bout.Flush()
+@@ -53,12 +99,20 @@ func dumpobj() {
+ 		formathdr(arhdr[:], "__.PKGDEF", size)
+ 		bout.Write(arhdr[:])
+ 		bout.Flush()
+-
+ 		bout.Seek(startobj+size+(size&1), 0)
++	}
++
++	if mode&modeLinkerObj == 0 {
++		bout.Close()
++		return
++	}
++
++	if writearchive {
++		// start object file
+ 		arhdr = [ArhdrSize]byte{}
+ 		bout.Write(arhdr[:])
+ 		startobj = bout.Offset()
+-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
++		printheader()
+ 	}
+ 
+ 	if pragcgobuf != "" {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 425c75571f..79cdae0aee 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -59,71 +59,33 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
+ 	}
+ 	data := string(bdata)
+ 
+-	// first \n$$ marks beginning of exports - skip rest of line
+-	p0 = strings.Index(data, "\n$$")
+-	if p0 < 0 {
+-		if Debug['u'] != 0 && whence != ArchiveObj {
+-			Exitf("cannot find export data in %s", filename)
+-		}
+-		return
+-	}
+-
+-	// \n$$B marks the beginning of binary export data - don't skip over the B
+-	p0 += 3
+-	for p0 < len(data) && data[p0] != '\n' && data[p0] != 'B' {
+-		p0++
+-	}
+-
+-	// second marks end of exports / beginning of local data
+-	p1 = strings.Index(data[p0:], "\n$$\n")
+-	if p1 < 0 && whence == Pkgdef {
+-		p1 = len(data) - p0
+-	}
+-	if p1 < 0 {
+-		fmt.Fprintf(os.Stderr, "%s: cannot find end of exports in %s\n", os.Args[0], filename)
+-		if Debug['u'] != 0 {
+-			errorexit()
+-		}
+-		return
+-	}
+-	p1 += p0
+-
+-	for p0 < p1 && data[p0] != 'B' && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
+-		p0++
+-	}
+-	// don't check this section if we have binary (B) export data
+-	// TODO fix this eventually
+-	if p0 < p1 && data[p0] != 'B' {
+-		if !strings.HasPrefix(data[p0:], "package ") {
+-			fmt.Fprintf(os.Stderr, "%s: bad package section in %s - %.20s\n", os.Args[0], filename, data[p0:])
+-			if Debug['u'] != 0 {
+-				errorexit()
+-			}
+-			return
++	// process header lines
++	isSafe := false
++	isMain := false
++	for data != "" {
++		var line string
++		if i := strings.Index(data, "\n"); i >= 0 {
++			line, data = data[:i], data[i+1:]
++		} else {
++			line, data = data, ""
+ 		}
+-
+-		p0 += 8
+-		for p0 < p1 && (data[p0] == ' ' || data[p0] == '\t' || data[p0] == '\n') {
+-			p0++
++		if line == "safe" {
++			isSafe = true
+ 		}
+-		pname := p0
+-		for p0 < p1 && data[p0] != ' ' && data[p0] != '\t' && data[p0] != '\n' {
+-			p0++
++		if line == "main" {
++			isMain = true
+ 		}
+-		if Debug['u'] != 0 && whence != ArchiveObj && (p0+6 > p1 || !strings.HasPrefix(data[p0:], " safe\n")) {
+-			Exitf("load of unsafe package %s", filename)
++		if line == "" {
++			break
+ 		}
++	}
+ 
+-		name := data[pname:p0]
+-		for p0 < p1 && data[p0] != '\n' {
+-			p0++
++	if whence == Pkgdef || whence == FileObj {
++		if pkg == "main" && !isMain {
++			Exitf("%s: not package main", filename)
+ 		}
+-		if p0 < p1 {
+-			p0++
+-		}
+-
+-		if pkg == "main" && name != "main" {
+-			Exitf("%s: not package main (package %s)", filename, name)
++		if Debug['u'] != 0 && whence != ArchiveObj && !isSafe {
++			Exitf("load of unsafe package %s", filename)
+ 		}
+ 	}
+ 
+@@ -133,7 +95,7 @@ func ldpkg(f *bio.Reader, pkg string, length int64, filename string, whence int)
+ 	}
+ 
+ 	// look for cgo section
+-	p0 = strings.Index(data[p1:], "\n$$  // cgo")
++	p0 = strings.Index(data, "\n$$  // cgo")
+ 	if p0 >= 0 {
+ 		p0 += p1
+ 		i := strings.IndexByte(data[p0+1:], '\n')
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 1a780bf121..9f82e31ae4 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -5,6 +5,7 @@
+ package gosym
+ 
+ import (
++	"bytes"
+ 	"debug/elf"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -42,6 +43,21 @@ func dotest(t *testing.T) {
+ 	if err := cmd.Run(); err != nil {
+ 		t.Fatal(err)
+ 	}
++
++	// stamp .o file as being 'package main' so that go tool link will accept it
++	data, err := ioutil.ReadFile(pclinetestBinary + ".o")
++	if err != nil {
++		t.Fatal(err)
++	}
++	i := bytes.IndexByte(data, '\n')
++	if i < 0 {
++		t.Fatal("bad binary")
++	}
++	data = append(append(data[:i:i], "\nmain"...), data[i:]...)
++	if err := ioutil.WriteFile(pclinetestBinary+".o", data, 0666); err != nil {
++		t.Fatal(err)
++	}
++
+ 	cmd = exec.Command("go", "tool", "link", "-H", "linux",
+ 		"-o", pclinetestBinary, pclinetestBinary+".o")
+ 	cmd.Stdout = os.Stdout
+diff --git a/test/linkobj.go b/test/linkobj.go
+new file mode 100644
+index 0000000000..8a86aa872f
+--- /dev/null
++++ b/test/linkobj.go
+@@ -0,0 +1,155 @@
++// +build !nacl
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test the compiler -linkobj flag.
++
++package main
++
++import (
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"strings"
++)
++
++var pwd, tmpdir string
++
++func main() {
++	dir, err := ioutil.TempDir("", "go-test-linkobj-")
++	if err != nil {
++		log.Fatal(err)
++	}
++	pwd, err = os.Getwd()
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := os.Chdir(dir); err != nil {
++		os.RemoveAll(dir)
++		log.Fatal(err)
++	}
++	tmpdir = dir
++
++	writeFile("p1.go", `
++		package p1
++		
++		func F() {
++			println("hello from p1")
++		}
++	`)
++	writeFile("p2.go", `
++		package p2
++		
++		import "./p1"
++
++		func F() {
++			p1.F()
++			println("hello from p2")
++		}
++		
++		func main() {}
++	`)
++	writeFile("p3.go", `
++		package main
++
++		import "./p2"
++		
++		func main() {
++			p2.F()
++			println("hello from main")
++		}
++	`)
++
++	// two rounds: once using normal objects, again using .a files (compile -pack).
++	for round := 0; round < 2; round++ {
++		pkg := "-pack=" + fmt.Sprint(round)
++
++		// The compiler expects the files being read to have the right suffix.
++		o := "o"
++		if round == 1 {
++			o = "a"
++		}
++
++		// inlining is disabled to make sure that the link objects contain needed code.
++		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
++		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
++		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
++
++		cp("p1."+o, "p1.oo")
++		cp("p2."+o, "p2.oo")
++		cp("p3."+o, "p3.oo")
++		cp("p1.lo", "p1."+o)
++		cp("p2.lo", "p2."+o)
++		cp("p3.lo", "p3."+o)
++		out := runFail("go", "tool", "link", "p2."+o)
++		if !strings.Contains(out, "not package main") {
++			fatalf("link p2.o failed but not for package main:\n%s", out)
++		}
++
++		run("go", "tool", "link", "-L", ".", "-o", "a.out.exe", "p3."+o)
++		out = run("./a.out.exe")
++		if !strings.Contains(out, "hello from p1\nhello from p2\nhello from main\n") {
++			fatalf("running main, incorrect output:\n%s", out)
++		}
++
++		// ensure that mistaken future round can't use these
++		os.Remove("p1.o")
++		os.Remove("a.out.exe")
++	}
++
++	cleanup()
++}
++
++func run(args ...string) string {
++	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
++	if err != nil {
++		fatalf("run %v: %s\n%s", args, err, out)
++	}
++	return string(out)
++}
++
++func runFail(args ...string) string {
++	out, err := exec.Command(args[0], args[1:]...).CombinedOutput()
++	if err == nil {
++		fatalf("runFail %v: unexpected success!\n%s", args, err, out)
++	}
++	return string(out)
++}
++
++func cp(src, dst string) {
++	data, err := ioutil.ReadFile(src)
++	if err != nil {
++		fatalf("%v", err)
++	}
++	err = ioutil.WriteFile(dst, data, 0666)
++	if err != nil {
++		fatalf("%v", err)
++	}
++}
++
++func writeFile(name, data string) {
++	err := ioutil.WriteFile(name, []byte(data), 0666)
++	if err != nil {
++		fatalf("%v", err)
++	}
++}
++
++func cleanup() {
++	const debug = false
++	if debug {
++		println("TMPDIR:", tmpdir)
++		return
++	}
++	os.Chdir(pwd) // get out of tmpdir before removing it
++	os.RemoveAll(tmpdir)
++}
++
++func fatalf(format string, args ...interface{}) {
++	cleanup()
++	log.Fatalf(format, args...)
++}

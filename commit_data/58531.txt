@@ -13,10 +13,122 @@ Date:   Thu Nov 16 07:06:03 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_debug_ppc64le_test.go        |  4 +--
  src/runtime/mgc.go                              |  2 +-
  src/runtime/testdata/testprogcgo/stackswitch.go |  3 +-
  src/runtime/testdata/testprognet/waiters.go     |  1 +
  src/runtime/testdata/testwinlibthrow/main.go    | 38 ++++++++++++-------------
  5 files changed, 24 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/export_debug_ppc64le_test.go b/src/runtime/export_debug_ppc64le_test.go
+index b20cf6c47e..dd5dce5649 100644
+--- a/src/runtime/export_debug_ppc64le_test.go
++++ b/src/runtime/export_debug_ppc64le_test.go
+@@ -116,7 +116,7 @@ func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
+ 
+ func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
+ 	// Gprs R3..R10, R14..R17 are used to pass int arguments in registers on PPC64
+-	for i, _ := range [12]int{} {
++	for i := range [12]int{} {
+ 		if i > 7 {
+ 			dst.Ints[i] = uintptr(src.gp_regs[i+6])
+ 		} else {
+@@ -124,7 +124,7 @@ func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
+ 		}
+ 	}
+ 	// Fprs F1..F13 are used to pass float arguments in registers on PPC64
+-	for i, _ := range [12]int{} {
++	for i := range [12]int{} {
+ 		dst.Floats[i] = math.Float64bits(src.fp_regs[i+1])
+ 	}
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 5d39697649..6c51517522 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -418,7 +418,7 @@ type workType struct {
+ 	stwprocs, maxprocs                 int32
+ 	tSweepTerm, tMark, tMarkTerm, tEnd int64 // nanotime() of phase start
+ 
+-	pauseNS    int64 // total STW time this cycle
++	pauseNS int64 // total STW time this cycle
+ 
+ 	// debug.gctrace heap sizes for this cycle.
+ 	heap0, heap1, heap2 uint64
+diff --git a/src/runtime/testdata/testprogcgo/stackswitch.go b/src/runtime/testdata/testprogcgo/stackswitch.go
+index a2e422f077..70e630e595 100644
+--- a/src/runtime/testdata/testprogcgo/stackswitch.go
++++ b/src/runtime/testdata/testprogcgo/stackswitch.go
+@@ -29,7 +29,6 @@ func stackSwitchCallback() {
+ 	debug.SetGCPercent(gogc)
+ }
+ 
+-
+ // Regression test for https://go.dev/issue/62440. It should be possible for C
+ // threads to call into Go from different stacks without crashing due to g0
+ // stack bounds checks.
+@@ -37,7 +36,7 @@ func stackSwitchCallback() {
+ // N.B. This is only OK for threads created in C. Threads with Go frames up the
+ // stack must not change the stack out from under us.
+ func StackSwitchCallback() {
+-	C.callStackSwitchCallbackFromThread();
++	C.callStackSwitchCallbackFromThread()
+ 
+ 	fmt.Printf("OK\n")
+ }
+diff --git a/src/runtime/testdata/testprognet/waiters.go b/src/runtime/testdata/testprognet/waiters.go
+index 6c8db1f14e..a65c40bfbe 100644
+--- a/src/runtime/testdata/testprognet/waiters.go
++++ b/src/runtime/testdata/testprognet/waiters.go
+@@ -18,6 +18,7 @@ import (
+ // The bug is that netpollWaiters increases monotonically.
+ // This doesn't cause a problem until it overflows.
+ // Use linkname to see the value.
++//
+ //go:linkname netpollWaiters runtime.netpollWaiters
+ var netpollWaiters atomic.Uint32
+ 
+diff --git a/src/runtime/testdata/testwinlibthrow/main.go b/src/runtime/testdata/testwinlibthrow/main.go
+index ce0c92f252..493e1e11d5 100644
+--- a/src/runtime/testdata/testwinlibthrow/main.go
++++ b/src/runtime/testdata/testwinlibthrow/main.go
+@@ -1,19 +1,19 @@
+-package main
+-
+-import (
+-	"os"
+-	"syscall"
+-)
+-
+-func main() {
+-	dll := syscall.MustLoadDLL("veh.dll")
+-	RaiseNoExcept := dll.MustFindProc("RaiseNoExcept")
+-	ThreadRaiseNoExcept := dll.MustFindProc("ThreadRaiseNoExcept")
+-
+-	thread := len(os.Args) > 1 && os.Args[1] == "thread"
+-	if !thread {
+-		RaiseNoExcept.Call()
+-	} else {
+-		ThreadRaiseNoExcept.Call()
+-	}
+-}
++package main
++
++import (
++	"os"
++	"syscall"
++)
++
++func main() {
++	dll := syscall.MustLoadDLL("veh.dll")
++	RaiseNoExcept := dll.MustFindProc("RaiseNoExcept")
++	ThreadRaiseNoExcept := dll.MustFindProc("ThreadRaiseNoExcept")
++
++	thread := len(os.Args) > 1 && os.Args[1] == "thread"
++	if !thread {
++		RaiseNoExcept.Call()
++	} else {
++		ThreadRaiseNoExcept.Call()
++	}
++}

@@ -12,9 +12,150 @@ Date:   Mon Dec 4 11:02:59 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/cgocheck.go |  4 +---
  src/runtime/mbitmap.go  | 13 +++----------
  src/runtime/mgcmark.go  |  7 ++-----
  src/runtime/mheap.go    | 31 ++++++++++++++-----------------
  4 files changed, 20 insertions(+), 35 deletions(-)
+
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index ea1ab974c3..95f6522e94 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -125,9 +125,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		}
+ 	}
+ 
+-	aoff := uintptr(src) - mheap_.arena_start
+-	idx := aoff >> _PageShift
+-	s := mheap_.spans[idx]
++	s := spanOfUnchecked(uintptr(src))
+ 	if s.state == _MSpanManual {
+ 		// There are no heap bits for value stored on the stack.
+ 		// For a channel receive src might be on the stack of some
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 0893afb180..35c81e4bd9 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -381,15 +381,8 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+ // in which the pointer p was found and the byte offset at which it
+ // was found. These are used for error reporting.
+ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
+-	arenaStart := mheap_.arena_start
+-	if p < arenaStart || p >= mheap_.arena_used {
+-		return
+-	}
+-	off := p - arenaStart
+-	idx := off >> _PageShift
+-	// p points into the heap, but possibly to the middle of an object.
+-	// Consult the span table to find the block beginning.
+-	s = mheap_.spans[idx]
++	s = spanOf(p)
++	// If p is a bad pointer, it may not be in s's bounds.
+ 	if s == nil || p < s.base() || p >= s.limit || s.state != mSpanInUse {
+ 		if s == nil || s.state == _MSpanManual {
+ 			// If s is nil, the virtual address has never been part of the heap.
+@@ -416,7 +409,7 @@ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex ui
+ 			} else {
+ 				print(" to unused region of span")
+ 			}
+-			print(" idx=", hex(idx), " span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
++			print(" span.base()=", hex(s.base()), " span.limit=", hex(s.limit), " span.state=", s.state, "\n")
+ 			if refBase != 0 {
+ 				print("runtime: found in object at *(", hex(refBase), "+", hex(refOff), ")\n")
+ 				gcDumpObject("object", refBase, refOff)
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b6bc689c1f..29514d948f 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1309,11 +1309,8 @@ func gcDumpObject(label string, obj, off uintptr) {
+ 		print(label, "=", hex(obj), " is not in the Go heap\n")
+ 		return
+ 	}
+-	k := obj >> _PageShift
+-	x := k
+-	x -= mheap_.arena_start >> _PageShift
+-	s := mheap_.spans[x]
+-	print(label, "=", hex(obj), " k=", hex(k))
++	s := spanOf(obj)
++	print(label, "=", hex(obj))
+ 	if s == nil {
+ 		print(" s=nil\n")
+ 		return
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index a97ebb20d7..832ac2a5e1 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -390,15 +390,7 @@ func (sc spanClass) noscan() bool {
+ //go:nowritebarrier
+ //go:nosplit
+ func inheap(b uintptr) bool {
+-	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
+-		return false
+-	}
+-	// Not a beginning of a block, consult span table to find the block beginning.
+-	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
+-	if s == nil || b < s.base() || b >= s.limit || s.state != mSpanInUse {
+-		return false
+-	}
+-	return true
++	return spanOfHeap(b) != nil
+ }
+ 
+ // inHeapOrStack is a variant of inheap that returns true for pointers
+@@ -407,11 +399,7 @@ func inheap(b uintptr) bool {
+ //go:nowritebarrier
+ //go:nosplit
+ func inHeapOrStack(b uintptr) bool {
+-	if b == 0 || b < mheap_.arena_start || b >= mheap_.arena_used {
+-		return false
+-	}
+-	// Not a beginning of a block, consult span table to find the block beginning.
+-	s := mheap_.spans[(b-mheap_.arena_start)>>_PageShift]
++	s := spanOf(b)
+ 	if s == nil || b < s.base() {
+ 		return false
+ 	}
+@@ -423,9 +411,6 @@ func inHeapOrStack(b uintptr) bool {
+ 	}
+ }
+ 
+-// TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
+-// Use the functions instead.
+-
+ // spanOf returns the span of p. If p does not point into the heap
+ // arena or no span has ever contained p, spanOf returns nil.
+ //
+@@ -433,6 +418,10 @@ func inHeapOrStack(b uintptr) bool {
+ // span that does *not* contain p. If this is a possibility, the
+ // caller should either call spanOfHeap or check the span bounds
+ // explicitly.
++//
++// Must be nosplit because it has callers that are nosplit.
++//
++//go:nosplit
+ func spanOf(p uintptr) *mspan {
+ 	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
+ 		return nil
+@@ -443,12 +432,20 @@ func spanOf(p uintptr) *mspan {
+ // spanOfUnchecked is equivalent to spanOf, but the caller must ensure
+ // that p points into the heap (that is, mheap_.arena_start <= p <
+ // mheap_.arena_used).
++//
++// Must be nosplit because it has callers that are nosplit.
++//
++//go:nosplit
+ func spanOfUnchecked(p uintptr) *mspan {
+ 	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
+ }
+ 
+ // spanOfHeap is like spanOf, but returns nil if p does not point to a
+ // heap object.
++//
++// Must be nosplit because it has callers that are nosplit.
++//
++//go:nosplit
+ func spanOfHeap(p uintptr) *mspan {
+ 	s := spanOf(p)
+ 	// If p is not allocated, it may point to a stale span, so we

@@ -9,7 +9,7 @@ Date:   Mon Sep 21 15:46:50 2009 -0700
     R=ken
     OCL=34861
     CL=34866
-
+---
  src/cmd/8c/txt.c                 |  2 +-
  src/cmd/8l/pass.c                |  3 ++-
  src/pkg/runtime/386/asm.s        |  6 ++---
@@ -17,3 +17,166 @@ Date:   Mon Sep 21 15:46:50 2009 -0700
  src/pkg/runtime/linux/386/sys.s  | 49 ++++++++++++++++------------------------
  src/pkg/runtime/mkasmh.sh        |  4 ++--
  6 files changed, 29 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/8c/txt.c b/src/cmd/8c/txt.c
+index 8abaa667d4..194599c3a9 100644
+--- a/src/cmd/8c/txt.c
++++ b/src/cmd/8c/txt.c
+@@ -450,7 +450,7 @@ naddr(Node *n, Adr *a)
+ 		break;
+ 
+ 	case OEXREG:
+-		a->type = D_INDIR + D_FS;
++		a->type = D_INDIR + D_GS;
+ 		a->offset = n->reg - 1;
+ 		break;
+ 
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 8b714fdbad..bc3e1649fb 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -464,6 +464,7 @@ dostkoff(void)
+ 	int a, f, curframe, curbecome, maxbecome;
+ 	Prog *pmorestack;
+ 	Sym *symmorestack;
++	static int fsreg;
+ 
+ 	pmorestack = P;
+ 	symmorestack = lookup("sys·morestack", 0);
+@@ -565,7 +566,7 @@ dostkoff(void)
+ 			if(!(p->from.scale & NOSPLIT)) {
+ 				p = appendp(p);	// load g into CX
+ 				p->as = AMOVL;
+-				p->from.type = D_INDIR+D_FS;
++				p->from.type = D_INDIR+D_GS;
+ 				p->from.offset = 0;
+ 				p->to.type = D_CX;
+ 
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 3574deed88..a7265b2b2d 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -15,12 +15,12 @@ TEXT _rt0_386(SB),7,$0
+ 
+ 	CALL	ldt0setup(SB)
+ 
+-	// set up %fs to refer to that ldt entry
++	// set up %gs to refer to that ldt entry
+ 	MOVL	$(7*8+7), AX
+-	MOVW	AX, FS
++	MOVW	AX, GS
+ 
+ 	// store through it, to make sure it works
+-	MOVL	$0x123, 0(FS)
++	MOVL	$0x123, 0(GS)
+ 	MOVL	tls0(SB), AX
+ 	CMPL	AX, $0x123
+ 	JEQ	ok
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index fc2d8ede9c..49743359fd 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -139,7 +139,7 @@ TEXT bsdthread_start(SB),7,$0
+ 	POPAL
+ 	SHLL	$3, DI	// segment# is ldt*8 + 7.
+ 	ADDL	$7, DI
+-	MOVW	DI, FS
++	MOVW	DI, GS
+ 
+ 	// Now segment is established.  Initialize m, g.
+ 	MOVL	AX, g
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index fa056c075d..7f4787700b 100755
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -8,20 +8,6 @@
+ 
+ #include "386/asm.h"
+ 
+-TEXT syscall(SB),7,$0
+-	MOVL 4(SP), AX	// syscall number
+-	MOVL 8(SP), BX	// arg1
+-	MOVL 12(SP), CX	// arg2
+-	MOVL 16(SP), DX	// arg3
+-	MOVL 20(SP), SI	// arg4
+-	MOVL 24(SP), DI	// arg5
+-	MOVL 28(SP), BP	// arg6
+-	INT $0x80
+-	CMPL AX, $0xfffff001
+-	JLS 2(PC)
+-	INT $3	// not reached
+-	RET
+-
+ TEXT exit(SB),7,$0
+ 	MOVL	$252, AX	// syscall number
+ 	MOVL	4(SP), BX
+@@ -159,7 +145,7 @@ TEXT clone(SB),7,$0
+ 	POPAL
+ 	SHLL	$3, DI	// segment# is ldt*8 + 7 (different 7 than above)
+ 	ADDL	$7, DI
+-	MOVW	DI, FS
++	MOVW	DI, GS
+ 
+ 	// Now segment is established.  Initialize m, g.
+ 	MOVL	DX, g
+@@ -190,15 +176,15 @@ TEXT sigaltstack(SB),7,$-8
+ 
+ // <asm-i386/ldt.h>
+ // struct user_desc {
+-// 	unsigned int  entry_number;
+-// 	unsigned long base_addr;
+-// 	unsigned int  limit;
+-// 	unsigned int  seg_32bit:1;
+-// 	unsigned int  contents:2;
+-// 	unsigned int  read_exec_only:1;
+-// 	unsigned int  limit_in_pages:1;
+-// 	unsigned int  seg_not_present:1;
+-// 	unsigned int  useable:1;
++//	unsigned int  entry_number;
++//	unsigned long base_addr;
++//	unsigned int  limit;
++//	unsigned int  seg_32bit:1;
++//	unsigned int  contents:2;
++//	unsigned int  read_exec_only:1;
++//	unsigned int  limit_in_pages:1;
++//	unsigned int  seg_not_present:1;
++//	unsigned int  useable:1;
+ // };
+ #define SEG_32BIT 0x01
+ // contents are the 2 bits 0x02 and 0x04.
+@@ -223,10 +209,15 @@ TEXT setldt(SB),7,$32
+ 	MOVL	$(SEG_32BIT|USEABLE|CONTENTS_DATA), 12(AX)	// flag bits
+ 
+ 	// call modify_ldt
+-	MOVL	$123, 0(SP)	// syscall - modify_ldt
+-	MOVL	$1, 4(SP)	// func = 1 (write)
+-	MOVL	AX, 8(SP)	// user_desc
+-	MOVL	$16, 12(SP)	// sizeof(user_desc)
+-	CALL	syscall(SB)
++	MOVL	$1, BX	// func = 1 (write)
++	MOVL	AX, CX	// user_desc
++	MOVL	$16, DX	// sizeof(user_desc)
++	MOVL	$123, AX	// syscall - modify_ldt
++	INT	$0x80
++
++	// breakpoint on error
++	CMPL AX, $0xfffff001
++	JLS 2(PC)
++	INT $3
+ 	RET
+ 
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 6e6ebfca98..bc99a26255 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -13,8 +13,8 @@ EOF
+ 
+ case "$GOARCH" in
+ 386)
+-	echo '#define	g	0(FS)'
+-	echo '#define	m	4(FS)'
++	echo '#define	g	0(GS)'
++	echo '#define	m	4(GS)'
+ 	;;
+ amd64)
+ 	echo '#define	g	R15'

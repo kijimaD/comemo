@@ -10,7 +10,7 @@ Date:   Wed Sep 12 10:36:22 2012 +1000
     R=rsc, r, dvyukov
     CC=golang-dev
     https://golang.org/cl/6494112
-
+---
  src/pkg/sync/atomic/asm_386.s       |  26 +++----
  src/pkg/sync/atomic/asm_amd64.s     |  20 +++---
  src/pkg/sync/atomic/asm_arm.s       |  12 ++--
@@ -18,3 +18,720 @@ Date:   Wed Sep 12 10:36:22 2012 +1000
  src/pkg/sync/atomic/atomic_test.go  | 140 ++++++++++++++++++------------------
  src/pkg/sync/atomic/doc.go          |  46 +++++++-----
  6 files changed, 135 insertions(+), 125 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index a406852f4a..7b369c3407 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -6,7 +6,7 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+ TEXT ·CompareAndSwapUint32(SB),7,$0
+-	MOVL	valptr+0(FP), BP
++	MOVL	addr+0(FP), BP
+ 	MOVL	old+4(FP), AX
+ 	MOVL	new+8(FP), CX
+ 	// CMPXCHGL was introduced on the 486.
+@@ -25,7 +25,7 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+ TEXT ·CompareAndSwapUint64(SB),7,$0
+-	MOVL	valptr+0(FP), BP
++	MOVL	addr+0(FP), BP
+ 	MOVL	oldlo+4(FP), AX
+ 	MOVL	oldhi+8(FP), DX
+ 	MOVL	newlo+12(FP), BX
+@@ -40,7 +40,7 @@ TEXT ·AddInt32(SB),7,$0
+ 	JMP	·AddUint32(SB)
+ 
+ TEXT ·AddUint32(SB),7,$0
+-	MOVL	valptr+0(FP), BP
++	MOVL	addr+0(FP), BP
+ 	MOVL	delta+4(FP), AX
+ 	MOVL	AX, CX
+ 	// XADD was introduced on the 486.
+@@ -58,24 +58,24 @@ TEXT ·AddInt64(SB),7,$0
+ 
+ TEXT ·AddUint64(SB),7,$0
+ 	// no XADDQ so use CMPXCHG8B loop
+-	MOVL	valptr+0(FP), BP
++	MOVL	addr+0(FP), BP
+ 	// DI:SI = delta
+ 	MOVL	deltalo+4(FP), SI
+ 	MOVL	deltahi+8(FP), DI
+-	// DX:AX = *valptr
++	// DX:AX = *addr
+ 	MOVL	0(BP), AX
+ 	MOVL	4(BP), DX
+ addloop:
+-	// CX:BX = DX:AX (*valptr) + DI:SI (delta)
++	// CX:BX = DX:AX (*addr) + DI:SI (delta)
+ 	MOVL	AX, BX
+ 	MOVL	DX, CX
+ 	ADDL	SI, BX
+ 	ADCL	DI, CX
+ 
+-	// if *valptr == DX:AX {
+-	//	*valptr = CX:BX
++	// if *addr == DX:AX {
++	//	*addr = CX:BX
+ 	// } else {
+-	//	DX:AX = *valptr
++	//	DX:AX = *addr
+ 	// }
+ 	// all in one instruction
+ 	LOCK
+@@ -93,7 +93,7 @@ TEXT ·LoadInt32(SB),7,$0
+ 	JMP	·LoadUint32(SB)
+ 
+ TEXT ·LoadUint32(SB),7,$0
+-	MOVL	addrptr+0(FP), AX
++	MOVL	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+@@ -102,7 +102,7 @@ TEXT ·LoadInt64(SB),7,$0
+ 	JMP	·LoadUint64(SB)
+ 
+ TEXT ·LoadUint64(SB),7,$0
+-	MOVL	addrptr+0(FP), AX
++	MOVL	addr+0(FP), AX
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	// MOVQ (%EAX), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+@@ -121,7 +121,7 @@ TEXT ·StoreInt32(SB),7,$0
+ 	JMP	·StoreUint32(SB)
+ 
+ TEXT ·StoreUint32(SB),7,$0
+-	MOVL	addrptr+0(FP), BP
++	MOVL	addr+0(FP), BP
+ 	MOVL	val+4(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+@@ -130,7 +130,7 @@ TEXT ·StoreInt64(SB),7,$0
+ 	JMP	·StoreUint64(SB)
+ 
+ TEXT ·StoreUint64(SB),7,$0
+-	MOVL	addrptr+0(FP), AX
++	MOVL	addr+0(FP), AX
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	// MOVQ 0x8(%ESP), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index 6f8bde068d..a088025682 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -6,7 +6,7 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
+ TEXT ·CompareAndSwapUint32(SB),7,$0
+-	MOVQ	valptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVL	old+8(FP), AX
+ 	MOVL	new+12(FP), CX
+ 	LOCK
+@@ -24,7 +24,7 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+ TEXT ·CompareAndSwapUint64(SB),7,$0
+-	MOVQ	valptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVQ	old+8(FP), AX
+ 	MOVQ	new+16(FP), CX
+ 	LOCK
+@@ -36,7 +36,7 @@ TEXT ·AddInt32(SB),7,$0
+ 	JMP	·AddUint32(SB)
+ 
+ TEXT ·AddUint32(SB),7,$0
+-	MOVQ	valptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVL	delta+8(FP), AX
+ 	MOVL	AX, CX
+ 	LOCK
+@@ -52,7 +52,7 @@ TEXT ·AddInt64(SB),7,$0
+ 	JMP	·AddUint64(SB)
+ 
+ TEXT ·AddUint64(SB),7,$0
+-	MOVQ	valptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVQ	delta+8(FP), AX
+ 	MOVQ	AX, CX
+ 	LOCK
+@@ -65,7 +65,7 @@ TEXT ·LoadInt32(SB),7,$0
+ 	JMP	·LoadUint32(SB)
+ 
+ TEXT ·LoadUint32(SB),7,$0
+-	MOVQ	addrptr+0(FP), AX
++	MOVQ	addr+0(FP), AX
+ 	MOVL	0(AX), AX
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+@@ -74,7 +74,7 @@ TEXT ·LoadInt64(SB),7,$0
+ 	JMP	·LoadUint64(SB)
+ 
+ TEXT ·LoadUint64(SB),7,$0
+-	MOVQ	addrptr+0(FP), AX
++	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+@@ -83,7 +83,7 @@ TEXT ·LoadUintptr(SB),7,$0
+ 	JMP	·LoadPointer(SB)
+ 
+ TEXT ·LoadPointer(SB),7,$0
+-	MOVQ	addrptr+0(FP), AX
++	MOVQ	addr+0(FP), AX
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
+@@ -92,7 +92,7 @@ TEXT ·StoreInt32(SB),7,$0
+ 	JMP	·StoreUint32(SB)
+ 
+ TEXT ·StoreUint32(SB),7,$0
+-	MOVQ	addrptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVL	val+8(FP), AX
+ 	XCHGL	AX, 0(BP)
+ 	RET
+@@ -101,7 +101,7 @@ TEXT ·StoreInt64(SB),7,$0
+ 	JMP	·StoreUint64(SB)
+ 
+ TEXT ·StoreUint64(SB),7,$0
+-	MOVQ	addrptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+ 	RET
+@@ -110,7 +110,7 @@ TEXT ·StoreUintptr(SB),7,$0
+ 	JMP	·StorePointer(SB)
+ 
+ TEXT ·StorePointer(SB),7,$0
+-	MOVQ	addrptr+0(FP), BP
++	MOVQ	addr+0(FP), BP
+ 	MOVQ	val+8(FP), AX
+ 	XCHGQ	AX, 0(BP)
+ 	RET
+diff --git a/src/pkg/sync/atomic/asm_arm.s b/src/pkg/sync/atomic/asm_arm.s
+index 2d10a922b4..63a6b7dba6 100644
+--- a/src/pkg/sync/atomic/asm_arm.s
++++ b/src/pkg/sync/atomic/asm_arm.s
+@@ -5,7 +5,7 @@
+ // ARM atomic operations, for use by asm_$(GOOS)_arm.s.
+ 
+ TEXT ·armCompareAndSwapUint32(SB),7,$0
+-	MOVW	valptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ 	MOVW	old+4(FP), R2
+ 	MOVW	new+8(FP), R3
+ casloop:
+@@ -26,7 +26,7 @@ casfail:
+ 
+ TEXT ·armCompareAndSwapUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+-	MOVW	valptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ 	MOVW	oldlo+4(FP), R2
+ 	MOVW	oldhi+8(FP), R3
+ 	MOVW	newlo+12(FP), R4
+@@ -50,7 +50,7 @@ cas64fail:
+ 	RET
+ 
+ TEXT ·armAddUint32(SB),7,$0
+-	MOVW	valptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ 	MOVW	delta+4(FP), R2
+ addloop:
+ 	// LDREX and STREX were introduced in ARM 6.
+@@ -64,7 +64,7 @@ addloop:
+ 
+ TEXT ·armAddUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+-	MOVW	valptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ 	MOVW	deltalo+4(FP), R2
+ 	MOVW	deltahi+8(FP), R3
+ add64loop:
+@@ -81,7 +81,7 @@ add64loop:
+ 
+ TEXT ·armLoadUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+-	MOVW	addrptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ load64loop:
+ 	LDREXD	(R1), R2	// loads R2 and R3
+ 	STREXD	R2, (R1), R0	// stores R2 and R3
+@@ -93,7 +93,7 @@ load64loop:
+ 
+ TEXT ·armStoreUint64(SB),7,$0
+ 	BL	fastCheck64<>(SB)
+-	MOVW	addrptr+0(FP), R1
++	MOVW	addr+0(FP), R1
+ 	MOVW	vallo+4(FP), R2
+ 	MOVW	valhi+8(FP), R3
+ store64loop:
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 4619c23433..ba07d33803 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -9,7 +9,7 @@
+ // implementation at address 0xffff0fc0.  Caller sets:
+ //	R0 = old value
+ //	R1 = new value
+-//	R2 = valptr
++//	R2 = addr
+ //	LR = return address
+ // The function returns with CS true if the swap happened.
+ // http://lxr.linux.no/linux+v2.6.37.2/arch/arm/kernel/entry-armv.S#L850
+@@ -27,7 +27,7 @@ TEXT ·CompareAndSwapInt32(SB),7,$0
+ 
+ // Implement using kernel cas for portability.
+ TEXT ·CompareAndSwapUint32(SB),7,$0
+-	MOVW	valptr+0(FP), R2
++	MOVW	addr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ casagain:
+ 	MOVW	new+8(FP), R1
+@@ -39,7 +39,7 @@ casret:
+ 	RET
+ cascheck:
+ 	// Kernel lies; double-check.
+-	MOVW	valptr+0(FP), R2
++	MOVW	addr+0(FP), R2
+ 	MOVW	old+4(FP), R0
+ 	MOVW	0(R2), R3
+ 	CMP	R0, R3
+@@ -58,7 +58,7 @@ TEXT ·AddInt32(SB),7,$0
+ 
+ // Implement using kernel cas for portability.
+ TEXT ·AddUint32(SB),7,$0
+-	MOVW	valptr+0(FP), R2
++	MOVW	addr+0(FP), R2
+ 	MOVW	delta+4(FP), R4
+ addloop1:
+ 	MOVW	0(R2), R0
+@@ -77,7 +77,7 @@ TEXT cas64<>(SB),7,$0
+ 
+ TEXT kernelCAS64<>(SB),7,$0
+ 	// int (*__kuser_cmpxchg64_t)(const int64_t *oldval, const int64_t *newval, volatile int64_t *ptr);
+-	MOVW	valptr+0(FP), R2 // ptr
++	MOVW	addr+0(FP), R2 // ptr
+ 	MOVW	$4(FP), R0 // oldval
+ 	MOVW	$12(FP), R1 // newval
+ 	BL		cas64<>(SB)
+@@ -88,7 +88,7 @@ TEXT kernelCAS64<>(SB),7,$0
+ 
+ TEXT generalCAS64<>(SB),7,$20
+ 	// bool runtime·cas64(uint64 volatile *addr, uint64 *old, uint64 new)
+-	MOVW	valptr+0(FP), R0
++	MOVW	addr+0(FP), R0
+ 	MOVW	R0, 4(R13)
+ 	MOVW	$4(FP), R1 // oldval
+ 	MOVW	R1, 8(R13)
+@@ -140,7 +140,7 @@ TEXT ·LoadInt32(SB),7,$0
+ 	B	·LoadUint32(SB)
+ 
+ TEXT ·LoadUint32(SB),7,$0
+-	MOVW	addrptr+0(FP), R2
++	MOVW	addr+0(FP), R2
+ loadloop1:
+ 	MOVW	0(R2), R0
+ 	MOVW	R0, R1
+@@ -165,7 +165,7 @@ TEXT ·StoreInt32(SB),7,$0
+ 	B	·StoreUint32(SB)
+ 
+ TEXT ·StoreUint32(SB),7,$0
+-	MOVW	addrptr+0(FP), R2
++	MOVW	addr+0(FP), R2
+ 	MOVW	val+4(FP), R1
+ storeloop1:
+ 	MOVW	0(R2), R0
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index f60d997ce8..53dfdbf40a 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -640,73 +640,73 @@ func init() {
+ 	}
+ }
+ 
+-func hammerAddInt32(uval *uint32, count int) {
+-	val := (*int32)(unsafe.Pointer(uval))
++func hammerAddInt32(uaddr *uint32, count int) {
++	addr := (*int32)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+-		AddInt32(val, 1)
++		AddInt32(addr, 1)
+ 	}
+ }
+ 
+-func hammerAddUint32(val *uint32, count int) {
++func hammerAddUint32(addr *uint32, count int) {
+ 	for i := 0; i < count; i++ {
+-		AddUint32(val, 1)
++		AddUint32(addr, 1)
+ 	}
+ }
+ 
+-func hammerAddUintptr32(uval *uint32, count int) {
++func hammerAddUintptr32(uaddr *uint32, count int) {
+ 	// only safe when uintptr is 32-bit.
+ 	// not called on 64-bit systems.
+-	val := (*uintptr)(unsafe.Pointer(uval))
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+-		AddUintptr(val, 1)
++		AddUintptr(addr, 1)
+ 	}
+ }
+ 
+-func hammerCompareAndSwapInt32(uval *uint32, count int) {
+-	val := (*int32)(unsafe.Pointer(uval))
++func hammerCompareAndSwapInt32(uaddr *uint32, count int) {
++	addr := (*int32)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapInt32(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapInt32(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapUint32(val *uint32, count int) {
++func hammerCompareAndSwapUint32(addr *uint32, count int) {
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapUint32(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapUint32(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapUintptr32(uval *uint32, count int) {
++func hammerCompareAndSwapUintptr32(uaddr *uint32, count int) {
+ 	// only safe when uintptr is 32-bit.
+ 	// not called on 64-bit systems.
+-	val := (*uintptr)(unsafe.Pointer(uval))
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapUintptr(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapUintptr(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapPointer32(uval *uint32, count int) {
++func hammerCompareAndSwapPointer32(uaddr *uint32, count int) {
+ 	// only safe when uintptr is 32-bit.
+ 	// not called on 64-bit systems.
+-	val := (*unsafe.Pointer)(unsafe.Pointer(uval))
++	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapPointer(val, v, unsafe.Pointer(uintptr(v)+1)) {
++			v := *addr
++			if CompareAndSwapPointer(addr, v, unsafe.Pointer(uintptr(v)+1)) {
+ 				break
+ 			}
+ 		}
+@@ -765,73 +765,73 @@ func init() {
+ 	}
+ }
+ 
+-func hammerAddInt64(uval *uint64, count int) {
+-	val := (*int64)(unsafe.Pointer(uval))
++func hammerAddInt64(uaddr *uint64, count int) {
++	addr := (*int64)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+-		AddInt64(val, 1)
++		AddInt64(addr, 1)
+ 	}
+ }
+ 
+-func hammerAddUint64(val *uint64, count int) {
++func hammerAddUint64(addr *uint64, count int) {
+ 	for i := 0; i < count; i++ {
+-		AddUint64(val, 1)
++		AddUint64(addr, 1)
+ 	}
+ }
+ 
+-func hammerAddUintptr64(uval *uint64, count int) {
++func hammerAddUintptr64(uaddr *uint64, count int) {
+ 	// only safe when uintptr is 64-bit.
+ 	// not called on 32-bit systems.
+-	val := (*uintptr)(unsafe.Pointer(uval))
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+-		AddUintptr(val, 1)
++		AddUintptr(addr, 1)
+ 	}
+ }
+ 
+-func hammerCompareAndSwapInt64(uval *uint64, count int) {
+-	val := (*int64)(unsafe.Pointer(uval))
++func hammerCompareAndSwapInt64(uaddr *uint64, count int) {
++	addr := (*int64)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapInt64(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapInt64(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapUint64(val *uint64, count int) {
++func hammerCompareAndSwapUint64(addr *uint64, count int) {
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapUint64(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapUint64(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapUintptr64(uval *uint64, count int) {
++func hammerCompareAndSwapUintptr64(uaddr *uint64, count int) {
+ 	// only safe when uintptr is 64-bit.
+ 	// not called on 32-bit systems.
+-	val := (*uintptr)(unsafe.Pointer(uval))
++	addr := (*uintptr)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapUintptr(val, v, v+1) {
++			v := *addr
++			if CompareAndSwapUintptr(addr, v, v+1) {
+ 				break
+ 			}
+ 		}
+ 	}
+ }
+ 
+-func hammerCompareAndSwapPointer64(uval *uint64, count int) {
++func hammerCompareAndSwapPointer64(uaddr *uint64, count int) {
+ 	// only safe when uintptr is 64-bit.
+ 	// not called on 32-bit systems.
+-	val := (*unsafe.Pointer)(unsafe.Pointer(uval))
++	addr := (*unsafe.Pointer)(unsafe.Pointer(uaddr))
+ 	for i := 0; i < count; i++ {
+ 		for {
+-			v := *val
+-			if CompareAndSwapPointer(val, v, unsafe.Pointer(uintptr(v)+1)) {
++			v := *addr
++			if CompareAndSwapPointer(addr, v, unsafe.Pointer(uintptr(v)+1)) {
+ 				break
+ 			}
+ 		}
+@@ -871,9 +871,9 @@ func TestHammer64(t *testing.T) {
+ 	}
+ }
+ 
+-func hammerStoreLoadInt32(t *testing.T, valp unsafe.Pointer) {
+-	val := (*int32)(valp)
+-	v := LoadInt32(val)
++func hammerStoreLoadInt32(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*int32)(paddr)
++	v := LoadInt32(addr)
+ 	vlo := v & ((1 << 16) - 1)
+ 	vhi := v >> 16
+ 	if vlo != vhi {
+@@ -883,12 +883,12 @@ func hammerStoreLoadInt32(t *testing.T, valp unsafe.Pointer) {
+ 	if vlo == 1e4 {
+ 		new = 0
+ 	}
+-	StoreInt32(val, new)
++	StoreInt32(addr, new)
+ }
+ 
+-func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
+-	val := (*uint32)(valp)
+-	v := LoadUint32(val)
++func hammerStoreLoadUint32(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*uint32)(paddr)
++	v := LoadUint32(addr)
+ 	vlo := v & ((1 << 16) - 1)
+ 	vhi := v >> 16
+ 	if vlo != vhi {
+@@ -898,38 +898,38 @@ func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
+ 	if vlo == 1e4 {
+ 		new = 0
+ 	}
+-	StoreUint32(val, new)
++	StoreUint32(addr, new)
+ }
+ 
+-func hammerStoreLoadInt64(t *testing.T, valp unsafe.Pointer) {
+-	val := (*int64)(valp)
+-	v := LoadInt64(val)
++func hammerStoreLoadInt64(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*int64)(paddr)
++	v := LoadInt64(addr)
+ 	vlo := v & ((1 << 32) - 1)
+ 	vhi := v >> 32
+ 	if vlo != vhi {
+ 		t.Fatalf("Int64: %#x != %#x", vlo, vhi)
+ 	}
+ 	new := v + 1 + 1<<32
+-	StoreInt64(val, new)
++	StoreInt64(addr, new)
+ }
+ 
+-func hammerStoreLoadUint64(t *testing.T, valp unsafe.Pointer) {
+-	val := (*uint64)(valp)
+-	v := LoadUint64(val)
++func hammerStoreLoadUint64(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*uint64)(paddr)
++	v := LoadUint64(addr)
+ 	vlo := v & ((1 << 32) - 1)
+ 	vhi := v >> 32
+ 	if vlo != vhi {
+ 		t.Fatalf("Uint64: %#x != %#x", vlo, vhi)
+ 	}
+ 	new := v + 1 + 1<<32
+-	StoreUint64(val, new)
++	StoreUint64(addr, new)
+ }
+ 
+-func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+-	val := (*uintptr)(valp)
++func hammerStoreLoadUintptr(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*uintptr)(paddr)
+ 	var test64 uint64 = 1 << 50
+ 	arch32 := uintptr(test64) == 0
+-	v := LoadUintptr(val)
++	v := LoadUintptr(addr)
+ 	new := v
+ 	if arch32 {
+ 		vlo := v & ((1 << 16) - 1)
+@@ -950,14 +950,14 @@ func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+ 		inc := uint64(1 + 1<<32)
+ 		new = v + uintptr(inc)
+ 	}
+-	StoreUintptr(val, new)
++	StoreUintptr(addr, new)
+ }
+ 
+-func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
+-	val := (*unsafe.Pointer)(valp)
++func hammerStoreLoadPointer(t *testing.T, paddr unsafe.Pointer) {
++	addr := (*unsafe.Pointer)(paddr)
+ 	var test64 uint64 = 1 << 50
+ 	arch32 := uintptr(test64) == 0
+-	v := uintptr(LoadPointer(val))
++	v := uintptr(LoadPointer(addr))
+ 	new := v
+ 	if arch32 {
+ 		vlo := v & ((1 << 16) - 1)
+@@ -978,7 +978,7 @@ func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
+ 		inc := uint64(1 + 1<<32)
+ 		new = v + uintptr(inc)
+ 	}
+-	StorePointer(val, unsafe.Pointer(new))
++	StorePointer(addr, unsafe.Pointer(new))
+ }
+ 
+ func TestHammerStoreLoad(t *testing.T) {
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index ecb4808ce5..efe60f8522 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -14,12 +14,22 @@
+ // The compare-and-swap operation, implemented by the CompareAndSwapT
+ // functions, is the atomic equivalent of:
+ //
+-//	if *val == old {
+-//		*val = new
++//	if *addr == old {
++//		*addr = new
+ //		return true
+ //	}
+ //	return false
+ //
++// The add operation, implemented by the AddT functions, is the atomic
++// equivalent of:
++//
++//	*addr += delta
++//	return *addr
++//
++// The load and store operations, implemented by the LoadT and StoreT
++// functions, are the atomic equivalents of "return *addr" and
++// "*addr = val".
++//
+ package atomic
+ 
+ import (
+@@ -31,37 +41,37 @@ import (
+ // On x86-32, the 64-bit functions use instructions unavailable before the Pentium MMX.
+ 
+ // CompareAndSwapInt32 executes the compare-and-swap operation for an int32 value.
+-func CompareAndSwapInt32(val *int32, old, new int32) (swapped bool)
++func CompareAndSwapInt32(addr *int32, old, new int32) (swapped bool)
+ 
+ // CompareAndSwapInt64 executes the compare-and-swap operation for an int64 value.
+-func CompareAndSwapInt64(val *int64, old, new int64) (swapped bool)
++func CompareAndSwapInt64(addr *int64, old, new int64) (swapped bool)
+ 
+ // CompareAndSwapUint32 executes the compare-and-swap operation for a uint32 value.
+-func CompareAndSwapUint32(val *uint32, old, new uint32) (swapped bool)
++func CompareAndSwapUint32(addr *uint32, old, new uint32) (swapped bool)
+ 
+ // CompareAndSwapUint64 executes the compare-and-swap operation for a uint64 value.
+-func CompareAndSwapUint64(val *uint64, old, new uint64) (swapped bool)
++func CompareAndSwapUint64(addr *uint64, old, new uint64) (swapped bool)
+ 
+ // CompareAndSwapUintptr executes the compare-and-swap operation for a uintptr value.
+-func CompareAndSwapUintptr(val *uintptr, old, new uintptr) (swapped bool)
++func CompareAndSwapUintptr(addr *uintptr, old, new uintptr) (swapped bool)
+ 
+ // CompareAndSwapPointer executes the compare-and-swap operation for a unsafe.Pointer value.
+-func CompareAndSwapPointer(val *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool)
++func CompareAndSwapPointer(addr *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool)
+ 
+-// AddInt32 atomically adds delta to *val and returns the new value.
+-func AddInt32(val *int32, delta int32) (new int32)
++// AddInt32 atomically adds delta to *addr and returns the new value.
++func AddInt32(addr *int32, delta int32) (new int32)
+ 
+-// AddUint32 atomically adds delta to *val and returns the new value.
+-func AddUint32(val *uint32, delta uint32) (new uint32)
++// AddUint32 atomically adds delta to *addr and returns the new value.
++func AddUint32(addr *uint32, delta uint32) (new uint32)
+ 
+-// AddInt64 atomically adds delta to *val and returns the new value.
+-func AddInt64(val *int64, delta int64) (new int64)
++// AddInt64 atomically adds delta to *addr and returns the new value.
++func AddInt64(addr *int64, delta int64) (new int64)
+ 
+-// AddUint64 atomically adds delta to *val and returns the new value.
+-func AddUint64(val *uint64, delta uint64) (new uint64)
++// AddUint64 atomically adds delta to *addr and returns the new value.
++func AddUint64(addr *uint64, delta uint64) (new uint64)
+ 
+-// AddUintptr atomically adds delta to *val and returns the new value.
+-func AddUintptr(val *uintptr, delta uintptr) (new uintptr)
++// AddUintptr atomically adds delta to *addr and returns the new value.
++func AddUintptr(addr *uintptr, delta uintptr) (new uintptr)
+ 
+ // LoadInt32 atomically loads *addr.
+ func LoadInt32(addr *int32) (val int32)

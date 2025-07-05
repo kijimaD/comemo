@@ -10,10 +10,1295 @@ Date:   Mon Aug 12 13:05:40 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12778043
-
+---
  src/cmd/6g/prog.c |  16 ++-
  src/cmd/8g/opt.h  |  61 +++++++++
  src/cmd/8g/peep.c | 376 +++++++++---------------------------------------------
  src/cmd/8g/prog.c | 331 +++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/8g/reg.c  | 327 ++++-------------------------------------------
  5 files changed, 491 insertions(+), 620 deletions(-)
+
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index 697c1f8779..23dde99c16 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -1,3 +1,7 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include <u.h>
+ #include <libc.h>
+ #include "gg.h"
+@@ -35,6 +39,11 @@ static ProgInfo progtable[ALAST] = {
+ 	[AFUNCDATA]=	{Pseudo},
+ 	[APCDATA]=	{Pseudo},
+ 
++	// NOP is an internal no-op that also stands
++	// for USED and SET annotations, not the Intel opcode.
++	[ANOP]=		{LeftRead | RightWrite},
++
++
+ 	[AADCL]=	{SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
+ 	[AADCQ]=	{SizeQ | LeftRead | RightRdwr | SetCarry | UseCarry},
+ 	[AADCW]=	{SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
+@@ -176,13 +185,10 @@ static ProgInfo progtable[ALAST] = {
+ 	[ANEGQ]=	{SizeQ | RightRdwr | SetCarry},
+ 	[ANEGW]=	{SizeW | RightRdwr | SetCarry},
+ 
+-	// NOP is the opcode for USED and SET annotations, not the Intel opcode.
+-	[ANOP]=		{LeftRead | RightWrite},
+-
+ 	[ANOTB]=	{SizeB | RightRdwr},
+ 	[ANOTL]=	{SizeL | RightRdwr},
+ 	[ANOTQ]=	{SizeQ | RightRdwr},
+-	[ANOTW]=	{SizeQ | RightRdwr},
++	[ANOTW]=	{SizeW | RightRdwr},
+ 
+ 	[AORB]=		{SizeB | LeftRead | RightRdwr | SetCarry},
+ 	[AORL]=		{SizeL | LeftRead | RightRdwr | SetCarry},
+@@ -190,7 +196,7 @@ static ProgInfo progtable[ALAST] = {
+ 	[AORW]=		{SizeW | LeftRead | RightRdwr | SetCarry},
+ 
+ 	[APOPQ]=	{SizeQ | RightWrite},
+-	[APUSHQ]=	{SizeQ | RightWrite},
++	[APUSHQ]=	{SizeQ | LeftRead},
+ 
+ 	[ARCLB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+ 	[ARCLL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index b80043e0f1..dc2946108e 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -168,3 +168,64 @@ int	BtoR(int32);
+ int	BtoF(int32);
+ 
+ #pragma	varargck	type	"D"	Adr*
++
++/*
++ * prog.c
++ */
++typedef struct ProgInfo ProgInfo;
++struct ProgInfo
++{
++	uint32 flags; // the bits below
++	uint32 reguse; // required registers used by this instruction
++	uint32 regset; // required registers set by this instruction
++	uint32 regindex; // registers used by addressing mode
++};
++
++enum
++{
++	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
++	Pseudo = 1<<1,
++	
++	// There's nothing to say about the instruction,
++	// but it's still okay to see.
++	OK = 1<<2,
++
++	// Size of right-side write, or right-side read if no write.
++	SizeB = 1<<3,
++	SizeW = 1<<4,
++	SizeL = 1<<5,
++	SizeQ = 1<<6,
++	SizeF = 1<<7, // float aka float32
++	SizeD = 1<<8, // double aka float64
++
++	// Left side: address taken, read, write.
++	LeftAddr = 1<<9,
++	LeftRead = 1<<10,
++	LeftWrite = 1<<11,
++	
++	// Right side: address taken, read, write.
++	RightAddr = 1<<12,
++	RightRead = 1<<13,
++	RightWrite = 1<<14,
++
++	// Set, use, or kill of carry bit.
++	// Kill means we never look at the carry bit after this kind of instruction.
++	SetCarry = 1<<15,
++	UseCarry = 1<<16,
++	KillCarry = 1<<17,
++
++	// Instruction kinds
++	Move = 1<<18, // straight move
++	Conv = 1<<19, // size conversion
++	Cjmp = 1<<20, // conditional jump
++	Break = 1<<21, // breaks control flow (no fallthrough)
++	Call = 1<<22, // function call
++	Jump = 1<<23, // jump
++	Skip = 1<<24, // data instruction
++
++	// Special cases for register use.
++	ShiftCX = 1<<25, // possible shift by CX
++	ImulAXDX = 1<<26, // possible multiply into DX:AX
++};
++
++void proginfo(ProgInfo*, Prog*);
+diff --git a/src/cmd/8g/peep.c b/src/cmd/8g/peep.c
+index fff755cbda..51eb687587 100644
+--- a/src/cmd/8g/peep.c
++++ b/src/cmd/8g/peep.c
+@@ -42,28 +42,14 @@ static void elimshortmov(Reg *r);
+ static int
+ needc(Prog *p)
+ {
++	ProgInfo info;
++
+ 	while(p != P) {
+-		switch(p->as) {
+-		case AADCL:
+-		case ASBBL:
+-		case ARCRB:
+-		case ARCRW:
+-		case ARCRL:
++		proginfo(&info, p);
++		if(info.flags & UseCarry)
+ 			return 1;
+-		case AADDB:
+-		case AADDW:
+-		case AADDL:
+-		case ASUBB:
+-		case ASUBW:
+-		case ASUBL:
+-		case AJMP:
+-		case ARET:
+-		case ACALL:
++		if(info.flags & (SetCarry|KillCarry))
+ 			return 0;
+-		default:
+-			if(p->to.type == D_BRANCH)
+-				return 0;
+-		}
+ 		p = p->link;
+ 	}
+ 	return 0;
+@@ -94,19 +80,20 @@ peep(void)
+ 	Reg *r, *r1, *r2;
+ 	Prog *p, *p1;
+ 	int t;
++	ProgInfo info;
+ 
+ 	/*
+ 	 * complete R structure
+ 	 */
+-	t = 0;
+ 	for(r=firstr; r!=R; r=r1) {
+ 		r1 = r->link;
+ 		if(r1 == R)
+ 			break;
+-		p = r->prog->link;
+-		while(p != r1->prog)
+-		switch(p->as) {
+-		default:
++		for(p = r->prog->link; p != r1->prog; p = p->link) {
++			proginfo(&info, p);
++			if(info.flags & Skip)
++				continue;
++
+ 			r2 = rega();
+ 			r->link = r2;
+ 			r2->link = r1;
+@@ -120,14 +107,6 @@ peep(void)
+ 			r1->p1 = r2;
+ 
+ 			r = r2;
+-			t++;
+-
+-		case ADATA:
+-		case AGLOBL:
+-		case ANAME:
+-		case ASIGNAME:
+-		case ATYPE:
+-			p = p->link;
+ 		}
+ 	}
+ 
+@@ -437,6 +416,7 @@ subprop(Reg *r0)
+ 	Adr *v1, *v2;
+ 	Reg *r;
+ 	int t;
++	ProgInfo info;
+ 
+ 	p = r0->prog;
+ 	v1 = &p->from;
+@@ -446,85 +426,24 @@ subprop(Reg *r0)
+ 	if(!regtyp(v2))
+ 		return 0;
+ 	for(r=uniqp(r0); r!=R; r=uniqp(r)) {
++		if(debug['P'] && debug['v'])
++			print("\t? %P\n", r->prog);
+ 		if(uniqs(r) == R)
+ 			break;
+ 		p = r->prog;
+-		switch(p->as) {
+-		case ACALL:
++		proginfo(&info, p);
++		if(info.flags & Call)
+ 			return 0;
+ 
+-		case AIMULL:
+-		case AIMULW:
+-			if(p->to.type != D_NONE)
+-				break;
+-
+-		case ARCLB:
+-		case ARCLL:
+-		case ARCLW:
+-		case ARCRB:
+-		case ARCRL:
+-		case ARCRW:
+-		case AROLB:
+-		case AROLL:
+-		case AROLW:
+-		case ARORB:
+-		case ARORL:
+-		case ARORW:
+-		case ASALB:
+-		case ASALL:
+-		case ASALW:
+-		case ASARB:
+-		case ASARL:
+-		case ASARW:
+-		case ASHLB:
+-		case ASHLL:
+-		case ASHLW:
+-		case ASHRB:
+-		case ASHRL:
+-		case ASHRW:
+-			if(p->from.type == D_CONST)
+-				break;
+-
+-		case ADIVB:
+-		case ADIVL:
+-		case ADIVW:
+-		case AIDIVB:
+-		case AIDIVL:
+-		case AIDIVW:
+-		case AIMULB:
+-		case AMULB:
+-		case AMULL:
+-		case AMULW:
+-
+-		case AREP:
+-		case AREPN:
+-
+-		case ACWD:
+-		case ACDQ:
+-
+-		case ASTOSB:
+-		case ASTOSL:
+-		case AMOVSB:
+-		case AMOVSL:
+-
+-		case AFMOVF:
+-		case AFMOVD:
+-		case AFMOVFP:
+-		case AFMOVDP:
++		if(info.reguse | info.regset)
+ 			return 0;
+ 
+-		case AMOVL:
+-		case AMOVSS:
+-		case AMOVSD:
+-			if(p->to.type == v1->type)
+-				goto gotit;
+-			break;
+-		}
+-		if(copyau(&p->from, v2) ||
+-		   copyau(&p->to, v2))
++		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type)
++			goto gotit;
++
++		if(copyau(&p->from, v2) || copyau(&p->to, v2))
+ 			break;
+-		if(copysub(&p->from, v1, v2, 0) ||
+-		   copysub(&p->to, v1, v2, 0))
++		if(copysub(&p->from, v1, v2, 0) || copysub(&p->to, v1, v2, 0))
+ 			break;
+ 	}
+ 	return 0;
+@@ -669,215 +588,10 @@ copy1(Adr *v1, Adr *v2, Reg *r, int f)
+ int
+ copyu(Prog *p, Adr *v, Adr *s)
+ {
++	ProgInfo info;
+ 
+ 	switch(p->as) {
+-
+-	default:
+-		if(debug['P'])
+-			print("unknown op %A\n", p->as);
+-		/* SBBL; ADCL; FLD1; SAHF */
+-		return 2;
+-
+-
+-	case ANEGB:
+-	case ANEGW:
+-	case ANEGL:
+-	case ANOTB:
+-	case ANOTW:
+-	case ANOTL:
+-		if(copyas(&p->to, v))
+-			return 2;
+-		break;
+-
+-	case ALEAL:	/* lhs addr, rhs store */
+-		if(copyas(&p->from, v))
+-			return 2;
+-
+-
+-	case ANOP:	/* rhs store */
+-	case AMOVL:
+-	case AMOVBLSX:
+-	case AMOVBLZX:
+-	case AMOVWLSX:
+-	case AMOVWLZX:
+-	
+-	case AMOVSS:
+-	case AMOVSD:
+-	case ACVTSD2SL:
+-	case ACVTSD2SS:
+-	case ACVTSL2SD:
+-	case ACVTSL2SS:
+-	case ACVTSS2SD:
+-	case ACVTSS2SL:
+-	case ACVTTSD2SL:
+-	case ACVTTSS2SL:
+-		if(copyas(&p->to, v)) {
+-			if(s != A)
+-				return copysub(&p->from, v, s, 1);
+-			if(copyau(&p->from, v))
+-				return 4;
+-			return 3;
+-		}
+-		goto caseread;
+-
+-	case ARCLB:
+-	case ARCLL:
+-	case ARCLW:
+-	case ARCRB:
+-	case ARCRL:
+-	case ARCRW:
+-	case AROLB:
+-	case AROLL:
+-	case AROLW:
+-	case ARORB:
+-	case ARORL:
+-	case ARORW:
+-	case ASALB:
+-	case ASALL:
+-	case ASALW:
+-	case ASARB:
+-	case ASARL:
+-	case ASARW:
+-	case ASHLB:
+-	case ASHLL:
+-	case ASHLW:
+-	case ASHRB:
+-	case ASHRL:
+-	case ASHRW:
+-		if(copyas(&p->to, v))
+-			return 2;
+-		if(copyas(&p->from, v))
+-			if(p->from.type == D_CX)
+-				return 2;
+-		goto caseread;
+-
+-	case AADDB:	/* rhs rar */
+-	case AADDL:
+-	case AADDW:
+-	case AANDB:
+-	case AANDL:
+-	case AANDW:
+-	case ADECL:
+-	case ADECW:
+-	case AINCL:
+-	case AINCW:
+-	case ASUBB:
+-	case ASUBL:
+-	case ASUBW:
+-	case AORB:
+-	case AORL:
+-	case AORW:
+-	case AXORB:
+-	case AXORL:
+-	case AXORW:
+-	case AMOVB:
+-	case AMOVW:
+-
+-	case AADDSD:
+-	case AADDSS:
+-	case ACMPSD:
+-	case ACMPSS:
+-	case ADIVSD:
+-	case ADIVSS:
+-	case AMAXSD:
+-	case AMAXSS:
+-	case AMINSD:
+-	case AMINSS:
+-	case AMULSD:
+-	case AMULSS:
+-	case ARCPSS:
+-	case ARSQRTSS:
+-	case ASQRTSD:
+-	case ASQRTSS:
+-	case ASUBSD:
+-	case ASUBSS:
+-	case AXORPD:
+-		if(copyas(&p->to, v))
+-			return 2;
+-		goto caseread;
+-
+-	case ACMPL:	/* read only */
+-	case ACMPW:
+-	case ACMPB:
+-
+-	case ACOMISD:
+-	case ACOMISS:
+-	case AUCOMISD:
+-	case AUCOMISS:
+-	caseread:
+-		if(s != A) {
+-			if(copysub(&p->from, v, s, 1))
+-				return 1;
+-			return copysub(&p->to, v, s, 1);
+-		}
+-		if(copyau(&p->from, v))
+-			return 1;
+-		if(copyau(&p->to, v))
+-			return 1;
+-		break;
+-
+-	case AJGE:	/* no reference */
+-	case AJNE:
+-	case AJLE:
+-	case AJEQ:
+-	case AJHI:
+-	case AJLS:
+-	case AJMI:
+-	case AJPL:
+-	case AJGT:
+-	case AJLT:
+-	case AJCC:
+-	case AJCS:
+-
+-	case AADJSP:
+-	case AWAIT:
+-	case ACLD:
+-		break;
+-
+-	case AIMULL:
+-	case AIMULW:
+-		if(p->to.type != D_NONE) {
+-			if(copyas(&p->to, v))
+-				return 2;
+-			goto caseread;
+-		}
+-
+-	case ADIVB:
+-	case ADIVL:
+-	case ADIVW:
+-	case AIDIVB:
+-	case AIDIVL:
+-	case AIDIVW:
+-	case AIMULB:
+-	case AMULB:
+-	case AMULL:
+-	case AMULW:
+-
+-	case ACWD:
+-	case ACDQ:
+-		if(v->type == D_AX || v->type == D_DX)
+-			return 2;
+-		goto caseread;
+-
+-	case AREP:
+-	case AREPN:
+-		if(v->type == D_CX)
+-			return 2;
+-		goto caseread;
+-
+-	case AMOVSB:
+-	case AMOVSL:
+-		if(v->type == D_DI || v->type == D_SI)
+-			return 2;
+-		goto caseread;
+-
+-	case ASTOSB:
+-	case ASTOSL:
+-		if(v->type == D_AX || v->type == D_DI)
+-			return 2;
+-		goto caseread;
+-
+-	case AJMP:	/* funny */
++	case AJMP:
+ 		if(s != A) {
+ 			if(copysub(&p->to, v, s, 1))
+ 				return 1;
+@@ -887,12 +601,12 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 1;
+ 		return 0;
+ 
+-	case ARET:	/* funny */
++	case ARET:
+ 		if(s != A)
+ 			return 1;
+ 		return 3;
+ 
+-	case ACALL:	/* funny */
++	case ACALL:
+ 		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
+ 			return 2;
+ 		if(REGARG >= 0 && v->type == (uchar)REGARG)
+@@ -909,11 +623,47 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 			return 4;
+ 		return 3;
+ 
+-	case ATEXT:	/* funny */
++	case ATEXT:
+ 		if(REGARG >= 0 && v->type == (uchar)REGARG)
+ 			return 3;
+ 		return 0;
+ 	}
++
++	proginfo(&info, p);
++
++	if((info.reguse|info.regset) & RtoB(v->type))
++		return 2;
++		
++	if(info.flags & LeftAddr)
++		if(copyas(&p->from, v))
++			return 2;
++
++	if((info.flags & (RightRead|RightWrite)) == (RightRead|RightWrite))
++		if(copyas(&p->to, v))
++			return 2;
++	
++	if(info.flags & RightWrite) {
++		if(copyas(&p->to, v)) {
++			if(s != A)
++				return copysub(&p->from, v, s, 1);
++			if(copyau(&p->from, v))
++				return 4;
++			return 3;
++		}
++	}
++	
++	if(info.flags & (LeftAddr|LeftRead|LeftWrite|RightAddr|RightRead|RightWrite)) {
++		if(s != A) {
++			if(copysub(&p->from, v, s, 1))
++				return 1;
++			return copysub(&p->to, v, s, 1);
++		}
++		if(copyau(&p->from, v))
++			return 1;
++		if(copyau(&p->to, v))
++			return 1;
++	}
++
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/8g/prog.c b/src/cmd/8g/prog.c
+new file mode 100644
+index 0000000000..80058ddf37
+--- /dev/null
++++ b/src/cmd/8g/prog.c
+@@ -0,0 +1,331 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++#include "gg.h"
++#include "opt.h"
++
++// Matches real RtoB but can be used in global initializer.
++#define RtoB(r) (1<<((r)-D_AX))
++
++enum {
++	AX = RtoB(D_AX),
++	BX = RtoB(D_BX),
++	CX = RtoB(D_CX),
++	DX = RtoB(D_DX),
++	DI = RtoB(D_DI),
++	SI = RtoB(D_SI),
++	
++	LeftRdwr = LeftRead | LeftWrite,
++	RightRdwr = RightRead | RightWrite,
++};
++
++#undef RtoB
++
++// This table gives the basic information about instruction
++// generated by the compiler and processed in the optimizer.
++// See opt.h for bit definitions.
++//
++// Instructions not generated need not be listed.
++// As an exception to that rule, we typically write down all the
++// size variants of an operation even if we just use a subset.
++//
++// The table is formatted for 8-space tabs.
++static ProgInfo progtable[ALAST] = {
++	[ATYPE]=	{Pseudo | Skip},
++	[ATEXT]=	{Pseudo},
++	[AFUNCDATA]=	{Pseudo},
++	[APCDATA]=	{Pseudo},
++
++	// NOP is an internal no-op that also stands
++	// for USED and SET annotations, not the Intel opcode.
++	[ANOP]=		{LeftRead | RightWrite},
++
++	[AADCL]=	{SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
++	[AADCW]=	{SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
++
++	[AADDB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
++	[AADDL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
++	[AADDW]=	{SizeW | LeftRead | RightRdwr | SetCarry},
++	
++	[AADDSD]=	{SizeD | LeftRead | RightRdwr},
++	[AADDSS]=	{SizeF | LeftRead | RightRdwr},
++
++	[AANDB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
++	[AANDL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
++	[AANDW]=	{SizeW | LeftRead | RightRdwr | SetCarry},
++
++	[ACALL]=	{RightAddr | Call | KillCarry},
++
++	[ACDQ]=		{OK, AX, AX | DX},
++	[ACWD]=		{OK, AX, AX | DX},
++
++	[ACLD]=		{OK},
++	[ASTD]=		{OK},
++
++	[ACMPB]=	{SizeB | LeftRead | RightRead | SetCarry},
++	[ACMPL]=	{SizeL | LeftRead | RightRead | SetCarry},
++	[ACMPW]=	{SizeW | LeftRead | RightRead | SetCarry},
++
++	[ACOMISD]=	{SizeD | LeftRead | RightRead | SetCarry},
++	[ACOMISS]=	{SizeF | LeftRead | RightRead | SetCarry},
++
++	[ACVTSD2SL]=	{SizeL | LeftRead | RightWrite | Conv},
++	[ACVTSD2SS]=	{SizeF | LeftRead | RightWrite | Conv},
++	[ACVTSL2SD]=	{SizeD | LeftRead | RightWrite | Conv},
++	[ACVTSL2SS]=	{SizeF | LeftRead | RightWrite | Conv},
++	[ACVTSS2SD]=	{SizeD | LeftRead | RightWrite | Conv},
++	[ACVTSS2SL]=	{SizeL | LeftRead | RightWrite | Conv},
++	[ACVTTSD2SL]=	{SizeL | LeftRead | RightWrite | Conv},
++	[ACVTTSS2SL]=	{SizeL | LeftRead | RightWrite | Conv},
++
++	[ADECB]=	{SizeB | RightRdwr},
++	[ADECL]=	{SizeL | RightRdwr},
++	[ADECW]=	{SizeW | RightRdwr},
++
++	[ADIVB]=	{SizeB | LeftRead, AX, AX},
++	[ADIVL]=	{SizeL | LeftRead, AX|DX, AX|DX},
++	[ADIVW]=	{SizeW | LeftRead, AX|DX, AX|DX},
++
++	[ADIVSD]=	{SizeD | LeftRead | RightRdwr},
++	[ADIVSS]=	{SizeF | LeftRead | RightRdwr},
++	
++	[AFLDCW]=	{SizeW | LeftAddr },
++	[AFSTCW]=	{SizeW | RightAddr },
++
++	[AFADDD]=	{SizeD | LeftAddr | RightRdwr},
++	[AFADDDP]=	{SizeD | LeftAddr | RightRdwr},
++	[AFADDF]=	{SizeF | LeftAddr | RightRdwr},
++
++	[AFCOMD]=	{SizeD | LeftAddr | RightRead},
++	[AFCOMDP]=	{SizeD | LeftAddr | RightRead},
++	[AFCOMDPP]=	{SizeD | LeftAddr | RightRead},
++	[AFCOMF]=	{SizeF | LeftAddr | RightRead},
++	[AFCOMFP]=	{SizeF | LeftAddr | RightRead},
++	[AFUCOMIP]=	{SizeF | LeftAddr | RightRead},
++
++	[AFCHS]=	{SizeD | RightRdwr}, // also SizeF
++
++	[AFDIVD]=	{SizeD | LeftAddr | RightRdwr},
++	[AFDIVDP]=	{SizeD | LeftAddr | RightRdwr},
++	[AFDIVF]=	{SizeF | LeftAddr | RightRdwr},
++
++	[AFSUBD]=	{SizeD | LeftAddr | RightRdwr},
++	[AFSUBDP]=	{SizeD | LeftAddr | RightRdwr},
++	[AFSUBF]=	{SizeF | LeftAddr | RightRdwr},
++	[AFSUBRD]=	{SizeD | LeftAddr | RightRdwr},
++	[AFSUBRDP]=	{SizeD | LeftAddr | RightRdwr},
++	[AFSUBRF]=	{SizeF | LeftAddr | RightRdwr},
++
++	[AFMOVD]=	{SizeD | LeftAddr | RightWrite},
++	[AFMOVF]=	{SizeF | LeftAddr | RightWrite},
++	[AFMOVL]=	{SizeL | LeftAddr | RightWrite},
++	[AFMOVW]=	{SizeW | LeftAddr | RightWrite},
++	[AFMOVV]=	{SizeQ | LeftAddr | RightWrite},
++
++	[AFMOVDP]=	{SizeD | LeftRead | RightAddr},
++	[AFMOVFP]=	{SizeF | LeftRead | RightAddr},
++	[AFMOVLP]=	{SizeL | LeftRead | RightAddr},
++	[AFMOVWP]=	{SizeW | LeftRead | RightAddr},
++	[AFMOVVP]=	{SizeQ | LeftRead | RightAddr},
++
++	[AFMULD]=	{SizeD | LeftAddr | RightRdwr},
++	[AFMULDP]=	{SizeD | LeftAddr | RightRdwr},
++	[AFMULF]=	{SizeF | LeftAddr | RightRdwr},
++
++	[AIDIVB]=	{SizeB | LeftRead, AX, AX},
++	[AIDIVL]=	{SizeL | LeftRead, AX|DX, AX|DX},
++	[AIDIVW]=	{SizeW | LeftRead, AX|DX, AX|DX},
++
++	[AIMULB]=	{SizeB | LeftRead | SetCarry, AX, AX},
++	[AIMULL]=	{SizeL | LeftRead | ImulAXDX | SetCarry},
++	[AIMULW]=	{SizeW | LeftRead | ImulAXDX | SetCarry},
++
++	[AINCB]=	{SizeB | RightRdwr},
++	[AINCL]=	{SizeL | RightRdwr},
++	[AINCW]=	{SizeW | RightRdwr},
++
++	[AJCC]=		{Cjmp | UseCarry},
++	[AJCS]=		{Cjmp | UseCarry},
++	[AJEQ]=		{Cjmp | UseCarry},
++	[AJGE]=		{Cjmp | UseCarry},
++	[AJGT]=		{Cjmp | UseCarry},
++	[AJHI]=		{Cjmp | UseCarry},
++	[AJLE]=		{Cjmp | UseCarry},
++	[AJLS]=		{Cjmp | UseCarry},
++	[AJLT]=		{Cjmp | UseCarry},
++	[AJMI]=		{Cjmp | UseCarry},
++	[AJNE]=		{Cjmp | UseCarry},
++	[AJOC]=		{Cjmp | UseCarry},
++	[AJOS]=		{Cjmp | UseCarry},
++	[AJPC]=		{Cjmp | UseCarry},
++	[AJPL]=		{Cjmp | UseCarry},
++	[AJPS]=		{Cjmp | UseCarry},
++
++	[AJMP]=		{Jump | Break | KillCarry},
++
++	[ALEAL]=	{LeftAddr | RightWrite},
++
++	[AMOVBLSX]=	{SizeL | LeftRead | RightWrite | Conv},
++	[AMOVBLZX]=	{SizeL | LeftRead | RightWrite | Conv},
++	[AMOVBWSX]=	{SizeW | LeftRead | RightWrite | Conv},
++	[AMOVBWZX]=	{SizeW | LeftRead | RightWrite | Conv},
++	[AMOVWLSX]=	{SizeL | LeftRead | RightWrite | Conv},
++	[AMOVWLZX]=	{SizeL | LeftRead | RightWrite | Conv},
++
++	[AMOVB]=	{SizeB | LeftRead | RightWrite | Move},
++	[AMOVL]=	{SizeL | LeftRead | RightWrite | Move},
++	[AMOVW]=	{SizeW | LeftRead | RightWrite | Move},
++
++	[AMOVSB]=	{OK, DI|SI, DI|SI},
++	[AMOVSL]=	{OK, DI|SI, DI|SI},
++	[AMOVSW]=	{OK, DI|SI, DI|SI},
++
++	[AMOVSD]=	{SizeD | LeftRead | RightWrite | Move},
++	[AMOVSS]=	{SizeF | LeftRead | RightWrite | Move},
++
++	// We use MOVAPD as a faster synonym for MOVSD.
++	[AMOVAPD]=	{SizeD | LeftRead | RightWrite | Move},
++
++	[AMULB]=	{SizeB | LeftRead | SetCarry, AX, AX},
++	[AMULL]=	{SizeL | LeftRead | SetCarry, AX, AX|DX},
++	[AMULW]=	{SizeW | LeftRead | SetCarry, AX, AX|DX},
++	
++	[AMULSD]=	{SizeD | LeftRead | RightRdwr},
++	[AMULSS]=	{SizeF | LeftRead | RightRdwr},
++
++	[ANEGB]=	{SizeB | RightRdwr | SetCarry},
++	[ANEGL]=	{SizeL | RightRdwr | SetCarry},
++	[ANEGW]=	{SizeW | RightRdwr | SetCarry},
++
++	[ANOTB]=	{SizeB | RightRdwr},
++	[ANOTL]=	{SizeL | RightRdwr},
++	[ANOTW]=	{SizeW | RightRdwr},
++
++	[AORB]=		{SizeB | LeftRead | RightRdwr | SetCarry},
++	[AORL]=		{SizeL | LeftRead | RightRdwr | SetCarry},
++	[AORW]=		{SizeW | LeftRead | RightRdwr | SetCarry},
++
++	[APOPL]=	{SizeL | RightWrite},
++	[APUSHL]=	{SizeL | LeftRead},
++
++	[ARCLB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++	[ARCLL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++	[ARCLW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++
++	[ARCRB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++	[ARCRL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++	[ARCRW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry | UseCarry},
++
++	[AREP]=		{OK, CX, CX},
++	[AREPN]=	{OK, CX, CX},
++
++	[ARET]=		{Break | KillCarry},
++
++	[AROLB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[AROLL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[AROLW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ARORB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ARORL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ARORW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ASALB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASALL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASALW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ASARB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASARL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASARW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ASBBB]=	{SizeB | LeftRead | RightRdwr | SetCarry | UseCarry},
++	[ASBBL]=	{SizeL | LeftRead | RightRdwr | SetCarry | UseCarry},
++	[ASBBW]=	{SizeW | LeftRead | RightRdwr | SetCarry | UseCarry},
++
++	[ASETCC]=	{SizeB | RightRdwr | UseCarry},
++	[ASETCS]=	{SizeB | RightRdwr | UseCarry},
++	[ASETEQ]=	{SizeB | RightRdwr | UseCarry},
++	[ASETGE]=	{SizeB | RightRdwr | UseCarry},
++	[ASETGT]=	{SizeB | RightRdwr | UseCarry},
++	[ASETHI]=	{SizeB | RightRdwr | UseCarry},
++	[ASETLE]=	{SizeB | RightRdwr | UseCarry},
++	[ASETLS]=	{SizeB | RightRdwr | UseCarry},
++	[ASETLT]=	{SizeB | RightRdwr | UseCarry},
++	[ASETMI]=	{SizeB | RightRdwr | UseCarry},
++	[ASETNE]=	{SizeB | RightRdwr | UseCarry},
++	[ASETOC]=	{SizeB | RightRdwr | UseCarry},
++	[ASETOS]=	{SizeB | RightRdwr | UseCarry},
++	[ASETPC]=	{SizeB | RightRdwr | UseCarry},
++	[ASETPL]=	{SizeB | RightRdwr | UseCarry},
++	[ASETPS]=	{SizeB | RightRdwr | UseCarry},
++
++	[ASHLB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASHLL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASHLW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ASHRB]=	{SizeB | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASHRL]=	{SizeL | LeftRead | RightRdwr | ShiftCX | SetCarry},
++	[ASHRW]=	{SizeW | LeftRead | RightRdwr | ShiftCX | SetCarry},
++
++	[ASTOSB]=	{OK, AX|DI, DI},
++	[ASTOSL]=	{OK, AX|DI, DI},
++	[ASTOSW]=	{OK, AX|DI, DI},
++
++	[ASUBB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
++	[ASUBL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
++	[ASUBW]=	{SizeW | LeftRead | RightRdwr | SetCarry},
++
++	[ASUBSD]=	{SizeD | LeftRead | RightRdwr},
++	[ASUBSS]=	{SizeF | LeftRead | RightRdwr},
++
++	[ATESTB]=	{SizeB | LeftRead | RightRead},
++	[ATESTL]=	{SizeL | LeftRead | RightRead},
++	[ATESTW]=	{SizeW | LeftRead | RightRead},
++
++	[AUCOMISD]=	{SizeD | LeftRead | RightRead},
++	[AUCOMISS]=	{SizeF | LeftRead | RightRead},
++
++	[AUNDEF]=	{OK},
++
++	[AUSEFIELD]=	{OK},
++
++	[AXCHGB]=	{SizeB | LeftRdwr | RightRdwr},
++	[AXCHGL]=	{SizeL | LeftRdwr | RightRdwr},
++	[AXCHGW]=	{SizeW | LeftRdwr | RightRdwr},
++
++	[AXORB]=	{SizeB | LeftRead | RightRdwr | SetCarry},
++	[AXORL]=	{SizeL | LeftRead | RightRdwr | SetCarry},
++	[AXORW]=	{SizeW | LeftRead | RightRdwr | SetCarry},
++};
++
++void
++proginfo(ProgInfo *info, Prog *p)
++{
++	*info = progtable[p->as];
++	if(info->flags == 0)
++		fatal("unknown instruction %P", p);
++
++	if((info->flags & ShiftCX) && p->from.type != D_CONST)
++		info->reguse |= CX;
++
++	if(info->flags & ImulAXDX) {
++		if(p->to.type == D_NONE) {
++			info->reguse |= AX;
++			info->regset |= AX | DX;
++		} else {
++			info->flags |= RightRdwr;
++		}
++	}
++
++	// Addressing makes some registers used.
++	if(p->from.type >= D_INDIR)
++		info->regindex |= RtoB(p->from.type-D_INDIR);
++	if(p->from.index != D_NONE)
++		info->regindex |= RtoB(p->from.index);
++	if(p->to.type >= D_INDIR)
++		info->regindex |= RtoB(p->to.type-D_INDIR);
++	if(p->to.index != D_NONE)
++		info->regindex |= RtoB(p->to.index);
++}
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index e8f055f761..519ec774d1 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -131,6 +131,7 @@ regopt(Prog *firstp)
+ {
+ 	Reg *r, *r1;
+ 	Prog *p;
++	ProgInfo info, info2;
+ 	int i, z, nr;
+ 	uint32 vreg;
+ 	Bits bit;
+@@ -190,14 +191,9 @@ regopt(Prog *firstp)
+ 	 */
+ 	nr = 0;
+ 	for(p=firstp; p!=P; p=p->link) {
+-		switch(p->as) {
+-		case ADATA:
+-		case AGLOBL:
+-		case ANAME:
+-		case ASIGNAME:
+-		case ATYPE:
++		proginfo(&info, p);
++		if(info.flags & Skip)
+ 			continue;
+-		}
+ 		r = rega();
+ 		nr++;
+ 		if(firstr == R) {
+@@ -214,10 +210,8 @@ regopt(Prog *firstp)
+ 
+ 		r1 = r->p1;
+ 		if(r1 != R) {
+-			switch(r1->prog->as) {
+-			case ARET:
+-			case AJMP:
+-			case AIRETL:
++			proginfo(&info2, r1->prog);
++			if(info2.flags & Break) {
+ 				r->p1 = R;
+ 				r1->s1 = R;
+ 			}
+@@ -227,302 +221,31 @@ regopt(Prog *firstp)
+ 		if(p->as == ACALL && p->to.type == D_EXTERN)
+ 			continue;
+ 
+-		// Addressing makes some registers used.
+-		if(p->from.type >= D_INDIR)
+-			r->use1.b[0] |= RtoB(p->from.type-D_INDIR);
+-		if(p->from.index != D_NONE)
+-			r->use1.b[0] |= RtoB(p->from.index);
+-		if(p->to.type >= D_INDIR)
+-			r->use2.b[0] |= RtoB(p->to.type-D_INDIR);
+-		if(p->to.index != D_NONE)
+-			r->use2.b[0] |= RtoB(p->to.index);
++		r->use1.b[0] |= info.reguse | info.regindex;
++		r->set.b[0] |= info.regset;
+ 
+ 		bit = mkvar(r, &p->from);
+-		if(bany(&bit))
+-		switch(p->as) {
+-		/*
+-		 * funny
+-		 */
+-		case ALEAL:
+-		case AFMOVD:
+-		case AFMOVF:
+-		case AFMOVL: 
+-		case AFMOVW:
+-		case AFMOVV:
+-			setaddrs(bit);
+-			break;
+-
+-		/*
+-		 * left side read
+-		 */
+-		default:
+-			for(z=0; z<BITS; z++)
+-				r->use1.b[z] |= bit.b[z];
+-			break;
+-
+-		/*
+-		 * left side read+write
+-		 */
+-		case AXCHGB:
+-		case AXCHGW:
+-		case AXCHGL:
+-			for(z=0; z<BITS; z++) {
+-				r->use1.b[z] |= bit.b[z];
+-				r->set.b[z] |= bit.b[z];
+-			}
+-			break;
++		if(bany(&bit)) {
++			if(info.flags & LeftAddr)
++				setaddrs(bit);
++			if(info.flags & LeftRead)
++				for(z=0; z<BITS; z++)
++					r->use1.b[z] |= bit.b[z];
++			if(info.flags & LeftWrite)
++				for(z=0; z<BITS; z++)
++					r->set.b[z] |= bit.b[z];
+ 		}
+ 
+ 		bit = mkvar(r, &p->to);
+-		if(bany(&bit))
+-		switch(p->as) {
+-		default:
+-			yyerror("reg: unknown op: %A", p->as);
+-			break;
+-
+-		/*
+-		 * right side read
+-		 */
+-		case ACMPB:
+-		case ACMPL:
+-		case ACMPW:
+-		case ACOMISS:
+-		case ACOMISD:
+-		case AUCOMISS:
+-		case AUCOMISD:
+-		case ATESTB:
+-		case ATESTL:
+-		case ATESTW:
+-			for(z=0; z<BITS; z++)
+-				r->use2.b[z] |= bit.b[z];
+-			break;
+-
+-		/*
+-		 * right side write
+-		 */
+-		case AFSTSW:
+-		case ALEAL:
+-		case ANOP:
+-		case AMOVL:
+-		case AMOVB:
+-		case AMOVW:
+-		case AMOVBLSX:
+-		case AMOVBLZX:
+-		case AMOVBWSX:
+-		case AMOVBWZX:
+-		case AMOVWLSX:
+-		case AMOVWLZX:
+-		case APOPL:
+-
+-		case AMOVSS:
+-		case AMOVSD:
+-		case ACVTSD2SL:
+-		case ACVTSD2SS:
+-		case ACVTSL2SD:
+-		case ACVTSL2SS:
+-		case ACVTSS2SD:
+-		case ACVTSS2SL:
+-		case ACVTTSD2SL:
+-		case ACVTTSS2SL:
+-			for(z=0; z<BITS; z++)
+-				r->set.b[z] |= bit.b[z];
+-			break;
+-
+-		/*
+-		 * right side read+write
+-		 */
+-		case AINCB:
+-		case AINCL:
+-		case AINCW:
+-		case ADECB:
+-		case ADECL:
+-		case ADECW:
+-
+-		case AADDB:
+-		case AADDL:
+-		case AADDW:
+-		case AANDB:
+-		case AANDL:
+-		case AANDW:
+-		case ASUBB:
+-		case ASUBL:
+-		case ASUBW:
+-		case AORB:
+-		case AORL:
+-		case AORW:
+-		case AXORB:
+-		case AXORL:
+-		case AXORW:
+-		case ASALB:
+-		case ASALL:
+-		case ASALW:
+-		case ASARB:
+-		case ASARL:
+-		case ASARW:
+-		case ARCLB:
+-		case ARCLL:
+-		case ARCLW:
+-		case ARCRB:
+-		case ARCRL:
+-		case ARCRW:
+-		case AROLB:
+-		case AROLL:
+-		case AROLW:
+-		case ARORB:
+-		case ARORL:
+-		case ARORW:
+-		case ASHLB:
+-		case ASHLL:
+-		case ASHLW:
+-		case ASHRB:
+-		case ASHRL:
+-		case ASHRW:
+-		case AIMULL:
+-		case AIMULW:
+-		case ANEGB:
+-		case ANEGL:
+-		case ANEGW:
+-		case ANOTB:
+-		case ANOTL:
+-		case ANOTW:
+-		case AADCL:
+-		case ASBBL:
+-
+-		case ASETCC:
+-		case ASETCS:
+-		case ASETEQ:
+-		case ASETGE:
+-		case ASETGT:
+-		case ASETHI:
+-		case ASETLE:
+-		case ASETLS:
+-		case ASETLT:
+-		case ASETMI:
+-		case ASETNE:
+-		case ASETOC:
+-		case ASETOS:
+-		case ASETPC:
+-		case ASETPL:
+-		case ASETPS:
+-
+-		case AXCHGB:
+-		case AXCHGW:
+-		case AXCHGL:
+-
+-		case AADDSD:
+-		case AADDSS:
+-		case ACMPSD:
+-		case ACMPSS:
+-		case ADIVSD:
+-		case ADIVSS:
+-		case AMAXSD:
+-		case AMAXSS:
+-		case AMINSD:
+-		case AMINSS:
+-		case AMULSD:
+-		case AMULSS:
+-		case ARCPSS:
+-		case ARSQRTSS:
+-		case ASQRTSD:
+-		case ASQRTSS:
+-		case ASUBSD:
+-		case ASUBSS:
+-		case AXORPD:
+-			for(z=0; z<BITS; z++) {
+-				r->set.b[z] |= bit.b[z];
+-				r->use2.b[z] |= bit.b[z];
+-			}
+-			break;
+-
+-		/*
+-		 * funny
+-		 */
+-		case AFMOVDP:
+-		case AFMOVFP:
+-		case AFMOVLP:
+-		case AFMOVVP:
+-		case AFMOVWP:
+-		case ACALL:
+-			setaddrs(bit);
+-			break;
+-		}
+-
+-		switch(p->as) {
+-		case AIMULL:
+-		case AIMULW:
+-			if(p->to.type != D_NONE)
+-				break;
+-
+-		case AIDIVL:
+-		case AIDIVW:
+-		case ADIVL:
+-		case ADIVW:
+-		case AMULL:
+-		case AMULW:
+-			r->set.b[0] |= RtoB(D_AX) | RtoB(D_DX);
+-			r->use1.b[0] |= RtoB(D_AX) | RtoB(D_DX);
+-			break;
+-
+-		case AIDIVB:
+-		case AIMULB:
+-		case ADIVB:
+-		case AMULB:
+-			r->set.b[0] |= RtoB(D_AX);
+-			r->use1.b[0] |= RtoB(D_AX);
+-			break;
+-
+-		case ACWD:
+-			r->set.b[0] |= RtoB(D_AX) | RtoB(D_DX);
+-			r->use1.b[0] |= RtoB(D_AX);
+-			break;
+-
+-		case ACDQ:
+-			r->set.b[0] |= RtoB(D_DX);
+-			r->use1.b[0] |= RtoB(D_AX);
+-			break;
+-
+-		case AREP:
+-		case AREPN:
+-		case ALOOP:
+-		case ALOOPEQ:
+-		case ALOOPNE:
+-			r->set.b[0] |= RtoB(D_CX);
+-			r->use1.b[0] |= RtoB(D_CX);
+-			break;
+-
+-		case AMOVSB:
+-		case AMOVSL:
+-		case AMOVSW:
+-		case ACMPSB:
+-		case ACMPSL:
+-		case ACMPSW:
+-			r->set.b[0] |= RtoB(D_SI) | RtoB(D_DI);
+-			r->use1.b[0] |= RtoB(D_SI) | RtoB(D_DI);
+-			break;
+-
+-		case ASTOSB:
+-		case ASTOSL:
+-		case ASTOSW:
+-		case ASCASB:
+-		case ASCASL:
+-		case ASCASW:
+-			r->set.b[0] |= RtoB(D_DI);
+-			r->use1.b[0] |= RtoB(D_AX) | RtoB(D_DI);
+-			break;
+-
+-		case AINSB:
+-		case AINSL:
+-		case AINSW:
+-			r->set.b[0] |= RtoB(D_DX) | RtoB(D_DI);
+-			r->use1.b[0] |= RtoB(D_DI);
+-			break;
+-
+-		case AOUTSB:
+-		case AOUTSL:
+-		case AOUTSW:
+-			r->set.b[0] |= RtoB(D_DI);
+-			r->use1.b[0] |= RtoB(D_DX) | RtoB(D_DI);
+-			break;
++		if(bany(&bit)) {	
++			if(info.flags & RightAddr)
++				setaddrs(bit);
++			if(info.flags & RightRead)
++				for(z=0; z<BITS; z++)
++					r->use2.b[z] |= bit.b[z];
++			if(info.flags & RightWrite)
++				for(z=0; z<BITS; z++)
++					r->set.b[z] |= bit.b[z];
+ 		}
+ 	}
+ 	if(firstr == R)

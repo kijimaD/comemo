@@ -13,8 +13,84 @@ Date:   Tue Sep 15 09:27:22 2015 -0700
     Change-Id: Icdfd6039722d7d3f984ba0905105eb3253e14831
     Reviewed-on: https://go-review.googlesource.com/14593
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/template.go | 8 ++++++++
  src/text/template/exec.go     | 9 +++++----
  src/text/template/funcs.go    | 7 +++----
  3 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index bb9140a4da..f9e6e43588 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"path/filepath"
++	"reflect"
+ 	"sync"
+ 	"text/template"
+ 	"text/template/parse"
+@@ -413,3 +414,10 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
+ 	}
+ 	return parseFiles(t, filenames...)
+ }
++
++// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
++// and whether the value has a meaningful truth value. This is the definition of
++// truth used by if and other such actions.
++func IsTrue(val reflect.Value) (truth, ok bool) {
++	return template.IsTrue(val)
++}
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 625e9b54d6..8d74255070 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -242,7 +242,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
+ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
+ 	defer s.pop(s.mark())
+ 	val := s.evalPipeline(dot, pipe)
+-	truth, ok := isTrue(val)
++	truth, ok := IsTrue(val)
+ 	if !ok {
+ 		s.errorf("if/with can't use %v", val)
+ 	}
+@@ -257,9 +257,10 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
+ 	}
+ }
+ 
+-// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
+-// and whether the value has a meaningful truth value.
+-func isTrue(val reflect.Value) (truth, ok bool) {
++// IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
++// and whether the value has a meaningful truth value. This is the definition of
++// truth used by if and other such actions.
++func IsTrue(val reflect.Value) (truth, ok bool) {
+ 	if !val.IsValid() {
+ 		// Something like var x interface{}, never set. It's a form of nil.
+ 		return false, true
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index b514551455..6eda731834 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -265,7 +265,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
+ // Boolean logic.
+ 
+ func truth(a interface{}) bool {
+-	t, _ := isTrue(reflect.ValueOf(a))
++	t, _ := IsTrue(reflect.ValueOf(a))
+ 	return t
+ }
+ 
+@@ -300,9 +300,8 @@ func or(arg0 interface{}, args ...interface{}) interface{} {
+ }
+ 
+ // not returns the Boolean negation of its argument.
+-func not(arg interface{}) (truth bool) {
+-	truth, _ = isTrue(reflect.ValueOf(arg))
+-	return !truth
++func not(arg interface{}) bool {
++	return !truth(arg)
+ }
+ 
+ // Comparison.

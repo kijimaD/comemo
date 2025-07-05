@@ -16,6 +16,20 @@ Date:   Sat Dec 17 12:47:53 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index aec3e25285..6da4f6df23 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -458,7 +458,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <pre>
+ func RequestHandler(w ResponseWriter, r *Request) {
+   rc := http.NewResponseController(w)
+-  rc.SetWriteDeadline(0) // disable Server.WriteTimeout when sending a large response
++  rc.SetWriteDeadline(time.Time{}) // disable Server.WriteTimeout when sending a large response
+   io.Copy(w, bigData)
+ }
+ </pre>

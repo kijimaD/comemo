@@ -7,6 +7,20 @@ Date:   Sun Jun 19 20:39:58 2016 +0000
     Change-Id: I47bd98509663d75b0d4dedbdb778e803d90053cf
     Reviewed-on: https://go-review.googlesource.com/24216
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strconv/atoi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 8fd966eaf8..a236de421c 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -197,7 +197,7 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	return n, nil
+ }
+ 
+-// Atoi is shorthand for ParseInt(s, 10, 0).
++// Atoi returns the result of ParseInt(s, 10, 0) converted to type int.
+ func Atoi(s string) (int, error) {
+ 	i64, err := ParseInt(s, 10, 0)
+ 	return int(i64), err

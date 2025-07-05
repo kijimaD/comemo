@@ -14,8 +14,189 @@ Date:   Fri Apr 29 15:20:27 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/crash_cgo_test.go             | 30 ++++++++++
  src/runtime/proc.go                       | 20 +++++--
  src/runtime/testdata/testprogcgo/pprof.go | 96 +++++++++++++++++++++++++++++++
  3 files changed, 142 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 0c6b3e887a..f9d665650b 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -7,6 +7,7 @@
+ package runtime_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"os/exec"
+@@ -232,3 +233,32 @@ func TestCgoTracebackContext(t *testing.T) {
+ 		t.Errorf("expected %q got %v", want, got)
+ 	}
+ }
++
++func TestCgoPprof(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++	testenv.MustHaveGoRun(t)
++
++	exe, err := buildTestProg(t, "testprogcgo")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoPprof")).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	fn := strings.TrimSpace(string(got))
++
++	top, err := exec.Command("go", "tool", "pprof", "-top", "-nodecount=1", exe, fn).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("%s", top)
++
++	if !bytes.Contains(top, []byte("cpuHog")) {
++		t.Error("missing cpuHog in pprof output")
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 541fbaf8fb..d7e51d7deb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3085,12 +3085,24 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	var haveStackLock *g
+ 	n := 0
+ 	if mp.ncgo > 0 && mp.curg != nil && mp.curg.syscallpc != 0 && mp.curg.syscallsp != 0 {
+-		// Cgo, we can't unwind and symbolize arbitrary C code,
+-		// so instead collect Go stack that leads to the cgo call.
+-		// This is especially important on windows, since all syscalls are cgo calls.
++		cgoOff := 0
++		// Check cgoCallersUse to make sure that we are not
++		// interrupting other code that is fiddling with
++		// cgoCallers.  We are running in a signal handler
++		// with all signals blocked, so we don't have to worry
++		// about any other code interrupting us.
++		if atomic.Load(&mp.cgoCallersUse) == 0 && mp.cgoCallers != nil && mp.cgoCallers[0] != 0 {
++			for cgoOff < len(mp.cgoCallers) && mp.cgoCallers[cgoOff] != 0 {
++				cgoOff++
++			}
++			copy(stk[:], mp.cgoCallers[:cgoOff])
++			mp.cgoCallers[0] = 0
++		}
++
++		// Collect Go stack that leads to the cgo call.
+ 		if gcTryLockStackBarriers(mp.curg) {
+ 			haveStackLock = mp.curg
+-			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
++			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[cgoOff], len(stk)-cgoOff, nil, nil, 0)
+ 		}
+ 	} else if traceback {
+ 		var flags uint = _TraceTrap
+diff --git a/src/runtime/testdata/testprogcgo/pprof.go b/src/runtime/testdata/testprogcgo/pprof.go
+new file mode 100644
+index 0000000000..04ac4fe92e
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/pprof.go
+@@ -0,0 +1,96 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Run a slow C function saving a CPU profile.
++
++/*
++#include <stdint.h>
++
++int salt1;
++int salt2;
++
++void cpuHog() {
++	int foo = salt1;
++	int i;
++
++	for (i = 0; i < 100000; i++) {
++		if (foo > 0) {
++			foo *= foo;
++		} else {
++			foo *= foo + 1;
++		}
++	}
++	salt2 = foo;
++}
++
++static int cpuHogCount;
++
++struct cgoTracebackArg {
++	uintptr_t  context;
++	uintptr_t* buf;
++	uintptr_t  max;
++};
++
++// pprofCgoTraceback is passed to runtime.SetCgoTraceback.
++// For testing purposes it pretends that all CPU hits in C code are in cpuHog.
++void pprofCgoTraceback(void* parg) {
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++	arg->buf[0] = (uintptr_t)(cpuHog) + 0x10;
++	arg->buf[1] = 0;
++	++cpuHogCount;
++}
++
++// getCpuHogCount fetches the number of times we've seen cpuHog in the
++// traceback.
++int getCpuHogCount() {
++	return cpuHogCount;
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"io/ioutil"
++	"os"
++	"runtime"
++	"runtime/pprof"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	register("CgoPprof", CgoPprof)
++}
++
++func CgoPprof() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.pprofCgoTraceback), nil, nil)
++
++	f, err := ioutil.TempFile("", "prof")
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	if err := pprof.StartCPUProfile(f); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	t0 := time.Now()
++	for C.getCpuHogCount() < 2 && time.Since(t0) < time.Second {
++		C.cpuHog()
++	}
++
++	pprof.StopCPUProfile()
++
++	name := f.Name()
++	if err := f.Close(); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++
++	fmt.Println(name)
++}

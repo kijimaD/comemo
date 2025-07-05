@@ -12,7 +12,33 @@ Date:   Thu Dec 14 13:35:59 2017 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/fmt_test.go             | 1 +
  src/cmd/compile/internal/ssa/compile.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 3f329dea9c..7342b5492b 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -673,6 +673,7 @@ var knownFormats = map[string]string{
+ 	"int %-12d":                                       "",
+ 	"int %-6d":                                        "",
+ 	"int %-8o":                                        "",
++	"int %02d":                                        "",
+ 	"int %6d":                                         "",
+ 	"int %c":                                          "",
+ 	"int %d":                                          "",
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 8a2e358c11..82b9e2cbce 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -123,7 +123,7 @@ var dumpFileSeq int
+ // output.
+ func (f *Func) dumpFile(phaseName string) {
+ 	dumpFileSeq++
+-	fname := fmt.Sprintf("%s__%s_%d.dump", phaseName, f.Name, dumpFileSeq)
++	fname := fmt.Sprintf("%s_%02d__%s.dump", f.Name, dumpFileSeq, phaseName)
+ 	fname = strings.Replace(fname, " ", "_", -1)
+ 	fname = strings.Replace(fname, "/", "_", -1)
+ 	fname = strings.Replace(fname, ":", "_", -1)

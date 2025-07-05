@@ -12,8 +12,82 @@ Date:   Sun Apr 30 12:06:27 2017 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/swt.go |  9 ++++++++-
  test/fixedbugs/issue19977.go       | 16 ++++++++++++++++
  test/fixedbugs/issue20185.go       | 25 +++++++++++++++++++++++++
  3 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 7fd0fe0dbc..871cb5b8b1 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -177,7 +177,14 @@ func typecheckswitch(n *Node) {
+ 			}
+ 		}
+ 
+-		if top == Etype && n.Type != nil {
++		if n.Type == nil || n.Type.IsUntyped() {
++			// if the value we're switching on has no type or is untyped,
++			// we've already printed an error and don't need to continue
++			// typechecking the body
++			return
++		}
++
++		if top == Etype {
+ 			ll := ncase.List
+ 			if ncase.Rlist.Len() != 0 {
+ 				nvar := ncase.Rlist.First()
+diff --git a/test/fixedbugs/issue19977.go b/test/fixedbugs/issue19977.go
+new file mode 100644
+index 0000000000..3db1dfd636
+--- /dev/null
++++ b/test/fixedbugs/issue19977.go
+@@ -0,0 +1,16 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 19977: multiple error messages when type switching on an undefined
++
++package foo
++
++func Foo() {
++	switch x := a.(type) { // ERROR "undefined: a"
++	default:
++		_ = x
++	}
++}
+diff --git a/test/fixedbugs/issue20185.go b/test/fixedbugs/issue20185.go
+new file mode 100644
+index 0000000000..00c23f6407
+--- /dev/null
++++ b/test/fixedbugs/issue20185.go
+@@ -0,0 +1,25 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20185: type switching on untyped values (e.g. nil or consts)
++// caused an internal compiler error.
++
++package p
++
++func F() {
++	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value nil"
++	default:
++		_ = t
++	}
++}
++
++const x = 1
++
++func G() {
++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped number\)"
++	default:
++	}
++}

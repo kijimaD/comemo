@@ -8,7 +8,38 @@ Date:   Tue Feb 26 06:33:59 2013 +0800
     R=golang-dev, bradfitz, r, rsc
     CC=golang-dev
     https://golang.org/cl/7387044
-
+---
  src/pkg/fmt/doc.go       | 3 ++-
  src/pkg/strconv/quote.go | 5 +++--
  2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 2c925a4228..3cd02d7ede 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -74,7 +74,8 @@
+ 		-	pad with spaces on the right rather than the left (left-justify the field)
+ 		#	alternate format: add leading 0 for octal (%#o), 0x for hex (%#x);
+ 			0X for hex (%#X); suppress 0x for %p (%#p);
+-			print a raw (backquoted) string if possible for %q (%#q);
++			for %q, print a raw (backquoted) string if strconv.CanBackquote
++			returns true;
+ 			write e.g. U+0078 'x' if the character is printable for %U (%#U).
+ 		' '	(space) leave a space for elided sign in numbers (% d);
+ 			put spaces between bytes printing strings or slices in hex (% x, % X)
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index 8a73f9d3b2..8cbef88b51 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -139,8 +139,9 @@ func AppendQuoteRuneToASCII(dst []byte, r rune) []byte {
+ 	return append(dst, QuoteRuneToASCII(r)...)
+ }
+ 
+-// CanBackquote returns whether the string s would be
+-// a valid Go string literal if enclosed in backquotes.
++// CanBackquote reports whether the string s can be represented
++// unchanged as a single-line backquoted string without control
++// characters other than space and tab.
+ func CanBackquote(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if (s[i] < ' ' && s[i] != '\t') || s[i] == '`' {

@@ -16,7 +16,7 @@ Date:   Tue Jul 21 12:51:01 2015 +0900
     Change-Id: I43f9c4fb5526d1bf50b97698e0eb39d29fd74c35
     Reviewed-on: https://go-review.googlesource.com/12447
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go | 44 ++++++++++++++++++++++++++++++++++++++------
  src/net/ipsock.go     |  2 +-
  src/net/lookup.go     | 13 ++++++++++---
@@ -25,3 +25,281 @@ Date:   Tue Jul 21 12:51:01 2015 +0900
  src/net/port.go       | 24 ------------------------
  src/net/port_test.go  | 12 +++++++++---
  7 files changed, 93 insertions(+), 38 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index bf95ff6108..6e85362938 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -116,8 +116,10 @@ var dialErrorTests = []struct {
+ 	{"tcp", "no-such-name:80"},
+ 	{"tcp", "mh/astro/r70:http"},
+ 
+-	{"tcp", "127.0.0.1:0"},
+-	{"udp", "127.0.0.1:0"},
++	{"tcp", JoinHostPort("127.0.0.1", "-1")},
++	{"tcp", JoinHostPort("127.0.0.1", "123456789")},
++	{"udp", JoinHostPort("127.0.0.1", "-1")},
++	{"udp", JoinHostPort("127.0.0.1", "123456789")},
+ 	{"ip:icmp", "127.0.0.1"},
+ 
+ 	{"unix", "/path/to/somewhere"},
+@@ -145,10 +147,23 @@ func TestDialError(t *testing.T) {
+ 	for i, tt := range dialErrorTests {
+ 		c, err := d.Dial(tt.network, tt.address)
+ 		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->%s", i, tt.network, c.LocalAddr(), c.RemoteAddr())
++			t.Errorf("#%d: should fail; %s:%s->%s", i, c.LocalAddr().Network(), c.LocalAddr(), c.RemoteAddr())
+ 			c.Close()
+ 			continue
+ 		}
++		if tt.network == "tcp" || tt.network == "udp" {
++			nerr := err
++			if op, ok := nerr.(*OpError); ok {
++				nerr = op.Err
++			}
++			if sys, ok := nerr.(*os.SyscallError); ok {
++				nerr = sys.Err
++			}
++			if nerr == errOpNotSupported {
++				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
++				continue
++			}
++		}
+ 		if c != nil {
+ 			t.Errorf("Dial returned non-nil interface %T(%v) with err != nil", c, c)
+ 		}
+@@ -198,7 +213,8 @@ var listenErrorTests = []struct {
+ 	{"tcp", "no-such-name:80"},
+ 	{"tcp", "mh/astro/r70:http"},
+ 
+-	{"tcp", "127.0.0.1:0"},
++	{"tcp", JoinHostPort("127.0.0.1", "-1")},
++	{"tcp", JoinHostPort("127.0.0.1", "123456789")},
+ 
+ 	{"unix", "/path/to/somewhere"},
+ 	{"unixpacket", "/path/to/somewhere"},
+@@ -223,10 +239,23 @@ func TestListenError(t *testing.T) {
+ 	for i, tt := range listenErrorTests {
+ 		ln, err := Listen(tt.network, tt.address)
+ 		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, ln.Addr())
++			t.Errorf("#%d: should fail; %s:%s->", i, ln.Addr().Network(), ln.Addr())
+ 			ln.Close()
+ 			continue
+ 		}
++		if tt.network == "tcp" {
++			nerr := err
++			if op, ok := nerr.(*OpError); ok {
++				nerr = op.Err
++			}
++			if sys, ok := nerr.(*os.SyscallError); ok {
++				nerr = sys.Err
++			}
++			if nerr == errOpNotSupported {
++				t.Errorf("#%d: should fail without %v; %s:%s->", i, nerr, tt.network, tt.address)
++				continue
++			}
++		}
+ 		if ln != nil {
+ 			t.Errorf("Listen returned non-nil interface %T(%v) with err != nil", ln, ln)
+ 		}
+@@ -246,6 +275,9 @@ var listenPacketErrorTests = []struct {
+ 	{"udp", "127.0.0.1:☺"},
+ 	{"udp", "no-such-name:80"},
+ 	{"udp", "mh/astro/r70:http"},
++
++	{"udp", JoinHostPort("127.0.0.1", "-1")},
++	{"udp", JoinHostPort("127.0.0.1", "123456789")},
+ }
+ 
+ func TestListenPacketError(t *testing.T) {
+@@ -263,7 +295,7 @@ func TestListenPacketError(t *testing.T) {
+ 	for i, tt := range listenPacketErrorTests {
+ 		c, err := ListenPacket(tt.network, tt.address)
+ 		if err == nil {
+-			t.Errorf("#%d: should fail; %s:%s->", i, tt.network, c.LocalAddr())
++			t.Errorf("#%d: should fail; %s:%s->", i, c.LocalAddr().Network(), c.LocalAddr())
+ 			c.Close()
+ 			continue
+ 		}
+diff --git a/src/net/ipsock.go b/src/net/ipsock.go
+index 6e75c33d53..55f697f622 100644
+--- a/src/net/ipsock.go
++++ b/src/net/ipsock.go
+@@ -213,7 +213,7 @@ func internetAddrList(net, addr string, deadline time.Time) (addrList, error) {
+ 			if host, port, err = SplitHostPort(addr); err != nil {
+ 				return nil, err
+ 			}
+-			if portnum, err = parsePort(net, port); err != nil {
++			if portnum, err = LookupPort(net, port); err != nil {
+ 				return nil, err
+ 			}
+ 		}
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 9008322dc5..6e0cf62aec 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -123,10 +123,17 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IPAddr, err erro
+ 
+ // LookupPort looks up the port for the given network and service.
+ func LookupPort(network, service string) (port int, err error) {
+-	if n, i, ok := dtoi(service, 0); ok && i == len(service) {
+-		return n, nil
++	port, _, ok := dtoi(service, 0)
++	if !ok && port != big && port != -big {
++		port, err = lookupPort(network, service)
++		if err != nil {
++			return 0, err
++		}
+ 	}
+-	return lookupPort(network, service)
++	if 0 > port || port > 65535 {
++		return 0, &AddrError{Err: "invalid port", Addr: service}
++	}
++	return port, nil
+ }
+ 
+ // LookupCNAME returns the canonical DNS host for the given name.
+diff --git a/src/net/parse.go b/src/net/parse.go
+index 2c686f5a9f..93cdf8d73f 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -118,15 +118,27 @@ const big = 0xFFFFFF
+ // Returns number, new offset, success.
+ func dtoi(s string, i0 int) (n int, i int, ok bool) {
+ 	n = 0
++	neg := false
++	if len(s) > 0 && s[0] == '-' {
++		neg = true
++		s = s[1:]
++	}
+ 	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+ 		n = n*10 + int(s[i]-'0')
+ 		if n >= big {
+-			return 0, i, false
++			if neg {
++				return -big, i + 1, false
++			}
++			return big, i, false
+ 		}
+ 	}
+ 	if i == i0 {
+ 		return 0, i, false
+ 	}
++	if neg {
++		n = -n
++		i++
++	}
+ 	return n, i, true
+ }
+ 
+diff --git a/src/net/parse_test.go b/src/net/parse_test.go
+index 0f048fcea0..fec9200946 100644
+--- a/src/net/parse_test.go
++++ b/src/net/parse_test.go
+@@ -77,3 +77,25 @@ func TestGoDebugString(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestDtoi(t *testing.T) {
++	for _, tt := range []struct {
++		in  string
++		out int
++		off int
++		ok  bool
++	}{
++		{"", 0, 0, false},
++
++		{"-123456789", -big, 9, false},
++		{"-1", -1, 2, true},
++		{"0", 0, 1, true},
++		{"65536", 65536, 5, true},
++		{"123456789", big, 8, false},
++	} {
++		n, i, ok := dtoi(tt.in, 0)
++		if n != tt.out || i != tt.off || ok != tt.ok {
++			t.Errorf("got %d, %d, %v; want %d, %d, %v", n, i, ok, tt.out, tt.off, tt.ok)
++		}
++	}
++}
+diff --git a/src/net/port.go b/src/net/port.go
+deleted file mode 100644
+index a2a538789e..0000000000
+--- a/src/net/port.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Network service port manipulations
+-
+-package net
+-
+-// parsePort parses port as a network service port number for both
+-// TCP and UDP.
+-func parsePort(net, port string) (int, error) {
+-	p, i, ok := dtoi(port, 0)
+-	if !ok || i != len(port) {
+-		var err error
+-		p, err = LookupPort(net, port)
+-		if err != nil {
+-			return 0, err
+-		}
+-	}
+-	if p < 0 || p > 0xFFFF {
+-		return 0, &AddrError{Err: "invalid port", Addr: port}
+-	}
+-	return p, nil
+-}
+diff --git a/src/net/port_test.go b/src/net/port_test.go
+index 258a5bda48..362e6af933 100644
+--- a/src/net/port_test.go
++++ b/src/net/port_test.go
+@@ -9,12 +9,13 @@ import (
+ 	"testing"
+ )
+ 
+-var portTests = []struct {
++var lookupPortTests = []struct {
+ 	network string
+ 	name    string
+ 	port    int
+ 	ok      bool
+ }{
++	{"tcp", "0", 0, true},
+ 	{"tcp", "echo", 7, true},
+ 	{"tcp", "discard", 9, true},
+ 	{"tcp", "systat", 11, true},
+@@ -29,6 +30,7 @@ var portTests = []struct {
+ 	{"tcp", "finger", 79, true},
+ 	{"tcp", "42", 42, true},
+ 
++	{"udp", "0", 0, true},
+ 	{"udp", "echo", 7, true},
+ 	{"udp", "tftp", 69, true},
+ 	{"udp", "bootpc", 68, true},
+@@ -41,6 +43,10 @@ var portTests = []struct {
+ 
+ 	{"--badnet--", "zzz", 0, false},
+ 	{"tcp", "--badport--", 0, false},
++	{"tcp", "-1", 0, false},
++	{"tcp", "65536", 0, false},
++	{"udp", "-1", 0, false},
++	{"udp", "65536", 0, false},
+ }
+ 
+ func TestLookupPort(t *testing.T) {
+@@ -49,9 +55,9 @@ func TestLookupPort(t *testing.T) {
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+-	for _, tt := range portTests {
++	for _, tt := range lookupPortTests {
+ 		if port, err := LookupPort(tt.network, tt.name); port != tt.port || (err == nil) != tt.ok {
+-			t.Errorf("LookupPort(%q, %q) = %v, %v; want %v", tt.network, tt.name, port, err, tt.port)
++			t.Errorf("LookupPort(%q, %q) = %d, %v; want %d", tt.network, tt.name, port, err, tt.port)
+ 		}
+ 	}
+ }

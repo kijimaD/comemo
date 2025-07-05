@@ -14,7 +14,82 @@ Date:   Tue Oct 15 13:44:22 2019 -0700
     Change-Id: Ife6d1252373f493a597398ee51e7b5695b708df5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201205
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/math/big/rat.go      |  8 ++++----
  src/math/big/rat_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 30 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 712116a08c..841ed3c784 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -271,7 +271,7 @@ func quotToFloat64(a, b nat) (f float64, exact bool) {
+ func (x *Rat) Float32() (f float32, exact bool) {
+ 	b := x.b.abs
+ 	if len(b) == 0 {
+-		b = b.set(natOne) // materialize denominator
++		b = natOne
+ 	}
+ 	f, exact = quotToFloat32(x.a.abs, b)
+ 	if x.a.neg {
+@@ -287,7 +287,7 @@ func (x *Rat) Float32() (f float32, exact bool) {
+ func (x *Rat) Float64() (f float64, exact bool) {
+ 	b := x.b.abs
+ 	if len(b) == 0 {
+-		b = b.set(natOne) // materialize denominator
++		b = natOne
+ 	}
+ 	f, exact = quotToFloat64(x.a.abs, b)
+ 	if x.a.neg {
+@@ -377,7 +377,7 @@ func (z *Rat) Inv(x *Rat) *Rat {
+ 	z.Set(x)
+ 	a := z.b.abs
+ 	if len(a) == 0 {
+-		a = a.set(natOne) // materialize numerator
++		a = a.set(natOne) // materialize numerator (a is part of z!)
+ 	}
+ 	b := z.a.abs
+ 	if b.cmp(natOne) == 0 {
+@@ -418,7 +418,7 @@ func (x *Rat) Num() *Int {
+ func (x *Rat) Denom() *Int {
+ 	x.b.neg = false // the result is always >= 0
+ 	if len(x.b.abs) == 0 {
+-		x.b.abs = x.b.abs.set(natOne) // materialize denominator
++		x.b.abs = x.b.abs.set(natOne) // materialize denominator (see issue #33792)
+ 	}
+ 	return &x.b
+ }
+diff --git a/src/math/big/rat_test.go b/src/math/big/rat_test.go
+index 83c5d5cfea..35bc85c8cd 100644
+--- a/src/math/big/rat_test.go
++++ b/src/math/big/rat_test.go
+@@ -678,3 +678,29 @@ func BenchmarkRatCmp(b *testing.B) {
+ 		x.Cmp(y)
+ 	}
+ }
++
++// TestIssue34919 verifies that a Rat's denominator is not modified
++// when simply accessing the Rat value.
++func TestIssue34919(t *testing.T) {
++	for _, acc := range []struct {
++		name string
++		f    func(*Rat)
++	}{
++		{"Float32", func(x *Rat) { x.Float32() }},
++		{"Float64", func(x *Rat) { x.Float64() }},
++		{"Inv", func(x *Rat) { new(Rat).Inv(x) }},
++		{"Sign", func(x *Rat) { x.Sign() }},
++		{"IsInt", func(x *Rat) { x.IsInt() }},
++		{"Num", func(x *Rat) { x.Num() }},
++		// {"Denom", func(x *Rat) { x.Denom() }}, TODO(gri) should we change the API? See issue #33792.
++	} {
++		// A denominator of length 0 is interpreted as 1. Make sure that
++		// "materialization" of the denominator doesn't lead to setting
++		// the underlying array element 0 to 1.
++		r := &Rat{Int{abs: nat{991}}, Int{abs: make(nat, 0, 1)}}
++		acc.f(r)
++		if d := r.b.abs[:1][0]; d != 0 {
++			t.Errorf("%s modified denominator: got %d, want 0", acc.name, d)
++		}
++	}
++}

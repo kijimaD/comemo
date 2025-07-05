@@ -13,7 +13,7 @@ Date:   Mon Oct 19 16:31:20 2015 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go | 30 ++++++++++++++++++++++++++++++
  src/cmd/go/alldocs.go              |  5 +++++
  src/cmd/go/build.go                |  2 +-
@@ -21,3 +21,132 @@ Date:   Mon Oct 19 16:31:20 2015 -0400
  src/cmd/go/pkg.go                  |  4 ++--
  src/cmd/link/internal/ld/lib.go    |  8 +++++++-
  6 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 7f677d6a37..63cdd9b9ce 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -359,6 +359,36 @@ func TestCgoExecutable(t *testing.T) {
+ 	run(t, "cgo executable", "./bin/execgo")
+ }
+ 
++func checkPIE(t *testing.T, name string) {
++	f, err := elf.Open(name)
++	if err != nil {
++		t.Fatal("elf.Open failed: ", err)
++	}
++	defer f.Close()
++	if f.Type != elf.ET_DYN {
++		t.Errorf("%s has type %v, want ET_DYN", name, f.Type)
++	}
++	if hasDynTag(f, elf.DT_TEXTREL) {
++		t.Errorf("%s has DT_TEXTREL set", name)
++	}
++}
++
++func TestTrivialPIE(t *testing.T) {
++	name := "trivial_pie"
++	goCmd(t, "build", "-buildmode=pie", "-o="+name, "trivial")
++	defer os.Remove(name)
++	run(t, name, "./"+name)
++	checkPIE(t, name)
++}
++
++func TestCgoPIE(t *testing.T) {
++	name := "cgo_pie"
++	goCmd(t, "build", "-buildmode=pie", "-o="+name, "execgo")
++	defer os.Remove(name)
++	run(t, name, "./"+name)
++	checkPIE(t, name)
++}
++
+ // Build a GOPATH package into a shared library that links against the goroot runtime
+ // and an executable that links against both.
+ func TestGopathShlib(t *testing.T) {
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f9aa20dee5..001133b0ca 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -819,6 +819,11 @@ are:
+ 		Build the listed main packages and everything they import into
+ 		executables. Packages not named main are ignored.
+ 
++	-buildmode=pie
++		Build the listed main packages and everything they import into
++		position independent executables (PIE). Packages not named
++		main are ignored.
++
+ 
+ File types
+ 
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1ec98aac52..c2be1351eb 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -374,7 +374,7 @@ func buildModeInit() {
+ 			fatalf("-buildmode=pie not supported by gccgo")
+ 		} else {
+ 			switch platform {
+-			case "android/arm":
++			case "android/arm", "linux/amd64":
+ 				codegenArg = "-shared"
+ 			default:
+ 				fatalf("-buildmode=pie not supported on %s\n", platform)
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 244451d3eb..e9b34c92a9 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -576,5 +576,10 @@ are:
+ 	-buildmode=exe
+ 		Build the listed main packages and everything they import into
+ 		executables. Packages not named main are ignored.
++
++	-buildmode=pie
++		Build the listed main packages and everything they import into
++		position independent executables (PIE). Packages not named
++		main are ignored.
+ `,
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 78bd72f52b..f3d711fd47 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -825,10 +825,10 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		importPaths = append(importPaths, "syscall")
+ 	}
+ 
+-	// Currently build mode c-shared, or -linkshared, forces
++	// Currently build modes c-shared, pie, and -linkshared force
+ 	// external linking mode, and external linking mode forces an
+ 	// import of runtime/cgo.
+-	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildLinkshared) {
++	if p.Name == "main" && !p.Goroot && (buildBuildmode == "c-shared" || buildBuildmode == "pie" || buildLinkshared) {
+ 		importPaths = append(importPaths, "runtime/cgo")
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9bcfcbf922..a2f70cbd6f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -303,7 +303,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		*mode = BuildmodeExe
+ 	case "pie":
+ 		switch goos {
+-		case "android":
++		case "android", "linux":
+ 		default:
+ 			return badmode()
+ 		}
+@@ -516,6 +516,12 @@ func loadlib() {
+ 			Linkmode = LinkExternal
+ 		}
+ 
++		// Force external linking for PIE executables, as
++		// internal linking does not support TLS_IE.
++		if Buildmode == BuildmodePIE {
++			Linkmode = LinkExternal
++		}
++
+ 		// cgo on Darwin must use external linking
+ 		// we can always use external linking, but then there will be circular
+ 		// dependency problems when compiling natively (external linking requires

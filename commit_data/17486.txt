@@ -13,6 +13,24 @@ Date:   Fri Sep 6 15:47:52 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13335051
-
+---
  src/cmd/gc/typecheck.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 9b5a784eb1..e4dd467945 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -928,11 +928,7 @@ reswitch:
+ 		goto ret;
+ 
+ 	case OSEND:
+-		if(top & Erv) {
+-			yyerror("send statement %N used as value; use select for non-blocking send", n);
+-			goto error;
+-		}
+-		ok |= Etop | Erv;
++		ok |= Etop;
+ 		l = typecheck(&n->left, Erv);
+ 		typecheck(&n->right, Erv);
+ 		defaultlit(&n->left, T);

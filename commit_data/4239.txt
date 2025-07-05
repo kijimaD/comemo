@@ -6,7 +6,7 @@ Date:   Mon Nov 30 11:53:11 2009 -0800
     
     R=rsc
     https://golang.org/cl/157159
-
+---
  include/libc.h               | 17 ++++++++++++-----
  include/u.h                  |  6 +++++-
  lib/codereview/codereview.py |  2 +-
@@ -24,3 +24,578 @@ Date:   Mon Nov 30 11:53:11 2009 -0800
  src/libmach/Makefile         |  5 +++++
  src/make.bash                |  4 ++--
  16 files changed, 100 insertions(+), 128 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index 2eceaea9cb..7b86399fee 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -137,12 +137,9 @@ extern	void	sysfatal(char*, ...);
+ #define	ORDWR	2	/* read and write */
+ #define	OEXEC	3	/* execute, == read but check execute permission */
+ #define	OTRUNC	16	/* or'ed in (except for exec), truncate file first */
+-#define	OCEXEC	32	/* or'ed in, close on exec */
+ #define	ORCLOSE	64	/* or'ed in, remove on close */
+ #define	ODIRECT	128	/* or'ed in, direct access */
+-#define	ONONBLOCK 256	/* or'ed in, non-blocking call */
+ #define	OEXCL	0x1000	/* or'ed in, exclusive use (create only) */
+-#define	OLOCK	0x2000	/* or'ed in, lock after opening */
+ #define	OAPPEND	0x4000	/* or'ed in, append only */
+ 
+ #define	AEXIST	0	/* accessible: exists */
+@@ -279,7 +276,6 @@ extern	int	notifyon(char*);
+ extern	int	notifyoff(char*);
+ extern	int	p9open(char*, int);
+ extern	int	fd2path(int, char*, int);
+-extern	int	p9pipe(int*);
+ extern	long	readn(int, void*, long);
+ extern	int	remove(const char*);
+ extern	vlong	p9seek(int, vlong, int);
+@@ -290,6 +286,18 @@ extern	Waitmsg*	waitnohang(void);
+ extern	int	p9waitpid(void);
+ extern	ulong	rendezvous(ulong, ulong);
+ 
++#ifdef __MINGW32__
++extern int fork();
++extern int pread(int fd, void *buf, int n, int off);
++extern int pwrite(int fd, void *buf, int n, int off);
++#define execvp(prog, argv) execvp(prog, (const char**)(argv))
++#define lseek(fd, n, base) _lseeki64(fd, n, base)
++#define mkdir(path, perm) mkdir(path)
++#define pipe(fd) _pipe(fd, 512, O_BINARY)
++#else
++#define O_BINARY 0
++#endif
++
+ #ifndef NOPLAN9DEFINES
+ #define alarm		p9alarm
+ #define	dup		p9dup
+@@ -303,7 +311,6 @@ extern	ulong	rendezvous(ulong, ulong);
+ #define create		p9create
+ #undef open
+ #define open		p9open
+-#define pipe		p9pipe
+ #define	waitfor		p9waitfor
+ #endif
+ 
+diff --git a/include/u.h b/include/u.h
+index 1b196286eb..6dd55a09c7 100644
+--- a/include/u.h
++++ b/include/u.h
+@@ -77,6 +77,9 @@ extern "C" {
+ #define _NEEDUINT 1
+ #define _NEEDULONG 1
+ 
++#ifdef __MINGW32__
++typedef jmp_buf sigjmp_buf;
++#endif
+ typedef long p9jmp_buf[sizeof(sigjmp_buf)/sizeof(long)];
+ 
+ #if defined(__linux__)
+@@ -135,6 +138,7 @@ typedef long p9jmp_buf[sizeof(sigjmp_buf)/sizeof(long)];
+ #	undef _NEEDUSHORT
+ #	undef _NEEDUINT
+ #	undef _NEEDULONG
++#elif defined(__MINGW32__)
+ #else
+ 	/* No idea what system this is -- try some defaults */
+ #	include <pthread.h>
+@@ -199,7 +203,7 @@ typedef u64int uint64;
+  */
+ #if defined(__GNUC__)
+ #	undef strcmp	/* causes way too many warnings */
+-#	if __GNUC__ >= 4 || (__GNUC__==3 && !defined(__APPLE_CC__))
++#	if __GNUC__ >= 4 || (__GNUC__==3 && !defined(__APPLE_CC__) && !defined(__MINGW32__))
+ #		undef AUTOLIB
+ #		define AUTOLIB(x) int __p9l_autolib_ ## x __attribute__ ((weak));
+ #		undef AUTOFRAMEWORK
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 0be956b614..0d97226b76 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -403,7 +403,7 @@ def LoadAllCL(ui, repo, web=True):
+ # Find repository root.  On error, ui.warn and return None
+ def RepoDir(ui, repo):
+ 	url = repo.url();
+-	if not url.startswith('file:/'):
++	if not url.startswith('file:'):
+ 		ui.warn("repository %s is not in local file system\n" % (url,))
+ 		return None
+ 	url = url[5:]
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 6f0739d2ce..9038730b1f 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -54,7 +54,6 @@ LIB9OFILES=\
+ 	_exits.$O\
+ 	argv0.$O\
+ 	atoi.$O\
+-	await.$O\
+ 	cleanname.$O\
+ 	create.$O\
+ 	dirfstat.$O\
+@@ -69,23 +68,32 @@ LIB9OFILES=\
+ 	exits.$O\
+ 	getenv.$O\
+ 	getfields.$O\
+-	getuser.$O\
+ 	getwd.$O\
+-	jmp.$O\
+ 	main.$O\
+ 	nan.$O\
+-	notify.$O\
+ 	nulldir.$O\
+ 	open.$O\
+-	pipe.$O\
+ 	readn.$O\
+-	rfork.$O\
+ 	seek.$O\
+ 	strecpy.$O\
+ 	sysfatal.$O\
+ 	time.$O\
+ 	tokenize.$O\
+ 
++ifeq ($(GOOS),mingw)
++LIB9OFILES+=\
++	win32.$O\
++
++else
++LIB9OFILES+=\
++	await.$O\
++	getuser.$O\
++	jmp.$O\
++	notify.$O\
++	rfork.$O\
++
++endif
++
+ OFILES=\
+ 	$(LIB9OFILES)\
+ 	$(FMTOFILES)\
+diff --git a/src/lib9/_p9dir.c b/src/lib9/_p9dir.c
+index ededa0a92e..58c0822a4d 100644
+--- a/src/lib9/_p9dir.c
++++ b/src/lib9/_p9dir.c
+@@ -29,20 +29,6 @@ THE SOFTWARE.
+ #include <sys/types.h>
+ #include <sys/stat.h>
+ #include <dirent.h>
+-#include <pwd.h>
+-#include <grp.h>
+-
+-/*
+- * No need for a real disk size function here:
+- * the Go build isn't looking at raw disk devices,
+- * so this avoids portability problems.
+- */
+-#define  _HAVEDISKSIZE
+-static vlong
+-disksize(int fd, int x)
+-{
+-	return 0;
+-}
+ 
+ /*
+  * Caching the last group and passwd looked up is
+@@ -55,9 +41,6 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ {
+ 	char *s;
+ 	char tmp[20];
+-	static struct group *g;
+-	static struct passwd *p;
+-	static int gid, uid;
+ 	int sz, fd;
+ 
+ 	fd = -1;
+@@ -88,11 +71,8 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 	sz += strlen(s)+1;
+ 
+ 	/* user */
+-	if(p == nil || st->st_uid != uid || p->pw_uid != uid){
+-		snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
+-		s = tmp;
+-	}else
+-		s = p->pw_name;
++	snprint(tmp, sizeof tmp, "%d", (int)st->st_uid);
++	s = tmp;
+ 	sz += strlen(s)+1;
+ 	if(d){
+ 		if(*str+strlen(s)+1 > estr)
+@@ -105,11 +85,8 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 	}
+ 
+ 	/* group */
+-	if(g == nil || st->st_gid != gid || g->gr_gid != gid){
+-		snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
+-		s = tmp;
+-	}else
+-		s = g->gr_name;
++	snprint(tmp, sizeof tmp, "%d", (int)st->st_gid);
++	s = tmp;
+ 	sz += strlen(s)+1;
+ 	if(d){
+ 		if(*str + strlen(s)+1 > estr)
+@@ -141,12 +118,16 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 			d->mode |= DMDIR;
+ 			d->qid.type = QTDIR;
+ 		}
++#ifdef S_ISLNK
+ 		if(S_ISLNK(lst->st_mode))	/* yes, lst not st */
+ 			d->mode |= DMSYMLINK;
++#endif
+ 		if(S_ISFIFO(st->st_mode))
+ 			d->mode |= DMNAMEDPIPE;
++#ifdef S_ISSOCK
+ 		if(S_ISSOCK(st->st_mode))
+ 			d->mode |= DMSOCKET;
++#endif
+ 		if(S_ISBLK(st->st_mode)){
+ 			d->mode |= DMDEVICE;
+ 			d->qid.path = ('b'<<16)|st->st_rdev;
+@@ -156,12 +137,10 @@ _p9dir(struct stat *lst, struct stat *st, char *name, Dir *d, char **str, char *
+ 			d->qid.path = ('c'<<16)|st->st_rdev;
+ 		}
+ 		/* fetch real size for disks */
+-#ifdef _HAVEDISKSIZE
+ 		if(S_ISBLK(st->st_mode) && (fd = open(name, O_RDONLY)) >= 0){
+-			d->length = disksize(fd, major(st->st_dev));
++			d->length = 0;
+ 			close(fd);
+ 		}
+-#endif
+ #if defined(DIOCGMEDIASIZE)
+ 		if(isdisk(st)){
+ 			int fd;
+diff --git a/src/lib9/create.c b/src/lib9/create.c
+index 8e5cbc360c..59845ba91f 100644
+--- a/src/lib9/create.c
++++ b/src/lib9/create.c
+@@ -37,14 +37,11 @@ THE SOFTWARE.
+ int
+ p9create(char *path, int mode, ulong perm)
+ {
+-	int fd, cexec, umode, rclose, lock, rdwr;
+-	struct flock fl;
++	int fd, umode, rclose, rdwr;
+ 
+ 	rdwr = mode&3;
+-	lock = mode&OLOCK;
+-	cexec = mode&OCEXEC;
+ 	rclose = mode&ORCLOSE;
+-	mode &= ~(ORCLOSE|OCEXEC|OLOCK);
++	mode &= ~ORCLOSE;
+ 
+ 	/* XXX should get mode mask right? */
+ 	fd = -1;
+@@ -75,23 +72,11 @@ p9create(char *path, int mode, ulong perm)
+ 			werrstr("unsupported mode in create");
+ 			goto out;
+ 		}
++		umode |= O_BINARY;
+ 		fd = open(path, umode, perm);
+ 	}
+ out:
+ 	if(fd >= 0){
+-		if(lock){
+-			fl.l_type = (rdwr==OREAD) ? F_RDLCK : F_WRLCK;
+-			fl.l_whence = SEEK_SET;
+-			fl.l_start = 0;
+-			fl.l_len = 0;
+-			if(fcntl(fd, F_SETLK, &fl) < 0){
+-				close(fd);
+-				werrstr("lock: %r");
+-				return -1;
+-			}
+-		}
+-		if(cexec)
+-			fcntl(fd, F_SETFL, FD_CLOEXEC);
+ 		if(rclose)
+ 			remove(path);
+ 	}
+diff --git a/src/lib9/dirfwstat.c b/src/lib9/dirfwstat.c
+index 657a98df03..15f1c12520 100644
+--- a/src/lib9/dirfwstat.c
++++ b/src/lib9/dirfwstat.c
+@@ -61,10 +61,12 @@ dirfwstat(int fd, Dir *dir)
+ 	struct timeval tv[2];
+ 
+ 	ret = 0;
++#ifndef __MINGW32__
+ 	if(~dir->mode != 0){
+ 		if(fchmod(fd, dir->mode) < 0)
+ 			ret = -1;
+ 	}
++#endif
+ 	if(~dir->mtime != 0){
+ 		tv[0].tv_sec = dir->mtime;
+ 		tv[0].tv_usec = 0;
+diff --git a/src/lib9/dirstat.c b/src/lib9/dirstat.c
+index 5cb6790bcf..6c476753b0 100644
+--- a/src/lib9/dirstat.c
++++ b/src/lib9/dirstat.c
+@@ -39,11 +39,17 @@ dirstat(char *file)
+ 	Dir *d;
+ 	char *str;
+ 
++#ifdef __MINGW32__
++	if(stat(file, &st) < 0)
++		return nil;
++	lst = st;
++#else
+ 	if(lstat(file, &lst) < 0)
+ 		return nil;
+ 	st = lst;
+ 	if((lst.st_mode&S_IFMT) == S_IFLNK)
+ 		stat(file, &st);
++#endif
+ 
+ 	nstr = _p9dir(&lst, &st, file, nil, nil, nil);
+ 	d = malloc(sizeof(Dir)+nstr);
+diff --git a/src/lib9/open.c b/src/lib9/open.c
+index 1fa3c1bc73..4ac81ba5fa 100644
+--- a/src/lib9/open.c
++++ b/src/lib9/open.c
+@@ -35,16 +35,13 @@ THE SOFTWARE.
+ int
+ p9open(char *name, int mode)
+ {
+-	int cexec, rclose;
+-	int fd, umode, lock, rdwr;
+-	struct flock fl;
++	int rclose;
++	int fd, umode, rdwr;
+ 
+ 	rdwr = mode&3;
+ 	umode = rdwr;
+-	cexec = mode&OCEXEC;
+ 	rclose = mode&ORCLOSE;
+-	lock = mode&OLOCK;
+-	mode &= ~(3|OCEXEC|ORCLOSE|OLOCK);
++	mode &= ~(3|ORCLOSE);
+ 	if(mode&OTRUNC){
+ 		umode |= O_TRUNC;
+ 		mode ^= OTRUNC;
+@@ -53,10 +50,6 @@ p9open(char *name, int mode)
+ 		umode |= O_DIRECT;
+ 		mode ^= ODIRECT;
+ 	}
+-	if(mode&ONONBLOCK){
+-		umode |= O_NONBLOCK;
+-		mode ^= ONONBLOCK;
+-	}
+ 	if(mode&OAPPEND){
+ 		umode |= O_APPEND;
+ 		mode ^= OAPPEND;
+@@ -65,21 +58,9 @@ p9open(char *name, int mode)
+ 		werrstr("mode 0x%x not supported", mode);
+ 		return -1;
+ 	}
++	umode |= O_BINARY;
+ 	fd = open(name, umode);
+ 	if(fd >= 0){
+-		if(lock){
+-			fl.l_type = (rdwr==OREAD) ? F_RDLCK : F_WRLCK;
+-			fl.l_whence = SEEK_SET;
+-			fl.l_start = 0;
+-			fl.l_len = 0;
+-			if(fcntl(fd, F_SETLK, &fl) < 0){
+-				close(fd);
+-				werrstr("lock: %r");
+-				return -1;
+-			}
+-		}
+-		if(cexec)
+-			fcntl(fd, F_SETFL, FD_CLOEXEC);
+ 		if(rclose)
+ 			remove(name);
+ 	}
+diff --git a/src/lib9/pipe.c b/src/lib9/pipe.c
+deleted file mode 100644
+index 0a7d073901..0000000000
+--- a/src/lib9/pipe.c
++++ /dev/null
+@@ -1,39 +0,0 @@
+-/*
+-Plan 9 from User Space src/lib9/getenv.c
+-http://code.swtch.com/plan9port/src/tip/src/lib9/getenv.c
+-
+-Copyright 2001-2007 Russ Cox.  All Rights Reserved.
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in
+-all copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-THE SOFTWARE.
+-*/
+-#include <u.h>
+-#define NOPLAN9DEFINES
+-#include <libc.h>
+-#include <sys/socket.h>
+-
+-/*
+- * We use socketpair to get a two-way pipe.
+- * The pipe still doesn't preserve message boundaries.
+- * Worse, it cannot be reopened via /dev/fd/NNN on Linux.
+- */
+-int
+-p9pipe(int fd[2])
+-{
+-	return socketpair(AF_UNIX, SOCK_STREAM, 0, fd);
+-}
+diff --git a/src/lib9/time.c b/src/lib9/time.c
+index ab1b905608..720dd702eb 100644
+--- a/src/lib9/time.c
++++ b/src/lib9/time.c
+@@ -25,13 +25,18 @@ THE SOFTWARE.
+ #include <u.h>
+ #include <sys/time.h>
+ #include <time.h>
++#ifndef __MINGW32__
+ #include <sys/resource.h>
++#endif
+ #define NOPLAN9DEFINES
+ #include <libc.h>
+ 
+ long
+ p9times(long *t)
+ {
++#ifdef __MINGW32__
++	memset(t, 0, 4*sizeof(long));
++#else
+ 	struct rusage ru, cru;
+ 
+ 	if(getrusage(0, &ru) < 0 || getrusage(-1, &cru) < 0)
+@@ -41,6 +46,7 @@ p9times(long *t)
+ 	t[1] = ru.ru_stime.tv_sec*1000 + ru.ru_stime.tv_usec/1000;
+ 	t[2] = cru.ru_utime.tv_sec*1000 + cru.ru_utime.tv_usec/1000;
+ 	t[3] = cru.ru_stime.tv_sec*1000 + cru.ru_stime.tv_usec/1000;
++#endif
+ 
+ 	/* BUG */
+ 	return t[0]+t[1]+t[2]+t[3];
+diff --git a/src/lib9/win32.c b/src/lib9/win32.c
+new file mode 100644
+index 0000000000..90753bb8d2
+--- /dev/null
++++ b/src/lib9/win32.c
+@@ -0,0 +1,26 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <u.h>
++#include <libc.h>
++
++int fork()
++{
++	return -1;
++}
++
++int p9rfork(int flags)
++{
++	return -1;
++}
++
++Waitmsg *p9wait()
++{
++	return 0;
++}
++
++int p9waitpid()
++{
++	return -1;
++}
+diff --git a/src/libbio/binit.c b/src/libbio/binit.c
+index 6eb7776a85..a7ade5081f 100644
+--- a/src/libbio/binit.c
++++ b/src/libbio/binit.c
+@@ -87,7 +87,7 @@ Binits(Biobuf *bp, int f, int mode, unsigned char *p, int size)
+ 	p += Bungetsize;	/* make room for Bungets */
+ 	size -= Bungetsize;
+ 
+-	switch(mode&~(OCEXEC|ORCLOSE|OTRUNC)) {
++	switch(mode&~(ORCLOSE|OTRUNC)) {
+ 	default:
+ 		fprint(2, "Bopen: unknown mode %d\n", mode);
+ 		return Beof;
+@@ -142,7 +142,7 @@ Bopen(char *name, int mode)
+ 	Biobuf *bp;
+ 	int f;
+ 
+-	switch(mode&~(OCEXEC|ORCLOSE|OTRUNC)) {
++	switch(mode&~(ORCLOSE|OTRUNC)) {
+ 	default:
+ 		fprint(2, "Bopen: unknown mode %d\n", mode);
+ 		return 0;
+@@ -154,7 +154,7 @@ Bopen(char *name, int mode)
+ 		break;
+ 
+ 	case OWRITE:
+-		f = creat(name, 0666);
++		f = create(name, OWRITE|OTRUNC, 0666);
+ 		if(f < 0)
+ 			return 0;
+ 	}
+diff --git a/src/libbio/bseek.c b/src/libbio/bseek.c
+index ee3ba77148..be00ab1a7d 100644
+--- a/src/libbio/bseek.c
++++ b/src/libbio/bseek.c
+@@ -33,10 +33,12 @@ Bseek(Biobuf *bp, vlong offset, int base)
+ 	vlong n, d;
+ 	int bufsz;
+ 
++#ifndef __MINGW32__
+ 	if(sizeof(offset) != sizeof(off_t)) {
+ 		fprint(2, "Bseek: libbio compiled with %d-byte offset\n", sizeof(off_t));
+ 		abort();
+ 	}
++#endif
+ 
+ 	switch(bp->state) {
+ 	default:
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index f1be126d27..69d52c288c 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -47,8 +47,13 @@ OFILES=\
+ 	5obj.$O\
+ 	6obj.$O\
+ 	8obj.$O\
++
++ifneq ($(GOOS),mingw)
++OFILES+=\
+ 	$(shell uname | tr A-Z a-z).$O\
+ 
++endif
++
+ HFILES=../../include/mach.h elf.h macho.h obj.h
+ 
+ install: $(LIB)
+diff --git a/src/make.bash b/src/make.bash
+index 5807dbe4e9..c3e7c6c257 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -31,10 +31,10 @@ amd64 | 386 | arm)
+ esac
+ 
+ case "$GOOS" in
+-darwin | freebsd | linux | nacl)
++darwin | freebsd | linux | mingw | nacl)
+ 	;;
+ *)
+-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, or nacl' 1>&2
++	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
+ 	exit 1
+ esac
+ 

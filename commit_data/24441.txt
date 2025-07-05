@@ -30,7 +30,48 @@ Date:   Wed Jul 29 12:03:54 2015 -0400
     Change-Id: I2ce832f9657a7570f800e8ce4459cd9e304ef43b
     Reviewed-on: https://go-review.googlesource.com/12840
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgc.go     |  5 +++--
  src/runtime/mgcwork.go | 10 +++++++++-
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 620625754a..0fdcc0f0c8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -754,8 +754,9 @@ func (s *bgMarkSignal) clear() {
+ }
+ 
+ var work struct {
+-	full    uint64                // lock-free list of full blocks workbuf
+-	empty   uint64                // lock-free list of empty blocks workbuf
++	full  uint64 // lock-free list of full blocks workbuf
++	empty uint64 // lock-free list of empty blocks workbuf
++	// TODO(rlh): partial no longer used, remove. (issue #11922)
+ 	partial uint64                // lock-free list of partially filled blocks workbuf
+ 	pad0    [_CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+ 	nproc   uint32
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 4a1455c860..b18eaafba8 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -153,10 +153,18 @@ func (ww *gcWork) get() uintptr {
+ }
+ 
+ // dispose returns any cached pointers to the global queue.
++// The buffers are being put on the full queue so that the
++// write barriers will not simply reacquire them before the
++// GC can inspect them. This helps reduce the mutator's
++// ability to hide pointers during the concurrent mark phase.
++//
+ //go:nowritebarrier
+ func (w *gcWork) dispose() {
+ 	if wbuf := w.wbuf; wbuf != 0 {
+-		putpartial(wbuf.ptr(), 167)
++		if wbuf.ptr().nobj == 0 {
++			throw("dispose: workbuf is empty")
++		}
++		putfull(wbuf.ptr(), 166)
+ 		w.wbuf = 0
+ 	}
+ 	if w.bytesMarked != 0 {

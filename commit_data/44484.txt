@@ -41,7 +41,7 @@ Date:   Wed Jul 1 12:49:43 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240683
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  api/go1.15.txt                                         |  2 --
  doc/go1.15.html                                        | 17 ++++++++++-------
  src/cmd/gofmt/gofmt.go                                 |  8 +++++++-
@@ -53,3 +53,214 @@ Date:   Wed Jul 1 12:49:43 2020 -0400
  src/go/printer/printer_test.go                         |  8 ++++----
  .../testdata/{go2numbers.stdfmt => go2numbers.norm}    |  0
  10 files changed, 58 insertions(+), 26 deletions(-)
+
+diff --git a/api/go1.15.txt b/api/go1.15.txt
+index b51837cf38..dd90506eba 100644
+--- a/api/go1.15.txt
++++ b/api/go1.15.txt
+@@ -112,8 +112,6 @@ pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
+ pkg debug/pe, const IMAGE_SUBSYSTEM_WINDOWS_GUI ideal-int
+ pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX = 14
+ pkg debug/pe, const IMAGE_SUBSYSTEM_XBOX ideal-int
+-pkg go/printer, const StdFormat = 16
+-pkg go/printer, const StdFormat Mode
+ pkg math/big, method (*Int) FillBytes([]uint8) []uint8
+ pkg net, method (*Resolver) LookupIP(context.Context, string, string) ([]IP, error)
+ pkg net/url, method (*URL) EscapedFragment() string
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index e4a2491e70..448a507f6a 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -658,15 +658,18 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- fmt -->
+ 
+-<dl id="go/printer"><dt><a href="/pkg/go/printer/">go/printer</a></dt>
++<dl id="go/format"><dt><a href="/pkg/go/format/">go/format</a></dt>
+   <dd>
+-    <p><!-- CL 231461 -->
+-      The new <a href="/pkg/go/printer/#Mode"><code>Mode</code></a>
+-      value <a href="/pkg/go/printer/#StdFormat"><code>StdFormat</code></a>
+-      directs the printer to apply standard formatting changes while
+-      printing the output.
++    <p><!-- golang.org/issue/37476, CL 231461, CL 240683 -->
++      The <a href="/pkg/go/format/#Source"><code>Source</code></a> and
++      <a href="/pkg/go/format/#Node"><code>Node</code></a> functions
++      now canonicalize number literal prefixes and exponents as part
++      of formatting Go source code. This matches the behavior of the
++      <a href="/pkg/cmd/gofmt/"><code>gofmt</code></a> command as it
++      was implemented <a href="/doc/go1.13#gofmt">since Go 1.13</a>.
++    </p>
+   </dd>
+-</dl><!-- go/printer -->
++</dl><!-- go/format -->
+ 
+ <dl id="html/template"><dt><a href="/pkg/html/template/">html/template</a></dt>
+   <dd>
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 679fdd7b8a..8c56af7559 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -40,7 +40,13 @@ var (
+ // Keep these in sync with go/format/format.go.
+ const (
+ 	tabWidth    = 8
+-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
++	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
++
++	// printerNormalizeNumbers means to canonicalize number literal prefixes
++	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
++	//
++	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
++	printerNormalizeNumbers = 1 << 30
+ )
+ 
+ var (
+diff --git a/src/go/format/format.go b/src/go/format/format.go
+index 84afbb066a..a603d9630e 100644
+--- a/src/go/format/format.go
++++ b/src/go/format/format.go
+@@ -27,7 +27,13 @@ import (
+ // Keep these in sync with cmd/gofmt/gofmt.go.
+ const (
+ 	tabWidth    = 8
+-	printerMode = printer.UseSpaces | printer.TabIndent | printer.StdFormat
++	printerMode = printer.UseSpaces | printer.TabIndent | printerNormalizeNumbers
++
++	// printerNormalizeNumbers means to canonicalize number literal prefixes
++	// and exponents while printing. See https://golang.org/doc/go1.13#gofmt.
++	//
++	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
++	printerNormalizeNumbers = 1 << 30
+ )
+ 
+ var config = printer.Config{Mode: printerMode, Tabwidth: tabWidth}
+diff --git a/src/go/format/format_test.go b/src/go/format/format_test.go
+index aee51e2da1..58e088ede3 100644
+--- a/src/go/format/format_test.go
++++ b/src/go/format/format_test.go
+@@ -58,8 +58,8 @@ func TestNode(t *testing.T) {
+ 	diff(t, buf.Bytes(), src)
+ }
+ 
+-// Node is documented to not modify the AST. Test that it is so, even when
+-// formatting changes are applied due to printer.StdFormat mode being used.
++// Node is documented to not modify the AST.
++// Test that it is so even when numbers are normalized.
+ func TestNodeNoModify(t *testing.T) {
+ 	const (
+ 		src    = "package p\n\nconst _ = 0000000123i\n"
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 0360c4606e..95b9e91891 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -791,8 +791,8 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 		}
+ 
+ 	case *ast.BasicLit:
+-		if p.Config.Mode&StdFormat != 0 {
+-			x = normalizeNumbers(x)
++		if p.Config.Mode&normalizeNumbers != 0 {
++			x = normalizedNumber(x)
+ 		}
+ 		p.print(x)
+ 
+@@ -974,11 +974,15 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int) {
+ 	}
+ }
+ 
+-// normalizeNumbers rewrites base prefixes and exponents to
+-// use lower-case letters, and removes leading 0's from
+-// integer imaginary literals. It leaves hexadecimal digits
+-// alone.
+-func normalizeNumbers(lit *ast.BasicLit) *ast.BasicLit {
++// normalizedNumber rewrites base prefixes and exponents
++// of numbers to use lower-case letters (0X123 to 0x123 and 1.2E3 to 1.2e3),
++// and removes leading 0's from integer imaginary literals (0765i to 765i).
++// It leaves hexadecimal digits alone.
++//
++// normalizedNumber doesn't modify the ast.BasicLit value lit points to.
++// If lit is not a number or a number in canonical format already,
++// lit is returned as is. Otherwise a new ast.BasicLit is created.
++func normalizedNumber(lit *ast.BasicLit) *ast.BasicLit {
+ 	if lit.Kind != token.INT && lit.Kind != token.FLOAT && lit.Kind != token.IMAG {
+ 		return lit // not a number - nothing to do
+ 	}
+diff --git a/src/go/printer/performance_test.go b/src/go/printer/performance_test.go
+index 3f34bfcc32..2e67154e6b 100644
+--- a/src/go/printer/performance_test.go
++++ b/src/go/printer/performance_test.go
+@@ -20,7 +20,7 @@ import (
+ var testfile *ast.File
+ 
+ func testprint(out io.Writer, file *ast.File) {
+-	if err := (&Config{TabIndent | UseSpaces | StdFormat, 8, 0}).Fprint(out, fset, file); err != nil {
++	if err := (&Config{TabIndent | UseSpaces | normalizeNumbers, 8, 0}).Fprint(out, fset, file); err != nil {
+ 		log.Fatalf("print error: %s", err)
+ 	}
+ }
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 9d0add40b6..0077afeaff 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -1276,7 +1276,22 @@ const (
+ 	TabIndent                  // use tabs for indentation independent of UseSpaces
+ 	UseSpaces                  // use spaces instead of tabs for alignment
+ 	SourcePos                  // emit //line directives to preserve original source positions
+-	StdFormat                  // apply standard formatting changes (exact byte output may change between versions of Go)
++)
++
++// The mode below is not included in printer's public API because
++// editing code text is deemed out of scope. Because this mode is
++// unexported, it's also possible to modify or remove it based on
++// the evolving needs of go/format and cmd/gofmt without breaking
++// users. See discussion in CL 240683.
++const (
++	// normalizeNumbers means to canonicalize number
++	// literal prefixes and exponents while printing.
++	//
++	// This value is known in and used by go/format and cmd/gofmt.
++	// It is currently more convenient and performant for those
++	// packages to apply number normalization during printing,
++	// rather than by modifying the AST in advance.
++	normalizeNumbers Mode = 1 << 30
+ )
+ 
+ // A Config node controls the output of Fprint.
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 1e9d47ce73..b64bc6bfb7 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -33,7 +33,7 @@ type checkMode uint
+ const (
+ 	export checkMode = 1 << iota
+ 	rawFormat
+-	stdFormat
++	normNumber
+ 	idempotent
+ )
+ 
+@@ -58,8 +58,8 @@ func format(src []byte, mode checkMode) ([]byte, error) {
+ 	if mode&rawFormat != 0 {
+ 		cfg.Mode |= RawFormat
+ 	}
+-	if mode&stdFormat != 0 {
+-		cfg.Mode |= StdFormat
++	if mode&normNumber != 0 {
++		cfg.Mode |= normalizeNumbers
+ 	}
+ 
+ 	// print AST
+@@ -205,7 +205,7 @@ var data = []entry{
+ 	{"slow.input", "slow.golden", idempotent},
+ 	{"complit.input", "complit.x", export},
+ 	{"go2numbers.input", "go2numbers.golden", idempotent},
+-	{"go2numbers.input", "go2numbers.stdfmt", stdFormat | idempotent},
++	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
+ }
+ 
+ func TestFiles(t *testing.T) {
+diff --git a/src/go/printer/testdata/go2numbers.stdfmt b/src/go/printer/testdata/go2numbers.norm
+similarity index 100%
+rename from src/go/printer/testdata/go2numbers.stdfmt
+rename to src/go/printer/testdata/go2numbers.norm

@@ -17,7 +17,7 @@ Date:   Sat Mar 11 09:13:20 2017 +1300
     Reviewed-on: https://go-review.googlesource.com/29341
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/defs_freebsd.go                     |  11 +++
  src/runtime/defs_freebsd_386.go                 |   7 ++
  src/runtime/defs_freebsd_amd64.go               |   7 ++
@@ -29,3 +29,410 @@ Date:   Sat Mar 11 09:13:20 2017 +1300
  src/runtime/sys_freebsd_arm.s                   |  19 +++-
  src/runtime/testdata/testprog/numcpu_freebsd.go | 126 ++++++++++++++++++++++++
  10 files changed, 287 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index 73422b7af2..0a11d09db2 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -28,9 +28,20 @@ package runtime
+ #include <sys/thr.h>
+ #include <sys/_sigset.h>
+ #include <sys/unistd.h>
++#include <sys/sysctl.h>
++#include <sys/cpuset.h>
++#include <sys/param.h>
+ */
+ import "C"
+ 
++// Local consts.
++const (
++	_NBBY            = C.NBBY            // Number of bits in a byte.
++	_CTL_MAXNAME     = C.CTL_MAXNAME     // Largest number of components supported.
++	_CPU_LEVEL_WHICH = C.CPU_LEVEL_WHICH // Actual mask/id for which.
++	_CPU_WHICH_PID   = C.CPU_WHICH_PID   // Specifies a process id.
++)
++
+ const (
+ 	EINTR  = C.EINTR
+ 	EFAULT = C.EFAULT
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index 0c05d7140e..92b05503a3 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -5,6 +5,13 @@ package runtime
+ 
+ import "unsafe"
+ 
++const (
++	_NBBY            = 0x8
++	_CTL_MAXNAME     = 0x18
++	_CPU_LEVEL_WHICH = 0x3
++	_CPU_WHICH_PID   = 0x2
++)
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index b416044972..645e2053f2 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -5,6 +5,13 @@ package runtime
+ 
+ import "unsafe"
+ 
++const (
++	_NBBY            = 0x8
++	_CTL_MAXNAME     = 0x18
++	_CPU_LEVEL_WHICH = 0x3
++	_CPU_WHICH_PID   = 0x2
++)
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 8f85f17254..c8a198fb4a 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -5,6 +5,13 @@ package runtime
+ 
+ import "unsafe"
+ 
++const (
++	_NBBY            = 0x8
++	_CTL_MAXNAME     = 0x18
++	_CPU_LEVEL_WHICH = 0x3
++	_CPU_WHICH_PID   = 0x2
++)
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EFAULT = 0xe
+diff --git a/src/runtime/numcpu_freebsd_test.go b/src/runtime/numcpu_freebsd_test.go
+new file mode 100644
+index 0000000000..e78890a6a4
+--- /dev/null
++++ b/src/runtime/numcpu_freebsd_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import "testing"
++
++func TestFreeBSDNumCPU(t *testing.T) {
++	got := runTestProg(t, "testprog", "FreeBSDNumCPU")
++	want := "OK\n"
++	if got != want {
++		t.Fatalf("expected %q, but got:\n%s", want, got)
++	}
++}
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 35ed02646c..f736019faa 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -42,21 +42,87 @@ func osyield()
+ // From FreeBSD's <sys/sysctl.h>
+ const (
+ 	_CTL_HW      = 6
+-	_HW_NCPU     = 3
+ 	_HW_PAGESIZE = 7
+ )
+ 
+ var sigset_all = sigset{[4]uint32{^uint32(0), ^uint32(0), ^uint32(0), ^uint32(0)}}
+ 
++// Undocumented numbers from FreeBSD's lib/libc/gen/sysctlnametomib.c.
++const (
++	_CTL_QUERY     = 0
++	_CTL_QUERY_MIB = 3
++)
++
++// sysctlnametomib fill mib with dynamically assigned sysctl entries of name,
++// return count of effected mib slots, return 0 on error.
++func sysctlnametomib(name []byte, mib *[_CTL_MAXNAME]uint32) uint32 {
++	oid := [2]uint32{_CTL_QUERY, _CTL_QUERY_MIB}
++	miblen := uintptr(_CTL_MAXNAME)
++	if sysctl(&oid[0], 2, (*byte)(unsafe.Pointer(mib)), &miblen, (*byte)(unsafe.Pointer(&name[0])), (uintptr)(len(name))) < 0 {
++		return 0
++	}
++	miblen /= unsafe.Sizeof(uint32(0))
++	if miblen <= 0 {
++		return 0
++	}
++	return uint32(miblen)
++}
++
++const (
++	_CPU_SETSIZE_MAX = 32 // Limited by _MaxGomaxprocs(256) in runtime2.go.
++	_CPU_CURRENT_PID = -1 // Current process ID.
++)
++
++//go:noescape
++func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
++
+ func getncpu() int32 {
+-	mib := [2]uint32{_CTL_HW, _HW_NCPU}
+-	out := uint32(0)
+-	nout := unsafe.Sizeof(out)
+-	ret := sysctl(&mib[0], 2, (*byte)(unsafe.Pointer(&out)), &nout, nil, 0)
+-	if ret >= 0 {
+-		return int32(out)
++	var mask [_CPU_SETSIZE_MAX]byte
++	var mib [_CTL_MAXNAME]uint32
++
++	// According to FreeBSD's /usr/src/sys/kern/kern_cpuset.c,
++	// cpuset_getaffinity return ERANGE when provided buffer size exceed the limits in kernel.
++	// Querying kern.smp.maxcpus to calculate maximum buffer size.
++	// See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=200802
++
++	// Variable kern.smp.maxcpus introduced at Dec 23 2003, revision 123766,
++	// with dynamically assigned sysctl entries.
++	miblen := sysctlnametomib([]byte("kern.smp.maxcpus"), &mib)
++	if miblen == 0 {
++		return 1
++	}
++
++	// Query kern.smp.maxcpus.
++	dstsize := uintptr(4)
++	maxcpus := uint32(0)
++	if sysctl(&mib[0], miblen, (*byte)(unsafe.Pointer(&maxcpus)), &dstsize, nil, 0) != 0 {
++		return 1
++	}
++
++	size := maxcpus / _NBBY
++	ptrsize := uint32(unsafe.Sizeof(uintptr(0)))
++	if size < ptrsize {
++		size = ptrsize
++	}
++	if size > _CPU_SETSIZE_MAX {
++		return 1
++	}
++
++	if cpuset_getaffinity(_CPU_LEVEL_WHICH, _CPU_WHICH_PID, _CPU_CURRENT_PID,
++		int(size), (*byte)(unsafe.Pointer(&mask[0]))) != 0 {
++		return 1
++	}
++	n := int32(0)
++	for _, v := range mask[:size] {
++		for v != 0 {
++			n += int32(v & 1)
++			v >>= 1
++		}
++	}
++	if n == 0 {
++		return 1
+ 	}
+-	return 1
++	return n
+ }
+ 
+ func getPageSize() uintptr {
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index 9ed14cca2b..0f5df21e40 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -398,4 +398,13 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$32
+ 	NEGL	AX
+ 	RET
+ 
++// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
++TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
++	MOVL	$487, AX
++	INT	$0x80
++	JAE	2(PC)
++	NEGL	AX
++	MOVL	AX, ret+24(FP)
++	RET
++
+ GLOBL runtime·tlsoffset(SB),NOPTR,$4
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 43aafe56b8..5d072a9957 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -354,3 +354,17 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$92, AX		// fcntl
+ 	SYSCALL
+ 	RET
++
++// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
++TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-44
++	MOVQ	level+0(FP), DI
++	MOVQ	which+8(FP), SI
++	MOVQ	id+16(FP), DX
++	MOVQ	size+24(FP), R10
++	MOVQ	mask+32(FP), R8
++	MOVL	$487, AX
++	SYSCALL
++	JCC	2(PC)
++	NEGQ	AX
++	MOVL	AX, ret+40(FP)
++	RET
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 97aea65074..2851587b0d 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -39,8 +39,9 @@
+ #define SYS_thr_kill (SYS_BASE + 433)
+ #define SYS__umtx_op (SYS_BASE + 454)
+ #define SYS_thr_new (SYS_BASE + 455)
+-#define SYS_mmap (SYS_BASE + 477) 
+-	
++#define SYS_mmap (SYS_BASE + 477)
++#define SYS_cpuset_getaffinity (SYS_BASE + 487)
++
+ TEXT runtime·sys_umtx_op(SB),NOSPLIT,$0
+ 	MOVW addr+0(FP), R0
+ 	MOVW mode+4(FP), R1
+@@ -376,3 +377,17 @@ TEXT ·publicationBarrier(SB),NOSPLIT,$-4-0
+ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	WORD $0xee1d0f70 // mrc p15, 0, r0, c13, c0, 3
+ 	RET
++
++// func cpuset_getaffinity(level int, which int, id int64, size int, mask *byte) int32
++TEXT runtime·cpuset_getaffinity(SB), NOSPLIT, $0-28
++	MOVW	level+0(FP), R0
++	MOVW	which+4(FP), R1
++	MOVW	id_lo+8(FP), R2
++	MOVW	id_hi+12(FP), R3
++	ADD	$20, R13	// Pass size and mask on stack.
++	MOVW	$SYS_cpuset_getaffinity, R7
++	SWI	$0
++	RSB.CS	$0, R0
++	SUB	$20, R13
++	MOVW	R0, ret+24(FP)
++	RET
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+new file mode 100644
+index 0000000000..035c53470b
+--- /dev/null
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -0,0 +1,126 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"fmt"
++	"os"
++	"os/exec"
++	"runtime"
++	"strconv"
++	"strings"
++	"syscall"
++)
++
++func init() {
++	register("FreeBSDNumCPU", FreeBSDNumCPU)
++	register("FreeBSDNumCPUHelper", FreeBSDNumCPUHelper)
++}
++
++func FreeBSDNumCPUHelper() {
++	fmt.Printf("%d\n", runtime.NumCPU())
++}
++
++func FreeBSDNumCPU() {
++	_, err := exec.LookPath("cpuset")
++	if err != nil {
++		// Can not test without cpuset command.
++		fmt.Println("OK")
++		return
++	}
++	_, err = exec.LookPath("sysctl")
++	if err != nil {
++		// Can not test without sysctl command.
++		fmt.Println("OK")
++		return
++	}
++	cmd := exec.Command("sysctl", "-n", "kern.smp.active")
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
++		return
++	}
++	if bytes.Equal(output, []byte("1\n")) == false {
++		// SMP mode deactivated in kernel.
++		fmt.Println("OK")
++		return
++	}
++
++	list, err := getList()
++	if err != nil {
++		fmt.Printf("%s\n", err)
++		return
++	}
++	err = checkNCPU(list)
++	if err != nil {
++		fmt.Printf("%s\n", err)
++		return
++	}
++	if len(list) >= 2 {
++		err = checkNCPU(list[:len(list)-1])
++		if err != nil {
++			fmt.Printf("%s\n", err)
++			return
++		}
++	}
++	fmt.Println("OK")
++	return
++}
++
++func getList() ([]string, error) {
++	pid := syscall.Getpid()
++
++	// Launch cpuset to print a list of available CPUs: pid <PID> mask: 0, 1, 2, 3.
++	cmd := exec.Command("cpuset", "-g", "-p", strconv.Itoa(pid))
++	cmdline := strings.Join(cmd.Args, " ")
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
++	}
++	pos := bytes.IndexRune(output, ':')
++	if pos == -1 {
++		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
++	}
++
++	var list []string
++	for _, val := range bytes.Split(output[pos+1:], []byte(",")) {
++		index := string(bytes.TrimSpace(val))
++		if len(index) == 0 {
++			continue
++		}
++		list = append(list, index)
++	}
++	if len(list) == 0 {
++		return nil, fmt.Errorf("empty CPU list from '%s': %s", cmdline, output)
++	}
++	return list, nil
++}
++
++func checkNCPU(list []string) error {
++	listString := strings.Join(list, ",")
++	if len(listString) == 0 {
++		return fmt.Errorf("could not check against an empty CPU list")
++	}
++
++	// Launch FreeBSDNumCPUHelper() with specified CPUs list.
++	cmd := exec.Command("cpuset", "-l", listString, os.Args[0], "FreeBSDNumCPUHelper")
++	cmdline := strings.Join(cmd.Args, " ")
++	output, err := cmd.CombinedOutput()
++	if err != nil {
++		return fmt.Errorf("fail to launch child '%s', error: %s, output: %s", cmdline, err, output)
++	}
++
++	// NumCPU from FreeBSDNumCPUHelper come with '\n'.
++	output = bytes.TrimSpace(output)
++	n, err := strconv.Atoi(string(output))
++	if err != nil {
++		return fmt.Errorf("fail to parse output from child '%s', error: %s, output: %s", cmdline, err, output)
++	}
++	if n != len(list) {
++		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, listString)
++	}
++	return nil
++}

@@ -9,9 +9,147 @@ Date:   Thu Dec 1 09:19:53 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5448077
-
+---
  src/pkg/html/template/escape.go     |  4 +++-
  src/pkg/html/template/template.go   | 19 ++++++++++++-------
  src/pkg/text/template/multi_test.go | 28 ++++++++++++++++++++++++++++
  src/pkg/text/template/template.go   | 23 +++++++++--------------
  4 files changed, 52 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 2f8dad9ec1..4a7a9354c9 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -720,7 +720,9 @@ func (e *escaper) commit() {
+ 		e.template(name).Funcs(funcMap)
+ 	}
+ 	for _, t := range e.derived {
+-		e.tmpl.text.Add(t)
++		if _, err := e.tmpl.text.AddParseTree(t.Name(), t.Tree); err != nil {
++			panic("error adding derived template")
++		}
+ 	}
+ 	for n, s := range e.actionNodeEdits {
+ 		ensurePipelineContains(n.Pipe, s)
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index ca91d4d231..f05ca190f7 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -11,6 +11,7 @@ import (
+ 	"path/filepath"
+ 	"sync"
+ 	"text/template"
++	"text/template/parse"
+ )
+ 
+ // Template is a specialized template.Template that produces a safe HTML
+@@ -65,10 +66,14 @@ func (t *Template) ExecuteTemplate(wr io.Writer, name string, data interface{})
+ 	return tmpl.text.ExecuteTemplate(wr, name, data)
+ }
+ 
+-// Parse parses a string into a set of named templates.  Parse may be called
+-// multiple times for a given set, adding the templates defined in the string
+-// to the set.  If a template is redefined, the element in the set is
+-// overwritten with the new definition.
++// Parse parses a string into a template. Nested template definitions
++// will be associated with the top-level template t. Parse may be
++// called multiple times to parse definitions of templates to associate
++// with t. It is an error if a resulting template is non-empty (contains
++// content other than template definitions) and would replace a
++// non-empty template with the same name.  (In multiple calls to Parse
++// with the same receiver template, only one call can contain text
++// other than space, comments, and template definitions.)
+ func (t *Template) Parse(src string) (*Template, error) {
+ 	t.nameSpace.mu.Lock()
+ 	t.escaped = false
+@@ -94,9 +99,9 @@ func (t *Template) Parse(src string) (*Template, error) {
+ 	return t, nil
+ }
+ 
+-// Add is unimplemented.
+-func (t *Template) Add(*Template) error {
+-	return fmt.Errorf("html/template: Add unimplemented")
++// AddParseTree is unimplemented.
++func (t *Template) AddParseTree(name string, tree *parse.Tree) error {
++	return fmt.Errorf("html/template: AddParseTree unimplemented")
+ }
+ 
+ // Clone is unimplemented.
+diff --git a/src/pkg/text/template/multi_test.go b/src/pkg/text/template/multi_test.go
+index bf4f3078b3..7b35d2633d 100644
+--- a/src/pkg/text/template/multi_test.go
++++ b/src/pkg/text/template/multi_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"testing"
++	"text/template/parse"
+ )
+ 
+ type isEmptyTest struct {
+@@ -258,3 +259,30 @@ func TestClone(t *testing.T) {
+ 		t.Errorf("expected %q got %q", "bclone", b.String())
+ 	}
+ }
++
++func TestAddParseTree(t *testing.T) {
++	// Create some templates.
++	root, err := New("root").Parse(cloneText1)
++	if err != nil {
++		t.Fatal(err)
++	}
++	_, err = root.Parse(cloneText2)
++	if err != nil {
++		t.Fatal(err)
++	}
++	// Add a new parse tree.
++	tree, err := parse.Parse("cloneText3", cloneText3, "", "", nil, builtins)
++	if err != nil {
++		t.Fatal(err)
++	}
++	added, err := root.AddParseTree("c", tree["c"])
++	// Execute.
++	var b bytes.Buffer
++	err = added.ExecuteTemplate(&b, "a", 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if b.String() != "broot" {
++		t.Errorf("expected %q got %q", "broot", b.String())
++	}
++}
+diff --git a/src/pkg/text/template/template.go b/src/pkg/text/template/template.go
+index c1d0c1c349..04fca407c1 100644
+--- a/src/pkg/text/template/template.go
++++ b/src/pkg/text/template/template.go
+@@ -103,21 +103,16 @@ func (t *Template) copy(c *common) *Template {
+ 	return nt
+ }
+ 
+-// Add associates the argument template, arg, with t, and vice versa,
+-// so they may invoke each other. To do this, it also removes any
+-// prior associations arg may have. Except for losing the link to
+-// arg, templates associated with arg are otherwise unaffected. It
+-// is an error if the argument template's name is already associated
+-// with t.  Add is here to support html/template and is not intended
+-// for other uses.
+-// TODO: make this take a parse.Tree argument instead of a template.
+-func (t *Template) Add(arg *Template) error {
+-	if t.tmpl[arg.name] != nil {
+-		return fmt.Errorf("template: redefinition of template %q", arg.name)
++// AddParseTree creates a new template with the name and parse tree
++// and associates it with t.
++func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error) {
++	if t.tmpl[name] != nil {
++		return nil, fmt.Errorf("template: redefinition of template %q", name)
+ 	}
+-	arg.common = t.common
+-	t.tmpl[arg.name] = arg
+-	return nil
++	nt := t.New(name)
++	nt.Tree = tree
++	t.tmpl[name] = nt
++	return nt, nil
+ }
+ 
+ // Templates returns a slice of the templates associated with t, including t

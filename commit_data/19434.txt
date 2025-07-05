@@ -9,6 +9,23 @@ Date:   Wed May 21 17:19:12 2014 -0400
     TBR=gri
     CC=golang-codereviews
     https://golang.org/cl/97570049
-
+---
  test/float_lit2.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/float_lit2.go b/test/float_lit2.go
+index 01b4306882..96d23f38d1 100644
+--- a/test/float_lit2.go
++++ b/test/float_lit2.go
+@@ -16,9 +16,9 @@ import (
+ // The largest exact float32 is f₁ = (1+(1-2²³))×2¹²⁷ = (1-2²⁴)×2¹²⁸ = 2¹²⁸ - 2¹⁰⁴.
+ // The next float32 would be f₂ = (1+1)×2¹²⁷ = 1×2¹²⁸, except that exponent is out of range.
+ // Float32 conversion rounds to the nearest float32, rounding to even mantissa:
+-// between f₁ and f₂, values closer to f₁ round to f₁and values closer to f₂ are rejected as out of range.
++// between f₁ and f₂, values closer to f₁ round to f₁ and values closer to f₂ are rejected as out of range.
+ // f₁ is an odd mantissa, so the halfway point (f₁+f₂)/2 rounds to f₂ and is rejected.
+-// The halfway point (f₁+f₂)/2 = 2¹²⁸ - 2¹⁰⁵.
++// The halfway point is (f₁+f₂)/2 = 2¹²⁸ - 2¹⁰⁵.
+ //
+ // The same is true of float64, with different constants: s/24/53/ and s/128/1024/.
+ 

@@ -7,7 +7,38 @@ Date:   Fri Apr 8 13:42:11 2011 -0400
     R=ken2
     CC=golang-dev, mikkel
     https://golang.org/cl/4384048
-
+---
  src/cmd/ld/data.c    | 2 +-
  src/cmd/ld/ldmacho.c | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 5b74971d83..5d7394463d 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -749,7 +749,7 @@ dodata(void)
+ 	}
+ 
+ 	for(s = datap; s != nil; s = s->next) {
+-		if(s->np > 0 && s->type == SBSS && s->file != nil)	// TODO: necessary?
++		if(s->np > 0 && s->type == SBSS)
+ 			s->type = SDATA;
+ 		if(s->np > s->size)
+ 			diag("%s: initialize bounds (%lld < %d)",
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index ad275dca8c..bbb21d51ae 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -582,9 +582,10 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			else
+ 				s->type = SRODATA;
+ 		} else {
+-			if (strcmp(sect->name, "__bss") == 0)
++			if (strcmp(sect->name, "__bss") == 0) {
+ 				s->type = SBSS;
+-			else
++				s->np = 0;
++			} else
+ 				s->type = SDATA;
+ 		}
+ 		if(s->type == STEXT) {

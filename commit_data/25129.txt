@@ -15,8 +15,109 @@ Date:   Mon Sep 28 13:45:57 2015 -0700
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 30 ++++++++++++++++++++++++++++++
  src/cmd/doc/main.go     |  1 -
  src/cmd/doc/pkg.go      | 30 ++++++++++++++++++++++++------
  3 files changed, 54 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index 40057ddcb8..7c72b878b1 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -401,3 +401,33 @@ func TestMultiplePackages(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type trimTest struct {
++	path   string
++	prefix string
++	result string
++	ok     bool
++}
++
++var trimTests = []trimTest{
++	{"", "", "", true},
++	{"/usr/gopher", "/usr/gopher", "/usr/gopher", true},
++	{"/usr/gopher/bar", "/usr/gopher", "bar", true},
++	{"/usr/gopher", "/usr/gopher", "/usr/gopher", true},
++	{"/usr/gopherflakes", "/usr/gopher", "/usr/gopherflakes", false},
++	{"/usr/gopher/bar", "/usr/zot", "/usr/gopher/bar", false},
++}
++
++func TestTrim(t *testing.T) {
++	for _, test := range trimTests {
++		result, ok := trim(test.path, test.prefix)
++		if ok != test.ok {
++			t.Errorf("%s %s expected %t got %t", test.path, test.prefix, test.ok, ok)
++			continue
++		}
++		if result != test.result {
++			t.Errorf("%s %s expected %q got %q", test.path, test.prefix, test.result, result)
++			continue
++		}
++	}
++}
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index bd65c178b0..df1890fe71 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -316,7 +316,6 @@ func findPackage(pkg string) (string, bool) {
+ 			return path, true
+ 		}
+ 	}
+-	return "", false
+ }
+ 
+ // splitGopath splits $GOPATH into a list of roots.
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 0aef208c71..f99df59ef0 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -60,21 +60,39 @@ func (pkg *Package) prettyPath() string {
+ 	if path != "." && path != "" {
+ 		return path
+ 	}
+-	// Conver the source directory into a more useful path.
+-	path = filepath.Clean(pkg.build.Dir)
++	// Convert the source directory into a more useful path.
++	// Also convert everything to slash-separated paths for uniform handling.
++	path = filepath.Clean(filepath.ToSlash(pkg.build.Dir))
+ 	// Can we find a decent prefix?
+ 	goroot := filepath.Join(build.Default.GOROOT, "src")
+-	if strings.HasPrefix(path, goroot) {
+-		return path[len(goroot)+1:]
++	if p, ok := trim(path, filepath.ToSlash(goroot)); ok {
++		return p
+ 	}
+ 	for _, gopath := range splitGopath() {
+-		if strings.HasPrefix(path, gopath) {
+-			return path[len(gopath)+1:]
++		if p, ok := trim(path, filepath.ToSlash(gopath)); ok {
++			return p
+ 		}
+ 	}
+ 	return path
+ }
+ 
++// trim trims the directory prefix from the path, paying attention
++// to the path separator. If they are the same string or the prefix
++// is not present the original is returned. The boolean reports whether
++// the prefix is present. That path and prefix have slashes for separators.
++func trim(path, prefix string) (string, bool) {
++	if !strings.HasPrefix(path, prefix) {
++		return path, false
++	}
++	if path == prefix {
++		return path, true
++	}
++	if path[len(prefix)] == '/' {
++		return path[len(prefix)+1:], true
++	}
++	return path, false // Textual prefix but not a path prefix.
++}
++
+ // pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
+ // main do function, so it doesn't cause an exit. Allows testing to work
+ // without running a subprocess. The log prefix will be added when

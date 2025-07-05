@@ -11,8 +11,89 @@ Date:   Tue Dec 9 07:16:38 2014 -0800
     Reviewed-on: https://go-review.googlesource.com/1251
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gc/typecheck.c      |  9 ++++++++-
  test/fixedbugs/issue3924.go | 13 -------------
  test/fixedbugs/issue6671.go | 28 ++++++++++++++++++++++++++++
  3 files changed, 36 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 72f4d6f3eb..828ca34df5 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -644,6 +644,13 @@ reswitch:
+ 				n->left = l;
+ 				n->right = r;
+ 			}
++		} else if(n->op == OANDAND || n->op == OOROR) {
++			if(l->type == r->type)
++				t = l->type;
++			else if(l->type == idealbool)
++				t = r->type;
++			else if(r->type == idealbool)
++				t = l->type;
+ 		// non-comparison operators on ideal bools should make them lose their ideal-ness
+ 		} else if(t == idealbool)
+ 			t = types[TBOOL];
+@@ -1438,7 +1445,7 @@ reswitch:
+ 		}
+ 		switch(n->op) {
+ 		case OCONVNOP:
+-			if(n->left->op == OLITERAL) {
++			if(n->left->op == OLITERAL && n->type != types[TBOOL]) {
+ 				r = nod(OXXX, N, N);
+ 				n->op = OCONV;
+ 				n->orig = r;
+diff --git a/test/fixedbugs/issue3924.go b/test/fixedbugs/issue3924.go
+deleted file mode 100644
+index d4739b21c9..0000000000
+--- a/test/fixedbugs/issue3924.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package foo
+-
+-type mybool bool
+-
+-var x, y = 1, 2
+-var _ mybool = x < y && x < y // ERROR "cannot use"
+-var _ mybool = x < y || x < y // ERROR "cannot use"
+diff --git a/test/fixedbugs/issue6671.go b/test/fixedbugs/issue6671.go
+new file mode 100644
+index 0000000000..b88faa4580
+--- /dev/null
++++ b/test/fixedbugs/issue6671.go
+@@ -0,0 +1,28 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6671: Logical operators should produce untyped bool for untyped operands.
++
++package p
++
++type mybool bool
++
++func _(x, y int) {
++	type mybool bool
++	var b mybool
++	_ = b
++	b = bool(true)             // ERROR "cannot use"
++	b = true                   // permitted as expected
++	b = bool(true) && true     // ERROR "cannot use"
++	b = true && true           // permitted => && returns an untyped bool
++	b = x < y                  // permitted => x < y returns an untyped bool
++	b = true && x < y          // permitted => result of && returns untyped bool
++	b = x < y && x < y         // permitted => result of && returns untyped bool
++	b = x < y || x < y         // permitted => result of || returns untyped bool
++	var c bool = true && x < y // permitted => result of && is bool
++	c = false || x < y         // permitted => result of || returns untyped bool
++	_ = c
++}

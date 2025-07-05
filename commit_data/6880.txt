@@ -7,7 +7,7 @@ Date:   Wed Dec 8 13:53:07 2010 -0500
     R=ken2, ken3
     CC=golang-dev
     https://golang.org/cl/3505041
-
+---
  src/cmd/6l/obj.c   |  5 +++--
  src/cmd/6l/pass.c  | 20 ++++++++++++--------
  src/cmd/6l/span.c  | 18 +-----------------
@@ -17,3 +17,322 @@ Date:   Wed Dec 8 13:53:07 2010 -0500
  src/cmd/ld/dwarf.c |  7 +++++--
  src/cmd/ld/elf.h   |  2 +-
  8 files changed, 44 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index fb2d35cd6c..41c0f93cc6 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -245,6 +245,7 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	textaddress();
+ 	pclntab();
+ 	symtab();
+ 	dodata();
+@@ -627,7 +628,7 @@ loop:
+ 			if(s->type == 0) {
+ 				s->type = SDATA;
+ 				adduint32(s, ieeedtof(&p->from.ieee));
+-				s->reachable = 1;
++				s->reachable = 0;
+ 			}
+ 			p->from.type = D_EXTERN;
+ 			p->from.sym = s;
+@@ -662,7 +663,7 @@ loop:
+ 				s->type = SDATA;
+ 				adduint32(s, p->from.ieee.l);
+ 				adduint32(s, p->from.ieee.h);
+-				s->reachable = 1;
++				s->reachable = 0;
+ 			}
+ 			p->from.type = D_EXTERN;
+ 			p->from.sym = s;
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 8dc0ed551b..5c4ed00a69 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -289,24 +289,25 @@ patch(void)
+ 			if(s) {
+ 				if(debug['c'])
+ 					Bprint(&bso, "%s calls %s\n", TNAME, s->name);
+-				switch(s->type) {
+-				default:
++				if((s->type&~SSUB) != STEXT) {
+ 					/* diag prints TNAME first */
+ 					diag("undefined: %s", s->name);
+ 					s->type = STEXT;
+ 					s->value = vexit;
+ 					continue;	// avoid more error messages
+-				case STEXT:
+-					p->to.offset = s->value;
+-					break;
+ 				}
++				if(s->text == nil)
++					continue;
+ 				p->to.type = D_BRANCH;
++				p->to.offset = s->text->pc;
++				p->pcond = s->text;
++				continue;
+ 			}
+ 		}
+ 		if(p->to.type != D_BRANCH)
+ 			continue;
+ 		c = p->to.offset;
+-		for(q = textp->text; q != P;) {
++		for(q = cursym->text; q != P;) {
+ 			if(c == q->pc)
+ 				break;
+ 			if(q->forwd != P && c >= q->forwd->pc)
+@@ -315,8 +316,8 @@ patch(void)
+ 				q = q->link;
+ 		}
+ 		if(q == P) {
+-			diag("branch out of range in %s\n%P [%s]",
+-				TNAME, p, p->to.sym ? p->to.sym->name : "<nil>");
++			diag("branch out of range in %s (%#ux)\n%P [%s]",
++				TNAME, c, p, p->to.sym ? p->to.sym->name : "<nil>");
+ 			p->to.type = D_NONE;
+ 		}
+ 		p->pcond = q;
+@@ -387,6 +388,9 @@ dostkoff(void)
+ 	autoffset = 0;
+ 	deltasp = 0;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		if(cursym->text == nil || cursym->text->link == nil)
++			continue;
++
+ 		p = cursym->text;
+ 		parsetextconst(p->to.offset);
+ 		autoffset = textstksiz;
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 6cb3586f5d..5251f19bba 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -138,9 +138,7 @@ span(void)
+ {
+ 	Prog *p, *q;
+ 	int32 v;
+-	vlong c;
+ 	int n;
+-	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f span\n", cputime());
+@@ -176,20 +174,6 @@ span(void)
+ 		}
+ 		span1(cursym);
+ 	}
+-	
+-	// Next, loop over symbols to assign actual PCs.
+-	// Could parallelize here too, by assigning to text 
+-	// and then letting threads copy down, but probably not worth it.
+-	c = INITTEXT;
+-	sect = addsection(&segtext, ".text", 05);
+-	sect->vaddr = c;
+-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+-		cursym->value = c;
+-		for(p = cursym->text; p != P; p = p->link)
+-			p->pc += c;
+-		c += cursym->size;
+-	}
+-	sect->len = c - sect->vaddr;
+ }
+ 
+ void
+@@ -1435,7 +1419,7 @@ found:
+ 			// Could handle this case by making D_PCREL
+ 			// record the Prog* instead of the Sym*, but let's
+ 			// wait until the need arises.
+-			diag("call of non-TEXT");
++			diag("call of non-TEXT %P", q);
+ 			errorexit();
+ 		}
+ 		*andptr++ = op;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index b6ebc1a9bf..222d7c734c 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -329,6 +329,7 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
++	textaddress();
+ 	pclntab();
+ 	symtab();
+ 	dodata();
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 264771f570..6e387b0b5e 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -306,24 +306,25 @@ patch(void)
+ 				if(s) {
+ 					if(debug['c'])
+ 						Bprint(&bso, "%s calls %s\n", TNAME, s->name);
+-					switch(s->type) {
+-					default:
++					if((s->type&~SSUB) != STEXT) {
+ 						/* diag prints TNAME first */
+ 						diag("undefined: %s", s->name);
+ 						s->type = STEXT;
+ 						s->value = vexit;
+ 						continue;	// avoid more error messages
+-					case STEXT:
+-						p->to.offset = s->value;
+-						break;
+ 					}
++					if(s->text == nil)
++						continue;
+ 					p->to.type = D_BRANCH;
++					p->to.offset = s->text->pc;
++					p->pcond = s->text;
++					continue;
+ 				}
+ 			}
+ 			if(p->to.type != D_BRANCH)
+ 				continue;
+ 			c = p->to.offset;
+-			for(q = textp->text; q != P;) {
++			for(q = cursym->text; q != P;) {
+ 				if(c == q->pc)
+ 					break;
+ 				if(q->forwd != P && c >= q->forwd->pc)
+@@ -332,7 +333,8 @@ patch(void)
+ 					q = q->link;
+ 			}
+ 			if(q == P) {
+-				diag("branch out of range in %s\n%P", TNAME, p);
++				diag("branch out of range in %s (%#ux)\n%P [%s]",
++					TNAME, c, p, p->to.sym ? p->to.sym->name : "<nil>");
+ 				p->to.type = D_NONE;
+ 			}
+ 			p->pcond = q;
+@@ -340,6 +342,9 @@ patch(void)
+ 	}
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		if(cursym->text == nil || cursym->p != nil)
++			continue;
++
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			p->mark = 0;	/* initialization for follow */
+ 			if(p->pcond != P) {
+@@ -389,8 +394,10 @@ dostkoff(void)
+ 	}
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+-		p = cursym->text;
++		if(cursym->text == nil || cursym->text->link == nil)
++			continue;
+ 
++		p = cursym->text;
+ 		autoffset = p->to.offset;
+ 		if(autoffset < 0)
+ 			autoffset = 0;
+@@ -639,5 +646,5 @@ undef(void)
+ 	for(i=0; i<NHASH; i++)
+ 	for(s = hash[i]; s != S; s = s->hash)
+ 		if(s->type == SXREF)
+-			diag("%s: not defined", s->name);
++			diag("%s(%d): not defined", s->name, s->version);
+ }
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 7f083eebde..b047908104 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -132,9 +132,8 @@ void
+ span(void)
+ {
+ 	Prog *p, *q;
+-	int32 v, c;
++	int32 v;
+ 	int n;
+-	Section *sect;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f span\n", cputime());
+@@ -142,6 +141,9 @@ span(void)
+ 	// NOTE(rsc): If we get rid of the globals we should
+ 	// be able to parallelize these iterations.
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
++		if(cursym->text == nil || cursym->text->link == nil)
++			continue;
++
+ 		// TODO: move into span1
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			n = 0;
+@@ -168,20 +170,6 @@ span(void)
+ 		}
+ 		span1(cursym);
+ 	}
+-	
+-	// Next, loop over symbols to assign actual PCs.
+-	// Could parallelize here too, by assigning to text 
+-	// and then letting threads copy down, but probably not worth it.
+-	c = INITTEXT;
+-	sect = addsection(&segtext, ".text", 05);
+-	sect->vaddr = c;
+-	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+-		cursym->value = c;
+-		for(p = cursym->text; p != P; p = p->link)
+-			p->pc += c;
+-		c += cursym->size;
+-	}
+-	sect->len = c - sect->vaddr;
+ }
+ 
+ void
+@@ -1118,7 +1106,7 @@ found:
+ 			// Could handle this case by making D_PCREL
+ 			// record the Prog* instead of the Sym*, but let's
+ 			// wait until the need arises.
+-			diag("call of non-TEXT");
++			diag("call of non-TEXT %P", q);
+ 			errorexit();
+ 		}
+ 		*andptr++ = op;
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 4c9be955ba..adffb890a7 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1895,7 +1895,7 @@ writelines(void)
+ 			cput(DW_LNE_set_address);
+ 			addrput(pc);
+ 		}
+-		if (!s->reachable)
++		if(s->text == nil)
+ 			continue;
+ 
+ 		if (unitstart < 0) {
+@@ -1910,6 +1910,9 @@ writelines(void)
+ 		if (s->version == 0)
+ 			newattr(dwfunc, DW_AT_external, DW_CLS_FLAG, 1, 0);
+ 
++		if(s->text->link == nil)
++			continue;
++
+ 		for(q = s->text; q != P; q = q->link) {
+ 			lh = searchhist(q->line);
+ 			if (lh == nil) {
+@@ -2054,7 +2057,7 @@ writeframes(void)
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		s = cursym;
+-		if (!s->reachable)
++		if(s->text == nil)
+ 			continue;
+ 
+ 		fdeo = cpos();
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 2ba6e53e61..df15cb1158 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -964,7 +964,7 @@ extern	int	numelfshdr;
+ extern	int	iself;
+ int	elfwriteinterp(void);
+ void	elfinterp(ElfShdr*, uint64, char*);
+-void	elfdynhash(int);
++void	elfdynhash(void);
+ ElfPhdr* elfphload(Segment*);
+ ElfShdr* elfshbits(Section*);
+ void	elfsetstring(char*, int);

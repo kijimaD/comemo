@@ -9,8 +9,139 @@ Date:   Mon Oct 22 10:09:52 2012 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6600044
-
+---
  src/cmd/gc/closure.c |  7 +++++--
  src/cmd/gc/dcl.c     | 45 +++++++++++++++++++++++++++++----------------
  src/cmd/gc/fmt.c     | 10 ++++++++--
  3 files changed, 42 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index cc44d7f6b0..2043ab0ed7 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -13,7 +13,7 @@
+ void
+ closurehdr(Node *ntype)
+ {
+-	Node *n, *name, *a;
++	Node *n, *name, *a, *orig;
+ 	NodeList *l;
+ 
+ 	n = nod(OCLOSURE, N, N);
+@@ -43,8 +43,11 @@ closurehdr(Node *ntype)
+ 	}
+ 	for(l=n->rlist; l; l=l->next) {
+ 		name = l->n->left;
+-		if(name)
++		if(name) {
++			orig = name->orig;  // preserve the meaning of orig == N (anonymous PPARAMOUT)
+ 			name = newname(name->sym);
++			name->orig = orig;
++		}
+ 		ntype->rlist = list(ntype->rlist, nod(ODCLFIELD, name, l->n->right));
+ 	}
+ }
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d090380d7e..2f4f547761 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -596,25 +596,38 @@ funcargs(Node *nt)
+ 	}
+ 
+ 	// declare the out arguments.
+-	gen = 0;
++	gen = count(nt->list);
++	int i = 0;
+ 	for(l=nt->rlist; l; l=l->next) {
+ 		n = l->n;
++
+ 		if(n->op != ODCLFIELD)
+ 			fatal("funcargs out %O", n->op);
+-		if(n->left != N) {
+-			n->left->op = ONAME;
+-			n->left->ntype = n->right;
+-			if(isblank(n->left)) {
+-				// Give it a name so we can assign to it during return.
+-				// preserve the original in ->orig
+-				nn = nod(OXXX, N, N);
+-				*nn = *n->left;
+-				n->left = nn;
+-				snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
+-				n->left->sym = lookup(namebuf);
+-			}
+-			declare(n->left, PPARAMOUT);
++
++		if(n->left == N) {
++			// give it a name so escape analysis has nodes to work with
++			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
++			n->left = newname(lookup(namebuf));
++			n->left->orig = N;  // signal that the original was absent
++
++		} 
++
++		n->left->op = ONAME;
++
++		if(isblank(n->left)) {
++			// Give it a name so we can assign to it during return.
++			// preserve the original in ->orig
++			nn = nod(OXXX, N, N);
++			*nn = *n->left;
++			n->left = nn;
++			
++			snprint(namebuf, sizeof(namebuf), ".anon%d", gen++);
++			n->left->sym = lookup(namebuf);
+ 		}
++
++		n->left->ntype = n->right;
++		declare(n->left, PPARAMOUT);
++		n->left->vargen = i++;
+ 	}
+ }
+ 
+@@ -769,7 +782,7 @@ structfield(Node *n)
+ 		break;
+ 	}
+ 
+-	if(n->left && n->left->op == ONAME) {
++	if(n->left && n->left->op == ONAME && n->left->orig != N) {
+ 		f->nname = n->left;
+ 		f->embedded = n->embedded;
+ 		f->sym = f->nname->sym;
+@@ -1145,7 +1158,7 @@ functype(Node *this, NodeList *in, NodeList *out)
+ 		t->thistuple = 1;
+ 	t->outtuple = count(out);
+ 	t->intuple = count(in);
+-	t->outnamed = t->outtuple > 0 && out->n->left != N;
++	t->outnamed = t->outtuple > 0 && out->n->left != N && out->n->left->orig != N;
+ 
+ 	return t;
+ }
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 6945e9c8e3..33a2176b93 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -518,6 +518,8 @@ symfmt(Fmt *fp, Sym *s)
+ 				return fmtprint(fp, "%s.%s", s->pkg->name, s->name);	// dcommontype, typehash
+ 			return fmtprint(fp, "%s.%s", s->pkg->prefix, s->name);	// (methodsym), typesym, weaksym
+ 		case FExp:
++			if(s->name && s->name[0] == '.')
++				fatal("exporting synthetic symbol %s", s->name);
+ 			if(s->pkg != builtinpkg)
+ 				return fmtprint(fp, "@\"%Z\".%s", s->pkg->path, s->name);
+ 		}
+@@ -713,9 +715,13 @@ typefmt(Fmt *fp, Type *t)
+ 	case TFIELD:
+ 		if(!(fp->flags&FmtShort)) {
+ 			s = t->sym;
++
+ 			// Take the name from the original, lest we substituted it with .anon%d
+-			if (t->nname && (fmtmode == FErr || fmtmode == FExp))
+-				s = t->nname->orig->sym;
++			if ((fmtmode == FErr || fmtmode == FExp) && t->nname != N)
++				if(t->nname->orig != N)
++					s = t->nname->orig->sym;
++				else 
++					s = S;
+ 			
+ 			if(s != S && !t->embedded) {
+ 				if(fp->flags&FmtLong)

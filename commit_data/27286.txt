@@ -9,6 +9,19 @@ Date:   Fri Mar 18 14:30:00 2016 -0700
     Change-Id: I01e220499dcd58e1a7205e2a577dd9630a8b7174
     Reviewed-on: https://go-review.googlesource.com/20819
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/hash_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 0022fd39a5..96ed68247e 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -671,6 +671,7 @@ func BenchmarkAlignedLoad(b *testing.B) {
+ 	}
+ 	sink = s
+ }
++
+ func BenchmarkUnalignedLoad(b *testing.B) {
+ 	var buf [16]byte
+ 	p := unsafe.Pointer(&buf[1])

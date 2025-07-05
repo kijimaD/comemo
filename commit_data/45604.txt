@@ -18,6 +18,29 @@ Date:   Thu Oct 29 16:36:50 2020 -0400
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/mvs.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 79ef2475b6..94373bc5f3 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -7,6 +7,7 @@ package modload
+ import (
+ 	"context"
+ 	"errors"
++	"os"
+ 	"sort"
+ 
+ 	"cmd/go/internal/modfetch"
+@@ -102,6 +103,9 @@ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+ 	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+ 	list, err := versions(context.TODO(), m.Path, CheckAllowed)
+ 	if err != nil {
++		if errors.Is(err, os.ErrNotExist) {
++			return module.Version{Path: m.Path, Version: "none"}, nil
++		}
+ 		return module.Version{}, err
+ 	}
+ 	i := sort.Search(len(list), func(i int) bool { return semver.Compare(list[i], m.Version) >= 0 })

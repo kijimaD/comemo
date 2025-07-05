@@ -14,6 +14,26 @@ Date:   Tue Aug 6 13:12:23 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/version/exe.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/version/exe.go b/src/cmd/go/internal/version/exe.go
+index 528433e325..0e7deef149 100644
+--- a/src/cmd/go/internal/version/exe.go
++++ b/src/cmd/go/internal/version/exe.go
+@@ -213,7 +213,13 @@ func (x *machoExe) ReadData(addr, size uint64) ([]byte, error) {
+ }
+ 
+ func (x *machoExe) DataStart() uint64 {
+-	// Assume data is first non-empty writable segment.
++	// Look for section named "__go_buildinfo".
++	for _, sec := range x.f.Sections {
++		if sec.Name == "__go_buildinfo" {
++			return sec.Addr
++		}
++	}
++	// Try the first non-empty writable segment.
+ 	const RW = 3
+ 	for _, load := range x.f.Loads {
+ 		seg, ok := load.(*macho.Segment)

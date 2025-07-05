@@ -17,7 +17,55 @@ Date:   Fri Sep 13 19:46:50 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go      | 6 ++++++
  src/encoding/json/encode_test.go | 5 ++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index e5dd1b7799..b4fba476c8 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -600,7 +600,13 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 		if !isValidNumber(numStr) {
+ 			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
+ 		}
++		if opts.quoted {
++			e.WriteByte('"')
++		}
+ 		e.WriteString(numStr)
++		if opts.quoted {
++			e.WriteByte('"')
++		}
+ 		return
+ 	}
+ 	if opts.quoted {
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 18a92bae7c..8d3503b1ba 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -76,13 +76,15 @@ type StringTag struct {
+ 	IntStr     int64   `json:",string"`
+ 	UintptrStr uintptr `json:",string"`
+ 	StrStr     string  `json:",string"`
++	NumberStr  Number  `json:",string"`
+ }
+ 
+ var stringTagExpected = `{
+  "BoolStr": "true",
+  "IntStr": "42",
+  "UintptrStr": "44",
+- "StrStr": "\"xzbit\""
++ "StrStr": "\"xzbit\"",
++ "NumberStr": "46"
+ }`
+ 
+ func TestStringTag(t *testing.T) {
+@@ -91,6 +93,7 @@ func TestStringTag(t *testing.T) {
+ 	s.IntStr = 42
+ 	s.UintptrStr = 44
+ 	s.StrStr = "xzbit"
++	s.NumberStr = "46"
+ 	got, err := MarshalIndent(&s, "", " ")
+ 	if err != nil {
+ 		t.Fatal(err)

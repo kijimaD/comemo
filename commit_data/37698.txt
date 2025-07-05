@@ -16,7 +16,7 @@ Date:   Wed Jul 18 13:05:29 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/safe/main.go      | 14 --------------
  test/safe/nousesafe.go |  8 --------
  test/safe/pkg.go       | 16 ----------------
@@ -24,3 +24,118 @@ Date:   Wed Jul 18 13:05:29 2018 +0300
  test/unsafereject1.go  | 16 ++++++++++++++++
  test/unsafereject2.go  | 15 +++++++++++++++
  6 files changed, 31 insertions(+), 46 deletions(-)
+
+diff --git a/test/safe/main.go b/test/safe/main.go
+deleted file mode 100644
+index d173ed9266..0000000000
+--- a/test/safe/main.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// true
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-// can't use local path with -u, use -I. instead
+-import "pkg"  // ERROR "import unsafe package"
+-
+-func main() {
+-	print(pkg.Float32bits(1.0))
+-}
+diff --git a/test/safe/nousesafe.go b/test/safe/nousesafe.go
+deleted file mode 100644
+index fcd25af315..0000000000
+--- a/test/safe/nousesafe.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// $G $D/pkg.go && pack grc pkg.a pkg.$A 2> /dev/null && rm pkg.$A && errchk $G -I . -u $D/main.go
+-// rm -f pkg.a
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ignored
+diff --git a/test/safe/pkg.go b/test/safe/pkg.go
+deleted file mode 100644
+index bebc43a214..0000000000
+--- a/test/safe/pkg.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// true
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// a package that uses unsafe on the inside but not in it's api
+-
+-package pkg
+-
+-import "unsafe"
+-
+-// this should be inlinable
+-func Float32bits(f float32) uint32 {
+-	return *(*uint32)(unsafe.Pointer(&f))
+-}
+\ No newline at end of file
+diff --git a/test/safe/usesafe.go b/test/safe/usesafe.go
+deleted file mode 100644
+index 5d0829e290..0000000000
+--- a/test/safe/usesafe.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// $G $D/pkg.go && pack grcS pkg.a pkg.$A 2> /dev/null && rm pkg.$A && $G -I . -u $D/main.go
+-// rm -f pkg.a
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ignored
+diff --git a/test/unsafereject1.go b/test/unsafereject1.go
+new file mode 100644
+index 0000000000..12f77f963f
+--- /dev/null
++++ b/test/unsafereject1.go
+@@ -0,0 +1,16 @@
++// errorcheck -u -+
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that we cannot import a package that uses "unsafe" internally
++// when -u is supplied.
++
++package main
++
++import "syscall" // ERROR "import unsafe package"
++
++func main() {
++	print(syscall.Environ())
++}
+diff --git a/test/unsafereject2.go b/test/unsafereject2.go
+new file mode 100644
+index 0000000000..04ad0578c9
+--- /dev/null
++++ b/test/unsafereject2.go
+@@ -0,0 +1,15 @@
++// errorcheck -u -+
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that we cannot import the "unsafe" package when -u is supplied.
++
++package a
++
++import "unsafe" // ERROR "import package unsafe"
++
++func Float32bits(f float32) uint32 {
++	return *(*uint32)(unsafe.Pointer(&f))
++}

@@ -9,7 +9,77 @@ Date:   Wed Sep 19 16:55:21 2012 +1000
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6523043
-
+---
  src/pkg/os/file_windows.go | 14 ++++++++++++--
  src/pkg/os/os_test.go      | 29 +++++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 9e0da5ae81..a86b8d61cd 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -258,8 +258,18 @@ func (f *File) writeConsole(b []byte) (n int, err error) {
+ 		f.lastbits = make([]byte, len(b))
+ 		copy(f.lastbits, b)
+ 	}
+-	if len(runes) > 0 {
+-		uint16s := utf16.Encode(runes)
++	// syscall.WriteConsole seems to fail, if given large buffer.
++	// So limit the buffer to 16000 characters. This number was
++	// discovered by experimenting with syscall.WriteConsole.
++	const maxWrite = 16000
++	for len(runes) > 0 {
++		m := len(runes)
++		if m > maxWrite {
++			m = maxWrite
++		}
++		chunk := runes[:m]
++		runes = runes[m:]
++		uint16s := utf16.Encode(chunk)
+ 		for len(uint16s) > 0 {
+ 			var written uint32
+ 			err = syscall.WriteConsole(f.fd, &uint16s[0], uint32(len(uint16s)), &written, nil)
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 14b4837a04..1940f562de 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	"bytes"
++	"flag"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -1066,3 +1067,31 @@ func TestDevNullFile(t *testing.T) {
+ 		t.Fatalf("wrong file size have %d want 0", fi.Size())
+ 	}
+ }
++
++var testLargeWrite = flag.Bool("large_write", false, "run TestLargeWriteToConsole test that floods console with output")
++
++func TestLargeWriteToConsole(t *testing.T) {
++	if !*testLargeWrite {
++		t.Logf("skipping console-flooding test; enable with -large_write")
++		return
++	}
++	b := make([]byte, 32000)
++	for i := range b {
++		b[i] = '.'
++	}
++	b[len(b)-1] = '\n'
++	n, err := Stdout.Write(b)
++	if err != nil {
++		t.Fatalf("Write to os.Stdout failed: %v", err)
++	}
++	if n != len(b) {
++		t.Errorf("Write to os.Stdout should return %d; got %d", len(b), n)
++	}
++	n, err = Stderr.Write(b)
++	if err != nil {
++		t.Fatalf("Write to os.Stderr failed: %v", err)
++	}
++	if n != len(b) {
++		t.Errorf("Write to os.Stderr should return %d; got %d", len(b), n)
++	}
++}

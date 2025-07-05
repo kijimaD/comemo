@@ -22,8 +22,167 @@ Date:   Thu Sep 17 01:59:14 2020 +0200
     Trust: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/ld_test.go | 70 +++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/ld/lib.go     | 24 +++++++++----
  src/cmd/link/internal/ld/main.go    |  6 ++++
  3 files changed, 93 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index db339b484d..4367c1028e 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -5,6 +5,7 @@
+ package ld
+ 
+ import (
++	"debug/pe"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -167,3 +168,72 @@ func TestPPC64LargeTextSectionSplitting(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func TestWindowsBuildmodeCSharedASLR(t *testing.T) {
++	platform := fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
++	switch platform {
++	case "windows/amd64", "windows/386":
++	default:
++		t.Skip("skipping windows amd64/386 only test")
++	}
++
++	t.Run("aslr", func(t *testing.T) {
++		testWindowsBuildmodeCSharedASLR(t, true)
++	})
++	t.Run("no-aslr", func(t *testing.T) {
++		testWindowsBuildmodeCSharedASLR(t, false)
++	})
++}
++
++func testWindowsBuildmodeCSharedASLR(t *testing.T, useASLR bool) {
++	t.Parallel()
++	testenv.MustHaveGoBuild(t)
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	srcfile := filepath.Join(dir, "test.go")
++	objfile := filepath.Join(dir, "test.dll")
++	if err := ioutil.WriteFile(srcfile, []byte(`package main; func main() { print("hello") }`), 0666); err != nil {
++		t.Fatal(err)
++	}
++	argv := []string{"build", "-buildmode=c-shared"}
++	if !useASLR {
++		argv = append(argv, "-ldflags", "-aslr=false")
++	}
++	argv = append(argv, "-o", objfile, srcfile)
++	out, err := exec.Command(testenv.GoToolPath(t), argv...).CombinedOutput()
++	if err != nil {
++		t.Fatalf("build failure: %s\n%s\n", err, string(out))
++	}
++
++	f, err := pe.Open(objfile)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	var dc uint16
++	switch oh := f.OptionalHeader.(type) {
++	case *pe.OptionalHeader32:
++		dc = oh.DllCharacteristics
++	case *pe.OptionalHeader64:
++		dc = oh.DllCharacteristics
++		hasHEVA := (dc & pe.IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA) != 0
++		if useASLR && !hasHEVA {
++			t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag is not set")
++		} else if !useASLR && hasHEVA {
++			t.Error("IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA flag should not be set")
++		}
++	default:
++		t.Fatalf("unexpected optional header type of %T", f.OptionalHeader)
++	}
++	hasASLR := (dc & pe.IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) != 0
++	if useASLR && !hasASLR {
++		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag is not set")
++	} else if !useASLR && hasASLR {
++		t.Error("IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE flag should not be set")
++	}
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b2ca658c3c..0cce98a447 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1290,6 +1290,17 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, "-Wl,-bbigtoc")
+ 	}
+ 
++	// Enable ASLR on Windows.
++	addASLRargs := func(argv []string) []string {
++		// Enable ASLR.
++		argv = append(argv, "-Wl,--dynamicbase")
++		// enable high-entropy ASLR on 64-bit.
++		if ctxt.Arch.PtrSize >= 8 {
++			argv = append(argv, "-Wl,--high-entropy-va")
++		}
++		return argv
++	}
++
+ 	switch ctxt.BuildMode {
+ 	case BuildModeExe:
+ 		if ctxt.HeadType == objabi.Hdarwin {
+@@ -1302,12 +1313,7 @@ func (ctxt *Link) hostlink() {
+ 		switch ctxt.HeadType {
+ 		case objabi.Hdarwin, objabi.Haix:
+ 		case objabi.Hwindows:
+-			// Enable ASLR.
+-			argv = append(argv, "-Wl,--dynamicbase")
+-			// enable high-entropy ASLR on 64-bit.
+-			if ctxt.Arch.PtrSize >= 8 {
+-				argv = append(argv, "-Wl,--high-entropy-va")
+-			}
++			argv = addASLRargs(argv)
+ 			// Work around binutils limitation that strips relocation table for dynamicbase.
+ 			// See https://sourceware.org/bugzilla/show_bug.cgi?id=19011
+ 			argv = append(argv, "-Wl,--export-all-symbols")
+@@ -1331,7 +1337,11 @@ func (ctxt *Link) hostlink() {
+ 				argv = append(argv, "-Wl,-z,relro")
+ 			}
+ 			argv = append(argv, "-shared")
+-			if ctxt.HeadType != objabi.Hwindows {
++			if ctxt.HeadType == objabi.Hwindows {
++				if *flagAslr {
++					argv = addASLRargs(argv)
++				}
++			} else {
+ 				// Pass -z nodelete to mark the shared library as
+ 				// non-closeable: a dlclose will do nothing.
+ 				argv = append(argv, "-Wl,-z,nodelete")
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 6f4ccbfb7a..0e030218c5 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -65,6 +65,7 @@ var (
+ 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
+ 	flagRace          = flag.Bool("race", false, "enable race detector")
+ 	flagMsan          = flag.Bool("msan", false, "enable MSan interface")
++	flagAslr          = flag.Bool("aslr", true, "enable ASLR for buildmode=c-shared on windows")
+ 
+ 	flagFieldTrack = flag.String("k", "", "set field tracking `symbol`")
+ 	flagLibGCC     = flag.String("libgcc", "", "compiler support lib for internal linking; use \"none\" to disable")
+@@ -157,6 +158,11 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		ctxt.HeadType.Set(objabi.GOOS)
+ 	}
+ 
++	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
++		Errorf(nil, "-aslr=false is only allowed for -buildmode=c-shared")
++		usage()
++	}
++
+ 	checkStrictDups = *FlagStrictDups
+ 
+ 	startProfile()

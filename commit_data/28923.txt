@@ -14,7 +14,7 @@ Date:   Tue Aug 16 13:33:27 2016 -0300
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/conf.go                |  2 +-
  src/net/dial.go                |  2 +-
  src/net/dnsconfig_unix.go      |  6 +--
@@ -29,3 +29,454 @@ Date:   Tue Aug 16 13:33:27 2016 -0300
  src/net/port_unix.go           |  2 +-
  src/net/sock_linux.go          |  2 +-
  13 files changed, 74 insertions(+), 78 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index eb729167f5..41e62d5689 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -293,7 +293,7 @@ func goDebugNetDNS() (dnsMode string, debugLevel int) {
+ 			return
+ 		}
+ 		if '0' <= s[0] && s[0] <= '9' {
+-			debugLevel, _, _ = dtoi(s, 0)
++			debugLevel, _, _ = dtoi(s)
+ 		} else {
+ 			dnsMode = s
+ 		}
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 55edb43395..48f3ad81c6 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -141,7 +141,7 @@ func parseNetwork(ctx context.Context, net string) (afnet string, proto int, err
+ 	switch afnet {
+ 	case "ip", "ip4", "ip6":
+ 		protostr := net[i+1:]
+-		proto, i, ok := dtoi(protostr, 0)
++		proto, i, ok := dtoi(protostr)
+ 		if !ok || i != len(protostr) {
+ 			proto, err = lookupProtocol(ctx, protostr)
+ 			if err != nil {
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index aec575e854..b885813722 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -91,19 +91,19 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 			for _, s := range f[1:] {
+ 				switch {
+ 				case hasPrefix(s, "ndots:"):
+-					n, _, _ := dtoi(s, 6)
++					n, _, _ := dtoi(s[6:])
+ 					if n < 1 {
+ 						n = 1
+ 					}
+ 					conf.ndots = n
+ 				case hasPrefix(s, "timeout:"):
+-					n, _, _ := dtoi(s, 8)
++					n, _, _ := dtoi(s[8:])
+ 					if n < 1 {
+ 						n = 1
+ 					}
+ 					conf.timeout = time.Duration(n) * time.Second
+ 				case hasPrefix(s, "attempts:"):
+-					n, _, _ := dtoi(s, 9)
++					n, _, _ := dtoi(s[9:])
+ 					if n < 1 {
+ 						n = 1
+ 					}
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 52b857c65f..4947b52faf 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -215,7 +215,7 @@ func zoneToInt(zone string) int {
+ 	defer zoneCache.RUnlock()
+ 	index, ok := zoneCache.toIndex[zone]
+ 	if !ok {
+-		index, _, _ = dtoi(zone, 0)
++		index, _, _ = dtoi(zone)
+ 	}
+ 	return index
+ }
+diff --git a/src/net/ip.go b/src/net/ip.go
+index d0c82630b5..c5b454d3bd 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -504,29 +504,25 @@ func (n *IPNet) String() string {
+ // Parse IPv4 address (d.d.d.d).
+ func parseIPv4(s string) IP {
+ 	var p [IPv4len]byte
+-	i := 0
+-	for j := 0; j < IPv4len; j++ {
+-		if i >= len(s) {
++	for i := 0; i < IPv4len; i++ {
++		if len(s) == 0 {
+ 			// Missing octets.
+ 			return nil
+ 		}
+-		if j > 0 {
+-			if s[i] != '.' {
++		if i > 0 {
++			if s[0] != '.' {
+ 				return nil
+ 			}
+-			i++
++			s = s[1:]
+ 		}
+-		var (
+-			n  int
+-			ok bool
+-		)
+-		n, i, ok = dtoi(s, i)
++		n, c, ok := dtoi(s)
+ 		if !ok || n > 0xFF {
+ 			return nil
+ 		}
+-		p[j] = byte(n)
++		s = s[c:]
++		p[i] = byte(n)
+ 	}
+-	if i != len(s) {
++	if len(s) != 0 {
+ 		return nil
+ 	}
+ 	return IPv4(p[0], p[1], p[2], p[3])
+@@ -538,8 +534,7 @@ func parseIPv4(s string) IP {
+ // true.
+ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 	ip = make(IP, IPv6len)
+-	ellipsis := -1 // position of ellipsis in p
+-	i := 0         // index in string s
++	ellipsis := -1 // position of ellipsis in ip
+ 
+ 	if zoneAllowed {
+ 		s, zone = splitHostZone(s)
+@@ -548,90 +543,91 @@ func parseIPv6(s string, zoneAllowed bool) (ip IP, zone string) {
+ 	// Might have leading ellipsis
+ 	if len(s) >= 2 && s[0] == ':' && s[1] == ':' {
+ 		ellipsis = 0
+-		i = 2
++		s = s[2:]
+ 		// Might be only ellipsis
+-		if i == len(s) {
++		if len(s) == 0 {
+ 			return ip, zone
+ 		}
+ 	}
+ 
+ 	// Loop, parsing hex numbers followed by colon.
+-	j := 0
+-	for j < IPv6len {
++	i := 0
++	for i < IPv6len {
+ 		// Hex number.
+-		n, i1, ok := xtoi(s, i)
++		n, c, ok := xtoi(s)
+ 		if !ok || n > 0xFFFF {
+ 			return nil, zone
+ 		}
+ 
+ 		// If followed by dot, might be in trailing IPv4.
+-		if i1 < len(s) && s[i1] == '.' {
+-			if ellipsis < 0 && j != IPv6len-IPv4len {
++		if c < len(s) && s[c] == '.' {
++			if ellipsis < 0 && i != IPv6len-IPv4len {
+ 				// Not the right place.
+ 				return nil, zone
+ 			}
+-			if j+IPv4len > IPv6len {
++			if i+IPv4len > IPv6len {
+ 				// Not enough room.
+ 				return nil, zone
+ 			}
+-			ip4 := parseIPv4(s[i:])
++			ip4 := parseIPv4(s)
+ 			if ip4 == nil {
+ 				return nil, zone
+ 			}
+-			ip[j] = ip4[12]
+-			ip[j+1] = ip4[13]
+-			ip[j+2] = ip4[14]
+-			ip[j+3] = ip4[15]
+-			i = len(s)
+-			j += IPv4len
++			ip[i] = ip4[12]
++			ip[i+1] = ip4[13]
++			ip[i+2] = ip4[14]
++			ip[i+3] = ip4[15]
++			s = ""
++			i += IPv4len
+ 			break
+ 		}
+ 
+ 		// Save this 16-bit chunk.
+-		ip[j] = byte(n >> 8)
+-		ip[j+1] = byte(n)
+-		j += 2
++		ip[i] = byte(n >> 8)
++		ip[i+1] = byte(n)
++		i += 2
+ 
+ 		// Stop at end of string.
+-		i = i1
+-		if i == len(s) {
++		s = s[c:]
++		if len(s) == 0 {
+ 			break
+ 		}
+ 
+ 		// Otherwise must be followed by colon and more.
+-		if s[i] != ':' || i+1 == len(s) {
++		if s[0] != ':' || len(s) == 1 {
+ 			return nil, zone
+ 		}
+-		i++
++		s = s[1:]
+ 
+ 		// Look for ellipsis.
+-		if s[i] == ':' {
++		if s[0] == ':' {
+ 			if ellipsis >= 0 { // already have one
+ 				return nil, zone
+ 			}
+-			ellipsis = j
+-			if i++; i == len(s) { // can be at end
++			ellipsis = i
++			s = s[1:]
++			if len(s) == 0 { // can be at end
+ 				break
+ 			}
+ 		}
+ 	}
+ 
+ 	// Must have used entire string.
+-	if i != len(s) {
++	if len(s) != 0 {
+ 		return nil, zone
+ 	}
+ 
+ 	// If didn't parse enough, expand ellipsis.
+-	if j < IPv6len {
++	if i < IPv6len {
+ 		if ellipsis < 0 {
+ 			return nil, zone
+ 		}
+-		n := IPv6len - j
+-		for k := j - 1; k >= ellipsis; k-- {
+-			ip[k+n] = ip[k]
++		n := IPv6len - i
++		for j := i - 1; j >= ellipsis; j-- {
++			ip[j+n] = ip[j]
+ 		}
+-		for k := ellipsis + n - 1; k >= ellipsis; k-- {
+-			ip[k] = 0
++		for j := ellipsis + n - 1; j >= ellipsis; j-- {
++			ip[j] = 0
+ 		}
+ 	} else if ellipsis >= 0 {
+ 		// Ellipsis must represent at least one 0 group.
+@@ -677,7 +673,7 @@ func ParseCIDR(s string) (IP, *IPNet, error) {
+ 		iplen = IPv6len
+ 		ip, _ = parseIPv6(addr, false)
+ 	}
+-	n, i, ok := dtoi(mask, 0)
++	n, i, ok := dtoi(mask)
+ 	if ip == nil || !ok || i != len(mask) || n < 0 || n > 8*iplen {
+ 		return nil, nil, &ParseError{Type: "CIDR address", Text: s}
+ 	}
+diff --git a/src/net/ipsock_plan9.go b/src/net/ipsock_plan9.go
+index 2b84683eeb..ddde370dba 100644
+--- a/src/net/ipsock_plan9.go
++++ b/src/net/ipsock_plan9.go
+@@ -63,7 +63,7 @@ func parsePlan9Addr(s string) (ip IP, iport int, err error) {
+ 			return nil, 0, &ParseError{Type: "IP address", Text: s}
+ 		}
+ 	}
+-	p, _, ok := dtoi(s[i+1:], 0)
++	p, _, ok := dtoi(s[i+1:])
+ 	if !ok {
+ 		return nil, 0, &ParseError{Type: "port", Text: s}
+ 	}
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 3f7af2a174..133a6198b9 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -111,7 +111,7 @@ func lookupProtocol(ctx context.Context, name string) (proto int, err error) {
+ 		return 0, UnknownNetworkError(name)
+ 	}
+ 	s := f[1]
+-	if n, _, ok := dtoi(s, byteIndex(s, '=')+1); ok {
++	if n, _, ok := dtoi(s[byteIndex(s, '=')+1:]); ok {
+ 		return n, nil
+ 	}
+ 	return 0, UnknownNetworkError(name)
+@@ -186,7 +186,7 @@ func lookupPort(ctx context.Context, network, service string) (port int, err err
+ 	if i := byteIndex(s, '!'); i >= 0 {
+ 		s = s[i+1:] // remove address
+ 	}
+-	if n, _, ok := dtoi(s, 0); ok {
++	if n, _, ok := dtoi(s); ok {
+ 		return n, nil
+ 	}
+ 	return 0, unknownPortError
+@@ -221,9 +221,9 @@ func lookupSRV(ctx context.Context, service, proto, name string) (cname string,
+ 		if len(f) < 6 {
+ 			continue
+ 		}
+-		port, _, portOk := dtoi(f[4], 0)
+-		priority, _, priorityOk := dtoi(f[3], 0)
+-		weight, _, weightOk := dtoi(f[2], 0)
++		port, _, portOk := dtoi(f[4])
++		priority, _, priorityOk := dtoi(f[3])
++		weight, _, weightOk := dtoi(f[2])
+ 		if !(portOk && priorityOk && weightOk) {
+ 			continue
+ 		}
+@@ -244,7 +244,7 @@ func lookupMX(ctx context.Context, name string) (mx []*MX, err error) {
+ 		if len(f) < 4 {
+ 			continue
+ 		}
+-		if pref, _, ok := dtoi(f[2], 0); ok {
++		if pref, _, ok := dtoi(f[2]); ok {
+ 			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
+ 		}
+ 	}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 15397e8105..be0ae9aefa 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -26,7 +26,7 @@ func readProtocols() {
+ 			if len(f) < 2 {
+ 				continue
+ 			}
+-			if proto, _, ok := dtoi(f[1], 0); ok {
++			if proto, _, ok := dtoi(f[1]); ok {
+ 				if _, ok := protocols[f[0]]; !ok {
+ 					protocols[f[0]] = proto
+ 				}
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 9af2c61b74..bc9ffe15a4 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -169,14 +169,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
+ 	// golang.org      mail exchanger = 2 alt1.aspmx.l.google.com.
+ 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		pref, _, _ := dtoi(ans[2], 0)
++		pref, _, _ := dtoi(ans[2])
+ 		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+ 	}
+ 	// windows nslookup syntax
+ 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
+ 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		pref, _, _ := dtoi(ans[2], 0)
++		pref, _, _ := dtoi(ans[2])
+ 		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+ 	}
+ 	return
+diff --git a/src/net/parse.go b/src/net/parse.go
+index ed82a7769b..363c83f6ce 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -123,16 +123,16 @@ func getFields(s string) []string { return splitAtBytes(s, " \r\t\n") }
+ // Bigger than we need, not too big to worry about overflow
+ const big = 0xFFFFFF
+ 
+-// Decimal to integer starting at &s[i0].
+-// Returns number, new offset, success.
+-func dtoi(s string, i0 int) (n int, i int, ok bool) {
++// Decimal to integer.
++// Returns number, characters consumed, success.
++func dtoi(s string) (n int, i int, ok bool) {
+ 	n = 0
+ 	neg := false
+ 	if len(s) > 0 && s[0] == '-' {
+ 		neg = true
+ 		s = s[1:]
+ 	}
+-	for i = i0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
++	for i = 0; i < len(s) && '0' <= s[i] && s[i] <= '9'; i++ {
+ 		n = n*10 + int(s[i]-'0')
+ 		if n >= big {
+ 			if neg {
+@@ -141,7 +141,7 @@ func dtoi(s string, i0 int) (n int, i int, ok bool) {
+ 			return big, i, false
+ 		}
+ 	}
+-	if i == i0 {
++	if i == 0 {
+ 		return 0, i, false
+ 	}
+ 	if neg {
+@@ -151,11 +151,11 @@ func dtoi(s string, i0 int) (n int, i int, ok bool) {
+ 	return n, i, true
+ }
+ 
+-// Hexadecimal to integer starting at &s[i0].
+-// Returns number, new offset, success.
+-func xtoi(s string, i0 int) (n int, i int, ok bool) {
++// Hexadecimal to integer.
++// Returns number, characters consumed, success.
++func xtoi(s string) (n int, i int, ok bool) {
+ 	n = 0
+-	for i = i0; i < len(s); i++ {
++	for i = 0; i < len(s); i++ {
+ 		if '0' <= s[i] && s[i] <= '9' {
+ 			n *= 16
+ 			n += int(s[i] - '0')
+@@ -172,7 +172,7 @@ func xtoi(s string, i0 int) (n int, i int, ok bool) {
+ 			return 0, i, false
+ 		}
+ 	}
+-	if i == i0 {
++	if i == 0 {
+ 		return 0, i, false
+ 	}
+ 	return n, i, true
+@@ -186,7 +186,7 @@ func xtoi2(s string, e byte) (byte, bool) {
+ 	if len(s) > 2 && s[2] != e {
+ 		return 0, false
+ 	}
+-	n, ei, ok := xtoi(s[:2], 0)
++	n, ei, ok := xtoi(s[:2])
+ 	return byte(n), ok && ei == 2
+ }
+ 
+diff --git a/src/net/parse_test.go b/src/net/parse_test.go
+index fec9200946..5c1c88cacd 100644
+--- a/src/net/parse_test.go
++++ b/src/net/parse_test.go
+@@ -93,7 +93,7 @@ func TestDtoi(t *testing.T) {
+ 		{"65536", 65536, 5, true},
+ 		{"123456789", big, 8, false},
+ 	} {
+-		n, i, ok := dtoi(tt.in, 0)
++		n, i, ok := dtoi(tt.in)
+ 		if n != tt.out || i != tt.off || ok != tt.ok {
+ 			t.Errorf("got %d, %d, %v; want %d, %d, %v", n, i, ok, tt.out, tt.off, tt.ok)
+ 		}
+diff --git a/src/net/port_unix.go b/src/net/port_unix.go
+index badf8abc79..a8cb0199a0 100644
+--- a/src/net/port_unix.go
++++ b/src/net/port_unix.go
+@@ -34,7 +34,7 @@ func readServices() {
+ 			continue
+ 		}
+ 		portnet := f[1] // "80/tcp"
+-		port, j, ok := dtoi(portnet, 0)
++		port, j, ok := dtoi(portnet)
+ 		if !ok || port <= 0 || j >= len(portnet) || portnet[j] != '/' {
+ 			continue
+ 		}
+diff --git a/src/net/sock_linux.go b/src/net/sock_linux.go
+index e2732c59a5..7bca37605e 100644
+--- a/src/net/sock_linux.go
++++ b/src/net/sock_linux.go
+@@ -17,7 +17,7 @@ func maxListenerBacklog() int {
+ 		return syscall.SOMAXCONN
+ 	}
+ 	f := getFields(l)
+-	n, _, ok := dtoi(f[0], 0)
++	n, _, ok := dtoi(f[0])
+ 	if n == 0 || !ok {
+ 		return syscall.SOMAXCONN
+ 	}

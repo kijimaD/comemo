@@ -13,6 +13,30 @@ Date:   Sun Mar 24 18:17:43 2019 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index e939e8527a..29427d91e5 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -477,7 +477,7 @@
+ 		!global.process.versions.electron
+ 	) {
+ 		if (process.argv.length < 3) {
+-			process.stderr.write("usage: go_js_wasm_exec [wasm binary] [arguments]\n");
++			console.error("usage: go_js_wasm_exec [wasm binary] [arguments]");
+ 			process.exit(1);
+ 		}
+ 
+@@ -495,7 +495,8 @@
+ 			});
+ 			return go.run(result.instance);
+ 		}).catch((err) => {
+-			throw err;
++			console.error(err);
++			process.exit(1);
+ 		});
+ 	}
+ })();

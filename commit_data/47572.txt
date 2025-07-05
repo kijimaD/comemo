@@ -15,6 +15,29 @@ Date:   Mon Mar 29 13:44:08 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/walk/order.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 95d245d0d7..9e6c58054d 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -1602,6 +1602,17 @@ func (o *orderState) wrapGoDefer(n *ir.GoDeferStmt) {
+ 			n := callX.(*ir.SelectorExpr)
+ 			n.X = mkArgCopy(n.X)
+ 			methSelectorExpr = n
++			if callX.Op() == ir.ODOTINTER {
++				// Currently for "defer i.M()" if i is nil it panics at the
++				// point of defer statement, not when deferred function is called.
++				// (I think there is an issue discussing what is the intended
++				// behavior but I cannot find it.)
++				// We need to do the nil check outside of the wrapper.
++				tab := typecheck.Expr(ir.NewUnaryExpr(base.Pos, ir.OITAB, n.X))
++				c := ir.NewUnaryExpr(n.Pos(), ir.OCHECKNIL, tab)
++				c.SetTypecheck(1)
++				o.append(c)
++			}
+ 		case !(callX.Op() == ir.ONAME && callX.(*ir.Name).Class == ir.PFUNC):
+ 			// Deal with "defer returnsafunc()(x, y)" (for
+ 			// example) by copying the callee expression.

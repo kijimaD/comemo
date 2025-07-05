@@ -23,8 +23,214 @@ Date:   Sat May 23 10:15:46 2020 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.16.html              | 10 +++++
  src/crypto/x509/x509.go      | 39 +++++++++++++++----
  src/crypto/x509/x509_test.go | 90 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 131 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index b2cbb58e1a..2ecf7db7c7 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -174,6 +174,16 @@ Do not send CLs removing the interior tags from such phrases.
+   by the <code>Error</code> method with <code>"tls: use of closed connection"</code>.
+ </p>
+ 
++<h3 id="crypto/x509"><a href="/pkg/crypto/x509">crypto/x509</a></h3>
++
++<p><!-- CL 235078 -->
++  <a href="/pkg/crypto/x509/#ParseCertificate">ParseCertificate</a> and
++  <a href="/pkg/crypto/x509/#CreateCertificate">CreateCertificate</a> both
++  now enforce string encoding restrictions for the fields <code>DNSNames</code>,
++  <code>EmailAddresses</code>, and <code>URIs</code>. These fields can only
++  contain strings with characters within the ASCII range.
++</p>
++
+ <h3 id="net"><a href="/pkg/net/">net</a></h3>
+ 
+ <p><!-- CL 250357 -->
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 5fd4f6fa17..93dca03840 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -28,7 +28,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
+-	"unicode/utf8"
++	"unicode"
+ 
+ 	"golang.org/x/crypto/cryptobyte"
+ 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
+@@ -1085,17 +1085,29 @@ func parseSANExtension(value []byte) (dnsNames, emailAddresses []string, ipAddre
+ 	err = forEachSAN(value, func(tag int, data []byte) error {
+ 		switch tag {
+ 		case nameTypeEmail:
+-			emailAddresses = append(emailAddresses, string(data))
++			email := string(data)
++			if err := isIA5String(email); err != nil {
++				return errors.New("x509: SAN rfc822Name is malformed")
++			}
++			emailAddresses = append(emailAddresses, email)
+ 		case nameTypeDNS:
+-			dnsNames = append(dnsNames, string(data))
++			name := string(data)
++			if err := isIA5String(name); err != nil {
++				return errors.New("x509: SAN dNSName is malformed")
++			}
++			dnsNames = append(dnsNames, string(name))
+ 		case nameTypeURI:
+-			uri, err := url.Parse(string(data))
++			uriStr := string(data)
++			if err := isIA5String(uriStr); err != nil {
++				return errors.New("x509: SAN uniformResourceIdentifier is malformed")
++			}
++			uri, err := url.Parse(uriStr)
+ 			if err != nil {
+-				return fmt.Errorf("x509: cannot parse URI %q: %s", string(data), err)
++				return fmt.Errorf("x509: cannot parse URI %q: %s", uriStr, err)
+ 			}
+ 			if len(uri.Host) > 0 {
+ 				if _, ok := domainToReverseLabels(uri.Host); !ok {
+-					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", string(data))
++					return fmt.Errorf("x509: cannot parse URI %q: invalid domain", uriStr)
+ 				}
+ 			}
+ 			uris = append(uris, uri)
+@@ -1625,9 +1637,15 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
+ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris []*url.URL) (derBytes []byte, err error) {
+ 	var rawValues []asn1.RawValue
+ 	for _, name := range dnsNames {
++		if err := isIA5String(name); err != nil {
++			return nil, err
++		}
+ 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeDNS, Class: 2, Bytes: []byte(name)})
+ 	}
+ 	for _, email := range emailAddresses {
++		if err := isIA5String(email); err != nil {
++			return nil, err
++		}
+ 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeEmail, Class: 2, Bytes: []byte(email)})
+ 	}
+ 	for _, rawIP := range ipAddresses {
+@@ -1639,14 +1657,19 @@ func marshalSANs(dnsNames, emailAddresses []string, ipAddresses []net.IP, uris [
+ 		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeIP, Class: 2, Bytes: ip})
+ 	}
+ 	for _, uri := range uris {
+-		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uri.String())})
++		uriStr := uri.String()
++		if err := isIA5String(uriStr); err != nil {
++			return nil, err
++		}
++		rawValues = append(rawValues, asn1.RawValue{Tag: nameTypeURI, Class: 2, Bytes: []byte(uriStr)})
+ 	}
+ 	return asn1.Marshal(rawValues)
+ }
+ 
+ func isIA5String(s string) error {
+ 	for _, r := range s {
+-		if r >= utf8.RuneSelf {
++		// Per RFC5280 "IA5String is limited to the set of ASCII characters"
++		if r > unicode.MaxASCII {
+ 			return fmt.Errorf("x509: %q cannot be encoded as an IA5String", s)
+ 		}
+ 	}
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 6345c3f5ab..e87294bde5 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -2773,3 +2773,93 @@ func TestUnknownExtKey(t *testing.T) {
+ 		t.Errorf("expected error containing %q, got %s", errorContains, err)
+ 	}
+ }
++
++func TestIA5SANEnforcement(t *testing.T) {
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatalf("ecdsa.GenerateKey failed: %s", err)
++	}
++
++	testURL, err := url.Parse("https://example.com/")
++	if err != nil {
++		t.Fatalf("url.Parse failed: %s", err)
++	}
++	testURL.RawQuery = "∞"
++
++	marshalTests := []struct {
++		name          string
++		template      *Certificate
++		expectedError string
++	}{
++		{
++			name: "marshal: unicode dNSName",
++			template: &Certificate{
++				SerialNumber: big.NewInt(0),
++				DNSNames:     []string{"∞"},
++			},
++			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
++		},
++		{
++			name: "marshal: unicode rfc822Name",
++			template: &Certificate{
++				SerialNumber:   big.NewInt(0),
++				EmailAddresses: []string{"∞"},
++			},
++			expectedError: "x509: \"∞\" cannot be encoded as an IA5String",
++		},
++		{
++			name: "marshal: unicode uniformResourceIdentifier",
++			template: &Certificate{
++				SerialNumber: big.NewInt(0),
++				URIs:         []*url.URL{testURL},
++			},
++			expectedError: "x509: \"https://example.com/?∞\" cannot be encoded as an IA5String",
++		},
++	}
++
++	for _, tc := range marshalTests {
++		t.Run(tc.name, func(t *testing.T) {
++			_, err := CreateCertificate(rand.Reader, tc.template, tc.template, k.Public(), k)
++			if err == nil {
++				t.Errorf("expected CreateCertificate to fail with template: %v", tc.template)
++			} else if err.Error() != tc.expectedError {
++				t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
++			}
++		})
++	}
++
++	unmarshalTests := []struct {
++		name          string
++		cert          string
++		expectedError string
++	}{
++		{
++			name:          "unmarshal: unicode dNSName",
++			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000424bcc48180d8d9db794028f2575ebe3cac79f04d7b0d0151c5292e588aac3668c495f108c626168462e0668c9705e08a211dd103a659d2684e0adf8c2bfd47baa315301330110603551d110101ff040730058203e2889e300a06082a8648ce3d04030203490030460221008ac7827ac326a6ee0fa70b2afe99af575ec60b975f820f3c25f60fff43fbccd0022100bffeed93556722d43d13e461d5b3e33efc61f6349300327d3a0196cb6da501c2",
++			expectedError: "x509: SAN dNSName is malformed",
++		},
++		{
++			name:          "unmarshal: unicode rfc822Name",
++			cert:          "308201083081aea003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d0301070342000405cb4c4ba72aac980f7b11b0285191425e29e196ce7c5df1c83f56886566e517f196657cc1b73de89ab84ce503fd634e2f2af88fde24c63ca536dc3a5eed2665a315301330110603551d110101ff040730058103e2889e300a06082a8648ce3d0403020349003046022100ed1431cd4b9bb03d88d1511a0ec128a51204375764c716280dc36e2a60142c8902210088c96d25cfaf97eea851ff17d87bb6fe619d6546656e1739f35c3566051c3d0f",
++			expectedError: "x509: SAN rfc822Name is malformed",
++		},
++		{
++			name:          "unmarshal: unicode uniformResourceIdentifier",
++			cert:          "3082011b3081c3a003020102020100300a06082a8648ce3d04030230003022180f30303031303130313030303030305a180f30303031303130313030303030305a30003059301306072a8648ce3d020106082a8648ce3d03010703420004ce0a79b511701d9188e1ea76bcc5907f1db51de6cc1a037b803f256e8588145ca409d120288bfeb4e38f3088104674d374b35bb91fc80d768d1d519dbe2b0b5aa32a302830260603551d110101ff041c301a861868747470733a2f2f6578616d706c652e636f6d2f3fe2889e300a06082a8648ce3d0403020347003044022044f4697779fd1dae1e382d2452413c5c5ca67851e267d6bc64a8d164977c172c0220505015e657637aa1945d46e7650b6f59b968fc1508ca8b152c99f782446dfc81",
++			expectedError: "x509: SAN uniformResourceIdentifier is malformed",
++		},
++	}
++
++	for _, tc := range unmarshalTests {
++		der, err := hex.DecodeString(tc.cert)
++		if err != nil {
++			t.Fatalf("failed to decode test cert: %s", err)
++		}
++		_, err = ParseCertificate(der)
++		if err == nil {
++			t.Error("expected CreateCertificate to fail")
++		} else if err.Error() != tc.expectedError {
++			t.Errorf("unexpected error: got %q, want %q", err.Error(), tc.expectedError)
++		}
++	}
++}

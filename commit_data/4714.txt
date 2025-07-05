@@ -7,8 +7,230 @@ Date:   Thu Jan 28 15:38:32 2010 +1100
     R=rsc, ukai
     CC=golang-dev
     https://golang.org/cl/196044
-
+---
  src/pkg/websocket/client.go    | 50 +++++++++++++++++++++---------------------
  src/pkg/websocket/server.go    | 50 ++++++++++++++++++++++--------------------
  src/pkg/websocket/websocket.go | 26 +++++++++++++++-------
  3 files changed, 69 insertions(+), 57 deletions(-)
+
+diff --git a/src/pkg/websocket/client.go b/src/pkg/websocket/client.go
+index c5dde4b799..9060f8b293 100644
+--- a/src/pkg/websocket/client.go
++++ b/src/pkg/websocket/client.go
+@@ -41,32 +41,32 @@ func newClient(resourceName, host, origin, location, protocol string, rwc io.Rea
+ 	return
+ }
+ 
+-// Dial opens new Web Socket client connection.
+-//
+-// A trivial example client is:
+-//
+-// package main
+-//
+-// import (
+-//  "websocket"
+-//  "strings"
+-// )
+-//
+-// func main() {
+-//    ws, err := websocket.Dial("ws://localhost/ws", "", "http://localhost/");
+-//    if err != nil {
+-//        panic("Dial: ", err.String())
+-//    }
+-//    if _, err := ws.Write(strings.Bytes("hello, world!\n")); err != nil {
+-//        panic("Write: ", err.String())
+-//    }
+-//    var msg = make([]byte, 512);
+-//    if n, err := ws.Read(msg); err != nil {
+-//        panic("Read: ", err.String())
+-//    }
+-//    // msg[0:n]
+-// }
++/*
++	Dial opens a new client connection to a Web Socket.
++	A trivial example client is:
+ 
++	package main
++
++	import (
++		"websocket"
++		"strings"
++	)
++
++	func main() {
++	 	ws, err := websocket.Dial("ws://localhost/ws", "", "http://localhost/");
++	 	if err != nil {
++			panic("Dial: ", err.String())
++		}
++		if _, err := ws.Write(strings.Bytes("hello, world!\n")); err != nil {
++			panic("Write: ", err.String())
++		}
++		var msg = make([]byte, 512);
++		if n, err := ws.Read(msg); err != nil {
++			panic("Read: ", err.String())
++		}
++		// use msg[0:n]
++	}
++*/
+ func Dial(url, protocol, origin string) (ws *Conn, err os.Error) {
+ 	parsedUrl, err := http.ParseURL(url)
+ 	if err != nil {
+diff --git a/src/pkg/websocket/server.go b/src/pkg/websocket/server.go
+index bf80f6cc01..43c2a7c8d0 100644
+--- a/src/pkg/websocket/server.go
++++ b/src/pkg/websocket/server.go
+@@ -9,32 +9,34 @@ import (
+ 	"io"
+ )
+ 
+-// Handler is a interface that use a WebSocket.
+-//
+-// A trivial example server is:
+-//
+-//  package main
+-//
+-//  import (
+-//     "http"
+-//     "io"
+-//     "websocket"
+-//  )
+-//
+-//  // echo back the websocket.
+-//  func EchoServer(ws *websocket.Conn) {
+-//       io.Copy(ws, ws);
+-//  }
+-//
+-//  func main() {
+-//    http.Handle("/echo", websocket.Handler(EchoServer));
+-//    err := http.ListenAndServe(":12345", nil);
+-//    if err != nil {
+-//        panic("ListenAndServe: ", err.String())
+-//    }
+-//  }
++/*
++	Handler is an interface to a WebSocket.
++	A trivial example server is:
++
++	package main
++
++	import (
++		"http"
++		"io"
++		"websocket"
++	)
++
++	// Echo the data received on the Web Socket.
++	func EchoServer(ws *websocket.Conn) {
++		io.Copy(ws, ws);
++	}
++
++	func main() {
++		http.Handle("/echo", websocket.Handler(EchoServer));
++		err := http.ListenAndServe(":12345", nil);
++		if err != nil {
++			panic("ListenAndServe: ", err.String())
++		}
++	}
++*/
+ type Handler func(*Conn)
+ 
++// ServeHTTP implements the http.Handler interface for a Web Socket.
+ func (f Handler) ServeHTTP(c *http.Conn, req *http.Request) {
+ 	if req.Method != "GET" || req.Proto != "HTTP/1.1" ||
+ 		req.Header["Upgrade"] != "WebSocket" ||
+diff --git a/src/pkg/websocket/websocket.go b/src/pkg/websocket/websocket.go
+index efcb228b38..80ca49b947 100644
+--- a/src/pkg/websocket/websocket.go
++++ b/src/pkg/websocket/websocket.go
+@@ -2,12 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The websocket package implements Web Socket protocol server.
++// The websocket package implements a client and server for the Web Socket protocol.
++// The protocol is defined at http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
+ package websocket
+ 
+-// References:
+-//   The Web Socket protocol: http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol
+-
+ // TODO(ukai):
+ //   better logging.
+ 
+@@ -18,19 +16,23 @@ import (
+ 	"os"
+ )
+ 
++// WebSocketAddr is an implementation of net.Addr for Web Sockets.
+ type WebSocketAddr string
+ 
++// Network returns the network type for a Web Socket, "websocket".
+ func (addr WebSocketAddr) Network() string { return "websocket" }
+ 
++// String returns the network address for a Web Socket.
+ func (addr WebSocketAddr) String() string { return string(addr) }
+ 
+-// Conn is an channels to communicate over Web Socket.
++// Conn is a channel to communicate to a Web Socket.
++// It implements the net.Conn interface.
+ type Conn struct {
+-	// An origin URI of the Web Socket.
++	// The origin URI for the Web Socket.
+ 	Origin string
+-	// A location URI of the Web Socket.
++	// The location URI for the Web Socket.
+ 	Location string
+-	// A subprotocol of the Web Socket.
++	// The subprotocol for the Web Socket.
+ 	Protocol string
+ 
+ 	buf *bufio.ReadWriter
+@@ -48,6 +50,7 @@ func newConn(origin, location, protocol string, buf *bufio.ReadWriter, rwc io.Re
+ 	return ws
+ }
+ 
++// Read implements the io.Reader interface for a Conn.
+ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 	for {
+ 		frameByte, err := ws.buf.ReadByte()
+@@ -100,6 +103,7 @@ func (ws *Conn) Read(msg []byte) (n int, err os.Error) {
+ 	panic("unreachable")
+ }
+ 
++// Write implements the io.Writer interface for a Conn.
+ func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
+ 	ws.buf.WriteByte(0)
+ 	ws.buf.Write(msg)
+@@ -108,12 +112,16 @@ func (ws *Conn) Write(msg []byte) (n int, err os.Error) {
+ 	return len(msg), err
+ }
+ 
++// Close implements the io.Closer interface for a Conn.
+ func (ws *Conn) Close() os.Error { return ws.rwc.Close() }
+ 
++// LocalAddr returns the WebSocket Origin for the connection.
+ func (ws *Conn) LocalAddr() net.Addr { return WebSocketAddr(ws.Origin) }
+ 
++// RemoteAddr returns the WebSocket locations for the connection.
+ func (ws *Conn) RemoteAddr() net.Addr { return WebSocketAddr(ws.Location) }
+ 
++// SetTimeout sets the connection's network timeout in nanoseconds.
+ func (ws *Conn) SetTimeout(nsec int64) os.Error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetTimeout(nsec)
+@@ -121,6 +129,7 @@ func (ws *Conn) SetTimeout(nsec int64) os.Error {
+ 	return os.EINVAL
+ }
+ 
++// SetReadTimeout sets the connection's network read timeout in nanoseconds.
+ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetReadTimeout(nsec)
+@@ -128,6 +137,7 @@ func (ws *Conn) SetReadTimeout(nsec int64) os.Error {
+ 	return os.EINVAL
+ }
+ 
++// SeWritetTimeout sets the connection's network write timeout in nanoseconds.
+ func (ws *Conn) SetWriteTimeout(nsec int64) os.Error {
+ 	if conn, ok := ws.rwc.(net.Conn); ok {
+ 		return conn.SetWriteTimeout(nsec)

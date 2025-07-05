@@ -16,6 +16,20 @@ Date:   Fri Feb 5 05:47:46 2021 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Tim King <taking@google.com>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 8d31f63fa2..878bf0d029 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -364,6 +364,8 @@ func TestFoo(t *testing.T) {
+ }
+ </pre>
+ 
++<h4 id="vet-frame-pointer">New warning for frame pointer</h4>
++
+ <p><!-- CL 248686, CL 276372 -->
+   The vet tool now warns about amd64 assembly that clobbers the BP
+   register (the frame pointer) without saving and restoring it,

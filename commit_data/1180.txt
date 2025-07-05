@@ -7,8 +7,66 @@ Date:   Wed Nov 19 09:49:06 2008 -0800
     R=ken
     OCL=19583
     CL=19583
-
+---
  src/cmd/6g/gen.c | 3 ++-
  src/cmd/6g/opt.h | 1 +
  src/cmd/6g/reg.c | 6 +++---
  3 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 357903fe79..4851f5ad9c 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -6,6 +6,7 @@
+ #undef	EXTERN
+ #define	EXTERN
+ #include "gg.h"
++#include "opt.h"
+ 
+ enum
+ {
+@@ -515,7 +516,7 @@ swgen(Node *n)
+ 	Case *s0, *se, *s, *sa;
+ 	Prog *p1, *dflt;
+ 	int32 lno;
+-	int any, nc, w;
++	int any, nc;
+ 	Iter save1, save2;
+ 
+ // botch - put most of this code in
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index f51cd75fcb..a73e45ffc7 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -149,6 +149,7 @@ Bits	blsh(uint);
+ int	beq(Bits, Bits);
+ int	bset(Bits, uint);
+ int	Qconv(Fmt *fp);
++int	bitno(int32);
+ 
+ /*
+  * reg.c
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 70b936ee7a..3e319919db 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -36,7 +36,7 @@
+ #define	P2R(p)	(Reg*)(p->reg)
+ #define	MAGIC	0xb00fbabe
+ 
+-static	first	= 1;
++static	int	first	= 1;
+ static	void	dumpit(char *str, Reg *r0);
+ static	int	noreturn(Prog *p);
+ 
+@@ -73,8 +73,8 @@ rcmp(const void *a1, const void *a2)
+ void
+ regopt(Prog *firstp)
+ {
+-	Reg *r, *r1, *r2;
+-	Prog *p1, *p;
++	Reg *r, *r1;
++	Prog *p;
+ 	int i, z, nr;
+ 	uint32 vreg;
+ 	Bits bit;

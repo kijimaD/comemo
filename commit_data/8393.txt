@@ -13,7 +13,86 @@ Date:   Fri May 13 18:33:04 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4527059
-
+---
  src/pkg/go/types/check.go           |  5 ++++-
  src/pkg/go/types/testdata/test0.src | 16 ++++++++--------
  2 files changed, 12 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/types/check.go b/src/pkg/go/types/check.go
+index 99914a098d..02d6629264 100644
+--- a/src/pkg/go/types/check.go
++++ b/src/pkg/go/types/check.go
+@@ -118,7 +118,10 @@ func (c *checker) makeType(x ast.Expr, cycleOk bool) (typ Type) {
+ 		}
+ 		c.checkObj(obj, cycleOk)
+ 		if !cycleOk && obj.Type.(*Name).Underlying == nil {
+-			msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
++			// TODO(gri) Enable this message again once its position
++			// is independent of the underlying map implementation.
++			// msg := c.errorf(obj.Pos(), "illegal cycle in declaration of %s", obj.Name)
++			msg := "illegal cycle"
+ 			return &Bad{Msg: msg}
+ 		}
+ 		return obj.Type.(Type)
+diff --git a/src/pkg/go/types/testdata/test0.src b/src/pkg/go/types/testdata/test0.src
+index 7013055ac0..84a1abe270 100644
+--- a/src/pkg/go/types/testdata/test0.src
++++ b/src/pkg/go/types/testdata/test0.src
+@@ -39,7 +39,7 @@ type (
+ type (
+ 	Pi pi /* ERROR "not a type" */
+ 
+-	a /* ERROR "illegal cycle" */ a
++	a /* DISABLED "illegal cycle" */ a
+ 	a /* ERROR "redeclared" */ int
+ 
+ 	// where the cycle error appears depends on the
+@@ -47,7 +47,7 @@ type (
+ 	// (which depends on the order in which a map
+ 	// is iterated through)
+ 	b c
+-	c /* ERROR "illegal cycle" */ d
++	c /* DISABLED "illegal cycle" */ d
+ 	d e
+ 	e b
+ 
+@@ -74,13 +74,13 @@ type (
+ 	S3 struct {
+ 		x S2
+ 	}
+-	S4/* ERROR "illegal cycle" */ struct {
++	S4/* DISABLED "illegal cycle" */ struct {
+ 		S4
+ 	}
+ 	S5 struct {
+ 		S6
+ 	}
+-	S6 /* ERROR "illegal cycle" */ struct {
++	S6 /* DISABLED "illegal cycle" */ struct {
+ 		field S7
+ 	}
+ 	S7 struct {
+@@ -91,8 +91,8 @@ type (
+ 	L2 []int
+ 
+ 	A1 [10]int
+-	A2 /* ERROR "illegal cycle" */ [10]A2
+-	A3 /* ERROR "illegal cycle" */ [10]struct {
++	A2 /* DISABLED "illegal cycle" */ [10]A2
++	A3 /* DISABLED "illegal cycle" */ [10]struct {
+ 		x A4
+ 	}
+ 	A4 [10]A3
+@@ -127,10 +127,10 @@ type (
+ 		I1
+ 		I1
+ 	}
+-	I8 /* ERROR "illegal cycle" */ interface {
++	I8 /* DISABLED "illegal cycle" */ interface {
+ 		I8
+ 	}
+-	I9 /* ERROR "illegal cycle" */ interface {
++	I9 /* DISABLED "illegal cycle" */ interface {
+ 		I10
+ 	}
+ 	I10 interface {

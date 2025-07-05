@@ -13,7 +13,76 @@ Date:   Tue Apr 6 13:48:31 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/880043
-
+---
  src/pkg/runtime/proc.c | 19 +++++++++++++------
  test/recover2.go       |  5 +++++
  2 files changed, 18 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 8473cd26f5..454a4a2175 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -352,6 +352,10 @@ stoptheworld(void)
+ 	gcwaiting = 1;
+ 	sched.mcpumax = 1;
+ 	while(sched.mcpu > 1) {
++		// It would be unsafe for multiple threads to be using
++		// the stopped note at once, but there is only
++		// ever one thread doing garbage collection,
++		// so this is okay.
+ 		noteclear(&sched.stopped);
+ 		sched.waitstop = 1;
+ 		unlock(&sched);
+@@ -989,6 +993,8 @@ void
+ 	Stktop *top, *oldtop;
+ 	Panic *p;
+ 
++	fp = getcallersp(fp);
++
+ 	// Must be a panic going on.
+ 	if((p = g->panic) == nil || p->recovered)
+ 		goto nomatch;
+@@ -1113,13 +1119,14 @@ void
+ 	lock(&sched);
+ 	sched.gomaxprocs = n;
+ 	sched.mcpumax = n;
+-	// handle fewer procs
+-	while(sched.mcpu > sched.mcpumax) {
+-		noteclear(&sched.stopped);
+-		sched.waitstop = 1;
++	// handle fewer procs?
++	if(sched.mcpu > sched.mcpumax) {
+ 		unlock(&sched);
+-		notesleep(&sched.stopped);
+-		lock(&sched);
++		// just give up the cpu.
++		// we'll only get rescheduled once the
++		// number has come down.
++		gosched();
++		return;
+ 	}
+ 	// handle more procs
+ 	matchmg();
+diff --git a/test/recover2.go b/test/recover2.go
+index 96d591a15b..a6f75770c9 100644
+--- a/test/recover2.go
++++ b/test/recover2.go
+@@ -15,6 +15,7 @@ package main
+ import (
+ 	"os"
+ 	"strings"
++	"syscall"
+ )
+ 
+ var x = make([]byte, 10)
+@@ -80,6 +81,10 @@ func test6() {
+ }
+ 
+ func test7() {
++	if syscall.ARCH == "arm" {
++		// ARM doesn't have floating point yet
++		return
++	}
+ 	defer mustRecover("complex divide by zero")
+ 	var x, y complex
+ 	println(x / y)

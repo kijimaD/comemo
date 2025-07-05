@@ -19,6 +19,25 @@ Date:   Fri Apr 9 14:00:59 2021 -0400
     Trust: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/objabi/exp.go | 7 ++++---
  1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/exp.go b/src/cmd/internal/objabi/exp.go
+index 48201ae5ea..5ebbdac772 100644
+--- a/src/cmd/internal/objabi/exp.go
++++ b/src/cmd/internal/objabi/exp.go
+@@ -54,9 +54,10 @@ func parseExperiments() goexperiment.Flags {
+ 				continue
+ 			}
+ 			if f == "none" {
+-				// GOEXPERIMENT=none restores the baseline configuration.
+-				// (This is useful for overriding make.bash-time settings.)
+-				flags = goexperiment.BaselineFlags
++				// GOEXPERIMENT=none disables all experiment flags.
++				// This is used by cmd/dist, which doesn't know how
++				// to build with any experiment flags.
++				flags = goexperiment.Flags{}
+ 				continue
+ 			}
+ 			val := true

@@ -7,7 +7,52 @@ Date:   Thu Apr 4 14:18:52 2013 -0700
     R=golang-dev, dvyukov, khr, cshapiro
     CC=golang-dev
     https://golang.org/cl/8392043
-
+---
  src/pkg/runtime/malloc.goc | 4 ++--
  src/pkg/runtime/mgc0.c     | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index a30129ffc1..f1d25a793f 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -160,7 +160,7 @@ runtime·free(void *v)
+ 	if(sizeclass == 0) {
+ 		// Large object.
+ 		size = s->npages<<PageShift;
+-		*(uintptr*)(s->start<<PageShift) = 1;	// mark as "needs to be zeroed"
++		*(uintptr*)(s->start<<PageShift) = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
+ 		// Must mark v freed before calling unmarkspan and MHeap_Free:
+ 		// they might coalesce v into other spans and change the bitmap further.
+ 		runtime·markfreed(v, size);
+@@ -170,7 +170,7 @@ runtime·free(void *v)
+ 		// Small object.
+ 		size = runtime·class_to_size[sizeclass];
+ 		if(size > sizeof(uintptr))
+-			((uintptr*)v)[1] = 1;	// mark as "needs to be zeroed"
++			((uintptr*)v)[1] = (uintptr)0xfeedfeedfeedfeedll;	// mark as "needs to be zeroed"
+ 		// Must mark v freed before calling MCache_Free:
+ 		// it might coalesce v and other blocks into a bigger span
+ 		// and change the bitmap further.
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2d129eb8ed..caf1b10e34 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1607,7 +1607,7 @@ sweepspan(ParFor *desc, uint32 idx)
+ 		if(cl == 0) {
+ 			// Free large span.
+ 			runtime·unmarkspan(p, 1<<PageShift);
+-			*(uintptr*)p = 1;	// needs zeroing
++			*(uintptr*)p = (uintptr)0xdeaddeaddeaddeadll;	// needs zeroing
+ 			runtime·MHeap_Free(runtime·mheap, s, 1);
+ 			c->local_alloc -= size;
+ 			c->local_nfree++;
+@@ -1622,7 +1622,7 @@ sweepspan(ParFor *desc, uint32 idx)
+ 				break;
+ 			}
+ 			if(size > sizeof(uintptr))
+-				((uintptr*)p)[1] = 1;	// mark as "needs to be zeroed"
++				((uintptr*)p)[1] = (uintptr)0xdeaddeaddeaddeadll;	// mark as "needs to be zeroed"
+ 			
+ 			end->next = (MLink*)p;
+ 			end = (MLink*)p;

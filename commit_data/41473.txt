@@ -12,8 +12,42 @@ Date:   Sat Oct 5 11:26:40 2019 +1000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/internal/syscall/windows/mksyscall.go          | 2 +-
  src/internal/syscall/windows/registry/mksyscall.go | 2 +-
  src/syscall/syscall.go                             | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/windows/mksyscall.go b/src/internal/syscall/windows/mksyscall.go
+index 0bf87dc95c..95e36f7aa3 100644
+--- a/src/internal/syscall/windows/mksyscall.go
++++ b/src/internal/syscall/windows/mksyscall.go
+@@ -6,4 +6,4 @@
+ 
+ package windows
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
++//go:generate go run golang.org/x/sys/windows/mkwinsyscall -output zsyscall_windows.go syscall_windows.go security_windows.go psapi_windows.go symlink_windows.go
+diff --git a/src/internal/syscall/windows/registry/mksyscall.go b/src/internal/syscall/windows/registry/mksyscall.go
+index fa8e27e8ff..cb4906a7b2 100644
+--- a/src/internal/syscall/windows/registry/mksyscall.go
++++ b/src/internal/syscall/windows/registry/mksyscall.go
+@@ -6,4 +6,4 @@
+ 
+ package registry
+ 
+-//go:generate go run $GOROOT/src/syscall/mksyscall_windows.go -output zsyscall_windows.go syscall.go
++//go:generate go run golang.org/x/sys/windows/mkwinsyscall -output zsyscall_windows.go syscall.go
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index e02fc502c7..980ef9d27f 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -26,7 +26,7 @@
+ //
+ package syscall
+ 
+-//go:generate go run mksyscall_windows.go -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
++//go:generate go run golang.org/x/sys/windows/mkwinsyscall -systemdll -output zsyscall_windows.go syscall_windows.go security_windows.go
+ 
+ // StringByteSlice converts a string to a NUL-terminated []byte,
+ // If s contains a NUL byte this function panics instead of

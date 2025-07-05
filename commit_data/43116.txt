@@ -17,6 +17,47 @@ Date:   Fri Feb 7 14:00:26 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index c2b6121c00..cf6bec8053 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1239,6 +1239,7 @@ func TestPackageNameAttr(t *testing.T) {
+ 	}
+ 
+ 	rdr := d.Reader()
++	runtimeUnitSeen := false
+ 	for {
+ 		e, err := rdr.Next()
+ 		if err != nil {
+@@ -1254,12 +1255,26 @@ func TestPackageNameAttr(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		_, ok := e.Val(dwarfAttrGoPackageName).(string)
++		pn, ok := e.Val(dwarfAttrGoPackageName).(string)
+ 		if !ok {
+ 			name, _ := e.Val(dwarf.AttrName).(string)
+ 			t.Errorf("found compile unit without package name: %s", name)
++
++		}
++		if pn == "" {
++			name, _ := e.Val(dwarf.AttrName).(string)
++			t.Errorf("found compile unit with empty package name: %s", name)
++		} else {
++			if pn == "runtime" {
++				runtimeUnitSeen = true
++			}
+ 		}
+ 	}
++
++	// Something is wrong if there's no runtime compilation unit.
++	if !runtimeUnitSeen {
++		t.Errorf("no package name for runtime unit")
++	}
+ }
+ 
+ func TestMachoIssue32233(t *testing.T) {

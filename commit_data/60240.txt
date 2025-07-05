@@ -12,7 +12,7 @@ Date:   Sun Jun 2 00:51:35 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/rangefunc/rangefunc_test.go | 2 +-
  src/crypto/tls/handshake_server_test.go              | 4 ++--
  src/go/printer/printer_test.go                       | 2 +-
@@ -20,3 +20,91 @@ Date:   Sun Jun 2 00:51:35 2024 +0800
  src/image/gif/writer_test.go                         | 2 +-
  src/internal/trace/order.go                          | 2 +-
  6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+index cd180f95a1..97ab254395 100644
+--- a/src/cmd/compile/internal/rangefunc/rangefunc_test.go
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -1407,7 +1407,7 @@ func TestVeryBad2(t *testing.T) {
+ 	}
+ }
+ 
+-// TestCheckVeryBad checks the behavior of an extremely poorly behaved iterator,
++// TestVeryBadCheck checks the behavior of an extremely poorly behaved iterator,
+ // which also suppresses the exceptions from "Check"
+ func TestVeryBadCheck(t *testing.T) {
+ 	result := veryBadCheck([]int{10, 20, 30, 40}) // even length
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index bc45a289c1..44bc8f1bb7 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -1078,7 +1078,7 @@ func TestHandshakeServerSNIGetCertificate(t *testing.T) {
+ 	runServerTestTLS12(t, test)
+ }
+ 
+-// TestHandshakeServerSNICertForNameNotFound is similar to
++// TestHandshakeServerSNIGetCertificateNotFound is similar to
+ // TestHandshakeServerSNICertForName, but tests to make sure that when the
+ // GetCertificate method doesn't return a cert, we fall back to what's in
+ // the NameToCertificate map.
+@@ -1096,7 +1096,7 @@ func TestHandshakeServerSNIGetCertificateNotFound(t *testing.T) {
+ 	runServerTestTLS12(t, test)
+ }
+ 
+-// TestHandshakeServerSNICertForNameError tests to make sure that errors in
++// TestHandshakeServerSNIGetCertificateError tests to make sure that errors in
+ // GetCertificate result in a tls alert.
+ func TestHandshakeServerSNIGetCertificateError(t *testing.T) {
+ 	const errMsg = "TestHandshakeServerSNIGetCertificateError error"
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 6d5b559e50..4d5d3eabed 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -668,7 +668,7 @@ func TestWriteErrors(t *testing.T) {
+ 	}
+ }
+ 
+-// TextX is a skeleton test that can be filled in for debugging one-off cases.
++// TestX is a skeleton test that can be filled in for debugging one-off cases.
+ // Do not remove.
+ func TestX(t *testing.T) {
+ 	const src = `
+diff --git a/src/hash/crc32/crc32_test.go b/src/hash/crc32/crc32_test.go
+index f084612f6f..5a3e134cf7 100644
+--- a/src/hash/crc32/crc32_test.go
++++ b/src/hash/crc32/crc32_test.go
+@@ -199,7 +199,7 @@ func TestMarshalTableMismatch(t *testing.T) {
+ 	}
+ }
+ 
+-// TestSimple tests the slicing-by-8 algorithm.
++// TestSlicing tests the slicing-by-8 algorithm.
+ func TestSlicing(t *testing.T) {
+ 	tab := slicingMakeTable(IEEE)
+ 	testGoldenIEEE(t, func(b []byte) uint32 {
+diff --git a/src/image/gif/writer_test.go b/src/image/gif/writer_test.go
+index 8dd28908d7..a16dbaa1f0 100644
+--- a/src/image/gif/writer_test.go
++++ b/src/image/gif/writer_test.go
+@@ -52,7 +52,7 @@ func averageDelta(m0, m1 image.Image) int64 {
+ 	return averageDeltaBound(m0, m1, b, b)
+ }
+ 
+-// averageDeltaBounds returns the average delta in RGB space. The average delta is
++// averageDeltaBound returns the average delta in RGB space. The average delta is
+ // calculated in the specified bounds.
+ func averageDeltaBound(m0, m1 image.Image, b0, b1 image.Rectangle) int64 {
+ 	var sum, n int64
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 9765df6177..4b3b8029fd 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -1262,7 +1262,7 @@ func (s *rangeState) hasRange(typ rangeType) bool {
+ 	return false
+ }
+ 
+-// endsRange ends a special range in time on the goroutine.
++// endRange ends a special range in time on the goroutine.
+ //
+ // This must line up with the start event type  of the range the goroutine is currently in.
+ func (s *rangeState) endRange(typ event.Type) (stringID, error) {

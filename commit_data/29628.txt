@@ -14,6 +14,44 @@ Date:   Thu Sep 29 09:22:01 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 18 ++++++++++++------
  1 file changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 70860231a3..c47863db47 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1155,8 +1155,10 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ }
+ 
+ func aconsize(ctxt *obj.Link) int {
+-	t := int(immrot(uint32(ctxt.Instoffset)))
+-	if t != 0 {
++	if t := int(immrot(uint32(ctxt.Instoffset))); t != 0 {
++		return C_RACON
++	}
++	if t := int(immrot(uint32(-ctxt.Instoffset))); t != 0 {
+ 		return C_RACON
+ 	}
+ 	return C_LACON
+@@ -1537,11 +1539,15 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 	case 3: /* add R<<[IR],[R],R */
+ 		o1 = mov(ctxt, p)
+ 
+-	case 4: /* add $I,[R],R */
++	case 4: /* MOVW $off(R), R -> add $off,[R],R */
+ 		aclass(ctxt, &p.From)
+-
+-		o1 = oprrr(ctxt, AADD, int(p.Scond))
+-		o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
++		if ctxt.Instoffset < 0 {
++			o1 = oprrr(ctxt, ASUB, int(p.Scond))
++			o1 |= uint32(immrot(uint32(-ctxt.Instoffset)))
++		} else {
++			o1 = oprrr(ctxt, AADD, int(p.Scond))
++			o1 |= uint32(immrot(uint32(ctxt.Instoffset)))
++		}
+ 		r := int(p.From.Reg)
+ 		if r == 0 {
+ 			r = int(o.param)

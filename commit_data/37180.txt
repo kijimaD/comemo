@@ -9,6 +9,43 @@ Date:   Sun Jul 8 17:02:48 2018 -0700
     Change-Id: I62b8b0cd7170941af77281eb3aada3802623ec27
     Reviewed-on: https://go-review.googlesource.com/122587
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/stack_test.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index 5d674470c1..dc65395141 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -7,9 +7,11 @@ package runtime_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"os"
+ 	"reflect"
+ 	"regexp"
+ 	. "runtime"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -126,9 +128,18 @@ func TestStackGrowth(t *testing.T) {
+ 		}()
+ 		<-done
+ 		GC()
++
++		timeout := 20 * time.Second
++		if s := os.Getenv("GO_TEST_TIMEOUT_SCALE"); s != "" {
++			scale, err := strconv.Atoi(s)
++			if err == nil {
++				timeout *= time.Duration(scale)
++			}
++		}
++
+ 		select {
+ 		case <-done:
+-		case <-time.After(20 * time.Second):
++		case <-time.After(timeout):
+ 			if atomic.LoadUint32(&started) == 0 {
+ 				t.Log("finalizer did not start")
+ 			} else {

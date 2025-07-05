@@ -9,7 +9,59 @@ Date:   Fri Jan 11 17:02:21 2013 +1100
     R=golang-dev, minux.ma, bradfitz, rsc, dave
     CC=golang-dev
     https://golang.org/cl/6976050
-
+---
  src/pkg/bytes/buffer.go      |  3 ++-
  src/pkg/bytes/buffer_test.go | 22 ++++++++++++++++++++++
  2 files changed, 24 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/bytes/buffer.go b/src/pkg/bytes/buffer.go
+index 3ae930384f..85c1577985 100644
+--- a/src/pkg/bytes/buffer.go
++++ b/src/pkg/bytes/buffer.go
+@@ -367,7 +367,7 @@ func (b *Buffer) ReadBytes(delim byte) (line []byte, err error) {
+ 	return
+ }
+ 
+-// readSlice is like readBytes but returns a reference to internal buffer data.
++// readSlice is like ReadBytes but returns a reference to internal buffer data.
+ func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
+ 	i := IndexByte(b.buf[b.off:], delim)
+ 	end := b.off + i + 1
+@@ -377,6 +377,7 @@ func (b *Buffer) readSlice(delim byte) (line []byte, err error) {
+ 	}
+ 	line = b.buf[b.off:end]
+ 	b.off = end
++	b.lastRead = opRead
+ 	return line, err
+ }
+ 
+diff --git a/src/pkg/bytes/buffer_test.go b/src/pkg/bytes/buffer_test.go
+index 69b2507733..f9fb2625a0 100644
+--- a/src/pkg/bytes/buffer_test.go
++++ b/src/pkg/bytes/buffer_test.go
+@@ -453,3 +453,25 @@ func TestReadEmptyAtEOF(t *testing.T) {
+ 		t.Errorf("wrong count; got %d want 0", n)
+ 	}
+ }
++
++func TestUnreadByte(t *testing.T) {
++	b := new(Buffer)
++	b.WriteString("abcdefghijklmnopqrstuvwxyz")
++
++	_, err := b.ReadBytes('m')
++	if err != nil {
++		t.Fatalf("ReadBytes: %v", err)
++	}
++
++	err = b.UnreadByte()
++	if err != nil {
++		t.Fatalf("UnreadByte: %v", err)
++	}
++	c, err := b.ReadByte()
++	if err != nil {
++		t.Fatalf("ReadByte: %v", err)
++	}
++	if c != 'm' {
++		t.Errorf("ReadByte = %q; want %q", c, 'm')
++	}
++}

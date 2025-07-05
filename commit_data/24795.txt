@@ -7,7 +7,94 @@ Date:   Fri Aug 28 23:59:04 2015 -0400
     Change-Id: I15bf55aa5ac3588c05f0a253f583c52bab209892
     Reviewed-on: https://go-review.googlesource.com/14041
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/runtime/asm_ppc64x.s | 59 ++++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/noasm.go     |  4 ++--
  2 files changed, 61 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 60e6b8c4a4..6646dd8b9d 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1115,6 +1115,65 @@ notfound:
+ 	MOVD	R3, ret+24(FP)
+ 	RET
+ 
++TEXT runtime·cmpstring(SB),NOSPLIT,$-4-40
++	MOVD	s1_base+0(FP), R5
++	MOVD	s1_len+8(FP), R3
++	MOVD	s2_base+16(FP), R6
++	MOVD	s2_len+24(FP), R4
++	MOVD	$ret+32(FP), R7
++	BR	runtime·cmpbody<>(SB)
++
++TEXT bytes·Compare(SB),NOSPLIT,$-4-56
++	MOVD	s1+0(FP), R5
++	MOVD	s1+8(FP), R3
++	MOVD	s2+24(FP), R6
++	MOVD	s2+32(FP), R4
++	MOVD	$ret+48(FP), R7
++	BR	runtime·cmpbody<>(SB)
++
++// On entry:
++// R3 is the length of s1
++// R4 is the length of s2
++// R5 points to the start of s1
++// R6 points to the start of s2
++// R7 points to return value (-1/0/1 will be written here)
++//
++// On exit:
++// R5, R6, R8, R9 and R10 are clobbered
++TEXT runtime·cmpbody<>(SB),NOSPLIT,$-4-0
++	CMP	R5, R6
++	BEQ	samebytes // same starting pointers; compare lengths
++	SUB	$1, R5
++	SUB	$1, R6
++	MOVD	R4, R8
++	CMP	R3, R4
++	BGE	2(PC)
++	MOVD	R3, R8	// R8 is min(R3, R4)
++	ADD	R5, R8	// R5 is current byte in s1, R8 is last byte in s1 to compare
++loop:
++	CMP	R5, R8
++	BEQ	samebytes // all compared bytes were the same; compare lengths
++	MOVBZU	1(R5), R9
++	MOVBZU	1(R6), R10
++	CMP	R9, R10
++	BEQ	loop
++	// bytes differed
++	MOVD	$1, R4
++	BGT	2(PC)
++	NEG	R4
++	MOVD	R4, (R7)
++	RET
++samebytes:
++	MOVD	$1, R8
++	CMP	R3, R4
++	BNE	3(PC)
++	MOVD	R0, (R7)
++	RET
++	BGT	2(PC)
++	NEG	R8
++	MOVD	R8, (R7)
++	RET
++
+ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVD	g_m(g), R4
+ 	MOVWZ	m_fastrand(R4), R3
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 218e121bf7..30fa31c3ab 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64}.s
++// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x}.s
+ 
+-// +build ppc64 ppc64le
++// +build ignore
+ 
+ package runtime
+ 

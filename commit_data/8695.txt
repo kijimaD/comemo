@@ -7,7 +7,46 @@ Date:   Fri Jun 10 17:19:01 2011 -0700
     R=r, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/4572049
-
+---
  src/pkg/go/scanner/scanner.go      | 3 ++-
  src/pkg/go/scanner/scanner_test.go | 6 +++---
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 509abeca57..795f0ac15b 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -22,6 +22,7 @@ package scanner
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/token"
+ 	"path/filepath"
+ 	"strconv"
+@@ -674,7 +675,7 @@ scanAgain:
+ 			tok = S.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
+ 		default:
+ 			if S.mode&AllowIllegalChars == 0 {
+-				S.error(offs, "illegal character "+strconv.QuoteRune(ch))
++				S.error(offs, fmt.Sprintf("illegal character %#U", ch))
+ 			}
+ 			insertSemi = S.insertSemi // preserve insertSemi info
+ 		}
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index ee1e830a18..c096e2725e 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -650,9 +650,9 @@ var errors = []struct {
+ 	pos int
+ 	err string
+ }{
+-	{"\a", token.ILLEGAL, 0, "illegal character '\\a'"},
+-	{`#`, token.ILLEGAL, 0, "illegal character '#'"},
+-	{`…`, token.ILLEGAL, 0, "illegal character '…'"},
++	{"\a", token.ILLEGAL, 0, "illegal character U+0007"},
++	{`#`, token.ILLEGAL, 0, "illegal character U+0023 '#'"},
++	{`…`, token.ILLEGAL, 0, "illegal character U+2026 '…'"},
+ 	{`' '`, token.CHAR, 0, ""},
+ 	{`''`, token.CHAR, 0, "illegal character literal"},
+ 	{`'\8'`, token.CHAR, 2, "unknown escape sequence"},

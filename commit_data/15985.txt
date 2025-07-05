@@ -25,7 +25,361 @@ Date:   Thu Mar 28 11:35:24 2013 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/8101043
-
+---
  src/pkg/net/http/serve_test.go | 222 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/server.go     |  52 ++++++++--
  2 files changed, 265 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index c64d12b54e..7ad1395a62 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"crypto/tls"
++	"errors"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -1451,6 +1452,198 @@ func TestOptions(t *testing.T) {
+ 	}
+ }
+ 
++// Tests regarding the ordering of Write, WriteHeader, Header, and
++// Flush calls.  In Go 1.0, rw.WriteHeader immediately flushed the
++// (*response).header to the wire. In Go 1.1, the actual wire flush is
++// delayed, so we could maybe tack on a Content-Length and better
++// Content-Type after we see more (or all) of the output. To preserve
++// compatibility with Go 1, we need to be careful to track which
++// headers were live at the time of WriteHeader, so we write the same
++// ones, even if the handler modifies them (~erroneously) after the
++// first Write.
++func TestHeaderToWire(t *testing.T) {
++	req := []byte(strings.Replace(`GET / HTTP/1.1
++Host: golang.org
++
++`, "\n", "\r\n", -1))
++
++	tests := []struct {
++		name    string
++		handler func(ResponseWriter, *Request)
++		check   func(output string) error
++	}{
++		{
++			name: "write without Header",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Write([]byte("hello world"))
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Length:") {
++					return errors.New("no content-length")
++				}
++				if !strings.Contains(got, "Content-Type: text/plain") {
++					return errors.New("no content-length")
++				}
++				return nil
++			},
++		},
++		{
++			name: "Header mutation before write",
++			handler: func(rw ResponseWriter, r *Request) {
++				h := rw.Header()
++				h.Set("Content-Type", "some/type")
++				rw.Write([]byte("hello world"))
++				h.Set("Too-Late", "bogus")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Length:") {
++					return errors.New("no content-length")
++				}
++				if !strings.Contains(got, "Content-Type: some/type") {
++					return errors.New("wrong content-type")
++				}
++				if strings.Contains(got, "Too-Late") {
++					return errors.New("don't want too-late header")
++				}
++				return nil
++			},
++		},
++		{
++			name: "write then useless Header mutation",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Write([]byte("hello world"))
++				rw.Header().Set("Too-Late", "Write already wrote headers")
++			},
++			check: func(got string) error {
++				if strings.Contains(got, "Too-Late") {
++					return errors.New("header appeared from after WriteHeader")
++				}
++				return nil
++			},
++		},
++		{
++			name: "flush then write",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.(Flusher).Flush()
++				rw.Write([]byte("post-flush"))
++				rw.Header().Set("Too-Late", "Write already wrote headers")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Transfer-Encoding: chunked") {
++					return errors.New("not chunked")
++				}
++				if strings.Contains(got, "Too-Late") {
++					return errors.New("header appeared from after WriteHeader")
++				}
++				return nil
++			},
++		},
++		{
++			name: "header then flush",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Header().Set("Content-Type", "some/type")
++				rw.(Flusher).Flush()
++				rw.Write([]byte("post-flush"))
++				rw.Header().Set("Too-Late", "Write already wrote headers")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Transfer-Encoding: chunked") {
++					return errors.New("not chunked")
++				}
++				if strings.Contains(got, "Too-Late") {
++					return errors.New("header appeared from after WriteHeader")
++				}
++				if !strings.Contains(got, "Content-Type: some/type") {
++					return errors.New("wrong content-length")
++				}
++				return nil
++			},
++		},
++		{
++			name: "sniff-on-first-write content-type",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Write([]byte("<html><head></head><body>some html</body></html>"))
++				rw.Header().Set("Content-Type", "x/wrong")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Type: text/html") {
++					return errors.New("wrong content-length; want html")
++				}
++				return nil
++			},
++		},
++		{
++			name: "explicit content-type wins",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Header().Set("Content-Type", "some/type")
++				rw.Write([]byte("<html><head></head><body>some html</body></html>"))
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Type: some/type") {
++					return errors.New("wrong content-length; want html")
++				}
++				return nil
++			},
++		},
++		{
++			name: "empty handler",
++			handler: func(rw ResponseWriter, r *Request) {
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Content-Type: text/plain") {
++					return errors.New("wrong content-length; want text/plain")
++				}
++				if !strings.Contains(got, "Content-Length: 0") {
++					return errors.New("want 0 content-length")
++				}
++				return nil
++			},
++		},
++		{
++			name: "only Header, no write",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.Header().Set("Some-Header", "some-value")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "Some-Header") {
++					return errors.New("didn't get header")
++				}
++				return nil
++			},
++		},
++		{
++			name: "WriteHeader call",
++			handler: func(rw ResponseWriter, r *Request) {
++				rw.WriteHeader(404)
++				rw.Header().Set("Too-Late", "some-value")
++			},
++			check: func(got string) error {
++				if !strings.Contains(got, "404") {
++					return errors.New("wrong status")
++				}
++				if strings.Contains(got, "Some-Header") {
++					return errors.New("shouldn't have seen Too-Late")
++				}
++				return nil
++			},
++		},
++	}
++	for _, tc := range tests {
++		var output bytes.Buffer
++		conn := &rwTestConn{
++			Reader: bytes.NewReader(req),
++			Writer: &output,
++			closec: make(chan bool, 1),
++		}
++		ln := &oneConnListener{conn: conn}
++		go Serve(ln, HandlerFunc(tc.handler))
++		<-conn.closec
++		if err := tc.check(output.String()); err != nil {
++			t.Errorf("%s: %v\nGot response:\n%s", tc.name, err, output.Bytes())
++		}
++	}
++}
++
+ // goTimeout runs f, failing t if f takes more than ns to complete.
+ func goTimeout(t *testing.T, d time.Duration, f func()) {
+ 	ch := make(chan bool, 2)
+@@ -1710,3 +1903,32 @@ Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.3
+ 		b.Errorf("b.N=%d but handled %d", b.N, handled)
+ 	}
+ }
++
++// same as above, but representing the most simple possible request
++// and handler. Notably: the handler does not call rw.Header().
++func BenchmarkServerFakeConnWithKeepAliveLite(b *testing.B) {
++	b.ReportAllocs()
++
++	req := []byte(strings.Replace(`GET / HTTP/1.1
++Host: golang.org
++
++`, "\n", "\r\n", -1))
++	res := []byte("Hello world!\n")
++
++	conn := &rwTestConn{
++		Reader: &repeatReader{content: req, count: b.N},
++		Writer: ioutil.Discard,
++		closec: make(chan bool, 1),
++	}
++	handled := 0
++	handler := HandlerFunc(func(rw ResponseWriter, r *Request) {
++		handled++
++		rw.Write(res)
++	})
++	ln := &oneConnListener{conn: conn}
++	go Serve(ln, handler)
++	<-conn.closec
++	if b.N != handled {
++		b.Errorf("b.N=%d but handled %d", b.N, handled)
++	}
++}
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 8a325720a0..c38c4c8e15 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -222,9 +222,17 @@ const bufferBeforeChunkingSize = 2048
+ //
+ // See the comment above (*response).Write for the entire write flow.
+ type chunkWriter struct {
+-	res         *response
+-	header      Header // a deep copy of r.Header, once WriteHeader is called
+-	wroteHeader bool   // whether the header's been sent
++	res *response
++
++	// header is either the same as res.handlerHeader,
++	// or a deep clone if the handler called Header.
++	header Header
++
++	// wroteHeader tells whether the header's been written to "the
++	// wire" (or rather: w.conn.buf). this is unlike
++	// (*response).wroteHeader, which tells only whether it was
++	// logically written.
++	wroteHeader bool
+ 
+ 	// set by the writeHeader method:
+ 	chunking bool // using chunked transfer encoding for reply body
+@@ -288,6 +296,7 @@ type response struct {
+ 	// handlerHeader is copied into cw.header at WriteHeader
+ 	// time, and privately mutated thereafter.
+ 	handlerHeader Header
++	calledHeader  bool // handler accessed handlerHeader via Header
+ 
+ 	written       int64 // number of bytes written in body
+ 	contentLength int64 // explicitly-declared Content-Length; or -1
+@@ -557,6 +566,13 @@ func (c *conn) readRequest() (w *response, err error) {
+ }
+ 
+ func (w *response) Header() Header {
++	if w.cw.header == nil && w.wroteHeader && !w.cw.wroteHeader {
++		// Accessing the header between logically writing it
++		// and physically writing it means we need to allocate
++		// a clone to snapshot the logically written state.
++		w.cw.header = w.handlerHeader.clone()
++	}
++	w.calledHeader = true
+ 	return w.handlerHeader
+ }
+ 
+@@ -583,15 +599,17 @@ func (w *response) WriteHeader(code int) {
+ 	w.wroteHeader = true
+ 	w.status = code
+ 
+-	w.cw.header = w.handlerHeader.clone()
++	if w.calledHeader && w.cw.header == nil {
++		w.cw.header = w.handlerHeader.clone()
++	}
+ 
+-	if cl := w.cw.header.get("Content-Length"); cl != "" {
++	if cl := w.handlerHeader.get("Content-Length"); cl != "" {
+ 		v, err := strconv.ParseInt(cl, 10, 64)
+ 		if err == nil && v >= 0 {
+ 			w.contentLength = v
+ 		} else {
+ 			log.Printf("http: invalid Content-Length of %q", cl)
+-			w.cw.header.Del("Content-Length")
++			w.handlerHeader.Del("Content-Length")
+ 		}
+ 	}
+ }
+@@ -611,14 +629,29 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 	cw.wroteHeader = true
+ 
+ 	w := cw.res
+-	code := w.status
+-	done := w.handlerDone
++
++	if cw.header == nil {
++		if w.handlerDone {
++			// The handler won't be making further changes to the
++			// response header map, so we use it directly.
++			cw.header = w.handlerHeader
++		} else {
++			// Snapshot the header map, since it might be some
++			// time before we actually write w.cw to the wire and
++			// we don't want the handler's potential future
++			// (arguably buggy) modifications to the map to make
++			// it into the written headers. This preserves
++			// compatibility with Go 1.0, which always flushed the
++			// headers on a call to rw.WriteHeader.
++			cw.header = w.handlerHeader.clone()
++		}
++	}
+ 
+ 	// If the handler is done but never sent a Content-Length
+ 	// response header and this is our first (and last) write, set
+ 	// it, even to zero. This helps HTTP/1.0 clients keep their
+ 	// "keep-alive" connections alive.
+-	if done && cw.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
++	if w.handlerDone && cw.header.get("Content-Length") == "" && w.req.Method != "HEAD" {
+ 		w.contentLength = int64(len(p))
+ 		cw.header.Set("Content-Length", strconv.Itoa(len(p)))
+ 	}
+@@ -665,6 +698,7 @@ func (cw *chunkWriter) writeHeader(p []byte) {
+ 		}
+ 	}
+ 
++	code := w.status
+ 	if code == StatusNotModified {
+ 		// Must not have body.
+ 		for _, header := range []string{"Content-Type", "Content-Length", "Transfer-Encoding"} {

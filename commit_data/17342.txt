@@ -9,7 +9,32 @@ Date:   Tue Aug 20 08:21:58 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/12831044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6982a4e420..149ad9e903 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -294,6 +294,7 @@ Shane Hansen <shanemhansen@gmail.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
++Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d5d85ecc60..b92726a531 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -417,6 +417,7 @@ Shawn Ledbetter <sledbetter@google.com>
+ Shawn Smith <shawn.p.smith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Shivakumar GN <shivakumar.gn@gmail.com>
++Sokolov Yura <funny.falcon@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+ Stéphane Travostino <stephane.travostino@gmail.com>

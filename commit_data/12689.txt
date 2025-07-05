@@ -7,7 +7,44 @@ Date:   Tue Mar 20 13:35:31 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5847070
-
+---
  misc/dashboard/godashboard/project.html | 1 +
  misc/dashboard/godashboard/project.py   | 6 ------
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/misc/dashboard/godashboard/project.html b/misc/dashboard/godashboard/project.html
+index 9aa071cf29..2d2429461c 100644
+--- a/misc/dashboard/godashboard/project.html
++++ b/misc/dashboard/godashboard/project.html
+@@ -6,6 +6,7 @@
+   </head>
+ 
+   <body>
++    <ul class="menu"><li><a href="http://golang.org/">golang.org</a></li></ul>
+     <h1>Go Projects</h1>
+     
+     <p>
+diff --git a/misc/dashboard/godashboard/project.py b/misc/dashboard/godashboard/project.py
+index 7413b7d20b..b13599d5ea 100644
+--- a/misc/dashboard/godashboard/project.py
++++ b/misc/dashboard/godashboard/project.py
+@@ -22,7 +22,6 @@ class Project(db.Model):
+     name = db.StringProperty(indexed=True)
+     descr = db.StringProperty()
+     web_url = db.StringProperty()
+-    package = db.ReferenceProperty(Package)
+     category = db.StringProperty(indexed=True)
+     tags = db.ListProperty(str)
+     approved = db.BooleanProperty(indexed=True)
+@@ -117,11 +116,6 @@ class ProjectPage(webapp.RequestHandler):
+             if self.request.get("do") == "Delete":
+                 p.delete()
+             else:
+-                pkg_name = self.request.get("package", None)
+-                if pkg_name:
+-                    pkg = Package.get_by_key_name("pkg-"+pkg_name)
+-                    if pkg:
+-                        p.package = pkg.key()
+                 for f in ['name', 'descr', 'web_url', 'category']:
+                     setattr(p, f, self.request.get(f, None))
+                 p.approved = self.request.get("approved") == "1"

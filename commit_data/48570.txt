@@ -13,7 +13,64 @@ Date:   Fri May 28 22:32:41 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  9 +++++++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 62699f290c..530e48bcb2 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2868,3 +2868,12 @@
+ 	&& isInlinableMemmove(dst, src, sz, config)
+ 	&& clobber(s1, s2, s3, call)
+ 	=> (Move [sz] dst src mem)
++
++// Match post-lowering calls, register version.
++(SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
++	&& sz >= 0
++	&& isSameCall(sym, "runtime.memmove")
++	&& call.Uses == 1
++	&& isInlinableMemmove(dst, src, sz, config)
++	&& clobber(call)
++	=> (Move [sz] dst src mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index debe5f2c2a..f7840c5503 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -26031,6 +26031,34 @@ func rewriteValueARM64_OpSelectN(v *Value) bool {
+ 		v.AddArg3(dst, src, mem)
+ 		return true
+ 	}
++	// match: (SelectN [0] call:(CALLstatic {sym} dst src (MOVDconst [sz]) mem))
++	// cond: sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)
++	// result: (Move [sz] dst src mem)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 {
++			break
++		}
++		call := v_0
++		if call.Op != OpARM64CALLstatic || len(call.Args) != 4 {
++			break
++		}
++		sym := auxToCall(call.Aux)
++		mem := call.Args[3]
++		dst := call.Args[0]
++		src := call.Args[1]
++		call_2 := call.Args[2]
++		if call_2.Op != OpARM64MOVDconst {
++			break
++		}
++		sz := auxIntToInt64(call_2.AuxInt)
++		if !(sz >= 0 && isSameCall(sym, "runtime.memmove") && call.Uses == 1 && isInlinableMemmove(dst, src, sz, config) && clobber(call)) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = int64ToAuxInt(sz)
++		v.AddArg3(dst, src, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpSlicemask(v *Value) bool {

@@ -7,6 +7,24 @@ Date:   Mon Jul 8 14:14:17 2019 -0400
     Change-Id: I1b2e369befc58b3f88ac201442a2d9f76d87d54e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/185257
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/devel/release.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6ab1c1b878..99106b4cd2 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -168,6 +168,12 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.11">Go
+ 1.11.11 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.11.12 (released 2019/07/08) includes fixes to the compiler and the linker.
++See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.11.12">Go
++1.11.12 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

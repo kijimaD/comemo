@@ -17,7 +17,7 @@ Date:   Thu Aug 25 21:58:45 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  5 +++-
  src/cmd/link/internal/amd64/obj.go   |  4 ---
  src/cmd/link/internal/arm/asm.go     |  5 +++-
@@ -39,3 +39,516 @@ Date:   Thu Aug 25 21:58:45 2016 -0400
  src/runtime/plugin.go                | 13 +++++++++
  src/runtime/symtab.go                |  2 ++
  20 files changed, 119 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 0d8444eea4..ea31d6a739 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -59,7 +59,7 @@ func gentext(ctxt *ld.Link) {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+-	if addmoduledata.Type == obj.STEXT {
++	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+@@ -86,6 +86,9 @@ func gentext(ctxt *ld.Link) {
+ 	//    c:	c3                   	retq
+ 	o(0xc3)
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
++	if ld.Buildmode == ld.BuildmodePlugin {
++		ctxt.Textp = append(ctxt.Textp, addmoduledata)
++	}
+ 	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 0494050d86..5f85b0b2b3 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -90,10 +90,6 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 68efc2129a..e246d0f71a 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -63,7 +63,7 @@ func gentext(ctxt *ld.Link) {
+ 		return
+ 	}
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+-	if addmoduledata.Type == obj.STEXT {
++	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+@@ -96,6 +96,9 @@ func gentext(ctxt *ld.Link) {
+ 	rel.Add = 4
+ 
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
++	if ld.Buildmode == ld.BuildmodePlugin {
++		ctxt.Textp = append(ctxt.Textp, addmoduledata)
++	}
+ 	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 0b599b4bc1..d82c5a2583 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -85,10 +85,6 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 5ab3262cb6..c1d2ff5cc8 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -103,10 +103,6 @@ func archinit(ctxt *ld.Link) {
+ 		break
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3fd2deb157..7ac0eb5b2e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1367,7 +1367,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	/* shared library initializer */
+ 	switch Buildmode {
+-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePlugin:
+ 		hasinitarr = true
+ 	}
+ 	if hasinitarr {
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 9f49cf2dfc..6d3f74a039 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -243,6 +243,16 @@ func (d *deadcodepass) init() {
+ 		names = append(names, *flagEntrySymbol)
+ 		if *FlagLinkshared && (Buildmode == BuildmodeExe || Buildmode == BuildmodePIE) {
+ 			names = append(names, "main.main", "main.init")
++		} else if Buildmode == BuildmodePlugin {
++			pluginInit := d.ctxt.Library[0].Pkg + ".init"
++			names = append(names, pluginInit, "go.plugin.tabs")
++
++			// We don't keep the go.plugin.exports symbol,
++			// but we do keep the symbols it refers to.
++			exports := Linkrlookup(d.ctxt, "go.plugin.exports", 0)
++			for _, r := range exports.R {
++				d.mark(r.Sym, nil)
++			}
+ 		}
+ 		for _, name := range markextra {
+ 			names = append(names, name)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 85935b67f9..70cf2540ce 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1910,7 +1910,7 @@ func (ctxt *Link) doelf() {
+ 
+ 	/* shared library initializer */
+ 	switch Buildmode {
+-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared:
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePlugin:
+ 		hasinitarr = true
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 02f70f1a45..89fc8ddca6 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -228,7 +228,7 @@ func loadcgo(ctxt *Link, file string, pkg string, p string) {
+ 			s = Linklookup(ctxt, local, 0)
+ 
+ 			switch Buildmode {
+-			case BuildmodeCShared, BuildmodeCArchive:
++			case BuildmodeCShared, BuildmodeCArchive, BuildmodePlugin:
+ 				if s == Linklookup(ctxt, "main", 0) {
+ 					continue
+ 				}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 9c95d478b5..dada4cb7a7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -164,14 +164,18 @@ type Section struct {
+ // DynlinkingGo returns whether we are producing Go code that can live
+ // in separate shared libraries linked together at runtime.
+ func (ctxt *Link) DynlinkingGo() bool {
+-	return Buildmode == BuildmodeShared || *FlagLinkshared
++	if !ctxt.Loaded {
++		panic("DynlinkingGo called before all symbols loaded")
++	}
++	canUsePlugins := Linkrlookup(ctxt, "plugin.Open", 0) != nil
++	return Buildmode == BuildmodeShared || *FlagLinkshared || Buildmode == BuildmodePlugin || canUsePlugins
+ }
+ 
+ // UseRelro returns whether to make use of "read only relocations" aka
+ // relro.
+ func UseRelro() bool {
+ 	switch Buildmode {
+-	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE:
++	case BuildmodeCArchive, BuildmodeCShared, BuildmodeShared, BuildmodePIE, BuildmodePlugin:
+ 		return Iself
+ 	default:
+ 		return *FlagLinkshared
+@@ -299,16 +303,12 @@ func libinit(ctxt *Link) {
+ 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", obj.GOARCH, obj.GOOS)
+ 		case BuildmodeExe, BuildmodePIE:
+ 			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", obj.GOARCH, obj.GOOS)
+-		case BuildmodeShared:
+-			// No *flagEntrySymbol for -buildmode=shared
++		case BuildmodeShared, BuildmodePlugin:
++			// No *flagEntrySymbol for -buildmode=shared and plugin
+ 		default:
+ 			ctxt.Diag("unknown *flagEntrySymbol for buildmode %v", Buildmode)
+ 		}
+ 	}
+-
+-	if !ctxt.DynlinkingGo() {
+-		Linklookup(ctxt, *flagEntrySymbol, 0).Type = obj.SXREF
+-	}
+ }
+ 
+ func Exitf(format string, a ...interface{}) {
+@@ -400,7 +400,7 @@ func (ctxt *Link) findLibPath(libname string) string {
+ 
+ func (ctxt *Link) loadlib() {
+ 	switch Buildmode {
+-	case BuildmodeCShared:
++	case BuildmodeCShared, BuildmodePlugin:
+ 		s := Linklookup(ctxt, "runtime.islibrary", 0)
+ 		s.Attr |= AttrDuplicateOK
+ 		Adduint8(ctxt, s, 1)
+@@ -453,9 +453,14 @@ func (ctxt *Link) loadlib() {
+ 			Linkmode = LinkExternal
+ 		}
+ 
+-		// Force external linking for PIE binaries on systems
+-		// that do not support internal PIE linking.
+-		if Buildmode == BuildmodePIE {
++		// These build modes depend on the external linker
++		// to handle some relocations (such as TLS IE) not
++		// yet supported by the internal linker.
++		switch Buildmode {
++		case BuildmodeCArchive, BuildmodeCShared, BuildmodePIE, BuildmodePlugin, BuildmodeShared:
++			Linkmode = LinkExternal
++		}
++		if *FlagLinkshared {
+ 			Linkmode = LinkExternal
+ 		}
+ 
+@@ -492,7 +497,7 @@ func (ctxt *Link) loadlib() {
+ 			if ctxt.Library[i].Shlib != "" {
+ 				ldshlibsyms(ctxt, ctxt.Library[i].Shlib)
+ 			} else {
+-				if ctxt.DynlinkingGo() {
++				if Buildmode == BuildmodeShared || *FlagLinkshared {
+ 					Exitf("cannot implicitly include runtime/cgo in a shared library")
+ 				}
+ 				objfile(ctxt, ctxt.Library[i])
+@@ -531,7 +536,13 @@ func (ctxt *Link) loadlib() {
+ 	tlsg.Attr |= AttrReachable
+ 	ctxt.Tlsg = tlsg
+ 
+-	moduledata := Linklookup(ctxt, "runtime.firstmoduledata", 0)
++	var moduledata *Symbol
++	if Buildmode == BuildmodePlugin {
++		moduledata = Linklookup(ctxt, "local.pluginmoduledata", 0)
++		moduledata.Attr |= AttrLocal
++	} else {
++		moduledata = Linklookup(ctxt, "runtime.firstmoduledata", 0)
++	}
+ 	if moduledata.Type != 0 && moduledata.Type != obj.SDYNIMPORT {
+ 		// If the module (toolchain-speak for "executable or shared
+ 		// library") we are linking contains the runtime package, it
+@@ -626,6 +637,8 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	// We've loaded all the code now.
++	ctxt.Loaded = true
++
+ 	// If there are no dynamic libraries needed, gcc disables dynamic linking.
+ 	// Because of this, glibc's dynamic ELF loader occasionally (like in version 2.13)
+ 	// assumes that a dynamic binary always refers to at least one dynamic library.
+@@ -642,6 +655,14 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
++	if SysArch == sys.Arch386 {
++		if (Buildmode == BuildmodeCArchive && Iself) || Buildmode == BuildmodeCShared || Buildmode == BuildmodePIE || ctxt.DynlinkingGo() {
++			got := Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
++			got.Type = obj.SDYNIMPORT
++			got.Attr |= AttrReachable
++		}
++	}
++
+ 	importcycles()
+ }
+ 
+@@ -1012,7 +1033,7 @@ func (l *Link) hostlink() {
+ 			// non-closeable: a dlclose will do nothing.
+ 			argv = append(argv, "-shared", "-Wl,-z,nodelete")
+ 		}
+-	case BuildmodeShared:
++	case BuildmodeShared, BuildmodePlugin:
+ 		if UseRelro() {
+ 			argv = append(argv, "-Wl,-z,relro")
+ 		}
+@@ -1658,7 +1679,7 @@ func stkcheck(ctxt *Link, up *chain, depth int) int {
+ 		// onlyctxt.Diagnose the direct caller.
+ 		// TODO(mwhudson): actually think about this.
+ 		if depth == 1 && s.Type != obj.SXREF && !ctxt.DynlinkingGo() &&
+-			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared {
++			Buildmode != BuildmodeCArchive && Buildmode != BuildmodePIE && Buildmode != BuildmodeCShared && Buildmode != BuildmodePlugin {
+ 			ctxt.Diag("call to external function %s", s.Name)
+ 		}
+ 		return -1
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index e8a98889f4..9b93e0336a 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -165,6 +165,8 @@ type Link struct {
+ 	Bso       *bufio.Writer
+ 	Windows   int32
+ 
++	Loaded bool // set after all inputs have been loaded as symbols
++
+ 	// Symbol lookup based on name and indexed by version.
+ 	Hash []map[string]*Symbol
+ 
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d5eeb73bd1..c480cc531a 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -37,6 +37,7 @@ import (
+ 	"flag"
+ 	"log"
+ 	"os"
++	"path/filepath"
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+@@ -158,7 +159,8 @@ func Main() {
+ 		ctxt.Logf("HEADER = -H%d -T0x%x -D0x%x -R0x%x\n", Headtype, uint64(*FlagTextAddr), uint64(*FlagDataAddr), uint32(*FlagRound))
+ 	}
+ 
+-	if Buildmode == BuildmodeShared {
++	switch Buildmode {
++	case BuildmodeShared:
+ 		for i := 0; i < flag.NArg(); i++ {
+ 			arg := flag.Arg(i)
+ 			parts := strings.SplitN(arg, "=", 2)
+@@ -172,7 +174,10 @@ func Main() {
+ 			pkglistfornote = append(pkglistfornote, '\n')
+ 			addlibpath(ctxt, "command line", "command line", file, pkgpath, "")
+ 		}
+-	} else {
++	case BuildmodePlugin:
++		pluginName := strings.TrimSuffix(filepath.Base(flag.Arg(0)), ".a")
++		addlibpath(ctxt, "command line", "command line", flag.Arg(0), pluginName, "")
++	default:
+ 		addlibpath(ctxt, "command line", "command line", flag.Arg(0), "main", "")
+ 	}
+ 	ctxt.loadlib()
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 4b5ae5dee9..ee48252867 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -585,7 +585,7 @@ func (r *objReader) readSymName() string {
+ 			}
+ 			r.rdBuf = adjName[:0] // in case 2*n wasn't enough
+ 
+-			if r.ctxt.DynlinkingGo() {
++			if Buildmode == BuildmodeShared || *FlagLinkshared {
+ 				// These types are included in the symbol
+ 				// table when dynamically linking. To keep
+ 				// binary size down, we replace the names
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index a5e2e6fb9e..319a69e364 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -184,6 +184,7 @@ const (
+ 	BuildmodeCArchive
+ 	BuildmodeCShared
+ 	BuildmodeShared
++	BuildmodePlugin
+ )
+ 
+ func (mode *BuildMode) Set(s string) error {
+@@ -234,6 +235,18 @@ func (mode *BuildMode) Set(s string) error {
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeShared
++	case "plugin":
++		switch obj.GOOS {
++		case "linux":
++			switch obj.GOARCH {
++			case "386", "amd64", "arm", "arm64":
++			default:
++				return badmode()
++			}
++		default:
++			return badmode()
++		}
++		*mode = BuildmodePlugin
+ 	}
+ 	return nil
+ }
+@@ -252,6 +265,8 @@ func (mode *BuildMode) String() string {
+ 		return "c-shared"
+ 	case BuildmodeShared:
+ 		return "shared"
++	case BuildmodePlugin:
++		return "plugin"
+ 	}
+ 	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
+ }
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 7d9e25f8ff..dc948d3bf2 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -553,6 +553,22 @@ func (ctxt *Link) symtab() {
+ 	Addaddr(ctxt, moduledata, Linklookup(ctxt, "runtime.itablink", 0))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
+ 	adduint(ctxt, moduledata, uint64(nitablinks))
++	// The ptab slice
++	if Buildmode == BuildmodePlugin {
++		ptab := Linkrlookup(ctxt, "go.plugin.tabs", 0)
++		ptab.Attr |= AttrReachable
++		ptab.Attr |= AttrLocal
++		ptab.Type = obj.SRODATA
++
++		nentries := uint64(len(ptab.P) / 8) // sizeof(nameOff) + sizeof(typeOff)
++		Addaddr(ctxt, moduledata, ptab)
++		adduint(ctxt, moduledata, nentries)
++		adduint(ctxt, moduledata, nentries)
++	} else {
++		adduint(ctxt, moduledata, 0)
++		adduint(ctxt, moduledata, 0)
++		adduint(ctxt, moduledata, 0)
++	}
+ 	if len(ctxt.Shlibs) > 0 {
+ 		thismodulename := filepath.Base(*flagOutfile)
+ 		switch Buildmode {
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 4554c52e02..67ad3b70ae 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -86,10 +86,6 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCArchive || ld.Buildmode == ld.BuildmodeCShared || ctxt.DynlinkingGo() {
+-		ld.Linkmode = ld.LinkExternal
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		ld.Exitf("unknown -H option: %v", ld.Headtype)
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index 2f6be25bf9..284d768acd 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -58,7 +58,7 @@ func gentext(ctxt *ld.Link) {
+ 			if !ld.Iself {
+ 				return
+ 			}
+-		case ld.BuildmodePIE, ld.BuildmodeCShared:
++		case ld.BuildmodePIE, ld.BuildmodeCShared, ld.BuildmodePlugin:
+ 			// We need get_pc_thunk.
+ 		default:
+ 			return
+@@ -98,7 +98,7 @@ func gentext(ctxt *ld.Link) {
+ 	}
+ 
+ 	addmoduledata := ld.Linklookup(ctxt, "runtime.addmoduledata", 0)
+-	if addmoduledata.Type == obj.STEXT {
++	if addmoduledata.Type == obj.STEXT && ld.Buildmode != ld.BuildmodePlugin {
+ 		// we're linking a module containing the runtime -> no need for
+ 		// an init function
+ 		return
+@@ -152,6 +152,9 @@ func gentext(ctxt *ld.Link) {
+ 	o(0xc3)
+ 
+ 	ctxt.Textp = append(ctxt.Textp, initfunc)
++	if ld.Buildmode == ld.BuildmodePlugin {
++		ctxt.Textp = append(ctxt.Textp, addmoduledata)
++	}
+ 	initarray_entry := ld.Linklookup(ctxt, "go.link.addmoduledatainit", 0)
+ 	initarray_entry.Attr |= ld.AttrReachable
+ 	initarray_entry.Attr |= ld.AttrLocal
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index 773b5c6b8f..088a446b33 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -85,13 +85,6 @@ func archinit(ctxt *ld.Link) {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if (ld.Buildmode == ld.BuildmodeCArchive && ld.Iself) || ld.Buildmode == ld.BuildmodeCShared || ld.Buildmode == ld.BuildmodePIE || ctxt.DynlinkingGo() {
+-		ld.Linkmode = ld.LinkExternal
+-		got := ld.Linklookup(ctxt, "_GLOBAL_OFFSET_TABLE_", 0)
+-		got.Type = obj.SDYNIMPORT
+-		got.Attr |= ld.AttrReachable
+-	}
+-
+ 	switch ld.Headtype {
+ 	default:
+ 		if ld.Linkmode == ld.LinkAuto {
+diff --git a/src/runtime/plugin.go b/src/runtime/plugin.go
+new file mode 100644
+index 0000000000..f5f3aa2e5b
+--- /dev/null
++++ b/src/runtime/plugin.go
+@@ -0,0 +1,13 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// A ptabEntry is generated by the compiler for each exported function
++// and global variable in the main package of a plugin. It is used to
++// initialize the plugin module's symbol map.
++type ptabEntry struct {
++	name nameOff
++	typ  typeOff
++}
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 7a37085fab..87b478a885 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -198,6 +198,8 @@ type moduledata struct {
+ 	typelinks []int32 // offsets from types
+ 	itablinks []*itab
+ 
++	ptab []ptabEntry
++
+ 	modulename   string
+ 	modulehashes []modulehash
+ 

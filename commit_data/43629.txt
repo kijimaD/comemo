@@ -9,7 +9,7 @@ Date:   Wed Apr 15 13:23:29 2020 -0400
     Run-TryBot: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go      |  5 --
  src/cmd/link/internal/arm/asm.go        |  4 --
  src/cmd/link/internal/arm64/asm.go      |  4 --
@@ -26,3 +26,567 @@ Date:   Wed Apr 15 13:23:29 2020 -0400
  src/cmd/link/internal/wasm/asm.go       |  2 -
  src/cmd/link/internal/x86/asm.go        |  5 --
  15 files changed, 41 insertions(+), 135 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 5c4ffe19c2..d26a9a234c 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -756,7 +756,6 @@ func asmb2(ctxt *ld.Link) {
+ 			if ctxt.IsELF {
+ 				ctxt.Out.SeekSet(symo)
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -766,13 +765,11 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 
+ 		case objabi.Hwindows:
+@@ -817,8 +814,6 @@ func asmb2(ctxt *ld.Link) {
+ 	case objabi.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+-
+-	ctxt.Out.Flush()
+ }
+ 
+ func tlsIEtoLE(s *sym.Symbol, off, size int) {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index f3d1262879..e9eea5ce2c 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -816,7 +816,6 @@ func asmb2(ctxt *ld.Link) {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -826,13 +825,11 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 
+ 		case objabi.Hwindows:
+@@ -863,7 +860,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbpe(ctxt)
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 053b8d119d..46bda74c4c 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -866,7 +866,6 @@ func asmb2(ctxt *ld.Link) {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -876,13 +875,11 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 
+ 		case objabi.Hdarwin:
+@@ -915,7 +912,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbmacho(ctxt)
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 3979880cf4..36708ee5d1 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -32,7 +32,6 @@
+ package ld
+ 
+ import (
+-	"bufio"
+ 	"bytes"
+ 	"cmd/internal/gcprog"
+ 	"cmd/internal/objabi"
+@@ -958,11 +957,10 @@ func Datblk(ctxt *Link, out *OutBuf, addr, size int64) {
+ 
+ // Used only on Wasm for now.
+ func DatblkBytes(ctxt *Link, addr int64, size int64) []byte {
+-	buf := bytes.NewBuffer(make([]byte, 0, size))
+-	out := &OutBuf{w: bufio.NewWriter(buf)}
++	buf := make([]byte, size)
++	out := &OutBuf{heap: buf}
+ 	writeDatblkToOutBuf(ctxt, out, addr, size)
+-	out.Flush()
+-	return buf.Bytes()
++	return buf
+ }
+ 
+ func writeDatblkToOutBuf(ctxt *Link, out *OutBuf, addr int64, size int64) {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index dd089e6efa..ff9d1b51a3 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -319,35 +319,25 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	// for which we have computed the size and offset, in a
+ 	// mmap'd region. The second part writes more content, for
+ 	// which we don't know the size.
+-	var outputMmapped bool
+ 	if ctxt.Arch.Family != sys.Wasm {
+ 		// Don't mmap if we're building for Wasm. Wasm file
+ 		// layout is very different so filesize is meaningless.
+-		err := ctxt.Out.Mmap(filesize)
+-		outputMmapped = err == nil
+-	}
+-	if outputMmapped {
+-		// Asmb will redirect symbols to the output file mmap, and relocations
+-		// will be applied directly there.
+-		bench.Start("Asmb")
+-		thearch.Asmb(ctxt)
+-		bench.Start("reloc")
+-		ctxt.reloc()
+-	} else {
+-		// If we don't mmap, we need to apply relocations before
+-		// writing out.
+-		bench.Start("reloc")
+-		ctxt.reloc()
+-		bench.Start("Asmb")
+-		thearch.Asmb(ctxt)
++		if err := ctxt.Out.Mmap(filesize); err != nil {
++			ctxt.Errorf(0, "error mapping file: %v", err)
++		}
+ 	}
++
++	// Asmb will redirect symbols to the output file mmap, and relocations
++	// will be applied directly there.
++	bench.Start("Asmb")
++	thearch.Asmb(ctxt)
++	bench.Start("reloc")
++	ctxt.reloc()
+ 	bench.Start("Asmb2")
+ 	thearch.Asmb2(ctxt)
+ 
+-	if outputMmapped {
+-		bench.Start("Munmap")
+-		ctxt.Out.Munmap()
+-	}
++	bench.Start("Munmap")
++	ctxt.Out.Close() // Close handles Munmapping if necessary.
+ 
+ 	bench.Start("undef")
+ 	ctxt.undef()
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index c36fc74a44..490d9b5b7a 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -5,7 +5,6 @@
+ package ld
+ 
+ import (
+-	"bufio"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+@@ -61,7 +60,6 @@ type OutBuf struct {
+ 	buf  []byte // backing store of mmap'd output file
+ 	heap []byte // backing store for non-mmapped data
+ 
+-	w      *bufio.Writer
+ 	name   string
+ 	f      *os.File
+ 	encbuf [8]byte // temp buffer used by WriteN methods
+@@ -78,7 +76,6 @@ func (out *OutBuf) Open(name string) error {
+ 	}
+ 	out.off = 0
+ 	out.name = name
+-	out.w = bufio.NewWriter(f)
+ 	out.f = f
+ 	return nil
+ }
+@@ -110,10 +107,17 @@ func (out *OutBuf) Close() error {
+ 	if out.isView {
+ 		return viewCloseError
+ 	}
+-	out.Flush()
++	if out.isMmapped() {
++		return out.Munmap()
++	}
+ 	if out.f == nil {
+ 		return nil
+ 	}
++	if len(out.heap) != 0 {
++		if _, err := out.f.Write(out.heap); err != nil {
++			return err
++		}
++	}
+ 	if err := out.f.Close(); err != nil {
+ 		return err
+ 	}
+@@ -151,10 +155,6 @@ func (out *OutBuf) Munmap() error {
+ // writing. When the mmapped section is full, we switch over the heap memory
+ // for writing.
+ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
+-	if !out.isMmapped() {
+-		panic("shouldn't happen")
+-	}
+-
+ 	// See if we have enough space in the mmaped area.
+ 	bufLen := int64(len(out.buf))
+ 	if out.off+lenToWrite <= bufLen {
+@@ -178,15 +178,6 @@ func (out *OutBuf) writeLoc(lenToWrite int64) (int64, []byte) {
+ }
+ 
+ func (out *OutBuf) SeekSet(p int64) {
+-	if p == out.off {
+-		return
+-	}
+-	if !out.isMmapped() {
+-		out.Flush()
+-		if _, err := out.f.Seek(p, 0); err != nil {
+-			Exitf("seeking to %d in %s: %v", p, out.name, err)
+-		}
+-	}
+ 	out.off = p
+ }
+ 
+@@ -195,33 +186,18 @@ func (out *OutBuf) Offset() int64 {
+ }
+ 
+ // Write writes the contents of v to the buffer.
+-//
+-// As Write is backed by a bufio.Writer, callers do not have
+-// to explicitly handle the returned error as long as Flush is
+-// eventually called.
+ func (out *OutBuf) Write(v []byte) (int, error) {
+-	if out.isMmapped() {
+-		n := len(v)
+-		pos, buf := out.writeLoc(int64(n))
+-		copy(buf[pos:], v)
+-		out.off += int64(n)
+-		return n, nil
+-	}
+-	n, err := out.w.Write(v)
++	n := len(v)
++	pos, buf := out.writeLoc(int64(n))
++	copy(buf[pos:], v)
+ 	out.off += int64(n)
+-	return n, err
++	return n, nil
+ }
+ 
+ func (out *OutBuf) Write8(v uint8) {
+-	if out.isMmapped() {
+-		pos, buf := out.writeLoc(1)
+-		buf[pos] = v
+-		out.off++
+-		return
+-	}
+-	if err := out.w.WriteByte(v); err == nil {
+-		out.off++
+-	}
++	pos, buf := out.writeLoc(1)
++	buf[pos] = v
++	out.off++
+ }
+ 
+ // WriteByte is an alias for Write8 to fulfill the io.ByteWriter interface.
+@@ -256,16 +232,11 @@ func (out *OutBuf) Write64b(v uint64) {
+ }
+ 
+ func (out *OutBuf) WriteString(s string) {
+-	if out.isMmapped() {
+-		pos, buf := out.writeLoc(int64(len(s)))
+-		n := copy(buf[pos:], s)
+-		if n != len(s) {
+-			log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
+-		}
+-		out.off += int64(n)
+-		return
++	pos, buf := out.writeLoc(int64(len(s)))
++	n := copy(buf[pos:], s)
++	if n != len(s) {
++		log.Fatalf("WriteString truncated. buffer size: %d, offset: %d, len(s)=%d", len(out.buf), out.off, len(s))
+ 	}
+-	n, _ := out.w.WriteString(s)
+ 	out.off += int64(n)
+ }
+ 
+@@ -297,26 +268,10 @@ func (out *OutBuf) WriteStringPad(s string, n int, pad []byte) {
+ // edit to the symbol content.
+ // If the output file is not Mmap'd, just writes the content.
+ func (out *OutBuf) WriteSym(s *sym.Symbol) {
+-	// NB: We inline the Write call for speediness.
+-	if out.isMmapped() {
+-		n := int64(len(s.P))
+-		pos, buf := out.writeLoc(n)
+-		copy(buf[pos:], s.P)
+-		out.off += n
+-		s.P = buf[pos : pos+n]
+-		s.Attr.Set(sym.AttrReadOnly, false)
+-	} else {
+-		n, _ := out.w.Write(s.P)
+-		out.off += int64(n)
+-	}
+-}
+-
+-func (out *OutBuf) Flush() {
+-	var err error
+-	if out.w != nil {
+-		err = out.w.Flush()
+-	}
+-	if err != nil {
+-		Exitf("flushing %s: %v", out.name, err)
+-	}
++	n := int64(len(s.P))
++	pos, buf := out.writeLoc(n)
++	copy(buf[pos:], s.P)
++	out.off += n
++	s.P = buf[pos : pos+n]
++	s.Attr.Set(sym.AttrReadOnly, false)
+ }
+diff --git a/src/cmd/link/internal/ld/outbuf_test.go b/src/cmd/link/internal/ld/outbuf_test.go
+index aae206f511..58f9b10cfa 100644
+--- a/src/cmd/link/internal/ld/outbuf_test.go
++++ b/src/cmd/link/internal/ld/outbuf_test.go
+@@ -50,6 +50,7 @@ func TestWriteLoc(t *testing.T) {
+ 		{100, 100, 0, 100, 100, 0, true},
+ 		{10, 10, 0, 100, 100, 0, true},
+ 		{10, 20, 10, 100, 110, 10, true},
++		{0, 0, 0, 100, 100, 0, true},
+ 	}
+ 
+ 	for i, test := range tests {
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 4ff123e8cd..9fe3669eee 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1389,7 +1389,6 @@ func (f *xcoffFile) writeLdrScn(ctxt *Link, globalOff uint64) {
+ 	}
+ 
+ 	f.loaderSize = off + uint64(stlen)
+-	ctxt.Out.Flush()
+ 
+ 	/* again for printing */
+ 	if !*flagA {
+@@ -1559,8 +1558,6 @@ func Asmbxcoff(ctxt *Link, fileoff int64) {
+ 	// write string table
+ 	xfile.stringTable.write(ctxt.Out)
+ 
+-	ctxt.Out.Flush()
+-
+ 	// write headers
+ 	xcoffwrite(ctxt)
+ }
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index b50112ad75..21a57ccbb0 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -204,7 +204,6 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+ 		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Flush()
+ 		ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 		if ctxt.LinkMode == ld.LinkExternal {
+@@ -220,7 +219,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbelf(ctxt, int64(symo))
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 1b2914eea3..0a2a3c11f3 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -223,7 +223,6 @@ func asmb2(ctxt *ld.Link) {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -233,13 +232,11 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 		}
+ 	}
+@@ -268,7 +265,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbelf(ctxt, int64(symo))
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index d86738538d..0e3a691432 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1130,7 +1130,6 @@ func asmb2(ctxt *ld.Link) {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -1140,18 +1139,15 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 
+ 		case objabi.Haix:
+ 			// symtab must be added once sections have been created in ld.Asmbxcoff
+-			ctxt.Out.Flush()
+ 		}
+ 	}
+ 
+@@ -1180,7 +1176,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbxcoff(ctxt, int64(fileoff))
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index db3b602b84..51cc5980c8 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -142,7 +142,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ctxt.Out.SeekSet(int64(symo))
+ 
+ 		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Flush()
+ 		ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 		if ctxt.LinkMode == ld.LinkExternal {
+@@ -157,7 +156,6 @@ func asmb2(ctxt *ld.Link) {
+ 	default:
+ 		ld.Errorf(nil, "unsupported operating system")
+ 	}
+-	ctxt.Out.Flush()
+ 
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 5d55a19072..9b6be28421 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -515,7 +515,6 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		ctxt.Out.SeekSet(int64(symo))
+ 		ld.Asmelfsym(ctxt)
+-		ctxt.Out.Flush()
+ 		ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 		if ctxt.LinkMode == ld.LinkExternal {
+@@ -531,7 +530,6 @@ func asmb2(ctxt *ld.Link) {
+ 		ld.Asmbelf(ctxt, int64(symo))
+ 	}
+ 
+-	ctxt.Out.Flush()
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+ 		fmt.Printf("datsize=%d\n", ld.Segdata.Filelen)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 550ed5bc3c..7f8742d008 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -187,8 +187,6 @@ func asmb2(ctxt *ld.Link) {
+ 	if !*ld.FlagS {
+ 		writeNameSec(ctxt, len(hostImports), fns)
+ 	}
+-
+-	ctxt.Out.Flush()
+ }
+ 
+ func lookupType(sig *wasmFuncType, types *[]*wasmFuncType) uint32 {
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index cbc79c987b..7dcdda0fa8 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -646,7 +646,6 @@ func asmb2(ctxt *ld.Link) {
+ 		default:
+ 			if ctxt.IsELF {
+ 				ld.Asmelfsym(ctxt)
+-				ctxt.Out.Flush()
+ 				ctxt.Out.Write(ld.Elfstrdat)
+ 
+ 				if ctxt.LinkMode == ld.LinkExternal {
+@@ -656,13 +655,11 @@ func asmb2(ctxt *ld.Link) {
+ 
+ 		case objabi.Hplan9:
+ 			ld.Asmplan9sym(ctxt)
+-			ctxt.Out.Flush()
+ 
+ 			sym := ctxt.Syms.Lookup("pclntab", 0)
+ 			if sym != nil {
+ 				ld.Lcsize = int32(len(sym.P))
+ 				ctxt.Out.Write(sym.P)
+-				ctxt.Out.Flush()
+ 			}
+ 
+ 		case objabi.Hwindows:
+@@ -702,6 +699,4 @@ func asmb2(ctxt *ld.Link) {
+ 	case objabi.Hwindows:
+ 		ld.Asmbpe(ctxt)
+ 	}
+-
+-	ctxt.Out.Flush()
+ }

@@ -7,7 +7,7 @@ Date:   Thu Jan 28 15:57:44 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/194129
-
+---
  src/cmd/gc/Makefile   |  2 +-
  src/cmd/gc/go.errors  | 16 ++++++++--------
  src/cmd/gc/lex.c      | 22 +++++++++++++---------
@@ -20,3 +20,208 @@ Date:   Thu Jan 28 15:57:44 2010 -0800
  test/syntax/semi6.go  |  2 +-
  test/syntax/semi7.go  |  2 +-
  11 files changed, 30 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 16bfc66398..0ca9e9d28e 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -49,7 +49,7 @@ $(LIB): $(OFILES)
+ $(OFILES): $(HFILES)
+ 
+ y.tab.h: $(YFILES)
+-	bison -v -y $(YFLAGS) $(YFILES)
++	LANG=C bison -v -y $(YFLAGS) $(YFILES)
+ 
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+diff --git a/src/cmd/gc/go.errors b/src/cmd/gc/go.errors
+index 215f28c5a2..3cb718adb1 100644
+--- a/src/cmd/gc/go.errors
++++ b/src/cmd/gc/go.errors
+@@ -15,28 +15,28 @@ static struct {
+ 	// by that token list.
+ 	
+ 	% loadsys package LIMPORT '(' LLITERAL import_package import_there ','
+-	"unexpected , during import block",
++	"unexpected comma during import block",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LIF if_header ';'
+-	"unexpected ; or newline before {",
++	"unexpected semicolon or newline before {",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LSWITCH if_header ';'
+-	"unexpected ; or newline before {",
++	"unexpected semicolon or newline before {",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR for_header ';'
+-	"unexpected ; or newline before {",
++	"unexpected semicolon or newline before {",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' LFOR ';' LBODY
+-	"unexpected ; or newline before {",
++	"unexpected semicolon or newline before {",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' ';' '{'
+-	"unexpected ; or newline before {",
++	"unexpected semicolon or newline before {",
+ 	
+ 	% loadsys package imports LTYPE LNAME ';'
+-	"unexpected ; or newline in type declaration",
++	"unexpected semicolon or newline in type declaration",
+ 	
+ 	% loadsys package imports LFUNC LNAME '(' ')' '{' if_stmt ';' LELSE
+-	"unexpected ; or newline before else",
++	"unexpected semicolon or newline before else",
+ 	
+ 	% loadsys package imports LTYPE LNAME LINTERFACE '{' LNAME ',' LNAME
+ 	"name list not allowed in interface type",
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 4d74bb9631..175d7a3efc 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1523,6 +1523,10 @@ struct
+ 	"LRSH",	">>",
+ 	"LOROR",	"||",
+ 	"LNE",	"!=",
++	
++	// spell out to avoid confusion with punctuation in error messages
++	"';'",	"semicolon or newline",
++	"','",	"comma",
+ };
+ 
+ void
+@@ -1535,21 +1539,21 @@ yytinit(void)
+ 	for(i=0; yytname[i] != nil; i++) {
+ 		s = yytname[i];
+ 		
++		// apply yytfix if possible
++		for(j=0; j<nelem(yytfix); j++) {
++			if(strcmp(s, yytfix[j].have) == 0) {
++				yytname[i] = yytfix[j].want;
++				goto loop;
++			}
++		}
++
+ 		// turn 'x' into x.
+ 		if(s[0] == '\'') {
+ 			t = strdup(s+1);
+ 			t[strlen(t)-1] = '\0';
+ 			yytname[i] = t;
+-			continue;
+-		}
+-		
+-		// apply yytfix to the rest
+-		for(j=0; j<nelem(yytfix); j++) {
+-			if(strcmp(s, yytfix[j].have) == 0) {
+-				yytname[i] = yytfix[j].want;
+-				break;
+-			}
+ 		}
++	loop:;
+ 	}		
+ }
+ 
+diff --git a/test/syntax/import.go b/test/syntax/import.go
+index 90e7df007e..dd1f261344 100644
+--- a/test/syntax/import.go
++++ b/test/syntax/import.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ import (
+-	"io",	// ERROR "unexpected ,"
++	"io",	// ERROR "unexpected comma"
+ 	"os"
+ )
+ 
+diff --git a/test/syntax/semi1.go b/test/syntax/semi1.go
+index c805bb0064..5ec776bba6 100644
+--- a/test/syntax/semi1.go
++++ b/test/syntax/semi1.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	if x; y	// ERROR "unexpected ; or newline before {"
++	if x; y	// ERROR "unexpected semicolon or newline before {"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi2.go b/test/syntax/semi2.go
+index 237fac8f3b..14800a33e7 100644
+--- a/test/syntax/semi2.go
++++ b/test/syntax/semi2.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch x; y	// ERROR "unexpected ; or newline before {"
++	switch x; y	// ERROR "unexpected semicolon or newline before {"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi3.go b/test/syntax/semi3.go
+index 2dbcb59843..d8e037fdc0 100644
+--- a/test/syntax/semi3.go
++++ b/test/syntax/semi3.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	for x; y; z	// ERROR "unexpected ; or newline before {"
++	for x; y; z	// ERROR "unexpected semicolon or newline before {"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 2268cf75af..81134c19b4 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	for x
+-	{	// ERROR "unexpected ; or newline before {"
++	{	// ERROR "unexpected semicolon or newline before {"
+ 		z
+ 
+ 
+diff --git a/test/syntax/semi5.go b/test/syntax/semi5.go
+index 7f907fb8f8..0ba4df8d6d 100644
+--- a/test/syntax/semi5.go
++++ b/test/syntax/semi5.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main()
+-{	// ERROR "unexpected ; or newline before {"
++{	// ERROR "unexpected semicolon or newline before {"
+ 
+ 
+ 
+diff --git a/test/syntax/semi6.go b/test/syntax/semi6.go
+index 75de3e0a15..b6279ed307 100644
+--- a/test/syntax/semi6.go
++++ b/test/syntax/semi6.go
+@@ -6,7 +6,7 @@
+ 
+ package main
+ 
+-type T	// ERROR "unexpected ; or newline in type declaration"
++type T	// ERROR "unexpected semicolon or newline in type declaration"
+ {
+ 
+ 
+diff --git a/test/syntax/semi7.go b/test/syntax/semi7.go
+index 4589043575..a4271ddc5c 100644
+--- a/test/syntax/semi7.go
++++ b/test/syntax/semi7.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	if x { }
+-	else { }	// ERROR "unexpected ; or newline before else"
++	else { }	// ERROR "unexpected semicolon or newline before else"
+ }
+ 
+ 

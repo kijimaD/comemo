@@ -7,7 +7,44 @@ Date:   Tue Sep 28 10:35:02 2010 -0400
     R=ken2, gri
     CC=golang-dev
     https://golang.org/cl/2208053
-
+---
  src/cmd/gc/lex.c | 9 ++-------
  test/eof.go      | 9 +++++++++
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b46aa2ae08..8289648ba9 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1247,13 +1247,8 @@ yylex(void)
+ 	lx = _yylex();
+ 	
+ 	if(curio.nlsemi && lx == EOF) {
+-		// if the nlsemi bit is set, we'd be willing to
+-		// insert a ; if we saw a \n, but we didn't.
+-		// that means the final \n is missing.
+-		// complain here, because we can give a
+-		// good message.  the syntax error we'd get
+-		// otherwise is inscrutable.
+-		yyerror("missing newline at end of file");
++		// Treat EOF as "end of line" for the purposes
++		// of inserting a semicolon.
+ 		lx = ';';
+ 	}
+ 
+diff --git a/test/eof.go b/test/eof.go
+new file mode 100644
+index 0000000000..81f9fd028f
+--- /dev/null
++++ b/test/eof.go
+@@ -0,0 +1,9 @@
++// $G $D/$F.go
++
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// No newline at the end of this file.
++
++package main
+\ No newline at end of file

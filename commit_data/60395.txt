@@ -12,8 +12,75 @@ Date:   Wed Jul 10 18:37:00 2024 -0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/strings/compare.go | 2 +-
  src/strings/replace.go | 2 +-
  src/strings/strings.go | 8 ++++----
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/strings/compare.go b/src/strings/compare.go
+index b3c01fddc1..dcf442471a 100644
+--- a/src/strings/compare.go
++++ b/src/strings/compare.go
+@@ -10,7 +10,7 @@ import "internal/bytealg"
+ // The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
+ //
+ // Use Compare when you need to perform a three-way comparison (with
+-// slices.SortFunc, for example). It is usually clearer and always faster
++// [slices.SortFunc], for example). It is usually clearer and always faster
+ // to use the built-in string comparison operators ==, <, >, and so on.
+ func Compare(a, b string) int {
+ 	return bytealg.CompareString(a, b)
+diff --git a/src/strings/replace.go b/src/strings/replace.go
+index 3b17a55b91..ae12728800 100644
+--- a/src/strings/replace.go
++++ b/src/strings/replace.go
+@@ -299,7 +299,7 @@ func makeGenericReplacer(oldnew []string) *genericReplacer {
+ 
+ type appendSliceWriter []byte
+ 
+-// Write writes to the buffer to satisfy io.Writer.
++// Write writes to the buffer to satisfy [io.Writer].
+ func (w *appendSliceWriter) Write(p []byte) (int, error) {
+ 	*w = append(*w, p...)
+ 	return len(p), nil
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 95180828f6..fba303c12a 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -121,7 +121,7 @@ func IndexByte(s string, c byte) int {
+ 
+ // IndexRune returns the index of the first instance of the Unicode code point
+ // r, or -1 if rune is not present in s.
+-// If r is utf8.RuneError, it returns the first instance of any
++// If r is [utf8.RuneError], it returns the first instance of any
+ // invalid UTF-8 byte sequence.
+ func IndexRune(s string, r rune) int {
+ 	switch {
+@@ -275,7 +275,7 @@ func genSplit(s, sep string, sepSave, n int) []string {
+ // Edge cases for s and sep (for example, empty strings) are handled
+ // as described in the documentation for [Split].
+ //
+-// To split around the first instance of a separator, see Cut.
++// To split around the first instance of a separator, see [Cut].
+ func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ 
+ // SplitAfterN slices s into substrings after each instance of sep and
+@@ -304,7 +304,7 @@ func SplitAfterN(s, sep string, n int) []string {
+ //
+ // It is equivalent to [SplitN] with a count of -1.
+ //
+-// To split around the first instance of a separator, see Cut.
++// To split around the first instance of a separator, see [Cut].
+ func Split(s, sep string) []string { return genSplit(s, sep, 0, -1) }
+ 
+ // SplitAfter slices s into all substrings after each instance of sep and
+@@ -324,7 +324,7 @@ func SplitAfter(s, sep string) []string {
+ var asciiSpace = [256]uint8{'\t': 1, '\n': 1, '\v': 1, '\f': 1, '\r': 1, ' ': 1}
+ 
+ // Fields splits the string s around each instance of one or more consecutive white space
+-// characters, as defined by unicode.IsSpace, returning a slice of substrings of s or an
++// characters, as defined by [unicode.IsSpace], returning a slice of substrings of s or an
+ // empty slice if s contains only white space.
+ func Fields(s string) []string {
+ 	// First count the fields.

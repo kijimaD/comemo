@@ -10,6 +10,30 @@ Date:   Fri Nov 4 15:07:34 2011 -0400
     R=golang-dev, rsc, n13m3y3r, gustavo
     CC=golang-dev, gustavo.niemeyer
     https://golang.org/cl/5280052
-
+---
  src/cmd/goinstall/make.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index c724cda47b..7445c9c207 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -109,7 +109,7 @@ func makeMakefile(dir, pkg string, tree *build.Tree, isCmd bool) ([]byte, error)
+ 	return buf.Bytes(), nil
+ }
+ 
+-var safeBytes = []byte("+-./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
++var safeBytes = []byte("+-~./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz")
+ 
+ func safeName(s string) bool {
+ 	if s == "" {
+@@ -118,6 +118,9 @@ func safeName(s string) bool {
+ 	if strings.Contains(s, "..") {
+ 		return false
+ 	}
++	if s[0] == '~' {
++		return false
++	}
+ 	for i := 0; i < len(s); i++ {
+ 		if c := s[i]; c < 0x80 && bytes.IndexByte(safeBytes, c) < 0 {
+ 			return false

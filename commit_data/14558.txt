@@ -13,6 +13,28 @@ Date:   Tue Dec 4 16:51:51 2012 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/6867064
-
+---
  test/fixedbugs/bug273.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug273.go b/test/fixedbugs/bug273.go
+index c5e73e945c..aabb912b91 100644
+--- a/test/fixedbugs/bug273.go
++++ b/test/fixedbugs/bug273.go
+@@ -11,6 +11,7 @@ package main
+ var bug = false
+ 
+ var minus1 = -1
++var five = 5
+ var big int64 = 10 | 1<<32
+ 
+ type block [1<<19]byte
+@@ -40,7 +41,7 @@ func badcap() {
+ }
+ 
+ func badcap1() {
+-	g1 = make([]block, 10, 5)
++	g1 = make([]block, 10, five)
+ }
+ 
+ func bigcap() {

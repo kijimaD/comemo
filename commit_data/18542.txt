@@ -10,7 +10,39 @@ Date:   Sat Feb 15 20:03:41 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/64480043
-
+---
  src/run.bash | 3 ++-
  src/run.bat  | 6 +++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index c67c764ec1..4252247791 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -57,7 +57,8 @@ go test sync -short -timeout=$(expr 120 \* $timeout_scale)s -cpu=10
+ 
+ # Race detector only supported on Linux and OS X,
+ # and only on amd64, and only when cgo is enabled.
+-# Disabled due to golang.org/issue/7334; remove XXX below to reenable.
++# Disabled due to golang.org/issue/7334; remove XXX below
++# and in run.bat to reenable.
+ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+ XXXlinux-linux-amd64-1 | XXXdarwin-darwin-amd64-1)
+ 	echo
+diff --git a/src/run.bat b/src/run.bat
+index 48f6711ff5..9389d981cf 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -52,7 +52,11 @@ go test sync -short -timeout=120s -cpu=10
+ if errorlevel 1 goto fail
+ echo.
+ 
+-if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "windows-windows-amd64-1" goto norace
++# Race detector only supported on Linux and OS X,
++# and only on amd64, and only when cgo is enabled.
++# Disabled due to golang.org/issue/7334; remove XXX below
++# and in run.bash to reenable.
++if not "%GOHOSTOS%-%GOOS%-%GOARCH%-%CGO_ENABLED%" == "XXXwindows-windows-amd64-1" goto norace
+ echo # Testing race detector.
+ go test -race -i runtime/race flag
+ if errorlevel 1 goto fail

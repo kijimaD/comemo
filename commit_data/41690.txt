@@ -20,10 +20,128 @@ Date:   Wed Apr 10 17:23:05 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/runtime/mgcscavenge.go |  3 +--
  src/runtime/netpoll.go     |  6 ++----
  src/runtime/time.go        | 18 ++++++++++++++++++
  src/time/internal_test.go  |  3 +--
  src/time/sleep.go          |  4 ++--
  5 files changed, 24 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 0273c8d234..0a67f74150 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -268,8 +268,7 @@ func scavengeSleep(ns int64) bool {
+ 	// because we can't close over any variables without
+ 	// failing escape analysis.
+ 	now := nanotime()
+-	scavenge.timer.when = now + ns
+-	startTimer(scavenge.timer)
++	resetTimer(scavenge.timer, now+ns)
+ 
+ 	// Mark ourself as asleep and go to sleep.
+ 	scavenge.parked = true
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 7d18dcaeea..536dae3d4f 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -239,13 +239,12 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	if pd.rt.f == nil {
+ 		if pd.rd > 0 {
+ 			pd.rt.f = rtf
+-			pd.rt.when = pd.rd
+ 			// Copy current seq into the timer arg.
+ 			// Timer func will check the seq against current descriptor seq,
+ 			// if they differ the descriptor was reused or timers were reset.
+ 			pd.rt.arg = pd
+ 			pd.rt.seq = pd.rseq
+-			addtimer(&pd.rt)
++			resettimer(&pd.rt, pd.rd)
+ 		}
+ 	} else if pd.rd != rd0 || combo != combo0 {
+ 		pd.rseq++ // invalidate current timers
+@@ -259,10 +258,9 @@ func poll_runtime_pollSetDeadline(pd *pollDesc, d int64, mode int) {
+ 	if pd.wt.f == nil {
+ 		if pd.wd > 0 && !combo {
+ 			pd.wt.f = netpollWriteDeadline
+-			pd.wt.when = pd.wd
+ 			pd.wt.arg = pd
+ 			pd.wt.seq = pd.wseq
+-			addtimer(&pd.wt)
++			resettimer(&pd.wt, pd.wd)
+ 		}
+ 	} else if pd.wd != wd0 || combo != combo0 {
+ 		pd.wseq++ // invalidate current timers
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index d667d11244..5521b8a807 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -116,6 +116,15 @@ func stopTimer(t *timer) bool {
+ 	return deltimer(t)
+ }
+ 
++// resetTimer resets an inactive timer, adding it to the heap.
++//go:linkname resetTimer time.resetTimer
++func resetTimer(t *timer, when int64) {
++	if raceenabled {
++		racerelease(unsafe.Pointer(t))
++	}
++	resettimer(t, when)
++}
++
+ // Go runtime.
+ 
+ // Ready the goroutine arg.
+@@ -236,6 +245,15 @@ func modtimer(t *timer, when, period int64, f func(interface{}, uintptr), arg in
+ 	}
+ }
+ 
++// resettimer resets an existing inactive timer to turn it into an active timer,
++// with a new time for when the timer should fire.
++// This should be called instead of addtimer if the timer value has been,
++// or may have been, used previously.
++func resettimer(t *timer, when int64) {
++	t.when = when
++	addtimer(t)
++}
++
+ // Timerproc runs the time-driven events.
+ // It sleeps until the next event in the tb heap.
+ // If addtimer inserts a new earlier event, it wakes timerproc early.
+diff --git a/src/time/internal_test.go b/src/time/internal_test.go
+index 336deb9211..3bca88e2b9 100644
+--- a/src/time/internal_test.go
++++ b/src/time/internal_test.go
+@@ -64,8 +64,7 @@ func CheckRuntimeTimerOverflow() {
+ 		// once more.
+ 		stopTimer(r)
+ 		t.Stop()
+-		r.when = 0
+-		startTimer(r)
++		resetTimer(r, 0)
+ 	}()
+ 
+ 	// If the test fails, we will hang here until the timeout in the testing package
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 2cc908da55..b381a1f73b 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -38,6 +38,7 @@ func when(d Duration) int64 {
+ 
+ func startTimer(*runtimeTimer)
+ func stopTimer(*runtimeTimer) bool
++func resetTimer(*runtimeTimer, int64)
+ 
+ // The Timer type represents a single event.
+ // When the Timer expires, the current time will be sent on C,
+@@ -122,8 +123,7 @@ func (t *Timer) Reset(d Duration) bool {
+ 	}
+ 	w := when(d)
+ 	active := stopTimer(&t.r)
+-	t.r.when = w
+-	startTimer(&t.r)
++	resetTimer(&t.r, w)
+ 	return active
+ }
+ 

@@ -14,9 +14,81 @@ Date:   Fri Feb 10 14:30:44 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5655047
-
+---
  src/pkg/unicode/graphic.go    | 3 +--
  src/pkg/unicode/letter.go     | 6 +++---
  src/pkg/unicode/maketables.go | 2 +-
  src/pkg/unicode/tables.go     | 2 +-
  4 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/unicode/graphic.go b/src/pkg/unicode/graphic.go
+index 2904da6c6d..0de90ebd80 100644
+--- a/src/pkg/unicode/graphic.go
++++ b/src/pkg/unicode/graphic.go
+@@ -53,7 +53,6 @@ func IsPrint(r rune) bool {
+ }
+ 
+ // IsOneOf reports whether the rune is a member of one of the ranges.
+-// The rune is known to be above Latin-1.
+ func IsOneOf(set []*RangeTable, r rune) bool {
+ 	for _, inside := range set {
+ 		if Is(inside, r) {
+@@ -65,7 +64,7 @@ func IsOneOf(set []*RangeTable, r rune) bool {
+ 
+ // IsControl reports whether the rune is a control character.
+ // The C (Other) Unicode category includes more code points
+-// such as surrogates; use Is(C, rune) to test for them.
++// such as surrogates; use Is(C, r) to test for them.
+ func IsControl(r rune) bool {
+ 	if uint32(r) <= MaxLatin1 {
+ 		return properties[uint8(r)]&pC != 0
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index dcc160a5b7..be484553dc 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -60,8 +60,8 @@ type CaseRange struct {
+ // Methods of SpecialCase customize (by overriding) the standard mappings.
+ type SpecialCase []CaseRange
+ 
+-//BUG(r): Provide a mechanism for full case folding (those that involve
+-// multiple runes in the input or output).
++// BUG(r): There is no mechanism for full case folding, that is, for
++// characters that involve multiple runes in the input or output.
+ 
+ // Indices into the Delta arrays inside CaseRanges for case mapping.
+ const (
+@@ -288,7 +288,7 @@ type foldPair struct {
+ // SimpleFold iterates over Unicode code points equivalent under
+ // the Unicode-defined simple case folding.  Among the code points
+ // equivalent to rune (including rune itself), SimpleFold returns the
+-// smallest r >= rune if one exists, or else the smallest r >= 0. 
++// smallest rune >= r if one exists, or else the smallest rune >= 0. 
+ //
+ // For example:
+ //	SimpleFold('A') = 'a'
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 818685d6c5..15e3f20774 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -417,7 +417,7 @@ func printCategories() {
+ 	fmt.Printf("const Version = %q\n\n", version())
+ 
+ 	if *tablelist == "all" {
+-		fmt.Println("// Categories is the set of Unicode data tables.")
++		fmt.Println("// Categories is the set of Unicode category tables.")
+ 		fmt.Println("var Categories = map[string] *RangeTable {")
+ 		for _, k := range allCategories() {
+ 			fmt.Printf("\t%q: %s,\n", k, k)
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+index 978c48ae43..5009e6b98c 100644
+--- a/src/pkg/unicode/tables.go
++++ b/src/pkg/unicode/tables.go
+@@ -7,7 +7,7 @@ package unicode
+ // Version is the Unicode edition from which the tables are derived.
+ const Version = "6.0.0"
+ 
+-// Categories is the set of Unicode data tables.
++// Categories is the set of Unicode category tables.
+ var Categories = map[string]*RangeTable{
+ 	"C":  C,
+ 	"Cc": Cc,

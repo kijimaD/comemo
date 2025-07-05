@@ -12,6 +12,22 @@ Date:   Mon Dec 2 21:04:15 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/fips140/rsa/keygen.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index 62e0063d60..a9e12eb1e8 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -45,6 +45,10 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 			return nil, err
+ 		}
+ 
++		if Q.Nat().ExpandFor(P).Equal(P.Nat()) == 1 {
++			return nil, errors.New("rsa: generated p == q, random source is broken")
++		}
++
+ 		N, err := bigmod.NewModulusProduct(p, q)
+ 		if err != nil {
+ 			return nil, err

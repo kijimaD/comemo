@@ -43,7 +43,66 @@ Date:   Tue Feb 10 23:51:25 2015 -0500
     Change-Id: I8c480100e56bb2db0816e8a088177004d9e87973
     Reviewed-on: https://go-review.googlesource.com/4540
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go        | 8 +++-----
  src/cmd/dist/buildruntime.go | 2 +-
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index a302787c3d..8a408831d0 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -32,7 +32,6 @@ var (
+ 	workdir          string
+ 	tooldir          string
+ 	gochar           string
+-	goversion        string
+ 	oldgoos          string
+ 	oldgoarch        string
+ 	oldgochar        string
+@@ -224,8 +223,6 @@ func xinit() {
+ 	os.Setenv("LANG", "C")
+ 	os.Setenv("LANGUAGE", "en_US.UTF8")
+ 
+-	goversion = findgoversion()
+-
+ 	workdir = xworkdir()
+ 	xatexit(rmworkdir)
+ 
+@@ -426,6 +423,7 @@ func setup() {
+ 	}
+ 
+ 	// For release, make sure excluded things are excluded.
++	goversion := findgoversion()
+ 	if strings.HasPrefix(goversion, "release.") || (strings.HasPrefix(goversion, "go") && !strings.Contains(goversion, "beta")) {
+ 		for _, dir := range unreleased {
+ 			if p := pathf("%s/%s", goroot, dir); isdir(p) {
+@@ -903,7 +901,7 @@ func install(dir string) {
+ 					"-D", fmt.Sprintf("GOOS=%q", goos),
+ 					"-D", fmt.Sprintf("GOARCH=%q", goarch),
+ 					"-D", fmt.Sprintf("GOROOT=%q", goroot_final),
+-					"-D", fmt.Sprintf("GOVERSION=%q", goversion),
++					"-D", fmt.Sprintf("GOVERSION=%q", findgoversion()),
+ 					"-D", fmt.Sprintf("GOARM=%q", goarm),
+ 					"-D", fmt.Sprintf("GO386=%q", go386),
+ 					"-D", fmt.Sprintf("GO_EXTLINK_ENABLED=%q", goextlinkenabled),
+@@ -1460,5 +1458,5 @@ func cmdbanner() {
+ // Version prints the Go version.
+ func cmdversion() {
+ 	xflagparse(0)
+-	xprintf("%s\n", goversion)
++	xprintf("%s\n", findgoversion())
+ }
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index d659234578..32064ff8f4 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -28,7 +28,7 @@ func mkzversion(dir, file string) {
+ 			"const defaultGoroot = `%s`\n"+
+ 			"const theVersion = `%s`\n"+
+ 			"const goexperiment = `%s`\n"+
+-			"var buildVersion = theVersion\n", goroot_final, goversion, os.Getenv("GOEXPERIMENT"))
++			"var buildVersion = theVersion\n", goroot_final, findgoversion(), os.Getenv("GOEXPERIMENT"))
+ 
+ 	writefile(out, file, 0)
+ }

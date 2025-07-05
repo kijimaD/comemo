@@ -19,7 +19,7 @@ Date:   Thu Dec 31 11:42:39 2020 +0800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/import.go                  | 12 +++---------
  src/cmd/go/internal/modload/init.go                    |  4 ++--
  src/cmd/go/internal/modload/load.go                    |  4 +---
@@ -35,3 +35,336 @@ Date:   Thu Dec 31 11:42:39 2020 +0800
  src/cmd/go/testdata/script/mod_sum_ambiguous.txt       |  4 ++--
  src/cmd/go/testdata/script/mod_sum_readonly.txt        | 10 +++++-----
  14 files changed, 31 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index c16531e2f4..055878c528 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -31,10 +31,6 @@ type ImportMissingError struct {
+ 	Module   module.Version
+ 	QueryErr error
+ 
+-	// inAll indicates whether Path is in the "all" package pattern,
+-	// and thus would be added by 'go mod tidy'.
+-	inAll bool
+-
+ 	// isStd indicates whether we would expect to find the package in the standard
+ 	// library. This is normally true for all dotless import paths, but replace
+ 	// directives can cause us to treat the replaced paths as also being in
+@@ -67,16 +63,14 @@ func (e *ImportMissingError) Error() string {
+ 			if !modfetch.IsZeroPseudoVersion(e.replaced.Version) {
+ 				suggestArg = e.replaced.String()
+ 			}
+-			return fmt.Sprintf("module %s provides package %s and is replaced but not required; try 'go get -d %s' to add it", e.replaced.Path, e.Path, suggestArg)
++			return fmt.Sprintf("module %s provides package %s and is replaced but not required; to add it:\n\tgo get %s", e.replaced.Path, e.Path, suggestArg)
+ 		}
+ 
+ 		suggestion := ""
+ 		if !HasModRoot() {
+ 			suggestion = ": working directory is not part of a module"
+-		} else if e.inAll {
+-			suggestion = "; try 'go mod tidy' to add it"
+ 		} else {
+-			suggestion = fmt.Sprintf("; try 'go get -d %s' to add it", e.Path)
++			suggestion = fmt.Sprintf("; to add it:\n\tgo get %s", e.Path)
+ 		}
+ 		return fmt.Sprintf("no required module provides package %s%s", e.Path, suggestion)
+ 	}
+@@ -151,7 +145,7 @@ func (e *ImportMissingSumError) Error() string {
+ 		message = fmt.Sprintf("missing go.sum entry for module providing package %s", e.importPath)
+ 	}
+ 	if e.inAll {
+-		return message + "; try 'go mod tidy' to add it"
++		return message + "; to add it:\n\tgo mod tidy"
+ 	}
+ 	return message
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index b0acb7b25d..348c8e66c9 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -458,7 +458,7 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 		}
+ 	}
+ 	if !empty {
+-		fmt.Fprintf(os.Stderr, "go: run 'go mod tidy' to add module requirements and sums\n")
++		fmt.Fprintf(os.Stderr, "go: to add module requirements and sums:\n\tgo mod tidy\n")
+ 	}
+ }
+ 
+@@ -907,7 +907,7 @@ func WriteGoMod() {
+ 		} else if cfg.BuildModReason != "" {
+ 			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly\n\t(%s)", cfg.BuildModReason)
+ 		} else {
+-			base.Fatalf("go: updates to go.mod needed; try 'go mod tidy' first")
++			base.Fatalf("go: updates to go.mod needed; to update it:\n\tgo mod tidy")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 9a8b0cf177..ae5b8ef6ab 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -281,9 +281,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 	for _, pkg := range loaded.pkgs {
+ 		if pkg.err != nil {
+ 			if pkg.flags.has(pkgInAll) {
+-				if imErr := (*ImportMissingError)(nil); errors.As(pkg.err, &imErr) {
+-					imErr.inAll = true
+-				} else if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
++				if sumErr := (*ImportMissingSumError)(nil); errors.As(pkg.err, &sumErr) {
+ 					sumErr.inAll = true
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index d5a17236cd..c6667d0bf7 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -449,7 +449,7 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ 	if HasModRoot() && cfg.BuildMod == "readonly" && actual.Version != "" {
+ 		key := module.Version{Path: actual.Path, Version: actual.Version + "/go.mod"}
+ 		if !modfetch.HaveSum(key) {
+-			suggestion := fmt.Sprintf("; try 'go mod download %s' to add it", m.Path)
++			suggestion := fmt.Sprintf("; to add it:\n\tgo mod download %s", m.Path)
+ 			return nil, module.VersionError(actual, &sumMissingError{suggestion: suggestion})
+ 		}
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index 20199c1c2c..7a270d0f07 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -19,7 +19,7 @@ stderr 'malformed module path "x/y.z": missing dot in first path element'
+ ! go build ./useappengine
+ stderr '^useappengine[/\\]x.go:2:8: cannot find package$'
+ ! go build ./usenonexistent
+-stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; try ''go mod tidy'' to add it$'
++stderr '^usenonexistent[/\\]x.go:2:8: no required module provides package nonexistent.rsc.io; to add it:\n\tgo get nonexistent.rsc.io$'
+ 
+ 
+ # 'get -d' should be similarly definitive
+diff --git a/src/cmd/go/testdata/script/mod_get_replaced.txt b/src/cmd/go/testdata/script/mod_get_replaced.txt
+index 76d0793ffe..d97f3f1a40 100644
+--- a/src/cmd/go/testdata/script/mod_get_replaced.txt
++++ b/src/cmd/go/testdata/script/mod_get_replaced.txt
+@@ -87,7 +87,7 @@ stderr '^go get: malformed module path "example": missing dot in first path elem
+ go mod edit -replace example@v0.1.0=./example
+ 
+ ! go list example
+-stderr '^module example provides package example and is replaced but not required; try ''go get -d example@v0.1.0'' to add it$'
++stderr '^module example provides package example and is replaced but not required; to add it:\n\tgo get example@v0.1.0$'
+ 
+ go get -d example
+ go list -m example
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index 3a133663ec..c13ae844b5 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -19,7 +19,7 @@ exec $WORK/testimport$GOEXE other/x/y/z/w .
+ stdout w2.go
+ 
+ ! exec $WORK/testimport$GOEXE gobuild.example.com/x/y/z/w .
+-stderr 'no required module provides package gobuild.example.com/x/y/z/w; try ''go get -d gobuild.example.com/x/y/z/w'' to add it'
++stderr 'no required module provides package gobuild.example.com/x/y/z/w; to add it:\n\tgo get gobuild.example.com/x/y/z/w'
+ 
+ cd z
+ exec $WORK/testimport$GOEXE other/x/y/z/w .
+diff --git a/src/cmd/go/testdata/script/mod_init_tidy.txt b/src/cmd/go/testdata/script/mod_init_tidy.txt
+index 6a37edd960..4a525903b2 100644
+--- a/src/cmd/go/testdata/script/mod_init_tidy.txt
++++ b/src/cmd/go/testdata/script/mod_init_tidy.txt
+@@ -8,14 +8,14 @@ cd ..
+ # 'go mod init' should recommend 'go mod tidy' if the directory has a .go file.
+ cd pkginroot
+ go mod init m
+-stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
++stderr '^go: to add module requirements and sums:\n\tgo mod tidy$'
+ cd ..
+ 
+ # 'go mod init' should recommend 'go mod tidy' if the directory has a
+ # subdirectory. We don't walk the tree to see if it has .go files.
+ cd subdir
+ go mod init m
+-stderr '^go: run ''go mod tidy'' to add module requirements and sums$'
++stderr '^go: to add module requirements and sums:\n\tgo mod tidy$'
+ cd ..
+ 
+ -- empty/empty.txt --
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 93896d4593..e27ebc5cc5 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -16,7 +16,7 @@ env GO111MODULE=auto
+ cd m
+ cp go.mod go.mod.orig
+ ! go list -m all
+-stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; try ''go mod download example.com/cmd'' to add it$'
++stderr '^go: example.com/cmd@v1.1.0-doesnotexist: missing go.sum entry; to add it:\n\tgo mod download example.com/cmd$'
+ go install example.com/cmd/a@latest
+ cmp go.mod go.mod.orig
+ exists $GOPATH/bin/a$GOEXE
+@@ -67,9 +67,9 @@ cd tmp
+ go mod init tmp
+ go mod edit -require=rsc.io/fortune@v1.0.0
+ ! go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; try ''go mod download rsc.io/fortune'' to add it$'
++stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ ! go install -mod=readonly ../../pkg/mod/rsc.io/fortune@v1.0.0
+-stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; try ''go mod download rsc.io/fortune'' to add it$'
++stderr '^go: rsc.io/fortune@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download rsc.io/fortune$'
+ go get -d rsc.io/fortune@v1.0.0
+ go install -mod=readonly $GOPATH/pkg/mod/rsc.io/fortune@v1.0.0
+ exists $GOPATH/bin/fortune$GOEXE
+diff --git a/src/cmd/go/testdata/script/mod_list_bad_import.txt b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+index 3cd50b0de2..b128408a61 100644
+--- a/src/cmd/go/testdata/script/mod_list_bad_import.txt
++++ b/src/cmd/go/testdata/script/mod_list_bad_import.txt
+@@ -39,7 +39,7 @@ stdout example.com/notfound
+ 
+ # Listing the missing dependency directly should fail outright...
+ ! go list -f '{{if .Error}}error{{end}} {{if .Incomplete}}incomplete{{end}}' example.com/notfound
+-stderr 'no required module provides package example.com/notfound; try ''go get -d example.com/notfound'' to add it'
++stderr 'no required module provides package example.com/notfound; to add it:\n\tgo get example.com/notfound'
+ ! stdout error
+ ! stdout incomplete
+ 
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index ca8cd6e068..176be72967 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -13,7 +13,7 @@ cmp go.mod go.mod.empty
+ # -mod=readonly should be set by default.
+ env GOFLAGS=
+ ! go list all
+-stderr '^x.go:2:8: no required module provides package rsc\.io/quote; try ''go mod tidy'' to add it$'
++stderr '^x.go:2:8: no required module provides package rsc\.io/quote; to add it:\n\tgo get rsc\.io/quote$'
+ cmp go.mod go.mod.empty
+ 
+ env GOFLAGS=-mod=readonly
+@@ -51,7 +51,7 @@ cmp go.mod go.mod.inconsistent
+ # We get a different message when -mod=readonly is used by default.
+ env GOFLAGS=
+ ! go list
+-stderr '^go: updates to go.mod needed; try ''go mod tidy'' first$'
++stderr '^go: updates to go.mod needed; to update it:\n\tgo mod tidy'
+ 
+ # However, it should not reject files missing a 'go' directive,
+ # since that was not always required.
+@@ -75,15 +75,15 @@ cmp go.mod go.mod.indirect
+ 
+ cp go.mod.untidy go.mod
+ ! go list all
+-stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
++stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+ 
+ ! go list -deps .
+-stderr '^x.go:2:8: no required module provides package rsc.io/quote; try ''go mod tidy'' to add it$'
++stderr '^x.go:2:8: no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+ 
+ # However, if we didn't see an import from the main module, we should suggest
+ # 'go get -d' instead, because we don't know whether 'go mod tidy' would add it.
+ ! go list rsc.io/quote
+-stderr '^no required module provides package rsc.io/quote; try ''go get -d rsc.io/quote'' to add it$'
++stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get rsc.io/quote$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_replace_readonly.txt b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+index 882c755337..d950d78bd3 100644
+--- a/src/cmd/go/testdata/script/mod_replace_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_replace_readonly.txt
+@@ -9,7 +9,7 @@ cp go.mod go.mod.orig
+ # can't in readonly mode, since its go.mod may alter the build list.
+ go mod edit -replace rsc.io/quote=./quote
+ ! go list rsc.io/quote
+-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote'' to add it$'
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote$'
+ go get -d rsc.io/quote
+ cmp go.mod go.mod.latest
+ go list rsc.io/quote
+@@ -18,7 +18,7 @@ cp go.mod.orig go.mod
+ # Same test with a specific version.
+ go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
+ ! go list rsc.io/quote
+-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.0.0-doesnotexist'' to add it$'
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote@v1.0.0-doesnotexist$'
+ go get -d rsc.io/quote@v1.0.0-doesnotexist
+ cmp go.mod go.mod.specific
+ go list rsc.io/quote
+@@ -28,7 +28,7 @@ cp go.mod.orig go.mod
+ go mod edit -replace rsc.io/quote@v1.0.0-doesnotexist=./quote
+ go mod edit -replace rsc.io/quote@v1.1.0-doesnotexist=./quote
+ ! go list rsc.io/quote
+-stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; try ''go get -d rsc.io/quote@v1.1.0-doesnotexist'' to add it$'
++stderr '^module rsc.io/quote provides package rsc.io/quote and is replaced but not required; to add it:\n\tgo get rsc.io/quote@v1.1.0-doesnotexist$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_sum_ambiguous.txt b/src/cmd/go/testdata/script/mod_sum_ambiguous.txt
+index 999257c419..08107bf37c 100644
+--- a/src/cmd/go/testdata/script/mod_sum_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_sum_ambiguous.txt
+@@ -17,13 +17,13 @@ cp go.sum.a-only go.sum
+ ! go list example.com/ambiguous/a/b
+ stderr '^missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module$'
+ ! go list -deps .
+-stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; try ''go mod tidy'' to add it$'
++stderr '^use.go:3:8: missing go.sum entry needed to verify package example.com/ambiguous/a/b is provided by exactly one module; to add it:\n\tgo mod tidy$'
+ 
+ cp go.sum.b-only go.sum
+ ! go list example.com/ambiguous/a/b
+ stderr '^missing go.sum entry for module providing package example.com/ambiguous/a/b$'
+ ! go list -deps .
+-stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; try ''go mod tidy'' to add it$'
++stderr '^use.go:3:8: missing go.sum entry for module providing package example.com/ambiguous/a/b; to add it:\n\tgo mod tidy$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_sum_readonly.txt b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+index 4d6e8aae6a..866f4c1ae4 100644
+--- a/src/cmd/go/testdata/script/mod_sum_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_sum_readonly.txt
+@@ -4,7 +4,7 @@ env GO111MODULE=on
+ # When a sum is needed to load the build list, we get an error for the
+ # specific module. The .mod file is not downloaded, and go.sum is not written.
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ ! exists go.sum
+ 
+@@ -12,7 +12,7 @@ stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rs
+ # we should see the same error.
+ cp go.sum.h2only go.sum
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
++stderr '^go: rsc.io/quote@v1.5.2: missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ cmp go.sum go.sum.h2only
+ rm go.sum
+@@ -21,7 +21,7 @@ rm go.sum
+ cp go.mod go.mod.orig
+ go mod edit -replace rsc.io/quote@v1.5.2=rsc.io/quote@v1.5.1
+ ! go list -m all
+-stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; try ''go mod download rsc.io/quote'' to add it$'
++stderr '^go: rsc.io/quote@v1.5.2 \(replaced by rsc.io/quote@v1.5.1\): missing go.sum entry; to add it:\n\tgo mod download rsc.io/quote$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.1.mod
+ ! exists go.sum
+ cp go.mod.orig go.mod
+@@ -35,7 +35,7 @@ exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.mod
+ # When a sum is needed to load a .mod file for a package outside the build list,
+ # we get a generic missing import error.
+ ! go list example.com/doesnotexist
+-stderr '^no required module provides package example.com/doesnotexist; try ''go get -d example.com/doesnotexist'' to add it$'
++stderr '^no required module provides package example.com/doesnotexist; to add it:\n\tgo get example.com/doesnotexist$'
+ 
+ # When a sum is needed to load a .zip file, we get a more specific error.
+ # The .zip file is not downloaded.
+@@ -47,7 +47,7 @@ stderr '^missing go.sum entry for module providing package rsc.io/quote$'
+ # a package that imports it without that error.
+ go list -e -deps -f '{{.ImportPath}}{{with .Error}} {{.Err}}{{end}}' .
+ stdout '^m$'
+-stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote; try ''go mod tidy'' to add it$'
++stdout '^rsc.io/quote missing go.sum entry for module providing package rsc.io/quote; to add it:\n\tgo mod tidy$'
+ ! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
+ 
+ # go.sum should not have been written.

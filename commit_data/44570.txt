@@ -15,7 +15,7 @@ Date:   Fri Jun 12 14:33:23 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/base/base.go         | 3 ++-
  src/cmd/go/internal/bug/bug.go           | 3 ++-
  src/cmd/go/internal/clean/clean.go       | 3 ++-
@@ -43,3 +43,551 @@ Date:   Fri Jun 12 14:33:23 2020 -0400
  src/cmd/go/internal/work/build.go        | 5 +++--
  src/cmd/go/main.go                       | 3 +--
  26 files changed, 52 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index ab2f1bb4e2..db3ebef933 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -7,6 +7,7 @@
+ package base
+ 
+ import (
++	"context"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+@@ -24,7 +25,7 @@ import (
+ type Command struct {
+ 	// Run runs the command.
+ 	// The args are the arguments after the command name.
+-	Run func(cmd *Command, args []string)
++	Run func(ctx context.Context, cmd *Command, args []string)
+ 
+ 	// UsageLine is the one-line usage message.
+ 	// The words between "go" and the first flag or argument in the line are taken to be the command name.
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index fe71281ef0..52bd40f2fb 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -7,6 +7,7 @@ package bug
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -37,7 +38,7 @@ func init() {
+ 	CmdBug.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ }
+ 
+-func runBug(cmd *base.Command, args []string) {
++func runBug(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go bug: bug takes no arguments")
+ 	}
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 99704cb2b1..8af3e3df9c 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -6,6 +6,7 @@
+ package clean
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"os"
+@@ -105,7 +106,7 @@ func init() {
+ 	work.AddBuildFlags(CmdClean, work.DefaultBuildFlags)
+ }
+ 
+-func runClean(cmd *base.Command, args []string) {
++func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 	// golang.org/issue/29925: only load packages before cleaning if
+ 	// either the flags and arguments explicitly imply a package,
+ 	// or no other target (such as a cache) was requested to be cleaned.
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 4ff08bb928..67f76e2256 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -8,6 +8,7 @@ package doc
+ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"context"
+ )
+ 
+ var CmdDoc = &base.Command{
+@@ -129,6 +130,6 @@ Flags:
+ `,
+ }
+ 
+-func runDoc(cmd *base.Command, args []string) {
++func runDoc(ctx context.Context, cmd *base.Command, args []string) {
+ 	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
+ }
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 252025dc25..403e0f4a7b 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -6,6 +6,7 @@
+ package envcmd
+ 
+ import (
++	"context"
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/build"
+@@ -186,7 +187,7 @@ func argKey(arg string) string {
+ 	return arg[:i]
+ }
+ 
+-func runEnv(cmd *base.Command, args []string) {
++func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	if *envJson && *envU {
+ 		base.Fatalf("go env: cannot use -json with -u")
+ 	}
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 4d741df2b4..f16af05fc8 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
++	"context"
+ 	"fmt"
+ 	"os"
+ )
+@@ -31,7 +32,7 @@ See also: go fmt, go vet.
+ 	`,
+ }
+ 
+-func runFix(cmd *base.Command, args []string) {
++func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 	printed := false
+ 	for _, pkg := range load.Packages(args) {
+ 		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index d6894edc9f..9868efc7ef 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -6,6 +6,7 @@
+ package fmtcmd
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -48,7 +49,7 @@ See also: go fix, go vet.
+ 	`,
+ }
+ 
+-func runFmt(cmd *base.Command, args []string) {
++func runFmt(ctx context.Context, cmd *base.Command, args []string) {
+ 	printed := false
+ 	gofmt := gofmtPath()
+ 	procs := runtime.GOMAXPROCS(0)
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 093b19817b..fb26f77f95 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -8,6 +8,7 @@ package generate
+ import (
+ 	"bufio"
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"go/parser"
+ 	"go/token"
+@@ -160,7 +161,7 @@ func init() {
+ 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
+ }
+ 
+-func runGenerate(cmd *base.Command, args []string) {
++func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+ 	load.IgnoreImports = true
+ 
+ 	if generateRunFlag != "" {
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index d38350c2a8..f7da5270b0 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -6,6 +6,7 @@
+ package get
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+@@ -112,7 +113,7 @@ func init() {
+ 	CmdGet.Flag.BoolVar(&Insecure, "insecure", Insecure, "")
+ }
+ 
+-func runGet(cmd *base.Command, args []string) {
++func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	if cfg.ModulesEnabled {
+ 		// Should not happen: main.go should install the separate module-enabled get code.
+ 		base.Fatalf("go get: modules not implemented")
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 6ca1561121..ef0a5a2f2d 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -8,6 +8,7 @@ package list
+ import (
+ 	"bufio"
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"io"
+ 	"os"
+@@ -309,7 +310,7 @@ var (
+ 
+ var nl = []byte{'\n'}
+ 
+-func runList(cmd *base.Command, args []string) {
++func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.LoadTests = *listTest
+ 	work.BuildInit()
+ 	out := newTrackingWriter(os.Stdout)
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 584434935b..b43c32be5a 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -5,6 +5,7 @@
+ package modcmd
+ 
+ import (
++	"context"
+ 	"encoding/json"
+ 	"os"
+ 
+@@ -78,7 +79,7 @@ type moduleJSON struct {
+ 	GoModSum string `json:",omitempty"`
+ }
+ 
+-func runDownload(cmd *base.Command, args []string) {
++func runDownload(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Check whether modules are enabled and whether we're in a module.
+ 	if cfg.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index dbbfb96e42..a81c25270f 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -8,6 +8,7 @@ package modcmd
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -141,7 +142,7 @@ func init() {
+ 	base.AddBuildFlagsNX(&cmdEdit.Flag)
+ }
+ 
+-func runEdit(cmd *base.Command, args []string) {
++func runEdit(ctx context.Context, cmd *base.Command, args []string) {
+ 	anyFlags :=
+ 		*editModule != "" ||
+ 			*editGo != "" ||
+diff --git a/src/cmd/go/internal/modcmd/graph.go b/src/cmd/go/internal/modcmd/graph.go
+index 27ae9354f3..fff5b02626 100644
+--- a/src/cmd/go/internal/modcmd/graph.go
++++ b/src/cmd/go/internal/modcmd/graph.go
+@@ -8,6 +8,7 @@ package modcmd
+ 
+ import (
+ 	"bufio"
++	"context"
+ 	"os"
+ 	"sort"
+ 
+@@ -36,7 +37,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdGraph)
+ }
+ 
+-func runGraph(cmd *base.Command, args []string) {
++func runGraph(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go mod graph: graph takes no arguments")
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index 714ff2e205..ddb9aeebe9 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
++	"context"
+ 	"os"
+ 	"strings"
+ )
+@@ -32,7 +33,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdInit)
+ }
+ 
+-func runInit(cmd *base.Command, args []string) {
++func runInit(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.CmdModInit = true
+ 	if len(args) > 1 {
+ 		base.Fatalf("go mod init: too many arguments")
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index af2b04c0c2..feb41a83b0 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
++	"context"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -37,7 +38,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdTidy)
+ }
+ 
+-func runTidy(cmd *base.Command, args []string) {
++func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) > 0 {
+ 		base.Fatalf("go mod tidy: no arguments allowed")
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 8509ceb7a8..257d1cd0ef 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -6,6 +6,7 @@ package modcmd
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -43,7 +44,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdVendor)
+ }
+ 
+-func runVendor(cmd *base.Command, args []string) {
++func runVendor(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) != 0 {
+ 		base.Fatalf("go mod vendor: vendor takes no arguments")
+ 	}
+diff --git a/src/cmd/go/internal/modcmd/verify.go b/src/cmd/go/internal/modcmd/verify.go
+index b7fd7fa8e0..570e571049 100644
+--- a/src/cmd/go/internal/modcmd/verify.go
++++ b/src/cmd/go/internal/modcmd/verify.go
+@@ -6,6 +6,7 @@ package modcmd
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -40,7 +41,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdVerify)
+ }
+ 
+-func runVerify(cmd *base.Command, args []string) {
++func runVerify(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) != 0 {
+ 		// NOTE(rsc): Could take a module pattern.
+ 		base.Fatalf("go mod verify: verify takes no arguments")
+diff --git a/src/cmd/go/internal/modcmd/why.go b/src/cmd/go/internal/modcmd/why.go
+index 40d238519b..3f9cf0f120 100644
+--- a/src/cmd/go/internal/modcmd/why.go
++++ b/src/cmd/go/internal/modcmd/why.go
+@@ -5,6 +5,7 @@
+ package modcmd
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"strings"
+ 
+@@ -60,7 +61,7 @@ func init() {
+ 	work.AddModCommonFlags(cmdWhy)
+ }
+ 
+-func runWhy(cmd *base.Command, args []string) {
++func runWhy(ctx context.Context, cmd *base.Command, args []string) {
+ 	loadALL := modload.LoadALL
+ 	if *whyVendor {
+ 		loadALL = modload.LoadVendor
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 4c6982426f..9836a3e2cc 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -6,6 +6,7 @@
+ package modget
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+@@ -259,7 +260,7 @@ type query struct {
+ 	m module.Version
+ }
+ 
+-func runGet(cmd *base.Command, args []string) {
++func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	switch getU {
+ 	case "", "upgrade", "patch":
+ 		// ok
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 2edae38cca..ca2c3db92c 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -6,6 +6,7 @@
+ package run
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"os"
+ 	"path"
+@@ -57,7 +58,7 @@ func printStderr(args ...interface{}) (int, error) {
+ 	return fmt.Fprint(os.Stderr, args...)
+ }
+ 
+-func runRun(cmd *base.Command, args []string) {
++func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 	work.BuildInit()
+ 	var b work.Builder
+ 	b.Init()
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 873a76aa38..6648d4eab4 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"crypto/sha256"
+ 	"errors"
+ 	"fmt"
+@@ -565,7 +566,7 @@ var defaultVetFlags = []string{
+ 	// "-unusedresult",
+ }
+ 
+-func runTest(cmd *base.Command, args []string) {
++func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.LoadTests = true
+ 
+ 	pkgArgs, testArgs = testFlags(args)
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 930eecb63f..7f4dc86802 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -6,6 +6,7 @@
+ package tool
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
+@@ -48,7 +49,7 @@ func init() {
+ 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
+ }
+ 
+-func runTool(cmd *base.Command, args []string) {
++func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
+ 		listTools()
+ 		return
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index ac2ae50155..056db7bf9e 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -7,6 +7,7 @@ package version
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"os"
+@@ -51,7 +52,7 @@ var (
+ 	versionV = CmdVersion.Flag.Bool("v", false, "")
+ )
+ 
+-func runVersion(cmd *base.Command, args []string) {
++func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
+ 		if *versionM || *versionV {
+ 			fmt.Fprintf(os.Stderr, "go version: flags can only be used with arguments\n")
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 4ec58de785..717ff2d0aa 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -10,6 +10,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
++	"context"
+ 	"path/filepath"
+ )
+ 
+@@ -48,7 +49,7 @@ See also: go fmt, go fix.
+ 	`,
+ }
+ 
+-func runVet(cmd *base.Command, args []string) {
++func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 	modload.LoadTests = true
+ 
+ 	vetFlags, pkgArgs := vetFlags(args)
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index fbd49b457b..2bbee43ab4 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -5,6 +5,7 @@
+ package work
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+@@ -344,7 +345,7 @@ var pkgsFilter = func(pkgs []*load.Package) []*load.Package { return pkgs }
+ 
+ var runtimeVersion = runtime.Version()
+ 
+-func runBuild(cmd *base.Command, args []string) {
++func runBuild(ctx context.Context, cmd *base.Command, args []string) {
+ 	BuildInit()
+ 	var b Builder
+ 	b.Init()
+@@ -515,7 +516,7 @@ func libname(args []string, pkgs []*load.Package) (string, error) {
+ 	return "lib" + libname + ".so", nil
+ }
+ 
+-func runInstall(cmd *base.Command, args []string) {
++func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 	BuildInit()
+ 	InstallPackages(args, load.PackagesForBuild(args))
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 3512866e4a..37bb7d6d27 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -191,8 +191,7 @@ BigCmdLoop:
+ 			}
+ 			ctx := maybeStartTrace(context.Background())
+ 			ctx, span := trace.StartSpan(ctx, fmt.Sprint("Running ", cmd.Name(), " command"))
+-			_ = ctx
+-			cmd.Run(cmd, args)
++			cmd.Run(ctx, cmd, args)
+ 			span.Done()
+ 			base.Exit()
+ 			return

@@ -8,7 +8,80 @@ Date:   Mon Feb 22 14:21:59 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/218061
-
+---
  src/pkg/scanner/scanner.go      | 16 ++++++++++++----
  src/pkg/scanner/scanner_test.go |  7 +++++--
  2 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/scanner/scanner.go b/src/pkg/scanner/scanner.go
+index c4233aa581..c9b46f0ea3 100644
+--- a/src/pkg/scanner/scanner.go
++++ b/src/pkg/scanner/scanner.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A general-purpose scanner for text. Takes an io.Reader
+-// providing the source which then can be tokenized through
+-// repeated calls to the Scan function.
++// A general-purpose scanner for UTF-8 encoded text. Takes an io.Reader
++// providing the source which then can be tokenized through repeated
++// calls to the Scan function. For compatibility with existing tools,
++// the NUL character is not allowed (implementation restriction).
+ //
+ // By default, a Scanner skips white space and comments and
+ // recognizes literals as defined by the Go language spec.
+@@ -245,13 +246,20 @@ func (s *Scanner) next() int {
+ 			// uncommon case: not ASCII
+ 			var width int
+ 			ch, width = utf8.DecodeRune(s.srcBuf[s.srcPos:s.srcEnd])
++			if ch == utf8.RuneError && width == 1 {
++				s.error("illegal UTF-8 encoding")
++			}
+ 			s.srcPos += width - 1
+ 		}
+ 	}
+ 
+ 	s.srcPos++
+ 	s.column++
+-	if ch == '\n' {
++	switch ch {
++	case 0:
++		// implementation restriction for compatibility with other tools
++		s.error("illegal character NUL")
++	case '\n':
+ 		s.line++
+ 		s.column = 0
+ 	}
+diff --git a/src/pkg/scanner/scanner_test.go b/src/pkg/scanner/scanner_test.go
+index 926048010f..563ceea0cc 100644
+--- a/src/pkg/scanner/scanner_test.go
++++ b/src/pkg/scanner/scanner_test.go
+@@ -226,7 +226,7 @@ var tokenList = []token{
+ 	token{String, "`" + f100 + "`"},
+ 
+ 	token{Comment, "// individual characters\n"},
+-	token{'\x00', "\x00"},
++	// NUL character is not allowed
+ 	token{'\x01', "\x01"},
+ 	token{' ' - 1, string(' ' - 1)},
+ 	token{'+', "+"},
+@@ -390,7 +390,8 @@ func TestScanNext(t *testing.T) {
+ func TestScanWhitespace(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	var ws uint64
+-	for ch := byte(0); ch < ' '; ch++ {
++	// start at 1, NUL character is not allowed
++	for ch := byte(1); ch < ' '; ch++ {
+ 		buf.WriteByte(ch)
+ 		ws |= 1 << ch
+ 	}
+@@ -442,6 +443,8 @@ func TestError(t *testing.T) {
+ 	testError(t, "`abc", "literal not terminated", String)
+ 	testError(t, `//`, "comment not terminated", EOF)
+ 	testError(t, `/*/`, "comment not terminated", EOF)
++	testError(t, `"abc`+"\x00"+`def"`, "illegal character NUL", String)
++	testError(t, `"abc`+"\xff"+`def"`, "illegal UTF-8 encoding", String)
+ }
+ 
+ 

@@ -11,6 +11,23 @@ Date:   Fri Jan 19 10:56:59 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/rt0_android_386.s | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/rt0_android_386.s b/src/runtime/rt0_android_386.s
+index eabdf81235..3a1b06b148 100644
+--- a/src/runtime/rt0_android_386.s
++++ b/src/runtime/rt0_android_386.s
+@@ -10,7 +10,10 @@ TEXT _rt0_386_android(SB),NOSPLIT,$0
+ TEXT _rt0_386_android_lib(SB),NOSPLIT,$0
+ 	PUSHL	$_rt0_386_android_argv(SB)  // argv
+ 	PUSHL	$1  // argc
+-	JMP	_rt0_386_lib(SB)
++	CALL	_rt0_386_lib(SB)
++	POPL	AX
++	POPL	AX
++	RET
+ 
+ DATA _rt0_386_android_argv+0x00(SB)/4,$_rt0_386_android_argv0(SB)
+ DATA _rt0_386_android_argv+0x04(SB)/4,$0  // argv terminate

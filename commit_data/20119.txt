@@ -12,6 +12,20 @@ Date:   Tue Aug 19 10:52:50 2014 +1000
     R=minux, rsc
     CC=dvyukov, golang-codereviews
     https://golang.org/cl/129290043
-
+---
  src/cmd/6g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 02945fb401..5e3a198186 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -844,7 +844,7 @@ prop(Reg *r, Bits ref, Bits cal)
+ 					if(v == v1 || ((cal.b[j/32]>>(j&31))&1) == 0) {
+ 						for(; v1 != nil; v1 = v1->nextinnode) {
+ 							j = v1 - var;
+-							cal.b[j/32] |= 1<<(j&31);
++							cal.b[j/32] |= 1UL<<(j&31);
+ 						}
+ 					}
+ 				}

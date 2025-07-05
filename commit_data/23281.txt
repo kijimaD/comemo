@@ -11,6 +11,23 @@ Date:   Tue May 5 07:35:08 2015 +0000
     Change-Id: I55051515f697e27ca887ed21c2ac985f0b9b062b
     Reviewed-on: https://go-review.googlesource.com/9720
     Reviewed-by: Joel Sing <jsing@google.com>
-
+---
  src/cmd/internal/gc/walk.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 82cedd687c..c32a8137d6 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -627,11 +627,6 @@ func walkexpr(np **Node, init **NodeList) {
+ 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+ 			switch Thearch.Thechar {
+ 			case '5', '6', '7':
+-				// TODO(jsing): This currently breaks math.Sqrt
+-				// on GOARM=5 (see issue 10641).
+-				if Thearch.Thechar == '5' && obj.Getgoarm() == "5" {
+-					break
+-				}
+ 				n.Op = OSQRT
+ 				n.Left = n.List.N
+ 				n.List = nil

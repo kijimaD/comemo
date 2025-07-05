@@ -9,6 +9,20 @@ Date:   Tue Jun 5 11:56:32 2012 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6270054
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 16dfd7c92c..7302966420 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -406,7 +406,7 @@ main(int argc, char *argv[])
+ 	if(nsavederrors+nerrors == 0)
+ 		fninit(xtop);
+ 
+-	// Phase 6: Check external declarations.
++	// Phase 7: Check external declarations.
+ 	for(l=externdcl; l; l=l->next)
+ 		if(l->n->op == ONAME)
+ 			typecheck(&l->n, Erv);

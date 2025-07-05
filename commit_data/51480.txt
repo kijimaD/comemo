@@ -16,6 +16,23 @@ Date:   Thu Feb 3 12:43:48 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Trust: Benny Siegert <bsiegert@gmail.com>
-
+---
  misc/cgo/test/test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index dd81f770a2..109ef987f9 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -367,6 +367,11 @@ void init() {
+ // Cgo incorrectly computed the alignment of structs
+ // with no Go accessible fields as 0, and then panicked on
+ // modulo-by-zero computations.
++
++// issue 50987
++// disable arm64 GCC warnings
++#cgo CFLAGS: -Wno-psabi -Wno-unknown-warning-option
++
+ typedef struct {
+ } foo;
+ 

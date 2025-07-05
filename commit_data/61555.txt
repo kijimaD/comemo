@@ -12,10 +12,205 @@ Date:   Fri Jun 21 20:23:13 2024 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/sync/export_test.go            |  9 ++++---
  src/internal/sync/hashtriemap.go            | 42 ++++++++++++++++++++++-------
  src/internal/sync/hashtriemap_bench_test.go |  4 +--
  src/internal/sync/hashtriemap_test.go       |  3 ++-
  src/unique/handle.go                        |  9 +++----
  5 files changed, 45 insertions(+), 22 deletions(-)
+
+diff --git a/src/internal/sync/export_test.go b/src/internal/sync/export_test.go
+index 7475d320a4..c6449bf3e0 100644
+--- a/src/internal/sync/export_test.go
++++ b/src/internal/sync/export_test.go
+@@ -14,11 +14,12 @@ import (
+ func NewBadHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+ 	// Stub out the good hash function with a terrible one.
+ 	// Everything should still work as expected.
+-	m := NewHashTrieMap[K, V]()
++	var m HashTrieMap[K, V]
++	m.init()
+ 	m.keyHash = func(_ unsafe.Pointer, _ uintptr) uintptr {
+ 		return 0
+ 	}
+-	return m
++	return &m
+ }
+ 
+ // NewTruncHashTrieMap creates a new HashTrieMap for the provided key and value
+@@ -26,12 +27,12 @@ func NewBadHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+ func NewTruncHashTrieMap[K, V comparable]() *HashTrieMap[K, V] {
+ 	// Stub out the good hash function with a terrible one.
+ 	// Everything should still work as expected.
+-	m := NewHashTrieMap[K, V]()
++	var m HashTrieMap[K, V]
+ 	var mx map[string]int
+ 	mapType := abi.TypeOf(mx).MapType()
+ 	hasher := mapType.Hasher
+ 	m.keyHash = func(p unsafe.Pointer, n uintptr) uintptr {
+ 		return hasher(p, n) & ((uintptr(1) << 4) - 1)
+ 	}
+-	return m
++	return &m
+ }
+diff --git a/src/internal/sync/hashtriemap.go b/src/internal/sync/hashtriemap.go
+index f386134930..082aecacba 100644
+--- a/src/internal/sync/hashtriemap.go
++++ b/src/internal/sync/hashtriemap.go
+@@ -15,24 +15,44 @@ import (
+ // is designed around frequent loads, but offers decent performance for stores
+ // and deletes as well, especially if the map is larger. Its primary use-case is
+ // the unique package, but can be used elsewhere as well.
++//
++// The zero HashTrieMap is empty and ready to use.
++// It must not be copied after first use.
+ type HashTrieMap[K comparable, V any] struct {
++	inited   atomic.Uint32
++	initMu   Mutex
+ 	root     *indirect[K, V]
+ 	keyHash  hashFunc
+ 	valEqual equalFunc
+ 	seed     uintptr
+ }
+ 
+-// NewHashTrieMap creates a new HashTrieMap for the provided key and value.
+-func NewHashTrieMap[K comparable, V any]() *HashTrieMap[K, V] {
++func (ht *HashTrieMap[K, V]) init() {
++	if ht.inited.Load() == 0 {
++		ht.initSlow()
++	}
++}
++
++//go:noinline
++func (ht *HashTrieMap[K, V]) initSlow() {
++	ht.initMu.Lock()
++	defer ht.initMu.Unlock()
++
++	if ht.inited.Load() != 0 {
++		// Someone got to it while we were waiting.
++		return
++	}
++
++	// Set up root node, derive the hash function for the key, and the
++	// equal function for the value, if any.
+ 	var m map[K]V
+ 	mapType := abi.TypeOf(m).MapType()
+-	ht := &HashTrieMap[K, V]{
+-		root:     newIndirectNode[K, V](nil),
+-		keyHash:  mapType.Hasher,
+-		valEqual: mapType.Elem.Equal,
+-		seed:     uintptr(runtime_rand()),
+-	}
+-	return ht
++	ht.root = newIndirectNode[K, V](nil)
++	ht.keyHash = mapType.Hasher
++	ht.valEqual = mapType.Elem.Equal
++	ht.seed = uintptr(runtime_rand())
++
++	ht.inited.Store(1)
+ }
+ 
+ type hashFunc func(unsafe.Pointer, uintptr) uintptr
+@@ -42,6 +62,7 @@ type equalFunc func(unsafe.Pointer, unsafe.Pointer) bool
+ // value is present.
+ // The ok result indicates whether value was found in the map.
+ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
++	ht.init()
+ 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+ 
+ 	i := ht.root
+@@ -65,6 +86,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
+ // Otherwise, it stores and returns the given value.
+ // The loaded result is true if the value was loaded, false if stored.
+ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool) {
++	ht.init()
+ 	hash := ht.keyHash(abi.NoEscape(unsafe.Pointer(&key)), ht.seed)
+ 	var i *indirect[K, V]
+ 	var hashShift uint
+@@ -179,6 +201,7 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
+ // If there is no current value for key in the map, CompareAndDelete returns false
+ // (even if the old value is the nil interface value).
+ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
++	ht.init()
+ 	if ht.valEqual == nil {
+ 		panic("called CompareAndDelete when value is not of comparable type")
+ 	}
+@@ -287,6 +310,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uintptr) (i *indirect[K, V], hashS
+ // safe to operate on the tree during iteration. No particular enumeration
+ // order is guaranteed.
+ func (ht *HashTrieMap[K, V]) All() func(yield func(K, V) bool) {
++	ht.init()
+ 	return func(yield func(key K, value V) bool) {
+ 		ht.iter(ht.root, yield)
+ 	}
+diff --git a/src/internal/sync/hashtriemap_bench_test.go b/src/internal/sync/hashtriemap_bench_test.go
+index a6ebcd0a11..fc10d82202 100644
+--- a/src/internal/sync/hashtriemap_bench_test.go
++++ b/src/internal/sync/hashtriemap_bench_test.go
+@@ -23,7 +23,7 @@ func BenchmarkHashTrieMapLoadLarge(b *testing.B) {
+ 
+ func benchmarkHashTrieMapLoad(b *testing.B, data []string) {
+ 	b.ReportAllocs()
+-	m := isync.NewHashTrieMap[string, int]()
++	var m isync.HashTrieMap[string, int]
+ 	for i := range data {
+ 		m.LoadOrStore(data[i], i)
+ 	}
+@@ -50,7 +50,7 @@ func BenchmarkHashTrieMapLoadOrStoreLarge(b *testing.B) {
+ 
+ func benchmarkHashTrieMapLoadOrStore(b *testing.B, data []string) {
+ 	b.ReportAllocs()
+-	m := isync.NewHashTrieMap[string, int]()
++	var m isync.HashTrieMap[string, int]
+ 
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		i := 0
+diff --git a/src/internal/sync/hashtriemap_test.go b/src/internal/sync/hashtriemap_test.go
+index ae9696d371..9ab11d4126 100644
+--- a/src/internal/sync/hashtriemap_test.go
++++ b/src/internal/sync/hashtriemap_test.go
+@@ -16,7 +16,8 @@ import (
+ 
+ func TestHashTrieMap(t *testing.T) {
+ 	testHashTrieMap(t, func() *isync.HashTrieMap[string, int] {
+-		return isync.NewHashTrieMap[string, int]()
++		var m isync.HashTrieMap[string, int]
++		return &m
+ 	})
+ }
+ 
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index 2aa6a81083..ba4b3d1687 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -98,7 +98,7 @@ var (
+ 	// benefit of not cramming every different type into a single map, but that's certainly
+ 	// not enough to outweigh the cost of two map lookups. What is worth it though, is saving
+ 	// on those allocations.
+-	uniqueMaps = isync.NewHashTrieMap[*abi.Type, any]() // any is always a *uniqueMap[T].
++	uniqueMaps isync.HashTrieMap[*abi.Type, any] // any is always a *uniqueMap[T].
+ 
+ 	// cleanupFuncs are functions that clean up dead weak pointers in type-specific
+ 	// maps in uniqueMaps. We express cleanup this way because there's no way to iterate
+@@ -114,7 +114,7 @@ var (
+ )
+ 
+ type uniqueMap[T comparable] struct {
+-	*isync.HashTrieMap[T, weak.Pointer[T]]
++	isync.HashTrieMap[T, weak.Pointer[T]]
+ 	cloneSeq
+ }
+ 
+@@ -123,10 +123,7 @@ func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
+ 	// race with someone else, but that's fine; it's one
+ 	// small, stray allocation. The number of allocations
+ 	// this can create is bounded by a small constant.
+-	m := &uniqueMap[T]{
+-		HashTrieMap: isync.NewHashTrieMap[T, weak.Pointer[T]](),
+-		cloneSeq:    makeCloneSeq(typ),
+-	}
++	m := &uniqueMap[T]{cloneSeq: makeCloneSeq(typ)}
+ 	a, loaded := uniqueMaps.LoadOrStore(typ, m)
+ 	if !loaded {
+ 		// Add a cleanup function for the new map.

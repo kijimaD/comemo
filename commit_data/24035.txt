@@ -13,6 +13,20 @@ Date:   Mon Jun 29 10:58:54 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11674
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 0fadd9f8b6..8851eaf00a 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -54,7 +54,7 @@ var ErrNoProgress = errors.New("multiple Read calls return no data or error")
+ // An instance of this general case is that a Reader returning
+ // a non-zero number of bytes at the end of the input stream may
+ // return either err == EOF or err == nil.  The next Read should
+-// return 0, EOF regardless.
++// return 0, EOF.
+ //
+ // Callers should always process the n > 0 bytes returned before
+ // considering the error err.  Doing so correctly handles I/O errors

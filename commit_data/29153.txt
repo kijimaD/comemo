@@ -10,6 +10,33 @@ Date:   Sun Aug 28 23:11:00 2016 -0700
     Change-Id: Ifa8009c55173ba0dc6642c1d3b3124c766b1ebbb
     Reviewed-on: https://go-review.googlesource.com/27996
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/example_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+new file mode 100644
+index 0000000000..e82ee3e3c3
+--- /dev/null
++++ b/src/os/example_test.go
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"log"
++	"os"
++)
++
++func ExampleOpenFile() {
++	f, err := os.OpenFile("notes.txt", os.O_RDWR|os.O_CREATE, 0755)
++	if err != nil {
++		log.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		log.Fatal(err)
++	}
++}

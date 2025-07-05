@@ -15,6 +15,26 @@ Date:   Sun Mar 14 18:12:59 2021 +0200
     Trust: Joe Tsai <joetsai@google.com>
     Run-TryBot: Joe Tsai <joetsai@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/encoding/json/example_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 2088c34297..fbecf1b593 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -279,12 +279,12 @@ func ExampleMarshalIndent() {
+ 		"b": 2,
+ 	}
+ 
+-	json, err := json.MarshalIndent(data, "<prefix>", "<indent>")
++	b, err := json.MarshalIndent(data, "<prefix>", "<indent>")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+ 
+-	fmt.Println(string(json))
++	fmt.Println(string(b))
+ 	// Output:
+ 	// {
+ 	// <prefix><indent>"a": 1,

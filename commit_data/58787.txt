@@ -18,7 +18,7 @@ Date:   Mon Dec 11 17:54:18 2023 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/call.go             |  6 ++++--
  src/cmd/compile/internal/types2/infer.go            | 10 ++++++++--
  src/go/types/call.go                                |  6 ++++--
@@ -27,3 +27,210 @@ Date:   Mon Dec 11 17:54:18 2023 -0800
  src/internal/types/testdata/fixedbugs/issue60688.go |  2 +-
  src/internal/types/testdata/fixedbugs/issue60747.go |  4 ++--
  7 files changed, 34 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 7d9b80f661..db7d86e3d3 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -87,6 +87,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		//
+ 		var args []*operand
+ 		var params []*Var
++		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if inst != nil {
+@@ -102,13 +103,14 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 			// that makes sense when reported in error messages from infer, below.
+ 			expr := syntax.NewName(x.Pos(), T.desc)
+ 			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
++			reverse = true
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+ 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
+ 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
+ 
+-		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args)
++		targs = check.infer(pos, tparams, targs, params2.(*Tuple), args, reverse)
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+@@ -608,7 +610,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 
+ 	// infer missing type arguments of callee and function arguments
+ 	if len(tparams) > 0 {
+-		targs = check.infer(call.Pos(), tparams, targs, sigParams, args)
++		targs = check.infer(call.Pos(), tparams, targs, sigParams, args, false)
+ 		if targs == nil {
+ 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
+ 			//           the call signature for better error messages/gopls behavior.
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 94f2de7b3c..a520f70253 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -24,9 +24,11 @@ const enableReverseTypeInference = true // disable for debugging
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+ // than type parameters, and params and args must match in number (incl. zero).
++// If reverse is set, an error message's contents are reversed for a better error message for some
++// errors related to reverse type inference (where the function call is synthetic).
+ // If successful, infer returns the complete list of given and inferred type arguments, one for each
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
+-func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
++func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, reverse bool) (inferred []Type) {
+ 	// Don't verify result conditions if there's no error handler installed:
+ 	// in that case, an error leads to an exit panic and the result value may
+ 	// be incorrect. But in that case it doesn't matter because callers won't
+@@ -137,7 +139,11 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
+ 		// the more general CannotInferTypeArgs.
+ 		if inferred != tpar {
+-			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
++			if reverse {
++				check.errorf(arg, CannotInferTypeArgs, "inferred type %s for %s does not match type %s of %s", inferred, tpar, targ, arg.expr)
++			} else {
++				check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
++			}
+ 		} else {
+ 			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s", targ, arg.expr, tpar)
+ 		}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 5ac556c511..c7de3bdb9f 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -89,6 +89,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		//
+ 		var args []*operand
+ 		var params []*Var
++		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+ 			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
+ 				if ix != nil {
+@@ -105,13 +106,14 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 			expr := ast.NewIdent(T.desc)
+ 			expr.NamePos = x.Pos() // correct position
+ 			args = []*operand{{mode: value, expr: expr, typ: T.sig}}
++			reverse = true
+ 		}
+ 
+ 		// Rename type parameters to avoid problems with recursive instantiations.
+ 		// Note that NewTuple(params...) below is (*Tuple)(nil) if len(params) == 0, as desired.
+ 		tparams, params2 := check.renameTParams(pos, sig.TypeParams().list(), NewTuple(params...))
+ 
+-		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args)
++		targs = check.infer(atPos(pos), tparams, targs, params2.(*Tuple), args, reverse)
+ 		if targs == nil {
+ 			// error was already reported
+ 			x.mode = invalid
+@@ -610,7 +612,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 
+ 	// infer missing type arguments of callee and function arguments
+ 	if len(tparams) > 0 {
+-		targs = check.infer(call, tparams, targs, sigParams, args)
++		targs = check.infer(call, tparams, targs, sigParams, args, false)
+ 		if targs == nil {
+ 			// TODO(gri) If infer inferred the first targs[:n], consider instantiating
+ 			//           the call signature for better error messages/gopls behavior.
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index ed9841f06e..889de000b0 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -26,9 +26,11 @@ const enableReverseTypeInference = true // disable for debugging
+ // based on the given type parameters tparams, type arguments targs, function parameters params, and
+ // function arguments args, if any. There must be at least one type parameter, no more type arguments
+ // than type parameters, and params and args must match in number (incl. zero).
++// If reverse is set, an error message's contents are reversed for a better error message for some
++// errors related to reverse type inference (where the function call is synthetic).
+ // If successful, infer returns the complete list of given and inferred type arguments, one for each
+ // type parameter. Otherwise the result is nil and appropriate errors will be reported.
+-func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand) (inferred []Type) {
++func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type, params *Tuple, args []*operand, reverse bool) (inferred []Type) {
+ 	// Don't verify result conditions if there's no error handler installed:
+ 	// in that case, an error leads to an exit panic and the result value may
+ 	// be incorrect. But in that case it doesn't matter because callers won't
+@@ -139,7 +141,11 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 		// InvalidTypeArg). We can't differentiate these cases, so fall back on
+ 		// the more general CannotInferTypeArgs.
+ 		if inferred != tpar {
+-			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
++			if reverse {
++				check.errorf(arg, CannotInferTypeArgs, "inferred type %s for %s does not match type %s of %s", inferred, tpar, targ, arg.expr)
++			} else {
++				check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match inferred type %s for %s", targ, arg.expr, inferred, tpar)
++			}
+ 		} else {
+ 			check.errorf(arg, CannotInferTypeArgs, "type %s of %s does not match %s", targ, arg.expr, tpar)
+ 		}
+diff --git a/src/internal/types/testdata/examples/inference2.go b/src/internal/types/testdata/examples/inference2.go
+index a4cfa3b413..91f9df1d84 100644
+--- a/src/internal/types/testdata/examples/inference2.go
++++ b/src/internal/types/testdata/examples/inference2.go
+@@ -27,9 +27,9 @@ var (
+ 	_  func(int) int = f3[int]
+ 
+ 	v6 func(int, int)     = f4
+-	v7 func(int, string)  = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
++	v7 func(int, string)  = f4 // ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of v7"
+ 	v8 func(int) []int    = f5
+-	v9 func(string) []int = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
++	v9 func(string) []int = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of v9"
+ 
+ 	_, _ func(int) = f1, f1
+ 	_, _ func(int) = f1, f2 // ERROR "cannot infer P"
+@@ -49,13 +49,13 @@ func _() {
+ 	v5 = f3[int]
+ 
+ 	v6 = f4
+-	v7 = f4 // ERROR "type func(int, string) of v7 does not match inferred type func(int, int) for func(P, P)"
++	v7 = f4 // ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of v7"
+ 	v8 = f5
+-	v9 = f5 // ERROR "type func(string) []int of v9 does not match inferred type func(string) []string for func(P) []P"
++	v9 = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of v9"
+ 
+ 	// non-trivial LHS
+ 	var a [2]func(string) []int
+-	a[0] = f5 // ERROR "type func(string) []int of a[0] does not match inferred type func(string) []string for func(P) []P"
++	a[0] = f5 // ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of a[0]"
+ }
+ 
+ // Return statements
+@@ -66,11 +66,11 @@ func _() func(int) int { return f3[int] }
+ 
+ func _() func(int, int) { return f4 }
+ func _() func(int, string) {
+-	return f4 /* ERROR "type func(int, string) of result variable does not match inferred type func(int, int) for func(P, P)" */
++	return f4 /* ERROR "inferred type func(int, int) for func(P, P) does not match type func(int, string) of result variable" */
+ }
+ func _() func(int) []int { return f5 }
+ func _() func(string) []int {
+-	return f5 /* ERROR "type func(string) []int of result variable does not match inferred type func(string) []string for func(P) []P" */
++	return f5 /* ERROR "inferred type func(string) []string for func(P) []P does not match type func(string) []int of result variable" */
+ }
+ 
+ func _() (_, _ func(int)) { return f1, f1 }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60688.go b/src/internal/types/testdata/fixedbugs/issue60688.go
+index ba27f28851..61b9f91510 100644
+--- a/src/internal/types/testdata/fixedbugs/issue60688.go
++++ b/src/internal/types/testdata/fixedbugs/issue60688.go
+@@ -13,4 +13,4 @@ func g[P any](P, string) {}
+ // be identical to match).
+ // The result is an error from type inference, rather than an
+ // error from an assignment mismatch.
+-var f func(int, String) = g // ERROR "type func(int, String) of f does not match inferred type func(int, string) for func(P, string)"
++var f func(int, String) = g // ERROR "inferred type func(int, string) for func(P, string) does not match type func(int, String) of f"
+diff --git a/src/internal/types/testdata/fixedbugs/issue60747.go b/src/internal/types/testdata/fixedbugs/issue60747.go
+index c76e3d008c..6587a4e557 100644
+--- a/src/internal/types/testdata/fixedbugs/issue60747.go
++++ b/src/internal/types/testdata/fixedbugs/issue60747.go
+@@ -6,8 +6,8 @@ package p
+ 
+ func f[P any](P) P { panic(0) }
+ 
+-var v func(string) int = f // ERROR "type func(string) int of v does not match inferred type func(string) string for func(P) P"
++var v func(string) int = f // ERROR "inferred type func(string) string for func(P) P does not match type func(string) int of v"
+ 
+ func _() func(string) int {
+-	return f // ERROR "type func(string) int of result variable does not match inferred type func(string) string for func(P) P"
++	return f // ERROR "inferred type func(string) string for func(P) P does not match type func(string) int of result variable"
+ }

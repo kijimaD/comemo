@@ -11,7 +11,44 @@ Date:   Thu Apr 10 21:14:04 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/86730043
-
+---
  src/pkg/expvar/expvar.go      | 2 +-
  src/pkg/expvar/expvar_test.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 3abc65c407..6639ecc294 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -112,7 +112,7 @@ func (v *Map) String() string {
+ 		if !first {
+ 			fmt.Fprintf(&b, ", ")
+ 		}
+-		fmt.Fprintf(&b, "\"%s\": %v", kv.Key, kv.Value)
++		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
+ 		first = false
+ 	})
+ 	fmt.Fprintf(&b, "}")
+diff --git a/src/pkg/expvar/expvar_test.go b/src/pkg/expvar/expvar_test.go
+index d2ea484935..765e3b757e 100644
+--- a/src/pkg/expvar/expvar_test.go
++++ b/src/pkg/expvar/expvar_test.go
+@@ -97,15 +97,15 @@ func TestMapCounter(t *testing.T) {
+ 	colors.Add("red", 1)
+ 	colors.Add("red", 2)
+ 	colors.Add("blue", 4)
+-	colors.AddFloat("green", 4.125)
++	colors.AddFloat(`green "midori"`, 4.125)
+ 	if x := colors.m["red"].(*Int).i; x != 3 {
+ 		t.Errorf("colors.m[\"red\"] = %v, want 3", x)
+ 	}
+ 	if x := colors.m["blue"].(*Int).i; x != 4 {
+ 		t.Errorf("colors.m[\"blue\"] = %v, want 4", x)
+ 	}
+-	if x := colors.m["green"].(*Float).f; x != 4.125 {
+-		t.Errorf("colors.m[\"green\"] = %v, want 3.14", x)
++	if x := colors.m[`green "midori"`].(*Float).f; x != 4.125 {
++		t.Errorf("colors.m[`green \"midori\"] = %v, want 3.14", x)
+ 	}
+ 
+ 	// colors.String() should be '{"red":3, "blue":4}',

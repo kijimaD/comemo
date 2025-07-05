@@ -17,7 +17,96 @@ Date:   Mon Mar 20 13:32:04 2023 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/assignments.go |  6 +++---
  src/go/types/call.go        | 43 ++++++++-----------------------------------
  2 files changed, 11 insertions(+), 38 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 2d71c8f100..8d12df81a0 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -227,7 +227,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ // If the assignment is invalid, the result is nil.
+ func (check *Checker) assignVar(lhs ast.Expr, x *operand) Type {
+ 	if x.mode == invalid || x.typ == Typ[Invalid] {
+-		check.useLHS(lhs)
++		check.use(lhs)
+ 		return nil
+ 	}
+ 
+@@ -382,7 +382,7 @@ func (check *Checker) assignVars(lhs, origRHS []ast.Expr) {
+ 	rhs, commaOk := check.exprList(origRHS, len(lhs) == 2)
+ 
+ 	if len(lhs) != len(rhs) {
+-		check.useLHS(lhs...)
++		check.use(lhs...)
+ 		// don't report an error if we already reported one
+ 		for _, x := range rhs {
+ 			if x.mode == invalid {
+@@ -419,7 +419,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	for i, lhs := range lhs {
+ 		ident, _ := lhs.(*ast.Ident)
+ 		if ident == nil {
+-			check.useLHS(lhs)
++			check.use(lhs)
+ 			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
+ 			check.errorf(lhs, BadDecl, "non-name %s on left side of :=", lhs)
+ 			hasErr = true
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bb9bba32c8..dce05eb4d4 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -749,44 +749,17 @@ Error:
+ func (check *Checker) use(arg ...ast.Expr) {
+ 	var x operand
+ 	for _, e := range arg {
+-		// The nil check below is necessary since certain AST fields
+-		// may legally be nil (e.g., the ast.SliceExpr.High field).
+-		if e != nil {
+-			check.rawExpr(&x, e, nil, false)
+-		}
+-	}
+-}
+-
+-// useLHS is like use, but doesn't "use" top-level identifiers.
+-// It should be called instead of use if the arguments are
+-// expressions on the lhs of an assignment.
+-// The arguments must not be nil.
+-func (check *Checker) useLHS(arg ...ast.Expr) {
+-	var x operand
+-	for _, e := range arg {
+-		// If the lhs is an identifier denoting a variable v, this assignment
+-		// is not a 'use' of v. Remember current value of v.used and restore
+-		// after evaluating the lhs via check.rawExpr.
+-		var v *Var
+-		var v_used bool
+-		if ident, _ := unparen(e).(*ast.Ident); ident != nil {
+-			// never type-check the blank name on the lhs
+-			if ident.Name == "_" {
++		switch n := e.(type) {
++		case nil:
++			// some AST fields may be nil (e.g., the ast.SliceExpr.High field)
++			// TODO(gri) can those fields really make it here?
++			continue
++		case *ast.Ident:
++			// don't report an error evaluating blank
++			if n.Name == "_" {
+ 				continue
+ 			}
+-			if _, obj := check.scope.LookupParent(ident.Name, nopos); obj != nil {
+-				// It's ok to mark non-local variables, but ignore variables
+-				// from other packages to avoid potential race conditions with
+-				// dot-imported variables.
+-				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+-					v = w
+-					v_used = v.used
+-				}
+-			}
+ 		}
+ 		check.rawExpr(&x, e, nil, false)
+-		if v != nil {
+-			v.used = v_used // restore v.used
+-		}
+ 	}
+ }

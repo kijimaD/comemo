@@ -7,6 +7,24 @@ Date:   Tue Aug 13 21:18:33 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12870043
-
+---
  src/pkg/sync/atomic/atomic_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 7f02a3f634..55da21d003 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1466,6 +1466,12 @@ func TestNilDeref(t *testing.T) {
+ 		func() { CompareAndSwapUint64(nil, 0, 0) },
+ 		func() { CompareAndSwapUintptr(nil, 0, 0) },
+ 		func() { CompareAndSwapPointer(nil, nil, nil) },
++		func() { SwapInt32(nil, 0) },
++		func() { SwapUint32(nil, 0) },
++		func() { SwapInt64(nil, 0) },
++		func() { SwapUint64(nil, 0) },
++		func() { SwapUintptr(nil, 0) },
++		func() { SwapPointer(nil, nil) },
+ 		func() { AddInt32(nil, 0) },
+ 		func() { AddUint32(nil, 0) },
+ 		func() { AddInt64(nil, 0) },

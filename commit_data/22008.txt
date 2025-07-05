@@ -15,7 +15,7 @@ Date:   Tue Feb 17 18:30:27 2015 -0800
     Run-TryBot: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/asm/internal/asm/parse.go |   4 ++
  src/crypto/md5/md5block_arm.s     |  18 ++---
  src/crypto/rc4/rc4_arm.s          |  12 ++--
@@ -25,3 +25,593 @@ Date:   Tue Feb 17 18:30:27 2015 -0800
  src/runtime/vlop_arm.s            |   8 +--
  src/sync/atomic/asm_linux_arm.s   |   6 +-
  8 files changed, 110 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 1613326906..73c0af2e30 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -546,6 +546,10 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 			p.errorf("cannot use pseudo-register in pair")
+ 			return
+ 		}
++		// For SB, SP, and FP, there must be a name here. 0(FP) is not legal.
++		if name != "PC" && a.Name == obj.NAME_NONE {
++			p.errorf("cannot reference %s without a symbol", name)
++		}
+ 		p.setPseudoRegister(a, name, false, prefix)
+ 		return
+ 	}
+diff --git a/src/crypto/md5/md5block_arm.s b/src/crypto/md5/md5block_arm.s
+index 7c8691efb2..b2bd04e086 100644
+--- a/src/crypto/md5/md5block_arm.s
++++ b/src/crypto/md5/md5block_arm.s
+@@ -29,31 +29,31 @@
+ //12(FP) is p.cap
+ //
+ // Stack frame
+-#define p_end	-4	// -4(SP) pointer to the end of data
+-#define p_data	-8	// -8(SP) current data pointer
+-#define buf	(-8-4*16)	//-72(SP) 16 words temporary buffer
++#define p_end	-4	// -4(R13==SP) pointer to the end of data
++#define p_data	-8	// -8(R13) current data pointer
++#define buf	(-8-4*16)	//-72(R13) 16 words temporary buffer
+ 		// 3 words at 4..12(R13) for called routine parameters
+ 
+ TEXT	·block(SB), NOSPLIT, $84-16
+ 	MOVW	p+4(FP), Rdata	// pointer to the data
+ 	MOVW	p_len+8(FP), Rt0	// number of bytes
+ 	ADD	Rdata, Rt0
+-	MOVW	Rt0, p_end(SP)	// pointer to end of data
++	MOVW	Rt0, p_end(R13)	// pointer to end of data
+ 
+ loop:
+-	MOVW	Rdata, p_data(SP)	// Save Rdata
++	MOVW	Rdata, p_data(R13)	// Save Rdata
+ 	AND.S	$3, Rdata, Rt0	// TST $3, Rdata not working see issue 5921
+ 	BEQ	aligned			// aligned detected - skip copy
+ 
+ 	// Copy the unaligned source data into the aligned temporary buffer
+ 	// memove(to=4(R13), from=8(R13), n=12(R13)) - Corrupts all registers
+-	MOVW	$buf(SP), Rtable	// to
++	MOVW	$buf(R13), Rtable	// to
+ 	MOVW	$64, Rc0		// n
+ 	MOVM.IB	[Rtable,Rdata,Rc0], (R13)
+ 	BL	runtime·memmove(SB)
+ 
+ 	// Point to the local aligned copy of the data
+-	MOVW	$buf(SP), Rdata
++	MOVW	$buf(R13), Rdata
+ 
+ aligned:
+ 	// Point to the table of constants
+@@ -217,8 +217,8 @@ aligned:
+ 
+ 	MOVM.IA [Ra,Rb,Rc,Rd], (Rt0)
+ 
+-	MOVW	p_data(SP), Rdata
+-	MOVW	p_end(SP), Rt0
++	MOVW	p_data(R13), Rdata
++	MOVW	p_end(R13), Rt0
+ 	ADD	$64, Rdata
+ 	CMP	Rt0, Rdata
+ 	BLO	loop
+diff --git a/src/crypto/rc4/rc4_arm.s b/src/crypto/rc4/rc4_arm.s
+index b4b807ad80..05e94cbcf2 100644
+--- a/src/crypto/rc4/rc4_arm.s
++++ b/src/crypto/rc4/rc4_arm.s
+@@ -21,12 +21,12 @@
+ 
+ // func xorKeyStream(dst, src *byte, n int, state *[256]byte, i, j *uint8)
+ TEXT ·xorKeyStream(SB),NOSPLIT,$0
+-	MOVW 0(FP), Rdst
+-	MOVW 4(FP), Rsrc
+-	MOVW 8(FP), Rn
+-	MOVW 12(FP), Rstate
+-	MOVW 16(FP), Rpi
+-	MOVW 20(FP), Rpj
++	MOVW dst+0(FP), Rdst
++	MOVW src+4(FP), Rsrc
++	MOVW n+8(FP), Rn
++	MOVW state+12(FP), Rstate
++	MOVW pi+16(FP), Rpi
++	MOVW pj+20(FP), Rpj
+ 	MOVBU (Rpi), Ri
+ 	MOVBU (Rpj), Rj
+ 	MOVW $0, Rk
+diff --git a/src/crypto/sha1/sha1block_arm.s b/src/crypto/sha1/sha1block_arm.s
+index 2cc0e09914..ef0ff5d242 100644
+--- a/src/crypto/sha1/sha1block_arm.s
++++ b/src/crypto/sha1/sha1block_arm.s
+@@ -141,7 +141,7 @@ TEXT	·block(SB), 0, $352-16
+ 	MOVW	p+4(FP), Rdata	// pointer to the data
+ 	MOVW	p_len+8(FP), Rt0	// number of bytes
+ 	ADD	Rdata, Rt0
+-	MOVW	Rt0, p_end(SP)	// pointer to end of data
++	MOVW	Rt0, p_end(R13)	// pointer to end of data
+ 
+ 	// Load up initial SHA1 accumulator
+ 	MOVW	dig+0(FP), Rt0
+@@ -151,7 +151,7 @@ loop:
+ 	// Save registers at SP+4 onwards
+ 	MOVM.IB [Ra,Rb,Rc,Rd,Re], (R13)
+ 
+-	MOVW	$w_buf(SP), Rw
++	MOVW	$w_buf(R13), Rw
+ 	MOVW	$0x5A827999, Rconst
+ 	MOVW	$3, Rctr
+ loop1:	ROUND1(Ra, Rb, Rc, Rd, Re)
+@@ -206,7 +206,7 @@ loop4:	ROUND4(Ra, Rb, Rc, Rd, Re)
+ 	ADD	Rctr, Rd
+ 	ADD	Rw, Re
+ 
+-	MOVW	p_end(SP), Rt0
++	MOVW	p_end(R13), Rt0
+ 	CMP	Rt0, Rdata
+ 	BLO	loop
+ 
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index cd81c25d6a..a80d3d4e91 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -106,7 +106,7 @@ TEXT runtime·asminit(SB),NOSPLIT,$0-0
+ // void gosave(Gobuf*)
+ // save state in Gobuf; setjmp
+ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+-	MOVW	0(FP), R0		// gobuf
++	MOVW	gobuf+0(FP), R0
+ 	MOVW	R13, gobuf_sp(R0)
+ 	MOVW	LR, gobuf_pc(R0)
+ 	MOVW	g, gobuf_g(R0)
+@@ -119,7 +119,7 @@ TEXT runtime·gosave(SB),NOSPLIT,$-4-4
+ // void gogo(Gobuf*)
+ // restore state from Gobuf; longjmp
+ TEXT runtime·gogo(SB),NOSPLIT,$-4-4
+-	MOVW	0(FP), R1		// gobuf
++	MOVW	gobuf+0(FP), R1
+ 	MOVW	gobuf_g(R1), R0
+ 	BL	setg<>(SB)
+ 
+@@ -172,7 +172,7 @@ TEXT runtime·mcall(SB),NOSPLIT,$-4-4
+ 	MOVW	fn+0(FP), R0
+ 	MOVW	(g_sched+gobuf_sp)(g), R13
+ 	SUB	$8, R13
+-	MOVW	R1, 4(SP)
++	MOVW	R1, 4(R13)
+ 	MOVW	R0, R7
+ 	MOVW	0(R0), R0
+ 	BL	(R0)
+@@ -292,7 +292,7 @@ TEXT runtime·morestack(SB),NOSPLIT,$-4-0
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(R8)	// f's caller's PC
+ 	MOVW	R13, (m_morebuf+gobuf_sp)(R8)	// f's caller's SP
+-	MOVW	$4(SP), R3			// f's argument pointer
++	MOVW	$4(R13), R3			// f's argument pointer
+ 	MOVW	g, (m_morebuf+gobuf_g)(R8)
+ 
+ 	// Call newstack on m->g0's stack.
+@@ -440,11 +440,11 @@ CALLFN(·call1073741824, 1073741824)
+ // interrupt can never see mismatched SP/LR/PC.
+ // (And double-check that pop is atomic in that way.)
+ TEXT runtime·jmpdefer(SB),NOSPLIT,$0-8
+-	MOVW	0(SP), LR
++	MOVW	0(R13), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+ 	MOVW	fv+0(FP), R7
+ 	MOVW	argp+4(FP), R13
+-	MOVW	$-4(SP), R13	// SP is 4 below argp, due to saved LR
++	MOVW	$-4(R13), R13	// SP is 4 below argp, due to saved LR
+ 	MOVW	0(R7), R1
+ 	B	(R1)
+ 
+@@ -646,7 +646,7 @@ TEXT setg<>(SB),NOSPLIT,$-4-0
+ 	RET
+ 
+ TEXT runtime·getcallerpc(SB),NOSPLIT,$-4-4
+-	MOVW	0(SP), R0
++	MOVW	0(R13), R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+@@ -656,18 +656,18 @@ TEXT runtime·gogetcallerpc(SB),NOSPLIT,$-4-8
+ 
+ TEXT runtime·setcallerpc(SB),NOSPLIT,$-4-8
+ 	MOVW	pc+4(FP), R0
+-	MOVW	R0, 0(SP)
++	MOVW	R0, 0(R13)
+ 	RET
+ 
+ TEXT runtime·getcallersp(SB),NOSPLIT,$-4-4
+-	MOVW	0(FP), R0
++	MOVW	addr+0(FP), R0
+ 	MOVW	$-4(R0), R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ // func gogetcallersp(p unsafe.Pointer) uintptr
+ TEXT runtime·gogetcallersp(SB),NOSPLIT,$-4-8
+-	MOVW	0(FP), R0
++	MOVW	addr+0(FP), R0
+ 	MOVW	$-4(R0), R0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index b0a9b4fc7d..11d20b8dce 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -52,49 +52,49 @@
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ 
+ TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	name+0(FP), R0
++	MOVW	flag+4(FP), R1
++	MOVW	mode+8(FP), R2
+ 	MOVW	$SYS_open, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·close(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
++	MOVW	fd+0(FP), R0
+ 	MOVW	$SYS_close, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
+ TEXT runtime·write(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	fd+0(FP), R0
++	MOVW	buf+4(FP), R1
++	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_write, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·read(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	fd+0(FP), R0
++	MOVW	buf+4(FP), R1
++	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_read, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·getrlimit(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
++	MOVW	res+0(FP), R0
++	MOVW	rlp+4(FP), R1
+ 	MOVW	$SYS_ugetrlimit, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·exit(SB),NOSPLIT,$-4
+-	MOVW	0(FP), R0
++	MOVW	code+0(FP), R0
+ 	MOVW	$SYS_exit_group, R7
+ 	SWI	$0
+ 	MOVW	$1234, R0
+@@ -102,7 +102,7 @@ TEXT runtime·exit(SB),NOSPLIT,$-4
+ 	MOVW	R0, (R1)	// fail hard
+ 
+ TEXT runtime·exit1(SB),NOSPLIT,$-4
+-	MOVW	0(FP), R0
++	MOVW	code+0(FP), R0
+ 	MOVW	$SYS_exit, R7
+ 	SWI	$0
+ 	MOVW	$1234, R0
+@@ -128,12 +128,12 @@ TEXT	runtime·raiseproc(SB),NOSPLIT,$-4
+ 	RET
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
+-	MOVW	12(FP), R3
+-	MOVW	16(FP), R4
+-	MOVW	20(FP), R5
++	MOVW	addr+0(FP), R0
++	MOVW	len+4(FP), R1
++	MOVW	prot+8(FP), R2
++	MOVW	flags+12(FP), R3
++	MOVW	fd+16(FP), R4
++	MOVW	off+20(FP), R5
+ 	MOVW	$SYS_mmap2, R7
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+@@ -143,8 +143,8 @@ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·munmap(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
++	MOVW	addr+0(FP), R0
++	MOVW	len+4(FP), R1
+ 	MOVW	$SYS_munmap, R7
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+@@ -154,26 +154,26 @@ TEXT runtime·munmap(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·madvise(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	addr+0(FP), R0
++	MOVW	len+4(FP), R1
++	MOVW	advice+8(FP), R2
+ 	MOVW	$SYS_madvise, R7
+ 	SWI	$0
+ 	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	which+0(FP), R0
++	MOVW	value+4(FP), R1
++	MOVW	ovalue+8(FP), R2
+ 	MOVW	$SYS_setitimer, R7
+ 	SWI	$0
+ 	RET
+ 
+ TEXT runtime·mincore(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	addr+0(FP), R0
++	MOVW	len+4(FP), R1
++	MOVW	vec+8(FP), R2
+ 	MOVW	$SYS_mincore, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+@@ -188,10 +188,10 @@ TEXT time·now(SB), NOSPLIT, $32
+ 	MOVW	8(R13), R0  // sec
+ 	MOVW	12(R13), R2  // nsec
+ 	
+-	MOVW	R0, 0(FP)
++	MOVW	R0, sec+0(FP)
+ 	MOVW	$0, R1
+-	MOVW	R1, 4(FP)
+-	MOVW	R2, 8(FP)
++	MOVW	R1, loc+4(FP)
++	MOVW	R2, nsec+8(FP)
+ 	RET	
+ 
+ // int64 nanotime(void)
+@@ -217,12 +217,12 @@ TEXT runtime·nanotime(SB),NOSPLIT,$32
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+ //	struct timespec *timeout, int32 *uaddr2, int32 val2);
+ TEXT runtime·futex(SB),NOSPLIT,$0
+-	MOVW	4(SP), R0
+-	MOVW	8(SP), R1
+-	MOVW	12(SP), R2
+-	MOVW	16(SP), R3
+-	MOVW	20(SP), R4
+-	MOVW	24(SP), R5
++	MOVW	4(R13), R0
++	MOVW	8(R13), R1
++	MOVW	12(R13), R2
++	MOVW	16(R13), R3
++	MOVW	20(R13), R4
++	MOVW	24(R13), R5
+ 	MOVW	$SYS_futex, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+24(FP)
+@@ -297,8 +297,8 @@ TEXT runtime·clone(SB),NOSPLIT,$0
+ 	MOVW	R0, (R1)
+ 
+ TEXT runtime·sigaltstack(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
++	MOVW	ss+0(FP), R0
++	MOVW	oss+4(FP), R1
+ 	MOVW	$SYS_sigaltstack, R7
+ 	SWI	$0
+ 	MOVW	$0xfffff001, R6
+@@ -345,19 +345,19 @@ TEXT runtime·sigtramp(SB),NOSPLIT,$24
+ 	RET
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
+-	MOVW	12(FP), R3
++	MOVW	mask+0(FP), R0
++	MOVW	how+4(FP), R1
++	MOVW	set+8(FP), R2
++	MOVW	oldset+12(FP), R3
+ 	MOVW	$SYS_rt_sigprocmask, R7
+ 	SWI	$0
+ 	RET
+ 
+ TEXT runtime·rt_sigaction(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
+-	MOVW	12(FP), R3
++	MOVW	mask+0(FP), R0
++	MOVW	signum+4(FP), R1
++	MOVW	act+8(FP), R2
++	MOVW	oldact+12(FP), R3
+ 	MOVW	$SYS_rt_sigaction, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+16(FP)
+@@ -369,13 +369,13 @@ TEXT runtime·usleep(SB),NOSPLIT,$12
+ 	MOVW	$1000000, R2
+ 	DIV	R2, R0
+ 	MOD	R2, R1
+-	MOVW	R0, 4(SP)
+-	MOVW	R1, 8(SP)
++	MOVW	R0, 4(R13)
++	MOVW	R1, 8(R13)
+ 	MOVW	$0, R0
+ 	MOVW	$0, R1
+ 	MOVW	$0, R2
+ 	MOVW	$0, R3
+-	MOVW	$4(SP), R4
++	MOVW	$4(R13), R4
+ 	MOVW	$SYS_select, R7
+ 	SWI	$0
+ 	RET
+@@ -415,9 +415,9 @@ TEXT runtime·osyield(SB),NOSPLIT,$0
+ 	RET
+ 
+ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	pid+0(FP), R0
++	MOVW	setsize+4(FP), R1
++	MOVW	mask+8(FP), R2
+ 	MOVW	$SYS_sched_getaffinity, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+@@ -425,7 +425,7 @@ TEXT runtime·sched_getaffinity(SB),NOSPLIT,$0
+ 
+ // int32 runtime·epollcreate(int32 size)
+ TEXT runtime·epollcreate(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
++	MOVW	size+0(FP), R0
+ 	MOVW	$SYS_epoll_create, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+4(FP)
+@@ -433,7 +433,7 @@ TEXT runtime·epollcreate(SB),NOSPLIT,$0
+ 
+ // int32 runtime·epollcreate1(int32 flags)
+ TEXT runtime·epollcreate1(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
++	MOVW	size+0(FP), R0
+ 	MOVW	$SYS_epoll_create1, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+4(FP)
+@@ -452,10 +452,10 @@ TEXT runtime·epollctl(SB),NOSPLIT,$0
+ 
+ // int32 runtime·epollwait(int32 epfd, EpollEvent *ev, int32 nev, int32 timeout)
+ TEXT runtime·epollwait(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
+-	MOVW	12(FP), R3
++	MOVW	epfd+0(FP), R0
++	MOVW	events+4(FP), R1
++	MOVW	maxevents+8(FP), R2
++	MOVW	timeout+12(FP), R3
+ 	MOVW	$SYS_epoll_wait, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+16(FP)
+@@ -463,7 +463,7 @@ TEXT runtime·epollwait(SB),NOSPLIT,$0
+ 
+ // void runtime·closeonexec(int32 fd)
+ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0	// fd
++	MOVW	fd+0(FP), R0	// fd
+ 	MOVW	$2, R1	// F_SETFD
+ 	MOVW	$1, R2	// FD_CLOEXEC
+ 	MOVW	$SYS_fcntl, R7
+@@ -476,26 +476,26 @@ TEXT runtime·read_tls_fallback(SB),NOSPLIT,$-4
+ 	B	(R0)
+ 
+ TEXT runtime·access(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
++	MOVW	name+0(FP), R0
++	MOVW	mode+4(FP), R1
+ 	MOVW	$SYS_access, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·connect(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	fd+0(FP), R0
++	MOVW	addr+4(FP), R1
++	MOVW	addrlen+8(FP), R2
+ 	MOVW	$SYS_connect, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ TEXT runtime·socket(SB),NOSPLIT,$0
+-	MOVW	0(FP), R0
+-	MOVW	4(FP), R1
+-	MOVW	8(FP), R2
++	MOVW	domain+0(FP), R0
++	MOVW	type+4(FP), R1
++	MOVW	protocol+8(FP), R2
+ 	MOVW	$SYS_socket, R7
+ 	SWI	$0
+ 	MOVW	R0, ret+12(FP)
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 28f75190ec..b4a40c0ab2 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -226,7 +226,7 @@ TEXT _divu(SB), NOSPLIT, $16
+ 	MOVW	RM, 16(R13)
+ 
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	0(FP), Rq 		/* denominator */
++	MOVW	den+0(FP), Rq 		/* denominator */
+ 	BL  	udiv<>(SB)
+ 	MOVW	Rq, RTMP
+ 	MOVW	4(R13), Rq
+@@ -242,7 +242,7 @@ TEXT _modu(SB), NOSPLIT, $16
+ 	MOVW	RM, 16(R13)
+ 
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	0(FP), Rq 		/* denominator */
++	MOVW	den+0(FP), Rq 		/* denominator */
+ 	BL  	udiv<>(SB)
+ 	MOVW	Rr, RTMP
+ 	MOVW	4(R13), Rq
+@@ -257,7 +257,7 @@ TEXT _div(SB),NOSPLIT,$16
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	0(FP), Rq 		/* denominator */
++	MOVW	den+0(FP), Rq 		/* denominator */
+ 	CMP 	$0, Rr
+ 	BGE 	d1
+ 	RSB 	$0, Rr, Rr
+@@ -288,7 +288,7 @@ TEXT _mod(SB),NOSPLIT,$16
+ 	MOVW	Rs, 12(R13)
+ 	MOVW	RM, 16(R13)
+ 	MOVW	RTMP, Rr		/* numerator */
+-	MOVW	0(FP), Rq 		/* denominator */
++	MOVW	den+0(FP), Rq 		/* denominator */
+ 	CMP 	$0, Rq
+ 	RSB.LT	$0, Rq, Rq
+ 	CMP 	$0, Rr
+diff --git a/src/sync/atomic/asm_linux_arm.s b/src/sync/atomic/asm_linux_arm.s
+index 63562388a2..631c105ff6 100644
+--- a/src/sync/atomic/asm_linux_arm.s
++++ b/src/sync/atomic/asm_linux_arm.s
+@@ -107,12 +107,12 @@ TEXT kernelCAS64<>(SB),NOSPLIT,$0-21
+ 	AND.S	$7, R2, R1
+ 	BEQ 	2(PC)
+ 	MOVW	R1, (R1)
+-	MOVW	$4(FP), R0 // oldval
+-	MOVW	$12(FP), R1 // newval
++	MOVW	$oldval+4(FP), R0
++	MOVW	$newval+12(FP), R1
+ 	BL	cas64<>(SB)
+ 	MOVW.CS	$1, R0 // C is set if the kernel has changed *ptr
+ 	MOVW.CC	$0, R0
+-	MOVW	R0, 20(FP)
++	MOVW	R0, ret+20(FP)
+ 	RET
+ 
+ TEXT ·generalCAS64(SB),NOSPLIT,$0-21

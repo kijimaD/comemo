@@ -13,7 +13,7 @@ Date:   Thu Sep 21 13:47:05 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/530576
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  2 +-
  src/cmd/compile/internal/inline/inlheur/analyze.go | 44 ++++++++++------------
  .../inline/inlheur/analyze_func_callsites.go       | 14 +++----
@@ -26,3 +26,535 @@ Date:   Thu Sep 21 13:47:05 2023 -0400
  src/cmd/compile/internal/inline/inlheur/scoring.go |  9 +++--
  .../compile/internal/inline/inlheur/serialize.go   | 32 ++++++++--------
  11 files changed, 90 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 992ae632e2..f3ad19d241 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -978,7 +978,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 
+ 	metric := callee.Inl.Cost
+ 	if goexperiment.NewInliner {
+-		ok, score := inlheur.GetCallSiteScore(n)
++		score, ok := inlheur.GetCallSiteScore(caller, n)
+ 		if ok {
+ 			metric = int32(score)
+ 		}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 8e54c9f123..9af7e1207d 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -40,7 +40,7 @@ const (
+ type propAnalyzer interface {
+ 	nodeVisitPre(n ir.Node)
+ 	nodeVisitPost(n ir.Node)
+-	setResults(fp *FuncProps)
++	setResults(funcProps *FuncProps)
+ }
+ 
+ // fnInlHeur contains inline heuristics state information about a
+@@ -62,29 +62,25 @@ type fnInlHeur struct {
+ var fpmap = map[*ir.Func]fnInlHeur{}
+ 
+ func AnalyzeFunc(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int32) *FuncProps {
+-	if fih, ok := fpmap[fn]; ok {
+-		return fih.props
++	if funcInlHeur, ok := fpmap[fn]; ok {
++		return funcInlHeur.props
+ 	}
+-	fp, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
++	funcProps, fcstab := computeFuncProps(fn, canInline, inlineMaxBudget)
+ 	file, line := fnFileLine(fn)
+ 	entry := fnInlHeur{
+ 		fname:           fn.Sym().Name,
+ 		file:            file,
+ 		line:            line,
+ 		inlineMaxBudget: inlineMaxBudget,
+-		props:           fp,
++		props:           funcProps,
+ 		cstab:           fcstab,
+ 	}
+-	// Merge this functions call sites into the package level table.
+-	if err := cstab.merge(fcstab); err != nil {
+-		base.FatalfAt(fn.Pos(), "%v", err)
+-	}
+ 	fn.SetNeverReturns(entry.props.Flags&FuncPropNeverReturns != 0)
+ 	fpmap[fn] = entry
+ 	if fn.Inl != nil && fn.Inl.Properties == "" {
+ 		fn.Inl.Properties = entry.props.SerializeToString()
+ 	}
+-	return fp
++	return funcProps
+ }
+ 
+ // computeFuncProps examines the Go function 'fn' and computes for it
+@@ -100,15 +96,15 @@ func computeFuncProps(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget int
+ 	pa := makeParamsAnalyzer(fn)
+ 	ffa := makeFuncFlagsAnalyzer(fn)
+ 	analyzers := []propAnalyzer{ffa, ra, pa}
+-	fp := new(FuncProps)
++	funcProps := new(FuncProps)
+ 	runAnalyzersOnFunction(fn, analyzers)
+ 	for _, a := range analyzers {
+-		a.setResults(fp)
++		a.setResults(funcProps)
+ 	}
+ 	// Now build up a partial table of callsites for this func.
+ 	cstab := computeCallSiteTable(fn, ffa.panicPathTable())
+ 	disableDebugTrace()
+-	return fp, cstab
++	return funcProps, cstab
+ }
+ 
+ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
+@@ -127,8 +123,8 @@ func runAnalyzersOnFunction(fn *ir.Func, analyzers []propAnalyzer) {
+ }
+ 
+ func propsForFunc(fn *ir.Func) *FuncProps {
+-	if fih, ok := fpmap[fn]; ok {
+-		return fih.props
++	if funcInlHeur, ok := fpmap[fn]; ok {
++		return funcInlHeur.props
+ 	} else if fn.Inl != nil && fn.Inl.Properties != "" {
+ 		// FIXME: considering adding some sort of cache or table
+ 		// for deserialized properties of imported functions.
+@@ -227,14 +223,14 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
+ 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
+ 		return
+ 	}
+-	fih, ok := fpmap[fn]
++	funcInlHeur, ok := fpmap[fn]
+ 	// Props object should already be present, unless this is a
+ 	// directly recursive routine.
+ 	if !ok {
+ 		AnalyzeFunc(fn, canInline, inlineMaxBudget)
+-		fih = fpmap[fn]
++		funcInlHeur = fpmap[fn]
+ 		if fn.Inl != nil && fn.Inl.Properties == "" {
+-			fn.Inl.Properties = fih.props.SerializeToString()
++			fn.Inl.Properties = funcInlHeur.props.SerializeToString()
+ 		}
+ 	}
+ 	if dumpBuffer == nil {
+@@ -248,7 +244,7 @@ func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
+ 	if debugTrace&debugTraceFuncs != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= capturing dump for %v:\n", fn)
+ 	}
+-	dumpBuffer[fn] = fih
++	dumpBuffer[fn] = funcInlHeur
+ }
+ 
+ // dumpFilePreamble writes out a file-level preamble for a given
+@@ -264,17 +260,17 @@ func dumpFilePreamble(w io.Writer) {
+ // Go function as part of a function properties dump. See the
+ // README.txt file in testdata/props for more on the format of
+ // this preamble.
+-func dumpFnPreamble(w io.Writer, fih *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
++func dumpFnPreamble(w io.Writer, funcInlHeur *fnInlHeur, ecst encodedCallSiteTab, idx, atl uint) error {
+ 	fmt.Fprintf(w, "// %s %s %d %d %d\n",
+-		fih.file, fih.fname, fih.line, idx, atl)
++		funcInlHeur.file, funcInlHeur.fname, funcInlHeur.line, idx, atl)
+ 	// emit props as comments, followed by delimiter
+-	fmt.Fprintf(w, "%s// %s\n", fih.props.ToString("// "), comDelimiter)
+-	data, err := json.Marshal(fih.props)
++	fmt.Fprintf(w, "%s// %s\n", funcInlHeur.props.ToString("// "), comDelimiter)
++	data, err := json.Marshal(funcInlHeur.props)
+ 	if err != nil {
+ 		return fmt.Errorf("marshall error %v\n", err)
+ 	}
+ 	fmt.Fprintf(w, "// %s\n", string(data))
+-	dumpCallSiteComments(w, fih.cstab, ecst)
++	dumpCallSiteComments(w, funcInlHeur.cstab, ecst)
+ 	fmt.Fprintf(w, "// %s\n", fnDelimiter)
+ 	return nil
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+index 85e287083d..f0e07d29fc 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_callsites.go
+@@ -176,7 +176,7 @@ func ScoreCalls(fn *ir.Func) {
+ 		fmt.Fprintf(os.Stderr, "=-= ScoreCalls(%v)\n", ir.FuncName(fn))
+ 	}
+ 
+-	fih, ok := fpmap[fn]
++	funcInlHeur, ok := fpmap[fn]
+ 	if !ok {
+ 		// TODO: add an assert/panic here.
+ 		return
+@@ -187,8 +187,8 @@ func ScoreCalls(fn *ir.Func) {
+ 	// Sort callsites to avoid any surprises with non deterministic
+ 	// map iteration order (this is probably not needed, but here just
+ 	// in case).
+-	csl := make([]*CallSite, 0, len(fih.cstab))
+-	for _, cs := range fih.cstab {
++	csl := make([]*CallSite, 0, len(funcInlHeur.cstab))
++	for _, cs := range funcInlHeur.cstab {
+ 		csl = append(csl, cs)
+ 	}
+ 	sort.Slice(csl, func(i, j int) bool {
+@@ -200,8 +200,8 @@ func ScoreCalls(fn *ir.Func) {
+ 		var cprops *FuncProps
+ 		fihcprops := false
+ 		desercprops := false
+-		if fih, ok := fpmap[cs.Callee]; ok {
+-			cprops = fih.props
++		if funcInlHeur, ok := fpmap[cs.Callee]; ok {
++			cprops = funcInlHeur.props
+ 			fihcprops = true
+ 		} else if cs.Callee.Inl != nil {
+ 			cprops = DeserializeFromString(cs.Callee.Inl.Properties)
+@@ -219,11 +219,11 @@ func ScoreCalls(fn *ir.Func) {
+ 		examineCallResults(cs, resultNameTab)
+ 
+ 		if debugTrace&debugTraceScoring != 0 {
+-			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d fih=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
++			fmt.Fprintf(os.Stderr, "=-= scoring call at %s: flags=%d score=%d funcInlHeur=%v deser=%v\n", fmtFullPos(cs.Call.Pos()), cs.Flags, cs.Score, fihcprops, desercprops)
+ 		}
+ 	}
+ 
+-	rescoreBasedOnCallResultUses(fn, resultNameTab, fih.cstab)
++	rescoreBasedOnCallResultUses(fn, resultNameTab, funcInlHeur.cstab)
+ }
+ 
+ func (csa *callSiteAnalyzer) nodeVisitPre(n ir.Node) {
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+index 305e07fd9a..8211c452d5 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_flags.go
+@@ -40,8 +40,8 @@ func makeFuncFlagsAnalyzer(fn *ir.Func) *funcFlagsAnalyzer {
+ 	}
+ }
+ 
+-// setResults transfers func flag results to 'fp'.
+-func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
++// setResults transfers func flag results to 'funcProps'.
++func (ffa *funcFlagsAnalyzer) setResults(funcProps *FuncProps) {
+ 	var rv FuncPropBits
+ 	if !ffa.noInfo && ffa.stateForList(ffa.fn.Body) == psCallsPanic {
+ 		rv = FuncPropNeverReturns
+@@ -63,7 +63,7 @@ func (ffa *funcFlagsAnalyzer) setResults(fp *FuncProps) {
+ 	if isMainMain(ffa.fn) {
+ 		rv &^= FuncPropNeverReturns
+ 	}
+-	fp.Flags = rv
++	funcProps.Flags = rv
+ }
+ 
+ func (ffa *funcFlagsAnalyzer) getstate(n ir.Node) pstate {
+@@ -189,8 +189,8 @@ func isExitCall(n ir.Node) bool {
+ 		isWellKnownFunc(s, "runtime", "throw") {
+ 		return true
+ 	}
+-	if fp := propsForFunc(name.Func); fp != nil {
+-		if fp.Flags&FuncPropNeverReturns != 0 {
++	if funcProps := propsForFunc(name.Func); funcProps != nil {
++		if funcProps.Flags&FuncPropNeverReturns != 0 {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+index 6665ee54f0..f65d8909e0 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_params.go
+@@ -72,8 +72,8 @@ func makeParamsAnalyzer(fn *ir.Func) *paramsAnalyzer {
+ 	}
+ }
+ 
+-func (pa *paramsAnalyzer) setResults(fp *FuncProps) {
+-	fp.ParamFlags = pa.values
++func (pa *paramsAnalyzer) setResults(funcProps *FuncProps) {
++	funcProps.ParamFlags = pa.values
+ }
+ 
+ func (pa *paramsAnalyzer) findParamIdx(n *ir.Name) int {
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+index 8107143631..3ee249fa9d 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -61,8 +61,8 @@ func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func), inlineMaxBudget
+ }
+ 
+ // setResults transfers the calculated result properties for this
+-// function to 'fp'.
+-func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
++// function to 'funcProps'.
++func (ra *returnsAnalyzer) setResults(funcProps *FuncProps) {
+ 	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
+ 	for i := range ra.values {
+ 		if ra.props[i] == ResultAlwaysSameFunc && !ra.values[i].derived {
+@@ -88,7 +88,7 @@ func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
+ 			}
+ 		}
+ 	}
+-	fp.ResultFlags = ra.props
++	funcProps.ResultFlags = ra.props
+ }
+ 
+ func (ra *returnsAnalyzer) pessimize() {
+diff --git a/src/cmd/compile/internal/inline/inlheur/callsite.go b/src/cmd/compile/internal/inline/inlheur/callsite.go
+index 2e42cc28da..7a1830fd68 100644
+--- a/src/cmd/compile/internal/inline/inlheur/callsite.go
++++ b/src/cmd/compile/internal/inline/inlheur/callsite.go
+@@ -41,19 +41,16 @@ type CallSite struct {
+ // with many calls that share the same auto-generated pos.
+ type CallSiteTab map[*ir.CallExpr]*CallSite
+ 
+-// Package-level table of callsites.
+-var cstab = CallSiteTab{}
+-
+-func GetCallSiteScore(ce *ir.CallExpr) (bool, int) {
+-	cs, ok := cstab[ce]
+-	if !ok {
+-		return false, 0
++func GetCallSiteScore(fn *ir.Func, call *ir.CallExpr) (int, bool) {
++	if funcInlHeur, ok := fpmap[fn]; !ok {
++		return 0, false
++	} else {
++		cs, ok := funcInlHeur.cstab[call]
++		if !ok {
++			return 0, false
++		}
++		return cs.Score, true
+ 	}
+-	return true, cs.Score
+-}
+-
+-func CallSiteTable() CallSiteTab {
+-	return cstab
+ }
+ 
+ type CSPropBits uint32
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index ea2a3fc1ba..66f75e9125 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -234,18 +234,18 @@ func (dr *dumpReader) readObjBlob(delim string) (string, error) {
+ // returns the resulting properties and function name. EOF is
+ // signaled by a nil FuncProps return (with no error
+ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+-	var fih fnInlHeur
++	var funcInlHeur fnInlHeur
+ 	var callsites encodedCallSiteTab
+ 	if !dr.scan() {
+-		return fih, callsites, nil
++		return funcInlHeur, callsites, nil
+ 	}
+ 	// first line contains info about function: file/name/line
+ 	info := dr.curLine()
+ 	chunks := strings.Fields(info)
+-	fih.file = chunks[0]
+-	fih.fname = chunks[1]
+-	if _, err := fmt.Sscanf(chunks[2], "%d", &fih.line); err != nil {
+-		return fih, callsites, fmt.Errorf("scanning line %q: %v", info, err)
++	funcInlHeur.file = chunks[0]
++	funcInlHeur.fname = chunks[1]
++	if _, err := fmt.Sscanf(chunks[2], "%d", &funcInlHeur.line); err != nil {
++		return funcInlHeur, callsites, fmt.Errorf("scanning line %q: %v", info, err)
+ 	}
+ 	// consume comments until and including delimiter
+ 	for {
+@@ -262,9 +262,9 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 	line := dr.curLine()
+ 	fp := &FuncProps{}
+ 	if err := json.Unmarshal([]byte(line), fp); err != nil {
+-		return fih, callsites, err
++		return funcInlHeur, callsites, err
+ 	}
+-	fih.props = fp
++	funcInlHeur.props = fp
+ 
+ 	// Consume callsites.
+ 	callsites = make(encodedCallSiteTab)
+@@ -276,29 +276,29 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 		// expected format: "// callsite: <expanded pos> flagstr <desc> flagval <flags> score <score> mask <scoremask> maskstr <scoremaskstring>"
+ 		fields := strings.Fields(line)
+ 		if len(fields) != 12 {
+-			return fih, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
++			return funcInlHeur, nil, fmt.Errorf("malformed callsite (nf=%d) %s line %d: %s", len(fields), dr.p, dr.ln, line)
+ 		}
+ 		if fields[2] != "flagstr" || fields[4] != "flagval" || fields[6] != "score" || fields[8] != "mask" || fields[10] != "maskstr" {
+-			return fih, nil, fmt.Errorf("malformed callsite %s line %d: %s",
++			return funcInlHeur, nil, fmt.Errorf("malformed callsite %s line %d: %s",
+ 				dr.p, dr.ln, line)
+ 		}
+ 		tag := fields[1]
+ 		flagstr := fields[5]
+ 		flags, err := strconv.Atoi(flagstr)
+ 		if err != nil {
+-			return fih, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
++			return funcInlHeur, nil, fmt.Errorf("bad flags val %s line %d: %q err=%v",
+ 				dr.p, dr.ln, line, err)
+ 		}
+ 		scorestr := fields[7]
+ 		score, err2 := strconv.Atoi(scorestr)
+ 		if err2 != nil {
+-			return fih, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
++			return funcInlHeur, nil, fmt.Errorf("bad score val %s line %d: %q err=%v",
+ 				dr.p, dr.ln, line, err2)
+ 		}
+ 		maskstr := fields[9]
+ 		mask, err3 := strconv.Atoi(maskstr)
+ 		if err3 != nil {
+-			return fih, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
++			return funcInlHeur, nil, fmt.Errorf("bad mask val %s line %d: %q err=%v",
+ 				dr.p, dr.ln, line, err3)
+ 		}
+ 		callsites[tag] = propsAndScore{
+@@ -312,10 +312,10 @@ func (dr *dumpReader) readEntry() (fnInlHeur, encodedCallSiteTab, error) {
+ 	dr.scan()
+ 	line = dr.curLine()
+ 	if line != fnDelimiter {
+-		return fih, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
++		return funcInlHeur, nil, fmt.Errorf("malformed testcase file %q, missing delimiter %q", dr.p, fnDelimiter)
+ 	}
+ 
+-	return fih, callsites, nil
++	return funcInlHeur, callsites, nil
+ }
+ 
+ // gatherPropsDumpForFile builds the specified testcase 'testcase' from
+diff --git a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+index d13e1c3286..6a306d4522 100644
+--- a/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
++++ b/src/cmd/compile/internal/inline/inlheur/score_callresult_uses.go
+@@ -150,17 +150,17 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
+ 	if cs.Assign == nil {
+ 		return nil, nil, nil
+ 	}
+-	fih, ok := fpmap[cs.Callee]
++	funcInlHeur, ok := fpmap[cs.Callee]
+ 	if !ok {
+ 		// TODO: add an assert/panic here.
+ 		return nil, nil, nil
+ 	}
+-	if len(fih.props.ResultFlags) == 0 {
++	if len(funcInlHeur.props.ResultFlags) == 0 {
+ 		return nil, nil, nil
+ 	}
+ 
+ 	// Single return case.
+-	if len(fih.props.ResultFlags) == 1 {
++	if len(funcInlHeur.props.ResultFlags) == 1 {
+ 		asgn, ok := cs.Assign.(*ir.AssignStmt)
+ 		if !ok {
+ 			return nil, nil, nil
+@@ -170,7 +170,7 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
+ 		if !ok {
+ 			return nil, nil, nil
+ 		}
+-		return []*ir.Name{aname}, []*ir.Name{nil}, fih.props
++		return []*ir.Name{aname}, []*ir.Name{nil}, funcInlHeur.props
+ 	}
+ 
+ 	// Multi-return case
+@@ -178,8 +178,8 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
+ 	if !ok || !asgn.Def {
+ 		return nil, nil, nil
+ 	}
+-	userVars := make([]*ir.Name, len(fih.props.ResultFlags))
+-	autoTemps := make([]*ir.Name, len(fih.props.ResultFlags))
++	userVars := make([]*ir.Name, len(funcInlHeur.props.ResultFlags))
++	autoTemps := make([]*ir.Name, len(funcInlHeur.props.ResultFlags))
+ 	for idx, x := range asgn.Lhs {
+ 		if n, ok := x.(*ir.Name); ok {
+ 			userVars[idx] = n
+@@ -198,7 +198,7 @@ func namesDefined(cs *CallSite) ([]*ir.Name, []*ir.Name, *FuncProps) {
+ 			return nil, nil, nil
+ 		}
+ 	}
+-	return userVars, autoTemps, fih.props
++	return userVars, autoTemps, funcInlHeur.props
+ }
+ 
+ func (rua *resultUseAnalyzer) nodeVisitPost(n ir.Node) {
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index fe2841797a..d45d5f005e 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -299,7 +299,6 @@ func adjustScore(typ scoreAdjustTyp, score int, mask scoreAdjustTyp) (int, score
+ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func, profile *pgo.Profile) (int32, bool)) {
+ 
+ 	fmt.Fprintf(os.Stdout, "# scores for package %s\n", types.LocalPkg.Path)
+-	cstab := CallSiteTable()
+ 
+ 	genstatus := func(cs *CallSite, prof *pgo.Profile) string {
+ 		hairyval := cs.Callee.Inl.Cost
+@@ -330,9 +329,11 @@ func DumpInlCallSiteScores(profile *pgo.Profile, budgetCallback func(fn *ir.Func
+ 	}
+ 
+ 	if base.Debug.DumpInlCallSiteScores != 0 {
+-		sl := make([]*CallSite, 0, len(cstab))
+-		for _, v := range cstab {
+-			sl = append(sl, v)
++		var sl []*CallSite
++		for _, funcInlHeur := range fpmap {
++			for _, cs := range funcInlHeur.cstab {
++				sl = append(sl, cs)
++			}
+ 		}
+ 		sort.Slice(sl, func(i, j int) bool {
+ 			if sl[i].Score != sl[j].Score {
+diff --git a/src/cmd/compile/internal/inline/inlheur/serialize.go b/src/cmd/compile/internal/inline/inlheur/serialize.go
+index 924511bd1a..d650626679 100644
+--- a/src/cmd/compile/internal/inline/inlheur/serialize.go
++++ b/src/cmd/compile/internal/inline/inlheur/serialize.go
+@@ -6,18 +6,18 @@ package inlheur
+ 
+ import "strings"
+ 
+-func (fp *FuncProps) SerializeToString() string {
+-	if fp == nil {
++func (funcProps *FuncProps) SerializeToString() string {
++	if funcProps == nil {
+ 		return ""
+ 	}
+ 	var sb strings.Builder
+-	writeUleb128(&sb, uint64(fp.Flags))
+-	writeUleb128(&sb, uint64(len(fp.ParamFlags)))
+-	for _, pf := range fp.ParamFlags {
++	writeUleb128(&sb, uint64(funcProps.Flags))
++	writeUleb128(&sb, uint64(len(funcProps.ParamFlags)))
++	for _, pf := range funcProps.ParamFlags {
+ 		writeUleb128(&sb, uint64(pf))
+ 	}
+-	writeUleb128(&sb, uint64(len(fp.ResultFlags)))
+-	for _, rf := range fp.ResultFlags {
++	writeUleb128(&sb, uint64(len(funcProps.ResultFlags)))
++	for _, rf := range funcProps.ResultFlags {
+ 		writeUleb128(&sb, uint64(rf))
+ 	}
+ 	return sb.String()
+@@ -27,24 +27,24 @@ func DeserializeFromString(s string) *FuncProps {
+ 	if len(s) == 0 {
+ 		return nil
+ 	}
+-	var fp FuncProps
++	var funcProps FuncProps
+ 	var v uint64
+ 	sl := []byte(s)
+ 	v, sl = readULEB128(sl)
+-	fp.Flags = FuncPropBits(v)
++	funcProps.Flags = FuncPropBits(v)
+ 	v, sl = readULEB128(sl)
+-	fp.ParamFlags = make([]ParamPropBits, v)
+-	for i := range fp.ParamFlags {
++	funcProps.ParamFlags = make([]ParamPropBits, v)
++	for i := range funcProps.ParamFlags {
+ 		v, sl = readULEB128(sl)
+-		fp.ParamFlags[i] = ParamPropBits(v)
++		funcProps.ParamFlags[i] = ParamPropBits(v)
+ 	}
+ 	v, sl = readULEB128(sl)
+-	fp.ResultFlags = make([]ResultPropBits, v)
+-	for i := range fp.ResultFlags {
++	funcProps.ResultFlags = make([]ResultPropBits, v)
++	for i := range funcProps.ResultFlags {
+ 		v, sl = readULEB128(sl)
+-		fp.ResultFlags[i] = ResultPropBits(v)
++		funcProps.ResultFlags[i] = ResultPropBits(v)
+ 	}
+-	return &fp
++	return &funcProps
+ }
+ 
+ func readULEB128(sl []byte) (value uint64, rsl []byte) {

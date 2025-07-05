@@ -17,6 +17,52 @@ Date:   Sun Jun 17 17:27:13 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/testdata/testprog/numcpu_freebsd.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+index 035c53470b..42ee154883 100644
+--- a/src/runtime/testdata/testprog/numcpu_freebsd.go
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -9,12 +9,17 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"os/exec"
++	"regexp"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
+ )
+ 
++var (
++	cpuSetRE = regexp.MustCompile(`(\d,?)+`)
++)
++
+ func init() {
+ 	register("FreeBSDNumCPU", FreeBSDNumCPU)
+ 	register("FreeBSDNumCPUHelper", FreeBSDNumCPUHelper)
+@@ -105,8 +110,12 @@ func checkNCPU(list []string) error {
+ 		return fmt.Errorf("could not check against an empty CPU list")
+ 	}
+ 
++	cListString := cpuSetRE.FindString(listString)
++	if len(cListString) == 0 {
++		return fmt.Errorf("invalid cpuset output '%s'", listString)
++	}
+ 	// Launch FreeBSDNumCPUHelper() with specified CPUs list.
+-	cmd := exec.Command("cpuset", "-l", listString, os.Args[0], "FreeBSDNumCPUHelper")
++	cmd := exec.Command("cpuset", "-l", cListString, os.Args[0], "FreeBSDNumCPUHelper")
+ 	cmdline := strings.Join(cmd.Args, " ")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -120,7 +129,7 @@ func checkNCPU(list []string) error {
+ 		return fmt.Errorf("fail to parse output from child '%s', error: %s, output: %s", cmdline, err, output)
+ 	}
+ 	if n != len(list) {
+-		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, listString)
++		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, cListString)
+ 	}
+ 	return nil
+ }

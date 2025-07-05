@@ -28,6 +28,21 @@ Date:   Mon Aug 11 16:49:13 2014 -0700
     R=golang-codereviews, bradfitz, minux, iant
     CC=golang-codereviews
     https://golang.org/cl/126990043
-
+---
  src/cmd/cgo/gcc.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 841c848332..aa28060ea7 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -229,7 +229,8 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	// Determine kinds for names we already know about,
+ 	// like #defines or 'struct foo', before bothering with gcc.
+ 	var names, needType []*Name
+-	for _, n := range f.Name {
++	for _, key := range nameKeys(f.Name) {
++		n := f.Name[key]
+ 		// If we've already found this name as a #define
+ 		// and we can translate it as a constant value, do so.
+ 		if n.Define != "" {

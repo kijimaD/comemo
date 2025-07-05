@@ -35,6 +35,38 @@ Date:   Fri Dec 21 00:04:18 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_vcs_missing.txt | 19 ++++++++++++++++++-
  1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_vcs_missing.txt b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+index fb146b4415..009bb91c3c 100644
+--- a/src/cmd/go/testdata/script/mod_vcs_missing.txt
++++ b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+@@ -4,8 +4,25 @@
+ env GO111MODULE=on
+ env GOPROXY=
+ 
++cd empty
+ ! go list launchpad.net/gocheck
+ stderr '"bzr": executable file not found'
++cd ..
+ 
+--- go.mod --
++# 1.11 used to give the cryptic error "cannot find module for path" here, but
++# only for a main package.
++cd main
++! go build
++stderr '"bzr": executable file not found'
++cd ..
++
++-- empty/go.mod --
++module m
++-- main/go.mod --
+ module m
++-- main/main.go --
++package main
++
++import _ "launchpad.net/gocheck"
++
++func main() {}

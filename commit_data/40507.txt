@@ -11,9 +11,226 @@ Date:   Thu May 16 18:35:48 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                       |  8 +++-
  src/cmd/go/internal/modget/get.go           | 37 ++++++++++--------
  src/cmd/go/internal/modload/load.go         | 19 +++++++---
  src/cmd/go/testdata/script/mod_get_test.txt | 58 +++++++++++++++++++++++++++++
  4 files changed, 100 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b774ac2da7..1a7eff29a2 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -557,7 +557,7 @@
+ //
+ // Usage:
+ //
+-// 	go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]
++// 	go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+ //
+ // Get resolves and adds dependencies to the current development module
+ // and then builds and installs them.
+@@ -600,6 +600,9 @@
+ // are competing requirements for a particular module, then 'go get' resolves
+ // those requirements by taking the maximum requested version.)
+ //
++// The -t flag instructs get to consider modules needed to build tests of
++// packages specified on the command line.
++//
+ // The -u flag instructs get to update dependencies to use newer minor or
+ // patch releases when available. Continuing the previous example,
+ // 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
+@@ -610,6 +613,9 @@
+ // 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
+ // while 'go get -u=patch A' will use a patch release of A instead.
+ //
++// When the -t and -u flags are used together, get will update
++// test dependencies as well.
++//
+ // In general, adding a new dependency may require upgrading
+ // existing dependencies to keep a working build, and 'go get' does
+ // this automatically. Similarly, downgrading one dependency may
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 7a5d550997..d5ab59490c 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -31,7 +31,7 @@ import (
+ var CmdGet = &base.Command{
+ 	// Note: -d -m -u are listed explicitly because they are the most common get flags.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-d] [-m] [-u] [-v] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves and adds dependencies to the current development module
+@@ -75,6 +75,9 @@ will use the latest A but then use B v1.2.3, as requested by A. (If there
+ are competing requirements for a particular module, then 'go get' resolves
+ those requirements by taking the maximum requested version.)
+ 
++The -t flag instructs get to consider modules needed to build tests of
++packages specified on the command line.
++
+ The -u flag instructs get to update dependencies to use newer minor or
+ patch releases when available. Continuing the previous example,
+ 'go get -u A' will use the latest A with B v1.3.1 (not B v1.2.3).
+@@ -85,6 +88,9 @@ Continuing the previous example,
+ 'go get -u=patch A@latest' will use the latest A with B v1.2.4 (not B v1.2.3),
+ while 'go get -u=patch A' will use a patch release of A instead.
+ 
++When the -t and -u flags are used together, get will update
++test dependencies as well.
++
+ In general, adding a new dependency may require upgrading
+ existing dependencies to keep a working build, and 'go get' does
+ this automatically. Similarly, downgrading one dependency may
+@@ -261,9 +267,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	if *getFix {
+ 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
+ 	}
+-	if *getT {
+-		fmt.Fprintf(os.Stderr, "go get: -t flag is a no-op when using modules\n")
+-	}
++	modload.LoadTests = *getT
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
+@@ -781,25 +785,26 @@ func newUpgrader(cmdline map[string]*query, pkgs map[string]bool) *upgrader {
+ 		// Initialize work queue with root packages.
+ 		seen := make(map[string]bool)
+ 		var work []string
+-		for pkg := range pkgs {
+-			seen[pkg] = true
+-			for _, imp := range modload.PackageImports(pkg) {
+-				if !pkgs[imp] && !seen[imp] {
+-					seen[imp] = true
+-					work = append(work, imp)
+-				}
++		add := func(path string) {
++			if !seen[path] {
++				seen[path] = true
++				work = append(work, path)
+ 			}
+ 		}
++		for pkg := range pkgs {
++			add(pkg)
++		}
+ 		for len(work) > 0 {
+ 			pkg := work[0]
+ 			work = work[1:]
+ 			m := modload.PackageModule(pkg)
+ 			u.upgrade[m.Path] = true
+-			for _, imp := range modload.PackageImports(pkg) {
+-				if !seen[imp] {
+-					seen[imp] = true
+-					work = append(work, imp)
+-				}
++			imports, testImports := modload.PackageImports(pkg)
++			for _, imp := range imports {
++				add(imp)
++			}
++			for _, imp := range testImports {
++				add(imp)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 579ef50382..b64b5b68cd 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -496,17 +496,26 @@ func PackageModule(path string) module.Version {
+ }
+ 
+ // PackageImports returns the imports for the package named by the import path.
+-// It does not include test imports. It returns nil for unknown packages.
+-func PackageImports(path string) []string {
++// Test imports will be returned as well if tests were loaded for the package
++// (i.e., if "all" was loaded or if LoadTests was set and the path was matched
++// by a command line argument). PackageImports will return nil for
++// unknown package paths.
++func PackageImports(path string) (imports, testImports []string) {
+ 	pkg, ok := loaded.pkgCache.Get(path).(*loadPkg)
+ 	if !ok {
+-		return nil
++		return nil, nil
+ 	}
+-	imports := make([]string, len(pkg.imports))
++	imports = make([]string, len(pkg.imports))
+ 	for i, p := range pkg.imports {
+ 		imports[i] = p.path
+ 	}
+-	return imports
++	if pkg.test != nil {
++		testImports = make([]string, len(pkg.test.imports))
++		for i, p := range pkg.test.imports {
++			testImports[i] = p.path
++		}
++	}
++	return imports, testImports
+ }
+ 
+ // ModuleUsedDirectly reports whether the main module directly imports
+diff --git a/src/cmd/go/testdata/script/mod_get_test.txt b/src/cmd/go/testdata/script/mod_get_test.txt
+new file mode 100644
+index 0000000000..f921168ad4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_test.txt
+@@ -0,0 +1,58 @@
++env GO111MODULE=on
++
++# By default, 'go get' should ignore tests
++cp go.mod.empty go.mod
++go get m/a
++! grep rsc.io/quote go.mod
++
++# 'go get -t' should consider test dependencies of the named package.
++cp go.mod.empty go.mod
++go get -d -t m/a
++grep 'rsc.io/quote v1.5.2$' go.mod
++
++# 'go get -t' should not consider test dependencies of imported packages,
++# including packages imported from tests.
++cp go.mod.empty go.mod
++go get -d -t m/b
++! grep rsc.io/quote go.mod
++
++# 'go get -t -u' should update test dependencies of the named package.
++cp go.mod.empty go.mod
++go mod edit -require=rsc.io/quote@v1.5.1
++go get -d -t -u m/a
++grep 'rsc.io/quote v1.5.2$' go.mod
++
++# 'go get -t -u' should not add or update test dependencies
++# of imported packages, including packages imported from tests.
++cp go.mod.empty go.mod
++go get -d -t -u m/b
++! grep rsc.io/quote go.mod
++go mod edit -require=rsc.io/quote@v1.5.1
++go get -d -t -u m/b
++grep 'rsc.io/quote v1.5.1$' go.mod
++
++# 'go get all' should consider test dependencies with or without -t.
++cp go.mod.empty go.mod
++go get all
++grep 'rsc.io/quote v1.5.2$' go.mod
++
++-- go.mod.empty --
++module m
++
++-- a/a.go --
++package a
++
++-- a/a_test.go --
++package a_test
++
++import _ "rsc.io/quote"
++
++-- b/b.go --
++package b
++
++import _ "m/a"
++
++-- b/b_test.go --
++package b_test
++
++import _ "m/a"

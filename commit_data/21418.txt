@@ -9,7 +9,51 @@ Date:   Thu Jan 1 21:38:12 2015 -0500
     Change-Id: I4d0e4eb52a3d64262f107eb7eae4096a6e47ac08
     Reviewed-on: https://go-review.googlesource.com/2238
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/reflect/all_test.go | 20 ++++++++++++++++++++
  src/reflect/type.go     |  1 +
  2 files changed, 21 insertions(+)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 974b5d2f6c..278848bc00 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -3487,6 +3487,26 @@ func TestChanOf(t *testing.T) {
+ 	checkSameType(t, Zero(ChanOf(BothDir, TypeOf(T1(1)))).Interface(), (chan T1)(nil))
+ }
+ 
++func TestChanOfDir(t *testing.T) {
++	// check construction and use of type not in binary
++	type T string
++	crt := ChanOf(RecvDir, TypeOf(T("")))
++	cst := ChanOf(SendDir, TypeOf(T("")))
++
++	// check that type already in binary is found
++	type T1 int
++	checkSameType(t, Zero(ChanOf(RecvDir, TypeOf(T1(1)))).Interface(), (<-chan T1)(nil))
++	checkSameType(t, Zero(ChanOf(SendDir, TypeOf(T1(1)))).Interface(), (chan<- T1)(nil))
++
++	// check String form of ChanDir
++	if crt.ChanDir().String() != "<-chan" {
++		t.Errorf("chan dir: have %q, want %q", crt.ChanDir().String(), "<-chan")
++	}
++	if cst.ChanDir().String() != "chan<-" {
++		t.Errorf("chan dir: have %q, want %q", cst.ChanDir().String(), "chan<-")
++	}
++}
++
+ func TestChanOfGC(t *testing.T) {
+ 	done := make(chan bool, 1)
+ 	go func() {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 75d73adbca..d19e5f9767 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1425,6 +1425,7 @@ func ChanOf(dir ChanDir, t Type) Type {
+ 	prototype := *(**chanType)(unsafe.Pointer(&ichan))
+ 	ch := new(chanType)
+ 	*ch = *prototype
++	ch.dir = uintptr(dir)
+ 	ch.string = &s
+ 	ch.hash = fnv1(typ.hash, 'c', byte(dir))
+ 	ch.elem = typ

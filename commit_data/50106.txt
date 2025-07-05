@@ -15,7 +15,34 @@ Date:   Mon Oct 4 12:14:10 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/353871
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go | 2 +-
  src/cmd/go/internal/work/gc.go        | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 942659bcc0..241f5da185 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -357,7 +357,7 @@ func concurrentBackendAllowed() bool {
+ 		return false
+ 	}
+ 	// TODO: fix races and enable the following flags
+-	if Ctxt.Flag_shared || Ctxt.Flag_dynlink || Flag.Race {
++	if Ctxt.Flag_dynlink || Flag.Race {
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 414736cbd7..85f661bf31 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -234,7 +234,7 @@ CheckFlags:
+ 		// except for known commonly used flags.
+ 		// If the user knows better, they can manually add their own -c to the gcflags.
+ 		switch flag {
+-		case "-N", "-l", "-S", "-B", "-C", "-I":
++		case "-N", "-l", "-S", "-B", "-C", "-I", "-shared":
+ 			// OK
+ 		default:
+ 			canDashC = false

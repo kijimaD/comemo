@@ -15,6 +15,32 @@ Date:   Wed Sep 4 23:57:41 2024 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/liveness/intervals.go | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/intervals.go b/src/cmd/compile/internal/liveness/intervals.go
+index feca35b306..04b1ea50ba 100644
+--- a/src/cmd/compile/internal/liveness/intervals.go
++++ b/src/cmd/compile/internal/liveness/intervals.go
+@@ -49,6 +49,7 @@ package liveness
+ import (
+ 	"fmt"
+ 	"os"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -131,11 +132,7 @@ func (c *IntervalsBuilder) setLast(x int) {
+ 
+ func (c *IntervalsBuilder) Finish() (Intervals, error) {
+ 	// Reverse intervals list and check.
+-	// FIXME: replace with slices.Reverse once the
+-	// bootstrap version supports it.
+-	for i, j := 0, len(c.s)-1; i < j; i, j = i+1, j-1 {
+-		c.s[i], c.s[j] = c.s[j], c.s[i]
+-	}
++	slices.Reverse(c.s)
+ 	if err := check(c.s); err != nil {
+ 		return Intervals{}, err
+ 	}

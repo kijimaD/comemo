@@ -12,9 +12,62 @@ Date:   Sun Nov 9 20:20:45 2014 -0500
     R=r, dave
     CC=golang-codereviews
     https://golang.org/cl/171290043
-
+---
  src/runtime/cgo/dragonfly.c | 2 ++
  src/runtime/cgo/freebsd.c   | 2 ++
  src/runtime/cgo/netbsd.c    | 2 ++
  src/runtime/cgo/openbsd.c   | 2 ++
  4 files changed, 8 insertions(+)
+
+diff --git a/src/runtime/cgo/dragonfly.c b/src/runtime/cgo/dragonfly.c
+index 3c95ff354e..c233c8ba9a 100644
+--- a/src/runtime/cgo/dragonfly.c
++++ b/src/runtime/cgo/dragonfly.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build dragonfly
++
+ #include "textflag.h"
+ 
+ // Supply environ and __progname, because we don't
+diff --git a/src/runtime/cgo/freebsd.c b/src/runtime/cgo/freebsd.c
+index aefc481e64..4876b2abe4 100644
+--- a/src/runtime/cgo/freebsd.c
++++ b/src/runtime/cgo/freebsd.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build freebsd
++
+ #include "textflag.h"
+ 
+ // Supply environ and __progname, because we don't
+diff --git a/src/runtime/cgo/netbsd.c b/src/runtime/cgo/netbsd.c
+index de38bb7707..076cc87f12 100644
+--- a/src/runtime/cgo/netbsd.c
++++ b/src/runtime/cgo/netbsd.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build netbsd
++
+ #include "textflag.h"
+ 
+ // Supply environ and __progname, because we don't
+diff --git a/src/runtime/cgo/openbsd.c b/src/runtime/cgo/openbsd.c
+index 7c2b6c1737..476649544d 100644
+--- a/src/runtime/cgo/openbsd.c
++++ b/src/runtime/cgo/openbsd.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build openbsd
++
+ #include "textflag.h"
+ 
+ // Supply environ, __progname and __guard_local, because

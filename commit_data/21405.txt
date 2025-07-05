@@ -7,6 +7,43 @@ Date:   Wed Dec 31 11:08:54 2014 -0800
     Change-Id: Iac28c4bbe949af5628cef8ecafdd59ab5d71e6cc
     Reviewed-on: https://go-review.googlesource.com/2240
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/export_test.go | 11 -----------
  1 file changed, 11 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 6faaa41af4..87df7c99e4 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -18,9 +18,6 @@ var Fcmp64 = fcmp64
+ var Fintto64 = fintto64
+ var F64toint = f64toint
+ 
+-// in asm_*.s
+-func stackguard() (sp, limit uintptr)
+-
+ var Entersyscall = entersyscall
+ var Exitsyscall = exitsyscall
+ var LockedOSThread = lockedOSThread
+@@ -30,9 +27,6 @@ type LFNode struct {
+ 	Pushcnt uintptr
+ }
+ 
+-func lfstackpush_m()
+-func lfstackpop_m()
+-
+ func LFStackPush(head *uint64, node *LFNode) {
+ 	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
+ }
+@@ -52,11 +46,6 @@ type ParFor struct {
+ 	wait    bool
+ }
+ 
+-func newparfor_m()
+-func parforsetup_m()
+-func parfordo_m()
+-func parforiters_m()
+-
+ func NewParFor(nthrmax uint32) *ParFor {
+ 	var desc *ParFor
+ 	systemstack(func() {

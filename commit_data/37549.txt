@@ -25,7 +25,48 @@ Date:   Thu Aug 16 14:39:13 2018 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/print.go          | 14 ++++++++++++++
  src/cmd/vet/testdata/print.go |  4 ++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/vet/print.go b/src/cmd/vet/print.go
+index 90fd4ed379..a55da1d3c8 100644
+--- a/src/cmd/vet/print.go
++++ b/src/cmd/vet/print.go
+@@ -259,6 +259,20 @@ func checkPrintfFwd(pkg *Package, w *printfWrapper, call *ast.CallExpr, kind int
+ 	}
+ 
+ 	if !call.Ellipsis.IsValid() {
++		typ, ok := pkg.types[call.Fun].Type.(*types.Signature)
++		if !ok {
++			return
++		}
++		if len(call.Args) > typ.Params().Len() {
++			// If we're passing more arguments than what the
++			// print/printf function can take, adding an ellipsis
++			// would break the program. For example:
++			//
++			//   func foo(arg1 string, arg2 ...interface{} {
++			//       fmt.Printf("%s %v", arg1, arg2)
++			//   }
++			return
++		}
+ 		if !vcfg.VetxOnly {
+ 			desc := "printf"
+ 			if kind == kindPrint {
+diff --git a/src/cmd/vet/testdata/print.go b/src/cmd/vet/testdata/print.go
+index 7c0cbcf05a..ecafed5fa2 100644
+--- a/src/cmd/vet/testdata/print.go
++++ b/src/cmd/vet/testdata/print.go
+@@ -446,6 +446,10 @@ func (*ptrStringer) BadWrapf(x int, format string, args ...interface{}) string {
+ 	return fmt.Sprintf(format, args) // ERROR "missing ... in args forwarded to printf-like function"
+ }
+ 
++func (*ptrStringer) WrapfFalsePositive(x int, arg1 string, arg2 ...interface{}) string {
++	return fmt.Sprintf("%s %v", arg1, arg2)
++}
++
+ type embeddedStringer struct {
+ 	foo string
+ 	ptrStringer

@@ -11,6 +11,29 @@ Date:   Thu Aug 8 00:04:28 2013 +0400
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12531043
-
+---
  src/pkg/runtime/crash_cgo_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/crash_cgo_test.go b/src/pkg/runtime/crash_cgo_test.go
+index 8ccea8f37c..d61de4469f 100644
+--- a/src/pkg/runtime/crash_cgo_test.go
++++ b/src/pkg/runtime/crash_cgo_test.go
+@@ -7,6 +7,7 @@
+ package runtime_test
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -15,6 +16,9 @@ func TestCgoCrashHandler(t *testing.T) {
+ }
+ 
+ func TestCgoSignalDeadlock(t *testing.T) {
++	if testing.Short() && runtime.GOOS == "windows" {
++		t.Skip("Skipping in short mode") // takes up to 64 seconds
++	}
+ 	got := executeTest(t, cgoSignalDeadlockSource, nil)
+ 	want := "OK\n"
+ 	if got != want {

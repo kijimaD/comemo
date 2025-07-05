@@ -7,6 +7,22 @@ Date:   Wed Apr 13 11:18:38 2011 -0700
     R=r, mkrautz, r2, rsc
     CC=golang-dev
     https://golang.org/cl/4415041
-
+---
  src/pkg/io/io.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index c0bc54d0d4..d3707eb1db 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -136,6 +136,10 @@ type WriterTo interface {
+ // At the end of the input stream, ReadAt returns 0, os.EOF.
+ // ReadAt may return a non-zero number of bytes with a non-nil err.
+ // In particular, a ReadAt that exhausts the input may return n > 0, os.EOF.
++//
++// If ReadAt is reading from an data stream with a seek offset,
++// ReadAt should not affect nor be affected by the underlying
++// seek offset.
+ type ReaderAt interface {
+ 	ReadAt(p []byte, off int64) (n int, err os.Error)
+ }

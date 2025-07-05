@@ -8,9 +8,159 @@ Date:   Thu May 21 17:32:59 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/234890
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 25 +++++++++----------------
  src/cmd/link/internal/arm/asm.go   | 21 +++++++--------------
  src/cmd/link/internal/ld/asmb.go   |  7 +++++++
  src/cmd/link/internal/x86/asm.go   | 22 ++++++++--------------
  4 files changed, 31 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 514edad55c..849095d07d 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -686,6 +686,9 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsElf() {
+ 		panic("elf should be generic")
+ 	}
++	if ctxt.IsWindows() {
++		panic("pe should be generic")
++	}
+ 
+ 	switch ctxt.HeadType {
+ 	default:
+@@ -693,7 +696,6 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 		fallthrough
+ 
+ 	case objabi.Hplan9:
+-	case objabi.Hwindows:
+ 		break
+ 	}
+ 
+@@ -701,24 +703,15 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+ 	if !*ld.FlagS {
+-		if ctxt.HeadType == objabi.Hplan9 {
+-			*ld.FlagS = true
+-			symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-			ctxt.Out.SeekSet(symo)
+-			ld.Asmplan9sym(ctxt)
+-		}
++		*ld.FlagS = true
++		symo := int64(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++		ctxt.Out.SeekSet(symo)
++		ld.Asmplan9sym(ctxt)
+ 	}
+ 
+ 	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-	case objabi.Hplan9: /* plan9 */
+-		magic := uint32(4*26*26 + 7)
+-		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+-
+-	case objabi.Hwindows:
+-		ld.Asmbpe(ctxt)
+-	}
++	magic := uint32(4*26*26 + 7)
++	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), true)
+ }
+ 
+ func tlsIEtoLE(P []byte, off, size int) {
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 8197fb9918..3515a60ea7 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -675,27 +675,20 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsElf() {
+ 		panic("elf should be generic")
+ 	}
++	if ctxt.IsWindows() {
++		panic("pe should be generic")
++	}
+ 	/* output symbol table */
+ 	ld.Symsize = 0
+ 
+ 	ld.Lcsize = 0
+ 	if !*ld.FlagS {
+-		if ctxt.IsPlan9() {
+-			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-			ctxt.Out.SeekSet(int64(symo))
+-			ld.Asmplan9sym(ctxt)
+-		}
++		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++		ctxt.Out.SeekSet(int64(symo))
++		ld.Asmplan9sym(ctxt)
+ 	}
+ 
+-	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-	case objabi.Hplan9: /* plan 9 */
+-		ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
+-
+-	case objabi.Hwindows:
+-		ld.Asmbpe(ctxt)
+-	}
++	ld.WritePlan9Header(ctxt.Out, 0x647, ld.Entryvalue(ctxt), false)
+ 
+ 	if *ld.FlagC {
+ 		fmt.Printf("textsize=%d\n", ld.Segtext.Filelen)
+diff --git a/src/cmd/link/internal/ld/asmb.go b/src/cmd/link/internal/ld/asmb.go
+index eccd3e56fb..aebd1d2ceb 100644
+--- a/src/cmd/link/internal/ld/asmb.go
++++ b/src/cmd/link/internal/ld/asmb.go
+@@ -108,6 +108,13 @@ func asmb2(ctxt *Link) bool {
+ 		Asmbelf(ctxt, symo)
+ 		return true
+ 	}
++	if ctxt.IsWindows() {
++		Symsize = 0
++		Spsize = 0
++		Lcsize = 0
++		Asmbpe(ctxt)
++		return true
++	}
+ 	return false
+ }
+ 
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index dc5b56a2b9..746661a028 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -517,26 +517,20 @@ func asmb2(ctxt *ld.Link, _ *loader.Loader) {
+ 	if ctxt.IsElf() {
+ 		panic("elf should be generic")
+ 	}
++	if ctxt.IsWindows() {
++		panic("pe should be generic")
++	}
+ 
+ 	ld.Symsize = 0
+ 	ld.Spsize = 0
+ 	ld.Lcsize = 0
+ 	if !*ld.FlagS {
+-		if ctxt.HeadType == objabi.Hplan9 {
+-			symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
+-			ctxt.Out.SeekSet(int64(symo))
+-			ld.Asmplan9sym(ctxt)
+-		}
++		symo := uint32(ld.Segdata.Fileoff + ld.Segdata.Filelen)
++		ctxt.Out.SeekSet(int64(symo))
++		ld.Asmplan9sym(ctxt)
+ 	}
+ 
+ 	ctxt.Out.SeekSet(0)
+-	switch ctxt.HeadType {
+-	default:
+-	case objabi.Hplan9: /* plan9 */
+-		magic := uint32(4*11*11 + 7)
+-		ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+-
+-	case objabi.Hwindows:
+-		ld.Asmbpe(ctxt)
+-	}
++	magic := uint32(4*11*11 + 7)
++	ld.WritePlan9Header(ctxt.Out, magic, ld.Entryvalue(ctxt), false)
+ }

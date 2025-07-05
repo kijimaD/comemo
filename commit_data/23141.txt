@@ -24,6 +24,20 @@ Date:   Mon Apr 27 14:50:42 2015 -0400
     Change-Id: If13991c8de68bd7b85e1b613d3f12b4fd6fd5813
     Reviewed-on: https://go-review.googlesource.com/9366
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mstats.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 270449d0fd..098f5da8dc 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -176,7 +176,7 @@ func readmemstats_m(stats *MemStats) {
+ 	memmove(unsafe.Pointer(stats), unsafe.Pointer(&memstats), sizeof_C_MStats)
+ 
+ 	// Stack numbers are part of the heap numbers, separate those out for user consumption
+-	stats.StackSys = stats.StackInuse
++	stats.StackSys += stats.StackInuse
+ 	stats.HeapInuse -= stats.StackInuse
+ 	stats.HeapSys -= stats.StackInuse
+ }

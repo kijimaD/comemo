@@ -16,6 +16,20 @@ Date:   Wed Feb 16 16:08:42 2011 +1100
     R=golang-dev, rsc, vcc
     CC=golang-dev
     https://golang.org/cl/4172046
-
+---
  src/cmd/ld/pe.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 2c34daab4e..995809f5f2 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -526,7 +526,7 @@ asmbpe(void)
+ 	set(SizeOfImage, nextsectoff);
+ 	set(SizeOfHeaders, PEFILEHEADR);
+ 	set(Subsystem, 3);	// WINDOWS_CUI
+-	set(SizeOfStackReserve, 0x00200000);
++	set(SizeOfStackReserve, 0x0040000);
+ 	set(SizeOfStackCommit, 0x00001000);
+ 	set(SizeOfHeapReserve, 0x00100000);
+ 	set(SizeOfHeapCommit, 0x00001000);

@@ -27,8 +27,104 @@ Date:   Fri Jun 5 14:49:27 2015 -0400
     Change-Id: I323d6cd0f1d29fa01f8fc946f4b90e04ef210efd
     Reviewed-on: https://go-review.googlesource.com/10791
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mbitmap.go | 29 ++++++++++++++++++++++++++++-
  src/runtime/mgcmark.go | 18 ++++++++++++++----
  src/runtime/panic1.go  |  2 +-
  3 files changed, 43 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index b20908fb49..11bfcd1b27 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -367,7 +367,34 @@ func heapBitsBulkBarrier(p, size uintptr) {
+ 	if (p|size)&(ptrSize-1) != 0 {
+ 		throw("heapBitsBulkBarrier: unaligned arguments")
+ 	}
+-	if !writeBarrierEnabled || !inheap(p) {
++	if !writeBarrierEnabled {
++		return
++	}
++	if !inheap(p) {
++		// If p is on the stack and in a higher frame than the
++		// caller, we either need to execute write barriers on
++		// it (which is what happens for normal stack writes
++		// through pointers to higher frames), or we need to
++		// force the mark termination stack scan to scan the
++		// frame containing p.
++		//
++		// Executing write barriers on p is complicated in the
++		// general case because we either need to unwind the
++		// stack to get the stack map, or we need the type's
++		// bitmap, which may be a GC program.
++		//
++		// Hence, we opt for forcing the re-scan to scan the
++		// frame containing p, which we can do by simply
++		// unwinding the stack barriers between the current SP
++		// and p's frame.
++		gp := getg().m.curg
++		if gp.stack.lo <= p && p < gp.stack.hi {
++			// Run on the system stack to give it more
++			// stack space.
++			systemstack(func() {
++				gcUnwindBarriers(gp, p)
++			})
++		}
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index ecb6d93a4f..2c076734bd 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -539,7 +539,11 @@ func gcRemoveStackBarriers(gp *g) {
+ 
+ // gcRemoveStackBarrier removes a single stack barrier. It is the
+ // inverse operation of gcInstallStackBarrier.
++//
++// This is nosplit to ensure gp's stack does not move.
++//
+ //go:nowritebarrier
++//go:nosplit
+ func gcRemoveStackBarrier(gp *g, stkbar stkbar) {
+ 	if debugStackBarrier {
+ 		print("remove stack barrier at ", hex(stkbar.savedLRPtr), " with ", hex(stkbar.savedLRVal), ", goid=", gp.goid, "\n")
+@@ -568,15 +572,21 @@ func gcPrintStkbars(stkbar []stkbar) {
+ 	print("]")
+ }
+ 
+-// gcSkipBarriers marks all stack barriers up to sp as hit. This is
+-// used during stack unwinding for panic/recover. This must run on the
+-// system stack to ensure gp's stack does not get copied.
+-func gcSkipBarriers(gp *g, sp uintptr) {
++// gcUnwindBarriers marks all stack barriers up the frame containing
++// sp as hit and removes them. This is used during stack unwinding for
++// panic/recover and by heapBitsBulkBarrier to force stack re-scanning
++// when its destination is on the stack.
++//
++// This is nosplit to ensure gp's stack does not move.
++//
++//go:nosplit
++func gcUnwindBarriers(gp *g, sp uintptr) {
+ 	// On LR machines, if there is a stack barrier on the return
+ 	// from the frame containing sp, this will mark it as hit even
+ 	// though it isn't, but it's okay to be conservative.
+ 	before := gp.stkbarPos
+ 	for int(gp.stkbarPos) < len(gp.stkbar) && gp.stkbar[gp.stkbarPos].savedLRPtr < sp {
++		gcRemoveStackBarrier(gp, gp.stkbar[gp.stkbarPos])
+ 		gp.stkbarPos++
+ 	}
+ 	if debugStackBarrier && gp.stkbarPos != before {
+diff --git a/src/runtime/panic1.go b/src/runtime/panic1.go
+index 91450fc432..1a71d095b2 100644
+--- a/src/runtime/panic1.go
++++ b/src/runtime/panic1.go
+@@ -29,7 +29,7 @@ func recovery(gp *g) {
+ 	// Make the deferproc for this d return again,
+ 	// this time returning 1.  The calling function will
+ 	// jump to the standard return epilogue.
+-	gcSkipBarriers(gp, sp)
++	gcUnwindBarriers(gp, sp)
+ 	gp.sched.sp = sp
+ 	gp.sched.pc = pc
+ 	gp.sched.lr = 0

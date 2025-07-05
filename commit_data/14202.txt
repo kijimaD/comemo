@@ -9,9 +9,158 @@ Date:   Mon Oct 22 08:38:23 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/6640056
-
+---
  src/cmd/gc/fmt.c               | 10 ++++---
  test/fixedbugs/bug465.dir/a.go | 61 ++++++++++++++++++++++++++++++++++++++++++
  test/fixedbugs/bug465.dir/b.go | 17 ++++++++++++
  test/fixedbugs/bug465.go       | 10 +++++++
  4 files changed, 94 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index ec6d3d0cdf..6945e9c8e3 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1161,7 +1161,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 	case OCOMPLIT:
+ 		if(fmtmode == FErr)
+ 			return fmtstrcpy(f, "composite literal");
+-		return fmtprint(f, "%N{ %,H }", n->right, n->list);
++		return fmtprint(f, "(%N{ %,H })", n->right, n->list);
+ 
+ 	case OPTRLIT:
+ 		if(fmtmode == FExp && n->left->implicit)
+@@ -1172,8 +1172,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		if(fmtmode == FExp) {   // requires special handling of field names
+ 			if(n->implicit)
+ 				fmtstrcpy(f, "{");
+-			else 
+-				fmtprint(f, "%T{", n->type);
++			else
++				fmtprint(f, "(%T{", n->type);
+ 			for(l=n->list; l; l=l->next) {
+ 				// another special case: if n->left is an embedded field of builtin type,
+ 				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
+@@ -1190,6 +1190,8 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 				else
+ 					fmtstrcpy(f, " ");
+ 			}
++			if(!n->implicit)
++				return fmtstrcpy(f, "})");
+ 			return fmtstrcpy(f, "}");
+ 		}
+ 		// fallthrough
+@@ -1200,7 +1202,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			return fmtprint(f, "%T literal", n->type);
+ 		if(fmtmode == FExp && n->implicit)
+ 			return fmtprint(f, "{ %,H }", n->list);
+-		return fmtprint(f, "%T{ %,H }", n->type, n->list);
++		return fmtprint(f, "(%T{ %,H })", n->type, n->list);
+ 
+ 	case OKEY:
+ 		if(n->left && n->right)
+diff --git a/test/fixedbugs/bug465.dir/a.go b/test/fixedbugs/bug465.dir/a.go
+new file mode 100644
+index 0000000000..c5d410de47
+--- /dev/null
++++ b/test/fixedbugs/bug465.dir/a.go
+@@ -0,0 +1,61 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct{ A, B int }
++
++type A []int
++
++type M map[int]int
++
++func F1() int {
++	if (T{1, 2}) == (T{3, 4}) {
++		return 1
++	}
++	return 0
++}
++
++func F2() int {
++	if (M{1: 2}) == nil {
++		return 1
++	}
++	return 0
++}
++
++func F3() int {
++	if nil == (A{}) {
++		return 1
++	}
++	return 0
++}
++
++func F4() int {
++	if a := (A{}); a == nil {
++		return 1
++	}
++	return 0
++}
++
++func F5() int {
++	for k, v := range (M{1: 2}) {
++		return v - k
++	}
++	return 0
++}
++
++func F6() int {
++	switch a := (T{1, 1}); a == (T{1, 2}) {
++	default:
++		return 1
++	}
++	return 0
++}
++
++func F7() int {
++	for m := (M{}); len(m) < (T{1, 2}).A; m[1] = (A{1})[0] {
++		return 1
++	}
++	return 0
++}
+diff --git a/test/fixedbugs/bug465.dir/b.go b/test/fixedbugs/bug465.dir/b.go
+new file mode 100644
+index 0000000000..0f4909f4db
+--- /dev/null
++++ b/test/fixedbugs/bug465.dir/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	for _, f := range []func() int{
++		a.F1, a.F2, a.F3, a.F4,
++		a.F5, a.F6, a.F7} {
++		if f() > 1 {
++			panic("f() > 1")
++		}
++	}
++}
+diff --git a/test/fixedbugs/bug465.go b/test/fixedbugs/bug465.go
+new file mode 100644
+index 0000000000..a6ef5876ab
+--- /dev/null
++++ b/test/fixedbugs/bug465.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4230: inlining bug for composite literal in
++// if, for, switch statements.
++
++package ignored

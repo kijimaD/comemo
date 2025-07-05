@@ -19,7 +19,119 @@ Date:   Tue Jul 20 19:18:15 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go     | 44 ++++++++++++++++++++++++++----
  src/cmd/compile/internal/typecheck/subr.go | 16 +++++++++--
  2 files changed, 52 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 66ce1bfe4c..131ee89cbb 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -80,7 +80,7 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 	if n.Typecheck() != 1 && n.Typecheck() != 3 {
+ 		base.FatalfAt(g.pos(expr), "missed typecheck: %+v", n)
+ 	}
+-	if !g.match(n.Type(), typ, tv.HasOk()) {
++	if n.Op() != ir.OFUNCINST && !g.match(n.Type(), typ, tv.HasOk()) {
+ 		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, typ)
+ 	}
+ 	return n
+@@ -128,11 +128,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 				// includes the additional inferred type args
+ 				fun.(*ir.InstExpr).Targs = targs
+ 			} else {
+-				// Create a function instantiation here, given
+-				// there are only inferred type args (e.g.
+-				// min(5,6), where min is a generic function)
++				// Create a function instantiation here, given there
++				// are only inferred type args (e.g. min(5,6), where
++				// min is a generic function). Substitute the type
++				// args for the type params in the uninstantiated function's
++				// type.
+ 				inst := ir.NewInstExpr(pos, ir.OFUNCINST, fun, targs)
+-				typed(fun.Type(), inst)
++				newt := g.substType(fun.Type(), fun.Type().TParams(), targs)
++				typed(newt, inst)
+ 				fun = inst
+ 			}
+ 
+@@ -169,7 +172,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			panic("Incorrect argument for generic func instantiation")
+ 		}
+ 		n := ir.NewInstExpr(pos, ir.OFUNCINST, x, targs)
+-		typed(g.typ(typ), n)
++		newt := g.typ(typ)
++		// Substitute the type args for the type params in the uninstantiated
++		// function's type. If there aren't enough type args, then the rest
++		// will be inferred at the call node, so don't try the substitution yet.
++		if x.Type().TParams().NumFields() == len(targs) {
++			newt = g.substType(g.typ(typ), x.Type().TParams(), targs)
++		}
++		typed(newt, n)
+ 		return n
+ 
+ 	case *syntax.SelectorExpr:
+@@ -201,6 +211,28 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 	}
+ }
+ 
++// substType does a normal type substition, but tparams is in the form of a field
++// list, and targs is in terms of a slice of type nodes. substType records any newly
++// instantiated types into g.instTypeList.
++func (g *irgen) substType(typ *types.Type, tparams *types.Type, targs []ir.Node) *types.Type {
++	fields := tparams.FieldSlice()
++	tparams1 := make([]*types.Type, len(fields))
++	for i, f := range fields {
++		tparams1[i] = f.Type
++	}
++	targs1 := make([]*types.Type, len(targs))
++	for i, n := range targs {
++		targs1[i] = n.Type()
++	}
++	ts := typecheck.Tsubster{
++		Tparams: tparams1,
++		Targs:   targs1,
++	}
++	newt := ts.Typ(typ)
++	g.instTypeList = append(g.instTypeList, ts.InstTypeList...)
++	return newt
++}
++
+ // selectorExpr resolves the choice of ODOT, ODOTPTR, OMETHVALUE (eventually
+ // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
+ // than in typecheck.go.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index c6ffa175f1..53221bc1cd 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1130,7 +1130,10 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		newrecvs := ts.tstruct(t.Recvs(), false)
+ 		newparams := ts.tstruct(t.Params(), false)
+ 		newresults := ts.tstruct(t.Results(), false)
+-		if newrecvs != t.Recvs() || newparams != t.Params() || newresults != t.Results() || targsChanged {
++		// Translate the tparams of a signature.
++		newtparams := ts.tstruct(t.TParams(), false)
++		if newrecvs != t.Recvs() || newparams != t.Params() ||
++			newresults != t.Results() || newtparams != t.TParams() || targsChanged {
+ 			// If any types have changed, then the all the fields of
+ 			// of recv, params, and results must be copied, because they have
+ 			// offset fields that are dependent, and so must have an
+@@ -1148,7 +1151,16 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 			if newresults == t.Results() {
+ 				newresults = ts.tstruct(t.Results(), true)
+ 			}
+-			newt = types.NewSignature(t.Pkg(), newrecv, t.TParams().FieldSlice(), newparams.FieldSlice(), newresults.FieldSlice())
++			var tparamfields []*types.Field
++			if newtparams.HasTParam() {
++				tparamfields = newtparams.FieldSlice()
++			} else {
++				// Completely remove the tparams from the resulting
++				// signature, if the tparams are now concrete types.
++				tparamfields = nil
++			}
++			newt = types.NewSignature(t.Pkg(), newrecv, tparamfields,
++				newparams.FieldSlice(), newresults.FieldSlice())
+ 		}
+ 
+ 	case types.TINTER:

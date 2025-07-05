@@ -18,9 +18,159 @@ Date:   Mon Mar 25 05:58:00 2024 +0000
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/regexp/all_test.go     |  5 +++--
  src/regexp/exec_test.go    | 17 +++--------------
  src/regexp/onepass.go      | 13 +++----------
  src/regexp/onepass_test.go |  6 +++---
  4 files changed, 12 insertions(+), 29 deletions(-)
+
+diff --git a/src/regexp/all_test.go b/src/regexp/all_test.go
+index 124313d1af..c9c046b61d 100644
+--- a/src/regexp/all_test.go
++++ b/src/regexp/all_test.go
+@@ -7,6 +7,7 @@ package regexp
+ import (
+ 	"reflect"
+ 	"regexp/syntax"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"unicode/utf8"
+@@ -519,13 +520,13 @@ func TestSplit(t *testing.T) {
+ 		}
+ 
+ 		split := re.Split(test.s, test.n)
+-		if !reflect.DeepEqual(split, test.out) {
++		if !slices.Equal(split, test.out) {
+ 			t.Errorf("#%d: %q: got %q; want %q", i, test.r, split, test.out)
+ 		}
+ 
+ 		if QuoteMeta(test.r) == test.r {
+ 			strsplit := strings.SplitN(test.s, test.r, test.n)
+-			if !reflect.DeepEqual(split, strsplit) {
++			if !slices.Equal(split, strsplit) {
+ 				t.Errorf("#%d: Split(%q, %q, %d): regexp vs strings mismatch\nregexp=%q\nstrings=%q", i, test.s, test.r, test.n, split, strsplit)
+ 			}
+ 		}
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 1694230345..ad33169a21 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp/syntax"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -167,7 +168,7 @@ func testRE2(t *testing.T, file string) {
+ 			for i := range res {
+ 				have, suffix := run[i](re, refull, text)
+ 				want := parseResult(t, file, lineno, res[i])
+-				if !same(have, want) {
++				if !slices.Equal(have, want) {
+ 					t.Errorf("%s:%d: %#q%s.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, re, suffix, text, have, want)
+ 					if nfail++; nfail >= 100 {
+ 						t.Fatalf("stopping after %d errors", nfail)
+@@ -309,18 +310,6 @@ func parseResult(t *testing.T, file string, lineno int, res string) []int {
+ 	return out
+ }
+ 
+-func same(x, y []int) bool {
+-	if len(x) != len(y) {
+-		return false
+-	}
+-	for i, xi := range x {
+-		if xi != y[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // TestFowler runs this package's regexp API against the
+ // POSIX regular expression tests collected by Glenn Fowler
+ // at http://www2.research.att.com/~astopen/testregex/testregex.html.
+@@ -547,7 +536,7 @@ Reading:
+ 			if len(have) > len(pos) {
+ 				have = have[:len(pos)]
+ 			}
+-			if !same(have, pos) {
++			if !slices.Equal(have, pos) {
+ 				t.Errorf("%s:%d: %#q.FindSubmatchIndex(%#q) = %v, want %v", file, lineno, pattern, text, have, pos)
+ 			}
+ 		}
+diff --git a/src/regexp/onepass.go b/src/regexp/onepass.go
+index b3066e88ee..53cbd95839 100644
+--- a/src/regexp/onepass.go
++++ b/src/regexp/onepass.go
+@@ -6,7 +6,7 @@ package regexp
+ 
+ import (
+ 	"regexp/syntax"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -282,13 +282,6 @@ func onePassCopy(prog *syntax.Prog) *onePassProg {
+ 	return p
+ }
+ 
+-// runeSlice exists to permit sorting the case-folded rune sets.
+-type runeSlice []rune
+-
+-func (p runeSlice) Len() int           { return len(p) }
+-func (p runeSlice) Less(i, j int) bool { return p[i] < p[j] }
+-func (p runeSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-
+ var anyRuneNotNL = []rune{0, '\n' - 1, '\n' + 1, unicode.MaxRune}
+ var anyRune = []rune{0, unicode.MaxRune}
+ 
+@@ -383,7 +376,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
+ 					runes = append(runes, r1, r1)
+ 				}
+-				sort.Sort(runeSlice(runes))
++				slices.Sort(runes)
+ 			} else {
+ 				runes = append(runes, inst.Rune...)
+ 			}
+@@ -407,7 +400,7 @@ func makeOnePass(p *onePassProg) *onePassProg {
+ 				for r1 := unicode.SimpleFold(r0); r1 != r0; r1 = unicode.SimpleFold(r1) {
+ 					runes = append(runes, r1, r1)
+ 				}
+-				sort.Sort(runeSlice(runes))
++				slices.Sort(runes)
+ 			} else {
+ 				runes = append(runes, inst.Rune[0], inst.Rune[0])
+ 			}
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index 6a42eda391..3f44dc7b15 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -5,8 +5,8 @@
+ package regexp
+ 
+ import (
+-	"reflect"
+ 	"regexp/syntax"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -125,10 +125,10 @@ var runeMergeTests = []struct {
+ func TestMergeRuneSet(t *testing.T) {
+ 	for ix, test := range runeMergeTests {
+ 		merged, next := mergeRuneSets(&test.left, &test.right, test.leftPC, test.rightPC)
+-		if !reflect.DeepEqual(merged, test.merged) {
++		if !slices.Equal(merged, test.merged) {
+ 			t.Errorf("mergeRuneSet :%d (%v, %v) merged\n have\n%v\nwant\n%v", ix, test.left, test.right, merged, test.merged)
+ 		}
+-		if !reflect.DeepEqual(next, test.next) {
++		if !slices.Equal(next, test.next) {
+ 			t.Errorf("mergeRuneSet :%d(%v, %v) next\n have\n%v\nwant\n%v", ix, test.left, test.right, next, test.next)
+ 		}
+ 	}

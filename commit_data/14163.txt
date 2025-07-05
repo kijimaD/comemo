@@ -9,7 +9,42 @@ Date:   Wed Oct 17 17:23:47 2012 +0200
     R=golang-dev, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/6639051
-
+---
  src/cmd/go/pkg.go    | 5 +++++
  src/cmd/go/test.bash | 6 ++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 307bd74cf1..345d8fb54b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -671,7 +671,12 @@ func packagesAndErrors(args []string) []*Package {
+ 	args = importPaths(args)
+ 	var pkgs []*Package
+ 	var stk importStack
++	var set = make(map[string]bool)
++
+ 	for _, arg := range args {
++		set[arg] = true
++	}
++	for arg := range set {
+ 		pkgs = append(pkgs, loadPackage(arg, &stk))
+ 	}
+ 
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 82cbd389cf..e88610cfe8 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -136,6 +136,12 @@ if GOPATH=:$(pwd)/testdata:. ./testgo build go-cmd-test; then
+     ok=false
+ fi
+ 
++# issue 4104
++if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
++    echo 'go test fmt fmt fmt fmt fmt tested the same package multiple times'
++    ok=false
++fi
++
+ if $ok; then
+ 	echo PASS
+ else

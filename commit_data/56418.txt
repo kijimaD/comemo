@@ -15,6 +15,20 @@ Date:   Thu May 4 17:11:46 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/dwarf.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d060dda54d..b42da6dc0b 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -2159,8 +2159,6 @@ func dwarfaddshstrings(ctxt *Link, add func(string)) {
+ 		add(".debug_" + sec)
+ 		if ctxt.IsExternal() {
+ 			add(elfRelType + ".debug_" + sec)
+-		} else {
+-			add(".zdebug_" + sec)
+ 		}
+ 	}
+ }

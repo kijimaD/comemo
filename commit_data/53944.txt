@@ -13,6 +13,32 @@ Date:   Wed Sep 7 14:07:12 2022 +0200
     Reviewed-by: hopehook <hopehook@golangcn.org>
     Run-TryBot: hopehook <hopehook@golangcn.org>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file.go | 7 +------
  1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 9f388921ae..e2eef8ec5d 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -43,7 +43,6 @@ import (
+ 	"errors"
+ 	"internal/poll"
+ 	"internal/testlog"
+-	"internal/unsafeheader"
+ 	"io"
+ 	"io/fs"
+ 	"runtime"
+@@ -247,11 +246,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ // WriteString is like Write, but writes the contents of string s rather than
+ // a slice of bytes.
+ func (f *File) WriteString(s string) (n int, err error) {
+-	var b []byte
+-	hdr := (*unsafeheader.Slice)(unsafe.Pointer(&b))
+-	hdr.Data = (*unsafeheader.String)(unsafe.Pointer(&s)).Data
+-	hdr.Cap = len(s)
+-	hdr.Len = len(s)
++	b := unsafe.Slice(unsafe.StringData(s), len(s))
+ 	return f.Write(b)
+ }
+ 

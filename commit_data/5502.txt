@@ -7,6 +7,11 @@ Date:   Thu May 20 21:01:59 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1224044
-
+---
  test/{bugs => fixedbugs}/bug275.go | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/bugs/bug275.go b/test/fixedbugs/bug275.go
+similarity index 100%
+rename from test/bugs/bug275.go
+rename to test/fixedbugs/bug275.go

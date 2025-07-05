@@ -9,6 +9,35 @@ Date:   Thu Feb 13 15:56:48 2014 -0500
     R=golang-codereviews, agl
     CC=golang-codereviews
     https://golang.org/cl/60500046
-
+---
  src/pkg/crypto/rsa/rsa.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index c7353ea311..c8f1febe64 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -120,16 +120,18 @@ func (priv *PrivateKey) Validate() error {
+ 	return nil
+ }
+ 
+-// GenerateKey generates an RSA keypair of the given bit size.
++// GenerateKey generates an RSA keypair of the given bit size using the
++// random source random (for example, crypto/rand.Reader).
+ func GenerateKey(random io.Reader, bits int) (priv *PrivateKey, err error) {
+ 	return GenerateMultiPrimeKey(random, 2, bits)
+ }
+ 
+ // GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
+-// size, as suggested in [1]. Although the public keys are compatible
+-// (actually, indistinguishable) from the 2-prime case, the private keys are
+-// not. Thus it may not be possible to export multi-prime private keys in
+-// certain formats or to subsequently import them into other code.
++// size and the given random source, as suggested in [1]. Although the public
++// keys are compatible (actually, indistinguishable) from the 2-prime case,
++// the private keys are not. Thus it may not be possible to export multi-prime
++// private keys in certain formats or to subsequently import them into other
++// code.
+ //
+ // Table 1 in [2] suggests maximum numbers of primes for a given size.
+ //

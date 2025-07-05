@@ -17,8 +17,61 @@ Date:   Mon May 13 12:29:58 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin_test.go | 1 +
  src/cmd/compile/internal/gc/global_test.go  | 2 ++
  src/cmd/compile/internal/gc/scope_test.go   | 2 ++
  3 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/builtin_test.go b/src/cmd/compile/internal/gc/builtin_test.go
+index 31b078525c..57f24b2287 100644
+--- a/src/cmd/compile/internal/gc/builtin_test.go
++++ b/src/cmd/compile/internal/gc/builtin_test.go
+@@ -14,6 +14,7 @@ import (
+ 
+ func TestBuiltin(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
++	t.Parallel()
+ 
+ 	old, err := ioutil.ReadFile("builtin.go")
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/gc/global_test.go b/src/cmd/compile/internal/gc/global_test.go
+index 56855d797a..edad6d042a 100644
+--- a/src/cmd/compile/internal/gc/global_test.go
++++ b/src/cmd/compile/internal/gc/global_test.go
+@@ -19,6 +19,7 @@ import (
+ // fmt.scanf routines. See issue 6853.
+ func TestScanfRemoval(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	t.Parallel()
+ 
+ 	// Make a directory to work in.
+ 	dir, err := ioutil.TempDir("", "issue6853a-")
+@@ -66,6 +67,7 @@ func main() {
+ // Make sure -S prints assembly code. See issue 14515.
+ func TestDashS(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	t.Parallel()
+ 
+ 	// Make a directory to work in.
+ 	dir, err := ioutil.TempDir("", "issue14515-")
+diff --git a/src/cmd/compile/internal/gc/scope_test.go b/src/cmd/compile/internal/gc/scope_test.go
+index e327dc02af..d3af61824d 100644
+--- a/src/cmd/compile/internal/gc/scope_test.go
++++ b/src/cmd/compile/internal/gc/scope_test.go
+@@ -207,6 +207,7 @@ const detailOutput = false
+ // corresponds to what we expect it to be.
+ func TestScopeRanges(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	t.Parallel()
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+@@ -445,6 +446,7 @@ func gobuild(t *testing.T, dir string, optimized bool, testfile []testline) (str
+ // See issue #23928.
+ func TestEmptyDwarfRanges(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
++	t.Parallel()
+ 
+ 	if runtime.GOOS == "plan9" {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")

@@ -19,7 +19,7 @@ Date:   Tue Nov 28 17:17:33 2017 -0800
     Change-Id: I7fa5f97ff31ac9775c9a6d318fce9f526b0350cd
     Reviewed-on: https://go-review.googlesource.com/80455
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gccgoimporter/parser_test.go |  5 +++++
  src/go/types/builtins.go                     |  7 +++----
  src/go/types/object_test.go                  | 12 ++++++------
@@ -29,3 +29,213 @@ Date:   Tue Nov 28 17:17:33 2017 -0800
  src/go/types/typestring_test.go              | 20 ++++++++++++++++++++
  src/go/types/typexpr.go                      |  5 ++---
  8 files changed, 71 insertions(+), 14 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/parser_test.go b/src/go/internal/gccgoimporter/parser_test.go
+index b96486f20a..4a103dc462 100644
+--- a/src/go/internal/gccgoimporter/parser_test.go
++++ b/src/go/internal/gccgoimporter/parser_test.go
+@@ -45,6 +45,11 @@ func TestTypeParser(t *testing.T) {
+ 			t.Errorf("expected full parse, stopped at %q", p.lit)
+ 		}
+ 
++		// interfaces must be explicitly completed
++		if ityp, _ := typ.(*types.Interface); ityp != nil {
++			ityp.Complete()
++		}
++
+ 		got := typ.String()
+ 		if got != test.want {
+ 			t.Errorf("got type %q, expected %q", got, test.want)
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 596a989a2d..66548231fe 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -470,15 +470,14 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Panic:
+ 		// panic(x)
+-		T := new(Interface)
+-		check.assignment(x, T, "argument to panic")
++		check.assignment(x, &emptyInterface, "argument to panic")
+ 		if x.mode == invalid {
+ 			return
+ 		}
+ 
+ 		x.mode = novalue
+ 		if check.Types != nil {
+-			check.recordBuiltinType(call.Fun, makeSig(nil, T))
++			check.recordBuiltinType(call.Fun, makeSig(nil, &emptyInterface))
+ 		}
+ 
+ 	case _Print, _Println:
+@@ -508,7 +507,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Recover:
+ 		// recover() interface{}
+ 		x.mode = value
+-		x.typ = new(Interface)
++		x.typ = &emptyInterface
+ 		if check.Types != nil {
+ 			check.recordBuiltinType(call.Fun, makeSig(x.typ))
+ 		}
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index b0acdd91ba..9f07394418 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -32,12 +32,12 @@ func TestIsAlias(t *testing.T) {
+ 		{NewTypeName(0, nil, "t0", nil), false}, // no type yet
+ 		{NewTypeName(0, pkg, "t0", nil), false}, // no type yet
+ 		{t1, false},                             // type name refers to named type and vice versa
+-		{NewTypeName(0, nil, "t2", new(Interface)), true}, // type name refers to unnamed type
+-		{NewTypeName(0, pkg, "t3", n1), true},             // type name refers to named type with different type name
+-		{NewTypeName(0, nil, "t4", Typ[Int32]), true},     // type name refers to basic type with different name
+-		{NewTypeName(0, nil, "int32", Typ[Int32]), false}, // type name refers to basic type with same name
+-		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},  // type name is declared in user-defined package (outside Universe)
+-		{NewTypeName(0, nil, "rune", Typ[Rune]), true},    // type name refers to basic type rune which is an alias already
++		{NewTypeName(0, nil, "t2", &emptyInterface), true}, // type name refers to unnamed type
++		{NewTypeName(0, pkg, "t3", n1), true},              // type name refers to named type with different type name
++		{NewTypeName(0, nil, "t4", Typ[Int32]), true},      // type name refers to basic type with different name
++		{NewTypeName(0, nil, "int32", Typ[Int32]), false},  // type name refers to basic type with same name
++		{NewTypeName(0, pkg, "int32", Typ[Int32]), true},   // type name is declared in user-defined package (outside Universe)
++		{NewTypeName(0, nil, "rune", Typ[Rune]), true},     // type name refers to basic type rune which is an alias already
+ 	} {
+ 		check(test.name, test.alias)
+ 	}
+diff --git a/src/go/types/testdata/cycles4.src b/src/go/types/testdata/cycles4.src
+index 445babca68..3f6304be6b 100644
+--- a/src/go/types/testdata/cycles4.src
++++ b/src/go/types/testdata/cycles4.src
+@@ -108,3 +108,15 @@ type Element interface {
+ type Event interface {
+ 	Target() Element
+ }
++
++// Recognize issue #13895.
++
++type (
++	_ interface{ m(B1) }
++	A1 interface{ a(D1) }
++	B1 interface{ A1 }
++	C1 interface{ B1 /* ERROR issue #18395 */ }
++	D1 interface{ C1 }
++)
++
++var _ A1 = C1 /* ERROR cannot use C1 */ (nil)
+\ No newline at end of file
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 4c681a79c4..ee7159f2e2 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -246,10 +246,22 @@ type Interface struct {
+ 	allMethods []*Func // ordered list of methods declared with or embedded in this interface (TODO(gri): replace with mset)
+ }
+ 
+-// NewInterface returns a new interface for the given methods and embedded types.
++// emptyInterface represents the empty (completed) interface
++var emptyInterface = Interface{allMethods: markComplete}
++
++// markComplete is used to mark an empty interface as completely
++// set up by setting the allMethods field to a non-nil empty slice.
++var markComplete = make([]*Func, 0)
++
++// NewInterface returns a new (incomplete) interface for the given methods and embedded types.
++// To compute the method set of the interface, Complete must be called.
+ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ 	typ := new(Interface)
+ 
++	if len(methods) == 0 && len(embeddeds) == 0 {
++		return typ
++	}
++
+ 	var mset objset
+ 	for _, m := range methods {
+ 		if mset.insert(m) != nil {
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 0f8a7adc24..a9c0bfde1f 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -156,6 +156,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		//     }
+ 		//
+ 		buf.WriteString("interface{")
++		empty := true
+ 		if gcCompatibilityMode {
+ 			// print flattened interface
+ 			// (useful to compare against gc-generated interfaces)
+@@ -165,6 +166,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				}
+ 				buf.WriteString(m.name)
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
++				empty = false
+ 			}
+ 		} else {
+ 			// print explicit interface methods and embedded types
+@@ -174,14 +176,22 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 				}
+ 				buf.WriteString(m.name)
+ 				writeSignature(buf, m.typ.(*Signature), qf, visited)
++				empty = false
+ 			}
+ 			for i, typ := range t.embeddeds {
+ 				if i > 0 || len(t.methods) > 0 {
+ 					buf.WriteString("; ")
+ 				}
+ 				writeType(buf, typ, qf, visited)
++				empty = false
+ 			}
+ 		}
++		if t.allMethods == nil || len(t.methods) > len(t.allMethods) {
++			if !empty {
++				buf.WriteByte(' ')
++			}
++			buf.WriteString("/* incomplete */")
++		}
+ 		buf.WriteByte('}')
+ 
+ 	case *Map:
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index b794ea813d..8d4c9f00b9 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -138,6 +138,26 @@ func TestTypeString(t *testing.T) {
+ 	}
+ }
+ 
++func TestIncompleteInterfaces(t *testing.T) {
++	sig := NewSignature(nil, nil, nil, false)
++	for _, test := range []struct {
++		typ  *Interface
++		want string
++	}{
++		{new(Interface), "interface{/* incomplete */}"},
++		{new(Interface).Complete(), "interface{}"},
++		{NewInterface(nil, nil), "interface{/* incomplete */}"},
++		{NewInterface(nil, nil).Complete(), "interface{}"},
++		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil), "interface{m() /* incomplete */}"},
++		{NewInterface([]*Func{NewFunc(token.NoPos, nil, "m", sig)}, nil).Complete(), "interface{m()}"},
++	} {
++		got := test.typ.String()
++		if got != test.want {
++			t.Errorf("got: %s, want: %s", got, test.want)
++		}
++	}
++}
++
+ func TestQualifiedTypeString(t *testing.T) {
+ 	p, _ := pkgFor("p.go", "package p; type T int", nil)
+ 	q, _ := pkgFor("q.go", "package q", nil)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index d48dcbffc3..0ab6dfdb79 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -540,9 +540,8 @@ func (check *Checker) interfaceType(iface *Interface, ityp *ast.InterfaceType, d
+ 		}
+ 		iface.embeddeds = append(iface.embeddeds, named)
+ 		// collect embedded methods
+-		if debug && embed.allMethods == nil {
+-			check.dump("%s: incomplete embedded interface %s", pos, named)
+-			unreachable()
++		if embed.allMethods == nil {
++			check.errorf(pos, "internal error: incomplete embedded interface %s (issue #18395)", named)
+ 		}
+ 		for _, m := range embed.allMethods {
+ 			if check.declareInSet(&mset, pos, m) {

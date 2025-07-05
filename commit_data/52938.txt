@@ -14,7 +14,70 @@ Date:   Sat May 28 07:51:56 2022 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/expvar/expvar.go      | 10 ++++++++--
  src/expvar/expvar_test.go | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 5629f89353..08cd05565d 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -118,7 +118,12 @@ func (v *Map) String() string {
+ 		if !first {
+ 			fmt.Fprintf(&b, ", ")
+ 		}
+-		fmt.Fprintf(&b, "%q: %v", kv.Key, kv.Value)
++		fmt.Fprintf(&b, "%q: ", kv.Key)
++		if kv.Value != nil {
++			fmt.Fprintf(&b, "%v", kv.Value)
++		} else {
++			fmt.Fprint(&b, "null")
++		}
+ 		first = false
+ 	})
+ 	fmt.Fprintf(&b, "}")
+@@ -224,7 +229,8 @@ func (v *Map) Do(f func(KeyValue)) {
+ 	defer v.keysMu.RUnlock()
+ 	for _, k := range v.keys {
+ 		i, _ := v.m.Load(k)
+-		f(KeyValue{k, i.(Var)})
++		val, _ := i.(Var)
++		f(KeyValue{k, val})
+ 	}
+ }
+ 
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index ba95a36066..552bae8c64 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -261,6 +261,29 @@ func TestMapCounter(t *testing.T) {
+ 	}
+ }
+ 
++func TestMapNil(t *testing.T) {
++	RemoveAll()
++	const key = "key"
++	m := NewMap("issue527719")
++	m.Set(key, nil)
++	s := m.String()
++	var j any
++	if err := json.Unmarshal([]byte(s), &j); err != nil {
++		t.Fatalf("m.String() == %q isn't valid JSON: %v", s, err)
++	}
++	m2, ok := j.(map[string]any)
++	if !ok {
++		t.Fatalf("m.String() produced %T, wanted a map", j)
++	}
++	v, ok := m2[key]
++	if !ok {
++		t.Fatalf("missing %q in %v", key, m2)
++	}
++	if v != nil {
++		t.Fatalf("m[%q] = %v, want nil", key, v)
++	}
++}
++
+ func BenchmarkMapSet(b *testing.B) {
+ 	m := new(Map).Init()
+ 

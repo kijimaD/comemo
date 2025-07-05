@@ -11,6 +11,28 @@ Date:   Sat Sep 3 07:09:54 2022 +0800
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/doc/headscan.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/doc/headscan.go b/src/go/doc/headscan.go
+index f55ca754a6..82f5fed1ce 100644
+--- a/src/go/doc/headscan.go
++++ b/src/go/doc/headscan.go
+@@ -16,7 +16,6 @@ By default, the $GOROOT/src directory is scanned.
+ package main
+ 
+ import (
+-	"bytes"
+ 	"flag"
+ 	"fmt"
+ 	"go/doc"
+@@ -46,7 +45,7 @@ func isGoFile(fi fs.FileInfo) bool {
+ }
+ 
+ func appendHeadings(list []string, comment string) []string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	doc.ToHTML(&buf, comment, nil)
+ 	for s := buf.String(); s != ""; {
+ 		loc := html_h.FindStringIndex(s)

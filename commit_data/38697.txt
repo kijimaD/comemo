@@ -35,7 +35,7 @@ Date:   Mon Nov 12 15:48:46 2018 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/all/main.go                     | 80 +++++++++++++++++++++++++----
  src/cmd/vet/all/whitelist/386.txt           |  2 -
  src/cmd/vet/all/whitelist/all.txt           | 10 ++--
@@ -52,3 +52,345 @@ Date:   Mon Nov 12 15:48:46 2018 -0500
  src/cmd/vet/all/whitelist/windows_386.txt   |  1 -
  src/cmd/vet/all/whitelist/windows_amd64.txt |  1 -
  15 files changed, 81 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 7e4a68101f..71915ed9f1 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -7,6 +7,9 @@
+ // The vet/all command runs go vet on the standard library and commands.
+ // It compares the output against a set of whitelists
+ // maintained in the whitelist directory.
++//
++// This program attempts to build packages from golang.org/x/tools,
++// which must be in your GOPATH.
+ package main
+ 
+ import (
+@@ -18,6 +21,7 @@ import (
+ 	"go/types"
+ 	"internal/testenv"
+ 	"io"
++	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -217,13 +221,40 @@ func (p platform) vet() {
+ 	w := make(whitelist)
+ 	w.load(p.os, p.arch)
+ 
+-	// 'go tool vet .' is considerably faster than 'go vet ./...'
++	tmpdir, err := ioutil.TempDir("", "cmd-vet-all")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	// Build the go/packages-based vet command from the x/tools
++	// repo. It is considerably faster than "go vet", which rebuilds
++	// the standard library.
++	vetTool := filepath.Join(tmpdir, "vet")
++	cmd := exec.Command(cmdGoPath, "build", "-o", vetTool, "golang.org/x/tools/go/analysis/cmd/vet")
++	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
++	cmd.Stderr = os.Stderr
++	cmd.Stdout = os.Stderr
++	if err := cmd.Run(); err != nil {
++		if _, err := build.Default.Import("golang.org/x/tools/go/analysis/cmd/vet", "", 0); err != nil {
++			fmt.Printf("skipping because golang.org/x/tools is not in GOPATH")
++			return
++		}
++		log.Fatal(err)
++	}
++
+ 	// TODO: The unsafeptr checks are disabled for now,
+ 	// because there are so many false positives,
+ 	// and no clear way to improve vet to eliminate large chunks of them.
+ 	// And having them in the whitelists will just cause annoyance
+ 	// and churn when working on the runtime.
+-	cmd := exec.Command(cmdGoPath, "tool", "vet", "-unsafeptr=false", "-source", ".")
++	cmd = exec.Command(vetTool,
++		"-unsafeptr=0",
++		"-nilness=0", // expensive, uses SSA
++		"std",
++		"cmd/...",
++		"cmd/compile/internal/gc/testdata",
++	)
+ 	cmd.Dir = filepath.Join(runtime.GOROOT(), "src")
+ 	cmd.Env = append(os.Environ(), "GOOS="+p.os, "GOARCH="+p.arch, "CGO_ENABLED=0")
+ 	stderr, err := cmd.StderrPipe()
+@@ -243,6 +274,9 @@ NextLine:
+ 		if strings.HasPrefix(line, "vet: ") {
+ 			// Typecheck failure: Malformed syntax or multiple packages or the like.
+ 			// This will yield nicer error messages elsewhere, so ignore them here.
++
++			// This includes warnings from asmdecl of the form:
++			//   "vet: foo.s:16: [amd64] cannot check cross-package assembly function"
+ 			continue
+ 		}
+ 
+@@ -254,22 +288,48 @@ NextLine:
+ 			io.Copy(os.Stderr, stderr)
+ 			break
+ 		}
++		if strings.HasPrefix(line, "# ") {
++			// 'go vet' prefixes the output of each vet invocation by a comment:
++			//    # [package]
++			continue
++		}
+ 
+-		fields := strings.SplitN(line, ":", 3)
++		// Parse line.
++		// Assume the part before the first ": "
++		// is the "file:line:col: " information.
++		// TODO(adonovan): parse vet -json output.
+ 		var file, lineno, msg string
+-		switch len(fields) {
+-		case 2:
+-			// vet message with no line number
+-			file, msg = fields[0], fields[1]
+-		case 3:
+-			file, lineno, msg = fields[0], fields[1], fields[2]
+-		default:
++		if i := strings.Index(line, ": "); i >= 0 {
++			msg = line[i+len(": "):]
++
++			words := strings.Split(line[:i], ":")
++			switch len(words) {
++			case 3:
++				_ = words[2] // ignore column
++				fallthrough
++			case 2:
++				lineno = words[1]
++				fallthrough
++			case 1:
++				file = words[0]
++
++				// Make the file name relative to GOROOT/src.
++				if rel, err := filepath.Rel(cmd.Dir, file); err == nil {
++					file = rel
++				}
++			default:
++				// error: too many columns
++			}
++		}
++		if file == "" {
+ 			if !parseFailed {
+ 				parseFailed = true
+ 				fmt.Fprintf(os.Stderr, "failed to parse %s vet output:\n", p)
+ 			}
+ 			fmt.Fprintln(os.Stderr, line)
++			continue
+ 		}
++
+ 		msg = strings.TrimSpace(msg)
+ 
+ 		for _, ignore := range ignorePathPrefixes {
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 3dbb340cbd..f791a26570 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -1,7 +1,5 @@
+ // 386-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_386.s: [386] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // startup code uses non-standard calling convention and intentionally
+ // omits args.
+ runtime/asm_386.s: [386] rt0_go: use of 4(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index 38caac3c3b..c73516392f 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -9,10 +9,6 @@ go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have
+ 
+ // False positives.
+ 
+-// Nothing much to do about cross-package assembly. Unfortunate.
+-internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal is in package runtime
+-internal/bytealg/equal_ARCHSUFF.s: [GOARCH] cannot check cross-package assembly function: memequal_varlen is in package runtime
+-
+ // The write barrier is called directly by the compiler, so no Go def
+ runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+ 
+@@ -22,8 +18,6 @@ encoding/json/decode_test.go: struct field m has json tag but is not exported
+ encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+ encoding/json/decode_test.go: struct field s has json tag but is not exported
+ encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+-runtime/testdata/testprog/deadlock.go: unreachable code
+-runtime/testdata/testprog/deadlock.go: unreachable code
+ 
+ // Compiler tests that make sure even vet-failing code adheres to the spec.
+ cmd/compile/internal/gc/testdata/arithConst_test.go: a (64 bits) too small for shift of 4294967296
+@@ -68,3 +62,7 @@ cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over
+ cmd/link/link_test.go: struct field tag "\n\tIt was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+ cmd/link/link_test.go: struct field tag "\n\tJarndyce and Jarndyce drones on. This scarecrow of a suit has, over the course of time, become so complicated, that no man alive knows what it means. The parties to it understand it least; but it has been observed that no two Chancery lawyers can talk about it for five minutes, without coming to a total disagreement as to all the premises. Innumerable children have been born into the cause; innumerable young people have married into it; innumerable old people have died out of it. Scores of persons have deliriously found themselves made parties in Jarndyce and Jarndyce, without knowing how or why; whole families have inherited legendary hatreds with the suit. The little plaintiff or defendant, who was promised a new rocking-horse when Jarndyce and Jarndyce should be settled, has grown up, possessed himself of a real horse, and trotted away into the other world. Fair wards of court have faded into mothers and grandmothers; a long procession of Chancellors has come in and gone out; the legion of bills in the suit have been transformed into mere bills of mortality; there are not three Jarndyces left upon the earth perhaps, since old Tom Jarndyce in despair blew his brains out at a coffee-house in Chancery Lane; but Jarndyce and Jarndyce still drags its dreary length before the Court, perennially hopeless." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+ cmd/link/link_test.go: struct field tag "\n\tThe one great principle of the English law is, to make business for itself. There is no other principle distinctly, certainly, and consistently maintained through all its narrow turnings. Viewed by this light it becomes a coherent scheme, and not the monstrous maze the laity are apt to think it. Let them but once clearly perceive that its grand principle is to make business for itself at their expense, and surely they will cease to grumble." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
++
++// Tests of Decode(nil) trigger legitimate diagnostics.
++encoding/gob/encoder_test.go: call of Decode passes non-pointer
++encoding/gob/encoder_test.go: call of Decode passes non-pointer
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 94f782aa2f..020241f615 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -2,9 +2,6 @@
+ 
+ // False positives.
+ 
+-// Nothing much to do about cross-package assembly. Unfortunate.
+-internal/bytealg/compare_amd64.s: [amd64] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+ runtime/asm_amd64.s: [amd64] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64.s: [amd64] morestack: use of 16(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 5dc2766e10..81a1f1831e 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -1,7 +1,5 @@
+ // arm-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+ runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 72528c5145..5a0af626f6 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -1,7 +1,5 @@
+ // arm64-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // Intentionally missing declarations.
+ runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index bd53e9acdf..1451a86e28 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -1,7 +1,5 @@
+ // mips/mipsle-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+diff --git a/src/cmd/vet/all/whitelist/nacl_386.txt b/src/cmd/vet/all/whitelist/nacl_386.txt
+index 68bba518ac..c4b03e4093 100644
+--- a/src/cmd/vet/all/whitelist/nacl_386.txt
++++ b/src/cmd/vet/all/whitelist/nacl_386.txt
+@@ -1,7 +1,5 @@
+ // nacl/386-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: naclWrite is in package syscall
+-runtime/sys_nacl_386.s: [386] cannot check cross-package assembly function: now is in package syscall
+ runtime/sys_nacl_386.s: [386] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+ runtime/sys_nacl_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_nacl_386.s: [386] sigtramp: use of 20(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 5625e3c55d..9661f57b23 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -1,7 +1,5 @@
+ // nacl/amd64p32-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_amd64p32.s: [amd64p32] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // reflect trampolines intentionally omit arg size. Same for morestack.
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
+@@ -13,8 +11,6 @@ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+-runtime/sys_nacl_amd64p32.s: [amd64p32] cannot check cross-package assembly function: naclWrite is in package syscall
+-runtime/sys_nacl_amd64p32.s: [amd64p32] cannot check cross-package assembly function: now is in package syscall
+ runtime/sys_nacl_amd64p32.s: [amd64p32] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+ runtime/sys_nacl_amd64p32.s: [amd64p32] settls: function settls missing Go declaration
+ 
+diff --git a/src/cmd/vet/all/whitelist/nacl_arm.txt b/src/cmd/vet/all/whitelist/nacl_arm.txt
+index cc0fcbab7f..dde0092570 100644
+--- a/src/cmd/vet/all/whitelist/nacl_arm.txt
++++ b/src/cmd/vet/all/whitelist/nacl_arm.txt
+@@ -1,8 +1,6 @@
+ // nacl/arm-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/asm_arm.s: [arm] sigreturn: function sigreturn missing Go declaration
+-runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: naclWrite is in package syscall
+-runtime/sys_nacl_arm.s: [arm] cannot check cross-package assembly function: now is in package syscall
+ runtime/sys_nacl_arm.s: [arm] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+ runtime/sys_nacl_arm.s: [arm] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+ runtime/sys_nacl_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index 39f8c0da31..730a753afc 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -1,7 +1,5 @@
+ // ppc64-specific vet whitelist. See readme.txt for details.
+ 
+-internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+ runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
+ runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 4b84242038..55cf44a519 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,13 +1,12 @@
+-internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
+ runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
+ runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
+ runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
+ runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
+ runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
+-internal/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); cpu.facilityList is 32-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); internal/cpu.facilityList is 32-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
++internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+index d066e5b76f..a3f8c291bf 100644
+--- a/src/cmd/vet/all/whitelist/wasm.txt
++++ b/src/cmd/vet/all/whitelist/wasm.txt
+@@ -2,9 +2,6 @@
+ 
+ // False positives.
+ 
+-// Nothing much to do about cross-package assembly. Unfortunate.
+-internal/bytealg/compare_wasm.s: [wasm] cannot check cross-package assembly function: cmpstring is in package runtime
+-
+ // morestack intentionally omits arg size.
+ runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
+ runtime/asm_wasm.s: [wasm] morestack: use of 16(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+index d910022ef6..87b3b24d7f 100644
+--- a/src/cmd/vet/all/whitelist/windows_386.txt
++++ b/src/cmd/vet/all/whitelist/windows_386.txt
+@@ -6,4 +6,3 @@ runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
+-runtime/sys_windows_386.s: [386] cannot check cross-package assembly function: now is in package time
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+index 676e6baf71..daa23e73a1 100644
+--- a/src/cmd/vet/all/whitelist/windows_amd64.txt
++++ b/src/cmd/vet/all/whitelist/windows_amd64.txt
+@@ -5,4 +5,3 @@ runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte
+ runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
+ runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
+ runtime/sys_windows_amd64.s: [amd64] settls: function settls missing Go declaration
+-runtime/sys_windows_amd64.s: [amd64] cannot check cross-package assembly function: now is in package time

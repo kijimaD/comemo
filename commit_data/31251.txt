@@ -14,6 +14,21 @@ Date:   Wed Feb 8 09:47:34 2017 -0800
     Change-Id: Iaaed53e8d8f2f45c2f24c0683052df4be6340922
     Reviewed-on: https://go-review.googlesource.com/36560
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/common.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 7e061f4d55..bdbedc689b 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -206,7 +206,8 @@ type ClientSessionState struct {
+ // ClientSessionCache is a cache of ClientSessionState objects that can be used
+ // by a client to resume a TLS session with a given server. ClientSessionCache
+ // implementations should expect to be called concurrently from different
+-// goroutines.
++// goroutines. Only ticket-based resumption is supported, not SessionID-based
++// resumption.
+ type ClientSessionCache interface {
+ 	// Get searches for a ClientSessionState associated with the given key.
+ 	// On return, ok is true if one was found.

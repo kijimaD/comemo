@@ -12,10 +12,235 @@ Date:   Thu Jul 9 15:47:26 2020 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go      |   1 +
  src/cmd/compile/internal/ssa/expand_calls.go | 101 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/func.go         |  22 ++++++
  src/cmd/compile/internal/ssa/op.go           |  35 ++++++++++
  src/cmd/compile/internal/ssa/writebarrier.go |  18 +----
  5 files changed, 160 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 444475d67a..4eed612977 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -433,6 +433,7 @@ var passes = [...]pass{
+ 	{name: "early fuse", fn: fuseEarly},
+ 	{name: "decompose builtin", fn: decomposeBuiltIn, required: true},
+ 	{name: "softfloat", fn: softfloat, required: true},
++	{name: "expand calls", fn:expandCalls, required: true},
+ 	{name: "late opt", fn: opt, required: true}, // TODO: split required rules and optimizing rules
+ 	{name: "dead auto elim", fn: elimDeadAutosGeneric},
+ 	{name: "generic deadcode", fn: deadcode, required: true}, // remove dead stores, which otherwise mess up store chain
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+new file mode 100644
+index 0000000000..13c7f532d6
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -0,0 +1,101 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "cmd/compile/internal/types"
++
++// expandCalls converts LE (Late Expansion) calls that act like they receive value args into a lower-level form
++// that is more oriented to a platform's ABI.  The SelectN operations that extract results are also rewritten into
++// more appropriate forms.
++func expandCalls(f *Func) {
++	canSSAType := f.fe.CanSSA
++	sp, _ := f.spSb()
++	// Calls that need lowering have some number of inputs, including a memory input,
++	// and produce a tuple of (value1, value2, ..., mem) where valueK may or may not be SSA-able.
++
++	// With the current ABI those inputs need to be converted into stores to memory,
++	// rethreading the call's memory input to the first, and the new call now receiving the last.
++
++	// With the current ABI, the outputs need to be converted to loads, which will all use the call's
++	// memory output as their input.
++
++	// Step 1: find all references to calls as values and rewrite those.
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			switch v.Op {
++			case OpSelectN:
++				call := v.Args[0]
++				aux := call.Aux.(*AuxCall)
++				which := v.AuxInt
++				t := v.Type
++				if which == aux.NResults() { // mem is after the results.
++					// rewrite v as a Copy of call -- the replacement call will produce a mem.
++					v.copyOf(call)
++				} else {
++					pt := types.NewPtr(t)
++					if canSSAType(t) {
++						off := f.ConstOffPtrSP(pt, aux.OffsetOfResult(which), sp)
++						v.reset(OpLoad)
++						v.SetArgs2(off, call)
++					} else {
++						panic("Should not have non-SSA-able OpSelectN")
++					}
++				}
++				v.Type = t // not right for the mem operand yet, but will be when call is rewritten.
++
++			case OpSelectNAddr:
++				call := v.Args[0]
++				which := v.AuxInt
++				aux := call.Aux.(*AuxCall)
++				pt := v.Type
++				off := f.ConstOffPtrSP(pt, aux.OffsetOfResult(which), sp)
++				v.copyOf(off)
++			}
++		}
++	}
++
++	// Step 2: rewrite the calls
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			switch v.Op {
++			case OpStaticLECall:
++				// Thread the stores on the memory arg
++				m0 := v.Args[len(v.Args)-1]
++				mem := m0
++				pos := v.Pos.WithNotStmt()
++				aux := v.Aux.(*AuxCall)
++				auxInt := v.AuxInt
++				for i, a := range v.Args {
++					if a == m0 {
++						break
++					}
++					if a.Op == OpDereference {
++						// "Dereference" of addressed (probably not-SSA-eligible) value becomes Move
++						src := a.Args[0]
++						dst := f.ConstOffPtrSP(src.Type, aux.OffsetOfArg(int64(i)), sp)
++						a.reset(OpMove)
++						a.Pos = pos
++						a.Type = types.TypeMem
++						a.Aux = aux.TypeOfArg(int64(i))
++						a.AuxInt = aux.SizeOfArg(int64(i))
++						a.SetArgs3(dst, src, mem)
++						mem = a
++					} else {
++						// Add a new store.
++						t := aux.TypeOfArg(int64(i))
++						dst := f.ConstOffPtrSP(types.NewPtr(t), aux.OffsetOfArg(int64(i)), sp)
++						mem = b.NewValue3A(pos, OpStore, types.TypeMem, t, dst, a, mem)
++					}
++				}
++				v.reset(OpStaticCall)
++				v.Type = types.TypeMem
++				v.Aux = aux
++				v.AuxInt = auxInt
++				v.SetArgs1(mem)
++			}
++		}
++	}
++}
++
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 32df0c06f3..0df7b4a5d7 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -775,3 +775,25 @@ func (f *Func) logDebugHashMatch(evname, name string) {
+ func DebugNameMatch(evname, name string) bool {
+ 	return os.Getenv(evname) == name
+ }
++
++func (f *Func) spSb() (sp, sb *Value) {
++	initpos := f.Entry.Pos
++	for _, v := range f.Entry.Values {
++		if v.Op == OpSB {
++			sb = v
++		}
++		if v.Op == OpSP {
++			sp = v
++		}
++		if sb != nil && sp != nil {
++			break
++		}
++	}
++	if sb == nil {
++		sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
++	}
++	if sp == nil {
++		sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
++	}
++	return
++}
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 02ecdef5e6..b8f80f7ea4 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -79,6 +79,41 @@ type AuxCall struct {
+ 	results []Param
+ }
+ 
++// OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
++func (a *AuxCall) OffsetOfResult(which int64) int64 {
++	return int64(a.results[which].Offset)
++}
++// OffsetOfArg returns the SP offset of argument which (indexed 0, 1, etc).
++func (a *AuxCall) OffsetOfArg(which int64) int64 {
++	return int64(a.args[which].Offset)
++}
++// TypeOfResult returns the type of result which (indexed 0, 1, etc).
++func (a *AuxCall) TypeOfResult(which int64) *types.Type {
++	return a.results[which].Type
++}
++// TypeOfArg returns the type of argument which (indexed 0, 1, etc).
++func (a *AuxCall) TypeOfArg(which int64) *types.Type {
++	return a.args[which].Type
++}
++// SizeOfResult returns the size of result which (indexed 0, 1, etc).
++func (a *AuxCall) SizeOfResult(which int64) int64 {
++	return a.TypeOfResult(which).Width
++}
++// SizeOfArg returns the size of argument which (indexed 0, 1, etc).
++func (a *AuxCall) SizeOfArg(which int64) int64 {
++	return a.TypeOfArg(which).Width
++}
++
++// NResults returns the number of results
++func (a *AuxCall) NResults() int64 {
++	return int64(len(a.results))
++}
++
++// NArgs returns the number of arguments
++func (a *AuxCall) NArgs() int64 {
++	return int64(len(a.args))
++}
++
+ // String returns
+ // "AuxCall{<fn>(<args>)}"             if len(results) == 0;
+ // "AuxCall{<fn>(<args>)<results[0]>}" if len(results) == 1;
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 7cc8bf7af9..df54a45b0f 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -125,23 +125,7 @@ func writebarrier(f *Func) {
+ 			// lazily initialize global values for write barrier test and calls
+ 			// find SB and SP values in entry block
+ 			initpos := f.Entry.Pos
+-			for _, v := range f.Entry.Values {
+-				if v.Op == OpSB {
+-					sb = v
+-				}
+-				if v.Op == OpSP {
+-					sp = v
+-				}
+-				if sb != nil && sp != nil {
+-					break
+-				}
+-			}
+-			if sb == nil {
+-				sb = f.Entry.NewValue0(initpos, OpSB, f.Config.Types.Uintptr)
+-			}
+-			if sp == nil {
+-				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+-			}
++			sp, sb = f.spSb()
+ 			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+ 			gcWriteBarrier = f.fe.Syslook("gcWriteBarrier")

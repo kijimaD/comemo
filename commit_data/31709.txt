@@ -13,7 +13,127 @@ Date:   Thu Mar 9 20:50:24 2017 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/buildall.bash | 64 +++++++++++++++++++++++++++----------------------------
  src/make.bash     |  2 +-
  2 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index 57bee8d6a5..5820b4d589 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -19,39 +19,39 @@ fi
+ 
+ sete=false
+ if [ "$1" = "-e" ]; then
+-    sete=true
+-    shift
++	sete=true
++	shift
+ fi
+ 
+ if [ "$sete" = true ]; then
+-    set -e
++	set -e
+ fi
+ 
+ pattern="$1"
+ if [ "$pattern" = "" ]; then
+-    pattern=.
++	pattern=.
+ fi
+ 
+ ./make.bash || exit 1
+ GOROOT="$(cd .. && pwd)"
+ 
+ gettargets() {
+-    ../bin/go tool dist list | sed -e 's|/|-|'
+-    echo linux-386-387
+-    echo linux-arm-arm5
++	../bin/go tool dist list | sed -e 's|/|-|'
++	echo linux-386-387
++	echo linux-arm-arm5
+ }
+ 
+ selectedtargets() {
+-    gettargets | egrep -v 'android-arm|darwin-arm' | egrep "$pattern"
++	gettargets | egrep -v 'android-arm|darwin-arm' | egrep "$pattern"
+ }
+ 
+ # put linux, nacl first in the target list to get all the architectures up front.
+ linux_nacl_targets() {
+-    selectedtargets | egrep 'linux|nacl' | sort
++	selectedtargets | egrep 'linux|nacl' | sort
+ }
+ 
+ non_linux_nacl_targets() {
+-    selectedtargets | egrep -v 'linux|nacl' | sort
++	selectedtargets | egrep -v 'linux|nacl' | sort
+ }
+ 
+ # Note words in $targets are separated by both newlines and spaces.
+@@ -60,29 +60,29 @@ targets="$(linux_nacl_targets) $(non_linux_nacl_targets)"
+ failed=false
+ for target in $targets
+ do
+-    echo ""
+-    echo "### Building $target"
+-    export GOOS=$(echo $target | sed 's/-.*//')
+-    export GOARCH=$(echo $target | sed 's/.*-//')
+-    unset GO386 GOARM
+-    if [ "$GOARCH" = "arm5" ]; then
+-        export GOARCH=arm
+-        export GOARM=5
+-    fi
+-    if [ "$GOARCH" = "387" ]; then
+-        export GOARCH=386
+-        export GO386=387
+-    fi
+-    if ! "$GOROOT/bin/go" build -a std cmd; then
+-        failed=true
+-        if $sete; then
+-            exit 1
+-        fi
+-    fi
++	echo ""
++	echo "### Building $target"
++	export GOOS=$(echo $target | sed 's/-.*//')
++	export GOARCH=$(echo $target | sed 's/.*-//')
++	unset GO386 GOARM
++	if [ "$GOARCH" = "arm5" ]; then
++		export GOARCH=arm
++		export GOARM=5
++	fi
++	if [ "$GOARCH" = "387" ]; then
++		export GOARCH=386
++		export GO386=387
++	fi
++	if ! "$GOROOT/bin/go" build -a std cmd; then
++		failed=true
++		if $sete; then
++			exit 1
++		fi
++	fi
+ done
+ 
+ if [ "$failed" = "true" ]; then
+-    echo "" 1>&2
+-    echo "Build(s) failed." 1>&2
+-    exit 1
++	echo "" 1>&2
++	echo "Build(s) failed." 1>&2
++	exit 1
+ fi
+diff --git a/src/make.bash b/src/make.bash
+index 84aaab56db..62d8b80fca 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -108,7 +108,7 @@ done
+ # cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
+ # disable cgo manually.
+ if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
+-        export CGO_ENABLED=0
++	export CGO_ENABLED=0
+ fi
+ 
+ # Clean old generated file that will cause problems in the build.

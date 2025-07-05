@@ -28,6 +28,20 @@ Date:   Wed Jan 31 11:55:22 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/traceback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2261942ab4..747176c278 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -287,7 +287,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				// But if callback is set, we're doing a garbage collection and must
+ 				// get everything, so crash loudly.
+ 				doPrint := printing
+-				if doPrint && gp.m.incgo && f.entry == sigpanicPC {
++				if doPrint && gp.m.incgo {
+ 					// We can inject sigpanic
+ 					// calls directly into C code,
+ 					// in which case we'll see a C

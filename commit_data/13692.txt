@@ -7,7 +7,7 @@ Date:   Sat Aug 25 10:16:02 2012 +0200
     R=golang-dev, alex.brainman, minux.ma
     CC=golang-dev
     https://golang.org/cl/6443110
-
+---
  test/fixedbugs/bug206.go                        |  2 +-
  test/fixedbugs/bug206.out                       |  2 ++
  test/fixedbugs/bug222.go                        |  2 +-
@@ -20,3 +20,144 @@ Date:   Sat Aug 25 10:16:02 2012 +0200
  test/fixedbugs/bug415.dir/{main.go => prog.go}  |  0
  test/fixedbugs/bug415.go                        |  2 +-
  11 files changed, 20 insertions(+), 19 deletions(-)
+
+diff --git a/test/fixedbugs/bug206.go b/test/fixedbugs/bug206.go
+index 7efc0b14af..c2382acf13 100644
+--- a/test/fixedbugs/bug206.go
++++ b/test/fixedbugs/bug206.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out >/dev/null 2>&1 || echo BUG: bug206
++// cmpout
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug206.out b/test/fixedbugs/bug206.out
+new file mode 100644
+index 0000000000..aa47d0d46d
+--- /dev/null
++++ b/test/fixedbugs/bug206.out
+@@ -0,0 +1,2 @@
++0
++0
+diff --git a/test/fixedbugs/bug222.go b/test/fixedbugs/bug222.go
+index 5c23a533d1..3b99da84d4 100644
+--- a/test/fixedbugs/bug222.go
++++ b/test/fixedbugs/bug222.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/chanbug.go && $G -I. $D/$F.dir/chanbug2.go
++// compiledir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug335.dir/a.go b/test/fixedbugs/bug335.dir/a.go
+index 5a8112a9de..256c110d70 100644
+--- a/test/fixedbugs/bug335.dir/a.go
++++ b/test/fixedbugs/bug335.dir/a.go
+@@ -4,6 +4,8 @@
+ 
+ package a
+ 
+-import "./b"
++type T interface{}
+ 
+-var Bar = b.Foo
++func f() T { return nil }
++
++var Foo T = f()
+diff --git a/test/fixedbugs/bug335.dir/b.go b/test/fixedbugs/bug335.dir/b.go
+index 7428c2a918..1474470d4c 100644
+--- a/test/fixedbugs/bug335.dir/b.go
++++ b/test/fixedbugs/bug335.dir/b.go
+@@ -4,8 +4,6 @@
+ 
+ package b
+ 
+-type T interface{}
++import "./a"
+ 
+-func f() T { return nil }
+-
+-var Foo T = f()
++var Bar = a.Foo
+diff --git a/test/fixedbugs/bug335.go b/test/fixedbugs/bug335.go
+index 915b746578..37c97d7b5e 100644
+--- a/test/fixedbugs/bug335.go
++++ b/test/fixedbugs/bug335.go
+@@ -1,5 +1,4 @@
+-// $G $D/$F.dir/b.go && $G $D/$F.dir/a.go
+-// rm -f a.$A b.$A
++// compiledir
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -7,4 +6,4 @@
+ 
+ // Issue 1705.
+ 
+-unused (see script at top of file)
++package ignored
+diff --git a/test/fixedbugs/bug392.dir/two.go b/test/fixedbugs/bug392.dir/pkg2.go
+similarity index 96%
+rename from test/fixedbugs/bug392.dir/two.go
+rename to test/fixedbugs/bug392.dir/pkg2.go
+index a9033dbb03..8320b2fffa 100644
+--- a/test/fixedbugs/bug392.dir/two.go
++++ b/test/fixedbugs/bug392.dir/pkg2.go
+@@ -5,7 +5,7 @@
+ // Use the functions in one.go so that the inlined
+ // forms get type-checked.
+ 
+-package two
++package pkg2
+ 
+ import "./one"
+ 
+diff --git a/test/fixedbugs/bug392.dir/three.go b/test/fixedbugs/bug392.dir/pkg3.go
+similarity index 62%
+rename from test/fixedbugs/bug392.dir/three.go
+rename to test/fixedbugs/bug392.dir/pkg3.go
+index a6193bf910..402c3b083f 100644
+--- a/test/fixedbugs/bug392.dir/three.go
++++ b/test/fixedbugs/bug392.dir/pkg3.go
+@@ -2,12 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Use the functions in one.go so that the inlined
++// Use the functions in pkg2.go so that the inlined
+ // forms get type-checked.
+ 
+-package three
++package pkg3
+ 
+-import "./two"
++import "./pkg2"
+ 
+-var x = two.F()
+-var v = two.V
++var x = pkg2.F()
++var v = pkg2.V
+diff --git a/test/fixedbugs/bug392.go b/test/fixedbugs/bug392.go
+index a7a4216c45..48b79e01b8 100644
+--- a/test/fixedbugs/bug392.go
++++ b/test/fixedbugs/bug392.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go && $G $D/$F.dir/three.go
++// compiledir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug415.dir/main.go b/test/fixedbugs/bug415.dir/prog.go
+similarity index 100%
+rename from test/fixedbugs/bug415.dir/main.go
+rename to test/fixedbugs/bug415.dir/prog.go
+diff --git a/test/fixedbugs/bug415.go b/test/fixedbugs/bug415.go
+index fbf034218a..8cd4c49f24 100644
+--- a/test/fixedbugs/bug415.go
++++ b/test/fixedbugs/bug415.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go
++// compiledir
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style

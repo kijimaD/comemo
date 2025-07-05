@@ -7,10 +7,596 @@ Date:   Wed Sep 26 16:11:49 2012 +0900
     R=golang-dev, lucio.dere, fshahriar
     CC=golang-dev
     https://golang.org/cl/6562046
-
+---
  src/pkg/net/iprawsock_plan9.go |  97 ++++++++++++++++++--------
  src/pkg/net/ipsock_plan9.go    |  32 ++++++++-
  src/pkg/net/tcpsock_plan9.go   |  23 +++---
  src/pkg/net/udpsock_plan9.go   |  52 +++++++++-----
  src/pkg/net/unixsock_plan9.go  | 154 +++++++++++++++++++++++++++++++----------
  5 files changed, 258 insertions(+), 100 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_plan9.go b/src/pkg/net/iprawsock_plan9.go
+index ea3321b7e2..6de2ee33d8 100644
+--- a/src/pkg/net/iprawsock_plan9.go
++++ b/src/pkg/net/iprawsock_plan9.go
+@@ -7,14 +7,37 @@
+ package net
+ 
+ import (
++	"os"
+ 	"syscall"
+ 	"time"
+ )
+ 
+-// IPConn is the implementation of the Conn and PacketConn
+-// interfaces for IP network connections.
++// IPConn is the implementation of the Conn and PacketConn interfaces
++// for IP network connections.
+ type IPConn bool
+ 
++// Implementation of the Conn interface - see Conn for documentation.
++
++// Read implements the Conn Read method.
++func (c *IPConn) Read(b []byte) (int, error) {
++	return 0, syscall.EPLAN9
++}
++
++// Write implements the Conn Write method.
++func (c *IPConn) Write(b []byte) (int, error) {
++	return 0, syscall.EPLAN9
++}
++
++// LocalAddr returns the local network address.
++func (c *IPConn) LocalAddr() Addr {
++	return nil
++}
++
++// RemoteAddr returns the remote network address.
++func (c *IPConn) RemoteAddr() Addr {
++	return nil
++}
++
+ // SetDeadline implements the Conn SetDeadline method.
+ func (c *IPConn) SetDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+@@ -30,16 +53,23 @@ func (c *IPConn) SetWriteDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
+-// Implementation of the Conn interface - see Conn for documentation.
++// SetReadBuffer sets the size of the operating system's receive
++// buffer associated with the connection.
++func (c *IPConn) SetReadBuffer(bytes int) error {
++	return syscall.EPLAN9
++}
+ 
+-// Read implements the Conn Read method.
+-func (c *IPConn) Read(b []byte) (int, error) {
+-	return 0, syscall.EPLAN9
++// SetWriteBuffer sets the size of the operating system's transmit
++// buffer associated with the connection.
++func (c *IPConn) SetWriteBuffer(bytes int) error {
++	return syscall.EPLAN9
+ }
+ 
+-// Write implements the Conn Write method.
+-func (c *IPConn) Write(b []byte) (int, error) {
+-	return 0, syscall.EPLAN9
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *IPConn) File() (f *os.File, err error) {
++	return nil, syscall.EPLAN9
+ }
+ 
+ // Close closes the IP connection.
+@@ -47,16 +77,6 @@ func (c *IPConn) Close() error {
+ 	return syscall.EPLAN9
+ }
+ 
+-// LocalAddr returns the local network address.
+-func (c *IPConn) LocalAddr() Addr {
+-	return nil
+-}
+-
+-// RemoteAddr returns the remote network address, a *IPAddr.
+-func (c *IPConn) RemoteAddr() Addr {
+-	return nil
+-}
+-
+ // IP-specific methods.
+ 
+ // ReadFromIP reads an IP packet from c, copying the payload into b.
+@@ -75,12 +95,21 @@ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	return 0, nil, syscall.EPLAN9
+ }
+ 
+-// WriteToIP writes an IP packet to addr via c, copying the payload from b.
++// ReadMsgIP reads a packet from c, copying the payload into b and the
++// associdated out-of-band data into oob.  It returns the number of
++// bytes copied into b, the number of bytes copied into oob, the flags
++// that were set on the packet and the source address of the packet.
++func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err error) {
++	return 0, 0, 0, nil, syscall.EPLAN9
++}
++
++// WriteToIP writes an IP packet to addr via c, copying the payload
++// from b.
+ //
+-// WriteToIP can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetDeadline and SetWriteDeadline.
+-// On packet-oriented connections, write timeouts are rare.
++// WriteToIP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetWriteDeadline.  On packet-oriented connections, write timeouts
++// are rare.
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	return 0, syscall.EPLAN9
+ }
+@@ -90,16 +119,24 @@ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	return 0, syscall.EPLAN9
+ }
+ 
+-// DialIP connects to the remote address raddr on the network protocol netProto,
+-// which must be "ip", "ip4", or "ip6" followed by a colon and a protocol number or name.
++// WriteMsgIP writes a packet to addr via c, copying the payload from
++// b and the associated out-of-band data from oob.  It returns the
++// number of payload and out-of-band bytes written.
++func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error) {
++	return 0, 0, syscall.EPLAN9
++}
++
++// DialIP connects to the remote address raddr on the network protocol
++// netProto, which must be "ip", "ip4", or "ip6" followed by a colon
++// and a protocol number or name.
+ func DialIP(netProto string, laddr, raddr *IPAddr) (*IPConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-// ListenIP listens for incoming IP packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send IP
+-// packets with per-packet addressing.
++// ListenIP listens for incoming IP packets addressed to the local
++// address laddr.  The returned connection c's ReadFrom and WriteTo
++// methods can be used to receive and send IP packets with per-packet
++// addressing.
+ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/ipsock_plan9.go b/src/pkg/net/ipsock_plan9.go
+index 1199e48678..7cc2d714d8 100644
+--- a/src/pkg/net/ipsock_plan9.go
++++ b/src/pkg/net/ipsock_plan9.go
+@@ -17,9 +17,9 @@ import (
+ // /sys/include/ape/sys/socket.h:/SOMAXCONN
+ var listenerBacklog = 5
+ 
+-// probeIPv6Stack returns two boolean values.  If the first boolean value is
+-// true, kernel supports basic IPv6 functionality.  If the second
+-// boolean value is true, kernel supports IPv6 IPv4-mapping.
++// probeIPv6Stack returns two boolean values.  If the first boolean
++// value is true, kernel supports basic IPv6 functionality.  If the
++// second boolean value is true, kernel supports IPv6 IPv4-mapping.
+ func probeIPv6Stack() (supportsIPv6, supportsIPv4map bool) {
+ 	return false, false
+ }
+@@ -166,6 +166,25 @@ func (c *plan9Conn) SetWriteDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
++// SetReadBuffer sets the size of the operating system's receive
++// buffer associated with the connection.
++func (c *plan9Conn) SetReadBuffer(bytes int) error {
++	return syscall.EPLAN9
++}
++
++// SetWriteBuffer sets the size of the operating system's transmit
++// buffer associated with the connection.
++func (c *plan9Conn) SetWriteBuffer(bytes int) error {
++	return syscall.EPLAN9
++}
++
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *plan9Conn) File() (f *os.File, err error) {
++	return nil, syscall.EPLAN9
++}
++
+ func startPlan9(net string, addr Addr) (ctl *os.File, dest, proto, name string, err error) {
+ 	var (
+ 		ip   IP
+@@ -306,3 +325,10 @@ func (l *plan9Listener) Addr() Addr { return l.laddr }
+ func (l *plan9Listener) SetDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
++
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing l does not affect f, and closing f does not affect l.
++func (l *plan9Listener) File() (f *os.File, err error) {
++	return nil, syscall.EPLAN9
++}
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index b225ca25dc..4121dd89e9 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -2,14 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TCP for Plan 9
++// TCP sockets for Plan 9
+ 
+ package net
+ 
+ import "syscall"
+ 
+-// TCPConn is an implementation of the Conn interface
+-// for TCP network connections.
++// TCPConn is an implementation of the Conn interface for TCP network
++// connections.
+ type TCPConn struct {
+ 	plan9Conn
+ }
+@@ -33,8 +33,8 @@ func (c *TCPConn) CloseWrite() error {
+ }
+ 
+ // DialTCP connects to the remote address raddr on the network net,
+-// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is used
+-// as the local address for the connection.
++// which must be "tcp", "tcp4", or "tcp6".  If laddr is not nil, it is
++// used as the local address for the connection.
+ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+@@ -51,9 +51,8 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (c *TCPConn, err error) {
+ 	return &TCPConn{*c1}, nil
+ }
+ 
+-// TCPListener is a TCP network listener.
+-// Clients should typically use variables of type Listener
+-// instead of assuming TCP.
++// TCPListener is a TCP network listener.  Clients should typically
++// use variables of type Listener instead of assuming TCP.
+ type TCPListener struct {
+ 	plan9Listener
+ }
+@@ -69,10 +68,10 @@ func (l *TCPListener) Close() error {
+ 	return l.ctl.Close()
+ }
+ 
+-// ListenTCP announces on the TCP address laddr and returns a TCP listener.
+-// Net must be "tcp", "tcp4", or "tcp6".
+-// If laddr has a port of 0, it means to listen on some available port.
+-// The caller can use l.Addr() to retrieve the chosen address.
++// ListenTCP announces on the TCP address laddr and returns a TCP
++// listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
++// port of 0, it means to listen on some available port.  The caller
++// can use l.Addr() to retrieve the chosen address.
+ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+ 	switch net {
+ 	case "tcp", "tcp4", "tcp6":
+diff --git a/src/pkg/net/udpsock_plan9.go b/src/pkg/net/udpsock_plan9.go
+index 5ac0b4d263..aaa7e5b28c 100644
+--- a/src/pkg/net/udpsock_plan9.go
++++ b/src/pkg/net/udpsock_plan9.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// UDP for Plan 9
++// UDP sockets for Plan 9
+ 
+ package net
+ 
+@@ -24,8 +24,9 @@ type UDPConn struct {
+ // It returns the number of bytes copied into b and the return address
+ // that was on the packet.
+ //
+-// ReadFromUDP can be made to time out and return an error with Timeout() == true
+-// after a fixed time limit; see SetDeadline and SetReadDeadline.
++// ReadFromUDP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetReadDeadline.
+ func (c *UDPConn) ReadFromUDP(b []byte) (n int, addr *UDPAddr, err error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+@@ -59,12 +60,22 @@ func (c *UDPConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+ 	return c.ReadFromUDP(b)
+ }
+ 
+-// WriteToUDP writes a UDP packet to addr via c, copying the payload from b.
++// ReadMsgUDP reads a packet from c, copying the payload into b and
++// the associdated out-of-band data into oob.  It returns the number
++// of bytes copied into b, the number of bytes copied into oob, the
++// flags that were set on the packet and the source address of the
++// packet.
++func (c *UDPConn) ReadMsgUDP(b, oob []byte) (n, oobn, flags int, addr *UDPAddr, err error) {
++	return 0, 0, 0, nil, syscall.EPLAN9
++}
++
++// WriteToUDP writes a UDP packet to addr via c, copying the payload
++// from b.
+ //
+-// WriteToUDP can be made to time out and return
+-// an error with Timeout() == true after a fixed time limit;
+-// see SetDeadline and SetWriteDeadline.
+-// On packet-oriented connections, write timeouts are rare.
++// WriteToUDP can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetWriteDeadline.  On packet-oriented connections, write timeouts
++// are rare.
+ func (c *UDPConn) WriteToUDP(b []byte, addr *UDPAddr) (n int, err error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -100,9 +111,16 @@ func (c *UDPConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+ 	return c.WriteToUDP(b, a)
+ }
+ 
++// WriteMsgUDP writes a packet to addr via c, copying the payload from
++// b and the associated out-of-band data from oob.  It returns the
++// number of payload and out-of-band bytes written.
++func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err error) {
++	return 0, 0, syscall.EPLAN9
++}
++
+ // DialUDP connects to the remote address raddr on the network net,
+-// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is used
+-// as the local address for the connection.
++// which must be "udp", "udp4", or "udp6".  If laddr is not nil, it is
++// used as the local address for the connection.
+ func DialUDP(net string, laddr, raddr *UDPAddr) (c *UDPConn, err error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+@@ -147,10 +165,10 @@ func unmarshalUDPHeader(b []byte) (*udpHeader, []byte) {
+ 	return h, b
+ }
+ 
+-// ListenUDP listens for incoming UDP packets addressed to the
+-// local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send UDP
+-// packets with per-packet addressing.
++// ListenUDP listens for incoming UDP packets addressed to the local
++// address laddr.  The returned connection c's ReadFrom and WriteTo
++// methods can be used to receive and send UDP packets with per-packet
++// addressing.
+ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ 	switch net {
+ 	case "udp", "udp4", "udp6":
+@@ -172,9 +190,9 @@ func ListenUDP(net string, laddr *UDPAddr) (c *UDPConn, err error) {
+ }
+ 
+ // ListenMulticastUDP listens for incoming multicast UDP packets
+-// addressed to the group address gaddr on ifi, which specifies
+-// the interface to join.  ListenMulticastUDP uses default
+-// multicast interface if ifi is nil.
++// addressed to the group address gaddr on ifi, which specifies the
++// interface to join.  ListenMulticastUDP uses default multicast
++// interface if ifi is nil.
+ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 2ad9b15bb8..21403754a7 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -7,40 +7,33 @@
+ package net
+ 
+ import (
++	"os"
+ 	"syscall"
+ 	"time"
+ )
+ 
+-// UnixConn is an implementation of the Conn interface
+-// for connections to Unix domain sockets.
++// UnixConn is an implementation of the Conn interface for connections
++// to Unix domain sockets.
+ type UnixConn bool
+ 
+ // Implementation of the Conn interface - see Conn for documentation.
+ 
+ // Read implements the Conn Read method.
+-func (c *UnixConn) Read(b []byte) (n int, err error) {
++func (c *UnixConn) Read(b []byte) (int, error) {
+ 	return 0, syscall.EPLAN9
+ }
+ 
+ // Write implements the Conn Write method.
+-func (c *UnixConn) Write(b []byte) (n int, err error) {
++func (c *UnixConn) Write(b []byte) (int, error) {
+ 	return 0, syscall.EPLAN9
+ }
+ 
+-// Close closes the Unix domain connection.
+-func (c *UnixConn) Close() error {
+-	return syscall.EPLAN9
+-}
+-
+-// LocalAddr returns the local network address, a *UnixAddr.
+-// Unlike in other protocols, LocalAddr is usually nil for dialed connections.
++// LocalAddr returns the local network address.
+ func (c *UnixConn) LocalAddr() Addr {
+ 	return nil
+ }
+ 
+-// RemoteAddr returns the remote network address, a *UnixAddr.
+-// Unlike in other protocols, RemoteAddr is usually nil for connections
+-// accepted by a listener.
++// RemoteAddr returns the remote network address.
+ func (c *UnixConn) RemoteAddr() Addr {
+ 	return nil
+ }
+@@ -60,59 +53,144 @@ func (c *UnixConn) SetWriteDeadline(t time.Time) error {
+ 	return syscall.EPLAN9
+ }
+ 
++// SetReadBuffer sets the size of the operating system's receive
++// buffer associated with the connection.
++func (c *UnixConn) SetReadBuffer(bytes int) error {
++	return syscall.EPLAN9
++}
++
++// SetWriteBuffer sets the size of the operating system's transmit
++// buffer associated with the connection.
++func (c *UnixConn) SetWriteBuffer(bytes int) error {
++	return syscall.EPLAN9
++}
++
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func (c *UnixConn) File() (f *os.File, err error) {
++	return nil, syscall.EPLAN9
++}
++
++// Close closes the Unix domain connection.
++func (c *UnixConn) Close() error {
++	return syscall.EPLAN9
++}
++
++// ReadFromUnix reads a packet from c, copying the payload into b.  It
++// returns the number of bytes copied into b and the source address of
++// the packet.
++//
++// ReadFromUnix can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetReadDeadline.
++func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
++	return 0, nil, syscall.EPLAN9
++}
++
+ // ReadFrom implements the PacketConn ReadFrom method.
+-func (c *UnixConn) ReadFrom(b []byte) (n int, addr Addr, err error) {
+-	err = syscall.EPLAN9
+-	return
++func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
++	return 0, nil, syscall.EPLAN9
++}
++
++// ReadMsgUnix reads a packet from c, copying the payload into b and
++// the associated out-of-band data into oob.  It returns the number of
++// bytes copied into b, the number of bytes copied into oob, the flags
++// that were set on the packet, and the source address of the packet.
++func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAddr, err error) {
++	return 0, 0, 0, nil, syscall.EPLAN9
++}
++
++// WriteToUnix writes a packet to addr via c, copying the payload from b.
++//
++// WriteToUnix can be made to time out and return an error with
++// Timeout() == true after a fixed time limit; see SetDeadline and
++// SetWriteDeadline.  On packet-oriented connections, write timeouts
++// are rare.
++func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
++	return 0, syscall.EPLAN9
+ }
+ 
+ // WriteTo implements the PacketConn WriteTo method.
+-func (c *UnixConn) WriteTo(b []byte, addr Addr) (n int, err error) {
+-	err = syscall.EPLAN9
+-	return
++func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
++	return 0, syscall.EPLAN9
++}
++
++// WriteMsgUnix writes a packet to addr via c, copying the payload
++// from b and the associated out-of-band data from oob.  It returns
++// the number of payload and out-of-band bytes written.
++func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err error) {
++	return 0, 0, syscall.EPLAN9
+ }
+ 
+-// CloseRead shuts down the reading side of the Unix domain connection.
+-// Most callers should just use Close.
++// CloseRead shuts down the reading side of the Unix domain
++// connection.  Most callers should just use Close.
+ func (c *UnixConn) CloseRead() error {
+ 	return syscall.EPLAN9
+ }
+ 
+-// CloseWrite shuts down the writing side of the Unix domain connection.
+-// Most callers should just use Close.
++// CloseWrite shuts down the writing side of the Unix domain
++// connection.  Most callers should just use Close.
+ func (c *UnixConn) CloseWrite() error {
+ 	return syscall.EPLAN9
+ }
+ 
+ // DialUnix connects to the remote address raddr on the network net,
+-// which must be "unix" or "unixgram".  If laddr is not nil, it is used
+-// as the local address for the connection.
+-func DialUnix(net string, laddr, raddr *UnixAddr) (c *UnixConn, err error) {
++// which must be "unix" or "unixgram".  If laddr is not nil, it is
++// used as the local address for the connection.
++func DialUnix(net string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-// UnixListener is a Unix domain socket listener.
+-// Clients should typically use variables of type Listener
+-// instead of assuming Unix domain sockets.
++// UnixListener is a Unix domain socket listener.  Clients should
++// typically use variables of type Listener instead of assuming Unix
++// domain sockets.
+ type UnixListener bool
+ 
+-// ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+-// Net must be "unix" (stream sockets).
+-func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
++// ListenUnix announces on the Unix domain socket laddr and returns a
++// Unix listener.  Net must be "unix" (stream sockets).
++func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
++	return nil, syscall.EPLAN9
++}
++
++// AcceptUnix accepts the next incoming call and returns the new
++// connection and the remote address.
++func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-// Accept implements the Accept method in the Listener interface;
+-// it waits for the next call and returns a generic Conn.
+-func (l *UnixListener) Accept() (c Conn, err error) {
++// Accept implements the Accept method in the Listener interface; it
++// waits for the next call and returns a generic Conn.
++func (l *UnixListener) Accept() (Conn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-// Close stops listening on the Unix address.
+-// Already accepted connections are not closed.
++// Close stops listening on the Unix address.  Already accepted
++// connections are not closed.
+ func (l *UnixListener) Close() error {
+ 	return syscall.EPLAN9
+ }
+ 
+ // Addr returns the listener's network address.
+ func (l *UnixListener) Addr() Addr { return nil }
++
++// SetDeadline sets the deadline associated with the listener.
++// A zero time value disables the deadline.
++func (l *UnixListener) SetDeadline(t time.Time) error {
++	return syscall.EPLAN9
++}
++
++// File returns a copy of the underlying os.File, set to blocking
++// mode.  It is the caller's responsibility to close f when finished.
++// Closing l does not affect f, and closing f does not affect l.
++func (l *UnixListener) File() (*os.File, error) {
++	return nil, syscall.EPLAN9
++}
++
++// ListenUnixgram listens for incoming Unix datagram packets addressed
++// to the local address laddr.  The returned connection c's ReadFrom
++// and WriteTo methods can be used to receive and send UDP packets
++// with per-packet addressing.  The network net must be "unixgram".
++func ListenUnixgram(net string, laddr *UnixAddr) (*UDPConn, error) {
++	return nil, syscall.EPLAN9
++}

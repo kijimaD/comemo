@@ -7,6 +7,19 @@ Date:   Tue Aug 30 09:40:46 2011 -0400
     R=golang-dev
     CC=golang-dev, rsc
     https://golang.org/cl/4977045
-
+---
  src/cmd/gc/go.h | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2459e538ec..ad2dd48ffe 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -667,6 +667,7 @@ struct	Magic
+ };
+ 
+ typedef struct	Prog Prog;
++#pragma incomplete Prog
+ 
+ struct	Label
+ {

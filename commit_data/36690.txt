@@ -12,7 +12,7 @@ Date:   Mon May 21 11:22:00 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/memclr_386.s          | 2 +-
  src/runtime/memclr_amd64.s        | 2 +-
  src/runtime/memclr_amd64p32.s     | 1 +
@@ -38,3 +38,310 @@ Date:   Mon May 21 11:22:00 2018 +0100
  src/runtime/memmove_s390x.s       | 2 +-
  src/runtime/memmove_wasm.s        | 2 +-
  24 files changed, 24 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 1adb26b452..7d5dd38c0a 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -8,7 +8,7 @@
+ 
+ // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), DI
+ 	MOVL	n+4(FP), BX
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index d0fd50d4f1..63730eebfb 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -9,7 +9,7 @@
+ 
+ // NOTE: Windows externalthreadhandler expects memclr to preserve DX.
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 	MOVQ	ptr+0(FP), DI
+ 	MOVQ	n+8(FP), BX
+diff --git a/src/runtime/memclr_amd64p32.s b/src/runtime/memclr_amd64p32.s
+index 26171bfd4a..71040f3750 100644
+--- a/src/runtime/memclr_amd64p32.s
++++ b/src/runtime/memclr_amd64p32.s
+@@ -4,6 +4,7 @@
+ 
+ #include "textflag.h"
+ 
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
+ 	MOVL	ptr+0(FP), DI
+ 	MOVL	n+4(FP), CX
+diff --git a/src/runtime/memclr_arm.s b/src/runtime/memclr_arm.s
+index eb37674303..ea3c67afc5 100644
+--- a/src/runtime/memclr_arm.s
++++ b/src/runtime/memclr_arm.s
+@@ -30,6 +30,7 @@
+ #define N	R12
+ #define TMP	R12				/* N and TMP don't overlap */
+ 
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
+ 	MOVW	ptr+0(FP), TO
+ 	MOVW	n+4(FP), N
+diff --git a/src/runtime/memclr_arm64.s b/src/runtime/memclr_arm64.s
+index 159cac2486..c9cdc4b12a 100644
+--- a/src/runtime/memclr_arm64.s
++++ b/src/runtime/memclr_arm64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVD	ptr+0(FP), R0
+ 	MOVD	n+8(FP), R1
+diff --git a/src/runtime/memclr_mips64x.s b/src/runtime/memclr_mips64x.s
+index 5018d43c8b..111983bd6a 100644
+--- a/src/runtime/memclr_mips64x.s
++++ b/src/runtime/memclr_mips64x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVV	ptr+0(FP), R1
+ 	MOVV	n+8(FP), R2
+diff --git a/src/runtime/memclr_mipsx.s b/src/runtime/memclr_mipsx.s
+index ad013b8421..1561a23dbe 100644
+--- a/src/runtime/memclr_mipsx.s
++++ b/src/runtime/memclr_mipsx.s
+@@ -14,7 +14,7 @@
+ #define MOVWLO  MOVWL
+ #endif
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-8
+ 	MOVW	n+4(FP), R2
+ 	MOVW	ptr+0(FP), R1
+diff --git a/src/runtime/memclr_plan9_386.s b/src/runtime/memclr_plan9_386.s
+index c3d92a9fa9..5b880ae86f 100644
+--- a/src/runtime/memclr_plan9_386.s
++++ b/src/runtime/memclr_plan9_386.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-8
+ 	MOVL	ptr+0(FP), DI
+ 	MOVL	n+4(FP), BX
+diff --git a/src/runtime/memclr_plan9_amd64.s b/src/runtime/memclr_plan9_amd64.s
+index d4d1a3a50b..ad383cd6b3 100644
+--- a/src/runtime/memclr_plan9_amd64.s
++++ b/src/runtime/memclr_plan9_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT,$0-16
+ 	MOVQ	ptr+0(FP), DI
+ 	MOVQ	n+8(FP), CX
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index e3a4673c8d..3b23ce89d8 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD ptr+0(FP), R3
+ 	MOVD n+8(FP), R4
+diff --git a/src/runtime/memclr_s390x.s b/src/runtime/memclr_s390x.s
+index 43da10dcb6..1b2aa3c3b2 100644
+--- a/src/runtime/memclr_s390x.s
++++ b/src/runtime/memclr_s390x.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB),NOSPLIT|NOFRAME,$0-16
+ 	MOVD	ptr+0(FP), R4
+ 	MOVD	n+8(FP), R5
+diff --git a/src/runtime/memclr_wasm.s b/src/runtime/memclr_wasm.s
+index d011c84549..68ffe2f67b 100644
+--- a/src/runtime/memclr_wasm.s
++++ b/src/runtime/memclr_wasm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memclrNoHeapPointers(void*, uintptr)
++// func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
+ 	MOVD ptr+0(FP), R0
+ 	MOVD n+8(FP), R1
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index e76201b48b..1bf86a5453 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -27,6 +27,7 @@
+ 
+ #include "textflag.h"
+ 
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+ 	MOVL	from+4(FP), SI
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 924b11b97b..aaed67936a 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -27,7 +27,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+ 	MOVQ	to+0(FP), DI
+diff --git a/src/runtime/memmove_amd64p32.s b/src/runtime/memmove_amd64p32.s
+index 13907a90b2..8e9fdd14c5 100644
+--- a/src/runtime/memmove_amd64p32.s
++++ b/src/runtime/memmove_amd64p32.s
+@@ -7,6 +7,7 @@
+ // This could use MOVSQ, but we use MOVSL so that if an object ends in
+ // a 4 byte pointer, we copy it as a unit instead of byte by byte.
+ 
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+ 	MOVL	from+4(FP), SI
+diff --git a/src/runtime/memmove_arm.s b/src/runtime/memmove_arm.s
+index 504ae04c13..324b21bf7a 100644
+--- a/src/runtime/memmove_arm.s
++++ b/src/runtime/memmove_arm.s
+@@ -58,6 +58,7 @@
+ #define FW3	R4
+ #define FR3	R8					/* shared with TE */
+ 
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $4-12
+ _memmove:
+ 	MOVW	to+0(FP), TS
+diff --git a/src/runtime/memmove_arm64.s b/src/runtime/memmove_arm64.s
+index 2faad8df93..dcbead8cf4 100644
+--- a/src/runtime/memmove_arm64.s
++++ b/src/runtime/memmove_arm64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD	to+0(FP), R3
+ 	MOVD	from+8(FP), R4
+diff --git a/src/runtime/memmove_mips64x.s b/src/runtime/memmove_mips64x.s
+index 54663829a7..a4cb7dc81e 100644
+--- a/src/runtime/memmove_mips64x.s
++++ b/src/runtime/memmove_mips64x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVV	to+0(FP), R1
+ 	MOVV	from+8(FP), R2
+diff --git a/src/runtime/memmove_mipsx.s b/src/runtime/memmove_mipsx.s
+index e934e4d499..13544a3598 100644
+--- a/src/runtime/memmove_mipsx.s
++++ b/src/runtime/memmove_mipsx.s
+@@ -14,7 +14,7 @@
+ #define MOVWLO  MOVWL
+ #endif
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB),NOSPLIT,$-0-12
+ 	MOVW	n+8(FP), R3
+ 	MOVW	from+4(FP), R2
+diff --git a/src/runtime/memmove_plan9_386.s b/src/runtime/memmove_plan9_386.s
+index 29d44b2f33..7ff01940a2 100644
+--- a/src/runtime/memmove_plan9_386.s
++++ b/src/runtime/memmove_plan9_386.s
+@@ -25,6 +25,7 @@
+ 
+ #include "textflag.h"
+ 
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-12
+ 	MOVL	to+0(FP), DI
+ 	MOVL	from+4(FP), SI
+diff --git a/src/runtime/memmove_plan9_amd64.s b/src/runtime/memmove_plan9_amd64.s
+index a5e8dfa571..f18b59f3d2 100644
+--- a/src/runtime/memmove_plan9_amd64.s
++++ b/src/runtime/memmove_plan9_amd64.s
+@@ -25,7 +25,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 
+ 	MOVQ	to+0(FP), DI
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 26dabd9e69..b79f76d388 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD	to+0(FP), R3
+ 	MOVD	from+8(FP), R4
+diff --git a/src/runtime/memmove_s390x.s b/src/runtime/memmove_s390x.s
+index 238f30891d..94d8be5a47 100644
+--- a/src/runtime/memmove_s390x.s
++++ b/src/runtime/memmove_s390x.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB),NOSPLIT|NOFRAME,$0-24
+ 	MOVD	to+0(FP), R6
+ 	MOVD	from+8(FP), R4
+diff --git a/src/runtime/memmove_wasm.s b/src/runtime/memmove_wasm.s
+index 295272f85f..d5e2016930 100644
+--- a/src/runtime/memmove_wasm.s
++++ b/src/runtime/memmove_wasm.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// void runtime·memmove(void*, void*, uintptr)
++// func memmove(to, from unsafe.Pointer, n uintptr)
+ TEXT runtime·memmove(SB), NOSPLIT, $0-24
+ 	MOVD to+0(FP), R0
+ 	MOVD from+8(FP), R1

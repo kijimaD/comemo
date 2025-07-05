@@ -10,6 +10,33 @@ Date:   Sat Apr 11 19:41:26 2015 -0400
     Change-Id: I74e6130ef83537c465b4585a366d02953fd907bf
     Reviewed-on: https://go-review.googlesource.com/8827
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/go/build.go | 15 +++++++++------
  1 file changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 6b1cd921f7..e9347525a6 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -127,12 +127,15 @@ func init() {
+ 	addBuildFlags(cmdBuild)
+ 	addBuildFlags(cmdInstall)
+ 
+-	if buildContext.GOOS == "darwin" && buildContext.GOARCH == "arm" {
+-		// darwin/arm cannot run multiple tests simultaneously.
+-		// Parallelism is limited in go_darwin_arm_exec, but
+-		// also needs to be limited here so go test std does not
+-		// timeout tests that waiting to run.
+-		buildP = 1
++	if buildContext.GOOS == "darwin" {
++		switch buildContext.GOARCH {
++		case "arm", "arm64":
++			// darwin/arm cannot run multiple tests simultaneously.
++			// Parallelism is limited in go_darwin_arm_exec, but
++			// also needs to be limited here so go test std does not
++			// timeout tests that waiting to run.
++			buildP = 1
++		}
+ 	}
+ }
+ 

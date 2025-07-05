@@ -17,7 +17,7 @@ Date:   Sat Dec 22 19:16:31 2012 +0100
     R=lvd, rsc, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/6866047
-
+---
  src/cmd/gc/dcl.c                                   |  3 +
  src/cmd/gc/fmt.c                                   | 11 +---
  test/bugs/bug434.go                                | 10 ---
@@ -26,3 +26,183 @@ Date:   Sat Dec 22 19:16:31 2012 +0100
  test/fixedbugs/issue3552.go                        | 10 +++
  test/run.go                                        | 73 +++++++++++-----------
  7 files changed, 50 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 7748289b41..bf226d92a3 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1013,6 +1013,9 @@ embedded(Sym *s)
+ 
+ 	if(exportname(name))
+ 		n = newname(lookup(name));
++	else if(s->pkg == builtinpkg && importpkg != nil)
++		// The name of embedded builtins during imports belongs to importpkg.
++		n = newname(pkglookup(name, importpkg));
+ 	else
+ 		n = newname(pkglookup(name, s->pkg));
+ 	n = nod(ODCLFIELD, n, oldname(s));
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 114c3f0252..cbaba467e8 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1082,7 +1082,6 @@ exprfmt(Fmt *f, Node *n, int prec)
+ {
+ 	int nprec;
+ 	NodeList *l;
+-	Type *t;
+ 
+ 	while(n && n->implicit && (n->op == OIND || n->op == OADDR))
+ 		n = n->left;
+@@ -1208,15 +1207,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			else
+ 				fmtprint(f, "(%T{", n->type);
+ 			for(l=n->list; l; l=l->next) {
+-				// another special case: if n->left is an embedded field of builtin type,
+-				// it needs to be non-qualified.  Can't figure that out in %S, so do it here
+-				if(l->n->left->type->embedded) {
+-					t = l->n->left->type->type;
+-					if(t->sym == S)
+-						t = t->type;
+-					fmtprint(f, " %hhS:%N", t->sym, l->n->right);
+-				} else
+-					fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
++				fmtprint(f, " %hhS:%N", l->n->left->sym, l->n->right);
+ 
+ 				if(l->next)
+ 					fmtstrcpy(f, ",");
+diff --git a/test/bugs/bug434.go b/test/bugs/bug434.go
+deleted file mode 100644
+index 5eec7a577e..0000000000
+--- a/test/bugs/bug434.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go || echo BUG:bug434
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
+-
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package ignored
+diff --git a/test/bugs/bug434.dir/one.go b/test/fixedbugs/issue3552.dir/one.go
+similarity index 100%
+rename from test/bugs/bug434.dir/one.go
+rename to test/fixedbugs/issue3552.dir/one.go
+diff --git a/test/bugs/bug434.dir/two.go b/test/fixedbugs/issue3552.dir/two.go
+similarity index 100%
+rename from test/bugs/bug434.dir/two.go
+rename to test/fixedbugs/issue3552.dir/two.go
+diff --git a/test/fixedbugs/issue3552.go b/test/fixedbugs/issue3552.go
+new file mode 100644
+index 0000000000..a198dbe971
+--- /dev/null
++++ b/test/fixedbugs/issue3552.go
+@@ -0,0 +1,10 @@
++// compiledir
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3552: cross-package inlining misbehaves when
++// referencing embedded builtins.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index 420b5ddd00..3b99211bc8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Run runs tests in the test directory.
+-// 
++//
+ // TODO(bradfitz): docs of some sort, once we figure out how we're changing
+ // headers of files
+ package main
+@@ -204,7 +204,7 @@ type test struct {
+ 	err     error
+ }
+ 
+-// startTest 
++// startTest
+ func startTest(dir, gofile string) *test {
+ 	t := &test{
+ 		dir:    dir,
+@@ -676,39 +676,38 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ }
+ 
+ var skipOkay = map[string]bool{
+-	"linkx.go":                true,
+-	"rotate.go":               true,
+-	"sigchld.go":              true,
+-	"sinit.go":                true,
+-	"dwarf/main.go":           true,
+-	"dwarf/z1.go":             true,
+-	"dwarf/z10.go":            true,
+-	"dwarf/z11.go":            true,
+-	"dwarf/z12.go":            true,
+-	"dwarf/z13.go":            true,
+-	"dwarf/z14.go":            true,
+-	"dwarf/z15.go":            true,
+-	"dwarf/z16.go":            true,
+-	"dwarf/z17.go":            true,
+-	"dwarf/z18.go":            true,
+-	"dwarf/z19.go":            true,
+-	"dwarf/z2.go":             true,
+-	"dwarf/z20.go":            true,
+-	"dwarf/z3.go":             true,
+-	"dwarf/z4.go":             true,
+-	"dwarf/z5.go":             true,
+-	"dwarf/z6.go":             true,
+-	"dwarf/z7.go":             true,
+-	"dwarf/z8.go":             true,
+-	"dwarf/z9.go":             true,
+-	"fixedbugs/bug248.go":     true, // combines errorcheckdir and rundir in the same dir.
+-	"fixedbugs/bug302.go":     true, // tests both .$O and .a imports.
+-	"fixedbugs/bug313.go":     true, // errorcheckdir with failures in the middle.
+-	"fixedbugs/bug345.go":     true, // needs the appropriate flags in gc invocation.
+-	"fixedbugs/bug369.go":     true, // needs compiler flags.
+-	"fixedbugs/bug385_32.go":  true, // arch-specific errors.
+-	"fixedbugs/bug385_64.go":  true, // arch-specific errors.
+-	"fixedbugs/bug429.go":     true,
+-	"bugs/bug395.go":          true,
+-	"bugs/bug434.go":          true,
++	"linkx.go":               true,
++	"rotate.go":              true,
++	"sigchld.go":             true,
++	"sinit.go":               true,
++	"dwarf/main.go":          true,
++	"dwarf/z1.go":            true,
++	"dwarf/z10.go":           true,
++	"dwarf/z11.go":           true,
++	"dwarf/z12.go":           true,
++	"dwarf/z13.go":           true,
++	"dwarf/z14.go":           true,
++	"dwarf/z15.go":           true,
++	"dwarf/z16.go":           true,
++	"dwarf/z17.go":           true,
++	"dwarf/z18.go":           true,
++	"dwarf/z19.go":           true,
++	"dwarf/z2.go":            true,
++	"dwarf/z20.go":           true,
++	"dwarf/z3.go":            true,
++	"dwarf/z4.go":            true,
++	"dwarf/z5.go":            true,
++	"dwarf/z6.go":            true,
++	"dwarf/z7.go":            true,
++	"dwarf/z8.go":            true,
++	"dwarf/z9.go":            true,
++	"fixedbugs/bug248.go":    true, // combines errorcheckdir and rundir in the same dir.
++	"fixedbugs/bug302.go":    true, // tests both .$O and .a imports.
++	"fixedbugs/bug313.go":    true, // errorcheckdir with failures in the middle.
++	"fixedbugs/bug345.go":    true, // needs the appropriate flags in gc invocation.
++	"fixedbugs/bug369.go":    true, // needs compiler flags.
++	"fixedbugs/bug385_32.go": true, // arch-specific errors.
++	"fixedbugs/bug385_64.go": true, // arch-specific errors.
++	"fixedbugs/bug429.go":    true,
++	"bugs/bug395.go":         true,
+ }

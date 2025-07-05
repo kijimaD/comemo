@@ -30,10 +30,121 @@ Date:   Mon Jun 5 09:06:30 2017 +0900
     Change-Id: If0b84cf73d381a22e2ada71c8e9a6e6ec77ffd2e
     Reviewed-on: https://go-review.googlesource.com/54950
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/err4.go   | 15 +++++++++++++++
  misc/cgo/errors/test.bash |  3 +++
  src/cmd/cgo/ast.go        |  2 ++
  src/cmd/cgo/gcc.go        | 18 ++----------------
  src/cmd/cgo/main.go       |  1 +
  5 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/misc/cgo/errors/err4.go b/misc/cgo/errors/err4.go
+new file mode 100644
+index 0000000000..8e5f78e987
+--- /dev/null
++++ b/misc/cgo/errors/err4.go
+@@ -0,0 +1,15 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++long double x = 0;
++*/
++import "C"
++
++func main() {
++	_ = C.x // ERROR HERE
++	_ = C.x
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index ed0b094692..04747a6913 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -37,6 +37,9 @@ expect() {
+ check err1.go
+ check err2.go
+ check err3.go
++if [ $(go env GOARCH) == "amd64" ]; then # If we find a portable test case, we can remove this.
++	check err4.go
++fi
+ check issue7757.go
+ check issue8442.go
+ check issue11097a.go
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 7122a9dbbe..8ce778cd5f 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -63,6 +63,7 @@ func (f *File) ParseGo(name string, src []byte) {
+ 
+ 	f.Package = ast1.Name.Name
+ 	f.Name = make(map[string]*Name)
++	f.NamePos = make(map[*Name]token.Pos)
+ 
+ 	// In ast1, find the import "C" line and get any extra C preamble.
+ 	sawC := false
+@@ -212,6 +213,7 @@ func (f *File) saveRef(n *ast.Expr, context string) {
+ 			Go: goname,
+ 		}
+ 		f.Name[goname] = name
++		f.NamePos[name] = sel.Pos()
+ 	}
+ 	f.Ref = append(f.Ref, &Ref{
+ 		Name:    name,
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c0368f9bcb..2990dc00fa 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -438,14 +438,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	for i, n := range names {
+ 		switch sniff[i] &^ notSignedIntConst {
+ 		default:
+-			var tpos token.Pos
+-			for _, ref := range f.Ref {
+-				if ref.Name == n {
+-					tpos = ref.Pos()
+-					break
+-				}
+-			}
+-			error_(tpos, "could not determine kind of name for C.%s", fixGo(n.Go))
++			error_(f.NamePos[n], "could not determine kind of name for C.%s", fixGo(n.Go))
+ 		case notStrLiteral | notType:
+ 			if sniff[i]&notSignedIntConst != 0 {
+ 				n.Kind = "uconst"
+@@ -543,10 +536,6 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 
+ 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
+ 	types := make([]dwarf.Type, len(names))
+-	nameToRef := make(map[*Name]*Ref)
+-	for _, ref := range f.Ref {
+-		nameToRef[ref.Name] = ref
+-	}
+ 	r := d.Reader()
+ 	for {
+ 		e, err := r.Next()
+@@ -597,10 +586,7 @@ func (p *Package) loadDWARF(f *File, names []*Name) {
+ 		if types[i] == nil {
+ 			continue
+ 		}
+-		pos := token.NoPos
+-		if ref, ok := nameToRef[n]; ok {
+-			pos = ref.Pos()
+-		}
++		pos := f.NamePos[n]
+ 		f, fok := types[i].(*dwarf.FuncType)
+ 		if n.Kind != "type" && fok {
+ 			n.Kind = "func"
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 3dc3d141b7..2964790efd 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -54,6 +54,7 @@ type File struct {
+ 	Calls    []*Call             // all calls to C.xxx in AST
+ 	ExpFunc  []*ExpFunc          // exported functions for this file
+ 	Name     map[string]*Name    // map from Go name to Name
++	NamePos  map[*Name]token.Pos // map from Name to position of the first reference
+ }
+ 
+ func nameKeys(m map[string]*Name) []string {

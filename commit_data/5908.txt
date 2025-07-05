@@ -8,7 +8,72 @@ Date:   Thu Jul 29 10:50:09 2010 -0700
     R=rsc, chris tighe, r
     CC=golang-dev
     https://golang.org/cl/1697057
-
+---
  src/pkg/fmt/fmt_test.go | 20 ++++++++++++++++++++
  src/pkg/fmt/print.go    | 10 +++++-----
  2 files changed, 25 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 7e59d4073e..7a4ad7d00b 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -526,3 +526,23 @@ func TestEmptyMap(t *testing.T) {
+ 		t.Errorf("empty map printed as %q not %q", s, emptyMapStr)
+ 	}
+ }
++
++// Check that Sprint (and hence Print, Fprint) puts spaces in the right places,
++// that is, between arg pairs in which neither is a string.
++func TestBlank(t *testing.T) {
++	got := Sprint("<", 1, ">:", 1, 2, 3, "!")
++	expect := "<1>:1 2 3!"
++	if got != expect {
++		t.Errorf("got %q expected %q", got, expect)
++	}
++}
++
++// Check that Sprintln (and hence Println, Fprintln) puts spaces in the right places,
++// that is, between all arg pairs.
++func TestBlankln(t *testing.T) {
++	got := Sprintln("<", 1, ">:", 1, 2, 3, "!")
++	expect := "< 1 >: 1 2 3 !\n"
++	if got != expect {
++		t.Errorf("got %q expected %q", got, expect)
++	}
++}
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 9ae7c39b48..d1ceb7c35f 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -492,7 +492,7 @@ var (
+ 	uintptrBits = reflect.Typeof(uintptr(0)).Bits()
+ )
+ 
+-func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (was_string bool) {
++func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+ 	if field != nil {
+ 		switch {
+ 		default:
+@@ -850,18 +850,18 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ }
+ 
+ func (p *pp) doPrint(a []interface{}, addspace, addnewline bool) {
+-	prev_string := false
++	prevString := false
+ 	for fieldnum := 0; fieldnum < len(a); fieldnum++ {
+ 		p.fmt.clearflags()
+ 		// always add spaces if we're doing println
+ 		field := a[fieldnum]
+ 		if fieldnum > 0 {
+-			_, is_string := field.(*reflect.StringValue)
+-			if addspace || !is_string && !prev_string {
++			isString := field != nil && reflect.Typeof(field).Kind() == reflect.String
++			if addspace || !isString && !prevString {
+ 				p.buf.WriteByte(' ')
+ 			}
+ 		}
+-		prev_string = p.printField(field, 'v', false, false, 0)
++		prevString = p.printField(field, 'v', false, false, 0)
+ 	}
+ 	if addnewline {
+ 		p.buf.WriteByte('\n')

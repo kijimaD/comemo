@@ -18,7 +18,36 @@ Date:   Sat Mar 12 22:59:44 2022 +0000
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/alldocs.go            | 3 ++-
  src/cmd/go/internal/list/list.go | 3 ++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 15a6ff623d..d770ad82e5 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -895,7 +895,8 @@
+ // (zeroed).
+ //
+ // The -export flag causes list to set the Export field to the name of a
+-// file containing up-to-date export information for the given package.
++// file containing up-to-date export information for the given package,
++// and the BuildID field to the build ID of the compiled package.
+ //
+ // The -find flag causes list to identify the named packages but not
+ // resolve their dependencies: the Imports and Deps lists will be empty.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 4d7c727048..770127c1cd 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -187,7 +187,8 @@ a non-nil Error field; other information may or may not be missing
+ (zeroed).
+ 
+ The -export flag causes list to set the Export field to the name of a
+-file containing up-to-date export information for the given package.
++file containing up-to-date export information for the given package,
++and the BuildID field to the build ID of the compiled package.
+ 
+ The -find flag causes list to identify the named packages but not
+ resolve their dependencies: the Imports and Deps lists will be empty.

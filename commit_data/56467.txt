@@ -9,10 +9,244 @@ Date:   Tue May 9 12:09:45 2023 -0400
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/base/hashdebug.go       | 54 +++++++++++++-----------
  src/cmd/compile/internal/base/hashdebug_test.go  | 24 +++++------
  src/cmd/compile/internal/loopvar/loopvar.go      |  4 +-
  src/cmd/compile/internal/loopvar/loopvar_test.go |  2 +-
  src/cmd/compile/internal/ssa/func.go             |  2 +-
  5 files changed, 45 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index c99695642c..11b9dcbb1d 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -122,11 +122,11 @@ var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
+ //  6. gossahash should return a single function whose miscompilation
+ //     causes the problem, and you can focus on that.
+ func DebugHashMatchPkgFunc(pkg, fn string) bool {
+-	return hashDebug.MatchPkgFunc(pkg, fn)
++	return hashDebug.MatchPkgFunc(pkg, fn, nil)
+ }
+ 
+ func DebugHashMatchPos(pos src.XPos) bool {
+-	return hashDebug.MatchPos(pos)
++	return hashDebug.MatchPos(pos, nil)
+ }
+ 
+ // HasDebugHash returns true if Flags.Gossahash is non-empty, which
+@@ -247,29 +247,17 @@ func (d *HashDebug) match(hash uint64) *hashAndMask {
+ // representation of the hash of pkg and fn.  If the variable is not nil,
+ // then a true result is accompanied by stylized output to d.logfile, which
+ // is used for automated bug search.
+-func (d *HashDebug) MatchPkgFunc(pkg, fn string) bool {
++func (d *HashDebug) MatchPkgFunc(pkg, fn string, note func() string) bool {
+ 	if d == nil {
+ 		return true
+ 	}
+ 	// Written this way to make inlining likely.
+-	return d.matchPkgFunc(pkg, fn)
++	return d.matchPkgFunc(pkg, fn, note)
+ }
+ 
+-func (d *HashDebug) matchPkgFunc(pkg, fn string) bool {
++func (d *HashDebug) matchPkgFunc(pkg, fn string, note func() string) bool {
+ 	hash := bisect.Hash(pkg, fn)
+-	if d.bisect != nil {
+-		if d.bisect.ShouldPrint(hash) {
+-			d.log(d.name, hash, pkg+"."+fn)
+-		}
+-		return d.bisect.ShouldEnable(hash)
+-	}
+-
+-	// TODO: Delete rest of function body when we switch to bisect-only.
+-	if m := d.match(hash); m != nil {
+-		d.log(m.name, hash, pkg+"."+fn)
+-		return true
+-	}
+-	return false
++	return d.matchAndLog(hash, func() string { return pkg + "." + fn }, note)
+ }
+ 
+ // MatchPos is similar to MatchPkgFunc, but for hash computation
+@@ -277,32 +265,48 @@ func (d *HashDebug) matchPkgFunc(pkg, fn string) bool {
+ // package name and path.
+ // Note that the default answer for no environment variable (d == nil)
+ // is "yes", do the thing.
+-func (d *HashDebug) MatchPos(pos src.XPos) bool {
++func (d *HashDebug) MatchPos(pos src.XPos, desc func() string) bool {
+ 	if d == nil {
+ 		return true
+ 	}
+ 	// Written this way to make inlining likely.
+-	return d.matchPos(Ctxt, pos)
++	return d.matchPos(Ctxt, pos, desc)
+ }
+ 
+-func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos) bool {
++func (d *HashDebug) matchPos(ctxt *obj.Link, pos src.XPos, note func() string) bool {
+ 	hash := d.hashPos(ctxt, pos)
++	return d.matchAndLog(hash, func() string { return d.fmtPos(ctxt, pos) }, note)
++}
+ 
++// matchAndLog is the core matcher. It reports whether the hash matches the pattern.
++// If a report needs to be printed, match prints that report to the log file.
++// The text func must be non-nil and should return a user-readable
++// representation of what was hashed. The note func may be nil; if non-nil,
++// it should return additional information to display to the user when this
++// change is selected.
++func (d *HashDebug) matchAndLog(hash uint64, text, note func() string) bool {
+ 	if d.bisect != nil {
+ 		if d.bisect.ShouldPrint(hash) {
+-			d.log(d.name, hash, d.fmtPos(ctxt, pos))
++			var t string
++			if !d.bisect.MarkerOnly() {
++				t = text()
++				if note != nil {
++					if n := note(); n != "" {
++						t += ": " + n
++					}
++				}
++			}
++			d.log(d.name, hash, t)
+ 		}
+ 		return d.bisect.ShouldEnable(hash)
+ 	}
+ 
+ 	// TODO: Delete rest of function body when we switch to bisect-only.
+-
+-	// Return false for explicitly excluded hashes
+ 	if d.excluded(hash) {
+ 		return false
+ 	}
+ 	if m := d.match(hash); m != nil {
+-		d.log(m.name, hash, d.fmtPos(ctxt, pos))
++		d.log(m.name, hash, text())
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/base/hashdebug_test.go b/src/cmd/compile/internal/base/hashdebug_test.go
+index e6ced4d148..086801a2f0 100644
+--- a/src/cmd/compile/internal/base/hashdebug_test.go
++++ b/src/cmd/compile/internal/base/hashdebug_test.go
+@@ -16,7 +16,7 @@ func TestHashDebugGossahashY(t *testing.T) {
+ 	if hd == nil {
+ 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=y")
+ 	}
+-	if !hd.MatchPkgFunc("anything", "anyfunc") {
++	if !hd.MatchPkgFunc("anything", "anyfunc", nil) {
+ 		t.Errorf("NewHashDebug should return yes for everything for GOSSASHASH=y")
+ 	}
+ }
+@@ -26,7 +26,7 @@ func TestHashDebugGossahashN(t *testing.T) {
+ 	if hd == nil {
+ 		t.Errorf("NewHashDebug should not return nil for GOSSASHASH=n")
+ 	}
+-	if hd.MatchPkgFunc("anything", "anyfunc") {
++	if hd.MatchPkgFunc("anything", "anyfunc", nil) {
+ 		t.Errorf("NewHashDebug should return no for everything for GOSSASHASH=n")
+ 	}
+ }
+@@ -60,21 +60,21 @@ func TestHash(t *testing.T) {
+ 
+ func TestHashMatch(t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	hd := NewHashDebug("GOSSAHASH", "1110", b)
+-	check := hd.MatchPkgFunc("bar", "0")
++	hd := NewHashDebug("GOSSAHASH", "v1110", b)
++	check := hd.MatchPkgFunc("bar", "0", func() string { return "note" })
+ 	msg := b.String()
+ 	t.Logf("message was '%s'", msg)
+ 	if !check {
+ 		t.Errorf("GOSSAHASH=1110 should have matched for 'bar', '0'")
+ 	}
+-	wantPrefix(t, msg, "bar.0 [bisect-match ")
+-	wantContains(t, msg, "\nGOSSAHASH triggered bar.0 ")
++	wantPrefix(t, msg, "bar.0: note [bisect-match ")
++	wantContains(t, msg, "\nGOSSAHASH triggered bar.0: note ")
+ }
+ 
+ func TestYMatch(t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	hd := NewHashDebug("GOSSAHASH", "y", b)
+-	check := hd.MatchPkgFunc("bar", "0")
++	hd := NewHashDebug("GOSSAHASH", "vy", b)
++	check := hd.MatchPkgFunc("bar", "0", nil)
+ 	msg := b.String()
+ 	t.Logf("message was '%s'", msg)
+ 	if !check {
+@@ -86,8 +86,8 @@ func TestYMatch(t *testing.T) {
+ 
+ func TestNMatch(t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	hd := NewHashDebug("GOSSAHASH", "n", b)
+-	check := hd.MatchPkgFunc("bar", "0")
++	hd := NewHashDebug("GOSSAHASH", "vn", b)
++	check := hd.MatchPkgFunc("bar", "0", nil)
+ 	msg := b.String()
+ 	t.Logf("message was '%s'", msg)
+ 	if check {
+@@ -100,7 +100,7 @@ func TestNMatch(t *testing.T) {
+ func TestHashNoMatch(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	hd := NewHashDebug("GOSSAHASH", "01110", b)
+-	check := hd.MatchPkgFunc("bar", "0")
++	check := hd.MatchPkgFunc("bar", "0", nil)
+ 	msg := b.String()
+ 	t.Logf("message was '%s'", msg)
+ 	if check {
+@@ -116,7 +116,7 @@ func TestHashSecondMatch(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	hd := NewHashDebug("GOSSAHASH", "01110/11110", b)
+ 
+-	check := hd.MatchPkgFunc("bar", "0")
++	check := hd.MatchPkgFunc("bar", "0", nil)
+ 	msg := b.String()
+ 	t.Logf("message was '%s'", msg)
+ 	if !check {
+diff --git a/src/cmd/compile/internal/loopvar/loopvar.go b/src/cmd/compile/internal/loopvar/loopvar.go
+index ccb14df80b..a015672c2d 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar.go
++++ b/src/cmd/compile/internal/loopvar/loopvar.go
+@@ -91,7 +91,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 		// subject to hash-variable debugging.
+ 		maybeReplaceVar := func(k ir.Node, x *ir.RangeStmt) ir.Node {
+ 			if n, ok := k.(*ir.Name); ok && possiblyLeaked[n] {
+-				if base.LoopVarHash.MatchPos(n.Pos()) {
++				if base.LoopVarHash.MatchPos(n.Pos(), nil) {
+ 					// Rename the loop key, prefix body with assignment from loop key
+ 					transformed = append(transformed, VarAndLoop{n, x, lastPos})
+ 					tk := typecheck.Temp(n.Type())
+@@ -199,7 +199,7 @@ func ForCapture(fn *ir.Func) []VarAndLoop {
+ 				forAllDefInInit(x, func(z ir.Node) {
+ 					if n, ok := z.(*ir.Name); ok && possiblyLeaked[n] {
+ 						// Hash on n.Pos() for most precise failure location.
+-						if base.LoopVarHash.MatchPos(n.Pos()) {
++						if base.LoopVarHash.MatchPos(n.Pos(), nil) {
+ 							leaked = append(leaked, n)
+ 						}
+ 					}
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index b94f69709d..3bfc802eb2 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -191,7 +191,7 @@ func TestLoopVarHashes(t *testing.T) {
+ 		return string(b)
+ 	}
+ 
+-	m := f("001100110110110010100100")
++	m := f("v001100110110110010100100")
+ 	t.Logf(m)
+ 
+ 	mCount := strings.Count(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6 001100110110110010100100")
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index f2f548e9ba..2d203e583b 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -807,5 +807,5 @@ func (f *Func) useFMA(v *Value) bool {
+ 	if base.FmaHash == nil {
+ 		return true
+ 	}
+-	return base.FmaHash.MatchPos(v.Pos)
++	return base.FmaHash.MatchPos(v.Pos, nil)
+ }

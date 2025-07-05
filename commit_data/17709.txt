@@ -7,6 +7,20 @@ Date:   Fri Sep 27 12:57:09 2013 +1000
     R=golang-dev, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/14018043
-
+---
  misc/vim/syntax/godoc.vim | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/vim/syntax/godoc.vim b/misc/vim/syntax/godoc.vim
+index 82f78aa3c3..bd4443f7c4 100644
+--- a/misc/vim/syntax/godoc.vim
++++ b/misc/vim/syntax/godoc.vim
+@@ -7,7 +7,7 @@ if exists("b:current_syntax")
+ endif
+ 
+ syn case match
+-syn match  godocTitle "^\([A-Z]*\)$"
++syn match  godocTitle "^\([A-Z][A-Z ]*\)$"
+ 
+ command -nargs=+ HiLink hi def link <args>
+ 

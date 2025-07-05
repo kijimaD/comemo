@@ -7,6 +7,67 @@ Date:   Tue Mar 19 09:40:57 2013 -0400
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/7497048
-
+---
  lib/godoc/package.html | 20 ++++++++++----------
  1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 1fe6e7595f..6795d142d1 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -75,9 +75,9 @@
+ 				{{end}}
+ 			{{end}}
+ 			{{if $.Notes}}
+-                                {{range $marker, $item := $.Notes}}
++				{{range $marker, $item := $.Notes}}
+ 				<dd><a href="#pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</a></dd>
+-                                {{end}}
++				{{end}}
+ 			{{end}}
+ 			</dl>
+ 			</div><!-- #manual-nav -->
+@@ -92,7 +92,7 @@
+ 			</dl>
+ 		</div>
+ 		{{end}}
+-	
++
+ 		{{with .Filenames}}
+ 			<h4>Package files</h4>
+ 			<p>
+@@ -105,7 +105,7 @@
+ 		{{end}}
+ 		</div><!-- .expanded -->
+ 		</div><!-- #pkg-index -->
+-	
++
+ 		{{with .Consts}}
+ 			<h2 id="pkg-constants">Constants</h2>
+ 			{{range .}}
+@@ -167,11 +167,11 @@
+ 	{{end}}
+ 
+ 	{{with $.Notes}}
+-                {{range $marker, $content := .}}
+-		    <h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
+-		    {{range .}}
+-		    {{comment_html .}}
+-                    {{end}}
++		{{range $marker, $content := .}}
++			<h2 id="pkg-note-{{$marker}}">{{noteTitle $marker | html}}s</h2>
++			{{range .}}
++			{{comment_html .}}
++			{{end}}
+ 		{{end}}
+ 	{{end}}
+ {{end}}
+@@ -252,7 +252,7 @@ $(document).ready(function() {
+ 			var resize = function() {
+ 				code.height(0);
+ 				var h = code[0].scrollHeight;
+-				code.height(h+20); // minimize bouncing
++				code.height(h+20); // minimize bouncing.
+ 				code.closest('.input').height(h);
+ 			};
+ 			code.on('keydown', resize);

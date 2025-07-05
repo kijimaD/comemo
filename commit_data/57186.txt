@@ -19,6 +19,32 @@ Date:   Fri Jul 7 09:55:56 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/slogtest/slogtest.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index 71076e52f4..b16d1227dc 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -162,6 +162,20 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
+ 				inGroup("G", inGroup("H", hasAttr("e", "f"))),
+ 			},
+ 		},
++		{
++			explanation: withSource("a Handler should not output groups for an empty Record"),
++			f: func(l *slog.Logger) {
++				l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").Info("msg")
++			},
++			checks: []check{
++				hasKey(slog.TimeKey),
++				hasKey(slog.LevelKey),
++				hasAttr(slog.MessageKey, "msg"),
++				hasAttr("a", "b"),
++				inGroup("G", hasAttr("c", "d")),
++				inGroup("G", missingKey("H")),
++			},
++		},
+ 		{
+ 			explanation: withSource("a Handler should call Resolve on attribute values"),
+ 			f: func(l *slog.Logger) {

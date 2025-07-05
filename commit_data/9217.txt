@@ -7,6 +7,20 @@ Date:   Wed Jul 27 13:44:57 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4825050
-
+---
  src/pkg/reflect/all_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 15c69c1f06..257278e8f4 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1327,7 +1327,7 @@ func TestImportPath(t *testing.T) {
+ 	}
+ }
+ 
+-func TestVariadic(t *testing.T) {
++func TestVariadicType(t *testing.T) {
+ 	// Test example from Type documentation.
+ 	var f func(x int, y ...float64)
+ 	typ := TypeOf(f)

@@ -15,7 +15,7 @@ Date:   Fri Aug 26 12:09:34 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/internal/poll/fcntl_libc.go                    |  2 +-
  src/internal/poll/fcntl_syscall.go                 |  2 +-
  src/internal/syscall/unix/at.go                    |  2 +-
@@ -31,3 +31,240 @@ Date:   Fri Aug 26 12:09:34 2022 +0200
  src/runtime/nbpipe_fcntl_libc_test.go              |  2 +-
  src/runtime/nbpipe_fcntl_unix_test.go              |  2 +-
  14 files changed, 60 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/poll/fcntl_libc.go b/src/internal/poll/fcntl_libc.go
+index 13614dc3e8..529b8e123a 100644
+--- a/src/internal/poll/fcntl_libc.go
++++ b/src/internal/poll/fcntl_libc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || solaris
++//go:build aix || darwin || (openbsd && !mips64) || solaris
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/fcntl_syscall.go b/src/internal/poll/fcntl_syscall.go
+index accff5e043..bbfc8a8be5 100644
+--- a/src/internal/poll/fcntl_syscall.go
++++ b/src/internal/poll/fcntl_syscall.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+ 
+ package poll
+ 
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 965162e3d2..876ca9ff57 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || openbsd || netbsd || dragonfly
++//go:build dragonfly || linux || netbsd || (openbsd && mips64)
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/at_fstatat.go b/src/internal/syscall/unix/at_fstatat.go
+index 25318d2014..8f25fe9f64 100644
+--- a/src/internal/syscall/unix/at_fstatat.go
++++ b/src/internal/syscall/unix/at_fstatat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && !loong64) || openbsd || netbsd || dragonfly
++//go:build dragonfly || (linux && !loong64) || netbsd || (openbsd && mips64)
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/at_darwin.go b/src/internal/syscall/unix/at_libc2.go
+similarity index 95%
+rename from src/internal/syscall/unix/at_darwin.go
+rename to src/internal/syscall/unix/at_libc2.go
+index a88a27e0c6..93d0cf4443 100644
+--- a/src/internal/syscall/unix/at_darwin.go
++++ b/src/internal/syscall/unix/at_libc2.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || (openbsd && !mips64)
++
+ package unix
+ 
+ import (
+diff --git a/src/internal/syscall/unix/getentropy_openbsd.go b/src/internal/syscall/unix/getentropy_openbsd.go
+index d5caa8095a..ad0914da90 100644
+--- a/src/internal/syscall/unix/getentropy_openbsd.go
++++ b/src/internal/syscall/unix/getentropy_openbsd.go
+@@ -1,25 +1,17 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package unix
++//go:build openbsd && !mips64
+ 
+-import (
+-	"syscall"
+-	"unsafe"
+-)
++package unix
+ 
+-// getentropy(2)'s syscall number, from /usr/src/sys/kern/syscalls.master
+-const entropyTrap uintptr = 7
++import _ "unsafe" // for linkname
+ 
+ // GetEntropy calls the OpenBSD getentropy system call.
+ func GetEntropy(p []byte) error {
+-	_, _, errno := syscall.Syscall(entropyTrap,
+-		uintptr(unsafe.Pointer(&p[0])),
+-		uintptr(len(p)),
+-		0)
+-	if errno != 0 {
+-		return errno
+-	}
+-	return nil
++	return getentropy(p)
+ }
++
++//go:linkname getentropy syscall.getentropy
++func getentropy(p []byte) error
+diff --git a/src/internal/syscall/unix/getentropy_openbsd_mips64.go b/src/internal/syscall/unix/getentropy_openbsd_mips64.go
+new file mode 100644
+index 0000000000..d5caa8095a
+--- /dev/null
++++ b/src/internal/syscall/unix/getentropy_openbsd_mips64.go
+@@ -0,0 +1,25 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// getentropy(2)'s syscall number, from /usr/src/sys/kern/syscalls.master
++const entropyTrap uintptr = 7
++
++// GetEntropy calls the OpenBSD getentropy system call.
++func GetEntropy(p []byte) error {
++	_, _, errno := syscall.Syscall(entropyTrap,
++		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(len(p)),
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+index 9e5f0fb4a2..a0becd1e01 100644
+--- a/src/internal/syscall/unix/nonblocking.go
++++ b/src/internal/syscall/unix/nonblocking.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/nonblocking_libc.go b/src/internal/syscall/unix/nonblocking_libc.go
+index 84940714c3..bff6684962 100644
+--- a/src/internal/syscall/unix/nonblocking_libc.go
++++ b/src/internal/syscall/unix/nonblocking_libc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || solaris
++//go:build aix || darwin || (openbsd && !mips64) || solaris
+ 
+ package unix
+ 
+diff --git a/src/net/fcntl_libc_test.go b/src/net/fcntl_libc_test.go
+index 78892e3a9f..5858865cf0 100644
+--- a/src/net/fcntl_libc_test.go
++++ b/src/net/fcntl_libc_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || solaris
++//go:build aix || darwin || (openbsd && !mips64) || solaris
+ 
+ package net
+ 
+diff --git a/src/net/fcntl_syscall_test.go b/src/net/fcntl_syscall_test.go
+index 2d1f7e22a4..b9ac1d3eff 100644
+--- a/src/net/fcntl_syscall_test.go
++++ b/src/net/fcntl_syscall_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+ 
+ package net
+ 
+diff --git a/src/runtime/export_openbsd_test.go b/src/runtime/export_openbsd_test.go
+new file mode 100644
+index 0000000000..ef680dc282
+--- /dev/null
++++ b/src/runtime/export_openbsd_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build openbsd && !mips64
++
++package runtime
++
++func Fcntl(fd, cmd, arg uintptr) (uintptr, uintptr) {
++	r := fcntl(int32(fd), int32(cmd), int32(arg))
++	if r < 0 {
++		return ^uintptr(0), uintptr(-r)
++	}
++	return uintptr(r), 0
++}
+diff --git a/src/runtime/nbpipe_fcntl_libc_test.go b/src/runtime/nbpipe_fcntl_libc_test.go
+index a9c8987438..170245defe 100644
+--- a/src/runtime/nbpipe_fcntl_libc_test.go
++++ b/src/runtime/nbpipe_fcntl_libc_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || darwin || solaris
++//go:build aix || darwin || (openbsd && !mips64) || solaris
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/nbpipe_fcntl_unix_test.go b/src/runtime/nbpipe_fcntl_unix_test.go
+index 97607fa2cf..b7252ea9fa 100644
+--- a/src/runtime/nbpipe_fcntl_unix_test.go
++++ b/src/runtime/nbpipe_fcntl_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
++//go:build dragonfly || freebsd || linux || netbsd || (openbsd && mips64)
+ 
+ package runtime_test
+ 

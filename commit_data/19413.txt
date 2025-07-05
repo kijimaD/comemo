@@ -17,8 +17,346 @@ Date:   Tue May 20 10:56:50 2014 -0700
     R=rsc, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/91400044
-
+---
  src/pkg/debug/plan9obj/file.go      | 107 +++++++++++++++---------------------
  src/pkg/debug/plan9obj/file_test.go |   4 +-
  src/pkg/debug/plan9obj/plan9obj.go  |  63 ++-------------------
  3 files changed, 49 insertions(+), 125 deletions(-)
+
+diff --git a/src/pkg/debug/plan9obj/file.go b/src/pkg/debug/plan9obj/file.go
+index a4c95a92a5..60a5857193 100644
+--- a/src/pkg/debug/plan9obj/file.go
++++ b/src/pkg/debug/plan9obj/file.go
+@@ -13,9 +13,12 @@ import (
+ 	"os"
+ )
+ 
+-// A FileHeader represents an Plan 9 a.out file header.
++// A FileHeader represents a Plan 9 a.out file header.
+ type FileHeader struct {
+-	Ptrsz int
++	Magic   uint32
++	Bss     uint32
++	Entry   uint64
++	PtrSize int
+ }
+ 
+ // A File represents an open Plan 9 a.out file.
+@@ -25,13 +28,16 @@ type File struct {
+ 	closer   io.Closer
+ }
+ 
++// A SectionHeader represents a single Plan 9 a.out section header.
++// This structure doesn't exist on-disk, but eases navigation
++// through the object file.
+ type SectionHeader struct {
+ 	Name   string
+ 	Size   uint32
+ 	Offset uint32
+ }
+ 
+-// A Section represents a single section in an Plan 9 a.out file.
++// A Section represents a single section in a Plan 9 a.out file.
+ type Section struct {
+ 	SectionHeader
+ 
+@@ -49,41 +55,15 @@ type Section struct {
+ func (s *Section) Data() ([]byte, error) {
+ 	dat := make([]byte, s.sr.Size())
+ 	n, err := s.sr.ReadAt(dat, 0)
++	if n == len(dat) {
++		err = nil
++	}
+ 	return dat[0:n], err
+ }
+ 
+ // Open returns a new ReadSeeker reading the Plan 9 a.out section.
+ func (s *Section) Open() io.ReadSeeker { return io.NewSectionReader(s.sr, 0, 1<<63-1) }
+ 
+-// A ProgHeader represents a single Plan 9 a.out program header.
+-type ProgHeader struct {
+-	Magic uint32
+-	Text  uint32
+-	Data  uint32
+-	Bss   uint32
+-	Syms  uint32
+-	Entry uint64
+-	Spsz  uint32
+-	Pcsz  uint32
+-}
+-
+-// A Prog represents the program header in an Plan 9 a.out binary.
+-type Prog struct {
+-	ProgHeader
+-
+-	// Embed ReaderAt for ReadAt method.
+-	// Do not embed SectionReader directly
+-	// to avoid having Read and Seek.
+-	// If a client wants Read and Seek it must use
+-	// Open() to avoid fighting over the seek offset
+-	// with other clients.
+-	io.ReaderAt
+-	sr *io.SectionReader
+-}
+-
+-// Open returns a new ReadSeeker reading the Plan 9 a.out program body.
+-func (p *Prog) Open() io.ReadSeeker { return io.NewSectionReader(p.sr, 0, 1<<63-1) }
+-
+ // A Symbol represents an entry in a Plan 9 a.out symbol table section.
+ type Sym struct {
+ 	Value uint64
+@@ -95,13 +75,15 @@ type Sym struct {
+  * Plan 9 a.out reader
+  */
+ 
+-type FormatError struct {
++// formatError is returned by some operations if the data does
++// not have the correct format for an object file.
++type formatError struct {
+ 	off int
+ 	msg string
+ 	val interface{}
+ }
+ 
+-func (e *FormatError) Error() string {
++func (e *formatError) Error() string {
+ 	msg := e.msg
+ 	if e.val != nil {
+ 		msg += fmt.Sprintf(" '%v'", e.val)
+@@ -110,7 +92,7 @@ func (e *FormatError) Error() string {
+ 	return msg
+ }
+ 
+-// Open opens the named file using os.Open and prepares it for use as an Plan 9 a.out binary.
++// Open opens the named file using os.Open and prepares it for use as a Plan 9 a.out binary.
+ func Open(name string) (*File, error) {
+ 	f, err := os.Open(name)
+ 	if err != nil {
+@@ -137,16 +119,16 @@ func (f *File) Close() error {
+ 	return err
+ }
+ 
+-func parseMagic(magic [4]byte) (*ExecTable, error) {
+-	for _, e := range exectab {
+-		if string(magic[:]) == e.Magic {
+-			return &e, nil
+-		}
++func parseMagic(magic []byte) (uint32, error) {
++	m := binary.BigEndian.Uint32(magic)
++	switch m {
++	case Magic386, MagicAMD64, MagicARM:
++		return m, nil
+ 	}
+-	return nil, &FormatError{0, "bad magic number", magic[:]}
++	return 0, &formatError{0, "bad magic number", magic}
+ }
+ 
+-// NewFile creates a new File for accessing an Plan 9 binary in an underlying reader.
++// NewFile creates a new File for accessing a Plan 9 binary in an underlying reader.
+ // The Plan 9 binary is expected to start at position 0 in the ReaderAt.
+ func NewFile(r io.ReaderAt) (*File, error) {
+ 	sr := io.NewSectionReader(r, 0, 1<<63-1)
+@@ -155,34 +137,31 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if _, err := r.ReadAt(magic[:], 0); err != nil {
+ 		return nil, err
+ 	}
+-	mp, err := parseMagic(magic)
++	_, err := parseMagic(magic[:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
+-	f := &File{FileHeader{mp.Ptrsz}, nil, nil}
+-
+ 	ph := new(prog)
+ 	if err := binary.Read(sr, binary.BigEndian, ph); err != nil {
+ 		return nil, err
+ 	}
+ 
+-	p := new(Prog)
+-	p.ProgHeader = ProgHeader{
+-		Magic: ph.Magic,
+-		Text:  ph.Text,
+-		Data:  ph.Data,
+-		Bss:   ph.Bss,
+-		Syms:  ph.Syms,
+-		Entry: uint64(ph.Entry),
+-		Spsz:  ph.Spsz,
+-		Pcsz:  ph.Pcsz,
+-	}
++	f := &File{FileHeader: FileHeader{
++		Magic:   ph.Magic,
++		Bss:     ph.Bss,
++		Entry:   uint64(ph.Entry),
++		PtrSize: 4,
++	}}
++
++	hdrSize := 4 * 8
+ 
+-	if mp.Ptrsz == 8 {
+-		if err := binary.Read(sr, binary.BigEndian, &p.Entry); err != nil {
++	if ph.Magic&Magic64 != 0 {
++		if err := binary.Read(sr, binary.BigEndian, &f.Entry); err != nil {
+ 			return nil, err
+ 		}
++		f.PtrSize = 8
++		hdrSize += 8
+ 	}
+ 
+ 	var sects = []struct {
+@@ -198,7 +177,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 
+ 	f.Sections = make([]*Section, 5)
+ 
+-	off := mp.Hsize
++	off := uint32(hdrSize)
+ 
+ 	for i, sect := range sects {
+ 		s := new(Section)
+@@ -208,7 +187,7 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			Offset: off,
+ 		}
+ 		off += sect.size
+-		s.sr = io.NewSectionReader(r, int64(s.SectionHeader.Offset), int64(s.SectionHeader.Size))
++		s.sr = io.NewSectionReader(r, int64(s.Offset), int64(s.Size))
+ 		s.ReaderAt = s.sr
+ 		f.Sections[i] = s
+ 	}
+@@ -223,7 +202,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
+ 	for len(p) >= 4 {
+ 		// Symbol type, value.
+ 		if len(p) < ptrsz {
+-			return &FormatError{len(data), "unexpected EOF", nil}
++			return &formatError{len(data), "unexpected EOF", nil}
+ 		}
+ 		// fixed-width value
+ 		if ptrsz == 8 {
+@@ -259,7 +238,7 @@ func walksymtab(data []byte, ptrsz int, fn func(sym) error) error {
+ 			}
+ 		}
+ 		if len(p) < i+nnul {
+-			return &FormatError{len(data), "unexpected EOF", nil}
++			return &formatError{len(data), "unexpected EOF", nil}
+ 		}
+ 		s.name = p[0:i]
+ 		i += nnul
+@@ -298,7 +277,7 @@ func newTable(symtab []byte, ptrsz int) ([]Sym, error) {
+ 				eltIdx := binary.BigEndian.Uint16(s.name[i : i+2])
+ 				elt, ok := fname[eltIdx]
+ 				if !ok {
+-					return &FormatError{-1, "bad filename code", eltIdx}
++					return &formatError{-1, "bad filename code", eltIdx}
+ 				}
+ 				if n := len(ts.Name); n > 0 && ts.Name[n-1] != '/' {
+ 					ts.Name += "/"
+@@ -331,7 +310,7 @@ func (f *File) Symbols() ([]Sym, error) {
+ 		return nil, errors.New("cannot load symbol section")
+ 	}
+ 
+-	return newTable(symtab, f.Ptrsz)
++	return newTable(symtab, f.PtrSize)
+ }
+ 
+ // Section returns a section with the given name, or nil if no such
+diff --git a/src/pkg/debug/plan9obj/file_test.go b/src/pkg/debug/plan9obj/file_test.go
+index cc1db40929..96186d8156 100644
+--- a/src/pkg/debug/plan9obj/file_test.go
++++ b/src/pkg/debug/plan9obj/file_test.go
+@@ -18,7 +18,7 @@ type fileTest struct {
+ var fileTests = []fileTest{
+ 	{
+ 		"testdata/386-plan9-exec",
+-		FileHeader{4},
++		FileHeader{Magic386, 0x324, 0x14, 4},
+ 		[]*SectionHeader{
+ 			{"text", 0x4c5f, 0x20},
+ 			{"data", 0x94c, 0x4c7f},
+@@ -29,7 +29,7 @@ var fileTests = []fileTest{
+ 	},
+ 	{
+ 		"testdata/amd64-plan9-exec",
+-		FileHeader{8},
++		FileHeader{MagicAMD64, 0x618, 0x13, 8},
+ 		[]*SectionHeader{
+ 			{"text", 0x4213, 0x28},
+ 			{"data", 0xa80, 0x423b},
+diff --git a/src/pkg/debug/plan9obj/plan9obj.go b/src/pkg/debug/plan9obj/plan9obj.go
+index 4e3b08f416..af9858562f 100644
+--- a/src/pkg/debug/plan9obj/plan9obj.go
++++ b/src/pkg/debug/plan9obj/plan9obj.go
+@@ -8,11 +8,6 @@
+ 
+ package plan9obj
+ 
+-import (
+-	"bytes"
+-	"encoding/binary"
+-)
+-
+ // Plan 9 Program header.
+ type prog struct {
+ 	Magic uint32 /* magic number */
+@@ -33,59 +28,9 @@ type sym struct {
+ }
+ 
+ const (
+-	hsize      = 4 * 8
+-	_HDR_MAGIC = 0x00008000 /* header expansion */
+-)
+-
+-func magic(f, b int) string {
+-	buf := new(bytes.Buffer)
+-	var i uint32 = uint32((f) | ((((4 * (b)) + 0) * (b)) + 7))
+-	binary.Write(buf, binary.BigEndian, i)
+-	return string(buf.Bytes())
+-}
++	Magic64 = 0x8000 // 64-bit expanded header
+ 
+-var (
+-	_A_MAGIC = magic(0, 8)           /* 68020 (retired) */
+-	_I_MAGIC = magic(0, 11)          /* intel 386 */
+-	_J_MAGIC = magic(0, 12)          /* intel 960 (retired) */
+-	_K_MAGIC = magic(0, 13)          /* sparc */
+-	_V_MAGIC = magic(0, 16)          /* mips 3000 BE */
+-	_X_MAGIC = magic(0, 17)          /* att dsp 3210 (retired) */
+-	_M_MAGIC = magic(0, 18)          /* mips 4000 BE */
+-	_D_MAGIC = magic(0, 19)          /* amd 29000 (retired) */
+-	_E_MAGIC = magic(0, 20)          /* arm */
+-	_Q_MAGIC = magic(0, 21)          /* powerpc */
+-	_N_MAGIC = magic(0, 22)          /* mips 4000 LE */
+-	_L_MAGIC = magic(0, 23)          /* dec alpha (retired) */
+-	_P_MAGIC = magic(0, 24)          /* mips 3000 LE */
+-	_U_MAGIC = magic(0, 25)          /* sparc64 (retired) */
+-	_S_MAGIC = magic(_HDR_MAGIC, 26) /* amd64 */
+-	_T_MAGIC = magic(_HDR_MAGIC, 27) /* powerpc64 */
+-	_R_MAGIC = magic(_HDR_MAGIC, 28) /* arm64 */
++	Magic386   = (4*11+0)*11 + 7
++	MagicAMD64 = (4*26+0)*26 + 7 + Magic64
++	MagicARM   = (4*20+0)*20 + 7
+ )
+-
+-type ExecTable struct {
+-	Magic string
+-	Ptrsz int
+-	Hsize uint32
+-}
+-
+-var exectab = []ExecTable{
+-	{_A_MAGIC, 4, hsize},
+-	{_I_MAGIC, 4, hsize},
+-	{_J_MAGIC, 4, hsize},
+-	{_K_MAGIC, 4, hsize},
+-	{_V_MAGIC, 4, hsize},
+-	{_X_MAGIC, 4, hsize},
+-	{_M_MAGIC, 4, hsize},
+-	{_D_MAGIC, 4, hsize},
+-	{_E_MAGIC, 4, hsize},
+-	{_Q_MAGIC, 4, hsize},
+-	{_N_MAGIC, 4, hsize},
+-	{_L_MAGIC, 4, hsize},
+-	{_P_MAGIC, 4, hsize},
+-	{_U_MAGIC, 4, hsize},
+-	{_S_MAGIC, 8, hsize + 8},
+-	{_T_MAGIC, 8, hsize + 8},
+-	{_R_MAGIC, 8, hsize + 8},
+-}

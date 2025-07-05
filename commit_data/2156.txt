@@ -8,7 +8,162 @@ Date:   Wed May 6 17:05:55 2009 -0700
     DELTA=134  (134 added, 0 deleted, 0 changed)
     OCL=28373
     CL=28380
-
+---
  test/interface8.go | 101 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  test/interface9.go |  41 ++++++++++++++++++++++
  2 files changed, 142 insertions(+)
+
+diff --git a/test/interface8.go b/test/interface8.go
+new file mode 100644
+index 0000000000..f7dc04d34c
+--- /dev/null
++++ b/test/interface8.go
+@@ -0,0 +1,101 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $F.go && $L $F.$A && ./$A.out
++
++package main
++
++type T int
++var nv, np int
++
++func (t T) V() {
++	if t != 42 {
++		panic(t)
++	}
++	nv++
++}
++
++func (t *T) P() {
++	if *t != 42 {
++		panic(t, *t)
++	}
++	np++
++}
++
++type V interface { V() }
++type P interface { P(); V() }
++
++type S struct {
++	T;
++}
++
++type SP struct {
++	*T;
++}
++
++func main() {
++	var t T;
++	var v V;
++	var p P;
++
++	t = 42;
++
++	t.P();
++	t.V();
++
++	v = t;
++	v.V();
++
++	p = &t;
++	p.P();
++	p.V();
++
++	v = &t;
++	v.V();
++
++//	p = t;	// ERROR
++
++//	println("--struct--");
++	var s S;
++	s.T = 42;
++	s.P();
++	s.V();
++
++	v = s;
++	s.V();
++
++	p = &s;
++	p.P();
++	p.V();
++
++	v = &s;
++	v.V();
++
++//	p = s;	// ERROR
++
++//	println("--struct pointer--");
++	var sp SP;
++	sp.T = &t;
++	sp.P();
++	sp.V();
++
++	v = sp;
++	sp.V();
++
++	p = &sp;
++	p.P();
++	p.V();
++
++	v = &sp;
++	v.V();
++
++	p = sp;	// not error
++	p.P();
++	p.V();
++
++	if nv != 13 || np != 7 {
++		panicln("bad count", nv, np)
++	}
++}
++
+diff --git a/test/interface9.go b/test/interface9.go
+new file mode 100644
+index 0000000000..9ba5864a80
+--- /dev/null
++++ b/test/interface9.go
+@@ -0,0 +1,41 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// errchk $G $F.go
++
++package main
++
++type T int
++func (t T) V()
++func (t *T) P()
++
++type V interface { V() }
++type P interface { P(); V() }
++
++type S struct { T; }
++type SP struct { *T; }
++
++func main() {
++	var t T;
++	var v V;
++	var p P;
++	var s S;
++	var sp SP;
++
++	v = t;
++	p = t;	// ERROR "is not"
++	v = &t;
++	p = &t;
++
++	v = s;
++	p = s;	// ERROR "is not"
++	v = &s;
++	p = &s;
++
++	v = sp;
++	p = sp;	// no error!
++	v = &sp;
++	p = &sp;
++}
++

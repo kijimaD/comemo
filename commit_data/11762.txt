@@ -18,7 +18,7 @@ Date:   Fri Feb 10 14:16:15 2012 +1100
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5655045
-
+---
  doc/go1.html                  | 17 +++++++++++++----
  doc/go1.tmpl                  | 17 +++++++++++++----
  src/pkg/net/fd.go             | 10 +++++-----
@@ -35,3 +35,423 @@ Date:   Fri Feb 10 14:16:15 2012 +1100
  src/pkg/os/file_windows.go    | 13 +++++++------
  src/pkg/os/stat_windows.go    |  4 ----
  15 files changed, 69 insertions(+), 95 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 664d3a9dd0..0fc7db47c5 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1353,10 +1353,19 @@ The semantic change makes it difficult for the fix tool to update automatically.
+ the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
+ <code>time</code> package.</p>
+ 
+-<p>
+-<em>Updating</em>:
+-Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
+-</p>
++<p>The <code>Exec</code> function has been removed; callers should use
++<code>Exec</code> from the <code>syscall</code> package, where available.</p>
++
++<p>The <code>ShellExpand</code> function has been renamed to <a
++href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.</p>
++
++<p>The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
++now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
++The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
++also returns a <code>uintptr</code>.</p>
++
++<p><em>Updating</em>: Code will fail to compile and must be updated
++by hand.  </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index da72c6a4a8..4a0a283355 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1256,10 +1256,19 @@ The semantic change makes it difficult for the fix tool to update automatically.
+ the <a href="/pkg/time/#Time"><code>Time</code></a> type from the
+ <code>time</code> package.</p>
+ 
+-<p>
+-<em>Updating</em>:
+-Code that uses <code>os.Time</code> will fail to compile and must be updated by hand.
+-</p>
++<p>The <code>Exec</code> function has been removed; callers should use
++<code>Exec</code> from the <code>syscall</code> package, where available.</p>
++
++<p>The <code>ShellExpand</code> function has been renamed to <a
++href="/pkg/os/#ExpandEnv"><code>ExpandEnv</code></a>.</p>
++
++<p>The <a href="/pkg/os/#NewFile"><code>NewFile</code></a> function
++now takes a <code>uintptr</code> fd, instead of an <code>int</code>.
++The <a href="/pkg/os/#File.Fd"><code>Fd</code></a> method on files now
++also returns a <code>uintptr</code>.</p>
++
++<p><em>Updating</em>: Code will fail to compile and must be updated
++by hand.  </p>
+ 
+ <h4 id="os_fileinfo">The os.FileInfo type</h4>
+ 
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 2352d22e11..607a6c115a 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -228,7 +228,7 @@ func (s *pollServer) Run() {
+ 			s.CheckDeadlines()
+ 			continue
+ 		}
+-		if fd == s.pr.Fd() {
++		if fd == int(s.pr.Fd()) {
+ 			// Drain our wakeup pipe (we could loop here,
+ 			// but it's unlikely that there are more than
+ 			// len(scratch) wakeup calls).
+@@ -295,7 +295,7 @@ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	if raddr != nil {
+ 		rs = raddr.String()
+ 	}
+-	fd.sysfile = os.NewFile(fd.sysfd, fd.net+":"+ls+"->"+rs)
++	fd.sysfile = os.NewFile(uintptr(fd.sysfd), fd.net+":"+ls+"->"+rs)
+ }
+ 
+ func (fd *netFD) connect(ra syscall.Sockaddr) error {
+@@ -382,7 +382,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		return 0, os.EINVAL
+ 	}
+ 	for {
+-		n, err = syscall.Read(fd.sysfile.Fd(), p)
++		n, err = syscall.Read(int(fd.sysfile.Fd()), p)
+ 		if err == syscall.EAGAIN {
+ 			if fd.rdeadline >= 0 {
+ 				pollserver.WaitRead(fd)
+@@ -476,7 +476,7 @@ func (fd *netFD) Write(p []byte) (int, error) {
+ 	nn := 0
+ 	for {
+ 		var n int
+-		n, err = syscall.Write(fd.sysfile.Fd(), p[nn:])
++		n, err = syscall.Write(int(fd.sysfile.Fd()), p[nn:])
+ 		if n > 0 {
+ 			nn += n
+ 		}
+@@ -615,7 +615,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
+ 	}
+ 
+-	return os.NewFile(ns, fd.sysfile.Name()), nil
++	return os.NewFile(uintptr(ns), fd.sysfile.Name()), nil
+ }
+ 
+ func closesocket(s int) error {
+diff --git a/src/pkg/net/file.go b/src/pkg/net/file.go
+index 901b856599..f9546dc930 100644
+--- a/src/pkg/net/file.go
++++ b/src/pkg/net/file.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ func newFileFD(f *os.File) (*netFD, error) {
+-	fd, err := syscall.Dup(f.Fd())
++	fd, err := syscall.Dup(int(f.Fd()))
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("dup", err)
+ 	}
+diff --git a/src/pkg/net/newpollserver.go b/src/pkg/net/newpollserver.go
+index 06bc24cd8a..d34bb511f7 100644
+--- a/src/pkg/net/newpollserver.go
++++ b/src/pkg/net/newpollserver.go
+@@ -18,16 +18,16 @@ func newPollServer() (s *pollServer, err error) {
+ 	if s.pr, s.pw, err = os.Pipe(); err != nil {
+ 		return nil, err
+ 	}
+-	if err = syscall.SetNonblock(s.pr.Fd(), true); err != nil {
++	if err = syscall.SetNonblock(int(s.pr.Fd()), true); err != nil {
+ 		goto Errno
+ 	}
+-	if err = syscall.SetNonblock(s.pw.Fd(), true); err != nil {
++	if err = syscall.SetNonblock(int(s.pw.Fd()), true); err != nil {
+ 		goto Errno
+ 	}
+ 	if s.poll, err = newpollster(); err != nil {
+ 		goto Error
+ 	}
+-	if _, err = s.poll.AddFD(s.pr.Fd(), 'r', true); err != nil {
++	if _, err = s.poll.AddFD(int(s.pr.Fd()), 'r', true); err != nil {
+ 		s.poll.Close()
+ 		goto Error
+ 	}
+diff --git a/src/pkg/net/sendfile_linux.go b/src/pkg/net/sendfile_linux.go
+index 7f51519b2e..ab3a3811fe 100644
+--- a/src/pkg/net/sendfile_linux.go
++++ b/src/pkg/net/sendfile_linux.go
+@@ -42,7 +42,7 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 	defer c.decref()
+ 
+ 	dst := c.sysfd
+-	src := f.Fd()
++	src := int(f.Fd())
+ 	for remain > 0 {
+ 		n := maxSendfileSize
+ 		if int64(n) > remain {
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 7e3f52502e..59350510cc 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -29,10 +29,10 @@ func Expand(s string, mapping func(string) string) string {
+ 	return string(buf) + s[i:]
+ }
+ 
+-// ShellExpand replaces ${var} or $var in the string according to the values
+-// of the operating system's environment variables.  References to undefined
++// ExpandEnv replaces ${var} or $var in the string according to the values
++// of the current environment variables.  References to undefined
+ // variables are replaced by the empty string.
+-func ShellExpand(s string) string {
++func ExpandEnv(s string) string {
+ 	return Expand(s, Getenv)
+ }
+ 
+@@ -115,7 +115,7 @@ func Clearenv() {
+ 	syscall.Clearenv()
+ }
+ 
+-// Environ returns an array of strings representing the environment,
++// Environ returns a copy of strings representing the environment,
+ // in the form "key=value".
+ func Environ() []string {
+ 	return syscall.Environ()
+diff --git a/src/pkg/os/error_posix.go b/src/pkg/os/error_posix.go
+index 1a08627256..7fdf3e10f0 100644
+--- a/src/pkg/os/error_posix.go
++++ b/src/pkg/os/error_posix.go
+@@ -15,7 +15,6 @@ var (
+ 	ESRCH        error = syscall.ESRCH
+ 	EINTR        error = syscall.EINTR
+ 	EIO          error = syscall.EIO
+-	ENXIO        error = syscall.ENXIO
+ 	E2BIG        error = syscall.E2BIG
+ 	ENOEXEC      error = syscall.ENOEXEC
+ 	EBADF        error = syscall.EBADF
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index d00d12008f..2e4bef5119 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -153,7 +153,7 @@ func TestExtraFiles(t *testing.T) {
+ 
+ 	// Ensure that file descriptors have not already been leaked into
+ 	// our environment.
+-	for fd := os.Stderr.Fd() + 1; fd <= 101; fd++ {
++	for fd := int(os.Stderr.Fd()) + 1; fd <= 101; fd++ {
+ 		err := syscall.Close(fd)
+ 		if err == nil {
+ 			t.Logf("Something already leaked - closed fd %d", fd)
+diff --git a/src/pkg/os/exec_plan9.go b/src/pkg/os/exec_plan9.go
+index 1515c4a230..08f16b86d5 100644
+--- a/src/pkg/os/exec_plan9.go
++++ b/src/pkg/os/exec_plan9.go
+@@ -72,20 +72,6 @@ func (p *Process) Kill() error {
+ 	return e
+ }
+ 
+-// Exec replaces the current process with an execution of the
+-// named binary, with arguments argv and environment envv.
+-// If successful, Exec never returns.  If it fails, it returns an error.
+-// ForkExec is almost always a better way to execute a program.
+-// If there is an error, it will be of type *PathError.
+-func Exec(name string, argv []string, envv []string) error {
+-	e := syscall.Exec(name, argv, envv)
+-	if e != nil {
+-		return &PathError{"exec", name, e}
+-	}
+-
+-	return nil
+-}
+-
+ // Waitmsg stores the information about an exited process as reported by Wait.
+ type Waitmsg struct {
+ 	syscall.Waitmsg
+diff --git a/src/pkg/os/exec_posix.go b/src/pkg/os/exec_posix.go
+index 1f2720389e..df283f1c02 100644
+--- a/src/pkg/os/exec_posix.go
++++ b/src/pkg/os/exec_posix.go
+@@ -38,7 +38,7 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		sysattr.Env = Environ()
+ 	}
+ 	for _, f := range attr.Files {
+-		sysattr.Files = append(sysattr.Files, f.Fd())
++		sysattr.Files = append(sysattr.Files, int(f.Fd()))
+ 	}
+ 
+ 	pid, h, e := syscall.StartProcess(name, argv, sysattr)
+@@ -53,25 +53,6 @@ func (p *Process) Kill() error {
+ 	return p.Signal(UnixSignal(syscall.SIGKILL))
+ }
+ 
+-// Exec replaces the current process with an execution of the
+-// named binary, with arguments argv and environment envv.
+-// If successful, Exec never returns.  If it fails, it returns an error.
+-//
+-// To run a child process, see StartProcess (for a low-level interface)
+-// or the os/exec package (for higher-level interfaces).
+-//
+-// If there is an error, it will be of type *PathError.
+-func Exec(name string, argv []string, envv []string) error {
+-	if envv == nil {
+-		envv = Environ()
+-	}
+-	e := syscall.Exec(name, argv, envv)
+-	if e != nil {
+-		return &PathError{"exec", name, e}
+-	}
+-	return nil
+-}
+-
+ // TODO(rsc): Should os implement its own syscall.WaitStatus
+ // wrapper with the methods, or is exposing the underlying one enough?
+ //
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 90df361c48..85f151e284 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -25,26 +25,22 @@ func (f *File) Name() string { return f.name }
+ // Stdin, Stdout, and Stderr are open Files pointing to the standard input,
+ // standard output, and standard error file descriptors.
+ var (
+-	Stdin  = NewFile(syscall.Stdin, "/dev/stdin")
+-	Stdout = NewFile(syscall.Stdout, "/dev/stdout")
+-	Stderr = NewFile(syscall.Stderr, "/dev/stderr")
++	Stdin  = NewFile(uintptr(syscall.Stdin), "/dev/stdin")
++	Stdout = NewFile(uintptr(syscall.Stdout), "/dev/stdout")
++	Stderr = NewFile(uintptr(syscall.Stderr), "/dev/stderr")
+ )
+ 
+ // Flags to Open wrapping those of the underlying system. Not all flags
+ // may be implemented on a given system.
+ const (
+-	O_RDONLY   int = syscall.O_RDONLY   // open the file read-only.
+-	O_WRONLY   int = syscall.O_WRONLY   // open the file write-only.
+-	O_RDWR     int = syscall.O_RDWR     // open the file read-write.
+-	O_APPEND   int = syscall.O_APPEND   // append data to the file when writing.
+-	O_ASYNC    int = syscall.O_ASYNC    // generate a signal when I/O is available.
+-	O_CREATE   int = syscall.O_CREAT    // create a new file if none exists.
+-	O_EXCL     int = syscall.O_EXCL     // used with O_CREATE, file must not exist
+-	O_NOCTTY   int = syscall.O_NOCTTY   // do not make file the controlling tty.
+-	O_NONBLOCK int = syscall.O_NONBLOCK // open in non-blocking mode.
+-	O_NDELAY   int = O_NONBLOCK         // synonym for O_NONBLOCK
+-	O_SYNC     int = syscall.O_SYNC     // open for synchronous I/O.
+-	O_TRUNC    int = syscall.O_TRUNC    // if possible, truncate file when opened.
++	O_RDONLY int = syscall.O_RDONLY // open the file read-only.
++	O_WRONLY int = syscall.O_WRONLY // open the file write-only.
++	O_RDWR   int = syscall.O_RDWR   // open the file read-write.
++	O_APPEND int = syscall.O_APPEND // append data to the file when writing.
++	O_CREATE int = syscall.O_CREAT  // create a new file if none exists.
++	O_EXCL   int = syscall.O_EXCL   // used with O_CREATE, file must not exist
++	O_SYNC   int = syscall.O_SYNC   // open for synchronous I/O.
++	O_TRUNC  int = syscall.O_TRUNC  // if possible, truncate file when opened.
+ )
+ 
+ // Seek whence values.
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 6672f280d8..0a422f4e88 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -28,19 +28,20 @@ type file struct {
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+-func (f *File) Fd() int {
++func (f *File) Fd() uintptr {
+ 	if f == nil {
+-		return -1
++		return ^(uintptr(0))
+ 	}
+-	return f.fd
++	return uintptr(f.fd)
+ }
+ 
+ // NewFile returns a new File with the given file descriptor and name.
+-func NewFile(fd int, name string) *File {
+-	if fd < 0 {
++func NewFile(fd uintptr, name string) *File {
++	fdi := int(fd)
++	if fdi < 0 {
+ 		return nil
+ 	}
+-	f := &File{&file{fd: fd, name: name}}
++	f := &File{&file{fd: fdi, name: name}}
+ 	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+@@ -78,7 +79,7 @@ func OpenFile(name string, flag int, perm FileMode) (file *File, err error) {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+-	return NewFile(r, name), nil
++	return NewFile(uintptr(r), name), nil
+ }
+ 
+ // Close closes the File, rendering it unusable for I/O.
+@@ -114,10 +115,6 @@ func (f *File) Stat() (fi FileInfo, err error) {
+ }
+ 
+ // Stat returns a FileInfo describing the named file.
+-// If name names a valid symbolic link, the returned FileInfo describes
+-// the file pointed at by the link and has fi.FollowedSymlink set to true.
+-// If name names an invalid symbolic link, the returned FileInfo describes
+-// the link itself and has fi.FollowedSymlink set to false.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (fi FileInfo, err error) {
+ 	var stat syscall.Stat_t
+@@ -268,7 +265,7 @@ func Pipe() (r *File, w *File, err error) {
+ 	syscall.CloseOnExec(p[1])
+ 	syscall.ForkLock.RUnlock()
+ 
+-	return NewFile(p[0], "|0"), NewFile(p[1], "|1"), nil
++	return NewFile(uintptr(p[0]), "|0"), NewFile(uintptr(p[1]), "|1"), nil
+ }
+ 
+ // TempDir returns the default directory to use for temporary files.
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 0b721c6afa..7f263c80cd 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -30,19 +30,20 @@ type file struct {
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+-func (file *File) Fd() syscall.Handle {
++func (file *File) Fd() uintptr {
+ 	if file == nil {
+-		return syscall.InvalidHandle
++		return uintptr(syscall.InvalidHandle)
+ 	}
+-	return file.fd
++	return uintptr(file.fd)
+ }
+ 
+ // NewFile returns a new File with the given file descriptor and name.
+-func NewFile(fd syscall.Handle, name string) *File {
+-	if fd == syscall.InvalidHandle {
++func NewFile(fd uintptr, name string) *File {
++	h := syscall.Handle(fd)
++	if h == syscall.InvalidHandle {
+ 		return nil
+ 	}
+-	f := &File{&file{fd: fd, name: name}}
++	f := &File{&file{fd: h, name: name}}
+ 	runtime.SetFinalizer(f.file, (*file).close)
+ 	return f
+ }
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 24db15960d..c8bfc3f6d4 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -29,10 +29,6 @@ func (file *File) Stat() (fi FileInfo, err error) {
+ }
+ 
+ // Stat returns a FileInfo structure describing the named file.
+-// If name names a valid symbolic link, the returned FileInfo describes
+-// the file pointed at by the link and has fi.FollowedSymlink set to true.
+-// If name names an invalid symbolic link, the returned FileInfo describes
+-// the link itself and has fi.FollowedSymlink set to false.
+ // If there is an error, it will be of type *PathError.
+ func Stat(name string) (fi FileInfo, err error) {
+ 	if len(name) == 0 {

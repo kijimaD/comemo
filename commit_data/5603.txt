@@ -9,6 +9,43 @@ Date:   Thu Jun 3 16:09:37 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/1499041
-
+---
  src/pkg/http/server.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index a28eb25ee4..9f0bc66087 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -26,6 +26,7 @@ import (
+ // Errors introduced by the HTTP server.
+ var (
+ 	ErrWriteAfterFlush = os.NewError("Conn.Write called after Flush")
++	ErrBodyNotAllowed  = os.NewError("http: response status code does not allow body")
+ 	ErrHijacked        = os.NewError("Conn has been hijacked")
+ )
+ 
+@@ -138,6 +139,11 @@ func (c *Conn) WriteHeader(code int) {
+ 	}
+ 	c.wroteHeader = true
+ 	c.status = code
++	if code == StatusNotModified {
++		// Must not have body.
++		c.header["Content-Type"] = "", false
++		c.header["Transfer-Encoding"] = "", false
++	}
+ 	c.written = 0
+ 	if !c.Req.ProtoAtLeast(1, 0) {
+ 		return
+@@ -173,6 +179,11 @@ func (c *Conn) Write(data []byte) (n int, err os.Error) {
+ 		return 0, nil
+ 	}
+ 
++	if c.status == StatusNotModified {
++		// Must not have body.
++		return 0, ErrBodyNotAllowed
++	}
++
+ 	c.written += int64(len(data)) // ignoring errors, for errorKludge
+ 
+ 	// TODO(rsc): if chunking happened after the buffering,

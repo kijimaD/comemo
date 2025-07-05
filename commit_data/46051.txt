@@ -15,7 +15,7 @@ Date:   Thu Dec 3 21:29:23 2020 -0500
     Trust: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go  | 110 +++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ir/func.go  |   3 +
  src/cmd/compile/internal/ir/name.go  |   2 +
@@ -24,3 +24,700 @@ Date:   Thu Dec 3 21:29:23 2020 -0500
  src/cmd/compile/internal/ir/type.go  |  44 ++++++++++++++
  src/cmd/compile/internal/ir/visit.go |  11 +---
  7 files changed, 252 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 9e5dfaf0f2..312faa8436 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -26,6 +26,13 @@ func maybeDoList(x Nodes, err error, do func(Node) error) error {
+ 	return err
+ }
+ 
++func maybeEdit(x Node, edit func(Node) Node) Node {
++	if x == nil {
++		return x
++	}
++	return edit(x)
++}
++
+ // A miniStmt is a miniNode with extra fields common to expressions.
+ // TODO(rsc): Once we are sure about the contents, compact the bools
+ // into a bit field and leave extra bits available for implementations
+@@ -102,6 +109,10 @@ func (n *AddStringExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.list, err, do)
+ 	return err
+ }
++func (n *AddStringExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.list, edit)
++}
+ 
+ func (n *AddStringExpr) List() Nodes     { return n.list }
+ func (n *AddStringExpr) PtrList() *Nodes { return &n.list }
+@@ -135,6 +146,10 @@ func (n *AddrExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *AddrExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *AddrExpr) Left() Node      { return n.X }
+ func (n *AddrExpr) SetLeft(x Node)  { n.X = x }
+@@ -179,6 +194,11 @@ func (n *BinaryExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Y, err, do)
+ 	return err
+ }
++func (n *BinaryExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Y = maybeEdit(n.Y, edit)
++}
+ 
+ func (n *BinaryExpr) Left() Node      { return n.X }
+ func (n *BinaryExpr) SetLeft(x Node)  { n.X = x }
+@@ -249,6 +269,13 @@ func (n *CallExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.body, err, do)
+ 	return err
+ }
++func (n *CallExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	editList(n.Args, edit)
++	editList(n.Rargs, edit)
++	editList(n.body, edit)
++}
+ 
+ func (n *CallExpr) Orig() Node         { return n.orig }
+ func (n *CallExpr) SetOrig(x Node)     { n.orig = x }
+@@ -308,6 +335,10 @@ func (n *CallPartExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *CallPartExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *CallPartExpr) Func() *Func     { return n.fn }
+ func (n *CallPartExpr) Left() Node      { return n.X }
+@@ -339,6 +370,9 @@ func (n *ClosureExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *ClosureExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *ClosureExpr) Func() *Func { return n.fn }
+ 
+@@ -370,6 +404,9 @@ func (n *ClosureRead) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *ClosureRead) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ // A CompLitExpr is a composite literal Type{Vals}.
+ // Before type-checking, the type is Ntype.
+@@ -404,6 +441,11 @@ func (n *CompLitExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.list, err, do)
+ 	return err
+ }
++func (n *CompLitExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Ntype = toNtype(maybeEdit(n.Ntype, edit))
++	editList(n.list, edit)
++}
+ 
+ func (n *CompLitExpr) Orig() Node      { return n.orig }
+ func (n *CompLitExpr) SetOrig(x Node)  { n.orig = x }
+@@ -442,6 +484,7 @@ func (n *ConstExpr) String() string                       { return fmt.Sprint(n)
+ func (n *ConstExpr) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
+ func (n *ConstExpr) copy() Node                           { c := *n; return &c }
+ func (n *ConstExpr) doChildren(do func(Node) error) error { return nil }
++func (n *ConstExpr) editChildren(edit func(Node) Node)    {}
+ 
+ func (n *ConstExpr) Sym() *types.Sym     { return n.orig.Sym() }
+ func (n *ConstExpr) Orig() Node          { return n.orig }
+@@ -478,6 +521,10 @@ func (n *ConvExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *ConvExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *ConvExpr) rawCopy() Node  { c := *n; return &c }
+ func (n *ConvExpr) Left() Node     { return n.X }
+@@ -521,6 +568,11 @@ func (n *IndexExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Index, err, do)
+ 	return err
+ }
++func (n *IndexExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Index = maybeEdit(n.Index, edit)
++}
+ 
+ func (n *IndexExpr) Left() Node               { return n.X }
+ func (n *IndexExpr) SetLeft(x Node)           { n.X = x }
+@@ -570,6 +622,11 @@ func (n *KeyExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Value, err, do)
+ 	return err
+ }
++func (n *KeyExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Key = maybeEdit(n.Key, edit)
++	n.Value = maybeEdit(n.Value, edit)
++}
+ 
+ func (n *KeyExpr) Left() Node          { return n.Key }
+ func (n *KeyExpr) SetLeft(x Node)      { n.Key = x }
+@@ -621,6 +678,11 @@ func (n *InlinedCallExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.ReturnVars, err, do)
+ 	return err
+ }
++func (n *InlinedCallExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.body, edit)
++	editList(n.ReturnVars, edit)
++}
+ 
+ func (n *InlinedCallExpr) Body() Nodes      { return n.body }
+ func (n *InlinedCallExpr) PtrBody() *Nodes  { return &n.body }
+@@ -659,6 +721,11 @@ func (n *MakeExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Cap, err, do)
+ 	return err
+ }
++func (n *MakeExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Len = maybeEdit(n.Len, edit)
++	n.Cap = maybeEdit(n.Cap, edit)
++}
+ 
+ func (n *MakeExpr) Left() Node      { return n.Len }
+ func (n *MakeExpr) SetLeft(x Node)  { n.Len = x }
+@@ -707,6 +774,11 @@ func (n *MethodExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.M, err, do)
+ 	return err
+ }
++func (n *MethodExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.M = maybeEdit(n.M, edit)
++}
+ 
+ func (n *MethodExpr) Left() Node          { return n.X }
+ func (n *MethodExpr) SetLeft(x Node)      { n.X = x }
+@@ -745,6 +817,9 @@ func (n *NilExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *NilExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *NilExpr) Sym() *types.Sym     { return n.sym }
+ func (n *NilExpr) SetSym(x *types.Sym) { n.sym = x }
+@@ -776,6 +851,10 @@ func (n *ParenExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *ParenExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *ParenExpr) Left() Node     { return n.X }
+ func (n *ParenExpr) SetLeft(x Node) { n.X = x }
+@@ -816,6 +895,9 @@ func (n *ResultExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *ResultExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *ResultExpr) Offset() int64     { return n.offset }
+ func (n *ResultExpr) SetOffset(x int64) { n.offset = x }
+@@ -859,6 +941,10 @@ func (n *SelectorExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *SelectorExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *SelectorExpr) Left() Node          { return n.X }
+ func (n *SelectorExpr) SetLeft(x Node)      { n.X = x }
+@@ -900,6 +986,11 @@ func (n *SliceExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.list, err, do)
+ 	return err
+ }
++func (n *SliceExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	editList(n.list, edit)
++}
+ 
+ func (n *SliceExpr) Left() Node      { return n.X }
+ func (n *SliceExpr) SetLeft(x Node)  { n.X = x }
+@@ -1014,6 +1105,11 @@ func (n *SliceHeaderExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.lenCap, err, do)
+ 	return err
+ }
++func (n *SliceHeaderExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Ptr = maybeEdit(n.Ptr, edit)
++	editList(n.lenCap, edit)
++}
+ 
+ func (n *SliceHeaderExpr) Left() Node      { return n.Ptr }
+ func (n *SliceHeaderExpr) SetLeft(x Node)  { n.Ptr = x }
+@@ -1048,6 +1144,10 @@ func (n *StarExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *StarExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *StarExpr) Left() Node     { return n.X }
+ func (n *StarExpr) SetLeft(x Node) { n.X = x }
+@@ -1106,6 +1206,12 @@ func (n *TypeAssertExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Itab, err, do)
+ 	return err
+ }
++func (n *TypeAssertExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Ntype = maybeEdit(n.Ntype, edit)
++	editList(n.Itab, edit)
++}
+ 
+ func (n *TypeAssertExpr) Left() Node      { return n.X }
+ func (n *TypeAssertExpr) SetLeft(x Node)  { n.X = x }
+@@ -1151,6 +1257,10 @@ func (n *UnaryExpr) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *UnaryExpr) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *UnaryExpr) Left() Node     { return n.X }
+ func (n *UnaryExpr) SetLeft(x Node) { n.X = x }
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 342b7a91e7..78e98c4d31 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -123,6 +123,9 @@ func (f *Func) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(f.body, err, do)
+ 	return err
+ }
++func (f *Func) editChildren(edit func(Node) Node) {
++	editList(f.body, edit)
++}
+ 
+ func (f *Func) Func() *Func           { return f }
+ func (f *Func) Body() Nodes           { return f.body }
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 2ff1fbc683..d2c33eab2b 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -153,6 +153,7 @@ func (n *Name) String() string                       { return fmt.Sprint(n) }
+ func (n *Name) Format(s fmt.State, verb rune)        { FmtNode(n, s, verb) }
+ func (n *Name) copy() Node                           { c := *n; return &c }
+ func (n *Name) doChildren(do func(Node) error) error { return nil }
++func (n *Name) editChildren(edit func(Node) Node)    {}
+ 
+ func (n *Name) Name() *Name         { return n }
+ func (n *Name) Sym() *types.Sym     { return n.sym }
+@@ -327,6 +328,7 @@ func (p *PkgName) String() string                       { return fmt.Sprint(p) }
+ func (p *PkgName) Format(s fmt.State, verb rune)        { FmtNode(p, s, verb) }
+ func (p *PkgName) copy() Node                           { c := *p; return &c }
+ func (p *PkgName) doChildren(do func(Node) error) error { return nil }
++func (p *PkgName) editChildren(edit func(Node) Node) {}
+ 
+ func (p *PkgName) Sym() *types.Sym { return p.sym }
+ 
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 02ab87846f..f44d22313c 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -31,6 +31,7 @@ type Node interface {
+ 	copy() Node
+ 
+ 	doChildren(func(Node) error) error
++	editChildren(func(Node) Node)
+ 
+ 	// Abstract graph structure, for generic traversals.
+ 	Op() Op
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index b940c5f59d..c859fae55b 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -36,6 +36,9 @@ func (n *Decl) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *Decl) editChildren(edit func(Node) Node) {
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *Decl) Left() Node     { return n.X }
+ func (n *Decl) SetLeft(x Node) { n.X = x }
+@@ -89,6 +92,11 @@ func (n *AssignListStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Rhs, err, do)
+ 	return err
+ }
++func (n *AssignListStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.Lhs, edit)
++	editList(n.Rhs, edit)
++}
+ 
+ func (n *AssignListStmt) List() Nodes       { return n.Lhs }
+ func (n *AssignListStmt) PtrList() *Nodes   { return &n.Lhs }
+@@ -142,6 +150,11 @@ func (n *AssignStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Y, err, do)
+ 	return err
+ }
++func (n *AssignStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Y = maybeEdit(n.Y, edit)
++}
+ 
+ func (n *AssignStmt) Left() Node        { return n.X }
+ func (n *AssignStmt) SetLeft(x Node)    { n.X = x }
+@@ -192,6 +205,11 @@ func (n *AssignOpStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Y, err, do)
+ 	return err
+ }
++func (n *AssignOpStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.X = maybeEdit(n.X, edit)
++	n.Y = maybeEdit(n.Y, edit)
++}
+ 
+ func (n *AssignOpStmt) Left() Node            { return n.X }
+ func (n *AssignOpStmt) SetLeft(x Node)        { n.X = x }
+@@ -232,6 +250,10 @@ func (n *BlockStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.list, err, do)
+ 	return err
+ }
++func (n *BlockStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.list, edit)
++}
+ 
+ func (n *BlockStmt) List() Nodes     { return n.list }
+ func (n *BlockStmt) PtrList() *Nodes { return &n.list }
+@@ -271,6 +293,9 @@ func (n *BranchStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *BranchStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *BranchStmt) Sym() *types.Sym       { return n.Label }
+ func (n *BranchStmt) SetSym(sym *types.Sym) { n.Label = sym }
+@@ -312,6 +337,13 @@ func (n *CaseStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.body, err, do)
+ 	return err
+ }
++func (n *CaseStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.Vars, edit)
++	editList(n.list, edit)
++	n.Comm = maybeEdit(n.Comm, edit)
++	editList(n.body, edit)
++}
+ 
+ func (n *CaseStmt) List() Nodes      { return n.list }
+ func (n *CaseStmt) PtrList() *Nodes  { return &n.list }
+@@ -351,6 +383,10 @@ func (n *DeferStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Call, err, do)
+ 	return err
+ }
++func (n *DeferStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Call = maybeEdit(n.Call, edit)
++}
+ 
+ func (n *DeferStmt) Left() Node     { return n.Call }
+ func (n *DeferStmt) SetLeft(x Node) { n.Call = x }
+@@ -394,6 +430,13 @@ func (n *ForStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.body, err, do)
+ 	return err
+ }
++func (n *ForStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Cond = maybeEdit(n.Cond, edit)
++	editList(n.Late, edit)
++	n.Post = maybeEdit(n.Post, edit)
++	editList(n.body, edit)
++}
+ 
+ func (n *ForStmt) Sym() *types.Sym     { return n.Label }
+ func (n *ForStmt) SetSym(x *types.Sym) { n.Label = x }
+@@ -443,6 +486,10 @@ func (n *GoStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Call, err, do)
+ 	return err
+ }
++func (n *GoStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Call = maybeEdit(n.Call, edit)
++}
+ 
+ func (n *GoStmt) Left() Node     { return n.Call }
+ func (n *GoStmt) SetLeft(x Node) { n.Call = x }
+@@ -482,6 +529,12 @@ func (n *IfStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Else, err, do)
+ 	return err
+ }
++func (n *IfStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Cond = maybeEdit(n.Cond, edit)
++	editList(n.body, edit)
++	editList(n.Else, edit)
++}
+ 
+ func (n *IfStmt) Left() Node       { return n.Cond }
+ func (n *IfStmt) SetLeft(x Node)   { n.Cond = x }
+@@ -519,6 +572,9 @@ func (n *InlineMarkStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *InlineMarkStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *InlineMarkStmt) Offset() int64     { return n.Index }
+ func (n *InlineMarkStmt) SetOffset(x int64) { n.Index = x }
+@@ -548,6 +604,9 @@ func (n *LabelStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.init, err, do)
+ 	return err
+ }
++func (n *LabelStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++}
+ 
+ func (n *LabelStmt) Sym() *types.Sym     { return n.Label }
+ func (n *LabelStmt) SetSym(x *types.Sym) { n.Label = x }
+@@ -591,6 +650,12 @@ func (n *RangeStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.body, err, do)
+ 	return err
+ }
++func (n *RangeStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.Vars, edit)
++	n.X = maybeEdit(n.X, edit)
++	editList(n.body, edit)
++}
+ 
+ func (n *RangeStmt) Sym() *types.Sym       { return n.Label }
+ func (n *RangeStmt) SetSym(x *types.Sym)   { n.Label = x }
+@@ -639,6 +704,10 @@ func (n *ReturnStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Results, err, do)
+ 	return err
+ }
++func (n *ReturnStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.Results, edit)
++}
+ 
+ func (n *ReturnStmt) Orig() Node      { return n.orig }
+ func (n *ReturnStmt) SetOrig(x Node)  { n.orig = x }
+@@ -682,6 +751,11 @@ func (n *SelectStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Compiled, err, do)
+ 	return err
+ }
++func (n *SelectStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	editList(n.Cases, edit)
++	editList(n.Compiled, edit)
++}
+ 
+ func (n *SelectStmt) List() Nodes         { return n.Cases }
+ func (n *SelectStmt) PtrList() *Nodes     { return &n.Cases }
+@@ -722,6 +796,11 @@ func (n *SendStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Value, err, do)
+ 	return err
+ }
++func (n *SendStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Chan = maybeEdit(n.Chan, edit)
++	n.Value = maybeEdit(n.Value, edit)
++}
+ 
+ func (n *SendStmt) Left() Node      { return n.Chan }
+ func (n *SendStmt) SetLeft(x Node)  { n.Chan = x }
+@@ -765,6 +844,12 @@ func (n *SwitchStmt) doChildren(do func(Node) error) error {
+ 	err = maybeDoList(n.Compiled, err, do)
+ 	return err
+ }
++func (n *SwitchStmt) editChildren(edit func(Node) Node) {
++	editList(n.init, edit)
++	n.Tag = maybeEdit(n.Tag, edit)
++	editList(n.Cases, edit)
++	editList(n.Compiled, edit)
++}
+ 
+ func (n *SwitchStmt) Left() Node          { return n.Tag }
+ func (n *SwitchStmt) SetLeft(x Node)      { n.Tag = x }
+@@ -807,6 +892,12 @@ func (n *TypeSwitchGuard) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.X, err, do)
+ 	return err
+ }
++func (n *TypeSwitchGuard) editChildren(edit func(Node) Node) {
++	if n.name != nil {
++		n.name = edit(n.name).(*Name)
++	}
++	n.X = maybeEdit(n.X, edit)
++}
+ 
+ func (n *TypeSwitchGuard) Left() Node {
+ 	if n.name == nil {
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 2723c00044..d69dc3fd2a 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -80,6 +80,9 @@ func (n *ChanType) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Elem, err, do)
+ 	return err
+ }
++func (n *ChanType) editChildren(edit func(Node) Node) {
++	n.Elem = maybeEdit(n.Elem, edit)
++}
+ func (n *ChanType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Elem = nil
+@@ -116,6 +119,10 @@ func (n *MapType) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Elem, err, do)
+ 	return err
+ }
++func (n *MapType) editChildren(edit func(Node) Node) {
++	n.Key = maybeEdit(n.Key, edit)
++	n.Elem = maybeEdit(n.Elem, edit)
++}
+ func (n *MapType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Key = nil
+@@ -155,6 +162,9 @@ func (n *StructType) doChildren(do func(Node) error) error {
+ 	err = maybeDoFields(n.Fields, err, do)
+ 	return err
+ }
++func (n *StructType) editChildren(edit func(Node) Node) {
++	editFields(n.Fields, edit)
++}
+ 
+ func (n *StructType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -202,6 +212,9 @@ func (n *InterfaceType) doChildren(do func(Node) error) error {
+ 	err = maybeDoFields(n.Methods, err, do)
+ 	return err
+ }
++func (n *InterfaceType) editChildren(edit func(Node) Node) {
++	editFields(n.Methods, edit)
++}
+ 
+ func (n *InterfaceType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -249,6 +262,11 @@ func (n *FuncType) doChildren(do func(Node) error) error {
+ 	err = maybeDoFields(n.Results, err, do)
+ 	return err
+ }
++func (n *FuncType) editChildren(edit func(Node) Node) {
++	editField(n.Recv, edit)
++	editFields(n.Params, edit)
++	editFields(n.Results, edit)
++}
+ 
+ func (n *FuncType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+@@ -337,6 +355,24 @@ func maybeDoFields(list []*Field, err error, do func(Node) error) error {
+ 	return err
+ }
+ 
++func editField(f *Field, edit func(Node) Node) {
++	if f == nil {
++		return
++	}
++	if f.Decl != nil {
++		f.Decl = edit(f.Decl).(*Name)
++	}
++	if f.Ntype != nil {
++		f.Ntype = toNtype(edit(f.Ntype))
++	}
++}
++
++func editFields(list []*Field, edit func(Node) Node) {
++	for _, f := range list {
++		editField(f, edit)
++	}
++}
++
+ func (f *Field) deepCopy(pos src.XPos) *Field {
+ 	if f == nil {
+ 		return nil
+@@ -380,6 +416,9 @@ func (n *SliceType) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Elem, err, do)
+ 	return err
+ }
++func (n *SliceType) editChildren(edit func(Node) Node) {
++	n.Elem = maybeEdit(n.Elem, edit)
++}
+ func (n *SliceType) SetOTYPE(t *types.Type) {
+ 	n.setOTYPE(t, n)
+ 	n.Elem = nil
+@@ -417,6 +456,10 @@ func (n *ArrayType) doChildren(do func(Node) error) error {
+ 	err = maybeDo(n.Elem, err, do)
+ 	return err
+ }
++func (n *ArrayType) editChildren(edit func(Node) Node) {
++	n.Len = maybeEdit(n.Len, edit)
++	n.Elem = maybeEdit(n.Elem, edit)
++}
+ 
+ func (n *ArrayType) DeepCopy(pos src.XPos) Node {
+ 	if n.op == OTYPE {
+@@ -451,6 +494,7 @@ func (n *typeNode) copy() Node                    { c := *n; return &c }
+ func (n *typeNode) doChildren(do func(Node) error) error {
+ 	return nil
+ }
++func (n *typeNode) editChildren(edit func(Node) Node) {}
+ 
+ func (n *typeNode) Type() *types.Type { return n.typ }
+ func (n *typeNode) Sym() *types.Sym   { return n.typ.Sym() }
+diff --git a/src/cmd/compile/internal/ir/visit.go b/src/cmd/compile/internal/ir/visit.go
+index 042257c32a..4f3575614d 100644
+--- a/src/cmd/compile/internal/ir/visit.go
++++ b/src/cmd/compile/internal/ir/visit.go
+@@ -226,16 +226,7 @@ func EditChildren(n Node, edit func(Node) Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	editList(n.Init(), edit)
+-	if l := n.Left(); l != nil {
+-		n.SetLeft(edit(l))
+-	}
+-	if r := n.Right(); r != nil {
+-		n.SetRight(edit(r))
+-	}
+-	editList(n.List(), edit)
+-	editList(n.Body(), edit)
+-	editList(n.Rlist(), edit)
++	n.editChildren(edit)
+ }
+ 
+ // editList calls edit on each non-nil node x in the list,

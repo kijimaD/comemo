@@ -17,7 +17,162 @@ Date:   Fri May 27 16:53:13 2016 -0700
     Change-Id: Iea5c64eb322b58be27f9ff863b3a6f90e996fa9b
     Reviewed-on: https://go-review.googlesource.com/23527
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/h2_bundle.go      | 35 ++++++++++++++++++++++++-----------
  src/net/http/transport_test.go | 35 +++++++++++++++++++----------------
  2 files changed, 43 insertions(+), 27 deletions(-)
+
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 9cedcaa73d..597eb7de47 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -25,8 +25,6 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+-	"golang.org/x/net/http2/hpack"
+-	"golang.org/x/net/lex/httplex"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -42,6 +40,9 @@ import (
+ 	"strings"
+ 	"sync"
+ 	"time"
++
++	"golang.org/x/net/http2/hpack"
++	"golang.org/x/net/lex/httplex"
+ )
+ 
+ // ClientConnPool manages a pool of HTTP/2 client connections.
+@@ -291,7 +292,7 @@ func http2configureTransport(t1 *Transport) (*http2Transport, error) {
+ 		t1.TLSClientConfig.NextProtos = append(t1.TLSClientConfig.NextProtos, "http/1.1")
+ 	}
+ 	upgradeFn := func(authority string, c *tls.Conn) RoundTripper {
+-		addr := http2authorityAddr(authority)
++		addr := http2authorityAddr("https", authority)
+ 		if used, err := connPool.addConnIfNeeded(addr, t2, c); err != nil {
+ 			go c.Close()
+ 			return http2erringRoundTripper{err}
+@@ -4848,6 +4849,10 @@ type http2Transport struct {
+ 	// uncompressed.
+ 	DisableCompression bool
+ 
++	// AllowHTTP, if true, permits HTTP/2 requests using the insecure,
++	// plain-text "http" scheme. Note that this does not enable h2c support.
++	AllowHTTP bool
++
+ 	// MaxHeaderListSize is the http2 SETTINGS_MAX_HEADER_LIST_SIZE to
+ 	// send in the initial settings frame. It is how many bytes
+ 	// of response headers are allow. Unlike the http2 spec, zero here
+@@ -4963,6 +4968,7 @@ type http2clientStream struct {
+ 	done chan struct{} // closed when stream remove from cc.streams map; close calls guarded by cc.mu
+ 
+ 	// owned by clientConnReadLoop:
++	firstByte    bool // got the first response byte
+ 	pastHeaders  bool // got first MetaHeadersFrame (actual headers)
+ 	pastTrailers bool // got optional second MetaHeadersFrame (trailers)
+ 
+@@ -5046,20 +5052,24 @@ func (t *http2Transport) RoundTrip(req *Request) (*Response, error) {
+ 
+ // authorityAddr returns a given authority (a host/IP, or host:port / ip:port)
+ // and returns a host:port. The port 443 is added if needed.
+-func http2authorityAddr(authority string) (addr string) {
++func http2authorityAddr(scheme string, authority string) (addr string) {
+ 	if _, _, err := net.SplitHostPort(authority); err == nil {
+ 		return authority
+ 	}
+-	return net.JoinHostPort(authority, "443")
++	port := "443"
++	if scheme == "http" {
++		port = "80"
++	}
++	return net.JoinHostPort(authority, port)
+ }
+ 
+ // RoundTripOpt is like RoundTrip, but takes options.
+ func (t *http2Transport) RoundTripOpt(req *Request, opt http2RoundTripOpt) (*Response, error) {
+-	if req.URL.Scheme != "https" {
++	if !(req.URL.Scheme == "https" || (req.URL.Scheme == "http" && t.AllowHTTP)) {
+ 		return nil, errors.New("http2: unsupported scheme")
+ 	}
+ 
+-	addr := http2authorityAddr(req.URL.Host)
++	addr := http2authorityAddr(req.URL.Scheme, req.URL.Host)
+ 	for {
+ 		cc, err := t.connPool().GetClientConn(req, addr)
+ 		if err != nil {
+@@ -5944,15 +5954,18 @@ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) erro
+ 
+ 		return nil
+ 	}
++	if !cs.firstByte {
++		if cs.trace != nil {
++
++			http2traceFirstResponseByte(cs.trace)
++		}
++		cs.firstByte = true
++	}
+ 	if !cs.pastHeaders {
+ 		cs.pastHeaders = true
+ 	} else {
+ 		return rl.processTrailers(cs, f)
+ 	}
+-	if cs.trace != nil {
+-
+-		http2traceFirstResponseByte(cs.trace)
+-	}
+ 
+ 	res, err := rl.handleResponse(cs, f)
+ 	if err != nil {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 1c1a1d0397..d653a5a7fc 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3312,27 +3312,30 @@ func testTransportEventTrace(t *testing.T, h2 bool, noHooks bool) {
+ 	}
+ 
+ 	got := buf.String()
+-	wantSub := func(sub string) {
+-		if !strings.Contains(got, sub) {
+-			t.Errorf("expected substring %q in output.", sub)
++	wantOnce := func(sub string) {
++		if strings.Count(got, sub) != 1 {
++			t.Errorf("expected substring %q exactly once in output.", sub)
+ 		}
+ 	}
+-	if strings.Count(got, "got conn: {") != 1 {
+-		t.Errorf("expected exactly 1 \"got conn\" event.")
++	wantOnceOrMore := func(sub string) {
++		if strings.Count(got, sub) == 0 {
++			t.Errorf("expected substring %q at least once in output.", sub)
++		}
+ 	}
+-	wantSub("Getting conn for dns-is-faked.golang:" + port)
+-	wantSub("DNS start: {Host:dns-is-faked.golang}")
+-	wantSub("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
+-	wantSub("Connecting to tcp " + addrStr)
+-	wantSub("connected to tcp " + addrStr + " = <nil>")
+-	wantSub("Reused:false WasIdle:false IdleTime:0s")
+-	wantSub("first response byte")
++	wantOnce("Getting conn for dns-is-faked.golang:" + port)
++	wantOnce("DNS start: {Host:dns-is-faked.golang}")
++	wantOnce("DNS done: {Addrs:[{IP:" + ip + " Zone:}] Err:<nil> Coalesced:false}")
++	wantOnce("got conn: {")
++	wantOnceOrMore("Connecting to tcp " + addrStr)
++	wantOnceOrMore("connected to tcp " + addrStr + " = <nil>")
++	wantOnce("Reused:false WasIdle:false IdleTime:0s")
++	wantOnce("first response byte")
+ 	if !h2 {
+-		wantSub("PutIdleConn = <nil>")
++		wantOnce("PutIdleConn = <nil>")
+ 	}
+-	wantSub("Wait100Continue")
+-	wantSub("Got100Continue")
+-	wantSub("WroteRequest: {Err:<nil>}")
++	wantOnce("Wait100Continue")
++	wantOnce("Got100Continue")
++	wantOnce("WroteRequest: {Err:<nil>}")
+ 	if strings.Contains(got, " to udp ") {
+ 		t.Errorf("should not see UDP (DNS) connections")
+ 	}

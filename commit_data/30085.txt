@@ -12,9 +12,254 @@ Date:   Wed Oct 19 15:32:14 2016 -0700
     Change-Id: I156fb0c0f8a97e8c72dbbfbd7fe821efee12b957
     Reviewed-on: https://go-review.googlesource.com/31597
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go  |  2 +
  src/cmd/compile/internal/gc/noder.go | 91 +++++++++++++++++++++++++++++++++-
  src/go/types/stdlib_test.go          |  1 +
  test/alias2.go                       | 96 ++++++++++++++++++++++++++++++++++++
  4 files changed, 188 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c3648e9dc5..3803417cea 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -943,6 +943,8 @@ func mkpackage(pkgname string) {
+ 					s.Def.Name.Pack.Used = true
+ 				}
+ 
++				// TODO(gri) This will also affect exported aliases.
++				// Need to fix this.
+ 				s.Def = nil
+ 				continue
+ 			}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 11fdde1bbc..59a8d1f0d2 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -61,7 +61,7 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 			p.importDecl(decl)
+ 
+ 		case *syntax.AliasDecl:
+-			yyerror("alias declarations not yet implemented")
++			p.aliasDecl(decl)
+ 
+ 		case *syntax.VarDecl:
+ 			l = append(l, p.varDecl(decl)...)
+@@ -90,8 +90,9 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 			lastConstGroup = decl.Group
+ 
+ 		case *syntax.TypeDecl:
++			// TODO(gri) remove this notation - we're not going to use it after all
+ 			if decl.Alias {
+-				yyerror("alias declarations not yet implemented")
++				yyerror("type aliases using = not supported")
+ 				break
+ 			}
+ 			l = append(l, p.typeDecl(decl))
+@@ -153,6 +154,92 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 	my.Block = 1 // at top level
+ }
+ 
++func (p *noder) aliasDecl(decl *syntax.AliasDecl) {
++	// Because alias declarations must refer to imported entities
++	// which are already set up, we can do all checks right here.
++	// We won't know anything about entities that have not been
++	// declared yet, but since they cannot have been imported, we
++	// know there's an error and we don't care about the details.
++
++	// The original entity must be denoted by a qualified identifier.
++	// (The parser doesn't make this restriction to be more error-
++	// tolerant.)
++	qident, ok := decl.Orig.(*syntax.SelectorExpr)
++	if !ok {
++		// TODO(gri) This prints a dot-imported object with qualification
++		//           (confusing error). Fix this.
++		yyerror("invalid alias: %v is not a package-qualified identifier", p.expr(decl.Orig))
++		return
++	}
++
++	pkg := p.expr(qident.X)
++	if pkg.Op != OPACK {
++		yyerror("invalid alias: %v is not a package", pkg)
++		return
++	}
++	pkg.Used = true
++
++	orig := oldname(restrictlookup(qident.Sel.Value, pkg.Name.Pkg))
++
++	// An alias declaration must not refer to package unsafe.
++	if orig.Sym.Pkg == unsafepkg {
++		yyerror("invalid alias: %v refers to package unsafe (%v)", decl.Name.Value, orig)
++		return
++	}
++
++	// The aliased entity must be from a matching constant, type, variable,
++	// or function declaration, respectively.
++	var what string
++	switch decl.Tok {
++	case syntax.Const:
++		if orig.Op != OLITERAL {
++			what = "constant"
++		}
++	case syntax.Type:
++		if orig.Op != OTYPE {
++			what = "type"
++		}
++	case syntax.Var:
++		if orig.Op != ONAME || orig.Class != PEXTERN {
++			what = "variable"
++		}
++	case syntax.Func:
++		if orig.Op != ONAME || orig.Class != PFUNC {
++			what = "function"
++		}
++	default:
++		Fatalf("unexpected token: %s", decl.Tok)
++	}
++	if what != "" {
++		yyerror("invalid alias: %v is not a %s", orig, what)
++		return
++	}
++
++	// don't declare blank aliases
++	if decl.Name.Value == "_" {
++		return
++	}
++
++	// declare alias
++	// (this is similar to handling dot imports)
++	asym := p.name(decl.Name)
++	if asym.Def != nil {
++		redeclare(asym, "in alias declaration")
++		return
++	}
++	asym.Def = orig
++	asym.Block = block
++	asym.Lastlineno = lineno
++
++	if exportname(asym.Name) {
++		yyerror("cannot export alias %v: not yet implemented", asym)
++		// TODO(gri) newname(asym) is only needed to satisfy exportsym
++		// (and indirectly, exportlist). We should be able to just
++		// collect the Syms, eventually.
++		// exportsym(newname(asym))
++	}
++}
++
+ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	names := p.declNames(decl.NameList)
+ 
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index be2b58ad82..0fdd495735 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -140,6 +140,7 @@ func TestStdTest(t *testing.T) {
+ 	}
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
++		"alias2.go",      // excluded until we can handle alias declarations
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
+ 	)
+diff --git a/test/alias2.go b/test/alias2.go
+new file mode 100644
+index 0000000000..b73f81c014
+--- /dev/null
++++ b/test/alias2.go
+@@ -0,0 +1,96 @@
++// errorcheck -newparser=1
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test basic restrictions on alias declarations.
++
++package p
++
++import (
++	"fmt" // use at most once (to test "imported but not used" error)
++	"go/build"
++	. "go/build"
++	"io"
++	"math"
++	"unsafe"
++)
++
++// helper
++var before struct {
++	f
++}
++
++// aliases must refer to package-qualified identifiers
++// TODO(gri) should only see one error for declaration below - fix this
++const _ => 0 // ERROR "unexpected literal 0|_ is not a package-qualified identifier"
++
++type _ => _ // ERROR "_ is not a package-qualified identifier"
++type t => _ // ERROR "_ is not a package-qualified identifier"
++
++const _ => iota // ERROR "iota is not a package-qualified identifier"
++type _ => int   // ERROR "int is not a package-qualified identifier"
++
++const c => iota // ERROR "iota is not a package-qualified identifier"
++type t => int   // ERROR "int is not a package-qualified identifier"
++
++// dot-imported identifiers are not qualified identifiers
++// TODO(gri) fix error printing - should not print a qualified identifier...
++var _ => Default // ERROR "build\.Default is not a package-qualified identifier"
++
++// qualified identifiers must start with a package
++var _ => before.f  // ERROR "before is not a package"
++func _ => before.f // ERROR "before is not a package"
++var _ => after.m   // ERROR "after is not a package"
++func _ => after.m  // ERROR "after is not a package"
++
++var v => before.f  // ERROR "before is not a package"
++func f => before.f // ERROR "before is not a package"
++var v => after.m   // ERROR "after is not a package"
++func f => after.m  // ERROR "after is not a package"
++
++// TODO(gri) fix error printing - should not print a qualified identifier...
++var _ => Default.ARCH // ERROR "build.Default is not a package"
++
++// aliases may not refer to package unsafe
++type ptr => unsafe.Pointer // ERROR "ptr refers to package unsafe"
++func size => unsafe.Sizeof // ERROR "size refers to package unsafe"
++
++// aliases must refer to entities of the same kind
++const _ => math.Pi
++const pi => math.Pi
++const pi1 => math.Sin // ERROR "math.Sin is not a constant"
++
++type _ => io.Writer
++type writer => io.Writer
++type writer1 => math.Sin // ERROR "math.Sin is not a type"
++
++var _ => build.Default
++var def => build.Default
++var def1 => build.Import // ERROR "build.Import is not a variable"
++
++func _ => math.Sin
++func sin => math.Sin
++func sin1 => math.Pi // ERROR "math.Pi is not a function"
++
++// alias reference to a package marks package as used
++func _ => fmt.Println
++
++// TODO(gri) aliased cannot be exported yet - fix this
++const Pi => math.Pi      // ERROR "cannot export alias Pi"
++type Writer => io.Writer // ERROR "cannot export alias Writer"
++var Def => build.Default // ERROR "cannot export alias Def"
++func Sin => math.Sin     // ERROR "cannot export alias Sin"
++
++// type aliases denote identical types
++type myPackage => build.Package
++
++var pkg myPackage
++var _ build.Package = pkg   // valid assignment
++var _ *build.Package = &pkg // valid assignment
++
++// helper
++type after struct{}
++
++func (after) m() {}

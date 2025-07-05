@@ -18,7 +18,7 @@ Date:   Wed Aug 17 12:38:27 2022 -0400
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go                              |  17 ++-
  src/cmd/go/internal/auth/auth.go                   |   5 +-
  src/cmd/go/internal/vcs/vcs.go                     |   4 +-
@@ -43,3 +43,973 @@ Date:   Wed Aug 17 12:38:27 2022 -0400
  src/cmd/go/testdata/vcstest/go/v2module.txt        |   6 +
  src/cmd/go/testdata/vcstest/insecure.txt           |   1 +
  23 files changed, 613 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 96d67e1c4c..bd1de7d1b9 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -35,6 +35,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb/vcstest"
++	"cmd/go/internal/web"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
+ 
+@@ -132,9 +133,21 @@ func TestMain(m *testing.M) {
+ 			}
+ 		}
+ 
+-		if vcsTest := os.Getenv("TESTGO_VCSTEST_URL"); vcsTest != "" {
+-			vcs.VCSTestRepoURL = vcsTest
++		if vcsTestHost := os.Getenv("TESTGO_VCSTEST_HOST"); vcsTestHost != "" {
++			vcs.VCSTestRepoURL = "http://" + vcsTestHost
+ 			vcs.VCSTestHosts = vcstest.Hosts
++			vcsTestTLSHost := os.Getenv("TESTGO_VCSTEST_TLS_HOST")
++			vcsTestClient, err := vcstest.TLSClient(os.Getenv("TESTGO_VCSTEST_CERT"))
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "loading certificates from $TESTGO_VCSTEST_CERT: %v", err)
++			}
++			var interceptors []web.Interceptor
++			for _, host := range vcstest.Hosts {
++				interceptors = append(interceptors,
++					web.Interceptor{Scheme: "http", FromHost: host, ToHost: vcsTestHost},
++					web.Interceptor{Scheme: "https", FromHost: host, ToHost: vcsTestTLSHost, Client: vcsTestClient})
++			}
++			web.EnableTestHooks(interceptors)
+ 		}
+ 
+ 		cmdgo.Main()
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index fe5a89d727..77edeb8924 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -10,7 +10,10 @@ import "net/http"
+ // AddCredentials fills in the user's credentials for req, if any.
+ // The return value reports whether any matching credentials were found.
+ func AddCredentials(req *http.Request) (added bool) {
+-	host := req.URL.Hostname()
++	host := req.Host
++	if host == "" {
++		host = req.URL.Hostname()
++	}
+ 
+ 	// TODO(golang.org/issue/26232): Support arbitrary user-provided credentials.
+ 	netrcOnce.Do(readNetrc)
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index ab1fa86750..eb884faa96 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -1208,7 +1208,9 @@ func interceptVCSTest(repo string, vcs *Cmd, security web.SecurityMode) (repoURL
+ 		return "", false
+ 	}
+ 	if vcs == vcsMod {
+-		return "", false // Will be implemented in CL 427254.
++		// Since the "mod" protocol is implemented internally,
++		// requests will be intercepted at a lower level (in cmd/go/internal/web).
++		return "", false
+ 	}
+ 	if vcs == vcsSvn {
+ 		return "", false // Will be implemented in CL 427914.
+diff --git a/src/cmd/go/internal/vcweb/auth.go b/src/cmd/go/internal/vcweb/auth.go
+new file mode 100644
+index 0000000000..094a828e81
+--- /dev/null
++++ b/src/cmd/go/internal/vcweb/auth.go
+@@ -0,0 +1,108 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vcweb
++
++import (
++	"encoding/json"
++	"fmt"
++	"io/ioutil"
++	"log"
++	"net/http"
++	"os"
++	"path"
++	"strings"
++)
++
++// authHandler serves requests only if the Basic Auth data sent with the request
++// matches the contents of a ".access" file in the requested directory.
++//
++// For each request, the handler looks for a file named ".access" and parses it
++// as a JSON-serialized accessToken. If the credentials from the request match
++// the accessToken, the file is served normally; otherwise, it is rejected with
++// the StatusCode and Message provided by the token.
++type authHandler struct{}
++
++type accessToken struct {
++	Username, Password string
++	StatusCode         int // defaults to 401.
++	Message            string
++}
++
++func (h *authHandler) Available() bool { return true }
++
++func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (http.Handler, error) {
++	fs := http.Dir(dir)
++
++	handler := http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
++		urlPath := req.URL.Path
++		if urlPath != "" && strings.HasPrefix(path.Base(urlPath), ".") {
++			http.Error(w, "filename contains leading dot", http.StatusBadRequest)
++			return
++		}
++
++		f, err := fs.Open(urlPath)
++		if err != nil {
++			if os.IsNotExist(err) {
++				http.NotFound(w, req)
++			} else {
++				http.Error(w, err.Error(), http.StatusInternalServerError)
++			}
++			return
++		}
++
++		accessDir := urlPath
++		if fi, err := f.Stat(); err == nil && !fi.IsDir() {
++			accessDir = path.Dir(urlPath)
++		}
++		f.Close()
++
++		var accessFile http.File
++		for {
++			var err error
++			accessFile, err = fs.Open(path.Join(accessDir, ".access"))
++			if err == nil {
++				break
++			}
++
++			if !os.IsNotExist(err) {
++				http.Error(w, err.Error(), http.StatusInternalServerError)
++				return
++			}
++			if accessDir == "." {
++				http.Error(w, "failed to locate access file", http.StatusInternalServerError)
++				return
++			}
++			accessDir = path.Dir(accessDir)
++		}
++
++		data, err := ioutil.ReadAll(accessFile)
++		if err != nil {
++			http.Error(w, err.Error(), http.StatusInternalServerError)
++			return
++		}
++
++		var token accessToken
++		if err := json.Unmarshal(data, &token); err != nil {
++			logger.Print(err)
++			http.Error(w, "malformed access file", http.StatusInternalServerError)
++			return
++		}
++		if username, password, ok := req.BasicAuth(); !ok || username != token.Username || password != token.Password {
++			code := token.StatusCode
++			if code == 0 {
++				code = http.StatusUnauthorized
++			}
++			if code == http.StatusUnauthorized {
++				w.Header().Add("WWW-Authenticate", fmt.Sprintf("basic realm=%s", accessDir))
++			}
++			http.Error(w, token.Message, code)
++			return
++		}
++
++		http.FileServer(fs).ServeHTTP(w, req)
++	})
++
++	return handler, nil
++}
+diff --git a/src/cmd/go/internal/vcweb/insecure.go b/src/cmd/go/internal/vcweb/insecure.go
+new file mode 100644
+index 0000000000..1d6af25e79
+--- /dev/null
++++ b/src/cmd/go/internal/vcweb/insecure.go
+@@ -0,0 +1,42 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package vcweb
++
++import (
++	"log"
++	"net/http"
++)
++
++// insecureHandler redirects requests to the same host and path but using the
++// "http" scheme instead of "https".
++type insecureHandler struct{}
++
++func (h *insecureHandler) Available() bool { return true }
++
++func (h *insecureHandler) Handler(dir string, env []string, logger *log.Logger) (http.Handler, error) {
++	// The insecure-redirect handler implementation doesn't depend or dir or env.
++	//
++	// The only effect of the directory is to determine which prefix the caller
++	// will strip from the request before passing it on to this handler.
++	return h, nil
++}
++
++func (h *insecureHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
++	if req.Host == "" && req.URL.Host == "" {
++		http.Error(w, "no Host provided in request", http.StatusBadRequest)
++		return
++	}
++
++	// Note that if the handler is wrapped with http.StripPrefix, the prefix
++	// will remain stripped in the redirected URL, preventing redirect loops
++	// if the scheme is already "http".
++
++	u := *req.URL
++	u.Scheme = "http"
++	u.User = nil
++	u.Host = req.Host
++
++	http.Redirect(w, req, u.String(), http.StatusFound)
++}
+diff --git a/src/cmd/go/internal/vcweb/script.go b/src/cmd/go/internal/vcweb/script.go
+index 0b7abfd992..da5e13d006 100644
+--- a/src/cmd/go/internal/vcweb/script.go
++++ b/src/cmd/go/internal/vcweb/script.go
+@@ -21,6 +21,9 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"time"
++
++	"golang.org/x/mod/module"
++	"golang.org/x/mod/zip"
+ )
+ 
+ // newScriptEngine returns a script engine augmented with commands for
+@@ -38,6 +41,7 @@ func newScriptEngine() *script.Engine {
+ 	cmds["git"] = script.Program("git", interrupt, gracePeriod)
+ 	cmds["hg"] = script.Program("hg", interrupt, gracePeriod)
+ 	cmds["handle"] = scriptHandle()
++	cmds["modzip"] = scriptModzip()
+ 	cmds["svn"] = script.Program("svn", interrupt, gracePeriod)
+ 	cmds["unquote"] = scriptUnquote()
+ 
+@@ -280,6 +284,40 @@ func scriptHandle() script.Cmd {
+ 		})
+ }
+ 
++func scriptModzip() script.Cmd {
++	return script.Command(
++		script.CmdUsage{
++			Summary: "create a Go module zip file from a directory",
++			Args:    "zipfile path@version dir",
++		},
++		func(st *script.State, args ...string) (wait script.WaitFunc, err error) {
++			if len(args) != 3 {
++				return nil, script.ErrUsage
++			}
++			zipPath := st.Path(args[0])
++			mPath, version, ok := strings.Cut(args[1], "@")
++			if !ok {
++				return nil, script.ErrUsage
++			}
++			dir := st.Path(args[2])
++
++			if err := os.MkdirAll(filepath.Dir(zipPath), 0755); err != nil {
++				return nil, err
++			}
++			f, err := os.Create(zipPath)
++			if err != nil {
++				return nil, err
++			}
++			defer func() {
++				if closeErr := f.Close(); err == nil {
++					err = closeErr
++				}
++			}()
++
++			return nil, zip.CreateFromDir(f, module.Version{Path: mPath, Version: version}, dir)
++		})
++}
++
+ func scriptUnquote() script.Cmd {
+ 	return script.Command(
+ 		script.CmdUsage{
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest.go b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+index 5402aad397..d68576e263 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+@@ -9,11 +9,17 @@ package vcstest
+ import (
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb"
++	"cmd/go/internal/web"
++	"crypto/tls"
++	"crypto/x509"
++	"encoding/pem"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"log"
++	"net/http"
+ 	"net/http/httptest"
++	"net/url"
+ 	"os"
+ 	"path/filepath"
+ 	"testing"
+@@ -26,6 +32,7 @@ var Hosts = []string{
+ type Server struct {
+ 	workDir string
+ 	HTTP    *httptest.Server
++	HTTPS   *httptest.Server
+ }
+ 
+ // NewServer returns a new test-local vcweb server that serves VCS requests
+@@ -58,15 +65,45 @@ func NewServer() (srv *Server, err error) {
+ 	}
+ 
+ 	srvHTTP := httptest.NewServer(handler)
++	httpURL, err := url.Parse(srvHTTP.URL)
++	if err != nil {
++		return nil, err
++	}
++	defer func() {
++		if err != nil {
++			srvHTTP.Close()
++		}
++	}()
++
++	srvHTTPS := httptest.NewTLSServer(handler)
++	httpsURL, err := url.Parse(srvHTTPS.URL)
++	if err != nil {
++		return nil, err
++	}
++	defer func() {
++		if err != nil {
++			srvHTTPS.Close()
++		}
++	}()
+ 
+ 	srv = &Server{
+ 		workDir: workDir,
+ 		HTTP:    srvHTTP,
++		HTTPS:   srvHTTPS,
+ 	}
+ 	vcs.VCSTestRepoURL = srv.HTTP.URL
+ 	vcs.VCSTestHosts = Hosts
+ 
++	var interceptors []web.Interceptor
++	for _, host := range Hosts {
++		interceptors = append(interceptors,
++			web.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
++			web.Interceptor{Scheme: "https", FromHost: host, ToHost: httpsURL.Host, Client: srv.HTTPS.Client()})
++	}
++	web.EnableTestHooks(interceptors)
++
+ 	fmt.Fprintln(os.Stderr, "vcs-test.golang.org rerouted to "+srv.HTTP.URL)
++	fmt.Fprintln(os.Stderr, "https://vcs-test.golang.org rerouted to "+srv.HTTPS.URL)
+ 
+ 	return srv, nil
+ }
+@@ -77,7 +114,45 @@ func (srv *Server) Close() error {
+ 	}
+ 	vcs.VCSTestRepoURL = ""
+ 	vcs.VCSTestHosts = nil
++	web.DisableTestHooks()
+ 
+ 	srv.HTTP.Close()
++	srv.HTTPS.Close()
+ 	return os.RemoveAll(srv.workDir)
+ }
++
++func (srv *Server) WriteCertificateFile() (string, error) {
++	b := pem.EncodeToMemory(&pem.Block{
++		Type:  "CERTIFICATE",
++		Bytes: srv.HTTPS.Certificate().Raw,
++	})
++
++	filename := filepath.Join(srv.workDir, "cert.pem")
++	if err := os.WriteFile(filename, b, 0644); err != nil {
++		return "", err
++	}
++	return filename, nil
++}
++
++// TLSClient returns an http.Client that can talk to the httptest.Server
++// whose certificate is written to the given file path.
++func TLSClient(certFile string) (*http.Client, error) {
++	client := &http.Client{
++		Transport: http.DefaultTransport.(*http.Transport).Clone(),
++	}
++
++	pemBytes, err := os.ReadFile(certFile)
++	if err != nil {
++		return nil, err
++	}
++
++	certpool := x509.NewCertPool()
++	if !certpool.AppendCertsFromPEM(pemBytes) {
++		return nil, fmt.Errorf("no certificates found in %s", certFile)
++	}
++	client.Transport.(*http.Transport).TLSClientConfig = &tls.Config{
++		RootCAs: certpool,
++	}
++
++	return client, nil
++}
+diff --git a/src/cmd/go/internal/vcweb/vcweb.go b/src/cmd/go/internal/vcweb/vcweb.go
+index c9303ce2ab..b7e1be00ca 100644
+--- a/src/cmd/go/internal/vcweb/vcweb.go
++++ b/src/cmd/go/internal/vcweb/vcweb.go
+@@ -127,11 +127,13 @@ func NewServer(scriptDir, workDir string, logger *log.Logger) (*Server, error) {
+ 		homeDir:   homeDir,
+ 		engine:    newScriptEngine(),
+ 		vcsHandlers: map[string]vcsHandler{
+-			"dir":    new(dirHandler),
+-			"bzr":    new(bzrHandler),
+-			"fossil": new(fossilHandler),
+-			"git":    new(gitHandler),
+-			"hg":     new(hgHandler),
++			"auth":     new(authHandler),
++			"dir":      new(dirHandler),
++			"bzr":      new(bzrHandler),
++			"fossil":   new(fossilHandler),
++			"git":      new(gitHandler),
++			"hg":       new(hgHandler),
++			"insecure": new(insecureHandler),
+ 		},
+ 	}
+ 
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index dfa124f869..a3b7787720 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -32,7 +32,8 @@ import (
+ // when we're connecting to https servers that might not be there
+ // or might be using self-signed certificates.
+ var impatientInsecureHTTPClient = &http.Client{
+-	Timeout: 5 * time.Second,
++	CheckRedirect: checkRedirect,
++	Timeout:       5 * time.Second,
+ 	Transport: &http.Transport{
+ 		Proxy: http.ProxyFromEnvironment,
+ 		TLSClientConfig: &tls.Config{
+@@ -41,57 +42,132 @@ var impatientInsecureHTTPClient = &http.Client{
+ 	},
+ }
+ 
+-// securityPreservingHTTPClient is like the default HTTP client, but rejects
+-// redirects to plain-HTTP URLs if the original URL was secure.
+-var securityPreservingHTTPClient = &http.Client{
+-	CheckRedirect: func(req *http.Request, via []*http.Request) error {
++var securityPreservingDefaultClient = securityPreservingHTTPClient(http.DefaultClient)
++
++// securityPreservingDefaultClient returns a client that is like the original
++// but rejects redirects to plain-HTTP URLs if the original URL was secure.
++func securityPreservingHTTPClient(original *http.Client) *http.Client {
++	c := new(http.Client)
++	*c = *original
++	c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+ 		if len(via) > 0 && via[0].URL.Scheme == "https" && req.URL.Scheme != "https" {
+ 			lastHop := via[len(via)-1].URL
+ 			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)
+ 		}
++		return checkRedirect(req, via)
++	}
++	return c
++}
+ 
+-		// Go's http.DefaultClient allows 10 redirects before returning an error.
+-		// The securityPreservingHTTPClient also uses this default policy to avoid
+-		// Go command hangs.
+-		if len(via) >= 10 {
+-			return errors.New("stopped after 10 redirects")
+-		}
+-		return nil
+-	},
++func checkRedirect(req *http.Request, via []*http.Request) error {
++	// Go's http.DefaultClient allows 10 redirects before returning an error.
++	// Mimic that behavior here.
++	if len(via) >= 10 {
++		return errors.New("stopped after 10 redirects")
++	}
++
++	interceptRequest(req)
++	return nil
+ }
+ 
+-func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+-	start := time.Now()
++type Interceptor struct {
++	Scheme   string
++	FromHost string
++	ToHost   string
++	Client   *http.Client
++}
+ 
+-	if url.Scheme == "file" {
+-		return getFile(url)
++func EnableTestHooks(interceptors []Interceptor) error {
++	if enableTestHooks {
++		return errors.New("web: test hooks already enabled")
+ 	}
+ 
+-	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
+-		res := &Response{
+-			URL:        url.Redacted(),
+-			Status:     "404 testing",
+-			StatusCode: 404,
+-			Header:     make(map[string][]string),
+-			Body:       http.NoBody,
++	for _, t := range interceptors {
++		if t.FromHost == "" {
++			panic("EnableTestHooks: missing FromHost")
+ 		}
+-		if cfg.BuildX {
+-			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
++		if t.ToHost == "" {
++			panic("EnableTestHooks: missing ToHost")
+ 		}
+-		return res, nil
+ 	}
+ 
+-	if url.Host == "localhost.localdev" {
+-		return nil, fmt.Errorf("no such host localhost.localdev")
++	testInterceptors = interceptors
++	enableTestHooks = true
++	return nil
++}
++
++func DisableTestHooks() {
++	if !enableTestHooks {
++		panic("web: test hooks not enabled")
+ 	}
+-	if os.Getenv("TESTGONETWORK") == "panic" {
+-		host := url.Host
+-		if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
+-			host = h
++	enableTestHooks = false
++	testInterceptors = nil
++}
++
++var (
++	enableTestHooks  = false
++	testInterceptors []Interceptor
++)
++
++func interceptURL(u *urlpkg.URL) (*Interceptor, bool) {
++	if !enableTestHooks {
++		return nil, false
++	}
++	for i, t := range testInterceptors {
++		if u.Host == t.FromHost && (t.Scheme == "" || u.Scheme == t.Scheme) {
++			return &testInterceptors[i], true
+ 		}
+-		addr := net.ParseIP(host)
+-		if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
+-			panic("use of network: " + url.String())
++	}
++	return nil, false
++}
++
++func interceptRequest(req *http.Request) {
++	if t, ok := interceptURL(req.URL); ok {
++		req.Host = req.URL.Host
++		req.URL.Host = t.ToHost
++	}
++}
++
++func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
++	start := time.Now()
++
++	if url.Scheme == "file" {
++		return getFile(url)
++	}
++
++	if enableTestHooks {
++		switch url.Host {
++		case "proxy.golang.org":
++			if os.Getenv("TESTGOPROXY404") == "1" {
++				res := &Response{
++					URL:        url.Redacted(),
++					Status:     "404 testing",
++					StatusCode: 404,
++					Header:     make(map[string][]string),
++					Body:       http.NoBody,
++				}
++				if cfg.BuildX {
++					fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", url.Redacted(), res.Status, time.Since(start).Seconds())
++				}
++				return res, nil
++			}
++
++		case "localhost.localdev":
++			return nil, fmt.Errorf("no such host localhost.localdev")
++
++		default:
++			if os.Getenv("TESTGONETWORK") == "panic" {
++				if _, ok := interceptURL(url); !ok {
++					host := url.Host
++					if h, _, err := net.SplitHostPort(url.Host); err == nil && h != "" {
++						host = h
++					}
++					addr := net.ParseIP(host)
++					if addr == nil || (!addr.IsLoopback() && !addr.IsUnspecified()) {
++						panic("use of network: " + url.String())
++					}
++				}
++			}
+ 		}
+ 	}
+ 
+@@ -111,12 +187,22 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		if url.Scheme == "https" {
+ 			auth.AddCredentials(req)
+ 		}
++		t, intercepted := interceptURL(req.URL)
++		if intercepted {
++			req.Host = req.URL.Host
++			req.URL.Host = t.ToHost
++		}
+ 
+ 		var res *http.Response
+ 		if security == Insecure && url.Scheme == "https" { // fail earlier
+ 			res, err = impatientInsecureHTTPClient.Do(req)
+ 		} else {
+-			res, err = securityPreservingHTTPClient.Do(req)
++			if intercepted && t.Client != nil {
++				client := securityPreservingHTTPClient(t.Client)
++				res, err = client.Do(req)
++			} else {
++				res, err = securityPreservingDefaultClient.Do(req)
++			}
+ 		}
+ 		return url, res, err
+ 	}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index a2d2cae658..3cbaeff8ad 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"go/build"
+ 	"internal/testenv"
+ 	"internal/txtar"
++	"net/url"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -29,7 +30,6 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/script"
+ 	"cmd/go/internal/script/scripttest"
+-	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb/vcstest"
+ )
+ 
+@@ -49,6 +49,10 @@ func TestScript(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 	})
++	certFile, err := srv.WriteCertificateFile()
++	if err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	StartProxy()
+ 
+@@ -79,7 +83,7 @@ func TestScript(t *testing.T) {
+ 		t.Cleanup(cancel)
+ 	}
+ 
+-	env, err := scriptEnv()
++	env, err := scriptEnv(srv, certFile)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+@@ -175,7 +179,15 @@ func initScriptDirs(t testing.TB, s *script.State) {
+ 	must(s.Chdir(gopathSrc))
+ }
+ 
+-func scriptEnv() ([]string, error) {
++func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
++	httpURL, err := url.Parse(srv.HTTP.URL)
++	if err != nil {
++		return nil, err
++	}
++	httpsURL, err := url.Parse(srv.HTTPS.URL)
++	if err != nil {
++		return nil, err
++	}
+ 	version, err := goVersion()
+ 	if err != nil {
+ 		return nil, err
+@@ -199,7 +211,9 @@ func scriptEnv() ([]string, error) {
+ 		"GOROOT_FINAL=" + testGOROOT_FINAL, // causes spurious rebuilds and breaks the "stale" built-in if not propagated
+ 		"GOTRACEBACK=system",
+ 		"TESTGO_GOROOT=" + testGOROOT,
+-		"TESTGO_VCSTEST_URL=" + vcs.VCSTestRepoURL,
++		"TESTGO_VCSTEST_HOST=" + httpURL.Host,
++		"TESTGO_VCSTEST_TLS_HOST=" + httpsURL.Host,
++		"TESTGO_VCSTEST_CERT=" + srvCertFile,
+ 		"GOSUMDB=" + testSumDBVerifierKey,
+ 		"GONOPROXY=",
+ 		"GONOSUMDB=",
+diff --git a/src/cmd/go/testdata/vcstest/auth/or401.txt b/src/cmd/go/testdata/vcstest/auth/or401.txt
+new file mode 100644
+index 0000000000..10da48d90c
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/auth/or401.txt
+@@ -0,0 +1,29 @@
++handle auth
++
++modzip vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.zip vcs-test.golang.org/auth/or401@v0.0.0-20190405155051-52df474c8a8b .moddir
++
++-- .access --
++{
++	"Username": "aladdin",
++	"Password": "opensesame",
++	"StatusCode": 401,
++	"Message": "ACCESS DENIED, buddy"
++}
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/auth/or401 mod https://vcs-test.golang.org/auth/or401">
++-- vcs-test.golang.org/auth/or401/@v/list --
++v0.0.0-20190405155051-52df474c8a8b
++-- vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.info --
++{"Version":"v0.0.0-20190405155051-52df474c8a8b","Time":"2019-04-05T15:50:51Z"}
++-- vcs-test.golang.org/auth/or401/@v/v0.0.0-20190405155051-52df474c8a8b.mod --
++module vcs-test.golang.org/auth/or401
++
++go 1.13
++-- .moddir/go.mod --
++module vcs-test.golang.org/auth/or401
++
++go 1.13
++-- .moddir/or401.go --
++package or401
+diff --git a/src/cmd/go/testdata/vcstest/auth/or404.txt b/src/cmd/go/testdata/vcstest/auth/or404.txt
+new file mode 100644
+index 0000000000..9e393c70ea
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/auth/or404.txt
+@@ -0,0 +1,30 @@
++handle auth
++
++modzip vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.zip vcs-test.golang.org/auth/or404@v0.0.0-20190405155004-2234c475880e .moddir
++
++-- .access --
++{
++	"Username": "aladdin",
++	"Password": "opensesame",
++	"StatusCode": 404,
++	"Message": "File? What file?"
++}
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/auth/or404 mod https://vcs-test.golang.org/auth/or404">
++-- vcs-test.golang.org/auth/or404/@v/list --
++v0.0.0-20190405155004-2234c475880e
++-- vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.info --
++{"Version":"v0.0.0-20190405155004-2234c475880e","Time":"2019-04-05T15:50:04Z"}
++-- vcs-test.golang.org/auth/or404/@v/v0.0.0-20190405155004-2234c475880e.mod --
++module vcs-test.golang.org/auth/or404
++
++go 1.13
++-- .moddir/go.mod --
++module vcs-test.golang.org/auth/or404
++
++go 1.13
++-- .moddir/or404.go --
++package or404
++-- vcs-test.golang.org/go/modauth404/@v/list --
+diff --git a/src/cmd/go/testdata/vcstest/auth/ormanylines.txt b/src/cmd/go/testdata/vcstest/auth/ormanylines.txt
+new file mode 100644
+index 0000000000..41cf5fe20d
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/auth/ormanylines.txt
+@@ -0,0 +1,9 @@
++handle auth
++
++-- .access --
++{
++	"Username": "aladdin",
++	"Password": "opensesame",
++	"StatusCode": 404,
++	"Message": "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16"
++}
+diff --git a/src/cmd/go/testdata/vcstest/auth/oronelongline.txt b/src/cmd/go/testdata/vcstest/auth/oronelongline.txt
+new file mode 100644
+index 0000000000..d27653aef0
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/auth/oronelongline.txt
+@@ -0,0 +1,9 @@
++handle auth
++
++-- .access --
++{
++	"Username": "aladdin",
++	"Password": "opensesame",
++	"StatusCode": 404,
++	"Message": "blahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblahblah"
++}
+diff --git a/src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt b/src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt
+new file mode 100644
+index 0000000000..40b1ef6d4e
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/custom-hg-hello.txt
+@@ -0,0 +1,4 @@
++handle dir
++
++-- index.html --
++<meta name="go-import" content="vcs-test.golang.org/go/custom-hg-hello hg https://vcs-test.golang.org/hg/custom-hg-hello">
+diff --git a/src/cmd/go/testdata/vcstest/go/insecure.txt b/src/cmd/go/testdata/vcstest/go/insecure.txt
+new file mode 100644
+index 0000000000..6eb83c31aa
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/insecure.txt
+@@ -0,0 +1,6 @@
++handle dir
++
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/insecure/go/insecure git https://vcs-test.golang.org/git/insecurerepo">
+diff --git a/src/cmd/go/testdata/vcstest/go/missingrepo.txt b/src/cmd/go/testdata/vcstest/go/missingrepo.txt
+new file mode 100644
+index 0000000000..9db6c145d5
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/missingrepo.txt
+@@ -0,0 +1,18 @@
++handle dir
++
++-- missingrepo-git/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git git https://vcs-test.golang.org/git/missingrepo">
++-- missingrepo-git/notmissing/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git/notmissing git https://vcs-test.golang.org/git/mainonly">
++-- missingrepo-git-ssh/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git-ssh git ssh://nonexistent.vcs-test.golang.org/git/missingrepo">
++-- missingrepo-git-ssh/notmissing/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/missingrepo/missingrepo-git-ssh/notmissing git https://vcs-test.golang.org/git/mainonly">
+diff --git a/src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt b/src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt
+new file mode 100644
+index 0000000000..0e727d3ffd
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/mod/gitrepo1.txt
+@@ -0,0 +1,6 @@
++handle dir
++
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/mod/gitrepo1 git https://vcs-test.golang.org/git/gitrepo1">
+diff --git a/src/cmd/go/testdata/vcstest/go/modauth404.txt b/src/cmd/go/testdata/vcstest/go/modauth404.txt
+new file mode 100644
+index 0000000000..51f25a9dee
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/modauth404.txt
+@@ -0,0 +1,6 @@
++handle dir
++
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/modauth404 mod https://vcs-test.golang.org/auth/or404">
+diff --git a/src/cmd/go/testdata/vcstest/go/test1-svn-git.txt b/src/cmd/go/testdata/vcstest/go/test1-svn-git.txt
+new file mode 100644
+index 0000000000..42dc949dad
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/test1-svn-git.txt
+@@ -0,0 +1,30 @@
++handle dir
++
++-- aaa/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git svn https://vcs-test.golang.org/svn/test1-svn-git">
++-- git-README-only/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git/git-README-only git https://vcs-test.golang.org/git/README-only">
++-- git-README-only/other/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git/git-README-only git https://vcs-test.golang.org/git/README-only">
++-- git-README-only/pkg/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git/git-README-only git https://vcs-test.golang.org/git/README-only">
++-- index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git svn https://vcs-test.golang.org/svn/test1-svn-git">
++-- other/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git svn https://vcs-test.golang.org/svn/test1-svn-git">
++-- tiny/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test1-svn-git svn https://vcs-test.golang.org/svn/test1-svn-git">
+diff --git a/src/cmd/go/testdata/vcstest/go/test2-svn-git.txt b/src/cmd/go/testdata/vcstest/go/test2-svn-git.txt
+new file mode 100644
+index 0000000000..8aae5c84d6
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/test2-svn-git.txt
+@@ -0,0 +1,26 @@
++handle dir
++
++-- test2main/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2main git https://vcs-test.golang.org/git/test2main">
++-- test2pkg/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2pkg git https://vcs-test.golang.org/git/README-only">
++-- test2pkg/pkg/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2pkg git https://vcs-test.golang.org/git/README-only">
++-- test2PKG/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">
++-- test2PKG/p1/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">
++-- test2PKG/pkg/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/test2-svn-git/test2PKG svn https://vcs-test.golang.org/svn/test2-svn-git">
+diff --git a/src/cmd/go/testdata/vcstest/go/v2module.txt b/src/cmd/go/testdata/vcstest/go/v2module.txt
+new file mode 100644
+index 0000000000..abcf2fd950
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/go/v2module.txt
+@@ -0,0 +1,6 @@
++handle dir
++
++-- v2/index.html --
++<!DOCTYPE html>
++<html>
++<meta name="go-import" content="vcs-test.golang.org/go/v2module/v2 git https://vcs-test.golang.org/git/v2repo">
+diff --git a/src/cmd/go/testdata/vcstest/insecure.txt b/src/cmd/go/testdata/vcstest/insecure.txt
+new file mode 100644
+index 0000000000..cbfb1b93df
+--- /dev/null
++++ b/src/cmd/go/testdata/vcstest/insecure.txt
+@@ -0,0 +1 @@
++handle insecure

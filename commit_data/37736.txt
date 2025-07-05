@@ -18,6 +18,32 @@ Date:   Thu Aug 23 15:05:19 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/131078
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.11.html | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 80463c4494..469e111fb8 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -88,7 +88,8 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h3 id="wasm">WebAssembly</h3>
+ <p>
+-  Go 1.11 adds an experimental port to WebAssembly (<code>js/wasm</code>).
++  Go 1.11 adds an experimental port to <a href="https://webassembly.org">WebAssembly</a>
++  (<code>js/wasm</code>).
+ </p>
+ <p>
+   Go programs currently compile to one WebAssembly module that
+@@ -109,6 +110,10 @@ Do not send CLs removing the interior tags from such phrases.
+   tools</a> except when those GOOS/GOARCH values are being used.
+   If you have existing filenames matching those patterns, you will need to rename them.
+ </p>
++<p>
++  More information can be found on the
++  <a href="https://golang.org/wiki/WebAssembly">WebAssembly wiki page</a>.
++</p>
+ 
+ <h3 id="riscv">RISC-V GOARCH values reserved</h3>
+ <p><!-- CL 106256 -->

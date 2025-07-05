@@ -15,7 +15,46 @@ Date:   Mon Aug 14 21:50:43 2017 -0700
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  4 ++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 12 ++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 2c51b5e01b..f13541068e 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1033,6 +1033,10 @@
+ (GreaterEqual (InvertFlags x)) -> (LessEqual x)
+ (GreaterEqualU (InvertFlags x)) -> (LessEqualU x)
+ 
++// Boolean-generating instructions always
++// zero upper bit of the register; no need to zero-extend
++(MOVBUreg x) && x.Type.IsBoolean() -> (MOVDreg x)
++
+ // absorb flag constants into conditional instructions
+ (CSELULT _ y (FlagEQ)) -> y
+ (CSELULT x _ (FlagLT_ULT)) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 15f1d70a6d..f87c5521bb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -3790,6 +3790,18 @@ func rewriteValueARM64_OpARM64MOVBUreg_0(v *Value) bool {
+ 		v.AuxInt = int64(uint8(c))
+ 		return true
+ 	}
++	// match: (MOVBUreg x)
++	// cond: x.Type.IsBoolean()
++	// result: (MOVDreg x)
++	for {
++		x := v.Args[0]
++		if !(x.Type.IsBoolean()) {
++			break
++		}
++		v.reset(OpARM64MOVDreg)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {

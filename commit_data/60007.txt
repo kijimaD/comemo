@@ -15,6 +15,24 @@ Date:   Mon May 13 14:59:02 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/main.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 72656dd903..3fe5cd4ee1 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -92,10 +92,11 @@ var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-en
+ 
+ func main() {
+ 	log.SetFlags(0)
+-	telemetry.StartWithUpload() // Open the telemetry counter file so counters can be written to it.
++	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
+ 	handleChdirFlag()
+ 	toolchain.Select()
+ 
++	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+ 	telemetry.Inc("go/invocations")

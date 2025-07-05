@@ -7,6 +7,27 @@ Date:   Sun Jan 4 17:58:13 2015 -0500
     Change-Id: I7b65cf3b67bef8950115066d6d12b25cd0a5edfc
     Reviewed-on: https://go-review.googlesource.com/2272
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index ee54463e27..bb832ea645 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -66,13 +66,13 @@
+ 		maps:               map[key1:value1 key2:value2]
+ 		pointer to above:   &{}, &[], &map[]
+ 
+-	Width is specified by an optional decimal number immediately following the verb.
++	Width is specified by an optional decimal number immediately preceding the verb.
+ 	If absent, the width is whatever is necessary to represent the value.
+ 	Precision is specified after the (optional) width by a period followed by a
+ 	decimal number. If no period is present, a default precision is used.
+ 	A period with no following number specifies a precision of zero.
+ 	Examples:
+-		%f:    default width, default precision
++		%f     default width, default precision
+ 		%9f    width 9, default precision
+ 		%.2f   default width, precision 2
+ 		%9.2f  width 9, precision 2

@@ -11,7 +11,52 @@ Date:   Thu Feb 16 23:42:19 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5673074
-
+---
  src/cmd/gc/typecheck.c   |  5 ++++-
  test/fixedbugs/bug418.go | 22 ++++++++++++++++++++++
  2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index b791c9e267..5bb386d8e5 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1410,7 +1410,10 @@ reswitch:
+ 
+ 	case ORETURN:
+ 		ok |= Etop;
+-		typechecklist(n->list, Erv | Efnstruct);
++		if(count(n->list) == 1)
++			typechecklist(n->list, Erv | Efnstruct);
++		else
++			typechecklist(n->list, Erv);
+ 		if(curfn == N) {
+ 			yyerror("return outside function");
+ 			goto error;
+diff --git a/test/fixedbugs/bug418.go b/test/fixedbugs/bug418.go
+new file mode 100644
+index 0000000000..c7b758feb3
+--- /dev/null
++++ b/test/fixedbugs/bug418.go
+@@ -0,0 +1,22 @@
++// errchk $G $D/$F.go
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 3044.
++// Multiple valued expressions in return lists.
++
++package p
++
++func Two() (a, b int)
++
++// F used to compile.
++func F() (x interface{}, y int) {
++	return Two(), 0 // ERROR "single-value context"
++}
++
++// Recursive used to trigger an internal compiler error.
++func Recursive() (x interface{}, y int) {
++	return Recursive(), 0 // ERROR "single-value context"
++}

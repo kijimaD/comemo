@@ -12,6 +12,67 @@ Date:   Tue Dec 7 14:51:45 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369981
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  doc/go1.18.html | 28 ++++++++++++++++++++--------
  1 file changed, 20 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 8131afffdb..06c6786bf2 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -403,6 +403,16 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+   <dd>
++    <p><!-- CL 351710 -->
++      The new <a href="/pkg/bytes/#Cut"><code>Cut</code></a> function
++      slices a <code>[]byte</code> around a separator. It can replace
++      and simplify many common uses of
++      <a href="/pkg/bytes/#Index"><code>Index</code></a>,
++      <a href="/pkg/bytes/#IndexByte"><code>IndexByte</code></a>,
++      <a href="/pkg/bytes/#IndexRune"><code>IndexRune</code></a>,
++      and <a href="/pkg/bytes/#SplitN"><code>SplitN</code></a>.
++    </p>
++
+     <p><!-- CL 323318, CL 332771 -->
+       <a href="/pkg/bytes/#Trim"><code>Trim</code></a>, <a href="/pkg/bytes/#TrimLeft"><code>TrimLeft</code></a>,
+       and <a href="/pkg/bytes/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
+@@ -414,10 +424,6 @@ Do not send CLs removing the interior tags from such phrases.
+       handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
+       <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
+     </p>
+-
+-    <p><!-- CL 351710 -->
+-      TODO: bytes.Cut.
+-    </p>
+   </dd>
+ </dl><!-- bytes -->
+ 
+@@ -709,6 +715,16 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="strings"><dt><a href="/pkg/strings/">strings</a></dt>
+   <dd>
++    <p><!-- CL 351710 -->
++      The new <a href="/pkg/strings/#Cut"><code>Cut</code></a> function
++      slices a <code>string</code> around a separator. It can replace
++      and simplify many common uses of
++      <a href="/pkg/strings/#Index"><code>Index</code></a>,
++      <a href="/pkg/strings/#IndexByte"><code>IndexByte</code></a>,
++      <a href="/pkg/strings/#IndexRune"><code>IndexRune</code></a>,
++      and <a href="/pkg/strings/#SplitN"><code>SplitN</code></a>.
++    </p>
++
+     <p><!-- CL 345849 -->
+       The new <a href="/pkg/strings/#Clone"><code>Clone</code></a> function copies the input
+       <code>string</code> without the returned cloned <code>string</code> referencing
+@@ -726,10 +742,6 @@ Do not send CLs removing the interior tags from such phrases.
+       handle Unicode punctuation and language-specific capitalization rules, and is superseded by the
+       <a href="https://golang.org/x/text/cases">golang.org/x/text/cases</a> package.
+     </p>
+-
+-    <p><!-- CL 351710 -->
+-      TODO: strings.Cut.
+-    </p>
+   </dd>
+ </dl><!-- strings -->
+ 

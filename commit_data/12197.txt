@@ -10,7 +10,71 @@ Date:   Fri Feb 24 16:25:39 2012 +1100
     R=golang-dev, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/5693057
-
+---
  src/pkg/reflect/all_test.go  | 10 ++++++++++
  src/pkg/reflect/deepequal.go | 10 ++++++++--
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index ad99587553..b21a99ec5c 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -629,6 +629,13 @@ type DeepEqualTest struct {
+ 	eq   bool
+ }
+ 
++// Simple functions for DeepEqual tests.
++var (
++	fn1 func()             // nil.
++	fn2 func()             // nil.
++	fn3 = func() { fn1() } // Not nil.
++)
++
+ var deepEqualTests = []DeepEqualTest{
+ 	// Equalities
+ 	{1, 1, true},
+@@ -641,6 +648,7 @@ var deepEqualTests = []DeepEqualTest{
+ 	{Basic{1, 0.5}, Basic{1, 0.5}, true},
+ 	{error(nil), error(nil), true},
+ 	{map[int]string{1: "one", 2: "two"}, map[int]string{2: "two", 1: "one"}, true},
++	{fn1, fn2, true},
+ 
+ 	// Inequalities
+ 	{1, 2, false},
+@@ -658,6 +666,8 @@ var deepEqualTests = []DeepEqualTest{
+ 	{map[int]string{2: "two", 1: "one"}, map[int]string{1: "one"}, false},
+ 	{nil, 1, false},
+ 	{1, nil, false},
++	{fn1, fn3, false},
++	{fn3, fn3, false},
+ 
+ 	// Nil vs empty: not the same.
+ 	{[]int{}, []int(nil), false},
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index df5ec0a609..c12e90f36c 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -108,6 +108,12 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ 			}
+ 		}
+ 		return true
++	case Func:
++		if v1.IsNil() && v2.IsNil() {
++			return true
++		}
++		// Can't do better than this:
++		return false
+ 	default:
+ 		// Normal equality suffices
+ 		return valueInterface(v1, false) == valueInterface(v2, false)
+@@ -117,8 +123,8 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ }
+ 
+ // DeepEqual tests for deep equality. It uses normal == equality where possible
+-// but will scan members of arrays, slices, and fields of structs. It correctly
+-// handles recursive types.
++// but will scan members of arrays, slices, maps, and fields of structs. It correctly
++// handles recursive types. Functions are equal only if they are both nil.
+ func DeepEqual(a1, a2 interface{}) bool {
+ 	if a1 == nil || a2 == nil {
+ 		return a1 == a2

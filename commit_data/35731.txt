@@ -16,7 +16,7 @@ Date:   Sun Mar 4 22:10:04 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_linux_386.s     |  4 +--
  src/runtime/sys_linux_amd64.s   |  8 ++---
  src/runtime/sys_linux_arm.s     |  4 +--
@@ -27,3 +27,398 @@ Date:   Sun Mar 4 22:10:04 2018 -0800
  src/runtime/vdso_linux_test.go  | 20 +++++------
  src/syscall/asm_linux_amd64.s   |  2 +-
  9 files changed, 67 insertions(+), 67 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index c45ba69e6a..830dc68302 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -221,7 +221,7 @@ noswitch:
+ 	//     4    &ts             -
+ 	//     0    CLOCK_<id>      -
+ 
+-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
++	MOVL	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPL	AX, $0
+ 	JEQ	fallback
+ 
+@@ -270,7 +270,7 @@ noswitch:
+ 	SUBL	$16, SP		// Space for results
+ 	ANDL	$~15, SP	// Align for C code
+ 
+-	MOVL	runtime·__vdso_clock_gettime_sym(SB), AX
++	MOVL	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPL	AX, $0
+ 	JEQ	fallback
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 12f86266d3..210730e405 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -200,7 +200,7 @@ noswitch:
+ 	SUBQ	$16, SP		// Space for results
+ 	ANDQ	$~15, SP	// Align for C code
+ 
+-	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
++	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPQ	AX, $0
+ 	JEQ	fallback
+ 	MOVL	$0, DI // CLOCK_REALTIME
+@@ -215,7 +215,7 @@ noswitch:
+ fallback:
+ 	LEAQ	0(SP), DI
+ 	MOVQ	$0, SI
+-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
++	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVL	8(SP), DX	// usec
+@@ -244,7 +244,7 @@ noswitch:
+ 	SUBQ	$16, SP		// Space for results
+ 	ANDQ	$~15, SP	// Align for C code
+ 
+-	MOVQ	runtime·__vdso_clock_gettime_sym(SB), AX
++	MOVQ	runtime·vdsoClockgettimeSym(SB), AX
+ 	CMPQ	AX, $0
+ 	JEQ	fallback
+ 	MOVL	$1, DI // CLOCK_MONOTONIC
+@@ -262,7 +262,7 @@ noswitch:
+ fallback:
+ 	LEAQ	0(SP), DI
+ 	MOVQ	$0, SI
+-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
++	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVL	8(SP), DX	// usec
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index c2accefaf1..2af9f29344 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -233,7 +233,7 @@ noswitch:
+ 
+ 	MOVW	$CLOCK_REALTIME, R0
+ 	MOVW	$8(R13), R1	// timespec
+-	MOVW	runtime·__vdso_clock_gettime_sym(SB), R11
++	MOVW	runtime·vdsoClockgettimeSym(SB), R11
+ 	CMP	$0, R11
+ 	B.EQ	fallback
+ 
+@@ -278,7 +278,7 @@ noswitch:
+ 
+ 	MOVW	$CLOCK_MONOTONIC, R0
+ 	MOVW	$8(R13), R1	// timespec
+-	MOVW	runtime·__vdso_clock_gettime_sym(SB), R11
++	MOVW	runtime·vdsoClockgettimeSym(SB), R11
+ 	CMP	$0, R11
+ 	B.EQ	fallback
+ 
+diff --git a/src/runtime/vdso_linux.go b/src/runtime/vdso_linux.go
+index 46b92869ab..6f4c5bb83e 100644
+--- a/src/runtime/vdso_linux.go
++++ b/src/runtime/vdso_linux.go
+@@ -64,24 +64,24 @@ const (
+ func _ELF_ST_BIND(val byte) byte { return val >> 4 }
+ func _ELF_ST_TYPE(val byte) byte { return val & 0xf }
+ 
+-type symbol_key struct {
+-	name     string
+-	sym_hash uint32
+-	gnu_hash uint32
+-	ptr      *uintptr
++type vdsoSymbolKey struct {
++	name    string
++	symHash uint32
++	gnuHash uint32
++	ptr     *uintptr
+ }
+ 
+-type version_key struct {
+-	version  string
+-	ver_hash uint32
++type vdsoVersionKey struct {
++	version string
++	verHash uint32
+ }
+ 
+-type vdso_info struct {
++type vdsoInfo struct {
+ 	valid bool
+ 
+ 	/* Load information */
+-	load_addr   uintptr
+-	load_offset uintptr /* load_addr - recorded vaddr */
++	loadAddr   uintptr
++	loadOffset uintptr /* loadAddr - recorded vaddr */
+ 
+ 	/* Symbol table */
+ 	symtab     *[vdsoSymTabSize]elfSym
+@@ -96,35 +96,35 @@ type vdso_info struct {
+ 	verdef *elfVerdef
+ }
+ 
+-var linux26 = version_key{"LINUX_2.6", 0x3ae75f6}
++var linux26 = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+ 
+-// see vdso_linux_*.go for sym_keys[] and __vdso_* vars
++// see vdso_linux_*.go for vdsoSymbolKeys[] and vdso*Sym vars
+ 
+-func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
++func vdsoInitFromSysinfoEhdr(info *vdsoInfo, hdr *elfEhdr) {
+ 	info.valid = false
+-	info.load_addr = uintptr(unsafe.Pointer(hdr))
++	info.loadAddr = uintptr(unsafe.Pointer(hdr))
+ 
+-	pt := unsafe.Pointer(info.load_addr + uintptr(hdr.e_phoff))
++	pt := unsafe.Pointer(info.loadAddr + uintptr(hdr.e_phoff))
+ 
+ 	// We need two things from the segment table: the load offset
+ 	// and the dynamic table.
+-	var found_vaddr bool
++	var foundVaddr bool
+ 	var dyn *[vdsoDynSize]elfDyn
+ 	for i := uint16(0); i < hdr.e_phnum; i++ {
+ 		pt := (*elfPhdr)(add(pt, uintptr(i)*unsafe.Sizeof(elfPhdr{})))
+ 		switch pt.p_type {
+ 		case _PT_LOAD:
+-			if !found_vaddr {
+-				found_vaddr = true
+-				info.load_offset = info.load_addr + uintptr(pt.p_offset-pt.p_vaddr)
++			if !foundVaddr {
++				foundVaddr = true
++				info.loadOffset = info.loadAddr + uintptr(pt.p_offset-pt.p_vaddr)
+ 			}
+ 
+ 		case _PT_DYNAMIC:
+-			dyn = (*[vdsoDynSize]elfDyn)(unsafe.Pointer(info.load_addr + uintptr(pt.p_offset)))
++			dyn = (*[vdsoDynSize]elfDyn)(unsafe.Pointer(info.loadAddr + uintptr(pt.p_offset)))
+ 		}
+ 	}
+ 
+-	if !found_vaddr || dyn == nil {
++	if !foundVaddr || dyn == nil {
+ 		return // Failed
+ 	}
+ 
+@@ -137,7 +137,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
+ 	info.verdef = nil
+ 	for i := 0; dyn[i].d_tag != _DT_NULL; i++ {
+ 		dt := &dyn[i]
+-		p := info.load_offset + uintptr(dt.d_val)
++		p := info.loadOffset + uintptr(dt.d_val)
+ 		switch dt.d_tag {
+ 		case _DT_STRTAB:
+ 			info.symstrings = (*[vdsoSymStringsSize]byte)(unsafe.Pointer(p))
+@@ -182,7 +182,7 @@ func vdso_init_from_sysinfo_ehdr(info *vdso_info, hdr *elfEhdr) {
+ 	info.valid = true
+ }
+ 
+-func vdso_find_version(info *vdso_info, ver *version_key) int32 {
++func vdsoFindVersion(info *vdsoInfo, ver *vdsoVersionKey) int32 {
+ 	if !info.valid {
+ 		return 0
+ 	}
+@@ -191,7 +191,7 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
+ 	for {
+ 		if def.vd_flags&_VER_FLG_BASE == 0 {
+ 			aux := (*elfVerdaux)(add(unsafe.Pointer(def), uintptr(def.vd_aux)))
+-			if def.vd_hash == ver.ver_hash && ver.version == gostringnocopy(&info.symstrings[aux.vda_name]) {
++			if def.vd_hash == ver.verHash && ver.version == gostringnocopy(&info.symstrings[aux.vda_name]) {
+ 				return int32(def.vd_ndx & 0x7fff)
+ 			}
+ 		}
+@@ -205,12 +205,12 @@ func vdso_find_version(info *vdso_info, ver *version_key) int32 {
+ 	return -1 // cannot match any version
+ }
+ 
+-func vdso_parse_symbols(info *vdso_info, version int32) {
++func vdsoParseSymbols(info *vdsoInfo, version int32) {
+ 	if !info.valid {
+ 		return
+ 	}
+ 
+-	apply := func(symIndex uint32, k symbol_key) bool {
++	apply := func(symIndex uint32, k vdsoSymbolKey) bool {
+ 		sym := &info.symtab[symIndex]
+ 		typ := _ELF_ST_TYPE(sym.st_info)
+ 		bind := _ELF_ST_BIND(sym.st_info)
+@@ -226,14 +226,14 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
+ 			return false
+ 		}
+ 
+-		*k.ptr = info.load_offset + uintptr(sym.st_value)
++		*k.ptr = info.loadOffset + uintptr(sym.st_value)
+ 		return true
+ 	}
+ 
+ 	if !info.isGNUHash {
+ 		// Old-style DT_HASH table.
+-		for _, k := range sym_keys {
+-			for chain := info.bucket[k.sym_hash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
++		for _, k := range vdsoSymbolKeys {
++			for chain := info.bucket[k.symHash%uint32(len(info.bucket))]; chain != 0; chain = info.chain[chain] {
+ 				if apply(chain, k) {
+ 					break
+ 				}
+@@ -243,14 +243,14 @@ func vdso_parse_symbols(info *vdso_info, version int32) {
+ 	}
+ 
+ 	// New-style DT_GNU_HASH table.
+-	for _, k := range sym_keys {
+-		symIndex := info.bucket[k.gnu_hash%uint32(len(info.bucket))]
++	for _, k := range vdsoSymbolKeys {
++		symIndex := info.bucket[k.gnuHash%uint32(len(info.bucket))]
+ 		if symIndex < info.symOff {
+ 			continue
+ 		}
+ 		for ; ; symIndex++ {
+ 			hash := info.chain[symIndex-info.symOff]
+-			if hash|1 == k.gnu_hash|1 {
++			if hash|1 == k.gnuHash|1 {
+ 				// Found a hash match.
+ 				if apply(symIndex, k) {
+ 					break
+@@ -271,11 +271,11 @@ func vdsoauxv(tag, val uintptr) {
+ 			// Something went wrong
+ 			return
+ 		}
+-		var info vdso_info
++		var info vdsoInfo
+ 		// TODO(rsc): I don't understand why the compiler thinks info escapes
+ 		// when passed to the three functions below.
+-		info1 := (*vdso_info)(noescape(unsafe.Pointer(&info)))
+-		vdso_init_from_sysinfo_ehdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
+-		vdso_parse_symbols(info1, vdso_find_version(info1, &linux26))
++		info1 := (*vdsoInfo)(noescape(unsafe.Pointer(&info)))
++		vdsoInitFromSysinfoEhdr(info1, (*elfEhdr)(unsafe.Pointer(val)))
++		vdsoParseSymbols(info1, vdsoFindVersion(info1, &linux26))
+ 	}
+ }
+diff --git a/src/runtime/vdso_linux_386.go b/src/runtime/vdso_linux_386.go
+index 645563ebe0..90f7af507b 100644
+--- a/src/runtime/vdso_linux_386.go
++++ b/src/runtime/vdso_linux_386.go
+@@ -11,11 +11,11 @@ const (
+ 	vdsoArrayMax = 1<<31 - 1
+ )
+ 
+-var sym_keys = []symbol_key{
+-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
++var vdsoSymbolKeys = []vdsoSymbolKey{
++	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+ 
+ // initialize to fall back to syscall
+ var (
+-	__vdso_clock_gettime_sym uintptr = 0
++	vdsoClockgettimeSym uintptr = 0
+ )
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 892b499824..387d72e0cb 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -10,13 +10,13 @@ const (
+ 	vdsoArrayMax = 1<<50 - 1
+ )
+ 
+-var sym_keys = []symbol_key{
+-	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &__vdso_gettimeofday_sym},
+-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
++var vdsoSymbolKeys = []vdsoSymbolKey{
++	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &vdsoGettimeofdaySym},
++	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+ 
+ // initialize with vsyscall fallbacks
+ var (
+-	__vdso_gettimeofday_sym  uintptr = 0xffffffffff600000
+-	__vdso_clock_gettime_sym uintptr = 0
++	vdsoGettimeofdaySym uintptr = 0xffffffffff600000
++	vdsoClockgettimeSym uintptr = 0
+ )
+diff --git a/src/runtime/vdso_linux_arm.go b/src/runtime/vdso_linux_arm.go
+index 0f5fd5a38c..143d2b5624 100644
+--- a/src/runtime/vdso_linux_arm.go
++++ b/src/runtime/vdso_linux_arm.go
+@@ -11,9 +11,9 @@ const (
+ 	vdsoArrayMax = 1<<31 - 1
+ )
+ 
+-var sym_keys = []symbol_key{
+-	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &__vdso_clock_gettime_sym},
++var vdsoSymbolKeys = []vdsoSymbolKey{
++	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
+ }
+ 
+ // initialize to fall back to syscall
+-var __vdso_clock_gettime_sym uintptr = 0
++var vdsoClockgettimeSym uintptr = 0
+diff --git a/src/runtime/vdso_linux_test.go b/src/runtime/vdso_linux_test.go
+index 890f907d22..5cc5493dc6 100644
+--- a/src/runtime/vdso_linux_test.go
++++ b/src/runtime/vdso_linux_test.go
+@@ -13,11 +13,11 @@ import (
+ 	_ "unsafe"
+ )
+ 
+-// These tests are a little risky because they overwrite the __vdso_clock_gettime_sym value.
++// These tests are a little risky because they overwrite the vdsoClockgettimeSym value.
+ // It's normally initialized at startup and remains unchanged after that.
+ 
+-//go:linkname __vdso_clock_gettime_sym runtime.__vdso_clock_gettime_sym
+-var __vdso_clock_gettime_sym uintptr
++//go:linkname vdsoClockgettimeSym runtime.vdsoClockgettimeSym
++var vdsoClockgettimeSym uintptr
+ 
+ func TestClockVDSOAndFallbackPaths(t *testing.T) {
+ 	// Check that we can call walltime() and nanotime() with and without their (1st) fast-paths.
+@@ -27,18 +27,18 @@ func TestClockVDSOAndFallbackPaths(t *testing.T) {
+ 	// Call them indirectly via time.Now(), so we don't need auxiliary .s files to allow us to
+ 	// use go:linkname to refer to the functions directly.
+ 
+-	save := __vdso_clock_gettime_sym
++	save := vdsoClockgettimeSym
+ 	if save == 0 {
+-		t.Log("__vdso_clock_gettime symbol not found; fallback path will be used by default")
++		t.Log("vdsoClockgettime symbol not found; fallback path will be used by default")
+ 	}
+ 
+ 	// Call with fast-path enabled (if vDSO symbol found at startup)
+ 	time.Now()
+ 
+ 	// Call with fast-path disabled
+-	__vdso_clock_gettime_sym = 0
++	vdsoClockgettimeSym = 0
+ 	time.Now()
+-	__vdso_clock_gettime_sym = save
++	vdsoClockgettimeSym = save
+ }
+ 
+ func BenchmarkClockVDSOAndFallbackPaths(b *testing.B) {
+@@ -49,11 +49,11 @@ func BenchmarkClockVDSOAndFallbackPaths(b *testing.B) {
+ 		}
+ 	}
+ 
+-	save := __vdso_clock_gettime_sym
++	save := vdsoClockgettimeSym
+ 	b.Run("vDSO", run)
+-	__vdso_clock_gettime_sym = 0
++	vdsoClockgettimeSym = 0
+ 	b.Run("Fallback", run)
+-	__vdso_clock_gettime_sym = save
++	vdsoClockgettimeSym = save
+ }
+ 
+ func BenchmarkTimeNow(b *testing.B) {
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index 7e05925d7f..364815df18 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -152,7 +152,7 @@ TEXT ·rawSyscallNoError(SB),NOSPLIT,$0-48
+ TEXT ·gettimeofday(SB),NOSPLIT,$0-16
+ 	MOVQ	tv+0(FP), DI
+ 	MOVQ	$0, SI
+-	MOVQ	runtime·__vdso_gettimeofday_sym(SB), AX
++	MOVQ	runtime·vdsoGettimeofdaySym(SB), AX
+ 	CALL	AX
+ 
+ 	CMPQ	AX, $0xfffffffffffff001

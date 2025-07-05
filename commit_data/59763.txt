@@ -17,7 +17,49 @@ Date:   Sat Mar 2 19:27:21 2024 -0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 14 ++++++++++++++
  src/reflect/type.go     |  5 +++--
  2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f9b2ffd4f1..5df83bef7a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6112,6 +6112,20 @@ func TestStructOfTooLarge(t *testing.T) {
+ 	}
+ }
+ 
++func TestStructOfAnonymous(t *testing.T) {
++	var s any = struct{ D1 }{}
++	f := TypeOf(s).Field(0)
++	ds := StructOf([]StructField{f})
++	st := TypeOf(s)
++	dt := New(ds).Elem()
++	if st != dt.Type() {
++		t.Errorf("StructOf returned %s, want %s", dt.Type(), st)
++	}
++
++	// This should not panic.
++	_ = dt.Interface().(struct{ D1 })
++}
++
+ func TestChanOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	type T string
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 272f0b87d1..cfefb4c27c 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2287,8 +2287,9 @@ func StructOf(fields []StructField) Type {
+ 		// Update string and hash
+ 		name := f.Name.Name()
+ 		hash = fnv1(hash, []byte(name)...)
+-		repr = append(repr, (" " + name)...)
+-		if f.Embedded() {
++		if !f.Embedded() {
++			repr = append(repr, (" " + name)...)
++		} else {
+ 			// Embedded field
+ 			if f.Typ.Kind() == abi.Pointer {
+ 				// Embedded ** and *interface{} are illegal

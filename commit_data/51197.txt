@@ -16,6 +16,23 @@ Date:   Fri Dec 10 21:17:12 2021 -0500
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/pipe_test.go | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index ab6d1ce2b6..20716bce1e 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -150,11 +150,6 @@ func TestStdPipeHelper(t *testing.T) {
+ }
+ 
+ func testClosedPipeRace(t *testing.T, read bool) {
+-	switch runtime.GOOS {
+-	case "freebsd":
+-		t.Skip("FreeBSD does not use the poller; issue 19093")
+-	}
+-
+ 	limit := 1
+ 	if !read {
+ 		// Get the amount we have to write to overload a pipe

@@ -17,6 +17,21 @@ Date:   Sun Sep 10 04:33:34 2023 +0000
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/const.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 2ac489aeef..9ad37033fd 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -305,8 +305,7 @@ func toint(v constant.Value) constant.Value {
+ 	}
+ 
+ 	// Prevent follow-on errors.
+-	// TODO(mdempsky): Use constant.MakeUnknown() instead.
+-	return constant.MakeInt64(1)
++	return constant.MakeUnknown()
+ }
+ 
+ func tostr(v constant.Value) constant.Value {

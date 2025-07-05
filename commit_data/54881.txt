@@ -15,7 +15,7 @@ Date:   Wed Nov 16 12:56:40 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/internal/objabi/stack.go          | 21 +++++++++++++++------
  src/cmd/link/internal/ld/stackcheck.go    |  2 +-
  src/runtime/internal/sys/consts.go        |  4 +++-
@@ -23,3 +23,119 @@ Date:   Wed Nov 16 12:56:40 2022 -0800
  src/runtime/internal/sys/consts_race.go   |  9 +++++++++
  src/runtime/stack.go                      |  2 ++
  6 files changed, 39 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index 80bd1c0799..88b4990d5e 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -15,17 +15,26 @@ const (
+ 	StackSmall  = 128
+ )
+ 
+-// Initialize StackGuard and StackLimit according to target system.
+-var StackGuard = 928*stackGuardMultiplier() + StackSystem
+-var StackLimit = StackGuard - StackSystem - StackSmall
++func StackLimit(race bool) int {
++	// This arithmetic must match that in runtime/stack.go:{_StackGuard,_StackLimit}.
++	stackGuard := 928*stackGuardMultiplier(race) + StackSystem
++	stackLimit := stackGuard - StackSystem - StackSmall
++	return stackLimit
++}
+ 
+ // stackGuardMultiplier returns a multiplier to apply to the default
+ // stack guard size. Larger multipliers are used for non-optimized
+ // builds that have larger stack frames or for specific targets.
+-func stackGuardMultiplier() int {
++func stackGuardMultiplier(race bool) int {
++	// This arithmetic must match that in runtime/internal/sys/consts.go:StackGuardMultiplier.
++	n := 1
+ 	// On AIX, a larger stack is needed for syscalls.
+ 	if buildcfg.GOOS == "aix" {
+-		return 2
++		n += 1
++	}
++	// The race build also needs more stack.
++	if race {
++		n += 1
+ 	}
+-	return 1
++	return n
+ }
+diff --git a/src/cmd/link/internal/ld/stackcheck.go b/src/cmd/link/internal/ld/stackcheck.go
+index f0e1367068..c82dafe51e 100644
+--- a/src/cmd/link/internal/ld/stackcheck.go
++++ b/src/cmd/link/internal/ld/stackcheck.go
+@@ -61,7 +61,7 @@ func (ctxt *Link) doStackCheck() {
+ 	// The call to morestack in every splittable function ensures
+ 	// that there are at least StackLimit bytes available below SP
+ 	// when morestack returns.
+-	limit := objabi.StackLimit - sc.callSize
++	limit := objabi.StackLimit(*flagRace) - sc.callSize
+ 	if buildcfg.GOARCH == "arm64" {
+ 		// Need an extra 8 bytes below SP to save FP.
+ 		limit -= 8
+diff --git a/src/runtime/internal/sys/consts.go b/src/runtime/internal/sys/consts.go
+index c603716580..98c0f09ef1 100644
+--- a/src/runtime/internal/sys/consts.go
++++ b/src/runtime/internal/sys/consts.go
+@@ -10,7 +10,9 @@ import (
+ )
+ 
+ // AIX requires a larger stack for syscalls.
+-const StackGuardMultiplier = 1*(1-goos.IsAix) + 2*goos.IsAix
++// The race build also needs more stack. See issue 54291.
++// This arithmetic must match that in cmd/internal/objabi/stack.go:stackGuardMultiplier.
++const StackGuardMultiplier = 1 + goos.IsAix + isRace
+ 
+ // DefaultPhysPageSize is the default physical page size.
+ const DefaultPhysPageSize = goarch.DefaultPhysPageSize
+diff --git a/src/runtime/internal/sys/consts_norace.go b/src/runtime/internal/sys/consts_norace.go
+new file mode 100644
+index 0000000000..a9613b8843
+--- /dev/null
++++ b/src/runtime/internal/sys/consts_norace.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !race
++
++package sys
++
++const isRace = 0
+diff --git a/src/runtime/internal/sys/consts_race.go b/src/runtime/internal/sys/consts_race.go
+new file mode 100644
+index 0000000000..f824fb39d3
+--- /dev/null
++++ b/src/runtime/internal/sys/consts_race.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build race
++
++package sys
++
++const isRace = 1
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 546f997881..d5e587a209 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -98,6 +98,7 @@ const (
+ 	// The guard leaves enough room for one _StackSmall frame plus
+ 	// a _StackLimit chain of NOSPLIT calls plus _StackSystem
+ 	// bytes for the OS.
++	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+ 	_StackGuard = 928*sys.StackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+@@ -107,6 +108,7 @@ const (
+ 
+ 	// The maximum number of bytes that a chain of NOSPLIT
+ 	// functions can use.
++	// This arithmetic must match that in cmd/internal/objabi/stack.go:StackLimit.
+ 	_StackLimit = _StackGuard - _StackSystem - _StackSmall
+ )
+ 

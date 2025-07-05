@@ -10,10 +10,320 @@ Date:   Fri Mar 11 10:27:25 2011 -0800
     R=rsc, r, eds
     CC=golang-dev
     https://golang.org/cl/4259065
-
+---
  src/cmd/Makefile         |   1 +
  src/cmd/gotype/Makefile  |  11 +++
  src/cmd/gotype/doc.go    |  57 ++++++++++++++
  src/cmd/gotype/gotype.go | 191 +++++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/Makefile         |   2 +
  5 files changed, 262 insertions(+)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 104e9f5df3..779bd44c79 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -43,6 +43,7 @@ CLEANDIRS=\
+ 	godoc\
+ 	gofmt\
+ 	goinstall\
++	gotype\
+ 	goyacc\
+ 	hgpatch\
+ 
+diff --git a/src/cmd/gotype/Makefile b/src/cmd/gotype/Makefile
+new file mode 100644
+index 0000000000..ac9e3bef44
+--- /dev/null
++++ b/src/cmd/gotype/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.inc
++
++TARG=gotype
++GOFILES=\
++	gotype.go\
++
++include ../../Make.cmd
+diff --git a/src/cmd/gotype/doc.go b/src/cmd/gotype/doc.go
+new file mode 100644
+index 0000000000..1bd4b5f6cf
+--- /dev/null
++++ b/src/cmd/gotype/doc.go
+@@ -0,0 +1,57 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++The gotype command does syntactic and semantic analysis of Go files
++and packages similar to the analysis performed by the front-end of
++a Go compiler. Errors are reported if the analysis fails; otherwise
++gotype is quiet (unless -v is set).
++
++Without a list of paths, gotype processes the standard input, which must
++be the source of a single package file.
++
++Given a list of file names, each file must be a source file belonging to
++the same package unless the package name is explicitly specified with the
++-p flag.
++
++Given a directory name, gotype collects all .go files in the directory
++and processes them as if they were provided as an explicit list of file
++names. Each directory is processed independently. Files starting with .
++or not ending in .go are ignored.
++
++Usage:
++	gotype [flags] [path ...]
++
++The flags are:
++	-p pkgName
++		process only those files in package pkgName.
++	-r
++		recursively process subdirectories.
++	-v
++		verbose mode.
++
++Debugging flags:
++	-trace
++		print parse trace (disables concurrent parsing).
++	-ast
++		print AST (disables concurrent parsing).
++
++
++Examples
++
++To check the files file.go, old.saved, and .ignored:
++
++	gotype file.go old.saved .ignored
++
++To check all .go files belonging to package main in the current directory
++and recursively in all subdirectories:
++
++	gotype -p main -r .
++
++To verify the output of a pipe:
++
++	echo "package foo" | gotype
++
++*/
++package documentation
+diff --git a/src/cmd/gotype/gotype.go b/src/cmd/gotype/gotype.go
+new file mode 100644
+index 0000000000..435f1aa941
+--- /dev/null
++++ b/src/cmd/gotype/gotype.go
+@@ -0,0 +1,191 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"go/ast"
++	"go/parser"
++	"go/scanner"
++	"go/token"
++	"io/ioutil"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++
++var (
++	// main operation modes
++	pkgName   = flag.String("p", "", "process only those files in package pkgName")
++	recursive = flag.Bool("r", false, "recursively process subdirectories")
++	verbose   = flag.Bool("v", false, "verbose mode")
++
++	// debugging support
++	printTrace = flag.Bool("trace", false, "print parse trace")
++	printAST   = flag.Bool("ast", false, "print AST")
++)
++
++
++var (
++	fset       = token.NewFileSet()
++	exitCode   = 0
++	parserMode = parser.DeclarationErrors
++)
++
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "usage: gotype [flags] [path ...]\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++
++func processFlags() {
++	flag.Usage = usage
++	flag.Parse()
++	if *printTrace {
++		parserMode |= parser.Trace
++	}
++}
++
++
++func report(err os.Error) {
++	scanner.PrintError(os.Stderr, err)
++	exitCode = 2
++}
++
++
++// parseFile returns the AST for the given file.
++// The result
++func parseFile(filename string) *ast.File {
++	if *verbose {
++		fmt.Println(filename)
++	}
++
++	// get source
++	src, err := ioutil.ReadFile(filename)
++	if err != nil {
++		report(err)
++		return nil
++	}
++
++	// ignore files with different package name
++	if *pkgName != "" {
++		file, err := parser.ParseFile(fset, filename, src, parser.PackageClauseOnly)
++		if err != nil {
++			report(err)
++			return nil
++		}
++		if file.Name.Name != *pkgName {
++			if *verbose {
++				fmt.Printf("\tignored (package %s)\n", file.Name.Name)
++			}
++			return nil
++		}
++	}
++
++	// parse entire file
++	file, err := parser.ParseFile(fset, filename, src, parserMode)
++	if err != nil {
++		report(err)
++		return nil
++	}
++	if *printAST {
++		ast.Print(fset, file)
++	}
++
++	return file
++}
++
++
++// BUG(gri): At the moment, only single-file scope analysis is performed.
++
++func processPackage(filenames []string) {
++	var files []*ast.File
++	pkgName := ""
++	for _, filename := range filenames {
++		file := parseFile(filename)
++		if file == nil {
++			continue // ignore file
++		}
++		// package names must match
++		// TODO(gri): this check should be moved into a
++		//            function making the package below
++		if pkgName == "" {
++			// first package file
++			pkgName = file.Name.Name
++		} else {
++			if file.Name.Name != pkgName {
++				report(os.NewError(fmt.Sprintf("file %q is in package %q not %q", filename, file.Name.Name, pkgName)))
++				continue
++			}
++		}
++		files = append(files, file)
++	}
++
++	// TODO(gri): make a ast.Package and analyze it
++	_ = files
++}
++
++
++func isGoFilename(filename string) bool {
++	// ignore non-Go files
++	return !strings.HasPrefix(filename, ".") && strings.HasSuffix(filename, ".go")
++}
++
++
++func processDirectory(dirname string) {
++	f, err := os.Open(dirname, os.O_RDONLY, 0)
++	if err != nil {
++		report(err)
++		return
++	}
++	filenames, err := f.Readdirnames(-1)
++	f.Close()
++	if err != nil {
++		report(err)
++		// continue since filenames may not be empty
++	}
++	for i, filename := range filenames {
++		filenames[i] = filepath.Join(dirname, filename)
++	}
++	processFiles(filenames, false)
++}
++
++
++func processFiles(filenames []string, allFiles bool) {
++	i := 0
++	for _, filename := range filenames {
++		switch info, err := os.Stat(filename); {
++		case err != nil:
++			report(err)
++		case info.IsRegular():
++			if allFiles || isGoFilename(info.Name) {
++				filenames[i] = filename
++				i++
++			}
++		case info.IsDirectory():
++			if allFiles || *recursive {
++				processDirectory(filename)
++			}
++		}
++	}
++	processPackage(filenames[0:i])
++}
++
++
++func main() {
++	processFlags()
++
++	if flag.NArg() == 0 {
++		processPackage([]string{os.Stdin.Name()})
++	} else {
++		processFiles(flag.Args(), true)
++	}
++
++	os.Exit(exitCode)
++}
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 31d7e1a682..ccba63b6aa 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -156,6 +156,7 @@ DIRS=\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gofmt\
++	../cmd/gotype\
+ 	../cmd/goinstall\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+@@ -191,6 +192,7 @@ NOTEST=\
+ 	../cmd/ebnflint\
+ 	../cmd/godoc\
+ 	../cmd/gofmt\
++	../cmd/gotype\
+ 	../cmd/govet\
+ 	../cmd/goyacc\
+ 	../cmd/hgpatch\

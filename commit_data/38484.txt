@@ -20,7 +20,7 @@ Date:   Thu Nov 1 08:02:46 2018 +0000
     Reviewed-by: Yuval Pavel Zholkover <paulzhol@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/at.go                |  2 +-
  src/internal/syscall/unix/at_freebsd.go        | 47 ++++++++++++++++++++++++++
  src/internal/syscall/unix/at_sysnum_freebsd.go | 14 --------
@@ -32,3 +32,249 @@ Date:   Thu Nov 1 08:02:46 2018 +0000
  src/syscall/zsyscall_freebsd_amd64.go          | 15 ++++++++
  src/syscall/zsyscall_freebsd_arm.go            | 15 ++++++++
  10 files changed, 112 insertions(+), 19 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 1c05d2abe3..c007c87b20 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin freebsd openbsd netbsd dragonfly
++// +build linux darwin openbsd netbsd dragonfly
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/at_freebsd.go b/src/internal/syscall/unix/at_freebsd.go
+new file mode 100644
+index 0000000000..e171f4dbb5
+--- /dev/null
++++ b/src/internal/syscall/unix/at_freebsd.go
+@@ -0,0 +1,47 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++const (
++	AT_REMOVEDIR        = 0x800
++	AT_SYMLINK_NOFOLLOW = 0x200
++)
++
++func Unlinkat(dirfd int, path string, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall.Syscall(syscall.SYS_UNLINKAT, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags))
++	if errno != 0 {
++		return errno
++	}
++
++	return nil
++}
++
++func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return 0, err
++	}
++
++	fd, _, errno := syscall.Syscall6(syscall.SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
++	if errno != 0 {
++		return 0, errno
++	}
++
++	return int(fd), nil
++}
++
++func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
++	return syscall.Fstatat(dirfd, path, stat, flags)
++}
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+deleted file mode 100644
+index fe45e296d7..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+-const AT_REMOVEDIR = 0x800
+-const AT_SYMLINK_NOFOLLOW = 0x200
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index b7ed2aa6d4..12d8152bec 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux darwin openbsd netbsd dragonfly solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 02af047d6e..f8af0da87f 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !linux,!darwin,!openbsd,!netbsd,!dragonfly,!solaris
++// +build !linux,!darwin,!freebsd,!openbsd,!netbsd,!dragonfly,!solaris
+ 
+ package os
+ 
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 93a6733d6a..4daf8c298b 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -162,7 +162,7 @@ func TestRemoveAllLarge(t *testing.T) {
+ 
+ func TestRemoveAllLongPath(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
++	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")
+@@ -212,7 +212,7 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 
+ func TestRemoveAllDot(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "linux", "darwin", "openbsd", "netbsd", "dragonfly", "solaris":
++	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly", "solaris":
+ 		break
+ 	default:
+ 		t.Skip("skipping for not implemented platforms")
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index d6f75098c0..19ace227d5 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -223,6 +223,20 @@ func Fstat(fd int, st *Stat_t) (err error) {
+ 	return nil
+ }
+ 
++func Fstatat(fd int, path string, st *Stat_t, flags int) (err error) {
++	var oldStat stat_freebsd11_t
++	if supportsABI(_ino64First) {
++		return fstatat_freebsd12(fd, path, st, flags)
++	}
++	err = fstatat(fd, path, &oldStat, flags)
++	if err != nil {
++		return err
++	}
++
++	st.convertFrom(&oldStat)
++	return nil
++}
++
+ func Statfs(path string, st *Statfs_t) (err error) {
+ 	var oldStatfs statfs_freebsd11_t
+ 	if supportsABI(_ino64First) {
+@@ -403,6 +417,7 @@ func convertFromDirents11(buf []byte, old []byte) int {
+ //sys	Fpathconf(fd int, name int) (val int, err error)
+ //sys	fstat(fd int, stat *stat_freebsd11_t) (err error)
+ //sys	fstat_freebsd12(fd int, stat *Stat_t) (err error) = _SYS_FSTAT_FREEBSD12
++//sys	fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error)
+ //sys	fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) = _SYS_FSTATAT_FREEBSD12
+ //sys	fstatfs(fd int, stat *statfs_freebsd11_t) (err error)
+ //sys	fstatfs_freebsd12(fd int, stat *Statfs_t) (err error) = _SYS_FSTATFS_FREEBSD12
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index ba7ea27f8d..8f4234c7e9 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -483,6 +483,21 @@ func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index 4b519a7f7f..baa7d68a7d 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -483,6 +483,21 @@ func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index e89707654b..16e4bc5414 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -483,6 +483,21 @@ func fstat_freebsd12(fd int, stat *Stat_t) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func fstatat(fd int, path string, stat *stat_freebsd11_t, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := Syscall6(SYS_FSTATAT, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func fstatat_freebsd12(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)

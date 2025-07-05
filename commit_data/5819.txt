@@ -7,9 +7,91 @@ Date:   Thu Jul 15 15:05:56 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1742044
-
+---
  src/cmd/gc/go.h                    |  2 ++
  src/cmd/gc/go.y                    | 27 +++++++++++++++++++++++++--
  src/cmd/gc/lex.c                   |  6 ++++++
  test/{bugs => fixedbugs}/bug274.go |  0
  4 files changed, 33 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 99e369ecaa..f7591515fa 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -914,6 +914,8 @@ char*	lexname(int lex);
+ void	mkpackage(char* pkgname);
+ void	unimportfile(void);
+ int32	yylex(void);
++extern	int	yylast;
++extern	int	yyprev;
+ 
+ /*
+  *	mparith1.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c46abaa564..8ded62be5a 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -515,10 +515,33 @@ switch_body:
+ 	}
+ 
+ caseblock:
+-	case stmt_list
++	case
+ 	{
++		// If the last token read by the lexer was consumed
++		// as part of the case, clear it (parser has cleared yychar).
++		// If the last token read by the lexer was the lookahead
++		// leave it alone (parser has it cached in yychar).
++		// This is so that the stmt_list action doesn't look at
++		// the case tokens if the stmt_list is empty.
++		yylast = yychar;
++	}
++	stmt_list
++	{
++		int last;
++
++		// This is the only place in the language where a statement
++		// list is not allowed to drop the final semicolon, because
++		// it's the only place where a statement list is not followed 
++		// by a closing brace.  Handle the error for pedantry.
++
++		// Find the final token of the statement list.
++		// yylast is lookahead; yyprev is last of stmt_list
++		last = yyprev;
++
++		if(last > 0 && last != ';' && yychar != '}')
++			yyerror("missing statement after label");
+ 		$$ = $1;
+-		$$->nbody = $2;
++		$$->nbody = $3;
+ 	}
+ 
+ caseblock_list:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7b93001626..4399e28bd6 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -14,6 +14,8 @@
+ 
+ extern int yychar;
+ int windows;
++int yyprev;
++int yylast;
+ 
+ static void	lexinit(void);
+ static void	lexfini(void);
+@@ -1140,6 +1142,10 @@ yylex(void)
+ 		curio.nlsemi = 0;
+ 		break;
+ 	}
++
++	// Track last two tokens returned by yylex.
++	yyprev = yylast;
++	yylast = lx;
+ 	return lx;
+ }
+ 
+diff --git a/test/bugs/bug274.go b/test/fixedbugs/bug274.go
+similarity index 100%
+rename from test/bugs/bug274.go
+rename to test/fixedbugs/bug274.go

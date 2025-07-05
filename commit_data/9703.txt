@@ -9,7 +9,41 @@ Date:   Thu Sep 15 14:09:53 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5011051
-
+---
  src/pkg/http/client.go   | 7 ++++++-
  src/pkg/http/response.go | 4 ++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 44b3443fc4..8997a07923 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -76,7 +76,12 @@ type readClose struct {
+ // Do sends an HTTP request and returns an HTTP response, following
+ // policy (e.g. redirects, cookies, auth) as configured on the client.
+ //
+-// Callers should close resp.Body when done reading from it.
++// A non-nil response always contains a non-nil resp.Body.
++//
++// Callers should close resp.Body when done reading from it. If
++// resp.Body is not closed, the Client's underlying RoundTripper
++// (typically Transport) may not be able to re-use a persistent TCP
++// connection to the server for a subsequent "keep-alive" request.
+ //
+ // Generally Get, Post, or PostForm will be used instead of Do.
+ func (c *Client) Do(req *Request) (resp *Response, err os.Error) {
+diff --git a/src/pkg/http/response.go b/src/pkg/http/response.go
+index 915327a69e..b01a303a12 100644
+--- a/src/pkg/http/response.go
++++ b/src/pkg/http/response.go
+@@ -41,6 +41,10 @@ type Response struct {
+ 	Header Header
+ 
+ 	// Body represents the response body.
++	//
++	// The http Client and Transport guarantee that Body is always
++	// non-nil, even on responses without a body or responses with
++	// a zero-lengthed body.
+ 	Body io.ReadCloser
+ 
+ 	// ContentLength records the length of the associated content.  The

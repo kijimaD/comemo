@@ -10,6 +10,20 @@ Date:   Tue Nov 2 11:05:03 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/360797
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index b73d5a8ce2..ab3cdb86d3 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -59,7 +59,7 @@ func Is(err, target error) bool {
+ 	}
+ }
+ 
+-// As finds the first error in err's chain that matches target, and if so, sets
++// As finds the first error in err's chain that matches target, and if one is found, sets
+ // target to that error value and returns true. Otherwise, it returns false.
+ //
+ // The chain consists of err itself followed by the sequence of errors obtained by

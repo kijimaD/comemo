@@ -11,7 +11,7 @@ Date:   Sun Nov 12 10:04:15 2023 +0000
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/types2/typeparam.go |  4 ++--
  src/cmd/go/internal/trace/trace.go           |  8 ++++----
  src/expvar/expvar.go                         | 10 +++++-----
@@ -21,3 +21,252 @@ Date:   Sun Nov 12 10:04:15 2023 +0000
  src/sync/poolqueue.go                        | 14 +++++++-------
  src/testing/benchmark.go                     | 14 +++++++-------
  8 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 42b1a63915..5c6030b3fb 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -9,11 +9,11 @@ import "sync/atomic"
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+-var lastID uint32
++var lastID atomic.Uint32
+ 
+ // nextID returns a value increasing monotonically by 1 with
+ // each call, starting with 1. It may be called concurrently.
+-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
++func nextID() uint64 { return uint64(lastID.Add(1)) }
+ 
+ // A TypeParam represents a type parameter type.
+ type TypeParam struct {
+diff --git a/src/cmd/go/internal/trace/trace.go b/src/cmd/go/internal/trace/trace.go
+index d69dc4feac..17d3ee9e7f 100644
+--- a/src/cmd/go/internal/trace/trace.go
++++ b/src/cmd/go/internal/trace/trace.go
+@@ -121,8 +121,8 @@ func (s *Span) Done() {
+ type tracer struct {
+ 	file chan traceFile // 1-buffered
+ 
+-	nextTID    uint64
+-	nextFlowID uint64
++	nextTID    atomic.Uint64
++	nextFlowID atomic.Uint64
+ }
+ 
+ func (t *tracer) writeEvent(ev *traceviewer.Event) error {
+@@ -161,11 +161,11 @@ func (t *tracer) Close() error {
+ }
+ 
+ func (t *tracer) getNextTID() uint64 {
+-	return atomic.AddUint64(&t.nextTID, 1)
++	return t.nextTID.Add(1)
+ }
+ 
+ func (t *tracer) getNextFlowID() uint64 {
+-	return atomic.AddUint64(&t.nextFlowID, 1)
++	return t.nextFlowID.Add(1)
+ }
+ 
+ // traceKey is the context key for tracing information. It is unexported to prevent collisions with context keys defined in
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 32e855f6c5..954d63d17f 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -50,11 +50,11 @@ type jsonVar interface {
+ 
+ // Int is a 64-bit integer variable that satisfies the [Var] interface.
+ type Int struct {
+-	i int64
++	i atomic.Int64
+ }
+ 
+ func (v *Int) Value() int64 {
+-	return atomic.LoadInt64(&v.i)
++	return v.i.Load()
+ }
+ 
+ func (v *Int) String() string {
+@@ -62,15 +62,15 @@ func (v *Int) String() string {
+ }
+ 
+ func (v *Int) appendJSON(b []byte) []byte {
+-	return strconv.AppendInt(b, atomic.LoadInt64(&v.i), 10)
++	return strconv.AppendInt(b, v.i.Load(), 10)
+ }
+ 
+ func (v *Int) Add(delta int64) {
+-	atomic.AddInt64(&v.i, delta)
++	v.i.Add(delta)
+ }
+ 
+ func (v *Int) Set(value int64) {
+-	atomic.StoreInt64(&v.i, value)
++	v.i.Store(value)
+ }
+ 
+ // Float is a 64-bit float variable that satisfies the [Var] interface.
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index b23601dc3f..a13f86c213 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -11,11 +11,11 @@ import "sync/atomic"
+ // Note: This is a uint32 rather than a uint64 because the
+ // respective 64 bit atomic instructions are not available
+ // on all platforms.
+-var lastID uint32
++var lastID atomic.Uint32
+ 
+ // nextID returns a value increasing monotonically by 1 with
+ // each call, starting with 1. It may be called concurrently.
+-func nextID() uint64 { return uint64(atomic.AddUint32(&lastID, 1)) }
++func nextID() uint64 { return uint64(lastID.Add(1)) }
+ 
+ // A TypeParam represents a type parameter type.
+ type TypeParam struct {
+diff --git a/src/internal/fuzz/pcg.go b/src/internal/fuzz/pcg.go
+index c9ea0afcf8..4fe8aeb50c 100644
+--- a/src/internal/fuzz/pcg.go
++++ b/src/internal/fuzz/pcg.go
+@@ -30,7 +30,7 @@ type mutatorRand interface {
+ // creation and use, no reproducibility, no concurrency safety, just the
+ // necessary methods, optimized for speed.
+ 
+-var globalInc uint64 // PCG stream
++var globalInc atomic.Uint64 // PCG stream
+ 
+ const multiplier uint64 = 6364136223846793005
+ 
+@@ -63,7 +63,7 @@ func newPcgRand() *pcgRand {
+ 	if seed := godebugSeed(); seed != nil {
+ 		now = uint64(*seed)
+ 	}
+-	inc := atomic.AddUint64(&globalInc, 1)
++	inc := globalInc.Add(1)
+ 	r.state = now
+ 	r.inc = (inc << 1) | 1
+ 	r.step()
+diff --git a/src/sync/export_test.go b/src/sync/export_test.go
+index c020ef737d..b55cecd987 100644
+--- a/src/sync/export_test.go
++++ b/src/sync/export_test.go
+@@ -23,7 +23,7 @@ func NewPoolDequeue(n int) PoolDequeue {
+ 	}
+ 	// For testing purposes, set the head and tail indexes close
+ 	// to wrapping around.
+-	d.headTail = d.pack(1<<dequeueBits-500, 1<<dequeueBits-500)
++	d.headTail.Store(d.pack(1<<dequeueBits-500, 1<<dequeueBits-500))
+ 	return d
+ }
+ 
+diff --git a/src/sync/poolqueue.go b/src/sync/poolqueue.go
+index 631f2c15fd..5c640f988a 100644
+--- a/src/sync/poolqueue.go
++++ b/src/sync/poolqueue.go
+@@ -31,7 +31,7 @@ type poolDequeue struct {
+ 	// The head index is stored in the most-significant bits so
+ 	// that we can atomically add to it and the overflow is
+ 	// harmless.
+-	headTail uint64
++	headTail atomic.Uint64
+ 
+ 	// vals is a ring buffer of interface{} values stored in this
+ 	// dequeue. The size of this must be a power of 2.
+@@ -78,7 +78,7 @@ func (d *poolDequeue) pack(head, tail uint32) uint64 {
+ // pushHead adds val at the head of the queue. It returns false if the
+ // queue is full. It must only be called by a single producer.
+ func (d *poolDequeue) pushHead(val any) bool {
+-	ptrs := atomic.LoadUint64(&d.headTail)
++	ptrs := d.headTail.Load()
+ 	head, tail := d.unpack(ptrs)
+ 	if (tail+uint32(len(d.vals)))&(1<<dequeueBits-1) == head {
+ 		// Queue is full.
+@@ -102,7 +102,7 @@ func (d *poolDequeue) pushHead(val any) bool {
+ 
+ 	// Increment head. This passes ownership of slot to popTail
+ 	// and acts as a store barrier for writing the slot.
+-	atomic.AddUint64(&d.headTail, 1<<dequeueBits)
++	d.headTail.Add(1 << dequeueBits)
+ 	return true
+ }
+ 
+@@ -112,7 +112,7 @@ func (d *poolDequeue) pushHead(val any) bool {
+ func (d *poolDequeue) popHead() (any, bool) {
+ 	var slot *eface
+ 	for {
+-		ptrs := atomic.LoadUint64(&d.headTail)
++		ptrs := d.headTail.Load()
+ 		head, tail := d.unpack(ptrs)
+ 		if tail == head {
+ 			// Queue is empty.
+@@ -124,7 +124,7 @@ func (d *poolDequeue) popHead() (any, bool) {
+ 		// slot.
+ 		head--
+ 		ptrs2 := d.pack(head, tail)
+-		if atomic.CompareAndSwapUint64(&d.headTail, ptrs, ptrs2) {
++		if d.headTail.CompareAndSwap(ptrs, ptrs2) {
+ 			// We successfully took back slot.
+ 			slot = &d.vals[head&uint32(len(d.vals)-1)]
+ 			break
+@@ -147,7 +147,7 @@ func (d *poolDequeue) popHead() (any, bool) {
+ func (d *poolDequeue) popTail() (any, bool) {
+ 	var slot *eface
+ 	for {
+-		ptrs := atomic.LoadUint64(&d.headTail)
++		ptrs := d.headTail.Load()
+ 		head, tail := d.unpack(ptrs)
+ 		if tail == head {
+ 			// Queue is empty.
+@@ -158,7 +158,7 @@ func (d *poolDequeue) popTail() (any, bool) {
+ 		// above) and increment tail. If this succeeds, then
+ 		// we own the slot at tail.
+ 		ptrs2 := d.pack(head, tail+1)
+-		if atomic.CompareAndSwapUint64(&d.headTail, ptrs, ptrs2) {
++		if d.headTail.CompareAndSwap(ptrs, ptrs2) {
+ 			// Success.
+ 			slot = &d.vals[tail&uint32(len(d.vals)-1)]
+ 			break
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index b197ea37bc..9491213ef1 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -727,16 +727,16 @@ func (b *B) trimOutput() {
+ 
+ // A PB is used by RunParallel for running parallel benchmarks.
+ type PB struct {
+-	globalN *uint64 // shared between all worker goroutines iteration counter
+-	grain   uint64  // acquire that many iterations from globalN at once
+-	cache   uint64  // local cache of acquired iterations
+-	bN      uint64  // total number of iterations to execute (b.N)
++	globalN *atomic.Uint64 // shared between all worker goroutines iteration counter
++	grain   uint64         // acquire that many iterations from globalN at once
++	cache   uint64         // local cache of acquired iterations
++	bN      uint64         // total number of iterations to execute (b.N)
+ }
+ 
+ // Next reports whether there are more iterations to execute.
+ func (pb *PB) Next() bool {
+ 	if pb.cache == 0 {
+-		n := atomic.AddUint64(pb.globalN, pb.grain)
++		n := pb.globalN.Add(pb.grain)
+ 		if n <= pb.bN {
+ 			pb.cache = pb.grain
+ 		} else if n < pb.bN+pb.grain {
+@@ -782,7 +782,7 @@ func (b *B) RunParallel(body func(*PB)) {
+ 		grain = 1e4
+ 	}
+ 
+-	n := uint64(0)
++	var n atomic.Uint64
+ 	numProcs := b.parallelism * runtime.GOMAXPROCS(0)
+ 	var wg sync.WaitGroup
+ 	wg.Add(numProcs)
+@@ -798,7 +798,7 @@ func (b *B) RunParallel(body func(*PB)) {
+ 		}()
+ 	}
+ 	wg.Wait()
+-	if n <= uint64(b.N) && !b.Failed() {
++	if n.Load() <= uint64(b.N) && !b.Failed() {
+ 		b.Fatal("RunParallel: body exited without pb.Next() == false")
+ 	}
+ }

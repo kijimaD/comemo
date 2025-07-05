@@ -7,6 +7,32 @@ Date:   Tue Jul 12 09:26:05 2011 -0700
     TBR=dvyukov
     CC=golang-dev
     https://golang.org/cl/4710041
-
+---
  src/pkg/runtime/proc.c | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 41a8a1b4df..133203a3ac 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -210,8 +210,11 @@ runtime·idlegoroutine(void)
+ static void
+ mcommoninit(M *m)
+ {
++	// Add to runtime·allm so garbage collector doesn't free m
++	// when it is just in a register or thread-local storage.
+ 	m->alllink = runtime·allm;
+ 	runtime·allm = m;
++
+ 	m->id = runtime·sched.mcount++;
+ 	m->fastrand = 0x49f6428aUL + m->id;
+ 	m->stackalloc = runtime·malloc(sizeof(*m->stackalloc));
+@@ -502,8 +505,6 @@ matchmg(void)
+ 		// Find the m that will run g.
+ 		if((m = mget(g)) == nil){
+ 			m = runtime·malloc(sizeof(M));
+-			// Add to runtime·allm so garbage collector doesn't free m
+-			// when it is just in a register or thread-local storage.
+ 			mcommoninit(m);
+ 
+ 			if(runtime·iscgo) {

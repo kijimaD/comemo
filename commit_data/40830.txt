@@ -21,8 +21,160 @@ Date:   Mon Jul 15 11:33:26 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/reboot/experiment_toolid_test.go | 101 ++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/buildid.go   |   5 +-
  src/cmd/internal/objabi/flag.go       |  10 ++--
  3 files changed, 108 insertions(+), 8 deletions(-)
+
+diff --git a/misc/reboot/experiment_toolid_test.go b/misc/reboot/experiment_toolid_test.go
+new file mode 100644
+index 0000000000..eabf06b19e
+--- /dev/null
++++ b/misc/reboot/experiment_toolid_test.go
+@@ -0,0 +1,101 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build explicit
++
++// Package experiment_toolid_test verifies that GOEXPERIMENT settings built
++// into the toolchain influence tool ids in the Go command.
++// This test requires bootstrapping the toolchain twice, so it's very expensive.
++// It must be run explicitly with -tags=explicit.
++// Verifies golang.org/issue/33091.
++package reboot_test
++
++import (
++	"bytes"
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++func TestExperimentToolID(t *testing.T) {
++	// Set up GOROOT
++	goroot, err := ioutil.TempDir("", "experiment-goroot")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(goroot)
++
++	gorootSrc := filepath.Join(goroot, "src")
++	if err := overlayDir(gorootSrc, filepath.Join(runtime.GOROOT(), "src")); err != nil {
++		t.Fatal(err)
++	}
++
++	if err := ioutil.WriteFile(filepath.Join(goroot, "VERSION"), []byte("go1.999"), 0666); err != nil {
++		t.Fatal(err)
++	}
++	env := append(os.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+runtime.GOROOT())
++
++	// Use a clean cache.
++	gocache, err := ioutil.TempDir("", "experiment-gocache")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(gocache)
++	env = append(env, "GOCACHE="+gocache)
++
++	// Build the toolchain without GOEXPERIMENT.
++	var makeScript string
++	switch runtime.GOOS {
++	case "windows":
++		makeScript = "make.bat"
++	case "plan9":
++		makeScript = "make.rc"
++	default:
++		makeScript = "make.bash"
++	}
++	makeScriptPath := filepath.Join(runtime.GOROOT(), "src", makeScript)
++	runCmd(t, gorootSrc, env, makeScriptPath)
++
++	// Verify compiler version string.
++	goCmdPath := filepath.Join(goroot, "bin", "go")
++	if runtime.GOOS == "windows" {
++		goCmdPath += ".exe"
++	}
++	gotVersion := bytes.TrimSpace(runCmd(t, gorootSrc, env, goCmdPath, "tool", "compile", "-V=full"))
++	wantVersion := []byte(`compile version go1.999`)
++	if !bytes.Equal(gotVersion, wantVersion) {
++		t.Errorf("compile version without experiment: got %q, want %q", gotVersion, wantVersion)
++	}
++
++	// Build a package in a mode not handled by the make script.
++	runCmd(t, gorootSrc, env, goCmdPath, "build", "-race", "archive/tar")
++
++	// Rebuild the toolchain with GOEXPERIMENT.
++	env = append(env, "GOEXPERIMENT=fieldtrack")
++	runCmd(t, gorootSrc, env, makeScriptPath)
++
++	// Verify compiler version string.
++	gotVersion = bytes.TrimSpace(runCmd(t, gorootSrc, env, goCmdPath, "tool", "compile", "-V=full"))
++	wantVersion = []byte(`compile version go1.999 X:fieldtrack,framepointer`)
++	if !bytes.Equal(gotVersion, wantVersion) {
++		t.Errorf("compile version with experiment: got %q, want %q", gotVersion, wantVersion)
++	}
++
++	// Build the same package. We should not get a cache conflict.
++	runCmd(t, gorootSrc, env, goCmdPath, "build", "-race", "archive/tar")
++}
++
++func runCmd(t *testing.T, dir string, env []string, path string, args ...string) []byte {
++	cmd := exec.Command(path, args...)
++	cmd.Dir = dir
++	cmd.Env = env
++	out, err := cmd.Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++	return out
++}
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 1f6d1e8e77..bf485d75ad 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -203,8 +203,9 @@ func (b *Builder) toolID(name string) string {
+ 		// On the development branch, use the content ID part of the build ID.
+ 		id = contentID(f[len(f)-1])
+ 	} else {
+-		// For a release, the output is like: "compile version go1.9.1". Use the whole line.
+-		id = f[2]
++		// For a release, the output is like: "compile version go1.9.1 X:framepointer".
++		// Use the whole line.
++		id = strings.TrimSpace(line)
+ 	}
+ 
+ 	b.id.Lock()
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 90e944656b..79ad2ccf74 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -86,6 +86,10 @@ func (versionFlag) Set(s string) error {
+ 	name = name[strings.LastIndex(name, `/`)+1:]
+ 	name = name[strings.LastIndex(name, `\`)+1:]
+ 	name = strings.TrimSuffix(name, ".exe")
++
++	// If there's an active experiment, include that,
++	// to distinguish go1.10.2 with an experiment
++	// from go1.10.2 without an experiment.
+ 	p := Expstring()
+ 	if p == DefaultExpstring() {
+ 		p = ""
+@@ -101,12 +105,6 @@ func (versionFlag) Set(s string) error {
+ 	// build ID of the binary, so that if the compiler is changed and
+ 	// rebuilt, we notice and rebuild all packages.
+ 	if s == "full" {
+-		// If there's an active experiment, include that,
+-		// to distinguish go1.10.2 with an experiment
+-		// from go1.10.2 without an experiment.
+-		if x := Expstring(); x != "" {
+-			p += " " + x
+-		}
+ 		if strings.HasPrefix(Version, "devel") {
+ 			p += " buildID=" + buildID
+ 		}

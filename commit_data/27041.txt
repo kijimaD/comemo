@@ -9,6 +9,21 @@ Date:   Wed Mar 9 11:08:19 2016 +1100
     Change-Id: I51fd8842d35c82db71cc5b28c4c0550871461eb6
     Reviewed-on: https://go-review.googlesource.com/20421
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index e0c2ac0219..299f6dc3c5 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -65,8 +65,7 @@ See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.2">Go
+ <p>
+ go1.5.3 (released 2016/01/13) includes a security fix to the <code>math/big</code> package
+ affecting the <code>crypto/tls</code> package.
+-See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1.5.3">Go 1.5.3 milestone on our issue tracker</a>
+-and the <a href="https://golang.org/s/go153announce">release announcement</a> for details.
++See the <a href="https://golang.org/s/go153announce">release announcement</a> for details.
+ </p>
+ 
+ <h2 id="go1.4">go1.4 (released 2014/12/10)</h2>

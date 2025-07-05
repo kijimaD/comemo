@@ -55,6 +55,32 @@ Date:   Thu May 17 02:58:14 2012 +0800
     R=dave, rsc
     CC=golang-dev
     https://golang.org/cl/6202070
-
+---
  src/cmd/5c/reg.c | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index 7cd880b9bf..c6d760c509 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -66,12 +66,6 @@ rcmp(const void *a1, const void *a2)
+ void
+ regopt(Prog *p)
+ {
+-	USED(p);
+-	// TODO(kaib): optimizer disabled because it smashes R8 when running out of registers
+-	// the disable is unconventionally here because the call is in common code shared by 5c/6c/8c
+-	return;
+-
+-#ifdef	NOTDEF
+ 	Reg *r, *r1, *r2;
+ 	Prog *p1;
+ 	int i, z;
+@@ -500,7 +494,6 @@ brk:
+ 		r1->link = freer;
+ 		freer = firstr;
+ 	}
+-#endif
+ }
+ 
+ void

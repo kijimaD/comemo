@@ -9,7 +9,7 @@ Date:   Thu Aug 27 09:14:32 2009 -0700
     DELTA=3087  (1982 added, 1001 deleted, 104 changed)
     OCL=33947
     CL=33950
-
+---
  src/pkg/unicode/Makefile        |   17 +-
  src/pkg/unicode/digit_test.go   |  420 ++-------
  src/pkg/unicode/digittables.go  |   43 -
@@ -17,3 +17,3339 @@ Date:   Thu Aug 27 09:14:32 2009 -0700
  src/pkg/unicode/maketables.go   |  207 +++--
  src/pkg/unicode/tables.go       | 1840 +++++++++++++++++++++++++++++++++++++++
  6 files changed, 2086 insertions(+), 1105 deletions(-)
+
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 717af36af9..e309902eae 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -7,15 +7,22 @@ include $(GOROOT)/src/Make.$(GOARCH)
+ TARG=unicode
+ GOFILES=\
+ 	digit.go\
+-	digittables.go\
+ 	letter.go\
+-	lettertables.go\
++	tables.go\
+ 
+ include $(GOROOT)/src/Make.pkg
+ 
+-tables:
++maketables: maketables.go
+ 	$(GC) maketables.go
+ 	$(LD) -o maketables maketables.$O
+-	maketables --digits > digittables.go
+-	maketables > lettertables.go
++
++tables:	maketables
++	$(GC) maketables.go
++	$(LD) -o maketables maketables.$O
++	./maketables --tables=all > tables.go
++	rm -f maketables
++
++testtables: maketables
++	echo '***' Be sure to make tables and make install first
++	./maketables -test
+ 	rm -f maketables
+diff --git a/src/pkg/unicode/digit_test.go b/src/pkg/unicode/digit_test.go
+index 02d0637462..dcfb2ddc72 100644
+--- a/src/pkg/unicode/digit_test.go
++++ b/src/pkg/unicode/digit_test.go
+@@ -6,356 +6,98 @@ package unicode
+ 
+ import "testing"
+ 
+-// To get data:
+-//	grep '^....;[^;]*;Nd;' UnicodeData.txt
+-// To generate this table:
+-//  ,s/([^;]+).+/	0x\1,	\/\/ &/g
+-var testDigit = []int{
+-	0x0030,	// 0030;DIGIT ZERO;Nd;0;EN;;0;0;0;N;;;;;
+-	0x0031,	// 0031;DIGIT ONE;Nd;0;EN;;1;1;1;N;;;;;
+-	0x0032,	// 0032;DIGIT TWO;Nd;0;EN;;2;2;2;N;;;;;
+-	0x0033,	// 0033;DIGIT THREE;Nd;0;EN;;3;3;3;N;;;;;
+-	0x0034,	// 0034;DIGIT FOUR;Nd;0;EN;;4;4;4;N;;;;;
+-	0x0035,	// 0035;DIGIT FIVE;Nd;0;EN;;5;5;5;N;;;;;
+-	0x0036,	// 0036;DIGIT SIX;Nd;0;EN;;6;6;6;N;;;;;
+-	0x0037,	// 0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
+-	0x0038,	// 0038;DIGIT EIGHT;Nd;0;EN;;8;8;8;N;;;;;
+-	0x0039,	// 0039;DIGIT NINE;Nd;0;EN;;9;9;9;N;;;;;
+-	0x0660,	// 0660;ARABIC-INDIC DIGIT ZERO;Nd;0;AN;;0;0;0;N;;;;;
+-	0x0661,	// 0661;ARABIC-INDIC DIGIT ONE;Nd;0;AN;;1;1;1;N;;;;;
+-	0x0662,	// 0662;ARABIC-INDIC DIGIT TWO;Nd;0;AN;;2;2;2;N;;;;;
+-	0x0663,	// 0663;ARABIC-INDIC DIGIT THREE;Nd;0;AN;;3;3;3;N;;;;;
+-	0x0664,	// 0664;ARABIC-INDIC DIGIT FOUR;Nd;0;AN;;4;4;4;N;;;;;
+-	0x0665,	// 0665;ARABIC-INDIC DIGIT FIVE;Nd;0;AN;;5;5;5;N;;;;;
+-	0x0666,	// 0666;ARABIC-INDIC DIGIT SIX;Nd;0;AN;;6;6;6;N;;;;;
+-	0x0667,	// 0667;ARABIC-INDIC DIGIT SEVEN;Nd;0;AN;;7;7;7;N;;;;;
+-	0x0668,	// 0668;ARABIC-INDIC DIGIT EIGHT;Nd;0;AN;;8;8;8;N;;;;;
+-	0x0669,	// 0669;ARABIC-INDIC DIGIT NINE;Nd;0;AN;;9;9;9;N;;;;;
+-	0x06F0,	// 06F0;EXTENDED ARABIC-INDIC DIGIT ZERO;Nd;0;EN;;0;0;0;N;EASTERN ARABIC-INDIC DIGIT ZERO;;;;
+-	0x06F1,	// 06F1;EXTENDED ARABIC-INDIC DIGIT ONE;Nd;0;EN;;1;1;1;N;EASTERN ARABIC-INDIC DIGIT ONE;;;;
+-	0x06F2,	// 06F2;EXTENDED ARABIC-INDIC DIGIT TWO;Nd;0;EN;;2;2;2;N;EASTERN ARABIC-INDIC DIGIT TWO;;;;
+-	0x06F3,	// 06F3;EXTENDED ARABIC-INDIC DIGIT THREE;Nd;0;EN;;3;3;3;N;EASTERN ARABIC-INDIC DIGIT THREE;;;;
+-	0x06F4,	// 06F4;EXTENDED ARABIC-INDIC DIGIT FOUR;Nd;0;EN;;4;4;4;N;EASTERN ARABIC-INDIC DIGIT FOUR;;;;
+-	0x06F5,	// 06F5;EXTENDED ARABIC-INDIC DIGIT FIVE;Nd;0;EN;;5;5;5;N;EASTERN ARABIC-INDIC DIGIT FIVE;;;;
+-	0x06F6,	// 06F6;EXTENDED ARABIC-INDIC DIGIT SIX;Nd;0;EN;;6;6;6;N;EASTERN ARABIC-INDIC DIGIT SIX;;;;
+-	0x06F7,	// 06F7;EXTENDED ARABIC-INDIC DIGIT SEVEN;Nd;0;EN;;7;7;7;N;EASTERN ARABIC-INDIC DIGIT SEVEN;;;;
+-	0x06F8,	// 06F8;EXTENDED ARABIC-INDIC DIGIT EIGHT;Nd;0;EN;;8;8;8;N;EASTERN ARABIC-INDIC DIGIT EIGHT;;;;
+-	0x06F9,	// 06F9;EXTENDED ARABIC-INDIC DIGIT NINE;Nd;0;EN;;9;9;9;N;EASTERN ARABIC-INDIC DIGIT NINE;;;;
+-	0x07C0,	// 07C0;NKO DIGIT ZERO;Nd;0;R;;0;0;0;N;;;;;
+-	0x07C1,	// 07C1;NKO DIGIT ONE;Nd;0;R;;1;1;1;N;;;;;
+-	0x07C2,	// 07C2;NKO DIGIT TWO;Nd;0;R;;2;2;2;N;;;;;
+-	0x07C3,	// 07C3;NKO DIGIT THREE;Nd;0;R;;3;3;3;N;;;;;
+-	0x07C4,	// 07C4;NKO DIGIT FOUR;Nd;0;R;;4;4;4;N;;;;;
+-	0x07C5,	// 07C5;NKO DIGIT FIVE;Nd;0;R;;5;5;5;N;;;;;
+-	0x07C6,	// 07C6;NKO DIGIT SIX;Nd;0;R;;6;6;6;N;;;;;
+-	0x07C7,	// 07C7;NKO DIGIT SEVEN;Nd;0;R;;7;7;7;N;;;;;
+-	0x07C8,	// 07C8;NKO DIGIT EIGHT;Nd;0;R;;8;8;8;N;;;;;
+-	0x07C9,	// 07C9;NKO DIGIT NINE;Nd;0;R;;9;9;9;N;;;;;
+-	0x0966,	// 0966;DEVANAGARI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0967,	// 0967;DEVANAGARI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0968,	// 0968;DEVANAGARI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0969,	// 0969;DEVANAGARI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x096A,	// 096A;DEVANAGARI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x096B,	// 096B;DEVANAGARI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x096C,	// 096C;DEVANAGARI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x096D,	// 096D;DEVANAGARI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x096E,	// 096E;DEVANAGARI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x096F,	// 096F;DEVANAGARI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x09E6,	// 09E6;BENGALI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x09E7,	// 09E7;BENGALI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x09E8,	// 09E8;BENGALI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x09E9,	// 09E9;BENGALI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x09EA,	// 09EA;BENGALI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x09EB,	// 09EB;BENGALI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x09EC,	// 09EC;BENGALI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x09ED,	// 09ED;BENGALI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x09EE,	// 09EE;BENGALI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x09EF,	// 09EF;BENGALI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0A66,	// 0A66;GURMUKHI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0A67,	// 0A67;GURMUKHI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0A68,	// 0A68;GURMUKHI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0A69,	// 0A69;GURMUKHI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0A6A,	// 0A6A;GURMUKHI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0A6B,	// 0A6B;GURMUKHI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0A6C,	// 0A6C;GURMUKHI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0A6D,	// 0A6D;GURMUKHI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0A6E,	// 0A6E;GURMUKHI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0A6F,	// 0A6F;GURMUKHI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0AE6,	// 0AE6;GUJARATI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0AE7,	// 0AE7;GUJARATI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0AE8,	// 0AE8;GUJARATI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0AE9,	// 0AE9;GUJARATI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0AEA,	// 0AEA;GUJARATI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0AEB,	// 0AEB;GUJARATI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0AEC,	// 0AEC;GUJARATI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0AED,	// 0AED;GUJARATI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0AEE,	// 0AEE;GUJARATI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0AEF,	// 0AEF;GUJARATI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0B66,	// 0B66;ORIYA DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0B67,	// 0B67;ORIYA DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0B68,	// 0B68;ORIYA DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0B69,	// 0B69;ORIYA DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0B6A,	// 0B6A;ORIYA DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0B6B,	// 0B6B;ORIYA DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0B6C,	// 0B6C;ORIYA DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0B6D,	// 0B6D;ORIYA DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0B6E,	// 0B6E;ORIYA DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0B6F,	// 0B6F;ORIYA DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0BE6,	// 0BE6;TAMIL DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0BE7,	// 0BE7;TAMIL DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0BE8,	// 0BE8;TAMIL DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0BE9,	// 0BE9;TAMIL DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0BEA,	// 0BEA;TAMIL DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0BEB,	// 0BEB;TAMIL DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0BEC,	// 0BEC;TAMIL DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0BED,	// 0BED;TAMIL DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0BEE,	// 0BEE;TAMIL DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0BEF,	// 0BEF;TAMIL DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0C66,	// 0C66;TELUGU DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0C67,	// 0C67;TELUGU DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0C68,	// 0C68;TELUGU DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0C69,	// 0C69;TELUGU DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0C6A,	// 0C6A;TELUGU DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0C6B,	// 0C6B;TELUGU DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0C6C,	// 0C6C;TELUGU DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0C6D,	// 0C6D;TELUGU DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0C6E,	// 0C6E;TELUGU DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0C6F,	// 0C6F;TELUGU DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0CE6,	// 0CE6;KANNADA DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0CE7,	// 0CE7;KANNADA DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0CE8,	// 0CE8;KANNADA DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0CE9,	// 0CE9;KANNADA DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0CEA,	// 0CEA;KANNADA DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0CEB,	// 0CEB;KANNADA DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0CEC,	// 0CEC;KANNADA DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0CED,	// 0CED;KANNADA DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0CEE,	// 0CEE;KANNADA DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0CEF,	// 0CEF;KANNADA DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0D66,	// 0D66;MALAYALAM DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0D67,	// 0D67;MALAYALAM DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0D68,	// 0D68;MALAYALAM DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0D69,	// 0D69;MALAYALAM DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0D6A,	// 0D6A;MALAYALAM DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0D6B,	// 0D6B;MALAYALAM DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0D6C,	// 0D6C;MALAYALAM DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0D6D,	// 0D6D;MALAYALAM DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0D6E,	// 0D6E;MALAYALAM DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0D6F,	// 0D6F;MALAYALAM DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0E50,	// 0E50;THAI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0E51,	// 0E51;THAI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0E52,	// 0E52;THAI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0E53,	// 0E53;THAI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0E54,	// 0E54;THAI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0E55,	// 0E55;THAI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0E56,	// 0E56;THAI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0E57,	// 0E57;THAI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0E58,	// 0E58;THAI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0E59,	// 0E59;THAI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0ED0,	// 0ED0;LAO DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0ED1,	// 0ED1;LAO DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0ED2,	// 0ED2;LAO DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0ED3,	// 0ED3;LAO DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0ED4,	// 0ED4;LAO DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0ED5,	// 0ED5;LAO DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0ED6,	// 0ED6;LAO DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0ED7,	// 0ED7;LAO DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0ED8,	// 0ED8;LAO DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0ED9,	// 0ED9;LAO DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x0F20,	// 0F20;TIBETAN DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x0F21,	// 0F21;TIBETAN DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x0F22,	// 0F22;TIBETAN DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x0F23,	// 0F23;TIBETAN DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x0F24,	// 0F24;TIBETAN DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x0F25,	// 0F25;TIBETAN DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x0F26,	// 0F26;TIBETAN DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x0F27,	// 0F27;TIBETAN DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x0F28,	// 0F28;TIBETAN DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x0F29,	// 0F29;TIBETAN DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1040,	// 1040;MYANMAR DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1041,	// 1041;MYANMAR DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1042,	// 1042;MYANMAR DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1043,	// 1043;MYANMAR DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1044,	// 1044;MYANMAR DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1045,	// 1045;MYANMAR DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1046,	// 1046;MYANMAR DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1047,	// 1047;MYANMAR DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1048,	// 1048;MYANMAR DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1049,	// 1049;MYANMAR DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1090,	// 1090;MYANMAR SHAN DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1091,	// 1091;MYANMAR SHAN DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1092,	// 1092;MYANMAR SHAN DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1093,	// 1093;MYANMAR SHAN DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1094,	// 1094;MYANMAR SHAN DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1095,	// 1095;MYANMAR SHAN DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1096,	// 1096;MYANMAR SHAN DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1097,	// 1097;MYANMAR SHAN DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1098,	// 1098;MYANMAR SHAN DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1099,	// 1099;MYANMAR SHAN DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x17E0,	// 17E0;KHMER DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x17E1,	// 17E1;KHMER DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x17E2,	// 17E2;KHMER DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x17E3,	// 17E3;KHMER DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x17E4,	// 17E4;KHMER DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x17E5,	// 17E5;KHMER DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x17E6,	// 17E6;KHMER DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x17E7,	// 17E7;KHMER DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x17E8,	// 17E8;KHMER DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x17E9,	// 17E9;KHMER DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1810,	// 1810;MONGOLIAN DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1811,	// 1811;MONGOLIAN DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1812,	// 1812;MONGOLIAN DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1813,	// 1813;MONGOLIAN DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1814,	// 1814;MONGOLIAN DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1815,	// 1815;MONGOLIAN DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1816,	// 1816;MONGOLIAN DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1817,	// 1817;MONGOLIAN DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1818,	// 1818;MONGOLIAN DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1819,	// 1819;MONGOLIAN DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1946,	// 1946;LIMBU DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1947,	// 1947;LIMBU DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1948,	// 1948;LIMBU DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1949,	// 1949;LIMBU DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x194A,	// 194A;LIMBU DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x194B,	// 194B;LIMBU DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x194C,	// 194C;LIMBU DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x194D,	// 194D;LIMBU DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x194E,	// 194E;LIMBU DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x194F,	// 194F;LIMBU DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x19D0,	// 19D0;NEW TAI LUE DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x19D1,	// 19D1;NEW TAI LUE DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x19D2,	// 19D2;NEW TAI LUE DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x19D3,	// 19D3;NEW TAI LUE DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x19D4,	// 19D4;NEW TAI LUE DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x19D5,	// 19D5;NEW TAI LUE DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x19D6,	// 19D6;NEW TAI LUE DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x19D7,	// 19D7;NEW TAI LUE DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x19D8,	// 19D8;NEW TAI LUE DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x19D9,	// 19D9;NEW TAI LUE DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1B50,	// 1B50;BALINESE DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1B51,	// 1B51;BALINESE DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1B52,	// 1B52;BALINESE DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1B53,	// 1B53;BALINESE DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1B54,	// 1B54;BALINESE DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1B55,	// 1B55;BALINESE DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1B56,	// 1B56;BALINESE DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1B57,	// 1B57;BALINESE DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1B58,	// 1B58;BALINESE DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1B59,	// 1B59;BALINESE DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1BB0,	// 1BB0;SUNDANESE DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1BB1,	// 1BB1;SUNDANESE DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1BB2,	// 1BB2;SUNDANESE DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1BB3,	// 1BB3;SUNDANESE DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1BB4,	// 1BB4;SUNDANESE DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1BB5,	// 1BB5;SUNDANESE DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1BB6,	// 1BB6;SUNDANESE DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1BB7,	// 1BB7;SUNDANESE DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1BB8,	// 1BB8;SUNDANESE DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1BB9,	// 1BB9;SUNDANESE DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1C40,	// 1C40;LEPCHA DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1C41,	// 1C41;LEPCHA DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1C42,	// 1C42;LEPCHA DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1C43,	// 1C43;LEPCHA DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1C44,	// 1C44;LEPCHA DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1C45,	// 1C45;LEPCHA DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1C46,	// 1C46;LEPCHA DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1C47,	// 1C47;LEPCHA DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1C48,	// 1C48;LEPCHA DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1C49,	// 1C49;LEPCHA DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0x1C50,	// 1C50;OL CHIKI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0x1C51,	// 1C51;OL CHIKI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0x1C52,	// 1C52;OL CHIKI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0x1C53,	// 1C53;OL CHIKI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0x1C54,	// 1C54;OL CHIKI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0x1C55,	// 1C55;OL CHIKI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0x1C56,	// 1C56;OL CHIKI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0x1C57,	// 1C57;OL CHIKI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0x1C58,	// 1C58;OL CHIKI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0x1C59,	// 1C59;OL CHIKI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0xA620,	// A620;VAI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0xA621,	// A621;VAI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0xA622,	// A622;VAI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0xA623,	// A623;VAI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0xA624,	// A624;VAI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0xA625,	// A625;VAI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0xA626,	// A626;VAI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0xA627,	// A627;VAI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0xA628,	// A628;VAI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0xA629,	// A629;VAI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0xA8D0,	// A8D0;SAURASHTRA DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0xA8D1,	// A8D1;SAURASHTRA DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0xA8D2,	// A8D2;SAURASHTRA DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0xA8D3,	// A8D3;SAURASHTRA DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0xA8D4,	// A8D4;SAURASHTRA DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0xA8D5,	// A8D5;SAURASHTRA DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0xA8D6,	// A8D6;SAURASHTRA DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0xA8D7,	// A8D7;SAURASHTRA DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0xA8D8,	// A8D8;SAURASHTRA DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0xA8D9,	// A8D9;SAURASHTRA DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0xA900,	// A900;KAYAH LI DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0xA901,	// A901;KAYAH LI DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0xA902,	// A902;KAYAH LI DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0xA903,	// A903;KAYAH LI DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0xA904,	// A904;KAYAH LI DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0xA905,	// A905;KAYAH LI DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0xA906,	// A906;KAYAH LI DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0xA907,	// A907;KAYAH LI DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0xA908,	// A908;KAYAH LI DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0xA909,	// A909;KAYAH LI DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0xAA50,	// AA50;CHAM DIGIT ZERO;Nd;0;L;;0;0;0;N;;;;;
+-	0xAA51,	// AA51;CHAM DIGIT ONE;Nd;0;L;;1;1;1;N;;;;;
+-	0xAA52,	// AA52;CHAM DIGIT TWO;Nd;0;L;;2;2;2;N;;;;;
+-	0xAA53,	// AA53;CHAM DIGIT THREE;Nd;0;L;;3;3;3;N;;;;;
+-	0xAA54,	// AA54;CHAM DIGIT FOUR;Nd;0;L;;4;4;4;N;;;;;
+-	0xAA55,	// AA55;CHAM DIGIT FIVE;Nd;0;L;;5;5;5;N;;;;;
+-	0xAA56,	// AA56;CHAM DIGIT SIX;Nd;0;L;;6;6;6;N;;;;;
+-	0xAA57,	// AA57;CHAM DIGIT SEVEN;Nd;0;L;;7;7;7;N;;;;;
+-	0xAA58,	// AA58;CHAM DIGIT EIGHT;Nd;0;L;;8;8;8;N;;;;;
+-	0xAA59,	// AA59;CHAM DIGIT NINE;Nd;0;L;;9;9;9;N;;;;;
+-	0xFF10,	// FF10;FULLWIDTH DIGIT ZERO;Nd;0;EN;<wide> 0030;0;0;0;N;;;;;
+-	0xFF11,	// FF11;FULLWIDTH DIGIT ONE;Nd;0;EN;<wide> 0031;1;1;1;N;;;;;
+-	0xFF12,	// FF12;FULLWIDTH DIGIT TWO;Nd;0;EN;<wide> 0032;2;2;2;N;;;;;
+-	0xFF13,	// FF13;FULLWIDTH DIGIT THREE;Nd;0;EN;<wide> 0033;3;3;3;N;;;;;
+-	0xFF14,	// FF14;FULLWIDTH DIGIT FOUR;Nd;0;EN;<wide> 0034;4;4;4;N;;;;;
+-	0xFF15,	// FF15;FULLWIDTH DIGIT FIVE;Nd;0;EN;<wide> 0035;5;5;5;N;;;;;
+-	0xFF16,	// FF16;FULLWIDTH DIGIT SIX;Nd;0;EN;<wide> 0036;6;6;6;N;;;;;
+-	0xFF17,	// FF17;FULLWIDTH DIGIT SEVEN;Nd;0;EN;<wide> 0037;7;7;7;N;;;;;
+-	0xFF18,	// FF18;FULLWIDTH DIGIT EIGHT;Nd;0;EN;<wide> 0038;8;8;8;N;;;;;
+-	0xFF19,	// FF19;FULLWIDTH DIGIT NINE;Nd;0;EN;<wide> 0039;9;9;9;N;;;;;
++var testDigit = []int {
++	0x0030,
++	0x0039,
++	0x0661,
++	0x06F1,
++	0x07C9,
++	0x0966,
++	0x09EF,
++	0x0A66,
++	0x0AEF,
++	0x0B66,
++	0x0B6F,
++	0x0BE6,
++	0x0BEF,
++	0x0C66,
++	0x0CEF,
++	0x0D66,
++	0x0D6F,
++	0x0E50,
++	0x0E59,
++	0x0ED0,
++	0x0ED9,
++	0x0F20,
++	0x0F29,
++	0x1040,
++	0x1049,
++	0x1090,
++	0x1091,
++	0x1099,
++	0x17E0,
++	0x17E9,
++	0x1810,
++	0x1819,
++	0x1946,
++	0x194F,
++	0x19D0,
++	0x19D9,
++	0x1B50,
++	0x1B59,
++	0x1BB0,
++	0x1BB9,
++	0x1C40,
++	0x1C49,
++	0x1C50,
++	0x1C59,
++	0xA620,
++	0xA629,
++	0xA8D0,
++	0xA8D9,
++	0xA900,
++	0xA909,
++	0xAA50,
++	0xAA59,
++	0xFF10,
++	0xFF19,
++	0x104A1,
++	0x1D7CE,
+ }
+ 
+-var testLetter = []int{
+-	0x41,
+-	0x61,
+-	0xaa,
+-	0xba,
+-	0xc8,
+-	0xdb,
+-	0xf9,
+-	0x2ec,
+-	0x535,
+-	0x6e6,
+-	0x93d,
+-	0xa15,
+-	0xb99,
+-	0xdc0,
+-	0xedd,
++var testLetter = []int {
++	0x0041,
++	0x0061,
++	0x00AA,
++	0x00BA,
++	0x00C8,
++	0x00DB,
++	0x00F9,
++	0x02EC,
++	0x0535,
++	0x06E6,
++	0x093D,
++	0x0A15,
++	0x0B99,
++	0x0DC0,
++	0x0EDD,
+ 	0x1000,
+ 	0x1200,
+ 	0x1312,
+ 	0x1401,
+ 	0x1885,
+-	0x2c00,
+-	0xa800,
+-	0xf900,
+-	0xfa30,
+-	0xffda,
+-	0xffdc,
++	0x2C00,
++	0xA800,
++	0xF900,
++	0xFA30,
++	0xFFDA,
++	0xFFDC,
+ 	0x10000,
+ 	0x10300,
+ 	0x10400,
+ 	0x20000,
+-	0x2f800,
+-	0x2fa1d,
++	0x2F800,
++	0x2FA1D,
+ }
+ 
+ func TestDigit(t *testing.T) {
+diff --git a/src/pkg/unicode/digittables.go b/src/pkg/unicode/digittables.go
+deleted file mode 100644
+index eaea4253aa..0000000000
+--- a/src/pkg/unicode/digittables.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Generated by running
+-//	maketables --digits=true --url=http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt
+-// DO NOT EDIT
+-
+-package unicode
+-
+-// Digit is the set of Unicode characters with the "decimal digit" (Nd) property.
+-var Digit = digit
+-var digit = []Range {
+-	Range{0x0030, 0x0039, 1},
+-	Range{0x0660, 0x0669, 1},
+-	Range{0x06f0, 0x06f9, 1},
+-	Range{0x07c0, 0x07c9, 1},
+-	Range{0x0966, 0x096f, 1},
+-	Range{0x09e6, 0x09ef, 1},
+-	Range{0x0a66, 0x0a6f, 1},
+-	Range{0x0ae6, 0x0aef, 1},
+-	Range{0x0b66, 0x0b6f, 1},
+-	Range{0x0be6, 0x0bef, 1},
+-	Range{0x0c66, 0x0c6f, 1},
+-	Range{0x0ce6, 0x0cef, 1},
+-	Range{0x0d66, 0x0d6f, 1},
+-	Range{0x0e50, 0x0e59, 1},
+-	Range{0x0ed0, 0x0ed9, 1},
+-	Range{0x0f20, 0x0f29, 1},
+-	Range{0x1040, 0x1049, 1},
+-	Range{0x1090, 0x1099, 1},
+-	Range{0x17e0, 0x17e9, 1},
+-	Range{0x1810, 0x1819, 1},
+-	Range{0x1946, 0x194f, 1},
+-	Range{0x19d0, 0x19d9, 1},
+-	Range{0x1b50, 0x1b59, 1},
+-	Range{0x1bb0, 0x1bb9, 1},
+-	Range{0x1c40, 0x1c49, 1},
+-	Range{0x1c50, 0x1c59, 1},
+-	Range{0xa620, 0xa629, 1},
+-	Range{0xa8d0, 0xa8d9, 1},
+-	Range{0xa900, 0xa909, 1},
+-	Range{0xaa50, 0xaa59, 1},
+-	Range{0xff10, 0xff19, 1},
+-	Range{0x104a0, 0x104a9, 1},
+-	Range{0x1d7ce, 0x1d7ff, 1},
+-}
+diff --git a/src/pkg/unicode/lettertables.go b/src/pkg/unicode/lettertables.go
+deleted file mode 100644
+index 663fc3731c..0000000000
+--- a/src/pkg/unicode/lettertables.go
++++ /dev/null
+@@ -1,664 +0,0 @@
+-// Generated by running
+-//	tables --digits=false --url=http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt
+-// DO NOT EDIT
+-
+-package unicode
+-
+-// Letter is the set of Unicode letters.
+-var Letter = letter
+-var letter = []Range {
+-	Range{0x0041, 0x005a, 1},
+-	Range{0x0061, 0x007a, 1},
+-	Range{0x00aa, 0x00b5, 11},
+-	Range{0x00ba, 0x00c0, 6},
+-	Range{0x00c1, 0x00d6, 1},
+-	Range{0x00d8, 0x00f6, 1},
+-	Range{0x00f8, 0x02c1, 1},
+-	Range{0x02c6, 0x02d1, 1},
+-	Range{0x02e0, 0x02e4, 1},
+-	Range{0x02ec, 0x02ee, 2},
+-	Range{0x0370, 0x0374, 1},
+-	Range{0x0376, 0x0377, 1},
+-	Range{0x037a, 0x037d, 1},
+-	Range{0x0386, 0x0388, 2},
+-	Range{0x0389, 0x038a, 1},
+-	Range{0x038c, 0x038e, 2},
+-	Range{0x038f, 0x03a1, 1},
+-	Range{0x03a3, 0x03f5, 1},
+-	Range{0x03f7, 0x0481, 1},
+-	Range{0x048a, 0x0523, 1},
+-	Range{0x0531, 0x0556, 1},
+-	Range{0x0559, 0x0561, 8},
+-	Range{0x0562, 0x0587, 1},
+-	Range{0x05d0, 0x05ea, 1},
+-	Range{0x05f0, 0x05f2, 1},
+-	Range{0x0621, 0x064a, 1},
+-	Range{0x066e, 0x066f, 1},
+-	Range{0x0671, 0x06d3, 1},
+-	Range{0x06d5, 0x06e5, 16},
+-	Range{0x06e6, 0x06ee, 8},
+-	Range{0x06ef, 0x06fa, 11},
+-	Range{0x06fb, 0x06fc, 1},
+-	Range{0x06ff, 0x0710, 17},
+-	Range{0x0712, 0x072f, 1},
+-	Range{0x074d, 0x07a5, 1},
+-	Range{0x07b1, 0x07ca, 25},
+-	Range{0x07cb, 0x07ea, 1},
+-	Range{0x07f4, 0x07f5, 1},
+-	Range{0x07fa, 0x0904, 266},
+-	Range{0x0905, 0x0939, 1},
+-	Range{0x093d, 0x0950, 19},
+-	Range{0x0958, 0x0961, 1},
+-	Range{0x0971, 0x0972, 1},
+-	Range{0x097b, 0x097f, 1},
+-	Range{0x0985, 0x098c, 1},
+-	Range{0x098f, 0x0990, 1},
+-	Range{0x0993, 0x09a8, 1},
+-	Range{0x09aa, 0x09b0, 1},
+-	Range{0x09b2, 0x09b6, 4},
+-	Range{0x09b7, 0x09b9, 1},
+-	Range{0x09bd, 0x09ce, 17},
+-	Range{0x09dc, 0x09dd, 1},
+-	Range{0x09df, 0x09e1, 1},
+-	Range{0x09f0, 0x09f1, 1},
+-	Range{0x0a05, 0x0a0a, 1},
+-	Range{0x0a0f, 0x0a10, 1},
+-	Range{0x0a13, 0x0a28, 1},
+-	Range{0x0a2a, 0x0a30, 1},
+-	Range{0x0a32, 0x0a33, 1},
+-	Range{0x0a35, 0x0a36, 1},
+-	Range{0x0a38, 0x0a39, 1},
+-	Range{0x0a59, 0x0a5c, 1},
+-	Range{0x0a5e, 0x0a72, 20},
+-	Range{0x0a73, 0x0a74, 1},
+-	Range{0x0a85, 0x0a8d, 1},
+-	Range{0x0a8f, 0x0a91, 1},
+-	Range{0x0a93, 0x0aa8, 1},
+-	Range{0x0aaa, 0x0ab0, 1},
+-	Range{0x0ab2, 0x0ab3, 1},
+-	Range{0x0ab5, 0x0ab9, 1},
+-	Range{0x0abd, 0x0ad0, 19},
+-	Range{0x0ae0, 0x0ae1, 1},
+-	Range{0x0b05, 0x0b0c, 1},
+-	Range{0x0b0f, 0x0b10, 1},
+-	Range{0x0b13, 0x0b28, 1},
+-	Range{0x0b2a, 0x0b30, 1},
+-	Range{0x0b32, 0x0b33, 1},
+-	Range{0x0b35, 0x0b39, 1},
+-	Range{0x0b3d, 0x0b5c, 31},
+-	Range{0x0b5d, 0x0b5f, 2},
+-	Range{0x0b60, 0x0b61, 1},
+-	Range{0x0b71, 0x0b83, 18},
+-	Range{0x0b85, 0x0b8a, 1},
+-	Range{0x0b8e, 0x0b90, 1},
+-	Range{0x0b92, 0x0b95, 1},
+-	Range{0x0b99, 0x0b9a, 1},
+-	Range{0x0b9c, 0x0b9e, 2},
+-	Range{0x0b9f, 0x0ba3, 4},
+-	Range{0x0ba4, 0x0ba8, 4},
+-	Range{0x0ba9, 0x0baa, 1},
+-	Range{0x0bae, 0x0bb9, 1},
+-	Range{0x0bd0, 0x0c05, 53},
+-	Range{0x0c06, 0x0c0c, 1},
+-	Range{0x0c0e, 0x0c10, 1},
+-	Range{0x0c12, 0x0c28, 1},
+-	Range{0x0c2a, 0x0c33, 1},
+-	Range{0x0c35, 0x0c39, 1},
+-	Range{0x0c3d, 0x0c58, 27},
+-	Range{0x0c59, 0x0c60, 7},
+-	Range{0x0c61, 0x0c85, 36},
+-	Range{0x0c86, 0x0c8c, 1},
+-	Range{0x0c8e, 0x0c90, 1},
+-	Range{0x0c92, 0x0ca8, 1},
+-	Range{0x0caa, 0x0cb3, 1},
+-	Range{0x0cb5, 0x0cb9, 1},
+-	Range{0x0cbd, 0x0cde, 33},
+-	Range{0x0ce0, 0x0ce1, 1},
+-	Range{0x0d05, 0x0d0c, 1},
+-	Range{0x0d0e, 0x0d10, 1},
+-	Range{0x0d12, 0x0d28, 1},
+-	Range{0x0d2a, 0x0d39, 1},
+-	Range{0x0d3d, 0x0d60, 35},
+-	Range{0x0d61, 0x0d7a, 25},
+-	Range{0x0d7b, 0x0d7f, 1},
+-	Range{0x0d85, 0x0d96, 1},
+-	Range{0x0d9a, 0x0db1, 1},
+-	Range{0x0db3, 0x0dbb, 1},
+-	Range{0x0dbd, 0x0dc0, 3},
+-	Range{0x0dc1, 0x0dc6, 1},
+-	Range{0x0e01, 0x0e30, 1},
+-	Range{0x0e32, 0x0e33, 1},
+-	Range{0x0e40, 0x0e46, 1},
+-	Range{0x0e81, 0x0e82, 1},
+-	Range{0x0e84, 0x0e87, 3},
+-	Range{0x0e88, 0x0e8a, 2},
+-	Range{0x0e8d, 0x0e94, 7},
+-	Range{0x0e95, 0x0e97, 1},
+-	Range{0x0e99, 0x0e9f, 1},
+-	Range{0x0ea1, 0x0ea3, 1},
+-	Range{0x0ea5, 0x0ea7, 2},
+-	Range{0x0eaa, 0x0eab, 1},
+-	Range{0x0ead, 0x0eb0, 1},
+-	Range{0x0eb2, 0x0eb3, 1},
+-	Range{0x0ebd, 0x0ec0, 3},
+-	Range{0x0ec1, 0x0ec4, 1},
+-	Range{0x0ec6, 0x0edc, 22},
+-	Range{0x0edd, 0x0f00, 35},
+-	Range{0x0f40, 0x0f47, 1},
+-	Range{0x0f49, 0x0f6c, 1},
+-	Range{0x0f88, 0x0f8b, 1},
+-	Range{0x1000, 0x102a, 1},
+-	Range{0x103f, 0x1050, 17},
+-	Range{0x1051, 0x1055, 1},
+-	Range{0x105a, 0x105d, 1},
+-	Range{0x1061, 0x1065, 4},
+-	Range{0x1066, 0x106e, 8},
+-	Range{0x106f, 0x1070, 1},
+-	Range{0x1075, 0x1081, 1},
+-	Range{0x108e, 0x10a0, 18},
+-	Range{0x10a1, 0x10c5, 1},
+-	Range{0x10d0, 0x10fa, 1},
+-	Range{0x10fc, 0x1100, 4},
+-	Range{0x1101, 0x1159, 1},
+-	Range{0x115f, 0x11a2, 1},
+-	Range{0x11a8, 0x11f9, 1},
+-	Range{0x1200, 0x1248, 1},
+-	Range{0x124a, 0x124d, 1},
+-	Range{0x1250, 0x1256, 1},
+-	Range{0x1258, 0x125a, 2},
+-	Range{0x125b, 0x125d, 1},
+-	Range{0x1260, 0x1288, 1},
+-	Range{0x128a, 0x128d, 1},
+-	Range{0x1290, 0x12b0, 1},
+-	Range{0x12b2, 0x12b5, 1},
+-	Range{0x12b8, 0x12be, 1},
+-	Range{0x12c0, 0x12c2, 2},
+-	Range{0x12c3, 0x12c5, 1},
+-	Range{0x12c8, 0x12d6, 1},
+-	Range{0x12d8, 0x1310, 1},
+-	Range{0x1312, 0x1315, 1},
+-	Range{0x1318, 0x135a, 1},
+-	Range{0x1380, 0x138f, 1},
+-	Range{0x13a0, 0x13f4, 1},
+-	Range{0x1401, 0x166c, 1},
+-	Range{0x166f, 0x1676, 1},
+-	Range{0x1681, 0x169a, 1},
+-	Range{0x16a0, 0x16ea, 1},
+-	Range{0x1700, 0x170c, 1},
+-	Range{0x170e, 0x1711, 1},
+-	Range{0x1720, 0x1731, 1},
+-	Range{0x1740, 0x1751, 1},
+-	Range{0x1760, 0x176c, 1},
+-	Range{0x176e, 0x1770, 1},
+-	Range{0x1780, 0x17b3, 1},
+-	Range{0x17d7, 0x17dc, 5},
+-	Range{0x1820, 0x1877, 1},
+-	Range{0x1880, 0x18a8, 1},
+-	Range{0x18aa, 0x1900, 86},
+-	Range{0x1901, 0x191c, 1},
+-	Range{0x1950, 0x196d, 1},
+-	Range{0x1970, 0x1974, 1},
+-	Range{0x1980, 0x19a9, 1},
+-	Range{0x19c1, 0x19c7, 1},
+-	Range{0x1a00, 0x1a16, 1},
+-	Range{0x1b05, 0x1b33, 1},
+-	Range{0x1b45, 0x1b4b, 1},
+-	Range{0x1b83, 0x1ba0, 1},
+-	Range{0x1bae, 0x1baf, 1},
+-	Range{0x1c00, 0x1c23, 1},
+-	Range{0x1c4d, 0x1c4f, 1},
+-	Range{0x1c5a, 0x1c7d, 1},
+-	Range{0x1d00, 0x1dbf, 1},
+-	Range{0x1e00, 0x1f15, 1},
+-	Range{0x1f18, 0x1f1d, 1},
+-	Range{0x1f20, 0x1f45, 1},
+-	Range{0x1f48, 0x1f4d, 1},
+-	Range{0x1f50, 0x1f57, 1},
+-	Range{0x1f59, 0x1f5f, 2},
+-	Range{0x1f60, 0x1f7d, 1},
+-	Range{0x1f80, 0x1fb4, 1},
+-	Range{0x1fb6, 0x1fbc, 1},
+-	Range{0x1fbe, 0x1fc2, 4},
+-	Range{0x1fc3, 0x1fc4, 1},
+-	Range{0x1fc6, 0x1fcc, 1},
+-	Range{0x1fd0, 0x1fd3, 1},
+-	Range{0x1fd6, 0x1fdb, 1},
+-	Range{0x1fe0, 0x1fec, 1},
+-	Range{0x1ff2, 0x1ff4, 1},
+-	Range{0x1ff6, 0x1ffc, 1},
+-	Range{0x2071, 0x207f, 14},
+-	Range{0x2090, 0x2094, 1},
+-	Range{0x2102, 0x2107, 5},
+-	Range{0x210a, 0x2113, 1},
+-	Range{0x2115, 0x2119, 4},
+-	Range{0x211a, 0x211d, 1},
+-	Range{0x2124, 0x212a, 2},
+-	Range{0x212b, 0x212d, 1},
+-	Range{0x212f, 0x2139, 1},
+-	Range{0x213c, 0x213f, 1},
+-	Range{0x2145, 0x2149, 1},
+-	Range{0x214e, 0x2183, 53},
+-	Range{0x2184, 0x2c00, 2684},
+-	Range{0x2c01, 0x2c2e, 1},
+-	Range{0x2c30, 0x2c5e, 1},
+-	Range{0x2c60, 0x2c6f, 1},
+-	Range{0x2c71, 0x2c7d, 1},
+-	Range{0x2c80, 0x2ce4, 1},
+-	Range{0x2d00, 0x2d25, 1},
+-	Range{0x2d30, 0x2d65, 1},
+-	Range{0x2d6f, 0x2d80, 17},
+-	Range{0x2d81, 0x2d96, 1},
+-	Range{0x2da0, 0x2da6, 1},
+-	Range{0x2da8, 0x2dae, 1},
+-	Range{0x2db0, 0x2db6, 1},
+-	Range{0x2db8, 0x2dbe, 1},
+-	Range{0x2dc0, 0x2dc6, 1},
+-	Range{0x2dc8, 0x2dce, 1},
+-	Range{0x2dd0, 0x2dd6, 1},
+-	Range{0x2dd8, 0x2dde, 1},
+-	Range{0x2e2f, 0x3005, 470},
+-	Range{0x3006, 0x3031, 43},
+-	Range{0x3032, 0x3035, 1},
+-	Range{0x303b, 0x303c, 1},
+-	Range{0x3041, 0x3096, 1},
+-	Range{0x309d, 0x309f, 1},
+-	Range{0x30a1, 0x30fa, 1},
+-	Range{0x30fc, 0x30ff, 1},
+-	Range{0x3105, 0x312d, 1},
+-	Range{0x3131, 0x318e, 1},
+-	Range{0x31a0, 0x31b7, 1},
+-	Range{0x31f0, 0x31ff, 1},
+-	Range{0x3400, 0x4db5, 6581},
+-	Range{0x4e00, 0x9fc3, 20931},
+-	Range{0xa000, 0xa48c, 1},
+-	Range{0xa500, 0xa60c, 1},
+-	Range{0xa610, 0xa61f, 1},
+-	Range{0xa62a, 0xa62b, 1},
+-	Range{0xa640, 0xa65f, 1},
+-	Range{0xa662, 0xa66e, 1},
+-	Range{0xa67f, 0xa697, 1},
+-	Range{0xa717, 0xa71f, 1},
+-	Range{0xa722, 0xa788, 1},
+-	Range{0xa78b, 0xa78c, 1},
+-	Range{0xa7fb, 0xa801, 1},
+-	Range{0xa803, 0xa805, 1},
+-	Range{0xa807, 0xa80a, 1},
+-	Range{0xa80c, 0xa822, 1},
+-	Range{0xa840, 0xa873, 1},
+-	Range{0xa882, 0xa8b3, 1},
+-	Range{0xa90a, 0xa925, 1},
+-	Range{0xa930, 0xa946, 1},
+-	Range{0xaa00, 0xaa28, 1},
+-	Range{0xaa40, 0xaa42, 1},
+-	Range{0xaa44, 0xaa4b, 1},
+-	Range{0xac00, 0xd7a3, 11171},
+-	Range{0xf900, 0xfa2d, 1},
+-	Range{0xfa30, 0xfa6a, 1},
+-	Range{0xfa70, 0xfad9, 1},
+-	Range{0xfb00, 0xfb06, 1},
+-	Range{0xfb13, 0xfb17, 1},
+-	Range{0xfb1d, 0xfb1f, 2},
+-	Range{0xfb20, 0xfb28, 1},
+-	Range{0xfb2a, 0xfb36, 1},
+-	Range{0xfb38, 0xfb3c, 1},
+-	Range{0xfb3e, 0xfb40, 2},
+-	Range{0xfb41, 0xfb43, 2},
+-	Range{0xfb44, 0xfb46, 2},
+-	Range{0xfb47, 0xfbb1, 1},
+-	Range{0xfbd3, 0xfd3d, 1},
+-	Range{0xfd50, 0xfd8f, 1},
+-	Range{0xfd92, 0xfdc7, 1},
+-	Range{0xfdf0, 0xfdfb, 1},
+-	Range{0xfe70, 0xfe74, 1},
+-	Range{0xfe76, 0xfefc, 1},
+-	Range{0xff21, 0xff3a, 1},
+-	Range{0xff41, 0xff5a, 1},
+-	Range{0xff66, 0xffbe, 1},
+-	Range{0xffc2, 0xffc7, 1},
+-	Range{0xffca, 0xffcf, 1},
+-	Range{0xffd2, 0xffd7, 1},
+-	Range{0xffda, 0xffdc, 1},
+-	Range{0x10000, 0x1000b, 1},
+-	Range{0x1000d, 0x10026, 1},
+-	Range{0x10028, 0x1003a, 1},
+-	Range{0x1003c, 0x1003d, 1},
+-	Range{0x1003f, 0x1004d, 1},
+-	Range{0x10050, 0x1005d, 1},
+-	Range{0x10080, 0x100fa, 1},
+-	Range{0x10280, 0x1029c, 1},
+-	Range{0x102a0, 0x102d0, 1},
+-	Range{0x10300, 0x1031e, 1},
+-	Range{0x10330, 0x10340, 1},
+-	Range{0x10342, 0x10349, 1},
+-	Range{0x10380, 0x1039d, 1},
+-	Range{0x103a0, 0x103c3, 1},
+-	Range{0x103c8, 0x103cf, 1},
+-	Range{0x10400, 0x1049d, 1},
+-	Range{0x10800, 0x10805, 1},
+-	Range{0x10808, 0x1080a, 2},
+-	Range{0x1080b, 0x10835, 1},
+-	Range{0x10837, 0x10838, 1},
+-	Range{0x1083c, 0x1083f, 3},
+-	Range{0x10900, 0x10915, 1},
+-	Range{0x10920, 0x10939, 1},
+-	Range{0x10a00, 0x10a10, 16},
+-	Range{0x10a11, 0x10a13, 1},
+-	Range{0x10a15, 0x10a17, 1},
+-	Range{0x10a19, 0x10a33, 1},
+-	Range{0x12000, 0x1236e, 1},
+-	Range{0x1d400, 0x1d454, 1},
+-	Range{0x1d456, 0x1d49c, 1},
+-	Range{0x1d49e, 0x1d49f, 1},
+-	Range{0x1d4a2, 0x1d4a5, 3},
+-	Range{0x1d4a6, 0x1d4a9, 3},
+-	Range{0x1d4aa, 0x1d4ac, 1},
+-	Range{0x1d4ae, 0x1d4b9, 1},
+-	Range{0x1d4bb, 0x1d4bd, 2},
+-	Range{0x1d4be, 0x1d4c3, 1},
+-	Range{0x1d4c5, 0x1d505, 1},
+-	Range{0x1d507, 0x1d50a, 1},
+-	Range{0x1d50d, 0x1d514, 1},
+-	Range{0x1d516, 0x1d51c, 1},
+-	Range{0x1d51e, 0x1d539, 1},
+-	Range{0x1d53b, 0x1d53e, 1},
+-	Range{0x1d540, 0x1d544, 1},
+-	Range{0x1d546, 0x1d54a, 4},
+-	Range{0x1d54b, 0x1d550, 1},
+-	Range{0x1d552, 0x1d6a5, 1},
+-	Range{0x1d6a8, 0x1d6c0, 1},
+-	Range{0x1d6c2, 0x1d6da, 1},
+-	Range{0x1d6dc, 0x1d6fa, 1},
+-	Range{0x1d6fc, 0x1d714, 1},
+-	Range{0x1d716, 0x1d734, 1},
+-	Range{0x1d736, 0x1d74e, 1},
+-	Range{0x1d750, 0x1d76e, 1},
+-	Range{0x1d770, 0x1d788, 1},
+-	Range{0x1d78a, 0x1d7a8, 1},
+-	Range{0x1d7aa, 0x1d7c2, 1},
+-	Range{0x1d7c4, 0x1d7cb, 1},
+-	Range{0x20000, 0x2a6d6, 42710},
+-	Range{0x2f800, 0x2fa1d, 1},
+-}
+-
+-// Upper is the set of Unicode upper case letters.
+-var Upper = upper
+-var upper = []Range {
+-	Range{0x0041, 0x005a, 1},
+-	Range{0x00c0, 0x00d6, 1},
+-	Range{0x00d8, 0x00de, 1},
+-	Range{0x0100, 0x0136, 2},
+-	Range{0x0139, 0x0147, 2},
+-	Range{0x014a, 0x0178, 2},
+-	Range{0x0179, 0x017d, 2},
+-	Range{0x0181, 0x0182, 1},
+-	Range{0x0184, 0x0186, 2},
+-	Range{0x0187, 0x0189, 2},
+-	Range{0x018a, 0x018b, 1},
+-	Range{0x018e, 0x0191, 1},
+-	Range{0x0193, 0x0194, 1},
+-	Range{0x0196, 0x0198, 1},
+-	Range{0x019c, 0x019d, 1},
+-	Range{0x019f, 0x01a0, 1},
+-	Range{0x01a2, 0x01a6, 2},
+-	Range{0x01a7, 0x01a9, 2},
+-	Range{0x01ac, 0x01ae, 2},
+-	Range{0x01af, 0x01b1, 2},
+-	Range{0x01b2, 0x01b3, 1},
+-	Range{0x01b5, 0x01b7, 2},
+-	Range{0x01b8, 0x01bc, 4},
+-	Range{0x01c4, 0x01cd, 3},
+-	Range{0x01cf, 0x01db, 2},
+-	Range{0x01de, 0x01ee, 2},
+-	Range{0x01f1, 0x01f4, 3},
+-	Range{0x01f6, 0x01f8, 1},
+-	Range{0x01fa, 0x0232, 2},
+-	Range{0x023a, 0x023b, 1},
+-	Range{0x023d, 0x023e, 1},
+-	Range{0x0241, 0x0243, 2},
+-	Range{0x0244, 0x0246, 1},
+-	Range{0x0248, 0x024e, 2},
+-	Range{0x0370, 0x0372, 2},
+-	Range{0x0376, 0x0386, 16},
+-	Range{0x0388, 0x038a, 1},
+-	Range{0x038c, 0x038e, 2},
+-	Range{0x038f, 0x0391, 2},
+-	Range{0x0392, 0x03a1, 1},
+-	Range{0x03a3, 0x03ab, 1},
+-	Range{0x03cf, 0x03d2, 3},
+-	Range{0x03d3, 0x03d4, 1},
+-	Range{0x03d8, 0x03ee, 2},
+-	Range{0x03f4, 0x03f7, 3},
+-	Range{0x03f9, 0x03fa, 1},
+-	Range{0x03fd, 0x042f, 1},
+-	Range{0x0460, 0x0480, 2},
+-	Range{0x048a, 0x04c0, 2},
+-	Range{0x04c1, 0x04cd, 2},
+-	Range{0x04d0, 0x0522, 2},
+-	Range{0x0531, 0x0556, 1},
+-	Range{0x10a0, 0x10c5, 1},
+-	Range{0x1e00, 0x1e94, 2},
+-	Range{0x1e9e, 0x1efe, 2},
+-	Range{0x1f08, 0x1f0f, 1},
+-	Range{0x1f18, 0x1f1d, 1},
+-	Range{0x1f28, 0x1f2f, 1},
+-	Range{0x1f38, 0x1f3f, 1},
+-	Range{0x1f48, 0x1f4d, 1},
+-	Range{0x1f59, 0x1f5f, 2},
+-	Range{0x1f68, 0x1f6f, 1},
+-	Range{0x1fb8, 0x1fbb, 1},
+-	Range{0x1fc8, 0x1fcb, 1},
+-	Range{0x1fd8, 0x1fdb, 1},
+-	Range{0x1fe8, 0x1fec, 1},
+-	Range{0x1ff8, 0x1ffb, 1},
+-	Range{0x2102, 0x2107, 5},
+-	Range{0x210b, 0x210d, 1},
+-	Range{0x2110, 0x2112, 1},
+-	Range{0x2115, 0x2119, 4},
+-	Range{0x211a, 0x211d, 1},
+-	Range{0x2124, 0x212a, 2},
+-	Range{0x212b, 0x212d, 1},
+-	Range{0x2130, 0x2133, 1},
+-	Range{0x213e, 0x213f, 1},
+-	Range{0x2145, 0x2183, 62},
+-	Range{0x2c00, 0x2c2e, 1},
+-	Range{0x2c60, 0x2c62, 2},
+-	Range{0x2c63, 0x2c64, 1},
+-	Range{0x2c67, 0x2c6d, 2},
+-	Range{0x2c6e, 0x2c6f, 1},
+-	Range{0x2c72, 0x2c75, 3},
+-	Range{0x2c80, 0x2ce2, 2},
+-	Range{0xa640, 0xa65e, 2},
+-	Range{0xa662, 0xa66c, 2},
+-	Range{0xa680, 0xa696, 2},
+-	Range{0xa722, 0xa72e, 2},
+-	Range{0xa732, 0xa76e, 2},
+-	Range{0xa779, 0xa77d, 2},
+-	Range{0xa77e, 0xa786, 2},
+-	Range{0xa78b, 0xff21, 22422},
+-	Range{0xff22, 0xff3a, 1},
+-	Range{0x10400, 0x10427, 1},
+-	Range{0x1d400, 0x1d419, 1},
+-	Range{0x1d434, 0x1d44d, 1},
+-	Range{0x1d468, 0x1d481, 1},
+-	Range{0x1d49c, 0x1d49e, 2},
+-	Range{0x1d49f, 0x1d4a5, 3},
+-	Range{0x1d4a6, 0x1d4a9, 3},
+-	Range{0x1d4aa, 0x1d4ac, 1},
+-	Range{0x1d4ae, 0x1d4b5, 1},
+-	Range{0x1d4d0, 0x1d4e9, 1},
+-	Range{0x1d504, 0x1d505, 1},
+-	Range{0x1d507, 0x1d50a, 1},
+-	Range{0x1d50d, 0x1d514, 1},
+-	Range{0x1d516, 0x1d51c, 1},
+-	Range{0x1d538, 0x1d539, 1},
+-	Range{0x1d53b, 0x1d53e, 1},
+-	Range{0x1d540, 0x1d544, 1},
+-	Range{0x1d546, 0x1d54a, 4},
+-	Range{0x1d54b, 0x1d550, 1},
+-	Range{0x1d56c, 0x1d585, 1},
+-	Range{0x1d5a0, 0x1d5b9, 1},
+-	Range{0x1d5d4, 0x1d5ed, 1},
+-	Range{0x1d608, 0x1d621, 1},
+-	Range{0x1d63c, 0x1d655, 1},
+-	Range{0x1d670, 0x1d689, 1},
+-	Range{0x1d6a8, 0x1d6c0, 1},
+-	Range{0x1d6e2, 0x1d6fa, 1},
+-	Range{0x1d71c, 0x1d734, 1},
+-	Range{0x1d756, 0x1d76e, 1},
+-	Range{0x1d790, 0x1d7a8, 1},
+-	Range{0x1d7ca, 0x1d7ca, 1},
+-}
+-
+-// Lower is the set of Unicode lower case letters.
+-var Lower = lower
+-var lower = []Range {
+-	Range{0x0061, 0x007a, 1},
+-	Range{0x00aa, 0x00b5, 11},
+-	Range{0x00ba, 0x00df, 37},
+-	Range{0x00e0, 0x00f6, 1},
+-	Range{0x00f8, 0x00ff, 1},
+-	Range{0x0101, 0x0137, 2},
+-	Range{0x0138, 0x0148, 2},
+-	Range{0x0149, 0x0177, 2},
+-	Range{0x017a, 0x017e, 2},
+-	Range{0x017f, 0x0180, 1},
+-	Range{0x0183, 0x0185, 2},
+-	Range{0x0188, 0x018c, 4},
+-	Range{0x018d, 0x0192, 5},
+-	Range{0x0195, 0x0199, 4},
+-	Range{0x019a, 0x019b, 1},
+-	Range{0x019e, 0x01a1, 3},
+-	Range{0x01a3, 0x01a5, 2},
+-	Range{0x01a8, 0x01aa, 2},
+-	Range{0x01ab, 0x01ad, 2},
+-	Range{0x01b0, 0x01b4, 4},
+-	Range{0x01b6, 0x01b9, 3},
+-	Range{0x01ba, 0x01bd, 3},
+-	Range{0x01be, 0x01bf, 1},
+-	Range{0x01c6, 0x01cc, 3},
+-	Range{0x01ce, 0x01dc, 2},
+-	Range{0x01dd, 0x01ef, 2},
+-	Range{0x01f0, 0x01f3, 3},
+-	Range{0x01f5, 0x01f9, 4},
+-	Range{0x01fb, 0x0233, 2},
+-	Range{0x0234, 0x0239, 1},
+-	Range{0x023c, 0x023f, 3},
+-	Range{0x0240, 0x0242, 2},
+-	Range{0x0247, 0x024f, 2},
+-	Range{0x0250, 0x0293, 1},
+-	Range{0x0295, 0x02af, 1},
+-	Range{0x0371, 0x0373, 2},
+-	Range{0x0377, 0x037b, 4},
+-	Range{0x037c, 0x037d, 1},
+-	Range{0x0390, 0x03ac, 28},
+-	Range{0x03ad, 0x03ce, 1},
+-	Range{0x03d0, 0x03d1, 1},
+-	Range{0x03d5, 0x03d7, 1},
+-	Range{0x03d9, 0x03ef, 2},
+-	Range{0x03f0, 0x03f3, 1},
+-	Range{0x03f5, 0x03fb, 3},
+-	Range{0x03fc, 0x0430, 52},
+-	Range{0x0431, 0x045f, 1},
+-	Range{0x0461, 0x0481, 2},
+-	Range{0x048b, 0x04bf, 2},
+-	Range{0x04c2, 0x04ce, 2},
+-	Range{0x04cf, 0x0523, 2},
+-	Range{0x0561, 0x0587, 1},
+-	Range{0x1d00, 0x1d2b, 1},
+-	Range{0x1d62, 0x1d77, 1},
+-	Range{0x1d79, 0x1d9a, 1},
+-	Range{0x1e01, 0x1e95, 2},
+-	Range{0x1e96, 0x1e9d, 1},
+-	Range{0x1e9f, 0x1eff, 2},
+-	Range{0x1f00, 0x1f07, 1},
+-	Range{0x1f10, 0x1f15, 1},
+-	Range{0x1f20, 0x1f27, 1},
+-	Range{0x1f30, 0x1f37, 1},
+-	Range{0x1f40, 0x1f45, 1},
+-	Range{0x1f50, 0x1f57, 1},
+-	Range{0x1f60, 0x1f67, 1},
+-	Range{0x1f70, 0x1f7d, 1},
+-	Range{0x1f80, 0x1f87, 1},
+-	Range{0x1f90, 0x1f97, 1},
+-	Range{0x1fa0, 0x1fa7, 1},
+-	Range{0x1fb0, 0x1fb4, 1},
+-	Range{0x1fb6, 0x1fb7, 1},
+-	Range{0x1fbe, 0x1fc2, 4},
+-	Range{0x1fc3, 0x1fc4, 1},
+-	Range{0x1fc6, 0x1fc7, 1},
+-	Range{0x1fd0, 0x1fd3, 1},
+-	Range{0x1fd6, 0x1fd7, 1},
+-	Range{0x1fe0, 0x1fe7, 1},
+-	Range{0x1ff2, 0x1ff4, 1},
+-	Range{0x1ff6, 0x1ff7, 1},
+-	Range{0x2071, 0x207f, 14},
+-	Range{0x210a, 0x210e, 4},
+-	Range{0x210f, 0x2113, 4},
+-	Range{0x212f, 0x2139, 5},
+-	Range{0x213c, 0x213d, 1},
+-	Range{0x2146, 0x2149, 1},
+-	Range{0x214e, 0x2184, 54},
+-	Range{0x2c30, 0x2c5e, 1},
+-	Range{0x2c61, 0x2c65, 4},
+-	Range{0x2c66, 0x2c6c, 2},
+-	Range{0x2c71, 0x2c73, 2},
+-	Range{0x2c74, 0x2c76, 2},
+-	Range{0x2c77, 0x2c7c, 1},
+-	Range{0x2c81, 0x2ce3, 2},
+-	Range{0x2ce4, 0x2d00, 28},
+-	Range{0x2d01, 0x2d25, 1},
+-	Range{0xa641, 0xa65f, 2},
+-	Range{0xa663, 0xa66d, 2},
+-	Range{0xa681, 0xa697, 2},
+-	Range{0xa723, 0xa72f, 2},
+-	Range{0xa730, 0xa731, 1},
+-	Range{0xa733, 0xa771, 2},
+-	Range{0xa772, 0xa778, 1},
+-	Range{0xa77a, 0xa77c, 2},
+-	Range{0xa77f, 0xa787, 2},
+-	Range{0xa78c, 0xfb00, 21364},
+-	Range{0xfb01, 0xfb06, 1},
+-	Range{0xfb13, 0xfb17, 1},
+-	Range{0xff41, 0xff5a, 1},
+-	Range{0x10428, 0x1044f, 1},
+-	Range{0x1d41a, 0x1d433, 1},
+-	Range{0x1d44e, 0x1d454, 1},
+-	Range{0x1d456, 0x1d467, 1},
+-	Range{0x1d482, 0x1d49b, 1},
+-	Range{0x1d4b6, 0x1d4b9, 1},
+-	Range{0x1d4bb, 0x1d4bd, 2},
+-	Range{0x1d4be, 0x1d4c3, 1},
+-	Range{0x1d4c5, 0x1d4cf, 1},
+-	Range{0x1d4ea, 0x1d503, 1},
+-	Range{0x1d51e, 0x1d537, 1},
+-	Range{0x1d552, 0x1d56b, 1},
+-	Range{0x1d586, 0x1d59f, 1},
+-	Range{0x1d5ba, 0x1d5d3, 1},
+-	Range{0x1d5ee, 0x1d607, 1},
+-	Range{0x1d622, 0x1d63b, 1},
+-	Range{0x1d656, 0x1d66f, 1},
+-	Range{0x1d68a, 0x1d6a5, 1},
+-	Range{0x1d6c2, 0x1d6da, 1},
+-	Range{0x1d6dc, 0x1d6e1, 1},
+-	Range{0x1d6fc, 0x1d714, 1},
+-	Range{0x1d716, 0x1d71b, 1},
+-	Range{0x1d736, 0x1d74e, 1},
+-	Range{0x1d750, 0x1d755, 1},
+-	Range{0x1d770, 0x1d788, 1},
+-	Range{0x1d78a, 0x1d78f, 1},
+-	Range{0x1d7aa, 0x1d7c2, 1},
+-	Range{0x1d7c4, 0x1d7c9, 1},
+-	Range{0x1d7cb, 0x1d7cb, 1},
+-}
+-
+-// Title is the set of Unicode title case letters.
+-var Title = title
+-var title = []Range {
+-	Range{0x01c5, 0x01cb, 3},
+-	Range{0x01f2, 0x1f88, 7574},
+-	Range{0x1f89, 0x1f8f, 1},
+-	Range{0x1f98, 0x1f9f, 1},
+-	Range{0x1fa8, 0x1faf, 1},
+-	Range{0x1fbc, 0x1fcc, 16},
+-	Range{0x1ffc, 0x1ffc, 1},
+-}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 6a7ac3d32b..976bedaf1e 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -16,13 +16,23 @@ import (
+ 	"os";
+ 	"strconv";
+ 	"strings";
++	"unicode";
+ )
+ 
+-var url = flag.String("url", "http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt", "URL of Unicode database")
+-var digits = flag.Bool("digits", false, "whether to generate digit tables; default is letter tables");
++var url = flag.String("url",
++	"http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt",
++	"URL of Unicode database")
++var tables = flag.String("tables",
++	"all",
++	"comma-separated list of which tables to generate; default is all; can be letter");
++var test = flag.Bool("test",
++	false,
++	"test existing tables; can be used to compare web data with package data");
+ 
+ var die = log.New(os.Stderr, nil, "", log.Lexit|log.Lshortfile);
+ 
++var category = map[string] bool{ "letter":true }	// Nd Lu etc. letter is a special case
++
+ // Data has form:
+ //	0037;DIGIT SEVEN;Nd;0;EN;;7;7;7;N;;;;;
+ //	007A;LATIN SMALL LETTER Z;Ll;0;L;;;;;N;;;005A;;005A
+@@ -46,7 +56,7 @@ const (
+ 	FSimpleTitlecaseMapping;
+ 	NumField;
+ 
+-	MaxChar = 0xF0000;	// anything above this doesn't have useful properties
++	MaxChar = 0x10FFFF;	// anything above this shouldn't exist
+ )
+ 
+ var fieldName = []string{
+@@ -72,7 +82,6 @@ type Char struct {
+ 	field	[]string; 	// debugging only; could be deleted if we take out char.dump()
+ 	codePoint	uint32;	// redundant (it's the index in the chars table) but useful
+ 	category	string;
+-	numValue	int;
+ 	upperCase	uint32;
+ 	lowerCase	uint32;
+ 	titleCase	uint32;
+@@ -85,7 +94,7 @@ var lastChar uint32 = 0;
+ func parse(line string) {
+ 	field := strings.Split(line, ";", -1);
+ 	if len(field) != NumField {
+-		die.Logf("%.5s...: %d fields (expected %d)\n", line, len(field), NumField);
++		die.Logf("%5s: %d fields (expected %d)\n", line, len(field), NumField);
+ 	}
+ 	point, err := strconv.Btoui64(field[FCodePoint], 16);
+ 	if err != nil {
+@@ -96,7 +105,6 @@ func parse(line string) {
+ 		return	// not interesting and we use 0 as unset
+ 	}
+ 	if point >= MaxChar {
+-		fmt.Fprintf(os.Stderr, "ignoring char U+%04x\n", point);
+ 		return;
+ 	}
+ 	char := &chars[point];
+@@ -106,6 +114,7 @@ func parse(line string) {
+ 	}
+ 	char.codePoint = lastChar;
+ 	char.category = field[FGeneralCategory];
++	category[char.category] = true;
+ 	switch char.category {
+ 	case "Nd":
+ 		// Decimal digit
+@@ -113,7 +122,6 @@ func parse(line string) {
+ 		if err != nil {
+ 			die.Log("U+%04x: bad numeric field: %s", point, err);
+ 		}
+-		char.numValue = v;
+ 	case "Lu":
+ 		char.letter(field[FCodePoint], field[FSimpleLowercaseMapping], field[FSimpleTitlecaseMapping]);
+ 	case "Ll":
+@@ -151,6 +159,37 @@ func (char *Char) letterValue(s string, cas string) uint32 {
+ 	return uint32(v)
+ }
+ 
++func allCategories() []string {
++	a := make([]string, len(category));
++	i := 0;
++	for k := range category {
++		a[i] = k;
++		i++;
++	}
++	return a;
++}
++
++// Extract the version number from the URL
++func version() string {
++	// Break on slashes and look for the first numeric field
++	fields := strings.Split(*url, "/", 0);
++	for _, f := range fields {
++		if len(f) > 0 && '0' <= f[0] && f[0] <= '9' {
++			return f
++		}
++	}
++	die.Log("unknown version");
++	return "Unknown";
++}
++
++func letterOp(code int) bool {
++	switch chars[code].category {
++	case "Lu", "Ll", "Lt", "Lm", "Lo":
++		return true
++	}
++	return false
++}
++
+ func main() {
+ 	flag.Parse();
+ 
+@@ -158,6 +197,9 @@ func main() {
+ 	if err != nil {
+ 		die.Log(err);
+ 	}
++	if resp.StatusCode != 200 {
++		die.Log("bad GET status", resp.StatusCode);
++	}
+ 	input := bufio.NewReader(resp.Body);
+ 	for {
+ 		line, err := input.ReadLineString('\n', false);
+@@ -170,59 +212,85 @@ func main() {
+ 		parse(line);
+ 	}
+ 	resp.Body.Close();
++	// Find out which categories to dump
++	list := strings.Split(*tables, ",", 0);
++	if *tables == "all" {
++		list = allCategories();
++	}
++	if *test {
++		fullTest(list);
++		return
++	}
+ 	fmt.Printf(
+ 		"// Generated by running\n"
+-		"//	maketables --digits=%t --url=%s\n"
++		"//	maketables --tables=%t --url=%s\n"
+ 		"// DO NOT EDIT\n\n"
+-		"package unicode\n",
+-		*digits,
++		"package unicode\n\n",
++		*tables,
+ 		*url
+ 	);
+-	// We generate an UpperCase name to serve as concise documentation and a lowerCase
+-	// name to store the data.  This stops godoc dumping all the tables but keeps them
+-	// available to clients.
+-	if *digits {
+-		dumpRange(
+-			"\n// Digit is the set of Unicode characters with the \"decimal digit\" (Nd) property.\n"
+-			"var Digit = digit\n"
+-			"var digit = []Range {\n",
+-			func(code int) bool { return chars[code].category == "Nd" },
+-			"}\n"
+-		);
+-	} else {
+-		dumpRange(
+-			"\n// Letter is the set of Unicode letters.\n"
+-			"var Letter = letter\n"
+-			"var letter = []Range {\n",
+-			func(code int) bool {
+-				switch chars[code].category {
+-				case "Lu", "Ll", "Lt", "Lm", "Lo":
+-					return true
+-				}
+-				return false
+-			},
+-			"}\n"
+-		);
+-		dumpRange(
+-			"\n// Upper is the set of Unicode upper case letters.\n"
+-			"var Upper = upper\n"
+-			"var upper = []Range {\n",
+-			func(code int) bool { return chars[code].category == "Lu" },
+-			"}\n"
+-		);
+-		dumpRange(
+-			"\n// Lower is the set of Unicode lower case letters.\n"
+-			"var Lower = lower\n"
+-			"var lower = []Range {\n",
+-			func(code int) bool { return chars[code].category == "Ll" },
+-			"}\n"
+-		);
++
++	fmt.Println("// Version is the Unicode edition from which the tables are derived.");
++	fmt.Printf("var Version = %q\n\n", version());
++
++	if *tables == "all" {
++		fmt.Println("// Tables is the set of Unicode data tables.");
++			fmt.Println("var Tables = map[string] []Range {");
++		for k, _ := range category {
++			fmt.Printf("\t%q: %s,\n", k, k);
++		}
++		fmt.Printf("}\n\n");
++	}
++
++	for _, name := range list {
++		if _, ok := category[name]; !ok {
++			die.Log("unknown category", name);
++		}
++		// We generate an UpperCase name to serve as concise documentation and an _UnderScored
++		// name to store the data.  This stops godoc dumping all the tables but keeps them
++		// available to clients.
++		if name == "letter" {	// special case
++			dumpRange(
++				"\n// Letter is the set of Unicode letters.\n"
++				"var Letter = letter\n"
++				"var letter = []Range {\n",
++				letterOp,
++				"}\n"
++			);
++			continue;
++		}
++		// Cases deserving special comments
++		switch name {
++		case "Nd":
++			fmt.Printf(
++				"\n// Digit is the set of Unicode characters with the \"decimal digit\" property.\n"
++				"var Digit = Nd\n\n"
++			)
++		case "Lu":
++			fmt.Printf(
++				"\n// Upper is the set of Unicode upper case letters.\n"
++				"var Upper = Lu\n\n"
++			)
++		case "Ll":
++			fmt.Printf(
++				"\n// Lower is the set of Unicode lower case letters.\n"
++				"var Lower = Ll\n\n"
++			)
++		case "Lt":
++			fmt.Printf(
++				"\n// Title is the set of Unicode title case letters.\n"
++				"var Title = Lt\n\n"
++			)
++		}
+ 		dumpRange(
+-			"\n// Title is the set of Unicode title case letters.\n"
+-			"var Title = title\n"
+-			"var title = []Range {\n",
+-			func(code int) bool { return chars[code].category == "Lt" },
+-			"}\n"
++			fmt.Sprintf(
++				"// %s is the set of Unicode characters in category %s\n"
++				"var %s = _%s\n"
++				"var _%s = []Range {\n",
++				name, name, name, name, name
++			),
++			func(code int) bool { return chars[code].category == name },
++			"}\n\n"
+ 		);
+ 	}
+ }
+@@ -279,3 +347,34 @@ func dumpRange(header string, inCategory Op, trailer string) {
+ 	}
+ 	fmt.Print(trailer);
+ }
++
++func fullTest(list []string) {
++	for _, name := range list {
++		if _, ok := category[name]; !ok {
++			die.Log("unknown category", name);
++		}
++		r, ok := unicode.Tables[name];
++		if !ok {
++			die.Log("unknown table", name);
++		}
++		if name == "letter" {
++			verifyRange(name, letterOp, r);
++		} else {
++			verifyRange(
++				name,
++				func(code int) bool { return chars[code].category == name },
++				r
++			);
++		}
++	}
++}
++
++func verifyRange(name string, inCategory Op, table []unicode.Range) {
++	for i, c := range chars {
++		web := inCategory(i);
++		pkg := unicode.Is(table, i);
++		if web != pkg {
++			fmt.Fprintf(os.Stderr, "%s: U+%04X: web=%t pkg=%t\n", name, i, web, pkg);
++		}
++	}
++}
+diff --git a/src/pkg/unicode/tables.go b/src/pkg/unicode/tables.go
+new file mode 100644
+index 0000000000..9789dfe657
+--- /dev/null
++++ b/src/pkg/unicode/tables.go
+@@ -0,0 +1,1840 @@
++// Generated by running
++//	maketables --tables=%t(string)% --url=http://www.unicode.org/Public/5.1.0/ucd/UnicodeData.txt
++// DO NOT EDIT
++
++package unicode
++
++// Version is the Unicode edition from which the tables are derived.
++var Version = "5.1.0"
++
++// Tables is the set of Unicode data tables.
++var Tables = map[string] []Range {
++	"Lm": Lm,
++	"Ll": Ll,
++	"Me": Me,
++	"Mc": Mc,
++	"Mn": Mn,
++	"Zl": Zl,
++	"letter": letter,
++	"Zp": Zp,
++	"Zs": Zs,
++	"Cs": Cs,
++	"Co": Co,
++	"Cf": Cf,
++	"Cc": Cc,
++	"Po": Po,
++	"Pi": Pi,
++	"Pf": Pf,
++	"Pe": Pe,
++	"Pd": Pd,
++	"Pc": Pc,
++	"Ps": Ps,
++	"Nd": Nd,
++	"Nl": Nl,
++	"No": No,
++	"So": So,
++	"Sm": Sm,
++	"Sk": Sk,
++	"Sc": Sc,
++	"Lu": Lu,
++	"Lt": Lt,
++	"Lo": Lo,
++}
++
++// Lm is the set of Unicode characters in category Lm
++var Lm = _Lm
++var _Lm = []Range {
++	Range{0x02b0, 0x02c1, 1},
++	Range{0x02c6, 0x02d1, 1},
++	Range{0x02e0, 0x02e4, 1},
++	Range{0x02ec, 0x02ee, 2},
++	Range{0x0374, 0x037a, 6},
++	Range{0x0559, 0x0640, 231},
++	Range{0x06e5, 0x06e6, 1},
++	Range{0x07f4, 0x07f5, 1},
++	Range{0x07fa, 0x0971, 375},
++	Range{0x0e46, 0x0ec6, 128},
++	Range{0x10fc, 0x17d7, 1755},
++	Range{0x1843, 0x1c78, 1077},
++	Range{0x1c79, 0x1c7d, 1},
++	Range{0x1d2c, 0x1d61, 1},
++	Range{0x1d78, 0x1d9b, 35},
++	Range{0x1d9c, 0x1dbf, 1},
++	Range{0x2090, 0x2094, 1},
++	Range{0x2c7d, 0x2d6f, 242},
++	Range{0x2e2f, 0x3005, 470},
++	Range{0x3031, 0x3035, 1},
++	Range{0x303b, 0x309d, 98},
++	Range{0x309e, 0x30fc, 94},
++	Range{0x30fd, 0x30fe, 1},
++	Range{0xa015, 0xa60c, 1527},
++	Range{0xa67f, 0xa717, 152},
++	Range{0xa718, 0xa71f, 1},
++	Range{0xa770, 0xa788, 24},
++	Range{0xff70, 0xff9e, 46},
++	Range{0xff9f, 0xff9f, 1},
++}
++
++
++// Lower is the set of Unicode lower case letters.
++var Lower = Ll
++
++// Ll is the set of Unicode characters in category Ll
++var Ll = _Ll
++var _Ll = []Range {
++	Range{0x0061, 0x007a, 1},
++	Range{0x00aa, 0x00b5, 11},
++	Range{0x00ba, 0x00df, 37},
++	Range{0x00e0, 0x00f6, 1},
++	Range{0x00f8, 0x00ff, 1},
++	Range{0x0101, 0x0137, 2},
++	Range{0x0138, 0x0148, 2},
++	Range{0x0149, 0x0177, 2},
++	Range{0x017a, 0x017e, 2},
++	Range{0x017f, 0x0180, 1},
++	Range{0x0183, 0x0185, 2},
++	Range{0x0188, 0x018c, 4},
++	Range{0x018d, 0x0192, 5},
++	Range{0x0195, 0x0199, 4},
++	Range{0x019a, 0x019b, 1},
++	Range{0x019e, 0x01a1, 3},
++	Range{0x01a3, 0x01a5, 2},
++	Range{0x01a8, 0x01aa, 2},
++	Range{0x01ab, 0x01ad, 2},
++	Range{0x01b0, 0x01b4, 4},
++	Range{0x01b6, 0x01b9, 3},
++	Range{0x01ba, 0x01bd, 3},
++	Range{0x01be, 0x01bf, 1},
++	Range{0x01c6, 0x01cc, 3},
++	Range{0x01ce, 0x01dc, 2},
++	Range{0x01dd, 0x01ef, 2},
++	Range{0x01f0, 0x01f3, 3},
++	Range{0x01f5, 0x01f9, 4},
++	Range{0x01fb, 0x0233, 2},
++	Range{0x0234, 0x0239, 1},
++	Range{0x023c, 0x023f, 3},
++	Range{0x0240, 0x0242, 2},
++	Range{0x0247, 0x024f, 2},
++	Range{0x0250, 0x0293, 1},
++	Range{0x0295, 0x02af, 1},
++	Range{0x0371, 0x0373, 2},
++	Range{0x0377, 0x037b, 4},
++	Range{0x037c, 0x037d, 1},
++	Range{0x0390, 0x03ac, 28},
++	Range{0x03ad, 0x03ce, 1},
++	Range{0x03d0, 0x03d1, 1},
++	Range{0x03d5, 0x03d7, 1},
++	Range{0x03d9, 0x03ef, 2},
++	Range{0x03f0, 0x03f3, 1},
++	Range{0x03f5, 0x03fb, 3},
++	Range{0x03fc, 0x0430, 52},
++	Range{0x0431, 0x045f, 1},
++	Range{0x0461, 0x0481, 2},
++	Range{0x048b, 0x04bf, 2},
++	Range{0x04c2, 0x04ce, 2},
++	Range{0x04cf, 0x0523, 2},
++	Range{0x0561, 0x0587, 1},
++	Range{0x1d00, 0x1d2b, 1},
++	Range{0x1d62, 0x1d77, 1},
++	Range{0x1d79, 0x1d9a, 1},
++	Range{0x1e01, 0x1e95, 2},
++	Range{0x1e96, 0x1e9d, 1},
++	Range{0x1e9f, 0x1eff, 2},
++	Range{0x1f00, 0x1f07, 1},
++	Range{0x1f10, 0x1f15, 1},
++	Range{0x1f20, 0x1f27, 1},
++	Range{0x1f30, 0x1f37, 1},
++	Range{0x1f40, 0x1f45, 1},
++	Range{0x1f50, 0x1f57, 1},
++	Range{0x1f60, 0x1f67, 1},
++	Range{0x1f70, 0x1f7d, 1},
++	Range{0x1f80, 0x1f87, 1},
++	Range{0x1f90, 0x1f97, 1},
++	Range{0x1fa0, 0x1fa7, 1},
++	Range{0x1fb0, 0x1fb4, 1},
++	Range{0x1fb6, 0x1fb7, 1},
++	Range{0x1fbe, 0x1fc2, 4},
++	Range{0x1fc3, 0x1fc4, 1},
++	Range{0x1fc6, 0x1fc7, 1},
++	Range{0x1fd0, 0x1fd3, 1},
++	Range{0x1fd6, 0x1fd7, 1},
++	Range{0x1fe0, 0x1fe7, 1},
++	Range{0x1ff2, 0x1ff4, 1},
++	Range{0x1ff6, 0x1ff7, 1},
++	Range{0x2071, 0x207f, 14},
++	Range{0x210a, 0x210e, 4},
++	Range{0x210f, 0x2113, 4},
++	Range{0x212f, 0x2139, 5},
++	Range{0x213c, 0x213d, 1},
++	Range{0x2146, 0x2149, 1},
++	Range{0x214e, 0x2184, 54},
++	Range{0x2c30, 0x2c5e, 1},
++	Range{0x2c61, 0x2c65, 4},
++	Range{0x2c66, 0x2c6c, 2},
++	Range{0x2c71, 0x2c73, 2},
++	Range{0x2c74, 0x2c76, 2},
++	Range{0x2c77, 0x2c7c, 1},
++	Range{0x2c81, 0x2ce3, 2},
++	Range{0x2ce4, 0x2d00, 28},
++	Range{0x2d01, 0x2d25, 1},
++	Range{0xa641, 0xa65f, 2},
++	Range{0xa663, 0xa66d, 2},
++	Range{0xa681, 0xa697, 2},
++	Range{0xa723, 0xa72f, 2},
++	Range{0xa730, 0xa731, 1},
++	Range{0xa733, 0xa771, 2},
++	Range{0xa772, 0xa778, 1},
++	Range{0xa77a, 0xa77c, 2},
++	Range{0xa77f, 0xa787, 2},
++	Range{0xa78c, 0xfb00, 21364},
++	Range{0xfb01, 0xfb06, 1},
++	Range{0xfb13, 0xfb17, 1},
++	Range{0xff41, 0xff5a, 1},
++	Range{0x10428, 0x1044f, 1},
++	Range{0x1d41a, 0x1d433, 1},
++	Range{0x1d44e, 0x1d454, 1},
++	Range{0x1d456, 0x1d467, 1},
++	Range{0x1d482, 0x1d49b, 1},
++	Range{0x1d4b6, 0x1d4b9, 1},
++	Range{0x1d4bb, 0x1d4bd, 2},
++	Range{0x1d4be, 0x1d4c3, 1},
++	Range{0x1d4c5, 0x1d4cf, 1},
++	Range{0x1d4ea, 0x1d503, 1},
++	Range{0x1d51e, 0x1d537, 1},
++	Range{0x1d552, 0x1d56b, 1},
++	Range{0x1d586, 0x1d59f, 1},
++	Range{0x1d5ba, 0x1d5d3, 1},
++	Range{0x1d5ee, 0x1d607, 1},
++	Range{0x1d622, 0x1d63b, 1},
++	Range{0x1d656, 0x1d66f, 1},
++	Range{0x1d68a, 0x1d6a5, 1},
++	Range{0x1d6c2, 0x1d6da, 1},
++	Range{0x1d6dc, 0x1d6e1, 1},
++	Range{0x1d6fc, 0x1d714, 1},
++	Range{0x1d716, 0x1d71b, 1},
++	Range{0x1d736, 0x1d74e, 1},
++	Range{0x1d750, 0x1d755, 1},
++	Range{0x1d770, 0x1d788, 1},
++	Range{0x1d78a, 0x1d78f, 1},
++	Range{0x1d7aa, 0x1d7c2, 1},
++	Range{0x1d7c4, 0x1d7c9, 1},
++	Range{0x1d7cb, 0x1d7cb, 1},
++}
++
++// Me is the set of Unicode characters in category Me
++var Me = _Me
++var _Me = []Range {
++	Range{0x0488, 0x0489, 1},
++	Range{0x06de, 0x20dd, 6655},
++	Range{0x20de, 0x20e0, 1},
++	Range{0x20e2, 0x20e4, 1},
++	Range{0xa670, 0xa672, 1},
++}
++
++// Mc is the set of Unicode characters in category Mc
++var Mc = _Mc
++var _Mc = []Range {
++	Range{0x0903, 0x093e, 59},
++	Range{0x093f, 0x0940, 1},
++	Range{0x0949, 0x094c, 1},
++	Range{0x0982, 0x0983, 1},
++	Range{0x09be, 0x09c0, 1},
++	Range{0x09c7, 0x09c8, 1},
++	Range{0x09cb, 0x09cc, 1},
++	Range{0x09d7, 0x0a03, 44},
++	Range{0x0a3e, 0x0a40, 1},
++	Range{0x0a83, 0x0abe, 59},
++	Range{0x0abf, 0x0ac0, 1},
++	Range{0x0ac9, 0x0acb, 2},
++	Range{0x0acc, 0x0b02, 54},
++	Range{0x0b03, 0x0b3e, 59},
++	Range{0x0b40, 0x0b47, 7},
++	Range{0x0b48, 0x0b4b, 3},
++	Range{0x0b4c, 0x0b57, 11},
++	Range{0x0bbe, 0x0bbf, 1},
++	Range{0x0bc1, 0x0bc2, 1},
++	Range{0x0bc6, 0x0bc8, 1},
++	Range{0x0bca, 0x0bcc, 1},
++	Range{0x0bd7, 0x0c01, 42},
++	Range{0x0c02, 0x0c03, 1},
++	Range{0x0c41, 0x0c44, 1},
++	Range{0x0c82, 0x0c83, 1},
++	Range{0x0cbe, 0x0cc0, 2},
++	Range{0x0cc1, 0x0cc4, 1},
++	Range{0x0cc7, 0x0cc8, 1},
++	Range{0x0cca, 0x0ccb, 1},
++	Range{0x0cd5, 0x0cd6, 1},
++	Range{0x0d02, 0x0d03, 1},
++	Range{0x0d3e, 0x0d40, 1},
++	Range{0x0d46, 0x0d48, 1},
++	Range{0x0d4a, 0x0d4c, 1},
++	Range{0x0d57, 0x0d82, 43},
++	Range{0x0d83, 0x0dcf, 76},
++	Range{0x0dd0, 0x0dd1, 1},
++	Range{0x0dd8, 0x0ddf, 1},
++	Range{0x0df2, 0x0df3, 1},
++	Range{0x0f3e, 0x0f3f, 1},
++	Range{0x0f7f, 0x102b, 172},
++	Range{0x102c, 0x1031, 5},
++	Range{0x1038, 0x103b, 3},
++	Range{0x103c, 0x1056, 26},
++	Range{0x1057, 0x1062, 11},
++	Range{0x1063, 0x1064, 1},
++	Range{0x1067, 0x106d, 1},
++	Range{0x1083, 0x1084, 1},
++	Range{0x1087, 0x108c, 1},
++	Range{0x108f, 0x17b6, 1831},
++	Range{0x17be, 0x17c5, 1},
++	Range{0x17c7, 0x17c8, 1},
++	Range{0x1923, 0x1926, 1},
++	Range{0x1929, 0x192b, 1},
++	Range{0x1930, 0x1931, 1},
++	Range{0x1933, 0x1938, 1},
++	Range{0x19b0, 0x19c0, 1},
++	Range{0x19c8, 0x19c9, 1},
++	Range{0x1a19, 0x1a1b, 1},
++	Range{0x1b04, 0x1b35, 49},
++	Range{0x1b3b, 0x1b3d, 2},
++	Range{0x1b3e, 0x1b41, 1},
++	Range{0x1b43, 0x1b44, 1},
++	Range{0x1b82, 0x1ba1, 31},
++	Range{0x1ba6, 0x1ba7, 1},
++	Range{0x1baa, 0x1c24, 122},
++	Range{0x1c25, 0x1c2b, 1},
++	Range{0x1c34, 0x1c35, 1},
++	Range{0xa823, 0xa824, 1},
++	Range{0xa827, 0xa880, 89},
++	Range{0xa881, 0xa8b4, 51},
++	Range{0xa8b5, 0xa8c3, 1},
++	Range{0xa952, 0xa953, 1},
++	Range{0xaa2f, 0xaa30, 1},
++	Range{0xaa33, 0xaa34, 1},
++	Range{0xaa4d, 0x1d165, 75544},
++	Range{0x1d166, 0x1d16d, 7},
++	Range{0x1d16e, 0x1d172, 1},
++}
++
++// Mn is the set of Unicode characters in category Mn
++var Mn = _Mn
++var _Mn = []Range {
++	Range{0x0300, 0x036f, 1},
++	Range{0x0483, 0x0487, 1},
++	Range{0x0591, 0x05bd, 1},
++	Range{0x05bf, 0x05c1, 2},
++	Range{0x05c2, 0x05c4, 2},
++	Range{0x05c5, 0x05c7, 2},
++	Range{0x0610, 0x061a, 1},
++	Range{0x064b, 0x065e, 1},
++	Range{0x0670, 0x06d6, 102},
++	Range{0x06d7, 0x06dc, 1},
++	Range{0x06df, 0x06e4, 1},
++	Range{0x06e7, 0x06e8, 1},
++	Range{0x06ea, 0x06ed, 1},
++	Range{0x0711, 0x0730, 31},
++	Range{0x0731, 0x074a, 1},
++	Range{0x07a6, 0x07b0, 1},
++	Range{0x07eb, 0x07f3, 1},
++	Range{0x0901, 0x0902, 1},
++	Range{0x093c, 0x0941, 5},
++	Range{0x0942, 0x0948, 1},
++	Range{0x094d, 0x0951, 4},
++	Range{0x0952, 0x0954, 1},
++	Range{0x0962, 0x0963, 1},
++	Range{0x0981, 0x09bc, 59},
++	Range{0x09c1, 0x09c4, 1},
++	Range{0x09cd, 0x09e2, 21},
++	Range{0x09e3, 0x0a01, 30},
++	Range{0x0a02, 0x0a3c, 58},
++	Range{0x0a41, 0x0a42, 1},
++	Range{0x0a47, 0x0a48, 1},
++	Range{0x0a4b, 0x0a4d, 1},
++	Range{0x0a51, 0x0a70, 31},
++	Range{0x0a71, 0x0a75, 4},
++	Range{0x0a81, 0x0a82, 1},
++	Range{0x0abc, 0x0ac1, 5},
++	Range{0x0ac2, 0x0ac5, 1},
++	Range{0x0ac7, 0x0ac8, 1},
++	Range{0x0acd, 0x0ae2, 21},
++	Range{0x0ae3, 0x0b01, 30},
++	Range{0x0b3c, 0x0b3f, 3},
++	Range{0x0b41, 0x0b44, 1},
++	Range{0x0b4d, 0x0b56, 9},
++	Range{0x0b62, 0x0b63, 1},
++	Range{0x0b82, 0x0bc0, 62},
++	Range{0x0bcd, 0x0c3e, 113},
++	Range{0x0c3f, 0x0c40, 1},
++	Range{0x0c46, 0x0c48, 1},
++	Range{0x0c4a, 0x0c4d, 1},
++	Range{0x0c55, 0x0c56, 1},
++	Range{0x0c62, 0x0c63, 1},
++	Range{0x0cbc, 0x0cbf, 3},
++	Range{0x0cc6, 0x0ccc, 6},
++	Range{0x0ccd, 0x0ce2, 21},
++	Range{0x0ce3, 0x0d41, 94},
++	Range{0x0d42, 0x0d44, 1},
++	Range{0x0d4d, 0x0d62, 21},
++	Range{0x0d63, 0x0dca, 103},
++	Range{0x0dd2, 0x0dd4, 1},
++	Range{0x0dd6, 0x0e31, 91},
++	Range{0x0e34, 0x0e3a, 1},
++	Range{0x0e47, 0x0e4e, 1},
++	Range{0x0eb1, 0x0eb4, 3},
++	Range{0x0eb5, 0x0eb9, 1},
++	Range{0x0ebb, 0x0ebc, 1},
++	Range{0x0ec8, 0x0ecd, 1},
++	Range{0x0f18, 0x0f19, 1},
++	Range{0x0f35, 0x0f39, 2},
++	Range{0x0f71, 0x0f7e, 1},
++	Range{0x0f80, 0x0f84, 1},
++	Range{0x0f86, 0x0f87, 1},
++	Range{0x0f90, 0x0f97, 1},
++	Range{0x0f99, 0x0fbc, 1},
++	Range{0x0fc6, 0x102d, 103},
++	Range{0x102e, 0x1030, 1},
++	Range{0x1032, 0x1037, 1},
++	Range{0x1039, 0x103a, 1},
++	Range{0x103d, 0x103e, 1},
++	Range{0x1058, 0x1059, 1},
++	Range{0x105e, 0x1060, 1},
++	Range{0x1071, 0x1074, 1},
++	Range{0x1082, 0x1085, 3},
++	Range{0x1086, 0x108d, 7},
++	Range{0x135f, 0x1712, 947},
++	Range{0x1713, 0x1714, 1},
++	Range{0x1732, 0x1734, 1},
++	Range{0x1752, 0x1753, 1},
++	Range{0x1772, 0x1773, 1},
++	Range{0x17b7, 0x17bd, 1},
++	Range{0x17c6, 0x17c9, 3},
++	Range{0x17ca, 0x17d3, 1},
++	Range{0x17dd, 0x180b, 46},
++	Range{0x180c, 0x180d, 1},
++	Range{0x18a9, 0x1920, 119},
++	Range{0x1921, 0x1922, 1},
++	Range{0x1927, 0x1928, 1},
++	Range{0x1932, 0x1939, 7},
++	Range{0x193a, 0x193b, 1},
++	Range{0x1a17, 0x1a18, 1},
++	Range{0x1b00, 0x1b03, 1},
++	Range{0x1b34, 0x1b36, 2},
++	Range{0x1b37, 0x1b3a, 1},
++	Range{0x1b3c, 0x1b42, 6},
++	Range{0x1b6b, 0x1b73, 1},
++	Range{0x1b80, 0x1b81, 1},
++	Range{0x1ba2, 0x1ba5, 1},
++	Range{0x1ba8, 0x1ba9, 1},
++	Range{0x1c2c, 0x1c33, 1},
++	Range{0x1c36, 0x1c37, 1},
++	Range{0x1dc0, 0x1de6, 1},
++	Range{0x1dfe, 0x1dff, 1},
++	Range{0x20d0, 0x20dc, 1},
++	Range{0x20e1, 0x20e5, 4},
++	Range{0x20e6, 0x20f0, 1},
++	Range{0x2de0, 0x2dff, 1},
++	Range{0x302a, 0x302f, 1},
++	Range{0x3099, 0x309a, 1},
++	Range{0xa66f, 0xa67c, 13},
++	Range{0xa67d, 0xa802, 389},
++	Range{0xa806, 0xa80b, 5},
++	Range{0xa825, 0xa826, 1},
++	Range{0xa8c4, 0xa926, 98},
++	Range{0xa927, 0xa92d, 1},
++	Range{0xa947, 0xa951, 1},
++	Range{0xaa29, 0xaa2e, 1},
++	Range{0xaa31, 0xaa32, 1},
++	Range{0xaa35, 0xaa36, 1},
++	Range{0xaa43, 0xaa4c, 9},
++	Range{0xfb1e, 0xfe00, 738},
++	Range{0xfe01, 0xfe0f, 1},
++	Range{0xfe20, 0xfe26, 1},
++	Range{0x101fd, 0x10a01, 2052},
++	Range{0x10a02, 0x10a03, 1},
++	Range{0x10a05, 0x10a06, 1},
++	Range{0x10a0c, 0x10a0f, 1},
++	Range{0x10a38, 0x10a3a, 1},
++	Range{0x10a3f, 0x1d167, 50984},
++	Range{0x1d168, 0x1d169, 1},
++	Range{0x1d17b, 0x1d182, 1},
++	Range{0x1d185, 0x1d18b, 1},
++	Range{0x1d1aa, 0x1d1ad, 1},
++	Range{0x1d242, 0x1d244, 1},
++	Range{0xe0100, 0xe01ef, 1},
++}
++
++// Zl is the set of Unicode characters in category Zl
++var Zl = _Zl
++var _Zl = []Range {
++	Range{0x2028, 0x2028, 1},
++}
++
++
++// Letter is the set of Unicode letters.
++var Letter = letter
++var letter = []Range {
++	Range{0x0041, 0x005a, 1},
++	Range{0x0061, 0x007a, 1},
++	Range{0x00aa, 0x00b5, 11},
++	Range{0x00ba, 0x00c0, 6},
++	Range{0x00c1, 0x00d6, 1},
++	Range{0x00d8, 0x00f6, 1},
++	Range{0x00f8, 0x02c1, 1},
++	Range{0x02c6, 0x02d1, 1},
++	Range{0x02e0, 0x02e4, 1},
++	Range{0x02ec, 0x02ee, 2},
++	Range{0x0370, 0x0374, 1},
++	Range{0x0376, 0x0377, 1},
++	Range{0x037a, 0x037d, 1},
++	Range{0x0386, 0x0388, 2},
++	Range{0x0389, 0x038a, 1},
++	Range{0x038c, 0x038e, 2},
++	Range{0x038f, 0x03a1, 1},
++	Range{0x03a3, 0x03f5, 1},
++	Range{0x03f7, 0x0481, 1},
++	Range{0x048a, 0x0523, 1},
++	Range{0x0531, 0x0556, 1},
++	Range{0x0559, 0x0561, 8},
++	Range{0x0562, 0x0587, 1},
++	Range{0x05d0, 0x05ea, 1},
++	Range{0x05f0, 0x05f2, 1},
++	Range{0x0621, 0x064a, 1},
++	Range{0x066e, 0x066f, 1},
++	Range{0x0671, 0x06d3, 1},
++	Range{0x06d5, 0x06e5, 16},
++	Range{0x06e6, 0x06ee, 8},
++	Range{0x06ef, 0x06fa, 11},
++	Range{0x06fb, 0x06fc, 1},
++	Range{0x06ff, 0x0710, 17},
++	Range{0x0712, 0x072f, 1},
++	Range{0x074d, 0x07a5, 1},
++	Range{0x07b1, 0x07ca, 25},
++	Range{0x07cb, 0x07ea, 1},
++	Range{0x07f4, 0x07f5, 1},
++	Range{0x07fa, 0x0904, 266},
++	Range{0x0905, 0x0939, 1},
++	Range{0x093d, 0x0950, 19},
++	Range{0x0958, 0x0961, 1},
++	Range{0x0971, 0x0972, 1},
++	Range{0x097b, 0x097f, 1},
++	Range{0x0985, 0x098c, 1},
++	Range{0x098f, 0x0990, 1},
++	Range{0x0993, 0x09a8, 1},
++	Range{0x09aa, 0x09b0, 1},
++	Range{0x09b2, 0x09b6, 4},
++	Range{0x09b7, 0x09b9, 1},
++	Range{0x09bd, 0x09ce, 17},
++	Range{0x09dc, 0x09dd, 1},
++	Range{0x09df, 0x09e1, 1},
++	Range{0x09f0, 0x09f1, 1},
++	Range{0x0a05, 0x0a0a, 1},
++	Range{0x0a0f, 0x0a10, 1},
++	Range{0x0a13, 0x0a28, 1},
++	Range{0x0a2a, 0x0a30, 1},
++	Range{0x0a32, 0x0a33, 1},
++	Range{0x0a35, 0x0a36, 1},
++	Range{0x0a38, 0x0a39, 1},
++	Range{0x0a59, 0x0a5c, 1},
++	Range{0x0a5e, 0x0a72, 20},
++	Range{0x0a73, 0x0a74, 1},
++	Range{0x0a85, 0x0a8d, 1},
++	Range{0x0a8f, 0x0a91, 1},
++	Range{0x0a93, 0x0aa8, 1},
++	Range{0x0aaa, 0x0ab0, 1},
++	Range{0x0ab2, 0x0ab3, 1},
++	Range{0x0ab5, 0x0ab9, 1},
++	Range{0x0abd, 0x0ad0, 19},
++	Range{0x0ae0, 0x0ae1, 1},
++	Range{0x0b05, 0x0b0c, 1},
++	Range{0x0b0f, 0x0b10, 1},
++	Range{0x0b13, 0x0b28, 1},
++	Range{0x0b2a, 0x0b30, 1},
++	Range{0x0b32, 0x0b33, 1},
++	Range{0x0b35, 0x0b39, 1},
++	Range{0x0b3d, 0x0b5c, 31},
++	Range{0x0b5d, 0x0b5f, 2},
++	Range{0x0b60, 0x0b61, 1},
++	Range{0x0b71, 0x0b83, 18},
++	Range{0x0b85, 0x0b8a, 1},
++	Range{0x0b8e, 0x0b90, 1},
++	Range{0x0b92, 0x0b95, 1},
++	Range{0x0b99, 0x0b9a, 1},
++	Range{0x0b9c, 0x0b9e, 2},
++	Range{0x0b9f, 0x0ba3, 4},
++	Range{0x0ba4, 0x0ba8, 4},
++	Range{0x0ba9, 0x0baa, 1},
++	Range{0x0bae, 0x0bb9, 1},
++	Range{0x0bd0, 0x0c05, 53},
++	Range{0x0c06, 0x0c0c, 1},
++	Range{0x0c0e, 0x0c10, 1},
++	Range{0x0c12, 0x0c28, 1},
++	Range{0x0c2a, 0x0c33, 1},
++	Range{0x0c35, 0x0c39, 1},
++	Range{0x0c3d, 0x0c58, 27},
++	Range{0x0c59, 0x0c60, 7},
++	Range{0x0c61, 0x0c85, 36},
++	Range{0x0c86, 0x0c8c, 1},
++	Range{0x0c8e, 0x0c90, 1},
++	Range{0x0c92, 0x0ca8, 1},
++	Range{0x0caa, 0x0cb3, 1},
++	Range{0x0cb5, 0x0cb9, 1},
++	Range{0x0cbd, 0x0cde, 33},
++	Range{0x0ce0, 0x0ce1, 1},
++	Range{0x0d05, 0x0d0c, 1},
++	Range{0x0d0e, 0x0d10, 1},
++	Range{0x0d12, 0x0d28, 1},
++	Range{0x0d2a, 0x0d39, 1},
++	Range{0x0d3d, 0x0d60, 35},
++	Range{0x0d61, 0x0d7a, 25},
++	Range{0x0d7b, 0x0d7f, 1},
++	Range{0x0d85, 0x0d96, 1},
++	Range{0x0d9a, 0x0db1, 1},
++	Range{0x0db3, 0x0dbb, 1},
++	Range{0x0dbd, 0x0dc0, 3},
++	Range{0x0dc1, 0x0dc6, 1},
++	Range{0x0e01, 0x0e30, 1},
++	Range{0x0e32, 0x0e33, 1},
++	Range{0x0e40, 0x0e46, 1},
++	Range{0x0e81, 0x0e82, 1},
++	Range{0x0e84, 0x0e87, 3},
++	Range{0x0e88, 0x0e8a, 2},
++	Range{0x0e8d, 0x0e94, 7},
++	Range{0x0e95, 0x0e97, 1},
++	Range{0x0e99, 0x0e9f, 1},
++	Range{0x0ea1, 0x0ea3, 1},
++	Range{0x0ea5, 0x0ea7, 2},
++	Range{0x0eaa, 0x0eab, 1},
++	Range{0x0ead, 0x0eb0, 1},
++	Range{0x0eb2, 0x0eb3, 1},
++	Range{0x0ebd, 0x0ec0, 3},
++	Range{0x0ec1, 0x0ec4, 1},
++	Range{0x0ec6, 0x0edc, 22},
++	Range{0x0edd, 0x0f00, 35},
++	Range{0x0f40, 0x0f47, 1},
++	Range{0x0f49, 0x0f6c, 1},
++	Range{0x0f88, 0x0f8b, 1},
++	Range{0x1000, 0x102a, 1},
++	Range{0x103f, 0x1050, 17},
++	Range{0x1051, 0x1055, 1},
++	Range{0x105a, 0x105d, 1},
++	Range{0x1061, 0x1065, 4},
++	Range{0x1066, 0x106e, 8},
++	Range{0x106f, 0x1070, 1},
++	Range{0x1075, 0x1081, 1},
++	Range{0x108e, 0x10a0, 18},
++	Range{0x10a1, 0x10c5, 1},
++	Range{0x10d0, 0x10fa, 1},
++	Range{0x10fc, 0x1100, 4},
++	Range{0x1101, 0x1159, 1},
++	Range{0x115f, 0x11a2, 1},
++	Range{0x11a8, 0x11f9, 1},
++	Range{0x1200, 0x1248, 1},
++	Range{0x124a, 0x124d, 1},
++	Range{0x1250, 0x1256, 1},
++	Range{0x1258, 0x125a, 2},
++	Range{0x125b, 0x125d, 1},
++	Range{0x1260, 0x1288, 1},
++	Range{0x128a, 0x128d, 1},
++	Range{0x1290, 0x12b0, 1},
++	Range{0x12b2, 0x12b5, 1},
++	Range{0x12b8, 0x12be, 1},
++	Range{0x12c0, 0x12c2, 2},
++	Range{0x12c3, 0x12c5, 1},
++	Range{0x12c8, 0x12d6, 1},
++	Range{0x12d8, 0x1310, 1},
++	Range{0x1312, 0x1315, 1},
++	Range{0x1318, 0x135a, 1},
++	Range{0x1380, 0x138f, 1},
++	Range{0x13a0, 0x13f4, 1},
++	Range{0x1401, 0x166c, 1},
++	Range{0x166f, 0x1676, 1},
++	Range{0x1681, 0x169a, 1},
++	Range{0x16a0, 0x16ea, 1},
++	Range{0x1700, 0x170c, 1},
++	Range{0x170e, 0x1711, 1},
++	Range{0x1720, 0x1731, 1},
++	Range{0x1740, 0x1751, 1},
++	Range{0x1760, 0x176c, 1},
++	Range{0x176e, 0x1770, 1},
++	Range{0x1780, 0x17b3, 1},
++	Range{0x17d7, 0x17dc, 5},
++	Range{0x1820, 0x1877, 1},
++	Range{0x1880, 0x18a8, 1},
++	Range{0x18aa, 0x1900, 86},
++	Range{0x1901, 0x191c, 1},
++	Range{0x1950, 0x196d, 1},
++	Range{0x1970, 0x1974, 1},
++	Range{0x1980, 0x19a9, 1},
++	Range{0x19c1, 0x19c7, 1},
++	Range{0x1a00, 0x1a16, 1},
++	Range{0x1b05, 0x1b33, 1},
++	Range{0x1b45, 0x1b4b, 1},
++	Range{0x1b83, 0x1ba0, 1},
++	Range{0x1bae, 0x1baf, 1},
++	Range{0x1c00, 0x1c23, 1},
++	Range{0x1c4d, 0x1c4f, 1},
++	Range{0x1c5a, 0x1c7d, 1},
++	Range{0x1d00, 0x1dbf, 1},
++	Range{0x1e00, 0x1f15, 1},
++	Range{0x1f18, 0x1f1d, 1},
++	Range{0x1f20, 0x1f45, 1},
++	Range{0x1f48, 0x1f4d, 1},
++	Range{0x1f50, 0x1f57, 1},
++	Range{0x1f59, 0x1f5f, 2},
++	Range{0x1f60, 0x1f7d, 1},
++	Range{0x1f80, 0x1fb4, 1},
++	Range{0x1fb6, 0x1fbc, 1},
++	Range{0x1fbe, 0x1fc2, 4},
++	Range{0x1fc3, 0x1fc4, 1},
++	Range{0x1fc6, 0x1fcc, 1},
++	Range{0x1fd0, 0x1fd3, 1},
++	Range{0x1fd6, 0x1fdb, 1},
++	Range{0x1fe0, 0x1fec, 1},
++	Range{0x1ff2, 0x1ff4, 1},
++	Range{0x1ff6, 0x1ffc, 1},
++	Range{0x2071, 0x207f, 14},
++	Range{0x2090, 0x2094, 1},
++	Range{0x2102, 0x2107, 5},
++	Range{0x210a, 0x2113, 1},
++	Range{0x2115, 0x2119, 4},
++	Range{0x211a, 0x211d, 1},
++	Range{0x2124, 0x212a, 2},
++	Range{0x212b, 0x212d, 1},
++	Range{0x212f, 0x2139, 1},
++	Range{0x213c, 0x213f, 1},
++	Range{0x2145, 0x2149, 1},
++	Range{0x214e, 0x2183, 53},
++	Range{0x2184, 0x2c00, 2684},
++	Range{0x2c01, 0x2c2e, 1},
++	Range{0x2c30, 0x2c5e, 1},
++	Range{0x2c60, 0x2c6f, 1},
++	Range{0x2c71, 0x2c7d, 1},
++	Range{0x2c80, 0x2ce4, 1},
++	Range{0x2d00, 0x2d25, 1},
++	Range{0x2d30, 0x2d65, 1},
++	Range{0x2d6f, 0x2d80, 17},
++	Range{0x2d81, 0x2d96, 1},
++	Range{0x2da0, 0x2da6, 1},
++	Range{0x2da8, 0x2dae, 1},
++	Range{0x2db0, 0x2db6, 1},
++	Range{0x2db8, 0x2dbe, 1},
++	Range{0x2dc0, 0x2dc6, 1},
++	Range{0x2dc8, 0x2dce, 1},
++	Range{0x2dd0, 0x2dd6, 1},
++	Range{0x2dd8, 0x2dde, 1},
++	Range{0x2e2f, 0x3005, 470},
++	Range{0x3006, 0x3031, 43},
++	Range{0x3032, 0x3035, 1},
++	Range{0x303b, 0x303c, 1},
++	Range{0x3041, 0x3096, 1},
++	Range{0x309d, 0x309f, 1},
++	Range{0x30a1, 0x30fa, 1},
++	Range{0x30fc, 0x30ff, 1},
++	Range{0x3105, 0x312d, 1},
++	Range{0x3131, 0x318e, 1},
++	Range{0x31a0, 0x31b7, 1},
++	Range{0x31f0, 0x31ff, 1},
++	Range{0x3400, 0x4db5, 6581},
++	Range{0x4e00, 0x9fc3, 20931},
++	Range{0xa000, 0xa48c, 1},
++	Range{0xa500, 0xa60c, 1},
++	Range{0xa610, 0xa61f, 1},
++	Range{0xa62a, 0xa62b, 1},
++	Range{0xa640, 0xa65f, 1},
++	Range{0xa662, 0xa66e, 1},
++	Range{0xa67f, 0xa697, 1},
++	Range{0xa717, 0xa71f, 1},
++	Range{0xa722, 0xa788, 1},
++	Range{0xa78b, 0xa78c, 1},
++	Range{0xa7fb, 0xa801, 1},
++	Range{0xa803, 0xa805, 1},
++	Range{0xa807, 0xa80a, 1},
++	Range{0xa80c, 0xa822, 1},
++	Range{0xa840, 0xa873, 1},
++	Range{0xa882, 0xa8b3, 1},
++	Range{0xa90a, 0xa925, 1},
++	Range{0xa930, 0xa946, 1},
++	Range{0xaa00, 0xaa28, 1},
++	Range{0xaa40, 0xaa42, 1},
++	Range{0xaa44, 0xaa4b, 1},
++	Range{0xac00, 0xd7a3, 11171},
++	Range{0xf900, 0xfa2d, 1},
++	Range{0xfa30, 0xfa6a, 1},
++	Range{0xfa70, 0xfad9, 1},
++	Range{0xfb00, 0xfb06, 1},
++	Range{0xfb13, 0xfb17, 1},
++	Range{0xfb1d, 0xfb1f, 2},
++	Range{0xfb20, 0xfb28, 1},
++	Range{0xfb2a, 0xfb36, 1},
++	Range{0xfb38, 0xfb3c, 1},
++	Range{0xfb3e, 0xfb40, 2},
++	Range{0xfb41, 0xfb43, 2},
++	Range{0xfb44, 0xfb46, 2},
++	Range{0xfb47, 0xfbb1, 1},
++	Range{0xfbd3, 0xfd3d, 1},
++	Range{0xfd50, 0xfd8f, 1},
++	Range{0xfd92, 0xfdc7, 1},
++	Range{0xfdf0, 0xfdfb, 1},
++	Range{0xfe70, 0xfe74, 1},
++	Range{0xfe76, 0xfefc, 1},
++	Range{0xff21, 0xff3a, 1},
++	Range{0xff41, 0xff5a, 1},
++	Range{0xff66, 0xffbe, 1},
++	Range{0xffc2, 0xffc7, 1},
++	Range{0xffca, 0xffcf, 1},
++	Range{0xffd2, 0xffd7, 1},
++	Range{0xffda, 0xffdc, 1},
++	Range{0x10000, 0x1000b, 1},
++	Range{0x1000d, 0x10026, 1},
++	Range{0x10028, 0x1003a, 1},
++	Range{0x1003c, 0x1003d, 1},
++	Range{0x1003f, 0x1004d, 1},
++	Range{0x10050, 0x1005d, 1},
++	Range{0x10080, 0x100fa, 1},
++	Range{0x10280, 0x1029c, 1},
++	Range{0x102a0, 0x102d0, 1},
++	Range{0x10300, 0x1031e, 1},
++	Range{0x10330, 0x10340, 1},
++	Range{0x10342, 0x10349, 1},
++	Range{0x10380, 0x1039d, 1},
++	Range{0x103a0, 0x103c3, 1},
++	Range{0x103c8, 0x103cf, 1},
++	Range{0x10400, 0x1049d, 1},
++	Range{0x10800, 0x10805, 1},
++	Range{0x10808, 0x1080a, 2},
++	Range{0x1080b, 0x10835, 1},
++	Range{0x10837, 0x10838, 1},
++	Range{0x1083c, 0x1083f, 3},
++	Range{0x10900, 0x10915, 1},
++	Range{0x10920, 0x10939, 1},
++	Range{0x10a00, 0x10a10, 16},
++	Range{0x10a11, 0x10a13, 1},
++	Range{0x10a15, 0x10a17, 1},
++	Range{0x10a19, 0x10a33, 1},
++	Range{0x12000, 0x1236e, 1},
++	Range{0x1d400, 0x1d454, 1},
++	Range{0x1d456, 0x1d49c, 1},
++	Range{0x1d49e, 0x1d49f, 1},
++	Range{0x1d4a2, 0x1d4a5, 3},
++	Range{0x1d4a6, 0x1d4a9, 3},
++	Range{0x1d4aa, 0x1d4ac, 1},
++	Range{0x1d4ae, 0x1d4b9, 1},
++	Range{0x1d4bb, 0x1d4bd, 2},
++	Range{0x1d4be, 0x1d4c3, 1},
++	Range{0x1d4c5, 0x1d505, 1},
++	Range{0x1d507, 0x1d50a, 1},
++	Range{0x1d50d, 0x1d514, 1},
++	Range{0x1d516, 0x1d51c, 1},
++	Range{0x1d51e, 0x1d539, 1},
++	Range{0x1d53b, 0x1d53e, 1},
++	Range{0x1d540, 0x1d544, 1},
++	Range{0x1d546, 0x1d54a, 4},
++	Range{0x1d54b, 0x1d550, 1},
++	Range{0x1d552, 0x1d6a5, 1},
++	Range{0x1d6a8, 0x1d6c0, 1},
++	Range{0x1d6c2, 0x1d6da, 1},
++	Range{0x1d6dc, 0x1d6fa, 1},
++	Range{0x1d6fc, 0x1d714, 1},
++	Range{0x1d716, 0x1d734, 1},
++	Range{0x1d736, 0x1d74e, 1},
++	Range{0x1d750, 0x1d76e, 1},
++	Range{0x1d770, 0x1d788, 1},
++	Range{0x1d78a, 0x1d7a8, 1},
++	Range{0x1d7aa, 0x1d7c2, 1},
++	Range{0x1d7c4, 0x1d7cb, 1},
++	Range{0x20000, 0x2a6d6, 42710},
++	Range{0x2f800, 0x2fa1d, 1},
++}
++// Zp is the set of Unicode characters in category Zp
++var Zp = _Zp
++var _Zp = []Range {
++	Range{0x2029, 0x2029, 1},
++}
++
++// Zs is the set of Unicode characters in category Zs
++var Zs = _Zs
++var _Zs = []Range {
++	Range{0x0020, 0x00a0, 128},
++	Range{0x1680, 0x180e, 398},
++	Range{0x2000, 0x200a, 1},
++	Range{0x202f, 0x205f, 48},
++	Range{0x3000, 0x3000, 1},
++}
++
++// Cs is the set of Unicode characters in category Cs
++var Cs = _Cs
++var _Cs = []Range {
++	Range{0xd800, 0xdb7f, 895},
++	Range{0xdb80, 0xdbff, 127},
++	Range{0xdc00, 0xdfff, 1023},
++}
++
++// Co is the set of Unicode characters in category Co
++var Co = _Co
++var _Co = []Range {
++	Range{0xe000, 0xf8ff, 6399},
++	Range{0xf0000, 0xffffd, 65533},
++	Range{0x100000, 0x10fffd, 65533},
++}
++
++// Cf is the set of Unicode characters in category Cf
++var Cf = _Cf
++var _Cf = []Range {
++	Range{0x00ad, 0x0600, 1363},
++	Range{0x0601, 0x0603, 1},
++	Range{0x06dd, 0x070f, 50},
++	Range{0x17b4, 0x17b5, 1},
++	Range{0x200b, 0x200f, 1},
++	Range{0x202a, 0x202e, 1},
++	Range{0x2060, 0x2064, 1},
++	Range{0x206a, 0x206f, 1},
++	Range{0xfeff, 0xfff9, 250},
++	Range{0xfffa, 0xfffb, 1},
++	Range{0x1d173, 0x1d17a, 1},
++	Range{0xe0001, 0xe0020, 31},
++	Range{0xe0021, 0xe007f, 1},
++}
++
++// Cc is the set of Unicode characters in category Cc
++var Cc = _Cc
++var _Cc = []Range {
++	Range{0x0001, 0x001f, 1},
++	Range{0x007f, 0x009f, 1},
++}
++
++// Po is the set of Unicode characters in category Po
++var Po = _Po
++var _Po = []Range {
++	Range{0x0021, 0x0023, 1},
++	Range{0x0025, 0x0027, 1},
++	Range{0x002a, 0x002e, 2},
++	Range{0x002f, 0x003a, 11},
++	Range{0x003b, 0x003f, 4},
++	Range{0x0040, 0x005c, 28},
++	Range{0x00a1, 0x00b7, 22},
++	Range{0x00bf, 0x037e, 703},
++	Range{0x0387, 0x055a, 467},
++	Range{0x055b, 0x055f, 1},
++	Range{0x0589, 0x05c0, 55},
++	Range{0x05c3, 0x05c6, 3},
++	Range{0x05f3, 0x05f4, 1},
++	Range{0x0609, 0x060a, 1},
++	Range{0x060c, 0x060d, 1},
++	Range{0x061b, 0x061e, 3},
++	Range{0x061f, 0x066a, 75},
++	Range{0x066b, 0x066d, 1},
++	Range{0x06d4, 0x0700, 44},
++	Range{0x0701, 0x070d, 1},
++	Range{0x07f7, 0x07f9, 1},
++	Range{0x0964, 0x0965, 1},
++	Range{0x0970, 0x0df4, 1156},
++	Range{0x0e4f, 0x0e5a, 11},
++	Range{0x0e5b, 0x0f04, 169},
++	Range{0x0f05, 0x0f12, 1},
++	Range{0x0f85, 0x0fd0, 75},
++	Range{0x0fd1, 0x0fd4, 1},
++	Range{0x104a, 0x104f, 1},
++	Range{0x10fb, 0x1361, 614},
++	Range{0x1362, 0x1368, 1},
++	Range{0x166d, 0x166e, 1},
++	Range{0x16eb, 0x16ed, 1},
++	Range{0x1735, 0x1736, 1},
++	Range{0x17d4, 0x17d6, 1},
++	Range{0x17d8, 0x17da, 1},
++	Range{0x1800, 0x1805, 1},
++	Range{0x1807, 0x180a, 1},
++	Range{0x1944, 0x1945, 1},
++	Range{0x19de, 0x19df, 1},
++	Range{0x1a1e, 0x1a1f, 1},
++	Range{0x1b5a, 0x1b60, 1},
++	Range{0x1c3b, 0x1c3f, 1},
++	Range{0x1c7e, 0x1c7f, 1},
++	Range{0x2016, 0x2017, 1},
++	Range{0x2020, 0x2027, 1},
++	Range{0x2030, 0x2038, 1},
++	Range{0x203b, 0x203e, 1},
++	Range{0x2041, 0x2043, 1},
++	Range{0x2047, 0x2051, 1},
++	Range{0x2053, 0x2055, 2},
++	Range{0x2056, 0x205e, 1},
++	Range{0x2cf9, 0x2cfc, 1},
++	Range{0x2cfe, 0x2cff, 1},
++	Range{0x2e00, 0x2e01, 1},
++	Range{0x2e06, 0x2e08, 1},
++	Range{0x2e0b, 0x2e0e, 3},
++	Range{0x2e0f, 0x2e16, 1},
++	Range{0x2e18, 0x2e19, 1},
++	Range{0x2e1b, 0x2e1e, 3},
++	Range{0x2e1f, 0x2e2a, 11},
++	Range{0x2e2b, 0x2e2e, 1},
++	Range{0x2e30, 0x3001, 465},
++	Range{0x3002, 0x3003, 1},
++	Range{0x303d, 0x30fb, 190},
++	Range{0xa60d, 0xa60f, 1},
++	Range{0xa673, 0xa67e, 11},
++	Range{0xa874, 0xa877, 1},
++	Range{0xa8ce, 0xa8cf, 1},
++	Range{0xa92e, 0xa92f, 1},
++	Range{0xa95f, 0xaa5c, 253},
++	Range{0xaa5d, 0xaa5f, 1},
++	Range{0xfe10, 0xfe16, 1},
++	Range{0xfe19, 0xfe30, 23},
++	Range{0xfe45, 0xfe46, 1},
++	Range{0xfe49, 0xfe4c, 1},
++	Range{0xfe50, 0xfe52, 1},
++	Range{0xfe54, 0xfe57, 1},
++	Range{0xfe5f, 0xfe61, 1},
++	Range{0xfe68, 0xfe6a, 2},
++	Range{0xfe6b, 0xff01, 150},
++	Range{0xff02, 0xff03, 1},
++	Range{0xff05, 0xff07, 1},
++	Range{0xff0a, 0xff0e, 2},
++	Range{0xff0f, 0xff1a, 11},
++	Range{0xff1b, 0xff1f, 4},
++	Range{0xff20, 0xff3c, 28},
++	Range{0xff61, 0xff64, 3},
++	Range{0xff65, 0x10100, 411},
++	Range{0x10101, 0x1039f, 670},
++	Range{0x103d0, 0x1091f, 1359},
++	Range{0x1093f, 0x10a50, 273},
++	Range{0x10a51, 0x10a58, 1},
++	Range{0x12470, 0x12473, 1},
++}
++
++// Pi is the set of Unicode characters in category Pi
++var Pi = _Pi
++var _Pi = []Range {
++	Range{0x00ab, 0x2018, 8045},
++	Range{0x201b, 0x201c, 1},
++	Range{0x201f, 0x2039, 26},
++	Range{0x2e02, 0x2e04, 2},
++	Range{0x2e09, 0x2e0c, 3},
++	Range{0x2e1c, 0x2e20, 4},
++}
++
++// Pf is the set of Unicode characters in category Pf
++var Pf = _Pf
++var _Pf = []Range {
++	Range{0x00bb, 0x2019, 8030},
++	Range{0x201d, 0x203a, 29},
++	Range{0x2e03, 0x2e05, 2},
++	Range{0x2e0a, 0x2e0d, 3},
++	Range{0x2e1d, 0x2e21, 4},
++}
++
++// Pe is the set of Unicode characters in category Pe
++var Pe = _Pe
++var _Pe = []Range {
++	Range{0x0029, 0x005d, 52},
++	Range{0x007d, 0x0f3b, 3774},
++	Range{0x0f3d, 0x169c, 1887},
++	Range{0x2046, 0x207e, 56},
++	Range{0x208e, 0x232a, 668},
++	Range{0x2769, 0x2775, 2},
++	Range{0x27c6, 0x27e7, 33},
++	Range{0x27e9, 0x27ef, 2},
++	Range{0x2984, 0x2998, 2},
++	Range{0x29d9, 0x29db, 2},
++	Range{0x29fd, 0x2e23, 1062},
++	Range{0x2e25, 0x2e29, 2},
++	Range{0x3009, 0x3011, 2},
++	Range{0x3015, 0x301b, 2},
++	Range{0x301e, 0x301f, 1},
++	Range{0xfd3f, 0xfe18, 217},
++	Range{0xfe36, 0xfe44, 2},
++	Range{0xfe48, 0xfe5a, 18},
++	Range{0xfe5c, 0xfe5e, 2},
++	Range{0xff09, 0xff3d, 52},
++	Range{0xff5d, 0xff63, 3},
++}
++
++// Pd is the set of Unicode characters in category Pd
++var Pd = _Pd
++var _Pd = []Range {
++	Range{0x002d, 0x058a, 1373},
++	Range{0x05be, 0x1806, 4680},
++	Range{0x2010, 0x2015, 1},
++	Range{0x2e17, 0x2e1a, 3},
++	Range{0x301c, 0x3030, 20},
++	Range{0x30a0, 0xfe31, 52625},
++	Range{0xfe32, 0xfe58, 38},
++	Range{0xfe63, 0xff0d, 170},
++}
++
++// Pc is the set of Unicode characters in category Pc
++var Pc = _Pc
++var _Pc = []Range {
++	Range{0x005f, 0x203f, 8160},
++	Range{0x2040, 0x2054, 20},
++	Range{0xfe33, 0xfe34, 1},
++	Range{0xfe4d, 0xfe4f, 1},
++	Range{0xff3f, 0xff3f, 1},
++}
++
++// Ps is the set of Unicode characters in category Ps
++var Ps = _Ps
++var _Ps = []Range {
++	Range{0x0028, 0x005b, 51},
++	Range{0x007b, 0x0f3a, 3775},
++	Range{0x0f3c, 0x169b, 1887},
++	Range{0x201a, 0x201e, 4},
++	Range{0x2045, 0x207d, 56},
++	Range{0x208d, 0x2329, 668},
++	Range{0x2768, 0x2774, 2},
++	Range{0x27c5, 0x27e6, 33},
++	Range{0x27e8, 0x27ee, 2},
++	Range{0x2983, 0x2997, 2},
++	Range{0x29d8, 0x29da, 2},
++	Range{0x29fc, 0x2e22, 1062},
++	Range{0x2e24, 0x2e28, 2},
++	Range{0x3008, 0x3010, 2},
++	Range{0x3014, 0x301a, 2},
++	Range{0x301d, 0xfd3e, 52513},
++	Range{0xfe17, 0xfe35, 30},
++	Range{0xfe37, 0xfe43, 2},
++	Range{0xfe47, 0xfe59, 18},
++	Range{0xfe5b, 0xfe5d, 2},
++	Range{0xff08, 0xff3b, 51},
++	Range{0xff5b, 0xff5f, 4},
++	Range{0xff62, 0xff62, 1},
++}
++
++
++// Digit is the set of Unicode characters with the "decimal digit" property.
++var Digit = Nd
++
++// Nd is the set of Unicode characters in category Nd
++var Nd = _Nd
++var _Nd = []Range {
++	Range{0x0030, 0x0039, 1},
++	Range{0x0660, 0x0669, 1},
++	Range{0x06f0, 0x06f9, 1},
++	Range{0x07c0, 0x07c9, 1},
++	Range{0x0966, 0x096f, 1},
++	Range{0x09e6, 0x09ef, 1},
++	Range{0x0a66, 0x0a6f, 1},
++	Range{0x0ae6, 0x0aef, 1},
++	Range{0x0b66, 0x0b6f, 1},
++	Range{0x0be6, 0x0bef, 1},
++	Range{0x0c66, 0x0c6f, 1},
++	Range{0x0ce6, 0x0cef, 1},
++	Range{0x0d66, 0x0d6f, 1},
++	Range{0x0e50, 0x0e59, 1},
++	Range{0x0ed0, 0x0ed9, 1},
++	Range{0x0f20, 0x0f29, 1},
++	Range{0x1040, 0x1049, 1},
++	Range{0x1090, 0x1099, 1},
++	Range{0x17e0, 0x17e9, 1},
++	Range{0x1810, 0x1819, 1},
++	Range{0x1946, 0x194f, 1},
++	Range{0x19d0, 0x19d9, 1},
++	Range{0x1b50, 0x1b59, 1},
++	Range{0x1bb0, 0x1bb9, 1},
++	Range{0x1c40, 0x1c49, 1},
++	Range{0x1c50, 0x1c59, 1},
++	Range{0xa620, 0xa629, 1},
++	Range{0xa8d0, 0xa8d9, 1},
++	Range{0xa900, 0xa909, 1},
++	Range{0xaa50, 0xaa59, 1},
++	Range{0xff10, 0xff19, 1},
++	Range{0x104a0, 0x104a9, 1},
++	Range{0x1d7ce, 0x1d7ff, 1},
++}
++
++// Nl is the set of Unicode characters in category Nl
++var Nl = _Nl
++var _Nl = []Range {
++	Range{0x16ee, 0x16f0, 1},
++	Range{0x2160, 0x2182, 1},
++	Range{0x2185, 0x2188, 1},
++	Range{0x3007, 0x3021, 26},
++	Range{0x3022, 0x3029, 1},
++	Range{0x3038, 0x303a, 1},
++	Range{0x10140, 0x10174, 1},
++	Range{0x10341, 0x1034a, 9},
++	Range{0x103d1, 0x103d5, 1},
++	Range{0x12400, 0x12462, 1},
++}
++
++// No is the set of Unicode characters in category No
++var No = _No
++var _No = []Range {
++	Range{0x00b2, 0x00b3, 1},
++	Range{0x00b9, 0x00bc, 3},
++	Range{0x00bd, 0x00be, 1},
++	Range{0x09f4, 0x09f9, 1},
++	Range{0x0bf0, 0x0bf2, 1},
++	Range{0x0c78, 0x0c7e, 1},
++	Range{0x0d70, 0x0d75, 1},
++	Range{0x0f2a, 0x0f33, 1},
++	Range{0x1369, 0x137c, 1},
++	Range{0x17f0, 0x17f9, 1},
++	Range{0x2070, 0x2074, 4},
++	Range{0x2075, 0x2079, 1},
++	Range{0x2080, 0x2089, 1},
++	Range{0x2153, 0x215f, 1},
++	Range{0x2460, 0x249b, 1},
++	Range{0x24ea, 0x24ff, 1},
++	Range{0x2776, 0x2793, 1},
++	Range{0x2cfd, 0x3192, 1173},
++	Range{0x3193, 0x3195, 1},
++	Range{0x3220, 0x3229, 1},
++	Range{0x3251, 0x325f, 1},
++	Range{0x3280, 0x3289, 1},
++	Range{0x32b1, 0x32bf, 1},
++	Range{0x10107, 0x10133, 1},
++	Range{0x10175, 0x10178, 1},
++	Range{0x1018a, 0x10320, 406},
++	Range{0x10321, 0x10323, 1},
++	Range{0x10916, 0x10919, 1},
++	Range{0x10a40, 0x10a47, 1},
++	Range{0x1d360, 0x1d371, 1},
++}
++
++// So is the set of Unicode characters in category So
++var So = _So
++var _So = []Range {
++	Range{0x00a6, 0x00a7, 1},
++	Range{0x00a9, 0x00ae, 5},
++	Range{0x00b0, 0x00b6, 6},
++	Range{0x0482, 0x060e, 396},
++	Range{0x060f, 0x06e9, 218},
++	Range{0x06fd, 0x06fe, 1},
++	Range{0x07f6, 0x09fa, 516},
++	Range{0x0b70, 0x0bf3, 131},
++	Range{0x0bf4, 0x0bf8, 1},
++	Range{0x0bfa, 0x0c7f, 133},
++	Range{0x0cf1, 0x0cf2, 1},
++	Range{0x0d79, 0x0f01, 392},
++	Range{0x0f02, 0x0f03, 1},
++	Range{0x0f13, 0x0f17, 1},
++	Range{0x0f1a, 0x0f1f, 1},
++	Range{0x0f34, 0x0f38, 2},
++	Range{0x0fbe, 0x0fc5, 1},
++	Range{0x0fc7, 0x0fcc, 1},
++	Range{0x0fce, 0x0fcf, 1},
++	Range{0x109e, 0x109f, 1},
++	Range{0x1360, 0x1390, 48},
++	Range{0x1391, 0x1399, 1},
++	Range{0x1940, 0x19e0, 160},
++	Range{0x19e1, 0x19ff, 1},
++	Range{0x1b61, 0x1b6a, 1},
++	Range{0x1b74, 0x1b7c, 1},
++	Range{0x2100, 0x2101, 1},
++	Range{0x2103, 0x2106, 1},
++	Range{0x2108, 0x2109, 1},
++	Range{0x2114, 0x2116, 2},
++	Range{0x2117, 0x2118, 1},
++	Range{0x211e, 0x2123, 1},
++	Range{0x2125, 0x2129, 2},
++	Range{0x212e, 0x213a, 12},
++	Range{0x213b, 0x214a, 15},
++	Range{0x214c, 0x214d, 1},
++	Range{0x214f, 0x2195, 70},
++	Range{0x2196, 0x2199, 1},
++	Range{0x219c, 0x219f, 1},
++	Range{0x21a1, 0x21a2, 1},
++	Range{0x21a4, 0x21a5, 1},
++	Range{0x21a7, 0x21ad, 1},
++	Range{0x21af, 0x21cd, 1},
++	Range{0x21d0, 0x21d1, 1},
++	Range{0x21d3, 0x21d5, 2},
++	Range{0x21d6, 0x21f3, 1},
++	Range{0x2300, 0x2307, 1},
++	Range{0x230c, 0x231f, 1},
++	Range{0x2322, 0x2328, 1},
++	Range{0x232b, 0x237b, 1},
++	Range{0x237d, 0x239a, 1},
++	Range{0x23b4, 0x23db, 1},
++	Range{0x23e2, 0x23e7, 1},
++	Range{0x2400, 0x2426, 1},
++	Range{0x2440, 0x244a, 1},
++	Range{0x249c, 0x24e9, 1},
++	Range{0x2500, 0x25b6, 1},
++	Range{0x25b8, 0x25c0, 1},
++	Range{0x25c2, 0x25f7, 1},
++	Range{0x2600, 0x266e, 1},
++	Range{0x2670, 0x269d, 1},
++	Range{0x26a0, 0x26bc, 1},
++	Range{0x26c0, 0x26c3, 1},
++	Range{0x2701, 0x2704, 1},
++	Range{0x2706, 0x2709, 1},
++	Range{0x270c, 0x2727, 1},
++	Range{0x2729, 0x274b, 1},
++	Range{0x274d, 0x274f, 2},
++	Range{0x2750, 0x2752, 1},
++	Range{0x2756, 0x2758, 2},
++	Range{0x2759, 0x275e, 1},
++	Range{0x2761, 0x2767, 1},
++	Range{0x2794, 0x2798, 4},
++	Range{0x2799, 0x27af, 1},
++	Range{0x27b1, 0x27be, 1},
++	Range{0x2800, 0x28ff, 1},
++	Range{0x2b00, 0x2b2f, 1},
++	Range{0x2b45, 0x2b46, 1},
++	Range{0x2b50, 0x2b54, 1},
++	Range{0x2ce5, 0x2cea, 1},
++	Range{0x2e80, 0x2e99, 1},
++	Range{0x2e9b, 0x2ef3, 1},
++	Range{0x2f00, 0x2fd5, 1},
++	Range{0x2ff0, 0x2ffb, 1},
++	Range{0x3004, 0x3012, 14},
++	Range{0x3013, 0x3020, 13},
++	Range{0x3036, 0x3037, 1},
++	Range{0x303e, 0x303f, 1},
++	Range{0x3190, 0x3191, 1},
++	Range{0x3196, 0x319f, 1},
++	Range{0x31c0, 0x31e3, 1},
++	Range{0x3200, 0x321e, 1},
++	Range{0x322a, 0x3243, 1},
++	Range{0x3250, 0x3260, 16},
++	Range{0x3261, 0x327f, 1},
++	Range{0x328a, 0x32b0, 1},
++	Range{0x32c0, 0x32fe, 1},
++	Range{0x3300, 0x33ff, 1},
++	Range{0x4dc0, 0x4dff, 1},
++	Range{0xa490, 0xa4c6, 1},
++	Range{0xa828, 0xa82b, 1},
++	Range{0xfdfd, 0xffe4, 487},
++	Range{0xffe8, 0xffed, 5},
++	Range{0xffee, 0xfffc, 14},
++	Range{0xfffd, 0x10102, 261},
++	Range{0x10137, 0x1013f, 1},
++	Range{0x10179, 0x10189, 1},
++	Range{0x10190, 0x1019b, 1},
++	Range{0x101d0, 0x101fc, 1},
++	Range{0x1d000, 0x1d0f5, 1},
++	Range{0x1d100, 0x1d126, 1},
++	Range{0x1d129, 0x1d164, 1},
++	Range{0x1d16a, 0x1d16c, 1},
++	Range{0x1d183, 0x1d184, 1},
++	Range{0x1d18c, 0x1d1a9, 1},
++	Range{0x1d1ae, 0x1d1dd, 1},
++	Range{0x1d200, 0x1d241, 1},
++	Range{0x1d245, 0x1d300, 187},
++	Range{0x1d301, 0x1d356, 1},
++	Range{0x1f000, 0x1f02b, 1},
++	Range{0x1f030, 0x1f093, 1},
++}
++
++// Sm is the set of Unicode characters in category Sm
++var Sm = _Sm
++var _Sm = []Range {
++	Range{0x002b, 0x003c, 17},
++	Range{0x003d, 0x003e, 1},
++	Range{0x007c, 0x007e, 2},
++	Range{0x00ac, 0x00b1, 5},
++	Range{0x00d7, 0x00f7, 32},
++	Range{0x03f6, 0x0606, 528},
++	Range{0x0607, 0x0608, 1},
++	Range{0x2044, 0x2052, 14},
++	Range{0x207a, 0x207c, 1},
++	Range{0x208a, 0x208c, 1},
++	Range{0x2140, 0x2144, 1},
++	Range{0x214b, 0x2190, 69},
++	Range{0x2191, 0x2194, 1},
++	Range{0x219a, 0x219b, 1},
++	Range{0x21a0, 0x21a6, 3},
++	Range{0x21ae, 0x21ce, 32},
++	Range{0x21cf, 0x21d2, 3},
++	Range{0x21d4, 0x21f4, 32},
++	Range{0x21f5, 0x22ff, 1},
++	Range{0x2308, 0x230b, 1},
++	Range{0x2320, 0x2321, 1},
++	Range{0x237c, 0x239b, 31},
++	Range{0x239c, 0x23b3, 1},
++	Range{0x23dc, 0x23e1, 1},
++	Range{0x25b7, 0x25c1, 10},
++	Range{0x25f8, 0x25ff, 1},
++	Range{0x266f, 0x27c0, 337},
++	Range{0x27c1, 0x27c4, 1},
++	Range{0x27c7, 0x27ca, 1},
++	Range{0x27cc, 0x27d0, 4},
++	Range{0x27d1, 0x27e5, 1},
++	Range{0x27f0, 0x27ff, 1},
++	Range{0x2900, 0x2982, 1},
++	Range{0x2999, 0x29d7, 1},
++	Range{0x29dc, 0x29fb, 1},
++	Range{0x29fe, 0x2aff, 1},
++	Range{0x2b30, 0x2b44, 1},
++	Range{0x2b47, 0x2b4c, 1},
++	Range{0xfb29, 0xfe62, 825},
++	Range{0xfe64, 0xfe66, 1},
++	Range{0xff0b, 0xff1c, 17},
++	Range{0xff1d, 0xff1e, 1},
++	Range{0xff5c, 0xff5e, 2},
++	Range{0xffe2, 0xffe9, 7},
++	Range{0xffea, 0xffec, 1},
++	Range{0x1d6c1, 0x1d6db, 26},
++	Range{0x1d6fb, 0x1d715, 26},
++	Range{0x1d735, 0x1d74f, 26},
++	Range{0x1d76f, 0x1d789, 26},
++	Range{0x1d7a9, 0x1d7c3, 26},
++}
++
++// Sk is the set of Unicode characters in category Sk
++var Sk = _Sk
++var _Sk = []Range {
++	Range{0x005e, 0x0060, 2},
++	Range{0x00a8, 0x00af, 7},
++	Range{0x00b4, 0x00b8, 4},
++	Range{0x02c2, 0x02c5, 1},
++	Range{0x02d2, 0x02df, 1},
++	Range{0x02e5, 0x02eb, 1},
++	Range{0x02ed, 0x02ef, 2},
++	Range{0x02f0, 0x02ff, 1},
++	Range{0x0375, 0x0384, 15},
++	Range{0x0385, 0x1fbd, 7224},
++	Range{0x1fbf, 0x1fc1, 1},
++	Range{0x1fcd, 0x1fcf, 1},
++	Range{0x1fdd, 0x1fdf, 1},
++	Range{0x1fed, 0x1fef, 1},
++	Range{0x1ffd, 0x1ffe, 1},
++	Range{0x309b, 0x309c, 1},
++	Range{0xa700, 0xa716, 1},
++	Range{0xa720, 0xa721, 1},
++	Range{0xa789, 0xa78a, 1},
++	Range{0xff3e, 0xff40, 2},
++	Range{0xffe3, 0xffe3, 1},
++}
++
++// Sc is the set of Unicode characters in category Sc
++var Sc = _Sc
++var _Sc = []Range {
++	Range{0x0024, 0x00a2, 126},
++	Range{0x00a3, 0x00a5, 1},
++	Range{0x060b, 0x09f2, 999},
++	Range{0x09f3, 0x0af1, 254},
++	Range{0x0bf9, 0x0e3f, 582},
++	Range{0x17db, 0x20a0, 2245},
++	Range{0x20a1, 0x20b5, 1},
++	Range{0xfdfc, 0xfe69, 109},
++	Range{0xff04, 0xffe0, 220},
++	Range{0xffe1, 0xffe5, 4},
++	Range{0xffe6, 0xffe6, 1},
++}
++
++
++// Upper is the set of Unicode upper case letters.
++var Upper = Lu
++
++// Lu is the set of Unicode characters in category Lu
++var Lu = _Lu
++var _Lu = []Range {
++	Range{0x0041, 0x005a, 1},
++	Range{0x00c0, 0x00d6, 1},
++	Range{0x00d8, 0x00de, 1},
++	Range{0x0100, 0x0136, 2},
++	Range{0x0139, 0x0147, 2},
++	Range{0x014a, 0x0178, 2},
++	Range{0x0179, 0x017d, 2},
++	Range{0x0181, 0x0182, 1},
++	Range{0x0184, 0x0186, 2},
++	Range{0x0187, 0x0189, 2},
++	Range{0x018a, 0x018b, 1},
++	Range{0x018e, 0x0191, 1},
++	Range{0x0193, 0x0194, 1},
++	Range{0x0196, 0x0198, 1},
++	Range{0x019c, 0x019d, 1},
++	Range{0x019f, 0x01a0, 1},
++	Range{0x01a2, 0x01a6, 2},
++	Range{0x01a7, 0x01a9, 2},
++	Range{0x01ac, 0x01ae, 2},
++	Range{0x01af, 0x01b1, 2},
++	Range{0x01b2, 0x01b3, 1},
++	Range{0x01b5, 0x01b7, 2},
++	Range{0x01b8, 0x01bc, 4},
++	Range{0x01c4, 0x01cd, 3},
++	Range{0x01cf, 0x01db, 2},
++	Range{0x01de, 0x01ee, 2},
++	Range{0x01f1, 0x01f4, 3},
++	Range{0x01f6, 0x01f8, 1},
++	Range{0x01fa, 0x0232, 2},
++	Range{0x023a, 0x023b, 1},
++	Range{0x023d, 0x023e, 1},
++	Range{0x0241, 0x0243, 2},
++	Range{0x0244, 0x0246, 1},
++	Range{0x0248, 0x024e, 2},
++	Range{0x0370, 0x0372, 2},
++	Range{0x0376, 0x0386, 16},
++	Range{0x0388, 0x038a, 1},
++	Range{0x038c, 0x038e, 2},
++	Range{0x038f, 0x0391, 2},
++	Range{0x0392, 0x03a1, 1},
++	Range{0x03a3, 0x03ab, 1},
++	Range{0x03cf, 0x03d2, 3},
++	Range{0x03d3, 0x03d4, 1},
++	Range{0x03d8, 0x03ee, 2},
++	Range{0x03f4, 0x03f7, 3},
++	Range{0x03f9, 0x03fa, 1},
++	Range{0x03fd, 0x042f, 1},
++	Range{0x0460, 0x0480, 2},
++	Range{0x048a, 0x04c0, 2},
++	Range{0x04c1, 0x04cd, 2},
++	Range{0x04d0, 0x0522, 2},
++	Range{0x0531, 0x0556, 1},
++	Range{0x10a0, 0x10c5, 1},
++	Range{0x1e00, 0x1e94, 2},
++	Range{0x1e9e, 0x1efe, 2},
++	Range{0x1f08, 0x1f0f, 1},
++	Range{0x1f18, 0x1f1d, 1},
++	Range{0x1f28, 0x1f2f, 1},
++	Range{0x1f38, 0x1f3f, 1},
++	Range{0x1f48, 0x1f4d, 1},
++	Range{0x1f59, 0x1f5f, 2},
++	Range{0x1f68, 0x1f6f, 1},
++	Range{0x1fb8, 0x1fbb, 1},
++	Range{0x1fc8, 0x1fcb, 1},
++	Range{0x1fd8, 0x1fdb, 1},
++	Range{0x1fe8, 0x1fec, 1},
++	Range{0x1ff8, 0x1ffb, 1},
++	Range{0x2102, 0x2107, 5},
++	Range{0x210b, 0x210d, 1},
++	Range{0x2110, 0x2112, 1},
++	Range{0x2115, 0x2119, 4},
++	Range{0x211a, 0x211d, 1},
++	Range{0x2124, 0x212a, 2},
++	Range{0x212b, 0x212d, 1},
++	Range{0x2130, 0x2133, 1},
++	Range{0x213e, 0x213f, 1},
++	Range{0x2145, 0x2183, 62},
++	Range{0x2c00, 0x2c2e, 1},
++	Range{0x2c60, 0x2c62, 2},
++	Range{0x2c63, 0x2c64, 1},
++	Range{0x2c67, 0x2c6d, 2},
++	Range{0x2c6e, 0x2c6f, 1},
++	Range{0x2c72, 0x2c75, 3},
++	Range{0x2c80, 0x2ce2, 2},
++	Range{0xa640, 0xa65e, 2},
++	Range{0xa662, 0xa66c, 2},
++	Range{0xa680, 0xa696, 2},
++	Range{0xa722, 0xa72e, 2},
++	Range{0xa732, 0xa76e, 2},
++	Range{0xa779, 0xa77d, 2},
++	Range{0xa77e, 0xa786, 2},
++	Range{0xa78b, 0xff21, 22422},
++	Range{0xff22, 0xff3a, 1},
++	Range{0x10400, 0x10427, 1},
++	Range{0x1d400, 0x1d419, 1},
++	Range{0x1d434, 0x1d44d, 1},
++	Range{0x1d468, 0x1d481, 1},
++	Range{0x1d49c, 0x1d49e, 2},
++	Range{0x1d49f, 0x1d4a5, 3},
++	Range{0x1d4a6, 0x1d4a9, 3},
++	Range{0x1d4aa, 0x1d4ac, 1},
++	Range{0x1d4ae, 0x1d4b5, 1},
++	Range{0x1d4d0, 0x1d4e9, 1},
++	Range{0x1d504, 0x1d505, 1},
++	Range{0x1d507, 0x1d50a, 1},
++	Range{0x1d50d, 0x1d514, 1},
++	Range{0x1d516, 0x1d51c, 1},
++	Range{0x1d538, 0x1d539, 1},
++	Range{0x1d53b, 0x1d53e, 1},
++	Range{0x1d540, 0x1d544, 1},
++	Range{0x1d546, 0x1d54a, 4},
++	Range{0x1d54b, 0x1d550, 1},
++	Range{0x1d56c, 0x1d585, 1},
++	Range{0x1d5a0, 0x1d5b9, 1},
++	Range{0x1d5d4, 0x1d5ed, 1},
++	Range{0x1d608, 0x1d621, 1},
++	Range{0x1d63c, 0x1d655, 1},
++	Range{0x1d670, 0x1d689, 1},
++	Range{0x1d6a8, 0x1d6c0, 1},
++	Range{0x1d6e2, 0x1d6fa, 1},
++	Range{0x1d71c, 0x1d734, 1},
++	Range{0x1d756, 0x1d76e, 1},
++	Range{0x1d790, 0x1d7a8, 1},
++	Range{0x1d7ca, 0x1d7ca, 1},
++}
++
++
++// Title is the set of Unicode title case letters.
++var Title = Lt
++
++// Lt is the set of Unicode characters in category Lt
++var Lt = _Lt
++var _Lt = []Range {
++	Range{0x01c5, 0x01cb, 3},
++	Range{0x01f2, 0x1f88, 7574},
++	Range{0x1f89, 0x1f8f, 1},
++	Range{0x1f98, 0x1f9f, 1},
++	Range{0x1fa8, 0x1faf, 1},
++	Range{0x1fbc, 0x1fcc, 16},
++	Range{0x1ffc, 0x1ffc, 1},
++}
++
++// Lo is the set of Unicode characters in category Lo
++var Lo = _Lo
++var _Lo = []Range {
++	Range{0x01bb, 0x01c0, 5},
++	Range{0x01c1, 0x01c3, 1},
++	Range{0x0294, 0x05d0, 828},
++	Range{0x05d1, 0x05ea, 1},
++	Range{0x05f0, 0x05f2, 1},
++	Range{0x0621, 0x063f, 1},
++	Range{0x0641, 0x064a, 1},
++	Range{0x066e, 0x066f, 1},
++	Range{0x0671, 0x06d3, 1},
++	Range{0x06d5, 0x06ee, 25},
++	Range{0x06ef, 0x06fa, 11},
++	Range{0x06fb, 0x06fc, 1},
++	Range{0x06ff, 0x0710, 17},
++	Range{0x0712, 0x072f, 1},
++	Range{0x074d, 0x07a5, 1},
++	Range{0x07b1, 0x07ca, 25},
++	Range{0x07cb, 0x07ea, 1},
++	Range{0x0904, 0x0939, 1},
++	Range{0x093d, 0x0950, 19},
++	Range{0x0958, 0x0961, 1},
++	Range{0x0972, 0x097b, 9},
++	Range{0x097c, 0x097f, 1},
++	Range{0x0985, 0x098c, 1},
++	Range{0x098f, 0x0990, 1},
++	Range{0x0993, 0x09a8, 1},
++	Range{0x09aa, 0x09b0, 1},
++	Range{0x09b2, 0x09b6, 4},
++	Range{0x09b7, 0x09b9, 1},
++	Range{0x09bd, 0x09ce, 17},
++	Range{0x09dc, 0x09dd, 1},
++	Range{0x09df, 0x09e1, 1},
++	Range{0x09f0, 0x09f1, 1},
++	Range{0x0a05, 0x0a0a, 1},
++	Range{0x0a0f, 0x0a10, 1},
++	Range{0x0a13, 0x0a28, 1},
++	Range{0x0a2a, 0x0a30, 1},
++	Range{0x0a32, 0x0a33, 1},
++	Range{0x0a35, 0x0a36, 1},
++	Range{0x0a38, 0x0a39, 1},
++	Range{0x0a59, 0x0a5c, 1},
++	Range{0x0a5e, 0x0a72, 20},
++	Range{0x0a73, 0x0a74, 1},
++	Range{0x0a85, 0x0a8d, 1},
++	Range{0x0a8f, 0x0a91, 1},
++	Range{0x0a93, 0x0aa8, 1},
++	Range{0x0aaa, 0x0ab0, 1},
++	Range{0x0ab2, 0x0ab3, 1},
++	Range{0x0ab5, 0x0ab9, 1},
++	Range{0x0abd, 0x0ad0, 19},
++	Range{0x0ae0, 0x0ae1, 1},
++	Range{0x0b05, 0x0b0c, 1},
++	Range{0x0b0f, 0x0b10, 1},
++	Range{0x0b13, 0x0b28, 1},
++	Range{0x0b2a, 0x0b30, 1},
++	Range{0x0b32, 0x0b33, 1},
++	Range{0x0b35, 0x0b39, 1},
++	Range{0x0b3d, 0x0b5c, 31},
++	Range{0x0b5d, 0x0b5f, 2},
++	Range{0x0b60, 0x0b61, 1},
++	Range{0x0b71, 0x0b83, 18},
++	Range{0x0b85, 0x0b8a, 1},
++	Range{0x0b8e, 0x0b90, 1},
++	Range{0x0b92, 0x0b95, 1},
++	Range{0x0b99, 0x0b9a, 1},
++	Range{0x0b9c, 0x0b9e, 2},
++	Range{0x0b9f, 0x0ba3, 4},
++	Range{0x0ba4, 0x0ba8, 4},
++	Range{0x0ba9, 0x0baa, 1},
++	Range{0x0bae, 0x0bb9, 1},
++	Range{0x0bd0, 0x0c05, 53},
++	Range{0x0c06, 0x0c0c, 1},
++	Range{0x0c0e, 0x0c10, 1},
++	Range{0x0c12, 0x0c28, 1},
++	Range{0x0c2a, 0x0c33, 1},
++	Range{0x0c35, 0x0c39, 1},
++	Range{0x0c3d, 0x0c58, 27},
++	Range{0x0c59, 0x0c60, 7},
++	Range{0x0c61, 0x0c85, 36},
++	Range{0x0c86, 0x0c8c, 1},
++	Range{0x0c8e, 0x0c90, 1},
++	Range{0x0c92, 0x0ca8, 1},
++	Range{0x0caa, 0x0cb3, 1},
++	Range{0x0cb5, 0x0cb9, 1},
++	Range{0x0cbd, 0x0cde, 33},
++	Range{0x0ce0, 0x0ce1, 1},
++	Range{0x0d05, 0x0d0c, 1},
++	Range{0x0d0e, 0x0d10, 1},
++	Range{0x0d12, 0x0d28, 1},
++	Range{0x0d2a, 0x0d39, 1},
++	Range{0x0d3d, 0x0d60, 35},
++	Range{0x0d61, 0x0d7a, 25},
++	Range{0x0d7b, 0x0d7f, 1},
++	Range{0x0d85, 0x0d96, 1},
++	Range{0x0d9a, 0x0db1, 1},
++	Range{0x0db3, 0x0dbb, 1},
++	Range{0x0dbd, 0x0dc0, 3},
++	Range{0x0dc1, 0x0dc6, 1},
++	Range{0x0e01, 0x0e30, 1},
++	Range{0x0e32, 0x0e33, 1},
++	Range{0x0e40, 0x0e45, 1},
++	Range{0x0e81, 0x0e82, 1},
++	Range{0x0e84, 0x0e87, 3},
++	Range{0x0e88, 0x0e8a, 2},
++	Range{0x0e8d, 0x0e94, 7},
++	Range{0x0e95, 0x0e97, 1},
++	Range{0x0e99, 0x0e9f, 1},
++	Range{0x0ea1, 0x0ea3, 1},
++	Range{0x0ea5, 0x0ea7, 2},
++	Range{0x0eaa, 0x0eab, 1},
++	Range{0x0ead, 0x0eb0, 1},
++	Range{0x0eb2, 0x0eb3, 1},
++	Range{0x0ebd, 0x0ec0, 3},
++	Range{0x0ec1, 0x0ec4, 1},
++	Range{0x0edc, 0x0edd, 1},
++	Range{0x0f00, 0x0f40, 64},
++	Range{0x0f41, 0x0f47, 1},
++	Range{0x0f49, 0x0f6c, 1},
++	Range{0x0f88, 0x0f8b, 1},
++	Range{0x1000, 0x102a, 1},
++	Range{0x103f, 0x1050, 17},
++	Range{0x1051, 0x1055, 1},
++	Range{0x105a, 0x105d, 1},
++	Range{0x1061, 0x1065, 4},
++	Range{0x1066, 0x106e, 8},
++	Range{0x106f, 0x1070, 1},
++	Range{0x1075, 0x1081, 1},
++	Range{0x108e, 0x10d0, 66},
++	Range{0x10d1, 0x10fa, 1},
++	Range{0x1100, 0x1159, 1},
++	Range{0x115f, 0x11a2, 1},
++	Range{0x11a8, 0x11f9, 1},
++	Range{0x1200, 0x1248, 1},
++	Range{0x124a, 0x124d, 1},
++	Range{0x1250, 0x1256, 1},
++	Range{0x1258, 0x125a, 2},
++	Range{0x125b, 0x125d, 1},
++	Range{0x1260, 0x1288, 1},
++	Range{0x128a, 0x128d, 1},
++	Range{0x1290, 0x12b0, 1},
++	Range{0x12b2, 0x12b5, 1},
++	Range{0x12b8, 0x12be, 1},
++	Range{0x12c0, 0x12c2, 2},
++	Range{0x12c3, 0x12c5, 1},
++	Range{0x12c8, 0x12d6, 1},
++	Range{0x12d8, 0x1310, 1},
++	Range{0x1312, 0x1315, 1},
++	Range{0x1318, 0x135a, 1},
++	Range{0x1380, 0x138f, 1},
++	Range{0x13a0, 0x13f4, 1},
++	Range{0x1401, 0x166c, 1},
++	Range{0x166f, 0x1676, 1},
++	Range{0x1681, 0x169a, 1},
++	Range{0x16a0, 0x16ea, 1},
++	Range{0x1700, 0x170c, 1},
++	Range{0x170e, 0x1711, 1},
++	Range{0x1720, 0x1731, 1},
++	Range{0x1740, 0x1751, 1},
++	Range{0x1760, 0x176c, 1},
++	Range{0x176e, 0x1770, 1},
++	Range{0x1780, 0x17b3, 1},
++	Range{0x17dc, 0x1820, 68},
++	Range{0x1821, 0x1842, 1},
++	Range{0x1844, 0x1877, 1},
++	Range{0x1880, 0x18a8, 1},
++	Range{0x18aa, 0x1900, 86},
++	Range{0x1901, 0x191c, 1},
++	Range{0x1950, 0x196d, 1},
++	Range{0x1970, 0x1974, 1},
++	Range{0x1980, 0x19a9, 1},
++	Range{0x19c1, 0x19c7, 1},
++	Range{0x1a00, 0x1a16, 1},
++	Range{0x1b05, 0x1b33, 1},
++	Range{0x1b45, 0x1b4b, 1},
++	Range{0x1b83, 0x1ba0, 1},
++	Range{0x1bae, 0x1baf, 1},
++	Range{0x1c00, 0x1c23, 1},
++	Range{0x1c4d, 0x1c4f, 1},
++	Range{0x1c5a, 0x1c77, 1},
++	Range{0x2135, 0x2138, 1},
++	Range{0x2d30, 0x2d65, 1},
++	Range{0x2d80, 0x2d96, 1},
++	Range{0x2da0, 0x2da6, 1},
++	Range{0x2da8, 0x2dae, 1},
++	Range{0x2db0, 0x2db6, 1},
++	Range{0x2db8, 0x2dbe, 1},
++	Range{0x2dc0, 0x2dc6, 1},
++	Range{0x2dc8, 0x2dce, 1},
++	Range{0x2dd0, 0x2dd6, 1},
++	Range{0x2dd8, 0x2dde, 1},
++	Range{0x3006, 0x303c, 54},
++	Range{0x3041, 0x3096, 1},
++	Range{0x309f, 0x30a1, 2},
++	Range{0x30a2, 0x30fa, 1},
++	Range{0x30ff, 0x3105, 6},
++	Range{0x3106, 0x312d, 1},
++	Range{0x3131, 0x318e, 1},
++	Range{0x31a0, 0x31b7, 1},
++	Range{0x31f0, 0x31ff, 1},
++	Range{0x3400, 0x4db5, 6581},
++	Range{0x4e00, 0x9fc3, 20931},
++	Range{0xa000, 0xa014, 1},
++	Range{0xa016, 0xa48c, 1},
++	Range{0xa500, 0xa60b, 1},
++	Range{0xa610, 0xa61f, 1},
++	Range{0xa62a, 0xa62b, 1},
++	Range{0xa66e, 0xa7fb, 397},
++	Range{0xa7fc, 0xa801, 1},
++	Range{0xa803, 0xa805, 1},
++	Range{0xa807, 0xa80a, 1},
++	Range{0xa80c, 0xa822, 1},
++	Range{0xa840, 0xa873, 1},
++	Range{0xa882, 0xa8b3, 1},
++	Range{0xa90a, 0xa925, 1},
++	Range{0xa930, 0xa946, 1},
++	Range{0xaa00, 0xaa28, 1},
++	Range{0xaa40, 0xaa42, 1},
++	Range{0xaa44, 0xaa4b, 1},
++	Range{0xac00, 0xd7a3, 11171},
++	Range{0xf900, 0xfa2d, 1},
++	Range{0xfa30, 0xfa6a, 1},
++	Range{0xfa70, 0xfad9, 1},
++	Range{0xfb1d, 0xfb1f, 2},
++	Range{0xfb20, 0xfb28, 1},
++	Range{0xfb2a, 0xfb36, 1},
++	Range{0xfb38, 0xfb3c, 1},
++	Range{0xfb3e, 0xfb40, 2},
++	Range{0xfb41, 0xfb43, 2},
++	Range{0xfb44, 0xfb46, 2},
++	Range{0xfb47, 0xfbb1, 1},
++	Range{0xfbd3, 0xfd3d, 1},
++	Range{0xfd50, 0xfd8f, 1},
++	Range{0xfd92, 0xfdc7, 1},
++	Range{0xfdf0, 0xfdfb, 1},
++	Range{0xfe70, 0xfe74, 1},
++	Range{0xfe76, 0xfefc, 1},
++	Range{0xff66, 0xff6f, 1},
++	Range{0xff71, 0xff9d, 1},
++	Range{0xffa0, 0xffbe, 1},
++	Range{0xffc2, 0xffc7, 1},
++	Range{0xffca, 0xffcf, 1},
++	Range{0xffd2, 0xffd7, 1},
++	Range{0xffda, 0xffdc, 1},
++	Range{0x10000, 0x1000b, 1},
++	Range{0x1000d, 0x10026, 1},
++	Range{0x10028, 0x1003a, 1},
++	Range{0x1003c, 0x1003d, 1},
++	Range{0x1003f, 0x1004d, 1},
++	Range{0x10050, 0x1005d, 1},
++	Range{0x10080, 0x100fa, 1},
++	Range{0x10280, 0x1029c, 1},
++	Range{0x102a0, 0x102d0, 1},
++	Range{0x10300, 0x1031e, 1},
++	Range{0x10330, 0x10340, 1},
++	Range{0x10342, 0x10349, 1},
++	Range{0x10380, 0x1039d, 1},
++	Range{0x103a0, 0x103c3, 1},
++	Range{0x103c8, 0x103cf, 1},
++	Range{0x10450, 0x1049d, 1},
++	Range{0x10800, 0x10805, 1},
++	Range{0x10808, 0x1080a, 2},
++	Range{0x1080b, 0x10835, 1},
++	Range{0x10837, 0x10838, 1},
++	Range{0x1083c, 0x1083f, 3},
++	Range{0x10900, 0x10915, 1},
++	Range{0x10920, 0x10939, 1},
++	Range{0x10a00, 0x10a10, 16},
++	Range{0x10a11, 0x10a13, 1},
++	Range{0x10a15, 0x10a17, 1},
++	Range{0x10a19, 0x10a33, 1},
++	Range{0x12000, 0x1236e, 1},
++	Range{0x20000, 0x2a6d6, 42710},
++	Range{0x2f800, 0x2fa1d, 1},
++}
++

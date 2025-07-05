@@ -20,8 +20,66 @@ Date:   Tue Aug 4 23:53:01 2020 -0400
     Change-Id: I631a7398033602b1bd5656150a4fad4945a87ade
     Reviewed-on: https://go-review.googlesource.com/c/go/+/247765
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/mvs/errors.go                       | 17 +++++++++++------
  .../go/testdata/script/mod_load_replace_mismatch.txt    |  2 +-
  src/cmd/go/testdata/script/mod_replace_gopkgin.txt      |  2 +-
  3 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/errors.go b/src/cmd/go/internal/mvs/errors.go
+index 8577902878..5564965fb5 100644
+--- a/src/cmd/go/internal/mvs/errors.go
++++ b/src/cmd/go/internal/mvs/errors.go
+@@ -78,16 +78,21 @@ func (e *BuildListError) Error() string {
+ 		b.WriteString(e.Err.Error())
+ 	} else {
+ 		for _, elem := range stack[:len(stack)-1] {
+-			fmt.Fprintf(b, "%s@%s %s\n\t", elem.m.Path, elem.m.Version, elem.nextReason)
++			fmt.Fprintf(b, "%s %s\n\t", elem.m, elem.nextReason)
+ 		}
+ 		// Ensure that the final module path and version are included as part of the
+ 		// error message.
+ 		m := stack[len(stack)-1].m
+-		if _, ok := e.Err.(*module.ModuleError); ok {
+-			// TODO(bcmills): Also ensure that the module path and version match.
+-			// (Otherwise, we may be reporting an error from a replacement without
+-			// indicating the replacement path.)
+-			fmt.Fprintf(b, "%v", e.Err)
++		if mErr, ok := e.Err.(*module.ModuleError); ok {
++			actual := module.Version{Path: mErr.Path, Version: mErr.Version}
++			if v, ok := mErr.Err.(*module.InvalidVersionError); ok {
++				actual.Version = v.Version
++			}
++			if actual == m {
++				fmt.Fprintf(b, "%v", e.Err)
++			} else {
++				fmt.Fprintf(b, "%s (replaced by %s): %v", m, actual, mErr.Err)
++			}
+ 		} else {
+ 			fmt.Fprintf(b, "%v", module.VersionError(m, e.Err))
+ 		}
+diff --git a/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+index 74dbb34b8a..067e209b01 100644
+--- a/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
++++ b/src/cmd/go/testdata/script/mod_load_replace_mismatch.txt
+@@ -18,6 +18,6 @@ package use
+ import _ "rsc.io/quote"
+ 
+ -- want --
+-go: example.com/quote@v1.5.2: parsing go.mod:
++go: rsc.io/quote@v1.5.2 (replaced by example.com/quote@v1.5.2): parsing go.mod:
+ 	module declares its path as: rsc.io/Quote
+ 	        but was required as: rsc.io/quote
+diff --git a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+index 28c1196284..674c99cb0c 100644
+--- a/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
++++ b/src/cmd/go/testdata/script/mod_replace_gopkgin.txt
+@@ -34,7 +34,7 @@ go list -m gopkg.in/src-d/go-git.v4
+ # A mismatched gopkg.in path should not be able to replace a different major version.
+ cd ../3-to-gomod-4
+ ! go list -m gopkg.in/src-d/go-git.v3
+-stderr '^go: gopkg\.in/src-d/go-git\.v3@v3.0.0-20190801152248-0d1a009cbb60: invalid version: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
++stderr '^go: gopkg\.in/src-d/go-git\.v3@v3\.2\.0 \(replaced by gopkg\.in/src-d/go-git\.v3@v3\.0\.0-20190801152248-0d1a009cbb60\): version "v3\.0\.0-20190801152248-0d1a009cbb60" invalid: go\.mod has non-\.\.\.\.v3 module path "gopkg\.in/src-d/go-git\.v4" at revision 0d1a009cbb60$'
+ 
+ -- 4-to-4/go.mod --
+ module golang.org/issue/34254

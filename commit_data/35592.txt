@@ -12,6 +12,38 @@ Date:   Thu Feb 22 10:15:42 2018 -0800
     Change-Id: I40c41cf10aa13d1dd9a099f727ef4201802de13a
     Reviewed-on: https://go-review.googlesource.com/96375
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/gotype.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/go/types/gotype.go b/src/go/types/gotype.go
+index 2efb4c0ac9..cde373f355 100644
+--- a/src/go/types/gotype.go
++++ b/src/go/types/gotype.go
+@@ -53,6 +53,8 @@ Flags controlling additional output:
+ 		print parse trace (forces -seq)
+ 	-comments
+ 		parse comments (ignored unless -ast or -trace is provided)
++	-panic
++		panic on first error
+ 
+ Examples:
+ 
+@@ -105,6 +107,7 @@ var (
+ 	printAST      = flag.Bool("ast", false, "print AST (forces -seq)")
+ 	printTrace    = flag.Bool("trace", false, "print parse trace (forces -seq)")
+ 	parseComments = flag.Bool("comments", false, "parse comments (ignored unless -ast or -trace is provided)")
++	panicOnError  = flag.Bool("panic", false, "panic on first error")
+ )
+ 
+ var (
+@@ -164,6 +167,9 @@ func usage() {
+ }
+ 
+ func report(err error) {
++	if *panicOnError {
++		panic(err)
++	}
+ 	scanner.PrintError(os.Stderr, err)
+ 	if list, ok := err.(scanner.ErrorList); ok {
+ 		errorCount += len(list)

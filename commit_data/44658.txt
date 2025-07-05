@@ -12,7 +12,38 @@ Date:   Mon Aug 17 16:32:33 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_linux.go | 4 ++++
  src/runtime/runtime2.go | 4 ----
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 22931b4d5c..9702920bcf 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -249,6 +249,10 @@ func sysargs(argc int32, argv **byte) {
+ 	sysauxv(buf[:])
+ }
+ 
++// startupRandomData holds random bytes initialized at startup. These come from
++// the ELF AT_RANDOM auxiliary vector.
++var startupRandomData []byte
++
+ func sysauxv(auxv []uintptr) int {
+ 	var i int
+ 	for ; auxv[i] != _AT_NULL; i += 2 {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0bddcaa789..959878400d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -845,10 +845,6 @@ type forcegcstate struct {
+ 	idle uint32
+ }
+ 
+-// startup_random_data holds random bytes initialized at startup. These come from
+-// the ELF AT_RANDOM auxiliary vector (vdso_linux_amd64.go or os_linux_386.go).
+-var startupRandomData []byte
+-
+ // extendRandom extends the random numbers in r[:n] to the whole slice r.
+ // Treats n<0 as n==0.
+ func extendRandom(r []byte, n int) {

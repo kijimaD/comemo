@@ -9,7 +9,7 @@ Date:   Thu Jan 15 16:16:52 2009 -0800
     R=ken
     OCL=22881
     CL=22886
-
+---
  src/cmd/6g/gsubr.c  |  4 ----
  src/cmd/gc/dcl.c    |  9 +++------
  src/cmd/gc/export.c | 33 ++++++++++++++++++++++++++++++++-
@@ -17,3 +17,215 @@ Date:   Thu Jan 15 16:16:52 2009 -0800
  src/cmd/gc/go.y     | 13 ++++---------
  src/run.bash        | 10 +++++-----
  6 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 102e27d2e1..6934c6f30c 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -543,7 +543,6 @@ gmove(Node *f, Node *t)
+ 				dump("gmove", t);
+ 				fatal("gmove t %O class %d reg %R", t->op, t->class, t->val.u.reg);
+ 			case PEXTERN:
+-			case PSTATIC:
+ 				goto refcount;
+ 				break;
+ 			case PAUTO:
+@@ -1072,9 +1071,6 @@ naddr(Node *n, Addr *a)
+ 		case PPARAM:
+ 			a->type = D_PARAM;
+ 			break;
+-		case PSTATIC:
+-			a->type = D_STATIC;
+-			break;
+ 		}
+ 		break;
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 162495e80e..aab47b6539 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -35,8 +35,7 @@ dodclvar(Node *n, Type *t)
+ 		t = typ(TFORW);
+ 
+ 	addvar(n, t, dclcontext);
+-	if(dcladj)
+-		dcladj(n->sym);
++	autoexport(n->sym);
+ }
+ 
+ void
+@@ -49,8 +48,7 @@ dodclconst(Node *n, Node *e)
+ 		dodclconst(n, e);
+ 
+ 	addconst(n, e, dclcontext);
+-	if(dcladj)
+-		dcladj(n->sym);
++	autoexport(n->sym);
+ }
+ 
+ /*
+@@ -79,8 +77,7 @@ dodcltype(Type *n)
+ 
+ found:
+ 	n->local = 1;
+-	if(dcladj)
+-		dcladj(n->sym);
++	autoexport(n->sym);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 7b9fce63f8..e46276b118 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -53,6 +53,32 @@ packagesym(Sym *s)
+ 	addexportsym(s);
+ }
+ 
++int
++exportname(char *s)
++{
++	Rune r;
++
++	if((uchar)s[0] < Runeself)
++		return 'A' <= s[0] && s[0] <= 'Z';
++	chartorune(&r, s);
++	return isupperrune(r);
++}
++
++void
++autoexport(Sym *s)
++{
++	if(s == S)
++		return;
++	if(dclcontext != PEXTERN)
++		return;
++	if(exportname(s->name)) {
++		if(dcladj != exportsym)
++			warn("uppercase missing export");
++		exportsym(s);
++	} else
++		packagesym(s);
++}
++
+ void
+ dumpprereq(Type *t)
+ {
+@@ -330,6 +356,7 @@ importconst(int export, Node *ss, Type *t, Val *v)
+ 	Node *n;
+ 	Sym *s;
+ 
++	export = exportname(ss->sym->name);
+ 	if(export == 2 && !mypackage(ss))
+ 		return;
+ 
+@@ -337,14 +364,18 @@ importconst(int export, Node *ss, Type *t, Val *v)
+ 	n->val = *v;
+ 	n->type = t;
+ 
+-	s = importsym(export, ss, LNAME);
++	s = importsym(export, ss, LACONST);
+ 	if(s->oconst != N) {
+ 		// TODO: check if already the same.
+ 		return;
+ 	}
+ 
++// fake out export vs upper checks until transition is over
++if(export == 1) dcladj = exportsym;
++
+ 	dodclconst(newname(s), n);
+ 
++dcladj = nil;
+ 	if(debug['e'])
+ 		print("import const %S\n", s);
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 19b44f9099..ff69905975 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -180,7 +180,7 @@ struct	Node
+ 	uchar	addable;	// type of addressability - 0 is not addressable
+ 	uchar	trecur;		// to detect loops
+ 	uchar	etype;		// op for OASOP, etype for OTYPE, exclam for export
+-	uchar	class;		// PPARAM, PAUTO, PEXTERN, PSTATIC
++	uchar	class;		// PPARAM, PAUTO, PEXTERN
+ 	uchar	method;		// OCALLMETH name
+ 	uchar	iota;		// OLITERAL made from iota
+ 	uchar	embedded;	// ODCLFIELD embedded type
+@@ -404,7 +404,6 @@ enum
+ 	PEXTERN,	// declaration context
+ 	PAUTO,
+ 	PPARAM,
+-	PSTATIC,
+ };
+ 
+ enum
+@@ -741,6 +740,7 @@ void	constiter(Node*, Type*, Node*);
+  *	export.c
+  */
+ void	renamepkg(Node*);
++void	autoexport(Sym*);
+ void	exportsym(Sym*);
+ void	packagesym(Sym*);
+ void	dumpe(Sym*);
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index db12ee0813..1dd55523c0 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -188,20 +188,15 @@ xdcl:
+ 	{
+ 		$$ = N;
+ 	}
+-|	LEXPORT export_list_r
+-	{
+-		$$ = N;
+-	}
+ |	LEXPORT { dcladj = exportsym; stksize = initstksize; } common_dcl
+ 	{
+ 		$$ = $3;
+ 		dcladj = 0;
+ 		initstksize = stksize;
+ 	}
+-|	LPACKAGE { dcladj = packagesym; stksize = initstksize; } common_dcl
++|	LPACKAGE { warn("package is gone"); stksize = initstksize; } common_dcl
+ 	{
+ 		$$ = $3;
+-		dcladj = 0;
+ 		initstksize = stksize;
+ 	}
+ |	LEXPORT '(' export_list_r ')'
+@@ -214,10 +209,10 @@ xdcl:
+ 			exportsym($2->nname->sym);
+ 		$$ = N;
+ 	}
+-|	LPACKAGE xfndcl
++|	LPACKAGE { warn("package is gone"); } xfndcl
+ 	{
+-		if($2 != N && $2->nname != N)
+-			packagesym($2->nname->sym);
++		if($3 != N && $3->nname != N)
++			packagesym($3->nname->sym);
+ 		$$ = N;
+ 	}
+ |	';'
+diff --git a/src/run.bash b/src/run.bash
+index 2c5d13dadd..90c9a7af1a 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,11 +52,11 @@ time make
+ make smoketest
+ ) || exit $?
+ 
+-(xcd ../usr/gri/gosrc
+-make clean
+-time make
+-# make test
+-) || exit $?
++# (xcd ../usr/gri/gosrc
++# make clean
++# time make
++# # make test
++# ) || exit $?
+ 
+ (xcd ../doc/progs
+ time ./run

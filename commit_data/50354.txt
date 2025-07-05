@@ -11,9 +11,116 @@ Date:   Mon Oct 18 10:59:29 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go | 13 ++++++++++
  src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++
  test/typeparam/issue49027.dir/a.go            | 34 +++++++++++++++++++++++++++
  test/typeparam/issue49027.dir/main.go         |  8 +++++++
  4 files changed, 63 insertions(+)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index e3dd10a56b..46865ba3fa 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1763,6 +1763,19 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.op(ir.OTYPE)
+ 		w.typ(n.Type())
+ 
++	case ir.ODYNAMICTYPE:
++		n := n.(*ir.DynamicType)
++		w.op(ir.ODYNAMICTYPE)
++		w.pos(n.Pos())
++		w.expr(n.X)
++		if n.ITab != nil {
++			w.bool(true)
++			w.expr(n.ITab)
++		} else {
++			w.bool(false)
++		}
++		w.typ(n.Type())
++
+ 	case ir.OTYPESW:
+ 		n := n.(*ir.TypeSwitchGuard)
+ 		w.op(ir.OTYPESW)
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 6351fc37de..cb1e56bf51 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1312,6 +1312,14 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OTYPE:
+ 		return ir.TypeNode(r.typ())
+ 
++	case ir.ODYNAMICTYPE:
++		n := ir.NewDynamicType(r.pos(), r.expr())
++		if r.bool() {
++			n.ITab = r.expr()
++		}
++		n.SetType(r.typ())
++		return n
++
+ 	case ir.OTYPESW:
+ 		pos := r.pos()
+ 		var tag *ir.Ident
+diff --git a/test/typeparam/issue49027.dir/a.go b/test/typeparam/issue49027.dir/a.go
+index d3ec27deab..da88297965 100644
+--- a/test/typeparam/issue49027.dir/a.go
++++ b/test/typeparam/issue49027.dir/a.go
+@@ -15,7 +15,41 @@ func conv[T any](v interface{}) T {
+ func Conv2(v interface{}) (string, bool) {
+ 	return conv2[string](v)
+ }
++
+ func conv2[T any](v interface{}) (T, bool) {
+ 	x, ok := v.(T)
+ 	return x, ok
+ }
++
++func Conv3(v interface{}) string {
++	return conv3[string](v)
++}
++
++func conv3[T any](v interface{}) T {
++	switch v := v.(type) {
++	case T:
++		return v
++	default:
++		var z T
++		return z
++	}
++}
++
++type Mystring string
++
++func (Mystring) Foo() {
++}
++
++func Conv4(v interface{Foo()}) Mystring {
++	return conv4[Mystring](v)
++}
++
++func conv4[T interface{Foo()}](v interface{Foo()}) T {
++	switch v := v.(type) {
++	case T:
++		return v
++	default:
++		var z T
++		return z
++	}
++}
+diff --git a/test/typeparam/issue49027.dir/main.go b/test/typeparam/issue49027.dir/main.go
+index d0dc33d734..aa20a2fdfb 100644
+--- a/test/typeparam/issue49027.dir/main.go
++++ b/test/typeparam/issue49027.dir/main.go
+@@ -22,4 +22,12 @@ func main() {
+ 	if y != s {
+ 		panic(fmt.Sprintf("got %s wanted %s", y, s))
+ 	}
++	z := a.Conv3(s)
++	if z != s {
++		panic(fmt.Sprintf("got %s wanted %s", z, s))
++	}
++	w := a.Conv4(a.Mystring(s))
++	if w != a.Mystring(s) {
++		panic(fmt.Sprintf("got %s wanted %s", w, s))
++	}
+ }

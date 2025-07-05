@@ -20,6 +20,19 @@ Date:   Tue Nov 20 16:37:50 2018 +0100
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/syscall_js.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/syscall_js.go b/src/syscall/syscall_js.go
+index 6822eec835..2e1a9ec9f1 100644
+--- a/src/syscall/syscall_js.go
++++ b/src/syscall/syscall_js.go
+@@ -74,6 +74,7 @@ const (
+ 	SIGKILL
+ 	SIGTRAP
+ 	SIGQUIT
++	SIGTERM
+ )
+ 
+ func (s Signal) Signal() {}

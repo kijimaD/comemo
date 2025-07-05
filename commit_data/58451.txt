@@ -16,10 +16,384 @@ Date:   Mon Aug 14 10:44:29 2023 -0700
     Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  api/next/57178.txt              |  1 +
  src/crypto/x509/cert_pool.go    | 54 +++++++++++++++++------
  src/crypto/x509/root_windows.go |  2 +-
  src/crypto/x509/verify.go       | 28 ++++++++----
  src/crypto/x509/verify_test.go  | 98 ++++++++++++++++++++++++++++++++++++-----
  5 files changed, 147 insertions(+), 36 deletions(-)
+
+diff --git a/api/next/57178.txt b/api/next/57178.txt
+new file mode 100644
+index 0000000000..3ce4d408eb
+--- /dev/null
++++ b/api/next/57178.txt
+@@ -0,0 +1 @@
++pkg crypto/x509, method (*CertPool) AddCertWithConstraint(*Certificate, func([]*Certificate) error) #57178
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index d852d1a6c6..e4c5694fbe 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -44,6 +44,11 @@ type lazyCert struct {
+ 	// fewer allocations.
+ 	rawSubject []byte
+ 
++	// constraint is a function to run against a chain when it is a candidate to
++	// be added to the chain. This allows adding arbitrary constraints that are
++	// not specified in the certificate itself.
++	constraint func([]*Certificate) error
++
+ 	// getCert returns the certificate.
+ 	//
+ 	// It is not meant to do network operations or anything else
+@@ -73,8 +78,9 @@ func (s *CertPool) len() int {
+ }
+ 
+ // cert returns cert index n in s.
+-func (s *CertPool) cert(n int) (*Certificate, error) {
+-	return s.lazyCerts[n].getCert()
++func (s *CertPool) cert(n int) (*Certificate, func([]*Certificate) error, error) {
++	cert, err := s.lazyCerts[n].getCert()
++	return cert, s.lazyCerts[n].constraint, err
+ }
+ 
+ // Clone returns a copy of s.
+@@ -116,9 +122,14 @@ func SystemCertPool() (*CertPool, error) {
+ 	return loadSystemRoots()
+ }
+ 
+-// findPotentialParents returns the indexes of certificates in s which might
+-// have signed cert.
+-func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
++type potentialParent struct {
++	cert       *Certificate
++	constraint func([]*Certificate) error
++}
++
++// findPotentialParents returns the certificates in s which might have signed
++// cert.
++func (s *CertPool) findPotentialParents(cert *Certificate) []potentialParent {
+ 	if s == nil {
+ 		return nil
+ 	}
+@@ -129,21 +140,21 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
+ 	//   AKID and SKID match
+ 	//   AKID present, SKID missing / AKID missing, SKID present
+ 	//   AKID and SKID don't match
+-	var matchingKeyID, oneKeyID, mismatchKeyID []*Certificate
++	var matchingKeyID, oneKeyID, mismatchKeyID []potentialParent
+ 	for _, c := range s.byName[string(cert.RawIssuer)] {
+-		candidate, err := s.cert(c)
++		candidate, constraint, err := s.cert(c)
+ 		if err != nil {
+ 			continue
+ 		}
+ 		kidMatch := bytes.Equal(candidate.SubjectKeyId, cert.AuthorityKeyId)
+ 		switch {
+ 		case kidMatch:
+-			matchingKeyID = append(matchingKeyID, candidate)
++			matchingKeyID = append(matchingKeyID, potentialParent{candidate, constraint})
+ 		case (len(candidate.SubjectKeyId) == 0 && len(cert.AuthorityKeyId) > 0) ||
+ 			(len(candidate.SubjectKeyId) > 0 && len(cert.AuthorityKeyId) == 0):
+-			oneKeyID = append(oneKeyID, candidate)
++			oneKeyID = append(oneKeyID, potentialParent{candidate, constraint})
+ 		default:
+-			mismatchKeyID = append(mismatchKeyID, candidate)
++			mismatchKeyID = append(mismatchKeyID, potentialParent{candidate, constraint})
+ 		}
+ 	}
+ 
+@@ -151,7 +162,7 @@ func (s *CertPool) findPotentialParents(cert *Certificate) []*Certificate {
+ 	if found == 0 {
+ 		return nil
+ 	}
+-	candidates := make([]*Certificate, 0, found)
++	candidates := make([]potentialParent, 0, found)
+ 	candidates = append(candidates, matchingKeyID...)
+ 	candidates = append(candidates, oneKeyID...)
+ 	candidates = append(candidates, mismatchKeyID...)
+@@ -172,7 +183,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
+ 	}
+ 	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
+ 		return cert, nil
+-	})
++	}, nil)
+ }
+ 
+ // addCertFunc adds metadata about a certificate to a pool, along with
+@@ -180,7 +191,7 @@ func (s *CertPool) AddCert(cert *Certificate) {
+ //
+ // The rawSubject is Certificate.RawSubject and must be non-empty.
+ // The getCert func may be called 0 or more times.
+-func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*Certificate, error)) {
++func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func() (*Certificate, error), constraint func([]*Certificate) error) {
+ 	if getCert == nil {
+ 		panic("getCert can't be nil")
+ 	}
+@@ -194,6 +205,7 @@ func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func
+ 	s.lazyCerts = append(s.lazyCerts, lazyCert{
+ 		rawSubject: []byte(rawSubject),
+ 		getCert:    getCert,
++		constraint: constraint,
+ 	})
+ 	s.byName[rawSubject] = append(s.byName[rawSubject], len(s.lazyCerts)-1)
+ }
+@@ -231,7 +243,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ 				certBytes = nil
+ 			})
+ 			return lazyCert.v, nil
+-		})
++		}, nil)
+ 		ok = true
+ 	}
+ 
+@@ -266,3 +278,17 @@ func (s *CertPool) Equal(other *CertPool) bool {
+ 	}
+ 	return true
+ }
++
++// AddCertWithConstraint adds a certificate to the pool with the additional
++// constraint. When Certificate.Verify builds a chain which is rooted by cert,
++// it will additionally pass the whole chain to constraint to determine its
++// validity. If constraint returns a non-nil error, the chain will be discarded.
++// constraint may be called concurrently from multiple goroutines.
++func (s *CertPool) AddCertWithConstraint(cert *Certificate, constraint func([]*Certificate) error) {
++	if cert == nil {
++		panic("adding nil Certificate to CertPool")
++	}
++	s.addCertFunc(sha256.Sum224(cert.Raw), string(cert.RawSubject), func() (*Certificate, error) {
++		return cert, nil
++	}, constraint)
++}
+diff --git a/src/crypto/x509/root_windows.go b/src/crypto/x509/root_windows.go
+index 11a4257b01..4bea108161 100644
+--- a/src/crypto/x509/root_windows.go
++++ b/src/crypto/x509/root_windows.go
+@@ -45,7 +45,7 @@ func createStoreContext(leaf *Certificate, opts *VerifyOptions) (*syscall.CertCo
+ 
+ 	if opts.Intermediates != nil {
+ 		for i := 0; i < opts.Intermediates.len(); i++ {
+-			intermediate, err := opts.Intermediates.cert(i)
++			intermediate, _, err := opts.Intermediates.cert(i)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 345d434453..9d3c3246d3 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -752,7 +752,7 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 		return nil, errNotParsed
+ 	}
+ 	for i := 0; i < opts.Intermediates.len(); i++ {
+-		c, err := opts.Intermediates.cert(i)
++		c, _, err := opts.Intermediates.cert(i)
+ 		if err != nil {
+ 			return nil, fmt.Errorf("crypto/x509: error fetching intermediate: %w", err)
+ 		}
+@@ -898,8 +898,8 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
+ 		hintCert *Certificate
+ 	)
+ 
+-	considerCandidate := func(certType int, candidate *Certificate) {
+-		if alreadyInChain(candidate, currentChain) {
++	considerCandidate := func(certType int, candidate potentialParent) {
++		if alreadyInChain(candidate.cert, currentChain) {
+ 			return
+ 		}
+ 
+@@ -912,29 +912,39 @@ func (c *Certificate) buildChains(currentChain []*Certificate, sigChecks *int, o
+ 			return
+ 		}
+ 
+-		if err := c.CheckSignatureFrom(candidate); err != nil {
++		if err := c.CheckSignatureFrom(candidate.cert); err != nil {
+ 			if hintErr == nil {
+ 				hintErr = err
+-				hintCert = candidate
++				hintCert = candidate.cert
+ 			}
+ 			return
+ 		}
+ 
+-		err = candidate.isValid(certType, currentChain, opts)
++		err = candidate.cert.isValid(certType, currentChain, opts)
+ 		if err != nil {
+ 			if hintErr == nil {
+ 				hintErr = err
+-				hintCert = candidate
++				hintCert = candidate.cert
+ 			}
+ 			return
+ 		}
+ 
++		if candidate.constraint != nil {
++			if err := candidate.constraint(currentChain); err != nil {
++				if hintErr == nil {
++					hintErr = err
++					hintCert = candidate.cert
++				}
++				return
++			}
++		}
++
+ 		switch certType {
+ 		case rootCertificate:
+-			chains = append(chains, appendToFreshChain(currentChain, candidate))
++			chains = append(chains, appendToFreshChain(currentChain, candidate.cert))
+ 		case intermediateCertificate:
+ 			var childChains [][]*Certificate
+-			childChains, err = candidate.buildChains(appendToFreshChain(currentChain, candidate), sigChecks, opts)
++			childChains, err = candidate.cert.buildChains(appendToFreshChain(currentChain, candidate.cert), sigChecks, opts)
+ 			chains = append(chains, childChains...)
+ 		}
+ 	}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index b1dddb644b..7bc74462de 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -1918,11 +1918,13 @@ type trustGraphEdge struct {
+ 	Subject        string
+ 	Type           int
+ 	MutateTemplate func(*Certificate)
++	Constraint     func([]*Certificate) error
+ }
+ 
+ type rootDescription struct {
+ 	Subject        string
+ 	MutateTemplate func(*Certificate)
++	Constraint     func([]*Certificate) error
+ }
+ 
+ type trustGraphDescription struct {
+@@ -1975,19 +1977,23 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
+ 
+ 	certs := map[string]*Certificate{}
+ 	keys := map[string]crypto.Signer{}
+-	roots := []*Certificate{}
++	rootPool := NewCertPool()
+ 	for _, r := range d.Roots {
+ 		k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+ 		if err != nil {
+ 			t.Fatalf("failed to generate test key: %s", err)
+ 		}
+ 		root := genCertEdge(t, r.Subject, k, r.MutateTemplate, rootCertificate, nil, nil)
+-		roots = append(roots, root)
++		if r.Constraint != nil {
++			rootPool.AddCertWithConstraint(root, r.Constraint)
++		} else {
++			rootPool.AddCert(root)
++		}
+ 		certs[r.Subject] = root
+ 		keys[r.Subject] = k
+ 	}
+ 
+-	intermediates := []*Certificate{}
++	intermediatePool := NewCertPool()
+ 	var leaf *Certificate
+ 	for _, e := range d.Graph {
+ 		issuerCert, ok := certs[e.Issuer]
+@@ -2013,18 +2019,14 @@ func buildTrustGraph(t *testing.T, d trustGraphDescription) (*CertPool, *CertPoo
+ 		if e.Subject == d.Leaf {
+ 			leaf = cert
+ 		} else {
+-			intermediates = append(intermediates, cert)
++			if e.Constraint != nil {
++				intermediatePool.AddCertWithConstraint(cert, e.Constraint)
++			} else {
++				intermediatePool.AddCert(cert)
++			}
+ 		}
+ 	}
+ 
+-	rootPool, intermediatePool := NewCertPool(), NewCertPool()
+-	for i := len(roots) - 1; i >= 0; i-- {
+-		rootPool.AddCert(roots[i])
+-	}
+-	for i := len(intermediates) - 1; i >= 0; i-- {
+-		intermediatePool.AddCert(intermediates[i])
+-	}
+-
+ 	return rootPool, intermediatePool, leaf
+ }
+ 
+@@ -2480,6 +2482,78 @@ func TestPathBuilding(t *testing.T) {
+ 			},
+ 			expectedChains: []string{"CN=leaf -> CN=inter -> CN=root"},
+ 		},
++		{
++			// A code constraint on the root, applying to one of two intermediates in the graph, should
++			// result in only one valid chain.
++			name: "code constrained root, two paths, one valid",
++			graph: trustGraphDescription{
++				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
++					for _, c := range chain {
++						if c.Subject.CommonName == "inter a" {
++							return errors.New("bad")
++						}
++					}
++					return nil
++				}}},
++				Leaf: "leaf",
++				Graph: []trustGraphEdge{
++					{
++						Issuer:  "root",
++						Subject: "inter a",
++						Type:    intermediateCertificate,
++					},
++					{
++						Issuer:  "root",
++						Subject: "inter b",
++						Type:    intermediateCertificate,
++					},
++					{
++						Issuer:  "inter a",
++						Subject: "inter c",
++						Type:    intermediateCertificate,
++					},
++					{
++						Issuer:  "inter b",
++						Subject: "inter c",
++						Type:    intermediateCertificate,
++					},
++					{
++						Issuer:  "inter c",
++						Subject: "leaf",
++						Type:    leafCertificate,
++					},
++				},
++			},
++			expectedChains: []string{"CN=leaf -> CN=inter c -> CN=inter b -> CN=root"},
++		},
++		{
++			// A code constraint on the root, applying to the only path, should result in an error.
++			name: "code constrained root, one invalid path",
++			graph: trustGraphDescription{
++				Roots: []rootDescription{{Subject: "root", Constraint: func(chain []*Certificate) error {
++					for _, c := range chain {
++						if c.Subject.CommonName == "leaf" {
++							return errors.New("bad")
++						}
++					}
++					return nil
++				}}},
++				Leaf: "leaf",
++				Graph: []trustGraphEdge{
++					{
++						Issuer:  "root",
++						Subject: "inter",
++						Type:    intermediateCertificate,
++					},
++					{
++						Issuer:  "inter",
++						Subject: "leaf",
++						Type:    leafCertificate,
++					},
++				},
++			},
++			expectedErr: "x509: certificate signed by unknown authority (possibly because of \"bad\" while trying to verify candidate authority certificate \"root\")",
++		},
+ 	}
+ 
+ 	for _, tc := range tests {

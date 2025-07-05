@@ -17,7 +17,7 @@ Date:   Fri Mar 3 01:24:00 2023 +1100
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Eric Grosse <grosse@gmail.com>
-
+---
  src/cmd/dist/build.go              | 4 +++-
  src/cmd/link/internal/ld/config.go | 2 +-
  src/cmd/link/internal/ld/elf.go    | 2 +-
@@ -25,3 +25,116 @@ Date:   Fri Mar 3 01:24:00 2023 +1100
  src/cmd/link/internal/ppc64/obj.go | 5 +++--
  src/internal/platform/supported.go | 4 +++-
  6 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 193db6f52d..0f53399648 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -589,7 +589,9 @@ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
+ 			}
+ 		case "ppc64":
+ 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+-			return true
++			if goos == "aix" || goos == "linux" {
++				return true
++			}
+ 		}
+ 
+ 		switch goos {
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 1147362fb4..3a186b47f7 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -217,7 +217,7 @@ func determineLinkMode(ctxt *Link) {
+ 		}
+ 	case LinkExternal:
+ 		switch {
+-		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS != "aix":
++		case buildcfg.GOARCH == "ppc64" && buildcfg.GOOS == "linux":
+ 			Exitf("external linking not supported for %s/ppc64", buildcfg.GOOS)
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 20fa9b05ee..d83bef1558 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -243,7 +243,7 @@ func Elfinit(ctxt *Link) {
+ 	switch ctxt.Arch.Family {
+ 	// 64-bit architectures
+ 	case sys.PPC64, sys.S390X:
+-		if ctxt.Arch.ByteOrder == binary.BigEndian {
++		if ctxt.Arch.ByteOrder == binary.BigEndian && ctxt.HeadType != objabi.Hopenbsd {
+ 			ehdr.Flags = 1 /* Version 1 ABI */
+ 		} else {
+ 			ehdr.Flags = 2 /* Version 2 ABI */
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index d537bc533c..14294c7763 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -270,9 +270,8 @@ func genstubs(ctxt *ld.Link, ldr *loader.Loader) {
+ 	for _, s := range ctxt.Textp {
+ 		relocs := ldr.Relocs(s)
+ 		for i := 0; i < relocs.Count(); i++ {
+-			r := relocs.At(i)
+-			switch r.Type() {
+-			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24):
++			switch r := relocs.At(i); r.Type() {
++			case objabi.ElfRelocOffset + objabi.RelocType(elf.R_PPC64_REL24), objabi.R_CALLPOWER:
+ 				switch ldr.SymType(r.Sym()) {
+ 				case sym.SDYNIMPORT:
+ 					// This call goes through the PLT, generate and call through a PLT stub.
+@@ -633,7 +632,7 @@ func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s lo
+ 		su.SetRelocAdd(rIdx, r.Add()+localEoffset)
+ 
+ 		if targType == sym.SDYNIMPORT {
+-			// Should have been handled in elfsetupplt
++			// Should have been handled in genstubs
+ 			ldr.Errorf(s, "unexpected R_PPC64_REL24 for dyn import")
+ 		}
+ 
+@@ -1575,7 +1574,6 @@ func archrelocvariant(target *ld.Target, ldr *loader.Loader, r loader.Reloc, rv
+ 			var o1 uint32
+ 			if target.IsBigEndian() {
+ 				o1 = binary.BigEndian.Uint32(p[r.Off()-2:])
+-
+ 			} else {
+ 				o1 = binary.LittleEndian.Uint32(p[r.Off():])
+ 			}
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 3fc6622bff..7de0f8eac6 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -71,7 +71,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 			LinuxdynldMusl: musl,
+ 
+ 			Freebsddynld:   "XXX",
+-			Openbsddynld:   "XXX",
++			Openbsddynld:   "/usr/libexec/ld.so",
+ 			Netbsddynld:    "XXX",
+ 			Dragonflydynld: "XXX",
+ 			Solarisdynld:   "XXX",
+@@ -100,7 +100,8 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagRound = 4096
+ 		}
+ 
+-	case objabi.Hlinux: /* ppc64 elf */
++	case objabi.Hlinux, /* ppc64 elf */
++		objabi.Hopenbsd:
+ 		ld.Elfinit(ctxt)
+ 		ld.HEADR = ld.ELFRESERVE
+ 		if *ld.FlagTextAddr == -1 {
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 7fc3bfd25d..c18f12602d 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -99,7 +99,9 @@ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
+ 		case "ppc64":
+ 			// Big Endian PPC64 cgo internal linking is not implemented for aix or linux.
+ 			// https://go.dev/issue/8912
+-			return true
++			if goos == "aix" || goos == "linux" {
++				return true
++			}
+ 		}
+ 
+ 		switch goos {

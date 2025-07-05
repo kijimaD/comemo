@@ -16,8 +16,130 @@ Date:   Fri Nov 18 15:20:06 2022 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/file_unix.go      | 10 ++++++++
  src/os/removeall_at.go   |  3 ++-
  src/os/removeall_test.go | 64 ++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 76 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 1833c26531..6a884a29a8 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -110,10 +110,20 @@ func NewFile(fd uintptr, name string) *File {
+ type newFileKind int
+ 
+ const (
++	// kindNewFile means that the descriptor was passed to us via NewFile.
+ 	kindNewFile newFileKind = iota
++	// kindOpenFile means that the descriptor was opened using
++	// Open, Create, or OpenFile.
+ 	kindOpenFile
++	// kindPipe means that the descriptor was opened using Pipe.
+ 	kindPipe
++	// kindNonBlock means that the descriptor was passed to us via NewFile,
++	// and the descriptor is already in non-blocking mode.
+ 	kindNonBlock
++	// kindNoPoll means that we should not put the descriptor into
++	// non-blocking mode, because we know it is not a pipe or FIFO.
++	// Used by openFdAt for directories.
++	kindNoPoll
+ )
+ 
+ // newFile is like NewFile, but if called from OpenFile or Pipe
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 306debd972..378733ffdb 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -194,5 +194,6 @@ func openFdAt(dirfd int, name string) (*File, error) {
+ 		syscall.CloseOnExec(r)
+ 	}
+ 
+-	return newFile(uintptr(r), name, kindOpenFile), nil
++	// We use kindNoPoll because we know that this is a directory.
++	return newFile(uintptr(r), name, kindNoPoll), nil
+ }
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index aa1c04325d..a3af52cc17 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -5,11 +5,14 @@
+ package os_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	. "os"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -438,3 +441,64 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		t.Fatalf("RemoveAll(<read-only directory>) unexpectedly removed %d read-only files from that directory", 1025-len(names))
+ 	}
+ }
++
++func TestRemoveAllNoFcntl(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++
++	const env = "GO_TEST_REMOVE_ALL_NO_FCNTL"
++	if dir := Getenv(env); dir != "" {
++		if err := RemoveAll(dir); err != nil {
++			t.Fatal(err)
++		}
++		return
++	}
++
++	// Only test on Linux so that we can assume we have strace.
++	// The code is OS-independent so if it passes on Linux
++	// it should pass on other Unix systems.
++	if runtime.GOOS != "linux" {
++		t.Skipf("skipping test on %s", runtime.GOOS)
++	}
++	if _, err := Stat("/bin/strace"); err != nil {
++		t.Skipf("skipping test because /bin/strace not found: %v", err)
++	}
++	me, err := Executable()
++	if err != nil {
++		t.Skipf("skipping because Executable failed: %v", err)
++	}
++
++	// Create 100 directories.
++	// The test is that we can remove them without calling fcntl
++	// on each one.
++	tmpdir := t.TempDir()
++	subdir := filepath.Join(tmpdir, "subdir")
++	if err := Mkdir(subdir, 0o755); err != nil {
++		t.Fatal(err)
++	}
++	for i := 0; i < 100; i++ {
++		subsubdir := filepath.Join(subdir, strconv.Itoa(i))
++		if err := Mkdir(filepath.Join(subdir, strconv.Itoa(i)), 0o755); err != nil {
++			t.Fatal(err)
++		}
++		if err := WriteFile(filepath.Join(subsubdir, "file"), nil, 0o644); err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	cmd := testenv.Command(t, "/bin/strace", "-f", "-e", "fcntl", me, "-test.run=TestRemoveAllNoFcntl")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, env+"="+subdir)
++	out, err := cmd.CombinedOutput()
++	if len(out) > 0 {
++		t.Logf("%s", out)
++	}
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if got := bytes.Count(out, []byte("fcntl")); got >= 100 {
++		t.Errorf("found %d fcntl calls, want < 100", got)
++	}
++}

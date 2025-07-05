@@ -75,7 +75,67 @@ Date:   Wed May 13 10:48:05 2015 -0400
     Change-Id: I59c03d329fe7bc178a31477c6f1f01062b881041
     Reviewed-on: https://go-review.googlesource.com/9993
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbarrier.go | 14 ++++++++++++++
  src/runtime/slice.go    |  9 ++++++---
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 409c1948c6..d3e4809737 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -200,6 +200,8 @@ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uin
+ 
+ //go:nosplit
+ func typedslicecopy(typ *_type, dst, src slice) int {
++	// TODO(rsc): If typedslicecopy becomes faster than calling
++	// typedmemmove repeatedly, consider using during func growslice.
+ 	n := dst.len
+ 	if n > src.len {
+ 		n = src.len
+@@ -217,6 +219,10 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 		racereadrangepc(srcp, uintptr(n)*typ.size, callerpc, pc)
+ 	}
+ 
++	// Note: No point in checking typ.kind&kindNoPointers here:
++	// compiler only emits calls to typedslicecopy for types with pointers,
++	// and growslice and reflect_typedslicecopy check for pointers
++	// before calling typedslicecopy.
+ 	if !writeBarrierEnabled {
+ 		memmove(dstp, srcp, uintptr(n)*typ.size)
+ 		return n
+@@ -257,5 +263,13 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 
+ //go:linkname reflect_typedslicecopy reflect.typedslicecopy
+ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
++	if elemType.kind&kindNoPointers != 0 {
++		n := dst.len
++		if n > src.len {
++			n = src.len
++		}
++		memmove(dst.array, src.array, uintptr(n)*elemType.size)
++		return n
++	}
+ 	return typedslicecopy(elemType, dst, src)
+ }
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 5ccc6592bf..79b611839d 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -84,10 +84,13 @@ func growslice(t *slicetype, old slice, n int) slice {
+ 		memclr(add(p, lenmem), capmem-lenmem)
+ 	} else {
+ 		// Note: can't use rawmem (which avoids zeroing of memory), because then GC can scan unitialized memory.
+-		// TODO(rsc): Use memmove when !writeBarrierEnabled.
+ 		p = newarray(et, uintptr(newcap))
+-		for i := 0; i < old.len; i++ {
+-			typedmemmove(et, add(p, uintptr(i)*et.size), add(old.array, uintptr(i)*et.size))
++		if !writeBarrierEnabled {
++			memmove(p, old.array, lenmem)
++		} else {
++			for i := uintptr(0); i < lenmem; i += et.size {
++				typedmemmove(et, add(p, i), add(old.array, i))
++			}
+ 		}
+ 	}
+ 

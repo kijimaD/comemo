@@ -7,6 +7,20 @@ Date:   Tue Feb 16 11:32:41 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/206077
-
+---
  src/cmd/cc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 63916e2a14..c9facc667e 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -32,7 +32,7 @@
+ #include	"y.tab.h"
+ 
+ #ifndef	CPP
+-#define	CPP	"/bin/cpp"
++#define	CPP	"cpp"
+ #endif
+ 
+ int

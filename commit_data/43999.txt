@@ -9,7 +9,32 @@ Date:   Fri May 1 19:18:39 2020 +0000
     GitHub-Pull-Request: golang/go#38786
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231460
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 174683264b..d79d4ed7d8 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -96,6 +96,7 @@ Alexei Sholik <alcosholik@gmail.com>
+ Alexey Borzenkov <snaury@gmail.com>
+ Alexey Neganov <neganovalexey@gmail.com>
+ Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
++Alexey Semenyuk <alexsemenyuk88@gmail.com>
+ Alexis Hildebrandt <surryhill@gmail.com>
+ Ali Rizvi-Santiago <arizvisa@gmail.com>
+ Aliaksandr Valialkin <valyala@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6e7d3e00e0..ed9784ca11 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -145,6 +145,7 @@ Alexey Borzenkov <snaury@gmail.com>
+ Alexey Naidonov <alexey.naidyonov@gmail.com>
+ Alexey Neganov <neganovalexey@gmail.com>
+ Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
++Alexey Semenyuk <alexsemenyuk88@gmail.com>
+ Alexis Hildebrandt <surryhill@gmail.com>
+ Alexis Hunt <lexer@google.com>
+ Alexis Imperial-Legrand <ail@google.com>

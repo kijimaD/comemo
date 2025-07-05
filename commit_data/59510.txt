@@ -17,10 +17,598 @@ Date:   Wed Jan 31 10:37:35 2024 +0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/asm/internal/asm/testdata/riscv64.s | 96 +++++++++++++++++++++++------
  src/cmd/internal/obj/riscv/anames.go        | 46 ++++++++++++--
  src/cmd/internal/obj/riscv/cpu.go           | 58 +++++++++++++++--
  src/cmd/internal/obj/riscv/inst.go          | 84 ++++++++++++++++++++++++-
  src/cmd/internal/obj/riscv/obj.go           | 90 +++++++++++++++++++++++++--
  5 files changed, 336 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index f944072c6e..b96bc844c0 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -339,6 +339,84 @@ start:
+ 	// 12.6: Double-Precision Floating-Point Classify Instruction
+ 	FCLASSD	F0, X5					// d31200e2
+ 
++	// RISC-V Bit-Manipulation ISA-extensions (1.0)
++	// 1.1: Address Generation Instructions (Zba)
++	ADDUW		X10, X11, X12			// 3b86a508
++	ADDUW		X10, X11			// bb85a508
++	SH1ADD		X11, X12, X13			// b326b620
++	SH1ADD		X11, X12			// 3326b620
++	SH1ADDUW	X12, X13, X14			// 3ba7c620
++	SH1ADDUW	X12, X13			// bba6c620
++	SH2ADD		X13, X14, X15			// b347d720
++	SH2ADD		X13, X14			// 3347d720
++	SH2ADDUW	X14, X15, X16			// 3bc8e720
++	SH2ADDUW	X14, X15			// bbc7e720
++	SH3ADD		X15, X16, X17			// b368f820
++	SH3ADD		X15, X16			// 3368f820
++	SH3ADDUW	X16, X17, X18			// 3be90821
++	SH3ADDUW	X16, X17			// bbe80821
++	SLLIUW		$31, X17, X18			// 1b99f809
++	SLLIUW		$63, X17			// 9b98f80b
++	SLLIUW		$63, X17, X18			// 1b99f80b
++	SLLIUW		$1, X18, X19			// 9b191908
++
++	// 1.2: Basic Bit Manipulation (Zbb)
++	ANDN	X19, X20, X21				// b37a3a41
++	ANDN	X19, X20				// 337a3a41
++	CLZ	X20, X21				// 931a0a60
++	CLZW	X21, X22				// 1b9b0a60
++	CPOP	X22, X23				// 931b2b60
++	CPOPW	X23, X24				// 1b9c2b60
++	CTZ	X24, X25				// 931c1c60
++	CTZW	X25, X26				// 1b9d1c60
++	MAX	X26, X28, X29				// b36eae0b
++	MAX	X26, X28				// 336eae0b
++	MAXU	X28, X29, X30				// 33ffce0b
++	MAXU	X28, X29				// b3fece0b
++	MIN	X29, X30, X5				// b342df0b
++	MIN	X29, X30				// 334fdf0b
++	MINU	X30, X5, X6				// 33d3e20b
++	MINU	X30, X5					// b3d2e20b
++	ORN	X6, X7, X8				// 33e46340
++	ORN	X6, X7					// b3e36340
++	SEXTB	X16, X17				// 93184860
++	SEXTH	X17, X18				// 13995860
++	XNOR	X18, X19, X20				// 33ca2941
++	XNOR	X18, X19				// b3c92941
++	ZEXTH	X19, X20				// 3bca0908
++
++	// 1.3: Bitwise Rotation (Zbb)
++	ROL	X8, X9, X10				// 33958460 or b30f8040b3dff4013395840033e5af00
++	ROL	X8, X9					// b3948460 or b30f8040b3dff401b3948400b3e49f00
++	ROLW	X9, X10, X11				// bb159560 or b30f9040bb5ff501bb159500b3e5bf00
++	ROLW	X9, X10					// 3b159560 or b30f9040bb5ff5013b15950033e5af00
++	ROR	X10, X11, X12				// 33d6a560 or b30fa040b39ff50133d6a50033e6cf00
++	ROR	X10, X11				// b3d5a560 or b30fa040b39ff501b3d5a500b3e5bf00
++	ROR	$63, X11				// 93d5f563 or 93dff50393951500b3e5bf00
++	RORI	$63, X11, X12				// 13d6f563 or 93dff5031396150033e6cf00
++	RORI	$1, X12, X13				// 93561660 or 935f16009316f603b3e6df00
++	RORIW	$31, X13, X14				// 1bd7f661 or 9bdff6011b97160033e7ef00
++	RORIW	$1, X14, X15				// 9b571760 or 9b5f17009b17f701b3e7ff00
++	RORW	X15, X16, X17				// bb58f860 or b30ff040bb1ff801bb58f800b3e81f01
++	RORW	X15, X16				// 3b58f860 or b30ff040bb1ff8013b58f80033e80f01
++	RORW	$31, X13				// 9bd6f661 or 9bdff6019b961600b3e6df00
++	ORCB	X5, X6					// 13d37228
++	REV8	X7, X8					// 13d4836b
++
++	// 1.5: Single-bit Instructions (Zbs)
++	BCLR	X23, X24, X25				// b31c7c49
++	BCLR	$63, X24				// 131cfc4b
++	BCLRI	$1, X25, X26				// 139d1c48
++	BEXT	X26, X28, X29				// b35eae49
++	BEXT	$63, X28				// 135efe4b
++	BEXTI	$1, X29, X30				// 13df1e48
++	BINV	X30, X5, X6				// 3393e269
++	BINV	$63, X6					// 1313f36b
++	BINVI	$1, X7, X8				// 13941368
++	BSET	X8, X9, X10				// 33958428
++	BSET	$63, X9					// 9394f42b
++	BSETI	$1, X10, X11				// 93151528
++
+ 	// Privileged ISA
+ 
+ 	// 3.2.1: Environment Call and Breakpoint
+@@ -417,24 +495,6 @@ start:
+ 	NEGW	X5					// bb025040
+ 	NEGW	X5, X6					// 3b035040
+ 
+-	// Bitwise rotation pseudo-instructions
+-	ROL	X5, X6, X7				// b30f5040b35ff301b3135300b3e37f00
+-	ROL	X5, X6					// b30f5040b35ff3013313530033e36f00
+-	ROLW	X5, X6, X7				// b30f5040bb5ff301bb135300b3e37f00
+-	ROLW	X5, X6					// b30f5040bb5ff3013b13530033e36f00
+-	ROR	X5, X6, X7				// b30f5040b31ff301b3535300b3e37f00
+-	ROR	X5, X6					// b30f5040b31ff3013353530033e36f00
+-	RORW	X5, X6, X7				// b30f5040bb1ff301bb535300b3e37f00
+-	RORW	X5, X6					// b30f5040bb1ff3013b53530033e36f00
+-	RORI	$5, X6, X7				// 935f53009313b303b3e37f00
+-	RORI	$5, X6					// 935f53001313b30333e36f00
+-	RORIW	$5, X6, X7				// 9b5f53009b13b301b3e37f00
+-	RORIW	$5, X6					// 9b5f53001b13b30133e36f00
+-	ROR	$5, X6, X7				// 935f53009313b303b3e37f00
+-	ROR	$5, X6					// 935f53001313b30333e36f00
+-	RORW	$5, X6, X7				// 9b5f53009b13b301b3e37f00
+-	RORW	$5, X6					// 9b5f53001b13b30133e36f00
+-
+ 	// This jumps to the second instruction in the function (the
+ 	// first instruction is an invisible stack pointer adjustment).
+ 	JMP	start					// JMP	2
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index e547c6d5e9..60c7b48620 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -217,6 +217,46 @@ var Anames = []string{
+ 	"DRET",
+ 	"WFI",
+ 	"SFENCEVMA",
++	"ADDUW",
++	"SH1ADD",
++	"SH1ADDUW",
++	"SH2ADD",
++	"SH2ADDUW",
++	"SH3ADD",
++	"SH3ADDUW",
++	"SLLIUW",
++	"ANDN",
++	"ORN",
++	"XNOR",
++	"CLZ",
++	"CLZW",
++	"CTZ",
++	"CTZW",
++	"CPOP",
++	"CPOPW",
++	"MAX",
++	"MAXU",
++	"MIN",
++	"MINU",
++	"SEXTB",
++	"SEXTH",
++	"ZEXTH",
++	"ROL",
++	"ROLW",
++	"ROR",
++	"RORI",
++	"RORIW",
++	"RORW",
++	"ORCB",
++	"REV8",
++	"BCLR",
++	"BCLRI",
++	"BEXT",
++	"BEXTI",
++	"BINV",
++	"BINVI",
++	"BSET",
++	"BSETI",
+ 	"WORD",
+ 	"BEQZ",
+ 	"BGEZ",
+@@ -246,12 +286,6 @@ var Anames = []string{
+ 	"NEG",
+ 	"NEGW",
+ 	"NOT",
+-	"ROL",
+-	"ROLW",
+-	"ROR",
+-	"RORI",
+-	"RORIW",
+-	"RORW",
+ 	"SEQZ",
+ 	"SNEZ",
+ 	"LAST",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 00513a4a79..43ed3bc1f0 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -572,6 +572,58 @@ const (
+ 	// 4.2.1: Supervisor Memory-Management Fence Instruction
+ 	ASFENCEVMA
+ 
++	//
++	// RISC-V Bit-Manipulation ISA-extensions (1.0)
++	//
++
++	// 1.1: Address Generation Instructions (Zba)
++	AADDUW
++	ASH1ADD
++	ASH1ADDUW
++	ASH2ADD
++	ASH2ADDUW
++	ASH3ADD
++	ASH3ADDUW
++	ASLLIUW
++
++	// 1.2: Basic Bit Manipulation (Zbb)
++	AANDN
++	AORN
++	AXNOR
++	ACLZ
++	ACLZW
++	ACTZ
++	ACTZW
++	ACPOP
++	ACPOPW
++	AMAX
++	AMAXU
++	AMIN
++	AMINU
++	ASEXTB
++	ASEXTH
++	AZEXTH
++
++	// 1.3: Bitwise Rotation (Zbb)
++	AROL
++	AROLW
++	AROR
++	ARORI
++	ARORIW
++	ARORW
++	AORCB
++	AREV8
++
++	// 1.5: Single-bit Instructions (Zbs)
++	ABCLR
++	ABCLRI
++	ABEXT
++	ABEXTI
++	ABINV
++	ABINVI
++	ABSET
++	ABSETI
++
+ 	// The escape hatch. Inserts a single 32-bit word.
+ 	AWORD
+ 
+@@ -605,12 +657,6 @@ const (
+ 	ANEG
+ 	ANEGW
+ 	ANOT
+-	AROL
+-	AROLW
+-	AROR
+-	ARORI
+-	ARORIW
+-	ARORW
+ 	ASEQZ
+ 	ASNEZ
+ 
+diff --git a/src/cmd/internal/obj/riscv/inst.go b/src/cmd/internal/obj/riscv/inst.go
+index 6cb11cdfb5..223ddd15b2 100644
+--- a/src/cmd/internal/obj/riscv/inst.go
++++ b/src/cmd/internal/obj/riscv/inst.go
+@@ -1,4 +1,4 @@
+-// Code generated by parse.py -go rv64_a rv64_d rv64_f rv64_i rv64_m rv64_q rv_a rv_d rv_f rv_i rv_m rv_q rv_s rv_system rv_zicsr; DO NOT EDIT.
++// Code generated by ./parse.py -go rv64_a rv64_d rv64_f rv64_i rv64_m rv64_q rv64_zba rv64_zbb rv64_zbs rv_a rv_d rv_f rv_i rv_m rv_q rv_zba rv_zbb rv_zbs rv_s rv_system rv_zicsr; DO NOT EDIT.
+ package riscv
+ 
+ import "cmd/internal/obj"
+@@ -15,6 +15,8 @@ func encode(a obj.As) *inst {
+ 	switch a {
+ 	case AADD:
+ 		return &inst{0x33, 0x0, 0x0, 0, 0x0}
++	case AADDUW:
++		return &inst{0x3b, 0x0, 0x0, 128, 0x4}
+ 	case AADDI:
+ 		return &inst{0x13, 0x0, 0x0, 0, 0x0}
+ 	case AADDIW:
+@@ -61,20 +63,46 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x33, 0x7, 0x0, 0, 0x0}
+ 	case AANDI:
+ 		return &inst{0x13, 0x7, 0x0, 0, 0x0}
++	case AANDN:
++		return &inst{0x33, 0x7, 0x0, 1024, 0x20}
+ 	case AAUIPC:
+ 		return &inst{0x17, 0x0, 0x0, 0, 0x0}
++	case ABCLR:
++		return &inst{0x33, 0x1, 0x0, 1152, 0x24}
++	case ABCLRI:
++		return &inst{0x13, 0x1, 0x0, 1152, 0x24}
+ 	case ABEQ:
+ 		return &inst{0x63, 0x0, 0x0, 0, 0x0}
++	case ABEXT:
++		return &inst{0x33, 0x5, 0x0, 1152, 0x24}
++	case ABEXTI:
++		return &inst{0x13, 0x5, 0x0, 1152, 0x24}
+ 	case ABGE:
+ 		return &inst{0x63, 0x5, 0x0, 0, 0x0}
+ 	case ABGEU:
+ 		return &inst{0x63, 0x7, 0x0, 0, 0x0}
++	case ABINV:
++		return &inst{0x33, 0x1, 0x0, 1664, 0x34}
++	case ABINVI:
++		return &inst{0x13, 0x1, 0x0, 1664, 0x34}
+ 	case ABLT:
+ 		return &inst{0x63, 0x4, 0x0, 0, 0x0}
+ 	case ABLTU:
+ 		return &inst{0x63, 0x6, 0x0, 0, 0x0}
+ 	case ABNE:
+ 		return &inst{0x63, 0x1, 0x0, 0, 0x0}
++	case ABSET:
++		return &inst{0x33, 0x1, 0x0, 640, 0x14}
++	case ABSETI:
++		return &inst{0x13, 0x1, 0x0, 640, 0x14}
++	case ACLZ:
++		return &inst{0x13, 0x1, 0x0, 1536, 0x30}
++	case ACLZW:
++		return &inst{0x1b, 0x1, 0x0, 1536, 0x30}
++	case ACPOP:
++		return &inst{0x13, 0x1, 0x2, 1538, 0x30}
++	case ACPOPW:
++		return &inst{0x1b, 0x1, 0x2, 1538, 0x30}
+ 	case ACSRRC:
+ 		return &inst{0x73, 0x3, 0x0, 0, 0x0}
+ 	case ACSRRCI:
+@@ -87,6 +115,10 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x73, 0x1, 0x0, 0, 0x0}
+ 	case ACSRRWI:
+ 		return &inst{0x73, 0x5, 0x0, 0, 0x0}
++	case ACTZ:
++		return &inst{0x13, 0x1, 0x1, 1537, 0x30}
++	case ACTZW:
++		return &inst{0x1b, 0x1, 0x1, 1537, 0x30}
+ 	case ADIV:
+ 		return &inst{0x33, 0x4, 0x0, 32, 0x1}
+ 	case ADIVU:
+@@ -95,8 +127,6 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x3b, 0x5, 0x0, 32, 0x1}
+ 	case ADIVW:
+ 		return &inst{0x3b, 0x4, 0x0, 32, 0x1}
+-	case ADRET:
+-		return &inst{0x73, 0x0, 0x12, 1970, 0x3d}
+ 	case AEBREAK:
+ 		return &inst{0x73, 0x0, 0x1, 1, 0x0}
+ 	case AECALL:
+@@ -337,6 +367,14 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x3, 0x2, 0x0, 0, 0x0}
+ 	case ALWU:
+ 		return &inst{0x3, 0x6, 0x0, 0, 0x0}
++	case AMAX:
++		return &inst{0x33, 0x6, 0x0, 160, 0x5}
++	case AMAXU:
++		return &inst{0x33, 0x7, 0x0, 160, 0x5}
++	case AMIN:
++		return &inst{0x33, 0x4, 0x0, 160, 0x5}
++	case AMINU:
++		return &inst{0x33, 0x5, 0x0, 160, 0x5}
+ 	case AMRET:
+ 		return &inst{0x73, 0x0, 0x2, 770, 0x18}
+ 	case AMUL:
+@@ -351,8 +389,12 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x3b, 0x0, 0x0, 32, 0x1}
+ 	case AOR:
+ 		return &inst{0x33, 0x6, 0x0, 0, 0x0}
++	case AORCB:
++		return &inst{0x13, 0x5, 0x7, 647, 0x14}
+ 	case AORI:
+ 		return &inst{0x13, 0x6, 0x0, 0, 0x0}
++	case AORN:
++		return &inst{0x33, 0x6, 0x0, 1024, 0x20}
+ 	case APAUSE:
+ 		return &inst{0xf, 0x0, 0x10, 16, 0x0}
+ 	case ARDCYCLE:
+@@ -375,6 +417,20 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x3b, 0x7, 0x0, 32, 0x1}
+ 	case AREMW:
+ 		return &inst{0x3b, 0x6, 0x0, 32, 0x1}
++	case AREV8:
++		return &inst{0x13, 0x5, 0x18, 1720, 0x35}
++	case AROL:
++		return &inst{0x33, 0x1, 0x0, 1536, 0x30}
++	case AROLW:
++		return &inst{0x3b, 0x1, 0x0, 1536, 0x30}
++	case AROR:
++		return &inst{0x33, 0x5, 0x0, 1536, 0x30}
++	case ARORI:
++		return &inst{0x13, 0x5, 0x0, 1536, 0x30}
++	case ARORIW:
++		return &inst{0x1b, 0x5, 0x0, 1536, 0x30}
++	case ARORW:
++		return &inst{0x3b, 0x5, 0x0, 1536, 0x30}
+ 	case ASB:
+ 		return &inst{0x23, 0x0, 0x0, 0, 0x0}
+ 	case ASBREAK:
+@@ -387,14 +443,32 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x73, 0x0, 0x0, 0, 0x0}
+ 	case ASD:
+ 		return &inst{0x23, 0x3, 0x0, 0, 0x0}
++	case ASEXTB:
++		return &inst{0x13, 0x1, 0x4, 1540, 0x30}
++	case ASEXTH:
++		return &inst{0x13, 0x1, 0x5, 1541, 0x30}
+ 	case ASFENCEVMA:
+ 		return &inst{0x73, 0x0, 0x0, 288, 0x9}
+ 	case ASH:
+ 		return &inst{0x23, 0x1, 0x0, 0, 0x0}
++	case ASH1ADD:
++		return &inst{0x33, 0x2, 0x0, 512, 0x10}
++	case ASH1ADDUW:
++		return &inst{0x3b, 0x2, 0x0, 512, 0x10}
++	case ASH2ADD:
++		return &inst{0x33, 0x4, 0x0, 512, 0x10}
++	case ASH2ADDUW:
++		return &inst{0x3b, 0x4, 0x0, 512, 0x10}
++	case ASH3ADD:
++		return &inst{0x33, 0x6, 0x0, 512, 0x10}
++	case ASH3ADDUW:
++		return &inst{0x3b, 0x6, 0x0, 512, 0x10}
+ 	case ASLL:
+ 		return &inst{0x33, 0x1, 0x0, 0, 0x0}
+ 	case ASLLI:
+ 		return &inst{0x13, 0x1, 0x0, 0, 0x0}
++	case ASLLIUW:
++		return &inst{0x1b, 0x1, 0x0, 128, 0x4}
+ 	case ASLLIW:
+ 		return &inst{0x1b, 0x1, 0x0, 0, 0x0}
+ 	case ASLLW:
+@@ -433,10 +507,14 @@ func encode(a obj.As) *inst {
+ 		return &inst{0x23, 0x2, 0x0, 0, 0x0}
+ 	case AWFI:
+ 		return &inst{0x73, 0x0, 0x5, 261, 0x8}
++	case AXNOR:
++		return &inst{0x33, 0x4, 0x0, 1024, 0x20}
+ 	case AXOR:
+ 		return &inst{0x33, 0x4, 0x0, 0, 0x0}
+ 	case AXORI:
+ 		return &inst{0x13, 0x4, 0x0, 0, 0x0}
++	case AZEXTH:
++		return &inst{0x3b, 0x4, 0x0, 128, 0x4}
+ 	}
+ 	return nil
+ }
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f508adafed..4c5417f754 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -60,7 +60,9 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			AADD, AAND, AOR, AXOR, ASLL, ASRL, ASUB, ASRA,
+ 			AMUL, AMULH, AMULHU, AMULHSU, AMULW, ADIV, ADIVU, ADIVW, ADIVUW,
+ 			AREM, AREMU, AREMW, AREMUW,
+-			AROL, AROLW, AROR, ARORW, ARORI, ARORIW:
++			AADDUW, ASH1ADD, ASH1ADDUW, ASH2ADD, ASH2ADDUW, ASH3ADD, ASH3ADDUW, ASLLIUW,
++			AANDN, AORN, AXNOR, AMAX, AMAXU, AMIN, AMINU, AROL, AROLW, AROR, ARORW, ARORI, ARORIW,
++			ABCLR, ABCLRI, ABEXT, ABEXTI, ABINV, ABINVI, ABSET, ABSETI:
+ 			p.Reg = p.To.Reg
+ 		}
+ 	}
+@@ -91,10 +93,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.As = ASRAI
+ 		case AADDW:
+ 			p.As = AADDIW
+-		case AROR:
+-			p.As = ARORI
+-		case ARORW:
+-			p.As = ARORIW
+ 		case ASUBW:
+ 			p.As, p.From.Offset = AADDIW, -p.From.Offset
+ 		case ASLLW:
+@@ -103,6 +101,18 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.As = ASRLIW
+ 		case ASRAW:
+ 			p.As = ASRAIW
++		case AROR:
++			p.As = ARORI
++		case ARORW:
++			p.As = ARORIW
++		case ABCLR:
++			p.As = ABCLRI
++		case ABEXT:
++			p.As = ABEXTI
++		case ABINV:
++			p.As = ABINVI
++		case ABSET:
++			p.As = ABSETI
+ 		}
+ 	}
+ 
+@@ -1108,6 +1118,13 @@ func wantEvenOffset(ctxt *obj.Link, ins *instruction, offset int64) {
+ 	}
+ }
+ 
++func validateRII(ctxt *obj.Link, ins *instruction) {
++	wantIntReg(ctxt, ins, "rd", ins.rd)
++	wantIntReg(ctxt, ins, "rs1", ins.rs1)
++	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateRIII(ctxt *obj.Link, ins *instruction) {
+ 	wantIntReg(ctxt, ins, "rd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+@@ -1261,6 +1278,10 @@ func encodeR4(as obj.As, rs1, rs2, rs3, rd, funct3, funct2 uint32) uint32 {
+ 	return rs3<<27 | funct2<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | funct3<<12 | rd<<7 | enc.opcode
+ }
+ 
++func encodeRII(ins *instruction) uint32 {
++	return encodeR(ins.as, regI(ins.rs1), 0, regI(ins.rd), ins.funct3, ins.funct7)
++}
++
+ func encodeRIII(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
+ }
+@@ -1492,6 +1513,7 @@ var (
+ 	// indicates an S-type instruction with rs2 being a float register.
+ 
+ 	rIIIEncoding  = encoding{encode: encodeRIII, validate: validateRIII, length: 4}
++	rIIEncoding   = encoding{encode: encodeRII, validate: validateRII, length: 4}
+ 	rFFFEncoding  = encoding{encode: encodeRFFF, validate: validateRFFF, length: 4}
+ 	rFFFFEncoding = encoding{encode: encodeRFFFF, validate: validateRFFFF, length: 4}
+ 	rFFIEncoding  = encoding{encode: encodeRFFI, validate: validateRFFI, length: 4}
+@@ -1724,6 +1746,58 @@ var encodings = [ALAST & obj.AMask]encoding{
+ 	AECALL & obj.AMask:  iIEncoding,
+ 	AEBREAK & obj.AMask: iIEncoding,
+ 
++	//
++	// RISC-V Bit-Manipulation ISA-extensions (1.0)
++	//
++
++	// 1.1: Address Generation Instructions (Zba)
++	AADDUW & obj.AMask:    rIIIEncoding,
++	ASH1ADD & obj.AMask:   rIIIEncoding,
++	ASH1ADDUW & obj.AMask: rIIIEncoding,
++	ASH2ADD & obj.AMask:   rIIIEncoding,
++	ASH2ADDUW & obj.AMask: rIIIEncoding,
++	ASH3ADD & obj.AMask:   rIIIEncoding,
++	ASH3ADDUW & obj.AMask: rIIIEncoding,
++	ASLLIUW & obj.AMask:   iIEncoding,
++
++	// 1.2: Basic Bit Manipulation (Zbb)
++	AANDN & obj.AMask:  rIIIEncoding,
++	ACLZ & obj.AMask:   rIIEncoding,
++	ACLZW & obj.AMask:  rIIEncoding,
++	ACPOP & obj.AMask:  rIIEncoding,
++	ACPOPW & obj.AMask: rIIEncoding,
++	ACTZ & obj.AMask:   rIIEncoding,
++	ACTZW & obj.AMask:  rIIEncoding,
++	AMAX & obj.AMask:   rIIIEncoding,
++	AMAXU & obj.AMask:  rIIIEncoding,
++	AMIN & obj.AMask:   rIIIEncoding,
++	AMINU & obj.AMask:  rIIIEncoding,
++	AORN & obj.AMask:   rIIIEncoding,
++	ASEXTB & obj.AMask: rIIEncoding,
++	ASEXTH & obj.AMask: rIIEncoding,
++	AXNOR & obj.AMask:  rIIIEncoding,
++	AZEXTH & obj.AMask: rIIEncoding,
++
++	// 1.3: Bitwise Rotation (Zbb)
++	AROL & obj.AMask:   rIIIEncoding,
++	AROLW & obj.AMask:  rIIIEncoding,
++	AROR & obj.AMask:   rIIIEncoding,
++	ARORI & obj.AMask:  iIEncoding,
++	ARORIW & obj.AMask: iIEncoding,
++	ARORW & obj.AMask:  rIIIEncoding,
++	AORCB & obj.AMask:  iIEncoding,
++	AREV8 & obj.AMask:  iIEncoding,
++
++	// 1.5: Single-bit Instructions (Zbs)
++	ABCLR & obj.AMask:  rIIIEncoding,
++	ABCLRI & obj.AMask: iIEncoding,
++	ABEXT & obj.AMask:  rIIIEncoding,
++	ABEXTI & obj.AMask: iIEncoding,
++	ABINV & obj.AMask:  rIIIEncoding,
++	ABINVI & obj.AMask: iIEncoding,
++	ABSET & obj.AMask:  rIIIEncoding,
++	ABSETI & obj.AMask: iIEncoding,
++
+ 	// Escape hatch
+ 	AWORD & obj.AMask: rawEncoding,
+ 
+@@ -2421,6 +2495,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		if ins.imm < 0 || ins.imm > 31 {
+ 			p.Ctxt.Diag("%v: shift amount out of range 0 to 31", p)
+ 		}
++
++	case ACLZ, ACLZW, ACTZ, ACTZW, ACPOP, ACPOPW, ASEXTB, ASEXTH, AZEXTH:
++		ins.rs1, ins.rs2 = uint32(p.From.Reg), obj.REG_NONE
++
++	case AORCB, AREV8:
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), obj.REG_NONE
+ 	}
+ 
+ 	for _, ins := range inss {

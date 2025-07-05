@@ -7,7 +7,34 @@ Date:   Wed Aug 27 23:41:10 2014 -0400
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/133150043
-
+---
  src/cmd/api/goapi.go               | 2 +-
  src/pkg/runtime/syscall_windows.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index c3ab9c5bcf..56ba74a506 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -380,7 +380,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 		// Just enough to keep the api checker happy.
+ 		src := "package runtime; type (" +
+ 			" maptype struct{}; _type struct{}; alg struct{};" +
+-			" mspan struct{}; m struct{}; lock struct{}; slicetype struct{};" +
++			" mspan struct{}; m struct{}; mutex struct{}; slicetype struct{};" +
+ 			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
+ 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
+ 			" hchan struct{}; chantype struct{}; waitq struct{};" +
+diff --git a/src/pkg/runtime/syscall_windows.go b/src/pkg/runtime/syscall_windows.go
+index 39d8fed1d4..0592c57e1d 100644
+--- a/src/pkg/runtime/syscall_windows.go
++++ b/src/pkg/runtime/syscall_windows.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ type callbacks struct {
+-	lock
++	lock mutex
+ 	ctxt [cb_max]*wincallbackcontext
+ 	n    int
+ }

@@ -7,7 +7,144 @@ Date:   Wed Sep 8 23:48:01 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2128047
-
+---
  test/ken/slicearray.go | 20 ++++++++++++++++++++
  test/ken/sliceslice.go | 20 ++++++++++++++++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index 536bbf56b3..6e7088e19c 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -33,12 +33,18 @@ func main() {
+ 	tstb()
+ 	by = bx[lb:]
+ 	tstb()
++	by = bx[:hb]
++	tstb()
+ 	by = bx[0:hb]
+ 	tstb()
+ 	by = bx[0:10]
+ 	tstb()
+ 	by = bx[0:]
+ 	tstb()
++	by = bx[:10]
++	tstb()
++	by = bx[:]
++	tstb()
+ 
+ 	lb = 2
+ 	hb = 10
+@@ -65,6 +71,10 @@ func main() {
+ 	tstb()
+ 	by = bx[0:8]
+ 	tstb()
++	by = bx[:8]
++	tstb()
++	by = bx[:hb]
++	tstb()
+ 
+ 	lb = 2
+ 	hb = 8
+@@ -86,12 +96,18 @@ func main() {
+ 	tstf()
+ 	fy = fx[lb:]
+ 	tstf()
++	fy = fx[:hb]
++	tstf()
+ 	fy = fx[0:hb]
+ 	tstf()
+ 	fy = fx[0:10]
+ 	tstf()
+ 	fy = fx[0:]
+ 	tstf()
++	fy = fx[:10]
++	tstf()
++	fy = fx[:]
++	tstf()
+ 
+ 	lb = 2
+ 	hb = 10
+@@ -114,10 +130,14 @@ func main() {
+ 	tstf()
+ 	fy = fx[lb:8]
+ 	tstf()
++	fy = fx[:hb]
++	tstf()
+ 	fy = fx[0:hb]
+ 	tstf()
+ 	fy = fx[0:8]
+ 	tstf()
++	fy = fx[:8]
++	tstf()
+ 
+ 	lb = 2
+ 	hb = 8
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index 7e7f1b4aca..5a35acaf44 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -24,12 +24,18 @@ func main() {
+ 	tstb()
+ 	by = bx[lb:]
+ 	tstb()
++	by = bx[:hb]
++	tstb()
+ 	by = bx[0:hb]
+ 	tstb()
+ 	by = bx[0:10]
+ 	tstb()
+ 	by = bx[0:]
+ 	tstb()
++	by = bx[:10]
++	tstb()
++	by = bx[:]
++	tstb()
+ 
+ 	lb = 2
+ 	hb = 10
+@@ -56,6 +62,10 @@ func main() {
+ 	tstb()
+ 	by = bx[0:8]
+ 	tstb()
++	by = bx[:8]
++	tstb()
++	by = bx[:hb]
++	tstb()
+ 
+ 	lb = 2
+ 	hb = 8
+@@ -77,12 +87,18 @@ func main() {
+ 	tstf()
+ 	fy = fx[lb:]
+ 	tstf()
++	fy = fx[:hb]
++	tstf()
+ 	fy = fx[0:hb]
+ 	tstf()
+ 	fy = fx[0:10]
+ 	tstf()
+ 	fy = fx[0:]
+ 	tstf()
++	fy = fx[:10]
++	tstf()
++	fy = fx[:]
++	tstf()
+ 
+ 	lb = 2
+ 	hb = 10
+@@ -105,10 +121,14 @@ func main() {
+ 	tstf()
+ 	fy = fx[lb:8]
+ 	tstf()
++	fy = fx[:hb]
++	tstf()
+ 	fy = fx[0:hb]
+ 	tstf()
+ 	fy = fx[0:8]
+ 	tstf()
++	fy = fx[:8]
++	tstf()
+ 
+ 	lb = 2
+ 	hb = 8

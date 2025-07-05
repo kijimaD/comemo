@@ -14,10 +14,347 @@ Date:   Wed Jan 13 21:04:10 2016 +0900
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/lookup_plan9.go        | 23 ++++++-----------------
  src/net/lookup_test.go         | 30 +++++++++++++++++-------------
  src/net/lookup_windows.go      | 25 +++++++------------------
  src/net/lookup_windows_test.go |  8 ++++----
  src/net/non_unix_test.go       | 13 ++++++++++++-
  5 files changed, 46 insertions(+), 53 deletions(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 56846bcdbd..a33162882b 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -190,17 +190,6 @@ func lookupPort(network, service string) (port int, err error) {
+ 	return 0, unknownPortError
+ }
+ 
+-// ensureEndDot adds '.' at the end of name unless it is already there.
+-func ensureEndDot(name string) string {
+-	if name == "" {
+-		return "."
+-	}
+-	if name[len(name)-1] == '.' {
+-		return name
+-	}
+-	return name + "."
+-}
+-
+ func lookupCNAME(name string) (cname string, err error) {
+ 	lines, err := queryDNS(name, "cname")
+ 	if err != nil {
+@@ -236,8 +225,8 @@ func lookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ 		if !(portOk && priorityOk && weightOk) {
+ 			continue
+ 		}
+-		addrs = append(addrs, &SRV{ensureEndDot(f[5]), uint16(port), uint16(priority), uint16(weight)})
+-		cname = ensureEndDot(f[0])
++		addrs = append(addrs, &SRV{absDomainName([]byte(f[5])), uint16(port), uint16(priority), uint16(weight)})
++		cname = absDomainName([]byte(f[0]))
+ 	}
+ 	byPriorityWeight(addrs).sort()
+ 	return
+@@ -254,7 +243,7 @@ func lookupMX(name string) (mx []*MX, err error) {
+ 			continue
+ 		}
+ 		if pref, _, ok := dtoi(f[2], 0); ok {
+-			mx = append(mx, &MX{ensureEndDot(f[3]), uint16(pref)})
++			mx = append(mx, &MX{absDomainName([]byte(f[3])), uint16(pref)})
+ 		}
+ 	}
+ 	byPref(mx).sort()
+@@ -271,7 +260,7 @@ func lookupNS(name string) (ns []*NS, err error) {
+ 		if len(f) < 3 {
+ 			continue
+ 		}
+-		ns = append(ns, &NS{ensureEndDot(f[2])})
++		ns = append(ns, &NS{absDomainName([]byte(f[2]))})
+ 	}
+ 	return
+ }
+@@ -283,7 +272,7 @@ func lookupTXT(name string) (txt []string, err error) {
+ 	}
+ 	for _, line := range lines {
+ 		if i := byteIndex(line, '\t'); i >= 0 {
+-			txt = append(txt, ensureEndDot(line[i+1:]))
++			txt = append(txt, absDomainName([]byte(line[i+1:])))
+ 		}
+ 	}
+ 	return
+@@ -303,7 +292,7 @@ func lookupAddr(addr string) (name []string, err error) {
+ 		if len(f) < 3 {
+ 			continue
+ 		}
+-		name = append(name, ensureEndDot(f[2]))
++		name = append(name, absDomainName([]byte(f[2])))
+ 	}
+ 	return
+ }
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index e10be9a210..677a5f57fd 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/testenv"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -57,7 +58,7 @@ var lookupGoogleSRVTests = []struct {
+ }
+ 
+ func TestLookupGoogleSRV(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -91,7 +92,7 @@ var lookupGmailMXTests = []struct {
+ }
+ 
+ func TestLookupGmailMX(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -122,7 +123,7 @@ var lookupGmailNSTests = []struct {
+ }
+ 
+ func TestLookupGmailNS(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -153,7 +154,7 @@ var lookupGmailTXTTests = []struct {
+ }
+ 
+ func TestLookupGmailTXT(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -187,7 +188,7 @@ var lookupGooglePublicDNSAddrTests = []struct {
+ }
+ 
+ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 || !*testIPv4 || !*testIPv6 {
+@@ -211,7 +212,7 @@ func TestLookupGooglePublicDNSAddr(t *testing.T) {
+ }
+ 
+ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+-	if !supportsIPv6 {
++	if !supportsIPv6 || !*testIPv6 {
+ 		t.Skip("IPv6 is required")
+ 	}
+ 
+@@ -242,7 +243,7 @@ var lookupIANACNAMETests = []struct {
+ }
+ 
+ func TestLookupIANACNAME(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -268,7 +269,7 @@ var lookupGoogleHostTests = []struct {
+ }
+ 
+ func TestLookupGoogleHost(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -299,7 +300,7 @@ var lookupGoogleIPTests = []struct {
+ }
+ 
+ func TestLookupGoogleIP(t *testing.T) {
+-	if testing.Short() || !*testExternal {
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
+ 		t.Skip("avoid external network")
+ 	}
+ 	if !supportsIPv4 || !*testIPv4 {
+@@ -421,7 +422,7 @@ func TestLookupIPDeadline(t *testing.T) {
+ }
+ 
+ func TestLookupDotsWithLocalSource(t *testing.T) {
+-	if !supportsIPv4 {
++	if !supportsIPv4 || !*testIPv4 {
+ 		t.Skip("IPv4 is required")
+ 	}
+ 
+@@ -433,7 +434,7 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ 		names, err := LookupAddr("127.0.0.1")
+ 		fixup()
+ 		if err != nil {
+-			t.Errorf("#%d: %v", i, err)
++			t.Logf("#%d: %v", i, err)
+ 			continue
+ 		}
+ 		mode := "netgo"
+@@ -451,8 +452,11 @@ func TestLookupDotsWithLocalSource(t *testing.T) {
+ }
+ 
+ func TestLookupDotsWithRemoteSource(t *testing.T) {
+-	if testing.Short() || !*testExternal {
+-		t.Skipf("skipping external network test")
++	if testing.Short() && testenv.Builder() == "" || !*testExternal {
++		t.Skip("avoid external network")
++	}
++	if !supportsIPv4 || *testIPv4 {
++		t.Skip("IPv4 is required")
+ 	}
+ 
+ 	if fixup := forceGoDNS(); fixup != nil {
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index f059d6178b..13edc264e8 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -213,17 +213,6 @@ func newLookupPort(network, service string) (int, error) {
+ 	return 0, &DNSError{Err: syscall.EINVAL.Error(), Name: network + "/" + service}
+ }
+ 
+-// ensureEndDot adds '.' at the end of name unless it is already there.
+-func ensureEndDot(name string) string {
+-	if name == "" {
+-		return "."
+-	}
+-	if name[len(name)-1] == '.' {
+-		return name
+-	}
+-	return name + "."
+-}
+-
+ func lookupCNAME(name string) (string, error) {
+ 	acquireThread()
+ 	defer releaseThread()
+@@ -232,7 +221,7 @@ func lookupCNAME(name string) (string, error) {
+ 	// windows returns DNS_INFO_NO_RECORDS if there are no CNAME-s
+ 	if errno, ok := e.(syscall.Errno); ok && errno == syscall.DNS_INFO_NO_RECORDS {
+ 		// if there are no aliases, the canonical name is the input name
+-		return ensureEndDot(name), nil
++		return absDomainName([]byte(name)), nil
+ 	}
+ 	if e != nil {
+ 		return "", &DNSError{Err: os.NewSyscallError("dnsquery", e).Error(), Name: name}
+@@ -241,7 +230,7 @@ func lookupCNAME(name string) (string, error) {
+ 
+ 	resolved := resolveCNAME(syscall.StringToUTF16Ptr(name), r)
+ 	cname := syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(resolved))[:])
+-	return ensureEndDot(cname), nil
++	return absDomainName([]byte(cname)), nil
+ }
+ 
+ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
+@@ -263,10 +252,10 @@ func lookupSRV(service, proto, name string) (string, []*SRV, error) {
+ 	srvs := make([]*SRV, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_SRV, target) {
+ 		v := (*syscall.DNSSRVData)(unsafe.Pointer(&p.Data[0]))
+-		srvs = append(srvs, &SRV{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:])), v.Port, v.Priority, v.Weight})
++		srvs = append(srvs, &SRV{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Target))[:]))), v.Port, v.Priority, v.Weight})
+ 	}
+ 	byPriorityWeight(srvs).sort()
+-	return ensureEndDot(target), srvs, nil
++	return absDomainName([]byte(target)), srvs, nil
+ }
+ 
+ func lookupMX(name string) ([]*MX, error) {
+@@ -282,7 +271,7 @@ func lookupMX(name string) ([]*MX, error) {
+ 	mxs := make([]*MX, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_MX, name) {
+ 		v := (*syscall.DNSMXData)(unsafe.Pointer(&p.Data[0]))
+-		mxs = append(mxs, &MX{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:])), v.Preference})
++		mxs = append(mxs, &MX{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.NameExchange))[:]))), v.Preference})
+ 	}
+ 	byPref(mxs).sort()
+ 	return mxs, nil
+@@ -301,7 +290,7 @@ func lookupNS(name string) ([]*NS, error) {
+ 	nss := make([]*NS, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_NS, name) {
+ 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+-		nss = append(nss, &NS{ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))})
++		nss = append(nss, &NS{absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:])))})
+ 	}
+ 	return nss, nil
+ }
+@@ -344,7 +333,7 @@ func lookupAddr(addr string) ([]string, error) {
+ 	ptrs := make([]string, 0, 10)
+ 	for _, p := range validRecs(r, syscall.DNS_TYPE_PTR, arpa) {
+ 		v := (*syscall.DNSPTRData)(unsafe.Pointer(&p.Data[0]))
+-		ptrs = append(ptrs, ensureEndDot(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:])))
++		ptrs = append(ptrs, absDomainName([]byte(syscall.UTF16ToString((*[256]uint16)(unsafe.Pointer(v.Host))[:]))))
+ 	}
+ 	return ptrs, nil
+ }
+diff --git a/src/net/lookup_windows_test.go b/src/net/lookup_windows_test.go
+index 1a0101196a..7ff32b809b 100644
+--- a/src/net/lookup_windows_test.go
++++ b/src/net/lookup_windows_test.go
+@@ -177,14 +177,14 @@ func nslookupMX(name string) (mx []*MX, err error) {
+ 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+mail exchanger\s*=\s*([0-9]+)\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		pref, _, _ := dtoi(ans[2], 0)
+-		mx = append(mx, &MX{ensureEndDot(ans[3]), uint16(pref)})
++		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+ 	}
+ 	// windows nslookup syntax
+ 	// gmail.com       MX preference = 30, mail exchanger = alt3.gmail-smtp-in.l.google.com
+ 	rx = regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+MX preference\s*=\s*([0-9]+)\s*,\s*mail exchanger\s*=\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		pref, _, _ := dtoi(ans[2], 0)
+-		mx = append(mx, &MX{ensureEndDot(ans[3]), uint16(pref)})
++		mx = append(mx, &MX{absDomainName([]byte(ans[3])), uint16(pref)})
+ 	}
+ 	return
+ }
+@@ -198,7 +198,7 @@ func nslookupNS(name string) (ns []*NS, err error) {
+ 	// golang.org      nameserver = ns1.google.com.
+ 	rx := regexp.MustCompile(`(?m)^([a-z0-9.\-]+)\s+nameserver\s*=\s*([a-z0-9.\-]+)$`)
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+-		ns = append(ns, &NS{ensureEndDot(ans[2])})
++		ns = append(ns, &NS{absDomainName([]byte(ans[2]))})
+ 	}
+ 	return
+ }
+@@ -215,7 +215,7 @@ func nslookupCNAME(name string) (cname string, err error) {
+ 	for _, ans := range rx.FindAllStringSubmatch(r, -1) {
+ 		last = ans[2]
+ 	}
+-	return ensureEndDot(last), nil
++	return absDomainName([]byte(last)), nil
+ }
+ 
+ func nslookupTXT(name string) (txt []string, err error) {
+diff --git a/src/net/non_unix_test.go b/src/net/non_unix_test.go
+index b25e0f1daf..db3427e7cb 100644
+--- a/src/net/non_unix_test.go
++++ b/src/net/non_unix_test.go
+@@ -6,6 +6,17 @@
+ 
+ package net
+ 
++import "runtime"
++
++// See unix_test.go for what these (don't) do.
++func forceGoDNS() func() {
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		return func() {}
++	default:
++		return nil
++	}
++}
++
+ // See unix_test.go for what these (don't) do.
+-func forceGoDNS() func()  { return nil }
+ func forceCgoDNS() func() { return nil }

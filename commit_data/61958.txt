@@ -13,8 +13,88 @@ Date:   Sat Dec 28 14:50:11 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/doc/example.go                                 | 14 +++++++-------
  src/go/doc/testdata/examples/shadow_predeclared.go    | 19 +++++++++++++++++++
  .../doc/testdata/examples/shadow_predeclared.golden   | 16 ++++++++++++++++
  3 files changed, 42 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 0618f2bd9b..7a8c26291d 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -192,13 +192,6 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+ 	// Find unresolved identifiers and uses of top-level declarations.
+ 	depDecls, unresolved := findDeclsAndUnresolved(body, topDecls, typMethods)
+ 
+-	// Remove predeclared identifiers from unresolved list.
+-	for n := range unresolved {
+-		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
+-			delete(unresolved, n)
+-		}
+-	}
+-
+ 	// Use unresolved identifiers to determine the imports used by this
+ 	// example. The heuristic assumes package names match base import
+ 	// paths for imports w/o renames (should be good enough most of the time).
+@@ -251,6 +244,13 @@ func playExample(file *ast.File, f *ast.FuncDecl) *ast.File {
+ 		}
+ 	}
+ 
++	// Remove predeclared identifiers from unresolved list.
++	for n := range unresolved {
++		if predeclaredTypes[n] || predeclaredConstants[n] || predeclaredFuncs[n] {
++			delete(unresolved, n)
++		}
++	}
++
+ 	// If there are other unresolved identifiers, give up because this
+ 	// synthesized file is not going to build.
+ 	if len(unresolved) > 0 {
+diff --git a/src/go/doc/testdata/examples/shadow_predeclared.go b/src/go/doc/testdata/examples/shadow_predeclared.go
+new file mode 100644
+index 0000000000..7e9f30d9b4
+--- /dev/null
++++ b/src/go/doc/testdata/examples/shadow_predeclared.go
+@@ -0,0 +1,19 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo_test
++
++import (
++	"fmt"
++
++	"example.com/error"
++)
++
++func Print(s string) {
++	fmt.Println(s)
++}
++
++func Example() {
++	Print(error.Hello)
++}
+diff --git a/src/go/doc/testdata/examples/shadow_predeclared.golden b/src/go/doc/testdata/examples/shadow_predeclared.golden
+new file mode 100644
+index 0000000000..65598bed62
+--- /dev/null
++++ b/src/go/doc/testdata/examples/shadow_predeclared.golden
+@@ -0,0 +1,16 @@
++-- .Play --
++package main
++
++import (
++	"fmt"
++
++	"example.com/error"
++)
++
++func Print(s string) {
++	fmt.Println(s)
++}
++
++func main() {
++	Print(error.Hello)
++}

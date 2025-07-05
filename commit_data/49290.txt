@@ -9,6 +9,20 @@ Date:   Fri Aug 6 21:10:31 2021 -0400
     Trust: Bryan C. Mills <bcmills@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.17.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index a8307bacac..d469f400ad 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -150,7 +150,7 @@ Do not send CLs removing the interior tags from such phrases.
+   the pruned module graph, the <code>go.mod</code> file for each module needs to
+   include more detail about the transitive dependencies relevant to that module.
+   If a module specifies <code>go</code> <code>1.17</code> or higher in its
+-  <code>go.mod</code> file, its <codeg>go.mod</code> file now contains an
++  <code>go.mod</code> file, its <code>go.mod</code> file now contains an
+   explicit <a href="/ref/mod#go-mod-file-require"><code>require</code>
+   directive</a> for every module that provides a transitively-imported package.
+   (In previous versions, the <code>go.mod</code> file typically only included

@@ -9,6 +9,20 @@ Date:   Mon Apr 15 17:55:58 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index af3c1f82a7..56cfb0856e 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -281,7 +281,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 			// See Issue 18243 and Issue 19938.
+ 			t.Skipf("Skipping failing test on Alpine (golang.org/issue/18243). Ignoring error: %v", err)
+ 		}
+-		t.Fatal(err)
++		t.Fatalf("%s\n\n%v", got, err)
+ 	}
+ 	fn := strings.TrimSpace(string(got))
+ 	defer os.Remove(fn)

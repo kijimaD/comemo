@@ -13,7 +13,77 @@ Date:   Wed Jul 5 15:16:41 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/objabi/path_test.go  | 32 +++++++++++++++++++++++++++++++-
  src/cmd/internal/objabi/pkgspecial.go |  4 ++--
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/path_test.go b/src/cmd/internal/objabi/path_test.go
+index 05d7fb436e..78b94a3266 100644
+--- a/src/cmd/internal/objabi/path_test.go
++++ b/src/cmd/internal/objabi/path_test.go
+@@ -4,7 +4,12 @@
+ 
+ package objabi
+ 
+-import "testing"
++import (
++	"internal/testenv"
++	"os/exec"
++	"strings"
++	"testing"
++)
+ 
+ func TestPathToPrefix(t *testing.T) {
+ 	tests := []struct {
+@@ -31,3 +36,28 @@ func TestPathToPrefix(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRuntimePackageList(t *testing.T) {
++	// Test that all packages imported by the runtime are marked as runtime
++	// packages.
++	testenv.MustHaveGoBuild(t)
++	goCmd, err := testenv.GoTool()
++	if err != nil {
++		t.Fatal(err)
++	}
++	pkgList, err := exec.Command(goCmd, "list", "-deps", "runtime").Output()
++	if err != nil {
++		if err, ok := err.(*exec.ExitError); ok {
++			t.Log(string(err.Stderr))
++		}
++		t.Fatal(err)
++	}
++	for _, pkg := range strings.Split(strings.TrimRight(string(pkgList), "\n"), "\n") {
++		if pkg == "unsafe" {
++			continue
++		}
++		if !LookupPkgSpecial(pkg).Runtime {
++			t.Errorf("package %s is imported by runtime, but not marked Runtime", pkg)
++		}
++	}
++}
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 22b974a06c..144110b755 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -20,8 +20,6 @@ type PkgSpecial struct {
+ 	//
+ 	// This should be set for runtime and all packages it imports, and may be
+ 	// set for additional packages.
+-	//
+-	// TODO(austin): Test that all of `go list -deps runtime` is marked Runtime.
+ 	Runtime bool
+ 
+ 	// AllowAsmABI indicates that assembly in this package is allowed to use ABI
+@@ -44,6 +42,8 @@ var runtimePkgs = []string{
+ 	"internal/coverage/rtcov",
+ 	"internal/cpu",
+ 	"internal/goarch",
++	"internal/godebugs",
++	"internal/goexperiment",
+ 	"internal/goos",
+ }
+ 

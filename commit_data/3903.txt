@@ -9,6 +9,24 @@ Date:   Sun Nov 8 09:57:37 2009 -0800
     
     R=r
     http://go/go-review/1026024
-
+---
  README | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/README b/README
+new file mode 100644
+index 0000000000..e25bbdb8d2
+--- /dev/null
++++ b/README
+@@ -0,0 +1,11 @@
++This is the source code repository for the Go programming language.  
++
++For documentation about how to install and use Go,
++visit http://golang.org/ or load doc/install.html in your web browser.
++
++After installing Go, you can view a nicely formatted
++doc/install.html by running godoc --http=:6060
++and then visiting http://localhost:6060/doc/install.html.
++
++Unless otherwise noted, the Go source files are distributed
++under the BSD-style license found in the LICENSE file.

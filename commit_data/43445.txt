@@ -17,6 +17,23 @@ Date:   Sat Apr 4 18:36:58 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/227003
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f65b95a9c9..2152c619fa 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -379,9 +379,8 @@ func Main(archInit func(*Arch)) {
+ 	if flag_race && flag_msan {
+ 		log.Fatal("cannot use both -race and -msan")
+ 	}
+-	if (flag_race || flag_msan) && objabi.GOOS != "windows" {
+-		// -race and -msan imply -d=checkptr for now (except on windows).
+-		// TODO(mdempsky): Re-evaluate before Go 1.14. See #34964.
++	if flag_race || flag_msan {
++		// -race and -msan imply -d=checkptr for now.
+ 		Debug_checkptr = 1
+ 	}
+ 	if ispkgin(omit_pkgs) {

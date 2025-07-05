@@ -11,9 +11,78 @@ Date:   Wed Jul 28 14:01:06 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/338098
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instance.go    | 1 -
  src/cmd/compile/internal/types2/instantiate.go | 8 ++------
  src/go/types/instance.go                       | 1 -
  src/go/types/instantiate.go                    | 8 ++------
  4 files changed, 4 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instance.go b/src/cmd/compile/internal/types2/instance.go
+index 711d7de53c..e18688771c 100644
+--- a/src/cmd/compile/internal/types2/instance.go
++++ b/src/cmd/compile/internal/types2/instance.go
+@@ -15,7 +15,6 @@ import "cmd/compile/internal/syntax"
+ type instance struct {
+ 	pos     syntax.Pos   // position of type instantiation; for error reporting only
+ 	posList []syntax.Pos // position of each targ; for error reporting only
+-	verify  bool         // if set, check constraint satisfaction upon instantiation
+ }
+ 
+ // expand ensures that the underlying type of n is instantiated.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 7a40cea889..ee790ba6d6 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -127,15 +127,11 @@ func (check *Checker) InstantiateLazy(pos syntax.Pos, typ Type, targs []Type, po
+ 	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
+ 	named := check.newNamed(tname, base, nil, nil, nil) // methods and tparams are set when named is loaded.
+ 	named.targs = targs
+-	named.instance = &instance{
+-		pos:     pos,
+-		posList: posList,
+-		verify:  verify,
+-	}
+-
++	named.instance = &instance{pos, posList}
+ 	if check != nil {
+ 		check.typMap[h] = named
+ 	}
++
+ 	return named
+ }
+ 
+diff --git a/src/go/types/instance.go b/src/go/types/instance.go
+index 7e158ea352..5e0447b434 100644
+--- a/src/go/types/instance.go
++++ b/src/go/types/instance.go
+@@ -14,7 +14,6 @@ type instance struct {
+ 	check   *Checker
+ 	pos     token.Pos   // position of type instantiation; for error reporting only
+ 	posList []token.Pos // position of each targ; for error reporting only
+-	verify  bool        // if set, constraint satisfaction is verified
+ }
+ 
+ // complete ensures that the underlying type of n is instantiated.
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 7e2f3173c3..1d3bbc2667 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -124,15 +124,11 @@ func (check *Checker) InstantiateLazy(pos token.Pos, typ Type, targs []Type, pos
+ 	tname := NewTypeName(pos, base.obj.pkg, base.obj.name, nil)
+ 	named := check.newNamed(tname, base, nil, base.TParams(), base.methods) // methods are instantiated lazily
+ 	named.targs = targs
+-	named.instance = &instance{
+-		check:   check,
+-		pos:     pos,
+-		posList: posList,
+-		verify:  verify,
+-	}
++	named.instance = &instance{check, pos, posList}
+ 	if check != nil {
+ 		check.typMap[h] = named
+ 	}
++
+ 	return named
+ }
+ 

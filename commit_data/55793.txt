@@ -18,6 +18,34 @@ Date:   Fri Mar 10 20:41:14 2023 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/os/file.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 10aed03b96..ea81a8ba63 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -158,11 +158,19 @@ func (f *File) ReadFrom(r io.Reader) (n int64, err error) {
+ }
+ 
+ func genericReadFrom(f *File, r io.Reader) (int64, error) {
+-	return io.Copy(onlyWriter{f}, r)
++	return io.Copy(fileWithoutReadFrom{f}, r)
+ }
+ 
+-type onlyWriter struct {
+-	io.Writer
++// fileWithoutReadFrom implements all the methods of *File other
++// than ReadFrom. This is used to permit ReadFrom to call io.Copy
++// without leading to a recursive call to ReadFrom.
++type fileWithoutReadFrom struct {
++	*File
++}
++
++// This ReadFrom method hides the *File ReadFrom method.
++func (fileWithoutReadFrom) ReadFrom(fileWithoutReadFrom) {
++	panic("unreachable")
+ }
+ 
+ // Write writes len(b) bytes from b to the File.

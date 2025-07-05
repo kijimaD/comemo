@@ -10,6 +10,21 @@ Date:   Mon May 19 10:12:15 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews, rsc
     https://golang.org/cl/97590043
-
+---
  src/pkg/net/http/transport.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 2ffc404712..b1cc632a78 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -109,6 +109,9 @@ type Transport struct {
+ // An error is returned if the proxy environment is invalid.
+ // A nil URL and nil error are returned if no proxy is defined in the
+ // environment, or a proxy should not be used for the given request.
++//
++// As a special case, if req.URL.Host is "localhost" (with or without
++// a port number), then a nil URL and nil error will be returned.
+ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+ 	proxy := httpProxyEnv.Get()
+ 	if proxy == "" {

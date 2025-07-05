@@ -8,7 +8,34 @@ Date:   Tue Aug 10 22:05:34 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/341129
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go     | 2 +-
  src/cmd/link/internal/loadmacho/ldmacho.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index c6956297f6..b4f565a153 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -22,7 +22,7 @@ import (
+ 
+ /*
+ Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
+-http://code.swtch.com/plan9port/src/tip/src/libmach/
++https://github.com/9fans/plan9port/tree/master/src/libmach/
+ 
+ 	Copyright © 2004 Russ Cox.
+ 	Portions Copyright © 2008-2010 Google Inc.
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index e7d9eebc33..5402ecd748 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -18,7 +18,7 @@ import (
+ 
+ /*
+ Derived from Plan 9 from User Space's src/libmach/elf.h, elf.c
+-http://code.swtch.com/plan9port/src/tip/src/libmach/
++https://github.com/9fans/plan9port/tree/master/src/libmach/
+ 
+ 	Copyright © 2004 Russ Cox.
+ 	Portions Copyright © 2008-2010 Google Inc.

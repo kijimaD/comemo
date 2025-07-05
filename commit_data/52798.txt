@@ -15,6 +15,20 @@ Date:   Thu Jun 2 06:54:50 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/link/linkbig_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 9a4430c162..2551afc8cb 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -97,7 +97,7 @@ func TestLargeText(t *testing.T) {
+ 	}
+ 
+ 	// Build and run with external linking
+-	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "'-linkmode=external'")
++	cmd = exec.Command(testenv.GoToolPath(t), "build", "-o", "bigtext", "-ldflags", "-linkmode=external")
+ 	cmd.Dir = tmpdir
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {

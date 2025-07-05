@@ -11,7 +11,51 @@ Date:   Tue Nov 15 16:29:43 2011 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5376091
-
+---
  src/pkg/exp/sql/driver/driver.go |  3 +++
  src/pkg/exp/sql/sql.go           | 11 +++++++++--
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/sql/driver/driver.go b/src/pkg/exp/sql/driver/driver.go
+index 9fc47905ce..91a388421d 100644
+--- a/src/pkg/exp/sql/driver/driver.go
++++ b/src/pkg/exp/sql/driver/driver.go
+@@ -97,6 +97,9 @@ type Stmt interface {
+ 	Close() error
+ 
+ 	// NumInput returns the number of placeholder parameters.
++	// -1 means the driver doesn't know how to count the number of
++	// placeholders, so we won't sanity check input here and instead let the
++	// driver deal with errors.
+ 	NumInput() int
+ 
+ 	// Exec executes a query that doesn't return rows, such
+diff --git a/src/pkg/exp/sql/sql.go b/src/pkg/exp/sql/sql.go
+index d3677afb3b..c055fdd68c 100644
+--- a/src/pkg/exp/sql/sql.go
++++ b/src/pkg/exp/sql/sql.go
+@@ -474,7 +474,10 @@ func (s *Stmt) Exec(args ...interface{}) (Result, error) {
+ 	}
+ 	defer releaseConn()
+ 
+-	if want := si.NumInput(); len(args) != want {
++	// -1 means the driver doesn't know how to count the number of
++	// placeholders, so we won't sanity check input here and instead let the
++	// driver deal with errors.
++	if want := si.NumInput(); want != -1 && len(args) != want {
+ 		return nil, fmt.Errorf("db: expected %d arguments, got %d", want, len(args))
+ 	}
+ 
+@@ -570,7 +573,11 @@ func (s *Stmt) Query(args ...interface{}) (*Rows, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if len(args) != si.NumInput() {
++
++	// -1 means the driver doesn't know how to count the number of
++	// placeholders, so we won't sanity check input here and instead let the
++	// driver deal with errors.
++	if want := si.NumInput(); want != -1 && len(args) != want {
+ 		return nil, fmt.Errorf("db: statement expects %d inputs; got %d", si.NumInput(), len(args))
+ 	}
+ 	sargs, err := subsetTypeArgs(args)

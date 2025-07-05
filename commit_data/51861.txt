@@ -15,7 +15,7 @@ Date:   Sat Mar 19 00:23:33 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/const.go     | 15 +++++++--------
  src/cmd/compile/internal/typecheck/expr.go      |  2 +-
  src/cmd/compile/internal/typecheck/func.go      |  4 +---
@@ -27,3 +27,233 @@ Date:   Sat Mar 19 00:23:33 2022 +0700
  src/cmd/compile/internal/types/size.go          | 14 --------------
  src/cmd/compile/internal/types/type.go          | 11 -----------
  10 files changed, 14 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/const.go b/src/cmd/compile/internal/typecheck/const.go
+index 3be3b8059f..311944361a 100644
+--- a/src/cmd/compile/internal/typecheck/const.go
++++ b/src/cmd/compile/internal/typecheck/const.go
+@@ -199,17 +199,16 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 	}
+ 
+ 	if !n.Diag() {
+-		if !t.Broke() {
+-			if explicit {
+-				base.Errorf("cannot convert %L to type %v", n, t)
+-			} else if context != nil {
+-				base.Errorf("cannot use %L as type %v in %s", n, t, context())
+-			} else {
+-				base.Errorf("cannot use %L as type %v", n, t)
+-			}
++		if explicit {
++			base.Errorf("cannot convert %L to type %v", n, t)
++		} else if context != nil {
++			base.Errorf("cannot use %L as type %v in %s", n, t, context())
++		} else {
++			base.Errorf("cannot use %L as type %v", n, t)
+ 		}
+ 		n.SetDiag(true)
+ 	}
++
+ 	n.SetType(nil)
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index e2b95b27c6..7920a9a46c 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -413,7 +413,7 @@ func tcConv(n *ir.ConvExpr) ir.Node {
+ 	}
+ 	op, why := Convertop(n.X.Op() == ir.OLITERAL, t, n.Type())
+ 	if op == ir.OXXX {
+-		if !n.Diag() && !n.Type().Broke() && !n.X.Diag() {
++		if !n.Diag() && !n.X.Diag() {
+ 			base.Errorf("cannot convert %L to type %v%s", n.X, n.Type(), why)
+ 			n.SetDiag(true)
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 7ab41e63fe..0a0b5f5e78 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -360,9 +360,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 	l = n.X
+ 	if l.Op() == ir.OTYPE {
+ 		if n.IsDDD {
+-			if !l.Type().Broke() {
+-				base.Errorf("invalid use of ... in type conversion to %v", l.Type())
+-			}
++			base.Errorf("invalid use of ... in type conversion to %v", l.Type())
+ 			n.SetDiag(true)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 930d7ce627..393481d4a9 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -309,7 +309,7 @@ func tcGoDefer(n *ir.GoDeferStmt) {
+ 
+ 	// type is broken or missing, most likely a method call on a broken type
+ 	// we will warn about the broken type elsewhere. no need to emit a potentially confusing error
+-	if n.Call.Type() == nil || n.Call.Type().Broke() {
++	if n.Call.Type() == nil {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 311c5858b2..0b46037a3b 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -291,7 +291,7 @@ var dotlist = make([]dlist, 10)
+ 
+ // Convert node n for assignment to type t.
+ func assignconvfn(n ir.Node, t *types.Type, context func() string) ir.Node {
+-	if n == nil || n.Type() == nil || n.Type().Broke() {
++	if n == nil || n.Type() == nil {
+ 		return n
+ 	}
+ 
+@@ -396,11 +396,6 @@ func Assignop1(src, dst *types.Type) (ir.Op, string) {
+ 			return ir.OCONVIFACE, ""
+ 		}
+ 
+-		// we'll have complained about this method anyway, suppress spurious messages.
+-		if have != nil && have.Sym == missing.Sym && (have.Type.Broke() || missing.Type.Broke()) {
+-			return ir.OCONVIFACE, ""
+-		}
+-
+ 		var why string
+ 		if isptrto(src, types.TINTER) {
+ 			why = fmt.Sprintf(":\n\t%v is pointer to interface, not interface", src)
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index d94a262a7f..6860c71a72 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -413,10 +413,8 @@ func typecheck(n ir.Node, top int) (res ir.Node) {
+ 		}
+ 
+ 	case top&ctxType == 0 && n.Op() == ir.OTYPE && t != nil:
+-		if !n.Type().Broke() {
+-			base.Errorf("type %v is not an expression", n.Type())
+-			n.SetDiag(true)
+-		}
++		base.Errorf("type %v is not an expression", n.Type())
++		n.SetDiag(true)
+ 
+ 	case top&(ctxStmt|ctxExpr) == ctxStmt && !isStmt && t != nil:
+ 		if !n.Diag() {
+@@ -1297,10 +1295,6 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 	lno := base.Pos
+ 	defer func() { base.Pos = lno }()
+ 
+-	if tstruct.Broke() {
+-		return
+-	}
+-
+ 	var n ir.Node
+ 	if len(nl) == 1 {
+ 		n = nl[0]
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index f5675c66b4..c1f93fc1c3 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -40,9 +40,6 @@ const (
+ // If it returns ANOEQ, it also returns the component type of t that
+ // makes it incomparable.
+ func AlgType(t *Type) (AlgKind, *Type) {
+-	if t.Broke() {
+-		return AMEM, nil
+-	}
+ 	if t.Noalg() {
+ 		return ANOEQ, t
+ 	}
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 60a0f2e7c5..17555d099b 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -39,7 +39,7 @@ func identical(t1, t2 *Type, flags int, assumedEqual map[typePair]struct{}) bool
+ 	if t1 == t2 {
+ 		return true
+ 	}
+-	if t1 == nil || t2 == nil || t1.kind != t2.kind || t1.Broke() || t2.Broke() {
++	if t1 == nil || t2 == nil || t1.kind != t2.kind {
+ 		return false
+ 	}
+ 	if t1.sym != nil || t2.sym != nil {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index fb6accdc64..1ea0516b04 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -303,10 +303,6 @@ func findTypeLoop(t *Type, path *[]*Type) bool {
+ }
+ 
+ func reportTypeLoop(t *Type) {
+-	if t.Broke() {
+-		return
+-	}
+-
+ 	var l []*Type
+ 	if !findTypeLoop(t, &l) {
+ 		base.Fatalf("failed to find type loop for: %v", t)
+@@ -362,20 +358,10 @@ func CalcSize(t *Type) {
+ 	}
+ 
+ 	if CalcSizeDisabled {
+-		if t.Broke() {
+-			// break infinite recursion from Fatal call below
+-			return
+-		}
+ 		t.SetBroke(true)
+ 		base.Fatalf("width not calculated: %v", t)
+ 	}
+ 
+-	// break infinite recursion if the broken recursive type
+-	// is referenced again
+-	if t.Broke() && t.width == 0 {
+-		return
+-	}
+-
+ 	// defer CheckSize calls until after we're done
+ 	DeferCheckSize()
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 51ce614bd8..c45338be35 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -221,7 +221,6 @@ const (
+ )
+ 
+ func (t *Type) NotInHeap() bool  { return t.flags&typeNotInHeap != 0 }
+-func (t *Type) Broke() bool      { return false }
+ func (t *Type) Noalg() bool      { return t.flags&typeNoalg != 0 }
+ func (t *Type) Deferwidth() bool { return t.flags&typeDeferwidth != 0 }
+ func (t *Type) Recur() bool      { return t.flags&typeRecur != 0 }
+@@ -1785,9 +1784,6 @@ func (t *Type) SetUnderlying(underlying *Type) {
+ 	if underlying.NotInHeap() {
+ 		t.SetNotInHeap(true)
+ 	}
+-	if underlying.Broke() {
+-		t.SetBroke(true)
+-	}
+ 	if underlying.HasTParam() {
+ 		t.SetHasTParam(true)
+ 	}
+@@ -1970,9 +1966,6 @@ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Typ
+ 	funargs := func(fields []*Field, funarg Funarg) *Type {
+ 		s := NewStruct(NoPkg, fields)
+ 		s.StructType().Funarg = funarg
+-		if s.Broke() {
+-			t.SetBroke(true)
+-		}
+ 		return s
+ 	}
+ 
+@@ -2082,10 +2075,6 @@ func IsReflexive(t *Type) bool {
+ // Can this type be stored directly in an interface word?
+ // Yes, if the representation is a single pointer.
+ func IsDirectIface(t *Type) bool {
+-	if t.Broke() {
+-		return false
+-	}
+-
+ 	switch t.Kind() {
+ 	case TPTR:
+ 		// Pointers to notinheap types must be stored indirectly. See issue 42076.

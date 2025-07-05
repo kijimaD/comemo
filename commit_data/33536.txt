@@ -34,8 +34,129 @@ Date:   Thu Aug 17 22:46:17 2017 -0700
     Change-Id: Ibe9f58d11dbad25eb369faedf480b666a0250a6b
     Reviewed-on: https://go-review.googlesource.com/56773
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/nat.go     | 14 +++++++-------
  src/math/big/natconv.go |  2 +-
  src/math/big/prime.go   | 10 +++++-----
  3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 3b5c0f6e72..17d5b8ae2b 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -991,7 +991,7 @@ func (z nat) expNN(x, y, m nat) nat {
+ 	// otherwise the arguments would alias.
+ 	var zz, r nat
+ 	for j := 0; j < w; j++ {
+-		zz = zz.mul(z, z)
++		zz = zz.sqr(z)
+ 		zz, z = z, zz
+ 
+ 		if v&mask != 0 {
+@@ -1011,7 +1011,7 @@ func (z nat) expNN(x, y, m nat) nat {
+ 		v = y[i]
+ 
+ 		for j := 0; j < _W; j++ {
+-			zz = zz.mul(z, z)
++			zz = zz.sqr(z)
+ 			zz, z = z, zz
+ 
+ 			if v&mask != 0 {
+@@ -1044,7 +1044,7 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
+ 	powers[1] = x
+ 	for i := 2; i < 1<<n; i += 2 {
+ 		p2, p, p1 := &powers[i/2], &powers[i], &powers[i+1]
+-		*p = p.mul(*p2, *p2)
++		*p = p.sqr(*p2)
+ 		zz, r = zz.div(r, *p, m)
+ 		*p, r = r, *p
+ 		*p1 = p1.mul(*p, x)
+@@ -1061,22 +1061,22 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
+ 				// Unrolled loop for significant performance
+ 				// gain. Use go test -bench=".*" in crypto/rsa
+ 				// to check performance before making changes.
+-				zz = zz.mul(z, z)
++				zz = zz.sqr(z)
+ 				zz, z = z, zz
+ 				zz, r = zz.div(r, z, m)
+ 				z, r = r, z
+ 
+-				zz = zz.mul(z, z)
++				zz = zz.sqr(z)
+ 				zz, z = z, zz
+ 				zz, r = zz.div(r, z, m)
+ 				z, r = r, z
+ 
+-				zz = zz.mul(z, z)
++				zz = zz.sqr(z)
+ 				zz, z = z, zz
+ 				zz, r = zz.div(r, z, m)
+ 				z, r = r, z
+ 
+-				zz = zz.mul(z, z)
++				zz = zz.sqr(z)
+ 				zz, z = z, zz
+ 				zz, r = zz.div(r, z, m)
+ 				z, r = r, z
+diff --git a/src/math/big/natconv.go b/src/math/big/natconv.go
+index 25a345ef0e..b50f1be3bd 100644
+--- a/src/math/big/natconv.go
++++ b/src/math/big/natconv.go
+@@ -469,7 +469,7 @@ func divisors(m int, b Word, ndigits int, bb Word) []divisor {
+ 					table[0].bbb = nat(nil).expWW(bb, Word(leafSize))
+ 					table[0].ndigits = ndigits * leafSize
+ 				} else {
+-					table[i].bbb = nat(nil).mul(table[i-1].bbb, table[i-1].bbb)
++					table[i].bbb = nat(nil).sqr(table[i-1].bbb)
+ 					table[i].ndigits = 2 * table[i-1].ndigits
+ 				}
+ 
+diff --git a/src/math/big/prime.go b/src/math/big/prime.go
+index 3e9690e55e..848affbf5b 100644
+--- a/src/math/big/prime.go
++++ b/src/math/big/prime.go
+@@ -108,7 +108,7 @@ NextRandom:
+ 			continue
+ 		}
+ 		for j := uint(1); j < k; j++ {
+-			y = y.mul(y, y)
++			y = y.sqr(y)
+ 			quotient, y = quotient.div(y, y, n)
+ 			if y.cmp(nm1) == 0 {
+ 				continue NextRandom
+@@ -194,7 +194,7 @@ func (n nat) probablyPrimeLucas() bool {
+ 			// If n is a non-square we expect to find a d in just a few attempts on average.
+ 			// After 40 attempts, take a moment to check if n is indeed a square.
+ 			t1 = t1.sqrt(n)
+-			t1 = t1.mul(t1, t1)
++			t1 = t1.sqr(t1)
+ 			if t1.cmp(n) == 0 {
+ 				return false
+ 			}
+@@ -259,7 +259,7 @@ func (n nat) probablyPrimeLucas() bool {
+ 			t1 = t1.sub(t1, natP)
+ 			t2, vk = t2.div(vk, t1, n)
+ 			// V(k'+1) = V(2k+2) = V(k+1)² - 2.
+-			t1 = t1.mul(vk1, vk1)
++			t1 = t1.sqr(vk1)
+ 			t1 = t1.add(t1, nm2)
+ 			t2, vk1 = t2.div(vk1, t1, n)
+ 		} else {
+@@ -270,7 +270,7 @@ func (n nat) probablyPrimeLucas() bool {
+ 			t1 = t1.sub(t1, natP)
+ 			t2, vk1 = t2.div(vk1, t1, n)
+ 			// V(k') = V(2k) = V(k)² - 2
+-			t1 = t1.mul(vk, vk)
++			t1 = t1.sqr(vk)
+ 			t1 = t1.add(t1, nm2)
+ 			t2, vk = t2.div(vk, t1, n)
+ 		}
+@@ -312,7 +312,7 @@ func (n nat) probablyPrimeLucas() bool {
+ 		}
+ 		// k' = 2k
+ 		// V(k') = V(2k) = V(k)² - 2
+-		t1 = t1.mul(vk, vk)
++		t1 = t1.sqr(vk)
+ 		t1 = t1.sub(t1, natTwo)
+ 		t2, vk = t2.div(vk, t1, n)
+ 	}

@@ -14,6 +14,31 @@ Date:   Tue Jun 2 17:15:35 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236162
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 24a1c0d0cf..ee00aa003c 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -486,6 +486,19 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="plugin"><dt><a href="/pkg/plugin/">plugin</a></dt>
++  <dd>
++    <p><!-- CL 182959 -->
++      DWARF generation is now supported (and enabled by default) for <code>-buildmode=plugin</code> on macOS.
++    </p>
++  </dd>
++  <dd>
++    <p><!-- CL 191617 -->
++      Building with <code>-buildmode=plugin</code> is now supported on <code>freebsd/amd64</code>.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- CL 228902 -->

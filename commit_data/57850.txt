@@ -14,7 +14,35 @@ Date:   Wed Sep 6 18:31:00 2023 +0200
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/cgo_unix_cgo.go     | 1 -
  src/net/cgo_unix_syscall.go | 4 ----
  2 files changed, 5 deletions(-)
+
+diff --git a/src/net/cgo_unix_cgo.go b/src/net/cgo_unix_cgo.go
+index d11f3e301a..78ad36bccd 100644
+--- a/src/net/cgo_unix_cgo.go
++++ b/src/net/cgo_unix_cgo.go
+@@ -55,7 +55,6 @@ type (
+ 	_C_struct_sockaddr = C.struct_sockaddr
+ )
+ 
+-func _C_GoString(p *_C_char) string      { return C.GoString(p) }
+ func _C_malloc(n uintptr) unsafe.Pointer { return C.malloc(C.size_t(n)) }
+ func _C_free(p unsafe.Pointer)           { C.free(p) }
+ 
+diff --git a/src/net/cgo_unix_syscall.go b/src/net/cgo_unix_syscall.go
+index 2eb8df1da6..2f057ce902 100644
+--- a/src/net/cgo_unix_syscall.go
++++ b/src/net/cgo_unix_syscall.go
+@@ -39,10 +39,6 @@ type (
+ 	_C_struct_sockaddr    = syscall.RawSockaddr
+ )
+ 
+-func _C_GoString(p *_C_char) string {
+-	return unix.GoString(p)
+-}
+-
+ func _C_free(p unsafe.Pointer) { runtime.KeepAlive(p) }
+ 
+ func _C_malloc(n uintptr) unsafe.Pointer {

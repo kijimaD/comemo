@@ -10,6 +10,20 @@ Date:   Wed Sep 30 15:48:14 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/258524
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/io/io.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 3dea70b947..adc0c0d550 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -31,6 +31,8 @@ var ErrShortWrite = errors.New("short write")
+ var ErrShortBuffer = errors.New("short buffer")
+ 
+ // EOF is the error returned by Read when no more input is available.
++// (Read must return EOF itself, not an error wrapping EOF,
++// because callers will test for EOF using ==.)
+ // Functions should return EOF only to signal a graceful end of input.
+ // If the EOF occurs unexpectedly in a structured data stream,
+ // the appropriate error is either ErrUnexpectedEOF or some other error

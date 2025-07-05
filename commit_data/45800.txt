@@ -14,7 +14,51 @@ Date:   Wed Nov 18 16:42:31 2020 -0800
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go  | 8 +++++---
  src/cmd/compile/internal/gc/main.go | 2 ++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 240b09bb6d..f92f5d0e88 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -419,13 +419,15 @@ func (n *Node) format(s fmt.State, verb rune, mode fmtMode) {
+ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 	c := flag & FmtShort
+ 
+-	// Useful to see which nodes in an AST printout are actually identical
+-	fmt.Fprintf(s, " p(%p)", n)
++	// Useful to see which nodes in a Node Dump/dumplist are actually identical
++	if Debug_dumpptrs != 0 {
++		fmt.Fprintf(s, " p(%p)", n)
++	}
+ 	if c == 0 && n.Name != nil && n.Name.Vargen != 0 {
+ 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+ 	}
+ 
+-	if c == 0 && n.Name != nil && n.Name.Defn != nil {
++	if Debug_dumpptrs != 0 && c == 0 && n.Name != nil && n.Name.Defn != nil {
+ 		// Useful to see where Defn is set and what node it points to
+ 		fmt.Fprintf(s, " defn(%p)", n.Name.Defn)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index f0a913275a..a6963a3d66 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -46,6 +46,7 @@ var (
+ 	Debug_closure      int
+ 	Debug_compilelater int
+ 	debug_dclstack     int
++	Debug_dumpptrs     int
+ 	Debug_libfuzzer    int
+ 	Debug_panic        int
+ 	Debug_slice        int
+@@ -75,6 +76,7 @@ var debugtab = []struct {
+ 	{"compilelater", "compile functions as late as possible", &Debug_compilelater},
+ 	{"disablenil", "disable nil checks", &disable_checknil},
+ 	{"dclstack", "run internal dclstack check", &debug_dclstack},
++	{"dumpptrs", "show Node pointer values in Dump/dumplist output", &Debug_dumpptrs},
+ 	{"gcprog", "print dump of GC programs", &Debug_gcprog},
+ 	{"libfuzzer", "coverage instrumentation for libfuzzer", &Debug_libfuzzer},
+ 	{"nil", "print information about nil checks", &Debug_checknil},

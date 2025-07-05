@@ -27,6 +27,33 @@ Date:   Tue Feb 25 18:44:55 2020 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_windows.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 950c281e4d..922cf2cb2e 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -871,11 +871,19 @@ func Shutdown(fd Handle, how int) (err error) {
+ }
+ 
+ func WSASendto(s Handle, bufs *WSABuf, bufcnt uint32, sent *uint32, flags uint32, to Sockaddr, overlapped *Overlapped, croutine *byte) (err error) {
+-	rsa, l, err := to.sockaddr()
++	rsa, len, err := to.sockaddr()
+ 	if err != nil {
+ 		return err
+ 	}
+-	return WSASendTo(s, bufs, bufcnt, sent, flags, (*RawSockaddrAny)(unsafe.Pointer(rsa)), l, overlapped, croutine)
++	r1, _, e1 := Syscall9(procWSASendTo.Addr(), 9, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(sent)), uintptr(flags), uintptr(unsafe.Pointer(rsa)), uintptr(len), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
++	if r1 == socket_error {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return err
+ }
+ 
+ func LoadGetAddrInfo() error {

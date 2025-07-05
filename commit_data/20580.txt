@@ -10,6 +10,20 @@ Date:   Thu Sep 18 22:33:49 2014 -0400
     R=golang-codereviews, dvyukov, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/145890044
-
+---
  src/runtime/os_windows.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index 6c8f137ee5..62d94b65a0 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -278,6 +278,8 @@ runtime·minit(void)
+ void
+ runtime·unminit(void)
+ {
++	runtime·stdcall1(runtime·CloseHandle, (uintptr)g->m->thread);
++	g->m->thread = nil;
+ }
+ 
+ // Described in http://www.dcl.hpi.uni-potsdam.de/research/WRK/2007/08/getting-os-information-the-kuser_shared_data-structure/

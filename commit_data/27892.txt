@@ -19,6 +19,29 @@ Date:   Mon Apr 18 22:37:33 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/fd_plan9.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 35d1624317..329d6152b2 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -77,6 +77,9 @@ func (fd *netFD) Read(b []byte) (n int, err error) {
+ 	}
+ 	defer fd.readUnlock()
+ 	n, err = fd.data.Read(b)
++	if isHangup(err) {
++		err = io.EOF
++	}
+ 	if fd.net == "udp" && err == io.EOF {
+ 		n = 0
+ 		err = nil
+@@ -179,3 +182,7 @@ func setReadBuffer(fd *netFD, bytes int) error {
+ func setWriteBuffer(fd *netFD, bytes int) error {
+ 	return syscall.EPLAN9
+ }
++
++func isHangup(err error) bool {
++	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
++}

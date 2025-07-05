@@ -21,7 +21,7 @@ Date:   Sat Nov 28 07:31:18 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmtmap_test.go             |   8 +-
  src/cmd/compile/internal/gc/alg.go         |  12 +-
  src/cmd/compile/internal/gc/bexport.go     |   2 +-
@@ -57,3 +57,3884 @@ Date:   Sat Nov 28 07:31:18 2020 -0500
  src/cmd/compile/internal/ir/name.go        |   7 +-
  src/cmd/compile/internal/ir/sizeof_test.go |   4 +-
  34 files changed, 628 insertions(+), 634 deletions(-)
+
+diff --git a/src/cmd/compile/fmtmap_test.go b/src/cmd/compile/fmtmap_test.go
+index 978c83e5c2..e949a89d93 100644
+--- a/src/cmd/compile/fmtmap_test.go
++++ b/src/cmd/compile/fmtmap_test.go
+@@ -22,6 +22,12 @@ package main_test
+ var knownFormats = map[string]string{
+ 	"*bytes.Buffer %s":                                "",
+ 	"*cmd/compile/internal/gc.EscLocation %v":         "",
++	"*cmd/compile/internal/ir.Func %+v":               "",
++	"*cmd/compile/internal/ir.Func %L":                "",
++	"*cmd/compile/internal/ir.Func %v":                "",
++	"*cmd/compile/internal/ir.Name %#v":               "",
++	"*cmd/compile/internal/ir.Name %+v":               "",
++	"*cmd/compile/internal/ir.Name %L":                "",
+ 	"*cmd/compile/internal/ir.Name %v":                "",
+ 	"*cmd/compile/internal/ir.node %v":                "",
+ 	"*cmd/compile/internal/ssa.Block %s":              "",
+@@ -54,6 +60,7 @@ var knownFormats = map[string]string{
+ 	"*math/big.Float %f":                              "",
+ 	"*math/big.Int %s":                                "",
+ 	"[16]byte %x":                                     "",
++	"[]*cmd/compile/internal/ir.Name %v":              "",
+ 	"[]*cmd/compile/internal/ssa.Block %v":            "",
+ 	"[]*cmd/compile/internal/ssa.Value %v":            "",
+ 	"[][]string %q":                                   "",
+@@ -77,7 +84,6 @@ var knownFormats = map[string]string{
+ 	"cmd/compile/internal/ir.Class %d":                "",
+ 	"cmd/compile/internal/ir.Class %v":                "",
+ 	"cmd/compile/internal/ir.FmtMode %d":              "",
+-	"cmd/compile/internal/ir.Node %#v":                "",
+ 	"cmd/compile/internal/ir.Node %+S":                "",
+ 	"cmd/compile/internal/ir.Node %+v":                "",
+ 	"cmd/compile/internal/ir.Node %L":                 "",
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 356f0eada7..b40a56fe39 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -382,8 +382,8 @@ func genhash(t *types.Type) *obj.LSym {
+ 
+ 	funcbody()
+ 
+-	fn.Func().SetDupok(true)
+-	fn = typecheck(fn, ctxStmt)
++	fn.SetDupok(true)
++	typecheckFunc(fn)
+ 
+ 	Curfn = fn
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+@@ -393,7 +393,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 		testdclstack()
+ 	}
+ 
+-	fn.Func().SetNilCheckDisabled(true)
++	fn.SetNilCheckDisabled(true)
+ 	xtop = append(xtop, fn)
+ 
+ 	// Build closure. It doesn't close over any variables, so
+@@ -761,8 +761,8 @@ func geneq(t *types.Type) *obj.LSym {
+ 
+ 	funcbody()
+ 
+-	fn.Func().SetDupok(true)
+-	fn = typecheck(fn, ctxStmt)
++	fn.SetDupok(true)
++	typecheckFunc(fn)
+ 
+ 	Curfn = fn
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+@@ -776,7 +776,7 @@ func geneq(t *types.Type) *obj.LSym {
+ 	// We are comparing a struct or an array,
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+-	fn.Func().SetNilCheckDisabled(true)
++	fn.SetNilCheckDisabled(true)
+ 	xtop = append(xtop, fn)
+ 
+ 	// Generate a closure which points at the function we just generated.
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index a470b842ff..dbbac559ae 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -16,7 +16,7 @@ type exporter struct {
+ // markObject visits a reachable object.
+ func (p *exporter) markObject(n ir.Node) {
+ 	if n.Op() == ir.ONAME && n.Class() == ir.PFUNC {
+-		inlFlood(n)
++		inlFlood(n.(*ir.Name))
+ 	}
+ 
+ 	p.markType(n.Type())
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 7a1078326d..0cf59ee0eb 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -17,28 +17,27 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 	xtype := p.typeExpr(expr.Type)
+ 	ntype := p.typeExpr(expr.Type)
+ 
+-	dcl := p.nod(expr, ir.ODCLFUNC, nil, nil)
+-	fn := dcl.Func()
++	fn := ir.NewFunc(p.pos(expr))
+ 	fn.SetIsHiddenClosure(Curfn != nil)
+-	fn.Nname = newfuncnamel(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
+-	fn.Nname.Name().Ntype = xtype
+-	fn.Nname.Name().Defn = dcl
++	fn.Nname = newFuncNameAt(p.pos(expr), ir.BlankNode.Sym(), fn) // filled in by typecheckclosure
++	fn.Nname.Ntype = xtype
++	fn.Nname.Defn = fn
+ 
+ 	clo := p.nod(expr, ir.OCLOSURE, nil, nil)
+ 	clo.SetFunc(fn)
+ 	fn.ClosureType = ntype
+ 	fn.OClosure = clo
+ 
+-	p.funcBody(dcl, expr.Body)
++	p.funcBody(fn, expr.Body)
+ 
+ 	// closure-specific variables are hanging off the
+ 	// ordinary ones in the symbol table; see oldname.
+ 	// unhook them.
+ 	// make the list of pointers for the closure call.
+-	for _, v := range fn.ClosureVars.Slice() {
++	for _, v := range fn.ClosureVars {
+ 		// Unlink from v1; see comment in syntax.go type Param for these fields.
+-		v1 := v.Name().Defn
+-		v1.Name().Innermost = v.Name().Outer
++		v1 := v.Defn
++		v1.Name().Innermost = v.Outer
+ 
+ 		// If the closure usage of v is not dense,
+ 		// we need to make it dense; now that we're out
+@@ -68,7 +67,7 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ 		// obtains f3's v, creating it if necessary (as it is in the example).
+ 		//
+ 		// capturevars will decide whether to use v directly or &v.
+-		v.Name().Outer = oldname(v.Sym()).(*ir.Name)
++		v.Outer = oldname(v.Sym()).(*ir.Name)
+ 	}
+ 
+ 	return clo
+@@ -80,26 +79,25 @@ func (p *noder) funcLit(expr *syntax.FuncLit) ir.Node {
+ // separate pass from type-checking.
+ func typecheckclosure(clo ir.Node, top int) {
+ 	fn := clo.Func()
+-	dcl := fn.Decl
+ 	// Set current associated iota value, so iota can be used inside
+ 	// function in ConstSpec, see issue #22344
+ 	if x := getIotaValue(); x >= 0 {
+-		dcl.SetIota(x)
++		fn.SetIota(x)
+ 	}
+ 
+ 	fn.ClosureType = typecheck(fn.ClosureType, ctxType)
+ 	clo.SetType(fn.ClosureType.Type())
+-	fn.ClosureCalled = top&ctxCallee != 0
++	fn.SetClosureCalled(top&ctxCallee != 0)
+ 
+-	// Do not typecheck dcl twice, otherwise, we will end up pushing
+-	// dcl to xtop multiple times, causing initLSym called twice.
++	// Do not typecheck fn twice, otherwise, we will end up pushing
++	// fn to xtop multiple times, causing initLSym called twice.
+ 	// See #30709
+-	if dcl.Typecheck() == 1 {
++	if fn.Typecheck() == 1 {
+ 		return
+ 	}
+ 
+-	for _, ln := range fn.ClosureVars.Slice() {
+-		n := ln.Name().Defn
++	for _, ln := range fn.ClosureVars {
++		n := ln.Defn
+ 		if !n.Name().Captured() {
+ 			n.Name().SetCaptured(true)
+ 			if n.Name().Decldepth == 0 {
+@@ -116,7 +114,7 @@ func typecheckclosure(clo ir.Node, top int) {
+ 
+ 	fn.Nname.SetSym(closurename(Curfn))
+ 	setNodeNameFunc(fn.Nname)
+-	dcl = typecheck(dcl, ctxStmt)
++	typecheckFunc(fn)
+ 
+ 	// Type check the body now, but only if we're inside a function.
+ 	// At top level (in a variable initialization: curfn==nil) we're not
+@@ -124,29 +122,29 @@ func typecheckclosure(clo ir.Node, top int) {
+ 	// underlying closure function we create is added to xtop.
+ 	if Curfn != nil && clo.Type() != nil {
+ 		oldfn := Curfn
+-		Curfn = dcl
++		Curfn = fn
+ 		olddd := decldepth
+ 		decldepth = 1
+-		typecheckslice(dcl.Body().Slice(), ctxStmt)
++		typecheckslice(fn.Body().Slice(), ctxStmt)
+ 		decldepth = olddd
+ 		Curfn = oldfn
+ 	}
+ 
+-	xtop = append(xtop, dcl)
++	xtop = append(xtop, fn)
+ }
+ 
+ // globClosgen is like Func.Closgen, but for the global scope.
+-var globClosgen int
++var globClosgen int32
+ 
+ // closurename generates a new unique name for a closure within
+ // outerfunc.
+-func closurename(outerfunc ir.Node) *types.Sym {
++func closurename(outerfunc *ir.Func) *types.Sym {
+ 	outer := "glob."
+ 	prefix := "func"
+ 	gen := &globClosgen
+ 
+ 	if outerfunc != nil {
+-		if outerfunc.Func().OClosure != nil {
++		if outerfunc.OClosure != nil {
+ 			prefix = ""
+ 		}
+ 
+@@ -155,8 +153,8 @@ func closurename(outerfunc ir.Node) *types.Sym {
+ 		// There may be multiple functions named "_". In those
+ 		// cases, we can't use their individual Closgens as it
+ 		// would lead to name clashes.
+-		if !ir.IsBlank(outerfunc.Func().Nname) {
+-			gen = &outerfunc.Func().Closgen
++		if !ir.IsBlank(outerfunc.Nname) {
++			gen = &outerfunc.Closgen
+ 		}
+ 	}
+ 
+@@ -172,11 +170,10 @@ var capturevarscomplete bool
+ // by value or by reference.
+ // We use value capturing for values <= 128 bytes that are never reassigned
+ // after capturing (effectively constant).
+-func capturevars(dcl ir.Node) {
++func capturevars(fn *ir.Func) {
+ 	lno := base.Pos
+-	base.Pos = dcl.Pos()
+-	fn := dcl.Func()
+-	cvars := fn.ClosureVars.Slice()
++	base.Pos = fn.Pos()
++	cvars := fn.ClosureVars
+ 	out := cvars[:0]
+ 	for _, v := range cvars {
+ 		if v.Type() == nil {
+@@ -195,12 +192,12 @@ func capturevars(dcl ir.Node) {
+ 		dowidth(v.Type())
+ 
+ 		var outer ir.Node
+-		outer = v.Name().Outer
+-		outermost := v.Name().Defn
++		outer = v.Outer
++		outermost := v.Defn
+ 
+ 		// out parameters will be assigned to implicitly upon return.
+ 		if outermost.Class() != ir.PPARAMOUT && !outermost.Name().Addrtaken() && !outermost.Name().Assigned() && v.Type().Width <= 128 {
+-			v.Name().SetByval(true)
++			v.SetByval(true)
+ 		} else {
+ 			outermost.Name().SetAddrtaken(true)
+ 			outer = ir.Nod(ir.OADDR, outer, nil)
+@@ -208,11 +205,11 @@ func capturevars(dcl ir.Node) {
+ 
+ 		if base.Flag.LowerM > 1 {
+ 			var name *types.Sym
+-			if v.Name().Curfn != nil && v.Name().Curfn.Func().Nname != nil {
+-				name = v.Name().Curfn.Func().Nname.Sym()
++			if v.Curfn != nil && v.Curfn.Nname != nil {
++				name = v.Curfn.Sym()
+ 			}
+ 			how := "ref"
+-			if v.Name().Byval() {
++			if v.Byval() {
+ 				how = "value"
+ 			}
+ 			base.WarnfAt(v.Pos(), "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym(), outermost.Name().Addrtaken(), outermost.Name().Assigned(), int32(v.Type().Width))
+@@ -222,18 +219,17 @@ func capturevars(dcl ir.Node) {
+ 		fn.ClosureEnter.Append(outer)
+ 	}
+ 
+-	fn.ClosureVars.Set(out)
++	fn.ClosureVars = out
+ 	base.Pos = lno
+ }
+ 
+ // transformclosure is called in a separate phase after escape analysis.
+ // It transform closure bodies to properly reference captured variables.
+-func transformclosure(dcl ir.Node) {
++func transformclosure(fn *ir.Func) {
+ 	lno := base.Pos
+-	base.Pos = dcl.Pos()
+-	fn := dcl.Func()
++	base.Pos = fn.Pos()
+ 
+-	if fn.ClosureCalled {
++	if fn.ClosureCalled() {
+ 		// If the closure is directly called, we transform it to a plain function call
+ 		// with variables passed as args. This avoids allocation of a closure object.
+ 		// Here we do only a part of the transformation. Walk of OCALLFUNC(OCLOSURE)
+@@ -254,16 +250,16 @@ func transformclosure(dcl ir.Node) {
+ 
+ 		// We are going to insert captured variables before input args.
+ 		var params []*types.Field
+-		var decls []ir.Node
+-		for _, v := range fn.ClosureVars.Slice() {
+-			if !v.Name().Byval() {
++		var decls []*ir.Name
++		for _, v := range fn.ClosureVars {
++			if !v.Byval() {
+ 				// If v of type T is captured by reference,
+ 				// we introduce function param &v *T
+ 				// and v remains PAUTOHEAP with &v heapaddr
+ 				// (accesses will implicitly deref &v).
+ 				addr := NewName(lookup("&" + v.Sym().Name))
+ 				addr.SetType(types.NewPtr(v.Type()))
+-				v.Name().Heapaddr = addr
++				v.Heapaddr = addr
+ 				v = addr
+ 			}
+ 
+@@ -282,24 +278,24 @@ func transformclosure(dcl ir.Node) {
+ 		}
+ 
+ 		dowidth(f.Type())
+-		dcl.SetType(f.Type()) // update type of ODCLFUNC
++		fn.SetType(f.Type()) // update type of ODCLFUNC
+ 	} else {
+ 		// The closure is not called, so it is going to stay as closure.
+ 		var body []ir.Node
+ 		offset := int64(Widthptr)
+-		for _, v := range fn.ClosureVars.Slice() {
++		for _, v := range fn.ClosureVars {
+ 			// cv refers to the field inside of closure OSTRUCTLIT.
+ 			cv := ir.Nod(ir.OCLOSUREVAR, nil, nil)
+ 
+ 			cv.SetType(v.Type())
+-			if !v.Name().Byval() {
++			if !v.Byval() {
+ 				cv.SetType(types.NewPtr(v.Type()))
+ 			}
+ 			offset = Rnd(offset, int64(cv.Type().Align))
+ 			cv.SetOffset(offset)
+ 			offset += cv.Type().Width
+ 
+-			if v.Name().Byval() && v.Type().Width <= int64(2*Widthptr) {
++			if v.Byval() && v.Type().Width <= int64(2*Widthptr) {
+ 				// If it is a small variable captured by value, downgrade it to PAUTO.
+ 				v.SetClass(ir.PAUTO)
+ 				fn.Dcl = append(fn.Dcl, v)
+@@ -310,11 +306,11 @@ func transformclosure(dcl ir.Node) {
+ 				addr := NewName(lookup("&" + v.Sym().Name))
+ 				addr.SetType(types.NewPtr(v.Type()))
+ 				addr.SetClass(ir.PAUTO)
+-				addr.Name().SetUsed(true)
+-				addr.Name().Curfn = dcl
++				addr.SetUsed(true)
++				addr.Curfn = fn
+ 				fn.Dcl = append(fn.Dcl, addr)
+-				v.Name().Heapaddr = addr
+-				if v.Name().Byval() {
++				v.Heapaddr = addr
++				if v.Byval() {
+ 					cv = ir.Nod(ir.OADDR, cv, nil)
+ 				}
+ 				body = append(body, ir.Nod(ir.OAS, addr, cv))
+@@ -334,7 +330,7 @@ func transformclosure(dcl ir.Node) {
+ // hasemptycvars reports whether closure clo has an
+ // empty list of captured vars.
+ func hasemptycvars(clo ir.Node) bool {
+-	return clo.Func().ClosureVars.Len() == 0
++	return len(clo.Func().ClosureVars) == 0
+ }
+ 
+ // closuredebugruntimecheck applies boilerplate checks for debug flags
+@@ -372,9 +368,9 @@ func closureType(clo ir.Node) *types.Type {
+ 	fields := []ir.Node{
+ 		namedfield(".F", types.Types[types.TUINTPTR]),
+ 	}
+-	for _, v := range clo.Func().ClosureVars.Slice() {
++	for _, v := range clo.Func().ClosureVars {
+ 		typ := v.Type()
+-		if !v.Name().Byval() {
++		if !v.Byval() {
+ 			typ = types.NewPtr(typ)
+ 		}
+ 		fields = append(fields, symfield(v.Sym(), typ))
+@@ -430,23 +426,24 @@ func typecheckpartialcall(dot ir.Node, sym *types.Sym) {
+ 	}
+ 
+ 	// Create top-level function.
+-	dcl := makepartialcall(dot, dot.Type(), sym)
+-	dcl.Func().SetWrapper(true)
++	fn := makepartialcall(dot, dot.Type(), sym)
++	fn.SetWrapper(true)
++
+ 	dot.SetOp(ir.OCALLPART)
+ 	dot.SetRight(NewName(sym))
+-	dot.SetType(dcl.Type())
+-	dot.SetFunc(dcl.Func())
++	dot.SetType(fn.Type())
++	dot.SetFunc(fn)
+ 	dot.SetOpt(nil) // clear types.Field from ODOTMETH
+ }
+ 
+ // makepartialcall returns a DCLFUNC node representing the wrapper function (*-fm) needed
+ // for partial calls.
+-func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) ir.Node {
++func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) *ir.Func {
+ 	rcvrtype := dot.Left().Type()
+ 	sym := methodSymSuffix(rcvrtype, meth, "-fm")
+ 
+ 	if sym.Uniq() {
+-		return ir.AsNode(sym.Def)
++		return ir.AsNode(sym.Def).(*ir.Func)
+ 	}
+ 	sym.SetUniq(true)
+ 
+@@ -469,8 +466,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) ir.Node {
+ 	tfn.PtrList().Set(structargs(t0.Params(), true))
+ 	tfn.PtrRlist().Set(structargs(t0.Results(), false))
+ 
+-	dcl := dclfunc(sym, tfn)
+-	fn := dcl.Func()
++	fn := dclfunc(sym, tfn)
+ 	fn.SetDupok(true)
+ 	fn.SetNeedctxt(true)
+ 
+@@ -484,7 +480,7 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) ir.Node {
+ 
+ 	ptr := NewName(lookup(".this"))
+ 	declare(ptr, ir.PAUTO)
+-	ptr.Name().SetUsed(true)
++	ptr.SetUsed(true)
+ 	var body []ir.Node
+ 	if rcvrtype.IsPtr() || rcvrtype.IsInterface() {
+ 		ptr.SetType(rcvrtype)
+@@ -504,20 +500,20 @@ func makepartialcall(dot ir.Node, t0 *types.Type, meth *types.Sym) ir.Node {
+ 	}
+ 	body = append(body, call)
+ 
+-	dcl.PtrBody().Set(body)
++	fn.PtrBody().Set(body)
+ 	funcbody()
+ 
+-	dcl = typecheck(dcl, ctxStmt)
++	typecheckFunc(fn)
+ 	// Need to typecheck the body of the just-generated wrapper.
+ 	// typecheckslice() requires that Curfn is set when processing an ORETURN.
+-	Curfn = dcl
+-	typecheckslice(dcl.Body().Slice(), ctxStmt)
+-	sym.Def = dcl
+-	xtop = append(xtop, dcl)
++	Curfn = fn
++	typecheckslice(fn.Body().Slice(), ctxStmt)
++	sym.Def = fn
++	xtop = append(xtop, fn)
+ 	Curfn = savecurfn
+ 	base.Pos = saveLineNo
+ 
+-	return dcl
++	return fn
+ }
+ 
+ // partialCallType returns the struct type used to hold all the information
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 04e6e7a596..2bcee269d9 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -58,7 +58,7 @@ var declare_typegen int
+ 
+ // declare records that Node n declares symbol n.Sym in the specified
+ // declaration context.
+-func declare(n ir.Node, ctxt ir.Class) {
++func declare(n *ir.Name, ctxt ir.Class) {
+ 	if ir.IsBlank(n) {
+ 		return
+ 	}
+@@ -85,7 +85,7 @@ func declare(n ir.Node, ctxt ir.Class) {
+ 			base.Fatalf("automatic outside function")
+ 		}
+ 		if Curfn != nil && ctxt != ir.PFUNC {
+-			Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
++			Curfn.Dcl = append(Curfn.Dcl, n)
+ 		}
+ 		if n.Op() == ir.OTYPE {
+ 			declare_typegen++
+@@ -122,7 +122,7 @@ func declare(n ir.Node, ctxt ir.Class) {
+ 	autoexport(n, ctxt)
+ }
+ 
+-func addvar(n ir.Node, t *types.Type, ctxt ir.Class) {
++func addvar(n *ir.Name, t *types.Type, ctxt ir.Class) {
+ 	if n == nil || n.Sym() == nil || (n.Op() != ir.ONAME && n.Op() != ir.ONONAME) || t == nil {
+ 		base.Fatalf("addvar: n=%v t=%v nil", n, t)
+ 	}
+@@ -144,10 +144,11 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 		as2.PtrList().Set(vl)
+ 		as2.PtrRlist().Set1(e)
+ 		for _, v := range vl {
++			v := v.(*ir.Name)
+ 			v.SetOp(ir.ONAME)
+ 			declare(v, dclcontext)
+-			v.Name().Ntype = t
+-			v.Name().Defn = as2
++			v.Ntype = t
++			v.Defn = as2
+ 			if Curfn != nil {
+ 				init = append(init, ir.Nod(ir.ODCL, v, nil))
+ 			}
+@@ -158,6 +159,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 
+ 	nel := len(el)
+ 	for _, v := range vl {
++		v := v.(*ir.Name)
+ 		var e ir.Node
+ 		if doexpr {
+ 			if len(el) == 0 {
+@@ -170,7 +172,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 
+ 		v.SetOp(ir.ONAME)
+ 		declare(v, dclcontext)
+-		v.Name().Ntype = t
++		v.Ntype = t
+ 
+ 		if e != nil || Curfn != nil || ir.IsBlank(v) {
+ 			if Curfn != nil {
+@@ -179,7 +181,7 @@ func variter(vl []ir.Node, t ir.Node, el []ir.Node) []ir.Node {
+ 			e = ir.Nod(ir.OAS, v, e)
+ 			init = append(init, e)
+ 			if e.Right() != nil {
+-				v.Name().Defn = e
++				v.Defn = e
+ 			}
+ 		}
+ 	}
+@@ -200,10 +202,10 @@ func newnoname(s *types.Sym) ir.Node {
+ 	return n
+ }
+ 
+-// newfuncnamel generates a new name node for a function or method.
+-func newfuncnamel(pos src.XPos, s *types.Sym, fn *ir.Func) ir.Node {
++// newFuncNameAt generates a new name node for a function or method.
++func newFuncNameAt(pos src.XPos, s *types.Sym, fn *ir.Func) *ir.Name {
+ 	if fn.Nname != nil {
+-		base.Fatalf("newfuncnamel - already have name")
++		base.Fatalf("newFuncName - already have name")
+ 	}
+ 	n := ir.NewNameAt(pos, s)
+ 	n.SetFunc(fn)
+@@ -271,20 +273,20 @@ func oldname(s *types.Sym) ir.Node {
+ 		// the := it looks like a reference to the outer x so we'll
+ 		// make x a closure variable unnecessarily.
+ 		c := n.Name().Innermost
+-		if c == nil || c.Name().Curfn != Curfn {
++		if c == nil || c.Curfn != Curfn {
+ 			// Do not have a closure var for the active closure yet; make one.
+ 			c = NewName(s)
+ 			c.SetClass(ir.PAUTOHEAP)
+-			c.Name().SetIsClosureVar(true)
++			c.SetIsClosureVar(true)
+ 			c.SetIsDDD(n.IsDDD())
+-			c.Name().Defn = n
++			c.Defn = n
+ 
+ 			// Link into list of active closure variables.
+ 			// Popped from list in func funcLit.
+-			c.Name().Outer = n.Name().Innermost
++			c.Outer = n.Name().Innermost
+ 			n.Name().Innermost = c
+ 
+-			Curfn.Func().ClosureVars.Append(c)
++			Curfn.ClosureVars = append(Curfn.ClosureVars, c)
+ 		}
+ 
+ 		// return ref to closure var, not original
+@@ -349,7 +351,7 @@ func colasdefn(left []ir.Node, defn ir.Node) {
+ 		}
+ 
+ 		nnew++
+-		n = NewName(n.Sym())
++		n := NewName(n.Sym())
+ 		declare(n, dclcontext)
+ 		n.Name().Defn = defn
+ 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+@@ -377,18 +379,18 @@ func ifacedcl(n ir.Node) {
+ // and declare the arguments.
+ // called in extern-declaration context
+ // returns in auto-declaration context.
+-func funchdr(n ir.Node) {
++func funchdr(fn *ir.Func) {
+ 	// change the declaration context from extern to auto
+ 	funcStack = append(funcStack, funcStackEnt{Curfn, dclcontext})
+-	Curfn = n
++	Curfn = fn
+ 	dclcontext = ir.PAUTO
+ 
+ 	types.Markdcl()
+ 
+-	if n.Func().Nname != nil && n.Func().Nname.Name().Ntype != nil {
+-		funcargs(n.Func().Nname.Name().Ntype)
++	if fn.Nname != nil && fn.Nname.Ntype != nil {
++		funcargs(fn.Nname.Ntype)
+ 	} else {
+-		funcargs2(n.Type())
++		funcargs2(fn.Type())
+ 	}
+ }
+ 
+@@ -450,10 +452,11 @@ func funcarg(n ir.Node, ctxt ir.Class) {
+ 		return
+ 	}
+ 
+-	n.SetRight(ir.NewNameAt(n.Pos(), n.Sym()))
+-	n.Right().Name().Ntype = n.Left()
+-	n.Right().SetIsDDD(n.IsDDD())
+-	declare(n.Right(), ctxt)
++	name := ir.NewNameAt(n.Pos(), n.Sym())
++	n.SetRight(name)
++	name.Ntype = n.Left()
++	name.SetIsDDD(n.IsDDD())
++	declare(name, ctxt)
+ 
+ 	vargen++
+ 	n.Right().Name().Vargen = int32(vargen)
+@@ -492,7 +495,7 @@ func funcarg2(f *types.Field, ctxt ir.Class) {
+ var funcStack []funcStackEnt // stack of previous values of Curfn/dclcontext
+ 
+ type funcStackEnt struct {
+-	curfn      ir.Node
++	curfn      *ir.Func
+ 	dclcontext ir.Class
+ }
+ 
+@@ -937,18 +940,18 @@ func setNodeNameFunc(n ir.Node) {
+ 	n.Sym().SetFunc(true)
+ }
+ 
+-func dclfunc(sym *types.Sym, tfn ir.Node) ir.Node {
++func dclfunc(sym *types.Sym, tfn ir.Node) *ir.Func {
+ 	if tfn.Op() != ir.OTFUNC {
+ 		base.Fatalf("expected OTFUNC node, got %v", tfn)
+ 	}
+ 
+-	fn := ir.Nod(ir.ODCLFUNC, nil, nil)
+-	fn.Func().Nname = newfuncnamel(base.Pos, sym, fn.Func())
+-	fn.Func().Nname.Name().Defn = fn
+-	fn.Func().Nname.Name().Ntype = tfn
+-	setNodeNameFunc(fn.Func().Nname)
++	fn := ir.NewFunc(base.Pos)
++	fn.Nname = newFuncNameAt(base.Pos, sym, fn)
++	fn.Nname.Defn = fn
++	fn.Nname.Ntype = tfn
++	setNodeNameFunc(fn.Nname)
+ 	funchdr(fn)
+-	fn.Func().Nname.Name().Ntype = typecheck(fn.Func().Nname.Name().Ntype, ctxType)
++	fn.Nname.Ntype = typecheck(fn.Nname.Ntype, ctxType)
+ 	return fn
+ }
+ 
+@@ -959,11 +962,11 @@ type nowritebarrierrecChecker struct {
+ 	extraCalls map[ir.Node][]nowritebarrierrecCall
+ 
+ 	// curfn is the current function during AST walks.
+-	curfn ir.Node
++	curfn *ir.Func
+ }
+ 
+ type nowritebarrierrecCall struct {
+-	target ir.Node  // ODCLFUNC of caller or callee
++	target *ir.Func // caller or callee
+ 	lineno src.XPos // line of call
+ }
+ 
+@@ -983,7 +986,7 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 		if n.Op() != ir.ODCLFUNC {
+ 			continue
+ 		}
+-		c.curfn = n
++		c.curfn = n.(*ir.Func)
+ 		ir.Inspect(n, c.findExtraCalls)
+ 	}
+ 	c.curfn = nil
+@@ -1002,13 +1005,13 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
+ 		return true
+ 	}
+ 
+-	var callee ir.Node
++	var callee *ir.Func
+ 	arg := n.List().First()
+ 	switch arg.Op() {
+ 	case ir.ONAME:
+-		callee = arg.Name().Defn
++		callee = arg.Name().Defn.(*ir.Func)
+ 	case ir.OCLOSURE:
+-		callee = arg.Func().Decl
++		callee = arg.Func()
+ 	default:
+ 		base.Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
+ 	}
+@@ -1027,13 +1030,8 @@ func (c *nowritebarrierrecChecker) findExtraCalls(n ir.Node) bool {
+ // because that's all we know after we start SSA.
+ //
+ // This can be called concurrently for different from Nodes.
+-func (c *nowritebarrierrecChecker) recordCall(from ir.Node, to *obj.LSym, pos src.XPos) {
+-	if from.Op() != ir.ODCLFUNC {
+-		base.Fatalf("expected ODCLFUNC, got %v", from)
+-	}
+-	// We record this information on the *Func so this is
+-	// concurrent-safe.
+-	fn := from.Func()
++func (c *nowritebarrierrecChecker) recordCall(fn *ir.Func, to *obj.LSym, pos src.XPos) {
++	// We record this information on the *Func so this is concurrent-safe.
+ 	if fn.NWBRCalls == nil {
+ 		fn.NWBRCalls = new([]ir.SymAndPos)
+ 	}
+@@ -1045,7 +1043,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 	// capture all calls created by lowering, but this means we
+ 	// only get to see the obj.LSyms of calls. symToFunc lets us
+ 	// get back to the ODCLFUNCs.
+-	symToFunc := make(map[*obj.LSym]ir.Node)
++	symToFunc := make(map[*obj.LSym]*ir.Func)
+ 	// funcs records the back-edges of the BFS call graph walk. It
+ 	// maps from the ODCLFUNC of each function that must not have
+ 	// write barriers to the call that inhibits them. Functions
+@@ -1060,24 +1058,25 @@ func (c *nowritebarrierrecChecker) check() {
+ 		if n.Op() != ir.ODCLFUNC {
+ 			continue
+ 		}
++		fn := n.(*ir.Func)
+ 
+-		symToFunc[n.Func().LSym] = n
++		symToFunc[fn.LSym] = fn
+ 
+ 		// Make nowritebarrierrec functions BFS roots.
+-		if n.Func().Pragma&ir.Nowritebarrierrec != 0 {
+-			funcs[n] = nowritebarrierrecCall{}
+-			q.PushRight(n)
++		if fn.Pragma&ir.Nowritebarrierrec != 0 {
++			funcs[fn] = nowritebarrierrecCall{}
++			q.PushRight(fn)
+ 		}
+ 		// Check go:nowritebarrier functions.
+-		if n.Func().Pragma&ir.Nowritebarrier != 0 && n.Func().WBPos.IsKnown() {
+-			base.ErrorfAt(n.Func().WBPos, "write barrier prohibited")
++		if fn.Pragma&ir.Nowritebarrier != 0 && fn.WBPos.IsKnown() {
++			base.ErrorfAt(fn.WBPos, "write barrier prohibited")
+ 		}
+ 	}
+ 
+ 	// Perform a BFS of the call graph from all
+ 	// go:nowritebarrierrec functions.
+-	enqueue := func(src, target ir.Node, pos src.XPos) {
+-		if target.Func().Pragma&ir.Yeswritebarrierrec != 0 {
++	enqueue := func(src, target *ir.Func, pos src.XPos) {
++		if target.Pragma&ir.Yeswritebarrierrec != 0 {
+ 			// Don't flow into this function.
+ 			return
+ 		}
+@@ -1091,17 +1090,17 @@ func (c *nowritebarrierrecChecker) check() {
+ 		q.PushRight(target)
+ 	}
+ 	for !q.Empty() {
+-		fn := q.PopLeft()
++		fn := q.PopLeft().(*ir.Func)
+ 
+ 		// Check fn.
+-		if fn.Func().WBPos.IsKnown() {
++		if fn.WBPos.IsKnown() {
+ 			var err bytes.Buffer
+ 			call := funcs[fn]
+ 			for call.target != nil {
+-				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Func().Nname)
++				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
+ 				call = funcs[call.target]
+ 			}
+-			base.ErrorfAt(fn.Func().WBPos, "write barrier prohibited by caller; %v%s", fn.Func().Nname, err.String())
++			base.ErrorfAt(fn.WBPos, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
+ 			continue
+ 		}
+ 
+@@ -1109,10 +1108,10 @@ func (c *nowritebarrierrecChecker) check() {
+ 		for _, callee := range c.extraCalls[fn] {
+ 			enqueue(fn, callee.target, callee.lineno)
+ 		}
+-		if fn.Func().NWBRCalls == nil {
++		if fn.NWBRCalls == nil {
+ 			continue
+ 		}
+-		for _, callee := range *fn.Func().NWBRCalls {
++		for _, callee := range *fn.NWBRCalls {
+ 			target := symToFunc[callee.Sym]
+ 			if target != nil {
+ 				enqueue(fn, target, callee.Pos)
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index 1e4e43caad..d9eb930037 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/base"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+@@ -211,6 +212,7 @@ func genAbstractFunc(fn *obj.LSym) {
+ 		base.Ctxt.Diag("failed to locate precursor fn for %v", fn)
+ 		return
+ 	}
++	_ = ifn.(*ir.Func)
+ 	if base.Debug.DwarfInl != 0 {
+ 		base.Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 351643ef5d..4bddb7f0f4 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -87,7 +87,7 @@ type Escape struct {
+ 	allLocs []*EscLocation
+ 	labels  map[*types.Sym]labelState // known labels
+ 
+-	curfn ir.Node
++	curfn *ir.Func
+ 
+ 	// loopDepth counts the current loop nesting depth within
+ 	// curfn. It increments within each "for" loop and at each
+@@ -103,7 +103,7 @@ type Escape struct {
+ // variable.
+ type EscLocation struct {
+ 	n         ir.Node   // represented variable or expression, if any
+-	curfn     ir.Node   // enclosing function
++	curfn     *ir.Func  // enclosing function
+ 	edges     []EscEdge // incoming edges
+ 	loopDepth int       // loopDepth at declaration
+ 
+@@ -180,7 +180,7 @@ func escFmt(n ir.Node, short bool) string {
+ 
+ // escapeFuncs performs escape analysis on a minimal batch of
+ // functions.
+-func escapeFuncs(fns []ir.Node, recursive bool) {
++func escapeFuncs(fns []*ir.Func, recursive bool) {
+ 	for _, fn := range fns {
+ 		if fn.Op() != ir.ODCLFUNC {
+ 			base.Fatalf("unexpected node: %v", fn)
+@@ -203,8 +203,8 @@ func escapeFuncs(fns []ir.Node, recursive bool) {
+ 	e.finish(fns)
+ }
+ 
+-func (e *Escape) initFunc(fn ir.Node) {
+-	if fn.Op() != ir.ODCLFUNC || fn.Esc() != EscFuncUnknown {
++func (e *Escape) initFunc(fn *ir.Func) {
++	if fn.Esc() != EscFuncUnknown {
+ 		base.Fatalf("unexpected node: %v", fn)
+ 	}
+ 	fn.SetEsc(EscFuncPlanned)
+@@ -216,14 +216,14 @@ func (e *Escape) initFunc(fn ir.Node) {
+ 	e.loopDepth = 1
+ 
+ 	// Allocate locations for local variables.
+-	for _, dcl := range fn.Func().Dcl {
++	for _, dcl := range fn.Dcl {
+ 		if dcl.Op() == ir.ONAME {
+ 			e.newLoc(dcl, false)
+ 		}
+ 	}
+ }
+ 
+-func (e *Escape) walkFunc(fn ir.Node) {
++func (e *Escape) walkFunc(fn *ir.Func) {
+ 	fn.SetEsc(EscFuncStarted)
+ 
+ 	// Identify labels that mark the head of an unstructured loop.
+@@ -589,7 +589,8 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
+ 		for i := m.Type.NumResults(); i > 0; i-- {
+ 			ks = append(ks, e.heapHole())
+ 		}
+-		paramK := e.tagHole(ks, ir.AsNode(m.Nname), m.Type.Recv())
++		name, _ := m.Nname.(*ir.Name)
++		paramK := e.tagHole(ks, name, m.Type.Recv())
+ 
+ 		e.expr(e.teeHole(paramK, closureK), n.Left())
+ 
+@@ -633,17 +634,13 @@ func (e *Escape) exprSkipInit(k EscHole, n ir.Node) {
+ 		k = e.spill(k, n)
+ 
+ 		// Link addresses of captured variables to closure.
+-		for _, v := range n.Func().ClosureVars.Slice() {
+-			if v.Op() == ir.OXXX { // unnamed out argument; see dcl.go:/^funcargs
+-				continue
+-			}
+-
++		for _, v := range n.Func().ClosureVars {
+ 			k := k
+-			if !v.Name().Byval() {
++			if !v.Byval() {
+ 				k = k.addr(v, "reference")
+ 			}
+ 
+-			e.expr(k.note(n, "captured by a closure"), v.Name().Defn)
++			e.expr(k.note(n, "captured by a closure"), v.Defn)
+ 		}
+ 
+ 	case ir.ORUNES2STR, ir.OBYTES2STR, ir.OSTR2RUNES, ir.OSTR2BYTES, ir.ORUNESTR:
+@@ -813,12 +810,12 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
+ 		fixVariadicCall(call)
+ 
+ 		// Pick out the function callee, if statically known.
+-		var fn ir.Node
++		var fn *ir.Name
+ 		switch call.Op() {
+ 		case ir.OCALLFUNC:
+ 			switch v := staticValue(call.Left()); {
+ 			case v.Op() == ir.ONAME && v.Class() == ir.PFUNC:
+-				fn = v
++				fn = v.(*ir.Name)
+ 			case v.Op() == ir.OCLOSURE:
+ 				fn = v.Func().Nname
+ 			}
+@@ -902,7 +899,7 @@ func (e *Escape) call(ks []EscHole, call, where ir.Node) {
+ // ks should contain the holes representing where the function
+ // callee's results flows. fn is the statically-known callee function,
+ // if any.
+-func (e *Escape) tagHole(ks []EscHole, fn ir.Node, param *types.Field) EscHole {
++func (e *Escape) tagHole(ks []EscHole, fn *ir.Name, param *types.Field) EscHole {
+ 	// If this is a dynamic call, we can't rely on param.Note.
+ 	if fn == nil {
+ 		return e.heapHole()
+@@ -943,9 +940,9 @@ func (e *Escape) tagHole(ks []EscHole, fn ir.Node, param *types.Field) EscHole {
+ // fn has not yet been analyzed, so its parameters and results
+ // should be incorporated directly into the flow graph instead of
+ // relying on its escape analysis tagging.
+-func (e *Escape) inMutualBatch(fn ir.Node) bool {
+-	if fn.Name().Defn != nil && fn.Name().Defn.Esc() < EscFuncTagged {
+-		if fn.Name().Defn.Esc() == EscFuncUnknown {
++func (e *Escape) inMutualBatch(fn *ir.Name) bool {
++	if fn.Defn != nil && fn.Defn.Esc() < EscFuncTagged {
++		if fn.Defn.Esc() == EscFuncUnknown {
+ 			base.Fatalf("graph inconsistency")
+ 		}
+ 		return true
+@@ -1368,7 +1365,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
+ 		//
+ 		//    var u int  // okay to stack allocate
+ 		//    *(func() *int { return &u }()) = 42
+-		if containsClosure(other.curfn, l.curfn) && l.curfn.Func().ClosureCalled {
++		if containsClosure(other.curfn, l.curfn) && l.curfn.ClosureCalled() {
+ 			return false
+ 		}
+ 
+@@ -1402,11 +1399,7 @@ func (e *Escape) outlives(l, other *EscLocation) bool {
+ }
+ 
+ // containsClosure reports whether c is a closure contained within f.
+-func containsClosure(f, c ir.Node) bool {
+-	if f.Op() != ir.ODCLFUNC || c.Op() != ir.ODCLFUNC {
+-		base.Fatalf("bad containsClosure: %v, %v", f, c)
+-	}
+-
++func containsClosure(f, c *ir.Func) bool {
+ 	// Common case.
+ 	if f == c {
+ 		return false
+@@ -1414,8 +1407,8 @@ func containsClosure(f, c ir.Node) bool {
+ 
+ 	// Closures within function Foo are named like "Foo.funcN..."
+ 	// TODO(mdempsky): Better way to recognize this.
+-	fn := f.Func().Nname.Sym().Name
+-	cn := c.Func().Nname.Sym().Name
++	fn := f.Sym().Name
++	cn := c.Sym().Name
+ 	return len(cn) > len(fn) && cn[:len(fn)] == fn && cn[len(fn)] == '.'
+ }
+ 
+@@ -1437,7 +1430,7 @@ func (l *EscLocation) leakTo(sink *EscLocation, derefs int) {
+ 	l.paramEsc.AddHeap(derefs)
+ }
+ 
+-func (e *Escape) finish(fns []ir.Node) {
++func (e *Escape) finish(fns []*ir.Func) {
+ 	// Record parameter tags for package export data.
+ 	for _, fn := range fns {
+ 		fn.SetEsc(EscFuncTagged)
+@@ -1614,12 +1607,12 @@ const (
+ 	EscNever   // By construction will not escape.
+ )
+ 
+-// funcSym returns fn.Func.Nname.Sym if no nils are encountered along the way.
+-func funcSym(fn ir.Node) *types.Sym {
+-	if fn == nil || fn.Func().Nname == nil {
++// funcSym returns fn.Nname.Sym if no nils are encountered along the way.
++func funcSym(fn *ir.Func) *types.Sym {
++	if fn == nil || fn.Nname == nil {
+ 		return nil
+ 	}
+-	return fn.Func().Nname.Sym()
++	return fn.Sym()
+ }
+ 
+ // Mark labels that have no backjumps to them as not increasing e.loopdepth.
+@@ -1798,6 +1791,7 @@ func addrescapes(n ir.Node) {
+ 		// Nothing to do.
+ 
+ 	case ir.ONAME:
++		n := n.(*ir.Name)
+ 		if n == nodfp {
+ 			break
+ 		}
+@@ -1832,10 +1826,6 @@ func addrescapes(n ir.Node) {
+ 		// heap in f, not in the inner closure. Flip over to f before calling moveToHeap.
+ 		oldfn := Curfn
+ 		Curfn = n.Name().Curfn
+-		if Curfn.Op() == ir.OCLOSURE {
+-			Curfn = Curfn.Func().Decl
+-			panic("can't happen")
+-		}
+ 		ln := base.Pos
+ 		base.Pos = Curfn.Pos()
+ 		moveToHeap(n)
+@@ -1855,7 +1845,7 @@ func addrescapes(n ir.Node) {
+ }
+ 
+ // moveToHeap records the parameter or local variable n as moved to the heap.
+-func moveToHeap(n ir.Node) {
++func moveToHeap(n *ir.Name) {
+ 	if base.Flag.LowerR != 0 {
+ 		ir.Dump("MOVE", n)
+ 	}
+@@ -1877,7 +1867,7 @@ func moveToHeap(n ir.Node) {
+ 	// Unset AutoTemp to persist the &foo variable name through SSA to
+ 	// liveness analysis.
+ 	// TODO(mdempsky/drchase): Cleaner solution?
+-	heapaddr.Name().SetAutoTemp(false)
++	heapaddr.SetAutoTemp(false)
+ 
+ 	// Parameters have a local stack copy used at function start/end
+ 	// in addition to the copy in the heap that may live longer than
+@@ -1895,14 +1885,14 @@ func moveToHeap(n ir.Node) {
+ 		stackcopy.SetType(n.Type())
+ 		stackcopy.SetOffset(n.Offset())
+ 		stackcopy.SetClass(n.Class())
+-		stackcopy.Name().Heapaddr = heapaddr
++		stackcopy.Heapaddr = heapaddr
+ 		if n.Class() == ir.PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+ 			// Thus, we need the pointer to the heap copy always available so the
+ 			// post-deferreturn code can copy the return value back to the stack.
+ 			// See issue 16095.
+-			heapaddr.Name().SetIsOutputParamHeapAddr(true)
++			heapaddr.SetIsOutputParamHeapAddr(true)
+ 		}
+ 		n.Name().Stackcopy = stackcopy
+ 
+@@ -1910,9 +1900,9 @@ func moveToHeap(n ir.Node) {
+ 		// liveness and other analyses use the underlying stack slot
+ 		// and not the now-pseudo-variable n.
+ 		found := false
+-		for i, d := range Curfn.Func().Dcl {
++		for i, d := range Curfn.Dcl {
+ 			if d == n {
+-				Curfn.Func().Dcl[i] = stackcopy
++				Curfn.Dcl[i] = stackcopy
+ 				found = true
+ 				break
+ 			}
+@@ -1925,7 +1915,7 @@ func moveToHeap(n ir.Node) {
+ 		if !found {
+ 			base.Fatalf("cannot find %v in local variable list", n)
+ 		}
+-		Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
++		Curfn.Dcl = append(Curfn.Dcl, n)
+ 	}
+ 
+ 	// Modify n in place so that uses of n now mean indirection of the heapaddr.
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 10033793bf..5cd379a7d3 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -161,8 +161,12 @@ func importfunc(ipkg *types.Pkg, pos src.XPos, s *types.Sym, t *types.Type) {
+ 	if n == nil {
+ 		return
+ 	}
++	name := n.(*ir.Name)
+ 
+-	n.SetFunc(new(ir.Func))
++	fn := ir.NewFunc(pos)
++	fn.SetType(t)
++	name.SetFunc(fn)
++	fn.Nname = name
+ 
+ 	if base.Flag.E != 0 {
+ 		fmt.Printf("import func %v%S\n", s, t)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index cf9e0d58bf..0d3f9392fb 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -52,7 +52,7 @@ func autotmpname(n int) string {
+ }
+ 
+ // make a new Node off the books
+-func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
++func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 	if curfn == nil {
+ 		base.Fatalf("no curfn for tempAt")
+ 	}
+@@ -65,7 +65,7 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
+ 	}
+ 
+ 	s := &types.Sym{
+-		Name: autotmpname(len(curfn.Func().Dcl)),
++		Name: autotmpname(len(curfn.Dcl)),
+ 		Pkg:  ir.LocalPkg,
+ 	}
+ 	n := ir.NewNameAt(pos, s)
+@@ -73,10 +73,10 @@ func tempAt(pos src.XPos, curfn ir.Node, t *types.Type) *ir.Name {
+ 	n.SetType(t)
+ 	n.SetClass(ir.PAUTO)
+ 	n.SetEsc(EscNever)
+-	n.Name().Curfn = curfn
+-	n.Name().SetUsed(true)
+-	n.Name().SetAutoTemp(true)
+-	curfn.Func().Dcl = append(curfn.Func().Dcl, n)
++	n.Curfn = curfn
++	n.SetUsed(true)
++	n.SetAutoTemp(true)
++	curfn.Dcl = append(curfn.Dcl, n)
+ 
+ 	dowidth(t)
+ 
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 84e6bc5faf..24393de53d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -132,7 +132,7 @@ var xtop []ir.Node
+ 
+ var exportlist []ir.Node
+ 
+-var importlist []ir.Node // imported functions and methods with inlinable bodies
++var importlist []*ir.Func // imported functions and methods with inlinable bodies
+ 
+ var (
+ 	funcsymsmu sync.Mutex // protects funcsyms and associated package lookups (see func funcsym)
+@@ -141,7 +141,7 @@ var (
+ 
+ var dclcontext ir.Class // PEXTERN/PAUTO
+ 
+-var Curfn ir.Node
++var Curfn *ir.Func
+ 
+ var Widthptr int
+ 
+@@ -156,7 +156,7 @@ var instrumenting bool
+ // Whether we are tracking lexical scopes for DWARF.
+ var trackScopes bool
+ 
+-var nodfp ir.Node
++var nodfp *ir.Name
+ 
+ var autogeneratedPos src.XPos
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 950033a8a3..79ca669dfb 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -47,7 +47,7 @@ type Progs struct {
+ 	next      *obj.Prog  // next Prog
+ 	pc        int64      // virtual PC; count of Progs
+ 	pos       src.XPos   // position to use for new Progs
+-	curfn     ir.Node    // fn these Progs are for
++	curfn     *ir.Func   // fn these Progs are for
+ 	progcache []obj.Prog // local progcache
+ 	cacheidx  int        // first free element of progcache
+ 
+@@ -57,7 +57,7 @@ type Progs struct {
+ 
+ // newProgs returns a new Progs for fn.
+ // worker indicates which of the backend workers will use the Progs.
+-func newProgs(fn ir.Node, worker int) *Progs {
++func newProgs(fn *ir.Func, worker int) *Progs {
+ 	pp := new(Progs)
+ 	if base.Ctxt.CanReuseProgs() {
+ 		sz := len(sharedProgArray) / base.Flag.LowerC
+@@ -174,17 +174,17 @@ func (pp *Progs) Appendpp(p *obj.Prog, as obj.As, ftype obj.AddrType, freg int16
+ 	return q
+ }
+ 
+-func (pp *Progs) settext(fn ir.Node) {
++func (pp *Progs) settext(fn *ir.Func) {
+ 	if pp.Text != nil {
+ 		base.Fatalf("Progs.settext called twice")
+ 	}
+ 	ptxt := pp.Prog(obj.ATEXT)
+ 	pp.Text = ptxt
+ 
+-	fn.Func().LSym.Func().Text = ptxt
++	fn.LSym.Func().Text = ptxt
+ 	ptxt.From.Type = obj.TYPE_MEM
+ 	ptxt.From.Name = obj.NAME_EXTERN
+-	ptxt.From.Sym = fn.Func().LSym
++	ptxt.From.Sym = fn.LSym
+ }
+ 
+ // initLSym defines f's obj.LSym and initializes it based on the
+@@ -281,7 +281,7 @@ func initLSym(f *ir.Func, hasBody bool) {
+ 	// See test/recover.go for test cases and src/reflect/value.go
+ 	// for the actual functions being considered.
+ 	if base.Ctxt.Pkgpath == "reflect" {
+-		switch f.Nname.Sym().Name {
++		switch f.Sym().Name {
+ 		case "callReflect", "callMethod":
+ 			flag |= obj.WRAPPER
+ 		}
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 88d3a6477c..3f5ec2e4dd 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -429,6 +429,7 @@ func (p *iexporter) doDecl(n ir.Node) {
+ 
+ 	switch n.Op() {
+ 	case ir.ONAME:
++		n := n.(*ir.Name)
+ 		switch n.Class() {
+ 		case ir.PEXTERN:
+ 			// Variable.
+@@ -515,7 +516,7 @@ func (w *exportWriter) tag(tag byte) {
+ 	w.data.WriteByte(tag)
+ }
+ 
+-func (p *iexporter) doInline(f ir.Node) {
++func (p *iexporter) doInline(f *ir.Name) {
+ 	w := p.newWriter()
+ 	w.setPkg(fnpkg(f), false)
+ 
+@@ -960,7 +961,7 @@ func (w *exportWriter) varExt(n ir.Node) {
+ 	w.symIdx(n.Sym())
+ }
+ 
+-func (w *exportWriter) funcExt(n ir.Node) {
++func (w *exportWriter) funcExt(n *ir.Name) {
+ 	w.linkname(n.Sym())
+ 	w.symIdx(n.Sym())
+ 
+@@ -979,14 +980,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
+ 		}
+ 
+ 		// Endlineno for inlined function.
+-		if n.Name().Defn != nil {
+-			w.pos(n.Name().Defn.Func().Endlineno)
+-		} else {
+-			// When the exported node was defined externally,
+-			// e.g. io exports atomic.(*Value).Load or bytes exports errors.New.
+-			// Keep it as we don't distinguish this case in iimport.go.
+-			w.pos(n.Func().Endlineno)
+-		}
++		w.pos(n.Func().Endlineno)
+ 	} else {
+ 		w.uint64(0)
+ 	}
+@@ -994,7 +988,7 @@ func (w *exportWriter) funcExt(n ir.Node) {
+ 
+ func (w *exportWriter) methExt(m *types.Field) {
+ 	w.bool(m.Nointerface())
+-	w.funcExt(ir.AsNode(m.Nname))
++	w.funcExt(ir.AsNode(m.Nname).(*ir.Name))
+ }
+ 
+ func (w *exportWriter) linkname(s *types.Sym) {
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 066d956b93..5a50682ab2 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -41,7 +41,7 @@ var (
+ 	inlineImporter = map[*types.Sym]iimporterAndOffset{}
+ )
+ 
+-func expandDecl(n ir.Node) {
++func expandDecl(n *ir.Name) {
+ 	if n.Op() != ir.ONONAME {
+ 		return
+ 	}
+@@ -55,12 +55,12 @@ func expandDecl(n ir.Node) {
+ 	r.doDecl(n)
+ }
+ 
+-func expandInline(fn ir.Node) {
+-	if fn.Func().Inl.Body != nil {
++func expandInline(fn *ir.Func) {
++	if fn.Inl.Body != nil {
+ 		return
+ 	}
+ 
+-	r := importReaderFor(fn, inlineImporter)
++	r := importReaderFor(fn.Nname, inlineImporter)
+ 	if r == nil {
+ 		base.Fatalf("missing import reader for %v", fn)
+ 	}
+@@ -68,7 +68,7 @@ func expandInline(fn ir.Node) {
+ 	r.doInline(fn)
+ }
+ 
+-func importReaderFor(n ir.Node, importers map[*types.Sym]iimporterAndOffset) *importReader {
++func importReaderFor(n *ir.Name, importers map[*types.Sym]iimporterAndOffset) *importReader {
+ 	x, ok := importers[n.Sym()]
+ 	if !ok {
+ 		return nil
+@@ -331,7 +331,9 @@ func (r *importReader) doDecl(n ir.Node) {
+ 			recv := r.param()
+ 			mtyp := r.signature(recv)
+ 
+-			m := newfuncnamel(mpos, methodSym(recv.Type, msym), new(ir.Func))
++			fn := ir.NewFunc(mpos)
++			fn.SetType(mtyp)
++			m := newFuncNameAt(mpos, methodSym(recv.Type, msym), fn)
+ 			m.SetType(mtyp)
+ 			m.SetClass(ir.PFUNC)
+ 			// methodSym already marked m.Sym as a function.
+@@ -501,7 +503,7 @@ func (r *importReader) typ1() *types.Type {
+ 		// type.
+ 		n := ir.AsNode(r.qualifiedIdent().PkgDef())
+ 		if n.Op() == ir.ONONAME {
+-			expandDecl(n)
++			expandDecl(n.(*ir.Name))
+ 		}
+ 		if n.Op() != ir.OTYPE {
+ 			base.Fatalf("expected OTYPE, got %v: %v, %v", n.Op(), n.Sym(), n)
+@@ -695,12 +697,12 @@ func (r *importReader) typeExt(t *types.Type) {
+ // so we can use index to reference the symbol.
+ var typeSymIdx = make(map[*types.Type][2]int64)
+ 
+-func (r *importReader) doInline(n ir.Node) {
+-	if len(n.Func().Inl.Body) != 0 {
+-		base.Fatalf("%v already has inline body", n)
++func (r *importReader) doInline(fn *ir.Func) {
++	if len(fn.Inl.Body) != 0 {
++		base.Fatalf("%v already has inline body", fn)
+ 	}
+ 
+-	funchdr(n)
++	funchdr(fn)
+ 	body := r.stmtList()
+ 	funcbody()
+ 	if body == nil {
+@@ -712,15 +714,15 @@ func (r *importReader) doInline(n ir.Node) {
+ 		// functions).
+ 		body = []ir.Node{}
+ 	}
+-	n.Func().Inl.Body = body
++	fn.Inl.Body = body
+ 
+-	importlist = append(importlist, n)
++	importlist = append(importlist, fn)
+ 
+ 	if base.Flag.E > 0 && base.Flag.LowerM > 2 {
+ 		if base.Flag.LowerM > 3 {
+-			fmt.Printf("inl body for %v %#v: %+v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
++			fmt.Printf("inl body for %v %#v: %+v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 		} else {
+-			fmt.Printf("inl body for %v %#v: %v\n", n, n.Type(), ir.AsNodes(n.Func().Inl.Body))
++			fmt.Printf("inl body for %v %#v: %v\n", fn, fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 		}
+ 	}
+ }
+@@ -772,7 +774,7 @@ func (r *importReader) caseList(sw ir.Node) []ir.Node {
+ 			caseVar := ir.NewNameAt(cas.Pos(), r.ident())
+ 			declare(caseVar, dclcontext)
+ 			cas.PtrRlist().Set1(caseVar)
+-			caseVar.Name().Defn = sw.Left()
++			caseVar.Defn = sw.Left()
+ 		}
+ 		cas.PtrBody().Set(r.stmtList())
+ 		cases[i] = cas
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 2b7ecd1d05..7f2a39ff46 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -19,7 +19,7 @@ var renameinitgen int
+ 
+ // Function collecting autotmps generated during typechecking,
+ // to be included in the package-level init function.
+-var initTodo = ir.Nod(ir.ODCLFUNC, nil, nil)
++var initTodo = ir.NewFunc(base.Pos)
+ 
+ func renameinit() *types.Sym {
+ 	s := lookupN("init.", renameinitgen)
+@@ -49,23 +49,23 @@ func fninit(n []ir.Node) {
+ 		base.Pos = nf[0].Pos() // prolog/epilog gets line number of first init stmt
+ 		initializers := lookup("init")
+ 		fn := dclfunc(initializers, ir.Nod(ir.OTFUNC, nil, nil))
+-		for _, dcl := range initTodo.Func().Dcl {
++		for _, dcl := range initTodo.Dcl {
+ 			dcl.Name().Curfn = fn
+ 		}
+-		fn.Func().Dcl = append(fn.Func().Dcl, initTodo.Func().Dcl...)
+-		initTodo.Func().Dcl = nil
++		fn.Dcl = append(fn.Dcl, initTodo.Dcl...)
++		initTodo.Dcl = nil
+ 
+ 		fn.PtrBody().Set(nf)
+ 		funcbody()
+ 
+-		fn = typecheck(fn, ctxStmt)
++		typecheckFunc(fn)
+ 		Curfn = fn
+ 		typecheckslice(nf, ctxStmt)
+ 		Curfn = nil
+ 		xtop = append(xtop, fn)
+ 		fns = append(fns, initializers.Linksym())
+ 	}
+-	if initTodo.Func().Dcl != nil {
++	if initTodo.Dcl != nil {
+ 		// We only generate temps using initTodo if there
+ 		// are package-scope initialization statements, so
+ 		// something's weird if we get here.
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+index 1003f131b8..ea3d74d5ba 100644
+--- a/src/cmd/compile/internal/gc/initorder.go
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -284,11 +284,11 @@ func (d *initDeps) visit(n ir.Node) bool {
+ 	case ir.ONAME:
+ 		switch n.Class() {
+ 		case ir.PEXTERN, ir.PFUNC:
+-			d.foundDep(n)
++			d.foundDep(n.(*ir.Name))
+ 		}
+ 
+ 	case ir.OCLOSURE:
+-		d.inspectList(n.Func().Decl.Body())
++		d.inspectList(n.Func().Body())
+ 
+ 	case ir.ODOTMETH, ir.OCALLPART:
+ 		d.foundDep(methodExprName(n))
+@@ -299,7 +299,7 @@ func (d *initDeps) visit(n ir.Node) bool {
+ 
+ // foundDep records that we've found a dependency on n by adding it to
+ // seen.
+-func (d *initDeps) foundDep(n ir.Node) {
++func (d *initDeps) foundDep(n *ir.Name) {
+ 	// Can happen with method expressions involving interface
+ 	// types; e.g., fixedbugs/issue4495.go.
+ 	if n == nil {
+@@ -308,7 +308,7 @@ func (d *initDeps) foundDep(n ir.Node) {
+ 
+ 	// Names without definitions aren't interesting as far as
+ 	// initialization ordering goes.
+-	if n.Name().Defn == nil {
++	if n.Defn == nil {
+ 		return
+ 	}
+ 
+@@ -317,7 +317,7 @@ func (d *initDeps) foundDep(n ir.Node) {
+ 	}
+ 	d.seen.Add(n)
+ 	if d.transitive && n.Class() == ir.PFUNC {
+-		d.inspectList(n.Name().Defn.Body())
++		d.inspectList(n.Defn.Body())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 102144aedf..20f145b8eb 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -53,7 +53,7 @@ const (
+ 
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+ // the ->sym can be re-used in the local package, so peel it off the receiver's type.
+-func fnpkg(fn ir.Node) *types.Pkg {
++func fnpkg(fn *ir.Name) *types.Pkg {
+ 	if ir.IsMethod(fn) {
+ 		// method
+ 		rcvr := fn.Type().Recv().Type
+@@ -73,8 +73,8 @@ func fnpkg(fn ir.Node) *types.Pkg {
+ 
+ // Lazy typechecking of imported bodies. For local functions, caninl will set ->typecheck
+ // because they're a copy of an already checked body.
+-func typecheckinl(fn ir.Node) {
+-	lno := setlineno(fn)
++func typecheckinl(fn *ir.Func) {
++	lno := setlineno(fn.Nname)
+ 
+ 	expandInline(fn)
+ 
+@@ -82,19 +82,19 @@ func typecheckinl(fn ir.Node) {
+ 	// their bodies may refer to unsafe as long as the package
+ 	// was marked safe during import (which was checked then).
+ 	// the ->inl of a local function has been typechecked before caninl copied it.
+-	pkg := fnpkg(fn)
++	pkg := fnpkg(fn.Nname)
+ 
+ 	if pkg == ir.LocalPkg || pkg == nil {
+ 		return // typecheckinl on local function
+ 	}
+ 
+ 	if base.Flag.LowerM > 2 || base.Debug.Export != 0 {
+-		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym(), fn, ir.AsNodes(fn.Func().Inl.Body))
++		fmt.Printf("typecheck import [%v] %L { %#v }\n", fn.Sym(), fn, ir.AsNodes(fn.Inl.Body))
+ 	}
+ 
+ 	savefn := Curfn
+ 	Curfn = fn
+-	typecheckslice(fn.Func().Inl.Body, ctxStmt)
++	typecheckslice(fn.Inl.Body, ctxStmt)
+ 	Curfn = savefn
+ 
+ 	// During expandInline (which imports fn.Func.Inl.Body),
+@@ -102,8 +102,8 @@ func typecheckinl(fn ir.Node) {
+ 	// to fn.Func.Inl.Dcl for consistency with how local functions
+ 	// behave. (Append because typecheckinl may be called multiple
+ 	// times.)
+-	fn.Func().Inl.Dcl = append(fn.Func().Inl.Dcl, fn.Func().Dcl...)
+-	fn.Func().Dcl = nil
++	fn.Inl.Dcl = append(fn.Inl.Dcl, fn.Dcl...)
++	fn.Dcl = nil
+ 
+ 	base.Pos = lno
+ }
+@@ -111,11 +111,8 @@ func typecheckinl(fn ir.Node) {
+ // Caninl determines whether fn is inlineable.
+ // If so, caninl saves fn->nbody in fn->inl and substitutes it with a copy.
+ // fn and ->nbody will already have been typechecked.
+-func caninl(fn ir.Node) {
+-	if fn.Op() != ir.ODCLFUNC {
+-		base.Fatalf("caninl %v", fn)
+-	}
+-	if fn.Func().Nname == nil {
++func caninl(fn *ir.Func) {
++	if fn.Nname == nil {
+ 		base.Fatalf("caninl no nname %+v", fn)
+ 	}
+ 
+@@ -124,7 +121,7 @@ func caninl(fn ir.Node) {
+ 		defer func() {
+ 			if reason != "" {
+ 				if base.Flag.LowerM > 1 {
+-					fmt.Printf("%v: cannot inline %v: %s\n", ir.Line(fn), fn.Func().Nname, reason)
++					fmt.Printf("%v: cannot inline %v: %s\n", ir.Line(fn), fn.Nname, reason)
+ 				}
+ 				if logopt.Enabled() {
+ 					logopt.LogOpt(fn.Pos(), "cannotInlineFunction", "inline", ir.FuncName(fn), reason)
+@@ -134,33 +131,33 @@ func caninl(fn ir.Node) {
+ 	}
+ 
+ 	// If marked "go:noinline", don't inline
+-	if fn.Func().Pragma&ir.Noinline != 0 {
++	if fn.Pragma&ir.Noinline != 0 {
+ 		reason = "marked go:noinline"
+ 		return
+ 	}
+ 
+ 	// If marked "go:norace" and -race compilation, don't inline.
+-	if base.Flag.Race && fn.Func().Pragma&ir.Norace != 0 {
++	if base.Flag.Race && fn.Pragma&ir.Norace != 0 {
+ 		reason = "marked go:norace with -race compilation"
+ 		return
+ 	}
+ 
+ 	// If marked "go:nocheckptr" and -d checkptr compilation, don't inline.
+-	if base.Debug.Checkptr != 0 && fn.Func().Pragma&ir.NoCheckPtr != 0 {
++	if base.Debug.Checkptr != 0 && fn.Pragma&ir.NoCheckPtr != 0 {
+ 		reason = "marked go:nocheckptr"
+ 		return
+ 	}
+ 
+ 	// If marked "go:cgo_unsafe_args", don't inline, since the
+ 	// function makes assumptions about its argument frame layout.
+-	if fn.Func().Pragma&ir.CgoUnsafeArgs != 0 {
++	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+ 		reason = "marked go:cgo_unsafe_args"
+ 		return
+ 	}
+ 
+ 	// If marked as "go:uintptrescapes", don't inline, since the
+ 	// escape information is lost during inlining.
+-	if fn.Func().Pragma&ir.UintptrEscapes != 0 {
++	if fn.Pragma&ir.UintptrEscapes != 0 {
+ 		reason = "marked as having an escaping uintptr argument"
+ 		return
+ 	}
+@@ -169,7 +166,7 @@ func caninl(fn ir.Node) {
+ 	// granularity, so inlining yeswritebarrierrec functions can
+ 	// confuse it (#22342). As a workaround, disallow inlining
+ 	// them for now.
+-	if fn.Func().Pragma&ir.Yeswritebarrierrec != 0 {
++	if fn.Pragma&ir.Yeswritebarrierrec != 0 {
+ 		reason = "marked go:yeswritebarrierrec"
+ 		return
+ 	}
+@@ -184,7 +181,7 @@ func caninl(fn ir.Node) {
+ 		base.Fatalf("caninl on non-typechecked function %v", fn)
+ 	}
+ 
+-	n := fn.Func().Nname
++	n := fn.Nname
+ 	if n.Func().InlinabilityChecked() {
+ 		return
+ 	}
+@@ -220,7 +217,7 @@ func caninl(fn ir.Node) {
+ 
+ 	n.Func().Inl = &ir.Inline{
+ 		Cost: inlineMaxBudget - visitor.budget,
+-		Dcl:  inlcopylist(pruneUnusedAutos(n.Name().Defn.Func().Dcl, &visitor)),
++		Dcl:  pruneUnusedAutos(n.Defn.Func().Dcl, &visitor),
+ 		Body: inlcopylist(fn.Body().Slice()),
+ 	}
+ 
+@@ -236,36 +233,38 @@ func caninl(fn ir.Node) {
+ 
+ // inlFlood marks n's inline body for export and recursively ensures
+ // all called functions are marked too.
+-func inlFlood(n ir.Node) {
++func inlFlood(n *ir.Name) {
+ 	if n == nil {
+ 		return
+ 	}
+ 	if n.Op() != ir.ONAME || n.Class() != ir.PFUNC {
+ 		base.Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op(), n.Class())
+ 	}
+-	if n.Func() == nil {
++	fn := n.Func()
++	if fn == nil {
+ 		base.Fatalf("inlFlood: missing Func on %v", n)
+ 	}
+-	if n.Func().Inl == nil {
++	if fn.Inl == nil {
+ 		return
+ 	}
+ 
+-	if n.Func().ExportInline() {
++	if fn.ExportInline() {
+ 		return
+ 	}
+-	n.Func().SetExportInline(true)
++	fn.SetExportInline(true)
+ 
+-	typecheckinl(n)
++	typecheckinl(fn)
+ 
+ 	// Recursively identify all referenced functions for
+ 	// reexport. We want to include even non-called functions,
+ 	// because after inlining they might be callable.
+-	ir.InspectList(ir.AsNodes(n.Func().Inl.Body), func(n ir.Node) bool {
++	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+ 		switch n.Op() {
+-		case ir.OMETHEXPR:
++		case ir.OMETHEXPR, ir.ODOTMETH:
+ 			inlFlood(methodExprName(n))
+ 
+ 		case ir.ONAME:
++			n := n.(*ir.Name)
+ 			switch n.Class() {
+ 			case ir.PFUNC:
+ 				inlFlood(n)
+@@ -274,10 +273,6 @@ func inlFlood(n ir.Node) {
+ 				exportsym(n)
+ 			}
+ 
+-		case ir.ODOTMETH:
+-			fn := methodExprName(n)
+-			inlFlood(fn)
+-
+ 		case ir.OCALLPART:
+ 			// Okay, because we don't yet inline indirect
+ 			// calls to method values.
+@@ -342,8 +337,8 @@ func (v *hairyVisitor) visit(n ir.Node) bool {
+ 			break
+ 		}
+ 
+-		if fn := inlCallee(n.Left()); fn != nil && fn.Func().Inl != nil {
+-			v.budget -= fn.Func().Inl.Cost
++		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
++			v.budget -= fn.Inl.Cost
+ 			break
+ 		}
+ 
+@@ -503,7 +498,7 @@ func countNodes(n ir.Node) int {
+ 
+ // Inlcalls/nodelist/node walks fn's statements and expressions and substitutes any
+ // calls made to inlineable functions. This is the external entry point.
+-func inlcalls(fn ir.Node) {
++func inlcalls(fn *ir.Func) {
+ 	savefn := Curfn
+ 	Curfn = fn
+ 	maxCost := int32(inlineMaxBudget)
+@@ -516,8 +511,8 @@ func inlcalls(fn ir.Node) {
+ 	// but allow inlining if there is a recursion cycle of many functions.
+ 	// Most likely, the inlining will stop before we even hit the beginning of
+ 	// the cycle again, but the map catches the unusual case.
+-	inlMap := make(map[ir.Node]bool)
+-	fn = inlnode(fn, maxCost, inlMap)
++	inlMap := make(map[*ir.Func]bool)
++	fn = inlnode(fn, maxCost, inlMap).(*ir.Func)
+ 	if fn != Curfn {
+ 		base.Fatalf("inlnode replaced curfn")
+ 	}
+@@ -558,7 +553,7 @@ func inlconv2list(n ir.Node) []ir.Node {
+ 	return s
+ }
+ 
+-func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[ir.Node]bool) {
++func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[*ir.Func]bool) {
+ 	s := l.Slice()
+ 	for i := range s {
+ 		s[i] = inlnode(s[i], maxCost, inlMap)
+@@ -578,7 +573,7 @@ func inlnodelist(l ir.Nodes, maxCost int32, inlMap map[ir.Node]bool) {
+ // shorter and less complicated.
+ // The result of inlnode MUST be assigned back to n, e.g.
+ // 	n.Left = inlnode(n.Left)
+-func inlnode(n ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
++func inlnode(n ir.Node, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
+ 	if n == nil {
+ 		return n
+ 	}
+@@ -684,7 +679,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 		if isIntrinsicCall(n) {
+ 			break
+ 		}
+-		if fn := inlCallee(n.Left()); fn != nil && fn.Func().Inl != nil {
++		if fn := inlCallee(n.Left()); fn != nil && fn.Inl != nil {
+ 			n = mkinlcall(n, fn, maxCost, inlMap)
+ 		}
+ 
+@@ -698,7 +693,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 			base.Fatalf("no function type for [%p] %+v\n", n.Left(), n.Left())
+ 		}
+ 
+-		n = mkinlcall(n, methodExprName(n.Left()), maxCost, inlMap)
++		n = mkinlcall(n, methodExprName(n.Left()).Func(), maxCost, inlMap)
+ 	}
+ 
+ 	base.Pos = lno
+@@ -707,7 +702,7 @@ func inlnode(n ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 
+ // inlCallee takes a function-typed expression and returns the underlying function ONAME
+ // that it refers to if statically known. Otherwise, it returns nil.
+-func inlCallee(fn ir.Node) ir.Node {
++func inlCallee(fn ir.Node) *ir.Func {
+ 	fn = staticValue(fn)
+ 	switch {
+ 	case fn.Op() == ir.OMETHEXPR:
+@@ -718,13 +713,13 @@ func inlCallee(fn ir.Node) ir.Node {
+ 		if n == nil || !types.Identical(n.Type().Recv().Type, fn.Left().Type()) {
+ 			return nil
+ 		}
+-		return n
++		return n.Func()
+ 	case fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC:
+-		return fn
++		return fn.Func()
+ 	case fn.Op() == ir.OCLOSURE:
+-		c := fn.Func().Decl
++		c := fn.Func()
+ 		caninl(c)
+-		return c.Func().Nname
++		return c
+ 	}
+ 	return nil
+ }
+@@ -777,7 +772,7 @@ FindRHS:
+ 		base.Fatalf("RHS is nil: %v", defn)
+ 	}
+ 
+-	unsafe, _ := reassigned(n)
++	unsafe, _ := reassigned(n.(*ir.Name))
+ 	if unsafe {
+ 		return nil
+ 	}
+@@ -791,23 +786,15 @@ FindRHS:
+ // useful for -m output documenting the reason for inhibited optimizations.
+ // NB: global variables are always considered to be re-assigned.
+ // TODO: handle initial declaration not including an assignment and followed by a single assignment?
+-func reassigned(n ir.Node) (bool, ir.Node) {
++func reassigned(n *ir.Name) (bool, ir.Node) {
+ 	if n.Op() != ir.ONAME {
+ 		base.Fatalf("reassigned %v", n)
+ 	}
+ 	// no way to reliably check for no-reassignment of globals, assume it can be
+-	if n.Name().Curfn == nil {
++	if n.Curfn == nil {
+ 		return true, nil
+ 	}
+-	f := n.Name().Curfn
+-	// There just might be a good reason for this although this can be pretty surprising:
+-	// local variables inside a closure have Curfn pointing to the OCLOSURE node instead
+-	// of the corresponding ODCLFUNC.
+-	// We need to walk the function body to check for reassignments so we follow the
+-	// linkage to the ODCLFUNC node as that is where body is held.
+-	if f.Op() == ir.OCLOSURE {
+-		f = f.Func().Decl
+-	}
++	f := n.Curfn
+ 	v := reassignVisitor{name: n}
+ 	a := v.visitList(f.Body())
+ 	return a != nil, a
+@@ -863,13 +850,13 @@ func (v *reassignVisitor) visitList(l ir.Nodes) ir.Node {
+ 	return nil
+ }
+ 
+-func inlParam(t *types.Field, as ir.Node, inlvars map[ir.Node]ir.Node) ir.Node {
++func inlParam(t *types.Field, as ir.Node, inlvars map[*ir.Name]ir.Node) ir.Node {
+ 	n := ir.AsNode(t.Nname)
+ 	if n == nil || ir.IsBlank(n) {
+ 		return ir.BlankNode
+ 	}
+ 
+-	inlvar := inlvars[n]
++	inlvar := inlvars[n.(*ir.Name)]
+ 	if inlvar == nil {
+ 		base.Fatalf("missing inlvar for %v", n)
+ 	}
+@@ -887,25 +874,25 @@ var inlgen int
+ // parameters.
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ // 	n.Left = mkinlcall(n.Left, fn, isddd)
+-func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+-	if fn.Func().Inl == nil {
++func mkinlcall(n ir.Node, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]bool) ir.Node {
++	if fn.Inl == nil {
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(Curfn),
+ 				fmt.Sprintf("%s cannot be inlined", ir.PkgFuncName(fn)))
+ 		}
+ 		return n
+ 	}
+-	if fn.Func().Inl.Cost > maxCost {
++	if fn.Inl.Cost > maxCost {
+ 		// The inlined function body is too big. Typically we use this check to restrict
+ 		// inlining into very big functions.  See issue 26546 and 17566.
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(Curfn),
+-				fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Func().Inl.Cost, ir.PkgFuncName(fn), maxCost))
++				fmt.Sprintf("cost %d of %s exceeds max large caller cost %d", fn.Inl.Cost, ir.PkgFuncName(fn), maxCost))
+ 		}
+ 		return n
+ 	}
+ 
+-	if fn == Curfn || fn.Name().Defn == Curfn {
++	if fn == Curfn {
+ 		// Can't recursively inline a function into itself.
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(Curfn)))
+@@ -939,7 +926,7 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 
+ 	// We have a function node, and it has an inlineable body.
+ 	if base.Flag.LowerM > 1 {
+-		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Func().Inl.Body))
++		fmt.Printf("%v: inlining call to %v %#v { %#v }\n", ir.Line(n), fn.Sym(), fn.Type(), ir.AsNodes(fn.Inl.Body))
+ 	} else if base.Flag.LowerM != 0 {
+ 		fmt.Printf("%v: inlining call to %v\n", ir.Line(n), fn)
+ 	}
+@@ -969,50 +956,48 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 	}
+ 
+ 	// Make temp names to use instead of the originals.
+-	inlvars := make(map[ir.Node]ir.Node)
++	inlvars := make(map[*ir.Name]ir.Node)
+ 
+ 	// record formals/locals for later post-processing
+ 	var inlfvars []ir.Node
+ 
+ 	// Handle captured variables when inlining closures.
+-	if fn.Name().Defn != nil {
+-		if c := fn.Name().Defn.Func().OClosure; c != nil {
+-			for _, v := range c.Func().ClosureVars.Slice() {
+-				if v.Op() == ir.OXXX {
+-					continue
+-				}
++	if c := fn.OClosure; c != nil {
++		for _, v := range c.Func().ClosureVars {
++			if v.Op() == ir.OXXX {
++				continue
++			}
+ 
+-				o := v.Name().Outer
+-				// make sure the outer param matches the inlining location
+-				// NB: if we enabled inlining of functions containing OCLOSURE or refined
+-				// the reassigned check via some sort of copy propagation this would most
+-				// likely need to be changed to a loop to walk up to the correct Param
+-				if o == nil || (o.Name().Curfn != Curfn && o.Name().Curfn.Func().OClosure != Curfn) {
+-					base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
+-				}
++			o := v.Outer
++			// make sure the outer param matches the inlining location
++			// NB: if we enabled inlining of functions containing OCLOSURE or refined
++			// the reassigned check via some sort of copy propagation this would most
++			// likely need to be changed to a loop to walk up to the correct Param
++			if o == nil || (o.Curfn != Curfn && o.Curfn.OClosure != Curfn) {
++				base.Fatalf("%v: unresolvable capture %v %v\n", ir.Line(n), fn, v)
++			}
+ 
+-				if v.Name().Byval() {
+-					iv := typecheck(inlvar(v), ctxExpr)
+-					ninit.Append(ir.Nod(ir.ODCL, iv, nil))
+-					ninit.Append(typecheck(ir.Nod(ir.OAS, iv, o), ctxStmt))
+-					inlvars[v] = iv
+-				} else {
+-					addr := NewName(lookup("&" + v.Sym().Name))
+-					addr.SetType(types.NewPtr(v.Type()))
+-					ia := typecheck(inlvar(addr), ctxExpr)
+-					ninit.Append(ir.Nod(ir.ODCL, ia, nil))
+-					ninit.Append(typecheck(ir.Nod(ir.OAS, ia, ir.Nod(ir.OADDR, o, nil)), ctxStmt))
+-					inlvars[addr] = ia
+-
+-					// When capturing by reference, all occurrence of the captured var
+-					// must be substituted with dereference of the temporary address
+-					inlvars[v] = typecheck(ir.Nod(ir.ODEREF, ia, nil), ctxExpr)
+-				}
++			if v.Byval() {
++				iv := typecheck(inlvar(v), ctxExpr)
++				ninit.Append(ir.Nod(ir.ODCL, iv, nil))
++				ninit.Append(typecheck(ir.Nod(ir.OAS, iv, o), ctxStmt))
++				inlvars[v] = iv
++			} else {
++				addr := NewName(lookup("&" + v.Sym().Name))
++				addr.SetType(types.NewPtr(v.Type()))
++				ia := typecheck(inlvar(addr), ctxExpr)
++				ninit.Append(ir.Nod(ir.ODCL, ia, nil))
++				ninit.Append(typecheck(ir.Nod(ir.OAS, ia, ir.Nod(ir.OADDR, o, nil)), ctxStmt))
++				inlvars[addr] = ia
++
++				// When capturing by reference, all occurrence of the captured var
++				// must be substituted with dereference of the temporary address
++				inlvars[v] = typecheck(ir.Nod(ir.ODEREF, ia, nil), ctxExpr)
+ 			}
+ 		}
+ 	}
+ 
+-	for _, ln := range fn.Func().Inl.Dcl {
++	for _, ln := range fn.Inl.Dcl {
+ 		if ln.Op() != ir.ONAME {
+ 			continue
+ 		}
+@@ -1040,7 +1025,7 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 	}
+ 
+ 	nreturns := 0
+-	ir.InspectList(ir.AsNodes(fn.Func().Inl.Body), func(n ir.Node) bool {
++	ir.InspectList(ir.AsNodes(fn.Inl.Body), func(n ir.Node) bool {
+ 		if n != nil && n.Op() == ir.ORETURN {
+ 			nreturns++
+ 		}
+@@ -1057,6 +1042,7 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 	for i, t := range fn.Type().Results().Fields().Slice() {
+ 		var m ir.Node
+ 		if n := ir.AsNode(t.Nname); n != nil && !ir.IsBlank(n) && !strings.HasPrefix(n.Sym().Name, "~r") {
++			n := n.(*ir.Name)
+ 			m = inlvar(n)
+ 			m = typecheck(m, ctxExpr)
+ 			inlvars[n] = m
+@@ -1155,7 +1141,9 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 	if b := base.Ctxt.PosTable.Pos(n.Pos()).Base(); b != nil {
+ 		parent = b.InliningIndex()
+ 	}
+-	newIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), fn.Sym().Linksym())
++
++	sym := fn.Sym().Linksym()
++	newIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
+ 
+ 	// Add an inline mark just before the inlined body.
+ 	// This mark is inline in the code so that it's a reasonable spot
+@@ -1168,9 +1156,9 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 	ninit.Append(inlMark)
+ 
+ 	if base.Flag.GenDwarfInl > 0 {
+-		if !fn.Sym().Linksym().WasInlined() {
+-			base.Ctxt.DwFixups.SetPrecursorFunc(fn.Sym().Linksym(), fn)
+-			fn.Sym().Linksym().Set(obj.AttrWasInlined, true)
++		if !sym.WasInlined() {
++			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
++			sym.Set(obj.AttrWasInlined, true)
+ 		}
+ 	}
+ 
+@@ -1183,7 +1171,7 @@ func mkinlcall(n, fn ir.Node, maxCost int32, inlMap map[ir.Node]bool) ir.Node {
+ 		newInlIndex:  newIndex,
+ 	}
+ 
+-	body := subst.list(ir.AsNodes(fn.Func().Inl.Body))
++	body := subst.list(ir.AsNodes(fn.Inl.Body))
+ 
+ 	lab := nodSym(ir.OLABEL, nil, retlabel)
+ 	body = append(body, lab)
+@@ -1236,11 +1224,11 @@ func inlvar(var_ ir.Node) ir.Node {
+ 	n := NewName(var_.Sym())
+ 	n.SetType(var_.Type())
+ 	n.SetClass(ir.PAUTO)
+-	n.Name().SetUsed(true)
+-	n.Name().Curfn = Curfn // the calling function, not the called one
+-	n.Name().SetAddrtaken(var_.Name().Addrtaken())
++	n.SetUsed(true)
++	n.Curfn = Curfn // the calling function, not the called one
++	n.SetAddrtaken(var_.Name().Addrtaken())
+ 
+-	Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
++	Curfn.Dcl = append(Curfn.Dcl, n)
+ 	return n
+ }
+ 
+@@ -1249,9 +1237,9 @@ func retvar(t *types.Field, i int) ir.Node {
+ 	n := NewName(lookupN("~R", i))
+ 	n.SetType(t.Type)
+ 	n.SetClass(ir.PAUTO)
+-	n.Name().SetUsed(true)
+-	n.Name().Curfn = Curfn // the calling function, not the called one
+-	Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
++	n.SetUsed(true)
++	n.Curfn = Curfn // the calling function, not the called one
++	Curfn.Dcl = append(Curfn.Dcl, n)
+ 	return n
+ }
+ 
+@@ -1261,9 +1249,9 @@ func argvar(t *types.Type, i int) ir.Node {
+ 	n := NewName(lookupN("~arg", i))
+ 	n.SetType(t.Elem())
+ 	n.SetClass(ir.PAUTO)
+-	n.Name().SetUsed(true)
+-	n.Name().Curfn = Curfn // the calling function, not the called one
+-	Curfn.Func().Dcl = append(Curfn.Func().Dcl, n)
++	n.SetUsed(true)
++	n.Curfn = Curfn // the calling function, not the called one
++	Curfn.Dcl = append(Curfn.Dcl, n)
+ 	return n
+ }
+ 
+@@ -1280,7 +1268,7 @@ type inlsubst struct {
+ 	// "return" statement.
+ 	delayretvars bool
+ 
+-	inlvars map[ir.Node]ir.Node
++	inlvars map[*ir.Name]ir.Node
+ 
+ 	// bases maps from original PosBase to PosBase with an extra
+ 	// inlined call frame.
+@@ -1311,6 +1299,7 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ 
+ 	switch n.Op() {
+ 	case ir.ONAME:
++		n := n.(*ir.Name)
+ 		if inlvar := subst.inlvars[n]; inlvar != nil { // These will be set during inlnode
+ 			if base.Flag.LowerM > 2 {
+ 				fmt.Printf("substituting name %+v  ->  %+v\n", n, inlvar)
+@@ -1409,8 +1398,8 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+ 	return base.Ctxt.PosTable.XPos(pos)
+ }
+ 
+-func pruneUnusedAutos(ll []ir.Node, vis *hairyVisitor) []ir.Node {
+-	s := make([]ir.Node, 0, len(ll))
++func pruneUnusedAutos(ll []*ir.Name, vis *hairyVisitor) []*ir.Name {
++	s := make([]*ir.Name, 0, len(ll))
+ 	for _, n := range ll {
+ 		if n.Class() == ir.PAUTO {
+ 			if _, found := vis.usedLocals[n]; !found {
+@@ -1424,7 +1413,7 @@ func pruneUnusedAutos(ll []ir.Node, vis *hairyVisitor) []ir.Node {
+ 
+ // devirtualize replaces interface method calls within fn with direct
+ // concrete-type method calls where applicable.
+-func devirtualize(fn ir.Node) {
++func devirtualize(fn *ir.Func) {
+ 	Curfn = fn
+ 	ir.InspectList(fn.Body(), func(n ir.Node) bool {
+ 		if n.Op() == ir.OCALLINTER {
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 931626159d..7bad05265d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -277,7 +277,7 @@ func Main(archInit func(*Arch)) {
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+ 		if n.Op() == ir.ODCLFUNC {
+-			Curfn = n
++			Curfn = n.(*ir.Func)
+ 			decldepth = 1
+ 			errorsBefore := base.Errors()
+ 			typecheckslice(Curfn.Body().Slice(), ctxStmt)
+@@ -307,8 +307,8 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "capturevars")
+ 	for _, n := range xtop {
+ 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
+-			Curfn = n
+-			capturevars(n)
++			Curfn = n.(*ir.Func)
++			capturevars(Curfn)
+ 		}
+ 	}
+ 	capturevarscomplete = true
+@@ -321,7 +321,7 @@ func Main(archInit func(*Arch)) {
+ 		// Typecheck imported function bodies if Debug.l > 1,
+ 		// otherwise lazily when used or re-exported.
+ 		for _, n := range importlist {
+-			if n.Func().Inl != nil {
++			if n.Inl != nil {
+ 				typecheckinl(n)
+ 			}
+ 		}
+@@ -330,7 +330,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	if base.Flag.LowerL != 0 {
+ 		// Find functions that can be inlined and clone them before walk expands them.
+-		visitBottomUp(xtop, func(list []ir.Node, recursive bool) {
++		visitBottomUp(xtop, func(list []*ir.Func, recursive bool) {
+ 			numfns := numNonClosures(list)
+ 			for _, n := range list {
+ 				if !recursive || numfns > 1 {
+@@ -340,7 +340,7 @@ func Main(archInit func(*Arch)) {
+ 					caninl(n)
+ 				} else {
+ 					if base.Flag.LowerM > 1 {
+-						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Func().Nname)
++						fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(n), n.Nname)
+ 					}
+ 				}
+ 				inlcalls(n)
+@@ -350,7 +350,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	for _, n := range xtop {
+ 		if n.Op() == ir.ODCLFUNC {
+-			devirtualize(n)
++			devirtualize(n.(*ir.Func))
+ 		}
+ 	}
+ 	Curfn = nil
+@@ -380,8 +380,8 @@ func Main(archInit func(*Arch)) {
+ 	timings.Start("fe", "xclosures")
+ 	for _, n := range xtop {
+ 		if n.Op() == ir.ODCLFUNC && n.Func().OClosure != nil {
+-			Curfn = n
+-			transformclosure(n)
++			Curfn = n.(*ir.Func)
++			transformclosure(Curfn)
+ 		}
+ 	}
+ 
+@@ -403,7 +403,7 @@ func Main(archInit func(*Arch)) {
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+ 		if n.Op() == ir.ODCLFUNC {
+-			funccompile(n)
++			funccompile(n.(*ir.Func))
+ 			fcount++
+ 		}
+ 	}
+@@ -481,10 +481,10 @@ func Main(archInit func(*Arch)) {
+ }
+ 
+ // numNonClosures returns the number of functions in list which are not closures.
+-func numNonClosures(list []ir.Node) int {
++func numNonClosures(list []*ir.Func) int {
+ 	count := 0
+-	for _, n := range list {
+-		if n.Func().OClosure == nil {
++	for _, fn := range list {
++		if fn.OClosure == nil {
+ 			count++
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index cbe8a24051..8ae5874d3b 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -152,7 +152,7 @@ type noder struct {
+ 	lastCloseScopePos syntax.Pos
+ }
+ 
+-func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
++func (p *noder) funcBody(fn *ir.Func, block *syntax.BlockStmt) {
+ 	oldScope := p.scope
+ 	p.scope = 0
+ 	funchdr(fn)
+@@ -165,7 +165,7 @@ func (p *noder) funcBody(fn ir.Node, block *syntax.BlockStmt) {
+ 		fn.PtrBody().Set(body)
+ 
+ 		base.Pos = p.makeXPos(block.Rbrace)
+-		fn.Func().Endlineno = base.Pos
++		fn.Endlineno = base.Pos
+ 	}
+ 
+ 	funcbody()
+@@ -176,9 +176,9 @@ func (p *noder) openScope(pos syntax.Pos) {
+ 	types.Markdcl()
+ 
+ 	if trackScopes {
+-		Curfn.Func().Parents = append(Curfn.Func().Parents, p.scope)
+-		p.scopeVars = append(p.scopeVars, len(Curfn.Func().Dcl))
+-		p.scope = ir.ScopeID(len(Curfn.Func().Parents))
++		Curfn.Parents = append(Curfn.Parents, p.scope)
++		p.scopeVars = append(p.scopeVars, len(Curfn.Dcl))
++		p.scope = ir.ScopeID(len(Curfn.Parents))
+ 
+ 		p.markScope(pos)
+ 	}
+@@ -191,29 +191,29 @@ func (p *noder) closeScope(pos syntax.Pos) {
+ 	if trackScopes {
+ 		scopeVars := p.scopeVars[len(p.scopeVars)-1]
+ 		p.scopeVars = p.scopeVars[:len(p.scopeVars)-1]
+-		if scopeVars == len(Curfn.Func().Dcl) {
++		if scopeVars == len(Curfn.Dcl) {
+ 			// no variables were declared in this scope, so we can retract it.
+ 
+-			if int(p.scope) != len(Curfn.Func().Parents) {
++			if int(p.scope) != len(Curfn.Parents) {
+ 				base.Fatalf("scope tracking inconsistency, no variables declared but scopes were not retracted")
+ 			}
+ 
+-			p.scope = Curfn.Func().Parents[p.scope-1]
+-			Curfn.Func().Parents = Curfn.Func().Parents[:len(Curfn.Func().Parents)-1]
++			p.scope = Curfn.Parents[p.scope-1]
++			Curfn.Parents = Curfn.Parents[:len(Curfn.Parents)-1]
+ 
+-			nmarks := len(Curfn.Func().Marks)
+-			Curfn.Func().Marks[nmarks-1].Scope = p.scope
++			nmarks := len(Curfn.Marks)
++			Curfn.Marks[nmarks-1].Scope = p.scope
+ 			prevScope := ir.ScopeID(0)
+ 			if nmarks >= 2 {
+-				prevScope = Curfn.Func().Marks[nmarks-2].Scope
++				prevScope = Curfn.Marks[nmarks-2].Scope
+ 			}
+-			if Curfn.Func().Marks[nmarks-1].Scope == prevScope {
+-				Curfn.Func().Marks = Curfn.Func().Marks[:nmarks-1]
++			if Curfn.Marks[nmarks-1].Scope == prevScope {
++				Curfn.Marks = Curfn.Marks[:nmarks-1]
+ 			}
+ 			return
+ 		}
+ 
+-		p.scope = Curfn.Func().Parents[p.scope-1]
++		p.scope = Curfn.Parents[p.scope-1]
+ 
+ 		p.markScope(pos)
+ 	}
+@@ -221,10 +221,10 @@ func (p *noder) closeScope(pos syntax.Pos) {
+ 
+ func (p *noder) markScope(pos syntax.Pos) {
+ 	xpos := p.makeXPos(pos)
+-	if i := len(Curfn.Func().Marks); i > 0 && Curfn.Func().Marks[i-1].Pos == xpos {
+-		Curfn.Func().Marks[i-1].Scope = p.scope
++	if i := len(Curfn.Marks); i > 0 && Curfn.Marks[i-1].Pos == xpos {
++		Curfn.Marks[i-1].Scope = p.scope
+ 	} else {
+-		Curfn.Func().Marks = append(Curfn.Func().Marks, ir.Mark{Pos: xpos, Scope: p.scope})
++		Curfn.Marks = append(Curfn.Marks, ir.Mark{Pos: xpos, Scope: p.scope})
+ 	}
+ }
+ 
+@@ -444,6 +444,7 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 
+ 	nn := make([]ir.Node, 0, len(names))
+ 	for i, n := range names {
++		n := n.(*ir.Name)
+ 		if i >= len(values) {
+ 			base.Errorf("missing value in const declaration")
+ 			break
+@@ -456,8 +457,8 @@ func (p *noder) constDecl(decl *syntax.ConstDecl, cs *constState) []ir.Node {
+ 		n.SetOp(ir.OLITERAL)
+ 		declare(n, dclcontext)
+ 
+-		n.Name().Ntype = typ
+-		n.Name().Defn = v
++		n.Ntype = typ
++		n.Defn = v
+ 		n.SetIota(cs.iota)
+ 
+ 		nn = append(nn, p.nod(decl, ir.ODCLCONST, n, nil))
+@@ -514,7 +515,7 @@ func (p *noder) declName(name *syntax.Name) *ir.Name {
+ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 	name := p.name(fun.Name)
+ 	t := p.signature(fun.Recv, fun.Type)
+-	f := p.nod(fun, ir.ODCLFUNC, nil, nil)
++	f := ir.NewFunc(p.pos(fun))
+ 
+ 	if fun.Recv == nil {
+ 		if name.Name == "init" {
+@@ -530,16 +531,16 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 			}
+ 		}
+ 	} else {
+-		f.Func().Shortname = name
++		f.Shortname = name
+ 		name = ir.BlankNode.Sym() // filled in by typecheckfunc
+ 	}
+ 
+-	f.Func().Nname = newfuncnamel(p.pos(fun.Name), name, f.Func())
+-	f.Func().Nname.Name().Defn = f
+-	f.Func().Nname.Name().Ntype = t
++	f.Nname = newFuncNameAt(p.pos(fun.Name), name, f)
++	f.Nname.Defn = f
++	f.Nname.Ntype = t
+ 
+ 	if pragma, ok := fun.Pragma.(*Pragma); ok {
+-		f.Func().Pragma = pragma.Flag & FuncPragmas
++		f.Pragma = pragma.Flag & FuncPragmas
+ 		if pragma.Flag&ir.Systemstack != 0 && pragma.Flag&ir.Nosplit != 0 {
+ 			base.ErrorfAt(f.Pos(), "go:nosplit and go:systemstack cannot be combined")
+ 		}
+@@ -548,13 +549,13 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 	}
+ 
+ 	if fun.Recv == nil {
+-		declare(f.Func().Nname, ir.PFUNC)
++		declare(f.Nname, ir.PFUNC)
+ 	}
+ 
+ 	p.funcBody(f, fun.Body)
+ 
+ 	if fun.Body != nil {
+-		if f.Func().Pragma&ir.Noescape != 0 {
++		if f.Pragma&ir.Noescape != 0 {
+ 			base.ErrorfAt(f.Pos(), "can only use //go:noescape with external func implementations")
+ 		}
+ 	} else {
+@@ -1059,7 +1060,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 		n := p.nod(stmt, ir.ORETURN, nil, nil)
+ 		n.PtrList().Set(results)
+ 		if n.List().Len() == 0 && Curfn != nil {
+-			for _, ln := range Curfn.Func().Dcl {
++			for _, ln := range Curfn.Dcl {
+ 				if ln.Class() == ir.PPARAM {
+ 					continue
+ 				}
+@@ -1133,7 +1134,7 @@ func (p *noder) assignList(expr syntax.Expr, defn ir.Node, colas bool) []ir.Node
+ 		newOrErr = true
+ 		n := NewName(sym)
+ 		declare(n, dclcontext)
+-		n.Name().Defn = defn
++		n.Defn = defn
+ 		defn.PtrInit().Append(ir.Nod(ir.ODCL, n, nil))
+ 		res[i] = n
+ 	}
+@@ -1240,7 +1241,7 @@ func (p *noder) caseClauses(clauses []*syntax.CaseClause, tswitch ir.Node, rbrac
+ 			declare(nn, dclcontext)
+ 			n.PtrRlist().Set1(nn)
+ 			// keep track of the instances for reporting unused
+-			nn.Name().Defn = tswitch
++			nn.Defn = tswitch
+ 		}
+ 
+ 		// Trim trailing empty statements. We omit them from
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index d566959d9e..7b5e3015c2 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -143,7 +143,7 @@ func dumpdata() {
+ 		for i := xtops; i < len(xtop); i++ {
+ 			n := xtop[i]
+ 			if n.Op() == ir.ODCLFUNC {
+-				funccompile(n)
++				funccompile(n.(*ir.Func))
+ 			}
+ 		}
+ 		xtops = len(xtop)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index b7d713439b..6a91b8c91b 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -51,9 +51,9 @@ type Order struct {
+ 
+ // Order rewrites fn.Nbody to apply the ordering constraints
+ // described in the comment at the top of the file.
+-func order(fn ir.Node) {
++func order(fn *ir.Func) {
+ 	if base.Flag.W > 1 {
+-		s := fmt.Sprintf("\nbefore order %v", fn.Func().Nname.Sym())
++		s := fmt.Sprintf("\nbefore order %v", fn.Sym())
+ 		ir.DumpList(s, fn.Body())
+ 	}
+ 
+@@ -1258,7 +1258,7 @@ func (o *Order) expr(n, lhs ir.Node) ir.Node {
+ 		}
+ 
+ 	case ir.OCLOSURE:
+-		if n.Transient() && n.Func().ClosureVars.Len() > 0 {
++		if n.Transient() && len(n.Func().ClosureVars) > 0 {
+ 			prealloc[n] = o.newTemp(closureType(n), false)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index b74b132632..ea294ed66d 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -24,14 +24,14 @@ import (
+ // "Portable" code generation.
+ 
+ var (
+-	compilequeue []ir.Node // functions waiting to be compiled
++	compilequeue []*ir.Func // functions waiting to be compiled
+ )
+ 
+-func emitptrargsmap(fn ir.Node) {
+-	if ir.FuncName(fn) == "_" || fn.Func().Nname.Sym().Linkname != "" {
++func emitptrargsmap(fn *ir.Func) {
++	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
+ 		return
+ 	}
+-	lsym := base.Ctxt.Lookup(fn.Func().LSym.Name + ".args_stackmap")
++	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
+ 
+ 	nptr := int(fn.Type().ArgWidth() / int64(Widthptr))
+ 	bv := bvalloc(int32(nptr) * 2)
+@@ -68,7 +68,7 @@ func emitptrargsmap(fn ir.Node) {
+ // really means, in memory, things with pointers needing zeroing at
+ // the top of the stack and increasing in size.
+ // Non-autos sort on offset.
+-func cmpstackvarlt(a, b ir.Node) bool {
++func cmpstackvarlt(a, b *ir.Name) bool {
+ 	if (a.Class() == ir.PAUTO) != (b.Class() == ir.PAUTO) {
+ 		return b.Class() == ir.PAUTO
+ 	}
+@@ -101,7 +101,7 @@ func cmpstackvarlt(a, b ir.Node) bool {
+ }
+ 
+ // byStackvar implements sort.Interface for []*Node using cmpstackvarlt.
+-type byStackVar []ir.Node
++type byStackVar []*ir.Name
+ 
+ func (s byStackVar) Len() int           { return len(s) }
+ func (s byStackVar) Less(i, j int) bool { return cmpstackvarlt(s[i], s[j]) }
+@@ -110,7 +110,7 @@ func (s byStackVar) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	s.stksize = 0
+ 	s.stkptrsize = 0
+-	fn := s.curfn.Func()
++	fn := s.curfn
+ 
+ 	// Mark the PAUTO's unused.
+ 	for _, ln := range fn.Dcl {
+@@ -193,9 +193,9 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	s.stkptrsize = Rnd(s.stkptrsize, int64(Widthreg))
+ }
+ 
+-func funccompile(fn ir.Node) {
++func funccompile(fn *ir.Func) {
+ 	if Curfn != nil {
+-		base.Fatalf("funccompile %v inside %v", fn.Func().Nname.Sym(), Curfn.Func().Nname.Sym())
++		base.Fatalf("funccompile %v inside %v", fn.Sym(), Curfn.Sym())
+ 	}
+ 
+ 	if fn.Type() == nil {
+@@ -210,21 +210,19 @@ func funccompile(fn ir.Node) {
+ 
+ 	if fn.Body().Len() == 0 {
+ 		// Initialize ABI wrappers if necessary.
+-		initLSym(fn.Func(), false)
++		initLSym(fn, false)
+ 		emitptrargsmap(fn)
+ 		return
+ 	}
+ 
+ 	dclcontext = ir.PAUTO
+ 	Curfn = fn
+-
+ 	compile(fn)
+-
+ 	Curfn = nil
+ 	dclcontext = ir.PEXTERN
+ }
+ 
+-func compile(fn ir.Node) {
++func compile(fn *ir.Func) {
+ 	errorsBefore := base.Errors()
+ 	order(fn)
+ 	if base.Errors() > errorsBefore {
+@@ -234,7 +232,7 @@ func compile(fn ir.Node) {
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+ 	// Do this before walk, as walk needs the LSym to set attributes/relocations
+ 	// (e.g. in markTypeUsedInInterface).
+-	initLSym(fn.Func(), true)
++	initLSym(fn, true)
+ 
+ 	walk(fn)
+ 	if base.Errors() > errorsBefore {
+@@ -259,15 +257,15 @@ func compile(fn ir.Node) {
+ 	// be types of stack objects. We need to do this here
+ 	// because symbols must be allocated before the parallel
+ 	// phase of the compiler.
+-	for _, n := range fn.Func().Dcl {
++	for _, n := range fn.Dcl {
+ 		switch n.Class() {
+ 		case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+ 			if livenessShouldTrack(n) && n.Name().Addrtaken() {
+ 				dtypesym(n.Type())
+ 				// Also make sure we allocate a linker symbol
+ 				// for the stack object data, for the same reason.
+-				if fn.Func().LSym.Func().StackObjects == nil {
+-					fn.Func().LSym.Func().StackObjects = base.Ctxt.Lookup(fn.Func().LSym.Name + ".stkobj")
++				if fn.LSym.Func().StackObjects == nil {
++					fn.LSym.Func().StackObjects = base.Ctxt.Lookup(fn.LSym.Name + ".stkobj")
+ 				}
+ 			}
+ 		}
+@@ -284,7 +282,7 @@ func compile(fn ir.Node) {
+ // If functions are not compiled immediately,
+ // they are enqueued in compilequeue,
+ // which is drained by compileFunctions.
+-func compilenow(fn ir.Node) bool {
++func compilenow(fn *ir.Func) bool {
+ 	// Issue 38068: if this function is a method AND an inline
+ 	// candidate AND was not inlined (yet), put it onto the compile
+ 	// queue instead of compiling it immediately. This is in case we
+@@ -299,8 +297,8 @@ func compilenow(fn ir.Node) bool {
+ // isInlinableButNotInlined returns true if 'fn' was marked as an
+ // inline candidate but then never inlined (presumably because we
+ // found no call sites).
+-func isInlinableButNotInlined(fn ir.Node) bool {
+-	if fn.Func().Nname.Func().Inl == nil {
++func isInlinableButNotInlined(fn *ir.Func) bool {
++	if fn.Inl == nil {
+ 		return false
+ 	}
+ 	if fn.Sym() == nil {
+@@ -315,7 +313,7 @@ const maxStackSize = 1 << 30
+ // uses it to generate a plist,
+ // and flushes that plist to machine code.
+ // worker indicates which of the backend workers is doing the processing.
+-func compileSSA(fn ir.Node, worker int) {
++func compileSSA(fn *ir.Func, worker int) {
+ 	f := buildssa(fn, worker)
+ 	// Note: check arg size to fix issue 25507.
+ 	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type().ArgWidth() >= maxStackSize {
+@@ -343,7 +341,7 @@ func compileSSA(fn ir.Node, worker int) {
+ 
+ 	pp.Flush() // assemble, fill in boilerplate, etc.
+ 	// fieldtrack must be called after pp.Flush. See issue 20014.
+-	fieldtrack(pp.Text.From.Sym, fn.Func().FieldTrack)
++	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
+ }
+ 
+ func init() {
+@@ -360,7 +358,7 @@ func compileFunctions() {
+ 		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
+ 		if race.Enabled {
+ 			// Randomize compilation order to try to shake out races.
+-			tmp := make([]ir.Node, len(compilequeue))
++			tmp := make([]*ir.Func, len(compilequeue))
+ 			perm := rand.Perm(len(compilequeue))
+ 			for i, v := range perm {
+ 				tmp[v] = compilequeue[i]
+@@ -376,7 +374,7 @@ func compileFunctions() {
+ 		}
+ 		var wg sync.WaitGroup
+ 		base.Ctxt.InParallel = true
+-		c := make(chan ir.Node, base.Flag.LowerC)
++		c := make(chan *ir.Func, base.Flag.LowerC)
+ 		for i := 0; i < base.Flag.LowerC; i++ {
+ 			wg.Add(1)
+ 			go func(worker int) {
+@@ -398,9 +396,10 @@ func compileFunctions() {
+ }
+ 
+ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+-	fn := curfn.(ir.Node)
+-	if fn.Func().Nname != nil {
+-		if expect := fn.Func().Nname.Sym().Linksym(); fnsym != expect {
++	fn := curfn.(*ir.Func)
++
++	if fn.Nname != nil {
++		if expect := fn.Sym().Linksym(); fnsym != expect {
+ 			base.Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
+ 		}
+ 	}
+@@ -430,12 +429,19 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	//
+ 	// These two adjustments keep toolstash -cmp working for now.
+ 	// Deciding the right answer is, as they say, future work.
+-	isODCLFUNC := fn.Op() == ir.ODCLFUNC
++	//
++	// We can tell the difference between the old ODCLFUNC and ONAME
++	// cases by looking at the infosym.Name. If it's empty, DebugInfo is
++	// being called from (*obj.Link).populateDWARF, which used to use
++	// the ODCLFUNC. If it's non-empty (the name will end in $abstract),
++	// DebugInfo is being called from (*obj.Link).DwarfAbstractFunc,
++	// which used to use the ONAME form.
++	isODCLFUNC := infosym.Name == ""
+ 
+ 	var apdecls []ir.Node
+ 	// Populate decls for fn.
+ 	if isODCLFUNC {
+-		for _, n := range fn.Func().Dcl {
++		for _, n := range fn.Dcl {
+ 			if n.Op() != ir.ONAME { // might be OTYPE or OLITERAL
+ 				continue
+ 			}
+@@ -457,7 +463,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 		}
+ 	}
+ 
+-	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn.Func(), apdecls)
++	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn, apdecls)
+ 
+ 	// For each type referenced by the functions auto vars but not
+ 	// already referenced by a dwarf var, attach an R_USETYPE relocation to
+@@ -478,7 +484,7 @@ func debuginfo(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.S
+ 	var varScopes []ir.ScopeID
+ 	for _, decl := range decls {
+ 		pos := declPos(decl)
+-		varScopes = append(varScopes, findScope(fn.Func().Marks, pos))
++		varScopes = append(varScopes, findScope(fn.Marks, pos))
+ 	}
+ 
+ 	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
+@@ -709,9 +715,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []ir.
+ // names of the variables may have been "versioned" to avoid conflicts
+ // with local vars; disregard this versioning when sorting.
+ func preInliningDcls(fnsym *obj.LSym) []ir.Node {
+-	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(ir.Node)
++	fn := base.Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*ir.Func)
+ 	var rdcl []ir.Node
+-	for _, n := range fn.Func().Inl.Dcl {
++	for _, n := range fn.Inl.Dcl {
+ 		c := n.Sym().Name[0]
+ 		// Avoid reporting "_" parameters, since if there are more than
+ 		// one, it can result in a collision later on, as in #23179.
+diff --git a/src/cmd/compile/internal/gc/pgen_test.go b/src/cmd/compile/internal/gc/pgen_test.go
+index 1984f9aa08..35ce087af6 100644
+--- a/src/cmd/compile/internal/gc/pgen_test.go
++++ b/src/cmd/compile/internal/gc/pgen_test.go
+@@ -26,19 +26,19 @@ func typeWithPointers() *types.Type {
+ 	return t
+ }
+ 
+-func markUsed(n ir.Node) ir.Node {
+-	n.Name().SetUsed(true)
++func markUsed(n *ir.Name) *ir.Name {
++	n.SetUsed(true)
+ 	return n
+ }
+ 
+-func markNeedZero(n ir.Node) ir.Node {
+-	n.Name().SetNeedzero(true)
++func markNeedZero(n *ir.Name) *ir.Name {
++	n.SetNeedzero(true)
+ 	return n
+ }
+ 
+ // Test all code paths for cmpstackvarlt.
+ func TestCmpstackvar(t *testing.T) {
+-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) ir.Node {
++	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
+ 		if s == nil {
+ 			s = &types.Sym{Name: "."}
+ 		}
+@@ -49,7 +49,7 @@ func TestCmpstackvar(t *testing.T) {
+ 		return n
+ 	}
+ 	testdata := []struct {
+-		a, b ir.Node
++		a, b *ir.Name
+ 		lt   bool
+ 	}{
+ 		{
+@@ -156,14 +156,14 @@ func TestCmpstackvar(t *testing.T) {
+ }
+ 
+ func TestStackvarSort(t *testing.T) {
+-	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) ir.Node {
++	nod := func(xoffset int64, t *types.Type, s *types.Sym, cl ir.Class) *ir.Name {
+ 		n := NewName(s)
+ 		n.SetType(t)
+ 		n.SetOffset(xoffset)
+ 		n.SetClass(cl)
+ 		return n
+ 	}
+-	inp := []ir.Node{
++	inp := []*ir.Name{
+ 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+ 		nod(0, &types.Type{}, &types.Sym{}, ir.PAUTO),
+ 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+@@ -178,7 +178,7 @@ func TestStackvarSort(t *testing.T) {
+ 		nod(0, &types.Type{}, &types.Sym{Name: "abc"}, ir.PAUTO),
+ 		nod(0, &types.Type{}, &types.Sym{Name: "xyz"}, ir.PAUTO),
+ 	}
+-	want := []ir.Node{
++	want := []*ir.Name{
+ 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+ 		nod(0, &types.Type{}, &types.Sym{}, ir.PFUNC),
+ 		nod(10, &types.Type{}, &types.Sym{}, ir.PFUNC),
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index e3a9b2a198..6ad3140081 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -101,7 +101,7 @@ type BlockEffects struct {
+ 
+ // A collection of global state used by liveness analysis.
+ type Liveness struct {
+-	fn         ir.Node
++	fn         *ir.Func
+ 	f          *ssa.Func
+ 	vars       []ir.Node
+ 	idx        map[ir.Node]int32
+@@ -212,9 +212,9 @@ func livenessShouldTrack(n ir.Node) bool {
+ 
+ // getvariables returns the list of on-stack variables that we need to track
+ // and a map for looking up indices by *Node.
+-func getvariables(fn ir.Node) ([]ir.Node, map[ir.Node]int32) {
++func getvariables(fn *ir.Func) ([]ir.Node, map[ir.Node]int32) {
+ 	var vars []ir.Node
+-	for _, n := range fn.Func().Dcl {
++	for _, n := range fn.Dcl {
+ 		if livenessShouldTrack(n) {
+ 			vars = append(vars, n)
+ 		}
+@@ -356,7 +356,7 @@ type livenessFuncCache struct {
+ // Constructs a new liveness structure used to hold the global state of the
+ // liveness computation. The cfg argument is a slice of *BasicBlocks and the
+ // vars argument is a slice of *Nodes.
+-func newliveness(fn ir.Node, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
++func newliveness(fn *ir.Func, f *ssa.Func, vars []ir.Node, idx map[ir.Node]int32, stkptrsize int64) *Liveness {
+ 	lv := &Liveness{
+ 		fn:         fn,
+ 		f:          f,
+@@ -788,7 +788,7 @@ func (lv *Liveness) epilogue() {
+ 	// pointers to copy values back to the stack).
+ 	// TODO: if the output parameter is heap-allocated, then we
+ 	// don't need to keep the stack copy live?
+-	if lv.fn.Func().HasDefer() {
++	if lv.fn.HasDefer() {
+ 		for i, n := range lv.vars {
+ 			if n.Class() == ir.PPARAMOUT {
+ 				if n.Name().IsOutputParamHeapAddr() {
+@@ -891,7 +891,7 @@ func (lv *Liveness) epilogue() {
+ 				if n.Class() == ir.PPARAM {
+ 					continue // ok
+ 				}
+-				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Func().Nname, n)
++				base.Fatalf("bad live variable at entry of %v: %L", lv.fn.Nname, n)
+ 			}
+ 
+ 			// Record live variables.
+@@ -904,7 +904,7 @@ func (lv *Liveness) epilogue() {
+ 	}
+ 
+ 	// If we have an open-coded deferreturn call, make a liveness map for it.
+-	if lv.fn.Func().OpenCodedDeferDisallowed() {
++	if lv.fn.OpenCodedDeferDisallowed() {
+ 		lv.livenessMap.deferreturn = LivenessDontCare
+ 	} else {
+ 		lv.livenessMap.deferreturn = LivenessIndex{
+@@ -922,7 +922,7 @@ func (lv *Liveness) epilogue() {
+ 	// input parameters.
+ 	for j, n := range lv.vars {
+ 		if n.Class() != ir.PPARAM && lv.stackMaps[0].Get(int32(j)) {
+-			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Func().Nname, n)
++			lv.f.Fatalf("%v %L recorded as live on entry", lv.fn.Nname, n)
+ 		}
+ 	}
+ }
+@@ -980,7 +980,7 @@ func (lv *Liveness) showlive(v *ssa.Value, live bvec) {
+ 		return
+ 	}
+ 
+-	pos := lv.fn.Func().Nname.Pos()
++	pos := lv.fn.Nname.Pos()
+ 	if v != nil {
+ 		pos = v.Pos
+ 	}
+@@ -1090,7 +1090,7 @@ func (lv *Liveness) printDebug() {
+ 
+ 		if b == lv.f.Entry {
+ 			live := lv.stackMaps[0]
+-			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Func().Nname.Pos()))
++			fmt.Printf("(%s) function entry\n", base.FmtPos(lv.fn.Nname.Pos()))
+ 			fmt.Printf("\tlive=")
+ 			printed = false
+ 			for j, n := range lv.vars {
+@@ -1266,7 +1266,7 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 	}
+ 
+ 	// Emit the live pointer map data structures
+-	ls := e.curfn.Func().LSym
++	ls := e.curfn.LSym
+ 	fninfo := ls.Func()
+ 	fninfo.GCArgs, fninfo.GCLocals = lv.emit()
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index c41d923f78..6b5d53e806 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -60,13 +60,13 @@ func ispkgin(pkgs []string) bool {
+ 	return false
+ }
+ 
+-func instrument(fn ir.Node) {
+-	if fn.Func().Pragma&ir.Norace != 0 {
++func instrument(fn *ir.Func) {
++	if fn.Pragma&ir.Norace != 0 {
+ 		return
+ 	}
+ 
+ 	if !base.Flag.Race || !ispkgin(norace_inst_pkgs) {
+-		fn.Func().SetInstrumentBody(true)
++		fn.SetInstrumentBody(true)
+ 	}
+ 
+ 	if base.Flag.Race {
+@@ -74,8 +74,8 @@ func instrument(fn ir.Node) {
+ 		base.Pos = src.NoXPos
+ 
+ 		if thearch.LinkArch.Arch.Family != sys.AMD64 {
+-			fn.Func().Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
+-			fn.Func().Exit.Append(mkcall("racefuncexit", nil, nil))
++			fn.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
++			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+ 		} else {
+ 
+ 			// nodpc is the PC of the caller as extracted by
+@@ -83,12 +83,12 @@ func instrument(fn ir.Node) {
+ 			// This only works for amd64. This will not
+ 			// work on arm or others that might support
+ 			// race in the future.
+-			nodpc := ir.Copy(nodfp)
++			nodpc := ir.Copy(nodfp).(*ir.Name)
+ 			nodpc.SetType(types.Types[types.TUINTPTR])
+ 			nodpc.SetOffset(int64(-Widthptr))
+-			fn.Func().Dcl = append(fn.Func().Dcl, nodpc)
+-			fn.Func().Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
+-			fn.Func().Exit.Append(mkcall("racefuncexit", nil, nil))
++			fn.Dcl = append(fn.Dcl, nodpc)
++			fn.Enter.Prepend(mkcall("racefuncenter", nil, nil, nodpc))
++			fn.Exit.Append(mkcall("racefuncexit", nil, nil))
+ 		}
+ 		base.Pos = lno
+ 	}
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 0ff00cca44..d52fad5fec 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -593,7 +593,7 @@ func arrayClear(n, v1, v2, a ir.Node) bool {
+ 	var fn ir.Node
+ 	if a.Type().Elem().HasPointers() {
+ 		// memclrHasPointers(hp, hn)
+-		Curfn.Func().SetWBPos(stmt.Pos())
++		Curfn.SetWBPos(stmt.Pos())
+ 		fn = mkcall("memclrHasPointers", nil, nil, hp, hn)
+ 	} else {
+ 		// memclrNoHeapPointers(hp, hn)
+diff --git a/src/cmd/compile/internal/gc/scc.go b/src/cmd/compile/internal/gc/scc.go
+index fe7956d5d5..063aaa09bd 100644
+--- a/src/cmd/compile/internal/gc/scc.go
++++ b/src/cmd/compile/internal/gc/scc.go
+@@ -32,10 +32,10 @@ import "cmd/compile/internal/ir"
+ // when analyzing a set of mutually recursive functions.
+ 
+ type bottomUpVisitor struct {
+-	analyze  func([]ir.Node, bool)
++	analyze  func([]*ir.Func, bool)
+ 	visitgen uint32
+-	nodeID   map[ir.Node]uint32
+-	stack    []ir.Node
++	nodeID   map[*ir.Func]uint32
++	stack    []*ir.Func
+ }
+ 
+ // visitBottomUp invokes analyze on the ODCLFUNC nodes listed in list.
+@@ -51,18 +51,18 @@ type bottomUpVisitor struct {
+ // If recursive is false, the list consists of only a single function and its closures.
+ // If recursive is true, the list may still contain only a single function,
+ // if that function is itself recursive.
+-func visitBottomUp(list []ir.Node, analyze func(list []ir.Node, recursive bool)) {
++func visitBottomUp(list []ir.Node, analyze func(list []*ir.Func, recursive bool)) {
+ 	var v bottomUpVisitor
+ 	v.analyze = analyze
+-	v.nodeID = make(map[ir.Node]uint32)
++	v.nodeID = make(map[*ir.Func]uint32)
+ 	for _, n := range list {
+ 		if n.Op() == ir.ODCLFUNC && !n.Func().IsHiddenClosure() {
+-			v.visit(n)
++			v.visit(n.(*ir.Func))
+ 		}
+ 	}
+ }
+ 
+-func (v *bottomUpVisitor) visit(n ir.Node) uint32 {
++func (v *bottomUpVisitor) visit(n *ir.Func) uint32 {
+ 	if id := v.nodeID[n]; id > 0 {
+ 		// already visited
+ 		return id
+@@ -80,41 +80,41 @@ func (v *bottomUpVisitor) visit(n ir.Node) uint32 {
+ 		case ir.ONAME:
+ 			if n.Class() == ir.PFUNC {
+ 				if n != nil && n.Name().Defn != nil {
+-					if m := v.visit(n.Name().Defn); m < min {
++					if m := v.visit(n.Name().Defn.(*ir.Func)); m < min {
+ 						min = m
+ 					}
+ 				}
+ 			}
+ 		case ir.OMETHEXPR:
+ 			fn := methodExprName(n)
+-			if fn != nil && fn.Name().Defn != nil {
+-				if m := v.visit(fn.Name().Defn); m < min {
++			if fn != nil && fn.Defn != nil {
++				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
+ 					min = m
+ 				}
+ 			}
+ 		case ir.ODOTMETH:
+ 			fn := methodExprName(n)
+-			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+-				if m := v.visit(fn.Name().Defn); m < min {
++			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Defn != nil {
++				if m := v.visit(fn.Defn.(*ir.Func)); m < min {
+ 					min = m
+ 				}
+ 			}
+ 		case ir.OCALLPART:
+ 			fn := ir.AsNode(callpartMethod(n).Nname)
+ 			if fn != nil && fn.Op() == ir.ONAME && fn.Class() == ir.PFUNC && fn.Name().Defn != nil {
+-				if m := v.visit(fn.Name().Defn); m < min {
++				if m := v.visit(fn.Name().Defn.(*ir.Func)); m < min {
+ 					min = m
+ 				}
+ 			}
+ 		case ir.OCLOSURE:
+-			if m := v.visit(n.Func().Decl); m < min {
++			if m := v.visit(n.Func()); m < min {
+ 				min = m
+ 			}
+ 		}
+ 		return true
+ 	})
+ 
+-	if (min == id || min == id+1) && !n.Func().IsHiddenClosure() {
++	if (min == id || min == id+1) && !n.IsHiddenClosure() {
+ 		// This node is the root of a strongly connected component.
+ 
+ 		// The original min passed to visitcodelist was v.nodeID[n]+1.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 1a13b14376..91faf18a1d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -40,7 +40,7 @@ const ssaDumpFile = "ssa.html"
+ const maxOpenDefers = 8
+ 
+ // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
+-var ssaDumpInlined []ir.Node
++var ssaDumpInlined []*ir.Func
+ 
+ func initssaconfig() {
+ 	types_ := ssa.NewTypes()
+@@ -242,8 +242,8 @@ func dvarint(x *obj.LSym, off int, v int64) int {
+ //      - Size of the argument
+ //      - Offset of where argument should be placed in the args frame when making call
+ func (s *state) emitOpenDeferInfo() {
+-	x := base.Ctxt.Lookup(s.curfn.Func().LSym.Name + ".opendefer")
+-	s.curfn.Func().LSym.Func().OpenCodedDeferInfo = x
++	x := base.Ctxt.Lookup(s.curfn.LSym.Name + ".opendefer")
++	s.curfn.LSym.Func().OpenCodedDeferInfo = x
+ 	off := 0
+ 
+ 	// Compute maxargsize (max size of arguments for all defers)
+@@ -289,7 +289,7 @@ func (s *state) emitOpenDeferInfo() {
+ 
+ // buildssa builds an SSA function for fn.
+ // worker indicates which of the backend workers is doing the processing.
+-func buildssa(fn ir.Node, worker int) *ssa.Func {
++func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	name := ir.FuncName(fn)
+ 	printssa := false
+ 	if ssaDump != "" { // match either a simple name e.g. "(*Reader).Reset", or a package.name e.g. "compress/gzip.(*Reader).Reset"
+@@ -298,9 +298,9 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	var astBuf *bytes.Buffer
+ 	if printssa {
+ 		astBuf = &bytes.Buffer{}
+-		ir.FDumpList(astBuf, "buildssa-enter", fn.Func().Enter)
++		ir.FDumpList(astBuf, "buildssa-enter", fn.Enter)
+ 		ir.FDumpList(astBuf, "buildssa-body", fn.Body())
+-		ir.FDumpList(astBuf, "buildssa-exit", fn.Func().Exit)
++		ir.FDumpList(astBuf, "buildssa-exit", fn.Exit)
+ 		if ssaDumpStdout {
+ 			fmt.Println("generating SSA for", name)
+ 			fmt.Print(astBuf.String())
+@@ -311,8 +311,8 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	s.pushLine(fn.Pos())
+ 	defer s.popLine()
+ 
+-	s.hasdefer = fn.Func().HasDefer()
+-	if fn.Func().Pragma&ir.CgoUnsafeArgs != 0 {
++	s.hasdefer = fn.HasDefer()
++	if fn.Pragma&ir.CgoUnsafeArgs != 0 {
+ 		s.cgoUnsafeArgs = true
+ 	}
+ 
+@@ -331,7 +331,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	s.f.Name = name
+ 	s.f.DebugTest = s.f.DebugHashMatch("GOSSAHASH")
+ 	s.f.PrintOrHtmlSSA = printssa
+-	if fn.Func().Pragma&ir.Nosplit != 0 {
++	if fn.Pragma&ir.Nosplit != 0 {
+ 		s.f.NoSplit = true
+ 	}
+ 	s.panics = map[funcLine]*ssa.Block{}
+@@ -359,7 +359,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	s.fwdVars = map[ir.Node]*ssa.Value{}
+ 	s.startmem = s.entryNewValue0(ssa.OpInitMem, types.TypeMem)
+ 
+-	s.hasOpenDefers = base.Flag.N == 0 && s.hasdefer && !s.curfn.Func().OpenCodedDeferDisallowed()
++	s.hasOpenDefers = base.Flag.N == 0 && s.hasdefer && !s.curfn.OpenCodedDeferDisallowed()
+ 	switch {
+ 	case s.hasOpenDefers && (base.Ctxt.Flag_shared || base.Ctxt.Flag_dynlink) && thearch.LinkArch.Name == "386":
+ 		// Don't support open-coded defers for 386 ONLY when using shared
+@@ -368,7 +368,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 		// that we don't track correctly.
+ 		s.hasOpenDefers = false
+ 	}
+-	if s.hasOpenDefers && s.curfn.Func().Exit.Len() > 0 {
++	if s.hasOpenDefers && s.curfn.Exit.Len() > 0 {
+ 		// Skip doing open defers if there is any extra exit code (likely
+ 		// copying heap-allocated return values or race detection), since
+ 		// we will not generate that code in the case of the extra
+@@ -376,7 +376,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 		s.hasOpenDefers = false
+ 	}
+ 	if s.hasOpenDefers &&
+-		s.curfn.Func().NumReturns*s.curfn.Func().NumDefers > 15 {
++		s.curfn.NumReturns*s.curfn.NumDefers > 15 {
+ 		// Since we are generating defer calls at every exit for
+ 		// open-coded defers, skip doing open-coded defers if there are
+ 		// too many returns (especially if there are multiple defers).
+@@ -413,7 +413,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	s.decladdrs = map[ir.Node]*ssa.Value{}
+ 	var args []ssa.Param
+ 	var results []ssa.Param
+-	for _, n := range fn.Func().Dcl {
++	for _, n := range fn.Dcl {
+ 		switch n.Class() {
+ 		case ir.PPARAM:
+ 			s.decladdrs[n] = s.entryNewValue2A(ssa.OpLocalAddr, types.NewPtr(n.Type()), n, s.sp, s.startmem)
+@@ -440,7 +440,7 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	}
+ 
+ 	// Populate SSAable arguments.
+-	for _, n := range fn.Func().Dcl {
++	for _, n := range fn.Dcl {
+ 		if n.Class() == ir.PPARAM && s.canSSA(n) {
+ 			v := s.newValue0A(ssa.OpArg, n.Type(), n)
+ 			s.vars[n] = v
+@@ -449,12 +449,12 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	}
+ 
+ 	// Convert the AST-based IR to the SSA-based IR
+-	s.stmtList(fn.Func().Enter)
++	s.stmtList(fn.Enter)
+ 	s.stmtList(fn.Body())
+ 
+ 	// fallthrough to exit
+ 	if s.curBlock != nil {
+-		s.pushLine(fn.Func().Endlineno)
++		s.pushLine(fn.Endlineno)
+ 		s.exit()
+ 		s.popLine()
+ 	}
+@@ -477,10 +477,10 @@ func buildssa(fn ir.Node, worker int) *ssa.Func {
+ 	return s.f
+ }
+ 
+-func dumpSourcesColumn(writer *ssa.HTMLWriter, fn ir.Node) {
++func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
+ 	// Read sources of target function fn.
+ 	fname := base.Ctxt.PosTable.Pos(fn.Pos()).Filename()
+-	targetFn, err := readFuncLines(fname, fn.Pos().Line(), fn.Func().Endlineno.Line())
++	targetFn, err := readFuncLines(fname, fn.Pos().Line(), fn.Endlineno.Line())
+ 	if err != nil {
+ 		writer.Logf("cannot read sources for function %v: %v", fn, err)
+ 	}
+@@ -488,13 +488,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn ir.Node) {
+ 	// Read sources of inlined functions.
+ 	var inlFns []*ssa.FuncLines
+ 	for _, fi := range ssaDumpInlined {
+-		var elno src.XPos
+-		if fi.Name().Defn == nil {
+-			// Endlineno is filled from exported data.
+-			elno = fi.Func().Endlineno
+-		} else {
+-			elno = fi.Name().Defn.Func().Endlineno
+-		}
++		elno := fi.Endlineno
+ 		fname := base.Ctxt.PosTable.Pos(fi.Pos()).Filename()
+ 		fnLines, err := readFuncLines(fname, fi.Pos().Line(), elno.Line())
+ 		if err != nil {
+@@ -593,7 +587,7 @@ type state struct {
+ 	f *ssa.Func
+ 
+ 	// Node for function
+-	curfn ir.Node
++	curfn *ir.Func
+ 
+ 	// labels in f
+ 	labels map[string]*ssaLabel
+@@ -972,7 +966,7 @@ func (s *state) newValueOrSfCall2(op ssa.Op, t *types.Type, arg0, arg1 *ssa.Valu
+ }
+ 
+ func (s *state) instrument(t *types.Type, addr *ssa.Value, wr bool) {
+-	if !s.curfn.Func().InstrumentBody() {
++	if !s.curfn.InstrumentBody() {
+ 		return
+ 	}
+ 
+@@ -1571,7 +1565,7 @@ func (s *state) exit() *ssa.Block {
+ 
+ 	// Run exit code. Typically, this code copies heap-allocated PPARAMOUT
+ 	// variables back to the stack.
+-	s.stmtList(s.curfn.Func().Exit)
++	s.stmtList(s.curfn.Exit)
+ 
+ 	// Store SSAable PPARAMOUT variables back to stack locations.
+ 	for _, n := range s.returns {
+@@ -4296,7 +4290,7 @@ func (s *state) openDeferSave(n ir.Node, t *types.Type, val *ssa.Value) *ssa.Val
+ 		pos = n.Pos()
+ 	}
+ 	argTemp := tempAt(pos.WithNotStmt(), s.curfn, t)
+-	argTemp.Name().SetOpenDeferSlot(true)
++	argTemp.SetOpenDeferSlot(true)
+ 	var addrArgTemp *ssa.Value
+ 	// Use OpVarLive to make sure stack slots for the args, etc. are not
+ 	// removed by dead-store elimination
+@@ -4322,7 +4316,7 @@ func (s *state) openDeferSave(n ir.Node, t *types.Type, val *ssa.Value) *ssa.Val
+ 		// Therefore, we must make sure it is zeroed out in the entry
+ 		// block if it contains pointers, else GC may wrongly follow an
+ 		// uninitialized pointer value.
+-		argTemp.Name().SetNeedzero(true)
++		argTemp.SetNeedzero(true)
+ 	}
+ 	if !canSSA {
+ 		a := s.addr(n)
+@@ -4790,7 +4784,7 @@ func (s *state) getMethodClosure(fn ir.Node) *ssa.Value {
+ 	// We get back an SSA value representing &sync.(*Mutex).Unlock·f.
+ 	// We can then pass that to defer or go.
+ 	n2 := ir.NewNameAt(fn.Pos(), fn.Sym())
+-	n2.Name().Curfn = s.curfn
++	n2.Curfn = s.curfn
+ 	n2.SetClass(ir.PFUNC)
+ 	// n2.Sym already existed, so it's already marked as a function.
+ 	n2.SetPos(fn.Pos())
+@@ -5023,7 +5017,7 @@ func (s *state) exprPtr(n ir.Node, bounded bool, lineno src.XPos) *ssa.Value {
+ // Used only for automatically inserted nil checks,
+ // not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+-	if base.Debug.DisableNil != 0 || s.curfn.Func().NilCheckDisabled() {
++	if base.Debug.DisableNil != 0 || s.curfn.NilCheckDisabled() {
+ 		return
+ 	}
+ 	s.newValue2(ssa.OpNilCheck, types.TypeVoid, ptr, s.mem())
+@@ -6197,7 +6191,7 @@ func (s byXoffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+ 
+ func emitStackObjects(e *ssafn, pp *Progs) {
+ 	var vars []ir.Node
+-	for _, n := range e.curfn.Func().Dcl {
++	for _, n := range e.curfn.Dcl {
+ 		if livenessShouldTrack(n) && n.Name().Addrtaken() {
+ 			vars = append(vars, n)
+ 		}
+@@ -6211,7 +6205,7 @@ func emitStackObjects(e *ssafn, pp *Progs) {
+ 
+ 	// Populate the stack object data.
+ 	// Format must match runtime/stack.go:stackObjectRecord.
+-	x := e.curfn.Func().LSym.Func().StackObjects
++	x := e.curfn.LSym.Func().StackObjects
+ 	off := 0
+ 	off = duintptr(x, off, uint64(len(vars)))
+ 	for _, v := range vars {
+@@ -6248,7 +6242,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	s.livenessMap = liveness(e, f, pp)
+ 	emitStackObjects(e, pp)
+ 
+-	openDeferInfo := e.curfn.Func().LSym.Func().OpenCodedDeferInfo
++	openDeferInfo := e.curfn.LSym.Func().OpenCodedDeferInfo
+ 	if openDeferInfo != nil {
+ 		// This function uses open-coded defers -- write out the funcdata
+ 		// info that we computed at the end of genssa.
+@@ -6453,7 +6447,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				// some of the inline marks.
+ 				// Use this instruction instead.
+ 				p.Pos = p.Pos.WithIsStmt() // promote position to a statement
+-				pp.curfn.Func().LSym.Func().AddInlMark(p, inlMarks[m])
++				pp.curfn.LSym.Func().AddInlMark(p, inlMarks[m])
+ 				// Make the inline mark a real nop, so it doesn't generate any code.
+ 				m.As = obj.ANOP
+ 				m.Pos = src.NoXPos
+@@ -6465,14 +6459,14 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		// Any unmatched inline marks now need to be added to the inlining tree (and will generate a nop instruction).
+ 		for _, p := range inlMarkList {
+ 			if p.As != obj.ANOP {
+-				pp.curfn.Func().LSym.Func().AddInlMark(p, inlMarks[p])
++				pp.curfn.LSym.Func().AddInlMark(p, inlMarks[p])
+ 			}
+ 		}
+ 	}
+ 
+ 	if base.Ctxt.Flag_locationlists {
+ 		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, stackOffset)
+-		e.curfn.Func().DebugInfo = debugInfo
++		e.curfn.DebugInfo = debugInfo
+ 		bstart := s.bstart
+ 		// Note that at this moment, Prog.Pc is a sequence number; it's
+ 		// not a real PC until after assembly, so this mapping has to
+@@ -6486,7 +6480,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 				return bstart[b].Pc
+ 			case ssa.BlockEnd.ID:
+-				return e.curfn.Func().LSym.Size
++				return e.curfn.LSym.Size
+ 			default:
+ 				return valueToProgAfter[v].Pc
+ 			}
+@@ -6584,7 +6578,7 @@ func defframe(s *SSAGenState, e *ssafn) {
+ 	var state uint32
+ 
+ 	// Iterate through declarations. They are sorted in decreasing Xoffset order.
+-	for _, n := range e.curfn.Func().Dcl {
++	for _, n := range e.curfn.Dcl {
+ 		if !n.Name().Needzero() {
+ 			continue
+ 		}
+@@ -6949,7 +6943,7 @@ func fieldIdx(n ir.Node) int {
+ // ssafn holds frontend information about a function that the backend is processing.
+ // It also exports a bunch of compiler services for the ssa backend.
+ type ssafn struct {
+-	curfn        ir.Node
++	curfn        *ir.Func
+ 	strings      map[string]*obj.LSym // map from constant string to data symbols
+ 	scratchFpMem ir.Node              // temp for floating point register / memory moves on some architectures
+ 	stksize      int64                // stack size for current frame
+@@ -7072,8 +7066,8 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 	n.SetType(t)
+ 	n.SetClass(ir.PAUTO)
+ 	n.SetEsc(EscNever)
+-	n.Name().Curfn = e.curfn
+-	e.curfn.Func().Dcl = append(e.curfn.Func().Dcl, n)
++	n.Curfn = e.curfn
++	e.curfn.Dcl = append(e.curfn.Dcl, n)
+ 	dowidth(t)
+ 	return ssa.LocalSlot{N: n, Type: t, Off: 0, SplitOf: parent, SplitOffset: offset}
+ }
+@@ -7136,7 +7130,7 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ }
+ 
+ func (e *ssafn) SetWBPos(pos src.XPos) {
+-	e.curfn.Func().SetWBPos(pos)
++	e.curfn.SetWBPos(pos)
+ }
+ 
+ func (e *ssafn) MyImportPath() string {
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 28703205d6..336465db98 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -95,8 +95,8 @@ func autolabel(prefix string) *types.Sym {
+ 	if Curfn == nil {
+ 		base.Fatalf("autolabel outside function")
+ 	}
+-	n := fn.Func().Label
+-	fn.Func().Label++
++	n := fn.Label
++	fn.Label++
+ 	return lookupN(prefix, int(n))
+ }
+ 
+@@ -138,7 +138,7 @@ func importdot(opkg *types.Pkg, pack *ir.PkgName) {
+ // newname returns a new ONAME Node associated with symbol s.
+ func NewName(s *types.Sym) *ir.Name {
+ 	n := ir.NewNameAt(base.Pos, s)
+-	n.Name().Curfn = Curfn
++	n.Curfn = Curfn
+ 	return n
+ }
+ 
+@@ -1165,7 +1165,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	tfn.PtrRlist().Set(structargs(method.Type.Results(), false))
+ 
+ 	fn := dclfunc(newnam, tfn)
+-	fn.Func().SetDupok(true)
++	fn.SetDupok(true)
+ 
+ 	nthis := ir.AsNode(tfn.Type().Recv().Nname)
+ 
+@@ -1201,7 +1201,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		fn.PtrBody().Append(as)
+ 		fn.PtrBody().Append(nodSym(ir.ORETJMP, nil, methodSym(methodrcvr, method.Sym)))
+ 	} else {
+-		fn.Func().SetWrapper(true) // ignore frame for panic+recover matching
++		fn.SetWrapper(true) // ignore frame for panic+recover matching
+ 		call := ir.Nod(ir.OCALL, dot, nil)
+ 		call.PtrList().Set(paramNnames(tfn.Type()))
+ 		call.SetIsDDD(tfn.Type().IsVariadic())
+@@ -1222,8 +1222,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 		testdclstack()
+ 	}
+ 
+-	fn = typecheck(fn, ctxStmt)
+-
++	typecheckFunc(fn)
+ 	Curfn = fn
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+ 
+@@ -1233,7 +1232,7 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type && rcvr.Elem().Sym != nil {
+ 		inlcalls(fn)
+ 	}
+-	escapeFuncs([]ir.Node{fn}, false)
++	escapeFuncs([]*ir.Func{fn}, false)
+ 
+ 	Curfn = nil
+ 	xtop = append(xtop, fn)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 4ab47fb406..7d19a2b58e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -95,7 +95,7 @@ func resolve(n ir.Node) (res ir.Node) {
+ 			base.Fatalf("recursive inimport")
+ 		}
+ 		inimport = true
+-		expandDecl(n)
++		expandDecl(n.(*ir.Name))
+ 		inimport = false
+ 		return n
+ 	}
+@@ -199,6 +199,13 @@ func cycleTrace(cycle []ir.Node) string {
+ 
+ var typecheck_tcstack []ir.Node
+ 
++func typecheckFunc(fn *ir.Func) {
++	new := typecheck(fn, ctxStmt)
++	if new != fn {
++		base.Fatalf("typecheck changed func")
++	}
++}
++
+ // typecheck type checks node n.
+ // The result of typecheck MUST be assigned back to n, e.g.
+ // 	n.Left = typecheck(n.Left, top)
+@@ -2069,7 +2076,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 
+ 	case ir.ODCLFUNC:
+ 		ok |= ctxStmt
+-		typecheckfunc(n)
++		typecheckfunc(n.(*ir.Func))
+ 
+ 	case ir.ODCLCONST:
+ 		ok |= ctxStmt
+@@ -3402,36 +3409,38 @@ out:
+ }
+ 
+ // type check function definition
+-func typecheckfunc(n ir.Node) {
++// To be called by typecheck, not directly.
++// (Call typecheckfn instead.)
++func typecheckfunc(n *ir.Func) {
+ 	if enableTrace && base.Flag.LowerT {
+ 		defer tracePrint("typecheckfunc", n)(nil)
+ 	}
+ 
+-	for _, ln := range n.Func().Dcl {
++	for _, ln := range n.Dcl {
+ 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PPARAM || ln.Class() == ir.PPARAMOUT) {
+ 			ln.Name().Decldepth = 1
+ 		}
+ 	}
+ 
+-	n.Func().Nname = typecheck(n.Func().Nname, ctxExpr|ctxAssign)
+-	t := n.Func().Nname.Type()
++	n.Nname = typecheck(n.Nname, ctxExpr|ctxAssign).(*ir.Name)
++	t := n.Nname.Type()
+ 	if t == nil {
+ 		return
+ 	}
+ 	n.SetType(t)
+ 	rcvr := t.Recv()
+-	if rcvr != nil && n.Func().Shortname != nil {
+-		m := addmethod(n, n.Func().Shortname, t, true, n.Func().Pragma&ir.Nointerface != 0)
++	if rcvr != nil && n.Shortname != nil {
++		m := addmethod(n, n.Shortname, t, true, n.Pragma&ir.Nointerface != 0)
+ 		if m == nil {
+ 			return
+ 		}
+ 
+-		n.Func().Nname.SetSym(methodSym(rcvr.Type, n.Func().Shortname))
+-		declare(n.Func().Nname, ir.PFUNC)
++		n.Nname.SetSym(methodSym(rcvr.Type, n.Shortname))
++		declare(n.Nname, ir.PFUNC)
+ 	}
+ 
+-	if base.Ctxt.Flag_dynlink && !inimport && n.Func().Nname != nil {
+-		makefuncsym(n.Func().Nname.Sym())
++	if base.Ctxt.Flag_dynlink && !inimport && n.Nname != nil {
++		makefuncsym(n.Sym())
+ 	}
+ }
+ 
+@@ -3861,22 +3870,19 @@ func isTermNode(n ir.Node) bool {
+ }
+ 
+ // checkreturn makes sure that fn terminates appropriately.
+-func checkreturn(fn ir.Node) {
++func checkreturn(fn *ir.Func) {
+ 	if fn.Type().NumResults() != 0 && fn.Body().Len() != 0 {
+ 		var labels map[*types.Sym]ir.Node
+ 		markbreaklist(&labels, fn.Body(), nil)
+ 		if !isTermNodes(fn.Body()) {
+-			base.ErrorfAt(fn.Func().Endlineno, "missing return at end of function")
++			base.ErrorfAt(fn.Endlineno, "missing return at end of function")
+ 		}
+ 	}
+ }
+ 
+-func deadcode(fn ir.Node) {
++func deadcode(fn *ir.Func) {
+ 	deadcodeslice(fn.PtrBody())
+-	deadcodefn(fn)
+-}
+ 
+-func deadcodefn(fn ir.Node) {
+ 	if fn.Body().Len() == 0 {
+ 		return
+ 	}
+@@ -4014,21 +4020,15 @@ func curpkg() *types.Pkg {
+ 		// Initialization expressions for package-scope variables.
+ 		return ir.LocalPkg
+ 	}
+-
+-	// TODO(mdempsky): Standardize on either ODCLFUNC or ONAME for
+-	// Curfn, rather than mixing them.
+-	if fn.Op() == ir.ODCLFUNC {
+-		fn = fn.Func().Nname
+-	}
+-
+-	return fnpkg(fn)
++	return fnpkg(fn.Nname)
+ }
+ 
+ // MethodName returns the ONAME representing the method
+ // referenced by expression n, which must be a method selector,
+ // method expression, or method value.
+-func methodExprName(n ir.Node) ir.Node {
+-	return ir.AsNode(methodExprFunc(n).Nname)
++func methodExprName(n ir.Node) *ir.Name {
++	name, _ := ir.AsNode(methodExprFunc(n).Nname).(*ir.Name)
++	return name
+ }
+ 
+ // MethodFunc is like MethodName, but returns the types.Field instead.
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c05aa0c372..d749dff827 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -22,33 +22,33 @@ import (
+ const tmpstringbufsize = 32
+ const zeroValSize = 1024 // must match value of runtime/map.go:maxZero
+ 
+-func walk(fn ir.Node) {
++func walk(fn *ir.Func) {
+ 	Curfn = fn
+ 	errorsBefore := base.Errors()
+ 
+ 	if base.Flag.W != 0 {
+-		s := fmt.Sprintf("\nbefore walk %v", Curfn.Func().Nname.Sym())
++		s := fmt.Sprintf("\nbefore walk %v", Curfn.Sym())
+ 		ir.DumpList(s, Curfn.Body())
+ 	}
+ 
+ 	lno := base.Pos
+ 
+ 	// Final typecheck for any unused variables.
+-	for i, ln := range fn.Func().Dcl {
++	for i, ln := range fn.Dcl {
+ 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) {
+-			ln = typecheck(ln, ctxExpr|ctxAssign)
+-			fn.Func().Dcl[i] = ln
++			ln = typecheck(ln, ctxExpr|ctxAssign).(*ir.Name)
++			fn.Dcl[i] = ln
+ 		}
+ 	}
+ 
+ 	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+-	for _, ln := range fn.Func().Dcl {
++	for _, ln := range fn.Dcl {
+ 		if ln.Op() == ir.ONAME && (ln.Class() == ir.PAUTO || ln.Class() == ir.PAUTOHEAP) && ln.Name().Defn != nil && ln.Name().Defn.Op() == ir.OTYPESW && ln.Name().Used() {
+ 			ln.Name().Defn.Left().Name().SetUsed(true)
+ 		}
+ 	}
+ 
+-	for _, ln := range fn.Func().Dcl {
++	for _, ln := range fn.Dcl {
+ 		if ln.Op() != ir.ONAME || (ln.Class() != ir.PAUTO && ln.Class() != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Name().Used() {
+ 			continue
+ 		}
+@@ -69,15 +69,15 @@ func walk(fn ir.Node) {
+ 	}
+ 	walkstmtlist(Curfn.Body().Slice())
+ 	if base.Flag.W != 0 {
+-		s := fmt.Sprintf("after walk %v", Curfn.Func().Nname.Sym())
++		s := fmt.Sprintf("after walk %v", Curfn.Sym())
+ 		ir.DumpList(s, Curfn.Body())
+ 	}
+ 
+ 	zeroResults()
+ 	heapmoves()
+-	if base.Flag.W != 0 && Curfn.Func().Enter.Len() > 0 {
+-		s := fmt.Sprintf("enter %v", Curfn.Func().Nname.Sym())
+-		ir.DumpList(s, Curfn.Func().Enter)
++	if base.Flag.W != 0 && Curfn.Enter.Len() > 0 {
++		s := fmt.Sprintf("enter %v", Curfn.Sym())
++		ir.DumpList(s, Curfn.Enter)
+ 	}
+ }
+ 
+@@ -87,8 +87,8 @@ func walkstmtlist(s []ir.Node) {
+ 	}
+ }
+ 
+-func paramoutheap(fn ir.Node) bool {
+-	for _, ln := range fn.Func().Dcl {
++func paramoutheap(fn *ir.Func) bool {
++	for _, ln := range fn.Dcl {
+ 		switch ln.Class() {
+ 		case ir.PPARAMOUT:
+ 			if isParamStackCopy(ln) || ln.Name().Addrtaken() {
+@@ -209,18 +209,18 @@ func walkstmt(n ir.Node) ir.Node {
+ 		base.Errorf("case statement out of place")
+ 
+ 	case ir.ODEFER:
+-		Curfn.Func().SetHasDefer(true)
+-		Curfn.Func().NumDefers++
+-		if Curfn.Func().NumDefers > maxOpenDefers {
++		Curfn.SetHasDefer(true)
++		Curfn.NumDefers++
++		if Curfn.NumDefers > maxOpenDefers {
+ 			// Don't allow open-coded defers if there are more than
+ 			// 8 defers in the function, since we use a single
+ 			// byte to record active defers.
+-			Curfn.Func().SetOpenCodedDeferDisallowed(true)
++			Curfn.SetOpenCodedDeferDisallowed(true)
+ 		}
+ 		if n.Esc() != EscNever {
+ 			// If n.Esc is not EscNever, then this defer occurs in a loop,
+ 			// so open-coded defers cannot be used in this function.
+-			Curfn.Func().SetOpenCodedDeferDisallowed(true)
++			Curfn.SetOpenCodedDeferDisallowed(true)
+ 		}
+ 		fallthrough
+ 	case ir.OGO:
+@@ -270,7 +270,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 		walkstmtlist(n.Rlist().Slice())
+ 
+ 	case ir.ORETURN:
+-		Curfn.Func().NumReturns++
++		Curfn.NumReturns++
+ 		if n.List().Len() == 0 {
+ 			break
+ 		}
+@@ -279,12 +279,13 @@ func walkstmt(n ir.Node) ir.Node {
+ 			// so that reorder3 can fix up conflicts
+ 			var rl []ir.Node
+ 
+-			for _, ln := range Curfn.Func().Dcl {
++			for _, ln := range Curfn.Dcl {
+ 				cl := ln.Class()
+ 				if cl == ir.PAUTO || cl == ir.PAUTOHEAP {
+ 					break
+ 				}
+ 				if cl == ir.PPARAMOUT {
++					var ln ir.Node = ln
+ 					if isParamStackCopy(ln) {
+ 						ln = walkexpr(typecheck(ir.Nod(ir.ODEREF, ln.Name().Heapaddr, nil), ctxExpr), nil)
+ 					}
+@@ -800,8 +801,8 @@ opswitch:
+ 		fromType := n.Left().Type()
+ 		toType := n.Type()
+ 
+-		if !fromType.IsInterface() && !ir.IsBlank(Curfn.Func().Nname) { // skip unnamed functions (func _())
+-			markTypeUsedInInterface(fromType, Curfn.Func().LSym)
++		if !fromType.IsInterface() && !ir.IsBlank(Curfn.Nname) { // skip unnamed functions (func _())
++			markTypeUsedInInterface(fromType, Curfn.LSym)
+ 		}
+ 
+ 		// typeword generates the type word of the interface value.
+@@ -1625,7 +1626,7 @@ func markTypeUsedInInterface(t *types.Type, from *obj.LSym) {
+ func markUsedIfaceMethod(n ir.Node) {
+ 	ityp := n.Left().Left().Type()
+ 	tsym := typenamesym(ityp).Linksym()
+-	r := obj.Addrel(Curfn.Func().LSym)
++	r := obj.Addrel(Curfn.LSym)
+ 	r.Sym = tsym
+ 	// n.Left.Xoffset is the method index * Widthptr (the offset of code pointer
+ 	// in itab).
+@@ -2448,7 +2449,7 @@ func zeroResults() {
+ 			v = v.Name().Stackcopy
+ 		}
+ 		// Zero the stack location containing f.
+-		Curfn.Func().Enter.Append(ir.NodAt(Curfn.Pos(), ir.OAS, v, nil))
++		Curfn.Enter.Append(ir.NodAt(Curfn.Pos(), ir.OAS, v, nil))
+ 	}
+ }
+ 
+@@ -2478,9 +2479,9 @@ func heapmoves() {
+ 	nn := paramstoheap(Curfn.Type().Recvs())
+ 	nn = append(nn, paramstoheap(Curfn.Type().Params())...)
+ 	nn = append(nn, paramstoheap(Curfn.Type().Results())...)
+-	Curfn.Func().Enter.Append(nn...)
+-	base.Pos = Curfn.Func().Endlineno
+-	Curfn.Func().Exit.Append(returnsfromheap(Curfn.Type().Results())...)
++	Curfn.Enter.Append(nn...)
++	base.Pos = Curfn.Endlineno
++	Curfn.Exit.Append(returnsfromheap(Curfn.Type().Results())...)
+ 	base.Pos = lno
+ }
+ 
+@@ -2781,7 +2782,7 @@ func appendslice(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 		nptr2 := l2
+ 
+-		Curfn.Func().SetWBPos(n.Pos())
++		Curfn.SetWBPos(n.Pos())
+ 
+ 		// instantiate typedslicecopy(typ *type, dstPtr *any, dstLen int, srcPtr *any, srcLen int) int
+ 		fn := syslook("typedslicecopy")
+@@ -2966,7 +2967,7 @@ func extendslice(n ir.Node, init *ir.Nodes) ir.Node {
+ 	hasPointers := elemtype.HasPointers()
+ 	if hasPointers {
+ 		clrname = "memclrHasPointers"
+-		Curfn.Func().SetWBPos(n.Pos())
++		Curfn.SetWBPos(n.Pos())
+ 	}
+ 
+ 	var clr ir.Nodes
+@@ -3100,7 +3101,7 @@ func walkappend(n ir.Node, init *ir.Nodes, dst ir.Node) ir.Node {
+ //
+ func copyany(n ir.Node, init *ir.Nodes, runtimecall bool) ir.Node {
+ 	if n.Left().Type().Elem().HasPointers() {
+-		Curfn.Func().SetWBPos(n.Pos())
++		Curfn.SetWBPos(n.Pos())
+ 		fn := writebarrierfn("typedslicecopy", n.Left().Type().Elem(), n.Right().Type().Elem())
+ 		n.SetLeft(cheapexpr(n.Left(), init))
+ 		ptrL, lenL := backingArrayPtrLen(n.Left())
+@@ -3714,9 +3715,9 @@ func usemethod(n ir.Node) {
+ 	//       (including global variables such as numImports - was issue #19028).
+ 	// Also need to check for reflect package itself (see Issue #38515).
+ 	if s := res0.Type.Sym; s != nil && s.Name == "Method" && isReflectPkg(s.Pkg) {
+-		Curfn.Func().SetReflectMethod(true)
++		Curfn.SetReflectMethod(true)
+ 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
+-		Curfn.Func().LSym.Set(obj.AttrReflectMethod, true)
++		Curfn.LSym.Set(obj.AttrReflectMethod, true)
+ 	}
+ }
+ 
+@@ -3765,10 +3766,10 @@ func usefield(n ir.Node) {
+ 	}
+ 
+ 	sym := tracksym(outer, field)
+-	if Curfn.Func().FieldTrack == nil {
+-		Curfn.Func().FieldTrack = make(map[*types.Sym]struct{})
++	if Curfn.FieldTrack == nil {
++		Curfn.FieldTrack = make(map[*types.Sym]struct{})
+ 	}
+-	Curfn.Func().FieldTrack[sym] = struct{}{}
++	Curfn.FieldTrack[sym] = struct{}{}
+ }
+ 
+ func candiscardlist(l ir.Nodes) bool {
+@@ -3948,12 +3949,12 @@ func wrapCall(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	funcbody()
+ 
+-	fn = typecheck(fn, ctxStmt)
++	typecheckFunc(fn)
+ 	typecheckslice(fn.Body().Slice(), ctxStmt)
+ 	xtop = append(xtop, fn)
+ 
+ 	call = ir.Nod(ir.OCALL, nil, nil)
+-	call.SetLeft(fn.Func().Nname)
++	call.SetLeft(fn.Nname)
+ 	call.PtrList().Set(n.List().Slice())
+ 	call = typecheck(call, ctxStmt)
+ 	call = walkexpr(call, init)
+@@ -4091,6 +4092,6 @@ func walkCheckPtrArithmetic(n ir.Node, init *ir.Nodes) ir.Node {
+ // checkPtr reports whether pointer checking should be enabled for
+ // function fn at a given level. See debugHelpFooter for defined
+ // levels.
+-func checkPtr(fn ir.Node, level int) bool {
+-	return base.Debug.Checkptr >= level && fn.Func().Pragma&ir.NoCheckPtr == 0
++func checkPtr(fn *ir.Func, level int) bool {
++	return base.Debug.Checkptr >= level && fn.Pragma&ir.NoCheckPtr == 0
+ }
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 3822c4c73b..a3999b6da0 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1338,7 +1338,7 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 			mode.Fprintf(s, "%v { %v }", n.Type(), n.Body())
+ 			return
+ 		}
+-		mode.Fprintf(s, "%v { %v }", n.Type(), n.Func().Decl.Body())
++		mode.Fprintf(s, "%v { %v }", n.Type(), n.Func().Body())
+ 
+ 	case OCOMPLIT:
+ 		if mode == FErr {
+@@ -1638,7 +1638,7 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 		}
+ 	}
+ 
+-	if n.Op() == OCLOSURE && n.Func().Decl != nil && n.Func().Nname.Sym() != nil {
++	if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Nname.Sym() != nil {
+ 		mode.Fprintf(s, " fnName %v", n.Func().Nname.Sym())
+ 	}
+ 	if n.Sym() != nil && n.Op() != ONAME {
+@@ -1656,15 +1656,15 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 		if n.Right() != nil {
+ 			mode.Fprintf(s, "%v", n.Right())
+ 		}
+-		if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Decl != nil && n.Func().Decl.Body().Len() != 0 {
++		if n.Op() == OCLOSURE && n.Func() != nil && n.Func().Body().Len() != 0 {
+ 			indent(s)
+ 			// The function associated with a closure
+-			mode.Fprintf(s, "%v-clofunc%v", n.Op(), n.Func().Decl)
++			mode.Fprintf(s, "%v-clofunc%v", n.Op(), n.Func())
+ 		}
+ 		if n.Op() == ODCLFUNC && n.Func() != nil && n.Func().Dcl != nil && len(n.Func().Dcl) != 0 {
+ 			indent(s)
+ 			// The dcls for a func or closure
+-			mode.Fprintf(s, "%v-dcl%v", n.Op(), AsNodes(n.Func().Dcl))
++			mode.Fprintf(s, "%v-dcl%v", n.Op(), asNameNodes(n.Func().Dcl))
+ 		}
+ 		if n.List().Len() != 0 {
+ 			indent(s)
+@@ -1683,6 +1683,16 @@ func nodeDumpFmt(n Node, s fmt.State, flag FmtFlag, mode FmtMode) {
+ 	}
+ }
+ 
++// asNameNodes copies list to a new Nodes.
++// It should only be called in debug formatting and other low-performance contexts.
++func asNameNodes(list []*Name) Nodes {
++	var ns Nodes
++	for _, n := range list {
++		ns.Append(n)
++	}
++	return ns
++}
++
+ // "%S" suppresses qualifying with package
+ func symFormat(s *types.Sym, f fmt.State, verb rune, mode FmtMode) {
+ 	switch verb {
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 57ec0707e9..92a24c8385 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -53,9 +53,8 @@ type Func struct {
+ 	body Nodes
+ 	iota int64
+ 
+-	Nname    Node // ONAME node
+-	Decl     Node // ODCLFUNC node
+-	OClosure Node // OCLOSURE node
++	Nname    *Name // ONAME node
++	OClosure Node  // OCLOSURE node
+ 
+ 	Shortname *types.Sym
+ 
+@@ -65,12 +64,11 @@ type Func struct {
+ 	Exit  Nodes
+ 	// ONAME nodes for all params/locals for this func/closure, does NOT
+ 	// include closurevars until transformclosure runs.
+-	Dcl []Node
++	Dcl []*Name
+ 
+-	ClosureEnter  Nodes // list of ONAME nodes of captured variables
+-	ClosureType   Node  // closure representation type
+-	ClosureCalled bool  // closure is only immediately called
+-	ClosureVars   Nodes // closure params; each has closurevar set
++	ClosureEnter Nodes   // list of ONAME nodes (or OADDR-of-ONAME nodes, for output parameters) of captured variables
++	ClosureType  Node    // closure representation type
++	ClosureVars  []*Name // closure params; each has closurevar set
+ 
+ 	// Parents records the parent scope of each scope within a
+ 	// function. The root scope (0) has no parent, so the i'th
+@@ -80,17 +78,17 @@ type Func struct {
+ 	// Marks records scope boundary changes.
+ 	Marks []Mark
+ 
+-	// Closgen tracks how many closures have been generated within
+-	// this function. Used by closurename for creating unique
+-	// function names.
+-	Closgen int
+-
+ 	FieldTrack map[*types.Sym]struct{}
+ 	DebugInfo  interface{}
+ 	LSym       *obj.LSym
+ 
+ 	Inl *Inline
+ 
++	// Closgen tracks how many closures have been generated within
++	// this function. Used by closurename for creating unique
++	// function names.
++	Closgen int32
++
+ 	Label int32 // largest auto-generated label in this function
+ 
+ 	Endlineno src.XPos
+@@ -99,8 +97,8 @@ type Func struct {
+ 	Pragma PragmaFlag // go:xxx function annotations
+ 
+ 	flags      bitset16
+-	NumDefers  int // number of defer calls in the function
+-	NumReturns int // number of explicit returns in the function
++	NumDefers  int32 // number of defer calls in the function
++	NumReturns int32 // number of explicit returns in the function
+ 
+ 	// nwbrCalls records the LSyms of functions called by this
+ 	// function for go:nowritebarrierrec analysis. Only filled in
+@@ -112,7 +110,6 @@ func NewFunc(pos src.XPos) *Func {
+ 	f := new(Func)
+ 	f.pos = pos
+ 	f.op = ODCLFUNC
+-	f.Decl = f
+ 	f.iota = -1
+ 	return f
+ }
+@@ -141,7 +138,7 @@ type Inline struct {
+ 	Cost int32 // heuristic cost of inlining this function
+ 
+ 	// Copies of Func.Dcl and Nbody for use during inlining.
+-	Dcl  []Node
++	Dcl  []*Name
+ 	Body []Node
+ }
+ 
+@@ -172,6 +169,7 @@ const (
+ 	funcExportInline             // include inline body in export data
+ 	funcInstrumentBody           // add race/msan instrumentation during SSA construction
+ 	funcOpenCodedDeferDisallowed // can't do open-coded defers
++	funcClosureCalled            // closure is only immediately called
+ )
+ 
+ type SymAndPos struct {
+@@ -190,6 +188,7 @@ func (f *Func) InlinabilityChecked() bool      { return f.flags&funcInlinability
+ func (f *Func) ExportInline() bool             { return f.flags&funcExportInline != 0 }
+ func (f *Func) InstrumentBody() bool           { return f.flags&funcInstrumentBody != 0 }
+ func (f *Func) OpenCodedDeferDisallowed() bool { return f.flags&funcOpenCodedDeferDisallowed != 0 }
++func (f *Func) ClosureCalled() bool            { return f.flags&funcClosureCalled != 0 }
+ 
+ func (f *Func) SetDupok(b bool)                    { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)                  { f.flags.set(funcWrapper, b) }
+@@ -202,6 +201,7 @@ func (f *Func) SetInlinabilityChecked(b bool)      { f.flags.set(funcInlinabilit
+ func (f *Func) SetExportInline(b bool)             { f.flags.set(funcExportInline, b) }
+ func (f *Func) SetInstrumentBody(b bool)           { f.flags.set(funcInstrumentBody, b) }
+ func (f *Func) SetOpenCodedDeferDisallowed(b bool) { f.flags.set(funcOpenCodedDeferDisallowed, b) }
++func (f *Func) SetClosureCalled(b bool)            { f.flags.set(funcClosureCalled, b) }
+ 
+ func (f *Func) SetWBPos(pos src.XPos) {
+ 	if base.Debug.WB != 0 {
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index d330745cfb..5546488fa7 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -32,9 +32,10 @@ type Name struct {
+ 	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
+ 	// For a closure var, the ONAME node of the outer captured variable
+ 	Defn Node
+-	// The ODCLFUNC node (for a static function/method or a closure) in which
+-	// local variable or param is declared.
+-	Curfn Node
++
++	// The function, method, or closure in which local variable or param is declared.
++	Curfn *Func
++
+ 	// Unique number for ONAME nodes within a function. Function outputs
+ 	// (results) are numbered starting at one, followed by function inputs
+ 	// (parameters), and then local variables. Vargen is used to distinguish
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 8597ad492a..9321f765e0 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,8 +20,8 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 180, 320},
+-		{Name{}, 132, 232},
++		{Func{}, 172, 296},
++		{Name{}, 128, 224},
+ 		{node{}, 84, 144},
+ 	}
+ 

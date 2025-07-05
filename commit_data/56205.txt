@@ -47,10 +47,208 @@ Date:   Fri Feb 24 17:52:00 2023 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  api/next/59166.txt              |  1 +
  src/net/mptcpsock_linux.go      | 51 +++++++++++++++++++++++++++++++++++++++++
  src/net/mptcpsock_linux_test.go | 37 +++++++++++++++++++++++++++---
  src/net/mptcpsock_stub.go       |  4 ++++
  src/net/tcpsock.go              | 16 +++++++++++++
  5 files changed, 106 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/59166.txt b/api/next/59166.txt
+new file mode 100644
+index 0000000000..2a620831e8
+--- /dev/null
++++ b/api/next/59166.txt
+@@ -0,0 +1 @@
++pkg net, method (*TCPConn) MultipathTCP() (bool, error) #59166
+diff --git a/src/net/mptcpsock_linux.go b/src/net/mptcpsock_linux.go
+index 15a7882498..e1a78fd59f 100644
+--- a/src/net/mptcpsock_linux.go
++++ b/src/net/mptcpsock_linux.go
+@@ -8,6 +8,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"internal/poll"
++	"internal/syscall/unix"
+ 	"sync"
+ 	"syscall"
+ )
+@@ -15,11 +16,14 @@ import (
+ var (
+ 	mptcpOnce      sync.Once
+ 	mptcpAvailable bool
++	hasSOLMPTCP    bool
+ )
+ 
+ // These constants aren't in the syscall package, which is frozen
+ const (
+ 	_IPPROTO_MPTCP = 0x106
++	_SOL_MPTCP     = 0x11c
++	_MPTCP_INFO    = 0x1
+ )
+ 
+ func supportsMultipathTCP() bool {
+@@ -41,6 +45,10 @@ func initMPTCPavailable() {
+ 		// another error: MPTCP was not available but it might be later
+ 		mptcpAvailable = true
+ 	}
++
++	major, minor := unix.KernelVersion()
++	// SOL_MPTCP only supported from kernel 5.16
++	hasSOLMPTCP = major > 5 || (major == 5 && minor >= 16)
+ }
+ 
+ func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCPConn, error) {
+@@ -74,3 +82,46 @@ func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPLis
+ 	// retry with "plain" TCP.
+ 	return sl.listenTCP(ctx, laddr)
+ }
++
++// hasFallenBack reports whether the MPTCP connection has fallen back to "plain"
++// TCP.
++//
++// A connection can fallback to TCP for different reasons, e.g. the other peer
++// doesn't support it, a middle box "accidentally" drops the option, etc.
++//
++// If the MPTCP protocol has not been requested when creating the socket, this
++// method will return true: MPTCP is not being used.
++//
++// Kernel >= 5.16 returns EOPNOTSUPP/ENOPROTOOPT in case of fallback.
++// Older kernels will always return them even if MPTCP is used: not usable.
++func hasFallenBack(fd *netFD) bool {
++	_, err := fd.pfd.GetsockoptInt(_SOL_MPTCP, _MPTCP_INFO)
++
++	// 2 expected errors in case of fallback depending on the address family
++	//   - AF_INET:  EOPNOTSUPP
++	//   - AF_INET6: ENOPROTOOPT
++	return err == syscall.EOPNOTSUPP || err == syscall.ENOPROTOOPT
++}
++
++// isUsingMPTCPProto reports whether the socket protocol is MPTCP.
++//
++// Compared to hasFallenBack method, here only the socket protocol being used is
++// checked: it can be MPTCP but it doesn't mean MPTCP is used on the wire, maybe
++// a fallback to TCP has been done.
++func isUsingMPTCPProto(fd *netFD) bool {
++	proto, _ := fd.pfd.GetsockoptInt(syscall.SOL_SOCKET, syscall.SO_PROTOCOL)
++
++	return proto == _IPPROTO_MPTCP
++}
++
++// isUsingMultipathTCP reports whether MPTCP is still being used.
++//
++// Please look at the description of hasFallenBack (kernel >=5.16) and
++// isUsingMPTCPProto methods for more details about what is being checked here.
++func isUsingMultipathTCP(fd *netFD) bool {
++	if hasSOLMPTCP {
++		return !hasFallenBack(fd)
++	}
++
++	return isUsingMPTCPProto(fd)
++}
+diff --git a/src/net/mptcpsock_linux_test.go b/src/net/mptcpsock_linux_test.go
+index 11543b0c8c..bf8fc951c5 100644
+--- a/src/net/mptcpsock_linux_test.go
++++ b/src/net/mptcpsock_linux_test.go
+@@ -40,11 +40,28 @@ func postAcceptMPTCP(ls *localServer, ch chan<- error) {
+ 
+ 	c := ls.cl[0]
+ 
+-	_, ok := c.(*TCPConn)
++	tcp, ok := c.(*TCPConn)
+ 	if !ok {
+ 		ch <- errors.New("struct is not a TCPConn")
+ 		return
+ 	}
++
++	mptcp, err := tcp.MultipathTCP()
++	if err != nil {
++		ch <- err
++		return
++	}
++
++	if !mptcp {
++		ch <- errors.New("incoming connection is not with MPTCP")
++		return
++	}
++
++	// Also check the method for the older kernels if not tested before
++	if hasSOLMPTCP && !isUsingMPTCPProto(tcp.fd) {
++		ch <- errors.New("incoming connection is not an MPTCP proto")
++		return
++	}
+ }
+ 
+ func dialerMPTCP(t *testing.T, addr string) {
+@@ -64,7 +81,7 @@ func dialerMPTCP(t *testing.T, addr string) {
+ 	}
+ 	defer c.Close()
+ 
+-	_, ok := c.(*TCPConn)
++	tcp, ok := c.(*TCPConn)
+ 	if !ok {
+ 		t.Fatal("struct is not a TCPConn")
+ 	}
+@@ -82,7 +99,21 @@ func dialerMPTCP(t *testing.T, addr string) {
+ 		t.Errorf("sent bytes (%s) are different from received ones (%s)", snt, b)
+ 	}
+ 
+-	t.Logf("outgoing connection from %s with mptcp", addr)
++	mptcp, err := tcp.MultipathTCP()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("outgoing connection from %s with mptcp: %t", addr, mptcp)
++
++	if !mptcp {
++		t.Error("outgoing connection is not with MPTCP")
++	}
++
++	// Also check the method for the older kernels if not tested before
++	if hasSOLMPTCP && !isUsingMPTCPProto(tcp.fd) {
++		t.Error("outgoing connection is not an MPTCP proto")
++	}
+ }
+ 
+ func canCreateMPTCPSocket() bool {
+diff --git a/src/net/mptcpsock_stub.go b/src/net/mptcpsock_stub.go
+index ae06772896..458c1530d7 100644
+--- a/src/net/mptcpsock_stub.go
++++ b/src/net/mptcpsock_stub.go
+@@ -17,3 +17,7 @@ func (sd *sysDialer) dialMPTCP(ctx context.Context, laddr, raddr *TCPAddr) (*TCP
+ func (sl *sysListener) listenMPTCP(ctx context.Context, laddr *TCPAddr) (*TCPListener, error) {
+ 	return sl.listenTCP(ctx, laddr)
+ }
++
++func isUsingMultipathTCP(fd *netFD) bool {
++	return false
++}
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index f736f5a878..358e48723b 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -219,6 +219,22 @@ func (c *TCPConn) SetNoDelay(noDelay bool) error {
+ 	return nil
+ }
+ 
++// MultipathTCP reports whether the ongoing connection is using MPTCP.
++//
++// If Multipath TCP is not supported by the host, by the other peer or
++// intentionally / accidentally filtered out by a device in between, a
++// fallback to TCP will be done. This method does its best to check if
++// MPTCP is still being used or not.
++//
++// On Linux, more conditions are verified on kernels >= v5.16, improving
++// the results.
++func (c *TCPConn) MultipathTCP() (bool, error) {
++	if !c.ok() {
++		return false, syscall.EINVAL
++	}
++	return isUsingMultipathTCP(c.fd), nil
++}
++
+ func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Duration)) *TCPConn {
+ 	setNoDelay(fd, true)
+ 	if keepAlive == 0 {

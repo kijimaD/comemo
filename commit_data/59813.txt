@@ -21,7 +21,132 @@ Date:   Tue Apr 23 22:15:03 2024 +0000
     Reviewed-by: Joedian Reid <joedian@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadstore.go      | 19 +++++++++++
  src/cmd/compile/internal/ssa/deadstore_test.go | 45 ++++++++++++++++++++++++++
  2 files changed, 64 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index cb3427103c..ce04cb3a24 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -21,12 +21,18 @@ func dse(f *Func) {
+ 	defer f.retSparseSet(storeUse)
+ 	shadowed := f.newSparseMap(f.NumValues())
+ 	defer f.retSparseMap(shadowed)
++	// localAddrs maps from a local variable (the Aux field of a LocalAddr value) to an instance of a LocalAddr value for that variable in the current block.
++	localAddrs := map[any]*Value{}
+ 	for _, b := range f.Blocks {
+ 		// Find all the stores in this block. Categorize their uses:
+ 		//  loadUse contains stores which are used by a subsequent load.
+ 		//  storeUse contains stores which are used by a subsequent store.
+ 		loadUse.clear()
+ 		storeUse.clear()
++		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
++		for k := range localAddrs {
++			delete(localAddrs, k)
++		}
+ 		stores = stores[:0]
+ 		for _, v := range b.Values {
+ 			if v.Op == OpPhi {
+@@ -46,6 +52,13 @@ func dse(f *Func) {
+ 					}
+ 				}
+ 			} else {
++				if v.Op == OpLocalAddr {
++					if _, ok := localAddrs[v.Aux]; !ok {
++						localAddrs[v.Aux] = v
++					} else {
++						continue
++					}
++				}
+ 				for _, a := range v.Args {
+ 					if a.Block == b && a.Type.IsMemory() {
+ 						loadUse.add(a.ID)
+@@ -100,6 +113,11 @@ func dse(f *Func) {
+ 			} else { // OpZero
+ 				sz = v.AuxInt
+ 			}
++			if ptr.Op == OpLocalAddr {
++				if la, ok := localAddrs[ptr.Aux]; ok {
++					ptr = la
++				}
++			}
+ 			sr := shadowRange(shadowed.get(ptr.ID))
+ 			if sr.contains(off, off+sz) {
+ 				// Modify the store/zero into a copy of the memory state,
+@@ -146,6 +164,7 @@ type shadowRange int32
+ func (sr shadowRange) lo() int64 {
+ 	return int64(sr & 0xffff)
+ }
++
+ func (sr shadowRange) hi() int64 {
+ 	return int64((sr >> 16) & 0xffff)
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadstore_test.go b/src/cmd/compile/internal/ssa/deadstore_test.go
+index 33cb4b9755..4ccd6b8e91 100644
+--- a/src/cmd/compile/internal/ssa/deadstore_test.go
++++ b/src/cmd/compile/internal/ssa/deadstore_test.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 	"testing"
+ )
+ 
+@@ -44,6 +45,7 @@ func TestDeadStore(t *testing.T) {
+ 		t.Errorf("dead store (zero) not removed")
+ 	}
+ }
++
+ func TestDeadStorePhi(t *testing.T) {
+ 	// make sure we don't get into an infinite loop with phi values.
+ 	c := testConfig(t)
+@@ -127,3 +129,46 @@ func TestDeadStoreUnsafe(t *testing.T) {
+ 		t.Errorf("store %s incorrectly removed", v)
+ 	}
+ }
++
++func TestDeadStoreSmallStructInit(t *testing.T) {
++	c := testConfig(t)
++	ptrType := c.config.Types.BytePtr
++	typ := types.NewStruct([]*types.Field{
++		types.NewField(src.NoXPos, &types.Sym{Name: "A"}, c.config.Types.Int),
++		types.NewField(src.NoXPos, &types.Sym{Name: "B"}, c.config.Types.Int),
++	})
++	name := c.Temp(typ)
++	fun := c.Fun("entry",
++		Bloc("entry",
++			Valu("start", OpInitMem, types.TypeMem, 0, nil),
++			Valu("sp", OpSP, c.config.Types.Uintptr, 0, nil),
++			Valu("zero", OpConst64, c.config.Types.Int, 0, nil),
++			Valu("v6", OpLocalAddr, ptrType, 0, name, "sp", "start"),
++			Valu("v3", OpOffPtr, ptrType, 8, nil, "v6"),
++			Valu("v22", OpOffPtr, ptrType, 0, nil, "v6"),
++			Valu("zerostore1", OpStore, types.TypeMem, 0, c.config.Types.Int, "v22", "zero", "start"),
++			Valu("zerostore2", OpStore, types.TypeMem, 0, c.config.Types.Int, "v3", "zero", "zerostore1"),
++			Valu("v8", OpLocalAddr, ptrType, 0, name, "sp", "zerostore2"),
++			Valu("v23", OpOffPtr, ptrType, 8, nil, "v8"),
++			Valu("v25", OpOffPtr, ptrType, 0, nil, "v8"),
++			Valu("zerostore3", OpStore, types.TypeMem, 0, c.config.Types.Int, "v25", "zero", "zerostore2"),
++			Valu("zerostore4", OpStore, types.TypeMem, 0, c.config.Types.Int, "v23", "zero", "zerostore3"),
++			Goto("exit")),
++		Bloc("exit",
++			Exit("zerostore4")))
++
++	fun.f.Name = "smallstructinit"
++	CheckFunc(fun.f)
++	cse(fun.f)
++	dse(fun.f)
++	CheckFunc(fun.f)
++
++	v1 := fun.values["zerostore1"]
++	if v1.Op != OpCopy {
++		t.Errorf("dead store not removed")
++	}
++	v2 := fun.values["zerostore2"]
++	if v2.Op != OpCopy {
++		t.Errorf("dead store not removed")
++	}
++}

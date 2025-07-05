@@ -9,6 +9,20 @@ Date:   Sun Aug 16 22:10:45 2015 +0100
     Change-Id: I714e38b2d3a79dfd539d5368967d1c6b519cb948
     Reviewed-on: https://go-review.googlesource.com/13662
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/sort/sort.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 0a446c8255..c7c30426ae 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -300,7 +300,7 @@ func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
+ //    V. Raman in Algorithmica (1996) 16, 115-160:
+ //    This algorithm either needs additional 2n bits or works only if there
+ //    are enough different elements available to encode some permutations
+-//    which have to be undone later (so not stable an any input).
++//    which have to be undone later (so not stable on any input).
+ //  - All the optimal in-place sorting/merging algorithms I found are either
+ //    unstable or rely on enough different elements in each step to encode the
+ //    performed block rearrangements. See also "In-Place Merging Algorithms",

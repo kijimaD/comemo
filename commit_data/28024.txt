@@ -9,6 +9,29 @@ Date:   Tue Apr 26 14:11:38 2016 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 7fed8b1342..6fe30cdba9 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -145,7 +145,16 @@ func Import(in *bufio.Reader) {
+ 		if f := p.funcList[i]; f != nil {
+ 			// function not yet imported - read body and set it
+ 			funchdr(f)
+-			f.Func.Inl.Set(p.stmtList())
++			body := p.stmtList()
++			if body == nil {
++				// Make sure empty body is not interpreted as
++				// no inlineable body (see also parser.fnbody)
++				// (not doing so can cause significant performance
++				// degradation due to unnecessary calls to empty
++				// functions).
++				body = []*Node{Nod(OEMPTY, nil, nil)}
++			}
++			f.Func.Inl.Set(body)
+ 			funcbody(f)
+ 		} else {
+ 			// function already imported - read body but discard declarations

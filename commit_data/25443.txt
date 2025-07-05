@@ -9,6 +9,23 @@ Date:   Fri Oct 30 02:20:29 2015 +0000
     Change-Id: Icfe190c145a34f8aaa4d78e853dbc708962ba5ce
     Reviewed-on: https://go-review.googlesource.com/16447
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.6.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 57ded33b85..3027f5a983 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -14,8 +14,11 @@ API additions and behavior changes:
+ 
+ bufio: add Scanner.Buffer (https://golang.org/cl/14599/)
+ bufio: add ErrFinalToken as a sentinel value for Scan's split functions (https://golang.org/cl/14924)
++crypto/aes: dedicated asm version of AES-GCM (https://golang.org/cl/10484)
+ fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
++image: add NYCbCrA types (https://golang.org/cl/15671)
+ math/rand: add Read (https://golang.org/cl/14522)
++net/http: HTTP/2.0 support (many CLs)
+ net/url: make *url.Error implement net.Error (https://golang.org/cl/15672)
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)

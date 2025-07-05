@@ -26,9 +26,249 @@ Date:   Thu Jun 27 17:18:51 2024 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/lock_js.go    | 72 ++++++++++++++++++++++-------------------------
  src/runtime/note_js.go    | 40 ++++++++++++++++++++++++++
  src/runtime/note_other.go | 33 ++++++++++++++++++++++
  src/runtime/runtime2.go   | 27 ------------------
  4 files changed, 106 insertions(+), 66 deletions(-)
+
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index b6ee5ec7af..fcb813df81 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -63,29 +63,21 @@ func unlock2(l *mutex) {
+ 
+ // One-time notifications.
+ 
+-type noteWithTimeout struct {
+-	gp       *g
+-	deadline int64
+-}
+-
+-var (
+-	notes            = make(map[*note]*g)
+-	notesWithTimeout = make(map[*note]noteWithTimeout)
+-)
++// Linked list of notes with a deadline.
++var allDeadlineNotes *note
+ 
+ func noteclear(n *note) {
+-	n.key = note_cleared
++	n.status = note_cleared
+ }
+ 
+ func notewakeup(n *note) {
+-	// gp := getg()
+-	if n.key == note_woken {
++	if n.status == note_woken {
+ 		throw("notewakeup - double wakeup")
+ 	}
+-	cleared := n.key == note_cleared
+-	n.key = note_woken
++	cleared := n.status == note_cleared
++	n.status = note_woken
+ 	if cleared {
+-		goready(notes[n], 1)
++		goready(n.gp, 1)
+ 	}
+ }
+ 
+@@ -113,48 +105,50 @@ func notetsleepg(n *note, ns int64) bool {
+ 		}
+ 
+ 		id := scheduleTimeoutEvent(delay)
+-		mp := acquirem()
+-		notes[n] = gp
+-		notesWithTimeout[n] = noteWithTimeout{gp: gp, deadline: deadline}
+-		releasem(mp)
++
++		n.gp = gp
++		n.deadline = deadline
++		if allDeadlineNotes != nil {
++			allDeadlineNotes.allprev = n
++		}
++		n.allnext = allDeadlineNotes
++		allDeadlineNotes = n
+ 
+ 		gopark(nil, nil, waitReasonSleep, traceBlockSleep, 1)
+ 
+ 		clearTimeoutEvent(id) // note might have woken early, clear timeout
+ 
+-		mp = acquirem()
+-		delete(notes, n)
+-		delete(notesWithTimeout, n)
+-		releasem(mp)
++		n.gp = nil
++		n.deadline = 0
++		if n.allprev != nil {
++			n.allprev.allnext = n.allnext
++		}
++		if allDeadlineNotes == n {
++			allDeadlineNotes = n.allnext
++		}
++		n.allprev = nil
++		n.allnext = nil
+ 
+-		return n.key == note_woken
++		return n.status == note_woken
+ 	}
+ 
+-	for n.key != note_woken {
+-		mp := acquirem()
+-		notes[n] = gp
+-		releasem(mp)
++	for n.status != note_woken {
++		n.gp = gp
+ 
+ 		gopark(nil, nil, waitReasonZero, traceBlockGeneric, 1)
+ 
+-		mp = acquirem()
+-		delete(notes, n)
+-		releasem(mp)
++		n.gp = nil
+ 	}
+ 	return true
+ }
+ 
+ // checkTimeouts resumes goroutines that are waiting on a note which has reached its deadline.
+-// TODO(drchase): need to understand if write barriers are really okay in this context.
+-//
+-//go:yeswritebarrierrec
+ func checkTimeouts() {
+ 	now := nanotime()
+-	// TODO: map iteration has the write barriers in it; is that okay?
+-	for n, nt := range notesWithTimeout {
+-		if n.key == note_cleared && now >= nt.deadline {
+-			n.key = note_timeout
+-			goready(nt.gp, 1)
++	for n := allDeadlineNotes; n != nil; n = n.allnext {
++		if n.status == note_cleared && n.deadline != 0 && now >= n.deadline {
++			n.status = note_timeout
++			goready(n.gp, 1)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/note_js.go b/src/runtime/note_js.go
+new file mode 100644
+index 0000000000..be43fa42b0
+--- /dev/null
++++ b/src/runtime/note_js.go
+@@ -0,0 +1,40 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++// sleep and wakeup on one-time events.
++// before any calls to notesleep or notewakeup,
++// must call noteclear to initialize the Note.
++// then, exactly one thread can call notesleep
++// and exactly one thread can call notewakeup (once).
++// once notewakeup has been called, the notesleep
++// will return.  future notesleep will return immediately.
++// subsequent noteclear must be called only after
++// previous notesleep has returned, e.g. it's disallowed
++// to call noteclear straight after notewakeup.
++//
++// notetsleep is like notesleep but wakes up after
++// a given number of nanoseconds even if the event
++// has not yet happened.  if a goroutine uses notetsleep to
++// wake up early, it must wait to call noteclear until it
++// can be sure that no other goroutine is calling
++// notewakeup.
++//
++// notesleep/notetsleep are generally called on g0,
++// notetsleepg is similar to notetsleep but is called on user g.
++type note struct {
++	status int32
++
++	// The G waiting on this note.
++	gp *g
++
++	// Deadline, if any. 0 indicates no timeout.
++	deadline int64
++
++	// allprev and allnext are used to form the allDeadlineNotes linked
++	// list. These are unused if there is no deadline.
++	allprev *note
++	allnext *note
++}
+diff --git a/src/runtime/note_other.go b/src/runtime/note_other.go
+new file mode 100644
+index 0000000000..7f62c1c6c5
+--- /dev/null
++++ b/src/runtime/note_other.go
+@@ -0,0 +1,33 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !js
++
++package runtime
++
++// sleep and wakeup on one-time events.
++// before any calls to notesleep or notewakeup,
++// must call noteclear to initialize the Note.
++// then, exactly one thread can call notesleep
++// and exactly one thread can call notewakeup (once).
++// once notewakeup has been called, the notesleep
++// will return.  future notesleep will return immediately.
++// subsequent noteclear must be called only after
++// previous notesleep has returned, e.g. it's disallowed
++// to call noteclear straight after notewakeup.
++//
++// notetsleep is like notesleep but wakes up after
++// a given number of nanoseconds even if the event
++// has not yet happened.  if a goroutine uses notetsleep to
++// wake up early, it must wait to call noteclear until it
++// can be sure that no other goroutine is calling
++// notewakeup.
++//
++// notesleep/notetsleep are generally called on g0,
++// notetsleepg is similar to notetsleep but is called on user g.
++type note struct {
++	// Futex-based impl treats it as uint32 key,
++	// while sema-based impl as M* waitm.
++	key uintptr
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 62ed77aae5..68b0be48aa 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -170,33 +170,6 @@ type mutex struct {
+ 	key uintptr
+ }
+ 
+-// sleep and wakeup on one-time events.
+-// before any calls to notesleep or notewakeup,
+-// must call noteclear to initialize the Note.
+-// then, exactly one thread can call notesleep
+-// and exactly one thread can call notewakeup (once).
+-// once notewakeup has been called, the notesleep
+-// will return.  future notesleep will return immediately.
+-// subsequent noteclear must be called only after
+-// previous notesleep has returned, e.g. it's disallowed
+-// to call noteclear straight after notewakeup.
+-//
+-// notetsleep is like notesleep but wakes up after
+-// a given number of nanoseconds even if the event
+-// has not yet happened.  if a goroutine uses notetsleep to
+-// wake up early, it must wait to call noteclear until it
+-// can be sure that no other goroutine is calling
+-// notewakeup.
+-//
+-// notesleep/notetsleep are generally called on g0,
+-// notetsleepg is similar to notetsleep but is called on user g.
+-type note struct {
+-	// Futex-based impl treats it as uint32 key,
+-	// while sema-based impl as M* waitm.
+-	// Used to be a union, but unions break precise GC.
+-	key uintptr
+-}
+-
+ type funcval struct {
+ 	fn uintptr
+ 	// variable-size, fn-specific data here

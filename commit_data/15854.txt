@@ -7,7 +7,7 @@ Date:   Wed Mar 20 17:11:09 2013 -0400
     R=ken2, ken
     CC=golang-dev
     https://golang.org/cl/7546052
-
+---
  src/cmd/5g/gsubr.c     |  20 +---
  src/cmd/6g/gsubr.c     |  16 +--
  src/cmd/8g/gsubr.c     |  16 +--
@@ -20,3 +20,863 @@ Date:   Wed Mar 20 17:11:09 2013 -0400
  src/cmd/gc/walk.c      |  27 +++--
  test/method5.go        | 297 +++++++++++++++++++++++++++++++++++++++++++++++++
  11 files changed, 524 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 191c755b80..d049ebe052 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -543,6 +543,7 @@ ismem(Node *n)
+ 	case OINDREG:
+ 	case ONAME:
+ 	case OPARAM:
++	case OCLOSUREVAR:
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -1163,11 +1164,11 @@ gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs)
+ // Generate an instruction referencing *n
+ // to force segv on nil pointer dereference.
+ void
+-checkref(Node *n)
++checkref(Node *n, int force)
+ {
+ 	Node m1, m2;
+ 
+-	if(n->type->type->width < unmappedzero)
++	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+ 		return;
+ 
+ 	regalloc(&m1, types[TUINTPTR], n);
+@@ -1209,8 +1210,6 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
+-	Prog *p;
+-
+ 	a->type = D_NONE;
+ 	a->name = D_NONE;
+ 	a->reg = NREG;
+@@ -1283,16 +1282,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 	
+ 	case OCLOSUREVAR:
+-		if(!canemitcode)
+-			fatal("naddr OCLOSUREVAR cannot emit code");
+-		p = gins(AMOVW, N, N);
+-		p->from.type = D_OREG;
+-		p->from.reg = 7;
+-		p->from.offset = n->xoffset;
+-		p->to.type = D_REG;
+-		p->to.reg = 1;
+-		a->type = D_REG;
+-		a->reg = 1;
++		a->type = D_OREG;
++		a->reg = 7;
++		a->offset = n->xoffset;
+ 		a->sym = S;
+ 		break;		
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index fc5407a1f3..7399832468 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -555,6 +555,7 @@ ismem(Node *n)
+ 	case OINDREG:
+ 	case ONAME:
+ 	case OPARAM:
++	case OCLOSUREVAR:
+ 		return 1;
+ 	case OADDR:
+ 		if(flag_largemodel)
+@@ -1057,11 +1058,11 @@ gins(int as, Node *f, Node *t)
+ // Generate an instruction referencing *n
+ // to force segv on nil pointer dereference.
+ void
+-checkref(Node *n)
++checkref(Node *n, int force)
+ {
+ 	Node m;
+ 
+-	if(n->type->type->width < unmappedzero)
++	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+ 		return;
+ 
+ 	regalloc(&m, types[TUINTPTR], n);
+@@ -1098,8 +1099,6 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
+-	Prog *p;
+-
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+@@ -1163,14 +1162,9 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 	
+ 	case OCLOSUREVAR:
+-		if(!canemitcode)
+-			fatal("naddr OCLOSUREVAR cannot emit code");
+-		p = gins(AMOVQ, N, N);
+-		p->from.type = D_DX+D_INDIR;
+-		p->from.offset = n->xoffset;
+-		p->to.type = D_BX;
+-		a->type = D_BX;
++		a->type = D_DX+D_INDIR;
+ 		a->sym = S;
++		a->offset = n->xoffset;
+ 		break;
+ 	
+ 	case OCFUNC:
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index c4c184bb9a..79348a42dc 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1150,6 +1150,7 @@ ismem(Node *n)
+ 	case OINDREG:
+ 	case ONAME:
+ 	case OPARAM:
++	case OCLOSUREVAR:
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -2160,11 +2161,11 @@ gins(int as, Node *f, Node *t)
+ // Generate an instruction referencing *n
+ // to force segv on nil pointer dereference.
+ void
+-checkref(Node *n)
++checkref(Node *n, int force)
+ {
+ 	Node m;
+ 
+-	if(n->type->type->width < unmappedzero)
++	if(!force && isptr[n->type->etype] && n->type->type->width < unmappedzero)
+ 		return;
+ 
+ 	regalloc(&m, types[TUINTPTR], n);
+@@ -2201,8 +2202,6 @@ checkoffset(Addr *a, int canemitcode)
+ void
+ naddr(Node *n, Addr *a, int canemitcode)
+ {
+-	Prog *p;
+-
+ 	a->scale = 0;
+ 	a->index = D_NONE;
+ 	a->type = D_NONE;
+@@ -2239,13 +2238,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 
+ 	case OCLOSUREVAR:
+-		if(!canemitcode)
+-			fatal("naddr OCLOSUREVAR cannot emit code");
+-		p = gins(AMOVL, N, N);
+-		p->from.type = D_DX+D_INDIR;
+-		p->from.offset = n->xoffset;
+-		p->to.type = D_BX;
+-		a->type = D_BX;
++		a->type = D_DX+D_INDIR;
++		a->offset = n->xoffset;
+ 		a->sym = S;
+ 		break;
+ 
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 4e029ef83a..9b429c4212 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -255,26 +255,166 @@ walkclosure(Node *func, NodeList **init)
+ 	return clos;
+ }
+ 
+-// Special case for closures that get called in place.
+-// Optimize runtime.closure(X, __func__xxxx_, .... ) away
+-// to __func__xxxx_(Y ....).
+-// On entry, expect n->op == OCALL, n->left->op == OCLOSURE.
++static Node *makepartialcall(Node*, Type*, Node*);
++
+ void
+-walkcallclosure(Node *n, NodeList **init)
++typecheckpartialcall(Node *fn, Node *sym)
++{
++	switch(fn->op) {
++	case ODOTINTER:
++	case ODOTMETH:
++		break;
++	default:
++		fatal("invalid typecheckpartialcall");
++	}
++
++	// Create top-level function.
++	fn->nname = makepartialcall(fn, fn->type, sym);
++	fn->op = OCALLPART;
++	fn->type = fn->right->type;
++}
++
++static Node*
++makepartialcall(Node *fn, Type *t0, Node *meth)
+ {
+-	USED(init);
+-	if (n->op != OCALLFUNC || n->left->op != OCLOSURE) {
+-		dump("walkcallclosure", n);
+-		fatal("abuse of walkcallclosure");
++	Node *ptr, *n, *call, *xtype, *xfunc, *cv;
++	Type *rcvrtype, *basetype, *t;
++	NodeList *body, *l, *callargs, *retargs;
++	char *p;
++	Sym *sym;
++	int i;
++
++	// TODO: names are not right
++	rcvrtype = fn->left->type;
++	if(exportname(meth->sym->name))
++		p = smprint("%-hT.%s·fm", rcvrtype, meth->sym->name);
++	else
++		p = smprint("%-hT.(%-S)·fm", rcvrtype, meth->sym);
++	basetype = rcvrtype;
++	if(isptr[rcvrtype->etype])
++		basetype = basetype->type;
++	if(basetype->sym == S)
++		fatal("missing base type for %T", rcvrtype);
++
++	sym = pkglookup(p, basetype->sym->pkg);
++	free(p);
++	if(sym->flags & SymUniq)
++		return sym->def;
++	sym->flags |= SymUniq;
++
++	xtype = nod(OTFUNC, N, N);
++	i = 0;
++	l = nil;
++	callargs = nil;
++	xfunc = nod(ODCLFUNC, N, N);
++	for(t = getinargx(t0)->type; t; t = t->down) {
++		snprint(namebuf, sizeof namebuf, "a%d", i++);
++		n = newname(lookup(namebuf));
++		n->class = PPARAM;
++		xfunc->dcl = list(xfunc->dcl, n);
++		callargs = list(callargs, n);
++		l = list(l, nod(ODCLFIELD, n, typenod(t->type)));
+ 	}
++	xtype->list = l;
++	i = 0;
++	l = nil;
++	retargs = nil;
++	for(t = getoutargx(t0)->type; t; t = t->down) {
++		snprint(namebuf, sizeof namebuf, "r%d", i++);
++		n = newname(lookup(namebuf));
++		n->class = PPARAMOUT;
++		xfunc->dcl = list(xfunc->dcl, n);
++		retargs = list(retargs, n);
++		l = list(l, nod(ODCLFIELD, n, typenod(t->type)));
++	}
++	xtype->rlist = l;
+ 
+-	// New arg list for n. First the closure-args
+-	// and then the original parameter list.
+-	n->list = concat(n->left->enter, n->list);
+-	n->left = n->left->closure->nname;
+-	dowidth(n->left->type);
+-	n->type = getoutargx(n->left->type);
+-	// for a single valued function, pull the field type out of the struct
+-	if (n->type && n->type->type && !n->type->type->down)
+-		n->type = n->type->type->type;
++	xfunc->dupok = 1;
++	xfunc->nname = newname(sym);
++	xfunc->nname->sym->flags |= SymExported; // disable export
++	xfunc->nname->ntype = xtype;
++	xfunc->nname->defn = xfunc;
++	declare(xfunc->nname, PFUNC);
++	
++	// Declare and initialize variable holding receiver.
++	body = nil;
++	cv = nod(OCLOSUREVAR, N, N);
++	cv->xoffset = widthptr;
++	cv->type = rcvrtype;
++	ptr = nod(ONAME, N, N);
++	ptr->sym = lookup("rcvr");
++	ptr->class = PAUTO;
++	ptr->addable = 1;
++	ptr->ullman = 1;
++	ptr->used = 1;
++	ptr->curfn = xfunc;
++	xfunc->dcl = list(xfunc->dcl, ptr);
++	if(isptr[rcvrtype->etype] || isinter(rcvrtype)) {
++		ptr->ntype = typenod(rcvrtype);
++		body = list(body, nod(OAS, ptr, cv));
++	} else {
++		ptr->ntype = typenod(ptrto(rcvrtype));
++		body = list(body, nod(OAS, ptr, nod(OADDR, cv, N)));
++	}
++
++	call = nod(OCALL, nod(OXDOT, ptr, meth), N);
++	call->list = callargs;
++	if(t0->outtuple == 0) {
++		body = list(body, call);
++	} else {
++		n = nod(OAS2, N, N);
++		n->list = retargs;
++		n->rlist = list1(call);
++		body = list(body, n);
++		n = nod(ORETURN, N, N);
++		body = list(body, n);
++	}
++
++	xfunc->nbody = body;
++
++	typecheck(&xfunc, Etop);
++	sym->def = xfunc;
++	xtop = list(xtop, xfunc);
++
++	return xfunc;
++}
++
++Node*
++walkpartialcall(Node *n, NodeList **init)
++{
++	Node *clos, *typ;
++
++	// Create closure in the form of a composite literal.
++	// For x.M with receiver (x) type T, the generated code looks like:
++	//
++	//	clos = &struct{F uintptr; R T}{M.T·f, x}
++	//
++	// Like walkclosure above.
++	
++	if(isinter(n->left->type)) {
++		n->left = cheapexpr(n->left, init);
++		checknotnil(n->left, init);
++	}
++
++	typ = nod(OTSTRUCT, N, N);
++	typ->list = list1(nod(ODCLFIELD, newname(lookup("F")), typenod(types[TUINTPTR])));
++	typ->list = list(typ->list, nod(ODCLFIELD, newname(lookup("R")), typenod(n->left->type)));
++
++	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
++	clos->esc = n->esc;
++	clos->right->implicit = 1;
++	clos->list = list1(nod(OCFUNC, n->nname->nname, N));
++	clos->list = list(clos->list, n->left);
++
++	// Force type conversion from *struct to the func type.
++	clos = nod(OCONVNOP, clos, N);
++	clos->type = n->type;
++
++	typecheck(&clos, Erv);
++	// typecheck will insert a PTRLIT node under CONVNOP,
++	// tag it with escape analysis result.
++	clos->left->esc = n->esc;
++	walkexpr(&clos, init);
++
++	return clos;
+ }
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 5f03d9476e..b47a04bf05 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -491,6 +491,9 @@ gen(Node *n)
+ 	case ORETURN:
+ 		cgen_ret(n);
+ 		break;
++	
++	case OCHECKNOTNIL:
++		checkref(n->left, 1);
+ 	}
+ 
+ ret:
+@@ -807,7 +810,7 @@ cgen_slice(Node *n, Node *res)
+ 	if(n->op == OSLICEARR) {
+ 		if(!isptr[n->left->type->etype])
+ 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+-		checkref(n->left);
++		checkref(n->left, 0);
+ 	}
+ 
+ 	if(isnil(n->left)) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4bfb73e5b7..6be0ec8c9c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -452,6 +452,7 @@ enum
+ 	OCALLFUNC,	// f()
+ 	OCALLMETH,	// t.Method()
+ 	OCALLINTER,	// err.Error()
++	OCALLPART,	// t.Method (without ())
+ 	OCAP,	// cap
+ 	OCLOSE,	// close
+ 	OCLOSURE,	// f = func() { etc }
+@@ -564,6 +565,7 @@ enum
+ 	OITAB,	// itable word of an interface value.
+ 	OCLOSUREVAR, // variable reference at beginning of closure function
+ 	OCFUNC,	// reference to c function pointer (not go func value)
++	OCHECKNOTNIL, // emit code to ensure pointer/interface not nil
+ 
+ 	// arch-specific registers
+ 	OREGISTER,	// a register, such as AX.
+@@ -989,7 +991,8 @@ Node*	closurebody(NodeList *body);
+ void	closurehdr(Node *ntype);
+ void	typecheckclosure(Node *func, int top);
+ Node*	walkclosure(Node *func, NodeList **init);
+-void	walkcallclosure(Node *n, NodeList **init);
++void	typecheckpartialcall(Node*, Node*);
++Node*	walkpartialcall(Node*, NodeList**);
+ 
+ /*
+  *	const.c
+@@ -1419,7 +1422,8 @@ EXTERN	Node*	nodfp;
+ int	anyregalloc(void);
+ void	betypeinit(void);
+ void	bgen(Node *n, int true, int likely, Prog *to);
+-void	checkref(Node*);
++void	checkref(Node *n, int force);
++void	checknotnil(Node*, NodeList**);
+ void	cgen(Node*, Node*);
+ void	cgen_asop(Node *n);
+ void	cgen_call(Node *n, int proc);
+diff --git a/src/cmd/gc/inl.c b/src/cmd/gc/inl.c
+index 7fc09025ba..850bb36ec7 100644
+--- a/src/cmd/gc/inl.c
++++ b/src/cmd/gc/inl.c
+@@ -357,7 +357,7 @@ inlnode(Node **np)
+ 		}
+ 
+ 	case OCLOSURE:
+-		// TODO do them here (or earlier) instead of in walkcallclosure,
++		// TODO do them here (or earlier),
+ 		// so escape analysis can avoid more heapmoves.
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 604cf14020..796851f1ae 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3723,3 +3723,17 @@ isbadimport(Strlit *path)
+ 	}
+ 	return 0;
+ }
++
++void
++checknotnil(Node *x, NodeList **init)
++{
++	Node *n;
++	
++	if(isinter(x->type)) {
++		x = nod(OITAB, x, N);
++		typecheck(&x, Erv);
++	}
++	n = nod(OCHECKNOTNIL, x, N);
++	n->typecheck = 1;
++	*init = list(*init, n);
++}
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4c213dd6d8..2711656a16 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -732,6 +732,7 @@ reswitch:
+ 			yyerror("rhs of . must be a name");	// impossible
+ 			goto error;
+ 		}
++		r = n->right;
+ 
+ 		if(n->left->op == OTYPE) {
+ 			if(!looktypedot(n, t, 0)) {
+@@ -775,7 +776,12 @@ reswitch:
+ 		switch(n->op) {
+ 		case ODOTINTER:
+ 		case ODOTMETH:
+-			ok |= Ecall;
++			if(top&Ecall)
++				ok |= Ecall;
++			else {
++				typecheckpartialcall(n, r);
++				ok |= Erv;
++			}
+ 			break;
+ 		default:
+ 			ok |= Erv;
+@@ -1694,10 +1700,6 @@ ret:
+ 		yyerror("%N is not a type", n);
+ 		goto error;
+ 	}
+-	if((ok & Ecall) && !(top & Ecall)) {
+-		yyerror("method %N is not an expression, must be called", n);
+-		goto error;
+-	}
+ 	// TODO(rsc): simplify
+ 	if((top & (Ecall|Erv|Etype)) && !(top & Etop) && !(ok & (Erv|Etype|Ecall))) {
+ 		yyerror("%N used as value", n);
+@@ -2560,6 +2562,7 @@ islvalue(Node *n)
+ 		// fall through
+ 	case OIND:
+ 	case ODOTPTR:
++	case OCLOSUREVAR:
+ 		return 1;
+ 	case ODOT:
+ 		return islvalue(n->left);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6e152136f7..50e05fc3cf 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -184,6 +184,7 @@ walkstmt(Node **np)
+ 	case OLABEL:
+ 	case ODCLCONST:
+ 	case ODCLTYPE:
++	case OCHECKNOTNIL:
+ 		break;
+ 
+ 	case OBLOCK:
+@@ -396,13 +397,28 @@ walkexpr(Node **np, NodeList **init)
+ 	case OIMAG:
+ 	case ODOTMETH:
+ 	case ODOTINTER:
++		walkexpr(&n->left, init);
++		goto ret;
++
+ 	case OIND:
++		if(n->left->type->type->width == 0) {
++			n->left = cheapexpr(n->left, init);
++			checknotnil(n->left, init);
++		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
+ 	case ODOT:
++		usefield(n);
++		walkexpr(&n->left, init);
++		goto ret;
++
+ 	case ODOTPTR:
+ 		usefield(n);
++		if(n->op == ODOTPTR && n->left->type->type->width == 0) {
++			n->left = cheapexpr(n->left, init);
++			checknotnil(n->left, init);
++		}
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
+@@ -524,13 +540,6 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->list && n->list->n->op == OAS)
+ 			goto ret;
+ 
+-		/*
+-		if(n->left->op == OCLOSURE) {
+-			walkcallclosure(n, init);
+-			t = n->left->type;
+-		}
+-		*/
+-
+ 		walkexpr(&n->left, init);
+ 		walkexprlist(n->list, init);
+ 
+@@ -1321,6 +1330,10 @@ walkexpr(Node **np, NodeList **init)
+ 	case OCLOSURE:
+ 		n = walkclosure(n, init);
+ 		goto ret;
++	
++	case OCALLPART:
++		n = walkpartialcall(n, init);
++		goto ret;
+ 	}
+ 	fatal("missing switch %O", n->op);
+ 
+diff --git a/test/method5.go b/test/method5.go
+new file mode 100644
+index 0000000000..36508f2e76
+--- /dev/null
++++ b/test/method5.go
+@@ -0,0 +1,297 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Concrete types implementing M method.
++// Smaller than a word, word-sized, larger than a word.
++// Value and pointer receivers.
++
++type Tinter interface {
++	M(int, byte) (byte, int)
++}
++
++type Tsmallv byte
++
++func (v Tsmallv) M(x int, b byte) (byte, int) { return b, x+int(v) }
++
++type Tsmallp byte
++
++func (p *Tsmallp) M(x int, b byte) (byte, int) { return b, x+int(*p) }
++
++type Twordv uintptr
++
++func (v Twordv) M(x int, b byte) (byte, int) { return b, x+int(v) }
++
++type Twordp uintptr
++
++func (p *Twordp) M(x int, b byte) (byte, int) { return b, x+int(*p) }
++
++type Tbigv [2]uintptr
++
++func (v Tbigv) M(x int, b byte) (byte, int) { return b, x+int(v[0])+int(v[1]) }
++
++type Tbigp [2]uintptr
++
++func (p *Tbigp) M(x int, b byte) (byte, int) { return b, x+int(p[0])+int(p[1]) }
++
++// Again, with an unexported method.
++
++type tsmallv byte
++
++func (v tsmallv) m(x int, b byte) (byte, int) { return b, x+int(v) }
++
++type tsmallp byte
++
++func (p *tsmallp) m(x int, b byte) (byte, int) { return b, x+int(*p) }
++
++type twordv uintptr
++
++func (v twordv) m(x int, b byte) (byte, int) { return b, x+int(v) }
++
++type twordp uintptr
++
++func (p *twordp) m(x int, b byte) (byte, int) { return b, x+int(*p) }
++
++type tbigv [2]uintptr
++
++func (v tbigv) m(x int, b byte) (byte, int) { return b, x+int(v[0])+int(v[1]) }
++
++type tbigp [2]uintptr
++
++func (p *tbigp) m(x int, b byte) (byte, int) { return b, x+int(p[0])+int(p[1]) }
++
++type tinter interface {
++	m(int, byte) (byte, int)
++}
++
++// Embedding via pointer.
++
++type T1 struct {
++	T2
++}
++
++type T2 struct {
++	*T3
++}
++
++type T3 struct {
++	*T4
++}
++
++type T4 struct {
++}
++
++func (t4 T4) M(x int, b byte) (byte, int) { return b, x+40 }
++
++var failed = false
++
++func CheckI(name string, i Tinter, inc int) {
++	b, x := i.M(1000, 99)
++	if b != 99 || x != 1000+inc {
++		failed = true
++		print(name, ".M(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
++	}
++	
++	CheckF("(i="+name+")", i.M, inc)
++}
++
++func CheckF(name string, f func(int, byte) (byte, int), inc int) {
++	b, x := f(1000, 99)
++	if b != 99 || x != 1000+inc {
++		failed = true
++		print(name, "(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
++	}
++}
++
++func checkI(name string, i tinter, inc int) {
++	b, x := i.m(1000, 99)
++	if b != 99 || x != 1000+inc {
++		failed = true
++		print(name, ".m(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
++	}
++	
++	checkF("(i="+name+")", i.m, inc)
++}
++
++func checkF(name string, f func(int, byte) (byte, int), inc int) {
++	b, x := f(1000, 99)
++	if b != 99 || x != 1000+inc {
++		failed = true
++		print(name, "(1000, 99) = ", b, ", ", x, " want 99, ", 1000+inc, "\n")
++	}
++}
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("not panicking")
++		}
++	}()
++	f()
++}
++
++func shouldNotPanic(f func()) {
++	f()
++}
++
++func main() {
++	sv := Tsmallv(1)
++	CheckI("sv", sv, 1)
++	CheckF("sv.M", sv.M, 1)
++	CheckF("(&sv).M", (&sv).M, 1)
++	psv := &sv
++	CheckI("psv", psv, 1)
++	CheckF("psv.M", psv.M, 1)
++	CheckF("(*psv).M", (*psv).M, 1)
++
++	sp := Tsmallp(2)
++	CheckI("&sp", &sp, 2)
++	CheckF("sp.M", sp.M, 2)
++	CheckF("(&sp).M", (&sp).M, 2)
++	psp := &sp
++	CheckI("psp", psp, 2)
++	CheckF("psp.M", psp.M, 2)
++	CheckF("(*psp).M", (*psp).M, 2)
++
++	wv := Twordv(3)
++	CheckI("wv", wv, 3)
++	CheckF("wv.M", wv.M, 3)
++	CheckF("(&wv).M", (&wv).M, 3)
++	pwv := &wv
++	CheckI("pwv", pwv, 3)
++	CheckF("pwv.M", pwv.M, 3)
++	CheckF("(*pwv).M", (*pwv).M, 3)
++
++	wp := Twordp(4)
++	CheckI("&wp", &wp, 4)
++	CheckF("wp.M", wp.M, 4)
++	CheckF("(&wp).M", (&wp).M, 4)
++	pwp := &wp
++	CheckI("pwp", pwp, 4)
++	CheckF("pwp.M", pwp.M, 4)
++	CheckF("(*pwp).M", (*pwp).M, 4)
++
++	bv := Tbigv([2]uintptr{5, 6})
++	pbv := &bv
++	CheckI("bv", bv, 11)
++	CheckF("bv.M", bv.M, 11)
++	CheckF("(&bv).M", (&bv).M, 11)
++	CheckI("pbv", pbv, 11)
++	CheckF("pbv.M", pbv.M, 11)
++	CheckF("(*pbv).M", (*pbv).M, 11)
++	
++	bp := Tbigp([2]uintptr{7,8})
++	CheckI("&bp", &bp, 15)
++	CheckF("bp.M", bp.M, 15)
++	CheckF("(&bp).M", (&bp).M, 15)
++	pbp := &bp
++	CheckI("pbp", pbp, 15)
++	CheckF("pbp.M", pbp.M, 15)
++	CheckF("(*pbp).M", (*pbp).M, 15)
++
++	_sv := tsmallv(1)
++	checkI("_sv", _sv, 1)
++	checkF("_sv.m", _sv.m, 1)
++	checkF("(&_sv).m", (&_sv).m, 1)
++	_psv := &_sv
++	checkI("_psv", _psv, 1)
++	checkF("_psv.m", _psv.m, 1)
++	checkF("(*_psv).m", (*_psv).m, 1)
++
++	_sp := tsmallp(2)
++	checkI("&_sp", &_sp, 2)
++	checkF("_sp.m", _sp.m, 2)
++	checkF("(&_sp).m", (&_sp).m, 2)
++	_psp := &_sp
++	checkI("_psp", _psp, 2)
++	checkF("_psp.m", _psp.m, 2)
++	checkF("(*_psp).m", (*_psp).m, 2)
++
++	_wv := twordv(3)
++	checkI("_wv", _wv, 3)
++	checkF("_wv.m", _wv.m, 3)
++	checkF("(&_wv).m", (&_wv).m, 3)
++	_pwv := &_wv
++	checkI("_pwv", _pwv, 3)
++	checkF("_pwv.m", _pwv.m, 3)
++	checkF("(*_pwv).m", (*_pwv).m, 3)
++
++	_wp := twordp(4)
++	checkI("&_wp", &_wp, 4)
++	checkF("_wp.m", _wp.m, 4)
++	checkF("(&_wp).m", (&_wp).m, 4)
++	_pwp := &_wp
++	checkI("_pwp", _pwp, 4)
++	checkF("_pwp.m", _pwp.m, 4)
++	checkF("(*_pwp).m", (*_pwp).m, 4)
++
++	_bv := tbigv([2]uintptr{5, 6})
++	_pbv := &_bv
++	checkI("_bv", _bv, 11)
++	checkF("_bv.m", _bv.m, 11)
++	checkF("(&_bv).m", (&_bv).m, 11)
++	checkI("_pbv", _pbv, 11)
++	checkF("_pbv.m", _pbv.m, 11)
++	checkF("(*_pbv).m", (*_pbv).m, 11)
++	
++	_bp := tbigp([2]uintptr{7,8})
++	checkI("&_bp", &_bp, 15)
++	checkF("_bp.m", _bp.m, 15)
++	checkF("(&_bp).m", (&_bp).m, 15)
++	_pbp := &_bp
++	checkI("_pbp", _pbp, 15)
++	checkF("_pbp.m", _pbp.m, 15)
++	checkF("(*_pbp).m", (*_pbp).m, 15)
++	
++	t4 := T4{}
++	t3 := T3{&t4}
++	t2 := T2{&t3}
++	t1 := T1{t2}
++	CheckI("t4", t4, 40)
++	CheckI("&t4", &t4, 40)
++	CheckI("t3", t3, 40)
++	CheckI("&t3", &t3, 40)
++	CheckI("t2", t2, 40)
++	CheckI("&t2", &t2, 40)
++	CheckI("t1", t1, 40)
++	CheckI("&t1", &t1, 40)
++	
++	// x.M panics if x is an interface type and is nil,
++	// or if x.M expands to (*x).M where x is nil,
++	// or if x.M expands to x.y.z.w.M where something
++	// along the evaluation of x.y.z.w is nil.
++	var f func(int, byte) (byte, int)
++	shouldPanic(func() { psv = nil; f = psv.M })
++	shouldPanic(func() { pwv = nil; f = pwv.M })
++	shouldPanic(func() { pbv = nil; f = pbv.M })
++	shouldPanic(func() { var i Tinter; f = i.M })
++	shouldPanic(func() { _psv = nil; f = _psv.m })
++	shouldPanic(func() { _pwv = nil; f = _pwv.m })
++	shouldPanic(func() { _pbv = nil; f = _pbv.m })
++	shouldPanic(func() { var _i tinter; f = _i.m })
++	shouldPanic(func() { var t1 T1; f = t1.M })
++	shouldPanic(func() { var t2 T2; f = t2.M })
++	shouldPanic(func() { var t3 *T3; f = t3.M })
++	shouldPanic(func() { var t3 T3; f = t3.M })
++
++	if f != nil {
++		panic("something set f")
++	}
++	
++	// x.M does not panic if x is a nil pointer and
++	// M is a method with a pointer receiver.
++	shouldNotPanic(func() { psp = nil; f = psp.M })
++	shouldNotPanic(func() { pwp = nil; f = pwp.M })
++	shouldNotPanic(func() { pbp = nil; f = pbp.M })
++	shouldNotPanic(func() { _psp = nil; f = _psp.m })
++	shouldNotPanic(func() { _pwp = nil; f = _pwp.m })
++	shouldNotPanic(func() { _pbp = nil; f = _pbp.m })
++	shouldNotPanic(func() { var t4 T4; f = t4.M })
++	if f == nil {
++		panic("nothing set f")
++	}
++}

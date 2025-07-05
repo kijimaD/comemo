@@ -22,9 +22,78 @@ Date:   Wed Sep 4 16:19:22 2024 +0800
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: abner chenc <chenguoqi@loongson.cn>
-
+---
  src/cmd/asm/internal/asm/testdata/loong64enc1.s | 5 +++++
  src/cmd/internal/obj/loong64/a.out.go           | 4 ++++
  src/cmd/internal/obj/loong64/anames.go          | 2 ++
  src/cmd/internal/obj/loong64/asm.go             | 6 ++++++
  4 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 8d4231fa6c..45256beb7c 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -132,6 +132,11 @@ lable2:
+ 	BREAK				// 00002a00
+ 	UNDEF				// 00002a00
+ 
++	ANDN	R4, R5, R6		// a6901600
++	ANDN	R4, R5			// a5901600
++	ORN	R4, R5, R6		// a6101600
++	ORN	R4, R5			// a5101600
++
+ 	// mul
+ 	MUL	R4, R5	  		// a5101c00
+ 	MUL	R4, R5, R6	  	// a6101c00
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 7c20df3b2d..60b0a62180 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -385,6 +385,10 @@ const (
+ 	AMOVVF
+ 	AMOVVD
+ 
++	// 2.2.1.8
++	AORN
++	AANDN
++
+ 	// 2.2.7. Atomic Memory Access Instructions
+ 	AAMSWAPB
+ 	AAMSWAPH
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index ed3d5b25ce..ddf13eec6e 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -127,6 +127,8 @@ var Anames = []string{
+ 	"MOVDV",
+ 	"MOVVF",
+ 	"MOVVD",
++	"ORN",
++	"ANDN",
+ 	"AMSWAPB",
+ 	"AMSWAPH",
+ 	"AMSWAPW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 261e4a13c8..4e5bc15d33 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1100,6 +1100,8 @@ func buildop(ctxt *obj.Link) {
+ 		case AAND:
+ 			opset(AOR, r0)
+ 			opset(AXOR, r0)
++			opset(AORN, r0)
++			opset(AANDN, r0)
+ 
+ 		case ABEQ:
+ 			opset(ABNE, r0)
+@@ -1858,6 +1860,10 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x2a << 15
+ 	case AXOR:
+ 		return 0x2b << 15
++	case AORN:
++		return 0x2c << 15 // orn
++	case AANDN:
++		return 0x2d << 15 // andn
+ 	case ASUB:
+ 		return 0x22 << 15
+ 	case ASUBU, ANEGW:

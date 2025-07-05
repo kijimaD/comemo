@@ -7,6 +7,20 @@ Date:   Fri May 1 11:44:31 2020 -0700
     Change-Id: I87111f20a55a0b202b95a533ffb7e3aa666715dc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231598
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cgo/gcc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 39ab5788ec..edcbd8d2d1 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -336,7 +336,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	//	void __cgo_f_xxx_5(void) { static const char __cgo_undefined__5[] = (name); }
+ 	//
+ 	// If we see an error at not-declared:xxx, the corresponding name is not declared.
+-	// If we see an error at not-type:xxx, the corresponding name is a type.
++	// If we see an error at not-type:xxx, the corresponding name is not a type.
+ 	// If we see an error at not-int-const:xxx, the corresponding name is not an integer constant.
+ 	// If we see an error at not-num-const:xxx, the corresponding name is not a number constant.
+ 	// If we see an error at not-str-lit:xxx, the corresponding name is not a string literal.

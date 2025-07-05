@@ -12,8 +12,125 @@ Date:   Wed Apr 3 13:24:32 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8327044
-
+---
  src/pkg/math/big/int.go      | 12 +++---------
  src/pkg/math/big/rat.go      | 14 +++++++-------
  src/pkg/math/big/rat_test.go | 10 +++-------
  3 files changed, 13 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index fd7f005c24..d1b5602d66 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -53,7 +53,7 @@ func (z *Int) SetInt64(x int64) *Int {
+ 
+ // SetUint64 sets z to x and returns z.
+ func (z *Int) SetUint64(x uint64) *Int {
+-	z.abs = z.abs.setUint64(uint64(x))
++	z.abs = z.abs.setUint64(x)
+ 	z.neg = false
+ 	return z
+ }
+@@ -513,13 +513,7 @@ func (z *Int) Scan(s fmt.ScanState, ch rune) error {
+ // Int64 returns the int64 representation of x.
+ // If x cannot be represented in an int64, the result is undefined.
+ func (x *Int) Int64() int64 {
+-	if len(x.abs) == 0 {
+-		return 0
+-	}
+-	v := int64(x.abs[0])
+-	if _W == 32 && len(x.abs) > 1 {
+-		v |= int64(x.abs[1]) << 32
+-	}
++	v := int64(x.Uint64())
+ 	if x.neg {
+ 		v = -v
+ 	}
+@@ -527,7 +521,7 @@ func (x *Int) Int64() int64 {
+ }
+ 
+ // Uint64 returns the uint64 representation of x.
+-// If x cannot be represented in an uint64, the result is undefined.
++// If x cannot be represented in a uint64, the result is undefined.
+ func (x *Int) Uint64() uint64 {
+ 	if len(x.abs) == 0 {
+ 		return 0
+diff --git a/src/pkg/math/big/rat.go b/src/pkg/math/big/rat.go
+index 3e6473d922..75d044fe21 100644
+--- a/src/pkg/math/big/rat.go
++++ b/src/pkg/math/big/rat.go
+@@ -163,16 +163,16 @@ func quotToFloat(a, b nat) (f float64, exact bool) {
+ 	return
+ }
+ 
+-// Float64 returns the nearest float64 value to z.
+-// If z is exactly representable as a float64, Float64 returns exact=true.
+-// If z is negative, so too is f, even if f==0.
+-func (z *Rat) Float64() (f float64, exact bool) {
+-	b := z.b.abs
++// Float64 returns the nearest float64 value for x and a bool indicating
++// whether f represents x exactly. The sign of f always matches the sign
++// of x, even if f == 0.
++func (x *Rat) Float64() (f float64, exact bool) {
++	b := x.b.abs
+ 	if len(b) == 0 {
+ 		b = b.set(natOne) // materialize denominator
+ 	}
+-	f, exact = quotToFloat(z.a.abs, b)
+-	if z.a.neg {
++	f, exact = quotToFloat(x.a.abs, b)
++	if x.a.neg {
+ 		f = -f
+ 	}
+ 	return
+diff --git a/src/pkg/math/big/rat_test.go b/src/pkg/math/big/rat_test.go
+index 462dfb723d..1c2c642379 100644
+--- a/src/pkg/math/big/rat_test.go
++++ b/src/pkg/math/big/rat_test.go
+@@ -503,9 +503,7 @@ func TestIssue3521(t *testing.T) {
+ // Test inputs to Rat.SetString.  The prefix "long:" causes the test
+ // to be skipped in --test.short mode.  (The threshold is about 500us.)
+ var float64inputs = []string{
+-	//
+ 	// Constants plundered from strconv/testfp.txt.
+-	//
+ 
+ 	// Table 1: Stress Inputs for Conversion to 53-bit Binary, < 1/2 ULP
+ 	"5e+125",
+@@ -583,9 +581,7 @@ var float64inputs = []string{
+ 	"75224575729e-45",
+ 	"459926601011e+15",
+ 
+-	//
+ 	// Constants plundered from strconv/atof_test.go.
+-	//
+ 
+ 	"0",
+ 	"1",
+@@ -734,7 +730,7 @@ func TestFloat64SpecialCases(t *testing.T) {
+ 			case f == 0 && r.Num().BitLen() == 0:
+ 				// Ok: Rat(0) is equivalent to both +/- float64(0).
+ 			default:
+-				t.Errorf("strconv.ParseFloat(%q) = %g (%b), want %g (%b); delta=%g", input, e, e, f, f, f-e)
++				t.Errorf("strconv.ParseFloat(%q) = %g (%b), want %g (%b); delta = %g", input, e, e, f, f, f-e)
+ 			}
+ 		}
+ 
+@@ -795,7 +791,7 @@ func TestFloat64Distribution(t *testing.T) {
+ 
+ 					if !checkIsBestApprox(t, f, r) {
+ 						// Append context information.
+-						t.Errorf("(input was mantissa %#x, exp %d; f=%g (%b); f~%g; r=%v)",
++						t.Errorf("(input was mantissa %#x, exp %d; f = %g (%b); f ~ %g; r = %v)",
+ 							b, exp, f, f, math.Ldexp(float64(b), exp), r)
+ 					}
+ 
+@@ -830,7 +826,7 @@ func checkNonLossyRoundtrip(t *testing.T, f float64) {
+ 	}
+ 	f2, exact := r.Float64()
+ 	if f != f2 || !exact {
+-		t.Errorf("Rat.SetFloat64(%g).Float64() = %g (%b), %v, want %g (%b), %v; delta=%b",
++		t.Errorf("Rat.SetFloat64(%g).Float64() = %g (%b), %v, want %g (%b), %v; delta = %b",
+ 			f, f2, f2, exact, f, f, true, f2-f)
+ 	}
+ }

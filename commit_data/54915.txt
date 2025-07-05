@@ -17,7 +17,32 @@ Date:   Mon Nov 21 11:54:54 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go | 1 +
  src/go/types/stdlib_test.go                    | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 7acb35b688..855474d60d 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -223,6 +223,7 @@ var excluded = map[string]bool{
+ 
+ 	// See #46027: some imports are missing for this submodule.
+ 	"crypto/internal/edwards25519/field/_asm": true,
++	"crypto/internal/bigmod/_asm":             true,
+ }
+ 
+ // typecheckFiles typechecks the given package files.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 5f0a72e092..0fb6061aa4 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -225,6 +225,7 @@ var excluded = map[string]bool{
+ 
+ 	// See #46027: some imports are missing for this submodule.
+ 	"crypto/internal/edwards25519/field/_asm": true,
++	"crypto/internal/bigmod/_asm":             true,
+ }
+ 
+ // typecheckFiles typechecks the given package files.

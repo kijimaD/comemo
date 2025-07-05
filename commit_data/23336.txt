@@ -9,6 +9,33 @@ Date:   Wed May 6 22:10:28 2015 -0400
     Change-Id: If8b6f8a0659a1b3e078d87a43fcfe8a38af20308
     Reviewed-on: https://go-review.googlesource.com/9821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/buildall.bash | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/buildall.bash b/src/buildall.bash
+index 7cf8bfb7a4..a07529e733 100755
+--- a/src/buildall.bash
++++ b/src/buildall.bash
+@@ -33,7 +33,7 @@ if [ "$pattern" = "" ]; then
+ fi
+ 
+ # put linux, nacl first in the target list to get all the architectures up front.
+-targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
++targets="$((ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p'; echo linux-386-387 linux-arm-arm5) | sort | egrep -v android-arm | egrep "$pattern" | egrep 'linux|nacl')
+ $(ls runtime | sed -n 's/^rt0_\(.*\)_\(.*\)\.s/\1-\2/p' | egrep -v 'android-arm|darwin-arm' | egrep "$pattern" | egrep -v 'linux|nacl')"
+ 
+ ./make.bash
+@@ -46,7 +46,11 @@ do
+     echo "### Building $target"
+     export GOOS=$(echo $target | sed 's/-.*//')
+     export GOARCH=$(echo $target | sed 's/.*-//')
+-    unset GO386
++    unset GO386 GOARM
++    if [ "$GOARCH" = "arm5" ]; then
++        export GOARCH=arm
++        export GOARM=5
++    fi
+     if [ "$GOARCH" = "387" ]; then
+         export GOARCH=386
+         export GO386=387

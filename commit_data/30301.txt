@@ -11,7 +11,7 @@ Date:   Thu Oct 27 17:40:33 2016 -0700
     Change-Id: Iee63fb9d521014995003a417271fbe0384ae04ef
     Reviewed-on: https://go-review.googlesource.com/32108
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/call.go                |  19 ++++---
  src/go/types/decl.go                |  82 +++++++++++++++++++++++++++
  src/go/types/object.go              |  29 +++++++---
@@ -20,3 +20,385 @@ Date:   Thu Oct 27 17:40:33 2016 -0700
  src/go/types/testdata/aliasdecl.src | 107 +++++++++++++++++++++++++++++++++++-
  src/go/types/typexpr.go             |  13 +++++
  7 files changed, 234 insertions(+), 24 deletions(-)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 45f3e9a605..37595985a5 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -275,21 +275,24 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr) {
+ 	// so we don't need a "package" mode for operands: package names
+ 	// can only appear in qualified identifiers which are mapped to
+ 	// selector expressions.
++	// (see also decl.go: checker.aliasDecl)
++	// TODO(gri) factor this code out and share with checker.aliasDecl
+ 	if ident, ok := e.X.(*ast.Ident); ok {
+ 		_, obj := check.scope.LookupParent(ident.Name, check.pos)
+-		if pkg, _ := obj.(*PkgName); pkg != nil {
+-			assert(pkg.pkg == check.pkg)
+-			check.recordUse(ident, pkg)
+-			pkg.used = true
+-			exp := pkg.imported.scope.Lookup(sel)
++		if pname, _ := obj.(*PkgName); pname != nil {
++			assert(pname.pkg == check.pkg)
++			check.recordUse(ident, pname)
++			pname.used = true
++			pkg := pname.imported
++			exp := pkg.scope.Lookup(sel)
+ 			if exp == nil {
+-				if !pkg.imported.fake {
+-					check.errorf(e.Pos(), "%s not declared by package %s", sel, ident)
++				if !pkg.fake {
++					check.errorf(e.Pos(), "%s not declared by package %s", sel, pkg.name)
+ 				}
+ 				goto Error
+ 			}
+ 			if !exp.Exported() {
+-				check.errorf(e.Pos(), "%s not exported by package %s", sel, ident)
++				check.errorf(e.Pos(), "%s not exported by package %s", sel, pkg.name)
+ 				// ok to continue
+ 			}
+ 			check.recordUse(e.Sel, exp)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 1ecfb35f60..89c56534d2 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -85,6 +85,9 @@ func (check *Checker) objDecl(obj Object, def *Named, path []*TypeName) {
+ 	case *Func:
+ 		// functions may be recursive - no need to track dependencies
+ 		check.funcDecl(obj, d)
++	case *Alias:
++		// aliases cannot be recursive - no need to track dependencies
++		check.aliasDecl(obj, d)
+ 	default:
+ 		unreachable()
+ 	}
+@@ -329,6 +332,85 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	}
+ }
+ 
++func (check *Checker) aliasDecl(obj *Alias, decl *declInfo) {
++	assert(obj.typ == nil)
++
++	// alias declarations cannot use iota
++	assert(check.iota == nil)
++
++	// assume alias is invalid to start with
++	obj.typ = Typ[Invalid]
++
++	// rhs must be package-qualified identifer pkg.sel (see also call.go: checker.selector)
++	// TODO(gri) factor this code out and share with checker.selector
++	rhs := decl.init
++	var pkg *Package
++	var sel *ast.Ident
++	if sexpr, ok := rhs.(*ast.SelectorExpr); ok {
++		if ident, ok := sexpr.X.(*ast.Ident); ok {
++			_, obj := check.scope.LookupParent(ident.Name, check.pos)
++			if pname, _ := obj.(*PkgName); pname != nil {
++				assert(pname.pkg == check.pkg)
++				check.recordUse(ident, pname)
++				pname.used = true
++				pkg = pname.imported
++				sel = sexpr.Sel
++			}
++		}
++	}
++	if pkg == nil {
++		check.errorf(rhs.Pos(), "invalid alias: %v is not a package-qualified identifier", rhs)
++		return
++	}
++
++	// qualified identifier must denote an exported object
++	orig := pkg.scope.Lookup(sel.Name)
++	if orig == nil || !orig.Exported() {
++		if !pkg.fake {
++			check.errorf(rhs.Pos(), "%s is not exported by package %s", sel.Name, pkg.name)
++		}
++		return
++	}
++	check.recordUse(sel, orig)
++
++	// An alias declaration must not refer to package unsafe.
++	if orig.Pkg() == Unsafe {
++		check.errorf(rhs.Pos(), "invalid alias: %s refers to package unsafe (%v)", obj.Name(), orig)
++		return
++	}
++
++	// The original must be of the same kind as the alias declaration.
++	var why string
++	switch obj.kind {
++	case token.CONST:
++		if _, ok := orig.(*Const); !ok {
++			why = "constant"
++		}
++	case token.TYPE:
++		if _, ok := orig.(*TypeName); !ok {
++			why = "type"
++		}
++	case token.VAR:
++		if _, ok := orig.(*Var); !ok {
++			why = "variable"
++		}
++	case token.FUNC:
++		if _, ok := orig.(*Func); !ok {
++			why = "function"
++		}
++	default:
++		unreachable()
++	}
++	if why != "" {
++		check.errorf(rhs.Pos(), "invalid alias: %v is not a %s", orig, why)
++		return
++	}
++
++	// alias is valid
++	obj.typ = orig.Type()
++	obj.orig = orig
++}
++
+ func (check *Checker) declStmt(decl ast.Decl) {
+ 	pkg := check.pkg
+ 
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index b83be4336a..42f030df04 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -152,8 +152,7 @@ func NewConst(pos token.Pos, pkg *Package, name string, typ Type, val constant.V
+ }
+ 
+ func (obj *Const) Val() constant.Value { return obj.val }
+-
+-func (*Const) isDependency() {} // a constant may be a dependency of an initialization expression
++func (*Const) isDependency()           {} // a constant may be a dependency of an initialization expression
+ 
+ // A TypeName represents a declared type.
+ type TypeName struct {
+@@ -186,10 +185,8 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, anonymous bool
+ }
+ 
+ func (obj *Var) Anonymous() bool { return obj.anonymous }
+-
+-func (obj *Var) IsField() bool { return obj.isField }
+-
+-func (*Var) isDependency() {} // a variable may be a dependency of an initialization expression
++func (obj *Var) IsField() bool   { return obj.isField }
++func (*Var) isDependency()       {} // a variable may be a dependency of an initialization expression
+ 
+ // A Func represents a declared function, concrete method, or abstract
+ // (interface) method. Its Type() is always a *Signature.
+@@ -215,11 +212,22 @@ func (obj *Func) FullName() string {
+ 	return buf.String()
+ }
+ 
+-func (obj *Func) Scope() *Scope {
+-	return obj.typ.(*Signature).scope
++func (obj *Func) Scope() *Scope { return obj.typ.(*Signature).scope }
++func (*Func) isDependency()     {} // a function may be a dependency of an initialization expression
++
++// An Alias represents a declared alias.
++type Alias struct {
++	object
++	kind token.Token // token.CONST, token.TYPE, token.VAR, or token.FUNC
++	orig Object      // aliased constant, type, variable, or function
++}
++
++func NewAlias(pos token.Pos, pkg *Package, name string, kind token.Token, orig Object) *Alias {
++	return &Alias{object{pos: pos, pkg: pkg, name: name}, kind, orig}
+ }
+ 
+-func (*Func) isDependency() {} // a function may be a dependency of an initialization expression
++func (obj *Alias) Kind() token.Token { return obj.kind }
++func (obj *Alias) Orig() Object      { return obj.orig }
+ 
+ // A Label represents a declared label.
+ type Label struct {
+@@ -279,6 +287,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 		return
+ 
++	case *Alias:
++		buf.WriteString("alias")
++
+ 	case *Label:
+ 		buf.WriteString("label")
+ 		typ = nil
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 15722dec8d..b6a85fc02a 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -14,12 +14,12 @@ import (
+ 	"unicode"
+ )
+ 
+-// A declInfo describes a package-level const, type, var, or func declaration.
++// A declInfo describes a package-level const, type, var, func, or alias declaration.
+ type declInfo struct {
+ 	file  *Scope        // scope of file containing this declaration
+ 	lhs   []*Var        // lhs of n:1 variable declarations, or nil
+ 	typ   ast.Expr      // type, or nil
+-	init  ast.Expr      // init expression, or nil
++	init  ast.Expr      // init/orig expression, or nil
+ 	fdecl *ast.FuncDecl // func declaration, or nil
+ 
+ 	// The deps field tracks initialization expression dependencies.
+@@ -275,7 +275,8 @@ func (check *Checker) collectObjects() {
+ 						}
+ 
+ 					case *ast.AliasSpec:
+-						check.errorf(s.Name.Pos(), "cannot handle alias declarations yet")
++						obj := NewAlias(s.Name.Pos(), pkg, s.Name.Name, d.Tok, nil)
++						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, init: s.Orig})
+ 
+ 					case *ast.ValueSpec:
+ 						switch d.Tok {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 4192a3608e..1c6d7b5299 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -138,7 +138,6 @@ func TestStdTest(t *testing.T) {
+ 	}
+ 
+ 	testTestDir(t, filepath.Join(runtime.GOROOT(), "test"),
+-		"alias2.go",      // excluded until we can handle alias declarations
+ 		"cmplxdivide.go", // also needs file cmplxdivide1.go - ignore
+ 		"sigchld.go",     // don't work on Windows; testTestDir should consult build tags
+ 	)
+diff --git a/src/go/types/testdata/aliasdecl.src b/src/go/types/testdata/aliasdecl.src
+index d1153516f2..074732df0c 100644
+--- a/src/go/types/testdata/aliasdecl.src
++++ b/src/go/types/testdata/aliasdecl.src
+@@ -4,7 +4,108 @@
+ 
+ package aliasdecl
+ 
+-import "math"
++import (
++	"flag"
++	"fmt" // use at most once (to test "imported but not used" error)
++	"go/build"
++	. "go/build"
++	"io"
++	"math"
++	"unsafe"
++)
+ 
+-const _ = math.Pi
+-const c /* ERROR "cannot handle alias declarations yet" */ => math.Pi
++// helper
++var before struct {
++	f int
++}
++
++// aliases must refer to package-qualified identifiers
++type _ => _ /* ERROR "_ is not a package-qualified identifier" */
++type t1 => _ /* ERROR "_ is not a package-qualified identifier" */
++
++const _ => iota /* ERROR "iota is not a package-qualified identifier" */
++type _ => int   /* ERROR "int is not a package-qualified identifier" */
++
++const c => iota /* ERROR "iota is not a package-qualified identifier" */
++type t2 => int   /* ERROR "int is not a package-qualified identifier" */
++
++// dot-imported identifiers are not qualified identifiers
++// TODO(gri) fix error printing - should not print a qualified identifier...
++var _ => Default /* ERROR "Default is not a package-qualified identifier" */
++
++// qualified identifiers must start with a package
++var _ => before /* ERROR "before.f is not a package-qualified identifier" */ .f
++func _ => before /* ERROR "before.f is not a package-qualified identifier" */ .f
++var _ => after /* ERROR "after.m is not a package-qualified identifier" */ .m
++func _ => after /* ERROR "after.m is not a package-qualified identifier" */ .m
++
++var v1 => before /* ERROR "before.f is not a package-qualified identifier" */ .f
++func f1 => before /* ERROR "before.f is not a package-qualified identifier" */ .f
++var v2 => after /* ERROR "after.m is not a package-qualified identifier" */ .m
++func f2 => after /* ERROR "after.m is not a package-qualified identifier" */ .m
++
++// TODO(gri) fix error printing - should print correct qualified identifier...
++var _ => Default /* ERROR "Default.ARCH is not a package-qualified identifier" */ .ARCH
++var _ Context // use dot-imported package go/build
++
++// aliases may not refer to package unsafe
++type ptr => unsafe /* ERROR "refers to package unsafe" */ .Pointer
++func size => unsafe /* ERROR "refers to package unsafe" */ .Sizeof
++
++// aliases must refer to entities of the same kind
++const _ => math.Pi
++const pi => math.Pi
++const pi1 => math /* ERROR "math.Sin.* is not a constant" */ .Sin
++
++type _ => io.Writer
++type writer => io.Writer
++type writer1 => math /* ERROR "math.Sin.* is not a type" */ .Sin
++
++var _ => build.Default
++var def => build.Default
++var def1 => build /* ERROR "build.Import.* is not a variable" */ .Import
++
++func _ => math.Sin
++func sin => math.Sin
++func sin1 => math /* ERROR "math.Pi.* is not a function" */ .Pi
++
++// using an incorrectly declared alias should not lead to more errors
++const _ = pi1
++type _ writer1
++var _ def1 = 0
++var _ = sin1
++
++// aliases may not be called init
++func init /* ERROR "cannot declare init" */ => flag.Parse
++func _ => flag.Parse // use package flag
++
++// alias reference to a package marks package as used
++func _ => fmt.Println
++
++// re-exported aliases
++const Pi => math.Pi
++
++type Writer => io.Writer
++
++var Def => build.Default
++
++func Sin => math.Sin
++
++// const aliases may appear in "iota" context
++// (this verifies a type-checker internal assertion)
++const (
++	_ = iota
++	pi2 => math.Pi
++)
++
++// type aliases denote identical types
++type myPackage => build.Package
++
++var pkg myPackage
++var _ build.Package = pkg   // valid assignment
++var _ *build.Package = &pkg // valid assignment
++
++// helper
++type after struct{}
++
++func (after) m() {}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 931b924712..012d3a7034 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -45,6 +45,19 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named, path []*TypeNa
+ 		delete(check.unusedDotImports[scope], pkg)
+ 	}
+ 
++	// An alias stands for the original object; use that one instead.
++	if alias, _ := obj.(*Alias); alias != nil {
++		if typ == Typ[Invalid] {
++			return
++		}
++		obj = alias.orig
++		// Aliases always refer to non-alias originals.
++		if _, ok := obj.(*Alias); ok {
++			panic("original is an alias")
++		}
++		assert(typ == obj.Type())
++	}
++
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+ 		check.errorf(e.Pos(), "use of package %s not in selector", obj.name)

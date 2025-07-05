@@ -7,7 +7,36 @@ Date:   Fri May 27 16:47:26 2011 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/4560047
-
+---
  src/pkg/go/scanner/scanner.go      | 4 ++++
  src/pkg/go/scanner/scanner_test.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 60ac45c86e..509abeca57 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -297,6 +297,10 @@ func (S *Scanner) scanNumber(seenDecimalPoint bool) token.Token {
+ 			// hexadecimal int
+ 			S.next()
+ 			S.scanMantissa(16)
++			if S.offset-offs <= 2 {
++				// only scanned "0x" or "0X"
++				S.error(offs, "illegal hexadecimal number")
++			}
+ 		} else {
+ 			// octal int or float
+ 			seenDecimalDigit := false
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 5b99bede11..8af972838d 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -672,6 +672,8 @@ var errors = []struct {
+ 	{"078e0", token.FLOAT, 0, ""},
+ 	{"078", token.INT, 0, "illegal octal number"},
+ 	{"07800000009", token.INT, 0, "illegal octal number"},
++	{"0x", token.INT, 0, "illegal hexadecimal number"},
++	{"0X", token.INT, 0, "illegal hexadecimal number"},
+ 	{"\"abc\x00def\"", token.STRING, 4, "illegal character NUL"},
+ 	{"\"abc\x80def\"", token.STRING, 4, "illegal UTF-8 encoding"},
+ }

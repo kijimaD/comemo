@@ -16,6 +16,28 @@ Date:   Mon Jul 4 13:16:46 2022 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue27938.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/issue27938.go b/test/fixedbugs/issue27938.go
+index 2589e1eff8..5392c65f1f 100644
+--- a/test/fixedbugs/issue27938.go
++++ b/test/fixedbugs/issue27938.go
+@@ -11,13 +11,13 @@
+ package p
+ 
+ type _ struct {
+-	F sync.Mutex // ERROR "undefined: sync|expected package"
++	F sync.Mutex // ERROR "undefined: sync|expected package|reference to undefined name"
+ }
+ 
+ type _ struct {
+-	sync.Mutex // ERROR "undefined: sync|expected package"
++	sync.Mutex // ERROR "undefined: sync|expected package|reference to undefined name"
+ }
+ 
+ type _ interface {
+-	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name"
++	sync.Mutex // ERROR "undefined: sync|expected package|expected signature or type name|reference to undefined name"
+ }

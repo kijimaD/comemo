@@ -7,10 +7,145 @@ Date:   Thu Mar 24 11:45:12 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4285063
-
+---
  src/pkg/runtime/freebsd/386/signal.c   |  5 +++--
  src/pkg/runtime/freebsd/amd64/defs.h   | 23 +++++++++++++++++++----
  src/pkg/runtime/freebsd/amd64/signal.c |  5 +++--
  src/pkg/runtime/freebsd/defs.c         |  2 ++
  src/pkg/runtime/freebsd/os.h           |  1 +
  5 files changed, 28 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 2b9d9aa988..1ae2554eb4 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -137,7 +137,9 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
+-	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	if (fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+ 	runtime·sigaction(i, &sa, nil);
+ }
+ 
+@@ -165,7 +167,6 @@ runtime·initsig(int32 queue)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	Sigaction sa;
+ 	Itimerval it;
+ 	
+ 	runtime·memclr((byte*)&it, sizeof it);
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index 2a295a4794..b101b19327 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -61,6 +61,9 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_VIRTUAL = 0x1,
++	ITIMER_PROF = 0x2,
+ };
+ 
+ // Types
+@@ -83,7 +86,7 @@ struct ThrParam {
+ 	int64 *child_tid;
+ 	int64 *parent_tid;
+ 	int32 flags;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ 	Rtprio *rtp;
+ 	void* spare[3];
+ };
+@@ -93,7 +96,7 @@ struct Sigaltstack {
+ 	int8 *ss_sp;
+ 	uint64 ss_size;
+ 	int32 ss_flags;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ };
+ 
+ typedef struct Sigset Sigset;
+@@ -114,7 +117,7 @@ struct StackT {
+ 	int8 *ss_sp;
+ 	uint64 ss_size;
+ 	int32 ss_flags;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ };
+ 
+ typedef struct Siginfo Siginfo;
+@@ -178,6 +181,18 @@ struct Ucontext {
+ 	StackT uc_stack;
+ 	int32 uc_flags;
+ 	int32 __spare__[4];
+-	byte pad0[12];
++	byte pad_godefs_0[12];
++};
++
++typedef struct Timeval Timeval;
++struct Timeval {
++	int64 tv_sec;
++	int64 tv_usec;
++};
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
+ };
+ #pragma pack off
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index ddab9ee51a..9d8e5e6929 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -145,7 +145,9 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 	if(restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
+-	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	if (fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.__sigaction_u.__sa_sigaction = (void*)fn;
+ 	runtime·sigaction(i, &sa, nil);
+ }
+ 
+@@ -173,7 +175,6 @@ runtime·initsig(int32 queue)
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+-	Sigaction sa;
+ 	Itimerval it;
+ 	
+ 	runtime·memclr((byte*)&it, sizeof it);
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index faa1447ccb..2ce4fdc51f 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -19,6 +19,7 @@
+ #include <sys/rtprio.h>
+ #include <sys/thr.h>
+ #include <sys/_sigset.h>
++#include <sys/unistd.h>
+ 
+ enum {
+ 	$PROT_NONE = PROT_NONE,
+@@ -103,4 +104,5 @@ typedef siginfo_t $Siginfo;
+ 
+ typedef mcontext_t $Mcontext;
+ typedef ucontext_t $Ucontext;
++typedef struct timeval $Timeval;
+ typedef struct itimerval $Itimerval;
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+index fd954c0e6e..13754688b4 100644
+--- a/src/pkg/runtime/freebsd/os.h
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -7,3 +7,4 @@ void runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct sigaction;
+ void runtime·sigaction(int32, struct sigaction*, struct sigaction*);
+ void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
++void	runtime·setitimer(int32, Itimerval*, Itimerval*);

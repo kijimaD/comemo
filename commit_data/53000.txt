@@ -19,7 +19,7 @@ Date:   Thu Jun 23 09:43:47 2022 -0700
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/mkcanned.bash                       |   6 +++---
  src/internal/trace/parser.go                           |   4 ++--
  src/internal/trace/testdata/http_1_19_good             | Bin 0 -> 28172 bytes
@@ -28,3 +28,55 @@ Date:   Thu Jun 23 09:43:47 2022 -0700
  ..._task_span_1_11_good => user_task_region_1_11_good} | Bin
  src/internal/trace/testdata/user_task_region_1_19_good | Bin 0 -> 1922 bytes
  7 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/trace/mkcanned.bash b/src/internal/trace/mkcanned.bash
+index b365b909c8..879cf1c500 100755
+--- a/src/internal/trace/mkcanned.bash
++++ b/src/internal/trace/mkcanned.bash
+@@ -13,8 +13,8 @@ if [ $# != 1 ]; then
+     exit 1
+ fi
+ 
+-go test -run ClientServerParallel4 -trace "testdata/http_$1_good" net/http
+-go test -run 'TraceStress$|TraceStressStartStop$|TestUserTaskSpan$' runtime/trace -savetraces
++go test -run '^$' -bench ClientServerParallel4 -benchtime 10x -trace "testdata/http_$1_good" net/http
++go test -run 'TraceStress$|TraceStressStartStop$|TestUserTaskRegion$' runtime/trace -savetraces
+ mv ../../runtime/trace/TestTraceStress.trace "testdata/stress_$1_good"
+ mv ../../runtime/trace/TestTraceStressStartStop.trace "testdata/stress_start_stop_$1_good"
+-mv ../../runtime/trace/TestUserTaskSpan.trace "testdata/user_task_span_$1_good"
++mv ../../runtime/trace/TestUserTaskRegion.trace "testdata/user_task_region_$1_good"
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 8c74196ddf..866fe8cdd9 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -152,8 +152,8 @@ func readTrace(r io.Reader) (ver int, events []rawEvent, strings map[uint64]stri
+ 	}
+ 	switch ver {
+ 	case 1005, 1007, 1008, 1009, 1010, 1011, 1019:
+-		// Note: When adding a new version, add canned traces
+-		// from the old version to the test suite using mkcanned.bash.
++		// Note: When adding a new version, confirm that canned traces from the
++		// old version are part of the test suite. Add them using mkcanned.bash.
+ 		break
+ 	default:
+ 		err = fmt.Errorf("unsupported trace file version %v.%v (update Go toolchain) %v", ver/1000, ver%1000, ver)
+diff --git a/src/internal/trace/testdata/http_1_19_good b/src/internal/trace/testdata/http_1_19_good
+new file mode 100644
+index 0000000000..c1d519e7d5
+Binary files /dev/null and b/src/internal/trace/testdata/http_1_19_good differ
+diff --git a/src/internal/trace/testdata/stress_1_19_good b/src/internal/trace/testdata/stress_1_19_good
+new file mode 100644
+index 0000000000..13f59268e6
+Binary files /dev/null and b/src/internal/trace/testdata/stress_1_19_good differ
+diff --git a/src/internal/trace/testdata/stress_start_stop_1_19_good b/src/internal/trace/testdata/stress_start_stop_1_19_good
+new file mode 100644
+index 0000000000..92d92789c4
+Binary files /dev/null and b/src/internal/trace/testdata/stress_start_stop_1_19_good differ
+diff --git a/src/internal/trace/testdata/user_task_span_1_11_good b/src/internal/trace/testdata/user_task_region_1_11_good
+similarity index 100%
+rename from src/internal/trace/testdata/user_task_span_1_11_good
+rename to src/internal/trace/testdata/user_task_region_1_11_good
+diff --git a/src/internal/trace/testdata/user_task_region_1_19_good b/src/internal/trace/testdata/user_task_region_1_19_good
+new file mode 100644
+index 0000000000..1daa3b25a6
+Binary files /dev/null and b/src/internal/trace/testdata/user_task_region_1_19_good differ

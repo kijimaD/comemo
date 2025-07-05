@@ -23,7 +23,7 @@ Date:   Thu May 5 20:46:29 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/cgo/gcc_darwin_arm64.c  | 1 -
  src/runtime/cgo/gcc_linux_386.c     | 5 -----
  src/runtime/cgo/gcc_linux_arm.c     | 5 -----
@@ -32,3 +32,126 @@ Date:   Thu May 5 20:46:29 2022 +0200
  src/runtime/cgo/gcc_linux_mipsx.c   | 6 ------
  src/runtime/cgo/gcc_linux_riscv64.c | 5 -----
  7 files changed, 32 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index a5f07f1f1b..24be6758d9 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -37,7 +37,6 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_386.c b/src/runtime/cgo/gcc_linux_386.c
+index 70c942aeb8..0ce9359616 100644
+--- a/src/runtime/cgo/gcc_linux_386.c
++++ b/src/runtime/cgo/gcc_linux_386.c
+@@ -43,12 +43,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize. C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_arm.c b/src/runtime/cgo/gcc_linux_arm.c
+index 5bc0fee90d..5e97a9ed31 100644
+--- a/src/runtime/cgo/gcc_linux_arm.c
++++ b/src/runtime/cgo/gcc_linux_arm.c
+@@ -25,12 +25,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize. C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_arm64.c b/src/runtime/cgo/gcc_linux_arm64.c
+index 17ff274fbb..dac45e418b 100644
+--- a/src/runtime/cgo/gcc_linux_arm64.c
++++ b/src/runtime/cgo/gcc_linux_arm64.c
+@@ -27,12 +27,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize. C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index 42837b14df..3ea29b0f86 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -29,12 +29,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize.  C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+diff --git a/src/runtime/cgo/gcc_linux_mipsx.c b/src/runtime/cgo/gcc_linux_mipsx.c
+index a44ea3057d..3b60a0ea58 100644
+--- a/src/runtime/cgo/gcc_linux_mipsx.c
++++ b/src/runtime/cgo/gcc_linux_mipsx.c
+@@ -29,12 +29,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize.  C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;
+@@ -68,7 +63,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 
+ 	setg_gcc = setg;
+ 
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	g->stacklo = (uintptr)&attr - size + 4096;
+diff --git a/src/runtime/cgo/gcc_linux_riscv64.c b/src/runtime/cgo/gcc_linux_riscv64.c
+index 22b76c2fcc..99c2866de4 100644
+--- a/src/runtime/cgo/gcc_linux_riscv64.c
++++ b/src/runtime/cgo/gcc_linux_riscv64.c
+@@ -25,12 +25,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 	sigfillset(&ign);
+ 	pthread_sigmask(SIG_SETMASK, &ign, &oset);
+ 
+-	// Not sure why the memset is necessary here,
+-	// but without it, we get a bogus stack size
+-	// out of pthread_attr_getstacksize.  C'est la Linux.
+-	memset(&attr, 0, sizeof attr);
+ 	pthread_attr_init(&attr);
+-	size = 0;
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	// Leave stacklo=0 and set stackhi=size; mstart will do the rest.
+ 	ts->g->stackhi = size;

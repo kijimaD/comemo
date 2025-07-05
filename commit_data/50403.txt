@@ -13,9 +13,151 @@ Date:   Sat Oct 23 16:39:32 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/358175
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 32 +++++++++++++++-------
  .../internal/types2/testdata/check/typeinst2.go2   | 28 ++++++++++++++++---
  .../types2/testdata/fixedbugs/issue47411.go2       |  2 +-
  src/cmd/compile/internal/types2/typeset.go         |  2 +-
  4 files changed, 48 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index d6cefb4bfe..8228ef2c31 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -135,8 +135,16 @@ func (check *Checker) verify(pos syntax.Pos, tparams []*TypeParam, targs []Type)
+ // TODO(gri) This should be a method of interfaces or type sets.
+ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap substMap) error {
+ 	iface := tpar.iface()
++
++	// Every type argument satisfies interface{}.
+ 	if iface.Empty() {
+-		return nil // no type bound
++		return nil
++	}
++
++	// A type argument that is a type parameter with an empty type set satisfies any constraint.
++	// (The empty set is a subset of any set.)
++	if targ := asTypeParam(targ); targ != nil && targ.iface().typeSet().IsEmpty() {
++		return nil
+ 	}
+ 
+ 	// TODO(rfindley): it would be great if users could pass in a qualifier here,
+@@ -150,6 +158,11 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 		return errors.New(sprintf(qf, format, args...))
+ 	}
+ 
++	// No type argument with non-empty type set satisfies the empty type set.
++	if iface.typeSet().IsEmpty() {
++		return errorf("%s does not satisfy %s (constraint type set is empty)", targ, tpar.bound)
++	}
++
+ 	// The type parameter bound is parameterized with the same type parameters
+ 	// as the instantiated type; before we can use it for bounds checking we
+ 	// need to instantiate it with the type arguments with which we instantiate
+@@ -190,28 +203,27 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 		}
+ 	}
+ 
+-	// targ's underlying type must also be one of the interface types listed, if any
++	// targ must also be in the set of types of iface, if any.
++	// Constraints with empty type sets were already excluded above.
+ 	if !iface.typeSet().hasTerms() {
+ 		return nil // nothing to do
+ 	}
+ 
+-	// If targ is itself a type parameter, each of its possible types, but at least one, must be in the
+-	// list of iface types (i.e., the targ type list must be a non-empty subset of the iface types).
++	// If targ is itself a type parameter, each of its possible types must be in the set
++	// of iface types (i.e., the targ type set must be a subset of the iface type set).
++	// Type arguments with empty type sets were already excluded above.
+ 	if targ := asTypeParam(targ); targ != nil {
+ 		targBound := targ.iface()
+-		if !targBound.typeSet().hasTerms() {
+-			return errorf("%s does not satisfy %s (%s has no type constraints)", targ, tpar.bound, targ)
+-		}
+ 		if !targBound.typeSet().subsetOf(iface.typeSet()) {
+-			// TODO(gri) need better error message
++			// TODO(gri) report which type is missing
+ 			return errorf("%s does not satisfy %s", targ, tpar.bound)
+ 		}
+ 		return nil
+ 	}
+ 
+-	// Otherwise, targ's type or underlying type must also be one of the interface types listed, if any.
++	// Otherwise, targ's type must be included in the iface type set.
+ 	if !iface.typeSet().includes(targ) {
+-		// TODO(gri) better error message
++		// TODO(gri) report which type is missing
+ 		return errorf("%s does not satisfy %s", targ, tpar.bound)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+index ecf4b0f714..783ff346c9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+@@ -226,10 +226,10 @@ type I012 interface {
+ }
+ 
+ func f012[T I012]() {}
+-var _ = f012[int /* ERROR does not satisfy I012 */ ]
+-var _ = f012[bool /* ERROR does not satisfy I012 */ ]
+-var _ = f012[string /* ERROR does not satisfy I012 */ ]
+-var _ = f012[float64 /* ERROR does not satisfy I012 */ ]
++var _ = f012[int /* ERROR does not satisfy I012.*type set is empty */ ]
++var _ = f012[bool /* ERROR does not satisfy I012.*type set is empty */ ]
++var _ = f012[string /* ERROR does not satisfy I012.*type set is empty */ ]
++var _ = f012[float64 /* ERROR does not satisfy I012.*type set is empty */ ]
+ 
+ type I12 interface {
+ 	E1
+@@ -256,3 +256,23 @@ var _ = f0_[float64 /* ERROR does not satisfy I0_ */ ]
+ // Using a function instance as a type is an error.
+ var _ f0 // ERROR not a type
+ var _ f0 /* ERROR not a type */ [int]
++
++// Empty type sets can only be satisfied by empty type sets.
++type none interface {
++	// force an empty type set
++        int
++        string
++}
++
++func ff[T none]() {}
++func gg[T any]() {}
++func hh[T ~int]() {}
++
++func _[T none]() {
++        _ = ff[int /* ERROR int does not satisfy none \(constraint type set is empty\) */ ]
++        _ = ff[T]  // pathological but ok because T's type set is empty, too
++        _ = gg[int]
++        _ = gg[T]
++	_ = hh[int]
++	_ = hh[T]
++}
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+index 77281a19a2..ccf4bcf782 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+@@ -19,7 +19,7 @@ func _[P comparable,
+         _ = f[R /* ERROR R has no constraints */ ]
+ 
+         _ = g[int]
+-        _ = g[P /* ERROR P has no type constraints */ ]
++        _ = g[P /* ERROR P does not satisfy interface{interface{comparable; ~int\|~string} */ ]
+         _ = g[Q]
+         _ = g[func( /* ERROR does not satisfy comparable */ )]
+         _ = g[R /* ERROR R has no constraints */ ]
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 8eb43a27e5..f9e3af7ba8 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -101,7 +101,7 @@ func (s *_TypeSet) String() string {
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func (s *_TypeSet) hasTerms() bool              { return !s.terms.isAll() }
++func (s *_TypeSet) hasTerms() bool              { return !s.terms.isEmpty() && !s.terms.isAll() }
+ func (s *_TypeSet) structuralType() Type        { return s.terms.structuralType() }
+ func (s *_TypeSet) includes(t Type) bool        { return s.terms.includes(t) }
+ func (s1 *_TypeSet) subsetOf(s2 *_TypeSet) bool { return s1.terms.subsetOf(s2.terms) }

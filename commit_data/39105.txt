@@ -14,7 +14,50 @@ Date:   Fri Dec 28 11:46:35 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go | 10 ++++++++++
  src/cmd/dist/test.go  |  3 +++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index da677c81ad..ad2c96436a 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1458,6 +1458,13 @@ var cgoEnabled = map[string]bool{
+ 	"windows/arm":     false,
+ }
+ 
++// List of platforms which are supported but not complete yet. These get
++// filtered out of cgoEnabled for 'dist list'. See golang.org/issue/28944
++var incomplete = map[string]bool{
++	"linux/riscv64": true,
++	"linux/sparc64": true,
++}
++
+ func needCC() bool {
+ 	switch os.Getenv("CGO_ENABLED") {
+ 	case "1":
+@@ -1576,6 +1583,9 @@ func cmdlist() {
+ 
+ 	var plats []string
+ 	for p := range cgoEnabled {
++		if incomplete[p] {
++			continue
++		}
+ 		plats = append(plats, p)
+ 	}
+ 	sort.Strings(plats)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 82e2e17424..74cee8f421 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -212,6 +212,9 @@ func (t *tester) run() {
+ 	if t.failed {
+ 		fmt.Println("\nFAILED")
+ 		os.Exit(1)
++	} else if incomplete[goos+"/"+goarch] {
++		fmt.Println("\nFAILED (incomplete port)")
++		os.Exit(1)
+ 	} else if t.partial {
+ 		fmt.Println("\nALL TESTS PASSED (some were excluded)")
+ 	} else {

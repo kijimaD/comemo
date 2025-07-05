@@ -12,10 +12,360 @@ Date:   Fri May 22 21:42:16 2009 -0700
     DELTA=633  (318 added, 301 deleted, 14 changed)
     OCL=29269
     CL=29293
-
+---
  src/lib/go/doc/Makefile                       |  12 ++-
  {usr/gri/pretty => src/lib/go/doc}/comment.go | 101 ++++++++++++++++++++++++-
  src/lib/go/doc/doc.go                         | 103 +++-----------------------
  usr/gri/pretty/Makefile                       |   2 +-
  usr/gri/pretty/godoc.go                       |   3 +-
  5 files changed, 119 insertions(+), 102 deletions(-)
+
+diff --git a/src/lib/go/doc/Makefile b/src/lib/go/doc/Makefile
+index 5810be23e7..cd62d02c4d 100644
+--- a/src/lib/go/doc/Makefile
++++ b/src/lib/go/doc/Makefile
+@@ -40,16 +40,23 @@ coverage: packages
+ 	$(AS) $*.s
+ 
+ O1=\
++	comment.$O\
++
++O2=\
+ 	doc.$O\
+ 
+ 
+-phases: a1
++phases: a1 a2
+ _obj$D/doc.a: phases
+ 
+ a1: $(O1)
+-	$(AR) grc _obj$D/doc.a doc.$O
++	$(AR) grc _obj$D/doc.a comment.$O
+ 	rm -f $(O1)
+ 
++a2: $(O2)
++	$(AR) grc _obj$D/doc.a doc.$O
++	rm -f $(O2)
++
+ 
+ newpkg: clean
+ 	mkdir -p _obj$D
+@@ -57,6 +64,7 @@ newpkg: clean
+ 
+ $(O1): newpkg
+ $(O2): a1
++$(O3): a2
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg$D/doc.a
+diff --git a/usr/gri/pretty/comment.go b/src/lib/go/doc/comment.go
+similarity index 64%
+rename from usr/gri/pretty/comment.go
+rename to src/lib/go/doc/comment.go
+index 82a7cdd7a7..19a65a2277 100644
+--- a/usr/gri/pretty/comment.go
++++ b/src/lib/go/doc/comment.go
+@@ -2,16 +2,111 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Godoc comment -> HTML formatting
++// Godoc comment extraction and comment -> HTML formatting.
+ 
+-package comment
++package doc
+ 
+ import (
+ 	"fmt";
+ 	"io";
+-	"template";
++	"once";
++	"regexp";
++	"strings";
++	"template";	// for htmlEscape
+ )
+ 
++// Comment extraction
++
++var (
++	comment_markers *regexp.Regexp;
++	trailing_whitespace *regexp.Regexp;
++	comment_junk *regexp.Regexp;
++)
++
++func makeRex(s string) *regexp.Regexp {
++	re, err := regexp.Compile(s);
++	if err != nil {
++		panic("MakeRegexp ", s, " ", err.String());
++	}
++	return re;
++}
++
++// TODO(rsc): Cannot use var initialization for regexps,
++// because Regexp constructor needs threads.
++func setupRegexps() {
++	comment_markers = makeRex("^/(/|\\*) ?");
++	trailing_whitespace = makeRex("[ \t\r]+$");
++	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
++}
++
++// Aggregate comment text, without comment markers.
++func commentText(comments []string) string {
++	once.Do(setupRegexps);
++	lines := make([]string, 0, 20);
++	for i, c := range comments {
++		// split on newlines
++		cl := strings.Split(c, "\n");
++
++		// walk lines, stripping comment markers
++		w := 0;
++		for j, l := range cl {
++			// remove /* and */ lines
++			if comment_junk.Match(l) {
++				continue;
++			}
++
++			// strip trailing white space
++			m := trailing_whitespace.Execute(l);
++			if len(m) > 0 {
++				l = l[0 : m[1]];
++			}
++
++			// strip leading comment markers
++			m = comment_markers.Execute(l);
++			if len(m) > 0 {
++				l = l[m[1] : len(l)];
++			}
++
++			// throw away leading blank lines
++			if w == 0 && l == "" {
++				continue;
++			}
++
++			cl[w] = l;
++			w++;
++		}
++
++		// throw away trailing blank lines
++		for w > 0 && cl[w-1] == "" {
++			w--;
++		}
++		cl = cl[0 : w];
++
++		// add this comment to total list
++		// TODO: maybe separate with a single blank line
++		// if there is already a comment and len(cl) > 0?
++		for j, l := range cl {
++			n := len(lines);
++			if n+1 >= cap(lines) {
++				newlines := make([]string, n, 2*cap(lines));
++				for k := range newlines {
++					newlines[k] = lines[k];
++				}
++				lines = newlines;
++			}
++			lines = lines[0 : n+1];
++			lines[n] = l;
++		}
++	}
++
++	// add final "" entry to get trailing newline.
++	// loop always leaves room for one more.
++	n := len(lines);
++	lines = lines[0 : n+1];
++
++	return strings.Join(lines, "\n");
++}
++
+ // Split bytes into lines.
+ func split(text []byte) [][]byte {
+ 	// count lines
+diff --git a/src/lib/go/doc/doc.go b/src/lib/go/doc/doc.go
+index 59b511e8f0..03872fd148 100644
+--- a/src/lib/go/doc/doc.go
++++ b/src/lib/go/doc/doc.go
+@@ -8,9 +8,9 @@ import (
+ 	"container/vector";
+ 	"fmt";
+ 	"go/ast";
++	"go/doc";
+ 	"go/token";
+ 	"io";
+-	"once";
+ 	"regexp";
+ 	"sort";
+ 	"strings";
+@@ -203,99 +203,14 @@ func (doc *DocReader) AddProgram(prog *ast.Program) {
+ // ----------------------------------------------------------------------------
+ // Conversion to external representation
+ 
+-func makeRex(s string) *regexp.Regexp {
+-	re, err := regexp.Compile(s);
+-	if err != nil {
+-		panic("MakeRegexp ", s, " ", err.String());
+-	}
+-	return re;
+-}
+-
+-
+-var (
+-	comment_markers *regexp.Regexp;
+-	trailing_whitespace *regexp.Regexp;
+-	comment_junk *regexp.Regexp;
+-)
+-
+-// TODO(rsc): Cannot use var initialization for regexps,
+-// because Regexp constructor needs threads.
+-func setupRegexps() {
+-	comment_markers = makeRex("^/(/|\\*) ?");
+-	trailing_whitespace = makeRex("[ \t\r]+$");
+-	comment_junk = makeRex("^[ \t]*(/\\*|\\*/)[ \t]*$");
+-}
+-
+-
+-// Aggregate comment text, without comment markers.
+-func comment(comments ast.Comments) string {
+-	once.Do(setupRegexps);
+-	lines := make([]string, 0, 20);
++func astComment(comments ast.Comments) string {
++	text := make([]string, len(comments));
+ 	for i, c := range comments {
+-		// split on newlines
+-		cl := strings.Split(string(c.Text), "\n");
+-
+-		// walk lines, stripping comment markers
+-		w := 0;
+-		for j, l := range cl {
+-			// remove /* and */ lines
+-			if comment_junk.Match(l) {
+-				continue;
+-			}
+-
+-			// strip trailing white space
+-			m := trailing_whitespace.Execute(l);
+-			if len(m) > 0 {
+-				l = l[0 : m[1]];
+-			}
+-
+-			// strip leading comment markers
+-			m = comment_markers.Execute(l);
+-			if len(m) > 0 {
+-				l = l[m[1] : len(l)];
+-			}
+-
+-			// throw away leading blank lines
+-			if w == 0 && l == "" {
+-				continue;
+-			}
+-
+-			cl[w] = l;
+-			w++;
+-		}
+-
+-		// throw away trailing blank lines
+-		for w > 0 && cl[w-1] == "" {
+-			w--;
+-		}
+-		cl = cl[0 : w];
+-
+-		// add this comment to total list
+-		// TODO: maybe separate with a single blank line
+-		// if there is already a comment and len(cl) > 0?
+-		for j, l := range cl {
+-			n := len(lines);
+-			if n+1 >= cap(lines) {
+-				newlines := make([]string, n, 2*cap(lines));
+-				for k := range newlines {
+-					newlines[k] = lines[k];
+-				}
+-				lines = newlines;
+-			}
+-			lines = lines[0 : n+1];
+-			lines[n] = l;
+-		}
++		text[i] = string(c.Text);
+ 	}
+-
+-	// add final "" entry to get trailing newline.
+-	// loop always leaves room for one more.
+-	n := len(lines);
+-	lines = lines[0 : n+1];
+-
+-	return strings.Join(lines, "\n");
++	return commentText(text);
+ }
+ 
+-
+ // ValueDoc is the documentation for a group of declared
+ // values, either vars or consts.
+ //
+@@ -341,7 +256,7 @@ func makeValueDocs(v *vector.Vector) []*ValueDoc {
+ 	d := make([]*ValueDoc, v.Len());
+ 	for i := range d {
+ 		decl := v.At(i).(*ast.GenDecl);
+-		d[i] = &ValueDoc{comment(decl.Doc), decl, i};
++		d[i] = &ValueDoc{astComment(decl.Doc), decl, i};
+ 	}
+ 	sort.Sort(sortValueDoc(d));
+ 	return d;
+@@ -369,7 +284,7 @@ func makeFuncDocs(m map[string] *ast.FuncDecl) []*FuncDoc {
+ 	i := 0;
+ 	for name, f := range m {
+ 		doc := new(FuncDoc);
+-		doc.Doc = comment(f.Doc);
++		doc.Doc = astComment(f.Doc);
+ 		if f.Recv != nil {
+ 			doc.Recv = f.Recv.Type;
+ 		}
+@@ -418,7 +333,7 @@ func makeTypeDocs(m map[string] *typeDoc) []*TypeDoc {
+ 	for name, old := range m {
+ 		typespec := old.decl.Specs[0].(*ast.TypeSpec);
+ 		t := new(TypeDoc);
+-		t.Doc = comment(typespec.Doc);
++		t.Doc = astComment(typespec.Doc);
+ 		t.Type = typespec;
+ 		t.Factories = makeFuncDocs(old.factories);
+ 		t.Methods = makeFuncDocs(old.methods);
+@@ -451,7 +366,7 @@ func (doc *DocReader) Doc() *PackageDoc {
+ 	p := new(PackageDoc);
+ 	p.PackageName = doc.name;
+ 	p.ImportPath = doc.path;
+-	p.Doc = comment(doc.doc);
++	p.Doc = astComment(doc.doc);
+ 	p.Consts = makeValueDocs(doc.consts);
+ 	p.Vars = makeValueDocs(doc.vars);
+ 	p.Types = makeTypeDocs(doc.types);
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index da281b1bc8..b0662bc74b 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -30,7 +30,7 @@ install: pretty godoc untab
+ clean:
+ 	rm -f pretty untab godoc *.6 *.a 6.out *~
+ 
+-godoc.6:	astprinter.6 comment.6
++godoc.6:	astprinter.6
+ 
+ pretty.6:	 astprinter.6 format.6
+ 
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 8d9de32bb0..df51cb4d3d 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -47,7 +47,6 @@ import (
+ 	"time";
+ 
+ 	"astprinter";
+-	"comment";
+ )
+ 
+ 
+@@ -258,7 +257,7 @@ func htmlFmt(w io.Writer, x interface{}, format string) {
+ 
+ // Template formatter for "html-comment" format.
+ func htmlCommentFmt(w io.Writer, x interface{}, format string) {
+-	comment.ToHtml(w, toText(x));
++	doc.ToHtml(w, toText(x));
+ }
+ 
+ 

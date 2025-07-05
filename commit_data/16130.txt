@@ -9,7 +9,59 @@ Date:   Mon Apr 8 11:41:01 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8426048
-
+---
  doc/go1.1.html          | 25 +++++++++++++++++++++++++
  src/pkg/go/build/doc.go |  3 ++-
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index fac922910a..1332be21ce 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -403,6 +403,31 @@ command now returns an error if test files are provided on the command line. In
+ this sense, "<code>go run</code>" replaces "<code>go run *.go</code>".
+ </p>
+ 
++<h3 id="tags">Build constraints</h3>
++
++<p>
++The <code>"go1.1</code>" tag has been added to the list of default
++<a href="/pkg/go/build/#hdr-Build_Constraints">build constraints</a>.
++This permits packages to take advanage of the new features in Go 1.1 while
++remaining compatible with earlier versions of Go.
++</p>
++
++<p>
++To build a file only with Go 1.1 and above, add this build constraint:
++</p>
++
++<pre>
++// +build go1.1
++</pre>
++
++<p>
++To build a file only with Go 1.0.x, use the converse constraint:
++</p>
++
++<pre>
++// +build !go1.1
++</pre>
++
+ <h3 id="platforms">Additional platforms</h3>
+ 
+ <p>
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index c562d05d00..4b66b84bb6 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -91,8 +91,9 @@
+ //
+ //	- the target operating system, as spelled by runtime.GOOS
+ //	- the target architecture, as spelled by runtime.GOARCH
+-//	- the compiler being used, currently either "gc" or "gccgo"
++//	- the compiler being used, either "gc" or "gccgo"
+ //	- "cgo", if ctxt.CgoEnabled is true
++//	- "go1.1", from Go version 1.1 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // If a file's name, after stripping the extension and a possible _test suffix,

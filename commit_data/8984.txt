@@ -7,8 +7,100 @@ Date:   Fri Jul 8 18:25:46 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4671053
-
+---
  src/pkg/exp/template/exec.go      | 15 ++++++++++++---
  src/pkg/exp/template/exec_test.go | 14 +++++++++-----
  src/pkg/exp/template/set_test.go  |  4 ++++
  3 files changed, 25 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 57012183cd..64b9cdd0e8 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -284,7 +284,10 @@ isFirst, canBeMethod bool) reflect.Value {
+ 		if canBeMethod {
+ 			// Need to get to a value of type *T to guarantee we see all
+ 			// methods of T and *T.
+-			ptr := data.Addr()
++			ptr := data
++			if ptr.CanAddr() {
++				ptr = ptr.Addr()
++			}
+ 			if method, ok := methodByName(ptr.Type(), fieldName); ok {
+ 				return s.evalCall(ptr, method.Func, fieldName, true, args, final)
+ 			}
+@@ -382,8 +385,14 @@ func (s *state) evalCall(v, fun reflect.Value, name string, isMethod bool, args
+ }
+ 
+ func (s *state) evalArg(data reflect.Value, typ reflect.Type, n node) reflect.Value {
+-	if field, ok := n.(*fieldNode); ok {
+-		value := s.evalFieldNode(data, field, []node{n}, zero)
++	switch arg := n.(type) {
++	case *dotNode:
++		if !data.Type().AssignableTo(typ) {
++			s.errorf("wrong type for value; expected %s; got %s", typ, data.Type())
++		}
++		return data
++	case *fieldNode:
++		value := s.evalFieldNode(data, arg, []node{n}, zero)
+ 		if !value.Type().AssignableTo(typ) {
+ 			s.errorf("wrong type for value; expected %s; got %s", typ, value.Type())
+ 		}
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 5d771a2b77..919c574086 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -161,7 +161,7 @@ var execTests = []execTest{
+ 	{"*[]int[1]", "{{index .PSI 1}}", "22", tVal, true},
+ 	{"NIL", "{{.NIL}}", "<nil>", tVal, true},
+ 
+-	// Emtpy interfaces holding values.
++	// Empty interfaces holding values.
+ 	{"empty nil", "{{.Empty0}}", "<no value>", tVal, true},
+ 	{"empty with int", "{{.Empty1}}", "3", tVal, true},
+ 	{"empty with string", "{{.Empty2}}", "empty2", tVal, true},
+@@ -200,7 +200,7 @@ var execTests = []execTest{
+ 	{"printf float", `{{printf "%g" 3.5}}`, "3.5", tVal, true},
+ 	{"printf complex", `{{printf "%g" 1+7i}}`, "(1+7i)", tVal, true},
+ 	{"printf string", `{{printf "%s" "hello"}}`, "hello", tVal, true},
+-	{"printf function", `{{printf "%#q" gopher}}`, "`gopher`", tVal, true},
++	{"printf function", `{{printf "%#q" zeroArgs}}`, "`zeroArgs`", tVal, true},
+ 	{"printf field", `{{printf "%s" .U.V}}`, "v", tVal, true},
+ 	{"printf method", `{{printf "%s" .Method0}}`, "M0", tVal, true},
+ 	{"printf lots", `{{printf "%d %s %g %s" 127 "hello" 7-3i .Method0}}`, "127 hello (7-3i) M0", tVal, true},
+@@ -273,13 +273,17 @@ var execTests = []execTest{
+ 	{"error method, no error", "{{.EPERM false}}", "false", tVal, true},
+ }
+ 
+-func gopher() string {
+-	return "gopher"
++func zeroArgs() string {
++	return "zeroArgs"
++}
++
++func oneArg(a string) string {
++	return "oneArg=" + a
+ }
+ 
+ func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	funcs := FuncMap{"gopher": gopher}
++	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg}
+ 	for _, test := range execTests {
+ 		tmpl := New(test.name).Funcs(funcs)
+ 		err := tmpl.Parse(test.input)
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index c0115ec0ad..628839a724 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -81,6 +81,10 @@ var setExecTests = []execTest{
+ 	{"invoke dot []int", `{{template "dot" .SI}}`, "[3 4 5]", tVal, true},
+ 	{"invoke dotV", `{{template "dotV" .U}}`, "v", tVal, true},
+ 	{"invoke nested int", `{{template "nested" .I}}`, "17", tVal, true},
++
++	// User-defined function: test argument evaluator.
++	{"testFunc literal", `{{oneArg "joe"}}`, "oneArg=joe", tVal, true},
++	{"testFunc .", `{{oneArg .}}`, "oneArg=joe", "joe", true},
+ }
+ 
+ const setText = `

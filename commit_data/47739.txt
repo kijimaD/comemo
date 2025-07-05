@@ -24,7 +24,7 @@ Date:   Wed Apr 7 14:10:46 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/build.go       |  2 +-
  src/cmd/go/internal/modload/buildlist.go   | 64 +++++++++++++++++++-----------
  src/cmd/go/internal/modload/import_test.go |  2 +-
@@ -32,3 +32,366 @@ Date:   Wed Apr 7 14:10:46 2021 -0400
  src/cmd/go/internal/modload/load.go        | 10 ++---
  src/cmd/go/internal/modload/modfile.go     | 64 ++++++++++++++++++++++++++----
  6 files changed, 107 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index b8825408d7..c3cac4d491 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -80,7 +80,7 @@ func ModuleInfo(ctx context.Context, path string) *modinfo.ModulePublic {
+ 		v  string
+ 		ok bool
+ 	)
+-	if go117LazyTODO {
++	if rs.depth == lazy {
+ 		v, ok = rs.rootSelected(path)
+ 	}
+ 	if !ok {
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 551e817cd2..24b2585a55 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -28,6 +28,15 @@ func capVersionSlice(s []module.Version) []module.Version {
+ 
+ // A Requirements represents a logically-immutable set of root module requirements.
+ type Requirements struct {
++	// depth is the depth at which the requirement graph is computed.
++	//
++	// If eager, the graph includes all transitive requirements regardless of depth.
++	//
++	// If lazy, the graph includes only the root modules, the explicit
++	// requirements of those root modules, and the transitive requirements of only
++	// the *non-lazy* root modules.
++	depth modDepth
++
+ 	// rootModules is the set of module versions explicitly required by the main
+ 	// module, sorted and capped to length. It may contain duplicates, and may
+ 	// contain multiple versions for a given module path.
+@@ -85,7 +94,7 @@ var requirements *Requirements
+ //
+ // If vendoring is in effect, the caller must invoke initVendor on the returned
+ // *Requirements before any other method.
+-func newRequirements(rootModules []module.Version, direct map[string]bool) *Requirements {
++func newRequirements(depth modDepth, rootModules []module.Version, direct map[string]bool) *Requirements {
+ 	for i, m := range rootModules {
+ 		if m == Target {
+ 			panic(fmt.Sprintf("newRequirements called with untrimmed build list: rootModules[%v] is Target", i))
+@@ -120,12 +129,13 @@ func (rs *Requirements) initVendor(vendorList []module.Version) {
+ 			g: mvs.NewGraph(cmpVersion, []module.Version{Target}),
+ 		}
+ 
+-		if go117LazyTODO {
++		if rs.depth == lazy {
+ 			// The roots of a lazy module should already include every module in the
+ 			// vendor list, because the vendored modules are the same as those
+ 			// maintained as roots by the lazy loading “import invariant”.
+-			//
+-			// TODO: Double-check here that that invariant holds.
++			if go117LazyTODO {
++				// Double-check here that that invariant holds.
++			}
+ 
+ 			// So we can just treat the rest of the module graph as effectively
+ 			// “pruned out”, like a more aggressive version of lazy loading:
+@@ -173,7 +183,7 @@ func (rs *Requirements) rootSelected(path string) (version string, ok bool) {
+ // returns a non-nil error of type *mvs.BuildListError.
+ func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
+ 	rs.graphOnce.Do(func() {
+-		mg, mgErr := readModGraph(ctx, rs.rootModules)
++		mg, mgErr := readModGraph(ctx, rs.depth, rs.rootModules)
+ 		rs.graph.Store(cachedGraph{mg, mgErr})
+ 	})
+ 	cached := rs.graph.Load().(cachedGraph)
+@@ -205,7 +215,7 @@ type summaryError struct {
+ //
+ // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
+ // inconsistent roots.
+-func readModGraph(ctx context.Context, roots []module.Version) (*ModuleGraph, error) {
++func readModGraph(ctx context.Context, depth modDepth, roots []module.Version) (*ModuleGraph, error) {
+ 	var (
+ 		mu       sync.Mutex // guards mg.g and hasError during loading
+ 		hasError bool
+@@ -216,8 +226,8 @@ func readModGraph(ctx context.Context, roots []module.Version) (*ModuleGraph, er
+ 	mg.g.Require(Target, roots)
+ 
+ 	var (
+-		loadQueue = par.NewQueue(runtime.GOMAXPROCS(0))
+-		loading   sync.Map // module.Version → nil; the set of modules that have been or are being loaded
++		loadQueue    = par.NewQueue(runtime.GOMAXPROCS(0))
++		loadingEager sync.Map // module.Version → nil; the set of modules that have been or are being loaded via eager roots
+ 	)
+ 
+ 	// loadOne synchronously loads the explicit requirements for module m.
+@@ -241,17 +251,19 @@ func readModGraph(ctx context.Context, roots []module.Version) (*ModuleGraph, er
+ 		return cached.summary, cached.err
+ 	}
+ 
+-	var enqueue func(m module.Version)
+-	enqueue = func(m module.Version) {
++	var enqueue func(m module.Version, depth modDepth)
++	enqueue = func(m module.Version, depth modDepth) {
+ 		if m.Version == "none" {
+ 			return
+ 		}
+ 
+-		if _, dup := loading.LoadOrStore(m, nil); dup {
+-			// m has already been enqueued for loading. Since the requirement graph
+-			// may contain cycles, we need to return early to avoid making the load
+-			// queue infinitely long.
+-			return
++		if depth == eager {
++			if _, dup := loadingEager.LoadOrStore(m, nil); dup {
++				// m has already been enqueued for loading. Since eager loading may
++				// follow cycles in the the requirement graph, we need to return early
++				// to avoid making the load queue infinitely long.
++				return
++			}
+ 		}
+ 
+ 		loadQueue.Add(func() {
+@@ -265,16 +277,16 @@ func readModGraph(ctx context.Context, roots []module.Version) (*ModuleGraph, er
+ 			// sufficient to build the packages it contains. We must load its full
+ 			// transitive dependency graph to be sure that we see all relevant
+ 			// dependencies.
+-			if !go117LazyTODO {
++			if depth == eager || summary.depth() == eager {
+ 				for _, r := range summary.require {
+-					enqueue(r)
++					enqueue(r, eager)
+ 				}
+ 			}
+ 		})
+ 	}
+ 
+ 	for _, m := range roots {
+-		enqueue(m)
++		enqueue(m, depth)
+ 	}
+ 	<-loadQueue.Idle()
+ 
+@@ -390,7 +402,7 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
+ 		// roots — but in a lazy module it may pull in previously-irrelevant
+ 		// transitive dependencies.
+ 
+-		newRS, rsErr := updateRoots(ctx, rs.direct, nil, rs)
++		newRS, rsErr := updateRoots(ctx, rs.depth, rs.direct, nil, rs)
+ 		if rsErr != nil {
+ 			// Failed to update roots, perhaps because of an error in a transitive
+ 			// dependency needed for the update. Return the original Requirements
+@@ -491,7 +503,7 @@ func editRequirements(ctx context.Context, rs *Requirements, add, mustSelect []m
+ 			direct[m.Path] = true
+ 		}
+ 	}
+-	return newRequirements(min, direct), changed, nil
++	return newRequirements(rs.depth, min, direct), changed, nil
+ }
+ 
+ // A ConstraintError describes inconsistent constraints in EditBuildList
+@@ -532,7 +544,13 @@ func TidyBuildList(ctx context.Context) {
+ 		// The implementation for eager modules should be factored out into a function.
+ 	}
+ 
+-	tidy, err := updateRoots(ctx, loaded.requirements.direct, loaded.pkgs, nil)
++	depth := index.depth()
++	if go117LazyTODO {
++		// TODO(#45094): add a -go flag to 'go mod tidy' to allow the depth to be
++		// changed after loading packages.
++	}
++
++	tidy, err := updateRoots(ctx, depth, loaded.requirements.direct, loaded.pkgs, nil)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -570,7 +588,7 @@ func TidyBuildList(ctx context.Context) {
+ // 	3. The selected version of the module providing each package in pkgs remains
+ // 	   selected.
+ // 	4. If rs is non-nil, every version selected in the graph of rs remains selected.
+-func updateRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg, rs *Requirements) (*Requirements, error) {
++func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pkgs []*loadPkg, rs *Requirements) (*Requirements, error) {
+ 	var (
+ 		rootPaths   []string // module paths that should be included as roots
+ 		inRootPaths = map[string]bool{}
+@@ -676,7 +694,7 @@ func updateRoots(ctx context.Context, direct map[string]bool, pkgs []*loadPkg, r
+ 	// the root set is the same as the original root set in rs and recycle its
+ 	// module graph and build list, if they have already been loaded.
+ 
+-	return newRequirements(min, direct), nil
++	return newRequirements(depth, min, direct), nil
+ }
+ 
+ // checkMultiplePaths verifies that a given module path is used as itself
+diff --git a/src/cmd/go/internal/modload/import_test.go b/src/cmd/go/internal/modload/import_test.go
+index e52a7fa66b..98145887e9 100644
+--- a/src/cmd/go/internal/modload/import_test.go
++++ b/src/cmd/go/internal/modload/import_test.go
+@@ -69,7 +69,7 @@ func TestQueryImport(t *testing.T) {
+ 	RootMode = NoRoot
+ 
+ 	ctx := context.Background()
+-	rs := newRequirements(nil, nil)
++	rs := newRequirements(eager, nil, nil)
+ 
+ 	for _, tt := range importTests {
+ 		t.Run(strings.ReplaceAll(tt.path, "/", "_"), func(t *testing.T) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index fdfb83646e..777b63841f 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -388,7 +388,7 @@ func LoadModFile(ctx context.Context) *Requirements {
+ 		Target = module.Version{Path: "command-line-arguments"}
+ 		targetPrefix = "command-line-arguments"
+ 		rawGoVersion.Store(Target, latestGoVersion())
+-		commitRequirements(ctx, newRequirements(nil, nil))
++		commitRequirements(ctx, newRequirements(index.depth(), nil, nil))
+ 		return requirements
+ 	}
+ 
+@@ -664,7 +664,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
+ 		}
+ 	}
+ 	module.Sort(roots)
+-	rs := newRequirements(roots, direct)
++	rs := newRequirements(index.depth(), roots, direct)
+ 
+ 	// If any module path appears more than once in the roots, we know that the
+ 	// go.mod file needs to be updated even though we have not yet loaded any
+@@ -672,7 +672,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
+ 	for _, n := range mPathCount {
+ 		if n > 1 {
+ 			var err error
+-			rs, err = updateRoots(ctx, rs.direct, nil, rs)
++			rs, err = updateRoots(ctx, rs.depth, rs.direct, nil, rs)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5bff17e579..5de26c15e7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -537,7 +537,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 		return path.Join(m.Path, filepath.ToSlash(sub)), true
+ 	}
+ 
+-	if go117LazyTODO {
++	if rs.depth == lazy {
+ 		for _, m := range rs.rootModules {
+ 			if v, _ := rs.rootSelected(m.Path); v != m.Version {
+ 				continue // m is a root, but we have a higher root for the same path.
+@@ -550,9 +550,9 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 		}
+ 	}
+ 
+-	// None of the roots contained dir, or we're in eager mode and have already
+-	// loaded the full module graph. Either way, check the full graph to see if
+-	// the directory is a non-root dependency.
++	// None of the roots contained dir, or we're in eager mode and want to load
++	// the full module graph more aggressively. Either way, check the full graph
++	// to see if the directory is a non-root dependency.
+ 	//
+ 	// If the roots are not consistent with the full module graph, the selected
+ 	// versions of root modules may differ from what we already checked above.
+@@ -1020,7 +1020,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
+ 		}
+ 	}
+ 
+-	rs, err := updateRoots(ctx, direct, ld.pkgs, rs)
++	rs, err := updateRoots(ctx, rs.depth, direct, ld.pkgs, rs)
+ 	if err == nil {
+ 		ld.requirements = rs
+ 	}
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 3e4772f217..3b01afa13f 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -25,15 +25,29 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-// narrowAllVersionV is the Go version (plus leading "v") at which the
+-// module-module "all" pattern no longer closes over the dependencies of
+-// tests outside of the main module.
+-const narrowAllVersionV = "v1.16"
++const (
++	// narrowAllVersionV is the Go version (plus leading "v") at which the
++	// module-module "all" pattern no longer closes over the dependencies of
++	// tests outside of the main module.
++	narrowAllVersionV = "v1.16"
++
++	// lazyLoadingVersionV is the Go version (plus leading "v") at which a
++	// module's go.mod file is expected to list explicit requirements on every
++	// module that provides any package transitively imported by that module.
++	lazyLoadingVersionV = "v1.17"
++)
++
++const (
++	// go117EnableLazyLoading toggles whether lazy-loading code paths should be
++	// active. It will be removed once the lazy loading implementation is stable
++	// and well-tested.
++	go117EnableLazyLoading = false
+ 
+-// go1117LazyTODO is a constant that exists only until lazy loading is
+-// implemented. Its use indicates a condition that will need to change if the
+-// main module is lazy.
+-const go117LazyTODO = false
++	// go1117LazyTODO is a constant that exists only until lazy loading is
++	// implemented. Its use indicates a condition that will need to change if the
++	// main module is lazy.
++	go117LazyTODO = false
++)
+ 
+ var modFile *modfile.File
+ 
+@@ -57,6 +71,14 @@ type requireMeta struct {
+ 	indirect bool
+ }
+ 
++// A modDepth indicates which dependencies should be loaded for a go.mod file.
++type modDepth uint8
++
++const (
++	lazy  modDepth = iota // load dependencies only as needed
++	eager                 // load all transitive dependencies eagerly
++)
++
+ // CheckAllowed returns an error equivalent to ErrDisallowed if m is excluded by
+ // the main module's go.mod or retracted by its author. Most version queries use
+ // this to filter out versions that should not be used.
+@@ -300,6 +322,18 @@ func (i *modFileIndex) allPatternClosesOverTests() bool {
+ 	return false
+ }
+ 
++// depth reports the modDepth indicated by the indexed go.mod file,
++// or lazy if the go.mod file has not been indexed.
++func (i *modFileIndex) depth() modDepth {
++	if !go117EnableLazyLoading {
++		return eager
++	}
++	if i != nil && semver.Compare(i.goVersionV, lazyLoadingVersionV) < 0 {
++		return eager
++	}
++	return lazy
++}
++
+ // modFileIsDirty reports whether the go.mod file differs meaningfully
+ // from what was indexed.
+ // If modFile has been changed (even cosmetically) since it was first read,
+@@ -394,6 +428,20 @@ type retraction struct {
+ 	Rationale string
+ }
+ 
++func (s *modFileSummary) depth() modDepth {
++	if !go117EnableLazyLoading {
++		return eager
++	}
++	// The 'go' command fills in the 'go' directive automatically, so an empty
++	// goVersionV in a dependency implies either Go 1.11 (eager loading) or no
++	// explicit go.mod file at all (no difference between eager and lazy because
++	// the module doesn't specify any requirements at all).
++	if s.goVersionV == "" || semver.Compare(s.goVersionV, lazyLoadingVersionV) < 0 {
++		return eager
++	}
++	return lazy
++}
++
+ // goModSummary returns a summary of the go.mod file for module m,
+ // taking into account any replacements for m, exclusions of its dependencies,
+ // and/or vendoring.

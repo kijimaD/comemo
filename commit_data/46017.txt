@@ -10,8 +10,56 @@ Date:   Tue Dec 1 17:37:12 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go    | 6 +++++-
  src/cmd/compile/internal/types2/stmt.go    | 2 +-
  src/cmd/compile/internal/types2/typexpr.go | 6 +++++-
  3 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 3c9540783a..c68077547e 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1867,7 +1867,11 @@ func (check *Checker) typeAssertion(pos syntax.Pos, x *operand, xtyp *Interface,
+ 	} else {
+ 		msg = "missing method " + method.name
+ 	}
+-	check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
++	if check.conf.CompilerErrorMessages {
++		check.errorf(pos, "impossible type assertion: %s (%s)", x, msg)
++	} else {
++		check.errorf(pos, "%s cannot have dynamic type %s (%s)", x, T, msg)
++	}
+ }
+ 
+ // expr typechecks expression e and initializes x with the expression value.
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 11a9b8313f..f1317fa0a3 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -886,7 +886,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+ 	case *Chan:
+ 		var msg string
+ 		if typ.dir == SendOnly {
+-			msg = "send-only channel"
++			msg = "receive from send-only channel"
+ 		}
+ 		return typ.elem, Typ[Invalid], msg
+ 	case *Sum:
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 2d568b7e87..39bb3a6b14 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -806,7 +806,11 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 			// of a type list (f.Name.Value == "type").
+ 			name := f.Name.Value
+ 			if name == "_" {
+-				check.errorf(f.Name, "invalid method name _")
++				if check.conf.CompilerErrorMessages {
++					check.errorf(f.Name, "methods must have a unique non-blank name")
++				} else {
++					check.errorf(f.Name, "invalid method name _")
++				}
+ 				continue // ignore
+ 			}
+ 

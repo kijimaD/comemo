@@ -33,7 +33,7 @@ Date:   Fri Apr 7 09:52:56 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  api/next/59280.txt                |  5 +++
  src/log/slog/example_wrap_test.go |  5 +--
  src/log/slog/handler.go           | 53 ++++++++----------------------
@@ -43,3 +43,468 @@ Date:   Fri Apr 7 09:52:56 2023 -0400
  src/log/slog/record_test.go       | 51 +++++++++--------------------
  src/log/slog/text_handler_test.go | 27 ----------------
  8 files changed, 116 insertions(+), 161 deletions(-)
+
+diff --git a/api/next/59280.txt b/api/next/59280.txt
+new file mode 100644
+index 0000000000..24ad72f59f
+--- /dev/null
++++ b/api/next/59280.txt
+@@ -0,0 +1,5 @@
++pkg log/slog, type Source struct #59280
++pkg log/slog, type Source struct, File string #59280
++pkg log/slog, type Source struct, Function string #59280
++pkg log/slog, type Source struct, Line int #59280
++
+diff --git a/src/log/slog/example_wrap_test.go b/src/log/slog/example_wrap_test.go
+index b96de11320..d422517b6e 100644
+--- a/src/log/slog/example_wrap_test.go
++++ b/src/log/slog/example_wrap_test.go
+@@ -34,7 +34,8 @@ func Example_wrapping() {
+ 		}
+ 		// Remove the directory from the source's filename.
+ 		if a.Key == slog.SourceKey {
+-			a.Value = slog.StringValue(filepath.Base(a.Value.String()))
++			source := a.Value.Any().(*slog.Source)
++			source.File = filepath.Base(source.File)
+ 		}
+ 		return a
+ 	}
+@@ -42,5 +43,5 @@ func Example_wrapping() {
+ 	Infof(logger, "message, %s", "formatted")
+ 
+ 	// Output:
+-	// level=INFO source=example_wrap_test.go:42 msg="message, formatted"
++	// level=INFO source=example_wrap_test.go:43 msg="message, formatted"
+ }
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index aa76fab514..2adaf56724 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -127,10 +127,8 @@ func (h *defaultHandler) WithGroup(name string) Handler {
+ // HandlerOptions are options for a TextHandler or JSONHandler.
+ // A zero HandlerOptions consists entirely of default values.
+ type HandlerOptions struct {
+-	// When AddSource is true, the handler adds a ("source", "file:line")
+-	// attribute to the output indicating the source code position of the log
+-	// statement. AddSource is false by default to skip the cost of computing
+-	// this information.
++	// AddSource causes the handler to compute the source code position
++	// of the log statement and add a SourceKey attribute to the output.
+ 	AddSource bool
+ 
+ 	// Level reports the minimum record level that will be logged.
+@@ -282,22 +280,7 @@ func (h *commonHandler) handle(r Record) error {
+ 	}
+ 	// source
+ 	if h.opts.AddSource {
+-		frame := r.frame()
+-		if frame.File != "" {
+-			key := SourceKey
+-			if rep == nil {
+-				state.appendKey(key)
+-				state.appendSource(frame.File, frame.Line)
+-			} else {
+-				buf := buffer.New()
+-				buf.WriteString(frame.File) // TODO: escape?
+-				buf.WriteByte(':')
+-				buf.WritePosInt(frame.Line)
+-				s := buf.String()
+-				buf.Free()
+-				state.appendAttr(String(key, s))
+-			}
+-		}
++		state.appendAttr(Any(SourceKey, r.source()))
+ 	}
+ 	key = MessageKey
+ 	msg := r.Message
+@@ -452,6 +435,16 @@ func (s *handleState) appendAttr(a Attr) {
+ 	if a.isEmpty() {
+ 		return
+ 	}
++	// Special case: Source.
++	if v := a.Value; v.Kind() == KindAny {
++		if src, ok := v.Any().(*Source); ok {
++			if s.h.json {
++				a.Value = src.group()
++			} else {
++				a.Value = StringValue(fmt.Sprintf("%s:%d", src.File, src.Line))
++			}
++		}
++	}
+ 	if a.Value.Kind() == KindGroup {
+ 		attrs := a.Value.Group()
+ 		// Output only non-empty groups.
+@@ -493,26 +486,6 @@ func (s *handleState) appendKey(key string) {
+ 	s.sep = s.h.attrSep()
+ }
+ 
+-func (s *handleState) appendSource(file string, line int) {
+-	if s.h.json {
+-		s.buf.WriteByte('"')
+-		*s.buf = appendEscapedJSONString(*s.buf, file)
+-		s.buf.WriteByte(':')
+-		s.buf.WritePosInt(line)
+-		s.buf.WriteByte('"')
+-	} else {
+-		// text
+-		if needsQuoting(file) {
+-			s.appendString(file + ":" + strconv.Itoa(line))
+-		} else {
+-			// common case: no quoting needed.
+-			s.appendString(file)
+-			s.buf.WriteByte(':')
+-			s.buf.WritePosInt(line)
+-		}
+-	}
+-}
+-
+ func (s *handleState) appendString(str string) {
+ 	if s.h.json {
+ 		s.buf.WriteByte('"')
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 6be78e0ac1..7b5aac303c 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -12,7 +12,9 @@ import (
+ 	"encoding/json"
+ 	"io"
+ 	"log/slog/internal/buffer"
++	"path/filepath"
+ 	"slices"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -115,13 +117,14 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 	preAttrs := []Attr{Int("pre", 3), String("x", "y")}
+ 
+ 	for _, test := range []struct {
+-		name     string
+-		replace  func([]string, Attr) Attr
+-		with     func(Handler) Handler
+-		preAttrs []Attr
+-		attrs    []Attr
+-		wantText string
+-		wantJSON string
++		name      string
++		replace   func([]string, Attr) Attr
++		addSource bool
++		with      func(Handler) Handler
++		preAttrs  []Attr
++		attrs     []Attr
++		wantText  string
++		wantJSON  string
+ 	}{
+ 		{
+ 			name:     "basic",
+@@ -309,11 +312,26 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 			wantText: `msg=message a=1 b=2 c=3 d=4`,
+ 			wantJSON: `{"msg":"message","a":1,"b":2,"c":3,"d":4}`,
+ 		},
++		{
++			name: "Source",
++			replace: func(gs []string, a Attr) Attr {
++				if a.Key == SourceKey {
++					s := a.Value.Any().(*Source)
++					s.File = filepath.Base(s.File)
++					return Any(a.Key, s)
++				}
++				return removeKeys(TimeKey, LevelKey)(gs, a)
++			},
++			addSource: true,
++			wantText:  `source=handler_test.go:$LINE msg=message`,
++			wantJSON:  `{"source":{"function":"log/slog.TestJSONAndTextHandlers","file":"handler_test.go","line":$LINE},"msg":"message"}`,
++		},
+ 	} {
+-		r := NewRecord(testTime, LevelInfo, "message", 0)
++		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
++		line := strconv.Itoa(r.source().Line)
+ 		r.AddAttrs(test.attrs...)
+ 		var buf bytes.Buffer
+-		opts := HandlerOptions{ReplaceAttr: test.replace}
++		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
+ 		t.Run(test.name, func(t *testing.T) {
+ 			for _, handler := range []struct {
+ 				name string
+@@ -332,9 +350,10 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 					if err := h.Handle(ctx, r); err != nil {
+ 						t.Fatal(err)
+ 					}
++					want := strings.ReplaceAll(handler.want, "$LINE", line)
+ 					got := strings.TrimSuffix(buf.String(), "\n")
+-					if got != handler.want {
+-						t.Errorf("\ngot  %s\nwant %s\n", got, handler.want)
++					if got != want {
++						t.Errorf("\ngot  %s\nwant %s\n", got, want)
+ 					}
+ 				})
+ 			}
+@@ -396,33 +415,6 @@ func TestHandlerEnabled(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAppendSource(t *testing.T) {
+-	for _, test := range []struct {
+-		file               string
+-		wantText, wantJSON string
+-	}{
+-		{"a/b.go", "a/b.go:1", `"a/b.go:1"`},
+-		{"a b.go", `"a b.go:1"`, `"a b.go:1"`},
+-		{`C:\windows\b.go`, `C:\windows\b.go:1`, `"C:\\windows\\b.go:1"`},
+-	} {
+-		check := func(json bool, want string) {
+-			t.Helper()
+-			var buf []byte
+-			state := handleState{
+-				h:   &commonHandler{json: json},
+-				buf: (*buffer.Buffer)(&buf),
+-			}
+-			state.appendSource(test.file, 1)
+-			got := string(buf)
+-			if got != want {
+-				t.Errorf("%s, json=%t:\ngot  %s\nwant %s", test.file, json, got, want)
+-			}
+-		}
+-		check(false, test.wantText)
+-		check(true, test.wantJSON)
+-	}
+-}
+-
+ func TestSecondWith(t *testing.T) {
+ 	// Verify that a second call to Logger.With does not corrupt
+ 	// the original.
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index fd20e7ba01..2180ea7469 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -155,23 +155,20 @@ func TestAttrs(t *testing.T) {
+ 	check(attrsSlice(h.r), Int("c", 3))
+ }
+ 
+-func sourceLine(r Record) (string, int) {
+-	f := r.frame()
+-	return f.File, f.Line
+-}
+-
+ func TestCallDepth(t *testing.T) {
+ 	h := &captureHandler{}
+ 	var startLine int
+ 
+ 	check := func(count int) {
+ 		t.Helper()
++		const wantFunc = "log/slog.TestCallDepth"
+ 		const wantFile = "logger_test.go"
+ 		wantLine := startLine + count*2
+-		gotFile, gotLine := sourceLine(h.r)
+-		gotFile = filepath.Base(gotFile)
+-		if gotFile != wantFile || gotLine != wantLine {
+-			t.Errorf("got (%s, %d), want (%s, %d)", gotFile, gotLine, wantFile, wantLine)
++		got := h.r.source()
++		gotFile := filepath.Base(got.File)
++		if got.Function != wantFunc || gotFile != wantFile || got.Line != wantLine {
++			t.Errorf("got (%s, %s, %d), want (%s, %s, %d)",
++				got.Function, gotFile, got.Line, wantFunc, wantFile, wantLine)
+ 		}
+ 	}
+ 
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 3cbcccf7c3..d77a6eddca 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -63,15 +63,6 @@ func NewRecord(t time.Time, level Level, msg string, pc uintptr) Record {
+ 	}
+ }
+ 
+-// frame returns the runtime.Frame of the log event.
+-// If the Record was created without the necessary information,
+-// or if the location is unavailable, it returns a zero Frame.
+-func (r Record) frame() runtime.Frame {
+-	fs := runtime.CallersFrames([]uintptr{r.PC})
+-	f, _ := fs.Next()
+-	return f
+-}
+-
+ // Clone returns a copy of the record with no shared state.
+ // The original record and the clone can both be modified
+ // without interfering with each other.
+@@ -169,3 +160,47 @@ func argsToAttr(args []any) (Attr, []any) {
+ 		return Any(badKey, x), args[1:]
+ 	}
+ }
++
++// Source describes the location of a line of source code.
++type Source struct {
++	// Function is the package path-qualified function name containing the
++	// source line. If non-empty, this string uniquely identifies a single
++	// function in the program. This may be the empty string if not known.
++	Function string
++	// File and Line are the file name and line number (1-based) of the source
++	// line. These may be the empty string and zero, respectively, if not known.
++	File string
++	Line int
++}
++
++// attrs returns the non-zero fields of s as a slice of attrs.
++// It is similar to a LogValue method, but we don't want Source
++// to implement LogValuer because it would be resolved before
++// the ReplaceAttr function was called.
++func (s *Source) group() Value {
++	var as []Attr
++	if s.Function != "" {
++		as = append(as, String("function", s.Function))
++	}
++	if s.File != "" {
++		as = append(as, String("file", s.File))
++	}
++	if s.Line != 0 {
++		as = append(as, Int("line", s.Line))
++	}
++	return GroupValue(as...)
++}
++
++// source returns a Source for the log event.
++// If the Record was created without the necessary information,
++// or if the location is unavailable, it returns a non-nil *Source
++// with zero fields.
++func (r Record) source() *Source {
++	fs := runtime.CallersFrames([]uintptr{r.PC})
++	f, _ := fs.Next()
++	return &Source{
++		Function: f.Function,
++		File:     f.File,
++		Line:     f.Line,
++	}
++}
+diff --git a/src/log/slog/record_test.go b/src/log/slog/record_test.go
+index c40c6183fa..bcfc4dd224 100644
+--- a/src/log/slog/record_test.go
++++ b/src/log/slog/record_test.go
+@@ -5,7 +5,6 @@
+ package slog
+ 
+ import (
+-	"log/slog/internal/buffer"
+ 	"slices"
+ 	"strconv"
+ 	"strings"
+@@ -36,30 +35,33 @@ func TestRecordAttrs(t *testing.T) {
+ 	}
+ }
+ 
+-func TestRecordSourceLine(t *testing.T) {
+-	// Zero call depth => empty file/line
++func TestRecordSource(t *testing.T) {
++	// Zero call depth => empty *Source.
+ 	for _, test := range []struct {
+ 		depth            int
++		wantFunction     string
+ 		wantFile         string
+ 		wantLinePositive bool
+ 	}{
+-		{0, "", false},
+-		{-16, "", false},
+-		{1, "record_test.go", true}, // 1: caller of NewRecord
+-		{2, "testing.go", true},
++		{0, "", "", false},
++		{-16, "", "", false},
++		{1, "log/slog.TestRecordSource", "record_test.go", true}, // 1: caller of NewRecord
++		{2, "testing.tRunner", "testing.go", true},
+ 	} {
+ 		var pc uintptr
+ 		if test.depth > 0 {
+ 			pc = callerPC(test.depth + 1)
+ 		}
+ 		r := NewRecord(time.Time{}, 0, "", pc)
+-		gotFile, gotLine := sourceLine(r)
+-		if i := strings.LastIndexByte(gotFile, '/'); i >= 0 {
+-			gotFile = gotFile[i+1:]
++		got := r.source()
++		if i := strings.LastIndexByte(got.File, '/'); i >= 0 {
++			got.File = got.File[i+1:]
+ 		}
+-		if gotFile != test.wantFile || (gotLine > 0) != test.wantLinePositive {
+-			t.Errorf("depth %d: got (%q, %d), want (%q, %t)",
+-				test.depth, gotFile, gotLine, test.wantFile, test.wantLinePositive)
++		if got.Function != test.wantFunction || got.File != test.wantFile || (got.Line > 0) != test.wantLinePositive {
++			t.Errorf("depth %d: got (%q, %q, %d), want (%q, %q, %t)",
++				test.depth,
++				got.Function, got.File, got.Line,
++				test.wantFunction, test.wantFile, test.wantLinePositive)
+ 		}
+ 	}
+ }
+@@ -136,29 +138,6 @@ func BenchmarkPC(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkSourceLine(b *testing.B) {
+-	r := NewRecord(time.Now(), LevelInfo, "", 5)
+-	b.Run("alone", func(b *testing.B) {
+-		for i := 0; i < b.N; i++ {
+-			file, line := sourceLine(r)
+-			_ = file
+-			_ = line
+-		}
+-	})
+-	b.Run("stringifying", func(b *testing.B) {
+-		for i := 0; i < b.N; i++ {
+-			file, line := sourceLine(r)
+-			buf := buffer.New()
+-			buf.WriteString(file)
+-			buf.WriteByte(':')
+-			buf.WritePosInt(line)
+-			s := buf.String()
+-			buf.Free()
+-			_ = s
+-		}
+-	})
+-}
+-
+ func BenchmarkRecord(b *testing.B) {
+ 	const nAttrs = nAttrsInline * 10
+ 	var a Attr
+diff --git a/src/log/slog/text_handler_test.go b/src/log/slog/text_handler_test.go
+index 0979c3436c..87144a770a 100644
+--- a/src/log/slog/text_handler_test.go
++++ b/src/log/slog/text_handler_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+-	"regexp"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -123,32 +122,6 @@ func (t text) MarshalText() ([]byte, error) {
+ 	return []byte(fmt.Sprintf("text{%q}", t.s)), nil
+ }
+ 
+-func TestTextHandlerSource(t *testing.T) {
+-	var buf bytes.Buffer
+-	h := HandlerOptions{AddSource: true}.NewTextHandler(&buf)
+-	r := NewRecord(testTime, LevelInfo, "m", callerPC(2))
+-	if err := h.Handle(context.Background(), r); err != nil {
+-		t.Fatal(err)
+-	}
+-	if got := buf.String(); !sourceRegexp.MatchString(got) {
+-		t.Errorf("got\n%q\nwanted to match %s", got, sourceRegexp)
+-	}
+-}
+-
+-var sourceRegexp = regexp.MustCompile(`source="?([A-Z]:)?[^:]+text_handler_test\.go:\d+"? msg`)
+-
+-func TestSourceRegexp(t *testing.T) {
+-	for _, s := range []string{
+-		`source=/tmp/path/to/text_handler_test.go:23 msg=m`,
+-		`source=C:\windows\path\text_handler_test.go:23 msg=m"`,
+-		`source="/tmp/tmp.XcGZ9cG9Xb/with spaces/exp/slog/text_handler_test.go:95" msg=m`,
+-	} {
+-		if !sourceRegexp.MatchString(s) {
+-			t.Errorf("failed to match %s", s)
+-		}
+-	}
+-}
+-
+ func TestTextHandlerPreformatted(t *testing.T) {
+ 	var buf bytes.Buffer
+ 	var h Handler = NewTextHandler(&buf)

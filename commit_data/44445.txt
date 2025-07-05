@@ -10,10 +10,174 @@ Date:   Mon Jul 6 17:49:24 2020 -0400
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/dwarf_test.go                  |  2 ++
  src/cmd/link/elf_test.go                    |  2 ++
  src/cmd/link/internal/ld/dwarf_test.go      |  4 ++++
  src/cmd/link/internal/ld/issue33808_test.go |  1 +
  src/cmd/link/link_test.go                   | 22 ++++++++++++++++++++++
  5 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index ac6937ced0..88480064dd 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -28,6 +28,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
++	t.Parallel()
++
+ 	out, err := exec.Command(testenv.GoToolPath(t), "list", "-f", "{{.Stale}}", "cmd/link").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go list: %v\n%s", err, out)
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index 2fb4dd8aaf..334f050e88 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -230,6 +230,8 @@ func TestPIESize(t *testing.T) {
+ 		t.Skip("-buildmode=pie not supported")
+ 	}
+ 
++	t.Parallel()
++
+ 	tmpl := template.Must(template.New("pie").Parse(pieSourceTemplate))
+ 
+ 	writeGo := func(t *testing.T, dir string) {
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index f3dd53792a..22948521f5 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -1376,6 +1376,8 @@ func TestIssue38192(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
++	t.Parallel()
++
+ 	// Build a test program that contains a translation unit whose
+ 	// text (from am assembly source) contains only a single instruction.
+ 	tmpdir, err := ioutil.TempDir("", "TestIssue38192")
+@@ -1487,6 +1489,8 @@ func TestIssue39757(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
++	t.Parallel()
++
+ 	// In this bug the DWARF line table contents for the last couple of
+ 	// instructions in a function were incorrect (bad file/line). This
+ 	// test verifies that all of the line table rows for a function
+diff --git a/src/cmd/link/internal/ld/issue33808_test.go b/src/cmd/link/internal/ld/issue33808_test.go
+index 77eaeb4b31..92a47faa4a 100644
+--- a/src/cmd/link/internal/ld/issue33808_test.go
++++ b/src/cmd/link/internal/ld/issue33808_test.go
+@@ -29,6 +29,7 @@ func TestIssue33808(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
++	t.Parallel()
+ 
+ 	dir, err := ioutil.TempDir("", "TestIssue33808")
+ 	if err != nil {
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index aa1bb04302..6ed6688a23 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -119,6 +119,8 @@ func TestIssue28429(t *testing.T) {
+ func TestUnresolved(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "unresolved-")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp dir: %v", err)
+@@ -185,6 +187,8 @@ func TestIssue33979(t *testing.T) {
+ 		t.Skipf("Skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
+ 	}
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "unresolved-")
+ 	if err != nil {
+ 		t.Fatalf("failed to create temp dir: %v", err)
+@@ -274,6 +278,8 @@ func TestBuildForTvOS(t *testing.T) {
+ 		t.Skipf("error running xcrun, required for iOS cross build: %v", err)
+ 	}
+ 
++	t.Parallel()
++
+ 	sdkPath, err := exec.Command("xcrun", "--sdk", "appletvos", "--show-sdk-path").Output()
+ 	if err != nil {
+ 		t.Skip("failed to locate appletvos SDK, skipping")
+@@ -324,6 +330,8 @@ func main() { println(X) }
+ func TestXFlag(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestXFlag")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -350,6 +358,8 @@ func main() { }
+ func TestMacOSVersion(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestMacOSVersion")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -427,6 +437,8 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
+ 		t.Skip("skipping on non-{linux,darwin}/amd64 platform")
+ 	}
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestIssue34788Android386TLSSequence")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -487,6 +499,8 @@ func TestStrictDup(t *testing.T) {
+ 	// Check that -strictdups flag works.
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestStrictDup")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -571,6 +585,8 @@ func TestFuncAlign(t *testing.T) {
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestFuncAlign")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -637,6 +653,8 @@ func TestTrampoline(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestTrampoline")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -671,6 +689,8 @@ func TestIndexMismatch(t *testing.T) {
+ 	// manually, and try to "trick" the linker with an inconsistent object file.
+ 	testenv.MustHaveGoBuild(t)
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestIndexMismatch")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -731,6 +751,8 @@ func TestPErsrc(t *testing.T) {
+ 		t.Skipf("this is a windows/amd64-only test")
+ 	}
+ 
++	t.Parallel()
++
+ 	tmpdir, err := ioutil.TempDir("", "TestPErsrc")
+ 	if err != nil {
+ 		t.Fatal(err)

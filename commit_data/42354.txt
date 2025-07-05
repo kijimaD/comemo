@@ -14,6 +14,28 @@ Date:   Tue Nov 26 17:07:26 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/mod_list_e_readonly.txt | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/mod_list_e_readonly.txt b/src/cmd/go/testdata/script/mod_list_e_readonly.txt
+new file mode 100644
+index 0000000000..5baeea2497
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_e_readonly.txt
+@@ -0,0 +1,15 @@
++# 'go list -mod=readonly -e should attribute errors
++# to individual missing packages.
++# Verifies golang.org/issue/34829.
++go list -mod=readonly -e -deps -f '{{if .Error}}{{.ImportPath}}: {{.Error}}{{end}}' .
++stdout 'example.com/missing: use.go:3:8: import lookup disabled by -mod=readonly'
++
++-- go.mod --
++module example.com/m
++
++go 1.14
++
++-- use.go --
++package use
++
++import _ "example.com/missing"

@@ -10,8 +10,175 @@ Date:   Wed Apr 29 10:59:22 2015 -0400
     Change-Id: If91d9f60752f3dc4b280f35d6eb441f3c47574b2
     Reviewed-on: https://go-review.googlesource.com/9362
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/ld/elf.go |  2 +-
  src/cmd/internal/ld/lib.go | 56 +++++++++++++++++++++++++++++++---------------
  src/cmd/internal/ld/pe.go  |  2 +-
  3 files changed, 40 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index b56a8072eb..cb4a73a338 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1034,7 +1034,7 @@ func elfinterp(sh *ElfShdr, startva uint64, resoff uint64, p string) int {
+ func elfwriteinterp() int {
+ 	sh := elfshname(".interp")
+ 	Cseek(int64(sh.off))
+-	coutbuf.w.WriteString(interp)
++	coutbuf.WriteString(interp)
+ 	Cput(0)
+ 	return int(sh.size)
+ }
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 3f7b04fbbb..b14a6c1b50 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -31,6 +31,7 @@
+ package ld
+ 
+ import (
++	"bufio"
+ 	"bytes"
+ 	"cmd/internal/obj"
+ 	"debug/elf"
+@@ -229,10 +230,14 @@ const (
+ var (
+ 	headstring string
+ 	// buffered output
+-	Bso     Biobuf
+-	coutbuf Biobuf
++	Bso Biobuf
+ )
+ 
++var coutbuf struct {
++	*bufio.Writer
++	f *os.File
++}
++
+ const (
+ 	// Whether to assume that the external linker is "gold"
+ 	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
+@@ -245,7 +250,6 @@ const (
+ )
+ 
+ var (
+-	cout *os.File
+ 	// Set if we see an object compiled by the host compiler that is not
+ 	// from a package that is known to support internal linking mode.
+ 	externalobj = false
+@@ -359,8 +363,8 @@ func libinit() {
+ 		Exitf("cannot create %s: %v", outfile, err)
+ 	}
+ 
+-	cout = f
+-	coutbuf = *Binitw(f)
++	coutbuf.Writer = bufio.NewWriter(f)
++	coutbuf.f = f
+ 
+ 	if INITENTRY == "" {
+ 		switch Buildmode {
+@@ -382,21 +386,26 @@ func libinit() {
+ 
+ func Exitf(format string, a ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, os.Args[0]+": "+format+"\n", a...)
+-	if cout != nil {
+-		cout.Close()
++	if coutbuf.f != nil {
++		coutbuf.f.Close()
+ 		mayberemoveoutfile()
+ 	}
+ 	Exit(2)
+ }
+ 
+ func errorexit() {
+-	if cout != nil {
++	if coutbuf.f != nil {
++		if nerrors != 0 {
++			Cflush()
++		}
+ 		// For rmtemp run at atexit time on Windows.
+-		cout.Close()
++		if err := coutbuf.f.Close(); err != nil {
++			Exitf("close: %v", err)
++		}
+ 	}
+ 
+ 	if nerrors != 0 {
+-		if cout != nil {
++		if coutbuf.f != nil {
+ 			mayberemoveoutfile()
+ 		}
+ 		Exit(2)
+@@ -803,16 +812,17 @@ func hostlinksetup() {
+ 	}
+ 
+ 	// change our output to temporary object file
+-	cout.Close()
++	coutbuf.f.Close()
+ 
+ 	p := fmt.Sprintf("%s/go.o", tmpdir)
+ 	var err error
+-	cout, err = os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
++	f, err := os.OpenFile(p, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+ 	if err != nil {
+ 		Exitf("cannot create %s: %v", p, err)
+ 	}
+ 
+-	coutbuf = *Binitw(cout)
++	coutbuf.Writer = bufio.NewWriter(f)
++	coutbuf.f = f
+ }
+ 
+ // hostobjCopy creates a copy of the object files in hostobj in a
+@@ -1555,23 +1565,33 @@ func Yconv(s *LSym) string {
+ }
+ 
+ func Cflush() {
+-	Bflush(&coutbuf)
++	if err := coutbuf.Writer.Flush(); err != nil {
++		Exitf("flushing %s: %v", coutbuf.f.Name(), err)
++	}
+ }
+ 
+ func Cpos() int64 {
+-	return Boffset(&coutbuf)
++	Cflush()
++	off, err := coutbuf.f.Seek(0, 1)
++	if err != nil {
++		Exitf("seeking in output [0, 1]: %v", err)
++	}
++	return off
+ }
+ 
+ func Cseek(p int64) {
+-	Bseek(&coutbuf, p, 0)
++	Cflush()
++	if _, err := coutbuf.f.Seek(p, 0); err != nil {
++		Exitf("seeking in output [0, 1]: %v", err)
++	}
+ }
+ 
+ func Cwrite(p []byte) {
+-	Bwrite(&coutbuf, p)
++	coutbuf.Write(p)
+ }
+ 
+ func Cput(c uint8) {
+-	Bputc(&coutbuf, c)
++	coutbuf.WriteByte(c)
+ }
+ 
+ func usage() {
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/internal/ld/pe.go
+index f7a45fd338..cb82c053d8 100644
+--- a/src/cmd/internal/ld/pe.go
++++ b/src/cmd/internal/ld/pe.go
+@@ -474,7 +474,7 @@ func pewrite() {
+ }
+ 
+ func strput(s string) {
+-	coutbuf.w.WriteString(s)
++	coutbuf.WriteString(s)
+ 	Cput(0)
+ 	// string must be padded to even size
+ 	if (len(s)+1)%2 != 0 {

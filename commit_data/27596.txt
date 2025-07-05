@@ -18,8 +18,218 @@ Date:   Thu Mar 17 17:24:19 2016 +0900
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/path/filepath/export_windows_test.go |   7 +++
  src/path/filepath/path_windows_test.go   |  56 +++++++++++++++++
  src/path/filepath/symlink_windows.go     | 100 +++++++++++++++++++------------
  3 files changed, 124 insertions(+), 39 deletions(-)
+
+diff --git a/src/path/filepath/export_windows_test.go b/src/path/filepath/export_windows_test.go
+new file mode 100644
+index 0000000000..8ca007f70a
+--- /dev/null
++++ b/src/path/filepath/export_windows_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package filepath
++
++var ToNorm = toNorm
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index f086035e5f..b47cdfdb96 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -279,3 +279,59 @@ func TestEvalSymlinksCanonicalNamesWith8dot3Disabled(t *testing.T) {
+ 	}
+ 	TestEvalSymlinksCanonicalNames(t)
+ }
++
++func TestToNorm(t *testing.T) {
++	stubBase := func(path string) (string, error) {
++		vol := filepath.VolumeName(path)
++		path = path[len(vol):]
++
++		if strings.Contains(path, "/") {
++			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
++		}
++
++		if path == "" || path == "." || path == `\` {
++			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
++		}
++
++		i := strings.LastIndexByte(path, filepath.Separator)
++		if i == len(path)-1 { // trailing '\' is invalid
++			return "", fmt.Errorf("invalid path is given to base: %s", vol+path)
++		}
++		if i == -1 {
++			return strings.ToUpper(path), nil
++		}
++
++		return strings.ToUpper(path[i+1:]), nil
++	}
++
++	// On this test, toNorm should be same as string.ToUpper(filepath.Clean(path)) except empty string.
++	tests := []struct {
++		arg  string
++		want string
++	}{
++		{"", ""},
++		{".", "."},
++		{"./foo/bar", `FOO\BAR`},
++		{"/", `\`},
++		{"/foo/bar", `\FOO\BAR`},
++		{"/foo/bar/baz/qux", `\FOO\BAR\BAZ\QUX`},
++		{"foo/bar", `FOO\BAR`},
++		{"C:/foo/bar", `C:\FOO\BAR`},
++		{"C:foo/bar", `C:FOO\BAR`},
++		{"c:/foo/bar", `C:\FOO\BAR`},
++		{"C:/foo/bar", `C:\FOO\BAR`},
++		{"C:/foo/bar/", `C:\FOO\BAR`},
++		{`C:\foo\bar`, `C:\FOO\BAR`},
++		{`C:\foo/bar\`, `C:\FOO\BAR`},
++		{"C:/ふー/バー", `C:\ふー\バー`},
++	}
++
++	for _, test := range tests {
++		got, err := filepath.ToNorm(test.arg, stubBase)
++		if err != nil {
++			t.Errorf("unexpected toNorm error, arg: %s, err: %v\n", test.arg, err)
++		} else if got != test.want {
++			t.Errorf("toNorm error, arg: %s, want: %s, got: %s\n", test.arg, test.want, got)
++		}
++	}
++}
+diff --git a/src/path/filepath/symlink_windows.go b/src/path/filepath/symlink_windows.go
+index eb48367ec2..243352819e 100644
+--- a/src/path/filepath/symlink_windows.go
++++ b/src/path/filepath/symlink_windows.go
+@@ -5,45 +5,82 @@
+ package filepath
+ 
+ import (
++	"strings"
+ 	"syscall"
+ )
+ 
+-func toShort(path string) (string, error) {
+-	p, err := syscall.UTF16FromString(path)
++// normVolumeName is like VolumeName, but makes drive letter upper case.
++// result of EvalSymlinks must be unique, so we have
++// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
++func normVolumeName(path string) string {
++	volume := VolumeName(path)
++
++	if len(volume) > 2 { // isUNC
++		return volume
++	}
++
++	return strings.ToUpper(volume)
++}
++
++// normBase retruns the last element of path.
++func normBase(path string) (string, error) {
++	p, err := syscall.UTF16PtrFromString(path)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	b := p // GetShortPathName says we can reuse buffer
+-	n := uint32(len(b))
+-	for {
+-		n, err = syscall.GetShortPathName(&p[0], &b[0], uint32(len(b)))
+-		if err != nil {
+-			return "", err
+-		}
+-		if n <= uint32(len(b)) {
+-			return syscall.UTF16ToString(b[:n]), nil
+-		}
+-		b = make([]uint16, n)
+-	}
+-}
+ 
+-func toLong(path string) (string, error) {
+-	p, err := syscall.UTF16FromString(path)
++	var data syscall.Win32finddata
++
++	h, err := syscall.FindFirstFile(p, &data)
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	b := p // GetLongPathName says we can reuse buffer
+-	n := uint32(len(b))
++	syscall.FindClose(h)
++
++	return syscall.UTF16ToString(data.FileName[:]), nil
++}
++
++func toNorm(path string, base func(string) (string, error)) (string, error) {
++	if path == "" {
++		return path, nil
++	}
++
++	path = Clean(path)
++
++	volume := normVolumeName(path)
++	path = path[len(volume):]
++
++	// skip special cases
++	if path == "." || path == `\` {
++		return volume + path, nil
++	}
++
++	var normPath string
++
+ 	for {
+-		n, err = syscall.GetLongPathName(&p[0], &b[0], uint32(len(b)))
++		name, err := base(volume + path)
+ 		if err != nil {
+ 			return "", err
+ 		}
+-		if n <= uint32(len(b)) {
+-			return syscall.UTF16ToString(b[:n]), nil
++
++		normPath = name + `\` + normPath
++
++		i := strings.LastIndexByte(path, Separator)
++		if i == -1 {
++			break
++		}
++		if i == 0 { // `\Go` or `C:\Go`
++			normPath = `\` + normPath
++
++			break
+ 		}
+-		b = make([]uint16, n)
++
++		path = path[:i]
+ 	}
++
++	normPath = normPath[:len(normPath)-1] // remove trailing '\'
++
++	return volume + normPath, nil
+ }
+ 
+ func evalSymlinks(path string) (string, error) {
+@@ -51,20 +88,5 @@ func evalSymlinks(path string) (string, error) {
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	p, err := toShort(path)
+-	if err != nil {
+-		return "", err
+-	}
+-	p, err = toLong(p)
+-	if err != nil {
+-		return "", err
+-	}
+-	// syscall.GetLongPathName does not change the case of the drive letter,
+-	// but the result of EvalSymlinks must be unique, so we have
+-	// EvalSymlinks(`c:\a`) == EvalSymlinks(`C:\a`).
+-	// Make drive letter upper case.
+-	if len(p) >= 2 && p[1] == ':' && 'a' <= p[0] && p[0] <= 'z' {
+-		p = string(p[0]+'A'-'a') + p[1:]
+-	}
+-	return Clean(p), nil
++	return toNorm(path, normBase)
+ }

@@ -18,6 +18,21 @@ Date:   Mon Mar 30 15:01:33 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index a85d7606c8..bec5c1599e 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -355,6 +355,9 @@ func TestStop(t *testing.T) {
+ 			quiesce()
+ 			select {
+ 			case s := <-c:
++				if sig == syscall.SIGUSR1 && s == syscall.SIGUSR1 && runtime.GOOS == "android" {
++					testenv.SkipFlaky(t, 38165)
++				}
+ 				t.Fatalf("unexpected signal %v", s)
+ 			default:
+ 				// nothing to read - good

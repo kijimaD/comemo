@@ -18,7 +18,80 @@ Date:   Tue Aug 22 21:14:14 2023 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/transport.go      |  1 +
  src/net/http/transport_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 53 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 35dfe908d8..c2376aa661 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2267,6 +2267,7 @@ func (pc *persistConn) readLoop() {
+ 			pc.t.cancelRequest(rc.cancelKey, rc.req.Context().Err())
+ 		case <-pc.closech:
+ 			alive = false
++			pc.t.setReqCanceler(rc.cancelKey, nil)
+ 		}
+ 
+ 		testHookReadLoopBeforeNextRead()
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index bcc26aa58e..4ff26ff32a 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -6810,3 +6810,55 @@ func testRequestSanitization(t *testing.T, mode testMode) {
+ 		resp.Body.Close()
+ 	}
+ }
++
++// Issue 61708
++func TestTransportAndServerSharedBodyReqCancelerCleanupOnConnectionClose(t *testing.T) {
++	run(t, testTransportAndServerSharedBodyReqCancelerCleanupOnConnectionClose, []testMode{http1Mode})
++}
++func testTransportAndServerSharedBodyReqCancelerCleanupOnConnectionClose(t *testing.T, mode testMode) {
++	const bodySize = 1 << 20
++
++	backend := newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
++		io.Copy(rw, req.Body)
++	}))
++	t.Logf("Backend address: %s", backend.ts.Listener.Addr().String())
++
++	var proxy *clientServerTest
++	proxy = newClientServerTest(t, mode, HandlerFunc(func(rw ResponseWriter, req *Request) {
++		breq, _ := NewRequest("POST", backend.ts.URL, req.Body)
++
++		bresp, err := backend.c.Do(breq)
++		if err != nil {
++			t.Fatalf("Unexpected proxy outbound request error: %v", err)
++		}
++		defer bresp.Body.Close()
++
++		_, err = io.Copy(rw, bresp.Body)
++		if err == nil {
++			t.Fatalf("Expected proxy copy error")
++		}
++		t.Logf("Proxy copy error: %v", err)
++	}))
++	t.Logf("Proxy address: %s", proxy.ts.Listener.Addr().String())
++
++	req, _ := NewRequest("POST", proxy.ts.URL, io.LimitReader(neverEnding('a'), bodySize))
++	res, err := proxy.c.Do(req)
++	if err != nil {
++		t.Fatalf("Original request: %v", err)
++	}
++	// Close body without reading to trigger proxy copy error
++	res.Body.Close()
++
++	// Verify no outstanding requests after readLoop/writeLoop
++	// goroutines shut down.
++	waitCondition(t, 10*time.Millisecond, func(d time.Duration) bool {
++		n := backend.tr.NumPendingRequestsForTesting()
++		if n > 0 {
++			if d > 0 {
++				t.Logf("pending requests = %d after %v (want 0)", n, d)
++			}
++			return false
++		}
++		return true
++	})
++}

@@ -41,7 +41,7 @@ Date:   Mon Mar 29 08:28:01 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go      |  4 +-
  src/cmd/compile/internal/noder/helpers.go   | 27 ++++++++----
  src/cmd/compile/internal/noder/stencil.go   | 67 +++++++++++++++++++++--------
@@ -49,3 +49,343 @@ Date:   Mon Mar 29 08:28:01 2021 -0700
  src/cmd/compile/internal/noder/transform.go |  2 +
  test/typeparam/typelist.go                  | 64 +++++++++++++++++++++++++++
  6 files changed, 150 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 9db03a9005..ecdc7c74b1 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -164,7 +164,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 
+ 	case *syntax.Operation:
+ 		if expr.Y == nil {
+-			return Unary(pos, g.op(expr.Op, unOps[:]), g.expr(expr.X))
++			return Unary(pos, g.typ(typ), g.op(expr.Op, unOps[:]), g.expr(expr.X))
+ 		}
+ 		switch op := g.op(expr.Op, binOps[:]); op {
+ 		case ir.OEQ, ir.ONE, ir.OLT, ir.OLE, ir.OGT, ir.OGE:
+@@ -236,7 +236,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 
+ 			if havePtr != wantPtr {
+ 				if havePtr {
+-					x = Implicit(Deref(pos, x))
++					x = Implicit(Deref(pos, x.Type().Elem(), x))
+ 				} else {
+ 					x = Implicit(Addr(pos, x))
+ 				}
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index cb8052c0cb..e5a6dbcb01 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -149,9 +149,13 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 		}
+ 	}
+ 
+-	n.Use = ir.CallUseExpr
+-	if fun.Type().NumResults() == 0 {
+-		n.Use = ir.CallUseStmt
++	if fun.Type().HasTParam() {
++		// If the fun arg is or has a type param, don't do any extra
++		// transformations, since we may not have needed properties yet
++		// (e.g. number of return values, etc). The type param is probably
++		// described by a structural constraint that requires it to be a
++		// certain function type, etc., but we don't want to analyze that.
++		return typed(typ, n)
+ 	}
+ 
+ 	if fun.Op() == ir.OXDOT {
+@@ -191,9 +195,9 @@ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func Deref(pos src.XPos, x ir.Node) *ir.StarExpr {
++func Deref(pos src.XPos, typ *types.Type, x ir.Node) *ir.StarExpr {
+ 	n := ir.NewStarExpr(pos, x)
+-	typed(x.Type().Elem(), n)
++	typed(typ, n)
+ 	return n
+ }
+ 
+@@ -288,17 +292,22 @@ func Slice(pos src.XPos, typ *types.Type, x, low, high, max ir.Node) ir.Node {
+ 	return n
+ }
+ 
+-func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
++func Unary(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node) ir.Node {
+ 	switch op {
+ 	case ir.OADDR:
+ 		return Addr(pos, x)
+ 	case ir.ODEREF:
+-		return Deref(pos, x)
++		return Deref(pos, typ, x)
+ 	}
+ 
+-	typ := x.Type()
+ 	if op == ir.ORECV {
+-		typ = typ.Elem()
++		if typ.IsFuncArgStruct() && typ.NumFields() == 2 {
++			// Remove the second boolean type (if provided by type2),
++			// since that works better with the rest of the compiler
++			// (which will add it back in later).
++			assert(typ.Field(1).Type.Kind() == types.TBOOL)
++			typ = typ.Field(0).Type
++		}
+ 	}
+ 	return typed(typ, ir.NewUnaryExpr(pos, op, x))
+ }
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 45864763d4..8dcc9d811e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -270,6 +270,7 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	newf.Nname.Func = newf
+ 	newf.Nname.Defn = newf
+ 	newsym.Def = newf.Nname
++	ir.CurFunc = newf
+ 
+ 	assert(len(tparams) == len(targs))
+ 
+@@ -286,7 +287,6 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	for i, n := range gf.Dcl {
+ 		newf.Dcl[i] = subst.node(n).(*ir.Name)
+ 	}
+-	newf.Body = subst.list(gf.Body)
+ 
+ 	// Ugly: we have to insert the Name nodes of the parameters/results into
+ 	// the function type. The current function type has no Nname fields set,
+@@ -305,6 +305,11 @@ func (g *irgen) genericSubst(newsym *types.Sym, nameNode *ir.Name, targs []ir.No
+ 	newf.Nname.SetTypecheck(1)
+ 	// TODO(danscales) - remove later, but avoid confusion for now.
+ 	newf.Pragma = ir.Noinline
++
++	// Make sure name/type of newf is set before substituting the body.
++	newf.Body = subst.list(gf.Body)
++	ir.CurFunc = nil
++
+ 	return newf
+ }
+ 
+@@ -396,6 +401,12 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 					as := m.(*ir.AssignOpStmt)
+ 					transformCheckAssign(as, as.X)
+ 
++				case ir.ORETURN:
++					transformReturn(m.(*ir.ReturnStmt))
++
++				case ir.OSEND:
++					transformSend(m.(*ir.SendStmt))
++
+ 				default:
+ 					base.Fatalf("Unexpected node with Typecheck() == 3")
+ 				}
+@@ -435,38 +446,55 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 
+ 		case ir.OCALL:
+ 			call := m.(*ir.CallExpr)
+-			if call.X.Op() == ir.OTYPE {
++			switch call.X.Op() {
++			case ir.OTYPE:
+ 				// Transform the conversion, now that we know the
+ 				// type argument.
+ 				m = transformConvCall(m.(*ir.CallExpr))
+-			} else if call.X.Op() == ir.OCALLPART {
++
++			case ir.OCALLPART:
+ 				// Redo the transformation of OXDOT, now that we
+ 				// know the method value is being called. Then
+ 				// transform the call.
+ 				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+ 				transformDot(call.X.(*ir.SelectorExpr), true)
+ 				transformCall(call)
+-			} else if call.X.Op() == ir.ODOT || call.X.Op() == ir.ODOTPTR {
++
++			case ir.ODOT, ir.ODOTPTR:
+ 				// An OXDOT for a generic receiver was resolved to
+ 				// an access to a field which has a function
+ 				// value. Transform the call to that function, now
+ 				// that the OXDOT was resolved.
+ 				transformCall(call)
+-			} else if name := call.X.Name(); name != nil {
+-				switch name.BuiltinOp {
+-				case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
+-					// Transform these builtins now that we
+-					// know the type of the args.
+-					m = transformBuiltin(call)
+-				default:
+-					base.FatalfAt(call.Pos(), "Unexpected builtin op")
++
++			case ir.ONAME:
++				name := call.X.Name()
++				if name.BuiltinOp != ir.OXXX {
++					switch name.BuiltinOp {
++					case ir.OMAKE, ir.OREAL, ir.OIMAG, ir.OLEN, ir.OCAP, ir.OAPPEND:
++						// Transform these builtins now that we
++						// know the type of the args.
++						m = transformBuiltin(call)
++					default:
++						base.FatalfAt(call.Pos(), "Unexpected builtin op")
++					}
++				} else {
++					// This is the case of a function value that was a
++					// type parameter (implied to be a function via a
++					// structural constraint) which is now resolved.
++					transformCall(call)
+ 				}
+ 
+-			} else if call.X.Op() != ir.OFUNCINST {
+-				// A call with an OFUNCINST will get typechecked
++			case ir.OCLOSURE:
++				transformCall(call)
++
++			case ir.OFUNCINST:
++				// A call with an OFUNCINST will get transformed
+ 				// in stencil() once we have created & attached the
+ 				// instantiation to be called.
+-				base.FatalfAt(call.Pos(), "Expecting OCALLPART or OTYPE or OFUNCINST or builtin with CALL")
++
++			default:
++				base.FatalfAt(call.Pos(), fmt.Sprintf("Unexpected op with CALL during stenciling: %v", call.X.Op()))
+ 			}
+ 
+ 		case ir.OCLOSURE:
+@@ -491,17 +519,22 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			newfn.OClosure = m.(*ir.ClosureExpr)
+ 
+ 			saveNewf := subst.newf
++			ir.CurFunc = newfn
+ 			subst.newf = newfn
+ 			newfn.Dcl = subst.namelist(oldfn.Dcl)
+ 			newfn.ClosureVars = subst.namelist(oldfn.ClosureVars)
+-			newfn.Body = subst.list(oldfn.Body)
+-			subst.newf = saveNewf
+ 
+ 			// Set Ntype for now to be compatible with later parts of compiler
+ 			newfn.Nname.Ntype = subst.node(oldfn.Nname.Ntype).(ir.Ntype)
+ 			typed(subst.typ(oldfn.Nname.Type()), newfn.Nname)
+ 			typed(newfn.Nname.Type(), m)
+ 			newfn.SetTypecheck(1)
++
++			// Make sure type of closure function is set before doing body.
++			newfn.Body = subst.list(oldfn.Body)
++			subst.newf = saveNewf
++			ir.CurFunc = saveNewf
++
+ 			subst.g.target.Decls = append(subst.g.target.Decls, newfn)
+ 		}
+ 		return m
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index f85496be40..32a1483b4a 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -42,6 +42,12 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		return x
+ 	case *syntax.SendStmt:
+ 		n := ir.NewSendStmt(g.pos(stmt), g.expr(stmt.Chan), g.expr(stmt.Value))
++		if n.Chan.Type().HasTParam() || n.Value.Type().HasTParam() {
++			// Delay transforming the send if the channel or value
++			// have a type param.
++			n.SetTypecheck(3)
++			return n
++		}
+ 		transformSend(n)
+ 		n.SetTypecheck(1)
+ 		return n
+@@ -118,6 +124,14 @@ func (g *irgen) stmt(stmt syntax.Stmt) ir.Node {
+ 		return ir.NewGoDeferStmt(g.pos(stmt), g.tokOp(int(stmt.Tok), callOps[:]), g.expr(stmt.Call))
+ 	case *syntax.ReturnStmt:
+ 		n := ir.NewReturnStmt(g.pos(stmt), g.exprList(stmt.Results))
++		for _, e := range n.Results {
++			if e.Type().HasTParam() {
++				// Delay transforming the return statement if any of the
++				// return values have a type param.
++				n.SetTypecheck(3)
++				return n
++			}
++		}
+ 		transformReturn(n)
+ 		n.SetTypecheck(1)
+ 		return n
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 489a535231..7f926dc70a 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -144,8 +144,10 @@ func transformCall(n *ir.CallExpr) {
+ 
+ 	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
+ 	if t.NumResults() == 0 {
++		n.Use = ir.CallUseStmt
+ 		return
+ 	}
++	n.Use = ir.CallUseExpr
+ 	if t.NumResults() == 1 {
+ 		n.SetType(l.Type().Results().Field(0).Type)
+ 
+diff --git a/test/typeparam/typelist.go b/test/typeparam/typelist.go
+new file mode 100644
+index 0000000000..4ff3ce2f34
+--- /dev/null
++++ b/test/typeparam/typelist.go
+@@ -0,0 +1,64 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file tests type lists & structural constraints.
++
++package p
++
++// Assignability of an unnamed pointer type to a type parameter that
++// has a matching underlying type.
++func _[T interface{}, PT interface{type *T}] (x T) PT {
++    return &x
++}
++
++// Indexing of generic types containing type parameters in their type list:
++func at[T interface{ type []E }, E any](x T, i int) E {
++        return x[i]
++}
++
++// A generic type inside a function acts like a named type. Its underlying
++// type is itself, its "operational type" is defined by the type list in
++// the tybe bound, if any.
++func _[T interface{type int}](x T) {
++	type myint int
++	var _ int = int(x)
++	var _ T = 42
++	var _ T = T(myint(42))
++}
++
++// Indexing a generic type which has a structural contraints to be an array.
++func _[T interface { type [10]int }](x T) {
++	_ = x[9] // ok
++}
++
++// Dereference of a generic type which has a structural contraint to be a pointer.
++func _[T interface{ type *int }](p T) int {
++	return *p
++}
++
++// Channel send and receive on a generic type which has a structural constraint to
++// be a channel.
++func _[T interface{ type chan int }](ch T) int {
++	// This would deadlock if executed (but ok for a compile test)
++	ch <- 0
++	return <- ch
++}
++
++// Calling of a generic type which has a structural constraint to be a function.
++func _[T interface{ type func() }](f T) {
++	f()
++	go f()
++}
++
++// Same, but function has a parameter and return value.
++func _[T interface{ type func(string) int }](f T) int {
++	return f("hello")
++}
++
++// Map access of a generic type which has a structural constraint to be a map.
++func _[V any, T interface { type map[string]V }](p T) V {
++	return p["test"]
++}

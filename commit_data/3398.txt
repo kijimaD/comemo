@@ -11,7 +11,56 @@ Date:   Tue Sep 29 16:07:59 2009 -0700
     DELTA=5  (4 added, 1 deleted, 0 changed)
     OCL=35107
     CL=35109
-
+---
  src/cmd/5g/gsubr.c | 1 -
  test/arm-pass.txt  | 4 ++++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 8d22912707..dcd3840df0 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1633,7 +1633,6 @@ oindex:
+ 
+ 	naddr(reg1, a);
+ 	a->offset = 0;
+-	a->name = a->type;
+ 	a->type = D_OREG;
+ 	a->reg = reg->val.u.reg;
+ 
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index b6c33be01f..0baa67e742 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -57,6 +57,7 @@ fixedbugs/bug048.go
+ fixedbugs/bug049.go
+ fixedbugs/bug050.go
+ fixedbugs/bug051.go
++fixedbugs/bug052.go
+ fixedbugs/bug053.go
+ fixedbugs/bug057.go
+ fixedbugs/bug058.go
+@@ -140,6 +141,7 @@ fixedbugs/bug148.go
+ fixedbugs/bug149.go
+ fixedbugs/bug150.go
+ fixedbugs/bug151.go
++fixedbugs/bug152.go
+ fixedbugs/bug153.go
+ fixedbugs/bug154.go
+ fixedbugs/bug155.go
+@@ -181,6 +183,7 @@ fixedbugs/bug200.go
+ fixedbugs/bug201.go
+ fixedbugs/bug202.go
+ fixedbugs/bug203.go
++fixedbugs/bug204.go
+ fixedbugs/bug205.go
+ fixedbugs/bug206.go
+ for.go
+@@ -210,6 +213,7 @@ ken/complit.go
+ ken/for.go
+ ken/label.go
+ ken/mfunc.go
++ken/rob2.go
+ ken/robfor.go
+ ken/robif.go
+ ken/simpbool.go

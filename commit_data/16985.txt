@@ -9,6 +9,44 @@ Date:   Thu Aug 1 11:17:26 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12214044
-
+---
  src/pkg/strings/strings.go | 19 +++++++++++--------
  1 file changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 986f6d61eb..c7ec04b071 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -130,14 +130,7 @@ func Index(s, sep string) int {
+ 	case n == 0:
+ 		return 0
+ 	case n == 1:
+-		c := sep[0]
+-		// special case worth making fast
+-		for i := 0; i < len(s); i++ {
+-			if s[i] == c {
+-				return i
+-			}
+-		}
+-		return -1
++		return IndexByte(s, sep[0])
+ 	case n == len(s):
+ 		if sep == s {
+ 			return 0
+@@ -167,6 +160,16 @@ func Index(s, sep string) int {
+ 	return -1
+ }
+ 
++// IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
++func IndexByte(s string, c byte) int {
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			return i
++		}
++	}
++	return -1
++}
++
+ // LastIndex returns the index of the last instance of sep in s, or -1 if sep is not present in s.
+ func LastIndex(s, sep string) int {
+ 	n := len(sep)

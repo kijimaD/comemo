@@ -17,7 +17,7 @@ Date:   Mon Oct 30 13:51:04 2023 -0700
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go     | 15 +++++++-
  src/go/types/conversions.go                        | 15 +++++++-
  src/internal/types/testdata/check/const1.go        | 44 +++++++++++-----------
@@ -25,3 +25,286 @@ Date:   Mon Oct 30 13:51:04 2023 -0700
  src/internal/types/testdata/check/expr0.go         |  2 +-
  .../types/testdata/fixedbugs/issue63563.go         | 37 ++++++++++++++++++
  6 files changed, 89 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index ef0094dc70..8027092c6c 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -42,6 +42,14 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	case constArg && isConstType(T):
+ 		// constant conversion
+ 		ok = constConvertibleTo(T, &x.val)
++		// A conversion from an integer constant to an integer type
++		// can only fail if there's overflow. Give a concise error.
++		// (go.dev/issue/63563)
++		if !ok && isInteger(x.typ) && isInteger(T) {
++			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
++			x.mode = invalid
++			return
++		}
+ 	case constArg && isTypeParam(T):
+ 		// x is convertible to T if it is convertible
+ 		// to each specific type in the type set of T.
+@@ -58,7 +66,12 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 				return true
+ 			}
+ 			if !constConvertibleTo(u, nil) {
+-				cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
++				if isInteger(x.typ) && isInteger(u) {
++					// see comment above on constant conversion
++					cause = check.sprintf("constant %s overflows %s (in %s)", x.val, u, T)
++				} else {
++					cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
++				}
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 2fa3f92837..2be17eeb12 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -42,6 +42,14 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 	case constArg && isConstType(T):
+ 		// constant conversion
+ 		ok = constConvertibleTo(T, &x.val)
++		// A conversion from an integer constant to an integer type
++		// can only fail if there's overflow. Give a concise error.
++		// (go.dev/issue/63563)
++		if !ok && isInteger(x.typ) && isInteger(T) {
++			check.errorf(x, InvalidConversion, "constant %s overflows %s", x.val, T)
++			x.mode = invalid
++			return
++		}
+ 	case constArg && isTypeParam(T):
+ 		// x is convertible to T if it is convertible
+ 		// to each specific type in the type set of T.
+@@ -58,7 +66,12 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 				return true
+ 			}
+ 			if !constConvertibleTo(u, nil) {
+-				cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
++				if isInteger(x.typ) && isInteger(u) {
++					// see comment above on constant conversion
++					cause = check.sprintf("constant %s overflows %s (in %s)", x.val, u, T)
++				} else {
++					cause = check.sprintf("cannot convert %s to type %s (in %s)", x, u, T)
++				}
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/internal/types/testdata/check/const1.go b/src/internal/types/testdata/check/const1.go
+index c9128017cf..80dde1af4c 100644
+--- a/src/internal/types/testdata/check/const1.go
++++ b/src/internal/types/testdata/check/const1.go
+@@ -75,10 +75,10 @@ const (
+ 	_ int8 = maxInt8 /* ERROR "overflows" */ + 1
+ 	_ int8 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = int8(minInt8 /* ERROR "cannot convert" */ - 1)
++	_ = int8(minInt8 /* ERROR "overflows" */ - 1)
+ 	_ = int8(minInt8)
+ 	_ = int8(maxInt8)
+-	_ = int8(maxInt8 /* ERROR "cannot convert" */ + 1)
++	_ = int8(maxInt8 /* ERROR "overflows" */ + 1)
+ 	_ = int8(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -89,10 +89,10 @@ const (
+ 	_ int16 = maxInt16 /* ERROR "overflows" */ + 1
+ 	_ int16 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = int16(minInt16 /* ERROR "cannot convert" */ - 1)
++	_ = int16(minInt16 /* ERROR "overflows" */ - 1)
+ 	_ = int16(minInt16)
+ 	_ = int16(maxInt16)
+-	_ = int16(maxInt16 /* ERROR "cannot convert" */ + 1)
++	_ = int16(maxInt16 /* ERROR "overflows" */ + 1)
+ 	_ = int16(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -103,10 +103,10 @@ const (
+ 	_ int32 = maxInt32 /* ERROR "overflows" */ + 1
+ 	_ int32 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = int32(minInt32 /* ERROR "cannot convert" */ - 1)
++	_ = int32(minInt32 /* ERROR "overflows" */ - 1)
+ 	_ = int32(minInt32)
+ 	_ = int32(maxInt32)
+-	_ = int32(maxInt32 /* ERROR "cannot convert" */ + 1)
++	_ = int32(maxInt32 /* ERROR "overflows" */ + 1)
+ 	_ = int32(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -117,10 +117,10 @@ const (
+ 	_ int64 = maxInt64 /* ERROR "overflows" */ + 1
+ 	_ int64 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = int64(minInt64 /* ERROR "cannot convert" */ - 1)
++	_ = int64(minInt64 /* ERROR "overflows" */ - 1)
+ 	_ = int64(minInt64)
+ 	_ = int64(maxInt64)
+-	_ = int64(maxInt64 /* ERROR "cannot convert" */ + 1)
++	_ = int64(maxInt64 /* ERROR "overflows" */ + 1)
+ 	_ = int64(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -131,10 +131,10 @@ const (
+ 	_ int = maxInt /* ERROR "overflows" */ + 1
+ 	_ int = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = int(minInt /* ERROR "cannot convert" */ - 1)
++	_ = int(minInt /* ERROR "overflows" */ - 1)
+ 	_ = int(minInt)
+ 	_ = int(maxInt)
+-	_ = int(maxInt /* ERROR "cannot convert" */ + 1)
++	_ = int(maxInt /* ERROR "overflows" */ + 1)
+ 	_ = int(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -145,10 +145,10 @@ const (
+ 	_ uint8 = maxUint8 /* ERROR "overflows" */ + 1
+ 	_ uint8 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uint8(0 /* ERROR "cannot convert" */ - 1)
++	_ = uint8(0 /* ERROR "overflows" */ - 1)
+ 	_ = uint8(0)
+ 	_ = uint8(maxUint8)
+-	_ = uint8(maxUint8 /* ERROR "cannot convert" */ + 1)
++	_ = uint8(maxUint8 /* ERROR "overflows" */ + 1)
+ 	_ = uint8(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -159,10 +159,10 @@ const (
+ 	_ uint16 = maxUint16 /* ERROR "overflows" */ + 1
+ 	_ uint16 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uint16(0 /* ERROR "cannot convert" */ - 1)
++	_ = uint16(0 /* ERROR "overflows" */ - 1)
+ 	_ = uint16(0)
+ 	_ = uint16(maxUint16)
+-	_ = uint16(maxUint16 /* ERROR "cannot convert" */ + 1)
++	_ = uint16(maxUint16 /* ERROR "overflows" */ + 1)
+ 	_ = uint16(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -173,10 +173,10 @@ const (
+ 	_ uint32 = maxUint32 /* ERROR "overflows" */ + 1
+ 	_ uint32 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uint32(0 /* ERROR "cannot convert" */ - 1)
++	_ = uint32(0 /* ERROR "overflows" */ - 1)
+ 	_ = uint32(0)
+ 	_ = uint32(maxUint32)
+-	_ = uint32(maxUint32 /* ERROR "cannot convert" */ + 1)
++	_ = uint32(maxUint32 /* ERROR "overflows" */ + 1)
+ 	_ = uint32(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -187,10 +187,10 @@ const (
+ 	_ uint64 = maxUint64 /* ERROR "overflows" */ + 1
+ 	_ uint64 = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uint64(0 /* ERROR "cannot convert" */ - 1)
++	_ = uint64(0 /* ERROR "overflows" */ - 1)
+ 	_ = uint64(0)
+ 	_ = uint64(maxUint64)
+-	_ = uint64(maxUint64 /* ERROR "cannot convert" */ + 1)
++	_ = uint64(maxUint64 /* ERROR "overflows" */ + 1)
+ 	_ = uint64(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -201,10 +201,10 @@ const (
+ 	_ uint = maxUint /* ERROR "overflows" */ + 1
+ 	_ uint = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uint(0 /* ERROR "cannot convert" */ - 1)
++	_ = uint(0 /* ERROR "overflows" */ - 1)
+ 	_ = uint(0)
+ 	_ = uint(maxUint)
+-	_ = uint(maxUint /* ERROR "cannot convert" */ + 1)
++	_ = uint(maxUint /* ERROR "overflows" */ + 1)
+ 	_ = uint(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+@@ -215,10 +215,10 @@ const (
+ 	_ uintptr = maxUintptr /* ERROR "overflows" */ + 1
+ 	_ uintptr = smallestFloat64 /* ERROR "truncated" */
+ 
+-	_ = uintptr(0 /* ERROR "cannot convert" */ - 1)
++	_ = uintptr(0 /* ERROR "overflows" */ - 1)
+ 	_ = uintptr(0)
+ 	_ = uintptr(maxUintptr)
+-	_ = uintptr(maxUintptr /* ERROR "cannot convert" */ + 1)
++	_ = uintptr(maxUintptr /* ERROR "overflows" */ + 1)
+ 	_ = uintptr(smallestFloat64 /* ERROR "cannot convert" */)
+ )
+ 
+diff --git a/src/internal/types/testdata/check/constdecl.go b/src/internal/types/testdata/check/constdecl.go
+index e7b871bfdf..9ace419a61 100644
+--- a/src/internal/types/testdata/check/constdecl.go
++++ b/src/internal/types/testdata/check/constdecl.go
+@@ -125,7 +125,7 @@ const (
+ 	ok = byte(iota + 253)
+ 	bad
+ 	barn
+-	bard // ERROR "cannot convert"
++	bard // ERROR "overflows"
+ )
+ 
+ const (
+diff --git a/src/internal/types/testdata/check/expr0.go b/src/internal/types/testdata/check/expr0.go
+index eba991ecd3..26dc58958f 100644
+--- a/src/internal/types/testdata/check/expr0.go
++++ b/src/internal/types/testdata/check/expr0.go
+@@ -28,7 +28,7 @@ var (
+ 
+ 	// byte
+ 	_ = byte(0)
+-	_ = byte(- /* ERROR "cannot convert" */ 1)
++	_ = byte(- /* ERROR "overflows" */ 1)
+ 	_ = - /* ERROR "-byte(1) (constant -1 of type byte) overflows byte" */ byte(1) // test for issue 11367
+ 	_ = byte /* ERROR "overflows byte" */ (0) - byte(1)
+ 	_ = ~ /* ERROR "cannot use ~ outside of interface or type constraint (use ^ for bitwise complement)" */ byte(0)
+diff --git a/src/internal/types/testdata/fixedbugs/issue63563.go b/src/internal/types/testdata/fixedbugs/issue63563.go
+new file mode 100644
+index 0000000000..b813485276
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue63563.go
+@@ -0,0 +1,37 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var (
++	_ = int8(1 /* ERROR "constant 255 overflows int8" */ <<8 - 1)
++	_ = int16(1 /* ERROR "constant 65535 overflows int16" */ <<16 - 1)
++	_ = int32(1 /* ERROR "constant 4294967295 overflows int32" */ <<32 - 1)
++	_ = int64(1 /* ERROR "constant 18446744073709551615 overflows int64" */ <<64 - 1)
++
++	_ = uint8(1 /* ERROR "constant 256 overflows uint8" */ << 8)
++	_ = uint16(1 /* ERROR "constant 65536 overflows uint16" */ << 16)
++	_ = uint32(1 /* ERROR "constant 4294967296 overflows uint32" */ << 32)
++	_ = uint64(1 /* ERROR "constant 18446744073709551616 overflows uint64" */ << 64)
++)
++
++func _[P int8 | uint8]() {
++	_ = P(0)
++	_ = P(1 /* ERROR "constant 255 overflows int8 (in P)" */ <<8 - 1)
++}
++
++func _[P int16 | uint16]() {
++	_ = P(0)
++	_ = P(1 /* ERROR "constant 65535 overflows int16 (in P)" */ <<16 - 1)
++}
++
++func _[P int32 | uint32]() {
++	_ = P(0)
++	_ = P(1 /* ERROR "constant 4294967295 overflows int32 (in P)" */ <<32 - 1)
++}
++
++func _[P int64 | uint64]() {
++	_ = P(0)
++	_ = P(1 /* ERROR "constant 18446744073709551615 overflows int64 (in P)" */ <<64 - 1)
++}

@@ -9,7 +9,62 @@ Date:   Tue Jan 24 13:53:00 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5574046
-
+---
  src/cmd/gc/swt.c    |  2 +-
  test/typeswitch3.go | 27 +++++++++++++++++++++------
  2 files changed, 22 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 6c0a9ac832..f1a95587fd 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -889,7 +889,7 @@ typecheckswitch(Node *n)
+ 						yyerror("%lN is not a type", ll->n);
+ 						// reset to original type
+ 						ll->n = n->ntest->right;
+-					} else if(!implements(ll->n->type, t, &missing, &have, &ptr)) {
++					} else if(ll->n->type->etype != TINTER && !implements(ll->n->type, t, &missing, &have, &ptr)) {
+ 						if(have && !missing->broke && !have->broke)
+ 							yyerror("impossible type switch case: %lN cannot have dynamic type %T"
+ 								" (wrong type for %S method)\n\thave %S%hT\n\twant %S%hT",
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 99d08a20f7..078980146f 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -6,15 +6,30 @@
+ 
+ package main
+ 
++import (
++	"io"
++)
+ 
+ type I interface {
+-       M()
++	M()
+ }
+ 
+ func main(){
+-       var x I
+-       switch x.(type) {
+-       case string:	// ERROR "impossible"
+-               println("FAIL")
+-       }
++	var x I
++	switch x.(type) {
++	case string:	// ERROR "impossible"
++		println("FAIL")
++	}
++	
++	// Issue 2700: if the case type is an interface, nothing is impossible
++	
++	var r io.Reader
++	
++	_, _ = r.(io.Writer)
++	
++	switch r.(type) {
++	case io.Writer:
++	}
+ }
++
++

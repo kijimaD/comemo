@@ -24,8 +24,208 @@ Date:   Fri Feb 7 10:26:06 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go     | 15 ++++++++++++++
  src/cmd/link/internal/ld/deadcode2.go  | 18 ++++++++++++++--
  src/cmd/link/internal/loader/loader.go | 38 ++++++++++++++++++++++++----------
  3 files changed, 58 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 4c364b0c54..34a686bb1a 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -225,6 +225,10 @@ func (s *Sym) Read(r *Reader, off uint32) {
+ 	s.Siz = r.uint32At(off + 8)
+ }
+ 
++func (s *Sym) ReadFlag(r *Reader, off uint32) {
++	s.Flag = r.uint8At(off + 7)
++}
++
+ func (s *Sym) Size() int {
+ 	return 4 + 2 + 1 + 1 + 4
+ }
+@@ -283,6 +287,12 @@ func (o *Reloc) Read(r *Reader, off uint32) {
+ 	o.Sym.Read(r, off+14)
+ }
+ 
++// Only reads the target symbol and reloc type, leaving other fields unset.
++func (o *Reloc) ReadSymType(r *Reader, off uint32) {
++	o.Type = r.uint8At(off + 5)
++	o.Sym.Read(r, off+14)
++}
++
+ func (r *Reloc) Size() int {
+ 	return 4 + 1 + 1 + 8 + r.Sym.Size()
+ }
+@@ -316,6 +326,11 @@ func (a *Aux) Read(r *Reader, off uint32) {
+ 	a.Sym.Read(r, off+1)
+ }
+ 
++// Only reads the target symbol, leaving other fields unset.
++func (a *Aux) ReadSym(r *Reader, off uint32) {
++	a.Sym.Read(r, off+1)
++}
++
+ func (a *Aux) Size() int {
+ 	return 1 + a.Sym.Size()
+ }
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 992b1c206b..06cc6d0daf 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -126,10 +126,21 @@ func (d *deadcodePass2) flood() {
+ 
+ 		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
+ 
++		isgotype := d.ldr.IsGoType(symIdx)
+ 		relocs := d.ldr.Relocs(symIdx)
+-		symRelocs = relocs.ReadAll(symRelocs)
++		// For non-type symbols, we only need the target and the reloc
++		// type, so don't read other fields.
++		// For type symbols we may need all fields for interface
++		// satisfaction check.
++		// TODO: we don't even need the reloc type for non-type non-dwarf
++		// symbols.
++		if isgotype {
++			symRelocs = relocs.ReadAll(symRelocs)
++		} else {
++			symRelocs = relocs.ReadSyms(symRelocs)
++		}
+ 
+-		if d.ldr.IsGoType(symIdx) {
++		if isgotype {
+ 			p := d.ldr.Data(symIdx)
+ 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
+ 				for _, sig := range d.decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx, symRelocs) {
+@@ -177,6 +188,9 @@ func (d *deadcodePass2) flood() {
+ 		d.mark(d.ldr.SubSym(symIdx), symIdx)
+ 
+ 		if len(methods) != 0 {
++			if !isgotype {
++				panic("method found on non-type symbol")
++			}
+ 			// Decode runtime type information for type methods
+ 			// to help work out which methods can be called
+ 			// dynamically via interfaces.
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index be50562af2..8014d83aba 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -60,6 +60,7 @@ type oReader struct {
+ 	flags     uint32 // read from object file
+ 	pkgprefix string
+ 	syms      []Sym // Sym's global index, indexed by local index
++	ndef      int   // cache goobj2.Reader.NSym()
+ }
+ 
+ type objIdx struct {
+@@ -169,7 +170,7 @@ type Loader struct {
+ 	symsByName    [2]map[string]Sym // map symbol name to index, two maps are for ABI0 and ABIInternal
+ 	extStaticSyms map[nameVer]Sym   // externally defined static symbols, keyed by name
+ 
+-	extReader    *oReader  // a dummy oReader, for external symbols
++	extReader    *oReader // a dummy oReader, for external symbols
+ 	payloadBatch []extSymPayload
+ 	payloads     []*extSymPayload // contents of linker-materialized external syms
+ 	values       []int64          // symbol values, indexed by global sym index
+@@ -510,7 +511,7 @@ func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
+ 		}
+ 		return 0
+ 	case goobj2.PkgIdxNone:
+-		i := int(s.SymIdx) + r.NSym()
++		i := int(s.SymIdx) + r.ndef
+ 		return r.syms[i]
+ 	case goobj2.PkgIdxBuiltin:
+ 		return l.builtinSyms[s.SymIdx]
+@@ -641,7 +642,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
+ 	}
+ 	r, li := l.toLocal(i)
+ 	osym := goobj2.Sym{}
+-	osym.Read(r.Reader, r.SymOff(li))
++	osym.ReadFlag(r.Reader, r.SymOff(li))
+ 	return osym.Flag
+ }
+ 
+@@ -745,7 +746,7 @@ func (l *Loader) AttrDuplicateOK(i Sym) bool {
+ 		// into a larger bitmap during preload.
+ 		r, li := l.toLocal(i)
+ 		osym := goobj2.Sym{}
+-		osym.Read(r.Reader, r.SymOff(li))
++		osym.ReadFlag(r.Reader, r.SymOff(li))
+ 		return osym.Dupok()
+ 	}
+ 	return l.attrDuplicateOK.has(l.extIndex(i))
+@@ -1252,9 +1253,9 @@ func (l *Loader) ReadAuxSyms(symIdx Sym, dst []Sym) []Sym {
+ 	dst = dst[:0]
+ 
+ 	r, li := l.toLocal(symIdx)
++	a := goobj2.Aux{}
+ 	for i := 0; i < naux; i++ {
+-		a := goobj2.Aux{}
+-		a.Read(r.Reader, r.AuxOff(li, i))
++		a.ReadSym(r.Reader, r.AuxOff(li, i))
+ 		dst = append(dst, l.resolve(r, a.Sym))
+ 	}
+ 
+@@ -1386,6 +1387,17 @@ func (relocs *Relocs) At(j int) Reloc {
+ // specified slice. If the slice capacity is not large enough, a new
+ // larger slice will be allocated. Final slice is returned.
+ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
++	return relocs.readAll(dst, false)
++}
++
++// ReadSyms method reads all relocation target symbols and reloc types
++// for a symbol into the specified slice. It is like ReadAll but only
++// fill in the Sym and Type fields.
++func (relocs *Relocs) ReadSyms(dst []Reloc) []Reloc {
++	return relocs.readAll(dst, true)
++}
++
++func (relocs *Relocs) readAll(dst []Reloc, onlySymType bool) []Reloc {
+ 	if relocs.Count == 0 {
+ 		return dst[:0]
+ 	}
+@@ -1402,9 +1414,13 @@ func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
+ 	}
+ 
+ 	off := relocs.r.RelocOff(relocs.li, 0)
++	rel := goobj2.Reloc{}
+ 	for i := 0; i < relocs.Count; i++ {
+-		rel := goobj2.Reloc{}
+-		rel.Read(relocs.r.Reader, off)
++		if onlySymType {
++			rel.ReadSymType(relocs.r.Reader, off)
++		} else {
++			rel.Read(relocs.r.Reader, off)
++		}
+ 		off += uint32(rel.Size())
+ 		target := relocs.l.resolve(relocs.r, rel.Sym)
+ 		dst = append(dst, Reloc{
+@@ -1467,7 +1483,7 @@ func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *
+ 	pkgprefix := objabi.PathToPrefix(lib.Pkg) + "."
+ 	ndef := r.NSym()
+ 	nnonpkgdef := r.NNonpkgdef()
+-	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef + nnonpkgdef + r.NNonpkgref())}
++	or := &oReader{r, unit, localSymVersion, r.Flags(), pkgprefix, make([]Sym, ndef+nnonpkgdef+r.NNonpkgref()), ndef}
+ 
+ 	// Autolib
+ 	lib.ImportStrings = append(lib.ImportStrings, r.Autolib()...)
+@@ -1740,7 +1756,7 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) int {
+ 	nr := 0
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		gi := r.syms[i]
+-		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i{
++		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+ 			continue // come from a different object
+ 		}
+ 		osym := goobj2.Sym{}
+@@ -2278,7 +2294,7 @@ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
+ 	rslice := []Reloc{}
+ 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
+ 		relocs := l.Relocs(si)
+-		rslice = relocs.ReadAll(rslice)
++		rslice = relocs.ReadSyms(rslice)
+ 		for ri := 0; ri < relocs.Count; ri++ {
+ 			r := &rslice[ri]
+ 			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {

@@ -43,10 +43,591 @@ Date:   Mon Aug 30 22:42:17 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Martin Möhrmann <martin@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  10 +-
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  52 ++++---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  36 ++---
  src/cmd/compile/internal/ssa/opGen.go        |  28 ++--
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 215 ++++++++++++++++++++-------
  5 files changed, 235 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 30dba057d0..fceb141ae9 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -822,7 +822,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux2(&p.To, v, sc.Off64())
+-	case ssa.OpAMD64MOVOstorezero:
++	case ssa.OpAMD64MOVOstoreconst:
++		sc := v.AuxValAndOff()
++		if sc.Val() != 0 {
++			v.Fatalf("MOVO for non zero constants not implemented: %s", v.LongString())
++		}
++
+ 		if s.ABI != obj.ABIInternal {
+ 			// zero X15 manually
+ 			opregreg(s, x86.AXORPS, x86.REG_X15, x86.REG_X15)
+@@ -832,7 +837,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = x86.REG_X15
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+-		ssagen.AddAux(&p.To, v)
++		ssagen.AddAux2(&p.To, v, sc.Off64())
++
+ 	case ssa.OpAMD64MOVQstoreconstidx1, ssa.OpAMD64MOVQstoreconstidx8, ssa.OpAMD64MOVLstoreconstidx1, ssa.OpAMD64MOVLstoreconstidx4, ssa.OpAMD64MOVWstoreconstidx1, ssa.OpAMD64MOVWstoreconstidx2, ssa.OpAMD64MOVBstoreconstidx1,
+ 		ssa.OpAMD64ADDLconstmodifyidx1, ssa.OpAMD64ADDLconstmodifyidx4, ssa.OpAMD64ADDLconstmodifyidx8, ssa.OpAMD64ADDQconstmodifyidx1, ssa.OpAMD64ADDQconstmodifyidx8,
+ 		ssa.OpAMD64ANDLconstmodifyidx1, ssa.OpAMD64ANDLconstmodifyidx4, ssa.OpAMD64ANDLconstmodifyidx8, ssa.OpAMD64ANDQconstmodifyidx1, ssa.OpAMD64ANDQconstmodifyidx8,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 45c0238317..94fce2d4e5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -362,26 +362,26 @@
+ // Adjust zeros to be a multiple of 16 bytes.
+ (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE =>
+ 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+-		(MOVOstorezero destptr mem))
++		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ 
+ (Zero [s] destptr mem) && s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE =>
+ 	(Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16])
+-		(MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
++		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ 
+ (Zero [16] destptr mem) && config.useSSE =>
+-	(MOVOstorezero destptr mem)
++	(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
+ (Zero [32] destptr mem) && config.useSSE =>
+-	(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+-		(MOVOstorezero destptr mem))
++	(MOVOstoreconst [makeValAndOff(0,16)] destptr
++		(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ (Zero [48] destptr mem) && config.useSSE =>
+-	(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
+-		(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+-			(MOVOstorezero destptr mem)))
++	(MOVOstoreconst [makeValAndOff(0,32)] destptr
++		(MOVOstoreconst [makeValAndOff(0,16)] destptr
++			(MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
+ (Zero [64] destptr mem) && config.useSSE =>
+-	(MOVOstorezero (OffPtr <destptr.Type> destptr [48])
+-		(MOVOstorezero (OffPtr <destptr.Type> destptr [32])
+-			(MOVOstorezero (OffPtr <destptr.Type> destptr [16])
+-				(MOVOstorezero destptr mem))))
++	(MOVOstoreconst [makeValAndOff(0,48)] destptr
++		(MOVOstoreconst [makeValAndOff(0,32)] destptr
++			(MOVOstoreconst [makeValAndOff(0,16)] destptr
++				(MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
+ 
+ // Medium zeroing uses a duff device.
+ (Zero [s] destptr mem)
+@@ -1134,8 +1134,8 @@
+ 	(MOVBstoreconst [makeValAndOff(int32(int8(c)),off)] {sym} ptr mem)
+ 
+ // Fold address offsets into constant stores.
+-(MOV(Q|L|W|B)storeconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd32(off) =>
+-	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).addOffset32(off)] {s} ptr mem)
++(MOV(Q|L|W|B|O)storeconst [sc] {s} (ADDQconst [off] ptr) mem) && ValAndOff(sc).canAdd32(off) =>
++	(MOV(Q|L|W|B|O)storeconst [ValAndOff(sc).addOffset32(off)] {s} ptr mem)
+ 
+ // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
+ // what variables are being read/written by the ops.
+@@ -1145,8 +1145,8 @@
+ (MOV(Q|L|W|B|SS|SD|O)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+ 	(MOV(Q|L|W|B|SS|SD|O)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+-(MOV(Q|L|W|B)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off) =>
+-	(MOV(Q|L|W|B)storeconst [ValAndOff(sc).addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
++(MOV(Q|L|W|B|O)storeconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off) =>
++	(MOV(Q|L|W|B|O)storeconst [ValAndOff(sc).addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
+ (SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1] {sym1} (LEAQ [off2] {sym2} base) val mem)
+ 	&& is32Bit(int64(off1)+int64(off2)) && canMergeSym(sym1, sym2) =>
+ 	(SET(L|G|B|A|LE|GE|BE|AE|EQ|NE)store [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+@@ -1897,14 +1897,22 @@
+   && a.Off() + 4 == c.Off()
+   && clobber(x)
+   => (MOVQstore [a.Off()] {s} p (MOVQconst [a.Val64()&0xffffffff | c.Val64()<<32]) mem)
+-(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
++(MOVQstoreconst [c] {s} p x:(MOVQstoreconst [a] {s} p mem))
++  && config.useSSE
++  && x.Uses == 1
++  && a.Off() + 8 == c.Off()
++  && a.Val() == 0
++  && c.Val() == 0
++  && clobber(x)
++  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
++(MOVQstoreconst [a] {s} p x:(MOVQstoreconst [c] {s} p mem))
+   && config.useSSE
+   && x.Uses == 1
+-  && c2.Off() + 8 == c.Off()
++  && a.Off() + 8 == c.Off()
++  && a.Val() == 0
+   && c.Val() == 0
+-  && c2.Val() == 0
+   && clobber(x)
+-  => (MOVOstorezero [c2.Off()] {s} p mem)
++  => (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+ 
+ // Combine stores into larger (unaligned) stores. Little endian.
+ (MOVBstore [i] {s} p (SHR(W|L|Q)const [8] w) x:(MOVBstore [i-1] {s} p w mem))
+@@ -2031,6 +2039,8 @@
+ (MOVBstore  [off1] {sym1} (LEAL [off2] {sym2} base) val mem) && canMergeSym(sym1, sym2) && is32Bit(int64(off1)+int64(off2)) =>
+ 	(MOVBstore  [off1+off2] {mergeSym(sym1,sym2)} base val mem)
+ 
++(MOVOstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
++	(MOVOstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
+ (MOVQstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
+ 	(MOVQstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
+ (MOVLstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem) && canMergeSym(sym1, sym2) && sc.canAdd32(off) =>
+@@ -2056,6 +2066,8 @@
+ 	(MOVWstoreconst [sc.addOffset32(off)] {s} ptr mem)
+ (MOVBstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
+ 	(MOVBstoreconst [sc.addOffset32(off)] {s} ptr mem)
++(MOVOstoreconst [sc] {s} (ADDLconst [off] ptr) mem) && sc.canAdd32(off) =>
++	(MOVOstoreconst [sc.addOffset32(off)] {s} ptr mem)
+ 
+ // Merge load and op
+ // TODO: add indexed variants?
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 67b3293903..1199d8075f 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -679,20 +679,19 @@ func init() {
+ 		// Note: LEAx{1,2,4,8} must not have OpSB as either argument.
+ 
+ 		// auxint+aux == add auxint and the offset of the symbol in aux (if any) to the effective address
+-		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},                                   // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
+-		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"},                                  // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
+-		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},                                     // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
+-		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},                                              // ditto, sign extend to int64
+-		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},                                     // load 8 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store byte in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                     // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},                                   // load 16 bytes from arg0+auxint+aux. arg1=mem
+-		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},                                   // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+-		{name: "MOVOstorezero", argLength: 2, reg: regInfo{inputs: []regMask{gpspsb, 0}}, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of zero to arg0+auxint+aux. arg1=mem
++		{name: "MOVBload", argLength: 2, reg: gpload, asm: "MOVBLZX", aux: "SymOff", typ: "UInt8", faultOnNilArg0: true, symEffect: "Read"},  // load byte from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVBQSXload", argLength: 2, reg: gpload, asm: "MOVBQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
++		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVWLZX", aux: "SymOff", typ: "UInt16", faultOnNilArg0: true, symEffect: "Read"}, // load 2 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVWQSXload", argLength: 2, reg: gpload, asm: "MOVWQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
++		{name: "MOVLload", argLength: 2, reg: gpload, asm: "MOVL", aux: "SymOff", typ: "UInt32", faultOnNilArg0: true, symEffect: "Read"},    // load 4 bytes from arg0+auxint+aux. arg1=mem.  Zero extend.
++		{name: "MOVLQSXload", argLength: 2, reg: gpload, asm: "MOVLQSX", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},             // ditto, sign extend to int64
++		{name: "MOVQload", argLength: 2, reg: gpload, asm: "MOVQ", aux: "SymOff", typ: "UInt64", faultOnNilArg0: true, symEffect: "Read"},    // load 8 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVBstore", argLength: 3, reg: gpstore, asm: "MOVB", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store byte in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVWstore", argLength: 3, reg: gpstore, asm: "MOVW", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 2 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVLstore", argLength: 3, reg: gpstore, asm: "MOVL", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 4 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVQstore", argLength: 3, reg: gpstore, asm: "MOVQ", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},    // store 8 bytes in arg1 to arg0+auxint+aux. arg2=mem
++		{name: "MOVOload", argLength: 2, reg: fpload, asm: "MOVUPS", aux: "SymOff", typ: "Int128", faultOnNilArg0: true, symEffect: "Read"},  // load 16 bytes from arg0+auxint+aux. arg1=mem
++		{name: "MOVOstore", argLength: 3, reg: fpstore, asm: "MOVUPS", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},  // store 16 bytes in arg1 to arg0+auxint+aux. arg2=mem
+ 
+ 		// indexed loads/stores
+ 		{name: "MOVBloadidx1", argLength: 3, reg: gploadidx, commutative: true, asm: "MOVBLZX", scale: 1, aux: "SymOff", typ: "UInt8", symEffect: "Read"},  // load a byte from arg0+arg1+auxint+aux. arg2=mem
+@@ -717,10 +716,11 @@ func init() {
+ 		// For storeconst ops, the AuxInt field encodes both
+ 		// the value to store and an address offset of the store.
+ 		// Cast AuxInt to a ValAndOff to extract Val and Off fields.
+-		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
+-		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 2 bytes of ...
+-		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store low 4 bytes of ...
+-		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes of ...
++		{name: "MOVBstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVB", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low byte of ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux.  arg1=mem
++		{name: "MOVWstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVW", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low 2 bytes of ...
++		{name: "MOVLstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVL", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store low 4 bytes of ...
++		{name: "MOVQstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVQ", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"},   // store 8 bytes of ...
++		{name: "MOVOstoreconst", argLength: 2, reg: gpstoreconst, asm: "MOVUPS", aux: "SymValAndOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 16 bytes of ...
+ 
+ 		{name: "MOVBstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVB", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low byte of ValAndOff(AuxInt).Val() to arg0+1*arg1+ValAndOff(AuxInt).Off()+aux.  arg2=mem
+ 		{name: "MOVWstoreconstidx1", argLength: 3, reg: gpstoreconstidx, commutative: true, asm: "MOVW", scale: 1, aux: "SymValAndOff", typ: "Mem", symEffect: "Write"}, // store low 2 bytes of ... arg1 ...
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8ce13abed3..737afc6087 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -962,7 +962,6 @@ const (
+ 	OpAMD64MOVQstore
+ 	OpAMD64MOVOload
+ 	OpAMD64MOVOstore
+-	OpAMD64MOVOstorezero
+ 	OpAMD64MOVBloadidx1
+ 	OpAMD64MOVWloadidx1
+ 	OpAMD64MOVWloadidx2
+@@ -983,6 +982,7 @@ const (
+ 	OpAMD64MOVWstoreconst
+ 	OpAMD64MOVLstoreconst
+ 	OpAMD64MOVQstoreconst
++	OpAMD64MOVOstoreconst
+ 	OpAMD64MOVBstoreconstidx1
+ 	OpAMD64MOVWstoreconstidx1
+ 	OpAMD64MOVWstoreconstidx2
+@@ -12625,19 +12625,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:           "MOVOstorezero",
+-		auxType:        auxSymOff,
+-		argLen:         2,
+-		faultOnNilArg0: true,
+-		symEffect:      SymWrite,
+-		asm:            x86.AMOVUPS,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4295016447}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R15 SB
+-			},
+-		},
+-	},
+ 	{
+ 		name:        "MOVBloadidx1",
+ 		auxType:     auxSymOff,
+@@ -12954,6 +12941,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "MOVOstoreconst",
++		auxType:        auxSymValAndOff,
++		argLen:         2,
++		faultOnNilArg0: true,
++		symEffect:      SymWrite,
++		asm:            x86.AMOVUPS,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4295032831}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 g R15 SB
++			},
++		},
++	},
+ 	{
+ 		name:        "MOVBstoreconstidx1",
+ 		auxType:     auxSymValAndOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 89d32c0657..2aa3786a7e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -249,6 +249,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64MOVOload(v)
+ 	case OpAMD64MOVOstore:
+ 		return rewriteValueAMD64_OpAMD64MOVOstore(v)
++	case OpAMD64MOVOstoreconst:
++		return rewriteValueAMD64_OpAMD64MOVOstoreconst(v)
+ 	case OpAMD64MOVQatomicload:
+ 		return rewriteValueAMD64_OpAMD64MOVQatomicload(v)
+ 	case OpAMD64MOVQf2i:
+@@ -12544,6 +12546,97 @@ func rewriteValueAMD64_OpAMD64MOVOstore(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64MOVOstoreconst(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (MOVOstoreconst [sc] {s} (ADDQconst [off] ptr) mem)
++	// cond: ValAndOff(sc).canAdd32(off)
++	// result: (MOVOstoreconst [ValAndOff(sc).addOffset32(off)] {s} ptr mem)
++	for {
++		sc := auxIntToValAndOff(v.AuxInt)
++		s := auxToSym(v.Aux)
++		if v_0.Op != OpAMD64ADDQconst {
++			break
++		}
++		off := auxIntToInt32(v_0.AuxInt)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(ValAndOff(sc).canAdd32(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(ValAndOff(sc).addOffset32(off))
++		v.Aux = symToAux(s)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	// match: (MOVOstoreconst [sc] {sym1} (LEAQ [off] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off)
++	// result: (MOVOstoreconst [ValAndOff(sc).addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
++	for {
++		sc := auxIntToValAndOff(v.AuxInt)
++		sym1 := auxToSym(v.Aux)
++		if v_0.Op != OpAMD64LEAQ {
++			break
++		}
++		off := auxIntToInt32(v_0.AuxInt)
++		sym2 := auxToSym(v_0.Aux)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(canMergeSym(sym1, sym2) && ValAndOff(sc).canAdd32(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(ValAndOff(sc).addOffset32(off))
++		v.Aux = symToAux(mergeSym(sym1, sym2))
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	// match: (MOVOstoreconst [sc] {sym1} (LEAL [off] {sym2} ptr) mem)
++	// cond: canMergeSym(sym1, sym2) && sc.canAdd32(off)
++	// result: (MOVOstoreconst [sc.addOffset32(off)] {mergeSym(sym1, sym2)} ptr mem)
++	for {
++		sc := auxIntToValAndOff(v.AuxInt)
++		sym1 := auxToSym(v.Aux)
++		if v_0.Op != OpAMD64LEAL {
++			break
++		}
++		off := auxIntToInt32(v_0.AuxInt)
++		sym2 := auxToSym(v_0.Aux)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(canMergeSym(sym1, sym2) && sc.canAdd32(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
++		v.Aux = symToAux(mergeSym(sym1, sym2))
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	// match: (MOVOstoreconst [sc] {s} (ADDLconst [off] ptr) mem)
++	// cond: sc.canAdd32(off)
++	// result: (MOVOstoreconst [sc.addOffset32(off)] {s} ptr mem)
++	for {
++		sc := auxIntToValAndOff(v.AuxInt)
++		s := auxToSym(v.Aux)
++		if v_0.Op != OpAMD64ADDLconst {
++			break
++		}
++		off := auxIntToInt32(v_0.AuxInt)
++		ptr := v_0.Args[0]
++		mem := v_1
++		if !(sc.canAdd32(off)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(sc.addOffset32(off))
++		v.Aux = symToAux(s)
++		v.AddArg2(ptr, mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64MOVQatomicload(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -13331,9 +13424,9 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		v.AddArg2(ptr, mem)
+ 		return true
+ 	}
+-	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [c2] {s} p mem))
+-	// cond: config.useSSE && x.Uses == 1 && c2.Off() + 8 == c.Off() && c.Val() == 0 && c2.Val() == 0 && clobber(x)
+-	// result: (MOVOstorezero [c2.Off()] {s} p mem)
++	// match: (MOVQstoreconst [c] {s} p x:(MOVQstoreconst [a] {s} p mem))
++	// cond: config.useSSE && x.Uses == 1 && a.Off() + 8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)
++	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
+ 	for {
+ 		c := auxIntToValAndOff(v.AuxInt)
+ 		s := auxToSym(v.Aux)
+@@ -13342,16 +13435,41 @@ func rewriteValueAMD64_OpAMD64MOVQstoreconst(v *Value) bool {
+ 		if x.Op != OpAMD64MOVQstoreconst {
+ 			break
+ 		}
+-		c2 := auxIntToValAndOff(x.AuxInt)
++		a := auxIntToValAndOff(x.AuxInt)
++		if auxToSym(x.Aux) != s {
++			break
++		}
++		mem := x.Args[1]
++		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && a.Off()+8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
++			break
++		}
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, a.Off()))
++		v.Aux = symToAux(s)
++		v.AddArg2(p, mem)
++		return true
++	}
++	// match: (MOVQstoreconst [a] {s} p x:(MOVQstoreconst [c] {s} p mem))
++	// cond: config.useSSE && x.Uses == 1 && a.Off() + 8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)
++	// result: (MOVOstoreconst [makeValAndOff(0,a.Off())] {s} p mem)
++	for {
++		a := auxIntToValAndOff(v.AuxInt)
++		s := auxToSym(v.Aux)
++		p := v_0
++		x := v_1
++		if x.Op != OpAMD64MOVQstoreconst {
++			break
++		}
++		c := auxIntToValAndOff(x.AuxInt)
+ 		if auxToSym(x.Aux) != s {
+ 			break
+ 		}
+ 		mem := x.Args[1]
+-		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && c2.Off()+8 == c.Off() && c.Val() == 0 && c2.Val() == 0 && clobber(x)) {
++		if p != x.Args[0] || !(config.useSSE && x.Uses == 1 && a.Off()+8 == c.Off() && a.Val() == 0 && c.Val() == 0 && clobber(x)) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstorezero)
+-		v.AuxInt = int32ToAuxInt(c2.Off())
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, a.Off()))
+ 		v.Aux = symToAux(s)
+ 		v.AddArg2(p, mem)
+ 		return true
+@@ -33458,7 +33576,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	}
+ 	// match: (Zero [s] destptr mem)
+ 	// cond: s%16 != 0 && s > 16 && s%16 > 8 && config.useSSE
+-	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstorezero destptr mem))
++	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+@@ -33471,14 +33589,15 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(s % 16)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
+ 		v1.AddArg2(destptr, mem)
+ 		v.AddArg2(v0, v1)
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+ 	// cond: s%16 != 0 && s > 16 && s%16 <= 8 && config.useSSE
+-	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVQstoreconst [makeValAndOff(0,0)] destptr mem))
++	// result: (Zero [s-s%16] (OffPtr <destptr.Type> destptr [s%16]) (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+@@ -33491,7 +33610,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+ 		v0.AuxInt = int64ToAuxInt(s % 16)
+ 		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVQstoreconst, types.TypeMem)
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
+ 		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
+ 		v1.AddArg2(destptr, mem)
+ 		v.AddArg2(v0, v1)
+@@ -33499,7 +33618,7 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	}
+ 	// match: (Zero [16] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstorezero destptr mem)
++	// result: (MOVOstoreconst [makeValAndOff(0,0)] destptr mem)
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 16 {
+ 			break
+@@ -33509,13 +33628,14 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstorezero)
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
+ 		v.AddArg2(destptr, mem)
+ 		return true
+ 	}
+ 	// match: (Zero [32] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem))
++	// result: (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 32 {
+ 			break
+@@ -33525,18 +33645,17 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstorezero)
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v0.AuxInt = int64ToAuxInt(16)
+-		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v1.AddArg2(destptr, mem)
+-		v.AddArg2(v0, v1)
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
++		v0.AddArg2(destptr, mem)
++		v.AddArg2(destptr, v0)
+ 		return true
+ 	}
+ 	// match: (Zero [48] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [32]) (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem)))
++	// result: (MOVOstoreconst [makeValAndOff(0,32)] destptr (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem)))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 48 {
+ 			break
+@@ -33546,23 +33665,20 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstorezero)
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v0.AuxInt = int64ToAuxInt(32)
+-		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v2 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v2.AuxInt = int64ToAuxInt(16)
+-		v2.AddArg(destptr)
+-		v3 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v3.AddArg2(destptr, mem)
+-		v1.AddArg2(v2, v3)
+-		v.AddArg2(v0, v1)
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 32))
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
++		v1.AddArg2(destptr, mem)
++		v0.AddArg2(destptr, v1)
++		v.AddArg2(destptr, v0)
+ 		return true
+ 	}
+ 	// match: (Zero [64] destptr mem)
+ 	// cond: config.useSSE
+-	// result: (MOVOstorezero (OffPtr <destptr.Type> destptr [48]) (MOVOstorezero (OffPtr <destptr.Type> destptr [32]) (MOVOstorezero (OffPtr <destptr.Type> destptr [16]) (MOVOstorezero destptr mem))))
++	// result: (MOVOstoreconst [makeValAndOff(0,48)] destptr (MOVOstoreconst [makeValAndOff(0,32)] destptr (MOVOstoreconst [makeValAndOff(0,16)] destptr (MOVOstoreconst [makeValAndOff(0,0)] destptr mem))))
+ 	for {
+ 		if auxIntToInt64(v.AuxInt) != 64 {
+ 			break
+@@ -33572,23 +33688,18 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		if !(config.useSSE) {
+ 			break
+ 		}
+-		v.reset(OpAMD64MOVOstorezero)
+-		v0 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v0.AuxInt = int64ToAuxInt(48)
+-		v0.AddArg(destptr)
+-		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v2 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v2.AuxInt = int64ToAuxInt(32)
+-		v2.AddArg(destptr)
+-		v3 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v4 := b.NewValue0(v.Pos, OpOffPtr, destptr.Type)
+-		v4.AuxInt = int64ToAuxInt(16)
+-		v4.AddArg(destptr)
+-		v5 := b.NewValue0(v.Pos, OpAMD64MOVOstorezero, types.TypeMem)
+-		v5.AddArg2(destptr, mem)
+-		v3.AddArg2(v4, v5)
+-		v1.AddArg2(v2, v3)
+-		v.AddArg2(v0, v1)
++		v.reset(OpAMD64MOVOstoreconst)
++		v.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 48))
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v0.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 32))
++		v1 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v1.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 16))
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVOstoreconst, types.TypeMem)
++		v2.AuxInt = valAndOffToAuxInt(makeValAndOff(0, 0))
++		v2.AddArg2(destptr, mem)
++		v1.AddArg2(destptr, v2)
++		v0.AddArg2(destptr, v1)
++		v.AddArg2(destptr, v0)
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)

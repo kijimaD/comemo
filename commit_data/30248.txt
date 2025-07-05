@@ -14,6 +14,20 @@ Date:   Wed Oct 26 14:34:20 2016 -0400
     Change-Id: I062ac352e35df7da4644c1f2a5aaab87049d1f60
     Reviewed-on: https://go-review.googlesource.com/32093
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index af111014f1..774801ab15 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2806,7 +2806,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, nret int32, callerpc uintptr
+ 	spArg := sp
+ 	if usesLR {
+ 		// caller's LR
+-		*(*unsafe.Pointer)(unsafe.Pointer(sp)) = nil
++		*(*uintptr)(unsafe.Pointer(sp)) = 0
+ 		prepGoExitFrame(sp)
+ 		spArg += sys.MinFrameSize
+ 	}

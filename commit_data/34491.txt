@@ -22,7 +22,56 @@ Date:   Tue Oct 24 17:11:32 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go |  4 ++--
  test/notinheap3.go                  | 11 +++++++++++
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 3139404b1e..0f75473b3f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2949,7 +2949,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 	nt.Etype = 1
+ 	l = append(l, nod(OAS, s, nt))
+ 
+-	if types.Haspointers(l1.Type.Elem()) {
++	if l1.Type.Elem().HasHeapPointer() {
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
+ 		nptr1.SetSliceBounds(nod(OLEN, l1, nil), nil, nil)
+@@ -3117,7 +3117,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ // Also works if b is a string.
+ //
+ func copyany(n *Node, init *Nodes, runtimecall bool) *Node {
+-	if types.Haspointers(n.Left.Type.Elem()) {
++	if n.Left.Type.Elem().HasHeapPointer() {
+ 		Curfn.Func.setWBPos(n.Pos)
+ 		fn := writebarrierfn("typedslicecopy", n.Left.Type, n.Right.Type)
+ 		return mkcall1(fn, n.Type, init, typename(n.Left.Type.Elem()), n.Left, n.Right)
+diff --git a/test/notinheap3.go b/test/notinheap3.go
+index e01c7a0a82..b37d73df6d 100644
+--- a/test/notinheap3.go
++++ b/test/notinheap3.go
+@@ -30,6 +30,9 @@ type ih struct { // In-heap type
+ var (
+ 	v1 t1
+ 	v2 t2
++
++	v1s []t1
++	v2s []t2
+ )
+ 
+ func f() {
+@@ -43,3 +46,11 @@ func g() {
+ 	v1 = t1{x: nil} // no barrier
+ 	v2 = t2{x: nil} // ERROR "write barrier"
+ }
++
++func h() {
++	// Test copies and appends.
++	copy(v1s, v1s[1:])      // no barrier
++	copy(v2s, v2s[1:])      // ERROR "write barrier"
++	_ = append(v1s, v1s...) // no barrier
++	_ = append(v2s, v2s...) // ERROR "write barrier"
++}

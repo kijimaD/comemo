@@ -14,6 +14,29 @@ Date:   Mon Sep 11 17:19:24 2017 +1000
     Reviewed-on: https://go-review.googlesource.com/62830
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Elias Naur <elias.naur@gmail.com>
-
+---
  misc/cgo/testcshared/cshared_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index b25e4a9825..db8b5082fc 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -285,7 +285,7 @@ func TestExportedSymbols(t *testing.T) {
+ 
+ 	defer os.Remove(cmd)
+ 
+-	out := run(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
++	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+ 	if strings.TrimSpace(out) != "PASS" {
+ 		t.Error(out)
+ 	}
+@@ -337,7 +337,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 	defer os.Remove(libname)
+ 	defer os.Remove(cmd)
+ 
+-	out := run(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
++	out := runExe(t, append(gopathEnv, "LD_LIBRARY_PATH=."), cmdToRun(cmd))
+ 
+ 	if strings.TrimSpace(out) != "PASS" {
+ 		t.Error(out)

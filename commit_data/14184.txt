@@ -8,7 +8,52 @@ Date:   Sat Oct 20 17:25:13 2012 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6741050
-
+---
  src/cmd/go/pkg.go    |  9 ++++-----
  src/cmd/go/test.bash | 12 ++++++++++++
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 345d8fb54b..f05cf01947 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -674,12 +674,11 @@ func packagesAndErrors(args []string) []*Package {
+ 	var set = make(map[string]bool)
+ 
+ 	for _, arg := range args {
+-		set[arg] = true
+-	}
+-	for arg := range set {
+-		pkgs = append(pkgs, loadPackage(arg, &stk))
++		if !set[arg] {
++			pkgs = append(pkgs, loadPackage(arg, &stk))
++			set[arg] = true
++		}
+ 	}
+-
+ 	computeStale(pkgs...)
+ 
+ 	return pkgs
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index e88610cfe8..350fdb89fa 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -142,6 +142,18 @@ if [ $(./testgo test fmt fmt fmt fmt fmt | wc -l) -ne 1 ] ; then
+     ok=false
+ fi
+ 
++# ensure that output of 'go list' is consistent between runs
++./testgo list std > test_std.list
++if ! ./testgo list std | cmp -s test_std.list - ; then
++	echo "go list std ordering is inconsistent"
++	ok=false
++fi
++rm -f test_std.list
++
++# clean up
++rm -rf testdata/bin testdata/bin1
++rm -f testgo
++
+ if $ok; then
+ 	echo PASS
+ else

@@ -10,7 +10,131 @@ Date:   Thu Nov 8 08:22:40 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6818101
-
+---
  src/pkg/archive/tar/tar_test.go | 43 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/archive/tar/writer.go   | 39 ++++++++++++++++++++++++-------------
  2 files changed, 69 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index 0adc179003..a509f3c00a 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -5,7 +5,10 @@
+ package tar
+ 
+ import (
++	"bytes"
++	"io/ioutil"
+ 	"os"
++	"reflect"
+ 	"testing"
+ 	"time"
+ )
+@@ -54,3 +57,43 @@ func (symlink) Mode() os.FileMode  { return os.ModeSymlink }
+ func (symlink) ModTime() time.Time { return time.Time{} }
+ func (symlink) IsDir() bool        { return false }
+ func (symlink) Sys() interface{}   { return nil }
++
++func TestRoundTrip(t *testing.T) {
++	data := []byte("some file contents")
++
++	var b bytes.Buffer
++	tw := NewWriter(&b)
++	hdr := &Header{
++		Name:    "file.txt",
++		Size:    int64(len(data)),
++		ModTime: time.Now(),
++	}
++	// tar only supports second precision.
++	hdr.ModTime = hdr.ModTime.Add(-time.Duration(hdr.ModTime.Nanosecond()) * time.Nanosecond)
++	if err := tw.WriteHeader(hdr); err != nil {
++		t.Fatalf("tw.WriteHeader: %v", err)
++	}
++	if _, err := tw.Write(data); err != nil {
++		t.Fatalf("tw.Write: %v", err)
++	}
++	if err := tw.Close(); err != nil {
++		t.Fatalf("tw.Close: %v", err)
++	}
++
++	// Read it back.
++	tr := NewReader(&b)
++	rHdr, err := tr.Next()
++	if err != nil {
++		t.Fatalf("tr.Next: %v", err)
++	}
++	if !reflect.DeepEqual(rHdr, hdr) {
++		t.Errorf("Header mismatch.\n got %+v\nwant %+v", rHdr, hdr)
++	}
++	rData, err := ioutil.ReadAll(tr)
++	if err != nil {
++		t.Fatalf("Read: %v", err)
++	}
++	if !bytes.Equal(rData, data) {
++		t.Errorf("Data mismatch.\n got %q\nwant %q", rData, data)
++	}
++}
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index a9c8fdbbc9..5af504b437 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"strconv"
++	"time"
+ )
+ 
+ var (
+@@ -110,6 +111,12 @@ func (tw *Writer) numeric(b []byte, x int64) {
+ 	b[0] |= 0x80 // highest bit indicates binary format
+ }
+ 
++var (
++	minTime = time.Unix(0, 0)
++	// There is room for 11 octal digits (33 bits) of mtime.
++	maxTime = minTime.Add((1<<33 - 1) * time.Second)
++)
++
+ // WriteHeader writes hdr and prepares to accept the file's contents.
+ // WriteHeader calls Flush if it is not the first header.
+ // Calling after a Close will return ErrWriteAfterClose.
+@@ -133,19 +140,25 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 	// TODO(dsymonds): handle names longer than 100 chars
+ 	copy(s.next(100), []byte(hdr.Name))
+ 
+-	tw.octal(s.next(8), hdr.Mode)              // 100:108
+-	tw.numeric(s.next(8), int64(hdr.Uid))      // 108:116
+-	tw.numeric(s.next(8), int64(hdr.Gid))      // 116:124
+-	tw.numeric(s.next(12), hdr.Size)           // 124:136
+-	tw.numeric(s.next(12), hdr.ModTime.Unix()) // 136:148
+-	s.next(8)                                  // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag                // 156:157
+-	tw.cString(s.next(100), hdr.Linkname)      // linkname (157:257)
+-	copy(s.next(8), []byte("ustar\x0000"))     // 257:265
+-	tw.cString(s.next(32), hdr.Uname)          // 265:297
+-	tw.cString(s.next(32), hdr.Gname)          // 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor)        // 329:337
+-	tw.numeric(s.next(8), hdr.Devminor)        // 337:345
++	// Handle out of range ModTime carefully.
++	var modTime int64
++	if !hdr.ModTime.Before(minTime) && !hdr.ModTime.After(maxTime) {
++		modTime = hdr.ModTime.Unix()
++	}
++
++	tw.octal(s.next(8), hdr.Mode)          // 100:108
++	tw.numeric(s.next(8), int64(hdr.Uid))  // 108:116
++	tw.numeric(s.next(8), int64(hdr.Gid))  // 116:124
++	tw.numeric(s.next(12), hdr.Size)       // 124:136
++	tw.numeric(s.next(12), modTime)        // 136:148
++	s.next(8)                              // chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag            // 156:157
++	tw.cString(s.next(100), hdr.Linkname)  // linkname (157:257)
++	copy(s.next(8), []byte("ustar\x0000")) // 257:265
++	tw.cString(s.next(32), hdr.Uname)      // 265:297
++	tw.cString(s.next(32), hdr.Gname)      // 297:329
++	tw.numeric(s.next(8), hdr.Devmajor)    // 329:337
++	tw.numeric(s.next(8), hdr.Devminor)    // 337:345
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {

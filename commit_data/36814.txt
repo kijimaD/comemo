@@ -24,8 +24,89 @@ Date:   Tue May 29 15:13:32 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter_test.go     | 21 +++++++++++++++++++++
  src/go/internal/gcimporter/testdata/issue25596.go | 13 +++++++++++++
  src/go/types/type.go                              | 10 ++++++++--
  3 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index a8745eea3e..308f93e8bd 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -530,6 +530,27 @@ func TestIssue25301(t *testing.T) {
+ 	importPkg(t, "./testdata/issue25301")
+ }
+ 
++func TestIssue25596(t *testing.T) {
++	skipSpecialPlatforms(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	// On windows, we have to set the -D option for the compiler to avoid having a drive
++	// letter and an illegal ':' in the import path - just skip it (see also issue #3483).
++	if runtime.GOOS == "windows" {
++		t.Skip("avoid dealing with relative paths/drive letters on windows")
++	}
++
++	if f := compile(t, "testdata", "issue25596.go"); f != "" {
++		defer os.Remove(f)
++	}
++
++	importPkg(t, "./testdata/issue25596")
++}
++
+ func importPkg(t *testing.T, path string) *types.Package {
+ 	pkg, err := Import(make(map[string]*types.Package), path, ".", nil)
+ 	if err != nil {
+diff --git a/src/go/internal/gcimporter/testdata/issue25596.go b/src/go/internal/gcimporter/testdata/issue25596.go
+new file mode 100644
+index 0000000000..8923373e5f
+--- /dev/null
++++ b/src/go/internal/gcimporter/testdata/issue25596.go
+@@ -0,0 +1,13 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue25596
++
++type E interface {
++	M() T
++}
++
++type T interface {
++	E
++}
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index f274e30ab6..cc87f1edb5 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -275,7 +275,9 @@ func NewInterface(methods []*Func, embeddeds []*Named) *Interface {
+ }
+ 
+ // NewInterface2 returns a new (incomplete) interface for the given methods and embedded types.
+-// Each embedded type must have an underlying type of interface type.
++// Each embedded type must have an underlying type of interface type (this property is not
++// verified for defined types, which may be in the process of being set up and which don't
++// have a valid underlying type yet).
+ // NewInterface2 takes ownership of the provided methods and may modify their types by setting
+ // missing receivers. To compute the method set of the interface, Complete must be called.
+ func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
+@@ -298,8 +300,12 @@ func NewInterface2(methods []*Func, embeddeds []Type) *Interface {
+ 	sort.Sort(byUniqueMethodName(methods))
+ 
+ 	if len(embeddeds) > 0 {
++		// All embedded types should be interfaces; however, defined types
++		// may not yet be fully resolved. Only verify that non-defined types
++		// are interfaces. This matches the behavior of the code before the
++		// fix for #25301 (issue #25596).
+ 		for _, t := range embeddeds {
+-			if !IsInterface(t) {
++			if _, ok := t.(*Named); !ok && !IsInterface(t) {
+ 				panic("embedded type is not an interface")
+ 			}
+ 		}

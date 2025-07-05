@@ -21,7 +21,7 @@ Date:   Wed Mar 29 14:01:41 2017 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go   | 78 +++++++++++++++++++++++++++++--
  src/cmd/compile/internal/gc/plive.go      |  9 +++-
  src/cmd/compile/internal/gc/ssa.go        | 11 ++++-
@@ -31,3 +31,355 @@ Date:   Wed Mar 29 14:01:41 2017 -0400
  test/live.go                              | 21 +++------
  test/live2.go                             |  7 ++-
  8 files changed, 158 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 375fd790fe..b6452d96bb 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -973,13 +973,23 @@ var linuxAMD64Tests = []*asmTest{
+ 		// make sure assembly output has matching offset and base register.
+ 		`
+ 		func f72(a, b int) int {
+-			var x [16]byte // use some frame
+-			_ = x
++			//go:noinline
++			func() {_, _ = a, b} () // use some frame
+ 			return b
+ 		}
+ 		`,
+ 		[]string{"b\\+40\\(SP\\)"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]0-8"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+@@ -1015,6 +1025,16 @@ var linux386Tests = []*asmTest{
+ 		}`,
+ 		[]string{"\tADDL\t[$]19", "\tIMULL"}, // (n+19)*a
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]0-4"},
++	},
+ }
+ 
+ var linuxS390XTests = []*asmTest{
+@@ -1293,6 +1313,16 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		[]string{"\tFLOGR\t"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]0-8"},
++	},
+ }
+ 
+ var linuxARMTests = []*asmTest{
+@@ -1404,13 +1434,23 @@ var linuxARMTests = []*asmTest{
+ 		// make sure assembly output has matching offset and base register.
+ 		`
+ 		func f13(a, b int) int {
+-			var x [16]byte // use some frame
+-			_ = x
++			//go:noinline
++			func() {_, _ = a, b} () // use some frame
+ 			return b
+ 		}
+ 		`,
+ 		[]string{"b\\+4\\(FP\\)"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]-4-4"},
++	},
+ }
+ 
+ var linuxARM64Tests = []*asmTest{
+@@ -1584,6 +1624,16 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(FP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(FP\\)"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]-8-8"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+@@ -1667,6 +1717,16 @@ var linuxMIPSTests = []*asmTest{
+ 		`,
+ 		[]string{"\tCLZ\t"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]-4-4"},
++	},
+ }
+ 
+ var linuxPPC64LETests = []*asmTest{
+@@ -1751,6 +1811,16 @@ var linuxPPC64LETests = []*asmTest{
+ 		`,
+ 		[]string{"\tROTL\t"},
+ 	},
++	{
++		// check that stack store is optimized away
++		`
++		func $() int {
++			var x int
++			return *(&x)
++		}
++		`,
++		[]string{"TEXT\t.*, [$]0-8"},
++	},
+ }
+ 
+ // TestLineNumber checks to make sure the generated assembly has line numbers
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index ca449b72bd..1bb714e837 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -291,7 +291,14 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
+ 		return n, ssa.SymWrite
+ 
+ 	case ssa.OpVarLive:
+-		return v.Aux.(*Node), ssa.SymRead
++		switch a := v.Aux.(type) {
++		case *ssa.ArgSymbol:
++			return a.Node.(*Node), ssa.SymRead
++		case *ssa.AutoSymbol:
++			return a.Node.(*Node), ssa.SymRead
++		default:
++			Fatalf("unknown VarLive aux type: %s", v.LongString())
++		}
+ 	case ssa.OpVarDef, ssa.OpVarKill:
+ 		return v.Aux.(*Node), ssa.SymWrite
+ 	case ssa.OpKeepAlive:
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 798a01ae16..47fb6938a1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -936,7 +936,16 @@ func (s *state) stmt(n *Node) {
+ 		if !n.Left.Addrtaken() {
+ 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
+ 		}
+-		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left, s.mem())
++		var aux interface{}
++		switch n.Left.Class() {
++		case PAUTO:
++			aux = s.lookupSymbol(n.Left, &ssa.AutoSymbol{Node: n.Left})
++		case PPARAM, PPARAMOUT:
++			aux = s.lookupSymbol(n.Left, &ssa.ArgSymbol{Node: n.Left})
++		default:
++			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left)
++		}
++		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, aux, s.mem())
+ 
+ 	case OCHECKNIL:
+ 		p := s.expr(n.Left)
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 315416babd..00a4b04ce5 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -356,6 +356,7 @@ var passes = [...]pass{
+ 	{name: "tighten", fn: tighten}, // move values closer to their uses
+ 	{name: "lower", fn: lower, required: true},
+ 	{name: "lowered cse", fn: cse},
++	{name: "elim unread autos", fn: elimUnreadAutos},
+ 	{name: "lowered deadcode", fn: deadcode, required: true},
+ 	{name: "checkLower", fn: checkLower, required: true},
+ 	{name: "late phielim", fn: phielim},
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 08a2c6df14..7506df8b19 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -131,3 +131,55 @@ func dse(f *Func) {
+ 		}
+ 	}
+ }
++
++// elimUnreadAutos deletes stores to autos that are never read from.
++func elimUnreadAutos(f *Func) {
++	// Loop over all ops that affect autos taking note of which
++	// autos we need and also stores that we might be able to
++	// eliminate.
++	seen := make(map[GCNode]bool)
++	var stores []*Value
++	for _, b := range f.Blocks {
++		for _, v := range b.Values {
++			var sym *AutoSymbol
++			sym, ok := v.Aux.(*AutoSymbol)
++			if !ok {
++				continue
++			}
++
++			effect := v.Op.SymEffect()
++			switch effect {
++			case SymWrite:
++				// If we haven't seen the auto yet
++				// then this might be a store we can
++				// eliminate.
++				if !seen[sym.Node] {
++					stores = append(stores, v)
++				}
++			default:
++				// Assume the auto is needed (loaded,
++				// has its address taken, etc.).
++				// Note we have to check the uses
++				// because dead loads haven't been
++				// eliminated yet.
++				if v.Uses > 0 {
++					seen[sym.Node] = true
++				}
++			}
++		}
++	}
++
++	// Eliminate stores to unread autos.
++	for _, store := range stores {
++		sym, _ := store.Aux.(*AutoSymbol)
++		if seen[sym.Node] {
++			continue
++		}
++
++		// replace store with OpCopy
++		store.SetArgs1(store.MemoryArg())
++		store.Aux = nil
++		store.AuxInt = 0
++		store.Op = OpCopy
++	}
++}
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 1318babdea..811d81f961 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -84,7 +84,7 @@ func main() {
+ 	slicevar := make([]string, 0, 16)
+ 	slicevar = append(slicevar, mapvar["abc"])
+ 	fmt.Println("hi") // line 13
+-	_ = ptrvar
++	runtime.KeepAlive(ptrvar)
+ 	gslice = slicevar
+ 	runtime.KeepAlive(mapvar)
+ }
+diff --git a/test/live.go b/test/live.go
+index ef988a05e5..2eb442cd2f 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -239,15 +239,6 @@ func f14() {
+ 
+ func g14() string
+ 
+-func f15() {
+-	var x string
+-	_ = &x
+-	x = g15()      // ERROR "live at call to g15: x$"
+-	printstring(x) // ERROR "live at call to printstring: x$"
+-}
+-
+-func g15() string
+-
+ // Checking that various temporaries do not persist or cause
+ // ambiguously live values that must be zeroed.
+ // The exact temporary names are inconsequential but we are
+@@ -384,10 +375,9 @@ func f25(b bool) {
+ 		return
+ 	}
+ 	var x string
+-	_ = &x
+-	x = g15()      // ERROR "live at call to g15: x$"
+-	printstring(x) // ERROR "live at call to printstring: x$"
+-} // ERROR "live at call to deferreturn: x$"
++	x = g14()
++	printstring(x)
++}
+ 
+ func g25()
+ 
+@@ -641,6 +631,9 @@ type T40 struct {
+ 	m map[int]int
+ }
+ 
++//go:noescape
++func useT40(*T40)
++
+ func newT40() *T40 {
+ 	ret := T40{}
+ 	ret.m = make(map[int]int) // ERROR "live at call to makemap: &ret$"
+@@ -658,7 +651,7 @@ func good40() {
+ 	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+-	_ = t
++	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+ }
+ 
+ func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+diff --git a/test/live2.go b/test/live2.go
+index 6138d369c9..5c5706d225 100644
+--- a/test/live2.go
++++ b/test/live2.go
+@@ -14,6 +14,9 @@ package main
+ 
+ func printnl()
+ 
++//go:noescape
++func useT40(*T40)
++
+ type T40 struct {
+ 	m map[int]int
+ }
+@@ -27,7 +30,7 @@ func newT40() *T40 {
+ func bad40() {
+ 	t := newT40() // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+ 	printnl()     // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+-	_ = t
++	useT40(t)     // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+ }
+ 
+ func good40() {
+@@ -35,5 +38,5 @@ func good40() {
+ 	ret.m = make(map[int]int) // ERROR "live at call to makemap: .autotmp_[0-9]+ ret$"
+ 	t := &ret
+ 	printnl() // ERROR "live at call to printnl: .autotmp_[0-9]+ ret$"
+-	_ = t
++	useT40(t) // ERROR "live at call to useT40: .autotmp_[0-9]+ ret$"
+ }

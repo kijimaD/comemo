@@ -12,6 +12,19 @@ Date:   Sun Feb 16 20:46:03 2014 +1100
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/63900043
-
+---
  src/pkg/go/build/build.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index e2591883d9..98ec5ea5ed 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -264,7 +264,6 @@ var cgoEnabled = map[string]bool{
+ 	"dragonfly/amd64": true,
+ 	"freebsd/386":     true,
+ 	"freebsd/amd64":   true,
+-	"freebsd/arm":     true,
+ 	"linux/386":       true,
+ 	"linux/amd64":     true,
+ 	"linux/arm":       true,

@@ -31,7 +31,7 @@ Date:   Tue Feb 22 13:06:52 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/check.go     | 45 ++++++++++-----------
  src/cmd/compile/internal/types2/interface.go | 28 +++++++++-----
  src/cmd/compile/internal/types2/named.go     | 32 ++++++++++++---
@@ -45,3 +45,580 @@ Date:   Tue Feb 22 13:06:52 2022 -0800
  src/go/types/typeparam.go                    | 12 +++---
  src/go/types/typexpr.go                      |  2 +-
  12 files changed, 168 insertions(+), 93 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 535de0256c..4ec6a7b4fd 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -126,7 +126,7 @@ type Checker struct {
+ 	untyped  map[syntax.Expr]exprInfo // map of expressions without final type
+ 	delayed  []action                 // stack of delayed action segments; segments are processed in FIFO order
+ 	objPath  []Object                 // path of object dependencies during type inference (for cycle reporting)
+-	defTypes []*Named                 // defined types created during type checking, for final validation.
++	cleaners []cleaner                // list of types that may need a final cleanup at the end of type-checking
+ 
+ 	// environment within which the current object is type-checked (valid only
+ 	// for the duration of type-checking a specific object)
+@@ -205,6 +205,16 @@ func (check *Checker) pop() Object {
+ 	return obj
+ }
+ 
++type cleaner interface {
++	cleanup()
++}
++
++// needsCleanup records objects/types that implement the cleanup method
++// which will be called at the end of type-checking.
++func (check *Checker) needsCleanup(c cleaner) {
++	check.cleaners = append(check.cleaners, c)
++}
++
+ // NewChecker returns a new Checker instance for a given package.
+ // Package files may be added incrementally via checker.Files.
+ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+@@ -247,6 +257,8 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	check.methods = nil
+ 	check.untyped = nil
+ 	check.delayed = nil
++	check.objPath = nil
++	check.cleaners = nil
+ 
+ 	// determine package name and collect valid files
+ 	pkg := check.pkg
+@@ -315,8 +327,8 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 	print("== processDelayed ==")
+ 	check.processDelayed(0) // incl. all functions
+ 
+-	print("== expandDefTypes ==")
+-	check.expandDefTypes()
++	print("== cleanup ==")
++	check.cleanup()
+ 
+ 	print("== initOrder ==")
+ 	check.initOrder()
+@@ -344,7 +356,6 @@ func (check *Checker) checkFiles(files []*syntax.File) (err error) {
+ 	check.recvTParamMap = nil
+ 	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
+-	check.defTypes = nil
+ 	check.ctxt = nil
+ 
+ 	// TODO(gri) There's more memory we should release at this point.
+@@ -372,27 +383,13 @@ func (check *Checker) processDelayed(top int) {
+ 	check.delayed = check.delayed[:top]
+ }
+ 
+-func (check *Checker) expandDefTypes() {
+-	// Ensure that every defined type created in the course of type-checking has
+-	// either non-*Named underlying, or is unresolved.
+-	//
+-	// This guarantees that we don't leak any types whose underlying is *Named,
+-	// because any unresolved instances will lazily compute their underlying by
+-	// substituting in the underlying of their origin. The origin must have
+-	// either been imported or type-checked and expanded here, and in either case
+-	// its underlying will be fully expanded.
+-	for i := 0; i < len(check.defTypes); i++ {
+-		n := check.defTypes[i]
+-		switch n.underlying.(type) {
+-		case nil:
+-			if n.resolver == nil {
+-				panic("nil underlying")
+-			}
+-		case *Named:
+-			n.under() // n.under may add entries to check.defTypes
+-		}
+-		n.check = nil
++// cleanup runs cleanup for all collected cleaners.
++func (check *Checker) cleanup() {
++	// Don't use a range clause since Named.cleanup may add more cleaners.
++	for i := 0; i < len(check.cleaners); i++ {
++		check.cleaners[i].cleanup()
+ 	}
++	check.cleaners = nil
+ }
+ 
+ func (check *Checker) record(x *operand) {
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index ca5140d092..75597abaf9 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -37,7 +37,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	}
+ 
+ 	// set method receivers if necessary
+-	typ := new(Interface)
++	typ := (*Checker)(nil).newInterface()
+ 	for _, m := range methods {
+ 		if sig := m.typ.(*Signature); sig.recv == nil {
+ 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+@@ -54,6 +54,15 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	return typ
+ }
+ 
++// check may be nil
++func (check *Checker) newInterface() *Interface {
++	typ := &Interface{check: check}
++	if check != nil {
++		check.needsCleanup(typ)
++	}
++	return typ
++}
++
+ // MarkImplicit marks the interface t as implicit, meaning this interface
+ // corresponds to a constraint literal such as ~T or A|B without explicit
+ // interface embedding. MarkImplicit should be called before any concurrent use
+@@ -100,6 +109,11 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++func (t *Interface) cleanup() {
++	t.check = nil
++	t.embedPos = nil
++}
++
+ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
+ 	addEmbedded := func(pos syntax.Pos, typ Type) {
+ 		ityp.embeddeds = append(ityp.embeddeds, typ)
+@@ -162,16 +176,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 	// (don't sort embeddeds: they must correspond to *embedPos entries)
+ 	sortMethods(ityp.methods)
+ 
+-	// Compute type set with a non-nil *Checker as soon as possible
+-	// to report any errors. Subsequent uses of type sets will use
+-	// this computed type set and won't need to pass in a *Checker.
+-	//
+-	// Pin the checker to the interface type in the interim, in case the type set
+-	// must be used before delayed funcs are processed (see issue #48234).
+-	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
+-	ityp.check = check
++	// Compute type set as soon as possible to report any errors.
++	// Subsequent uses of type sets will use this computed type
++	// set and won't need to pass in a *Checker.
+ 	check.later(func() {
+ 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+-		ityp.check = nil
+ 	}).describef(iface, "compute type set for %s", ityp)
+ }
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index bb522e8fe3..5c6a1cf5d8 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -72,11 +72,31 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 	}
+ 	// Ensure that typ is always expanded and sanity-checked.
+ 	if check != nil {
+-		check.defTypes = append(check.defTypes, typ)
++		check.needsCleanup(typ)
+ 	}
+ 	return typ
+ }
+ 
++func (t *Named) cleanup() {
++	// Ensure that every defined type created in the course of type-checking has
++	// either non-*Named underlying, or is unresolved.
++	//
++	// This guarantees that we don't leak any types whose underlying is *Named,
++	// because any unresolved instances will lazily compute their underlying by
++	// substituting in the underlying of their origin. The origin must have
++	// either been imported or type-checked and expanded here, and in either case
++	// its underlying will be fully expanded.
++	switch t.underlying.(type) {
++	case nil:
++		if t.resolver == nil {
++			panic("nil underlying")
++		}
++	case *Named:
++		t.under() // t.under may add entries to check.cleaners
++	}
++	t.check = nil
++}
++
+ // Obj returns the type name for the declaration defining the named type t. For
+ // instantiated types, this is the type name of the base type.
+ func (t *Named) Obj() *TypeName { return t.orig.obj } // for non-instances this is the same as t.obj
+@@ -360,11 +380,11 @@ func expandNamed(ctxt *Context, n *Named, instPos syntax.Pos) (tparams *TypePara
+ 				// that it wasn't substituted. In this case we need to create a new
+ 				// *Interface before modifying receivers.
+ 				if iface == n.orig.underlying {
+-					iface = &Interface{
+-						embeddeds: iface.embeddeds,
+-						complete:  iface.complete,
+-						implicit:  iface.implicit, // should be false but be conservative
+-					}
++					old := iface
++					iface = check.newInterface()
++					iface.embeddeds = old.embeddeds
++					iface.complete = old.complete
++					iface.implicit = old.implicit // should be false but be conservative
+ 					underlying = iface
+ 				}
+ 				iface.methods = methods
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 44a59f55fd..037f04797b 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -160,7 +160,10 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			iface := subst.check.newInterface()
++			iface.embeddeds = embeddeds
++			iface.implicit = t.implicit
++			iface.complete = t.complete
+ 			// If we've changed the interface type, we may need to replace its
+ 			// receiver if the receiver type is the original interface. Receivers of
+ 			// *Named type are replaced during named type expansion.
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 971fdaec73..57613706f7 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -36,6 +36,7 @@ func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return (*Checker)(nil).newTypeParam(obj, constraint)
+ }
+ 
++// check may be nil
+ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	// Always increment lastID, even if it is not used.
+ 	id := nextID()
+@@ -50,9 +51,7 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	// iface may mutate typ.bound, so we must ensure that iface() is called
+ 	// at least once before the resulting TypeParam escapes.
+ 	if check != nil {
+-		check.later(func() {
+-			typ.iface()
+-		})
++		check.needsCleanup(typ)
+ 	} else if constraint != nil {
+ 		typ.iface()
+ 	}
+@@ -93,9 +92,12 @@ func (t *TypeParam) String() string { return TypeString(t, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++func (t *TypeParam) cleanup() {
++	t.iface()
++	t.check = nil
++}
++
+ // iface returns the constraint interface of t.
+-// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
+-//           (similar to Named.under).
+ func (t *TypeParam) iface() *Interface {
+ 	bound := t.bound
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 149bd5b0b3..2847aa76c0 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -342,7 +342,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		return typ
+ 
+ 	case *syntax.InterfaceType:
+-		typ := new(Interface)
++		typ := check.newInterface()
+ 		def.setUnderlying(typ)
+ 		if def != nil {
+ 			typ.obj = def.obj
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 6e1da04b9f..23136377c8 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -133,7 +133,7 @@ type Checker struct {
+ 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+ 	delayed  []action              // stack of delayed action segments; segments are processed in FIFO order
+ 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+-	defTypes []*Named              // defined types created during type checking, for final validation.
++	cleaners []cleaner             // list of types that may need a final cleanup at the end of type-checking
+ 
+ 	// environment within which the current object is type-checked (valid only
+ 	// for the duration of type-checking a specific object)
+@@ -212,6 +212,16 @@ func (check *Checker) pop() Object {
+ 	return obj
+ }
+ 
++type cleaner interface {
++	cleanup()
++}
++
++// needsCleanup records objects/types that implement the cleanup method
++// which will be called at the end of type-checking.
++func (check *Checker) needsCleanup(c cleaner) {
++	check.cleaners = append(check.cleaners, c)
++}
++
+ // NewChecker returns a new Checker instance for a given package.
+ // Package files may be added incrementally via checker.Files.
+ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Checker {
+@@ -255,6 +265,8 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	check.methods = nil
+ 	check.untyped = nil
+ 	check.delayed = nil
++	check.objPath = nil
++	check.cleaners = nil
+ 
+ 	// determine package name and collect valid files
+ 	pkg := check.pkg
+@@ -304,22 +316,37 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 
+ 	defer check.handleBailout(&err)
+ 
++	print := func(msg string) {
++		if trace {
++			fmt.Println()
++			fmt.Println(msg)
++		}
++	}
++
++	print("== initFiles ==")
+ 	check.initFiles(files)
+ 
++	print("== collectObjects ==")
+ 	check.collectObjects()
+ 
++	print("== packageObjects ==")
+ 	check.packageObjects()
+ 
++	print("== processDelayed ==")
+ 	check.processDelayed(0) // incl. all functions
+ 
+-	check.expandDefTypes()
++	print("== cleanup ==")
++	check.cleanup()
+ 
++	print("== initOrder ==")
+ 	check.initOrder()
+ 
+ 	if !check.conf.DisableUnusedImportCheck {
++		print("== unusedImports ==")
+ 		check.unusedImports()
+ 	}
+ 
++	print("== recordUntyped ==")
+ 	check.recordUntyped()
+ 
+ 	if check.firstErr == nil {
+@@ -337,7 +364,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.recvTParamMap = nil
+ 	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
+-	check.defTypes = nil
+ 	check.ctxt = nil
+ 
+ 	// TODO(rFindley) There's more memory we should release at this point.
+@@ -365,27 +391,13 @@ func (check *Checker) processDelayed(top int) {
+ 	check.delayed = check.delayed[:top]
+ }
+ 
+-func (check *Checker) expandDefTypes() {
+-	// Ensure that every defined type created in the course of type-checking has
+-	// either non-*Named underlying, or is unresolved.
+-	//
+-	// This guarantees that we don't leak any types whose underlying is *Named,
+-	// because any unresolved instances will lazily compute their underlying by
+-	// substituting in the underlying of their origin. The origin must have
+-	// either been imported or type-checked and expanded here, and in either case
+-	// its underlying will be fully expanded.
+-	for i := 0; i < len(check.defTypes); i++ {
+-		n := check.defTypes[i]
+-		switch n.underlying.(type) {
+-		case nil:
+-			if n.resolver == nil {
+-				panic("nil underlying")
+-			}
+-		case *Named:
+-			n.under() // n.under may add entries to check.defTypes
+-		}
+-		n.check = nil
++// cleanup runs cleanup for all collected cleaners.
++func (check *Checker) cleanup() {
++	// Don't use a range clause since Named.cleanup may add more cleaners.
++	for i := 0; i < len(check.cleaners); i++ {
++		check.cleaners[i].cleanup()
+ 	}
++	check.cleaners = nil
+ }
+ 
+ func (check *Checker) record(x *operand) {
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index b9d4660eb4..3db3580a91 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -56,7 +56,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	}
+ 
+ 	// set method receivers if necessary
+-	typ := new(Interface)
++	typ := (*Checker)(nil).newInterface()
+ 	for _, m := range methods {
+ 		if sig := m.typ.(*Signature); sig.recv == nil {
+ 			sig.recv = NewVar(m.pos, m.pkg, "", typ)
+@@ -73,6 +73,15 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	return typ
+ }
+ 
++// check may be nil
++func (check *Checker) newInterface() *Interface {
++	typ := &Interface{check: check}
++	if check != nil {
++		check.needsCleanup(typ)
++	}
++	return typ
++}
++
+ // MarkImplicit marks the interface t as implicit, meaning this interface
+ // corresponds to a constraint literal such as ~T or A|B without explicit
+ // interface embedding. MarkImplicit should be called before any concurrent use
+@@ -141,6 +150,11 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++func (t *Interface) cleanup() {
++	t.check = nil
++	t.embedPos = nil
++}
++
+ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, def *Named) {
+ 	addEmbedded := func(pos token.Pos, typ Type) {
+ 		ityp.embeddeds = append(ityp.embeddeds, typ)
+@@ -210,16 +224,10 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	sortMethods(ityp.methods)
+ 	// (don't sort embeddeds: they must correspond to *embedPos entries)
+ 
+-	// Compute type set with a non-nil *Checker as soon as possible
+-	// to report any errors. Subsequent uses of type sets will use
+-	// this computed type set and won't need to pass in a *Checker.
+-	//
+-	// Pin the checker to the interface type in the interim, in case the type set
+-	// must be used before delayed funcs are processed (see issue #48234).
+-	// TODO(rfindley): clean up use of *Checker with computeInterfaceTypeSet
+-	ityp.check = check
++	// Compute type set as soon as possible to report any errors.
++	// Subsequent uses of type sets will use this computed type
++	// set and won't need to pass in a *Checker.
+ 	check.later(func() {
+ 		computeInterfaceTypeSet(check, iface.Pos(), ityp)
+-		ityp.check = nil
+ 	}).describef(iface, "compute type set for %s", ityp)
+ }
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 5e84c39776..5b84e0653b 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -72,11 +72,31 @@ func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tpar
+ 	}
+ 	// Ensure that typ is always expanded and sanity-checked.
+ 	if check != nil {
+-		check.defTypes = append(check.defTypes, typ)
++		check.needsCleanup(typ)
+ 	}
+ 	return typ
+ }
+ 
++func (t *Named) cleanup() {
++	// Ensure that every defined type created in the course of type-checking has
++	// either non-*Named underlying, or is unresolved.
++	//
++	// This guarantees that we don't leak any types whose underlying is *Named,
++	// because any unresolved instances will lazily compute their underlying by
++	// substituting in the underlying of their origin. The origin must have
++	// either been imported or type-checked and expanded here, and in either case
++	// its underlying will be fully expanded.
++	switch t.underlying.(type) {
++	case nil:
++		if t.resolver == nil {
++			panic("nil underlying")
++		}
++	case *Named:
++		t.under() // t.under may add entries to check.cleaners
++	}
++	t.check = nil
++}
++
+ // Obj returns the type name for the declaration defining the named type t. For
+ // instantiated types, this is the type name of the base type.
+ func (t *Named) Obj() *TypeName {
+@@ -362,11 +382,11 @@ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParam
+ 				// that it wasn't substituted. In this case we need to create a new
+ 				// *Interface before modifying receivers.
+ 				if iface == n.orig.underlying {
+-					iface = &Interface{
+-						embeddeds: iface.embeddeds,
+-						complete:  iface.complete,
+-						implicit:  iface.implicit, // should be false but be conservative
+-					}
++					old := iface
++					iface = check.newInterface()
++					iface.embeddeds = old.embeddeds
++					iface.complete = old.complete
++					iface.implicit = old.implicit // should be false but be conservative
+ 					underlying = iface
+ 				}
+ 				iface.methods = methods
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 53247a3585..4b4a0f4ad6 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -160,7 +160,10 @@ func (subst *subster) typ(typ Type) Type {
+ 		methods, mcopied := subst.funcList(t.methods)
+ 		embeddeds, ecopied := subst.typeList(t.embeddeds)
+ 		if mcopied || ecopied {
+-			iface := &Interface{embeddeds: embeddeds, implicit: t.implicit, complete: t.complete}
++			iface := subst.check.newInterface()
++			iface.embeddeds = embeddeds
++			iface.implicit = t.implicit
++			iface.complete = t.complete
+ 			// If we've changed the interface type, we may need to replace its
+ 			// receiver if the receiver type is the original interface. Receivers of
+ 			// *Named type are replaced during named type expansion.
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 71e6861b87..5505372cff 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -35,6 +35,7 @@ func NewTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	return (*Checker)(nil).newTypeParam(obj, constraint)
+ }
+ 
++// check may be nil
+ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	// Always increment lastID, even if it is not used.
+ 	id := nextID()
+@@ -49,9 +50,7 @@ func (check *Checker) newTypeParam(obj *TypeName, constraint Type) *TypeParam {
+ 	// iface may mutate typ.bound, so we must ensure that iface() is called
+ 	// at least once before the resulting TypeParam escapes.
+ 	if check != nil {
+-		check.later(func() {
+-			typ.iface()
+-		})
++		check.needsCleanup(typ)
+ 	} else if constraint != nil {
+ 		typ.iface()
+ 	}
+@@ -95,9 +94,12 @@ func (t *TypeParam) String() string { return TypeString(t, nil) }
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
++func (t *TypeParam) cleanup() {
++	t.iface()
++	t.check = nil
++}
++
+ // iface returns the constraint interface of t.
+-// TODO(gri) If we make tparamIsIface the default, this should be renamed to under
+-//           (similar to Named.under).
+ func (t *TypeParam) iface() *Interface {
+ 	bound := t.bound
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index db6a904aaa..724c40963f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -323,7 +323,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		return typ
+ 
+ 	case *ast.InterfaceType:
+-		typ := new(Interface)
++		typ := check.newInterface()
+ 		def.setUnderlying(typ)
+ 		if def != nil {
+ 			typ.obj = def.obj

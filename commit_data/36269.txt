@@ -13,6 +13,21 @@ Date:   Sun Apr 15 11:28:20 2018 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 29a87d79a3..132576f320 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -5032,7 +5032,7 @@ func (ab *AsmBuf) asmins(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog) {
+ 	}
+ }
+ 
+-// Extract 4 operands from p.
+-func unpackOps4(p *obj.Prog) (*obj.Addr, *obj.Addr, *obj.Addr, *obj.Addr) {
++// unpackOps4 extracts 4 operands from p.
++func unpackOps4(p *obj.Prog) (arg0, arg1, arg2, dst *obj.Addr) {
+ 	return &p.From, &p.RestArgs[0], &p.RestArgs[1], &p.To
+ }

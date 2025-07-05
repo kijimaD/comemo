@@ -10,6 +10,30 @@ Date:   Thu Jun 7 16:24:52 2018 -0400
     Change-Id: I3b783d2cf3eed693a3ad6acb40a8003db7e0b648
     Reviewed-on: https://go-review.googlesource.com/117255
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 76b1f6e5c4..423787b415 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -459,7 +459,8 @@ type Config struct {
+ 	PreferServerCipherSuites bool
+ 
+ 	// SessionTicketsDisabled may be set to true to disable session ticket
+-	// (resumption) support.
++	// (resumption) support. Note that on clients, session ticket support is
++	// also disabled if ClientSessionCache is nil.
+ 	SessionTicketsDisabled bool
+ 
+ 	// SessionTicketKey is used by TLS servers to provide session
+@@ -473,7 +474,7 @@ type Config struct {
+ 	SessionTicketKey [32]byte
+ 
+ 	// ClientSessionCache is a cache of ClientSessionState entries for TLS
+-	// session resumption.
++	// session resumption. It is only used by clients.
+ 	ClientSessionCache ClientSessionCache
+ 
+ 	// MinVersion contains the minimum SSL/TLS version that is acceptable.

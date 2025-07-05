@@ -78,7 +78,7 @@ Date:   Tue Mar 14 11:11:28 2017 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/builtin.go         | 184 +++++++++++++------------
  src/cmd/compile/internal/gc/builtin/runtime.go |   3 +
  src/cmd/compile/internal/gc/order.go           |  38 +++--
@@ -87,3 +87,762 @@ Date:   Tue Mar 14 11:11:28 2017 -0700
  src/runtime/map_test.go                        |  76 ++++++++--
  test/live.go                                   |  10 +-
  7 files changed, 390 insertions(+), 169 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index 5f65d8135a..675de836ce 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -88,61 +88,64 @@ var runtimeDecls = [...]struct {
+ 	{"mapassign_faststr", funcTag, 61},
+ 	{"mapiterinit", funcTag, 66},
+ 	{"mapdelete", funcTag, 66},
+-	{"mapiternext", funcTag, 67},
+-	{"makechan", funcTag, 69},
+-	{"chanrecv1", funcTag, 71},
+-	{"chanrecv2", funcTag, 72},
+-	{"chansend1", funcTag, 74},
++	{"mapdelete_fast32", funcTag, 67},
++	{"mapdelete_fast64", funcTag, 67},
++	{"mapdelete_faststr", funcTag, 67},
++	{"mapiternext", funcTag, 68},
++	{"makechan", funcTag, 70},
++	{"chanrecv1", funcTag, 72},
++	{"chanrecv2", funcTag, 73},
++	{"chansend1", funcTag, 75},
+ 	{"closechan", funcTag, 23},
+-	{"writeBarrier", varTag, 76},
+-	{"writebarrierptr", funcTag, 77},
+-	{"typedmemmove", funcTag, 78},
+-	{"typedmemclr", funcTag, 79},
+-	{"typedslicecopy", funcTag, 80},
+-	{"selectnbsend", funcTag, 81},
+-	{"selectnbrecv", funcTag, 82},
+-	{"selectnbrecv2", funcTag, 84},
+-	{"newselect", funcTag, 85},
+-	{"selectsend", funcTag, 74},
+-	{"selectrecv", funcTag, 86},
++	{"writeBarrier", varTag, 77},
++	{"writebarrierptr", funcTag, 78},
++	{"typedmemmove", funcTag, 79},
++	{"typedmemclr", funcTag, 80},
++	{"typedslicecopy", funcTag, 81},
++	{"selectnbsend", funcTag, 82},
++	{"selectnbrecv", funcTag, 83},
++	{"selectnbrecv2", funcTag, 85},
++	{"newselect", funcTag, 86},
++	{"selectsend", funcTag, 75},
++	{"selectrecv", funcTag, 87},
+ 	{"selectdefault", funcTag, 56},
+-	{"selectgo", funcTag, 87},
++	{"selectgo", funcTag, 88},
+ 	{"block", funcTag, 5},
+-	{"makeslice", funcTag, 89},
+-	{"makeslice64", funcTag, 90},
+-	{"growslice", funcTag, 91},
+-	{"memmove", funcTag, 92},
+-	{"memclrNoHeapPointers", funcTag, 94},
+-	{"memclrHasPointers", funcTag, 94},
+-	{"memequal", funcTag, 95},
+-	{"memequal8", funcTag, 96},
+-	{"memequal16", funcTag, 96},
+-	{"memequal32", funcTag, 96},
+-	{"memequal64", funcTag, 96},
+-	{"memequal128", funcTag, 96},
+-	{"int64div", funcTag, 97},
+-	{"uint64div", funcTag, 98},
+-	{"int64mod", funcTag, 97},
+-	{"uint64mod", funcTag, 98},
+-	{"float64toint64", funcTag, 99},
+-	{"float64touint64", funcTag, 100},
+-	{"float64touint32", funcTag, 102},
+-	{"int64tofloat64", funcTag, 103},
+-	{"uint64tofloat64", funcTag, 104},
+-	{"uint32tofloat64", funcTag, 105},
+-	{"complex128div", funcTag, 106},
+-	{"racefuncenter", funcTag, 107},
++	{"makeslice", funcTag, 90},
++	{"makeslice64", funcTag, 91},
++	{"growslice", funcTag, 92},
++	{"memmove", funcTag, 93},
++	{"memclrNoHeapPointers", funcTag, 95},
++	{"memclrHasPointers", funcTag, 95},
++	{"memequal", funcTag, 96},
++	{"memequal8", funcTag, 97},
++	{"memequal16", funcTag, 97},
++	{"memequal32", funcTag, 97},
++	{"memequal64", funcTag, 97},
++	{"memequal128", funcTag, 97},
++	{"int64div", funcTag, 98},
++	{"uint64div", funcTag, 99},
++	{"int64mod", funcTag, 98},
++	{"uint64mod", funcTag, 99},
++	{"float64toint64", funcTag, 100},
++	{"float64touint64", funcTag, 101},
++	{"float64touint32", funcTag, 103},
++	{"int64tofloat64", funcTag, 104},
++	{"uint64tofloat64", funcTag, 105},
++	{"uint32tofloat64", funcTag, 106},
++	{"complex128div", funcTag, 107},
++	{"racefuncenter", funcTag, 108},
+ 	{"racefuncexit", funcTag, 5},
+-	{"raceread", funcTag, 107},
+-	{"racewrite", funcTag, 107},
+-	{"racereadrange", funcTag, 108},
+-	{"racewriterange", funcTag, 108},
+-	{"msanread", funcTag, 108},
+-	{"msanwrite", funcTag, 108},
++	{"raceread", funcTag, 108},
++	{"racewrite", funcTag, 108},
++	{"racereadrange", funcTag, 109},
++	{"racewriterange", funcTag, 109},
++	{"msanread", funcTag, 109},
++	{"msanwrite", funcTag, 109},
+ }
+ 
+ func runtimeTypes() []*Type {
+-	var typs [109]*Type
++	var typs [110]*Type
+ 	typs[0] = bytetype
+ 	typs[1] = typPtr(typs[0])
+ 	typs[2] = Types[TANY]
+@@ -210,47 +213,48 @@ func runtimeTypes() []*Type {
+ 	typs[64] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[58]), anonfield(typs[2])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
+ 	typs[65] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[58]), anonfield(typs[3]), anonfield(typs[1])}, []*Node{anonfield(typs[3]), anonfield(typs[11])})
+ 	typs[66] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[58]), anonfield(typs[3])}, nil)
+-	typs[67] = functype(nil, []*Node{anonfield(typs[3])}, nil)
+-	typs[68] = typChan(typs[2], Cboth)
+-	typs[69] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[68])})
+-	typs[70] = typChan(typs[2], Crecv)
+-	typs[71] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3])}, nil)
+-	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[73] = typChan(typs[2], Csend)
+-	typs[74] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3])}, nil)
+-	typs[75] = typArray(typs[0], 3)
+-	typs[76] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[75]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
+-	typs[77] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
+-	typs[78] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
+-	typs[79] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
+-	typs[80] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
+-	typs[81] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[73]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[70])}, []*Node{anonfield(typs[11])})
+-	typs[83] = typPtr(typs[11])
+-	typs[84] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[83]), anonfield(typs[70])}, []*Node{anonfield(typs[11])})
+-	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
+-	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[70]), anonfield(typs[3]), anonfield(typs[83])}, nil)
+-	typs[87] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
+-	typs[88] = typSlice(typs[2])
+-	typs[89] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[88])})
+-	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[88])})
+-	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[88]), anonfield(typs[32])}, []*Node{anonfield(typs[88])})
+-	typs[92] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
+-	typs[93] = Types[TUNSAFEPTR]
+-	typs[94] = functype(nil, []*Node{anonfield(typs[93]), anonfield(typs[49])}, nil)
+-	typs[95] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
+-	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
+-	typs[97] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
+-	typs[98] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
+-	typs[99] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
+-	typs[100] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
+-	typs[101] = Types[TUINT32]
+-	typs[102] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[101])})
+-	typs[103] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
+-	typs[104] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
+-	typs[105] = functype(nil, []*Node{anonfield(typs[101])}, []*Node{anonfield(typs[13])})
+-	typs[106] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
+-	typs[107] = functype(nil, []*Node{anonfield(typs[49])}, nil)
+-	typs[108] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
++	typs[67] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[58]), anonfield(typs[2])}, nil)
++	typs[68] = functype(nil, []*Node{anonfield(typs[3])}, nil)
++	typs[69] = typChan(typs[2], Cboth)
++	typs[70] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15])}, []*Node{anonfield(typs[69])})
++	typs[71] = typChan(typs[2], Crecv)
++	typs[72] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3])}, nil)
++	typs[73] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[74] = typChan(typs[2], Csend)
++	typs[75] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3])}, nil)
++	typs[76] = typArray(typs[0], 3)
++	typs[77] = tostruct([]*Node{namedfield("enabled", typs[11]), namedfield("pad", typs[76]), namedfield("needed", typs[11]), namedfield("cgo", typs[11]), namedfield("alignme", typs[17])})
++	typs[78] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[2])}, nil)
++	typs[79] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[3])}, nil)
++	typs[80] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3])}, nil)
++	typs[81] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[2]), anonfield(typs[2])}, []*Node{anonfield(typs[32])})
++	typs[82] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[74]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[83] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
++	typs[84] = typPtr(typs[11])
++	typs[85] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[3]), anonfield(typs[84]), anonfield(typs[71])}, []*Node{anonfield(typs[11])})
++	typs[86] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[8])}, nil)
++	typs[87] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[71]), anonfield(typs[3]), anonfield(typs[84])}, nil)
++	typs[88] = functype(nil, []*Node{anonfield(typs[1])}, []*Node{anonfield(typs[32])})
++	typs[89] = typSlice(typs[2])
++	typs[90] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[32]), anonfield(typs[32])}, []*Node{anonfield(typs[89])})
++	typs[91] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[89])})
++	typs[92] = functype(nil, []*Node{anonfield(typs[1]), anonfield(typs[89]), anonfield(typs[32])}, []*Node{anonfield(typs[89])})
++	typs[93] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, nil)
++	typs[94] = Types[TUNSAFEPTR]
++	typs[95] = functype(nil, []*Node{anonfield(typs[94]), anonfield(typs[49])}, nil)
++	typs[96] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3]), anonfield(typs[49])}, []*Node{anonfield(typs[11])})
++	typs[97] = functype(nil, []*Node{anonfield(typs[3]), anonfield(typs[3])}, []*Node{anonfield(typs[11])})
++	typs[98] = functype(nil, []*Node{anonfield(typs[15]), anonfield(typs[15])}, []*Node{anonfield(typs[15])})
++	typs[99] = functype(nil, []*Node{anonfield(typs[17]), anonfield(typs[17])}, []*Node{anonfield(typs[17])})
++	typs[100] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[15])})
++	typs[101] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[17])})
++	typs[102] = Types[TUINT32]
++	typs[103] = functype(nil, []*Node{anonfield(typs[13])}, []*Node{anonfield(typs[102])})
++	typs[104] = functype(nil, []*Node{anonfield(typs[15])}, []*Node{anonfield(typs[13])})
++	typs[105] = functype(nil, []*Node{anonfield(typs[17])}, []*Node{anonfield(typs[13])})
++	typs[106] = functype(nil, []*Node{anonfield(typs[102])}, []*Node{anonfield(typs[13])})
++	typs[107] = functype(nil, []*Node{anonfield(typs[19]), anonfield(typs[19])}, []*Node{anonfield(typs[19])})
++	typs[108] = functype(nil, []*Node{anonfield(typs[49])}, nil)
++	typs[109] = functype(nil, []*Node{anonfield(typs[49]), anonfield(typs[49])}, nil)
+ 	return typs[:]
+ }
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index cec0425947..168aaaf6f4 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -108,6 +108,9 @@ func mapassign_fast64(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapassign_faststr(mapType *byte, hmap map[any]any, key any) (val *any)
+ func mapiterinit(mapType *byte, hmap map[any]any, hiter *any)
+ func mapdelete(mapType *byte, hmap map[any]any, key *any)
++func mapdelete_fast32(mapType *byte, hmap map[any]any, key any)
++func mapdelete_fast64(mapType *byte, hmap map[any]any, key any)
++func mapdelete_faststr(mapType *byte, hmap map[any]any, key any)
+ func mapiternext(hiter *any)
+ 
+ // *byte is really *runtime.Type
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index c15e9084e3..e6032c33d0 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -206,23 +206,15 @@ func orderaddrtemp(n *Node, order *Order) *Node {
+ 	return ordercopyexpr(n, n.Type, order, 0)
+ }
+ 
+-// ordermapkeytemp prepares n.Right to be a key in a map runtime call.
+-func ordermapkeytemp(n *Node, order *Order) {
++// ordermapkeytemp prepares n to be a key in a map runtime call and returns n.
++// It should only be used for map runtime calls which have *_fast* versions.
++func ordermapkeytemp(t *Type, n *Node, order *Order) *Node {
+ 	// Most map calls need to take the address of the key.
+-	// Exception: map(accessN|assign)_fast* calls. See golang.org/issue/19015.
+-	var p string
+-	switch n.Etype {
+-	case 0: // n is an rvalue
+-		p, _ = mapaccessfast(n.Left.Type)
+-	case 1: // n is an lvalue
+-		p = mapassignfast(n.Left.Type)
+-	default:
+-		Fatalf("unexpected node type: %+v", n)
+-	}
+-	if p != "" {
+-		return
++	// Exception: map*_fast* calls. See golang.org/issue/19015.
++	if mapfast(t) == mapslow {
++		return orderaddrtemp(n, order)
+ 	}
+-	n.Right = orderaddrtemp(n.Right, order)
++	return n
+ }
+ 
+ type ordermarker int
+@@ -560,7 +552,7 @@ func orderstmt(n *Node, order *Order) {
+ 		if r.Right.Op == OARRAYBYTESTR {
+ 			r.Right.Op = OARRAYBYTESTRTMP
+ 		}
+-		ordermapkeytemp(r, order)
++		r.Right = ordermapkeytemp(r.Left.Type, r.Right, order)
+ 		orderokas2(n, order)
+ 		cleantemp(t, order)
+ 
+@@ -640,10 +632,12 @@ func orderstmt(n *Node, order *Order) {
+ 		case ODELETE:
+ 			orderexprlist(n.Left.List, order)
+ 
+-			t1 := marktemp(order)
+-			np := n.Left.List.Addr(1) // map key
+-			*np = ordercopyexpr(*np, (*np).Type, order, 0)
+-			poptemp(t1, order)
++			if mapfast(n.Left.List.First().Type) == mapslow {
++				t1 := marktemp(order)
++				np := n.Left.List.Addr(1) // map key
++				*np = ordercopyexpr(*np, (*np).Type, order, 0)
++				poptemp(t1, order)
++			}
+ 
+ 		default:
+ 			ordercall(n.Left, order)
+@@ -656,7 +650,7 @@ func orderstmt(n *Node, order *Order) {
+ 		t := marktemp(order)
+ 		n.List.SetFirst(orderexpr(n.List.First(), order, nil))
+ 		n.List.SetSecond(orderexpr(n.List.Second(), order, nil))
+-		n.List.SetSecond(orderaddrtemp(n.List.Second(), order)) // map key
++		n.List.SetSecond(ordermapkeytemp(n.List.First().Type, n.List.Second(), order))
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -1069,7 +1063,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 			needCopy = true
+ 		}
+ 
+-		ordermapkeytemp(n, order)
++		n.Right = ordermapkeytemp(n.Left.Type, n.Right, order)
+ 		if needCopy {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 96b564df7c..e21816653b 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -804,16 +804,15 @@ opswitch:
+ 		r.Right = walkexpr(r.Right, init)
+ 		t := r.Left.Type
+ 
+-		_, p := mapaccessfast(t)
++		fast := mapfast(t)
+ 		var key *Node
+-		if p != "" {
++		if fast != mapslow {
+ 			// fast versions take key by value
+ 			key = r.Right
+ 		} else {
+ 			// standard version takes key by reference
+ 			// orderexpr made sure key is addressable.
+ 			key = nod(OADDR, r.Right, nil)
+-			p = "mapaccess2"
+ 		}
+ 
+ 		// from:
+@@ -824,7 +823,7 @@ opswitch:
+ 		a := n.List.First()
+ 
+ 		if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+-			fn := mapfn(p, t)
++			fn := mapfn(mapaccess2[fast], t)
+ 			r = mkcall1(fn, fn.Type.Results(), init, typename(t), r.Left, key)
+ 		} else {
+ 			fn := mapfn("mapaccess2_fat", t)
+@@ -862,11 +861,13 @@ opswitch:
+ 		map_ = walkexpr(map_, init)
+ 		key = walkexpr(key, init)
+ 
+-		// orderstmt made sure key is addressable.
+-		key = nod(OADDR, key, nil)
+-
+ 		t := map_.Type
+-		n = mkcall1(mapfndel("mapdelete", t), nil, init, typename(t), map_, key)
++		fast := mapfast(t)
++		if fast == mapslow {
++			// orderstmt made sure key is addressable.
++			key = nod(OADDR, key, nil)
++		}
++		n = mkcall1(mapfndel(mapdelete[fast], t), nil, init, typename(t), map_, key)
+ 
+ 	case OAS2DOTTYPE:
+ 		walkexprlistsafe(n.List.Slice(), init)
+@@ -1184,30 +1185,27 @@ opswitch:
+ 		t := map_.Type
+ 		if n.Etype == 1 {
+ 			// This m[k] expression is on the left-hand side of an assignment.
+-			p := mapassignfast(t)
+-			if p == "" {
++			fast := mapfast(t)
++			if fast == mapslow {
+ 				// standard version takes key by reference.
+ 				// orderexpr made sure key is addressable.
+ 				key = nod(OADDR, key, nil)
+-				p = "mapassign"
+ 			}
+-			n = mkcall1(mapfn(p, t), nil, init, typename(t), map_, key)
++			n = mkcall1(mapfn(mapassign[fast], t), nil, init, typename(t), map_, key)
+ 		} else {
+ 			// m[k] is not the target of an assignment.
+-			p, _ := mapaccessfast(t)
+-			if p == "" {
++			fast := mapfast(t)
++			if fast == mapslow {
+ 				// standard version takes key by reference.
+ 				// orderexpr made sure key is addressable.
+ 				key = nod(OADDR, key, nil)
+-				p = "mapaccess1"
+ 			}
+ 
+ 			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+-				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key)
++				n = mkcall1(mapfn(mapaccess1[fast], t), typPtr(t.Val()), init, typename(t), map_, key)
+ 			} else {
+-				p = "mapaccess1_fat"
+ 				z := zeroaddr(w)
+-				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key, z)
++				n = mkcall1(mapfn("mapaccess1_fat", t), typPtr(t.Val()), init, typename(t), map_, key, z)
+ 			}
+ 		}
+ 		n.Type = typPtr(t.Val())
+@@ -2633,38 +2631,39 @@ func mapfndel(name string, t *Type) *Node {
+ 	return fn
+ }
+ 
+-// mapaccessfast returns the name of the fast map access runtime routine for t.
+-func mapaccessfast(t *Type) (access1, access2 string) {
+-	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+-	if t.Val().Width > 128 {
+-		return "", ""
+-	}
+-	switch algtype(t.Key()) {
+-	case AMEM32:
+-		return "mapaccess1_fast32", "mapaccess2_fast32"
+-	case AMEM64:
+-		return "mapaccess1_fast64", "mapaccess2_fast64"
+-	case ASTRING:
+-		return "mapaccess1_faststr", "mapaccess2_faststr"
+-	}
+-	return "", ""
++const (
++	mapslow = iota
++	mapfast32
++	mapfast64
++	mapfaststr
++	nmapfast
++)
++
++type mapnames [nmapfast]string
++
++func mkmapnames(base string) mapnames {
++	return mapnames{base, base + "_fast32", base + "_fast64", base + "_faststr"}
+ }
+ 
+-// mapassignfast returns the name of the fast map assign runtime routine for t.
+-func mapassignfast(t *Type) (assign string) {
++var mapaccess1 mapnames = mkmapnames("mapaccess1")
++var mapaccess2 mapnames = mkmapnames("mapaccess2")
++var mapassign mapnames = mkmapnames("mapassign")
++var mapdelete mapnames = mkmapnames("mapdelete")
++
++func mapfast(t *Type) int {
+ 	// Check ../../runtime/hashmap.go:maxValueSize before changing.
+ 	if t.Val().Width > 128 {
+-		return ""
++		return mapslow
+ 	}
+ 	switch algtype(t.Key()) {
+ 	case AMEM32:
+-		return "mapassign_fast32"
++		return mapfast32
+ 	case AMEM64:
+-		return "mapassign_fast64"
++		return mapfast64
+ 	case ASTRING:
+-		return "mapassign_faststr"
++		return mapfaststr
+ 	}
+-	return ""
++	return mapslow
+ }
+ 
+ func writebarrierfn(name string, l *Type, r *Type) *Node {
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index f1a5bf3fc3..0a625cca56 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -692,3 +692,172 @@ done:
+ 	h.flags &^= hashWriting
+ 	return val
+ }
++
++func mapdelete_fast32(t *maptype, h *hmap, key uint32) {
++	if raceenabled && h != nil {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast32))
++	}
++	if h == nil || h.count == 0 {
++		return
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapdelete
++	h.flags |= hashWriting
++
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := (*uint32)(add(unsafe.Pointer(b), dataOffset+i*4))
++			if key != *k {
++				continue
++			}
++			*k = 0
++			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*4 + i*uintptr(t.valuesize))
++			typedmemclr(t.elem, v)
++			b.tophash[i] = empty
++			h.count--
++			goto done
++		}
++		b = b.overflow(t)
++		if b == nil {
++			goto done
++		}
++	}
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++}
++
++func mapdelete_fast64(t *maptype, h *hmap, key uint64) {
++	if raceenabled && h != nil {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_fast64))
++	}
++	if h == nil || h.count == 0 {
++		return
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&key)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapdelete
++	h.flags |= hashWriting
++
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := (*uint64)(add(unsafe.Pointer(b), dataOffset+i*8))
++			if key != *k {
++				continue
++			}
++			*k = 0
++			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*8 + i*uintptr(t.valuesize))
++			typedmemclr(t.elem, v)
++			b.tophash[i] = empty
++			h.count--
++			goto done
++		}
++		b = b.overflow(t)
++		if b == nil {
++			goto done
++		}
++	}
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++}
++
++func mapdelete_faststr(t *maptype, h *hmap, ky string) {
++	if raceenabled && h != nil {
++		callerpc := getcallerpc(unsafe.Pointer(&t))
++		racewritepc(unsafe.Pointer(h), callerpc, funcPC(mapdelete_faststr))
++	}
++	if h == nil || h.count == 0 {
++		return
++	}
++	if h.flags&hashWriting != 0 {
++		throw("concurrent map writes")
++	}
++
++	key := stringStructOf(&ky)
++	hash := t.key.alg.hash(noescape(unsafe.Pointer(&ky)), uintptr(h.hash0))
++
++	// Set hashWriting after calling alg.hash for consistency with mapdelete
++	h.flags |= hashWriting
++
++	bucket := hash & (uintptr(1)<<h.B - 1)
++	if h.growing() {
++		growWork(t, h, bucket)
++	}
++	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
++	top := uint8(hash >> (sys.PtrSize*8 - 8))
++	if top < minTopHash {
++		top += minTopHash
++	}
++	for {
++		for i := uintptr(0); i < bucketCnt; i++ {
++			if b.tophash[i] != top {
++				continue
++			}
++			k := (*stringStruct)(add(unsafe.Pointer(b), dataOffset+i*2*sys.PtrSize))
++			if k.len != key.len {
++				continue
++			}
++			if k.str != key.str && !memequal(k.str, key.str, uintptr(key.len)) {
++				continue
++			}
++			typedmemclr(t.key, unsafe.Pointer(k))
++			v := unsafe.Pointer(uintptr(unsafe.Pointer(b)) + dataOffset + bucketCnt*2*sys.PtrSize + i*uintptr(t.valuesize))
++			typedmemclr(t.elem, v)
++			b.tophash[i] = empty
++			h.count--
++			goto done
++		}
++		b = b.overflow(t)
++		if b == nil {
++			goto done
++		}
++	}
++
++done:
++	if h.flags&hashWriting == 0 {
++		throw("concurrent map writes")
++	}
++	h.flags &^= hashWriting
++}
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 8ec67d5ab0..45d14126c2 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -619,35 +619,85 @@ func TestNonEscapingMap(t *testing.T) {
+ 	}
+ }
+ 
+-func benchmarkMapAssignInt32(b *testing.B, pow uint) {
++func benchmarkMapAssignInt32(b *testing.B, n int) {
+ 	a := make(map[int32]int)
+ 	for i := 0; i < b.N; i++ {
+-		a[int32(i&((1<<pow)-1))] = i
++		a[int32(i&(n-1))] = i
+ 	}
+ }
+-func BenchmarkMapAssignInt32_255(b *testing.B) { benchmarkMapAssignInt32(b, 8) }
+-func BenchmarkMapAssignInt32_64k(b *testing.B) { benchmarkMapAssignInt32(b, 16) }
+ 
+-func benchmarkMapAssignInt64(b *testing.B, pow uint) {
++func benchmarkMapDeleteInt32(b *testing.B, n int) {
++	a := make(map[int32]int)
++	for i := 0; i < n*b.N; i++ {
++		a[int32(i)] = i
++	}
++	b.ResetTimer()
++	for i := 0; i < n*b.N; i = i + n {
++		delete(a, int32(i))
++	}
++}
++
++func benchmarkMapAssignInt64(b *testing.B, n int) {
+ 	a := make(map[int64]int)
+ 	for i := 0; i < b.N; i++ {
+-		a[int64(i&((1<<pow)-1))] = i
++		a[int64(i&(n-1))] = i
++	}
++}
++
++func benchmarkMapDeleteInt64(b *testing.B, n int) {
++	a := make(map[int64]int)
++	for i := 0; i < n*b.N; i++ {
++		a[int64(i)] = i
++	}
++	b.ResetTimer()
++	for i := 0; i < n*b.N; i = i + n {
++		delete(a, int64(i))
+ 	}
+ }
+-func BenchmarkMapAssignInt64_255(b *testing.B) { benchmarkMapAssignInt64(b, 8) }
+-func BenchmarkMapAssignInt64_64k(b *testing.B) { benchmarkMapAssignInt64(b, 16) }
+ 
+-func benchmarkMapAssignStr(b *testing.B, pow uint) {
+-	k := make([]string, (1 << pow))
++func benchmarkMapAssignStr(b *testing.B, n int) {
++	k := make([]string, n)
+ 	for i := 0; i < len(k); i++ {
+ 		k[i] = strconv.Itoa(i)
+ 	}
+ 	b.ResetTimer()
+ 	a := make(map[string]int)
+ 	for i := 0; i < b.N; i++ {
+-		a[k[i&((1<<pow)-1)]] = i
++		a[k[i&(n-1)]] = i
+ 	}
+ }
+ 
+-func BenchmarkMapAssignStr_255(b *testing.B) { benchmarkMapAssignStr(b, 8) }
+-func BenchmarkMapAssignStr_64k(b *testing.B) { benchmarkMapAssignStr(b, 16) }
++func benchmarkMapDeleteStr(b *testing.B, n int) {
++	k := make([]string, n*b.N)
++	for i := 0; i < n*b.N; i++ {
++		k[i] = strconv.Itoa(i)
++	}
++	a := make(map[string]int)
++	for i := 0; i < n*b.N; i++ {
++		a[k[i]] = i
++	}
++	b.ResetTimer()
++	for i := 0; i < n*b.N; i = i + n {
++		delete(a, k[i])
++	}
++}
++
++func runWith(f func(*testing.B, int), v ...int) func(*testing.B) {
++	return func(b *testing.B) {
++		for _, n := range v {
++			b.Run(strconv.Itoa(n), func(b *testing.B) { f(b, n) })
++		}
++	}
++}
++
++func BenchmarkMapAssign(b *testing.B) {
++	b.Run("Int32", runWith(benchmarkMapAssignInt32, 1<<8, 1<<16))
++	b.Run("Int64", runWith(benchmarkMapAssignInt64, 1<<8, 1<<16))
++	b.Run("Str", runWith(benchmarkMapAssignStr, 1<<8, 1<<16))
++}
++
++func BenchmarkMapDelete(b *testing.B) {
++	b.Run("Int32", runWith(benchmarkMapDeleteInt32, 1, 2, 4))
++	b.Run("Int64", runWith(benchmarkMapDeleteInt64, 1, 2, 4))
++	b.Run("Str", runWith(benchmarkMapDeleteStr, 1, 2, 4))
++}
+diff --git a/test/live.go b/test/live.go
+index 0c1be2504c..ef988a05e5 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -255,16 +255,18 @@ func g15() string
+ // and also that none show up in "ambiguously live" messages.
+ 
+ var m map[string]int
++var mi map[interface{}]int
+ 
+-// str is used to ensure that a temp is required for runtime calls below.
++// str and iface are used to ensure that a temp is required for runtime calls below.
+ func str() string
++func iface() interface{}
+ 
+ func f16() {
+ 	if b {
+-		delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
++		delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+ 	}
+-	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+-	delete(m, str()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
++	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
++	delete(mi, iface()) // ERROR "live at call to mapdelete: .autotmp_[0-9]+$"
+ }
+ 
+ var m2s map[string]*byte

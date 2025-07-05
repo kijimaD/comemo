@@ -8,6 +8,29 @@ Date:   Thu Dec 9 11:01:32 2010 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3434046
-
+---
  src/pkg/gob/encode.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 7393866802..db1f136f10 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -473,7 +473,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
+ 			elemOp, indir := enc.encOpFor(t.Elem())
+ 			op = func(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 				slice := (*reflect.SliceHeader)(p)
+-				if slice.Len == 0 {
++				if !state.sendZero && slice.Len == 0 {
+ 					return
+ 				}
+ 				state.update(i)
+@@ -495,7 +495,7 @@ func (enc *Encoder) encOpFor(rt reflect.Type) (encOp, int) {
+ 				// the iteration.
+ 				v := reflect.NewValue(unsafe.Unreflect(t, unsafe.Pointer((p))))
+ 				mv := reflect.Indirect(v).(*reflect.MapValue)
+-				if mv.Len() == 0 {
++				if !state.sendZero && mv.Len() == 0 {
+ 					return
+ 				}
+ 				state.update(i)

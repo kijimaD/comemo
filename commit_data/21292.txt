@@ -7,6 +7,20 @@ Date:   Thu Dec 18 10:53:00 2014 -0500
     Change-Id: I13a8aacd1b8243c992b539ab6bf7b5dff2a1393a
     Reviewed-on: https://go-review.googlesource.com/1757
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/malloc2.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc2.go b/src/runtime/malloc2.go
+index c975f845bc..535e7cace3 100644
+--- a/src/runtime/malloc2.go
++++ b/src/runtime/malloc2.go
+@@ -40,7 +40,7 @@ import "unsafe"
+ //
+ //	3. If the MCentral free list is empty, replenish it by
+ //	   allocating a run of pages from the MHeap and then
+-//	   chopping that memory into a objects of the given size.
++//	   chopping that memory into objects of the given size.
+ //	   Allocating many objects amortizes the cost of locking
+ //	   the heap.
+ //

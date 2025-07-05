@@ -11,8 +11,57 @@ Date:   Thu Feb 23 10:51:04 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5686055
-
+---
  src/cmd/6a/lex.c   | 1 +
  src/cmd/6l/6.out.h | 1 +
  src/cmd/6l/optab.c | 6 ++++++
  3 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 1a8e5ad619..e013bec2a7 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -396,6 +396,7 @@ struct
+ 	"IMULB",	LTYPEI,	AIMULB,
+ 	"IMULL",	LTYPEI,	AIMULL,
+ 	"IMULQ",	LTYPEI,	AIMULQ,
++	"IMUL3Q",	LTYPEX,	AIMUL3Q,
+ 	"IMULW",	LTYPEI,	AIMULW,
+ 	"INB",		LTYPE0,	AINB,
+ 	"INL",		LTYPE0,	AINL,
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index 559cdc758b..8499159543 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -735,6 +735,7 @@ enum	as
+ 	AMODE,
+ 	ACRC32B,
+ 	ACRC32Q,
++	AIMUL3Q,
+ 
+ 	ALAST
+ };
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 2308e0dfea..5746ded19c 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -267,6 +267,11 @@ uchar	yimul[] =
+ 	Yml,	Yrl,	Zm_r,	2,
+ 	0
+ };
++uchar	yimul3[] =
++{
++	Yml,	Yrl,	Zibm_r,	1,
++	0
++};
+ uchar	ybyte[] =
+ {
+ 	Yi64,	Ynone,	Zbyte,	1,
+@@ -772,6 +777,7 @@ Optab optab[] =
+ 	{ AIMULL,	yimul,	Px, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+ 	{ AIMULQ,	yimul,	Pw, 0xf7,(05),0x6b,0x69,Pm,0xaf },
+ 	{ AIMULW,	yimul,	Pe, 0xf7,(05),0x6b,0x69,Pm,0xaf },
++	{ AIMUL3Q,	yimul3,	Pw, 0x6b },
+ 	{ AINB,		yin,	Pb, 0xe4,0xec },
+ 	{ AINCB,	yincb,	Pb, 0xfe,(00) },
+ 	{ AINCL,	yincl,	Px, 0xff,(00) },

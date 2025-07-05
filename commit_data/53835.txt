@@ -11,6 +11,20 @@ Date:   Sun Sep 4 18:02:51 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/parser.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 866fe8cdd9..b091a85f6a 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -973,7 +973,7 @@ func PrintEvent(ev *Event) {
+ 
+ func (ev *Event) String() string {
+ 	desc := EventDescriptions[ev.Type]
+-	w := new(bytes.Buffer)
++	w := new(strings.Builder)
+ 	fmt.Fprintf(w, "%v %v p=%v g=%v off=%v", ev.Ts, desc.Name, ev.P, ev.G, ev.Off)
+ 	for i, a := range desc.Args {
+ 		fmt.Fprintf(w, " %v=%v", a, ev.Args[i])

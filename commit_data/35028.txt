@@ -7,6 +7,29 @@ Date:   Wed Dec 6 10:59:40 2017 +0100
     Change-Id: Ife60468d508f90321733ebdbdb0e6cf443ba1659
     Reviewed-on: https://go-review.googlesource.com/82156
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/contribute.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index b35e9f4b18..feeaf08643 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -187,7 +187,7 @@ prints help text, not an error.
+ On Windows, when using git-bash you must make sure that
+ <code>git-codereview.exe</code> is in your git exec-path.
+ Run <code>git --exec-path</code> to discover the right location then create a
+-symbolic link or simply copy the executible from $GOPATH/bin to this directory.
++symbolic link or simply copy the executable from $GOPATH/bin to this directory.
+ </p>
+ 
+ <p>
+@@ -386,7 +386,7 @@ Instead, your name will appear in the
+ <a href="https://golang.org/change">change log</a> and in the <a
+ href="/CONTRIBUTORS"><code>CONTRIBUTORS</code></a> file and perhaps the <a
+ href="/AUTHORS"><code>AUTHORS</code></a> file.
+-These files are automatically generated from the commit logs perodically.
++These files are automatically generated from the commit logs periodically.
+ The <a href="/AUTHORS"><code>AUTHORS</code></a> file defines who &ldquo;The Go
+ Authors&rdquo;&mdash;the copyright holders&mdash;are.
+ </p>

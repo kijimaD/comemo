@@ -12,7 +12,37 @@ Date:   Mon Jun 15 20:15:59 2009 -0700
     R=ken
     OCL=30322
     CL=30322
-
+---
  src/cmd/gc/dcl.c | 2 ++
  src/cmd/gc/go.y  | 5 +++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 122df1debc..4312cfaea2 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1203,6 +1203,8 @@ oldtype(Sym *s)
+ {
+ 	Type *t;
+ 
++	if(s == S)
++		return T;
+ 	if(s->def == N || s->def->op != OTYPE) {
+ 		yyerror("%S is not a type", s);
+ 		return T;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 2208693aad..0102b58e22 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1087,6 +1087,11 @@ othertype:
+ |	interfacetype
+ |	dotname
+ 	{
++		if($1->op == ODOT) {
++			yyerror("%S.%S is not a type", $1->left->sym, $1->right->sym);
++			$$ = T;
++			break;
++		}
+ 		if($1->op == OTYPE)
+ 		if($1->type->etype == TANY)
+ 		if(strcmp(package, "PACKAGE") != 0)

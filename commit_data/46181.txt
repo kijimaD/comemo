@@ -103,7 +103,7 @@ Date:   Sun Dec 13 22:48:02 2020 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  test/fixedbugs/issue19323.go  |  4 ++--
  test/fixedbugs/issue19880.go  |  2 +-
  test/fixedbugs/issue19977.go  |  2 +-
@@ -134,3 +134,522 @@ Date:   Sun Dec 13 22:48:02 2020 -0800
  test/fixedbugs/issue25507.go  |  6 +++---
  test/fixedbugs/issue25727.go  | 10 +++++-----
  29 files changed, 77 insertions(+), 77 deletions(-)
+
+diff --git a/test/fixedbugs/issue19323.go b/test/fixedbugs/issue19323.go
+index f90af660d5..71365e10dd 100644
+--- a/test/fixedbugs/issue19323.go
++++ b/test/fixedbugs/issue19323.go
+@@ -9,11 +9,11 @@ package p
+ func g() {}
+ 
+ func f() {
+-	g()[:] // ERROR "g.. used as value"
++	g()[:] // ERROR "g.. used as value|attempt to slice object that is not"
+ }
+ 
+ func g2() ([]byte, []byte) { return nil, nil }
+ 
+ func f2() {
+-	g2()[:] // ERROR "multiple-value g2.. in single-value context"
++	g2()[:] // ERROR "multiple-value g2.. in single-value context|attempt to slice object that is not"
+ }
+diff --git a/test/fixedbugs/issue19880.go b/test/fixedbugs/issue19880.go
+index 629c95d960..3d83cf3a12 100644
+--- a/test/fixedbugs/issue19880.go
++++ b/test/fixedbugs/issue19880.go
+@@ -11,7 +11,7 @@ type T struct {
+ }
+ 
+ func a() {
+-	_ = T // ERROR "type T is not an expression"
++	_ = T // ERROR "type T is not an expression|invalid use of type"
+ }
+ 
+ func b() {
+diff --git a/test/fixedbugs/issue19977.go b/test/fixedbugs/issue19977.go
+index 3db1dfd636..6e4a9cc422 100644
+--- a/test/fixedbugs/issue19977.go
++++ b/test/fixedbugs/issue19977.go
+@@ -9,7 +9,7 @@
+ package foo
+ 
+ func Foo() {
+-	switch x := a.(type) { // ERROR "undefined: a"
++	switch x := a.(type) { // ERROR "undefined: a|reference to undefined name .*a"
+ 	default:
+ 		_ = x
+ 	}
+diff --git a/test/fixedbugs/issue20185.go b/test/fixedbugs/issue20185.go
+index 2cbb143ed0..9065868d7f 100644
+--- a/test/fixedbugs/issue20185.go
++++ b/test/fixedbugs/issue20185.go
+@@ -10,7 +10,7 @@
+ package p
+ 
+ func F() {
+-	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value nil"
++	switch t := nil.(type) { // ERROR "cannot type switch on non-interface value"
+ 	default:
+ 		_ = t
+ 	}
+@@ -19,7 +19,7 @@ func F() {
+ const x = 1
+ 
+ func G() {
+-	switch t := x.(type) { // ERROR "cannot type switch on non-interface value x \(type untyped int\)"
++	switch t := x.(type) { // ERROR "cannot type switch on non-interface value|declared but not used"
+ 	default:
+ 	}
+ }
+diff --git a/test/fixedbugs/issue20227.go b/test/fixedbugs/issue20227.go
+index 4448eb5438..f59923106d 100644
+--- a/test/fixedbugs/issue20227.go
++++ b/test/fixedbugs/issue20227.go
+@@ -8,9 +8,9 @@
+ 
+ package p
+ 
+-var _ = 1 / 1e-600000000i  // ERROR "complex division by zero"
+-var _ = 1i / 1e-600000000  // ERROR "complex division by zero"
+-var _ = 1i / 1e-600000000i // ERROR "complex division by zero"
++var _ = 1 / 1e-600000000i  // ERROR "division by zero"
++var _ = 1i / 1e-600000000  // ERROR "division by zero"
++var _ = 1i / 1e-600000000i // ERROR "division by zero"
+ 
+-var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "complex division by zero"
+-var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "complex division by zero"
++var _ = 1 / (1e-600000000 + 1e-600000000i)  // ERROR "division by zero"
++var _ = 1i / (1e-600000000 + 1e-600000000i) // ERROR "division by zero"
+diff --git a/test/fixedbugs/issue20415.go b/test/fixedbugs/issue20415.go
+index 6f2c342ce4..9e7649fc95 100644
+--- a/test/fixedbugs/issue20415.go
++++ b/test/fixedbugs/issue20415.go
+@@ -11,7 +11,7 @@ package p
+ // 1
+ var f byte
+ 
+-var f interface{} // ERROR "previous declaration at issue20415.go:12"
++var f interface{} // ERROR "previous declaration at issue20415.go:12|redefinition"
+ 
+ func _(f int) {
+ }
+@@ -22,7 +22,7 @@ var g byte
+ func _(g int) {
+ }
+ 
+-var g interface{} // ERROR "previous declaration at issue20415.go:20"
++var g interface{} // ERROR "previous declaration at issue20415.go:20|redefinition"
+ 
+ // 3
+ func _(h int) {
+@@ -30,4 +30,4 @@ func _(h int) {
+ 
+ var h byte
+ 
+-var h interface{} // ERROR "previous declaration at issue20415.go:31"
++var h interface{} // ERROR "previous declaration at issue20415.go:31|redefinition"
+diff --git a/test/fixedbugs/issue20529.go b/test/fixedbugs/issue20529.go
+index 669064c2ea..eeaaf37358 100644
+--- a/test/fixedbugs/issue20529.go
++++ b/test/fixedbugs/issue20529.go
+@@ -15,7 +15,7 @@ package p
+ 
+ import "runtime"
+ 
+-func f() { // ERROR "stack frame too large"
++func f() { // GC_ERROR "stack frame too large"
+ 	x := [][]int{1e9: []int{}}
+ 	runtime.KeepAlive(x)
+ }
+diff --git a/test/fixedbugs/issue20602.go b/test/fixedbugs/issue20602.go
+index ca4ce095aa..d4d513b050 100644
+--- a/test/fixedbugs/issue20602.go
++++ b/test/fixedbugs/issue20602.go
+@@ -10,5 +10,5 @@
+ package p
+ 
+ var p = &[1]complex128{0}
+-var _ = real(p)  // ERROR "type \*\[1\]complex128"
+-var _ = imag(p)	 // ERROR "type \*\[1\]complex128"
++var _ = real(p)  // ERROR "type \*\[1\]complex128|argument must have complex type"
++var _ = imag(p)	 // ERROR "type \*\[1\]complex128|argument must have complex type"
+diff --git a/test/fixedbugs/issue20749.go b/test/fixedbugs/issue20749.go
+index af9ff3fbed..de2d3ad16a 100644
+--- a/test/fixedbugs/issue20749.go
++++ b/test/fixedbugs/issue20749.go
+@@ -9,7 +9,7 @@ package p
+ // Verify that the compiler complains even if the array
+ // has length 0.
+ var a [0]int
+-var _ = a[2:] // ERROR "invalid slice index 2"
++var _ = a[2:] // ERROR "invalid slice index 2|array index out of bounds"
+ 
+ var b [1]int
+-var _ = b[2:] // ERROR "invalid slice index 2"
++var _ = b[2:] // ERROR "invalid slice index 2|array index out of bounds"
+diff --git a/test/fixedbugs/issue20780.go b/test/fixedbugs/issue20780.go
+index 58952e53ee..53c4f615e1 100644
+--- a/test/fixedbugs/issue20780.go
++++ b/test/fixedbugs/issue20780.go
+@@ -9,7 +9,7 @@
+ 
+ package main
+ 
+-func f() { // ERROR "stack frame too large"
++func f() { // GC_ERROR "stack frame too large"
+ 	var x [800e6]byte
+ 	g(x)
+ 	return
+diff --git a/test/fixedbugs/issue20812.go b/test/fixedbugs/issue20812.go
+index 0175eede17..d0df831dfd 100644
+--- a/test/fixedbugs/issue20812.go
++++ b/test/fixedbugs/issue20812.go
+@@ -7,9 +7,9 @@
+ package p
+ 
+ func f() {
+-	_ = int("1")      // ERROR "cannot convert"
+-	_ = bool(0)       // ERROR "cannot convert"
+-	_ = bool("false") // ERROR "cannot convert"
+-	_ = int(false)    // ERROR "cannot convert"
+-	_ = string(true)  // ERROR "cannot convert"
++	_ = int("1")      // ERROR "cannot convert|invalid type conversion"
++	_ = bool(0)       // ERROR "cannot convert|invalid type conversion"
++	_ = bool("false") // ERROR "cannot convert|invalid type conversion"
++	_ = int(false)    // ERROR "cannot convert|invalid type conversion"
++	_ = string(true)  // ERROR "cannot convert|invalid type conversion"
+ }
+diff --git a/test/fixedbugs/issue20813.go b/test/fixedbugs/issue20813.go
+index b931aea592..b147a8903c 100644
+--- a/test/fixedbugs/issue20813.go
++++ b/test/fixedbugs/issue20813.go
+@@ -7,5 +7,5 @@
+ package p
+ 
+ func f() {
+-	1 = 2 // ERROR "cannot assign to 1"
++	1 = 2 // ERROR "cannot assign to 1|invalid left hand side"
+ }
+diff --git a/test/fixedbugs/issue21256.go b/test/fixedbugs/issue21256.go
+index 3d3612478d..c845ec52b3 100644
+--- a/test/fixedbugs/issue21256.go
++++ b/test/fixedbugs/issue21256.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-var main = func() {} // ERROR "must be func"
++var main = func() {} // ERROR "must be func|redefinition"
+diff --git a/test/fixedbugs/issue21273.go b/test/fixedbugs/issue21273.go
+index 7a790d14b5..77a1abad9b 100644
+--- a/test/fixedbugs/issue21273.go
++++ b/test/fixedbugs/issue21273.go
+@@ -24,5 +24,5 @@ func g() {
+ 
+ func h() {
+ 	type T4 struct{ m map[T4]int } // ERROR "invalid map key"
+-	type _ map[T4]int              // ERROR "invalid map key"
++	type _ map[T4]int              // GC_ERROR "invalid map key"
+ }
+diff --git a/test/fixedbugs/issue21979.go b/test/fixedbugs/issue21979.go
+index 1c02f574c3..addf786c03 100644
+--- a/test/fixedbugs/issue21979.go
++++ b/test/fixedbugs/issue21979.go
+@@ -7,39 +7,39 @@
+ package p
+ 
+ func f() {
+-	_ = bool("")      // ERROR "cannot convert .. \(type untyped string\) to type bool"
+-	_ = bool(1)       // ERROR "cannot convert 1 \(type untyped int\) to type bool"
+-	_ = bool(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type bool"
+-	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type bool"
++	_ = bool("")      // ERROR "cannot convert .. \(type untyped string\) to type bool|invalid type conversion"
++	_ = bool(1)       // ERROR "cannot convert 1 \(type untyped int\) to type bool|invalid type conversion"
++	_ = bool(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type bool|invalid type conversion"
++	_ = bool(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type bool|invalid type conversion"
+ 
+-	_ = string(true) // ERROR "cannot convert true \(type untyped bool\) to type string"
++	_ = string(true) // ERROR "cannot convert true \(type untyped bool\) to type string|invalid type conversion"
+ 	_ = string(-1)
+-	_ = string(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type string"
+-	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type string"
++	_ = string(1.0)     // ERROR "cannot convert 1 \(type untyped float\) to type string|invalid type conversion"
++	_ = string(-4 + 2i) // ERROR "cannot convert -4 \+ 2i \(type untyped complex\) to type string|invalid type conversion"
+ 
+-	_ = int("")   // ERROR "cannot convert .. \(type untyped string\) to type int"
+-	_ = int(true) // ERROR "cannot convert true \(type untyped bool\) to type int"
++	_ = int("")   // ERROR "cannot convert .. \(type untyped string\) to type int|invalid type conversion"
++	_ = int(true) // ERROR "cannot convert true \(type untyped bool\) to type int|invalid type conversion"
+ 	_ = int(-1)
+ 	_ = int(1)
+ 	_ = int(1.0)
+ 	_ = int(-4 + 2i) // ERROR "truncated to integer"
+ 
+-	_ = uint("")   // ERROR "cannot convert .. \(type untyped string\) to type uint"
+-	_ = uint(true) // ERROR "cannot convert true \(type untyped bool\) to type uint"
+-	_ = uint(-1)   // ERROR "constant -1 overflows uint"
++	_ = uint("")   // ERROR "cannot convert .. \(type untyped string\) to type uint|invalid type conversion"
++	_ = uint(true) // ERROR "cannot convert true \(type untyped bool\) to type uint|invalid type conversion"
++	_ = uint(-1)   // ERROR "constant -1 overflows uint|integer constant overflow"
+ 	_ = uint(1)
+ 	_ = uint(1.0)
+ 	_ = uint(-4 + 2i) // ERROR "constant -4 overflows uint" "truncated to integer"
+ 
+-	_ = float64("")   // ERROR "cannot convert .. \(type untyped string\) to type float64"
+-	_ = float64(true) // ERROR "cannot convert true \(type untyped bool\) to type float64"
++	_ = float64("")   // ERROR "cannot convert .. \(type untyped string\) to type float64|invalid type conversion"
++	_ = float64(true) // ERROR "cannot convert true \(type untyped bool\) to type float64|invalid type conversion"
+ 	_ = float64(-1)
+ 	_ = float64(1)
+ 	_ = float64(1.0)
+-	_ = float64(-4 + 2i) // ERROR "truncated to real"
++	_ = float64(-4 + 2i) // ERROR "truncated to"
+ 
+-	_ = complex128("")   // ERROR "cannot convert .. \(type untyped string\) to type complex128"
+-	_ = complex128(true) // ERROR "cannot convert true \(type untyped bool\) to type complex128"
++	_ = complex128("")   // ERROR "cannot convert .. \(type untyped string\) to type complex128|invalid type conversion"
++	_ = complex128(true) // ERROR "cannot convert true \(type untyped bool\) to type complex128|invalid type conversion"
+ 	_ = complex128(-1)
+ 	_ = complex128(1)
+ 	_ = complex128(1.0)
+diff --git a/test/fixedbugs/issue21988.go b/test/fixedbugs/issue21988.go
+index 850e0398d6..4dbf06ee31 100644
+--- a/test/fixedbugs/issue21988.go
++++ b/test/fixedbugs/issue21988.go
+@@ -8,7 +8,7 @@
+ 
+ package p
+ 
+-const X = Wrong(0) // ERROR "undefined: Wrong"
++const X = Wrong(0) // ERROR "undefined: Wrong|undefined name .*Wrong"
+ 
+ func _() {
+ 	switch 0 {
+diff --git a/test/fixedbugs/issue22063.go b/test/fixedbugs/issue22063.go
+index bfdb2e0027..8d84047e07 100644
+--- a/test/fixedbugs/issue22063.go
++++ b/test/fixedbugs/issue22063.go
+@@ -8,7 +8,7 @@
+ 
+ package p
+ 
+-const X = Wrong(0) // ERROR "undefined: Wrong"
++const X = Wrong(0) // ERROR "undefined: Wrong|reference to undefined name .*Wrong"
+ 
+ func _() {
+ 	switch interface{}(nil) {
+diff --git a/test/fixedbugs/issue22200.go b/test/fixedbugs/issue22200.go
+index 66b9538e03..37440d9bf0 100644
+--- a/test/fixedbugs/issue22200.go
++++ b/test/fixedbugs/issue22200.go
+@@ -12,7 +12,7 @@ func f1(x *[1<<30 - 1e6]byte) byte {
+ 	}
+ 	return 0
+ }
+-func f2(x *[1<<30 + 1e6]byte) byte { // ERROR "stack frame too large"
++func f2(x *[1<<30 + 1e6]byte) byte { // GC_ERROR "stack frame too large"
+ 	for _, b := range *x {
+ 		return b
+ 	}
+diff --git a/test/fixedbugs/issue22200b.go b/test/fixedbugs/issue22200b.go
+index 8d4515eb05..ce20923334 100644
+--- a/test/fixedbugs/issue22200b.go
++++ b/test/fixedbugs/issue22200b.go
+@@ -8,19 +8,19 @@
+ 
+ package p
+ 
+-func f3(x *[1 << 31]byte) byte { // ERROR "stack frame too large"
++func f3(x *[1 << 31]byte) byte { // GC_ERROR "stack frame too large"
+ 	for _, b := range *x {
+ 		return b
+ 	}
+ 	return 0
+ }
+-func f4(x *[1 << 32]byte) byte { // ERROR "stack frame too large"
++func f4(x *[1 << 32]byte) byte { // GC_ERROR "stack frame too large"
+ 	for _, b := range *x {
+ 		return b
+ 	}
+ 	return 0
+ }
+-func f5(x *[1 << 33]byte) byte { // ERROR "stack frame too large"
++func f5(x *[1 << 33]byte) byte { // GC_ERROR "stack frame too large"
+ 	for _, b := range *x {
+ 		return b
+ 	}
+diff --git a/test/fixedbugs/issue22794.go b/test/fixedbugs/issue22794.go
+index c7e9eb1224..2ac31ef0c7 100644
+--- a/test/fixedbugs/issue22794.go
++++ b/test/fixedbugs/issue22794.go
+@@ -13,8 +13,8 @@ type it struct {
+ 
+ func main() {
+ 	i1 := it{Floats: true}
+-	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)"
++	if i1.floats { // ERROR "(type it .* field or method floats, but does have Floats)|undefined field or method"
+ 	}
+-	i2 := &it{floats: false} // ERROR "(but does have Floats)"
+-	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)"
++	i2 := &it{floats: false} // ERROR "(but does have Floats)|unknown field|declared but not used"
++	_ = &it{InneR: "foo"}    // ERROR "(but does have inner)|unknown field"
+ }
+diff --git a/test/fixedbugs/issue22822.go b/test/fixedbugs/issue22822.go
+index e449ddb186..ea53452f09 100644
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@ -12,5 +12,5 @@ package main
+ func F() {
+ 	slice := []int{1, 2, 3}
+ 	len := int(2)
+-	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at"
++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at|expected function"
+ }
+diff --git a/test/fixedbugs/issue22904.go b/test/fixedbugs/issue22904.go
+index 09f4a2118e..02459c6a4e 100644
+--- a/test/fixedbugs/issue22904.go
++++ b/test/fixedbugs/issue22904.go
+@@ -10,7 +10,7 @@
+ package p
+ 
+ type a struct{ b } // ERROR "invalid recursive type"
+-type b struct{ a }
++type b struct{ a } // GCCGO_ERROR "invalid recursive type"
+ 
+ var x interface{}
+ 
+diff --git a/test/fixedbugs/issue22921.go b/test/fixedbugs/issue22921.go
+index 04f78b2c08..5336ba3410 100644
+--- a/test/fixedbugs/issue22921.go
++++ b/test/fixedbugs/issue22921.go
+@@ -8,11 +8,11 @@ package main
+ 
+ import "bytes"
+ 
+-type _ struct{ bytes.nonexist } // ERROR "unexported"
++type _ struct{ bytes.nonexist } // ERROR "unexported|undefined"
+ 
+-type _ interface{ bytes.nonexist } // ERROR "unexported"
++type _ interface{ bytes.nonexist } // ERROR "unexported|undefined|expected signature or type name"
+ 
+ func main() {
+ 	var _ bytes.Buffer
+-	var _ bytes.buffer // ERROR "unexported"
++	var _ bytes.buffer // ERROR "unexported|undefined"
+ }
+diff --git a/test/fixedbugs/issue23093.go b/test/fixedbugs/issue23093.go
+index 2fd7d5fff1..7b2865ca41 100644
+--- a/test/fixedbugs/issue23093.go
++++ b/test/fixedbugs/issue23093.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-var f = func() { f() } // ERROR "initialization loop"
++var f = func() { f() } // ERROR "initialization loop|initialization expression for .*f.* depends upon itself"
+diff --git a/test/fixedbugs/issue23732.go b/test/fixedbugs/issue23732.go
+index 5e63eb2074..db2d182234 100644
+--- a/test/fixedbugs/issue23732.go
++++ b/test/fixedbugs/issue23732.go
+@@ -21,22 +21,22 @@ type Bar struct {
+ }
+ 
+ func main() {
+-	_ = Foo{
++	_ = Foo{ // GCCGO_ERROR "too few expressions"
+ 		1,
+ 		2,
+-		3, // ERROR "too few values in Foo{...}"
++		3, // GC_ERROR "too few values in Foo{...}"
+ 	}
+ 
+ 	_ = Foo{
+ 		1,
+ 		2,
+ 		3,
+-		Bar{"A", "B"}, // ERROR "too many values in Bar{...}"
++		Bar{"A", "B"}, // ERROR "too many values in Bar{...}|too many expressions"
+ 	}
+ 
+-	_ = Foo{
++	_ = Foo{ // GCCGO_ERROR "too few expressions"
+ 		1,
+ 		2,
+-		Bar{"A", "B"}, // ERROR "too many values in Bar{...}" "too few values in Foo{...}"
++		Bar{"A", "B"}, // ERROR "too many values in Bar{...}|too many expressions" "too few values in Foo{...}"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index fe6cef1fb4..c440c96315 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -7,10 +7,10 @@
+ package p
+ 
+ type I1 = interface {
+-	I2
++	I2 // GCCGO_ERROR "invalid recursive interface"
+ }
+ 
+ // BAD: type loop should mention I1; see also #41669
+-type I2 interface { // ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$"
+-	I1
++type I2 interface { // GC_ERROR "invalid recursive type I2\n\tLINE: I2 refers to\n\tLINE: I2$"
++	I1 // GCCGO_ERROR "invalid recursive interface"
+ }
+diff --git a/test/fixedbugs/issue24339.go b/test/fixedbugs/issue24339.go
+index 502c575ec8..2cca7f8bda 100644
+--- a/test/fixedbugs/issue24339.go
++++ b/test/fixedbugs/issue24339.go
+@@ -17,4 +17,4 @@ var _ = struct{}{ /*line :20:1*/foo /*line :21:1*/: /*line :22:1*/0 }
+ 
+ 
+ 
+-// ERROR "unknown field 'foo'"
+\ No newline at end of file
++// ERROR "unknown field 'foo'"
+diff --git a/test/fixedbugs/issue25507.go b/test/fixedbugs/issue25507.go
+index 8dcbae16ab..9143a73397 100644
+--- a/test/fixedbugs/issue25507.go
++++ b/test/fixedbugs/issue25507.go
+@@ -16,14 +16,14 @@ type large struct {
+ 	b [1500000000]byte
+ }
+ 
+-func (x large) f1() int { // ERROR "stack frame too large"
++func (x large) f1() int { // GC_ERROR "stack frame too large"
+ 	return 5
+ }
+ 
+-func f2(x large) int { // ERROR "stack frame too large"
++func f2(x large) int { // GC_ERROR "stack frame too large"
+ 	return 5
+ }
+ 
+-func f3() (x large, i int) { // ERROR "stack frame too large"
++func f3() (x large, i int) { // GC_ERROR "stack frame too large"
+ 	return
+ }
+diff --git a/test/fixedbugs/issue25727.go b/test/fixedbugs/issue25727.go
+index da7c94cc12..936b9f8ff5 100644
+--- a/test/fixedbugs/issue25727.go
++++ b/test/fixedbugs/issue25727.go
+@@ -9,13 +9,13 @@ package main
+ import "net/http"
+ 
+ var s = http.Server{}
+-var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$"
+-var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
+-var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$"
+-var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
++var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$|unexported field or method"
++var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$|undefined field or method"
++var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$|unknown field .?tlsConfig.? in .?http.Server"
++var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$|unknown field .?DoneChan.? in .?http.Server"
+ 
+ type foo struct {
+ 	bar int
+ }
+ 
+-var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$"
++var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$|unknown field .?bAr.? in .?foo"

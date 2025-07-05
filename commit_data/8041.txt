@@ -8,7 +8,114 @@ Date:   Sun Apr 10 11:23:23 2011 +1000
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/4372047
-
+---
  src/pkg/archive/zip/reader.go      | 46 ++++++++++++++++++++++++++++----------
  src/pkg/archive/zip/reader_test.go |  6 +++++
  2 files changed, 40 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 543007abfe..0391d6441f 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -35,6 +35,11 @@ type Reader struct {
+ 	Comment string
+ }
+ 
++type ReadCloser struct {
++	f *os.File
++	Reader
++}
++
+ type File struct {
+ 	FileHeader
+ 	zipr         io.ReaderAt
+@@ -47,43 +52,60 @@ func (f *File) hasDataDescriptor() bool {
+ 	return f.Flags&0x8 != 0
+ }
+ 
+-// OpenReader will open the Zip file specified by name and return a Reader.
+-func OpenReader(name string) (*Reader, os.Error) {
++// OpenReader will open the Zip file specified by name and return a ReaderCloser.
++func OpenReader(name string) (*ReadCloser, os.Error) {
+ 	f, err := os.Open(name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	fi, err := f.Stat()
+ 	if err != nil {
++		f.Close()
++		return nil, err
++	}
++	r := new(ReadCloser)
++	if err := r.init(f, fi.Size); err != nil {
++		f.Close()
+ 		return nil, err
+ 	}
+-	return NewReader(f, fi.Size)
++	return r, nil
+ }
+ 
+ // NewReader returns a new Reader reading from r, which is assumed to
+ // have the given size in bytes.
+ func NewReader(r io.ReaderAt, size int64) (*Reader, os.Error) {
+-	end, err := readDirectoryEnd(r, size)
+-	if err != nil {
++	zr := new(Reader)
++	if err := zr.init(r, size); err != nil {
+ 		return nil, err
+ 	}
+-	z := &Reader{
+-		r:       r,
+-		File:    make([]*File, end.directoryRecords),
+-		Comment: end.comment,
++	return zr, nil
++}
++
++func (z *Reader) init(r io.ReaderAt, size int64) os.Error {
++	end, err := readDirectoryEnd(r, size)
++	if err != nil {
++		return err
+ 	}
++	z.r = r
++	z.File = make([]*File, end.directoryRecords)
++	z.Comment = end.comment
+ 	rs := io.NewSectionReader(r, 0, size)
+ 	if _, err = rs.Seek(int64(end.directoryOffset), os.SEEK_SET); err != nil {
+-		return nil, err
++		return err
+ 	}
+ 	buf := bufio.NewReader(rs)
+ 	for i := range z.File {
+ 		z.File[i] = &File{zipr: r, zipsize: size}
+ 		if err := readDirectoryHeader(z.File[i], buf); err != nil {
+-			return nil, err
++			return err
+ 		}
+ 	}
+-	return z, nil
++	return nil
++}
++
++// Close closes the Zip file, rendering it unusable for I/O.
++func (rc *ReadCloser) Close() os.Error {
++	return rc.f.Close()
+ }
+ 
+ // Open returns a ReadCloser that provides access to the File's contents.
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 72e8cccfd4..c72cd9a234 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -76,6 +76,12 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 		return
+ 	}
+ 
++	// bail if file is not zip
++	if err == FormatError {
++		return
++	}
++	defer z.Close()
++
+ 	// bail here if no Files expected to be tested
+ 	// (there may actually be files in the zip, but we don't care)
+ 	if zt.File == nil {

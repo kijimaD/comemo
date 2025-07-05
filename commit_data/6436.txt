@@ -7,6 +7,26 @@ Date:   Thu Sep 30 14:48:33 2010 -0400
     TBR=r
     CC=golang-dev
     https://golang.org/cl/2333043
-
+---
  src/libcgo/Makefile | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 365de0f8d0..62f4befaae 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -7,7 +7,13 @@ ifeq ($(GOOS),nacl)
+ # Nothing for NaCl
+ all clean install:
+ 	@true
+-	
++
++else ifeq ($(GOARCH),arm)
++
++# Nothing for NaCl
++all clean install:
++	@true
++
+ else
+ include ../Make.inc
+ 

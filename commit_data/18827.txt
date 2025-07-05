@@ -8,6 +8,19 @@ Date:   Tue Mar 11 11:50:56 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/74110043
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e50eccf526..de43aa0fe9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -315,6 +315,7 @@ Julien Schmidt <google@julienschmidt.com>
+ Kai Backman <kaib@golang.org>
+ Kamil Kisiel <kamil@kamilkisiel.net> <kamil.kisiel@gmail.com>
+ Katrina Owen <katrina.owen@gmail.com>
++Kay Zhu <kayzhu@google.com>
+ Kei Son <hey.calmdown@gmail.com>
+ Keith Randall <khr@golang.org>
+ Keith Rarick <kr@xph.us>

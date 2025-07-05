@@ -52,7 +52,45 @@ Date:   Tue Oct 29 11:50:40 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/18870043
-
+---
  src/pkg/os/file_unix.go    | 9 +++------
  src/pkg/os/os_unix_test.go | 4 ++--
  2 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 376e380bc9..ff1a597e70 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -165,14 +165,11 @@ func (f *File) readdir(n int) (fi []FileInfo, err error) {
+ 	fi = make([]FileInfo, len(names))
+ 	for i, filename := range names {
+ 		fip, lerr := lstat(dirname + filename)
+-		if lerr == nil {
+-			fi[i] = fip
+-		} else {
++		if lerr != nil {
+ 			fi[i] = &fileStat{name: filename}
+-			if err == nil {
+-				err = lerr
+-			}
++			continue
+ 		}
++		fi[i] = fip
+ 	}
+ 	return fi, err
+ }
+diff --git a/src/pkg/os/os_unix_test.go b/src/pkg/os/os_unix_test.go
+index 80d57aa422..b0fc0256de 100644
+--- a/src/pkg/os/os_unix_test.go
++++ b/src/pkg/os/os_unix_test.go
+@@ -92,8 +92,8 @@ func TestReaddirWithBadLstat(t *testing.T) {
+ 	defer func() { *LstatP = Lstat }()
+ 
+ 	dirs, err := handle.Readdir(-1)
+-	if err != ErrInvalid {
+-		t.Fatalf("Expected Readdir to return ErrInvalid, got %v", err)
++	if err != nil {
++		t.Fatalf("Expected Readdir to return no error, got %v", err)
+ 	}
+ 	foundfail := false
+ 	for _, dir := range dirs {

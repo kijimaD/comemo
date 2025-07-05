@@ -14,6 +14,27 @@ Date:   Thu Aug 8 21:06:06 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12691043
-
+---
  src/cmd/cc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index b46c368b58..d1aa2e483b 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -118,6 +118,7 @@ main(int argc, char *argv[])
+ {
+ 	int c;
+ 
++	quotefmtinstall(); // before cinit, which overrides %Q
+ 	ensuresymb(NSYMB);
+ 	memset(debug, 0, sizeof(debug));
+ 	tinit();
+@@ -126,7 +127,6 @@ main(int argc, char *argv[])
+ 	arginit();
+ 	
+ 	fmtstrinit(&pragcgobuf);
+-	quotefmtinstall();
+ 
+ 	tufield = simplet((1L<<tfield->etype) | BUNSIGNED);
+ 	ndef = 0;

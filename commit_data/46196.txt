@@ -14,7 +14,45 @@ Date:   Fri Dec 11 16:24:26 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/call.go                  |  4 ++++
  src/go/types/fixedbugs/issue43124.src | 16 ++++++++++++++++
  2 files changed, 20 insertions(+)
+
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 992598d08c..6765b17bf3 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -33,6 +33,10 @@ func (check *Checker) call(x *operand, e *ast.CallExpr) exprKind {
+ 		case 1:
+ 			check.expr(x, e.Args[0])
+ 			if x.mode != invalid {
++				if e.Ellipsis.IsValid() {
++					check.errorf(e.Args[0], _BadDotDotDotSyntax, "invalid use of ... in conversion to %s", T)
++					break
++				}
+ 				check.conversion(x, T)
+ 			}
+ 		default:
+diff --git a/src/go/types/fixedbugs/issue43124.src b/src/go/types/fixedbugs/issue43124.src
+new file mode 100644
+index 0000000000..f429f74a74
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue43124.src
+@@ -0,0 +1,16 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var _ = int(0 /* ERROR invalid use of \.\.\. in conversion to int */ ...)
++
++// test case from issue
++
++type M []string
++
++var (
++	x = []string{"a", "b"}
++	_ = M(x /* ERROR invalid use of \.\.\. in conversion to M */ ...)
++)

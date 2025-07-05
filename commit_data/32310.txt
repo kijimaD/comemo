@@ -12,6 +12,40 @@ Date:   Tue Apr 18 06:57:43 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mapspeed_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/runtime/mapspeed_test.go b/src/runtime/mapspeed_test.go
+index ac93119d77..aec0c51f3f 100644
+--- a/src/runtime/mapspeed_test.go
++++ b/src/runtime/mapspeed_test.go
+@@ -5,6 +5,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+@@ -308,6 +309,20 @@ func BenchmarkSmallKeyMap(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkMapPopulate(b *testing.B) {
++	for size := 1; size < 1000000; size *= 10 {
++		b.Run(strconv.Itoa(size), func(b *testing.B) {
++			b.ReportAllocs()
++			for i := 0; i < b.N; i++ {
++				m := make(map[int]bool)
++				for j := 0; j < size; j++ {
++					m[j] = true
++				}
++			}
++		})
++	}
++}
++
+ type ComplexAlgKey struct {
+ 	a, b, c int64
+ 	_       int

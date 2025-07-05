@@ -8,10 +8,84 @@ Date:   Fri Jun 15 10:45:04 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/120560
     Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js             |  5 +++++
  src/cmd/vet/all/whitelist/wasm.txt |  1 +
  src/syscall/js/js.go               |  7 +++++++
  src/syscall/js/js_js.s             |  4 ++++
  src/syscall/js/js_test.go          | 10 ++++++++++
  5 files changed, 27 insertions(+)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 1aa727ae4d..4c29109766 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -286,6 +286,11 @@
+ 						loadSlice(sp + 16).set(str);
+ 					},
+ 
++					// func valueInstanceOf(v ref, t ref) bool
++					"syscall/js.valueInstanceOf": (sp) => {
++						mem().setUint8(sp + 16, loadValue(sp + 8) instanceof loadValue(sp + 12));
++					},
++
+ 					"debug": (value) => {
+ 						console.log(value);
+ 					},
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+index ade759026d..2b59e5a700 100644
+--- a/src/cmd/vet/all/whitelist/wasm.txt
++++ b/src/cmd/vet/all/whitelist/wasm.txt
+@@ -31,3 +31,4 @@ syscall/js/js_js.s: [wasm] valueInt: RET without writing to 8-byte ret+8(FP)
+ syscall/js/js_js.s: [wasm] valueBool: RET without writing to 1-byte ret+8(FP)
+ syscall/js/js_js.s: [wasm] valueLength: RET without writing to 8-byte ret+8(FP)
+ syscall/js/js_js.s: [wasm] valuePrepareString: RET without writing to 4-byte ret+8(FP)
++syscall/js/js_js.s: [wasm] valueInstanceOf: RET without writing to 1-byte ret+8(FP)
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 34d70d40cb..cbd0730c64 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -227,3 +227,10 @@ func (v Value) String() string {
+ func valuePrepareString(v ref) (ref, int)
+ 
+ func valueLoadString(v ref, b []byte)
++
++// InstanceOf reports whether v is an instance of type t according to JavaScript's instanceof operator.
++func (v Value) InstanceOf(t Value) bool {
++	return valueInstanceOf(v.ref, t.ref)
++}
++
++func valueInstanceOf(v ref, t ref) bool
+diff --git a/src/syscall/js/js_js.s b/src/syscall/js/js_js.s
+index d1ee4654a7..cb90d88a6a 100644
+--- a/src/syscall/js/js_js.s
++++ b/src/syscall/js/js_js.s
+@@ -71,3 +71,7 @@ TEXT ·valuePrepareString(SB), NOSPLIT, $0
+ TEXT ·valueLoadString(SB), NOSPLIT, $0
+   CallImport
+   RET
++
++TEXT ·valueInstanceOf(SB), NOSPLIT, $0
++  CallImport
++  RET
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 7d5b1a238a..53d21a3f4f 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -146,6 +146,16 @@ func TestNew(t *testing.T) {
+ 	}
+ }
+ 
++func TestInstanceOf(t *testing.T) {
++	someArray := js.Global.Get("Array").New()
++	if got, want := someArray.InstanceOf(js.Global.Get("Array")), true; got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++	if got, want := someArray.InstanceOf(js.Global.Get("Function")), false; got != want {
++		t.Errorf("got %#v, want %#v", got, want)
++	}
++}
++
+ func TestCallback(t *testing.T) {
+ 	c := make(chan struct{})
+ 	cb := js.NewCallback(func(args []js.Value) {

@@ -16,6 +16,20 @@ Date:   Mon Jun 6 05:10:38 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/strconv/atof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index c26c34208c..8fc90425f6 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -688,7 +688,7 @@ func atof64(s string) (f float64, n int, err error) {
+ // away from the largest floating point number of the given size,
+ // ParseFloat returns f = ±Inf, err.Err = ErrRange.
+ //
+-// ParseFloat recognizes the strings "NaN", and the (possibly signed) strings "Inf" and "Infinity"
++// ParseFloat recognizes the string "NaN", and the (possibly signed) strings "Inf" and "Infinity"
+ // as their respective special floating point values. It ignores case when matching.
+ //
+ // [floating-point literals]: https://go.dev/ref/spec#Floating-point_literals

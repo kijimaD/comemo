@@ -13,6 +13,43 @@ Date:   Fri Dec 17 08:26:06 2021 +0000
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/tls_arm64.h | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/src/runtime/tls_arm64.h b/src/runtime/tls_arm64.h
+index fe5e4cee12..3aa8c63d39 100644
+--- a/src/runtime/tls_arm64.h
++++ b/src/runtime/tls_arm64.h
+@@ -10,7 +10,6 @@
+ #define TLS_linux
+ #endif
+ #ifdef TLS_linux
+-#define TPIDR TPIDR_EL0
+ #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
+ #endif
+ 
+@@ -21,23 +20,19 @@
+ #define TLS_darwin
+ #endif
+ #ifdef TLS_darwin
+-#define TPIDR TPIDRRO_EL0
+ #define TLSG_IS_VARIABLE
+ #define MRS_TPIDR_R0 WORD $0xd53bd060 // MRS TPIDRRO_EL0, R0
+ #endif
+ 
+ #ifdef GOOS_freebsd
+-#define TPIDR TPIDR_EL0
+ #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
+ #endif
+ 
+ #ifdef GOOS_netbsd
+-#define TPIDR TPIDRRO_EL0
+ #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDRRO_EL0, R0
+ #endif
+ 
+ #ifdef GOOS_openbsd
+-#define TPIDR TPIDR_EL0
+ #define MRS_TPIDR_R0 WORD $0xd53bd040 // MRS TPIDR_EL0, R0
+ #endif
+ 

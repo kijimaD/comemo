@@ -19,6 +19,20 @@ Date:   Sat Mar 30 10:32:20 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Valentin Deleplace <deleplace@google.com>
-
+---
  src/slices/slices.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 271e8cb325..a5734a17bf 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -261,7 +261,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 	if j == len(s) {
+ 		s2 := append(s[:i], v...)
+ 		if len(s2) < len(s) {
+-			clear(s[len(s2):len(s)]) // zero/nil out the obsolete elements, for GC
++			clear(s[len(s2):]) // zero/nil out the obsolete elements, for GC
+ 		}
+ 		return s2
+ 	}

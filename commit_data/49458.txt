@@ -18,7 +18,38 @@ Date:   Fri Aug 20 15:20:10 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/internal/buildid/buildid_test.go | 8 ++++++++
  src/cmd/internal/buildid/rewrite.go      | 3 +++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/internal/buildid/buildid_test.go b/src/cmd/internal/buildid/buildid_test.go
+index e832f9987e..4895a49e11 100644
+--- a/src/cmd/internal/buildid/buildid_test.go
++++ b/src/cmd/internal/buildid/buildid_test.go
+@@ -177,3 +177,11 @@ func TestExcludedReader(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestEmptyID(t *testing.T) {
++	r := strings.NewReader("aha!")
++	matches, hash, err := FindAndHash(r, "", 1000)
++	if matches != nil || hash != ([32]byte{}) || err == nil || !strings.Contains(err.Error(), "no id") {
++		t.Errorf("FindAndHash: want nil, [32]byte{}, no id specified, got %v, %v, %v", matches, hash, err)
++	}
++}
+diff --git a/src/cmd/internal/buildid/rewrite.go b/src/cmd/internal/buildid/rewrite.go
+index a7928959c4..8814950db0 100644
+--- a/src/cmd/internal/buildid/rewrite.go
++++ b/src/cmd/internal/buildid/rewrite.go
+@@ -22,6 +22,9 @@ func FindAndHash(r io.Reader, id string, bufSize int) (matches []int64, hash [32
+ 	if bufSize == 0 {
+ 		bufSize = 31 * 1024 // bufSize+little will likely fit in 32 kB
+ 	}
++	if len(id) == 0 {
++		return nil, [32]byte{}, fmt.Errorf("buildid.FindAndHash: no id specified")
++	}
+ 	if len(id) > bufSize {
+ 		return nil, [32]byte{}, fmt.Errorf("buildid.FindAndHash: buffer too small")
+ 	}

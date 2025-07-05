@@ -9,8 +9,56 @@ Date:   Mon Oct 5 16:33:53 2015 -0700
     Change-Id: Ice07eff862caf715f722dec7829006bf71715b07
     Reviewed-on: https://go-review.googlesource.com/15432
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/dcl.go | 2 +-
  src/cmd/compile/internal/gc/go.go  | 2 +-
  src/cmd/compile/internal/gc/obj.go | 5 +----
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 83cc3e4e20..771fe93d2a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1499,5 +1499,5 @@ func makefuncsym(s *Sym) {
+ 	s1 := funcsym(s)
+ 	s1.Def = newfuncname(s1)
+ 	s1.Def.Func.Shortname = newname(s)
+-	funcsyms = list(funcsyms, s1.Def)
++	funcsyms = append(funcsyms, s1.Def)
+ }
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 777c560bc1..f250c95fb9 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -589,7 +589,7 @@ var exportlist []*Node
+ 
+ var importlist []*Node // imported functions and methods with inlinable bodies
+ 
+-var funcsyms *NodeList
++var funcsyms []*Node
+ 
+ var dclcontext uint8 // PEXTERN/PAUTO
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 699ccdea05..9d35dfd85c 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -104,8 +104,6 @@ func dumpobj() {
+ }
+ 
+ func dumpglobls() {
+-	var n *Node
+-
+ 	// add globals
+ 	for _, n := range externdcl {
+ 		if n.Op != ONAME {
+@@ -125,8 +123,7 @@ func dumpglobls() {
+ 		ggloblnod(n)
+ 	}
+ 
+-	for l := funcsyms; l != nil; l = l.Next {
+-		n = l.N
++	for _, n := range funcsyms {
+ 		dsymptr(n.Sym, 0, n.Sym.Def.Func.Shortname.Sym, 0)
+ 		ggloblsym(n.Sym, int32(Widthptr), obj.DUPOK|obj.RODATA)
+ 	}

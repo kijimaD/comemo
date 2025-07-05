@@ -17,6 +17,20 @@ Date:   Wed Apr 21 12:24:27 2021 +0200
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/syscall/exec_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 1f38de22b2..64a5b61fe5 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -301,7 +301,7 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ 	} else if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+ 		// Similarly on Darwin.
+ 		err1 = execveDarwin(argv0p, &argvp[0], &envvp[0])
+-	} else if runtime.GOOS == "openbsd" && runtime.GOARCH == "amd64" {
++	} else if runtime.GOOS == "openbsd" && (runtime.GOARCH == "amd64" || runtime.GOARCH == "arm64") {
+ 		// Similarly on OpenBSD.
+ 		err1 = execveOpenBSD(argv0p, &argvp[0], &envvp[0])
+ 	} else {

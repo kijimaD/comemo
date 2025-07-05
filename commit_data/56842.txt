@@ -16,7 +16,7 @@ Date:   Mon May 22 12:34:17 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/gotoolchain.go                        | 14 ++++---
  src/cmd/go/internal/gover/toolchain.go           | 48 +++++++++++++++++++++++-
  src/cmd/go/internal/modfetch/coderepo.go         | 12 ++++++
@@ -29,3 +29,345 @@ Date:   Mon May 22 12:34:17 2023 -0400
  src/cmd/go/testdata/script/mod_get_future.txt    | 12 ++++++
  src/cmd/go/testdata/script/mod_go_version.txt    |  9 +++--
  11 files changed, 130 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index 850777a854..26d80db246 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -78,6 +78,7 @@ func switchGoToolchain() {
+ 		// and diagnose the problem.
+ 		return
+ 	}
++	gover.Startup.GOTOOLCHAIN = gotoolchain
+ 
+ 	var minToolchain, minVers string
+ 	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
+@@ -111,7 +112,7 @@ func switchGoToolchain() {
+ 				gotoolchain = "go" + goVers
+ 			}
+ 		} else {
+-			goVers, toolchain := modGoToolchain()
++			file, goVers, toolchain := modGoToolchain()
+ 			if toolchain == "local" {
+ 				// Local means always use the default local toolchain,
+ 				// which is already set, so nothing to do here.
+@@ -136,6 +137,9 @@ func switchGoToolchain() {
+ 					gotoolchain = "go" + goVers
+ 				}
+ 			}
++			gover.Startup.AutoFile = file
++			gover.Startup.AutoGoVersion = goVers
++			gover.Startup.AutoToolchain = toolchain
+ 		}
+ 	}
+ 
+@@ -280,9 +284,9 @@ func execGoToolchain(gotoolchain, dir, exe string) {
+ // modGoToolchain finds the enclosing go.work or go.mod file
+ // and returns the go version and toolchain lines from the file.
+ // The toolchain line overrides the version line
+-func modGoToolchain() (goVers, toolchain string) {
++func modGoToolchain() (file, goVers, toolchain string) {
+ 	wd := base.UncachedCwd()
+-	file := modload.FindGoWork(wd)
++	file = modload.FindGoWork(wd)
+ 	// $GOWORK can be set to a file that does not yet exist, if we are running 'go work init'.
+ 	// Do not try to load the file in that case
+ 	if _, err := os.Stat(file); err != nil {
+@@ -292,14 +296,14 @@ func modGoToolchain() (goVers, toolchain string) {
+ 		file = modload.FindGoMod(wd)
+ 	}
+ 	if file == "" {
+-		return "", ""
++		return "", "", ""
+ 	}
+ 
+ 	data, err := os.ReadFile(file)
+ 	if err != nil {
+ 		base.Fatalf("%v", err)
+ 	}
+-	return gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
++	return file, gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
+ }
+ 
+ // goInstallVersion looks at the command line to see if it is go install m@v or go run m@v.
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index ed1572ab59..bf5a64d056 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -4,7 +4,12 @@
+ 
+ package gover
+ 
+-import "strings"
++import (
++	"cmd/go/internal/base"
++	"errors"
++	"fmt"
++	"strings"
++)
+ 
+ // ToolchainVersion returns the Go version for the named toolchain,
+ // derived from the name itself (not by running the toolchain).
+@@ -23,3 +28,44 @@ func ToolchainVersion(name string) string {
+ 	}
+ 	return v
+ }
++
++// Startup records the information that went into the startup-time version switch.
++// It is initialized by switchGoToolchain.
++var Startup struct {
++	GOTOOLCHAIN   string // $GOTOOLCHAIN setting
++	AutoFile      string // go.mod or go.work file consulted
++	AutoGoVersion string // go line found in file
++	AutoToolchain string // toolchain line found in file
++}
++
++// A TooNewError explains that a module is too new for this version of Go.
++type TooNewError struct {
++	What      string
++	GoVersion string
++}
++
++func (e *TooNewError) Error() string {
++	var explain string
++	if Startup.GOTOOLCHAIN != "" && Startup.GOTOOLCHAIN != "auto" {
++		explain = "; GOTOOLCHAIN=" + Startup.GOTOOLCHAIN
++	}
++	if Startup.AutoFile != "" && (Startup.AutoGoVersion != "" || Startup.AutoToolchain != "") {
++		explain += fmt.Sprintf("; %s sets ", base.ShortPath(Startup.AutoFile))
++		if Startup.AutoGoVersion != "" {
++			explain += "go " + Startup.AutoGoVersion
++			if Startup.AutoToolchain != "" {
++				explain += ", "
++			}
++		}
++		if Startup.AutoToolchain != "" {
++			explain += "toolchain " + Startup.AutoToolchain
++		}
++	}
++	return fmt.Sprintf("%v requires go %v (running go %v%v)", e.What, e.GoVersion, Local(), explain)
++}
++
++var ErrTooNew = errors.New("module too new")
++
++func (e *TooNewError) Is(err error) bool {
++	return err == ErrTooNew
++}
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 85e791a435..50f4bb2b37 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -14,10 +14,12 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path"
++	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 	"time"
+ 
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch/codehost"
+ 
+ 	"golang.org/x/mod/modfile"
+@@ -1046,6 +1048,16 @@ func (r *codeRepo) Zip(ctx context.Context, dst io.Writer, version string) error
+ 	if err != nil {
+ 		return err
+ 	}
++
++	if gomod, err := r.code.ReadFile(ctx, rev, filepath.Join(subdir, "go.mod"), codehost.MaxGoMod); err == nil {
++		goVers := gover.GoModLookup(gomod, "go")
++		if gover.Compare(goVers, gover.Local()) > 0 {
++			return &gover.TooNewError{What: r.ModulePath() + "@" + version, GoVersion: goVers}
++		}
++	} else if !errors.Is(err, fs.ErrNotExist) {
++		return err
++	}
++
+ 	dl, err := r.code.ReadZip(ctx, rev, subdir, codehost.MaxZipFile)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index b872c9320f..0eeb3bf190 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -57,6 +57,17 @@ func Download(ctx context.Context, mod module.Version) (dir string, err error) {
+ 			return "", err
+ 		}
+ 		checkMod(ctx, mod)
++
++		// If go.mod exists (not an old legacy module), check version is not too new.
++		if data, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil {
++			goVersion := gover.GoModLookup(data, "go")
++			if gover.Compare(goVersion, gover.Local()) > 0 {
++				return "", &gover.TooNewError{What: mod.String(), GoVersion: goVersion}
++			}
++		} else if !errors.Is(err, fs.ErrNotExist) {
++			return "", err
++		}
++
+ 		return dir, nil
+ 	})
+ }
+@@ -554,7 +565,7 @@ func HaveSum(mod module.Version) bool {
+ 	return false
+ }
+ 
+-// checkMod checks the given module's checksum.
++// checkMod checks the given module's checksum and Go version.
+ func checkMod(ctx context.Context, mod module.Version) {
+ 	// Do the file I/O before acquiring the go.sum lock.
+ 	ziphash, err := CachePath(ctx, mod, "ziphash")
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 240a9d29e0..58747e7129 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -630,7 +630,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+ 		return nil, err
+ 	}
+ 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+-		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(path), f.Go.Version, gover.Local())
++		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
+ 	}
+ 	return f, nil
+ }
+@@ -1498,6 +1498,12 @@ func commitRequirements(ctx context.Context) (err error) {
+ 	if modFile.Go == nil || modFile.Go.Version == "" {
+ 		modFile.AddGoStmt(modFileGoVersion(modFile))
+ 	}
++
++	if gover.Compare(modFile.Go.Version, gover.Local()) > 0 {
++		// TODO: Reinvoke the newer toolchain if GOTOOLCHAIN=auto.
++		base.Fatalf("go: %v", &gover.TooNewError{What: "updating go.mod", GoVersion: modFile.Go.Version})
++	}
++
+ 	if gover.Compare(modFileGoVersion(modFile), separateIndirectVersion) < 0 {
+ 		modFile.SetRequire(list)
+ 	} else {
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 02d921201b..cb1101630b 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -75,7 +75,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
+ 		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
+ 	}
+ 	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
+-		base.Fatalf("go: %s requires go %v (running go %v)", base.ShortPath(gomod), f.Go.Version, gover.Local())
++		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version})
+ 	}
+ 	if f.Module == nil {
+ 		// No module declaration. Must add module path.
+@@ -717,6 +717,11 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 				summary.require = append(summary.require, req.Mod)
+ 			}
+ 		}
++		if summary.goVersion != "" && gover.Compare(summary.goVersion, "1.21") >= 0 {
++			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
++				return nil, &gover.TooNewError{What: summary.module.String(), GoVersion: summary.goVersion}
++			}
++		}
+ 		if len(f.Retract) > 0 {
+ 			summary.retract = make([]retraction, 0, len(f.Retract))
+ 			for _, ret := range f.Retract {
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 2fb834b866..4bc0dd5725 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -112,7 +112,7 @@ func readVendorList(mainModule module.Version) {
+ 						meta.GoVersion = goVersion
+ 						rawGoVersion.Store(mod, meta.GoVersion)
+ 						if gover.Compare(goVersion, gover.Local()) > 0 {
+-							base.Fatalf("go: %s in %s requires go %v (running go %v)", mod.Path, base.ShortPath(vendorFile), goVersion, gover.Local())
++							base.Fatalf("go: %v", &gover.TooNewError{What: mod.Path + " in " + base.ShortPath(vendorFile), GoVersion: goVersion})
+ 						}
+ 					}
+ 					// All other tokens are reserved for future use.
+diff --git a/src/cmd/go/testdata/mod/rsc.io_future_v1.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_future_v1.0.0.txt
+new file mode 100644
+index 0000000000..d3826a3d43
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_future_v1.0.0.txt
+@@ -0,0 +1,16 @@
++rsc.io/future v1.0.0
++written by hand
++
++-- .mod --
++module rsc.io/future
++go 1.999
++-- .info --
++{"Version":"v1.0.0"}
++-- main.go --
++package main
++
++func main() {
++}
++-- go.mod --
++module rsc.io/future
++go 1.999
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+index b29dcc6520..97e6d5fd1b 100644
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ b/src/cmd/go/testdata/script/gotoolchain.txt
+@@ -52,13 +52,13 @@ stdout go1.999
+ # toolchain local in go.mod
+ cp go1999toolchainlocal go.mod
+ ! go build
+-stderr '^go: go.mod requires go 1.999 \(running go 1\.100\)$'
++stderr '^go: go.mod requires go 1.999 \(running go 1.100; go.mod sets go 1.999, toolchain local\)$'
+ 
+ # toolchain local in go.work
+ cp empty go.mod
+ cp go1999toolchainlocal go.work
+ ! go build
+-stderr '^go: go.work requires go 1.999 \(running go 1\.100\)$'
++stderr '^go: go.work requires go 1.999 \(running go 1.100; go.work sets go 1.999, toolchain local\)$'
+ rm go.work
+ 
+ # toolchain line in go.work
+diff --git a/src/cmd/go/testdata/script/mod_get_future.txt b/src/cmd/go/testdata/script/mod_get_future.txt
+new file mode 100644
+index 0000000000..997e5cb288
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_future.txt
+@@ -0,0 +1,12 @@
++env TESTGO_VERSION=go1.21
++! go mod download rsc.io/future@v1.0.0
++stderr '^go: rsc.io/future@v1.0.0 requires go 1.999 \(running go 1.21; go.mod sets go 1.21\)$'
++
++-- go.mod --
++module m
++go 1.21
++
++-- x.go --
++package p
++
++import "rsc.io/future/foo"
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index 005c43ca6e..e78ef3c139 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -1,10 +1,13 @@
+ # Test support for declaring needed Go version in module.
+ 
+ env GO111MODULE=on
++env TESTGO_VERSION=go1.21
+ 
+-go list
++# TODO(rsc): go list prints the error twice. Why?
++! go list
++stderr '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
+ ! go build sub
+-stderr '^sub: module requires Go 1.999 or later$'
++stderr '^go: sub@v1.0.0: sub requires go 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
+ 
+ -- go.mod --
+ module m
+@@ -20,7 +23,7 @@ replace (
+ package x
+ 
+ -- sub/go.mod --
+-module m
++module sub
+ go 1.999
+ 
+ -- sub/x.go --

@@ -30,7 +30,7 @@ Date:   Mon Dec 19 17:18:45 2016 -0800
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/reader.go                    |  49 ++-------------------------
  src/archive/zip/reader_test.go               |  31 ++++++-----------
  src/archive/zip/struct.go                    |   3 --
@@ -39,3 +39,394 @@ Date:   Mon Dec 19 17:18:45 2016 -0800
  src/archive/zip/writer_test.go               |  27 ---------------
  src/archive/zip/zip_test.go                  |  39 ---------------------
  7 files changed, 12 insertions(+), 154 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 9bbc9a9745..f6c3ead3be 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -13,7 +13,6 @@ import (
+ 	"hash/crc32"
+ 	"io"
+ 	"os"
+-	"time"
+ )
+ 
+ var (
+@@ -290,16 +289,13 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 		// Other zip authors might not even follow the basic format,
+ 		// and we'll just ignore the Extra content in that case.
+ 		b := readBuf(f.Extra)
+-
+-	Extras:
+ 		for len(b) >= 4 { // need at least tag and size
+ 			tag := b.uint16()
+ 			size := b.uint16()
+ 			if int(size) > len(b) {
+ 				break
+ 			}
+-			switch tag {
+-			case zip64ExtraId:
++			if tag == zip64ExtraId {
+ 				// update directory values from the zip64 extra block.
+ 				// They should only be consulted if the sizes read earlier
+ 				// are maxed out.
+@@ -327,42 +323,7 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 					}
+ 					f.headerOffset = int64(eb.uint64())
+ 				}
+-				break Extras
+-
+-			case ntfsExtraId:
+-				if size == 32 {
+-					eb := readBuf(b[:size])
+-					eb.uint32() // reserved
+-					eb.uint16() // tag1
+-					size1 := eb.uint16()
+-					if size1 == 24 {
+-						sub := readBuf(eb[:size1])
+-						lo := sub.uint32()
+-						hi := sub.uint32()
+-						tick := (uint64(uint64(lo)|uint64(hi)<<32) - 116444736000000000) / 10000000
+-						f.SetModTime(time.Unix(int64(tick), 0))
+-					}
+-				}
+-				break Extras
+-
+-			case unixExtraId:
+-				if size >= 12 {
+-					eb := readBuf(b[:size])
+-					eb.uint32()          // AcTime
+-					epoch := eb.uint32() // ModTime
+-					f.SetModTime(time.Unix(int64(epoch), 0))
+-					break Extras
+-				}
+-			case exttsExtraId:
+-				if size >= 3 {
+-					eb := readBuf(b[:size])
+-					flags := eb.uint8()  // Flags
+-					epoch := eb.uint32() // AcTime/ModTime/CrTime
+-					if flags&1 != 0 {
+-						f.SetModTime(time.Unix(int64(epoch), 0))
+-					}
+-					break Extras
+-				}
++				break
+ 			}
+ 			b = b[size:]
+ 		}
+@@ -547,12 +508,6 @@ func findSignatureInBlock(b []byte) int {
+ 
+ type readBuf []byte
+ 
+-func (b *readBuf) uint8() uint8 {
+-	v := uint8((*b)[0])
+-	*b = (*b)[1:]
+-	return v
+-}
+-
+ func (b *readBuf) uint16() uint16 {
+ 	v := binary.LittleEndian.Uint16(*b)
+ 	*b = (*b)[2:]
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index 576a1697a4..dfaae78436 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -65,13 +65,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "test.txt",
+ 				Content: []byte("This is a test text file.\n"),
+-				Mtime:   "09-05-10 02:12:00",
++				Mtime:   "09-05-10 12:12:02",
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:  "gophercolor16x16.png",
+ 				File:  "gophercolor16x16.png",
+-				Mtime: "09-05-10 05:52:58",
++				Mtime: "09-05-10 15:52:58",
+ 				Mode:  0644,
+ 			},
+ 		},
+@@ -83,13 +83,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "test.txt",
+ 				Content: []byte("This is a test text file.\n"),
+-				Mtime:   "09-05-10 02:12:00",
++				Mtime:   "09-05-10 12:12:02",
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:  "gophercolor16x16.png",
+ 				File:  "gophercolor16x16.png",
+-				Mtime: "09-05-10 05:52:58",
++				Mtime: "09-05-10 15:52:58",
+ 				Mode:  0644,
+ 			},
+ 		},
+@@ -144,17 +144,6 @@ var tests = []ZipTest{
+ 		Name: "unix.zip",
+ 		File: crossPlatform,
+ 	},
+-	{
+-		Name: "extra-timestamp.zip",
+-		File: []ZipTestFile{
+-			{
+-				Name:    "hello.txt",
+-				Content: []byte(""),
+-				Mtime:   "01-06-16 12:25:56",
+-				Mode:    0666,
+-			},
+-		},
+-	},
+ 	{
+ 		// created by Go, before we wrote the "optional" data
+ 		// descriptor signatures (which are required by OS X)
+@@ -163,13 +152,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "foo.txt",
+ 				Content: []byte("foo\n"),
+-				Mtime:   "03-09-12 00:59:10",
++				Mtime:   "03-08-12 16:59:10",
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-09-12 00:59:12",
++				Mtime:   "03-08-12 16:59:12",
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -216,13 +205,13 @@ var tests = []ZipTest{
+ 			{
+ 				Name:    "foo.txt",
+ 				Content: []byte("foo\n"),
+-				Mtime:   "03-09-12 00:59:10",
++				Mtime:   "03-08-12 16:59:10",
+ 				Mode:    0644,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-09-12 00:59:12",
++				Mtime:   "03-08-12 16:59:12",
+ 				Mode:    0644,
+ 			},
+ 		},
+@@ -236,14 +225,14 @@ var tests = []ZipTest{
+ 			{
+ 				Name:       "foo.txt",
+ 				Content:    []byte("foo\n"),
+-				Mtime:      "03-09-12 00:59:10",
++				Mtime:      "03-08-12 16:59:10",
+ 				Mode:       0644,
+ 				ContentErr: ErrChecksum,
+ 			},
+ 			{
+ 				Name:    "bar.txt",
+ 				Content: []byte("bar\n"),
+-				Mtime:   "03-09-12 00:59:12",
++				Mtime:   "03-08-12 16:59:12",
+ 				Mode:    0644,
+ 			},
+ 		},
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 287571ed3a..e92d02f8a2 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -63,9 +63,6 @@ const (
+ 
+ 	// extra header id's
+ 	zip64ExtraId = 0x0001 // zip64 Extended Information Extra Field
+-	ntfsExtraId  = 0x000a // NTFS Extra Field
+-	unixExtraId  = 0x000d // UNIX Extra Field
+-	exttsExtraId = 0x5455 // Extended Timestamp Extra Field
+ )
+ 
+ // FileHeader describes a file within a zip file.
+diff --git a/src/archive/zip/testdata/extra-timestamp.zip b/src/archive/zip/testdata/extra-timestamp.zip
+deleted file mode 100644
+index 819e22cb68..0000000000
+Binary files a/src/archive/zip/testdata/extra-timestamp.zip and /dev/null differ
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index ea4559e698..8940e25560 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -103,18 +103,6 @@ func (w *Writer) Close() error {
+ 			b.uint32(h.UncompressedSize)
+ 		}
+ 
+-		// use Extended Timestamp Extra Field.
+-		if h.ModifiedTime != 0 || h.ModifiedDate != 0 {
+-			mt := uint32(h.ModTime().Unix())
+-			var mbuf [9]byte // 2x uint16 + uint8 + uint32
+-			eb := writeBuf(mbuf[:])
+-			eb.uint16(exttsExtraId)
+-			eb.uint16(5)  // size = uint8 + uint32
+-			eb.uint8(1)   // flags = modtime
+-			eb.uint32(mt) // ModTime
+-			h.Extra = append(h.Extra, mbuf[:]...)
+-		}
+-
+ 		b.uint16(uint16(len(h.Name)))
+ 		b.uint16(uint16(len(h.Extra)))
+ 		b.uint16(uint16(len(h.Comment)))
+@@ -397,11 +385,6 @@ func (w nopCloser) Close() error {
+ 
+ type writeBuf []byte
+ 
+-func (b *writeBuf) uint8(v uint8) {
+-	(*b)[0] = v
+-	*b = (*b)[1:]
+-}
+-
+ func (b *writeBuf) uint16(v uint16) {
+ 	binary.LittleEndian.PutUint16(*b, v)
+ 	*b = (*b)[2:]
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index f20daa0e3d..86841c755f 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"math/rand"
+ 	"os"
+ 	"testing"
+-	"time"
+ )
+ 
+ // TODO(adg): a more sophisticated test suite
+@@ -21,7 +20,6 @@ type WriteTest struct {
+ 	Data   []byte
+ 	Method uint16
+ 	Mode   os.FileMode
+-	Mtime  string
+ }
+ 
+ var writeTests = []WriteTest{
+@@ -30,35 +28,30 @@ var writeTests = []WriteTest{
+ 		Data:   []byte("Rabbits, guinea pigs, gophers, marsupial rats, and quolls."),
+ 		Method: Store,
+ 		Mode:   0666,
+-		Mtime:  "02-01-08 00:01:02",
+ 	},
+ 	{
+ 		Name:   "bar",
+ 		Data:   nil, // large data set in the test
+ 		Method: Deflate,
+ 		Mode:   0644,
+-		Mtime:  "03-02-08 01:02:03",
+ 	},
+ 	{
+ 		Name:   "setuid",
+ 		Data:   []byte("setuid file"),
+ 		Method: Deflate,
+ 		Mode:   0755 | os.ModeSetuid,
+-		Mtime:  "04-03-08 02:03:04",
+ 	},
+ 	{
+ 		Name:   "setgid",
+ 		Data:   []byte("setgid file"),
+ 		Method: Deflate,
+ 		Mode:   0755 | os.ModeSetgid,
+-		Mtime:  "05-04-08 03:04:04",
+ 	},
+ 	{
+ 		Name:   "symlink",
+ 		Data:   []byte("../link/target"),
+ 		Method: Deflate,
+ 		Mode:   0755 | os.ModeSymlink,
+-		Mtime:  "03-02-08 11:22:33",
+ 	},
+ }
+ 
+@@ -155,11 +148,6 @@ func testCreate(t *testing.T, w *Writer, wt *WriteTest) {
+ 	if wt.Mode != 0 {
+ 		header.SetMode(wt.Mode)
+ 	}
+-	mtime, err := time.Parse("01-02-06 15:04:05", wt.Mtime)
+-	if err != nil {
+-		t.Fatal("time.Parse:", err)
+-	}
+-	header.SetModTime(mtime)
+ 	f, err := w.CreateHeader(header)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -190,21 +178,6 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+ 	if !bytes.Equal(b, wt.Data) {
+ 		t.Errorf("File contents %q, want %q", b, wt.Data)
+ 	}
+-
+-	mtime, err := time.Parse("01-02-06 15:04:05", wt.Mtime)
+-	if err != nil {
+-		t.Fatal("time.Parse:", err)
+-	}
+-
+-	diff := mtime.Sub(f.ModTime())
+-	if diff < 0 {
+-		diff = -diff
+-	}
+-
+-	// allow several time span
+-	if diff > 5*time.Second {
+-		t.Errorf("File modtime %v, want %v", mtime, f.ModTime())
+-	}
+ }
+ 
+ func BenchmarkCompressedZipGarbage(b *testing.B) {
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 8801e90413..57edb2cabf 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -15,7 +15,6 @@ import (
+ 	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+-	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -114,44 +113,6 @@ func TestFileHeaderRoundTrip64(t *testing.T) {
+ 	testHeaderRoundTrip(fh, uint32max, fh.UncompressedSize64, t)
+ }
+ 
+-func TestZeroFileRoundTrip(t *testing.T) {
+-	var b bytes.Buffer
+-	w := NewWriter(&b)
+-	if _, err := w.Create(""); err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := w.Close(); err != nil {
+-		t.Fatal(err)
+-	}
+-	r, err := NewReader(bytes.NewReader(b.Bytes()), int64(b.Len()))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	// Verify that fields that should reasonably be the zero value stays
+-	// as the zero value.
+-	var want FileHeader
+-	if len(r.File) != 1 {
+-		t.Fatalf("len(r.File) = %d, want 1", len(r.File))
+-	}
+-	fh := r.File[0].FileHeader
+-	got := FileHeader{
+-		Name:               fh.Name,
+-		ModifiedTime:       fh.ModifiedTime,
+-		ModifiedDate:       fh.ModifiedDate,
+-		UncompressedSize:   fh.UncompressedSize,
+-		UncompressedSize64: fh.UncompressedSize64,
+-		ExternalAttrs:      fh.ExternalAttrs,
+-		Comment:            fh.Comment,
+-	}
+-	if len(fh.Extra) > 0 {
+-		got.Extra = fh.Extra
+-	}
+-	if !reflect.DeepEqual(got, want) {
+-		t.Errorf("FileHeader mismatch:\ngot  %#v\nwant %#v", got, want)
+-	}
+-}
+-
+ type repeatedByte struct {
+ 	off int64
+ 	b   byte

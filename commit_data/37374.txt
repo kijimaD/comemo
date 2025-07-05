@@ -12,8 +12,168 @@ Date:   Wed Jul 18 17:15:32 2018 -0400
     Change-Id: I9b426af23a30310fcb0c3545a8d97feb58b8ddbe
     Reviewed-on: https://go-review.googlesource.com/124800
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                | 68 +++++++++++++++++++++++-
  src/cmd/go/internal/modload/init.go              | 19 +++++++
  src/cmd/go/testdata/script/mod_get_downgrade.txt | 11 ++++
  3 files changed, 96 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 1fd697048b..361d4808f3 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -206,9 +206,15 @@ func runGet(cmd *base.Command, args []string) {
+ 
+ 	modload.LoadBuildList()
+ 
++	// Do not allow any updating of go.mod until we've applied
++	// all the requested changes and checked that the result matches
++	// what was requested.
++	modload.DisallowWriteGoMod()
++
+ 	// A task holds the state for processing a single get argument (path@vers).
+ 	type task struct {
+-		arg             string           // original argument
++		arg             string // original argument
++		index           int
+ 		path            string           // package path part of arg
+ 		forceModulePath bool             // path must be interpreted as a module path
+ 		vers            string           // version part of arg
+@@ -429,6 +435,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			base.Fatalf("go get: %v", err)
+ 		}
+ 		required = upgraded[1:] // slice off upgradeTarget
++		base.ExitIfErrors()
+ 	}
+ 
+ 	// Put together the final build list as described above (1) (2) (3).
+@@ -441,8 +448,9 @@ func runGet(cmd *base.Command, args []string) {
+ 	list = append(list, required...)
+ 	modload.SetBuildList(list)
+ 	modload.ReloadBuildList() // note: does not update go.mod
++	base.ExitIfErrors()
+ 
+-	// Apply any needed downgrades.
++	// Scan for and apply any needed downgrades.
+ 	var down []module.Version
+ 	for _, m := range modload.BuildList() {
+ 		t := byPath[m.Path]
+@@ -458,8 +466,64 @@ func runGet(cmd *base.Command, args []string) {
+ 		modload.SetBuildList(list)
+ 		modload.ReloadBuildList() // note: does not update go.mod
+ 	}
++	base.ExitIfErrors()
++
++	// Scan for any upgrades lost by the downgrades.
++	lost := make(map[string]string)
++	for _, m := range modload.BuildList() {
++		t := byPath[m.Path]
++		if t != nil && semver.Compare(m.Version, t.m.Version) != 0 {
++			lost[m.Path] = m.Version
++		}
++	}
++	if len(lost) > 0 {
++		desc := func(m module.Version) string {
++			s := m.Path + "@" + m.Version
++			t := byPath[m.Path]
++			if t != nil && t.arg != s {
++				s += " from " + t.arg
++			}
++			return s
++		}
++		downByPath := make(map[string]module.Version)
++		for _, d := range down {
++			downByPath[d.Path] = d
++		}
++		var buf strings.Builder
++		fmt.Fprintf(&buf, "go get: inconsistent versions:")
++		for _, t := range tasks {
++			if lost[t.m.Path] == "" {
++				continue
++			}
++			// We lost t because its build list requires a newer version of something in down.
++			// Figure out exactly what.
++			// Repeatedly constructing the build list is inefficient
++			// if there are MANY command-line arguments,
++			// but at least all the necessary requirement lists are cached at this point.
++			list, err := mvs.BuildList(t.m, reqs)
++			if err != nil {
++				base.Fatalf("go get: %v", err)
++			}
++
++			fmt.Fprintf(&buf, "\n\t%s", desc(t.m))
++			sep := " requires"
++			for _, m := range list {
++				if down, ok := downByPath[m.Path]; ok && semver.Compare(down.Version, m.Version) < 0 {
++					fmt.Fprintf(&buf, "%s %s@%s (not %s)", sep, m.Path, m.Version, desc(down))
++					sep = ","
++				}
++			}
++			if sep != "," {
++				// We have no idea why this happened.
++				// At least report the problem.
++				fmt.Fprintf(&buf, " ended up at %v unexpectedly (please report at golang.org/issue/new)", lost[t.m.Path])
++			}
++		}
++		base.Fatalf("%v", buf.String())
++	}
+ 
+ 	// Everything succeeded. Update go.mod.
++	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+ 
+ 	// If -m was specified, we're done after the module work. No download, no build.
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index dfab6578a9..759b5a768c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -465,8 +465,27 @@ func findImportComment(file string) string {
+ 	return path
+ }
+ 
++var allowWriteGoMod = true
++
++// DisallowWriteGoMod causes future calls to WriteGoMod to do nothing at all.
++func DisallowWriteGoMod() {
++	allowWriteGoMod = false
++}
++
++// AllowWriteGoMod undoes the effect of DisallowWriteGoMod:
++// future calls to WriteGoMod will update go.mod if needed.
++// Note that any past calls have been discarded, so typically
++// a call to AlowWriteGoMod should be followed by a call to WriteGoMod.
++func AllowWriteGoMod() {
++	allowWriteGoMod = true
++}
++
+ // WriteGoMod writes the current build list back to go.mod.
+ func WriteGoMod() {
++	if !allowWriteGoMod {
++		return
++	}
++
+ 	modfetch.WriteGoSum()
+ 
+ 	if loaded != nil {
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index e687403bd9..5a00d6d51d 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -11,6 +11,17 @@ go get rsc.io/sampler@none
+ go list -m all
+ stdout 'rsc.io/quote v1.3.0'
+ 
++# downgrade should report inconsistencies and not change go.mod
++go get rsc.io/quote@v1.5.1
++go list -m all
++stdout 'rsc.io/quote v1.5.1'
++stdout 'rsc.io/sampler v1.3.0'
++! go get rsc.io/sampler@v1.0.0 rsc.io/quote@v1.5.2 golang.org/x/text@none
++stderr 'go get: inconsistent versions:\n\trsc.io/quote@v1.5.2 requires golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c \(not golang.org/x/text@none\), rsc.io/sampler@v1.3.0 \(not rsc.io/sampler@v1.0.0\)'
++go list -m all
++stdout 'rsc.io/quote v1.5.1'
++stdout 'rsc.io/sampler v1.3.0'
++
+ -- go.mod --
+ module x
+ require rsc.io/quote v1.5.1

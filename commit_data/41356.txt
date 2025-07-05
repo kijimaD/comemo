@@ -15,7 +15,197 @@ Date:   Thu Sep 19 02:34:06 2019 +1000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/riscvenc.s |  9 +++
  src/cmd/internal/obj/riscv/obj.go            | 84 ++++++++++++++++++++++------
  2 files changed, 77 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscvenc.s b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+index f0d31fda87..c58bb0fe07 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscvenc.s
++++ b/src/cmd/asm/internal/asm/testdata/riscvenc.s
+@@ -57,6 +57,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	XOR	$1, X5, X6				// 13c31200
+ 	XOR	$1, X5					// 93c21200
+ 
++	AUIPC	$0, X10					// 17050000
++	AUIPC	$0, X11					// 97050000
++	AUIPC	$1, X10					// 17150000
++	AUIPC	$1048575, X10				// 17f5ffff
++
++	LUI	$0, X15					// b7070000
++	LUI	$167, X15				// b7770a00
++	LUI	$1048575, X15				// b7f7ffff
++
+ 	SLL	X6, X5, X7				// b3936200
+ 	SLL	X5, X6					// 33135300
+ 	SLL	$1, X5, X6				// 13931200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 578b4e8cce..543a3b4a04 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -192,33 +192,61 @@ func regFAddr(a obj.Addr) uint32 {
+ 	return regAddr(a, REG_F0, REG_F31)
+ }
+ 
+-// immFits reports whether immediate value x fits in nbits bits as a
+-// signed integer.
+-func immFits(x int64, nbits uint) bool {
++// immIFits reports whether immediate value x fits in nbits bits
++// as a signed integer.
++func immIFits(x int64, nbits uint) bool {
+ 	nbits--
+ 	var min int64 = -1 << nbits
+ 	var max int64 = 1<<nbits - 1
+ 	return min <= x && x <= max
+ }
+ 
+-// immI extracts the integer literal of the specified size from an Addr.
++// immUFits reports whether immediate value x fits in nbits bits
++// as an unsigned integer.
++func immUFits(x int64, nbits uint) bool {
++	var max int64 = 1<<nbits - 1
++	return 0 <= x && x <= max
++}
++
++// immI extracts the signed integer literal of the specified size from an Addr.
+ func immI(a obj.Addr, nbits uint) uint32 {
+ 	if a.Type != obj.TYPE_CONST {
+ 		panic(fmt.Sprintf("ill typed: %+v", a))
+ 	}
+-	if !immFits(a.Offset, nbits) {
+-		panic(fmt.Sprintf("immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
++	if !immIFits(a.Offset, nbits) {
++		panic(fmt.Sprintf("signed immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
++	}
++	return uint32(a.Offset)
++}
++
++// immU extracts the unsigned integer literal of the specified size from an Addr.
++func immU(a obj.Addr, nbits uint) uint32 {
++	if a.Type != obj.TYPE_CONST {
++		panic(fmt.Sprintf("ill typed: %+v", a))
++	}
++	if !immUFits(a.Offset, nbits) {
++		panic(fmt.Sprintf("unsigned immediate %d in %v cannot fit in %d bits", a.Offset, a, nbits))
+ 	}
+ 	return uint32(a.Offset)
+ }
+ 
+-func wantImm(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
++func wantImmI(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
++	if a.Type != obj.TYPE_CONST {
++		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
++		return
++	}
++	if !immIFits(a.Offset, nbits) {
++		p.Ctxt.Diag("%v\tsigned immediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
++	}
++}
++
++func wantImmU(p *obj.Prog, pos string, a obj.Addr, nbits uint) {
+ 	if a.Type != obj.TYPE_CONST {
+ 		p.Ctxt.Diag("%v\texpected immediate in %s position but got %s", p, pos, obj.Dconv(p, &a))
+ 		return
+ 	}
+-	if !immFits(a.Offset, nbits) {
+-		p.Ctxt.Diag("%v\timmediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
++	if !immUFits(a.Offset, nbits) {
++		p.Ctxt.Diag("%v\tunsigned immediate in %s position cannot be larger than %d bits but got %d", p, pos, nbits, a.Offset)
+ 	}
+ }
+ 
+@@ -296,29 +324,34 @@ func validateRFF(p *obj.Prog) {
+ }
+ 
+ func validateII(p *obj.Prog) {
+-	wantImm(p, "from", p.From, 12)
++	wantImmI(p, "from", p.From, 12)
+ 	wantIntReg(p, "reg", p.Reg)
+ 	wantIntRegAddr(p, "to", &p.To)
+ }
+ 
+ func validateIF(p *obj.Prog) {
+-	wantImm(p, "from", p.From, 12)
++	wantImmI(p, "from", p.From, 12)
+ 	wantIntReg(p, "reg", p.Reg)
+ 	wantFloatRegAddr(p, "to", &p.To)
+ }
+ 
+ func validateSI(p *obj.Prog) {
+-	wantImm(p, "from", p.From, 12)
++	wantImmI(p, "from", p.From, 12)
+ 	wantIntReg(p, "reg", p.Reg)
+ 	wantIntRegAddr(p, "to", &p.To)
+ }
+ 
+ func validateSF(p *obj.Prog) {
+-	wantImm(p, "from", p.From, 12)
++	wantImmI(p, "from", p.From, 12)
+ 	wantFloatReg(p, "reg", p.Reg)
+ 	wantIntRegAddr(p, "to", &p.To)
+ }
+ 
++func validateU(p *obj.Prog) {
++	wantImmU(p, "from", p.From, 20)
++	wantIntRegAddr(p, "to", &p.To)
++}
++
+ func validateRaw(p *obj.Prog) {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+ 	// Nobody wants to enter negative machine code.
+@@ -395,11 +428,11 @@ func encodeIF(p *obj.Prog) uint32 {
+ func encodeS(p *obj.Prog, rs2 uint32) uint32 {
+ 	imm := immI(p.From, 12)
+ 	rs1 := regIAddr(p.To)
+-	i := encode(p.As)
+-	if i == nil {
++	ins := encode(p.As)
++	if ins == nil {
+ 		panic("encodeS: could not encode instruction")
+ 	}
+-	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | i.funct3<<12 | (imm&0x1f)<<7 | i.opcode
++	return (imm>>5)<<25 | rs2<<20 | rs1<<15 | ins.funct3<<12 | (imm&0x1f)<<7 | ins.opcode
+ }
+ 
+ func encodeSI(p *obj.Prog) uint32 {
+@@ -410,6 +443,21 @@ func encodeSF(p *obj.Prog) uint32 {
+ 	return encodeS(p, regF(p.Reg))
+ }
+ 
++// encodeU encodes a U-type RISC-V instruction.
++func encodeU(p *obj.Prog) uint32 {
++	// The immediates for encodeU are the upper 20 bits of a 32 bit value.
++	// Rather than have the user/compiler generate a 32 bit constant, the
++	// bottommost bits of which must all be zero, instead accept just the
++	// top bits.
++	imm := immU(p.From, 20)
++	rd := regIAddr(p.To)
++	ins := encode(p.As)
++	if ins == nil {
++		panic("encodeU: could not encode instruction")
++	}
++	return imm<<12 | rd<<7 | ins.opcode
++}
++
+ // encodeRaw encodes a raw instruction value.
+ func encodeRaw(p *obj.Prog) uint32 {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+@@ -455,6 +503,8 @@ var (
+ 	sIEncoding = encoding{encode: encodeSI, validate: validateSI, length: 4}
+ 	sFEncoding = encoding{encode: encodeSF, validate: validateSF, length: 4}
+ 
++	uEncoding = encoding{encode: encodeU, validate: validateU, length: 4}
++
+ 	// rawEncoding encodes a raw instruction byte sequence.
+ 	rawEncoding = encoding{encode: encodeRaw, validate: validateRaw, length: 4}
+ 
+@@ -483,6 +533,8 @@ var encodingForAs = [ALAST & obj.AMask]encoding{
+ 	ASLLI & obj.AMask:  iIEncoding,
+ 	ASRLI & obj.AMask:  iIEncoding,
+ 	ASRAI & obj.AMask:  iIEncoding,
++	ALUI & obj.AMask:   uEncoding,
++	AAUIPC & obj.AMask: uEncoding,
+ 	AADD & obj.AMask:   rIIIEncoding,
+ 	ASLT & obj.AMask:   rIIIEncoding,
+ 	ASLTU & obj.AMask:  rIIIEncoding,

@@ -28,7 +28,7 @@ Date:   Mon Oct 10 12:43:44 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/builtins.go  | 44 +++++++++++++++++++++----------------------
  src/go/types/call.go      |  2 +-
  src/go/types/decl.go      |  8 ++++----
@@ -43,3 +43,831 @@ Date:   Mon Oct 10 12:43:44 2022 -0700
  src/go/types/struct.go    |  4 ++--
  src/go/types/typexpr.go   |  4 ++--
  13 files changed, 96 insertions(+), 102 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 507cfb521a..6fde9300d3 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -21,9 +21,9 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	// append is the only built-in that permits the use of ... for the last argument
+ 	bin := predeclaredFuncs[id]
+ 	if call.Ellipsis.IsValid() && id != _Append {
+-		check.invalidOp(atPos(call.Ellipsis),
++		check.errorf(atPos(call.Ellipsis),
+ 			InvalidDotDotDot,
+-			"invalid use of ... with built-in %s", bin.name)
++			invalidOp+"invalid use of ... with built-in %s", bin.name)
+ 		check.use(call.Args...)
+ 		return
+ 	}
+@@ -69,7 +69,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			msg = "too many"
+ 		}
+ 		if msg != "" {
+-			check.invalidOp(inNode(call, call.Rparen), WrongArgCount, "%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
++			check.errorf(inNode(call, call.Rparen), WrongArgCount, invalidOp+"%s arguments for %s (expected %d, found %d)", msg, call, bin.nargs, nargs)
+ 			return
+ 		}
+ 	}
+@@ -220,7 +220,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			if id == _Len {
+ 				code = InvalidLen
+ 			}
+-			check.invalidArg(x, code, "%s for %s", x, bin.name)
++			check.errorf(x, code, invalidArg+"%s for %s", x, bin.name)
+ 			return
+ 		}
+ 
+@@ -238,11 +238,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if !underIs(x.typ, func(u Type) bool {
+ 			uch, _ := u.(*Chan)
+ 			if uch == nil {
+-				check.invalidOp(x, InvalidClose, "cannot close non-channel %s", x)
++				check.errorf(x, InvalidClose, invalidOp+"cannot close non-channel %s", x)
+ 				return false
+ 			}
+ 			if uch.dir == RecvOnly {
+-				check.invalidOp(x, InvalidClose, "cannot close receive-only channel %s", x)
++				check.errorf(x, InvalidClose, invalidOp+"cannot close receive-only channel %s", x)
+ 				return false
+ 			}
+ 			return true
+@@ -309,7 +309,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		// both argument types must be identical
+ 		if !Identical(x.typ, y.typ) {
+-			check.invalidArg(x, InvalidComplex, "mismatched types %s and %s", x.typ, y.typ)
++			check.errorf(x, InvalidComplex, invalidArg+"mismatched types %s and %s", x.typ, y.typ)
+ 			return
+ 		}
+ 
+@@ -331,7 +331,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 		resTyp := check.applyTypeFunc(f, x, id)
+ 		if resTyp == nil {
+-			check.invalidArg(x, InvalidComplex, "arguments have type %s, expected floating-point", x.typ)
++			check.errorf(x, InvalidComplex, invalidArg+"arguments have type %s, expected floating-point", x.typ)
+ 			return
+ 		}
+ 
+@@ -364,7 +364,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		src, _ := src0.(*Slice)
+ 
+ 		if dst == nil || src == nil {
+-			check.invalidArg(x, InvalidCopy, "copy expects slice arguments; found %s and %s", x, &y)
++			check.errorf(x, InvalidCopy, invalidArg+"copy expects slice arguments; found %s and %s", x, &y)
+ 			return
+ 		}
+ 
+@@ -388,11 +388,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if !underIs(map_, func(u Type) bool {
+ 			map_, _ := u.(*Map)
+ 			if map_ == nil {
+-				check.invalidArg(x, InvalidDelete, "%s is not a map", x)
++				check.errorf(x, InvalidDelete, invalidArg+"%s is not a map", x)
+ 				return false
+ 			}
+ 			if key != nil && !Identical(map_.key, key) {
+-				check.invalidArg(x, InvalidDelete, "maps of %s must have identical key types", x)
++				check.errorf(x, InvalidDelete, invalidArg+"maps of %s must have identical key types", x)
+ 				return false
+ 			}
+ 			key = map_.key
+@@ -463,7 +463,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			if id == _Real {
+ 				code = InvalidReal
+ 			}
+-			check.invalidArg(x, code, "argument has type %s, expected complex type", x.typ)
++			check.errorf(x, code, invalidArg+"argument has type %s, expected complex type", x.typ)
+ 			return
+ 		}
+ 
+@@ -504,11 +504,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			check.errorf(arg0, InvalidMake, "cannot make %s: no core type", arg0)
+ 			return
+ 		default:
+-			check.invalidArg(arg0, InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
++			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+ 			return
+ 		}
+ 		if nargs < min || min+1 < nargs {
+-			check.invalidOp(call, WrongArgCount, "%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
++			check.errorf(call, WrongArgCount, invalidOp+"%v expects %d or %d arguments; found %d", call, min, min+1, nargs)
+ 			return
+ 		}
+ 
+@@ -522,7 +522,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			}
+ 		}
+ 		if len(sizes) == 2 && sizes[0] > sizes[1] {
+-			check.invalidArg(call.Args[1], SwappedMakeArgs, "length and capacity swapped")
++			check.errorf(call.Args[1], SwappedMakeArgs, invalidArg+"length and capacity swapped")
+ 			// safe to continue
+ 		}
+ 		x.mode = value
+@@ -651,7 +651,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		arg0 := call.Args[0]
+ 		selx, _ := unparen(arg0).(*ast.SelectorExpr)
+ 		if selx == nil {
+-			check.invalidArg(arg0, BadOffsetofSyntax, "%s is not a selector expression", arg0)
++			check.errorf(arg0, BadOffsetofSyntax, invalidArg+"%s is not a selector expression", arg0)
+ 			check.use(arg0)
+ 			return
+ 		}
+@@ -666,18 +666,18 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		obj, index, indirect := LookupFieldOrMethod(base, false, check.pkg, sel)
+ 		switch obj.(type) {
+ 		case nil:
+-			check.invalidArg(x, MissingFieldOrMethod, "%s has no single field %s", base, sel)
++			check.errorf(x, MissingFieldOrMethod, invalidArg+"%s has no single field %s", base, sel)
+ 			return
+ 		case *Func:
+ 			// TODO(gri) Using derefStructPtr may result in methods being found
+ 			// that don't actually exist. An error either way, but the error
+ 			// message is confusing. See: https://play.golang.org/p/al75v23kUy ,
+ 			// but go/types reports: "invalid argument: x.m is a method value".
+-			check.invalidArg(arg0, InvalidOffsetof, "%s is a method value", arg0)
++			check.errorf(arg0, InvalidOffsetof, invalidArg+"%s is a method value", arg0)
+ 			return
+ 		}
+ 		if indirect {
+-			check.invalidArg(x, InvalidOffsetof, "field %s is embedded via a pointer in %s", sel, base)
++			check.errorf(x, InvalidOffsetof, invalidArg+"field %s is embedded via a pointer in %s", sel, base)
+ 			return
+ 		}
+ 
+@@ -737,7 +737,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		ptr, _ := under(x.typ).(*Pointer) // TODO(gri) should this be coreType rather than under?
+ 		if ptr == nil {
+-			check.invalidArg(x, InvalidUnsafeSlice, "%s is not a pointer", x)
++			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+ 		}
+ 
+@@ -762,7 +762,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 		slice, _ := under(x.typ).(*Slice) // TODO(gri) should this be coreType rather than under?
+ 		if slice == nil {
+-			check.invalidArg(x, InvalidUnsafeSliceData, "%s is not a slice", x)
++			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+ 		}
+ 
+@@ -819,7 +819,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// The result of assert is the value of pred if there is no error.
+ 		// Note: assert is only available in self-test mode.
+ 		if x.mode != constant_ || !isBoolean(x.typ) {
+-			check.invalidArg(x, Test, "%s is not a boolean constant", x)
++			check.errorf(x, Test, invalidArg+"%s is not a boolean constant", x)
+ 			return
+ 		}
+ 		if x.val.Kind() != constant.Bool {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 82d4533ee7..4fb7b05519 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -174,7 +174,7 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	// a type parameter may be "called" if all types have the same signature
+ 	sig, _ := coreType(x.typ).(*Signature)
+ 	if sig == nil {
+-		check.invalidOp(x, InvalidCall, "cannot call non-function %s", x)
++		check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
+ 		x.mode = invalid
+ 		x.expr = call
+ 		return statement
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 31d506bad2..b9ac49e209 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -425,18 +425,18 @@ func (check *Checker) walkDecl(d ast.Decl, f func(decl)) {
+ 					check.arityMatch(s, nil)
+ 					f(varDecl{s})
+ 				default:
+-					check.invalidAST(s, "invalid token %s", d.Tok)
++					check.errorf(s, InvalidSyntaxTree, invalidAST+"invalid token %s", d.Tok)
+ 				}
+ 			case *ast.TypeSpec:
+ 				f(typeDecl{s})
+ 			default:
+-				check.invalidAST(s, "unknown ast.Spec node %T", s)
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown ast.Spec node %T", s)
+ 			}
+ 		}
+ 	case *ast.FuncDecl:
+ 		f(funcDecl{d})
+ 	default:
+-		check.invalidAST(d, "unknown ast.Decl node %T", d)
++		check.errorf(d, InvalidSyntaxTree, invalidAST+"unknown ast.Decl node %T", d)
+ 	}
+ }
+ 
+@@ -935,7 +935,7 @@ func (check *Checker) declStmt(d ast.Decl) {
+ 			check.typeDecl(obj, d.spec, nil)
+ 			check.pop().setColor(black)
+ 		default:
+-			check.invalidAST(d.node(), "unknown ast.Decl node %T", d.node())
++			check.errorf(d.node(), InvalidSyntaxTree, invalidAST+"unknown ast.Decl node %T", d.node())
+ 		}
+ 	})
+ }
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index bbcf4e6e75..ff33e8f700 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -275,6 +275,12 @@ func (check *Checker) report(errp *error_) {
+ 	f(err)
+ }
+ 
++const (
++	invalidAST = "invalid AST: "
++	invalidArg = "invalid argument: "
++	invalidOp  = "invalid operation: "
++)
++
+ // newErrorf creates a new error_ for later reporting with check.report.
+ func newErrorf(at positioner, code Code, format string, args ...any) *error_ {
+ 	return &error_{
+@@ -304,18 +310,6 @@ func (check *Checker) versionErrorf(at positioner, goVersion string, format stri
+ 	check.report(err)
+ }
+ 
+-func (check *Checker) invalidAST(at positioner, format string, args ...any) {
+-	check.errorf(at, InvalidSyntaxTree, "invalid AST: "+format, args...)
+-}
+-
+-func (check *Checker) invalidArg(at positioner, code Code, format string, args ...any) {
+-	check.errorf(at, code, "invalid argument: "+format, args...)
+-}
+-
+-func (check *Checker) invalidOp(at positioner, code Code, format string, args ...any) {
+-	check.errorf(at, code, "invalid operation: "+format, args...)
+-}
+-
+ // The positioner interface is used to extract the position of type-checker
+ // errors.
+ type positioner interface {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 7d82e6a461..e7d9658a6e 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -75,11 +75,11 @@ func init() {
+ func (check *Checker) op(m opPredicates, x *operand, op token.Token) bool {
+ 	if pred := m[op]; pred != nil {
+ 		if !pred(x.typ) {
+-			check.invalidOp(x, UndefinedOp, "operator %s not defined on %s", op, x)
++			check.errorf(x, UndefinedOp, invalidOp+"operator %s not defined on %s", op, x)
+ 			return false
+ 		}
+ 	} else {
+-		check.invalidAST(x, "unknown operator %s", op)
++		check.errorf(x, InvalidSyntaxTree, invalidAST+"unknown operator %s", op)
+ 		return false
+ 	}
+ 	return true
+@@ -169,7 +169,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		// spec: "As an exception to the addressability
+ 		// requirement x may also be a composite literal."
+ 		if _, ok := unparen(e.X).(*ast.CompositeLit); !ok && x.mode != variable {
+-			check.invalidOp(x, UnaddressableOperand, "cannot take address of %s", x)
++			check.errorf(x, UnaddressableOperand, invalidOp+"cannot take address of %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -180,18 +180,18 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 	case token.ARROW:
+ 		u := coreType(x.typ)
+ 		if u == nil {
+-			check.invalidOp(x, InvalidReceive, "cannot receive from %s (no core type)", x)
++			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+ 		ch, _ := u.(*Chan)
+ 		if ch == nil {
+-			check.invalidOp(x, InvalidReceive, "cannot receive from non-channel %s", x)
++			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+ 		if ch.dir == SendOnly {
+-			check.invalidOp(x, InvalidReceive, "cannot receive from send-only channel %s", x)
++			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -580,7 +580,7 @@ func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool)
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+-			check.invalidOp(x, InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
++			check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+@@ -849,7 +849,7 @@ Error:
+ 	if switchCase {
+ 		check.errorf(x, code, "invalid case %s in switch on %s (%s)", x.expr, y.expr, cause) // error position always at 1st operand
+ 	} else {
+-		check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
++		check.errorf(errOp, code, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
+ 	}
+ 	x.mode = invalid
+ }
+@@ -910,7 +910,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		// as an integer. Nothing to do.
+ 	} else {
+ 		// shift has no chance
+-		check.invalidOp(x, InvalidShiftOperand, "shifted operand %s must be integer", x)
++		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -924,7 +924,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		// Provide a good error message for negative shift counts.
+ 		yval := constant.ToInt(y.val) // consider -1, 1.0, but not -1.1
+ 		if yval.Kind() == constant.Int && constant.Sign(yval) < 0 {
+-			check.invalidOp(y, InvalidShiftCount, "negative shift count %s", y)
++			check.errorf(y, InvalidShiftCount, invalidOp+"negative shift count %s", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -943,7 +943,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 		switch {
+ 		case allInteger(y.typ):
+ 			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-				check.invalidOp(y, UnsupportedFeature, "signed shift count %s requires go1.13 or later", y)
++				check.errorf(y, UnsupportedFeature, invalidOp+"signed shift count %s requires go1.13 or later", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -956,7 +956,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 				return
+ 			}
+ 		default:
+-			check.invalidOp(y, InvalidShiftCount, "shift count %s must be integer", y)
++			check.errorf(y, InvalidShiftCount, invalidOp+"shift count %s must be integer", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -977,7 +977,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			const shiftBound = 1023 - 1 + 52 // so we can express smallestFloat64 (see issue #44057)
+ 			s, ok := constant.Uint64Val(y.val)
+ 			if !ok || s > shiftBound {
+-				check.invalidOp(y, InvalidShiftCount, "invalid shift count %s", y)
++				check.errorf(y, InvalidShiftCount, invalidOp+"invalid shift count %s", y)
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1032,7 +1032,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 	// non-constant shift - lhs must be an integer
+ 	if !allInteger(x.typ) {
+-		check.invalidOp(x, InvalidShiftOperand, "shifted operand %s must be integer", x)
++		check.errorf(x, InvalidShiftOperand, invalidOp+"shifted operand %s must be integer", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -1128,9 +1128,9 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 				posn = e
+ 			}
+ 			if e != nil {
+-				check.invalidOp(posn, MismatchedTypes, "%s (mismatched types %s and %s)", e, x.typ, y.typ)
++				check.errorf(posn, MismatchedTypes, invalidOp+"%s (mismatched types %s and %s)", e, x.typ, y.typ)
+ 			} else {
+-				check.invalidOp(posn, MismatchedTypes, "%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
++				check.errorf(posn, MismatchedTypes, invalidOp+"%s %s= %s (mismatched types %s and %s)", lhs, op, rhs, x.typ, y.typ)
+ 			}
+ 		}
+ 		x.mode = invalid
+@@ -1145,7 +1145,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 	if op == token.QUO || op == token.REM {
+ 		// check for zero divisor
+ 		if (x.mode == constant_ || allInteger(x.typ)) && y.mode == constant_ && constant.Sign(y.val) == 0 {
+-			check.invalidOp(&y, DivByZero, "division by zero")
++			check.errorf(&y, DivByZero, invalidOp+"division by zero")
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -1155,7 +1155,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+ 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+-				check.invalidOp(&y, DivByZero, "division by zero")
++				check.errorf(&y, DivByZero, invalidOp+"division by zero")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -1314,7 +1314,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+-			check.invalidAST(e, "invalid function literal %s", e)
++			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid function literal %s", e)
+ 			goto Error
+ 		}
+ 
+@@ -1567,11 +1567,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 		}
+ 		// TODO(gri) we may want to permit type assertions on type parameter values at some point
+ 		if isTypeParam(x.typ) {
+-			check.invalidOp(x, InvalidAssert, "cannot use type assertion on type parameter value %s", x)
++			check.errorf(x, InvalidAssert, invalidOp+"cannot use type assertion on type parameter value %s", x)
+ 			goto Error
+ 		}
+ 		if _, ok := under(x.typ).(*Interface); !ok {
+-			check.invalidOp(x, InvalidAssert, "%s is not an interface", x)
++			check.errorf(x, InvalidAssert, invalidOp+"%s is not an interface", x)
+ 			goto Error
+ 		}
+ 		// x.(type) expressions are handled explicitly in type switches
+@@ -1605,11 +1605,11 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			if !underIs(x.typ, func(u Type) bool {
+ 				p, _ := u.(*Pointer)
+ 				if p == nil {
+-					check.invalidOp(x, InvalidIndirection, "cannot indirect %s", x)
++					check.errorf(x, InvalidIndirection, invalidOp+"cannot indirect %s", x)
+ 					return false
+ 				}
+ 				if base != nil && !Identical(p.base, base) {
+-					check.invalidOp(x, InvalidIndirection, "pointers of %s must have identical base types", x)
++					check.errorf(x, InvalidIndirection, invalidOp+"pointers of %s must have identical base types", x)
+ 					return false
+ 				}
+ 				base = p.base
+@@ -1639,7 +1639,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 
+ 	case *ast.KeyValueExpr:
+ 		// key:value expressions are handled in composite literals
+-		check.invalidAST(e, "no key:value expected")
++		check.errorf(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+ 		goto Error
+ 
+ 	case *ast.ArrayType, *ast.StructType, *ast.FuncType,
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 6c14aaf335..2f87dcba31 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -185,7 +185,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 
+ 	if !valid {
+ 		// types2 uses the position of '[' for the error
+-		check.invalidOp(x, NonIndexableOperand, "cannot index %s", x)
++		check.errorf(x, NonIndexableOperand, invalidOp+"cannot index %s", x)
+ 		x.mode = invalid
+ 		return false
+ 	}
+@@ -218,7 +218,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	length := int64(-1) // valid if >= 0
+ 	switch u := coreString(x.typ).(type) {
+ 	case nil:
+-		check.invalidOp(x, NonSliceableOperand, "cannot slice %s: %s has no core type", x, x.typ)
++		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s: %s has no core type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+@@ -229,7 +229,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 				if at == nil {
+ 					at = e // e.Index[2] should be present but be careful
+ 				}
+-				check.invalidOp(at, InvalidSliceExpr, "3-index slice of string")
++				check.errorf(at, InvalidSliceExpr, invalidOp+"3-index slice of string")
+ 				x.mode = invalid
+ 				return
+ 			}
+@@ -248,7 +248,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 		valid = true
+ 		length = u.len
+ 		if x.mode != variable {
+-			check.invalidOp(x, NonSliceableOperand, "cannot slice %s (value not addressable)", x)
++			check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s (value not addressable)", x)
+ 			x.mode = invalid
+ 			return
+ 		}
+@@ -267,7 +267,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	}
+ 
+ 	if !valid {
+-		check.invalidOp(x, NonSliceableOperand, "cannot slice %s", x)
++		check.errorf(x, NonSliceableOperand, invalidOp+"cannot slice %s", x)
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -276,7 +276,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 
+ 	// spec: "Only the first index may be omitted; it defaults to 0."
+ 	if e.Slice3 && (e.High == nil || e.Max == nil) {
+-		check.invalidAST(inNode(e, e.Rbrack), "2nd and 3rd index required in 3-index slice")
++		check.errorf(inNode(e, e.Rbrack), InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -331,12 +331,12 @@ L:
+ // is reported and the result is nil.
+ func (check *Checker) singleIndex(expr *typeparams.IndexExpr) ast.Expr {
+ 	if len(expr.Indices) == 0 {
+-		check.invalidAST(expr.Orig, "index expression %v with 0 indices", expr)
++		check.errorf(expr.Orig, InvalidSyntaxTree, invalidAST+"index expression %v with 0 indices", expr)
+ 		return nil
+ 	}
+ 	if len(expr.Indices) > 1 {
+ 		// TODO(rFindley) should this get a distinct error code?
+-		check.invalidOp(expr.Indices[1], InvalidIndex, "more than one index")
++		check.errorf(expr.Indices[1], InvalidIndex, invalidOp+"more than one index")
+ 	}
+ 	return expr.Indices[0]
+ }
+@@ -366,7 +366,7 @@ func (check *Checker) index(index ast.Expr, max int64) (typ Type, val int64) {
+ 	v, ok := constant.Int64Val(x.val)
+ 	assert(ok)
+ 	if max >= 0 && v >= max {
+-		check.invalidArg(&x, InvalidIndex, "index %s out of bounds [0:%d]", x.val.String(), max)
++		check.errorf(&x, InvalidIndex, invalidArg+"index %s out of bounds [0:%d]", x.val.String(), max)
+ 		return
+ 	}
+ 
+@@ -387,20 +387,20 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 
+ 	// spec: "the index x must be of integer type or an untyped constant"
+ 	if !allInteger(x.typ) {
+-		check.invalidArg(x, code, "%s %s must be integer", what, x)
++		check.errorf(x, code, invalidArg+"%s %s must be integer", what, x)
+ 		return false
+ 	}
+ 
+ 	if x.mode == constant_ {
+ 		// spec: "a constant index must be non-negative ..."
+ 		if !allowNegative && constant.Sign(x.val) < 0 {
+-			check.invalidArg(x, code, "%s %s must not be negative", what, x)
++			check.errorf(x, code, invalidArg+"%s %s must not be negative", what, x)
+ 			return false
+ 		}
+ 
+ 		// spec: "... and representable by a value of type int"
+ 		if !representableConst(x.val, check, Typ[Int], &x.val) {
+-			check.invalidArg(x, code, "%s %s overflows int", what, x)
++			check.errorf(x, code, invalidArg+"%s %s overflows int", what, x)
+ 			return false
+ 		}
+ 	}
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index bc949e2b71..28c8325c71 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -182,7 +182,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+ 			if typ != Typ[Invalid] {
+-				check.invalidAST(f.Type, "%s is not a method signature", typ)
++				check.errorf(f.Type, InvalidSyntaxTree, invalidAST+"%s is not a method signature", typ)
+ 			}
+ 			continue // ignore
+ 		}
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index 99561720b3..ab43964faf 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -220,7 +220,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 				}
+ 
+ 			default:
+-				check.invalidAST(s, "branch statement: %s %s", s.Tok, name)
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"branch statement: %s %s", s.Tok, name)
+ 				return
+ 			}
+ 
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 64ef467b3b..7c7a68b01c 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -530,7 +530,7 @@ L: // unpack receiver type
+ 				case *ast.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.invalidAST(ix.Orig, "parameterized receiver contains nil parameters")
++					check.errorf(ix.Orig, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+ 				default:
+ 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
+ 				}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 4ba0313279..cf184ed0d7 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -286,7 +286,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 			// named parameter
+ 			for _, name := range field.Names {
+ 				if name.Name == "" {
+-					check.invalidAST(name, "anonymous parameter")
++					check.errorf(name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
+ 					// ok to continue
+ 				}
+ 				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
+@@ -304,7 +304,7 @@ func (check *Checker) collectParams(scope *Scope, list *ast.FieldList, variadicO
+ 	}
+ 
+ 	if named && anonymous {
+-		check.invalidAST(list, "list contains both named and anonymous parameters")
++		check.errorf(list, InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
+ 		// ok to continue
+ 	}
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index fd42e29d18..ccc9ffbd68 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -139,7 +139,7 @@ func (check *Checker) multipleDefaults(list []ast.Stmt) {
+ 				d = s
+ 			}
+ 		default:
+-			check.invalidAST(s, "case/communication clause expected")
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"case/communication clause expected")
+ 		}
+ 		if d != nil {
+ 			if first != nil {
+@@ -422,16 +422,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 		u := coreType(ch.typ)
+ 		if u == nil {
+-			check.invalidOp(inNode(s, s.Arrow), InvalidSend, "cannot send to %s: no core type", &ch)
++			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
+ 			return
+ 		}
+ 		uch, _ := u.(*Chan)
+ 		if uch == nil {
+-			check.invalidOp(inNode(s, s.Arrow), InvalidSend, "cannot send to non-channel %s", &ch)
++			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
+ 			return
+ 		}
+ 		if uch.dir == RecvOnly {
+-			check.invalidOp(inNode(s, s.Arrow), InvalidSend, "cannot send to receive-only channel %s", &ch)
++			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
+ 			return
+ 		}
+ 		check.assignment(&val, uch.elem, "send")
+@@ -444,7 +444,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		case token.DEC:
+ 			op = token.SUB
+ 		default:
+-			check.invalidAST(inNode(s, s.TokPos), "unknown inc/dec operation %s", s.Tok)
++			check.errorf(inNode(s, s.TokPos), InvalidSyntaxTree, invalidAST+"unknown inc/dec operation %s", s.Tok)
+ 			return
+ 		}
+ 
+@@ -454,7 +454,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			return
+ 		}
+ 		if !allNumeric(x.typ) {
+-			check.invalidOp(s.X, NonNumericIncDec, "%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
++			check.errorf(s.X, NonNumericIncDec, invalidOp+"%s%s (non-numeric type %s)", s.X, s.Tok, x.typ)
+ 			return
+ 		}
+ 
+@@ -469,7 +469,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		switch s.Tok {
+ 		case token.ASSIGN, token.DEFINE:
+ 			if len(s.Lhs) == 0 {
+-				check.invalidAST(s, "missing lhs in assignment")
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"missing lhs in assignment")
+ 				return
+ 			}
+ 			if s.Tok == token.DEFINE {
+@@ -487,7 +487,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			}
+ 			op := assignOp(s.Tok)
+ 			if op == token.ILLEGAL {
+-				check.invalidAST(atPos(s.TokPos), "unknown assignment operation %s", s.Tok)
++				check.errorf(atPos(s.TokPos), InvalidSyntaxTree, invalidAST+"unknown assignment operation %s", s.Tok)
+ 				return
+ 			}
+ 			var x operand
+@@ -555,7 +555,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 				check.error(s, MisplacedFallthrough, msg)
+ 			}
+ 		default:
+-			check.invalidAST(s, "branch statement: %s", s.Tok)
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"branch statement: %s", s.Tok)
+ 		}
+ 
+ 	case *ast.BlockStmt:
+@@ -583,7 +583,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		case *ast.IfStmt, *ast.BlockStmt:
+ 			check.stmt(inner, s.Else)
+ 		default:
+-			check.invalidAST(s.Else, "invalid else branch in if statement")
++			check.errorf(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
+ 		}
+ 
+ 	case *ast.SwitchStmt:
+@@ -617,7 +617,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		for i, c := range s.Body.List {
+ 			clause, _ := c.(*ast.CaseClause)
+ 			if clause == nil {
+-				check.invalidAST(c, "incorrect expression switch case")
++				check.errorf(c, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
+ 				continue
+ 			}
+ 			check.caseValues(&x, clause.List, seen)
+@@ -654,13 +654,13 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			rhs = guard.X
+ 		case *ast.AssignStmt:
+ 			if len(guard.Lhs) != 1 || guard.Tok != token.DEFINE || len(guard.Rhs) != 1 {
+-				check.invalidAST(s, "incorrect form of type switch guard")
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 				return
+ 			}
+ 
+ 			lhs, _ = guard.Lhs[0].(*ast.Ident)
+ 			if lhs == nil {
+-				check.invalidAST(s, "incorrect form of type switch guard")
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 				return
+ 			}
+ 
+@@ -675,14 +675,14 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			rhs = guard.Rhs[0]
+ 
+ 		default:
+-			check.invalidAST(s, "incorrect form of type switch guard")
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 			return
+ 		}
+ 
+ 		// rhs must be of the form: expr.(type) and expr must be an ordinary interface
+ 		expr, _ := rhs.(*ast.TypeAssertExpr)
+ 		if expr == nil || expr.Type != nil {
+-			check.invalidAST(s, "incorrect form of type switch guard")
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect form of type switch guard")
+ 			return
+ 		}
+ 		var x operand
+@@ -709,7 +709,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		for _, s := range s.Body.List {
+ 			clause, _ := s.(*ast.CaseClause)
+ 			if clause == nil {
+-				check.invalidAST(s, "incorrect type switch case")
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
+ 				continue
+ 			}
+ 			// Check each type in this type switch case.
+@@ -893,7 +893,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 						vars = append(vars, obj)
+ 					}
+ 				} else {
+-					check.invalidAST(lhs, "cannot declare %s", lhs)
++					check.errorf(lhs, InvalidSyntaxTree, invalidAST+"cannot declare %s", lhs)
+ 					obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 				}
+ 
+@@ -936,7 +936,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		check.stmt(inner, s.Body)
+ 
+ 	default:
+-		check.invalidAST(s, "invalid statement")
++		check.errorf(s, InvalidSyntaxTree, invalidAST+"invalid statement")
+ 	}
+ }
+ 
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index ab2399b464..ec9089ffde 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -125,7 +125,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 			pos := f.Type.Pos()
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+-				check.invalidAST(f.Type, "embedded field type %s has no name", f.Type)
++				check.errorf(f.Type, InvalidSyntaxTree, invalidAST+"embedded field type %s has no name", f.Type)
+ 				name = ast.NewIdent("_")
+ 				name.NamePos = pos
+ 				addInvalid(name, pos)
+@@ -212,7 +212,7 @@ func (check *Checker) tag(t *ast.BasicLit) string {
+ 				return val
+ 			}
+ 		}
+-		check.invalidAST(t, "incorrect tag syntax: %q", t.Value)
++		check.errorf(t, InvalidSyntaxTree, invalidAST+"incorrect tag syntax: %q", t.Value)
+ 	}
+ 	return ""
+ }
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 90a1ac3aa4..3d7c765560 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -376,7 +376,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		case ast.RECV:
+ 			dir = RecvOnly
+ 		default:
+-			check.invalidAST(e, "unknown channel direction %d", e.Dir)
++			check.errorf(e, InvalidSyntaxTree, invalidAST+"unknown channel direction %d", e.Dir)
+ 			// ok to continue
+ 		}
+ 
+@@ -408,7 +408,7 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (re
+ 	var cause string
+ 	gtyp := check.genericType(ix.X, &cause)
+ 	if cause != "" {
+-		check.invalidOp(ix.Orig, NotAGenericType, "%s (%s)", ix.Orig, cause)
++		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
+ 	}
+ 	if gtyp == Typ[Invalid] {
+ 		return gtyp // error already reported

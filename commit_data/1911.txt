@@ -7,7 +7,7 @@ Date:   Mon Mar 30 16:13:11 2009 -0700
     R=ken
     OCL=26909
     CL=26909
-
+---
  src/cmd/6g/Makefile       |  1 -
  src/cmd/6g/opt.h          | 37 +------------------------------------
  src/cmd/gc/Makefile       |  1 +
@@ -15,3 +15,225 @@ Date:   Mon Mar 30 16:13:11 2009 -0700
  src/cmd/gc/go.h           | 39 ++++++++++++++++++++++++++++++++++++++-
  src/cmd/make8.bash        | 22 ++++++++++++++++++++++
  6 files changed, 63 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index b2d5142975..9a59858d72 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -22,7 +22,6 @@ OFILES=\
+ 	obj.$O\
+ 	peep.$O\
+ 	reg.$O\
+-	bits.$O\
+ 	../6l/enam.$O\
+ 
+ LIB=\
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index 571bcd6cb7..57bdf4dc51 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -28,13 +28,9 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-
+ #define	Z	N
+ #define	Adr	Addr
+ 
+-#define	BITS	5
+-#define	NVAR	(BITS*sizeof(uint32)*8)
+-
+ #define	D_HI	D_NONE
+ #define	D_LO	D_NONE
+ 
+@@ -50,16 +46,9 @@
+ #define	CINF	1000
+ #define	LOOP	3
+ 
+-typedef	struct	Bits	Bits;
+ typedef	struct	Reg	Reg;
+-typedef	struct	Var	Var;
+ typedef	struct	Rgn	Rgn;
+ 
+-struct	Bits
+-{
+-	uint32	b[BITS];
+-};
+-
+ struct	Reg
+ {
+ 
+@@ -91,14 +80,6 @@ struct	Reg
+ };
+ #define	R	((Reg*)0)
+ 
+-struct	Var
+-{
+-	vlong	offset;
+-	Sym*	sym;
+-	char	name;
+-	char	etype;
+-};
+-
+ #define	NRGN	600
+ struct	Rgn
+ {
+@@ -108,14 +89,12 @@ struct	Rgn
+ 	short	regno;
+ };
+ 
+-
+ EXTERN	int32	exregoffset;		// not set
+ EXTERN	int32	exfregoffset;		// not set
+ EXTERN	Reg*	firstr;
+ EXTERN	Reg*	lastr;
+ EXTERN	Reg	zreg;
+ EXTERN	Reg*	freer;
+-EXTERN	Var	var[NVAR];
+ EXTERN	Reg**	rpo2r;
+ EXTERN	Rgn	region[NRGN];
+ EXTERN	Rgn*	rgp;
+@@ -129,24 +108,10 @@ EXTERN	Bits	consts;
+ EXTERN	Bits	addrs;
+ EXTERN	Bits	ovar;
+ EXTERN	int	change;
+-EXTERN	Bits	zbits;
+ EXTERN	int32	maxnr;
+ EXTERN	int32*	idom;
+ 
+-/*
+- * bits.c
+- */
+-Bits	bor(Bits, Bits);
+-Bits	band(Bits, Bits);
+-Bits	bnot(Bits);
+-int	bany(Bits*);
+-int	bnum(Bits);
+-Bits	blsh(uint);
+-int	beq(Bits, Bits);
+-int	bset(Bits, uint);
+-int	Qconv(Fmt *fp);
+-int	bitno(int32);
+-struct
++EXTERN	struct
+ {
+ 	int32	ncvtreg;
+ 	int32	nspill;
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index a3db97e405..595554d1ca 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -28,6 +28,7 @@ OFILES=\
+ 	mparith3.$O\
+ 	builtin.$O\
+ 	compat.$O\
++	bits.$O\
+ 
+ $(LIB): $(OFILES)
+ 	ar rsc $(LIB) $(OFILES)
+diff --git a/src/cmd/6g/bits.c b/src/cmd/gc/bits.c
+similarity index 98%
+rename from src/cmd/6g/bits.c
+rename to src/cmd/gc/bits.c
+index 8fbb103d8a..57caf58dc0 100644
+--- a/src/cmd/6g/bits.c
++++ b/src/cmd/gc/bits.c
+@@ -28,8 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include "gg.h"
+-#include "opt.h"
++#include "go.h"
+ 
+ Bits
+ bor(Bits a, Bits b)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 65f45de63a..392c13d503 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -11,7 +11,7 @@
+ #include	"compat.h"
+ 
+ #ifndef	EXTERN
+-#define EXTERN	extern
++#define	EXTERN	extern
+ #endif
+ enum
+ {
+@@ -420,6 +420,29 @@ enum
+ 	Erv,		// evaluated in rvalue context
+ };
+ 
++#define	BITS	5
++#define	NVAR	(BITS*sizeof(uint32)*8)
++
++typedef	struct	Bits	Bits;
++struct	Bits
++{
++	uint32	b[BITS];
++};
++
++EXTERN	Bits	zbits;
++
++typedef	struct	Var	Var;
++struct	Var
++{
++	vlong	offset;
++	Sym*	sym;
++	char	name;
++	char	etype;
++};
++
++EXTERN	Var	var[NVAR];
++
++
+ typedef	struct	Io	Io;
+ struct	Io
+ {
+@@ -871,3 +894,17 @@ Node*	nodarg(Type*, int);
+ void	nodconst(Node*, Type*, vlong);
+ Type*	deep(Type*);
+ Type*	shallow(Type*);
++
++/*
++ * bits.c
++ */
++Bits	bor(Bits, Bits);
++Bits	band(Bits, Bits);
++Bits	bnot(Bits);
++int	bany(Bits*);
++int	bnum(Bits);
++Bits	blsh(uint);
++int	beq(Bits, Bits);
++int	bset(Bits, uint);
++int	Qconv(Fmt *fp);
++int	bitno(int32);
+diff --git a/src/cmd/make8.bash b/src/cmd/make8.bash
+new file mode 100644
+index 0000000000..6c0d3aded5
+--- /dev/null
++++ b/src/cmd/make8.bash
+@@ -0,0 +1,22 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++set -e
++
++bash clean.bash
++
++cd 8l
++bash mkenam
++make enam.o
++cd ..
++
++for i in cc 8l 8a 8c gc 8g ar db nm acid cov gobuild godefs prof gotest
++do
++	echo; echo; echo %%%% making $i %%%%; echo
++	cd $i
++	make install
++	cd ..
++done

@@ -9,6 +9,25 @@ Date:   Tue Dec 13 17:45:01 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5482060
-
+---
  doc/contribute.html | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index c4b1ce2b53..2de4aecb89 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -210,10 +210,10 @@ to this change, and the <code>CC</code> line lists people to
+ notify about the change.
+ These can be code review nicknames or arbitrary email addresses.
+ Unless explicitly told otherwise, such as in the discussion leading
+-up to sending in the change list, set the
+-reviewer field to the
++up to sending in the change list, leave the reviewer field blank.
++This means that the
+ <a href="http://groups.google.com/group/golang-dev">golang-dev@googlegroups.com</a>
+-mailing list.
++mailing list will be used as the reviewer.
+ </p>
+ 
+ <p>

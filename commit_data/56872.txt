@@ -14,6 +14,34 @@ Date:   Fri May 26 14:16:24 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/go1.21.html | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 21d2b35eaf..b959cdb116 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -667,12 +667,16 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="regexp"><dt><a href="/pkg/regexp/">regexp</a></dt>
+   <dd>
+-    <p><!-- https://go.dev/issue/46159 -->
+-      TODO: <a href="https://go.dev/issue/46159">https://go.dev/issue/46159</a>: support encoding.TextMarshaler
+-    </p>
+-
+-    <p><!-- CL 479401 -->
+-      TODO: <a href="https://go.dev/cl/479401">https://go.dev/cl/479401</a>: regexp: add Regexp.TextMarshaler/TextUnmarshaler; modified api/next/46159.txt
++    <p><!-- https://go.dev/issue/46159, CL 479401 -->
++      <a href="/pkg/regexp#Regexp"><code>Regexp</code></a> now defines
++      <a href="/pkg/regexp#Regexp.MarshalText"><code>MarshalText</code></a>
++      and <a href="/pkg/regexp#Regexp.UnmarshalText"><code>UnmarshalText</code></a>
++      methods. These implement
++      <a href="/pkg/encoding#TextMarshaler"><code>encoding.TextMarshaler</code></a>
++      and
++      <a href="/pkg/encoding#TextUnmarshaler"><code>encoding.TextUnmarshaler</code></a>
++      and will be used by packages such as
++      <a href="/pkg/encoding/json">encoding/json</a>.
+     </p>
+   </dd>
+ </dl><!-- regexp -->

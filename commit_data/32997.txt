@@ -11,7 +11,42 @@ Date:   Thu Jun 22 15:35:35 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  test/fixedbugs/issue20749.go             | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f21cc8f826..bff278b7ae 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2261,7 +2261,7 @@ func checksliceindex(l *Node, r *Node, tp *types.Type) bool {
+ 		if r.Int64() < 0 {
+ 			yyerror("invalid slice index %v (index must be non-negative)", r)
+ 			return false
+-		} else if tp != nil && tp.NumElem() > 0 && r.Int64() > tp.NumElem() {
++		} else if tp != nil && tp.NumElem() >= 0 && r.Int64() > tp.NumElem() {
+ 			yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.NumElem())
+ 			return false
+ 		} else if Isconst(l, CTSTR) && r.Int64() > int64(len(l.Val().U.(string))) {
+diff --git a/test/fixedbugs/issue20749.go b/test/fixedbugs/issue20749.go
+new file mode 100644
+index 0000000000..af9ff3fbed
+--- /dev/null
++++ b/test/fixedbugs/issue20749.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Verify that the compiler complains even if the array
++// has length 0.
++var a [0]int
++var _ = a[2:] // ERROR "invalid slice index 2"
++
++var b [1]int
++var _ = b[2:] // ERROR "invalid slice index 2"

@@ -7,7 +7,7 @@ Date:   Sun Jun 5 14:27:38 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4515191
-
+---
  src/pkg/Makefile                          |  8 +++++---
  src/pkg/exp/gui/Makefile                  | 11 +++++++++++
  src/pkg/exp/{draw/event.go => gui/gui.go} |  6 ++++--
@@ -19,3 +19,272 @@ Date:   Sun Jun 5 14:27:38 2011 +1000
  src/pkg/{exp => image}/draw/draw.go       |  4 ++--
  src/pkg/{exp => image}/draw/draw_test.go  |  0
  10 files changed, 38 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 453232cb3e..a1f509c88c 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -77,9 +77,9 @@ DIRS=\
+ 	encoding/pem\
+ 	exec\
+ 	exp/datafmt\
+-	exp/draw\
+-	exp/draw/x11\
+ 	exp/eval\
++	exp/gui\
++	exp/gui/x11\
+ 	expvar\
+ 	flag\
+ 	fmt\
+@@ -107,6 +107,7 @@ DIRS=\
+ 	http/spdy\
+ 	image\
+ 	image/bmp\
++	image/draw\
+ 	image/gif\
+ 	image/jpeg\
+ 	image/png\
+@@ -184,7 +185,8 @@ NOTEST+=\
+ 	crypto\
+ 	crypto/openpgp/error\
+ 	debug/proc\
+-	exp/draw/x11\
++	exp/gui\
++	exp/gui/x11\
+ 	go/ast\
+ 	go/doc\
+ 	go/token\
+diff --git a/src/pkg/exp/gui/Makefile b/src/pkg/exp/gui/Makefile
+new file mode 100644
+index 0000000000..af065e4a57
+--- /dev/null
++++ b/src/pkg/exp/gui/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=exp/gui
++GOFILES=\
++	gui.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/exp/draw/event.go b/src/pkg/exp/gui/gui.go
+similarity index 93%
+rename from src/pkg/exp/draw/event.go
+rename to src/pkg/exp/gui/gui.go
+index b777d912e1..1714991860 100644
+--- a/src/pkg/exp/draw/event.go
++++ b/src/pkg/exp/gui/gui.go
+@@ -2,17 +2,19 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package draw
++// Package gui defines a basic graphical user interface programming model.
++package gui
+ 
+ import (
+ 	"image"
++	"image/draw"
+ 	"os"
+ )
+ 
+ // A Window represents a single graphics window.
+ type Window interface {
+ 	// Screen returns an editable Image for the window.
+-	Screen() Image
++	Screen() draw.Image
+ 	// FlushImage flushes changes made to Screen() back to screen.
+ 	FlushImage()
+ 	// EventChan returns a channel carrying UI events such as key presses,
+diff --git a/src/pkg/exp/draw/x11/Makefile b/src/pkg/exp/gui/x11/Makefile
+similarity index 93%
+rename from src/pkg/exp/draw/x11/Makefile
+rename to src/pkg/exp/gui/x11/Makefile
+index 205b3a65ba..88cc1e23b3 100644
+--- a/src/pkg/exp/draw/x11/Makefile
++++ b/src/pkg/exp/gui/x11/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../../Make.inc
+ 
+-TARG=exp/draw/x11
++TARG=exp/gui/x11
+ GOFILES=\
+ 	auth.go\
+ 	conn.go\
+diff --git a/src/pkg/exp/draw/x11/auth.go b/src/pkg/exp/gui/x11/auth.go
+similarity index 100%
+rename from src/pkg/exp/draw/x11/auth.go
+rename to src/pkg/exp/gui/x11/auth.go
+diff --git a/src/pkg/exp/draw/x11/conn.go b/src/pkg/exp/gui/x11/conn.go
+similarity index 96%
+rename from src/pkg/exp/draw/x11/conn.go
+rename to src/pkg/exp/gui/x11/conn.go
+index 23edc2c631..bc7ca63dbf 100644
+--- a/src/pkg/exp/draw/x11/conn.go
++++ b/src/pkg/exp/gui/x11/conn.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package x11 implements an X11 backend for the exp/draw package.
++// Package x11 implements an X11 backend for the exp/gui package.
+ //
+ // The X protocol specification is at ftp://ftp.x.org/pub/X11R7.0/doc/PDF/proto.pdf.
+ // A summary of the wire format can be found in XCB's xproto.xml.
+@@ -10,8 +10,9 @@ package x11
+ 
+ import (
+ 	"bufio"
+-	"exp/draw"
++	"exp/gui"
+ 	"image"
++	"image/draw"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -43,7 +44,7 @@ type conn struct {
+ 
+ 	img        *image.RGBA
+ 	eventc     chan interface{}
+-	mouseState draw.MouseEvent
++	mouseState gui.MouseEvent
+ 
+ 	buf [256]byte // General purpose scratch buffer.
+ 
+@@ -53,7 +54,7 @@ type conn struct {
+ }
+ 
+ // writeSocket runs in its own goroutine, serving both FlushImage calls
+-// directly from the exp/draw client and indirectly from X expose events.
++// directly from the exp/gui client and indirectly from X expose events.
+ // It paints c.img to the X server via PutImage requests.
+ func (c *conn) writeSocket() {
+ 	defer c.c.Close()
+@@ -143,7 +144,7 @@ func (c *conn) Close() os.Error {
+ 
+ func (c *conn) EventChan() <-chan interface{} { return c.eventc }
+ 
+-// readSocket runs in its own goroutine, reading X events and sending draw
++// readSocket runs in its own goroutine, reading X events and sending gui
+ // events on c's EventChan.
+ func (c *conn) readSocket() {
+ 	var (
+@@ -155,7 +156,7 @@ func (c *conn) readSocket() {
+ 		// X events are always 32 bytes long.
+ 		if _, err := io.ReadFull(c.r, c.buf[0:32]); err != nil {
+ 			if err != os.EOF {
+-				c.eventc <- draw.ErrEvent{err}
++				c.eventc <- gui.ErrEvent{err}
+ 			}
+ 			return
+ 		}
+@@ -165,7 +166,7 @@ func (c *conn) readSocket() {
+ 			if cookie != 1 {
+ 				// We issued only one request (GetKeyboardMapping) with a cookie of 1,
+ 				// so we shouldn't get any other reply from the X server.
+-				c.eventc <- draw.ErrEvent{os.NewError("x11: unexpected cookie")}
++				c.eventc <- gui.ErrEvent{os.NewError("x11: unexpected cookie")}
+ 				return
+ 			}
+ 			keysymsPerKeycode = int(c.buf[1])
+@@ -179,7 +180,7 @@ func (c *conn) readSocket() {
+ 					u, err := readU32LE(c.r, c.buf[0:4])
+ 					if err != nil {
+ 						if err != os.EOF {
+-							c.eventc <- draw.ErrEvent{err}
++							c.eventc <- gui.ErrEvent{err}
+ 						}
+ 						return
+ 					}
+@@ -204,11 +205,11 @@ func (c *conn) readSocket() {
+ 			// TODO(nigeltao): Should we send KeyEvents for Shift/Ctrl/Alt? Should Shift-A send
+ 			// the same int down the channel as the sent on just the A key?
+ 			// TODO(nigeltao): How should IME events (e.g. key presses that should generate CJK text) work? Or
+-			// is that outside the scope of the draw.Window interface?
++			// is that outside the scope of the gui.Window interface?
+ 			if c.buf[0] == 0x03 {
+ 				keysym = -keysym
+ 			}
+-			c.eventc <- draw.KeyEvent{keysym}
++			c.eventc <- gui.KeyEvent{keysym}
+ 		case 0x04, 0x05: // Button press, button release.
+ 			mask := 1 << (c.buf[1] - 1)
+ 			if c.buf[0] == 0x04 {
+@@ -551,7 +552,7 @@ func (c *conn) handshake() os.Error {
+ }
+ 
+ // NewWindow calls NewWindowDisplay with $DISPLAY.
+-func NewWindow() (draw.Window, os.Error) {
++func NewWindow() (gui.Window, os.Error) {
+ 	display := os.Getenv("DISPLAY")
+ 	if len(display) == 0 {
+ 		return nil, os.NewError("$DISPLAY not set")
+@@ -559,10 +560,10 @@ func NewWindow() (draw.Window, os.Error) {
+ 	return NewWindowDisplay(display)
+ }
+ 
+-// NewWindowDisplay returns a new draw.Window, backed by a newly created and
++// NewWindowDisplay returns a new gui.Window, backed by a newly created and
+ // mapped X11 window. The X server to connect to is specified by the display
+ // string, such as ":1".
+-func NewWindowDisplay(display string) (draw.Window, os.Error) {
++func NewWindowDisplay(display string) (gui.Window, os.Error) {
+ 	socket, displayStr, err := connect(display)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/pkg/exp/draw/Makefile b/src/pkg/image/draw/Makefile
+similarity index 90%
+rename from src/pkg/exp/draw/Makefile
+rename to src/pkg/image/draw/Makefile
+index 6f0f0b2f5f..2ba6e7b51d 100644
+--- a/src/pkg/exp/draw/Makefile
++++ b/src/pkg/image/draw/Makefile
+@@ -4,9 +4,8 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=exp/draw
++TARG=image/draw
+ GOFILES=\
+ 	draw.go\
+-	event.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/exp/draw/clip_test.go b/src/pkg/image/draw/clip_test.go
+similarity index 100%
+rename from src/pkg/exp/draw/clip_test.go
+rename to src/pkg/image/draw/clip_test.go
+diff --git a/src/pkg/exp/draw/draw.go b/src/pkg/image/draw/draw.go
+similarity index 99%
+rename from src/pkg/exp/draw/draw.go
+rename to src/pkg/image/draw/draw.go
+index dd573022f7..618fb4aa6b 100644
+--- a/src/pkg/exp/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package draw provides basic graphics and drawing primitives,
++// Package draw provides image composition functions
+ // in the style of the Plan 9 graphics library
+ // (see http://plan9.bell-labs.com/magic/man2html/2/draw)
+ // and the X Render extension.
+@@ -16,7 +16,7 @@ import (
+ // m is the maximum color value returned by image.Color.RGBA.
+ const m = 1<<16 - 1
+ 
+-// A Porter-Duff compositing operator.
++// Op is a Porter-Duff compositing operator.
+ type Op int
+ 
+ const (
+diff --git a/src/pkg/exp/draw/draw_test.go b/src/pkg/image/draw/draw_test.go
+similarity index 100%
+rename from src/pkg/exp/draw/draw_test.go
+rename to src/pkg/image/draw/draw_test.go

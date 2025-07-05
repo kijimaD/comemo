@@ -17,10 +17,241 @@ Date:   Wed Nov 10 08:33:26 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go             |  2 +-
  src/cmd/compile/internal/noder/expr.go             |  4 +-
  src/cmd/compile/internal/types2/builtins.go        | 50 ---------------
  src/cmd/compile/internal/types2/compilersupport.go | 34 ++++++++++
  src/cmd/compile/internal/types2/type.go            | 74 ++++++++++++----------
  5 files changed, 78 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 82455f7d4a..0143fd3d45 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -94,7 +94,7 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 	if recv != nil {
+ 		t2 := deref2(recv.Type())
+ 		// This is a method, so set g.curDecl to recvTypeName.methName instead.
+-		g.curDecl = types2.AsNamed(t2).Obj().Name() + "." + g.curDecl
++		g.curDecl = t2.(*types2.Named).Obj().Name() + "." + g.curDecl
+ 	}
+ 
+ 	fn := ir.NewFunc(g.pos(decl))
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index 24e6dbefe7..6891d1ec30 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -266,7 +266,7 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 			if wantPtr {
+ 				recvType2Base = types2.AsPointer(recvType2).Elem()
+ 			}
+-			if types2.AsNamed(recvType2Base).TypeParams().Len() > 0 {
++			if recvType2Base.(*types2.Named).TypeParams().Len() > 0 {
+ 				// recvType2 is the original generic type that is
+ 				// instantiated for this method call.
+ 				// selinfo.Recv() is the instantiated type
+@@ -338,7 +338,7 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 		return typed(g.typ(typ), n)
+ 	}
+ 
+-	_, isStruct := types2.Structure(typ).(*types2.Struct)
++	_, isStruct := types2.StructuralType(typ).(*types2.Struct)
+ 
+ 	exprs := make([]ir.Node, len(lit.ElemList))
+ 	for i, elem := range lit.ElemList {
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 4c659d65cd..5c3f0aac8a 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -767,56 +767,6 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	return true
+ }
+ 
+-// Structure is exported for the compiler.
+-
+-// If typ is a type parameter, Structure returns the single underlying
+-// type of all types in the corresponding type constraint if it exists,
+-// or nil otherwise. If typ is not a type parameter, Structure returns
+-// the underlying type.
+-func Structure(typ Type) Type {
+-	return structuralType(typ)
+-}
+-
+-// If typ is a type parameter, structuralType returns the single underlying
+-// type of all types in the corresponding type constraint if it exists, or
+-// nil otherwise. If typ is not a type parameter, structuralType returns
+-// the underlying type.
+-func structuralType(typ Type) Type {
+-	var su Type
+-	if underIs(typ, func(u Type) bool {
+-		if su != nil && !Identical(su, u) {
+-			return false
+-		}
+-		// su == nil || Identical(su, u)
+-		su = u
+-		return true
+-	}) {
+-		return su
+-	}
+-	return nil
+-}
+-
+-// structuralString is like structuralType but also considers []byte
+-// and string as "identical". In this case, if successful, the result
+-// is always []byte.
+-func structuralString(typ Type) Type {
+-	var su Type
+-	if underIs(typ, func(u Type) bool {
+-		if isString(u) {
+-			u = NewSlice(universeByte)
+-		}
+-		if su != nil && !Identical(su, u) {
+-			return false
+-		}
+-		// su == nil || Identical(su, u)
+-		su = u
+-		return true
+-	}) {
+-		return su
+-	}
+-	return nil
+-}
+-
+ // hasVarSize reports if the size of type t is variable due to type parameters.
+ func hasVarSize(t Type) bool {
+ 	switch t := under(t).(type) {
+diff --git a/src/cmd/compile/internal/types2/compilersupport.go b/src/cmd/compile/internal/types2/compilersupport.go
+new file mode 100644
+index 0000000000..1e79bbf9be
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/compilersupport.go
+@@ -0,0 +1,34 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Helper functions exported for the compiler.
++// Do not use internally.
++
++package types2
++
++// If t is a pointer, AsPointer returns that type, otherwise it returns nil.
++func AsPointer(t Type) *Pointer {
++	u, _ := t.Underlying().(*Pointer)
++	return u
++}
++
++// If t is a signature, AsSignature returns that type, otherwise it returns nil.
++func AsSignature(t Type) *Signature {
++	u, _ := t.Underlying().(*Signature)
++	return u
++}
++
++// If t is a type parameter, AsTypeParam returns that type, otherwise it returns nil.
++func AsTypeParam(t Type) *TypeParam {
++	u, _ := t.Underlying().(*TypeParam)
++	return u
++}
++
++// If t is a type parameter, StructuralType returns the single underlying
++// type of all types in the type parameter's type constraint if it exists,
++// or nil otherwise. If t is not a type parameter, StructuralType returns
++// the underlying type of t.
++func StructuralType(t Type) Type {
++	return structuralType(t)
++}
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index d1655c55f8..64f25c6dac 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -27,10 +27,47 @@ func under(t Type) Type {
+ 	return t
+ }
+ 
+-// If the argument to asNamed, or asTypeParam is of the respective type
+-// (possibly after resolving a *Named type), these methods return that type.
+-// Otherwise the result is nil.
++// If typ is a type parameter, structuralType returns the single underlying
++// type of all types in the corresponding type constraint if it exists, or
++// nil otherwise. If typ is not a type parameter, structuralType returns
++// the underlying type.
++func structuralType(typ Type) Type {
++	var su Type
++	if underIs(typ, func(u Type) bool {
++		if su != nil && !Identical(su, u) {
++			return false
++		}
++		// su == nil || Identical(su, u)
++		su = u
++		return true
++	}) {
++		return su
++	}
++	return nil
++}
++
++// structuralString is like structuralType but also considers []byte
++// and string as "identical". In this case, if successful, the result
++// is always []byte.
++func structuralString(typ Type) Type {
++	var su Type
++	if underIs(typ, func(u Type) bool {
++		if isString(u) {
++			u = NewSlice(universeByte)
++		}
++		if su != nil && !Identical(su, u) {
++			return false
++		}
++		// su == nil || Identical(su, u)
++		su = u
++		return true
++	}) {
++		return su
++	}
++	return nil
++}
+ 
++// If t is a defined type, asNamed returns that type (possibly after resolving it), otherwise it returns nil.
+ func asNamed(t Type) *Named {
+ 	e, _ := t.(*Named)
+ 	if e != nil {
+@@ -39,37 +76,8 @@ func asNamed(t Type) *Named {
+ 	return e
+ }
+ 
++// If t is a type parameter, asTypeParam returns that type, otherwise it returns nil.
+ func asTypeParam(t Type) *TypeParam {
+ 	u, _ := under(t).(*TypeParam)
+ 	return u
+ }
+-
+-// Helper functions exported for the compiler.
+-// These functions assume type checking has completed
+-// and Type.Underlying() is returning the fully set up
+-// underlying type. Do not use internally.
+-
+-func AsPointer(t Type) *Pointer {
+-	u, _ := t.Underlying().(*Pointer)
+-	return u
+-}
+-
+-func AsNamed(t Type) *Named {
+-	u, _ := t.(*Named)
+-	return u
+-}
+-
+-func AsSignature(t Type) *Signature {
+-	u, _ := t.Underlying().(*Signature)
+-	return u
+-}
+-
+-func AsInterface(t Type) *Interface {
+-	u, _ := t.Underlying().(*Interface)
+-	return u
+-}
+-
+-func AsTypeParam(t Type) *TypeParam {
+-	u, _ := t.Underlying().(*TypeParam)
+-	return u
+-}

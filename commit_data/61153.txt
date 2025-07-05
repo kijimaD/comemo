@@ -11,6 +11,27 @@ Date:   Tue Oct 8 10:18:22 2024 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/load.go | 9 +--------
  1 file changed, 1 insertion(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 7d44bf79e9..2a7e5fbe8b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -536,14 +536,7 @@ func matchLocalDirs(ctx context.Context, modRoots []string, m *search.Match, rs
+ 		}
+ 
+ 		modRoot := findModuleRoot(absDir)
+-		found := false
+-		for _, mainModuleRoot := range modRoots {
+-			if mainModuleRoot == modRoot {
+-				found = true
+-				break
+-			}
+-		}
+-		if !found && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
++		if !slices.Contains(modRoots, modRoot) && search.InDir(absDir, cfg.GOROOTsrc) == "" && pathInModuleCache(ctx, absDir, rs) == "" {
+ 			m.Dirs = []string{}
+ 			scope := "main module or its selected dependencies"
+ 			if inWorkspaceMode() {

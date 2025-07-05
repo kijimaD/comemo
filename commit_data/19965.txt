@@ -9,7 +9,34 @@ Date:   Thu Aug 7 23:47:01 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/124870043
-
+---
  src/pkg/runtime/defs_nacl_amd64p32.h   | 2 +-
  src/pkg/runtime/signal_nacl_amd64p32.h | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/defs_nacl_amd64p32.h b/src/pkg/runtime/defs_nacl_amd64p32.h
+index 8d3068bf87..45663d40af 100644
+--- a/src/pkg/runtime/defs_nacl_amd64p32.h
++++ b/src/pkg/runtime/defs_nacl_amd64p32.h
+@@ -79,7 +79,7 @@ struct ExcContext
+ 	union {
+ 		ExcRegs386	regs;
+ 		ExcRegsAmd64	regs64;
+-	};
++	} regs;
+ };
+ 
+ struct ExcPortableContext
+diff --git a/src/pkg/runtime/signal_nacl_amd64p32.h b/src/pkg/runtime/signal_nacl_amd64p32.h
+index c58593a291..f62305cb52 100644
+--- a/src/pkg/runtime/signal_nacl_amd64p32.h
++++ b/src/pkg/runtime/signal_nacl_amd64p32.h
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs64)
++#define SIG_REGS(ctxt) (((ExcContext*)(ctxt))->regs.regs64)
+ 
+ #define SIG_RAX(info, ctxt) (SIG_REGS(ctxt).rax)
+ #define SIG_RBX(info, ctxt) (SIG_REGS(ctxt).rbx)

@@ -8,7 +8,37 @@ Date:   Tue Dec 8 18:20:06 2009 -0800
     
     R=r
     https://golang.org/cl/167057
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d473bd032f..d0dce85fa7 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -28,6 +28,7 @@ Isaac Wagner <ibw@isaacwagner.me>
+ James Meneghello <rawrz0r@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
++Kei Son <hey.calmdown@gmail.com>
+ Kevin Ballard <kevin@sb.org>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e58fa85985..251193a364 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -59,6 +59,7 @@ James Meneghello <rawrz0r@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+ Josh Goebel <dreamer3@gmail.com>
+ Kai Backman <kaib@golang.org>
++Kei Son <hey.calmdown@gmail.com>
+ Ken Thompson <ken@golang.org>
+ Kevin Ballard <kevin@sb.org>
+ Larry Hosken <lahosken@golang.org>
+@@ -84,3 +85,4 @@ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Vish Subramanian <vish@google.com>
+ William Josephson <wjosephson@gmail.com>
++Yves Junqueira <yves.junqueira@gmail.com>

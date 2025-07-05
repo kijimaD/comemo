@@ -26,7 +26,7 @@ Date:   Sat Jan 29 15:58:19 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/fsys/fsys_test.go                            | 3 +--
  src/cmd/go/proxy_test.go                                         | 2 +-
  src/cmd/go/script_test.go                                        | 3 +--
@@ -37,3 +37,147 @@ Date:   Sat Jan 29 15:58:19 2022 -0500
  src/go/build/deps_test.go                                        | 3 +++
  src/{cmd/vendor/golang.org/x/tools => internal}/txtar/archive.go | 0
  9 files changed, 9 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index c080c14987..8cfe1d89e6 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -5,14 +5,13 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
++	"internal/txtar"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+ 	"testing"
+-
+-	"golang.org/x/tools/txtar"
+ )
+ 
+ // initOverlay resets the overlay state to reflect the config.
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 517a885542..fc256968b7 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"internal/txtar"
+ 	"io"
+ 	"io/fs"
+ 	"log"
+@@ -30,7 +31,6 @@ import (
+ 	"golang.org/x/mod/semver"
+ 	"golang.org/x/mod/sumdb"
+ 	"golang.org/x/mod/sumdb/dirhash"
+-	"golang.org/x/tools/txtar"
+ )
+ 
+ var (
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index eff2213525..90ab3a6501 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"internal/testenv"
++	"internal/txtar"
+ 	"io/fs"
+ 	"os"
+ 	"os/exec"
+@@ -33,8 +34,6 @@ import (
+ 	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
+-
+-	"golang.org/x/tools/txtar"
+ )
+ 
+ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index eac2a7ad44..41997a52ff 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -24,13 +24,12 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	exec "internal/execabs"
++	"internal/txtar"
+ 	"io/fs"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+-
+-	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index 53c78cfb00..eaafc5e493 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -18,14 +18,13 @@ package main
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/txtar"
+ 	"io/fs"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+ 	"unicode/utf8"
+-
+-	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index b2a7fd1915..17b582d662 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -7,7 +7,7 @@ In general script files should have short names: a few words, not whole sentence
+ The first word should be the general category of behavior being tested,
+ often the name of a go subcommand (list, build, test, ...) or concept (vendor, pattern).
+ 
+-Each script is a text archive (go doc cmd/go/internal/txtar).
++Each script is a text archive (go doc internal/txtar).
+ The script begins with an actual command script to run
+ followed by the content of zero or more supporting files to
+ create in the script's temporary file system before it starts executing.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f2cd884b82..c373ca05b1 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -96,7 +96,6 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
+ golang.org/x/tools/internal/typeparams
+-golang.org/x/tools/txtar
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+ ## explicit; go 1.11
+ golang.org/x/xerrors
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6b2c2933f8..ed40f43c9d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -553,6 +553,9 @@ var depsRules = `
+ 
+ 	FMT, container/heap, math/rand
+ 	< internal/trace;
++
++	FMT
++	< internal/txtar;
+ `
+ 
+ // listStdPkgs returns the same list of packages as "go list std".
+diff --git a/src/cmd/vendor/golang.org/x/tools/txtar/archive.go b/src/internal/txtar/archive.go
+similarity index 100%
+rename from src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+rename to src/internal/txtar/archive.go

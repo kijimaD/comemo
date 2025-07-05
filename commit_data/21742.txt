@@ -12,6 +12,27 @@ Date:   Sat Jan 31 14:48:14 2015 +1100
     Change-Id: I90d237e770150bf8d69f14fb09874e70894a7f86
     Reviewed-on: https://go-review.googlesource.com/3682
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/path_test.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index bf7308a3eb..7252e870ce 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -207,12 +207,13 @@ func TestMkdirAllAtSlash(t *testing.T) {
+ 		t.Skipf("skipping on %s", runtime.GOOS)
+ 	}
+ 	RemoveAll("/_go_os_test")
+-	err := MkdirAll("/_go_os_test/dir", 0777)
++	const dir = "/go_os_test/dir"
++	err := MkdirAll(dir, 0777)
+ 	if err != nil {
+ 		pathErr, ok := err.(*PathError)
+ 		// common for users not to be able to write to /
+ 		if ok && (pathErr.Err == syscall.EACCES || pathErr.Err == syscall.EROFS) {
+-			return
++			t.Skipf("could not create %v: %v", dir, err)
+ 		}
+ 		t.Fatalf(`MkdirAll "/_go_os_test/dir": %v`, err)
+ 	}

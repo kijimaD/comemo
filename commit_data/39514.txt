@@ -11,8 +11,66 @@ Date:   Wed Jan 23 00:22:53 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/api/goapi.go                         | 10 ++++++++--
  src/cmd/api/goapi_test.go                    | 13 +++++++++++++
  src/cmd/api/testdata/src/issue29837/p/README |  1 +
  3 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 02dfa7c841..60359229de 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -169,7 +169,13 @@ func main() {
+ 					// w.Import(name) will return nil
+ 					continue
+ 				}
+-				pkg, _ := w.Import(name)
++				pkg, err := w.Import(name)
++				if _, nogo := err.(*build.NoGoError); nogo {
++					continue
++				}
++				if err != nil {
++					log.Fatalf("Import(%q): %v", name, err)
++				}
+ 				w.export(pkg)
+ 			}
+ 		}
+@@ -470,7 +476,7 @@ func (w *Walker) Import(name string) (*types.Package, error) {
+ 	info, err := context.ImportDir(dir, 0)
+ 	if err != nil {
+ 		if _, nogo := err.(*build.NoGoError); nogo {
+-			return nil, nil
++			return nil, err
+ 		}
+ 		log.Fatalf("pkg %q, dir %q: ScanDir: %v", name, dir, err)
+ 	}
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index 1c8e2a345b..fc1bcc908a 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -203,3 +203,16 @@ func TestIssue21181(t *testing.T) {
+ 		w.export(pkg)
+ 	}
+ }
++
++func TestIssue29837(t *testing.T) {
++	for _, c := range contexts {
++		c.Compiler = build.Default.Compiler
++	}
++	for _, context := range contexts {
++		w := NewWalker(context, "testdata/src/issue29837")
++		_, err := w.Import("p")
++		if _, nogo := err.(*build.NoGoError); !nogo {
++			t.Errorf("expected *build.NoGoError, got %T", err)
++		}
++	}
++}
+diff --git a/src/cmd/api/testdata/src/issue29837/p/README b/src/cmd/api/testdata/src/issue29837/p/README
+new file mode 100644
+index 0000000000..770bc0f1b2
+--- /dev/null
++++ b/src/cmd/api/testdata/src/issue29837/p/README
+@@ -0,0 +1 @@
++Empty directory for test, see https://golang.org/issues/29837.
+\ No newline at end of file

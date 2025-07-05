@@ -14,6 +14,37 @@ Date:   Mon Oct 11 09:32:52 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/outbuf_darwin.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/outbuf_darwin.go b/src/cmd/link/internal/ld/outbuf_darwin.go
+index 9444b6567e..6920a0a843 100644
+--- a/src/cmd/link/internal/ld/outbuf_darwin.go
++++ b/src/cmd/link/internal/ld/outbuf_darwin.go
+@@ -9,6 +9,10 @@ import (
+ 	"unsafe"
+ )
+ 
++// Implemented in the syscall package.
++//go:linkname fcntl syscall.fcntl
++func fcntl(fd int, cmd int, arg int) (int, error)
++
+ func (out *OutBuf) fallocate(size uint64) error {
+ 	stat, err := out.f.Stat()
+ 	if err != nil {
+@@ -29,12 +33,8 @@ func (out *OutBuf) fallocate(size uint64) error {
+ 		Length:  int64(size - cursize),
+ 	}
+ 
+-	_, _, errno := syscall.Syscall(syscall.SYS_FCNTL, uintptr(out.f.Fd()), syscall.F_PREALLOCATE, uintptr(unsafe.Pointer(store)))
+-	if errno != 0 {
+-		return errno
+-	}
+-
+-	return nil
++	_, err = fcntl(int(out.f.Fd()), syscall.F_PREALLOCATE, int(uintptr(unsafe.Pointer(store))))
++	return err
+ }
+ 
+ func (out *OutBuf) purgeSignatureCache() {

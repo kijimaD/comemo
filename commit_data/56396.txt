@@ -16,7 +16,7 @@ Date:   Wed Apr 19 14:24:33 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  api/next/56345.txt                                  |  4 ----
  api/next/59339.txt                                  |  2 ++
  src/log/slog/doc.go                                 |  6 +++---
@@ -34,3 +34,380 @@ Date:   Wed Apr 19 14:24:33 2023 -0400
  src/log/slog/text_handler_test.go                   |  6 +++---
  src/testing/slogtest/example_test.go                |  2 +-
  16 files changed, 44 insertions(+), 49 deletions(-)
+
+diff --git a/api/next/56345.txt b/api/next/56345.txt
+index fd3893e81d..c11ce6871e 100644
+--- a/api/next/56345.txt
++++ b/api/next/56345.txt
+@@ -58,10 +58,8 @@ pkg log/slog, func IntValue(int) Value #56345
+ pkg log/slog, func Log(context.Context, Level, string, ...interface{}) #56345
+ pkg log/slog, func LogAttrs(context.Context, Level, string, ...Attr) #56345
+ pkg log/slog, func New(Handler) *Logger #56345
+-pkg log/slog, func NewJSONHandler(io.Writer) *JSONHandler #56345
+ pkg log/slog, func NewLogLogger(Handler, Level) *log.Logger #56345
+ pkg log/slog, func NewRecord(time.Time, Level, string, uintptr) Record #56345
+-pkg log/slog, func NewTextHandler(io.Writer) *TextHandler #56345
+ pkg log/slog, func SetDefault(*Logger) #56345
+ pkg log/slog, func String(string, string) Attr #56345
+ pkg log/slog, func StringValue(string) Value #56345
+@@ -105,8 +103,6 @@ pkg log/slog, method (*TextHandler) WithAttrs([]Attr) Handler #56345
+ pkg log/slog, method (*TextHandler) WithGroup(string) Handler #56345
+ pkg log/slog, method (Attr) Equal(Attr) bool #56345
+ pkg log/slog, method (Attr) String() string #56345
+-pkg log/slog, method (HandlerOptions) NewJSONHandler(io.Writer) *JSONHandler #56345
+-pkg log/slog, method (HandlerOptions) NewTextHandler(io.Writer) *TextHandler #56345
+ pkg log/slog, method (Kind) String() string #56345
+ pkg log/slog, method (Level) Level() Level #56345
+ pkg log/slog, method (Level) MarshalJSON() ([]uint8, error) #56345
+diff --git a/api/next/59339.txt b/api/next/59339.txt
+new file mode 100644
+index 0000000000..79156e98b6
+--- /dev/null
++++ b/api/next/59339.txt
+@@ -0,0 +1,2 @@
++pkg log/slog, func NewJSONHandler(io.Writer, *HandlerOptions) *JSONHandler #59339
++pkg log/slog, func NewTextHandler(io.Writer, *HandlerOptions) *TextHandler #59339
+diff --git a/src/log/slog/doc.go b/src/log/slog/doc.go
+index 5ca14b735b..205c40de90 100644
+--- a/src/log/slog/doc.go
++++ b/src/log/slog/doc.go
+@@ -44,7 +44,7 @@ For more control over the output format, create a logger with a different handle
+ This statement uses [New] to create a new logger with a TextHandler
+ that writes structured records in text form to standard error:
+ 
+-	logger := slog.New(slog.NewTextHandler(os.Stderr))
++	logger := slog.New(slog.NewTextHandler(os.Stderr, nil))
+ 
+ [TextHandler] output is a sequence of key=value pairs, easily and unambiguously
+ parsed by machine. This statement:
+@@ -57,7 +57,7 @@ produces this output:
+ 
+ The package also provides [JSONHandler], whose output is line-delimited JSON:
+ 
+-	logger := slog.New(slog.NewJSONHandler(os.Stdout))
++	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+ 	logger.Info("hello", "count", 3)
+ 
+ produces this output:
+@@ -149,7 +149,7 @@ a global LevelVar:
+ 
+ Then use the LevelVar to construct a handler, and make it the default:
+ 
+-	h := slog.HandlerOptions{Level: programLevel}.NewJSONHandler(os.Stderr)
++	h := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: programLevel})
+ 	slog.SetDefault(slog.New(h))
+ 
+ Now the program can change its logging level with a single statement:
+diff --git a/src/log/slog/example_custom_levels_test.go b/src/log/slog/example_custom_levels_test.go
+index 37fa9b37a3..2f230320bc 100644
+--- a/src/log/slog/example_custom_levels_test.go
++++ b/src/log/slog/example_custom_levels_test.go
+@@ -25,7 +25,7 @@ func ExampleHandlerOptions_customLevels() {
+ 		LevelEmergency = slog.Level(12)
+ 	)
+ 
+-	th := slog.HandlerOptions{
++	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+ 		// Set a custom level to show all log output. The default value is
+ 		// LevelInfo, which would drop Debug and Trace logs.
+ 		Level: LevelTrace,
+@@ -69,7 +69,7 @@ func ExampleHandlerOptions_customLevels() {
+ 
+ 			return a
+ 		},
+-	}.NewTextHandler(os.Stdout)
++	})
+ 
+ 	logger := slog.New(th)
+ 	logger.Log(nil, LevelEmergency, "missing pilots")
+diff --git a/src/log/slog/example_level_handler_test.go b/src/log/slog/example_level_handler_test.go
+index 9ddeab3369..1ff91d4763 100644
+--- a/src/log/slog/example_level_handler_test.go
++++ b/src/log/slog/example_level_handler_test.go
+@@ -63,7 +63,7 @@ func (h *LevelHandler) Handler() slog.Handler {
+ // Another typical use would be to decrease the log level (to LevelDebug, say)
+ // during a part of the program that was suspected of containing a bug.
+ func ExampleHandler_levelHandler() {
+-	th := slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.NewTextHandler(os.Stdout)
++	th := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime})
+ 	logger := slog.New(NewLevelHandler(slog.LevelWarn, th))
+ 	logger.Info("not printed")
+ 	logger.Warn("printed")
+diff --git a/src/log/slog/example_logvaluer_secret_test.go b/src/log/slog/example_logvaluer_secret_test.go
+index efc22a20e3..51d0020793 100644
+--- a/src/log/slog/example_logvaluer_secret_test.go
++++ b/src/log/slog/example_logvaluer_secret_test.go
+@@ -23,8 +23,7 @@ func (Token) LogValue() slog.Value {
+ // with an alternative representation to avoid revealing secrets.
+ func ExampleLogValuer_secret() {
+ 	t := Token("shhhh!")
+-	logger := slog.New(slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.
+-		NewTextHandler(os.Stdout))
++	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}))
+ 	logger.Info("permission granted", "user", "Perry", "token", t)
+ 
+ 	// Output:
+diff --git a/src/log/slog/example_test.go b/src/log/slog/example_test.go
+index 78b60b3649..a677456689 100644
+--- a/src/log/slog/example_test.go
++++ b/src/log/slog/example_test.go
+@@ -16,7 +16,7 @@ func ExampleGroup() {
+ 	r, _ := http.NewRequest("GET", "localhost", nil)
+ 	// ...
+ 
+-	logger := slog.New(slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}.NewTextHandler(os.Stdout))
++	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime}))
+ 	logger.Info("finished",
+ 		slog.Group("req",
+ 			slog.String("method", r.Method),
+diff --git a/src/log/slog/example_wrap_test.go b/src/log/slog/example_wrap_test.go
+index d422517b6e..dcc87b833c 100644
+--- a/src/log/slog/example_wrap_test.go
++++ b/src/log/slog/example_wrap_test.go
+@@ -39,7 +39,7 @@ func Example_wrapping() {
+ 		}
+ 		return a
+ 	}
+-	logger := slog.New(slog.HandlerOptions{AddSource: true, ReplaceAttr: replace}.NewTextHandler(os.Stdout))
++	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{AddSource: true, ReplaceAttr: replace}))
+ 	Infof(logger, "message, %s", "formatted")
+ 
+ 	// Output:
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 7b5aac303c..fee611cf6a 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -338,8 +338,8 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 				h    Handler
+ 				want string
+ 			}{
+-				{"text", opts.NewTextHandler(&buf), test.wantText},
+-				{"json", opts.NewJSONHandler(&buf), test.wantJSON},
++				{"text", NewTextHandler(&buf, &opts), test.wantText},
++				{"json", NewJSONHandler(&buf, &opts), test.wantJSON},
+ 			} {
+ 				t.Run(handler.name, func(t *testing.T) {
+ 					h := handler.h
+@@ -419,7 +419,7 @@ func TestSecondWith(t *testing.T) {
+ 	// Verify that a second call to Logger.With does not corrupt
+ 	// the original.
+ 	var buf bytes.Buffer
+-	h := HandlerOptions{ReplaceAttr: removeKeys(TimeKey)}.NewTextHandler(&buf)
++	h := NewTextHandler(&buf, &HandlerOptions{ReplaceAttr: removeKeys(TimeKey)})
+ 	logger := New(h).With(
+ 		String("app", "playground"),
+ 		String("role", "tester"),
+@@ -445,14 +445,14 @@ func TestReplaceAttrGroups(t *testing.T) {
+ 
+ 	var got []ga
+ 
+-	h := HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
++	h := NewTextHandler(io.Discard, &HandlerOptions{ReplaceAttr: func(gs []string, a Attr) Attr {
+ 		v := a.Value.String()
+ 		if a.Key == TimeKey {
+ 			v = "<now>"
+ 		}
+ 		got = append(got, ga{strings.Join(gs, ","), a.Key, v})
+ 		return a
+-	}}.NewTextHandler(io.Discard)
++	}})
+ 	New(h).
+ 		With(Int("a", 1)).
+ 		WithGroup("g1").
+diff --git a/src/log/slog/internal/benchmarks/benchmarks_test.go b/src/log/slog/internal/benchmarks/benchmarks_test.go
+index 5cbd1be29a..18643b73e6 100644
+--- a/src/log/slog/internal/benchmarks/benchmarks_test.go
++++ b/src/log/slog/internal/benchmarks/benchmarks_test.go
+@@ -32,8 +32,8 @@ func BenchmarkAttrs(b *testing.B) {
+ 		{"disabled", disabledHandler{}, false},
+ 		{"async discard", newAsyncHandler(), true},
+ 		{"fastText discard", newFastTextHandler(io.Discard), false},
+-		{"Text discard", slog.NewTextHandler(io.Discard), false},
+-		{"JSON discard", slog.NewJSONHandler(io.Discard), false},
++		{"Text discard", slog.NewTextHandler(io.Discard, nil), false},
++		{"JSON discard", slog.NewJSONHandler(io.Discard, nil), false},
+ 	} {
+ 		logger := slog.New(handler.h)
+ 		b.Run(handler.name, func(b *testing.B) {
+diff --git a/src/log/slog/json_handler.go b/src/log/slog/json_handler.go
+index c965a99152..a99a99f1c1 100644
+--- a/src/log/slog/json_handler.go
++++ b/src/log/slog/json_handler.go
+@@ -25,18 +25,17 @@ type JSONHandler struct {
+ }
+ 
+ // NewJSONHandler creates a JSONHandler that writes to w,
+-// using the default options.
+-func NewJSONHandler(w io.Writer) *JSONHandler {
+-	return (HandlerOptions{}).NewJSONHandler(w)
+-}
+-
+-// NewJSONHandler creates a JSONHandler with the given options that writes to w.
+-func (opts HandlerOptions) NewJSONHandler(w io.Writer) *JSONHandler {
++// using the given options.
++// If opts is nil, the default options are used.
++func NewJSONHandler(w io.Writer, opts *HandlerOptions) *JSONHandler {
++	if opts == nil {
++		opts = &HandlerOptions{}
++	}
+ 	return &JSONHandler{
+ 		&commonHandler{
+ 			json: true,
+ 			w:    w,
+-			opts: opts,
++			opts: *opts,
+ 		},
+ 	}
+ }
+diff --git a/src/log/slog/json_handler_test.go b/src/log/slog/json_handler_test.go
+index 7c683f0d34..d8457cb9ee 100644
+--- a/src/log/slog/json_handler_test.go
++++ b/src/log/slog/json_handler_test.go
+@@ -39,7 +39,7 @@ func TestJSONHandler(t *testing.T) {
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			var buf bytes.Buffer
+-			h := test.opts.NewJSONHandler(&buf)
++			h := NewJSONHandler(&buf, &test.opts)
+ 			r := NewRecord(testTime, LevelInfo, "m", 0)
+ 			r.AddAttrs(Int("a", 1), Any("m", map[string]int{"b": 2}))
+ 			if err := h.Handle(context.Background(), r); err != nil {
+@@ -171,7 +171,7 @@ func BenchmarkJSONHandler(b *testing.B) {
+ 		}},
+ 	} {
+ 		b.Run(bench.name, func(b *testing.B) {
+-			l := New(bench.opts.NewJSONHandler(io.Discard)).With(
++			l := New(NewJSONHandler(io.Discard, &bench.opts)).With(
+ 				String("program", "my-test-program"),
+ 				String("package", "log/slog"),
+ 				String("traceID", "2039232309232309"),
+@@ -236,7 +236,7 @@ func BenchmarkPreformatting(b *testing.B) {
+ 		{"struct file", outFile, structAttrs},
+ 	} {
+ 		b.Run(bench.name, func(b *testing.B) {
+-			l := New(NewJSONHandler(bench.wc)).With(bench.attrs...)
++			l := New(NewJSONHandler(bench.wc, nil)).With(bench.attrs...)
+ 			b.ReportAllocs()
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 2180ea7469..f7bf7a81fe 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -27,7 +27,7 @@ const timeRE = `\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}(Z|[+-]\d{2}:\d{2})`
+ func TestLogTextHandler(t *testing.T) {
+ 	var buf bytes.Buffer
+ 
+-	l := New(NewTextHandler(&buf))
++	l := New(NewTextHandler(&buf, nil))
+ 
+ 	check := func(want string) {
+ 		t.Helper()
+@@ -104,13 +104,13 @@ func TestConnections(t *testing.T) {
+ 
+ 	// Once slog.SetDefault is called, the direction is reversed: the default
+ 	// log.Logger's output goes through the handler.
+-	SetDefault(New(HandlerOptions{AddSource: true}.NewTextHandler(&slogbuf)))
++	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{AddSource: true})))
+ 	log.Print("msg2")
+ 	checkLogOutput(t, slogbuf.String(), "time="+timeRE+` level=INFO source=.*logger_test.go:\d{3} msg=msg2`)
+ 
+ 	// The default log.Logger always outputs at Info level.
+ 	slogbuf.Reset()
+-	SetDefault(New(HandlerOptions{Level: LevelWarn}.NewTextHandler(&slogbuf)))
++	SetDefault(New(NewTextHandler(&slogbuf, &HandlerOptions{Level: LevelWarn})))
+ 	log.Print("should not appear")
+ 	if got := slogbuf.String(); got != "" {
+ 		t.Errorf("got %q, want empty", got)
+@@ -352,7 +352,7 @@ func TestLoggerError(t *testing.T) {
+ 		}
+ 		return a
+ 	}
+-	l := New(HandlerOptions{ReplaceAttr: removeTime}.NewTextHandler(&buf))
++	l := New(NewTextHandler(&buf, &HandlerOptions{ReplaceAttr: removeTime}))
+ 	l.Error("msg", "err", io.EOF, "a", 1)
+ 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
+ 	buf.Reset()
+@@ -362,7 +362,7 @@ func TestLoggerError(t *testing.T) {
+ 
+ func TestNewLogLogger(t *testing.T) {
+ 	var buf bytes.Buffer
+-	h := NewTextHandler(&buf)
++	h := NewTextHandler(&buf, nil)
+ 	ll := NewLogLogger(h, LevelWarn)
+ 	ll.Print("hello")
+ 	checkLogOutput(t, buf.String(), "time="+timeRE+` level=WARN msg=hello`)
+diff --git a/src/log/slog/text_handler.go b/src/log/slog/text_handler.go
+index 4981eb67d2..75b66b716f 100644
+--- a/src/log/slog/text_handler.go
++++ b/src/log/slog/text_handler.go
+@@ -22,18 +22,17 @@ type TextHandler struct {
+ }
+ 
+ // NewTextHandler creates a TextHandler that writes to w,
+-// using the default options.
+-func NewTextHandler(w io.Writer) *TextHandler {
+-	return (HandlerOptions{}).NewTextHandler(w)
+-}
+-
+-// NewTextHandler creates a TextHandler with the given options that writes to w.
+-func (opts HandlerOptions) NewTextHandler(w io.Writer) *TextHandler {
++// using the given options.
++// If opts is nil, the default options are used.
++func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
++	if opts == nil {
++		opts = &HandlerOptions{}
++	}
+ 	return &TextHandler{
+ 		&commonHandler{
+ 			json: false,
+ 			w:    w,
+-			opts: opts,
++			opts: *opts,
+ 		},
+ 	}
+ }
+diff --git a/src/log/slog/text_handler_test.go b/src/log/slog/text_handler_test.go
+index 87144a770a..9d6301909d 100644
+--- a/src/log/slog/text_handler_test.go
++++ b/src/log/slog/text_handler_test.go
+@@ -82,7 +82,7 @@ func TestTextHandler(t *testing.T) {
+ 			} {
+ 				t.Run(opts.name, func(t *testing.T) {
+ 					var buf bytes.Buffer
+-					h := opts.opts.NewTextHandler(&buf)
++					h := NewTextHandler(&buf, &opts.opts)
+ 					r := NewRecord(testTime, LevelInfo, "a message", 0)
+ 					r.AddAttrs(test.attr)
+ 					if err := h.Handle(context.Background(), r); err != nil {
+@@ -124,7 +124,7 @@ func (t text) MarshalText() ([]byte, error) {
+ 
+ func TestTextHandlerPreformatted(t *testing.T) {
+ 	var buf bytes.Buffer
+-	var h Handler = NewTextHandler(&buf)
++	var h Handler = NewTextHandler(&buf, nil)
+ 	h = h.WithAttrs([]Attr{Duration("dur", time.Minute), Bool("b", true)})
+ 	// Also test omitting time.
+ 	r := NewRecord(time.Time{}, 0 /* 0 Level is INFO */, "m", 0)
+@@ -145,7 +145,7 @@ func TestTextHandlerAlloc(t *testing.T) {
+ 	for i := 0; i < 10; i++ {
+ 		r.AddAttrs(Int("x = y", i))
+ 	}
+-	var h Handler = NewTextHandler(io.Discard)
++	var h Handler = NewTextHandler(io.Discard, nil)
+ 	wantAllocs(t, 0, func() { h.Handle(context.Background(), r) })
+ 
+ 	h = h.WithGroup("s")
+diff --git a/src/testing/slogtest/example_test.go b/src/testing/slogtest/example_test.go
+index 61e4b46e12..0517a4b857 100644
+--- a/src/testing/slogtest/example_test.go
++++ b/src/testing/slogtest/example_test.go
+@@ -19,7 +19,7 @@ import (
+ // format when given a pointer to a map[string]any.
+ func Example_parsing() {
+ 	var buf bytes.Buffer
+-	h := slog.NewJSONHandler(&buf)
++	h := slog.NewJSONHandler(&buf, nil)
+ 
+ 	results := func() []map[string]any {
+ 		var ms []map[string]any

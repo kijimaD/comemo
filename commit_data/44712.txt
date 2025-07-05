@@ -15,6 +15,25 @@ Date:   Sat Aug 22 18:21:14 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/internal/atomic/atomic_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/runtime/internal/atomic/atomic_test.go b/src/runtime/internal/atomic/atomic_test.go
+index 0c1125c558..b0a8fa0610 100644
+--- a/src/runtime/internal/atomic/atomic_test.go
++++ b/src/runtime/internal/atomic/atomic_test.go
+@@ -220,3 +220,13 @@ func TestBitwiseContended(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStorepNoWB(t *testing.T) {
++	var p [2]*int
++	for i := range p {
++		atomic.StorepNoWB(unsafe.Pointer(&p[i]), unsafe.Pointer(new(int)))
++	}
++	if p[0] == p[1] {
++		t.Error("Bad escape analysis of StorepNoWB")
++	}
++}

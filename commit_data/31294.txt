@@ -19,8 +19,180 @@ Date:   Thu Feb 9 14:00:23 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36693
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 32 ++++++++++++++++++++++++
  src/cmd/compile/internal/gc/order.go    | 20 +++++++++++----
  src/cmd/compile/internal/gc/walk.go     | 43 +++++++++++++++------------------
  3 files changed, 66 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 29ed0739cf..d07988b2ab 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -440,6 +440,38 @@ func f(t *T) {
+ `,
+ 		[]string{"\tROLL\t[$]7,"},
+ 	},
++
++	// Direct use of constants in fast map access calls. Issue 19015.
++	{"amd64", "linux", `
++	func f(m map[int]int) int {
++		return m[5]
++	}
++`,
++		[]string{"\tMOVQ\t[$]5,"},
++	},
++	{"amd64", "linux", `
++	func f(m map[int]int) bool {
++		_, ok := m[5]
++		return ok
++	}
++`,
++		[]string{"\tMOVQ\t[$]5,"},
++	},
++	{"amd64", "linux", `
++	func f(m map[string]int) int {
++		return m["abc"]
++	}
++`,
++		[]string{"\"abc\""},
++	},
++	{"amd64", "linux", `
++	func f(m map[string]int) bool {
++		_, ok := m["abc"]
++		return ok
++	}
++`,
++		[]string{"\"abc\""},
++	},
+ }
+ 
+ // mergeEnvLists merges the two environment lists such that
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 4f2cc831fe..9530d4d928 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -206,6 +206,18 @@ func orderaddrtemp(n *Node, order *Order) *Node {
+ 	return ordercopyexpr(n, n.Type, order, 0)
+ }
+ 
++// ordermapkeytemp prepares n.Right to be a key in a map lookup.
++func ordermapkeytemp(n *Node, order *Order) {
++	// Most map calls need to take the address of the key.
++	// Exception: mapaccessN_fast* calls. See golang.org/issue/19015.
++	p, _ := mapaccessfast(n.Left.Type)
++	fastaccess := p != "" && n.Etype == 0 // Etype == 0 iff n is an rvalue
++	if fastaccess {
++		return
++	}
++	n.Right = orderaddrtemp(n.Right, order)
++}
++
+ type ordermarker int
+ 
+ // Marktemp returns the top of the temporary variable stack.
+@@ -527,7 +539,7 @@ func orderstmt(n *Node, order *Order) {
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+-	// Special: make sure key is addressable,
++	// Special: make sure key is addressable if needed,
+ 	// and make sure OINDEXMAP is not copied out.
+ 	case OAS2MAPR:
+ 		t := marktemp(order)
+@@ -541,7 +553,7 @@ func orderstmt(n *Node, order *Order) {
+ 		if r.Right.Op == OARRAYBYTESTR {
+ 			r.Right.Op = OARRAYBYTESTRTMP
+ 		}
+-		r.Right = orderaddrtemp(r.Right, order)
++		ordermapkeytemp(r, order)
+ 		ordermapassign(n, order)
+ 		cleantemp(t, order)
+ 
+@@ -1074,9 +1086,7 @@ func orderexpr(n *Node, order *Order, lhs *Node) *Node {
+ 			needCopy = true
+ 		}
+ 
+-		// Map calls need to take the address of the key.
+-		n.Right = orderaddrtemp(n.Right, order)
+-
++		ordermapkeytemp(n, order)
+ 		if needCopy {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8fb33cd949..772e86bfab 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -791,18 +791,8 @@ opswitch:
+ 		r.Left = walkexpr(r.Left, init)
+ 		r.Right = walkexpr(r.Right, init)
+ 		t := r.Left.Type
+-		p := ""
+-		if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+-			switch algtype(t.Key()) {
+-			case AMEM32:
+-				p = "mapaccess2_fast32"
+-			case AMEM64:
+-				p = "mapaccess2_fast64"
+-			case ASTRING:
+-				p = "mapaccess2_faststr"
+-			}
+-		}
+ 
++		_, p := mapaccessfast(t)
+ 		var key *Node
+ 		if p != "" {
+ 			// fast versions take key by value
+@@ -811,7 +801,6 @@ opswitch:
+ 			// standard version takes key by reference
+ 			// orderexpr made sure key is addressable.
+ 			key = nod(OADDR, r.Right, nil)
+-
+ 			p = "mapaccess2"
+ 		}
+ 
+@@ -1173,18 +1162,7 @@ opswitch:
+ 			n = mkcall1(mapfn("mapassign", t), nil, init, typename(t), map_, key)
+ 		} else {
+ 			// m[k] is not the target of an assignment.
+-			p := ""
+-			if t.Val().Width <= 128 { // Check ../../runtime/hashmap.go:maxValueSize before changing.
+-				switch algtype(t.Key()) {
+-				case AMEM32:
+-					p = "mapaccess1_fast32"
+-				case AMEM64:
+-					p = "mapaccess1_fast64"
+-				case ASTRING:
+-					p = "mapaccess1_faststr"
+-				}
+-			}
+-
++			p, _ := mapaccessfast(t)
+ 			if p == "" {
+ 				// standard version takes key by reference.
+ 				// orderexpr made sure key is addressable.
+@@ -2700,6 +2678,23 @@ func mapfndel(name string, t *Type) *Node {
+ 	return fn
+ }
+ 
++// mapaccessfast returns the names of the fast map access runtime routines for t.
++func mapaccessfast(t *Type) (access1, access2 string) {
++	// Check ../../runtime/hashmap.go:maxValueSize before changing.
++	if t.Val().Width > 128 {
++		return "", ""
++	}
++	switch algtype(t.Key()) {
++	case AMEM32:
++		return "mapaccess1_fast32", "mapaccess2_fast32"
++	case AMEM64:
++		return "mapaccess1_fast64", "mapaccess2_fast64"
++	case ASTRING:
++		return "mapaccess1_faststr", "mapaccess2_faststr"
++	}
++	return "", ""
++}
++
+ func writebarrierfn(name string, l *Type, r *Type) *Node {
+ 	fn := syslook(name)
+ 	fn = substArgTypes(fn, l, r)

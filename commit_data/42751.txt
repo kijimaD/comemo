@@ -17,7 +17,7 @@ Date:   Thu Dec 26 19:24:41 2019 -0500
     Change-Id: Idc1e36c3702c94918631936f637510a6679d18a0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212624
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 106 ---------------------
  src/cmd/go/script_test.go                          |  22 ++++-
  src/cmd/go/testdata/script/README                  |   3 +-
@@ -44,3 +44,637 @@ Date:   Thu Dec 26 19:24:41 2019 -0500
  src/cmd/go/testdata/src/coverdot2/p.go             |   5 -
  src/cmd/go/testdata/src/coverdot2/p_test.go        |   7 --
  25 files changed, 252 insertions(+), 196 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 70dee65f7f..98838dd4c1 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2052,40 +2052,6 @@ func TestCoverageRuns(t *testing.T) {
+ 	checkCoverage(tg, data)
+ }
+ 
+-func TestCoverageDotImport(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-coverpkg=coverdot1,coverdot2", "coverdot2")
+-	data := tg.getStdout() + tg.getStderr()
+-	checkCoverage(tg, data)
+-}
+-
+-func TestCoverageSyncAtomicImport(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-short", "-cover", "-covermode=atomic", "-coverpkg=coverdep/p1", "coverdep")
+-}
+-
+-func TestCoverageDepLoop(t *testing.T) {
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	// coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
+-	// Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
+-	tg.run("test", "-short", "-cover", "coverdep2/p1")
+-	tg.grepStdout("coverage: 100.0% of statements", "expected 100.0% coverage")
+-}
+-
+ func TestCoverageNoStatements(t *testing.T) {
+ 	tooSlow(t)
+ 	tg := testgo(t)
+@@ -2094,78 +2060,6 @@ func TestCoverageNoStatements(t *testing.T) {
+ 	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
+ }
+ 
+-func TestCoverageErrorLine(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.setenv("GOTMPDIR", tg.tempdir)
+-
+-	tg.runFail("test", "coverbad")
+-	tg.grepStderr(`coverbad[\\/]p\.go:4`, "did not find coverbad/p.go:4")
+-	if canCgo {
+-		tg.grepStderr(`coverbad[\\/]p1\.go:6`, "did not find coverbad/p1.go:6")
+-	}
+-	tg.grepStderrNot(regexp.QuoteMeta(tg.tempdir), "found temporary directory in error")
+-	stderr := tg.getStderr()
+-
+-	tg.runFail("test", "-cover", "coverbad")
+-	stderr2 := tg.getStderr()
+-
+-	// It's OK that stderr2 drops the character position in the error,
+-	// because of the //line directive (see golang.org/issue/22662).
+-	stderr = strings.ReplaceAll(stderr, "p.go:4:2:", "p.go:4:")
+-	if stderr != stderr2 {
+-		t.Logf("test -cover changed error messages:\nbefore:\n%s\n\nafter:\n%s", stderr, stderr2)
+-		t.Skip("golang.org/issue/22660")
+-		t.FailNow()
+-	}
+-}
+-
+-func TestTestBuildFailureOutput(t *testing.T) {
+-	tooSlow(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	// Doesn't build, -x output should not claim to run test.
+-	tg.runFail("test", "-x", "coverbad")
+-	tg.grepStderrNot(`[\\/]coverbad\.test( |$)`, "claimed to run test")
+-}
+-
+-func TestCoverageFunc(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-
+-	tg.run("test", "-outputdir="+tg.tempdir, "-coverprofile=cover.out", "coverasm")
+-	tg.run("tool", "cover", "-func="+tg.path("cover.out"))
+-	tg.grepStdout(`\tg\t*100.0%`, "did not find g 100% covered")
+-	tg.grepStdoutNot(`\tf\t*[0-9]`, "reported coverage for assembly function f")
+-}
+-
+-// Issue 24588.
+-func TestCoverageDashC(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tooSlow(t)
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.makeTempdir()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-c", "-o", tg.path("coverdep"), "-coverprofile="+tg.path("no/such/dir/cover.out"), "coverdep")
+-	tg.wantExecutable(tg.path("coverdep"), "go -test -c -coverprofile did not create executable")
+-}
+-
+ func TestTestEmpty(t *testing.T) {
+ 	if !canRace {
+ 		t.Skip("no race detector")
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index ec498bbcd7..fa32a361f6 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -658,13 +658,22 @@ func (ts *testScript) cmdExec(neg bool, args []string) {
+ 
+ // exists checks that the list of files exists.
+ func (ts *testScript) cmdExists(neg bool, args []string) {
+-	var readonly bool
+-	if len(args) > 0 && args[0] == "-readonly" {
+-		readonly = true
+-		args = args[1:]
++	var readonly, exec bool
++loop:
++	for len(args) > 0 {
++		switch args[0] {
++		case "-readonly":
++			readonly = true
++			args = args[1:]
++		case "-exec":
++			exec = true
++			args = args[1:]
++		default:
++			break loop
++		}
+ 	}
+ 	if len(args) == 0 {
+-		ts.fatalf("usage: exists [-readonly] file...")
++		ts.fatalf("usage: exists [-readonly] [-exec] file...")
+ 	}
+ 
+ 	for _, file := range args {
+@@ -683,6 +692,9 @@ func (ts *testScript) cmdExists(neg bool, args []string) {
+ 		if err == nil && !neg && readonly && info.Mode()&0222 != 0 {
+ 			ts.fatalf("%s exists but is writable", file)
+ 		}
++		if err == nil && !neg && exec && runtime.GOOS != "windows" && info.Mode()&0111 == 0 {
++			ts.fatalf("%s exists but is not executable", file)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 7dba6b394c..71d38161d5 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -134,9 +134,10 @@ The commands are:
+   test. At the end of the test, any remaining background processes are
+   terminated using os.Interrupt (if supported) or os.Kill.
+ 
+-- [!] exists [-readonly] file...
++- [!] exists [-readonly] [-exec] file...
+   Each of the listed files or directories must (or must not) exist.
+   If -readonly is given, the files or directories must be unwritable.
++  If -exec is given, the files or directories must be executable.
+ 
+ - [!] go args... [&]
+   Run the (test copy of the) go command with the given arguments.
+diff --git a/src/cmd/go/testdata/script/cover_asm.txt b/src/cmd/go/testdata/script/cover_asm.txt
+new file mode 100644
+index 0000000000..5241c7f0df
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_asm.txt
+@@ -0,0 +1,29 @@
++[short] skip
++[gccgo] skip # gccgo has no cover tool
++
++# Test cover for a package that has an assembly function.
++
++go test -outputdir=$WORK -coverprofile=cover.out coverasm
++go tool cover -func=$WORK/cover.out
++stdout '\tg\t*100.0%' # Check g is 100% covered.
++! stdout '\tf\t*[0-9]' # Check for no coverage on the assembly function
++
++-- coverasm/p.go --
++package p
++
++func f()
++
++func g() {
++	println("g")
++}
++-- coverasm/p.s --
++// empty asm file,
++// so go test doesn't complain about declaration of f in p.go.
++-- coverasm/p_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {
++	g()
++}
+diff --git a/src/cmd/go/testdata/script/cover_dash_c.txt b/src/cmd/go/testdata/script/cover_dash_c.txt
+new file mode 100644
+index 0000000000..61793cec49
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_dash_c.txt
+@@ -0,0 +1,27 @@
++[short] skip
++[gccgo] skip
++
++# Test for issue 24588
++
++go test -c -o $WORK/coverdep -coverprofile=$WORK/no/such/dir/cover.out coverdep
++exists -exec $WORK/coverdep
++
++-- coverdep/p.go --
++package p
++
++import _ "coverdep/p1"
++
++func F() {
++}
++-- coverdep/p1/p1.go --
++package p1
++
++import _ "errors"
++-- coverdep/p_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {
++	F()
++}
+diff --git a/src/cmd/go/testdata/script/cover_dep_loop.txt b/src/cmd/go/testdata/script/cover_dep_loop.txt
+new file mode 100644
+index 0000000000..20b0c15d18
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_dep_loop.txt
+@@ -0,0 +1,32 @@
++[short] skip
++[gccgo] skip
++
++# coverdep2/p1's xtest imports coverdep2/p2 which imports coverdep2/p1.
++# Make sure that coverage on coverdep2/p2 recompiles coverdep2/p2.
++
++go test -short -cover coverdep2/p1
++stdout 'coverage: 100.0% of statements' # expect 100.0% coverage
++
++-- coverdep2/p1/p.go --
++package p1
++
++func F() int { return 1 }
++-- coverdep2/p1/p_test.go --
++package p1_test
++
++import (
++	"coverdep2/p2"
++	"testing"
++)
++
++func Test(t *testing.T) {
++	p2.F()
++}
++-- coverdep2/p2/p2.go --
++package p2
++
++import "coverdep2/p1"
++
++func F() {
++	p1.F()
++}
+diff --git a/src/cmd/go/testdata/script/cover_dot_import.txt b/src/cmd/go/testdata/script/cover_dot_import.txt
+new file mode 100644
+index 0000000000..e07be22d6c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_dot_import.txt
+@@ -0,0 +1,25 @@
++[short] skip
++[gccgo] skip # gccgo has no cover tool
++
++go test -coverpkg=coverdot1,coverdot2 coverdot2
++! stderr '[^0-9]0\.0%'
++! stdout '[^0-9]0\.0%'
++
++-- coverdot1/p.go --
++package coverdot1
++
++func F() {}
++-- coverdot2/p.go --
++package coverdot2
++
++import . "coverdot1"
++
++func G() { F() }
++-- coverdot2/p_test.go --
++package coverdot2
++
++import "testing"
++
++func TestG(t *testing.T) {
++	G()
++}
+diff --git a/src/cmd/go/testdata/script/cover_error.txt b/src/cmd/go/testdata/script/cover_error.txt
+new file mode 100644
+index 0000000000..6ba0f08a2b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_error.txt
+@@ -0,0 +1,69 @@
++[short] skip
++[gccgo] skip
++
++# Test line numbers in cover errors.
++
++# Get errors from a go test into stderr.txt
++! go test coverbad
++stderr 'coverbad[\\/]p\.go:4' # look for error at coverbad/p.go:4
++[cgo] stderr 'coverbad[\\/]p1\.go:6' # look for error at coverbad/p.go:6
++! stderr $WORK # make sure temporary directory isn't in error
++
++cp stderr $WORK/stderr.txt
++
++# Clean out character positions from stderr.txt
++# It's OK that stderr2 drops the character position in the error,
++# because of the //line directive (see golang.org/issue/22662).
++go run clean_charpos.go $WORK/stderr.txt &
++
++# Get errors from coverage into stderr2.txt
++! go test -cover coverbad
++cp stderr $WORK/stderr2.txt
++
++wait # for go run above
++
++cmp $WORK/stderr.txt $WORK/stderr2.txt
++
++-- coverbad/p.go --
++package p
++
++func f() {
++	g()
++}
++-- coverbad/p1.go --
++package p
++
++import "C"
++
++func h() {
++	j()
++}
++-- coverbad/p_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {}
++-- clean_charpos.go --
++package main
++
++import (
++	"io/ioutil"
++	"log"
++	"os"
++	"strings"
++)
++
++func main() {
++	log.SetFlags(0)
++	b, err := ioutil.ReadFile(os.Args[1])
++	if err != nil {
++		log.Fatal(err)
++	}
++	s := strings.ReplaceAll(string(b), "p.go:4:2:", "p.go:4:")
++	s = strings.ReplaceAll(s, "p1.go:6:2:", "p1.go:6:")
++	ioutil.WriteFile(os.Args[1], []byte(s), 0644)
++	if err != nil {
++		log.Fatal(err)
++	}
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/cover_sync_atomic_import.txt b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+new file mode 100644
+index 0000000000..769c03ea83
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_sync_atomic_import.txt
+@@ -0,0 +1,24 @@
++[short] skip
++[gccgo] skip # gccgo has no cover tool
++
++go test -short -cover -covermode=atomic -coverpkg=coverdep/p1 coverdep
++
++-- coverdep/p.go --
++package p
++
++import _ "coverdep/p1"
++
++func F() {
++}
++-- coverdep/p1/p1.go --
++package p1
++
++import _ "errors"
++-- coverdep/p_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {
++	F()
++}
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_build_failure.txt b/src/cmd/go/testdata/script/test_build_failure.txt
+new file mode 100644
+index 0000000000..2ae448a566
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_build_failure.txt
+@@ -0,0 +1,27 @@
++[short] skip
++
++! go test -x coverbad
++! stderr '[\\/]coverbad\.test( |$)' # 'go test' should not claim to have run the test.
++stderr 'undefined: g'
++stderr 'undefined: j'
++
++-- coverbad/p.go --
++package p
++
++func f() {
++	g()
++}
++-- coverbad/p1.go --
++package p
++
++import "C"
++
++func h() {
++	j()
++}
++-- coverbad/p_test.go --
++package p
++
++import "testing"
++
++func Test(t *testing.T) {}
+diff --git a/src/cmd/go/testdata/src/coverasm/p.go b/src/cmd/go/testdata/src/coverasm/p.go
+deleted file mode 100644
+index ab0c300d72..0000000000
+--- a/src/cmd/go/testdata/src/coverasm/p.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p
+-
+-func f()
+-
+-func g() {
+-	println("g")
+-}
+diff --git a/src/cmd/go/testdata/src/coverasm/p.s b/src/cmd/go/testdata/src/coverasm/p.s
+deleted file mode 100644
+index 5e728f9946..0000000000
+--- a/src/cmd/go/testdata/src/coverasm/p.s
++++ /dev/null
+@@ -1,2 +0,0 @@
+-// empty asm file,
+-// so go test doesn't complain about declaration of f in p.go.
+diff --git a/src/cmd/go/testdata/src/coverasm/p_test.go b/src/cmd/go/testdata/src/coverasm/p_test.go
+deleted file mode 100644
+index 3cb3bd5664..0000000000
+--- a/src/cmd/go/testdata/src/coverasm/p_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-	g()
+-}
+diff --git a/src/cmd/go/testdata/src/coverbad/p.go b/src/cmd/go/testdata/src/coverbad/p.go
+deleted file mode 100644
+index 16504a401e..0000000000
+--- a/src/cmd/go/testdata/src/coverbad/p.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p
+-
+-func f() {
+-	g()
+-}
+diff --git a/src/cmd/go/testdata/src/coverbad/p1.go b/src/cmd/go/testdata/src/coverbad/p1.go
+deleted file mode 100644
+index 2d25c8e190..0000000000
+--- a/src/cmd/go/testdata/src/coverbad/p1.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p
+-
+-import "C"
+-
+-func h() {
+-	j()
+-}
+diff --git a/src/cmd/go/testdata/src/coverbad/p_test.go b/src/cmd/go/testdata/src/coverbad/p_test.go
+deleted file mode 100644
+index 3a876d6296..0000000000
+--- a/src/cmd/go/testdata/src/coverbad/p_test.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package p
+-
+-import "testing"
+-
+-func Test(t *testing.T) {}
+diff --git a/src/cmd/go/testdata/src/coverdep/p.go b/src/cmd/go/testdata/src/coverdep/p.go
+deleted file mode 100644
+index 6baf6d5f0c..0000000000
+--- a/src/cmd/go/testdata/src/coverdep/p.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package p
+-
+-import _ "coverdep/p1"
+-
+-func F() {
+-}
+diff --git a/src/cmd/go/testdata/src/coverdep/p1/p1.go b/src/cmd/go/testdata/src/coverdep/p1/p1.go
+deleted file mode 100644
+index 8ae793d55d..0000000000
+--- a/src/cmd/go/testdata/src/coverdep/p1/p1.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p1
+-
+-import _ "errors"
+diff --git a/src/cmd/go/testdata/src/coverdep/p_test.go b/src/cmd/go/testdata/src/coverdep/p_test.go
+deleted file mode 100644
+index 11a14343ea..0000000000
+--- a/src/cmd/go/testdata/src/coverdep/p_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p
+-
+-import "testing"
+-
+-func Test(t *testing.T) {
+-	F()
+-}
+diff --git a/src/cmd/go/testdata/src/coverdep2/p1/p.go b/src/cmd/go/testdata/src/coverdep2/p1/p.go
+deleted file mode 100644
+index fd315272ea..0000000000
+--- a/src/cmd/go/testdata/src/coverdep2/p1/p.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p1
+-
+-func F() int { return 1 }
+diff --git a/src/cmd/go/testdata/src/coverdep2/p1/p_test.go b/src/cmd/go/testdata/src/coverdep2/p1/p_test.go
+deleted file mode 100644
+index c40256885c..0000000000
+--- a/src/cmd/go/testdata/src/coverdep2/p1/p_test.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-package p1_test
+-
+-import (
+-	"coverdep2/p2"
+-	"testing"
+-)
+-
+-func Test(t *testing.T) {
+-	p2.F()
+-}
+diff --git a/src/cmd/go/testdata/src/coverdep2/p2/p2.go b/src/cmd/go/testdata/src/coverdep2/p2/p2.go
+deleted file mode 100644
+index 33561bbb58..0000000000
+--- a/src/cmd/go/testdata/src/coverdep2/p2/p2.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package p2
+-
+-import "coverdep2/p1"
+-
+-func F() {
+-	p1.F()
+-}
+diff --git a/src/cmd/go/testdata/src/coverdot1/p.go b/src/cmd/go/testdata/src/coverdot1/p.go
+deleted file mode 100644
+index cda364f929..0000000000
+--- a/src/cmd/go/testdata/src/coverdot1/p.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package coverdot1
+-
+-func F() {}
+diff --git a/src/cmd/go/testdata/src/coverdot2/p.go b/src/cmd/go/testdata/src/coverdot2/p.go
+deleted file mode 100644
+index 80f79aec83..0000000000
+--- a/src/cmd/go/testdata/src/coverdot2/p.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package coverdot2
+-
+-import . "coverdot1"
+-
+-func G() { F() }
+diff --git a/src/cmd/go/testdata/src/coverdot2/p_test.go b/src/cmd/go/testdata/src/coverdot2/p_test.go
+deleted file mode 100644
+index da66e3e7af..0000000000
+--- a/src/cmd/go/testdata/src/coverdot2/p_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package coverdot2
+-
+-import "testing"
+-
+-func TestG(t *testing.T) {
+-	G()
+-}

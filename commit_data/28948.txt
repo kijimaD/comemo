@@ -27,7 +27,416 @@ Date:   Tue Jul 5 13:50:18 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/crypto/x509/x509.go      | 192 +++++++++++++++++++++++++++++++++++++------
  src/crypto/x509/x509_test.go |  86 ++++++++++++++++---
  2 files changed, 242 insertions(+), 36 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 7b61f5a88c..1ecb0e26cd 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -178,21 +178,36 @@ const (
+ 	ECDSAWithSHA256
+ 	ECDSAWithSHA384
+ 	ECDSAWithSHA512
++	SHA256WithRSAPSS
++	SHA384WithRSAPSS
++	SHA512WithRSAPSS
+ )
+ 
++func (algo SignatureAlgorithm) isRSAPSS() bool {
++	switch algo {
++	case SHA256WithRSAPSS, SHA384WithRSAPSS, SHA512WithRSAPSS:
++		return true
++	default:
++		return false
++	}
++}
++
+ var algoName = [...]string{
+-	MD2WithRSA:      "MD2-RSA",
+-	MD5WithRSA:      "MD5-RSA",
+-	SHA1WithRSA:     "SHA1-RSA",
+-	SHA256WithRSA:   "SHA256-RSA",
+-	SHA384WithRSA:   "SHA384-RSA",
+-	SHA512WithRSA:   "SHA512-RSA",
+-	DSAWithSHA1:     "DSA-SHA1",
+-	DSAWithSHA256:   "DSA-SHA256",
+-	ECDSAWithSHA1:   "ECDSA-SHA1",
+-	ECDSAWithSHA256: "ECDSA-SHA256",
+-	ECDSAWithSHA384: "ECDSA-SHA384",
+-	ECDSAWithSHA512: "ECDSA-SHA512",
++	MD2WithRSA:       "MD2-RSA",
++	MD5WithRSA:       "MD5-RSA",
++	SHA1WithRSA:      "SHA1-RSA",
++	SHA256WithRSA:    "SHA256-RSA",
++	SHA384WithRSA:    "SHA384-RSA",
++	SHA512WithRSA:    "SHA512-RSA",
++	SHA256WithRSAPSS: "SHA256-RSAPSS",
++	SHA384WithRSAPSS: "SHA384-RSAPSS",
++	SHA512WithRSAPSS: "SHA512-RSAPSS",
++	DSAWithSHA1:      "DSA-SHA1",
++	DSAWithSHA256:    "DSA-SHA256",
++	ECDSAWithSHA1:    "ECDSA-SHA1",
++	ECDSAWithSHA256:  "ECDSA-SHA256",
++	ECDSAWithSHA384:  "ECDSA-SHA384",
++	ECDSAWithSHA512:  "ECDSA-SHA512",
+ }
+ 
+ func (algo SignatureAlgorithm) String() string {
+@@ -268,12 +283,19 @@ var (
+ 	oidSignatureSHA256WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 11}
+ 	oidSignatureSHA384WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 12}
+ 	oidSignatureSHA512WithRSA   = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 13}
++	oidSignatureRSAPSS          = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 10}
+ 	oidSignatureDSAWithSHA1     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 3}
+ 	oidSignatureDSAWithSHA256   = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 3, 2}
+ 	oidSignatureECDSAWithSHA1   = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 1}
+ 	oidSignatureECDSAWithSHA256 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 2}
+ 	oidSignatureECDSAWithSHA384 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 3}
+ 	oidSignatureECDSAWithSHA512 = asn1.ObjectIdentifier{1, 2, 840, 10045, 4, 3, 4}
++
++	oidSHA256 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 1}
++	oidSHA384 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 2}
++	oidSHA512 = asn1.ObjectIdentifier{2, 16, 840, 1, 101, 3, 4, 2, 3}
++
++	oidMGF1 = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 8}
+ )
+ 
+ var signatureAlgorithmDetails = []struct {
+@@ -288,6 +310,9 @@ var signatureAlgorithmDetails = []struct {
+ 	{SHA256WithRSA, oidSignatureSHA256WithRSA, RSA, crypto.SHA256},
+ 	{SHA384WithRSA, oidSignatureSHA384WithRSA, RSA, crypto.SHA384},
+ 	{SHA512WithRSA, oidSignatureSHA512WithRSA, RSA, crypto.SHA512},
++	{SHA256WithRSAPSS, oidSignatureRSAPSS, RSA, crypto.SHA256},
++	{SHA384WithRSAPSS, oidSignatureRSAPSS, RSA, crypto.SHA384},
++	{SHA512WithRSAPSS, oidSignatureRSAPSS, RSA, crypto.SHA512},
+ 	{DSAWithSHA1, oidSignatureDSAWithSHA1, DSA, crypto.SHA1},
+ 	{DSAWithSHA256, oidSignatureDSAWithSHA256, DSA, crypto.SHA256},
+ 	{ECDSAWithSHA1, oidSignatureECDSAWithSHA1, ECDSA, crypto.SHA1},
+@@ -296,12 +321,115 @@ var signatureAlgorithmDetails = []struct {
+ 	{ECDSAWithSHA512, oidSignatureECDSAWithSHA512, ECDSA, crypto.SHA512},
+ }
+ 
+-func getSignatureAlgorithmFromOID(oid asn1.ObjectIdentifier) SignatureAlgorithm {
+-	for _, details := range signatureAlgorithmDetails {
+-		if oid.Equal(details.oid) {
+-			return details.algo
++// pssParameters reflects the parameters in an AlgorithmIdentifier that
++// specifies RSA PSS. See https://tools.ietf.org/html/rfc3447#appendix-A.2.3
++type pssParameters struct {
++	// The following three fields are not marked as
++	// optional because the default values specify SHA-1,
++	// which is no longer suitable for use in signatures.
++	Hash         pkix.AlgorithmIdentifier `asn1:"explicit,tag:0"`
++	MGF          pkix.AlgorithmIdentifier `asn1:"explicit,tag:1"`
++	SaltLength   int                      `asn1:"explicit,tag:2"`
++	TrailerField int                      `asn1:"optional,explicit,tag:3,default:1"`
++}
++
++// rsaPSSParameters returns an asn1.RawValue suitable for use as the Parameters
++// in an AlgorithmIdentifier that specifies RSA PSS.
++func rsaPSSParameters(hashFunc crypto.Hash) asn1.RawValue {
++	var hashOID asn1.ObjectIdentifier
++
++	switch hashFunc {
++	case crypto.SHA256:
++		hashOID = oidSHA256
++	case crypto.SHA384:
++		hashOID = oidSHA384
++	case crypto.SHA512:
++		hashOID = oidSHA512
++	}
++
++	params := pssParameters{
++		Hash: pkix.AlgorithmIdentifier{
++			Algorithm: hashOID,
++			Parameters: asn1.RawValue{
++				Tag: 5, /* ASN.1 NULL */
++			},
++		},
++		MGF: pkix.AlgorithmIdentifier{
++			Algorithm: oidMGF1,
++		},
++		SaltLength:   hashFunc.Size(),
++		TrailerField: 1,
++	}
++
++	mgf1Params := pkix.AlgorithmIdentifier{
++		Algorithm: hashOID,
++		Parameters: asn1.RawValue{
++			Tag: 5, /* ASN.1 NULL */
++		},
++	}
++
++	var err error
++	params.MGF.Parameters.FullBytes, err = asn1.Marshal(mgf1Params)
++	if err != nil {
++		panic(err)
++	}
++
++	serialized, err := asn1.Marshal(params)
++	if err != nil {
++		panic(err)
++	}
++
++	return asn1.RawValue{FullBytes: serialized}
++}
++
++func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm {
++	if !ai.Algorithm.Equal(oidSignatureRSAPSS) {
++		for _, details := range signatureAlgorithmDetails {
++			if ai.Algorithm.Equal(details.oid) {
++				return details.algo
++			}
+ 		}
++		return UnknownSignatureAlgorithm
++	}
++
++	// RSA PSS is special because it encodes important parameters
++	// in the Parameters.
++
++	var params pssParameters
++	if _, err := asn1.Unmarshal(ai.Parameters.FullBytes, &params); err != nil {
++		return UnknownSignatureAlgorithm
++	}
++
++	var mgf1HashFunc pkix.AlgorithmIdentifier
++	if _, err := asn1.Unmarshal(params.MGF.Parameters.FullBytes, &mgf1HashFunc); err != nil {
++		return UnknownSignatureAlgorithm
++	}
++
++	// PSS is greatly overburdened with options. This code forces
++	// them into three buckets by requiring that the MGF1 hash
++	// function always match the message hash function (as
++	// recommended in
++	// https://tools.ietf.org/html/rfc3447#section-8.1), that the
++	// salt length matches the hash length, and that the trailer
++	// field has the default value.
++	asn1NULL := []byte{0x05, 0x00}
++	if !bytes.Equal(params.Hash.Parameters.FullBytes, asn1NULL) ||
++		!params.MGF.Algorithm.Equal(oidMGF1) ||
++		!mgf1HashFunc.Algorithm.Equal(params.Hash.Algorithm) ||
++		!bytes.Equal(mgf1HashFunc.Parameters.FullBytes, asn1NULL) ||
++		params.TrailerField != 1 {
++		return UnknownSignatureAlgorithm
+ 	}
++
++	switch {
++	case params.Hash.Algorithm.Equal(oidSHA256) && params.SaltLength == 32:
++		return SHA256WithRSAPSS
++	case params.Hash.Algorithm.Equal(oidSHA384) && params.SaltLength == 48:
++		return SHA384WithRSAPSS
++	case params.Hash.Algorithm.Equal(oidSHA512) && params.SaltLength == 64:
++		return SHA512WithRSAPSS
++	}
++
+ 	return UnknownSignatureAlgorithm
+ }
+ 
+@@ -680,11 +808,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 	switch algo {
+ 	case SHA1WithRSA, DSAWithSHA1, ECDSAWithSHA1:
+ 		hashType = crypto.SHA1
+-	case SHA256WithRSA, DSAWithSHA256, ECDSAWithSHA256:
++	case SHA256WithRSA, SHA256WithRSAPSS, DSAWithSHA256, ECDSAWithSHA256:
+ 		hashType = crypto.SHA256
+-	case SHA384WithRSA, ECDSAWithSHA384:
++	case SHA384WithRSA, SHA384WithRSAPSS, ECDSAWithSHA384:
+ 		hashType = crypto.SHA384
+-	case SHA512WithRSA, ECDSAWithSHA512:
++	case SHA512WithRSA, SHA512WithRSAPSS, ECDSAWithSHA512:
+ 		hashType = crypto.SHA512
+ 	case MD2WithRSA, MD5WithRSA:
+ 		return InsecureAlgorithmError(algo)
+@@ -702,7 +830,11 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 
+ 	switch pub := publicKey.(type) {
+ 	case *rsa.PublicKey:
+-		return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
++		if algo.isRSAPSS() {
++			return rsa.VerifyPSS(pub, hashType, digest, signature, &rsa.PSSOptions{SaltLength: rsa.PSSSaltLengthEqualsHash})
++		} else {
++			return rsa.VerifyPKCS1v15(pub, hashType, digest, signature)
++		}
+ 	case *dsa.PublicKey:
+ 		dsaSig := new(dsaSignature)
+ 		if rest, err := asn1.Unmarshal(signature, dsaSig); err != nil {
+@@ -737,7 +869,7 @@ func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey
+ 
+ // CheckCRLSignature checks that the signature in crl is from c.
+ func (c *Certificate) CheckCRLSignature(crl *pkix.CertificateList) error {
+-	algo := getSignatureAlgorithmFromOID(crl.SignatureAlgorithm.Algorithm)
++	algo := getSignatureAlgorithmFromAI(crl.SignatureAlgorithm)
+ 	return c.CheckSignature(algo, crl.TBSCertList.Raw, crl.SignatureValue.RightAlign())
+ }
+ 
+@@ -945,7 +1077,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
+ 
+ 	out.Signature = in.SignatureValue.RightAlign()
+ 	out.SignatureAlgorithm =
+-		getSignatureAlgorithmFromOID(in.TBSCertificate.SignatureAlgorithm.Algorithm)
++		getSignatureAlgorithmFromAI(in.TBSCertificate.SignatureAlgorithm)
+ 
+ 	out.PublicKeyAlgorithm =
+ 		getPublicKeyAlgorithmFromOID(in.TBSCertificate.PublicKey.Algorithm.Algorithm)
+@@ -1553,6 +1685,9 @@ func signingParamsForPublicKey(pub interface{}, requestedSigAlgo SignatureAlgori
+ 				err = errors.New("x509: cannot sign with hash function requested")
+ 				return
+ 			}
++			if requestedSigAlgo.isRSAPSS() {
++				sigAlgo.Parameters = rsaPSSParameters(hashFunc)
++			}
+ 			found = true
+ 			break
+ 		}
+@@ -1641,8 +1776,17 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	h.Write(tbsCertContents)
+ 	digest := h.Sum(nil)
+ 
++	var signerOpts crypto.SignerOpts
++	signerOpts = hashFunc
++	if template.SignatureAlgorithm != 0 && template.SignatureAlgorithm.isRSAPSS() {
++		signerOpts = &rsa.PSSOptions{
++			SaltLength: rsa.PSSSaltLengthEqualsHash,
++			Hash:       hashFunc,
++		}
++	}
++
+ 	var signature []byte
+-	signature, err = key.Sign(rand, digest, hashFunc)
++	signature, err = key.Sign(rand, digest, signerOpts)
+ 	if err != nil {
+ 		return
+ 	}
+@@ -2047,7 +2191,7 @@ func parseCertificateRequest(in *certificateRequest) (*CertificateRequest, error
+ 		RawSubject:               in.TBSCSR.Subject.FullBytes,
+ 
+ 		Signature:          in.SignatureValue.RightAlign(),
+-		SignatureAlgorithm: getSignatureAlgorithmFromOID(in.SignatureAlgorithm.Algorithm),
++		SignatureAlgorithm: getSignatureAlgorithmFromAI(in.SignatureAlgorithm),
+ 
+ 		PublicKeyAlgorithm: getPublicKeyAlgorithmFromOID(in.TBSCSR.PublicKey.Algorithm.Algorithm),
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 87cd694b82..e7858295ab 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -86,14 +86,21 @@ FF53oIpvxe/SCOymfWq/LW849Ytv3Xwod0+wzAP8STXG4HSELS4UedPYeHJJJYcZ
+ -----END PUBLIC KEY-----
+ `
+ 
+-var pemPrivateKey = `-----BEGIN RSA PRIVATE KEY-----
+-MIIBOgIBAAJBALKZD0nEffqM1ACuak0bijtqE2QrI/KLADv7l3kK3ppMyCuLKoF0
+-fd7Ai2KW5ToIwzFofvJcS/STa6HA5gQenRUCAwEAAQJBAIq9amn00aS0h/CrjXqu
+-/ThglAXJmZhOMPVn4eiu7/ROixi9sex436MaVeMqSNf7Ex9a8fRNfWss7Sqd9eWu
+-RTUCIQDasvGASLqmjeffBNLTXV2A5g4t+kLVCpsEIZAycV5GswIhANEPLmax0ME/
+-EO+ZJ79TJKN5yiGBRsv5yvx5UiHxajEXAiAhAol5N4EUyq6I9w1rYdhPMGpLfk7A
+-IU2snfRJ6Nq2CQIgFrPsWRCkV+gOYcajD17rEqmuLrdIRexpg8N1DOSXoJ8CIGlS
+-tAboUGBxTDq3ZroNism3DaMIbKPyYrAqhKov1h5V
++var pemPrivateKey = `
++-----BEGIN RSA PRIVATE KEY-----
++MIICXAIBAAKBgQCxoeCUW5KJxNPxMp+KmCxKLc1Zv9Ny+4CFqcUXVUYH69L3mQ7v
++IWrJ9GBfcaA7BPQqUlWxWM+OCEQZH1EZNIuqRMNQVuIGCbz5UQ8w6tS0gcgdeGX7
++J7jgCQ4RK3F/PuCM38QBLaHx988qG8NMc6VKErBjctCXFHQt14lerd5KpQIDAQAB
++AoGAYrf6Hbk+mT5AI33k2Jt1kcweodBP7UkExkPxeuQzRVe0KVJw0EkcFhywKpr1
++V5eLMrILWcJnpyHE5slWwtFHBG6a5fLaNtsBBtcAIfqTQ0Vfj5c6SzVaJv0Z5rOd
++7gQF6isy3t3w9IF3We9wXQKzT6q5ypPGdm6fciKQ8RnzREkCQQDZwppKATqQ41/R
++vhSj90fFifrGE6aVKC1hgSpxGQa4oIdsYYHwMzyhBmWW9Xv/R+fPyr8ZwPxp2c12
++33QwOLPLAkEA0NNUb+z4ebVVHyvSwF5jhfJxigim+s49KuzJ1+A2RaSApGyBZiwS
++rWvWkB471POAKUYt5ykIWVZ83zcceQiNTwJBAMJUFQZX5GDqWFc/zwGoKkeR49Yi
++MTXIvf7Wmv6E++eFcnT461FlGAUHRV+bQQXGsItR/opIG7mGogIkVXa3E1MCQARX
++AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
++6vdM4QGKTJoO+SaCyP0CQFdpcxSAuzpFcKv0IlJ8XzS/cy+mweCMwyJ1PFEc4FX6
++wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
+ -----END RSA PRIVATE KEY-----
+ `
+ 
+@@ -128,13 +135,13 @@ func bigFromHexString(s string) *big.Int {
+ 
+ var rsaPrivateKey = &rsa.PrivateKey{
+ 	PublicKey: rsa.PublicKey{
+-		N: bigFromString("9353930466774385905609975137998169297361893554149986716853295022578535724979677252958524466350471210367835187480748268864277464700638583474144061408845077"),
++		N: bigFromString("124737666279038955318614287965056875799409043964547386061640914307192830334599556034328900586693254156136128122194531292927142396093148164407300419162827624945636708870992355233833321488652786796134504707628792159725681555822420087112284637501705261187690946267527866880072856272532711620639179596808018872997"),
+ 		E: 65537,
+ 	},
+-	D: bigFromString("7266398431328116344057699379749222532279343923819063639497049039389899328538543087657733766554155839834519529439851673014800261285757759040931985506583861"),
++	D: bigFromString("69322600686866301945688231018559005300304807960033948687567105312977055197015197977971637657636780793670599180105424702854759606794705928621125408040473426339714144598640466128488132656829419518221592374964225347786430566310906679585739468938549035854760501049443920822523780156843263434219450229353270690889"),
+ 	Primes: []*big.Int{
+-		bigFromString("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
+-		bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
++		bigFromString("11405025354575369741595561190164746858706645478381139288033759331174478411254205003127028642766986913445391069745480057674348716675323735886284176682955723"),
++		bigFromString("10937079261204603443118731009201819560867324167189758120988909645641782263430128449826989846631183550578761324239709121189827307416350485191350050332642639"),
+ 	},
+ }
+ 
+@@ -341,6 +348,9 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		{"RSA/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
+ 		{"ECDSA/RSA", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSA},
+ 		{"ECDSA/ECDSA", &ecdsaPriv.PublicKey, ecdsaPriv, true, ECDSAWithSHA1},
++		{"RSAPSS/RSAPSS", &testPrivateKey.PublicKey, testPrivateKey, true, SHA256WithRSAPSS},
++		{"ECDSA/RSAPSS", &ecdsaPriv.PublicKey, testPrivateKey, false, SHA256WithRSAPSS},
++		{"RSAPSS/ECDSA", &testPrivateKey.PublicKey, ecdsaPriv, false, ECDSAWithSHA384},
+ 	}
+ 
+ 	testExtKeyUsage := []ExtKeyUsage{ExtKeyUsageClientAuth, ExtKeyUsageServerAuth}
+@@ -762,6 +772,58 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
+ 	}
+ }
+ 
++var rsaPSSSelfSignedPEM = `-----BEGIN CERTIFICATE-----
++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
++-----END CERTIFICATE-----`
++
++func TestRSAPSSSelfSigned(t *testing.T) {
++	der, _ := pem.Decode([]byte(rsaPSSSelfSignedPEM))
++	if der == nil {
++		t.Fatal("Failed to find PEM block")
++	}
++
++	cert, err := ParseCertificate(der.Bytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if err = cert.CheckSignatureFrom(cert); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ const pemCertificate = `-----BEGIN CERTIFICATE-----
+ MIIDATCCAemgAwIBAgIRAKQkkrFx1T/dgB/Go/xBM5swDQYJKoZIhvcNAQELBQAw
+ EjEQMA4GA1UEChMHQWNtZSBDbzAeFw0xNjA4MTcyMDM2MDdaFw0xNzA4MTcyMDM2

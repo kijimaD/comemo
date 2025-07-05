@@ -18,6 +18,26 @@ Date:   Tue Jun 10 11:09:35 2025 -0400
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/http/roundtrip_js.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 04c241eb4c..7ae94617bc 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -236,6 +236,14 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		if !ac.IsUndefined() {
+ 			// Abort the Fetch request.
+ 			ac.Call("abort")
++
++			// Wait for fetch promise to be rejected prior to exiting. See
++			// https://github.com/golang/go/issues/57098 for more details.
++			select {
++			case resp := <-respCh:
++				resp.Body.Close()
++			case <-errCh:
++			}
+ 		}
+ 		return nil, req.Context().Err()
+ 	case resp := <-respCh:

@@ -9,8 +9,54 @@ Date:   Fri Jan 3 21:03:20 2014 +0100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46900043
-
+---
  src/cmd/gc/typecheck.c      |  5 +++++
  test/fixedbugs/issue6406.go | 12 ++++++++++++
  test/typecheck.go           |  2 +-
  3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 31a2f2c5cb..6f8b6adbbf 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2680,6 +2680,11 @@ checkassign(Node *n)
+ 		n->etype = 1;
+ 		return;
+ 	}
++
++	// have already complained about n being undefined
++	if(n->op == ONONAME)
++		return;
++
+ 	yyerror("cannot assign to %N", n);
+ }
+ 
+diff --git a/test/fixedbugs/issue6406.go b/test/fixedbugs/issue6406.go
+new file mode 100644
+index 0000000000..5491193ef3
+--- /dev/null
++++ b/test/fixedbugs/issue6406.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	s = "bob" // ERROR "undefined.*s"
++	_ = s // ERROR "undefined.*s"
++}
+diff --git a/test/typecheck.go b/test/typecheck.go
+index a2ad91ff4c..6f1204289a 100644
+--- a/test/typecheck.go
++++ b/test/typecheck.go
+@@ -14,5 +14,5 @@ func mine(int b) int {	// ERROR "undefined.*b"
+ 
+ func main() {
+ 	mine()		// GCCGO_ERROR "not enough arguments"
+-	c = mine()	// ERROR "undefined.*c|not enough arguments" "cannot assign to c"
++	c = mine()	// ERROR "undefined.*c|not enough arguments"
+ }

@@ -9,7 +9,7 @@ Date:   Thu Apr 23 21:53:01 2009 -0700
     TBR=r
     OCL=27825
     CL=27825
-
+---
  usr/gri/pretty/Makefile      |   2 +-
  usr/gri/pretty/ast.txt       |  14 ++
  usr/gri/pretty/astprinter.go |   3 +-
@@ -17,3 +17,725 @@ Date:   Thu Apr 23 21:53:01 2009 -0700
  usr/gri/pretty/godoc.go      |  21 +-
  usr/gri/pretty/pretty.go     |  60 +++---
  6 files changed, 544 insertions(+), 38 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index c00163fb64..b455f35e5d 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -32,7 +32,7 @@ clean:
+ 
+ godoc.6:	astprinter.6 comment.6 docprinter.6
+ 
+-pretty.6:	 astprinter.6
++pretty.6:	 astprinter.6 format.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+new file mode 100644
+index 0000000000..a4f62f3b8d
+--- /dev/null
++++ b/usr/gri/pretty/ast.txt
+@@ -0,0 +1,14 @@
++// TODO prefix decl doesn't work
++//ast .
++
++ast.Ident =
++	Value .
++
++ast.Program =
++	"package " Name "\n" { Decls "\n\n" } .
++
++ast.GenDecl =
++	"def " .
++
++ast.FuncDecl =
++	"func " .
+\ No newline at end of file
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index 033cb1a3ac..7cccbdc484 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -22,7 +22,6 @@ var (
+ 	maxnewlines = flag.Int("ast_maxnewlines", 3, "max. number of consecutive newlines");
+ 
+ 	// formatting control
+-	comments = flag.Bool("ast_comments", true, "print comments");
+ 	optsemicolons = flag.Bool("ast_optsemicolons", false, "print optional semicolons");
+ )
+ 
+@@ -158,7 +157,7 @@ type Printer struct {
+ 
+ 
+ func (P *Printer) hasComment(pos token.Position) bool {
+-	return *comments && P.cpos.Offset < pos.Offset;
++	return P.cpos.Offset < pos.Offset;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/format.go b/usr/gri/pretty/format.go
+new file mode 100644
+index 0000000000..35c3bc78ae
+--- /dev/null
++++ b/usr/gri/pretty/format.go
+@@ -0,0 +1,482 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package format
++
++import (
++	"fmt";
++	"go/scanner";
++	"go/token";
++	"io";
++	"reflect";
++	"os";
++)
++
++
++// -----------------------------------------------------------------------------
++// Format
++
++// node kind
++const (
++	self = iota;
++	alternative;
++	sequence;
++	field;
++	literal;
++	option;
++	repetition;
++)
++
++
++type node struct {
++	kind int;
++	name string;  // field name
++	value []byte;  // literal value
++	x, y *node;
++}
++
++
++// A Format is a set of production nodes.
++type Format map [string] *node;
++
++
++// -----------------------------------------------------------------------------
++// Parsing
++
++/*	Format      = { Production } .
++	Production  = DottedName [ "=" Expression ] "." .
++	DottedName  = name { "." name } .
++	Expression  = Term { "|" Term } .
++	Term        = Factor { Factor } .
++	Factor      = "*" | name | string_literal | Group | Option | Repetition .
++	Group       = "(" Expression ")" .
++	Option      = "[" Expression "]" .
++	Repetition  = "{" Expression "}" .
++*/
++
++
++type parser struct {
++	scanner scanner.Scanner;
++	
++	// error handling
++	lastline int;  // > 0 if there was any error
++
++	// next token
++	pos token.Position;  // token position
++	tok token.Token;  // one token look-ahead
++	lit []byte;  // token literal
++}
++
++
++// The parser implements the scanner.ErrorHandler interface.
++func (p *parser) Error(pos token.Position, msg string) {
++	if pos.Line != p.lastline {
++		// only report error if not on the same line as previous error
++		// in the hope to reduce number of follow-up errors reported
++		fmt.Fprintf(os.Stderr, "%d:%d: %s\n", pos.Line, pos.Column, msg);
++	}
++	p.lastline = pos.Line;
++}
++
++
++func (p *parser) next() {
++	p.pos, p.tok, p.lit = p.scanner.Scan();
++}
++
++
++func (p *parser) error_expected(pos token.Position, msg string) {
++	msg = "expected " + msg;
++	if pos.Offset == p.pos.Offset {
++		// the error happened at the current position;
++		// make the error message more specific
++		msg += ", found '" + p.tok.String() + "'";
++		if p.tok.IsLiteral() {
++			msg += " " + string(p.lit);
++		}
++	}
++	p.Error(pos, msg);
++}
++
++
++func (p *parser) expect(tok token.Token) token.Position {
++	pos := p.pos;
++	if p.tok != tok {
++		p.error_expected(pos, "'" + tok.String() + "'");
++	}
++	p.next();  // make progress in any case
++	return pos;
++}
++
++
++func (p *parser) parseName() string {
++	name := string(p.lit);
++	p.expect(token.IDENT);
++	return name;
++}
++
++
++func (p *parser) parseDottedName() string {
++	name := p.parseName();
++	for p.tok == token.PERIOD {
++		p.next();
++		name = name + "." + p.parseName();
++	}
++	return name;
++}
++
++
++// TODO should have WriteByte in ByteBuffer instead!
++var (
++	newlineByte = []byte{'\n'};
++	tabByte = []byte{'\t'};
++)
++
++
++func escapeString(s []byte) []byte {
++	// the string syntax is correct since it comes from the scannner
++	var buf io.ByteBuffer;
++	i0 := 0;
++	for i := 0; i < len(s); {
++		if s[i] == '\\' {
++			buf.Write(s[i0 : i]);
++			i++;
++			switch s[i] {
++			case 'n':
++				buf.Write(newlineByte);
++			case 't':
++				buf.Write(tabByte);
++			default:
++				panic("unhandled escape:", string(s[i]));
++			}
++			i++;
++			i0 = i;
++		} else {
++			i++;
++		}
++	}
++	
++	if i0 == 0 {
++		// no escape sequences
++		return s;
++	}
++
++	buf.Write(s[i0 : len(s)]);
++	return buf.Data();
++}
++
++
++func (p *parser) parseValue() []byte {
++	if p.tok != token.STRING {
++		p.expect(token.STRING);
++		return nil;
++	}
++
++	s := p.lit[1 : len(p.lit)-1];  // strip quotes
++	if p.lit[0] == '"' {
++		s = escapeString(s);
++	}
++
++	p.next();
++	return s;
++}
++
++
++func (p *parser) parseExpression() *node
++
++func (p *parser) parseFactor() (x *node) {
++	switch p.tok {
++	case token.MUL:
++		x = &node{self, "", nil, nil, nil};
++
++	case token.IDENT:
++		x = &node{field, p.parseName(), nil, nil, nil};
++
++	case token.STRING:
++		x = &node{literal, "", p.parseValue(), nil, nil};
++
++	case token.LPAREN:
++		p.next();
++		x = p.parseExpression();
++		p.expect(token.RPAREN);
++
++	case token.LBRACK:
++		p.next();
++		x = &node{option, "", nil, p.parseExpression(), nil};
++		p.expect(token.RBRACK);
++
++	case token.LBRACE:
++		p.next();
++		x = &node{repetition, "", nil, p.parseExpression(), nil};
++		p.expect(token.RBRACE);
++
++	default:
++		p.error_expected(p.pos, "factor");
++		p.next();  // make progress
++	}
++
++	return x;
++}
++
++
++func (p *parser) parseTerm() *node {
++	x := p.parseFactor();
++
++	for	p.tok == token.IDENT ||
++		p.tok == token.STRING ||
++		p.tok == token.LPAREN ||
++		p.tok == token.LBRACK ||
++		p.tok == token.LBRACE
++	{
++		y := p.parseFactor();
++		x = &node{sequence, "", nil, x, y};
++	}
++
++	return x;
++}
++
++
++func (p *parser) parseExpression() *node {
++	x := p.parseTerm();
++
++	for p.tok == token.OR {
++		p.next();
++		y := p.parseTerm();
++		x = &node{alternative, "", nil, x, y};
++	}
++
++	return x;
++}
++
++
++func (p *parser) parseProduction() (string, *node) {
++	name := p.parseDottedName();
++	
++	var x *node;
++	if p.tok == token.ASSIGN {
++		p.next();
++		x = p.parseExpression();
++	}
++
++	p.expect(token.PERIOD);
++
++	return name, x;
++}
++
++
++func (p *parser) parseFormat() Format {
++	format := make(Format);
++
++	prefix := "";
++	for p.tok != token.EOF {
++		pos := p.pos;
++		name, x := p.parseProduction();
++		if x == nil {
++			// prefix declaration
++			prefix = name + ".";
++		} else {
++			// production declaration
++			// add package prefix, if any
++			if prefix != "" {
++				name = prefix + name;
++			}
++			// add production to format
++			if t, found := format[name]; !found {
++				format[name] = x;
++			} else {
++				p.Error(pos, "production already declared: " + name);
++			}
++		}
++	}
++	p.expect(token.EOF);
++
++	return format;
++}
++
++
++func readSource(src interface{}, err scanner.ErrorHandler) []byte {
++	errmsg := "invalid input type (or nil)";
++
++	switch s := src.(type) {
++	case string:
++		return io.StringBytes(s);
++	case []byte:
++		return s;
++	case *io.ByteBuffer:
++		// is io.Read, but src is already available in []byte form
++		if s != nil {
++			return s.Data();
++		}
++	case io.Read:
++		var buf io.ByteBuffer;
++		n, os_err := io.Copy(s, &buf);
++		if os_err == nil {
++			return buf.Data();
++		}
++		errmsg = os_err.String();
++	}
++
++	if err != nil {
++		// TODO fix this
++		panic();
++		//err.Error(noPos, errmsg);
++	}
++	return nil;
++}
++
++
++func Parse(src interface{}) Format {
++	// initialize parser
++	var p parser;
++	p.scanner.Init(readSource(src, &p), &p, false);
++	p.next();
++
++	f := p.parseFormat();
++
++	if p.lastline > 0 {	
++		return nil;  // src contains errors
++	}
++	return f;
++}
++
++
++// -----------------------------------------------------------------------------
++// Application
++
++func fieldIndex(v reflect.StructValue, fieldname string) int {
++	t := v.Type().(reflect.StructType);
++	for i := 0; i < v.Len(); i++ {
++		name, typ, tag, offset := t.Field(i);
++		if name == fieldname {
++			return i;
++		}
++	}
++	return -1;
++}
++
++
++func getField(v reflect.StructValue, fieldname string) reflect.Value {
++	i := fieldIndex(v, fieldname);
++	if i < 0 {
++		panicln("field not found:", fieldname);
++	}
++
++	return v.Field(i);
++}
++
++
++func (f Format) apply(w io.Write, v reflect.Value) bool
++
++// Returns true if a non-empty field value was found.
++func (f Format) print(w io.Write, x *node, v reflect.Value, index int) bool {
++	switch x.kind {
++	case self:
++		panic("self");
++
++	case alternative:
++		// print the contents of the first alternative with a non-empty field
++		var buf io.ByteBuffer;
++		if !f.print(&buf, x.x, v, -1) {
++			f.print(&buf, x.y, v, -1);
++		}
++		w.Write(buf.Data());
++
++	case sequence:
++		f.print(w, x.x, v, -1);
++		f.print(w, x.y, v, -1);
++
++	case field:
++		if sv, is_struct := v.(reflect.StructValue); is_struct {
++			return f.apply(w, getField(sv, x.name));
++		} else {
++			panicln("not in a struct - field:", x.name);
++		}
++
++	case literal:
++		w.Write(x.value);
++
++	case option:
++		// print the contents of the option if there is a non-empty field
++		var buf io.ByteBuffer;
++		if f.print(&buf, x.x, v, -1) {
++			w.Write(buf.Data());
++		}
++
++	case repetition:
++		// print the contents of the repetition while there is a non-empty field
++		for i := 0; ; i++ {
++			var buf io.ByteBuffer;
++			if f.print(&buf, x.x, v, i) {
++				w.Write(buf.Data());
++			} else {
++				break;
++			}
++		}
++
++	default:
++		panic("unreachable");
++	}
++
++	return false;
++}
++
++
++func (f Format) Dump() {
++	for name, x := range f {
++		println(name, x);
++	}
++}
++
++
++func (f Format) apply(w io.Write, v reflect.Value) bool {
++	println("apply typename:", v.Type().Name());
++
++	if x, found := f[v.Type().Name()]; found {
++		// format using corresponding production
++		f.print(w, x, v, -1);
++		
++	} else {
++		// format using default formats
++		switch x := v.(type) {
++		case reflect.ArrayValue:
++			if x.Len() == 0 {
++				return false;
++			}
++			for i := 0; i < x.Len(); i++ {
++				f.apply(w, x.Elem(i));
++			}
++
++		case reflect.StringValue:
++			w.Write(io.StringBytes(x.Get()));
++
++		case reflect.IntValue:
++			// TODO is this the correct way to check the right type?
++			// or should it be t, ok := x.Interface().(token.Token) instead?
++			if x.Type().Name() == "token.Token" {
++				fmt.Fprintf(w, "%s", token.Token(x.Get()).String());
++			} else {
++				fmt.Fprintf(w, "%d", x.Get());
++			}
++
++		case reflect.InterfaceValue:
++			f.apply(w, x.Value());
++
++		case reflect.PtrValue:
++			// TODO is this the correct way to check nil ptr?
++			if x.Get() == nil {
++				return false;
++			}
++			return f.apply(w, x.Sub());
++
++		default:
++			panicln("unsupported kind:", v.Kind());
++		}
++	}
++
++	return true;
++}
++
++
++func (f Format) Apply(w io.Write, data interface{}) {
++	f.apply(w, reflect.NewValue(data));
++}
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 3f91d6510e..a1490ed5f4 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -38,7 +38,6 @@ import (
+ 	"io";
+ 	"log";
+ 	"net";
+-	"once";
+ 	"os";
+ 	pathutil "path";
+ 	"sort";
+@@ -316,7 +315,7 @@ var fmap = template.FormatterMap{
+ // TODO: const templateDir = "lib/godoc"
+ const templateDir = "usr/gri/pretty"
+ 
+-func ReadTemplate(name string) *template.Template {
++func readTemplate(name string) *template.Template {
+ 	data, err := ReadFile(templateDir + "/" + name);
+ 	if err != nil {
+ 		log.Exitf("ReadFile %s: %v", name, err);
+@@ -337,16 +336,16 @@ var packagelistText *template.Template;
+ var parseerrorHtml *template.Template;
+ var parseerrorText *template.Template;
+ 
+-func ReadTemplates() {
++func readTemplates() {
+ 	// have to delay until after flags processing,
+ 	// so that main has chdir'ed to goroot.
+-	godocHtml = ReadTemplate("godoc.html");
+-	packageHtml = ReadTemplate("package.html");
+-	packageText = ReadTemplate("package.txt");
+-	packagelistHtml = ReadTemplate("packagelist.html");
+-	packagelistText = ReadTemplate("packagelist.txt");
+-	parseerrorHtml = ReadTemplate("parseerror.html");
+-	parseerrorText = ReadTemplate("parseerror.txt");
++	godocHtml = readTemplate("godoc.html");
++	packageHtml = readTemplate("package.html");
++	packageText = readTemplate("package.txt");
++	packagelistHtml = readTemplate("packagelist.html");
++	packagelistText = readTemplate("packagelist.txt");
++	parseerrorHtml = readTemplate("parseerror.html");
++	parseerrorText = readTemplate("parseerror.txt");
+ }
+ 
+ 
+@@ -728,7 +727,7 @@ func main() {
+ 		log.Exitf("chdir %s: %v", goroot, err);
+ 	}
+ 
+-	ReadTemplates();
++	readTemplates();
+ 
+ 	if *httpaddr != "" {
+ 		var handler http.Handler = http.DefaultServeMux;
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index c342b72c29..83d0bf1b9e 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -11,31 +11,30 @@ import (
+ 	"go/parser";
+ 	"go/token";
+ 	"io";
+-	"log";
+ 	"os";
+ 	"tabwriter";
+ 
+ 	"astprinter";
++	"format";
+ )
+ 
+ 
+ var (
+-	columnsDefault bool;
+-
+ 	// operation modes
+-	columns = flag.Bool("columns", columnsDefault, "report column no. in error messages");
++	columns bool;
+ 	silent = flag.Bool("s", false, "silent mode: no pretty print output");
+ 	verbose = flag.Bool("v", false, "verbose mode: trace parsing");
+ 
+ 	// layout control
+ 	tabwidth = flag.Int("tabwidth", 4, "tab width");
+-	usetabs = flag.Bool("usetabs", false, "align with tabs instead of blanks");
++	usetabs = flag.Bool("tabs", false, "align with tabs instead of blanks");
++	formatter = flag.Bool("formatter", false, "use formatter");  // TODO remove eventually
+ )
+ 
+ 
+ func init() {
+ 	user, err := os.Getenv("USER");
+-	columnsDefault = user == "gri";
++	flag.BoolVar(&columns, "columns", user == "gri", "print column no. in error messages");
+ }
+ 
+ 
+@@ -75,7 +74,6 @@ func makeTabwriter(writer io.Write) *tabwriter.Writer {
+ type ErrorHandler struct {
+ 	filename string;
+ 	lastline int;
+-	columns bool;
+ }
+ 
+ 
+@@ -85,13 +83,14 @@ func (h *ErrorHandler) Error(pos token.Position, msg string) {
+ 	if pos.Line == h.lastline {
+ 		return;
+ 	}
++	h.lastline = pos.Line;
+ 
+ 	// report error
+-	fmt.Printf("%s:%d:", h.filename, pos.Line);
+-	if h.columns {
+-		fmt.Printf("%d:", pos.Column);
++	fmt.Fprintf(os.Stderr, "%s:%d:", h.filename, pos.Line);
++	if columns {
++		fmt.Fprintf(os.Stderr, "%d:", pos.Column);
+ 	}
+-	fmt.Printf(" %s\n", msg);
++	fmt.Fprintf(os.Stderr, " %s\n", msg);
+ }
+ 
+ 
+@@ -108,28 +107,41 @@ func main() {
+ 		mode |= parser.Trace;
+ 	}
+ 
++	// get ast format
++	const ast_txt = "ast.txt";
++	src, err := readFile(ast_txt);
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "%s: %v\n", ast_txt, err);
++		sys.Exit(1);
++	}
++	ast_format := format.Parse(src);
++	if ast_format == nil {
++		fmt.Fprintf(os.Stderr, "%s: format errors\n", ast_txt);
++		sys.Exit(1);
++	}
++
+ 	// process files
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		filename := flag.Arg(i);
+ 
+ 		src, err := readFile(filename);
+ 		if err != nil {
+-			log.Stderrf("ReadFile %s: %v", filename, err);
+-			continue;
+-		}
+-
+-		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0, false}, mode);
+-		if !ok {
+-			log.Stderr("Parse %s: syntax errors", filename);
++			fmt.Fprintf(os.Stderr, "%s: %v\n", filename, err);
+ 			continue;
+ 		}
+ 
+-		if !*silent {
+-			var printer astPrinter.Printer;
+-			writer := makeTabwriter(os.Stdout);
+-			printer.Init(writer, nil, nil /*prog.Comments*/, false);
+-			printer.DoProgram(prog);
+-			writer.Flush();
++		prog, ok := parser.Parse(src, &ErrorHandler{filename, 0}, mode);
++
++		if ok && !*silent {
++			tw := makeTabwriter(os.Stdout);
++			if *formatter {
++				ast_format.Apply(tw, prog);
++			} else {
++				var p astPrinter.Printer;
++				p.Init(tw, nil, nil /*prog.Comments*/, false);
++				p.DoProgram(prog);
++			}
++			tw.Flush();
+ 		}
+ 	}
+ }

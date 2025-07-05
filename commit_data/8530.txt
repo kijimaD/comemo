@@ -13,7 +13,7 @@ Date:   Sun May 29 13:03:49 2011 +1000
     R=rsc, alex.brainman
     CC=golang-dev
     https://golang.org/cl/4535100
-
+---
  src/pkg/os/Makefile                   |  5 +++++
  src/pkg/os/path.go                    |  6 +++---
  src/pkg/os/path_plan9.go              | 15 +++++++++++++++
@@ -25,3 +25,340 @@ Date:   Sun May 29 13:03:49 2011 +1000
  src/pkg/path/filepath/path_unix.go    | 10 ----------
  src/pkg/path/filepath/path_windows.go | 15 +++------------
  10 files changed, 81 insertions(+), 48 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index cd92840796..c781df7af5 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -23,6 +23,7 @@ GOFILES_freebsd=\
+ 	env_unix.go\
+ 	file_posix.go\
+ 	file_unix.go\
++	path_unix.go\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+@@ -33,6 +34,7 @@ GOFILES_darwin=\
+ 	env_unix.go\
+ 	file_posix.go\
+ 	file_unix.go\
++	path_unix.go\
+ 	sys_bsd.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+@@ -43,6 +45,7 @@ GOFILES_linux=\
+ 	env_unix.go\
+ 	file_posix.go\
+ 	file_unix.go\
++	path_unix.go\
+ 	sys_linux.go\
+ 	exec_posix.go\
+ 	exec_unix.go\
+@@ -53,6 +56,7 @@ GOFILES_windows=\
+ 	env_windows.go\
+ 	file_posix.go\
+ 	file_windows.go\
++	path_windows.go\
+ 	sys_windows.go\
+ 	exec_posix.go\
+ 	exec_windows.go\
+@@ -62,6 +66,7 @@ GOFILES_plan9=\
+ 	error_plan9.go\
+ 	env_plan9.go\
+ 	file_plan9.go\
++	path_plan9.go\
+ 	sys_plan9.go\
+ 	exec_plan9.go\
+ 
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 5565aaa299..7b93036aab 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -24,12 +24,12 @@ func MkdirAll(path string, perm uint32) Error {
+ 
+ 	// Doesn't already exist; make sure parent does.
+ 	i := len(path)
+-	for i > 0 && path[i-1] == '/' { // Skip trailing slashes.
++	for i > 0 && IsPathSeparator(path[i-1]) { // Skip trailing path separator.
+ 		i--
+ 	}
+ 
+ 	j := i
+-	for j > 0 && path[j-1] != '/' { // Scan backward over element.
++	for j > 0 && !IsPathSeparator(path[j-1]) { // Scan backward over element.
+ 		j--
+ 	}
+ 
+@@ -90,7 +90,7 @@ func RemoveAll(path string) Error {
+ 	for {
+ 		names, err1 := fd.Readdirnames(100)
+ 		for _, name := range names {
+-			err1 := RemoveAll(path + "/" + name)
++			err1 := RemoveAll(path + string(PathSeparator) + name)
+ 			if err == nil {
+ 				err = err1
+ 			}
+diff --git a/src/pkg/os/path_plan9.go b/src/pkg/os/path_plan9.go
+new file mode 100644
+index 0000000000..3121b7bc71
+--- /dev/null
++++ b/src/pkg/os/path_plan9.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++const (
++	PathSeparator     = '/' // OS-specific path separator
++	PathListSeparator = 0   // OS-specific path list separator
++)
++
++// IsPathSeparator returns true if c is a directory separator character.
++func IsPathSeparator(c uint8) bool {
++	return PathSeparator == c
++}
+diff --git a/src/pkg/os/path_test.go b/src/pkg/os/path_test.go
+index 1aabe46fb7..d58945aab5 100644
+--- a/src/pkg/os/path_test.go
++++ b/src/pkg/os/path_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	. "os"
++	"path/filepath"
+ 	"testing"
+ 	"runtime"
+ 	"syscall"
+@@ -44,8 +45,8 @@ func TestMkdirAll(t *testing.T) {
+ 	if !ok {
+ 		t.Fatalf("MkdirAll %q returned %T, not *PathError", fpath, err)
+ 	}
+-	if perr.Path != fpath {
+-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, perr.Path, fpath)
++	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
++		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", fpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
+ 	}
+ 
+ 	// Can't make subdirectory of file.
+@@ -58,8 +59,16 @@ func TestMkdirAll(t *testing.T) {
+ 	if !ok {
+ 		t.Fatalf("MkdirAll %q returned %T, not *PathError", ffpath, err)
+ 	}
+-	if perr.Path != fpath {
+-		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, perr.Path, fpath)
++	if filepath.Clean(perr.Path) != filepath.Clean(fpath) {
++		t.Fatalf("MkdirAll %q returned wrong error path: %q not %q", ffpath, filepath.Clean(perr.Path), filepath.Clean(fpath))
++	}
++
++	if syscall.OS == "windows" {
++		path := `_test\_TestMkdirAll_\dir\.\dir2\`
++		err := MkdirAll(path, 0777)
++		if err != nil {
++			t.Fatalf("MkdirAll %q: %s", path, err)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/os/path_unix.go b/src/pkg/os/path_unix.go
+new file mode 100644
+index 0000000000..0d327cddd3
+--- /dev/null
++++ b/src/pkg/os/path_unix.go
+@@ -0,0 +1,15 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++const (
++	PathSeparator     = '/' // OS-specific path separator
++	PathListSeparator = ':' // OS-specific path list separator
++)
++
++// IsPathSeparator returns true if c is a directory separator character.
++func IsPathSeparator(c uint8) bool {
++	return PathSeparator == c
++}
+diff --git a/src/pkg/os/path_windows.go b/src/pkg/os/path_windows.go
+new file mode 100644
+index 0000000000..8740a9e613
+--- /dev/null
++++ b/src/pkg/os/path_windows.go
+@@ -0,0 +1,16 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++const (
++	PathSeparator     = '\\' // OS-specific path separator
++	PathListSeparator = ':'  // OS-specific path list separator
++)
++
++// IsPathSeparator returns true if c is a directory separator character.
++func IsPathSeparator(c uint8) bool {
++	// NOTE: Windows accept / as path separator.
++	return c == '\\' || c == '/'
++}
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 6917218dbe..147256a1d3 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -15,6 +15,8 @@ import (
+ )
+ 
+ const (
++	Separator           = os.PathSeparator
++	ListSeparator       = os.PathListSeparator
+ 	SeparatorString     = string(Separator)
+ 	ListSeparatorString = string(ListSeparator)
+ )
+@@ -61,20 +63,20 @@ func Clean(path string) string {
+ 
+ 	for r < n {
+ 		switch {
+-		case isSeparator(path[r]):
++		case os.IsPathSeparator(path[r]):
+ 			// empty path element
+ 			r++
+-		case path[r] == '.' && (r+1 == n || isSeparator(path[r+1])):
++		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
+ 			// . element
+ 			r++
+-		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || isSeparator(path[r+2])):
++		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
+ 			// .. element: remove to last separator
+ 			r += 2
+ 			switch {
+ 			case w > dotdot:
+ 				// can backtrack
+ 				w--
+-				for w > dotdot && !isSeparator(buf[w]) {
++				for w > dotdot && !os.IsPathSeparator(buf[w]) {
+ 					w--
+ 				}
+ 			case !rooted:
+@@ -97,7 +99,7 @@ func Clean(path string) string {
+ 				w++
+ 			}
+ 			// copy element
+-			for ; r < n && !isSeparator(path[r]); r++ {
++			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
+ 				buf[w] = path[r]
+ 				w++
+ 			}
+@@ -145,7 +147,7 @@ func SplitList(path string) []string {
+ // and file set to path.
+ func Split(path string) (dir, file string) {
+ 	i := len(path) - 1
+-	for i >= 0 && !isSeparator(path[i]) {
++	for i >= 0 && !os.IsPathSeparator(path[i]) {
+ 		i--
+ 	}
+ 	return path[:i+1], path[i+1:]
+@@ -167,7 +169,7 @@ func Join(elem ...string) string {
+ // in the final element of path; it is empty if there is
+ // no dot.
+ func Ext(path string) string {
+-	for i := len(path) - 1; i >= 0 && !isSeparator(path[i]); i-- {
++	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
+ 		if path[i] == '.' {
+ 			return path[i:]
+ 		}
+@@ -339,12 +341,12 @@ func Base(path string) string {
+ 		return "."
+ 	}
+ 	// Strip trailing slashes.
+-	for len(path) > 0 && isSeparator(path[len(path)-1]) {
++	for len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
+ 		path = path[0 : len(path)-1]
+ 	}
+ 	// Find the last element
+ 	i := len(path) - 1
+-	for i >= 0 && !isSeparator(path[i]) {
++	for i >= 0 && !os.IsPathSeparator(path[i]) {
+ 		i--
+ 	}
+ 	if i >= 0 {
+diff --git a/src/pkg/path/filepath/path_plan9.go b/src/pkg/path/filepath/path_plan9.go
+index e40008364c..47990e0fe0 100644
+--- a/src/pkg/path/filepath/path_plan9.go
++++ b/src/pkg/path/filepath/path_plan9.go
+@@ -6,16 +6,6 @@ package filepath
+ 
+ import "strings"
+ 
+-const (
+-	Separator     = '/' // OS-specific path separator
+-	ListSeparator = 0   // OS-specific path list separator
+-)
+-
+-// isSeparator returns true if c is a directory separator character.
+-func isSeparator(c uint8) bool {
+-	return Separator == c
+-}
+-
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
+diff --git a/src/pkg/path/filepath/path_unix.go b/src/pkg/path/filepath/path_unix.go
+index f8ac248fbb..ea555fc0e1 100644
+--- a/src/pkg/path/filepath/path_unix.go
++++ b/src/pkg/path/filepath/path_unix.go
+@@ -6,16 +6,6 @@ package filepath
+ 
+ import "strings"
+ 
+-const (
+-	Separator     = '/' // OS-specific path separator
+-	ListSeparator = ':' // OS-specific path list separator
+-)
+-
+-// isSeparator returns true if c is a directory separator character.
+-func isSeparator(c uint8) bool {
+-	return Separator == c
+-}
+-
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) bool {
+ 	return strings.HasPrefix(path, "/")
+diff --git a/src/pkg/path/filepath/path_windows.go b/src/pkg/path/filepath/path_windows.go
+index dbd1c1e401..35302eb1ab 100644
+--- a/src/pkg/path/filepath/path_windows.go
++++ b/src/pkg/path/filepath/path_windows.go
+@@ -4,20 +4,11 @@
+ 
+ package filepath
+ 
+-const (
+-	Separator     = '\\' // OS-specific path separator
+-	ListSeparator = ':'  // OS-specific path list separator
+-)
+-
+-// isSeparator returns true if c is a directory separator character.
+-func isSeparator(c uint8) bool {
+-	// NOTE: Windows accept / as path separator.
+-	return c == '\\' || c == '/'
+-}
++import "os"
+ 
+ // IsAbs returns true if the path is absolute.
+ func IsAbs(path string) bool {
+-	return path != "" && (volumeName(path) != "" || isSeparator(path[0]))
++	return path != "" && (volumeName(path) != "" || os.IsPathSeparator(path[0]))
+ }
+ 
+ // volumeName return leading volume name.  
+@@ -28,7 +19,7 @@ func volumeName(path string) string {
+ 	}
+ 	// with drive letter
+ 	c := path[0]
+-	if len(path) > 2 && path[1] == ':' && isSeparator(path[2]) &&
++	if len(path) > 2 && path[1] == ':' && os.IsPathSeparator(path[2]) &&
+ 		('0' <= c && c <= '9' || 'a' <= c && c <= 'z' ||
+ 			'A' <= c && c <= 'Z') {
+ 		return path[0:2]

@@ -12,6 +12,20 @@ Date:   Fri May 10 15:32:24 2019 +0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176497
     Reviewed-by: Joan Lopez de la Franca Beltran <joanjan14@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/errors/wrap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/wrap.go b/src/errors/wrap.go
+index 69dd9464ec..b53caa6fc9 100644
+--- a/src/errors/wrap.go
++++ b/src/errors/wrap.go
+@@ -52,7 +52,7 @@ func Is(err, target error) bool {
+ 		return err == target
+ 	}
+ 
+-	isComparable := target == nil || reflectlite.TypeOf(target).Comparable()
++	isComparable := reflectlite.TypeOf(target).Comparable()
+ 	for {
+ 		if isComparable && err == target {
+ 			return true

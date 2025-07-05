@@ -19,6 +19,20 @@ Date:   Wed Nov 16 12:26:23 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/33273
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 01f5da31d7..f08c5c6b8e 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -196,7 +196,7 @@
+ // A simple implementation of TestMain is:
+ //
+ //	func TestMain(m *testing.M) {
+-//		flag.Parse()
++//		// call flag.Parse() here if TestMain uses flags
+ //		os.Exit(m.Run())
+ //	}
+ //

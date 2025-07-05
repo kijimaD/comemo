@@ -13,6 +13,20 @@ Date:   Tue Apr 12 16:25:48 2016 -0700
     Change-Id: Ifb2e17f3658e2136c7950dfc789b4d5706320683
     Reviewed-on: https://go-review.googlesource.com/21931
     Reviewed-by: Michel Lespinasse <walken@google.com>
-
+---
  src/runtime/iface.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 3ce1e237d3..a4c962fb7a 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -173,7 +173,7 @@ func convT2E(t *_type, elem unsafe.Pointer, x unsafe.Pointer) (e eface) {
+ func convT2I(tab *itab, elem unsafe.Pointer, x unsafe.Pointer) (i iface) {
+ 	t := tab._type
+ 	if raceenabled {
+-		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&t)), funcPC(convT2I))
++		raceReadObjectPC(t, elem, getcallerpc(unsafe.Pointer(&tab)), funcPC(convT2I))
+ 	}
+ 	if msanenabled {
+ 		msanread(elem, t.size)

@@ -7,7 +7,42 @@ Date:   Wed Feb 26 03:05:57 2020 +1100
     Change-Id: I9a5dc33271434e58335f5562a30cc131c6a8332c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220918
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/sqrt_riscv64.s  | 14 ++++++++++++++
  src/math/stubs_riscv64.s |  3 ---
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/sqrt_riscv64.s b/src/math/sqrt_riscv64.s
+new file mode 100644
+index 0000000000..048171b9fb
+--- /dev/null
++++ b/src/math/sqrt_riscv64.s
+@@ -0,0 +1,14 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build riscv64
++
++#include "textflag.h"
++
++// func Sqrt(x float64) float64
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	MOVD	x+0(FP), F0
++	FSQRTD	F0, F0
++	MOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/stubs_riscv64.s b/src/math/stubs_riscv64.s
+index 6a122125e6..ed2b572864 100644
+--- a/src/math/stubs_riscv64.s
++++ b/src/math/stubs_riscv64.s
+@@ -97,9 +97,6 @@ TEXT ·Cos(SB),NOSPLIT,$0
+ TEXT ·Cosh(SB),NOSPLIT,$0
+ 	JMP ·cosh(SB)
+ 
+-TEXT ·Sqrt(SB),NOSPLIT,$0
+-	JMP ·sqrt(SB)
+-
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	JMP ·tan(SB)
+ 

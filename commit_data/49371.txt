@@ -12,10 +12,184 @@ Date:   Sun Aug 15 21:36:25 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go   |  8 +++-----
  src/go/types/subst.go      |  6 +++---
  src/go/types/typeset.go    |  2 +-
  src/go/types/typestring.go |  2 +-
  src/go/types/union.go      | 50 +++++++++++++++++++++++-----------------------
  5 files changed, 33 insertions(+), 35 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index ecf6568f80..2099a92acb 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -806,12 +806,10 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 	if tp := asTypeParam(x); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+-		var rtypes []Type
+-		var tildes []bool
++		var terms []*Term
+ 		if !tp.iface().typeSet().is(func(t *term) bool {
+ 			if r := f(t.typ); r != nil {
+-				rtypes = append(rtypes, r)
+-				tildes = append(tildes, t.tilde)
++				terms = append(terms, NewTerm(t.tilde, r))
+ 				return true
+ 			}
+ 			return false
+@@ -823,7 +821,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{newUnion(rtypes, tildes)})) // assigns type to tpar as a side-effect
++		ptyp := check.NewTypeParam(tpar, NewInterfaceType(nil, []Type{NewUnion(terms)})) // assigns type to tpar as a side-effect
+ 		ptyp.index = tp.index
+ 
+ 		return ptyp
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index a43c5b9f0b..b4519a1b5f 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -394,19 +394,19 @@ func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
+ 	return
+ }
+ 
+-func (subst *subster) termlist(in []*term) (out []*term, copied bool) {
++func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+ 	out = in
+ 	for i, t := range in {
+ 		if u := subst.typ(t.typ); u != t.typ {
+ 			if !copied {
+ 				// first function that got substituted => allocate new out slice
+ 				// and copy all functions
+-				new := make([]*term, len(in))
++				new := make([]*Term, len(in))
+ 				copy(new, out)
+ 				out = new
+ 				copied = true
+ 			}
+-			out[i] = &term{t.tilde, u}
++			out[i] = NewTerm(t.tilde, u)
+ 		}
+ 	}
+ 	return
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index f0fce50263..fae5196e86 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -357,7 +357,7 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+ 			// This case is handled during union parsing.
+ 			unreachable()
+ 		default:
+-			terms = termlist{t}
++			terms = termlist{(*term)(t)}
+ 		}
+ 		// The type set of a union expression is the union
+ 		// of the type sets of each term.
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index fa29d75fe2..c38cfd4290 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -131,7 +131,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	case *Union:
+ 		// Unions only appear as (syntactic) embedded elements
+ 		// in interfaces and syntactically cannot be empty.
+-		if t.NumTerms() == 0 {
++		if t.Len() == 0 {
+ 			panic("empty union")
+ 		}
+ 		for i, t := range t.terms {
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 5419ed821a..6038b2db2e 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -14,46 +14,46 @@ import (
+ 
+ // A Union represents a union of terms embedded in an interface.
+ type Union struct {
+-	terms []*term   // list of syntactical terms (not a canonicalized termlist)
++	terms []*Term   // list of syntactical terms (not a canonicalized termlist)
+ 	tset  *_TypeSet // type set described by this union, computed lazily
+ }
+ 
+-// NewUnion returns a new Union type with the given terms (types[i], tilde[i]).
+-// The lengths of both arguments must match. It is an error to create an empty
+-// union; they are syntactically not possible.
+-func NewUnion(types []Type, tilde []bool) *Union { return newUnion(types, tilde) }
++// NewUnion returns a new Union type with the given terms.
++// It is an error to create an empty union; they are syntactically not possible.
++func NewUnion(terms []*Term) *Union {
++	if len(terms) == 0 {
++		panic("empty union")
++	}
++	return &Union{terms, nil}
++}
+ 
+-func (u *Union) IsEmpty() bool           { return len(u.terms) == 0 }
+-func (u *Union) NumTerms() int           { return len(u.terms) }
+-func (u *Union) Term(i int) (Type, bool) { t := u.terms[i]; return t.typ, t.tilde }
++func (u *Union) Len() int         { return len(u.terms) }
++func (u *Union) Term(i int) *Term { return u.terms[i] }
+ 
+ func (u *Union) Underlying() Type { return u }
+ func (u *Union) String() string   { return TypeString(u, nil) }
+ 
++// A Term represents a term in a Union.
++type Term term
++
++// NewTerm returns a new union term.
++func NewTerm(tilde bool, typ Type) *Term { return &Term{tilde, typ} }
++
++func (t *Term) Tilde() bool    { return t.tilde }
++func (t *Term) Type() Type     { return t.typ }
++func (t *Term) String() string { return (*term)(t).String() }
++
+ // ----------------------------------------------------------------------------
+ // Implementation
+ 
+-func newUnion(types []Type, tilde []bool) *Union {
+-	assert(len(types) == len(tilde))
+-	if len(types) == 0 {
+-		panic("empty union")
+-	}
+-	t := new(Union)
+-	t.terms = make([]*term, len(types))
+-	for i, typ := range types {
+-		t.terms[i] = &term{tilde[i], typ}
+-	}
+-	return t
+-}
+-
+ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+-	var terms []*term
++	var terms []*Term
+ 	for _, x := range tlist {
+ 		tilde, typ := parseTilde(check, x)
+ 		if len(tlist) == 1 && !tilde {
+ 			return typ // single type
+ 		}
+-		terms = append(terms, &term{tilde, typ})
++		terms = append(terms, NewTerm(tilde, typ))
+ 	}
+ 
+ 	// Check validity of terms.
+@@ -128,7 +128,7 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+ // overlappingTerm reports the index of the term x in terms which is
+ // overlapping (not disjoint) from y. The result is < 0 if there is no
+ // such term.
+-func overlappingTerm(terms []*term, y *term) int {
++func overlappingTerm(terms []*Term, y *Term) int {
+ 	for i, x := range terms {
+ 		// disjoint requires non-nil, non-top arguments
+ 		if debug {
+@@ -136,7 +136,7 @@ func overlappingTerm(terms []*term, y *term) int {
+ 				panic("empty or top union term")
+ 			}
+ 		}
+-		if !x.disjoint(y) {
++		if !(*term)(x).disjoint((*term)(y)) {
+ 			return i
+ 		}
+ 	}

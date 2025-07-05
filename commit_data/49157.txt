@@ -25,8 +25,251 @@ Date:   Wed Jul 21 16:23:17 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/336992
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/helpers.go   | 40 +++++++++++++++++++---------
  src/cmd/compile/internal/noder/stencil.go   | 41 ++---------------------------
  src/cmd/compile/internal/noder/transform.go | 21 ++++++++-------
  3 files changed, 41 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 15b3277908..2b00a9d7a6 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -116,9 +116,12 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 
+ 	if fun.Op() == ir.OTYPE {
+ 		// Actually a type conversion, not a function call.
+-		if fun.Type().HasTParam() || args[0].Type().HasTParam() {
+-			// For type params, don't typecheck until we actually know
+-			// the type.
++		if !fun.Type().IsInterface() &&
++			(fun.Type().HasTParam() || args[0].Type().HasTParam()) {
++			// For type params, we can transform if fun.Type() is known
++			// to be an interface (in which case a CONVIFACE node will be
++			// inserted). Otherwise, don't typecheck until we actually
++			// know the type.
+ 			return typed(typ, n)
+ 		}
+ 		typed(typ, n)
+@@ -169,11 +172,15 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ 	}
+ 
+ 	if fun.Type().HasTParam() {
+-		// If the fun arg is or has a type param, don't do any extra
+-		// transformations, since we may not have needed properties yet
+-		// (e.g. number of return values, etc). The type param is probably
+-		// described by a structural constraint that requires it to be a
+-		// certain function type, etc., but we don't want to analyze that.
++		// If the fun arg is or has a type param, we can't do all the
++		// transformations, since we may not have needed properties yet.
++		// (e.g. number of return values, etc). However, if we do have the
++		// function type (even though it is parameterized), then can add in
++		// any needed CONVIFACE nodes. We can't do anything if fun is a type
++		// param (which is probably described by a structural constraint)
++		if fun.Type().Kind() == types.TFUNC {
++			typecheckaste(ir.OCALL, fun, n.IsDDD, fun.Type().Params(), n.Args, true)
++		}
+ 		return typed(typ, n)
+ 	}
+ 
+@@ -203,11 +210,18 @@ func Call(pos src.XPos, typ *types.Type, fun ir.Node, args []ir.Node, dots bool)
+ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+ 	n := ir.NewBinaryExpr(pos, op, x, y)
+ 	if x.Type().HasTParam() || y.Type().HasTParam() {
+-		// Delay transformCompare() if either arg has a type param, since
+-		// it needs to know the exact types to decide on any needed conversions.
+-		n.SetType(typ)
+-		n.SetTypecheck(3)
+-		return n
++		xIsInt := x.Type().IsInterface()
++		yIsInt := y.Type().IsInterface()
++		if !(xIsInt && !yIsInt || !xIsInt && yIsInt) {
++			// If either arg is a type param, then we can still do the
++			// transformCompare() if we know that one arg is an interface
++			// and the other is not. Otherwise, we delay
++			// transformCompare(), since it needs to know the exact types
++			// to decide on any needed conversions.
++			n.SetType(typ)
++			n.SetTypecheck(3)
++			return n
++		}
+ 	}
+ 	typed(typ, n)
+ 	transformCompare(n)
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 59f11bbe23..a8f9cf3b3e 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1251,21 +1251,13 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 
+ 		case ir.OCALL:
+ 			call := m.(*ir.CallExpr)
+-			convcheck := false
+ 			switch call.X.Op() {
+ 			case ir.OTYPE:
+ 				// Transform the conversion, now that we know the
+ 				// type argument.
+ 				m = transformConvCall(call)
+-				if m.Op() == ir.OCONVIFACE {
+-					// Note: srcType uses x.Args[0], not m.X or call.Args[0], because
+-					// we need the type before the type parameter -> type argument substitution.
+-					srcType := x.(*ir.CallExpr).Args[0].Type()
+-					if ix := subst.findDictType(srcType); ix >= 0 {
+-						c := m.(*ir.ConvExpr)
+-						m = subst.convertUsingDictionary(c.Pos(), c.X, c.Type(), srcType, ix)
+-					}
+-				}
++				// CONVIFACE transformation was already done in node2
++				assert(m.Op() != ir.OCONVIFACE)
+ 
+ 			case ir.OMETHVALUE, ir.OMETHEXPR:
+ 				// Redo the transformation of OXDOT, now that we
+@@ -1275,7 +1267,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				transformDot(call.X.(*ir.SelectorExpr), true)
+ 				call.X.SetType(subst.unshapifyTyp(call.X.Type()))
+ 				transformCall(call)
+-				convcheck = true
+ 
+ 			case ir.ODOT, ir.ODOTPTR:
+ 				// An OXDOT for a generic receiver was resolved to
+@@ -1283,7 +1274,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				// value. Transform the call to that function, now
+ 				// that the OXDOT was resolved.
+ 				transformCall(call)
+-				convcheck = true
+ 
+ 			case ir.ONAME:
+ 				name := call.X.Name()
+@@ -1308,12 +1298,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 					// type parameter (implied to be a function via a
+ 					// structural constraint) which is now resolved.
+ 					transformCall(call)
+-					convcheck = true
+ 				}
+ 
+ 			case ir.OCLOSURE:
+ 				transformCall(call)
+-				convcheck = true
+ 
+ 			case ir.OFUNCINST:
+ 				// A call with an OFUNCINST will get transformed
+@@ -1323,16 +1311,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			default:
+ 				base.FatalfAt(call.Pos(), fmt.Sprintf("Unexpected op with CALL during stenciling: %v", call.X.Op()))
+ 			}
+-			if convcheck {
+-				for i, arg := range x.(*ir.CallExpr).Args {
+-					if arg.Type().HasTParam() && arg.Op() != ir.OCONVIFACE &&
+-						call.Args[i].Op() == ir.OCONVIFACE {
+-						ix := subst.findDictType(arg.Type())
+-						assert(ix >= 0)
+-						call.Args[i] = subst.convertUsingDictionary(arg.Pos(), call.Args[i].(*ir.ConvExpr).X, call.Args[i].Type(), arg.Type(), ix)
+-					}
+-				}
+-			}
+ 
+ 		case ir.OCLOSURE:
+ 			// We're going to create a new closure from scratch, so clear m
+@@ -1391,21 +1369,6 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			if ix := subst.findDictType(t); ix >= 0 {
+ 				m = subst.convertUsingDictionary(x.Pos(), m.(*ir.ConvExpr).X, m.Type(), t, ix)
+ 			}
+-		case ir.OEQ, ir.ONE:
+-			// Equality between a non-interface and an interface requires the non-interface
+-			// to be promoted to an interface.
+-			x := x.(*ir.BinaryExpr)
+-			m := m.(*ir.BinaryExpr)
+-			if i := x.Y.Type(); i.IsInterface() {
+-				if ix := subst.findDictType(x.X.Type()); ix >= 0 {
+-					m.X = subst.convertUsingDictionary(m.X.Pos(), m.X, i, x.X.Type(), ix)
+-				}
+-			}
+-			if i := x.X.Type(); i.IsInterface() {
+-				if ix := subst.findDictType(x.Y.Type()); ix >= 0 {
+-					m.Y = subst.convertUsingDictionary(m.Y.Pos(), m.Y, i, x.X.Type(), ix)
+-				}
+-			}
+ 
+ 		case ir.ONEW:
+ 			// New needs to pass a concrete type to the runtime.
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 86bdb91395..f89ae13237 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -156,7 +156,7 @@ func transformCall(n *ir.CallExpr) {
+ 		n.SetOp(ir.OCALLFUNC)
+ 	}
+ 
+-	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args)
++	typecheckaste(ir.OCALL, n.X, n.IsDDD, t.Params(), n.Args, false)
+ 	if l.Op() == ir.ODOTMETH && len(deref(n.X.Type().Recv().Type).RParams()) == 0 {
+ 		typecheck.FixMethodCall(n)
+ 	}
+@@ -194,7 +194,7 @@ func transformCompare(n *ir.BinaryExpr) {
+ 			aop, _ := typecheck.Assignop(lt, rt)
+ 			if aop != ir.OXXX {
+ 				types.CalcSize(lt)
+-				if rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
++				if lt.HasTParam() || rt.IsInterface() == lt.IsInterface() || lt.Width >= 1<<16 {
+ 					l = ir.NewConvExpr(base.Pos, aop, rt, l)
+ 					l.SetTypecheck(1)
+ 				}
+@@ -207,7 +207,7 @@ func transformCompare(n *ir.BinaryExpr) {
+ 			aop, _ := typecheck.Assignop(rt, lt)
+ 			if aop != ir.OXXX {
+ 				types.CalcSize(rt)
+-				if rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
++				if rt.HasTParam() || rt.IsInterface() == lt.IsInterface() || rt.Width >= 1<<16 {
+ 					r = ir.NewConvExpr(base.Pos, aop, lt, r)
+ 					r.SetTypecheck(1)
+ 				}
+@@ -468,8 +468,11 @@ func assignconvfn(n ir.Node, t *types.Type) ir.Node {
+ 	return r
+ }
+ 
+-// Corresponds to typecheck.typecheckaste.
+-func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes) {
++// Corresponds to typecheck.typecheckaste, but we add an extra flag convifaceOnly
++// only. If convifaceOnly is true, we only do interface conversion. We use this to do
++// early insertion of CONVIFACE nodes during noder2, when the function or args may
++// have typeparams.
++func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes, convifaceOnly bool) {
+ 	var t *types.Type
+ 	var i int
+ 
+@@ -488,7 +491,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 			if isddd {
+ 				n = nl[i]
+ 				ir.SetPos(n)
+-				if n.Type() != nil {
++				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+ 					nl[i] = assignconvfn(n, t)
+ 				}
+ 				return
+@@ -498,7 +501,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 			for ; i < len(nl); i++ {
+ 				n = nl[i]
+ 				ir.SetPos(n)
+-				if n.Type() != nil {
++				if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+ 					nl[i] = assignconvfn(n, t.Elem())
+ 				}
+ 			}
+@@ -507,7 +510,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 
+ 		n = nl[i]
+ 		ir.SetPos(n)
+-		if n.Type() != nil {
++		if n.Type() != nil && (!convifaceOnly || t.IsInterface()) {
+ 			nl[i] = assignconvfn(n, t)
+ 		}
+ 		i++
+@@ -529,7 +532,7 @@ func transformReturn(rs *ir.ReturnStmt) {
+ 		return
+ 	}
+ 
+-	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl)
++	typecheckaste(ir.ORETURN, nil, false, ir.CurFunc.Type().Results(), nl, false)
+ }
+ 
+ // transformSelect transforms a select node, creating an assignment list as needed

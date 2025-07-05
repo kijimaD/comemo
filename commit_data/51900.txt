@@ -20,10 +20,123 @@ Date:   Mon Mar 21 13:45:50 2022 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/flag.go  |  3 ++-
  src/cmd/internal/goobj/objfile.go      |  2 ++
  src/cmd/internal/obj/objfile.go        |  5 +++++
  src/cmd/link/internal/loader/loader.go |  4 ++++
  src/cmd/link/link_test.go              | 28 ++++++++++++++++++++++++++++
  5 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 0b04f62e1c..0056f83059 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -16,6 +16,7 @@ import (
+ 	"runtime"
+ 	"strings"
+ 
++	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ )
+@@ -202,7 +203,7 @@ func ParseFlags() {
+ 	}
+ 
+ 	if *Flag.LowerP == "" {
+-		log.Fatalf("-p is required")
++		*Flag.LowerP = obj.UnlinkablePkg
+ 	}
+ 
+ 	if Flag.LowerO == "" {
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 9765058392..ff225bedd7 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -283,6 +283,7 @@ const (
+ 	ObjFlagShared            = 1 << iota // this object is built with -shared
+ 	ObjFlagNeedNameExpansion             // the linker needs to expand `"".` to package path in symbol names
+ 	ObjFlagFromAssembly                  // object is from asm src, not go
++	ObjFlagUnlinkable                    // unlinkable package (linker will emit an error)
+ )
+ 
+ // Sym.Flag
+@@ -869,3 +870,4 @@ func (r *Reader) Flags() uint32 {
+ func (r *Reader) Shared() bool            { return r.Flags()&ObjFlagShared != 0 }
+ func (r *Reader) NeedNameExpansion() bool { return r.Flags()&ObjFlagNeedNameExpansion != 0 }
+ func (r *Reader) FromAssembly() bool      { return r.Flags()&ObjFlagFromAssembly != 0 }
++func (r *Reader) Unlinkable() bool        { return r.Flags()&ObjFlagUnlinkable != 0 }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 560e8e24c4..e7bc45ccdf 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -23,6 +23,8 @@ import (
+ 	"strings"
+ )
+ 
++const UnlinkablePkg = "<unlinkable>" // invalid package path, used when compiled without -p flag
++
+ // Entry point of writing new object file.
+ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 
+@@ -45,6 +47,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	if ctxt.Flag_shared {
+ 		flags |= goobj.ObjFlagShared
+ 	}
++	if w.pkgpath == UnlinkablePkg {
++		flags |= goobj.ObjFlagUnlinkable
++	}
+ 	if w.pkgpath == "" {
+ 		flags |= goobj.ObjFlagNeedNameExpansion
+ 	}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index dfaad10143..6f2d41aa78 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2083,6 +2083,10 @@ func (l *Loader) Preload(localSymVersion int, f *bio.Reader, lib *sym.Library, u
+ 		objidx:       uint32(len(l.objs)),
+ 	}
+ 
++	if r.Unlinkable() {
++		log.Fatalf("link: unlinkable object (from package %s) - compiler requires -p flag", lib.Pkg)
++	}
++
+ 	// Autolib
+ 	lib.Autolib = append(lib.Autolib, r.Autolib()...)
+ 
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 0492feaf0d..41da927606 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1059,3 +1059,31 @@ func TestLargeReloc(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUnlinkableObj(t *testing.T) {
++	// Test that the linker emits an error with unlinkable object.
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join(tmpdir, "x.go")
++	obj := filepath.Join(tmpdir, "x.o")
++	err := ioutil.WriteFile(src, []byte("package main\nfunc main() {}\n"), 0666)
++	if err != nil {
++		t.Fatalf("failed to write source file: %v", err)
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src) // without -p
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("compile failed: %v. output:\n%s", err, out)
++	}
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", obj)
++	out, err = cmd.CombinedOutput()
++	if err == nil {
++		t.Fatalf("link did not fail")
++	}
++	if !bytes.Contains(out, []byte("unlinkable object")) {
++		t.Errorf("did not see expected error message. out:\n%s", out)
++	}
++}

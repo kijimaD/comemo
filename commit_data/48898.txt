@@ -12,7 +12,38 @@ Date:   Fri Jun 25 01:45:32 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go |  2 +-
  test/fixedbugs/issue46907.go           | 11 +++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 004e084f72..f1dc56e729 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3174,7 +3174,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		arrlen := s.constInt(types.Types[types.TINT], n.Type().Elem().NumElem())
+ 		cap := s.newValue1(ssa.OpSliceLen, types.Types[types.TINT], v)
+ 		s.boundsCheck(arrlen, cap, ssa.BoundsConvert, false)
+-		return s.newValue1(ssa.OpSlicePtrUnchecked, types.Types[types.TINT], v)
++		return s.newValue1(ssa.OpSlicePtrUnchecked, n.Type(), v)
+ 
+ 	case ir.OCALLFUNC:
+ 		n := n.(*ir.CallExpr)
+diff --git a/test/fixedbugs/issue46907.go b/test/fixedbugs/issue46907.go
+new file mode 100644
+index 0000000000..bd82f4f2b1
+--- /dev/null
++++ b/test/fixedbugs/issue46907.go
+@@ -0,0 +1,11 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(b []byte) []byte {
++	return (*[32]byte)(b[:32])[:]
++}

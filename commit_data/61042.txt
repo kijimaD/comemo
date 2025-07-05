@@ -13,7 +13,7 @@ Date:   Tue Sep 24 20:41:28 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/escape/escape.go | 2 +-
  src/cmd/compile/internal/types2/infer.go  | 2 +-
  src/go/types/expr.go                      | 2 +-
@@ -21,3 +21,82 @@ Date:   Tue Sep 24 20:41:28 2024 -0700
  src/internal/concurrent/hashtriemap.go    | 2 +-
  src/internal/fuzz/worker.go               | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 5997d8328a..d6f0708a7f 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -145,7 +145,7 @@ func Batch(fns []*ir.Func, recursive bool) {
+ 	}
+ 
+ 	// We've walked the function bodies, so we've seen everywhere a
+-	// variable might be reassigned or have it's address taken. Now we
++	// variable might be reassigned or have its address taken. Now we
+ 	// can decide whether closures should capture their free variables
+ 	// by value or reference.
+ 	for _, closure := range b.closures {
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 219942862f..60862b3ab1 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -404,7 +404,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 				// t0 was simplified to t1.
+ 				// If t0 was a generic function, but the simplified signature t1 does
+ 				// not contain any type parameters anymore, the function is not generic
+-				// anymore. Remove it's type parameters. (go.dev/issue/59953)
++				// anymore. Remove its type parameters. (go.dev/issue/59953)
+ 				// Note that if t0 was a signature, t1 must be a signature, and t1
+ 				// can only be a generic signature if it originated from a generic
+ 				// function argument. Those signatures are never defined types and
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 658de03739..4a4f195c32 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -49,7 +49,7 @@ sub-expression trees are left alone except for their roots). This mechanism
+ ensures that a client sees the actual (run-time) type an untyped value would
+ have. It also permits type-checking of lhs shift operands "as if the shift
+ were not present": when updateExprType visits an untyped lhs shift operand
+-and assigns it it's final type, that type must be an integer type, and a
++and assigns it its final type, that type must be an integer type, and a
+ constant lhs must be representable as an integer.
+ 
+ When an expression gets its final type, either on the way out from rawExpr,
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 4da4513c7b..30e9d0093e 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -407,7 +407,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 				// t0 was simplified to t1.
+ 				// If t0 was a generic function, but the simplified signature t1 does
+ 				// not contain any type parameters anymore, the function is not generic
+-				// anymore. Remove it's type parameters. (go.dev/issue/59953)
++				// anymore. Remove its type parameters. (go.dev/issue/59953)
+ 				// Note that if t0 was a signature, t1 must be a signature, and t1
+ 				// can only be a generic signature if it originated from a generic
+ 				// function argument. Those signatures are never defined types and
+diff --git a/src/internal/concurrent/hashtriemap.go b/src/internal/concurrent/hashtriemap.go
+index 4f7e730d4f..fb9223fa29 100644
+--- a/src/internal/concurrent/hashtriemap.go
++++ b/src/internal/concurrent/hashtriemap.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // HashTrieMap is an implementation of a concurrent hash-trie. The implementation
+ // is designed around frequent loads, but offers decent performance for stores
+-// and deletes as well, especially if the map is larger. It's primary use-case is
++// and deletes as well, especially if the map is larger. Its primary use-case is
+ // the unique package, but can be used elsewhere as well.
+ type HashTrieMap[K, V comparable] struct {
+ 	root     *indirect[K, V]
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index e8a7421778..9ee2f27296 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -682,7 +682,7 @@ func (ws *workerServer) serve(ctx context.Context) error {
+ }
+ 
+ // chainedMutations is how many mutations are applied before the worker
+-// resets the input to it's original state.
++// resets the input to its original state.
+ // NOTE: this number was picked without much thought. It is low enough that
+ // it seems to create a significant diversity in mutated inputs. We may want
+ // to consider looking into this more closely once we have a proper performance

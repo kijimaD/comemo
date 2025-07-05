@@ -12,7 +12,76 @@ Date:   Mon Nov 18 14:52:16 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go                        | 30 ----------------------------
  src/cmd/go/testdata/script/build_gcflags.txt | 21 +++++++++++++++++++
  2 files changed, 21 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e1516a5db1..4181c878f5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4387,36 +4387,6 @@ func TestNeedVersion(t *testing.T) {
+ 	tg.grepStderr("compile", "does not match go tool version")
+ }
+ 
+-// Test that user can override default code generation flags.
+-func TestUserOverrideFlags(t *testing.T) {
+-	skipIfGccgo(t, "gccgo does not use -gcflags")
+-	if !canCgo {
+-		t.Skip("skipping because cgo not enabled")
+-	}
+-	if runtime.GOOS != "linux" {
+-		// We are testing platform-independent code, so it's
+-		// OK to skip cases that work differently.
+-		t.Skipf("skipping on %s because test only works if c-archive implies -shared", runtime.GOOS)
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	// Don't call tg.parallel, as creating override.h and override.a may
+-	// confuse other tests.
+-	tg.tempFile("override.go", `package main
+-
+-import "C"
+-
+-//export GoFunc
+-func GoFunc() {}
+-
+-func main() {}`)
+-	tg.creatingTemp("override.a")
+-	tg.creatingTemp("override.h")
+-	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=all=-shared=false", tg.path("override.go"))
+-	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
+-}
+-
+ func TestCgoFlagContainsSpace(t *testing.T) {
+ 	tooSlow(t)
+ 	if !canCgo {
+diff --git a/src/cmd/go/testdata/script/build_gcflags.txt b/src/cmd/go/testdata/script/build_gcflags.txt
+new file mode 100644
+index 0000000000..e0accb10d5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_gcflags.txt
+@@ -0,0 +1,21 @@
++env GO111MODULE=off
++
++# Test that the user can override default code generation flags.
++
++[gccgo] skip  # gccgo does not use -gcflags
++[!cgo] skip
++[!linux] skip  # test only works if c-archive implies -shared
++[short] skip
++
++go build -x -buildmode=c-archive -gcflags=all=-shared=false ./override.go
++stderr '^.*/compile (.* )?-shared (.* )?-shared=false'
++
++-- override.go --
++package main
++
++import "C"
++
++//export GoFunc
++func GoFunc() {}
++
++func main() {}

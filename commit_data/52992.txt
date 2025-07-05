@@ -18,7 +18,215 @@ Date:   Thu Jun 23 13:07:32 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go        | 20 +++++++++----------
  src/cmd/compile/internal/reflectdata/helpers.go | 26 ++++++++++++-------------
  2 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ec744f4122..0537d1d3b2 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1088,7 +1088,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 			if stmt.Op != syntax.Shl && stmt.Op != syntax.Shr {
+ 				typ = w.p.typeOf(stmt.Lhs)
+ 			}
+-			w.implicitExpr(stmt, typ, stmt.Rhs)
++			w.implicitConvExpr(stmt, typ, stmt.Rhs)
+ 
+ 		default:
+ 			w.assignStmt(stmt, stmt.Lhs, stmt.Rhs)
+@@ -1146,7 +1146,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		resultTypes := w.sig.Results()
+ 		if len(exprs) == resultTypes.Len() {
+ 			for i, expr := range exprs {
+-				w.implicitExpr(stmt, resultTypes.At(i).Type(), expr)
++				w.implicitConvExpr(stmt, resultTypes.At(i).Type(), expr)
+ 			}
+ 		} else if len(exprs) == 0 {
+ 			// ok: bare "return" with named result parameters
+@@ -1166,7 +1166,7 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		w.Code(stmtSend)
+ 		w.pos(stmt)
+ 		w.expr(stmt.Chan)
+-		w.implicitExpr(stmt, chanType.Elem(), stmt.Value)
++		w.implicitConvExpr(stmt, chanType.Elem(), stmt.Value)
+ 
+ 	case *syntax.SwitchStmt:
+ 		w.Code(stmtSwitch)
+@@ -1263,7 +1263,7 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+ 				dstType = w.p.typeOf(dst)
+ 			}
+ 
+-			w.implicitExpr(pos, dstType, expr)
++			w.implicitConvExpr(pos, dstType, expr)
+ 		}
+ 	} else if len(rhs) == 0 {
+ 		// ok: variable declaration without values
+@@ -1498,7 +1498,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.Code(exprIndex)
+ 		w.expr(expr.X)
+ 		w.pos(expr)
+-		w.implicitExpr(expr, keyType, expr.Index)
++		w.implicitConvExpr(expr, keyType, expr.Index)
+ 
+ 	case *syntax.SliceExpr:
+ 		w.Code(exprSlice)
+@@ -1607,7 +1607,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 				} else {
+ 					paramType = paramTypes.At(i).Type()
+ 				}
+-				w.implicitExpr(expr, paramType, arg)
++				w.implicitConvExpr(expr, paramType, arg)
+ 			}
+ 
+ 			w.Bool(expr.HasDots)
+@@ -1621,10 +1621,10 @@ func (w *writer) optExpr(expr syntax.Expr) {
+ 	}
+ }
+ 
+-// implicitExpr is like expr, but if dst is non-nil and different from
++// implicitConvExpr is like expr, but if dst is non-nil and different from
+ // expr's type, then an implicit conversion operation is inserted at
+ // pos.
+-func (w *writer) implicitExpr(pos poser, dst types2.Type, expr syntax.Expr) {
++func (w *writer) implicitConvExpr(pos poser, dst types2.Type, expr syntax.Expr) {
+ 	src := w.p.typeOf(expr)
+ 	if dst != nil && !types2.Identical(src, dst) {
+ 		if !types2.AssignableTo(src, dst) {
+@@ -1682,12 +1682,12 @@ func (w *writer) compLit(lit *syntax.CompositeLit) {
+ 			if kv, ok := elem.(*syntax.KeyValueExpr); w.Bool(ok) {
+ 				// use position of expr.Key rather than of elem (which has position of ':')
+ 				w.pos(kv.Key)
+-				w.implicitExpr(kv.Key, keyType, kv.Key)
++				w.implicitConvExpr(kv.Key, keyType, kv.Key)
+ 				elem = kv.Value
+ 			}
+ 		}
+ 		w.pos(elem)
+-		w.implicitExpr(elem, elemType, elem)
++		w.implicitConvExpr(elem, elemType, elem)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/helpers.go b/src/cmd/compile/internal/reflectdata/helpers.go
+index 5edb495a81..03d1ae3dc2 100644
+--- a/src/cmd/compile/internal/reflectdata/helpers.go
++++ b/src/cmd/compile/internal/reflectdata/helpers.go
+@@ -11,7 +11,7 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-func haveRType(n, rtype ir.Node, fieldName string, required bool) bool {
++func hasRType(n, rtype ir.Node, fieldName string, required bool) bool {
+ 	if rtype != nil {
+ 		return true
+ 	}
+@@ -71,7 +71,7 @@ func concreteRType(pos src.XPos, typ *types.Type) ir.Node {
+ // representing the result slice type's element type.
+ func AppendElemRType(pos src.XPos, n *ir.CallExpr) ir.Node {
+ 	assertOp(n, ir.OAPPEND)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return sliceElemRType(pos, n.Type())
+@@ -84,7 +84,7 @@ func AppendElemRType(pos src.XPos, n *ir.CallExpr) ir.Node {
+ func CompareRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
+ 	assertOp2(n, ir.OEQ, ir.ONE)
+ 	base.AssertfAt(n.X.Type().IsInterface() != n.Y.Type().IsInterface(), n.Pos(), "expect mixed interface and non-interface, have %L and %L", n.X, n.Y)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	typ := n.X.Type()
+@@ -106,7 +106,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
+ 	src, dst := n.X.Type(), n.Type()
+ 	base.AssertfAt(dst.IsInterface(), n.Pos(), "want interface type, have %L", n)
+ 	// TODO(mdempsky): Need to handle implicit interface conversions.
+-	if haveRType(n, n.TypeWord, "TypeWord", false) {
++	if hasRType(n, n.TypeWord, "TypeWord", false) {
+ 		return n.TypeWord
+ 	}
+ 	if dst.IsEmptyInterface() {
+@@ -125,7 +125,7 @@ func ConvIfaceTypeWord(pos src.XPos, n *ir.ConvExpr) ir.Node {
+ func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
+ 	assertOp2(n, ir.OCONVIFACE, ir.OCONVIDATA)
+ 	// TODO(mdempsky): Need to handle implicit interface conversions.
+-	if haveRType(n, n.SrcRType, "SrcRType", false) {
++	if hasRType(n, n.SrcRType, "SrcRType", false) {
+ 		return n.SrcRType
+ 	}
+ 	return concreteRType(pos, n.X.Type())
+@@ -136,7 +136,7 @@ func ConvIfaceSrcRType(pos src.XPos, n *ir.ConvExpr) ir.Node {
+ // destination slice type's element type.
+ func CopyElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
+ 	assertOp(n, ir.OCOPY)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return sliceElemRType(pos, n.X.Type())
+@@ -147,7 +147,7 @@ func CopyElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
+ // map type.
+ func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
+ 	assertOp(n, ir.ODELETE)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.Args[0].Type())
+@@ -158,7 +158,7 @@ func DeleteMapRType(pos src.XPos, n *ir.CallExpr) ir.Node {
+ // map type.
+ func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
+ 	assertOp(n, ir.OINDEXMAP)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.X.Type())
+@@ -169,7 +169,7 @@ func IndexMapRType(pos src.XPos, n *ir.IndexExpr) ir.Node {
+ // value representing that channel type.
+ func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ 	assertOp(n, ir.OMAKECHAN)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return chanRType(pos, n.Type())
+@@ -180,7 +180,7 @@ func MakeChanRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ // representing that map type.
+ func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ 	assertOp(n, ir.OMAKEMAP)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.Type())
+@@ -191,7 +191,7 @@ func MakeMapRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ // value representing that slice type's element type.
+ func MakeSliceElemRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ 	assertOp2(n, ir.OMAKESLICE, ir.OMAKESLICECOPY)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return sliceElemRType(pos, n.Type())
+@@ -202,7 +202,7 @@ func MakeSliceElemRType(pos src.XPos, n *ir.MakeExpr) ir.Node {
+ // representing that map type.
+ func RangeMapRType(pos src.XPos, n *ir.RangeStmt) ir.Node {
+ 	assertOp(n, ir.ORANGE)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return mapRType(pos, n.X.Type())
+@@ -213,7 +213,7 @@ func RangeMapRType(pos src.XPos, n *ir.RangeStmt) ir.Node {
+ // representing the result slice type's element type.
+ func UnsafeSliceElemRType(pos src.XPos, n *ir.BinaryExpr) ir.Node {
+ 	assertOp(n, ir.OUNSAFESLICE)
+-	if haveRType(n, n.RType, "RType", true) {
++	if hasRType(n, n.RType, "RType", true) {
+ 		return n.RType
+ 	}
+ 	return sliceElemRType(pos, n.Type())

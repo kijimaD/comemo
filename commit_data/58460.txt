@@ -19,7 +19,88 @@ Date:   Thu Nov 9 09:53:44 2023 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/541175
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/path/filepath/path_test.go    | 15 ++++++++++-----
  src/path/filepath/path_windows.go | 20 +++++++-------------
  2 files changed, 17 insertions(+), 18 deletions(-)
+
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index cd9f5632c9..ed3990859b 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -109,6 +109,8 @@ var wincleantests = []PathTest{
+ 	{`//abc`, `\\abc`},
+ 	{`///abc`, `\\\abc`},
+ 	{`//abc//`, `\\abc\\`},
++	{`\\?\C:\`, `\\?\C:\`},
++	{`\\?\C:\a`, `\\?\C:\a`},
+ 
+ 	// Don't allow cleaning to move an element with a colon to the start of the path.
+ 	{`a/../c:`, `.\c:`},
+@@ -1597,10 +1599,13 @@ var volumenametests = []VolumeNameTest{
+ 	{`//.`, `\\.`},
+ 	{`//./`, `\\.\`},
+ 	{`//./NUL`, `\\.\NUL`},
+-	{`//?/`, `\\?`},
++	{`//?`, `\\?`},
++	{`//?/`, `\\?\`},
++	{`//?/NUL`, `\\?\NUL`},
++	{`/??`, `\??`},
++	{`/??/`, `\??\`},
++	{`/??/NUL`, `\??\NUL`},
+ 	{`//./a/b`, `\\.\a`},
+-	{`//?/`, `\\?`},
+-	{`//?/`, `\\?`},
+ 	{`//./C:`, `\\.\C:`},
+ 	{`//./C:/`, `\\.\C:`},
+ 	{`//./C:/a/b/c`, `\\.\C:`},
+@@ -1609,8 +1614,8 @@ var volumenametests = []VolumeNameTest{
+ 	{`//./UNC/host\`, `\\.\UNC\host\`},
+ 	{`//./UNC`, `\\.\UNC`},
+ 	{`//./UNC/`, `\\.\UNC\`},
+-	{`\\?\x`, `\\?`},
+-	{`\??\x`, `\??`},
++	{`\\?\x`, `\\?\x`},
++	{`\??\x`, `\??\x`},
+ }
+ 
+ func TestVolumeName(t *testing.T) {
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index c490424f20..eacab0e5ce 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -102,12 +102,14 @@ func volumeNameLen(path string) int {
+ 		// \\.\unc\a\b\..\c into \\.\unc\a\c.
+ 		return uncLen(path, len(`\\.\UNC\`))
+ 
+-	case pathHasPrefixFold(path, `\\.`):
+-		// Path starts with \\., and is a Local Device path.
++	case pathHasPrefixFold(path, `\\.`) ||
++		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
++		// Path starts with \\.\, and is a Local Device path; or
++		// path starts with \\?\ or \??\ and is a Root Local Device path.
+ 		//
+-		// We currently treat the next component after the \\.\ prefix
+-		// as part of the volume name, although there doesn't seem to be
+-		// a principled reason to do this.
++		// We treat the next component after the \\.\ prefix as
++		// part of the volume name, which means Clean(`\\?\c:\`)
++		// won't remove the trailing \. (See #64028.)
+ 		if len(path) == 3 {
+ 			return 3 // exactly \\.
+ 		}
+@@ -117,14 +119,6 @@ func volumeNameLen(path string) int {
+ 		}
+ 		return len(path) - len(rest) - 1
+ 
+-	case pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
+-		// Path starts with \\?\ or \??\, and is a Root Local Device path.
+-		//
+-		// While Windows usually treats / and \ as equivalent,
+-		// /??/ does not seem to be recognized as a Root Local Device path.
+-		// We treat it as one anyway here to be safe.
+-		return 3
+-
+ 	case len(path) >= 2 && isSlash(path[1]):
+ 		// Path starts with \\, and is a UNC path.
+ 		return uncLen(path, 2)

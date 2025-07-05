@@ -15,7 +15,7 @@ Date:   Mon Sep 21 10:30:04 2015 -0700
     Change-Id: Ia879ea1d15d82372df14853f919263125dfb7b96
     Reviewed-on: https://go-review.googlesource.com/14821
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/doc.go                               | 119 ++++++++++++----------
  src/cmd/vet/example.go                           | 124 +++++++++++++++++++++++
  src/cmd/vet/main.go                              |  21 ++--
@@ -25,3 +25,640 @@ Date:   Mon Sep 21 10:30:04 2015 -0700
  src/cmd/vet/testdata/incomplete/examples_test.go |  33 ++++++
  src/cmd/vet/vet_test.go                          |  80 ++++++++++-----
  8 files changed, 392 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index ea4654ae5f..55daf50631 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -37,50 +37,6 @@ except the printf check.
+ 
+ Available checks:
+ 
+-Printf family
+-
+-Flag: -printf
+-
+-Suspicious calls to functions in the Printf family, including any functions
+-with these names, disregarding case:
+-	Print Printf Println
+-	Fprint Fprintf Fprintln
+-	Sprint Sprintf Sprintln
+-	Error Errorf
+-	Fatal Fatalf
+-	Log Logf
+-	Panic Panicf Panicln
+-The -printfuncs flag can be used to redefine this list.
+-If the function name ends with an 'f', the function is assumed to take
+-a format descriptor string in the manner of fmt.Printf. If not, vet
+-complains about arguments that look like format descriptor strings.
+-
+-It also checks for errors such as using a Writer as the first argument of
+-Printf.
+-
+-Methods
+-
+-Flag: -methods
+-
+-Non-standard signatures for methods with familiar names, including:
+-	Format GobEncode GobDecode MarshalJSON MarshalXML
+-	Peek ReadByte ReadFrom ReadRune Scan Seek
+-	UnmarshalJSON UnreadByte UnreadRune WriteByte
+-	WriteTo
+-
+-Struct tags
+-
+-Flag: -structtags
+-
+-Struct tags that do not follow the format understood by reflect.StructTag.Get.
+-Well-known encoding struct tags (json, xml) used with unexported fields.
+-
+-Unkeyed composite literals
+-
+-Flag: -composites
+-
+-Composite struct literals that do not use the field-keyed syntax.
+-
+ Assembly declarations
+ 
+ Flag: -asmdecl
+@@ -111,29 +67,69 @@ Flag: -buildtags
+ 
+ Badly formed or misplaced +build tags.
+ 
++Unkeyed composite literals
++
++Flag: -composites
++
++Composite struct literals that do not use the field-keyed syntax.
++
+ Copying locks
+ 
+ Flag: -copylocks
+ 
+ Locks that are erroneously passed by value.
+ 
++Documentation examples
++
++Flag: -example
++
++Mistakes involving example tests, including examples with incorrect names or
++function signatures, or that document identifiers not in the package.
++
++Methods
++
++Flag: -methods
++
++Non-standard signatures for methods with familiar names, including:
++	Format GobEncode GobDecode MarshalJSON MarshalXML
++	Peek ReadByte ReadFrom ReadRune Scan Seek
++	UnmarshalJSON UnreadByte UnreadRune WriteByte
++	WriteTo
++
+ Nil function comparison
+ 
+ Flag: -nilfunc
+ 
+ Comparisons between functions and nil.
+ 
+-Range loop variables
++Printf family
+ 
+-Flag: -rangeloops
++Flag: -printf
+ 
+-Incorrect uses of range loop variables in closures.
++Suspicious calls to functions in the Printf family, including any functions
++with these names, disregarding case:
++	Print Printf Println
++	Fprint Fprintf Fprintln
++	Sprint Sprintf Sprintln
++	Error Errorf
++	Fatal Fatalf
++	Log Logf
++	Panic Panicf Panicln
++The -printfuncs flag can be used to redefine this list.
++If the function name ends with an 'f', the function is assumed to take
++a format descriptor string in the manner of fmt.Printf. If not, vet
++complains about arguments that look like format descriptor strings.
+ 
+-Unreachable code
++It also checks for errors such as using a Writer as the first argument of
++Printf.
+ 
+-Flag: -unreachable
++Struct tags
+ 
+-Unreachable code.
++Range loop variables
++
++Flag: -rangeloops
++
++Incorrect uses of range loop variables in closures.
+ 
+ Shadowed variables
+ 
+@@ -141,6 +137,23 @@ Flag: -shadow=false (experimental; must be set explicitly)
+ 
+ Variables that may have been unintentionally shadowed.
+ 
++Shifts
++
++Flag: -shift
++
++Shifts equal to or longer than the variable's length.
++
++Flag: -structtags
++
++Struct tags that do not follow the format understood by reflect.StructTag.Get.
++Well-known encoding struct tags (json, xml) used with unexported fields.
++
++Unreachable code
++
++Flag: -unreachable
++
++Unreachable code.
++
+ Misuse of unsafe Pointers
+ 
+ Flag: -unsafeptr
+@@ -160,12 +173,6 @@ discarded.  By default, this includes functions like fmt.Errorf and
+ fmt.Sprintf and methods like String and Error. The flags -unusedfuncs
+ and -unusedstringmethods control the set.
+ 
+-Shifts
+-
+-Flag: -shift
+-
+-Shifts equal to or longer than the variable's length.
+-
+ Other flags
+ 
+ These flags configure the behavior of vet:
+diff --git a/src/cmd/vet/example.go b/src/cmd/vet/example.go
+new file mode 100644
+index 0000000000..797c3ceec8
+--- /dev/null
++++ b/src/cmd/vet/example.go
+@@ -0,0 +1,124 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"go/types"
++	"strings"
++	"unicode"
++	"unicode/utf8"
++)
++
++func init() {
++	register("example",
++		"check for common mistaken usages of documentation examples",
++		checkExample,
++		funcDecl)
++}
++
++func isExampleSuffix(s string) bool {
++	r, size := utf8.DecodeRuneInString(s)
++	return size > 0 && unicode.IsLower(r)
++}
++
++// checkExample walks the documentation example functions checking for common
++// mistakes of misnamed functions, failure to map functions to existing
++// identifiers, etc.
++func checkExample(f *File, node ast.Node) {
++	if !strings.HasSuffix(f.name, "_test.go") {
++		return
++	}
++	var (
++		pkg     = f.pkg
++		pkgName = pkg.typesPkg.Name()
++		scopes  = []*types.Scope{pkg.typesPkg.Scope()}
++		lookup  = func(name string) types.Object {
++			for _, scope := range scopes {
++				if o := scope.Lookup(name); o != nil {
++					return o
++				}
++			}
++			return nil
++		}
++	)
++	if strings.HasSuffix(pkgName, "_test") {
++		// Treat 'package foo_test' as an alias for 'package foo'.
++		var (
++			basePkg = strings.TrimSuffix(pkgName, "_test")
++			pkg     = f.pkg
++		)
++		for _, p := range pkg.typesPkg.Imports() {
++			if p.Name() == basePkg {
++				scopes = append(scopes, p.Scope())
++				break
++			}
++		}
++	}
++	fn, ok := node.(*ast.FuncDecl)
++	if !ok {
++		// Ignore non-functions.
++		return
++	}
++	var (
++		fnName = fn.Name.Name
++		report = func(format string, args ...interface{}) { f.Badf(node.Pos(), format, args...) }
++	)
++	if fn.Recv != nil || !strings.HasPrefix(fnName, "Example") {
++		// Ignore methods and types not named "Example".
++		return
++	}
++	if params := fn.Type.Params; len(params.List) != 0 {
++		report("%s should be niladic", fnName)
++	}
++	if results := fn.Type.Results; results != nil && len(results.List) != 0 {
++		report("%s should return nothing", fnName)
++	}
++	if fnName == "Example" {
++		// Nothing more to do.
++		return
++	}
++	if filesRun && !includesNonTest {
++		// The coherence checks between a test and the package it tests
++		// will report false positives if no non-test files have
++		// been provided.
++		return
++	}
++	var (
++		exName = strings.TrimPrefix(fnName, "Example")
++		elems  = strings.SplitN(exName, "_", 3)
++		ident  = elems[0]
++		obj    = lookup(ident)
++	)
++	if ident != "" && obj == nil {
++		// Check ExampleFoo and ExampleBadFoo.
++		report("%s refers to unknown identifier: %s", fnName, ident)
++		// Abort since obj is absent and no subsequent checks can be performed.
++		return
++	}
++	if elemCnt := strings.Count(exName, "_"); elemCnt == 0 {
++		// Nothing more to do.
++		return
++	}
++	mmbr := elems[1]
++	if ident == "" {
++		// Check Example_suffix and Example_BadSuffix.
++		if residual := strings.TrimPrefix(exName, "_"); !isExampleSuffix(residual) {
++			report("%s has malformed example suffix: %s", fnName, residual)
++		}
++		return
++	}
++	if !isExampleSuffix(mmbr) {
++		// Check ExampleFoo_Method and ExampleFoo_BadMethod.
++		if obj, _, _ := types.LookupFieldOrMethod(obj.Type(), true, obj.Pkg(), mmbr); obj == nil {
++			report("%s refers to unknown field or method: %s.%s", fnName, ident, mmbr)
++		}
++	}
++	if len(elems) == 3 && !isExampleSuffix(elems[2]) {
++		// Check ExampleFoo_Method_suffix and ExampleFoo_Method_Badsuffix.
++		report("%s has malformed example suffix: %s", fnName, elems[2])
++	}
++	return
++}
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 453cfe0ce0..fbba009d11 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -51,6 +51,14 @@ var experimental = map[string]bool{}
+ // setTrueCount record how many flags are explicitly set to true.
+ var setTrueCount int
+ 
++// dirsRun and filesRun indicate whether the vet is applied to directory or
++// file targets. The distinction affects which checks are run.
++var dirsRun, filesRun bool
++
++// includesNonTest indicates whether the vet is applied to non-test targets.
++// Certain checks are relevant only if they touch both test and non-test files.
++var includesNonTest bool
++
+ // A triState is a boolean that knows whether it has been set to either true or false.
+ // It is used to identify if a flag appears; the standard boolean flag cannot
+ // distinguish missing from unset. It also satisfies flag.Value.
+@@ -207,8 +215,6 @@ func main() {
+ 	if flag.NArg() == 0 {
+ 		Usage()
+ 	}
+-	dirs := false
+-	files := false
+ 	for _, name := range flag.Args() {
+ 		// Is it a directory?
+ 		fi, err := os.Stat(name)
+@@ -217,15 +223,18 @@ func main() {
+ 			continue
+ 		}
+ 		if fi.IsDir() {
+-			dirs = true
++			dirsRun = true
+ 		} else {
+-			files = true
++			filesRun = true
++			if !strings.HasSuffix(name, "_test.go") {
++				includesNonTest = true
++			}
+ 		}
+ 	}
+-	if dirs && files {
++	if dirsRun && filesRun {
+ 		Usage()
+ 	}
+-	if dirs {
++	if dirsRun {
+ 		for _, name := range flag.Args() {
+ 			walkDir(name)
+ 		}
+diff --git a/src/cmd/vet/testdata/divergent/buf.go b/src/cmd/vet/testdata/divergent/buf.go
+new file mode 100644
+index 0000000000..0efe0f838d
+--- /dev/null
++++ b/src/cmd/vet/testdata/divergent/buf.go
+@@ -0,0 +1,17 @@
++// Test of examples with divergent packages.
++
++// Package buf ...
++package buf
++
++// Buf is a ...
++type Buf []byte
++
++// Append ...
++func (*Buf) Append([]byte) {}
++
++func (Buf) Reset() {}
++
++func (Buf) Len() int { return 0 }
++
++// DefaultBuf is a ...
++var DefaultBuf Buf
+diff --git a/src/cmd/vet/testdata/divergent/buf_test.go b/src/cmd/vet/testdata/divergent/buf_test.go
+new file mode 100644
+index 0000000000..6b9cba3f01
+--- /dev/null
++++ b/src/cmd/vet/testdata/divergent/buf_test.go
+@@ -0,0 +1,35 @@
++// Test of examples with divergent packages.
++
++package buf_test
++
++func Example() {} // OK because is package-level.
++
++func Example_suffix() // OK because refers to suffix annotation.
++
++func Example_BadSuffix() // ERROR "Example_BadSuffix has malformed example suffix: BadSuffix"
++
++func ExampleBuf() // OK because refers to known top-level type.
++
++func ExampleBuf_Append() {} // OK because refers to known method.
++
++func ExampleBuf_Clear() {} // ERROR "ExampleBuf_Clear refers to unknown field or method: Buf.Clear"
++
++func ExampleBuf_suffix() {} // OK because refers to suffix annotation.
++
++func ExampleBuf_Append_Bad() {} // ERROR "ExampleBuf_Append_Bad has malformed example suffix: Bad"
++
++func ExampleBuf_Append_suffix() {} // OK because refers to known method with valid suffix.
++
++func ExampleDefaultBuf() {} // OK because refers to top-level identifier.
++
++func ExampleBuf_Reset() bool { return true } // ERROR "ExampleBuf_Reset should return nothing"
++
++func ExampleBuf_Len(i int) {} // ERROR "ExampleBuf_Len should be niladic"
++
++// "Puffer" is German for "Buffer".
++
++func ExamplePuffer() // ERROR "ExamplePuffer refers to unknown identifier: Puffer"
++
++func ExamplePuffer_Append() // ERROR "ExamplePuffer_Append refers to unknown identifier: Puffer"
++
++func ExamplePuffer_suffix() // ERROR "ExamplePuffer_suffix refers to unknown identifier: Puffer"
+diff --git a/src/cmd/vet/testdata/examples_test.go b/src/cmd/vet/testdata/examples_test.go
+new file mode 100644
+index 0000000000..9c53672a7d
+--- /dev/null
++++ b/src/cmd/vet/testdata/examples_test.go
+@@ -0,0 +1,48 @@
++// Test of examples.
++
++package testdata
++
++// Buf is a ...
++type Buf []byte
++
++// Append ...
++func (*Buf) Append([]byte) {}
++
++func (Buf) Reset() {}
++
++func (Buf) Len() int { return 0 }
++
++// DefaultBuf is a ...
++var DefaultBuf Buf
++
++func Example() {} // OK because is package-level.
++
++func Example_goodSuffix() // OK because refers to suffix annotation.
++
++func Example_BadSuffix() // ERROR "Example_BadSuffix has malformed example suffix: BadSuffix"
++
++func ExampleBuf() // OK because refers to known top-level type.
++
++func ExampleBuf_Append() {} // OK because refers to known method.
++
++func ExampleBuf_Clear() {} // ERROR "ExampleBuf_Clear refers to unknown field or method: Buf.Clear"
++
++func ExampleBuf_suffix() {} // OK because refers to suffix annotation.
++
++func ExampleBuf_Append_Bad() {} // ERROR "ExampleBuf_Append_Bad has malformed example suffix: Bad"
++
++func ExampleBuf_Append_suffix() {} // OK because refers to known method with valid suffix.
++
++func ExampleDefaultBuf() {} // OK because refers to top-level identifier.
++
++func ExampleBuf_Reset() bool { return true } // ERROR "ExampleBuf_Reset should return nothing"
++
++func ExampleBuf_Len(i int) {} // ERROR "ExampleBuf_Len should be niladic"
++
++// "Puffer" is German for "Buffer".
++
++func ExamplePuffer() // ERROR "ExamplePuffer refers to unknown identifier: Puffer"
++
++func ExamplePuffer_Append() // ERROR "ExamplePuffer_Append refers to unknown identifier: Puffer"
++
++func ExamplePuffer_suffix() // ERROR "ExamplePuffer_suffix refers to unknown identifier: Puffer"
+diff --git a/src/cmd/vet/testdata/incomplete/examples_test.go b/src/cmd/vet/testdata/incomplete/examples_test.go
+new file mode 100644
+index 0000000000..445502b39e
+--- /dev/null
++++ b/src/cmd/vet/testdata/incomplete/examples_test.go
+@@ -0,0 +1,33 @@
++// Test of examples.
++
++package testdata
++
++func Example() {} // OK because is package-level.
++
++func Example_suffix() // OK because refers to suffix annotation.
++
++func Example_BadSuffix() // OK because non-test package was excluded.  No false positives wanted.
++
++func ExampleBuf() // OK because non-test package was excluded.  No false positives wanted.
++
++func ExampleBuf_Append() {} // OK because non-test package was excluded.  No false positives wanted.
++
++func ExampleBuf_Clear() {} // OK because non-test package was excluded.  No false positives wanted.
++
++func ExampleBuf_suffix() {} // OK because refers to suffix annotation.
++
++func ExampleBuf_Append_Bad() {} // OK because non-test package was excluded.  No false positives wanted.
++
++func ExampleBuf_Append_suffix() {} // OK because refers to known method with valid suffix.
++
++func ExampleBuf_Reset() bool { return true } // ERROR "ExampleBuf_Reset should return nothing"
++
++func ExampleBuf_Len(i int) {} // ERROR "ExampleBuf_Len should be niladic"
++
++// "Puffer" is German for "Buffer".
++
++func ExamplePuffer() // OK because non-test package was excluded.  No false positives wanted.
++
++func ExamplePuffer_Append() // OK because non-test package was excluded.  No false positives wanted.
++
++func ExamplePuffer_suffix() // OK because non-test package was excluded.  No false positives wanted.
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 9aae8dd930..7508193659 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -2,11 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// No testdata on Android.
++
++// +build !android
++
+ package main_test
+ 
+ import (
+ 	"bytes"
+-	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -19,25 +22,46 @@ const (
+ 	binary  = "testvet.exe"
+ )
+ 
+-// Run this shell script, but do it in Go so it can be run by "go test".
+-// 	go build -o testvet
+-// 	$(GOROOT)/test/errchk ./testvet -shadow -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
+-// 	rm testvet
+-//
+-func TestVet(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
++func CanRun(t *testing.T) bool {
++	// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
+-		// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+-		t.Skipf("skipping test; no Perl on %q", runtime.GOOS)
++		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
++		return false
+ 	}
++	return true
++}
+ 
++func Build(t *testing.T) {
+ 	// go build
+ 	cmd := exec.Command("go", "build", "-o", binary)
+ 	run(cmd, t)
++}
+ 
+-	// defer removal of vet
++func Vet(t *testing.T, files []string) {
++	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
++	flags := []string{
++		"./" + binary,
++		"-printfuncs=Warn:1,Warnf:1",
++		"-test", // TODO: Delete once -shadow is part of -all.
++	}
++	cmd := exec.Command(errchk, append(flags, files...)...)
++	if !run(cmd, t) {
++		t.Fatal("vet command failed")
++	}
++}
++
++// Run this shell script, but do it in Go so it can be run by "go test".
++// 	go build -o testvet
++// 	$(GOROOT)/test/errchk ./testvet -shadow -printfuncs='Warn:1,Warnf:1' testdata/*.go testdata/*.s
++// 	rm testvet
++//
++
++func TestVet(t *testing.T) {
++	if !CanRun(t) {
++		t.Skip("cannot run on this environment")
++	}
++	Build(t)
+ 	defer os.Remove(binary)
+ 
+ 	// errchk ./testvet
+@@ -50,16 +74,29 @@ func TestVet(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	files := append(gos, asms...)
+-	errchk := filepath.Join(runtime.GOROOT(), "test", "errchk")
+-	flags := []string{
+-		"./" + binary,
+-		"-printfuncs=Warn:1,Warnf:1",
+-		"-test", // TODO: Delete once -shadow is part of -all.
++	Vet(t, files)
++}
++
++func TestDivergentPackagesExamples(t *testing.T) {
++	if !CanRun(t) {
++		t.Skip("cannot run on this environment")
+ 	}
+-	cmd = exec.Command(errchk, append(flags, files...)...)
+-	if !run(cmd, t) {
+-		t.Fatal("vet command failed")
++	Build(t)
++	defer os.Remove(binary)
++
++	// errchk ./testvet
++	Vet(t, []string{"testdata/divergent/buf.go", "testdata/divergent/buf_test.go"})
++}
++
++func TestIncompleteExamples(t *testing.T) {
++	if !CanRun(t) {
++		t.Skip("cannot run on this environment")
+ 	}
++	Build(t)
++	defer os.Remove(binary)
++
++	// errchk ./testvet
++	Vet(t, []string{"testdata/incomplete/examples_test.go"})
+ }
+ 
+ func run(c *exec.Cmd, t *testing.T) bool {
+@@ -78,13 +115,10 @@ func run(c *exec.Cmd, t *testing.T) bool {
+ 
+ // TestTags verifies that the -tags argument controls which files to check.
+ func TestTags(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-
+ 	// go build
+ 	cmd := exec.Command("go", "build", "-o", binary)
+ 	run(cmd, t)
+ 
+-	// defer removal of vet
+ 	defer os.Remove(binary)
+ 
+ 	args := []string{

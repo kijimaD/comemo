@@ -12,7 +12,7 @@ Date:   Wed Nov 14 14:58:27 2018 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  .../x/tools/go/analysis/cmd/vet-lite/main.go       |  47 +++-
  .../go/analysis/internal/analysisflags/flags.go    |  42 ++-
  .../go/analysis/internal/analysisflags/help.go     | 100 +++++++
@@ -27,3 +27,1234 @@ Date:   Wed Nov 14 14:58:27 2018 -0500
  .../golang.org/x/tools/go/ast/astutil/imports.go   |  54 ++--
  src/cmd/vendor/update-xtools.sh                    |  27 ++
  13 files changed, 647 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+index ae66a7df28..b4b0e631b9 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+@@ -1,14 +1,16 @@
+ // The vet-lite command is a driver for static checkers conforming to
+ // the golang.org/x/tools/go/analysis API. It must be run by go vet:
+ //
+-//   $ GOVETTOOL=$(which vet-lite) go vet
++//   $ go vet -vettool=$(which vet-lite)
+ //
+ // For a checker also capable of running standalone, use multichecker.
+ package main
+ 
+ import (
+ 	"flag"
++	"fmt"
+ 	"log"
++	"os"
+ 	"strings"
+ 
+ 	"golang.org/x/tools/go/analysis"
+@@ -33,13 +35,13 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+ 	"golang.org/x/tools/go/analysis/passes/structtag"
+ 	"golang.org/x/tools/go/analysis/passes/tests"
++	"golang.org/x/tools/go/analysis/passes/unmarshal"
+ 	"golang.org/x/tools/go/analysis/passes/unreachable"
+ 	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+ 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+ )
+ 
+ var analyzers = []*analysis.Analyzer{
+-	// For now, just the traditional vet suite:
+ 	asmdecl.Analyzer,
+ 	assign.Analyzer,
+ 	atomic.Analyzer,
+@@ -54,11 +56,11 @@ var analyzers = []*analysis.Analyzer{
+ 	nilfunc.Analyzer,
+ 	pkgfact.Analyzer,
+ 	printf.Analyzer,
+-	// shadow.Analyzer, // experimental; not enabled by default
+ 	shift.Analyzer,
+ 	stdmethods.Analyzer,
+ 	structtag.Analyzer,
+ 	tests.Analyzer,
++	unmarshal.Analyzer,
+ 	unreachable.Analyzer,
+ 	unsafeptr.Analyzer,
+ 	unusedresult.Analyzer,
+@@ -72,9 +74,48 @@ func main() {
+ 		log.Fatal(err)
+ 	}
+ 
++	// Flags for legacy vet compatibility.
++	//
++	// These flags, plus the shims in analysisflags, enable
++	// existing scripts that run vet to continue to work.
++	//
++	// Legacy vet had the concept of "experimental" checkers. There
++	// was exactly one, shadow, and it had to be explicitly enabled
++	// by the -shadow flag, which would of course disable all the
++	// other tristate flags, requiring the -all flag to reenable them.
++	// (By itself, -all did not enable all checkers.)
++	// The -all flag is no longer needed, so it is a no-op.
++	//
++	// The shadow analyzer has been removed from the suite,
++	// but can be run using these additional commands:
++	//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
++	//   $ go vet -vettool=$(which shadow)
++	// Alternatively, one could build a multichecker containing all
++	// the desired checks (vet's suite + shadow) and run it in a
++	// single "go vet" command.
++	for _, name := range []string{"source", "v", "all"} {
++		_ = flag.Bool(name, false, "no effect (deprecated)")
++	}
++
++	flag.Usage = func() {
++		fmt.Fprintln(os.Stderr, `Usage of vet:
++	vet unit.cfg		# execute analysis specified by config file
++	vet help		# general help
++	vet help name		# help on specific analyzer and its flags`)
++		flag.PrintDefaults()
++		os.Exit(1)
++	}
++
+ 	analyzers = analysisflags.Parse(analyzers, true)
+ 
+ 	args := flag.Args()
++	if len(args) == 0 {
++		flag.Usage()
++	}
++	if args[0] == "help" {
++		analysisflags.Help("vet", analyzers, args[1:])
++		os.Exit(0)
++	}
+ 	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
+ 		log.Fatalf("invalid command: want .cfg file (this reduced version of vet is intended to be run only by the 'go vet' command)")
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index d6c13f2685..d915be6d25 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -20,7 +20,7 @@ import (
+ )
+ 
+ // Parse creates a flag for each of the analyzer's flags,
+-// including (in multi mode) an --analysis.enable flag,
++// including (in multi mode) a flag named after the analyzer,
+ // parses the flags, then filters and returns the list of
+ // analyzers enabled by flags.
+ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+@@ -36,16 +36,15 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	for _, a := range analyzers {
+ 		var prefix string
+ 
+-		// Add -analysis.enable flag.
++		// Add -NAME flag to enable it.
+ 		if multi {
+ 			prefix = a.Name + "."
+ 
+ 			enable := new(triState)
+-			enableName := prefix + "enable"
+ 			enableUsage := "enable " + a.Name + " analysis"
+-			flag.Var(enable, enableName, enableUsage)
++			flag.Var(enable, a.Name, enableUsage)
+ 			enabled[a] = enable
+-			analysisFlags = append(analysisFlags, analysisFlag{enableName, true, enableUsage})
++			analysisFlags = append(analysisFlags, analysisFlag{a.Name, true, enableUsage})
+ 		}
+ 
+ 		a.Flags.VisitAll(func(f *flag.Flag) {
+@@ -69,6 +68,14 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 	printflags := flag.Bool("flags", false, "print analyzer flags in JSON")
+ 	addVersionFlag()
+ 
++	// Add shims for legacy vet flags.
++	for old, new := range vetLegacyFlags {
++		newFlag := flag.Lookup(new)
++		if newFlag != nil && flag.Lookup(old) == nil {
++			flag.Var(newFlag.Value, old, "deprecated alias for -"+new)
++		}
++	}
++
+ 	flag.Parse() // (ExitOnError)
+ 
+ 	// -flags: print flags so that go vet knows which ones are legitimate.
+@@ -81,8 +88,8 @@ func Parse(analyzers []*analysis.Analyzer, multi bool) []*analysis.Analyzer {
+ 		os.Exit(0)
+ 	}
+ 
+-	// If any --foo.enable flag is true,  run only those analyzers. Otherwise,
+-	// if any --foo.enable flag is false, run all but those analyzers.
++	// If any -NAME flag is true,  run only those analyzers. Otherwise,
++	// if any -NAME flag is false, run all but those analyzers.
+ 	if multi {
+ 		var hasTrue, hasFalse bool
+ 		for _, ts := range enabled {
+@@ -195,7 +202,7 @@ func (ts *triState) Set(value string) error {
+ 	b, err := strconv.ParseBool(value)
+ 	if err != nil {
+ 		// This error message looks poor but package "flag" adds
+-		// "invalid boolean value %q for -foo.enable: %s"
++		// "invalid boolean value %q for -NAME: %s"
+ 		return fmt.Errorf("want true or false")
+ 	}
+ 	if b {
+@@ -221,3 +228,22 @@ func (ts *triState) String() string {
+ func (ts triState) IsBoolFlag() bool {
+ 	return true
+ }
++
++// Legacy flag support
++
++// vetLegacyFlags maps flags used by legacy vet to their corresponding
++// new names. The old names will continue to work.
++var vetLegacyFlags = map[string]string{
++	// Analyzer name changes
++	"bool":       "bools",
++	"buildtags":  "buildtag",
++	"methods":    "stdmethods",
++	"rangeloops": "loopclosure",
++
++	// Analyzer flags
++	"compositewhitelist":  "composites.whitelist",
++	"printfuncs":          "printf.funcs",
++	"shadowstrict":        "shadow.strict",
++	"unusedfuncs":         "unusedresult.funcs",
++	"unusedstringmethods": "unusedresult.stringmethods",
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+new file mode 100644
+index 0000000000..dc7ba06650
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+@@ -0,0 +1,100 @@
++package analysisflags
++
++import (
++	"flag"
++	"fmt"
++	"io"
++	"log"
++	"os"
++	"path/filepath"
++	"sort"
++	"strings"
++
++	"golang.org/x/tools/go/analysis"
++)
++
++const usage = `PROGNAME is a tool for static analysis of Go programs.
++
++PROGNAME examines Go source code and reports suspicious constructs, such as Printf
++calls whose arguments do not align with the format string. It uses heuristics
++that do not guarantee all reports are genuine problems, but it can find errors
++not caught by the compilers.
++
++Usage: PROGNAME [-flag] [package]
++`
++
++// PrintUsage prints the usage message to stderr.
++func PrintUsage(out io.Writer) {
++	progname := filepath.Base(os.Args[0])
++	fmt.Fprintln(out, strings.Replace(usage, "PROGNAME", progname, -1))
++}
++
++// Help implements the help subcommand for a multichecker or vet-lite
++// style command. The optional args specify the analyzers to describe.
++// Help calls log.Fatal if no such analyzer exists.
++func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
++	// No args: show summary of all analyzers.
++	if len(args) == 0 {
++		PrintUsage(os.Stdout)
++		fmt.Println("Registered analyzers:")
++		fmt.Println()
++		sort.Slice(analyzers, func(i, j int) bool {
++			return analyzers[i].Name < analyzers[j].Name
++		})
++		for _, a := range analyzers {
++			title := strings.Split(a.Doc, "\n\n")[0]
++			fmt.Printf("    %-12s %s\n", a.Name, title)
++		}
++		fmt.Println("\nBy default all analyzers are run.")
++		fmt.Println("To select specific analyzers, use the -NAME flag for each one,")
++		fmt.Println(" or -NAME=false to run all analyzers not explicitly disabled.")
++
++		// Show only the core command-line flags.
++		fmt.Println("\nCore flags:")
++		fmt.Println()
++		fs := flag.NewFlagSet("", flag.ExitOnError)
++		flag.VisitAll(func(f *flag.Flag) {
++			if !strings.Contains(f.Name, ".") {
++				fs.Var(f.Value, f.Name, f.Usage)
++			}
++		})
++		fs.PrintDefaults()
++
++		fmt.Printf("\nTo see details and flags of a specific analyzer, run '%s help name'.\n", progname)
++
++		return
++	}
++
++	// Show help on specific analyzer(s).
++outer:
++	for _, arg := range args {
++		for _, a := range analyzers {
++			if a.Name == arg {
++				paras := strings.Split(a.Doc, "\n\n")
++				title := paras[0]
++				fmt.Printf("%s: %s\n", a.Name, title)
++
++				// Show only the flags relating to this analysis,
++				// properly prefixed.
++				first := true
++				fs := flag.NewFlagSet(a.Name, flag.ExitOnError)
++				a.Flags.VisitAll(func(f *flag.Flag) {
++					if first {
++						first = false
++						fmt.Println("\nAnalyzer flags:")
++						fmt.Println()
++					}
++					fs.Var(f.Value, a.Name+"."+f.Name, f.Usage)
++				})
++				fs.PrintDefaults()
++
++				if len(paras) > 1 {
++					fmt.Printf("\n%s\n", strings.Join(paras[1:], "\n\n"))
++				}
++
++				continue outer
++			}
++		}
++		log.Fatalf("Analyzer %q not registered", arg)
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/unitchecker/unitchecker.go
+index b67c943b4e..32b50c1be0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/unitchecker/unitchecker.go
+@@ -6,7 +6,7 @@
+ // driver that analyzes a single compilation unit during a build.
+ // It is invoked by a build system such as "go vet":
+ //
+-//   $ GOVETTOOL=$(which vet) go vet
++//   $ go vet -vettool=$(which vet)
+ //
+ // It supports the following command-line protocol:
+ //
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 11dfbf6bc8..0f8abb5748 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -243,16 +243,17 @@ Files:
+ 						}
+ 					}
+ 					if arch == "" {
+-						badf("%s: cannot determine architecture for assembly file")
++						log.Printf("%s: cannot determine architecture for assembly file", fname)
+ 						continue Files
+ 					}
+ 				}
+ 				fnName = m[2]
+-				if pkgName := strings.TrimSpace(m[1]); pkgName != "" {
+-					pathParts := strings.Split(pkgName, "∕")
+-					pkgName = pathParts[len(pathParts)-1]
+-					if pkgName != pass.Pkg.Path() {
+-						badf("[%s] cannot check cross-package assembly function: %s is in package %s", arch, fnName, pkgName)
++				if pkgPath := strings.TrimSpace(m[1]); pkgPath != "" {
++					// The assembler uses Unicode division slash within
++					// identifiers to represent the directory separator.
++					pkgPath = strings.Replace(pkgPath, "∕", "/", -1)
++					if pkgPath != pass.Pkg.Path() {
++						log.Printf("%s:%d: [%s] cannot check cross-package assembly function: %s is in package %s", fname, lineno, arch, fnName, pkgPath)
+ 						fn = nil
+ 						fnName = ""
+ 						continue
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+index 7eb24a4a91..993f1ce3c4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/cgocall/cgocall.go
+@@ -9,18 +9,22 @@ package cgocall
+ import (
+ 	"fmt"
+ 	"go/ast"
++	"go/build"
++	"go/format"
++	"go/parser"
+ 	"go/token"
+ 	"go/types"
+ 	"log"
+-	"strings"
++	"os"
++	"strconv"
+ 
+ 	"golang.org/x/tools/go/analysis"
+-	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+-	"golang.org/x/tools/go/ast/inspector"
+ )
+ 
+-const Doc = `detect some violations of the cgo pointer passing rules
++const debug = false
++
++const doc = `detect some violations of the cgo pointer passing rules
+ 
+ Check for invalid cgo pointer passing.
+ This looks for code that uses cgo to call C code passing values
+@@ -31,24 +35,41 @@ or slice to C, either directly, or via a pointer, array, or struct.`
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:             "cgocall",
+-	Doc:              Doc,
+-	Requires:         []*analysis.Analyzer{inspect.Analyzer},
++	Doc:              doc,
+ 	RunDespiteErrors: true,
+ 	Run:              run,
+ }
+ 
+ func run(pass *analysis.Pass) (interface{}, error) {
+-	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++	if imports(pass.Pkg, "runtime/cgo") == nil {
++		return nil, nil // doesn't use cgo
++	}
+ 
+-	nodeFilter := []ast.Node{
+-		(*ast.CallExpr)(nil),
++	cgofiles, info, err := typeCheckCgoSourceFiles(pass.Fset, pass.Pkg, pass.Files, pass.TypesInfo)
++	if err != nil {
++		return nil, err
++	}
++	for _, f := range cgofiles {
++		checkCgo(pass.Fset, f, info, pass.Reportf)
+ 	}
+-	inspect.WithStack(nodeFilter, func(n ast.Node, push bool, stack []ast.Node) bool {
+-		if !push {
++	return nil, nil
++}
++
++func checkCgo(fset *token.FileSet, f *ast.File, info *types.Info, reportf func(token.Pos, string, ...interface{})) {
++	ast.Inspect(f, func(n ast.Node) bool {
++		call, ok := n.(*ast.CallExpr)
++		if !ok {
+ 			return true
+ 		}
+-		call, name := findCall(pass.Fset, stack)
+-		if call == nil {
++
++		// Is this a C.f() call?
++		var name string
++		if sel, ok := analysisutil.Unparen(call.Fun).(*ast.SelectorExpr); ok {
++			if id, ok := sel.X.(*ast.Ident); ok && id.Name == "C" {
++				name = sel.Sel.Name
++			}
++		}
++		if name == "" {
+ 			return true // not a call we need to check
+ 		}
+ 
+@@ -57,92 +78,210 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			return true
+ 		}
+ 
+-		if false {
+-			fmt.Printf("%s: inner call to C.%s\n", pass.Fset.Position(n.Pos()), name)
+-			fmt.Printf("%s: outer call to C.%s\n", pass.Fset.Position(call.Lparen), name)
++		if debug {
++			log.Printf("%s: call to C.%s", fset.Position(call.Lparen), name)
+ 		}
+ 
+ 		for _, arg := range call.Args {
+-			if !typeOKForCgoCall(cgoBaseType(pass.TypesInfo, arg), make(map[types.Type]bool)) {
+-				pass.Reportf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
++			if !typeOKForCgoCall(cgoBaseType(info, arg), make(map[types.Type]bool)) {
++				reportf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
+ 				break
+ 			}
+ 
+ 			// Check for passing the address of a bad type.
+ 			if conv, ok := arg.(*ast.CallExpr); ok && len(conv.Args) == 1 &&
+-				isUnsafePointer(pass.TypesInfo, conv.Fun) {
++				isUnsafePointer(info, conv.Fun) {
+ 				arg = conv.Args[0]
+ 			}
+ 			if u, ok := arg.(*ast.UnaryExpr); ok && u.Op == token.AND {
+-				if !typeOKForCgoCall(cgoBaseType(pass.TypesInfo, u.X), make(map[types.Type]bool)) {
+-					pass.Reportf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
++				if !typeOKForCgoCall(cgoBaseType(info, u.X), make(map[types.Type]bool)) {
++					reportf(arg.Pos(), "possibly passing Go type with embedded pointer to C")
+ 					break
+ 				}
+ 			}
+ 		}
+ 		return true
+ 	})
+-	return nil, nil
+ }
+ 
+-// findCall returns the CallExpr that we need to check, which may not be
+-// the same as the one we're currently visiting, due to code generation.
+-// It also returns the name of the function, such as "f" for C.f(...).
+-//
+-// This checker was initially written in vet to inpect unprocessed cgo
+-// source files using partial type information. However, Analyzers in
+-// the new analysis API are presented with the type-checked, processed
+-// Go ASTs resulting from cgo processing files, so we must choose
+-// between:
++// typeCheckCgoSourceFiles returns type-checked syntax trees for the raw
++// cgo files of a package (those that import "C"). Such files are not
++// Go, so there may be gaps in type information around C.f references.
+ //
+-// a) locating the cgo file (e.g. from //line directives)
+-//    and working with that, or
+-// b) working with the file generated by cgo.
++// This checker was initially written in vet to inpect raw cgo source
++// files using partial type information. However, Analyzers in the new
++// analysis API are presented with the type-checked, "cooked" Go ASTs
++// resulting from cgo-processing files, so we must choose between
++// working with the cooked file generated by cgo (which was tried but
++// proved fragile) or locating the raw cgo file (e.g. from //line
++// directives) and working with that, as we now do.
+ //
+-// We cannot use (a) because it does not provide type information, which
+-// the analyzer needs, and it is infeasible for the analyzer to run the
+-// type checker on this file. Thus we choose (b), which is fragile,
+-// because the checker may need to change each time the cgo processor
+-// changes.
++// Specifically, we must type-check the raw cgo source files (or at
++// least the subtrees needed for this analyzer) in an environment that
++// simulates the rest of the already type-checked package.
+ //
+-// Consider a cgo source file containing this header:
++// For example, for each raw cgo source file in the original package,
++// such as this one:
+ //
+-// 	 /* void f(void *x, *y); */
+-//	 import "C"
++// 	package p
++// 	import "C"
++//	import "fmt"
++//	type T int
++//	const k = 3
++//	var x, y = fmt.Println()
++//	func f() { ... }
++//	func g() { ... C.malloc(k) ... }
++//	func (T) f(int) string { ... }
+ //
+-// The cgo tool expands a call such as:
++// we synthesize a new ast.File, shown below, that dot-imports the
++// orginal "cooked" package using a special name ("·this·"), so that all
++// references to package members resolve correctly. (References to
++// unexported names cause an "unexported" error, which we ignore.)
+ //
+-// 	 C.f(x, y)
++// To avoid shadowing names imported from the cooked package,
++// package-level declarations in the new source file are modified so
++// that they do not declare any names.
++// (The cgocall analysis is concerned with uses, not declarations.)
++// Specifically, type declarations are discarded;
++// all names in each var and const declaration are blanked out;
++// each method is turned into a regular function by turning
++// the receiver into the first parameter;
++// and all functions are renamed to "_".
+ //
+-// to this:
++// 	package p
++// 	import . "·this·" // declares T, k, x, y, f, g, T.f
++// 	import "C"
++//	import "fmt"
++//	const _ = 3
++//	var _, _ = fmt.Println()
++//	func _() { ... }
++//	func _() { ... C.malloc(k) ... }
++//	func _(T, int) string { ... }
+ //
+-// 1	func(param0, param1 unsafe.Pointer) {
+-// 2		... various checks on params ...
+-// 3		(_Cfunc_f)(param0, param1)
+-// 4	}(x, y)
++// In this way, the raw function bodies and const/var initializer
++// expressions are preserved but refer to the "cooked" objects imported
++// from "·this·", and none of the transformed package-level declarations
++// actually declares anything. In the example above, the reference to k
++// in the argument of the call to C.malloc resolves to "·this·".k, which
++// has an accurate type.
+ //
+-// We first locate the _Cfunc_f call on line 3, then
+-// walk up the stack of enclosing nodes until we find
+-// the call on line 4.
++// This approach could in principle be generalized to more complex
++// analyses on raw cgo files. One could synthesize a "C" package so that
++// C.f would resolve to "·this·"._C_func_f, for example. But we have
++// limited ourselves here to preserving function bodies and initializer
++// expressions since that is all that the cgocall analyzer needs.
+ //
+-func findCall(fset *token.FileSet, stack []ast.Node) (*ast.CallExpr, string) {
+-	last := len(stack) - 1
+-	call := stack[last].(*ast.CallExpr)
+-	if id, ok := analysisutil.Unparen(call.Fun).(*ast.Ident); ok {
+-		if name := strings.TrimPrefix(id.Name, "_Cfunc_"); name != id.Name {
+-			// Find the outer call with the arguments (x, y) we want to check.
+-			for i := last - 1; i >= 0; i-- {
+-				if outer, ok := stack[i].(*ast.CallExpr); ok {
+-					return outer, name
++func typeCheckCgoSourceFiles(fset *token.FileSet, pkg *types.Package, files []*ast.File, info *types.Info) ([]*ast.File, *types.Info, error) {
++	const thispkg = "·this·"
++
++	// Which files are cgo files?
++	var cgoFiles []*ast.File
++	importMap := map[string]*types.Package{thispkg: pkg}
++	for _, raw := range files {
++		// If f is a cgo-generated file, Position reports
++		// the original file, honoring //line directives.
++		filename := fset.Position(raw.Pos()).Filename
++		f, err := parser.ParseFile(fset, filename, nil, parser.Mode(0))
++		if err != nil {
++			return nil, nil, fmt.Errorf("can't parse raw cgo file: %v", err)
++		}
++		found := false
++		for _, spec := range f.Imports {
++			if spec.Path.Value == `"C"` {
++				found = true
++				break
++			}
++		}
++		if !found {
++			continue // not a cgo file
++		}
++
++		// Record the original import map.
++		for _, spec := range raw.Imports {
++			path, _ := strconv.Unquote(spec.Path.Value)
++			importMap[path] = imported(info, spec)
++		}
++
++		// Add special dot-import declaration:
++		//    import . "·this·"
++		var decls []ast.Decl
++		decls = append(decls, &ast.GenDecl{
++			Tok: token.IMPORT,
++			Specs: []ast.Spec{
++				&ast.ImportSpec{
++					Name: &ast.Ident{Name: "."},
++					Path: &ast.BasicLit{
++						Kind:  token.STRING,
++						Value: strconv.Quote(thispkg),
++					},
++				},
++			},
++		})
++
++		// Transform declarations from the raw cgo file.
++		for _, decl := range f.Decls {
++			switch decl := decl.(type) {
++			case *ast.GenDecl:
++				switch decl.Tok {
++				case token.TYPE:
++					// Discard type declarations.
++					continue
++				case token.IMPORT:
++					// Keep imports.
++				case token.VAR, token.CONST:
++					// Blank the declared var/const names.
++					for _, spec := range decl.Specs {
++						spec := spec.(*ast.ValueSpec)
++						for i := range spec.Names {
++							spec.Names[i].Name = "_"
++						}
++					}
++				}
++			case *ast.FuncDecl:
++				// Blank the declared func name.
++				decl.Name.Name = "_"
++
++				// Turn a method receiver:  func (T) f(P) R {...}
++				// into regular parameter:  func _(T, P) R {...}
++				if decl.Recv != nil {
++					var params []*ast.Field
++					params = append(params, decl.Recv.List...)
++					params = append(params, decl.Type.Params.List...)
++					decl.Type.Params.List = params
++					decl.Recv = nil
+ 				}
+ 			}
+-			// This shouldn't happen.
+-			// Perhaps the code generator has changed?
+-			log.Printf("%s: can't find outer call for C.%s(...)",
+-				fset.Position(call.Lparen), name)
++			decls = append(decls, decl)
++		}
++		f.Decls = decls
++		if debug {
++			format.Node(os.Stderr, fset, f) // debugging
+ 		}
++		cgoFiles = append(cgoFiles, f)
++	}
++	if cgoFiles == nil {
++		return nil, nil, nil // nothing to do (can't happen?)
++	}
++
++	// Type-check the synthetic files.
++	tc := &types.Config{
++		FakeImportC: true,
++		Importer: importerFunc(func(path string) (*types.Package, error) {
++			return importMap[path], nil
++		}),
++		// TODO(adonovan): Sizes should probably be provided by analysis.Pass.
++		Sizes: types.SizesFor("gc", build.Default.GOARCH),
++		Error: func(error) {}, // ignore errors (e.g. unused import)
++	}
++
++	// It's tempting to record the new types in the
++	// existing pass.TypesInfo, but we don't own it.
++	altInfo := &types.Info{
++		Types: make(map[ast.Expr]types.TypeAndValue),
+ 	}
+-	return nil, ""
++	tc.Check(pkg.Path(), fset, cgoFiles, altInfo)
++
++	return cgoFiles, altInfo, nil
+ }
+ 
+ // cgoBaseType tries to look through type conversions involving
+@@ -224,3 +363,28 @@ func isUnsafePointer(info *types.Info, e ast.Expr) bool {
+ 	t := info.Types[e].Type
+ 	return t != nil && t.Underlying() == types.Typ[types.UnsafePointer]
+ }
++
++type importerFunc func(path string) (*types.Package, error)
++
++func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }
++
++// TODO(adonovan): make this a library function or method of Info.
++func imported(info *types.Info, spec *ast.ImportSpec) *types.Package {
++	obj, ok := info.Implicits[spec]
++	if !ok {
++		obj = info.Defs[spec.Name] // renaming import
++	}
++	return obj.(*types.PkgName).Imported()
++}
++
++// imports reports whether pkg has path among its direct imports.
++// It returns the imported package if so, or nil if not.
++// TODO(adonovan): move to analysisutil.
++func imports(pkg *types.Package, path string) *types.Package {
++	for _, imp := range pkg.Imports() {
++		if imp.Path() == path {
++			return imp
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index fcf9f553a9..996ecc4dd1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -132,11 +132,17 @@ func runFunc(pass *analysis.Pass, node ast.Node) {
+ 	var sig *types.Signature
+ 	switch node := node.(type) {
+ 	case *ast.FuncDecl:
+-		g = cfgs.FuncDecl(node)
+ 		sig, _ = pass.TypesInfo.Defs[node.Name].Type().(*types.Signature)
++		if node.Name.Name == "main" && sig.Recv() == nil && pass.Pkg.Name() == "main" {
++			// Returning from main.main terminates the process,
++			// so there's no need to cancel contexts.
++			return
++		}
++		g = cfgs.FuncDecl(node)
++
+ 	case *ast.FuncLit:
+-		g = cfgs.FuncLit(node)
+ 		sig, _ = pass.TypesInfo.Types[node.Type].Type.(*types.Signature)
++		g = cfgs.FuncLit(node)
+ 	}
+ 	if sig == nil {
+ 		return // missing type information
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 23f634fd98..4b761e25b5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -277,18 +277,56 @@ func checkPrintfFwd(pass *analysis.Pass, w *printfWrapper, call *ast.CallExpr, k
+ // or case-insensitive identifiers such as "errorf".
+ //
+ // The -funcs flag adds to this set.
++//
++// The set below includes facts for many important standard library
++// functions, even though the analysis is capable of deducing that, for
++// example, fmt.Printf forwards to fmt.Fprintf. We avoid relying on the
++// driver applying analyzers to standard packages because "go vet" does
++// not do so with gccgo, and nor do some other build systems.
++// TODO(adonovan): eliminate the redundant facts once this restriction
++// is lifted.
++//
+ var isPrint = stringSet{
+ 	"fmt.Errorf":   true,
+ 	"fmt.Fprint":   true,
+ 	"fmt.Fprintf":  true,
+ 	"fmt.Fprintln": true,
+-	"fmt.Print":    true, // technically these three
+-	"fmt.Printf":   true, // are redundant because they
+-	"fmt.Println":  true, // forward to Fprint{,f,ln}
++	"fmt.Print":    true,
++	"fmt.Printf":   true,
++	"fmt.Println":  true,
+ 	"fmt.Sprint":   true,
+ 	"fmt.Sprintf":  true,
+ 	"fmt.Sprintln": true,
+ 
++	"runtime/trace.Logf": true,
++
++	"log.Print":             true,
++	"log.Printf":            true,
++	"log.Println":           true,
++	"log.Fatal":             true,
++	"log.Fatalf":            true,
++	"log.Fatalln":           true,
++	"log.Panic":             true,
++	"log.Panicf":            true,
++	"log.Panicln":           true,
++	"(*log.Logger).Fatal":   true,
++	"(*log.Logger).Fatalf":  true,
++	"(*log.Logger).Fatalln": true,
++	"(*log.Logger).Panic":   true,
++	"(*log.Logger).Panicf":  true,
++	"(*log.Logger).Panicln": true,
++	"(*log.Logger).Print":   true,
++	"(*log.Logger).Printf":  true,
++	"(*log.Logger).Println": true,
++
++	"(*testing.common).Error":  true,
++	"(*testing.common).Errorf": true,
++	"(*testing.common).Fatal":  true,
++	"(*testing.common).Fatalf": true,
++	"(*testing.common).Log":    true,
++	"(*testing.common).Logf":   true,
++	"(*testing.common).Skip":   true,
++	"(*testing.common).Skipf":  true,
+ 	// *testing.T and B are detected by induction, but testing.TB is
+ 	// an interface and the inference can't follow dynamic calls.
+ 	"(testing.TB).Error":  true,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+index 701d08bea2..0ebc8107f3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/types.go
+@@ -97,12 +97,25 @@ func matchArgTypeInternal(pass *analysis.Pass, t printfArgType, typ types.Type,
+ 		if t == argPointer {
+ 			return true
+ 		}
+-		// If it's pointer to struct, that's equivalent in our analysis to whether we can print the struct.
+-		if str, ok := typ.Elem().Underlying().(*types.Struct); ok {
+-			return matchStructArgType(pass, t, str, arg, inProgress)
++
++		under := typ.Elem().Underlying()
++		switch under.(type) {
++		case *types.Struct: // see below
++		case *types.Array: // see below
++		case *types.Slice: // see below
++		case *types.Map: // see below
++		default:
++			// Check whether the rest can print pointers.
++			return t&argPointer != 0
+ 		}
+-		// Check whether the rest can print pointers.
+-		return t&argPointer != 0
++		// If it's a top-level pointer to a struct, array, slice, or
++		// map, that's equivalent in our analysis to whether we can
++		// print the type being pointed to. Pointers in nested levels
++		// are not supported to minimize fmt running into loops.
++		if len(inProgress) > 1 {
++			return false
++		}
++		return matchArgTypeInternal(pass, t, under, arg, inProgress)
+ 
+ 	case *types.Struct:
+ 		return matchStructArgType(pass, t, typ, arg, inProgress)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+index eead289e4c..b61c32208b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdmethods/stdmethods.go
+@@ -7,10 +7,7 @@
+ package stdmethods
+ 
+ import (
+-	"bytes"
+-	"fmt"
+ 	"go/ast"
+-	"go/printer"
+ 	"go/token"
+ 	"go/types"
+ 	"strings"
+@@ -95,12 +92,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		switch n := n.(type) {
+ 		case *ast.FuncDecl:
+ 			if n.Recv != nil {
+-				canonicalMethod(pass, n.Name, n.Type)
++				canonicalMethod(pass, n.Name)
+ 			}
+ 		case *ast.InterfaceType:
+ 			for _, field := range n.Methods.List {
+ 				for _, id := range field.Names {
+-					canonicalMethod(pass, id, field.Type.(*ast.FuncType))
++					canonicalMethod(pass, id)
+ 				}
+ 			}
+ 		}
+@@ -108,7 +105,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	return nil, nil
+ }
+ 
+-func canonicalMethod(pass *analysis.Pass, id *ast.Ident, t *ast.FuncType) {
++func canonicalMethod(pass *analysis.Pass, id *ast.Ident) {
+ 	// Expected input/output.
+ 	expect, ok := canonicalMethods[id.Name]
+ 	if !ok {
+@@ -116,11 +113,9 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident, t *ast.FuncType) {
+ 	}
+ 
+ 	// Actual input/output
+-	args := typeFlatten(t.Params.List)
+-	var results []ast.Expr
+-	if t.Results != nil {
+-		results = typeFlatten(t.Results.List)
+-	}
++	sign := pass.TypesInfo.Defs[id].Type().(*types.Signature)
++	args := sign.Params()
++	results := sign.Results()
+ 
+ 	// Do the =s (if any) all match?
+ 	if !matchParams(pass, expect.args, args, "=") || !matchParams(pass, expect.results, results, "=") {
+@@ -136,11 +131,7 @@ func canonicalMethod(pass *analysis.Pass, id *ast.Ident, t *ast.FuncType) {
+ 			expectFmt += " (" + argjoin(expect.results) + ")"
+ 		}
+ 
+-		var buf bytes.Buffer
+-		if err := printer.Fprint(&buf, pass.Fset, t); err != nil {
+-			fmt.Fprintf(&buf, "<%s>", err)
+-		}
+-		actual := buf.String()
++		actual := types.TypeString(sign, (*types.Package).Name)
+ 		actual = strings.TrimPrefix(actual, "func")
+ 		actual = id.Name + actual
+ 
+@@ -159,45 +150,27 @@ func argjoin(x []string) string {
+ 	return strings.Join(y, ", ")
+ }
+ 
+-// Turn parameter list into slice of types
+-// (in the ast, types are Exprs).
+-// Have to handle f(int, bool) and f(x, y, z int)
+-// so not a simple 1-to-1 conversion.
+-func typeFlatten(l []*ast.Field) []ast.Expr {
+-	var t []ast.Expr
+-	for _, f := range l {
+-		if len(f.Names) == 0 {
+-			t = append(t, f.Type)
+-			continue
+-		}
+-		for range f.Names {
+-			t = append(t, f.Type)
+-		}
+-	}
+-	return t
+-}
+-
+ // Does each type in expect with the given prefix match the corresponding type in actual?
+-func matchParams(pass *analysis.Pass, expect []string, actual []ast.Expr, prefix string) bool {
++func matchParams(pass *analysis.Pass, expect []string, actual *types.Tuple, prefix string) bool {
+ 	for i, x := range expect {
+ 		if !strings.HasPrefix(x, prefix) {
+ 			continue
+ 		}
+-		if i >= len(actual) {
++		if i >= actual.Len() {
+ 			return false
+ 		}
+-		if !matchParamType(pass.Fset, pass.Pkg, x, actual[i]) {
++		if !matchParamType(pass.Fset, pass.Pkg, x, actual.At(i).Type()) {
+ 			return false
+ 		}
+ 	}
+-	if prefix == "" && len(actual) > len(expect) {
++	if prefix == "" && actual.Len() > len(expect) {
+ 		return false
+ 	}
+ 	return true
+ }
+ 
+ // Does this one type match?
+-func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actual ast.Expr) bool {
++func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actual types.Type) bool {
+ 	expect = strings.TrimPrefix(expect, "=")
+ 	// Strip package name if we're in that package.
+ 	if n := len(pkg.Name()); len(expect) > n && expect[:n] == pkg.Name() && expect[n] == '.' {
+@@ -205,7 +178,5 @@ func matchParamType(fset *token.FileSet, pkg *types.Package, expect string, actu
+ 	}
+ 
+ 	// Overkill but easy.
+-	var buf bytes.Buffer
+-	printer.Fprint(&buf, fset, actual)
+-	return buf.String() == expect
++	return actual.String() == expect
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+new file mode 100644
+index 0000000000..6cf4358ab9
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/unmarshal/unmarshal.go
+@@ -0,0 +1,92 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The unmarshal package defines an Analyzer that checks for passing
++// non-pointer or non-interface types to unmarshal and decode functions.
++package unmarshal
++
++import (
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
++)
++
++const doc = `report passing non-pointer or non-interface values to unmarshal
++
++The unmarshal analysis reports calls to functions such as json.Unmarshal
++in which the argument type is not a pointer or an interface.`
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "unmarshal",
++	Doc:      doc,
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++
++	nodeFilter := []ast.Node{
++		(*ast.CallExpr)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		call := n.(*ast.CallExpr)
++		fn := typeutil.StaticCallee(pass.TypesInfo, call)
++		if fn == nil {
++			return // not a static call
++		}
++
++		// Classify the callee (without allocating memory).
++		argidx := -1
++		recv := fn.Type().(*types.Signature).Recv()
++		if fn.Name() == "Unmarshal" && recv == nil {
++			// "encoding/json".Unmarshal
++			//  "encoding/xml".Unmarshal
++			switch fn.Pkg().Path() {
++			case "encoding/json", "encoding/xml":
++				argidx = 1 // func([]byte, interface{})
++			}
++		} else if fn.Name() == "Decode" && recv != nil {
++			// (*"encoding/json".Decoder).Decode
++			// (* "encoding/gob".Decoder).Decode
++			// (* "encoding/xml".Decoder).Decode
++			t := recv.Type()
++			if ptr, ok := t.(*types.Pointer); ok {
++				t = ptr.Elem()
++			}
++			tname := t.(*types.Named).Obj()
++			if tname.Name() == "Decoder" {
++				switch tname.Pkg().Path() {
++				case "encoding/json", "encoding/xml", "encoding/gob":
++					argidx = 0 // func(interface{})
++				}
++			}
++		}
++		if argidx < 0 {
++			return // not a function we are interested in
++		}
++
++		if len(call.Args) < argidx+1 {
++			return // not enough arguments, e.g. called with return values of another function
++		}
++
++		t := pass.TypesInfo.Types[call.Args[argidx]].Type
++		switch t.Underlying().(type) {
++		case *types.Pointer, *types.Interface:
++			return
++		}
++
++		switch argidx {
++		case 0:
++			pass.Reportf(call.Lparen, "call of %s passes non-pointer", fn.Name())
++		case 1:
++			pass.Reportf(call.Lparen, "call of %s passes non-pointer as second argument", fn.Name())
++		}
++	})
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
+index 04ad6795d9..3e4b195368 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/imports.go
+@@ -14,26 +14,26 @@ import (
+ )
+ 
+ // AddImport adds the import path to the file f, if absent.
+-func AddImport(fset *token.FileSet, f *ast.File, ipath string) (added bool) {
+-	return AddNamedImport(fset, f, "", ipath)
++func AddImport(fset *token.FileSet, f *ast.File, path string) (added bool) {
++	return AddNamedImport(fset, f, "", path)
+ }
+ 
+-// AddNamedImport adds the import path to the file f, if absent.
++// AddNamedImport adds the import with the given name and path to the file f, if absent.
+ // If name is not empty, it is used to rename the import.
+ //
+ // For example, calling
+ //	AddNamedImport(fset, f, "pathpkg", "path")
+ // adds
+ //	import pathpkg "path"
+-func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added bool) {
+-	if imports(f, ipath) {
++func AddNamedImport(fset *token.FileSet, f *ast.File, name, path string) (added bool) {
++	if imports(f, name, path) {
+ 		return false
+ 	}
+ 
+ 	newImport := &ast.ImportSpec{
+ 		Path: &ast.BasicLit{
+ 			Kind:  token.STRING,
+-			Value: strconv.Quote(ipath),
++			Value: strconv.Quote(path),
+ 		},
+ 	}
+ 	if name != "" {
+@@ -43,14 +43,14 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
+ 	// Find an import decl to add to.
+ 	// The goal is to find an existing import
+ 	// whose import path has the longest shared
+-	// prefix with ipath.
++	// prefix with path.
+ 	var (
+ 		bestMatch  = -1         // length of longest shared prefix
+ 		lastImport = -1         // index in f.Decls of the file's final import decl
+ 		impDecl    *ast.GenDecl // import decl containing the best match
+ 		impIndex   = -1         // spec index in impDecl containing the best match
+ 
+-		isThirdPartyPath = isThirdParty(ipath)
++		isThirdPartyPath = isThirdParty(path)
+ 	)
+ 	for i, decl := range f.Decls {
+ 		gen, ok := decl.(*ast.GenDecl)
+@@ -81,7 +81,7 @@ func AddNamedImport(fset *token.FileSet, f *ast.File, name, ipath string) (added
+ 			for j, spec := range gen.Specs {
+ 				impspec := spec.(*ast.ImportSpec)
+ 				p := importPath(impspec)
+-				n := matchLen(p, ipath)
++				n := matchLen(p, path)
+ 				if n > bestMatch || (bestMatch == 0 && !seenAnyThirdParty && isThirdPartyPath) {
+ 					bestMatch = n
+ 					impDecl = gen
+@@ -197,11 +197,13 @@ func isThirdParty(importPath string) bool {
+ }
+ 
+ // DeleteImport deletes the import path from the file f, if present.
++// If there are duplicate import declarations, all matching ones are deleted.
+ func DeleteImport(fset *token.FileSet, f *ast.File, path string) (deleted bool) {
+ 	return DeleteNamedImport(fset, f, "", path)
+ }
+ 
+ // DeleteNamedImport deletes the import with the given name and path from the file f, if present.
++// If there are duplicate import declarations, all matching ones are deleted.
+ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (deleted bool) {
+ 	var delspecs []*ast.ImportSpec
+ 	var delcomments []*ast.CommentGroup
+@@ -216,13 +218,7 @@ func DeleteNamedImport(fset *token.FileSet, f *ast.File, name, path string) (del
+ 		for j := 0; j < len(gen.Specs); j++ {
+ 			spec := gen.Specs[j]
+ 			impspec := spec.(*ast.ImportSpec)
+-			if impspec.Name == nil && name != "" {
+-				continue
+-			}
+-			if impspec.Name != nil && impspec.Name.Name != name {
+-				continue
+-			}
+-			if importPath(impspec) != path {
++			if importName(impspec) != name || importPath(impspec) != path {
+ 				continue
+ 			}
+ 
+@@ -383,9 +379,14 @@ func (fn visitFn) Visit(node ast.Node) ast.Visitor {
+ 	return fn
+ }
+ 
+-// imports returns true if f imports path.
+-func imports(f *ast.File, path string) bool {
+-	return importSpec(f, path) != nil
++// imports reports whether f has an import with the specified name and path.
++func imports(f *ast.File, name, path string) bool {
++	for _, s := range f.Imports {
++		if importName(s) == name && importPath(s) == path {
++			return true
++		}
++	}
++	return false
+ }
+ 
+ // importSpec returns the import spec if f imports path,
+@@ -399,14 +400,23 @@ func importSpec(f *ast.File, path string) *ast.ImportSpec {
+ 	return nil
+ }
+ 
++// importName returns the name of s,
++// or "" if the import is not named.
++func importName(s *ast.ImportSpec) string {
++	if s.Name == nil {
++		return ""
++	}
++	return s.Name.Name
++}
++
+ // importPath returns the unquoted import path of s,
+ // or "" if the path is not properly quoted.
+ func importPath(s *ast.ImportSpec) string {
+ 	t, err := strconv.Unquote(s.Path.Value)
+-	if err == nil {
+-		return t
++	if err != nil {
++		return ""
+ 	}
+-	return ""
++	return t
+ }
+ 
+ // declImports reports whether gen contains an import of path.
+diff --git a/src/cmd/vendor/update-xtools.sh b/src/cmd/vendor/update-xtools.sh
+new file mode 100755
+index 0000000000..0097a72991
+--- /dev/null
++++ b/src/cmd/vendor/update-xtools.sh
+@@ -0,0 +1,27 @@
++#!/bin/sh
++#
++# update-xtools.sh: idempotently update the vendored
++# copy of the x/tools repository used by vet-lite.
++
++set -u
++
++analysis=$(go list -f {{.Dir}} golang.org/x/tools/go/analysis) ||
++  { echo "Add golang.org/x/tools to your GOPATH"; exit 1; } >&2
++xtools=$(dirname $(dirname $analysis))
++
++vendor=$(dirname $0)
++
++go list -f '{{.ImportPath}} {{.Dir}}' -deps golang.org/x/tools/go/analysis/cmd/vet-lite |
++  grep golang.org/x/tools |
++  while read path dir
++  do
++    mkdir -p $vendor/$path
++    cp $dir/* -t $vendor/$path 2>/dev/null # ignore errors from subdirectories
++    rm -f $vendor/$path/*_test.go
++    git add $vendor/$path
++  done
++
++echo "Copied $xtools@$(cd $analysis && git rev-parse --short HEAD) to $vendor" >&2
++
++go build -o /dev/null ./golang.org/x/tools/go/analysis/cmd/vet-lite ||
++  { echo "Failed to build vet-lite"; exit 1; } >&2

@@ -7,9 +7,116 @@ Date:   Fri Oct 21 17:23:01 2016 -0700
     Change-Id: Ia86841cf84bc17ff6ecc6e5ac4cec86384a0da00
     Reviewed-on: https://go-review.googlesource.com/31719
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go       |  5 -----
  src/cmd/compile/internal/syntax/nodes.go   |  1 -
  src/cmd/compile/internal/syntax/parser.go  | 15 +++++++--------
  src/cmd/compile/internal/syntax/printer.go |  6 +-----
  4 files changed, 8 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 59a8d1f0d2..6dc082410f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -90,11 +90,6 @@ func (p *noder) decls(decls []syntax.Decl) (l []*Node) {
+ 			lastConstGroup = decl.Group
+ 
+ 		case *syntax.TypeDecl:
+-			// TODO(gri) remove this notation - we're not going to use it after all
+-			if decl.Alias {
+-				yyerror("type aliases using = not supported")
+-				break
+-			}
+ 			l = append(l, p.typeDecl(decl))
+ 
+ 		case *syntax.FuncDecl:
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index 792b207ef1..b88d16e113 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -89,7 +89,6 @@ type (
+ 	TypeDecl struct {
+ 		Name   *Name
+ 		Type   Expr
+-		Alias  bool
+ 		Group  *Group // nil means not part of a group
+ 		Pragma Pragma
+ 		decl
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 1eb85fb7ee..d0dec3ab1b 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -322,7 +322,8 @@ func (p *parser) aliasDecl(tok token, name *Name, group *Group) Decl {
+ 	d := new(AliasDecl)
+ 	d.initFrom(&name.node)
+ 
+-	p.want(_Rarrow)
++	// lhs identifier and "=>" have been consumed already
++
+ 	d.Tok = tok
+ 	d.Name = name
+ 	d.Orig = p.dotname(p.name())
+@@ -338,7 +339,7 @@ func (p *parser) constDecl(group *Group) Decl {
+ 	}
+ 
+ 	name := p.name()
+-	if p.tok == _Rarrow {
++	if p.got(_Rarrow) {
+ 		return p.aliasDecl(Const, name, group)
+ 	}
+ 
+@@ -364,7 +365,8 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	}
+ 
+ 	name := p.name()
+-	if p.tok == _Rarrow {
++	// permit both: type T => p.T and: type T = p.T for now
++	if p.got(_Rarrow) || p.got(_Assign) {
+ 		return p.aliasDecl(Type, name, group)
+ 	}
+ 
+@@ -372,9 +374,6 @@ func (p *parser) typeDecl(group *Group) Decl {
+ 	d.initFrom(&name.node)
+ 
+ 	d.Name = name
+-	// accept "type T = p.T" for now so we can experiment
+-	// with a type-alias only approach as well
+-	d.Alias = p.got(_Assign)
+ 	d.Type = p.tryType()
+ 	if d.Type == nil {
+ 		p.syntax_error("in type declaration")
+@@ -393,7 +392,7 @@ func (p *parser) varDecl(group *Group) Decl {
+ 	}
+ 
+ 	name := p.name()
+-	if p.tok == _Rarrow {
++	if p.got(_Rarrow) {
+ 		return p.aliasDecl(Var, name, group)
+ 	}
+ 
+@@ -449,7 +448,7 @@ func (p *parser) funcDecl() Decl {
+ 	}
+ 
+ 	name := p.name()
+-	if recv == nil && p.tok == _Rarrow {
++	if recv == nil && p.got(_Rarrow) {
+ 		return p.aliasDecl(Func, name, nil)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index de2afe0499..8f12707304 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -625,11 +625,7 @@ func (p *printer) printRawNode(n Node) {
+ 		if n.Group == nil {
+ 			p.print(_Type, blank)
+ 		}
+-		p.print(n.Name, blank)
+-		if n.Alias {
+-			p.print(_Assign, blank)
+-		}
+-		p.print(n.Type)
++		p.print(n.Name, blank, n.Type)
+ 
+ 	case *VarDecl:
+ 		if n.Group == nil {

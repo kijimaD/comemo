@@ -13,6 +13,71 @@ Date:   Tue Dec 4 00:56:04 2018 +0000
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 41 +++++++++++++++++++++++-------
  1 file changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 588022c066..5caa206066 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -7,23 +7,23 @@
+ package httputil
+ 
+ import (
++	"bufio"
++	"bytes"
++	"errors"
++	"fmt"
++	"io"
+ 	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"net/http/httptest"
+ 	"net/url"
+-	"testing"
+-	"time"
++	"os"
+ 	"reflect"
+-	"io"
++	"strconv"
+ 	"strings"
+-	"bufio"
+ 	"sync"
+-	"strconv"
+-	"bytes"
+-	"errors"
+-	"fmt"
+-	"os"
++	"testing"
++	"time"
+ )
+ 
+ const fakeHopHeader = "X-Fake-Hop-Header-For-Test"
+@@ -1078,3 +1078,26 @@ func TestUnannouncedTrailer(t *testing.T) {
+ 	}
+ 
+ }
++
++func TestSingleJoinSlash(t *testing.T) {
++	tests := []struct {
++		slasha   string
++		slashb   string
++		expected string
++	}{
++		{"https://www.google.com/", "/favicon.ico", "https://www.google.com/favicon.ico"},
++		{"https://www.google.com", "/favicon.ico", "https://www.google.com/favicon.ico"},
++		{"https://www.google.com", "favicon.ico", "https://www.google.com/favicon.ico"},
++		{"https://www.google.com", "", "https://www.google.com/"},
++		{"", "favicon.ico", "/favicon.ico"},
++	}
++	for _, tt := range tests {
++		if got := singleJoiningSlash(tt.slasha, tt.slashb); got != tt.expected {
++			t.Errorf("singleJoiningSlash(%s,%s) want %s got %s",
++				tt.slasha,
++				tt.slashb,
++				tt.expected,
++				got)
++		}
++	}
++}

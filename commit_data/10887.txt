@@ -7,6 +7,34 @@ Date:   Tue Dec 20 11:53:24 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5496067
-
+---
  src/pkg/net/http/request_test.go | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index 2a9c7ea28b..7b78645169 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -214,14 +214,16 @@ func validateTestMultipartContents(t *testing.T, req *Request, allMem bool) {
+ 			t.Error(n, " is *os.File, should not be")
+ 		}
+ 	}
+-	fd := testMultipartFile(t, req, "filea", "filea.txt", fileaContents)
+-	assertMem("filea", fd)
+-	fd = testMultipartFile(t, req, "fileb", "fileb.txt", filebContents)
++	fda := testMultipartFile(t, req, "filea", "filea.txt", fileaContents)
++	defer fda.Close()
++	assertMem("filea", fda)
++	fdb := testMultipartFile(t, req, "fileb", "fileb.txt", filebContents)
++	defer fdb.Close()
+ 	if allMem {
+-		assertMem("fileb", fd)
++		assertMem("fileb", fdb)
+ 	} else {
+-		if _, ok := fd.(*os.File); !ok {
+-			t.Errorf("fileb has unexpected underlying type %T", fd)
++		if _, ok := fdb.(*os.File); !ok {
++			t.Errorf("fileb has unexpected underlying type %T", fdb)
+ 		}
+ 	}
+ 

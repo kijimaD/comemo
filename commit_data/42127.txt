@@ -15,8 +15,146 @@ Date:   Sat Nov 9 14:41:09 2019 +0000
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/envcmd/env.go        | 43 ++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/action.go       | 12 +++++++--
  src/cmd/go/testdata/script/env_write.txt | 21 ++++++++++++++++
  3 files changed, 74 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index ff4a7e4a46..d2d5ed9507 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -8,6 +8,7 @@ package envcmd
+ import (
+ 	"encoding/json"
+ 	"fmt"
++	"go/build"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -249,6 +250,21 @@ func runEnv(cmd *base.Command, args []string) {
+ 				fmt.Fprintf(os.Stderr, "warning: go env -w %s=... does not override conflicting OS environment variable\n", key)
+ 			}
+ 		}
++
++		goos, okGOOS := add["GOOS"]
++		goarch, okGOARCH := add["GOARCH"]
++		if okGOOS || okGOARCH {
++			if !okGOOS {
++				goos = cfg.Goos
++			}
++			if !okGOARCH {
++				goarch = cfg.Goarch
++			}
++			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
++				base.Fatalf("go env -w: %v", err)
++			}
++		}
++
+ 		updateEnvFile(add, nil)
+ 		return
+ 	}
+@@ -265,6 +281,24 @@ func runEnv(cmd *base.Command, args []string) {
+ 			}
+ 			del[arg] = true
+ 		}
++		if del["GOOS"] || del["GOARCH"] {
++			goos, goarch := cfg.Goos, cfg.Goarch
++			if del["GOOS"] {
++				goos = getOrigEnv("GOOS")
++				if goos == "" {
++					goos = build.Default.GOOS
++				}
++			}
++			if del["GOARCH"] {
++				goarch = getOrigEnv("GOARCH")
++				if goarch == "" {
++					goarch = build.Default.GOARCH
++				}
++			}
++			if err := work.CheckGOOSARCHPair(goos, goarch); err != nil {
++				base.Fatalf("go env -u: %v", err)
++			}
++		}
+ 		updateEnvFile(nil, del)
+ 		return
+ 	}
+@@ -331,6 +365,15 @@ func printEnvAsJSON(env []cfg.EnvVar) {
+ 	}
+ }
+ 
++func getOrigEnv(key string) string {
++	for _, v := range cfg.OrigEnv {
++		if strings.HasPrefix(v, key+"=") {
++			return strings.TrimPrefix(v, key+"=")
++		}
++	}
++	return ""
++}
++
+ func checkEnvWrite(key, val string) error {
+ 	switch key {
+ 	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOTOOLDIR":
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 0f35739976..391306a8d9 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -290,11 +290,12 @@ func (b *Builder) Init() {
+ 		}
+ 	}
+ 
+-	if _, ok := cfg.OSArchSupportsCgo[cfg.Goos+"/"+cfg.Goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
+-		fmt.Fprintf(os.Stderr, "cmd/go: unsupported GOOS/GOARCH pair %s/%s\n", cfg.Goos, cfg.Goarch)
++	if err := CheckGOOSARCHPair(cfg.Goos, cfg.Goarch); err != nil {
++		fmt.Fprintf(os.Stderr, "cmd/go: %v", err)
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
++
+ 	for _, tag := range cfg.BuildContext.BuildTags {
+ 		if strings.Contains(tag, ",") {
+ 			fmt.Fprintf(os.Stderr, "cmd/go: -tags space-separated list contains comma\n")
+@@ -304,6 +305,13 @@ func (b *Builder) Init() {
+ 	}
+ }
+ 
++func CheckGOOSARCHPair(goos, goarch string) error {
++	if _, ok := cfg.OSArchSupportsCgo[goos+"/"+goarch]; !ok && cfg.BuildContext.Compiler == "gc" {
++		return fmt.Errorf("unsupported GOOS/GOARCH pair %s/%s", goos, goarch)
++	}
++	return nil
++}
++
+ // NewObjdir returns the name of a fresh object directory under b.WorkDir.
+ // It is up to the caller to call b.Mkdir on the result at an appropriate time.
+ // The result ends in a slash, so that file names in that directory
+diff --git a/src/cmd/go/testdata/script/env_write.txt b/src/cmd/go/testdata/script/env_write.txt
+index 8b9c1bbf45..2366c3f580 100644
+--- a/src/cmd/go/testdata/script/env_write.txt
++++ b/src/cmd/go/testdata/script/env_write.txt
+@@ -96,3 +96,24 @@ stderr 'GOPATH entry cannot start with shell metacharacter'
+ 
+ ! go env -w GOPATH=./go
+ stderr 'GOPATH entry is relative; must be absolute path'
++
++# go env -w/-u checks validity of GOOS/ARCH combinations
++env GOOS=
++env GOARCH=
++# check -w doesn't allow invalid GOOS
++! go env -w GOOS=linuxx
++stderr 'unsupported GOOS/GOARCH pair linuxx'
++# check -w doesn't allow invalid GOARCH
++! go env -w GOARCH=amd644
++stderr 'unsupported GOOS/GOARCH.*/amd644$'
++# check -w doesn't allow invalid GOOS with valid GOARCH
++! go env -w GOOS=linuxx GOARCH=amd64
++stderr 'unsupported GOOS/GOARCH pair linuxx'
++# check a valid GOOS and GOARCH values but an incompatible combinations
++! go env -w GOOS=android GOARCH=s390x
++stderr 'unsupported GOOS/GOARCH pair android/s390x'
++# check that -u considers explicit envs
++go env -w GOOS=linux GOARCH=mips
++env GOOS=windows
++! go env -u GOOS
++stderr 'unsupported GOOS/GOARCH.*windows/mips$'

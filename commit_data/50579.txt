@@ -18,7 +18,69 @@ Date:   Mon Nov 1 10:28:52 2021 -0700
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/internal/test/test.go                   |  6 ++++
  .../go/testdata/script/test_fuzz_profile_flags.txt | 38 ++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index cfb0a1465f..7dca6b531c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -666,6 +666,12 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		if len(pkgs) != 1 {
+ 			base.Fatalf("cannot use -fuzz flag with multiple packages")
+ 		}
++		if testCoverProfile != "" {
++			base.Fatalf("cannot use -coverprofile flag with -fuzz flag")
++		}
++		if profileFlag := testProfile(); profileFlag != "" {
++			base.Fatalf("cannot use %s flag with -fuzz flag", profileFlag)
++		}
+ 
+ 		// Reject the '-fuzz' flag if the package is outside the main module.
+ 		// Otherwise, if fuzzing identifies a failure it could corrupt checksums in
+diff --git a/src/cmd/go/testdata/script/test_fuzz_profile_flags.txt b/src/cmd/go/testdata/script/test_fuzz_profile_flags.txt
+new file mode 100644
+index 0000000000..5434c723ad
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_profile_flags.txt
+@@ -0,0 +1,38 @@
++[!fuzz] skip
++
++! go test -fuzz=FuzzTrivial -coverprofile=prof
++! stdout .
++stderr '^cannot use -coverprofile flag with -fuzz flag$'
++
++! go test -fuzz=FuzzTrivial -blockprofile=prof
++! stdout .
++stderr '^cannot use -blockprofile flag with -fuzz flag$'
++
++! go test -fuzz=FuzzTrivial -cpuprofile=prof
++! stdout .
++stderr '^cannot use -cpuprofile flag with -fuzz flag$'
++
++! go test -fuzz=FuzzTrivial -memprofile=prof
++! stdout .
++stderr '^cannot use -memprofile flag with -fuzz flag$'
++
++! go test -fuzz=FuzzTrivial -mutexprofile=prof
++! stdout .
++stderr '^cannot use -mutexprofile flag with -fuzz flag$'
++
++! go test -fuzz=FuzzTrivial -trace=prof
++! stdout .
++stderr '^cannot use -trace flag with -fuzz flag$'
++
++-- go.mod --
++module example
++
++go 1.18
++-- fuzz_test.go --
++package example
++
++import "testing"
++
++func FuzzTrivial(f *testing.F) {
++	f.Fuzz(func(t *testing.T, _ []byte) {})
++}

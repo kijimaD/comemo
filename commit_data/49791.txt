@@ -17,8 +17,100 @@ Date:   Fri Sep 10 11:05:29 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize.txt |  3 +++
  src/internal/fuzz/encoding.go                     | 12 ++++++------
  src/internal/fuzz/encoding_test.go                | 20 ++++++++++++++------
  3 files changed, 23 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index ea1ee76474..dac11231ef 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -163,6 +163,9 @@ func main() {
+ 		os.Exit(1)
+ 	}
+ 
++	// Trim the newline at the end of the file
++	got = bytes.TrimSpace(got)
++
+ 	// Make sure that there were exactly 100 bytes written to the corpus entry
+ 	prefix := []byte("[]byte(")
+ 	i := bytes.Index(got, prefix)
+diff --git a/src/internal/fuzz/encoding.go b/src/internal/fuzz/encoding.go
+index c2f7d22b75..d3f24c3e6c 100644
+--- a/src/internal/fuzz/encoding.go
++++ b/src/internal/fuzz/encoding.go
+@@ -22,21 +22,21 @@ func marshalCorpusFile(vals ...interface{}) []byte {
+ 	if len(vals) == 0 {
+ 		panic("must have at least one value to marshal")
+ 	}
+-	b := bytes.NewBuffer([]byte(encVersion1))
++	b := bytes.NewBuffer([]byte(encVersion1 + "\n"))
+ 	// TODO(katiehockman): keep uint8 and int32 encoding where applicable,
+ 	// instead of changing to byte and rune respectively.
+ 	for _, val := range vals {
+ 		switch t := val.(type) {
+ 		case int, int8, int16, int64, uint, uint16, uint32, uint64, float32, float64, bool:
+-			fmt.Fprintf(b, "\n%T(%v)", t, t)
++			fmt.Fprintf(b, "%T(%v)\n", t, t)
+ 		case string:
+-			fmt.Fprintf(b, "\nstring(%q)", t)
++			fmt.Fprintf(b, "string(%q)\n", t)
+ 		case rune: // int32
+-			fmt.Fprintf(b, "\nrune(%q)", t)
++			fmt.Fprintf(b, "rune(%q)\n", t)
+ 		case byte: // uint8
+-			fmt.Fprintf(b, "\nbyte(%q)", t)
++			fmt.Fprintf(b, "byte(%q)\n", t)
+ 		case []byte: // []uint8
+-			fmt.Fprintf(b, "\n[]byte(%q)", t)
++			fmt.Fprintf(b, "[]byte(%q)\n", t)
+ 		default:
+ 			panic(fmt.Sprintf("unsupported type: %T", t))
+ 		}
+diff --git a/src/internal/fuzz/encoding_test.go b/src/internal/fuzz/encoding_test.go
+index 314f82a995..b429d429c6 100644
+--- a/src/internal/fuzz/encoding_test.go
++++ b/src/internal/fuzz/encoding_test.go
+@@ -66,16 +66,21 @@ byte('☃')`,
+ 		},
+ 		{
+ 			in: `go test fuzz v1
++string("has final newline")
++`,
++			ok: true, // has final newline
++		},
++		{
++			in: `go test fuzz v1
+ string("extra")
+ []byte("spacing")  
+     `,
+-			ok: true,
++			ok: true, // extra spaces in the final newline
+ 		},
+ 		{
+ 			in: `go test fuzz v1
+ float64(0)
+-float32(0)
+-`,
++float32(0)`,
+ 			ok: true, // will be an integer literal since there is no decimal
+ 		},
+ 		{
+@@ -114,9 +119,12 @@ float32(2.5)`,
+ 			if err != nil {
+ 				t.Fatalf("marshal unexpected error: %v", err)
+ 			}
+-			want := strings.TrimSpace(test.in)
+-			if want != string(newB) {
+-				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", want, newB)
++			if newB[len(newB)-1] != '\n' {
++				t.Error("didn't write final newline to corpus file")
++			}
++			before, after := strings.TrimSpace(test.in), strings.TrimSpace(string(newB))
++			if before != after {
++				t.Errorf("values changed after unmarshal then marshal\nbefore: %q\nafter:  %q", before, after)
+ 			}
+ 		})
+ 	}

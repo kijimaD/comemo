@@ -14,7 +14,47 @@ Date:   Sun Oct 11 16:27:25 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/load/pkg.go   |  3 ++-
  src/cmd/internal/sys/supported.go | 10 ++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 5b3c2f0ff2..db2434260f 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -33,6 +33,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/sys"
+ )
+ 
+ var IgnoreImports bool // control whether we ignore imports in packages
+@@ -1968,7 +1969,7 @@ func externalLinkingForced(p *Package) bool {
+ 	// external linking mode, as of course does
+ 	// -ldflags=-linkmode=external. External linking mode forces
+ 	// an import of runtime/cgo.
+-	pieCgo := cfg.BuildBuildmode == "pie"
++	pieCgo := cfg.BuildBuildmode == "pie" && !sys.InternalLinkPIESupported(cfg.BuildContext.GOOS, cfg.BuildContext.GOARCH)
+ 	linkmodeExternal := false
+ 	if p != nil {
+ 		ldflags := BuildLdflags.For(p)
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 41e5ec1432..55709f3915 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -115,3 +115,13 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 		return false
+ 	}
+ }
++
++func InternalLinkPIESupported(goos, goarch string) bool {
++	switch goos + "/" + goarch {
++	case "linux/amd64", "linux/arm64",
++		"android/arm64",
++		"windows-amd64", "windows-386", "windows-arm":
++		return true
++	}
++	return false
++}

@@ -10,7 +10,34 @@ Date:   Fri Nov 5 23:50:55 2021 +0900
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Hajime Hoshi <hajimehoshi@gmail.com>
-
+---
  src/runtime/sys_darwin.go   | 2 +-
  src/runtime/sys_openbsd2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 0f91685d6c..9af4cf18f8 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -156,7 +156,7 @@ func pthread_kill_trampoline()
+ // mmap is used to do low-level memory allocation via mmap. Don't allow stack
+ // splits, since this function (used by sysAlloc) is called in a lot of low-level
+ // parts of the runtime and callers often assume it won't acquire any locks.
+-// go:nosplit
++//go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+ 		addr            unsafe.Pointer
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 7024cfa86d..c936fbb494 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -45,7 +45,7 @@ func thrkill_trampoline()
+ // mmap is used to do low-level memory allocation via mmap. Don't allow stack
+ // splits, since this function (used by sysAlloc) is called in a lot of low-level
+ // parts of the runtime and callers often assume it won't acquire any locks.
+-// go:nosplit
++//go:nosplit
+ func mmap(addr unsafe.Pointer, n uintptr, prot, flags, fd int32, off uint32) (unsafe.Pointer, int) {
+ 	args := struct {
+ 		addr            unsafe.Pointer

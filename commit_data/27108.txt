@@ -13,6 +13,33 @@ Date:   Thu Mar 10 22:01:41 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/aprof.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/testdata/testprogcgo/aprof.go b/src/runtime/testdata/testprogcgo/aprof.go
+index cf52107a30..b4b71f2861 100644
+--- a/src/runtime/testdata/testprogcgo/aprof.go
++++ b/src/runtime/testdata/testprogcgo/aprof.go
+@@ -17,6 +17,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"runtime/pprof"
++	"time"
+ )
+ 
+ func init() {
+@@ -31,7 +32,13 @@ func CgoCCodeSIGPROF() {
+ 	go func() {
+ 		for {
+ 			<-c
++			start := time.Now()
+ 			for i := 0; i < 1e7; i++ {
++				if i%1000 == 0 {
++					if time.Since(start) > time.Second {
++						break
++					}
++				}
+ 				C.GoNop()
+ 			}
+ 			c <- true

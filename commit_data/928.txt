@@ -8,6 +8,28 @@ Date:   Tue Oct 21 17:18:34 2008 -0700
     DELTA=2  (0 added, 1 deleted, 1 changed)
     OCL=17589
     CL=17595
-
+---
  src/lib/regexp/regexp.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 7d366508a5..bde707700a 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -14,7 +14,6 @@ import (
+ export var debug = false;
+ 
+ 
+-export var ErrUnimplemented = os.NewError("unimplemented");
+ export var ErrInternal = os.NewError("internal error");
+ export var ErrUnmatchedLpar = os.NewError("unmatched '('");
+ export var ErrUnmatchedRpar = os.NewError("unmatched ')'");
+@@ -397,7 +396,7 @@ func (p *Parser) Term() (start, end Inst) {
+ 	switch c := p.c(); c {
+ 	case '|', EOF:
+ 		return NULL, NULL;
+-	case '*', '+', '|':
++	case '*', '+':
+ 		p.re.Error(ErrBareClosure);
+ 	case ')':
+ 		if p.nlpar == 0 {

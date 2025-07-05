@@ -23,6 +23,23 @@ Date:   Mon Dec 16 17:44:21 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/fips140/fips140.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/fips140.go b/src/crypto/internal/fips140/fips140.go
+index cec9d13e35..d30433debf 100644
+--- a/src/crypto/internal/fips140/fips140.go
++++ b/src/crypto/internal/fips140/fips140.go
+@@ -19,3 +19,11 @@ func init() {
+ 		debug = true
+ 	}
+ }
++
++func Name() string {
++	return "Go Cryptographic Module"
++}
++
++func Version() string {
++	return "v1.0"
++}

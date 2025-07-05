@@ -13,7 +13,7 @@ Date:   Fri Mar 29 16:33:35 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8183043
-
+---
  include/libc.h       |  1 +
  src/cmd/5l/obj.c     |  5 +++++
  src/cmd/6l/obj.c     |  7 ++++++-
@@ -25,3 +25,201 @@ Date:   Fri Mar 29 16:33:35 2013 -0700
  src/make.bash        |  5 +++++
  src/run.bash         | 10 +++++++++-
  10 files changed, 62 insertions(+), 3 deletions(-)
+
+diff --git a/include/libc.h b/include/libc.h
+index fab1532f22..e10dde3adf 100644
+--- a/include/libc.h
++++ b/include/libc.h
+@@ -291,6 +291,7 @@ extern	char*	getgoroot(void);
+ extern	char*	getgoversion(void);
+ extern	char*	getgoarm(void);
+ extern	char*	getgo386(void);
++extern	char*	getgoextlinkenabled(void);
+ 
+ extern	char*	mktempdir(void);
+ extern	void	removeall(char*);
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index f5128c6780..72bb1fb784 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -136,6 +136,11 @@ main(int argc, char *argv[])
+ 	if(argc != 1)
+ 		usage();
+ 
++	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
++	// Go was built; see ../../make.bash.
++	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
++		linkmode = LinkInternal;
++
+ 	if(linkmode == LinkExternal) {
+ 		diag("only -linkmode=internal is supported");
+ 		errorexit();
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 738a2a07f4..4e69a8df0c 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -133,11 +133,16 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 
++	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
++	// Go was built; see ../../make.bash.
++	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
++		linkmode = LinkInternal;
++
+ 	switch(HEADTYPE) {
+ 	default:
+ 		if(linkmode == LinkAuto)
+ 			linkmode = LinkInternal;
+-		if(linkmode == LinkExternal)
++		if(linkmode == LinkExternal && strcmp(getgoextlinkenabled(), "1") != 0)
+ 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+ 		break;
+ 	case Hdarwin:
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 35a65edb60..d624a999ba 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -139,11 +139,16 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 
++	// getgoextlinkenabled is based on GO_EXTLINK_ENABLED when
++	// Go was built; see ../../make.bash.
++	if(linkmode == LinkAuto && strcmp(getgoextlinkenabled(), "0") == 0)
++		linkmode = LinkInternal;
++
+ 	switch(HEADTYPE) {
+ 	default:
+ 		if(linkmode == LinkAuto)
+ 			linkmode = LinkInternal;
+-		if(linkmode == LinkExternal)
++		if(linkmode == LinkExternal && strcmp(getgoextlinkenabled(), "1") != 0)
+ 			sysfatal("cannot use -linkmode=external with -H %s", headstr(HEADTYPE));
+ 		break;
+ 	case Hdarwin:
+diff --git a/src/cmd/dist/a.h b/src/cmd/dist/a.h
+index fcd81cc511..73c126476e 100644
+--- a/src/cmd/dist/a.h
++++ b/src/cmd/dist/a.h
+@@ -72,6 +72,7 @@ extern char *gohostos;
+ extern char *goos;
+ extern char *goroot;
+ extern char *goroot_final;
++extern char *goextlinkenabled;
+ extern char *goversion;
+ extern char *workdir;
+ extern char *tooldir;
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index fd6a329c4d..e94862325c 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -20,6 +20,7 @@ char *goarm;
+ char *go386;
+ char *goroot = GOROOT_FINAL;
+ char *goroot_final = GOROOT_FINAL;
++char *goextlinkenabled = "";
+ char *workdir;
+ char *tooldir;
+ char *gochar;
+@@ -139,6 +140,13 @@ init(void)
+ 	bprintf(&b, "%c", gochars[i]);
+ 	gochar = btake(&b);
+ 
++	xgetenv(&b, "GO_EXTLINK_ENABLED");
++	if(b.len > 0) {
++		goextlinkenabled = btake(&b);
++		if(!streq(goextlinkenabled, "0") && !streq(goextlinkenabled, "1"))
++			fatal("unknown $GO_EXTLINK_ENABLED %s", goextlinkenabled);
++	}
++
+ 	xsetenv("GOROOT", goroot);
+ 	xsetenv("GOARCH", goarch);
+ 	xsetenv("GOOS", goos);
+@@ -922,6 +930,8 @@ install(char *dir)
+ 				vadd(&compile, bprintf(&b, "GOARM=\"%s\"", goarm));
+ 				vadd(&compile, "-D");
+ 				vadd(&compile, bprintf(&b, "GO386=\"%s\"", go386));
++				vadd(&compile, "-D");
++				vadd(&compile, bprintf(&b, "GO_EXTLINK_ENABLED=\"%s\"", goextlinkenabled));
+ 			}
+ 
+ 			// gc/lex.c records the GOEXPERIMENT setting used during the build.
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index e4e2dcc9fc..f2ea48974b 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -698,6 +698,19 @@ main(int argc, char **argv)
+ 	if(strcmp(gohostarch, "arm") == 0)
+ 		maxnbg = 1;
+ 
++	// The OS X 10.6 linker does not support external
++	// linking mode; see
++	// https://code.google.com/p/go/issues/detail?id=5130 .
++	// The mapping from the uname release field to the OS X
++	// version number is complicated, but basically 10 or under is
++	// OS X 10.6 or earlier.
++	if(strcmp(gohostos, "darwin") == 0) {
++		if(uname(&u) < 0)
++			fatal("uname: %s", strerror(errno));
++		if(u.release[1] == '.' || hasprefix(u.release, "10"))
++			goextlinkenabled = "0";
++	}
++
+ 	init();
+ 	xmain(argc, argv);
+ 	bfree(&b);
+diff --git a/src/lib9/goos.c b/src/lib9/goos.c
+index 3b00271117..2d4a800dd1 100644
+--- a/src/lib9/goos.c
++++ b/src/lib9/goos.c
+@@ -51,3 +51,9 @@ getgo386(void)
+ {
+ 	return defgetenv("GO386", GO386);
+ }
++
++char *
++getgoextlinkenabled(void)
++{
++	return GO_EXTLINK_ENABLED;
++}
+diff --git a/src/make.bash b/src/make.bash
+index 2d83b6f4d1..8d0f6ebaea 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -30,6 +30,11 @@
+ # to include all cgo related files, .c and .go file with "cgo"
+ # build directive, in the build. Set it to 0 to ignore them.
+ #
++# GO_EXTLINK_ENABLED: Set to 1 to invoke the host linker when building
++# packages that use cgo.  Set to 0 to do all linking internally.  This
++# controls the default behavior of the linker's -linkmode option.  The
++# default value depends on the system.
++#
+ # CC: Command line to run to get at host C compiler.
+ # Default is "gcc". Also supported: "clang".
+ 
+diff --git a/src/run.bash b/src/run.bash
+index df5b95b0e1..b197844fe4 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -83,10 +83,18 @@ set -e
+ go test -ldflags '-linkmode=auto'
+ go test -ldflags '-linkmode=internal'
+ case "$GOHOSTOS-$GOARCH" in
+-darwin-386 | darwin-amd64 | openbsd-386 | openbsd-amd64)
++openbsd-386 | openbsd-amd64)
+ 	# test linkmode=external, but __thread not supported, so skip testtls.
+ 	go test -ldflags '-linkmode=external'
+ 	;;
++darwin-386 | darwin-amd64)
++	# linkmode=external fails on OS X 10.6 and earlier == Darwin
++	# 10.8 and earlier.
++	case $(uname -r) in
++	[0-9].* | 10.*) ;;
++	*) go test -ldflags '-linkmode=external' ;;
++	esac
++	;;
+ freebsd-386 | freebsd-amd64 | linux-386 | linux-amd64 | netbsd-386 | netbsd-amd64)
+ 	go test -ldflags '-linkmode=external'
+ 	go test -ldflags '-linkmode=auto' ../testtls

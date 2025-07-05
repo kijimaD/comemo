@@ -14,8 +14,78 @@ Date:   Mon Sep 14 12:56:37 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/254839
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/init.go | 8 +++-----
  src/cmd/compile/internal/gc/main.go | 6 ++----
  test/inline.go                      | 2 +-
  3 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 94cbcf9846..ec9cc4bddc 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -59,7 +59,7 @@ func fninit(n []*Node) {
+ 		Curfn = fn
+ 		typecheckslice(nf, ctxStmt)
+ 		Curfn = nil
+-		funccompile(fn)
++		xtop = append(xtop, fn)
+ 		fns = append(fns, initializers.Linksym())
+ 	}
+ 	if dummyInitFn.Func.Dcl != nil {
+@@ -68,16 +68,14 @@ func fninit(n []*Node) {
+ 		// something's weird if we get here.
+ 		Fatalf("dummyInitFn still has declarations")
+ 	}
++	dummyInitFn = nil
+ 
+ 	// Record user init functions.
+ 	for i := 0; i < renameinitgen; i++ {
+ 		s := lookupN("init.", i)
+ 		fn := asNode(s.Def).Name.Defn
+ 		// Skip init functions with empty bodies.
+-		// noder.go doesn't allow external init functions, and
+-		// order.go has already removed any OEMPTY nodes, so
+-		// checking Len() == 0 is sufficient here.
+-		if fn.Nbody.Len() == 0 {
++		if fn.Nbody.Len() == 1 && fn.Nbody.First().Op == OEMPTY {
+ 			continue
+ 		}
+ 		fns = append(fns, s.Linksym())
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9bce6cf8cb..8783cb4e46 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -642,6 +642,8 @@ func Main(archInit func(*Arch)) {
+ 		errorexit()
+ 	}
+ 
++	fninit(xtop)
++
+ 	// Phase 4: Decide how to capture closed variables.
+ 	// This needs to run before escape analysis,
+ 	// because variables captured by value do not escape.
+@@ -751,10 +753,6 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 	timings.AddEvent(fcount, "funcs")
+ 
+-	if nsavederrors+nerrors == 0 {
+-		fninit(xtop)
+-	}
+-
+ 	compileFunctions()
+ 
+ 	if nowritebarrierrecCheck != nil {
+diff --git a/test/inline.go b/test/inline.go
+index 0b3ad55d46..1c5c1bc8d3 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -50,7 +50,7 @@ func j(x int) int { // ERROR "can inline j"
+ 	}
+ }
+ 
+-var somethingWrong error = errors.New("something went wrong")
++var somethingWrong error = errors.New("something went wrong") // ERROR "can inline init" "inlining call to errors.New" "errors.errorString.* escapes to heap"
+ 
+ // local closures can be inlined
+ func l(x, y int) (int, int, error) {

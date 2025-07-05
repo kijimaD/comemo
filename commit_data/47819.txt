@@ -26,7 +26,7 @@ Date:   Mon Apr 12 14:00:49 2021 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/codegen/arithmetic.go     |  2 +-
  test/codegen/bits.go           | 18 +++++++++---------
  test/codegen/clobberdeadreg.go |  4 ++--
@@ -39,3 +39,234 @@ Date:   Mon Apr 12 14:00:49 2021 -0400
  test/codegen/stack.go          |  4 ++--
  test/codegen/zerosize.go       | 10 +++++-----
  11 files changed, 39 insertions(+), 37 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index dea7e0ba61..a27a17f6e1 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -139,7 +139,7 @@ func MergeMuls1(n int) int {
+ }
+ 
+ func MergeMuls2(n int) int {
+-	// amd64:"IMUL3Q\t[$]23","ADDQ\t[$]29"
++	// amd64:"IMUL3Q\t[$]23","(ADDQ\t[$]29)|(LEAQ\t29)"
+ 	// 386:"IMUL3L\t[$]23","ADDL\t[$]29"
+ 	return 5*n + 7*(n+1) + 11*(n+2) // 23n + 29
+ }
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index d41383f42c..2bd92dd51b 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -264,23 +264,23 @@ func bitcompl32(a, b uint32) (n uint32) {
+ 
+ // check direct operation on memory with constant and shifted constant sources
+ func bitOpOnMem(a []uint32, b, c, d uint32) {
+-	// amd64:`ANDL\s[$]200,\s\([A-Z]+\)`
++	// amd64:`ANDL\s[$]200,\s\([A-Z][A-Z0-9]+\)`
+ 	a[0] &= 200
+-	// amd64:`ORL\s[$]220,\s4\([A-Z]+\)`
++	// amd64:`ORL\s[$]220,\s4\([A-Z][A-Z0-9]+\)`
+ 	a[1] |= 220
+-	// amd64:`XORL\s[$]240,\s8\([A-Z]+\)`
++	// amd64:`XORL\s[$]240,\s8\([A-Z][A-Z0-9]+\)`
+ 	a[2] ^= 240
+-	// amd64:`BTRL\s[$]15,\s12\([A-Z]+\)`,-`ANDL`
++	// amd64:`BTRL\s[$]15,\s12\([A-Z][A-Z0-9]+\)`,-`ANDL`
+ 	a[3] &= 0xffff7fff
+-	// amd64:`BTSL\s[$]14,\s16\([A-Z]+\)`,-`ORL`
++	// amd64:`BTSL\s[$]14,\s16\([A-Z][A-Z0-9]+\)`,-`ORL`
+ 	a[4] |= 0x4000
+-	// amd64:`BTCL\s[$]13,\s20\([A-Z]+\)`,-`XORL`
++	// amd64:`BTCL\s[$]13,\s20\([A-Z][A-Z0-9]+\)`,-`XORL`
+ 	a[5] ^= 0x2000
+-	// amd64:`BTRL\s[A-Z]+,\s24\([A-Z]+\)`
++	// amd64:`BTRL\s[A-Z][A-Z0-9]+,\s24\([A-Z][A-Z0-9]+\)`
+ 	a[6] &^= 1 << (b & 31)
+-	// amd64:`BTSL\s[A-Z]+,\s28\([A-Z]+\)`
++	// amd64:`BTSL\s[A-Z][A-Z0-9]+,\s28\([A-Z][A-Z0-9]+\)`
+ 	a[7] |= 1 << (c & 31)
+-	// amd64:`BTCL\s[A-Z]+,\s32\([A-Z]+\)`
++	// amd64:`BTCL\s[A-Z][A-Z0-9]+,\s32\([A-Z][A-Z0-9]+\)`
+ 	a[8] ^= 1 << (d & 31)
+ }
+ 
+diff --git a/test/codegen/clobberdeadreg.go b/test/codegen/clobberdeadreg.go
+index 026850afba..2a93c410f9 100644
+--- a/test/codegen/clobberdeadreg.go
++++ b/test/codegen/clobberdeadreg.go
+@@ -19,14 +19,14 @@ func F(a, b, c int, d S) {
+ 	// amd64:`MOVQ\t\$-2401018187971961171, R8`, `MOVQ\t\$-2401018187971961171, R9`, `MOVQ\t\$-2401018187971961171, R10`
+ 	// amd64:`MOVQ\t\$-2401018187971961171, R11`, `MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`
+ 	// amd64:-`MOVQ\t\$-2401018187971961171, BP` // frame pointer is not clobbered
+-	StackArgsCall(a, b, c, d)
++	StackArgsCall([10]int{a, b, c})
+ 	// amd64:`MOVQ\t\$-2401018187971961171, R12`, `MOVQ\t\$-2401018187971961171, R13`, `MOVQ\t\$-2401018187971961171, DX`
+ 	// amd64:-`MOVQ\t\$-2401018187971961171, AX`, -`MOVQ\t\$-2401018187971961171, R11` // register args are not clobbered
+ 	RegArgsCall(a, b, c, d)
+ }
+ 
+ //go:noinline
+-func StackArgsCall(int, int, int, S) {}
++func StackArgsCall([10]int) {}
+ 
+ //go:noinline
+ //go:registerparams
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 719063cdc3..17dcd94ae1 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -90,9 +90,11 @@ func CompareArray6(a, b unsafe.Pointer) bool {
+ 
+ // Test that LEAQ/ADDQconst are folded into SETx ops
+ 
+-func CmpFold(x uint32) bool {
+-	// amd64:`SETHI\t.*\(SP\)`
+-	return x > 4
++var r bool
++
++func CmpFold(x uint32) {
++	// amd64:`SETHI\t.*\(SB\)`
++	r = x > 4
+ }
+ 
+ // Test that direct comparisons with memory are generated when
+diff --git a/test/codegen/issue25378.go b/test/codegen/issue25378.go
+index 14aa2c30f2..810a022722 100644
+--- a/test/codegen/issue25378.go
++++ b/test/codegen/issue25378.go
+@@ -13,10 +13,10 @@ var wsp = [256]bool{
+ 	'\r': true,
+ }
+ 
+-func zeroExtArgByte(ch byte) bool {
+-	return wsp[ch] // amd64:-"MOVBLZX\t..,.."
++func zeroExtArgByte(ch [2]byte) bool {
++	return wsp[ch[0]] // amd64:-"MOVBLZX\t..,.."
+ }
+ 
+-func zeroExtArgUint16(ch uint16) bool {
+-	return wsp[ch] // amd64:-"MOVWLZX\t..,.."
++func zeroExtArgUint16(ch [2]uint16) bool {
++	return wsp[ch[0]] // amd64:-"MOVWLZX\t..,.."
+ }
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+index 8dd22ed5ca..dcb4a9381f 100644
+--- a/test/codegen/maps.go
++++ b/test/codegen/maps.go
+@@ -16,12 +16,12 @@ package codegen
+ // Direct use of constants in fast map access calls (Issue #19015).
+ 
+ func AccessInt1(m map[int]int) int {
+-	// amd64:"MOVQ\t[$]5"
++	// amd64:"MOV[LQ]\t[$]5"
+ 	return m[5]
+ }
+ 
+ func AccessInt2(m map[int]int) bool {
+-	// amd64:"MOVQ\t[$]5"
++	// amd64:"MOV[LQ]\t[$]5"
+ 	_, ok := m[5]
+ 	return ok
+ }
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 243ddb0494..04cb4e577d 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -160,13 +160,13 @@ func toFloat32(u32 uint32) float32 {
+ // are evaluated at compile-time
+ 
+ func constantCheck64() bool {
+-	// amd64:"MOVB\t[$]0",-"FCMP",-"MOVB\t[$]1"
++	// amd64:"(MOVB\t[$]0)|(XORL\t[A-Z][A-Z0-9]+, [A-Z][A-Z0-9]+)",-"FCMP",-"MOVB\t[$]1"
+ 	// s390x:"MOV(B|BZ|D)\t[$]0,",-"FCMPU",-"MOV(B|BZ|D)\t[$]1,"
+ 	return 0.5 == float64(uint32(1)) || 1.5 > float64(uint64(1<<63))
+ }
+ 
+ func constantCheck32() bool {
+-	// amd64:"MOVB\t[$]1",-"FCMP",-"MOVB\t[$]0"
++	// amd64:"MOV(B|L)\t[$]1",-"FCMP",-"MOV(B|L)\t[$]0"
+ 	// s390x:"MOV(B|BZ|D)\t[$]1,",-"FCMPU",-"MOV(B|BZ|D)\t[$]0,"
+ 	return float32(0.5) <= float32(int64(1)) && float32(1.5) >= float32(int32(-1<<31))
+ }
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 121f394f29..d74dae07f5 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -306,16 +306,16 @@ func load_be_byte8_uint64_idx8(s []byte, idx int) uint64 {
+ 
+ // Check load combining across function calls.
+ 
+-func fcall_byte(a, b byte) (byte, byte) {
+-	return fcall_byte(fcall_byte(a, b)) // amd64:`MOVW`
++func fcall_byte(a [2]byte) [2]byte {
++	return fcall_byte(fcall_byte(a)) // amd64:`MOVW`
+ }
+ 
+-func fcall_uint16(a, b uint16) (uint16, uint16) {
+-	return fcall_uint16(fcall_uint16(a, b)) // amd64:`MOVL`
++func fcall_uint16(a [2]uint16) [2]uint16 {
++	return fcall_uint16(fcall_uint16(a)) // amd64:`MOVL`
+ }
+ 
+-func fcall_uint32(a, b uint32) (uint32, uint32) {
+-	return fcall_uint32(fcall_uint32(a, b)) // amd64:`MOVQ`
++func fcall_uint32(a [2]uint32) [2]uint32 {
++	return fcall_uint32(fcall_uint32(a)) // amd64:`MOVQ`
+ }
+ 
+ // We want to merge load+op in the first function, but not in the
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index 38e8a62f4b..d20aa9eddf 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -307,7 +307,7 @@ func InitSmallSliceLiteral() []int {
+ }
+ 
+ func InitNotSmallSliceLiteral() []int {
+-	// amd64:`MOVQ\t.*autotmp_`
++	// amd64:`LEAQ\t.*stmp_`
+ 	return []int{
+ 		42,
+ 		42,
+diff --git a/test/codegen/stack.go b/test/codegen/stack.go
+index 7d70024cdd..f28b4a3320 100644
+--- a/test/codegen/stack.go
++++ b/test/codegen/stack.go
+@@ -92,11 +92,11 @@ func ArrayInit(i, j int) [4]int {
+ // Check that assembly output has matching offset and base register
+ // (issue #21064).
+ 
+-func check_asmout(a, b int) int {
++func check_asmout(b [2]int) int {
+ 	runtime.GC() // use some frame
+ 	// amd64:`.*b\+24\(SP\)`
+ 	// arm:`.*b\+4\(FP\)`
+-	return b
++	return b[1]
+ }
+ 
+ // Check that simple functions get promoted to nosplit, even when
+diff --git a/test/codegen/zerosize.go b/test/codegen/zerosize.go
+index cd0c83b6ef..292c5a018b 100644
+--- a/test/codegen/zerosize.go
++++ b/test/codegen/zerosize.go
+@@ -12,14 +12,14 @@ package codegen
+ 
+ func zeroSize() {
+ 	c := make(chan struct{})
+-	// amd64:`MOVQ\t\$0, ""\.s\+32\(SP\)`
++	// amd64:`MOVQ\t\$0, ""\.s\+56\(SP\)`
+ 	var s *int
+-	g(&s) // force s to be a stack object
++	// force s to be a stack object, also use some (fixed) stack space
++	g(&s, 1, 2, 3, 4, 5)
+ 
+-	// amd64:`LEAQ\t""\..*\+31\(SP\)`
++	// amd64:`LEAQ\t""\..*\+55\(SP\)`
+ 	c <- struct{}{}
+ }
+ 
+ //go:noinline
+-func g(p **int) {
+-}
++func g(**int, int, int, int, int, int) {}

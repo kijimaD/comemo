@@ -15,6 +15,33 @@ Date:   Mon Dec 13 15:57:25 2021 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/testshared/shared_test.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 7b8cc66c3a..b78083bc80 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -462,7 +462,9 @@ func TestTrivialExecutable(t *testing.T) {
+ 	run(t, "trivial executable", "../../bin/trivial")
+ 	AssertIsLinkedTo(t, "../../bin/trivial", soname)
+ 	AssertHasRPath(t, "../../bin/trivial", gorootInstallDir)
+-	checkSize(t, "../../bin/trivial", 100000) // it is 19K on linux/amd64, 100K should be enough
++	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
++	// 4*64k should be enough, but this might need revision eventually.
++	checkSize(t, "../../bin/trivial", 256000)
+ }
+ 
+ // Build a trivial program in PIE mode that links against the shared runtime and check it runs.
+@@ -471,7 +473,9 @@ func TestTrivialExecutablePIE(t *testing.T) {
+ 	run(t, "trivial executable", "./trivial.pie")
+ 	AssertIsLinkedTo(t, "./trivial.pie", soname)
+ 	AssertHasRPath(t, "./trivial.pie", gorootInstallDir)
+-	checkSize(t, "./trivial.pie", 100000) // it is 19K on linux/amd64, 100K should be enough
++	// It is 19K on linux/amd64, with separate-code in binutils ld and 64k being most common alignment
++	// 4*64k should be enough, but this might need revision eventually.
++	checkSize(t, "./trivial.pie", 256000)
+ }
+ 
+ // Check that the file size does not exceed a limit.

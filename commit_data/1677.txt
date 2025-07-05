@@ -8,7 +8,41 @@ Date:   Sun Feb 15 13:41:48 2009 -0800
     DELTA=8  (0 added, 6 deleted, 2 changed)
     OCL=25045
     CL=25045
-
+---
  src/run.bash         | 6 ------
  src/runtime/malloc.c | 4 ++--
  2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 90c9a7af1a..64a6170617 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,12 +52,6 @@ time make
+ make smoketest
+ ) || exit $?
+ 
+-# (xcd ../usr/gri/gosrc
+-# make clean
+-# time make
+-# # make test
+-# ) || exit $?
+-
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?
+diff --git a/src/runtime/malloc.c b/src/runtime/malloc.c
+index 2bee176087..0a1ab28041 100644
+--- a/src/runtime/malloc.c
++++ b/src/runtime/malloc.c
+@@ -162,9 +162,9 @@ mlookup(void *v, byte **base, uintptr *size, uint32 **ref)
+ 		*size = n;
+ 	nobj = (s->npages << PageShift) / (n + RefcountOverhead);
+ 	if((byte*)s->gcref < p || (byte*)(s->gcref+nobj) > p+(s->npages<<PageShift)) {
+-		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%d size=%d npages=%d\n",
++		printf("odd span state=%d span=%p base=%p sizeclass=%d n=%D size=%D npages=%D\n",
+ 			s->state, s, p, s->sizeclass, nobj, n, s->npages);
+-		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%d size=%D end=%p end=%p\n",
++		printf("s->base sizeclass %d v=%p base=%p gcref=%p blocksize=%D nobj=%D size=%D end=%p end=%p\n",
+ 			s->sizeclass, v, p, s->gcref, s->npages<<PageShift,
+ 			nobj, n, s->gcref + nobj, p+(s->npages<<PageShift));
+ 		throw("bad gcref");

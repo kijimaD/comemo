@@ -9,7 +9,43 @@ Date:   Wed Aug 5 09:40:33 2015 +1000
     Change-Id: I9e2901d77ebde705f59822e7d4a8163cbacffcd7
     Reviewed-on: https://go-review.googlesource.com/13150
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/install-source.html | 2 +-
  doc/install.html        | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index cf89dc877d..e71fff710f 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -399,7 +399,7 @@ These default to the values of <code>$GOHOSTOS</code> and
+ 
+ <p>
+ Choices for <code>$GOOS</code> are
+-<code>darwin</code> (Mac OS X 10.6 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
++<code>darwin</code> (Mac OS X 10.7 and above and iOS), <code>dragonfly</code>, <code>freebsd</code>,
+ <code>linux</code>, <code>netbsd</code>, <code>openbsd</code>,
+ <code>plan9</code>, <code>solaris</code> and <code>windows</code>.
+ Choices for <code>$GOARCH</code> are
+diff --git a/doc/install.html b/doc/install.html
+index 8c9322fd53..d94d6a9368 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -15,7 +15,7 @@
+ <p>
+ <a href="https://golang.org/dl/" target="_blank">Official binary
+ distributions</a> are available for the FreeBSD (release 8-STABLE and above),
+-Linux, Mac OS X (Snow Leopard and above), and Windows operating systems and
++Linux, Mac OS X (10.7 and above), and Windows operating systems and
+ the 32-bit (<code>386</code>) and 64-bit (<code>amd64</code>) x86 processor
+ architectures.
+ </p>
+@@ -47,7 +47,7 @@ proceeding. If your OS or architecture is not on the list, it's possible that
+ <tr><td colspan="3"><hr></td></tr>
+ <tr><td>FreeBSD 8-STABLE or later</td> <td>amd64, 386, arm</td> <td>Debian GNU/kFreeBSD not supported; FreeBSD/ARM needs FreeBSD 10 or later</td></tr>
+ <tr><td>Linux 2.6.23 or later with glibc</td> <td>amd64, 386, arm</td> <td>CentOS/RHEL 5.x not supported; no binary distribution for ARM yet</td></tr>
+-<tr><td>Mac OS X 10.6 or later</td> <td>amd64, 386</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
++<tr><td>Mac OS X 10.7 or later</td> <td>amd64</td> <td>use the gcc<sup>&#8224;</sup> that comes with Xcode<sup>&#8225;</sup></td></tr>
+ <tr><td>Windows XP or later</td> <td>amd64, 386</td> <td>use MinGW gcc<sup>&#8224;</sup>. No need for cygwin or msys.</td></tr>
+ </table>
+ 

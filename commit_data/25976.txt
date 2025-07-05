@@ -22,7 +22,7 @@ Date:   Thu Dec 3 17:28:46 2015 -0800
     Change-Id: Id2c8fbcc68b719cd511027d0412a37266cceed6b
     Reviewed-on: https://go-review.googlesource.com/17408
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/gofmt/testdata/old.golden |  9 ---------
  src/cmd/gofmt/testdata/old.input  |  8 --------
  src/go/parser/parser.go           | 11 ++++++++++-
@@ -30,3 +30,105 @@ Date:   Thu Dec 3 17:28:46 2015 -0800
  src/go/printer/nodes.go           |  3 +++
  src/go/types/stmt.go              |  9 ++++++++-
  6 files changed, 25 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/gofmt/testdata/old.golden b/src/cmd/gofmt/testdata/old.golden
+deleted file mode 100644
+index 95a0b72a0e..0000000000
+--- a/src/cmd/gofmt/testdata/old.golden
++++ /dev/null
+@@ -1,9 +0,0 @@
+-package P
+-
+-func f() {
+-	if x {
+-		y
+-	} else {
+-		z
+-	}
+-}
+diff --git a/src/cmd/gofmt/testdata/old.input b/src/cmd/gofmt/testdata/old.input
+deleted file mode 100644
+index e24eed215d..0000000000
+--- a/src/cmd/gofmt/testdata/old.input
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package P
+-
+-func f() {
+-	if x {
+-		y
+-	} else
+-		z
+-}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 73edaa0ab3..f3a26032ee 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1857,7 +1857,16 @@ func (p *parser) parseIfStmt() *ast.IfStmt {
+ 	var else_ ast.Stmt
+ 	if p.tok == token.ELSE {
+ 		p.next()
+-		else_ = p.parseStmt()
++		switch p.tok {
++		case token.IF:
++			else_ = p.parseIfStmt()
++		case token.LBRACE:
++			else_ = p.parseBlockStmt()
++			p.expectSemi()
++		default:
++			p.errorExpected(p.pos, "if statement or block")
++			else_ = &ast.BadStmt{From: p.pos, To: p.pos}
++		}
+ 	} else {
+ 		p.expectSemi()
+ 	}
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index e05ae8e9e9..cdd343ea3c 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -121,6 +121,10 @@ var invalids = []string{
+ 	`package p; type _ struct { ( /* ERROR "expected anonymous field" */ int) };`,
+ 	`package p; func _()(x, y, z ... /* ERROR "expected '\)', found '...'" */ int){}`,
+ 	`package p; func _()(... /* ERROR "expected type, found '...'" */ int){}`,
++
++	// issue 13475
++	`package p; func f() { if true {} else ; /* ERROR "expected if statement or block" */ }`,
++	`package p; func f() { if true {} else defer /* ERROR "expected if statement or block" */ f() }`,
+ }
+ 
+ func TestInvalid(t *testing.T) {
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 35c017db0e..11f26d45ea 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1185,6 +1185,9 @@ func (p *printer) stmt(stmt ast.Stmt, nextIsRBrace bool) {
+ 			case *ast.BlockStmt, *ast.IfStmt:
+ 				p.stmt(s.Else, nextIsRBrace)
+ 			default:
++				// This can only happen with an incorrectly
++				// constructed AST. Permit it but print so
++				// that it can be parsed without errors.
+ 				p.print(token.LBRACE, indent, formfeed)
+ 				p.stmt(s.Else, true)
+ 				p.print(unindent, formfeed, token.RBRACE)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 973af423c1..e0129cf0e0 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -457,8 +457,15 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			check.error(s.Cond.Pos(), "non-boolean condition in if statement")
+ 		}
+ 		check.stmt(inner, s.Body)
+-		if s.Else != nil {
++		// The parser produces a correct AST but if it was modified
++		// elsewhere the else branch may be invalid. Check again.
++		switch s.Else.(type) {
++		case nil, *ast.BadStmt:
++			// valid or error already reported
++		case *ast.IfStmt, *ast.BlockStmt:
+ 			check.stmt(inner, s.Else)
++		default:
++			check.error(s.Else.Pos(), "invalid else branch in if statement")
+ 		}
+ 
+ 	case *ast.SwitchStmt:

@@ -9,6 +9,19 @@ Date:   Thu Apr 2 16:20:30 2015 -0400
     Change-Id: Ibb0fed7816aab459a94720b139a7737fad65bea2
     Reviewed-on: https://go-review.googlesource.com/8425
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 997e920b45..e0869722c6 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2911,7 +2911,6 @@ var bpduff1 = []byte{
+ }
+ 
+ var bpduff2 = []byte{
+-	0x90,
+ 	0x48, 0x8b, 0x6d, 0x00, // MOVQ 0(BP), BP
+ }
+ 

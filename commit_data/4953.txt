@@ -11,7 +11,7 @@ Date:   Thu Feb 25 16:01:29 2010 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/224062
-
+---
  src/cmd/cgo/gcc.go                       |  4 +-
  src/cmd/ebnflint/ebnflint.go             |  5 +--
  src/cmd/godoc/godoc.go                   | 26 +++++------
@@ -78,3 +78,2163 @@ Date:   Thu Feb 25 16:01:29 2010 -0800
  test/bench/meteor-contest.go             |  2 +-
  test/bench/regex-dna.go                  |  3 +-
  65 files changed, 240 insertions(+), 311 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 01c4836841..fc2da37c17 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -724,7 +724,7 @@ func (c *typeConv) Opaque(n int64) ast.Expr {
+ func (c *typeConv) intExpr(n int64) ast.Expr {
+ 	return &ast.BasicLit{
+ 		Kind: token.INT,
+-		Value: strings.Bytes(strconv.Itoa64(n)),
++		Value: []byte(strconv.Itoa64(n)),
+ 	}
+ }
+ 
+@@ -755,7 +755,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType) (expr *ast.StructType, csyntax s
+ 		used[f.Name] = true
+ 	}
+ 	for cid, goid := range ident {
+-		if token.Lookup(strings.Bytes(goid)).IsKeyword() {
++		if token.Lookup([]byte(goid)).IsKeyword() {
+ 			// Avoid keyword
+ 			goid = "_" + goid
+ 
+diff --git a/src/cmd/ebnflint/ebnflint.go b/src/cmd/ebnflint/ebnflint.go
+index 9d391249d5..3dfa71f078 100644
+--- a/src/cmd/ebnflint/ebnflint.go
++++ b/src/cmd/ebnflint/ebnflint.go
+@@ -13,7 +13,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"path"
+-	"strings"
+ )
+ 
+ 
+@@ -29,8 +28,8 @@ func usage() {
+ 
+ // Markers around EBNF sections in .html files
+ var (
+-	open  = strings.Bytes(`<pre class="ebnf">`)
+-	close = strings.Bytes(`</pre>`)
++	open  = []byte(`<pre class="ebnf">`)
++	close = []byte(`</pre>`)
+ )
+ 
+ 
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 98cac945fe..29792d58f7 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -152,7 +152,7 @@ func pkgName(filename string) string {
+ 
+ func htmlEscape(s string) string {
+ 	var buf bytes.Buffer
+-	template.HTMLEscape(&buf, strings.Bytes(s))
++	template.HTMLEscape(&buf, []byte(s))
+ 	return buf.String()
+ }
+ 
+@@ -476,7 +476,7 @@ func (s *Styler) BasicLit(x *ast.BasicLit) (text []byte, tag printer.HTMLTag) {
+ 
+ 
+ func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+-	text = strings.Bytes(id.Name())
++	text = []byte(id.Name())
+ 	if s.highlight == id.Name() {
+ 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
+ 	}
+@@ -485,7 +485,7 @@ func (s *Styler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+ 
+ 
+ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
+-	text = strings.Bytes(tok.String())
++	text = []byte(tok.String())
+ 	return
+ }
+ 
+@@ -493,7 +493,7 @@ func (s *Styler) Token(tok token.Token) (text []byte, tag printer.HTMLTag) {
+ // ----------------------------------------------------------------------------
+ // Tab conversion
+ 
+-var spaces = strings.Bytes("                ") // 16 spaces seems like a good number
++var spaces = []byte("                ") // 16 spaces seems like a good number
+ 
+ const (
+ 	indenting = iota
+@@ -595,7 +595,7 @@ func writeAny(w io.Writer, x interface{}, html bool) {
+ 	case []byte:
+ 		writeText(w, v, html)
+ 	case string:
+-		writeText(w, strings.Bytes(v), html)
++		writeText(w, []byte(v), html)
+ 	case ast.Decl, ast.Expr, ast.Stmt, *ast.File:
+ 		writeNode(w, x, html, &defaultStyler)
+ 	default:
+@@ -674,13 +674,13 @@ func urlFmt(w io.Writer, x interface{}, format string) {
+ 		if strings.HasPrefix(relpath, "src/pkg/") {
+ 			relpath = relpath[len("src/pkg/"):]
+ 		}
+-		template.HTMLEscape(w, strings.Bytes(pkgHandler.pattern+relpath))
++		template.HTMLEscape(w, []byte(pkgHandler.pattern+relpath))
+ 	case "url-src":
+-		template.HTMLEscape(w, strings.Bytes("/"+relpath))
++		template.HTMLEscape(w, []byte("/"+relpath))
+ 	case "url-pos":
+ 		// line id's in html-printed source are of the
+ 		// form "L%d" where %d stands for the line number
+-		template.HTMLEscape(w, strings.Bytes("/"+relpath))
++		template.HTMLEscape(w, []byte("/"+relpath))
+ 		fmt.Fprintf(w, "#L%d", line)
+ 	}
+ }
+@@ -742,7 +742,7 @@ func paddingFmt(w io.Writer, x interface{}, format string) {
+ // Template formatter for "time" format.
+ func timeFmt(w io.Writer, x interface{}, format string) {
+ 	// note: os.Dir.Mtime_ns is in uint64 in ns!
+-	template.HTMLEscape(w, strings.Bytes(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
++	template.HTMLEscape(w, []byte(time.SecondsToLocalTime(int64(x.(uint64)/1e9)).String()))
+ }
+ 
+ 
+@@ -757,7 +757,7 @@ func dirslashFmt(w io.Writer, x interface{}, format string) {
+ // Template formatter for "localname" format.
+ func localnameFmt(w io.Writer, x interface{}, format string) {
+ 	_, localname := pathutil.Split(x.(string))
+-	template.HTMLEscape(w, strings.Bytes(localname))
++	template.HTMLEscape(w, []byte(localname))
+ }
+ 
+ 
+@@ -852,8 +852,8 @@ func serveText(c *http.Conn, text []byte) {
+ // Files
+ 
+ var (
+-	tagBegin = strings.Bytes("<!--")
+-	tagEnd   = strings.Bytes("-->")
++	tagBegin = []byte("<!--")
++	tagEnd   = []byte("-->")
+ )
+ 
+ // commentText returns the text of the first HTML comment in src.
+@@ -878,7 +878,7 @@ func serveHTMLDoc(c *http.Conn, r *http.Request, abspath, relpath string) {
+ 
+ 	// if it begins with "<!DOCTYPE " assume it is standalone
+ 	// html that doesn't need the template wrapping.
+-	if bytes.HasPrefix(src, strings.Bytes("<!DOCTYPE ")) {
++	if bytes.HasPrefix(src, []byte("<!DOCTYPE ")) {
+ 		c.Write(src)
+ 		return
+ 	}
+diff --git a/src/cmd/godoc/index.go b/src/cmd/godoc/index.go
+index dcad67a95a..01ec298781 100644
+--- a/src/cmd/godoc/index.go
++++ b/src/cmd/godoc/index.go
+@@ -696,7 +696,7 @@ func (x *Index) LookupWord(w string) (match *LookupResult, alt *AltWords) {
+ 
+ func isIdentifier(s string) bool {
+ 	var S scanner.Scanner
+-	S.Init("", strings.Bytes(s), nil, 0)
++	S.Init("", []byte(s), nil, 0)
+ 	if _, tok, _ := S.Scan(); tok == token.IDENT {
+ 		_, tok, _ := S.Scan()
+ 		return tok == token.EOF
+diff --git a/src/cmd/godoc/snippet.go b/src/cmd/godoc/snippet.go
+index 102878dc5c..d8fb195338 100755
+--- a/src/cmd/godoc/snippet.go
++++ b/src/cmd/godoc/snippet.go
+@@ -14,7 +14,6 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"fmt"
+-	"strings"
+ )
+ 
+ 
+@@ -36,7 +35,7 @@ func (s *snippetStyler) LineTag(line int) (text []uint8, tag printer.HTMLTag) {
+ 
+ 
+ func (s *snippetStyler) Ident(id *ast.Ident) (text []byte, tag printer.HTMLTag) {
+-	text = strings.Bytes(id.Name())
++	text = []byte(id.Name())
+ 	if s.highlight == id {
+ 		tag = printer.HTMLTag{"<span class=highlight>", "</span>"}
+ 	}
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index 15f3cba20d..2298fae2ce 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -16,7 +16,6 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"io"
+-	"strings"
+ )
+ 
+ 
+@@ -166,8 +165,8 @@ func (p *ebnfParser) parse(out io.Writer, src []byte) {
+ 
+ // Markers around EBNF sections
+ var (
+-	openTag  = strings.Bytes(`<pre class="ebnf">`)
+-	closeTag = strings.Bytes(`</pre>`)
++	openTag  = []byte(`<pre class="ebnf">`)
++	closeTag = []byte(`</pre>`)
+ )
+ 
+ 
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 719e3d87ec..88eee11390 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -161,7 +160,7 @@ func TestPartialRead(t *testing.T) {
+ 	if _, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err)
+ 	}
+-	if expected := strings.Bytes("Kilt"); !bytes.Equal(buf, expected) {
++	if expected := []byte("Kilt"); !bytes.Equal(buf, expected) {
+ 		t.Errorf("Contents = %v, want %v", buf, expected)
+ 	}
+ 
+@@ -174,7 +173,7 @@ func TestPartialRead(t *testing.T) {
+ 	if _, err := io.ReadFull(tr, buf); err != nil {
+ 		t.Fatalf("Unexpected error: %v", err)
+ 	}
+-	if expected := strings.Bytes("Google"); !bytes.Equal(buf, expected) {
++	if expected := []byte("Google"); !bytes.Equal(buf, expected) {
+ 		t.Errorf("Contents = %v, want %v", buf, expected)
+ 	}
+ }
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 88f9c72bd1..e02695256e 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"strconv"
+-	"strings"
+ )
+ 
+ var (
+@@ -72,7 +71,7 @@ func (tw *Writer) cString(b []byte, s string) {
+ 		}
+ 		return
+ 	}
+-	for i, ch := range strings.Bytes(s) {
++	for i, ch := range []byte(s) {
+ 		b[i] = ch
+ 	}
+ 	if len(s) < len(b) {
+@@ -128,25 +127,25 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	s := slicer(header)
+ 
+ 	// TODO(dsymonds): handle names longer than 100 chars
+-	copy(s.next(100), strings.Bytes(hdr.Name))
+-
+-	tw.octal(s.next(8), hdr.Mode)                 // 100:108
+-	tw.numeric(s.next(8), hdr.Uid)                // 108:116
+-	tw.numeric(s.next(8), hdr.Gid)                // 116:124
+-	tw.numeric(s.next(12), hdr.Size)              // 124:136
+-	tw.numeric(s.next(12), hdr.Mtime)             // 136:148
+-	s.next(8)                                     // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag                   // 156:157
+-	s.next(100)                                   // linkname (157:257)
+-	copy(s.next(8), strings.Bytes("ustar\x0000")) // 257:265
+-	tw.cString(s.next(32), hdr.Uname)             // 265:297
+-	tw.cString(s.next(32), hdr.Gname)             // 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor)           // 329:337
+-	tw.numeric(s.next(8), hdr.Devminor)           // 337:345
++	copy(s.next(100), []byte(hdr.Name))
++
++	tw.octal(s.next(8), hdr.Mode)          // 100:108
++	tw.numeric(s.next(8), hdr.Uid)         // 108:116
++	tw.numeric(s.next(8), hdr.Gid)         // 116:124
++	tw.numeric(s.next(12), hdr.Size)       // 124:136
++	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
++	s.next(8)                              // chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag            // 156:157
++	s.next(100)                            // linkname (157:257)
++	copy(s.next(8), []byte("ustar\x0000")) // 257:265
++	tw.cString(s.next(32), hdr.Uname)      // 265:297
++	tw.cString(s.next(32), hdr.Gname)      // 297:329
++	tw.numeric(s.next(8), hdr.Devmajor)    // 329:337
++	tw.numeric(s.next(8), hdr.Devminor)    // 337:345
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {
+-		copy(header[257:265], strings.Bytes("ustar  \x00"))
++		copy(header[257:265], []byte("ustar  \x00"))
+ 	}
+ 
+ 	// The chksum field is terminated by a NUL and a space.
+diff --git a/src/pkg/asn1/asn1_test.go b/src/pkg/asn1/asn1_test.go
+index d5779d017b..bb380ca0b8 100644
+--- a/src/pkg/asn1/asn1_test.go
++++ b/src/pkg/asn1/asn1_test.go
+@@ -7,7 +7,6 @@ package asn1
+ import (
+ 	"bytes"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -165,7 +164,7 @@ var timeTestData = []timeTest{
+ 
+ func TestTime(t *testing.T) {
+ 	for i, test := range timeTestData {
+-		ret, err := parseUTCTime(strings.Bytes(test.in))
++		ret, err := parseUTCTime([]byte(test.in))
+ 		if (err == nil) != test.ok {
+ 			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
+ 		}
+diff --git a/src/pkg/asn1/marshal.go b/src/pkg/asn1/marshal.go
+index 0ee593ef8d..a8a1fb6986 100644
+--- a/src/pkg/asn1/marshal.go
++++ b/src/pkg/asn1/marshal.go
+@@ -10,7 +10,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
+-	"strings"
+ 	"time"
+ )
+ 
+@@ -209,7 +208,7 @@ func marshalObjectIdentifier(out *forkableWriter, oid []int) (err os.Error) {
+ }
+ 
+ func marshalPrintableString(out *forkableWriter, s string) (err os.Error) {
+-	b := strings.Bytes(s)
++	b := []byte(s)
+ 	for _, c := range b {
+ 		if !isPrintable(c) {
+ 			return StructuralError{"PrintableString contains invalid character"}
+@@ -221,7 +220,7 @@ func marshalPrintableString(out *forkableWriter, s string) (err os.Error) {
+ }
+ 
+ func marshalIA5String(out *forkableWriter, s string) (err os.Error) {
+-	b := strings.Bytes(s)
++	b := []byte(s)
+ 	for _, c := range b {
+ 		if c > 127 {
+ 			return StructuralError{"IA5String contains invalid character"}
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 83152e9265..0ee8ce6b39 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -296,7 +296,7 @@ var errorWriterTests = []errorWriterTest{
+ func TestWriteErrors(t *testing.T) {
+ 	for _, w := range errorWriterTests {
+ 		buf := NewWriter(w)
+-		_, e := buf.Write(strings.Bytes("hello world"))
++		_, e := buf.Write([]byte("hello world"))
+ 		if e != nil {
+ 			t.Errorf("Write hello to %v: %v", w, e)
+ 			continue
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 5a76813e99..51bed4e508 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -6,7 +6,6 @@ package bytes_test
+ 
+ import (
+ 	. "bytes"
+-	"strings"
+ 	"testing"
+ 	"unicode"
+ )
+@@ -60,8 +59,8 @@ var comparetests = []BinOpTest{
+ 
+ func TestCompare(t *testing.T) {
+ 	for _, tt := range comparetests {
+-		a := strings.Bytes(tt.a)
+-		b := strings.Bytes(tt.b)
++		a := []byte(tt.a)
++		b := []byte(tt.b)
+ 		cmp := Compare(a, b)
+ 		eql := Equal(a, b)
+ 		if cmp != tt.i {
+@@ -94,8 +93,8 @@ var indextests = []BinOpTest{
+ 
+ func TestIndex(t *testing.T) {
+ 	for _, tt := range indextests {
+-		a := strings.Bytes(tt.a)
+-		b := strings.Bytes(tt.b)
++		a := []byte(tt.a)
++		b := []byte(tt.b)
+ 		pos := Index(a, b)
+ 		if pos != tt.i {
+ 			t.Errorf(`Index(%q, %q) = %v`, tt.a, tt.b, pos)
+@@ -108,7 +107,7 @@ func TestIndexByte(t *testing.T) {
+ 		if len(tt.b) != 1 {
+ 			continue
+ 		}
+-		a := strings.Bytes(tt.a)
++		a := []byte(tt.a)
+ 		b := tt.b[0]
+ 		pos := IndexByte(a, b)
+ 		if pos != tt.i {
+@@ -171,7 +170,7 @@ var explodetests = []ExplodeTest{
+ 
+ func TestExplode(t *testing.T) {
+ 	for _, tt := range explodetests {
+-		a := Split(strings.Bytes(tt.s), nil, tt.n)
++		a := Split([]byte(tt.s), nil, tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Explode("%s", %d) = %v; want %v`, tt.s, tt.n, result, tt.a)
+@@ -210,13 +209,13 @@ var splittests = []SplitTest{
+ 
+ func TestSplit(t *testing.T) {
+ 	for _, tt := range splittests {
+-		a := Split(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n)
++		a := Split([]byte(tt.s), []byte(tt.sep), tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
+-		s := Join(a, strings.Bytes(tt.sep))
++		s := Join(a, []byte(tt.sep))
+ 		if string(s) != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+ 		}
+@@ -241,7 +240,7 @@ var splitaftertests = []SplitTest{
+ 
+ func TestSplitAfter(t *testing.T) {
+ 	for _, tt := range splitaftertests {
+-		a := SplitAfter(strings.Bytes(tt.s), strings.Bytes(tt.sep), tt.n)
++		a := SplitAfter([]byte(tt.s), []byte(tt.sep), tt.n)
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+@@ -275,7 +274,7 @@ var fieldstests = []FieldsTest{
+ 
+ func TestFields(t *testing.T) {
+ 	for _, tt := range fieldstests {
+-		a := Fields(strings.Bytes(tt.s))
++		a := Fields([]byte(tt.s))
+ 		result := arrayOfString(a)
+ 		if !eq(result, tt.a) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+@@ -434,7 +433,7 @@ func TestAdd(t *testing.T) {
+ 		for i := 0; i < len(test.s); i++ {
+ 			b[i] = test.s[i]
+ 		}
+-		b = Add(b, strings.Bytes(test.t))
++		b = Add(b, []byte(test.t))
+ 		if string(b) != test.s+test.t {
+ 			t.Errorf("Add(%q,%q) = %q", test.s, test.t, string(b))
+ 		}
+@@ -474,8 +473,8 @@ var RepeatTests = []RepeatTest{
+ 
+ func TestRepeat(t *testing.T) {
+ 	for _, tt := range RepeatTests {
+-		tin := strings.Bytes(tt.in)
+-		tout := strings.Bytes(tt.out)
++		tin := []byte(tt.in)
++		tout := []byte(tt.out)
+ 		a := Repeat(tin, tt.count)
+ 		if !Equal(a, tout) {
+ 			t.Errorf("Repeat(%q, %d) = %q; want %q", tin, tt.count, a, tout)
+@@ -514,7 +513,7 @@ var RunesTests = []RunesTest{
+ 
+ func TestRunes(t *testing.T) {
+ 	for _, tt := range RunesTests {
+-		tin := strings.Bytes(tt.in)
++		tin := []byte(tt.in)
+ 		a := Runes(tin)
+ 		if !runesEqual(a, tt.out) {
+ 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index 3a9843fd59..60c9f43dbb 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -7,7 +7,6 @@ package gzip
+ import (
+ 	"io"
+ 	"io/ioutil"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -53,10 +52,10 @@ func TestWriter(t *testing.T) {
+ 	pipe(t,
+ 		func(deflater *Deflater) {
+ 			deflater.Comment = "comment"
+-			deflater.Extra = strings.Bytes("extra")
++			deflater.Extra = []byte("extra")
+ 			deflater.Mtime = 1e8
+ 			deflater.Name = "name"
+-			_, err := deflater.Write(strings.Bytes("payload"))
++			_, err := deflater.Write([]byte("payload"))
+ 			if err != nil {
+ 				t.Fatalf("%v", err)
+ 			}
+diff --git a/src/pkg/crypto/hmac/hmac_test.go b/src/pkg/crypto/hmac/hmac_test.go
+index 98e32df016..d867c83a96 100644
+--- a/src/pkg/crypto/hmac/hmac_test.go
++++ b/src/pkg/crypto/hmac/hmac_test.go
+@@ -7,7 +7,6 @@ package hmac
+ import (
+ 	"hash"
+ 	"fmt"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -33,7 +32,7 @@ var hmacTests = []hmacTest{
+ 			0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+ 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+ 		},
+-		strings.Bytes("Sample #1"),
++		[]byte("Sample #1"),
+ 		"4f4ca3d5d68ba7cc0a1208c9c61e9c5da0403c0a",
+ 	},
+ 	hmacTest{
+@@ -43,7 +42,7 @@ var hmacTests = []hmacTest{
+ 			0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+ 			0x40, 0x41, 0x42, 0x43,
+ 		},
+-		strings.Bytes("Sample #2"),
++		[]byte("Sample #2"),
+ 		"0922d3405faa3d194f82a45830737d5cc6c75d24",
+ 	},
+ 	hmacTest{
+@@ -63,15 +62,15 @@ var hmacTests = []hmacTest{
+ 			0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+ 			0xb0, 0xb1, 0xb2, 0xb3,
+ 		},
+-		strings.Bytes("Sample #3"),
++		[]byte("Sample #3"),
+ 		"bcf41eab8bb2d802f3d05caf7cb092ecf8d1a3aa",
+ 	},
+ 
+ 	// Test from Plan 9.
+ 	hmacTest{
+ 		NewMD5,
+-		strings.Bytes("Jefe"),
+-		strings.Bytes("what do ya want for nothing?"),
++		[]byte("Jefe"),
++		[]byte("what do ya want for nothing?"),
+ 		"750c783e6ab0b503eaa86e310a5db738",
+ 	},
+ }
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index 6bdd648765..69edeaa2ee 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -12,14 +12,13 @@ import (
+ 	"encoding/hex"
+ 	"os"
+ 	"io"
+-	"strings"
+ 	"testing"
+ 	"testing/quick"
+ )
+ 
+ func decodeBase64(in string) []byte {
+ 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)))
+-	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in))
++	n, err := base64.StdEncoding.Decode(out, []byte(in))
+ 	if err != nil {
+ 		return nil
+ 	}
+@@ -56,7 +55,7 @@ func TestDecryptPKCS1v15(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("#%d error decrypting", i)
+ 		}
+-		want := strings.Bytes(test.out)
++		want := []byte(test.out)
+ 		if bytes.Compare(out, want) != 0 {
+ 			t.Errorf("#%d got:%#v want:%#v", i, out, want)
+ 		}
+@@ -125,12 +124,12 @@ var decryptPKCS1v15SessionKeyTests = []DecryptPKCS1v15Test{
+ 
+ func TestEncryptPKCS1v15SessionKey(t *testing.T) {
+ 	for i, test := range decryptPKCS1v15SessionKeyTests {
+-		key := strings.Bytes("FAIL")
++		key := []byte("FAIL")
+ 		err := DecryptPKCS1v15SessionKey(nil, rsaPrivateKey, decodeBase64(test.in), key)
+ 		if err != nil {
+ 			t.Errorf("#%d error decrypting", i)
+ 		}
+-		want := strings.Bytes(test.out)
++		want := []byte(test.out)
+ 		if bytes.Compare(key, want) != 0 {
+ 			t.Errorf("#%d got:%#v want:%#v", i, key, want)
+ 		}
+@@ -169,7 +168,7 @@ var signPKCS1v15Tests = []signPKCS1v15Test{
+ func TestSignPKCS1v15(t *testing.T) {
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+-		h.Write(strings.Bytes(test.in))
++		h.Write([]byte(test.in))
+ 		digest := h.Sum()
+ 
+ 		s, err := SignPKCS1v15(nil, rsaPrivateKey, HashSHA1, digest)
+@@ -187,7 +186,7 @@ func TestSignPKCS1v15(t *testing.T) {
+ func TestVerifyPKCS1v15(t *testing.T) {
+ 	for i, test := range signPKCS1v15Tests {
+ 		h := sha1.New()
+-		h.Write(strings.Bytes(test.in))
++		h.Write([]byte(test.in))
+ 		digest := h.Sum()
+ 
+ 		sig, _ := hex.DecodeString(test.out)
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index 10d2ba3e26..966314857f 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -4,8 +4,6 @@
+ 
+ package tls
+ 
+-import "strings"
+-
+ type clientHelloMsg struct {
+ 	raw                []byte
+ 	major, minor       uint8
+@@ -100,7 +98,7 @@ func (m *clientHelloMsg) marshal() []byte {
+ 		z[1] = 1
+ 		z[3] = byte(len(m.serverName) >> 8)
+ 		z[4] = byte(len(m.serverName))
+-		copy(z[5:], strings.Bytes(m.serverName))
++		copy(z[5:], []byte(m.serverName))
+ 		z = z[l:]
+ 	}
+ 
+@@ -280,7 +278,7 @@ func (m *serverHelloMsg) marshal() []byte {
+ 				l = 255
+ 			}
+ 			z[0] = byte(l)
+-			copy(z[1:], strings.Bytes(v[0:l]))
++			copy(z[1:], []byte(v[0:l]))
+ 			z = z[1+l:]
+ 		}
+ 	}
+@@ -548,7 +546,7 @@ func (m *nextProtoMsg) marshal() []byte {
+ 
+ 	y := x[4:]
+ 	y[0] = byte(l)
+-	copy(y[1:], strings.Bytes(m.proto[0:l]))
++	copy(y[1:], []byte(m.proto[0:l]))
+ 	y = y[1+l:]
+ 	y[0] = byte(padding)
+ 
+diff --git a/src/pkg/crypto/tls/prf.go b/src/pkg/crypto/tls/prf.go
+index 6b9c44c077..ee6cb780b4 100644
+--- a/src/pkg/crypto/tls/prf.go
++++ b/src/pkg/crypto/tls/prf.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/sha1"
+ 	"hash"
+ 	"os"
+-	"strings"
+ )
+ 
+ // Split a premaster secret in two as specified in RFC 4346, section 5.
+@@ -70,10 +69,10 @@ const (
+ 	finishedVerifyLength = 12 // Length of verify_data in a Finished message.
+ )
+ 
+-var masterSecretLabel = strings.Bytes("master secret")
+-var keyExpansionLabel = strings.Bytes("key expansion")
+-var clientFinishedLabel = strings.Bytes("client finished")
+-var serverFinishedLabel = strings.Bytes("server finished")
++var masterSecretLabel = []byte("master secret")
++var keyExpansionLabel = []byte("key expansion")
++var clientFinishedLabel = []byte("client finished")
++var serverFinishedLabel = []byte("server finished")
+ 
+ // keysFromPreMasterSecret generates the connection keys from the pre master
+ // secret, given the lengths of the MAC and cipher keys, as defined in RFC
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index f486a5a68e..5b526de4d9 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -735,7 +735,7 @@ func buildExtensions(template *Certificate) (ret []extension, err os.Error) {
+ 		ret[n].Id = oidExtensionSubjectAltName
+ 		rawValues := make([]asn1.RawValue, len(template.DNSNames))
+ 		for i, name := range template.DNSNames {
+-			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: strings.Bytes(name)}
++			rawValues[i] = asn1.RawValue{Tag: 2, Class: 2, Bytes: []byte(name)}
+ 		}
+ 		ret[n].Value, err = asn1.MarshalToMemory(rawValues)
+ 		if err != nil {
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index 49560267b7..e0ae37736e 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -11,13 +11,12 @@ import (
+ 	"encoding/pem"
+ 	"os"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
+ func TestParsePKCS1PrivateKey(t *testing.T) {
+-	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
++	block, _ := pem.Decode([]byte(pemPrivateKey))
+ 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
+ 	if err != nil {
+ 		t.Errorf("Failed to parse private key: %s", err)
+@@ -151,7 +150,7 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 		t.Errorf("failed to open /dev/urandom")
+ 	}
+ 
+-	block, _ := pem.Decode(strings.Bytes(pemPrivateKey))
++	block, _ := pem.Decode([]byte(pemPrivateKey))
+ 	priv, err := ParsePKCS1PrivateKey(block.Bytes)
+ 	if err != nil {
+ 		t.Errorf("Failed to parse private key: %s", err)
+diff --git a/src/pkg/ebnf/ebnf_test.go b/src/pkg/ebnf/ebnf_test.go
+index e6f670530d..a88d19bed8 100644
+--- a/src/pkg/ebnf/ebnf_test.go
++++ b/src/pkg/ebnf/ebnf_test.go
+@@ -6,7 +6,6 @@ package ebnf
+ 
+ import (
+ 	"io/ioutil"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -53,7 +52,7 @@ func check(t *testing.T, filename string, src []byte) {
+ 
+ func TestGrammars(t *testing.T) {
+ 	for _, src := range grammars {
+-		check(t, "", strings.Bytes(src))
++		check(t, "", []byte(src))
+ 	}
+ }
+ 
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 3219d49e0f..738e1cc1bd 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -57,7 +56,7 @@ func strip85(s string) string {
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		buf := make([]byte, MaxEncodedLen(len(p.decoded)))
+-		n := Encode(buf, strings.Bytes(p.decoded))
++		n := Encode(buf, []byte(p.decoded))
+ 		buf = buf[0:n]
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, strip85(string(buf)), strip85(p.encoded))
+ 	}
+@@ -67,14 +66,14 @@ func TestEncoder(t *testing.T) {
+ 	for _, p := range pairs {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(bb)
+-		encoder.Write(strings.Bytes(p.decoded))
++		encoder.Write([]byte(p.decoded))
+ 		encoder.Close()
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, strip85(bb.String()), strip85(p.encoded))
+ 	}
+ }
+ 
+ func TestEncoderBuffering(t *testing.T) {
+-	input := strings.Bytes(bigtest.decoded)
++	input := []byte(bigtest.decoded)
+ 	for bs := 1; bs <= 12; bs++ {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(bb)
+@@ -96,7 +95,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, 4*len(p.encoded))
+-		ndst, nsrc, err := Decode(dbuf, strings.Bytes(p.encoded), true)
++		ndst, nsrc, err := Decode(dbuf, []byte(p.encoded), true)
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
+ 		testEqual(t, "Decode(%q) = nsrc %v, want %v", p.encoded, nsrc, len(p.encoded))
+ 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded))
+@@ -145,7 +144,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, 4*len(e.e))
+-		_, _, err := Decode(dbuf, strings.Bytes(e.e), true)
++		_, _, err := Decode(dbuf, []byte(e.e), true)
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index f26f8f2ce5..c14785f1b4 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -58,7 +57,7 @@ func testEqual(t *testing.T, msg string, args ...interface{}) bool {
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)))
+-		StdEncoding.Encode(buf, strings.Bytes(p.decoded))
++		StdEncoding.Encode(buf, []byte(p.decoded))
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded)
+ 	}
+ }
+@@ -67,14 +66,14 @@ func TestEncoder(t *testing.T) {
+ 	for _, p := range pairs {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(StdEncoding, bb)
+-		encoder.Write(strings.Bytes(p.decoded))
++		encoder.Write([]byte(p.decoded))
+ 		encoder.Close()
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
+ 	}
+ }
+ 
+ func TestEncoderBuffering(t *testing.T) {
+-	input := strings.Bytes(bigtest.decoded)
++	input := []byte(bigtest.decoded)
+ 	for bs := 1; bs <= 12; bs++ {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(StdEncoding, bb)
+@@ -96,7 +95,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)))
+-		count, end, err := StdEncoding.decode(dbuf, strings.Bytes(p.encoded))
++		count, end, err := StdEncoding.decode(dbuf, []byte(p.encoded))
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
+ 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded))
+ 		if len(p.encoded) > 0 {
+@@ -153,7 +152,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)))
+-		_, err := StdEncoding.Decode(dbuf, strings.Bytes(e.e))
++		_, err := StdEncoding.Decode(dbuf, []byte(e.e))
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index 0eb65129d3..a31f14d3cf 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"io/ioutil"
+ 	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -61,7 +60,7 @@ var gitBigtest = gitPairs[len(gitPairs)-1]
+ func TestEncode(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		buf := make([]byte, EncodedLen(len(p.decoded)))
+-		n := Encode(buf, strings.Bytes(p.decoded))
++		n := Encode(buf, []byte(p.decoded))
+ 		if n != len(buf) {
+ 			t.Errorf("EncodedLen does not agree with Encode")
+ 		}
+@@ -74,14 +73,14 @@ func TestEncoder(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(bb)
+-		encoder.Write(strings.Bytes(p.decoded))
++		encoder.Write([]byte(p.decoded))
+ 		encoder.Close()
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, bb.String(), p.encoded)
+ 	}
+ }
+ 
+ func TestEncoderBuffering(t *testing.T) {
+-	input := strings.Bytes(gitBigtest.decoded)
++	input := []byte(gitBigtest.decoded)
+ 	for bs := 1; bs <= 12; bs++ {
+ 		bb := &bytes.Buffer{}
+ 		encoder := NewEncoder(bb)
+@@ -103,7 +102,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		dbuf := make([]byte, 4*len(p.encoded))
+-		ndst, err := Decode(dbuf, strings.Bytes(p.encoded))
++		ndst, err := Decode(dbuf, []byte(p.encoded))
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil))
+ 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded))
+ 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded)
+@@ -151,7 +150,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, 2*len(e.e))
+-		_, err := Decode(dbuf, strings.Bytes(e.e))
++		_, err := Decode(dbuf, []byte(e.e))
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p)
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+index 8a9271c237..1c52885e2e 100644
+--- a/src/pkg/encoding/hex/hex.go
++++ b/src/pkg/encoding/hex/hex.go
+@@ -8,7 +8,6 @@ package hex
+ import (
+ 	"os"
+ 	"strconv"
+-	"strings"
+ )
+ 
+ const hextable = "0123456789abcdef"
+@@ -92,7 +91,7 @@ func EncodeToString(src []byte) string {
+ 
+ // DecodeString returns the bytes represented by the hexadecimal string s.
+ func DecodeString(s string) ([]byte, os.Error) {
+-	src := strings.Bytes(s)
++	src := []byte(s)
+ 	dst := make([]byte, DecodedLen(len(src)))
+ 	_, err := Decode(dst, src)
+ 	if err != nil {
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index 6ef8f86612..359fe7d515 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -12,7 +12,6 @@ import (
+ 	"encoding/base64"
+ 	"io"
+ 	"os"
+-	"strings"
+ )
+ 
+ // A Block represents a PEM encoded structure.
+@@ -65,9 +64,9 @@ func removeWhitespace(data []byte) []byte {
+ 	return result[0:n]
+ }
+ 
+-var pemStart = strings.Bytes("\n-----BEGIN ")
+-var pemEnd = strings.Bytes("\n-----END ")
+-var pemEndOfLine = strings.Bytes("-----")
++var pemStart = []byte("\n-----BEGIN ")
++var pemEnd = []byte("\n-----END ")
++var pemEndOfLine = []byte("-----")
+ 
+ // Decode will find the next PEM formatted block (certificate, private key
+ // etc) in the input. It returns that block and the remainder of the input. If
+@@ -214,13 +213,13 @@ func Encode(out io.Writer, b *Block) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
++	_, err = out.Write([]byte(b.Type + "-----\n"))
+ 	if err != nil {
+ 		return
+ 	}
+ 
+ 	for k, v := range b.Headers {
+-		_, err = out.Write(strings.Bytes(k + ": " + v + "\n"))
++		_, err = out.Write([]byte(k + ": " + v + "\n"))
+ 		if err != nil {
+ 			return
+ 		}
+@@ -248,7 +247,7 @@ func Encode(out io.Writer, b *Block) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	_, err = out.Write(strings.Bytes(b.Type + "-----\n"))
++	_, err = out.Write([]byte(b.Type + "-----\n"))
+ 	return
+ }
+ 
+diff --git a/src/pkg/encoding/pem/pem_test.go b/src/pkg/encoding/pem/pem_test.go
+index c3afbd2fd2..42bd573d70 100644
+--- a/src/pkg/encoding/pem/pem_test.go
++++ b/src/pkg/encoding/pem/pem_test.go
+@@ -7,7 +7,6 @@ package pem
+ import (
+ 	"bytes"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -28,7 +27,7 @@ var getLineTests = []GetLineTest{
+ 
+ func TestGetLine(t *testing.T) {
+ 	for i, test := range getLineTests {
+-		x, y := getLine(strings.Bytes(test.in))
++		x, y := getLine([]byte(test.in))
+ 		if string(x) != test.out1 || string(y) != test.out2 {
+ 			t.Errorf("#%d got:%+v,%+v want:%s,%s", i, x, y, test.out1, test.out2)
+ 		}
+@@ -36,7 +35,7 @@ func TestGetLine(t *testing.T) {
+ }
+ 
+ func TestDecode(t *testing.T) {
+-	result, remainder := Decode(strings.Bytes(pemData))
++	result, remainder := Decode([]byte(pemData))
+ 	if !reflect.DeepEqual(result, certificate) {
+ 		t.Errorf("#0 got:%#v want:%#v", result, certificate)
+ 	}
+@@ -44,7 +43,7 @@ func TestDecode(t *testing.T) {
+ 	if !reflect.DeepEqual(result, privateKey) {
+ 		t.Errorf("#1 got:%#v want:%#v", result, privateKey)
+ 	}
+-	result, _ = Decode(strings.Bytes(pemPrivateKey))
++	result, _ = Decode([]byte(pemPrivateKey))
+ 	if !reflect.DeepEqual(result, privateKey2) {
+ 		t.Errorf("#2 got:%#v want:%#v", result, privateKey2)
+ 	}
+@@ -77,7 +76,7 @@ func TestLineBreaker(t *testing.T) {
+ 		buf := bytes.NewBuffer(nil)
+ 		var breaker lineBreaker
+ 		breaker.out = buf
+-		_, err := breaker.Write(strings.Bytes(test.in))
++		_, err := breaker.Write([]byte(test.in))
+ 		if err != nil {
+ 			t.Errorf("#%d: error from Write: %s", i, err)
+ 			continue
+@@ -99,7 +98,7 @@ func TestLineBreaker(t *testing.T) {
+ 		breaker.out = buf
+ 
+ 		for i := 0; i < len(test.in); i++ {
+-			_, err := breaker.Write(strings.Bytes(test.in[i : i+1]))
++			_, err := breaker.Write([]byte(test.in[i : i+1]))
+ 			if err != nil {
+ 				t.Errorf("#%d: error from Write (byte by byte): %s", i, err)
+ 				continue
+diff --git a/src/pkg/exp/datafmt/datafmt_test.go b/src/pkg/exp/datafmt/datafmt_test.go
+index d1c6222a0d..b109bca6e0 100644
+--- a/src/pkg/exp/datafmt/datafmt_test.go
++++ b/src/pkg/exp/datafmt/datafmt_test.go
+@@ -6,13 +6,12 @@ package datafmt
+ 
+ import (
+ 	"fmt"
+-	"strings"
+ 	"testing"
+ )
+ 
+ 
+ func parse(t *testing.T, form string, fmap FormatterMap) Format {
+-	f, err := Parse("", strings.Bytes(form), fmap)
++	f, err := Parse("", []byte(form), fmap)
+ 	if err != nil {
+ 		t.Errorf("Parse(%s): %v", form, err)
+ 		return nil
+@@ -52,7 +51,7 @@ func formatter(s *State, value interface{}, rule_name string) bool {
+ 	case "nil":
+ 		return false
+ 	case "testing.T":
+-		s.Write(strings.Bytes("testing.T"))
++		s.Write([]byte("testing.T"))
+ 		return true
+ 	}
+ 	panic("unreachable")
+diff --git a/src/pkg/exp/datafmt/parser.go b/src/pkg/exp/datafmt/parser.go
+index 6537716745..de1f1c2a6b 100644
+--- a/src/pkg/exp/datafmt/parser.go
++++ b/src/pkg/exp/datafmt/parser.go
+@@ -137,7 +137,7 @@ func (p *parser) parseString() string {
+ 
+ 
+ func (p *parser) parseLiteral() literal {
+-	s := strings.Bytes(p.parseString())
++	s := []byte(p.parseString())
+ 
+ 	// A string literal may contain %-format specifiers. To simplify
+ 	// and speed up printing of the literal, split it into segments
+diff --git a/src/pkg/exp/spacewar/spacewar.go b/src/pkg/exp/spacewar/spacewar.go
+index a86aa7f247..93cbe84886 100644
+--- a/src/pkg/exp/spacewar/spacewar.go
++++ b/src/pkg/exp/spacewar/spacewar.go
+@@ -32,7 +32,6 @@ import (
+ 	"log"
+ 	"os"
+ 	"runtime"
+-	"strings"
+ 	"time"
+ 	"./pdp1"
+ )
+@@ -53,7 +52,7 @@ func main() {
+ 	var m SpacewarPDP1
+ 	m.Init(w)
+ 	m.PC = 4
+-	f := bytes.NewBuffer(strings.Bytes(spacewarCode))
++	f := bytes.NewBuffer([]byte(spacewarCode))
+ 	if err = m.Load(f); err != nil {
+ 		log.Exitf("loading %s: %s", "spacewar.lst", err)
+ 	}
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 139036eb37..b54c25899f 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -66,12 +66,12 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%q", "abc", `"abc"`},
+ 
+ 	// basic bytes
+-	fmtTest{"%s", strings.Bytes("abc"), "abc"},
+-	fmtTest{"%x", strings.Bytes("abc"), "616263"},
+-	fmtTest{"% x", strings.Bytes("abc"), "61 62 63"},
+-	fmtTest{"%x", strings.Bytes("xyz"), "78797a"},
+-	fmtTest{"%X", strings.Bytes("xyz"), "78797A"},
+-	fmtTest{"%q", strings.Bytes("abc"), `"abc"`},
++	fmtTest{"%s", []byte("abc"), "abc"},
++	fmtTest{"%x", []byte("abc"), "616263"},
++	fmtTest{"% x", []byte("abc"), "61 62 63"},
++	fmtTest{"%x", []byte("xyz"), "78797a"},
++	fmtTest{"%X", []byte("xyz"), "78797A"},
++	fmtTest{"%q", []byte("abc"), `"abc"`},
+ 
+ 	// escaped strings
+ 	fmtTest{"%#q", `abc`, "`abc`"},
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 09622f715b..6e9ad0b04c 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -123,8 +123,8 @@ func split(text []byte) [][]byte {
+ 
+ 
+ var (
+-	ldquo = strings.Bytes("&ldquo;")
+-	rdquo = strings.Bytes("&rdquo;")
++	ldquo = []byte("&ldquo;")
++	rdquo = []byte("&rdquo;")
+ )
+ 
+ // Escape comment text for HTML.
+@@ -149,10 +149,10 @@ func commentEscape(w io.Writer, s []byte) {
+ 
+ 
+ var (
+-	html_p      = strings.Bytes("<p>\n")
+-	html_endp   = strings.Bytes("</p>\n")
+-	html_pre    = strings.Bytes("<pre>")
+-	html_endpre = strings.Bytes("</pre>\n")
++	html_p      = []byte("<p>\n")
++	html_endp   = []byte("</p>\n")
++	html_pre    = []byte("<pre>")
++	html_endpre = []byte("</pre>\n")
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 931f03de67..fcaa3dfdff 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -15,7 +15,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	pathutil "path"
+-	"strings"
+ )
+ 
+ 
+@@ -27,7 +26,7 @@ func readSource(filename string, src interface{}) ([]byte, os.Error) {
+ 	if src != nil {
+ 		switch s := src.(type) {
+ 		case string:
+-			return strings.Bytes(s), nil
++			return []byte(s), nil
+ 		case []byte:
+ 			return s, nil
+ 		case *bytes.Buffer:
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index f546f3f2a0..89b44f598c 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -12,7 +12,6 @@ import (
+ 	"bytes"
+ 	"go/ast"
+ 	"go/token"
+-	"strings"
+ )
+ 
+ 
+@@ -286,7 +285,7 @@ func (p *printer) isOneLineFieldList(list []*ast.Field) bool {
+ 
+ 
+ func (p *printer) setLineComment(text string) {
+-	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, strings.Bytes(text)}}})
++	p.setComment(&ast.CommentGroup{[]*ast.Comment{&ast.Comment{noPos, []byte(text)}}})
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 3db42e37b1..44bc3bb0ba 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -14,7 +14,6 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+-	"strings"
+ 	"tabwriter"
+ )
+ 
+@@ -45,11 +44,11 @@ var (
+ 	newlines  = [...]byte{'\n', '\n', '\n', '\n', '\n', '\n', '\n', '\n'} // more than maxNewlines
+ 	formfeeds = [...]byte{'\f', '\f', '\f', '\f', '\f', '\f', '\f', '\f'} // more than maxNewlines
+ 
+-	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
+-	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
+-	esc_amp  = strings.Bytes("&amp;")
+-	esc_lt   = strings.Bytes("&lt;")
+-	esc_gt   = strings.Bytes("&gt;")
++	esc_quot = []byte("&#34;") // shorter than "&quot;"
++	esc_apos = []byte("&#39;") // shorter than "&apos;"
++	esc_amp  = []byte("&amp;")
++	esc_lt   = []byte("&lt;")
++	esc_gt   = []byte("&gt;")
+ )
+ 
+ 
+@@ -223,12 +222,12 @@ func (p *printer) writeTaggedItem(data []byte, tag HTMLTag) {
+ 	// write start tag, if any
+ 	// (no html-escaping and no p.pos update for tags - use write0)
+ 	if tag.Start != "" {
+-		p.write0(strings.Bytes(tag.Start))
++		p.write0([]byte(tag.Start))
+ 	}
+ 	p.write(data)
+ 	// write end tag, if any
+ 	if tag.End != "" {
+-		p.write0(strings.Bytes(tag.End))
++		p.write0([]byte(tag.End))
+ 	}
+ }
+ 
+@@ -247,7 +246,7 @@ func (p *printer) writeItem(pos token.Position, data []byte, tag HTMLTag) {
+ 	}
+ 	if debug {
+ 		// do not update p.pos - use write0
+-		p.write0(strings.Bytes(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
++		p.write0([]byte(fmt.Sprintf("[%d:%d]", pos.Line, pos.Column)))
+ 	}
+ 	if p.Mode&GenHTML != 0 {
+ 		// write line tag if on a new line
+@@ -744,7 +743,7 @@ func (p *printer) print(args ...) {
+ 			if p.Styler != nil {
+ 				data, tag = p.Styler.Ident(x)
+ 			} else {
+-				data = strings.Bytes(x.Name())
++				data = []byte(x.Name())
+ 			}
+ 		case *ast.BasicLit:
+ 			if p.Styler != nil {
+@@ -756,12 +755,12 @@ func (p *printer) print(args ...) {
+ 			// (note that valid Go programs cannot contain esc ('\xff')
+ 			// bytes since they do not appear in legal UTF-8 sequences)
+ 			// TODO(gri): do this more efficiently.
+-			data = strings.Bytes("\xff" + string(data) + "\xff")
++			data = []byte("\xff" + string(data) + "\xff")
+ 		case token.Token:
+ 			if p.Styler != nil {
+ 				data, tag = p.Styler.Token(x)
+ 			} else {
+-				data = strings.Bytes(x.String())
++				data = []byte(x.String())
+ 			}
+ 			isKeyword = x.IsKeyword()
+ 		case token.Position:
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 5a7828e68a..fe342bcdf2 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -7,7 +7,6 @@ package scanner
+ import (
+ 	"go/token"
+ 	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -225,7 +224,7 @@ func TestScan(t *testing.T) {
+ 	// verify scan
+ 	index := 0
+ 	epos := token.Position{"", 0, 1, 1}
+-	nerrors := Tokenize("", strings.Bytes(src), &testErrorHandler{t}, ScanComments,
++	nerrors := Tokenize("", []byte(src), &testErrorHandler{t}, ScanComments,
+ 		func(pos token.Position, tok token.Token, litb []byte) bool {
+ 			e := elt{token.EOF, "", special}
+ 			if index < len(tokens) {
+@@ -264,7 +263,7 @@ func TestScan(t *testing.T) {
+ 
+ func checkSemi(t *testing.T, line string, mode uint) {
+ 	var S Scanner
+-	S.Init("TestSemis", strings.Bytes(line), nil, mode)
++	S.Init("TestSemis", []byte(line), nil, mode)
+ 	pos, tok, lit := S.Scan()
+ 	for tok != token.EOF {
+ 		if tok == token.ILLEGAL {
+@@ -451,7 +450,7 @@ func TestLineComments(t *testing.T) {
+ 
+ 	// verify scan
+ 	var S Scanner
+-	S.Init("TestLineComments", strings.Bytes(src), nil, 0)
++	S.Init("TestLineComments", []byte(src), nil, 0)
+ 	for _, s := range segments {
+ 		pos, _, lit := S.Scan()
+ 		checkPos(t, string(lit), pos, token.Position{s.filename, pos.Offset, s.line, pos.Column})
+@@ -468,7 +467,7 @@ func TestInit(t *testing.T) {
+ 	var s Scanner
+ 
+ 	// 1st init
+-	s.Init("", strings.Bytes("if true { }"), nil, 0)
++	s.Init("", []byte("if true { }"), nil, 0)
+ 	s.Scan()              // if
+ 	s.Scan()              // true
+ 	_, tok, _ := s.Scan() // {
+@@ -477,7 +476,7 @@ func TestInit(t *testing.T) {
+ 	}
+ 
+ 	// 2nd init
+-	s.Init("", strings.Bytes("go true { ]"), nil, 0)
++	s.Init("", []byte("go true { ]"), nil, 0)
+ 	_, tok, _ = s.Scan() // go
+ 	if tok != token.GO {
+ 		t.Errorf("bad token: got %s, expected %s", tok.String(), token.GO)
+@@ -493,7 +492,7 @@ func TestIllegalChars(t *testing.T) {
+ 	var s Scanner
+ 
+ 	const src = "*?*$*@*"
+-	s.Init("", strings.Bytes(src), &testErrorHandler{t}, AllowIllegalChars)
++	s.Init("", []byte(src), &testErrorHandler{t}, AllowIllegalChars)
+ 	for offs, ch := range src {
+ 		pos, tok, lit := s.Scan()
+ 		if pos.Offset != offs {
+@@ -521,7 +520,7 @@ func TestStdErrorHander(t *testing.T) {
+ 		"@ @ @" // original file, line 1 again
+ 
+ 	v := new(ErrorVector)
+-	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
++	nerrors := Tokenize("File1", []byte(src), v, 0,
+ 		func(pos token.Position, tok token.Token, litb []byte) bool {
+ 			return tok != token.EOF
+ 		})
+@@ -567,7 +566,7 @@ func (h *errorCollector) Error(pos token.Position, msg string) {
+ func checkError(t *testing.T, src string, tok token.Token, pos int, err string) {
+ 	var s Scanner
+ 	var h errorCollector
+-	s.Init("", strings.Bytes(src), &h, ScanComments)
++	s.Init("", []byte(src), &h, ScanComments)
+ 	_, tok0, _ := s.Scan()
+ 	_, tok1, _ := s.Scan()
+ 	if tok0 != tok {
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 1c4fe1fc79..2ab46a7b0b 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -298,7 +298,7 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// bytes == []uint8
+ 	{
+ 		b.Reset()
+-		data := struct{ a []byte }{strings.Bytes("hello")}
++		data := struct{ a []byte }{[]byte("hello")}
+ 		instr := &encInstr{encUint8Array, 6, 0, 0}
+ 		state := newencoderState(b)
+ 		instr.op(instr, state, unsafe.Pointer(&data))
+@@ -587,7 +587,7 @@ func TestEndToEnd(t *testing.T) {
+ 		strs: &[2]string{s1, s2},
+ 		int64s: &[]int64{77, 89, 123412342134},
+ 		s: "Now is the time",
+-		y: strings.Bytes("hello, sailor"),
++		y: []byte("hello, sailor"),
+ 		t: &T2{"this is T2"},
+ 	}
+ 	b := new(bytes.Buffer)
+@@ -935,7 +935,7 @@ func TestIgnoredFields(t *testing.T) {
+ 	it0.ignore_e[2] = 3.0
+ 	it0.ignore_f = true
+ 	it0.ignore_g = "pay no attention"
+-	it0.ignore_h = strings.Bytes("to the curtain")
++	it0.ignore_h = []byte("to the curtain")
+ 	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"}
+ 
+ 	b := new(bytes.Buffer)
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 96bd4458ba..fe61d20733 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -46,7 +46,7 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 	if len(info) > 0 {
+ 		enc := base64.URLEncoding
+ 		encoded := make([]byte, enc.EncodedLen(len(info)))
+-		enc.Encode(encoded, strings.Bytes(info))
++		enc.Encode(encoded, []byte(info))
+ 		if req.Header == nil {
+ 			req.Header = make(map[string]string)
+ 		}
+diff --git a/src/pkg/http/lex.go b/src/pkg/http/lex.go
+index 46e0519576..d25c4e4038 100644
+--- a/src/pkg/http/lex.go
++++ b/src/pkg/http/lex.go
+@@ -4,10 +4,6 @@
+ 
+ package http
+ 
+-import (
+-	"strings"
+-)
+-
+ // This file deals with lexical matters of HTTP
+ 
+ func isSeparator(c byte) bool {
+@@ -112,7 +108,7 @@ func httpUnquote(raw []byte) (eaten int, result string) {
+ // the input string might be parsed. result is always non-nil.
+ func httpSplitFieldValue(fv string) (eaten int, result []string) {
+ 	result = make([]string, 0, len(fv))
+-	raw := strings.Bytes(fv)
++	raw := []byte(fv)
+ 	i := 0
+ 	chunk := ""
+ 	for i < len(raw) {
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 2110dfd525..9f18acb3b7 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -376,7 +376,7 @@ func CanonicalHeaderKey(s string) string {
+ 	// and upper case after each dash.
+ 	// (Host, User-Agent, If-Modified-Since).
+ 	// HTTP headers are ASCII only, so no Unicode issues.
+-	a := strings.Bytes(s)
++	a := []byte(s)
+ 	upper := true
+ 	for i, v := range a {
+ 		if upper && 'a' <= v && v <= 'z' {
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 40ea86549c..1f22bf30a1 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -70,7 +70,7 @@ func shouldEscape(c byte) bool {
+ // CanonicalPath applies the algorithm specified in RFC 2396 to
+ // simplify the path, removing unnecessary  . and .. elements.
+ func CanonicalPath(path string) string {
+-	buf := strings.Bytes(path)
++	buf := []byte(path)
+ 	a := buf[0:0]
+ 	// state helps to find /.. ^.. ^. and /. patterns.
+ 	// state == 1 - prev char is '/' or beginning of the string.
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 4357d5c6fb..dcdc883b1b 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -8,10 +8,7 @@
+ // abstract the functionality, plus some other related primitives.
+ package io
+ 
+-import (
+-	"os"
+-	"strings"
+-)
++import "os"
+ 
+ // Error represents an unexpected I/O behavior.
+ type Error struct {
+@@ -160,7 +157,7 @@ type ReadByter interface {
+ 
+ // WriteString writes the contents of the string s to w, which accepts an array of bytes.
+ func WriteString(w Writer, s string) (n int, err os.Error) {
+-	return w.Write(strings.Bytes(s))
++	return w.Write([]byte(s))
+ }
+ 
+ // ReadAtLeast reads from r into buf until it has read at least min bytes.
+diff --git a/src/pkg/io/ioutil/ioutil_test.go b/src/pkg/io/ioutil/ioutil_test.go
+index 1deffe83eb..cc6075f9e6 100644
+--- a/src/pkg/io/ioutil/ioutil_test.go
++++ b/src/pkg/io/ioutil/ioutil_test.go
+@@ -7,7 +7,6 @@ package ioutil_test
+ import (
+ 	. "io/ioutil"
+ 	"os"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -43,7 +42,7 @@ func TestWriteFile(t *testing.T) {
+ 		"build bigger and better idiot-proof programs, and the Universe trying " +
+ 		"to produce bigger and better idiots. So far, the Universe is winning."
+ 
+-	if err := WriteFile(filename, strings.Bytes(data), 0644); err != nil {
++	if err := WriteFile(filename, []byte(data), 0644); err != nil {
+ 		t.Fatalf("WriteFile %s: %v", filename, err)
+ 	}
+ 
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index b0ee0f20b3..27eb061d48 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	. "io"
+ 	"os"
+-	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -29,7 +28,7 @@ func TestPipe1(t *testing.T) {
+ 	c := make(chan int)
+ 	r, w := Pipe()
+ 	var buf = make([]byte, 64)
+-	go checkWrite(t, w, strings.Bytes("hello, world"), c)
++	go checkWrite(t, w, []byte("hello, world"), c)
+ 	n, err := r.Read(buf)
+ 	if err != nil {
+ 		t.Errorf("read: %v", err)
+diff --git a/src/pkg/net/dialgoogle_test.go b/src/pkg/net/dialgoogle_test.go
+index dfcc8f01e3..03641817d0 100644
+--- a/src/pkg/net/dialgoogle_test.go
++++ b/src/pkg/net/dialgoogle_test.go
+@@ -7,7 +7,6 @@ package net
+ import (
+ 	"flag"
+ 	"io"
+-	"strings"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -18,7 +17,7 @@ var ipv6 = flag.Bool("ipv6", false, "assume ipv6 tunnel is present")
+ // fd is already connected to the destination, port 80.
+ // Run an HTTP request to fetch the appropriate page.
+ func fetchGoogle(t *testing.T, fd Conn, network, addr string) {
+-	req := strings.Bytes("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n")
++	req := []byte("GET /intl/en/privacy.html HTTP/1.0\r\nHost: www.google.com\r\n\r\n")
+ 	n, err := fd.Write(req)
+ 
+ 	buf := make([]byte, 1000)
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index ae26e496a6..8e34945881 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -65,7 +65,7 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
+ 
+ 	var b []byte
+ 	if !isEmpty {
+-		b = strings.Bytes("hello, world\n")
++		b = []byte("hello, world\n")
+ 	}
+ 	var b1 [100]byte
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 4a84c4f18d..47661c44ad 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -468,7 +468,7 @@ func TestTruncate(t *testing.T) {
+ 	}
+ 
+ 	checkSize(t, Path, 0)
+-	fd.Write(strings.Bytes("hello, world\n"))
++	fd.Write([]byte("hello, world\n"))
+ 	checkSize(t, Path, 13)
+ 	fd.Truncate(10)
+ 	checkSize(t, Path, 10)
+@@ -476,7 +476,7 @@ func TestTruncate(t *testing.T) {
+ 	checkSize(t, Path, 1024)
+ 	fd.Truncate(0)
+ 	checkSize(t, Path, 0)
+-	fd.Write(strings.Bytes("surprise!"))
++	fd.Write([]byte("surprise!"))
+ 	checkSize(t, Path, 13+9) // wrote at offset past where hello, world was.
+ 	fd.Close()
+ 	Remove(Path)
+@@ -688,7 +688,7 @@ func TestWriteAt(t *testing.T) {
+ 	const data = "hello, world\n"
+ 	io.WriteString(f, data)
+ 
+-	n, err := f.WriteAt(strings.Bytes("WORLD"), 7)
++	n, err := f.WriteAt([]byte("WORLD"), 7)
+ 	if err != nil || n != 5 {
+ 		t.Fatalf("WriteAt 7: %d, %v", n, err)
+ 	}
+diff --git a/src/pkg/patch/patch_test.go b/src/pkg/patch/patch_test.go
+index 49a5c76d45..afc0ea71c0 100644
+--- a/src/pkg/patch/patch_test.go
++++ b/src/pkg/patch/patch_test.go
+@@ -6,10 +6,7 @@ package patch
+ 
+ // TODO(rsc): test Apply
+ 
+-import (
+-	"strings"
+-	"testing"
+-)
++import "testing"
+ 
+ type Test struct {
+ 	in   string
+@@ -19,7 +16,7 @@ type Test struct {
+ 
+ func TestFileApply(t *testing.T) {
+ 	for i, test := range tests {
+-		set, err := Parse(strings.Bytes(test.diff))
++		set, err := Parse([]byte(test.diff))
+ 		if err != nil {
+ 			t.Errorf("#%d: Parse: %s", i, err)
+ 			continue
+@@ -28,7 +25,7 @@ func TestFileApply(t *testing.T) {
+ 			t.Errorf("#%d: Parse returned %d patches, want 1", i, len(set.File))
+ 			continue
+ 		}
+-		new, err := set.File[0].Apply(strings.Bytes(test.in))
++		new, err := set.File[0].Apply([]byte(test.in))
+ 		if err != nil {
+ 			t.Errorf("#%d: Apply: %s", i, err)
+ 			continue
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index c45f77be55..3ce2166e37 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -42,7 +42,7 @@ func Clean(path string) string {
+ 	//	writing to buf; w is index of next byte to write.
+ 	//	dotdot is index in buf where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+-	buf := strings.Bytes(path)
++	buf := []byte(path)
+ 	r, w, dotdot := 0, 0, 0
+ 	if rooted {
+ 		r, w, dotdot = 1, 1, 1
+diff --git a/src/pkg/regexp/all_test.go b/src/pkg/regexp/all_test.go
+index 4570410f95..5b4d0ec126 100644
+--- a/src/pkg/regexp/all_test.go
++++ b/src/pkg/regexp/all_test.go
+@@ -161,7 +161,7 @@ func executeTest(t *testing.T, expr string, str string, match []int) {
+ 		printVec(t, match)
+ 	}
+ 	// now try bytes
+-	m = re.Execute(strings.Bytes(str))
++	m = re.Execute([]byte(str))
+ 	if !equal(m, match) {
+ 		t.Errorf("Execute failure on %#q matching %q:", expr, str)
+ 		printVec(t, m)
+@@ -199,7 +199,7 @@ func matchTest(t *testing.T, expr string, str string, match []int) {
+ 		t.Errorf("MatchString failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
+ 	}
+ 	// now try bytes
+-	m = re.Match(strings.Bytes(str))
++	m = re.Match([]byte(str))
+ 	if m != (len(match) > 0) {
+ 		t.Errorf("Match failure on %#q matching %q: %t should be %t", expr, str, m, len(match) > 0)
+ 	}
+@@ -315,7 +315,7 @@ func TestReplaceAll(t *testing.T) {
+ 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+ 		}
+ 		// now try bytes
+-		actual = string(re.ReplaceAll(strings.Bytes(tc.input), strings.Bytes(tc.replacement)))
++		actual = string(re.ReplaceAll([]byte(tc.input), []byte(tc.replacement)))
+ 		if actual != tc.output {
+ 			t.Errorf("%q.Replace(%q,%q) = %q; want %q",
+ 				tc.pattern, tc.input, tc.replacement, actual, tc.output)
+@@ -419,7 +419,7 @@ func TestAllMatches(t *testing.T) {
+ 		case "matchit":
+ 			result = make([]string, len(c.input)+1)
+ 			i := 0
+-			b := strings.Bytes(c.input)
++			b := []byte(c.input)
+ 			for match := range re.AllMatchesIter(b, c.n) {
+ 				result[i] = string(match)
+ 				i++
+@@ -435,7 +435,7 @@ func TestAllMatches(t *testing.T) {
+ 			result = result[0:i]
+ 		case "match":
+ 			result = make([]string, len(c.input)+1)
+-			b := strings.Bytes(c.input)
++			b := []byte(c.input)
+ 			i := 0
+ 			for _, match := range re.AllMatches(b, c.n) {
+ 				result[i] = string(match)
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index eb2b7e09c6..80e8207951 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -302,23 +302,3 @@ func TrimSpace(s string) string {
+ 	}
+ 	return s[start:end]
+ }
+-
+-// Bytes returns a new slice containing the bytes in s.
+-func Bytes(s string) []byte {
+-	b := make([]byte, len(s))
+-	for i := 0; i < len(s); i++ {
+-		b[i] = s[i]
+-	}
+-	return b
+-}
+-
+-// Runes returns a slice of runes (Unicode code points) equivalent to the string s.
+-func Runes(s string) []int {
+-	t := make([]int, utf8.RuneCountInString(s))
+-	i := 0
+-	for _, r := range s {
+-		t[i] = r
+-		i++
+-	}
+-	return t
+-}
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 05df55ca94..a88f6aae4d 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -444,16 +444,16 @@ var RunesTests = []RunesTest{
+ 
+ func TestRunes(t *testing.T) {
+ 	for _, tt := range RunesTests {
+-		a := Runes(tt.in)
++		a := []int(tt.in)
+ 		if !runesEqual(a, tt.out) {
+-			t.Errorf("Runes(%q) = %v; want %v", tt.in, a, tt.out)
++			t.Errorf("[]int(%q) = %v; want %v", tt.in, a, tt.out)
+ 			continue
+ 		}
+ 		if !tt.lossy {
+ 			// can only test reassembly if we didn't lose information
+ 			s := string(a)
+ 			if s != tt.in {
+-				t.Errorf("string(Runes(%q)) = %x; want %x", tt.in, s, tt.in)
++				t.Errorf("string([]int(%q)) = %x; want %x", tt.in, s, tt.in)
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/template/format.go b/src/pkg/template/format.go
+index dd49b1bb5a..717dcbdbb6 100644
+--- a/src/pkg/template/format.go
++++ b/src/pkg/template/format.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
+-	"strings"
+ )
+ 
+ // StringFormatter formats into the default string representation.
+@@ -26,11 +25,11 @@ func StringFormatter(w io.Writer, value interface{}, format string) {
+ }
+ 
+ var (
+-	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
+-	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
+-	esc_amp  = strings.Bytes("&amp;")
+-	esc_lt   = strings.Bytes("&lt;")
+-	esc_gt   = strings.Bytes("&gt;")
++	esc_quot = []byte("&#34;") // shorter than "&quot;"
++	esc_apos = []byte("&#39;") // shorter than "&apos;"
++	esc_amp  = []byte("&amp;")
++	esc_lt   = []byte("&lt;")
++	esc_gt   = []byte("&gt;")
+ )
+ 
+ // HTMLEscape writes to w the properly escaped HTML equivalent
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index c32a742b87..40b9f640b7 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -915,7 +915,7 @@ func (t *Template) Parse(s string) os.Error {
+ 	if !validDelim(t.ldelim) || !validDelim(t.rdelim) {
+ 		return &Error{1, fmt.Sprintf("bad delimiter strings %q %q", t.ldelim, t.rdelim)}
+ 	}
+-	t.buf = strings.Bytes(s)
++	t.buf = []byte(s)
+ 	t.p = 0
+ 	t.linenum = 1
+ 	t.parse()
+@@ -942,8 +942,8 @@ func (t *Template) Execute(data interface{}, wr io.Writer) os.Error {
+ // delimiters are very rarely invalid and Parse has the necessary
+ // error-handling interface already.
+ func (t *Template) SetDelims(left, right string) {
+-	t.ldelim = strings.Bytes(left)
+-	t.rdelim = strings.Bytes(right)
++	t.ldelim = []byte(left)
++	t.rdelim = []byte(right)
+ }
+ 
+ // Parse creates a Template with default parameters (such as {} for
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 460a3a4b1e..a7c34ebeea 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"container/vector"
+ 	"fmt"
+ 	"io"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -397,7 +396,7 @@ func TestAll(t *testing.T) {
+ 	s.stringmap = make(map[string]string)
+ 	s.stringmap["stringkey1"] = "stringresult" // the same value so repeated section is order-independent
+ 	s.stringmap["stringkey2"] = "stringresult"
+-	s.bytes = strings.Bytes("hello")
++	s.bytes = []byte("hello")
+ 	s.iface = []int{1, 2, 3}
+ 
+ 	var buf bytes.Buffer
+diff --git a/src/pkg/testing/regexp_test.go b/src/pkg/testing/regexp_test.go
+index 51b632ee25..ffeb62b5bb 100644
+--- a/src/pkg/testing/regexp_test.go
++++ b/src/pkg/testing/regexp_test.go
+@@ -4,10 +4,6 @@
+ 
+ package testing
+ 
+-import (
+-	"strings"
+-)
+-
+ var good_re = []string{
+ 	``,
+ 	`.`,
+@@ -179,7 +175,7 @@ func executeTest(t *T, expr string, str string, match []int) {
+ 		printVec(t, match)
+ 	}
+ 	// now try bytes
+-	m = re.Execute(strings.Bytes(str))
++	m = re.Execute([]byte(str))
+ 	if !equal(m, match) {
+ 		t.Error("Execute failure on `", expr, "` matching `", str, "`:")
+ 		printVec(t, m)
+@@ -217,7 +213,7 @@ func matchTest(t *T, expr string, str string, match []int) {
+ 		t.Error("MatchString failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
+ 	}
+ 	// now try bytes
+-	m = re.Match(strings.Bytes(str))
++	m = re.Match([]byte(str))
+ 	if m != (len(match) > 0) {
+ 		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0)
+ 	}
+@@ -247,7 +243,7 @@ func matchStringsTest(t *T, expr string, str string, match []int) {
+ 		printStrings(t, strs)
+ 	}
+ 	// now try bytes
+-	s := re.MatchSlices(strings.Bytes(str))
++	s := re.MatchSlices([]byte(str))
+ 	if !equalBytes(s, strs) {
+ 		t.Error("MatchSlices failure on `", expr, "` matching `", str, "`:")
+ 		printBytes(t, s)
+diff --git a/src/pkg/utf8/utf8_test.go b/src/pkg/utf8/utf8_test.go
+index 68bfa6a772..460fdb543c 100644
+--- a/src/pkg/utf8/utf8_test.go
++++ b/src/pkg/utf8/utf8_test.go
+@@ -6,7 +6,6 @@ package utf8_test
+ 
+ import (
+ 	"bytes"
+-	"strings"
+ 	"testing"
+ 	. "utf8"
+ )
+@@ -48,7 +47,7 @@ var utf8map = []Utf8Map{
+ // strings.Bytes with one extra byte at end
+ func makeBytes(s string) []byte {
+ 	s += "\x00"
+-	b := strings.Bytes(s)
++	b := []byte(s)
+ 	return b[0 : len(s)-1]
+ }
+ 
+@@ -214,7 +213,7 @@ func BenchmarkDecodeASCIIRune(b *testing.B) {
+ }
+ 
+ func BenchmarkDecodeJapaneseRune(b *testing.B) {
+-	nihon := strings.Bytes("本")
++	nihon := []byte("本")
+ 	for i := 0; i < b.N; i++ {
+ 		DecodeRune(nihon)
+ 	}
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index c15c435385..44fda8aaaf 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"log"
+ 	"net"
+ 	"once"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -45,7 +44,7 @@ func TestEcho(t *testing.T) {
+ 		t.Errorf("WebSocket handshake error", err)
+ 		return
+ 	}
+-	msg := strings.Bytes("hello, world\n")
++	msg := []byte("hello, world\n")
+ 	if _, err := ws.Write(msg); err != nil {
+ 		t.Errorf("Write: error %v", err)
+ 	}
+diff --git a/src/pkg/xgb/xgb.go b/src/pkg/xgb/xgb.go
+index 3f6f0b0a68..4d8b923033 100644
+--- a/src/pkg/xgb/xgb.go
++++ b/src/pkg/xgb/xgb.go
+@@ -173,7 +173,7 @@ func (c *Conn) sendBytes(buf []byte) {
+ 	c.sendPadding(len(buf))
+ }
+ 
+-func (c *Conn) sendString(str string) { c.sendBytes(strings.Bytes(str)) }
++func (c *Conn) sendString(str string) { c.sendBytes([]byte(str)) }
+ 
+ // sendUInt32s sends a list of 32-bit integers as variable length data.
+ func (c *Conn) sendUInt32List(list []uint32) {
+@@ -318,7 +318,7 @@ func Dial(display string) (*Conn, os.Error) {
+ 	put16(buf[6:], uint16(len(authName)))
+ 	put16(buf[8:], uint16(len(authData)))
+ 	put16(buf[10:], 0)
+-	copy(buf[12:], strings.Bytes(authName))
++	copy(buf[12:], []byte(authName))
+ 	copy(buf[12+pad(len(authName)):], authData)
+ 	if _, err = c.conn.Write(buf); err != nil {
+ 		return nil, err
+diff --git a/src/pkg/xml/xml.go b/src/pkg/xml/xml.go
+index 67cbb824f7..1ddb896dec 100644
+--- a/src/pkg/xml/xml.go
++++ b/src/pkg/xml/xml.go
+@@ -815,7 +815,7 @@ Input:
+ 				p.err = SyntaxError("invalid character entity &" + s + ";")
+ 				return nil
+ 			}
+-			p.buf.Write(strings.Bytes(text))
++			p.buf.Write([]byte(text))
+ 			b0, b1 = 0, 0
+ 			continue Input
+ 		}
+@@ -1508,11 +1508,11 @@ var htmlAutoClose = []string{
+ }
+ 
+ var (
+-	esc_quot = strings.Bytes("&#34;") // shorter than "&quot;"
+-	esc_apos = strings.Bytes("&#39;") // shorter than "&apos;"
+-	esc_amp  = strings.Bytes("&amp;")
+-	esc_lt   = strings.Bytes("&lt;")
+-	esc_gt   = strings.Bytes("&gt;")
++	esc_quot = []byte("&#34;") // shorter than "&quot;"
++	esc_apos = []byte("&#39;") // shorter than "&apos;"
++	esc_amp  = []byte("&amp;")
++	esc_lt   = []byte("&lt;")
++	esc_gt   = []byte("&gt;")
+ )
+ 
+ // Escape writes to w the properly escaped XML equivalent
+diff --git a/src/pkg/xml/xml_test.go b/src/pkg/xml/xml_test.go
+index 47a3db1e82..2bd084fd82 100644
+--- a/src/pkg/xml/xml_test.go
++++ b/src/pkg/xml/xml_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -30,69 +29,71 @@ const testInput = `
+ </body><!-- missing final newline -->`
+ 
+ var rawTokens = []Token{
+-	CharData(strings.Bytes("\n")),
+-	ProcInst{"xml", strings.Bytes(`version="1.0" encoding="UTF-8"`)},
+-	CharData(strings.Bytes("\n")),
+-	Directive(strings.Bytes(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`)),
+-	CharData(strings.Bytes("\n")),
++	CharData([]byte("\n")),
++	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
++	CharData([]byte("\n")),
++	Directive([]byte(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
++  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
++	),
++	CharData([]byte("\n")),
+ 	StartElement{Name{"", "body"}, []Attr{Attr{Name{"xmlns", "foo"}, "ns1"}, Attr{Name{"", "xmlns"}, "ns2"}, Attr{Name{"xmlns", "tag"}, "ns3"}}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}},
+-	CharData(strings.Bytes("World <>'\" 白鵬翔")),
++	CharData([]byte("World <>'\" 白鵬翔")),
+ 	EndElement{Name{"", "hello"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"", "goodbye"}, nil},
+ 	EndElement{Name{"", "goodbye"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"", "outer"}, []Attr{Attr{Name{"foo", "attr"}, "value"}, Attr{Name{"xmlns", "tag"}, "ns4"}}},
+-	CharData(strings.Bytes("\n    ")),
++	CharData([]byte("\n    ")),
+ 	StartElement{Name{"", "inner"}, nil},
+ 	EndElement{Name{"", "inner"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	EndElement{Name{"", "outer"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"tag", "name"}, nil},
+-	CharData(strings.Bytes("\n    ")),
+-	CharData(strings.Bytes("Some text here.")),
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n    ")),
++	CharData([]byte("Some text here.")),
++	CharData([]byte("\n  ")),
+ 	EndElement{Name{"tag", "name"}},
+-	CharData(strings.Bytes("\n")),
++	CharData([]byte("\n")),
+ 	EndElement{Name{"", "body"}},
+-	Comment(strings.Bytes(" missing final newline ")),
++	Comment([]byte(" missing final newline ")),
+ }
+ 
+ var cookedTokens = []Token{
+-	CharData(strings.Bytes("\n")),
+-	ProcInst{"xml", strings.Bytes(`version="1.0" encoding="UTF-8"`)},
+-	CharData(strings.Bytes("\n")),
+-	Directive(strings.Bytes(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+-  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`)),
+-	CharData(strings.Bytes("\n")),
++	CharData([]byte("\n")),
++	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
++	CharData([]byte("\n")),
++	Directive([]byte(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
++  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
++	),
++	CharData([]byte("\n")),
+ 	StartElement{Name{"ns2", "body"}, []Attr{Attr{Name{"xmlns", "foo"}, "ns1"}, Attr{Name{"", "xmlns"}, "ns2"}, Attr{Name{"xmlns", "tag"}, "ns3"}}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"ns2", "hello"}, []Attr{Attr{Name{"", "lang"}, "en"}}},
+-	CharData(strings.Bytes("World <>'\" 白鵬翔")),
++	CharData([]byte("World <>'\" 白鵬翔")),
+ 	EndElement{Name{"ns2", "hello"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"ns2", "goodbye"}, nil},
+ 	EndElement{Name{"ns2", "goodbye"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"ns2", "outer"}, []Attr{Attr{Name{"ns1", "attr"}, "value"}, Attr{Name{"xmlns", "tag"}, "ns4"}}},
+-	CharData(strings.Bytes("\n    ")),
++	CharData([]byte("\n    ")),
+ 	StartElement{Name{"ns2", "inner"}, nil},
+ 	EndElement{Name{"ns2", "inner"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	EndElement{Name{"ns2", "outer"}},
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n  ")),
+ 	StartElement{Name{"ns3", "name"}, nil},
+-	CharData(strings.Bytes("\n    ")),
+-	CharData(strings.Bytes("Some text here.")),
+-	CharData(strings.Bytes("\n  ")),
++	CharData([]byte("\n    ")),
++	CharData([]byte("Some text here.")),
++	CharData([]byte("\n  ")),
+ 	EndElement{Name{"ns3", "name"}},
+-	CharData(strings.Bytes("\n")),
++	CharData([]byte("\n")),
+ 	EndElement{Name{"ns2", "body"}},
+-	Comment(strings.Bytes(" missing final newline ")),
++	Comment([]byte(" missing final newline ")),
+ }
+ 
+ var xmlInput = []string{
+diff --git a/test/bench/chameneosredux.go b/test/bench/chameneosredux.go
+index 5445c42106..2cb1440041 100644
+--- a/test/bench/chameneosredux.go
++++ b/test/bench/chameneosredux.go
+@@ -123,7 +123,7 @@ func pallmall(cols []int) {
+ 	fmt.Println(msg)
+ 	tot := 0
+ 	// wait for all results
+-	for _ = range (cols) {
++	for _ = range cols {
+ 		result := <-ended
+ 		tot += result.met
+ 		fmt.Printf("%v%v\n", result.met, spell(result.same, true))
+diff --git a/test/bench/fasta.go b/test/bench/fasta.go
+index 1afb1ffb80..f79ff680fb 100644
+--- a/test/bench/fasta.go
++++ b/test/bench/fasta.go
+@@ -41,7 +41,6 @@ import (
+ 	"bufio"
+ 	"flag"
+ 	"os"
+-	"strings"
+ )
+ 
+ var out *bufio.Writer
+@@ -161,7 +160,7 @@ func main() {
+ 	AccumulateProbabilities(iub)
+ 	AccumulateProbabilities(homosapiens)
+ 
+-	alu := strings.Bytes(
++	alu := []byte(
+ 		"GGCCGGGCGCGGTGGCTCACGCCTGTAATCCCAGCACTTTGG" +
+ 			"GAGGCCGAGGCGGGCGGATCACCTGAGGTCAGGAGTTCGAGA" +
+ 			"CCAGCCTGGCCAACATGGTGAAACCCCGTCTCTACTAAAAAT" +
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+index a5c7f79bb3..b4d4098d0d 100644
+--- a/test/bench/k-nucleotide.go
++++ b/test/bench/k-nucleotide.go
+@@ -42,7 +42,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"sort"
+-	"strings"
+ )
+ 
+ var in *bufio.Reader
+@@ -111,7 +110,7 @@ func print(m map[string]int) {
+ 
+ func main() {
+ 	in = bufio.NewReader(os.Stdin)
+-	three := strings.Bytes(">THREE ")
++	three := []byte(">THREE ")
+ 	for {
+ 		line, err := in.ReadSlice('\n')
+ 		if err != nil {
+diff --git a/test/bench/meteor-contest.go b/test/bench/meteor-contest.go
+index 163aaa7c45..6660810ebd 100644
+--- a/test/bench/meteor-contest.go
++++ b/test/bench/meteor-contest.go
+@@ -532,7 +532,7 @@ func calc_rows() {
+ 
+ 
+ /* Calculate islands while solving the board.
+-*/
++ */
+ func boardHasIslands(cell int8) int8 {
+ 	/* Too low on board, don't bother checking */
+ 	if cell >= 40 {
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index 9d56830b36..22de2c6aae 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -40,7 +40,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"regexp"
+-	"strings"
+ )
+ 
+ var variants = []string{
+@@ -101,7 +100,7 @@ func main() {
+ 		fmt.Printf("%s %d\n", s, countMatches(s, bytes))
+ 	}
+ 	for _, sub := range substs {
+-		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, strings.Bytes(sub.repl))
++		bytes = regexp.MustCompile(sub.pat).ReplaceAll(bytes, []byte(sub.repl))
+ 	}
+ 	fmt.Printf("\n%d\n%d\n%d\n", ilen, clen, len(bytes))
+ }

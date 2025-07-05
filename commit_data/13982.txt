@@ -128,7 +128,7 @@ Date:   Fri Sep 28 08:30:30 2012 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6560063
-
+---
  test/const1.go           | 2 +-
  test/const2.go           | 4 ++--
  test/const5.go           | 8 ++++----
@@ -142,3 +142,163 @@ Date:   Fri Sep 28 08:30:30 2012 -0700
  test/fixedbugs/bug451.go | 2 +-
  test/typeswitch3.go      | 2 +-
  12 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/test/const1.go b/test/const1.go
+index bc399c01c5..1580b76c68 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -66,7 +66,7 @@ var (
+ 	c3 float64 = float64(Big) * Big // ERROR "overflow"
+ 	c4         = Big * Big          // ERROR "overflow"
+ 	c5         = Big / 0            // ERROR "division by zero"
+-	c6         = 1000 % 1e3         // ERROR "floating-point % operation"
++	c6         = 1000 % 1e3         // ERROR "floating-point % operation|expected integer type"
+ )
+ 
+ func f(int)
+diff --git a/test/const2.go b/test/const2.go
+index 97d3d4c7d0..048d0cb9f3 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -16,6 +16,6 @@ const (
+ 
+ const LargeA = 1000000000000000000
+ const LargeB = LargeA * LargeA * LargeA
+-const LargeC = LargeB * LargeB * LargeB // ERROR "constant multiplication overflow"
++const LargeC = LargeB * LargeB * LargeB // GC_ERROR "constant multiplication overflow"
+ 
+-const AlsoLargeA = LargeA << 400 << 400 >> 400 >> 400 // ERROR "constant shift overflow"
++const AlsoLargeA = LargeA << 400 << 400 >> 400 >> 400 // GC_ERROR "constant shift overflow"
+diff --git a/test/const5.go b/test/const5.go
+index 8e0385e9a5..d0eed137d1 100644
+--- a/test/const5.go
++++ b/test/const5.go
+@@ -24,10 +24,10 @@ const (
+ 	n2 = len(m[""])
+ 	n3 = len(s[10])
+ 
+-	n4 = len(f())  // ERROR "must be constant"
+-	n5 = len(<-c) // ERROR "must be constant"
++	n4 = len(f())  // ERROR "must be constant|is not constant"
++	n5 = len(<-c) // ERROR "must be constant|is not constant"
+ 
+-	n6 = cap(f())  // ERROR "must be constant"
+-	n7 = cap(<-c) // ERROR "must be constant"
++	n6 = cap(f())  // ERROR "must be constant|is not constant"
++	n7 = cap(<-c) // ERROR "must be constant|is not constant"
+ )
+ 
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 09d70c3de3..07981af126 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -27,9 +27,9 @@ func tuple() (int, int, int) { return 1, 2, 3 }
+ 
+ var (
+ 	_ = sum(tuple())
+-	_ = sum(tuple()...) // ERROR "multiple-value"
++	_ = sum(tuple()...) // ERROR "multiple-value|[.][.][.]"
+ 	_ = sum3(tuple())
+-	_ = sum3(tuple()...) // ERROR "multiple-value" "not enough"
++	_ = sum3(tuple()...) // ERROR "multiple-value|[.][.][.]" "not enough"
+ )
+ 
+ type T []T
+diff --git a/test/declbad.go b/test/declbad.go
+index eace9376a3..ff53ab0d7c 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -41,8 +41,9 @@ func main() {
+ 	{
+ 		// multiline no new variables
+ 		i := f1
+-		i := func() int { // ERROR "redeclared|no new|incompatible"
++		i := func() { // ERROR "redeclared|no new|incompatible"
+ 		}
++		_ = i
+ 	}
+ 	{
+ 		// single redeclaration
+diff --git a/test/fixedbugs/bug223.go b/test/fixedbugs/bug223.go
+index eccf574a14..29ae53cb71 100644
+--- a/test/fixedbugs/bug223.go
++++ b/test/fixedbugs/bug223.go
+@@ -18,4 +18,4 @@ func f() {
+ 	}
+ }
+ 
+-var m = map[string]F{"f": f} // ERROR "initialization loop"
++var m = map[string]F{"f": f} // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/bug412.go b/test/fixedbugs/bug412.go
+index 9148b68e74..8dd0a5fcc1 100644
+--- a/test/fixedbugs/bug412.go
++++ b/test/fixedbugs/bug412.go
+@@ -7,10 +7,10 @@
+ package p
+ 
+ type t struct {
+-	x int  // ERROR "duplicate field x"
++	x int  // ERROR "duplicate field x|duplicate field name .x."
+ 	x int
+ }
+ 
+ func f(t *t) int {
+-	return t.x  // ERROR "ambiguous selector t.x"
++	return t.x  // GC_ERROR "ambiguous selector t.x"
+ }
+diff --git a/test/fixedbugs/bug413.go b/test/fixedbugs/bug413.go
+index 41270d9063..ba80464907 100644
+--- a/test/fixedbugs/bug413.go
++++ b/test/fixedbugs/bug413.go
+@@ -8,4 +8,4 @@ package p
+ 
+ func f(i int) int { return i }
+ 
+-var i = func() int {a := f(i); return a}()  // ERROR "initialization loop"
+\ No newline at end of file
++var i = func() int {a := f(i); return a}()  // ERROR "initialization loop|depends upon itself"
+diff --git a/test/fixedbugs/bug416.go b/test/fixedbugs/bug416.go
+index c128538429..1d24fa935d 100644
+--- a/test/fixedbugs/bug416.go
++++ b/test/fixedbugs/bug416.go
+@@ -10,4 +10,4 @@ type T struct {
+ 	X int
+ }
+ 
+-func (t *T) X() {} // ERROR "type T has both field and method named X"
++func (t *T) X() {} // ERROR "type T has both field and method named X|redeclares struct field name"
+diff --git a/test/fixedbugs/bug435.go b/test/fixedbugs/bug435.go
+index e6af452388..9c30b143bc 100644
+--- a/test/fixedbugs/bug435.go
++++ b/test/fixedbugs/bug435.go
+@@ -12,4 +12,4 @@
+ package main
+ 
+ func foo() {
+-	bar(1, // ERROR "unexpected"
++	bar(1, // ERROR "unexpected|missing|undefined"
+diff --git a/test/fixedbugs/bug451.go b/test/fixedbugs/bug451.go
+index 82182af9b9..75ce97490e 100644
+--- a/test/fixedbugs/bug451.go
++++ b/test/fixedbugs/bug451.go
+@@ -6,6 +6,6 @@
+ 
+ package main
+ 
+-type T x.T // ERROR "undefined"
++type T x.T // ERROR "undefined|expected package"
+ 
+ // bogus "invalid recursive type"
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 5475a8a6d3..287e32e71e 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -36,7 +36,7 @@ func main(){
+ 	}
+ 	
+ 	// Issue 2827.
+-	switch _ := r.(type) {  // ERROR "invalid variable name _"
++	switch _ := r.(type) {  // ERROR "invalid variable name _|no new variables"
+ 	}
+ }
+ 

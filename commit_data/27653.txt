@@ -11,7 +11,96 @@ Date:   Wed Feb 3 23:41:55 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/encode.go      |  4 ++-
  src/encoding/json/encode_test.go | 55 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index bcae6838cc..927f47b179 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -679,7 +679,9 @@ func (se *sliceEncoder) encode(e *encodeState, v reflect.Value, _ bool) {
+ 
+ func newSliceEncoder(t reflect.Type) encoderFunc {
+ 	// Byte slices get special treatment; arrays don't.
+-	if t.Elem().Kind() == reflect.Uint8 {
++	if t.Elem().Kind() == reflect.Uint8 &&
++		!t.Elem().Implements(marshalerType) &&
++		!t.Elem().Implements(textMarshalerType) {
+ 		return encodeByteSlice
+ 	}
+ 	enc := &sliceEncoder{newArrayEncoder(t)}
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index eed40a4272..eee59ccb49 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -6,6 +6,7 @@ package json
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"math"
+ 	"reflect"
+ 	"testing"
+@@ -537,6 +538,60 @@ func TestEncodeString(t *testing.T) {
+ 	}
+ }
+ 
++type jsonbyte byte
++
++func (b jsonbyte) MarshalJSON() ([]byte, error) { return tenc(`{"JB":%d}`, b) }
++
++type textbyte byte
++
++func (b textbyte) MarshalText() ([]byte, error) { return tenc(`TB:%d`, b) }
++
++type jsonint int
++
++func (i jsonint) MarshalJSON() ([]byte, error) { return tenc(`{"JI":%d}`, i) }
++
++type textint int
++
++func (i textint) MarshalText() ([]byte, error) { return tenc(`TI:%d`, i) }
++
++func tenc(format string, a ...interface{}) ([]byte, error) {
++	var buf bytes.Buffer
++	fmt.Fprintf(&buf, format, a...)
++	return buf.Bytes(), nil
++}
++
++// Issue 13783
++func TestEncodeBytekind(t *testing.T) {
++	testdata := []struct {
++		data interface{}
++		want string
++	}{
++		{byte(7), "7"},
++		{jsonbyte(7), `{"JB":7}`},
++		{textbyte(4), `"TB:4"`},
++		{jsonint(5), `{"JI":5}`},
++		{textint(1), `"TI:1"`},
++		{[]byte{0, 1}, `"AAE="`},
++		{[]jsonbyte{0, 1}, `[{"JB":0},{"JB":1}]`},
++		{[][]jsonbyte{{0, 1}, {3}}, `[[{"JB":0},{"JB":1}],[{"JB":3}]]`},
++		{[]textbyte{2, 3}, `["TB:2","TB:3"]`},
++		{[]jsonint{5, 4}, `[{"JI":5},{"JI":4}]`},
++		{[]textint{9, 3}, `["TI:9","TI:3"]`},
++		{[]int{9, 3}, `[9,3]`},
++	}
++	for _, d := range testdata {
++		js, err := Marshal(d.data)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		got, want := string(js), d.want
++		if got != want {
++			t.Errorf("got %s, want %s", got, want)
++		}
++	}
++}
++
+ func TestTextMarshalerMapKeysAreSorted(t *testing.T) {
+ 	b, err := Marshal(map[unmarshalerText]int{
+ 		{"x", "y"}: 1,

@@ -13,7 +13,79 @@ Date:   Thu Aug 30 12:57:16 2018 -0600
     Change-Id: I8a210a69362017fa08615a8c3feccdeee8427e22
     Reviewed-on: https://go-review.googlesource.com/132239
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/example_test.go          | 25 +++++++------------------
  src/fmt/stringer_example_test.go | 29 +++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 18 deletions(-)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 2d17fc69c7..5797e48080 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -8,24 +8,13 @@ import (
+ 	"fmt"
+ )
+ 
+-// Animal has a Name and an Age to represent an animal.
+-type Animal struct {
+-	Name string
+-	Age  uint
+-}
+-
+-// String makes Animal satisfy the Stringer interface.
+-func (a Animal) String() string {
+-	return fmt.Sprintf("%v (%d)", a.Name, a.Age)
+-}
+-
+-func ExampleStringer() {
+-	a := Animal{
+-		Name: "Gopher",
+-		Age:  2,
+-	}
+-	fmt.Println(a)
+-	// Output: Gopher (2)
++// The Errorf function lets us use formatting features
++// to create descriptive error messages.
++func ExampleErrorf() {
++	const name, id = "bueller", 17
++	err := fmt.Errorf("user %q (id %d) not found", name, id)
++	fmt.Println(err.Error())
++	// Output: user "bueller" (id 17) not found
+ }
+ 
+ func ExampleSprintf() {
+diff --git a/src/fmt/stringer_example_test.go b/src/fmt/stringer_example_test.go
+new file mode 100644
+index 0000000000..c77e78809c
+--- /dev/null
++++ b/src/fmt/stringer_example_test.go
+@@ -0,0 +1,29 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fmt_test
++
++import (
++	"fmt"
++)
++
++// Animal has a Name and an Age to represent an animal.
++type Animal struct {
++	Name string
++	Age  uint
++}
++
++// String makes Animal satisfy the Stringer interface.
++func (a Animal) String() string {
++	return fmt.Sprintf("%v (%d)", a.Name, a.Age)
++}
++
++func ExampleStringer() {
++	a := Animal{
++		Name: "Gopher",
++		Age:  2,
++	}
++	fmt.Println(a)
++	// Output: Gopher (2)
++}

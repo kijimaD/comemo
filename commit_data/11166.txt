@@ -7,7 +7,7 @@ Date:   Sat Jan 14 13:42:18 2012 +0900
     R=golang-dev, dave, minux.ma
     CC=golang-dev
     https://golang.org/cl/5545044
-
+---
  src/pkg/net/Makefile          |  6 ++++++
  src/pkg/net/ipsock_posix.go   |  5 -----
  src/pkg/net/sock.go           |  2 ++
@@ -17,3 +17,222 @@ Date:   Sat Jan 14 13:42:18 2012 +0900
  src/pkg/net/tcpsock_posix.go  |  6 +++---
  src/pkg/net/unixsock_posix.go |  8 ++++----
  8 files changed, 89 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+index f3d77c744f..81df2a266c 100644
+--- a/src/pkg/net/Makefile
++++ b/src/pkg/net/Makefile
+@@ -36,6 +36,7 @@ GOFILES_darwin=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
++	sock_bsd.go\
+ 	sockopt.go\
+ 	sockopt_bsd.go\
+ 	sockoptip.go\
+@@ -68,6 +69,7 @@ GOFILES_freebsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
++	sock_bsd.go\
+ 	sockopt.go\
+ 	sockopt_bsd.go\
+ 	sockoptip.go\
+@@ -99,6 +101,7 @@ GOFILES_linux=\
+ 	port.go\
+ 	sendfile_linux.go\
+ 	sock.go\
++	sock_linux.go\
+ 	sockopt.go\
+ 	sockopt_linux.go\
+ 	sockoptip.go\
+@@ -130,6 +133,7 @@ GOFILES_netbsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
++	sock_bsd.go\
+ 	sockopt.go\
+ 	sockopt_bsd.go\
+ 	sockoptip.go\
+@@ -155,6 +159,7 @@ GOFILES_openbsd=\
+ 	port.go\
+ 	sendfile_stub.go\
+ 	sock.go\
++	sock_bsd.go\
+ 	sockopt.go\
+ 	sockopt_bsd.go\
+ 	sockoptip.go\
+@@ -184,6 +189,7 @@ GOFILES_windows=\
+ 	lookup_windows.go\
+ 	sendfile_windows.go\
+ 	sock.go\
++	sock_windows.go\
+ 	sockopt.go\
+ 	sockopt_windows.go\
+ 	sockoptip.go\
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index d141c050b2..45fe0d9640 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -91,11 +91,6 @@ func favoriteAddrFamily(net string, raddr, laddr sockaddr, mode string) int {
+ 	return syscall.AF_INET6
+ }
+ 
+-// TODO(rsc): if syscall.OS == "linux", we're supposed to read
+-// /proc/sys/net/core/somaxconn,
+-// to take advantage of kernels that have raised the limit.
+-func listenBacklog() int { return syscall.SOMAXCONN }
+-
+ // Internet sockets (TCP, UDP)
+ 
+ // A sockaddr represents a TCP or UDP network address that can
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 3ed0720477..7732d2e063 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -14,6 +14,8 @@ import (
+ 	"syscall"
+ )
+ 
++var listenerBacklog = maxListenerBacklog()
++
+ // Generic socket creation.
+ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	// See ../syscall/exec.go for description of ForkLock.
+diff --git a/src/pkg/net/sock_bsd.go b/src/pkg/net/sock_bsd.go
+new file mode 100644
+index 0000000000..630a91ed9f
+--- /dev/null
++++ b/src/pkg/net/sock_bsd.go
+@@ -0,0 +1,33 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd netbsd openbsd
++
++// Sockets for BSD variants
++
++package net
++
++import (
++	"runtime"
++	"syscall"
++)
++
++func maxListenerBacklog() int {
++	var (
++		n   uint32
++		err error
++	)
++	switch runtime.GOOS {
++	case "darwin", "freebsd":
++		n, err = syscall.SysctlUint32("kern.ipc.somaxconn")
++	case "netbsd":
++		// NOTE: NetBSD has no somaxconn-like kernel state so far
++	case "openbsd":
++		n, err = syscall.SysctlUint32("kern.somaxconn")
++	}
++	if n == 0 || err != nil {
++		return syscall.SOMAXCONN
++	}
++	return int(n)
++}
+diff --git a/src/pkg/net/sock_linux.go b/src/pkg/net/sock_linux.go
+new file mode 100644
+index 0000000000..2cbc34f24b
+--- /dev/null
++++ b/src/pkg/net/sock_linux.go
+@@ -0,0 +1,27 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Sockets for Linux
++
++package net
++
++import "syscall"
++
++func maxListenerBacklog() int {
++	fd, err := open("/proc/sys/net/core/somaxconn")
++	if err != nil {
++		return syscall.SOMAXCONN
++	}
++	defer fd.close()
++	l, ok := fd.readLine()
++	if !ok {
++		return syscall.SOMAXCONN
++	}
++	f := getFields(l)
++	n, _, ok := dtoi(f[0], 0)
++	if n == 0 || !ok {
++		return syscall.SOMAXCONN
++	}
++	return n
++}
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+new file mode 100644
+index 0000000000..2d803de1fc
+--- /dev/null
++++ b/src/pkg/net/sock_windows.go
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Sockets for Windows
++
++package net
++
++import "syscall"
++
++func maxListenerBacklog() int {
++	// TODO: Implement this
++	return syscall.SOMAXCONN
++}
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index a7c09c73ed..a492e614e3 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -249,10 +249,10 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	errno := syscall.Listen(fd.sysfd, listenBacklog())
+-	if errno != nil {
++	err = syscall.Listen(fd.sysfd, listenerBacklog)
++	if err != nil {
+ 		closesocket(fd.sysfd)
+-		return nil, &OpError{"listen", "tcp", laddr, errno}
++		return nil, &OpError{"listen", "tcp", laddr, err}
+ 	}
+ 	l = new(TCPListener)
+ 	l.fd = fd
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 10632c1412..00ee0164f2 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -315,7 +315,7 @@ type UnixListener struct {
+ 
+ // ListenUnix announces on the Unix domain socket laddr and returns a Unix listener.
+ // Net must be "unix" (stream sockets).
+-func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
++func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	if net != "unix" && net != "unixgram" && net != "unixpacket" {
+ 		return nil, UnknownNetworkError(net)
+ 	}
+@@ -326,10 +326,10 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
+-	if e1 != nil {
++	err = syscall.Listen(fd.sysfd, listenerBacklog)
++	if err != nil {
+ 		closesocket(fd.sysfd)
+-		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Err: e1}
++		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Err: err}
+ 	}
+ 	return &UnixListener{fd, laddr.Name}, nil
+ }

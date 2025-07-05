@@ -12,7 +12,7 @@ Date:   Fri Sep 5 10:04:16 2014 -0400
     R=rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/133530045
-
+---
  src/cmd/api/goapi.go            |   1 +
  src/cmd/gc/builtin.c            |   4 +-
  src/cmd/gc/popt.c               |   2 +-
@@ -27,3 +27,685 @@ Date:   Fri Sep 5 10:04:16 2014 -0400
  src/pkg/runtime/stubs.go        |   7 +-
  test/live.go                    |   2 +-
  13 files changed, 251 insertions(+), 215 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 18c36bb175..7e8f858483 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -381,6 +381,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 		src := "package runtime; type (" +
+ 			" _defer struct{};" +
+ 			" _func struct{};" +
++			" _panic struct{};" +
+ 			" _select struct{}; " +
+ 			" _type struct{};" +
+ 			" alg struct{};" +
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index c5bce2ead3..60b7c2f977 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -9,8 +9,8 @@ char *runtimeimport =
+ 	"func @\"\".throwreturn ()\n"
+ 	"func @\"\".throwinit ()\n"
+ 	"func @\"\".panicwrap (? string, ? string, ? string)\n"
+-	"func @\"\".panic (? interface {})\n"
+-	"func @\"\".recover (? *int32) (? interface {})\n"
++	"func @\"\".gopanic (? interface {})\n"
++	"func @\"\".gorecover (? *int32) (? interface {})\n"
+ 	"func @\"\".printbool (? bool)\n"
+ 	"func @\"\".printfloat (? float64)\n"
+ 	"func @\"\".printint (? int64)\n"
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index c8d60c5add..993bb24821 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -49,7 +49,7 @@ noreturn(Prog *p)
+ 		symlist[0] = pkglookup("panicindex", runtimepkg);
+ 		symlist[1] = pkglookup("panicslice", runtimepkg);
+ 		symlist[2] = pkglookup("throwinit", runtimepkg);
+-		symlist[3] = pkglookup("panic", runtimepkg);
++		symlist[3] = pkglookup("gopanic", runtimepkg);
+ 		symlist[4] = pkglookup("panicwrap", runtimepkg);
+ 		symlist[5] = pkglookup("throwreturn", runtimepkg);
+ 		symlist[6] = pkglookup("selectgo", runtimepkg);
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 646cb68aa9..128fd1a31c 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -20,8 +20,8 @@ func throwreturn()
+ func throwinit()
+ func panicwrap(string, string, string)
+ 
+-func panic(interface{})
+-func recover(*int32) interface{}
++func gopanic(interface{})
++func gorecover(*int32) interface{}
+ 
+ func printbool(bool)
+ func printfloat(float64)
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 30c139200b..0de37b87fb 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -543,11 +543,11 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OPANIC:
+-		n = mkcall("panic", T, init, n->left);
++		n = mkcall("gopanic", T, init, n->left);
+ 		goto ret;
+ 
+ 	case ORECOVER:
+-		n = mkcall("recover", n->type, init, nod(OADDR, nodfp, N));
++		n = mkcall("gorecover", n->type, init, nod(OADDR, nodfp, N));
+ 		goto ret;
+ 
+ 	case OLITERAL:
+diff --git a/src/pkg/runtime/cgo/callbacks.c b/src/pkg/runtime/cgo/callbacks.c
+index 954a1cdcc3..eb69255db4 100644
+--- a/src/pkg/runtime/cgo/callbacks.c
++++ b/src/pkg/runtime/cgo/callbacks.c
+@@ -73,7 +73,7 @@ _cgo_panic_internal(byte *p)
+ 
+ 	s = runtime·gostring(p);
+ 	·cgoStringToEface(s, &err);
+-	runtime·panic(err);
++	runtime·gopanic(err);
+ }
+ 
+ #pragma cgo_export_static _cgo_panic
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 152c9a3d55..e38ce740bc 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -38,109 +38,11 @@ runtime·deferproc_m(void) {
+ 	runtime·memmove(d->args, (void*)argp, siz);
+ }
+ 
+-// Print all currently active panics.  Used when crashing.
+-static void
+-printpanics(Panic *p)
+-{
+-	if(p->link) {
+-		printpanics(p->link);
+-		runtime·printf("\t");
+-	}
+-	runtime·printf("panic: ");
+-	runtime·printany(p->arg);
+-	if(p->recovered)
+-		runtime·printf(" [recovered]");
+-	runtime·printf("\n");
+-}
+-
+-static void recovery(G*);
+-static void abortpanic(Panic*);
+-static FuncVal abortpanicV = { (void(*)(void))abortpanic };
+-
+-// The implementation of the predeclared function panic.
+-void
+-runtime·panic(Eface e)
+-{
+-	Defer *d, dabort;
+-	Panic p;
+-	uintptr pc, argp;
+-	void (*fn)(G*);
+-
+-	runtime·memclr((byte*)&p, sizeof p);
+-	p.arg = e;
+-	p.link = g->panic;
+-	p.stackbase = g->stackbase;
+-	g->panic = &p;
+-
+-	dabort.fn = &abortpanicV;
+-	dabort.siz = sizeof(&p);
+-	dabort.args[0] = &p;
+-	dabort.argp = NoArgs;
+-	dabort.special = true;
+-
+-	for(;;) {
+-		d = g->defer;
+-		if(d == nil)
+-			break;
+-		// take defer off list in case of recursive panic
+-		g->defer = d->link;
+-		g->ispanic = true;	// rock for runtime·newstack, where runtime·newstackcall ends up
+-		argp = d->argp;
+-		pc = d->pc;
+-
+-		// The deferred function may cause another panic,
+-		// so newstackcall may not return. Set up a defer
+-		// to mark this panic aborted if that happens.
+-		dabort.link = g->defer;
+-		g->defer = &dabort;
+-		p.defer = d;
+-
+-		runtime·newstackcall(d->fn, (byte*)d->args, d->siz);
+-
+-		// Newstackcall did not panic. Remove dabort.
+-		if(g->defer != &dabort)
+-			runtime·throw("bad defer entry in panic");
+-		g->defer = dabort.link;
+-
+-		runtime·freedefer(d);
+-		if(p.recovered) {
+-			g->panic = p.link;
+-			// Aborted panics are marked but remain on the g->panic list.
+-			// Recovery will unwind the stack frames containing their Panic structs.
+-			// Remove them from the list and free the associated defers.
+-			while(g->panic && g->panic->aborted) {
+-				runtime·freedefer(g->panic->defer);
+-				g->panic = g->panic->link;
+-			}
+-			if(g->panic == nil)	// must be done with signal
+-				g->sig = 0;
+-			// Pass information about recovering frame to recovery.
+-			g->sigcode0 = (uintptr)argp;
+-			g->sigcode1 = (uintptr)pc;
+-			fn = recovery;
+-			runtime·mcall(&fn);
+-			runtime·throw("recovery failed"); // mcall should not return
+-		}
+-	}
+-
+-	// ran out of deferred calls - old-school panic now
+-	runtime·startpanic();
+-	printpanics(g->panic);
+-	runtime·dopanic(0);	// should not return
+-	runtime·exit(1);	// not reached
+-}
+-
+-static void
+-abortpanic(Panic *p)
+-{
+-	p->aborted = true;
+-}
+-
+ // Unwind the stack after a deferred function calls recover
+ // after a panic.  Then arrange to continue running as though
+ // the caller of the deferred function returned normally.
+-static void
+-recovery(G *gp)
++void
++runtime·recovery_m(G *gp)
+ {
+ 	void *argp;
+ 	uintptr pc;
+@@ -199,40 +101,8 @@ runtime·unwindstack(G *gp, byte *sp)
+ 	}
+ }
+ 
+-// The implementation of the predeclared function recover.
+-// Cannot split the stack because it needs to reliably
+-// find the stack segment of its caller.
+-#pragma textflag NOSPLIT
+-void
+-runtime·recover(byte *argp, GoOutput retbase, ...)
+-{
+-	Panic *p;
+-	Stktop *top;
+-	Eface *ret;
+-
+-	// Must be an unrecovered panic in progress.
+-	// Must be on a stack segment created for a deferred call during a panic.
+-	// Must be at the top of that segment, meaning the deferred call itself
+-	// and not something it called. The top frame in the segment will have
+-	// argument pointer argp == top - top->argsize.
+-	// The subtraction of g->panicwrap allows wrapper functions that
+-	// do not count as official calls to adjust what we consider the top frame
+-	// while they are active on the stack. The linker emits adjustments of
+-	// g->panicwrap in the prologue and epilogue of functions marked as wrappers.
+-	ret = (Eface*)&retbase;
+-	top = (Stktop*)g->stackbase;
+-	p = g->panic;
+-	if(p != nil && !p->recovered && top->panic && argp == (byte*)top - top->argsize - g->panicwrap) {
+-		p->recovered = 1;
+-		*ret = p->arg;
+-	} else {
+-		ret->type = nil;
+-		ret->data = nil;
+-	}
+-}
+-
+ void
+-runtime·startpanic(void)
++runtime·startpanic_m(void)
+ {
+ 	if(runtime·mheap.cachealloc.size == 0) { // very early
+ 		runtime·printf("runtime: panic before malloc heap initialized\n");
+@@ -273,28 +143,34 @@ runtime·startpanic(void)
+ }
+ 
+ void
+-runtime·dopanic(int32 unused)
++runtime·dopanic_m(void)
+ {
++	G *gp;
++	uintptr sp, pc;
+ 	static bool didothers;
+ 	bool crash;
+ 	int32 t;
+ 
+-	if(g->sig != 0)
++	gp = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	pc = g->m->scalararg[0];
++	sp = g->m->scalararg[1];
++	if(gp->sig != 0)
+ 		runtime·printf("[signal %x code=%p addr=%p pc=%p]\n",
+-			g->sig, g->sigcode0, g->sigcode1, g->sigpc);
++			gp->sig, gp->sigcode0, gp->sigcode1, gp->sigpc);
+ 
+ 	if((t = runtime·gotraceback(&crash)) > 0){
+-		if(g != g->m->g0) {
++		if(gp != gp->m->g0) {
+ 			runtime·printf("\n");
+-			runtime·goroutineheader(g);
+-			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
++			runtime·goroutineheader(gp);
++			runtime·traceback(pc, sp, 0, gp);
+ 		} else if(t >= 2 || g->m->throwing > 0) {
+ 			runtime·printf("\nruntime stack:\n");
+-			runtime·traceback((uintptr)runtime·getcallerpc(&unused), (uintptr)runtime·getcallersp(&unused), 0, g);
++			runtime·traceback(pc, sp, 0, gp);
+ 		}
+ 		if(!didothers) {
+ 			didothers = true;
+-			runtime·tracebackothers(g);
++			runtime·tracebackothers(gp);
+ 		}
+ 	}
+ 	runtime·unlock(&paniclk);
+@@ -341,58 +217,3 @@ runtime·canpanic(G *gp)
+ #endif
+ 	return true;
+ }
+-
+-void
+-runtime·throw(int8 *s)
+-{
+-	if(g->m->throwing == 0)
+-		g->m->throwing = 1;
+-	runtime·startpanic();
+-	runtime·printf("fatal error: %s\n", s);
+-	runtime·dopanic(0);
+-	*(int32*)0 = 0;	// not reached
+-	runtime·exit(1);	// even more not reached
+-}
+-
+-void
+-runtime·gothrow(String s)
+-{
+-	if(g->m->throwing == 0)
+-		g->m->throwing = 1;
+-	runtime·startpanic();
+-	runtime·printf("fatal error: %S\n", s);
+-	runtime·dopanic(0);
+-	*(int32*)0 = 0;	// not reached
+-	runtime·exit(1);	// even more not reached
+-}
+-
+-void
+-runtime·panicstring(int8 *s)
+-{
+-	Eface err;
+-
+-	// m->softfloat is set during software floating point,
+-	// which might cause a fault during a memory load.
+-	// It increments m->locks to avoid preemption.
+-	// If we're panicking, the software floating point frames
+-	// will be unwound, so decrement m->locks as they would.
+-	if(g->m->softfloat) {
+-		g->m->locks--;
+-		g->m->softfloat = 0;
+-	}
+-
+-	if(g->m->mallocing) {
+-		runtime·printf("panic: %s\n", s);
+-		runtime·throw("panic during malloc");
+-	}
+-	if(g->m->gcing) {
+-		runtime·printf("panic: %s\n", s);
+-		runtime·throw("panic during gc");
+-	}
+-	if(g->m->locks) {
+-		runtime·printf("panic: %s\n", s);
+-		runtime·throw("panic holding locks");
+-	}
+-	runtime·newErrorCString(s, &err);
+-	runtime·panic(err);
+-}
+diff --git a/src/pkg/runtime/panic1.go b/src/pkg/runtime/panic1.go
+new file mode 100644
+index 0000000000..6d939703d4
+--- /dev/null
++++ b/src/pkg/runtime/panic1.go
+@@ -0,0 +1,183 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// Print all currently active panics.  Used when crashing.
++func printpanics(p *_panic) {
++	if p.link != nil {
++		printpanics(p.link)
++		print("\t")
++	}
++	print("panic: ")
++	printany(p.arg)
++	if p.recovered {
++		print(" [recovered]")
++	}
++	print("\n")
++}
++
++// The implementation of the predeclared function panic.
++func gopanic(e interface{}) {
++	gp := getg()
++	if gp.m.curg != gp {
++		gothrow("panic on m stack")
++	}
++	var p _panic
++	var dabort _defer
++	p.arg = e
++	p.link = gp._panic
++	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
++
++	fn := abortpanic
++	dabort.fn = *(**funcval)(unsafe.Pointer(&fn))
++	dabort.siz = ptrSize
++	dabort.args[0] = noescape((unsafe.Pointer)(&p)) // TODO(khr): why do I need noescape here?
++	dabort.argp = _NoArgs
++	dabort.special = true
++
++	for {
++		d := gp._defer
++		if d == nil {
++			break
++		}
++		// take defer off list in case of recursive panic
++		gp._defer = d.link
++		gp.ispanic = true              // rock for runtime·newstack, where runtime·newstackcall ends up
++		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
++		pc := d.pc
++
++		// The deferred function may cause another panic,
++		// so newstackcall may not return. Set up a defer
++		// to mark this panic aborted if that happens.
++		dabort.link = gp._defer
++		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
++		p._defer = d
++
++		newstackcall(d.fn, unsafe.Pointer(&d.args), uint32(d.siz))
++
++		// Newstackcall did not panic. Remove dabort.
++		if gp._defer != &dabort {
++			gothrow("bad defer entry in panic")
++		}
++		gp._defer = dabort.link
++
++		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic
++		//GC()
++
++		freedefer(d)
++		if p.recovered {
++			gp._panic = p.link
++			// Aborted panics are marked but remain on the g.panic list.
++			// Remove them from the list and free the associated defers.
++			for gp._panic != nil && gp._panic.aborted {
++				freedefer(gp._panic._defer)
++				gp._panic = gp._panic.link
++			}
++			if gp._panic == nil { // must be done with signal
++				gp.sig = 0
++			}
++			// Pass information about recovering frame to recovery.
++			gp.sigcode0 = uintptr(argp)
++			gp.sigcode1 = pc
++			mcall(recovery_m)
++			gothrow("recovery failed") // mcall should not return
++		}
++	}
++
++	// ran out of deferred calls - old-school panic now
++	startpanic()
++	printpanics(gp._panic)
++	dopanic(0)       // should not return
++	*(*int)(nil) = 0 // not reached
++}
++
++func abortpanic(p *_panic) {
++	p.aborted = true
++}
++
++// The implementation of the predeclared function recover.
++// Cannot split the stack because it needs to reliably
++// find the stack segment of its caller.
++//go:nosplit
++func gorecover(argp uintptr) interface{} {
++	// Must be an unrecovered panic in progress.
++	// Must be on a stack segment created for a deferred call during a panic.
++	// Must be at the top of that segment, meaning the deferred call itself
++	// and not something it called. The top frame in the segment will have
++	// argument pointer argp == top - top.argsize.
++	// The subtraction of g.panicwrap allows wrapper functions that
++	// do not count as official calls to adjust what we consider the top frame
++	// while they are active on the stack. The linker emits adjustments of
++	// g.panicwrap in the prologue and epilogue of functions marked as wrappers.
++	gp := getg()
++	top := (*stktop)(unsafe.Pointer(gp.stackbase))
++	p := gp._panic
++	if p != nil && !p.recovered && top._panic && argp == gp.stackbase-uintptr(top.argsize+gp.panicwrap) {
++		p.recovered = true
++		return p.arg
++	}
++	return nil
++}
++
++func startpanic() {
++	onM(startpanic_m)
++}
++
++func dopanic(unused int) {
++	gp := getg()
++	mp := acquirem()
++	mp.ptrarg[0] = unsafe.Pointer(gp)
++	mp.scalararg[0] = getcallerpc((unsafe.Pointer)(&unused))
++	mp.scalararg[1] = getcallersp((unsafe.Pointer)(&unused))
++	onM(dopanic_m) // should never return
++	*(*int)(nil) = 0
++}
++
++func throw(s *byte) {
++	gothrow(gostringnocopy(s))
++}
++
++func gothrow(s string) {
++	gp := getg()
++	if gp.m.throwing == 0 {
++		gp.m.throwing = 1
++	}
++	startpanic()
++	print("fatal error: ", s, "\n")
++	dopanic(0)
++	*(*int)(nil) = 0 // not reached
++}
++
++func panicstring(s *int8) {
++	// m.softfloat is set during software floating point,
++	// which might cause a fault during a memory load.
++	// It increments m.locks to avoid preemption.
++	// If we're panicking, the software floating point frames
++	// will be unwound, so decrement m.locks as they would.
++	gp := getg()
++	if gp.m.softfloat != 0 {
++		gp.m.locks--
++		gp.m.softfloat = 0
++	}
++
++	if gp.m.mallocing != 0 {
++		print("panic: ", s, "\n")
++		gothrow("panic during malloc")
++	}
++	if gp.m.gcing != 0 {
++		print("panic: ", s, "\n")
++		gothrow("panic during gc")
++	}
++	if gp.m.locks != 0 {
++		print("panic: ", s, "\n")
++		gothrow("panic holding locks")
++	}
++
++	var err interface{}
++	newErrorCString(unsafe.Pointer(s), &err)
++	gopanic(err)
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 7007957b65..b3d1a94221 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -656,15 +656,12 @@ struct Defer
+ struct Panic
+ {
+ 	Eface	arg;		// argument to panic
+-	uintptr	stackbase;	// g->stackbase in panic
+ 	Panic*	link;		// link to earlier panic
+ 	Defer*	defer;		// current executing defer
+ 	bool	recovered;	// whether this panic is over
+ 	bool	aborted;	// the panic was aborted
+ };
+ 
+-typedef struct XXX XXX;
+-
+ /*
+  * stack traces
+  */
+@@ -1020,7 +1017,7 @@ void	runtime·printcomplex(Complex128);
+  */
+ void	runtime·newstackcall(FuncVal*, byte*, uint32);
+ void	reflect·call(FuncVal*, byte*, uint32, uint32);
+-void	runtime·panic(Eface);
++void	runtime·gopanic(Eface);
+ void	runtime·panicindex(void);
+ void	runtime·panicslice(void);
+ void	runtime·panicdivide(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 3993a372e0..f0861e4085 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -714,8 +714,8 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ 		if(adjinfo->oldstk <= (byte*)d && (byte*)d < adjinfo->oldbase) {
+ 			// The Defer record is on the stack.  Its fields will
+ 			// get adjusted appropriately.
+-			// This only happens for runtime.main now, but a compiler
+-			// optimization could do more of this.
++			// This only happens for runtime.main and runtime.gopanic now,
++			// but a compiler optimization could do more of this.
+ 			*dp = (Defer*)((byte*)d + adjinfo->delta);
+ 			continue;
+ 		}
+@@ -752,6 +752,25 @@ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ 	}
+ }
+ 
++static void
++adjustpanics(G *gp, AdjustInfo *adjinfo)
++{
++	Panic *p;
++
++	// only the topmost panic is on the current stack
++	p = gp->panic;
++	if(p == nil)
++		return;
++	if(p->link != nil) {
++		// only the topmost panic can be on the current stack
++		// (because panic runs defers on a new stack)
++		if(adjinfo->oldstk <= (byte*)p->link && (byte*)p->link < adjinfo->oldbase)
++			runtime·throw("two panics on one stack");
++	}
++	if(adjinfo->oldstk <= (byte*)p && (byte*)p < adjinfo->oldbase)
++		gp->panic = (Panic*)((byte*)p + adjinfo->delta);
++}
++
+ static void
+ adjustsudogs(G *gp, AdjustInfo *adjinfo)
+ {
+@@ -811,6 +830,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	// adjust other miscellaneous things that have pointers into stacks.
+ 	adjustctxt(gp, &adjinfo);
+ 	adjustdefers(gp, &adjinfo);
++	adjustpanics(gp, &adjinfo);
+ 	adjustsudogs(gp, &adjinfo);
+ 	
+ 	// copy the stack (including Stktop) to the new location
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index a822d73db4..7b9412af42 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -350,3 +350,18 @@ func TestStackAllOutput(t *testing.T) {
+ 		t.Errorf("Stack output should begin with \"goroutine \"")
+ 	}
+ }
++
++func TestStackPanic(t *testing.T) {
++	// Test that stack copying copies panics correctly.  This is difficult
++	// to test because it is very unlikely that the stack will be copied
++	// in the middle of gopanic.  But it can happen.
++	// To make this test effective, edit panic.go:gopanic and uncomment
++	// the GC() call just before freedefer(d).
++	defer func() {
++		if x := recover(); x == nil {
++			t.Errorf("recover failed")
++		}
++	}()
++	useStack(32)
++	panic("test panic")
++}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 8e67114f33..7ed4aaa559 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -83,6 +83,7 @@ func badonm() {
+ // Call using mcall.
+ func gosched_m(*g)
+ func park_m(*g)
++func recovery_m(*g)
+ 
+ // More C functions that run on the M stack.
+ // Call using onM.
+@@ -100,6 +101,8 @@ func setmaxthreads_m()
+ func ready_m()
+ func deferproc_m()
+ func goexit_m()
++func startpanic_m()
++func dopanic_m()
+ 
+ // memclr clears n bytes starting at ptr.
+ // in memclr_*.s
+@@ -133,10 +136,6 @@ func memeq(a, b unsafe.Pointer, size uintptr) bool
+ var nohashcode uintptr
+ var noequalcode uintptr
+ 
+-// Go version of runtime.throw.
+-// in panic.c
+-func gothrow(s string)
+-
+ // noescape hides a pointer from escape analysis.  noescape is
+ // the identity function but escape analysis doesn't think the
+ // output depends on the input.  noescape is inlined and currently
+diff --git a/test/live.go b/test/live.go
+index 1c01f8dc49..35099d18ba 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -467,7 +467,7 @@ func f31(b1, b2, b3 bool) {
+ 		h31("b") // ERROR "live at call to newobject: autotmp_[0-9]+$" "live at call to convT2E: autotmp_[0-9]+ autotmp_[0-9]+$" "live at call to h31: autotmp_[0-9]+$"
+ 	}
+ 	if b3 {
+-		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to panic: autotmp_[0-9]+$"
++		panic("asdf") // ERROR "live at call to convT2E: autotmp_[0-9]+$" "live at call to gopanic: autotmp_[0-9]+$"
+ 	}
+ 	print(b3)
+ }

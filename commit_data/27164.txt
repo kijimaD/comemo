@@ -11,8 +11,152 @@ Date:   Sun Mar 13 19:28:32 2016 -0700
     Change-Id: Idc63c41b2be2d52e3a6ac59b3a12eb41aa2efbed
     Reviewed-on: https://go-review.googlesource.com/20670
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go    |  6 +++---
  src/cmd/compile/internal/gc/obj.go | 16 ++++++++--------
  src/cmd/internal/obj/data.go       | 16 ++++++++--------
  3 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 235fc9ea86..0c52c904f5 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -221,7 +221,7 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 
+ 	switch valueAddr.Type {
+ 	case obj.TYPE_CONST:
+-		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Offset)
++		nameAddr.Sym.WriteInt(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Offset)
+ 	case obj.TYPE_FCONST:
+ 		switch scale {
+ 		case 4:
+@@ -232,9 +232,9 @@ func (p *Parser) asmData(word string, operands [][]lex.Token) {
+ 			panic("bad float scale")
+ 		}
+ 	case obj.TYPE_SCONST:
+-		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Val.(string))
++		nameAddr.Sym.WriteString(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Val.(string))
+ 	case obj.TYPE_ADDR:
+-		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int64(scale), valueAddr.Sym, valueAddr.Offset)
++		nameAddr.Sym.WriteAddr(p.ctxt, nameAddr.Offset, int(scale), valueAddr.Sym, valueAddr.Offset)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 3014a927ed..91d0ac87d5 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -279,19 +279,19 @@ func dgostrlitptr(s *Sym, off int, lit *string) int {
+ 	}
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+ 	symhdr, _ := stringsym(*lit)
+-	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(symhdr), 0)
++	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(symhdr), 0)
+ 	off += Widthptr
+ 	return off
+ }
+ 
+ func dsname(s *Sym, off int, t string) int {
+-	Linksym(s).WriteString(Ctxt, int64(off), int64(len(t)), t)
++	Linksym(s).WriteString(Ctxt, int64(off), len(t), t)
+ 	return off + len(t)
+ }
+ 
+ func dsymptr(s *Sym, off int, x *Sym, xoff int) int {
+ 	off = int(Rnd(int64(off), int64(Widthptr)))
+-	Linksym(s).WriteAddr(Ctxt, int64(off), int64(Widthptr), Linksym(x), int64(xoff))
++	Linksym(s).WriteAddr(Ctxt, int64(off), Widthptr, Linksym(x), int64(xoff))
+ 	off += Widthptr
+ 	return off
+ }
+@@ -315,7 +315,7 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 
+ 		case CTINT, CTRUNE, CTBOOL:
+ 			i, _ := nr.IntLiteral()
+-			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, int64(wid), i)
++			Linksym(nam.Sym).WriteInt(Ctxt, nam.Xoffset, wid, i)
+ 
+ 		case CTFLT:
+ 			s := Linksym(nam.Sym)
+@@ -336,13 +336,13 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 			Fatalf("gdata ADDR left op %s", opnames[nr.Left.Op])
+ 		}
+ 		to := nr.Left
+-		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(to.Sym), to.Xoffset)
++		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(to.Sym), to.Xoffset)
+ 
+ 	case ONAME:
+ 		if nr.Class != PFUNC {
+ 			Fatalf("gdata NAME not PFUNC %d", nr.Class)
+ 		}
+-		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, int64(wid), Linksym(funcsym(nr.Sym)), nr.Xoffset)
++		Linksym(nam.Sym).WriteAddr(Ctxt, nam.Xoffset, wid, Linksym(funcsym(nr.Sym)), nr.Xoffset)
+ 
+ 	default:
+ 		Fatalf("gdata unhandled op %v %v\n", nr, opnames[nr.Op])
+@@ -368,6 +368,6 @@ func gdatacomplex(nam *Node, cval *Mpcplx) {
+ func gdatastring(nam *Node, sval string) {
+ 	s := Linksym(nam.Sym)
+ 	_, symdata := stringsym(sval)
+-	s.WriteAddr(Ctxt, nam.Xoffset, Types[Tptr].Width, Linksym(symdata), 0)
+-	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), int64(Widthint), int64(len(sval)))
++	s.WriteAddr(Ctxt, nam.Xoffset, Widthptr, Linksym(symdata), 0)
++	s.WriteInt(Ctxt, nam.Xoffset+int64(Widthptr), Widthint, int64(len(sval)))
+ }
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index e6d116610c..ade79faac7 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -53,14 +53,14 @@ func Symgrow(ctxt *Link, s *LSym, lsiz int64) {
+ }
+ 
+ // prepwrite prepares to write data of size siz into s at offset off.
+-func (s *LSym) prepwrite(ctxt *Link, off, siz int64) {
++func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	if off < 0 || siz < 0 || off >= 1<<30 {
+ 		log.Fatalf("prepwrite: bad off=%d siz=%d", off, siz)
+ 	}
+ 	if s.Type == SBSS || s.Type == STLSBSS {
+ 		ctxt.Diag("cannot supply data for BSS var")
+ 	}
+-	Symgrow(ctxt, s, off+siz)
++	Symgrow(ctxt, s, off+int64(siz))
+ }
+ 
+ // WriteFloat32 writes f into s at offset off.
+@@ -76,7 +76,7 @@ func (s *LSym) WriteFloat64(ctxt *Link, off int64, f float64) {
+ }
+ 
+ // WriteInt writes an integer i of size siz into s at offset off.
+-func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
++func (s *LSym) WriteInt(ctxt *Link, off int64, siz int, i int64) {
+ 	s.prepwrite(ctxt, off, siz)
+ 	switch siz {
+ 	default:
+@@ -94,8 +94,8 @@ func (s *LSym) WriteInt(ctxt *Link, off, siz int64, i int64) {
+ 
+ // WriteAddr writes an address of size siz into s at offset off.
+ // rsym and roff specify the relocation for the address.
+-func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
+-	if siz != int64(ctxt.Arch.Ptrsize) {
++func (s *LSym) WriteAddr(ctxt *Link, off int64, siz int, rsym *LSym, roff int64) {
++	if siz != ctxt.Arch.Ptrsize {
+ 		ctxt.Diag("WriteAddr: bad address size: %d", siz)
+ 	}
+ 	s.prepwrite(ctxt, off, siz)
+@@ -108,12 +108,12 @@ func (s *LSym) WriteAddr(ctxt *Link, off, siz int64, rsym *LSym, roff int64) {
+ }
+ 
+ // WriteString writes a string of size siz into s at offset off.
+-func (s *LSym) WriteString(ctxt *Link, off, siz int64, str string) {
+-	if siz < int64(len(str)) {
++func (s *LSym) WriteString(ctxt *Link, off int64, siz int, str string) {
++	if siz < len(str) {
+ 		ctxt.Diag("WriteString: bad string size: %d < %d", siz, len(str))
+ 	}
+ 	s.prepwrite(ctxt, off, siz)
+-	copy(s.P[off:off+siz], str)
++	copy(s.P[off:off+int64(siz)], str)
+ }
+ 
+ func Addrel(s *LSym) *Reloc {

@@ -12,6 +12,19 @@ Date:   Fri Dec 9 13:11:48 2016 -0800
     Change-Id: I990a7135f1d31488d535238ae061d42ee96bacb7
     Reviewed-on: https://go-review.googlesource.com/34249
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/io/io.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 3cab7288c9..9e4b86594d 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -420,6 +420,7 @@ func LimitReader(r Reader, n int64) Reader { return &LimitedReader{r, n} }
+ // A LimitedReader reads from R but limits the amount of
+ // data returned to just N bytes. Each call to Read
+ // updates N to reflect the new amount remaining.
++// Read returns EOF when N <= 0 or when the underlying R returns EOF.
+ type LimitedReader struct {
+ 	R Reader // underlying reader
+ 	N int64  // max bytes remaining

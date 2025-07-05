@@ -17,10 +17,94 @@ Date:   Tue Oct 14 23:24:58 2014 -0400
     R=bradfitz, rsc, adg
     CC=golang-codereviews
     https://golang.org/cl/155050043
-
+---
  src/go/build/build.go                         | 15 ++++++++++++++-
  src/go/build/build_test.go                    | 14 ++++++++++++++
  src/go/build/testdata/empty/dummy             |  0
  src/go/build/testdata/multi/file.go           |  5 +++++
  src/go/build/testdata/multi/file_appengine.go |  5 +++++
  5 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 3ac7980833..7a51cf3c06 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -417,6 +417,19 @@ func (e *NoGoError) Error() string {
+ 	return "no buildable Go source files in " + e.Dir
+ }
+ 
++// MultiplePackageError describes a directory containing
++// multiple buildable Go source files for multiple packages.
++type MultiplePackageError struct {
++	Dir      string   // directory containing files
++	Packages []string // package names found
++	Files    []string // corresponding files: Files[i] declares package Packages[i]
++}
++
++func (e *MultiplePackageError) Error() string {
++	// Error string limited to two entries for compatibility.
++	return fmt.Sprintf("found packages %s (%s) and %s (%s) in %s", e.Packages[0], e.Files[0], e.Packages[1], e.Files[1], e.Dir)
++}
++
+ func nameExt(name string) string {
+ 	i := strings.LastIndex(name, ".")
+ 	if i < 0 {
+@@ -675,7 +688,7 @@ Found:
+ 			p.Name = pkg
+ 			firstFile = name
+ 		} else if pkg != p.Name {
+-			return p, fmt.Errorf("found packages %s (%s) and %s (%s) in %s", p.Name, firstFile, pkg, name, p.Dir)
++			return p, &MultiplePackageError{p.Dir, []string{firstFile, name}, []string{p.Name, pkg}}
+ 		}
+ 		if pf.Doc != nil && p.Doc == "" {
+ 			p.Doc = doc.Synopsis(pf.Doc.Text())
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 23ce89b4bd..43d09cbd14 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -85,6 +85,20 @@ func TestEmptyImport(t *testing.T) {
+ 	}
+ }
+ 
++func TestEmptyFolderImport(t *testing.T) {
++	_, err := Import(".", "testdata/empty", 0)
++	if _, ok := err.(*NoGoError); !ok {
++		t.Fatal(`Import("testdata/empty") did not return NoGoError.`)
++	}
++}
++
++func TestMultiplePackageImport(t *testing.T) {
++	_, err := Import(".", "testdata/multi", 0)
++	if _, ok := err.(*MultiplePackageError); !ok {
++		t.Fatal(`Import("testdata/multi") did not return MultiplePackageError.`)
++	}
++}
++
+ func TestLocalDirectory(t *testing.T) {
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+diff --git a/src/go/build/testdata/empty/dummy b/src/go/build/testdata/empty/dummy
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/go/build/testdata/multi/file.go b/src/go/build/testdata/multi/file.go
+new file mode 100644
+index 0000000000..ee946eb2a2
+--- /dev/null
++++ b/src/go/build/testdata/multi/file.go
+@@ -0,0 +1,5 @@
++// Test data - not compiled.
++
++package main
++
++func main() {}
+diff --git a/src/go/build/testdata/multi/file_appengine.go b/src/go/build/testdata/multi/file_appengine.go
+new file mode 100644
+index 0000000000..4ea31e7031
+--- /dev/null
++++ b/src/go/build/testdata/multi/file_appengine.go
+@@ -0,0 +1,5 @@
++// Test data - not compiled.
++
++package test_package
++
++func init() {}

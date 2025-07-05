@@ -13,7 +13,7 @@ Date:   Thu Feb 13 22:45:16 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/63650044
-
+---
  src/cmd/5g/cgen.c  | 12 ++++++++++++
  src/cmd/6g/cgen.c  | 12 ++++++++++++
  src/cmd/8g/cgen.c  | 12 ++++++++++++
@@ -21,3 +21,193 @@ Date:   Thu Feb 13 22:45:16 2014 -0500
  src/cmd/gc/plive.c | 19 +++++++++----------
  test/live.go       | 18 ++++++++++++++++++
  6 files changed, 65 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 2d260e72d5..a5ac6c15bd 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1414,6 +1414,7 @@ sgen(Node *n, Node *res, int64 w)
+ 	int32 c, odst, osrc;
+ 	int dir, align, op;
+ 	Prog *p, *ploop;
++	NodeList *l;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+@@ -1439,6 +1440,17 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
++	// Record site of definition of ns for liveness analysis.
++	if(res->op == ONAME && res->class != PEXTERN)
++		gvardef(res);
++	
++	// If copying .args, that's all the results, so record definition sites
++	// for them for the liveness analysis.
++	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
++		for(l = curfn->dcl; l != nil; l = l->next)
++			if(l->n->class == PPARAMOUT)
++				gvardef(l->n);
++
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(n, res))
+ 		return;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 76ece93b04..05cdf54afe 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1337,6 +1337,7 @@ sgen(Node *n, Node *ns, int64 w)
+ {
+ 	Node nodl, nodr, nodsi, noddi, cx, oldcx, tmp;
+ 	vlong c, q, odst, osrc;
++	NodeList *l;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+@@ -1349,6 +1350,17 @@ sgen(Node *n, Node *ns, int64 w)
+ 
+ 	if(w < 0)
+ 		fatal("sgen copy %lld", w);
++	
++	// Record site of definition of ns for liveness analysis.
++	if(ns->op == ONAME && ns->class != PEXTERN)
++		gvardef(ns);
++	
++	// If copying .args, that's all the results, so record definition sites
++	// for them for the liveness analysis.
++	if(ns->op == ONAME && strcmp(ns->sym->name, ".args") == 0)
++		for(l = curfn->dcl; l != nil; l = l->next)
++			if(l->n->class == PPARAMOUT)
++				gvardef(l->n);
+ 
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(n, ns))
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index cc28a31457..f0630ae4fa 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1203,6 +1203,7 @@ sgen(Node *n, Node *res, int64 w)
+ {
+ 	Node dst, src, tdst, tsrc;
+ 	int32 c, q, odst, osrc;
++	NodeList *l;
+ 
+ 	if(debug['g']) {
+ 		print("\nsgen w=%lld\n", w);
+@@ -1223,6 +1224,17 @@ sgen(Node *n, Node *res, int64 w)
+ 		return;
+ 	}
+ 
++	// Record site of definition of ns for liveness analysis.
++	if(res->op == ONAME && res->class != PEXTERN)
++		gvardef(res);
++	
++	// If copying .args, that's all the results, so record definition sites
++	// for them for the liveness analysis.
++	if(res->op == ONAME && strcmp(res->sym->name, ".args") == 0)
++		for(l = curfn->dcl; l != nil; l = l->next)
++			if(l->n->class == PPARAMOUT)
++				gvardef(l->n);
++
+ 	// Avoid taking the address for simple enough types.
+ 	if(componentgen(n, res))
+ 		return;
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 8190fc36ff..571334e6b7 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -34,8 +34,8 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ void
+ gvardef(Node *n)
+ {
+-	if(n == N || !isfat(n->type))
+-		fatal("gvardef: node is not fat");
++	if(n == N)
++		fatal("gvardef nil");
+ 	switch(n->class) {
+ 	case PAUTO:
+ 	case PPARAM:
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 108f89399f..de868a672a 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -621,7 +621,7 @@ freecfg(Array *cfg)
+ static int
+ isfunny(Node *node)
+ {
+-	char *names[] = { ".fp", ".args", "_", nil };
++	char *names[] = { ".fp", ".args", nil };
+ 	int i;
+ 
+ 	if(node->sym != nil && node->sym->name != nil)
+@@ -696,8 +696,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 	}
+ 	if(info.flags & (LeftRead | LeftWrite | LeftAddr)) {
+ 		from = &prog->from;
+-		if (from->node != nil && !isfunny(from->node) && from->sym != nil) {
+-			switch(prog->from.node->class & ~PHEAP) {
++		if (from->node != nil && from->sym != nil) {
++			switch(from->node->class & ~PHEAP) {
+ 			case PAUTO:
+ 			case PPARAM:
+ 			case PPARAMOUT:
+@@ -710,7 +710,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 					if(info.flags & (LeftRead | LeftAddr))
+ 						bvset(uevar, pos);
+ 					if(info.flags & LeftWrite)
+-						if(from->node != nil && (!isfat(from->node->type) || prog->as == AVARDEF))
++						if(from->node != nil && !isfat(from->node->type))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -719,8 +719,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ Next:
+ 	if(info.flags & (RightRead | RightWrite | RightAddr)) {
+ 		to = &prog->to;
+-		if (to->node != nil && to->sym != nil && !isfunny(to->node)) {
+-			switch(prog->to.node->class & ~PHEAP) {
++		if (to->node != nil && to->sym != nil) {
++			switch(to->node->class & ~PHEAP) {
+ 			case PAUTO:
+ 			case PPARAM:
+ 			case PPARAMOUT:
+@@ -728,10 +728,9 @@ Next:
+ 				if(pos == -1)
+ 					goto Next1;
+ 				if(to->node->addrtaken) {
+-					//if(prog->as == AKILL)
+-					//	bvset(varkill, pos);
+-					//else
+-						bvset(avarinit, pos);
++					bvset(avarinit, pos);
++					if(prog->as == AVARDEF)
++						bvset(varkill, pos);
+ 				} else {
+ 					if(info.flags & (RightRead | RightAddr))
+ 						bvset(uevar, pos);
+diff --git a/test/live.go b/test/live.go
+index c3dbc55c0a..ec2df7e5f8 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -95,3 +95,21 @@ func f7() (x string) {
+ 	return
+ }
+ 
++// ignoring block returns used to cause "live at entry to f8: x, y".
++
++func f8() (x, y string) {
++	return g8()
++}
++
++func g8() (string, string)
++
++// ignoring block assignments used to cause "live at entry to f9: x"
++// issue 7205
++
++var i9 interface{}
++
++func f9() bool {
++	g8()
++	x := i9
++	return x != 99
++}

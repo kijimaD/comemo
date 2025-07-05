@@ -10,7 +10,7 @@ Date:   Sat Oct 14 21:09:16 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/math/big/doc.go        | 18 ++++-----
  src/math/big/float.go      | 98 +++++++++++++++++++++++-----------------------
  src/math/big/floatconv.go  |  6 +--
@@ -36,3 +36,1067 @@ Date:   Sat Oct 14 21:09:16 2023 +0800
  src/math/rand/rand.go      | 54 ++++++++++++-------------
  src/math/rand/zipf.go      |  6 +--
  24 files changed, 147 insertions(+), 147 deletions(-)
+
+diff --git a/src/math/big/doc.go b/src/math/big/doc.go
+index fee5a65c7b..2038546fa8 100644
+--- a/src/math/big/doc.go
++++ b/src/math/big/doc.go
+@@ -10,7 +10,7 @@ The following numeric types are supported:
+ 	Rat    rational numbers
+ 	Float  floating-point numbers
+ 
+-The zero value for an Int, Rat, or Float correspond to 0. Thus, new
++The zero value for an [Int], [Rat], or [Float] correspond to 0. Thus, new
+ values can be declared in the usual ways and denote 0 without further
+ initialization:
+ 
+@@ -23,9 +23,9 @@ functions of the form:
+ 
+ 	func NewT(v V) *T
+ 
+-For instance, NewInt(x) returns an *Int set to the value of the int64
+-argument x, NewRat(a, b) returns a *Rat set to the fraction a/b where
+-a and b are int64 values, and NewFloat(f) returns a *Float initialized
++For instance, [NewInt](x) returns an *[Int] set to the value of the int64
++argument x, [NewRat](a, b) returns a *[Rat] set to the fraction a/b where
++a and b are int64 values, and [NewFloat](f) returns a *[Float] initialized
+ to the float64 argument f. More flexibility is provided with explicit
+ setters, for instance:
+ 
+@@ -42,7 +42,7 @@ the form:
+ 	func (z *T) Binary(x, y *T) *T    // z = x binary y
+ 	func (x *T) Pred() P              // p = pred(x)
+ 
+-with T one of Int, Rat, or Float. For unary and binary operations, the
++with T one of [Int], [Rat], or [Float]. For unary and binary operations, the
+ result is the receiver (usually named z in that case; see below); if it
+ is one of the operands x or y it may be safely overwritten (and its memory
+ reused).
+@@ -81,18 +81,18 @@ Methods of this form typically return the incoming receiver as well, to
+ enable simple call chaining.
+ 
+ Methods which don't require a result value to be passed in (for instance,
+-Int.Sign), simply return the result. In this case, the receiver is typically
++[Int.Sign]), simply return the result. In this case, the receiver is typically
+ the first operand, named x:
+ 
+ 	func (x *Int) Sign() int
+ 
+ Various methods support conversions between strings and corresponding
+-numeric values, and vice versa: *Int, *Rat, and *Float values implement
++numeric values, and vice versa: *[Int], *[Rat], and *[Float] values implement
+ the Stringer interface for a (default) string representation of the value,
+ but also provide SetString methods to initialize a value from a string in
+ a variety of supported formats (see the respective SetString documentation).
+ 
+-Finally, *Int, *Rat, and *Float satisfy [fmt.Scanner] for scanning
+-and (except for *Rat) the Formatter interface for formatted printing.
++Finally, *[Int], *[Rat], and *[Float] satisfy [fmt.Scanner] for scanning
++and (except for *[Rat]) the Formatter interface for formatted printing.
+ */
+ package big
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 2f0635a03b..1c97ec98c0 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -36,7 +36,7 @@ const debugFloat = false // enable for debugging
+ //
+ // Unless specified otherwise, all operations (including setters) that
+ // specify a *Float variable for the result (usually via the receiver
+-// with the exception of MantExp), round the numeric result according
++// with the exception of [Float.MantExp]), round the numeric result according
+ // to the precision and rounding mode of the result variable.
+ //
+ // If the provided result precision is 0 (see below), it is set to the
+@@ -47,20 +47,20 @@ const debugFloat = false // enable for debugging
+ // their mode is the zero value for RoundingMode (ToNearestEven).
+ //
+ // By setting the desired precision to 24 or 53 and using matching rounding
+-// mode (typically ToNearestEven), Float operations produce the same results
++// mode (typically [ToNearestEven]), Float operations produce the same results
+ // as the corresponding float32 or float64 IEEE-754 arithmetic for operands
+ // that correspond to normal (i.e., not denormal) float32 or float64 numbers.
+ // Exponent underflow and overflow lead to a 0 or an Infinity for different
+ // values than IEEE-754 because Float exponents have a much larger range.
+ //
+ // The zero (uninitialized) value for a Float is ready to use and represents
+-// the number +0.0 exactly, with precision 0 and rounding mode ToNearestEven.
++// the number +0.0 exactly, with precision 0 and rounding mode [ToNearestEven].
+ //
+ // Operations always take pointer arguments (*Float) rather
+ // than Float values, and each unique Float value requires
+ // its own unique *Float pointer. To "copy" a Float value,
+ // an existing (or newly allocated) Float must be set to
+-// a new value using the Float.Set method; shallow copies
++// a new value using the [Float.Set] method; shallow copies
+ // of Floats are not supported and may lead to errors.
+ type Float struct {
+ 	prec uint32
+@@ -72,7 +72,7 @@ type Float struct {
+ 	exp  int32
+ }
+ 
+-// An ErrNaN panic is raised by a Float operation that would lead to
++// An ErrNaN panic is raised by a [Float] operation that would lead to
+ // a NaN under IEEE-754 rules. An ErrNaN implements the error interface.
+ type ErrNaN struct {
+ 	msg string
+@@ -82,9 +82,9 @@ func (err ErrNaN) Error() string {
+ 	return err.msg
+ }
+ 
+-// NewFloat allocates and returns a new Float set to x,
+-// with precision 53 and rounding mode ToNearestEven.
+-// NewFloat panics with ErrNaN if x is a NaN.
++// NewFloat allocates and returns a new [Float] set to x,
++// with precision 53 and rounding mode [ToNearestEven].
++// NewFloat panics with [ErrNaN] if x is a NaN.
+ func NewFloat(x float64) *Float {
+ 	if math.IsNaN(x) {
+ 		panic(ErrNaN{"NewFloat(NaN)"})
+@@ -126,9 +126,9 @@ const (
+ 	inf
+ )
+ 
+-// RoundingMode determines how a Float value is rounded to the
+-// desired precision. Rounding may change the Float value; the
+-// rounding error is described by the Float's Accuracy.
++// RoundingMode determines how a [Float] value is rounded to the
++// desired precision. Rounding may change the [Float] value; the
++// rounding error is described by the [Float]'s [Accuracy].
+ type RoundingMode byte
+ 
+ // These constants define supported rounding modes.
+@@ -144,10 +144,10 @@ const (
+ //go:generate stringer -type=RoundingMode
+ 
+ // Accuracy describes the rounding error produced by the most recent
+-// operation that generated a Float value, relative to the exact value.
++// operation that generated a [Float] value, relative to the exact value.
+ type Accuracy int8
+ 
+-// Constants describing the Accuracy of a Float.
++// Constants describing the [Accuracy] of a [Float].
+ const (
+ 	Below Accuracy = -1
+ 	Exact Accuracy = 0
+@@ -160,7 +160,7 @@ const (
+ // value of z. Rounding occurs according to z's rounding mode if the mantissa
+ // cannot be represented in prec bits without loss of precision.
+ // SetPrec(0) maps all finite values to ±0; infinite values remain unchanged.
+-// If prec > MaxPrec, it is set to MaxPrec.
++// If prec > [MaxPrec], it is set to [MaxPrec].
+ func (z *Float) SetPrec(prec uint) *Float {
+ 	z.acc = Exact // optimistically assume no rounding is needed
+ 
+@@ -196,7 +196,7 @@ func makeAcc(above bool) Accuracy {
+ 
+ // SetMode sets z's rounding mode to mode and returns an exact z.
+ // z remains unchanged otherwise.
+-// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to Exact.
++// z.SetMode(z.Mode()) is a cheap way to set z's accuracy to [Exact].
+ func (z *Float) SetMode(mode RoundingMode) *Float {
+ 	z.mode = mode
+ 	z.acc = Exact
+@@ -302,9 +302,9 @@ func (z *Float) setExpAndRound(exp int64, sbit uint) {
+ 
+ // SetMantExp sets z to mant × 2**exp and returns z.
+ // The result z has the same precision and rounding mode
+-// as mant. SetMantExp is an inverse of MantExp but does
++// as mant. SetMantExp is an inverse of [Float.MantExp] but does
+ // not require 0.5 <= |mant| < 1.0. Specifically, for a
+-// given x of type *Float, SetMantExp relates to MantExp
++// given x of type *[Float], SetMantExp relates to [Float.MantExp]
+ // as follows:
+ //
+ //	mant := new(Float)
+@@ -548,7 +548,7 @@ func (z *Float) SetInt64(x int64) *Float {
+ 
+ // SetFloat64 sets z to the (possibly rounded) value of x and returns z.
+ // If z's precision is 0, it is changed to 53 (and rounding will have
+-// no effect). SetFloat64 panics with ErrNaN if x is a NaN.
++// no effect). SetFloat64 panics with [ErrNaN] if x is a NaN.
+ func (z *Float) SetFloat64(x float64) *Float {
+ 	if z.prec == 0 {
+ 		z.prec = 53
+@@ -637,7 +637,7 @@ func (z *Float) SetRat(x *Rat) *Float {
+ // SetInf sets z to the infinite Float -Inf if signbit is
+ // set, or +Inf if signbit is not set, and returns z. The
+ // precision of z is unchanged and the result is always
+-// Exact.
++// [Exact].
+ func (z *Float) SetInf(signbit bool) *Float {
+ 	z.acc = Exact
+ 	z.form = inf
+@@ -734,10 +734,10 @@ func msb64(x nat) uint64 {
+ }
+ 
+ // Uint64 returns the unsigned integer resulting from truncating x
+-// towards zero. If 0 <= x <= math.MaxUint64, the result is Exact
+-// if x is an integer and Below otherwise.
+-// The result is (0, Above) for x < 0, and (math.MaxUint64, Below)
+-// for x > math.MaxUint64.
++// towards zero. If 0 <= x <= math.MaxUint64, the result is [Exact]
++// if x is an integer and [Below] otherwise.
++// The result is (0, [Above]) for x < 0, and ([math.MaxUint64], [Below])
++// for x > [math.MaxUint64].
+ func (x *Float) Uint64() (uint64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -779,10 +779,10 @@ func (x *Float) Uint64() (uint64, Accuracy) {
+ }
+ 
+ // Int64 returns the integer resulting from truncating x towards zero.
+-// If math.MinInt64 <= x <= math.MaxInt64, the result is Exact if x is
+-// an integer, and Above (x < 0) or Below (x > 0) otherwise.
+-// The result is (math.MinInt64, Above) for x < math.MinInt64,
+-// and (math.MaxInt64, Below) for x > math.MaxInt64.
++// If [math.MinInt64] <= x <= [math.MaxInt64], the result is [Exact] if x is
++// an integer, and [Above] (x < 0) or [Below] (x > 0) otherwise.
++// The result is ([math.MinInt64], [Above]) for x < [math.MinInt64],
++// and ([math.MaxInt64], [Below]) for x > [math.MaxInt64].
+ func (x *Float) Int64() (int64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -834,10 +834,10 @@ func (x *Float) Int64() (int64, Accuracy) {
+ }
+ 
+ // Float32 returns the float32 value nearest to x. If x is too small to be
+-// represented by a float32 (|x| < math.SmallestNonzeroFloat32), the result
+-// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+-// If x is too large to be represented by a float32 (|x| > math.MaxFloat32),
+-// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
++// represented by a float32 (|x| < [math.SmallestNonzeroFloat32]), the result
++// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
++// If x is too large to be represented by a float32 (|x| > [math.MaxFloat32]),
++// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
+ func (x *Float) Float32() (float32, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -954,10 +954,10 @@ func (x *Float) Float32() (float32, Accuracy) {
+ }
+ 
+ // Float64 returns the float64 value nearest to x. If x is too small to be
+-// represented by a float64 (|x| < math.SmallestNonzeroFloat64), the result
+-// is (0, Below) or (-0, Above), respectively, depending on the sign of x.
+-// If x is too large to be represented by a float64 (|x| > math.MaxFloat64),
+-// the result is (+Inf, Above) or (-Inf, Below), depending on the sign of x.
++// represented by a float64 (|x| < [math.SmallestNonzeroFloat64]), the result
++// is (0, [Below]) or (-0, [Above]), respectively, depending on the sign of x.
++// If x is too large to be represented by a float64 (|x| > [math.MaxFloat64]),
++// the result is (+Inf, [Above]) or (-Inf, [Below]), depending on the sign of x.
+ func (x *Float) Float64() (float64, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1075,10 +1075,10 @@ func (x *Float) Float64() (float64, Accuracy) {
+ 
+ // Int returns the result of truncating x towards zero;
+ // or nil if x is an infinity.
+-// The result is Exact if x.IsInt(); otherwise it is Below
+-// for x > 0, and Above for x < 0.
+-// If a non-nil *Int argument z is provided, Int stores
+-// the result in z instead of allocating a new Int.
++// The result is [Exact] if x.IsInt(); otherwise it is [Below]
++// for x > 0, and [Above] for x < 0.
++// If a non-nil *[Int] argument z is provided, [Int] stores
++// the result in z instead of allocating a new [Int].
+ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1132,9 +1132,9 @@ func (x *Float) Int(z *Int) (*Int, Accuracy) {
+ 
+ // Rat returns the rational number corresponding to x;
+ // or nil if x is an infinity.
+-// The result is Exact if x is not an Inf.
+-// If a non-nil *Rat argument z is provided, Rat stores
+-// the result in z instead of allocating a new Rat.
++// The result is [Exact] if x is not an Inf.
++// If a non-nil *[Rat] argument z is provided, [Rat] stores
++// the result in z instead of allocating a new [Rat].
+ func (x *Float) Rat(z *Rat) (*Rat, Accuracy) {
+ 	if debugFloat {
+ 		x.validate()
+@@ -1444,7 +1444,7 @@ func (x *Float) ucmp(y *Float) int {
+ // it is changed to the larger of x's or y's precision before the operation.
+ // Rounding is performed according to z's precision and rounding mode; and
+ // z's accuracy reports the result error relative to the exact (not rounded)
+-// result. Add panics with ErrNaN if x and y are infinities with opposite
++// result. Add panics with [ErrNaN] if x and y are infinities with opposite
+ // signs. The value of z is undefined in that case.
+ func (z *Float) Add(x, y *Float) *Float {
+ 	if debugFloat {
+@@ -1517,8 +1517,8 @@ func (z *Float) Add(x, y *Float) *Float {
+ }
+ 
+ // Sub sets z to the rounded difference x-y and returns z.
+-// Precision, rounding, and accuracy reporting are as for Add.
+-// Sub panics with ErrNaN if x and y are infinities with equal
++// Precision, rounding, and accuracy reporting are as for [Float.Add].
++// Sub panics with [ErrNaN] if x and y are infinities with equal
+ // signs. The value of z is undefined in that case.
+ func (z *Float) Sub(x, y *Float) *Float {
+ 	if debugFloat {
+@@ -1584,8 +1584,8 @@ func (z *Float) Sub(x, y *Float) *Float {
+ }
+ 
+ // Mul sets z to the rounded product x*y and returns z.
+-// Precision, rounding, and accuracy reporting are as for Add.
+-// Mul panics with ErrNaN if one operand is zero and the other
++// Precision, rounding, and accuracy reporting are as for [Float.Add].
++// Mul panics with [ErrNaN] if one operand is zero and the other
+ // operand an infinity. The value of z is undefined in that case.
+ func (z *Float) Mul(x, y *Float) *Float {
+ 	if debugFloat {
+@@ -1629,8 +1629,8 @@ func (z *Float) Mul(x, y *Float) *Float {
+ }
+ 
+ // Quo sets z to the rounded quotient x/y and returns z.
+-// Precision, rounding, and accuracy reporting are as for Add.
+-// Quo panics with ErrNaN if both operands are zero or infinities.
++// Precision, rounding, and accuracy reporting are as for [Float.Add].
++// Quo panics with [ErrNaN] if both operands are zero or infinities.
+ // The value of z is undefined in that case.
+ func (z *Float) Quo(x, y *Float) *Float {
+ 	if debugFloat {
+diff --git a/src/math/big/floatconv.go b/src/math/big/floatconv.go
+index 6501185fbe..d8c69b8b28 100644
+--- a/src/math/big/floatconv.go
++++ b/src/math/big/floatconv.go
+@@ -16,7 +16,7 @@ var floatZero Float
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+ // success. s must be a floating-point number of the same format as accepted
+-// by Parse, with base argument 0. The entire string (not just a prefix) must
++// by [Float.Parse], with base argument 0. The entire string (not just a prefix) must
+ // be valid for success. If the operation failed, the value of z is undefined
+ // but the returned value is nil.
+ func (z *Float) SetString(s string) (*Float, bool) {
+@@ -290,9 +290,9 @@ func ParseFloat(s string, base int, prec uint, mode RoundingMode) (f *Float, b i
+ 
+ var _ fmt.Scanner = (*Float)(nil) // *Float must implement fmt.Scanner
+ 
+-// Scan is a support routine for fmt.Scanner; it sets z to the value of
++// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
+ // the scanned number. It accepts formats whose verbs are supported by
+-// fmt.Scan for floating point values, which are:
++// [fmt.Scan] for floating point values, which are:
+ // 'b' (binary), 'e', 'E', 'f', 'F', 'g' and 'G'.
+ // Scan doesn't handle ±Inf.
+ func (z *Float) Scan(s fmt.ScanState, ch rune) error {
+diff --git a/src/math/big/floatmarsh.go b/src/math/big/floatmarsh.go
+index 2a78c69e34..8a908cef28 100644
+--- a/src/math/big/floatmarsh.go
++++ b/src/math/big/floatmarsh.go
+@@ -15,8 +15,8 @@ import (
+ // Gob codec version. Permits backward-compatible changes to the encoding.
+ const floatGobVersion byte = 1
+ 
+-// GobEncode implements the gob.GobEncoder interface.
+-// The Float value and all its attributes (precision,
++// GobEncode implements the [encoding/gob.GobEncoder] interface.
++// The [Float] value and all its attributes (precision,
+ // rounding mode, accuracy) are marshaled.
+ func (x *Float) GobEncode() ([]byte, error) {
+ 	if x == nil {
+@@ -58,7 +58,7 @@ func (x *Float) GobEncode() ([]byte, error) {
+ 	return buf, nil
+ }
+ 
+-// GobDecode implements the gob.GobDecoder interface.
++// GobDecode implements the [encoding/gob.GobDecoder] interface.
+ // The result is rounded per the precision and rounding mode of
+ // z unless z's precision is 0, in which case z is set exactly
+ // to the decoded value.
+@@ -106,8 +106,8 @@ func (z *Float) GobDecode(buf []byte) error {
+ 	return nil
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface.
+-// Only the Float value is marshaled (in full precision), other
++// MarshalText implements the [encoding.TextMarshaler] interface.
++// Only the [Float] value is marshaled (in full precision), other
+ // attributes such as precision or accuracy are ignored.
+ func (x *Float) MarshalText() (text []byte, err error) {
+ 	if x == nil {
+@@ -117,7 +117,7 @@ func (x *Float) MarshalText() (text []byte, err error) {
+ 	return x.Append(buf, 'g', -1), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
++// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+ // The result is rounded per the precision and rounding mode of z.
+ // If z's precision is 0, it is changed to 64 before rounding takes
+ // effect.
+diff --git a/src/math/big/ftoa.go b/src/math/big/ftoa.go
+index 6daea34496..f7a4345d3a 100644
+--- a/src/math/big/ftoa.go
++++ b/src/math/big/ftoa.go
+@@ -53,7 +53,7 @@ func (x *Float) Text(format byte, prec int) string {
+ }
+ 
+ // String formats x like x.Text('g', 10).
+-// (String must be called explicitly, Float.Format does not support %s verb.)
++// (String must be called explicitly, [Float.Format] does not support %s verb.)
+ func (x *Float) String() string {
+ 	return x.Text('g', 10)
+ }
+@@ -446,7 +446,7 @@ func (x *Float) fmtP(buf []byte) []byte {
+ 
+ var _ fmt.Formatter = &floatZero // *Float must implement fmt.Formatter
+ 
+-// Format implements fmt.Formatter. It accepts all the regular
++// Format implements [fmt.Formatter]. It accepts all the regular
+ // formats for floating-point numbers ('b', 'e', 'E', 'f', 'F',
+ // 'g', 'G', 'x') as well as 'p' and 'v'. See (*Float).Text for the
+ // interpretation of 'p'. The 'v' format is handled like 'g'.
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 2cc3d7b441..b79b459270 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -20,7 +20,7 @@ import (
+ // than Int values, and each unique Int value requires
+ // its own unique *Int pointer. To "copy" an Int value,
+ // an existing (or newly allocated) Int must be set to
+-// a new value using the Int.Set method; shallow copies
++// a new value using the [Int.Set] method; shallow copies
+ // of Ints are not supported and may lead to errors.
+ //
+ // Note that methods may leak the Int's value through timing side-channels.
+@@ -74,7 +74,7 @@ func (z *Int) SetUint64(x uint64) *Int {
+ 	return z
+ }
+ 
+-// NewInt allocates and returns a new Int set to x.
++// NewInt allocates and returns a new [Int] set to x.
+ func NewInt(x int64) *Int {
+ 	// This code is arranged to be inlineable and produce
+ 	// zero allocations when inlined. See issue 29951.
+@@ -102,9 +102,9 @@ func (z *Int) Set(x *Int) *Int {
+ }
+ 
+ // Bits provides raw (unchecked but fast) access to x by returning its
+-// absolute value as a little-endian Word slice. The result and x share
++// absolute value as a little-endian [Word] slice. The result and x share
+ // the same underlying array.
+-// Bits is intended to support implementation of missing low-level Int
++// Bits is intended to support implementation of missing low-level [Int]
+ // functionality outside this package; it should be avoided otherwise.
+ func (x *Int) Bits() []Word {
+ 	// This function is used in cryptographic operations. It must not leak
+@@ -114,9 +114,9 @@ func (x *Int) Bits() []Word {
+ }
+ 
+ // SetBits provides raw (unchecked but fast) access to z by setting its
+-// value to abs, interpreted as a little-endian Word slice, and returning
++// value to abs, interpreted as a little-endian [Word] slice, and returning
+ // z. The result and abs share the same underlying array.
+-// SetBits is intended to support implementation of missing low-level Int
++// SetBits is intended to support implementation of missing low-level [Int]
+ // functionality outside this package; it should be avoided otherwise.
+ func (z *Int) SetBits(abs []Word) *Int {
+ 	z.abs = nat(abs).norm()
+@@ -263,7 +263,7 @@ func (z *Int) Binomial(n, k int64) *Int {
+ 
+ // Quo sets z to the quotient x/y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+-// Quo implements truncated division (like Go); see QuoRem for more details.
++// Quo implements truncated division (like Go); see [Int.QuoRem] for more details.
+ func (z *Int) Quo(x, y *Int) *Int {
+ 	z.abs, _ = z.abs.div(nil, x.abs, y.abs)
+ 	z.neg = len(z.abs) > 0 && x.neg != y.neg // 0 has no sign
+@@ -272,7 +272,7 @@ func (z *Int) Quo(x, y *Int) *Int {
+ 
+ // Rem sets z to the remainder x%y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+-// Rem implements truncated modulus (like Go); see QuoRem for more details.
++// Rem implements truncated modulus (like Go); see [Int.QuoRem] for more details.
+ func (z *Int) Rem(x, y *Int) *Int {
+ 	_, z.abs = nat(nil).div(z.abs, x.abs, y.abs)
+ 	z.neg = len(z.abs) > 0 && x.neg // 0 has no sign
+@@ -298,7 +298,7 @@ func (z *Int) QuoRem(x, y, r *Int) (*Int, *Int) {
+ 
+ // Div sets z to the quotient x/y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+-// Div implements Euclidean division (unlike Go); see DivMod for more details.
++// Div implements Euclidean division (unlike Go); see [Int.DivMod] for more details.
+ func (z *Int) Div(x, y *Int) *Int {
+ 	y_neg := y.neg // z may be an alias for y
+ 	var r Int
+@@ -315,7 +315,7 @@ func (z *Int) Div(x, y *Int) *Int {
+ 
+ // Mod sets z to the modulus x%y for y != 0 and returns z.
+ // If y == 0, a division-by-zero run-time panic occurs.
+-// Mod implements Euclidean modulus (unlike Go); see DivMod for more details.
++// Mod implements Euclidean modulus (unlike Go); see [Int.DivMod] for more details.
+ func (z *Int) Mod(x, y *Int) *Int {
+ 	y0 := y // save y
+ 	if z == y || alias(z.abs, y.abs) {
+@@ -346,7 +346,7 @@ func (z *Int) Mod(x, y *Int) *Int {
+ // div and mod”. ACM Transactions on Programming Languages and
+ // Systems (TOPLAS), 14(2):127-144, New York, NY, USA, 4/1992.
+ // ACM press.)
+-// See QuoRem for T-division and modulus (like Go).
++// See [Int.QuoRem] for T-division and modulus (like Go).
+ func (z *Int) DivMod(x, y, m *Int) (*Int, *Int) {
+ 	y0 := y // save y
+ 	if z == y || alias(z.abs, y.abs) {
+@@ -475,7 +475,7 @@ func (x *Int) Float64() (float64, Accuracy) {
+ // (not just a prefix) must be valid for success. If SetString fails,
+ // the value of z is undefined but the returned value is nil.
+ //
+-// The base argument must be 0 or a value between 2 and MaxBase.
++// The base argument must be 0 or a value between 2 and [MaxBase].
+ // For base 0, the number prefix determines the actual base: A prefix of
+ // “0b” or “0B” selects base 2, “0”, “0o” or “0O” selects base 8,
+ // and “0x” or “0X” selects base 16. Otherwise, the selected base is 10
+@@ -519,7 +519,7 @@ func (z *Int) SetBytes(buf []byte) *Int {
+ 
+ // Bytes returns the absolute value of x as a big-endian byte slice.
+ //
+-// To use a fixed length slice, or a preallocated one, use FillBytes.
++// To use a fixed length slice, or a preallocated one, use [Int.FillBytes].
+ func (x *Int) Bytes() []byte {
+ 	// This function is used in cryptographic operations. It must not leak
+ 	// anything but the Int's sign and bit size through side-channels. Any
+@@ -881,8 +881,8 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 
+ // Rand sets z to a pseudo-random number in [0, n) and returns z.
+ //
+-// As this uses the math/rand package, it must not be used for
+-// security-sensitive work. Use crypto/rand.Int instead.
++// As this uses the [math/rand] package, it must not be used for
++// security-sensitive work. Use [crypto/rand.Int] instead.
+ func (z *Int) Rand(rnd *rand.Rand, n *Int) *Int {
+ 	// z.neg is not modified before the if check, because z and n might alias.
+ 	if n.neg || len(n.abs) == 0 {
+diff --git a/src/math/big/intconv.go b/src/math/big/intconv.go
+index 04e8c24ed5..51e75ffc52 100644
+--- a/src/math/big/intconv.go
++++ b/src/math/big/intconv.go
+@@ -52,7 +52,7 @@ func writeMultiple(s fmt.State, text string, count int) {
+ 
+ var _ fmt.Formatter = intOne // *Int must implement fmt.Formatter
+ 
+-// Format implements fmt.Formatter. It accepts the formats
++// Format implements [fmt.Formatter]. It accepts the formats
+ // 'b' (binary), 'o' (octal with 0 prefix), 'O' (octal with 0o prefix),
+ // 'd' (decimal), 'x' (lowercase hexadecimal), and
+ // 'X' (uppercase hexadecimal).
+@@ -230,7 +230,7 @@ func (r byteReader) UnreadByte() error {
+ 
+ var _ fmt.Scanner = intOne // *Int must implement fmt.Scanner
+ 
+-// Scan is a support routine for fmt.Scanner; it sets z to the value of
++// Scan is a support routine for [fmt.Scanner]; it sets z to the value of
+ // the scanned number. It accepts the formats 'b' (binary), 'o' (octal),
+ // 'd' (decimal), 'x' (lowercase hexadecimal), and 'X' (uppercase hexadecimal).
+ func (z *Int) Scan(s fmt.ScanState, ch rune) error {
+diff --git a/src/math/big/intmarsh.go b/src/math/big/intmarsh.go
+index ce429ffc11..56eeefb884 100644
+--- a/src/math/big/intmarsh.go
++++ b/src/math/big/intmarsh.go
+@@ -14,7 +14,7 @@ import (
+ // Gob codec version. Permits backward-compatible changes to the encoding.
+ const intGobVersion byte = 1
+ 
+-// GobEncode implements the gob.GobEncoder interface.
++// GobEncode implements the [encoding/gob.GobEncoder] interface.
+ func (x *Int) GobEncode() ([]byte, error) {
+ 	if x == nil {
+ 		return nil, nil
+@@ -29,7 +29,7 @@ func (x *Int) GobEncode() ([]byte, error) {
+ 	return buf[i:], nil
+ }
+ 
+-// GobDecode implements the gob.GobDecoder interface.
++// GobDecode implements the [encoding/gob.GobDecoder] interface.
+ func (z *Int) GobDecode(buf []byte) error {
+ 	if len(buf) == 0 {
+ 		// Other side sent a nil or default value.
+@@ -45,7 +45,7 @@ func (z *Int) GobDecode(buf []byte) error {
+ 	return nil
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface.
++// MarshalText implements the [encoding.TextMarshaler] interface.
+ func (x *Int) MarshalText() (text []byte, err error) {
+ 	if x == nil {
+ 		return []byte("<nil>"), nil
+@@ -53,7 +53,7 @@ func (x *Int) MarshalText() (text []byte, err error) {
+ 	return x.abs.itoa(x.neg, 10), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
++// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+ func (z *Int) UnmarshalText(text []byte) error {
+ 	if _, ok := z.setFromScanner(bytes.NewReader(text), 0); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+@@ -65,7 +65,7 @@ func (z *Int) UnmarshalText(text []byte) error {
+ // (programs that explicitly look for these two methods). JSON works
+ // fine with the TextMarshaler only.
+ 
+-// MarshalJSON implements the json.Marshaler interface.
++// MarshalJSON implements the [encoding/json.Marshaler] interface.
+ func (x *Int) MarshalJSON() ([]byte, error) {
+ 	if x == nil {
+ 		return []byte("null"), nil
+@@ -73,7 +73,7 @@ func (x *Int) MarshalJSON() ([]byte, error) {
+ 	return x.abs.itoa(x.neg, 10), nil
+ }
+ 
+-// UnmarshalJSON implements the json.Unmarshaler interface.
++// UnmarshalJSON implements the [encoding/json.Unmarshaler] interface.
+ func (z *Int) UnmarshalJSON(text []byte) error {
+ 	// Ignore null, like in the main JSON package.
+ 	if string(text) == "null" {
+diff --git a/src/math/big/rat.go b/src/math/big/rat.go
+index 700a643265..cb32b783a1 100644
+--- a/src/math/big/rat.go
++++ b/src/math/big/rat.go
+@@ -18,7 +18,7 @@ import (
+ // than Rat values, and each unique Rat value requires
+ // its own unique *Rat pointer. To "copy" a Rat value,
+ // an existing (or newly allocated) Rat must be set to
+-// a new value using the Rat.Set method; shallow copies
++// a new value using the [Rat.Set] method; shallow copies
+ // of Rats are not supported and may lead to errors.
+ type Rat struct {
+ 	// To make zero values for Rat work w/o initialization,
+@@ -29,7 +29,7 @@ type Rat struct {
+ 	a, b Int
+ }
+ 
+-// NewRat creates a new Rat with numerator a and denominator b.
++// NewRat creates a new [Rat] with numerator a and denominator b.
+ func NewRat(a, b int64) *Rat {
+ 	return new(Rat).SetFrac64(a, b)
+ }
+@@ -411,8 +411,8 @@ func (x *Rat) Num() *Int {
+ 
+ // Denom returns the denominator of x; it is always > 0.
+ // The result is a reference to x's denominator, unless
+-// x is an uninitialized (zero value) Rat, in which case
+-// the result is a new Int of value 1. (To initialize x,
++// x is an uninitialized (zero value) [Rat], in which case
++// the result is a new [Int] of value 1. (To initialize x,
+ // any operation that sets x will do, including x.Set(x).)
+ // If the result is a reference to x's denominator it
+ // may change if a new value is assigned to x, and vice versa.
+diff --git a/src/math/big/ratmarsh.go b/src/math/big/ratmarsh.go
+index b69c59dfb6..033fb4459d 100644
+--- a/src/math/big/ratmarsh.go
++++ b/src/math/big/ratmarsh.go
+@@ -16,7 +16,7 @@ import (
+ // Gob codec version. Permits backward-compatible changes to the encoding.
+ const ratGobVersion byte = 1
+ 
+-// GobEncode implements the gob.GobEncoder interface.
++// GobEncode implements the [encoding/gob.GobEncoder] interface.
+ func (x *Rat) GobEncode() ([]byte, error) {
+ 	if x == nil {
+ 		return nil, nil
+@@ -39,7 +39,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
+ 	return buf[j:], nil
+ }
+ 
+-// GobDecode implements the gob.GobDecoder interface.
++// GobDecode implements the [encoding/gob.GobDecoder] interface.
+ func (z *Rat) GobDecode(buf []byte) error {
+ 	if len(buf) == 0 {
+ 		// Other side sent a nil or default value.
+@@ -68,7 +68,7 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 	return nil
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface.
++// MarshalText implements the [encoding.TextMarshaler] interface.
+ func (x *Rat) MarshalText() (text []byte, err error) {
+ 	if x.IsInt() {
+ 		return x.a.MarshalText()
+@@ -76,7 +76,7 @@ func (x *Rat) MarshalText() (text []byte, err error) {
+ 	return x.marshal(), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
++// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+ func (z *Rat) UnmarshalText(text []byte) error {
+ 	// TODO(gri): get rid of the []byte/string conversion
+ 	if _, ok := z.SetString(string(text)); !ok {
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index c1c7b7978a..235d63e85b 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -21,7 +21,7 @@ const UintSize = uintSize
+ 
+ // --- LeadingZeros ---
+ 
+-// LeadingZeros returns the number of leading zero bits in x; the result is UintSize for x == 0.
++// LeadingZeros returns the number of leading zero bits in x; the result is [UintSize] for x == 0.
+ func LeadingZeros(x uint) int { return UintSize - Len(x) }
+ 
+ // LeadingZeros8 returns the number of leading zero bits in x; the result is 8 for x == 0.
+@@ -55,7 +55,7 @@ var deBruijn64tab = [64]byte{
+ 	54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6,
+ }
+ 
+-// TrailingZeros returns the number of trailing zero bits in x; the result is UintSize for x == 0.
++// TrailingZeros returns the number of trailing zero bits in x; the result is [UintSize] for x == 0.
+ func TrailingZeros(x uint) int {
+ 	if UintSize == 32 {
+ 		return TrailingZeros32(uint32(x))
+@@ -169,7 +169,7 @@ func OnesCount64(x uint64) int {
+ 
+ // --- RotateLeft ---
+ 
+-// RotateLeft returns the value of x rotated left by (k mod UintSize) bits.
++// RotateLeft returns the value of x rotated left by (k mod [UintSize]) bits.
+ // To rotate x right by k bits, call RotateLeft(x, -k).
+ //
+ // This function's execution time does not depend on the inputs.
+@@ -578,14 +578,14 @@ func Rem(hi, lo, y uint) uint {
+ }
+ 
+ // Rem32 returns the remainder of (hi, lo) divided by y. Rem32 panics
+-// for y == 0 (division by zero) but, unlike Div32, it doesn't panic
++// for y == 0 (division by zero) but, unlike [Div32], it doesn't panic
+ // on a quotient overflow.
+ func Rem32(hi, lo, y uint32) uint32 {
+ 	return uint32((uint64(hi)<<32 | uint64(lo)) % uint64(y))
+ }
+ 
+ // Rem64 returns the remainder of (hi, lo) divided by y. Rem64 panics
+-// for y == 0 (division by zero) but, unlike Div64, it doesn't panic
++// for y == 0 (division by zero) but, unlike [Div64], it doesn't panic
+ // on a quotient overflow.
+ func Rem64(hi, lo, y uint64) uint64 {
+ 	// We scale down hi so that hi < y, then use Div64 to compute the
+diff --git a/src/math/cmplx/pow.go b/src/math/cmplx/pow.go
+index 666bba28c5..434f80f4cb 100644
+--- a/src/math/cmplx/pow.go
++++ b/src/math/cmplx/pow.go
+@@ -43,7 +43,7 @@ import "math"
+ //    IEEE      -10,+10     30000       9.4e-15     1.5e-15
+ 
+ // Pow returns x**y, the base-x exponential of y.
+-// For generalized compatibility with math.Pow:
++// For generalized compatibility with [math.Pow]:
+ //
+ //	Pow(0, ±0) returns 1+0i
+ //	Pow(0, c) for real(c)<0 returns Inf+0i if imag(c) is zero, otherwise Inf+Inf i.
+diff --git a/src/math/erfinv.go b/src/math/erfinv.go
+index eed0feb42d..8e630f9736 100644
+--- a/src/math/erfinv.go
++++ b/src/math/erfinv.go
+@@ -116,7 +116,7 @@ func Erfinv(x float64) float64 {
+ 	return ans
+ }
+ 
+-// Erfcinv returns the inverse of Erfc(x).
++// Erfcinv returns the inverse of [Erfc](x).
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/exp.go b/src/math/exp.go
+index 760795f46f..050e0ee9d8 100644
+--- a/src/math/exp.go
++++ b/src/math/exp.go
+@@ -138,7 +138,7 @@ func exp(x float64) float64 {
+ 
+ // Exp2 returns 2**x, the base-2 exponential of x.
+ //
+-// Special cases are the same as Exp.
++// Special cases are the same as [Exp].
+ func Exp2(x float64) float64 {
+ 	if haveArchExp2 {
+ 		return archExp2(x)
+diff --git a/src/math/expm1.go b/src/math/expm1.go
+index ff1c82f524..f8e45d9bec 100644
+--- a/src/math/expm1.go
++++ b/src/math/expm1.go
+@@ -114,7 +114,7 @@ package math
+ //
+ 
+ // Expm1 returns e**x - 1, the base-e exponential of x minus 1.
+-// It is more accurate than Exp(x) - 1 when x is near zero.
++// It is more accurate than [Exp](x) - 1 when x is near zero.
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/hypot.go b/src/math/hypot.go
+index 6ae70c1333..03c3602acf 100644
+--- a/src/math/hypot.go
++++ b/src/math/hypot.go
+@@ -8,7 +8,7 @@ package math
+ 	Hypot -- sqrt(p*p + q*q), but overflows only if the result does.
+ */
+ 
+-// Hypot returns Sqrt(p*p + q*q), taking care to avoid
++// Hypot returns [Sqrt](p*p + q*q), taking care to avoid
+ // unnecessary overflow and underflow.
+ //
+ // Special cases are:
+diff --git a/src/math/ldexp.go b/src/math/ldexp.go
+index df365c0b1a..fad099dfa2 100644
+--- a/src/math/ldexp.go
++++ b/src/math/ldexp.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-// Ldexp is the inverse of Frexp.
++// Ldexp is the inverse of [Frexp].
+ // It returns frac × 2**exp.
+ //
+ // Special cases are:
+diff --git a/src/math/lgamma.go b/src/math/lgamma.go
+index 4058ad6631..5a7ea2a58c 100644
+--- a/src/math/lgamma.go
++++ b/src/math/lgamma.go
+@@ -163,7 +163,7 @@ var _lgamW = [...]float64{
+ 	-1.63092934096575273989e-03, // 0xBF5AB89D0B9E43E4
+ }
+ 
+-// Lgamma returns the natural logarithm and sign (-1 or +1) of Gamma(x).
++// Lgamma returns the natural logarithm and sign (-1 or +1) of [Gamma](x).
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/log10.go b/src/math/log10.go
+index e6916a53b6..02c3a757c0 100644
+--- a/src/math/log10.go
++++ b/src/math/log10.go
+@@ -5,7 +5,7 @@
+ package math
+ 
+ // Log10 returns the decimal logarithm of x.
+-// The special cases are the same as for Log.
++// The special cases are the same as for [Log].
+ func Log10(x float64) float64 {
+ 	if haveArchLog10 {
+ 		return archLog10(x)
+@@ -18,7 +18,7 @@ func log10(x float64) float64 {
+ }
+ 
+ // Log2 returns the binary logarithm of x.
+-// The special cases are the same as for Log.
++// The special cases are the same as for [Log].
+ func Log2(x float64) float64 {
+ 	if haveArchLog2 {
+ 		return archLog2(x)
+diff --git a/src/math/log1p.go b/src/math/log1p.go
+index 3a7b3854a8..bfcb813be8 100644
+--- a/src/math/log1p.go
++++ b/src/math/log1p.go
+@@ -84,7 +84,7 @@ package math
+ //       See HP-15C Advanced Functions Handbook, p.193.
+ 
+ // Log1p returns the natural logarithm of 1 plus its argument x.
+-// It is more accurate than Log(1 + x) when x is near zero.
++// It is more accurate than [Log](1 + x) when x is near zero.
+ //
+ // Special cases are:
+ //
+diff --git a/src/math/rand/exp.go b/src/math/rand/exp.go
+index c1162c19b6..55d7d7de8a 100644
+--- a/src/math/rand/exp.go
++++ b/src/math/rand/exp.go
+@@ -21,7 +21,7 @@ const (
+ )
+ 
+ // ExpFloat64 returns an exponentially distributed float64 in the range
+-// (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
++// (0, +[math.MaxFloat64]] with an exponential distribution whose rate parameter
+ // (lambda) is 1 and whose mean is 1/lambda (1).
+ // To produce a distribution with a different rate parameter,
+ // callers can adjust the output using:
+diff --git a/src/math/rand/normal.go b/src/math/rand/normal.go
+index 6654479a00..4d441d4505 100644
+--- a/src/math/rand/normal.go
++++ b/src/math/rand/normal.go
+@@ -28,7 +28,7 @@ func absInt32(i int32) uint32 {
+ }
+ 
+ // NormFloat64 returns a normally distributed float64 in
+-// the range -math.MaxFloat64 through +math.MaxFloat64 inclusive,
++// the range -[math.MaxFloat64] through +[math.MaxFloat64] inclusive,
+ // with standard normal distribution (mean = 0, stddev = 1).
+ // To produce a different normal distribution, callers can
+ // adjust the output using:
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index cc1f95c88d..78e176e78f 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -33,10 +33,10 @@ type Source interface {
+ 	Seed(seed int64)
+ }
+ 
+-// A Source64 is a Source that can also generate
++// A Source64 is a [Source] that can also generate
+ // uniformly-distributed pseudo-random uint64 values in
+ // the range [0, 1<<64) directly.
+-// If a Rand r's underlying Source s implements Source64,
++// If a [Rand] r's underlying [Source] s implements Source64,
+ // then r.Uint64 returns the result of one call to s.Uint64
+ // instead of making two calls to s.Int63.
+ type Source64 interface {
+@@ -44,10 +44,10 @@ type Source64 interface {
+ 	Uint64() uint64
+ }
+ 
+-// NewSource returns a new pseudo-random Source seeded with the given value.
+-// Unlike the default Source used by top-level functions, this source is not
++// NewSource returns a new pseudo-random [Source] seeded with the given value.
++// Unlike the default [Source] used by top-level functions, this source is not
+ // safe for concurrent use by multiple goroutines.
+-// The returned Source implements Source64.
++// The returned [Source] implements [Source64].
+ func NewSource(seed int64) Source {
+ 	return newSource(seed)
+ }
+@@ -73,7 +73,7 @@ type Rand struct {
+ 	readPos int8
+ }
+ 
+-// New returns a new Rand that uses random values from src
++// New returns a new [Rand] that uses random values from src
+ // to generate other random values.
+ func New(src Source) *Rand {
+ 	s64, _ := src.(Source64)
+@@ -81,7 +81,7 @@ func New(src Source) *Rand {
+ }
+ 
+ // Seed uses the provided seed value to initialize the generator to a deterministic state.
+-// Seed should not be called concurrently with any other Rand method.
++// Seed should not be called concurrently with any other [Rand] method.
+ func (r *Rand) Seed(seed int64) {
+ 	if lk, ok := r.src.(*lockedSource); ok {
+ 		lk.seedPos(seed, &r.readPos)
+@@ -378,7 +378,7 @@ func (fs *fastSource) read(p []byte, readVal *int64, readPos *int8) (n int, err
+ // Seed uses the provided seed value to initialize the default Source to a
+ // deterministic state. Seed values that have the same remainder when
+ // divided by 2³¹-1 generate the same pseudo-random sequence.
+-// Seed, unlike the Rand.Seed method, is safe for concurrent use.
++// Seed, unlike the [Rand.Seed] method, is safe for concurrent use.
+ //
+ // If Seed is not called, the generator is seeded randomly at program startup.
+ //
+@@ -419,67 +419,67 @@ func Seed(seed int64) {
+ }
+ 
+ // Int63 returns a non-negative pseudo-random 63-bit integer as an int64
+-// from the default Source.
++// from the default [Source].
+ func Int63() int64 { return globalRand().Int63() }
+ 
+ // Uint32 returns a pseudo-random 32-bit value as a uint32
+-// from the default Source.
++// from the default [Source].
+ func Uint32() uint32 { return globalRand().Uint32() }
+ 
+ // Uint64 returns a pseudo-random 64-bit value as a uint64
+-// from the default Source.
++// from the default [Source].
+ func Uint64() uint64 { return globalRand().Uint64() }
+ 
+ // Int31 returns a non-negative pseudo-random 31-bit integer as an int32
+-// from the default Source.
++// from the default [Source].
+ func Int31() int32 { return globalRand().Int31() }
+ 
+-// Int returns a non-negative pseudo-random int from the default Source.
++// Int returns a non-negative pseudo-random int from the default [Source].
+ func Int() int { return globalRand().Int() }
+ 
+ // Int63n returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
+-// from the default Source.
++// from the default [Source].
+ // It panics if n <= 0.
+ func Int63n(n int64) int64 { return globalRand().Int63n(n) }
+ 
+ // Int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
+-// from the default Source.
++// from the default [Source].
+ // It panics if n <= 0.
+ func Int31n(n int32) int32 { return globalRand().Int31n(n) }
+ 
+ // Intn returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
+-// from the default Source.
++// from the default [Source].
+ // It panics if n <= 0.
+ func Intn(n int) int { return globalRand().Intn(n) }
+ 
+ // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
+-// from the default Source.
++// from the default [Source].
+ func Float64() float64 { return globalRand().Float64() }
+ 
+ // Float32 returns, as a float32, a pseudo-random number in the half-open interval [0.0,1.0)
+-// from the default Source.
++// from the default [Source].
+ func Float32() float32 { return globalRand().Float32() }
+ 
+ // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers
+-// in the half-open interval [0,n) from the default Source.
++// in the half-open interval [0,n) from the default [Source].
+ func Perm(n int) []int { return globalRand().Perm(n) }
+ 
+-// Shuffle pseudo-randomizes the order of elements using the default Source.
++// Shuffle pseudo-randomizes the order of elements using the default [Source].
+ // n is the number of elements. Shuffle panics if n < 0.
+ // swap swaps the elements with indexes i and j.
+ func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
+ 
+-// Read generates len(p) random bytes from the default Source and
++// Read generates len(p) random bytes from the default [Source] and
+ // writes them into p. It always returns len(p) and a nil error.
+-// Read, unlike the Rand.Read method, is safe for concurrent use.
++// Read, unlike the [Rand.Read] method, is safe for concurrent use.
+ //
+-// Deprecated: For almost all use cases, crypto/rand.Read is more appropriate.
++// Deprecated: For almost all use cases, [crypto/rand.Read] is more appropriate.
+ func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
+ 
+ // NormFloat64 returns a normally distributed float64 in the range
+-// [-math.MaxFloat64, +math.MaxFloat64] with
++// [-[math.MaxFloat64], +[math.MaxFloat64]] with
+ // standard normal distribution (mean = 0, stddev = 1)
+-// from the default Source.
++// from the default [Source].
+ // To produce a different normal distribution, callers can
+ // adjust the output using:
+ //
+@@ -487,8 +487,8 @@ func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
+ func NormFloat64() float64 { return globalRand().NormFloat64() }
+ 
+ // ExpFloat64 returns an exponentially distributed float64 in the range
+-// (0, +math.MaxFloat64] with an exponential distribution whose rate parameter
+-// (lambda) is 1 and whose mean is 1/lambda (1) from the default Source.
++// (0, +[math.MaxFloat64]] with an exponential distribution whose rate parameter
++// (lambda) is 1 and whose mean is 1/lambda (1) from the default [Source].
+ // To produce a distribution with a different rate parameter,
+ // callers can adjust the output using:
+ //
+diff --git a/src/math/rand/zipf.go b/src/math/rand/zipf.go
+index f04c814eb7..83c8e33649 100644
+--- a/src/math/rand/zipf.go
++++ b/src/math/rand/zipf.go
+@@ -32,7 +32,7 @@ func (z *Zipf) hinv(x float64) float64 {
+ 	return math.Exp(z.oneminusQinv*math.Log(z.oneminusQ*x)) - z.v
+ }
+ 
+-// NewZipf returns a Zipf variate generator.
++// NewZipf returns a [Zipf] variate generator.
+ // The generator generates values k ∈ [0, imax]
+ // such that P(k) is proportional to (v + k) ** (-s).
+ // Requirements: s > 1 and v >= 1.
+@@ -53,8 +53,8 @@ func NewZipf(r *Rand, s float64, v float64, imax uint64) *Zipf {
+ 	return z
+ }
+ 
+-// Uint64 returns a value drawn from the Zipf distribution described
+-// by the Zipf object.
++// Uint64 returns a value drawn from the [Zipf] distribution described
++// by the [Zipf] object.
+ func (z *Zipf) Uint64() uint64 {
+ 	if z == nil {
+ 		panic("rand: nil Zipf")

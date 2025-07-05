@@ -15,7 +15,7 @@ Date:   Fri Feb 1 08:34:41 2013 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7228081
-
+---
  misc/cgo/test/cgo_test.go              |  1 +
  misc/cgo/test/issue3775.go             | 29 +++++++++++++++++++
  src/pkg/runtime/cgocall.c              | 42 +++++++++-------------------
@@ -38,3 +38,617 @@ Date:   Fri Feb 1 08:34:41 2013 -0800
  src/pkg/runtime/traceback_arm.c        |  6 ++++
  src/pkg/runtime/traceback_x86.c        |  5 ++++
  21 files changed, 173 insertions(+), 59 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index cfb6d0ee83..d2514582a2 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -34,5 +34,6 @@ func TestPrintf(t *testing.T)              { testPrintf(t) }
+ func Test4029(t *testing.T)                { test4029(t) }
+ func TestBoolAlign(t *testing.T)           { testBoolAlign(t) }
+ func Test3729(t *testing.T)                { test3729(t) }
++func Test3775(t *testing.T)                { test3775(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue3775.go b/misc/cgo/test/issue3775.go
+new file mode 100644
+index 0000000000..c05a5d4be8
+--- /dev/null
++++ b/misc/cgo/test/issue3775.go
+@@ -0,0 +1,29 @@
++package cgotest
++
++/*
++void lockOSThreadCallback(void);
++inline static void lockOSThreadC(void)
++{
++        lockOSThreadCallback();
++}
++int usleep(unsigned usec);
++*/
++import "C"
++
++import (
++	"runtime"
++	"testing"
++)
++
++func test3775(t *testing.T) {
++	// Used to panic because of the UnlockOSThread below.
++	C.lockOSThreadC()
++}
++
++//export lockOSThreadCallback
++func lockOSThreadCallback() {
++	runtime.LockOSThread()
++	runtime.UnlockOSThread()
++	go C.usleep(10000)
++	runtime.Gosched()
++}
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index ed859c07b9..519a5386b9 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -91,7 +91,6 @@ static int64 cgosync;  /* represents possible synchronization in C code */
+ void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
+ void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
+ 
+-static void unlockm(void);
+ static void unwindm(void);
+ 
+ // Call from Go to C.
+@@ -119,22 +118,16 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 
+ 	/*
+ 	 * Lock g to m to ensure we stay on the same stack if we do a
+-	 * cgo callback.
++	 * cgo callback. Add entry to defer stack in case of panic.
+ 	 */
+-	d.special = false;
+-	if(m->lockedg == nil) {
+-		m->lockedg = g;
+-		g->lockedm = m;
+-
+-		// Add entry to defer stack in case of panic.
+-		d.fn = (byte*)unlockm;
+-		d.siz = 0;
+-		d.link = g->defer;
+-		d.argp = (void*)-1;  // unused because unlockm never recovers
+-		d.special = true;
+-		d.free = false;
+-		g->defer = &d;
+-	}
++	runtime·lockOSThread();
++	d.fn = (byte*)runtime·unlockOSThread;
++	d.siz = 0;
++	d.link = g->defer;
++	d.argp = (void*)-1;  // unused because unlockm never recovers
++	d.special = true;
++	d.free = false;
++	g->defer = &d;
+ 
+ 	m->ncgo++;
+ 
+@@ -161,24 +154,15 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		m->cgomal = nil;
+ 	}
+ 
+-	if(d.special) {
+-		if(g->defer != &d || d.fn != (byte*)unlockm)
+-			runtime·throw("runtime: bad defer entry in cgocallback");
+-		g->defer = d.link;
+-		unlockm();
+-	}
++	if(g->defer != &d || d.fn != (byte*)runtime·unlockOSThread)
++		runtime·throw("runtime: bad defer entry in cgocallback");
++	g->defer = d.link;
++	runtime·unlockOSThread();
+ 
+ 	if(raceenabled)
+ 		runtime·raceacquire(&cgosync);
+ }
+ 
+-static void
+-unlockm(void)
+-{
+-	m->lockedg = nil;
+-	g->lockedm = nil;
+-}
+-
+ void
+ runtime·NumCgoCall(int64 ret)
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index b589235c1f..8cf8d9d81f 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -79,7 +79,6 @@ struct Sched {
+ 	int32 profilehz;	// cpu profiling rate
+ 
+ 	bool init;  // running initialization
+-	bool lockmain;  // init called runtime.LockOSThread
+ 
+ 	Note	stopped;	// one g can set waitstop and wait here for m's to stop
+ };
+@@ -238,7 +237,7 @@ runtime·main(void)
+ 	// Those can arrange for main.main to run in the main thread
+ 	// by calling runtime.LockOSThread during initialization
+ 	// to preserve the lock.
+-	runtime·LockOSThread();
++	runtime·lockOSThread();
+ 	// From now on, newgoroutines may use non-main threads.
+ 	setmcpumax(runtime·gomaxprocs);
+ 	runtime·sched.init = true;
+@@ -246,8 +245,7 @@ runtime·main(void)
+ 	scvg->issystem = true;
+ 	main·init();
+ 	runtime·sched.init = false;
+-	if(!runtime·sched.lockmain)
+-		runtime·UnlockOSThread();
++	runtime·unlockOSThread();
+ 
+ 	// The deadlock detection has false negatives.
+ 	// Let scvg start up, to eliminate the false negative
+@@ -917,6 +915,7 @@ schedule(G *gp)
+ 			if(gp->lockedm) {
+ 				gp->lockedm = nil;
+ 				m->lockedg = nil;
++				m->locked = 0;
+ 			}
+ 			gp->idlem = nil;
+ 			runtime·unwindstack(gp, nil);
+@@ -1460,26 +1459,50 @@ runtime·gomaxprocsfunc(int32 n)
+ 	return ret;
+ }
+ 
+-void
+-runtime·LockOSThread(void)
++static void
++LockOSThread(void)
+ {
+-	if(m == &runtime·m0 && runtime·sched.init) {
+-		runtime·sched.lockmain = true;
+-		return;
+-	}
+ 	m->lockedg = g;
+ 	g->lockedm = m;
+ }
+ 
+ void
+-runtime·UnlockOSThread(void)
++runtime·LockOSThread(void)
++{
++	m->locked |= LockExternal;
++	LockOSThread();
++}
++
++void
++runtime·lockOSThread(void)
++{
++	m->locked += LockInternal;
++	LockOSThread();
++}
++
++static void
++UnlockOSThread(void)
+ {
+-	if(m == &runtime·m0 && runtime·sched.init) {
+-		runtime·sched.lockmain = false;
++	if(m->locked != 0)
+ 		return;
+-	}
+ 	m->lockedg = nil;
+ 	g->lockedm = nil;
++}	
++
++void
++runtime·UnlockOSThread(void)
++{
++	m->locked &= ~LockExternal;
++	UnlockOSThread();
++}
++
++void
++runtime·unlockOSThread(void)
++{
++	if(m->locked < LockInternal)
++		runtime·throw("runtime: internal error: misuse of lockOSThread/unlockOSThread");
++	m->locked -= LockInternal;
++	UnlockOSThread();
+ }
+ 
+ bool
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 3e99b75bea..ea46388d71 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -281,6 +281,7 @@ struct	M
+ 	uint32	freglo[16];	// D[i] lsb and F[i]
+ 	uint32	freghi[16];	// D[i] msb and F[i+16]
+ 	uint32	fflag;		// floating point compare flags
++	uint32	locked;	// tracking for LockOSThread
+ 	M*	nextwaitm;	// next M waiting for lock
+ 	uintptr	waitsema;	// semaphore for parking on locks
+ 	uint32	waitsemacount;
+@@ -303,6 +304,15 @@ struct	M
+ 	uintptr	end[];
+ };
+ 
++// The m->locked word holds a single bit saying whether
++// external calls to LockOSThread are in effect, and then a counter
++// of the internal nesting depth of lockOSThread / unlockOSThread.
++enum
++{
++	LockExternal = 1,
++	LockInternal = 2,
++};
++
+ struct	Stktop
+ {
+ 	// The offsets of these fields are known to (hard-coded in) libmach.
+@@ -858,8 +868,8 @@ void	runtime·semrelease(uint32*);
+ int32	runtime·gomaxprocsfunc(int32 n);
+ void	runtime·procyield(uint32);
+ void	runtime·osyield(void);
+-void	runtime·LockOSThread(void);
+-void	runtime·UnlockOSThread(void);
++void	runtime·lockOSThread(void);
++void	runtime·unlockOSThread(void);
+ 
+ void	runtime·mapassign(MapType*, Hmap*, byte*, byte*);
+ void	runtime·mapaccess(MapType*, Hmap*, byte*, byte*, bool*);
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+index 9e986352b4..aeb0f43223 100644
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -47,7 +47,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+@@ -101,7 +101,11 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 	}
+ 
+-	runtime·printf("pc: %x\n", r->eip);
++	runtime·printf("PC=%x\n", r->eip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}	
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+index d9c5f48e7c..326fdd4f26 100644
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -55,7 +55,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+@@ -111,7 +111,11 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 	}
+ 
+-	runtime·printf("pc: %X\n", r->rip);
++	runtime·printf("PC=%X\n", r->rip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_freebsd_386.c b/src/pkg/runtime/signal_freebsd_386.c
+index 80da95d98a..ae9f7321b9 100644
+--- a/src/pkg/runtime/signal_freebsd_386.c
++++ b/src/pkg/runtime/signal_freebsd_386.c
+@@ -54,7 +54,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -97,6 +97,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->mc_eip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_freebsd_amd64.c b/src/pkg/runtime/signal_freebsd_amd64.c
+index e4307682f4..19382ec944 100644
+--- a/src/pkg/runtime/signal_freebsd_amd64.c
++++ b/src/pkg/runtime/signal_freebsd_amd64.c
+@@ -62,7 +62,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -105,6 +105,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->mc_rip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_freebsd_arm.c b/src/pkg/runtime/signal_freebsd_arm.c
+index cc96280f7a..e2bd9e8a2f 100644
+--- a/src/pkg/runtime/signal_freebsd_arm.c
++++ b/src/pkg/runtime/signal_freebsd_arm.c
+@@ -75,7 +75,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -118,6 +118,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%x\n", r->r15);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_linux_386.c b/src/pkg/runtime/signal_linux_386.c
+index 4dbcb48f52..40e64013cf 100644
+--- a/src/pkg/runtime/signal_linux_386.c
++++ b/src/pkg/runtime/signal_linux_386.c
+@@ -50,7 +50,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -93,6 +93,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->eip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_linux_amd64.c b/src/pkg/runtime/signal_linux_amd64.c
+index 96088f781d..0c3a1e2173 100644
+--- a/src/pkg/runtime/signal_linux_amd64.c
++++ b/src/pkg/runtime/signal_linux_amd64.c
+@@ -60,7 +60,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -103,6 +103,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->rip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_linux_arm.c b/src/pkg/runtime/signal_linux_arm.c
+index 48336c0aff..31444a7243 100644
+--- a/src/pkg/runtime/signal_linux_arm.c
++++ b/src/pkg/runtime/signal_linux_arm.c
+@@ -57,7 +57,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -101,6 +101,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%x\n", r->arm_pc);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_netbsd_386.c b/src/pkg/runtime/signal_netbsd_386.c
+index 756abe3f5c..34fa90bb24 100644
+--- a/src/pkg/runtime/signal_netbsd_386.c
++++ b/src/pkg/runtime/signal_netbsd_386.c
+@@ -53,7 +53,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// We need to pass arguments out of band since
+@@ -96,6 +96,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", mc->__gregs[REG_EIP]);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_netbsd_amd64.c b/src/pkg/runtime/signal_netbsd_amd64.c
+index 556a7be8b0..e9e1eaa557 100644
+--- a/src/pkg/runtime/signal_netbsd_amd64.c
++++ b/src/pkg/runtime/signal_netbsd_amd64.c
+@@ -61,7 +61,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// We need to pass arguments out of band since augmenting the
+@@ -103,6 +103,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", mc->__gregs[REG_RIP]);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_openbsd_386.c b/src/pkg/runtime/signal_openbsd_386.c
+index dd2f7c9117..bd040bd0eb 100644
+--- a/src/pkg/runtime/signal_openbsd_386.c
++++ b/src/pkg/runtime/signal_openbsd_386.c
+@@ -50,7 +50,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -93,6 +93,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->sc_eip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_openbsd_amd64.c b/src/pkg/runtime/signal_openbsd_amd64.c
+index eb8f0e2edd..3fdd3fbd18 100644
+--- a/src/pkg/runtime/signal_openbsd_amd64.c
++++ b/src/pkg/runtime/signal_openbsd_amd64.c
+@@ -59,7 +59,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(info->si_code != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil)
++		if(gp == nil || gp == m->g0)
+ 			goto Throw;
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -102,6 +102,10 @@ Throw:
+ 		runtime·printf("%s\n", runtime·sigtab[sig].name);
+ 
+ 	runtime·printf("PC=%X\n", r->sc_rip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_windows_386.c b/src/pkg/runtime/signal_windows_386.c
+index a248374dbd..fc2a2459a0 100644
+--- a/src/pkg/runtime/signal_windows_386.c
++++ b/src/pkg/runtime/signal_windows_386.c
+@@ -68,6 +68,10 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 		info->ExceptionInformation[0], info->ExceptionInformation[1]);
+ 
+ 	runtime·printf("PC=%x\n", r->Eip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/signal_windows_amd64.c b/src/pkg/runtime/signal_windows_amd64.c
+index 1cdf1cac4c..3729aa57b7 100644
+--- a/src/pkg/runtime/signal_windows_amd64.c
++++ b/src/pkg/runtime/signal_windows_amd64.c
+@@ -75,6 +75,10 @@ runtime·sighandler(ExceptionRecord *info, Context *r, G *gp)
+ 		info->ExceptionInformation[0], info->ExceptionInformation[1]);
+ 
+ 	runtime·printf("PC=%X\n", r->Rip);
++	if(m->lockedg != nil && m->ncgo > 0 && gp == m->g0) {
++		runtime·printf("signal arrived during cgo execution\n");
++		gp = m->lockedg;
++	}
+ 	runtime·printf("\n");
+ 
+ 	if(runtime·gotraceback()){
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 6082f6acd0..fd60490ae4 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -202,6 +202,12 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ void
+ runtime·traceback(byte *pc0, byte *sp, byte *lr, G *gp)
+ {
++	if(gp->status == Gsyscall) {
++		// Override signal registers if blocked in system call.
++		pc0 = gp->sched.pc;
++		sp = (byte*)gp->sched.sp;
++		lr = nil;
++	}
+ 	runtime·gentraceback(pc0, sp, lr, gp, 0, nil, 100);
+ }
+ 
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 180accb10d..798be388f3 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -207,6 +207,11 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *gp, int32 skip, uintptr
+ void
+ runtime·traceback(byte *pc0, byte *sp, byte*, G *gp)
+ {
++	if(gp->status == Gsyscall) {
++		// Override signal registers if blocked in system call.
++		pc0 = gp->sched.pc;
++		sp = (byte*)gp->sched.sp;
++	}
+ 	runtime·gentraceback(pc0, sp, nil, gp, 0, nil, 100);
+ }
+ 

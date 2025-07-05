@@ -36,10 +36,275 @@ Date:   Fri Sep 9 16:23:39 2022 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/compile.go |  4 +-
  src/cmd/compile/internal/inline/inl.go | 42 ++++++++++++++++++
  src/cmd/compile/internal/ir/abi.go     | 78 ++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssagen/abi.go | 68 -----------------------------
  test/fixedbugs/issue54959.go           | 16 +++++++
  5 files changed, 138 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index cbd48e0956..6951d7ed5a 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -44,7 +44,7 @@ func enqueueFunc(fn *ir.Func) {
+ 
+ 	if len(fn.Body) == 0 {
+ 		// Initialize ABI wrappers if necessary.
+-		ssagen.InitLSym(fn, false)
++		ir.InitLSym(fn, false)
+ 		types.CalcSize(fn.Type())
+ 		a := ssagen.AbiForBodylessFuncStackMap(fn)
+ 		abiInfo := a.ABIAnalyzeFuncType(fn.Type().FuncType()) // abiInfo has spill/home locations for wrapper
+@@ -82,7 +82,7 @@ func prepareFunc(fn *ir.Func) {
+ 	// Set up the function's LSym early to avoid data races with the assemblers.
+ 	// Do this before walk, as walk needs the LSym to set attributes/relocations
+ 	// (e.g. in MarkTypeUsedInInterface).
+-	ssagen.InitLSym(fn, true)
++	ir.InitLSym(fn, true)
+ 
+ 	// Calculate parameter offsets.
+ 	types.CalcSize(fn.Type())
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 14adbf5d43..fe042dd024 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -837,6 +837,48 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlCalls *[]*ir.Inlin
+ 
+ 	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
+ 
++	closureInitLSym := func(n *ir.CallExpr, fn *ir.Func) {
++		// The linker needs FuncInfo metadata for all inlined
++		// functions. This is typically handled by gc.enqueueFunc
++		// calling ir.InitLSym for all function declarations in
++		// typecheck.Target.Decls (ir.UseClosure adds all closures to
++		// Decls).
++		//
++		// However, non-trivial closures in Decls are ignored, and are
++		// insteaded enqueued when walk of the calling function
++		// discovers them.
++		//
++		// This presents a problem for direct calls to closures.
++		// Inlining will replace the entire closure definition with its
++		// body, which hides the closure from walk and thus suppresses
++		// symbol creation.
++		//
++		// Explicitly create a symbol early in this edge case to ensure
++		// we keep this metadata.
++		//
++		// TODO: Refactor to keep a reference so this can all be done
++		// by enqueueFunc.
++
++		if n.Op() != ir.OCALLFUNC {
++			// Not a standard call.
++			return
++		}
++		if n.X.Op() != ir.OCLOSURE {
++			// Not a direct closure call.
++			return
++		}
++
++		clo := n.X.(*ir.ClosureExpr)
++		if ir.IsTrivialClosure(clo) {
++			// enqueueFunc will handle trivial closures anyways.
++			return
++		}
++
++		ir.InitLSym(fn, true)
++	}
++
++	closureInitLSym(n, fn)
++
+ 	if base.Flag.GenDwarfInl > 0 {
+ 		if !sym.WasInlined() {
+ 			base.Ctxt.DwFixups.SetPrecursorFunc(sym, fn)
+diff --git a/src/cmd/compile/internal/ir/abi.go b/src/cmd/compile/internal/ir/abi.go
+new file mode 100644
+index 0000000000..938e5564ae
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/abi.go
+@@ -0,0 +1,78 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/internal/obj"
++)
++
++// InitLSym defines f's obj.LSym and initializes it based on the
++// properties of f. This includes setting the symbol flags and ABI and
++// creating and initializing related DWARF symbols.
++//
++// InitLSym must be called exactly once per function and must be
++// called for both functions with bodies and functions without bodies.
++// For body-less functions, we only create the LSym; for functions
++// with bodies call a helper to setup up / populate the LSym.
++func InitLSym(f *Func, hasBody bool) {
++	if f.LSym != nil {
++		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
++	}
++
++	if nam := f.Nname; !IsBlank(nam) {
++		f.LSym = nam.LinksymABI(f.ABI)
++		if f.Pragma&Systemstack != 0 {
++			f.LSym.Set(obj.AttrCFunc, true)
++		}
++	}
++	if hasBody {
++		setupTextLSym(f, 0)
++	}
++}
++
++// setupTextLsym initializes the LSym for a with-body text symbol.
++func setupTextLSym(f *Func, flag int) {
++	if f.Dupok() {
++		flag |= obj.DUPOK
++	}
++	if f.Wrapper() {
++		flag |= obj.WRAPPER
++	}
++	if f.ABIWrapper() {
++		flag |= obj.ABIWRAPPER
++	}
++	if f.Needctxt() {
++		flag |= obj.NEEDCTXT
++	}
++	if f.Pragma&Nosplit != 0 {
++		flag |= obj.NOSPLIT
++	}
++	if f.ReflectMethod() {
++		flag |= obj.REFLECTMETHOD
++	}
++
++	// Clumsy but important.
++	// For functions that could be on the path of invoking a deferred
++	// function that can recover (runtime.reflectcall, reflect.callReflect,
++	// and reflect.callMethod), we want the panic+recover special handling.
++	// See test/recover.go for test cases and src/reflect/value.go
++	// for the actual functions being considered.
++	//
++	// runtime.reflectcall is an assembly function which tailcalls
++	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
++	// flag as well.
++	fnname := f.Sym().Name
++	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
++		flag |= obj.WRAPPER
++	} else if base.Ctxt.Pkgpath == "reflect" {
++		switch fnname {
++		case "callReflect", "callMethod":
++			flag |= obj.WRAPPER
++		}
++	}
++
++	base.Ctxt.InitTextSym(f.LSym, flag)
++}
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index c6ac66f3b0..3a767d6d1c 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -215,30 +215,6 @@ func (s *SymABIs) GenABIWrappers() {
+ 	}
+ }
+ 
+-// InitLSym defines f's obj.LSym and initializes it based on the
+-// properties of f. This includes setting the symbol flags and ABI and
+-// creating and initializing related DWARF symbols.
+-//
+-// InitLSym must be called exactly once per function and must be
+-// called for both functions with bodies and functions without bodies.
+-// For body-less functions, we only create the LSym; for functions
+-// with bodies call a helper to setup up / populate the LSym.
+-func InitLSym(f *ir.Func, hasBody bool) {
+-	if f.LSym != nil {
+-		base.FatalfAt(f.Pos(), "InitLSym called twice on %v", f)
+-	}
+-
+-	if nam := f.Nname; !ir.IsBlank(nam) {
+-		f.LSym = nam.LinksymABI(f.ABI)
+-		if f.Pragma&ir.Systemstack != 0 {
+-			f.LSym.Set(obj.AttrCFunc, true)
+-		}
+-	}
+-	if hasBody {
+-		setupTextLSym(f, 0)
+-	}
+-}
+-
+ func forEachWrapperABI(fn *ir.Func, cb func(fn *ir.Func, wrapperABI obj.ABI)) {
+ 	need := fn.ABIRefs &^ obj.ABISetOf(fn.ABI)
+ 	if need == 0 {
+@@ -363,47 +339,3 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	typecheck.DeclContext = savedclcontext
+ 	ir.CurFunc = savedcurfn
+ }
+-
+-// setupTextLsym initializes the LSym for a with-body text symbol.
+-func setupTextLSym(f *ir.Func, flag int) {
+-	if f.Dupok() {
+-		flag |= obj.DUPOK
+-	}
+-	if f.Wrapper() {
+-		flag |= obj.WRAPPER
+-	}
+-	if f.ABIWrapper() {
+-		flag |= obj.ABIWRAPPER
+-	}
+-	if f.Needctxt() {
+-		flag |= obj.NEEDCTXT
+-	}
+-	if f.Pragma&ir.Nosplit != 0 {
+-		flag |= obj.NOSPLIT
+-	}
+-	if f.ReflectMethod() {
+-		flag |= obj.REFLECTMETHOD
+-	}
+-
+-	// Clumsy but important.
+-	// For functions that could be on the path of invoking a deferred
+-	// function that can recover (runtime.reflectcall, reflect.callReflect,
+-	// and reflect.callMethod), we want the panic+recover special handling.
+-	// See test/recover.go for test cases and src/reflect/value.go
+-	// for the actual functions being considered.
+-	//
+-	// runtime.reflectcall is an assembly function which tailcalls
+-	// WRAPPER functions (runtime.callNN). Its ABI wrapper needs WRAPPER
+-	// flag as well.
+-	fnname := f.Sym().Name
+-	if base.Ctxt.Pkgpath == "runtime" && fnname == "reflectcall" {
+-		flag |= obj.WRAPPER
+-	} else if base.Ctxt.Pkgpath == "reflect" {
+-		switch fnname {
+-		case "callReflect", "callMethod":
+-			flag |= obj.WRAPPER
+-		}
+-	}
+-
+-	base.Ctxt.InitTextSym(f.LSym, flag)
+-}
+diff --git a/test/fixedbugs/issue54959.go b/test/fixedbugs/issue54959.go
+new file mode 100644
+index 0000000000..90524ce186
+--- /dev/null
++++ b/test/fixedbugs/issue54959.go
+@@ -0,0 +1,16 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var p *int
++
++func main() {
++	var i int
++	p = &i // escape i to keep the compiler from making the closure trivial
++
++	func() { i++ }()
++}

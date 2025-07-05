@@ -50,8 +50,135 @@ Date:   Thu Aug 17 18:40:07 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++++++------
  src/runtime/profbuf.go          |  2 +-
  src/runtime/proflabel.go        | 17 ++++++++++++++++-
  3 files changed, 46 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 992d2abb6a..955964c721 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -26,7 +26,7 @@ import (
+ 	"time"
+ )
+ 
+-func cpuHogger(f func(), dur time.Duration) {
++func cpuHogger(f func() int, dur time.Duration) {
+ 	// We only need to get one 100 Hz clock tick, so we've got
+ 	// a large safety buffer.
+ 	// But do at least 500 iterations (which should take about 100ms),
+@@ -46,7 +46,7 @@ var (
+ // The actual CPU hogging function.
+ // Must not call other functions nor access heap/globals in the loop,
+ // otherwise under race detector the samples will be in the race runtime.
+-func cpuHog1() {
++func cpuHog1() int {
+ 	foo := salt1
+ 	for i := 0; i < 1e5; i++ {
+ 		if foo > 0 {
+@@ -55,10 +55,10 @@ func cpuHog1() {
+ 			foo *= foo + 1
+ 		}
+ 	}
+-	salt1 = foo
++	return foo
+ }
+ 
+-func cpuHog2() {
++func cpuHog2() int {
+ 	foo := salt2
+ 	for i := 0; i < 1e5; i++ {
+ 		if foo > 0 {
+@@ -67,7 +67,7 @@ func cpuHog2() {
+ 			foo *= foo + 2
+ 		}
+ 	}
+-	salt2 = foo
++	return foo
+ }
+ 
+ func TestCPUProfile(t *testing.T) {
+@@ -95,8 +95,9 @@ func TestCPUProfileInlining(t *testing.T) {
+ 	})
+ }
+ 
+-func inlinedCaller() {
++func inlinedCaller() int {
+ 	inlinedCallee()
++	return 0
+ }
+ 
+ func inlinedCallee() {
+@@ -716,6 +717,28 @@ func TestCPUProfileLabel(t *testing.T) {
+ 	})
+ }
+ 
++func TestLabelRace(t *testing.T) {
++	// Test the race detector annotations for synchronization
++	// between settings labels and consuming them from the
++	// profile.
++	testCPUProfile(t, []string{"runtime/pprof.cpuHogger;key=value"}, func(dur time.Duration) {
++		start := time.Now()
++		var wg sync.WaitGroup
++		for time.Since(start) < dur {
++			for i := 0; i < 10; i++ {
++				wg.Add(1)
++				go func() {
++					Do(context.Background(), Labels("key", "value"), func(context.Context) {
++						cpuHogger(cpuHog1, time.Millisecond)
++					})
++					wg.Done()
++				}()
++			}
++			wg.Wait()
++		}
++	})
++}
++
+ // Check that there is no deadlock when the program receives SIGPROF while in
+ // 64bit atomics' critical section. Used to happen on mips{,le}. See #20146.
+ func TestAtomicLoadStore64(t *testing.T) {
+diff --git a/src/runtime/profbuf.go b/src/runtime/profbuf.go
+index 2719238bc1..f40881aed5 100644
+--- a/src/runtime/profbuf.go
++++ b/src/runtime/profbuf.go
+@@ -545,7 +545,7 @@ Read:
+ 	b.rNext = br.addCountsAndClearFlags(skip+di, ti)
+ 
+ 	if raceenabled {
+-		// Match racewritepc in runtime_setProfLabel,
++		// Match racereleasemerge in runtime_setProfLabel,
+ 		// so that the setting of the labels in runtime_setProfLabel
+ 		// is treated as happening before any use of the labels
+ 		// by our caller. The synchronization on labelSync itself is a fiction
+diff --git a/src/runtime/proflabel.go b/src/runtime/proflabel.go
+index 1b41a8a16e..b2a161729e 100644
+--- a/src/runtime/proflabel.go
++++ b/src/runtime/proflabel.go
+@@ -13,8 +13,23 @@ func runtime_setProfLabel(labels unsafe.Pointer) {
+ 	// Introduce race edge for read-back via profile.
+ 	// This would more properly use &getg().labels as the sync address,
+ 	// but we do the read in a signal handler and can't call the race runtime then.
++	//
++	// This uses racereleasemerge rather than just racerelease so
++	// the acquire in profBuf.read synchronizes with *all* prior
++	// setProfLabel operations, not just the most recent one. This
++	// is important because profBuf.read will observe different
++	// labels set by different setProfLabel operations on
++	// different goroutines, so it needs to synchronize with all
++	// of them (this wouldn't be an issue if we could synchronize
++	// on &getg().labels since we would synchronize with each
++	// most-recent labels write separately.)
++	//
++	// racereleasemerge is like a full read-modify-write on
++	// labelSync, rather than just a store-release, so it carries
++	// a dependency on the previous racereleasemerge, which
++	// ultimately carries forward to the acquire in profBuf.read.
+ 	if raceenabled {
+-		racerelease(unsafe.Pointer(&labelSync))
++		racereleasemerge(unsafe.Pointer(&labelSync))
+ 	}
+ 	getg().labels = labels
+ }

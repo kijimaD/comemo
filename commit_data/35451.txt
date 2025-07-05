@@ -14,7 +14,59 @@ Date:   Thu Dec 7 22:01:42 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go |  7 +++++++
  test/uintptrescapes2.go            | 20 ++++++++++++++++----
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 03c0adafd5..9c486e7898 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2260,6 +2260,13 @@ func (e *EscState) esctag(fn *Node) {
+ 	// (Unnamed parameters are not in the Dcl list in the loop above
+ 	// so we need to mark them separately.)
+ 	for _, f := range fn.Type.Params().Fields().Slice() {
++		if !types.Haspointers(f.Type) { // don't bother tagging for scalars
++			continue
++		}
++		if f.Note == uintptrEscapesTag {
++			// Note is already set in the loop above.
++			continue
++		}
+ 		if f.Sym == nil || f.Sym.IsBlank() {
+ 			f.Note = mktag(EscNone)
+ 		}
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+index 57c21edbce..c94bc148c8 100644
+--- a/test/uintptrescapes2.go
++++ b/test/uintptrescapes2.go
+@@ -20,12 +20,24 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
+ //go:noinline
+ func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
+ 
++//go:uintptrescapes
++//go:noinline
++func F3(uintptr) {} // ERROR "escaping uintptr"
++
++//go:uintptrescapes
++//go:noinline
++func F4(...uintptr) {} // ERROR "escaping ...uintptr"
++
+ func G() {
+-	var t int                       // ERROR "moved to heap"
+-	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: .?autotmp" "&t escapes to heap"
++	var t int                        // ERROR "moved to heap"
++	F1(uintptr(unsafe.Pointer(&t)))  // ERROR "live at call to F1: .?autotmp" "&t escapes to heap"
++	var t2 int                       // ERROR "moved to heap"
++	F3(uintptr(unsafe.Pointer(&t2))) // ERROR "live at call to F3: .?autotmp" "&t2 escapes to heap"
+ }
+ 
+ func H() {
+-	var v int                                // ERROR "moved to heap"
+-	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap"
++	var v int                                 // ERROR "moved to heap"
++	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2)  // ERROR "live at call to newobject: .?autotmp" "live at call to F2: .?autotmp" "escapes to heap"
++	var v2 int                                // ERROR "moved to heap"
++	F4(0, 1, uintptr(unsafe.Pointer(&v2)), 2) // ERROR "live at call to newobject: .?autotmp" "live at call to F4: .?autotmp" "escapes to heap"
+ }

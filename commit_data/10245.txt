@@ -24,7 +24,59 @@ Date:   Fri Nov 4 15:48:11 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5343041
-
+---
  src/pkg/html/parse.go      | 17 +++++++++++------
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index 0204b7c281..811e265473 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -943,22 +943,27 @@ func inRowIM(p *parser) (insertionMode, bool) {
+ 	case StartTagToken:
+ 		switch p.tok.Data {
+ 		case "td", "th":
+-			// TODO: clear the stack back to a table row context.
++			p.clearStackToContext(tableRowContextStopTags)
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.afe = append(p.afe, &scopeMarker)
+ 			return inCellIM, true
++		case "caption", "col", "colgroup", "tbody", "tfoot", "thead", "tr":
++			if p.popUntil(tableScopeStopTags, "tr") {
++				return inTableBodyIM, false
++			}
++			// Ignore the token.
++			return inRowIM, true
+ 		default:
+ 			// TODO.
+ 		}
+ 	case EndTagToken:
+ 		switch p.tok.Data {
+ 		case "tr":
+-			if !p.elementInScope(tableScopeStopTags, "tr") {
+-				return inRowIM, true
++			if p.popUntil(tableScopeStopTags, "tr") {
++				return inTableBodyIM, true
+ 			}
+-			p.clearStackToContext(tableRowContextStopTags)
+-			p.oe.pop()
+-			return inTableBodyIM, true
++			// Ignore the token.
++			return inRowIM, true
+ 		case "table":
+ 			if p.popUntil(tableScopeStopTags, "tr") {
+ 				return inTableBodyIM, false
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 8dc00ba484..a6398e7a12 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 86; i++ {
++		for i := 0; i < 87; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {

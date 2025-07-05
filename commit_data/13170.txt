@@ -15,8 +15,70 @@ Date:   Thu May 24 23:05:36 2012 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6252048
-
+---
  src/cmd/gc/range.c | 11 ++++++++---
  src/cmd/gc/subr.c  |  6 ++++++
  test/range.go      | 11 +++++++++++
  3 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 8e9d1afc5b..459105ee88 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -152,9 +152,14 @@ walkrange(Node *n)
+ 		n->ntest = nod(OLT, hv1, hn);
+ 		n->nincr = nod(OASOP, hv1, nodintconst(1));
+ 		n->nincr->etype = OADD;
+-		body = list1(nod(OAS, v1, hv1));
+-		if(v2) {
+-			body = list(body, nod(OAS, v2, nod(OIND, hp, N)));
++		if(v2 == N)
++			body = list1(nod(OAS, v1, hv1));
++		else {
++			a = nod(OAS2, N, N);
++			a->list = list(list1(v1), v2);
++			a->rlist = list(list1(hv1), nod(OIND, hp, N));
++			body = list1(a);
++
+ 			tmp = nod(OADD, hp, nodintconst(t->type->width));
+ 			tmp->type = hp->type;
+ 			tmp->typecheck = 1;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0fee277fc7..dfab86864a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1950,6 +1950,12 @@ safeexpr(Node *n, NodeList **init)
+ 	if(n == N)
+ 		return N;
+ 
++	if(n->ninit) {
++		walkstmtlist(n->ninit);
++		*init = concat(*init, n->ninit);
++		n->ninit = nil;
++	}
++
+ 	switch(n->op) {
+ 	case ONAME:
+ 	case OLITERAL:
+diff --git a/test/range.go b/test/range.go
+index b0f3ae605a..68b0c9a2f3 100644
+--- a/test/range.go
++++ b/test/range.go
+@@ -58,6 +58,17 @@ func testslice() {
+ 		println("wrong sum ranging over makeslice")
+ 		panic("fail")
+ 	}
++	
++	x := []int{10, 20}
++	y := []int{99}
++	i := 1
++	for i, x[i] = range y {
++		break
++	}
++	if i != 0 || x[0] != 10 || x[1] != 99 {
++		println("wrong parallel assignment", i, x[0], x[1])
++		panic("fail")
++	}
+ }
+ 
+ func testslice1() {

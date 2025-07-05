@@ -9,7 +9,206 @@ Date:   Tue Jan 6 13:54:53 2009 -0800
     DELTA=152  (127 added, 12 deleted, 13 changed)
     OCL=22140
     CL=22142
-
+---
  src/lib/regexp/all_test.go | 93 ++++++++++++++++++++++++++++++++++++++++++++--
  src/lib/regexp/regexp.go   | 34 ++++++++++++++++-
  2 files changed, 121 insertions(+), 6 deletions(-)
+
+diff --git a/src/lib/regexp/all_test.go b/src/lib/regexp/all_test.go
+index b228ee8458..99d5d00ad7 100644
+--- a/src/lib/regexp/all_test.go
++++ b/src/lib/regexp/all_test.go
+@@ -29,7 +29,7 @@ var good_re = []string{
+ 	`[^1234]`,
+ }
+ 
+-// TODO: nice to do this with a map but we don't have an iterator
++// TODO: nice to do this with a map
+ type StringError struct {
+ 	re	string;
+ 	err	*os.Error;
+@@ -60,6 +60,7 @@ type Tester struct {
+ var matches = []Tester {
+ 	Tester{ ``,	"",	Vec{0,0} },
+ 	Tester{ `a`,	"a",	Vec{0,1} },
++	Tester{ `x`,	"y",	Vec{} },
+ 	Tester{ `b`,	"abc",	Vec{1,2} },
+ 	Tester{ `.`,	"a",	Vec{0,1} },
+ 	Tester{ `.*`,	"abcdef",	Vec{0,6} },
+@@ -92,7 +93,7 @@ func CompileTest(t *testing.T, expr string, error *os.Error) regexp.Regexp {
+ 	return re
+ }
+ 
+-func PrintVec(t *testing.T, m [] int) {
++func PrintVec(t *testing.T, m []int) {
+ 	l := len(m);
+ 	if l == 0 {
+ 		t.Log("\t<no match>");
+@@ -103,6 +104,17 @@ func PrintVec(t *testing.T, m [] int) {
+ 	}
+ }
+ 
++func PrintStrings(t *testing.T, m []string) {
++	l := len(m);
++	if l == 0 {
++		t.Log("\t<no match>");
++	} else {
++		for i := 0; i < l; i = i+2 {
++			t.Logf("\t%q", m[i])
++		}
++	}
++}
++
+ func Equal(m1, m2 []int) bool {
+ 	l := len(m1);
+ 	if l != len(m2) {
+@@ -116,14 +128,27 @@ func Equal(m1, m2 []int) bool {
+ 	return true
+ }
+ 
+-func MatchTest(t *testing.T, expr string, str string, match []int) {
++func EqualStrings(m1, m2 []string) bool {
++	l := len(m1);
++	if l != len(m2) {
++		return false
++	}
++	for i := 0; i < l; i++ {
++		if m1[i] != m2[i] {
++			return false
++		}
++	}
++	return true
++}
++
++func ExecuteTest(t *testing.T, expr string, str string, match []int) {
+ 	re := CompileTest(t, expr, nil);
+ 	if re == nil {
+ 		return
+ 	}
+ 	m := re.Execute(str);
+ 	if !Equal(m, match) {
+-		t.Error("failure on `", expr, "` matching `", str, "`:");
++		t.Error("Execute failure on `", expr, "` matching `", str, "`:");
+ 		PrintVec(t, m);
+ 		t.Log("should be:");
+ 		PrintVec(t, match);
+@@ -142,9 +167,69 @@ export func TestBadCompile(t *testing.T) {
+ 	}
+ }
+ 
++export func TestExecute(t *testing.T) {
++	for i := 0; i < len(matches); i++ {
++		test := &matches[i];
++		ExecuteTest(t, test.re, test.text, test.match)
++	}
++}
++
++func MatchTest(t *testing.T, expr string, str string, match []int) {
++	re := CompileTest(t, expr, nil);
++	if re == nil {
++		return
++	}
++	m := re.Match(str);
++	if m != (len(match) > 0) {
++		t.Error("Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
++	}
++}
++
+ export func TestMatch(t *testing.T) {
+ 	for i := 0; i < len(matches); i++ {
+ 		test := &matches[i];
+ 		MatchTest(t, test.re, test.text, test.match)
+ 	}
+ }
++
++func MatchStringsTest(t *testing.T, expr string, str string, match []int) {
++	re := CompileTest(t, expr, nil);
++	if re == nil {
++		return
++	}
++	strs := new([]string, len(match)/2);
++	for i := 0; i < len(match); i++ {
++		strs[i/2] = str[match[i] : match[i+1]]
++	}
++	m := re.MatchStrings(str);
++	if !EqualStrings(m, strs) {
++		t.Error("MatchStrings failure on `", expr, "` matching `", str, "`:");
++		PrintStrings(t, m);
++		t.Log("should be:");
++		PrintStrings(t, strs);
++	}
++}
++
++export func TestMatchStrings(t *testing.T) {
++	for i := 0; i < len(matches); i++ {
++		test := &matches[i];
++		MatchTest(t, test.re, test.text, test.match)
++	}
++}
++
++func MatchFunctionTest(t *testing.T, expr string, str string, match []int) {
++	m, err := Match(expr, str);
++	if err == nil {
++		return
++	}
++	if m != (len(match) > 0) {
++		t.Error("function Match failure on `", expr, "` matching `", str, "`:", m, "should be", len(match) > 0);
++	}
++}
++
++export func TestMatchFunction(t *testing.T) {
++	for i := 0; i < len(matches); i++ {
++		test := &matches[i];
++		MatchFunctionTest(t, test.re, test.text, test.match)
++	}
++}
+diff --git a/src/lib/regexp/regexp.go b/src/lib/regexp/regexp.go
+index 218fbd6013..383db09a45 100644
+--- a/src/lib/regexp/regexp.go
++++ b/src/lib/regexp/regexp.go
+@@ -580,9 +580,11 @@ func Compiler(str string, ch chan *RE) {
+ 	ch <- re;
+ }
+ 
+-// Public interface has only execute functionality (not yet implemented)
++// Public interface has only execute functionality
+ export type Regexp interface {
+-	Execute(s string) []int
++	Execute(s string) []int;
++	Match(s string) bool;
++	MatchStrings(s string) []string;
+ }
+ 
+ // Compile in separate goroutine; wait for result
+@@ -715,3 +717,31 @@ func (re *RE) DoExecute(str string, pos int) []int {
+ func (re *RE) Execute(s string) []int {
+ 	return re.DoExecute(s, 0)
+ }
++
++
++func (re *RE) Match(s string) bool {
++	return len(re.DoExecute(s, 0)) > 0
++}
++
++
++func (re *RE) MatchStrings(s string) []string {
++	r := re.DoExecute(s, 0);
++	if r == nil {
++		return nil
++	}
++	a := new([]string, len(r)/2);
++	for i := 0; i < len(r); i += 2 {
++		a[i/2] = s[r[i] : r[i+1]]
++	}
++	return a
++}
++
++// Exported function for simple boolean check.  Anything more fancy
++// needs a call to Compile.
++export func Match(pattern string, s string) (matched bool, error *os.Error) {
++	re, err := Compile(pattern);
++	if err != nil {
++		return false, err
++	}
++	return re.Match(s), nil
++}

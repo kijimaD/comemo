@@ -12,7 +12,7 @@ Date:   Tue Jun 30 20:01:50 2009 -0700
     DELTA=1950  (954 added, 996 deleted, 0 changed)
     OCL=30951
     CL=30964
-
+---
  src/pkg/runtime/Makefile                 |  3 --
  src/pkg/runtime/{float.c => float.cgo}   | 45 +++++++++++++++++++++++++++
  src/pkg/runtime/float_go.cgo             | 52 -------------------------------
@@ -22,3 +22,421 @@ Date:   Tue Jun 30 20:01:50 2009 -0700
  src/pkg/runtime/sema_go.cgo              | 15 ---------
  src/pkg/runtime/{string.c => string.cgo} | 53 +++++++-------------------------
  8 files changed, 86 insertions(+), 140 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index e1c320ca81..4e932b0525 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -47,11 +47,9 @@ OFILES=\
+ 	closure.$O\
+ 	extern.$O\
+ 	float.$O\
+-	float_go.$O\
+ 	hashmap.$O\
+ 	iface.$O\
+ 	malloc.$O\
+-	malloc_go.$O\
+ 	mcache.$O\
+ 	mcentral.$O\
+ 	mem.$O\
+@@ -66,7 +64,6 @@ OFILES=\
+ 	runtime.$O\
+ 	rt0.$O\
+ 	sema.$O\
+-	sema_go.$O\
+ 	signal.$O\
+ 	string.$O\
+ 	symtab.$O\
+diff --git a/src/pkg/runtime/float.c b/src/pkg/runtime/float.cgo
+similarity index 78%
+rename from src/pkg/runtime/float.c
+rename to src/pkg/runtime/float.cgo
+index 5122f359a7..38114aa854 100644
+--- a/src/pkg/runtime/float.c
++++ b/src/pkg/runtime/float.cgo
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package math
+ #include "runtime.h"
+ 
+ static	uint64	uvnan		= 0x7FF0000000000001ULL;
+@@ -171,3 +172,47 @@ modf(float64 d, float64 *ip)
+ 	return d - dd;
+ }
+ 
++func Frexp(f float64) (frac float64, exp int32) {
++	frac = frexp(f, &exp);
++}
++
++func Ldexp(frac float64, exp int32) (f float64) {
++	f = ldexp(frac, exp);
++}
++
++func Modf(f float64) (integer float64, frac float64) {
++	frac = modf(f, &integer);
++}
++
++func IsInf(f float64, sign int32) (is bool) {
++	is = isInf(f, sign);
++}
++
++func IsNaN(f float64) (is bool) {
++	is = isNaN(f);
++}
++
++func Inf(sign int32) (f float64) {
++	f = Inf(sign);
++}
++
++func NaN() (f float64) {
++	f = NaN();
++}
++
++func Float32bits(f float32) (b uint32) {
++	b = float32tobits(f);
++}
++
++func Float64bits(f float64) (b uint64) {
++	b = float64tobits(f);
++}
++
++func Float32frombits(b uint32) (f float32) {
++	f = float32frombits(b);
++}
++
++func Float64frombits(b uint64) (f float64) {
++	f = float64frombits(b);
++}
++
+diff --git a/src/pkg/runtime/float_go.cgo b/src/pkg/runtime/float_go.cgo
+deleted file mode 100644
+index 518d559507..0000000000
+--- a/src/pkg/runtime/float_go.cgo
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-#include "runtime.h"
+-
+-func Frexp(f float64) (frac float64, exp int32) {
+-	frac = frexp(f, &exp);
+-}
+-
+-func Ldexp(frac float64, exp int32) (f float64) {
+-	f = ldexp(frac, exp);
+-}
+-
+-func Modf(f float64) (integer float64, frac float64) {
+-	frac = modf(f, &integer);
+-}
+-
+-func IsInf(f float64, sign int32) (is bool) {
+-	is = isInf(f, sign);
+-}
+-
+-func IsNaN(f float64) (is bool) {
+-	is = isNaN(f);
+-}
+-
+-func Inf(sign int32) (f float64) {
+-	f = Inf(sign);
+-}
+-
+-func NaN() (f float64) {
+-	f = NaN();
+-}
+-
+-func Float32bits(f float32) (b uint32) {
+-	b = float32tobits(f);
+-}
+-
+-func Float64bits(f float64) (b uint64) {
+-	b = float64tobits(f);
+-}
+-
+-func Float32frombits(b uint32) (f float32) {
+-	f = float32frombits(b);
+-}
+-
+-func Float64frombits(b uint64) (f float64) {
+-	f = float64frombits(b);
+-}
+-
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.cgo
+similarity index 95%
+rename from src/pkg/runtime/malloc.c
+rename to src/pkg/runtime/malloc.cgo
+index 84c802f94a..0fdb13d95a 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.cgo
+@@ -7,6 +7,7 @@
+ // TODO(rsc): double-check stats.
+ // TODO(rsc): solve "stack overflow during malloc" problem.
+ 
++package malloc
+ #include "runtime.h"
+ #include "malloc.h"
+ #include "defs.h"
+@@ -306,3 +307,23 @@ stackfree(void *v)
+ 	}
+ 	free(v);
+ }
++
++func Alloc(n uintptr) (p *byte) {
++	p = malloc(n);
++}
++
++func Free(p *byte) {
++	free(p);
++}
++
++func Lookup(p *byte) (base *byte, size uintptr) {
++	mlookup(p, &base, &size, nil);
++}
++
++func GetStats() (s *MStats) {
++	s = &mstats;
++}
++
++func GC() {
++	gc(1);
++}
+diff --git a/src/pkg/runtime/malloc_go.cgo b/src/pkg/runtime/malloc_go.cgo
+deleted file mode 100644
+index 6dcdaece20..0000000000
+--- a/src/pkg/runtime/malloc_go.cgo
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package malloc
+-#include "runtime.h"
+-#include "malloc.h"
+-
+-func Alloc(n uintptr) (p *byte) {
+-	p = malloc(n);
+-}
+-
+-func Free(p *byte) {
+-	free(p);
+-}
+-
+-func Lookup(p *byte) (base *byte, size uintptr) {
+-	mlookup(p, &base, &size, nil);
+-}
+-
+-func GetStats() (s *MStats) {
+-	s = &mstats;
+-}
+-
+-func GC() {
+-	gc(1);
+-}
+-
+diff --git a/src/pkg/runtime/sema.c b/src/pkg/runtime/sema.cgo
+similarity index 96%
+rename from src/pkg/runtime/sema.c
+rename to src/pkg/runtime/sema.cgo
+index 5e5b07aa6f..81834ae6dc 100644
+--- a/src/pkg/runtime/sema.c
++++ b/src/pkg/runtime/sema.cgo
+@@ -17,6 +17,7 @@
+ // See Mullender and Cox, ``Semaphores in Plan 9,''
+ // http://swtch.com/semaphore.pdf
+ 
++package sync
+ #include "runtime.h"
+ 
+ typedef struct Sema Sema;
+@@ -174,3 +175,11 @@ semrelease(uint32 *addr)
+ 	}
+ 	semwakeup(addr);
+ }
++
++func semacquire(addr *uint32) {
++	semacquire(addr);
++}
++
++func semrelease(addr *uint32) {
++	semrelease(addr);
++}
+diff --git a/src/pkg/runtime/sema_go.cgo b/src/pkg/runtime/sema_go.cgo
+deleted file mode 100644
+index eb4082a0d1..0000000000
+--- a/src/pkg/runtime/sema_go.cgo
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sync
+-#include "runtime.h"
+-
+-func semacquire(addr *uint32) {
+-	semacquire(addr);
+-}
+-
+-func semrelease(addr *uint32) {
+-	semrelease(addr);
+-}
+-
+diff --git a/src/pkg/runtime/string.c b/src/pkg/runtime/string.cgo
+similarity index 80%
+rename from src/pkg/runtime/string.c
+rename to src/pkg/runtime/string.cgo
+index 5bfe8196f7..c91a7507e6 100644
+--- a/src/pkg/runtime/string.c
++++ b/src/pkg/runtime/string.cgo
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package sys
+ #include "runtime.h"
+ 
+ String	emptystring;
+@@ -46,9 +47,7 @@ gostring(byte *str)
+ 	return s;
+ }
+ 
+-void
+-sys·catstring(String s1, String s2, String s3)
+-{
++func catstring(s1 String, s2 String) (s3 String) {
+ 	if(s1.len == 0) {
+ 		s3 = s2;
+ 		goto out;
+@@ -61,9 +60,7 @@ sys·catstring(String s1, String s2, String s3)
+ 	s3 = gostringsize(s1.len + s2.len);
+ 	mcpy(s3.str, s1.str, s1.len);
+ 	mcpy(s3.str+s1.len, s2.str, s2.len);
+-
+ out:
+-	FLUSH(&s3);
+ }
+ 
+ static void
+@@ -104,11 +101,8 @@ cmpstring(String s1, String s2)
+ 	return 0;
+ }
+ 
+-void
+-sys·cmpstring(String s1, String s2, int32 v)
+-{
++func cmpstring(s1 String, s2 String) (v int32) {
+ 	v = cmpstring(s1, s2);
+-	FLUSH(&v);
+ }
+ 
+ int32
+@@ -129,9 +123,7 @@ strcmp(byte *s1, byte *s2)
+ 	}
+ }
+ 
+-void
+-sys·slicestring(String si, int32 lindex, int32 hindex, String so)
+-{
++func slicestring(si String, lindex int32, hindex int32) (so String) {
+ 	int32 l;
+ 
+ 	if(lindex < 0 || lindex > si.len ||
+@@ -148,13 +140,9 @@ sys·slicestring(String si, int32 lindex, int32 hindex, String so)
+ //	alternate to create a new string
+ //	so = gostringsize(l);
+ //	mcpy(so.str, si.str+lindex, l);
+-
+-	FLUSH(&so);
+ }
+ 
+-void
+-sys·indexstring(String s, int32 i, byte b)
+-{
++func indexstring(s String, i int32) (b byte) {
+ 	if(i < 0 || i >= s.len) {
+ 		sys·printpc(&s);
+ 		prints(" ");
+@@ -162,28 +150,20 @@ sys·indexstring(String s, int32 i, byte b)
+ 	}
+ 
+ 	b = s.str[i];
+-	FLUSH(&b);
+ }
+ 
+-void
+-sys·intstring(int64 v, String s)
+-{
++func intstring(v int64) (s String) {
+ 	s = gostringsize(8);
+ 	s.len = runetochar(s.str, v);
+-	FLUSH(&s);
+ }
+ 
+-void
+-sys·arraystring(Array b, String s)
+-{
++func arraystring(b Array) (s String) {
+ 	s = gostringsize(b.nel);
+ 	mcpy(s.str, b.array, s.len);
+-	FLUSH(&s);
+ }
+ 
+-void
+-sys·arraystringi(Array b, String s)
+-{
++
++func arraystringi(b Array) (s String) {
+ 	int32 siz1, siz2, i;
+ 	int32 *a;
+ 	byte dum[8];
+@@ -203,8 +183,6 @@ sys·arraystringi(Array b, String s)
+ 		siz2 += runetochar(s.str+siz2, a[i]);
+ 	}
+ 	s.len = siz2;
+-
+-	FLUSH(&s);
+ }
+ 
+ enum
+@@ -212,10 +190,7 @@ enum
+ 	Runeself	= 0x80,
+ };
+ 
+-// func	stringiter(string, int) (retk int);
+-void
+-sys·stringiter(String s, int32 k, int32 retk)
+-{
++func stringiter(s String, k int32) (retk int32) {
+ 	int32 l;
+ 
+ 	if(k >= s.len) {
+@@ -234,13 +209,9 @@ sys·stringiter(String s, int32 k, int32 retk)
+ 	retk = k + charntorune(&l, s.str+k, s.len-k);
+ 
+ out:
+-	FLUSH(&retk);
+ }
+ 
+-// func	stringiter2(string, int) (retk int, retv any);
+-void
+-sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
+-{
++func stringiter2(s String, k int32) (retk int32, retv int32) {
+ 	if(k >= s.len) {
+ 		// retk=0 is end of iteration
+ 		retk = 0;
+@@ -258,6 +229,4 @@ sys·stringiter2(String s, int32 k, int32 retk, int32 retv)
+ 	retk = k + charntorune(&retv, s.str+k, s.len-k);
+ 
+ out:
+-	FLUSH(&retk);
+-	FLUSH(&retv);
+ }

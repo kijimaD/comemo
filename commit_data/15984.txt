@@ -7,6 +7,21 @@ Date:   Thu Mar 28 09:37:32 2013 -0700
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/8070043
-
+---
  src/cmd/ld/lib.c | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index f42b8dfddf..aa0360bea6 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -636,6 +636,9 @@ hostlink(void)
+ 	argv[argc++] = "-o";
+ 	argv[argc++] = outfile;
+ 	
++	if(rpath)
++		argv[argc++] = smprint("-Wl,-rpath,%s", rpath);
++
+ 	// Force global symbols to be exported for dlopen, etc.
+ 	// NOTE: May not work on OS X or Windows. We'll see.
+ 	argv[argc++] = "-rdynamic";

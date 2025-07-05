@@ -8,7 +8,7 @@ Date:   Wed Nov 12 14:54:04 2014 -0500
     R=r, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/167650043
-
+---
  src/runtime/cgo/dragonfly.go | 2 +-
  src/runtime/cgo/freebsd.go   | 2 +-
  src/runtime/cgo/iscgo.go     | 2 +-
@@ -16,3 +16,82 @@ Date:   Wed Nov 12 14:54:04 2014 -0500
  src/runtime/cgo/openbsd.go   | 2 +-
  src/runtime/cgo/setenv.go    | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/cgo/dragonfly.go b/src/runtime/cgo/dragonfly.go
+index 96eb8660e0..69d52b5b2f 100644
+--- a/src/runtime/cgo/dragonfly.go
++++ b/src/runtime/cgo/dragonfly.go
+@@ -6,7 +6,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard DragonFly crt0.o and the
+diff --git a/src/runtime/cgo/freebsd.go b/src/runtime/cgo/freebsd.go
+index 3b01432365..62de1af8a0 100644
+--- a/src/runtime/cgo/freebsd.go
++++ b/src/runtime/cgo/freebsd.go
+@@ -6,7 +6,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard FreeBSD crt0.o and the
+diff --git a/src/runtime/cgo/iscgo.go b/src/runtime/cgo/iscgo.go
+index 5544fd1e30..61cba73d22 100644
+--- a/src/runtime/cgo/iscgo.go
++++ b/src/runtime/cgo/iscgo.go
+@@ -11,7 +11,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ //go:linkname _iscgo runtime.iscgo
+ var _iscgo bool = true
+diff --git a/src/runtime/cgo/netbsd.go b/src/runtime/cgo/netbsd.go
+index 67f96530c1..ac6b18a932 100644
+--- a/src/runtime/cgo/netbsd.go
++++ b/src/runtime/cgo/netbsd.go
+@@ -6,7 +6,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ // Supply environ and __progname, because we don't
+ // link against the standard NetBSD crt0.o and the
+diff --git a/src/runtime/cgo/openbsd.go b/src/runtime/cgo/openbsd.go
+index 29ebcf83aa..61af3a8e74 100644
+--- a/src/runtime/cgo/openbsd.go
++++ b/src/runtime/cgo/openbsd.go
+@@ -6,7 +6,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ // Supply environ, __progname and __guard_local, because
+ // we don't link against the standard OpenBSD crt0.o and
+diff --git a/src/runtime/cgo/setenv.go b/src/runtime/cgo/setenv.go
+index 1612f87c25..97c8c6ac9d 100644
+--- a/src/runtime/cgo/setenv.go
++++ b/src/runtime/cgo/setenv.go
+@@ -6,7 +6,7 @@
+ 
+ package cgo
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ //go:cgo_import_static x_cgo_setenv
+ //go:linkname x_cgo_setenv x_cgo_setenv

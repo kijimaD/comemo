@@ -14,7 +14,46 @@ Date:   Fri Aug 10 09:34:10 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6450109
-
+---
  src/pkg/exp/html/parse.go                  | 6 +++++-
  src/pkg/exp/html/testlogs/webkit01.dat.log | 2 +-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 0ae660c83d..1c40cd30a1 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -999,6 +999,10 @@ func inBodyIM(p *parser) bool {
+ 			adjustForeignAttributes(p.tok.Attr)
+ 			p.addElement()
+ 			p.top().Namespace = p.tok.Data
++			if p.hasSelfClosingToken {
++				p.oe.pop()
++				p.acknowledgeSelfClosingTag()
++			}
+ 			return true
+ 		case a.Caption, a.Col, a.Colgroup, a.Frame, a.Head, a.Tbody, a.Td, a.Tfoot, a.Th, a.Thead, a.Tr:
+ 			// Ignore the token.
+@@ -2011,8 +2015,8 @@ func (p *parser) parseCurrentToken() {
+ 	}
+ 
+ 	if p.hasSelfClosingToken {
++		// This is a parse error, but ignore it.
+ 		p.hasSelfClosingToken = false
+-		p.parseImpliedToken(EndTagToken, p.tok.DataAtom, p.tok.Data)
+ 	}
+ }
+ 
+diff --git a/src/pkg/exp/html/testlogs/webkit01.dat.log b/src/pkg/exp/html/testlogs/webkit01.dat.log
+index 635cc8e180..9fd91dfb99 100644
+--- a/src/pkg/exp/html/testlogs/webkit01.dat.log
++++ b/src/pkg/exp/html/testlogs/webkit01.dat.log
+@@ -40,7 +40,7 @@ PASS "<svg><title><div>"
+ PASS "<svg><title><rect><div>"
+ PASS "<svg><title><svg><div>"
+ PASS "<img <=\"\" FAIL>"
+-FAIL "<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>"
++PASS "<ul><li><div id='foo'/>A</li><li>B<div>C</div></li></ul>"
+ PASS "<svg><em><desc></em>"
+ PASS "<table><tr><td><svg><desc><td></desc><circle>"
+ PASS "<svg><tfoot></mi><td>"

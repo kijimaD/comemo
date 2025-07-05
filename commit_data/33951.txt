@@ -13,6 +13,25 @@ Date:   Wed Sep 20 15:22:21 2017 -0700
     Change-Id: I315313e906092a7d6ff4ff60a918d80a4cff7a7f
     Reviewed-on: https://go-review.googlesource.com/65110
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/plive.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 444e5e684e..9d2dcf658f 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -351,10 +351,9 @@ func (lv *Liveness) blockEffects(b *ssa.Block) *BlockEffects {
+ 	return &lv.be[b.ID]
+ }
+ 
+-// NOTE: The bitmap for a specific type t should be cached in t after the first run
+-// and then simply copied into bv at the correct offset on future calls with
+-// the same type t. On https://rsc.googlecode.com/hg/testdata/slow.go, onebitwalktype1
+-// accounts for 40% of the 6g execution time.
++// NOTE: The bitmap for a specific type t could be cached in t after
++// the first run and then simply copied into bv at the correct offset
++// on future calls with the same type t.
+ func onebitwalktype1(t *types.Type, off int64, bv bvec) {
+ 	if t.Align > 0 && off&int64(t.Align-1) != 0 {
+ 		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)

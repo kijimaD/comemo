@@ -11,8 +11,109 @@ Date:   Tue Mar 10 19:39:17 2015 +1100
     Change-Id: I0989daab8d0e36c2a4f6a315ced258b832744616
     Reviewed-on: https://go-review.googlesource.com/7266
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/elf/file.go                              |  56 +++++++++++++++++----
  src/debug/elf/file_test.go                         |   6 +++
  .../elf/testdata/go-relocation-test-gcc492-arm.obj | Bin 0 -> 2648 bytes
  3 files changed, 53 insertions(+), 9 deletions(-)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index b2174d4277..7e0dcc57a5 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -524,20 +524,20 @@ func (f *File) Section(name string) *Section {
+ // applyRelocations applies relocations to dst. rels is a relocations section
+ // in RELA format.
+ func (f *File) applyRelocations(dst []byte, rels []byte) error {
+-	if f.Class == ELFCLASS64 && f.Machine == EM_X86_64 {
++	switch {
++	case f.Class == ELFCLASS64 && f.Machine == EM_X86_64:
+ 		return f.applyRelocationsAMD64(dst, rels)
+-	}
+-	if f.Class == ELFCLASS32 && f.Machine == EM_386 {
++	case f.Class == ELFCLASS32 && f.Machine == EM_386:
+ 		return f.applyRelocations386(dst, rels)
+-	}
+-	if f.Class == ELFCLASS64 && f.Machine == EM_AARCH64 {
++	case f.Class == ELFCLASS32 && f.Machine == EM_ARM:
++		return f.applyRelocationsARM(dst, rels)
++	case f.Class == ELFCLASS64 && f.Machine == EM_AARCH64:
+ 		return f.applyRelocationsARM64(dst, rels)
+-	}
+-	if f.Class == ELFCLASS64 && f.Machine == EM_PPC64 {
++	case f.Class == ELFCLASS64 && f.Machine == EM_PPC64:
+ 		return f.applyRelocationsPPC64(dst, rels)
++	default:
++		return errors.New("applyRelocations: not implemented")
+ 	}
+-
+-	return errors.New("not implemented")
+ }
+ 
+ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
+@@ -626,6 +626,44 @@ func (f *File) applyRelocations386(dst []byte, rels []byte) error {
+ 	return nil
+ }
+ 
++func (f *File) applyRelocationsARM(dst []byte, rels []byte) error {
++	// 8 is the size of Rel32.
++	if len(rels)%8 != 0 {
++		return errors.New("length of relocation section is not a multiple of 8")
++	}
++
++	symbols, _, err := f.getSymbols(SHT_SYMTAB)
++	if err != nil {
++		return err
++	}
++
++	b := bytes.NewReader(rels)
++	var rel Rel32
++
++	for b.Len() > 0 {
++		binary.Read(b, f.ByteOrder, &rel)
++		symNo := rel.Info >> 8
++		t := R_ARM(rel.Info & 0xff)
++
++		if symNo == 0 || symNo > uint32(len(symbols)) {
++			continue
++		}
++		sym := &symbols[symNo-1]
++
++		switch t {
++		case R_ARM_REL32:
++			if rel.Off+4 >= uint32(len(dst)) {
++				continue
++			}
++			val := f.ByteOrder.Uint32(dst[rel.Off : rel.Off+4])
++			val += uint32(sym.Value)
++			f.ByteOrder.PutUint32(dst[rel.Off:rel.Off+4], val)
++		}
++	}
++
++	return nil
++}
++
+ func (f *File) applyRelocationsARM64(dst []byte, rels []byte) error {
+ 	// 24 is the size of Rela64.
+ 	if len(rels)%24 != 0 {
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index d57aaab0ec..3e908bb1d0 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -266,6 +266,12 @@ var relocationTests = []relocationTest{
+ 			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.8.2 -g -fstack-protector"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc482.c"}, {Attr: dwarf.AttrCompDir, Val: "/tmp"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: int64(0x24)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
+ 		},
+ 	},
++	{
++		"testdata/go-relocation-test-gcc492-arm.obj",
++		[]relocationTestEntry{
++			{0, &dwarf.Entry{Offset: 0xb, Tag: dwarf.TagCompileUnit, Children: true, Field: []dwarf.Field{{Attr: dwarf.AttrProducer, Val: "GNU C 4.9.2 20141224 (prerelease) -march=armv7-a -mfloat-abi=hard -mfpu=vfpv3-d16 -mtls-dialect=gnu -g"}, {Attr: dwarf.AttrLanguage, Val: int64(1)}, {Attr: dwarf.AttrName, Val: "go-relocation-test-gcc492.c"}, {Attr: dwarf.AttrCompDir, Val: "/root/go/src/debug/elf/testdata"}, {Attr: dwarf.AttrLowpc, Val: uint64(0x0)}, {Attr: dwarf.AttrHighpc, Val: int64(0x28)}, {Attr: dwarf.AttrStmtList, Val: int64(0)}}}},
++		},
++	},
+ 	{
+ 		"testdata/go-relocation-test-gcc482-ppc64le.obj",
+ 		[]relocationTestEntry{
+diff --git a/src/debug/elf/testdata/go-relocation-test-gcc492-arm.obj b/src/debug/elf/testdata/go-relocation-test-gcc492-arm.obj
+new file mode 100644
+index 0000000000..ed45be2c55
+Binary files /dev/null and b/src/debug/elf/testdata/go-relocation-test-gcc492-arm.obj differ

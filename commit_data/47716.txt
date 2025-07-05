@@ -22,7 +22,60 @@ Date:   Wed Apr 7 15:24:46 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/307930
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/cmd/compile/internal/walk/range.go |  4 +++-
  src/runtime/map.go                     | 10 +++++-----
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 5ab24b2188..80bd8750fa 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -168,7 +168,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 		hit := nrange.Prealloc
+ 		th := hit.Type()
+-		keysym := th.Field(0).Sym  // depends on layout of iterator struct.  See reflect.go:MapIterType
++		// depends on layout of iterator struct.
++		// See cmd/compile/internal/reflectdata/reflect.go:MapIterType
++		keysym := th.Field(0).Sym  
+ 		elemsym := th.Field(1).Sym // ditto
+ 
+ 		fn := typecheck.LookupRuntime("mapiterinit")
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 0beff57a1a..40e19c9294 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -113,7 +113,7 @@ func isEmpty(x uint8) bool {
+ 
+ // A header for a Go map.
+ type hmap struct {
+-	// Note: the format of the hmap is also encoded in cmd/compile/internal/gc/reflect.go.
++	// Note: the format of the hmap is also encoded in cmd/compile/internal/reflectdata/reflect.go.
+ 	// Make sure this stays in sync with the compiler's definition.
+ 	count     int // # live cells == size of map.  Must be first (used by len() builtin)
+ 	flags     uint8
+@@ -159,11 +159,11 @@ type bmap struct {
+ }
+ 
+ // A hash iteration structure.
+-// If you modify hiter, also change cmd/compile/internal/gc/reflect.go to indicate
++// If you modify hiter, also change cmd/compile/internal/reflectdata/reflect.go to indicate
+ // the layout of this structure.
+ type hiter struct {
+-	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/gc/range.go).
+-	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/gc/range.go).
++	key         unsafe.Pointer // Must be in first position.  Write nil to indicate iteration end (see cmd/compile/internal/walk/range.go).
++	elem        unsafe.Pointer // Must be in second position (see cmd/compile/internal/walk/range.go).
+ 	t           *maptype
+ 	h           *hmap
+ 	buckets     unsafe.Pointer // bucket ptr at hash_iter initialization time
+@@ -810,7 +810,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	if unsafe.Sizeof(hiter{})/sys.PtrSize != 12 {
+-		throw("hash_iter size incorrect") // see cmd/compile/internal/gc/reflect.go
++		throw("hash_iter size incorrect") // see cmd/compile/internal/reflectdata/reflect.go
+ 	}
+ 	it.t = t
+ 	it.h = h

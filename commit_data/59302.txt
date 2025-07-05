@@ -15,7 +15,7 @@ Date:   Wed Feb 28 16:13:24 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go             |  2 +-
  src/cmd/compile/internal/types2/decl.go             | 14 +++++---------
  src/cmd/compile/internal/types2/named.go            |  2 +-
@@ -26,3 +26,194 @@ Date:   Wed Feb 28 16:13:24 2024 -0800
  src/go/types/validtype.go                           |  2 +-
  src/internal/types/testdata/fixedbugs/issue65711.go |  8 ++++----
  9 files changed, 20 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 45879e85fb..fe5b71d965 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -767,7 +767,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 	case typexpr:
+ 		// don't crash for "type T T.x" (was go.dev/issue/51509)
+ 		if def != nil && def.typ == x.typ {
+-			check.cycleError([]Object{def})
++			check.cycleError([]Object{def}, 0)
+ 			goto Error
+ 		}
+ 	case builtin:
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index d8261017df..fc9e6e37cb 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -301,13 +301,12 @@ loop:
+ 		}
+ 	}
+ 
+-	check.cycleError(cycle)
++	check.cycleError(cycle, firstInSrc(cycle))
+ 	return false
+ }
+ 
+-// cycleError reports a declaration cycle starting with
+-// the object in cycle that is "first" in the source.
+-func (check *Checker) cycleError(cycle []Object) {
++// cycleError reports a declaration cycle starting with the object at cycle[start].
++func (check *Checker) cycleError(cycle []Object, start int) {
+ 	// name returns the (possibly qualified) object name.
+ 	// This is needed because with generic types, cycles
+ 	// may refer to imported types. See go.dev/issue/50788.
+@@ -316,11 +315,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+-	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
+-	//           since that is the earliest point in the source where we start seeing the
+-	//           cycle? That would be more consistent with other error messages.
+-	i := firstInSrc(cycle)
+-	obj := cycle[i]
++	obj := cycle[start]
+ 	objName := name(obj)
+ 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
+ 	tname, _ := obj.(*TypeName)
+@@ -348,6 +343,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	} else {
+ 		err.addf(obj, "invalid cycle in declaration of %s", objName)
+ 	}
++	i := start
+ 	for range cycle {
+ 		err.addf(obj, "%s refers to", objName)
+ 		i++
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 5d7bdc764f..aa7ab00c33 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -552,7 +552,7 @@ loop:
+ 		n = n1
+ 		if i, ok := seen[n]; ok {
+ 			// cycle
+-			check.cycleError(path[i:])
++			check.cycleError(path[i:], firstInSrc(path[i:]))
+ 			u = Typ[Invalid]
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index 7b8649a4fb..7397318511 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -135,7 +135,7 @@ func (check *Checker) validType0(pos syntax.Pos, typ Type, nest, path []*Named)
+ 				// index of t in nest. Search again.
+ 				for start, p := range path {
+ 					if Identical(p, t) {
+-						check.cycleError(makeObjList(path[start:]))
++						check.cycleError(makeObjList(path[start:]), 0)
+ 						return false
+ 					}
+ 				}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 4a70d26964..42ef5b6f86 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -770,7 +770,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 	case typexpr:
+ 		// don't crash for "type T T.x" (was go.dev/issue/51509)
+ 		if def != nil && def.typ == x.typ {
+-			check.cycleError([]Object{def})
++			check.cycleError([]Object{def}, 0)
+ 			goto Error
+ 		}
+ 	case builtin:
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4033bbb34d..4b3eeb8485 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -300,13 +300,12 @@ loop:
+ 		}
+ 	}
+ 
+-	check.cycleError(cycle)
++	check.cycleError(cycle, firstInSrc(cycle))
+ 	return false
+ }
+ 
+-// cycleError reports a declaration cycle starting with
+-// the object in cycle that is "first" in the source.
+-func (check *Checker) cycleError(cycle []Object) {
++// cycleError reports a declaration cycle starting with the object at cycle[start].
++func (check *Checker) cycleError(cycle []Object, start int) {
+ 	// name returns the (possibly qualified) object name.
+ 	// This is needed because with generic types, cycles
+ 	// may refer to imported types. See go.dev/issue/50788.
+@@ -315,11 +314,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+-	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
+-	//           since that is the earliest point in the source where we start seeing the
+-	//           cycle? That would be more consistent with other error messages.
+-	i := firstInSrc(cycle)
+-	obj := cycle[i]
++	obj := cycle[start]
+ 	objName := name(obj)
+ 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
+ 	tname, _ := obj.(*TypeName)
+@@ -346,6 +341,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	} else {
+ 		check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
+ 	}
++	i := start
+ 	for range cycle {
+ 		check.errorf(obj, InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
+ 		i++
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index 0800d83217..5fec5d1baf 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -554,7 +554,7 @@ loop:
+ 		n = n1
+ 		if i, ok := seen[n]; ok {
+ 			// cycle
+-			check.cycleError(path[i:])
++			check.cycleError(path[i:], firstInSrc(path[i:]))
+ 			u = Typ[Invalid]
+ 			break
+ 		}
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 851540cfcb..eae61266de 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -137,7 +137,7 @@ func (check *Checker) validType0(pos token.Pos, typ Type, nest, path []*Named) b
+ 				// index of t in nest. Search again.
+ 				for start, p := range path {
+ 					if Identical(p, t) {
+-						check.cycleError(makeObjList(path[start:]))
++						check.cycleError(makeObjList(path[start:]), 0)
+ 						return false
+ 					}
+ 				}
+diff --git a/src/internal/types/testdata/fixedbugs/issue65711.go b/src/internal/types/testdata/fixedbugs/issue65711.go
+index 09013d0ca5..2c26a9208b 100644
+--- a/src/internal/types/testdata/fixedbugs/issue65711.go
++++ b/src/internal/types/testdata/fixedbugs/issue65711.go
+@@ -6,9 +6,9 @@ package p
+ 
+ type A[P any] [1]P
+ 
+-type B[P any] A /* ERROR "invalid recursive type" */ [P]
++type B[P any] A[P]
+ 
+-type C B[C]
++type C /* ERROR "invalid recursive type" */ B[C]
+ 
+ // test case from issue
+ 
+@@ -17,9 +17,9 @@ type Foo[T any] struct {
+ }
+ 
+ type Bar[T any] struct {
+-	foo Foo /* ERROR "invalid recursive type" */ [T]
++	foo Foo[T]
+ }
+ 
+-type Baz struct {
++type Baz /* ERROR "invalid recursive type" */ struct {
+ 	bar Bar[Baz]
+ }

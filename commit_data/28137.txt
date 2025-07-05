@@ -16,7 +16,46 @@ Date:   Sat Apr 23 11:00:05 2016 -0700
     Change-Id: Iacfef61cbc9dd51c8fccef9b2b9d9544c77dd0e0
     Reviewed-on: https://go-review.googlesource.com/22393
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/convert.go      |  7 ++++++-
  src/database/sql/convert_test.go | 12 ++++++++++++
  2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index 92c3b689c1..99aed2398e 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -217,7 +217,12 @@ func convertAssign(dest, src interface{}) error {
+ 
+ 	dv := reflect.Indirect(dpv)
+ 	if sv.IsValid() && sv.Type().AssignableTo(dv.Type()) {
+-		dv.Set(sv)
++		switch b := src.(type) {
++		case []byte:
++			dv.Set(reflect.ValueOf(cloneBytes(b)))
++		default:
++			dv.Set(sv)
++		}
+ 		return nil
+ 	}
+ 
+diff --git a/src/database/sql/convert_test.go b/src/database/sql/convert_test.go
+index 342875e190..ab81f2f65a 100644
+--- a/src/database/sql/convert_test.go
++++ b/src/database/sql/convert_test.go
+@@ -377,3 +377,15 @@ func TestRawBytesAllocs(t *testing.T) {
+ 		t.Fatalf("allocs = %v; want max 1", n)
+ 	}
+ }
++
++// https://github.com/golang/go/issues/13905
++func TestUserDefinedBytes(t *testing.T) {
++	type userDefinedBytes []byte
++	var u userDefinedBytes
++	v := []byte("foo")
++
++	convertAssign(&u, v)
++	if &u[0] == &v[0] {
++		t.Fatal("userDefinedBytes got potentially dirty driver memory")
++	}
++}

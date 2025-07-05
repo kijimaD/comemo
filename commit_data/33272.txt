@@ -11,6 +11,41 @@ Date:   Thu Aug 10 01:28:10 2017 +0000
     Change-Id: Idf8cfdfc84540e21e8da403e74df5596a1d9327b
     Reviewed-on: https://go-review.googlesource.com/54490
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 14 ++------------
  1 file changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index ba542b4719..866b9a7525 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -484,7 +484,6 @@ func (p *importer) typ() *types.Type {
+ 
+ 		t = pkgtype(p.imp, tsym)
+ 		p.typList = append(p.typList, t)
+-		dup := !t.IsKind(types.TFORW) // type already imported
+ 
+ 		// read underlying type
+ 		t0 := p.typ()
+@@ -515,19 +514,10 @@ func (p *importer) typ() *types.Type {
+ 			result := p.paramList()
+ 			nointerface := p.bool()
+ 
+-			mt := functypefield(recv[0], params, result)
+-			addmethod(sym, mt, false, nointerface)
+-
+-			if dup {
+-				// An earlier import already declared this type and its methods.
+-				// Discard the duplicate method declaration.
+-				p.funcList = append(p.funcList, nil)
+-				continue
+-			}
+-
+ 			n := newfuncname(methodname(sym, recv[0].Type))
+-			n.Type = mt
++			n.Type = functypefield(recv[0], params, result)
+ 			checkwidth(n.Type)
++			addmethod(sym, n.Type, false, nointerface)
+ 			p.funcList = append(p.funcList, n)
+ 			importlist = append(importlist, n)
+ 

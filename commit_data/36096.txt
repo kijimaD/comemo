@@ -11,7 +11,186 @@ Date:   Fri Mar 30 14:15:15 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 90 ---------------------------------
  test/codegen/memcombine.go              | 41 +++++++++++++++
  2 files changed, 41 insertions(+), 90 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b1a5531449..f8111204b6 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -429,54 +429,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"\tCSEL\t"},
+ 	},
+ 	// Check that zero stores are combine into larger stores
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[1] // early bounds check to guarantee safety of writes below
+-			b[0] = 0
+-			b[1] = 0
+-		}
+-		`,
+-		pos: []string{"MOVH\tZR"},
+-		neg: []string{"MOVB"},
+-	},
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[1] // early bounds check to guarantee safety of writes below
+-			b[1] = 0
+-			b[0] = 0
+-		}
+-		`,
+-		pos: []string{"MOVH\tZR"},
+-		neg: []string{"MOVB"},
+-	},
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[3] // early bounds check to guarantee safety of writes below
+-			b[0] = 0
+-			b[1] = 0
+-			b[2] = 0
+-			b[3] = 0
+-		}
+-		`,
+-		pos: []string{"MOVW\tZR"},
+-		neg: []string{"MOVB", "MOVH"},
+-	},
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[3] // early bounds check to guarantee safety of writes below
+-			b[2] = 0
+-			b[3] = 0
+-			b[1] = 0
+-			b[0] = 0
+-		}
+-		`,
+-		pos: []string{"MOVW\tZR"},
+-		neg: []string{"MOVB", "MOVH"},
+-	},
+ 	{
+ 		fn: `
+ 		func $(h []uint16) {
+@@ -499,23 +451,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"MOVW\tZR"},
+ 		neg: []string{"MOVB", "MOVH"},
+ 	},
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[7] // early bounds check to guarantee safety of writes below
+-			b[0] = 0
+-			b[1] = 0
+-			b[2] = 0
+-			b[3] = 0
+-			b[4] = 0
+-			b[5] = 0
+-			b[6] = 0
+-			b[7] = 0
+-		}
+-		`,
+-		pos: []string{"MOVD\tZR"},
+-		neg: []string{"MOVB", "MOVH", "MOVW"},
+-	},
+ 	{
+ 		fn: `
+ 		func $(h []uint16) {
+@@ -564,31 +499,6 @@ var linuxARM64Tests = []*asmTest{
+ 		pos: []string{"MOVD\tZR"},
+ 		neg: []string{"MOVB", "MOVH", "MOVW"},
+ 	},
+-	{
+-		fn: `
+-		func $(b []byte) {
+-			_ = b[15] // early bounds check to guarantee safety of writes below
+-			b[0] = 0
+-			b[1] = 0
+-			b[2] = 0
+-			b[3] = 0
+-			b[4] = 0
+-			b[5] = 0
+-			b[6] = 0
+-			b[7] = 0
+-			b[8] = 0
+-			b[9] = 0
+-			b[10] = 0
+-			b[11] = 0
+-			b[12] = 0
+-			b[13] = 0
+-			b[15] = 0
+-			b[14] = 0
+-		}
+-		`,
+-		pos: []string{"STP"},
+-		neg: []string{"MOVB", "MOVH", "MOVW"},
+-	},
+ 	{
+ 		fn: `
+ 		func $(h []uint16) {
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 9918e7576f..559eb5e4bb 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -12,6 +12,10 @@ var sink64 uint64
+ var sink32 uint32
+ var sink16 uint16
+ 
++// ------------- //
++//    Loading    //
++// ------------- //
++
+ func load_le64(b []byte) {
+ 	// amd64:`MOVQ\s\(.*\),`
+ 	// s390x:`MOVDBR\s\(.*\),`
+@@ -94,6 +98,10 @@ func load_be16_idx(b []byte, idx int) {
+ 	sink16 = binary.BigEndian.Uint16(b[idx:])
+ }
+ 
++// ------------- //
++//    Storing    //
++// ------------- //
++
+ func store_le64(b []byte) {
+ 	// amd64:`MOVQ\s.*\(.*\)$`,-`SHR.`
+ 	// arm64:`MOVD`,-`MOV[WBH]`
+@@ -171,3 +179,36 @@ func store_be16_idx(b []byte, idx int) {
+ 	// arm64:`MOVH`,`REV16W`,-`MOVB`
+ 	binary.BigEndian.PutUint16(b[idx:], sink16)
+ }
++
++// ------------- //
++//    Zeroing    //
++// ------------- //
++
++// Check that zero stores are combined into larger stores
++
++func zero_2(b1, b2 []byte) {
++	// bounds checks to guarantee safety of writes below
++	_, _ = b1[1], b2[1]
++	b1[0], b1[1] = 0, 0 // arm64:"MOVH\tZR",-"MOVB"
++	b2[1], b2[0] = 0, 0 // arm64:"MOVH\tZR",-"MOVB"
++}
++
++func zero_4(b1, b2 []byte) {
++	_, _ = b1[3], b2[3]
++	b1[0], b1[1], b1[2], b1[3] = 0, 0, 0, 0 // arm64:"MOVW\tZR",-"MOVB",-"MOVH"
++	b2[2], b2[3], b2[1], b2[0] = 0, 0, 0, 0 // arm64:"MOVW\tZR",-"MOVB",-"MOVH"
++}
++
++func zero_8(b []byte) {
++	_ = b[7]
++	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
++	b[4], b[5], b[6], b[7] = 0, 0, 0, 0 // arm64:"MOVD\tZR",-"MOVB",-"MOVH",-"MOVW"
++}
++
++func zero_16(b []byte) {
++	_ = b[15]
++	b[0], b[1], b[2], b[3] = 0, 0, 0, 0
++	b[4], b[5], b[6], b[7] = 0, 0, 0, 0
++	b[8], b[9], b[10], b[11] = 0, 0, 0, 0
++	b[12], b[13], b[14], b[15] = 0, 0, 0, 0 // arm64:"STP",-"MOVB",-"MOVH",-"MOVW"
++}

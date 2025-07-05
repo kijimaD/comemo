@@ -12,6 +12,16 @@ Date:   Wed Feb 10 17:48:27 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/291176
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/sizes.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/sizes.go b/src/cmd/compile/internal/types2/sizes.go
+index cae71c139c..9945dcd10c 100644
+--- a/src/cmd/compile/internal/types2/sizes.go
++++ b/src/cmd/compile/internal/types2/sizes.go
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

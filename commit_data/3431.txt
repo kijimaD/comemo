@@ -8,7 +8,7 @@ Date:   Sat Oct 3 10:38:03 2009 -0700
     DELTA=40  (9 added, 3 deleted, 28 changed)
     OCL=35277
     CL=35305
-
+---
  src/clean.bash           | 18 +++++++++---------
  src/cmd/5a/Makefile      |  2 +-
  src/cmd/5c/Makefile      |  2 +-
@@ -33,3 +33,327 @@ Date:   Sat Oct 3 10:38:03 2009 -0700
  test/bench/clean.bash    |  4 ++++
  usr/austin/ogle/Makefile |  2 ++
  23 files changed, 35 insertions(+), 31 deletions(-)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index cf29029517..1c568a5910 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -5,15 +5,15 @@
+ 
+ rm -rf $GOROOT/pkg/[0-9a-zA-Z_]*
+ rm -f $GOROOT/lib/*.[6a]
+-for i in lib9 libbio libmach libregexp cmd pkg
+-do
++for i in lib9 libbio libcgo libmach libregexp cmd pkg \
++	../misc/cgo/gmp ../misc/cgo/stdio \
++	../usr/r/rpc ../usr/dsymonds/iterable \
++	../usr/austin/eval ../usr/austin/ogle ../test/bench
++do(
+ 	cd $i
+-	case $i in
+-	cmd)
++	if test -f clean.bash; then
+ 		bash clean.bash
+-		;;
+-	*)
++	else
+ 		make clean
+-	esac
+-	cd ..
+-done
++	fi
++)done
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index ac2931ed04..87c9d68cda 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -34,7 +34,7 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
++	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+index 96219bdbaf..be9f4c52a9 100644
+--- a/src/cmd/5c/Makefile
++++ b/src/cmd/5c/Makefile
+@@ -34,7 +34,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
++	rm -f *.$O $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 2d4831ba9e..05915a75e5 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -32,7 +32,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
++	rm -f *.o $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+index d2c2f76e1e..44ee2ead12 100644
+--- a/src/cmd/5l/Makefile
++++ b/src/cmd/5l/Makefile
+@@ -34,7 +34,7 @@ enam.c: 5.out.h
+ 	sh mkenam
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
++	rm -f *.o $(TARG) *.5 enam.c 5.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index 38548c05f0..0050921b57 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -34,7 +34,7 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
++	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index d5daa9e1b4..1cae39e1be 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -35,7 +35,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 2a1819618e..6538c55289 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -33,7 +33,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++	rm -f $(TARG) enam.c 6.out a.out *.$O *.6
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 4821f9d91e..82de18448d 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -37,7 +37,7 @@ enam.c: 6.out.h
+ 	sh mkenam
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8a/Makefile b/src/cmd/8a/Makefile
+index ae221632b4..cb5897e084 100644
+--- a/src/cmd/8a/Makefile
++++ b/src/cmd/8a/Makefile
+@@ -11,12 +11,10 @@ HFILES=\
+ 	a.h\
+ 	y.tab.h\
+ 	../8l/8.out.h\
+-	compat.h\
+ 
+ OFILES=\
+ 	y.tab.$O\
+ 	lex.$O\
+-	compat.$O\
+ 	../8l/enam.$O\
+ 
+ YFILES=\
+@@ -36,7 +34,7 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
++	rm -f *.$O $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8c/Makefile b/src/cmd/8c/Makefile
+index 5d8d79fe33..0f3973910b 100644
+--- a/src/cmd/8c/Makefile
++++ b/src/cmd/8c/Makefile
+@@ -37,7 +37,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.8 8.out a.out
++	rm -f *.$O $(TARG) *.8 8.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index 7325d62d9c..b5c272ea45 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -34,7 +34,7 @@ $(TARG): $(OFILES) $(LIB)
+ $(OFILES): $(HFILES)
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
++	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/8l/Makefile b/src/cmd/8l/Makefile
+index e0ba629e6e..4520a4a1ec 100644
+--- a/src/cmd/8l/Makefile
++++ b/src/cmd/8l/Makefile
+@@ -36,7 +36,7 @@ enam.c: 8.out.h
+ 	sh mkenam
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG) *.8 enam.c 8.out a.out
++	rm -f *.$O $(TARG) *.8 enam.c 8.out a.out
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/ar/Makefile b/src/cmd/ar/Makefile
+index f0e51afdd4..cbed2617d8 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/ar/Makefile
+@@ -16,7 +16,7 @@ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG)
++	rm -f *.$O $(TARG)
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 9eea5a1789..98b89f0a28 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -42,6 +42,6 @@ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+ clean:
+-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++	rm -f *.$O *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
+ 
+ install: $(LIB)
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 8e6e5a7f1f..8432c9f22b 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cov ebnflint godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cgo cov ebnflint godefs godoc gofmt prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/cov/Makefile b/src/cmd/cov/Makefile
+index 9c0d8abaa0..a264fdc21c 100644
+--- a/src/cmd/cov/Makefile
++++ b/src/cmd/cov/Makefile
+@@ -20,7 +20,7 @@ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lregexp9 -lbio -l9
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG)
++	rm -f *.$O $(TARG)
+ 
+ install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 1e116a9acf..d552a91015 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -64,6 +64,6 @@ opnames.h:	mkopnames go.h
+ 	./mkopnames go.h >opnames.h
+ 
+ clean:
+-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
++	rm -f *.[568o] enam.c [568].out a.out y.tab.h y.tab.c $(LIB) mkbuiltin1 builtin.c _builtin.c
+ 
+ install: $(LIB)
+diff --git a/src/cmd/godefs/Makefile b/src/cmd/godefs/Makefile
+index 819f94a004..d3215c87d6 100644
+--- a/src/cmd/godefs/Makefile
++++ b/src/cmd/godefs/Makefile
+@@ -16,7 +16,7 @@ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG)
++	rm -f *.$O $(TARG)
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/nm/Makefile b/src/cmd/nm/Makefile
+index 00d9beebfe..b2134e6b5d 100644
+--- a/src/cmd/nm/Makefile
++++ b/src/cmd/nm/Makefile
+@@ -16,7 +16,7 @@ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG)
++	rm -f *.$O $(TARG)
+ 
+ install: $(TARG)
+ 	cp $(TARG) $(GOBIN)/$(TARG)
+diff --git a/src/cmd/prof/Makefile b/src/cmd/prof/Makefile
+index daab2df1bf..7ebc19d63f 100644
+--- a/src/cmd/prof/Makefile
++++ b/src/cmd/prof/Makefile
+@@ -20,7 +20,7 @@ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lmach -lbio -l9
+ 
+ clean:
+-	rm -f $(OFILES) $(TARG)
++	rm -f *.$O $(TARG)
+ 
+ install: install-$(shell uname | tr A-Z a-z)
+ install-linux: install-default
+diff --git a/test/bench/clean.bash b/test/bench/clean.bash
+new file mode 100755
+index 0000000000..d56c0e3940
+--- /dev/null
++++ b/test/bench/clean.bash
+@@ -0,0 +1,4 @@
++#!/bin/sh
++
++OS=568
++rm -f [$OS].out *.[$OS]
+diff --git a/usr/austin/ogle/Makefile b/usr/austin/ogle/Makefile
+index df0bb2d32d..9ea9beabe9 100644
+--- a/usr/austin/ogle/Makefile
++++ b/usr/austin/ogle/Makefile
+@@ -18,6 +18,8 @@ GOFILES=\
+ 	process.go\
+ 	vars.go\
+ 
++CLEANFILES+=ogle
++
+ include $(GOROOT)/src/Make.pkg
+ 
+ main.$O: main.go package

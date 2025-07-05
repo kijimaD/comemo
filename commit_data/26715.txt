@@ -17,7 +17,7 @@ Date:   Tue Feb 23 10:54:36 2016 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go  |  1 +
  src/cmd/compile/internal/gc/popt.go | 11 ++++++-----
  src/cmd/internal/obj/link.go        |  1 +
@@ -25,3 +25,115 @@ Date:   Tue Feb 23 10:54:36 2016 -0800
  src/cmd/internal/obj/pass.go        | 14 ++++++++------
  src/cmd/internal/obj/sym.go         |  1 +
  6 files changed, 20 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 89b442796b..6298bbbbba 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -236,6 +236,7 @@ func Main() {
+ 	}
+ 	Ctxt.Flag_shared = int32(flag_shared)
+ 	Ctxt.Flag_dynlink = flag_dynlink
++	Ctxt.Flag_optimize = Debug['N'] == 0
+ 
+ 	Ctxt.Debugasm = int32(Debug['S'])
+ 	Ctxt.Debugvlog = int32(Debug['v'])
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index b708222845..87460875b7 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -138,15 +138,16 @@ func fixjmp(firstp *obj.Prog) {
+ 			fmt.Printf("%v\n", p)
+ 		}
+ 		if p.As != obj.ACALL && p.To.Type == obj.TYPE_BRANCH && p.To.Val.(*obj.Prog) != nil && p.To.Val.(*obj.Prog).As == obj.AJMP {
+-			p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
+-			if Debug['R'] != 0 && Debug['v'] != 0 {
+-				fmt.Printf("->%v\n", p)
++			if Debug['N'] == 0 {
++				p.To.Val = chasejmp(p.To.Val.(*obj.Prog), &jmploop)
++				if Debug['R'] != 0 && Debug['v'] != 0 {
++					fmt.Printf("->%v\n", p)
++				}
+ 			}
+ 		}
+ 
+ 		p.Opt = dead
+ 	}
+-
+ 	if Debug['R'] != 0 && Debug['v'] != 0 {
+ 		fmt.Printf("\n")
+ 	}
+@@ -186,7 +187,7 @@ func fixjmp(firstp *obj.Prog) {
+ 
+ 	// pass 4: elide JMP to next instruction.
+ 	// only safe if there are no jumps to JMPs anymore.
+-	if jmploop == 0 {
++	if jmploop == 0 && Debug['N'] == 0 {
+ 		var last *obj.Prog
+ 		for p := firstp; p != nil; p = p.Link {
+ 			if p.As == obj.AJMP && p.To.Type == obj.TYPE_BRANCH && p.To.Val == p.Link {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 762a49ecf2..0fe3275a8e 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -572,6 +572,7 @@ type Link struct {
+ 	Debugpcln          int32
+ 	Flag_shared        int32
+ 	Flag_dynlink       bool
++	Flag_optimize      bool
+ 	Bso                *Biobuf
+ 	Pathname           string
+ 	Windows            int32
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index bae64f4a29..40c92dd152 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -295,7 +295,9 @@ func Flushplist(ctxt *Link) {
+ 	for s := text; s != nil; s = s.Next {
+ 		mkfwd(s)
+ 		linkpatch(ctxt, s)
+-		ctxt.Arch.Follow(ctxt, s)
++		if ctxt.Flag_optimize {
++			ctxt.Arch.Follow(ctxt, s)
++		}
+ 		ctxt.Arch.Preprocess(ctxt, s)
+ 		ctxt.Arch.Assemble(ctxt, s)
+ 		fieldtrack(ctxt, s)
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index b92dfe23fb..ae38c4130a 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -202,13 +202,15 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 		p.Pcond = q
+ 	}
+ 
+-	for p := sym.Text; p != nil; p = p.Link {
+-		p.Mark = 0 /* initialization for follow */
+-		if p.Pcond != nil {
+-			p.Pcond = brloop(ctxt, p.Pcond)
++	if ctxt.Flag_optimize {
++		for p := sym.Text; p != nil; p = p.Link {
++			p.Mark = 0 /* initialization for follow */
+ 			if p.Pcond != nil {
+-				if p.To.Type == TYPE_BRANCH {
+-					p.To.Offset = p.Pcond.Pc
++				p.Pcond = brloop(ctxt, p.Pcond)
++				if p.Pcond != nil {
++					if p.To.Type == TYPE_BRANCH {
++						p.To.Offset = p.Pcond.Pc
++					}
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index dd5297edc5..d9935b3d51 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -110,6 +110,7 @@ func Linknew(arch *LinkArch) *Link {
+ 		ctxt.Goarm = Getgoarm()
+ 	}
+ 
++	ctxt.Flag_optimize = true
+ 	return ctxt
+ }
+ 

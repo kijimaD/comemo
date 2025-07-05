@@ -12,7 +12,39 @@ Date:   Mon Mar 16 02:58:23 2020 +1100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/223560
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/inline_sync.go      | 5 +----
  test/intrinsic_atomic.go | 2 +-
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index c37cb136f7..30b436af41 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!386,!wasm,!arm,!riscv64,!gcflags_noopt
++// +build !nacl,!386,!wasm,!arm,!gcflags_noopt
+ // errorcheck -0 -m
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+@@ -14,9 +14,6 @@
+ // of the sync fast paths. This test should be re-enabled once the problem
+ // is solved.
+ 
+-// TODO(jsing): Re-enable on riscv64 when it has atomic intrinsics - see
+-// golang.org/issue/36765
+-
+ package foo
+ 
+ import (
+diff --git a/test/intrinsic_atomic.go b/test/intrinsic_atomic.go
+index a90056e1f1..61911b7a46 100644
+--- a/test/intrinsic_atomic.go
++++ b/test/intrinsic_atomic.go
+@@ -1,5 +1,5 @@
+ // errorcheck -0 -d=ssa/intrinsics/debug
+-// +build amd64 arm64 mips mipsle mips64 mips64le ppc64 ppc64le s390x
++// +build amd64 arm64 mips mipsle mips64 mips64le ppc64 ppc64le riscv64 s390x
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

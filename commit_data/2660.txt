@@ -8,9 +8,363 @@ Date:   Thu Jul 9 17:27:49 2009 -0700
     DELTA=156  (135 added, 8 deleted, 13 changed)
     OCL=31407
     CL=31428
-
+---
  src/pkg/reflect/all_test.go |  34 +++++++++++++
  src/pkg/reflect/type.go     |  12 +++--
  src/pkg/reflect/value.go    | 114 ++++++++++++++++++++++++++++++++++++--------
  src/pkg/runtime/type.go     |  11 +++++
  4 files changed, 149 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index df53cd84e4..06eb1f32b1 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -744,3 +744,37 @@ func TestFunc(t *testing.T) {
+ 		t.Errorf("Call returned %d, %d, %d; want 10, 20, 30", i, j, k);
+ 	}
+ }
++
++type Point struct {
++	x, y int;
++}
++
++func (p Point) Dist(scale int) int {
++	return p.x*p.x*scale + p.y*p.y*scale;
++}
++
++func TestMethod(t *testing.T) {
++	// Non-curried method of type.
++	p := Point{3, 4};
++	i := reflect.Typeof(p).Method(0).Func.Call([]Value{NewValue(p), NewValue(10)})[0].(*IntValue).Get();
++	if i != 250 {
++		t.Errorf("Type Method returned %d; want 250", i);
++	}
++
++	// Curried method of value.
++	i = NewValue(p).Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
++	if i != 250 {
++		t.Errorf("Value Method returned %d; want 250", i);
++	}
++
++	// Curried method of interface value.
++	// Have to wrap interface value in a struct to get at it.
++	// Passing it to NewValue directly would
++	// access the underlying Point, not the interface.
++	var s = struct{x interface{Dist(int) int}}{p};
++	pv := NewValue(s).(*StructValue).Field(0);
++	i = pv.Method(0).Call([]Value{NewValue(10)})[0].(*IntValue).Get();
++	if i != 250 {
++		t.Errorf("Interface Method returned %d; want 250", i);
++	}
++}
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 4b5b379bad..fe7619f85d 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -229,7 +229,7 @@ type StructType struct {
+ type Type interface
+ type addr unsafe.Pointer
+ type FuncValue struct
+-func newFuncValue(typ Type, addr addr) *FuncValue
++func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue
+ 
+ // Method represents a single method.
+ type Method struct {
+@@ -274,10 +274,16 @@ type Type interface {
+ 	// NumMethod returns the number of such methods.
+ 	Method(int)	Method;
+ 	NumMethod()	int;
++
++	uncommon() *uncommonType;
+ }
+ 
+ func toType(i interface{}) Type
+ 
++func (t *uncommonType) uncommon() *uncommonType {
++	return t;
++}
++
+ func (t *uncommonType) Name() (pkgPath string, name string) {
+ 	if t == nil {
+ 		return;
+@@ -320,7 +326,7 @@ func (t *uncommonType) Method(i int) (m Method) {
+ 	}
+ 	m.Type = toType(*p.typ).(*FuncType);
+ 	fn := p.tfn;
+-	m.Func = newFuncValue(m.Type, addr(&fn));
++	m.Func = newFuncValue(m.Type, addr(&fn), true);
+ 	return;
+ }
+ 
+@@ -409,7 +415,7 @@ func (t *InterfaceType) Method(i int) (m Method) {
+ 	if i < 0 || i >= len(t.methods) {
+ 		return;
+ 	}
+-	p := t.methods[i];
++	p := &t.methods[i];
+ 	m.Name = *p.name;
+ 	if p.pkgPath != nil {
+ 		m.PkgPath = *p.pkgPath;
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 3fc379dfff..c7e52a515a 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -10,13 +10,14 @@ import (
+ 	"unsafe";
+ )
+ 
++const ptrSize = uintptr(unsafe.Sizeof((*byte)(nil)))
++
+ const cannotSet = "cannot set value obtained via unexported struct field"
+ 
+ // TODO: This will have to go away when
+ // the new gc goes in.
+ func memmove(adst, asrc addr, n uintptr) {
+ 	var p uintptr;	// dummy for sizeof
+-	const ptrsize = uintptr(unsafe.Sizeof(p));
+ 	dst := uintptr(adst);
+ 	src := uintptr(asrc);
+ 	switch {
+@@ -27,14 +28,14 @@ func memmove(adst, asrc addr, n uintptr) {
+ 			i--;
+ 			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
+ 		}
+-	case (n|src|dst) & (ptrsize-1) != 0:
++	case (n|src|dst) & (ptrSize-1) != 0:
+ 		// byte copy forward
+ 		for i := uintptr(0); i < n; i++ {
+ 			*(*byte)(addr(dst+i)) = *(*byte)(addr(src+i));
+ 		}
+ 	default:
+ 		// word copy forward
+-		for i := uintptr(0); i < n; i += ptrsize {
++		for i := uintptr(0); i < n; i += ptrSize {
+ 			*(*uintptr)(addr(dst+i)) = *(*uintptr)(addr(src+i));
+ 		}
+ 	}
+@@ -62,6 +63,12 @@ type Value interface {
+ 	// import the "unsafe" package.
+ 	Addr()	uintptr;
+ 
++	// Method returns a FuncValue corresponding to the value's i'th method.
++	// The arguments to a Call on the returned FuncValue
++	// should not include a receiver; the FuncValue will use
++	// the value as the receiver.
++	Method(i int)	*FuncValue;
++
+ 	getAddr()	addr;
+ }
+ 
+@@ -85,6 +92,8 @@ func (v *value) getAddr() addr {
+ 	return v.addr;
+ }
+ 
++func (v *value) Method(i int) *FuncValue
++
+ type InterfaceValue struct
+ type StructValue struct
+ 
+@@ -710,7 +719,9 @@ func MakeChan(typ *ChanType, buffer int) *ChanValue {
+ 
+ // A FuncValue represents a function value.
+ type FuncValue struct {
+-	value
++	value;
++	first Value;
++	isInterface bool;
+ }
+ 
+ // IsNil returns whether v is a nil function.
+@@ -734,6 +745,21 @@ func (v *FuncValue) Set(x *FuncValue) {
+ 	*(*uintptr)(v.addr) = *(*uintptr)(x.addr);
+ }
+ 
++// Method returns a FuncValue corresponding to v's i'th method.
++// The arguments to a Call on the returned FuncValue
++// should not include a receiver; the FuncValue will use v
++// as the receiver.
++func (v *value) Method(i int) *FuncValue {
++	t := v.Type().uncommon();
++	if t == nil || i < 0 || i >= len(t.methods) {
++		return nil;
++	}
++	p := &t.methods[i];
++	fn := p.tfn;
++	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: v, isInterface: false};
++	return fv;
++}
++
+ // implemented in ../pkg/runtime/*/asm.s
+ func call(fn, arg *byte, n uint32)
+ 
+@@ -741,11 +767,15 @@ type tiny struct { b byte }
+ 
+ // Call calls the function v with input parameters in.
+ // It returns the function's output parameters as Values.
+-func (v *FuncValue) Call(in []Value) []Value {
++func (fv *FuncValue) Call(in []Value) []Value {
+ 	var structAlign = Typeof((*tiny)(nil)).(*PtrType).Elem().Size();
+ 
+-	t := v.Type().(*FuncType);
+-	if len(in) != t.NumIn() {
++	t := fv.Type().(*FuncType);
++	nin := len(in);
++	if fv.first != nil && !fv.isInterface {
++		nin++;
++	}
++	if nin != t.NumIn() {
+ 		panic("FuncValue: wrong argument count");
+ 	}
+ 	nout := t.NumOut();
+@@ -755,9 +785,12 @@ func (v *FuncValue) Call(in []Value) []Value {
+ 	// and probably wrong for gccgo, but so
+ 	// is most of this function.
+ 	size := uintptr(0);
+-	for i, v := range in {
+-		tv := v.Type();
+-		typesMustMatch(t.In(i), tv);
++	if fv.isInterface {
++		// extra word for interface value
++		size += ptrSize;
++	}
++	for i := 0; i < nin; i++ {
++		tv := t.In(i);
+ 		a := uintptr(tv.Align());
+ 		size = (size + a - 1) &^ (a - 1);
+ 		size += tv.Size();
+@@ -769,7 +802,7 @@ func (v *FuncValue) Call(in []Value) []Value {
+ 		size = (size + a - 1) &^ (a - 1);
+ 		size += tv.Size();
+ 	}
+-	
++
+ 	// size must be > 0 in order for &args[0] to be valid.
+ 	// the argument copying is going to round it up to
+ 	// a multiple of 8 anyway, so make it 8 to begin with.
+@@ -786,8 +819,26 @@ func (v *FuncValue) Call(in []Value) []Value {
+ 	// references for us, so maybe this can be treated
+ 	// like any stack-to-stack copy.
+ 	off := uintptr(0);
++	delta := 0;
++	if v := fv.first; v != nil {
++		// Hard-wired first argument.
++		if fv.isInterface {
++			// v is a single uninterpreted word
++			memmove(addr(ptr), v.getAddr(), ptrSize);
++			off = ptrSize;
++		} else {
++			// v is a real value
++			tv := v.Type();
++			typesMustMatch(t.In(0), tv);
++			n := tv.Size();
++			memmove(addr(ptr), v.getAddr(), n);
++			off = n;
++			delta = 1;
++		}
++	}
+ 	for i, v := range in {
+ 		tv := v.Type();
++		typesMustMatch(t.In(i+delta), tv);
+ 		a := uintptr(tv.Align());
+ 		off = (off + a - 1) &^ (a - 1);
+ 		n := tv.Size();
+@@ -797,7 +848,7 @@ func (v *FuncValue) Call(in []Value) []Value {
+ 	off = (off + structAlign - 1) &^ (structAlign - 1);
+ 
+ 	// Call
+-	call(*(**byte)(v.addr), (*byte)(addr(ptr)), uint32(size));
++	call(*(**byte)(fv.addr), (*byte)(addr(ptr)), uint32(size));
+ 
+ 	// Copy return values out of args.
+ 	//
+@@ -854,6 +905,27 @@ func (v *InterfaceValue) Set(x interface{}) {
+ //	unsafe.SetInterface(v.typ, v.addr, x);
+ }
+ 
++// Method returns a FuncValue corresponding to v's i'th method.
++// The arguments to a Call on the returned FuncValue
++// should not include a receiver; the FuncValue will use v
++// as the receiver.
++func (v *InterfaceValue) Method(i int) *FuncValue {
++	t := v.Type().(*InterfaceType);
++	if t == nil || i < 0 || i >= len(t.methods) {
++		return nil;
++	}
++	p := &t.methods[i];
++
++	// Interface is two words: itable, data.
++	tab := *(**runtime.Itable)(v.addr);
++	data := &value{Typeof((*byte)(nil)), addr(uintptr(v.addr)+ptrSize), true};
++
++	// Function pointer is at p.perm in the table.
++	fn := tab.Fn[p.perm];
++	fv := &FuncValue{value: value{toType(*p.typ), addr(&fn), true}, first: data, isInterface: true};
++	return fv;
++}
++
+ /*
+  * map
+  */
+@@ -1064,7 +1136,18 @@ func NewValue(i interface{}) Value {
+ 	return newValue(toType(t), addr(a), true);
+ }
+ 
++
++func newFuncValue(typ Type, addr addr, canSet bool) *FuncValue {
++	return &FuncValue{value: value{typ, addr, canSet}};
++}
++
+ func newValue(typ Type, addr addr, canSet bool) Value {
++	// FuncValue has a different layout;
++	// it needs a extra space for the fixed receivers.
++	if t, ok := typ.(*FuncType); ok {
++		return newFuncValue(typ, addr, canSet);
++	}
++
+ 	// All values have same memory layout;
+ 	// build once and convert.
+ 	v := &struct{value}{value{typ, addr, canSet}};
+@@ -1088,8 +1171,6 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 		return (*Float32Value)(v);
+ 	case *Float64Type:
+ 		return (*Float64Value)(v);
+-	case *FuncType:
+-		return (*FuncValue)(v);
+ 	case *IntType:
+ 		return (*IntValue)(v);
+ 	case *Int8Type:
+@@ -1130,10 +1211,6 @@ func newValue(typ Type, addr addr, canSet bool) Value {
+ 	panicln("newValue", typ.String());
+ }
+ 
+-func newFuncValue(typ Type, addr addr) *FuncValue {
+-	return newValue(typ, addr, true).(*FuncValue);
+-}
+-
+ // MakeZero returns a zero Value for the specified Type.
+ func MakeZero(typ Type) Value {
+ 	// TODO: this will have to move into
+@@ -1146,4 +1223,3 @@ func MakeZero(typ Type) Value {
+ 	data := make([]uint8, size);
+ 	return newValue(typ, addr(&data[0]), true);
+ }
+-
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index b87a52a09c..2a380e21f6 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -190,3 +190,14 @@ type StructType struct {
+ 	fields []structField;	// sorted by offset
+ }
+ 
++/*
++ * Must match iface.c:/Itab and compilers.
++ */
++type Itable struct {
++	Itype *Type;	// (*tab.inter).(*InterfaceType) is the interface type
++	Type *Type;
++	link *Itable;
++	bad int32;
++	unused int32;
++	Fn [100000]uintptr;	// bigger than we'll ever see
++}

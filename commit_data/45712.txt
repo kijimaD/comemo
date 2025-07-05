@@ -15,7 +15,7 @@ Date:   Thu Nov 5 12:59:16 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/get_go_file.txt             | 18 +++++++++---------
  src/cmd/go/testdata/script/mod_case.txt                |  2 +-
  src/cmd/go/testdata/script/mod_case_cgo.txt            |  4 +++-
@@ -38,3 +38,480 @@ Date:   Thu Nov 5 12:59:16 2020 -0500
  src/cmd/go/testdata/script/mod_vendor_build.txt        |  2 +-
  src/cmd/go/testdata/script/vendor_list_issue11977.txt  |  2 +-
  21 files changed, 57 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/get_go_file.txt b/src/cmd/go/testdata/script/get_go_file.txt
+index 97e0f1ac92..bed8720987 100644
+--- a/src/cmd/go/testdata/script/get_go_file.txt
++++ b/src/cmd/go/testdata/script/get_go_file.txt
+@@ -5,46 +5,46 @@
+ env GO111MODULE=off
+ 
+ # argument doesn't have .go suffix
+-go get test
++go get -d test
+ 
+ # argument has .go suffix, is a file and exists
+-! go get test.go
++! go get -d test.go
+ stderr 'go get test.go: arguments must be package or module paths'
+ 
+ # argument has .go suffix, doesn't exist and has no slashes
+-! go get test_missing.go
++! go get -d test_missing.go
+ stderr 'go get test_missing.go: arguments must be package or module paths'
+ 
+ # argument has .go suffix, is a file and exists in sub-directory
+-! go get test/test.go
++! go get -d test/test.go
+ stderr 'go get: test/test.go exists as a file, but ''go get'' requires package arguments'
+ 
+ # argument has .go suffix, doesn't exist and has slashes
+-! go get test/test_missing.go
++! go get -d test/test_missing.go
+ ! stderr 'arguments must be package or module paths'
+ ! stderr 'exists as a file, but ''go get'' requires package arguments'
+ 
+ # argument has .go suffix, is a symlink and exists
+ [symlink] symlink test_sym.go -> test.go
+-[symlink] ! go get test_sym.go
++[symlink] ! go get -d test_sym.go
+ [symlink] stderr 'go get test_sym.go: arguments must be package or module paths'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a symlink and exists in sub-directory
+ [symlink] symlink test/test_sym.go -> test.go
+-[symlink] ! go get test/test_sym.go
++[symlink] ! go get -d test/test_sym.go
+ [symlink] stderr 'go get: test/test_sym.go exists as a file, but ''go get'' requires package arguments'
+ [symlink] rm test_sym.go
+ 
+ # argument has .go suffix, is a directory and exists
+ mkdir test_dir.go
+-! go get test_dir.go
++! go get -d test_dir.go
+ stderr 'go get test_dir.go: arguments must be package or module paths'
+ rm test_dir.go
+ 
+ # argument has .go suffix, is a directory and exists in sub-directory
+ mkdir test/test_dir.go
+-! go get test/test_dir.go
++! go get -d test/test_dir.go
+ ! stderr 'arguments must be package or module paths'
+ ! stderr 'exists as a file, but ''go get'' requires package arguments'
+ rm test/test_dir.go
+diff --git a/src/cmd/go/testdata/script/mod_case.txt b/src/cmd/go/testdata/script/mod_case.txt
+index 6f8d869c44..4a4698600f 100644
+--- a/src/cmd/go/testdata/script/mod_case.txt
++++ b/src/cmd/go/testdata/script/mod_case.txt
+@@ -9,7 +9,7 @@ go list -f 'DIR {{.Dir}} DEPS {{.Deps}}' rsc.io/QUOTE/QUOTE
+ stdout 'DEPS.*rsc.io/quote'
+ stdout 'DIR.*!q!u!o!t!e'
+ 
+-go get rsc.io/QUOTE@v1.5.3-PRE
++go get -d rsc.io/QUOTE@v1.5.3-PRE
+ go list -m all
+ stdout '^rsc.io/QUOTE v1.5.3-PRE'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_case_cgo.txt b/src/cmd/go/testdata/script/mod_case_cgo.txt
+index 917bce92d8..f3d6aaa5ab 100644
+--- a/src/cmd/go/testdata/script/mod_case_cgo.txt
++++ b/src/cmd/go/testdata/script/mod_case_cgo.txt
+@@ -2,7 +2,9 @@
+ 
+ env GO111MODULE=on
+ 
+-go get rsc.io/CGO
++go get -d rsc.io/CGO
++[short] stop
++
+ go build rsc.io/CGO
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index 857740ae6c..4649491a53 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -32,11 +32,11 @@ go install -x golang.org/x/text/language
+ ! go get -d -x golang.org/x/text/foo@14c0d48
+ 
+ # get pseudo-version should record that version
+-go get rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
++go get -d rsc.io/quote@v0.0.0-20180214005840-23179ee8a569
+ grep 'rsc.io/quote v0.0.0-20180214005840-23179ee8a569' go.mod
+ 
+ # but as commit should record as v1.5.1
+-go get rsc.io/quote@23179ee8
++go get -d rsc.io/quote@23179ee8
+ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+ # go mod edit -require does not interpret commits
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade.txt b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+index 77dad2b385..a954c10344 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade.txt
+@@ -3,31 +3,33 @@ env GO111MODULE=on
+ 
+ # downgrade sampler should downgrade quote
+ cp go.mod.orig go.mod
+-go get rsc.io/sampler@v1.0.0
++go get -d rsc.io/sampler@v1.0.0
+ go list -m all
+ stdout 'rsc.io/quote v1.4.0'
+ stdout 'rsc.io/sampler v1.0.0'
+ 
+ # downgrade sampler away should downgrade quote further
+-go get rsc.io/sampler@none
++go get -d rsc.io/sampler@none
+ go list -m all
+ stdout 'rsc.io/quote v1.3.0'
+ 
+ # downgrade should report inconsistencies and not change go.mod
+-go get rsc.io/quote@v1.5.1
++go get -d rsc.io/quote@v1.5.1
+ go list -m all
+ stdout 'rsc.io/quote v1.5.1'
+ stdout 'rsc.io/sampler v1.3.0'
+-! go get rsc.io/sampler@v1.0.0 rsc.io/quote@v1.5.2 golang.org/x/text@none
++
++! go get -d rsc.io/sampler@v1.0.0 rsc.io/quote@v1.5.2 golang.org/x/text@none
+ stderr '^go get: rsc.io/quote@v1.5.2 requires rsc.io/sampler@v1.3.0, not rsc.io/sampler@v1.0.0$'
+ stderr '^go get: rsc.io/quote@v1.5.2 requires golang.org/x/text@v0.0.0-20170915032832-14c0d48ead0c, not golang.org/x/text@none$'
++
+ go list -m all
+ stdout 'rsc.io/quote v1.5.1'
+ stdout 'rsc.io/sampler v1.3.0'
+ 
+ # go get -u args should limit upgrades
+ cp go.mod.empty go.mod
+-go get -u rsc.io/quote@v1.4.0 rsc.io/sampler@v1.0.0
++go get -d -u rsc.io/quote@v1.4.0 rsc.io/sampler@v1.0.0
+ go list -m all
+ stdout 'rsc.io/quote v1.4.0'
+ stdout 'rsc.io/sampler v1.0.0'
+@@ -38,7 +40,7 @@ stdout 'rsc.io/sampler v1.0.0'
+ cp go.mod.orig go.mod
+ go list -m -versions example.com/latemigrate/v2
+ stdout v2.0.0 # proxy may serve incompatible versions
+-go get rsc.io/quote@none
++go get -d rsc.io/quote@none
+ go list -m all
+ ! stdout 'example.com/latemigrate/v2'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+index f1167fb578..5b768faeb1 100644
+--- a/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
++++ b/src/cmd/go/testdata/script/mod_get_downgrade_missing.txt
+@@ -4,7 +4,7 @@ cp go.mod go.mod.orig
+ # not yet present in that module should report the version mismatch
+ # rather than a "matched no packages" warning.
+ 
+-! go get example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
++! go get -d example.net/pkgadded@v1.1.0 example.net/pkgadded/subpkg/...
+ stderr '^go get: example.net/pkgadded@v1.1.0 conflicts with example.net/pkgadded/subpkg/...@upgrade \(v1.2.0\)$'
+ ! stderr 'matched no packages'
+ cmp go.mod.orig go.mod
+@@ -12,7 +12,7 @@ cmp go.mod.orig go.mod
+ 
+ # A wildcard pattern should match the pattern with that path.
+ 
+-go get example.net/pkgadded/...@v1.0.0
++go get -d example.net/pkgadded/...@v1.0.0
+ go list -m all
+ stdout '^example.net/pkgadded v1.0.0'
+ cp go.mod.orig go.mod
+@@ -22,12 +22,12 @@ cp go.mod.orig go.mod
+ # and another argument constrains away the version that provides that
+ # package, then 'go get' should fail with a useful error message.
+ 
+-! go get example.net/pkgadded@v1.0.0 .
++! go get -d example.net/pkgadded@v1.0.0 .
+ stderr '^example.com/m imports\n\texample.net/pkgadded/subpkg: cannot find module providing package example.net/pkgadded/subpkg$'
+ ! stderr 'example.net/pkgadded v1\.2\.0'
+ cmp go.mod.orig go.mod
+ 
+-go get example.net/pkgadded@v1.0.0
++go get -d example.net/pkgadded@v1.0.0
+ ! go list -deps -mod=readonly .
+ stderr '^m.go:3:8: cannot find module providing package example\.net/pkgadded/subpkg: '
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_incompatible.txt b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+index b28718a694..8000ee6148 100644
+--- a/src/cmd/go/testdata/script/mod_get_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_get_incompatible.txt
+@@ -5,11 +5,11 @@ go list -m all
+ stdout 'rsc.io/breaker v2.0.0\+incompatible'
+ 
+ cp go.mod2 go.mod
+-go get rsc.io/breaker@7307b30
++go get -d rsc.io/breaker@7307b30
+ go list -m all
+ stdout 'rsc.io/breaker v2.0.0\+incompatible'
+ 
+-go get rsc.io/breaker@v2.0.0
++go get -d rsc.io/breaker@v2.0.0
+ go list -m all
+ stdout 'rsc.io/breaker v2.0.0\+incompatible'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_moved.txt b/src/cmd/go/testdata/script/mod_get_moved.txt
+index e16c160890..8430a737c4 100644
+--- a/src/cmd/go/testdata/script/mod_get_moved.txt
++++ b/src/cmd/go/testdata/script/mod_get_moved.txt
+@@ -9,7 +9,7 @@ go list -m all
+ stdout 'example.com/split v1.0.0'
+ 
+ # A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
+-go get example.com/split/subpkg@v1.1.0
++go get -d example.com/split/subpkg@v1.1.0
+ 
+ # A 'go get' without an upgrade should find the package.
+ rm go.mod
+@@ -30,7 +30,7 @@ stdout 'example.com/join/subpkg v1.0.0'
+ # A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
+ # (A wildcard pattern applies to both packages and modules,
+ # because we define wildcard matching to apply after version resolution.)
+-go get example.com/join/subpkg/...@v1.1.0
++go get -d example.com/join/subpkg/...@v1.1.0
+ 
+ # A 'go get' without an upgrade should find the package.
+ rm go.mod
+diff --git a/src/cmd/go/testdata/script/mod_get_none.txt b/src/cmd/go/testdata/script/mod_get_none.txt
+index 5aec209f59..b358f05af3 100644
+--- a/src/cmd/go/testdata/script/mod_get_none.txt
++++ b/src/cmd/go/testdata/script/mod_get_none.txt
+@@ -3,10 +3,10 @@ env GO111MODULE=on
+ go mod init example.com/foo
+ 
+ # 'go get bar@none' should be a no-op if module bar is not active.
+-go get example.com/bar@none
++go get -d example.com/bar@none
+ go list -m all
+ ! stdout example.com/bar
+ 
+-go get example.com/bar@none
++go get -d example.com/bar@none
+ go list -m all
+ ! stdout example.com/bar
+diff --git a/src/cmd/go/testdata/script/mod_get_sum_noroot.txt b/src/cmd/go/testdata/script/mod_get_sum_noroot.txt
+index 0d9a840e77..4f1cf03277 100644
+--- a/src/cmd/go/testdata/script/mod_get_sum_noroot.txt
++++ b/src/cmd/go/testdata/script/mod_get_sum_noroot.txt
+@@ -2,7 +2,7 @@
+ # it should add sums for the module's go.mod file and its content to go.sum.
+ # Verifies golang.org/issue/41103.
+ go mod init m
+-go get rsc.io/QUOTE
++go get -d rsc.io/QUOTE
+ grep '^rsc.io/QUOTE v1.5.2/go.mod ' go.sum
+ grep '^rsc.io/QUOTE v1.5.2 ' go.sum
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_test.txt b/src/cmd/go/testdata/script/mod_get_test.txt
+index 3680ca273d..23722bd4e4 100644
+--- a/src/cmd/go/testdata/script/mod_get_test.txt
++++ b/src/cmd/go/testdata/script/mod_get_test.txt
+@@ -2,7 +2,7 @@ env GO111MODULE=on
+ 
+ # By default, 'go get' should ignore tests
+ cp go.mod.empty go.mod
+-go get m/a
++go get -d m/a
+ ! grep rsc.io/quote go.mod
+ 
+ # 'go get -t' should consider test dependencies of the named package.
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade.txt b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+index 6a14dfdc45..eeb6d6f6af 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go get rsc.io/quote@v1.5.1
++go get -d rsc.io/quote@v1.5.1
+ go list -m all
+ stdout 'rsc.io/quote v1.5.1'
+ grep 'rsc.io/quote v1.5.1$' go.mod
+diff --git a/src/cmd/go/testdata/script/mod_gonoproxy.txt b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+index a9e0ca4010..7ead946c24 100644
+--- a/src/cmd/go/testdata/script/mod_gonoproxy.txt
++++ b/src/cmd/go/testdata/script/mod_gonoproxy.txt
+@@ -7,26 +7,26 @@ env dbname=localhost.localdev/sumdb
+ # disagree with sumdb fails
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+-! go get rsc.io/quote
++! go get -d rsc.io/quote
+ stderr 'SECURITY ERROR'
+ 
+ # GONOSUMDB bypasses sumdb, for rsc.io/quote, rsc.io/sampler, golang.org/x/text
+ env GONOSUMDB='*/quote,*/*mple*,golang.org/x'
+-go get rsc.io/quote
++go get -d rsc.io/quote
+ rm go.sum
+ env GOPRIVATE='*/quote,*/*mple*,golang.org/x'
+ env GONOPROXY=none # that is, proxy all despite GOPRIVATE
+-go get rsc.io/quote
++go get -d rsc.io/quote
+ 
+ # When GOPROXY is not empty but contains no entries, an error should be reported.
+ env GOPROXY=','
+-! go get golang.org/x/text
++! go get -d golang.org/x/text
+ stderr '^go get golang.org/x/text: GOPROXY list is not the empty string, but contains no entries$'
+ 
+ # When GOPROXY=off, fetching modules not matched by GONOPROXY fails.
+ env GONOPROXY=*/fortune
+ env GOPROXY=off
+-! go get golang.org/x/text
++! go get -d golang.org/x/text
+ stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
+ 
+ # GONOPROXY bypasses proxy
+@@ -34,13 +34,13 @@ stderr '^go get golang.org/x/text: module lookup disabled by GOPROXY=off$'
+ [!exec:git] skip
+ env GOPRIVATE=none
+ env GONOPROXY='*/fortune'
+-! go get rsc.io/fortune # does not exist in real world, only on test proxy
++! go get -d rsc.io/fortune # does not exist in real world, only on test proxy
+ stderr 'git ls-remote'
+ 
+ env GOSUMDB=
+ env GONOPROXY=
+ env GOPRIVATE='*/x'
+-go get golang.org/x/text
++go get -d golang.org/x/text
+ go list -m all
+ ! stdout 'text.*v0.0.0-2017' # should not have the version from the proxy
+ 
+diff --git a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+index 9d288a64d4..5ad9106378 100644
+--- a/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
++++ b/src/cmd/go/testdata/script/mod_gopkg_unstable.txt
+@@ -12,7 +12,7 @@ go list
+ 
+ env GOPROXY=direct
+ env GOSUMDB=off
+-go get gopkg.in/macaroon-bakery.v2-unstable/bakery
++go get -d gopkg.in/macaroon-bakery.v2-unstable/bakery
+ go list -m all
+ stdout 'gopkg.in/macaroon-bakery.v2-unstable v2.0.0-[0-9]+-[0-9a-f]+$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_issue35317.txt b/src/cmd/go/testdata/script/mod_issue35317.txt
+index 92416a54e4..b1852ab031 100644
+--- a/src/cmd/go/testdata/script/mod_issue35317.txt
++++ b/src/cmd/go/testdata/script/mod_issue35317.txt
+@@ -5,4 +5,4 @@ env GO111MODULE=on
+ [short] skip
+ 
+ go mod init example.com
+-go get golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none
++go get -d golang.org/x/text@v0.3.0 golang.org/x/internal@v0.1.0 golang.org/x/exp@none
+diff --git a/src/cmd/go/testdata/script/mod_proxy_list.txt b/src/cmd/go/testdata/script/mod_proxy_list.txt
+index 849cf2c476..89129f4fe2 100644
+--- a/src/cmd/go/testdata/script/mod_proxy_list.txt
++++ b/src/cmd/go/testdata/script/mod_proxy_list.txt
+@@ -3,34 +3,34 @@ env proxy=$GOPROXY
+ 
+ # Proxy that can't serve should fail.
+ env GOPROXY=$proxy/404
+-! go get rsc.io/quote@v1.0.0
++! go get -d rsc.io/quote@v1.0.0
+ stderr '404 Not Found'
+ 
+ # get should walk down the proxy list past 404 and 410 responses.
+ env GOPROXY=$proxy/404,$proxy/410,$proxy
+-go get rsc.io/quote@v1.1.0
++go get -d rsc.io/quote@v1.1.0
+ 
+ # get should not walk past other 4xx errors if proxies are separated with ','.
+ env GOPROXY=$proxy/403,$proxy
+-! go get rsc.io/quote@v1.2.0
++! go get -d rsc.io/quote@v1.2.0
+ stderr 'reading.*/403/rsc.io/.*: 403 Forbidden'
+ 
+ # get should not walk past non-4xx errors if proxies are separated with ','.
+ env GOPROXY=$proxy/500,$proxy
+-! go get rsc.io/quote@v1.3.0
++! go get -d rsc.io/quote@v1.3.0
+ stderr 'reading.*/500/rsc.io/.*: 500 Internal Server Error'
+ 
+ # get should walk past other 4xx errors if proxies are separated with '|'.
+ env GOPROXY=$proxy/403|https://0.0.0.0|$proxy
+-go get rsc.io/quote@v1.2.0
++go get -d rsc.io/quote@v1.2.0
+ 
+ # get should walk past non-4xx errors if proxies are separated with '|'.
+ env GOPROXY=$proxy/500|https://0.0.0.0|$proxy
+-go get rsc.io/quote@v1.3.0
++go get -d rsc.io/quote@v1.3.0
+ 
+ # get should return the final error if that's all we have.
+ env GOPROXY=$proxy/404,$proxy/410
+-! go get rsc.io/quote@v1.4.0
++! go get -d rsc.io/quote@v1.4.0
+ stderr 'reading.*/410/rsc.io/.*: 410 Gone'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index f2c77de806..ca8cd6e068 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -19,7 +19,7 @@ cmp go.mod go.mod.empty
+ env GOFLAGS=-mod=readonly
+ 
+ # update go.mod - go get allowed
+-go get rsc.io/quote
++go get -d rsc.io/quote
+ grep rsc.io/quote go.mod
+ 
+ # update go.mod - go mod tidy allowed
+diff --git a/src/cmd/go/testdata/script/mod_tidy_replace.txt b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+index 7b00bf1384..dd99438891 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_replace.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_replace.txt
+@@ -35,7 +35,7 @@ grep 'golang.org/x/text' go.mod
+ # 'go get' and 'go mod tidy' should follow the requirements of the replacements,
+ # not the originals, even if that results in a set of versions that are
+ # misleading or redundant without those replacements.
+-go get rsc.io/sampler@v1.2.0
++go get -d rsc.io/sampler@v1.2.0
+ go mod tidy
+ go list -m all
+ stdout 'rsc.io/quote/v3 v3.0.0'
+diff --git a/src/cmd/go/testdata/script/mod_vendor_auto.txt b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+index e71db96643..1b362eda0b 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_auto.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_auto.txt
+@@ -177,7 +177,7 @@ stdout '^'$WORK'[/\\]auto[/\\]vendor[/\\]example.com[/\\]version$'
+ 
+ # 'go get' should update from the network or module cache,
+ # even if a vendor directory is present.
+-go get example.com/version@v1.1.0
++go get -d example.com/version@v1.1.0
+ ! go list -f {{.Dir}} -tags tools all
+ stderr '^go: inconsistent vendoring'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_vendor_build.txt b/src/cmd/go/testdata/script/mod_vendor_build.txt
+index 4efda55e08..3b8eec0119 100644
+--- a/src/cmd/go/testdata/script/mod_vendor_build.txt
++++ b/src/cmd/go/testdata/script/mod_vendor_build.txt
+@@ -10,7 +10,7 @@ stdout rsc.io/sampler
+ ! grep 'rsc.io/sampler v1.3.0' go.mod
+ 
+ # update to v1.3.1, now indirect in go.mod.
+-go get rsc.io/sampler@v1.3.1
++go get -d rsc.io/sampler@v1.3.1
+ grep 'rsc.io/sampler v1.3.1 // indirect' go.mod
+ cp go.mod go.mod.good
+ 
+diff --git a/src/cmd/go/testdata/script/vendor_list_issue11977.txt b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+index cdab33c089..ce2e29f99a 100644
+--- a/src/cmd/go/testdata/script/vendor_list_issue11977.txt
++++ b/src/cmd/go/testdata/script/vendor_list_issue11977.txt
+@@ -2,7 +2,7 @@
+ [!exec:git] skip
+ env GO111MODULE=off
+ 
+-go get github.com/rsc/go-get-issue-11864
++go get -d github.com/rsc/go-get-issue-11864
+ 
+ go list -f '{{join .TestImports "\n"}}' github.com/rsc/go-get-issue-11864/t
+ stdout 'go-get-issue-11864/vendor/vendor.org/p'

@@ -17,7 +17,44 @@ Date:   Mon Nov 20 16:33:29 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/runtime/crash_test.go | 4 +---
  src/runtime/proc.go       | 5 ++++-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index ffd99f3a87..2ed0fd8f07 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -795,14 +795,12 @@ func TestG0StackOverflow(t *testing.T) {
+ 	if runtime.GOOS == "ios" {
+ 		testenv.SkipFlaky(t, 62671)
+ 	}
+-	if runtime.GOOS == "windows" && runtime.GOARCH == "arm64" {
+-		testenv.SkipFlaky(t, 63938) // TODO(cherry): fix and unskip
+-	}
+ 
+ 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
+ 		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
+ 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
+ 		out, err := cmd.CombinedOutput()
++		t.Logf("output:\n%s", out)
+ 		// Don't check err since it's expected to crash.
+ 		if n := strings.Count(string(out), "morestack on g0\n"); n != 1 {
+ 			t.Fatalf("%s\n(exit status %v)", out, err)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 18826abb06..edf692fd1a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -576,7 +576,10 @@ func switchToCrashStack(fn func()) {
+ 	abort()
+ }
+ 
+-const crashStackImplemented = GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm"
++// Disable crash stack on Windows for now. Apparently, throwing an exception
++// on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
++// hangs the process (see issue 63938).
++const crashStackImplemented = (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "wasm") && GOOS != "windows"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

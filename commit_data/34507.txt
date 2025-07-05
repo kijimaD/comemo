@@ -21,8 +21,94 @@ Date:   Sun Sep 17 17:20:35 2017 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/dim.go        | 13 ++++++++++++-
  src/math/dim_s390x.s   | 36 ------------------------------------
  src/math/stubs_s390x.s |  3 +++
  3 files changed, 15 insertions(+), 37 deletions(-)
+
+diff --git a/src/math/dim.go b/src/math/dim.go
+index 1c634d415f..ac0aa869d7 100644
+--- a/src/math/dim.go
++++ b/src/math/dim.go
+@@ -13,7 +13,18 @@ package math
+ func Dim(x, y float64) float64
+ 
+ func dim(x, y float64) float64 {
+-	return max(x-y, 0)
++	// The special cases result in NaN after the subtraction:
++	//      +Inf - +Inf = NaN
++	//      -Inf - -Inf = NaN
++	//       NaN - y    = NaN
++	//         x - NaN  = NaN
++	v := x - y
++	if v <= 0 {
++		// v is negative or 0
++		return 0
++	}
++	// v is positive or NaN
++	return v
+ }
+ 
+ // Max returns the larger of x or y.
+diff --git a/src/math/dim_s390x.s b/src/math/dim_s390x.s
+index 503d2611f8..74fdd75b9c 100644
+--- a/src/math/dim_s390x.s
++++ b/src/math/dim_s390x.s
+@@ -10,42 +10,6 @@
+ #define NaN    0x7FF8000000000001
+ #define NegInf 0xFFF0000000000000
+ 
+-// func Dim(x, y float64) float64
+-TEXT ·Dim(SB),NOSPLIT,$0
+-	// (+Inf, +Inf) special case
+-	MOVD    x+0(FP), R2
+-	MOVD    y+8(FP), R3
+-	MOVD    $PosInf, R4
+-	CMPUBNE R4, R2, dim2
+-	CMPUBEQ R4, R3, bothInf
+-dim2:	// (-Inf, -Inf) special case
+-	MOVD    $NegInf, R4
+-	CMPUBNE R4, R2, dim3
+-	CMPUBEQ R4, R3, bothInf
+-dim3:	// (NaN, x) or (x, NaN)
+-	MOVD    $~(1<<63), R5
+-	MOVD    $PosInf, R4
+-	AND     R5, R2 // x = |x|
+-	CMPUBLT R4, R2, isDimNaN
+-	AND     R5, R3 // y = |y|
+-	CMPUBLT R4, R3, isDimNaN
+-
+-	FMOVD   x+0(FP), F1
+-	FMOVD   y+8(FP), F2
+-	FSUB    F2, F1
+-	FMOVD   $(0.0), F2
+-	FCMPU   F2, F1
+-	BGE     +3(PC)
+-	FMOVD   F1, ret+16(FP)
+-	RET
+-	FMOVD   F2, ret+16(FP)
+-	RET
+-bothInf: // Dim(-Inf, -Inf) or Dim(+Inf, +Inf)
+-isDimNaN:
+-	MOVD    $NaN, R4
+-	MOVD    R4, ret+16(FP)
+-	RET
+-
+ // func ·Max(x, y float64) float64
+ TEXT ·Max(SB),NOSPLIT,$0
+ 	// +Inf special cases
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 889e248db9..4dceddac63 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -4,6 +4,9 @@
+ 
+ #include "textflag.h"
+ 
++TEXT ·Dim(SB),NOSPLIT,$0
++	BR ·dim(SB)
++
+ TEXT ·Exp2(SB),NOSPLIT,$0
+ 	BR ·exp2(SB)
+ 

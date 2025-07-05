@@ -8,6 +8,28 @@ Date:   Fri Sep 12 16:35:02 2008 -0700
     DELTA=11  (11 added, 0 deleted, 0 changed)
     OCL=15222
     CL=15276
-
+---
  test/bugs/bug101.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/bugs/bug101.go b/test/bugs/bug101.go
+new file mode 100644
+index 0000000000..92487deaac
+--- /dev/null
++++ b/test/bugs/bug101.go
+@@ -0,0 +1,15 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a = []int { 1, 2, 3 }
++
++func main() {
++	if len(a) != 3 { panic("array len") }
++	// print(a[0], " ", a[1], " ", a[2], "\n")
++	if a[0] != 1 || a[1] != 2 || a[2] != 3 { panic("array contents") }
++}

@@ -9,6 +9,21 @@ Date:   Wed Jun 27 16:50:39 2018 +0000
     Change-Id: Iac3bd4c40002f8e348452b50bff54dee3210d447
     Reviewed-on: https://go-review.googlesource.com/121236
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/httptrace/trace.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 1787889881..3a627412b3 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -143,7 +143,8 @@ type ClientTrace struct {
+ 	TLSHandshakeDone func(tls.ConnectionState, error)
+ 
+ 	// WroteHeaderField is called after the Transport has written
+-	// each request header.
++	// each request header. At the time of this call the values
++	// might be buffered and not yet written to the network.
+ 	WroteHeaderField func(key string, value []string)
+ 
+ 	// WroteHeaders is called after the Transport has written

@@ -17,6 +17,20 @@ Date:   Fri Dec 15 17:06:43 2017 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/check_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 97e224f870..e3ca90a6bd 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -42,7 +42,7 @@ import (
+ )
+ 
+ var (
+-	listErrors = flag.Bool("list", false, "list errors")
++	listErrors = flag.Bool("errlist", false, "list errors")
+ 	testFiles  = flag.String("files", "", "space-separated list of test files")
+ )
+ 

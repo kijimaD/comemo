@@ -88,7 +88,117 @@ Date:   Tue Oct 8 23:06:30 2019 +0200
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfile/rule.go      |  3 ++
  src/cmd/go/internal/modfile/rule_test.go | 73 ++++++++++++++++++++++++++++++++
  2 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfile/rule.go b/src/cmd/go/internal/modfile/rule.go
+index e1f2687840..1b64216cff 100644
+--- a/src/cmd/go/internal/modfile/rule.go
++++ b/src/cmd/go/internal/modfile/rule.go
+@@ -566,6 +566,9 @@ func (f *File) SetRequire(req []*Require) {
+ 				var newLines []*Line
+ 				for _, line := range stmt.Line {
+ 					if p, err := parseString(&line.Token[0]); err == nil && need[p] != "" {
++						if len(line.Comments.Before) == 1 && len(line.Comments.Before[0].Token) == 0 {
++							line.Comments.Before = line.Comments.Before[:0]
++						}
+ 						line.Token[1] = need[p]
+ 						delete(need, p)
+ 						setIndirect(line, indirect[p])
+diff --git a/src/cmd/go/internal/modfile/rule_test.go b/src/cmd/go/internal/modfile/rule_test.go
+index b88ad62916..edd289053b 100644
+--- a/src/cmd/go/internal/modfile/rule_test.go
++++ b/src/cmd/go/internal/modfile/rule_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"testing"
++
++	"cmd/go/internal/module"
+ )
+ 
+ var addRequireTests = []struct {
+@@ -59,6 +61,40 @@ var addRequireTests = []struct {
+ 	},
+ }
+ 
++var setRequireTests = []struct {
++	in   string
++	mods []struct {
++		path string
++		vers string
++	}
++	out string
++}{
++	{
++		`module m
++		require (
++			x.y/b v1.2.3
++
++			x.y/a v1.2.3
++		)
++		`,
++		[]struct {
++			path string
++			vers string
++		}{
++			{"x.y/a", "v1.2.3"},
++			{"x.y/b", "v1.2.3"},
++			{"x.y/c", "v1.2.3"},
++		},
++		`module m
++		require (
++			x.y/a v1.2.3
++			x.y/b v1.2.3
++			x.y/c v1.2.3
++		)
++		`,
++	},
++}
++
+ func TestAddRequire(t *testing.T) {
+ 	for i, tt := range addRequireTests {
+ 		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
+@@ -88,3 +124,40 @@ func TestAddRequire(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestSetRequire(t *testing.T) {
++	for i, tt := range setRequireTests {
++		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
++			f, err := Parse("in", []byte(tt.in), nil)
++			if err != nil {
++				t.Fatal(err)
++			}
++			g, err := Parse("out", []byte(tt.out), nil)
++			if err != nil {
++				t.Fatal(err)
++			}
++			golden, err := g.Format()
++			if err != nil {
++				t.Fatal(err)
++			}
++			var mods []*Require
++			for _, mod := range tt.mods {
++				mods = append(mods, &Require{
++					Mod: module.Version{
++						Path:    mod.path,
++						Version: mod.vers,
++					},
++				})
++			}
++
++			f.SetRequire(mods)
++			out, err := f.Format()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if !bytes.Equal(out, golden) {
++				t.Errorf("have:\n%s\nwant:\n%s", out, golden)
++			}
++		})
++	}
++}

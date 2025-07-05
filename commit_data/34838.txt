@@ -16,6 +16,30 @@ Date:   Sat Nov 18 15:53:53 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/buffer.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index a99e64d1e8..83bb1c7eb5 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -31,12 +31,12 @@ type Buffer struct {
+ type readOp int8
+ 
+ const (
+-	opRead      readOp = -1 // Any other read operation.
+-	opInvalid          = 0  // Non-read operation.
+-	opReadRune1        = 1  // Read rune of size 1.
+-	opReadRune2        = 2  // Read rune of size 2.
+-	opReadRune3        = 3  // Read rune of size 3.
+-	opReadRune4        = 4  // Read rune of size 4.
++	opRead      readOp = iota - 1 // Any other read operation.
++	opInvalid                     // Non-read operation.
++	opReadRune1                   // Read rune of size 1.
++	opReadRune2                   // Read rune of size 2.
++	opReadRune3                   // Read rune of size 3.
++	opReadRune4                   // Read rune of size 4.
+ )
+ 
+ // ErrTooLarge is passed to panic if memory cannot be allocated to store data in a buffer.

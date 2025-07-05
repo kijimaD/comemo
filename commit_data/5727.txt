@@ -8,8 +8,75 @@ Date:   Tue Jun 29 12:48:24 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1745042
-
+---
  src/cmd/5g/gsubr.c | 4 ++++
  src/cmd/6g/gsubr.c | 4 ++++
  src/cmd/8g/gsubr.c | 4 ++++
  3 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index ea6ab1d70b..700602c350 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -1137,6 +1137,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// len(nil)
+ 		a->offset += Array_nel;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+ 			checkoffset(a, canemitcode);
+@@ -1145,6 +1147,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OCAP:
+ 		// cap of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// cap(nil)
+ 		a->offset += Array_cap;
+ 		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+ 			checkoffset(a, canemitcode);
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 1c11b14aeb..52ff6fdea2 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1079,6 +1079,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// len(nil)
+ 		a->etype = TUINT;
+ 		a->offset += Array_nel;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+@@ -1088,6 +1090,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OCAP:
+ 		// cap of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// cap(nil)
+ 		a->etype = TUINT;
+ 		a->offset += Array_cap;
+ 		if(a->offset >= unmappedzero && a->offset-Array_cap < unmappedzero)
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 3e85b7e30e..6890c683e6 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1789,6 +1789,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// len(nil)
+ 		a->etype = TUINT;
+ 		a->offset += Array_nel;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)
+@@ -1798,6 +1800,8 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OCAP:
+ 		// cap of string or slice
+ 		naddr(n->left, a, canemitcode);
++		if(a->type == D_CONST && a->offset == 0)
++			break;	// cap(nil)
+ 		a->etype = TUINT;
+ 		a->offset += Array_cap;
+ 		if(a->offset >= unmappedzero && a->offset-Array_nel < unmappedzero)

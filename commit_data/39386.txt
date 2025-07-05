@@ -13,6 +13,19 @@ Date:   Tue Feb 26 23:01:53 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/container/heap/example_pq_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/container/heap/example_pq_test.go b/src/container/heap/example_pq_test.go
+index 7017095cb8..da1a233b70 100644
+--- a/src/container/heap/example_pq_test.go
++++ b/src/container/heap/example_pq_test.go
+@@ -45,6 +45,7 @@ func (pq *PriorityQueue) Pop() interface{} {
+ 	old := *pq
+ 	n := len(old)
+ 	item := old[n-1]
++	old[n-1] = nil  // avoid memory leak
+ 	item.index = -1 // for safety
+ 	*pq = old[0 : n-1]
+ 	return item

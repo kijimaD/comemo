@@ -14,7 +14,7 @@ Date:   Wed Jan 21 14:51:57 2009 -0800
     R=ken
     OCL=23236
     CL=23238
-
+---
  src/cmd/6g/gen.c    |  3 +--
  src/cmd/6g/obj.c    | 11 ++++-------
  src/cmd/gc/dcl.c    |  2 +-
@@ -24,3 +24,159 @@ Date:   Wed Jan 21 14:51:57 2009 -0800
  src/runtime/iface.c |  7 +++++++
  test/golden.out     |  2 +-
  8 files changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 121fb057ba..769a72b8f2 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -57,9 +57,8 @@ if(throwreturn == N) {
+ 		// add clearing of the output parameters
+ 		t = structfirst(&save, getoutarg(curfn->type));
+ 		while(t != T) {
+-			if(t->nname != N && t->nname->sym->name[0] != '_') {
++			if(t->nname != N)
+ 				curfn->nbody = list(nod(OAS, t->nname, N), curfn->nbody);
+-			}
+ 			t = structnext(&save);
+ 		}
+ 	}
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index fb2d382a3c..76c6a93e28 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -658,6 +658,8 @@ dumpsigt(Type *progt, Type *ifacet, Type *rcvrt, Type *methodt, Sym *s)
+ 
+ 		a->name = method->name;
+ 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
++		if(!exportname(a->name))
++			a->hash += PRIME10*stringhash(package);
+ 		a->perm = o;
+ 		a->sym = methodsym(method, rcvrt);
+ 
+@@ -767,7 +769,6 @@ dumpsigi(Type *t, Sym *s)
+ 	int o;
+ 	Sig *a, *b;
+ 	Prog *p;
+-	char *sp;
+ 	char buf[NSYMB];
+ 
+ 	at.sym = s;
+@@ -784,19 +785,15 @@ dumpsigi(Type *t, Sym *s)
+ 		s1 = f->sym;
+ 		if(s1 == nil)
+ 			continue;
+-		if(s1->name[0] == '_')
+-			continue;
+ 
+ 		b = mal(sizeof(*b));
+ 		b->link = a;
+ 		a = b;
+ 
+ 		a->name = s1->name;
+-		sp = strchr(s1->name, '_');
+-		if(sp != nil)
+-			a->name = sp+1;
+-
+ 		a->hash = PRIME8*stringhash(a->name) + PRIME9*typehash(f->type, 0);
++		if(!exportname(a->name))
++			a->hash += PRIME10*stringhash(package);
+ 		a->perm = o;
+ 		a->sym = methodsym(f->sym, t);
+ 		a->offset = 0;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d25ab33284..12123b4a5e 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -433,7 +433,7 @@ funcargs(Type *ft)
+ 	while(t != T) {
+ 		if(t->nname != N)
+ 			t->nname->xoffset = t->width;
+-		if(t->nname != N && t->nname->sym->name[0] != '_') {
++		if(t->nname != N) {
+ 			addvar(t->nname, t->type, PPARAM);
+ 			all |= 1;
+ 		} else
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index fceb743dea..b04790d662 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -34,6 +34,7 @@ enum
+ 	PRIME7		= 10067,
+ 	PRIME8		= 10079,
+ 	PRIME9		= 10091,
++	PRIME10		= 10093,
+ 
+ 	AUNK		= 100,
+ 	// these values are known by runtime
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c3a6511c9a..83fc1f8d39 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -685,6 +685,8 @@ talph:
+ 		s = pkglookup(s->name, context);
+ 		if(s->lexical == LIGNORE)
+ 			goto l0;
++		if(!exportname(s->name) && strcmp(package, s->opackage) != 0)
++			s = pkglookup(s->name, ".private");
+ 	}
+ 
+ 	DBG("lex: %S %s\n", s, lexname(s->lexical));
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 40912bce67..0650a634e3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1683,12 +1683,8 @@ eqtype(Type *t1, Type *t2, int d)
+ 			if(t1->nname != N && t1->nname->sym != S) {
+ 				if(t2->nname == N || t2->nname->sym == S)
+ 					return 0;
+-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0) {
+-					// assigned names dont count
+-					if(t1->nname->sym->name[0] != '_' ||
+-				   	   t2->nname->sym->name[0] != '_')
+-						return 0;
+-				}
++				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
++					return 0;
+ 			}
+ 			t1 = t1->down;
+ 			t2 = t2->down;
+@@ -2489,7 +2485,7 @@ expand0(Type *t)
+ 	u = methtype(t);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+-			if(!exportname(f->sym->name) && strcmp(f->sym->package, package) != 0)
++			if(!exportname(f->sym->name) && strcmp(f->sym->opackage, package) != 0)
+ 				continue;
+ 			if(f->sym->uniq)
+ 				continue;
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 832f157263..70e2b4f04c 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -168,6 +168,13 @@ throw:
+ 					prints(": missing method ");
+ 					prints((int8*)iname);
+ 					prints("\n");
++					if(iface_debug) {
++						prints("interface");
++						printsigi(si);
++						prints("\ntype");
++						printsigt(st);
++						prints("\n");
++					}
+ 					throw("interface conversion");
+ 				}
+ 				m->bad = 1;
+diff --git a/test/golden.out b/test/golden.out
+index 889b421818..023b96edd0 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -232,7 +232,7 @@ fixedbugs/bug074.go:7: x: undefined
+ fixedbugs/bug081.go:5: no type x
+ 
+ =========== fixedbugs/bug083.go
+-BUG: succeeds incorrectly
++fixedbugs/bug083.dir/bug1.go:9: syntax error near t0
+ 
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement

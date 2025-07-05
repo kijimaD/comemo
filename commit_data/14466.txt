@@ -11,6 +11,68 @@ Date:   Sun Nov 25 11:29:06 2012 +1100
     R=bradfitz, minux.ma
     CC=golang-dev
     https://golang.org/cl/6849097
-
+---
  src/pkg/time/time_test.go | 41 ++++++++++++++++++++++++++++++++++++++++-
  1 file changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time_test.go b/src/pkg/time/time_test.go
+index 9888d0d9c1..8602fcef8b 100644
+--- a/src/pkg/time/time_test.go
++++ b/src/pkg/time/time_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"math/rand"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -1037,9 +1038,47 @@ func TestParseDurationRoundTrip(t *testing.T) {
+ 	}
+ }
+ 
++var (
++	t Time
++	u int64
++)
++
++var mallocTest = []struct {
++	count int
++	desc  string
++	fn    func()
++}{
++	{0, `time.Now()`, func() { t = Now() }},
++	{0, `time.Now().UnixNano()`, func() { u = Now().UnixNano() }},
++}
++
++func TestCountMallocs(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
++	for _, mt := range mallocTest {
++		const N = 100
++		memstats := new(runtime.MemStats)
++		runtime.ReadMemStats(memstats)
++		mallocs := 0 - memstats.Mallocs
++		for i := 0; i < N; i++ {
++			mt.fn()
++		}
++		runtime.ReadMemStats(memstats)
++		mallocs += memstats.Mallocs
++		if mallocs/N > uint64(mt.count) {
++			t.Errorf("%s: expected %d mallocs, got %d", mt.desc, mt.count, mallocs/N)
++		}
++	}
++}
++
+ func BenchmarkNow(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		Now()
++		t = Now()
++	}
++}
++
++func BenchmarkNowUnixNano(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u = Now().UnixNano()
+ 	}
+ }
+ 

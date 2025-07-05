@@ -25,7 +25,7 @@ Date:   Fri Dec 20 23:34:23 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fcntl_js.go        | 14 ++++++++++++++
  src/internal/poll/fcntl_libc.go      | 13 +++++++++++++
  src/internal/poll/fcntl_syscall.go   | 20 ++++++++++++++++++++
@@ -34,3 +34,140 @@ Date:   Fri Dec 20 23:34:23 2019 +0100
  src/internal/poll/fd_unix.go         |  2 +-
  src/syscall/syscall_aix.go           |  2 +-
  7 files changed, 50 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/poll/fcntl_js.go b/src/internal/poll/fcntl_js.go
+new file mode 100644
+index 0000000000..120fc1195f
+--- /dev/null
++++ b/src/internal/poll/fcntl_js.go
+@@ -0,0 +1,14 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package poll
++
++import "syscall"
++
++// fcntl not supported on js/wasm
++func fcntl(fd int, cmd int, arg int) (int, error) {
++	return 0, syscall.ENOSYS
++}
+diff --git a/src/internal/poll/fcntl_libc.go b/src/internal/poll/fcntl_libc.go
+new file mode 100644
+index 0000000000..642472bc2b
+--- /dev/null
++++ b/src/internal/poll/fcntl_libc.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build aix darwin solaris
++
++package poll
++
++import _ "unsafe" // for go:linkname
++
++// Implemented in the syscall package.
++//go:linkname fcntl syscall.fcntl
++func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/internal/poll/fcntl_syscall.go b/src/internal/poll/fcntl_syscall.go
+new file mode 100644
+index 0000000000..5ac814359a
+--- /dev/null
++++ b/src/internal/poll/fcntl_syscall.go
+@@ -0,0 +1,20 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build dragonfly freebsd linux netbsd openbsd
++
++package poll
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++func fcntl(fd int, cmd int, arg int) (int, error) {
++	r, _, e := syscall.Syscall(unix.FcntlSyscall, uintptr(fd), uintptr(cmd), uintptr(arg))
++	if e != 0 {
++		return int(r), syscall.Errno(e)
++	}
++	return int(r), nil
++}
+diff --git a/src/internal/poll/fd_fsync_darwin.go b/src/internal/poll/fd_fsync_darwin.go
+index c68ec9782a..91751496a4 100644
+--- a/src/internal/poll/fd_fsync_darwin.go
++++ b/src/internal/poll/fd_fsync_darwin.go
+@@ -4,10 +4,7 @@
+ 
+ package poll
+ 
+-import (
+-	"syscall"
+-	_ "unsafe" // for go:linkname
+-)
++import "syscall"
+ 
+ // Fsync invokes SYS_FCNTL with SYS_FULLFSYNC because
+ // on OS X, SYS_FSYNC doesn't fully flush contents to disk.
+@@ -21,7 +18,3 @@ func (fd *FD) Fsync() error {
+ 	_, e1 := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
+ 	return e1
+ }
+-
+-// Implemented in syscall/syscall_darwin.go.
+-//go:linkname fcntl syscall.fcntl
+-func fcntl(fd int, cmd int, arg int) (int, error)
+diff --git a/src/internal/poll/fd_fsync_posix.go b/src/internal/poll/fd_fsync_posix.go
+index 0886d749d3..69358297f4 100644
+--- a/src/internal/poll/fd_fsync_posix.go
++++ b/src/internal/poll/fd_fsync_posix.go
+@@ -16,11 +16,3 @@ func (fd *FD) Fsync() error {
+ 	defer fd.decref()
+ 	return syscall.Fsync(fd.Sysfd)
+ }
+-
+-func fcntl(fd int, cmd int, arg int) (int, error) {
+-	r, _, e := syscall.Syscall(syscall.SYS_FCNTL, uintptr(fd), uintptr(cmd), uintptr(arg))
+-	if e != 0 {
+-		return int(r), syscall.Errno(e)
+-	}
+-	return int(r), nil
+-}
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 41d6ef593d..8752450a1f 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -451,7 +451,7 @@ var tryDupCloexec = int32(1)
+ 
+ // DupCloseOnExec dups fd and marks it close-on-exec.
+ func DupCloseOnExec(fd int) (int, string, error) {
+-	if atomic.LoadInt32(&tryDupCloexec) == 1 {
++	if syscall.F_DUPFD_CLOEXEC != 0 && atomic.LoadInt32(&tryDupCloexec) == 1 {
+ 		r0, e1 := fcntl(fd, syscall.F_DUPFD_CLOEXEC, 0)
+ 		if e1 == nil {
+ 			return r0, "", nil
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index d8010d35ce..8bb5fa9ead 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -23,12 +23,12 @@ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err
+ const (
+ 	_ = iota
+ 	TIOCSCTTY
+-	F_DUPFD_CLOEXEC
+ 	SYS_EXECVE
+ 	SYS_FCNTL
+ )
+ 
+ const (
++	F_DUPFD_CLOEXEC = 0
+ 	// AF_LOCAL doesn't exist on AIX
+ 	AF_LOCAL = AF_UNIX
+ )

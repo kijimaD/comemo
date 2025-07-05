@@ -9,7 +9,47 @@ Date:   Wed Sep 7 19:03:11 2011 +0200
     R=rsc, nigeltao, dave
     CC=bradfitz, golang-dev, mikioh.mikioh
     https://golang.org/cl/4972056
-
+---
  src/cmd/gc/esc.c | 2 ++
  test/escape2.go  | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index 790709cff2..cd1f9770e1 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -398,6 +398,8 @@ escassign(Node *dst, Node *src)
+ 	case OCONVIFACE:
+ 	case OCONVNOP:
+ 	case ODOT:
++	case ODOTMETH:	// treat recv.meth as a value with recv in it, only happens in ODEFER and OPROC
++			// iface.method already leaks iface in esccall, no need to put in extra ODOTINTER edge here
+ 	case ODOTTYPE:
+ 	case ODOTTYPE2:
+ 	case OSLICE:
+diff --git a/test/escape2.go b/test/escape2.go
+index c21a188308..dbe0c69065 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -127,6 +127,10 @@ func (b *Bar) AlsoNoLeak() *int { // ERROR "b does not escape"
+ 	return b.ii
+ }
+ 
++func goLeak(b *Bar) {  // ERROR "leaking param: NAME-b"
++	go b.NoLeak()
++}
++
+ type Bar2 struct {
+ 	i  [12]int
+ 	ii []int
+@@ -395,6 +399,10 @@ func foo64(m M) { // ERROR "leaking param: NAME-m"
+ 	m.M()
+ }
+ 
++func foo64b(m M) { // ERROR "leaking param: NAME-m"
++	defer m.M()
++}
++
+ type MV int
+ 
+ func (MV) M() {}

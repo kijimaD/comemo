@@ -33,7 +33,40 @@ Date:   Fri Apr 25 17:23:49 2025 +0200
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 2 +-
  src/cmd/link/internal/loader/loader.go | 8 --------
  2 files changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index e0363b5535..9f251e746b 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -609,7 +609,7 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 				continue
+ 			}
+ 
+-			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") {
++			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") || strings.HasPrefix(elfsym.name, ".LVUS") {
+ 				// gcc on s390x and riscv64 does this.
+ 				continue
+ 			}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6a7057b80e..128173b8cf 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1719,14 +1719,6 @@ func (l *Loader) GetVarDwarfAuxSym(i Sym) Sym {
+ // expected to have the actual content/payload) and then a set of
+ // interior loader.Sym's that point into a portion of the container.
+ func (l *Loader) AddInteriorSym(container Sym, interior Sym) {
+-	// Container symbols are expected to have content/data.
+-	// NB: this restriction may turn out to be too strict (it's possible
+-	// to imagine a zero-sized container with an interior symbol pointing
+-	// into it); it's ok to relax or remove it if we counter an
+-	// oddball host object that triggers this.
+-	if l.SymSize(container) == 0 && len(l.Data(container)) == 0 {
+-		panic("unexpected empty container symbol")
+-	}
+ 	// The interior symbols for a container are not expected to have
+ 	// content/data or relocations.
+ 	if len(l.Data(interior)) != 0 {

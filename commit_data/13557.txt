@@ -9,8 +9,50 @@ Date:   Fri Aug 3 09:31:45 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6454090
-
+---
  src/pkg/exp/html/parse_test.go            | 5 ++++-
  src/pkg/exp/html/testlogs/tests16.dat.log | 2 +-
  src/pkg/exp/html/testlogs/tests26.dat.log | 2 +-
  3 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index 2e8dfbf107..e3c69b6f5b 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -45,7 +45,10 @@ func readParseTest(r *bufio.Reader) (text, want, context string, err error) {
+ 		}
+ 		b = append(b, line...)
+ 	}
+-	text = strings.TrimRight(string(b), "\n")
++	text = string(b)
++	if strings.HasSuffix(text, "\n") {
++		text = text[:len(text)-1]
++	}
+ 	b = b[:0]
+ 
+ 	// Skip the error list.
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index 4f1e211962..23e2789eea 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -186,6 +186,6 @@ PASS "<iframe><!--<iframe></iframe>--></iframe>"
+ PASS "<iframe>...<!--X->...<!--/X->...</iframe>"
+ PASS "<xmp><!--<xmp></xmp>--></xmp>"
+ PASS "<noembed><!--<noembed></noembed>--></noembed>"
+-FAIL "<!doctype html><table>"
++PASS "<!doctype html><table>\n"
+ PASS "<!doctype html><table><td><span><font></span><span>"
+ PARSE "<!doctype html><form><table></form><form></table></form>"
+diff --git a/src/pkg/exp/html/testlogs/tests26.dat.log b/src/pkg/exp/html/testlogs/tests26.dat.log
+index 17c6ae82cb..fa97b44cd1 100644
+--- a/src/pkg/exp/html/testlogs/tests26.dat.log
++++ b/src/pkg/exp/html/testlogs/tests26.dat.log
+@@ -7,7 +7,7 @@ PASS "<!DOCTYPE html><body><b><nobr>1<nobr></b><div><i><nobr>2<nobr></i>3"
+ PASS "<!DOCTYPE html><body><b><nobr>1<nobr><ins></b><i><nobr>"
+ PASS "<!DOCTYPE html><body><b><nobr>1<ins><nobr></b><i>2"
+ PASS "<!DOCTYPE html><body><b>1<nobr></b><i><nobr>2</i>"
+-FAIL "<p><code x</code></p>"
++PASS "<p><code x</code></p>\n"
+ PASS "<!DOCTYPE html><svg><foreignObject><p><i></p>a"
+ PASS "<!DOCTYPE html><table><tr><td><svg><foreignObject><p><i></p>a"
+ PASS "<!DOCTYPE html><math><mtext><p><i></p>a"

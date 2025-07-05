@@ -20,6 +20,29 @@ Date:   Mon Jun 25 12:31:53 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/120735
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/gitrepo/fetch_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go b/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
+index ca932808e8..622249e67d 100644
+--- a/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
++++ b/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
+@@ -7,6 +7,7 @@ package gitrepo
+ import (
+ 	"archive/zip"
+ 	"bytes"
++	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+@@ -23,6 +24,9 @@ import (
+ )
+ 
+ func TestMain(m *testing.M) {
++	// needed for initializing the test environment variables as testing.Short
++	// and HasExternalNetwork
++	flag.Parse()
+ 	os.Exit(testMain(m))
+ }
+ 

@@ -10,9 +10,116 @@ Date:   Mon Apr 21 15:54:51 2014 -0700
     R=agl, adonovan
     CC=golang-codereviews
     https://golang.org/cl/90080043
-
+---
  src/pkg/math/big/int.go      | 13 +++++++------
  src/pkg/math/big/int_test.go | 13 +++++++++++++
  src/pkg/math/big/nat.go      | 11 ++++++++---
  src/pkg/math/big/nat_test.go |  8 +++++++-
  4 files changed, 35 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 4591590d40..269949d616 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -576,21 +576,22 @@ func (x *Int) BitLen() int {
+ }
+ 
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+-// If y <= 0, the result is 1; if m == nil or m == 0, z = x**y.
++// If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
+ // See Knuth, volume 2, section 4.6.3.
+ func (z *Int) Exp(x, y, m *Int) *Int {
+-	if y.neg || len(y.abs) == 0 {
+-		return z.SetInt64(1)
++	var yWords nat
++	if !y.neg {
++		yWords = y.abs
+ 	}
+-	// y > 0
++	// y >= 0
+ 
+ 	var mWords nat
+ 	if m != nil {
+ 		mWords = m.abs // m.abs may be nil for m == 0
+ 	}
+ 
+-	z.abs = z.abs.expNN(x.abs, y.abs, mWords)
+-	z.neg = len(z.abs) > 0 && x.neg && y.abs[0]&1 == 1 // 0 has no sign
++	z.abs = z.abs.expNN(x.abs, yWords, mWords)
++	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
+ 	return z
+ }
+ 
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index 3dd9c5b712..299dc72fb1 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -768,6 +768,19 @@ var expTests = []struct {
+ 	x, y, m string
+ 	out     string
+ }{
++	// y <= 0
++	{"0", "0", "", "1"},
++	{"1", "0", "", "1"},
++	{"-10", "0", "", "1"},
++	{"1234", "-1", "", "1"},
++
++	// m == 1
++	{"0", "0", "1", "0"},
++	{"1", "0", "1", "0"},
++	{"-10", "0", "1", "0"},
++	{"1234", "-1", "1", "0"},
++
++	// misc
+ 	{"5", "-7", "", "1"},
+ 	{"-5", "-7", "", "1"},
+ 	{"5", "0", "", "1"},
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 6874900d0b..16a87f5c53 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -1233,10 +1233,15 @@ func (z nat) expNN(x, y, m nat) nat {
+ 		z = nil
+ 	}
+ 
++	// x**y mod 1 == 0
++	if len(m) == 1 && m[0] == 1 {
++		return z.setWord(0)
++	}
++	// m == 0 || m > 1
++
++	// x**0 == 1
+ 	if len(y) == 0 {
+-		z = z.make(1)
+-		z[0] = 1
+-		return z
++		return z.setWord(1)
+ 	}
+ 	// y > 0
+ 
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index f7105b0998..a2ae53385c 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -714,6 +714,12 @@ var expNNTests = []struct {
+ 	x, y, m string
+ 	out     string
+ }{
++	{"0", "0", "0", "1"},
++	{"0", "0", "1", "0"},
++	{"1", "1", "1", "0"},
++	{"2", "1", "1", "0"},
++	{"2", "2", "1", "0"},
++	{"10", "100000000000", "1", "0"},
+ 	{"0x8000000000000000", "2", "", "0x40000000000000000000000000000000"},
+ 	{"0x8000000000000000", "2", "6719", "4944"},
+ 	{"0x8000000000000000", "3", "6719", "5447"},
+@@ -741,7 +747,7 @@ func TestExpNN(t *testing.T) {
+ 
+ 		z := nat(nil).expNN(x, y, m)
+ 		if z.cmp(out) != 0 {
+-			t.Errorf("#%d got %v want %v", i, z, out)
++			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
+ 		}
+ 	}
+ }

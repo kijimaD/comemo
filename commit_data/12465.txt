@@ -9,7 +9,7 @@ Date:   Wed Mar 7 02:27:15 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5752070
-
+---
  src/cmd/gc/dcl.c         |  22 +++++---
  src/cmd/gc/go.h          |   4 +-
  src/cmd/gc/reflect.c     |   6 +--
@@ -18,3 +18,400 @@ Date:   Wed Mar 7 02:27:15 2012 -0500
  test/fixedbugs/bug424.go |  24 +++++++++
  test/method.go           | 132 ++++++++++++++++++++++++++++++++++++++++++++---
  7 files changed, 179 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index b717625903..4121a45ab2 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1168,21 +1168,22 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 	char *p;
+ 	Type *t;
+ 	char *suffix;
++	Pkg *spkg;
++	static Pkg *toppkg;
+ 
+ 	t = t0;
+ 	if(t == T)
+ 		goto bad;
+ 	s = t->sym;
+-	if(s == S) {
+-		if(!isptr[t->etype])
+-			goto bad;
++	if(s == S && isptr[t->etype]) {
+ 		t = t->type;
+ 		if(t == T)
+ 			goto bad;
+ 		s = t->sym;
+-		if(s == S)
+-			goto bad;
+ 	}
++	spkg = nil;
++	if(s != S)
++		spkg = s->pkg;
+ 
+ 	// if t0 == *t and t0 has a sym,
+ 	// we want to see *t, not t0, in the method name.
+@@ -1195,7 +1196,7 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 		if(t0->width < types[tptr]->width)
+ 			suffix = "·i";
+ 	}
+-	if(nsym->pkg != s->pkg && !exportname(nsym->name)) {
++	if((spkg == nil || nsym->pkg != spkg) && !exportname(nsym->name)) {
+ 		if(t0->sym == S && isptr[t0->etype])
+ 			p = smprint("(%-hT).%s.%s%s", t0, nsym->pkg->prefix, nsym->name, suffix);
+ 		else
+@@ -1206,7 +1207,12 @@ methodsym(Sym *nsym, Type *t0, int iface)
+ 		else
+ 			p = smprint("%-hT.%s%s", t0, nsym->name, suffix);
+ 	}
+-	s = pkglookup(p, s->pkg);
++	if(spkg == nil) {
++		if(toppkg == nil)
++			toppkg = mkpkg(strlit("go"));
++		spkg = toppkg;
++	}
++	s = pkglookup(p, spkg);
+ 	free(p);
+ 	return s;
+ 
+@@ -1275,7 +1281,7 @@ addmethod(Sym *sf, Type *t, int local)
+ 	}
+ 
+ 	pa = pa->type;
+-	f = methtype(pa);
++	f = methtype(pa, 1);
+ 	if(f == T) {
+ 		t = pa;
+ 		if(t != T) {
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 753360e46f..8c4fff15a0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1154,7 +1154,7 @@ int	cplxsubtype(int et);
+ int	eqtype(Type *t1, Type *t2);
+ int	eqtypenoname(Type *t1, Type *t2);
+ void	errorexit(void);
+-void	expandmeth(Sym *s, Type *t);
++void	expandmeth(Type *t);
+ void	fatal(char *fmt, ...);
+ void	flusherrors(void);
+ void	frame(int context);
+@@ -1192,7 +1192,7 @@ NodeList*	listtreecopy(NodeList *l);
+ Sym*	lookup(char *name);
+ void*	mal(int32 n);
+ Type*	maptype(Type *key, Type *val);
+-Type*	methtype(Type *t);
++Type*	methtype(Type *t, int mustname);
+ Pkg*	mkpkg(Strlit *path);
+ Sym*	ngotype(Node *n);
+ int	noconv(Type *t1, Type *t2);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index 0847e9a3fb..07b4265081 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -144,11 +144,11 @@ methods(Type *t)
+ 	Sig *a, *b;
+ 	Sym *method;
+ 
+-	// named method type
+-	mt = methtype(t);
++	// method type
++	mt = methtype(t, 0);
+ 	if(mt == T)
+ 		return nil;
+-	expandmeth(mt->sym, mt);
++	expandmeth(mt);
+ 
+ 	// type stored in interface word
+ 	it = t;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 6eb7734f0f..b26f1e32c0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -944,7 +944,7 @@ isideal(Type *t)
+  * return type to hang methods off (r).
+  */
+ Type*
+-methtype(Type *t)
++methtype(Type *t, int mustname)
+ {
+ 	if(t == T)
+ 		return T;
+@@ -959,7 +959,7 @@ methtype(Type *t)
+ 	}
+ 
+ 	// need a type name
+-	if(t->sym == S)
++	if(t->sym == S && (mustname || t->etype != TSTRUCT))
+ 		return T;
+ 
+ 	// check types
+@@ -2101,7 +2101,7 @@ lookdot0(Sym *s, Type *t, Type **save, int ignorecase)
+ 				c++;
+ 			}
+ 	}
+-	u = methtype(t);
++	u = methtype(t, 0);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down)
+ 			if(f->embedded == 0 && (f->sym == s || (ignorecase && ucistrcmp(f->sym->name, s->name) == 0))) {
+@@ -2251,7 +2251,7 @@ expand0(Type *t, int followptr)
+ 		return;
+ 	}
+ 
+-	u = methtype(t);
++	u = methtype(t, 0);
+ 	if(u != T) {
+ 		for(f=u->method; f!=T; f=f->down) {
+ 			if(f->sym->flags & SymUniq)
+@@ -2301,14 +2301,12 @@ out:
+ }
+ 
+ void
+-expandmeth(Sym *s, Type *t)
++expandmeth(Type *t)
+ {
+ 	Symlink *sl;
+ 	Type *f;
+ 	int c, d;
+ 
+-	if(s == S)
+-		return;
+ 	if(t == T || t->xmethod != nil)
+ 		return;
+ 
+@@ -3021,9 +3019,9 @@ implements(Type *t, Type *iface, Type **m, Type **samename, int *ptr)
+ 		return 1;
+ 	}
+ 
+-	t = methtype(t);
++	t = methtype(t, 0);
+ 	if(t != T)
+-		expandmeth(t->sym, t);
++		expandmeth(t);
+ 	for(im=iface->type; im; im=im->down) {
+ 		imtype = methodfunc(im->type, 0);
+ 		tm = ifacelookdot(im->sym, t, &followptr, 0);
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 8b5578d250..6dc3fd187a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1664,11 +1664,11 @@ looktypedot(Node *n, Type *t, int dostrcmp)
+ 	if(t->sym == S && isptr[t->etype])
+ 		tt = t->type;
+ 
+-	f2 = methtype(tt);
++	f2 = methtype(tt, 0);
+ 	if(f2 == T)
+ 		return 0;
+ 
+-	expandmeth(f2->sym, f2);
++	expandmeth(f2);
+ 	f2 = lookdot1(n, s, f2, f2->xmethod, dostrcmp);
+ 	if(f2 == T)
+ 		return 0;
+@@ -1712,7 +1712,7 @@ lookdot(Node *n, Type *t, int dostrcmp)
+ 
+ 	f2 = T;
+ 	if(n->left->type == t || n->left->type->sym == S) {
+-		f2 = methtype(t);
++		f2 = methtype(t, 0);
+ 		if(f2 != T) {
+ 			// Use f2->method, not f2->xmethod: adddot has
+ 			// already inserted all the necessary embedded dots.
+diff --git a/test/fixedbugs/bug424.go b/test/fixedbugs/bug424.go
+index 484febc1d2..7ed324a095 100644
+--- a/test/fixedbugs/bug424.go
++++ b/test/fixedbugs/bug424.go
+@@ -72,4 +72,28 @@ func main() {
+ 		}
+ 		println("BUG: myT3:", i.m(), "called")
+ 	}
++	
++	var t4 struct {
++		localT
++		lib.T
++	}
++	if t4.m() != "main.localT.m" {
++		println("BUG: t4:", t4.m(), "called")
++	}
++	i = &t4
++	if i.m() != "main.localT.m" {
++		println("BUG: myT4:", i.m(), "called")
++	}
++	
++	var t5 struct {
++		lib.T
++		localT
++	}
++	if t5.m() != "main.localT.m" {
++		println("BUG: t5:", t5.m(), "called")
++	}
++	i = &t5
++	if i.m() != "main.localT.m" {
++		println("BUG: myT5:", i.m(), "called")
++	}
+ }
+diff --git a/test/method.go b/test/method.go
+index 6080ce5a77..0c239afbd1 100644
+--- a/test/method.go
++++ b/test/method.go
+@@ -94,27 +94,27 @@ func main() {
+ 	}
+ 
+ 	if val(s) != 1 {
+-		println("s.val:", val(s))
++		println("val(s):", val(s))
+ 		panic("fail")
+ 	}
+ 	if val(ps) != 2 {
+-		println("ps.val:", val(ps))
++		println("val(ps):", val(ps))
+ 		panic("fail")
+ 	}
+ 	if val(i) != 3 {
+-		println("i.val:", val(i))
++		println("val(i):", val(i))
+ 		panic("fail")
+ 	}
+ 	if val(pi) != 4 {
+-		println("pi.val:", val(pi))
++		println("val(pi):", val(pi))
+ 		panic("fail")
+ 	}
+ 	if val(t) != 7 {
+-		println("t.val:", val(t))
++		println("val(t):", val(t))
+ 		panic("fail")
+ 	}
+ 	if val(pt) != 8 {
+-		println("pt.val:", val(pt))
++		println("val(pt):", val(pt))
+ 		panic("fail")
+ 	}
+ 
+@@ -127,4 +127,124 @@ func main() {
+ 		println("Val.val(v):", Val.val(v))
+ 		panic("fail")
+ 	}
++
++	var zs struct { S }
++	var zps struct { *S1 }
++	var zi struct { I }
++	var zpi struct { *I1 }
++	var zpt struct { *T1 }
++	var zt struct { T }
++	var zv struct { Val }
++
++	if zs.val() != 1 {
++		println("zs.val:", zs.val())
++		panic("fail")
++	}
++	if zps.val() != 2 {
++		println("zps.val:", zps.val())
++		panic("fail")
++	}
++	if zi.val() != 3 {
++		println("zi.val:", zi.val())
++		panic("fail")
++	}
++	if zpi.val() != 4 {
++		println("zpi.val:", zpi.val())
++		panic("fail")
++	}
++	if zt.val() != 7 {
++		println("zt.val:", zt.val())
++		panic("fail")
++	}
++	if zpt.val() != 8 {
++		println("zpt.val:", zpt.val())
++		panic("fail")
++	}
++
++	if val(zs) != 1 {
++		println("val(zs):", val(zs))
++		panic("fail")
++	}
++	if val(zps) != 2 {
++		println("val(zps):", val(zps))
++		panic("fail")
++	}
++	if val(zi) != 3 {
++		println("val(zi):", val(zi))
++		panic("fail")
++	}
++	if val(zpi) != 4 {
++		println("val(zpi):", val(zpi))
++		panic("fail")
++	}
++	if val(zt) != 7 {
++		println("val(zt):", val(zt))
++		panic("fail")
++	}
++	if val(zpt) != 8 {
++		println("val(zpt):", val(zpt))
++		panic("fail")
++	}
++
++	zv.Val = zi
++	if zv.val() != 3 {
++		println("zv.val():", zv.val())
++		panic("fail")
++	}
++
++	if (&zs).val() != 1 {
++		println("(&zs).val:", (&zs).val())
++		panic("fail")
++	}
++	if (&zps).val() != 2 {
++		println("(&zps).val:", (&zps).val())
++		panic("fail")
++	}
++	if (&zi).val() != 3 {
++		println("(&zi).val:", (&zi).val())
++		panic("fail")
++	}
++	if (&zpi).val() != 4 {
++		println("(&zpi).val:", (&zpi).val())
++		panic("fail")
++	}
++	if (&zt).val() != 7 {
++		println("(&zt).val:", (&zt).val())
++		panic("fail")
++	}
++	if (&zpt).val() != 8 {
++		println("(&zpt).val:", (&zpt).val())
++		panic("fail")
++	}
++
++	if val(&zs) != 1 {
++		println("val(&zs):", val(&zs))
++		panic("fail")
++	}
++	if val(&zps) != 2 {
++		println("val(&zps):", val(&zps))
++		panic("fail")
++	}
++	if val(&zi) != 3 {
++		println("val(&zi):", val(&zi))
++		panic("fail")
++	}
++	if val(&zpi) != 4 {
++		println("val(&zpi):", val(&zpi))
++		panic("fail")
++	}
++	if val(&zt) != 7 {
++		println("val(&zt):", val(&zt))
++		panic("fail")
++	}
++	if val(&zpt) != 8 {
++		println("val(&zpt):", val(&zpt))
++		panic("fail")
++	}
++
++	zv.Val = &zi
++	if zv.val() != 3 {
++		println("zv.val():", zv.val())
++		panic("fail")
++	}
+ }

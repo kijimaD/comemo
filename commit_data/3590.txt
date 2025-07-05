@@ -9,7 +9,7 @@ Date:   Mon Oct 19 18:47:37 2009 -0700
     R=ken
     OCL=35894
     CL=35896
-
+---
  src/cmd/5g/gsubr.c                 |   1 -
  src/cmd/6g/gsubr.c                 |   1 -
  src/cmd/6g/reg.c                   |   1 -
@@ -22,3 +22,477 @@ Date:   Mon Oct 19 18:47:37 2009 -0700
  test/{bugs => fixedbugs}/bug190.go |   0
  test/golden.out                    |  13 ----
  11 files changed, 135 insertions(+), 125 deletions(-)
+
+diff --git a/src/cmd/5g/gsubr.c b/src/cmd/5g/gsubr.c
+index 4a4c21ba9e..ceb97cc651 100644
+--- a/src/cmd/5g/gsubr.c
++++ b/src/cmd/5g/gsubr.c
+@@ -245,7 +245,6 @@ regalloc(Node *n, Type *t, Node *o)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT80:
+ 		if(o != N && o->op == OREGISTER) {
+ 			i = o->val.u.reg;
+ 			if(i >= REGALLOC_F0 && i <= REGALLOC_FMAX)
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 8358abf16b..2fd9d94009 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -275,7 +275,6 @@ regalloc(Node *n, Type *t, Node *o)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT80:
+ 		if(o != N && o->op == OREGISTER) {
+ 			i = o->val.u.reg;
+ 			if(i >= D_X0 && i <= D_X7)
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 64616e4a5b..1d19b32d80 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -1172,7 +1172,6 @@ allreg(uint32 b, Rgn *r)
+ 
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-	case TFLOAT80:
+ 	case TFLOAT:
+ 		i = BtoF(~b);
+ 		if(i && r->cost > 0) {
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index bc963384d2..e0c617ac10 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -11,6 +11,8 @@
+  * (see ../6g/align.c).
+  */
+ 
++static int defercalc;
++
+ uint32
+ rnd(uint32 o, uint32 r)
+ {
+@@ -98,6 +100,7 @@ dowidth(Type *t)
+ 	int32 et;
+ 	uint32 w;
+ 	int lno;
++	Type *t1;
+ 
+ 	if(maxround == 0 || widthptr == 0)
+ 		fatal("dowidth without betypeinit");
+@@ -117,6 +120,9 @@ dowidth(Type *t)
+ 		return;
+ 	}
+ 
++	// defer checkwidth calls until after we're done
++	defercalc++;
++
+ 	lno = lineno;
+ 	lineno = t->lineno;
+ 	t->width = -2;
+@@ -155,33 +161,36 @@ dowidth(Type *t)
+ 	case TINT32:
+ 	case TUINT32:
+ 	case TFLOAT32:
+-	case TPTR32:		// note lack of recursion
+ 		w = 4;
+ 		break;
+ 	case TINT64:
+ 	case TUINT64:
+ 	case TFLOAT64:
+-	case TPTR64:		// note lack of recursion
+ 		w = 8;
+ 		break;
+-	case TFLOAT80:
+-		w = 10;
++	case TPTR32:
++		w = 4;
++		checkwidth(t->type);
++		break;
++	case TPTR64:
++		w = 8;
++		checkwidth(t->type);
+ 		break;
+ 	case TDDD:
+ 		w = 2*widthptr;
+ 		break;
+ 	case TINTER:		// implemented as 2 pointers
+-		offmod(t);
+ 		w = 2*widthptr;
++		offmod(t);
+ 		break;
+ 	case TCHAN:		// implemented as pointer
+-		dowidth(t->type);
+-		dowidth(t->down);
+ 		w = widthptr;
++		checkwidth(t->type);
+ 		break;
+ 	case TMAP:		// implemented as pointer
+-		dowidth(t->type);
+ 		w = widthptr;
++		checkwidth(t->type);
++		checkwidth(t->down);
+ 		break;
+ 	case TFORW:		// should have been filled in
+ 	case TANY:
+@@ -198,15 +207,18 @@ dowidth(Type *t)
+ 	case TARRAY:
+ 		if(t->type == T)
+ 			break;
+-		dowidth(t->type);
+-		if(t->bound >= 0)
++		if(t->bound >= 0) {
++			dowidth(t->type);
+ 			w = t->bound * t->type->width;
+-		else if(t->bound == -1)
++			if(w == 0)
++				w = maxround;
++		}
++		else if(t->bound == -1) {
+ 			w = sizeof_Array;
++			checkwidth(t->type);
++		}
+ 		else
+ 			fatal("dowidth %T", t);	// probably [...]T
+-		if(w == 0)
+-			w = maxround;
+ 		break;
+ 
+ 	case TSTRUCT:
+@@ -218,20 +230,118 @@ dowidth(Type *t)
+ 		break;
+ 
+ 	case TFUNC:
+-		// function is 3 cated structures;
+-		// compute their widths as side-effect.
+-		w = widstruct(*getthis(t), 0, 0);
+-		w = widstruct(*getinarg(t), w, 1);
+-		w = widstruct(*getoutarg(t), w, 1);
+-		t->argwid = w;
++		// make fake type to check later to
++		// trigger function argument computation.
++		t1 = typ(TFUNCARGS);
++		t1->type = t;
++		checkwidth(t1);
+ 
+-		// but width of func type is pointer
++		// width of func type is pointer
+ 		w = widthptr;
+ 		break;
++	
++	case TFUNCARGS:
++		// function is 3 cated structures;
++		// compute their widths as side-effect.
++		t1 = t->type;
++		w = widstruct(*getthis(t1), 0, 0);
++		w = widstruct(*getinarg(t1), w, 1);
++		w = widstruct(*getoutarg(t1), w, 1);
++		t1->argwid = w;
++		break;
+ 	}
+ 
+ 	t->width = w;
+ 	lineno = lno;
++
++	if(defercalc == 1)
++		resumecheckwidth();
++	else
++		--defercalc;
++}
++
++/*
++ * when a type's width should be known, we call checkwidth
++ * to compute it.  during a declaration like
++ *
++ *	type T *struct { next T }
++ *
++ * it is necessary to defer the calculation of the struct width
++ * until after T has been initialized to be a pointer to that struct.
++ * similarly, during import processing structs may be used
++ * before their definition.  in those situations, calling
++ * defercheckwidth() stops width calculations until
++ * resumecheckwidth() is called, at which point all the
++ * checkwidths that were deferred are executed.
++ * dowidth should only be called when the type's size
++ * is needed immediately.  checkwidth makes sure the
++ * size is evaluated eventually.
++ */
++typedef struct TypeList TypeList;
++struct TypeList {
++	Type *t;
++	TypeList *next;
++};
++
++static TypeList *tlfree;
++static TypeList *tlq;
++
++void
++checkwidth(Type *t)
++{
++	TypeList *l;
++
++	if(t == T)
++		return;
++
++	// function arg structs should not be checked
++	// outside of the enclosing function.
++	if(t->funarg)
++		fatal("checkwidth %T", t);
++
++	if(!defercalc) {
++		dowidth(t);
++		return;
++	}
++	if(t->deferwidth)
++		return;
++	t->deferwidth = 1;
++
++	l = tlfree;
++	if(l != nil)
++		tlfree = l->next;
++	else
++		l = mal(sizeof *l);
++
++	l->t = t;
++	l->next = tlq;
++	tlq = l;
++}
++
++void
++defercheckwidth(void)
++{
++	// we get out of sync on syntax errors, so don't be pedantic.
++	// if(defercalc)
++	//	fatal("defercheckwidth");
++	defercalc = 1;
++}
++
++void
++resumecheckwidth(void)
++{
++	TypeList *l;
++
++	if(!defercalc)
++		fatal("resumecheckwidth");
++	for(l = tlq; l != nil; l = tlq) {
++		l->t->deferwidth = 0;
++		tlq = l->next;
++		dowidth(l->t);
++		l->next = tlfree;
++		tlfree = l;
++	}
++	defercalc = 0;
+ }
+ 
+ void
+@@ -263,7 +373,7 @@ typeinit(void)
+ 	isint[TUINT] = 1;
+ 	isint[TUINTPTR] = 1;
+ 
+-	for(i=TFLOAT32; i<=TFLOAT80; i++)
++	for(i=TFLOAT32; i<=TFLOAT64; i++)
+ 		isfloat[i] = 1;
+ 	isfloat[TFLOAT] = 1;
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 149ef80f34..e5799a08b4 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -553,7 +553,6 @@ cgen_as(Node *nl, Node *nr)
+ 
+ 		case TFLOAT32:
+ 		case TFLOAT64:
+-		case TFLOAT80:
+ 			nr->val.u.fval = mal(sizeof(*nr->val.u.fval));
+ 			mpmovecflt(nr->val.u.fval, 0.0);
+ 			nr->val.ctype = CTFLT;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index bd6d3aa147..2aa3b3e927 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -406,7 +406,6 @@ enum
+ 
+ 	TFLOAT32,		// 12
+ 	TFLOAT64,
+-	TFLOAT80,
+ 	TFLOAT,
+ 
+ 	TBOOL,			// 16
+@@ -430,6 +429,9 @@ enum
+ 	TIDEAL,
+ 	TNIL,
+ 	TBLANK,
++	
++	// pseudo-type for frame layout
++	TFUNCARGS,
+ 
+ 	NTYPE,
+ };
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 11e9b5a5c3..8cfa105ac3 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1207,7 +1207,6 @@ static	struct
+ 
+ 	"float32",	LNAME,		TFLOAT32,	OXXX,
+ 	"float64",	LNAME,		TFLOAT64,	OXXX,
+-	"float80",	LNAME,		TFLOAT80,	OXXX,
+ 
+ 	"bool",		LNAME,		TBOOL,		OXXX,
+ 	"byte",		LNAME,		TUINT8,		OXXX,
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index dfe4f3fa84..79065c5de5 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -687,8 +687,7 @@ dumptypestructs(void)
+ 	// but using runtime means fewer copies in .6 files.
+ 	if(strcmp(package, "runtime") == 0) {
+ 		for(i=1; i<=TBOOL; i++)
+-			if(i != TFLOAT80)
+-				dtypesym(ptrto(types[i]));
++			dtypesym(ptrto(types[i]));
+ 		dtypesym(ptrto(types[TSTRING]));
+ 		dtypesym(typ(TDDD));
+ 		dtypesym(ptrto(pkglookup("Pointer", "unsafe")->def->type));
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 35f7053e71..819ebd51c2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -899,7 +899,6 @@ etnames[] =
+ 	[TFLOAT]	= "FLOAT",
+ 	[TFLOAT32]	= "FLOAT32",
+ 	[TFLOAT64]	= "FLOAT64",
+-	[TFLOAT80]	= "FLOAT80",
+ 	[TBOOL]		= "BOOL",
+ 	[TPTR32]	= "PTR32",
+ 	[TPTR64]	= "PTR64",
+@@ -1044,7 +1043,6 @@ basicnames[] =
+ 	[TFLOAT]	= "float",
+ 	[TFLOAT32]	= "float32",
+ 	[TFLOAT64]	= "float64",
+-	[TFLOAT80]	= "float80",
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
+ 	[TDDD]		= "...",
+@@ -3073,87 +3071,6 @@ structcount(Type *t)
+ 	return v;
+ }
+ 
+-/*
+- * when a type's width should be known, we call checkwidth
+- * to compute it.  during a declaration like
+- *
+- *	type T *struct { next T }
+- *
+- * it is necessary to defer the calculation of the struct width
+- * until after T has been initialized to be a pointer to that struct.
+- * similarly, during import processing structs may be used
+- * before their definition.  in those situations, calling
+- * defercheckwidth() stops width calculations until
+- * resumecheckwidth() is called, at which point all the
+- * checkwidths that were deferred are executed.
+- * sometimes it is okay to
+- */
+-typedef struct TypeList TypeList;
+-struct TypeList {
+-	Type *t;
+-	TypeList *next;
+-};
+-
+-static TypeList *tlfree;
+-static TypeList *tlq;
+-static int defercalc;
+-
+-void
+-checkwidth(Type *t)
+-{
+-	TypeList *l;
+-
+-	// function arg structs should not be checked
+-	// outside of the enclosing function.
+-	if(t->funarg)
+-		fatal("checkwidth %T", t);
+-
+-	if(!defercalc) {
+-		dowidth(t);
+-		return;
+-	}
+-	if(t->deferwidth)
+-		return;
+-	t->deferwidth = 1;
+-
+-	l = tlfree;
+-	if(l != nil)
+-		tlfree = l->next;
+-	else
+-		l = mal(sizeof *l);
+-
+-	l->t = t;
+-	l->next = tlq;
+-	tlq = l;
+-}
+-
+-void
+-defercheckwidth(void)
+-{
+-	// we get out of sync on syntax errors, so don't be pedantic.
+-	// if(defercalc)
+-	//	fatal("defercheckwidth");
+-	defercalc = 1;
+-}
+-
+-void
+-resumecheckwidth(void)
+-{
+-	TypeList *l;
+-
+-	if(!defercalc)
+-		fatal("restartcheckwidth");
+-	defercalc = 0;
+-
+-	for(l = tlq; l != nil; l = tlq) {
+-		l->t->deferwidth = 0;
+-		dowidth(l->t);
+-		tlq = l->next;
+-		l->next = tlfree;
+-		tlfree = l;
+-	}
+-}
+-
+ /*
+  * return power of 2 of the constant
+  * operand. -1 if it is not a power of 2.
+diff --git a/test/bugs/bug190.go b/test/fixedbugs/bug190.go
+similarity index 100%
+rename from test/bugs/bug190.go
+rename to test/fixedbugs/bug190.go
+diff --git a/test/golden.out b/test/golden.out
+index 52fe9ec53b..5e621ccdf4 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,15 +150,6 @@ BUG: should fail
+ =========== bugs/bug169.go
+ BUG: errchk: command succeeded unexpectedly
+ 
+-=========== bugs/bug190.go
+-bugs/bug190.go:11: invalid recursive type []S
+-bugs/bug190.go:13: invalid recursive type chan S
+-bugs/bug190.go:15: invalid recursive type func(S) (S)
+-bugs/bug190.go:16: invalid recursive type S
+-bugs/bug190.go:16: invalid recursive type S
+-bugs/bug190.go:16: invalid recursive type S
+-BUG: should compile
+-
+ =========== bugs/bug193.go
+ BUG: errchk: bugs/bug193.go:14: missing expected error: 'shift'
+ 
+@@ -167,9 +158,5 @@ too many calls: 5
+ panic PC=xxx
+ BUG: bug196
+ 
+-=========== bugs/bug210.go
+-bugs/bug210.go:10: invalid recursive type []T
+-BUG: should compile
+-
+ =========== bugs/bug211.go
+ BUG: errchk: command succeeded unexpectedly

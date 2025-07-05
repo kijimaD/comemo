@@ -9,6 +9,19 @@ Date:   Mon May 20 18:15:05 2019 +0300
     Change-Id: If4c9dd3a2af748974141ad6e571f80efcbaad772
     Reviewed-on: https://go-review.googlesource.com/c/go/+/177899
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 0f36881b1e..05d01d0294 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -220,6 +220,7 @@ func TODO() Context {
+ 
+ // A CancelFunc tells an operation to abandon its work.
+ // A CancelFunc does not wait for the work to stop.
++// A CancelFunc may be called by multiple goroutines simultaneously.
+ // After the first call, subsequent calls to a CancelFunc do nothing.
+ type CancelFunc func()
+ 

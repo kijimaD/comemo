@@ -8,8 +8,138 @@ Date:   Sat Apr 18 16:44:13 2009 -0700
     DELTA=22  (5 added, 0 deleted, 17 changed)
     OCL=27608
     CL=27614
-
+---
  src/lib/os/error.go          |  4 ++--
  src/lib/template/template.go |  4 +++-
  src/lib/time/zoneinfo.go     | 31 +++++++++++++++++--------------
  3 files changed, 22 insertions(+), 17 deletions(-)
+
+diff --git a/src/lib/os/error.go b/src/lib/os/error.go
+index dbba16c03e..f2960a59c1 100644
+--- a/src/lib/os/error.go
++++ b/src/lib/os/error.go
+@@ -25,8 +25,8 @@ func (e Errno) String() string {
+ 	return syscall.Errstr(e)
+ }
+ 
+-// ErrnoToError calls NewError to create an _Error object for the string
+-// associated with Unix error code errno.
++// ErrnoToError converts errno to an Error (underneath, an Errno).
++// It returns nil for the "no error" errno.
+ func ErrnoToError(errno int64) Error {
+ 	if errno == 0 {
+ 		return nil
+diff --git a/src/lib/template/template.go b/src/lib/template/template.go
+index 36ff60937a..933ef76a89 100644
+--- a/src/lib/template/template.go
++++ b/src/lib/template/template.go
+@@ -68,7 +68,9 @@ import (
+ 
+ // Errors returned during parsing. TODO: different error model for execution?
+ 
+-type ParseError struct { os.ErrorString }
++type ParseError struct {
++	os.ErrorString
++}
+ 
+ // All the literals are aces.
+ var lbrace = []byte{ '{' }
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index 0eda397c69..cab38af34a 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -23,10 +23,13 @@ const (
+ )
+ 
+ // Errors that can be generated recovering time zone information.
+-var (
+-	badZoneinfo = os.NewError("time: malformed zoneinfo");
+-	noZoneinfo = os.NewError("time: unknown time zone")
+-)
++type TimeZoneError struct {
++	os.ErrorString
++}
++
++func error(bytes []byte) os.Error {
++	return TimeZoneError{ `time: malformed zoneinfo: "` + string(bytes) + `"` };
++}
+ 
+ // Simple I/O interface to binary blob of data.
+ type data struct {
+@@ -93,13 +96,13 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 
+ 	// 4-byte magic "TZif"
+ 	if magic := d.read(4); string(magic) != "TZif" {
+-		return nil, badZoneinfo
++		return nil, error(bytes)
+ 	}
+ 
+ 	// 1-byte version, then 15 bytes of padding
+ 	var p []byte;
+ 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+-		return nil, badZoneinfo
++		return nil, error(bytes)
+ 	}
+ 	vers := p[0];
+ 
+@@ -122,7 +125,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	for i := 0; i < 6; i++ {
+ 		nn, ok := d.big4();
+ 		if !ok {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		n[i] = int(nn);
+ 	}
+@@ -151,7 +154,7 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 	isutc := d.read(n[NUTCLocal]);
+ 
+ 	if d.error {	// ran out of data
+-		return nil, badZoneinfo
++		return nil, error(bytes)
+ 	}
+ 
+ 	// If version == 2, the entire file repeats, this time using
+@@ -166,16 +169,16 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = zonedata.big4(); !ok {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		z[i].utcoff = int(n);
+ 		var b byte;
+ 		if b, ok = zonedata.byte(); !ok {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		z[i].isdst = b != 0;
+ 		if b, ok = zonedata.byte(); !ok || int(b) >= len(abbrev) {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		z[i].name = byteString(abbrev[b:len(abbrev)])
+ 	}
+@@ -186,11 +189,11 @@ func parseinfo(bytes []byte) (zt []zonetime, err os.Error) {
+ 		var ok bool;
+ 		var n uint32;
+ 		if n, ok = txtimes.big4(); !ok {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		zt[i].time = int32(n);
+ 		if int(txzones[i]) >= len(z) {
+-			return nil, badZoneinfo
++			return nil, error(bytes)
+ 		}
+ 		zt[i].zone = &z[txzones[i]];
+ 		if i < len(isstd) {
+@@ -212,7 +215,7 @@ func readfile(name string, max int) (p []byte, err os.Error) {
+ 	n, err1 := io.Readn(f, p);
+ 	f.Close();
+ 	if err1 == nil {	// too long
+-		return nil, badZoneinfo;
++		return nil, TimeZoneError{ "time: zone file too long: " + name };
+ 	}
+ 	if err1 != io.ErrEOF {
+ 		return nil, err1;

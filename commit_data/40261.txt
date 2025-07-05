@@ -11,7 +11,32 @@ Date:   Fri Apr 26 14:49:41 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modfetch/codehost/git.go       | 2 +-
  src/cmd/go/testdata/script/mod_get_private_vcs.txt | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 588e7496cc..2cb6637aae 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -166,7 +166,7 @@ func (r *gitRepo) loadRefs() {
+ 	if err != nil {
+ 		if rerr, ok := err.(*RunError); ok {
+ 			if bytes.Contains(rerr.Stderr, []byte("fatal: could not read Username")) {
+-				rerr.HelpText = "If this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
++				rerr.HelpText = "Confirm the import path was entered correctly.\nIf this is a private repository, see https://golang.org/doc/faq#git_https for additional information."
+ 			}
+ 		}
+ 		r.refsErr = err
+diff --git a/src/cmd/go/testdata/script/mod_get_private_vcs.txt b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+index 86d78e8381..1c73182206 100644
+--- a/src/cmd/go/testdata/script/mod_get_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+@@ -6,5 +6,6 @@ env GO111MODULE=on
+ env GOPROXY=
+ 
+ ! go get github.com/golang/nonexist
++stderr 'Confirm the import path was entered correctly.'
+ stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
+ ! stdout .

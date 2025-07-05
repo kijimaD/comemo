@@ -20,7 +20,74 @@ Date:   Wed Aug 17 01:51:01 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/409754
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/request.go      |  3 +++
  src/net/http/request_test.go | 41 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 5439cb3646..a03a54b943 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -416,6 +416,9 @@ var ErrNoCookie = errors.New("http: named cookie not present")
+ // If multiple cookies match the given name, only one cookie will
+ // be returned.
+ func (r *Request) Cookie(name string) (*Cookie, error) {
++	if name == "" {
++		return nil, ErrNoCookie
++	}
+ 	for _, c := range readCookies(r.Header, name) {
+ 		return c, nil
+ 	}
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index d285840c1c..ce673d34a2 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -1177,6 +1177,47 @@ func testMultipartFile(t *testing.T, req *Request, key, expectFilename, expectCo
+ 	return f
+ }
+ 
++// Issue 53181: verify Request.Cookie return the correct Cookie.
++// Return ErrNoCookie instead of the first cookie when name is "".
++func TestRequestCookie(t *testing.T) {
++	for _, tt := range []struct {
++		name        string
++		value       string
++		expectedErr error
++	}{
++		{
++			name:        "foo",
++			value:       "bar",
++			expectedErr: nil,
++		},
++		{
++			name:        "",
++			expectedErr: ErrNoCookie,
++		},
++	} {
++		req, err := NewRequest("GET", "http://example.com/", nil)
++		if err != nil {
++			t.Fatal(err)
++		}
++		req.AddCookie(&Cookie{Name: tt.name, Value: tt.value})
++		c, err := req.Cookie(tt.name)
++		if err != tt.expectedErr {
++			t.Errorf("got %v, want %v", err, tt.expectedErr)
++		}
++
++		// skip if error occured.
++		if err != nil {
++			continue
++		}
++		if c.Value != tt.value {
++			t.Errorf("got %v, want %v", c.Value, tt.value)
++		}
++		if c.Name != tt.name {
++			t.Errorf("got %s, want %v", tt.name, c.Name)
++		}
++	}
++}
++
+ const (
+ 	fileaContents = "This is a test file."
+ 	filebContents = "Another test file."

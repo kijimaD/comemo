@@ -13,6 +13,21 @@ Date:   Wed Nov 2 09:28:54 2022 +0100
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/testing/benchmark.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 31fc7d7156..be9b87f80b 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -777,6 +777,9 @@ func (pb *PB) Next() bool {
+ // goroutine-local state and then iterate until pb.Next returns false.
+ // It should not use the StartTimer, StopTimer, or ResetTimer functions,
+ // because they have global effect. It should also not call Run.
++//
++// RunParallel reports ns/op values as wall time for the benchmark as a whole,
++// not the sum of wall time or CPU time over each parallel goroutine.
+ func (b *B) RunParallel(body func(*PB)) {
+ 	if b.N == 0 {
+ 		return // Nothing to do when probing.

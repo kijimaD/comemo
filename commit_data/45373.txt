@@ -21,8 +21,453 @@ Date:   Mon Oct 19 07:46:09 2020 -0400
     Trust: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/build.go     |  53 +++++++++++--
  src/go/build/read.go      | 189 +++++++++++++++++++++++++++++++++++++++++++++-
  src/go/build/read_test.go |  56 ++++++++++++++
  3 files changed, 290 insertions(+), 8 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 4e784a6c98..80e9b9c739 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -432,17 +432,26 @@ type Package struct {
+ 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
+ 	CgoPkgConfig []string // Cgo pkg-config directives
+ 
+-	// Dependency information
+-	Imports   []string                    // import paths from GoFiles, CgoFiles
+-	ImportPos map[string][]token.Position // line information for Imports
+-
+ 	// Test information
+-	TestGoFiles    []string                    // _test.go files in package
++	TestGoFiles  []string // _test.go files in package
++	XTestGoFiles []string // _test.go files outside package
++
++	// Dependency information
++	Imports        []string                    // import paths from GoFiles, CgoFiles
++	ImportPos      map[string][]token.Position // line information for Imports
+ 	TestImports    []string                    // import paths from TestGoFiles
+ 	TestImportPos  map[string][]token.Position // line information for TestImports
+-	XTestGoFiles   []string                    // _test.go files outside package
+ 	XTestImports   []string                    // import paths from XTestGoFiles
+ 	XTestImportPos map[string][]token.Position // line information for XTestImports
++
++	// //go:embed patterns found in Go source files
++	// For example, if a source file says
++	//	//go:embed a* b.c
++	// then the list will contain those two strings as separate entries.
++	// (See package embed for more details about //go:embed.)
++	EmbedPatterns      []string // patterns from GoFiles, CgoFiles
++	TestEmbedPatterns  []string // patterns from TestGoFiles
++	XTestEmbedPatterns []string // patterns from XTestGoFiles
+ }
+ 
+ // IsCommand reports whether the package is considered a
+@@ -785,6 +794,7 @@ Found:
+ 	var badGoError error
+ 	var Sfiles []string // files with ".S"(capital S)/.sx(capital s equivalent for case insensitive filesystems)
+ 	var firstFile, firstCommentFile string
++	var embeds, testEmbeds, xTestEmbeds []string
+ 	imported := make(map[string][]token.Position)
+ 	testImported := make(map[string][]token.Position)
+ 	xTestImported := make(map[string][]token.Position)
+@@ -910,7 +920,7 @@ Found:
+ 			}
+ 		}
+ 
+-		var fileList *[]string
++		var fileList, embedList *[]string
+ 		var importMap map[string][]token.Position
+ 		switch {
+ 		case isCgo:
+@@ -918,6 +928,7 @@ Found:
+ 			if ctxt.CgoEnabled {
+ 				fileList = &p.CgoFiles
+ 				importMap = imported
++				embedList = &embeds
+ 			} else {
+ 				// Ignore imports from cgo files if cgo is disabled.
+ 				fileList = &p.IgnoredGoFiles
+@@ -925,12 +936,15 @@ Found:
+ 		case isXTest:
+ 			fileList = &p.XTestGoFiles
+ 			importMap = xTestImported
++			embedList = &xTestEmbeds
+ 		case isTest:
+ 			fileList = &p.TestGoFiles
+ 			importMap = testImported
++			embedList = &testEmbeds
+ 		default:
+ 			fileList = &p.GoFiles
+ 			importMap = imported
++			embedList = &embeds
+ 		}
+ 		*fileList = append(*fileList, name)
+ 		if importMap != nil {
+@@ -938,6 +952,9 @@ Found:
+ 				importMap[imp.path] = append(importMap[imp.path], fset.Position(imp.pos))
+ 			}
+ 		}
++		if embedList != nil {
++			*embedList = append(*embedList, info.embeds...)
++		}
+ 	}
+ 
+ 	for tag := range allTags {
+@@ -945,6 +962,10 @@ Found:
+ 	}
+ 	sort.Strings(p.AllTags)
+ 
++	p.EmbedPatterns = uniq(embeds)
++	p.TestEmbedPatterns = uniq(testEmbeds)
++	p.XTestEmbedPatterns = uniq(xTestEmbeds)
++
+ 	p.Imports, p.ImportPos = cleanImports(imported)
+ 	p.TestImports, p.TestImportPos = cleanImports(testImported)
+ 	p.XTestImports, p.XTestImportPos = cleanImports(xTestImported)
+@@ -993,6 +1014,22 @@ func fileListForExt(p *Package, ext string) *[]string {
+ 	return nil
+ }
+ 
++func uniq(list []string) []string {
++	if list == nil {
++		return nil
++	}
++	out := make([]string, len(list))
++	copy(out, list)
++	sort.Strings(out)
++	uniq := out[:0]
++	for _, x := range out {
++		if len(uniq) == 0 || uniq[len(uniq)-1] != x {
++			uniq = append(uniq, x)
++		}
++	}
++	return uniq
++}
++
+ var errNoModules = errors.New("not using modules")
+ 
+ // importGo checks whether it can use the go command to find the directory for path.
+@@ -1298,6 +1335,8 @@ type fileInfo struct {
+ 	parsed   *ast.File
+ 	parseErr error
+ 	imports  []fileImport
++	embeds   []string
++	embedErr error
+ }
+ 
+ type fileImport struct {
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index 7c81097c33..6806a51c24 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -12,6 +12,8 @@ import (
+ 	"go/parser"
+ 	"io"
+ 	"strconv"
++	"strings"
++	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -61,6 +63,29 @@ func (r *importReader) readByte() byte {
+ 	return c
+ }
+ 
++// readByteNoBuf is like readByte but doesn't buffer the byte.
++// It exhausts r.buf before reading from r.b.
++func (r *importReader) readByteNoBuf() byte {
++	if len(r.buf) > 0 {
++		c := r.buf[0]
++		r.buf = r.buf[1:]
++		return c
++	}
++	c, err := r.b.ReadByte()
++	if err == nil && c == 0 {
++		err = errNUL
++	}
++	if err != nil {
++		if err == io.EOF {
++			r.eof = true
++		} else if r.err == nil {
++			r.err = err
++		}
++		c = 0
++	}
++	return c
++}
++
+ // peekByte returns the next byte from the input reader but does not advance beyond it.
+ // If skipSpace is set, peekByte skips leading spaces and comments.
+ func (r *importReader) peekByte(skipSpace bool) byte {
+@@ -121,6 +146,74 @@ func (r *importReader) nextByte(skipSpace bool) byte {
+ 	return c
+ }
+ 
++var goEmbed = []byte("go:embed")
++
++// findEmbed advances the input reader to the next //go:embed comment.
++// It reports whether it found a comment.
++// (Otherwise it found an error or EOF.)
++func (r *importReader) findEmbed(first bool) bool {
++	// The import block scan stopped after a non-space character,
++	// so the reader is not at the start of a line on the first call.
++	// After that, each //go:embed extraction leaves the reader
++	// at the end of a line.
++	startLine := !first
++	var c byte
++	for r.err == nil && !r.eof {
++		c = r.readByteNoBuf()
++	Reswitch:
++		switch c {
++		default:
++			startLine = false
++
++		case '\n':
++			startLine = true
++
++		case ' ', '\t':
++			// leave startLine alone
++
++		case '/':
++			c = r.readByteNoBuf()
++			switch c {
++			default:
++				startLine = false
++				goto Reswitch
++
++			case '*':
++				var c1 byte
++				for (c != '*' || c1 != '/') && r.err == nil {
++					if r.eof {
++						r.syntaxError()
++					}
++					c, c1 = c1, r.readByteNoBuf()
++				}
++				startLine = false
++
++			case '/':
++				if startLine {
++					// Try to read this as a //go:embed comment.
++					for i := range goEmbed {
++						c = r.readByteNoBuf()
++						if c != goEmbed[i] {
++							goto SkipSlashSlash
++						}
++					}
++					c = r.readByteNoBuf()
++					if c == ' ' || c == '\t' {
++						// Found one!
++						return true
++					}
++				}
++			SkipSlashSlash:
++				for c != '\n' && r.err == nil && !r.eof {
++					c = r.readByteNoBuf()
++				}
++				startLine = true
++			}
++		}
++	}
++	return false
++}
++
+ // readKeyword reads the given keyword from the input.
+ // If the keyword is not present, readKeyword records a syntax error.
+ func (r *importReader) readKeyword(kw string) {
+@@ -207,7 +300,7 @@ func readComments(f io.Reader) ([]byte, error) {
+ // readGoInfo expects a Go file as input and reads the file up to and including the import section.
+ // It records what it learned in *info.
+ // If info.fset is non-nil, readGoInfo parses the file and sets info.parsed, info.parseErr,
+-// and info.imports.
++// info.imports, info.embeds, and info.embedErr.
+ //
+ // It only returns an error if there are problems reading the file,
+ // not for syntax errors in the file itself.
+@@ -260,6 +353,7 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 		return nil
+ 	}
+ 
++	hasEmbed := false
+ 	for _, decl := range info.parsed.Decls {
+ 		d, ok := decl.(*ast.GenDecl)
+ 		if !ok {
+@@ -275,6 +369,9 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 			if err != nil {
+ 				return fmt.Errorf("parser returned invalid quoted string: <%s>", quoted)
+ 			}
++			if path == "embed" {
++				hasEmbed = true
++			}
+ 
+ 			doc := spec.Doc
+ 			if doc == nil && len(d.Specs) == 1 {
+@@ -284,5 +381,95 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 		}
+ 	}
+ 
++	// If the file imports "embed",
++	// we have to look for //go:embed comments
++	// in the remainder of the file.
++	// The compiler will enforce the mapping of comments to
++	// declared variables. We just need to know the patterns.
++	// If there were //go:embed comments earlier in the file
++	// (near the package statement or imports), the compiler
++	// will reject them. They can be (and have already been) ignored.
++	if hasEmbed {
++		var line []byte
++		for first := true; r.findEmbed(first); first = false {
++			line = line[:0]
++			for {
++				c := r.readByteNoBuf()
++				if c == '\n' || r.err != nil || r.eof {
++					break
++				}
++				line = append(line, c)
++			}
++			// Add args if line is well-formed.
++			// Ignore badly-formed lines - the compiler will report them when it finds them,
++			// and we can pretend they are not there to help go list succeed with what it knows.
++			args, err := parseGoEmbed(string(line))
++			if err == nil {
++				info.embeds = append(info.embeds, args...)
++			}
++		}
++	}
++
+ 	return nil
+ }
++
++// parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
++// It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
++// There is a copy of this code in cmd/compile/internal/gc/noder.go as well.
++func parseGoEmbed(args string) ([]string, error) {
++	var list []string
++	for args = strings.TrimSpace(args); args != ""; args = strings.TrimSpace(args) {
++		var path string
++	Switch:
++		switch args[0] {
++		default:
++			i := len(args)
++			for j, c := range args {
++				if unicode.IsSpace(c) {
++					i = j
++					break
++				}
++			}
++			path = args[:i]
++			args = args[i:]
++
++		case '`':
++			i := strings.Index(args[1:], "`")
++			if i < 0 {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++			path = args[1 : 1+i]
++			args = args[1+i+1:]
++
++		case '"':
++			i := 1
++			for ; i < len(args); i++ {
++				if args[i] == '\\' {
++					i++
++					continue
++				}
++				if args[i] == '"' {
++					q, err := strconv.Unquote(args[:i+1])
++					if err != nil {
++						return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args[:i+1])
++					}
++					path = q
++					args = args[i+1:]
++					break Switch
++				}
++			}
++			if i >= len(args) {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++		}
++
++		if args != "" {
++			r, _ := utf8.DecodeRuneInString(args)
++			if !unicode.IsSpace(r) {
++				return nil, fmt.Errorf("invalid quoted string in //go:embed: %s", args)
++			}
++		}
++		list = append(list, path)
++	}
++	return list, nil
++}
+diff --git a/src/go/build/read_test.go b/src/go/build/read_test.go
+index b0898912e9..dc75c9f202 100644
+--- a/src/go/build/read_test.go
++++ b/src/go/build/read_test.go
+@@ -5,7 +5,9 @@
+ package build
+ 
+ import (
++	"go/token"
+ 	"io"
++	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+@@ -224,3 +226,57 @@ func TestReadFailuresIgnored(t *testing.T) {
+ 		return info.header, err
+ 	})
+ }
++
++var readEmbedTests = []struct {
++	in  string
++	out []string
++}{
++	{
++		"package p\n",
++		nil,
++	},
++	{
++		"package p\nimport \"embed\"\nvar i int\n//go:embed x y z\nvar files embed.Files",
++		[]string{"x", "y", "z"},
++	},
++	{
++		"package p\nimport \"embed\"\nvar i int\n//go:embed x \"\\x79\" `z`\nvar files embed.Files",
++		[]string{"x", "y", "z"},
++	},
++	{
++		"package p\nimport \"embed\"\nvar i int\n//go:embed x y\n//go:embed z\nvar files embed.Files",
++		[]string{"x", "y", "z"},
++	},
++	{
++		"package p\nimport \"embed\"\nvar i int\n\t //go:embed x y\n\t //go:embed z\n\t var files embed.Files",
++		[]string{"x", "y", "z"},
++	},
++	{
++		"package p\nimport \"embed\"\n//go:embed x y z\nvar files embed.Files",
++		[]string{"x", "y", "z"},
++	},
++	{
++		"package p\n//go:embed x y z\n", // no import, no scan
++		nil,
++	},
++	{
++		"package p\n//go:embed x y z\nvar files embed.Files", // no import, no scan
++		nil,
++	},
++}
++
++func TestReadEmbed(t *testing.T) {
++	fset := token.NewFileSet()
++	for i, tt := range readEmbedTests {
++		var info fileInfo
++		info.fset = fset
++		err := readGoInfo(strings.NewReader(tt.in), &info)
++		if err != nil {
++			t.Errorf("#%d: %v", i, err)
++			continue
++		}
++		if !reflect.DeepEqual(info.embeds, tt.out) {
++			t.Errorf("#%d: embeds=%v, want %v", i, info.embeds, tt.out)
++		}
++	}
++}

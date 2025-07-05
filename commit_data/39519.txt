@@ -11,7 +11,60 @@ Date:   Tue Mar 5 03:10:38 2019 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_at.go   |  3 ++-
  src/os/removeall_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 0b7d5efb7a..94232cf556 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -92,7 +92,8 @@ func removeAllFrom(parent *File, path string) error {
+ 			if IsNotExist(err) {
+ 				return nil
+ 			}
+-			return err
++			recurseErr = err
++			break
+ 		}
+ 
+ 		names, readErr := file.Readdirnames(request)
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 9dab0d4bb1..21371d8776 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -372,3 +372,33 @@ func TestRemoveAllButReadOnly(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRemoveUnreadableDir(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl", "js", "windows":
++		t.Skipf("skipping test on %s", runtime.GOOS)
++	}
++
++	if Getuid() == 0 {
++		t.Skip("skipping test when running as root")
++	}
++
++	t.Parallel()
++
++	tempDir, err := ioutil.TempDir("", "TestRemoveAllButReadOnly-")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer RemoveAll(tempDir)
++
++	target := filepath.Join(tempDir, "d0", "d1", "d2")
++	if err := MkdirAll(target, 0755); err != nil {
++		t.Fatal(err)
++	}
++	if err := Chmod(target, 0300); err != nil {
++		t.Fatal(err)
++	}
++	if err := RemoveAll(filepath.Join(tempDir, "d0")); err != nil {
++		t.Fatal(err)
++	}
++}

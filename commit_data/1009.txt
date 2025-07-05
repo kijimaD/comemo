@@ -7,6 +7,22 @@ Date:   Thu Oct 30 15:35:56 2008 -0700
     R=ken
     OCL=18180
     CL=18180
-
+---
  src/cmd/gc/subr.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 24e894d897..c689386588 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1360,6 +1360,10 @@ loop:
+ 		*p++ = '\\';
+ 		*p++ = 'n';
+ 		break;
++	case '\"':
++		*p++ = '\\';
++		*p++ = c;
++		break;
+ 	}
+ 	goto loop;
+ 

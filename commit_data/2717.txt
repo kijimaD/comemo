@@ -28,8 +28,208 @@ Date:   Wed Jul 15 10:49:47 2009 -0700
     DELTA=117  (57 added, 44 deleted, 16 changed)
     OCL=31656
     CL=31685
-
+---
  src/pkg/http/client.go | 72 ++++++++++++++++++++++++++++----------------------
  src/pkg/rpc/client.go  | 18 +++++++++++--
  src/pkg/rpc/server.go  | 31 ++++++++--------------
  3 files changed, 67 insertions(+), 54 deletions(-)
+
+diff --git a/src/pkg/http/client.go b/src/pkg/http/client.go
+index 8a60967a4c..197f6c8582 100644
+--- a/src/pkg/http/client.go
++++ b/src/pkg/http/client.go
+@@ -71,6 +71,43 @@ type readClose struct {
+ 	io.Closer;
+ }
+ 
++// ReadResponse reads and returns an HTTP response from r.
++func ReadResponse(r *bufio.Reader) (*Response, os.Error) {
++	resp := new(Response);
++
++	// Parse the first line of the response.
++	resp.Header = make(map[string] string);
++
++	line, err := readLine(r);
++	if err != nil {
++		return nil, err;
++	}
++	f := strings.Split(line, " ", 3);
++	if len(f) < 3 {
++		return nil, &badStringError{"malformed HTTP response", line};
++	}
++	resp.Status = f[1] + " " + f[2];
++	resp.StatusCode, err = strconv.Atoi(f[1]);
++	if err != nil {
++		return nil, &badStringError{"malformed HTTP status code", f[1]};
++	}
++
++	// Parse the response headers.
++	for {
++		key, value, err := readKeyValue(r);
++		if err != nil {
++			return nil, err;
++		}
++		if key == "" {
++			break; // end of response header
++		}
++		resp.AddHeader(key, value);
++	}
++
++	return resp, nil;
++}
++
++
+ // Send issues an HTTP request.  Caller should close resp.Body when done reading it.
+ //
+ // TODO: support persistent connections (multiple requests on a single connection).
+@@ -90,45 +127,18 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 		return nil, err;
+ 	}
+ 
+-	// Close the connection if we encounter an error during header parsing.  We'll
+-	// cancel this when we hand the connection off to our caller.
+-	defer func() { if conn != nil { conn.Close() } }();
+-
+ 	err = req.write(conn);
+ 	if err != nil {
++		conn.Close();
+ 		return nil, err;
+ 	}
+ 
+-	// Parse the first line of the response.
+-	resp = new(Response);
+-	resp.Header = make(map[string] string);
+ 	reader := bufio.NewReader(conn);
+-
+-	line, err := readLine(reader);
++	resp, err = ReadResponse(reader);
+ 	if err != nil {
++		conn.Close();
+ 		return nil, err;
+ 	}
+-	f := strings.Split(line, " ", 3);
+-	if len(f) < 3 {
+-		return nil, &badStringError{"malformed HTTP response", line};
+-	}
+-	resp.Status = f[1] + " " + f[2];
+-	resp.StatusCode, err = strconv.Atoi(f[1]);
+-	if err != nil {
+-		return nil, &badStringError{"malformed HTTP status code", f[1]};
+-	}
+-
+-	// Parse the response headers.
+-	for {
+-		key, value, err := readKeyValue(reader);
+-		if err != nil {
+-			return nil, err;
+-		}
+-		if key == "" {
+-			break; // end of response header
+-		}
+-		resp.AddHeader(key, value);
+-	}
+ 
+ 	r := io.Reader(reader);
+ 	if v := resp.GetHeader("Transfer-Encoding"); v == "chunked" {
+@@ -136,8 +146,6 @@ func send(req *Request) (resp *Response, err os.Error) {
+ 	}
+ 	resp.Body = readClose{ r, conn };
+ 
+-	conn = nil; // so that defered func won't close it
+-	err = nil;
+ 	return;
+ }
+ 
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 1bbe4241bc..a18f9f15ae 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -5,12 +5,15 @@
+ package rpc
+ 
+ import (
++	"bufio";
+ 	"gob";
++	"http";
+ 	"io";
+ 	"log";
+ 	"net";
+ 	"os";
+ 	"rpc";
++	"strconv";
+ 	"sync";
+ )
+ 
+@@ -101,8 +104,19 @@ func DialHTTP(network, address string) (*Client, os.Error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	io.WriteString(conn, "GET " + rpcPath + " HTTP/1.0\n\n");
+-	return NewClient(conn), nil;
++	io.WriteString(conn, "CONNECT " + rpcPath + " HTTP/1.0\n\n");
++
++	// Require successful HTTP response
++	// before switching to RPC protocol.
++	resp, err := http.ReadResponse(bufio.NewReader(conn));
++	if err == nil && resp.Status == connected {
++		return NewClient(conn), nil;
++	}
++	if err == nil {
++		err = os.ErrorString("unexpected HTTP response: " + resp.Status);
++	}
++	conn.Close();
++	return nil, &net.OpError{"dial-http", network, address, err};
+ }
+ 
+ // Dial connects to an RPC server at the specified network address.
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 6012613ce3..142f00acf4 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -250,35 +250,26 @@ func Accept(lis net.Listener) {
+ 	server.accept(lis)
+ }
+ 
+-type bufRWC struct {
+-	r io.Reader;
+-	w io.Writer;
+-	c io.Closer;
+-}
+-
+-func (b *bufRWC) Read(p []byte) (n int, err os.Error) {
+-	return b.r.Read(p);
+-}
+-
+-func (b *bufRWC) Write(p []byte) (n int, err os.Error) {
+-	return b.w.Write(p);
+-}
+-
+-func (b *bufRWC) Close() os.Error {
+-	return b.c.Close();
+-}
++// Can connect to RPC service using HTTP CONNECT to rpcPath.
++var rpcPath string = "/_goRPC_"
++var connected = "200 Connected to Go RPC"
+ 
+ func serveHTTP(c *http.Conn, req *http.Request) {
++	if req.Method != "CONNECT" {
++		c.SetHeader("Content-Type", "text/plain; charset=utf-8");
++		c.WriteHeader(http.StatusMethodNotAllowed);
++		io.WriteString(c, "405 must CONNECT to " + rpcPath + "\n");
++		return;
++	}
+ 	conn, buf, err := c.Hijack();
+ 	if err != nil {
+ 		log.Stderr("rpc hijacking ", c.RemoteAddr, ": ", err.String());
+ 		return;
+ 	}
+-	server.serve(&bufRWC{buf, conn, conn});
++	io.WriteString(conn, "HTTP/1.0 " + connected + "\n\n");
++	server.serve(conn);
+ }
+ 
+-var rpcPath string = "/_goRPC_"
+-
+ // HandleHTTP registers an HTTP handler for RPC messages.
+ // It is still necessary to call http.Serve().
+ func HandleHTTP() {

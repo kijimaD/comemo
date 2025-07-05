@@ -10,6 +10,14 @@ Date:   Fri Dec 20 10:53:50 2013 -0500
     R=golang-codereviews, gobot, golang-dev, dsymonds
     CC=golang-codereviews, golang-dev
     https://golang.org/cl/44450043
-
+---
  lib/codereview/codereview.cfg | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.cfg b/lib/codereview/codereview.cfg
+index 93b55c0a3f..2801ebf8d6 100644
+--- a/lib/codereview/codereview.cfg
++++ b/lib/codereview/codereview.cfg
+@@ -1 +1 @@
+-defaultcc: golang-dev@googlegroups.com
++defaultcc: golang-codereviews@googlegroups.com

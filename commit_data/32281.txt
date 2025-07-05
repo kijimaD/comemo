@@ -9,7 +9,7 @@ Date:   Tue Apr 18 05:08:35 2017 +0900
     Change-Id: I026fc9499fdefc33b8bb58b5963e2290adacbf63
     Reviewed-on: https://go-review.googlesource.com/40895
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/poll/hook_cloexec.go        | 2 +-
  src/internal/poll/sock_cloexec.go        | 2 +-
  src/internal/poll/sys_cloexec.go         | 2 +-
@@ -18,3 +18,95 @@ Date:   Tue Apr 18 05:08:35 2017 +0900
  src/net/sock_cloexec.go                  | 2 +-
  src/net/sys_cloexec.go                   | 2 +-
  7 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/poll/hook_cloexec.go b/src/internal/poll/hook_cloexec.go
+index 062c343aba..73df6ed6be 100644
+--- a/src/internal/poll/hook_cloexec.go
++++ b/src/internal/poll/hook_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 705f2c8f79..0d5c8bdabf 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ package poll
+ 
+diff --git a/src/internal/poll/sys_cloexec.go b/src/internal/poll/sys_cloexec.go
+index d0012459e7..9ed35bdaf4 100644
+--- a/src/internal/poll/sys_cloexec.go
++++ b/src/internal/poll/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin dragonfly nacl netbsd openbsd solaris
++// +build darwin nacl netbsd openbsd solaris
+ 
+ package poll
+ 
+diff --git a/src/net/internal/socktest/sys_cloexec.go b/src/net/internal/socktest/sys_cloexec.go
+index 340ff071e7..007710c486 100644
+--- a/src/net/internal/socktest/sys_cloexec.go
++++ b/src/net/internal/socktest/sys_cloexec.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ package socktest
+ 
+diff --git a/src/net/main_cloexec_test.go b/src/net/main_cloexec_test.go
+index ade71a9490..fa1ed02057 100644
+--- a/src/net/main_cloexec_test.go
++++ b/src/net/main_cloexec_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ package net
+ 
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 3f5be2d62c..06ff10d834 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build freebsd linux
++// +build dragonfly freebsd linux
+ 
+ package net
+ 
+diff --git a/src/net/sys_cloexec.go b/src/net/sys_cloexec.go
+index b7a842501e..c4dc6c75ee 100644
+--- a/src/net/sys_cloexec.go
++++ b/src/net/sys_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements sysSocket and accept for platforms that do not
+ // provide a fast path for setting SetNonblock and CloseOnExec.
+ 
+-// +build darwin dragonfly nacl netbsd openbsd solaris
++// +build darwin nacl netbsd openbsd solaris
+ 
+ package net
+ 

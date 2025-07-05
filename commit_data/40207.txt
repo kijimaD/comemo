@@ -9,6 +9,24 @@ Date:   Fri Apr 26 06:41:14 2019 -0700
     Change-Id: I3d9ad7896d528d8274ec78378a546b0356986b9d
     Reviewed-on: https://go-review.googlesource.com/c/go/+/174078
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs1_netbsd_arm64.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_arm64.go b/src/runtime/defs1_netbsd_arm64.go
+index d40b88286b..41b7aaca6c 100644
+--- a/src/runtime/defs1_netbsd_arm64.go
++++ b/src/runtime/defs1_netbsd_arm64.go
+@@ -128,9 +128,9 @@ type itimerval struct {
+ }
+ 
+ type mcontextt struct {
+-	__gregs     [35]uint64
+-	__fregs     [4160]byte // _NFREG * 128 + 32 + 32
+-	_           [8]uint64 // future use
++	__gregs [35]uint64
++	__fregs [4160]byte // _NFREG * 128 + 32 + 32
++	_       [8]uint64  // future use
+ }
+ 
+ type ucontextt struct {

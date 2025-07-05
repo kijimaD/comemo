@@ -14,7 +14,127 @@ Date:   Wed Dec 12 08:35:08 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6922049
-
+---
  src/cmd/6g/ggen.c | 30 +++++++++++-------------------
  src/cmd/8g/ggen.c | 21 ++++++++++-----------
  2 files changed, 21 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index db83d57699..d8ac6cef63 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -454,10 +454,10 @@ void
+ dodiv(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	int a, check;
+-	Node n3, n4, n5;
++	Node n3, n4;
+ 	Type *t, *t0;
+ 	Node ax, dx, ax1, n31, oldax, olddx;
+-	Prog *p1, *p2, *p3;
++	Prog *p1, *p2;
+ 
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+@@ -508,30 +508,22 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 		gmove(&n31, &n3);
+ 	}
+ 
+-	p3 = P;
++	p2 = P;
+ 	if(check) {
+ 		nodconst(&n4, t, -1);
+ 		gins(optoas(OCMP, t), &n3, &n4);
+ 		p1 = gbranch(optoas(ONE, t), T, +1);
+-		nodconst(&n4, t, -1LL<<(t->width*8-1));
+-		if(t->width == 8) {
+-			n5 = n4;
+-			regalloc(&n4, t, N);
+-			gins(AMOVQ, &n5, &n4);
+-		}
+-		gins(optoas(OCMP, t), &ax, &n4);
+-		p2 = gbranch(optoas(ONE, t), T, +1);
+-		if(op == ODIV)
+-			gmove(&n4, res);
+-		if(t->width == 8)
+-			regfree(&n4);
+-		if(op == OMOD) {
++		if(op == ODIV) {
++			// a / (-1) is -a.
++			gins(optoas(OMINUS, t), N, &ax);
++			gmove(&ax, res);
++		} else {
++			// a % (-1) is 0.
+ 			nodconst(&n4, t, 0);
+ 			gmove(&n4, res);
+ 		}
+-		p3 = gbranch(AJMP, T, 0);
++		p2 = gbranch(AJMP, T, 0);
+ 		patch(p1, pc);
+-		patch(p2, pc);
+ 	}
+ 	savex(D_DX, &dx, &olddx, res, t);
+ 	if(!issigned[t->etype]) {
+@@ -547,7 +539,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 		gmove(&dx, res);
+ 	restx(&dx, &olddx);
+ 	if(check)
+-		patch(p3, pc);
++		patch(p2, pc);
+ 	restx(&ax, &oldax);
+ }
+ 
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 39521b9a38..d72c2259bd 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -495,7 +495,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 	int check;
+ 	Node n1, t1, t2, t3, t4, n4, nz;
+ 	Type *t, *t0;
+-	Prog *p1, *p2, *p3;
++	Prog *p1, *p2;
+ 
+ 	// Have to be careful about handling
+ 	// most negative int divided by -1 correctly.
+@@ -544,23 +544,22 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 		regalloc(&n1, t, N);
+ 	gmove(&t2, &n1);
+ 	gmove(&t1, ax);
+-	p3 = P;
++	p2 = P;
+ 	if(check) {
+ 		nodconst(&n4, t, -1);
+ 		gins(optoas(OCMP, t), &n1, &n4);
+ 		p1 = gbranch(optoas(ONE, t), T, +1);
+-		nodconst(&n4, t, -1LL<<(t->width*8-1));
+-		gins(optoas(OCMP, t), ax, &n4);
+-		p2 = gbranch(optoas(ONE, t), T, +1);
+-		if(op == ODIV)
+-			gmove(&n4, res);
+-		if(op == OMOD) {
++		if(op == ODIV) {
++			// a / (-1) is -a.
++			gins(optoas(OMINUS, t), N, ax);
++			gmove(ax, res);
++		} else {
++			// a % (-1) is 0.
+ 			nodconst(&n4, t, 0);
+ 			gmove(&n4, res);
+ 		}
+-		p3 = gbranch(AJMP, T, 0);
++		p2 = gbranch(AJMP, T, 0);
+ 		patch(p1, pc);
+-		patch(p2, pc);
+ 	}
+ 	if(!issigned[t->etype]) {
+ 		nodconst(&nz, t, 0);
+@@ -575,7 +574,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res, Node *ax, Node *dx)
+ 	else
+ 		gmove(dx, res);
+ 	if(check)
+-		patch(p3, pc);
++		patch(p2, pc);
+ }
+ 
+ static void

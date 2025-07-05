@@ -9,6 +9,20 @@ Date:   Wed May 4 17:06:50 2016 -0400
     Change-Id: I39c29ea6999812dd5f1c45f67bddad28f20b6c6b
     Reviewed-on: https://go-review.googlesource.com/22773
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/method.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/method.go b/src/net/http/method.go
+index b74f9604d3..6f46155069 100644
+--- a/src/net/http/method.go
++++ b/src/net/http/method.go
+@@ -12,7 +12,7 @@ const (
+ 	MethodHead    = "HEAD"
+ 	MethodPost    = "POST"
+ 	MethodPut     = "PUT"
+-	MethodPatch   = "PATCH" // RFC 5741
++	MethodPatch   = "PATCH" // RFC 5789
+ 	MethodDelete  = "DELETE"
+ 	MethodConnect = "CONNECT"
+ 	MethodOptions = "OPTIONS"

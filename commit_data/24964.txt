@@ -8,7 +8,74 @@ Date:   Tue Sep 8 16:52:25 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/14520
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go   | 15 +++++++--------
  src/cmd/compile/internal/ssa/func.go |  8 ++++++++
  2 files changed, 15 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 35d9e6a690..b68a8b1a36 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -371,7 +371,10 @@ func (s *state) entryNewValue2(op ssa.Op, t ssa.Type, arg0, arg1 *ssa.Value) *ss
+ 	return s.f.Entry.NewValue2(s.peekLine(), op, t, arg0, arg1)
+ }
+ 
+-// constInt* routines add a new const int value to the entry block.
++// const* routines add a new const value to the entry block.
++func (s *state) constBool(c bool) *ssa.Value {
++	return s.f.ConstBool(s.peekLine(), Types[TBOOL], c)
++}
+ func (s *state) constInt8(t ssa.Type, c int8) *ssa.Value {
+ 	return s.f.ConstInt8(s.peekLine(), t, c)
+ }
+@@ -647,7 +650,7 @@ func (s *state) stmt(n *Node) {
+ 		if n.Left != nil {
+ 			cond = s.expr(n.Left)
+ 		} else {
+-			cond = s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
++			cond = s.constBool(true)
+ 		}
+ 		b = s.endBlock()
+ 		b.Kind = ssa.BlockIf
+@@ -1223,11 +1226,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		case CTSTR:
+ 			return s.entryNewValue0A(ssa.OpConstString, n.Type, n.Val().U)
+ 		case CTBOOL:
+-			if n.Val().U.(bool) {
+-				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 1) // 1 = true
+-			} else {
+-				return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
+-			}
++			return s.constBool(n.Val().U.(bool))
+ 		case CTNIL:
+ 			t := n.Type
+ 			switch {
+@@ -1947,7 +1946,7 @@ func (s *state) zeroVal(t *Type) *ssa.Value {
+ 	case t.IsPtr():
+ 		return s.entryNewValue0(ssa.OpConstNil, t)
+ 	case t.IsBoolean():
+-		return s.entryNewValue0I(ssa.OpConstBool, Types[TBOOL], 0) // 0 = false
++		return s.constBool(false)
+ 	case t.IsInterface():
+ 		return s.entryNewValue0(ssa.OpConstInterface, t)
+ 	case t.IsSlice():
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index b6956a459f..1ea7c2e2de 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -266,6 +266,14 @@ func (b *Block) NewValue3I(line int32, op Op, t Type, aux int64, arg0, arg1, arg
+ }
+ 
+ // ConstInt returns an int constant representing its argument.
++func (f *Func) ConstBool(line int32, t Type, c bool) *Value {
++	// TODO: cache?
++	i := int64(0)
++	if c {
++		i = 1
++	}
++	return f.Entry.NewValue0I(line, OpConstBool, t, i)
++}
+ func (f *Func) ConstInt8(line int32, t Type, c int8) *Value {
+ 	// TODO: cache?
+ 	return f.Entry.NewValue0I(line, OpConst8, t, int64(c))

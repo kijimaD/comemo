@@ -17,7 +17,87 @@ Date:   Tue Oct 29 13:14:58 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  6 +++---
  src/cmd/compile/internal/ssa/rewritegeneric.go | 24 ++++++++++++------------
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 1503a5da6c..67b6461869 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -803,7 +803,7 @@
+ 
+ // Putting struct{*byte} and similar into direct interfaces.
+ (IMake typ (StructMake1 val)) -> (IMake typ val)
+-(StructSelect [0] x:(IData _)) -> x
++(StructSelect [0] (IData x)) -> (IData x)
+ 
+ // un-SSAable values use mem->mem copies
+ (Store {t} dst (Load src mem) mem) && !fe.CanSSA(t.(*types.Type)) ->
+@@ -823,9 +823,9 @@
+ (Store _ (ArrayMake0) mem) -> mem
+ (Store dst (ArrayMake1 e) mem) -> (Store {e.Type} dst e mem)
+ 
+-// Putting [1]{*byte} and similar into direct interfaces.
++// Putting [1]*byte and similar into direct interfaces.
+ (IMake typ (ArrayMake1 val)) -> (IMake typ val)
+-(ArraySelect [0] x:(IData _)) -> x
++(ArraySelect [0] (IData x)) -> (IData x)
+ 
+ // string ops
+ // Decomposing StringMake and lowering of StringPtr and StringLen
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d7e7974e2b..dd0ddd4195 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -6142,18 +6142,18 @@ func rewriteValuegeneric_OpArraySelect_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
+-	// match: (ArraySelect [0] x:(IData _))
+-	// result: x
++	// match: (ArraySelect [0] (IData x))
++	// result: (IData x)
+ 	for {
+ 		if v.AuxInt != 0 {
+ 			break
+ 		}
+-		x := v.Args[0]
+-		if x.Op != OpIData {
++		v_0 := v.Args[0]
++		if v_0.Op != OpIData {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		x := v_0.Args[0]
++		v.reset(OpIData)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -43502,18 +43502,18 @@ func rewriteValuegeneric_OpStructSelect_10(v *Value) bool {
+ 		v0.AddArg(mem)
+ 		return true
+ 	}
+-	// match: (StructSelect [0] x:(IData _))
+-	// result: x
++	// match: (StructSelect [0] (IData x))
++	// result: (IData x)
+ 	for {
+ 		if v.AuxInt != 0 {
+ 			break
+ 		}
+-		x := v.Args[0]
+-		if x.Op != OpIData {
++		v_0 := v.Args[0]
++		if v_0.Op != OpIData {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		x := v_0.Args[0]
++		v.reset(OpIData)
+ 		v.AddArg(x)
+ 		return true
+ 	}

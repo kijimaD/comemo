@@ -12,6 +12,23 @@ Date:   Wed Oct 26 16:17:54 2016 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/mips64/ggen.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 06f3474885..2af4a8b1ce 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -67,10 +67,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 		for i := int64(0); i < cnt; i += int64(gc.Widthptr) {
+ 			p = gc.Appendpp(p, mips.AMOVV, obj.TYPE_REG, mips.REGZERO, 0, obj.TYPE_MEM, mips.REGSP, 8+frame+lo+i)
+ 		}
+-		// TODO(dfc): https://golang.org/issue/12108
+-		// If DUFFZERO is used inside a tail call (see genwrapper) it will
+-		// overwrite the link register.
+-	} else if false && cnt <= int64(128*gc.Widthptr) {
++	} else if cnt <= int64(128*gc.Widthptr) {
+ 		p = gc.Appendpp(p, mips.AADDV, obj.TYPE_CONST, 0, 8+frame+lo-8, obj.TYPE_REG, mips.REGRT1, 0)
+ 		p.Reg = mips.REGSP
+ 		p = gc.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)

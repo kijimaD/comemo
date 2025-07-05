@@ -7,7 +7,7 @@ Date:   Tue Oct 11 16:45:01 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5238051
-
+---
  src/pkg/Makefile                        | 2 +-
  src/pkg/{http => exp}/spdy/Makefile     | 2 +-
  src/pkg/{http => exp}/spdy/read.go      | 0
@@ -15,3 +15,56 @@ Date:   Tue Oct 11 16:45:01 2011 -0700
  src/pkg/{http => exp}/spdy/types.go     | 0
  src/pkg/{http => exp}/spdy/write.go     | 0
  6 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 189e8f62da..e833fcfbba 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -81,6 +81,7 @@ DIRS=\
+ 	exp/gui\
+ 	exp/gui/x11\
+ 	exp/norm\
++	exp/spdy\
+ 	exp/sql\
+ 	exp/sql/driver\
+ 	exp/template/html\
+@@ -108,7 +109,6 @@ DIRS=\
+ 	http/fcgi\
+ 	http/pprof\
+ 	http/httptest\
+-	http/spdy\
+ 	image\
+ 	image/bmp\
+ 	image/color\
+diff --git a/src/pkg/http/spdy/Makefile b/src/pkg/exp/spdy/Makefile
+similarity index 94%
+rename from src/pkg/http/spdy/Makefile
+rename to src/pkg/exp/spdy/Makefile
+index 3bec220c4b..a2341d3f71 100644
+--- a/src/pkg/http/spdy/Makefile
++++ b/src/pkg/exp/spdy/Makefile
+@@ -4,7 +4,7 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=http/spdy
++TARG=exp/spdy
+ GOFILES=\
+ 	read.go\
+ 	types.go\
+diff --git a/src/pkg/http/spdy/read.go b/src/pkg/exp/spdy/read.go
+similarity index 100%
+rename from src/pkg/http/spdy/read.go
+rename to src/pkg/exp/spdy/read.go
+diff --git a/src/pkg/http/spdy/spdy_test.go b/src/pkg/exp/spdy/spdy_test.go
+similarity index 100%
+rename from src/pkg/http/spdy/spdy_test.go
+rename to src/pkg/exp/spdy/spdy_test.go
+diff --git a/src/pkg/http/spdy/types.go b/src/pkg/exp/spdy/types.go
+similarity index 100%
+rename from src/pkg/http/spdy/types.go
+rename to src/pkg/exp/spdy/types.go
+diff --git a/src/pkg/http/spdy/write.go b/src/pkg/exp/spdy/write.go
+similarity index 100%
+rename from src/pkg/http/spdy/write.go
+rename to src/pkg/exp/spdy/write.go

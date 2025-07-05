@@ -15,8 +15,48 @@ Date:   Sun Nov 13 13:10:42 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/error_test.go             | 2 +-
  src/os/os_test.go                 | 2 +-
  src/runtime/debug/garbage_test.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index a609aaa7ba..c23da49fad 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -251,7 +251,7 @@ func TestDialAddrError(t *testing.T) {
+ 		operr := err.(*OpError).Err
+ 		aerr, ok := operr.(*AddrError)
+ 		if !ok {
+-			t.Errorf("%s: %v is %#T, want *AddrError", op, err, operr)
++			t.Errorf("%s: %v is %T, want *AddrError", op, err, operr)
+ 			continue
+ 		}
+ 		want := tt.lit
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index eb4454411f..b1e20b7839 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1064,7 +1064,7 @@ func testChtimes(t *testing.T, name string) {
+ 	}
+ 
+ 	if !pmt.Before(mt) {
+-		t.Errorf("ModTime didn't go backwards; was=%d, after=%d", mt, pmt)
++		t.Errorf("ModTime didn't go backwards; was=%v, after=%v", mt, pmt)
+ 	}
+ }
+ 
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 6b03455cf9..04e954b1b1 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -80,7 +80,7 @@ func TestReadGCStats(t *testing.T) {
+ 	for i := 0; i < n; i++ {
+ 		dt := stats.PauseEnd[i]
+ 		if dt.UnixNano() != int64(mstats.PauseEnd[off]) {
+-			t.Errorf("stats.PauseEnd[%d] = %d, want %d", i, dt, mstats.PauseEnd[off])
++			t.Errorf("stats.PauseEnd[%d] = %d, want %d", i, dt.UnixNano(), mstats.PauseEnd[off])
+ 		}
+ 		off = (off + len(mstats.PauseEnd) - 1) % len(mstats.PauseEnd)
+ 	}

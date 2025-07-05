@@ -51,8 +51,89 @@ Date:   Sun Apr 26 18:27:17 2015 -0400
     Change-Id: Ie7c3830c481d96c9043e7bf26853c6c1d05dc9f4
     Reviewed-on: https://go-review.googlesource.com/9364
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcmark.go | 20 ++++++++++----------
  src/runtime/mgcwork.go |  1 +
  src/runtime/mheap.go   | 19 +++++++++++++++++++
  3 files changed, 30 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 7fc4594eb6..0e7cd110b3 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -561,11 +561,12 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	}
+ }
+ 
+-// Scan the object b of size n bytes, adding pointers to wbuf.
+-// If ptrmask != nil, it specifies where pointers are in b.
+-// If ptrmask == nil, the GC bitmap should be consulted.
+-// In this case, n may be an overestimate of the size; the GC bitmap
+-// must also be used to make sure the scan stops at the end of b.
++// scanobject scans memory starting at b, adding pointers to gcw.
++// If ptrmask != nil, it specifies the pointer mask starting at b and
++// n specifies the number of bytes to scan.
++// If ptrmask == nil, b must point to the beginning of a heap object
++// and scanobject consults the GC bitmap for the pointer mask and the
++// spans for the size of the object (it ignores n).
+ //go:nowritebarrier
+ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	arena_start := mheap_.arena_start
+@@ -576,11 +577,10 @@ func scanobject(b, n uintptr, ptrmask *uint8, gcw *gcWork) {
+ 	var hbits heapBits
+ 
+ 	if ptrmask == nil {
+-		var s *mspan
+-		b, hbits, s = heapBitsForObject(b)
+-		if b == 0 {
+-			return
+-		}
++		// b must point to the beginning of a heap object, so
++		// we can get its bits and span directly.
++		hbits = heapBitsForAddr(b)
++		s := spanOfUnchecked(b)
+ 		n = s.elemsize
+ 		if n == 0 {
+ 			throw("scanobject n == 0")
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index e7d1a104b8..9c32ae8880 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -73,6 +73,7 @@ type gcWork struct {
+ }
+ 
+ // put enqueues a pointer for the garbage collector to trace.
++// obj must point to the beginning of a heap object.
+ //go:nowritebarrier
+ func (ww *gcWork) put(obj uintptr) {
+ 	w := (*gcWork)(noescape(unsafe.Pointer(ww))) // TODO: remove when escape analysis is fixed
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 68844e40b5..653448363c 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -192,6 +192,25 @@ func inheap(b uintptr) bool {
+ 	return true
+ }
+ 
++// TODO: spanOf and spanOfUnchecked are open-coded in a lot of places.
++// Use the functions instead.
++
++// spanOf returns the span of p. If p does not point into the heap or
++// no span contains p, spanOf returns nil.
++func spanOf(p uintptr) *mspan {
++	if p == 0 || p < mheap_.arena_start || p >= mheap_.arena_used {
++		return nil
++	}
++	return spanOfUnchecked(p)
++}
++
++// spanOfUnchecked is equivalent to spanOf, but the caller must ensure
++// that p points into the heap (that is, mheap_.arena_start <= p <
++// mheap_.arena_used).
++func spanOfUnchecked(p uintptr) *mspan {
++	return h_spans[(p-mheap_.arena_start)>>_PageShift]
++}
++
+ func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
+ 	_g_ := getg()
+ 

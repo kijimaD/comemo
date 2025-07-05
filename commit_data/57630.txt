@@ -13,6 +13,26 @@ Date:   Thu Aug 17 10:26:36 2023 +0200
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/dir_windows.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/dir_windows.go b/src/os/dir_windows.go
+index 84dee5c7b3..4485dffdb1 100644
+--- a/src/os/dir_windows.go
++++ b/src/os/dir_windows.go
+@@ -153,10 +153,12 @@ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []Di
+ 			if islast {
+ 				d.bufp = 0
+ 			}
+-			name := syscall.UTF16ToString(nameslice)
+-			if name == "." || name == ".." { // Useless names
++			if (len(nameslice) == 1 && nameslice[0] == '.') ||
++				(len(nameslice) == 2 && nameslice[0] == '.' && nameslice[1] == '.') {
++				// Ignore "." and ".." and avoid allocating a string for them.
+ 				continue
+ 			}
++			name := syscall.UTF16ToString(nameslice)
+ 			if mode == readdirName {
+ 				names = append(names, name)
+ 			} else {

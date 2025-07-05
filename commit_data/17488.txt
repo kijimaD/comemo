@@ -7,6 +7,38 @@ Date:   Fri Sep 6 16:08:11 2013 -0400
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/13476043
-
+---
  misc/emacs/go-mode.el | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index f13651a666..02582756f3 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -129,7 +129,6 @@
+ 
+ (defvar go-dangling-cache)
+ (defvar go-godoc-history nil)
+-(defvar go--coverage-origin-buffer)
+ (defvar go--coverage-current-file-name)
+ 
+ (defgroup go nil
+@@ -1033,9 +1032,7 @@ current coverage buffer or by prompting for it."
+ 
+ (defun go--coverage-origin-buffer ()
+   "Return the buffer to base the coverage on."
+-  (if (boundp 'go--coverage-origin-buffer)
+-      go--coverage-origin-buffer
+-    (current-buffer)))
++  (or (buffer-base-buffer) (current-buffer)))
+ 
+ (defun go--coverage-face (count divisor)
+   "Return the intensity face for COUNT when using DIVISOR
+@@ -1129,7 +1126,6 @@ for."
+ 
+     (with-current-buffer (or (get-buffer gocov-buffer-name)
+                              (make-indirect-buffer origin-buffer gocov-buffer-name t))
+-      (set (make-local-variable 'go--coverage-origin-buffer) origin-buffer)
+       (set (make-local-variable 'go--coverage-current-file-name) coverage-file)
+ 
+       (save-excursion

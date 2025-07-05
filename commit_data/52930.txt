@@ -21,9 +21,99 @@ Date:   Tue Jun 14 09:04:55 2022 +0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/inline.go           | 12 ------------
  test/inline_nounified.go | 21 +++++++++++++++++++++
  test/inline_unified.go   | 21 +++++++++++++++++++++
  test/run.go              |  1 -
  4 files changed, 42 insertions(+), 13 deletions(-)
+
+diff --git a/test/inline.go b/test/inline.go
+index 400898bcee..04ba16858f 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -107,18 +107,6 @@ func q(x int) int { // ERROR "can inline q"
+ 	return foo()                       // ERROR "inlining call to q.func1"
+ }
+ 
+-func r(z int) int {
+-	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
+-		return x + z
+-	}
+-	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
+-			return 2*y + x*z
+-		}(x) // ERROR "inlining call to r.func2.1"
+-	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
+-}
+-
+ func s0(x int) int { // ERROR "can inline s0"
+ 	foo := func() { // ERROR "can inline s0.func1" "func literal does not escape"
+ 		x = x + 1
+diff --git a/test/inline_nounified.go b/test/inline_nounified.go
+new file mode 100644
+index 0000000000..7a9fc10071
+--- /dev/null
++++ b/test/inline_nounified.go
+@@ -0,0 +1,21 @@
++// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
++//go:build !goexperiment.unified
++// +build !goexperiment.unified
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++func r(z int) int {
++	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
++		return x + z
++	}
++	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
++		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
++			return 2*y + x*z
++		}(x) // ERROR "inlining call to r.func2.1"
++	}
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
++}
+diff --git a/test/inline_unified.go b/test/inline_unified.go
+new file mode 100644
+index 0000000000..ff70e44151
+--- /dev/null
++++ b/test/inline_unified.go
+@@ -0,0 +1,21 @@
++// errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
++//go:build goexperiment.unified
++// +build goexperiment.unified
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package foo
++
++func r(z int) int {
++	foo := func(x int) int { // ERROR "can inline r.func1" "func literal does not escape"
++		return x + z
++	}
++	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
++		return x + func(y int) int { // ERROR "can inline r.func2.1"
++			return 2*y + x*z
++		}(x) // ERROR "inlining call to r.func2.1"
++	}
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "can inline r.func3" "inlining call to r.func3"
++}
+diff --git a/test/run.go b/test/run.go
+index c8e8ab9dfc..b0156fbbf8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1997,7 +1997,6 @@ var _ = setOf(
+ var unifiedFailures = setOf(
+ 	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
+ 	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
+-	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+ 
+ 	"typeparam/issue47631.go", // unified IR can handle local type declarations
+ )

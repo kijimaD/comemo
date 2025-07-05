@@ -27,7 +27,149 @@ Date:   Fri Sep 16 19:41:55 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Joel Sing <joel@sing.id.au>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/elf.go | 55 +++++++++++++++++++++++++++++++++++++++--
  src/cmd/objdump/objdump_test.go | 31 ++++++++++++++++++++++-
  2 files changed, 83 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index a48a9df5d6..c64c2540f4 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -68,16 +68,35 @@ func (f *elfFile) pcln() (textStart uint64, symtab, pclntab []byte, err error) {
+ 	if sect := f.elf.Section(".text"); sect != nil {
+ 		textStart = sect.Addr
+ 	}
+-	if sect := f.elf.Section(".gosymtab"); sect != nil {
++
++	sect := f.elf.Section(".gosymtab")
++	if sect == nil {
++		// try .data.rel.ro.gosymtab, for PIE binaries
++		sect = f.elf.Section(".data.rel.ro.gosymtab")
++	}
++	if sect != nil {
+ 		if symtab, err = sect.Data(); err != nil {
+ 			return 0, nil, nil, err
+ 		}
++	} else {
++		// if both sections failed, try the symbol
++		symtab = f.symbolData("runtime.symtab", "runtime.esymtab")
++	}
++
++	sect = f.elf.Section(".gopclntab")
++	if sect == nil {
++		// try .data.rel.ro.gopclntab, for PIE binaries
++		sect = f.elf.Section(".data.rel.ro.gopclntab")
+ 	}
+-	if sect := f.elf.Section(".gopclntab"); sect != nil {
++	if sect != nil {
+ 		if pclntab, err = sect.Data(); err != nil {
+ 			return 0, nil, nil, err
+ 		}
++	} else {
++		// if both sections failed, try the symbol
++		pclntab = f.symbolData("runtime.pclntab", "runtime.epclntab")
+ 	}
++
+ 	return textStart, symtab, pclntab, nil
+ }
+ 
+@@ -124,3 +143,35 @@ func (f *elfFile) loadAddress() (uint64, error) {
+ func (f *elfFile) dwarf() (*dwarf.Data, error) {
+ 	return f.elf.DWARF()
+ }
++
++func (f *elfFile) symbolData(start, end string) []byte {
++	elfSyms, err := f.elf.Symbols()
++	if err != nil {
++		return nil
++	}
++	var addr, eaddr uint64
++	for _, s := range elfSyms {
++		if s.Name == start {
++			addr = s.Value
++		} else if s.Name == end {
++			eaddr = s.Value
++		}
++		if addr != 0 && eaddr != 0 {
++			break
++		}
++	}
++	if addr == 0 || eaddr < addr {
++		return nil
++	}
++	size := eaddr - addr
++	data := make([]byte, size)
++	for _, prog := range f.elf.Progs {
++		if prog.Vaddr <= addr && addr+size-1 <= prog.Vaddr+prog.Filesz-1 {
++			if _, err := prog.ReadAt(data, int64(addr-prog.Vaddr)); err != nil {
++				return nil
++			}
++			return data
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index e984ef279e..86e904dcd5 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/internal/notsha256"
++	"cmd/internal/sys"
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
+@@ -99,6 +100,12 @@ var ppcNeed = []string{
+ 	"RET",
+ }
+ 
++var ppcPIENeed = []string{
++	"BR",
++	"CALL",
++	"RET",
++}
++
+ var ppcGnuNeed = []string{
+ 	"mflr",
+ 	"lbz",
+@@ -178,7 +185,21 @@ func testDisasm(t *testing.T, srcfname string, printCode bool, printGnuAsm bool,
+ 	case "arm64":
+ 		need = append(need, arm64Need...)
+ 	case "ppc64", "ppc64le":
+-		need = append(need, ppcNeed...)
++		var pie bool
++		for _, flag := range flags {
++			if flag == "-buildmode=pie" {
++				pie = true
++				break
++			}
++		}
++		if pie {
++			// In PPC64 PIE binaries we use a "local entry point" which is
++			// function symbol address + 8. Currently we don't symbolize that.
++			// Expect a different output.
++			need = append(need, ppcPIENeed...)
++		} else {
++			need = append(need, ppcNeed...)
++		}
+ 	}
+ 
+ 	if printGnuAsm {
+@@ -265,6 +286,14 @@ func TestDisasmExtld(t *testing.T) {
+ 	testDisasm(t, "fmthello.go", false, false, "-ldflags=-linkmode=external")
+ }
+ 
++func TestDisasmPIE(t *testing.T) {
++	if !sys.BuildModeSupported("gc", "pie", runtime.GOOS, runtime.GOARCH) {
++		t.Skipf("skipping on %s/%s, PIE buildmode not supported", runtime.GOOS, runtime.GOARCH)
++	}
++	t.Parallel()
++	testDisasm(t, "fmthello.go", false, false, "-buildmode=pie")
++}
++
+ func TestDisasmGoobj(t *testing.T) {
+ 	mustHaveDisasm(t)
+ 

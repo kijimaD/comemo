@@ -11,6 +11,19 @@ Date:   Fri Oct 28 11:51:22 2016 +1100
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/cgo.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index b21458fb7e..241a821e4f 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -20,7 +20,6 @@ package cgo
+ #cgo !android,linux LDFLAGS: -lpthread
+ #cgo netbsd LDFLAGS: -lpthread
+ #cgo openbsd LDFLAGS: -lpthread
+-#cgo windows LDFLAGS: -mthreads
+ 
+ #cgo CFLAGS: -Wall -Werror
+ 

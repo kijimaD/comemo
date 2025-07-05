@@ -12,6 +12,21 @@ Date:   Thu Jul 12 18:00:39 2018 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/plist.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 0658cc7311..a8675055d9 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -119,9 +119,6 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 		ctxt.Diag("InitTextSym double init for %s", s.Name)
+ 	}
+ 	s.Func = new(FuncInfo)
+-	if s.Func.Text != nil {
+-		ctxt.Diag("duplicate TEXT for %s", s.Name)
+-	}
+ 	if s.OnList() {
+ 		ctxt.Diag("symbol %s listed multiple times", s.Name)
+ 	}

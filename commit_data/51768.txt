@@ -12,6 +12,29 @@ Date:   Thu Mar 10 17:21:40 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/fmt_load_errors.txt | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/fmt_load_errors.txt b/src/cmd/go/testdata/script/fmt_load_errors.txt
+index 84bf41cfba..559dcc5fe3 100644
+--- a/src/cmd/go/testdata/script/fmt_load_errors.txt
++++ b/src/cmd/go/testdata/script/fmt_load_errors.txt
+@@ -7,14 +7,13 @@ stdout 'exclude[/\\]x\.go'
+ stdout 'exclude[/\\]x_linux\.go'
+ 
+ # Test edge cases with gofmt.
+-# Note that this execs GOROOT/bin/gofmt.
+ 
+-! exec gofmt does-not-exist
++! exec $GOROOT/bin/gofmt does-not-exist
+ 
+-exec gofmt gofmt-dir/no-extension
++exec $GOROOT/bin/gofmt gofmt-dir/no-extension
+ stdout 'package x'
+ 
+-exec gofmt gofmt-dir
++exec $GOROOT/bin/gofmt gofmt-dir
+ ! stdout 'package x'
+ 
+ -- exclude/empty/x.txt --

@@ -10,6 +10,19 @@ Date:   Thu Jun 7 15:29:41 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/117056
     Reviewed-by: Matti Moell <matti.moell@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/debug/pe/pe.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/debug/pe/pe.go b/src/debug/pe/pe.go
+index 872c977fe3..e933ae1c2a 100644
+--- a/src/debug/pe/pe.go
++++ b/src/debug/pe/pe.go
+@@ -91,6 +91,7 @@ const (
+ 	IMAGE_FILE_MACHINE_AM33      = 0x1d3
+ 	IMAGE_FILE_MACHINE_AMD64     = 0x8664
+ 	IMAGE_FILE_MACHINE_ARM       = 0x1c0
++	IMAGE_FILE_MACHINE_ARM64     = 0xaa64
+ 	IMAGE_FILE_MACHINE_EBC       = 0xebc
+ 	IMAGE_FILE_MACHINE_I386      = 0x14c
+ 	IMAGE_FILE_MACHINE_IA64      = 0x200

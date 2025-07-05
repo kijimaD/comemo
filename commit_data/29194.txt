@@ -9,7 +9,7 @@ Date:   Tue Jun 28 09:22:46 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/alg.go              | 4 ++--
  src/runtime/asm_386.s           | 2 +-
  src/runtime/asm_amd64.s         | 2 +-
@@ -38,3 +38,424 @@ Date:   Tue Jun 28 09:22:46 2016 -0700
  src/runtime/stubs.go            | 2 +-
  src/runtime/symtab.go           | 2 +-
  27 files changed, 43 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 147332e1fd..80f205c494 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -109,7 +109,7 @@ func f32hash(p unsafe.Pointer, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+ 	default:
+ 		return memhash(p, h, 4)
+ 	}
+@@ -121,7 +121,7 @@ func f64hash(p unsafe.Pointer, h uintptr) uintptr {
+ 	case f == 0:
+ 		return c1 * (c0 ^ h) // +0, -0
+ 	case f != f:
+-		return c1 * (c0 ^ h ^ uintptr(fastrand1())) // any kind of NaN
++		return c1 * (c0 ^ h ^ uintptr(fastrand())) // any kind of NaN
+ 	default:
+ 		return memhash(p, h, 8)
+ 	}
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index f039fbf42e..12038220ac 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1573,7 +1573,7 @@ allsame:
+ 	MOVL	BX, (AX)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 3383bbe446..f44fc1166a 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -2052,7 +2052,7 @@ eqret:
+ 	MOVB	$0, ret+48(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVQ	g(CX), AX
+ 	MOVQ	g_m(AX), AX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index dec77e9542..6aa230841e 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -973,7 +973,7 @@ eqret:
+ 	MOVB	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	get_tls(CX)
+ 	MOVL	g(CX), AX
+ 	MOVL	g_m(AX), AX
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 59a0e75734..29f39cf15d 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -952,7 +952,7 @@ _sib_notfound:
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB),NOSPLIT,$-4-4
++TEXT runtime·fastrand(SB),NOSPLIT,$-4-4
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_fastrand(R1), R0
+ 	ADD.S	R0, R0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2fb4eeaadc..066b534900 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -949,7 +949,7 @@ equal:
+ 	MOVB	R0, ret+48(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB),NOSPLIT,$-8-4
++TEXT runtime·fastrand(SB),NOSPLIT,$-8-4
+ 	MOVD	g_m(g), R1
+ 	MOVWU	m_fastrand(R1), R0
+ 	ADD	R0, R0
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 098de41053..15105b90c3 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -822,7 +822,7 @@ notfound:
+ 	MOVV	R1, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	MOVV	g_m(g), R2
+ 	MOVWU	m_fastrand(R2), R1
+ 	ADDU	R1, R1
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 3bff886375..67b3d50691 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -1042,7 +1042,7 @@ samebytes:
+ 	MOVD	R8, (R7)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	MOVD	g_m(g), R4
+ 	MOVWZ	m_fastrand(R4), R3
+ 	ADD	R3, R3
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 896ccde801..cf0ed1a917 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -874,7 +874,7 @@ TEXT runtime·memeqbodyclc(SB),NOSPLIT|NOFRAME,$0-0
+ 	CLC	$1, 0(R3), 0(R5)
+ 	RET
+ 
+-TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
++TEXT runtime·fastrand(SB), NOSPLIT, $0-4
+ 	MOVD	g_m(g), R4
+ 	MOVWZ	m_fastrand(R4), R3
+ 	ADD	R3, R3
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index f756e7b603..9d8c2f8a60 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -256,7 +256,7 @@ func makemap(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
+ 	h.count = 0
+ 	h.B = B
+ 	h.flags = 0
+-	h.hash0 = fastrand1()
++	h.hash0 = fastrand()
+ 	h.buckets = buckets
+ 	h.oldbuckets = nil
+ 	h.nevacuate = 0
+@@ -655,9 +655,9 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ 	}
+ 
+ 	// decide where to start
+-	r := uintptr(fastrand1())
++	r := uintptr(fastrand())
+ 	if h.B > 31-bucketCntBits {
+-		r += uintptr(fastrand1()) << 31
++		r += uintptr(fastrand()) << 31
+ 	}
+ 	it.startBucket = r & (uintptr(1)<<h.B - 1)
+ 	it.offset = uint8(r >> h.B & (bucketCnt - 1))
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 7d7f9e11d3..4f0a2cee22 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -843,7 +843,7 @@ func nextSample() int32 {
+ 	// x = -log_e(q) * period
+ 	// x = log_2(q) * (-log_e(2)) * period    ; Using log_2 for efficiency
+ 	const randomBitCount = 26
+-	q := fastrand1()%(1<<randomBitCount) + 1
++	q := fastrand()%(1<<randomBitCount) + 1
+ 	qlog := fastlog2(float64(q)) - randomBitCount
+ 	if qlog > 0 {
+ 		qlog = 0
+@@ -861,7 +861,7 @@ func nextSampleNoFP() int32 {
+ 		rate = 0x3fffffff
+ 	}
+ 	if rate != 0 {
+-		return int32(int(fastrand1()) % (2 * rate))
++		return int32(int(fastrand()) % (2 * rate))
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index cd5ddadd49..f184d81b23 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -616,7 +616,7 @@ func (c *gcControllerState) enlistWorker() {
+ 	}
+ 	myID := gp.m.p.ptr().id
+ 	for tries := 0; tries < 5; tries++ {
+-		id := int32(fastrand1() % uint32(gomaxprocs-1))
++		id := int32(fastrand() % uint32(gomaxprocs-1))
+ 		if id >= myID {
+ 			id++
+ 		}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index c3e4e2cb87..37b5e1be4a 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -289,7 +289,7 @@ func blockevent(cycles int64, skip int) {
+ 		cycles = 1
+ 	}
+ 	rate := int64(atomic.Load64(&blockprofilerate))
+-	if rate <= 0 || (rate > cycles && int64(fastrand1())%rate > cycles) {
++	if rate <= 0 || (rate > cycles && int64(fastrand())%rate > cycles) {
+ 		return
+ 	}
+ 	gp := getg()
+diff --git a/src/runtime/os_darwin_arm.go b/src/runtime/os_darwin_arm.go
+index 1ccc9592da..ee1bd174f1 100644
+--- a/src/runtime/os_darwin_arm.go
++++ b/src/runtime/os_darwin_arm.go
+@@ -17,8 +17,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_darwin_arm64.go b/src/runtime/os_darwin_arm64.go
+index 4d35af9c6a..8de132d8e2 100644
+--- a/src/runtime/os_darwin_arm64.go
++++ b/src/runtime/os_darwin_arm64.go
+@@ -6,8 +6,8 @@ package runtime
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_freebsd_arm.go b/src/runtime/os_freebsd_arm.go
+index 1f2add279f..0399499a4e 100644
+--- a/src/runtime/os_freebsd_arm.go
++++ b/src/runtime/os_freebsd_arm.go
+@@ -17,8 +17,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_linux_arm.go b/src/runtime/os_linux_arm.go
+index 8e2765a413..d7d734bc7f 100644
+--- a/src/runtime/os_linux_arm.go
++++ b/src/runtime/os_linux_arm.go
+@@ -53,8 +53,8 @@ func archauxv(tag, val uintptr) {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand1.
++	// randomNumber provides better seeding of fastrand.
+ 	return nanotime() + int64(randomNumber)
+ }
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 43262aea14..bdc341d962 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -19,8 +19,8 @@ func archauxv(tag, val uintptr) {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand1.
++	// randomNumber provides better seeding of fastrand.
+ 	return nanotime() + int64(randomNumber)
+ }
+diff --git a/src/runtime/os_linux_mips64x.go b/src/runtime/os_linux_mips64x.go
+index 8039b2fac9..dcc9763678 100644
+--- a/src/runtime/os_linux_mips64x.go
++++ b/src/runtime/os_linux_mips64x.go
+@@ -22,9 +22,9 @@ func archauxv(tag, val uintptr) {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed fastrand().
+ 	// nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// randomNumber provides better seeding of fastrand1.
++	// randomNumber provides better seeding of fastrand.
+ 	return nanotime() + int64(randomNumber)
+ }
+ 
+diff --git a/src/runtime/os_nacl_arm.go b/src/runtime/os_nacl_arm.go
+index f94c183e87..8669ee75b4 100644
+--- a/src/runtime/os_nacl_arm.go
++++ b/src/runtime/os_nacl_arm.go
+@@ -16,8 +16,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index 03032e8bea..95603da643 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -28,8 +28,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_openbsd_arm.go b/src/runtime/os_openbsd_arm.go
+index b46fef0090..be2e1e9959 100644
+--- a/src/runtime/os_openbsd_arm.go
++++ b/src/runtime/os_openbsd_arm.go
+@@ -17,8 +17,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/os_plan9_arm.go b/src/runtime/os_plan9_arm.go
+index 30cde8f74b..fdce1e7a35 100644
+--- a/src/runtime/os_plan9_arm.go
++++ b/src/runtime/os_plan9_arm.go
+@@ -10,8 +10,8 @@ func checkgoarm() {
+ 
+ //go:nosplit
+ func cputicks() int64 {
+-	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand1().
++	// Currently cputicks() is used in blocking profiler and to seed runtime·fastrand().
+ 	// runtime·nanotime() is a poor approximation of CPU ticks that is enough for the profiler.
+-	// TODO: need more entropy to better seed fastrand1.
++	// TODO: need more entropy to better seed fastrand.
+ 	return nanotime()
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 75e09b3ab7..67e8447d46 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1909,7 +1909,7 @@ top:
+ 		atomic.Xadd(&sched.nmspinning, 1)
+ 	}
+ 	for i := 0; i < 4; i++ {
+-		for enum := stealOrder.start(fastrand1()); !enum.done(); enum.next() {
++		for enum := stealOrder.start(fastrand()); !enum.done(); enum.next() {
+ 			if sched.gcwaiting != 0 {
+ 				goto top
+ 			}
+@@ -4034,7 +4034,7 @@ const randomizeScheduler = raceenabled
+ // If the run queue is full, runnext puts g on the global queue.
+ // Executed only by the owner P.
+ func runqput(_p_ *p, gp *g, next bool) {
+-	if randomizeScheduler && next && fastrand1()%2 == 0 {
++	if randomizeScheduler && next && fastrand()%2 == 0 {
+ 		next = false
+ 	}
+ 
+@@ -4087,7 +4087,7 @@ func runqputslow(_p_ *p, gp *g, h, t uint32) bool {
+ 
+ 	if randomizeScheduler {
+ 		for i := uint32(1); i <= n; i++ {
+-			j := fastrand1() % (i + 1)
++			j := fastrand() % (i + 1)
+ 			batch[i], batch[j] = batch[j], batch[i]
+ 		}
+ 	}
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 433048fb79..1aaafff198 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -270,7 +270,7 @@ func selectgoImpl(sel *hselect) (uintptr, uint16) {
+ 	pollslice := slice{unsafe.Pointer(sel.pollorder), int(sel.ncase), int(sel.ncase)}
+ 	pollorder := *(*[]uint16)(unsafe.Pointer(&pollslice))
+ 	for i := 1; i < int(sel.ncase); i++ {
+-		j := int(fastrand1()) % (i + 1)
++		j := int(fastrand()) % (i + 1)
+ 		pollorder[i] = pollorder[j]
+ 		pollorder[j] = uint16(i)
+ 	}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 0f75663b9a..f6bb2fba16 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -81,7 +81,7 @@ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+ var hashLoad = loadFactor
+ 
+ // in asm_*.s
+-func fastrand1() uint32
++func fastrand() uint32
+ 
+ // in asm_*.s
+ //go:noescape
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 4f6fae2f49..7a37085fab 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -437,7 +437,7 @@ func pcvalue(f *_func, off int32, targetpc uintptr, cache *pcvalueCache, strict
+ 			// a recursive stack's cycle is slightly
+ 			// larger than the cache.
+ 			if cache != nil {
+-				ci := fastrand1() % uint32(len(cache.entries))
++				ci := fastrand() % uint32(len(cache.entries))
+ 				cache.entries[ci] = pcvalueCacheEnt{
+ 					targetpc: targetpc,
+ 					off:      off,

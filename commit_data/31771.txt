@@ -28,7 +28,77 @@ Date:   Fri Feb 10 12:46:14 2017 -0500
     Change-Id: Icfa359d9b1a8df5e085dacc07d2b9221b284764c
     Reviewed-on: https://go-review.googlesource.com/36719
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/archive/zip/writer_test.go | 27 +++++++++++++++++----------
  src/archive/zip/zip_test.go    | 12 ++++++++++++
  2 files changed, 29 insertions(+), 10 deletions(-)
+
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 86841c755f..84b1d9e062 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -181,12 +181,11 @@ func testReadFile(t *testing.T, f *File, wt *WriteTest) {
+ }
+ 
+ func BenchmarkCompressedZipGarbage(b *testing.B) {
+-	b.ReportAllocs()
+-	var buf bytes.Buffer
+ 	bigBuf := bytes.Repeat([]byte("a"), 1<<20)
+-	for i := 0; i <= b.N; i++ {
++
++	runOnce := func(buf *bytes.Buffer) {
+ 		buf.Reset()
+-		zw := NewWriter(&buf)
++		zw := NewWriter(buf)
+ 		for j := 0; j < 3; j++ {
+ 			w, _ := zw.CreateHeader(&FileHeader{
+ 				Name:   "foo",
+@@ -195,11 +194,19 @@ func BenchmarkCompressedZipGarbage(b *testing.B) {
+ 			w.Write(bigBuf)
+ 		}
+ 		zw.Close()
+-		if i == 0 {
+-			// Reset the timer after the first time through.
+-			// This effectively discards the very large initial flate setup cost,
+-			// as well as the initialization of bigBuf.
+-			b.ResetTimer()
+-		}
+ 	}
++
++	b.ReportAllocs()
++	// Run once and then reset the timer.
++	// This effectively discards the very large initial flate setup cost,
++	// as well as the initialization of bigBuf.
++	runOnce(&bytes.Buffer{})
++	b.ResetTimer()
++
++	b.RunParallel(func(pb *testing.PB) {
++		var buf bytes.Buffer
++		for pb.Next() {
++			runOnce(&buf)
++		}
++	})
+ }
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index 72d2b00089..18c2171ba6 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -681,6 +681,18 @@ func BenchmarkZip64Test(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkZip64TestSizes(b *testing.B) {
++	for _, size := range []int64{1 << 12, 1 << 20, 1 << 26} {
++		b.Run(fmt.Sprint(size), func(b *testing.B) {
++			b.RunParallel(func(pb *testing.PB) {
++				for pb.Next() {
++					testZip64(b, size)
++				}
++			})
++		})
++	}
++}
++
+ func TestSuffixSaver(t *testing.T) {
+ 	const keep = 10
+ 	ss := &suffixSaver{keep: keep}

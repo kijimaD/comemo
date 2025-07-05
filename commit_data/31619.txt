@@ -125,7 +125,624 @@ Date:   Mon Feb 20 09:55:54 2017 -0500
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 39 ++++++++++++++
  src/cmd/compile/internal/gc/bimport.go | 92 ++++++++++++++++++++--------------
  2 files changed, 93 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 4e05c1766d..2c3d8f06ef 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1202,6 +1202,7 @@ func (p *exporter) expr(n *Node) {
+ 			break
+ 		}
+ 		p.op(OLITERAL)
++		p.pos(n)
+ 		p.typ(unidealType(n.Type, n.Val()))
+ 		p.value(n.Val())
+ 
+@@ -1210,12 +1211,14 @@ func (p *exporter) expr(n *Node) {
+ 		// _ becomes ~b%d internally; print as _ for export
+ 		if n.Sym != nil && n.Sym.Name[0] == '~' && n.Sym.Name[1] == 'b' {
+ 			p.op(ONAME)
++			p.pos(n)
+ 			p.string("_") // inlined and customized version of p.sym(n)
+ 			break
+ 		}
+ 
+ 		if n.Sym != nil && !isblank(n) && n.Name.Vargen > 0 {
+ 			p.op(ONAME)
++			p.pos(n)
+ 			p.sym(n)
+ 			break
+ 		}
+@@ -1225,12 +1228,14 @@ func (p *exporter) expr(n *Node) {
+ 		// These nodes have the special property that they are names with a left OTYPE and a right ONAME.
+ 		if n.Left != nil && n.Left.Op == OTYPE && n.Right != nil && n.Right.Op == ONAME {
+ 			p.op(OXDOT)
++			p.pos(n)
+ 			p.expr(n.Left) // n.Left.Op == OTYPE
+ 			p.fieldSym(n.Right.Sym, true)
+ 			break
+ 		}
+ 
+ 		p.op(ONAME)
++		p.pos(n)
+ 		p.sym(n)
+ 
+ 	// case OPACK, ONONAME:
+@@ -1238,6 +1243,7 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OTYPE:
+ 		p.op(OTYPE)
++		p.pos(n)
+ 		if p.bool(n.Type == nil) {
+ 			p.sym(n)
+ 		} else {
+@@ -1255,21 +1261,25 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OPTRLIT:
+ 		p.op(OPTRLIT)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.bool(n.Implicit())
+ 
+ 	case OSTRUCTLIT:
+ 		p.op(OSTRUCTLIT)
++		p.pos(n)
+ 		p.typ(n.Type)
+ 		p.elemList(n.List) // special handling of field names
+ 
+ 	case OARRAYLIT, OSLICELIT, OMAPLIT:
+ 		p.op(OCOMPLIT)
++		p.pos(n)
+ 		p.typ(n.Type)
+ 		p.exprList(n.List)
+ 
+ 	case OKEY:
+ 		p.op(OKEY)
++		p.pos(n)
+ 		p.exprsOrNil(n.Left, n.Right)
+ 
+ 	// case OSTRUCTKEY:
+@@ -1280,11 +1290,13 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		p.op(OXDOT)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.fieldSym(n.Sym, true)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		p.op(ODOTTYPE)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		if p.bool(n.Right != nil) {
+ 			p.expr(n.Right)
+@@ -1294,17 +1306,20 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OINDEX, OINDEXMAP:
+ 		p.op(OINDEX)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.expr(n.Right)
+ 
+ 	case OSLICE, OSLICESTR, OSLICEARR:
+ 		p.op(OSLICE)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		low, high, _ := n.SliceBounds()
+ 		p.exprsOrNil(low, high)
+ 
+ 	case OSLICE3, OSLICE3ARR:
+ 		p.op(OSLICE3)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		low, high, max := n.SliceBounds()
+ 		p.exprsOrNil(low, high)
+@@ -1313,12 +1328,14 @@ func (p *exporter) expr(n *Node) {
+ 	case OCOPY, OCOMPLEX:
+ 		// treated like other builtin calls (see e.g., OREAL)
+ 		p.op(op)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.expr(n.Right)
+ 		p.op(OEND)
+ 
+ 	case OCONV, OCONVIFACE, OCONVNOP, OARRAYBYTESTR, OARRAYRUNESTR, OSTRARRAYBYTE, OSTRARRAYRUNE, ORUNESTR:
+ 		p.op(OCONV)
++		p.pos(n)
+ 		p.typ(n.Type)
+ 		if n.Left != nil {
+ 			p.expr(n.Left)
+@@ -1329,6 +1346,7 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+ 		p.op(op)
++		p.pos(n)
+ 		if n.Left != nil {
+ 			p.expr(n.Left)
+ 			p.op(OEND)
+@@ -1344,12 +1362,14 @@ func (p *exporter) expr(n *Node) {
+ 
+ 	case OCALL, OCALLFUNC, OCALLMETH, OCALLINTER, OGETG:
+ 		p.op(OCALL)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.exprList(n.List)
+ 		p.bool(n.Isddd())
+ 
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+ 		p.op(op) // must keep separate from OMAKE for importer
++		p.pos(n)
+ 		p.typ(n.Type)
+ 		switch {
+ 		default:
+@@ -1369,21 +1389,25 @@ func (p *exporter) expr(n *Node) {
+ 	// unary expressions
+ 	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+ 		p.op(op)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 
+ 	// binary expressions
+ 	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
+ 		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
+ 		p.op(op)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.expr(n.Right)
+ 
+ 	case OADDSTR:
+ 		p.op(OADDSTR)
++		p.pos(n)
+ 		p.exprList(n.List)
+ 
+ 	case OCMPSTR, OCMPIFACE:
+ 		p.op(Op(n.Etype))
++		p.pos(n)
+ 		p.expr(n.Left)
+ 		p.expr(n.Right)
+ 
+@@ -1393,6 +1417,7 @@ func (p *exporter) expr(n *Node) {
+ 		// TODO(gri) these should not be exported in the first place
+ 		// TODO(gri) why is this considered an expression in fmt.go?
+ 		p.op(ODCLCONST)
++		p.pos(n)
+ 
+ 	default:
+ 		Fatalf("cannot export %v (%d) node\n"+
+@@ -1426,6 +1451,7 @@ func (p *exporter) stmt(n *Node) {
+ 	switch op := n.Op; op {
+ 	case ODCL:
+ 		p.op(ODCL)
++		p.pos(n)
+ 		p.sym(n.Left)
+ 		p.typ(n.Left.Type)
+ 
+@@ -1438,12 +1464,14 @@ func (p *exporter) stmt(n *Node) {
+ 		// the "v = <N>" again.
+ 		if n.Right != nil {
+ 			p.op(OAS)
++			p.pos(n)
+ 			p.expr(n.Left)
+ 			p.expr(n.Right)
+ 		}
+ 
+ 	case OASOP:
+ 		p.op(OASOP)
++		p.pos(n)
+ 		p.int(int(n.Etype))
+ 		p.expr(n.Left)
+ 		if p.bool(!n.Implicit()) {
+@@ -1452,11 +1480,13 @@ func (p *exporter) stmt(n *Node) {
+ 
+ 	case OAS2, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
+ 		p.op(OAS2)
++		p.pos(n)
+ 		p.exprList(n.List)
+ 		p.exprList(n.Rlist)
+ 
+ 	case ORETURN:
+ 		p.op(ORETURN)
++		p.pos(n)
+ 		p.exprList(n.List)
+ 
+ 	// case ORETJMP:
+@@ -1464,10 +1494,12 @@ func (p *exporter) stmt(n *Node) {
+ 
+ 	case OPROC, ODEFER:
+ 		p.op(op)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 
+ 	case OIF:
+ 		p.op(OIF)
++		p.pos(n)
+ 		p.stmtList(n.Ninit)
+ 		p.expr(n.Left)
+ 		p.stmtList(n.Nbody)
+@@ -1475,32 +1507,38 @@ func (p *exporter) stmt(n *Node) {
+ 
+ 	case OFOR:
+ 		p.op(OFOR)
++		p.pos(n)
+ 		p.stmtList(n.Ninit)
+ 		p.exprsOrNil(n.Left, n.Right)
+ 		p.stmtList(n.Nbody)
+ 
+ 	case ORANGE:
+ 		p.op(ORANGE)
++		p.pos(n)
+ 		p.stmtList(n.List)
+ 		p.expr(n.Right)
+ 		p.stmtList(n.Nbody)
+ 
+ 	case OSELECT, OSWITCH:
+ 		p.op(op)
++		p.pos(n)
+ 		p.stmtList(n.Ninit)
+ 		p.exprsOrNil(n.Left, nil)
+ 		p.stmtList(n.List)
+ 
+ 	case OCASE, OXCASE:
+ 		p.op(OXCASE)
++		p.pos(n)
+ 		p.stmtList(n.List)
+ 		p.stmtList(n.Nbody)
+ 
+ 	case OFALL, OXFALL:
+ 		p.op(OXFALL)
++		p.pos(n)
+ 
+ 	case OBREAK, OCONTINUE:
+ 		p.op(op)
++		p.pos(n)
+ 		p.exprsOrNil(n.Left, nil)
+ 
+ 	case OEMPTY:
+@@ -1508,6 +1546,7 @@ func (p *exporter) stmt(n *Node) {
+ 
+ 	case OGOTO, OLABEL:
+ 		p.op(op)
++		p.pos(n)
+ 		p.expr(n.Left)
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index a94f27a5b7..34cb70d9c8 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -10,6 +10,7 @@ package gc
+ 
+ import (
+ 	"bufio"
++	"cmd/internal/src"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"math/big"
+@@ -41,6 +42,7 @@ type importer struct {
+ 	posInfoFormat bool
+ 	prevFile      string
+ 	prevLine      int
++	posBase       *src.PosBase
+ 
+ 	// debugging support
+ 	debugFormat bool
+@@ -367,9 +369,9 @@ func (p *importer) obj(tag int) {
+ 	}
+ }
+ 
+-func (p *importer) pos() {
++func (p *importer) pos() src.XPos {
+ 	if !p.posInfoFormat {
+-		return
++		return src.NoXPos
+ 	}
+ 
+ 	file := p.prevFile
+@@ -382,10 +384,13 @@ func (p *importer) pos() {
+ 		file = p.prevFile[:n] + p.string()
+ 		p.prevFile = file
+ 		line = p.int()
++		p.posBase = src.NewFileBase(file, file)
+ 	}
+ 	p.prevLine = line
+ 
+-	// TODO(gri) register new position
++	pos := src.MakePos(p.posBase, uint(line), 0)
++	xpos := Ctxt.PosTable.XPos(pos)
++	return xpos
+ }
+ 
+ func (p *importer) newtyp(etype EType) *Type {
+@@ -845,6 +850,11 @@ func (p *importer) expr() *Node {
+ 	return n
+ }
+ 
++func npos(pos src.XPos, n *Node) *Node {
++	n.Pos = pos
++	return n
++}
++
+ // TODO(gri) split into expr and stmt
+ func (p *importer) node() *Node {
+ 	switch op := p.op(); op {
+@@ -856,8 +866,9 @@ func (p *importer) node() *Node {
+ 	//	unimplemented
+ 
+ 	case OLITERAL:
++		pos := p.pos()
+ 		typ := p.typ()
+-		n := nodlit(p.value(typ))
++		n := npos(pos, nodlit(p.value(typ)))
+ 		if !typ.IsUntyped() {
+ 			// Type-checking simplifies unsafe.Pointer(uintptr(c))
+ 			// to unsafe.Pointer(c) which then cannot type-checked
+@@ -875,16 +886,17 @@ func (p *importer) node() *Node {
+ 		return n
+ 
+ 	case ONAME:
+-		return mkname(p.sym())
++		return npos(p.pos(), mkname(p.sym()))
+ 
+ 	// case OPACK, ONONAME:
+ 	// 	unreachable - should have been resolved by typechecking
+ 
+ 	case OTYPE:
++		pos := p.pos()
+ 		if p.bool() {
+-			return mkname(p.sym())
++			return npos(pos, mkname(p.sym()))
+ 		}
+-		return typenod(p.typ())
++		return npos(pos, typenod(p.typ()))
+ 
+ 	// case OTARRAY, OTMAP, OTCHAN, OTSTRUCT, OTINTER, OTFUNC:
+ 	//      unreachable - should have been resolved by typechecking
+@@ -893,7 +905,7 @@ func (p *importer) node() *Node {
+ 	//	unimplemented
+ 
+ 	case OPTRLIT:
+-		n := p.expr()
++		n := npos(p.pos(), p.expr())
+ 		if !p.bool() /* !implicit, i.e. '&' operator */ {
+ 			if n.Op == OCOMPLIT {
+ 				// Special case for &T{...}: turn into (*T){...}.
+@@ -906,7 +918,7 @@ func (p *importer) node() *Node {
+ 		return n
+ 
+ 	case OSTRUCTLIT:
+-		n := nod(OCOMPLIT, nil, typenod(p.typ()))
++		n := npos(p.pos(), nod(OCOMPLIT, nil, typenod(p.typ())))
+ 		n.List.Set(p.elemList()) // special handling of field names
+ 		return n
+ 
+@@ -914,13 +926,14 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to case OCOMPLIT below by exporter
+ 
+ 	case OCOMPLIT:
+-		n := nod(OCOMPLIT, nil, typenod(p.typ()))
++		n := npos(p.pos(), nod(OCOMPLIT, nil, typenod(p.typ())))
+ 		n.List.Set(p.exprList())
+ 		return n
+ 
+ 	case OKEY:
++		pos := p.pos()
+ 		left, right := p.exprsOrNil()
+-		return nod(OKEY, left, right)
++		return npos(pos, nod(OKEY, left, right))
+ 
+ 	// case OSTRUCTKEY:
+ 	//	unreachable - handled in case OSTRUCTLIT by elemList
+@@ -933,13 +946,13 @@ func (p *importer) node() *Node {
+ 
+ 	case OXDOT:
+ 		// see parser.new_dotname
+-		return nodSym(OXDOT, p.expr(), p.fieldSym())
++		return npos(p.pos(), nodSym(OXDOT, p.expr(), p.fieldSym()))
+ 
+ 	// case ODOTTYPE, ODOTTYPE2:
+ 	// 	unreachable - mapped to case ODOTTYPE below by exporter
+ 
+ 	case ODOTTYPE:
+-		n := nod(ODOTTYPE, p.expr(), nil)
++		n := npos(p.pos(), nod(ODOTTYPE, p.expr(), nil))
+ 		if p.bool() {
+ 			n.Right = p.expr()
+ 		} else {
+@@ -951,10 +964,10 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to cases below by exporter
+ 
+ 	case OINDEX:
+-		return nod(op, p.expr(), p.expr())
++		return npos(p.pos(), nod(op, p.expr(), p.expr()))
+ 
+ 	case OSLICE, OSLICE3:
+-		n := nod(op, p.expr(), nil)
++		n := npos(p.pos(), nod(op, p.expr(), nil))
+ 		low, high := p.exprsOrNil()
+ 		var max *Node
+ 		if n.Op.IsSlice3() {
+@@ -967,12 +980,12 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OCONV case below by exporter
+ 
+ 	case OCONV:
+-		n := nod(OCALL, typenod(p.typ()), nil)
++		n := npos(p.pos(), nod(OCALL, typenod(p.typ()), nil))
+ 		n.List.Set(p.exprList())
+ 		return n
+ 
+ 	case OCOPY, OCOMPLEX, OREAL, OIMAG, OAPPEND, OCAP, OCLOSE, ODELETE, OLEN, OMAKE, ONEW, OPANIC, ORECOVER, OPRINT, OPRINTN:
+-		n := builtinCall(op)
++		n := npos(p.pos(), builtinCall(op))
+ 		n.List.Set(p.exprList())
+ 		if op == OAPPEND {
+ 			n.SetIsddd(p.bool())
+@@ -983,31 +996,32 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OCALL case below by exporter
+ 
+ 	case OCALL:
+-		n := nod(OCALL, p.expr(), nil)
++		n := npos(p.pos(), nod(OCALL, p.expr(), nil))
+ 		n.List.Set(p.exprList())
+ 		n.SetIsddd(p.bool())
+ 		return n
+ 
+ 	case OMAKEMAP, OMAKECHAN, OMAKESLICE:
+-		n := builtinCall(OMAKE)
++		n := npos(p.pos(), builtinCall(OMAKE))
+ 		n.List.Append(typenod(p.typ()))
+ 		n.List.Append(p.exprList()...)
+ 		return n
+ 
+ 	// unary expressions
+ 	case OPLUS, OMINUS, OADDR, OCOM, OIND, ONOT, ORECV:
+-		return nod(op, p.expr(), nil)
++		return npos(p.pos(), nod(op, p.expr(), nil))
+ 
+ 	// binary expressions
+ 	case OADD, OAND, OANDAND, OANDNOT, ODIV, OEQ, OGE, OGT, OLE, OLT,
+ 		OLSH, OMOD, OMUL, ONE, OOR, OOROR, ORSH, OSEND, OSUB, OXOR:
+-		return nod(op, p.expr(), p.expr())
++		return npos(p.pos(), nod(op, p.expr(), p.expr()))
+ 
+ 	case OADDSTR:
++		pos := p.pos()
+ 		list := p.exprList()
+-		x := list[0]
++		x := npos(pos, list[0])
+ 		for _, y := range list[1:] {
+-			x = nod(OADD, x, y)
++			x = npos(pos, nod(OADD, x, y))
+ 		}
+ 		return x
+ 
+@@ -1016,7 +1030,7 @@ func (p *importer) node() *Node {
+ 
+ 	case ODCLCONST:
+ 		// TODO(gri) these should not be exported in the first place
+-		return nod(OEMPTY, nil, nil)
++		return npos(p.pos(), nod(OEMPTY, nil, nil))
+ 
+ 	// --------------------------------------------------------------------
+ 	// statements
+@@ -1026,9 +1040,10 @@ func (p *importer) node() *Node {
+ 			// was always false - simply ignore in this case
+ 			p.bool()
+ 		}
++		pos := p.pos()
+ 		lhs := dclname(p.sym())
+ 		typ := typenod(p.typ())
+-		return liststmt(variter([]*Node{lhs}, typ, nil)) // TODO(gri) avoid list creation
++		return npos(pos, liststmt(variter([]*Node{lhs}, typ, nil))) // TODO(gri) avoid list creation
+ 
+ 	// case ODCLFIELD:
+ 	//	unimplemented
+@@ -1037,10 +1052,10 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OAS case below by exporter
+ 
+ 	case OAS:
+-		return nod(OAS, p.expr(), p.expr())
++		return npos(p.pos(), nod(OAS, p.expr(), p.expr()))
+ 
+ 	case OASOP:
+-		n := nod(OASOP, nil, nil)
++		n := npos(p.pos(), nod(OASOP, nil, nil))
+ 		n.Etype = EType(p.int())
+ 		n.Left = p.expr()
+ 		if !p.bool() {
+@@ -1055,13 +1070,13 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OAS2 case below by exporter
+ 
+ 	case OAS2:
+-		n := nod(OAS2, nil, nil)
++		n := npos(p.pos(), nod(OAS2, nil, nil))
+ 		n.List.Set(p.exprList())
+ 		n.Rlist.Set(p.exprList())
+ 		return n
+ 
+ 	case ORETURN:
+-		n := nod(ORETURN, nil, nil)
++		n := npos(p.pos(), nod(ORETURN, nil, nil))
+ 		n.List.Set(p.exprList())
+ 		return n
+ 
+@@ -1069,11 +1084,11 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - generated by compiler for trampolin routines (not exported)
+ 
+ 	case OPROC, ODEFER:
+-		return nod(op, p.expr(), nil)
++		return npos(p.pos(), nod(op, p.expr(), nil))
+ 
+ 	case OIF:
+ 		markdcl()
+-		n := nod(OIF, nil, nil)
++		n := npos(p.pos(), nod(OIF, nil, nil))
+ 		n.Ninit.Set(p.stmtList())
+ 		n.Left = p.expr()
+ 		n.Nbody.Set(p.stmtList())
+@@ -1083,7 +1098,7 @@ func (p *importer) node() *Node {
+ 
+ 	case OFOR:
+ 		markdcl()
+-		n := nod(OFOR, nil, nil)
++		n := npos(p.pos(), nod(OFOR, nil, nil))
+ 		n.Ninit.Set(p.stmtList())
+ 		n.Left, n.Right = p.exprsOrNil()
+ 		n.Nbody.Set(p.stmtList())
+@@ -1092,7 +1107,7 @@ func (p *importer) node() *Node {
+ 
+ 	case ORANGE:
+ 		markdcl()
+-		n := nod(ORANGE, nil, nil)
++		n := npos(p.pos(), nod(ORANGE, nil, nil))
+ 		n.List.Set(p.stmtList())
+ 		n.Right = p.expr()
+ 		n.Nbody.Set(p.stmtList())
+@@ -1101,7 +1116,7 @@ func (p *importer) node() *Node {
+ 
+ 	case OSELECT, OSWITCH:
+ 		markdcl()
+-		n := nod(op, nil, nil)
++		n := npos(p.pos(), nod(op, nil, nil))
+ 		n.Ninit.Set(p.stmtList())
+ 		n.Left, _ = p.exprsOrNil()
+ 		n.List.Set(p.stmtList())
+@@ -1113,7 +1128,7 @@ func (p *importer) node() *Node {
+ 
+ 	case OXCASE:
+ 		markdcl()
+-		n := nod(OXCASE, nil, nil)
++		n := npos(p.pos(), nod(OXCASE, nil, nil))
+ 		n.Xoffset = int64(block)
+ 		n.List.Set(p.exprList())
+ 		// TODO(gri) eventually we must declare variables for type switch
+@@ -1126,22 +1141,23 @@ func (p *importer) node() *Node {
+ 	// 	unreachable - mapped to OXFALL case below by exporter
+ 
+ 	case OXFALL:
+-		n := nod(OXFALL, nil, nil)
++		n := npos(p.pos(), nod(OXFALL, nil, nil))
+ 		n.Xoffset = int64(block)
+ 		return n
+ 
+ 	case OBREAK, OCONTINUE:
++		pos := p.pos()
+ 		left, _ := p.exprsOrNil()
+ 		if left != nil {
+ 			left = newname(left.Sym)
+ 		}
+-		return nod(op, left, nil)
++		return npos(pos, nod(op, left, nil))
+ 
+ 	// case OEMPTY:
+ 	// 	unreachable - not emitted by exporter
+ 
+ 	case OGOTO, OLABEL:
+-		n := nod(op, newname(p.expr().Sym), nil)
++		n := npos(p.pos(), nod(op, newname(p.expr().Sym), nil))
+ 		n.Sym = dclstack // context, for goto restrictions
+ 		return n
+ 

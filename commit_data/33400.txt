@@ -9,6 +9,51 @@ Date:   Fri May 26 14:35:29 2017 +0300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/crypto/x509/x509.go | 19 ++++++++++++++++---
  1 file changed, 16 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index fdc7c5307b..9c40ae88f6 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -194,7 +194,7 @@ func (algo SignatureAlgorithm) isRSAPSS() bool {
+ 	}
+ }
+ 
+-var algoName = [...]string{
++var signatureAlgoName = [...]string{
+ 	MD2WithRSA:       "MD2-RSA",
+ 	MD5WithRSA:       "MD5-RSA",
+ 	SHA1WithRSA:      "SHA1-RSA",
+@@ -213,8 +213,8 @@ var algoName = [...]string{
+ }
+ 
+ func (algo SignatureAlgorithm) String() string {
+-	if 0 < algo && int(algo) < len(algoName) {
+-		return algoName[algo]
++	if 0 < algo && int(algo) < len(signatureAlgoName) {
++		return signatureAlgoName[algo]
+ 	}
+ 	return strconv.Itoa(int(algo))
+ }
+@@ -228,6 +228,19 @@ const (
+ 	ECDSA
+ )
+ 
++var publicKeyAlgoName = [...]string{
++	RSA:   "RSA",
++	DSA:   "DSA",
++	ECDSA: "ECDSA",
++}
++
++func (algo PublicKeyAlgorithm) String() string {
++	if 0 < algo && int(algo) < len(publicKeyAlgoName) {
++		return publicKeyAlgoName[algo]
++	}
++	return strconv.Itoa(int(algo))
++}
++
+ // OIDs for signature algorithms
+ //
+ // pkcs-1 OBJECT IDENTIFIER ::= {

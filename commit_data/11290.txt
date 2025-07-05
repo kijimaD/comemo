@@ -7,6 +7,22 @@ Date:   Fri Jan 20 07:17:52 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5553049
-
+---
  misc/xcode/go.xclangspec | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/xcode/go.xclangspec b/misc/xcode/go.xclangspec
+index e515564dad..4a8c94d5b6 100644
+--- a/misc/xcode/go.xclangspec
++++ b/misc/xcode/go.xclangspec
+@@ -273,8 +273,8 @@
+ 			StartChars = "BMTF!?";
+ 			Match = (
+ 				// Go-specific markers
+-				"^\(BUG.*$\)$",			// inlude "BUG" in the markers list
+-				"^\(TODO.*$\)$",		// inlude "TODO" in the markers list
++				"^\(BUG.*$\)$",			// include "BUG" in the markers list
++				"^\(TODO.*$\)$",		// include "TODO" in the markers list
+ 				// inherited markers
+ 				"^MARK:[ \t]+\(.*\)$",
+ 				"^\(TODO:[ \t]+.*\)$",		// include "TODO: " in the markers list

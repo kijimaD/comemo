@@ -7,7 +7,7 @@ Date:   Wed Nov 4 17:02:05 2009 -0800
     
     R=rsc
     http://go/go-review/1016042
-
+---
  src/pkg/go/ast/ast.go          | 187 ++++++++++++++++++-----------
  src/pkg/go/ast/scope.go        |   8 +-
  src/pkg/go/doc/comment.go      |  37 +++---
@@ -16,3 +16,921 @@ Date:   Wed Nov 4 17:02:05 2009 -0800
  src/pkg/go/scanner/scanner.go  |   4 +-
  src/pkg/go/token/token.go      | 266 ++++++++++++++++++++---------------------
  7 files changed, 285 insertions(+), 237 deletions(-)
+
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index efe2af459e..92f24d6ef8 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -65,7 +65,7 @@ type Decl interface {
+ 
+ // A Comment node represents a single //-style or /*-style comment.
+ type Comment struct {
+-	token.Position;	// beginning position of the comment
++	token.Position;		// beginning position of the comment
+ 	Text		[]byte;	// comment text (excluding '\n' for //-style comments)
+ }
+ 
+@@ -117,7 +117,7 @@ type (
+ 
+ 	// An Ident node represents an identifier.
+ 	Ident	struct {
+-		token.Position;	// identifier position
++		token.Position;		// identifier position
+ 		Value		string;	// identifier string (e.g. foobar)
+ 	};
+ 
+@@ -130,7 +130,7 @@ type (
+ 
+ 	// A BasicLit node represents a literal of basic type.
+ 	BasicLit	struct {
+-		token.Position;	// literal position
++		token.Position;			// literal position
+ 		Kind		token.Token;	//  token.INT, token.FLOAT, token.CHAR, or token.STRING
+ 		Value		[]byte;		// literal string; e.g. 42, 0x7f, 3.14, 1e-9, 'a', '\x7f', "foo" or `\m\n\o`
+ 	};
+@@ -161,7 +161,7 @@ type (
+ 
+ 	// A ParenExpr node represents a parenthesized expression.
+ 	ParenExpr	struct {
+-		token.Position;	// position of "("
++		token.Position;			// position of "("
+ 		X		Expr;		// parenthesized expression
+ 		Rparen		token.Position;	// position of ")"
+ 	};
+@@ -198,7 +198,7 @@ type (
+ 	// A StarExpr node represents an expression of the form "*" Expression.
+ 	// Semantically it could be a unary "*" expression, or a pointer type.
+ 	StarExpr	struct {
+-		token.Position;	// position of "*"
++		token.Position;		// position of "*"
+ 		X		Expr;	// operand
+ 	};
+ 
+@@ -206,7 +206,7 @@ type (
+ 	// Unary "*" expressions are represented via StarExpr nodes.
+ 	//
+ 	UnaryExpr	struct {
+-		token.Position;	// position of Op
++		token.Position;			// position of Op
+ 		Op		token.Token;	// operator
+ 		X		Expr;		// operand
+ 	};
+@@ -249,14 +249,14 @@ const (
+ type (
+ 	// An ArrayType node represents an array or slice type.
+ 	ArrayType	struct {
+-		token.Position;	// position of "["
++		token.Position;		// position of "["
+ 		Len		Expr;	// Ellipsis node for [...]T array types, nil for slice types
+ 		Elt		Expr;	// element type
+ 	};
+ 
+ 	// A StructType node represents a struct type.
+ 	StructType	struct {
+-		token.Position;	// position of "struct" keyword
++		token.Position;			// position of "struct" keyword
+ 		Lbrace		token.Position;	// position of "{"
+ 		Fields		[]*Field;	// list of field declarations
+ 		Rbrace		token.Position;	// position of "}"
+@@ -267,14 +267,14 @@ type (
+ 
+ 	// A FuncType node represents a function type.
+ 	FuncType	struct {
+-		token.Position;	// position of "func" keyword
++		token.Position;			// position of "func" keyword
+ 		Params		[]*Field;	// (incoming) parameters
+ 		Results		[]*Field;	// (outgoing) results
+ 	};
+ 
+ 	// An InterfaceType node represents an interface type.
+ 	InterfaceType	struct {
+-		token.Position;	// position of "interface" keyword
++		token.Position;			// position of "interface" keyword
+ 		Lbrace		token.Position;	// position of "{"
+ 		Methods		[]*Field;	// list of methods
+ 		Rbrace		token.Position;	// position of "}"
+@@ -290,7 +290,7 @@ type (
+ 
+ 	// A ChanType node represents a channel type.
+ 	ChanType	struct {
+-		token.Position;	// position of "chan" keyword or "<-" (whichever comes first)
++		token.Position;			// position of "chan" keyword or "<-" (whichever comes first)
+ 		Dir		ChanDir;	// channel direction
+ 		Value		Expr;		// value type
+ 	};
+@@ -331,29 +331,51 @@ func (x *KeyValueExpr) Pos() token.Position {
+ 
+ // exprNode() ensures that only expression/type nodes can be
+ // assigned to an ExprNode.
+-func (x *BadExpr) exprNode() {}
+-func (x *Ident) exprNode() {}
+-func (x *Ellipsis) exprNode() {}
+-func (x *BasicLit) exprNode() {}
+-func (x *StringList) exprNode() {}
+-func (x *FuncLit) exprNode() {}
+-func (x *CompositeLit) exprNode() {}
+-func (x *ParenExpr) exprNode() {}
+-func (x *SelectorExpr) exprNode() {}
+-func (x *IndexExpr) exprNode() {}
+-func (x *TypeAssertExpr) exprNode() {}
+-func (x *CallExpr) exprNode() {}
+-func (x *StarExpr) exprNode() {}
+-func (x *UnaryExpr) exprNode() {}
+-func (x *BinaryExpr) exprNode() {}
+-func (x *KeyValueExpr) exprNode() {}
+-
+-func (x *ArrayType) exprNode() {}
+-func (x *StructType) exprNode() {}
+-func (x *FuncType) exprNode() {}
+-func (x *InterfaceType) exprNode() {}
+-func (x *MapType) exprNode() {}
+-func (x *ChanType) exprNode() {}
++func (x *BadExpr) exprNode() {
++}
++func (x *Ident) exprNode() {
++}
++func (x *Ellipsis) exprNode() {
++}
++func (x *BasicLit) exprNode() {
++}
++func (x *StringList) exprNode() {
++}
++func (x *FuncLit) exprNode() {
++}
++func (x *CompositeLit) exprNode() {
++}
++func (x *ParenExpr) exprNode() {
++}
++func (x *SelectorExpr) exprNode() {
++}
++func (x *IndexExpr) exprNode() {
++}
++func (x *TypeAssertExpr) exprNode() {
++}
++func (x *CallExpr) exprNode() {
++}
++func (x *StarExpr) exprNode() {
++}
++func (x *UnaryExpr) exprNode() {
++}
++func (x *BinaryExpr) exprNode() {
++}
++func (x *KeyValueExpr) exprNode() {
++}
++
++func (x *ArrayType) exprNode() {
++}
++func (x *StructType) exprNode() {
++}
++func (x *FuncType) exprNode() {
++}
++func (x *InterfaceType) exprNode() {
++}
++func (x *MapType) exprNode() {
++}
++func (x *ChanType) exprNode() {
++}
+ 
+ 
+ // IsExported returns whether name is an exported Go symbol
+@@ -452,7 +474,7 @@ type (
+ 	// or fallthrough statement.
+ 	//
+ 	BranchStmt	struct {
+-		token.Position;	// position of Tok
++		token.Position;			// position of Tok
+ 		Tok		token.Token;	// keyword token (BREAK, CONTINUE, GOTO, FALLTHROUGH)
+ 		Label		*Ident;
+ 	};
+@@ -475,7 +497,7 @@ type (
+ 
+ 	// A CaseClause represents a case of an expression switch statement.
+ 	CaseClause	struct {
+-		token.Position;	// position of "case" or "default" keyword
++		token.Position;			// position of "case" or "default" keyword
+ 		Values		[]Expr;		// nil means default case
+ 		Colon		token.Position;	// position of ":"
+ 		Body		[]Stmt;		// statement list; or nil
+@@ -491,7 +513,7 @@ type (
+ 
+ 	// A TypeCaseClause represents a case of a type switch statement.
+ 	TypeCaseClause	struct {
+-		token.Position;	// position of "case" or "default" keyword
++		token.Position;			// position of "case" or "default" keyword
+ 		Types		[]Expr;		// nil means default case
+ 		Colon		token.Position;	// position of ":"
+ 		Body		[]Stmt;		// statement list; or nil
+@@ -507,7 +529,7 @@ type (
+ 
+ 	// A CommClause node represents a case of a select statement.
+ 	CommClause	struct {
+-		token.Position;	// position of "case" or "default" keyword
++		token.Position;			// position of "case" or "default" keyword
+ 		Tok		token.Token;	// ASSIGN or DEFINE (valid only if Lhs != nil)
+ 		Lhs, Rhs	Expr;		// Rhs == nil means default case
+ 		Colon		token.Position;	// position of ":"
+@@ -516,7 +538,7 @@ type (
+ 
+ 	// An SelectStmt node represents a select statement.
+ 	SelectStmt	struct {
+-		token.Position;	// position of "select" keyword
++		token.Position;			// position of "select" keyword
+ 		Body		*BlockStmt;	// CommClauses only
+ 	};
+ 
+@@ -531,7 +553,7 @@ type (
+ 
+ 	// A RangeStmt represents a for statement with a range clause.
+ 	RangeStmt	struct {
+-		token.Position;	// position of "for" keyword
++		token.Position;			// position of "for" keyword
+ 		Key, Value	Expr;		// Value may be nil
+ 		TokPos		token.Position;	// position of Tok
+ 		Tok		token.Token;	// ASSIGN, DEFINE
+@@ -564,27 +586,48 @@ func (s *AssignStmt) Pos() token.Position {
+ // stmtNode() ensures that only statement nodes can be
+ // assigned to a StmtNode.
+ //
+-func (s *BadStmt) stmtNode() {}
+-func (s *DeclStmt) stmtNode() {}
+-func (s *EmptyStmt) stmtNode() {}
+-func (s *LabeledStmt) stmtNode() {}
+-func (s *ExprStmt) stmtNode() {}
+-func (s *IncDecStmt) stmtNode() {}
+-func (s *AssignStmt) stmtNode() {}
+-func (s *GoStmt) stmtNode() {}
+-func (s *DeferStmt) stmtNode() {}
+-func (s *ReturnStmt) stmtNode() {}
+-func (s *BranchStmt) stmtNode() {}
+-func (s *BlockStmt) stmtNode() {}
+-func (s *IfStmt) stmtNode() {}
+-func (s *CaseClause) stmtNode() {}
+-func (s *SwitchStmt) stmtNode() {}
+-func (s *TypeCaseClause) stmtNode() {}
+-func (s *TypeSwitchStmt) stmtNode() {}
+-func (s *CommClause) stmtNode() {}
+-func (s *SelectStmt) stmtNode() {}
+-func (s *ForStmt) stmtNode() {}
+-func (s *RangeStmt) stmtNode() {}
++func (s *BadStmt) stmtNode() {
++}
++func (s *DeclStmt) stmtNode() {
++}
++func (s *EmptyStmt) stmtNode() {
++}
++func (s *LabeledStmt) stmtNode() {
++}
++func (s *ExprStmt) stmtNode() {
++}
++func (s *IncDecStmt) stmtNode() {
++}
++func (s *AssignStmt) stmtNode() {
++}
++func (s *GoStmt) stmtNode() {
++}
++func (s *DeferStmt) stmtNode() {
++}
++func (s *ReturnStmt) stmtNode() {
++}
++func (s *BranchStmt) stmtNode() {
++}
++func (s *BlockStmt) stmtNode() {
++}
++func (s *IfStmt) stmtNode() {
++}
++func (s *CaseClause) stmtNode() {
++}
++func (s *SwitchStmt) stmtNode() {
++}
++func (s *TypeCaseClause) stmtNode() {
++}
++func (s *TypeSwitchStmt) stmtNode() {
++}
++func (s *CommClause) stmtNode() {
++}
++func (s *SelectStmt) stmtNode() {
++}
++func (s *ForStmt) stmtNode() {
++}
++func (s *RangeStmt) stmtNode() {
++}
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -648,9 +691,12 @@ func (s *TypeSpec) Pos() token.Position {
+ // specNode() ensures that only spec nodes can be
+ // assigned to a Spec.
+ //
+-func (s *ImportSpec) specNode() {}
+-func (s *ValueSpec) specNode() {}
+-func (s *TypeSpec) specNode() {}
++func (s *ImportSpec) specNode() {
++}
++func (s *ValueSpec) specNode() {
++}
++func (s *TypeSpec) specNode() {
++}
+ 
+ 
+ // A declaration is represented by one of the following declaration nodes.
+@@ -677,7 +723,7 @@ type (
+ 	//
+ 	GenDecl	struct {
+ 		Doc		*CommentGroup;	// associated documentation; or nil
+-		token.Position;	// position of Tok
++		token.Position;			// position of Tok
+ 		Tok		token.Token;	// IMPORT, CONST, TYPE, VAR
+ 		Lparen		token.Position;	// position of '(', if any
+ 		Specs		[]Spec;
+@@ -704,9 +750,12 @@ func (d *FuncDecl) Pos() token.Position {
+ // declNode() ensures that only declaration nodes can be
+ // assigned to a DeclNode.
+ //
+-func (d *BadDecl) declNode() {}
+-func (d *GenDecl) declNode() {}
+-func (d *FuncDecl) declNode() {}
++func (d *BadDecl) declNode() {
++}
++func (d *GenDecl) declNode() {
++}
++func (d *FuncDecl) declNode() {
++}
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -716,7 +765,7 @@ func (d *FuncDecl) declNode() {}
+ //
+ type File struct {
+ 	Doc		*CommentGroup;	// associated documentation; or nil
+-	token.Position;	// position of "package" keyword
++	token.Position;			// position of "package" keyword
+ 	Name		*Ident;		// package name
+ 	Decls		[]Decl;		// top-level declarations
+ 	Comments	*CommentGroup;	// list of all comments in the source file
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 688ae50c7d..988b11e957 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -11,8 +11,8 @@ package ast
+ //	NOTE: WORK IN PROGRESS
+ //
+ type Scope struct {
+-	Outer *Scope;
+-	Names map[string]*Ident
++	Outer	*Scope;
++	Names	map[string]*Ident;
+ }
+ 
+ 
+@@ -38,7 +38,7 @@ func (s *Scope) Declare(ident *Ident) bool {
+ // Lookup looks up an identifier in the current scope chain.
+ // If the identifier is found, it is returned; otherwise the
+ // result is nil.
+-// 
++//
+ func (s *Scope) Lookup(name string) *Ident {
+ 	for ; s != nil; s = s.Outer {
+ 		if ident, found := s.Names[name]; found {
+@@ -91,4 +91,4 @@ var Universe = Scope {
+ 		"println": nil,
+ 	}
+ }
+-*/
++*/
+\ No newline at end of file
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index d83857c0c4..18fce5c4ea 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -31,8 +31,8 @@ func CommentText(comment *ast.CommentGroup) string {
+ 		// Remove comment markers.
+ 		// The parser has given us exactly the comment text.
+ 		switch n := len(c); {
+-		case n >= 4 && c[0:2] == "/*" && c[n-2:n] == "*/":
+-			c = c[2:n-2];
++		case n >= 4 && c[0:2] == "/*" && c[n-2 : n] == "*/":
++			c = c[2 : n-2];
+ 		case n >= 2 && c[0:2] == "//":
+ 			c = c[2:n];
+ 			// Remove leading space after //, if there is one.
+@@ -51,7 +51,7 @@ func CommentText(comment *ast.CommentGroup) string {
+ 			for m > 0 && (l[m-1] == ' ' || l[m-1] == '\n' || l[m-1] == '\t' || l[m-1] == '\r') {
+ 				m--;
+ 			}
+-			l = l[0 : m];
++			l = l[0:m];
+ 
+ 			// Add to list.
+ 			n := len(lines);
+@@ -76,7 +76,7 @@ func CommentText(comment *ast.CommentGroup) string {
+ 			n++;
+ 		}
+ 	}
+-	lines = lines[0 : n];
++	lines = lines[0:n];
+ 
+ 	// Add final "" entry to get trailing newline from Join.
+ 	// The original loop always leaves room for one more.
+@@ -115,7 +115,7 @@ func split(text []byte) [][]byte {
+ 		}
+ 	}
+ 	if last < len(text) {
+-		out[n] = text[last : len(text)];
++		out[n] = text[last:len(text)];
+ 	}
+ 
+ 	return out;
+@@ -123,8 +123,8 @@ func split(text []byte) [][]byte {
+ 
+ 
+ var (
+-	ldquo = strings.Bytes("&ldquo;");
+-	rdquo = strings.Bytes("&rdquo;");
++	ldquo	= strings.Bytes("&ldquo;");
++	rdquo	= strings.Bytes("&rdquo;");
+ )
+ 
+ // Escape comment text for HTML.
+@@ -133,7 +133,7 @@ func commentEscape(w io.Writer, s []byte) {
+ 	last := 0;
+ 	for i := 0; i < len(s)-1; i++ {
+ 		if s[i] == s[i+1] && (s[i] == '`' || s[i] == '\'') {
+-			template.HtmlEscape(w, s[last : i]);
++			template.HtmlEscape(w, s[last:i]);
+ 			last = i+2;
+ 			switch s[i] {
+ 			case '`':
+@@ -144,15 +144,15 @@ func commentEscape(w io.Writer, s []byte) {
+ 			i++;	// loop will add one more
+ 		}
+ 	}
+-	template.HtmlEscape(w, s[last : len(s)]);
++	template.HtmlEscape(w, s[last:len(s)]);
+ }
+ 
+ 
+ var (
+-	html_p = strings.Bytes("<p>\n");
+-	html_endp = strings.Bytes("</p>\n");
+-	html_pre = strings.Bytes("<pre>");
+-	html_endpre = strings.Bytes("</pre>\n");
++	html_p		= strings.Bytes("<p>\n");
++	html_endp	= strings.Bytes("</p>\n");
++	html_pre	= strings.Bytes("<pre>");
++	html_endpre	= strings.Bytes("</pre>\n");
+ )
+ 
+ 
+@@ -166,7 +166,7 @@ func indentLen(s []byte) int {
+ 
+ 
+ func isBlank(s []byte) bool {
+-	return len(s) == 0 || (len(s) == 1 && s[0] == '\n')
++	return len(s) == 0 || (len(s) == 1 && s[0] == '\n');
+ }
+ 
+ 
+@@ -175,7 +175,7 @@ func commonPrefix(a, b []byte) []byte {
+ 	for i < len(a) && i < len(b) && a[i] == b[i] {
+ 		i++;
+ 	}
+-	return a[0 : i];
++	return a[0:i];
+ }
+ 
+ 
+@@ -196,7 +196,7 @@ func unindent(block [][]byte) {
+ 	// remove
+ 	for i, line := range block {
+ 		if !isBlank(line) {
+-			block[i] = line[n : len(line)];
++			block[i] = line[n:len(line)];
+ 		}
+ 	}
+ }
+@@ -233,7 +233,7 @@ func ToHtml(w io.Writer, s []byte) {
+ 
+ 	lines := split(s);
+ 	unindent(lines);
+-	for i := 0; i < len(lines);  {
++	for i := 0; i < len(lines); {
+ 		line := lines[i];
+ 		if isBlank(line) {
+ 			// close paragraph
+@@ -260,7 +260,7 @@ func ToHtml(w io.Writer, s []byte) {
+ 			for j > i && isBlank(lines[j-1]) {
+ 				j--;
+ 			}
+-			block := lines[i : j];
++			block := lines[i:j];
+ 			i = j;
+ 
+ 			unindent(block);
+@@ -288,4 +288,3 @@ func ToHtml(w io.Writer, s []byte) {
+ 		inpara = false;
+ 	}
+ }
+-
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 0acf5cd58f..7f8c558e79 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -245,8 +245,8 @@ func copyCommentList(list []*ast.Comment) []*ast.Comment {
+ 
+ 
+ var (
+-	bug_markers = regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
+-	bug_content = regexp.MustCompile("[^ \n\r\t]+");	// at least one non-whitespace char
++	bug_markers	= regexp.MustCompile("^/[/*][ \t]*BUG\\(.*\\):[ \t]*");	// BUG(uid):
++	bug_content	= regexp.MustCompile("[^ \n\r\t]+");			// at least one non-whitespace char
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 44f1d5ec21..714add4331 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -7,14 +7,14 @@
+ package parser
+ 
+ import (
+-			"bytes";
+-			"fmt";
+-			"go/ast";
+-			"go/scanner";
+-			"io";
+-			"os";
+-	pathutil	"path";
+-			"strings";
++	"bytes";
++	"fmt";
++	"go/ast";
++	"go/scanner";
++	"io";
++	"os";
++	pathutil "path";
++	"strings";
+ )
+ 
+ 
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index 03899a428f..7f707296e7 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -250,7 +250,7 @@ func (S *Scanner) scanNumber(seen_decimal_point bool) token.Token {
+ 				tok = token.FLOAT;
+ 				goto mantissa;
+ 			}
+-		// octal int
++			// octal int
+ 		}
+ 		goto exit;
+ 	}
+@@ -554,7 +554,7 @@ func Tokenize(filename string, src []byte, err ErrorHandler, mode uint, f func(p
+ 	var s Scanner;
+ 	s.Init(filename, src, err, mode);
+ 	for f(s.Scan()) {
+-	// action happens in f
++		// action happens in f
+ 	}
+ 	return s.ErrorCount;
+ }
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index 1ea6c46e9d..b3191c22c7 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -20,27 +20,27 @@ type Token int
+ // The list of tokens.
+ const (
+ 	// Special tokens
+-	ILLEGAL Token = iota;
++	ILLEGAL	Token	= iota;
+ 	EOF;
+ 	COMMENT;
+ 
+ 	literal_beg;
+ 	// Identifiers and basic type literals
+ 	// (these tokens stand for classes of literals)
+-	IDENT;		// main
+-	INT;		// 12345
+-	FLOAT;		// 123.45
+-	CHAR;		// 'a'
+-	STRING;		// "abc"
++	IDENT;	// main
++	INT;	// 12345
++	FLOAT;	// 123.45
++	CHAR;	// 'a'
++	STRING;	// "abc"
+ 	literal_end;
+ 
+ 	operator_beg;
+ 	// Operators and delimiters
+-	ADD;		// +
+-	SUB;		// -
+-	MUL;		// *
+-	QUO;		// /
+-	REM;		// %
++	ADD;	// +
++	SUB;	// -
++	MUL;	// *
++	QUO;	// /
++	REM;	// %
+ 
+ 	AND;		// &
+ 	OR;		// |
+@@ -62,17 +62,17 @@ const (
+ 	SHR_ASSIGN;	// >>=
+ 	AND_NOT_ASSIGN;	// &^=
+ 
+-	LAND;		// &&
+-	LOR;		// ||
+-	ARROW;		// <-
+-	INC;		// ++
+-	DEC;		// --
++	LAND;	// &&
++	LOR;	// ||
++	ARROW;	// <-
++	INC;	// ++
++	DEC;	// --
+ 
+-	EQL;		// ==
+-	LSS;		// <
+-	GTR;		// >
+-	ASSIGN;		// =
+-	NOT;		// !
++	EQL;	// ==
++	LSS;	// <
++	GTR;	// >
++	ASSIGN;	// =
++	NOT;	// !
+ 
+ 	NEQ;		// !=
+ 	LEQ;		// <=
+@@ -80,11 +80,11 @@ const (
+ 	DEFINE;		// :=
+ 	ELLIPSIS;	// ...
+ 
+-	LPAREN;		// (
+-	LBRACK;		// [
+-	LBRACE;		// {
+-	COMMA;		// ,
+-	PERIOD;		// .
++	LPAREN;	// (
++	LBRACK;	// [
++	LBRACE;	// {
++	COMMA;	// ,
++	PERIOD;	// .
+ 
+ 	RPAREN;		// )
+ 	RBRACK;		// ]
+@@ -131,103 +131,103 @@ const (
+ // At the moment we have no array literal syntax that lets us describe
+ // the index for each element - use a map for now to make sure they are
+ // in sync.
+-var tokens = map [Token] string {
+-	ILLEGAL : "ILLEGAL",
+-
+-	EOF : "EOF",
+-	COMMENT : "COMMENT",
+-
+-	IDENT : "IDENT",
+-	INT : "INT",
+-	FLOAT : "FLOAT",
+-	CHAR : "CHAR",
+-	STRING : "STRING",
+-
+-	ADD : "+",
+-	SUB : "-",
+-	MUL : "*",
+-	QUO : "/",
+-	REM : "%",
+-
+-	AND : "&",
+-	OR : "|",
+-	XOR : "^",
+-	SHL : "<<",
+-	SHR : ">>",
+-	AND_NOT : "&^",
+-
+-	ADD_ASSIGN : "+=",
+-	SUB_ASSIGN : "-=",
+-	MUL_ASSIGN : "*=",
+-	QUO_ASSIGN : "/=",
+-	REM_ASSIGN : "%=",
+-
+-	AND_ASSIGN : "&=",
+-	OR_ASSIGN : "|=",
+-	XOR_ASSIGN : "^=",
+-	SHL_ASSIGN : "<<=",
+-	SHR_ASSIGN : ">>=",
+-	AND_NOT_ASSIGN : "&^=",
+-
+-	LAND : "&&",
+-	LOR : "||",
+-	ARROW : "<-",
+-	INC : "++",
+-	DEC : "--",
+-
+-	EQL : "==",
+-	LSS : "<",
+-	GTR : ">",
+-	ASSIGN : "=",
+-	NOT : "!",
+-
+-	NEQ : "!=",
+-	LEQ : "<=",
+-	GEQ : ">=",
+-	DEFINE : ":=",
+-	ELLIPSIS : "...",
+-
+-	LPAREN : "(",
+-	LBRACK : "[",
+-	LBRACE : "{",
+-	COMMA : ",",
+-	PERIOD : ".",
+-
+-	RPAREN : ")",
+-	RBRACK : "]",
+-	RBRACE : "}",
+-	SEMICOLON : ";",
+-	COLON : ":",
+-
+-	BREAK : "break",
+-	CASE : "case",
+-	CHAN : "chan",
+-	CONST : "const",
+-	CONTINUE : "continue",
+-
+-	DEFAULT : "default",
+-	DEFER : "defer",
+-	ELSE : "else",
+-	FALLTHROUGH : "fallthrough",
+-	FOR : "for",
+-
+-	FUNC : "func",
+-	GO : "go",
+-	GOTO : "goto",
+-	IF : "if",
+-	IMPORT : "import",
+-
+-	INTERFACE : "interface",
+-	MAP : "map",
+-	PACKAGE : "package",
+-	RANGE : "range",
+-	RETURN : "return",
+-
+-	SELECT : "select",
+-	STRUCT : "struct",
+-	SWITCH : "switch",
+-	TYPE : "type",
+-	VAR : "var",
++var tokens = map[Token]string{
++	ILLEGAL: "ILLEGAL",
++
++	EOF: "EOF",
++	COMMENT: "COMMENT",
++
++	IDENT: "IDENT",
++	INT: "INT",
++	FLOAT: "FLOAT",
++	CHAR: "CHAR",
++	STRING: "STRING",
++
++	ADD: "+",
++	SUB: "-",
++	MUL: "*",
++	QUO: "/",
++	REM: "%",
++
++	AND: "&",
++	OR: "|",
++	XOR: "^",
++	SHL: "<<",
++	SHR: ">>",
++	AND_NOT: "&^",
++
++	ADD_ASSIGN: "+=",
++	SUB_ASSIGN: "-=",
++	MUL_ASSIGN: "*=",
++	QUO_ASSIGN: "/=",
++	REM_ASSIGN: "%=",
++
++	AND_ASSIGN: "&=",
++	OR_ASSIGN: "|=",
++	XOR_ASSIGN: "^=",
++	SHL_ASSIGN: "<<=",
++	SHR_ASSIGN: ">>=",
++	AND_NOT_ASSIGN: "&^=",
++
++	LAND: "&&",
++	LOR: "||",
++	ARROW: "<-",
++	INC: "++",
++	DEC: "--",
++
++	EQL: "==",
++	LSS: "<",
++	GTR: ">",
++	ASSIGN: "=",
++	NOT: "!",
++
++	NEQ: "!=",
++	LEQ: "<=",
++	GEQ: ">=",
++	DEFINE: ":=",
++	ELLIPSIS: "...",
++
++	LPAREN: "(",
++	LBRACK: "[",
++	LBRACE: "{",
++	COMMA: ",",
++	PERIOD: ".",
++
++	RPAREN: ")",
++	RBRACK: "]",
++	RBRACE: "}",
++	SEMICOLON: ";",
++	COLON: ":",
++
++	BREAK: "break",
++	CASE: "case",
++	CHAN: "chan",
++	CONST: "const",
++	CONTINUE: "continue",
++
++	DEFAULT: "default",
++	DEFER: "defer",
++	ELSE: "else",
++	FALLTHROUGH: "fallthrough",
++	FOR: "for",
++
++	FUNC: "func",
++	GO: "go",
++	GOTO: "goto",
++	IF: "if",
++	IMPORT: "import",
++
++	INTERFACE: "interface",
++	MAP: "map",
++	PACKAGE: "package",
++	RANGE: "range",
++	RETURN: "return",
++
++	SELECT: "select",
++	STRUCT: "struct",
++	SWITCH: "switch",
++	TYPE: "type",
++	VAR: "var",
+ }
+ 
+ 
+@@ -252,9 +252,9 @@ func (tok Token) String() string {
+ // selector, indexing, and other operator and delimiter tokens.
+ //
+ const (
+-	LowestPrec = 0;  // non-operators
+-	UnaryPrec = 7;
+-	HighestPrec = 8;
++	LowestPrec	= 0;	// non-operators
++	UnaryPrec	= 7;
++	HighestPrec	= 8;
+ )
+ 
+ 
+@@ -281,10 +281,10 @@ func (op Token) Precedence() int {
+ }
+ 
+ 
+-var keywords map [string] Token;
++var keywords map[string]Token
+ 
+ func init() {
+-	keywords = make(map [string] Token);
++	keywords = make(map[string]Token);
+ 	for i := keyword_beg + 1; i < keyword_end; i++ {
+ 		keywords[tokens[i]] = i;
+ 	}
+@@ -331,10 +331,10 @@ func (tok Token) IsKeyword() bool {
+ // A Position is valid if the line number is > 0.
+ //
+ type Position struct {
+-	Filename string;  // filename, if any
+-	Offset int;  // byte offset, starting at 0
+-	Line int;  // line number, starting at 1
+-	Column int;  // column number, starting at 1 (character count)
++	Filename	string;	// filename, if any
++	Offset		int;	// byte offset, starting at 0
++	Line		int;	// line number, starting at 1
++	Column		int;	// column number, starting at 1 (character count)
+ }
+ 
+ 
+@@ -348,7 +348,7 @@ func (pos *Position) Pos() Position {
+ 
+ // IsValid returns true if the position is valid.
+ func (pos *Position) IsValid() bool {
+-	return pos.Line > 0
++	return pos.Line > 0;
+ }
+ 
+ 

@@ -20,7 +20,7 @@ Date:   Mon Nov 20 07:28:37 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/trace/main.go                     |   4 +-
  src/cmd/trace/v2/gstate.go                |  23 +++-
  src/cmd/trace/v2/jsontrace.go             |   6 +
@@ -31,3 +31,447 @@ Date:   Mon Nov 20 07:28:37 2023 +0000
  src/internal/trace/traceviewer/http.go    |  46 +++++--
  src/internal/trace/traceviewer/mmu.go     |   2 +-
  9 files changed, 273 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 03fbadbcae..5f0d6f612b 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -146,7 +146,9 @@ func main() {
+ 	http.HandleFunc("/mmu", traceviewer.MMUHandlerFunc(ranges, mutatorUtil))
+ 
+ 	// Install main handler.
+-	http.Handle("/", traceviewer.MainHandler(ranges))
++	http.Handle("/", traceviewer.MainHandler([]traceviewer.View{
++		{Type: traceviewer.ViewProc, Ranges: ranges},
++	}))
+ 
+ 	// Start http server.
+ 	err = http.Serve(ln, nil)
+diff --git a/src/cmd/trace/v2/gstate.go b/src/cmd/trace/v2/gstate.go
+index 179981bc0c..aeba7ecbc1 100644
+--- a/src/cmd/trace/v2/gstate.go
++++ b/src/cmd/trace/v2/gstate.go
+@@ -14,7 +14,9 @@ import (
+ )
+ 
+ // resource is a generic constraint interface for resource IDs.
+-type resource interface{ tracev2.GoID | tracev2.ProcID }
++type resource interface {
++	tracev2.GoID | tracev2.ProcID | tracev2.ThreadID
++}
+ 
+ // noResource indicates the lack of a resource.
+ const noResource = -1
+@@ -214,20 +216,29 @@ func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx
+ 
+ // unblock indicates that the goroutine gs represents has been unblocked.
+ func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, ctx *traceContext) {
+-	// Unblocking goroutine.
+ 	name := "unblock"
+ 	viewerResource := uint64(resource)
++	if gs.startBlockReason != "" {
++		name = fmt.Sprintf("%s (%s)", name, gs.startBlockReason)
++	}
+ 	if strings.Contains(gs.startBlockReason, "network") {
+-		// Emit an unblock instant event for the "Network" lane.
++		// Attribute the network instant to the nebulous "NetpollP" if
++		// resource isn't a thread, because there's a good chance that
++		// resource isn't going to be valid in this case.
++		//
++		// TODO(mknyszek): Handle this invalidness in a more general way.
++		if _, ok := any(resource).(tracev2.ThreadID); !ok {
++			// Emit an unblock instant event for the "Network" lane.
++			viewerResource = trace.NetpollP
++		}
+ 		ctx.Instant(traceviewer.InstantEvent{
+ 			Name:     name,
+ 			Ts:       ctx.elapsed(ts),
+-			Resource: trace.NetpollP,
++			Resource: viewerResource,
+ 			Stack:    ctx.Stack(viewerFrames(stack)),
+ 		})
+-		gs.startBlockReason = ""
+-		viewerResource = trace.NetpollP
+ 	}
++	gs.startBlockReason = ""
+ 	if viewerResource != 0 {
+ 		gs.setStartCause(ts, name, viewerResource, stack)
+ 	}
+diff --git a/src/cmd/trace/v2/jsontrace.go b/src/cmd/trace/v2/jsontrace.go
+index e628a6a5e7..85ee52e47e 100644
+--- a/src/cmd/trace/v2/jsontrace.go
++++ b/src/cmd/trace/v2/jsontrace.go
+@@ -22,6 +22,10 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+ 		opts := defaultGenOpts()
+ 
++		switch r.FormValue("view") {
++		case "thread":
++			opts.mode = traceviewer.ModeThreadOriented
++		}
+ 		if goids := r.FormValue("goid"); goids != "" {
+ 			// Render trace focused on a particular goroutine.
+ 
+@@ -163,6 +167,8 @@ func generateTrace(parsed *parsedTrace, opts *genOpts, c traceviewer.TraceConsum
+ 	var g generator
+ 	if opts.mode&traceviewer.ModeGoroutineOriented != 0 {
+ 		g = newGoroutineGenerator(ctx, opts.focusGoroutine, opts.goroutines)
++	} else if opts.mode&traceviewer.ModeThreadOriented != 0 {
++		g = newThreadGenerator()
+ 	} else {
+ 		g = newProcGenerator()
+ 	}
+diff --git a/src/cmd/trace/v2/jsontrace_test.go b/src/cmd/trace/v2/jsontrace_test.go
+index 7e0b794159..ac988b7240 100644
+--- a/src/cmd/trace/v2/jsontrace_test.go
++++ b/src/cmd/trace/v2/jsontrace_test.go
+@@ -159,7 +159,7 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
+ 	count := 0
+ 	var netBlockEv *format.Event
+ 	for _, e := range data.Events {
+-		if e.TID == tracev1.NetpollP && e.Name == "unblock" && e.Phase == "I" && e.Scope == "t" {
++		if e.TID == tracev1.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
+ 			count++
+ 			netBlockEv = e
+ 		}
+diff --git a/src/cmd/trace/v2/main.go b/src/cmd/trace/v2/main.go
+index 04488afd50..0a60ef04db 100644
+--- a/src/cmd/trace/v2/main.go
++++ b/src/cmd/trace/v2/main.go
+@@ -67,7 +67,13 @@ func Main(traceFile, httpAddr, pprof string, debug int) error {
+ 	mux := http.NewServeMux()
+ 
+ 	// Main endpoint.
+-	mux.Handle("/", traceviewer.MainHandler(ranges))
++	mux.Handle("/", traceviewer.MainHandler([]traceviewer.View{
++		{Type: traceviewer.ViewProc, Ranges: ranges},
++		// N.B. Use the same ranges for threads. It takes a long time to compute
++		// the split a second time, but the makeup of the events are similar enough
++		// that this is still a good split.
++		{Type: traceviewer.ViewThread, Ranges: ranges},
++	}))
+ 
+ 	// Catapult handlers.
+ 	mux.Handle("/trace", traceviewer.TraceHandler())
+diff --git a/src/cmd/trace/v2/threadgen.go b/src/cmd/trace/v2/threadgen.go
+new file mode 100644
+index 0000000000..c2d2071926
+--- /dev/null
++++ b/src/cmd/trace/v2/threadgen.go
+@@ -0,0 +1,201 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++import (
++	"fmt"
++	"internal/trace/traceviewer"
++	"internal/trace/traceviewer/format"
++	tracev2 "internal/trace/v2"
++)
++
++var _ generator = &threadGenerator{}
++
++type threadGenerator struct {
++	globalRangeGenerator
++	globalMetricGenerator
++	stackSampleGenerator[tracev2.ThreadID]
++
++	gStates map[tracev2.GoID]*gState[tracev2.ThreadID]
++	threads map[tracev2.ThreadID]struct{}
++}
++
++func newThreadGenerator() *threadGenerator {
++	tg := new(threadGenerator)
++	tg.stackSampleGenerator.getResource = func(ev *tracev2.Event) tracev2.ThreadID {
++		return ev.Thread()
++	}
++	tg.gStates = make(map[tracev2.GoID]*gState[tracev2.ThreadID])
++	tg.threads = make(map[tracev2.ThreadID]struct{})
++	return tg
++}
++
++func (g *threadGenerator) Sync() {
++	g.globalRangeGenerator.Sync()
++}
++
++func (g *threadGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
++	l := ev.Label()
++	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
++}
++
++func (g *threadGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
++	r := ev.Range()
++	switch ev.Kind() {
++	case tracev2.EventRangeBegin:
++		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
++	case tracev2.EventRangeActive:
++		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
++	case tracev2.EventRangeEnd:
++		gs := g.gStates[r.Scope.Goroutine()]
++		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
++	}
++}
++
++func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
++	if ev.Thread() != tracev2.NoThread {
++		if _, ok := g.threads[ev.Thread()]; !ok {
++			g.threads[ev.Thread()] = struct{}{}
++		}
++	}
++
++	st := ev.StateTransition()
++	goID := st.Resource.Goroutine()
++
++	// If we haven't seen this goroutine before, create a new
++	// gState for it.
++	gs, ok := g.gStates[goID]
++	if !ok {
++		gs = newGState[tracev2.ThreadID](goID)
++		g.gStates[goID] = gs
++	}
++	// If we haven't already named this goroutine, try to name it.
++	gs.augmentName(st.Stack)
++
++	// Handle the goroutine state transition.
++	from, to := st.Goroutine()
++	if from == to {
++		// Filter out no-op events.
++		return
++	}
++	if from.Executing() && !to.Executing() {
++		if to == tracev2.GoWaiting {
++			// Goroutine started blocking.
++			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
++		} else {
++			gs.stop(ev.Time(), ev.Stack(), ctx)
++		}
++	}
++	if !from.Executing() && to.Executing() {
++		start := ev.Time()
++		if from == tracev2.GoUndetermined {
++			// Back-date the event to the start of the trace.
++			start = ctx.startTime
++		}
++		gs.start(start, ev.Thread(), ctx)
++	}
++
++	if from == tracev2.GoWaiting {
++		// Goroutine was unblocked.
++		gs.unblock(ev.Time(), ev.Stack(), ev.Thread(), ctx)
++	}
++	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
++		// Goroutine was created.
++		gs.created(ev.Time(), ev.Thread(), ev.Stack())
++	}
++	if from == tracev2.GoSyscall {
++		// Exiting syscall.
++		gs.syscallEnd(ev.Time(), to != tracev2.GoRunning, ctx)
++	}
++
++	// Handle syscalls.
++	if to == tracev2.GoSyscall {
++		start := ev.Time()
++		if from == tracev2.GoUndetermined {
++			// Back-date the event to the start of the trace.
++			start = ctx.startTime
++		}
++		// Write down that we've entered a syscall. Note: we might have no P here
++		// if we're in a cgo callback or this is a transition from GoUndetermined
++		// (i.e. the G has been blocked in a syscall).
++		gs.syscallBegin(start, ev.Thread(), ev.Stack())
++	}
++
++	// Note down the goroutine transition.
++	_, inMarkAssist := gs.activeRanges["GC mark assist"]
++	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
++}
++
++func (g *threadGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
++	if ev.Thread() != tracev2.NoThread {
++		if _, ok := g.threads[ev.Thread()]; !ok {
++			g.threads[ev.Thread()] = struct{}{}
++		}
++	}
++
++	type procArg struct {
++		Proc uint64 `json:"proc,omitempty"`
++	}
++	st := ev.StateTransition()
++	viewerEv := traceviewer.InstantEvent{
++		Resource: uint64(ev.Thread()),
++		Stack:    ctx.Stack(viewerFrames(ev.Stack())),
++		Arg:      procArg{Proc: uint64(st.Resource.Proc())},
++	}
++
++	from, to := st.Proc()
++	if from == to {
++		// Filter out no-op events.
++		return
++	}
++	if to.Executing() {
++		start := ev.Time()
++		if from == tracev2.ProcUndetermined {
++			start = ctx.startTime
++		}
++		viewerEv.Name = "proc start"
++		viewerEv.Arg = format.ThreadIDArg{ThreadID: uint64(ev.Thread())}
++		viewerEv.Ts = ctx.elapsed(start)
++		// TODO(mknyszek): We don't have a state machine for threads, so approximate
++		// running threads with running Ps.
++		ctx.IncThreadStateCount(ctx.elapsed(start), traceviewer.ThreadStateRunning, 1)
++	}
++	if from.Executing() {
++		start := ev.Time()
++		viewerEv.Name = "proc stop"
++		viewerEv.Ts = ctx.elapsed(start)
++		// TODO(mknyszek): We don't have a state machine for threads, so approximate
++		// running threads with running Ps.
++		ctx.IncThreadStateCount(ctx.elapsed(start), traceviewer.ThreadStateRunning, -1)
++	}
++	// TODO(mknyszek): Consider modeling procs differently and have them be
++	// transition to and from NotExist when GOMAXPROCS changes. We can emit
++	// events for this to clearly delineate GOMAXPROCS changes.
++
++	if viewerEv.Name != "" {
++		ctx.Instant(viewerEv)
++	}
++}
++
++func (g *threadGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
++	// TODO(mknyszek): Extend procRangeGenerator to support rendering proc ranges on threads.
++}
++
++func (g *threadGenerator) Finish(ctx *traceContext) {
++	ctx.SetResourceType("OS THREADS")
++
++	// Finish off global ranges.
++	g.globalRangeGenerator.Finish(ctx)
++
++	// Finish off all the goroutine slices.
++	for _, gs := range g.gStates {
++		gs.finish(ctx)
++	}
++
++	// Name all the threads to the emitter.
++	for id := range g.threads {
++		ctx.Resource(uint64(id), fmt.Sprintf("Thread %d", id))
++	}
++}
+diff --git a/src/internal/trace/traceviewer/emitter.go b/src/internal/trace/traceviewer/emitter.go
+index 2ceadf4c0e..ad3112d8b9 100644
+--- a/src/internal/trace/traceviewer/emitter.go
++++ b/src/internal/trace/traceviewer/emitter.go
+@@ -282,6 +282,7 @@ type Mode int
+ const (
+ 	ModeGoroutineOriented Mode = 1 << iota
+ 	ModeTaskOriented
++	ModeThreadOriented // Mutually exclusive with ModeGoroutineOriented.
+ )
+ 
+ // NewEmitter returns a new Emitter that writes to c. The rangeStart and
+diff --git a/src/internal/trace/traceviewer/http.go b/src/internal/trace/traceviewer/http.go
+index b279b62a23..5258db05d8 100644
+--- a/src/internal/trace/traceviewer/http.go
++++ b/src/internal/trace/traceviewer/http.go
+@@ -12,9 +12,9 @@ import (
+ 	"strings"
+ )
+ 
+-func MainHandler(ranges []Range) http.Handler {
++func MainHandler(views []View) http.Handler {
+ 	return http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+-		if err := templMain.Execute(w, ranges); err != nil {
++		if err := templMain.Execute(w, views); err != nil {
+ 			http.Error(w, err.Error(), http.StatusInternalServerError)
+ 			return
+ 		}
+@@ -70,25 +70,32 @@ var templMain = template.Must(template.New("").Parse(`
+ </p>
+ 
+ <h2>Event timelines for running goroutines</h2>
+-{{if $}}
++{{range $i, $view := $}}
++{{if $view.Ranges}}
++{{if eq $i 0}}
+ <p>
+   Large traces are split into multiple sections of equal data size
+   (not duration) to avoid overwhelming the visualizer.
+ </p>
++{{end}}
+ <ul>
+-	{{range $e := $}}
+-		<li><a href="{{$e.URL}}">View trace ({{$e.Name}})</a></li>
++	{{range $index, $e := $view.Ranges}}
++		<li><a href="{{$view.URL $index}}">View trace by {{$view.Type}} ({{$e.Name}})</a></li>
+ 	{{end}}
+ </ul>
+ {{else}}
+ <ul>
+-	<li><a href="/trace">View trace</a></li>
++	<li><a href="{{$view.URL -1}}">View trace by {{$view.Type}}</a></li>
+ </ul>
+ {{end}}
++{{end}}
+ <p>
+-  This view displays a timeline for each of the GOMAXPROCS logical
+-  processors, showing which goroutine (if any) was running on that
++  This view displays a series of timelines for a type of resource.
++  The "by proc" view consists of a timeline for each of the GOMAXPROCS
++  logical processors, showing which goroutine (if any) was running on that
+   logical processor at each moment.
++  The "by thread" view (if available) consists of a similar timeline for each
++  OS thread.
+ 
+   Each goroutine has an identifying number (e.g. G123), main function,
+   and color.
+@@ -237,6 +244,25 @@ var templMain = template.Must(template.New("").Parse(`
+ </html>
+ `))
+ 
++type View struct {
++	Type   ViewType
++	Ranges []Range
++}
++
++type ViewType string
++
++const (
++	ViewProc   ViewType = "proc"
++	ViewThread ViewType = "thread"
++)
++
++func (v View) URL(rangeIdx int) string {
++	if rangeIdx < 0 {
++		return fmt.Sprintf("/trace?view=%s", v.Type)
++	}
++	return v.Ranges[rangeIdx].URL(v.Type)
++}
++
+ type Range struct {
+ 	Name      string
+ 	Start     int
+@@ -245,8 +271,8 @@ type Range struct {
+ 	EndTime   int64
+ }
+ 
+-func (r Range) URL() string {
+-	return fmt.Sprintf("/trace?start=%d&end=%d", r.Start, r.End)
++func (r Range) URL(viewType ViewType) string {
++	return fmt.Sprintf("/trace?view=%s&start=%d&end=%d", viewType, r.Start, r.End)
+ }
+ 
+ func TraceHandler() http.Handler {
+diff --git a/src/internal/trace/traceviewer/mmu.go b/src/internal/trace/traceviewer/mmu.go
+index 0cb2b42657..0bc1233b44 100644
+--- a/src/internal/trace/traceviewer/mmu.go
++++ b/src/internal/trace/traceviewer/mmu.go
+@@ -410,5 +410,5 @@ func (m *mmu) newLinkedUtilWindow(ui trace.UtilWindow, window time.Duration) lin
+ 			break
+ 		}
+ 	}
+-	return linkedUtilWindow{ui, fmt.Sprintf("%s#%v:%v", r.URL(), float64(ui.Time)/1e6, float64(ui.Time+int64(window))/1e6)}
++	return linkedUtilWindow{ui, fmt.Sprintf("%s#%v:%v", r.URL(ViewProc), float64(ui.Time)/1e6, float64(ui.Time+int64(window))/1e6)}
+ }

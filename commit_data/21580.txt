@@ -15,7 +15,7 @@ Date:   Sun Jan 18 12:50:22 2015 -0500
     Change-Id: I71f4130bce853f7aef724c6044d15def7987b457
     Reviewed-on: https://go-review.googlesource.com/3012
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/runtime/asm_386.s       |  3 ---
  src/runtime/asm_amd64.s     |  3 ---
  src/runtime/asm_amd64p32.s  |  3 ---
@@ -23,3 +23,111 @@ Date:   Sun Jan 18 12:50:22 2015 -0500
  src/strings/compare.go      | 28 ++++++++++++++++++++++++++++
  src/strings/strings_decl.go |  7 -------
  6 files changed, 28 insertions(+), 21 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 625bf7bf4e..0a58faf19b 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1431,9 +1431,6 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT strings·Compare(SB),NOSPLIT,$0
+-        JMP	runtime·cmpstring(SB)
+-
+ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 2f9d520d44..8547228ee3 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1364,9 +1364,6 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-40
+ 	MOVQ	AX, ret+32(FP)
+ 	RET
+ 
+-TEXT strings·Compare(SB),NOSPLIT,$0
+-        JMP	runtime·cmpstring(SB)
+-
+ TEXT bytes·Compare(SB),NOSPLIT,$0-56
+ 	MOVQ	s1+0(FP), SI
+ 	MOVQ	s1+8(FP), BX
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 807bb56f2a..77355bb998 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -832,9 +832,6 @@ TEXT runtime·cmpstring(SB),NOSPLIT,$0-20
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT strings·Compare(SB),NOSPLIT,$0
+-        JMP	runtime·cmpstring(SB)
+-
+ TEXT bytes·Compare(SB),NOSPLIT,$0-28
+ 	MOVL	s1+0(FP), SI
+ 	MOVL	s1+4(FP), BX
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index c6e63257cb..7ffde37992 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -10,11 +10,6 @@ package runtime
+ 
+ import _ "unsafe" // for go:linkname
+ 
+-//go:linkname strings_Compare strings.Compare
+-func strings_Compare(s1, s2 string) int {
+-	return cmpstring(s1, s2)
+-}
+-
+ func cmpstring(s1, s2 string) int {
+ 	l := len(s1)
+ 	if len(s2) < l {
+diff --git a/src/strings/compare.go b/src/strings/compare.go
+new file mode 100644
+index 0000000000..b84dddea74
+--- /dev/null
++++ b/src/strings/compare.go
+@@ -0,0 +1,28 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++// Compare returns an integer comparing two strings lexicographically.
++// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
++//
++// Compare is included only for symmetry with package bytes.
++// It is usually clearer and always faster to use the built-in
++// string comparison operators ==, <, >, and so on.
++func Compare(a, b string) int {
++	// NOTE(rsc): This function does NOT call the runtime cmpstring function,
++	// because we do not want to provide any performance justification for
++	// using strings.Compare. Basically no one should use strings.Compare.
++	// As the comment above says, it is here only for symmetry with package bytes.
++	// If performance is important, the compiler should be changed to recognize
++	// the pattern so that all code doing three-way comparisons, not just code
++	// using strings.Compare, can benefit.
++	if a == b {
++		return 0
++	}
++	if a < b {
++		return -1
++	}
++	return +1
++}
+diff --git a/src/strings/strings_decl.go b/src/strings/strings_decl.go
+index 9dc2a9a6c6..810a696af2 100644
+--- a/src/strings/strings_decl.go
++++ b/src/strings/strings_decl.go
+@@ -6,10 +6,3 @@ package strings
+ 
+ // IndexByte returns the index of the first instance of c in s, or -1 if c is not present in s.
+ func IndexByte(s string, c byte) int // ../runtime/asm_$GOARCH.s
+-
+-// Compare returns an integer comparing two strings lexicographically.
+-// The result will be 0 if a==b, -1 if a < b, and +1 if a > b.
+-//
+-// In most cases it is simpler to use the built-in comparison operators
+-// ==, <, >, and so on.
+-func Compare(a, b string) int // ../runtime/noasm.go or ../runtime/asm_*.s

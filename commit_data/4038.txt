@@ -10,6 +10,44 @@ Date:   Fri Nov 13 18:06:47 2009 -0800
     
     R=r, rsc, david.titarenco
     https://golang.org/cl/154099
-
+---
  src/pkg/http/server.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index d4b23a20f9..9178d5438c 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -238,7 +238,7 @@ func errorKludge(c *Conn, req *Request) {
+ 	}
+ }
+ 
+-func (c *Conn) flush() {
++func (c *Conn) finishRequest() {
+ 	if !c.wroteHeader {
+ 		c.WriteHeader(StatusOK)
+ 	}
+@@ -251,6 +251,14 @@ func (c *Conn) flush() {
+ 	c.buf.Flush();
+ }
+ 
++// Flush sends any buffered data to the client.
++func (c *Conn) Flush() {
++	if !c.wroteHeader {
++		c.WriteHeader(StatusOK)
++	}
++	c.buf.Flush();
++}
++
+ // Close the connection.
+ func (c *Conn) close() {
+ 	if c.buf != nil {
+@@ -277,7 +285,7 @@ func (c *Conn) serve() {
+ 		if c.hijacked {
+ 			return
+ 		}
+-		c.flush();
++		c.finishRequest();
+ 		if c.closeAfterReply {
+ 			break
+ 		}

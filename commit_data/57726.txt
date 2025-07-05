@@ -15,10 +15,190 @@ Date:   Thu Aug 24 17:21:58 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go             | 11 -----
  src/cmd/compile/internal/ir/expr.go             | 19 ++++++++-
  src/cmd/compile/internal/typecheck/expr.go      | 32 --------------
  src/cmd/compile/internal/typecheck/subr.go      | 56 +------------------------
  src/cmd/compile/internal/typecheck/typecheck.go |  4 --
  5 files changed, 19 insertions(+), 103 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index abc4ea561c..543b7a488d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -211,17 +211,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// Apply coverage fixups, if applicable.
+ 	coverage.Fixup()
+ 
+-	// Compute Addrtaken for names.
+-	// We need to wait until typechecking is done so that when we see &x[i]
+-	// we know that x has its address taken if x is an array, but not if x is a slice.
+-	// We compute Addrtaken in bulk here.
+-	// After this phase, we maintain Addrtaken incrementally.
+-	if typecheck.DirtyAddrtaken {
+-		typecheck.ComputeAddrtaken(typecheck.Target.Funcs)
+-		typecheck.DirtyAddrtaken = false
+-	}
+-	typecheck.IncrementalAddrtaken = true
+-
+ 	// Read profile file and build profile-graph and weighted-call-graph.
+ 	base.Timer.Start("fe", "pgo-load-profile")
+ 	var profile *pgo.Profile
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 5678ce436d..9ade6f6a6e 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -78,9 +78,26 @@ type AddrExpr struct {
+ }
+ 
+ func NewAddrExpr(pos src.XPos, x Node) *AddrExpr {
++	if x == nil || x.Typecheck() != 1 {
++		base.FatalfAt(pos, "missed typecheck: %L", x)
++	}
+ 	n := &AddrExpr{X: x}
+-	n.op = OADDR
+ 	n.pos = pos
++
++	switch x.Op() {
++	case OARRAYLIT, OMAPLIT, OSLICELIT, OSTRUCTLIT:
++		n.op = OPTRLIT
++
++	default:
++		n.op = OADDR
++		if r, ok := OuterValue(x).(*Name); ok && r.Op() == ONAME {
++			r.SetAddrtaken(true)
++		}
++	}
++
++	n.SetType(types.NewPtr(x.Type()))
++	n.SetTypecheck(1)
++
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index 7e685ab569..89c37d373e 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -16,38 +16,6 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// tcAddr typechecks an OADDR node.
+-func tcAddr(n *ir.AddrExpr) ir.Node {
+-	n.X = Expr(n.X)
+-	if n.X.Type() == nil {
+-		n.SetType(nil)
+-		return n
+-	}
+-
+-	switch n.X.Op() {
+-	case ir.OARRAYLIT, ir.OMAPLIT, ir.OSLICELIT, ir.OSTRUCTLIT:
+-		n.SetOp(ir.OPTRLIT)
+-
+-	default:
+-		checklvalue(n.X, "take the address of")
+-		r := ir.OuterValue(n.X)
+-		if r.Op() == ir.ONAME {
+-			r := r.(*ir.Name)
+-			if ir.Orig(r) != r {
+-				base.Fatalf("found non-orig name node %v", r) // TODO(mdempsky): What does this mean?
+-			}
+-		}
+-		n.X = DefaultLit(n.X, nil)
+-		if n.X.Type() == nil {
+-			n.SetType(nil)
+-			return n
+-		}
+-	}
+-
+-	n.SetType(types.NewPtr(n.X.Type()))
+-	return n
+-}
+-
+ func tcShift(n, l, r ir.Node) (ir.Node, ir.Node, *types.Type) {
+ 	if l.Type() == nil || r.Type() == nil {
+ 		return l, r, nil
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 867eee28e7..7b7da79f22 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -51,61 +51,7 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
+ 
+ // NodAddrAt returns a node representing &n at position pos.
+ func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+-	n = markAddrOf(n)
+-	return ir.NewAddrExpr(pos, n)
+-}
+-
+-func markAddrOf(n ir.Node) ir.Node {
+-	if IncrementalAddrtaken {
+-		// We can only do incremental addrtaken computation when it is ok
+-		// to typecheck the argument of the OADDR. That's only safe after the
+-		// main typecheck has completed, and not loading the inlined body.
+-		// The argument to OADDR needs to be typechecked because &x[i] takes
+-		// the address of x if x is an array, but not if x is a slice.
+-		// Note: OuterValue doesn't work correctly until n is typechecked.
+-		n = typecheck(n, ctxExpr)
+-		if x := ir.OuterValue(n); x.Op() == ir.ONAME {
+-			x.Name().SetAddrtaken(true)
+-		}
+-	} else {
+-		// Remember that we built an OADDR without computing the Addrtaken bit for
+-		// its argument. We'll do that later in bulk using computeAddrtaken.
+-		DirtyAddrtaken = true
+-	}
+-	return n
+-}
+-
+-// If IncrementalAddrtaken is false, we do not compute Addrtaken for an OADDR Node
+-// when it is built. The Addrtaken bits are set in bulk by computeAddrtaken.
+-// If IncrementalAddrtaken is true, then when an OADDR Node is built the Addrtaken
+-// field of its argument is updated immediately.
+-var IncrementalAddrtaken = false
+-
+-// If DirtyAddrtaken is true, then there are OADDR whose corresponding arguments
+-// have not yet been marked as Addrtaken.
+-var DirtyAddrtaken = false
+-
+-func ComputeAddrtaken(funcs []*ir.Func) {
+-	var doVisit func(n ir.Node)
+-	doVisit = func(n ir.Node) {
+-		if n.Op() == ir.OADDR {
+-			if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
+-				x.Name().SetAddrtaken(true)
+-				if x.Name().IsClosureVar() {
+-					// Mark the original variable as Addrtaken so that capturevars
+-					// knows not to pass it by value.
+-					x.Name().Defn.Name().SetAddrtaken(true)
+-				}
+-			}
+-		}
+-		if n.Op() == ir.OCLOSURE {
+-			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
+-		}
+-	}
+-
+-	for _, fn := range funcs {
+-		ir.Visit(fn, doVisit)
+-	}
++	return ir.NewAddrExpr(pos, Expr(n))
+ }
+ 
+ // LinksymAddr returns a new expression that evaluates to the address
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 1dc827d1fe..ef8ca7705d 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -346,10 +346,6 @@ func typecheck1(n ir.Node, top int) ir.Node {
+ 		return tcUnaryArith(n)
+ 
+ 	// exprs
+-	case ir.OADDR:
+-		n := n.(*ir.AddrExpr)
+-		return tcAddr(n)
+-
+ 	case ir.OCOMPLIT:
+ 		return tcCompLit(n.(*ir.CompLitExpr))
+ 

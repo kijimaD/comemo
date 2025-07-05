@@ -26,7 +26,7 @@ Date:   Mon Jan 23 12:59:29 2023 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/os_windows.go       |  2 --
  src/runtime/signal_windows.go   | 19 -------------------
  src/runtime/sys_windows_386.s   | 22 ----------------------
@@ -34,3 +34,194 @@ Date:   Mon Jan 23 12:59:29 2023 +0100
  src/runtime/sys_windows_arm.s   | 24 ------------------------
  src/runtime/sys_windows_arm64.s | 26 --------------------------
  6 files changed, 117 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 44718f1d21..60741f321f 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -546,8 +546,6 @@ func initLongPathSupport() {
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(abi.FuncPCABI0(asmstdcall))
+ 
+-	setBadSignalMsg()
+-
+ 	loadOptionalSyscalls()
+ 
+ 	disableWER()
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 0686be4635..1ea0d1e06c 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -375,19 +375,6 @@ func sigpanic() {
+ 	throw("fault")
+ }
+ 
+-var (
+-	badsignalmsg [100]byte
+-	badsignallen int32
+-)
+-
+-func setBadSignalMsg() {
+-	const msg = "runtime: signal received on thread not created by Go.\n"
+-	for i, c := range msg {
+-		badsignalmsg[i] = byte(c)
+-		badsignallen++
+-	}
+-}
+-
+ // Following are not implemented.
+ 
+ func initsig(preinit bool) {
+@@ -402,12 +389,6 @@ func sigdisable(sig uint32) {
+ func sigignore(sig uint32) {
+ }
+ 
+-func badsignal2()
+-
+-func raisebadsignal(sig uint32) {
+-	badsignal2()
+-}
+-
+ func signame(sig uint32) string {
+ 	return ""
+ }
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index 0983cc7b1f..d120746bb6 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -44,28 +44,6 @@ TEXT runtime·asmstdcall(SB),NOSPLIT,$0
+ 
+ 	RET
+ 
+-TEXT	runtime·badsignal2(SB),NOSPLIT,$24
+-	// stderr
+-	MOVL	$-12, 0(SP)
+-	MOVL	SP, BP
+-	CALL	*runtime·_GetStdHandle(SB)
+-	MOVL	BP, SP
+-
+-	MOVL	AX, 0(SP)	// handle
+-	MOVL	$runtime·badsignalmsg(SB), DX // pointer
+-	MOVL	DX, 4(SP)
+-	MOVL	runtime·badsignallen(SB), DX // count
+-	MOVL	DX, 8(SP)
+-	LEAL	20(SP), DX  // written count
+-	MOVL	$0, 0(DX)
+-	MOVL	DX, 12(SP)
+-	MOVL	$0, 16(SP) // overlapped
+-	CALL	*runtime·_WriteFile(SB)
+-
+-	// Does not return.
+-	CALL	runtime·abort(SB)
+-	RET
+-
+ // faster get/set last error
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVL	0x34(FS), AX
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index 04e649539c..7cab08efa6 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -75,30 +75,6 @@ loadregs:
+ 
+ 	RET
+ 
+-TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$48
+-	// stderr
+-	MOVQ	$-12, CX // stderr
+-	MOVQ	CX, 0(SP)
+-	MOVQ	runtime·_GetStdHandle(SB), AX
+-	CALL	AX
+-
+-	MOVQ	AX, CX	// handle
+-	MOVQ	CX, 0(SP)
+-	MOVQ	$runtime·badsignalmsg(SB), DX // pointer
+-	MOVQ	DX, 8(SP)
+-	MOVL	$runtime·badsignallen(SB), R8 // count
+-	MOVQ	R8, 16(SP)
+-	LEAQ	40(SP), R9  // written count
+-	MOVQ	$0, 0(R9)
+-	MOVQ	R9, 24(SP)
+-	MOVQ	$0, 32(SP)	// overlapped
+-	MOVQ	runtime·_WriteFile(SB), AX
+-	CALL	AX
+-
+-	// Does not return.
+-	CALL	runtime·abort(SB)
+-	RET
+-
+ // faster get/set last error
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MOVQ	0x30(GS), AX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index a00fd16670..78cc3333c7 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -76,30 +76,6 @@ loadregs:
+ 
+ 	MOVM.IA.W (R13), [R4, R5, R15]
+ 
+-TEXT runtime·badsignal2(SB),NOSPLIT|NOFRAME,$0
+-	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
+-	MOVW	R13, R4			// save original stack pointer
+-	SUB	$8, R13			// space for 2 variables
+-	BIC	$0x7, R13		// alignment for ABI
+-
+-	// stderr
+-	MOVW	runtime·_GetStdHandle(SB), R1
+-	MOVW	$-12, R0
+-	BL	(R1)
+-
+-	MOVW	$runtime·badsignalmsg(SB), R1	// lpBuffer
+-	MOVW	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
+-	MOVW	(R2), R2
+-	ADD	$0x4, R13, R3		// lpNumberOfBytesWritten
+-	MOVW	$0, R12			// lpOverlapped
+-	MOVW	R12, (R13)
+-
+-	MOVW	runtime·_WriteFile(SB), R12
+-	BL	(R12)
+-
+-	// Does not return.
+-	B	runtime·abort(SB)
+-
+ TEXT runtime·getlasterror(SB),NOSPLIT,$0
+ 	MRC	15, 0, R0, C13, C0, 2
+ 	MOVW	0x34(R0), R0
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 67fe21b2d0..ab6944c9ea 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -99,32 +99,6 @@ _0args:
+ 	LDP.P	32(RSP), (R29, R30)
+ 	RET
+ 
+-TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
+-	NO_LOCAL_POINTERS
+-
+-	// stderr
+-	MOVD	runtime·_GetStdHandle(SB), R1
+-	MOVD	$-12, R0
+-	SUB	$16, RSP	// skip over saved frame pointer below RSP
+-	BL	(R1)
+-	ADD	$16, RSP
+-
+-	// handle in R0 already
+-	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
+-	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
+-	MOVD	(R2), R2
+-	// point R3 to stack local that will receive number of bytes written
+-	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
+-	MOVD	$0, R4			// lpOverlapped
+-	MOVD	runtime·_WriteFile(SB), R12
+-	SUB	$16, RSP	// skip over saved frame pointer below RSP
+-	BL	(R12)
+-
+-	// Does not return.
+-	B	runtime·abort(SB)
+-
+-	RET
+-
+ TEXT runtime·getlasterror(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	TEB_error(R18_PLATFORM), R0
+ 	MOVD	R0, ret+0(FP)

@@ -11,6 +11,28 @@ Date:   Mon Sep 5 15:06:38 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 9cf2cc8220..62de68ed66 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -7,7 +7,6 @@
+ package syntax
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"io"
+ 	"strings"
+@@ -47,7 +46,7 @@ func Fprint(w io.Writer, x Node, form Form) (n int, err error) {
+ // String is a convenience function that prints n in ShortForm
+ // and returns the printed string.
+ func String(n Node) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	_, err := Fprint(&buf, n, ShortForm)
+ 	if err != nil {
+ 		fmt.Fprintf(&buf, "<<< ERROR: %s", err)

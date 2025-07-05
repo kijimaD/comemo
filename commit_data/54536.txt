@@ -34,7 +34,7 @@ Date:   Wed Sep 21 15:51:27 2022 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  misc/cgo/testshared/shared_test.go                  | 10 +++++-----
  src/cmd/compile/internal/importer/gcimporter.go     |  2 +-
  src/cmd/dist/test.go                                |  4 ++++
@@ -54,3 +54,448 @@ Date:   Wed Sep 21 15:51:27 2022 -0400
  src/go/types/example_test.go                        |  2 +-
  src/internal/buildinternal/needs_install.go         | 14 ++++++++++++++
  18 files changed, 120 insertions(+), 33 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 92c2166674..cd8a144d73 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -151,17 +151,17 @@ func testMain(m *testing.M) (int, error) {
+ 	myContext := build.Default
+ 	myContext.GOROOT = goroot
+ 	myContext.GOPATH = gopath
+-	runtimeP, err := myContext.Import("runtime", ".", build.ImportComment)
+-	if err != nil {
+-		return 0, fmt.Errorf("import failed: %v", err)
+-	}
+-	gorootInstallDir = runtimeP.PkgTargetRoot + "_dynlink"
+ 
+ 	// All tests depend on runtime being built into a shared library. Because
+ 	// that takes a few seconds, do it here and have all tests use the version
+ 	// built here.
+ 	goCmd(nil, append([]string{"install", "-buildmode=shared"}, minpkgs...)...)
+ 
++	shlib := goCmd(nil, "list", "-linkshared", "-f={{.Shlib}}", "runtime")
++	if shlib != "" {
++		gorootInstallDir = filepath.Dir(shlib)
++	}
++
+ 	myContext.InstallSuffix = "_dynlink"
+ 	depP, err := myContext.Import("./depBase", ".", build.ImportComment)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 0aa779441a..e4d8a86f9a 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -74,8 +74,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 			}
+ 		} else {
+ 			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+-			id = bp.ImportPath
+ 		}
++		id = bp.ImportPath
+ 
+ 	case build.IsLocalImport(path):
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1663ff8c94..29a886f456 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -161,6 +161,10 @@ func (t *tester) run() {
+ 			// Instead, we can just check that it is not stale, which may be less
+ 			// expensive (and is also more likely to catch bugs in the builder
+ 			// implementation).
++			// The cache used by dist when building is different from that used when
++			// running dist test, so rebuild (but don't install) std and cmd to make
++			// sure packages without install targets are cached so they are not stale.
++			goCmd("go", "build", "std", "cmd") // make sure dependencies of targets are cached
+ 			checkNotStale("go", "std", "cmd")
+ 		}
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index bd1de7d1b9..f5f583fbea 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1803,16 +1803,23 @@ func TestImportLocal(t *testing.T) {
+ 
+ func TestGoInstallPkgdir(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no standard packages")
++	if !canCgo {
++		// Only the stdlib packages that use cgo have install
++		// targets, (we're using net below) so cgo is required
++		// for the install.
++		t.Skip("skipping because cgo not enabled")
++	}
+ 	tooSlow(t)
+ 
+ 	tg := testgo(t)
+ 	tg.parallel()
++	tg.setenv("GODEBUG", "installgoroot=all")
+ 	defer tg.cleanup()
+ 	tg.makeTempdir()
+ 	pkg := tg.path(".")
+-	tg.run("install", "-pkgdir", pkg, "sync")
+-	tg.mustExist(filepath.Join(pkg, "sync.a"))
+-	tg.mustNotExist(filepath.Join(pkg, "sync/atomic.a"))
++	tg.run("install", "-pkgdir", pkg, "net")
++	tg.mustExist(filepath.Join(pkg, "net.a"))
++	tg.mustNotExist(filepath.Join(pkg, "runtime/cgo.a"))
+ }
+ 
+ // For issue 14337.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1e50fdc0a5..4a6414016a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -374,7 +374,9 @@ func (p *Package) copyBuild(opts PackageOpts, pp *build.Package) {
+ 		old := pp.PkgTargetRoot
+ 		pp.PkgRoot = cfg.BuildPkgdir
+ 		pp.PkgTargetRoot = cfg.BuildPkgdir
+-		pp.PkgObj = filepath.Join(cfg.BuildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
++		if pp.PkgObj != "" {
++			pp.PkgObj = filepath.Join(cfg.BuildPkgdir, strings.TrimPrefix(pp.PkgObj, old))
++		}
+ 	}
+ 
+ 	p.Dir = pp.Dir
+@@ -1814,11 +1816,19 @@ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *
+ 		p.Target = ""
+ 	} else {
+ 		p.Target = p.Internal.Build.PkgObj
+-		if cfg.BuildLinkshared && p.Target != "" {
+-			// TODO(bcmills): The reliance on p.Target implies that -linkshared does
+-			// not work for any package that lacks a Target — such as a non-main
++		if cfg.BuildBuildmode == "shared" && p.Internal.Build.PkgTargetRoot != "" {
++			// TODO(matloob): This shouldn't be necessary, but the misc/cgo/testshared
++			// test fails without Target set for this condition. Figure out why and
++			// fix it.
++			p.Target = filepath.Join(p.Internal.Build.PkgTargetRoot, p.ImportPath+".a")
++		}
++		if cfg.BuildLinkshared && p.Internal.Build.PkgTargetRoot != "" {
++			// TODO(bcmills): The reliance on PkgTargetRoot implies that -linkshared does
++			// not work for any package that lacks a PkgTargetRoot — such as a non-main
+ 			// package in module mode. We should probably fix that.
+-			shlibnamefile := p.Target[:len(p.Target)-2] + ".shlibname"
++			targetPrefix := filepath.Join(p.Internal.Build.PkgTargetRoot, p.ImportPath)
++			p.Target = targetPrefix + ".a"
++			shlibnamefile := targetPrefix + ".shlibname"
+ 			shlib, err := os.ReadFile(shlibnamefile)
+ 			if err != nil && !os.IsNotExist(err) {
+ 				base.Fatalf("reading shlibname: %v", err)
+diff --git a/src/cmd/go/internal/modindex/index_test.go b/src/cmd/go/internal/modindex/index_test.go
+index 1c32973d39..6bc62f393f 100644
+--- a/src/cmd/go/internal/modindex/index_test.go
++++ b/src/cmd/go/internal/modindex/index_test.go
+@@ -28,7 +28,7 @@ func TestIndex(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		bp1, err := build.Default.Import(pkg, filepath.Join(src, pkg), build.ImportComment)
++		bp1, err := build.Default.Import(".", filepath.Join(src, pkg), build.ImportComment)
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index d6a04a0156..e9cfbca8ae 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/build"
+ 	"go/build/constraint"
+ 	"go/token"
++	"internal/buildinternal"
+ 	"internal/godebug"
+ 	"internal/goroot"
+ 	"path"
+@@ -431,8 +432,15 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 			p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+ 			p.BinDir = ctxt.joinPath(p.Root, "bin")
+ 			if pkga != "" {
++				// Always set PkgTargetRoot. It might be used when building in shared
++				// mode.
+ 				p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+-				p.PkgObj = ctxt.joinPath(p.Root, pkga)
++
++				// Set the install target if applicable.
++				if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
++					!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
++					p.PkgObj = ctxt.joinPath(p.Root, pkga)
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 60ab68c65c..d2f32558fa 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -423,8 +423,8 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 	vetOnly := mode&ModeVetOnly != 0
+ 	mode &^= ModeVetOnly
+ 
+-	if mode != ModeBuild && (p.Internal.Local || p.Module != nil) && p.Target == "" {
+-		// Imported via local path or using modules. No permanent target.
++	if mode != ModeBuild && p.Target == "" {
++		// No permanent target.
+ 		mode = ModeBuild
+ 	}
+ 	if mode != ModeBuild && p.Name == "main" {
+@@ -872,14 +872,15 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 			}
+ 			for _, a2 := range buildAction.Deps[0].Deps {
+ 				p := a2.Package
+-				if p.Target == "" {
++				pkgTargetRoot := p.Internal.Build.PkgTargetRoot
++				if pkgTargetRoot == "" {
+ 					continue
+ 				}
+ 				a.Deps = append(a.Deps, &Action{
+ 					Mode:    "shlibname",
+ 					Package: p,
+ 					Func:    (*Builder).installShlibname,
+-					Target:  strings.TrimSuffix(p.Target, ".a") + ".shlibname",
++					Target:  filepath.Join(pkgTargetRoot, p.ImportPath+".shlibname"),
+ 					Deps:    []*Action{a.Deps[0]},
+ 				})
+ 			}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index d27d114d91..d8b7848071 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/buildinternal"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -723,8 +724,6 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 	for _, p := range pkgs {
+ 		if p.Target == "" {
+ 			switch {
+-			case p.Standard && p.ImportPath == "unsafe":
+-				// unsafe is a built-in package, has no target
+ 			case p.Name != "main" && p.Internal.Local && p.ConflictDir == "":
+ 				// Non-executables outside GOPATH need not have a target:
+ 				// we can use the cache to hold the built package archive for use in future builds.
+@@ -732,6 +731,11 @@ func InstallPackages(ctx context.Context, patterns []string, pkgs []*load.Packag
+ 				// or else something is wrong and worth reporting (like a ConflictDir).
+ 			case p.Name != "main" && p.Module != nil:
+ 				// Non-executables have no target (except the cache) when building with modules.
++			case p.Name != "main" && p.Standard && !buildinternal.NeedsInstalledDotA(p.ImportPath):
++				// Most packages in std do not need an installed .a, because they can be
++				// rebuilt and used directly from the build cache.
++				// A few targets (notably those using cgo) still do need to be installed
++				// in case the user's environment lacks a C compiler.			case p.Internal.GobinSubdir:
+ 			case p.Internal.GobinSubdir:
+ 				base.Errorf("go: cannot install cross-compiled binaries when GOBIN is set")
+ 			case p.Internal.CmdlineFiles:
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 11f6c7a498..29d75001cb 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1583,6 +1583,9 @@ func (b *Builder) installShlibname(ctx context.Context, a *Action) error {
+ 
+ 	// TODO: BuildN
+ 	a1 := a.Deps[0]
++	if err := b.Mkdir(filepath.Dir(a.Target)); err != nil {
++		return err
++	}
+ 	err := os.WriteFile(a.Target, []byte(filepath.Base(a1.Target)+"\n"), 0666)
+ 	if err != nil {
+ 		return err
+diff --git a/src/cmd/go/testdata/script/install_goroot_targets.txt b/src/cmd/go/testdata/script/install_goroot_targets.txt
+new file mode 100644
+index 0000000000..cc143657c7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_goroot_targets.txt
+@@ -0,0 +1,21 @@
++[short] skip
++[!cgo] skip
++
++# Most packages in std do not have an install target.
++go list -f '{{.Target}}' fmt
++! stdout .
++go list -export -f '{{.Export}}' fmt
++stdout $GOCACHE
++
++# Packages that use cgo still do.
++go list -f '{{.Target}}' runtime/cgo
++stdout .
++go list -export -f '{{.Export}}' runtime/cgo
++! stdout $GOCACHE
++stdout cgo\.a
++
++# With GODEBUG=installgoroot=all, fmt has a target.
++# (Though we can't try installing it without modifying goroot).
++env GODEBUG=installgoroot=all
++go list -f '{{.Target}}' fmt
++stdout fmt\.a
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index ce06572164..406487c7ee 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1104,6 +1104,8 @@ func TestUnlinkableObj(t *testing.T) {
+ 	xObj := filepath.Join(tmpdir, "x.o")
+ 	pObj := filepath.Join(tmpdir, "p.o")
+ 	exe := filepath.Join(tmpdir, "x.exe")
++	importcfgfile := filepath.Join(tmpdir, "importcfg")
++	testenv.WriteImportcfg(t, importcfgfile, map[string]string{"p": pObj})
+ 	err := os.WriteFile(xSrc, []byte("package main\nimport _ \"p\"\nfunc main() {}\n"), 0666)
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+@@ -1112,17 +1114,17 @@ func TestUnlinkableObj(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to write source file: %v", err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", pObj, pSrc) // without -p
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", pObj, pSrc) // without -p
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+ 	}
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-p=main", "-o", xObj, xSrc)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=main", "-o", xObj, xSrc)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("compile x.go failed: %v. output:\n%s", err, out)
+ 	}
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
+ 	out, err = cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Fatalf("link did not fail")
+@@ -1132,17 +1134,18 @@ func TestUnlinkableObj(t *testing.T) {
+ 	}
+ 
+ 	// It is okay to omit -p for (only) main package.
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", pObj, pSrc)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-p=p", "-o", pObj, pSrc)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("compile p.go failed: %v. output:\n%s", err, out)
+ 	}
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", xObj, xSrc) // without -p
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-importcfg="+importcfgfile, "-o", xObj, xSrc) // without -p
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("compile failed: %v. output:\n%s", err, out)
+ 	}
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-L", tmpdir, "-o", exe, xObj)
++
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "link", "-importcfg="+importcfgfile, "-o", exe, xObj)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Errorf("link failed: %v. output:\n%s", err, out)
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 4fa07788c9..28c7445580 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -13,6 +13,8 @@ import (
+ 	"go/doc"
+ 	"go/token"
+ 	"internal/buildcfg"
++	"internal/buildinternal"
++	"internal/godebug"
+ 	"internal/goroot"
+ 	"internal/goversion"
+ 	"io"
+@@ -777,8 +779,15 @@ Found:
+ 		p.PkgRoot = ctxt.joinPath(p.Root, "pkg")
+ 		p.BinDir = ctxt.joinPath(p.Root, "bin")
+ 		if pkga != "" {
++			// Always set PkgTargetRoot. It might be used when building in shared
++			// mode.
+ 			p.PkgTargetRoot = ctxt.joinPath(p.Root, pkgtargetroot)
+-			p.PkgObj = ctxt.joinPath(p.Root, pkga)
++
++			// Set the install target if applicable.
++			if strings.ToLower(godebug.Get("installgoroot")) == "all" ||
++				!p.Goroot || buildinternal.NeedsInstalledDotA(p.ImportPath) {
++				p.PkgObj = ctxt.joinPath(p.Root, pkga)
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 8fa17c7343..1b0a371d67 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -675,7 +675,9 @@ func TestImportDirTarget(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+ 	ctxt.GOPATH = ""
+-	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/path"), 0)
++	// In GOROOT only a handful of packages have install targets. Most stdlib packages will
++	// only be built and placed in the build cache.
++	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/runtime/cgo"), 0)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 25556ac04c..6fd83f777b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -40,6 +40,7 @@ var depsRules = `
+ 	# No dependencies allowed for any of these packages.
+ 	NONE
+ 	< constraints, container/list, container/ring,
++	  internal/buildinternal,
+ 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+ 	  internal/cpu, internal/goarch,
+@@ -285,7 +286,7 @@ var depsRules = `
+ 	FMT, internal/goexperiment
+ 	< internal/buildcfg;
+ 
+-	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion
++	go/build/constraint, go/doc, go/parser, internal/buildcfg, internal/goroot, internal/goversion, internal/buildinternal
+ 	< go/build;
+ 
+ 	# databases
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 0ec464056c..614fe52caf 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -73,8 +73,8 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 			}
+ 		} else {
+ 			noext = strings.TrimSuffix(bp.PkgObj, ".a")
+-			id = bp.ImportPath
+ 		}
++		id = bp.ImportPath
+ 
+ 	case build.IsLocalImport(path):
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index be70e14610..605e987408 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -5,7 +5,7 @@
+ // Only run where builders (build.golang.org) have
+ // access to compiled packages for import.
+ //
+-//go:build !arm && !arm64
++//go:build !android && !ios && !js
+ 
+ package types_test
+ 
+diff --git a/src/internal/buildinternal/needs_install.go b/src/internal/buildinternal/needs_install.go
+new file mode 100644
+index 0000000000..b3c17df244
+--- /dev/null
++++ b/src/internal/buildinternal/needs_install.go
+@@ -0,0 +1,14 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package buildinternal provides internal functions used by go/build
++// that need to be used by other packages too.
++package buildinternal
++
++// NeedsInstalledDotA returns true if the given stdlib package
++// needs an installed .a file in the stdlib.
++func NeedsInstalledDotA(importPath string) bool {
++	return importPath == "net" || importPath == "os/signal" || importPath == "os/user" || importPath == "plugin" ||
++		importPath == "runtime/cgo"
++}

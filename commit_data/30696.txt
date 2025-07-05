@@ -9,6 +9,22 @@ Date:   Sun Nov 27 09:36:54 2016 +0900
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Mikio Hara <mikioh.mikioh@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/udpsock.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 6a4aaf9e59..841ef53359 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -15,8 +15,8 @@ import (
+ // BUG(mikio): On Windows, the File method of UDPConn is not
+ // implemented.
+ 
+-// BUG(mikio): On NaCl the ListenMulticastUDP function is
+-// not implemented.
++// BUG(mikio): On NaCl, the ListenMulticastUDP function is not
++// implemented.
+ 
+ // UDPAddr represents the address of a UDP end point.
+ type UDPAddr struct {

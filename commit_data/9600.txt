@@ -9,9 +9,142 @@ Date:   Mon Sep 5 15:31:22 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4960054
-
+---
  src/cmd/5g/cgen.c | 11 +++++++++--
  src/cmd/6g/cgen.c | 15 +++++++++++----
  src/cmd/8g/cgen.c | 13 +++++++++----
  test/struct0.go   | 34 ++++++++++++++++++++++++++++++++++
  4 files changed, 63 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 9481769d39..0ea8695a02 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -1201,8 +1201,6 @@ sgen(Node *n, Node *res, int32 w)
+ 		dump("r", n);
+ 		dump("res", res);
+ 	}
+-	if(w == 0)
+-		return;
+ 	if(w < 0)
+ 		fatal("sgen copy %d", w);
+ 	if(n->ullman >= UINF && res->ullman >= UINF)
+@@ -1210,6 +1208,15 @@ sgen(Node *n, Node *res, int32 w)
+ 	if(n->type == T)
+ 		fatal("sgen: missing type");
+ 
++	if(w == 0) {
++		// evaluate side effects only.
++		regalloc(&dst, types[tptr], N);
++		agen(res, &dst);
++		agen(n, &dst);
++		regfree(&dst);
++		return;
++	}
++
+ 	// determine alignment.
+ 	// want to avoid unaligned access, so have to use
+ 	// smaller operations for less aligned types.
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 6448d9c069..43bec00594 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -1029,11 +1029,9 @@ sgen(Node *n, Node *ns, int32 w)
+ 		dump("r", n);
+ 		dump("res", ns);
+ 	}
+-	if(w == 0)
+-		return;
+-	if(n->ullman >= UINF && ns->ullman >= UINF) {
++
++	if(n->ullman >= UINF && ns->ullman >= UINF)
+ 		fatal("sgen UINF");
+-	}
+ 
+ 	if(w < 0)
+ 		fatal("sgen copy %d", w);
+@@ -1041,6 +1039,15 @@ sgen(Node *n, Node *ns, int32 w)
+ 	if(w == 16)
+ 		if(componentgen(n, ns))
+ 			return;
++	
++	if(w == 0) {
++		// evaluate side effects only
++		regalloc(&nodr, types[tptr], N);
++		agen(ns, &nodr);
++		agen(n, &nodr);
++		regfree(&nodr);
++		return;
++	}
+ 
+ 	// offset on the stack
+ 	osrc = stkof(n);
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 4a37514d45..21b7815fd4 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -1136,15 +1136,20 @@ sgen(Node *n, Node *res, int32 w)
+ 		dump("r", n);
+ 		dump("res", res);
+ 	}
+-	if(w == 0)
+-		return;
+-	if(n->ullman >= UINF && res->ullman >= UINF) {
++	if(n->ullman >= UINF && res->ullman >= UINF)
+ 		fatal("sgen UINF");
+-	}
+ 
+ 	if(w < 0)
+ 		fatal("sgen copy %d", w);
+ 
++	if(w == 0) {
++		// evaluate side effects only.
++		tempname(&tdst, types[tptr]);
++		agen(res, &tdst);
++		agen(n, &tdst);
++		return;
++	}
++
+ 	// offset on the stack
+ 	osrc = stkof(n);
+ 	odst = stkof(res);
+diff --git a/test/struct0.go b/test/struct0.go
+new file mode 100644
+index 0000000000..2398c4117d
+--- /dev/null
++++ b/test/struct0.go
+@@ -0,0 +1,34 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// zero length structs.
++// used to not be evaluated.
++// issue 2232.
++
++package main
++
++func recv(c chan interface{}) struct{} {
++	return (<-c).(struct{})
++}
++
++var m = make(map[interface{}]int)
++
++func recv1(c chan interface{}) {
++	defer rec()
++	m[(<-c).(struct{})] = 0
++}
++
++func rec() {
++	recover()
++}
++
++func main() {
++	c := make(chan interface{})
++	go recv(c)
++	c <- struct{}{}
++	go recv1(c)
++	c <- struct{}{}
++}

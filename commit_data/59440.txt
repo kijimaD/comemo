@@ -12,6 +12,20 @@ Date:   Thu Mar 14 03:16:23 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/internal/modcmd/vendor.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 5b0b9bbea6..e1a9081a95 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -495,7 +495,7 @@ func copyDir(dst, src string, match func(dir string, info fs.DirEntry) bool, cop
+ }
+ 
+ // checkPathCollisions will fail if case-insensitive collisions are present.
+-// The reason why we do this check in go mod vendor is to keep consistentcy
++// The reason why we do this check in go mod vendor is to keep consistency
+ // with go build. If modifying, consider changing load() in
+ // src/cmd/go/internal/load/pkg.go
+ func checkPathCollisions(modpkgs map[module.Version][]string) {

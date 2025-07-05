@@ -13,6 +13,20 @@ Date:   Mon Feb 9 17:12:12 2015 -0800
     u
     Reviewed-on: https://go-review.googlesource.com/4293
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/proxy_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index b6aed3792b..823d1447ee 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -18,7 +18,7 @@ var UseProxyTests = []struct {
+ 	match bool
+ }{
+ 	// Never proxy localhost:
+-	{"localhost:80", false},
++	{"localhost", false},
+ 	{"127.0.0.1", false},
+ 	{"127.0.0.2", false},
+ 	{"[::1]", false},

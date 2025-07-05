@@ -16,7 +16,7 @@ Date:   Mon Apr 29 09:50:53 2019 +0000
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/build.go               | 17 +++++++-----
  ...oupgrade_v0.0.0-20190429073000-30950c05d534.txt | 13 ++++++++++
  .../mod/example.com_pseudoupgrade_v0.1.0.txt       | 13 ++++++++++
@@ -24,3 +24,162 @@ Date:   Mon Apr 29 09:50:53 2019 +0000
  .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 30 ++++++++++++++++++++++
  .../go/testdata/script/mod_list_upgrade_pseudo.txt | 24 +++++++++++++++++
  6 files changed, 103 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index a41b176ccd..66a0a75d96 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/search"
++	"cmd/go/internal/semver"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"internal/goroot"
+@@ -74,13 +75,15 @@ func ModuleInfo(path string) *modinfo.ModulePublic {
+ 
+ // addUpdate fills in m.Update if an updated version is available.
+ func addUpdate(m *modinfo.ModulePublic) {
+-	if m.Version != "" {
+-		if info, err := Query(m.Path, "latest", Allowed); err == nil && info.Version != m.Version {
+-			m.Update = &modinfo.ModulePublic{
+-				Path:    m.Path,
+-				Version: info.Version,
+-				Time:    &info.Time,
+-			}
++	if m.Version == "" {
++		return
++	}
++
++	if info, err := Query(m.Path, "latest", Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
++		m.Update = &modinfo.ModulePublic{
++			Path:    m.Path,
++			Version: info.Version,
++			Time:    &info.Time,
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.0.0-20190429073000-30950c05d534.txt b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.0.0-20190429073000-30950c05d534.txt
+new file mode 100644
+index 0000000000..421e643d43
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.0.0-20190429073000-30950c05d534.txt
+@@ -0,0 +1,13 @@
++example.com/pseudoupgrade v0.0.0-20190429073000-30950c05d534
++written by hand
++
++-- .mod --
++module example.com/pseudoupgrade
++
++-- .info --
++{"Version":"v0.0.0-20190429073000-30950c05d534","Name":"v0.0.0-20190429073000-30950c05d534","Short":"30950c05d534","Time":"2019-04-29T07:30:00Z"}
++
++-- pseudoupgrade.go --
++package pseudoupgrade
++
++const X = 1
+diff --git a/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.0.txt b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.0.txt
+new file mode 100644
+index 0000000000..7ddb0dc724
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.0.txt
+@@ -0,0 +1,13 @@
++example.com/pseudoupgrade v0.1.0
++written by hand
++
++-- .mod --
++module example.com/pseudoupgrade
++
++-- .info --
++{"Version":"v0.1.0","Name":"","Short":"","Time":"2019-04-29T07:30:30Z"}
++
++-- pseudoupgrade.go --
++package pseudoupgrade
++
++const X = 1
+diff --git a/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.1-0.20190429073117-b5426c86b553.txt b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.1-0.20190429073117-b5426c86b553.txt
+new file mode 100644
+index 0000000000..b3f48bbdab
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_pseudoupgrade_v0.1.1-0.20190429073117-b5426c86b553.txt
+@@ -0,0 +1,13 @@
++example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553
++written by hand
++
++-- .mod --
++module example.com/pseudoupgrade
++
++-- .info --
++{"Version":"v0.1.1-0.20190429073117-b5426c86b553","Name":"v0.1.1-0.20190429073117-b5426c86b553","Short":"b5426c86b553","Time":"2019-04-29T07:31:00Z"}
++
++-- pseudoupgrade.go --
++package pseudoupgrade
++
++const X = 1
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+new file mode 100644
+index 0000000000..69acea57bb
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+@@ -0,0 +1,30 @@
++env GO111MODULE=on
++
++# Testing that a pseudo version with schematically higher version than the latest
++# tagged version isn't downgraded when running 'go get -u'.
++
++[!net] skip
++[!exec:git] skip
++
++# For this test repository there are three commits:
++#   * b5426c8 "master" (v0.1.1-0.20190429073117-b5426c86b553)
++#   * a90cfd2 (tag: v0.1.0)
++#   * 30950c0
++
++# When requesting master as specific version, a pseudo version is created with a
++# higher version than the latest tag. Running 'go get -u' doesn't downgrade the
++# version.
++go get -m example.com/pseudoupgrade@b5426c8
++go get -u
++go list -m -u all
++stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
++
++-- go.mod --
++module x
++
++go 1.12
++
++-- main.go --
++package x
++
++import _ "example.com/pseudoupgrade"
+diff --git a/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+new file mode 100644
+index 0000000000..6935e03d6e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+@@ -0,0 +1,24 @@
++env GO111MODULE=on
++
++# Testing that a pseudo version with schematically higher version than the latest
++# tagged version isn't listed as upgradable when calling 'go list -m -u'.
++
++[!net] skip
++[!exec:git] skip
++
++# For this test repository there are three commits:
++#   * b5426c8 "master" (v0.1.1-0.20190429073117-b5426c86b553)
++#   * a90cfd2 (tag: v0.1.0)
++#   * 30950c0
++
++# When requesting master as specific version, a pseudo version is created with a
++# higher version than the latest tag. Listing upgrades doesn't suggest the lower
++# version as upgrade.
++go get -m example.com/pseudoupgrade@b5426c8
++go list -m -u all
++stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
++
++-- go.mod --
++module x
++
++go 1.12

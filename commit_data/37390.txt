@@ -12,7 +12,34 @@ Date:   Mon Jul 23 23:23:50 2018 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 2 +-
  src/cmd/go/internal/modcmd/mod.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 30d1a095fe..e92d293ccd 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -928,7 +928,7 @@
+ // 		Indirect bool
+ // 	}
+ //
+-// 	type Replace string {
++// 	type Replace struct {
+ // 		Old Module
+ // 		New Module
+ // 	}
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index d01f699d88..ec93431085 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -99,7 +99,7 @@ Go types:
+ 		Indirect bool
+ 	}
+ 	
+-	type Replace string {
++	type Replace struct {
+ 		Old Module
+ 		New Module
+ 	}

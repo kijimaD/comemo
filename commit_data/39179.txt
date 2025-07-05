@@ -11,7 +11,46 @@ Date:   Wed Jan 16 18:53:35 2019 +0800
     Change-Id: I1aa9223a86d6a8ce3c0efc3ac1d7d7647b77f589
     Reviewed-on: https://go-review.googlesource.com/c/158117
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go             |  4 +++-
  src/cmd/go/testdata/script/clean_testcache.txt | 16 ++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 32cc80736d..27121ed2ae 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -152,7 +152,9 @@ func runClean(cmd *base.Command, args []string) {
+ 				prev, _ := strconv.ParseInt(strings.TrimSpace(string(buf)), 10, 64)
+ 				if now > prev {
+ 					if err = f.Truncate(0); err == nil {
+-						_, err = fmt.Fprintf(f, "%d\n", now)
++						if _, err = f.Seek(0, 0); err == nil {
++							_, err = fmt.Fprintf(f, "%d\n", now)
++						}
+ 					}
+ 				}
+ 				if closeErr := f.Close(); err == nil {
+diff --git a/src/cmd/go/testdata/script/clean_testcache.txt b/src/cmd/go/testdata/script/clean_testcache.txt
+new file mode 100644
+index 0000000000..a2d592deff
+--- /dev/null
++++ b/src/cmd/go/testdata/script/clean_testcache.txt
+@@ -0,0 +1,16 @@
++# go clean -testcache
++# should work (see golang.org/issue/29757).
++cd x
++go test x_test.go
++go clean -testcache
++go test x_test.go
++! stdout 'cached'
++
++
++-- x/x_test.go --
++package x_test
++import (
++    "testing"
++)
++func TestMain(t *testing.T) {
++}
+\ No newline at end of file

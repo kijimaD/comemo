@@ -20,7 +20,53 @@ Date:   Wed Dec 22 10:34:55 2021 -0500
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_parallel.txt | 7 +++++++
  src/testing/fuzz.go                               | 9 +++++----
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_parallel.txt b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+index 1795e0b2a5..e6325208d0 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_parallel.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+@@ -13,6 +13,13 @@ go test -run=FuzzSeed
+ ! go test -run=FuzzMutate -fuzz=FuzzMutate
+ exists testdata/fuzz/FuzzMutate
+ 
++# Testdata should now contain a corpus entry which will fail FuzzMutate.
++# Run the test without fuzzing, setting -parallel to different values to make
++# sure it fails, and doesn't hang.
++! go test -run=FuzzMutate -parallel=1
++! go test -run=FuzzMutate -parallel=2
++! go test -run=FuzzMutate -parallel=4
++
+ -- go.mod --
+ module fuzz_parallel
+ 
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index efb59b3e57..037d531acf 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -323,10 +323,10 @@ func (f *F) Fuzz(ff any) {
+ 			for _, v := range e.Values {
+ 				args = append(args, reflect.ValueOf(v))
+ 			}
+-			// Before reseting the current coverage, defer the snapshot so that we
+-			// make sure it is called right before the tRunner function exits,
+-			// regardless of whether it was executed cleanly, panicked, or if the
+-			// fuzzFn called t.Fatal.
++			// Before resetting the current coverage, defer the snapshot so that
++			// we make sure it is called right before the tRunner function
++			// exits, regardless of whether it was executed cleanly, panicked,
++			// or if the fuzzFn called t.Fatal.
+ 			defer f.fuzzContext.deps.SnapshotCoverage()
+ 			f.fuzzContext.deps.ResetCoverage()
+ 			fn.Call(args)
+@@ -666,6 +666,7 @@ func fRunner(f *F, fn func(*F)) {
+ 			// This only affects fuzz tests run as normal tests.
+ 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
+ 			// branch is not taken. f.barrier is nil in that case.
++			f.testContext.release()
+ 			close(f.barrier)
+ 			// Wait for the subtests to complete.
+ 			for _, sub := range f.sub {

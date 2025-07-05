@@ -11,9 +11,115 @@ Date:   Fri Jul 15 15:49:18 2022 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/align_runtime_test.go |  1 -
  src/runtime/mgcmark.go            | 10 +++++-----
  src/runtime/mgcpacer.go           | 13 ++++++-------
  src/runtime/proc.go               |  2 +-
  4 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/align_runtime_test.go b/src/runtime/align_runtime_test.go
+index 5d12616f89..252f59f158 100644
+--- a/src/runtime/align_runtime_test.go
++++ b/src/runtime/align_runtime_test.go
+@@ -21,7 +21,6 @@ var AtomicFields = []uintptr{
+ 	unsafe.Offsetof(schedt{}.lastpoll),
+ 	unsafe.Offsetof(schedt{}.pollUntil),
+ 	unsafe.Offsetof(schedt{}.timeToRun),
+-	unsafe.Offsetof(gcControllerState{}.bgScanCredit),
+ 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkTime),
+ 	unsafe.Offsetof(gcControllerState{}.dedicatedMarkWorkersNeeded),
+ 	unsafe.Offsetof(gcControllerState{}.fractionalMarkTime),
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 551b4c447e..68600be4e7 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -440,7 +440,7 @@ retry:
+ 	// will just cause steals to fail until credit is accumulated
+ 	// again, so in the long run it doesn't really matter, but we
+ 	// do have to handle the negative credit case.
+-	bgScanCredit := atomic.Loadint64(&gcController.bgScanCredit)
++	bgScanCredit := gcController.bgScanCredit.Load()
+ 	stolen := int64(0)
+ 	if bgScanCredit > 0 {
+ 		if bgScanCredit < scanWork {
+@@ -450,7 +450,7 @@ retry:
+ 			stolen = scanWork
+ 			gp.gcAssistBytes += debtBytes
+ 		}
+-		atomic.Xaddint64(&gcController.bgScanCredit, -stolen)
++		gcController.bgScanCredit.Add(-stolen)
+ 
+ 		scanWork -= stolen
+ 
+@@ -639,7 +639,7 @@ func gcParkAssist() bool {
+ 	// the queue, but can still back out. This avoids a
+ 	// race in case background marking has flushed more
+ 	// credit since we checked above.
+-	if atomic.Loadint64(&gcController.bgScanCredit) > 0 {
++	if gcController.bgScanCredit.Load() > 0 {
+ 		work.assistQueue.q = oldList
+ 		if oldList.tail != 0 {
+ 			oldList.tail.ptr().schedlink.set(nil)
+@@ -668,7 +668,7 @@ func gcFlushBgCredit(scanWork int64) {
+ 		// small window here where an assist may add itself to
+ 		// the blocked queue and park. If that happens, we'll
+ 		// just get it on the next flush.
+-		atomic.Xaddint64(&gcController.bgScanCredit, scanWork)
++		gcController.bgScanCredit.Add(scanWork)
+ 		return
+ 	}
+ 
+@@ -708,7 +708,7 @@ func gcFlushBgCredit(scanWork int64) {
+ 		// Convert from scan bytes back to work.
+ 		assistWorkPerByte := gcController.assistWorkPerByte.Load()
+ 		scanWork = int64(float64(scanBytes) * assistWorkPerByte)
+-		atomic.Xaddint64(&gcController.bgScanCredit, scanWork)
++		gcController.bgScanCredit.Add(scanWork)
+ 	}
+ 	unlock(&work.assistQueue.lock)
+ }
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index da74263ba4..b8483cc12b 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -257,12 +257,11 @@ type gcControllerState struct {
+ 	stackScanWork   atomic.Int64
+ 	globalsScanWork atomic.Int64
+ 
+-	// bgScanCredit is the scan work credit accumulated by the
+-	// concurrent background scan. This credit is accumulated by
+-	// the background scan and stolen by mutator assists. This is
+-	// updated atomically. Updates occur in bounded batches, since
+-	// it is both written and read throughout the cycle.
+-	bgScanCredit int64
++	// bgScanCredit is the scan work credit accumulated by the concurrent
++	// background scan. This credit is accumulated by the background scan
++	// and stolen by mutator assists.  Updates occur in bounded batches,
++	// since it is both written and read throughout the cycle.
++	bgScanCredit atomic.Int64
+ 
+ 	// assistTime is the nanoseconds spent in mutator assists
+ 	// during this cycle. This is updated atomically, and must also
+@@ -417,7 +416,7 @@ func (c *gcControllerState) startCycle(markStartTime int64, procs int, trigger g
+ 	c.heapScanWork.Store(0)
+ 	c.stackScanWork.Store(0)
+ 	c.globalsScanWork.Store(0)
+-	c.bgScanCredit = 0
++	c.bgScanCredit.Store(0)
+ 	c.assistTime.Store(0)
+ 	c.dedicatedMarkTime = 0
+ 	c.fractionalMarkTime = 0
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0b3d90c5b2..5ec31d1c44 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3494,7 +3494,7 @@ func goexit0(gp *g) {
+ 		// rapidly creating an exiting goroutines.
+ 		assistWorkPerByte := gcController.assistWorkPerByte.Load()
+ 		scanCredit := int64(assistWorkPerByte * float64(gp.gcAssistBytes))
+-		atomic.Xaddint64(&gcController.bgScanCredit, scanCredit)
++		gcController.bgScanCredit.Add(scanCredit)
+ 		gp.gcAssistBytes = 0
+ 	}
+ 

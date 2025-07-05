@@ -11,6 +11,26 @@ Date:   Wed Jan 2 17:37:27 2013 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7008046
-
+---
  src/pkg/net/http/request.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 0b6e6cbab5..f50e254fb2 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -71,7 +71,13 @@ var reqWriteExcludeHeader = map[string]bool{
+ // or to be sent by a client.
+ type Request struct {
+ 	Method string // GET, POST, PUT, etc.
+-	URL    *url.URL
++
++	// URL is created from the URI supplied on the Request-Line
++	// as stored in RequestURI.
++	//
++	// For most requests, fields other than Path and RawQuery
++	// will be empty. (See RFC 2616, Section 5.1.2)
++	URL *url.URL
+ 
+ 	// The protocol version for incoming requests.
+ 	// Outgoing requests always use HTTP/1.1.

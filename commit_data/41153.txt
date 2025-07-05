@@ -14,8 +14,148 @@ Date:   Sat Mar 23 06:06:08 2019 +0000
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/encoding/asn1/asn1.go      | 33 +++++++++++++++++++++++++++++++--
  src/encoding/asn1/asn1_test.go | 33 +++++++++++++++++++++++++++++++++
  src/encoding/asn1/common.go    |  1 +
  3 files changed, 65 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index 3cfd9d1276..fd4dd68021 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -27,6 +27,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"time"
++	"unicode/utf16"
+ 	"unicode/utf8"
+ )
+ 
+@@ -475,6 +476,29 @@ func parseUTF8String(bytes []byte) (ret string, err error) {
+ 	return string(bytes), nil
+ }
+ 
++// BMPString
++
++// parseBMPString parses an ASN.1 BMPString (Basic Multilingual Plane of
++// ISO/IEC/ITU 10646-1) from the given byte slice and returns it.
++func parseBMPString(bmpString []byte) (string, error) {
++	if len(bmpString)%2 != 0 {
++		return "", errors.New("pkcs12: odd-length BMP string")
++	}
++
++	// Strip terminator if present.
++	if l := len(bmpString); l >= 2 && bmpString[l-1] == 0 && bmpString[l-2] == 0 {
++		bmpString = bmpString[:l-2]
++	}
++
++	s := make([]uint16, 0, len(bmpString)/2)
++	for len(bmpString) > 0 {
++		s = append(s, uint16(bmpString[0])<<8+uint16(bmpString[1]))
++		bmpString = bmpString[2:]
++	}
++
++	return string(utf16.Decode(s)), nil
++}
++
+ // A RawValue represents an undecoded ASN.1 object.
+ type RawValue struct {
+ 	Class, Tag int
+@@ -589,7 +613,7 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
+ 			return
+ 		}
+ 		switch t.tag {
+-		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
++		case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
+ 			// We pretend that various other string types are
+ 			// PRINTABLE STRINGs so that a sequence of them can be
+ 			// parsed into a []string.
+@@ -691,6 +715,8 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 				result, err = parseGeneralizedTime(innerBytes)
+ 			case TagOctetString:
+ 				result = innerBytes
++			case TagBMPString:
++				result, err = parseBMPString(innerBytes)
+ 			default:
+ 				// If we don't know how to handle the type, we just leave Value as nil.
+ 			}
+@@ -759,7 +785,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 	if universalTag == TagPrintableString {
+ 		if t.class == ClassUniversal {
+ 			switch t.tag {
+-			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString:
++			case TagIA5String, TagGeneralString, TagT61String, TagUTF8String, TagNumericString, TagBMPString:
+ 				universalTag = t.tag
+ 			}
+ 		} else if params.stringType != 0 {
+@@ -957,6 +983,9 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 			// that allow the encoding to change midstring and
+ 			// such. We give up and pass it as an 8-bit string.
+ 			v, err = parseT61String(innerBytes)
++		case TagBMPString:
++			v, err = parseBMPString(innerBytes)
++
+ 		default:
+ 			err = SyntaxError{fmt.Sprintf("internal error: unknown string type %d", universalTag)}
+ 		}
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index f0a54e0cb2..d5649bff9f 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -6,6 +6,7 @@ package asn1
+ 
+ import (
+ 	"bytes"
++	"encoding/hex"
+ 	"fmt"
+ 	"math"
+ 	"math/big"
+@@ -1096,3 +1097,35 @@ func TestTaggedRawValue(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var bmpStringTests = []struct {
++	decoded    string
++	encodedHex string
++}{
++	{"", "0000"},
++	// Example from https://tools.ietf.org/html/rfc7292#appendix-B.
++	{"Beavis", "0042006500610076006900730000"},
++	// Some characters from the "Letterlike Symbols Unicode block".
++	{"\u2115 - Double-struck N", "21150020002d00200044006f00750062006c0065002d00730074007200750063006b0020004e0000"},
++}
++
++func TestBMPString(t *testing.T) {
++	for i, test := range bmpStringTests {
++		encoded, err := hex.DecodeString(test.encodedHex)
++		if err != nil {
++			t.Fatalf("#%d: failed to decode from hex string", i)
++		}
++
++		decoded, err := parseBMPString(encoded)
++
++		if err != nil {
++			t.Errorf("#%d: decoding output gave an error: %s", i, err)
++			continue
++		}
++
++		if decoded != test.decoded {
++			t.Errorf("#%d: decoding output resulted in %q, but it should have been %q", i, decoded, test.decoded)
++			continue
++		}
++	}
++}
+diff --git a/src/encoding/asn1/common.go b/src/encoding/asn1/common.go
+index 255d1ebfa8..e2aa8bd9c5 100644
+--- a/src/encoding/asn1/common.go
++++ b/src/encoding/asn1/common.go
+@@ -37,6 +37,7 @@ const (
+ 	TagUTCTime         = 23
+ 	TagGeneralizedTime = 24
+ 	TagGeneralString   = 27
++	TagBMPString       = 30
+ )
+ 
+ // ASN.1 class types represent the namespace of the tag.

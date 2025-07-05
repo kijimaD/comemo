@@ -7,6 +7,19 @@ Date:   Mon Mar 30 19:21:36 2009 -0700
     R=ken
     OCL=26930
     CL=26930
-
+---
  src/cmd/gc/dcl.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index f1291dbdba..c9f1b1aacb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -573,6 +573,7 @@ funclit1(Type *type, Node *body)
+ 		out = rev(out);
+ 
+ 		ft = functype(N, in, out);
++		ft->outnamed = type->outnamed;
+ 	}
+ 
+ 	// declare function.

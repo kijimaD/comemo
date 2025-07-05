@@ -12,7 +12,34 @@ Date:   Wed Jul 12 19:11:05 2023 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/loadpe/ldpe.go | 2 +-
  src/os/error.go                      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index 0a610ff048..81c28415a2 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -222,7 +222,7 @@ type peLoaderState struct {
+ var comdatDefinitions = make(map[string]int64)
+ 
+ // Load loads the PE file pn from input.
+-// Symbols from the object file are created via the loader 'l', and
++// Symbols from the object file are created via the loader 'l',
+ // and a slice of the text symbols is returned.
+ // If an .rsrc section or set of .rsrc$xx sections is found, its symbols are
+ // returned as rsrc.
+diff --git a/src/os/error.go b/src/os/error.go
+index 9827446e65..62ede9ded3 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -31,7 +31,7 @@ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+ // errDeadlineExceeded returns the value for os.ErrDeadlineExceeded.
+ // This error comes from the internal/poll package, which is also
+-// used by package net. Doing this this way ensures that the net
++// used by package net. Doing it this way ensures that the net
+ // package will return os.ErrDeadlineExceeded for an exceeded deadline,
+ // as documented by net.Conn.SetDeadline, without requiring any extra
+ // work in the net package and without requiring the internal/poll

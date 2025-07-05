@@ -8,6 +8,27 @@ Date:   Mon Nov 3 17:01:17 2014 +1100
     R=r, rsc, adg
     CC=golang-codereviews
     https://golang.org/cl/168890043
-
+---
  doc/go1.4.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.4.html b/doc/go1.4.html
+index cb2280cb4d..3310117a4d 100644
+--- a/doc/go1.4.html
++++ b/doc/go1.4.html
+@@ -371,6 +371,15 @@ fails because of this check, the mis-imported package has been copied to the loc
+ and should be removed manually.
+ </p>
+ 
++<p>
++To complement this new feature, a check has been added at update time to verify
++that the local package's remote repository matches that of its custom import.
++The <code>go</code> <code>get</code> <code>-u</code> command will fail to
++update a package if its remote repository has changed since it was first
++downloaded.
++The new <code>-f</code> flag overrides this check.
++</p>
++
+ <p>
+ Further information is in
+ <a href="http://golang.org/s/go14customimport">the design document</a>.

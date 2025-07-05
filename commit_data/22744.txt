@@ -7,6 +7,19 @@ Date:   Tue Apr 7 11:59:52 2015 +0200
     Change-Id: Iace8941c947253b1141f4194c5d2010c420ec220
     Reviewed-on: https://go-review.googlesource.com/8540
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index a697ac33c5..0167141608 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -32,6 +32,7 @@ go/ast: add Implicit field to ast.EmptyStmt; changed meaning of ast.EmptyStmt.Se
+ log: add SetOutput functions (https://golang.org/cl/2686, https://golang.org/cl/3023)
+ math/big: add arbitrary precision Floats (many cl's)
+ mime: add ExtensionByType (https://golang.org/cl/7444)
++mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)

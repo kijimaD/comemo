@@ -7,6 +7,20 @@ Date:   Wed Mar 3 12:35:16 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/224096
-
+---
  src/pkg/encoding/binary/binary.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 36f2366d64..f1d375aead 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -128,7 +128,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+ 	case *reflect.SliceValue:
+ 		v = d
+ 	default:
+-		return os.NewError("binary.Read: invalid type " + v.Type().String())
++		return os.NewError("binary.Read: invalid type " + d.Type().String())
+ 	}
+ 	size := TotalSize(v)
+ 	if size < 0 {

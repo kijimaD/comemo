@@ -7,6 +7,22 @@ Date:   Sat Dec 28 16:14:49 2013 +1100
     R=golang-codereviews, dave
     CC=golang-codereviews
     https://golang.org/cl/44710044
-
+---
  src/pkg/archive/tar/tar_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/archive/tar/tar_test.go b/src/pkg/archive/tar/tar_test.go
+index 616a9cc57e..ed333f3ea4 100644
+--- a/src/pkg/archive/tar/tar_test.go
++++ b/src/pkg/archive/tar/tar_test.go
+@@ -36,6 +36,10 @@ func TestFileInfoHeader(t *testing.T) {
+ 	if g, e := h.ModTime, fi.ModTime(); !g.Equal(e) {
+ 		t.Errorf("ModTime = %v; want %v", g, e)
+ 	}
++	// FileInfoHeader should error when passing nil FileInfo
++	if _, err := FileInfoHeader(nil, ""); err == nil {
++		t.Fatalf("Expected error when passing nil to FileInfoHeader")
++	}
+ }
+ 
+ func TestFileInfoHeaderDir(t *testing.T) {

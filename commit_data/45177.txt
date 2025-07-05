@@ -14,7 +14,53 @@ Date:   Sat Oct 10 16:25:07 2020 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Trust: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/request.go      |  2 +-
  src/net/http/request_test.go | 21 +++++++++++++++++++++
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index fe6b60982c..54ec1c5593 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -382,7 +382,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
+ 	if s := r.TransferEncoding; s != nil {
+ 		s2 := make([]string, len(s))
+ 		copy(s2, s)
+-		r2.TransferEncoding = s
++		r2.TransferEncoding = s2
+ 	}
+ 	r2.Form = cloneURLValues(r.Form)
+ 	r2.PostForm = cloneURLValues(r.PostForm)
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 42c16d00ea..461d66e05d 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -828,6 +828,27 @@ func TestWithContextDeepCopiesURL(t *testing.T) {
+ 	}
+ }
+ 
++// Ensure that Request.Clone creates a deep copy of TransferEncoding.
++// See issue 41907.
++func TestRequestCloneTransferEncoding(t *testing.T) {
++	body := strings.NewReader("body")
++	req, _ := NewRequest("POST", "https://example.org/", body)
++	req.TransferEncoding = []string{
++		"encoding1",
++	}
++
++	clonedReq := req.Clone(context.Background())
++	// modify original after deep copy
++	req.TransferEncoding[0] = "encoding2"
++
++	if req.TransferEncoding[0] != "encoding2" {
++		t.Error("expected req.TransferEncoding to be changed")
++	}
++	if clonedReq.TransferEncoding[0] != "encoding1" {
++		t.Error("expected clonedReq.TransferEncoding to be unchanged")
++	}
++}
++
+ func TestNoPanicOnRoundTripWithBasicAuth_h1(t *testing.T) {
+ 	testNoPanicWithBasicAuth(t, h1Mode)
+ }

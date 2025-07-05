@@ -13,7 +13,41 @@ Date:   Tue Jul 28 13:49:13 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/245318
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 3 ++-
  src/cmd/dist/build.go               | 1 +
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index bb28ef01a1..4417e70616 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -285,6 +285,8 @@ func Main(archInit func(*Arch)) {
+ 
+ 	objabi.Flagparse(usage)
+ 
++	Ctxt.Pkgpath = myimportpath
++
+ 	for _, f := range strings.Split(spectre, ",") {
+ 		f = strings.TrimSpace(f)
+ 		switch f {
+@@ -789,7 +791,6 @@ func Main(archInit func(*Arch)) {
+ 	// Write object data to disk.
+ 	timings.Start("be", "dumpobj")
+ 	dumpdata()
+-	Ctxt.Pkgpath = myimportpath
+ 	Ctxt.NumberSyms()
+ 	dumpobj()
+ 	if asmhdr != "" {
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9e2b4f33b8..a817e6fcd7 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -824,6 +824,7 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		"-D", "GOOS_" + goos,
+ 		"-D", "GOARCH_" + goarch,
+ 		"-D", "GOOS_GOARCH_" + goos + "_" + goarch,
++		"-p", pkg,
+ 	}
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		// Define GOMIPS_value from gomips.

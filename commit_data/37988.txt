@@ -12,9 +12,193 @@ Date:   Tue Sep 18 21:55:35 2018 -0700
     Change-Id: I1b8acdd95dbff3fc30273070fbb1ac4860031a3c
     Reviewed-on: https://go-review.googlesource.com/136197
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go   |  8 ++++----
  src/cmd/compile/internal/gc/fmt.go     | 32 ++++++++++++------------------
  src/cmd/compile/internal/gc/mpfloat.go | 36 +++++++++++++++++++++++++++-------
  src/cmd/compile/internal/gc/mpint.go   |  4 ++--
  4 files changed, 47 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index d87c4980d0..3466472aa7 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -476,7 +476,7 @@ func toflt(v Val) Val {
+ 		f := newMpflt()
+ 		f.Set(&u.Real)
+ 		if u.Imag.CmpFloat64(0) != 0 {
+-			yyerror("constant %v truncated to real", cconv(u))
++			yyerror("constant %v truncated to real", u.GoString())
+ 		}
+ 		v.U = f
+ 	}
+@@ -509,11 +509,11 @@ func toint(v Val) Val {
+ 				// value from the error message.
+ 				// (See issue #11371).
+ 				var t big.Float
+-				t.Parse(fconv(u), 10)
++				t.Parse(u.GoString(), 10)
+ 				if t.IsInt() {
+ 					yyerror("constant truncated to integer")
+ 				} else {
+-					yyerror("constant %v truncated to integer", fconv(u))
++					yyerror("constant %v truncated to integer", u.GoString())
+ 				}
+ 			}
+ 		}
+@@ -522,7 +522,7 @@ func toint(v Val) Val {
+ 	case *Mpcplx:
+ 		i := new(Mpint)
+ 		if !i.SetFloat(&u.Real) || u.Imag.CmpFloat64(0) != 0 {
+-			yyerror("constant %v truncated to integer", cconv(u))
++			yyerror("constant %v truncated to integer", u.GoString())
+ 		}
+ 
+ 		v.U = i
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0fecb5d595..d3d672ea32 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -119,7 +119,7 @@ const (
+ // *types.Type:
+ //   %#v    Go format
+ //   %#L    type definition instead of name
+-//   %#S    omit"func" and receiver in function signature
++//   %#S    omit "func" and receiver in function signature
+ //
+ //   %-v    type identifiers
+ //   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
+@@ -514,10 +514,10 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 	case *Mpint:
+ 		if !u.Rune {
+ 			if flag&FmtSharp != 0 {
+-				fmt.Fprint(s, bconv(u))
++				fmt.Fprint(s, u.String())
+ 				return
+ 			}
+-			fmt.Fprint(s, u.String())
++			fmt.Fprint(s, u.GoString())
+ 			return
+ 		}
+ 
+@@ -540,23 +540,16 @@ func (v Val) vconv(s fmt.State, flag FmtFlag) {
+ 			fmt.Fprint(s, u.String())
+ 			return
+ 		}
+-		fmt.Fprint(s, fconv(u))
++		fmt.Fprint(s, u.GoString())
+ 		return
+ 
+ 	case *Mpcplx:
+-		switch {
+-		case flag&FmtSharp != 0:
+-			fmt.Fprintf(s, "(%v+%vi)", &u.Real, &u.Imag)
+-
+-		case v.U.(*Mpcplx).Real.CmpFloat64(0) == 0:
+-			fmt.Fprintf(s, "%vi", fconv(&u.Imag))
+-
+-		case v.U.(*Mpcplx).Imag.CmpFloat64(0) == 0:
+-			fmt.Fprint(s, fconv(&u.Real))
+-
+-		default:
+-			fmt.Fprintf(s, "(%v)", cconv(u))
++		if flag&FmtSharp != 0 {
++			fmt.Fprint(s, u.String())
++			return
+ 		}
++		fmt.Fprint(s, u.GoString())
++		return
+ 
+ 	case string:
+ 		fmt.Fprint(s, strconv.Quote(u))
+@@ -668,7 +661,7 @@ func typefmt(t *types.Type, flag FmtFlag, mode fmtMode, depth int) string {
+ 		return "error"
+ 	}
+ 
+-	// Unless the 'l' flag was specified, if the type has a name, just print that name.
++	// Unless the 'L' flag was specified, if the type has a name, just print that name.
+ 	if flag&FmtLong == 0 && t.Sym != nil && t != types.Types[t.Etype] {
+ 		switch mode {
+ 		case FTypeId, FTypeIdName:
+@@ -1529,9 +1522,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ func (n *Node) nodefmt(s fmt.State, flag FmtFlag, mode fmtMode) {
+ 	t := n.Type
+ 
+-	// We almost always want the original, except in export mode for literals.
+-	// This saves the importer some work, and avoids us having to redo some
+-	// special casing for package unsafe.
++	// We almost always want the original.
++	// TODO(gri) Why the special case for OLITERAL?
+ 	if n.Op != OLITERAL && n.Orig != nil {
+ 		n = n.Orig
+ 	}
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index 8837628d86..d1f5cb1200 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -204,7 +204,7 @@ func (f *Mpflt) String() string {
+ 	return f.Val.Text('b', 0)
+ }
+ 
+-func fconv(fvp *Mpflt) string {
++func (fvp *Mpflt) GoString() string {
+ 	// determine sign
+ 	sign := ""
+ 	f := &fvp.Val
+@@ -327,11 +327,33 @@ func (v *Mpcplx) Div(rv *Mpcplx) bool {
+ 	return true
+ }
+ 
+-func cconv(v *Mpcplx) string {
+-	re := fconv(&v.Real)
+-	im := fconv(&v.Imag)
+-	if im[0] == '-' {
+-		return re + im + "i"
++func (v *Mpcplx) String() string {
++	return fmt.Sprintf("(%s+%si)", v.Real.String(), v.Imag.String())
++}
++
++func (v *Mpcplx) GoString() string {
++	var re string
++	sre := v.Real.CmpFloat64(0)
++	if sre != 0 {
++		re = v.Real.GoString()
++	}
++
++	var im string
++	sim := v.Imag.CmpFloat64(0)
++	if sim != 0 {
++		im = v.Imag.GoString()
++	}
++
++	switch {
++	case sre == 0 && sim == 0:
++		return "0"
++	case sre == 0:
++		return im + "i"
++	case sim == 0:
++		return re
++	case sim < 0:
++		return fmt.Sprintf("(%s%si)", re, im)
++	default:
++		return fmt.Sprintf("(%s+%si)", re, im)
+ 	}
+-	return re + "+" + im + "i"
+ }
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index 4f49e1505d..e4dd22d0a0 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -299,10 +299,10 @@ func (a *Mpint) SetString(as string) {
+ 	}
+ }
+ 
+-func (a *Mpint) String() string {
++func (a *Mpint) GoString() string {
+ 	return a.Val.String()
+ }
+ 
+-func bconv(a *Mpint) string {
++func (a *Mpint) String() string {
+ 	return fmt.Sprintf("%#x", &a.Val)
+ }

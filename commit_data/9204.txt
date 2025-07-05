@@ -22,10 +22,92 @@ Date:   Mon Jul 25 13:45:50 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4749042
-
+---
  src/cmd/ld/data.c    | 2 +-
  src/cmd/ld/ldelf.c   | 4 ++--
  src/cmd/ld/ldmacho.c | 2 +-
  src/cmd/ld/ldpe.c    | 4 ++--
  src/cmd/ld/lib.h     | 2 ++
  5 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 168f3e6d1c..974c08708f 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -512,7 +512,7 @@ codeblk(int32 addr, int32 size)
+ 				epc = p->link->pc;
+ 			else
+ 				epc = sym->value + sym->size;
+-			Bprint(&bso, "%.6ux\t", p->pc);
++			Bprint(&bso, "%.6llux\t", (uvlong)p->pc);
+ 			q = sym->p + p->pc - sym->value;
+ 			n = epc - p->pc;
+ 			Bprint(&bso, "%-20.*I | %P\n", (int)n, q, p);
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 8334e988e4..924687867b 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -398,13 +398,13 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		goto bad;
+ 
+ 	if(e->e16(hdr->type) != ElfTypeRelocatable) {
+-		diag("%s: elf but not elf relocatable object");
++		diag("%s: elf but not elf relocatable object", pn);
+ 		return;
+ 	}
+ 
+ 	switch(thechar) {
+ 	default:
+-		diag("%s: elf %s unimplemented", thestring);
++		diag("%s: elf %s unimplemented", pn, thestring);
+ 		return;
+ 	case '5':
+ 		if(e != &le || obj->machine != ElfMachArm || hdr->ident[4] != ElfClass32) {
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index abbc3b3cdb..3888487673 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -480,7 +480,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	
+ 	switch(thechar) {
+ 	default:
+-		diag("%s: mach-o %s unimplemented", thestring);
++		diag("%s: mach-o %s unimplemented", pn, thestring);
+ 		return;
+ 	case '6':
+ 		if(e != &le || m->cputype != MachoCpuAmd64) {
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index c2b34eee6b..6805570756 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -338,7 +338,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			if(sect->sym == 0)
+ 				diag("%s: %s sym == 0!", pn, s->name);
+ 		} else {
+-			diag("%s: %s sectnum <0!", pn, s->name, sym->sectnum);
++			diag("%s: %s sectnum < 0!", pn, s->name);
+ 		}
+ 
+ 		if(sect == nil) 
+@@ -383,7 +383,7 @@ map(PeObj *obj, PeSect *sect)
+ 		return 0;
+ 
+ 	sect->base = mal(sect->sh.SizeOfRawData);
+-	if(sect->sh.PointerToRawData == 0) // .bss don't has data in object file.
++	if(sect->sh.PointerToRawData == 0) // .bss doesn't have data in object file
+ 		return 0;
+ 	werrstr("short read");
+ 	if(Bseek(obj->f, obj->base+sect->sh.PointerToRawData, 0) < 0 || 
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 03a1d5806d..e226f0122c 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -277,6 +277,8 @@ extern	Header	headers[];
+ int	headtype(char*);
+ 
+ int	Yconv(Fmt*);
++
++#pragma	varargck	type	"O"	int
+ #pragma	varargck	type	"Y"	Sym*
+ 
+ // buffered output

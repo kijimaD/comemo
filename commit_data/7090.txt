@@ -12,7 +12,7 @@ Date:   Wed Jan 12 11:48:15 2011 +1100
     R=rsc, paulzhol
     CC=golang-dev
     https://golang.org/cl/3787046
-
+---
  src/pkg/os/env_windows.go        |  1 -
  src/pkg/runtime/darwin/thread.c  |  6 ++++++
  src/pkg/runtime/freebsd/thread.c |  6 ++++++
@@ -25,3 +25,296 @@ Date:   Wed Jan 12 11:48:15 2011 +1100
  src/pkg/runtime/tiny/thread.c    |  6 ++++++
  src/pkg/runtime/windows/thread.c | 36 ++++++++++++++++++++++++++++++++++++
  11 files changed, 121 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+index ad50610ee6..d2b159dfba 100644
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -114,7 +114,6 @@ func TempDir() string {
+ 
+ func init() {
+ 	var argc int32
+-	Envs = Environ()
+ 	cmd := syscall.GetCommandLine()
+ 	argv, e := syscall.CommandLineToArgv(cmd, &argc)
+ 	if e != 0 {
+diff --git a/src/pkg/runtime/darwin/thread.c b/src/pkg/runtime/darwin/thread.c
+index 185f0ce963..d69c624128 100644
+--- a/src/pkg/runtime/darwin/thread.c
++++ b/src/pkg/runtime/darwin/thread.c
+@@ -148,6 +148,12 @@ runtime·osinit(void)
+ 		runtime·bsdthread_register();
+ }
+ 
++void
++runtime·goenvs(void)
++{
++	runtime·goenvs_unix();
++}
++
+ void
+ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ {
+diff --git a/src/pkg/runtime/freebsd/thread.c b/src/pkg/runtime/freebsd/thread.c
+index fc80dfb77f..9bd8838335 100644
+--- a/src/pkg/runtime/freebsd/thread.c
++++ b/src/pkg/runtime/freebsd/thread.c
+@@ -163,6 +163,12 @@ runtime·osinit(void)
+ {
+ }
+ 
++void
++runtime·goenvs(void)
++{
++	runtime·goenvs_unix();
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ void
+ runtime·minit(void)
+diff --git a/src/pkg/runtime/linux/thread.c b/src/pkg/runtime/linux/thread.c
+index 9c9fc755b2..979260ba1d 100644
+--- a/src/pkg/runtime/linux/thread.c
++++ b/src/pkg/runtime/linux/thread.c
+@@ -263,6 +263,12 @@ runtime·osinit(void)
+ {
+ }
+ 
++void
++runtime·goenvs(void)
++{
++	runtime·goenvs_unix();
++}
++
+ // Called to initialize a new m (including the bootstrap m).
+ void
+ runtime·minit(void)
+diff --git a/src/pkg/runtime/plan9/thread.c b/src/pkg/runtime/plan9/thread.c
+index f1bd1ffbe2..fa96552a91 100644
+--- a/src/pkg/runtime/plan9/thread.c
++++ b/src/pkg/runtime/plan9/thread.c
+@@ -17,6 +17,11 @@ runtime·osinit(void)
+ {
+ }
+ 
++void
++runtime·goenvs(void)
++{
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d469e7c5b7..e9a19d9504 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -111,6 +111,7 @@ runtime·schedinit(void)
+ 
+ 	runtime·mallocinit();
+ 	runtime·goargs();
++	runtime·goenvs();
+ 
+ 	// For debugging:
+ 	// Allocate internal symbol table representation now,
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index dbdc0f2ac6..9d3efe966d 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -152,34 +152,36 @@ int32 runtime·isplan9;
+ void
+ runtime·goargs(void)
+ {
+-	String *gargv;
+-	String *genvv;
+-	int32 i, envc;
++	String *s;
++	int32 i;
+ 	
+ 	// for windows implementation see "os" package
+ 	if(Windows)
+ 		return;
+ 
+-	if(runtime·isplan9)
+-		envc=0;
+-	else
+-		for(envc=0; argv[argc+1+envc] != 0; envc++)
+-			;
+-
+-	gargv = runtime·malloc(argc*sizeof gargv[0]);
+-	genvv = runtime·malloc(envc*sizeof genvv[0]);
+-
++	s = runtime·malloc(argc*sizeof s[0]);
+ 	for(i=0; i<argc; i++)
+-		gargv[i] = runtime·gostringnocopy(argv[i]);
+-	os·Args.array = (byte*)gargv;
++		s[i] = runtime·gostringnocopy(argv[i]);
++	os·Args.array = (byte*)s;
+ 	os·Args.len = argc;
+ 	os·Args.cap = argc;
++}
+ 
+-	for(i=0; i<envc; i++)
+-		genvv[i] = runtime·gostringnocopy(argv[argc+1+i]);
+-	os·Envs.array = (byte*)genvv;
+-	os·Envs.len = envc;
+-	os·Envs.cap = envc;
++void
++runtime·goenvs_unix(void)
++{
++	String *s;
++	int32 i, n;
++	
++	for(n=0; argv[argc+1+n] != 0; n++)
++		;
++
++	s = runtime·malloc(n*sizeof s[0]);
++	for(i=0; i<n; i++)
++		s[i] = runtime·gostringnocopy(argv[argc+1+i]);
++	os·Envs.array = (byte*)s;
++	os·Envs.len = n;
++	os·Envs.cap = n;
+ }
+ 
+ // Atomic add and return new value.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e53855e3ca..bde62833e0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -370,6 +370,7 @@ extern	bool	runtime·iscgo;
+  */
+ int32	runtime·strcmp(byte*, byte*);
+ int32	runtime·findnull(byte*);
++int32	runtime·findnullw(uint16*);
+ void	runtime·dump(byte*, int32);
+ int32	runtime·runetochar(byte*, int32);
+ int32	runtime·charntorune(int32*, uint8*, int32);
+@@ -384,6 +385,8 @@ void	runtime·gogocall(Gobuf*, void(*)(void));
+ uintptr	runtime·gosave(Gobuf*);
+ void	runtime·lessstack(void);
+ void	runtime·goargs(void);
++void	runtime·goenvs(void);
++void	runtime·goenvs_unix(void);
+ void*	runtime·getu(void);
+ void	runtime·throw(int8*);
+ void	runtime·panicstring(int8*);
+@@ -399,6 +402,7 @@ String	runtime·catstring(String, String);
+ String	runtime·gostring(byte*);
+ String  runtime·gostringn(byte*, int32);
+ String	runtime·gostringnocopy(byte*);
++String	runtime·gostringw(uint16*);
+ void	runtime·initsig(int32);
+ int32	runtime·gotraceback(void);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 6752f31ccb..916559eb2d 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -20,6 +20,18 @@ runtime·findnull(byte *s)
+ 	return l;
+ }
+ 
++int32
++runtime·findnullw(uint16 *s)
++{
++	int32 l;
++
++	if(s == nil)
++		return 0;
++	for(l=0; s[l]!=0; l++)
++		;
++	return l;
++}
++
+ int32 runtime·maxstring = 256;
+ 
+ String
+@@ -68,6 +80,24 @@ runtime·gostringnocopy(byte *str)
+ 	return s;
+ }
+ 
++String
++runtime·gostringw(uint16 *str)
++{
++	int32 n, i;
++	byte buf[8];
++	String s;
++
++	n = 0;
++	for(i=0; str[i]; i++)
++		n += runtime·runetochar(buf, str[i]);
++	s = runtime·gostringsize(n+4);
++	n = 0;
++	for(i=0; str[i]; i++)
++		n += runtime·runetochar(s.str+n, str[i]);
++	s.len = n;
++	return s;
++}
++
+ String
+ runtime·catstring(String s1, String s2)
+ {
+diff --git a/src/pkg/runtime/tiny/thread.c b/src/pkg/runtime/tiny/thread.c
+index b976a1254c..0572ecb779 100644
+--- a/src/pkg/runtime/tiny/thread.c
++++ b/src/pkg/runtime/tiny/thread.c
+@@ -16,6 +16,12 @@ runtime·osinit(void)
+ {
+ }
+ 
++void
++runtime·goenvs(void)
++{
++	runtime·goenvs_unix();
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index 00cd0e8bdc..9b51813373 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -39,6 +39,42 @@ runtime·osinit(void)
+ {
+ }
+ 
++#pragma dynimport runtime·GetEnvironmentStringsW GetEnvironmentStringsW  "kernel32.dll"
++#pragma dynimport runtime·FreeEnvironmentStringsW FreeEnvironmentStringsW  "kernel32.dll"
++
++extern void *runtime·GetEnvironmentStringsW;
++extern void *runtime·FreeEnvironmentStringsW;
++
++void
++runtime·goenvs(void)
++{
++	extern Slice os·Envs;
++
++	uint16 *env;
++	String *s;
++	int32 i, n;
++	uint16 *p;
++
++	env = runtime·stdcall(runtime·GetEnvironmentStringsW, 0);
++
++	n = 0;
++	for(p=env; *p; n++)
++		p += runtime·findnullw(p)+1;
++
++	s = runtime·malloc(n*sizeof s[0]);
++
++	p = env;
++	for(i=0; i<n; i++) {
++		s[i] = runtime·gostringw(p);
++		p += runtime·findnullw(p)+1;
++	}
++	os·Envs.array = (byte*)s;
++	os·Envs.len = n;
++	os·Envs.cap = n;
++
++	runtime·stdcall(runtime·FreeEnvironmentStringsW, 1, env);
++}
++
+ void
+ runtime·exit(int32 code)
+ {

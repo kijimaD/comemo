@@ -7,6 +7,26 @@ Date:   Fri Apr 5 14:29:16 2019 -0400
     Change-Id: I990c451ff24844b39dee2477cec4caa9db2e8ebb
     Reviewed-on: https://go-review.googlesource.com/c/go/+/170883
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index c7dde6ff4d..1cbb6133f4 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -40,6 +40,14 @@ packages. See the <a href="https://github.com/golang/go/issues?q=milestone%3AGo1
+ 1.12.1 milestone</a> on our issue tracker for details.
+ </p>
+ 
++<p>
++go1.12.2 (released 2019/04/05) includes fixes to the compiler, the go
++command, the runtime, and the <code>doc</code>, <code>net</code>,
++<code>net/http/httputil</code>, and <code>os</code> packages. See the
++<a href="https://github.com/golang/go/issues?q=milestone%3AGo1.12.2">Go
++1.12.2 milestone</a> on our issue tracker for details.
++</p>
++
+ <h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
+ 
+ <p>

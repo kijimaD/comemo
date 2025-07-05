@@ -18,7 +18,7 @@ Date:   Thu Jan 18 17:33:04 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/vet/all/whitelist/386.txt           |  2 --
  src/cmd/vet/all/whitelist/amd64.txt         |  1 -
  src/cmd/vet/all/whitelist/arm.txt           |  1 -
@@ -36,3 +36,228 @@ Date:   Thu Jan 18 17:33:04 2018 -0500
  src/runtime/testdata/testprog/abort.go      | 23 +++++++++++++++++++++++
  src/runtime/testdata/testprog/empty.s       |  5 +++++
  16 files changed, 66 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/386.txt b/src/cmd/vet/all/whitelist/386.txt
+index 100ec974fb..76e82317ed 100644
+--- a/src/cmd/vet/all/whitelist/386.txt
++++ b/src/cmd/vet/all/whitelist/386.txt
+@@ -24,5 +24,3 @@ runtime/asm_386.s: [386] uint32tofloat64: function uint32tofloat64 missing Go de
+ runtime/asm_386.s: [386] float64touint32: function float64touint32 missing Go declaration
+ 
+ runtime/asm_386.s: [386] stackcheck: function stackcheck missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/amd64.txt b/src/cmd/vet/all/whitelist/amd64.txt
+index 0b61bcaff3..2268b39353 100644
+--- a/src/cmd/vet/all/whitelist/amd64.txt
++++ b/src/cmd/vet/all/whitelist/amd64.txt
+@@ -21,4 +21,3 @@ runtime/asm_amd64.s: [amd64] addmoduledata: function addmoduledata missing Go de
+ runtime/duff_amd64.s: [amd64] duffzero: function duffzero missing Go declaration
+ runtime/duff_amd64.s: [amd64] duffcopy: function duffcopy missing Go declaration
+ runtime/asm_amd64.s: [amd64] stackcheck: function stackcheck missing Go declaration
+-runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 77f846037b..8f98782f94 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -5,7 +5,6 @@ internal/bytealg/compare_arm.s: [arm] cannot check cross-package assembly functi
+ 
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+-runtime/asm_arm.s: [arm] abort: function abort missing Go declaration
+ runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
+ runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
+ runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index e5ae6eab91..ee0292b415 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -4,7 +4,6 @@ internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly fu
+ internal/bytealg/compare_arm64.s: [arm64] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ // Intentionally missing declarations.
+-runtime/asm_arm64.s: [arm64] abort: function abort missing Go declaration
+ runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
+ runtime/duff_arm64.s: [arm64] duffcopy: function duffcopy missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mips64x.txt b/src/cmd/vet/all/whitelist/mips64x.txt
+index 5354d21c64..1687765445 100644
+--- a/src/cmd/vet/all/whitelist/mips64x.txt
++++ b/src/cmd/vet/all/whitelist/mips64x.txt
+@@ -1,6 +1,5 @@
+ // mips64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/asm_mips64x.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+ runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mips64x.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index 1488915d25..1a2cd3ff62 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -3,7 +3,6 @@
+ internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_mipsx.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+-runtime/asm_mipsx.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 021a01ace7..9280c68d2c 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -26,5 +26,3 @@ runtime/asm_amd64p32.s: [amd64p32] rt0_go: unknown variable argv
+ runtime/asm_amd64p32.s: [amd64p32] asmcgocall: RET without writing to 4-byte ret+8(FP)
+ 
+ runtime/asm_amd64p32.s: [amd64p32] stackcheck: function stackcheck missing Go declaration
+-
+-runtime/asm_ARCHSUFF.s: [GOARCH] abort: function abort missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+index bfa0fd9d63..65a904ed48 100644
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ b/src/cmd/vet/all/whitelist/ppc64x.txt
+@@ -4,7 +4,6 @@ internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly
+ internal/bytealg/compare_ppc64x.s: [GOARCH] cannot check cross-package assembly function: cmpstring is in package runtime
+ 
+ runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+-runtime/asm_ppc64x.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
+ runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+index 57ff51f360..9fa4949575 100644
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ b/src/cmd/vet/all/whitelist/s390x.txt
+@@ -1,4 +1,3 @@
+-runtime/asm_s390x.s: [s390x] abort: function abort missing Go declaration
+ internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: Compare is in package bytes
+ internal/bytealg/compare_s390x.s: [s390x] cannot check cross-package assembly function: cmpstring is in package runtime
+ runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index cd1aa51542..843b415006 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -637,3 +637,20 @@ func TestTimePprof(t *testing.T) {
+ 		t.Error("profiler refers to ExternalCode")
+ 	}
+ }
++
++// Test that runtime.abort does so.
++func TestAbort(t *testing.T) {
++	output := runTestProg(t, "testprog", "Abort")
++	if want := "runtime.abort"; !strings.Contains(output, want) {
++		t.Errorf("output does not contain %q:\n%s", want, output)
++	}
++	if strings.Contains(output, "BAD") {
++		t.Errorf("output contains BAD:\n%s", output)
++	}
++	// Check that it's a signal-style traceback.
++	if runtime.GOOS != "windows" {
++		if want := "PC="; !strings.Contains(output, want) {
++			t.Errorf("output does not contain %q:\n%s", want, output)
++		}
++	}
++}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index b05965b63d..9158c44f2f 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -35,6 +35,10 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 		print("sighandler: note is longer than ERRMAX\n")
+ 		goto Throw
+ 	}
++	if c.pc() == funcPC(abort) || (GOARCH == "arm" && c.pc() == funcPC(abort)+4) {
++		// Never turn abort into a panic.
++		goto Throw
++	}
+ 	// See if the note matches one of the patterns in sigtab.
+ 	// Notes that do not match any pattern can be handled at a higher
+ 	// level by the program but will otherwise be ignored.
+diff --git a/src/runtime/signal_sighandler.go b/src/runtime/signal_sighandler.go
+index 13448929bc..3004e36769 100644
+--- a/src/runtime/signal_sighandler.go
++++ b/src/runtime/signal_sighandler.go
+@@ -43,6 +43,11 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		// stack. Abort in the signal handler instead.
+ 		flags = (flags &^ _SigPanic) | _SigThrow
+ 	}
++	if c.sigpc() == funcPC(abort) || (GOARCH == "arm" && c.sigpc() == funcPC(abort)+4) {
++		// On many architectures, the abort function just
++		// causes a memory fault. Don't turn that into a panic.
++		flags = _SigThrow
++	}
+ 	if c.sigcode() != _SI_USER && flags&_SigPanic != 0 {
+ 		// The signal is going to cause a panic.
+ 		// Arrange the stack so that it looks like the point
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index 518aac3c48..4d55f0fe6c 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -46,6 +46,11 @@ func isgoexception(info *exceptionrecord, r *context) bool {
+ 		return false
+ 	}
+ 
++	if r.ip() == funcPC(abort) || (GOARCH == "arm" && r.ip() == funcPC(abort)+4) {
++		// Never turn abort into a panic.
++		return false
++	}
++
+ 	// Go will only handle some exceptions.
+ 	switch info.exceptioncode {
+ 	default:
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 6019005fbe..7818fd3683 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -313,3 +313,10 @@ func bool2int(x bool) int {
+ 	// exactly what you would want it to.
+ 	return int(uint8(*(*uint8)(unsafe.Pointer(&x))))
+ }
++
++// abort crashes the runtime in situations where even throw might not
++// work. In general it should do something a debugger will recognize
++// (e.g., an INT3 on x86). A crash in abort is recognized by the
++// signal handler, which will attempt to tear down the runtime
++// immediately.
++func abort()
+diff --git a/src/runtime/testdata/testprog/abort.go b/src/runtime/testdata/testprog/abort.go
+new file mode 100644
+index 0000000000..9e79d4dea3
+--- /dev/null
++++ b/src/runtime/testdata/testprog/abort.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import _ "unsafe" // for go:linkname
++
++func init() {
++	register("Abort", Abort)
++}
++
++//go:linkname runtimeAbort runtime.abort
++func runtimeAbort()
++
++func Abort() {
++	defer func() {
++		recover()
++		panic("BAD: recovered from abort")
++	}()
++	runtimeAbort()
++	println("BAD: after abort")
++}
+diff --git a/src/runtime/testdata/testprog/empty.s b/src/runtime/testdata/testprog/empty.s
+new file mode 100644
+index 0000000000..c5aa6f8a54
+--- /dev/null
++++ b/src/runtime/testdata/testprog/empty.s
+@@ -0,0 +1,5 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This exists solely so we can linkname in symbols from runtime.

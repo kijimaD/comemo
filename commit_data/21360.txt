@@ -17,9 +17,103 @@ Date:   Thu Dec 18 21:33:34 2014 +0100
     Change-Id: I11352afbb2edb4d6ef62870b9bc5c87c639eff12
     Reviewed-on: https://go-review.googlesource.com/1810
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/deps_test.go                                           | 2 +-
  src/mime/{multipart => internal/quotedprintable}/quotedprintable.go | 4 ++--
  .../{multipart => internal/quotedprintable}/quotedprintable_test.go | 6 +++---
  src/mime/multipart/multipart.go                                     | 3 ++-
  4 files changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b74595ea83..b3c1105156 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -311,7 +311,7 @@ var pkgDeps = map[string][]string{
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 
+ 	// Simple net+crypto-aware packages.
+-	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto"},
++	"mime/multipart": {"L4", "OS", "mime", "crypto/rand", "net/textproto", "mime/internal/quotedprintable"},
+ 	"net/smtp":       {"L4", "CRYPTO", "NET", "crypto/tls"},
+ 
+ 	// HTTP, kingpin of dependencies.
+diff --git a/src/mime/multipart/quotedprintable.go b/src/mime/internal/quotedprintable/quotedprintable.go
+similarity index 97%
+rename from src/mime/multipart/quotedprintable.go
+rename to src/mime/internal/quotedprintable/quotedprintable.go
+index 9ff4ee703e..2417bf2148 100644
+--- a/src/mime/multipart/quotedprintable.go
++++ b/src/mime/internal/quotedprintable/quotedprintable.go
+@@ -8,7 +8,7 @@
+ // 2. it will pass through a '\r' or '\n' not preceded by '=', consistent
+ //    with other broken QP encoders & decoders.
+ 
+-package multipart
++package quotedprintable
+ 
+ import (
+ 	"bufio"
+@@ -23,7 +23,7 @@ type qpReader struct {
+ 	line []byte // to be consumed before more of br
+ }
+ 
+-func newQuotedPrintableReader(r io.Reader) io.Reader {
++func NewReader(r io.Reader) io.Reader {
+ 	return &qpReader{
+ 		br: bufio.NewReader(r),
+ 	}
+diff --git a/src/mime/multipart/quotedprintable_test.go b/src/mime/internal/quotedprintable/quotedprintable_test.go
+similarity index 97%
+rename from src/mime/multipart/quotedprintable_test.go
+rename to src/mime/internal/quotedprintable/quotedprintable_test.go
+index c4de3eb756..0c7760f4b9 100644
+--- a/src/mime/multipart/quotedprintable_test.go
++++ b/src/mime/internal/quotedprintable/quotedprintable_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package multipart
++package quotedprintable
+ 
+ import (
+ 	"bufio"
+@@ -65,7 +65,7 @@ func TestQuotedPrintable(t *testing.T) {
+ 	}
+ 	for _, tt := range tests {
+ 		var buf bytes.Buffer
+-		_, err := io.Copy(&buf, newQuotedPrintableReader(strings.NewReader(tt.in)))
++		_, err := io.Copy(&buf, NewReader(strings.NewReader(tt.in)))
+ 		if got := buf.String(); got != tt.want {
+ 			t.Errorf("for %q, got %q; want %q", tt.in, got, tt.want)
+ 		}
+@@ -116,7 +116,7 @@ func TestQPExhaustive(t *testing.T) {
+ 			return
+ 		}
+ 		buf.Reset()
+-		_, err := io.Copy(&buf, newQuotedPrintableReader(strings.NewReader(s)))
++		_, err := io.Copy(&buf, NewReader(strings.NewReader(s)))
+ 		if err != nil {
+ 			errStr := err.Error()
+ 			if strings.Contains(errStr, "invalid bytes after =:") {
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index 01a667d930..3f06c07dc8 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -19,6 +19,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"mime"
++	"mime/internal/quotedprintable"
+ 	"net/textproto"
+ )
+ 
+@@ -111,7 +112,7 @@ func newPart(mr *Reader) (*Part, error) {
+ 	const cte = "Content-Transfer-Encoding"
+ 	if bp.Header.Get(cte) == "quoted-printable" {
+ 		bp.Header.Del(cte)
+-		bp.r = newQuotedPrintableReader(bp.r)
++		bp.r = quotedprintable.NewReader(bp.r)
+ 	}
+ 	return bp, nil
+ }

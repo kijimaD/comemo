@@ -16,7 +16,56 @@ Date:   Wed Feb 8 14:08:20 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go |  3 ++-
  src/runtime/sys_freebsd_amd64.s  | 12 +++++-------
  2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index d220751591..3c9e0ed3f5 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -613,7 +613,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var usefpheuristic bool
+ 	switch ctxt.Headtype {
+-	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly:
++	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly,
++		objabi.Hfreebsd:
+ 	default:
+ 		usefpheuristic = true
+ 	}
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 374e0ab769..eedab4e2a7 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -251,16 +251,14 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVL	sig+8(FP),   DI
+ 	MOVQ	info+16(FP), SI
+ 	MOVQ	ctx+24(FP),  DX
+-	PUSHQ	BP
+-	MOVQ	SP, BP
+-	ANDQ	$~15, SP     // alignment for x86_64 ABI
++	MOVQ	SP, BX		// callee-saved
++	ANDQ	$~15, SP	// alignment for x86_64 ABI
+ 	CALL	AX
+-	MOVQ	BP, SP
+-	POPQ	BP
++	MOVQ	BX, SP
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME|NOFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 
+@@ -285,7 +283,7 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$0
+ 	RET
+ 
+ // Called using C ABI.
+-TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT,$0
++TEXT runtime·sigprofNonGoWrapper<>(SB),NOSPLIT|NOFRAME,$0
+ 	// Transition from C ABI to Go ABI.
+ 	PUSH_REGS_HOST_TO_ABI0()
+ 

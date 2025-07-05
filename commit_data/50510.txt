@@ -15,7 +15,170 @@ Date:   Sun Apr 11 18:11:48 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgc.go      | 39 +++++++++++----------------------------
  src/runtime/mgcpacer.go | 41 ++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 51 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b2ed18fe6a..cf53585dcd 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -661,7 +661,9 @@ func gcStart(trigger gcTrigger) {
+ 
+ 	work.cycles++
+ 
+-	gcController.startCycle()
++	// Assists and workers can start the moment we start
++	// the world.
++	gcController.startCycle(now)
+ 	work.heapGoal = gcController.heapGoal
+ 
+ 	// In STW mode, disable scheduling of user Gs. This may also
+@@ -704,10 +706,6 @@ func gcStart(trigger gcTrigger) {
+ 	// mutators.
+ 	atomic.Store(&gcBlackenEnabled, 1)
+ 
+-	// Assists and workers can start the moment we start
+-	// the world.
+-	gcController.markStartTime = now
+-
+ 	// In STW mode, we could block the instant systemstack
+ 	// returns, so make sure we're not preemptible.
+ 	mp = acquirem()
+@@ -965,8 +963,7 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 		throw("gc done but gcphase != _GCoff")
+ 	}
+ 
+-	// Record heapGoal and heap_inuse for scavenger.
+-	gcController.lastHeapGoal = gcController.heapGoal
++	// Record heap_inuse for scavenger.
+ 	memstats.last_heap_inuse = memstats.heap_inuse
+ 
+ 	// Update GC trigger and pacing for the next cycle.
+@@ -1291,15 +1288,9 @@ func gcBgMarkWorker() {
+ 
+ 		// Account for time.
+ 		duration := nanotime() - startTime
+-		switch pp.gcMarkWorkerMode {
+-		case gcMarkWorkerDedicatedMode:
+-			atomic.Xaddint64(&gcController.dedicatedMarkTime, duration)
+-			atomic.Xaddint64(&gcController.dedicatedMarkWorkersNeeded, 1)
+-		case gcMarkWorkerFractionalMode:
+-			atomic.Xaddint64(&gcController.fractionalMarkTime, duration)
++		gcController.logWorkTime(pp.gcMarkWorkerMode, duration)
++		if pp.gcMarkWorkerMode == gcMarkWorkerFractionalMode {
+ 			atomic.Xaddint64(&pp.gcFractionalMarkTime, duration)
+-		case gcMarkWorkerIdleMode:
+-			atomic.Xaddint64(&gcController.idleMarkTime, duration)
+ 		}
+ 
+ 		// Was this the last worker and did we run out
+@@ -1419,30 +1410,22 @@ func gcMark(startTime int64) {
+ 		gcw.dispose()
+ 	}
+ 
+-	// Update the marked heap stat.
+-	gcController.heapMarked = work.bytesMarked
+-
+ 	// Flush scanAlloc from each mcache since we're about to modify
+ 	// heapScan directly. If we were to flush this later, then scanAlloc
+ 	// might have incorrect information.
++	//
++	// Note that it's not important to retain this information; we know
++	// exactly what heapScan is at this point via scanWork.
+ 	for _, p := range allp {
+ 		c := p.mcache
+ 		if c == nil {
+ 			continue
+ 		}
+-		gcController.heapScan += uint64(c.scanAlloc)
+ 		c.scanAlloc = 0
+ 	}
+ 
+-	// Update other GC heap size stats. This must happen after
+-	// cachestats (which flushes local statistics to these) and
+-	// flushallmcaches (which modifies gcController.heapLive).
+-	gcController.heapLive = work.bytesMarked
+-	gcController.heapScan = uint64(gcController.scanWork)
+-
+-	if trace.enabled {
+-		traceHeapAlloc()
+-	}
++	// Reset controller state.
++	gcController.resetLive(work.bytesMarked)
+ }
+ 
+ // gcSweep must be called on the system stack because it acquires the heap
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 980cb2f086..503b8110b3 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -268,13 +268,14 @@ func (c *gcControllerState) init(gcPercent int32) {
+ // startCycle resets the GC controller's state and computes estimates
+ // for a new GC cycle. The caller must hold worldsema and the world
+ // must be stopped.
+-func (c *gcControllerState) startCycle() {
++func (c *gcControllerState) startCycle(markStartTime int64) {
+ 	c.scanWork = 0
+ 	c.bgScanCredit = 0
+ 	c.assistTime = 0
+ 	c.dedicatedMarkTime = 0
+ 	c.fractionalMarkTime = 0
+ 	c.idleMarkTime = 0
++	c.markStartTime = markStartTime
+ 
+ 	// Ensure that the heap goal is at least a little larger than
+ 	// the current live heap size. This may not be the case if GC
+@@ -441,6 +442,10 @@ func (c *gcControllerState) revise() {
+ // userForced indicates whether the current GC cycle was forced
+ // by the application.
+ func (c *gcControllerState) endCycle(userForced bool) float64 {
++	// Record last heap goal for the scavenger.
++	// We'll be updating the heap goal soon.
++	gcController.lastHeapGoal = gcController.heapGoal
++
+ 	if userForced {
+ 		// Forced GC means this cycle didn't start at the
+ 		// trigger, so where it finished isn't good
+@@ -630,6 +635,40 @@ func (c *gcControllerState) findRunnableGCWorker(_p_ *p) *g {
+ 	return gp
+ }
+ 
++// resetLive sets up the controller state for the next mark phase after the end
++// of the previous one. Must be called after endCycle and before commit, before
++// the world is started.
++//
++// The world must be stopped.
++func (c *gcControllerState) resetLive(bytesMarked uint64) {
++	c.heapMarked = bytesMarked
++	c.heapLive = bytesMarked
++	c.heapScan = uint64(c.scanWork)
++
++	// heapLive was updated, so emit a trace event.
++	if trace.enabled {
++		traceHeapAlloc()
++	}
++}
++
++// logWorkTime updates mark work accounting in the controller by a duration of
++// work in nanoseconds.
++//
++// Safe to execute at any time.
++func (c *gcControllerState) logWorkTime(mode gcMarkWorkerMode, duration int64) {
++	switch mode {
++	case gcMarkWorkerDedicatedMode:
++		atomic.Xaddint64(&c.dedicatedMarkTime, duration)
++		atomic.Xaddint64(&c.dedicatedMarkWorkersNeeded, 1)
++	case gcMarkWorkerFractionalMode:
++		atomic.Xaddint64(&c.fractionalMarkTime, duration)
++	case gcMarkWorkerIdleMode:
++		atomic.Xaddint64(&c.idleMarkTime, duration)
++	default:
++		throw("logWorkTime: unknown mark worker mode")
++	}
++}
++
+ // commit sets the trigger ratio and updates everything
+ // derived from it: the absolute trigger, the heap goal, mark pacing,
+ // and sweep pacing.

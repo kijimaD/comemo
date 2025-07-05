@@ -17,7 +17,61 @@ Date:   Sun Sep 19 17:17:31 2021 -0700
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/transform.go | 15 ++++++++++++---
  test/typeparam/issue48453.go                | 21 +++++++++++++++++++++
  2 files changed, 33 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index a117e310ea..3e5cfacb97 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -431,9 +431,18 @@ func Assignop(src, dst *types.Type) (ir.Op, string) {
+ 		return ir.OXXX, ""
+ 	}
+ 
+-	// 1. src type is identical to dst.
+-	if types.IdenticalStrict(src, dst) {
+-		return ir.OCONVNOP, ""
++	// 1. src type is identical to dst (taking shapes into account)
++	if types.Identical(src, dst) {
++		// We already know from assignconvfn above that IdenticalStrict(src,
++		// dst) is false, so the types are not exactly the same and one of
++		// src or dst is a shape. If dst is an interface (which means src is
++		// an interface too), we need a real OCONVIFACE op; otherwise we need a
++		// OCONVNOP. See issue #48453.
++		if dst.IsInterface() {
++			return ir.OCONVIFACE, ""
++		} else {
++			return ir.OCONVNOP, ""
++		}
+ 	}
+ 	return typecheck.Assignop1(src, dst)
+ }
+diff --git a/test/typeparam/issue48453.go b/test/typeparam/issue48453.go
+new file mode 100644
+index 0000000000..0f751d38ed
+--- /dev/null
++++ b/test/typeparam/issue48453.go
+@@ -0,0 +1,21 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:noinline
++func CopyMap[M interface{ ~map[K]V }, K comparable, V any](m M) M {
++	out := make(M, len(m))
++	for k, v := range m {
++		out[k] = v
++	}
++	return out
++}
++
++func main() {
++	var m map[*string]int
++	CopyMap(m)
++}

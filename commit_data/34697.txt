@@ -28,7 +28,7 @@ Date:   Wed Nov 8 10:58:58 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/76551
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go    |   2 +-
  src/cmd/compile/internal/gc/ssa_test.go    |  42 +--------
  src/cmd/compile/internal/ssa/debug_test.go |   8 +-
@@ -56,3 +56,1293 @@ Date:   Wed Nov 8 10:58:58 2017 -0500
  src/runtime/runtime-lldb_test.go           |   2 +-
  test/inline_callers.go                     |   2 +-
  26 files changed, 508 insertions(+), 160 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 6c2b7299c2..3e6da2ed7b 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -168,7 +168,7 @@ func TestIntendedInlining(t *testing.T) {
+ 		}
+ 	}
+ 
+-	args := append([]string{"build", "-a", "-gcflags=-m -m"}, pkgs...)
++	args := append([]string{"build", "-a", "-gcflags=all=-m -m"}, pkgs...)
+ 	cmd := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), args...))
+ 	pr, pw := io.Pipe()
+ 	cmd.Stdout = pw
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 462910a986..cca8fbd1ca 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -35,30 +35,11 @@ func doTest(t *testing.T, filename string, kind string) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	// Execute compile+link+run instead of "go run" to avoid applying -gcflags=-d=ssa/check/on
+-	// to the runtime (especially over and over and over).
+-	// compile
+ 	var stdout, stderr bytes.Buffer
+-	cmd := exec.Command(gotool, "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), filepath.Join("testdata", filename))
++	cmd := exec.Command(gotool, kind, "-gcflags=-d=ssa/check/on", filepath.Join("testdata", filename))
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	err := cmd.Run()
+-	if kind == "run" {
+-		if err == nil {
+-			// link
+-			cmd = exec.Command(gotool, "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
+-			cmd.Stdout = &stdout
+-			cmd.Stderr = &stderr
+-			err = cmd.Run()
+-		}
+-		if err == nil {
+-			// run
+-			cmd = exec.Command(filepath.Join(tmpdir, "run.exe"))
+-			cmd.Stdout = &stdout
+-			cmd.Stderr = &stderr
+-			err = cmd.Run()
+-		}
+-	}
+ 	if err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+ 	}
+@@ -98,30 +79,11 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 
+ 	stdout.Reset()
+ 	stderr.Reset()
+-	// Execute compile+link+run instead of "go run" to avoid applying -gcflags=-d=ssa/check/on
+-	// to the runtime (especially over and over and over).
+-	// compile
+-	cmd = exec.Command(gotool, "tool", "compile", "-d=ssa/check/on", "-o", filepath.Join(tmpdir, "run.a"), rungo)
++	cmd = exec.Command("go", "run", "-gcflags=-d=ssa/check/on", rungo)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	cmd.Env = append(cmd.Env, ev...)
+ 	err := cmd.Run()
+-	if err == nil {
+-		// link
+-		cmd = exec.Command(gotool, "tool", "link", "-o", filepath.Join(tmpdir, "run.exe"), filepath.Join(tmpdir, "run.a"))
+-		cmd.Stdout = &stdout
+-		cmd.Stderr = &stderr
+-		cmd.Env = append(cmd.Env, ev...)
+-		err = cmd.Run()
+-	}
+-	if err == nil {
+-		// run
+-		cmd = exec.Command(filepath.Join(tmpdir, "run.exe"))
+-		cmd.Stdout = &stdout
+-		cmd.Stderr = &stderr
+-		cmd.Env = append(cmd.Env, ev...)
+-		err = cmd.Run()
+-	}
+ 	if err != nil {
+ 		t.Fatalf("Failed: %v:\nOut: %s\nStderr: %s\n", err, &stdout, &stderr)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index e3603e06ea..0930c65142 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -171,13 +171,9 @@ func testNexting(t *testing.T, base, tag, gcflags string) {
+ 		defer os.RemoveAll(tmpdir)
+ 	}
+ 
+-	if gcflags == "" {
+-		runGo(t, "", "build", "-o", exe, filepath.Join("testdata", base+".go"))
+-	} else {
+-		runGo(t, "", "build", "-o", exe, "-gcflags", gcflags, filepath.Join("testdata", base+".go"))
+-	}
+-	var h1 *nextHist
++	runGo(t, "", "build", "-o", exe, "-gcflags=all="+gcflags, filepath.Join("testdata", base+".go"))
+ 
++	var h1 *nextHist
+ 	nextlog := logbase + "-" + debugger + ".nexts"
+ 	tmplog := tmpbase + "-" + debugger + ".nexts"
+ 	if *useDelve {
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 9b2aac6225..c8a9dcb5f6 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1296,7 +1296,7 @@ func cmdbootstrap() {
+ }
+ 
+ func goInstall(goBinary string, args ...string) {
+-	installCmd := []string{goBinary, "install", "-gcflags=" + gogcflags, "-ldflags=" + goldflags}
++	installCmd := []string{goBinary, "install", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags}
+ 	if vflag > 0 {
+ 		installCmd = append(installCmd, "-v")
+ 	}
+@@ -1313,7 +1313,7 @@ func checkNotStale(goBinary string, targets ...string) {
+ 	out := run(goroot, CheckExit,
+ 		append([]string{
+ 			goBinary,
+-			"list", "-gcflags=" + gogcflags, "-ldflags=" + goldflags,
++			"list", "-gcflags=all=" + gogcflags, "-ldflags=all=" + goldflags,
+ 			"-f={{if .Stale}}\tSTALE {{.ImportPath}}: {{.StaleReason}}{{end}}",
+ 		}, targets...)...)
+ 	if strings.Contains(out, "\tSTALE ") {
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 98d0b20596..1b7b4bf1ee 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -178,6 +178,9 @@ func bootstrapBuildTools() {
+ 	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
+ 	// Use the math_big_pure_go build tag to disable the assembly in math/big
+ 	// which may contain unsupported instructions.
++	// Note that if we are using Go 1.10 or later as bootstrap, the -gcflags=-l
++	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
++	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
+ 	cmd := []string{
+ 		pathf("%s/bin/go", goroot_bootstrap),
+ 		"install",
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 9f185af55e..9b4cd819c1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -271,7 +271,7 @@ func (t *tester) registerStdTest(pkg string) {
+ 				"-short",
+ 				t.tags(),
+ 				t.timeout(180),
+-				"-gcflags=" + gogcflags,
++				"-gcflags=all=" + gogcflags,
+ 			}
+ 			if t.race {
+ 				args = append(args, "-race")
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 75cf8c5322..5649211aee 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -104,15 +104,15 @@
+ // 	-x
+ // 		print the commands.
+ //
+-// 	-asmflags 'flag list'
++// 	-asmflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool asm invocation.
+ // 	-buildmode mode
+ // 		build mode to use. See 'go help buildmode' for more.
+ // 	-compiler name
+ // 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+-// 	-gccgoflags 'arg list'
++// 	-gccgoflags '[pattern=]arg list'
+ // 		arguments to pass on each gccgo compiler/linker invocation.
+-// 	-gcflags 'arg list'
++// 	-gcflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool compile invocation.
+ // 	-installsuffix suffix
+ // 		a suffix to use in the name of the package installation directory,
+@@ -121,7 +121,7 @@
+ // 		or, if set explicitly, has _race appended to it. Likewise for the -msan
+ // 		flag. Using a -buildmode option that requires non-default compile flags
+ // 		has a similar effect.
+-// 	-ldflags 'flag list'
++// 	-ldflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool link invocation.
+ // 	-linkshared
+ // 		link against shared libraries previously created with
+@@ -139,9 +139,21 @@
+ // 		For example, instead of running asm, the go command will run
+ // 		'cmd args /path/to/asm <arguments for asm>'.
+ //
+-// All the flags that take a list of arguments accept a space-separated
+-// list of strings. To embed spaces in an element in the list, surround
+-// it with either single or double quotes.
++// The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
++// space-separated list of arguments to pass to an underlying tool
++// during the build. To embed spaces in an element in the list, surround
++// it with either single or double quotes. The argument list may be
++// preceded by a package pattern and an equal sign, which restricts
++// the use of that argument list to the building of packages matching
++// that pattern (see 'go help packages' for a description of package
++// patterns). Without a pattern, the argument list applies only to the
++// packages named on the command line. The flags may be repeated
++// with different patterns in order to specify different arguments for
++// different sets of packages. If a package matches patterns given in
++// multiple flags, the latest match on the command line wins.
++// For example, 'go build -gcflags=-S fmt' prints the disassembly
++// only for package fmt, while 'go build -gcflags=all=-S fmt'
++// prints the disassembly for fmt and all its dependencies.
+ //
+ // For more about specifying packages, see 'go help packages'.
+ // For more about where packages and binaries are installed,
+@@ -548,10 +560,11 @@
+ //
+ // Usage:
+ //
+-// 	go install [build flags] [packages]
++// 	go install [-i] [build flags] [packages]
+ //
+-// Install compiles and installs the packages named by the import paths,
+-// along with their dependencies.
++// Install compiles and installs the packages named by the import paths.
++//
++// The -i flag installs the dependencies of the named packages as well.
+ //
+ // For more about the build flags, see 'go help build'.
+ // For more about specifying packages, see 'go help packages'.
+@@ -741,7 +754,6 @@
+ // Only a high-confidence subset of the default go vet checks are used.
+ // To disable the running of go vet, use the -vet=off flag.
+ //
+-//
+ // Go test runs in two different modes: local directory mode when invoked with
+ // no package arguments (for example, 'go test'), and package list mode when
+ // invoked with package arguments (for example 'go test math', 'go test ./...',
+@@ -1554,9 +1566,12 @@
+ // 	    Verbose output: log all tests as they are run. Also print all
+ // 	    text from Log and Logf calls even if the test succeeds.
+ //
+-// 	-vet mode
+-// 	    Configure the invocation of "go vet" during "go test".
+-// 	    The default is to run "go vet". If mode is "off", vet is disabled.
++// 	-vet list
++// 	    Configure the invocation of "go vet" during "go test"
++// 	    to use the comma-separated list of vet checks.
++// 	    If list is empty, "go test" runs "go vet" with a curated list of
++// 	    checks believed to be always worth addressing.
++// 	    If list is "off", "go test" does not run "go vet" at all.
+ //
+ // The following flags are also recognized by 'go test' and can be used to
+ // profile the tests during execution:
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c2a4f517ec..564fb72b34 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4354,7 +4354,7 @@ func GoFunc() {}
+ func main() {}`)
+ 	tg.creatingTemp("override.a")
+ 	tg.creatingTemp("override.h")
+-	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=-shared=false", tg.path("override.go"))
++	tg.run("build", "-x", "-buildmode=c-archive", "-gcflags=all=-shared=false", tg.path("override.go"))
+ 	tg.grepStderr("compile .*-shared .*-shared=false", "user can not override code generation flag")
+ }
+ 
+@@ -4993,3 +4993,25 @@ func TestRelativePkgdir(t *testing.T) {
+ 
+ 	tg.run("build", "-i", "-pkgdir=.", "runtime")
+ }
++
++func TestGcflagsPatterns(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.setenv("GOPATH", "")
++	tg.setenv("GOCACHE", "off")
++
++	tg.run("build", "-v", "-gcflags=-e", "fmt")
++	tg.grepStderr("fmt", "did not rebuild fmt")
++	tg.grepStderrNot("reflect", "incorrectly rebuilt reflect")
++
++	tg.run("build", "-v", "-gcflags=-e", "fmt", "reflect")
++	tg.grepStderr("fmt", "did not rebuild fmt")
++	tg.grepStderr("reflect", "did not rebuild reflect")
++	tg.grepStderrNot("runtime", "incorrectly rebuilt runtime")
++
++	tg.run("build", "-x", "-v", "-gcflags=reflect=-N", "fmt")
++	tg.grepStderr("fmt", "did not rebuild fmt")
++	tg.grepStderr("reflect", "did not rebuild reflect")
++	tg.grepStderr("compile.* -N .*-p reflect", "did not build reflect with -N flag")
++	tg.grepStderrNot("compile.* -N .*-p fmt", "incorrectly built fmt with -N flag")
++}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index ab20c20e2f..491eed6a5f 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -22,7 +22,6 @@ var (
+ 	BuildBuildmode         string // -buildmode flag
+ 	BuildContext           = build.Default
+ 	BuildI                 bool               // -i flag
+-	BuildLdflags           []string           // -ldflags flag
+ 	BuildLinkshared        bool               // -linkshared flag
+ 	BuildMSan              bool               // -msan flag
+ 	BuildN                 bool               // -n flag
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+new file mode 100644
+index 0000000000..0a15368b1c
+--- /dev/null
++++ b/src/cmd/go/internal/load/flag.go
+@@ -0,0 +1,119 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package load
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/str"
++	"fmt"
++	"strings"
++)
++
++var (
++	BuildAsmflags   PerPackageFlag // -asmflags
++	BuildGcflags    PerPackageFlag // -gcflags
++	BuildLdflags    PerPackageFlag // -ldflags
++	BuildGccgoflags PerPackageFlag // -gccgoflags
++)
++
++// A PerPackageFlag is a command-line flag implementation (a flag.Value)
++// that allows specifying different effective flags for different packages.
++// See 'go help build' for more details about per-package flags.
++type PerPackageFlag struct {
++	present bool
++	values  []ppfValue
++}
++
++// A ppfValue is a single <pattern>=<flags> per-package flag value.
++type ppfValue struct {
++	match func(*Package) bool // compiled pattern
++	flags []string
++}
++
++// Set is called each time the flag is encountered on the command line.
++func (f *PerPackageFlag) Set(v string) error {
++	return f.set(v, base.Cwd)
++}
++
++// set is the implementation of Set, taking a cwd (current working directory) for easier testing.
++func (f *PerPackageFlag) set(v, cwd string) error {
++	f.present = true
++	match := func(p *Package) bool { return p.Internal.CmdlinePkg || p.Internal.CmdlineFiles } // default predicate with no pattern
++	if v == "" {
++		// Special case: -gcflags="" means no flags for command-line arguments
++		// (overrides previous -gcflags="-whatever").
++		f.values = append(f.values, ppfValue{match, []string{}})
++		return nil
++	}
++	if !strings.HasPrefix(v, "-") {
++		i := strings.Index(v, "=")
++		if i < 0 {
++			return fmt.Errorf("missing =<value> in <pattern>=<value>")
++		}
++		if i == 0 {
++			return fmt.Errorf("missing <pattern> in <pattern>=<value>")
++		}
++		pattern := v[:i]
++		match = matchPackage(pattern, cwd)
++		v = v[i+1:]
++	}
++	flags, err := str.SplitQuotedFields(v)
++	if err != nil {
++		return err
++	}
++	if flags == nil {
++		flags = []string{}
++	}
++	f.values = append(f.values, ppfValue{match, flags})
++	return nil
++}
++
++// String is required to implement flag.Value.
++// It is not used, because cmd/go never calls flag.PrintDefaults.
++func (f *PerPackageFlag) String() string { return "<PerPackageFlag>" }
++
++// Present reports whether the flag appeared on the command line.
++func (f *PerPackageFlag) Present() bool {
++	return f.present
++}
++
++// For returns the flags to use for the given package.
++func (f *PerPackageFlag) For(p *Package) []string {
++	flags := []string{}
++	for _, v := range f.values {
++		if v.match(p) {
++			flags = v.flags
++		}
++	}
++	return flags
++}
++
++var cmdlineMatchers []func(*Package) bool
++
++// SetCmdlinePatterns records the set of patterns given on the command line,
++// for use by the PerPackageFlags.
++func SetCmdlinePatterns(args []string) {
++	setCmdlinePatterns(args, base.Cwd)
++}
++
++func setCmdlinePatterns(args []string, cwd string) {
++	if len(args) == 0 {
++		args = []string{"."}
++	}
++	cmdlineMatchers = nil // allow reset for testing
++	for _, arg := range args {
++		cmdlineMatchers = append(cmdlineMatchers, matchPackage(arg, cwd))
++	}
++}
++
++// isCmdlinePkg reports whether p is a package listed on the command line.
++func isCmdlinePkg(p *Package) bool {
++	for _, m := range cmdlineMatchers {
++		if m(p) {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/internal/load/flag_test.go b/src/cmd/go/internal/load/flag_test.go
+new file mode 100644
+index 0000000000..d3223e12d5
+--- /dev/null
++++ b/src/cmd/go/internal/load/flag_test.go
+@@ -0,0 +1,135 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package load
++
++import (
++	"fmt"
++	"path/filepath"
++	"reflect"
++	"testing"
++)
++
++type ppfTestPackage struct {
++	path    string
++	dir     string
++	cmdline bool
++	flags   []string
++}
++
++type ppfTest struct {
++	args []string
++	pkgs []ppfTestPackage
++}
++
++var ppfTests = []ppfTest{
++	// -gcflags=-S applies only to packages on command line.
++	{
++		args: []string{"-S"},
++		pkgs: []ppfTestPackage{
++			{cmdline: true, flags: []string{"-S"}},
++			{cmdline: false, flags: []string{}},
++		},
++	},
++
++	// -gcflags=-S -gcflags= overrides the earlier -S.
++	{
++		args: []string{"-S", ""},
++		pkgs: []ppfTestPackage{
++			{cmdline: true, flags: []string{}},
++		},
++	},
++
++	// -gcflags=net=-S applies only to package net
++	{
++		args: []string{"net=-S"},
++		pkgs: []ppfTestPackage{
++			{path: "math", cmdline: true, flags: []string{}},
++			{path: "net", flags: []string{"-S"}},
++		},
++	},
++
++	// -gcflags=net=-S -gcflags=net= also overrides the earlier -S
++	{
++		args: []string{"net=-S", "net="},
++		pkgs: []ppfTestPackage{
++			{path: "net", flags: []string{}},
++		},
++	},
++
++	// -gcflags=net/...=-S net math
++	// applies -S to net and net/http but not math
++	{
++		args: []string{"net/...=-S"},
++		pkgs: []ppfTestPackage{
++			{path: "net", flags: []string{"-S"}},
++			{path: "net/http", flags: []string{"-S"}},
++			{path: "math", flags: []string{}},
++		},
++	},
++
++	// -gcflags=net/...=-S -gcflags=-m net math
++	// applies -m to net and math and -S to other packages matching net/...
++	// (net matches too, but it was grabbed by the later -gcflags).
++	{
++		args: []string{"net/...=-S", "-m"},
++		pkgs: []ppfTestPackage{
++			{path: "net", cmdline: true, flags: []string{"-m"}},
++			{path: "math", cmdline: true, flags: []string{"-m"}},
++			{path: "net", cmdline: false, flags: []string{"-S"}},
++			{path: "net/http", flags: []string{"-S"}},
++			{path: "math", flags: []string{}},
++		},
++	},
++
++	// relative path patterns
++	// ppfDirTest(pattern, n, dirs...) says the first n dirs should match and the others should not.
++	ppfDirTest(".", 1, "/my/test/dir", "/my/test", "/my/test/other", "/my/test/dir/sub"),
++	ppfDirTest("..", 1, "/my/test", "/my/test/dir", "/my/test/other", "/my/test/dir/sub"),
++	ppfDirTest("./sub", 1, "/my/test/dir/sub", "/my/test", "/my/test/dir", "/my/test/other", "/my/test/dir/sub/sub"),
++	ppfDirTest("../other", 1, "/my/test/other", "/my/test", "/my/test/dir", "/my/test/other/sub", "/my/test/dir/other", "/my/test/dir/sub"),
++	ppfDirTest("./...", 3, "/my/test/dir", "/my/test/dir/sub", "/my/test/dir/sub/sub", "/my/test/other", "/my/test/other/sub"),
++	ppfDirTest("../...", 4, "/my/test/dir", "/my/test/other", "/my/test/dir/sub", "/my/test/other/sub", "/my/other/test"),
++	ppfDirTest("../...sub...", 3, "/my/test/dir/sub", "/my/test/othersub", "/my/test/yellowsubmarine", "/my/other/test"),
++}
++
++func ppfDirTest(pattern string, nmatch int, dirs ...string) ppfTest {
++	var pkgs []ppfTestPackage
++	for i, d := range dirs {
++		flags := []string{}
++		if i < nmatch {
++			flags = []string{"-S"}
++		}
++		pkgs = append(pkgs, ppfTestPackage{path: "p", dir: d, flags: flags})
++	}
++	return ppfTest{args: []string{pattern + "=-S"}, pkgs: pkgs}
++}
++
++func TestPerPackageFlag(t *testing.T) {
++	nativeDir := func(d string) string {
++		if filepath.Separator == '\\' {
++			return `C:` + filepath.FromSlash(d)
++		}
++		return d
++	}
++
++	for i, tt := range ppfTests {
++		t.Run(fmt.Sprintf("#%d", i), func(t *testing.T) {
++			ppFlags := new(PerPackageFlag)
++			for _, arg := range tt.args {
++				t.Logf("set(%s)", arg)
++				if err := ppFlags.set(arg, nativeDir("/my/test/dir")); err != nil {
++					t.Fatal(err)
++				}
++			}
++			for _, p := range tt.pkgs {
++				dir := nativeDir(p.dir)
++				flags := ppFlags.For(&Package{PackagePublic: PackagePublic{ImportPath: p.path, Dir: dir}, Internal: PackageInternal{CmdlinePkg: p.cmdline}})
++				if !reflect.DeepEqual(flags, p.flags) {
++					t.Errorf("For(%v, %v, %v) = %v, want %v", p.path, dir, p.cmdline, flags, p.flags)
++				}
++			}
++		})
++	}
++}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 1752f7de66..b2cfc8c26d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -97,7 +97,8 @@ type PackageInternal struct {
+ 	Imports      []*Package           // this package's direct imports
+ 	RawImports   []string             // this package's original imports as they appear in the text of the program
+ 	ForceLibrary bool                 // this package is a library (even if named "main")
+-	Cmdline      bool                 // defined by files listed on command line
++	CmdlineFiles bool                 // package built from files listed on command line
++	CmdlinePkg   bool                 // package listed on command line
+ 	Local        bool                 // imported via local path (./ or ../)
+ 	LocalPrefix  string               // interpret ./ and ../ imports relative to this prefix
+ 	ExeName      string               // desired name for temporary executable
+@@ -105,6 +106,11 @@ type PackageInternal struct {
+ 	CoverVars    map[string]*CoverVar // variables created by coverage analysis
+ 	OmitDebug    bool                 // tell linker not to write debug information
+ 	GobinSubdir  bool                 // install target would be subdir of GOBIN
++
++	Asmflags   []string // -asmflags for this package
++	Gcflags    []string // -gcflags for this package
++	Ldflags    []string // -ldflags for this package
++	Gccgoflags []string // -gccgoflags for this package
+ }
+ 
+ type NoGoError struct {
+@@ -345,7 +351,7 @@ func makeImportValid(r rune) rune {
+ 
+ // Mode flags for loadImport and download (in get.go).
+ const (
+-	// useVendor means that loadImport should do vendor expansion
++	// UseVendor means that loadImport should do vendor expansion
+ 	// (provided the vendoring experiment is enabled).
+ 	// That is, useVendor means that the import path came from
+ 	// a source file and has not been vendor-expanded yet.
+@@ -356,12 +362,12 @@ const (
+ 	// disallowVendor will reject direct use of paths containing /vendor/.
+ 	UseVendor = 1 << iota
+ 
+-	// getTestDeps is for download (part of "go get") and indicates
++	// GetTestDeps is for download (part of "go get") and indicates
+ 	// that test dependencies should be fetched too.
+ 	GetTestDeps
+ )
+ 
+-// loadImport scans the directory named by path, which must be an import path,
++// LoadImport scans the directory named by path, which must be an import path,
+ // but possibly a local import path (an absolute file system path or one beginning
+ // with ./ or ../). A local relative path is interpreted relative to srcDir.
+ // It returns a *Package describing the package found in that directory.
+@@ -837,6 +843,26 @@ var foldPath = make(map[string]string)
+ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	p.copyBuild(bp)
+ 
++	// Decide whether p was listed on the command line.
++	// Given that load is called while processing the command line,
++	// you might think we could simply pass a flag down into load
++	// saying whether we are loading something named on the command
++	// line or something to satisfy an import. But the first load of a
++	// package named on the command line may be as a dependency
++	// of an earlier package named on the command line, not when we
++	// get to that package during command line processing.
++	// For example "go test fmt reflect" will load reflect as a dependency
++	// of fmt before it attempts to load as a command-line argument.
++	// Because loads are cached, the later load will be a no-op,
++	// so it is important that the first load can fill in CmdlinePkg correctly.
++	// Hence the call to an explicit matching check here.
++	p.Internal.CmdlinePkg = isCmdlinePkg(p)
++
++	p.Internal.Asmflags = BuildAsmflags.For(p)
++	p.Internal.Gcflags = BuildGcflags.For(p)
++	p.Internal.Ldflags = BuildLdflags.For(p)
++	p.Internal.Gccgoflags = BuildGccgoflags.For(p)
++
+ 	// The localPrefix is the path we interpret ./ imports relative to.
+ 	// Synthesized main packages sometimes override this.
+ 	if p.Internal.Local {
+@@ -1103,7 +1129,7 @@ func LinkerDeps(p *Package) []string {
+ 	deps := []string{"runtime"}
+ 
+ 	// External linking mode forces an import of runtime/cgo.
+-	if externalLinkingForced() {
++	if externalLinkingForced(p) {
+ 		deps = append(deps, "runtime/cgo")
+ 	}
+ 	// On ARM with GOARM=5, it forces an import of math, for soft floating point.
+@@ -1124,7 +1150,7 @@ func LinkerDeps(p *Package) []string {
+ 
+ // externalLinkingForced reports whether external linking is being
+ // forced even for programs that do not use cgo.
+-func externalLinkingForced() bool {
++func externalLinkingForced(p *Package) bool {
+ 	// Some targets must use external linking even inside GOROOT.
+ 	switch cfg.BuildContext.GOOS {
+ 	case "android":
+@@ -1147,12 +1173,15 @@ func externalLinkingForced() bool {
+ 	// an import of runtime/cgo.
+ 	pieCgo := cfg.BuildBuildmode == "pie"
+ 	linkmodeExternal := false
+-	for i, a := range cfg.BuildLdflags {
+-		if a == "-linkmode=external" {
+-			linkmodeExternal = true
+-		}
+-		if a == "-linkmode" && i+1 < len(cfg.BuildLdflags) && cfg.BuildLdflags[i+1] == "external" {
+-			linkmodeExternal = true
++	if p != nil {
++		ldflags := BuildLdflags.For(p)
++		for i, a := range ldflags {
++			if a == "-linkmode=external" {
++				linkmodeExternal = true
++			}
++			if a == "-linkmode" && i+1 < len(ldflags) && ldflags[i+1] == "external" {
++				linkmodeExternal = true
++			}
+ 		}
+ 	}
+ 
+@@ -1439,7 +1468,7 @@ func GoFilesPackage(gofiles []string) *Package {
+ 	bp, err := ctxt.ImportDir(dir, 0)
+ 	pkg := new(Package)
+ 	pkg.Internal.Local = true
+-	pkg.Internal.Cmdline = true
++	pkg.Internal.CmdlineFiles = true
+ 	stk.Push("main")
+ 	pkg.load(&stk, bp, err)
+ 	stk.Pop()
+diff --git a/src/cmd/go/internal/load/search.go b/src/cmd/go/internal/load/search.go
+index 0199704439..e18f69a223 100644
+--- a/src/cmd/go/internal/load/search.go
++++ b/src/cmd/go/internal/load/search.go
+@@ -266,6 +266,50 @@ func matchPattern(pattern string) func(name string) bool {
+ 	}
+ }
+ 
++// matchPackage(pattern, cwd)(p) reports whether package p matches pattern in the working directory cwd.
++func matchPackage(pattern, cwd string) func(*Package) bool {
++	switch {
++	case strings.HasPrefix(pattern, "./") || strings.HasPrefix(pattern, "../") || pattern == "." || pattern == "..":
++		// Split pattern into leading pattern-free directory path
++		// (including all . and .. elements) and the final pattern.
++		var dir string
++		i := strings.Index(pattern, "...")
++		if i < 0 {
++			dir, pattern = pattern, ""
++		} else {
++			j := strings.LastIndex(pattern[:i], "/")
++			dir, pattern = pattern[:j], pattern[j+1:]
++		}
++		dir = filepath.Join(cwd, dir)
++		if pattern == "" {
++			return func(p *Package) bool { return p.Dir == dir }
++		}
++		matchPath := matchPattern(pattern)
++		return func(p *Package) bool {
++			// Compute relative path to dir and see if it matches the pattern.
++			rel, err := filepath.Rel(dir, p.Dir)
++			if err != nil {
++				// Cannot make relative - e.g. different drive letters on Windows.
++				return false
++			}
++			rel = filepath.ToSlash(rel)
++			if rel == ".." || strings.HasPrefix(rel, "../") {
++				return false
++			}
++			return matchPath(rel)
++		}
++	case pattern == "all":
++		return func(p *Package) bool { return true }
++	case pattern == "std":
++		return func(p *Package) bool { return p.Standard }
++	case pattern == "cmd":
++		return func(p *Package) bool { return p.Standard && strings.HasPrefix(p.ImportPath, "cmd/") }
++	default:
++		matchPath := matchPattern(pattern)
++		return func(p *Package) bool { return matchPath(p.ImportPath) }
++	}
++}
++
+ // replaceVendor returns the result of replacing
+ // non-trailing vendor path elements in x with repl.
+ func replaceVendor(x, repl string) string {
+@@ -302,6 +346,9 @@ func ImportPaths(args []string) []string {
+ // ImportPathsNoDotExpansion returns the import paths to use for the given
+ // command line, but it does no ... expansion.
+ func ImportPathsNoDotExpansion(args []string) []string {
++	if cmdlineMatchers == nil {
++		SetCmdlinePatterns(args)
++	}
+ 	if len(args) == 0 {
+ 		return []string{"."}
+ 	}
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index ea4afab354..1cca8d9cc0 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -617,6 +617,14 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 			}
+ 		}
+ 
++		// Fake package to hold ldflags.
++		// As usual shared libraries are a kludgy, abstraction-violating special case:
++		// we let them use the flags specified for the command-line arguments.
++		p := &load.Package{}
++		p.Internal.CmdlinePkg = true
++		p.Internal.Ldflags = load.BuildLdflags.For(p)
++		p.Internal.Gccgoflags = load.BuildGccgoflags.For(p)
++
+ 		// Add implicit dependencies to pkgs list.
+ 		// Currently buildmode=shared forces external linking mode, and
+ 		// external linking mode forces an import of runtime/cgo (and
+@@ -628,11 +636,13 @@ func (b *Builder) linkSharedAction(mode, depMode BuildMode, shlib string, a1 *Ac
+ 		// If the answer is that gccgo is different in implicit linker deps, maybe
+ 		// load.LinkerDeps should be used and updated.
+ 		// Link packages into a shared library.
++
+ 		a := &Action{
+-			Mode:   "go build -buildmode=shared",
+-			Objdir: b.NewObjdir(),
+-			Func:   (*Builder).linkShared,
+-			Deps:   []*Action{a1},
++			Mode:    "go build -buildmode=shared",
++			Package: p,
++			Objdir:  b.NewObjdir(),
++			Func:    (*Builder).linkShared,
++			Deps:    []*Action{a1},
+ 		}
+ 		a.Target = filepath.Join(a.Objdir, shlib)
+ 		if cfg.BuildToolchainName != "gccgo" {
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 136d0fbac4..fdd6ff6a6f 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -75,15 +75,15 @@ and test commands:
+ 	-x
+ 		print the commands.
+ 
+-	-asmflags 'flag list'
++	-asmflags '[pattern=]arg list'
+ 		arguments to pass on each go tool asm invocation.
+ 	-buildmode mode
+ 		build mode to use. See 'go help buildmode' for more.
+ 	-compiler name
+ 		name of compiler to use, as in runtime.Compiler (gccgo or gc).
+-	-gccgoflags 'arg list'
++	-gccgoflags '[pattern=]arg list'
+ 		arguments to pass on each gccgo compiler/linker invocation.
+-	-gcflags 'arg list'
++	-gcflags '[pattern=]arg list'
+ 		arguments to pass on each go tool compile invocation.
+ 	-installsuffix suffix
+ 		a suffix to use in the name of the package installation directory,
+@@ -92,7 +92,7 @@ and test commands:
+ 		or, if set explicitly, has _race appended to it. Likewise for the -msan
+ 		flag. Using a -buildmode option that requires non-default compile flags
+ 		has a similar effect.
+-	-ldflags 'flag list'
++	-ldflags '[pattern=]arg list'
+ 		arguments to pass on each go tool link invocation.
+ 	-linkshared
+ 		link against shared libraries previously created with
+@@ -110,9 +110,21 @@ and test commands:
+ 		For example, instead of running asm, the go command will run
+ 		'cmd args /path/to/asm <arguments for asm>'.
+ 
+-All the flags that take a list of arguments accept a space-separated
+-list of strings. To embed spaces in an element in the list, surround
+-it with either single or double quotes.
++The -asmflags, -gccgoflags, -gcflags, and -ldflags flags accept a
++space-separated list of arguments to pass to an underlying tool
++during the build. To embed spaces in an element in the list, surround
++it with either single or double quotes. The argument list may be
++preceded by a package pattern and an equal sign, which restricts
++the use of that argument list to the building of packages matching
++that pattern (see 'go help packages' for a description of package
++patterns). Without a pattern, the argument list applies only to the
++packages named on the command line. The flags may be repeated
++with different patterns in order to specify different arguments for
++different sets of packages. If a package matches patterns given in
++multiple flags, the latest match on the command line wins.
++For example, 'go build -gcflags=-S fmt' prints the disassembly
++only for package fmt, while 'go build -gcflags=all=-S fmt'
++prints the disassembly for fmt and all its dependencies.
+ 
+ For more about specifying packages, see 'go help packages'.
+ For more about where packages and binaries are installed,
+@@ -149,9 +161,12 @@ func init() {
+ // Note that flags consulted by other parts of the code
+ // (for example, buildV) are in cmd/go/internal/cfg.
+ 
+-var buildAsmflags []string   // -asmflags flag
+-var buildGcflags []string    // -gcflags flag
+-var buildGccgoflags []string // -gccgoflags flag
++var (
++	forcedAsmflags   []string // internally-forced flags for cmd/asm
++	forcedGcflags    []string // internally-forced flags for cmd/compile
++	forcedLdflags    []string // internally-forced flags for cmd/link
++	forcedGccgoflags []string // internally-forced flags for gccgo
++)
+ 
+ var BuildToolchain toolchain = noToolchain{}
+ var ldBuildmode string
+@@ -197,13 +212,13 @@ func AddBuildFlags(cmd *base.Command) {
+ 	cmd.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmd.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+ 
+-	cmd.Flag.Var((*base.StringsFlag)(&buildAsmflags), "asmflags", "")
++	cmd.Flag.Var(&load.BuildAsmflags, "asmflags", "")
+ 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+ 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
+-	cmd.Flag.Var((*base.StringsFlag)(&buildGcflags), "gcflags", "")
+-	cmd.Flag.Var((*base.StringsFlag)(&buildGccgoflags), "gccgoflags", "")
++	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
++	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+-	cmd.Flag.Var((*base.StringsFlag)(&cfg.BuildLdflags), "ldflags", "")
++	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+ 	cmd.Flag.StringVar(&cfg.BuildPkgdir, "pkgdir", "", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildRace, "race", false, "")
+@@ -277,14 +292,14 @@ func runBuild(cmd *base.Command, args []string) {
+ 	// sanity check some often mis-used options
+ 	switch cfg.BuildContext.Compiler {
+ 	case "gccgo":
+-		if len(buildGcflags) != 0 {
++		if load.BuildGcflags.Present() {
+ 			fmt.Println("go build: when using gccgo toolchain, please pass compiler flags using -gccgoflags, not -gcflags")
+ 		}
+-		if len(cfg.BuildLdflags) != 0 {
++		if load.BuildLdflags.Present() {
+ 			fmt.Println("go build: when using gccgo toolchain, please pass linker flags using -gccgoflags, not -ldflags")
+ 		}
+ 	case "gc":
+-		if len(buildGccgoflags) != 0 {
++		if load.BuildGccgoflags.Present() {
+ 			fmt.Println("go build: when using gc toolchain, please pass compile flags using -gcflags, and linker flags using -ldflags")
+ 		}
+ 	}
+@@ -409,7 +424,7 @@ func InstallPackages(args []string, forGet bool) {
+ 			switch {
+ 			case p.Internal.GobinSubdir:
+ 				base.Errorf("go %s: cannot install cross-compiled binaries when GOBIN is set", cfg.CmdName)
+-			case p.Internal.Cmdline:
++			case p.Internal.CmdlineFiles:
+ 				base.Errorf("go %s: no install location for .go files listed on command line (GOBIN not set)", cfg.CmdName)
+ 			case p.ConflictDir != "":
+ 				base.Errorf("go %s: no install location for %s: hidden by %s", cfg.CmdName, p.Dir, p.ConflictDir)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 26c875b830..112a5f9cf8 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -209,9 +209,9 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	default:
+ 		base.Fatalf("buildActionID: unknown build toolchain %q", cfg.BuildToolchainName)
+ 	case "gc":
+-		fmt.Fprintf(h, "compile %s %q\n", b.toolID("compile"), buildGcflags)
++		fmt.Fprintf(h, "compile %s %q %q\n", b.toolID("compile"), forcedGcflags, p.Internal.Gcflags)
+ 		if len(p.SFiles) > 0 {
+-			fmt.Fprintf(h, "asm %q %q\n", b.toolID("asm"), buildAsmflags)
++			fmt.Fprintf(h, "asm %q %q %q\n", b.toolID("asm"), forcedAsmflags, p.Internal.Asmflags)
+ 		}
+ 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+ 
+@@ -685,7 +685,7 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 	fmt.Fprintf(h, "omitdebug %v standard %v local %v prefix %q\n", p.Internal.OmitDebug, p.Standard, p.Internal.Local, p.Internal.LocalPrefix)
+ 
+ 	// Toolchain-dependent configuration, shared with b.linkSharedActionID.
+-	b.printLinkerConfig(h)
++	b.printLinkerConfig(h, p)
+ 
+ 	// Input files.
+ 	for _, a1 := range a.Deps {
+@@ -714,13 +714,16 @@ func (b *Builder) linkActionID(a *Action) cache.ActionID {
+ 
+ // printLinkerConfig prints the linker config into the hash h,
+ // as part of the computation of a linker-related action ID.
+-func (b *Builder) printLinkerConfig(h io.Writer) {
++func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 	switch cfg.BuildToolchainName {
+ 	default:
+ 		base.Fatalf("linkActionID: unknown toolchain %q", cfg.BuildToolchainName)
+ 
+ 	case "gc":
+-		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), cfg.BuildLdflags, ldBuildmode)
++		fmt.Fprintf(h, "link %s %q %s\n", b.toolID("link"), forcedLdflags, ldBuildmode)
++		if p != nil {
++			fmt.Fprintf(h, "linkflags %q\n", p.Internal.Ldflags)
++		}
+ 		fmt.Fprintf(h, "GO$GOARCH=%s\n", os.Getenv("GO"+strings.ToUpper(cfg.BuildContext.GOARCH))) // GO386, GOARM, etc
+ 
+ 		/*
+@@ -905,7 +908,7 @@ func (b *Builder) linkSharedActionID(a *Action) cache.ActionID {
+ 	fmt.Fprintf(h, "goos %s goarch %s\n", cfg.Goos, cfg.Goarch)
+ 
+ 	// Toolchain-dependent configuration, shared with b.linkActionID.
+-	b.printLinkerConfig(h)
++	b.printLinkerConfig(h, nil)
+ 
+ 	// Input files.
+ 	for _, a1 := range a.Deps {
+@@ -946,7 +949,7 @@ func (b *Builder) linkShared(a *Action) (err error) {
+ 	// TODO(rsc): There is a missing updateBuildID here,
+ 	// but we have to decide where to store the build ID in these files.
+ 	a.built = a.Target
+-	return BuildToolchain.ldShared(b, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
++	return BuildToolchain.ldShared(b, a, a.Deps[0].Deps, a.Target, importcfg, a.Deps)
+ }
+ 
+ // BuildInstallFunc is the action for installing a single package or executable.
+@@ -1468,7 +1471,7 @@ type toolchain interface {
+ 	// ld runs the linker to create an executable starting at mainpkg.
+ 	ld(b *Builder, root *Action, out, importcfg, mainpkg string) error
+ 	// ldShared runs the linker to create a shared library containing the pkgs built by toplevelactions
+-	ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
++	ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error
+ 
+ 	compiler() string
+ 	linker() string
+@@ -1507,7 +1510,7 @@ func (noToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	return noCompiler()
+ }
+ 
+-func (noToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
++func (noToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+ 	return noCompiler()
+ }
+ 
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index c0db90dfe5..8fa6cb3a19 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -90,13 +90,11 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg []byte, a
+ 		gcargs = append(gcargs, "-goversion", runtimeVersion)
+ 	}
+ 
+-	gcflags := buildGcflags
++	gcflags := str.StringList(forcedGcflags, p.Internal.Gcflags)
+ 	if compilingRuntime {
+ 		// Remove -N, if present.
+ 		// It is not possible to build the runtime with no optimizations,
+ 		// because the compiler cannot eliminate enough write barriers.
+-		gcflags = make([]string, len(buildGcflags))
+-		copy(gcflags, buildGcflags)
+ 		for i := 0; i < len(gcflags); i++ {
+ 			if gcflags[i] == "-N" {
+ 				copy(gcflags[i:], gcflags[i+1:])
+@@ -215,9 +213,9 @@ func (gcToolchain) asm(b *Builder, a *Action, sfiles []string) ([]string, error)
+ 	p := a.Package
+ 	// Add -I pkg/GOOS_GOARCH so #include "textflag.h" works in .s files.
+ 	inc := filepath.Join(cfg.GOROOT, "pkg", "include")
+-	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, buildAsmflags}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("asm"), "-trimpath", trimDir(a.Objdir), "-I", a.Objdir, "-I", inc, "-D", "GOOS_" + cfg.Goos, "-D", "GOARCH_" + cfg.Goarch, forcedAsmflags, p.Internal.Asmflags}
+ 	if p.ImportPath == "runtime" && cfg.Goarch == "386" {
+-		for _, arg := range buildAsmflags {
++		for _, arg := range forcedAsmflags {
+ 			if arg == "-dynlink" {
+ 				args = append(args, "-D=GOBUILDMODE_shared=1")
+ 			}
+@@ -438,7 +436,8 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	if root.buildID != "" {
+ 		ldflags = append(ldflags, "-buildid="+root.buildID)
+ 	}
+-	ldflags = append(ldflags, cfg.BuildLdflags...)
++	ldflags = append(ldflags, forcedLdflags...)
++	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
+ 	ldflags = setextld(ldflags, compiler)
+ 
+ 	// On OS X when using external linking to build a shared library,
+@@ -458,10 +457,11 @@ func (gcToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg string)
+ 	return b.run(dir, root.Package.ImportPath, nil, cfg.BuildToolexec, base.Tool("link"), "-o", out, "-importcfg", importcfg, ldflags, mainpkg)
+ }
+ 
+-func (gcToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
++func (gcToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+ 	ldflags := []string{"-installsuffix", cfg.BuildContext.InstallSuffix}
+ 	ldflags = append(ldflags, "-buildmode=shared")
+-	ldflags = append(ldflags, cfg.BuildLdflags...)
++	ldflags = append(ldflags, forcedLdflags...)
++	ldflags = append(ldflags, root.Package.Internal.Ldflags...)
+ 	cxx := false
+ 	for _, a := range allactions {
+ 		if a.Package != nil && (len(a.Package.CXXFiles) > 0 || len(a.Package.SwigCXXFiles) > 0) {
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 898c3c2004..b5fdb819f8 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -65,7 +65,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg
+ 		gcargs = append(gcargs, "-fgo-relative-import-path="+p.Internal.LocalPrefix)
+ 	}
+ 
+-	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile)
++	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile, forcedGccgoflags)
+ 	if importcfg != nil {
+ 		if b.gccSupportsFlag(args[:1], "-fgo-importcfg=/dev/null") {
+ 			if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
+@@ -80,7 +80,7 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg
+ 			args = append(args, "-I", root)
+ 		}
+ 	}
+-	args = append(args, buildGccgoflags...)
++	args = append(args, a.Package.Internal.Gccgoflags...)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+@@ -427,7 +427,7 @@ func (tools gccgoToolchain) link(b *Builder, root *Action, out, importcfg string
+ 		}
+ 	}
+ 
+-	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ldflags, buildGccgoflags); err != nil {
++	if err := b.run(".", desc, nil, tools.linker(), "-o", out, ldflags, forcedGccgoflags, root.Package.Internal.Gccgoflags); err != nil {
+ 		return err
+ 	}
+ 
+@@ -444,10 +444,10 @@ func (tools gccgoToolchain) ld(b *Builder, root *Action, out, importcfg, mainpkg
+ 	return tools.link(b, root, out, importcfg, root.Deps, ldBuildmode, root.Package.ImportPath)
+ }
+ 
+-func (tools gccgoToolchain) ldShared(b *Builder, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
+-	fakeRoot := &Action{Mode: "gccgo ldshared"}
++func (tools gccgoToolchain) ldShared(b *Builder, root *Action, toplevelactions []*Action, out, importcfg string, allactions []*Action) error {
++	fakeRoot := *root
+ 	fakeRoot.Deps = toplevelactions
+-	return tools.link(b, fakeRoot, out, importcfg, allactions, "shared", out)
++	return tools.link(b, &fakeRoot, out, importcfg, allactions, "shared", out)
+ }
+ 
+ func (tools gccgoToolchain) cc(b *Builder, a *Action, ofile, cfile string) error {
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 0f622f5d42..425fa94c2c 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -47,32 +47,25 @@ func instrumentInit() {
+ 		fmt.Fprintf(os.Stderr, "go %s: -race and -msan are only supported on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 		os.Exit(2)
+ 	}
++
++	mode := "race"
++	if cfg.BuildMSan {
++		mode = "msan"
++	}
++	modeFlag := "-" + mode
++
+ 	if !cfg.BuildContext.CgoEnabled {
+-		instrFlag := "-race"
+-		if cfg.BuildMSan {
+-			instrFlag = "-msan"
+-		}
+-		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], instrFlag)
++		fmt.Fprintf(os.Stderr, "go %s: %s requires cgo; enable cgo by setting CGO_ENABLED=1\n", flag.Args()[0], modeFlag)
+ 		os.Exit(2)
+ 	}
+-	if cfg.BuildRace {
+-		buildGcflags = append(buildGcflags, "-race")
+-		cfg.BuildLdflags = append(cfg.BuildLdflags, "-race")
+-	} else {
+-		buildGcflags = append(buildGcflags, "-msan")
+-		cfg.BuildLdflags = append(cfg.BuildLdflags, "-msan")
+-	}
++	forcedGcflags = append(forcedGcflags, modeFlag)
++	forcedLdflags = append(forcedLdflags, modeFlag)
++
+ 	if cfg.BuildContext.InstallSuffix != "" {
+ 		cfg.BuildContext.InstallSuffix += "_"
+ 	}
+-
+-	if cfg.BuildRace {
+-		cfg.BuildContext.InstallSuffix += "race"
+-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "race")
+-	} else {
+-		cfg.BuildContext.InstallSuffix += "msan"
+-		cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "msan")
+-	}
++	cfg.BuildContext.InstallSuffix += mode
++	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, mode)
+ }
+ 
+ func buildModeInit() {
+@@ -174,7 +167,7 @@ func buildModeInit() {
+ 				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 			case "darwin/amd64":
+ 				// Skip DWARF generation due to #21647
+-				cfg.BuildLdflags = append(cfg.BuildLdflags, "-w")
++				forcedLdflags = append(forcedLdflags, "-w")
+ 			default:
+ 				base.Fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}
+@@ -191,21 +184,21 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le", "linux/s390x":
+-				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
++				forcedAsmflags = append(forcedAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+ 				base.Fatalf("-linkshared not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
+ 			// TODO(mwhudson): remove -w when that gets fixed in linker.
+-			cfg.BuildLdflags = append(cfg.BuildLdflags, "-linkshared", "-w")
++			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
+ 		}
+ 	}
+ 	if codegenArg != "" {
+ 		if gccgo {
+-			buildGccgoflags = append([]string{codegenArg}, buildGccgoflags...)
++			forcedGccgoflags = append([]string{codegenArg}, forcedGccgoflags...)
+ 		} else {
+-			buildAsmflags = append([]string{codegenArg}, buildAsmflags...)
+-			buildGcflags = append([]string{codegenArg}, buildGcflags...)
++			forcedAsmflags = append([]string{codegenArg}, forcedAsmflags...)
++			forcedGcflags = append([]string{codegenArg}, forcedGcflags...)
+ 		}
+ 		// Don't alter InstallSuffix when modifying default codegen args.
+ 		if cfg.BuildBuildmode != "default" || cfg.BuildLinkshared {
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index e5987e02ba..3b41589bbf 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -125,7 +125,7 @@ func buildGoobj() error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		cmd := exec.Command(gotool, "install", "-gcflags="+os.Getenv("GO_GCFLAGS"), "mycgo")
++		cmd := exec.Command(gotool, "install", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "mycgo")
+ 		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 06e3fd6fa1..b494970a7f 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -83,7 +83,7 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", dst, src)
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", dst, src)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", b)
+ 		t.Fatalf("build error: %v", err)
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 54144c01de..9588ddd4de 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -151,14 +151,14 @@ var (
+ func checkStaleRuntime(t *testing.T) {
+ 	staleRuntimeOnce.Do(func() {
+ 		// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
++		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+ 		if err != nil {
+ 			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
+ 			return
+ 		}
+ 		if string(out) != "false\n" {
+ 			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+-			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
++			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+ 			if err != nil {
+ 				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+ 			}
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 45c9afae23..adf9ce8851 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -24,7 +24,7 @@ func TestOutput(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(pkgdir)
+-	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "-gcflags=-l", "testing").CombinedOutput()
++	out, err := exec.Command(testenv.GoToolPath(t), "install", "-race", "-pkgdir="+pkgdir, "-gcflags=all=-l", "testing").CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go install -race: %v\n%s", err, out)
+ 	}
+@@ -57,7 +57,7 @@ func TestOutput(t *testing.T) {
+ 			t.Fatalf("failed to close file: %v", err)
+ 		}
+ 		// Pass -l to the compiler to test stack traces.
+-		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, "-gcflags=-l", src)
++		cmd := exec.Command(testenv.GoToolPath(t), test.run, "-race", "-pkgdir="+pkgdir, "-gcflags=all=-l", src)
+ 		// GODEBUG spoils program output, GOMAXPROCS makes it flaky.
+ 		for _, env := range os.Environ() {
+ 			if strings.HasPrefix(env, "GODEBUG=") ||
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 476f9a791f..f0922e16b5 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -348,7 +348,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", "a.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+ 	cmd.Dir = dir
+ 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+@@ -413,7 +413,7 @@ func TestGdbConst(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", "a.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+ 	cmd.Dir = dir
+ 	out, err := testenv.CleanCmdEnv(cmd).CombinedOutput()
+ 	if err != nil {
+diff --git a/src/runtime/runtime-lldb_test.go b/src/runtime/runtime-lldb_test.go
+index 6889e32601..9a287052ea 100644
+--- a/src/runtime/runtime-lldb_test.go
++++ b/src/runtime/runtime-lldb_test.go
+@@ -154,7 +154,7 @@ func TestLldbPython(t *testing.T) {
+ 		t.Fatalf("failed to create file: %v", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags", "-N -l", "-o", "a.exe")
++	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=all=-N -l", "-o", "a.exe")
+ 	cmd.Dir = dir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/test/inline_callers.go b/test/inline_callers.go
+index c2be9f6eef..16012daec4 100644
+--- a/test/inline_callers.go
++++ b/test/inline_callers.go
+@@ -1,4 +1,4 @@
+-// run -gcflags -l=4
++// run -gcflags=all=-l=4
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

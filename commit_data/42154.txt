@@ -12,7 +12,7 @@ Date:   Mon Nov 11 14:49:37 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/flags/flags.go    |   1 -
  src/cmd/asm/main.go                    |   1 -
  src/cmd/compile/internal/gc/iexport.go |  22 +--
@@ -22,3 +22,506 @@ Date:   Mon Nov 11 14:49:37 2019 -0500
  src/cmd/internal/obj/objfile.go        | 341 +--------------------------------
  src/cmd/internal/obj/sym.go            |   4 -
  8 files changed, 19 insertions(+), 370 deletions(-)
+
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index 95575e15a3..5fe3fd9d53 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -23,7 +23,6 @@ var (
+ 	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+ 	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
+ 	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+-	Newobj     = flag.Bool("newobj", true, "use new object file format")
+ )
+ 
+ var (
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 6b0a609071..51f995055c 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -40,7 +40,6 @@ func main() {
+ 	}
+ 	ctxt.Flag_dynlink = *flags.Dynlink
+ 	ctxt.Flag_shared = *flags.Shared || *flags.Dynlink
+-	ctxt.Flag_newobj = *flags.Newobj
+ 	ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 	defer ctxt.Bso.Flush()
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 259b70a69f..7d2fa3f675 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -991,18 +991,16 @@ func (w *exportWriter) linkname(s *types.Sym) {
+ }
+ 
+ func (w *exportWriter) symIdx(s *types.Sym) {
+-	if Ctxt.Flag_newobj {
+-		lsym := s.Linksym()
+-		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
+-			// Don't export index for non-package symbols, linkname'd symbols,
+-			// and symbols without an index. They can only be referenced by
+-			// name.
+-			w.int64(-1)
+-		} else {
+-			// For a defined symbol, export its index.
+-			// For re-exporting an imported symbol, pass its index through.
+-			w.int64(int64(lsym.SymIdx))
+-		}
++	lsym := s.Linksym()
++	if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
++		// Don't export index for non-package symbols, linkname'd symbols,
++		// and symbols without an index. They can only be referenced by
++		// name.
++		w.int64(-1)
++	} else {
++		// For a defined symbol, export its index.
++		// For re-exporting an imported symbol, pass its index through.
++		w.int64(int64(lsym.SymIdx))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 824648acb6..a9d29f121e 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -687,16 +687,14 @@ func (r *importReader) linkname(s *types.Sym) {
+ }
+ 
+ func (r *importReader) symIdx(s *types.Sym) {
+-	if Ctxt.Flag_newobj {
+-		lsym := s.Linksym()
+-		idx := int32(r.int64())
+-		if idx != -1 {
+-			if s.Linkname != "" {
+-				Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+-			}
+-			lsym.SymIdx = idx
+-			lsym.Set(obj.AttrIndexed, true)
++	lsym := s.Linksym()
++	idx := int32(r.int64())
++	if idx != -1 {
++		if s.Linkname != "" {
++			Fatalf("bad index for linknamed symbol: %v %d\n", lsym, idx)
+ 		}
++		lsym.SymIdx = idx
++		lsym.Set(obj.AttrIndexed, true)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 9ae571bd55..c92f5ec2f8 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -277,7 +277,6 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	flag.BoolVar(&smallFrames, "smallframes", false, "reduce the size limit for stack allocated objects")
+ 	flag.BoolVar(&Ctxt.UseBASEntries, "dwarfbasentries", Ctxt.UseBASEntries, "use base address selection entries in DWARF")
+-	flag.BoolVar(&Ctxt.Flag_newobj, "newobj", true, "use new object file format")
+ 	flag.StringVar(&jsonLogOpt, "json", "", "version,destination for JSON compiler/optimizer logging")
+ 
+ 	objabi.Flagparse(usage)
+@@ -285,7 +284,7 @@ func Main(archInit func(*Arch)) {
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)
+-	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes", "newobj")
++	recordFlags("B", "N", "l", "msan", "race", "shared", "dynlink", "dwarflocationlists", "dwarfbasentries", "smallframes")
+ 
+ 	if smallFrames {
+ 		maxStackVarSize = 128 * 1024
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 76c6f261a3..b96da1ba88 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -652,7 +652,6 @@ type Link struct {
+ 	Flag_linkshared    bool
+ 	Flag_optimize      bool
+ 	Flag_locationlists bool
+-	Flag_newobj        bool // use new object file format
+ 	Bso                *bufio.Writer
+ 	Pathname           string
+ 	hashmu             sync.Mutex       // protects hash, funchash
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 76fbc58f10..139c16a53f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -7,225 +7,17 @@
+ package obj
+ 
+ import (
+-	"bufio"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"fmt"
+-	"log"
+-	"path/filepath"
+ 	"sort"
+-	"strings"
+ 	"sync"
+ )
+ 
+-// objWriter writes Go object files.
+-type objWriter struct {
+-	wr   *bufio.Writer
+-	ctxt *Link
+-	// Temporary buffer for zigzag int writing.
+-	varintbuf [10]uint8
+-
+-	// Number of objects written of each type.
+-	nRefs     int
+-	nData     int
+-	nReloc    int
+-	nPcdata   int
+-	nFuncdata int
+-	nFile     int
+-
+-	pkgpath string // the package import path (escaped), "" if unknown
+-}
+-
+-func (w *objWriter) addLengths(s *LSym) {
+-	w.nData += len(s.P)
+-	w.nReloc += len(s.R)
+-
+-	if s.Type != objabi.STEXT {
+-		return
+-	}
+-
+-	pc := &s.Func.Pcln
+-
+-	data := 0
+-	data += len(pc.Pcsp.P)
+-	data += len(pc.Pcfile.P)
+-	data += len(pc.Pcline.P)
+-	data += len(pc.Pcinline.P)
+-	for _, pcd := range pc.Pcdata {
+-		data += len(pcd.P)
+-	}
+-
+-	w.nData += data
+-	w.nPcdata += len(pc.Pcdata)
+-
+-	w.nFuncdata += len(pc.Funcdataoff)
+-	w.nFile += len(pc.File)
+-}
+-
+-func (w *objWriter) writeLengths() {
+-	w.writeInt(int64(w.nData))
+-	w.writeInt(int64(w.nReloc))
+-	w.writeInt(int64(w.nPcdata))
+-	w.writeInt(int64(0)) // TODO: remove at next object file rev
+-	w.writeInt(int64(w.nFuncdata))
+-	w.writeInt(int64(w.nFile))
+-}
+-
+-func newObjWriter(ctxt *Link, b *bufio.Writer, pkgpath string) *objWriter {
+-	return &objWriter{
+-		ctxt:    ctxt,
+-		wr:      b,
+-		pkgpath: objabi.PathToPrefix(pkgpath),
+-	}
+-}
+-
+ func WriteObjFile(ctxt *Link, bout *bio.Writer, pkgpath string) {
+-	if ctxt.Flag_newobj {
+-		WriteObjFile2(ctxt, bout, pkgpath)
+-		return
+-	}
+-
+-	b := bout.Writer
+-	w := newObjWriter(ctxt, b, pkgpath)
+-
+-	// Magic header
+-	w.wr.WriteString("\x00go114ld")
+-
+-	// Version
+-	w.wr.WriteByte(1)
+-
+-	// Autolib
+-	for _, pkg := range ctxt.Imports {
+-		w.writeString(pkg)
+-	}
+-	w.writeString("")
+-
+-	// DWARF File Table
+-	fileTable := ctxt.PosTable.DebugLinesFileTable()
+-	w.writeInt(int64(len(fileTable)))
+-	for _, str := range fileTable {
+-		w.writeString(str)
+-	}
+-
+-	// Symbol references
+-	for _, s := range ctxt.Text {
+-		w.writeRefs(s)
+-		w.addLengths(s)
+-	}
+-
+-	if ctxt.Headtype == objabi.Haix {
+-		// Data must be sorted to keep a constant order in TOC symbols.
+-		// As they are created during Progedit, two symbols can be switched between
+-		// two different compilations. Therefore, BuildID will be different.
+-		// TODO: find a better place and optimize to only sort TOC symbols
+-		sort.Slice(ctxt.Data, func(i, j int) bool {
+-			return ctxt.Data[i].Name < ctxt.Data[j].Name
+-		})
+-	}
+-
+-	for _, s := range ctxt.Data {
+-		w.writeRefs(s)
+-		w.addLengths(s)
+-	}
+-	for _, s := range ctxt.ABIAliases {
+-		w.writeRefs(s)
+-		w.addLengths(s)
+-	}
+-	// End symbol references
+-	w.wr.WriteByte(0xff)
+-
+-	// Lengths
+-	w.writeLengths()
+-
+-	// Data block
+-	for _, s := range ctxt.Text {
+-		w.wr.Write(s.P)
+-		pc := &s.Func.Pcln
+-		w.wr.Write(pc.Pcsp.P)
+-		w.wr.Write(pc.Pcfile.P)
+-		w.wr.Write(pc.Pcline.P)
+-		w.wr.Write(pc.Pcinline.P)
+-		for _, pcd := range pc.Pcdata {
+-			w.wr.Write(pcd.P)
+-		}
+-	}
+-	for _, s := range ctxt.Data {
+-		if len(s.P) > 0 {
+-			switch s.Type {
+-			case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+-				ctxt.Diag("cannot provide data for %v sym %v", s.Type, s.Name)
+-			}
+-		}
+-		w.wr.Write(s.P)
+-	}
+-
+-	// Symbols
+-	for _, s := range ctxt.Text {
+-		w.writeSym(s)
+-	}
+-	for _, s := range ctxt.Data {
+-		w.writeSym(s)
+-	}
+-	for _, s := range ctxt.ABIAliases {
+-		w.writeSym(s)
+-	}
+-
+-	// Magic footer
+-	w.wr.WriteString("\xffgo114ld")
+-}
+-
+-// Symbols are prefixed so their content doesn't get confused with the magic footer.
+-const symPrefix = 0xfe
+-
+-func (w *objWriter) writeRef(s *LSym, isPath bool) {
+-	if s == nil || s.RefIdx != 0 {
+-		return
+-	}
+-	w.wr.WriteByte(symPrefix)
+-	if isPath {
+-		w.writeString(filepath.ToSlash(s.Name))
+-	} else if w.pkgpath != "" {
+-		// w.pkgpath is already escaped.
+-		n := strings.Replace(s.Name, "\"\".", w.pkgpath+".", -1)
+-		w.writeString(n)
+-	} else {
+-		w.writeString(s.Name)
+-	}
+-	// Write ABI/static information.
+-	abi := int64(s.ABI())
+-	if s.Static() {
+-		abi = -1
+-	}
+-	w.writeInt(abi)
+-	w.nRefs++
+-	s.RefIdx = w.nRefs
+-}
+-
+-func (w *objWriter) writeRefs(s *LSym) {
+-	w.writeRef(s, false)
+-	w.writeRef(s.Gotype, false)
+-	for _, r := range s.R {
+-		w.writeRef(r.Sym, false)
+-	}
+-
+-	if s.Type == objabi.STEXT {
+-		pc := &s.Func.Pcln
+-		for _, d := range pc.Funcdata {
+-			w.writeRef(d, false)
+-		}
+-		for _, f := range pc.File {
+-			fsym := w.ctxt.Lookup(f)
+-			w.writeRef(fsym, true)
+-		}
+-		for _, call := range pc.InlTree.nodes {
+-			w.writeRef(call.Func, false)
+-			f, _ := linkgetlineFromPos(w.ctxt, call.Pos)
+-			fsym := w.ctxt.Lookup(f)
+-			w.writeRef(fsym, true)
+-		}
+-	}
++	WriteObjFile2(ctxt, bout, pkgpath)
+ }
+ 
+ func (ctxt *Link) writeSymDebug(s *LSym) {
+@@ -305,137 +97,6 @@ func (ctxt *Link) writeSymDebug(s *LSym) {
+ 	}
+ }
+ 
+-func (w *objWriter) writeSym(s *LSym) {
+-	ctxt := w.ctxt
+-	if ctxt.Debugasm > 0 {
+-		w.ctxt.writeSymDebug(s)
+-	}
+-
+-	w.wr.WriteByte(symPrefix)
+-	w.wr.WriteByte(byte(s.Type))
+-	w.writeRefIndex(s)
+-	flags := int64(0)
+-	if s.DuplicateOK() {
+-		flags |= 1
+-	}
+-	if s.Local() {
+-		flags |= 1 << 1
+-	}
+-	if s.MakeTypelink() {
+-		flags |= 1 << 2
+-	}
+-	w.writeInt(flags)
+-	w.writeInt(s.Size)
+-	w.writeRefIndex(s.Gotype)
+-	w.writeInt(int64(len(s.P)))
+-
+-	w.writeInt(int64(len(s.R)))
+-	var r *Reloc
+-	for i := range s.R {
+-		r = &s.R[i]
+-		w.writeInt(int64(r.Off))
+-		w.writeInt(int64(r.Siz))
+-		w.writeInt(int64(r.Type))
+-		w.writeInt(r.Add)
+-		w.writeRefIndex(r.Sym)
+-	}
+-
+-	if s.Type != objabi.STEXT {
+-		return
+-	}
+-
+-	w.writeInt(int64(s.Func.Args))
+-	w.writeInt(int64(s.Func.Locals))
+-	w.writeBool(s.NoSplit())
+-	flags = int64(0)
+-	if s.Leaf() {
+-		flags |= 1
+-	}
+-	if s.CFunc() {
+-		flags |= 1 << 1
+-	}
+-	if s.ReflectMethod() {
+-		flags |= 1 << 2
+-	}
+-	if ctxt.Flag_shared {
+-		flags |= 1 << 3
+-	}
+-	if s.TopFrame() {
+-		flags |= 1 << 4
+-	}
+-	w.writeInt(flags)
+-	w.writeInt(int64(0)) // TODO: remove at next object file rev
+-
+-	pc := &s.Func.Pcln
+-	w.writeInt(int64(len(pc.Pcsp.P)))
+-	w.writeInt(int64(len(pc.Pcfile.P)))
+-	w.writeInt(int64(len(pc.Pcline.P)))
+-	w.writeInt(int64(len(pc.Pcinline.P)))
+-	w.writeInt(int64(len(pc.Pcdata)))
+-	for _, pcd := range pc.Pcdata {
+-		w.writeInt(int64(len(pcd.P)))
+-	}
+-	w.writeInt(int64(len(pc.Funcdataoff)))
+-	for i := range pc.Funcdataoff {
+-		w.writeRefIndex(pc.Funcdata[i])
+-	}
+-	for i := range pc.Funcdataoff {
+-		w.writeInt(pc.Funcdataoff[i])
+-	}
+-	w.writeInt(int64(len(pc.File)))
+-	for _, f := range pc.File {
+-		fsym := ctxt.Lookup(f)
+-		w.writeRefIndex(fsym)
+-	}
+-	w.writeInt(int64(len(pc.InlTree.nodes)))
+-	for _, call := range pc.InlTree.nodes {
+-		w.writeInt(int64(call.Parent))
+-		f, l := linkgetlineFromPos(w.ctxt, call.Pos)
+-		fsym := ctxt.Lookup(f)
+-		w.writeRefIndex(fsym)
+-		w.writeInt(int64(l))
+-		w.writeRefIndex(call.Func)
+-		w.writeInt(int64(call.ParentPC))
+-	}
+-}
+-
+-func (w *objWriter) writeBool(b bool) {
+-	if b {
+-		w.writeInt(1)
+-	} else {
+-		w.writeInt(0)
+-	}
+-}
+-
+-func (w *objWriter) writeInt(sval int64) {
+-	var v uint64
+-	uv := (uint64(sval) << 1) ^ uint64(sval>>63)
+-	p := w.varintbuf[:]
+-	for v = uv; v >= 0x80; v >>= 7 {
+-		p[0] = uint8(v | 0x80)
+-		p = p[1:]
+-	}
+-	p[0] = uint8(v)
+-	p = p[1:]
+-	w.wr.Write(w.varintbuf[:len(w.varintbuf)-len(p)])
+-}
+-
+-func (w *objWriter) writeString(s string) {
+-	w.writeInt(int64(len(s)))
+-	w.wr.WriteString(s)
+-}
+-
+-func (w *objWriter) writeRefIndex(s *LSym) {
+-	if s == nil {
+-		w.writeInt(0)
+-		return
+-	}
+-	if s.RefIdx == 0 {
+-		log.Fatalln("writing an unreferenced symbol", s.Name)
+-	}
+-	w.writeInt(int64(s.RefIdx))
+-}
+-
+ // relocByOff sorts relocations by their offsets.
+ type relocByOff []Reloc
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 3ef886651f..e1e749db92 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -164,10 +164,6 @@ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ // asm is set to true if this is called by the assembler (i.e. not the compiler),
+ // in which case all the symbols are non-package (for now).
+ func (ctxt *Link) NumberSyms(asm bool) {
+-	if !ctxt.Flag_newobj {
+-		return
+-	}
+-
+ 	if ctxt.Headtype == objabi.Haix {
+ 		// Data must be sorted to keep a constant order in TOC symbols.
+ 		// As they are created during Progedit, two symbols can be switched between

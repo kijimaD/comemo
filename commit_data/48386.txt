@@ -15,6 +15,19 @@ Date:   Thu May 13 18:19:42 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/runtime/sys_openbsd1.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/sys_openbsd1.go b/src/runtime/sys_openbsd1.go
+index 6f9ad356d4..cb5d35879c 100644
+--- a/src/runtime/sys_openbsd1.go
++++ b/src/runtime/sys_openbsd1.go
+@@ -23,6 +23,7 @@ func thrwakeup(ident uintptr, n int32) int32 {
+ }
+ func thrwakeup_trampoline()
+ 
++//go:nosplit
+ func osyield() {
+ 	libcCall(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
+ }

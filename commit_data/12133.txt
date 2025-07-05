@@ -9,6 +9,55 @@ Date:   Wed Feb 22 00:06:50 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5689066
-
+---
  src/cmd/go/tool.go | 16 +++++++++++++++-
  1 file changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index 19b0d37dc0..9776d3359e 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -17,12 +17,15 @@ import (
+ 
+ var cmdTool = &Command{
+ 	Run:       runTool,
+-	UsageLine: "tool command [args...]",
++	UsageLine: "tool [-n] command [args...]",
+ 	Short:     "run specified go tool",
+ 	Long: `
+ Tool runs the go tool command identified by the arguments.
+ With no arguments it prints the list of known tools.
+ 
++The -n flag causes tool to print the command that would be
++executed but not execute it.
++
+ For more about each tool command, see 'go tool command -h'.
+ `,
+ }
+@@ -32,8 +35,14 @@ var (
+ 	toolGOARCH    = runtime.GOARCH
+ 	toolIsWindows = toolGOOS == "windows"
+ 	toolDir       = build.ToolDir
++
++	toolN bool
+ )
+ 
++func init() {
++	cmdTool.Flag.BoolVar(&toolN, "n", false, "")
++}
++
+ const toolWindowsExtension = ".exe"
+ 
+ func tool(name string) string {
+@@ -67,6 +76,11 @@ func runTool(cmd *Command, args []string) {
+ 		setExitStatus(3)
+ 		return
+ 	}
++
++	if toolN {
++		fmt.Printf("%s %s\n", toolPath, strings.Join(args[1:], " "))
++		return
++	}
+ 	toolCmd := &exec.Cmd{
+ 		Path:   toolPath,
+ 		Args:   args,

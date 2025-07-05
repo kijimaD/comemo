@@ -20,7 +20,59 @@ Date:   Wed Nov 18 12:50:46 2020 -0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Trust: Dan Scales <danscales@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go | 15 +++++++++++++++
  test/fixedbugs/issue42703.go       | 19 +++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index d49a09458c..419056985f 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -963,6 +963,21 @@ func mkinlcall(n, fn *Node, maxCost int32, inlMap map[*Node]bool) *Node {
+ 
+ 	ninit := n.Ninit
+ 
++	// For normal function calls, the function callee expression
++	// may contain side effects (e.g., added by addinit during
++	// inlconv2expr or inlconv2list). Make sure to preserve these,
++	// if necessary (#42703).
++	if n.Op == OCALLFUNC {
++		callee := n.Left
++		for callee.Op == OCONVNOP {
++			ninit.AppendNodes(&callee.Ninit)
++			callee = callee.Left
++		}
++		if callee.Op != ONAME && callee.Op != OCLOSURE {
++			Fatalf("unexpected callee expression: %v", callee)
++		}
++	}
++
+ 	// Make temp names to use instead of the originals.
+ 	inlvars := make(map[*Node]*Node)
+ 
+diff --git a/test/fixedbugs/issue42703.go b/test/fixedbugs/issue42703.go
+new file mode 100644
+index 0000000000..15f7a915e6
+--- /dev/null
++++ b/test/fixedbugs/issue42703.go
+@@ -0,0 +1,19 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var ok [2]bool
++
++func main() {
++	f()()
++	if !ok[0] || !ok[1] {
++		panic("FAIL")
++	}
++}
++
++func f() func() { ok[0] = true; return g }
++func g()        { ok[1] = true }

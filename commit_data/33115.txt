@@ -19,7 +19,61 @@ Date:   Mon Feb 13 21:00:06 2017 -0600
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/x509/root_darwin.go | 22 +++++++++++++++++++++-
  src/go/build/deps_test.go      |  2 +-
  2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/root_darwin.go b/src/crypto/x509/root_darwin.go
+index 66cdb5ea26..bc35a1cf21 100644
+--- a/src/crypto/x509/root_darwin.go
++++ b/src/crypto/x509/root_darwin.go
+@@ -16,6 +16,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"os/user"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -61,7 +62,26 @@ func execSecurityRoots() (*CertPool, error) {
+ 		println(fmt.Sprintf("crypto/x509: %d certs have a trust policy", len(hasPolicy)))
+ 	}
+ 
+-	cmd := exec.Command("/usr/bin/security", "find-certificate", "-a", "-p", "/System/Library/Keychains/SystemRootCertificates.keychain")
++	args := []string{"find-certificate", "-a", "-p",
++		"/System/Library/Keychains/SystemRootCertificates.keychain",
++		"/Library/Keychains/System.keychain",
++	}
++
++	u, err := user.Current()
++	if err != nil {
++		if debugExecDarwinRoots {
++			println(fmt.Sprintf("crypto/x509: get current user: %v", err))
++		}
++	} else {
++		args = append(args,
++			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain"),
++
++			// Fresh installs of Sierra use a slightly different path for the login keychain
++			filepath.Join(u.HomeDir, "/Library/Keychains/login.keychain-db"),
++		)
++	}
++
++	cmd := exec.Command("/usr/bin/security", args...)
+ 	data, err := cmd.Output()
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ec8dd06788..87abfba921 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -377,7 +377,7 @@ var pkgDeps = map[string][]string{
+ 	},
+ 	"crypto/x509": {
+ 		"L4", "CRYPTO-MATH", "OS", "CGO",
+-		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "syscall",
++		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall",
+ 	},
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH"},
+ 

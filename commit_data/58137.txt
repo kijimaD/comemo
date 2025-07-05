@@ -25,7 +25,102 @@ Date:   Wed Oct 4 06:18:08 2023 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/532595
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/html/template/escape_test.go | 44 ++++++++++++++++++++++------------------
  src/html/template/transition.go  |  7 +++++++
  2 files changed, 31 insertions(+), 20 deletions(-)
+
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 9e2f4fe922..91fbfb9a3c 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1163,26 +1163,6 @@ func TestErrors(t *testing.T) {
+ 			// html is allowed since it is the last command in the pipeline, but urlquery is not.
+ 			`predefined escaper "urlquery" disallowed in template`,
+ 		},
+-		// {
+-		// 	"<script>var tmpl = `asd {{.}}`;</script>",
+-		// 	`{{.}} appears in a JS template literal`,
+-		// },
+-		// {
+-		// 	"<script>var v = `${function(){return `{{.V}}+1`}()}`;</script>",
+-		// 	`{{.V}} appears in a JS template literal`,
+-		// },
+-		// {
+-		// 	"<script>var a = `asd ${function(){b = {1:2}; return`{{.}}`}}`</script>",
+-		// 	`{{.}} appears in a JS template literal`,
+-		// },
+-		// {
+-		// 	"<script>var tmpl = `${return `{{.}}`}`;</script>",
+-		// 	`{{.}} appears in a JS template literal`,
+-		// },
+-		// {
+-		// 	"<script>var tmpl = `${return {`{{.}}`}`;</script>",
+-		// 	`{{.}} appears in a JS template literal`,
+-		// },
+ 	}
+ 	for _, test := range tests {
+ 		buf := new(bytes.Buffer)
+@@ -1800,6 +1780,30 @@ func TestEscapeText(t *testing.T) {
+ 			"<script>var foo = `x` + \"${",
+ 			context{state: stateJSDqStr, element: elementScript},
+ 		},
++		{
++			"<script>function f() { var a = `${}`; }",
++			context{state: stateJS, element: elementScript},
++		},
++		{
++			"<script>{`${}`}",
++			context{state: stateJS, element: elementScript},
++		},
++		{
++			"<script>`${ function f() { return `${1}` }() }`",
++			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
++		},
++		{
++			"<script>function f() {`${ function f() { `${1}` } }`}",
++			context{state: stateJS, element: elementScript, jsCtx: jsCtxDivOp},
++		},
++		{
++			"<script>`${ { `` }`",
++			context{state: stateJS, element: elementScript},
++		},
++		{
++			"<script>`${ { }`",
++			context{state: stateJSTmplLit, element: elementScript},
++		},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index 4ea803e428..4aa2920986 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -321,6 +321,11 @@ func tJS(c context, s []byte) (context, int) {
+ 			c.state, i = stateJSLineCmt, i+1
+ 		}
+ 	case '{':
++		// We only care about tracking brace depth if we are inside of a
++		// template literal.
++		if c.jsTmplExprDepth == 0 {
++			return c, i + 1
++		}
+ 		c.jsBraceDepth++
+ 	case '}':
+ 		if c.jsTmplExprDepth == 0 {
+@@ -349,6 +354,7 @@ func tJS(c context, s []byte) (context, int) {
+ }
+ 
+ func tJSTmpl(c context, s []byte) (context, int) {
++	c.jsBraceDepth = 0
+ 	var k int
+ 	for {
+ 		i := k + bytes.IndexAny(s[k:], "`\\$")
+@@ -367,6 +373,7 @@ func tJSTmpl(c context, s []byte) (context, int) {
+ 		case '$':
+ 			if len(s) >= i+2 && s[i+1] == '{' {
+ 				c.jsTmplExprDepth++
++				c.jsBraceDepth = 0
+ 				c.state = stateJS
+ 				return c, i + 2
+ 			}

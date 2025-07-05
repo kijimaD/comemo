@@ -10,6 +10,20 @@ Date:   Wed Mar 3 09:03:31 2010 +1100
     R=rsc, iant
     CC=golang-dev
     https://golang.org/cl/223087
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index a33ea38c06..5e7e922407 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -583,7 +583,7 @@ def getremote(ui, repo, opts):
+ 	# save $http_proxy; creating the HTTP repo object will
+ 	# delete it in an attempt to "help"
+ 	proxy = os.environ.get('http_proxy')
+-	source, _, _ = hg.parseurl(ui.expandpath("default"), None)
++	source = hg.parseurl(ui.expandpath("default"), None)[0]
+ 	other = hg.repository(cmdutil.remoteui(repo, opts), source)
+ 	if proxy is not None:
+ 		os.environ['http_proxy'] = proxy

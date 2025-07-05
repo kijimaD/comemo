@@ -17,10 +17,217 @@ Date:   Sun Oct 10 10:43:20 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go        |  2 ++
  src/go/types/decl.go                           | 31 +++++++++++++---
  src/go/types/testdata/examples/typesets.go2    | 48 +++++++++++++++++++++++++
  src/go/types/testdata/fixedbugs/issue39723.go2 |  2 +-
  src/go/types/typeparam.go                      | 49 ++++++++++++++++++--------
  5 files changed, 113 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 5fa1ca889f..d427f26b7c 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -640,6 +640,8 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list []*syntax.Fiel
+ 
+ 	check.later(func() {
+ 		for i, tpar := range tparams {
++			// TODO(rfindley): this results in duplicate error messages for type
++			// parameters that share a constraint.
+ 			if _, ok := under(tpar.bound).(*TypeParam); ok {
+ 				check.error(list[i].Type, "cannot use a type parameter as constraint")
+ 			}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 22202cc7c9..c8cac0f148 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -681,7 +681,7 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 	for _, f := range list.List {
+ 		// TODO(rfindley) we should be able to rely on f.Type != nil at this point
+ 		if f.Type != nil {
+-			bound := check.typ(f.Type)
++			bound := check.bound(f.Type)
+ 			bounds = append(bounds, bound)
+ 			posns = append(posns, f.Type)
+ 			for i := range f.Names {
+@@ -693,14 +693,37 @@ func (check *Checker) collectTypeParams(dst **TypeParamList, list *ast.FieldList
+ 
+ 	check.later(func() {
+ 		for i, bound := range bounds {
+-			u := under(bound)
+-			if _, ok := u.(*Interface); !ok && u != Typ[Invalid] {
+-				check.errorf(posns[i], _Todo, "%s is not an interface", bound)
++			if _, ok := under(bound).(*TypeParam); ok {
++				check.error(posns[i], _Todo, "cannot use a type parameter as constraint")
+ 			}
+ 		}
++		for _, tpar := range tparams {
++			tpar.iface() // compute type set
++		}
+ 	})
+ }
+ 
++func (check *Checker) bound(x ast.Expr) Type {
++	// A type set literal of the form ~T and A|B may only appear as constraint;
++	// embed it in an implicit interface so that only interface type-checking
++	// needs to take care of such type expressions.
++	wrap := false
++	switch op := x.(type) {
++	case *ast.UnaryExpr:
++		wrap = op.Op == token.TILDE
++	case *ast.BinaryExpr:
++		wrap = op.Op == token.OR
++	}
++	if wrap {
++		// TODO(gri) Should mark this interface as "implicit" somehow
++		//           (and propagate the info to types2.Interface) so
++		//           that we can elide the interface again in error
++		//           messages. Could use a sentinel name for the field.
++		x = &ast.InterfaceType{Methods: &ast.FieldList{List: []*ast.Field{{Type: x}}}}
++	}
++	return check.typ(x)
++}
++
+ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident) []*TypeParam {
+ 	// Use Typ[Invalid] for the type constraint to ensure that a type
+ 	// is present even if the actual constraint has not been assigned
+diff --git a/src/go/types/testdata/examples/typesets.go2 b/src/go/types/testdata/examples/typesets.go2
+new file mode 100644
+index 0000000000..0a1b0f5cfc
+--- /dev/null
++++ b/src/go/types/testdata/examples/typesets.go2
+@@ -0,0 +1,48 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file shows some examples of constraint literals with elided interfaces.
++// These examples are permitted if proposal issue #48424 is accepted.
++
++package p
++
++// Constraint type sets of the form T, ~T, or A|B may omit the interface.
++type (
++	_[T int] struct{}
++	_[T ~int] struct{}
++	_[T int|string] struct{}
++	_[T ~int|~string] struct{}
++)
++
++func min[T int|string](x, y T) T {
++	if x < y {
++		return x
++	}
++	return y
++}
++
++func lookup[M ~map[K]V, K comparable, V any](m M, k K) V {
++	return m[k]
++}
++
++func deref[P ~*E, E any](p P) E {
++	return *p
++}
++
++func _() int {
++	p := new(int)
++	return deref(p)
++}
++
++func addrOfCopy[V any, P ~*V](v V) P {
++	return &v
++}
++
++func _() *int {
++	return addrOfCopy(0)
++}
++
++// A type parameter may not be embedded in an interface;
++// so it can also not be used as a constraint.
++func _[A any, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
+diff --git a/src/go/types/testdata/fixedbugs/issue39723.go2 b/src/go/types/testdata/fixedbugs/issue39723.go2
+index d5311ed3e7..00885238e6 100644
+--- a/src/go/types/testdata/fixedbugs/issue39723.go2
++++ b/src/go/types/testdata/fixedbugs/issue39723.go2
+@@ -6,4 +6,4 @@ package p
+ 
+ // A constraint must be an interface; it cannot
+ // be a type parameter, for instance.
+-func _[A interface{ ~int }, B A /* ERROR not an interface */ ]() {}
++func _[A interface{ ~int }, B A /* ERROR cannot use a type parameter as constraint */ ]() {}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 150ad079a8..51bedc2b7d 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -24,8 +24,7 @@ type TypeParam struct {
+ 	id    uint64    // unique id, for debugging only
+ 	obj   *TypeName // corresponding type name
+ 	index int       // type parameter index in source order, starting at 0
+-	// TODO(rfindley): this could also be Typ[Invalid]. Verify that this is handled correctly.
+-	bound Type // *Named or *Interface; underlying type is always *Interface
++	bound Type      // any type, but eventually an *Interface for correct programs (see TypeParam.iface)
+ }
+ 
+ // NewTypeParam returns a new TypeParam. Type parameters may be set on a Named
+@@ -69,15 +68,6 @@ func (t *TypeParam) Obj() *TypeName { return t.obj }
+ 
+ // Constraint returns the type constraint specified for t.
+ func (t *TypeParam) Constraint() Type {
+-	// compute the type set if possible (we may not have an interface)
+-	if iface, _ := under(t.bound).(*Interface); iface != nil {
+-		// use the type bound position if we have one
+-		pos := token.NoPos
+-		if n, _ := t.bound.(*Named); n != nil {
+-			pos = n.obj.pos
+-		}
+-		computeInterfaceTypeSet(t.check, pos, iface)
+-	}
+ 	return t.bound
+ }
+ 
+@@ -97,10 +87,41 @@ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+ // iface returns the constraint interface of t.
+ func (t *TypeParam) iface() *Interface {
+-	if iface, _ := under(t.Constraint()).(*Interface); iface != nil {
+-		return iface
++	bound := t.bound
++
++	// determine constraint interface
++	var ityp *Interface
++	switch u := under(bound).(type) {
++	case *Basic:
++		if u == Typ[Invalid] {
++			// error is reported elsewhere
++			return &emptyInterface
++		}
++	case *Interface:
++		ityp = u
++	case *TypeParam:
++		// error is reported in Checker.collectTypeParams
++		return &emptyInterface
++	}
++
++	// If we don't have an interface, wrap constraint into an implicit interface.
++	// TODO(gri) mark it as implicit - see comment in Checker.bound
++	if ityp == nil {
++		ityp = NewInterfaceType(nil, []Type{bound})
++		t.bound = ityp // update t.bound for next time (optimization)
+ 	}
+-	return &emptyInterface
++
++	// compute type set if necessary
++	if ityp.tset == nil {
++		// use the (original) type bound position if we have one
++		pos := token.NoPos
++		if n, _ := bound.(*Named); n != nil {
++			pos = n.obj.pos
++		}
++		computeInterfaceTypeSet(t.check, pos, ityp)
++	}
++
++	return ityp
+ }
+ 
+ // structuralType returns the structural type of the type parameter's constraint; or nil.

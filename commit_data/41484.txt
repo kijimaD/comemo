@@ -15,7 +15,82 @@ Date:   Sun Oct 6 23:03:28 2019 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 24 +++++++++++-------------
  test/codegen/issue33580.go               | 25 +++++++++++++++++++++++++
  2 files changed, 36 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 6ffa1e3848..3f326722ae 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1328,27 +1328,25 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					// arg0 is dead.  We can clobber its register.
+ 					goto ok
+ 				}
++				if opcodeTable[v.Op].commutative && !s.liveAfterCurrentInstruction(v.Args[1]) {
++					args[0], args[1] = args[1], args[0]
++					goto ok
++				}
+ 				if s.values[v.Args[0].ID].rematerializeable {
+ 					// We can rematerialize the input, don't worry about clobbering it.
+ 					goto ok
+ 				}
++				if opcodeTable[v.Op].commutative && s.values[v.Args[1].ID].rematerializeable {
++					args[0], args[1] = args[1], args[0]
++					goto ok
++				}
+ 				if countRegs(s.values[v.Args[0].ID].regs) >= 2 {
+ 					// we have at least 2 copies of arg0.  We can afford to clobber one.
+ 					goto ok
+ 				}
+-				if opcodeTable[v.Op].commutative {
+-					if !s.liveAfterCurrentInstruction(v.Args[1]) {
+-						args[0], args[1] = args[1], args[0]
+-						goto ok
+-					}
+-					if s.values[v.Args[1].ID].rematerializeable {
+-						args[0], args[1] = args[1], args[0]
+-						goto ok
+-					}
+-					if countRegs(s.values[v.Args[1].ID].regs) >= 2 {
+-						args[0], args[1] = args[1], args[0]
+-						goto ok
+-					}
++				if opcodeTable[v.Op].commutative && countRegs(s.values[v.Args[1].ID].regs) >= 2 {
++					args[0], args[1] = args[1], args[0]
++					goto ok
+ 				}
+ 
+ 				// We can't overwrite arg0 (or arg1, if commutative).  So we
+diff --git a/test/codegen/issue33580.go b/test/codegen/issue33580.go
+new file mode 100644
+index 0000000000..1ded944c33
+--- /dev/null
++++ b/test/codegen/issue33580.go
+@@ -0,0 +1,25 @@
++// asmcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we reuse large constant loads, if we can.
++// See issue 33580.
++
++package codegen
++
++const (
++	A = 7777777777777777
++	B = 8888888888888888
++)
++
++func f(x, y uint64) uint64 {
++	p := x & A
++	q := y & A
++	r := x & B
++	// amd64:-"MOVQ.*8888888888888888"
++	s := y & B
++
++	return p * q * r * s
++}

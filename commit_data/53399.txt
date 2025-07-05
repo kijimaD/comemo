@@ -16,7 +16,65 @@ Date:   Sat Aug 13 00:44:08 2022 +0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/fixedbugs/issue53702.go | 39 +++++++++++++++++++++++++++++++++++++++
  test/run.go                  |  1 +
  2 files changed, 40 insertions(+)
+
+diff --git a/test/fixedbugs/issue53702.go b/test/fixedbugs/issue53702.go
+new file mode 100644
+index 0000000000..0b251c2d7b
+--- /dev/null
++++ b/test/fixedbugs/issue53702.go
+@@ -0,0 +1,39 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Elem struct{}
++
++func (*Elem) Wait(callback func()) {}
++
++type Base struct {
++	elem [8]*Elem
++}
++
++var g_val = 1
++
++func (s *Base) Do() *int {
++	resp := &g_val
++	for _, e := range s.elem {
++		e.Wait(func() {
++			*resp = 0
++		})
++	}
++	return resp
++}
++
++type Sub struct {
++	*Base
++}
++
++func main() {
++	a := Sub{new(Base)}
++	resp := a.Do()
++	if resp != nil && *resp != 1 {
++		panic("FAIL")
++	}
++}
+diff --git a/test/run.go b/test/run.go
+index 559caee784..a6ee1634bb 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1976,6 +1976,7 @@ var types2Failures32Bit = setOf(
+ )
+ 
+ var go118Failures = setOf(
++	"fixedbugs/issue53702.go",  // 1.18 compiler failed with "Value live at entry" error
+ 	"fixedbugs/issue54343.go",  // 1.18 compiler assigns receiver parameter to global variable
+ 	"typeparam/nested.go",      // 1.18 compiler doesn't support function-local types with generics
+ 	"typeparam/issue51521.go",  // 1.18 compiler produces bad panic message and link error

@@ -40,6 +40,24 @@ Date:   Sat Oct 6 11:51:06 2012 +1000
     R=rsc, remyoudompheng, minux.ma
     CC=golang-dev
     https://golang.org/cl/6590056
-
+---
  src/cmd/5g/cgen.c | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index eaa813fcf7..5065e0cd9b 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -733,11 +733,7 @@ agen(Node *n, Node *res)
+ 			}
+ 
+ 			nodconst(&n2, types[tptr], v*w);
+-			regalloc(&n4, n2.type, N);
+-			gmove(&n2, &n4);
+-			gins(optoas(OADD, types[tptr]), &n4, &n3);
+-			regfree(&n4);
+-
++			gins(optoas(OADD, types[tptr]), &n2, &n3);
+ 			gmove(&n3, res);
+ 			regfree(&n3);
+ 			break;

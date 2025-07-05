@@ -20,6 +20,22 @@ Date:   Tue Mar 1 14:52:18 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7d4c697e7d..3e67f50620 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2718,8 +2718,8 @@ func addstr(n *Node, init **NodeList) *Node {
+ 	if n.Esc == EscNone {
+ 		sz := int64(0)
+ 		for l := n.List; l != nil; l = l.Next {
+-			if n.Op == OLITERAL {
+-				sz += int64(len(n.Val().U.(string)))
++			if l.N.Op == OLITERAL {
++				sz += int64(len(l.N.Val().U.(string)))
+ 			}
+ 		}
+ 

@@ -12,6 +12,29 @@ Date:   Mon May 23 13:09:12 2016 -0700
     Change-Id: Ifa4702c7b75250f34de185e69a880b3f3cc46a12
     Reviewed-on: https://go-review.googlesource.com/23361
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/passbm_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/passbm_test.go b/src/cmd/compile/internal/ssa/passbm_test.go
+index 8dff17a5b4..87069abc3b 100644
+--- a/src/cmd/compile/internal/ssa/passbm_test.go
++++ b/src/cmd/compile/internal/ssa/passbm_test.go
+@@ -35,7 +35,7 @@ func benchFnPass(b *testing.B, fn passFunc, size int, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", bg(size)...)
+-
++	domTree(fun.f)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+@@ -51,7 +51,7 @@ func benchFnBlock(b *testing.B, fn passFunc, bg blockGen) {
+ 	b.ReportAllocs()
+ 	c := NewConfig("amd64", DummyFrontend{b}, nil, true)
+ 	fun := Fun(c, "entry", bg(b.N)...)
+-
++	domTree(fun.f)
+ 	CheckFunc(fun.f)
+ 	b.ResetTimer()
+ 	for i := 0; i < passCount; i++ {

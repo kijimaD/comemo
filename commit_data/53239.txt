@@ -12,10 +12,137 @@ Date:   Thu Aug 4 10:12:20 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/asm/internal/lex/tokenizer.go         | 4 ++--
  src/cmd/compile/internal/noder/unified.go     | 4 ++--
  src/cmd/compile/internal/typecheck/iimport.go | 5 ++---
  src/internal/pkgbits/decoder.go               | 7 +++----
  src/internal/pkgbits/encoder.go               | 3 ++-
  5 files changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index 4db88e20c3..f60f7a11af 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -5,6 +5,7 @@
+ package lex
+ 
+ import (
++	"go/build/constraint"
+ 	"io"
+ 	"os"
+ 	"strings"
+@@ -109,8 +110,7 @@ func (t *Tokenizer) Next() ScanToken {
+ 		}
+ 		text := s.TokenText()
+ 		t.line += strings.Count(text, "\n")
+-		// TODO: Use constraint.IsGoBuild once #44505 fixed.
+-		if strings.HasPrefix(text, "//go:build") {
++		if constraint.IsGoBuild(text) {
+ 			t.tok = BuildComment
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 1ded367383..922189f4d3 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -5,13 +5,13 @@
+ package noder
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"internal/goversion"
+ 	"internal/pkgbits"
+ 	"io"
+ 	"runtime"
+ 	"sort"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/inline"
+@@ -180,7 +180,7 @@ func writePkgStub(noders []*noder) string {
+ 		w.Flush()
+ 	}
+ 
+-	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
++	var sb strings.Builder
+ 	pw.DumpTo(&sb)
+ 
+ 	// At this point, we're done with types2. Make sure the package is
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 96aaac6362..84c748f7f0 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -11,6 +11,7 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
++	"io"
+ 	"math/big"
+ 	"os"
+ 	"strings"
+@@ -148,9 +149,7 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 	sLen := int64(ird.uint64())
+ 	dLen := int64(ird.uint64())
+ 
+-	// TODO(mdempsky): Replace os.SEEK_CUR with io.SeekCurrent after
+-	// #44505 is fixed.
+-	whence, _ := ird.Seek(0, os.SEEK_CUR)
++	whence, _ := ird.Seek(0, io.SeekCurrent)
+ 	stringData := data[whence : whence+sLen]
+ 	declData := data[whence+sLen : whence+sLen+dLen]
+ 	ird.Seek(sLen+dLen, os.SEEK_CUR)
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 5e233b8770..b0150330d6 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"io"
+ 	"math/big"
+ 	"os"
+ 	"runtime"
+@@ -174,9 +175,7 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
+ 		Idx:    idx,
+ 	}
+ 
+-	// TODO(mdempsky) r.data.Reset(...) after #44505 is resolved.
+-	r.Data = *strings.NewReader(pr.DataIdx(k, idx))
+-
++	r.Data.Reset(pr.DataIdx(k, idx))
+ 	r.Sync(SyncRelocs)
+ 	r.Relocs = make([]RelocEnt, r.Len())
+ 	for i := range r.Relocs {
+@@ -237,7 +236,7 @@ func (r *Decoder) Sync(mWant SyncMarker) {
+ 		return
+ 	}
+ 
+-	pos, _ := r.Data.Seek(0, os.SEEK_CUR) // TODO(mdempsky): io.SeekCurrent after #44505 is resolved
++	pos, _ := r.Data.Seek(0, io.SeekCurrent)
+ 	mHave := SyncMarker(r.rawUvarint())
+ 	writerPCs := make([]int, r.rawUvarint())
+ 	for i := range writerPCs {
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index ec47e352cb..07695b5751 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -12,6 +12,7 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"runtime"
++	"strings"
+ )
+ 
+ // currentVersion is the current version number.
+@@ -161,7 +162,7 @@ type Encoder struct {
+ 
+ // Flush finalizes the element's bitstream and returns its Index.
+ func (w *Encoder) Flush() Index {
+-	var sb bytes.Buffer // TODO(mdempsky): strings.Builder after #44505 is resolved
++	var sb strings.Builder
+ 
+ 	// Backup the data so we write the relocations at the front.
+ 	var tmp bytes.Buffer

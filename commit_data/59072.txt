@@ -21,7 +21,62 @@ Date:   Fri Jan 12 16:28:56 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/context/context.go | 8 ++++----
  src/context/x_test.go  | 8 +++++++-
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 80e1787576..1722ac87b8 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -740,13 +740,13 @@ func stringify(v any) string {
+ 	case string:
+ 		return s
+ 	}
+-	return "<not Stringer>"
++	return reflectlite.TypeOf(v).String()
+ }
+ 
+ func (c *valueCtx) String() string {
+-	return contextName(c.Context) + ".WithValue(type " +
+-		reflectlite.TypeOf(c.key).String() +
+-		", val " + stringify(c.val) + ")"
++	return contextName(c.Context) + ".WithValue(" +
++		stringify(c.key) + ", " +
++		stringify(c.val) + ")"
+ }
+ 
+ func (c *valueCtx) Value(key any) any {
+diff --git a/src/context/x_test.go b/src/context/x_test.go
+index b1012fad87..e9b0576281 100644
+--- a/src/context/x_test.go
++++ b/src/context/x_test.go
+@@ -201,6 +201,8 @@ func TestCanceledTimeout(t *testing.T) {
+ type key1 int
+ type key2 int
+ 
++func (k key2) String() string { return fmt.Sprintf("%[1]T(%[1]d)", k) }
++
+ var k1 = key1(1)
+ var k2 = key2(1) // same int as k1, different type
+ var k3 = key2(3) // same type as k2, different int
+@@ -224,13 +226,17 @@ func TestValues(t *testing.T) {
+ 	c1 := WithValue(Background(), k1, "c1k1")
+ 	check(c1, "c1", "c1k1", "", "")
+ 
+-	if got, want := fmt.Sprint(c1), `context.Background.WithValue(type context_test.key1, val c1k1)`; got != want {
++	if got, want := fmt.Sprint(c1), `context.Background.WithValue(context_test.key1, c1k1)`; got != want {
+ 		t.Errorf("c.String() = %q want %q", got, want)
+ 	}
+ 
+ 	c2 := WithValue(c1, k2, "c2k2")
+ 	check(c2, "c2", "c1k1", "c2k2", "")
+ 
++	if got, want := fmt.Sprint(c2), `context.Background.WithValue(context_test.key1, c1k1).WithValue(context_test.key2(1), c2k2)`; got != want {
++		t.Errorf("c.String() = %q want %q", got, want)
++	}
++
+ 	c3 := WithValue(c2, k3, "c3k3")
+ 	check(c3, "c2", "c1k1", "c2k2", "c3k3")
+ 

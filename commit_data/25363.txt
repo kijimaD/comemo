@@ -16,6 +16,21 @@ Date:   Fri Oct 23 02:57:01 2015 +1100
     Change-Id: I1bd66e011f2749f9372b5c7506f52ea34e264ce9
     Reviewed-on: https://go-review.googlesource.com/16193
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/net/http/httptest/server.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index e4f680fe92..b5f1149259 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -273,8 +273,7 @@ func (s *Server) forgetConn(c net.Conn) {
+ }
+ 
+ // localhostCert is a PEM-encoded TLS cert with SAN IPs
+-// "127.0.0.1" and "[::1]", expiring at the last second of 2049 (the end
+-// of ASN.1 time).
++// "127.0.0.1" and "[::1]", expiring at Jan 29 16:00:00 2084 GMT.
+ // generated from src/crypto/tls:
+ // go run generate_cert.go  --rsa-bits 1024 --host 127.0.0.1,::1,example.com --ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+ var localhostCert = []byte(`-----BEGIN CERTIFICATE-----

@@ -8,8 +8,256 @@ Date:   Tue Sep 1 13:46:59 2009 -0700
     DELTA=186  (181 added, 0 deleted, 5 changed)
     OCL=34203
     CL=34203
-
+---
  src/pkg/bytes/bytes.go      | 85 ++++++++++++++++++++++++++++++++++++++-
  src/pkg/bytes/bytes_test.go | 98 +++++++++++++++++++++++++++++++++++++++++++++
  src/pkg/strings/strings.go  |  8 ++--
  3 files changed, 186 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index e5e8bffd8c..5375fecaa2 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -6,7 +6,10 @@
+ // Analagous to the facilities of the strings package.
+ package bytes
+ 
+-import "utf8"
++import (
++	"unicode";
++	"utf8";
++)
+ 
+ // Compare returns an integer comparing the two byte arrays lexicographically.
+ // The result will be 0 if a==b, -1 if a < b, and +1 if a > b
+@@ -177,3 +180,83 @@ func HasPrefix(s, prefix []byte) bool {
+ func HasSuffix(s, suffix []byte) bool {
+ 	return len(s) >= len(suffix) && Equal(s[len(s)-len(suffix):len(s)], suffix)
+ }
++
++// Map returns a copy of the byte array s with all its characters modified
++// according to the mapping function.
++func Map(mapping func(rune int) int, s []byte) []byte {
++	// In the worst case, the array can grow when mapped, making
++	// things unpleasant.  But it's so rare we barge in assuming it's
++	// fine.  It could also shrink but that falls out naturally.
++	maxbytes := len(s);	// length of b
++	nbytes := 0;	// number of bytes encoded in b
++	b := make([]byte, maxbytes);
++	for wid, i := 0, 0; i < len(s); i += wid {
++		wid = 1;
++		rune := int(s[i]);
++		if rune < utf8.RuneSelf {
++			rune = mapping(rune);
++		} else {
++			rune, wid = utf8.DecodeRune(s[i:len(s)]);
++		}
++		rune = mapping(rune);
++		if nbytes + utf8.RuneLen(rune) > maxbytes {
++			// Grow the buffer.
++			maxbytes = maxbytes*2 + utf8.UTFMax;
++			nb := make([]byte, maxbytes);
++			for i, c := range b[0:nbytes] {
++				nb[i] = c
++			}
++			b = nb;
++		}
++		nbytes += utf8.EncodeRune(rune, b[nbytes:maxbytes]);
++	}
++	return b[0:nbytes];
++}
++
++// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their upper case.
++func ToUpper(s []byte) []byte {
++	return Map(unicode.ToUpper, s)
++}
++
++// ToUpper returns a copy of the byte array s with all Unicode letters mapped to their lower case.
++func ToLower(s []byte) []byte {
++	return Map(unicode.ToLower, s)
++}
++
++// ToTitle returns a copy of the byte array s with all Unicode letters mapped to their title case.
++func Title(s []byte) []byte {
++	return Map(unicode.ToTitle, s)
++}
++
++// Trim returns a slice of the string s, with all leading and trailing white space
++// removed, as defined by Unicode.
++func TrimSpace(s []byte) []byte {
++	start, end := 0, len(s);
++	for wid := 0; start < end; start += wid {
++		wid = 1;
++		rune := int(s[start]);
++		if rune >= utf8.RuneSelf {
++			rune, wid = utf8.DecodeRune(s[start:end])
++		}
++		if !unicode.IsSpace(rune) {
++			break;
++		}
++	}
++	for wid := 0; start < end; end -= wid {
++		wid = 1;
++		rune := int(s[end-1]);
++		if rune >= utf8.RuneSelf {
++			// Back up carefully looking for beginning of rune. Mustn't pass start.
++			for wid = 2; start <= end-wid && !utf8.RuneStart(s[end-wid]); wid++ {
++			}
++			if start > end-wid {	// invalid UTF-8 sequence; stop processing
++				return s[start:end]
++			}
++			rune, wid = utf8.DecodeRune(s[end-wid:end]);
++		}
++		if !unicode.IsSpace(rune) {
++			break;
++		}
++	}
++	return s[start:end];
++}
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index e37767d9a2..a7667ec21e 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "bytes";
+ 	"strings";
+ 	"testing";
++	"unicode";
+ )
+ 
+ func eq(a, b []string) bool {
+@@ -163,3 +164,100 @@ func TestCopy(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Test case for any function which accepts and returns a byte array.
++// For ease of creation, we write the byte arrays as strings.
++type StringTest struct {
++	in, out string;
++}
++
++var upperTests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "ABC"},
++	StringTest{"AbC123", "ABC123"},
++	StringTest{"azAZ09_", "AZAZ09_"},
++	StringTest{"\u0250\u0250\u0250\u0250\u0250", "\u2C6F\u2C6F\u2C6F\u2C6F\u2C6F"},	// grows one byte per char
++}
++
++var lowerTests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "abc"},
++	StringTest{"AbC123", "abc123"},
++	StringTest{"azAZ09_", "azaz09_"},
++	StringTest{"\u2C6D\u2C6D\u2C6D\u2C6D\u2C6D", "\u0251\u0251\u0251\u0251\u0251"},	// shrinks one byte per char
++}
++
++const space = "\t\v\r\f\n\u0085\u00a0\u2000\u3000"
++
++var trimSpaceTests = []StringTest {
++	StringTest{"", ""},
++	StringTest{"abc", "abc"},
++	StringTest{space + "abc" + space, "abc"},
++	StringTest{" ", ""},
++	StringTest{" \t\r\n \t\t\r\r\n\n ", ""},
++	StringTest{" \t\r\n x\t\t\r\r\n\n ", "x"},
++	StringTest{" \u2000\t\r\n x\t\t\r\r\ny\n \u3000", "x\t\t\r\r\ny"},
++	StringTest{"1 \t\r\n2", "1 \t\r\n2"},
++	StringTest{" x\x80", "x\x80"},	// invalid UTF-8 on end
++	StringTest{" x\xc0", "x\xc0"},	// invalid UTF-8 on end
++}
++
++// Bytes returns a new slice containing the bytes in s.
++// Borrowed from strings to avoid dependency.
++func Bytes(s string) []byte {
++	b := make([]byte, len(s));
++	for i := 0; i < len(s); i++ {
++		b[i] = s[i];
++	}
++	return b;
++}
++
++// Execute f on each test case.  funcName should be the name of f; it's used
++// in failure reports.
++func runStringTests(t *testing.T, f func([]byte) []byte, funcName string, testCases []StringTest) {
++	for i, tc := range testCases {
++		actual := string(f(Bytes(tc.in)));
++		if actual != tc.out {
++			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
++		}
++	}
++}
++
++func tenRunes(rune int) string {
++	r := make([]int, 10);
++	for i := range r {
++		r[i] = rune
++	}
++	return string(r)
++}
++
++func TestMap(t *testing.T) {
++	// Run a couple of awful growth/shrinkage tests
++	a := tenRunes('a');
++	// 1.  Grow.  This triggers two reallocations in Map.
++	maxRune := func(rune int) int { return unicode.MaxRune };
++	m := Map(maxRune, Bytes(a));
++	expect := tenRunes(unicode.MaxRune);
++	if string(m) != expect {
++		t.Errorf("growing: expected %q got %q", expect, m);
++	}
++	// 2. Shrink
++	minRune := func(rune int) int { return 'a' };
++	m = Map(minRune, Bytes(tenRunes(unicode.MaxRune)));
++	expect = a;
++	if string(m) != expect {
++		t.Errorf("shrinking: expected %q got %q", expect, m);
++	}
++}
++
++func TestToUpper(t *testing.T) {
++	runStringTests(t, ToUpper, "ToUpper", upperTests);
++}
++
++func TestToLower(t *testing.T) {
++	runStringTests(t, ToLower, "ToLower", lowerTests);
++}
++
++func TestTrimSpace(t *testing.T) {
++	runStringTests(t, TrimSpace, "TrimSpace", trimSpaceTests);
++}
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index eaa6a71a1f..f0f0761576 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -149,7 +149,7 @@ func HasSuffix(s, suffix string) bool {
+ }
+ 
+ // Map returns a copy of the string s with all its characters modified
+-// according to mapping function.
++// according to the mapping function.
+ func Map(mapping func(rune int) int, s string) string {
+ 	// In the worst case, the string can grow when mapped, making
+ 	// things unpleasant.  But it's so rare we barge in assuming it's
+@@ -177,17 +177,17 @@ func Map(mapping func(rune int) int, s string) string {
+ 	return string(b[0:nbytes]);
+ }
+ 
+-// ToUpper returns a copy of the string s with all letters mapped to their upper case.
++// ToUpper returns a copy of the string s with all Unicode letters mapped to their upper case.
+ func ToUpper(s string) string {
+ 	return Map(unicode.ToUpper, s)
+ }
+ 
+-// ToUpper returns a copy of the string s with all letters mapped to their lower case.
++// ToUpper returns a copy of the string s with all Unicode letters mapped to their lower case.
+ func ToLower(s string) string {
+ 	return Map(unicode.ToLower, s)
+ }
+ 
+-// ToTitle returns a copy of the string s with all letters mapped to their title case.
++// ToTitle returns a copy of the string s with all Unicode letters mapped to their title case.
+ func Title(s string) string {
+ 	return Map(unicode.ToTitle, s)
+ }

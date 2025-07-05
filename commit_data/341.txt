@@ -6,7 +6,7 @@ Date:   Sat Jul 12 15:56:06 2008 -0700
     you need a hack to 6ar to do this, but it's not checked in yet
     
     SVN=126943
-
+---
  src/lib/math/asin.go  |  4 ++--
  src/lib/math/atan2.go |  2 +-
  src/lib/math/exp.go   |  2 +-
@@ -16,3 +16,143 @@ Date:   Sat Jul 12 15:56:06 2008 -0700
  src/lib/math/sys.go   | 16 ----------------
  src/lib/math/tanh.go  |  2 +-
  8 files changed, 11 insertions(+), 45 deletions(-)
+
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index f7a286b32d..1a0e50d82f 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -4,8 +4,8 @@
+ 
+ package math
+ 
+-import	math "atan"
+-import	math "sqrt"
++import	math "math"
++import	math "math"
+ 
+ export	asin, acos
+ 
+diff --git a/src/lib/math/atan2.go b/src/lib/math/atan2.go
+index c002c8354f..e870847a23 100644
+--- a/src/lib/math/atan2.go
++++ b/src/lib/math/atan2.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "atan"
++import	math "math"
+ export	atan2
+ 
+ /*
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index cce9386b77..414abb4bc9 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "floor"
++import	math "math"
+ export	exp
+ 
+ /*
+diff --git a/src/lib/math/main.go b/src/lib/math/main.go
+index 7b266d878a..6e56dcf949 100644
+--- a/src/lib/math/main.go
++++ b/src/lib/math/main.go
+@@ -5,25 +5,7 @@
+ 
+ package main
+ 
+-//import math "math"
+-
+- import math "asin"
+- import math "atan"
+- import math "atan2"
+- import math "exp"
+- import math "fabs"
+- import math "floor"
+- import math "fmod"
+- import math "hypot"
+- import math "log"
+- import math "pow"
+- import math "pow10"
+- import math "sin"
+- import math "sinh"
+- import math "sqrt"
+- import math "tan"
+- import math "tanh"
+-
++import math "math"
+ 
+ const	length	= 10;
+ 
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index 2581f8d337..902c7be4ed 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -4,10 +4,10 @@
+ 
+ package math
+ 
+-import		math "floor"
+-import		math "sqrt"
+-import		math "log"
+-import		math "exp"
++import		math "math"
++import		math "math"
++import		math "math"
++import		math "math"
+ export		pow
+ 
+ /*
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+index fd3b50a7d3..7db190b10b 100644
+--- a/src/lib/math/sinh.go
++++ b/src/lib/math/sinh.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import	math "exp"
++import	math "math"
+ export	sinh, cosh
+ 
+ /*
+diff --git a/src/lib/math/sys.go b/src/lib/math/sys.go
+deleted file mode 100644
+index a24c8196e5..0000000000
+--- a/src/lib/math/sys.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sys
+-
+-func	modf(a float64) (x float64, y float64);
+-func	frexp(a float64) (e int, m float64);
+-func	ldexp(f float64, e int) float64;
+-
+-func	Inf(n int) float64;
+-func	NaN() float64;
+-func	isInf(arg float64, n int) bool;
+-
+-export	modf, frexp, ldexp
+-export	NaN, isInf, Inf
+diff --git a/src/lib/math/tanh.go b/src/lib/math/tanh.go
+index f857423035..bf5b2dae6c 100644
+--- a/src/lib/math/tanh.go
++++ b/src/lib/math/tanh.go
+@@ -4,7 +4,7 @@
+ 
+ package math
+ 
+-import		math "sinh"
++import		math "math"
+ export		tanh
+ 
+ /*

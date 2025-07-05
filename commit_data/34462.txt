@@ -13,7 +13,7 @@ Date:   Thu Oct 26 12:00:18 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/net/route/defs_openbsd.go  | 11 +++++++++++
  src/vendor/golang_org/x/net/route/route_classic.go | 10 +++++++++-
  src/vendor/golang_org/x/net/route/route_test.go    |  4 ++++
@@ -24,3 +24,238 @@ Date:   Thu Oct 26 12:00:18 2017 -0400
  src/vendor/golang_org/x/net/route/sys_openbsd.go   |  5 +++--
  src/vendor/golang_org/x/net/route/zsys_openbsd.go  | 13 ++++++++++++-
  9 files changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/route/defs_openbsd.go b/src/vendor/golang_org/x/net/route/defs_openbsd.go
+index 0f66d3619c..173bb5d513 100644
+--- a/src/vendor/golang_org/x/net/route/defs_openbsd.go
++++ b/src/vendor/golang_org/x/net/route/defs_openbsd.go
+@@ -69,6 +69,9 @@ const (
+ 	sysRTM_IFINFO     = C.RTM_IFINFO
+ 	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
+ 	sysRTM_DESYNC     = C.RTM_DESYNC
++	sysRTM_INVALIDATE = C.RTM_INVALIDATE
++	sysRTM_BFD        = C.RTM_BFD
++	sysRTM_PROPOSAL   = C.RTM_PROPOSAL
+ 
+ 	sysRTA_DST     = C.RTA_DST
+ 	sysRTA_GATEWAY = C.RTA_GATEWAY
+@@ -81,6 +84,10 @@ const (
+ 	sysRTA_SRC     = C.RTA_SRC
+ 	sysRTA_SRCMASK = C.RTA_SRCMASK
+ 	sysRTA_LABEL   = C.RTA_LABEL
++	sysRTA_BFD     = C.RTA_BFD
++	sysRTA_DNS     = C.RTA_DNS
++	sysRTA_STATIC  = C.RTA_STATIC
++	sysRTA_SEARCH  = C.RTA_SEARCH
+ 
+ 	sysRTAX_DST     = C.RTAX_DST
+ 	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+@@ -93,6 +100,10 @@ const (
+ 	sysRTAX_SRC     = C.RTAX_SRC
+ 	sysRTAX_SRCMASK = C.RTAX_SRCMASK
+ 	sysRTAX_LABEL   = C.RTAX_LABEL
++	sysRTAX_BFD     = C.RTAX_BFD
++	sysRTAX_DNS     = C.RTAX_DNS
++	sysRTAX_STATIC  = C.RTAX_STATIC
++	sysRTAX_SEARCH  = C.RTAX_SEARCH
+ 	sysRTAX_MAX     = C.RTAX_MAX
+ )
+ 
+diff --git a/src/vendor/golang_org/x/net/route/route_classic.go b/src/vendor/golang_org/x/net/route/route_classic.go
+index 61b2bb4add..02fa688309 100644
+--- a/src/vendor/golang_org/x/net/route/route_classic.go
++++ b/src/vendor/golang_org/x/net/route/route_classic.go
+@@ -6,7 +6,10 @@
+ 
+ package route
+ 
+-import "syscall"
++import (
++	"runtime"
++	"syscall"
++)
+ 
+ func (m *RouteMessage) marshal() ([]byte, error) {
+ 	w, ok := wireFormats[m.Type]
+@@ -14,6 +17,11 @@ func (m *RouteMessage) marshal() ([]byte, error) {
+ 		return nil, errUnsupportedMessage
+ 	}
+ 	l := w.bodyOff + addrsSpace(m.Addrs)
++	if runtime.GOOS == "darwin" {
++		// Fix stray pointer writes on macOS.
++		// See golang.org/issue/22456.
++		l += 1024
++	}
+ 	b := make([]byte, l)
+ 	nativeEndian.PutUint16(b[:2], uint16(l))
+ 	if m.Version == 0 {
+diff --git a/src/vendor/golang_org/x/net/route/route_test.go b/src/vendor/golang_org/x/net/route/route_test.go
+index 63fd8c5618..61bd174543 100644
+--- a/src/vendor/golang_org/x/net/route/route_test.go
++++ b/src/vendor/golang_org/x/net/route/route_test.go
+@@ -74,6 +74,10 @@ var addrAttrNames = [...]string{
+ 	"df:mpls1-n:tag-o:src", // mpls1 for dragonfly, tag for netbsd, src for openbsd
+ 	"df:mpls2-o:srcmask",   // mpls2 for dragonfly, srcmask for openbsd
+ 	"df:mpls3-o:label",     // mpls3 for dragonfly, label for openbsd
++	"o:bfd",                // bfd for openbsd
++	"o:dns",                // dns for openbsd
++	"o:static",             // static for openbsd
++	"o:search",             // search for openbsd
+ }
+ 
+ func (attrs addrAttrs) String() string {
+diff --git a/src/vendor/golang_org/x/net/route/sys_darwin.go b/src/vendor/golang_org/x/net/route/sys_darwin.go
+index e742c919db..d2daf5c05a 100644
+--- a/src/vendor/golang_org/x/net/route/sys_darwin.go
++++ b/src/vendor/golang_org/x/net/route/sys_darwin.go
+@@ -13,7 +13,7 @@ func (typ RIBType) parseable() bool {
+ 	}
+ }
+ 
+-// A RouteMetrics represents route metrics.
++// RouteMetrics represents route metrics.
+ type RouteMetrics struct {
+ 	PathMTU int // path maximum transmission unit
+ }
+@@ -30,7 +30,7 @@ func (m *RouteMessage) Sys() []Sys {
+ 	}
+ }
+ 
+-// A InterfaceMetrics represents interface metrics.
++// InterfaceMetrics represents interface metrics.
+ type InterfaceMetrics struct {
+ 	Type int // interface type
+ 	MTU  int // maximum transmission unit
+diff --git a/src/vendor/golang_org/x/net/route/sys_dragonfly.go b/src/vendor/golang_org/x/net/route/sys_dragonfly.go
+index b175cb18ce..0c14bc2b4d 100644
+--- a/src/vendor/golang_org/x/net/route/sys_dragonfly.go
++++ b/src/vendor/golang_org/x/net/route/sys_dragonfly.go
+@@ -8,7 +8,7 @@ import "unsafe"
+ 
+ func (typ RIBType) parseable() bool { return true }
+ 
+-// A RouteMetrics represents route metrics.
++// RouteMetrics represents route metrics.
+ type RouteMetrics struct {
+ 	PathMTU int // path maximum transmission unit
+ }
+@@ -25,7 +25,7 @@ func (m *RouteMessage) Sys() []Sys {
+ 	}
+ }
+ 
+-// A InterfaceMetrics represents interface metrics.
++// InterfaceMetrics represents interface metrics.
+ type InterfaceMetrics struct {
+ 	Type int // interface type
+ 	MTU  int // maximum transmission unit
+diff --git a/src/vendor/golang_org/x/net/route/sys_freebsd.go b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+index 010d4ae782..89ba1c4e26 100644
+--- a/src/vendor/golang_org/x/net/route/sys_freebsd.go
++++ b/src/vendor/golang_org/x/net/route/sys_freebsd.go
+@@ -11,7 +11,7 @@ import (
+ 
+ func (typ RIBType) parseable() bool { return true }
+ 
+-// A RouteMetrics represents route metrics.
++// RouteMetrics represents route metrics.
+ type RouteMetrics struct {
+ 	PathMTU int // path maximum transmission unit
+ }
+@@ -35,7 +35,7 @@ func (m *RouteMessage) Sys() []Sys {
+ 	}
+ }
+ 
+-// A InterfaceMetrics represents interface metrics.
++// InterfaceMetrics represents interface metrics.
+ type InterfaceMetrics struct {
+ 	Type int // interface type
+ 	MTU  int // maximum transmission unit
+diff --git a/src/vendor/golang_org/x/net/route/sys_netbsd.go b/src/vendor/golang_org/x/net/route/sys_netbsd.go
+index b4e3301403..02f71d54bb 100644
+--- a/src/vendor/golang_org/x/net/route/sys_netbsd.go
++++ b/src/vendor/golang_org/x/net/route/sys_netbsd.go
+@@ -6,7 +6,7 @@ package route
+ 
+ func (typ RIBType) parseable() bool { return true }
+ 
+-// A RouteMetrics represents route metrics.
++// RouteMetrics represents route metrics.
+ type RouteMetrics struct {
+ 	PathMTU int // path maximum transmission unit
+ }
+@@ -23,7 +23,7 @@ func (m *RouteMessage) Sys() []Sys {
+ 	}
+ }
+ 
+-// A InterfaceMetrics represents interface metrics.
++// RouteMetrics represents route metrics.
+ type InterfaceMetrics struct {
+ 	Type int // interface type
+ 	MTU  int // maximum transmission unit
+diff --git a/src/vendor/golang_org/x/net/route/sys_openbsd.go b/src/vendor/golang_org/x/net/route/sys_openbsd.go
+index 8798dc4ca3..c5674e83d0 100644
+--- a/src/vendor/golang_org/x/net/route/sys_openbsd.go
++++ b/src/vendor/golang_org/x/net/route/sys_openbsd.go
+@@ -15,7 +15,7 @@ func (typ RIBType) parseable() bool {
+ 	}
+ }
+ 
+-// A RouteMetrics represents route metrics.
++// RouteMetrics represents route metrics.
+ type RouteMetrics struct {
+ 	PathMTU int // path maximum transmission unit
+ }
+@@ -32,7 +32,7 @@ func (m *RouteMessage) Sys() []Sys {
+ 	}
+ }
+ 
+-// A InterfaceMetrics represents interface metrics.
++// InterfaceMetrics represents interface metrics.
+ type InterfaceMetrics struct {
+ 	Type int // interface type
+ 	MTU  int // maximum transmission unit
+@@ -75,5 +75,6 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 		sysRTM_DELADDR:    ifam,
+ 		sysRTM_IFINFO:     ifm,
+ 		sysRTM_IFANNOUNCE: ifanm,
++		sysRTM_DESYNC:     rtm,
+ 	}
+ }
+diff --git a/src/vendor/golang_org/x/net/route/zsys_openbsd.go b/src/vendor/golang_org/x/net/route/zsys_openbsd.go
+index f5a1ff9673..db8c8efb49 100644
+--- a/src/vendor/golang_org/x/net/route/zsys_openbsd.go
++++ b/src/vendor/golang_org/x/net/route/zsys_openbsd.go
+@@ -54,6 +54,9 @@ const (
+ 	sysRTM_IFINFO     = 0xe
+ 	sysRTM_IFANNOUNCE = 0xf
+ 	sysRTM_DESYNC     = 0x10
++	sysRTM_INVALIDATE = 0x11
++	sysRTM_BFD        = 0x12
++	sysRTM_PROPOSAL   = 0x13
+ 
+ 	sysRTA_DST     = 0x1
+ 	sysRTA_GATEWAY = 0x2
+@@ -66,6 +69,10 @@ const (
+ 	sysRTA_SRC     = 0x100
+ 	sysRTA_SRCMASK = 0x200
+ 	sysRTA_LABEL   = 0x400
++	sysRTA_BFD     = 0x800
++	sysRTA_DNS     = 0x1000
++	sysRTA_STATIC  = 0x2000
++	sysRTA_SEARCH  = 0x4000
+ 
+ 	sysRTAX_DST     = 0x0
+ 	sysRTAX_GATEWAY = 0x1
+@@ -78,7 +85,11 @@ const (
+ 	sysRTAX_SRC     = 0x8
+ 	sysRTAX_SRCMASK = 0x9
+ 	sysRTAX_LABEL   = 0xa
+-	sysRTAX_MAX     = 0xb
++	sysRTAX_BFD     = 0xb
++	sysRTAX_DNS     = 0xc
++	sysRTAX_STATIC  = 0xd
++	sysRTAX_SEARCH  = 0xe
++	sysRTAX_MAX     = 0xf
+ )
+ 
+ const (

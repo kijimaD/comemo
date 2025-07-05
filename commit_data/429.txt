@@ -7,7 +7,7 @@ Date:   Sat Jul 26 14:49:21 2008 -0700
     R=ken
     OCL=13483
     CL=13496
-
+---
  src/cmd/ar/ar.c                    |   2 +-
  src/syscall/Makefile               |  41 ++++
  src/syscall/errstr_darwin.go       | 354 ++++++++++++++++++++++++++++++
@@ -16,3 +16,1121 @@ Date:   Sat Jul 26 14:49:21 2008 -0700
  src/syscall/syscall_amd64_darwin.s | 107 ++++++++++
  src/syscall/syscall_amd64_linux.s  | 123 +++++++++++
  7 files changed, 1069 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index a22eac8350..e7024414ce 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -663,7 +663,7 @@ scanpkg(Biobuf *b, long size)
+ 			continue;
+ 		goto foundstart;
+ 	}
+-	fprint(2, "ar: no package import section in %s\n", file);
++	fprint(2, "ar: warning: no package import section in %s\n", file);
+ 	return;
+ 
+ foundstart:
+diff --git a/src/syscall/Makefile b/src/syscall/Makefile
+new file mode 100644
+index 0000000000..fc21794c70
+--- /dev/null
++++ b/src/syscall/Makefile
+@@ -0,0 +1,41 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CFLAGS=
++O=6
++CC=$(O)c
++AS=$(O)a
++GC=$(O)g
++
++PKG=syscall.a
++
++OFILES=\
++	syscall.$O \
++	errstr_$(GOOS).$O \
++	syscall_$(GOARCH)_$(GOOS).$O \
++
++
++install: $(PKG)
++	cp $(PKG) $(GOROOT)/pkg
++
++$(PKG): $(OFILES)
++	$(O)ar grc $(PKG) $(OFILES)
++
++nuke:
++	rm -f *.$(O) *.a $(GOROOT)/lib/$(PKG)
++
++clean:
++	rm -f *.$(O) *.a
++
++%.$O:	%.c
++	$(CC) $<
++
++sys_file.$O:	sys_file.c sys_types.h $(OS_H)
++	$(CC) -D$(GOARCH)_$(GOOS) $<
++
++%.$O:	%.s
++	$(AS) $<
++
++%.$O:	%.go
++	$(GC) $<
+diff --git a/src/syscall/errstr_darwin.go b/src/syscall/errstr_darwin.go
+new file mode 100644
+index 0000000000..aac256909d
+--- /dev/null
++++ b/src/syscall/errstr_darwin.go
+@@ -0,0 +1,354 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++export errstr
++
++const (
++	ENONE=0;
++	EPERM=1;
++	ENOENT=2;
++	ESRCH=3;
++	EINTR=4;
++	EIO=5;
++	ENXIO=6;
++	E2BIG=7;
++	ENOEXEC=8;
++	EBADF=9;
++	ECHILD=10;
++	EDEADLK=11;
++	ENOMEM=12;
++	EACCES=13;
++	EFAULT=14;
++	ENOTBLK=15;
++	EBUSY=16;
++	EEXIST=17;
++	EXDEV=18;
++	ENODEV=19;
++	ENOTDIR=20;
++	EISDIR=21;
++	EINVAL=22;
++	ENFILE=23;
++	EMFILE=24;
++	ENOTTY=25;
++	ETXTBSY=26;
++	EFBIG=27;
++	ENOSPC=28;
++	ESPIPE=29;
++	EROFS=30;
++	EMLINK=31;
++	EPIPE=32;
++	EDOM=33;
++	ERANGE=34;
++	EAGAIN=35;
++	EINPROGRESS=36;
++	EALREADY=37;
++	ENOTSOCK=38;
++	EDESTADDRREQ=39;
++	EMSGSIZE=40;
++	EPROTOTYPE=41;
++	ENOPROTOOPT=42;
++	EPROTONOSUPPORT=43;
++	ESOCKTNOSUPPORT=44;
++	ENOTSUP=45;
++	EPFNOSUPPORT=46;
++	EAFNOSUPPORT=47;
++	EADDRINUSE=48;
++	EADDRNOTAVAIL=49;
++	ENETDOWN=50;
++	ENETUNREACH=51;
++	ENETRESET=52;
++	ECONNABORTED=53;
++	ECONNRESET=54;
++	ENOBUFS=55;
++	EISCONN=56;
++	ENOTCONN=57;
++	ESHUTDOWN=58;
++	ETOOMANYREFS=59;
++	ETIMEDOUT=60;
++	ECONNREFUSED=61;
++	ELOOP=62;
++	ENAMETOOLONG=63;
++	EHOSTDOWN=64;
++	EHOSTUNREACH=65;
++	ENOTEMPTY=66;
++	EPROCLIM=67;
++	EUSERS=68;
++	EDQUOT=69;
++	ESTALE=70;
++	EREMOTE=71;
++	EBADRPC=72;
++	ERPCMISMATCH=73;
++	EPROGUNAVAIL=74;
++	EPROGMISMATCH=75;
++	EPROCUNAVAIL=76;
++	ENOLCK=77;
++	ENOSYS=78;
++	EFTYPE=79;
++	EAUTH=80;
++	ENEEDAUTH=81;
++	EPWROFF=82;
++	EDEVERR=83;
++	EOVERFLOW=84;
++	EBADEXEC=85;
++	EBADARCH=86;
++	ESHLIBVERS=87;
++	EBADMACHO=88;
++	ECANCELED=89;
++	EIDRM=90;
++	ENOMSG=91   ;
++	EILSEQ=92;
++	ENOATTR=93;
++	EBADMSG=94;
++	EMULTIHOP=95;
++	ENODATA=96;
++	ENOLINK=97;
++	ENOSR=98;
++	ENOSTR=99;
++	EPROTO=100;
++	ETIME=101;
++	EOPNOTSUPP=102;
++	ELAST=103;
++)
++
++export (
++	ENONE,
++	EPERM,
++	ENOENT,
++	ESRCH,
++	EINTR,
++	EIO,
++	ENXIO,
++	E2BIG,
++	ENOEXEC,
++	EBADF,
++	ECHILD,
++	EDEADLK,
++	ENOMEM,
++	EACCES,
++	EFAULT,
++	ENOTBLK,
++	EBUSY,
++	EEXIST,
++	EXDEV,
++	ENODEV,
++	ENOTDIR,
++	EISDIR,
++	EINVAL,
++	ENFILE,
++	EMFILE,
++	ENOTTY,
++	ETXTBSY,
++	EFBIG,
++	ENOSPC,
++	ESPIPE,
++	EROFS,
++	EMLINK,
++	EPIPE,
++	EDOM,
++	ERANGE,
++	EAGAIN,
++	EINPROGRESS,
++	EALREADY,
++	ENOTSOCK,
++	EDESTADDRREQ,
++	EMSGSIZE,
++	EPROTOTYPE,
++	ENOPROTOOPT,
++	EPROTONOSUPPORT,
++	ESOCKTNOSUPPORT,
++	ENOTSUP,
++	EPFNOSUPPORT,
++	EAFNOSUPPORT,
++	EADDRINUSE,
++	EADDRNOTAVAIL,
++	ENETDOWN,
++	ENETUNREACH,
++	ENETRESET,
++	ECONNABORTED,
++	ECONNRESET,
++	ENOBUFS,
++	EISCONN,
++	ENOTCONN,
++	ESHUTDOWN,
++	ETOOMANYREFS,
++	ETIMEDOUT,
++	ECONNREFUSED,
++	ELOOP,
++	ENAMETOOLONG,
++	EHOSTDOWN,
++	EHOSTUNREACH,
++	ENOTEMPTY,
++	EPROCLIM,
++	EUSERS,
++	EDQUOT,
++	ESTALE,
++	EREMOTE,
++	EBADRPC,
++	ERPCMISMATCH,
++	EPROGUNAVAIL,
++	EPROGMISMATCH,
++	EPROCUNAVAIL,
++	ENOLCK,
++	ENOSYS,
++	EFTYPE,
++	EAUTH,
++	ENEEDAUTH,
++	EPWROFF,
++	EDEVERR,
++	EOVERFLOW,
++	EBADEXEC,
++	EBADARCH,
++	ESHLIBVERS,
++	EBADMACHO,
++	ECANCELED,
++	EIDRM,
++	ENOMSG,
++	EILSEQ,
++	ENOATTR,
++	EBADMSG,
++	EMULTIHOP,
++	ENODATA,
++	ENOLINK,
++	ENOSR,
++	ENOSTR,
++	EPROTO,
++	ETIME,
++	EOPNOTSUPP,
++	ELAST
++)
++
++var error [ELAST]string;
++
++func init(){
++	error[ENONE] = "No error"; 
++	error[EPERM] = "Operation not permitted"; 
++	error[ENOENT] = "No such file or directory"; 
++	error[ESRCH] = "No such process"; 
++	error[EINTR] = "Interrupted system call"; 
++	error[EIO] = "Input/output error"; 
++	error[ENXIO] = "Device not configured"; 
++	error[E2BIG] = "Argument list too long"; 
++	error[ENOEXEC] = "Exec format error"; 
++	error[EBADF] = "Bad file descriptor"; 
++	error[ECHILD] = "No child processes"; 
++	error[EDEADLK] = "Resource deadlock avoided"; 
++	error[ENOMEM] = "Cannot allocate memory"; 
++	error[EACCES] = "Permission denied"; 
++	error[EFAULT] = "Bad address"; 
++	error[ENOTBLK] = "Block device required"; 
++	error[EBUSY] = "Device / Resource busy"; 
++	error[EEXIST] = "File exists"; 
++	error[EXDEV] = "Cross-device link"; 
++	error[ENODEV] = "Operation not supported by device"; 
++	error[ENOTDIR] = "Not a directory"; 
++	error[EISDIR] = "Is a directory"; 
++	error[EINVAL] = "Invalid argument"; 
++	error[ENFILE] = "Too many open files in system"; 
++	error[EMFILE] = "Too many open files"; 
++	error[ENOTTY] = "Inappropriate ioctl for device"; 
++	error[ETXTBSY] = "Text file busy"; 
++	error[EFBIG] = "File too large"; 
++	error[ENOSPC] = "No space left on device"; 
++	error[ESPIPE] = "Illegal seek"; 
++	error[EROFS] = "Read-only file system"; 
++	error[EMLINK] = "Too many links"; 
++	error[EPIPE] = "Broken pipe"; 
++	error[EDOM] = "Numerical argument out of domain"; 
++	error[ERANGE] = "Result too large"; 
++	error[EAGAIN] = "Resource temporarily unavailable"; 
++	error[EINPROGRESS] = "Operation now in progress"; 
++	error[EALREADY] = "Operation already in progress"; 
++	error[ENOTSOCK] = "Socket operation on non-socket"; 
++	error[EDESTADDRREQ] = "Destination address required"; 
++	error[EMSGSIZE] = "Message too long"; 
++	error[EPROTOTYPE] = "Protocol wrong type for socket"; 
++	error[ENOPROTOOPT] = "Protocol not available"; 
++	error[EPROTONOSUPPORT] = "Protocol not supported"; 
++	error[ESOCKTNOSUPPORT] = "Socket type not supported"; 
++	error[ENOTSUP] = "Operation not supported"; 
++	error[EPFNOSUPPORT] = "Protocol family not supported"; 
++	error[EAFNOSUPPORT] = "Address family not supported by protocol family"; 
++	error[EADDRINUSE] = "Address already in use"; 
++	error[EADDRNOTAVAIL] = "Can't assign requested address"; 
++	error[ENETDOWN] = "Network is down"; 
++	error[ENETUNREACH] = "Network is unreachable"; 
++	error[ENETRESET] = "Network dropped connection on reset"; 
++	error[ECONNABORTED] = "Software caused connection abort"; 
++	error[ECONNRESET] = "Connection reset by peer"; 
++	error[ENOBUFS] = "No buffer space available"; 
++	error[EISCONN] = "Socket is already connected"; 
++	error[ENOTCONN] = "Socket is not connected"; 
++	error[ESHUTDOWN] = "Can't send after socket shutdown"; 
++	error[ETOOMANYREFS] = "Too many references: can't splice"; 
++	error[ETIMEDOUT] = "Operation timed out"; 
++	error[ECONNREFUSED] = "Connection refused"; 
++	error[ELOOP] = "Too many levels of symbolic links"; 
++	error[ENAMETOOLONG] = "File name too long"; 
++	error[EHOSTDOWN] = "Host is down"; 
++	error[EHOSTUNREACH] = "No route to host"; 
++	error[ENOTEMPTY] = "Directory not empty"; 
++	error[EPROCLIM] = "Too many processes"; 
++	error[EUSERS] = "Too many users"; 
++	error[EDQUOT] = "Disc quota exceeded"; 
++	error[ESTALE] = "Stale NFS file handle"; 
++	error[EREMOTE] = "Too many levels of remote in path"; 
++	error[EBADRPC] = "RPC struct is bad"; 
++	error[ERPCMISMATCH] = "RPC version wrong"; 
++	error[EPROGUNAVAIL] = "RPC prog. not avail"; 
++	error[EPROGMISMATCH] = "Program version wrong"; 
++	error[EPROCUNAVAIL] = "Bad procedure for program"; 
++	error[ENOLCK] = "No locks available"; 
++	error[ENOSYS] = "Function not implemented"; 
++	error[EFTYPE] = "Inappropriate file type or format"; 
++	error[EAUTH] = "Authentication error"; 
++	error[ENEEDAUTH] = "Need authenticator"; 
++	error[EPWROFF] = "Device power is off"; 
++	error[EDEVERR] = "Device error, e.g. paper out"; 
++	error[EOVERFLOW] = "Value too large to be stored in data type"; 
++	error[EBADEXEC] = "Bad executable"; 
++	error[EBADARCH] = "Bad CPU type in executable"; 
++	error[ESHLIBVERS] = "Shared library version mismatch"; 
++	error[EBADMACHO] = "Malformed Macho file"; 
++	error[ECANCELED] = "Operation canceled"; 
++	error[EIDRM] = "Identifier removed"; 
++	error[ENOMSG] = "No message of desired type"; 
++	error[EILSEQ] = "Illegal byte sequence"; 
++	error[ENOATTR] = "Attribute not found"; 
++	error[EBADMSG] = "Bad message"; 
++	error[EMULTIHOP] = "Reserved"; 
++	error[ENODATA] = "No message available on STREAM"; 
++	error[ENOLINK] = "Reserved"; 
++	error[ENOSR] = "No STREAM resources"; 
++	error[ENOSTR] = "Not a STREAM"; 
++	error[EPROTO] = "Protocol error"; 
++	error[ETIME] = "STREAM ioctl timeout"; 
++	error[EOPNOTSUPP] = "Operation not supported on socket"; 
++	error[ELAST] = "Must be equal largest errno"; 
++}
++
++var digits string = "0123456789"
++
++func str(val int64) string {  // do it here rather than with fmt to avoid dependency
++	if val < 0 {
++		return "-" + str(-val);
++	}
++	var buf [32]byte;  // big enough for int64
++	i := len(buf)-1;
++	for val >= 10 {
++		buf[i] = digits[val%10];
++		i--;
++		val /= 10;
++	}
++	buf[i] = digits[val];
++	return string(buf)[i:len(buf)];
++}
++
++func errstr(errno int64) string {
++	if errno < 0 || errno >= len(error) {
++		return "Error " + str(errno)
++	}
++	return error[errno]
++}
+diff --git a/src/syscall/errstr_linux.go b/src/syscall/errstr_linux.go
+new file mode 100644
+index 0000000000..875217afc1
+--- /dev/null
++++ b/src/syscall/errstr_linux.go
+@@ -0,0 +1,428 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++export errstr
++
++const (
++	ENONE=0;
++	EPERM=1;
++	ENOENT=2;
++	ESRCH=3;
++	EINTR=4;
++	EIO=5;
++	ENXIO=6;
++	E2BIG=7;
++	ENOEXEC=8;
++	EBADF=9;
++	ECHILD=10;
++	EAGAIN=11;
++	ENOMEM=12;
++	EACCES=13;
++	EFAULT=14;
++	ENOTBLK=15;
++	EBUSY=16;
++	EEXIST=17;
++	EXDEV=18;
++	ENODEV=19;
++	ENOTDIR=20;
++	EISDIR=21;
++	EINVAL=22;
++	ENFILE=23;
++	EMFILE=24;
++	ENOTTY=25;
++	ETXTBSY=26;
++	EFBIG=27;
++	ENOSPC=28;
++	ESPIPE=29;
++	EROFS=30;
++	EMLINK=31;
++	EPIPE=32;
++	EDOM=33;
++	ERANGE=34;
++	EDEADLK=35;
++	ENAMETOOLONG=36;
++	ENOLCK=37;
++	ENOSYS=38;
++	ENOTEMPTY=39;
++	ELOOP=40;
++	ENOMSG=42;
++	EIDRM=43;
++	ECHRNG=44;
++	EL2NSYNC=45;
++	EL3HLT=46;
++	EL3RST=47;
++	ELNRNG=48;
++	EUNATCH=49;
++	ENOCSI=50;
++	EL2HLT=51;
++	EBADE=52;
++	EBADR=53;
++	EXFULL=54;
++	ENOANO=55;
++	EBADRQC=56;
++	EBADSLT=57;
++	EBFONT=59;
++	ENOSTR=60;
++	ENODATA=61;
++	ETIME=62;
++	ENOSR=63;
++	ENONET=64;
++	ENOPKG=65;
++	EREMOTE=66;
++	ENOLINK=67;
++	EADV=68;
++	ESRMNT=69;
++	ECOMM=70;
++	EPROTO=71;
++	EMULTIHOP=72;
++	EDOTDOT=73;
++	EBADMSG=74;
++	EOVERFLOW=75;
++	ENOTUNIQ=76;
++	EBADFD=77;
++	EREMCHG=78;
++	ELIBACC=79;
++	ELIBBAD=80;
++	ELIBSCN=81;
++	ELIBMAX=82;
++	ELIBEXEC=83;
++	EILSEQ=84;
++	ERESTART=85;
++	ESTRPIPE=86;
++	EUSERS=87;
++	ENOTSOCK=88;
++	EDESTADDRREQ=89;
++	EMSGSIZE=90;
++	EPROTOTYPE=91;
++	ENOPROTOOPT=92;
++	EPROTONOSUPPORT=93;
++	ESOCKTNOSUPPORT=94;
++	EOPNOTSUPP=95;
++	EPFNOSUPPORT=96;
++	EAFNOSUPPORT=97;
++	EADDRINUSE=98;
++	EADDRNOTAVAIL=99;
++	ENETDOWN=100;
++	ENETUNREACH=101;
++	ENETRESET=102;
++	ECONNABORTED=103;
++	ECONNRESET=104;
++	ENOBUFS=105;
++	EISCONN=106;
++	ENOTCONN=107;
++	ESHUTDOWN=108;
++	ETOOMANYREFS=109;
++	ETIMEDOUT=110;
++	ECONNREFUSED=111;
++	EHOSTDOWN=112;
++	EHOSTUNREACH=113;
++	EALREADY=114;
++	EINPROGRESS=115;
++	ESTALE=116;
++	EUCLEAN=117;
++	ENOTNAM=118;
++	ENAVAIL=119;
++	EISNAM=120;
++	EREMOTEIO=121;
++	EDQUOT=122;
++	ENOMEDIUM=123;
++	EMEDIUMTYPE=124;
++	ECANCELED=125;
++	ENOKEY=126;
++	EKEYEXPIRED=127;
++	EKEYREVOKED=128;
++	EKEYREJECTED=129;
++	ELAST=130;
++)
++
++export (
++	ENONE,
++	EPERM,
++	ENOENT,
++	ESRCH,
++	EINTR,
++	EIO,
++	ENXIO,
++	E2BIG,
++	ENOEXEC,
++	EBADF,
++	ECHILD,
++	EAGAIN,
++	ENOMEM,
++	EACCES,
++	EFAULT,
++	ENOTBLK,
++	EBUSY,
++	EEXIST,
++	EXDEV,
++	ENODEV,
++	ENOTDIR,
++	EISDIR,
++	EINVAL,
++	ENFILE,
++	EMFILE,
++	ENOTTY,
++	ETXTBSY,
++	EFBIG,
++	ENOSPC,
++	ESPIPE,
++	EROFS,
++	EMLINK,
++	EPIPE,
++	EDOM,
++	ERANGE,
++	EDEADLK,
++	ENAMETOOLONG,
++	ENOLCK,
++	ENOSYS,
++	ENOTEMPTY,
++	ELOOP,
++	ENOMSG,
++	EIDRM,
++	ECHRNG,
++	EL2NSYNC,
++	EL3HLT,
++	EL3RST,
++	ELNRNG,
++	EUNATCH,
++	ENOCSI,
++	EL2HLT,
++	EBADE,
++	EBADR,
++	EXFULL,
++	ENOANO,
++	EBADRQC,
++	EBADSLT,
++	EBFONT,
++	ENOSTR,
++	ENODATA,
++	ETIME,
++	ENOSR,
++	ENONET,
++	ENOPKG,
++	EREMOTE,
++	ENOLINK,
++	EADV,
++	ESRMNT,
++	ECOMM,
++	EPROTO,
++	EMULTIHOP,
++	EDOTDOT,
++	EBADMSG,
++	EOVERFLOW,
++	ENOTUNIQ,
++	EBADFD,
++	EREMCHG,
++	ELIBACC,
++	ELIBBAD,
++	ELIBSCN,
++	ELIBMAX,
++	ELIBEXEC,
++	EILSEQ,
++	ERESTART,
++	ESTRPIPE,
++	EUSERS,
++	ENOTSOCK,
++	EDESTADDRREQ,
++	EMSGSIZE,
++	EPROTOTYPE,
++	ENOPROTOOPT,
++	EPROTONOSUPPORT,
++	ESOCKTNOSUPPORT,
++	EOPNOTSUPP,
++	EPFNOSUPPORT,
++	EAFNOSUPPORT,
++	EADDRINUSE,
++	EADDRNOTAVAIL,
++	ENETDOWN,
++	ENETUNREACH,
++	ENETRESET,
++	ECONNABORTED,
++	ECONNRESET,
++	ENOBUFS,
++	EISCONN,
++	ENOTCONN,
++	ESHUTDOWN,
++	ETOOMANYREFS,
++	ETIMEDOUT,
++	ECONNREFUSED,
++	EHOSTDOWN,
++	EHOSTUNREACH,
++	EALREADY,
++	EINPROGRESS,
++	ESTALE,
++	EUCLEAN,
++	ENOTNAM,
++	ENAVAIL,
++	EISNAM,
++	EREMOTEIO,
++	EDQUOT,
++	ENOMEDIUM,
++	EMEDIUMTYPE,
++	ECANCELED,
++	ENOKEY,
++	EKEYEXPIRED,
++	EKEYREVOKED,
++	EKEYREJECTED,
++	ELAST
++)
++
++var error [ELAST]string;
++
++func init(){
++	error[ENONE] = "No error";
++	error[EPERM] = "Operation not permitted";
++	error[ENOENT] = "No such file or directory";
++	error[ESRCH] = "No such process";
++	error[EINTR] = "Interrupted system call";
++	error[EIO] = "I/O error";
++	error[ENXIO] = "No such device or address";
++	error[E2BIG] = "Argument list too long";
++	error[ENOEXEC] = "Exec format error";
++	error[EBADF] = "Bad file number";
++	error[ECHILD] = "No child processes";
++	error[EAGAIN] = "Try again";
++	error[ENOMEM] = "Out of memory";
++	error[EACCES] = "Permission denied";
++	error[EFAULT] = "Bad address";
++	error[ENOTBLK] = "Block device required";
++	error[EBUSY] = "Device or resource busy";
++	error[EEXIST] = "File exists";
++	error[EXDEV] = "Cross-device link";
++	error[ENODEV] = "No such device";
++	error[ENOTDIR] = "Not a directory";
++	error[EISDIR] = "Is a directory";
++	error[EINVAL] = "Invalid argument";
++	error[ENFILE] = "File table overflow";
++	error[EMFILE] = "Too many open files";
++	error[ENOTTY] = "Not a typewriter";
++	error[ETXTBSY] = "Text file busy";
++	error[EFBIG] = "File too large";
++	error[ENOSPC] = "No space left on device";
++	error[ESPIPE] = "Illegal seek";
++	error[EROFS] = "Read-only file system";
++	error[EMLINK] = "Too many links";
++	error[EPIPE] = "Broken pipe";
++	error[EDOM] = "Math argument out of domain of func";
++	error[ERANGE] = "Math result not representable";
++	error[EDEADLK] = "Resource deadlock would occur";
++	error[ENAMETOOLONG] = "File name too long";
++	error[ENOLCK] = "No record locks available";
++	error[ENOSYS] = "Function not implemented";
++	error[ENOTEMPTY] = "Directory not empty";
++	error[ELOOP] = "Too many symbolic links encountered";
++	error[ENOMSG] = "No message of desired type";
++	error[EIDRM] = "Identifier removed";
++	error[ECHRNG] = "Channel number out of range";
++	error[EL2NSYNC] = "Level 2 not synchronized";
++	error[EL3HLT] = "Level 3 halted";
++	error[EL3RST] = "Level 3 reset";
++	error[ELNRNG] = "Link number out of range";
++	error[EUNATCH] = "Protocol driver not attached";
++	error[ENOCSI] = "No CSI structure available";
++	error[EL2HLT] = "Level 2 halted";
++	error[EBADE] = "Invalid exchange";
++	error[EBADR] = "Invalid request descriptor";
++	error[EXFULL] = "Exchange full";
++	error[ENOANO] = "No anode";
++	error[EBADRQC] = "Invalid request code";
++	error[EBADSLT] = "Invalid slot";
++	error[EBFONT] = "Bad font file format";
++	error[ENOSTR] = "Device not a stream";
++	error[ENODATA] = "No data available";
++	error[ETIME] = "Timer expired";
++	error[ENOSR] = "Out of streams resources";
++	error[ENONET] = "Machine is not on the network";
++	error[ENOPKG] = "Package not installed";
++	error[EREMOTE] = "Object is remote";
++	error[ENOLINK] = "Link has been severed";
++	error[EADV] = "Advertise error";
++	error[ESRMNT] = "Srmount error";
++	error[ECOMM] = "Communication error on send";
++	error[EPROTO] = "Protocol error";
++	error[EMULTIHOP] = "Multihop attempted";
++	error[EDOTDOT] = "RFS specific error";
++	error[EBADMSG] = "Not a data message";
++	error[EOVERFLOW] = "Value too large for defined data type";
++	error[ENOTUNIQ] = "Name not unique on network";
++	error[EBADFD] = "File descriptor in bad state";
++	error[EREMCHG] = "Remote address changed";
++	error[ELIBACC] = "Can not access a needed shared library";
++	error[ELIBBAD] = "Accessing a corrupted shared library";
++	error[ELIBSCN] = ".lib section in a.out corrupted";
++	error[ELIBMAX] = "Attempting to link in too many shared libraries";
++	error[ELIBEXEC] = "Cannot exec a shared library directly";
++	error[EILSEQ] = "Illegal byte sequence";
++	error[ERESTART] = "Interrupted system call should be restarted";
++	error[ESTRPIPE] = "Streams pipe error";
++	error[EUSERS] = "Too many users";
++	error[ENOTSOCK] = "Socket operation on non-socket";
++	error[EDESTADDRREQ] = "Destination address required";
++	error[EMSGSIZE] = "Message too long";
++	error[EPROTOTYPE] = "Protocol wrong type for socket";
++	error[ENOPROTOOPT] = "Protocol not available";
++	error[EPROTONOSUPPORT] = "Protocol not supported";
++	error[ESOCKTNOSUPPORT] = "Socket type not supported";
++	error[EOPNOTSUPP] = "Operation not supported on transport endpoint";
++	error[EPFNOSUPPORT] = "Protocol family not supported";
++	error[EAFNOSUPPORT] = "Address family not supported by protocol";
++	error[EADDRINUSE] = "Address already in use";
++	error[EADDRNOTAVAIL] = "Cannot assign requested address";
++	error[ENETDOWN] = "Network is down";
++	error[ENETUNREACH] = "Network is unreachable";
++	error[ENETRESET] = "Network dropped connection because of reset";
++	error[ECONNABORTED] = "Software caused connection abort";
++	error[ECONNRESET] = "Connection reset by peer";
++	error[ENOBUFS] = "No buffer space available";
++	error[EISCONN] = "Transport endpoint is already connected";
++	error[ENOTCONN] = "Transport endpoint is not connected";
++	error[ESHUTDOWN] = "Cannot send after transport endpoint shutdown";
++	error[ETOOMANYREFS] = "Too many references: cannot splice";
++	error[ETIMEDOUT] = "Connection timed out";
++	error[ECONNREFUSED] = "Connection refused";
++	error[EHOSTDOWN] = "Host is down";
++	error[EHOSTUNREACH] = "No route to host";
++	error[EALREADY] = "Operation already in progress";
++	error[EINPROGRESS] = "Operation now in progress";
++	error[ESTALE] = "Stale NFS file handle";
++	error[EUCLEAN] = "Structure needs cleaning";
++	error[ENOTNAM] = "Not a XENIX named type file";
++	error[ENAVAIL] = "No XENIX semaphores available";
++	error[EISNAM] = "Is a named type file";
++	error[EREMOTEIO] = "Remote I/O error";
++	error[EDQUOT] = "Quota exceeded";
++	error[ENOMEDIUM] = "No medium found";
++	error[EMEDIUMTYPE] = "Wrong medium type";
++	error[ECANCELED] = "Operation Canceled";
++	error[ENOKEY] = "Required key not available";
++	error[EKEYEXPIRED] = "Key has expired";
++	error[EKEYREVOKED] = "Key has been revoked";
++	error[EKEYREJECTED] = "Key was rejected by service";
++}
++
++var digits string = "0123456789"
++
++func str(val int64) string {  // do it here rather than with fmt to avoid dependency
++	if val < 0 {
++		return "-" + str(-val);
++	}
++	var buf [32]byte;  // big enough for int64
++	i := len(buf)-1;
++	for val >= 10 {
++		buf[i] = digits[val%10];
++		i--;
++		val /= 10;
++	}
++	buf[i] = digits[val];
++	return string(buf)[i:len(buf)];
++}
++
++func errstr(errno int64) string {
++	if errno < 0 || errno >= len(error) {
++		return "Error " + str(errno)
++	}
++	return error[errno]
++}
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+new file mode 100644
+index 0000000000..49d7401ed4
+--- /dev/null
++++ b/src/syscall/syscall.go
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++// for simplicity of addressing in assembler, all integers are 64 bits
++// in these calling sequences.
++
++func open(*byte, int64) (ret int64, errno int64);
++func close(int64) (ret int64, errno int64);
++func read(int64, *byte, int64) (ret int64, errno int64);
++func write(int64, *byte, int64) (ret int64, errno int64);
++
++export open, close, read, write
+diff --git a/src/syscall/syscall_amd64_darwin.s b/src/syscall/syscall_amd64_darwin.s
+new file mode 100644
+index 0000000000..a87352e8e2
+--- /dev/null
++++ b/src/syscall/syscall_amd64_darwin.s
+@@ -0,0 +1,107 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for AMD64, Darwin
++//
++
++//TEXT	syscall·exit(SB),1,$-8
++//	MOVL	8(SP), DI		// arg 1 exit status
++//	MOVL	$(0x2000000+1), AX	// syscall entry
++//	SYSCALL
++//	CALL	notok(SB)
++//	RET
++
++TEXT	syscall·open(SB),1,$-8
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	$0, R10
++	MOVL	$(0x2000000+5), AX	// syscall entry
++	SYSCALL
++	JCC	4(PC)
++	MOVQ	$-1, 24(SP)
++	MOVQ	AX, 32(SP)
++	RET
++	MOVQ	AX, 24(SP)
++	MOVQ	$0, 32(SP)
++	RET
++
++TEXT	syscall·close(SB),1,$-8
++	MOVL	8(SP), DI
++	MOVL	$(0x2000000+6), AX	// syscall entry
++	SYSCALL
++	JCC	4(PC)
++	MOVQ	$-1, 16(SP)
++	MOVQ	AX, 24(SP)
++	RET
++	MOVQ	AX, 16(SP)
++	MOVQ	$0, 24(SP)
++	RET
++
++TEXT	syscall·read(SB),1,$-8
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$(0x2000000+3), AX	// syscall entry
++	SYSCALL
++	JCC	4(PC)
++	MOVQ	$-1, 32(SP)
++	MOVQ	AX, 40(SP)
++	RET
++	MOVQ	AX, 32(SP)
++	MOVQ	$0, 40(SP)
++	RET
++
++TEXT	syscall·write(SB),1,$-8
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$(0x2000000+4), AX	// syscall entry
++	SYSCALL
++	JCC	4(PC)
++	MOVQ	$-1, 32(SP)
++	MOVQ	AX, 40(SP)
++	RET
++	MOVQ	AX, 32(SP)
++	MOVQ	$0, 40(SP)
++	RET
++
++//TEXT	fstat(SB),1,$-8
++//	MOVL	8(SP), DI
++//	MOVQ	16(SP), SI
++//	MOVL	$(0x2000000+339), AX	// syscall entry; really fstat64
++//	SYSCALL
++//	RET
++//
++//TEXT	syscall·sigaction(SB),1,$-8
++//	MOVL	8(SP), DI		// arg 1 sig
++//	MOVQ	16(SP), SI		// arg 2 act
++//	MOVQ	24(SP), DX		// arg 3 oact
++//	MOVQ	24(SP), CX		// arg 3 oact
++//	MOVQ	24(SP), R10		// arg 3 oact
++//	MOVL	$(0x2000000+46), AX	// syscall entry
++//	SYSCALL
++//	JCC	2(PC)
++//	CALL	notok(SB)
++//	RET
++//
++//TEXT sigtramp(SB),1,$24
++//	MOVL	DX,0(SP)
++//	MOVQ	CX,8(SP)
++//	MOVQ	R8,16(SP)
++//	CALL	sighandler(SB)
++//	RET
++//
++//TEXT	syscall·mmap(SB),1,$-8
++//	MOVQ	8(SP), DI		// arg 1 addr
++//	MOVL	16(SP), SI		// arg 2 len
++//	MOVL	20(SP), DX		// arg 3 prot
++//	MOVL	24(SP), R10		// arg 4 flags
++//	MOVL	28(SP), R8		// arg 5 fid
++//	MOVL	32(SP), R9		// arg 6 offset
++//	MOVL	$(0x2000000+197), AX	// syscall entry
++//	SYSCALL
++//	JCC	2(PC)
++//	CALL	notok(SB)
++//	RET
+diff --git a/src/syscall/syscall_amd64_linux.s b/src/syscall/syscall_amd64_linux.s
+new file mode 100644
+index 0000000000..9690a96362
+--- /dev/null
++++ b/src/syscall/syscall_amd64_linux.s
+@@ -0,0 +1,123 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls for AMD64, Linux
++//
++
++//TEXT	sys·exit(SB),1,$0-8
++//	MOVL	8(SP), DI
++//	MOVL	$60, AX
++//	SYSCALL
++//	RET
++
++TEXT	syscall·open(SB),1,$0-16
++	MOVQ	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	$0, DX
++	MOVQ	$2, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	5(PC)
++	MOVQ	$-1, 24(SP)
++	NEGQ	AX
++	MOVQ	AX, 32(SP)
++	RET
++	MOVQ	AX, 24(SP)
++	MOVQ	$0, 32(SP)
++	RET
++
++TEXT	syscall·close(SB),1,$0-16
++	MOVQ	8(SP), DI
++	MOVL	$3, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	5(PC)
++	MOVQ	$-1, 16(SP)
++	NEGQ	AX
++	MOVQ	AX, 24(SP)
++	RET
++	MOVQ	AX, 16(SP)
++	MOVQ	$0, 24(SP)
++	RET
++
++//TEXT	fstat(SB),1,$0-16
++//	MOVL	8(SP), DI
++//	MOVQ	16(SP), SI
++//	MOVL	$5, AX			// syscall entry
++//	SYSCALL
++//	RET
++
++TEXT	syscall·read(SB),1,$0-16
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVL	$0, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	5(PC)
++	MOVQ	$-1, 32(SP)
++	NEGQ	AX
++	MOVQ	AX, 40(SP)
++	RET
++	MOVQ	AX, 32(SP)
++	MOVQ	$0, 40(SP)
++	RET
++
++TEXT	syscall·write(SB),1,$0-16
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVL	24(SP), DX
++	MOVL	$1, AX			// syscall entry
++	SYSCALL
++	CMPQ	AX, $0xfffffffffffff001
++	JLS	5(PC)
++	MOVQ	$-1, 32(SP)
++	NEGQ	AX
++	MOVQ	AX, 40(SP)
++	RET
++	MOVQ	AX, 32(SP)
++	MOVQ	$0, 40(SP)
++	RET
++
++//TEXT	sys·rt_sigaction(SB),1,$0-32
++//	MOVL	8(SP), DI
++//	MOVQ	16(SP), SI
++//	MOVQ	24(SP), DX
++//	MOVQ	32(SP), CX
++//	MOVL	CX, R10
++//	MOVL	$13, AX			// syscall entry
++//	SYSCALL
++//	RET
++//
++//TEXT	sigtramp(SB),1,$24-16
++//	MOVQ	DI,0(SP)
++//	MOVQ	SI,8(SP)
++//	MOVQ	DX,16(SP)
++//	CALL	sighandler(SB)
++//	RET
++//
++//TEXT	sys·mmap(SB),1,$0-32
++//	MOVQ	8(SP), DI
++//	MOVL	16(SP), SI
++//	MOVL	20(SP), DX
++//	MOVL	24(SP), CX
++//	MOVL	28(SP), R8
++//	MOVL	32(SP), R9
++//
++///* flags arg for ANON is 1000 but sb 20 */
++//	MOVL	CX, AX
++//	ANDL	$~0x1000, CX
++//	ANDL	$0x1000, AX
++//	SHRL	$7, AX
++//	ORL	AX, CX
++//
++//	MOVL	CX, R10
++//	MOVL	$9, AX			// syscall entry
++//	SYSCALL
++//	CMPQ	AX, $0xfffffffffffff001
++//	JLS	2(PC)
++//	CALL	notok(SB)
++//	RET
++//

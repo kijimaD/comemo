@@ -23,7 +23,187 @@ Date:   Mon Mar 18 20:06:17 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/net/mail/message.go      | 69 +++++++++++++++++++++++++++++++++++++++++---
  src/net/mail/message_test.go | 42 +++++++++++++++++++++++++++
  2 files changed, 107 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/mail/message.go b/src/net/mail/message.go
+index bb40ccd20a..21b075e78a 100644
+--- a/src/net/mail/message.go
++++ b/src/net/mail/message.go
+@@ -24,6 +24,7 @@ import (
+ 	"io"
+ 	"log"
+ 	"mime"
++	"net"
+ 	"net/textproto"
+ 	"strings"
+ 	"sync"
+@@ -553,10 +554,19 @@ func (p *addrParser) consumeAddrSpec() (spec string, err error) {
+ 	if p.empty() {
+ 		return "", errors.New("mail: no domain in addr-spec")
+ 	}
+-	// TODO(dsymonds): Handle domain-literal
+-	domain, err = p.consumeAtom(true, false)
+-	if err != nil {
+-		return "", err
++
++	if p.peek() == '[' {
++		// domain-literal
++		domain, err = p.consumeDomainLiteral()
++		if err != nil {
++			return "", err
++		}
++	} else {
++		// dot-atom
++		domain, err = p.consumeAtom(true, false)
++		if err != nil {
++			return "", err
++		}
+ 	}
+ 
+ 	return localPart + "@" + domain, nil
+@@ -707,6 +717,48 @@ Loop:
+ 	return atom, nil
+ }
+ 
++// consumeDomainLiteral parses an RFC 5322 domain-literal at the start of p.
++func (p *addrParser) consumeDomainLiteral() (string, error) {
++	// Skip the leading [
++	if !p.consume('[') {
++		return "", errors.New(`mail: missing "[" in domain-literal`)
++	}
++
++	// Parse the dtext
++	var dtext string
++	for {
++		if p.empty() {
++			return "", errors.New("mail: unclosed domain-literal")
++		}
++		if p.peek() == ']' {
++			break
++		}
++
++		r, size := utf8.DecodeRuneInString(p.s)
++		if size == 1 && r == utf8.RuneError {
++			return "", fmt.Errorf("mail: invalid utf-8 in domain-literal: %q", p.s)
++		}
++		if !isDtext(r) {
++			return "", fmt.Errorf("mail: bad character in domain-literal: %q", r)
++		}
++
++		dtext += p.s[:size]
++		p.s = p.s[size:]
++	}
++
++	// Skip the trailing ]
++	if !p.consume(']') {
++		return "", errors.New("mail: unclosed domain-literal")
++	}
++
++	// Check if the domain literal is an IP address
++	if net.ParseIP(dtext) == nil {
++		return "", fmt.Errorf("mail: invalid IP address in domain-literal: %q", dtext)
++	}
++
++	return "[" + dtext + "]", nil
++}
++
+ func (p *addrParser) consumeDisplayNameComment() (string, error) {
+ 	if !p.consume('(') {
+ 		return "", errors.New("mail: comment does not start with (")
+@@ -912,3 +964,12 @@ func isMultibyte(r rune) bool {
+ func isWSP(r rune) bool {
+ 	return r == ' ' || r == '\t'
+ }
++
++// isDtext reports whether r is an RFC 5322 dtext character.
++func isDtext(r rune) bool {
++	// Printable US-ASCII, excluding "[", "]", or "\".
++	if r == '[' || r == ']' || r == '\\' {
++		return false
++	}
++	return isVchar(r)
++}
+diff --git a/src/net/mail/message_test.go b/src/net/mail/message_test.go
+index 1f2f62afbf..012d51c3df 100644
+--- a/src/net/mail/message_test.go
++++ b/src/net/mail/message_test.go
+@@ -390,6 +390,10 @@ func TestAddressParsingError(t *testing.T) {
+ 		18: {" group: null@example.com; (asd", "misformatted parenthetical comment"},
+ 		19: {" group: ; (asd", "misformatted parenthetical comment"},
+ 		20: {`(John) Doe <jdoe@machine.example>`, "missing word in phrase:"},
++		21: {"<jdoe@[" + string([]byte{0xed, 0xa0, 0x80}) + "192.168.0.1]>", "invalid utf-8 in domain-literal"},
++		22: {"<jdoe@[[192.168.0.1]>", "bad character in domain-literal"},
++		23: {"<jdoe@[192.168.0.1>", "unclosed domain-literal"},
++		24: {"<jdoe@[256.0.0.1]>", "invalid IP address in domain-literal"},
+ 	}
+ 
+ 	for i, tc := range mustErrTestCases {
+@@ -806,6 +810,20 @@ func TestAddressParsing(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// Domain-literal
++		{
++			`jdoe@[192.168.0.1]`,
++			[]*Address{{
++				Address: "jdoe@[192.168.0.1]",
++			}},
++		},
++		{
++			`John Doe <jdoe@[192.168.0.1]>`,
++			[]*Address{{
++				Name:    "John Doe",
++				Address: "jdoe@[192.168.0.1]",
++			}},
++		},
+ 	}
+ 	for _, test := range tests {
+ 		if len(test.exp) == 1 {
+@@ -956,6 +974,20 @@ func TestAddressParser(t *testing.T) {
+ 				},
+ 			},
+ 		},
++		// Domain-literal
++		{
++			`jdoe@[192.168.0.1]`,
++			[]*Address{{
++				Address: "jdoe@[192.168.0.1]",
++			}},
++		},
++		{
++			`John Doe <jdoe@[192.168.0.1]>`,
++			[]*Address{{
++				Name:    "John Doe",
++				Address: "jdoe@[192.168.0.1]",
++			}},
++		},
+ 	}
+ 
+ 	ap := AddressParser{WordDecoder: &mime.WordDecoder{
+@@ -1062,6 +1094,15 @@ func TestAddressString(t *testing.T) {
+ 			&Address{Name: string([]byte{0xed, 0xa0, 0x80}), Address: "invalid-utf8@example.net"},
+ 			"=?utf-8?q?=ED=A0=80?= <invalid-utf8@example.net>",
+ 		},
++		// Domain-literal
++		{
++			&Address{Address: "bob@[192.168.0.1]"},
++			"<bob@[192.168.0.1]>",
++		},
++		{
++			&Address{Name: "Bob", Address: "bob@[192.168.0.1]"},
++			`"Bob" <bob@[192.168.0.1]>`,
++		},
+ 	}
+ 	for _, test := range tests {
+ 		s := test.addr.String()
+@@ -1115,6 +1156,7 @@ func TestAddressParsingAndFormatting(t *testing.T) {
+ 		`<"."@example.com>`,
+ 		`<".."@example.com>`,
+ 		`<"0:"@0>`,
++		`<Bob@[192.168.0.1]>`,
+ 	}
+ 
+ 	for _, test := range tests {

@@ -14,8 +14,86 @@ Date:   Fri Sep 4 14:35:57 2020 -0400
     Change-Id: I19ec771b77d752b83a54c53b6ee65af78a31b8ae
     Reviewed-on: https://go-review.googlesource.com/c/go/+/253558
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm64/obj.go              |  2 +-
  src/cmd/link/internal/ld/lib.go                 |  4 ++--
  src/cmd/link/internal/ld/macho_combine_dwarf.go | 17 ++---------------
  3 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index 37b72b6c37..a980cfee52 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -105,7 +105,7 @@ func archinit(ctxt *ld.Link) {
+ 			*ld.FlagTextAddr = 4096 + int64(ld.HEADR)
+ 		}
+ 		if *ld.FlagRound == -1 {
+-			*ld.FlagRound = 4096
++			*ld.FlagRound = 16384 // 16K page alignment
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 54ac109b20..4295b2a660 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1240,11 +1240,11 @@ func (ctxt *Link) hostlink() {
+ 
+ 	// On darwin, whether to combine DWARF into executable.
+ 	// Only macOS supports unmapped segments such as our __DWARF segment.
+-	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64()
++	combineDwarf := ctxt.IsDarwin() && !*FlagS && !*FlagW && !debug_s && machoPlatform == PLATFORM_MACOS
+ 
+ 	switch ctxt.HeadType {
+ 	case objabi.Hdarwin:
+-		if machoPlatform == PLATFORM_MACOS && ctxt.IsAMD64() {
++		if combineDwarf {
+ 			// Leave room for DWARF combining.
+ 			// -headerpad is incompatible with -fembed-bitcode.
+ 			argv = append(argv, "-Wl,-headerpad,1144")
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index e43aeb1eb7..77ee8a4d62 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -16,10 +16,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-const (
+-	pageAlign = 12 // 4096 = 1 << 12
+-)
+-
+ type loadCmd struct {
+ 	Cmd macho.LoadCmd
+ 	Len uint32
+@@ -138,7 +134,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 	// Now copy the dwarf data into the output.
+ 	// Kernel requires all loaded segments to be page-aligned in the file,
+ 	// even though we mark this one as being 0 bytes of virtual address space.
+-	dwarfstart := machoCalcStart(realdwarf.Offset, linkseg.Offset, pageAlign)
++	dwarfstart := Rnd(int64(linkseg.Offset), int64(*FlagRound))
+ 	if _, err := outf.Seek(dwarfstart, 0); err != nil {
+ 		return err
+ 	}
+@@ -166,7 +162,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 	if _, err := exef.Seek(int64(linkseg.Offset), 0); err != nil {
+ 		return err
+ 	}
+-	linkstart := machoCalcStart(linkseg.Offset, uint64(dwarfstart)+dwarfsize, pageAlign)
++	linkstart := Rnd(dwarfstart+int64(dwarfsize), int64(*FlagRound))
+ 	if _, err := outf.Seek(linkstart, 0); err != nil {
+ 		return err
+ 	}
+@@ -432,12 +428,3 @@ func machoUpdateLoadCommand(r loadCmdReader, linkseg *macho.Segment, linkoffset
+ 	}
+ 	return nil
+ }
+-
+-func machoCalcStart(origAddr, newAddr uint64, alignExp uint32) int64 {
+-	align := uint64(1 << alignExp)
+-	origMod, newMod := origAddr%align, newAddr%align
+-	if origMod == newMod {
+-		return int64(newAddr)
+-	}
+-	return int64(newAddr + align + origMod - newMod)
+-}

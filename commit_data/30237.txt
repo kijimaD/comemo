@@ -46,9 +46,105 @@ Date:   Sun Sep 25 17:12:43 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/31368
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go    |  1 +
  src/runtime/mcache.go    |  1 -
  src/runtime/mfixalloc.go | 11 ++++++++++-
  src/runtime/mheap.go     | 10 ++++++++++
  4 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e85535ea9f..c5f6facc4d 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -903,6 +903,7 @@ var globalAlloc struct {
+ // There is no associated free operation.
+ // Intended for things like function/type/debug-related persistent data.
+ // If align is 0, uses default align (currently 8).
++// The returned memory will be zeroed.
+ //
+ // Consider marking persistentalloc'd types go:notinheap.
+ func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 38d5492df1..c483310cee 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -77,7 +77,6 @@ func allocmcache() *mcache {
+ 	lock(&mheap_.lock)
+ 	c := (*mcache)(mheap_.cachealloc.alloc())
+ 	unlock(&mheap_.lock)
+-	memclr(unsafe.Pointer(c), unsafe.Sizeof(*c))
+ 	for i := 0; i < _NumSizeClasses; i++ {
+ 		c.alloc[i] = &emptymspan
+ 	}
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index 0e56efb923..0d3d895113 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -14,7 +14,11 @@ import "unsafe"
+ // Malloc uses a FixAlloc wrapped around sysAlloc to manages its
+ // MCache and MSpan objects.
+ //
+-// Memory returned by FixAlloc_Alloc is not zeroed.
++// Memory returned by fixalloc.alloc is zeroed by default, but the
++// caller may take responsibility for zeroing allocations by setting
++// the zero flag to false. This is only safe if the memory never
++// contains heap pointers.
++//
+ // The caller is responsible for locking around FixAlloc calls.
+ // Callers can keep state in the object but the first word is
+ // smashed by freeing and reallocating.
+@@ -29,6 +33,7 @@ type fixalloc struct {
+ 	nchunk uint32
+ 	inuse  uintptr // in-use bytes now
+ 	stat   *uint64
++	zero   bool // zero allocations
+ }
+ 
+ // A generic linked list of blocks.  (Typically the block is bigger than sizeof(MLink).)
+@@ -53,6 +58,7 @@ func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg uns
+ 	f.nchunk = 0
+ 	f.inuse = 0
+ 	f.stat = stat
++	f.zero = true
+ }
+ 
+ func (f *fixalloc) alloc() unsafe.Pointer {
+@@ -65,6 +71,9 @@ func (f *fixalloc) alloc() unsafe.Pointer {
+ 		v := unsafe.Pointer(f.list)
+ 		f.list = f.list.next
+ 		f.inuse += f.size
++		if f.zero {
++			memclr(v, f.size)
++		}
+ 		return v
+ 	}
+ 	if uintptr(f.nchunk) < f.size {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d17363261e..e81e410ad8 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -406,6 +406,15 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
+ 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+ 
++	// Don't zero mspan allocations. Background sweeping can
++	// inspect a span concurrently with allocating it, so it's
++	// important that the span's sweepgen survive across freeing
++	// and re-allocating a span to prevent background sweeping
++	// from improperly cas'ing it from 0.
++	//
++	// This is safe because mspan contains no heap pointers.
++	h.spanalloc.zero = false
++
+ 	// h->mapcache needs no init
+ 	for i := range h.free {
+ 		h.free[i].init()
+@@ -1004,6 +1013,7 @@ func runtime_debug_freeOSMemory() {
+ 
+ // Initialize a new span with the given start and npages.
+ func (span *mspan) init(base uintptr, npages uintptr) {
++	// span is *not* zeroed.
+ 	span.next = nil
+ 	span.prev = nil
+ 	span.list = nil

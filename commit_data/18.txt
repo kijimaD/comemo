@@ -5,6 +5,38 @@ Date:   Thu Mar 6 23:06:05 2008 -0800
     - get rid of Designator terminology
     
     SVN=111696
-
+---
  doc/go_lang.txt | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index 9077478b39..ac7b12d7d1 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -1137,13 +1137,14 @@ Assignments
+ ----
+ 
+   Assignment = SingleAssignment | TupleAssignment | Send .
+-  SimpleAssignment = Designator assign_op Expression .
+-  TupleAssignment = DesignatorList assign_op ExpressionList .
++  SingleAssignment = PrimaryExpr assign_op Expression .
++  TupleAssignment = PrimaryExprList assign_op ExpressionList .
++  PrimaryExprList = PrimaryExpr { "," PrimaryExpr } .
+   Send = '>' Expression '=' Expression .
+   
+   assign_op = [ add_op | mul_op ] '=' .
+ 
+-The designator must be an l-value such as a variable, pointer indirection,
++The left-hand side must be an l-value such as a variable, pointer indirection,
+ or an array indexing.
+ 
+   x = 1
+@@ -1189,7 +1190,7 @@ must denote a channel pointer value.
+ 
+   >chan_ptr = value
+   
+-In assignments, the type of the expression must match the type of the designator.
++In assignments, the type of the expression must match the type of the left-hand side.
+ 
+ 
+ Go statements

@@ -17,7 +17,69 @@ Date:   Tue Oct 22 14:44:29 2019 +0200
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/crash_test.go      | 30 ------------------------------
  src/runtime/crash_unix_test.go |  2 --
  2 files changed, 32 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 0bee734a27..6c3127fa75 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -104,8 +104,6 @@ func buildTestProg(t *testing.T, binary string, flags ...string) (string, error)
+ 		t.Skip("-quick")
+ 	}
+ 
+-	checkStaleRuntime(t)
+-
+ 	testprog.Lock()
+ 	defer testprog.Unlock()
+ 	if testprog.dir == "" {
+@@ -152,34 +150,6 @@ func TestVDSO(t *testing.T) {
+ 	}
+ }
+ 
+-var (
+-	staleRuntimeOnce sync.Once // guards init of staleRuntimeErr
+-	staleRuntimeErr  error
+-)
+-
+-func checkStaleRuntime(t *testing.T) {
+-	staleRuntimeOnce.Do(func() {
+-		// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-		out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+-		if err != nil {
+-			staleRuntimeErr = fmt.Errorf("failed to execute 'go list': %v\n%v", err, string(out))
+-			return
+-		}
+-		if string(out) != "false\n" {
+-			t.Logf("go list -f {{.Stale}} runtime:\n%s", out)
+-			out, err := testenv.CleanCmdEnv(exec.Command(testenv.GoToolPath(t), "list", "-gcflags=all="+os.Getenv("GO_GCFLAGS"), "-f", "{{.StaleReason}}", "runtime")).CombinedOutput()
+-			if err != nil {
+-				t.Logf("go list -f {{.StaleReason}} failed: %v", err)
+-			}
+-			t.Logf("go list -f {{.StaleReason}} runtime:\n%s", out)
+-			staleRuntimeErr = fmt.Errorf("Stale runtime.a. Run 'go install runtime'.")
+-		}
+-	})
+-	if staleRuntimeErr != nil {
+-		t.Fatal(staleRuntimeErr)
+-	}
+-}
+-
+ func testCrashHandler(t *testing.T, cgo bool) {
+ 	type crashTest struct {
+ 		Cgo bool
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 93cee350d0..2944c9904c 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -78,8 +78,6 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	checkStaleRuntime(t)
+-
+ 	t.Parallel()
+ 
+ 	dir, err := ioutil.TempDir("", "go-build")

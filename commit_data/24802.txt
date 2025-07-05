@@ -7,6 +7,30 @@ Date:   Mon Aug 31 20:42:04 2015 -0500
     Change-Id: Ib0ea4b9c245f3d551e0f703826caa6b444b56a2d
     Reviewed-on: https://go-review.googlesource.com/14136
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 00b7ad846b..3122c7a130 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -912,6 +912,8 @@ func (s *regAllocState) regalloc(f *Func) {
+ 					spill2.Op = OpInvalid
+ 					spill2.Type = TypeInvalid
+ 					spill2.resetArgs()
++				} else if logSpills {
++					fmt.Println("regalloc: spilled phi")
+ 				}
+ 				s.values[v.ID].spill2 = nil
+ 				s.values[v.ID].spill2used = false
+@@ -926,6 +928,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 	for i := range s.values {
+ 		vi := s.values[i]
+ 		if vi.spillUsed {
++			if logSpills {
++				fmt.Println("regalloc: spilled value")
++			}
+ 			continue
+ 		}
+ 		spill := vi.spill

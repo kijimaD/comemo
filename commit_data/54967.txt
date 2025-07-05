@@ -11,6 +11,20 @@ Date:   Mon Nov 28 14:22:10 2022 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/hosts.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 2ba8536569..7c8642c6ac 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -101,7 +101,7 @@ func readHosts() {
+ 
+ 			is[addr] = append(is[addr], name)
+ 
+-			if v,ok := hs[key]; ok {
++			if v, ok := hs[key]; ok {
+ 				hs[key] = byName{
+ 					addrs:         append(v.addrs, addr),
+ 					canonicalName: v.canonicalName,

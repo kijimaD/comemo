@@ -7,7 +7,7 @@ Date:   Wed Mar 18 12:29:40 2015 -0400
     Change-Id: I652cc7a33a186d1041f62f6e7581421496832a27
     Reviewed-on: https://go-review.googlesource.com/7747
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/cgen.go         | 267 +-------------------------------------------
  src/cmd/5g/galign.go       |   1 +
  src/cmd/5g/ggen.go         |   2 +-
@@ -26,3 +26,1838 @@ Date:   Wed Mar 18 12:29:40 2015 -0400
  src/cmd/internal/gc/gen.go | 265 ++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/internal/gc/go.go  |   1 +
  17 files changed, 291 insertions(+), 1339 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.go b/src/cmd/5g/cgen.go
+index a6cc54db6f..fae1699a04 100644
+--- a/src/cmd/5g/cgen.go
++++ b/src/cmd/5g/cgen.go
+@@ -1530,7 +1530,7 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 	}
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(n, res) {
++	if gc.Componentgen(n, res) {
+ 		return
+ 	}
+ 
+@@ -1725,268 +1725,3 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 	regfree(&src)
+ 	regfree(&tmp)
+ }
+-
+-func cadable(n *gc.Node) bool {
+-	if n.Addable == 0 {
+-		// dont know how it happens,
+-		// but it does
+-		return false
+-	}
+-
+-	switch n.Op {
+-	case gc.ONAME:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * copy a composite value by moving its individual components.
+- * Slices, strings and interfaces are supported.
+- * Small structs or arrays with elements of basic type are
+- * also supported.
+- * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if cant.
+- */
+-func componentgen(nr *gc.Node, nl *gc.Node) bool {
+-	var nodl gc.Node
+-	var nodr gc.Node
+-
+-	freel := 0
+-	freer := 0
+-
+-	switch nl.Type.Etype {
+-	default:
+-		goto no
+-
+-	case gc.TARRAY:
+-		t := nl.Type
+-
+-		// Slices are ok.
+-		if gc.Isslice(t) {
+-			break
+-		}
+-
+-		// Small arrays are ok.
+-		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
+-			break
+-		}
+-
+-		goto no
+-
+-		// Small structs with non-fat types are ok.
+-	// Zero-sized structs are treated separately elsewhere.
+-	case gc.TSTRUCT:
+-		fldcount := int64(0)
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) {
+-				goto no
+-			}
+-			if t.Etype != gc.TFIELD {
+-				gc.Fatal("componentgen: not a TFIELD: %v", gc.Tconv(t, obj.FmtLong))
+-			}
+-			fldcount++
+-		}
+-
+-		if fldcount == 0 || fldcount > 4 {
+-			goto no
+-		}
+-
+-	case gc.TSTRING,
+-		gc.TINTER:
+-		break
+-	}
+-
+-	nodl = *nl
+-	if !cadable(nl) {
+-		if nr != nil && !cadable(nr) {
+-			goto no
+-		}
+-		igen(nl, &nodl, nil)
+-		freel = 1
+-	}
+-
+-	if nr != nil {
+-		nodr = *nr
+-		if !cadable(nr) {
+-			igen(nr, &nodr, nil)
+-			freer = 1
+-		}
+-	} else {
+-		// When zeroing, prepare a register containing zero.
+-		var tmp gc.Node
+-		gc.Nodconst(&tmp, nl.Type, 0)
+-
+-		regalloc(&nodr, gc.Types[gc.TUINT], nil)
+-		gmove(&tmp, &nodr)
+-		freer = 1
+-	}
+-
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if nr != nil && nl.Op == gc.ONAME && nr.Op == gc.ONAME && nl == nr {
+-		goto yes
+-	}
+-
+-	switch nl.Type.Etype {
+-	// componentgen for arrays.
+-	case gc.TARRAY:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		t := nl.Type
+-		if !gc.Isslice(t) {
+-			nodl.Type = t.Type
+-			nodr.Type = nodl.Type
+-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+-				if nr == nil {
+-					gc.Clearslim(&nodl)
+-				} else {
+-					gmove(&nodr, &nodl)
+-				}
+-				nodl.Xoffset += t.Type.Width
+-				nodr.Xoffset += t.Type.Width
+-			}
+-
+-			goto yes
+-		}
+-
+-		// componentgen for slices.
+-		nodl.Xoffset += int64(gc.Array_array)
+-
+-		nodl.Type = gc.Ptrto(nl.Type.Type)
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRING:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TINTER:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRUCT:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		loffset := nodl.Xoffset
+-		roffset := nodr.Xoffset
+-
+-		// funarg structs may not begin at offset zero.
+-		if nl.Type.Etype == gc.TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+-			loffset -= nl.Type.Type.Width
+-		}
+-		if nr != nil && nr.Type.Etype == gc.TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+-			roffset -= nr.Type.Type.Width
+-		}
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			nodl.Xoffset = loffset + t.Width
+-			nodl.Type = t.Type
+-
+-			if nr == nil {
+-				gc.Clearslim(&nodl)
+-			} else {
+-				nodr.Xoffset = roffset + t.Width
+-				nodr.Type = nodl.Type
+-				gmove(&nodr, &nodl)
+-			}
+-		}
+-
+-		goto yes
+-	}
+-
+-no:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return false
+-
+-yes:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return true
+-}
+diff --git a/src/cmd/5g/galign.go b/src/cmd/5g/galign.go
+index 4b8b82c561..c565550ab0 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/5g/galign.go
+@@ -61,6 +61,7 @@ func main() {
+ 	gc.Thearch.Ginit = ginit
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginscall = ginscall
++	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igen = igen
+ 	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+diff --git a/src/cmd/5g/ggen.go b/src/cmd/5g/ggen.go
+index 353817779a..6eb95010f9 100644
+--- a/src/cmd/5g/ggen.go
++++ b/src/cmd/5g/ggen.go
+@@ -657,7 +657,7 @@ func clearfat(nl *gc.Node) {
+ 	w := uint32(nl.Type.Width)
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(nil, nl) {
++	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/6g/cgen.go b/src/cmd/6g/cgen.go
+index b757232d69..d11f7c7f69 100644
+--- a/src/cmd/6g/cgen.go
++++ b/src/cmd/6g/cgen.go
+@@ -1441,7 +1441,7 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	}
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(n, ns) {
++	if gc.Componentgen(n, ns) {
+ 		return
+ 	}
+ 
+@@ -1612,268 +1612,3 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 
+ 	restx(&cx, &oldcx)
+ }
+-
+-func cadable(n *gc.Node) bool {
+-	if n.Addable == 0 {
+-		// dont know how it happens,
+-		// but it does
+-		return false
+-	}
+-
+-	switch n.Op {
+-	case gc.ONAME:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * copy a composite value by moving its individual components.
+- * Slices, strings and interfaces are supported.
+- * Small structs or arrays with elements of basic type are
+- * also supported.
+- * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if can't.
+- */
+-func componentgen(nr *gc.Node, nl *gc.Node) bool {
+-	var nodl gc.Node
+-	var nodr gc.Node
+-
+-	freel := 0
+-	freer := 0
+-
+-	switch nl.Type.Etype {
+-	default:
+-		goto no
+-
+-	case gc.TARRAY:
+-		t := nl.Type
+-
+-		// Slices are ok.
+-		if gc.Isslice(t) {
+-			break
+-		}
+-
+-		// Small arrays are ok.
+-		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
+-			break
+-		}
+-
+-		goto no
+-
+-		// Small structs with non-fat types are ok.
+-	// Zero-sized structs are treated separately elsewhere.
+-	case gc.TSTRUCT:
+-		fldcount := int64(0)
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) && !gc.Isslice(t) {
+-				goto no
+-			}
+-			if t.Etype != gc.TFIELD {
+-				gc.Fatal("componentgen: not a TFIELD: %v", gc.Tconv(t, obj.FmtLong))
+-			}
+-			fldcount++
+-		}
+-
+-		if fldcount == 0 || fldcount > 4 {
+-			goto no
+-		}
+-
+-	case gc.TSTRING,
+-		gc.TINTER:
+-		break
+-	}
+-
+-	nodl = *nl
+-	if !cadable(nl) {
+-		if nr != nil && !cadable(nr) {
+-			goto no
+-		}
+-		igen(nl, &nodl, nil)
+-		freel = 1
+-	}
+-
+-	if nr != nil {
+-		nodr = *nr
+-		if !cadable(nr) {
+-			igen(nr, &nodr, nil)
+-			freer = 1
+-		}
+-	} else {
+-		// When zeroing, prepare a register containing zero.
+-		var tmp gc.Node
+-		gc.Nodconst(&tmp, nl.Type, 0)
+-
+-		regalloc(&nodr, gc.Types[gc.TUINT], nil)
+-		gmove(&tmp, &nodr)
+-		freer = 1
+-	}
+-
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if nr != nil && nl.Op == gc.ONAME && nr.Op == gc.ONAME && nl == nr {
+-		goto yes
+-	}
+-
+-	switch nl.Type.Etype {
+-	// componentgen for arrays.
+-	case gc.TARRAY:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		t := nl.Type
+-		if !gc.Isslice(t) {
+-			nodl.Type = t.Type
+-			nodr.Type = nodl.Type
+-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+-				if nr == nil {
+-					gc.Clearslim(&nodl)
+-				} else {
+-					gmove(&nodr, &nodl)
+-				}
+-				nodl.Xoffset += t.Type.Width
+-				nodr.Xoffset += t.Type.Width
+-			}
+-
+-			goto yes
+-		}
+-
+-		// componentgen for slices.
+-		nodl.Xoffset += int64(gc.Array_array)
+-
+-		nodl.Type = gc.Ptrto(nl.Type.Type)
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRING:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TINTER:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRUCT:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		loffset := nodl.Xoffset
+-		roffset := nodr.Xoffset
+-
+-		// funarg structs may not begin at offset zero.
+-		if nl.Type.Etype == gc.TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+-			loffset -= nl.Type.Type.Width
+-		}
+-		if nr != nil && nr.Type.Etype == gc.TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+-			roffset -= nr.Type.Type.Width
+-		}
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			nodl.Xoffset = loffset + t.Width
+-			nodl.Type = t.Type
+-
+-			if nr == nil {
+-				gc.Clearslim(&nodl)
+-			} else {
+-				nodr.Xoffset = roffset + t.Width
+-				nodr.Type = nodl.Type
+-				gmove(&nodr, &nodl)
+-			}
+-		}
+-
+-		goto yes
+-	}
+-
+-no:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return false
+-
+-yes:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return true
+-}
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index 6a2bac84d8..ca8d387c2a 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -86,6 +86,7 @@ func main() {
+ 	gc.Thearch.Ginit = ginit
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginscall = ginscall
++	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igen = igen
+ 	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+diff --git a/src/cmd/6g/ggen.go b/src/cmd/6g/ggen.go
+index f980593948..42bebf8ca0 100644
+--- a/src/cmd/6g/ggen.go
++++ b/src/cmd/6g/ggen.go
+@@ -950,7 +950,7 @@ func clearfat(nl *gc.Node) {
+ 	w := nl.Type.Width
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(nil, nl) {
++	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/7g/cgen.go b/src/cmd/7g/cgen.go
+index 455113bbf2..b18ba5f178 100644
+--- a/src/cmd/7g/cgen.go
++++ b/src/cmd/7g/cgen.go
+@@ -1424,8 +1424,10 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	}
+ 
+ 	// Avoid taking the address for simple enough types.
+-	//if(componentgen(n, ns))
+-	//	return;
++	//if gc.Componentgen(n, ns) {
++	//	return
++	//}
++
+ 	if w == 0 {
+ 		// evaluate side effects only.
+ 		var dst gc.Node
+@@ -1598,268 +1600,3 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	regfree(&src)
+ 	regfree(&tmp)
+ }
+-
+-func cadable(n *gc.Node) bool {
+-	if n.Addable == 0 {
+-		// dont know how it happens,
+-		// but it does
+-		return false
+-	}
+-
+-	switch n.Op {
+-	case gc.ONAME:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * copy a composite value by moving its individual components.
+- * Slices, strings and interfaces are supported.
+- * Small structs or arrays with elements of basic type are
+- * also supported.
+- * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if can't.
+- */
+-func componentgen(nr *gc.Node, nl *gc.Node) bool {
+-	var nodl gc.Node
+-	var nodr gc.Node
+-
+-	freel := 0
+-	freer := 0
+-
+-	switch nl.Type.Etype {
+-	default:
+-		goto no
+-
+-	case gc.TARRAY:
+-		t := nl.Type
+-
+-		// Slices are ok.
+-		if gc.Isslice(t) {
+-			break
+-		}
+-
+-		// Small arrays are ok.
+-		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
+-			break
+-		}
+-
+-		goto no
+-
+-		// Small structs with non-fat types are ok.
+-	// Zero-sized structs are treated separately elsewhere.
+-	case gc.TSTRUCT:
+-		fldcount := int64(0)
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) {
+-				goto no
+-			}
+-			if t.Etype != gc.TFIELD {
+-				gc.Fatal("componentgen: not a TFIELD: %v", gc.Tconv(t, obj.FmtLong))
+-			}
+-			fldcount++
+-		}
+-
+-		if fldcount == 0 || fldcount > 4 {
+-			goto no
+-		}
+-
+-	case gc.TSTRING,
+-		gc.TINTER:
+-		break
+-	}
+-
+-	nodl = *nl
+-	if !cadable(nl) {
+-		if nr != nil && !cadable(nr) {
+-			goto no
+-		}
+-		igen(nl, &nodl, nil)
+-		freel = 1
+-	}
+-
+-	if nr != nil {
+-		nodr = *nr
+-		if !cadable(nr) {
+-			igen(nr, &nodr, nil)
+-			freer = 1
+-		}
+-	} else {
+-		// When zeroing, prepare a register containing zero.
+-		var tmp gc.Node
+-		gc.Nodconst(&tmp, nl.Type, 0)
+-
+-		regalloc(&nodr, gc.Types[gc.TUINT], nil)
+-		gmove(&tmp, &nodr)
+-		freer = 1
+-	}
+-
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if nr != nil && nl.Op == gc.ONAME && nr.Op == gc.ONAME && nl == nr {
+-		goto yes
+-	}
+-
+-	switch nl.Type.Etype {
+-	// componentgen for arrays.
+-	case gc.TARRAY:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		t := nl.Type
+-		if !gc.Isslice(t) {
+-			nodl.Type = t.Type
+-			nodr.Type = nodl.Type
+-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+-				if nr == nil {
+-					gc.Clearslim(&nodl)
+-				} else {
+-					gmove(&nodr, &nodl)
+-				}
+-				nodl.Xoffset += t.Type.Width
+-				nodr.Xoffset += t.Type.Width
+-			}
+-
+-			goto yes
+-		}
+-
+-		// componentgen for slices.
+-		nodl.Xoffset += int64(gc.Array_array)
+-
+-		nodl.Type = gc.Ptrto(nl.Type.Type)
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRING:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TINTER:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRUCT:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		loffset := nodl.Xoffset
+-		roffset := nodr.Xoffset
+-
+-		// funarg structs may not begin at offset zero.
+-		if nl.Type.Etype == gc.TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+-			loffset -= nl.Type.Type.Width
+-		}
+-		if nr != nil && nr.Type.Etype == gc.TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+-			roffset -= nr.Type.Type.Width
+-		}
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			nodl.Xoffset = loffset + t.Width
+-			nodl.Type = t.Type
+-
+-			if nr == nil {
+-				gc.Clearslim(&nodl)
+-			} else {
+-				nodr.Xoffset = roffset + t.Width
+-				nodr.Type = nodl.Type
+-				gmove(&nodr, &nodl)
+-			}
+-		}
+-
+-		goto yes
+-	}
+-
+-no:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return false
+-
+-yes:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return true
+-}
+diff --git a/src/cmd/7g/galign.go b/src/cmd/7g/galign.go
+index 52ac23c39a..19c4d386fa 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/7g/galign.go
+@@ -60,6 +60,7 @@ func main() {
+ 	gc.Thearch.Ginit = ginit
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginscall = ginscall
++	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igen = igen
+ 	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+diff --git a/src/cmd/7g/ggen.go b/src/cmd/7g/ggen.go
+index 7eb913f22b..cb486639e2 100644
+--- a/src/cmd/7g/ggen.go
++++ b/src/cmd/7g/ggen.go
+@@ -720,8 +720,9 @@ func clearfat(nl *gc.Node) {
+ 	w := uint64(uint64(nl.Type.Width))
+ 
+ 	// Avoid taking the address for simple enough types.
+-	//if(componentgen(N, nl))
+-	//	return;
++	//if gc.Componentgen(nil, nl) {
++	//	return
++	//}
+ 
+ 	c := uint64(w % 8) // bytes
+ 	q := uint64(w / 8) // dwords
+diff --git a/src/cmd/8g/cgen.go b/src/cmd/8g/cgen.go
+index aefae7ed85..2a10e49bd4 100644
+--- a/src/cmd/8g/cgen.go
++++ b/src/cmd/8g/cgen.go
+@@ -1332,7 +1332,7 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 	}
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(n, res) {
++	if gc.Componentgen(n, res) {
+ 		return
+ 	}
+ 
+@@ -1462,268 +1462,3 @@ func sgen(n *gc.Node, res *gc.Node, w int64) {
+ 		}
+ 	}
+ }
+-
+-func cadable(n *gc.Node) bool {
+-	if n.Addable == 0 {
+-		// dont know how it happens,
+-		// but it does
+-		return false
+-	}
+-
+-	switch n.Op {
+-	case gc.ONAME:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * copy a composite value by moving its individual components.
+- * Slices, strings and interfaces are supported.
+- * Small structs or arrays with elements of basic type are
+- * also supported.
+- * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if can't.
+- */
+-func componentgen(nr *gc.Node, nl *gc.Node) bool {
+-	var nodl gc.Node
+-	var nodr gc.Node
+-
+-	freel := 0
+-	freer := 0
+-
+-	switch nl.Type.Etype {
+-	default:
+-		goto no
+-
+-	case gc.TARRAY:
+-		t := nl.Type
+-
+-		// Slices are ok.
+-		if gc.Isslice(t) {
+-			break
+-		}
+-
+-		// Small arrays are ok.
+-		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
+-			break
+-		}
+-
+-		goto no
+-
+-		// Small structs with non-fat types are ok.
+-	// Zero-sized structs are treated separately elsewhere.
+-	case gc.TSTRUCT:
+-		fldcount := int64(0)
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) {
+-				goto no
+-			}
+-			if t.Etype != gc.TFIELD {
+-				gc.Fatal("componentgen: not a TFIELD: %v", gc.Tconv(t, obj.FmtLong))
+-			}
+-			fldcount++
+-		}
+-
+-		if fldcount == 0 || fldcount > 4 {
+-			goto no
+-		}
+-
+-	case gc.TSTRING,
+-		gc.TINTER:
+-		break
+-	}
+-
+-	nodl = *nl
+-	if !cadable(nl) {
+-		if nr != nil && !cadable(nr) {
+-			goto no
+-		}
+-		igen(nl, &nodl, nil)
+-		freel = 1
+-	}
+-
+-	if nr != nil {
+-		nodr = *nr
+-		if !cadable(nr) {
+-			igen(nr, &nodr, nil)
+-			freer = 1
+-		}
+-	} else {
+-		// When zeroing, prepare a register containing zero.
+-		var tmp gc.Node
+-		gc.Nodconst(&tmp, nl.Type, 0)
+-
+-		regalloc(&nodr, gc.Types[gc.TUINT], nil)
+-		gmove(&tmp, &nodr)
+-		freer = 1
+-	}
+-
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if nr != nil && nl.Op == gc.ONAME && nr.Op == gc.ONAME && nl == nr {
+-		goto yes
+-	}
+-
+-	switch nl.Type.Etype {
+-	// componentgen for arrays.
+-	case gc.TARRAY:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		t := nl.Type
+-		if !gc.Isslice(t) {
+-			nodl.Type = t.Type
+-			nodr.Type = nodl.Type
+-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+-				if nr == nil {
+-					gc.Clearslim(&nodl)
+-				} else {
+-					gmove(&nodr, &nodl)
+-				}
+-				nodl.Xoffset += t.Type.Width
+-				nodr.Xoffset += t.Type.Width
+-			}
+-
+-			goto yes
+-		}
+-
+-		// componentgen for slices.
+-		nodl.Xoffset += int64(gc.Array_array)
+-
+-		nodl.Type = gc.Ptrto(nl.Type.Type)
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRING:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TINTER:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRUCT:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		loffset := nodl.Xoffset
+-		roffset := nodr.Xoffset
+-
+-		// funarg structs may not begin at offset zero.
+-		if nl.Type.Etype == gc.TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+-			loffset -= nl.Type.Type.Width
+-		}
+-		if nr != nil && nr.Type.Etype == gc.TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+-			roffset -= nr.Type.Type.Width
+-		}
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			nodl.Xoffset = loffset + t.Width
+-			nodl.Type = t.Type
+-
+-			if nr == nil {
+-				gc.Clearslim(&nodl)
+-			} else {
+-				nodr.Xoffset = roffset + t.Width
+-				nodr.Type = nodl.Type
+-				gmove(&nodr, &nodl)
+-			}
+-		}
+-
+-		goto yes
+-	}
+-
+-no:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return false
+-
+-yes:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return true
+-}
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 7c462f521f..f0c878aed4 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -61,6 +61,7 @@ func main() {
+ 	gc.Thearch.Ginit = ginit
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginscall = ginscall
++	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igen = igen
+ 	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 077b6579bb..3a197cd931 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -112,7 +112,7 @@ func clearfat(nl *gc.Node) {
+ 	w := uint32(nl.Type.Width)
+ 
+ 	// Avoid taking the address for simple enough types.
+-	if componentgen(nil, nl) {
++	if gc.Componentgen(nil, nl) {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/9g/cgen.go b/src/cmd/9g/cgen.go
+index 4ab5215e55..6ab7f35dd0 100644
+--- a/src/cmd/9g/cgen.go
++++ b/src/cmd/9g/cgen.go
+@@ -1445,8 +1445,10 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	}
+ 
+ 	// Avoid taking the address for simple enough types.
+-	//if(componentgen(n, ns))
+-	//	return;
++	if gc.Componentgen(n, ns) {
++		return
++	}
++
+ 	if w == 0 {
+ 		// evaluate side effects only.
+ 		var dst gc.Node
+@@ -1615,268 +1617,3 @@ func sgen(n *gc.Node, ns *gc.Node, w int64) {
+ 	regfree(&src)
+ 	regfree(&tmp)
+ }
+-
+-func cadable(n *gc.Node) bool {
+-	if n.Addable == 0 {
+-		// dont know how it happens,
+-		// but it does
+-		return false
+-	}
+-
+-	switch n.Op {
+-	case gc.ONAME:
+-		return true
+-	}
+-
+-	return false
+-}
+-
+-/*
+- * copy a composite value by moving its individual components.
+- * Slices, strings and interfaces are supported.
+- * Small structs or arrays with elements of basic type are
+- * also supported.
+- * nr is N when assigning a zero value.
+- * return 1 if can do, 0 if can't.
+- */
+-func componentgen(nr *gc.Node, nl *gc.Node) bool {
+-	var nodl gc.Node
+-	var nodr gc.Node
+-
+-	freel := 0
+-	freer := 0
+-
+-	switch nl.Type.Etype {
+-	default:
+-		goto no
+-
+-	case gc.TARRAY:
+-		t := nl.Type
+-
+-		// Slices are ok.
+-		if gc.Isslice(t) {
+-			break
+-		}
+-
+-		// Small arrays are ok.
+-		if t.Bound > 0 && t.Bound <= 3 && !gc.Isfat(t.Type) {
+-			break
+-		}
+-
+-		goto no
+-
+-		// Small structs with non-fat types are ok.
+-	// Zero-sized structs are treated separately elsewhere.
+-	case gc.TSTRUCT:
+-		fldcount := int64(0)
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			if gc.Isfat(t.Type) {
+-				goto no
+-			}
+-			if t.Etype != gc.TFIELD {
+-				gc.Fatal("componentgen: not a TFIELD: %v", gc.Tconv(t, obj.FmtLong))
+-			}
+-			fldcount++
+-		}
+-
+-		if fldcount == 0 || fldcount > 4 {
+-			goto no
+-		}
+-
+-	case gc.TSTRING,
+-		gc.TINTER:
+-		break
+-	}
+-
+-	nodl = *nl
+-	if !cadable(nl) {
+-		if nr != nil && !cadable(nr) {
+-			goto no
+-		}
+-		igen(nl, &nodl, nil)
+-		freel = 1
+-	}
+-
+-	if nr != nil {
+-		nodr = *nr
+-		if !cadable(nr) {
+-			igen(nr, &nodr, nil)
+-			freer = 1
+-		}
+-	} else {
+-		// When zeroing, prepare a register containing zero.
+-		var tmp gc.Node
+-		gc.Nodconst(&tmp, nl.Type, 0)
+-
+-		regalloc(&nodr, gc.Types[gc.TUINT], nil)
+-		gmove(&tmp, &nodr)
+-		freer = 1
+-	}
+-
+-	// nl and nr are 'cadable' which basically means they are names (variables) now.
+-	// If they are the same variable, don't generate any code, because the
+-	// VARDEF we generate will mark the old value as dead incorrectly.
+-	// (And also the assignments are useless.)
+-	if nr != nil && nl.Op == gc.ONAME && nr.Op == gc.ONAME && nl == nr {
+-		goto yes
+-	}
+-
+-	switch nl.Type.Etype {
+-	// componentgen for arrays.
+-	case gc.TARRAY:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		t := nl.Type
+-		if !gc.Isslice(t) {
+-			nodl.Type = t.Type
+-			nodr.Type = nodl.Type
+-			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
+-				if nr == nil {
+-					gc.Clearslim(&nodl)
+-				} else {
+-					gmove(&nodr, &nodl)
+-				}
+-				nodl.Xoffset += t.Type.Width
+-				nodr.Xoffset += t.Type.Width
+-			}
+-
+-			goto yes
+-		}
+-
+-		// componentgen for slices.
+-		nodl.Xoffset += int64(gc.Array_array)
+-
+-		nodl.Type = gc.Ptrto(nl.Type.Type)
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_cap) - int64(gc.Array_nel)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRING:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Types[gc.Simtype[gc.TUINT]]
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TINTER:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		nodl.Xoffset += int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		nodl.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-		nodl.Type = gc.Ptrto(gc.Types[gc.TUINT8])
+-
+-		if nr != nil {
+-			nodr.Xoffset += int64(gc.Array_nel) - int64(gc.Array_array)
+-			nodr.Type = nodl.Type
+-		}
+-
+-		gmove(&nodr, &nodl)
+-
+-		goto yes
+-
+-	case gc.TSTRUCT:
+-		if nl.Op == gc.ONAME {
+-			gc.Gvardef(nl)
+-		}
+-		loffset := nodl.Xoffset
+-		roffset := nodr.Xoffset
+-
+-		// funarg structs may not begin at offset zero.
+-		if nl.Type.Etype == gc.TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
+-			loffset -= nl.Type.Type.Width
+-		}
+-		if nr != nil && nr.Type.Etype == gc.TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
+-			roffset -= nr.Type.Type.Width
+-		}
+-
+-		for t := nl.Type.Type; t != nil; t = t.Down {
+-			nodl.Xoffset = loffset + t.Width
+-			nodl.Type = t.Type
+-
+-			if nr == nil {
+-				gc.Clearslim(&nodl)
+-			} else {
+-				nodr.Xoffset = roffset + t.Width
+-				nodr.Type = nodl.Type
+-				gmove(&nodr, &nodl)
+-			}
+-		}
+-
+-		goto yes
+-	}
+-
+-no:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return false
+-
+-yes:
+-	if freer != 0 {
+-		regfree(&nodr)
+-	}
+-	if freel != 0 {
+-		regfree(&nodl)
+-	}
+-	return true
+-}
+diff --git a/src/cmd/9g/galign.go b/src/cmd/9g/galign.go
+index b39149a952..69e6bac334 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/9g/galign.go
+@@ -69,6 +69,7 @@ func main() {
+ 	gc.Thearch.Ginit = ginit
+ 	gc.Thearch.Gins = gins
+ 	gc.Thearch.Ginscall = ginscall
++	gc.Thearch.Gmove = gmove
+ 	gc.Thearch.Igen = igen
+ 	gc.Thearch.Linkarchinit = linkarchinit
+ 	gc.Thearch.Peep = peep
+diff --git a/src/cmd/9g/ggen.go b/src/cmd/9g/ggen.go
+index 5919a79113..dfc54a78d5 100644
+--- a/src/cmd/9g/ggen.go
++++ b/src/cmd/9g/ggen.go
+@@ -734,8 +734,9 @@ func clearfat(nl *gc.Node) {
+ 	w := uint64(uint64(nl.Type.Width))
+ 
+ 	// Avoid taking the address for simple enough types.
+-	//if(componentgen(N, nl))
+-	//	return;
++	if gc.Componentgen(nil, nl) {
++		return
++	}
+ 
+ 	c := uint64(w % 8) // bytes
+ 	q := uint64(w / 8) // dwords
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 3777cc310d..314f6c1117 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -956,3 +956,268 @@ func checklabels() {
+ 		}
+ 	}
+ }
++
++/*
++ * copy a composite value by moving its individual components.
++ * Slices, strings and interfaces are supported.
++ * Small structs or arrays with elements of basic type are
++ * also supported.
++ * nr is N when assigning a zero value.
++ * return 1 if can do, 0 if can't.
++ */
++func Componentgen(nr *Node, nl *Node) bool {
++	var nodl Node
++	var nodr Node
++
++	freel := 0
++	freer := 0
++
++	switch nl.Type.Etype {
++	default:
++		goto no
++
++	case TARRAY:
++		t := nl.Type
++
++		// Slices are ok.
++		if Isslice(t) {
++			break
++		}
++
++		// Small arrays are ok.
++		if t.Bound > 0 && t.Bound <= 3 && !Isfat(t.Type) {
++			break
++		}
++
++		goto no
++
++		// Small structs with non-fat types are ok.
++	// Zero-sized structs are treated separately elsewhere.
++	case TSTRUCT:
++		fldcount := int64(0)
++
++		for t := nl.Type.Type; t != nil; t = t.Down {
++			if Isfat(t.Type) && !Isslice(t) {
++				goto no
++			}
++			if t.Etype != TFIELD {
++				Fatal("componentgen: not a TFIELD: %v", Tconv(t, obj.FmtLong))
++			}
++			fldcount++
++		}
++
++		if fldcount == 0 || fldcount > 4 {
++			goto no
++		}
++
++	case TSTRING,
++		TINTER:
++		break
++	}
++
++	nodl = *nl
++	if !cadable(nl) {
++		if nr != nil && !cadable(nr) {
++			goto no
++		}
++		Thearch.Igen(nl, &nodl, nil)
++		freel = 1
++	}
++
++	if nr != nil {
++		nodr = *nr
++		if !cadable(nr) {
++			Thearch.Igen(nr, &nodr, nil)
++			freer = 1
++		}
++	} else {
++		// When zeroing, prepare a register containing zero.
++		var tmp Node
++		Nodconst(&tmp, nl.Type, 0)
++
++		Thearch.Regalloc(&nodr, Types[TUINT], nil)
++		Thearch.Gmove(&tmp, &nodr)
++		freer = 1
++	}
++
++	// nl and nr are 'cadable' which basically means they are names (variables) now.
++	// If they are the same variable, don't generate any code, because the
++	// VARDEF we generate will mark the old value as dead incorrectly.
++	// (And also the assignments are useless.)
++	if nr != nil && nl.Op == ONAME && nr.Op == ONAME && nl == nr {
++		goto yes
++	}
++
++	switch nl.Type.Etype {
++	// componentgen for arrays.
++	case TARRAY:
++		if nl.Op == ONAME {
++			Gvardef(nl)
++		}
++		t := nl.Type
++		if !Isslice(t) {
++			nodl.Type = t.Type
++			nodr.Type = nodl.Type
++			for fldcount := int64(0); fldcount < t.Bound; fldcount++ {
++				if nr == nil {
++					Clearslim(&nodl)
++				} else {
++					Thearch.Gmove(&nodr, &nodl)
++				}
++				nodl.Xoffset += t.Type.Width
++				nodr.Xoffset += t.Type.Width
++			}
++
++			goto yes
++		}
++
++		// componentgen for slices.
++		nodl.Xoffset += int64(Array_array)
++
++		nodl.Type = Ptrto(nl.Type.Type)
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
++		nodl.Type = Types[Simtype[TUINT]]
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		nodl.Xoffset += int64(Array_cap) - int64(Array_nel)
++		nodl.Type = Types[Simtype[TUINT]]
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_cap) - int64(Array_nel)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		goto yes
++
++	case TSTRING:
++		if nl.Op == ONAME {
++			Gvardef(nl)
++		}
++		nodl.Xoffset += int64(Array_array)
++		nodl.Type = Ptrto(Types[TUINT8])
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
++		nodl.Type = Types[Simtype[TUINT]]
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		goto yes
++
++	case TINTER:
++		if nl.Op == ONAME {
++			Gvardef(nl)
++		}
++		nodl.Xoffset += int64(Array_array)
++		nodl.Type = Ptrto(Types[TUINT8])
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
++		nodl.Type = Ptrto(Types[TUINT8])
++
++		if nr != nil {
++			nodr.Xoffset += int64(Array_nel) - int64(Array_array)
++			nodr.Type = nodl.Type
++		}
++
++		Thearch.Gmove(&nodr, &nodl)
++
++		goto yes
++
++	case TSTRUCT:
++		if nl.Op == ONAME {
++			Gvardef(nl)
++		}
++		loffset := nodl.Xoffset
++		roffset := nodr.Xoffset
++
++		// funarg structs may not begin at offset zero.
++		if nl.Type.Etype == TSTRUCT && nl.Type.Funarg != 0 && nl.Type.Type != nil {
++			loffset -= nl.Type.Type.Width
++		}
++		if nr != nil && nr.Type.Etype == TSTRUCT && nr.Type.Funarg != 0 && nr.Type.Type != nil {
++			roffset -= nr.Type.Type.Width
++		}
++
++		for t := nl.Type.Type; t != nil; t = t.Down {
++			nodl.Xoffset = loffset + t.Width
++			nodl.Type = t.Type
++
++			if nr == nil {
++				Clearslim(&nodl)
++			} else {
++				nodr.Xoffset = roffset + t.Width
++				nodr.Type = nodl.Type
++				Thearch.Gmove(&nodr, &nodl)
++			}
++		}
++
++		goto yes
++	}
++
++no:
++	if freer != 0 {
++		Thearch.Regfree(&nodr)
++	}
++	if freel != 0 {
++		Thearch.Regfree(&nodl)
++	}
++	return false
++
++yes:
++	if freer != 0 {
++		Thearch.Regfree(&nodr)
++	}
++	if freel != 0 {
++		Thearch.Regfree(&nodl)
++	}
++	return true
++}
++
++func cadable(n *Node) bool {
++	if n.Addable == 0 {
++		// dont know how it happens,
++		// but it does
++		return false
++	}
++
++	switch n.Op {
++	case ONAME:
++		return true
++	}
++
++	return false
++}
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index e33b6f5e73..67a226e728 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -790,6 +790,7 @@ type Arch struct {
+ 	Ginit          func()
+ 	Gins           func(int, *Node, *Node) *obj.Prog
+ 	Ginscall       func(*Node, int)
++	Gmove          func(*Node, *Node)
+ 	Igen           func(*Node, *Node, *Node)
+ 	Linkarchinit   func()
+ 	Peep           func(*obj.Prog)

@@ -12,7 +12,46 @@ Date:   Mon May 20 23:45:22 2013 +0200
     R=golang-dev, dvyukov, daniel.morsing, r
     CC=golang-dev
     https://golang.org/cl/9560044
-
+---
  src/cmd/gc/range.c                        |  3 +++
  src/pkg/runtime/race/testdata/mop_test.go | 13 +++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/gc/range.c b/src/cmd/gc/range.c
+index 8af45b9d27..bd271da386 100644
+--- a/src/cmd/gc/range.c
++++ b/src/cmd/gc/range.c
+@@ -129,6 +129,9 @@ walkrange(Node *n)
+ 	v2 = N;
+ 	if(n->list->next)
+ 		v2 = n->list->next->n;
++	// n->list has no meaning anymore, clear it
++	// to avoid erroneous processing by racewalk.
++	n->list = nil;
+ 	hv2 = N;
+ 
+ 	if(v2 == N && t->etype == TARRAY) {
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index fa7abe0ef8..6d30989193 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -267,6 +267,19 @@ func TestNoRaceRange(t *testing.T) {
+ 	close(ch)
+ }
+ 
++func TestNoRaceRangeIssue5446(t *testing.T) {
++	ch := make(chan int, 3)
++	a := []int{1, 2, 3}
++	b := []int{4}
++	// used to insert a spurious instrumentation of a[i]
++	// and crash.
++	i := 1
++	for i, a[i] = range b {
++		ch <- i
++	}
++	close(ch)
++}
++
+ func TestRaceRange(t *testing.T) {
+ 	const N = 2
+ 	var a [N]int

@@ -9,6 +9,22 @@ Date:   Wed Mar 7 08:14:12 2012 +1100
     TBR=rsc
     CC=golang-dev
     https://golang.org/cl/5754055
-
+---
  src/pkg/path/filepath/path_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index ad053177f5..6bc631596e 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -666,6 +666,10 @@ var absTests = []string{
+ }
+ 
+ func TestAbs(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Log("TestAbs disabled on windows")
++		return
++	}
+ 	oldwd, err := os.Getwd()
+ 	if err != nil {
+ 		t.Fatal("Getwd failed: ", err)

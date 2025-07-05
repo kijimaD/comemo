@@ -19,9 +19,120 @@ Date:   Fri May 1 12:26:30 2020 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/231638
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  doc/go1.15.html                  | 22 ++++++++++++++++++++++
  src/os/signal/signal_cgo_test.go |  2 +-
  src/syscall/exec_unix.go         | 10 ++++++++++
  src/syscall/exec_unix_test.go    | 28 ++++++++++++++++++++++++++++
  4 files changed, 61 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 977c2815ac..af0b3ba6ac 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -351,6 +351,28 @@ TODO
+     </p>
+ </dl><!-- sync -->
+ 
++<dl id="syscall"><dt><a href="/pkg/syscall/">syscall</a></dt>
++  <dd>
++    <p><!-- CL 231638 -->
++      On Unix systems, functions that use
++      <a href="/pkg/syscall/#SysProcAttr"><code>SysProcAttr</code></a>
++      will now reject attempts to set both the <code>Setctty</code>
++      and <code>Foreground</code> fields, as they both use
++      the <code>Ctty</code> field but do so in incompatible ways.
++      We expect that few existing programs set both fields.
++    </p>
++    <p>
++      Setting the <code>Setctty</code> field now requires that the
++      <code>Ctty</code> field be set to a file descriptor number in the
++      child process, as determined by the <code>ProcAttr.Files</code> field.
++      Using a child descriptor always worked, but there were certain
++      cases where using a parent file descriptor also happened to work.
++      Some programs that set <code>Setctty</code> will need to change
++      the value of <code>Ctty</code> to use a child descriptor number.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="testing"><dt><a href="/pkg/testing/">testing</a></dt>
+   <dd>
+     <p><!-- CL 226877, golang.org/issue/35998 -->
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 3c23090489..849a96ec0e 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -98,7 +98,7 @@ func TestTerminalSignal(t *testing.T) {
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{
+ 		Setsid:  true,
+ 		Setctty: true,
+-		Ctty:    int(slave.Fd()),
++		Ctty:    0,
+ 	}
+ 
+ 	if err := cmd.Start(); err != nil {
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index b3798b6e04..0345af44f9 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -9,6 +9,7 @@
+ package syscall
+ 
+ import (
++	errorspkg "errors"
+ 	"internal/bytealg"
+ 	"runtime"
+ 	"sync"
+@@ -187,6 +188,15 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 		}
+ 	}
+ 
++	// Both Setctty and Foreground use the Ctty field,
++	// but they give it slightly different meanings.
++	if sys.Setctty && sys.Foreground {
++		return 0, errorspkg.New("both Setctty and Foreground set in SysProcAttr")
++	}
++	if sys.Setctty && sys.Ctty >= len(attr.Files) {
++		return 0, errorspkg.New("Setctty set but Ctty not valid in child")
++	}
++
+ 	// Acquire the fork lock so that no other threads
+ 	// create new fds that are not yet close-on-exec
+ 	// before we fork.
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 33614f5221..4eb3c5c6c8 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -213,3 +213,31 @@ func TestForeground(t *testing.T) {
+ 
+ 	signal.Reset()
+ }
++
++// Test a couple of cases that SysProcAttr can't handle. Issue 29458.
++func TestInvalidExec(t *testing.T) {
++	t.Parallel()
++	t.Run("SetCtty-Foreground", func(t *testing.T) {
++		t.Parallel()
++		cmd := create(t)
++		cmd.proc.SysProcAttr = &syscall.SysProcAttr{
++			Setctty:    true,
++			Foreground: true,
++			Ctty:       0,
++		}
++		if err := cmd.proc.Start(); err == nil {
++			t.Error("expected error setting both SetCtty and Foreground")
++		}
++	})
++	t.Run("invalid-Ctty", func(t *testing.T) {
++		t.Parallel()
++		cmd := create(t)
++		cmd.proc.SysProcAttr = &syscall.SysProcAttr{
++			Setctty: true,
++			Ctty:    3,
++		}
++		if err := cmd.proc.Start(); err == nil {
++			t.Error("expected error with invalid Ctty value")
++		}
++	})
++}

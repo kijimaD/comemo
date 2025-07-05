@@ -37,7 +37,7 @@ Date:   Mon Dec 11 19:40:12 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/cgocall.go |  3 ++-
  src/runtime/mbitmap.go | 19 +++++++++----------
  src/runtime/mfinal.go  |  2 +-
@@ -46,3 +46,193 @@ Date:   Mon Dec 11 19:40:12 2017 -0500
  src/runtime/mwbbuf.go  |  6 +-----
  src/runtime/race.go    |  2 +-
  7 files changed, 25 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 02c4cb3622..8e4b0dea65 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -583,11 +583,12 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 			return
+ 		}
+ 
+-		b, hbits, span, _ := heapBitsForObject(uintptr(p), 0, 0)
++		b, span, _ := findObject(uintptr(p), 0, 0)
+ 		base = b
+ 		if base == 0 {
+ 			return
+ 		}
++		hbits := heapBitsForAddr(base)
+ 		n := span.elemsize
+ 		for i = uintptr(0); i < n; i += sys.PtrSize {
+ 			if i != 1*sys.PtrSize && !hbits.morePointers() {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 5e3a0011d9..0893afb180 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -370,17 +370,17 @@ func heapBitsForSpan(base uintptr) (hbits heapBits) {
+ 	return heapBitsForAddr(base)
+ }
+ 
+-// heapBitsForObject returns the base address for the heap object
+-// containing the address p, the heapBits for base,
+-// the object's span, and of the index of the object in s.
+-// If p does not point into a heap object,
+-// return base == 0
+-// otherwise return the base of the object.
++// findObject returns the base address for the heap object containing
++// the address p, the object's span, and the index of the object in s.
++// If p does not point into a heap object, it returns base == 0.
++//
++// If p points is an invalid heap pointer and debug.invalidptr != 0,
++// findObject panics.
+ //
+ // refBase and refOff optionally give the base address of the object
+ // in which the pointer p was found and the byte offset at which it
+ // was found. These are used for error reporting.
+-func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits, s *mspan, objIndex uintptr) {
++func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
+ 	arenaStart := mheap_.arena_start
+ 	if p < arenaStart || p >= mheap_.arena_used {
+ 		return
+@@ -444,8 +444,6 @@ func heapBitsForObject(p, refBase, refOff uintptr) (base uintptr, hbits heapBits
+ 			base += objIndex * s.elemsize
+ 		}
+ 	}
+-	// Now that we know the actual base, compute heapBits to return to caller.
+-	hbits = heapBitsForAddr(base)
+ 	return
+ }
+ 
+@@ -1852,7 +1850,8 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 	}
+ 
+ 	// heap
+-	if base, hbits, s, _ := heapBitsForObject(uintptr(p), 0, 0); base != 0 {
++	if base, s, _ := findObject(uintptr(p), 0, 0); base != 0 {
++		hbits := heapBitsForAddr(base)
+ 		n := s.elemsize
+ 		mask = make([]byte, n/sys.PtrSize)
+ 		for i := uintptr(0); i < n; i += sys.PtrSize {
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index e7ca5d669f..4ded18a345 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -326,7 +326,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	}
+ 
+ 	// find the containing object
+-	base, _, _, _ := heapBitsForObject(uintptr(e.data), 0, 0)
++	base, _, _ := findObject(uintptr(e.data), 0, 0)
+ 
+ 	if base == 0 {
+ 		// 0-length objects are okay.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 5664390eae..b6bc689c1f 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1100,8 +1100,8 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork) {
+ 				// Same work as in scanobject; see comments there.
+ 				obj := *(*uintptr)(unsafe.Pointer(b + i))
+ 				if obj != 0 && arena_start <= obj && obj < arena_used {
+-					if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
+-						greyobject(obj, b, i, hbits, span, gcw, objIndex)
++					if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
++						greyobject(obj, b, i, span, gcw, objIndex)
+ 					}
+ 				}
+ 			}
+@@ -1206,8 +1206,8 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 		// Check if it points into heap and not back at the current object.
+ 		if obj != 0 && arena_start <= obj && obj < arena_used && obj-b >= n {
+ 			// Mark the object.
+-			if obj, hbits, span, objIndex := heapBitsForObject(obj, b, i); obj != 0 {
+-				greyobject(obj, b, i, hbits, span, gcw, objIndex)
++			if obj, span, objIndex := findObject(obj, b, i); obj != 0 {
++				greyobject(obj, b, i, span, gcw, objIndex)
+ 			}
+ 		}
+ 	}
+@@ -1220,9 +1220,9 @@ func scanobject(b uintptr, gcw *gcWork) {
+ // Preemption must be disabled.
+ //go:nowritebarrier
+ func shade(b uintptr) {
+-	if obj, hbits, span, objIndex := heapBitsForObject(b, 0, 0); obj != 0 {
++	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
+ 		gcw := &getg().m.p.ptr().gcw
+-		greyobject(obj, 0, 0, hbits, span, gcw, objIndex)
++		greyobject(obj, 0, 0, span, gcw, objIndex)
+ 		if gcphase == _GCmarktermination || gcBlackenPromptly {
+ 			// Ps aren't allowed to cache work during mark
+ 			// termination.
+@@ -1238,7 +1238,7 @@ func shade(b uintptr) {
+ // See also wbBufFlush1, which partially duplicates this logic.
+ //
+ //go:nowritebarrierrec
+-func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork, objIndex uintptr) {
++func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintptr) {
+ 	// obj should be start of allocation, and so must be at least pointer-aligned.
+ 	if obj&(sys.PtrSize-1) != 0 {
+ 		throw("greyobject: obj not pointer-aligned")
+@@ -1260,6 +1260,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 			getg().m.traceback = 2
+ 			throw("checkmark found unmarked object")
+ 		}
++		hbits := heapBitsForAddr(obj)
+ 		if hbits.isCheckmarked(span.elemsize) {
+ 			return
+ 		}
+@@ -1386,9 +1387,9 @@ func gcMarkTinyAllocs() {
+ 		if c == nil || c.tiny == 0 {
+ 			continue
+ 		}
+-		_, hbits, span, objIndex := heapBitsForObject(c.tiny, 0, 0)
++		_, span, objIndex := findObject(c.tiny, 0, 0)
+ 		gcw := &p.gcw
+-		greyobject(c.tiny, 0, 0, hbits, span, gcw, objIndex)
++		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
+ 		if gcBlackenPromptly {
+ 			gcw.dispose()
+ 		}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 46f57d272e..635e862324 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1410,7 +1410,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 		// situation where it's possible that markrootSpans
+ 		// has already run but mark termination hasn't yet.
+ 		if gcphase != _GCoff {
+-			base, _, _, _ := heapBitsForObject(uintptr(p), 0, 0)
++			base, _, _ := findObject(uintptr(p), 0, 0)
+ 			mp := acquirem()
+ 			gcw := &mp.p.ptr().gcw
+ 			// Mark everything reachable from the object
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index c5619ed3fb..13b161ebde 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -243,11 +243,7 @@ func wbBufFlush1(_p_ *p) {
+ 			// path to reduce the rate of flushes?
+ 			continue
+ 		}
+-		// TODO: This doesn't use hbits, so calling
+-		// heapBitsForObject seems a little silly. We could
+-		// easily separate this out since heapBitsForObject
+-		// just calls heapBitsForAddr(obj) to get hbits.
+-		obj, _, span, objIndex := heapBitsForObject(ptr, 0, 0)
++		obj, span, objIndex := findObject(ptr, 0, 0)
+ 		if obj == 0 {
+ 			continue
+ 		}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 1d35d2b641..09a8356770 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -187,7 +187,7 @@ type symbolizeDataContext struct {
+ }
+ 
+ func raceSymbolizeData(ctx *symbolizeDataContext) {
+-	if base, _, span, _ := heapBitsForObject(ctx.addr, 0, 0); base != 0 {
++	if base, span, _ := findObject(ctx.addr, 0, 0); base != 0 {
+ 		ctx.heap = 1
+ 		ctx.start = base
+ 		ctx.size = span.elemsize

@@ -12,6 +12,30 @@ Date:   Sat Mar 22 01:15:22 2025 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/url/url.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 3acde9fb0f..8786d9655b 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -3,12 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package url parses URLs and implements query escaping.
++//
++// See RFC 3986. This package generally follows RFC 3986, except where
++// it deviates for compatibility reasons.
++// RFC 6874 followed for IPv6 zone literals.
+ package url
+ 
+-// See RFC 3986. This package generally follows RFC 3986, except where
+-// it deviates for compatibility reasons. When sending changes, first
+-// search old issues for history on decisions. Unit tests should also
+-// contain references to issue numbers with details.
++// When sending changes, first  search old issues for history on decisions.
++// Unit tests should also contain references to issue numbers with details.
+ 
+ import (
+ 	"errors"

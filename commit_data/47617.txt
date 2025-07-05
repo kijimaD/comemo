@@ -19,7 +19,62 @@ Date:   Tue Mar 30 22:33:28 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/reflect/abi.go      | 8 +++++++-
  src/reflect/abi_test.go | 9 +++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 50e6312172..002e4598b9 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -121,6 +121,7 @@ func (a *abiSeq) stepsForValue(i int) []abiStep {
+ // If the value was stack-assigned, returns the single
+ // abiStep describing that translation, and nil otherwise.
+ func (a *abiSeq) addArg(t *rtype) *abiStep {
++	// We'll always be adding a new value, so do that first.
+ 	pStart := len(a.steps)
+ 	a.valueStart = append(a.valueStart, pStart)
+ 	if t.size == 0 {
+@@ -141,8 +142,13 @@ func (a *abiSeq) addArg(t *rtype) *abiStep {
+ 		a.stackBytes = align(a.stackBytes, uintptr(t.align))
+ 		return nil
+ 	}
++	// Hold a copy of "a" so that we can roll back if
++	// register assignment fails.
++	aOld := *a
+ 	if !a.regAssign(t, 0) {
+-		a.steps = a.steps[:pStart]
++		// Register assignment failed. Roll back any changes
++		// and stack-assign.
++		*a = aOld
+ 		a.stackAssign(t.size, uintptr(t.align))
+ 		return &a.steps[len(a.steps)-1]
+ 	}
+diff --git a/src/reflect/abi_test.go b/src/reflect/abi_test.go
+index 418896ee87..d658a0f6d3 100644
+--- a/src/reflect/abi_test.go
++++ b/src/reflect/abi_test.go
+@@ -85,6 +85,7 @@ func TestReflectValueCallABI(t *testing.T) {
+ 		passStruct13,
+ 		pass2Struct1,
+ 		passEmptyStruct,
++		passStruct10AndSmall,
+ 	} {
+ 		fn := reflect.ValueOf(fn)
+ 		t.Run(runtime.FuncForPC(fn.Pointer()).Name(), func(t *testing.T) {
+@@ -339,6 +340,14 @@ func passEmptyStruct(a int, b struct{}, c float64) (int, struct{}, float64) {
+ 	return a, b, c
+ }
+ 
++// This test case forces a large argument to the stack followed by more
++// in-register arguments.
++//go:registerparams
++//go:noinline
++func passStruct10AndSmall(a Struct10, b byte, c uint) (Struct10, byte, uint) {
++	return a, b, c
++}
++
+ // Struct1 is a simple integer-only aggregate struct.
+ type Struct1 struct {
+ 	A, B, C uint

@@ -16,7 +16,69 @@ Date:   Mon Dec 14 21:20:36 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/bug429.go     | 14 --------------
  test/fixedbugs/bug429_run.go | 35 -----------------------------------
  2 files changed, 49 deletions(-)
+
+diff --git a/test/fixedbugs/bug429.go b/test/fixedbugs/bug429.go
+deleted file mode 100644
+index 2c31f32da7..0000000000
+--- a/test/fixedbugs/bug429.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// skip
+-
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Should print deadlock message, not hang.
+-// This test is run by bug429_run.go.
+-
+-package main
+-
+-func main() {
+-	select {}
+-}
+diff --git a/test/fixedbugs/bug429_run.go b/test/fixedbugs/bug429_run.go
+deleted file mode 100644
+index c2bb1b85cb..0000000000
+--- a/test/fixedbugs/bug429_run.go
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// run
+-
+-// +build !nacl,!js
+-
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Run the bug429.go test.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"os"
+-	"os/exec"
+-	"path/filepath"
+-	"strings"
+-)
+-
+-func main() {
+-	cmd := exec.Command("go", "run", filepath.Join("fixedbugs", "bug429.go"))
+-	out, err := cmd.CombinedOutput()
+-	if err == nil {
+-		fmt.Println("expected deadlock")
+-		os.Exit(1)
+-	}
+-
+-	want := "fatal error: all goroutines are asleep - deadlock!"
+-	got := string(out)
+-	if !strings.Contains(got, want) {
+-		fmt.Printf("got:\n%q\nshould contain:\n%q\n", got, want)
+-		os.Exit(1)
+-	}
+-}

@@ -15,7 +15,81 @@ Date:   Fri Nov 5 09:47:54 2021 +0800
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 12 ++++++++++
  test/fixedbugs/issue49282.go           | 44 ++++++++++++++++++++++++++++++++++
  2 files changed, 56 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index b84199790f..0853242e6f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5075,6 +5075,18 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		for _, p := range params.InParams() { // includes receiver for interface calls
+ 			ACArgs = append(ACArgs, p.Type)
+ 		}
++
++		// Split the entry block if there are open defers, because later calls to
++		// openDeferSave may cause a mismatch between the mem for an OpDereference
++		// and the call site which uses it. See #49282.
++		if s.curBlock.ID == s.f.Entry.ID && s.hasOpenDefers {
++			b := s.endBlock()
++			b.Kind = ssa.BlockPlain
++			curb := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(curb)
++			s.startBlock(curb)
++		}
++
+ 		for i, n := range args {
+ 			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
+ 		}
+diff --git a/test/fixedbugs/issue49282.go b/test/fixedbugs/issue49282.go
+new file mode 100644
+index 0000000000..7543075ca1
+--- /dev/null
++++ b/test/fixedbugs/issue49282.go
+@@ -0,0 +1,44 @@
++// compile
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++//go:noinline
++func g(d uintptr, a, m []int, s struct {
++	a, b, c, d, e int
++}, u uint) {
++	_ = a
++	_ = m
++	_ = s
++	func() {
++		for i := 0; i < 5; i++ {
++			_ = a
++			_ = m
++			_, _ = s, s
++		}
++	}()
++}
++
++var One float64 = 1.0
++
++func f(d uintptr) {
++	var a, m []int
++	var s struct {
++		a, b, c, d, e int
++	}
++
++	g(d, a, m, s, uint(One)) // Uint of not-a-constant inserts a conditional, necessary to bug
++
++	defer func() uint {
++		return 0
++	}()
++}
++
++var d uintptr
++
++func h() {
++	f(d)
++}

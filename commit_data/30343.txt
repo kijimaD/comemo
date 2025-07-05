@@ -13,6 +13,25 @@ Date:   Tue Nov 1 11:01:39 2016 -0700
     Change-Id: Ifcc36cfcd88ebd677890e82ba80ee3d696ed3d7c
     Reviewed-on: https://go-review.googlesource.com/32483
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/testing.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index ce5b852364..c52884f0f4 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -283,6 +283,13 @@ func Short() bool {
+ 	return *short
+ }
+ 
++// CoverMode reports what the test coverage mode is set to. The
++// values are "set", "count", or "atomic". The return value will be
++// empty if test coverage is not enabled.
++func CoverMode() string {
++	return cover.Mode
++}
++
+ // Verbose reports whether the -test.v flag is set.
+ func Verbose() bool {
+ 	return *chatty

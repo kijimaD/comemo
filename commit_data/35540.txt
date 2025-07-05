@@ -12,6 +12,29 @@ Date:   Fri Jul 28 10:23:04 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/trace/trace.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index b8a7e5d6d2..b0712c9ac7 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -112,6 +112,17 @@ var templTrace = `
+   function onModelLoaded() {
+     viewer.model = model;
+     viewer.viewTitle = "trace";
++
++    if (!model || model.bounds.isEmpty)
++      return;
++    var sel = window.location.hash.substr(1);
++    if (sel === '')
++      return;
++    var parts = sel.split(':');
++    var range = new (tr.b.Range || tr.b.math.Range)();
++    range.addValue(parseFloat(parts[0]));
++    range.addValue(parseFloat(parts[1]));
++    viewer.trackView.viewport.interestRange.set(range);
+   }
+ 
+   function onImportFail(err) {

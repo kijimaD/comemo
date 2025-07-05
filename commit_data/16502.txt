@@ -9,6 +9,32 @@ Date:   Wed Jun 5 10:38:52 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/10043044
-
+---
  src/cmd/6l/optab.c | 14 +++++++++-----
  1 file changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/6l/optab.c b/src/cmd/6l/optab.c
+index 34c8a0c129..356910734a 100644
+--- a/src/cmd/6l/optab.c
++++ b/src/cmd/6l/optab.c
+@@ -42,11 +42,15 @@ uchar	ytext[] =
+ };
+ uchar	ynop[] =
+ {
+-	Ynone,	Ynone,	Zpseudo,1,
+-	Ynone,	Yml,	Zpseudo,1,
+-	Ynone,	Yrf,	Zpseudo,1,
+-	Yml,	Ynone,	Zpseudo,1,
+-	Yrf,	Ynone,	Zpseudo,1,
++	Ynone,	Ynone,	Zpseudo,0,
++	Ynone,	Yiauto,	Zpseudo,0,
++	Ynone,	Yml,	Zpseudo,0,
++	Ynone,	Yrf,	Zpseudo,0,
++	Ynone,	Yxr,	Zpseudo,0,
++	Yiauto,	Ynone,	Zpseudo,0,
++	Yml,	Ynone,	Zpseudo,0,
++	Yrf,	Ynone,	Zpseudo,0,
++	Yxr,	Ynone,	Zpseudo,1,
+ 	0
+ };
+ uchar	yxorb[] =

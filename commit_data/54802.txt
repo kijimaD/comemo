@@ -13,6 +13,28 @@ Date:   Tue Nov 15 10:45:00 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/pack/pack_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index ed241a0b5e..be75738093 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"sync"
+@@ -410,7 +409,7 @@ func TestRWithNonexistentFile(t *testing.T) {
+ 
+ // doRun runs a program in a directory and returns the output.
+ func doRun(t *testing.T, dir string, args ...string) string {
+-	cmd := exec.Command(args[0], args[1:]...)
++	cmd := testenv.Command(t, args[0], args[1:]...)
+ 	cmd.Dir = dir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {

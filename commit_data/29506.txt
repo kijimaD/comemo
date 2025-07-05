@@ -14,7 +14,7 @@ Date:   Wed Aug 31 15:17:02 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/gen.go    |  3 ---
  src/cmd/compile/internal/gc/plive.go  | 29 ++++++++++-------------------
  src/cmd/compile/internal/gc/ssa.go    | 33 +++++----------------------------
@@ -24,3 +24,258 @@ Date:   Wed Aug 31 15:17:02 2016 -0700
  test/live.go                          |  4 ++--
  test/uintptrescapes2.go               |  6 +++---
  8 files changed, 25 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index d8873b9f8b..46b787b54f 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -133,9 +133,6 @@ func moveToHeap(n *Node) {
+ 		stackcopy.Xoffset = n.Xoffset
+ 		stackcopy.Class = n.Class
+ 		stackcopy.Name.Heapaddr = heapaddr
+-		if n.Class == PPARAM {
+-			stackcopy.SetNotLiveAtEnd(true)
+-		}
+ 		if n.Class == PPARAMOUT {
+ 			// Make sure the pointer to the heap copy is kept live throughout the function.
+ 			// The function could panic at any point, and then a defer could recover.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 7eee6d5393..38811bd2a3 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -543,31 +543,16 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 	bvresetall(avarinit)
+ 
+ 	if prog.As == obj.ARET {
+-		// Return instructions implicitly read all the arguments. For
+-		// the sake of correctness, out arguments must be read. For the
+-		// sake of backtrace quality, we read in arguments as well.
+-		//
+-		// A return instruction with a p.to is a tail return, which brings
+-		// the stack pointer back up (if it ever went down) and then jumps
+-		// to a new function entirely. That form of instruction must read
+-		// all the parameters for correctness, and similarly it must not
+-		// read the out arguments - they won't be set until the new
+-		// function runs.
++		// Return instructions read all of the out arguments.
+ 		for i, node := range vars {
+ 			switch node.Class {
+-			case PPARAM:
+-				if !node.NotLiveAtEnd() {
+-					bvset(uevar, int32(i))
+-				}
+-
+-				// If the result had its address taken, it is being tracked
++			// If the result had its address taken, it is being tracked
+ 			// by the avarinit code, which does not use uevar.
+ 			// If we added it to uevar too, we'd not see any kill
+ 			// and decide that the variable was live entry, which it is not.
+ 			// So only use uevar in the non-addrtaken case.
+-			// The p.to.type == thearch.D_NONE limits the bvset to
+-			// non-tail-call return instructions; see note above
+-			// the for loop for details.
++			// The p.to.type == obj.TYPE_NONE limits the bvset to
++			// non-tail-call return instructions; see note below for details.
+ 			case PPARAMOUT:
+ 				if !node.Addrtaken && prog.To.Type == obj.TYPE_NONE {
+ 					bvset(uevar, int32(i))
+@@ -577,6 +562,12 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 
+ 		return
+ 	}
++	// A return instruction with a p.to is a tail return, which brings
++	// the stack pointer back up (if it ever went down) and then jumps
++	// to a new function entirely. That form of instruction must read
++	// all the parameters for correctness, and similarly it must not
++	// read the out arguments - they won't be set until the new
++	// function runs.
+ 	if prog.As == obj.AJMP && prog.To.Type == obj.TYPE_MEM && prog.To.Name == obj.NAME_EXTERN {
+ 		// This is a tail call. Ensure the arguments are still alive.
+ 		// See issue 16016.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index a0644e39ec..5927fde86e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -102,10 +102,6 @@ func buildssa(fn *Node) *ssa.Func {
+ 				// the function.
+ 				s.returns = append(s.returns, n)
+ 			}
+-			if n.Class == PPARAM && s.canSSA(n) && n.Type.IsPtrShaped() {
+-				s.ptrargs = append(s.ptrargs, n)
+-				n.SetNotLiveAtEnd(true) // SSA takes care of this explicitly
+-			}
+ 		case PAUTO:
+ 			// processed at each use, to prevent Addr coming
+ 			// before the decl.
+@@ -230,10 +226,6 @@ type state struct {
+ 	// list of PPARAMOUT (return) variables.
+ 	returns []*Node
+ 
+-	// list of PPARAM SSA-able pointer-shaped args. We ensure these are live
+-	// throughout the function to help users avoid premature finalizers.
+-	ptrargs []*Node
+-
+ 	cgoUnsafeArgs bool
+ 	noWB          bool
+ 	WBLineno      int32 // line number of first write barrier. 0=no write barriers
+@@ -945,16 +937,6 @@ func (s *state) exit() *ssa.Block {
+ 		// currently.
+ 	}
+ 
+-	// Keep input pointer args live until the return. This is a bandaid
+-	// fix for 1.7 for what will become in 1.8 explicit runtime.KeepAlive calls.
+-	// For <= 1.7 we guarantee that pointer input arguments live to the end of
+-	// the function to prevent premature (from the user's point of view)
+-	// execution of finalizers. See issue 15277.
+-	// TODO: remove for 1.8?
+-	for _, n := range s.ptrargs {
+-		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
+-	}
+-
+ 	// Do actual return.
+ 	m := s.mem()
+ 	b := s.endBlock()
+@@ -2528,6 +2510,11 @@ func intrinsicInit() {
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+ 			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+ 		})),
++		intrinsicKey{"runtime", "KeepAlive"}: func(s *state, n *Node) *ssa.Value {
++			data := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), s.intrinsicFirstArg(n))
++			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
++			return nil
++		},
+ 
+ 		/******** runtime/internal/sys ********/
+ 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+@@ -2892,11 +2879,6 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		s.startBlock(bNext)
+ 	}
+ 
+-	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
+-	for _, n := range s.ptrargs {
+-		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
+-	}
+-	// Find address of result.
+ 	res := n.Left.Type.Results()
+ 	if res.NumFields() == 0 || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+@@ -3243,11 +3225,6 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 		return nil
+ 	}
+ 
+-	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
+-	for _, n := range s.ptrargs {
+-		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
+-	}
+-
+ 	// Load results
+ 	res := make([]*ssa.Value, len(results))
+ 	for i, t := range results {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index a1cccc4974..7a230c0b74 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -77,7 +77,6 @@ type Node struct {
+ 
+ const (
+ 	hasBreak = 1 << iota
+-	notLiveAtEnd
+ 	isClosureVar
+ 	isOutputParamHeapAddr
+ 	noInline // used internally by inliner to indicate that a function call should not be inlined; set for OCALLFUNC and OCALLMETH only
+@@ -93,16 +92,6 @@ func (n *Node) SetHasBreak(b bool) {
+ 		n.flags &^= hasBreak
+ 	}
+ }
+-func (n *Node) NotLiveAtEnd() bool {
+-	return n.flags&notLiveAtEnd != 0
+-}
+-func (n *Node) SetNotLiveAtEnd(b bool) {
+-	if b {
+-		n.flags |= notLiveAtEnd
+-	} else {
+-		n.flags &^= notLiveAtEnd
+-	}
+-}
+ func (n *Node) isClosureVar() bool {
+ 	return n.flags&isClosureVar != 0
+ }
+diff --git a/test/fixedbugs/issue15277.go b/test/fixedbugs/issue15277.go
+index 719c9a4f4a..af165f7a6b 100644
+--- a/test/fixedbugs/issue15277.go
++++ b/test/fixedbugs/issue15277.go
+@@ -15,6 +15,7 @@ func f(x *big, start int64) {
+ 	if delta := inuse() - start; delta < 9<<20 {
+ 		println("after alloc: expected delta at least 9MB, got: ", delta)
+ 	}
++	runtime.KeepAlive(x)
+ 	x = nil
+ 	if delta := inuse() - start; delta > 1<<20 {
+ 		println("after drop: expected delta below 1MB, got: ", delta)
+@@ -23,6 +24,7 @@ func f(x *big, start int64) {
+ 	if delta := inuse() - start; delta < 9<<20 {
+ 		println("second alloc: expected delta at least 9MB, got: ", delta)
+ 	}
++	runtime.KeepAlive(x)
+ }
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index 8b2dc1b5d5..4a01344410 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -17,14 +17,14 @@ type T struct{ M string }
+ 
+ var b bool
+ 
+-func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: q xx" "live at call to newobject: q xx" "live at call to writebarrierptr: q &xx"
++func f1(q *Q, xx []byte) interface{} { // ERROR "live at entry to f1: xx" "live at call to newobject: xx" "live at call to writebarrierptr: &xx"
+ 	// xx was copied from the stack to the heap on the previous line:
+ 	// xx was live for the first two prints but then it switched to &xx
+ 	// being live. We should not see plain xx again.
+ 	if b {
+-		global = &xx // ERROR "live at call to writebarrierptr: q &xx[^x]*$"
++		global = &xx // ERROR "live at call to writebarrierptr: &xx[^x]*$"
+ 	}
+-	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject: q( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: q (e|err.data err.type)$"
++	xx, _, err := f2(xx, 5) // ERROR "live at call to newobject:( d)? &xx( odata.ptr)?" "live at call to writebarrierptr: (e|err.data err.type)$"
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/test/live.go b/test/live.go
+index 2ae8b8f7b6..25ea07d5de 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -651,8 +651,8 @@ func good40() {
+ }
+ 
+ func ddd1(x, y *int) { // ERROR "live at entry to ddd1: x y$"
+-	ddd2(x, y) // ERROR "live at call to ddd2: x y autotmp_[0-9]+$"
+-	printnl()  // ERROR "live at call to printnl: x y$"
++	ddd2(x, y) // ERROR "live at call to ddd2: autotmp_[0-9]+$"
++	printnl()
+ 	// Note: no autotmp live at printnl.  See issue 16996.
+ }
+ func ddd2(a ...*int) { // ERROR "live at entry to ddd2: a$"
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+index 7ff676db14..d39bab764a 100644
+--- a/test/uintptrescapes2.go
++++ b/test/uintptrescapes2.go
+@@ -18,14 +18,14 @@ func F1(a uintptr) {} // ERROR "escaping uintptr"
+ 
+ //go:uintptrescapes
+ //go:noinline
+-func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "live at entry" "a does not escape"
++func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "a does not escape"
+ 
+ func G() {
+-	var t int // ERROR "moved to heap"
++	var t int                       // ERROR "moved to heap"
+ 	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: autotmp" "&t escapes to heap"
+ }
+ 
+ func H() {
+-	var v int // ERROR "moved to heap"
++	var v int                                // ERROR "moved to heap"
+ 	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: autotmp" "live at call to F2: autotmp" "escapes to heap"
+ }

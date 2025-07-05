@@ -7,6 +7,20 @@ Date:   Mon Dec 8 15:11:11 2014 -0800
     Change-Id: I6b1b4d3e8c039ba3198cb4b9765de75859ea8c32
     Reviewed-on: https://go-review.googlesource.com/1214
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/objdump/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 708a853702..8bf9e4e306 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -80,7 +80,7 @@ func main() {
+ 
+ 	dis, err := f.Disasm()
+ 	if err != nil {
+-		log.Fatal("disassemble %s: %v", flag.Arg(0), err)
++		log.Fatalf("disassemble %s: %v", flag.Arg(0), err)
+ 	}
+ 
+ 	switch flag.NArg() {

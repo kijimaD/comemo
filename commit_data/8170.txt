@@ -9,8 +9,68 @@ Date:   Thu Apr 21 10:36:27 2011 +1000
     R=golang-dev, rsc, peterGo, r
     CC=golang-dev
     https://golang.org/cl/4435059
-
+---
  src/cmd/gotest/gotest.go        | 2 +-
  src/pkg/exec/exec_test.go       | 7 +------
  src/pkg/syscall/exec_windows.go | 3 ++-
  3 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 3ff81304b3..a7ba8dd11a 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -285,7 +285,7 @@ func doRun(argv []string, returnStdout bool) string {
+ 			}
+ 			cmd += `"` + v + `"`
+ 		}
+-		argv = []string{"cmd", "/c", "sh", "-c", cmd}
++		argv = []string{"sh", "-c", cmd}
+ 	}
+ 	var err os.Error
+ 	argv[0], err = exec.LookPath(argv[0])
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 5e37b99eec..eb8cd5fec9 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -9,19 +9,14 @@ import (
+ 	"io/ioutil"
+ 	"testing"
+ 	"os"
+-	"runtime"
+ )
+ 
+ func run(argv []string, stdin, stdout, stderr int) (p *Cmd, err os.Error) {
+-	if runtime.GOOS == "windows" {
+-		argv = append([]string{"cmd", "/c"}, argv...)
+-	}
+ 	exe, err := LookPath(argv[0])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	p, err = Run(exe, argv, nil, "", stdin, stdout, stderr)
+-	return p, err
++	return Run(exe, argv, nil, "", stdin, stdout, stderr)
+ }
+ 
+ func TestRunCat(t *testing.T) {
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index aeee191dda..ce855f5bc1 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ import (
+ 	"sync"
++	"unsafe"
+ 	"utf16"
+ )
+ 
+@@ -279,7 +280,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid, handle int,
+ 		}
+ 	}
+ 	si := new(StartupInfo)
+-	GetStartupInfo(si)
++	si.Cb = uint32(unsafe.Sizeof(*si))
+ 	si.Flags = STARTF_USESTDHANDLES
+ 	si.StdInput = fd[0]
+ 	si.StdOutput = fd[1]

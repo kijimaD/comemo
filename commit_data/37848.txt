@@ -34,7 +34,7 @@ Date:   Fri May 25 17:54:58 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s    |   1 +
  src/cmd/compile/internal/gc/ssa.go           |  12 ++-
  src/cmd/compile/internal/s390x/ssa.go        |   5 +-
@@ -47,3 +47,468 @@ Date:   Fri May 25 17:54:58 2018 +0100
  src/cmd/internal/obj/s390x/asmz.go           |   6 ++
  test/codegen/mathbits.go                     |   9 ++
  11 files changed, 261 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index fce855ee30..ad70d2af44 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -115,6 +115,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	NEGW	R1                    // b9130011
+ 	NEGW	R1, R2                // b9130021
+ 	FLOGR	R2, R2                // b9830022
++	POPCNT	R3, R4                // b9e10043
+ 
+ 	AND	R1, R2                // b9800021
+ 	AND	R1, R2, R3            // b9e42031
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 4c2f0098ce..3aef7e6b6d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3410,7 +3410,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount64, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64, sys.ARM64)
++		sys.PPC64, sys.ARM64, sys.S390X)
+ 	addF("math/bits", "OnesCount32",
+ 		makeOnesCountAMD64(ssa.OpPopCount32, ssa.OpPopCount32),
+ 		sys.AMD64)
+@@ -3418,7 +3418,7 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount32, types.Types[TINT], args[0])
+ 		},
+-		sys.PPC64, sys.ARM64)
++		sys.PPC64, sys.ARM64, sys.S390X)
+ 	addF("math/bits", "OnesCount16",
+ 		makeOnesCountAMD64(ssa.OpPopCount16, ssa.OpPopCount16),
+ 		sys.AMD64)
+@@ -3426,8 +3426,12 @@ func init() {
+ 		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount16, types.Types[TINT], args[0])
+ 		},
+-		sys.ARM64)
+-	// Note: no OnesCount8, the Go implementation is faster - just a table load.
++		sys.ARM64, sys.S390X)
++	addF("math/bits", "OnesCount8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpPopCount8, types.Types[TINT], args[0])
++		},
++		sys.S390X)
+ 	addF("math/bits", "OnesCount",
+ 		makeOnesCountAMD64(ssa.OpPopCount64, ssa.OpPopCount32),
+ 		sys.AMD64)
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index fe206f74e8..90e61c34fd 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -513,7 +513,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = v.Aux.(*obj.LSym)
+-	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
++	case ssa.OpS390XFLOGR, ssa.OpS390XPOPCNT,
++		ssa.OpS390XNEG, ssa.OpS390XNEGW,
+ 		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+@@ -522,6 +523,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XNOT, ssa.OpS390XNOTW:
+ 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
++	case ssa.OpS390XSumBytes2, ssa.OpS390XSumBytes4, ssa.OpS390XSumBytes8:
++		v.Fatalf("SumBytes generated %s", v.LongString())
+ 	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,
+ 		ssa.OpS390XMOVDLT, ssa.OpS390XMOVDLE,
+ 		ssa.OpS390XMOVDGT, ssa.OpS390XMOVDGE,
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 960d68845f..4fbdef38e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -88,6 +88,34 @@
+ 
+ (BitLen64 x) -> (SUB (MOVDconst [64]) (FLOGR x))
+ 
++// POPCNT treats the input register as a vector of 8 bytes, producing
++// a population count for each individual byte. For inputs larger than
++// a single byte we therefore need to sum the individual bytes produced
++// by the POPCNT instruction. For example, the following instruction
++// sequence could be used to calculate the population count of a 4-byte
++// value:
++//
++//     MOVD   $0x12345678, R1 // R1=0x12345678 <-- input
++//     POPCNT R1, R2          // R2=0x02030404
++//     SRW    $16, R2, R3     // R3=0x00000203
++//     ADDW   R2, R3, R4      // R4=0x02030607
++//     SRW    $8, R4, R5      // R5=0x00020306
++//     ADDW   R4, R5, R6      // R6=0x0205090d
++//     MOVBZ  R6, R7          // R7=0x0000000d <-- result is 13
++//
++(PopCount8  x) -> (POPCNT (MOVBZreg x))
++(PopCount16 x) -> (MOVBZreg (SumBytes2 (POPCNT <typ.UInt16> x)))
++(PopCount32 x) -> (MOVBZreg (SumBytes4 (POPCNT <typ.UInt32> x)))
++(PopCount64 x) -> (MOVBZreg (SumBytes8 (POPCNT <typ.UInt64> x)))
++
++// SumBytes{2,4,8} pseudo operations sum the values of the rightmost
++// 2, 4 or 8 bytes respectively. The result is a single byte however
++// other bytes might contain junk so a zero extension is required if
++// the desired output type is larger than 1 byte.
++(SumBytes2 x) -> (ADDW (SRWconst <typ.UInt8> x [8]) x)
++(SumBytes4 x) -> (SumBytes2 (ADDW <typ.UInt16> (SRWconst <typ.UInt16> x [16]) x))
++(SumBytes8 x) -> (SumBytes4 (ADDW <typ.UInt32> (SRDconst <typ.UInt32> x [32]) x))
++
+ (Bswap64 x) -> (MOVDBR x)
+ (Bswap32 x) -> (MOVWBR x)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index ae01375473..9b5f525531 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -530,6 +530,25 @@ func init() {
+ 			clobberFlags: true,
+ 		},
+ 
++		// population count
++		//
++		// Counts the number of ones in each byte of arg0
++		// and places the result into the corresponding byte
++		// of the result.
++		{
++			name:         "POPCNT",
++			argLength:    1,
++			reg:          gp11,
++			asm:          "POPCNT",
++			typ:          "UInt64",
++			clobberFlags: true,
++		},
++
++		// pseudo operations to sum the output of the POPCNT instruction
++		{name: "SumBytes2", argLength: 1, typ: "UInt8"}, // sum the rightmost 2 bytes in arg0 ignoring overflow
++		{name: "SumBytes4", argLength: 1, typ: "UInt8"}, // sum the rightmost 4 bytes in arg0 ignoring overflow
++		{name: "SumBytes8", argLength: 1, typ: "UInt8"}, // sum all the bytes in arg0 ignoring overflow
++
+ 		// store multiple
+ 		{
+ 			name:           "STMG2",
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0689c0ef32..1c9d263deb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1898,6 +1898,10 @@ const (
+ 	OpS390XLoweredAtomicExchange32
+ 	OpS390XLoweredAtomicExchange64
+ 	OpS390XFLOGR
++	OpS390XPOPCNT
++	OpS390XSumBytes2
++	OpS390XSumBytes4
++	OpS390XSumBytes8
+ 	OpS390XSTMG2
+ 	OpS390XSTMG3
+ 	OpS390XSTMG4
+@@ -25473,6 +25477,35 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "POPCNT",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.APOPCNT,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
++			},
++		},
++	},
++	{
++		name:   "SumBytes2",
++		argLen: 1,
++		reg:    regInfo{},
++	},
++	{
++		name:   "SumBytes4",
++		argLen: 1,
++		reg:    regInfo{},
++	},
++	{
++		name:   "SumBytes8",
++		argLen: 1,
++		reg:    regInfo{},
++	},
+ 	{
+ 		name:           "STMG2",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 7125b888bd..768b802ec1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -383,6 +383,14 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpOr8_0(v)
+ 	case OpOrB:
+ 		return rewriteValueS390X_OpOrB_0(v)
++	case OpPopCount16:
++		return rewriteValueS390X_OpPopCount16_0(v)
++	case OpPopCount32:
++		return rewriteValueS390X_OpPopCount32_0(v)
++	case OpPopCount64:
++		return rewriteValueS390X_OpPopCount64_0(v)
++	case OpPopCount8:
++		return rewriteValueS390X_OpPopCount8_0(v)
+ 	case OpRound:
+ 		return rewriteValueS390X_OpRound_0(v)
+ 	case OpRound32F:
+@@ -691,6 +699,12 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpS390XSUBconst_0(v)
+ 	case OpS390XSUBload:
+ 		return rewriteValueS390X_OpS390XSUBload_0(v)
++	case OpS390XSumBytes2:
++		return rewriteValueS390X_OpS390XSumBytes2_0(v)
++	case OpS390XSumBytes4:
++		return rewriteValueS390X_OpS390XSumBytes4_0(v)
++	case OpS390XSumBytes8:
++		return rewriteValueS390X_OpS390XSumBytes8_0(v)
+ 	case OpS390XXOR:
+ 		return rewriteValueS390X_OpS390XXOR_0(v) || rewriteValueS390X_OpS390XXOR_10(v)
+ 	case OpS390XXORW:
+@@ -5311,6 +5325,80 @@ func rewriteValueS390X_OpOrB_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpPopCount16_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount16 x)
++	// cond:
++	// result: (MOVBZreg (SumBytes2 (POPCNT <typ.UInt16> x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XMOVBZreg)
++		v0 := b.NewValue0(v.Pos, OpS390XSumBytes2, typ.UInt8)
++		v1 := b.NewValue0(v.Pos, OpS390XPOPCNT, typ.UInt16)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpPopCount32_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount32 x)
++	// cond:
++	// result: (MOVBZreg (SumBytes4 (POPCNT <typ.UInt32> x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XMOVBZreg)
++		v0 := b.NewValue0(v.Pos, OpS390XSumBytes4, typ.UInt8)
++		v1 := b.NewValue0(v.Pos, OpS390XPOPCNT, typ.UInt32)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpPopCount64_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount64 x)
++	// cond:
++	// result: (MOVBZreg (SumBytes8 (POPCNT <typ.UInt64> x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XMOVBZreg)
++		v0 := b.NewValue0(v.Pos, OpS390XSumBytes8, typ.UInt8)
++		v1 := b.NewValue0(v.Pos, OpS390XPOPCNT, typ.UInt64)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpPopCount8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (PopCount8 x)
++	// cond:
++	// result: (POPCNT (MOVBZreg x))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XPOPCNT)
++		v0 := b.NewValue0(v.Pos, OpS390XMOVBZreg, typ.UInt64)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpRound_0(v *Value) bool {
+ 	// match: (Round x)
+ 	// cond:
+@@ -40417,6 +40505,67 @@ func rewriteValueS390X_OpS390XSUBload_0(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XSumBytes2_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (SumBytes2 x)
++	// cond:
++	// result: (ADDW (SRWconst <typ.UInt8> x [8]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XADDW)
++		v0 := b.NewValue0(v.Pos, OpS390XSRWconst, typ.UInt8)
++		v0.AuxInt = 8
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueS390X_OpS390XSumBytes4_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (SumBytes4 x)
++	// cond:
++	// result: (SumBytes2 (ADDW <typ.UInt16> (SRWconst <typ.UInt16> x [16]) x))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XSumBytes2)
++		v0 := b.NewValue0(v.Pos, OpS390XADDW, typ.UInt16)
++		v1 := b.NewValue0(v.Pos, OpS390XSRWconst, typ.UInt16)
++		v1.AuxInt = 16
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueS390X_OpS390XSumBytes8_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	typ := &b.Func.Config.Types
++	_ = typ
++	// match: (SumBytes8 x)
++	// cond:
++	// result: (SumBytes4 (ADDW <typ.UInt32> (SRDconst <typ.UInt32> x [32]) x))
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XSumBytes4)
++		v0 := b.NewValue0(v.Pos, OpS390XADDW, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpS390XSRDconst, typ.UInt32)
++		v1.AuxInt = 32
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpS390XXOR_0(v *Value) bool {
+ 	// match: (XOR x (MOVDconst [c]))
+ 	// cond: isU32Bit(c)
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index babcd2af01..9ee02a2d0d 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -271,6 +271,9 @@ const (
+ 	// find leftmost one
+ 	AFLOGR
+ 
++	// population count
++	APOPCNT
++
+ 	// integer bitwise
+ 	AAND
+ 	AANDW
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 7edbdd68df..2d6ea5abb4 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -45,6 +45,7 @@ var Anames = []string{
+ 	"MOVDLT",
+ 	"MOVDNE",
+ 	"FLOGR",
++	"POPCNT",
+ 	"AND",
+ 	"ANDW",
+ 	"OR",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index ce3fe6af73..359610c41d 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -246,6 +246,9 @@ var optab = []Optab{
+ 	// find leftmost one
+ 	Optab{AFLOGR, C_REG, C_NONE, C_NONE, C_REG, 8, 0},
+ 
++	// population count
++	Optab{APOPCNT, C_REG, C_NONE, C_NONE, C_REG, 9, 0},
++
+ 	// compare
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_REG, 70, 0},
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_LCON, 71, 0},
+@@ -2849,6 +2852,9 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		// FLOGR also writes a mask to p.To.Reg+1.
+ 		zRRE(op_FLOGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 
++	case 9: // population count
++		zRRE(op_POPCNT, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++
+ 	case 10: // subtract reg [reg] reg
+ 		r := int(p.Reg)
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 85c54ea61b..ad2c5abb02 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -103,27 +103,36 @@ func Len8(n uint8) int {
+ func OnesCount(n uint) int {
+ 	// amd64:"POPCNTQ",".*support_popcnt"
+ 	// arm64:"VCNT","VUADDLV"
++	// s390x:"POPCNT"
+ 	return bits.OnesCount(n)
+ }
+ 
+ func OnesCount64(n uint64) int {
+ 	// amd64:"POPCNTQ",".*support_popcnt"
+ 	// arm64:"VCNT","VUADDLV"
++	// s390x:"POPCNT"
+ 	return bits.OnesCount64(n)
+ }
+ 
+ func OnesCount32(n uint32) int {
+ 	// amd64:"POPCNTL",".*support_popcnt"
+ 	// arm64:"VCNT","VUADDLV"
++	// s390x:"POPCNT"
+ 	return bits.OnesCount32(n)
+ }
+ 
+ func OnesCount16(n uint16) int {
+ 	// amd64:"POPCNTL",".*support_popcnt"
+ 	// arm64:"VCNT","VUADDLV"
++	// s390x:"POPCNT"
+ 	return bits.OnesCount16(n)
+ }
+ 
++func OnesCount8(n uint8) int {
++	// s390x:"POPCNT"
++	return bits.OnesCount8(n)
++}
++
+ // ----------------------- //
+ //    bits.ReverseBytes    //
+ // ----------------------- //

@@ -5,6 +5,22 @@ Date:   Wed May 7 17:34:51 2008 -0700
     use new conversion syntax to simplify test
     
     SVN=118019
-
+---
  src/lib/container/vector.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/lib/container/vector.go b/src/lib/container/vector.go
+index 7081bd3a95..d6de66ef57 100644
+--- a/src/lib/container/vector.go
++++ b/src/lib/container/vector.go
+@@ -121,9 +121,7 @@ func Test() {
+ 	v.Insert(0, i1);
+ 	v.Insert(0, i0);
+ 	for i := 0; i < v.Len(); i++ {
+-		var x *I;
+-		x = v.At(i);
+-		print i, " ", x.val, "\n";
++		print i, " ", v.At(i).(*I).val, "\n";
+ 	}
+ }
+ 

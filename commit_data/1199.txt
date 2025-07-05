@@ -7,7 +7,7 @@ Date:   Wed Nov 19 16:49:50 2008 -0800
     R=r
     OCL=19648
     CL=19651
-
+---
  usr/gri/pretty/ast.go         | 110 ++++++------------------------------------
  usr/gri/pretty/compilation.go |  15 +++---
  usr/gri/pretty/parser.go      |  85 ++++++++++++++++----------------
@@ -15,3 +15,934 @@ Date:   Wed Nov 19 16:49:50 2008 -0800
  usr/gri/pretty/tabwriter.go   |  51 ++++++++++----------
  usr/gri/pretty/untab.go       |  36 +++++++-------
  6 files changed, 159 insertions(+), 227 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index 3731a0357e..25a93377bf 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -4,7 +4,10 @@
+ 
+ package AST
+ 
+-import Scanner "scanner"
++import (
++	"array";
++	Scanner "scanner";
++)
+ 
+ 
+ type (
+@@ -16,90 +19,6 @@ type (
+ )
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Lists
+-//
+-// If p is a list and p == nil, then p.len() == 0.
+-// Thus, empty lists can be represented by nil.
+-
+-export type List struct {
+-	a *[] Any;
+-}
+-
+-
+-func (p *List) Init() {
+-	p.a = new([] Any, 10) [0 : 0];
+-}
+-
+-
+-func (p *List) len() int {
+-	if p == nil { return 0; }
+-	return len(p.a);
+-}
+-
+-
+-func (p *List) at(i int) Any {
+-	return p.a[i];
+-}
+-
+-
+-func (p *List) last() Any {
+-	return p.a[len(p.a) - 1];
+-}
+-
+-
+-func (p *List) set(i int, x Any) {
+-	p.a[i] = x;
+-}
+-
+-
+-func (p *List) Add(x Any) {
+-	a := p.a;
+-	n := len(a);
+-
+-	if n == cap(a) {
+-		b := new([] Any, 2*n);
+-		for i := 0; i < n; i++ {
+-			b[i] = a[i];
+-		}
+-		a = b;
+-	}
+-
+-	a = a[0 : n + 1];
+-	a[n] = x;
+-	p.a = a;
+-}
+-
+-
+-func (p *List) Pop() Any {
+-	a := p.a;
+-	n := len(a);
+-	
+-	var x Any;
+-	if n > 0 {
+-		x = a[n - 1];
+-		a = a[0 : n - 1];
+-		p.a = a;
+-	} else {
+-		panic("pop from empty list");
+-	}
+-	
+-	return x;
+-}
+-
+-
+-func (p *List) Clear() {
+-	p.a = p.a[0 : 0];
+-}
+-
+-
+-export func NewList() *List {
+-	p := new(List);
+-	p.Init();
+-	return p;
+-}
+-
+-
+ // ----------------------------------------------------------------------------
+ // All nodes have a source position and and token.
+ 
+@@ -117,11 +36,11 @@ export type Expr struct {
+ 	// TODO find a more space efficient way to hold these
+ 	s string;  // identifiers and literals
+ 	t *Type;  // type expressions, function literal types
+-	block *List;  // stats for function literals
++	block *array.Array;  // stats for function literals
+ }
+ 
+ 
+-func (x *Expr) len() int {
++func (x *Expr) Len() int {
+ 	if x == nil {
+ 		return 0;
+ 	}
+@@ -169,14 +88,17 @@ export type Type struct {
+ 	mode int;  // channel mode
+ 	key *Type;  // receiver type, map key
+ 	elt *Type;  // array element, map or channel value, or pointer base type, result type
+-	list *List;  // struct fields, interface methods, function parameters
++	list *array.Array;  // struct fields, interface methods, function parameters
+ }
+ 
+ 
+ func (t *Type) nfields() int {
++	if t.list == nil {
++		return 0;
++	}
+ 	nx, nt := 0, 0;
+-	for i, n := 0, t.list.len(); i < n; i++ {
+-		if t.list.at(i).(*Expr).tok == Scanner.TYPE {
++	for i, n := 0, t.list.Len(); i < n; i++ {
++		if t.list.At(i).(*Expr).tok == Scanner.TYPE {
+ 			nt++;
+ 		} else {
+ 			nx++;
+@@ -214,7 +136,7 @@ export type Stat struct {
+ 	Node;
+ 	init, post *Stat;
+ 	expr *Expr;
+-	block *List;
++	block *array.Array;
+ 	decl *Decl;
+ }
+ 
+@@ -240,7 +162,7 @@ export type Decl struct {
+ 	val *Expr;
+ 	// list of *Decl for ()-style declarations
+ 	// list of *Stat for func declarations (or nil for forward decl)
+-	list *List;
++	list *array.Array;
+ }
+ 
+ 
+@@ -273,8 +195,8 @@ export func NewComment(pos, tok int, text string) *Comment {
+ export type Program struct {
+ 	pos int;  // tok is Scanner.PACKAGE
+ 	ident *Expr;
+-	decls *List;
+-	comments *List;
++	decls *array.Array;
++	comments *array.Array;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index e4720c5c82..d52953f4b0 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -4,6 +4,7 @@
+ 
+ package Compilation
+ 
++import "array"
+ import OS "os"
+ import Platform "platform"
+ import Scanner "scanner"
+@@ -61,7 +62,7 @@ func FileExists(name string) bool {
+ }
+ 
+ 
+-func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flags *Flags) {
++func AddDeps(globalset *map [string] bool, wset *array.Array, src_file string, flags *Flags) {
+ 	dummy, found := globalset[src_file];
+ 	if !found {
+ 		globalset[src_file] = true;
+@@ -71,13 +72,13 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
+ 			return;
+ 		}
+ 		
+-		nimports := prog.decls.len();
++		nimports := prog.decls.Len();
+ 		if nimports > 0 {
+ 			print(src_file, ".6:\t");
+ 			
+ 			localset := new(map [string] bool);
+ 			for i := 0; i < nimports; i++ {
+-				decl := prog.decls.at(i).(*AST.Decl);
++				decl := prog.decls.At(i).(*AST.Decl);
+ 				assert(decl.tok == Scanner.IMPORT && decl.val.tok == Scanner.STRING);
+ 				src := decl.val.s;
+ 				src = src[1 : len(src) - 1];  // strip "'s
+@@ -87,7 +88,7 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
+ 				if !found {
+ 					localset[src] = true;
+ 					if FileExists(src + ".go") {
+-						wset.Add(src);
++						wset.Push(src);
+ 						print(" ", src, ".6");
+ 					} else if
+ 						FileExists(Platform.GOROOT + "/pkg/" + src + ".6") ||
+@@ -107,9 +108,9 @@ func AddDeps(globalset *map [string] bool, wset *AST.List, src_file string, flag
+ 
+ export func ComputeDeps(src_file string, flags *Flags) {
+ 	globalset := new(map [string] bool);
+-	wset := AST.NewList();
+-	wset.Add(src_file);
+-	for wset.len() > 0 {
++	wset := array.New(0);
++	wset.Push(src_file);
++	for wset.Len() > 0 {
+ 		AddDeps(globalset, wset, wset.Pop().(string), flags);
+ 	}
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 9e6bc10c06..2b942ac9a0 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -4,6 +4,7 @@
+ 
+ package Parser
+ 
++import "array"
+ import Scanner "scanner"
+ import AST "ast"
+ 
+@@ -16,7 +17,7 @@ export type Parser struct {
+ 	// Scanner
+ 	scanner *Scanner.Scanner;
+ 	tokchan *<-chan *Scanner.Token;
+-	comments *AST.List;
++	comments *array.Array;
+ 	
+ 	// Scanner.Token
+ 	pos int;  // token source position
+@@ -85,7 +86,7 @@ func (P *Parser) Next() {
+ 		P.tok == Scanner.COMMENT_BB ;
+ 		P.Next0() 
+ 	{
+-		P.comments.Add(AST.NewComment(P.pos, P.tok, P.val));
++		P.comments.Push(AST.NewComment(P.pos, P.tok, P.val));
+ 	}
+ }
+ 
+@@ -98,7 +99,7 @@ func (P *Parser) Open(verbose, sixg, deps bool, scanner *Scanner.Scanner, tokcha
+ 	
+ 	P.scanner = scanner;
+ 	P.tokchan = tokchan;
+-	P.comments = AST.NewList();
++	P.comments = array.New(0);
+ 	
+ 	P.Next();
+ 	P.expr_lev = 0;
+@@ -327,13 +328,13 @@ func (P *Parser) ParseVarDecl(expect_ident bool) *AST.Type {
+ }
+ 
+ 
+-func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
++func (P *Parser) ParseVarDeclList(list *array.Array, ellipsis_ok bool) {
+ 	P.Trace("VarDeclList");
+ 
+ 	// parse a list of types
+-	i0 := list.len();
++	i0 := list.Len();
+ 	for {
+-		list.Add(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
++		list.Push(P.ParseVarDecl(ellipsis_ok /* param list */ && i0 > 0));
+ 		if P.tok == Scanner.COMMA {
+ 			P.Next();
+ 		} else {
+@@ -357,24 +358,24 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ 	if typ != nil {
+ 		// all list entries must be identifiers
+ 		// convert the type entries into identifiers
+-		for i, n := i0, list.len(); i < n; i++ {
+-			t := list.at(i).(*AST.Type);
++		for i, n := i0, list.Len(); i < n; i++ {
++			t := list.At(i).(*AST.Type);
+ 			if t.tok == Scanner.IDENT && t.expr.tok == Scanner.IDENT {
+-				list.set(i, t.expr);
++				list.Set(i, t.expr);
+ 			} else {
+-				list.set(i, AST.BadExpr);
++				list.Set(i, AST.BadExpr);
+ 				P.Error(t.pos, "identifier expected");
+ 			}
+ 		}
+ 		// add type
+-		list.Add(AST.NewTypeExpr(typ));
++		list.Push(AST.NewTypeExpr(typ));
+ 
+ 	} else {
+ 		// all list entries are types
+ 		// convert all type entries into type expressions
+-		for i, n := i0, list.len(); i < n; i++ {
+-			t := list.at(i).(*AST.Type);
+-			list.set(i, AST.NewTypeExpr(t));
++		for i, n := i0, list.Len(); i < n; i++ {
++			t := list.At(i).(*AST.Type);
++			list.Set(i, AST.NewTypeExpr(t));
+ 		}
+ 	}
+ 	
+@@ -382,10 +383,10 @@ func (P *Parser) ParseVarDeclList(list *AST.List, ellipsis_ok bool) {
+ }
+ 
+ 
+-func (P *Parser) ParseParameterList(ellipsis_ok bool) *AST.List {
++func (P *Parser) ParseParameterList(ellipsis_ok bool) *array.Array {
+ 	P.Trace("ParameterList");
+ 	
+-	list := AST.NewList();
++	list := array.New(0);
+ 	P.ParseVarDeclList(list, ellipsis_ok);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+@@ -438,8 +439,8 @@ func (P *Parser) ParseResult() *AST.Type {
+ 		typ := P.TryType();
+ 		if typ != nil {
+ 			t = AST.NewType(P.pos, Scanner.STRUCT);
+-			t.list = AST.NewList();
+-			t.list.Add(AST.NewTypeExpr(typ));
++			t.list = array.New(0);
++			t.list.Push(AST.NewTypeExpr(typ));
+ 		}
+ 	}
+ 
+@@ -466,17 +467,17 @@ func (P *Parser) ParseFunctionType() *AST.Type {
+ }
+ 
+ 
+-func (P *Parser) ParseMethodSpec(list *AST.List) {
++func (P *Parser) ParseMethodSpec(list *array.Array) {
+ 	P.Trace("MethodDecl");
+ 	
+-	list.Add(P.ParseIdentList());
++	list.Push(P.ParseIdentList());
+ 	t := AST.BadType;
+ 	if P.sixg {
+ 		t = P.ParseType();
+ 	} else {
+ 		t = P.ParseFunctionType();
+ 	}
+-	list.Add(AST.NewTypeExpr(t));
++	list.Push(AST.NewTypeExpr(t));
+ 	
+ 	P.Ecart();
+ }
+@@ -489,7 +490,7 @@ func (P *Parser) ParseInterfaceType() *AST.Type {
+ 	P.Expect(Scanner.INTERFACE);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.Next();
+-		t.list = AST.NewList();
++		t.list = array.New(0);
+ 		for P.tok == Scanner.IDENT {
+ 			P.ParseMethodSpec(t.list);
+ 			if P.tok != Scanner.RBRACE {
+@@ -528,12 +529,12 @@ func (P *Parser) ParseStructType() *AST.Type {
+ 	P.Expect(Scanner.STRUCT);
+ 	if P.tok == Scanner.LBRACE {
+ 		P.Next();
+-		t.list = AST.NewList();
++		t.list = array.New(0);
+ 		for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 			P.ParseVarDeclList(t.list, false);
+ 			if P.tok == Scanner.STRING {
+ 				// ParseOperand takes care of string concatenation
+-				t.list.Add(P.ParseOperand());
++				t.list.Push(P.ParseOperand());
+ 			}
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.Next();
+@@ -586,15 +587,15 @@ func (P *Parser) TryType() *AST.Type {
+ // ----------------------------------------------------------------------------
+ // Blocks
+ 
+-func (P *Parser) ParseStatementList() *AST.List {
++func (P *Parser) ParseStatementList() *array.Array {
+ 	P.Trace("StatementList");
+ 	
+-	list := AST.NewList();
++	list := array.New(0);
+ 	for P.tok != Scanner.CASE && P.tok != Scanner.DEFAULT && P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+ 		s := P.ParseStatement();
+ 		if s != nil {
+ 			// not the empty statement
+-			list.Add(s);
++			list.Push(s);
+ 		}
+ 		if P.tok == Scanner.SEMICOLON {
+ 			P.Next();
+@@ -615,7 +616,7 @@ func (P *Parser) ParseStatementList() *AST.List {
+ }
+ 
+ 
+-func (P *Parser) ParseBlock() *AST.List {
++func (P *Parser) ParseBlock() *array.Array {
+ 	P.Trace("Block");
+ 	
+ 	P.Expect(Scanner.LBRACE);
+@@ -982,7 +983,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
+ 		// label declaration
+ 		s = AST.NewStat(P.pos, Scanner.COLON);
+ 		s.expr = x;
+-		if x.len() != 1 {
++		if x.Len() != 1 {
+ 			P.Error(x.pos, "illegal label declaration");
+ 		}
+ 		P.Next();  // consume ":"
+@@ -997,7 +998,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
+ 		pos, tok := P.pos, P.tok;
+ 		P.Next();
+ 		y := P.ParseExpressionList();
+-		if xl, yl := x.len(), y.len(); xl > 1 && yl > 1 && xl != yl {
++		if xl, yl := x.Len(), y.Len(); xl > 1 && yl > 1 && xl != yl {
+ 			P.Error(x.pos, "arity of lhs doesn't match rhs");
+ 		}
+ 		s = AST.NewStat(x.pos, Scanner.EXPRSTAT);
+@@ -1013,7 +1014,7 @@ func (P *Parser) ParseSimpleStat() *AST.Stat {
+ 		}
+ 		s = AST.NewStat(pos, tok);
+ 		s.expr = x;
+-		if x.len() != 1 {
++		if x.Len() != 1 {
+ 			P.Error(x.pos, "only one expression allowed");
+ 		}
+ 	}
+@@ -1113,8 +1114,8 @@ func (P *Parser) ParseIfStat() *AST.Stat {
+ 				if s1.tok != Scanner.LBRACE {
+ 					// wrap in a block if we don't have one
+ 					b := AST.NewStat(P.pos, Scanner.LBRACE);
+-					b.block = AST.NewList();
+-					b.block.Add(s1);
++					b.block = array.New(0);
++					b.block.Push(s1);
+ 					s1 = b;
+ 				}
+ 				s.post = s1;
+@@ -1178,10 +1179,10 @@ func (P *Parser) ParseSwitchStat() *AST.Stat {
+ 	P.Trace("SwitchStat");
+ 	
+ 	s := P.ParseControlClause(Scanner.SWITCH);
+-	s.block = AST.NewList();
++	s.block = array.New(0);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		s.block.Add(P.ParseCaseClause());
++		s.block.Push(P.ParseCaseClause());
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+@@ -1236,11 +1237,11 @@ func (P *Parser) ParseSelectStat() *AST.Stat {
+ 	P.Trace("SelectStat");
+ 	
+ 	s := AST.NewStat(P.pos, Scanner.SELECT);
+-	s.block = AST.NewList();
++	s.block = array.New(0);
+ 	P.Expect(Scanner.SELECT);
+ 	P.Expect(Scanner.LBRACE);
+ 	for P.tok != Scanner.RBRACE && P.tok != Scanner.EOF {
+-		s.block.Add(P.ParseCommClause());
++		s.block.Push(P.ParseCommClause());
+ 	}
+ 	P.Expect(Scanner.RBRACE);
+ 	P.opt_semi = true;
+@@ -1414,9 +1415,9 @@ func (P *Parser) ParseDecl(exported bool, keyword int) *AST.Decl {
+ 	if P.tok == Scanner.LPAREN {
+ 		P.Next();
+ 		d = AST.NewDecl(P.pos, keyword, exported);
+-		d.list = AST.NewList();
++		d.list = array.New(0);
+ 		for P.tok != Scanner.RPAREN && P.tok != Scanner.EOF {
+-			d.list.Add(P.ParseSpec(exported, keyword));
++			d.list.Push(P.ParseSpec(exported, keyword));
+ 			if P.tok == Scanner.SEMICOLON {
+ 				P.Next();
+ 			} else {
+@@ -1539,15 +1540,15 @@ func (P *Parser) ParseProgram() *AST.Program {
+ 	P.Expect(Scanner.PACKAGE);
+ 	p.ident = P.ParseIdent();
+ 	
+-	p.decls = AST.NewList();
++	p.decls = array.New(0);
+ 	for P.tok == Scanner.IMPORT {
+-		p.decls.Add(P.ParseDecl(false, Scanner.IMPORT));
++		p.decls.Push(P.ParseDecl(false, Scanner.IMPORT));
+ 		P.OptSemicolon();
+ 	}
+ 	
+ 	if !P.deps {
+ 		for P.tok != Scanner.EOF {
+-			p.decls.Add(P.ParseDeclaration());
++			p.decls.Push(P.ParseDeclaration());
+ 			P.OptSemicolon();
+ 		}
+ 	}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 06f72409a6..3e364618a7 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -4,6 +4,7 @@
+ 
+ package Printer
+ 
++import "array"
+ import Strings "strings"
+ import Scanner "scanner"
+ import AST "ast"
+@@ -44,7 +45,7 @@ export type Printer struct {
+ 	newl int;  // pending "\n"'s
+ 
+ 	// comments
+-	clist *AST.List;
++	clist *array.Array;
+ 	cindex int;
+ 	cpos int;
+ }
+@@ -71,7 +72,7 @@ func (P *Printer) String(pos int, s string) {
+ 		//print("cc", P.cpos, "\n");
+ 		
+ 		// we have a comment that comes before s
+-		comment := P.clist.at(P.cindex).(*AST.Comment);
++		comment := P.clist.At(P.cindex).(*AST.Comment);
+ 		text := comment.text;
+ 		assert(len(text) >= 3);  // classification char + "//" or "/*"
+ 		
+@@ -115,8 +116,8 @@ func (P *Printer) String(pos int, s string) {
+ 		}
+ 
+ 		P.cindex++;
+-		if P.cindex < P.clist.len() {
+-			P.cpos = P.clist.at(P.cindex).(*AST.Comment).pos;
++		if P.cindex < P.clist.Len() {
++			P.cpos = P.clist.At(P.cindex).(*AST.Comment).pos;
+ 		} else {
+ 			P.cpos = 1000000000;  // infinite
+ 		}
+@@ -191,43 +192,47 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ func (P *Printer) Type(t *AST.Type)
+ func (P *Printer) Expr(x *AST.Expr)
+ 
+-func (P *Printer) Parameters(pos int, list *AST.List) {
++func (P *Printer) Parameters(pos int, list *array.Array) {
+ 	P.String(pos, "(");
+-	var prev int;
+-	for i, n := 0, list.len(); i < n; i++ {
+-		x := list.at(i).(*AST.Expr);
+-		if i > 0 {
+-			if prev == x.tok || prev == Scanner.TYPE {
+-				P.String(0, ", ");
+-			} else {
+-				P.Blank();
++	if list != nil {
++		var prev int;
++		for i, n := 0, list.Len(); i < n; i++ {
++			x := list.At(i).(*AST.Expr);
++			if i > 0 {
++				if prev == x.tok || prev == Scanner.TYPE {
++					P.String(0, ", ");
++				} else {
++					P.Blank();
++				}
+ 			}
++			P.Expr(x);
++			prev = x.tok;
+ 		}
+-		P.Expr(x);
+-		prev = x.tok;
+ 	}
+ 	P.String(0, ")");
+ }
+ 
+ 
+-func (P *Printer) Fields(list *AST.List) {
++func (P *Printer) Fields(list *array.Array) {
+ 	P.OpenScope("{");
+-	var prev int;
+-	for i, n := 0, list.len(); i < n; i++ {
+-		x := list.at(i).(*AST.Expr);
+-		if i > 0 {
+-			if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
+-				P.semi, P.newl = true, 1;
+-			} else if prev == x.tok {
+-				P.String(0, ", ");
+-			} else {
+-				P.Tab();
++	if list != nil {
++		var prev int;
++		for i, n := 0, list.Len(); i < n; i++ {
++			x := list.At(i).(*AST.Expr);
++			if i > 0 {
++				if prev == Scanner.TYPE && x.tok != Scanner.STRING || prev == Scanner.STRING {
++					P.semi, P.newl = true, 1;
++				} else if prev == x.tok {
++					P.String(0, ", ");
++				} else {
++					P.Tab();
++				}
+ 			}
++			P.Expr(x);
++			prev = x.tok;
+ 		}
+-		P.Expr(x);
+-		prev = x.tok;
++		P.newl = 1;
+ 	}
+-	P.newl = 1;
+ 	P.CloseScope("}");
+ }
+ 
+@@ -291,7 +296,7 @@ func (P *Printer) Type(t *AST.Type) {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Printer) Block(list *AST.List, indent bool);
++func (P *Printer) Block(list *array.Array, indent bool);
+ 
+ func (P *Printer) Expr1(x *AST.Expr, prec1 int) {
+ 	if x == nil {
+@@ -391,15 +396,17 @@ func (P *Printer) Expr(x *AST.Expr) {
+ 
+ func (P *Printer) Stat(s *AST.Stat)
+ 
+-func (P *Printer) StatementList(list *AST.List) {
+-	for i, n := 0, list.len(); i < n; i++ {
+-		P.Stat(list.at(i).(*AST.Stat));
+-		P.newl = 1;
++func (P *Printer) StatementList(list *array.Array) {
++	if list != nil {
++		for i, n := 0, list.Len(); i < n; i++ {
++			P.Stat(list.At(i).(*AST.Stat));
++			P.newl = 1;
++		}
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Block(list *AST.List, indent bool) {
++func (P *Printer) Block(list *array.Array, indent bool) {
+ 	P.OpenScope("{");
+ 	if !indent {
+ 		P.indent--;
+@@ -536,8 +543,8 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 
+ 	if d.tok != Scanner.FUNC && d.list != nil {
+ 		P.OpenScope("(");
+-		for i := 0; i < d.list.len(); i++ {
+-			P.Declaration(d.list.at(i).(*AST.Decl), true);
++		for i := 0; i < d.list.Len(); i++ {
++			P.Declaration(d.list.At(i).(*AST.Decl), true);
+ 			P.semi, P.newl = true, 1;
+ 		}
+ 		P.CloseScope(")");
+@@ -601,8 +608,8 @@ func (P *Printer) Program(p *AST.Program) {
+ 	
+ 	P.clist = p.comments;
+ 	P.cindex = 0;
+-	if p.comments.len() > 0 {
+-		P.cpos = p.comments.at(0).(*AST.Comment).pos;
++	if p.comments.Len() > 0 {
++		P.cpos = p.comments.At(0).(*AST.Comment).pos;
+ 	} else {
+ 		P.cpos = 1000000000;  // infinite
+ 	}
+@@ -611,8 +618,8 @@ func (P *Printer) Program(p *AST.Program) {
+ 	P.String(p.pos, "package ");
+ 	P.Expr(p.ident);
+ 	P.newl = 2;
+-	for i := 0; i < p.decls.len(); i++ {
+-		P.Declaration(p.decls.at(i), false);
++	for i := 0; i < p.decls.Len(); i++ {
++		P.Declaration(p.decls.At(i), false);
+ 	}
+ 	P.newl = 2;	// TODO we should be able to do this with 1 instead of 2
+ 				// but we are loosing the last buffer flush in that case
+diff --git a/usr/gri/pretty/tabwriter.go b/usr/gri/pretty/tabwriter.go
+index 7ba7a0d2bc..53a275514c 100644
+--- a/usr/gri/pretty/tabwriter.go
++++ b/usr/gri/pretty/tabwriter.go
+@@ -5,14 +5,15 @@
+ package tabwriter
+ 
+ import (
+-	OS "os";
+-	IO "io";
+-	Vector "vector";
++	"os";
++	"io";
++	"array";
+ )
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // ByteArray
++// TODO move this into std lib eventually
+ 
+ type ByteArray struct {
+ 	a *[]byte;
+@@ -75,7 +76,7 @@ func (b *ByteArray) Append(s *[]byte) {
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Implemententation of flexible tab stops.
++// Implementation of flexible tab stops.
+ 
+ // TabWriter is a representation for a list of lines consisting of
+ // cells. A new cell is added for each Tab() call, and a new line
+@@ -87,42 +88,42 @@ func (b *ByteArray) Append(s *[]byte) {
+ 
+ export type TabWriter struct {
+ 	// configuration
+-	writer IO.Write;
++	writer io.Write;
+ 	usetabs bool;
+ 	tabwidth int;
+ 
+ 	// current state
+ 	buf ByteArray;  // the collected text w/o tabs and newlines
+ 	width int;  // width of last incomplete cell
+-	lines Vector.Vector;  // list of lines; each line is a list of cell widths
+-	widths Vector.Vector;  // list of column widths - (re-)used during formatting
++	lines array.Array;  // list of lines; each line is a list of cell widths
++	widths array.IntArray;  // list of column widths - (re-)used during formatting
+ }
+ 
+ 
+ func (b *TabWriter) AddLine() {
+-	b.lines.Append(Vector.New());
++	b.lines.Push(array.NewIntArray(0));
+ }
+ 
+ 
+-func (b *TabWriter) Init(writer IO.Write, usetabs bool, tabwidth int) {
++func (b *TabWriter) Init(writer io.Write, usetabs bool, tabwidth int) {
+ 	b.writer = writer;
+ 	b.usetabs = usetabs;
+ 	b.tabwidth = tabwidth;
+ 	
+ 	b.buf.Init(1024);
+-	b.lines.Init();
+-	b.widths.Init();
++	b.lines.Init(0);
++	b.widths.Init(0);
+ 	b.AddLine();  // the very first line
+ }
+ 
+ 
+-func (b *TabWriter) Line(i int) *Vector.Vector {
+-	return b.lines.At(i).(*Vector.Vector);
++func (b *TabWriter) Line(i int) *array.IntArray {
++	return b.lines.At(i).(*array.IntArray);
+ }
+ 
+ 
+-func (b *TabWriter) LastLine() *Vector.Vector {
+-	return b.lines.At(b.lines.Len() - 1).(*Vector.Vector);
++func (b *TabWriter) LastLine() *array.IntArray {
++	return b.lines.At(b.lines.Len() - 1).(*array.IntArray);
+ }
+ 
+ 
+@@ -133,7 +134,7 @@ func (b *TabWriter) Dump() {
+ 		line := b.Line(i);
+ 		print("(", i, ") ");
+ 		for j := 0; j < line.Len(); j++ {
+-			w := line.At(j).(int);
++			w := line.At(j);
+ 			print("[", string(b.buf.a[pos : pos + w]), "]");
+ 			pos += w;
+ 		}
+@@ -177,14 +178,14 @@ func (b *TabWriter) PrintLines(pos int, line0, line1 int) int {
+ 	for i := line0; i < line1; i++ {
+ 		line := b.Line(i);
+ 		for j := 0; j < line.Len(); j++ {
+-			w := line.At(j).(int);
++			w := line.At(j);
+ 			m, err := b.writer.Write(b.buf.a[pos : pos + w]);
+ 			if m != w {
+ 				panic();
+ 			}
+ 			pos += w;
+ 			if j < b.widths.Len() {
+-				b.Padding(w, b.widths.At(j).(int));
++				b.Padding(w, b.widths.At(j));
+ 			}
+ 		}
+ 		m, err := b.writer.Write(Newline);
+@@ -215,7 +216,7 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
+ 				if column < line.Len() - 1 {
+ 					// cell exists in this column
+ 					// update width
+-					w := line.At(column).(int) + 1; // 1 = minimum space between cells
++					w := line.At(column) + 1; // 1 = minimum space between cells
+ 					if w > width {
+ 						width = w;
+ 					}
+@@ -232,9 +233,9 @@ func (b *TabWriter) Format(pos int, line0, line1 int) int {
+ 			
+ 			// format and print all columns to the right of this column
+ 			// (we know the widths of this column and all columns to the left)
+-			b.widths.Append(width);
++			b.widths.Push(width);
+ 			pos = b.Format(pos, last, this);
+-			b.widths.Remove(b.widths.Len() - 1);
++			b.widths.Pop();
+ 			last = this;
+ 		}
+ 	}
+@@ -250,7 +251,7 @@ func (b *TabWriter) EmptyLine() bool {
+ 
+ 
+ func (b *TabWriter) Tab() {
+-	b.LastLine().Append(b.width);
++	b.LastLine().Push(b.width);
+ 	b.width = 0;
+ }
+ 
+@@ -273,14 +274,14 @@ func (b *TabWriter) Newline() {
+ 		// reset TabWriter
+ 		b.width = 0;
+ 		b.buf.Clear();
+-		b.lines.Reset();
++		b.lines.Init(0);
+ 	}
+ 
+ 	b.AddLine();
+ }
+ 
+ 
+-func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
++func (b *TabWriter) Write(buf *[]byte) (i int, err *os.Error) {
+ 	i0, n := 0, len(buf);
+ 	for i = 0; i < n; i++ {
+ 		switch buf[i] {
+@@ -302,7 +303,7 @@ func (b *TabWriter) Write(buf *[]byte) (i int, err *OS.Error) {
+ }
+ 
+ 
+-export func MakeTabWriter(writer IO.Write, usetabs bool, tabwidth int) *TabWriter {
++export func MakeTabWriter(writer io.Write, usetabs bool, tabwidth int) *TabWriter {
+ 	b := new(TabWriter);
+ 	b.Init(writer, usetabs, tabwidth);
+ 	return b;
+diff --git a/usr/gri/pretty/untab.go b/usr/gri/pretty/untab.go
+index 5f033e1b98..a2232b3517 100644
+--- a/usr/gri/pretty/untab.go
++++ b/usr/gri/pretty/untab.go
+@@ -5,28 +5,28 @@
+ package main
+ 
+ import (
+-	OS "os";
+-	IO "io";
+-	Flag "flag";
+-	Fmt "fmt";
+-	TabWriter "tabwriter";
++	"os";
++	"io";
++	"flag";
++	"fmt";
++	"tabwriter";
+ )
+ 
+ 
+ var (
+-	usetabs = Flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
+-	tabwidth = Flag.Int("tabwidth", 4, nil, "tab width");
++	usetabs = flag.Bool("usetabs", false, nil, "align with tabs instead of blanks");
++	tabwidth = flag.Int("tabwidth", 4, nil, "tab width");
+ )
+ 
+ 
+-func Error(fmt string, params ...) {
+-	Fmt.printf(fmt, params);
++func Error(format string, params ...) {
++	fmt.printf(format, params);
+ 	sys.exit(1);
+ }
+ 
+ 
+-func Untab(name string, src *OS.FD, dst *TabWriter.TabWriter) {
+-	n, err := IO.Copyn(src, dst, 2e9 /* inf */);  // TODO use Copy
++func Untab(name string, src *os.FD, dst *tabwriter.TabWriter) {
++	n, err := io.Copy(src, dst);
+ 	if err != nil {
+ 		Error("error while processing %s (%v)", name, err);
+ 	}
+@@ -35,12 +35,12 @@ func Untab(name string, src *OS.FD, dst *TabWriter.TabWriter) {
+ 
+ 
+ func main() {
+-	Flag.Parse();
+-	dst := TabWriter.MakeTabWriter(OS.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
+-	if Flag.NArg() > 0 {
+-		for i := 0; i < Flag.NArg(); i++ {
+-			name := Flag.Arg(i);
+-			src, err := OS.Open(name, OS.O_RDONLY, 0);
++	flag.Parse();
++	dst := tabwriter.MakeTabWriter(os.Stdout, usetabs.BVal(), int(tabwidth.IVal()));
++	if flag.NArg() > 0 {
++		for i := 0; i < flag.NArg(); i++ {
++			name := flag.Arg(i);
++			src, err := os.Open(name, os.O_RDONLY, 0);
+ 			if err != nil {
+ 				Error("could not open %s (%v)\n", name, err);
+ 			}
+@@ -49,6 +49,6 @@ func main() {
+ 		}
+ 	} else {
+ 		// no files => use stdin
+-		Untab("/dev/stdin", OS.Stdin, dst);
++		Untab("/dev/stdin", os.Stdin, dst);
+ 	}
+ }

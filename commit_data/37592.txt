@@ -7,6 +7,22 @@ Date:   Sun Aug 19 15:42:27 2018 +0100
     Change-Id: I63b59c1ca8265e9af7eb3f9210ee1d17925de891
     Reviewed-on: https://go-review.googlesource.com/129779
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/container/heap/heap.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/container/heap/heap.go b/src/container/heap/heap.go
+index 67b5efcac7..1ed0da8e6a 100644
+--- a/src/container/heap/heap.go
++++ b/src/container/heap/heap.go
+@@ -66,8 +66,8 @@ func Pop(h Interface) interface{} {
+ 	return h.Pop()
+ }
+ 
+-// Remove removes the element at index i from the heap.
+-// The complexity is O(log(n)) where n = h.Len().
++// Remove removes the element at index i from the heap and returns
++// the element. The complexity is O(log(n)) where n = h.Len().
+ //
+ func Remove(h Interface, i int) interface{} {
+ 	n := h.Len() - 1

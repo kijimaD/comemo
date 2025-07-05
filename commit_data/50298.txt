@@ -13,6 +13,29 @@ Date:   Thu Oct 14 23:01:34 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/reflect/all_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 58156e0e5f..427855b02e 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7635,7 +7635,7 @@ func TestSetIter(t *testing.T) {
+ 		k.SetIterKey(i)
+ 	})
+ 	shouldPanic("Value.SetIterValue called before Next", func() {
+-		k.SetIterValue(i)
++		v.SetIterValue(i)
+ 	})
+ 	data2 := map[string]int{}
+ 	for i.Next() {
+@@ -7650,7 +7650,7 @@ func TestSetIter(t *testing.T) {
+ 		k.SetIterKey(i)
+ 	})
+ 	shouldPanic("Value.SetIterValue called on exhausted iterator", func() {
+-		k.SetIterValue(i)
++		v.SetIterValue(i)
+ 	})
+ 
+ 	i.Reset(m)

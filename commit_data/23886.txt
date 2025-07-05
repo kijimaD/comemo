@@ -7,6 +7,43 @@ Date:   Fri Jun 19 09:36:25 2015 +0900
     Change-Id: I97812575ff9c69301a5ce2e1c814b40e1da32a55
     Reviewed-on: https://go-review.googlesource.com/11271
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/os/os_test.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 09856412df..640200e970 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1064,26 +1064,26 @@ func TestProgWideChdir(t *testing.T) {
+ 	}
+ 	oldwd, err := Getwd()
+ 	if err != nil {
+-		t.Fatal("Getwd: %v", err)
++		t.Fatalf("Getwd: %v", err)
+ 	}
+ 	d, err := ioutil.TempDir("", "test")
+ 	if err != nil {
+-		t.Fatal("TempDir: %v", err)
++		t.Fatalf("TempDir: %v", err)
+ 	}
+ 	defer func() {
+ 		if err := Chdir(oldwd); err != nil {
+-			t.Fatal("Chdir: %v", err)
++			t.Fatalf("Chdir: %v", err)
+ 		}
+ 		RemoveAll(d)
+ 	}()
+ 	if err := Chdir(d); err != nil {
+-		t.Fatal("Chdir: %v", err)
++		t.Fatalf("Chdir: %v", err)
+ 	}
+ 	// OS X sets TMPDIR to a symbolic link.
+ 	// So we resolve our working directory again before the test.
+ 	d, err = Getwd()
+ 	if err != nil {
+-		t.Fatal("Getwd: %v", err)
++		t.Fatalf("Getwd: %v", err)
+ 	}
+ 	close(c)
+ 	for i := 0; i < N; i++ {

@@ -14,7 +14,7 @@ Date:   Sun Mar 19 09:51:22 2017 +0100
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go       |  8 ++---
  src/cmd/compile/internal/gc/closure.go   |  6 ++--
  src/cmd/compile/internal/gc/dcl.go       |  6 ++--
@@ -31,3 +31,784 @@ Date:   Sun Mar 19 09:51:22 2017 +0100
  src/cmd/compile/internal/gc/typecheck.go | 12 ++++----
  src/cmd/compile/internal/gc/walk.go      | 24 +++++++--------
  15 files changed, 103 insertions(+), 107 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 1ab10ecebc..c31c023f99 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -198,7 +198,7 @@ func genhash(sym *Sym, t *Type) {
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
++	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+ 	n = nod(ODCLFIELD, newname(lookup("h")), typenod(Types[TUINTPTR]))
+@@ -349,7 +349,7 @@ func hashfor(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
++	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+ 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn = typecheck(tfn, Etype)
+@@ -376,10 +376,10 @@ func geneq(sym *Sym, t *Type) {
+ 	tfn := nod(OTFUNC, nil, nil)
+ 	fn.Func.Nname.Name.Param.Ntype = tfn
+ 
+-	n := nod(ODCLFIELD, newname(lookup("p")), typenod(ptrto(t)))
++	n := nod(ODCLFIELD, newname(lookup("p")), typenod(typPtr(t)))
+ 	tfn.List.Append(n)
+ 	np := n.Left
+-	n = nod(ODCLFIELD, newname(lookup("q")), typenod(ptrto(t)))
++	n = nod(ODCLFIELD, newname(lookup("q")), typenod(typPtr(t)))
+ 	tfn.List.Append(n)
+ 	nq := n.Left
+ 	n = nod(ODCLFIELD, nil, typenod(Types[TBOOL]))
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 91e955c610..41ee74b8e0 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -343,7 +343,7 @@ func transformclosure(xfunc *Node) {
+ 				// and v remains PAUTOHEAP with &v heapaddr
+ 				// (accesses will implicitly deref &v).
+ 				addr := newname(lookupf("&%s", v.Sym.Name))
+-				addr.Type = ptrto(v.Type)
++				addr.Type = typPtr(v.Type)
+ 				addr.Class = PPARAM
+ 				v.Name.Param.Heapaddr = addr
+ 				fld.Nname = addr
+@@ -382,7 +382,7 @@ func transformclosure(xfunc *Node) {
+ 
+ 			cv.Type = v.Type
+ 			if !v.Name.Byval() {
+-				cv.Type = ptrto(v.Type)
++				cv.Type = typPtr(v.Type)
+ 			}
+ 			offset = Rnd(offset, int64(cv.Type.Align))
+ 			cv.Xoffset = offset
+@@ -634,7 +634,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 		ptr.Name.Param.Ntype = typenod(rcvrtype)
+ 		body = append(body, nod(OAS, ptr, cv))
+ 	} else {
+-		ptr.Name.Param.Ntype = typenod(ptrto(rcvrtype))
++		ptr.Name.Param.Ntype = typenod(typPtr(rcvrtype))
+ 		body = append(body, nod(OAS, ptr, nod(OADDR, cv, nil)))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a1d6e4f0c7..583c440259 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -937,14 +937,14 @@ var thisT *Type
+ 
+ func fakethis() *Node {
+ 	if thisT == nil {
+-		thisT = ptrto(typ(TSTRUCT))
++		thisT = typPtr(typ(TSTRUCT))
+ 	}
+ 	return nod(ODCLFIELD, nil, typenod(thisT))
+ }
+ 
+ func fakethisfield() *Field {
+ 	if thisT == nil {
+-		thisT = ptrto(typ(TSTRUCT))
++		thisT = typPtr(typ(TSTRUCT))
+ 	}
+ 	f := newField()
+ 	f.Type = thisT
+@@ -1046,7 +1046,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 	// if t0 == *t and t0 has a sym,
+ 	// we want to see *t, not t0, in the method name.
+ 	if t != t0 && t0.Sym != nil {
+-		t0 = ptrto(t)
++		t0 = typPtr(t)
+ 	}
+ 
+ 	suffix = ""
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 93e943b5a3..0a26bf4aae 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1154,7 +1154,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
+ 		a := nod(OADDR, src, nil)
+ 		a.Pos = src.Pos
+ 		e.nodeEscState(a).Loopdepth = e.nodeEscState(src).Loopdepth
+-		a.Type = ptrto(src.Type)
++		a.Type = typPtr(src.Type)
+ 		e.escflows(dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
+ 
+ 	// Flowing multiple returns to a single dst happens when
+@@ -1552,7 +1552,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 					// Introduce ODDDARG node to represent ... allocation.
+ 					arg = nod(ODDDARG, nil, nil)
+ 					arr := typArray(n.Type.Elem(), int64(len(args)))
+-					arg.Type = ptrto(arr) // make pointer so it will be tracked
++					arg.Type = typPtr(arr) // make pointer so it will be tracked
+ 					arg.Pos = call.Pos
+ 					e.track(arg)
+ 					call.Right = arg
+@@ -1616,7 +1616,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 			arg = nod(ODDDARG, nil, nil)
+ 			arg.Pos = call.Pos
+ 			arr := typArray(param.Type.Elem(), int64(len(args)-i))
+-			arg.Type = ptrto(arr) // make pointer so it will be tracked
++			arg.Type = typPtr(arr) // make pointer so it will be tracked
+ 			e.track(arg)
+ 			call.Right = arg
+ 		}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index e557e53b73..7051123d06 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -112,7 +112,7 @@ func moveToHeap(n *Node) {
+ 
+ 	// Allocate a local stack variable to hold the pointer to the heap copy.
+ 	// temp will add it to the function declaration list automatically.
+-	heapaddr := temp(ptrto(n.Type))
++	heapaddr := temp(typPtr(n.Type))
+ 	heapaddr.Sym = lookup("&" + n.Sym.Name)
+ 	heapaddr.Orig.Sym = heapaddr.Sym
+ 
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 7704ea096f..2cc1461af7 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -216,7 +216,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 		if n.Left.Type.IsMap() {
+ 			n1 := nod(OCONVNOP, n.Left, nil)
+-			n1.Type = ptrto(Types[TUINT8])
++			n1.Type = typPtr(Types[TUINT8])
+ 			n1 = nod(OIND, n1, nil)
+ 			n1 = typecheck(n1, Erv)
+ 			callinstr(&n1, init, 0, skip)
+@@ -568,7 +568,7 @@ func uintptraddr(n *Node) *Node {
+ 
+ func detachexpr(n *Node, init *Nodes) *Node {
+ 	addr := nod(OADDR, n, nil)
+-	l := temp(ptrto(n.Type))
++	l := temp(typPtr(n.Type))
+ 	as := nod(OAS, l, addr)
+ 	as = typecheck(as, Etop)
+ 	as = walkexpr(as, init)
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 9572418e9d..99fa66334d 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -195,7 +195,7 @@ func walkrange(n *Node) *Node {
+ 		init = append(init, nod(OAS, hn, nod(OLEN, ha, nil)))
+ 
+ 		if v2 != nil {
+-			hp = temp(ptrto(n.Type.Elem()))
++			hp = temp(typPtr(n.Type.Elem()))
+ 			tmp := nod(OINDEX, ha, nodintconst(0))
+ 			tmp.SetBounded(true)
+ 			init = append(init, nod(OAS, hp, nod(OADDR, tmp, nil)))
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 803bad6257..8be381443f 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -111,10 +111,10 @@ func mapbucket(t *Type) *Type {
+ 	dowidth(keytype)
+ 	dowidth(valtype)
+ 	if keytype.Width > MAXKEYSIZE {
+-		keytype = ptrto(keytype)
++		keytype = typPtr(keytype)
+ 	}
+ 	if valtype.Width > MAXVALSIZE {
+-		valtype = ptrto(valtype)
++		valtype = typPtr(valtype)
+ 	}
+ 
+ 	field := make([]*Field, 0, 5)
+@@ -158,7 +158,7 @@ func mapbucket(t *Type) *Type {
+ 	// Arrange for the bucket to have no pointers by changing
+ 	// the type of the overflow field to uintptr in this case.
+ 	// See comment on hmap.overflow in ../../../../runtime/hashmap.go.
+-	otyp := ptrto(bucket)
++	otyp := typPtr(bucket)
+ 	if !haspointers(t.Val()) && !haspointers(t.Key()) && t.Val().Width <= MAXVALSIZE && t.Key().Width <= MAXKEYSIZE {
+ 		otyp = Types[TUINTPTR]
+ 	}
+@@ -197,8 +197,8 @@ func hmap(t *Type) *Type {
+ 		makefield("B", Types[TUINT8]),
+ 		makefield("noverflow", Types[TUINT16]),
+ 		makefield("hash0", Types[TUINT32]),
+-		makefield("buckets", ptrto(bucket)),
+-		makefield("oldbuckets", ptrto(bucket)),
++		makefield("buckets", typPtr(bucket)),
++		makefield("oldbuckets", typPtr(bucket)),
+ 		makefield("nevacuate", Types[TUINTPTR]),
+ 		makefield("overflow", Types[TUNSAFEPTR]),
+ 	}
+@@ -235,12 +235,12 @@ func hiter(t *Type) *Type {
+ 	// }
+ 	// must match ../../../../runtime/hashmap.go:hiter.
+ 	var field [12]*Field
+-	field[0] = makefield("key", ptrto(t.Key()))
+-	field[1] = makefield("val", ptrto(t.Val()))
+-	field[2] = makefield("t", ptrto(Types[TUINT8]))
+-	field[3] = makefield("h", ptrto(hmap(t)))
+-	field[4] = makefield("buckets", ptrto(mapbucket(t)))
+-	field[5] = makefield("bptr", ptrto(mapbucket(t)))
++	field[0] = makefield("key", typPtr(t.Key()))
++	field[1] = makefield("val", typPtr(t.Val()))
++	field[2] = makefield("t", typPtr(Types[TUINT8]))
++	field[3] = makefield("h", typPtr(hmap(t)))
++	field[4] = makefield("buckets", typPtr(mapbucket(t)))
++	field[5] = makefield("bptr", typPtr(mapbucket(t)))
+ 	field[6] = makefield("overflow0", Types[TUNSAFEPTR])
+ 	field[7] = makefield("overflow1", Types[TUNSAFEPTR])
+ 	field[8] = makefield("startBucket", Types[TUINTPTR])
+@@ -310,7 +310,7 @@ func methods(t *Type) []*Sig {
+ 	it := t
+ 
+ 	if !isdirectiface(it) {
+-		it = ptrto(t)
++		it = typPtr(t)
+ 	}
+ 
+ 	// make list of methods for t,
+@@ -845,7 +845,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	sptrWeak := true
+ 	var sptr *Sym
+ 	if !t.IsPtr() || t.ptrTo != nil {
+-		tptr := ptrto(t)
++		tptr := typPtr(t)
+ 		if t.Sym != nil || methods(tptr) != nil {
+ 			sptrWeak = false
+ 		}
+@@ -994,7 +994,7 @@ func typenamesym(t *Type) *Sym {
+ func typename(t *Type) *Node {
+ 	s := typenamesym(t)
+ 	n := nod(OADDR, s.Def, nil)
+-	n.Type = ptrto(s.Def.Type)
++	n.Type = typPtr(s.Def.Type)
+ 	n.SetAddable(true)
+ 	n.Typecheck = 1
+ 	return n
+@@ -1016,7 +1016,7 @@ func itabname(t, itype *Type) *Node {
+ 	}
+ 
+ 	n := nod(OADDR, s.Def, nil)
+-	n.Type = ptrto(s.Def.Type)
++	n.Type = typPtr(s.Def.Type)
+ 	n.SetAddable(true)
+ 	n.Typecheck = 1
+ 	return n
+@@ -1473,7 +1473,7 @@ func dumptypestructs() {
+ 		t := signatlist[i]
+ 		dtypesym(t)
+ 		if t.Sym != nil {
+-			dtypesym(ptrto(t))
++			dtypesym(typPtr(t))
+ 		}
+ 	}
+ 
+@@ -1550,14 +1550,14 @@ func dumptypestructs() {
+ 	// but using runtime means fewer copies in .6 files.
+ 	if myimportpath == "runtime" {
+ 		for i := EType(1); i <= TBOOL; i++ {
+-			dtypesym(ptrto(Types[i]))
++			dtypesym(typPtr(Types[i]))
+ 		}
+-		dtypesym(ptrto(Types[TSTRING]))
+-		dtypesym(ptrto(Types[TUNSAFEPTR]))
++		dtypesym(typPtr(Types[TSTRING]))
++		dtypesym(typPtr(Types[TUNSAFEPTR]))
+ 
+ 		// emit type structs for error and func(error) string.
+ 		// The latter is the type of an auto-generated wrapper.
+-		dtypesym(ptrto(errortype))
++		dtypesym(typPtr(errortype))
+ 
+ 		dtypesym(functype(nil, []*Node{nod(ODCLFIELD, nil, typenod(errortype))}, []*Node{nod(ODCLFIELD, nil, typenod(Types[TSTRING]))}))
+ 
+@@ -1861,7 +1861,7 @@ func zeroaddr(size int64) *Node {
+ 		s.Def = x
+ 	}
+ 	z := nod(OADDR, s.Def, nil)
+-	z.Type = ptrto(Types[TUINT8])
++	z.Type = typPtr(Types[TUINT8])
+ 	z.SetAddable(true)
+ 	z.Typecheck = 1
+ 	return z
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 5f0419d575..975242c55d 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -258,7 +258,7 @@ func walkselect(sel *Node) {
+ 	r = nod(OAS, selv, nil)
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+-	var_ = conv(conv(nod(OADDR, selv, nil), Types[TUNSAFEPTR]), ptrto(Types[TUINT8]))
++	var_ = conv(conv(nod(OADDR, selv, nil), Types[TUNSAFEPTR]), typPtr(Types[TUINT8]))
+ 	r = mkcall("newselect", nil, nil, var_, nodintconst(selv.Type.Width), nodintconst(sel.Xoffset))
+ 	r = typecheck(r, Etop)
+ 	init = append(init, r)
+@@ -332,11 +332,11 @@ func selecttype(size int32) *Type {
+ 	// and then cache; and also cache Select per size.
+ 
+ 	scase := nod(OTSTRUCT, nil, nil)
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("elem")), typenod(ptrto(Types[TUINT8]))))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("chan")), typenod(ptrto(Types[TUINT8]))))
++	scase.List.Append(nod(ODCLFIELD, newname(lookup("elem")), typenod(typPtr(Types[TUINT8]))))
++	scase.List.Append(nod(ODCLFIELD, newname(lookup("chan")), typenod(typPtr(Types[TUINT8]))))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("pc")), typenod(Types[TUINTPTR])))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("kind")), typenod(Types[TUINT16])))
+-	scase.List.Append(nod(ODCLFIELD, newname(lookup("receivedp")), typenod(ptrto(Types[TUINT8]))))
++	scase.List.Append(nod(ODCLFIELD, newname(lookup("receivedp")), typenod(typPtr(Types[TUINT8]))))
+ 	scase.List.Append(nod(ODCLFIELD, newname(lookup("releasetime")), typenod(Types[TUINT64])))
+ 	scase = typecheck(scase, Etype)
+ 	scase.Type.SetNoalg(true)
+@@ -345,8 +345,8 @@ func selecttype(size int32) *Type {
+ 	sel := nod(OTSTRUCT, nil, nil)
+ 	sel.List.Append(nod(ODCLFIELD, newname(lookup("tcase")), typenod(Types[TUINT16])))
+ 	sel.List.Append(nod(ODCLFIELD, newname(lookup("ncase")), typenod(Types[TUINT16])))
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("pollorder")), typenod(ptrto(Types[TUINT8]))))
+-	sel.List.Append(nod(ODCLFIELD, newname(lookup("lockorder")), typenod(ptrto(Types[TUINT8]))))
++	sel.List.Append(nod(ODCLFIELD, newname(lookup("pollorder")), typenod(typPtr(Types[TUINT8]))))
++	sel.List.Append(nod(ODCLFIELD, newname(lookup("lockorder")), typenod(typPtr(Types[TUINT8]))))
+ 	arr := nod(OTARRAY, nodintconst(int64(size)), scase)
+ 	sel.List.Append(nod(ODCLFIELD, newname(lookup("scase")), arr))
+ 	arr = nod(OTARRAY, nodintconst(int64(size)), typenod(Types[TUINT16]))
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 6bee2a342c..cbc3ad9769 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -535,7 +535,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 				*out = append(*out, nod(OAS, a, val))
+ 			}
+ 			ptr := nod(OADDR, a, nil)
+-			n.Type = ptrto(val.Type)
++			n.Type = typPtr(val.Type)
+ 			gdata(&n, ptr, Widthptr)
+ 		}
+ 
+@@ -828,7 +828,7 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 	}
+ 
+ 	// make new auto *array (3 declare)
+-	vauto := temp(ptrto(t))
++	vauto := temp(typPtr(t))
+ 
+ 	// set auto to point at new temp or heap (3 assign)
+ 	var a *Node
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 3275dd852f..960e14cc77 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -37,14 +37,14 @@ func initssaconfig() {
+ 		Int:        Types[TINT],
+ 		Uintptr:    Types[TUINTPTR],
+ 		String:     Types[TSTRING],
+-		BytePtr:    ptrto(Types[TUINT8]),
+-		Int32Ptr:   ptrto(Types[TINT32]),
+-		UInt32Ptr:  ptrto(Types[TUINT32]),
+-		IntPtr:     ptrto(Types[TINT]),
+-		UintptrPtr: ptrto(Types[TUINTPTR]),
+-		Float32Ptr: ptrto(Types[TFLOAT32]),
+-		Float64Ptr: ptrto(Types[TFLOAT64]),
+-		BytePtrPtr: ptrto(ptrto(Types[TUINT8])),
++		BytePtr:    typPtr(Types[TUINT8]),
++		Int32Ptr:   typPtr(Types[TINT32]),
++		UInt32Ptr:  typPtr(Types[TUINT32]),
++		IntPtr:     typPtr(Types[TINT]),
++		UintptrPtr: typPtr(Types[TUINTPTR]),
++		Float32Ptr: typPtr(Types[TFLOAT32]),
++		Float64Ptr: typPtr(Types[TFLOAT64]),
++		BytePtrPtr: typPtr(typPtr(Types[TUINT8])),
+ 	}
+ 	ssaConfig = ssa.NewConfig(thearch.LinkArch.Name, types, Ctxt, Debug['N'] == 0)
+ 	if thearch.LinkArch.Name == "386" {
+@@ -126,7 +126,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 		switch n.Class {
+ 		case PPARAM, PPARAMOUT:
+ 			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Typ: n.Type, Node: n})
+-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, ptrto(n.Type), aux, s.sp)
++			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sp)
+ 			if n.Class == PPARAMOUT && s.canSSA(n) {
+ 				// Save ssa-able PPARAMOUT variables so we can
+ 				// store them back to the stack at the end of
+@@ -1367,7 +1367,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := Linksym(funcsym(n.Sym))
+ 			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
+-			return s.entryNewValue1A(ssa.OpAddr, ptrto(n.Type), aux, s.sb)
++			return s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sb)
+ 		}
+ 		if s.canSSA(n) {
+ 			return s.variable(n, n.Type)
+@@ -1875,7 +1875,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.addr(n.Left, n.Bounded())
+ 
+ 	case OINDREGSP:
+-		addr := s.constOffPtrSP(ptrto(n.Type), n.Xoffset)
++		addr := s.constOffPtrSP(typPtr(n.Type), n.Xoffset)
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 
+ 	case OIND:
+@@ -1902,7 +1902,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 
+ 	case ODOTPTR:
+ 		p := s.exprPtr(n.Left, false, n.Pos)
+-		p = s.newValue1I(ssa.OpOffPtr, ptrto(n.Type), n.Xoffset, p)
++		p = s.newValue1I(ssa.OpOffPtr, typPtr(n.Type), n.Xoffset, p)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case OINDEX:
+@@ -2094,7 +2094,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	// *(ptr+len+2) = e3
+ 
+ 	et := n.Type.Elem()
+-	pt := ptrto(et)
++	pt := typPtr(et)
+ 
+ 	// Evaluate slice
+ 	sn := n.List.First() // the slice node is the first in the list
+@@ -3083,7 +3083,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		return nil
+ 	}
+ 	fp := res.Field(0)
+-	return s.constOffPtrSP(ptrto(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
++	return s.constOffPtrSP(typPtr(fp.Type), fp.Offset+Ctxt.FixedFrameSize())
+ }
+ 
+ // etypesign returns the signed-ness of e, for integer/pointer etypes.
+@@ -3122,7 +3122,7 @@ func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
+ // If bounded is true then this address does not require a nil check for its operand
+ // even if that would otherwise be implied.
+ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+-	t := ptrto(n.Type)
++	t := typPtr(n.Type)
+ 	switch n.Op {
+ 	case ONAME:
+ 		switch n.Class {
+@@ -3183,7 +3183,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			if !n.Bounded() {
+ 				s.boundsCheck(i, len)
+ 			}
+-			return s.newValue2(ssa.OpPtrIndex, ptrto(n.Left.Type.Elem()), a, i)
++			return s.newValue2(ssa.OpPtrIndex, typPtr(n.Left.Type.Elem()), a, i)
+ 		}
+ 	case OIND:
+ 		return s.exprPtr(n.Left, bounded, n.Pos)
+@@ -3429,7 +3429,7 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
+ 	res := make([]*ssa.Value, len(results))
+ 	for i, t := range results {
+ 		off = Rnd(off, t.Alignment())
+-		ptr := s.constOffPtrSP(ptrto(t), off)
++		ptr := s.constOffPtrSP(typPtr(t), off)
+ 		res[i] = s.newValue2(ssa.OpLoad, t, ptr, s.mem())
+ 		off += t.Size()
+ 	}
+@@ -3555,13 +3555,13 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 	switch {
+ 	case t.IsSlice():
+ 		elemtype = t.Elem()
+-		ptrtype = ptrto(elemtype)
++		ptrtype = typPtr(elemtype)
+ 		ptr = s.newValue1(ssa.OpSlicePtr, ptrtype, v)
+ 		len = s.newValue1(ssa.OpSliceLen, Types[TINT], v)
+ 		cap = s.newValue1(ssa.OpSliceCap, Types[TINT], v)
+ 	case t.IsString():
+ 		elemtype = Types[TUINT8]
+-		ptrtype = ptrto(elemtype)
++		ptrtype = typPtr(elemtype)
+ 		ptr = s.newValue1(ssa.OpStringPtr, ptrtype, v)
+ 		len = s.newValue1(ssa.OpStringLen, Types[TINT], v)
+ 		cap = len
+@@ -3570,7 +3570,7 @@ func (s *state) slice(t *Type, v, i, j, k *ssa.Value) (p, l, c *ssa.Value) {
+ 			s.Fatalf("bad ptr to array in slice %v\n", t)
+ 		}
+ 		elemtype = t.Elem().Elem()
+-		ptrtype = ptrto(elemtype)
++		ptrtype = typPtr(elemtype)
+ 		s.nilCheck(v)
+ 		ptr = v
+ 		len = s.constInt(Types[TINT], t.Elem().NumElem())
+@@ -4100,7 +4100,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		if direct {
+ 			return s.newValue1(ssa.OpIData, n.Type, iface), nil
+ 		}
+-		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++		p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem()), nil
+ 	}
+ 
+@@ -4117,11 +4117,11 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		if direct {
+ 			s.vars[valVar] = s.newValue1(ssa.OpIData, n.Type, iface)
+ 		} else {
+-			p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++			p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
+ 			s.vars[valVar] = s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 		}
+ 	} else {
+-		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
++		p := s.newValue1(ssa.OpIData, typPtr(n.Type), iface)
+ 		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, n.Type.Size(), addr, p, s.mem())
+ 		store.Aux = n.Type
+ 		s.vars[&memVar] = store
+@@ -4712,7 +4712,7 @@ func (e *ssafn) Auto(t ssa.Type) ssa.GCNode {
+ 
+ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+-	ptrType := ptrto(Types[TUINT8])
++	ptrType := typPtr(Types[TUINT8])
+ 	lenType := Types[TINT]
+ 	if n.Class == PAUTO && !n.Addrtaken() {
+ 		// Split this string up into two separate variables.
+@@ -4726,7 +4726,7 @@ func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 
+ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+-	t := ptrto(Types[TUINT8])
++	t := typPtr(Types[TUINT8])
+ 	if n.Class == PAUTO && !n.Addrtaken() {
+ 		// Split this interface up into two separate variables.
+ 		f := ".itab"
+@@ -4743,7 +4743,7 @@ func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot
+ 
+ func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+ 	n := name.N.(*Node)
+-	ptrType := ptrto(name.Type.ElemType().(*Type))
++	ptrType := typPtr(name.Type.ElemType().(*Type))
+ 	lenType := Types[TINT]
+ 	if n.Class == PAUTO && !n.Addrtaken() {
+ 		// Split this slice up into three separate variables.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index b393e48a08..234240983b 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1112,18 +1112,6 @@ func typehash(t *Type) uint32 {
+ 	return binary.LittleEndian.Uint32(h[:4])
+ }
+ 
+-// ptrto returns the Type *t.
+-// The returned struct must not be modified.
+-func ptrto(t *Type) *Type {
+-	if Tptr == 0 {
+-		Fatalf("ptrto: no tptr")
+-	}
+-	if t == nil {
+-		Fatalf("ptrto: nil ptr")
+-	}
+-	return typPtr(t)
+-}
+-
+ func frame(context int) {
+ 	if context != 0 {
+ 		fmt.Printf("--- external frame ---\n")
+@@ -1826,7 +1814,7 @@ func hashmem(t *Type) *Node {
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+ 	tfn := nod(OTFUNC, nil, nil)
+-	tfn.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
++	tfn.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+ 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.List.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+ 	tfn.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TUINTPTR])))
+@@ -2123,7 +2111,7 @@ func isdirectiface(t *Type) bool {
+ // itabType loads the _type field from a runtime.itab struct.
+ func itabType(itab *Node) *Node {
+ 	typ := nodSym(ODOTPTR, itab, nil)
+-	typ.Type = ptrto(Types[TUINT8])
++	typ.Type = typPtr(Types[TUINT8])
+ 	typ.Typecheck = 1
+ 	typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+ 	typ.SetBounded(true)          // guaranteed not to fault
+@@ -2140,7 +2128,7 @@ func ifaceData(n *Node, t *Type) *Node {
+ 		ptr.Typecheck = 1
+ 		return ptr
+ 	}
+-	ptr.Type = ptrto(t)
++	ptr.Type = typPtr(t)
+ 	ptr.SetBounded(true)
+ 	ptr.Typecheck = 1
+ 	ind := nod(OIND, ptr, nil)
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index cde9980d59..b1eb05764e 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -494,13 +494,21 @@ func typMap(k, v *Type) *Type {
+ 
+ // typPtr returns the pointer type pointing to t.
+ func typPtr(elem *Type) *Type {
++	if elem == nil {
++		Fatalf("typPtr: pointer to elem Type is nil")
++	}
++
+ 	if t := elem.ptrTo; t != nil {
+ 		if t.Elem() != elem {
+-			Fatalf("elem mismatch")
++			Fatalf("typPtr: elem mismatch")
+ 		}
+ 		return t
+ 	}
+ 
++	if Tptr == 0 {
++		Fatalf("typPtr: Tptr not intialized")
++	}
++
+ 	t := typ(Tptr)
+ 	t.Extra = PtrType{Elem: elem}
+ 	t.Width = int64(Widthptr)
+@@ -1217,7 +1225,7 @@ func (t *Type) ElemType() ssa.Type {
+ 	return t.Elem()
+ }
+ func (t *Type) PtrTo() ssa.Type {
+-	return ptrto(t)
++	return typPtr(t)
+ }
+ 
+ func (t *Type) NumFields() int {
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d55e76b7f1..81880e0694 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -492,7 +492,7 @@ OpSwitch:
+ 		if l.Op == OTYPE {
+ 			ok |= Etype
+ 			n.Op = OTYPE
+-			n.Type = ptrto(l.Type)
++			n.Type = typPtr(l.Type)
+ 			n.Left = nil
+ 			break OpSwitch
+ 		}
+@@ -823,7 +823,7 @@ OpSwitch:
+ 			n.Type = nil
+ 			return n
+ 		}
+-		n.Type = ptrto(t)
++		n.Type = typPtr(t)
+ 		break OpSwitch
+ 
+ 	case OCOMPLIT:
+@@ -1871,7 +1871,7 @@ OpSwitch:
+ 		}
+ 
+ 		n.Left = l
+-		n.Type = ptrto(t)
++		n.Type = typPtr(t)
+ 		break OpSwitch
+ 
+ 	case OPRINT, OPRINTN:
+@@ -1933,7 +1933,7 @@ OpSwitch:
+ 		if !t.IsInterface() {
+ 			Fatalf("OITAB of %v", t)
+ 		}
+-		n.Type = ptrto(Types[TUINTPTR])
++		n.Type = typPtr(Types[TUINTPTR])
+ 		break OpSwitch
+ 
+ 	case OIDATA:
+@@ -1954,9 +1954,9 @@ OpSwitch:
+ 			Fatalf("OSPTR of %v", t)
+ 		}
+ 		if t.IsString() {
+-			n.Type = ptrto(Types[TUINT8])
++			n.Type = typPtr(Types[TUINT8])
+ 		} else {
+-			n.Type = ptrto(t.Elem())
++			n.Type = typPtr(t.Elem())
+ 		}
+ 		break OpSwitch
+ 
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e401f174bc..96b564df7c 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -843,7 +843,7 @@ opswitch:
+ 
+ 		// don't generate a = *var if a is _
+ 		if !isblank(a) {
+-			var_ := temp(ptrto(t.Val()))
++			var_ := temp(typPtr(t.Val()))
+ 			var_.Typecheck = 1
+ 			var_.SetNonNil(true) // mapaccess always returns a non-nil pointer
+ 			n.List.SetFirst(var_)
+@@ -954,7 +954,7 @@ opswitch:
+ 			init.Append(nod(OAS, c, n.Left))
+ 
+ 			// Get the itab out of the interface.
+-			tmp := temp(ptrto(Types[TUINT8]))
++			tmp := temp(typPtr(Types[TUINT8]))
+ 			init.Append(nod(OAS, tmp, typecheck(nod(OITAB, c, nil), Erv)))
+ 
+ 			// Get the type out of the itab.
+@@ -963,7 +963,7 @@ opswitch:
+ 			init.Append(nif)
+ 
+ 			// Build the result.
+-			e := nod(OEFACE, tmp, ifaceData(c, ptrto(Types[TUINT8])))
++			e := nod(OEFACE, tmp, ifaceData(c, typPtr(Types[TUINT8])))
+ 			e.Type = n.Type // assign type manually, typecheck doesn't understand OEFACE.
+ 			e.Typecheck = 1
+ 			n = e
+@@ -1203,14 +1203,14 @@ opswitch:
+ 			}
+ 
+ 			if w := t.Val().Width; w <= 1024 { // 1024 must match ../../../../runtime/hashmap.go:maxZero
+-				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key)
++				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key)
+ 			} else {
+ 				p = "mapaccess1_fat"
+ 				z := zeroaddr(w)
+-				n = mkcall1(mapfn(p, t), ptrto(t.Val()), init, typename(t), map_, key, z)
++				n = mkcall1(mapfn(p, t), typPtr(t.Val()), init, typename(t), map_, key, z)
+ 			}
+ 		}
+-		n.Type = ptrto(t.Val())
++		n.Type = typPtr(t.Val())
+ 		n.SetNonNil(true) // mapaccess1* and mapassign always return non-nil pointers.
+ 		n = nod(OIND, n, nil)
+ 		n.Type = t.Val()
+@@ -1975,7 +1975,7 @@ func callnew(t *Type) *Node {
+ 	dowidth(t)
+ 	fn := syslook("newobject")
+ 	fn = substArgTypes(fn, t)
+-	v := mkcall1(fn, ptrto(t), nil, typename(t))
++	v := mkcall1(fn, typPtr(t), nil, typename(t))
+ 	v.SetNonNil(true)
+ 	return v
+ }
+@@ -3025,8 +3025,8 @@ func eqfor(t *Type, needsize *int) *Node {
+ 		n := newname(sym)
+ 		n.Class = PFUNC
+ 		ntype := nod(OTFUNC, nil, nil)
+-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
+-		ntype.List.Append(nod(ODCLFIELD, nil, typenod(ptrto(t))))
++		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
++		ntype.List.Append(nod(ODCLFIELD, nil, typenod(typPtr(t))))
+ 		ntype.Rlist.Append(nod(ODCLFIELD, nil, typenod(Types[TBOOL])))
+ 		ntype = typecheck(ntype, Etype)
+ 		n.Type = ntype.Type
+@@ -3071,7 +3071,7 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		tab := nod(OITAB, l, nil)
+ 		rtyp := typename(r.Type)
+ 		if l.Type.IsEmptyInterface() {
+-			tab.Type = ptrto(Types[TUINT8])
++			tab.Type = typPtr(Types[TUINT8])
+ 			tab.Typecheck = 1
+ 			eqtype = nod(eq, tab, rtyp)
+ 		} else {
+@@ -3128,13 +3128,13 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 		}
+ 
+ 		// eq algs take pointers
+-		pl := temp(ptrto(t))
++		pl := temp(typPtr(t))
+ 		al := nod(OAS, pl, nod(OADDR, cmpl, nil))
+ 		al.Right.Etype = 1 // addr does not escape
+ 		al = typecheck(al, Etop)
+ 		init.Append(al)
+ 
+-		pr := temp(ptrto(t))
++		pr := temp(typPtr(t))
+ 		ar := nod(OAS, pr, nod(OADDR, cmpr, nil))
+ 		ar.Right.Etype = 1 // addr does not escape
+ 		ar = typecheck(ar, Etop)

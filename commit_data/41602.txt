@@ -15,6 +15,20 @@ Date:   Mon Oct 14 17:33:36 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/200999
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mgcscavenge.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 856f6f9de0..0273c8d234 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -233,7 +233,7 @@ func wakeScavenger() {
+ 		// Unpark the goroutine and tell it that there may have been a pacing
+ 		// change.
+ 		scavenge.parked = false
+-		ready(scavenge.g, 0, true)
++		goready(scavenge.g, 0)
+ 	}
+ 	unlock(&scavenge.lock)
+ }

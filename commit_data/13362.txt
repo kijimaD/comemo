@@ -7,8 +7,53 @@ Date:   Mon Jun 18 21:56:41 2012 -0700
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/6303099
-
+---
  src/pkg/exp/types/check_test.go      | 2 +-
  src/pkg/exp/types/testdata/test0.src | 7 ++++++-
  src/pkg/go/ast/resolve.go            | 2 +-
  3 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/types/check_test.go b/src/pkg/exp/types/check_test.go
+index 34c26c9908..03cc7438e2 100644
+--- a/src/pkg/exp/types/check_test.go
++++ b/src/pkg/exp/types/check_test.go
+@@ -203,7 +203,7 @@ func check(t *testing.T, testname string, testfiles []string) {
+ func TestCheck(t *testing.T) {
+ 	// For easy debugging w/o changing the testing code,
+ 	// if there is a local test file, only test that file.
+-	const testfile = "test.go"
++	const testfile = "testdata/test.go"
+ 	if fi, err := os.Stat(testfile); err == nil && !fi.IsDir() {
+ 		fmt.Printf("WARNING: Testing only %s (remove it to run all tests)\n", testfile)
+ 		check(t, testfile, []string{testfile})
+diff --git a/src/pkg/exp/types/testdata/test0.src b/src/pkg/exp/types/testdata/test0.src
+index 84a1abe270..876573481b 100644
+--- a/src/pkg/exp/types/testdata/test0.src
++++ b/src/pkg/exp/types/testdata/test0.src
+@@ -6,7 +6,12 @@
+ 
+ package test0
+ 
+-import "unsafe"
++import (
++	"unsafe"
++	// we can have multiple blank imports (was bug)
++	_ "math"
++	_ "net/rpc"
++)
+ 
+ const pi = 3.1415
+ 
+diff --git a/src/pkg/go/ast/resolve.go b/src/pkg/go/ast/resolve.go
+index 908e61c5da..54b5d73252 100644
+--- a/src/pkg/go/ast/resolve.go
++++ b/src/pkg/go/ast/resolve.go
+@@ -136,7 +136,7 @@ func NewPackage(fset *token.FileSet, files map[string]*File, importer Importer,
+ 				for _, obj := range pkg.Data.(*Scope).Objects {
+ 					p.declare(fileScope, pkgScope, obj)
+ 				}
+-			} else {
++			} else if name != "_" {
+ 				// declare imported package object in file scope
+ 				// (do not re-use pkg in the file scope but create
+ 				// a new object instead; the Decl field is different

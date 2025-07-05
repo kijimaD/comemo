@@ -35,7 +35,7 @@ Date:   Thu May 19 22:25:42 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joedian Reid <joedian@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/51246.txt                    | 60 +++++++++++++++++++++++++++++++++++
  src/syscall/exec_linux.go             | 39 +++++++++++++++++++++++
  src/syscall/mkerrors.sh               |  2 +-
@@ -53,3 +53,575 @@ Date:   Thu May 19 22:25:42 2022 -0700
  src/syscall/zerrors_linux_riscv64.go  | 22 -------------
  src/syscall/zerrors_linux_s390x.go    | 23 --------------
  16 files changed, 100 insertions(+), 293 deletions(-)
+
+diff --git a/api/next/51246.txt b/api/next/51246.txt
+new file mode 100644
+index 0000000000..ae583cf1da
+--- /dev/null
++++ b/api/next/51246.txt
+@@ -0,0 +1,60 @@
++pkg syscall (linux-386), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-386), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-386), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-386), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-386), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-386), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-386), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-386), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-386), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-386), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-386-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-386-cgo), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-386-cgo), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-386-cgo), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-386-cgo), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-386-cgo), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-386-cgo), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-386-cgo), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-amd64), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-amd64), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-amd64), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-amd64), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-amd64), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-amd64), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-amd64), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-amd64), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-amd64), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-amd64-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-amd64-cgo), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-amd64-cgo), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-amd64-cgo), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-amd64-cgo), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-amd64-cgo), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-amd64-cgo), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-arm), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-arm), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-arm), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-arm), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-arm), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-arm), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-arm), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-arm), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-arm), const CLONE_PIDFD ideal-int #51246
++pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND = 4294967296 #51246
++pkg syscall (linux-arm-cgo), const CLONE_CLEAR_SIGHAND ideal-int #51246
++pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP = 8589934592 #51246
++pkg syscall (linux-arm-cgo), const CLONE_INTO_CGROUP ideal-int #51246
++pkg syscall (linux-arm-cgo), const CLONE_NEWCGROUP = 33554432 #51246
++pkg syscall (linux-arm-cgo), const CLONE_NEWCGROUP ideal-int #51246
++pkg syscall (linux-arm-cgo), const CLONE_NEWTIME = 128 #51246
++pkg syscall (linux-arm-cgo), const CLONE_NEWTIME ideal-int #51246
++pkg syscall (linux-arm-cgo), const CLONE_PIDFD = 4096 #51246
++pkg syscall (linux-arm-cgo), const CLONE_PIDFD ideal-int #51246
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 554aad412d..4ae7f33462 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -12,6 +12,45 @@ import (
+ 	"unsafe"
+ )
+ 
++// Linux unshare/clone/clone2/clone3 flags, architecture-independent,
++// copied from linux/sched.h.
++const (
++	CLONE_VM             = 0x00000100 // set if VM shared between processes
++	CLONE_FS             = 0x00000200 // set if fs info shared between processes
++	CLONE_FILES          = 0x00000400 // set if open files shared between processes
++	CLONE_SIGHAND        = 0x00000800 // set if signal handlers and blocked signals shared
++	CLONE_PIDFD          = 0x00001000 // set if a pidfd should be placed in parent
++	CLONE_PTRACE         = 0x00002000 // set if we want to let tracing continue on the child too
++	CLONE_VFORK          = 0x00004000 // set if the parent wants the child to wake it up on mm_release
++	CLONE_PARENT         = 0x00008000 // set if we want to have the same parent as the cloner
++	CLONE_THREAD         = 0x00010000 // Same thread group?
++	CLONE_NEWNS          = 0x00020000 // New mount namespace group
++	CLONE_SYSVSEM        = 0x00040000 // share system V SEM_UNDO semantics
++	CLONE_SETTLS         = 0x00080000 // create a new TLS for the child
++	CLONE_PARENT_SETTID  = 0x00100000 // set the TID in the parent
++	CLONE_CHILD_CLEARTID = 0x00200000 // clear the TID in the child
++	CLONE_DETACHED       = 0x00400000 // Unused, ignored
++	CLONE_UNTRACED       = 0x00800000 // set if the tracing process can't force CLONE_PTRACE on this clone
++	CLONE_CHILD_SETTID   = 0x01000000 // set the TID in the child
++	CLONE_NEWCGROUP      = 0x02000000 // New cgroup namespace
++	CLONE_NEWUTS         = 0x04000000 // New utsname namespace
++	CLONE_NEWIPC         = 0x08000000 // New ipc namespace
++	CLONE_NEWUSER        = 0x10000000 // New user namespace
++	CLONE_NEWPID         = 0x20000000 // New pid namespace
++	CLONE_NEWNET         = 0x40000000 // New network namespace
++	CLONE_IO             = 0x80000000 // Clone io context
++
++	// Flags for the clone3() syscall.
++
++	CLONE_CLEAR_SIGHAND = 0x100000000 // Clear any signal handler and reset to SIG_DFL.
++	CLONE_INTO_CGROUP   = 0x200000000 // Clone into a specific cgroup given the right permissions.
++
++	// Cloning flags intersect with CSIGNAL so can be used with unshare and clone3
++	// syscalls only:
++
++	CLONE_NEWTIME = 0x00000080 // New time namespace
++)
++
+ // SysProcIDMap holds Container ID to Host ID mappings used for User Namespaces in Linux.
+ // See user_namespaces(7).
+ type SysProcIDMap struct {
+diff --git a/src/syscall/mkerrors.sh b/src/syscall/mkerrors.sh
+index 92ab4c5f1e..f7d37279ed 100755
+--- a/src/syscall/mkerrors.sh
++++ b/src/syscall/mkerrors.sh
+@@ -270,6 +270,7 @@ ccflags="$@"
+ 		$2 ~ /^(SIGEV_|SIGSTKSZ|SIGRT(MIN|MAX))/ {next}
+ 		$2 ~ /^(SCM_SRCRT)$/ {next}
+ 		$2 ~ /^(MAP_FAILED)$/ {next}
++		$2 ~ /^CLONE_[A-Z_]+/ {next} # These are defined in exec_linux.go.
+ 		$2 ~ /^ELF_.*$/ {next}	# <asm/elf.h> contains ELF_ARCH, etc.
+ 
+ 		$2 !~ /^ETH_/ &&
+@@ -317,7 +318,6 @@ ccflags="$@"
+ 		$2 ~ /^RUSAGE_(SELF|CHILDREN|THREAD)/ ||
+ 		$2 ~ /^RLIMIT_(AS|CORE|CPU|DATA|FSIZE|NOFILE|STACK)|RLIM_INFINITY/ ||
+ 		$2 ~ /^PRIO_(PROCESS|PGRP|USER)/ ||
+-		$2 ~ /^CLONE_[A-Z_]+/ ||
+ 		$2 !~ /^(BPF_TIMEVAL)$/ &&
+ 		$2 ~ /^(BPF|DLT)_/ ||
+ 		$2 !~ "WMESGLEN" &&
+diff --git a/src/syscall/zerrors_linux_386.go b/src/syscall/zerrors_linux_386.go
+index 5e4c867bc9..045a4166b0 100644
+--- a/src/syscall/zerrors_linux_386.go
++++ b/src/syscall/zerrors_linux_386.go
+@@ -148,28 +148,6 @@ const (
+ 	BPF_TXA                          = 0x80
+ 	BPF_W                            = 0x0
+ 	BPF_X                            = 0x8
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	DT_BLK                           = 0x6
+ 	DT_CHR                           = 0x2
+ 	DT_DIR                           = 0x4
+diff --git a/src/syscall/zerrors_linux_amd64.go b/src/syscall/zerrors_linux_amd64.go
+index 3ff6e498e7..4eb4474648 100644
+--- a/src/syscall/zerrors_linux_amd64.go
++++ b/src/syscall/zerrors_linux_amd64.go
+@@ -148,28 +148,6 @@ const (
+ 	BPF_TXA                          = 0x80
+ 	BPF_W                            = 0x0
+ 	BPF_X                            = 0x8
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	DT_BLK                           = 0x6
+ 	DT_CHR                           = 0x2
+ 	DT_DIR                           = 0x4
+diff --git a/src/syscall/zerrors_linux_arm.go b/src/syscall/zerrors_linux_arm.go
+index 35825cc9fb..a5f925ec6d 100644
+--- a/src/syscall/zerrors_linux_arm.go
++++ b/src/syscall/zerrors_linux_arm.go
+@@ -148,28 +148,6 @@ const (
+ 	BPF_TXA                          = 0x80
+ 	BPF_W                            = 0x0
+ 	BPF_X                            = 0x8
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	DT_BLK                           = 0x6
+ 	DT_CHR                           = 0x2
+ 	DT_DIR                           = 0x4
+diff --git a/src/syscall/zerrors_linux_arm64.go b/src/syscall/zerrors_linux_arm64.go
+index 444b8816d5..ec8ac0708e 100644
+--- a/src/syscall/zerrors_linux_arm64.go
++++ b/src/syscall/zerrors_linux_arm64.go
+@@ -192,28 +192,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_loong64.go b/src/syscall/zerrors_linux_loong64.go
+index 17b109d63e..a28439cf67 100644
+--- a/src/syscall/zerrors_linux_loong64.go
++++ b/src/syscall/zerrors_linux_loong64.go
+@@ -206,33 +206,6 @@ const (
+ 	CLONE_ARGS_SIZE_VER0              = 0x40
+ 	CLONE_ARGS_SIZE_VER1              = 0x50
+ 	CLONE_ARGS_SIZE_VER2              = 0x58
+-	CLONE_CHILD_CLEARTID              = 0x200000
+-	CLONE_CHILD_SETTID                = 0x1000000
+-	CLONE_CLEAR_SIGHAND               = 0x100000000
+-	CLONE_DETACHED                    = 0x400000
+-	CLONE_FILES                       = 0x400
+-	CLONE_FS                          = 0x200
+-	CLONE_INTO_CGROUP                 = 0x200000000
+-	CLONE_IO                          = 0x80000000
+-	CLONE_NEWCGROUP                   = 0x2000000
+-	CLONE_NEWIPC                      = 0x8000000
+-	CLONE_NEWNET                      = 0x40000000
+-	CLONE_NEWNS                       = 0x20000
+-	CLONE_NEWPID                      = 0x20000000
+-	CLONE_NEWTIME                     = 0x80
+-	CLONE_NEWUSER                     = 0x10000000
+-	CLONE_NEWUTS                      = 0x4000000
+-	CLONE_PARENT                      = 0x8000
+-	CLONE_PARENT_SETTID               = 0x100000
+-	CLONE_PIDFD                       = 0x1000
+-	CLONE_PTRACE                      = 0x2000
+-	CLONE_SETTLS                      = 0x80000
+-	CLONE_SIGHAND                     = 0x800
+-	CLONE_SYSVSEM                     = 0x40000
+-	CLONE_THREAD                      = 0x10000
+-	CLONE_UNTRACED                    = 0x800000
+-	CLONE_VFORK                       = 0x4000
+-	CLONE_VM                          = 0x100
+ 	CREAD                             = 0x80
+ 	CS5                               = 0x0
+ 	CS6                               = 0x10
+diff --git a/src/syscall/zerrors_linux_mips.go b/src/syscall/zerrors_linux_mips.go
+index d3dae6d84a..3fe5c00757 100644
+--- a/src/syscall/zerrors_linux_mips.go
++++ b/src/syscall/zerrors_linux_mips.go
+@@ -191,28 +191,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_mips64.go b/src/syscall/zerrors_linux_mips64.go
+index 84c9e8fb6f..74a1843ec2 100644
+--- a/src/syscall/zerrors_linux_mips64.go
++++ b/src/syscall/zerrors_linux_mips64.go
+@@ -189,28 +189,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_mips64le.go b/src/syscall/zerrors_linux_mips64le.go
+index 84c9e8fb6f..74a1843ec2 100644
+--- a/src/syscall/zerrors_linux_mips64le.go
++++ b/src/syscall/zerrors_linux_mips64le.go
+@@ -189,28 +189,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_mipsle.go b/src/syscall/zerrors_linux_mipsle.go
+index d3dae6d84a..3fe5c00757 100644
+--- a/src/syscall/zerrors_linux_mipsle.go
++++ b/src/syscall/zerrors_linux_mipsle.go
+@@ -191,28 +191,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_ppc64.go b/src/syscall/zerrors_linux_ppc64.go
+index dd439acc58..b63daea853 100644
+--- a/src/syscall/zerrors_linux_ppc64.go
++++ b/src/syscall/zerrors_linux_ppc64.go
+@@ -191,28 +191,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x8000
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x800
+ 	CS5                              = 0x0
+ 	CS6                              = 0x100
+diff --git a/src/syscall/zerrors_linux_ppc64le.go b/src/syscall/zerrors_linux_ppc64le.go
+index b71cb0b4e7..01f8adb027 100644
+--- a/src/syscall/zerrors_linux_ppc64le.go
++++ b/src/syscall/zerrors_linux_ppc64le.go
+@@ -192,28 +192,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x8000
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x800
+ 	CS5                              = 0x0
+ 	CS6                              = 0x100
+diff --git a/src/syscall/zerrors_linux_riscv64.go b/src/syscall/zerrors_linux_riscv64.go
+index 582537d089..f4b1d9ae65 100644
+--- a/src/syscall/zerrors_linux_riscv64.go
++++ b/src/syscall/zerrors_linux_riscv64.go
+@@ -196,28 +196,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10
+diff --git a/src/syscall/zerrors_linux_s390x.go b/src/syscall/zerrors_linux_s390x.go
+index cd1aa161e8..8b99a60995 100644
+--- a/src/syscall/zerrors_linux_s390x.go
++++ b/src/syscall/zerrors_linux_s390x.go
+@@ -193,29 +193,6 @@ const (
+ 	BRKINT                           = 0x2
+ 	CFLUSH                           = 0xf
+ 	CLOCAL                           = 0x800
+-	CLONE_CHILD_CLEARTID             = 0x200000
+-	CLONE_CHILD_SETTID               = 0x1000000
+-	CLONE_DETACHED                   = 0x400000
+-	CLONE_FILES                      = 0x400
+-	CLONE_FS                         = 0x200
+-	CLONE_IO                         = 0x80000000
+-	CLONE_NEWCGROUP                  = 0x2000000
+-	CLONE_NEWIPC                     = 0x8000000
+-	CLONE_NEWNET                     = 0x40000000
+-	CLONE_NEWNS                      = 0x20000
+-	CLONE_NEWPID                     = 0x20000000
+-	CLONE_NEWUSER                    = 0x10000000
+-	CLONE_NEWUTS                     = 0x4000000
+-	CLONE_PARENT                     = 0x8000
+-	CLONE_PARENT_SETTID              = 0x100000
+-	CLONE_PTRACE                     = 0x2000
+-	CLONE_SETTLS                     = 0x80000
+-	CLONE_SIGHAND                    = 0x800
+-	CLONE_SYSVSEM                    = 0x40000
+-	CLONE_THREAD                     = 0x10000
+-	CLONE_UNTRACED                   = 0x800000
+-	CLONE_VFORK                      = 0x4000
+-	CLONE_VM                         = 0x100
+ 	CREAD                            = 0x80
+ 	CS5                              = 0x0
+ 	CS6                              = 0x10

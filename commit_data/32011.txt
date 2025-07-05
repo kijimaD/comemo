@@ -16,6 +16,20 @@ Date:   Wed Mar 29 20:46:20 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 548b797f14..070f3f5601 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1228,7 +1228,7 @@ func (l *Link) hostlink() {
+ 		l.Logf("%s", out)
+ 	}
+ 
+-	if !*FlagS && !debug_s && Headtype == obj.Hdarwin {
++	if !*FlagS && !*FlagW && !debug_s && Headtype == obj.Hdarwin {
+ 		// Skip combining dwarf on arm.
+ 		if !SysArch.InFamily(sys.ARM, sys.ARM64) {
+ 			dsym := filepath.Join(*flagTmpdir, "go.dwarf")

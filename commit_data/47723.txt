@@ -10,8 +10,63 @@ Date:   Wed Apr 7 09:27:11 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/obj.go       | 2 +-
  src/cmd/compile/internal/noder/import.go | 6 +++---
  src/cmd/internal/objabi/util.go          | 9 +++++++++
  3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index d18011a9e5..f87a3c6b48 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -70,7 +70,7 @@ func dumpobj1(outfile string, mode int) {
+ }
+ 
+ func printObjHeader(bout *bio.Writer) {
+-	fmt.Fprintf(bout, "go object %s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
++	bout.WriteString(objabi.HeaderString())
+ 	if base.Flag.BuildID != "" {
+ 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
+ 	}
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 89a2598833..e6e3fe1834 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -243,9 +243,9 @@ func importfile(decl *syntax.ImportDecl) *types.Pkg {
+ 		base.Errorf("import %s: not a go object file: %s", file, p)
+ 		base.ErrorExit()
+ 	}
+-	q := fmt.Sprintf("%s %s %s %s\n", objabi.GOOS, objabi.GOARCH, objabi.Version, objabi.Expstring())
+-	if p[10:] != q {
+-		base.Errorf("import %s: object is [%s] expected [%s]", file, p[10:], q)
++	q := objabi.HeaderString()
++	if p != q {
++		base.Errorf("import %s: object is [%s] expected [%s]", file, p, q)
+ 		base.ErrorExit()
+ 	}
+ 
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index 76c56dab27..c2c05bd1b2 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -5,6 +5,7 @@
+ package objabi
+ 
+ import (
++	"fmt"
+ 	"log"
+ 	"os"
+ 	"strings"
+@@ -121,3 +122,11 @@ func gowasm() (f gowasmFeatures) {
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }
++
++// HeaderString returns the toolchain configuration string written in
++// Go object headers. This string ensures we don't attempt to import
++// or link object files that are incompatible with each other. This
++// string always starts with "go object ".
++func HeaderString() string {
++	return fmt.Sprintf("go object %s %s %s %s\n", GOOS, GOARCH, Version, Expstring())
++}

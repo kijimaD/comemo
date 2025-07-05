@@ -12,6 +12,20 @@ Date:   Wed Jul 27 02:38:34 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/profile/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/profile/encode.go b/src/internal/profile/encode.go
+index af319330d9..77d77f1dfb 100644
+--- a/src/internal/profile/encode.go
++++ b/src/internal/profile/encode.go
+@@ -175,7 +175,7 @@ var profileDecoder = []decoder{
+ 		if err != nil {
+ 			return err
+ 		}
+-		if *&m.(*Profile).stringTable[0] != "" {
++		if m.(*Profile).stringTable[0] != "" {
+ 			return errors.New("string_table[0] must be ''")
+ 		}
+ 		return nil

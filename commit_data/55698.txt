@@ -20,8 +20,59 @@ Date:   Fri Mar 3 10:43:02 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go      |  2 +-
  src/go/types/assignments.go                         |  2 +-
  src/internal/types/testdata/fixedbugs/issue58742.go | 18 ++++++++++++++++++
  3 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 35fb3f5b14..dd814c2e83 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -266,7 +266,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		case t == nil:
+ 			fallthrough // should not happen but be cautious
+ 		case t == Typ[Invalid]:
+-			s = "<T>"
++			s = "unknown type"
+ 		case isUntyped(t):
+ 			if isNumeric(t) {
+ 				// Do not imply a specific type requirement:
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index a7a247b99f..a3b28d0e22 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -260,7 +260,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 		case t == nil:
+ 			fallthrough // should not happen but be cautious
+ 		case t == Typ[Invalid]:
+-			s = "<T>"
++			s = "unknown type"
+ 		case isUntyped(t):
+ 			if isNumeric(t) {
+ 				// Do not imply a specific type requirement:
+diff --git a/src/internal/types/testdata/fixedbugs/issue58742.go b/src/internal/types/testdata/fixedbugs/issue58742.go
+new file mode 100644
+index 0000000000..b649a49774
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue58742.go
+@@ -0,0 +1,18 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() (int, UndefinedType /* ERROR "undefined: UndefinedType" */ , string)  {
++	return 0 // ERROR "not enough return values\n\thave (number)\n\twant (int, unknown type, string)"
++}
++
++func _() (int, UndefinedType /* ERROR "undefined: UndefinedType" */ ) {
++	return 0, 1, 2 // ERROR "too many return values\n\thave (number, number, number)\n\twant (int, unknown type)"
++}
++
++// test case from issue
++func _() UndefinedType /* ERROR "undefined: UndefinedType" */ {
++	return // ERROR "not enough return values\n\thave ()\n\twant (unknown type)"
++}

@@ -11,7 +11,45 @@ Date:   Wed Sep 28 08:23:21 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/cookiejar/jar.go | 4 ++--
  src/net/http/fs.go            | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 097c93a137..3d0ad19af0 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -214,8 +214,8 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
+ 		if len(s[i].Path) != len(s[j].Path) {
+ 			return len(s[i].Path) > len(s[j].Path)
+ 		}
+-		if !s[i].Creation.Equal(s[j].Creation) {
+-			return s[i].Creation.Before(s[j].Creation)
++		if ret := s[i].Creation.Compare(s[j].Creation); ret != 0 {
++			return ret < 0
+ 		}
+ 		return s[i].seqNum < s[j].seqNum
+ 	})
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index cf80018b5e..3feef8f2b0 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -431,7 +431,7 @@ func checkIfUnmodifiedSince(r *Request, modtime time.Time) condResult {
+ 	// The Last-Modified header truncates sub-second precision so
+ 	// the modtime needs to be truncated too.
+ 	modtime = modtime.Truncate(time.Second)
+-	if modtime.Before(t) || modtime.Equal(t) {
++	if ret := modtime.Compare(t); ret <= 0 {
+ 		return condTrue
+ 	}
+ 	return condFalse
+@@ -482,7 +482,7 @@ func checkIfModifiedSince(r *Request, modtime time.Time) condResult {
+ 	// The Last-Modified header truncates sub-second precision so
+ 	// the modtime needs to be truncated too.
+ 	modtime = modtime.Truncate(time.Second)
+-	if modtime.Before(t) || modtime.Equal(t) {
++	if ret := modtime.Compare(t); ret <= 0 {
+ 		return condFalse
+ 	}
+ 	return condTrue

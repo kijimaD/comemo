@@ -15,10 +15,156 @@ Date:   Fri Aug 13 11:16:50 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/writer.go     |  4 ++--
  src/cmd/compile/internal/types2/decl.go      |  2 +-
  src/cmd/compile/internal/types2/named.go     |  6 +++---
  src/cmd/compile/internal/types2/signature.go |  8 ++++----
  src/cmd/compile/internal/types2/typeparam.go | 14 +++++++-------
  5 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index b5028e7f69..d971bd0d16 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -646,7 +646,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	assert(len(dict.funcs) == nfuncs)
+ }
+ 
+-func (w *writer) typeParamNames(tparams *types2.TypeParams) {
++func (w *writer) typeParamNames(tparams *types2.TParamList) {
+ 	w.sync(syncTypeParamNames)
+ 
+ 	ntparams := tparams.Len()
+@@ -1861,7 +1861,7 @@ func fieldIndex(info *types2.Info, str *types2.Struct, key *syntax.Name) int {
+ }
+ 
+ // objTypeParams returns the type parameters on the given object.
+-func objTypeParams(obj types2.Object) *types2.TypeParams {
++func objTypeParams(obj types2.Object) *types2.TParamList {
+ 	switch obj := obj.(type) {
+ 	case *types2.Func:
+ 		sig := obj.Type().(*types2.Signature)
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 24ec4cd029..aa9710788a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -581,7 +581,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *Named
+ 	}
+ }
+ 
+-func (check *Checker) collectTypeParams(list []*syntax.Field) *TypeParams {
++func (check *Checker) collectTypeParams(list []*syntax.Field) *TParamList {
+ 	tparams := make([]*TypeName, len(list))
+ 
+ 	// Declare type parameters up-front.
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index ad29886f7d..3ce9c5b0c7 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -20,7 +20,7 @@ type Named struct {
+ 	fromRHS    Type        // type (on RHS of declaration) this *Named type is derived from (for cycle reporting)
+ 	underlying Type        // possibly a *Named during setup; never a *Named once set up completely
+ 	instance   *instance   // position information for lazy instantiation, or nil
+-	tparams    *TypeParams // type parameters, or nil
++	tparams    *TParamList // type parameters, or nil
+ 	targs      []Type      // type arguments (after instantiation), or nil
+ 	methods    []*Func     // methods declared for this type (not the method set of this type); signatures are type-checked lazily
+ 
+@@ -80,7 +80,7 @@ func (t *Named) load() *Named {
+ }
+ 
+ // newNamed is like NewNamed but with a *Checker receiver and additional orig argument.
+-func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TypeParams, methods []*Func) *Named {
++func (check *Checker) newNamed(obj *TypeName, orig *Named, underlying Type, tparams *TParamList, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: orig, fromRHS: underlying, underlying: underlying, tparams: tparams, methods: methods}
+ 	if typ.orig == nil {
+ 		typ.orig = typ
+@@ -123,7 +123,7 @@ func (t *Named) Orig() *Named { return t.orig }
+ 
+ // TParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) parameterized type even if it is instantiated.
+-func (t *Named) TParams() *TypeParams { return t.load().tparams }
++func (t *Named) TParams() *TParamList { return t.load().tparams }
+ 
+ // SetTParams sets the type parameters of the named type t.
+ func (t *Named) SetTParams(tparams []*TypeName) { t.load().tparams = bindTParams(tparams) }
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index c4c209b357..e319e65211 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -19,8 +19,8 @@ type Signature struct {
+ 	// and store it in the Func Object) because when type-checking a function
+ 	// literal we call the general type checker which returns a general Type.
+ 	// We then unpack the *Signature and use the scope for the literal body.
+-	rparams  *TypeParams // receiver type parameters from left to right, or nil
+-	tparams  *TypeParams // type parameters from left to right, or nil
++	rparams  *TParamList // receiver type parameters from left to right, or nil
++	tparams  *TParamList // type parameters from left to right, or nil
+ 	scope    *Scope      // function scope, present for package-local signatures
+ 	recv     *Var        // nil if not a method
+ 	params   *Tuple      // (incoming) parameters from left to right; or nil
+@@ -54,13 +54,13 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ func (s *Signature) Recv() *Var { return s.recv }
+ 
+ // TParams returns the type parameters of signature s, or nil.
+-func (s *Signature) TParams() *TypeParams { return s.tparams }
++func (s *Signature) TParams() *TParamList { return s.tparams }
+ 
+ // SetTParams sets the type parameters of signature s.
+ func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = bindTParams(tparams) }
+ 
+ // RParams returns the receiver type parameters of signature s, or nil.
+-func (s *Signature) RParams() *TypeParams { return s.rparams }
++func (s *Signature) RParams() *TParamList { return s.rparams }
+ 
+ // SetRParams sets the receiver type params of signature s.
+ func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = bindTParams(rparams) }
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 4b4282efe0..f666fae7ed 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -83,28 +83,28 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ func (t *TypeParam) Underlying() Type { return t }
+ func (t *TypeParam) String() string   { return TypeString(t, nil) }
+ 
+-// TypeParams holds a list of type parameters bound to a type.
+-type TypeParams struct{ tparams []*TypeName }
++// TParamList holds a list of type parameters bound to a type.
++type TParamList struct{ tparams []*TypeName }
+ 
+ // Len returns the number of type parameters in the list.
+ // It is safe to call on a nil receiver.
+-func (tps *TypeParams) Len() int {
++func (tps *TParamList) Len() int {
+ 	return len(tps.list())
+ }
+ 
+ // At returns the i'th type parameter in the list.
+-func (tps *TypeParams) At(i int) *TypeName {
++func (tps *TParamList) At(i int) *TypeName {
+ 	return tps.list()[i]
+ }
+ 
+-func (tps *TypeParams) list() []*TypeName {
++func (tps *TParamList) list() []*TypeName {
+ 	if tps == nil {
+ 		return nil
+ 	}
+ 	return tps.tparams
+ }
+ 
+-func bindTParams(list []*TypeName) *TypeParams {
++func bindTParams(list []*TypeName) *TParamList {
+ 	if len(list) == 0 {
+ 		return nil
+ 	}
+@@ -115,7 +115,7 @@ func bindTParams(list []*TypeName) *TypeParams {
+ 		}
+ 		typ.index = i
+ 	}
+-	return &TypeParams{tparams: list}
++	return &TParamList{tparams: list}
+ }
+ 
+ // ----------------------------------------------------------------------------

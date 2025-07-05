@@ -12,6 +12,22 @@ Date:   Fri Jan 22 11:13:32 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/288817
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 245076a83a..1874103b93 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -91,6 +91,10 @@ func (d *deadcodePass) init() {
+ 		names = append(names, exp)
+ 	}
+ 
++	if d.ctxt.Debugvlog > 1 {
++		d.ctxt.Logf("deadcode start names: %v\n", names)
++	}
++
+ 	for _, name := range names {
+ 		// Mark symbol as a data/ABI0 symbol.
+ 		d.mark(d.ldr.Lookup(name, 0), 0)

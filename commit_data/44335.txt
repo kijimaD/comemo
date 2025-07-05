@@ -7,7 +7,34 @@ Date:   Fri Jun 12 15:12:52 2020 +0800
     Change-Id: I60965f6193256959055824749ed08ce86f6ba482
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237541
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 80c79feb33..f8d1eb8616 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -934,7 +934,7 @@ Maya Rashish <maya@netbsd.org>
+ Mayank Kumar <krmayankk@gmail.com>
+ MediaMath, Inc
+ Meir Fischer <meirfischer@gmail.com>
+-Meng Zhuo <mengzhuo1203@gmail.com>
++Meng Zhuo <mengzhuo1203@gmail.com> <mzh@golangcn.org>
+ Meteor Development Group
+ Mhd Sulhan <m.shulhan@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6b6ee09415..c64ab4311b 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1501,7 +1501,7 @@ Maxwell Krohn <themax@gmail.com>
+ Maya Rashish <maya@NetBSD.org>
+ Mayank Kumar <krmayankk@gmail.com>
+ Meir Fischer <meirfischer@gmail.com>
+-Meng Zhuo <mengzhuo1203@gmail.com>
++Meng Zhuo <mengzhuo1203@gmail.com> <mzh@golangcn.org>
+ Mhd Sulhan <m.shulhan@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Anthony Knyszek <mknyszek@google.com>

@@ -7,7 +7,7 @@ Date:   Thu Oct 23 12:41:06 2008 -0700
     R=r
     OCL=17691
     CL=17719
-
+---
  src/lib/bufio.go         |  23 +++---
  src/lib/flag.go          |  34 ++++-----
  src/lib/os/os_error.go   |   4 +-
@@ -15,3 +15,809 @@ Date:   Thu Oct 23 12:41:06 2008 -0700
  src/lib/reflect/type.go  | 105 ++++++++++-----------------
  src/lib/reflect/value.go | 181 +++++++++++++++++++----------------------------
  6 files changed, 129 insertions(+), 222 deletions(-)
+
+diff --git a/src/lib/bufio.go b/src/lib/bufio.go
+index 8831836290..f41c4cd3d2 100644
+--- a/src/lib/bufio.go
++++ b/src/lib/bufio.go
+@@ -17,20 +17,13 @@ const (
+ 	DefaultBufSize = 4096
+ )
+ 
+-func NewError(s string) *os.Error {
+-	// BUG return &os.Error{s};
+-	e := new(os.Error);
+-	e.s = s;
+-	return e
+-}
+-
+ export var (
+-	EndOfFile = NewError("end of file");
+-	PhaseError = NewError("phase error");
+-	BufferFull = NewError("buffer full");
+-	InternalError = NewError("bufio internal error");
+-	BadBufSize = NewError("bad bufio size");
+-	ShortWrite = NewError("short write");
++	EndOfFile = os.NewError("end of file");
++	PhaseError = os.NewError("phase error");
++	BufferFull = os.NewError("buffer full");
++	InternalError = os.NewError("bufio internal error");
++	BadBufSize = os.NewError("bad bufio size");
++	ShortWrite = os.NewError("short write");
+ )
+ 
+ func CopySlice(dst *[]byte, src *[]byte) {
+@@ -43,10 +36,10 @@ func CopySlice(dst *[]byte, src *[]byte) {
+ // Buffered input.
+ 
+ export type BufRead struct {
+-	err *os.Error;
+ 	buf *[]byte;
+-	r, w int;
+ 	rd io.Read;
++	r, w int;
++	err *os.Error;
+ }
+ 
+ export func NewBufReadSize(rd io.Read, size int) (b *BufRead, err *os.Error) {
+diff --git a/src/lib/flag.go b/src/lib/flag.go
+index a46e5fda1c..7e1cc6d10a 100644
+--- a/src/lib/flag.go
++++ b/src/lib/flag.go
+@@ -110,6 +110,10 @@ type BoolValue struct {
+ 	p *bool;
+ }
+ 
++func NewBoolValue(val bool, p *bool) *BoolValue {
++	return &BoolValue{val, p}
++}
++
+ func (b *BoolValue) AsBool() *BoolValue {
+ 	return b
+ }
+@@ -153,19 +157,16 @@ func (b *BoolValue) Str() string {
+ 	return "false"
+ }
+ 
+-func NewBoolValue(b bool, p *bool) *BoolValue {
+-	v := new(BoolValue);
+-	v.val = b;
+-	v.p = p;
+-	return v;
+-}
+-
+ // -- Int Value
+ type IntValue struct {
+ 	val	int64;
+ 	p	*int64;
+ }
+ 
++func NewIntValue(val int64, p *int64) *IntValue {
++	return &IntValue{val, p}
++}
++
+ func (i *IntValue) AsBool() *BoolValue {
+ 	return nil
+ }
+@@ -206,20 +207,16 @@ func (i *IntValue) Str() string {
+ 	return fmt.New().D(i.val).str()
+ }
+ 
+-func
+-NewIntValue(i int64, p *int64) *IntValue {
+-	v := new(IntValue);
+-	v.val = i;
+-	v.p = p;
+-	return v;
+-}
+-
+ // -- String Value
+ type StringValue struct {
+ 	val	string;
+ 	p	*string;
+ }
+ 
++func NewStringValue(val string, p *string) *StringValue {
++	return &StringValue{val, p}
++}
++
+ func (e *StringValue) AsBool() *BoolValue {
+ 	return nil
+ }
+@@ -259,13 +256,6 @@ func (s *StringValue) Str() string {
+ 	return `"` + s.val + `"`
+ }
+ 
+-func NewStringValue(s string, p *string) *StringValue {
+-	v := new(StringValue);
+-	v.val = s;
+-	v.p = p;
+-	return v;
+-}
+-
+ // -- Value interface
+ type Value interface {
+ 	AsBool()	*BoolValue;
+diff --git a/src/lib/os/os_error.go b/src/lib/os/os_error.go
+index dee1357846..6db223e097 100644
+--- a/src/lib/os/os_error.go
++++ b/src/lib/os/os_error.go
+@@ -15,9 +15,7 @@ export type Error struct {
+ var ErrorTab = new(map[int64] *Error);
+ 
+ export func NewError(s string) *Error {
+-	e := new(Error);
+-	e.s = s;
+-	return e
++	return &Error{s}
+ }
+ 
+ export func ErrnoToError(errno int64) *Error {
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index ba71d836da..ee4deef72a 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -16,9 +16,7 @@ export func NewFD(fd int64) *FD {
+ 	if fd < 0 {
+ 		return nil
+ 	}
+-	n := new(FD);
+-	n.fd = fd;
+-	return n;
++	return &FD{fd}
+ }
+ 
+ export var (
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index c69a3394eb..cf27da9d4b 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -55,6 +55,10 @@ type BasicType struct{
+ 	size	uint64;
+ }
+ 
++func NewBasicType(name string, kind int, size uint64) Type {
++	return &BasicType{kind, name, size}
++}
++
+ func (t *BasicType) Name() string {
+ 	return t.name
+ }
+@@ -67,14 +71,6 @@ func (t *BasicType) Size() uint64 {
+ 	return t.size
+ }
+ 
+-func NewBasicType(n string, k int, size uint64) Type {
+-	t := new(BasicType);
+-	t.name = n;
+-	t.kind = k;
+-	t.size = size;
+-	return t;
+-}
+-
+ // Prebuilt basic types
+ export var (
+ 	Missing = NewBasicType(MissingString, MissingKind, 1);
+@@ -100,6 +96,10 @@ type StubType struct {
+ 	typ		Type;
+ }
+ 
++func NewStubType(name string, typ Type) *StubType {
++	return &StubType{name, typ}
++}
++
+ func (t *StubType) Get() Type {
+ 	if t.typ == nil {
+ 		t.typ = ExpandType(t.name)
+@@ -107,13 +107,6 @@ func (t *StubType) Get() Type {
+ 	return t.typ
+ }
+ 
+-func NewStubType(name string, t Type) *StubType {
+-	s := new(StubType);
+-	s.name = name;
+-	s.typ = t;
+-	return s;
+-}
+-
+ // -- Pointer
+ 
+ export type PtrType interface {
+@@ -125,6 +118,10 @@ type PtrTypeStruct struct {
+ 	sub	*StubType;
+ }
+ 
++func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
++	return &PtrTypeStruct{name, sub}
++}
++
+ func (t *PtrTypeStruct) Kind() int {
+ 	return PtrKind
+ }
+@@ -141,13 +138,6 @@ func (t *PtrTypeStruct) Sub() Type {
+ 	return t.sub.Get()
+ }
+ 
+-func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
+-	t := new(PtrTypeStruct);
+-	t.name = name;
+-	t.sub = sub;
+-	return t;
+-}
+-
+ // -- Array
+ 
+ export type ArrayType interface {
+@@ -163,6 +153,10 @@ type ArrayTypeStruct struct {
+ 	len	uint64;
+ }
+ 
++func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
++	return &ArrayTypeStruct{name, elem, open, len}
++}
++
+ func (t *ArrayTypeStruct) Kind() int {
+ 	return ArrayKind
+ }
+@@ -191,15 +185,6 @@ func (t *ArrayTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+-	t := new(ArrayTypeStruct);
+-	t.name = name;
+-	t.open = open;
+-	t.len = len;
+-	t.elem = elem;
+-	return t;
+-}
+-
+ // -- Map
+ 
+ export type MapType interface {
+@@ -213,6 +198,10 @@ type MapTypeStruct struct {
+ 	elem	*StubType;
+ }
+ 
++func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
++	return &MapTypeStruct{name, key, elem}
++}
++
+ func (t *MapTypeStruct) Kind() int {
+ 	return MapKind
+ }
+@@ -234,14 +223,6 @@ func (t *MapTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
+-	t := new(MapTypeStruct);
+-	t.name = name;
+-	t.key = key;
+-	t.elem = elem;
+-	return t;
+-}
+-
+ // -- Chan
+ 
+ export type ChanType interface {
+@@ -261,6 +242,10 @@ type ChanTypeStruct struct {
+ 	dir	int;
+ }
+ 
++func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
++	return &NewChanTypeStruct{name, elem, dir}
++}
++
+ func (t *ChanTypeStruct) Kind() int {
+ 	return ChanKind
+ }
+@@ -283,14 +268,6 @@ func (t *ChanTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
+-	t := new(ChanTypeStruct);
+-	t.name = name;
+-	t.dir = dir;
+-	t.elem = elem;
+-	return t;
+-}
+-
+ // -- Struct
+ 
+ export type StructType interface {
+@@ -310,6 +287,10 @@ type StructTypeStruct struct {
+ 	field	*[]Field;
+ }
+ 
++func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
++	return &StructTypeStruct{name, field}
++}
++
+ func (t *StructTypeStruct) Kind() int {
+ 	return StructKind
+ }
+@@ -349,13 +330,6 @@ func (t *StructTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
+-	t := new(StructTypeStruct);
+-	t.name = name;
+-	t.field = field;
+-	return t;
+-}
+-
+ // -- Interface
+ 
+ export type InterfaceType interface {
+@@ -368,6 +342,10 @@ type InterfaceTypeStruct struct {
+ 	field	*[]Field;
+ }
+ 
++func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
++	return &InterfaceTypeStruct{name, field}
++}
++
+ func (t *InterfaceTypeStruct) Field(i int) (name string, typ Type, offset uint64) {
+ 	return t.field[i].name, t.field[i].typ.Get(), 0
+ }
+@@ -376,13 +354,6 @@ func (t *InterfaceTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
+-	t := new(InterfaceTypeStruct);
+-	t.name = name;
+-	t.field = field;
+-	return t;
+-}
+-
+ func (t *InterfaceTypeStruct) Kind() int {
+ 	return InterfaceKind
+ }
+@@ -408,6 +379,10 @@ type FuncTypeStruct struct {
+ 	out	*StructTypeStruct;
+ }
+ 
++func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
++	return &FuncTypeStruct{name, in, out}
++}
++
+ func (t *FuncTypeStruct) Kind() int {
+ 	return FuncKind
+ }
+@@ -432,14 +407,6 @@ func (t *FuncTypeStruct) Out() StructType {
+ 	return t.out
+ }
+ 
+-func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
+-	t := new(FuncTypeStruct);
+-	t.name = name;
+-	t.in = in;
+-	t.out = out;
+-	return t;
+-}
+-
+ // Cache of expanded types keyed by type name.
+ var types *map[string] *Type	// BUG TODO: should be Type not *Type
+ 
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index a180b8140a..32e6211773 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -53,6 +53,10 @@ type Int8ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Int8Creator(typ Type, addr Addr) Value {
++	return &Int8ValueStruct{addr}
++}
++
+ func (v *Int8ValueStruct) Kind() int {
+ 	return Int8Kind
+ }
+@@ -69,12 +73,6 @@ func (v *Int8ValueStruct) Put(i int8) {
+ 	*AddrToPtrInt8(v.addr) = i
+ }
+ 
+-func Int8Creator(typ Type, addr Addr) Value {
+-	v := new(Int8ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Int16
+ 
+ export type Int16Value interface {
+@@ -88,6 +86,10 @@ type Int16ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Int16Creator(typ Type, addr Addr) Value {
++	return &Int16ValueStruct{addr}
++}
++
+ func (v *Int16ValueStruct) Kind() int {
+ 	return Int16Kind
+ }
+@@ -104,12 +106,6 @@ func (v *Int16ValueStruct) Put(i int16) {
+ 	*AddrToPtrInt16(v.addr) = i
+ }
+ 
+-func Int16Creator(typ Type, addr Addr) Value {
+-	v := new(Int16ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Int32
+ 
+ export type Int32Value interface {
+@@ -123,6 +119,10 @@ type Int32ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Int32Creator(typ Type, addr Addr) Value {
++	return &Int32ValueStruct{addr}
++}
++
+ func (v *Int32ValueStruct) Type() Type {
+ 	return Int32
+ }
+@@ -139,12 +139,6 @@ func (v *Int32ValueStruct) Put(i int32) {
+ 	*AddrToPtrInt32(v.addr) = i
+ }
+ 
+-func Int32Creator(typ Type, addr Addr) Value {
+-	v := new(Int32ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Int64
+ 
+ export type Int64Value interface {
+@@ -154,6 +148,10 @@ export type Int64Value interface {
+ 	Type()	Type;
+ }
+ 
++func Int64Creator(typ Type, addr Addr) Value {
++	return &Int64ValueStruct{addr}
++}
++
+ type Int64ValueStruct struct {
+ 	addr	Addr
+ }
+@@ -174,12 +172,6 @@ func (v *Int64ValueStruct) Put(i int64) {
+ 	*AddrToPtrInt64(v.addr) = i
+ }
+ 
+-func Int64Creator(typ Type, addr Addr) Value {
+-	v := new(Int64ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Uint8
+ 
+ export type Uint8Value interface {
+@@ -193,6 +185,10 @@ type Uint8ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Uint8Creator(typ Type, addr Addr) Value {
++	return &Uint8ValueStruct{addr}
++}
++
+ func (v *Uint8ValueStruct) Kind() int {
+ 	return Uint8Kind
+ }
+@@ -209,12 +205,6 @@ func (v *Uint8ValueStruct) Put(i uint8) {
+ 	*AddrToPtrUint8(v.addr) = i
+ }
+ 
+-func Uint8Creator(typ Type, addr Addr) Value {
+-	v := new(Uint8ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Uint16
+ 
+ export type Uint16Value interface {
+@@ -228,6 +218,10 @@ type Uint16ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Uint16Creator(typ Type, addr Addr) Value {
++	return &Uint16ValueStruct{addr}
++}
++
+ func (v *Uint16ValueStruct) Kind() int {
+ 	return Uint16Kind
+ }
+@@ -244,12 +238,6 @@ func (v *Uint16ValueStruct) Put(i uint16) {
+ 	*AddrToPtrUint16(v.addr) = i
+ }
+ 
+-func Uint16Creator(typ Type, addr Addr) Value {
+-	v := new(Uint16ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Uint32
+ 
+ export type Uint32Value interface {
+@@ -263,6 +251,10 @@ type Uint32ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Uint32Creator(typ Type, addr Addr) Value {
++	return &Uint32ValueStruct{addr}
++}
++
+ func (v *Uint32ValueStruct) Kind() int {
+ 	return Uint32Kind
+ }
+@@ -279,12 +271,6 @@ func (v *Uint32ValueStruct) Put(i uint32) {
+ 	*AddrToPtrUint32(v.addr) = i
+ }
+ 
+-func Uint32Creator(typ Type, addr Addr) Value {
+-	v := new(Uint32ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Uint64
+ 
+ export type Uint64Value interface {
+@@ -298,6 +284,10 @@ type Uint64ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Uint64Creator(typ Type, addr Addr) Value {
++	return &Uint64ValueStruct{addr}
++}
++
+ func (v *Uint64ValueStruct) Kind() int {
+ 	return Uint64Kind
+ }
+@@ -314,12 +304,6 @@ func (v *Uint64ValueStruct) Put(i uint64) {
+ 	*AddrToPtrUint64(v.addr) = i
+ }
+ 
+-func Uint64Creator(typ Type, addr Addr) Value {
+-	v := new(Uint64ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Float32
+ 
+ export type Float32Value interface {
+@@ -333,6 +317,10 @@ type Float32ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Float32Creator(typ Type, addr Addr) Value {
++	return &Float32ValueStruct{addr}
++}
++
+ func (v *Float32ValueStruct) Kind() int {
+ 	return Float32Kind
+ }
+@@ -349,12 +337,6 @@ func (v *Float32ValueStruct) Put(f float32) {
+ 	*AddrToPtrFloat32(v.addr) = f
+ }
+ 
+-func Float32Creator(typ Type, addr Addr) Value {
+-	v := new(Float32ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Float64
+ 
+ export type Float64Value interface {
+@@ -368,6 +350,10 @@ type Float64ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Float64Creator(typ Type, addr Addr) Value {
++	return &Float64ValueStruct{addr}
++}
++
+ func (v *Float64ValueStruct) Kind() int {
+ 	return Float64Kind
+ }
+@@ -384,12 +370,6 @@ func (v *Float64ValueStruct) Put(f float64) {
+ 	*AddrToPtrFloat64(v.addr) = f
+ }
+ 
+-func Float64Creator(typ Type, addr Addr) Value {
+-	v := new(Float64ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Float80
+ 
+ export type Float80Value interface {
+@@ -403,6 +383,10 @@ type Float80ValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func Float80Creator(typ Type, addr Addr) Value {
++	return &Float80ValueStruct{addr}
++}
++
+ func (v *Float80ValueStruct) Kind() int {
+ 	return Float80Kind
+ }
+@@ -423,12 +407,6 @@ func (v *Float80ValueStruct) Put(f float80) {
+ }
+ */
+ 
+-func Float80Creator(typ Type, addr Addr) Value {
+-	v := new(Float80ValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- String
+ 
+ export type StringValue interface {
+@@ -442,6 +420,10 @@ type StringValueStruct struct {
+ 	addr	Addr
+ }
+ 
++func StringCreator(typ Type, addr Addr) Value {
++	return &StringValueStruct{addr}
++}
++
+ func (v *StringValueStruct) Kind() int {
+ 	return StringKind
+ }
+@@ -458,12 +440,6 @@ func (v *StringValueStruct) Put(s string) {
+ 	*AddrToPtrString(v.addr) = s
+ }
+ 
+-func StringCreator(typ Type, addr Addr) Value {
+-	v := new(StringValueStruct);
+-	v.addr = addr;
+-	return v;
+-}
+-
+ // -- Pointer
+ 
+ export type PtrValue interface {
+@@ -603,7 +579,10 @@ export type MapValue interface {
+ type MapValueStruct struct {
+ 	addr	Addr;
+ 	typ	Type;
+-	len	int;
++}
++
++func MapCreator(typ Type, addr Addr) Value {
++	return &MapValueStruct{addr, typ}
+ }
+ 
+ func (v *MapValueStruct) Kind() int {
+@@ -615,7 +594,7 @@ func (v *MapValueStruct) Type() Type {
+ }
+ 
+ func (v *MapValueStruct) Len() int {
+-	return v.len	// TODO: probably want this to be dynamic
++	return 0	// TODO: probably want this to be dynamic
+ }
+ 
+ func (v *MapValueStruct) Elem(key Value) Value {
+@@ -623,14 +602,6 @@ func (v *MapValueStruct) Elem(key Value) Value {
+ 	return nil
+ }
+ 
+-func MapCreator(typ Type, addr Addr) Value {
+-	arraytype := typ.(MapType);
+-	v := new(MapValueStruct);
+-	v.addr = addr;
+-	v.typ = typ;
+-	return v;
+-}
+-
+ // -- Chan
+ 
+ export type ChanValue interface {
+@@ -641,7 +612,10 @@ export type ChanValue interface {
+ type ChanValueStruct struct {
+ 	addr	Addr;
+ 	typ	Type;
+-	len	int;
++}
++
++func ChanCreator(typ Type, addr Addr) Value {
++	return &ChanValueStruct{addr, typ}
+ }
+ 
+ func (v *ChanValueStruct) Kind() int {
+@@ -652,13 +626,6 @@ func (v *ChanValueStruct) Type() Type {
+ 	return v.typ
+ }
+ 
+-func ChanCreator(typ Type, addr Addr) Value {
+-	v := new(ChanValueStruct);
+-	v.addr = addr;
+-	v.typ = typ;
+-	return v;
+-}
+-
+ // -- Struct
+ 
+ export type StructValue interface {
+@@ -711,24 +678,21 @@ export type InterfaceValue interface {
+ 	Type()	Type;
+ }
+ 
+-type InterfaceValueInterface struct {
++type InterfaceValueStruct struct {
+ 	addr	Addr;
+ 	typ	Type;
+ }
+ 
+-func (v *InterfaceValueInterface) Kind() int {
+-	return InterfaceKind
++func InterfaceCreator(typ Type, addr Addr) Value {
++	return &InterfaceValueStruct{addr, typ}
+ }
+ 
+-func (v *InterfaceValueInterface) Type() Type {
+-	return v.typ
++func (v *InterfaceValueStruct) Kind() int {
++	return InterfaceKind
+ }
+ 
+-func InterfaceCreator(typ Type, addr Addr) Value {
+-	v := new(InterfaceValueInterface);
+-	v.addr = addr;
+-	v.typ = typ;
+-	return v;
++func (v *InterfaceValueStruct) Type() Type {
++	return v.typ
+ }
+ 
+ // -- Func
+@@ -738,24 +702,21 @@ export type FuncValue interface {
+ 	Type()	Type;
+ }
+ 
+-type FuncValueFunc struct {
++type FuncValueStruct struct {
+ 	addr	Addr;
+ 	typ	Type;
+ }
+ 
+-func (v *FuncValueFunc) Kind() int {
+-	return FuncKind
++func FuncCreator(typ Type, addr Addr) Value {
++	return &FuncValueStruct{addr, typ}
+ }
+ 
+-func (v *FuncValueFunc) Type() Type {
+-	return v.typ
++func (v *FuncValueStruct) Kind() int {
++	return FuncKind
+ }
+ 
+-func FuncCreator(typ Type, addr Addr) Value {
+-	v := new(FuncValueFunc);
+-	v.addr = addr;
+-	v.typ = typ;
+-	return v;
++func (v *FuncValueStruct) Type() Type {
++	return v.typ
+ }
+ 
+ var creator *map[int] Creator

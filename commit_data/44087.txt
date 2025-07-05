@@ -65,8 +65,163 @@ Date:   Tue Mar 31 12:20:15 2020 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/encoding/json/encode.go      | 11 ++---
  src/encoding/json/encode_test.go | 87 ++++++++++++++++++++++++++--------------
  src/encoding/json/stream_test.go |  8 ++--
  3 files changed, 69 insertions(+), 37 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 9c043593ce..578d551102 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -635,11 +635,12 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ 		return
+ 	}
+ 	if opts.quoted {
+-		b := make([]byte, 0, v.Len()+2)
+-		b = append(b, '"')
+-		b = append(b, []byte(v.String())...)
+-		b = append(b, '"')
+-		e.stringBytes(b, opts.escapeHTML)
++		e2 := newEncodeState()
++		// Since we encode the string twice, we only need to escape HTML
++		// the first time.
++		e2.string(v.String(), opts.escapeHTML)
++		e.stringBytes(e2.Bytes(), false)
++		encodeStatePool.Put(e2)
+ 	} else {
+ 		e.string(v.String(), opts.escapeHTML)
+ 	}
+diff --git a/src/encoding/json/encode_test.go b/src/encoding/json/encode_test.go
+index 5110c7de9b..7290eca06f 100644
+--- a/src/encoding/json/encode_test.go
++++ b/src/encoding/json/encode_test.go
+@@ -79,37 +79,66 @@ type StringTag struct {
+ 	NumberStr  Number  `json:",string"`
+ }
+ 
+-var stringTagExpected = `{
+- "BoolStr": "true",
+- "IntStr": "42",
+- "UintptrStr": "44",
+- "StrStr": "\"xzbit\"",
+- "NumberStr": "46"
+-}`
+-
+-func TestStringTag(t *testing.T) {
+-	var s StringTag
+-	s.BoolStr = true
+-	s.IntStr = 42
+-	s.UintptrStr = 44
+-	s.StrStr = "xzbit"
+-	s.NumberStr = "46"
+-	got, err := MarshalIndent(&s, "", " ")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if got := string(got); got != stringTagExpected {
+-		t.Fatalf(" got: %s\nwant: %s\n", got, stringTagExpected)
++func TestRoundtripStringTag(t *testing.T) {
++	tests := []struct {
++		name string
++		in   StringTag
++		want string // empty to just test that we roundtrip
++	}{
++		{
++			name: "AllTypes",
++			in: StringTag{
++				BoolStr:    true,
++				IntStr:     42,
++				UintptrStr: 44,
++				StrStr:     "xzbit",
++				NumberStr:  "46",
++			},
++			want: `{
++				"BoolStr": "true",
++				"IntStr": "42",
++				"UintptrStr": "44",
++				"StrStr": "\"xzbit\"",
++				"NumberStr": "46"
++			}`,
++		},
++		{
++			// See golang.org/issues/38173.
++			name: "StringDoubleEscapes",
++			in: StringTag{
++				StrStr:    "\b\f\n\r\t\"\\",
++				NumberStr: "0", // just to satisfy the roundtrip
++			},
++			want: `{
++				"BoolStr": "false",
++				"IntStr": "0",
++				"UintptrStr": "0",
++				"StrStr": "\"\\u0008\\u000c\\n\\r\\t\\\"\\\\\"",
++				"NumberStr": "0"
++			}`,
++		},
+ 	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			// Indent with a tab prefix to make the multi-line string
++			// literals in the table nicer to read.
++			got, err := MarshalIndent(&test.in, "\t\t\t", "\t")
++			if err != nil {
++				t.Fatal(err)
++			}
++			if got := string(got); got != test.want {
++				t.Fatalf(" got: %s\nwant: %s\n", got, test.want)
++			}
+ 
+-	// Verify that it round-trips.
+-	var s2 StringTag
+-	err = NewDecoder(bytes.NewReader(got)).Decode(&s2)
+-	if err != nil {
+-		t.Fatalf("Decode: %v", err)
+-	}
+-	if !reflect.DeepEqual(s, s2) {
+-		t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", s, string(got), s2)
++			// Verify that it round-trips.
++			var s2 StringTag
++			if err := Unmarshal(got, &s2); err != nil {
++				t.Fatalf("Decode: %v", err)
++			}
++			if !reflect.DeepEqual(test.in, s2) {
++				t.Fatalf("decode didn't match.\nsource: %#v\nEncoded as:\n%s\ndecode: %#v", test.in, string(got), s2)
++			}
++		})
+ 	}
+ }
+ 
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index ebb4f231d1..c9e5334337 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -144,14 +144,15 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 		},
+ 		{
+ 			"stringOption", stringOption,
+-			`{"bar":"\"\u003chtml\u003efoobar\u003c/html\u003e\""}`,
++			`{"bar":"\"\\u003chtml\\u003efoobar\\u003c/html\\u003e\""}`,
+ 			`{"bar":"\"<html>foobar</html>\""}`,
+ 		},
+ 	} {
+ 		var buf bytes.Buffer
+ 		enc := NewEncoder(&buf)
+ 		if err := enc.Encode(tt.v); err != nil {
+-			t.Fatalf("Encode(%s): %s", tt.name, err)
++			t.Errorf("Encode(%s): %s", tt.name, err)
++			continue
+ 		}
+ 		if got := strings.TrimSpace(buf.String()); got != tt.wantEscape {
+ 			t.Errorf("Encode(%s) = %#q, want %#q", tt.name, got, tt.wantEscape)
+@@ -159,7 +160,8 @@ func TestEncoderSetEscapeHTML(t *testing.T) {
+ 		buf.Reset()
+ 		enc.SetEscapeHTML(false)
+ 		if err := enc.Encode(tt.v); err != nil {
+-			t.Fatalf("SetEscapeHTML(false) Encode(%s): %s", tt.name, err)
++			t.Errorf("SetEscapeHTML(false) Encode(%s): %s", tt.name, err)
++			continue
+ 		}
+ 		if got := strings.TrimSpace(buf.String()); got != tt.want {
+ 			t.Errorf("SetEscapeHTML(false) Encode(%s) = %#q, want %#q",

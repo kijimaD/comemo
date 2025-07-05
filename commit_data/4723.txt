@@ -12,7 +12,7 @@ Date:   Fri Jan 29 11:00:05 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194122
-
+---
  src/pkg/compress/gzip/Makefile       |   1 +
  src/pkg/compress/gzip/gunzip.go      |  31 +++---
  src/pkg/compress/gzip/gunzip_test.go |  24 ++---
@@ -20,3 +20,490 @@ Date:   Fri Jan 29 11:00:05 2010 +1100
  src/pkg/compress/gzip/gzip_test.go   |  65 ++++++++++++
  src/pkg/compress/zlib/writer.go      |   2 +-
  6 files changed, 285 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/compress/gzip/Makefile b/src/pkg/compress/gzip/Makefile
+index ca26333f39..bb4705a8f4 100644
+--- a/src/pkg/compress/gzip/Makefile
++++ b/src/pkg/compress/gzip/Makefile
+@@ -7,5 +7,6 @@ include ../../../Make.$(GOARCH)
+ TARG=compress/gzip
+ GOFILES=\
+ 	gunzip.go\
++	gzip.go\
+ 
+ include ../../../Make.pkg
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index b2a08830c9..6a1b9fac37 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// The gzip package implements reading (and eventually writing) of
++// The gzip package implements reading and writing of
+ // gzip format compressed files, as specified in RFC 1952.
+ package gzip
+ 
+@@ -15,6 +15,9 @@ import (
+ 	"os"
+ )
+ 
++// BUG(nigeltao): Comments and Names don't properly map UTF-8 character codes outside of
++// the 0x00-0x7f range to ISO 8859-1 (Latin-1).
++
+ const (
+ 	gzipID1     = 0x1f
+ 	gzipID2     = 0x8b
+@@ -36,10 +39,18 @@ func makeReader(r io.Reader) flate.Reader {
+ var HeaderError os.Error = os.ErrorString("invalid gzip header")
+ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
+ 
++// The gzip file stores a header giving metadata about the compressed file.
++// That header is exposed as the fields of the Deflater and Inflater structs.
++type Header struct {
++	Comment string // comment
++	Extra   []byte // "extra data"
++	Mtime   uint32 // modification time (seconds since January 1, 1970)
++	Name    string // file name
++	OS      byte   // operating system type
++}
++
+ // An Inflater is an io.Reader that can be read to retrieve
+ // uncompressed data from a gzip-format compressed file.
+-// The gzip file stores a header giving metadata about the compressed file.
+-// That header is exposed as the fields of the Inflater struct.
+ //
+ // In general, a gzip file can be a concatenation of gzip files,
+ // each with its own header.  Reads from the Inflater
+@@ -53,12 +64,7 @@ var ChecksumError os.Error = os.ErrorString("gzip checksum error")
+ // returned by Read as tentative until they receive the successful
+ // (zero length, nil error) Read marking the end of the data.
+ type Inflater struct {
+-	Comment string // comment
+-	Extra   []byte // "extra data"
+-	Mtime   uint32 // modification time (seconds since January 1, 1970)
+-	Name    string // file name
+-	OS      byte   // operating system type
+-
++	Header
+ 	r        flate.Reader
+ 	inflater io.ReadCloser
+ 	digest   hash.Hash32
+@@ -66,7 +72,6 @@ type Inflater struct {
+ 	flg      byte
+ 	buf      [512]byte
+ 	err      os.Error
+-	eof      bool
+ }
+ 
+ // NewInflater creates a new Inflater reading the given reader.
+@@ -99,6 +104,8 @@ func (z *Inflater) readString() (string, os.Error) {
+ 			return "", err
+ 		}
+ 		if z.buf[i] == 0 {
++			// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
++			// TODO(nigeltao): Convert from ISO 8859-1 (Latin-1) to UTF-8.
+ 			return string(z.buf[0:i]), nil
+ 		}
+ 	}
+@@ -106,7 +113,7 @@ func (z *Inflater) readString() (string, os.Error) {
+ }
+ 
+ func (z *Inflater) read2() (uint32, os.Error) {
+-	_, err := z.r.Read(z.buf[0:2])
++	_, err := io.ReadFull(z.r, z.buf[0:2])
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -183,7 +190,7 @@ func (z *Inflater) Read(p []byte) (n int, err os.Error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+ 	}
+-	if z.eof || len(p) == 0 {
++	if len(p) == 0 {
+ 		return 0, nil
+ 	}
+ 
+diff --git a/src/pkg/compress/gzip/gunzip_test.go b/src/pkg/compress/gzip/gunzip_test.go
+index 3930985e37..a70464b3ee 100644
+--- a/src/pkg/compress/gzip/gunzip_test.go
++++ b/src/pkg/compress/gzip/gunzip_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"testing"
+ )
+ 
+-type gzipTest struct {
++type gunzipTest struct {
+ 	name string
+ 	desc string
+ 	raw  string
+@@ -19,8 +19,8 @@ type gzipTest struct {
+ 	err  os.Error
+ }
+ 
+-var gzipTests = []gzipTest{
+-	gzipTest{ // has 1 empty fixed-huffman block
++var gunzipTests = []gunzipTest{
++	gunzipTest{ // has 1 empty fixed-huffman block
+ 		"empty.txt",
+ 		"empty.txt",
+ 		"",
+@@ -32,7 +32,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		nil,
+ 	},
+-	gzipTest{ // has 1 non-empty fixed huffman block
++	gunzipTest{ // has 1 non-empty fixed huffman block
+ 		"hello.txt",
+ 		"hello.txt",
+ 		"hello world\n",
+@@ -46,7 +46,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		nil,
+ 	},
+-	gzipTest{ // concatenation
++	gunzipTest{ // concatenation
+ 		"hello.txt",
+ 		"hello.txt x2",
+ 		"hello world\n" +
+@@ -67,7 +67,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		nil,
+ 	},
+-	gzipTest{ // has a fixed huffman block with some length-distance pairs
++	gunzipTest{ // has a fixed huffman block with some length-distance pairs
+ 		"shesells.txt",
+ 		"shesells.txt",
+ 		"she sells seashells by the seashore\n",
+@@ -83,7 +83,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		nil,
+ 	},
+-	gzipTest{ // has dynamic huffman blocks
++	gunzipTest{ // has dynamic huffman blocks
+ 		"gettysburg",
+ 		"gettysburg",
+ 		"  Four score and seven years ago our fathers brought forth on\n" +
+@@ -221,7 +221,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		nil,
+ 	},
+-	gzipTest{ // has 1 non-empty fixed huffman block then garbage
++	gunzipTest{ // has 1 non-empty fixed huffman block then garbage
+ 		"hello.txt",
+ 		"hello.txt + garbage",
+ 		"hello world\n",
+@@ -235,7 +235,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		HeaderError,
+ 	},
+-	gzipTest{ // has 1 non-empty fixed huffman block not enough header
++	gunzipTest{ // has 1 non-empty fixed huffman block not enough header
+ 		"hello.txt",
+ 		"hello.txt + garbage",
+ 		"hello world\n",
+@@ -249,7 +249,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		io.ErrUnexpectedEOF,
+ 	},
+-	gzipTest{ // has 1 non-empty fixed huffman block but corrupt checksum
++	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt checksum
+ 		"hello.txt",
+ 		"hello.txt + corrupt checksum",
+ 		"hello world\n",
+@@ -263,7 +263,7 @@ var gzipTests = []gzipTest{
+ 		},
+ 		ChecksumError,
+ 	},
+-	gzipTest{ // has 1 non-empty fixed huffman block but corrupt size
++	gunzipTest{ // has 1 non-empty fixed huffman block but corrupt size
+ 		"hello.txt",
+ 		"hello.txt + corrupt size",
+ 		"hello world\n",
+@@ -281,7 +281,7 @@ var gzipTests = []gzipTest{
+ 
+ func TestInflater(t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	for _, tt := range gzipTests {
++	for _, tt := range gunzipTests {
+ 		in := bytes.NewBuffer(tt.gzip)
+ 		gzip, err := NewInflater(in)
+ 		if err != nil {
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+new file mode 100644
+index 0000000000..c17e6e7e0e
+--- /dev/null
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -0,0 +1,187 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gzip
++
++import (
++	"compress/flate"
++	"hash"
++	"hash/crc32"
++	"io"
++	"os"
++)
++
++// These constants are copied from the flate package, so that code that imports
++// "compress/gzip" does not also have to import "compress/flate".
++const (
++	NoCompression      = flate.NoCompression
++	BestSpeed          = flate.BestSpeed
++	BestCompression    = flate.BestCompression
++	DefaultCompression = flate.DefaultCompression
++)
++
++// A Deflater is an io.WriteCloser that satisfies writes by compressing data written
++// to its wrapped io.Writer.
++type Deflater struct {
++	Header
++	w        io.Writer
++	level    int
++	deflater io.WriteCloser
++	digest   hash.Hash32
++	size     uint32
++	closed   bool
++	buf      [10]byte
++	err      os.Error
++}
++
++// NewDeflater calls NewDeflaterLevel with the default compression level.
++func NewDeflater(w io.Writer) (*Deflater, os.Error) {
++	return NewDeflaterLevel(w, DefaultCompression)
++}
++
++// NewDeflaterLevel creates a new Deflater writing to the given writer.
++// Writes may be buffered and not flushed until Close.
++// Callers that wish to set the fields in Deflater.Header must
++// do so before the first call to Write or Close.
++// It is the caller's responsibility to call Close on the WriteCloser when done.
++// level is the compression level, which can be DefaultCompression, NoCompression,
++// or any integer value between BestSpeed and BestCompression (inclusive).
++func NewDeflaterLevel(w io.Writer, level int) (*Deflater, os.Error) {
++	z := new(Deflater)
++	z.OS = 255 // unknown
++	z.w = w
++	z.level = level
++	z.digest = crc32.NewIEEE()
++	return z, nil
++}
++
++// GZIP (RFC 1952) is little-endian, unlike ZLIB (RFC 1950).
++func put2(p []byte, v uint16) {
++	p[0] = uint8(v >> 0)
++	p[1] = uint8(v >> 8)
++}
++
++func put4(p []byte, v uint32) {
++	p[0] = uint8(v >> 0)
++	p[1] = uint8(v >> 8)
++	p[2] = uint8(v >> 16)
++	p[3] = uint8(v >> 24)
++}
++
++// writeBytes writes a length-prefixed byte slice to z.w.
++func (z *Deflater) writeBytes(b []byte) os.Error {
++	if len(b) > 0xffff {
++		return os.NewError("gzip.Write: Extra data is too large")
++	}
++	put2(z.buf[0:2], uint16(len(b)))
++	_, err := z.w.Write(z.buf[0:2])
++	if err != nil {
++		return err
++	}
++	_, err = z.w.Write(b)
++	return err
++}
++
++// writeString writes a string (in ISO 8859-1 (Latin-1) format) to z.w.
++func (z *Deflater) writeString(s string) os.Error {
++	// GZIP (RFC 1952) specifies that strings are null-terminated ISO 8859-1 (Latin-1).
++	// TODO(nigeltao): Convert from UTF-8 to ISO 8859-1 (Latin-1).
++	for _, v := range s {
++		if v > 0x7f {
++			return os.NewError("gzip.Write: Comment/Name character code was outside the 0x00-0x7f range")
++		}
++	}
++	_, err := io.WriteString(z.w, s)
++	if err != nil {
++		return err
++	}
++	// GZIP strings are NUL-terminated.
++	z.buf[0] = 0
++	_, err = z.w.Write(z.buf[0:1])
++	return err
++}
++
++func (z *Deflater) Write(p []byte) (int, os.Error) {
++	if z.err != nil {
++		return 0, z.err
++	}
++	var n int
++	// Write the GZIP header lazily.
++	if z.deflater == nil {
++		z.buf[0] = gzipID1
++		z.buf[1] = gzipID2
++		z.buf[2] = gzipDeflate
++		z.buf[3] = 0
++		if z.Extra != nil {
++			z.buf[3] |= 0x04
++		}
++		if z.Name != "" {
++			z.buf[3] |= 0x08
++		}
++		if z.Comment != "" {
++			z.buf[3] |= 0x10
++		}
++		put4(z.buf[4:8], z.Mtime)
++		if z.level == BestCompression {
++			z.buf[8] = 2
++		} else if z.level == BestSpeed {
++			z.buf[8] = 4
++		} else {
++			z.buf[8] = 0
++		}
++		z.buf[9] = z.OS
++		n, z.err = z.w.Write(z.buf[0:10])
++		if z.err != nil {
++			return n, z.err
++		}
++		if z.Extra != nil {
++			z.err = z.writeBytes(z.Extra)
++			if z.err != nil {
++				return n, z.err
++			}
++		}
++		if z.Name != "" {
++			z.err = z.writeString(z.Name)
++			if z.err != nil {
++				return n, z.err
++			}
++		}
++		if z.Comment != "" {
++			z.err = z.writeString(z.Comment)
++			if z.err != nil {
++				return n, z.err
++			}
++		}
++		z.deflater = flate.NewDeflater(z.w, z.level)
++	}
++	z.size += uint32(len(p))
++	z.digest.Write(p)
++	n, z.err = z.deflater.Write(p)
++	return n, z.err
++}
++
++// Calling Close does not close the wrapped io.Writer originally passed to NewDeflater.
++func (z *Deflater) Close() os.Error {
++	if z.err != nil {
++		return z.err
++	}
++	if z.closed {
++		return nil
++	}
++	z.closed = true
++	if z.deflater == nil {
++		z.Write(nil)
++		if z.err != nil {
++			return z.err
++		}
++	}
++	z.err = z.deflater.Close()
++	if z.err != nil {
++		return z.err
++	}
++	put4(z.buf[0:4], z.digest.Sum32())
++	put4(z.buf[4:8], z.size)
++	_, z.err = z.w.Write(z.buf[0:8])
++	return z.err
++}
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+new file mode 100644
+index 0000000000..292e2b6919
+--- /dev/null
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -0,0 +1,65 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gzip
++
++import (
++	"io"
++	"io/ioutil"
++	"strings"
++	"testing"
++)
++
++// Tests that gzipping and then gunzipping is the identity function.
++func TestWriter(t *testing.T) {
++	// Set up the Pipe to do the gzip and gunzip.
++	piper, pipew := io.Pipe()
++	defer piper.Close()
++	go func() {
++		defer pipew.Close()
++		deflater, err := NewDeflater(pipew)
++		if err != nil {
++			t.Errorf("%v", err)
++			return
++		}
++		defer deflater.Close()
++		deflater.Comment = "comment"
++		deflater.Extra = strings.Bytes("extra")
++		deflater.Mtime = 1e8
++		deflater.Name = "name"
++		_, err = deflater.Write(strings.Bytes("payload"))
++		if err != nil {
++			t.Errorf("%v", err)
++			return
++		}
++	}()
++	inflater, err := NewInflater(piper)
++	if err != nil {
++		t.Errorf("%v", err)
++		return
++	}
++	defer inflater.Close()
++
++	// Read and compare to the original input.
++	b, err := ioutil.ReadAll(inflater)
++	if err != nil {
++		t.Errorf(": %v", err)
++		return
++	}
++	if string(b) != "payload" {
++		t.Fatalf("payload is %q, want %q", string(b), "payload")
++	}
++	if inflater.Comment != "comment" {
++		t.Fatalf("comment is %q, want %q", inflater.Comment, "comment")
++	}
++	if string(inflater.Extra) != "extra" {
++		t.Fatalf("extra is %q, want %q", inflater.Extra, "extra")
++	}
++	if inflater.Mtime != 1e8 {
++		t.Fatalf("mtime is %d, want %d", inflater.Mtime, uint32(1e8))
++	}
++	if inflater.Name != "name" {
++		t.Fatalf("name is %q, want %q", inflater.Name, "name")
++	}
++}
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index 0441b04638..53da3990a6 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -34,7 +34,7 @@ func NewDeflater(w io.Writer) (io.WriteCloser, os.Error) {
+ 	return NewDeflaterLevel(w, DefaultCompression)
+ }
+ 
+-// NewDeflater creates a new io.WriteCloser that satisfies writes by compressing data written to w.
++// NewDeflaterLevel creates a new io.WriteCloser that satisfies writes by compressing data written to w.
+ // It is the caller's responsibility to call Close on the WriteCloser when done.
+ // level is the compression level, which can be DefaultCompression, NoCompression,
+ // or any integer value between BestSpeed and BestCompression (inclusive).

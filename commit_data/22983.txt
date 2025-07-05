@@ -7,6 +7,19 @@ Date:   Fri Apr 17 10:50:56 2015 -0700
     Change-Id: I8029640fe74731d7847390f371af37b85dec96cc
     Reviewed-on: https://go-review.googlesource.com/9006
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 640f17083c..ffbd7263f4 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -61,6 +61,7 @@ cmd/go, go/build: add ${SRCDIR} variable expansion to cgo lines (https://golang.
+ cmd/go: add $DOLLAR to generate's variables (https://golang.org/cl/8091)
+ cmd/go: std wildcard now excludes commands in main repo (https://golang.org/cl/5550)
+ cmd/go: .swig/.swigcxx files now require SWIG 3.0.6 or later
++cmd/go: add -run flag to go generate (https://golang.org/cl/9005)
+ cmd/vet: better validation of struct tags (https://golang.org/cl/2685)
+ cmd/ld: no longer record build timestamp in Windows PE file header (https://golang.org/cl/3740)
+ cmd/go: add -toolexec build option

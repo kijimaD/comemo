@@ -7,6 +7,20 @@ Date:   Thu Feb 16 14:54:45 2012 +1100
     TBR=r
     CC=golang-dev
     https://golang.org/cl/5671060
-
+---
  src/pkg/debug/gosym/pclntab_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/debug/gosym/pclntab_test.go b/src/pkg/debug/gosym/pclntab_test.go
+index 2c477757a8..dbd3992ee5 100644
+--- a/src/pkg/debug/gosym/pclntab_test.go
++++ b/src/pkg/debug/gosym/pclntab_test.go
+@@ -28,6 +28,8 @@ func dotest() bool {
+ 	// but we have renamed it to keep it away from the go tool.
+ 	pclinetestBinary = os.TempDir() + "/pclinetest"
+ 	cmd := exec.Command("sh", "-c", "go tool 6a pclinetest.asm && go tool 6l -E main -o "+pclinetestBinary+" pclinetest.6")
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
+ 	if err := cmd.Run(); err != nil {
+ 		panic(err)
+ 	}

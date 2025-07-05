@@ -15,6 +15,20 @@ Date:   Fri Oct 8 14:12:33 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz_minimize.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 727399f4bb..0a0359fabb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -76,7 +76,7 @@ stdout FAIL
+ 
+ ! go test -fuzz=FuzzMinimizerTooSlow -run=FuzzMinimizerTooSlow -fuzzminimizetime=3s minimizer_test.go
+ stdout 'fuzz: minimizing'
+-stdout 'fuzz: elapsed: 3s, minimizing'
++stdout 'fuzz: elapsed: \d+s, minimizing'
+ stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerTooSlow[/\\]'
+ stdout FAIL
+ 

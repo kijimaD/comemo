@@ -11,7 +11,36 @@ Date:   Wed May 15 15:15:33 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/benchmark_test.go | 3 +++
  src/testing/sub_test.go       | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index a872d6798b..1434c2613f 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -68,6 +68,9 @@ func TestResultString(t *testing.T) {
+ }
+ 
+ func TestRunParallel(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
+ 	testing.Benchmark(func(b *testing.B) {
+ 		procs := uint32(0)
+ 		iters := uint64(0)
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 884b0a3b12..cc5dd2f3cf 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -756,6 +756,9 @@ func TestLogAfterComplete(t *T) {
+ }
+ 
+ func TestBenchmark(t *T) {
++	if Short() {
++		t.Skip("skipping in short mode")
++	}
+ 	res := Benchmark(func(b *B) {
+ 		for i := 0; i < 5; i++ {
+ 			b.Run("", func(b *B) {

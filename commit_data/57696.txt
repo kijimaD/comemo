@@ -19,7 +19,107 @@ Date:   Tue Aug 22 11:32:20 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/os/signal/signal_cgo_test.go | 45 +++++++++++++++++++++++++++++++---------
  src/os/signal/signal_test.go     |  2 +-
  2 files changed, 36 insertions(+), 11 deletions(-)
+
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index ac5921591e..5e85f45e70 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -14,9 +14,9 @@ import (
+ 	"context"
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/testenv"
+ 	"internal/testpty"
+ 	"os"
+-	"os/exec"
+ 	"os/signal"
+ 	"runtime"
+ 	"strconv"
+@@ -93,7 +93,7 @@ func TestTerminalSignal(t *testing.T) {
+ 		// Main test process, run code below.
+ 		break
+ 	case "1":
+-		runSessionLeader(pause)
++		runSessionLeader(t, pause)
+ 		panic("unreachable")
+ 	case "2":
+ 		runStoppingChild()
+@@ -128,9 +128,22 @@ func TestTerminalSignal(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Second)
+-	defer cancel()
+-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
++	var (
++		ctx     = context.Background()
++		cmdArgs = []string{"-test.run=TestTerminalSignal"}
++	)
++	if deadline, ok := t.Deadline(); ok {
++		d := time.Until(deadline)
++		var cancel context.CancelFunc
++		ctx, cancel = context.WithTimeout(ctx, d)
++		t.Cleanup(cancel)
++
++		// We run the subprocess with an additional 20% margin to allow it to fail
++		// and clean up gracefully if it times out.
++		cmdArgs = append(cmdArgs, fmt.Sprintf("-test.timeout=%v", d*5/4))
++	}
++
++	cmd := testenv.CommandContext(t, ctx, os.Args[0], cmdArgs...)
+ 	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=1")
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout // for logging
+@@ -216,7 +229,7 @@ func TestTerminalSignal(t *testing.T) {
+ }
+ 
+ // GO_TEST_TERMINAL_SIGNALS=1 subprocess above.
+-func runSessionLeader(pause time.Duration) {
++func runSessionLeader(t *testing.T, pause time.Duration) {
+ 	// "Attempts to use tcsetpgrp() from a process which is a
+ 	// member of a background process group on a fildes associated
+ 	// with its controlling terminal shall cause the process group
+@@ -235,10 +248,22 @@ func runSessionLeader(pause time.Duration) {
+ 	pty := os.NewFile(ptyFD, "pty")
+ 	controlW := os.NewFile(controlFD, "control-pipe")
+ 
+-	// Slightly shorter timeout than in the parent.
+-	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+-	defer cancel()
+-	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=TestTerminalSignal")
++	var (
++		ctx     = context.Background()
++		cmdArgs = []string{"-test.run=TestTerminalSignal"}
++	)
++	if deadline, ok := t.Deadline(); ok {
++		d := time.Until(deadline)
++		var cancel context.CancelFunc
++		ctx, cancel = context.WithTimeout(ctx, d)
++		t.Cleanup(cancel)
++
++		// We run the subprocess with an additional 20% margin to allow it to fail
++		// and clean up gracefully if it times out.
++		cmdArgs = append(cmdArgs, fmt.Sprintf("-test.timeout=%v", d*5/4))
++	}
++
++	cmd := testenv.CommandContext(t, ctx, os.Args[0], cmdArgs...)
+ 	cmd.Env = append(os.Environ(), "GO_TEST_TERMINAL_SIGNALS=2")
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index ddbd458a6d..e5af885511 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -483,7 +483,7 @@ func TestNohup(t *testing.T) {
+ 			defer wg.Done()
+ 
+ 			// POSIX specifies that nohup writes to a file named nohup.out if standard
+-			// output is a terminal. However, for an exec.Command, standard output is
++			// output is a terminal. However, for an exec.Cmd, standard output is
+ 			// not a terminal — so we don't need to read or remove that file (and,
+ 			// indeed, cannot even create it if the current user is unable to write to
+ 			// GOROOT/src, such as when GOROOT is installed and owned by root).

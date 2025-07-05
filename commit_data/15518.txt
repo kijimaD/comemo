@@ -12,6 +12,27 @@ Date:   Thu Feb 28 20:37:25 2013 -0500
     R=gri
     CC=golang-dev
     https://golang.org/cl/7444049
-
+---
  src/pkg/go/types/stmt.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index 24a47901f8..f4c158da91 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -719,6 +719,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		x.mode = value
+ 		if s.Key != nil {
+ 			x.typ = key
++			x.expr = s.Key
+ 			check.assign1to1(s.Key, nil, &x, decl, -1)
+ 		} else {
+ 			check.invalidAST(s.Pos(), "range clause requires index iteration variable")
+@@ -726,6 +727,7 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		}
+ 		if s.Value != nil {
+ 			x.typ = val
++			x.expr = s.Value
+ 			check.assign1to1(s.Value, nil, &x, decl, -1)
+ 		}
+ 

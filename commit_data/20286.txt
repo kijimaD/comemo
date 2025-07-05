@@ -8,8 +8,46 @@ Date:   Thu Aug 28 23:26:50 2014 -0700
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/139890043
-
+---
  src/pkg/runtime/print1.go | 2 +-
  src/pkg/runtime/string.c  | 1 +
  src/pkg/runtime/stubs.go  | 1 +
  3 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/print1.go b/src/pkg/runtime/print1.go
+index 94ba9e4733..9df6a621bb 100644
+--- a/src/pkg/runtime/print1.go
++++ b/src/pkg/runtime/print1.go
+@@ -39,7 +39,7 @@ func goprintf(s string) {
+ // and type tables.
+ //go:nosplit
+ func printf(s *byte) {
+-	vprintf(gostring(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
++	vprintf(gostringnocopy(s), add(unsafe.Pointer(&s), unsafe.Sizeof(s)))
+ }
+ 
+ // sprintf is only called from C code.
+diff --git a/src/pkg/runtime/string.c b/src/pkg/runtime/string.c
+index 60a0545a9a..5421b53196 100644
+--- a/src/pkg/runtime/string.c
++++ b/src/pkg/runtime/string.c
+@@ -90,6 +90,7 @@ runtime·gobytes(byte *p, intgo n)
+ 	return sl;
+ }
+ 
++#pragma textflag NOSPLIT
+ String
+ runtime·gostringnocopy(byte *str)
+ {
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index 26126fcf9a..2014dfbf90 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -203,6 +203,7 @@ func noteclear(n *note)
+ func lock(lk *mutex)
+ func unlock(lk *mutex)
+ func purgecachedstats(c *mcache)
++func gostringnocopy(b *byte) string
+ 
+ //go:noescape
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32

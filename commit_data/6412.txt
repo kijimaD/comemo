@@ -7,7 +7,7 @@ Date:   Tue Sep 28 20:30:01 2010 -0400
     R=r, iant, robert.swiecki, rsc1
     CC=golang-dev
     https://golang.org/cl/1904044
-
+---
  src/pkg/runtime/darwin/386/defs.h    |  1 +
  src/pkg/runtime/darwin/386/sys.s     |  2 --
  src/pkg/runtime/darwin/amd64/defs.h  |  1 +
@@ -33,3 +33,369 @@ Date:   Tue Sep 28 20:30:01 2010 -0400
  src/pkg/runtime/tiny/mem.c           |  4 ++++
  src/pkg/runtime/windows/mem.c        |  5 +++++
  24 files changed, 81 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/defs.h b/src/pkg/runtime/darwin/386/defs.h
+index 371f650a87..f9d874d85c 100644
+--- a/src/pkg/runtime/darwin/386/defs.h
++++ b/src/pkg/runtime/darwin/386/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1000,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	MACH_MSG_TYPE_MOVE_RECEIVE = 0x10,
+ 	MACH_MSG_TYPE_MOVE_SEND = 0x11,
+ 	MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12,
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 6bc17a4ae5..40c82f32c7 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -38,8 +38,6 @@ TEXT write(SB),7,$0
+ TEXT ·mmap(SB),7,$0
+ 	MOVL	$197, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT ·munmap(SB),7,$0
+diff --git a/src/pkg/runtime/darwin/amd64/defs.h b/src/pkg/runtime/darwin/amd64/defs.h
+index 0b5fde85ca..09e595988d 100644
+--- a/src/pkg/runtime/darwin/amd64/defs.h
++++ b/src/pkg/runtime/darwin/amd64/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1000,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	MACH_MSG_TYPE_MOVE_RECEIVE = 0x10,
+ 	MACH_MSG_TYPE_MOVE_SEND = 0x11,
+ 	MACH_MSG_TYPE_MOVE_SEND_ONCE = 0x12,
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 450bed8c20..cbf053a62e 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -103,8 +103,6 @@ TEXT	·mmap(SB),7,$0
+ 	MOVL	36(SP), R9		// arg 6 offset
+ 	MOVL	$(0x2000000+197), AX	// syscall entry
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT ·munmap(SB),7,$0
+diff --git a/src/pkg/runtime/darwin/defs.c b/src/pkg/runtime/darwin/defs.c
+index 8735e78572..1a1cdf880c 100644
+--- a/src/pkg/runtime/darwin/defs.c
++++ b/src/pkg/runtime/darwin/defs.c
+@@ -26,6 +26,7 @@ enum {
+ 
+ 	$MAP_ANON = MAP_ANON,
+ 	$MAP_PRIVATE = MAP_PRIVATE,
++	$MAP_FIXED = MAP_FIXED,
+ 
+ 	$MACH_MSG_TYPE_MOVE_RECEIVE = MACH_MSG_TYPE_MOVE_RECEIVE,
+ 	$MACH_MSG_TYPE_MOVE_SEND = MACH_MSG_TYPE_MOVE_SEND,
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+index 32bedd0950..90c8e4adfa 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -6,8 +6,15 @@
+ void*
+ SysAlloc(uintptr n)
+ {
++	void *v;
++
+ 	mstats.sys += n;
+-	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(v < (void*)4096) {
++		printf("mmap: errno=%p\n", v);
++		throw("mmap");
++	}
++	return v;
+ }
+ 
+ void
+@@ -25,3 +32,15 @@ SysFree(void *v, uintptr n)
+ 	runtime_munmap(v, n);
+ }
+ 
++
++void
++SysMemInit(void)
++{
++	// Code generators assume that references to addresses
++	// on the first page will fault.  Map the page explicitly with
++	// no permissions, to head off possible bugs like the system
++	// allocating that page as the virtual address space fills.
++	// Ignore any error, since other systems might be smart
++	// enough to never allow anything there.
++//	runtime_mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
++}
+diff --git a/src/pkg/runtime/freebsd/386/defs.h b/src/pkg/runtime/freebsd/386/defs.h
+index 76c55721f6..128be9cc9a 100644
+--- a/src/pkg/runtime/freebsd/386/defs.h
++++ b/src/pkg/runtime/freebsd/386/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1000,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	SA_SIGINFO = 0x40,
+ 	SA_RESTART = 0x2,
+ 	SA_ONSTACK = 0x1,
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 6dc98bc96a..012e9a0727 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -80,8 +80,6 @@ TEXT ·mmap(SB),7,$32
+ 	STOSL
+ 	MOVL	$477, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT ·munmap(SB),7,$-4
+diff --git a/src/pkg/runtime/freebsd/amd64/defs.h b/src/pkg/runtime/freebsd/amd64/defs.h
+index 18b68b3556..2a295a4794 100644
+--- a/src/pkg/runtime/freebsd/amd64/defs.h
++++ b/src/pkg/runtime/freebsd/amd64/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x1000,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	SA_SIGINFO = 0x40,
+ 	SA_RESTART = 0x2,
+ 	SA_ONSTACK = 0x1,
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index 62dcc5dda6..2d841505ce 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -112,8 +112,6 @@ TEXT	·mmap(SB),7,$0
+ 	MOVL	36(SP), R9		// arg 6 offset
+ 	MOVL	$477, AX
+ 	SYSCALL
+-	JCC	2(PC)
+-	CALL	notok(SB)
+ 	RET
+ 
+ TEXT	·munmap(SB),7,$0
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 36e69093e4..32a80f4756 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -28,6 +28,7 @@ enum {
+ 
+ 	$MAP_ANON = MAP_ANON,
+ 	$MAP_PRIVATE = MAP_PRIVATE,
++	$MAP_FIXED = MAP_FIXED,
+ 
+ 	$SA_SIGINFO = SA_SIGINFO,
+ 	$SA_RESTART = SA_RESTART,
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index 32bedd0950..7dfffaec8c 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -6,8 +6,15 @@
+ void*
+ SysAlloc(uintptr n)
+ {
++	void *v;
++
+ 	mstats.sys += n;
+-	return runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	v = runtime_mmap(nil, n, PROT_READ|PROT_WRITE|PROT_EXEC, MAP_ANON|MAP_PRIVATE, -1, 0);
++	if(v < (void*)4096) {
++		printf("mmap: errno=%p\n", p);
++		throw("mmap");
++	}
++	return v;
+ }
+ 
+ void
+@@ -25,3 +32,15 @@ SysFree(void *v, uintptr n)
+ 	runtime_munmap(v, n);
+ }
+ 
++
++void
++SysMemInit(void)
++{
++	// Code generators assume that references to addresses
++	// on the first page will fault.  Map the page explicitly with
++	// no permissions, to head off possible bugs like the system
++	// allocating that page as the virtual address space fills.
++	// Ignore any error, since other systems might be smart
++	// enough to never allow anything there.
++	runtime_mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
++}
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+index ef8ef05d03..c1f58b2a08 100644
+--- a/src/pkg/runtime/linux/386/defs.h
++++ b/src/pkg/runtime/linux/386/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x20,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	SA_RESTART = 0x10000000,
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+diff --git a/src/pkg/runtime/linux/amd64/defs.h b/src/pkg/runtime/linux/amd64/defs.h
+index c08e6b25d1..3e3d32f0d4 100644
+--- a/src/pkg/runtime/linux/amd64/defs.h
++++ b/src/pkg/runtime/linux/amd64/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x20,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	SA_RESTART = 0x10000000,
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+diff --git a/src/pkg/runtime/linux/arm/defs.h b/src/pkg/runtime/linux/arm/defs.h
+index b139851715..ff4ba3e7c9 100644
+--- a/src/pkg/runtime/linux/arm/defs.h
++++ b/src/pkg/runtime/linux/arm/defs.h
+@@ -10,6 +10,7 @@ enum {
+ 	PROT_EXEC = 0x4,
+ 	MAP_ANON = 0x20,
+ 	MAP_PRIVATE = 0x2,
++	MAP_FIXED = 0x10,
+ 	SA_RESTART = 0x10000000,
+ 	SA_ONSTACK = 0x8000000,
+ 	SA_RESTORER = 0x4000000,
+diff --git a/src/pkg/runtime/linux/defs.c b/src/pkg/runtime/linux/defs.c
+index f3bdb61fa2..2044fd60c9 100644
+--- a/src/pkg/runtime/linux/defs.c
++++ b/src/pkg/runtime/linux/defs.c
+@@ -27,6 +27,7 @@ enum {
+ 
+ 	$MAP_ANON = MAP_ANONYMOUS,
+ 	$MAP_PRIVATE = MAP_PRIVATE,
++	$MAP_FIXED = MAP_FIXED,
+ 
+ 	$SA_RESTART = SA_RESTART,
+ 	$SA_ONSTACK = SA_ONSTACK,
+diff --git a/src/pkg/runtime/linux/defs2.c b/src/pkg/runtime/linux/defs2.c
+index 4cfe4a7ed0..3c0b110fc9 100644
+--- a/src/pkg/runtime/linux/defs2.c
++++ b/src/pkg/runtime/linux/defs2.c
+@@ -47,6 +47,7 @@ enum {
+ 
+ 	$MAP_ANON = MAP_ANONYMOUS,
+ 	$MAP_PRIVATE = MAP_PRIVATE,
++	$MAP_FIXED = MAP_FIXED,
+ 
+ 	$SA_RESTART = SA_RESTART,
+ 	$SA_ONSTACK = SA_ONSTACK,
+diff --git a/src/pkg/runtime/linux/defs_arm.c b/src/pkg/runtime/linux/defs_arm.c
+index 2b197272c6..d30c5bec43 100644
+--- a/src/pkg/runtime/linux/defs_arm.c
++++ b/src/pkg/runtime/linux/defs_arm.c
+@@ -31,6 +31,7 @@ enum {
+ 
+ 	$MAP_ANON = MAP_ANONYMOUS,
+ 	$MAP_PRIVATE = MAP_PRIVATE,
++	$MAP_FIXED = MAP_FIXED,
+ 
+ 	$SA_RESTART = SA_RESTART,
+ 	$SA_ONSTACK = SA_ONSTACK,
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index bad67001c4..925e7fd342 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -14,10 +14,10 @@ SysAlloc(uintptr n)
+ 		if(p == (void*)EACCES) {
+ 			printf("mmap: access denied\n");
+ 			printf("If you're running SELinux, enable execmem for this process.\n");
+-		} else {
+-			printf("mmap: errno=%p\n", p);
++			exit(2);
+ 		}
+-		exit(2);
++		printf("mmap: errno=%p\n", p);
++		throw("mmap");
+ 	}
+ 	return p;
+ }
+@@ -37,3 +37,14 @@ SysFree(void *v, uintptr n)
+ 	runtime_munmap(v, n);
+ }
+ 
++void
++SysMemInit(void)
++{
++	// Code generators assume that references to addresses
++	// on the first page will fault.  Map the page explicitly with
++	// no permissions, to head off possible bugs like the system
++	// allocating that page as the virtual address space fills.
++	// Ignore any error, since other systems might be smart
++	// enough to never allow anything there.
++	runtime_mmap(nil, 4096, PROT_NONE, MAP_FIXED|MAP_ANON|MAP_PRIVATE, -1, 0);
++}
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 59aeba7398..fa7164ec57 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -245,6 +245,7 @@ allocmcache(void)
+ void
+ mallocinit(void)
+ {
++	SysMemInit();
+ 	InitSizes();
+ 	MHeap_Init(&mheap, SysAlloc);
+ 	m->mcache = allocmcache();
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index d7ee2535de..dbd541ae99 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -138,7 +138,7 @@ struct MLink
+ void*	SysAlloc(uintptr nbytes);
+ void	SysFree(void *v, uintptr nbytes);
+ void	SysUnused(void *v, uintptr nbytes);
+-
++void	SysMemInit(void);
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+ // Malloc uses a FixAlloc wrapped around SysAlloc to manages its
+diff --git a/src/pkg/runtime/nacl/mem.c b/src/pkg/runtime/nacl/mem.c
+index 057ae04e52..d3e4f4171a 100644
+--- a/src/pkg/runtime/nacl/mem.c
++++ b/src/pkg/runtime/nacl/mem.c
+@@ -31,3 +31,7 @@ SysFree(void *v, uintptr n)
+ 	runtime_munmap(v, n);
+ }
+ 
++void
++SysMemInit(void)
++{
++}
+diff --git a/src/pkg/runtime/tiny/mem.c b/src/pkg/runtime/tiny/mem.c
+index 5b720a46a4..8c17b54771 100644
+--- a/src/pkg/runtime/tiny/mem.c
++++ b/src/pkg/runtime/tiny/mem.c
+@@ -44,3 +44,7 @@ SysUnused(void *v, uintptr n)
+ 	USED(v, n);
+ }
+ 
++void
++SysMemInit(void)
++{
++}
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 735dda09da..ad4efb2020 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -33,3 +33,8 @@ SysFree(void *v, uintptr n)
+ {
+ 	stdcall(VirtualFree, 3, v, n, MEM_RELEASE);
+ }
++
++void
++SysMemInit(void)
++{
++}

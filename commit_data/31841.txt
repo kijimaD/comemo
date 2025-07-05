@@ -19,8 +19,102 @@ Date:   Wed Mar 15 15:34:52 2017 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             |  8 +++---
  src/cmd/compile/internal/ssa/gen/generic.rules |  4 +++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 34 ++++++++++++++++++++++++++
  3 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ee825acb0c..ac5afbbad3 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1366,7 +1366,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if n.Class == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := Linksym(funcsym(n.Sym))
+-			aux := &ssa.ExternSymbol{Typ: n.Type, Sym: sym}
++			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: n.Type, Sym: sym})
+ 			return s.entryNewValue1A(ssa.OpAddr, typPtr(n.Type), aux, s.sb)
+ 		}
+ 		if s.canSSA(n) {
+@@ -2137,7 +2137,8 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 
+ 	// Call growslice
+ 	s.startBlock(grow)
+-	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))}, s.sb)
++	sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(n.Type.Elem()))})
++	taddr := s.newValue1A(ssa.OpAddr, Types[TUINTPTR], sym, s.sb)
+ 
+ 	r := s.rtcall(growslice, true, []*Type{pt, Types[TINT], Types[TINT]}, taddr, p, l, c, nl)
+ 
+@@ -4087,7 +4088,8 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	if !commaok {
+ 		// on failure, panic by calling panicdottype
+ 		s.startBlock(bFail)
+-		taddr := s.newValue1A(ssa.OpAddr, byteptr, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))}, s.sb)
++		sym := s.lookupSymbol(n, &ssa.ExternSymbol{Typ: byteptr, Sym: Linksym(typenamesym(n.Left.Type))})
++		taddr := s.newValue1A(ssa.OpAddr, byteptr, sym, s.sb)
+ 		if n.Left.Type.IsEmptyInterface() {
+ 			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 5bb5610c25..86d0fcab32 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -1432,6 +1432,10 @@
+ 	&& warnRule(fe.Debug_checknil() && v.Pos.Line() > 1, v, "removed nil check")
+ 	-> (Invalid)
+ 
++// Address comparison shows up in type assertions.
++(EqPtr x x) -> (ConstBool [1])
++(EqPtr (Addr {a} x) (Addr {b} x)) -> (ConstBool [b2i(a == b)])
++
+ // De-virtualize interface calls into static calls.
+ // Note that (ITab (IMake)) doesn't get
+ // rewritten until after the first opt pass,
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 81f48b48ff..8ab751797b 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -5332,6 +5332,40 @@ func rewriteValuegeneric_OpEqPtr(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (EqPtr x x)
++	// cond:
++	// result: (ConstBool [1])
++	for {
++		x := v.Args[0]
++		if x != v.Args[1] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (EqPtr (Addr {a} x) (Addr {b} x))
++	// cond:
++	// result: (ConstBool [b2i(a == b)])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAddr {
++			break
++		}
++		a := v_0.Aux
++		x := v_0.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpAddr {
++			break
++		}
++		b := v_1.Aux
++		if x != v_1.Args[0] {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = b2i(a == b)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpEqSlice(v *Value) bool {

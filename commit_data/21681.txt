@@ -12,8 +12,68 @@ Date:   Fri Dec 12 19:41:18 2014 +0100
     Change-Id: If346e11b8029c475b01fbf7172ce1c88171fb1b2
     Reviewed-on: https://go-review.googlesource.com/1460
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/doc.go      | 4 ++++
  src/cmd/go/test.go     | 4 ++++
  src/cmd/go/testflag.go | 4 +++-
  3 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index d0d8a8a5b2..fac6ba8fe2 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -1059,6 +1059,10 @@ control the execution of any test:
+ 	-timeout t
+ 	    If a test runs longer than t, panic.
+ 
++	-trace trace.out
++	    Write an execution trace to the specified file before exiting.
++	    Writes test binary as -c would.
++
+ 	-v
+ 	    Verbose output: log all tests as they are run. Also print all
+ 	    text from Log and Logf calls even if the test succeeds.
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index c81e40639e..60f6b16c9a 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -206,6 +206,10 @@ control the execution of any test:
+ 	-timeout t
+ 	    If a test runs longer than t, panic.
+ 
++	-trace trace.out
++	    Write an execution trace to the specified file before exiting.
++	    Writes test binary as -c would.
++
+ 	-v
+ 	    Verbose output: log all tests as they are run. Also print all
+ 	    text from Log and Logf calls even if the test succeeds.
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 6da74b9967..4d73370fa5 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -42,6 +42,7 @@ var usageMessage = `Usage of go test:
+   -run="": passes -test.run to test
+   -short=false: passes -test.short to test
+   -timeout=0: passes -test.timeout to test
++  -trace="": passes -test.trace to test
+   -v=false: passes -test.v to test
+ `
+ 
+@@ -103,6 +104,7 @@ var testFlagDefn = []*testFlagSpec{
+ 	{name: "run", passToTest: true},
+ 	{name: "short", boolVar: new(bool), passToTest: true},
+ 	{name: "timeout", passToTest: true},
++	{name: "trace", passToTest: true},
+ 	{name: "v", boolVar: &testV, passToTest: true},
+ }
+ 
+@@ -192,7 +194,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 			testBench = true
+ 		case "timeout":
+ 			testTimeout = value
+-		case "blockprofile", "cpuprofile", "memprofile":
++		case "blockprofile", "cpuprofile", "memprofile", "trace":
+ 			testProfile = true
+ 			testNeedBinary = true
+ 		case "coverpkg":

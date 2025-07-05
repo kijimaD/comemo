@@ -9,6 +9,20 @@ Date:   Mon Oct 5 15:17:30 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=35340
     CL=35342
-
+---
  doc/style.css | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/style.css b/doc/style.css
+index 3ac55da7a5..fcbc0b3bd5 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -43,7 +43,7 @@ h2 {
+ 
+ pre{
+   font-size: 9pt;
+-  background-color: #fafaff;
++  background-color: #f8f8ff;
+   margin: 1em 0 0 0;
+   padding: .99em;
+   line-height: 125%;

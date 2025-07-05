@@ -5,7 +5,7 @@ Date:   Fri Jun 27 17:06:23 2008 -0700
     update to new world. still can't use it but it's a lot of editing....
     
     SVN=125218
-
+---
  src/lib/math/asin.go  | 18 +++++++++---------
  src/lib/math/atan.go  |  2 +-
  src/lib/math/atan2.go |  6 +++---
@@ -23,3 +23,454 @@ Date:   Fri Jun 27 17:06:23 2008 -0700
  src/lib/math/tan.go   |  5 ++---
  src/lib/math/tanh.go  |  8 ++++----
  16 files changed, 59 insertions(+), 66 deletions(-)
+
+diff --git a/src/lib/math/asin.go b/src/lib/math/asin.go
+index 6297064dbe..9a83e9e435 100644
+--- a/src/lib/math/asin.go
++++ b/src/lib/math/asin.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package asin
++package math
++
++import	math "atan"
++import	math "sqrt"
+ 
+-import	sys "sys"
+-import	atan "atan"
+-import	sqrt "sqrt"
+ export	asin, acos
+ 
+ /*
+@@ -34,14 +34,14 @@ asin(arg double)double
+ 		sign = true;
+ 	}
+ 	if arg > 1 {
+-		return sys.NaN();
++		panic "return sys.NaN()";
+ 	}
+ 
+-	temp = sqrt.sqrt(1 - x*x);
++	temp = sqrt(1 - x*x);
+ 	if x > 0.7 {
+-		temp = pio2 - atan.atan(temp/x);
++		temp = pio2 - atan(temp/x);
+ 	} else {
+-		temp = atan.atan(x/temp);
++		temp = atan(x/temp);
+ 	}
+ 
+ 	if sign {
+@@ -54,7 +54,7 @@ func
+ acos(arg double)double
+ {
+ 	if(arg > 1 || arg < -1) {
+-		return sys.NaN();
++		panic "return sys.NaN()";
+ 	}
+ 	return pio2 - asin(arg);
+ }
+diff --git a/src/lib/math/atan.go b/src/lib/math/atan.go
+index 4751389968..064b8d4fca 100644
+--- a/src/lib/math/atan.go
++++ b/src/lib/math/atan.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package atan
++package math
+ 
+ export	atan
+ 
+diff --git a/src/lib/math/atan2.go b/src/lib/math/atan2.go
+index 2e1093f9d9..b3bddf7521 100644
+--- a/src/lib/math/atan2.go
++++ b/src/lib/math/atan2.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package atan2
++package math
+ 
+-import	atan "atan"
++import	math "atan"
+ export	atan2
+ 
+ /*
+@@ -29,7 +29,7 @@ atan2(arg1, arg2 double) double
+ 		}
+ 		return -pio2;
+ 	}
+-	x = atan.atan(arg1/arg2);
++	x = atan(arg1/arg2);
+ 	if arg2 < 0 {
+ 		if x <= 0 {
+ 			return x + pi;
+diff --git a/src/lib/math/exp.go b/src/lib/math/exp.go
+index 8a9542a358..6be61afdf3 100644
+--- a/src/lib/math/exp.go
++++ b/src/lib/math/exp.go
+@@ -2,10 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package exp
++package math
+ 
+-import	sys "sys"
+-import	floor "floor"
++import	math "floor"
+ export	exp
+ 
+ /*
+@@ -34,21 +33,21 @@ exp(arg double) double
+ 	var x, fract, temp1, temp2, xsq double;
+ 	var ent int;
+ 
+-	if arg == 0 {
++	if arg == 0. {
+ 		return 1;
+ 	}
+ 	if arg < -maxf {
+-		return 0;
++		return 0.;
+ 	}
+ 	if arg > maxf {
+-		return sys.Inf(1);
++		panic "return sys.Inf(1)"
+ 	}
+ 
+ 	x = arg*log2e;
+-	ent = int(floor.floor(x));
++	ent = int(floor(x));
+ 	fract = (x-double(ent)) - 0.5;
+ 	xsq = fract*fract;
+ 	temp1 = ((p2*xsq+p1)*xsq+p0)*fract;
+ 	temp2 = ((xsq+q2)*xsq+q1)*xsq + q0;
+-	return sys.ldexp(sqrt2*(temp2+temp1)/(temp2-temp1), ent);
++	return sys.ldexp(ent, sqrt2*(temp2+temp1)/(temp2-temp1));
+ }
+diff --git a/src/lib/math/fabs.go b/src/lib/math/fabs.go
+index 34d0de9698..4a184be33a 100644
+--- a/src/lib/math/fabs.go
++++ b/src/lib/math/fabs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package fabs
++package math
+ 
+ export	fabs
+ 
+diff --git a/src/lib/math/floor.go b/src/lib/math/floor.go
+index 581836a8c2..108b40395c 100644
+--- a/src/lib/math/floor.go
++++ b/src/lib/math/floor.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package floor
++package math
+ 
+-import	sys "sys"
+ export	floor, ceil
+ 
+ /*
+diff --git a/src/lib/math/fmod.go b/src/lib/math/fmod.go
+index fc26b5068f..4a5fe3b83c 100644
+--- a/src/lib/math/fmod.go
++++ b/src/lib/math/fmod.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package fmod
++package math
+ 
+-import	sys "sys"
+ export	fmod
+ 
+ /*
+@@ -39,7 +38,7 @@ fmod(x, y double) double
+ 		if rfr < yfr {
+ 			rexp = rexp - 1;
+ 		}
+-		r = r - sys.ldexp(y, rexp-yexp);
++		r = r - sys.ldexp(rexp-yexp, y);
+ 	}
+ 	if sign {
+ 		r = -r;
+diff --git a/src/lib/math/hypot.go b/src/lib/math/hypot.go
+index a1e9e729e4..51e6662ddc 100644
+--- a/src/lib/math/hypot.go
++++ b/src/lib/math/hypot.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package hypot
++package math
+ 
+ export	hypot
+ 
+diff --git a/src/lib/math/log.go b/src/lib/math/log.go
+index cc7ebf06c7..1c44eb8a3b 100644
+--- a/src/lib/math/log.go
++++ b/src/lib/math/log.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package log
++package math
+ 
+-import	sys "sys"
+ export	log, log10
+ 
+ /*
+@@ -37,7 +36,7 @@ log(arg double) double
+ 	var exp int;
+ 
+ 	if arg <= 0 {
+-		return sys.NaN();
++		panic "return sys.NaN()";
+ 	}
+ 
+ 	exp,x = sys.frexp(arg);
+@@ -64,7 +63,7 @@ log10(arg double) double
+ {
+ 
+ 	if arg <= 0 {
+-		return sys.NaN();
++		panic "return sys.NaN()";
+ 	}
+ 	return log(arg) * ln10o1;
+ }
+diff --git a/src/lib/math/pow.go b/src/lib/math/pow.go
+index b2a954fb1b..dba41efdcb 100644
+--- a/src/lib/math/pow.go
++++ b/src/lib/math/pow.go
+@@ -2,13 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package pow
++package math
+ 
+-import		sys "sys"
+-import		floor "floor"
+-import		sqrt "sqrt"
+-import		log "log"
+-import		exp "exp"
++import		math "floor"
++import		math "sqrt"
++import		math "log"
++import		math "exp"
+ export		pow
+ 
+ /*
+@@ -27,14 +26,14 @@ pow(arg1,arg2 double) double
+ 	if arg1 <= 0 {
+ 		if(arg1 == 0) {
+ 			if arg2 <= 0 {
+-				return sys.NaN();
++				panic "return sys.NaN()";
+ 			}
+ 			return 0;
+ 		}
+ 
+-		temp = floor.floor(arg2);
++		temp = floor(arg2);
+ 		if temp != arg2 {
+-			return sys.NaN();
++			panic "return sys.NaN()";
+ 		}
+ 
+ 		l = long(temp);
+@@ -44,15 +43,15 @@ pow(arg1,arg2 double) double
+ 		return pow(-arg1, arg2);
+ 	}
+ 
+-	temp = floor.floor(arg2);
++	temp = floor(arg2);
+ 	if temp != arg2 {
+ 		if arg2-temp == .5 {
+ 			if temp == 0 {
+-				return sqrt.sqrt(arg1);
++				return sqrt(arg1);
+ 			}
+-			return pow(arg1, temp) * sqrt.sqrt(arg1);
++			return pow(arg1, temp) * sqrt(arg1);
+ 		}
+-		return exp.exp(arg2 * log.log(arg1));
++		return exp(arg2 * log(arg1));
+ 	}
+ 
+ 	l = long(temp);
+diff --git a/src/lib/math/pow10.go b/src/lib/math/pow10.go
+index 1eb9bd1f18..bb06758ff1 100644
+--- a/src/lib/math/pow10.go
++++ b/src/lib/math/pow10.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package pow10
++package math
+ 
+ export	pow10
+ 
+diff --git a/src/lib/math/sin.go b/src/lib/math/sin.go
+index ccadd1c82a..dabe825128 100644
+--- a/src/lib/math/sin.go
++++ b/src/lib/math/sin.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sin
++package math
+ 
+-import	sys "sys"
+ export	sin, cos
+ 
+ const
+@@ -41,7 +40,7 @@ sinus(arg double, quad int) double
+ 	} else {
+ 		k = long(x);
+ 		y = x - double(k);
+-		quad = (quad + k) & 3;
++		quad = (quad + int(k)) & 3;
+ 	}
+ 
+ 	if quad&1 != 0 {
+diff --git a/src/lib/math/sinh.go b/src/lib/math/sinh.go
+index a26031ba52..75f6ddd631 100644
+--- a/src/lib/math/sinh.go
++++ b/src/lib/math/sinh.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sinh
++package math
+ 
+-import	exp "exp"
++import	math "exp"
+ export	sinh, cosh
+ 
+ /*
+@@ -45,10 +45,10 @@ sinh(arg double) double
+ 	}
+ 	switch true {
+ 	case arg > 21:
+-		temp = exp.exp(arg)/2;
++		temp = exp(arg)/2;
+ 
+ 	case arg > 0.5:
+-		temp = (exp.exp(arg) - exp.exp(-arg))/2;
++//		temp = (exp(arg) - exp(-arg))/2;
+ 
+ 	default:
+ 		argsq = arg*arg;
+@@ -69,7 +69,7 @@ cosh(arg double) double
+ 		arg = - arg;
+ 	}
+ 	if arg > 21 {
+-		return exp.exp(arg)/2;
++		return exp(arg)/2;
+ 	}
+-	return (exp.exp(arg) + exp.exp(-arg))/2;
++//	return (exp(arg) + exp(-arg))/2;
+ }
+diff --git a/src/lib/math/sqrt.go b/src/lib/math/sqrt.go
+index 8209a3ac49..c5c01584fe 100644
+--- a/src/lib/math/sqrt.go
++++ b/src/lib/math/sqrt.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sqrt
++package math
+ 
+-import		sys "sys"
+ export		sqrt
+ 
+ /*
+@@ -20,13 +19,14 @@ sqrt(arg double) double
+ 	var x, temp double;
+ 	var exp, i int;
+ 
++/* BUG: NO isINF
+ 	if sys.isInf(arg, 1) {
+ 		return arg;
+ 	}
+-
++*/
+ 	if arg <= 0 {
+ 		if arg < 0 {
+-			return sys.NaN();
++			panic "return sys.NaN()"
+ 		}
+ 		return 0;
+ 	}
+diff --git a/src/lib/math/tan.go b/src/lib/math/tan.go
+index 913d942c21..695352ae5e 100644
+--- a/src/lib/math/tan.go
++++ b/src/lib/math/tan.go
+@@ -2,9 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package tan
++package math
+ 
+-import		sys "sys"
+ export		tan
+ 
+ /*
+@@ -63,7 +62,7 @@ tan(arg double) double
+ 
+ 	if flag {
+ 		if(temp == 0) {
+-			return sys.NaN();
++			panic "return sys.NaN()";
+ 		}
+ 		temp = 1/temp;
+ 	}
+diff --git a/src/lib/math/tanh.go b/src/lib/math/tanh.go
+index 8d1748205c..3e299c808f 100644
+--- a/src/lib/math/tanh.go
++++ b/src/lib/math/tanh.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package tanh
++package math
+ 
+-import		sinh "sinh"
++import		math "sinh"
+ export		tanh
+ 
+ /*
+@@ -23,10 +23,10 @@ tanh(arg double) double
+ 		if arg > 21 {
+ 			return -1;
+ 		}
+-		return -sinh.sinh(arg)/sinh.cosh(arg);
++		return -sinh(arg)/cosh(arg);
+ 	}
+ 	if arg > 21 {
+ 		return 1;
+ 	}
+-	return sinh.sinh(arg)/sinh.cosh(arg);
++	return sinh(arg)/cosh(arg);
+ }

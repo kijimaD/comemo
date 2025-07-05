@@ -14,10 +14,177 @@ Date:   Mon Jun 14 19:22:58 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go                  | 18 ++++++++++++
  src/cmd/go/internal/modcmd/initwork.go | 54 ++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/modcmd/mod.go      |  1 +
  src/cmd/go/internal/modload/init.go    | 18 ++++++++++++
  src/cmd/go/testdata/script/work.txt    | 10 ++++---
  5 files changed, 97 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e7c2e6b51b..fb99dccb46 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1034,6 +1034,7 @@
+ // 	edit        edit go.mod from tools or scripts
+ // 	graph       print module requirement graph
+ // 	init        initialize new module in current directory
++// 	initwork    initialize workspace file
+ // 	tidy        add missing and remove unused modules
+ // 	vendor      make vendored copy of dependencies
+ // 	verify      verify dependencies have expected content
+@@ -1229,6 +1230,23 @@
+ // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ //
+ //
++// Initialize workspace file
++//
++// Usage:
++//
++// 	go mod initwork [moddirs]
++//
++// go mod initwork initializes and writes a new go.work file in the current
++// directory, in effect creating a new workspace at the current directory.
++//
++// go mod initwork optionally accepts paths to the workspace modules as arguments.
++// If the argument is omitted, an empty workspace with no modules will be created.
++//
++// See the workspaces design proposal at
++// https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
++// more information.
++//
++//
+ // Add missing and remove unused modules
+ //
+ // Usage:
+diff --git a/src/cmd/go/internal/modcmd/initwork.go b/src/cmd/go/internal/modcmd/initwork.go
+new file mode 100644
+index 0000000000..30653503bc
+--- /dev/null
++++ b/src/cmd/go/internal/modcmd/initwork.go
+@@ -0,0 +1,54 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// go mod initwork
++
++package modcmd
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/modload"
++	"context"
++	"path/filepath"
++)
++
++var _ = modload.TODOWorkspaces("Add more documentation below.T hough this is" +
++	"enough for those trying workspaces out, there should be more through" +
++	"documentation if the proposal is accepted.")
++
++var cmdInitwork = &base.Command{
++	UsageLine: "go mod initwork [moddirs]",
++	Short:     "initialize workspace file",
++	Long: `go mod initwork initializes and writes a new go.work file in the current
++directory, in effect creating a new workspace at the current directory.
++
++go mod initwork optionally accepts paths to the workspace modules as arguments.
++If the argument is omitted, an empty workspace with no modules will be created.
++
++See the workspaces design proposal at
++https://go.googlesource.com/proposal/+/master/design/45713-workspace.md for
++more information.
++`,
++	Run: runInitwork,
++}
++
++func init() {
++	base.AddModCommonFlags(&cmdInitwork.Flag)
++	base.AddWorkfileFlag(&cmdInitwork.Flag)
++}
++
++func runInitwork(ctx context.Context, cmd *base.Command, args []string) {
++	modload.InitWorkfile()
++
++	modload.ForceUseModules = true
++
++	// TODO(matloob): support using the -workfile path
++	// To do that properly, we'll have to make the module directories
++	// make dirs relative to workFile path before adding the paths to
++	// the directory entries
++
++	workFile := filepath.Join(base.Cwd(), "go.work")
++
++	modload.CreateWorkFile(ctx, workFile, args)
++}
+diff --git a/src/cmd/go/internal/modcmd/mod.go b/src/cmd/go/internal/modcmd/mod.go
+index d72d0cacd6..3586b44c1a 100644
+--- a/src/cmd/go/internal/modcmd/mod.go
++++ b/src/cmd/go/internal/modcmd/mod.go
+@@ -25,6 +25,7 @@ See 'go help modules' for an overview of module functionality.
+ 		cmdEdit,
+ 		cmdGraph,
+ 		cmdInit,
++		cmdInitwork,
+ 		cmdTidy,
+ 		cmdVendor,
+ 		cmdVerify,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 607054d1eb..18f0f2b8f8 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -767,6 +767,24 @@ func CreateModFile(ctx context.Context, modPath string) {
+ 	}
+ }
+ 
++// CreateWorkFile initializes a new workspace by creating a go.work file.
++func CreateWorkFile(ctx context.Context, workFile string, modDirs []string) {
++	_ = TODOWorkspaces("Report an error if the file already exists.")
++
++	goV := LatestGoVersion() // Use current Go version by default
++	workF := new(modfile.WorkFile)
++	workF.Syntax = new(modfile.FileSyntax)
++	workF.AddGoStmt(goV)
++
++	for _, dir := range modDirs {
++		_ = TODOWorkspaces("Add the module path of the module.")
++		workF.AddDirectory(dir, "")
++	}
++
++	data := modfile.Format(workF.Syntax)
++	lockedfile.Write(workFile, bytes.NewReader(data), 0644)
++}
++
+ // fixVersion returns a modfile.VersionFixer implemented using the Query function.
+ //
+ // It resolves commit hashes and branch names to versions,
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index f2b51ca629..c68ca89a76 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -1,3 +1,6 @@
++go mod initwork ./a ./b
++cmp go.work go.work.want
++
+ go run example.com/b
+ stdout 'Hello from module A'
+ 
+@@ -31,14 +34,13 @@ directory (
+   b
+   ../src/a
+ )
+--- go.work --
++-- go.work.want --
+ go 1.17
+ 
+ directory (
+-  ./a
+-  ./b
++	./a
++	./b
+ )
+-
+ -- a/go.mod --
+ 
+ module example.com/a

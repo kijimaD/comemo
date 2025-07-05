@@ -6,9 +6,121 @@ Date:   Wed Nov 4 21:34:54 2009 -0800
     
     R=rsc
     http://go/go-review/1017037
-
+---
  src/pkg/syscall/syscall_linux_arm.go  |  2 ++
  src/pkg/syscall/zerrors_linux_arm.go  |  1 +
  src/pkg/syscall/zsyscall_linux_arm.go | 21 ++++++++++++++++
  src/pkg/syscall/ztypes_linux_arm.go   | 46 +++++++++++++++++------------------
  4 files changed, 47 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux_arm.go b/src/pkg/syscall/syscall_linux_arm.go
+index dec43c5f31..f87182cd7b 100644
+--- a/src/pkg/syscall/syscall_linux_arm.go
++++ b/src/pkg/syscall/syscall_linux_arm.go
+@@ -34,6 +34,8 @@ func NsecToTimeval(nsec int64) (tv Timeval) {
+ //sys	socket(domain int, typ int, proto int) (fd int, errno int)
+ //sys	getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
+ //sys	getsockname(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int)
++//sys	recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int)
++//sys	sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int)
+ 
+ //sys	Chown(path string, uid int, gid int) (errno int)
+ //sys	Fchown(fd int, uid int, gid int) (errno int)
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index 8ba2a33bfa..f82ba3b990 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -176,6 +176,7 @@ const (
+ 	SIGINT		= 0x2;
+ 	SIGIOT		= 0x6;
+ 	SIGTERM		= 0xf;
++	O_EXCL					= 0x80;
+ )
+ 
+ // Types
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 182bde1e34..a726cf4cce 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -775,3 +775,24 @@ func Statfs(path string, buf *Statfs_t) (errno int) {
+ 	errno = int(e1);
+ 	return;
+ }
++
++func recvfrom(fd int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
++	var _p0 *byte;
++	if len(p) > 0 {
++		_p0 = &p[0];
++	}
++	r0, _, e1 := Syscall6(SYS_RECVFROM, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
++	n = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func sendto(s int, buf []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
++	var _p0 *byte;
++	if len(buf) > 0 {
++		_p0 = &buf[0];
++	}
++	_, _, e1 := Syscall6(SYS_SENDTO, uintptr(s), uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), uintptr(flags), uintptr(to), uintptr(addrlen));
++	errno = int(e1);
++	return;
++}
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 1f786b6faa..87121d3466 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -77,29 +77,29 @@ const (
+ 	SizeofSockaddrInet6	= 0x1c;
+ 	SizeofSockaddrAny	= 0x1c;
+ 	SizeofSockaddrUnix	= 0x6e;
+-	_PTRACE_TRACEME		= 0;
+-	_PTRACE_PEEKTEXT	= 0x1;
+-	_PTRACE_PEEKDATA	= 0x2;
+-	_PTRACE_PEEKUSER	= 0x3;
+-	_PTRACE_POKETEXT	= 0x4;
+-	_PTRACE_POKEDATA	= 0x5;
+-	_PTRACE_POKEUSER	= 0x6;
+-	_PTRACE_CONT		= 0x7;
+-	_PTRACE_KILL		= 0x8;
+-	_PTRACE_SINGLESTEP	= 0x9;
+-	_PTRACE_GETREGS		= 0xc;
+-	_PTRACE_SETREGS		= 0xd;
+-	_PTRACE_GETFPREGS	= 0xe;
+-	_PTRACE_SETFPREGS	= 0xf;
+-	_PTRACE_ATTACH		= 0x10;
+-	_PTRACE_DETACH		= 0x11;
+-	_PTRACE_GETFPXREGS	= 0x12;
+-	_PTRACE_SETFPXREGS	= 0x13;
+-	_PTRACE_SYSCALL		= 0x18;
+-	_PTRACE_SETOPTIONS	= 0x4200;
+-	_PTRACE_GETEVENTMSG	= 0x4201;
+-	_PTRACE_GETSIGINFO	= 0x4202;
+-	_PTRACE_SETSIGINFO	= 0x4203;
++	PTRACE_TRACEME		= 0;
++	PTRACE_PEEKTEXT	= 0x1;
++	PTRACE_PEEKDATA	= 0x2;
++	PTRACE_PEEKUSER	= 0x3;
++	PTRACE_POKETEXT	= 0x4;
++	PTRACE_POKEDATA	= 0x5;
++	PTRACE_POKEUSER	= 0x6;
++	PTRACE_CONT		= 0x7;
++	PTRACE_KILL		= 0x8;
++	PTRACE_SINGLESTEP	= 0x9;
++	PTRACE_GETREGS		= 0xc;
++	PTRACE_SETREGS		= 0xd;
++	PTRACE_GETFPREGS	= 0xe;
++	PTRACE_SETFPREGS	= 0xf;
++	PTRACE_ATTACH		= 0x10;
++	PTRACE_DETACH		= 0x11;
++	PTRACE_GETFPXREGS	= 0x12;
++	PTRACE_SETFPXREGS	= 0x13;
++	PTRACE_SYSCALL		= 0x18;
++	PTRACE_SETOPTIONS	= 0x4200;
++	PTRACE_GETEVENTMSG	= 0x4201;
++	PTRACE_GETSIGINFO	= 0x4202;
++	PTRACE_SETSIGINFO	= 0x4203;
+ 	PTRACE_O_TRACESYSGOOD	= 0x1;
+ 	PTRACE_O_TRACEFORK	= 0x2;
+ 	PTRACE_O_TRACEVFORK	= 0x4;

@@ -9,6 +9,21 @@ Date:   Thu Apr 21 10:02:36 2016 -0700
     Change-Id: If13373b2597f0fcc9b1b2f9c860f2bd043e43c6c
     Reviewed-on: https://go-review.googlesource.com/22338
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 723a2ddec5..21dbc6238c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -667,6 +667,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpCopy, ssa.OpAMD64MOVQconvert: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
++		if v.Type.IsMemory() {
++			return
++		}
+ 		x := gc.SSARegNum(v.Args[0])
+ 		y := gc.SSARegNum(v)
+ 		if x != y {

@@ -15,6 +15,23 @@ Date:   Mon Aug 10 19:04:56 2020 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Andrew Bonventre <andybons@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.15.html | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index fdc29238f8..8872d71138 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -657,11 +657,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="encoding/json"><dt><a href="/pkg/encoding/json/">encoding/json</a></dt>
+   <dd>
+-    <p><!-- CL 191783 -->
+-      Decoding a JSON array into a slice no longer reuses any existing slice elements,
+-      following the rules that the package documentation already stated.
+-    </p>
+-
+     <p><!-- CL 199837 -->
+       The package now has an internal limit to the maximum depth of
+       nesting when decoding. This reduces the possibility that a

@@ -12,6 +12,20 @@ Date:   Thu Sep 18 14:48:26 2014 -0400
     R=bradfitz, mikioh.mikioh
     CC=golang-codereviews
     https://golang.org/cl/144070044
-
+---
  src/net/dial_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index abeb500098..42898d669f 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -339,6 +339,8 @@ func numTCP() (ntcp, nopen, nclose int, err error) {
+ }
+ 
+ func TestDialMultiFDLeak(t *testing.T) {
++	t.Skip("flaky test - golang.org/issue/8764")
++
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("neither ipv4 nor ipv6 is supported")
+ 	}

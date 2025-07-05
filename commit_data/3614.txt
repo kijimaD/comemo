@@ -9,6 +9,42 @@ Date:   Wed Oct 21 19:49:01 2009 -0700
     DELTA=16  (0 added, 15 deleted, 1 changed)
     OCL=35976
     CL=35978
-
+---
  src/pkg/crypto/rsa/rsa_test.go | 17 +----------------
  1 file changed, 1 insertion(+), 16 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index 0247e97adb..a30982c940 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -42,21 +42,6 @@ func TestKeyGeneration(t *testing.T) {
+ 	}
+ }
+ 
+-type SliceReader struct {
+-	s	[]byte;
+-	offset	int;
+-}
+-
+-func (s SliceReader) Read(out []byte) (n int, err os.Error) {
+-	if s.offset == len(s.s) {
+-		err = os.EOF;
+-		return;
+-	}
+-	n = bytes.Copy(out, s.s[s.offset : len(s.s)]);
+-	s.offset += n;
+-	return;
+-}
+-
+ type testEncryptOAEPMessage struct {
+ 	in	[]byte;
+ 	seed	[]byte;
+@@ -78,7 +63,7 @@ func TestEncryptOAEP(t *testing.T) {
+ 		public := PublicKey{n, test.e};
+ 
+ 		for j, message := range test.msgs {
+-			randomSource := SliceReader{message.seed, 0};
++			randomSource := bytes.NewBuffer(message.seed);
+ 			out, err := EncryptOAEP(sha1, randomSource, &public, message.in, nil);
+ 			if err != nil {
+ 				t.Errorf("#%d,%d error: %s", i, j, err);

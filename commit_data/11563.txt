@@ -7,6 +7,42 @@ Date:   Thu Feb 2 14:25:13 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5622043
-
+---
  lib/codereview/codereview.py | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 56ccb508db..fd0b4b4aea 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2187,10 +2187,6 @@ def reposetup(ui, repo):
+ 	if codereview_init:
+ 		return
+ 	codereview_init = True
+-	
+-	remote = ui.config("paths", "default", "")
+-	if remote.find("://") < 0:
+-		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
+ 
+ 	# Read repository-specific options from lib/codereview/codereview.cfg or codereview.cfg.
+ 	root = ''
+@@ -2200,7 +2196,7 @@ def reposetup(ui, repo):
+ 		# Yes, repo might not have root; see issue 959.
+ 		codereview_disabled = 'codereview disabled: repository has no root'
+ 		return
+-
++	
+ 	repo_config_path = ''
+ 	p1 = root + '/lib/codereview/codereview.cfg'
+ 	p2 = root + '/codereview.cfg'
+@@ -2220,6 +2216,10 @@ def reposetup(ui, repo):
+ 		codereview_disabled = 'codereview disabled: cannot open ' + repo_config_path
+ 		return
+ 
++	remote = ui.config("paths", "default", "")
++	if remote.find("://") < 0:
++		raise hg_util.Abort("codereview: default path '%s' is not a URL" % (remote,))
++
+ 	InstallMatch(ui, repo)
+ 	RietveldSetup(ui, repo)
+ 

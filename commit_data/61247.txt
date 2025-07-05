@@ -15,6 +15,33 @@ Date:   Mon Oct 21 15:28:25 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/os/file_windows.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index f8a6c09bb5..465cf5d186 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -223,17 +223,13 @@ func Pipe() (r *File, w *File, err error) {
+ 	return newFile(p[0], "|0", "pipe"), newFile(p[1], "|1", "pipe"), nil
+ }
+ 
+-var (
+-	useGetTempPath2Once sync.Once
+-	useGetTempPath2     bool
+-)
++var useGetTempPath2 = sync.OnceValue(func() bool {
++	return windows.ErrorLoadingGetTempPath2() == nil
++})
+ 
+ func tempDir() string {
+-	useGetTempPath2Once.Do(func() {
+-		useGetTempPath2 = (windows.ErrorLoadingGetTempPath2() == nil)
+-	})
+ 	getTempPath := syscall.GetTempPath
+-	if useGetTempPath2 {
++	if useGetTempPath2() {
+ 		getTempPath = windows.GetTempPath2
+ 	}
+ 	n := uint32(syscall.MAX_PATH)

@@ -20,6 +20,34 @@ Date:   Thu Dec 16 13:24:40 2021 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/types/pkg.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 0b822a450c..b159eb5eeb 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -9,7 +9,6 @@ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
+ 	"sort"
+-	"strings"
+ 	"sync"
+ )
+ 
+@@ -49,9 +48,11 @@ func NewPkg(path, name string) *Pkg {
+ 	p := new(Pkg)
+ 	p.Path = path
+ 	p.Name = name
+-	if strings.HasPrefix(path, "go.") && !strings.Contains(path, "/") {
+-		// Special compiler-internal packages don't need to be escaped.
+-		// This particularly helps with the go.shape package.
++	if path == "go.shape" {
++		// Don't escape "go.shape", since it's not needed (it's a builtin
++		// package), and we don't want escape codes showing up in shape type
++		// names, which also appear in names of function/method
++		// instantiations.
+ 		p.Prefix = path
+ 	} else {
+ 		p.Prefix = objabi.PathToPrefix(path)

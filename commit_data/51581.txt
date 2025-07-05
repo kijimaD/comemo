@@ -12,8 +12,136 @@ Date:   Tue Feb 15 14:23:45 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go                | 20 ++++++--
  src/cmd/go/testdata/script/work_issue51204.txt     | 57 ++++++++++++++++++++++
  .../go/testdata/script/work_replace_conflict.txt   |  6 +--
  3 files changed, 77 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index e5de101ed6..523be8c473 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1033,11 +1033,25 @@ func makeMainModules(ms []module.Version, rootDirs []string, modFiles []*modfile
+ 			for _, r := range modFiles[i].Replace {
+ 				if replacedByWorkFile[r.Old.Path] {
+ 					continue
+-				} else if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != r.New {
+-					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, r.New, r.Old)
++				}
++				var newV module.Version = r.New
++				if WorkFilePath() != "" && newV.Version == "" && !filepath.IsAbs(newV.Path) {
++					// Since we are in a workspace, we may be loading replacements from
++					// multiple go.mod files. Relative paths in those replacement are
++					// relative to the go.mod file, not the workspace, so the same string
++					// may refer to two different paths and different strings may refer to
++					// the same path. Convert them all to be absolute instead.
++					//
++					// (We could do this outside of a workspace too, but it would mean that
++					// replacement paths in error strings needlessly differ from what's in
++					// the go.mod file.)
++					newV.Path = filepath.Join(rootDirs[i], newV.Path)
++				}
++				if prev, ok := replacements[r.Old]; ok && !curModuleReplaces[r.Old] && prev != newV {
++					base.Fatalf("go: conflicting replacements for %v:\n\t%v\n\t%v\nuse \"go work edit -replace %v=[override]\" to resolve", r.Old, prev, newV, r.Old)
+ 				}
+ 				curModuleReplaces[r.Old] = true
+-				replacements[r.Old] = r.New
++				replacements[r.Old] = newV
+ 
+ 				v, ok := mainModules.highestReplaced[r.Old.Path]
+ 				if !ok || semver.Compare(r.Old.Version, v) > 0 {
+diff --git a/src/cmd/go/testdata/script/work_issue51204.txt b/src/cmd/go/testdata/script/work_issue51204.txt
+new file mode 100644
+index 0000000000..d483002060
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_issue51204.txt
+@@ -0,0 +1,57 @@
++go work sync
++
++go list -f '{{.Dir}}' example.com/test
++stdout '^'$PWD${/}test'$'
++
++-- go.work --
++go 1.18
++
++use (
++	./test2
++	./test2/sub
++)
++-- test/go.mod --
++module example.com/test
++
++go 1.18
++-- test/file.go --
++package test
++
++func DoSomething() {
++}
++-- test2/go.mod --
++module example.com/test2
++
++go 1.18
++
++replace example.com/test => ../test
++
++require example.com/test v0.0.0-00010101000000-000000000000
++-- test2/file.go --
++package test2
++
++import (
++	"example.com/test"
++)
++
++func DoSomething() {
++	test.DoSomething()
++}
++-- test2/sub/go.mod --
++module example.com/test2/sub
++
++go 1.18
++
++replace example.com/test => ../../test
++
++require example.com/test v0.0.0
++-- test2/sub/file.go --
++package test2
++
++import (
++	"example.com/test"
++)
++
++func DoSomething() {
++	test.DoSomething()
++}
+diff --git a/src/cmd/go/testdata/script/work_replace_conflict.txt b/src/cmd/go/testdata/script/work_replace_conflict.txt
+index 81d1fcb043..7b71b0fbd7 100644
+--- a/src/cmd/go/testdata/script/work_replace_conflict.txt
++++ b/src/cmd/go/testdata/script/work_replace_conflict.txt
+@@ -2,7 +2,7 @@
+ # overriding it in the go.work file.
+ 
+ ! go list -m example.com/dep
+-stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t./dep1\n\t./dep2\nuse "go work edit -replace example.com/dep@v1.0.0=\[override\]" to resolve'
++stderr 'go: conflicting replacements for example.com/dep@v1.0.0:\n\t'$PWD${/}'dep1\n\t'$PWD${/}'dep2\nuse "go work edit -replace example.com/dep@v1.0.0=\[override\]" to resolve'
+ go work edit -replace example.com/dep@v1.0.0=./dep1
+ go list -m example.com/dep
+ stdout 'example.com/dep v1.0.0 => ./dep1'
+@@ -15,7 +15,7 @@ use n
+ module example.com/m
+ 
+ require example.com/dep v1.0.0
+-replace example.com/dep v1.0.0 => ./dep1
++replace example.com/dep v1.0.0 => ../dep1
+ -- m/m.go --
+ package m
+ 
+@@ -28,7 +28,7 @@ func F() {
+ module example.com/n
+ 
+ require example.com/dep v1.0.0
+-replace example.com/dep v1.0.0 => ./dep2
++replace example.com/dep v1.0.0 => ../dep2
+ -- n/n.go --
+ package n
+ 

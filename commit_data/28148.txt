@@ -10,10 +10,204 @@ Date:   Wed Apr 27 22:18:14 2016 -0400
     Change-Id: Ic60d0e1ba49ff1c433cead242f5884677ab227a5
     Reviewed-on: https://go-review.googlesource.com/19804
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/internal/obj/link.go         |  3 +++
  src/cmd/internal/obj/mips/a.out.go   |  2 ++
  src/cmd/internal/obj/mips/anames0.go |  2 ++
  src/cmd/internal/obj/mips/asm0.go    | 52 ++++++++++++++++++++++++++++++++++++
  src/cmd/link/internal/mips64/asm.go  | 16 ++++++++++-
  5 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 78b96bb4a5..a97565e46f 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -585,6 +585,9 @@ const (
+ 	// R_ADDRMIPSU (only used on mips64) resolves to the sign-adjusted "upper" 16
+ 	// bits (bit 16-31) of an external address, by encoding it into the instruction.
+ 	R_ADDRMIPSU
++	// R_ADDRMIPSTLS (only used on mips64) resolves to the low 16 bits of a TLS
++	// address (offset from thread pointer), by encoding it into the instruction.
++	R_ADDRMIPSTLS
+ )
+ 
+ type Auto struct {
+diff --git a/src/cmd/internal/obj/mips/a.out.go b/src/cmd/internal/obj/mips/a.out.go
+index 44add12e86..57643f920a 100644
+--- a/src/cmd/internal/obj/mips/a.out.go
++++ b/src/cmd/internal/obj/mips/a.out.go
+@@ -243,6 +243,7 @@ const (
+ 	C_LACON /* $n(REG) where int16 < n <= int32 */
+ 	C_LECON
+ 	C_DACON /* $n(REG) where int32 < n */
++	C_STCON /* $tlsvar */
+ 	C_SBRA
+ 	C_LBRA
+ 	C_SAUTO
+@@ -254,6 +255,7 @@ const (
+ 	C_LOREG
+ 	C_GOK
+ 	C_ADDR
++	C_TLS
+ 	C_TEXTSIZE
+ 
+ 	C_NCLASS /* must be the last */
+diff --git a/src/cmd/internal/obj/mips/anames0.go b/src/cmd/internal/obj/mips/anames0.go
+index 0fc9b69d84..c56d34eaf5 100644
+--- a/src/cmd/internal/obj/mips/anames0.go
++++ b/src/cmd/internal/obj/mips/anames0.go
+@@ -26,6 +26,7 @@ var cnames0 = []string{
+ 	"LACON",
+ 	"LECON",
+ 	"DACON",
++	"STCON",
+ 	"SBRA",
+ 	"LBRA",
+ 	"SAUTO",
+@@ -37,6 +38,7 @@ var cnames0 = []string{
+ 	"LOREG",
+ 	"GOK",
+ 	"ADDR",
++	"TLS",
+ 	"TEXTSIZE",
+ 	"NCLASS",
+ }
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 8643b9874f..4a5ff2f3d4 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -141,6 +141,11 @@ var optab = []Optab{
+ 	{AMOVV, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVB, C_REG, C_NONE, C_ADDR, 50, 12, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_ADDR, 50, 12, 0},
++	{AMOVW, C_REG, C_NONE, C_TLS, 53, 8, 0},
++	{AMOVWU, C_REG, C_NONE, C_TLS, 53, 8, 0},
++	{AMOVV, C_REG, C_NONE, C_TLS, 53, 8, 0},
++	{AMOVB, C_REG, C_NONE, C_TLS, 53, 8, 0},
++	{AMOVBU, C_REG, C_NONE, C_TLS, 53, 8, 0},
+ 
+ 	{AMOVW, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
+ 	{AMOVWU, C_LEXT, C_NONE, C_REG, 36, 12, REGSB},
+@@ -162,6 +167,11 @@ var optab = []Optab{
+ 	{AMOVV, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+ 	{AMOVB, C_ADDR, C_NONE, C_REG, 51, 12, 0},
+ 	{AMOVBU, C_ADDR, C_NONE, C_REG, 51, 12, 0},
++	{AMOVW, C_TLS, C_NONE, C_REG, 54, 8, 0},
++	{AMOVWU, C_TLS, C_NONE, C_REG, 54, 8, 0},
++	{AMOVV, C_TLS, C_NONE, C_REG, 54, 8, 0},
++	{AMOVB, C_TLS, C_NONE, C_REG, 54, 8, 0},
++	{AMOVBU, C_TLS, C_NONE, C_REG, 54, 8, 0},
+ 
+ 	{AMOVW, C_SECON, C_NONE, C_REG, 3, 4, REGSB},
+ 	{AMOVV, C_SECON, C_NONE, C_REG, 3, 4, REGSB},
+@@ -175,6 +185,8 @@ var optab = []Optab{
+ 	{AMOVV, C_ADDCON, C_NONE, C_REG, 3, 4, REGZERO},
+ 	{AMOVW, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO},
+ 	{AMOVV, C_ANDCON, C_NONE, C_REG, 3, 4, REGZERO},
++	{AMOVW, C_STCON, C_NONE, C_REG, 55, 8, 0},
++	{AMOVV, C_STCON, C_NONE, C_REG, 55, 8, 0},
+ 
+ 	{AMOVW, C_UCON, C_NONE, C_REG, 24, 4, 0},
+ 	{AMOVV, C_UCON, C_NONE, C_REG, 24, 4, 0},
+@@ -476,6 +488,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			ctxt.Instoffset = a.Offset
+ 			if a.Sym != nil { // use relocation
++				if a.Sym.Type == obj.STLSBSS {
++					return C_TLS
++				}
+ 				return C_ADDR
+ 			}
+ 			return C_LEXT
+@@ -539,6 +554,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 
+ 			ctxt.Instoffset = a.Offset
++			if s.Type == obj.STLSBSS {
++				return C_STCON // address of TLS variable
++			}
+ 			return C_LECON
+ 
+ 		case obj.NAME_AUTO:
+@@ -1387,6 +1405,40 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 		rel2.Sym = p.From.Sym
+ 		rel2.Add = p.From.Offset
+ 		rel2.Type = obj.R_ADDRMIPS
++
++	case 53: /* mov r, tlsvar ==> rdhwr + sw o(r3) */
++		// clobbers R3 !
++		// load thread pointer with RDHWR, R3 is used for fast kernel emulation on Linux
++		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
++		o2 = OP_IRR(opirr(ctxt, p.As), uint32(0), uint32(REG_R3), uint32(p.From.Reg))
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc + 4)
++		rel.Siz = 4
++		rel.Sym = p.To.Sym
++		rel.Add = p.To.Offset
++		rel.Type = obj.R_ADDRMIPSTLS
++
++	case 54: /* mov tlsvar, r ==> rdhwr + lw o(r3) */
++		// clobbers R3 !
++		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
++		o2 = OP_IRR(opirr(ctxt, -p.As), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc + 4)
++		rel.Siz = 4
++		rel.Sym = p.From.Sym
++		rel.Add = p.From.Offset
++		rel.Type = obj.R_ADDRMIPSTLS
++
++	case 55: /* mov $tlsvar, r ==> rdhwr + add */
++		// clobbers R3 !
++		o1 = (037<<26 + 073) | (29 << 11) | (3 << 16) // rdhwr $29, r3
++		o2 = OP_IRR(opirr(ctxt, AADDVU), uint32(0), uint32(REG_R3), uint32(p.To.Reg))
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc + 4)
++		rel.Siz = 4
++		rel.Sym = p.From.Sym
++		rel.Add = p.From.Offset
++		rel.Type = obj.R_ADDRMIPSTLS
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 742ea8a727..68d52ec954 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -81,6 +81,9 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 	case obj.R_ADDRMIPSU:
+ 		ld.Cput(ld.R_MIPS_HI16)
+ 
++	case obj.R_ADDRMIPSTLS:
++		ld.Cput(ld.R_MIPS_TLS_TPREL_LO16)
++
+ 	case obj.R_CALLMIPS,
+ 		obj.R_JMPMIPS:
+ 		ld.Cput(ld.R_MIPS_26)
+@@ -123,7 +126,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 
+ 			return 0
+ 
+-		case obj.R_CALLMIPS,
++		case obj.R_ADDRMIPSTLS,
++			obj.R_CALLMIPS,
+ 			obj.R_JMPMIPS:
+ 			r.Done = 0
+ 			r.Xsym = r.Sym
+@@ -152,6 +156,16 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		}
+ 		return 0
+ 
++	case obj.R_ADDRMIPSTLS:
++		// thread pointer is at 0x7000 offset from the start of TLS data area
++		t := ld.Symaddr(r.Sym) + r.Add - 0x7000
++		if t < -32768 || t >= 32678 {
++			ld.Diag("TLS offset out of range %d", t)
++		}
++		o1 := ld.SysArch.ByteOrder.Uint32(s.P[r.Off:])
++		*val = int64(o1&0xffff0000 | uint32(t)&0xffff)
++		return 0
++
+ 	case obj.R_CALLMIPS,
+ 		obj.R_JMPMIPS:
+ 		// Low 26 bits = (S + A) >> 2

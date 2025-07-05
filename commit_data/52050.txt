@@ -14,7 +14,32 @@ Date:   Thu Mar 31 07:34:01 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Trust: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 2 ++
  src/cmd/internal/obj/arm64/asm7.go        | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 8a7dd299aa..03f0c46cac 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1627,4 +1627,6 @@ again:
+ 	MSR	R13, ZCR_EL1                       // 0d1218d5
+ 	MRS	ZCR_EL1, R23                       // 171238d5
+ 	MSR	R17, ZCR_EL1                       // 111218d5
++	SYS	$32768, R1                         // 018008d5
++	SYS	$32768                             // 1f8008d5
+ 	END
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 244430eb8f..bf33da50c1 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -843,7 +843,7 @@ var optab = []Optab{
+ 	{ADMB, C_VCON, C_NONE, C_NONE, C_NONE, 51, 4, 0, 0, 0},
+ 	{AHINT, C_VCON, C_NONE, C_NONE, C_NONE, 52, 4, 0, 0, 0},
+ 	{ASYS, C_VCON, C_NONE, C_NONE, C_NONE, 50, 4, 0, 0, 0},
+-	{ASYS, C_VCON, C_REG, C_NONE, C_NONE, 50, 4, 0, 0, 0},
++	{ASYS, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
+ 	{ASYSL, C_VCON, C_NONE, C_NONE, C_REG, 50, 4, 0, 0, 0},
+ 
+ 	/* encryption instructions */

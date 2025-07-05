@@ -8,7 +8,189 @@ Date:   Fri Jan 8 17:49:55 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181183
-
+---
  src/pkg/template/template.go      | 94 +++++++++++++++++++++------------------
  src/pkg/template/template_test.go | 24 +++++++++-
  2 files changed, 73 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index ef694b24b0..f1257b0915 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -224,63 +224,69 @@ func equal(s []byte, n int, t []byte) bool {
+ // Action tokens on a line by themselves drop the white space on
+ // either side, up to and including the newline.
+ func (t *Template) nextItem() []byte {
+-	sawLeft := false // are we waiting for an opening delimiter?
+ 	special := false // is this a {.foo} directive, which means trim white space?
+ 	// Delete surrounding white space if this {.foo} is the only thing on the line.
+-	trim_white := t.p == 0 || t.buf[t.p-1] == '\n'
+-	only_white := true // we have seen only white space so far
+-	var i int
++	trimSpace := t.p == 0 || t.buf[t.p-1] == '\n'
+ 	start := t.p
+-Loop:
+-	for i = t.p; i < len(t.buf); i++ {
+-		switch {
+-		case t.buf[i] == '\n':
+-			t.linenum++
+-			i++
+-			break Loop
+-		case white(t.buf[i]):
+-			// white space, do nothing
+-		case !sawLeft && equal(t.buf, i, t.ldelim): // sawLeft checked because delims may be equal
+-			// anything interesting already on the line?
+-			if !only_white {
+-				break Loop
+-			}
+-			// is it a directive or comment?
+-			j := i + len(t.ldelim) // position after delimiter
+-			if j+1 < len(t.buf) && (t.buf[j] == '.' || t.buf[j] == '#') {
+-				special = true
+-				if trim_white && only_white {
+-					start = i
+-				}
+-			} else if i > t.p { // have some text accumulated so stop before delimiter
+-				break Loop
++	var i int
++	newline := func() {
++		t.linenum++
++		i++
++	}
++	// Leading white space up to but not including newline
++	for i = start; i < len(t.buf); i++ {
++		if t.buf[i] == '\n' || !white(t.buf[i]) {
++			break
++		}
++	}
++	if trimSpace {
++		start = i
++	} else if i > start {
++		// white space is valid text
++		t.p = i
++		return t.buf[start:i]
++	}
++	// What's left is nothing, newline, delimited string, or plain text
++Switch:
++	switch {
++	case i == len(t.buf):
++		// EOF; nothing to do
++	case t.buf[i] == '\n':
++		newline()
++	case equal(t.buf, i, t.ldelim):
++		i += len(t.ldelim) // position after delimiter
++		if i+1 < len(t.buf) && (t.buf[i] == '.' || t.buf[i] == '#') {
++			special = true
++		}
++		for ; i < len(t.buf); i++ {
++			if t.buf[i] == '\n' {
++				break
+ 			}
+-			sawLeft = true
+-			i = j - 1
+-		case equal(t.buf, i, t.rdelim):
+-			if !sawLeft {
+-				t.parseError("unmatched closing delimiter")
+-				return nil
++			if equal(t.buf, i, t.rdelim) {
++				i += len(t.rdelim)
++				break Switch
+ 			}
+-			sawLeft = false
+-			i += len(t.rdelim)
+-			break Loop
+-		default:
+-			only_white = false
+ 		}
+-	}
+-	if sawLeft {
+ 		t.parseError("unmatched opening delimiter")
+ 		return nil
++	default:
++		for ; i < len(t.buf); i++ {
++			if t.buf[i] == '\n' {
++				newline()
++				break
++			}
++			if equal(t.buf, i, t.ldelim) {
++				break
++			}
++		}
+ 	}
+ 	item := t.buf[start:i]
+-	if special && trim_white {
++	if special && trimSpace {
+ 		// consume trailing white space
+ 		for ; i < len(t.buf) && white(t.buf[i]); i++ {
+ 			if t.buf[i] == '\n' {
+-				t.linenum++
+-				i++
+-				break // stop after newline
++				newline()
++				break // stop before newline
+ 			}
+ 		}
+ 	}
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 65dae3a490..0ae581c593 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -86,6 +86,7 @@ var formatters = FormatterMap{
+ var tests = []*Test{
+ 	// Simple
+ 	&Test{"", "", ""},
++	&Test{"abc", "abc", ""},
+ 	&Test{"abc\ndef\n", "abc\ndef\n", ""},
+ 	&Test{" {.meta-left}   \n", "{", ""},
+ 	&Test{" {.meta-right}   \n", "}", ""},
+@@ -173,6 +174,7 @@ var tests = []*Test{
+ 		out: "Header=77\n" +
+ 			"Header=77\n",
+ 	},
++
+ 	&Test{
+ 		in: "{.section data}{.end} {header}\n",
+ 
+@@ -224,6 +226,17 @@ var tests = []*Test{
+ 			"is\nover\nmultiple\nlines\n" +
+ 			"ItemNumber2\n",
+ 	},
++	&Test{
++		in: "{.repeated section pdata }\n" +
++			"{item}\n" +
++			"{.alternates with}\n" +
++			"is\nover\nmultiple\nlines\n" +
++			" {.end}\n",
++
++		out: "ItemNumber1\n" +
++			"is\nover\nmultiple\nlines\n" +
++			"ItemNumber2\n",
++	},
+ 	&Test{
+ 		in: "{.section pdata }\n" +
+ 			"{.repeated section @ }\n" +
+@@ -246,6 +259,13 @@ var tests = []*Test{
+ 		out: "elt1\n" +
+ 			"elt2\n",
+ 	},
++	// Same but with a space before {.end}: was a bug.
++	&Test{
++		in: "{.repeated section vec }\n" +
++			"{@} {.end}\n",
++
++		out: "elt1 elt2 \n",
++	},
+ 	&Test{
+ 		in: "{.repeated section integer}{.end}",
+ 
+@@ -374,7 +394,9 @@ func TestAll(t *testing.T) {
+ 				t.Error("unexpected execute error:", err)
+ 			}
+ 		} else {
+-			if err == nil || err.String() != test.err {
++			if err == nil {
++				t.Errorf("expected execute error %q, got nil", test.err)
++			} else if err.String() != test.err {
+ 				t.Errorf("expected execute error %q, got %q", test.err, err.String())
+ 			}
+ 		}

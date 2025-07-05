@@ -17,6 +17,23 @@ Date:   Fri Jan 24 22:29:01 2014 +0400
     R=golang-codereviews, r, bradfitz, iant
     CC=golang-codereviews
     https://golang.org/cl/40370061
-
+---
  src/pkg/runtime/string.goc | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 57b3546c3f..8eff05a843 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -46,10 +46,8 @@ gostringsize(intgo l)
+ 
+ 	if(l == 0)
+ 		return runtime·emptystring;
+-	// leave room for NUL for C runtime (e.g., callers of getenv)
+-	s.str = runtime·mallocgc(l+1, 0, FlagNoScan|FlagNoZero);
++	s.str = runtime·mallocgc(l, 0, FlagNoScan|FlagNoZero);
+ 	s.len = l;
+-	s.str[l] = 0;
+ 	for(;;) {
+ 		ms = runtime·maxstring;
+ 		if((uintptr)l <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)l))

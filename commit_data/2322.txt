@@ -8,7 +8,43 @@ Date:   Wed May 27 09:47:13 2009 -0700
     DELTA=14  (14 added, 0 deleted, 0 changed)
     OCL=29441
     CL=29441
-
+---
  test/bugs/bug153.go | 14 ++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 18 insertions(+)
+
+diff --git a/test/bugs/bug153.go b/test/bugs/bug153.go
+new file mode 100644
+index 0000000000..609397fed8
+--- /dev/null
++++ b/test/bugs/bug153.go
+@@ -0,0 +1,14 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f(args ...) {
++}
++
++func main() {
++	f(nil);  // ERROR "nil"
++}
+diff --git a/test/golden.out b/test/golden.out
+index 6bc8837d49..6a7756babb 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -108,6 +108,10 @@ BUG: should crash
+ bugs/bug149.go:14: cannot convert []uint8 constant to string
+ BUG: should compile
+ 
++=========== bugs/bug153.go
++BUG: errchk: bugs/bug153.go:9: error message does not match 'nil'
++bugs/bug153.go:9: fatal error: dowidth: unknown type: E-34
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

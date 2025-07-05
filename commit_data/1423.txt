@@ -12,7 +12,7 @@ Date:   Tue Jan 6 16:26:45 2009 -0800
     DELTA=1147  (534 added, 311 deleted, 302 changed)
     OCL=22176
     CL=22176
-
+---
  src/run.bash                  |  10 +-
  usr/gri/gosrc/ast.go          | 139 +++++++--
  usr/gri/gosrc/compilation.go  |  68 ++++-
@@ -30,3 +30,2523 @@ Date:   Tue Jan 6 16:26:45 2009 -0800
  usr/gri/gosrc/universe.go     |  21 +-
  usr/gri/gosrc/verifier.go     |  16 +-
  16 files changed, 790 insertions(+), 540 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 1e9f156c32..10efb218f2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,11 +52,11 @@ time make
+ make smoketest
+ ) || exit $?
+ 
+-# (xcd ../usr/gri/gosrc
+-# make clean
+-# time make
+-# # make test
+-# ) || exit $?
++(xcd ../usr/gri/gosrc
++make clean
++time make
++# make test
++) || exit $?
+ 
+ (xcd ../doc/progs
+ time run
+diff --git a/usr/gri/gosrc/ast.go b/usr/gri/gosrc/ast.go
+index b1d495ba77..06c2968fc1 100644
+--- a/usr/gri/gosrc/ast.go
++++ b/usr/gri/gosrc/ast.go
+@@ -5,12 +5,26 @@
+ package AST
+ 
+ import Globals "globals"
++import GlobalObject "object"
++import Type "type"
+ import Universe "universe"
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
++export const /* op */ (
++	LITERAL = iota;
++	OBJECT;
++	DEREF;
++	SELECT;
++	CALL;
++	TUPLE;
++)
++
++
++// ----------------------------------------------------------------------------
++// Literals
+ 
+ export type Literal struct {
+ 	pos_ int;
+@@ -22,18 +36,13 @@ export type Literal struct {
+ }
+ 
+ 
+-func (x *Literal) pos() int {
+-	return x.pos_;
+-}
+-
+-
+-func (x *Literal) typ() *Globals.Type {
+-	return x.typ_;
+-}
++func (x *Literal) op() int  { return LITERAL; }
++func (x *Literal) pos() int  { return x.pos_; }
++func (x *Literal) typ() *Globals.Type  { return x.typ_; }
+ 
+ 
+ export func NewLiteral(pos int, typ *Globals.Type) *Literal {
+-	x := new(*Literal);
++	x := new(Literal);
+ 	x.pos_ = pos;
+ 	x.typ_ = typ;
+ 	return x;
+@@ -43,6 +52,9 @@ export func NewLiteral(pos int, typ *Globals.Type) *Literal {
+ export var Bad, True, False, Nil *Literal;
+ 
+ 
++// ----------------------------------------------------------------------------
++// Objects
++
+ // NOTE We could use Globals.Object directly if we'd added a typ()
+ // method to its interface. However, this would require renaming the
+ // typ field everywhere... - Need to think about accessors again.
+@@ -52,24 +64,43 @@ export type Object struct {
+ }
+ 
+ 
+-func (x *Object) pos() int {
+-	return x.pos_;
++func (x *Object) op() int  { return OBJECT; }
++func (x *Object) pos() int  { return x.pos_; }
++func (x *Object) typ() *Globals.Type  { return x.obj.typ; }
++
++
++export func NewObject(pos int, obj* Globals.Object) *Object {
++	x := new(Object);
++	x.pos_ = pos;
++	x.obj = obj;
++	return x;
+ }
+ 
+ 
+-func (x *Object) typ() *Globals.Type {
+-	return x.obj.typ;
++// ----------------------------------------------------------------------------
++// Derefs
++
++// TODO model Deref as unary operation?
++export type Deref struct {
++	ptr_ Globals.Expr;
+ }
+ 
+ 
+-export func NewObject(pos int, obj* Globals.Object) *Object {
+-	x := new(*Object);
+-	x.pos_ = pos;
+-	x.obj = obj;
++func (x *Deref) op() int  { return DEREF; }
++func (x *Deref) pos() int { return x.ptr_.pos(); }
++func (x *Deref) typ() *Globals.Type  { return x.ptr_.typ().elt; }
++
++
++export func NewDeref(ptr Globals.Expr) *Deref {
++	x := new(Deref);
++	x.ptr_ = ptr;
+ 	return x;
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Selectors
++
+ // TODO model Selector as binary operation?
+ export type Selector struct {
+ 	pos_ int;
+@@ -77,39 +108,87 @@ export type Selector struct {
+ }
+ 
+ 
+-func (x *Selector) pos() int {
+-	return x.pos_;
++func (x *Selector) op() int  { return SELECT; }
++func (x *Selector) pos() int  { return x.pos_; }
++func (x *Selector) typ() *Globals.Type  { return x.typ_; }
++
++
++export func NewSelector(pos int, typ *Globals.Type) *Selector {
++	x := new(Selector);
++	x.pos_ = pos;
++	x.typ_ = typ;
++	return x;
+ }
+ 
+ 
+-func (x *Selector) typ() *Globals.Type {
+-	return x.typ_;
++// ----------------------------------------------------------------------------
++// Calls
++
++export type Call struct {
++	recv, callee Globals.Expr;
++	args *Globals.List;
+ }
+ 
+ 
+-export func NewSelector(pos int, typ *Globals.Type) *Selector {
+-	x := new(*Selector);
+-	x.pos_ = pos;
+-	x.typ_ = typ;
++func (x *Call) op() int  { return CALL; }
++func (x *Call) pos() int  { return 0; }
++func (x *Call) typ() *Globals.Type  { return nil; }
++
++
++export func NewCall(args *Globals.List) *Call {
++	x := new(Call);
++	x.args = args;
+ 	return x;
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Binary expressions
++
+ export type BinaryExpr struct {
++	op_ int;
+ 	pos_ int;
+ 	typ_ *Globals.Type;
+-	op int;
+ 	x, y Globals.Expr;
+ }
+ 
+ 
+-func (x *BinaryExpr) pos() int {
+-	return x.pos_;
++func (x *BinaryExpr) op() int  { return x.op_; }
++func (x *BinaryExpr) pos() int  { return x.pos_; }
++func (x *BinaryExpr) typ() *Globals.Type  {	return x.typ_; }
++
++
++// ----------------------------------------------------------------------------
++// Tuples
++
++export type Tuple struct {
++	typ_ *Globals.Type;
++	list *Globals.List;
+ }
+ 
+ 
+-func (x *BinaryExpr) typ() *Globals.Type {
+-	return x.typ_;
++func (x *Tuple) op() int  {	return TUPLE; }
++func (x *Tuple) pos() int  { return x.list.first.expr.pos(); }
++func (x *Tuple) typ() *Globals.Type  { return x.typ_; }
++
++
++export func NewTuple(list *Globals.List) *Tuple {
++	// make corresponding tuple type
++	scope := Globals.NewScope(nil);
++	for p := list.first; p != nil; p = p.next {
++		x := p.expr;
++		obj := Globals.NewObject(x.pos(), GlobalObject.FIELD, "");
++		obj.typ = x.typ();
++		scope.Add(obj);
++	}
++	typ := Globals.NewType(Type.TUPLE);
++	typ.scope = scope;
++	
++	// create the tuple
++	x := new(Tuple);
++	x.typ_ = typ;
++	x.list = list;
++	return x;
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/compilation.go b/usr/gri/gosrc/compilation.go
+index e72aa46545..76298f7f1f 100644
+--- a/usr/gri/gosrc/compilation.go
++++ b/usr/gri/gosrc/compilation.go
+@@ -19,6 +19,54 @@ import Printer "printer"
+ import Verifier "verifier"
+ 
+ 
++// Compute (line, column) information for a given source position.
++func LineCol(src string, pos int) (line, col int) {
++	line = 1;
++	lpos := 0;
++	
++	if pos > len(src) {
++		pos = len(src);
++	}
++
++	for i := 0; i < pos; i++ {
++		if src[i] == '\n' {
++			line++;
++			lpos = i;
++		}
++	}
++	
++	return line, pos - lpos;
++}
++
++
++export func Error(comp *Globals.Compilation, pos int, msg string) {
++	const errdist = 10;
++	delta := pos - comp.errpos;  // may be negative!
++	if delta < 0 {
++		delta = -delta;
++	}
++	if delta > errdist || comp.nerrors == 0 /* always report first error */ {
++		print(comp.src_file);
++		if pos >= 0 {
++			// print position
++			line, col := LineCol(comp.src, pos);
++			if Platform.USER == "gri" {
++				print(":", line, ":", col);
++			} else {
++				print(":", line);
++			}
++		}
++		print(": ", msg, "\n");
++		comp.nerrors++;
++		comp.errpos = pos;
++	}
++	
++	if comp.nerrors >= 10 {
++		sys.exit(1);
++	}
++}
++
++
+ func ReadImport(comp* Globals.Compilation, filename string, update bool) (data string, ok bool) {
+ 	if filename == "" {
+ 		panic("illegal package file name");
+@@ -83,34 +131,38 @@ export func Export(comp *Globals.Compilation, pkg_file string) {
+ 
+ 
+ export func Compile(comp *Globals.Compilation, src_file string) {
++	// TODO This is incorrect: When compiling with the -r flag, we are
++	// calling this function recursively w/o setting up a new comp - this
++	// is broken and leads to an assertion error (more then one package
++	// upon parsing of the package header).
++	
+ 	src, ok := Platform.ReadSourceFile(src_file);
+ 	if !ok {
+ 		print("cannot open ", src_file, "\n");
+ 		return;
+ 	}
+ 
++	comp.src_file = src_file;
++	comp.src = src;
++	
+ 	if comp.flags.verbosity > 0 {
+ 		print(src_file, "\n");
+ 	}
+ 
+-	scanner := new(*Scanner.Scanner);
++	scanner := new(Scanner.Scanner);
+ 	scanner.Open(src_file, src);
+ 
+ 	var tstream chan *Scanner.Token;
+ 	if comp.flags.token_chan {
+-		tstream = new(chan *Scanner.Token, 100);
++		tstream = make(chan *Scanner.Token, 100);
+ 		go scanner.Server(tstream);
+ 	}
+ 
+-	parser := new(*Parser.Parser);
++	parser := new(Parser.Parser);
+ 	parser.Open(comp, scanner, tstream);
+ 
+ 	parser.ParseProgram();
+-	if parser.S.nerrors > 0 {
+-		return;
+-	}
+-
+-	if !comp.flags.ast {
++	if parser.scanner.nerrors > 0 {
+ 		return;
+ 	}
+ 
+diff --git a/usr/gri/gosrc/export.go b/usr/gri/gosrc/export.go
+index 97f9d1b17a..6b5cee21db 100755
+--- a/usr/gri/gosrc/export.go
++++ b/usr/gri/gosrc/export.go
+@@ -174,6 +174,9 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 	}
+ 	
+ 	switch typ.form {
++	case Type.VOID:
++		// for now until we have enough of the front-end working.
++		
+ 	case Type.FORWARD:
+ 		// corresponding package must be forward-declared too
+ 		if typ.obj == nil || E.comp.pkg_list[typ.obj.pnolev].key != "" {
+@@ -181,25 +184,29 @@ func (E *Exporter) WriteType(typ *Globals.Type) {
+ 		}
+ 		
+ 	case Type.ALIAS, Type.MAP:
+-		E.WriteType(typ.aux);
++		E.WriteType(typ.key);
++		E.WriteType(typ.elt);
++
++	case Type.TUPLE:
+ 		E.WriteType(typ.elt);
+ 
+ 	case Type.ARRAY:
+-		E.WriteInt(typ.len_);
++		E.WriteInt(typ.len);
+ 		E.WriteType(typ.elt);
+ 
+ 	case Type.CHANNEL:
+-		E.WriteInt(typ.flags);
++		E.WriteInt(typ.aux);
+ 		E.WriteType(typ.elt);
+ 
+-	case Type.FUNCTION:
+-		E.WriteInt(typ.flags);
++	case Type.FUNCTION, Type.METHOD:
++		E.WriteInt(typ.len);
++		E.WriteType(typ.elt);
+ 		E.WriteScope(typ.scope);
+ 		
+ 	case Type.STRUCT, Type.INTERFACE:
+ 		E.WriteScope(typ.scope);
+ 
+-	case Type.POINTER, Type.REFERENCE:
++	case Type.POINTER:
+ 		E.WriteType(typ.elt);
+ 
+ 	default:
+@@ -266,7 +273,7 @@ func (E *Exporter) Export(comp* Globals.Compilation) string {
+ 			i++;
+ 		}
+ 	}
+-	E.type_ref = Universe.types.len_;
++	E.type_ref = Universe.types.len;
+ 	
+ 	// export package 0
+ 	pkg := comp.pkg_list[0];
+diff --git a/usr/gri/gosrc/expr.go b/usr/gri/gosrc/expr.go
+new file mode 100755
+index 0000000000..2cf40df268
+--- /dev/null
++++ b/usr/gri/gosrc/expr.go
+@@ -0,0 +1,164 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Expr
++
++import Globals "globals"
++import Universe "universe"
++import Object "object"
++import Type "type"
++import AST "ast"
++
++
++// TODO the following shortcuts below don't work due to 6g/6l bugs
++//type Compilation Globals.Compilation
++//type Expr Globals.Expr
++
++
++func Error(comp *Globals.Compilation, pos int, msg string) {
++	comp.env.Error(comp, pos, msg);
++}
++
++
++export func Deref(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
++	switch typ := x.typ(); typ.form {
++	case Type.BAD:
++		// ignore
++		
++	case Type.POINTER:
++		x = AST.NewDeref(x);
++		
++	default:
++		Error(comp, x.pos(), `"*" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
++		x = AST.Bad;
++	}
++	
++	return x;
++}
++
++
++export func Select(comp *Globals.Compilation, x Globals.Expr, pos int, selector string) Globals.Expr {
++	if x.typ().form == Type.POINTER {
++		x = Deref(comp, x);
++	}
++
++	switch typ := x.typ(); typ.form {
++	case Type.BAD:
++		// ignore
++
++	case Type.STRUCT, Type.INTERFACE:
++		obj := typ.scope.Lookup(selector);
++		if obj != nil {
++			x = AST.NewSelector(x.pos(), obj.typ);
++			
++		} else {
++			Error(comp, pos, `no field/method "` + selector + `"`);
++			x = AST.Bad;
++		}
++
++	default:
++		Error(comp, pos, `"." not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
++		x = AST.Bad;
++	}
++	
++	return x;
++}
++
++
++export func AssertType(comp *Globals.Compilation, x Globals.Expr, pos int, typ *Globals.Type) Globals.Expr {
++	return AST.Bad;
++}
++
++
++export func Index(comp *Globals.Compilation, x, i Globals.Expr) Globals.Expr {
++	if x.typ().form == Type.POINTER {
++		x = Deref(comp, x);
++	}
++
++	switch typ := x.typ(); typ.form {
++	case Type.BAD:
++		// ignore
++		
++	case Type.STRING, Type.ARRAY:
++		x = AST.Bad;
++		
++	case Type.MAP:
++		if Type.Equal(typ.key, i.typ()) {
++			// x = AST.NewSubscript(x, i1);
++			x = AST.Bad;
++			
++		} else {
++			Error(comp, x.pos(), "map key type mismatch");
++			x = AST.Bad;
++		}
++		
++	default:
++		Error(comp, x.pos(), `"[]" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
++		x = AST.Bad;
++	}
++	return x;
++}
++
++
++export func Slice(comp *Globals.Compilation, x, i, j Globals.Expr) Globals.Expr {
++	if x.typ().form == Type.POINTER {
++		x = Deref(comp, x);
++	}
++
++	switch typ := x.typ(); typ.form {
++	case Type.BAD:
++		// ignore
++		break;
++	case Type.STRING, Type.ARRAY:
++		x = AST.Bad;
++		
++	case Type.MAP:
++		if Type.Equal(typ.key, i.typ()) {
++			// x = AST.NewSubscript(x, i1);
++			x = AST.Bad;
++			
++		} else {
++			Error(comp, x.pos(), "map key type mismatch");
++			x = AST.Bad;
++		}
++		
++	default:
++		Error(comp, x.pos(), `"[:]" not applicable (typ.form = ` + Type.FormStr(typ.form) + `)`);
++		x = AST.Bad;
++	}
++	return x;
++}
++
++
++export func Call(comp *Globals.Compilation, x Globals.Expr, args *Globals.List) Globals.Expr {
++	if x.typ().form == Type.POINTER {
++		x = Deref(comp, x);
++	}
++	
++	if x.op() == AST.OBJECT && x.(*AST.Object).obj.kind == Object.BUILTIN {
++		panic("builtin call - UNIMPLEMENTED");
++	}
++	
++	typ := x.typ();
++	if typ.form == Type.FUNCTION || typ.form == Type.METHOD {
++		// TODO check args against parameters
++	}
++	
++	return AST.Bad;
++}
++
++
++export func UnaryExpr(comp *Globals.Compilation, x Globals.Expr) Globals.Expr {
++	return AST.Bad;
++}
++
++
++export func BinaryExpr(comp *Globals.Compilation, x, y Globals.Expr) Globals.Expr {
++	e := new(AST.BinaryExpr);
++	e.typ_ = x.typ();  // TODO fix this
++	//e.op = P.tok;  // TODO should we use tokens or separate operator constants?
++	e.x = x;
++	e.y = y;
++	return e;
++}
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 809e01f5fc..15e8d06e2e 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -18,6 +18,11 @@ type Scope struct
+ type Elem struct
+ type Compilation struct
+ 
++// Object represents a language object, such as a constant, variable, type,
++// etc. (kind). An objects is (pre-)declared at a particular position in the
++// source code (pos), has a name (ident), a type (typ), and a package number
++// or nesting level (pnolev).
++
+ export type Object struct {
+ 	exported bool;
+ 	pos int;  // source position (< 0 if unknown position)
+@@ -31,12 +36,12 @@ export type Object struct {
+ export type Type struct {
+ 	ref int;  // for exporting only: >= 0 means already exported
+ 	form int;
+-	flags int;  // channels, functions
+ 	size int;  // in bytes
+-	len_ int;  // array length, no. of parameters (w/o recv)
++	len int;  // array length, no. of function/method parameters (w/o recv)
++	aux int;  // channel info
+ 	obj *Object;  // primary type object or NULL
+-	aux *Type;  // alias base type or map key
+-	elt *Type;  // aliases, arrays, maps, channels, pointers
++	key *Type;  // alias base type or map key
++	elt *Type;  // aliased type, array, map, channel or pointer element type, function result type, tuple function type
+ 	scope *Scope;  // forwards, structs, interfaces, functions
+ }
+ 
+@@ -51,7 +56,7 @@ export type Package struct {
+ 
+ 
+ export type List struct {
+-	len_ int;
++	len int;
+ 	first, last *Elem;
+ };
+ 
+@@ -70,17 +75,12 @@ export type Flags struct {
+ 	print_interface bool;
+ 	verbosity uint;
+ 	sixg bool;
+-
+-	scan bool;
+-	parse bool;
+-	ast bool;
+-	deps bool;
+ 	token_chan bool;
+ }
+ 
+ 
+ export type Environment struct {
+-	Error *(comp *Compilation);  // TODO complete this
++	Error *(comp *Compilation, pos int, msg string);
+ 	Import *(comp *Compilation, pkg_file string) *Package;
+ 	Export *(comp *Compilation, pkg_file string);
+ 	Compile *(comp *Compilation, src_file string);
+@@ -91,7 +91,15 @@ export type Compilation struct {
+ 	// environment
+ 	flags *Flags;
+ 	env *Environment;
+-
++	
++	// TODO rethink the need for this here
++	src_file string;
++	src string;
++	
++	// Error handling
++	nerrors int;  // number of errors reported
++	errpos int;  // last error position
++	
+ 	// TODO use open arrays eventually
+ 	pkg_list [256] *Package;  // pkg_list[0] is the current package
+ 	pkg_ref int;
+@@ -99,6 +107,7 @@ export type Compilation struct {
+ 
+ 
+ export type Expr interface {
++	op() int;  // node operation
+ 	pos() int;  // source position
+ 	typ() *Type;
+ 	// ... more to come here
+@@ -113,7 +122,7 @@ export type Stat interface {
+ // TODO This is hideous! We need to have a decent way to do lists.
+ // Ideally open arrays that allow '+'.
+ 
+-type Elem struct {
++export type Elem struct {
+ 	next *Elem;
+ 	val int;
+ 	str string;
+@@ -129,7 +138,7 @@ type Elem struct {
+ export var Universe_void_t *Type  // initialized by Universe to Universe.void_t
+ 
+ export func NewObject(pos, kind int, ident string) *Object {
+-	obj := new(*Object);
++	obj := new(Object);
+ 	obj.exported = false;
+ 	obj.pos = pos;
+ 	obj.kind = kind;
+@@ -141,7 +150,7 @@ export func NewObject(pos, kind int, ident string) *Object {
+ 
+ 
+ export func NewType(form int) *Type {
+-	typ := new(*Type);
++	typ := new(Type);
+ 	typ.ref = -1;  // not yet exported
+ 	typ.form = form;
+ 	return typ;
+@@ -149,7 +158,7 @@ export func NewType(form int) *Type {
+ 
+ 
+ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+-	pkg := new(*Package);
++	pkg := new(Package);
+ 	pkg.ref = -1;  // not yet exported
+ 	pkg.file_name = file_name;
+ 	pkg.key = "<the package key>";  // empty key means package forward declaration
+@@ -160,12 +169,12 @@ export func NewPackage(file_name string, obj *Object, scope *Scope) *Package {
+ 
+ 
+ export func NewList() *List {
+-	return new(*List);
++	return new(List);
+ }
+ 
+ 
+ export func NewScope(parent *Scope) *Scope {
+-	scope := new(*Scope);
++	scope := new(Scope);
+ 	scope.parent = parent;
+ 	scope.entries = NewList();
+ 	return scope;
+@@ -176,7 +185,7 @@ export func NewScope(parent *Scope) *Scope {
+ // Object methods
+ 
+ func (obj *Object) Copy() *Object {
+-	copy := new(*Object);
++	copy := new(Object);
+ 	copy.exported = obj.exported;
+ 	copy.pos = obj.pos;
+ 	copy.kind = obj.kind;
+@@ -191,7 +200,7 @@ func (obj *Object) Copy() *Object {
+ // List methods
+ 
+ func (L *List) at(i int) *Elem {
+-	if i < 0 || L.len_ <= i {
++	if i < 0 || L.len <= i {
+ 		panic("index out of bounds");
+ 	}
+ 
+@@ -205,13 +214,13 @@ func (L *List) at(i int) *Elem {
+ 
+ 
+ func (L *List) Clear() {
+-	L.len_, L.first, L.last = 0, nil, nil;
++	L.len, L.first, L.last = 0, nil, nil;
+ }
+ 
+ 
+ func (L *List) Add() *Elem {
+-	L.len_++;
+-	e := new(*Elem);
++	L.len++;
++	e := new(Elem);
+ 	if L.first == nil {
+ 		L.first = e;
+ 	} else {
+@@ -242,6 +251,11 @@ func (L *List) TypAt(i int) *Type {
+ }
+ 
+ 
++func (L *List) ExprAt(i int) Expr {
++	return L.at(i).expr;
++}
++
++
+ func (L *List) AddInt(val int) {
+ 	L.Add().val = val;
+ }
+@@ -280,18 +294,23 @@ func (scope *Scope) Lookup(ident string) *Object {
+ }
+ 
+ 
++func (scope *Scope) Add(obj* Object) {
++	scope.entries.AddObj(obj);
++}
++
++
+ func (scope *Scope) Insert(obj *Object) {
+ 	if scope.Lookup(obj.ident) != nil {
+ 		panic("obj already inserted");
+ 	}
+-	scope.entries.AddObj(obj);
++	scope.Add(obj);
+ }
+ 
+ 
+ func (scope *Scope) InsertImport(obj *Object) *Object {
+ 	 p := scope.Lookup(obj.ident);
+ 	 if p == nil {
+-		scope.Insert(obj);
++		scope.Add(obj);
+ 		p = obj;
+ 	 }
+ 	 return p;
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 537c327932..f1e67bcc61 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -20,10 +20,6 @@ func PrintHelp() {
+ 		"  -p             print package interface\n" +
+ 		"  -v [0 .. 3]    verbosity level\n" +
+ 		"  -6g            6g compatibility mode\n" +
+-		"  -scan          scan only, print tokens\n" +
+-		"  -parse         parse only, print productions\n" +
+-		"  -ast           analyse only, print ast\n" +
+-		"  -deps          print package dependencies\n" +
+ 		"  -token_chan    use token channel to scan and parse in parallel\n"
+ 	);
+ }
+@@ -49,7 +45,7 @@ func main() {
+ 	}
+ 
+ 	// collect flags and files
+-	flags := new(*Globals.Flags);
++	flags := new(Globals.Flags);
+ 	files := Globals.NewList();
+ 	for arg != "" {
+ 	    switch arg {
+@@ -69,13 +65,6 @@ func main() {
+ 				continue;
+ 			}
+ 		case "-6g": flags.sixg = true;
+-		case "-scan": flags.scan = true;
+-			print("note: -scan flag ignored at the moment\n");
+-		case "-parse": flags.parse = true;
+-			print("note: -parse flag ignored at the moment\n");
+-		case "-ast": flags.ast = true;
+-		case "-deps": flags.deps = true;
+-			print("note: -deps flag ignored at the moment\n");
+ 		case "-token_chan": flags.token_chan = true;
+ 		default: files.AddStr(arg);
+ 		}
+@@ -83,7 +72,8 @@ func main() {
+ 	}
+ 
+ 	// setup environment
+-	env := new(*Globals.Environment);
++	env := new(Globals.Environment);
++	env.Error = &Compilation.Error;
+ 	env.Import = &Compilation.Import;
+ 	env.Export = &Compilation.Export;
+ 	env.Compile = &Compilation.Compile;
+@@ -91,7 +81,7 @@ func main() {
+ 	// compile files
+ 	for p := files.first; p != nil; p = p.next {
+ 		// setup compilation
+-		comp := new(*Globals.Compilation);
++		comp := new(Globals.Compilation);
+ 		comp.flags = flags;
+ 		comp.env = env;
+ 
+diff --git a/usr/gri/gosrc/import.go b/usr/gri/gosrc/import.go
+index b947c514df..104f3d7e2a 100755
+--- a/usr/gri/gosrc/import.go
++++ b/usr/gri/gosrc/import.go
+@@ -200,24 +200,32 @@ func (I *Importer) ReadType() *Globals.Type {
+ 	I.type_ref++;
+ 
+ 	switch (typ.form) {
++	case Type.VOID:
++		// for now until we have enough of the front-end working
++		// change the form to BAD to avoid error messages
++		typ.form = Type.BAD;
++		
+ 	case Type.FORWARD:
+ 		typ.scope = Globals.NewScope(nil);
+-		break;
++		
++	case Type.TUPLE:
++		typ.elt = I.ReadType();
+ 		
+ 	case Type.ALIAS, Type.MAP:
+-		typ.aux = I.ReadType();
++		typ.key = I.ReadType();
+ 		typ.elt = I.ReadType();
+ 
+ 	case Type.ARRAY:
+-		typ.len_ = I.ReadInt();
++		typ.len = I.ReadInt();
+ 		typ.elt = I.ReadType();
+ 
+ 	case Type.CHANNEL:
+-		typ.flags = I.ReadInt();
++		typ.aux = I.ReadInt();
+ 		typ.elt = I.ReadType();
+ 
+-	case Type.FUNCTION:
+-		typ.flags = I.ReadInt();
++	case Type.FUNCTION, Type.METHOD:
++		typ.len = I.ReadInt();
++		typ.elt = I.ReadType();
+ 		typ.scope = Globals.NewScope(nil);
+ 		I.ReadScope(typ.scope, false);
+ 
+@@ -225,7 +233,7 @@ func (I *Importer) ReadType() *Globals.Type {
+ 		typ.scope = Globals.NewScope(nil);
+ 		I.ReadScope(typ.scope, false);
+ 
+-	case Type.POINTER, Type.REFERENCE:
++	case Type.POINTER:
+ 		typ.elt = I.ReadType();
+ 
+ 	default:
+diff --git a/usr/gri/gosrc/object.go b/usr/gri/gosrc/object.go
+index 81fab9a077..220f4c8d8b 100755
+--- a/usr/gri/gosrc/object.go
++++ b/usr/gri/gosrc/object.go
+@@ -9,7 +9,7 @@ import Globals "globals"
+ 
+ export const /* kind */ (
+ 	BAD = iota;  // error handling
+-	CONST; TYPE; VAR; FIELD; FUNC; PACKAGE; LABEL;
++	CONST; TYPE; VAR; FIELD; FUNC; BUILTIN; PACKAGE; LABEL;
+ 	END;  // end of scope (import/export only)
+ )
+ 
+@@ -27,6 +27,7 @@ export func KindStr(kind int) string {
+ 	case VAR: return "VAR";
+ 	case FIELD: return "FIELD";
+ 	case FUNC: return "FUNC";
++	case BUILTIN: return "BUILTIN";
+ 	case PACKAGE: return "PACKAGE";
+ 	case LABEL: return "LABEL";
+ 	case END: return "END";
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 06a51b63e9..4ba0d99803 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -12,16 +12,16 @@ import Type "type"
+ import Universe "universe"
+ import Import "import"
+ import AST "ast"
++import Expr "expr"
+ 
+ 
+ export type Parser struct {
+ 	comp *Globals.Compilation;
+-	semantic_checks bool;
+ 	verbose bool;
+ 	indent uint;
+-	S *Scanner.Scanner;
+-	C chan *Scanner.Token;
+-
++	scanner *Scanner.Scanner;
++	tokchan chan *Scanner.Token;
++	
+ 	// Token
+ 	tok int;  // one token look-ahead
+ 	pos int;  // token source position
+@@ -50,12 +50,12 @@ func (P *Parser) Trace(msg string) {
+ 		P.PrintIndent();
+ 		print(msg, " {\n");
+ 	}
+-	P.indent++;
++	P.indent++;  // always, so proper identation is always checked
+ }
+ 
+ 
+ func (P *Parser) Ecart() {
+-	P.indent--;
++	P.indent--;  // always, so proper identation is always checked
+ 	if P.verbose {
+ 		P.PrintIndent();
+ 		print("}\n");
+@@ -64,10 +64,10 @@ func (P *Parser) Ecart() {
+ 
+ 
+ func (P *Parser) Next() {
+-	if P.C == nil {
+-		P.tok, P.pos, P.val = P.S.Scan();
++	if P.tokchan == nil {
++		P.tok, P.pos, P.val = P.scanner.Scan();
+ 	} else {
+-		t := <- P.C;
++		t := <- P.tokchan;
+ 		P.tok, P.pos, P.val = t.tok, t.pos, t.val;
+ 	}
+ 	if P.verbose {
+@@ -77,13 +77,12 @@ func (P *Parser) Next() {
+ }
+ 
+ 
+-func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C chan *Scanner.Token) {
++func (P *Parser) Open(comp *Globals.Compilation, scanner *Scanner.Scanner, tokchan chan *Scanner.Token) {
+ 	P.comp = comp;
+-	P.semantic_checks = comp.flags.ast;
+ 	P.verbose = comp.flags.verbosity > 2;
+ 	P.indent = 0;
+-	P.S = S;
+-	P.C = C;
++	P.scanner = scanner;
++	P.tokchan = tokchan;
+ 	P.Next();
+ 	P.level = 0;
+ 	P.top_scope = Universe.scope;
+@@ -93,7 +92,7 @@ func (P *Parser) Open(comp *Globals.Compilation, S *Scanner.Scanner, C chan *Sca
+ 
+ 
+ func (P *Parser) Error(pos int, msg string) {
+-	P.S.Error(pos, msg);
++	P.scanner.Error(pos, msg);
+ }
+ 
+ 
+@@ -137,9 +136,6 @@ func (P *Parser) Lookup(ident string) *Globals.Object {
+ 
+ 
+ func (P *Parser) DeclareInScope(scope *Globals.Scope, obj *Globals.Object) {
+-	if !P.semantic_checks {
+-		return;
+-	}
+ 	if P.level > 0 {
+ 		panic("cannot declare objects in other packages");
+ 	}
+@@ -157,27 +153,32 @@ func (P *Parser) Declare(obj *Globals.Object) {
+ }
+ 
+ 
+-func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.Type {
+-	// Determine if we have a receiver or not.
+-	// TODO do we still need this?
+-	if p0 > 0 && check_recv {
+-		// method
+-		if p0 != 1 {
+-			panic("p0 != 1");
++func MakeFunctionType(sig *Globals.Scope, p0, r0 int) *Globals.Type {
++	form := Type.FUNCTION;
++	if p0 == 1 {
++		form = Type.METHOD;
++	} else {
++		if p0 != 0 {
++			panic("incorrect p0");
+ 		}
+ 	}
++	typ := Globals.NewType(form);
++	typ.len = r0 - p0;
++	typ.scope = sig;
+ 
+-	typ := Globals.NewType(Type.FUNCTION);
+-	if p0 == 0 {
+-		typ.flags = 0;
++	// set result type
++	if sig.entries.len - r0 == 1 {
++		// exactly one result value
++		typ.elt = sig.entries.last.obj.typ;
+ 	} else {
+-		typ.flags = Type.RECV;
++		// 0 or >1 result values - create a tuple referring to this type
++		tup := Globals.NewType(Type.TUPLE);
++		tup.elt = typ;
++		typ.elt = tup;
+ 	}
+-	typ.len_ = r0 - p0;
+-	typ.scope = sig;
+ 
+-	// parameters are always exported (they can't be accessed w/o the function
+-	// or function type being exported)
++	// parameters/results are always exported (they can't be accessed
++	// w/o the function or function type being exported)
+ 	for p := sig.entries.first; p != nil; p = p.next {
+ 		p.obj.exported = true;
+ 	}
+@@ -189,9 +190,9 @@ func MakeFunctionType(sig *Globals.Scope, p0, r0 int, check_recv bool) *Globals.
+ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.Object {
+ 	// determine scope
+ 	scope := P.top_scope;
+-	if typ.flags & Type.RECV != 0 {
+-		// method - declare in corresponding struct
+-		if typ.scope.entries.len_ < 1 {
++	if typ.form == Type.METHOD {
++		// declare in corresponding struct
++		if typ.scope.entries.len < 1 {
+ 			panic("no recv in signature?");
+ 		}
+ 		recv_typ := typ.scope.entries.first.obj.typ;
+@@ -213,7 +214,7 @@ func (P *Parser) DeclareFunc(pos int, ident string, typ *Globals.Type) *Globals.
+ 
+ 	// obj != NULL: possibly a forward declaration
+ 	if obj.kind != Object.FUNC {
+-		P.Error(-1, `"` + ident + `" is declared already`);
++		P.Error(pos, `"` + ident + `" is declared already`);
+ 		// continue but do not insert this function into the scope
+ 		obj = Globals.NewObject(-1, Object.FUNC, ident);
+ 		obj.typ = typ;
+@@ -313,43 +314,31 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 		pos, ident = P.ParseIdent(false);
+ 	}
+ 
+-	if P.semantic_checks {
+-		obj := P.Lookup(ident);
+-		if obj == nil {
+-			P.Error(pos, `"` + ident + `" is not declared`);
+-			obj = Globals.NewObject(pos, Object.BAD, ident);
+-		}
++	obj := P.Lookup(ident);
++	if obj == nil {
++		P.Error(pos, `"` + ident + `" is not declared`);
++		obj = Globals.NewObject(pos, Object.BAD, ident);
++	}
+ 
+-		if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
+-			if obj.pnolev < 0 {
+-				panic("obj.pnolev < 0");
+-			}
+-			pkg := P.comp.pkg_list[obj.pnolev];
+-			//if pkg.obj.ident != ident {
+-			//	panic("pkg.obj.ident != ident");
+-			//}
+-			P.Next();  // consume "."
+-			pos, ident = P.ParseIdent(false);
+-			obj = pkg.scope.Lookup(ident);
+-			if obj == nil {
+-				P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
+-				obj = Globals.NewObject(pos, Object.BAD, ident);
+-			}
++	if obj.kind == Object.PACKAGE && P.tok == Scanner.PERIOD {
++		if obj.pnolev < 0 {
++			panic("obj.pnolev < 0");
+ 		}
+-
+-		P.Ecart();
+-		return obj;
+-
+-	} else {
+-		if P.tok == Scanner.PERIOD {
+-			P.Next();
+-			P.ParseIdent(false);
++		pkg := P.comp.pkg_list[obj.pnolev];
++		//if pkg.obj.ident != ident {
++		//	panic("pkg.obj.ident != ident");
++		//}
++		P.Next();  // consume "."
++		pos, ident = P.ParseIdent(false);
++		obj = pkg.scope.Lookup(ident);
++		if obj == nil {
++			P.Error(pos, `"` + ident + `" is not declared in package "` + pkg.obj.ident + `"`);
++			obj = Globals.NewObject(pos, Object.BAD, ident);
+ 		}
+-		P.Ecart();
+-		return nil;
+ 	}
+ 
+-	panic("UNREACHABLE");
++	P.Ecart();
++	return obj;
+ }
+ 
+ 
+@@ -376,19 +365,17 @@ func (P *Parser) ParseVarType() *Globals.Type {
+ 	pos := P.pos;
+ 	typ := P.ParseType();
+ 
+-	if P.semantic_checks {
+-		switch typ.form {
+-		case Type.ARRAY:
+-			if P.comp.flags.sixg || typ.len_ >= 0 {
+-				break;
+-			}
+-			// open arrays must be pointers
+-			fallthrough;
+-
+-		case Type.MAP, Type.CHANNEL, Type.FUNCTION:
+-			P.Error(pos, "must be pointer to this type");
+-			typ = Universe.bad_t;
++	switch typ.form {
++	case Type.ARRAY:
++		if P.comp.flags.sixg || typ.len >= 0 {
++			break;
+ 		}
++		// open arrays must be pointers
++		fallthrough;
++		
++	case Type.MAP, Type.CHANNEL, Type.FUNCTION:
++		P.Error(pos, "must be pointer to this type");
++		typ = Universe.bad_t;
+ 	}
+ 
+ 	P.Ecart();
+@@ -399,23 +386,16 @@ func (P *Parser) ParseVarType() *Globals.Type {
+ func (P *Parser) ParseTypeName() *Globals.Type {
+ 	P.Trace("TypeName");
+ 
+-	if P.semantic_checks {
+-		pos := P.pos;
+-		obj := P.ParseQualifiedIdent(-1, "");
+-		typ := obj.typ;
+-		if obj.kind != Object.TYPE {
+-			P.Error(pos, "qualified identifier does not denote a type");
+-			typ = Universe.bad_t;
+-		}
+-		P.Ecart();
+-		return typ;
+-	} else {
+-		P.ParseQualifiedIdent(-1, "");
+-		P.Ecart();
+-		return Universe.bad_t;
++	pos := P.pos;
++	obj := P.ParseQualifiedIdent(-1, "");
++	typ := obj.typ;
++	if obj.kind != Object.TYPE {
++		P.Error(pos, "qualified identifier does not denote a type");
++		typ = Universe.bad_t;
+ 	}
+ 
+-	panic("UNREACHABLE");
++	P.Ecart();
++	return typ;
+ }
+ 
+ 
+@@ -425,7 +405,7 @@ func (P *Parser) ParseArrayType() *Globals.Type {
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.ARRAY);
+ 	if P.tok != Scanner.RBRACK {
+-		// TODO set typ.len_
++		// TODO set typ.len
+ 		P.ParseExpression();
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+@@ -443,15 +423,15 @@ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	if P.tok == Scanner.CHAN {
+ 		P.Next();
+ 		if P.tok == Scanner.ARROW {
+-			typ.flags = Type.SEND;
++			typ.aux = Type.SEND;
+ 			P.Next();
+ 		} else {
+-			typ.flags = Type.SEND + Type.RECV;
++			typ.aux = Type.SEND + Type.RECV;
+ 		}
+ 	} else {
+ 		P.Expect(Scanner.ARROW);
+ 		P.Expect(Scanner.CHAN);
+-		typ.flags = Type.RECV;
++		typ.aux = Type.RECV;
+ 	}
+ 	typ.elt = P.ParseVarType();
+ 
+@@ -499,61 +479,51 @@ func (P *Parser) ParseParameters() {
+ }
+ 
+ 
+-func (P *Parser) TryResult() bool {
+-	P.Trace("Result (try)");
++func (P *Parser) ParseResult() {
++	P.Trace("Result");
+ 
+-	res := false;
+ 	if P.tok == Scanner.LPAREN {
++		// one or more named results
+ 		// TODO: here we allow empty returns - should proably fix this
+ 		P.ParseParameters();
+-		res = true;
++
+ 	} else {
+-		res = P.TryType() != nil;
++		// anonymous result
++		pos := P.pos;
++		typ := P.TryType();
++		if typ != nil {
++			obj := Globals.NewObject(pos, Object.VAR, ".res");
++			obj.typ = typ;
++			P.Declare(obj);
++		}
+ 	}
+-	P.Ecart();
+ 
+-	return res;
++	P.Ecart();
+ }
+ 
+ 
+-// Anonymous signatures
++// Signatures
+ //
+-//          (params)
+-//          (params) type
+-//          (params) (results)
+-// (recv) . (params)
+-// (recv) . (params) type
+-// (recv) . (params) (results)
++// (params)
++// (params) type
++// (params) (results)
+ 
+-func (P *Parser) ParseAnonymousSignature() *Globals.Type {
+-	P.Trace("AnonymousSignature");
++func (P *Parser) ParseSignature() *Globals.Type {
++	P.Trace("Signature");
+ 
+ 	P.OpenScope();
+ 	P.level--;
+ 	sig := P.top_scope;
+-	p0 := 0;
+ 
+-	recv_pos := P.pos;
+ 	P.ParseParameters();
++	r0 := sig.entries.len;
++	P.ParseResult();
+ 
+-	if P.tok == Scanner.PERIOD {
+-		p0 = sig.entries.len_;
+-		if P.semantic_checks && p0 != 1 {
+-			P.Error(recv_pos, "must have exactly one receiver");
+-			panic("UNIMPLEMENTED (ParseAnonymousSignature)");
+-			// TODO do something useful here
+-		}
+-		P.Next();
+-		P.ParseParameters();
+-	}
+-
+-	r0 := sig.entries.len_;
+-	P.TryResult();
+ 	P.level++;
+ 	P.CloseScope();
+ 
+ 	P.Ecart();
+-	return MakeFunctionType(sig, p0, r0, true);
++	return MakeFunctionType(sig, 0, r0);
+ }
+ 
+ 
+@@ -577,8 +547,8 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 	if P.tok == Scanner.LPAREN {
+ 		recv_pos := P.pos;
+ 		P.ParseParameters();
+-		p0 = sig.entries.len_;
+-		if P.semantic_checks && p0 != 1 {
++		p0 = sig.entries.len;
++		if p0 != 1 {
+ 			print("p0 = ", p0, "\n");
+ 			P.Error(recv_pos, "must have exactly one receiver");
+ 			panic("UNIMPLEMENTED (ParseNamedSignature)");
+@@ -590,20 +560,20 @@ func (P *Parser) ParseNamedSignature() (pos int, ident string, typ *Globals.Type
+ 
+ 	P.ParseParameters();
+ 
+-	r0 := sig.entries.len_;
+-	P.TryResult();
++	r0 := sig.entries.len;
++	P.ParseResult();
+ 	P.level++;
+ 	P.CloseScope();
+ 
+ 	P.Ecart();
+-	return pos, ident, MakeFunctionType(sig, p0, r0, true);
++	return pos, ident, MakeFunctionType(sig, p0, r0);
+ }
+ 
+ 
+ func (P *Parser) ParseFunctionType() *Globals.Type {
+ 	P.Trace("FunctionType");
+ 
+-	typ := P.ParseAnonymousSignature();
++	typ := P.ParseSignature();
+ 
+ 	P.Ecart();
+ 	return typ;
+@@ -625,14 +595,14 @@ func (P *Parser) ParseMethodDecl(recv_typ *Globals.Type) {
+ 
+ 	P.ParseParameters();
+ 
+-	r0 := sig.entries.len_;
+-	P.TryResult();
++	r0 := sig.entries.len;
++	P.ParseResult();
+ 	P.level++;
+ 	P.CloseScope();
+ 	P.Optional(Scanner.SEMICOLON);
+ 
+ 	obj := Globals.NewObject(pos, Object.FUNC, ident);
+-	obj.typ = MakeFunctionType(sig, 1, r0, true);
++	obj.typ = MakeFunctionType(sig, 1, r0);
+ 	P.Declare(obj);
+ 
+ 	P.Ecart();
+@@ -666,7 +636,7 @@ func (P *Parser) ParseMapType() *Globals.Type {
+ 	P.Expect(Scanner.MAP);
+ 	P.Expect(Scanner.LBRACK);
+ 	typ := Globals.NewType(Type.MAP);
+-	typ.aux = P.ParseVarType();
++	typ.key = P.ParseVarType();
+ 	P.Expect(Scanner.RBRACK);
+ 	typ.elt = P.ParseVarType();
+ 	P.Ecart();
+@@ -707,82 +677,80 @@ func (P *Parser) ParsePointerType() *Globals.Type {
+ 	typ := Globals.NewType(Type.POINTER);
+ 
+ 	var elt *Globals.Type;
+-	if P.semantic_checks {
+-		if P.tok == Scanner.STRING && !P.comp.flags.sixg {
+-			// implicit package.type forward declaration
+-			// TODO eventually the scanner should strip the quotes
+-			pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+-			pkg := P.comp.Lookup(pkg_name);
+-			if pkg == nil {
+-				// package doesn't exist yet - add it to the package list
+-				obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
+-				pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
+-				pkg.key = "";  // mark as forward-declared package
+-				P.comp.Insert(pkg);
+-			} else {
+-				// package exists already - must be forward declaration
+-				if pkg.key != "" {
+-					P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
+-					panic("wrong package forward decl");
+-					// TODO introduce dummy package so we can continue safely
+-				}
++	if P.tok == Scanner.STRING && !P.comp.flags.sixg {
++		// implicit package.type forward declaration
++		// TODO eventually the scanner should strip the quotes
++		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
++		pkg := P.comp.Lookup(pkg_name);
++		if pkg == nil {
++			// package doesn't exist yet - add it to the package list
++			obj := Globals.NewObject(P.pos, Object.PACKAGE, ".pkg");
++			pkg = Globals.NewPackage(pkg_name, obj, Globals.NewScope(nil));
++			pkg.key = "";  // mark as forward-declared package
++			P.comp.Insert(pkg);
++		} else {
++			// package exists already - must be forward declaration
++			if pkg.key != "" {
++				P.Error(P.pos, `cannot use implicit package forward declaration for imported package "` + P.val + `"`);
++				panic("wrong package forward decl");
++				// TODO introduce dummy package so we can continue safely
+ 			}
+-
+-			P.Next();  // consume package name
+-			P.Expect(Scanner.PERIOD);
+-			pos, ident := P.ParseIdent(false);
+-			obj := pkg.scope.Lookup(ident);
+-			if obj == nil {
+-				elt = Globals.NewType(Type.FORWARD);
+-				elt.scope = P.top_scope;  // not really needed here, but for consistency
+-				obj = Globals.NewObject(pos, Object.TYPE, ident);
+-				obj.exported = true;  // the type name must be visible
+-				obj.typ = elt;
+-				elt.obj = obj;  // primary type object;
+-				pkg.scope.Insert(obj);
+-				obj.pnolev = pkg.obj.pnolev;
+-			} else {
+-				if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
+-					panic("inconsistency in package.type forward declaration");
+-				}
+-				elt = obj.typ;
++		}
++		
++		P.Next();  // consume package name
++		P.Expect(Scanner.PERIOD);
++		pos, ident := P.ParseIdent(false);
++		obj := pkg.scope.Lookup(ident);
++		if obj == nil {
++			elt = Globals.NewType(Type.FORWARD);
++			elt.scope = P.top_scope;  // not really needed here, but for consistency
++			obj = Globals.NewObject(pos, Object.TYPE, ident);
++			obj.exported = true;  // the type name must be visible
++			obj.typ = elt;
++			elt.obj = obj;  // primary type object;
++			pkg.scope.Insert(obj);
++			obj.pnolev = pkg.obj.pnolev;
++		} else {
++			if obj.kind != Object.TYPE || obj.typ.form != Type.FORWARD {
++				panic("inconsistency in package.type forward declaration");
+ 			}
++			elt = obj.typ;
++		}
++		
++	} else if P.tok == Scanner.IDENT {
++		if P.Lookup(P.val) == nil {
++			// implicit type forward declaration
++			// create a named forward type 
++			pos, ident := P.ParseIdent(false);
++			obj := Globals.NewObject(pos, Object.TYPE, ident);
++			elt = Globals.NewType(Type.FORWARD);
++			obj.typ = elt;
++			elt.obj = obj;  // primary type object;
++			// remember the current scope - resolving the forward
++			// type must find a matching declaration in this or a less nested scope
++			elt.scope = P.top_scope;
+ 
+-		} else if P.tok == Scanner.IDENT {
+-			if P.Lookup(P.val) == nil {
+-				// implicit type forward declaration
+ 				// create a named forward type
+-				pos, ident := P.ParseIdent(false);
+-				obj := Globals.NewObject(pos, Object.TYPE, ident);
+-				elt = Globals.NewType(Type.FORWARD);
+-				obj.typ = elt;
+-				elt.obj = obj;  // primary type object;
+-				// remember the current scope - resolving the forward
+-				// type must find a matching declaration in this or a less nested scope
+-				elt.scope = P.top_scope;
+-
+-			} else {
+-				// type name
+-				// (ParseType() (via TryType()) checks for forward types and complains,
+-				// so call ParseTypeName() directly)
+-				// we can only have a foward type here if we refer to the name of a
+-				// yet incomplete type (i.e. if we are in the middle of a type's declaration)
+-				elt = P.ParseTypeName();
+-			}
+-
+-			// collect uses of pointer types referring to forward types
+-			if elt.form == Type.FORWARD {
+-				P.forward_types.AddTyp(typ);
+-			}
+ 
+ 		} else {
+-			elt = P.ParseType();
++			// type name
++			// (ParseType() (via TryType()) checks for forward types and complains,
++			// so call ParseTypeName() directly)
++			// we can only have a foward type here if we refer to the name of a
++			// yet incomplete type (i.e. if we are in the middle of a type's declaration)
++			elt = P.ParseTypeName();
++		}
++
++		// collect uses of pointer types referring to forward types
++		if elt.form == Type.FORWARD {
++			P.forward_types.AddTyp(typ);
+ 		}
+ 
+ 	} else {
+ 		elt = P.ParseType();
+ 	}
+ 
++
+ 	typ.elt = elt;
+ 
+ 	P.Ecart();
+@@ -892,24 +860,6 @@ func (P *Parser) ParseNewExpressionList() *Globals.List {
+ }
+ 
+ 
+-func (P *Parser) ParseNew() Globals.Expr {
+-	P.Trace("New");
+-
+-	P.Expect(Scanner.NEW);
+-	P.Expect(Scanner.LPAREN);
+-	P.ParseType();
+-	args := Globals.NewList();
+-	if P.tok == Scanner.COMMA {
+-		P.Next();
+-		P.ParseExpressionList(args)
+-	}
+-	P.Expect(Scanner.RPAREN);
+-
+-	P.Ecart();
+-	return nil;
+-}
+-
+-
+ func (P *Parser) ParseFunctionLit() Globals.Expr {
+ 	P.Trace("FunctionLit");
+ 
+@@ -989,13 +939,12 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 	var res Globals.Expr = AST.Bad;
+ 
+ 	if pos >= 0 {
++		// we have an identifier
+ 		obj := P.ParseQualifiedIdent(pos, ident);
+-		if P.semantic_checks {
+-			if obj.kind == Object.TYPE {
+-				res = P.ParseCompositeLit(obj.typ);
+-			} else {
+-				res = AST.NewObject(pos, obj);
+-			}
++		if obj.kind == Object.TYPE && P.tok == Scanner.LBRACE {
++			res = P.ParseCompositeLit(obj.typ);
++		} else {
++			res = AST.NewObject(pos, obj);
+ 		}
+ 
+ 	} else {
+@@ -1027,30 +976,8 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ 			res = x;
+ 			P.Next();
+ 
+-		case Scanner.NIL:
+-			P.Next();
+-			res = AST.Nil;
+-
+-		case Scanner.IOTA:
+-			x := AST.NewLiteral(P.pos, Universe.int_t);
+-			x.i = 42;  // TODO set the right value
+-			res = x;
+-			P.Next();
+-
+-		case Scanner.TRUE:
+-			P.Next();
+-			res = AST.True;
+-
+-		case Scanner.FALSE:
+-			P.Next();
+-			res = AST.False;
+-
+ 		case Scanner.FUNC:
+ 			res = P.ParseFunctionLit();
+-
+-		case Scanner.NEW:
+-			res = P.ParseNew();
+-
+ 		default:
+ 			typ := P.TryType();
+ 			if typ != nil {
+@@ -1071,40 +998,17 @@ func (P *Parser) ParseOperand(pos int, ident string) Globals.Expr {
+ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ 	P.Trace("SelectorOrTypeAssertion");
+ 
+-	period_pos := P.pos;
+ 	P.Expect(Scanner.PERIOD);
+-
++	pos := P.pos;
++	
+ 	if P.tok >= Scanner.IDENT {
+-		ident_pos, ident := P.ParseIdent(true);
+-
+-		if P.semantic_checks {
+-			switch typ := x.typ(); typ.form {
+-			case Type.BAD:
+-				// ignore
+-				break;
+-			case Type.STRUCT, Type.INTERFACE:
+-				obj := typ.scope.Lookup(ident);
+-				if obj != nil {
+-					x = AST.NewSelector(x.pos(), obj.typ);
+-
+-				} else {
+-					P.Error(ident_pos, `no field/method "` + ident + `"`);
+-					x = AST.Bad;
+-				}
+-			default:
+-				P.Error(period_pos, `"." not applicable`);
+-				x = AST.Bad;
+-			}
+-		}
+-
++		pos, selector := P.ParseIdent(true);
++		x = Expr.Select(P.comp, x, pos, selector);
+ 	} else {
+ 		P.Expect(Scanner.LPAREN);
+-		P.ParseType();
++		typ := P.ParseType();
+ 		P.Expect(Scanner.RPAREN);
+-
+-		if P.semantic_checks {
+-			panic("UNIMPLEMENTED");
+-		}
++		x = Expr.AssertType(P.comp, x, pos, typ);
+ 	}
+ 
+ 	P.Ecart();
+@@ -1115,41 +1019,17 @@ func (P *Parser) ParseSelectorOrTypeAssertion(x Globals.Expr) Globals.Expr {
+ func (P *Parser) ParseIndexOrSlice(x Globals.Expr) Globals.Expr {
+ 	P.Trace("IndexOrSlice");
+ 
+-	pos := P.pos;
+ 	P.Expect(Scanner.LBRACK);
+-	i1 := P.ParseExpression();
+-	var i2 Globals.Expr;
++	i := P.ParseExpression();
+ 	if P.tok == Scanner.COLON {
+ 		P.Next();
+-		i2 := P.ParseExpression();
++		j := P.ParseExpression();
++		x = Expr.Slice(P.comp, x, i, j);
++	} else {
++		x = Expr.Index(P.comp, x, i);
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+ 
+-	if P.semantic_checks {
+-		switch typ := x.typ(); typ.form {
+-		case Type.BAD:
+-			// ignore
+-			break;
+-		case Type.STRING, Type.ARRAY:
+-			panic("UNIMPLEMENTED");
+-
+-		case Type.MAP:
+-			if Type.Equal(typ.aux, i1.typ()) {
+-				// x = AST.NewSubscript(x, i1);
+-				panic("UNIMPLEMENTED");
+-
+-			} else {
+-				P.Error(x.pos(), "map key type mismatch");
+-				x = AST.Bad;
+-			}
+-
+-		default:
+-			P.Error(pos, `"[]" not applicable`);
+-			x = AST.Bad;
+-		}
+-
+-	}
+-
+ 	P.Ecart();
+ 	return x;
+ }
+@@ -1164,10 +1044,7 @@ func (P *Parser) ParseCall(x Globals.Expr) Globals.Expr {
+ 		P.ParseExpressionList(args);
+ 	}
+ 	P.Expect(Scanner.RPAREN);
+-
+-	if P.semantic_checks {
+-		panic("UNIMPLEMENTED");
+-	}
++	x = Expr.Call(P.comp, x, args);
+ 
+ 	P.Ecart();
+ 	return x;
+@@ -1221,14 +1098,15 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
+ 	case Scanner.ARROW: fallthrough;
+ 	case Scanner.AND:
+ 		P.Next();
+-		P.ParseUnaryExpr();
++		x := P.ParseUnaryExpr();
+ 		P.Ecart();
+-		return nil;  // TODO fix this
++		return x;  // TODO fix this
+ 	}
+-	P.ParsePrimaryExpr(-1, "");
++	
++	x := P.ParsePrimaryExpr(-1, "");
+ 
+ 	P.Ecart();
+-	return nil;  // TODO fix this
++	return x;  // TODO fix this
+ }
+ 
+ 
+@@ -1261,15 +1139,12 @@ func (P *Parser) ParseBinaryExpr(pos int, ident string, prec1 int) Globals.Expr
+ 	} else {
+ 		x = P.ParseUnaryExpr();
+ 	}
++
+ 	for prec := Precedence(P.tok); prec >= prec1; prec-- {
+ 		for Precedence(P.tok) == prec {
+-			e := new(*AST.BinaryExpr);
+-			e.typ_ = Universe.bad_t;  // TODO fix this
+-			e.op = P.tok;  // TODO should we use tokens or separate operator constants?
+-			e.x = x;
+ 			P.Next();
+-			e.y = P.ParseBinaryExpr(-1, "", prec + 1);
+-			x = e;
++			y := P.ParseBinaryExpr(-1, "", prec + 1);
++			x = Expr.BinaryExpr(P.comp, x, y);
+ 		}
+ 	}
+ 
+@@ -1309,17 +1184,19 @@ func (P *Parser) ParseExpression() Globals.Expr {
+ // Statements
+ 
+ func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List) {
++	if pos_list.len != ident_list.len {
++		panic("inconsistent lists");
++	}
+ 	for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+ 		pos, ident := p.val, q.str;
+-		if P.semantic_checks {
+-			obj := P.Lookup(ident);
+-			if obj == nil {
+-				P.Error(pos, `"` + ident + `" is not declared`);
+-				obj = Globals.NewObject(pos, Object.BAD, ident);
+-			}
++		obj := P.Lookup(ident);
++		if obj == nil {
++			P.Error(pos, `"` + ident + `" is not declared`);
++			obj = Globals.NewObject(pos, Object.BAD, ident);
+ 		}
+-		expr_list.AddInt(0);  // TODO fix this - add correct expression
++		expr_list.AddExpr(AST.NewObject(pos, obj));
+ 	}
++	pos_list.Clear();
+ 	ident_list.Clear();
+ }
+ 
+@@ -1327,10 +1204,9 @@ func (P *Parser) ConvertToExprList(pos_list, ident_list, expr_list *Globals.List
+ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List) {
+ 	P.Trace("IdentOrExpr");
+ 
+-	pos_list.AddInt(P.pos);
+ 	pos, ident := -1, "";
+ 	just_ident := false;
+-	if expr_list.len_ == 0 /* only idents so far */ && P.tok == Scanner.IDENT {
++	if expr_list.len == 0 /* only idents so far */ && P.tok == Scanner.IDENT {
+ 		pos, ident = P.pos, P.val;
+ 		P.Next();
+ 		switch P.tok {
+@@ -1348,17 +1224,17 @@ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List)
+ 			Scanner.XOR_ASSIGN,
+ 			Scanner.SHL_ASSIGN,
+ 			Scanner.SHR_ASSIGN:
+-			// identifier is not part of a more complicated expression
++			// identifier is *not* part of a more complicated expression
+ 			just_ident = true;
+ 		}
+ 	}
+ 
+ 	if just_ident {
++		pos_list.AddInt(pos);
+ 		ident_list.AddStr(ident);
+ 	} else {
+ 		P.ConvertToExprList(pos_list, ident_list, expr_list);
+-		P.ParseIdentExpression(pos, ident);
+-		expr_list.AddInt(0);  // TODO fix this - add correct expression
++		expr_list.AddExpr(P.ParseIdentExpression(pos, ident));
+ 	}
+ 
+ 	P.Ecart();
+@@ -1368,7 +1244,9 @@ func (P *Parser) ParseIdentOrExpr(pos_list, ident_list, expr_list *Globals.List)
+ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Globals.List) {
+ 	P.Trace("IdentOrExprList");
+ 
+-	pos_list, ident_list, expr_list = Globals.NewList(), Globals.NewList(), Globals.NewList();
++	pos_list, ident_list = Globals.NewList(), Globals.NewList();  // "pairs" of (pos, ident)
++	expr_list = Globals.NewList();
++	
+ 	P.ParseIdentOrExpr(pos_list, ident_list, expr_list);
+ 	for P.tok == Scanner.COMMA {
+ 		P.Next();
+@@ -1380,6 +1258,26 @@ func (P *Parser) ParseIdentOrExprList() (pos_list, ident_list, expr_list *Global
+ }
+ 
+ 
++// Compute the number of individual values provided by the expression list.
++func (P *Parser) ListArity(list *Globals.List) int {
++	if list.len == 1 {
++		x := list.ExprAt(0);
++		if x.op() == AST.CALL {
++			panic("UNIMPLEMENTED");
++		}
++		return 1;
++	} else {
++		for p := list.first; p != nil; p = p.next {
++			x := p.expr;
++			if x.op() == AST.CALL {
++				panic("UNIMPLEMENTED");
++			}
++		}
++	}
++	panic("UNREACHABLE");
++}
++
++
+ func (P *Parser) ParseSimpleStat() {
+ 	P.Trace("SimpleStat");
+ 
+@@ -1389,37 +1287,38 @@ func (P *Parser) ParseSimpleStat() {
+ 	// Strategy: We parse an expression list, but simultaneously, as
+ 	// long as possible, maintain a list of identifiers which is converted
+ 	// into an expression list only if neccessary. The result of
+-	// ParseIdentOrExprList is a list of ident/expr positions and either
+-	// a non-empty list of identifiers or a non-empty list of expressions
++	// ParseIdentOrExprList is a pair of non-empty lists of identfiers and
++	// their respective source positions, or a non-empty list of expressions
+ 	// (but not both).
+ 	pos_list, ident_list, expr_list := P.ParseIdentOrExprList();
+ 
+ 	switch P.tok {
+ 	case Scanner.COLON:
+ 		// label declaration
+-		if P.semantic_checks && ident_list.len_ != 1 {
++		if ident_list.len == 1 {
++			obj := Globals.NewObject(pos_list.first.val, Object.LABEL, ident_list.first.str);
++			P.Declare(obj);
++		} else {
+ 			P.Error(P.pos, "illegal label declaration");
+ 		}
+-		P.Next();
++		P.Next();  // consume ":"
+ 
+ 	case Scanner.DEFINE:
+ 		// variable declaration
+-		if P.semantic_checks && ident_list.len_ == 0 {
++		if ident_list.len == 0 {
+ 			P.Error(P.pos, "illegal left-hand side for declaration");
+ 		}
+-		P.Next();
+-		pos := P.pos;
++		P.Next();  // consume ":="
+ 		val_list := P.ParseNewExpressionList();
+-		if P.semantic_checks && val_list.len_ != ident_list.len_ {
+-			P.Error(pos, "number of expressions does not match number of variables");
++		if val_list.len != ident_list.len {
++			P.Error(val_list.first.expr.pos(), "number of expressions does not match number of variables");
+ 		}
+ 		// declare variables
+-		if P.semantic_checks {
+-			for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
+-				obj := Globals.NewObject(p.val, Object.VAR, q.str);
+-				P.Declare(obj);
+-				// TODO set correct types
+-			}
++		for p, q := pos_list.first, ident_list.first; q != nil; p, q = p.next, q.next {
++			obj := Globals.NewObject(p.val, Object.VAR, q.str);
++			P.Declare(obj);
++			// TODO set correct types
++			obj.typ = Universe.bad_t;  // for now
+ 		}
+ 
+ 	case Scanner.ASSIGN: fallthrough;
+@@ -1437,13 +1336,23 @@ func (P *Parser) ParseSimpleStat() {
+ 		P.Next();
+ 		pos := P.pos;
+ 		val_list := P.ParseNewExpressionList();
+-		if P.semantic_checks && val_list.len_ != expr_list.len_ {
+-			P.Error(pos, "number of expressions does not match number of variables");
++		
++		// assign variables
++		if val_list.len == 1 && val_list.first.expr.typ().form == Type.TUPLE {
++			panic("UNIMPLEMENTED");
++		} else {
++			var p, q *Globals.Elem;
++			for p, q = expr_list.first, val_list.first; p != nil && q != nil; p, q = p.next, q.next {
++				
++			}
++			if p != nil || q != nil {
++				P.Error(pos, "number of expressions does not match number of variables");
++			}
+ 		}
+ 
+ 	default:
+ 		P.ConvertToExprList(pos_list, ident_list, expr_list);
+-		if P.semantic_checks && expr_list.len_ != 1 {
++		if expr_list.len != 1 {
+ 			P.Error(P.pos, "no expression list allowed");
+ 		}
+ 		if P.tok == Scanner.INC || P.tok == Scanner.DEC {
+@@ -1739,11 +1648,9 @@ func (P *Parser) ParseImportSpec() {
+ 		obj = P.ParseIdentDecl(Object.PACKAGE);
+ 	}
+ 
+-	if P.semantic_checks && P.tok == Scanner.STRING {
++	if P.tok == Scanner.STRING {
+ 		// TODO eventually the scanner should strip the quotes
+ 		pkg_name := P.val[1 : len(P.val) - 1];  // strip quotes
+-		// TODO switch to indirect import once the compiler problems are fixed
+-		//pkg := Import.Import(P.comp, pkg_name);
+ 		pkg := P.comp.env.Import(P.comp, pkg_name);
+ 		if pkg != nil {
+ 			pno := pkg.obj.pnolev;  // preserve pno
+@@ -1752,7 +1659,7 @@ func (P *Parser) ParseImportSpec() {
+ 				obj = pkg.obj;
+ 				P.Declare(obj);  // this changes (pkg.)obj.pnolev!
+ 			}
+-			obj.pnolev = pno;  // correct pno
++			obj.pnolev = pno;  // reset pno
+ 		} else {
+ 			P.Error(P.pos, `import of "` + pkg_name + `" failed`);
+ 		}
+@@ -1831,9 +1738,9 @@ func (P *Parser) ParseTypeSpec(exported bool) {
+ 		elt := P.ParseType();  // we want a complete type - don't shortcut to ParseTypeName()
+ 		typ.elt = elt;
+ 		if elt.form == Type.ALIAS {
+-			typ.aux = elt.aux;  // the base type
++			typ.key = elt.key;  // the base type
+ 		} else {
+-			typ.aux = elt;
++			typ.key = elt;
+ 		}
+ 	} else {
+ 		typ = P.ParseType();
+@@ -2012,10 +1919,6 @@ func (P *Parser) ParseDeclaration() {
+ // Program
+ 
+ func (P *Parser) ResolveForwardTypes() {
+-	if !P.semantic_checks {
+-		return;
+-	}
+-
+ 	for p := P.forward_types.first; p != nil; p = p.next {
+ 		typ := p.typ;
+ 		if typ.form != Type.POINTER {
+@@ -2060,10 +1963,6 @@ func (P *Parser) ResolveForwardTypes() {
+ 
+ 
+ func (P *Parser) MarkExports() {
+-	if !P.semantic_checks {
+-		return;
+-	}
+-
+ 	scope := P.top_scope;
+ 	for p := P.exports.first; p != nil; p = p.next {
+ 		obj := scope.Lookup(p.str);
+@@ -2101,11 +2000,23 @@ func (P *Parser) ParseProgram() {
+ 			panic("incorrect scope level");
+ 		}
+ 
+-		P.comp.Insert(Globals.NewPackage(P.S.filename, obj, P.top_scope));
++		P.comp.Insert(Globals.NewPackage(P.scanner.filename, obj, P.top_scope));
+ 		if P.comp.pkg_ref != 1 {
+ 			panic("should have exactly one package now");
+ 		}
+ 
++		if P.comp.flags.sixg {
++			// automatically import package sys
++			pkg := P.comp.env.Import(P.comp, "sys");
++			if pkg != nil {
++				pno := pkg.obj.pnolev;  // preserve pno
++				P.Declare(pkg.obj);  // this changes pkg.obj.pnolev!
++				pkg.obj.pnolev = pno;  // reset pno
++			} else {
++				P.Error(P.pos, `pre-import of package "sys" failed`);
++			}
++		}
++		
+ 		for P.tok == Scanner.IMPORT {
+ 			P.ParseDecl(false, Scanner.IMPORT);
+ 			P.Optional(Scanner.SEMICOLON);
+diff --git a/usr/gri/gosrc/printer.go b/usr/gri/gosrc/printer.go
+index d0c5a08f2d..c75152b0e3 100755
+--- a/usr/gri/gosrc/printer.go
++++ b/usr/gri/gosrc/printer.go
+@@ -40,7 +40,7 @@ func IsAnonymous(name string) bool {
+ func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
+ 	scope := typ.scope;
+ 	if a + 1 == b && IsAnonymous(scope.entries.ObjAt(a).ident) {
+-		P.PrintType(scope.entries.TypAt(a));  // result type only
++		P.PrintType(scope.entries.ObjAt(a).typ);  // result type only
+ 	} else {
+ 		print("(");
+ 		for i := a; i < b; i++ {
+@@ -57,16 +57,16 @@ func (P *Printer) PrintSigRange(typ *Globals.Type, a, b int) {
+ 
+ 
+ func (P *Printer) PrintSignature(typ *Globals.Type, fun *Globals.Object) {
+-	if typ.form != Type.FUNCTION {
+-		panic("typ.form != Type.FUNCTION");
+-	}
+-	
+ 	p0 := 0;
+-	if typ.flags & Type.RECV != 0 {
++	if typ.form == Type.METHOD {
+ 		p0 = 1;
++	} else {
++		if typ.form != Type.FUNCTION {
++			panic("not a function or method");
++		}
+ 	}
+-	r0 := p0 + typ.len_;
+-	l0 := typ.scope.entries.len_;
++	r0 := p0 + typ.len;
++	l0 := typ.scope.entries.len;
+ 	
+ 	if P.level == 0 {
+ 		print("func ");
+@@ -105,7 +105,7 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
+ 	// determine the number of scope entries to print
+ 	var n int;
+ 	if P.print_all {
+-		n = scope.entries.len_;
++		n = scope.entries.len;
+ 	} else {
+ 		n = 0;
+ 		for p := scope.entries.first; p != nil; p = p.next {
+@@ -130,12 +130,12 @@ func (P *Printer) PrintScope(scope *Globals.Scope, delta int) {
+ 	}
+ }
+ 
+-	
++
+ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
+ 	switch obj.kind {
+ 	case Object.BAD:
+-		print("bad ");
+ 		P.PrintObject(obj);
++		print(" /* bad */");
+ 
+ 	case Object.CONST:
+ 		print("const ");
+@@ -149,10 +149,11 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
+ 		print(" ");
+ 		P.PrintTypeStruct(obj.typ);
+ 
+-	case Object.VAR, Object.FIELD:
+-		if P.level == 0 {
+-			print("var ");
+-		}
++	case Object.VAR:
++		print("var ");
++		fallthrough;
++
++	case Object.FIELD:
+ 		P.PrintObject(obj);
+ 		print(" ");
+ 		P.PrintType(obj.typ);
+@@ -160,6 +161,10 @@ func (P *Printer) PrintObjectStruct(obj *Globals.Object) {
+ 	case Object.FUNC:
+ 		P.PrintSignature(obj.typ, obj);
+ 
++	case Object.BUILTIN:
++		P.PrintObject(obj);
++		print(" /* builtin */");
++		
+ 	case Object.PACKAGE:
+ 		print("package ");
+ 		P.PrintObject(obj);
+@@ -197,11 +202,14 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 	case Type.VOID:
+ 		print("void");
+ 		
++	case Type.BAD:
++		print("<bad type>");
++
+ 	case Type.FORWARD:
+ 		print("<forward type>");
+ 
+-	case Type.BAD:
+-		print("<bad type>");
++	case Type.TUPLE:
++		print("<tuple type>");
+ 
+ 	case Type.NIL, Type.BOOL, Type.UINT, Type.INT, Type.FLOAT, Type.STRING, Type.ANY:
+ 		if typ.obj == nil {
+@@ -211,9 +219,9 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 
+ 	case Type.ALIAS:
+ 		P.PrintType(typ.elt);
+-		if typ.aux != typ.elt {
++		if typ.key != typ.elt {
+ 			print(" /* ");
+-			P.PrintType(typ.aux);
++			P.PrintType(typ.key);
+ 			print(" */");
+ 		}
+ 		
+@@ -233,12 +241,12 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 
+ 	case Type.MAP:
+ 		print("map [");
+-		P.PrintType(typ.aux);
++		P.PrintType(typ.key);
+ 		print("] ");
+ 		P.PrintType(typ.elt);
+ 
+ 	case Type.CHANNEL:
+-		switch typ.flags {
++		switch typ.aux {
+ 		case Type.SEND: print("chan <- ");
+ 		case Type.RECV: print("<- chan ");
+ 		case Type.SEND + Type.RECV: print("chan ");
+@@ -253,10 +261,6 @@ func (P *Printer) PrintTypeStruct(typ *Globals.Type) {
+ 		print("*");
+ 		P.PrintType(typ.elt);
+ 
+-	case Type.REFERENCE:
+-		print("&");
+-		P.PrintType(typ.elt);
+-
+ 	default:
+ 		panic("UNREACHABLE");
+ 		
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index a1e18ba35c..ac5b9b61be 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -86,7 +86,6 @@ export const (
+ 	ELSE;
+ 	EXPORT;
+ 	FALLTHROUGH;
+-	FALSE;
+ 	FOR;
+ 	FUNC;
+ 	GO;
+@@ -94,17 +93,13 @@ export const (
+ 	IF;
+ 	IMPORT;
+ 	INTERFACE;
+-	IOTA;
+ 	MAP;
+-	NEW;
+-	NIL;
+ 	PACKAGE;
+ 	RANGE;
+ 	RETURN;
+ 	SELECT;
+ 	STRUCT;
+ 	SWITCH;
+-	TRUE;
+ 	TYPE;
+ 	VAR;
+ 	KEYWORDS_END;
+@@ -191,7 +186,6 @@ export func TokenName(tok int) string {
+ 	case ELSE: return "else";
+ 	case EXPORT: return "export";
+ 	case FALLTHROUGH: return "fallthrough";
+-	case FALSE: return "false";
+ 	case FOR: return "for";
+ 	case FUNC: return "func";
+ 	case GO: return "go";
+@@ -199,17 +193,13 @@ export func TokenName(tok int) string {
+ 	case IF: return "if";
+ 	case IMPORT: return "import";
+ 	case INTERFACE: return "interface";
+-	case IOTA: return "iota";
+ 	case MAP: return "map";
+-	case NEW: return "new";
+-	case NIL: return "nil";
+ 	case PACKAGE: return "package";
+ 	case RANGE: return "range";
+ 	case RETURN: return "return";
+ 	case SELECT: return "select";
+ 	case STRUCT: return "struct";
+ 	case SWITCH: return "switch";
+-	case TRUE: return "true";
+ 	case TYPE: return "type";
+ 	case VAR: return "var";
+ 	}
+@@ -219,7 +209,7 @@ export func TokenName(tok int) string {
+ 
+ 
+ func init() {
+-	Keywords = new(map [string] int);
++	Keywords = make(map [string] int);
+ 
+ 	for i := KEYWORDS_BEG; i <= KEYWORDS_END; i++ {
+ 	  Keywords[TokenName(i)] = i;
+@@ -578,14 +568,14 @@ func (S *Scanner) ScanDigits(n int, base int) {
+ }
+ 
+ 
+-func (S *Scanner) ScanEscape() string {
++func (S *Scanner) ScanEscape(quote int) string {
+ 	// TODO: fix this routine
+ 
+ 	ch := S.ch;
+ 	pos := S.chpos;
+ 	S.Next();
+ 	switch (ch) {
+-	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\', '\'', '"':
++	case 'a', 'b', 'f', 'n', 'r', 't', 'v', '\\':
+ 		return string(ch);
+ 
+ 	case '0', '1', '2', '3', '4', '5', '6', '7':
+@@ -605,9 +595,13 @@ func (S *Scanner) ScanEscape() string {
+ 		return "";  // TODO fix this
+ 
+ 	default:
++		// check for quote outside the switch for better generated code (eventually)
++		if ch == quote {
++			return string(quote);
++		}
+ 		S.Error(pos, "illegal char escape");
+ 	}
+-
++	
+ 	return "";  // TODO fix this
+ }
+ 
+@@ -619,7 +613,7 @@ func (S *Scanner) ScanChar() string {
+ 	ch := S.ch;
+ 	S.Next();
+ 	if ch == '\\' {
+-		S.ScanEscape();
++		S.ScanEscape('\'');
+ 	}
+ 
+ 	S.Expect('\'');
+@@ -639,7 +633,7 @@ func (S *Scanner) ScanString() string {
+ 			break;
+ 		}
+ 		if ch == '\\' {
+-			S.ScanEscape();
++			S.ScanEscape('"');
+ 		}
+ 	}
+ 
+@@ -781,7 +775,7 @@ export type Token struct {
+ 
+ func (S *Scanner) Server(c chan *Token) {
+ 	for {
+-		t := new(*Token);
++		t := new(Token);
+ 		t.tok, t.pos, t.val = S.Scan();
+ 		c <- t;
+ 		if t.tok == EOF {
+diff --git a/usr/gri/gosrc/test_scanner.go b/usr/gri/gosrc/test_scanner.go
+index b43810a856..928a8075d0 100644
+--- a/usr/gri/gosrc/test_scanner.go
++++ b/usr/gri/gosrc/test_scanner.go
+@@ -8,7 +8,7 @@ import Scanner "scanner"
+ 
+ 
+ func Scan1(filename, src string) {
+-	S := new(*Scanner.Scanner);
++	S := new(Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	for {
+ 		tok, pos, val := S.Scan();
+@@ -25,9 +25,9 @@ func Scan1(filename, src string) {
+ 
+ 
+ func Scan2(filename, src string) {
+-	S := new(*Scanner.Scanner);
++	S := new(Scanner.Scanner);
+ 	S.Open(filename, src);
+-	c := new(chan *Scanner.Token, 32);
++	c := make(chan *Scanner.Token, 32);
+ 	go S.Server(c);
+ 	for {
+ 		var t *Scanner.Token;
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index bd554d4ea7..5c80ad1a53 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -10,8 +10,12 @@ import Object "object"
+ 
+ export const /* form */ (
+ 	// internal types
+-	// VOID types are used when we don't have a type.
+-	VOID = iota;
++	// We should never see one of these.
++	UNDEF = iota;
++	
++	// VOID types are used when we don't have a type. Never exported.
++	// (exported type forms must be > 0)
++	VOID;
+ 	
+ 	// BAD types are compatible with any type and don't cause further errors.
+ 	// They are introduced only as a result of an error in the source code. A
+@@ -22,6 +26,10 @@ export const /* form */ (
+ 	// be used as element types of pointer types and must be resolved before
+ 	// their internals are accessible.
+ 	FORWARD;
++
++	// TUPLE types represent multi-valued result types of functions and
++	// methods.
++	TUPLE;
+ 	
+ 	// The type of nil.
+ 	NIL;
+@@ -33,13 +41,13 @@ export const /* form */ (
+ 	ANY;
+ 	
+ 	// composite types
+-	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; POINTER; REFERENCE;
++	ALIAS; ARRAY; STRUCT; INTERFACE; MAP; CHANNEL; FUNCTION; METHOD; POINTER;
+ )
+ 
+ 
+-export const /* flag */ (
+-	SEND = 1 << iota;  // chan>
+-	RECV;  // chan< or method
++export const /* Type.aux */ (
++	SEND = 1;  // chan>
++	RECV = 2;  // chan<
+ )
+ 
+ 
+@@ -53,6 +61,7 @@ export func FormStr(form int) string {
+ 	case VOID: return "VOID";
+ 	case BAD: return "BAD";
+ 	case FORWARD: return "FORWARD";
++	case TUPLE: return "TUPLE";
+ 	case NIL: return "NIL";
+ 	case BOOL: return "BOOL";
+ 	case UINT: return "UINT";
+@@ -67,8 +76,8 @@ export func FormStr(form int) string {
+ 	case MAP: return "MAP";
+ 	case CHANNEL: return "CHANNEL";
+ 	case FUNCTION: return "FUNCTION";
++	case METHOD: return "METHOD";
+ 	case POINTER: return "POINTER";
+-	case REFERENCE: return "REFERENCE";
+ 	}
+ 	return "<unknown Type form>";
+ }
+@@ -102,25 +111,24 @@ func Equal0(x, y *Globals.Type) bool {
+ 
+ 	case ARRAY:
+ 		return
+-			x.len_ == y.len_ &&
++			x.len == y.len &&
+ 			Equal(x.elt, y.elt);
+ 
+ 	case MAP:
+ 		return
+-			Equal(x.aux, y.aux) &&
++			Equal(x.key, y.key) &&
+ 			Equal(x.elt, y.elt);
+ 
+ 	case CHANNEL:
+ 		return
+-			x.flags == y.flags &&
++			x.aux == y.aux &&
+ 			Equal(x.elt, y.elt);
+ 
+-	case FUNCTION:
++	case FUNCTION, METHOD:
+ 		{	xp := x.scope.entries;
+ 			yp := x.scope.entries;
+-			if	x.flags != y.flags &&  // function or method
+-				x.len_ != y.len_ &&  // number of parameters
+-				xp.len_ != yp.len_  // recv + parameters + results
++			if	x.len != y.len &&  // number of parameters
++				xp.len != yp.len  // recv + parameters + results
+ 			{
+ 				return false;
+ 			}
+@@ -163,8 +171,12 @@ func Equal0(x, y *Globals.Type) bool {
+ 		panic("UNIMPLEMENTED");
+ 		return false;
+ 
+-	case POINTER, REFERENCE:
++	case POINTER:
+ 		return Equal(x.elt, y.elt);
++		
++	case TUPLE:
++		panic("UNIMPLEMENTED");
++		return false;
+ 	}
+ 
+ 	panic("UNREACHABLE");
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+index cb656825c0..a5d11f9ae9 100755
+--- a/usr/gri/gosrc/universe.go
++++ b/usr/gri/gosrc/universe.go
+@@ -48,7 +48,9 @@ export var (
+ 	ptrint_t *Globals.Type;
+ 	
+ 	true_,
+-	false_ *Globals.Object;
++	false_,
++	iota_,
++	nil_ *Globals.Object;
+ )
+ 
+ 
+@@ -72,17 +74,17 @@ func DeclType(form int, ident string, size int) *Globals.Type {
+ 
+ func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
+ 	alias := Globals.NewType(Type.ALIAS);
+-	alias.aux = typ;
++	alias.key = typ;
+ 	alias.elt = typ;
+ 	return DeclObj(Object.TYPE, ident, alias).typ;
+ }
+ 
+ 
+ func Register(typ *Globals.Type) *Globals.Type {
+-	if types.len_ < 0 {
+-		panic("types.len_ < 0");
++	if types.len < 0 {
++		panic("types.len < 0");
+ 	}
+-	typ.ref = types.len_;
++	typ.ref = types.len;
+ 	types.AddTyp(typ);
+ 	return typ;
+ }
+@@ -96,7 +98,7 @@ func init() {
+ 	void_t = Globals.NewType(Type.VOID);
+ 	Globals.Universe_void_t = void_t;
+ 	bad_t = Globals.NewType(Type.BAD);
+-	nil_t = DeclType(Type.NIL, "nil", 8);
++	nil_t = Globals.NewType(Type.NIL);
+ 	
+ 	// Basic types
+ 	bool_t = Register(DeclType(Type.BOOL, "bool", 1));
+@@ -130,9 +132,14 @@ func init() {
+ 	// Predeclared constants
+ 	true_ = DeclObj(Object.CONST, "true", bool_t);
+ 	false_ = DeclObj(Object.CONST, "false", bool_t);
++	iota_ = DeclObj(Object.CONST, "iota", int_t);
++	nil_ = DeclObj(Object.CONST, "nil", nil_t);
+ 
+ 	// Builtin functions
+-	DeclObj(Object.FUNC, "len", Globals.NewType(Type.FUNCTION));  // incomplete
++	DeclObj(Object.BUILTIN, "len", void_t);
++	DeclObj(Object.BUILTIN, "new", void_t);
++	DeclObj(Object.BUILTIN, "panic", void_t);
++	DeclObj(Object.BUILTIN, "print", void_t);
+ 	
+ 	// scope.Print();
+ }
+diff --git a/usr/gri/gosrc/verifier.go b/usr/gri/gosrc/verifier.go
+index 9c1405e6ef..640a8ff742 100644
+--- a/usr/gri/gosrc/verifier.go
++++ b/usr/gri/gosrc/verifier.go
+@@ -46,11 +46,15 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
+ 
+ 	switch typ.form {
+ 	case Type.VOID:
++	case Type.BAD:
+ 		break;  // TODO for now - remove eventually
++		
+ 	case Type.FORWARD:
+ 		if typ.scope == nil {
+ 			Error("forward types must have a scope");
+ 		}
++
++	case Type.TUPLE:
+ 		break;
+ 	case Type.NIL:
+ 		break;
+@@ -82,8 +86,6 @@ func (V *Verifier) VerifyType(typ *Globals.Type) {
+ 		break;
+ 	case Type.POINTER:
+ 		break;
+-	case Type.REFERENCE:
+-		break;
+ 	default:
+ 		Error("illegal type form " + Type.FormStr(typ.form));
+ 	}
+@@ -139,12 +141,12 @@ func (V *Verifier) VerifyPackage(pkg *Globals.Package, pno int) {
+ func (V *Verifier) Verify(comp *Globals.Compilation) {
+ 	// initialize Verifier
+ 	V.comp = comp;
+-	V.objs = new(map[*Globals.Object] bool);
+-	V.typs = new(map[*Globals.Type] bool);
+-	V.pkgs = new(map[*Globals.Package] bool);
++	V.objs = make(map[*Globals.Object] bool);
++	V.typs = make(map[*Globals.Type] bool);
++	V.pkgs = make(map[*Globals.Package] bool);
+ 
+ 	// verify all packages
+-	filenames := new(map[string] bool);
++	filenames := make(map[string] bool);
+ 	for i := 0; i < comp.pkg_ref; i++ {
+ 		pkg := comp.pkg_list[i];
+ 		// each pkg filename must appear only once
+@@ -158,6 +160,6 @@ func (V *Verifier) Verify(comp *Globals.Compilation) {
+ 
+ 
+ export func Verify(comp *Globals.Compilation) {
+-	V := new(*Verifier);
++	V := new(Verifier);
+ 	V.Verify(comp);
+ }

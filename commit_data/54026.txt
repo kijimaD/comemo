@@ -27,7 +27,7 @@ Date:   Wed Aug 31 18:21:48 2022 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/debugcall.go |  3 +--
  src/runtime/heapdump.go  |  3 +--
  src/runtime/mgc.go       |  7 +++----
@@ -35,3 +35,182 @@ Date:   Wed Aug 31 18:21:48 2022 +0000
  src/runtime/proc.go      | 17 ++++++++++++++---
  src/runtime/runtime2.go  |  6 ++++++
  6 files changed, 27 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 2f164e7fd7..a4393b121a 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -158,11 +158,10 @@ func debugCallWrap(dispatch uintptr) {
+ 		gp.schedlink = 0
+ 
+ 		// Park the calling goroutine.
+-		gp.waitreason = waitReasonDebugCall
+ 		if trace.enabled {
+ 			traceGoPark(traceEvGoBlock, 1)
+ 		}
+-		casgstatus(gp, _Grunning, _Gwaiting)
++		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
+ 		dropg()
+ 
+ 		// Directly execute the new goroutine. The debug
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 322838ab88..6fcc232313 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -691,8 +691,7 @@ func writeheapdump_m(fd uintptr, m *MemStats) {
+ 	assertWorldStopped()
+ 
+ 	gp := getg()
+-	casgstatus(gp.m.curg, _Grunning, _Gwaiting)
+-	gp.waitreason = waitReasonDumpingHeap
++	casGToWaiting(gp.m.curg, _Grunning, waitReasonDumpingHeap)
+ 
+ 	// Set dump file.
+ 	dumpfd = fd
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 3b562181ea..6a9d278187 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -810,7 +810,7 @@ top:
+ 		// Otherwise, our attempt to force all P's to a safepoint could
+ 		// result in a deadlock as we attempt to preempt a worker that's
+ 		// trying to preempt us (e.g. for a stack scan).
+-		casgstatus(gp, _Grunning, _Gwaiting)
++		casGToWaiting(gp, _Grunning, waitReasonGCMarkTermination)
+ 		forEachP(func(pp *p) {
+ 			// Flush the write barrier buffer, since this may add
+ 			// work to the gcWork.
+@@ -931,8 +931,7 @@ func gcMarkTermination() {
+ 	mp.preemptoff = "gcing"
+ 	mp.traceback = 2
+ 	curgp := mp.curg
+-	casgstatus(curgp, _Grunning, _Gwaiting)
+-	curgp.waitreason = waitReasonGarbageCollection
++	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
+ 
+ 	// Run gc on the g0 stack. We do this so that the g stack
+ 	// we're currently running on will no longer change. Cuts
+@@ -1332,7 +1331,7 @@ func gcBgMarkWorker() {
+ 			// the G stack. However, stack shrinking is
+ 			// disabled for mark workers, so it is safe to
+ 			// read from the G stack.
+-			casgstatus(gp, _Grunning, _Gwaiting)
++			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
+ 			switch pp.gcMarkWorkerMode {
+ 			default:
+ 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 90240c3159..cfda7064cd 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -218,8 +218,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 			userG := getg().m.curg
+ 			selfScan := gp == userG && readgstatus(userG) == _Grunning
+ 			if selfScan {
+-				casgstatus(userG, _Grunning, _Gwaiting)
+-				userG.waitreason = waitReasonGarbageCollectionScan
++				casGToWaiting(userG, _Grunning, waitReasonGarbageCollectionScan)
+ 			}
+ 
+ 			// TODO: suspendG blocks (and spins) until gp
+@@ -560,8 +559,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	}
+ 
+ 	// gcDrainN requires the caller to be preemptible.
+-	casgstatus(gp, _Grunning, _Gwaiting)
+-	gp.waitreason = waitReasonGCAssistMarking
++	casGToWaiting(gp, _Grunning, waitReasonGCAssistMarking)
+ 
+ 	// drain own cached work first in the hopes that it
+ 	// will be more cache friendly.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1e4d4098b6..0fed91c61e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1027,6 +1027,14 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 	}
+ }
+ 
++// casGToWaiting transitions gp from old to _Gwaiting, and sets the wait reason.
++//
++// Use this over casgstatus when possible to ensure that a waitreason is set.
++func casGToWaiting(gp *g, old uint32, reason waitReason) {
++	gp.waitreason = reason
++	casgstatus(gp, old, _Gwaiting)
++}
++
+ // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+ // Returns old status. Cannot call casgstatus directly, because we are racing with an
+ // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
+@@ -1066,6 +1074,7 @@ func casGFromPreempted(gp *g, old, new uint32) bool {
+ 	if old != _Gpreempted || new != _Gwaiting {
+ 		throw("bad g transition")
+ 	}
++	gp.waitreason = waitReasonPreempted
+ 	return gp.atomicstatus.CompareAndSwap(_Gpreempted, _Gwaiting)
+ }
+ 
+@@ -1098,7 +1107,8 @@ func stopTheWorld(reason string) {
+ 		// must have preempted all goroutines, including any attempting
+ 		// to scan our stack, in which case, any stack shrinking will
+ 		// have already completed by the time we exit.
+-		casgstatus(gp, _Grunning, _Gwaiting)
++		// Don't provide a wait reason because we're still executing.
++		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
+ 		stopTheWorldWithSema()
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+@@ -3395,6 +3405,8 @@ func park_m(gp *g) {
+ 		traceGoPark(mp.waittraceev, mp.waittraceskip)
+ 	}
+ 
++	// N.B. Not using casGToWaiting here because the waitreason is
++	// set by park_m's caller.
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+ 	dropg()
+ 
+@@ -3468,7 +3480,6 @@ func preemptPark(gp *g) {
+ 		dumpgstatus(gp)
+ 		throw("bad g status")
+ 	}
+-	gp.waitreason = waitReasonPreempted
+ 
+ 	if gp.asyncSafePoint {
+ 		// Double-check that async preemption does not
+@@ -3545,7 +3556,7 @@ func goexit0(gp *g) {
+ 	gp._defer = nil // should be true already but just in case.
+ 	gp._panic = nil // non-nil for Goexit during panic. points at stack-allocated data.
+ 	gp.writebuf = nil
+-	gp.waitreason = 0
++	gp.waitreason = waitReasonZero
+ 	gp.param = nil
+ 	gp.labels = nil
+ 	gp.timer = nil
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index a5b0135470..1d36126a03 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1060,8 +1060,11 @@ const (
+ 	waitReasonTraceReaderBlocked                      // "trace reader (blocked)"
+ 	waitReasonWaitForGCCycle                          // "wait for GC cycle"
+ 	waitReasonGCWorkerIdle                            // "GC worker (idle)"
++	waitReasonGCWorkerActive                          // "GC worker (active)"
+ 	waitReasonPreempted                               // "preempted"
+ 	waitReasonDebugCall                               // "debug call"
++	waitReasonGCMarkTermination                       // "GC mark termination"
++	waitReasonStoppingTheWorld                        // "stopping the world"
+ )
+ 
+ var waitReasonStrings = [...]string{
+@@ -1092,8 +1095,11 @@ var waitReasonStrings = [...]string{
+ 	waitReasonTraceReaderBlocked:    "trace reader (blocked)",
+ 	waitReasonWaitForGCCycle:        "wait for GC cycle",
+ 	waitReasonGCWorkerIdle:          "GC worker (idle)",
++	waitReasonGCWorkerActive:        "GC worker (active)",
+ 	waitReasonPreempted:             "preempted",
+ 	waitReasonDebugCall:             "debug call",
++	waitReasonGCMarkTermination:     "GC mark termination",
++	waitReasonStoppingTheWorld:      "stopping the world",
+ }
+ 
+ func (w waitReason) String() string {

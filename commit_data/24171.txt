@@ -8,6 +8,22 @@ Date:   Mon Jul 13 21:22:16 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/12129
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b016bb1838..3ad21a6193 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -719,6 +719,10 @@ func (s *state) addr(n *Node) *ssa.Value {
+ 			s.boundsCheck(i, len)
+ 			return s.newValue2(ssa.OpPtrIndex, Ptrto(n.Left.Type.Type), a, i)
+ 		}
++	case OIND:
++		p := s.expr(n.Left)
++		s.nilCheck(p)
++		return p
+ 	case ODOT:
+ 		p := s.addr(n.Left)
+ 		return s.newValue2(ssa.OpAdd, p.Type, p, s.constInt(s.config.Uintptr, n.Xoffset))

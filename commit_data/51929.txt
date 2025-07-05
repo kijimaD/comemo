@@ -19,7 +19,7 @@ Date:   Wed Mar 23 14:24:26 2022 -0700
     Trust: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  test/fixedbugs/bug345.go           |  5 +----
  test/fixedbugs/issue19467.dir/z.go |  7 ++++---
  test/fixedbugs/issue29919.dir/a.go |  4 ++--
@@ -28,3 +28,202 @@ Date:   Wed Mar 23 14:24:26 2022 -0700
  test/linkname.dir/linkname2.go     |  2 +-
  test/run.go                        | 32 ++++++++++++++------------------
  7 files changed, 28 insertions(+), 33 deletions(-)
+
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index b974a61ffb..d9349fb06f 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,10 +1,7 @@
+-// +build !windows
+-// errorcheckdir -n
++// errorcheckdir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package ignored
+-
+-// TODO(ysmolsky): Fix golang.org/issue/25693 to enable on Windows.
+diff --git a/test/fixedbugs/issue19467.dir/z.go b/test/fixedbugs/issue19467.dir/z.go
+index d381103ce7..cfbf34869c 100644
+--- a/test/fixedbugs/issue19467.dir/z.go
++++ b/test/fixedbugs/issue19467.dir/z.go
+@@ -5,9 +5,10 @@
+ package main
+ 
+ import (
+-	"./mysync"
+ 	"log"
+ 	"runtime"
++
++	"./mysync"
+ )
+ 
+ func main() {
+@@ -23,8 +24,8 @@ func main() {
+ 		}
+ 	}
+ 	expecting := []string{
+-		"mysync.(*WaitGroup).Add",
+-		"mysync.(*WaitGroup).Done",
++		"test/mysync.(*WaitGroup).Add",
++		"test/mysync.(*WaitGroup).Done",
+ 	}
+ 	for i := 0; i < 2; i++ {
+ 		if frames[i].Function != expecting[i] {
+diff --git a/test/fixedbugs/issue29919.dir/a.go b/test/fixedbugs/issue29919.dir/a.go
+index 078f973b4b..3b1dac40aa 100644
+--- a/test/fixedbugs/issue29919.dir/a.go
++++ b/test/fixedbugs/issue29919.dir/a.go
+@@ -51,14 +51,14 @@ func f() int {
+ 	}
+ 	iter := runtime.CallersFrames(pcs[:n])
+ 	f, more := iter.Next()
+-	if f.Function != "a.f" || !strings.HasSuffix(f.File, "a.go") || f.Line != 22 {
++	if f.Function != "test/a.f" || !strings.HasSuffix(f.File, "a.go") || f.Line != 22 {
+ 		panic(fmt.Sprintf("bad f %v\n", f))
+ 	}
+ 	if !more {
+ 		panic("traceback truncated after f")
+ 	}
+ 	f, more = iter.Next()
+-	if f.Function != "a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
++	if f.Function != "test/a.init" || !strings.HasSuffix(f.File, "a.go") || f.Line != 15 {
+ 		panic(fmt.Sprintf("bad init %v\n", f))
+ 	}
+ 	if !more {
+diff --git a/test/fixedbugs/issue42401.dir/b.go b/test/fixedbugs/issue42401.dir/b.go
+index a834f4efe8..fc675d8230 100644
+--- a/test/fixedbugs/issue42401.dir/b.go
++++ b/test/fixedbugs/issue42401.dir/b.go
+@@ -5,11 +5,12 @@
+ package main
+ 
+ import (
+-	"./a"
+ 	_ "unsafe"
++
++	"./a"
+ )
+ 
+-//go:linkname s a.s
++//go:linkname s test/a.s
+ var s string
+ 
+ func main() {
+diff --git a/test/fixedbugs/issue5957.dir/c.go b/test/fixedbugs/issue5957.dir/c.go
+index d115eacdd5..821b37e4ca 100644
+--- a/test/fixedbugs/issue5957.dir/c.go
++++ b/test/fixedbugs/issue5957.dir/c.go
+@@ -1,9 +1,9 @@
+ package p
+ 
+ import (
+-	"./a" // ERROR "imported and not used: \x22a\x22 as surprise|imported and not used: surprise"
+-	"./b" // ERROR "imported and not used: \x22b\x22 as surprise2|imported and not used: surprise2"
+-	b "./b" // ERROR "imported and not used: \x22b\x22$|imported and not used: surprise2"
++	"./a" // ERROR "imported and not used: \x22test/a\x22 as surprise|imported and not used: surprise"
++	"./b" // ERROR "imported and not used: \x22test/b\x22 as surprise2|imported and not used: surprise2"
++	b "./b" // ERROR "imported and not used: \x22test/b\x22$|imported and not used: surprise2"
+ 	foo "math" // ERROR "imported and not used: \x22math\x22 as foo|imported and not used: math"
+ 	"fmt" // actually used
+ 	"strings" // ERROR "imported and not used: \x22strings\x22|imported and not used: strings"
+diff --git a/test/linkname.dir/linkname2.go b/test/linkname.dir/linkname2.go
+index 9323ac5f1e..d2ee841624 100644
+--- a/test/linkname.dir/linkname2.go
++++ b/test/linkname.dir/linkname2.go
+@@ -2,7 +2,7 @@ package y
+ 
+ import _ "unsafe"
+ 
+-//go:linkname byteIndex linkname1.indexByte
++//go:linkname byteIndex test/linkname1.indexByte
+ func byteIndex(xs []byte, b byte) int // ERROR "leaking param: xs"
+ 
+ func ContainsSlash(data []byte) bool { // ERROR "leaking param: data" "can inline ContainsSlash"
+diff --git a/test/run.go b/test/run.go
+index e5dd0e443c..61b31780d5 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -263,14 +263,13 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
+ 	return runcmd(cmd...)
+ }
+ 
+-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, pkgname string, names ...string) (out []byte, err error) {
+-	if pkgname != "main" {
+-		pkgname = strings.TrimSuffix(names[0], ".go")
+-	}
+-	cmd := []string{goTool(), "tool", "compile", "-e", "-p=" + pkgname}
+-	if localImports {
+-		// Set relative path for local imports and import search path to current dir.
+-		cmd = append(cmd, "-D", ".", "-I", ".")
++func compileInDir(runcmd runCmd, dir string, flags []string, pkgname string, names ...string) (out []byte, err error) {
++	cmd := []string{goTool(), "tool", "compile", "-e", "-D", "test", "-I", "."}
++	if pkgname == "main" {
++		cmd = append(cmd, "-p=main")
++	} else {
++		pkgname = path.Join("test", strings.TrimSuffix(names[0], ".go"))
++		cmd = append(cmd, "-o", pkgname+".a", "-p", pkgname)
+ 	}
+ 	cmd = append(cmd, flags...)
+ 	if *linkshared {
+@@ -615,7 +614,6 @@ func (t *test) run() {
+ 	wantError := false
+ 	wantAuto := false
+ 	singlefilepkgs := false
+-	localImports := true
+ 	f, err := splitQuoted(action)
+ 	if err != nil {
+ 		t.err = fmt.Errorf("invalid test recipe: %v", err)
+@@ -659,12 +657,6 @@ func (t *test) run() {
+ 			wantError = false
+ 		case "-s":
+ 			singlefilepkgs = true
+-		case "-n":
+-			// Do not set relative path for local imports to current dir,
+-			// e.g. do not pass -D . -I . to the compiler.
+-			// Used in fixedbugs/bug345.go to allow compilation and import of local pkg.
+-			// See golang.org/issue/25635
+-			localImports = false
+ 		case "-t": // timeout in seconds
+ 			args = args[1:]
+ 			var err error
+@@ -886,7 +878,7 @@ func (t *test) run() {
+ 			return
+ 		}
+ 		for _, pkg := range pkgs {
+-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
++			_, t.err = compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+ 			if t.err != nil {
+ 				return
+ 			}
+@@ -910,7 +902,7 @@ func (t *test) run() {
+ 			errPkg--
+ 		}
+ 		for i, pkg := range pkgs {
+-			out, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
++			out, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+ 			if i == errPkg {
+ 				if wantError && err == nil {
+ 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+@@ -959,7 +951,7 @@ func (t *test) run() {
+ 		}
+ 
+ 		for i, pkg := range pkgs {
+-			_, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
++			_, err := compileInDir(runcmd, longdir, flags, pkg.name, pkg.files...)
+ 			// Allow this package compilation fail based on conditions below;
+ 			// its errors were checked in previous case.
+ 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
+@@ -1283,6 +1275,10 @@ func (t *test) makeTempDir() {
+ 	if *keep {
+ 		log.Printf("Temporary directory is %s", t.tempDir)
+ 	}
++	err = os.Mkdir(filepath.Join(t.tempDir, "test"), 0o755)
++	if err != nil {
++		log.Fatal(err)
++	}
+ }
+ 
+ // checkExpectedOutput compares the output from compiling and/or running with the contents

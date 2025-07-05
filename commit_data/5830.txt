@@ -7,6 +7,19 @@ Date:   Fri Jul 16 11:05:38 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1686054
-
+---
  src/pkg/runtime/mgc0.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 2324eff290..93a8f6d810 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -27,7 +27,6 @@ static G *fing;
+ static Finalizer *finq;
+ static int32 fingwait;
+ 
+-static void sweepblock(byte*, int64, uint32*, int32);
+ static void runfinq(void);
+ 
+ enum {

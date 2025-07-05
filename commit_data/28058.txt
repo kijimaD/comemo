@@ -9,6 +9,20 @@ Date:   Wed Apr 27 11:08:58 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/syscall/sockcmsg_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/sockcmsg_unix.go b/src/syscall/sockcmsg_unix.go
+index b7a7c83286..bc4caf54a2 100644
+--- a/src/syscall/sockcmsg_unix.go
++++ b/src/syscall/sockcmsg_unix.go
+@@ -62,7 +62,7 @@ func ParseSocketControlMessage(b []byte) ([]SocketControlMessage, error) {
+ 
+ func socketControlMessageHeaderAndData(b []byte) (*Cmsghdr, []byte, error) {
+ 	h := (*Cmsghdr)(unsafe.Pointer(&b[0]))
+-	if h.Len < SizeofCmsghdr || int(h.Len) > len(b) {
++	if h.Len < SizeofCmsghdr || uint64(h.Len) > uint64(len(b)) {
+ 		return nil, nil, EINVAL
+ 	}
+ 	return h, b[cmsgAlignOf(SizeofCmsghdr):h.Len], nil

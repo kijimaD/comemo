@@ -16,6 +16,19 @@ Date:   Wed Mar 15 07:35:43 2023 +0800
     Run-TryBot: Wayne Zuo <wdvxdr@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_loong64.s | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index d2b15144e0..b2aa5efea6 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -128,7 +128,6 @@ TEXT runtime·mcall(SB), NOSPLIT|NOFRAME, $0-8
+ 	MOVV	R3, (g_sched+gobuf_sp)(g)
+ 	MOVV	R1, (g_sched+gobuf_pc)(g)
+ 	MOVV	R0, (g_sched+gobuf_lr)(g)
+-	MOVV	g, (g_sched+gobuf_g)(g)
+ 
+ 	// Switch to m->g0 & its stack, call fn.
+ 	MOVV	g, R19

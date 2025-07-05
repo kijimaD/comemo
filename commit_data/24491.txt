@@ -20,7 +20,36 @@ Date:   Thu Jul 30 15:20:12 2015 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/go_test.go | 2 +-
  src/cmd/go/pkg.go     | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c89543871b..783ae554ba 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -765,7 +765,7 @@ func TestGoInstallErrorOnCrossCompileToBin(t *testing.T) {
+ 	}
+ 	tg.setenv("GOOS", "linux")
+ 	tg.setenv("GOARCH", goarch)
+-	tg.runFail("install", "mycmd")
++	tg.run("install", "mycmd")
+ 	tg.setenv("GOBIN", tg.path("."))
+ 	tg.runFail("install", "mycmd")
+ 	tg.run("install", "cmd/pack")
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 98c9594d2e..a2c5ba7e5e 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -744,8 +744,8 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		} else if p.build.BinDir != "" {
+ 			// Install to GOBIN or bin of GOPATH entry.
+ 			p.target = filepath.Join(p.build.BinDir, elem)
+-			if !p.Goroot && strings.Contains(elem, "/") {
+-				// Do not create bin/goos_goarch/elem.
++			if !p.Goroot && strings.Contains(elem, "/") && gobin != "" {
++				// Do not create $GOBIN/goos_goarch/elem.
+ 				p.target = ""
+ 				p.gobinSubdir = true
+ 			}

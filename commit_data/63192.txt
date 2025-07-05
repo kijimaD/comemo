@@ -13,7 +13,7 @@ Date:   Wed May 21 23:55:43 2025 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/69521.txt                               |  9 +++++
  doc/next/6-stdlib/99-minor/crypto/sha3/69521.md  |  1 +
  doc/next/6-stdlib/99-minor/hash/69521.md         |  2 ++
@@ -39,3 +39,591 @@ Date:   Wed May 21 23:55:43 2025 +0200
  src/hash/maphash/maphash.go                      | 10 +++++-
  src/internal/testhash/hash.go                    | 42 ++++++++++++++++++++++++
  24 files changed, 243 insertions(+), 22 deletions(-)
+
+diff --git a/api/next/69521.txt b/api/next/69521.txt
+new file mode 100644
+index 0000000000..6974226086
+--- /dev/null
++++ b/api/next/69521.txt
+@@ -0,0 +1,9 @@
++pkg crypto/sha3, method (*SHA3) Clone() (hash.Cloner, error) #69521
++pkg hash, type Cloner interface { BlockSize, Clone, Reset, Size, Sum, Write } #69521
++pkg hash, type Cloner interface, BlockSize() int #69521
++pkg hash, type Cloner interface, Clone() (Cloner, error) #69521
++pkg hash, type Cloner interface, Reset() #69521
++pkg hash, type Cloner interface, Size() int #69521
++pkg hash, type Cloner interface, Sum([]uint8) []uint8 #69521
++pkg hash, type Cloner interface, Write([]uint8) (int, error) #69521
++pkg hash/maphash, method (*Hash) Clone() (hash.Cloner, error) #69521
+diff --git a/doc/next/6-stdlib/99-minor/crypto/sha3/69521.md b/doc/next/6-stdlib/99-minor/crypto/sha3/69521.md
+new file mode 100644
+index 0000000000..2af674dcb4
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/sha3/69521.md
+@@ -0,0 +1 @@
++The new [SHA3.Clone] method implements [hash.Cloner](/pkg/hash#Cloner).
+diff --git a/doc/next/6-stdlib/99-minor/hash/69521.md b/doc/next/6-stdlib/99-minor/hash/69521.md
+new file mode 100644
+index 0000000000..a8d58e3074
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/69521.md
+@@ -0,0 +1,2 @@
++Hashes implementing the new [Cloner] interface can return a copy of their state.
++All standard library [Hash] implementations now implement [Cloner].
+diff --git a/doc/next/6-stdlib/99-minor/hash/maphash/69521.md b/doc/next/6-stdlib/99-minor/hash/maphash/69521.md
+new file mode 100644
+index 0000000000..497df8b6aa
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/maphash/69521.md
+@@ -0,0 +1 @@
++The new [Hash.Clone] method implements [hash.Cloner](/pkg/hash#Cloner).
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index 7accad7632..9b7eee7bf7 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -632,6 +632,18 @@ func TestHMACHash(t *testing.T) {
+ 	}
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	h := New(sha256.New, []byte("key"))
++	cryptotest.NoExtraMethods(t, maybeCloner(h))
++}
++
++func maybeCloner(h hash.Hash) any {
++	if c, ok := h.(hash.Cloner); ok {
++		return &c
++	}
++	return &h
++}
++
+ func BenchmarkHMACSHA256_1K(b *testing.B) {
+ 	key := make([]byte, 32)
+ 	buf := make([]byte, 1024)
+diff --git a/src/crypto/internal/cryptotest/hash.go b/src/crypto/internal/cryptotest/hash.go
+index a2916e9c87..f00e9c80d3 100644
+--- a/src/crypto/internal/cryptotest/hash.go
++++ b/src/crypto/internal/cryptotest/hash.go
+@@ -5,6 +5,8 @@
+ package cryptotest
+ 
+ import (
++	"crypto/internal/boring"
++	"crypto/internal/fips140"
+ 	"hash"
+ 	"internal/testhash"
+ 	"io"
+@@ -18,6 +20,10 @@ type MakeHash func() hash.Hash
+ // TestHash performs a set of tests on hash.Hash implementations, checking the
+ // documented requirements of Write, Sum, Reset, Size, and BlockSize.
+ func TestHash(t *testing.T, mh MakeHash) {
++	if boring.Enabled || fips140.Version() == "v1.0" {
++		testhash.TestHashWithoutClone(t, testhash.MakeHash(mh))
++		return
++	}
+ 	testhash.TestHash(t, testhash.MakeHash(mh))
+ }
+ 
+diff --git a/src/crypto/internal/fips140/hmac/hmac.go b/src/crypto/internal/fips140/hmac/hmac.go
+index 3d193d5592..9b28017662 100644
+--- a/src/crypto/internal/fips140/hmac/hmac.go
++++ b/src/crypto/internal/fips140/hmac/hmac.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
++	"errors"
+ 	"hash"
+ )
+ 
+@@ -29,6 +30,7 @@ type marshalable interface {
+ }
+ 
+ type HMAC struct {
++	// opad and ipad may share underlying storage with HMAC clones.
+ 	opad, ipad   []byte
+ 	outer, inner hash.Hash
+ 
+@@ -128,6 +130,30 @@ func (h *HMAC) Reset() {
+ 	h.marshaled = true
+ }
+ 
++// Clone implements [hash.Cloner] if the underlying hash does.
++// Otherwise, it returns [errors.ErrUnsupported].
++func (h *HMAC) Clone() (hash.Cloner, error) {
++	r := *h
++	ic, ok := h.inner.(hash.Cloner)
++	if !ok {
++		return nil, errors.ErrUnsupported
++	}
++	oc, ok := h.outer.(hash.Cloner)
++	if !ok {
++		return nil, errors.ErrUnsupported
++	}
++	var err error
++	r.inner, err = ic.Clone()
++	if err != nil {
++		return nil, errors.ErrUnsupported
++	}
++	r.outer, err = oc.Clone()
++	if err != nil {
++		return nil, errors.ErrUnsupported
++	}
++	return &r, nil
++}
++
+ // New returns a new HMAC hash using the given [hash.Hash] type and key.
+ func New[H hash.Hash](h func() H, key []byte) *HMAC {
+ 	hm := &HMAC{keyLen: len(key)}
+diff --git a/src/crypto/internal/fips140/sha256/sha256.go b/src/crypto/internal/fips140/sha256/sha256.go
+index bc157f9adb..a51ad2be24 100644
+--- a/src/crypto/internal/fips140/sha256/sha256.go
++++ b/src/crypto/internal/fips140/sha256/sha256.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140deps/byteorder"
+ 	"errors"
++	"hash"
+ )
+ 
+ // The size of a SHA-256 checksum in bytes.
+@@ -115,6 +116,11 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ 	return b[4:], byteorder.BEUint32(b)
+ }
+ 
++func (d *Digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ func (d *Digest) Reset() {
+ 	if !d.is224 {
+ 		d.h[0] = init0
+diff --git a/src/crypto/internal/fips140/sha512/sha512.go b/src/crypto/internal/fips140/sha512/sha512.go
+index 55c90a8cd6..3e7a5e11f1 100644
+--- a/src/crypto/internal/fips140/sha512/sha512.go
++++ b/src/crypto/internal/fips140/sha512/sha512.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140deps/byteorder"
+ 	"errors"
++	"hash"
+ )
+ 
+ const (
+@@ -194,6 +195,11 @@ func consumeUint64(b []byte) ([]byte, uint64) {
+ 	return b[8:], byteorder.BEUint64(b)
+ }
+ 
++func (d *Digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ // New returns a new Digest computing the SHA-512 hash.
+ func New() *Digest {
+ 	d := &Digest{size: size512}
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index dc586fb217..9274f89d3e 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -104,6 +104,11 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ 	return b[4:], byteorder.BEUint32(b[0:4])
+ }
+ 
++func (d *digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ // New returns a new [hash.Hash] computing the MD5 checksum. The Hash
+ // also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index c0bb15f05b..403ff2881f 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -270,10 +270,17 @@ func TestMD5Hash(t *testing.T) {
+ }
+ 
+ func TestExtraMethods(t *testing.T) {
+-	h := New()
++	h := maybeCloner(New())
+ 	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ }
+ 
++func maybeCloner(h hash.Hash) any {
++	if c, ok := h.(hash.Cloner); ok {
++		return &c
++	}
++	return &h
++}
++
+ var bench = New()
+ var buf = make([]byte, 1024*1024*8+1)
+ var sum = make([]byte, bench.Size())
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index d2ffaac0ae..3acc5b11fb 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -93,6 +93,11 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ 	return b[4:], byteorder.BEUint32(b)
+ }
+ 
++func (d *digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ func (d *digest) Reset() {
+ 	d.h[0] = init0
+ 	d.h[1] = init1
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 0a0596e56c..ef6e5ddcbb 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -242,11 +242,18 @@ func TestSHA1Hash(t *testing.T) {
+ }
+ 
+ func TestExtraMethods(t *testing.T) {
+-	h := New()
++	h := maybeCloner(New())
+ 	cryptotest.NoExtraMethods(t, &h, "ConstantTimeSum",
+ 		"MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ }
+ 
++func maybeCloner(h hash.Hash) any {
++	if c, ok := h.(hash.Cloner); ok {
++		return &c
++	}
++	return &h
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 38a7f25afb..11b24db7d6 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -403,18 +403,25 @@ func TestHash(t *testing.T) {
+ func TestExtraMethods(t *testing.T) {
+ 	t.Run("SHA-224", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+-			h := New224()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New224())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ 	t.Run("SHA-256", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+-			h := New()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ }
+ 
++func maybeCloner(h hash.Hash) any {
++	if c, ok := h.(hash.Cloner); ok {
++		return &c
++	}
++	return &h
++}
++
+ var bench = New()
+ 
+ func benchmarkSize(b *testing.B, size int) {
+diff --git a/src/crypto/sha3/sha3.go b/src/crypto/sha3/sha3.go
+index a6c5ae55f1..2a1b3ca700 100644
+--- a/src/crypto/sha3/sha3.go
++++ b/src/crypto/sha3/sha3.go
+@@ -166,6 +166,12 @@ func (s *SHA3) UnmarshalBinary(data []byte) error {
+ 	return s.s.UnmarshalBinary(data)
+ }
+ 
++// Clone implements [hash.Cloner].
++func (d *SHA3) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ // SHAKE is an instance of a SHAKE extendable output function.
+ type SHAKE struct {
+ 	s sha3.SHAKE
+diff --git a/src/crypto/sha3/sha3_test.go b/src/crypto/sha3/sha3_test.go
+index 6757d6efa1..15ee877236 100644
+--- a/src/crypto/sha3/sha3_test.go
++++ b/src/crypto/sha3/sha3_test.go
+@@ -42,13 +42,14 @@ var testShakes = map[string]struct {
+ 	"cSHAKE256": {NewCSHAKE256, "CSHAKE256", "CustomString"},
+ }
+ 
+-// decodeHex converts a hex-encoded string into a raw byte string.
+-func decodeHex(s string) []byte {
+-	b, err := hex.DecodeString(s)
+-	if err != nil {
+-		panic(err)
+-	}
+-	return b
++func TestSHA3Hash(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
++		for name, f := range testDigests {
++			t.Run(name, func(t *testing.T) {
++				cryptotest.TestHash(t, func() hash.Hash { return f() })
++			})
++		}
++	})
+ }
+ 
+ // TestUnalignedWrite tests that writing data in an arbitrary pattern with
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 7e80f49dea..080bf694f0 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -966,30 +966,37 @@ func TestHash(t *testing.T) {
+ func TestExtraMethods(t *testing.T) {
+ 	t.Run("SHA-384", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+-			h := New384()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New384())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ 	t.Run("SHA-512/224", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+-			h := New512_224()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New512_224())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ 	t.Run("SHA-512/256", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+-			h := New512_256()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New512_256())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ 	t.Run("SHA-512", func(t *testing.T) {
+ 		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+-			h := New()
+-			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++			h := maybeCloner(New())
++			cryptotest.NoExtraMethods(t, h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
+ 		})
+ 	})
+ }
+ 
++func maybeCloner(h hash.Hash) any {
++	if c, ok := h.(hash.Cloner); ok {
++		return &c
++	}
++	return &h
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index e2551e0952..c6179789ea 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -78,6 +78,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++func (d *digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ // Add p to the running checksum d.
+ func update(d digest, p []byte) digest {
+ 	s1, s2 := uint32(d&0xffff), uint32(d>>16)
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index d40bb1b7ac..e58f112319 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -194,6 +194,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++func (d *digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ func update(crc uint32, tab *Table, p []byte, checkInitIEEE bool) uint32 {
+ 	switch {
+ 	case haveCastagnoli.Load() && tab == castagnoliTable:
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index c40c7024b6..1e551ff454 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -133,6 +133,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++func (d *digest) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
+ func update(crc uint64, tab *Table, p []byte) uint64 {
+ 	buildSlicing8TablesOnce()
+ 	crc = ^crc
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index 5c4b9b5da8..dd4a77ce1a 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -348,3 +348,33 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
+ 	s[1] = byteorder.BEUint64(b[12:])
+ 	return nil
+ }
++
++func (d *sum32) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
++func (d *sum32a) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
++func (d *sum64) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
++func (d *sum64a) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
++func (d *sum128) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
++
++func (d *sum128a) Clone() (hash.Cloner, error) {
++	r := *d
++	return &r, nil
++}
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index c72c4af710..6483bc1086 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -57,6 +57,18 @@ type Hash64 interface {
+ 	Sum64() uint64
+ }
+ 
++// A Cloner is a hash function whose state can be cloned.
++//
++// All [Hash] implementations in the standard library implement this interface,
++// unless GOFIPS140=v1.0.0 is set.
++//
++// If a hash can only determine at runtime if it can be cloned,
++// (e.g., if it wraps another hash), it may return [errors.ErrUnsupported].
++type Cloner interface {
++	Hash
++	Clone() (Cloner, error)
++}
++
+ // XOF (extendable output function) is a hash function with arbitrary or unlimited output length.
+ type XOF interface {
+ 	// Write absorbs more data into the XOF's state. It panics if called
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index a8872d72a5..5004539f07 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -13,6 +13,7 @@
+ package maphash
+ 
+ import (
++	"hash"
+ 	"internal/byteorder"
+ 	"math"
+ )
+@@ -80,7 +81,7 @@ func String(seed Seed, s string) uint64 {
+ //
+ // The zero Hash is a valid Hash ready to use.
+ // A zero Hash chooses a random seed for itself during
+-// the first call to a Reset, Write, Seed, or Sum64 method.
++// the first call to a Reset, Write, Seed, Clone, or Sum64 method.
+ // For control over the seed, use SetSeed.
+ //
+ // The computed hash values depend only on the initial seed and
+@@ -281,6 +282,13 @@ func (h *Hash) Size() int { return 8 }
+ // BlockSize returns h's block size.
+ func (h *Hash) BlockSize() int { return len(h.buf) }
+ 
++// Clone implements [hash.Cloner].
++func (h *Hash) Clone() (hash.Cloner, error) {
++	h.initSeed()
++	r := *h
++	return &r, nil
++}
++
+ // Comparable returns the hash of comparable value v with the given seed
+ // such that Comparable(s, v1) == Comparable(s, v2) if v1 == v2.
+ // If v != v, then the resulting hash is randomly distributed.
+diff --git a/src/internal/testhash/hash.go b/src/internal/testhash/hash.go
+index d863408f55..3413d5c20d 100644
+--- a/src/internal/testhash/hash.go
++++ b/src/internal/testhash/hash.go
+@@ -18,7 +18,49 @@ type MakeHash func() hash.Hash
+ // TestHash performs a set of tests on hash.Hash implementations, checking the
+ // documented requirements of Write, Sum, Reset, Size, and BlockSize.
+ func TestHash(t *testing.T, mh MakeHash) {
++	TestHashWithoutClone(t, mh)
+ 
++	// Test whether the results after cloning are consistent.
++	t.Run("Clone", func(t *testing.T) {
++		h, ok := mh().(hash.Cloner)
++		if !ok {
++			t.Fatalf("%T does not implement hash.Cloner", mh)
++		}
++		h3, err := h.Clone()
++		if err != nil {
++			t.Fatalf("Clone failed: %v", err)
++		}
++		prefix := []byte("tmp")
++		writeToHash(t, h, prefix)
++		h2, err := h.Clone()
++		if err != nil {
++			t.Fatalf("Clone failed: %v", err)
++		}
++		prefixSum := h.Sum(nil)
++		if !bytes.Equal(prefixSum, h2.Sum(nil)) {
++			t.Fatalf("%T Clone results are inconsistent", h)
++		}
++		suffix := []byte("tmp2")
++		writeToHash(t, h, suffix)
++		writeToHash(t, h3, append(prefix, suffix...))
++		compositeSum := h3.Sum(nil)
++		if !bytes.Equal(h.Sum(nil), compositeSum) {
++			t.Fatalf("%T Clone results are inconsistent", h)
++		}
++		if !bytes.Equal(h2.Sum(nil), prefixSum) {
++			t.Fatalf("%T Clone results are inconsistent", h)
++		}
++		writeToHash(t, h2, suffix)
++		if !bytes.Equal(h.Sum(nil), compositeSum) {
++			t.Fatalf("%T Clone results are inconsistent", h)
++		}
++		if !bytes.Equal(h2.Sum(nil), compositeSum) {
++			t.Fatalf("%T Clone results are inconsistent", h)
++		}
++	})
++}
++
++func TestHashWithoutClone(t *testing.T, mh MakeHash) {
+ 	// Test that Sum returns an appended digest matching output of Size
+ 	t.Run("SumAppend", func(t *testing.T) {
+ 		h := mh()

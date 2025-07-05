@@ -19,10 +19,84 @@ Date:   Fri Oct 18 10:14:32 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/syscall/security_windows.go | 4 +++-
  src/syscall/syscall_bsd.go      | 2 +-
  src/syscall/syscall_linux.go    | 2 +-
  src/syscall/syscall_solaris.go  | 2 +-
  src/syscall/syscall_windows.go  | 2 +-
  5 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/security_windows.go b/src/syscall/security_windows.go
+index db80d98a08..e35c4a0c25 100644
+--- a/src/syscall/security_windows.go
++++ b/src/syscall/security_windows.go
+@@ -157,13 +157,15 @@ func LookupSID(system, account string) (sid *SID, domain string, accType uint32,
+ // String converts sid to a string format
+ // suitable for display, storage, or transmission.
+ func (sid *SID) String() (string, error) {
++	// From https://docs.microsoft.com/en-us/windows/win32/secbiomet/general-constants
++	const SecurityMaxSidSize = 68
+ 	var s *uint16
+ 	e := ConvertSidToStringSid(sid, &s)
+ 	if e != nil {
+ 		return "", e
+ 	}
+ 	defer LocalFree((Handle)(unsafe.Pointer(s)))
+-	return UTF16ToString((*[256]uint16)(unsafe.Pointer(s))[:]), nil
++	return UTF16ToString((*[SecurityMaxSidSize]uint16)(unsafe.Pointer(s))[:]), nil
+ }
+ 
+ // Len returns the length, in bytes, of a valid security identifier sid.
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 3d04349387..fda9d613d3 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -242,7 +242,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 				break
+ 			}
+ 		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index ed57c93b1f..2eba033d7c 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -484,7 +484,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 425f5122de..daa4b88a71 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -293,7 +293,7 @@ func anyToSockaddr(rsa *RawSockaddrAny) (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index e4d78d66ad..0be469eef8 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -765,7 +765,7 @@ func (rsa *RawSockaddrAny) Sockaddr() (Sockaddr, error) {
+ 		for n < len(pp.Path) && pp.Path[n] != 0 {
+ 			n++
+ 		}
+-		bytes := (*[10000]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
++		bytes := (*[len(pp.Path)]byte)(unsafe.Pointer(&pp.Path[0]))[0:n]
+ 		sa.Name = string(bytes)
+ 		return sa, nil
+ 

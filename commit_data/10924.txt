@@ -7,7 +7,7 @@ Date:   Wed Dec 21 13:16:47 2011 +1100
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/5490081
-
+---
  misc/dashboard/app/app.yaml         |   6 +-
  misc/dashboard/app/build/build.go   |  41 ++++++++--
  misc/dashboard/app/build/notify.go  | 149 ++++++++++++++++++++++++++++++++++++
@@ -15,3 +15,356 @@ Date:   Wed Dec 21 13:16:47 2011 +1100
  misc/dashboard/app/build/test.go    |   4 +
  misc/dashboard/app/build/ui.go      |  28 ++++---
  6 files changed, 217 insertions(+), 20 deletions(-)
+
+diff --git a/misc/dashboard/app/app.yaml b/misc/dashboard/app/app.yaml
+index d16f1a2ff4..7a325b497c 100644
+--- a/misc/dashboard/app/app.yaml
++++ b/misc/dashboard/app/app.yaml
+@@ -1,5 +1,5 @@
+-application: godashboard
+-version: go
++application: go-build
++version: 1
+ runtime: go
+ api_version: 3
+ 
+@@ -10,6 +10,6 @@ handlers:
+   script: _go_app
+ - url: /(|commit|packages|result|tag|todo)
+   script: _go_app
+-- url: /(init|buildtest)
++- url: /(init|buildtest|_ah/queue/go/delay)
+   script: _go_app
+   login: admin
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index eded544e7d..0fbfae7dbb 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"http"
+ 	"io"
++	"io/ioutil"
+ 	"json"
+ 	"os"
+ 	"strings"
+@@ -94,6 +95,8 @@ type Commit struct {
+ 	// and release Tags are stored here. This is purely de-normalized data.
+ 	// The complete data set is stored in Result entities.
+ 	ResultData []string `datastore:",noindex"`
++
++	FailNotificationSent bool
+ }
+ 
+ func (com *Commit) Key(c appengine.Context) *datastore.Key {
+@@ -164,6 +167,15 @@ func partsToHash(c *Commit, p []string) *Result {
+ 	}
+ }
+ 
++// OK returns the Commit's build state for a specific builder and goHash.
++func (c *Commit) OK(builder, goHash string) (ok, present bool) {
++	r := c.Result(builder, goHash)
++	if r == nil {
++		return false, false
++	}
++	return r.OK, true
++}
++
+ // A Result describes a build result for a Commit on an OS/architecture.
+ //
+ // Each Result entity is a descendant of its associated Commit entity.
+@@ -208,6 +220,18 @@ type Log struct {
+ 	CompressedLog []byte
+ }
+ 
++func (l *Log) Text() ([]byte, os.Error) {
++	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
++	if err != nil {
++		return nil, fmt.Errorf("reading log data: %v", err)
++	}
++	b, err := ioutil.ReadAll(d)
++	if err != nil {
++		return nil, fmt.Errorf("reading log data: %v", err)
++	}
++	return b, nil
++}
++
+ func PutLog(c appengine.Context, text string) (hash string, err os.Error) {
+ 	h := sha1.New()
+ 	io.WriteString(h, text)
+@@ -503,7 +527,10 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ 		if err := com.AddResult(c, res); err != nil {
+ 			return fmt.Errorf("AddResult: %v", err)
+ 		}
+-		return nil
++		// Send build failure notifications, if necessary.
++		// Note this must run after the call AddResult, which
++		// populates the Commit's ResultData field.
++		return notifyOnFailure(c, com, res.Builder)
+ 	}
+ 	return nil, datastore.RunInTransaction(c, tx, nil)
+ }
+@@ -513,21 +540,19 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ func logHandler(w http.ResponseWriter, r *http.Request) {
+ 	w.Header().Set("Content-type", "text/plain")
+ 	c := appengine.NewContext(r)
+-	h := r.URL.Path[len("/log/"):]
+-	k := datastore.NewKey(c, "Log", h, 0, nil)
++	hash := r.URL.Path[len("/log/"):]
++	key := datastore.NewKey(c, "Log", hash, 0, nil)
+ 	l := new(Log)
+-	if err := datastore.Get(c, k, l); err != nil {
++	if err := datastore.Get(c, key, l); err != nil {
+ 		logErr(w, r, err)
+ 		return
+ 	}
+-	d, err := gzip.NewReader(bytes.NewBuffer(l.CompressedLog))
++	b, err := l.Text()
+ 	if err != nil {
+ 		logErr(w, r, err)
+ 		return
+ 	}
+-	if _, err := io.Copy(w, d); err != nil {
+-		logErr(w, r, err)
+-	}
++	w.Write(b)
+ }
+ 
+ type dashHandler func(*http.Request) (interface{}, os.Error)
+diff --git a/misc/dashboard/app/build/notify.go b/misc/dashboard/app/build/notify.go
+new file mode 100644
+index 0000000000..54a09bfd87
+--- /dev/null
++++ b/misc/dashboard/app/build/notify.go
+@@ -0,0 +1,149 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package build
++
++import (
++	"appengine"
++	"appengine/datastore"
++	"appengine/delay"
++	"appengine/mail"
++	"bytes"
++	"fmt"
++	"gob"
++	"os"
++	"template"
++)
++
++const (
++	mailFrom   = "builder@golang.org" // use this for sending any mail
++	failMailTo = "golang-dev@googlegroups.com"
++)
++
++// notifyOnFailure checks whether the supplied Commit or the subsequent
++// Commit (if present) breaks the build for this builder.
++// If either of those commits break the build an email notification is sent
++// from a delayed task. (We use a task because this way the mail won't be
++// sent if the enclosing datastore transaction fails.)
++//
++// This must be run in a datastore transaction, and the provided *Commit must
++// have been retrieved from the datastore within that transaction.
++func notifyOnFailure(c appengine.Context, com *Commit, builder string) os.Error {
++	// TODO(adg): implement notifications for packages
++	if com.PackagePath != "" {
++		return nil
++	}
++
++	p := &Package{Path: com.PackagePath}
++	var broken *Commit
++	ok, present := com.OK(builder, "")
++	if !present {
++		return fmt.Errorf("no result for %s/%s", com.Hash, builder)
++	}
++	q := datastore.NewQuery("Commit").Ancestor(p.Key(c))
++	if ok {
++		// This commit is OK. Notify if next Commit is broken.
++		next := new(Commit)
++		q.Filter("ParentHash=", com.Hash)
++		if err := firstMatch(c, q, next); err != nil {
++			if err == datastore.ErrNoSuchEntity {
++				// OK at tip, no notification necessary.
++				return nil
++			}
++			return err
++		}
++		if ok, present := next.OK(builder, ""); present && !ok {
++			broken = next
++		}
++	} else {
++		// This commit is broken. Notify if the previous Commit is OK.
++		prev := new(Commit)
++		q.Filter("Hash=", com.ParentHash)
++		if err := firstMatch(c, q, prev); err != nil {
++			if err == datastore.ErrNoSuchEntity {
++				// No previous result, let the backfill of
++				// this result trigger the notification.
++				return nil
++			}
++			return err
++		}
++		if ok, present := prev.OK(builder, ""); present && ok {
++			broken = com
++		}
++	}
++	var err os.Error
++	if broken != nil && !broken.FailNotificationSent {
++		c.Infof("%s is broken commit; notifying", broken.Hash)
++		sendFailMailLater.Call(c, broken, builder) // add task to queue
++		broken.FailNotificationSent = true
++		_, err = datastore.Put(c, broken.Key(c), broken)
++	}
++	return err
++}
++
++// firstMatch executes the query q and loads the first entity into v.
++func firstMatch(c appengine.Context, q *datastore.Query, v interface{}) os.Error {
++	t := q.Limit(1).Run(c)
++	_, err := t.Next(v)
++	if err == datastore.Done {
++		err = datastore.ErrNoSuchEntity
++	}
++	return err
++}
++
++var (
++	sendFailMailLater = delay.Func("sendFailMail", sendFailMail)
++	sendFailMailTmpl  = template.Must(
++		template.New("notify").Funcs(tmplFuncs).ParseFile("build/notify.txt"),
++	)
++)
++
++func init() {
++	gob.Register(&Commit{}) // for delay
++}
++
++// sendFailMail sends a mail notification that the build failed on the
++// provided commit and builder.
++func sendFailMail(c appengine.Context, com *Commit, builder string) {
++	// TODO(adg): handle packages
++
++	// get Result
++	r := com.Result(builder, "")
++	if r == nil {
++		c.Errorf("finding result for %q: %+v", builder, com)
++		return
++	}
++
++	// get Log
++	k := datastore.NewKey(c, "Log", r.LogHash, 0, nil)
++	l := new(Log)
++	if err := datastore.Get(c, k, l); err != nil {
++		c.Errorf("finding Log record %v: err", r.LogHash, err)
++		return
++	}
++
++	// prepare mail message
++	var body bytes.Buffer
++	err := sendFailMailTmpl.Execute(&body, map[string]interface{}{
++		"Builder": builder, "Commit": com, "Result": r, "Log": l,
++		"Hostname": appengine.DefaultVersionHostname(c),
++	})
++	if err != nil {
++		c.Errorf("rendering mail template: %v", err)
++		return
++	}
++	subject := fmt.Sprintf("%s broken by %s", builder, shortDesc(com.Desc))
++	msg := &mail.Message{
++		Sender:  mailFrom,
++		To:      []string{failMailTo},
++		ReplyTo: failMailTo,
++		Subject: subject,
++		Body:    body.String(),
++	}
++
++	// send mail
++	if err := mail.Send(c, msg); err != nil {
++		c.Errorf("sending mail: %v", err)
++	}
++}
+diff --git a/misc/dashboard/app/build/notify.txt b/misc/dashboard/app/build/notify.txt
+new file mode 100644
+index 0000000000..9b9fff4931
+--- /dev/null
++++ b/misc/dashboard/app/build/notify.txt
+@@ -0,0 +1,9 @@
++Change {{shortHash .Commit.Hash}} broke the {{.Builder}} build:
++http://{{.Hostname}}/log/{{.Result.LogHash}}
++
++{{.Commit.Desc}}
++
++http://code.google.com/p/go/source/detail?r={{shortHash .Commit.Hash}}
++
++$ tail -100 < log
++{{printf "%s" .Log.Text | tail 100}}
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index cf78ace760..35fdea45c2 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -94,6 +94,9 @@ var testRequests = []struct {
+ 	{"/log/a94a8fe5ccb19ba61c4c0873d391e987982fbbd3", nil, nil, "test"},
+ 	{"/todo", url.Values{"kind": {"build-go-commit"}, "builder": {"linux-386"}}, nil, nil},
+ 
++	// repeat failure (shouldn't re-send mail)
++	{"/result", nil, &Result{Builder: "linux-386", Hash: "0003", OK: false, Log: "test"}, nil},
++
+ 	// non-Go repos
+ 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1001", ParentHash: "1000"}, nil},
+ 	{"/commit", nil, &Commit{PackagePath: testPkg, Hash: "1002", ParentHash: "1001"}, nil},
+@@ -132,6 +135,7 @@ func testHandler(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	for i, t := range testRequests {
++		c.Infof("running test %d %s", i, t.path)
+ 		errorf := func(format string, args ...interface{}) {
+ 			fmt.Fprintf(w, "%d %s: ", i, t.path)
+ 			fmt.Fprintf(w, format, args...)
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 1e7ea876b4..5070400d96 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -145,17 +145,18 @@ type uiTemplateData struct {
+ }
+ 
+ var uiTemplate = template.Must(
+-	template.New("ui").
+-		Funcs(template.FuncMap{
+-			"builderTitle": builderTitle,
+-			"shortDesc":    shortDesc,
+-			"shortHash":    shortHash,
+-			"shortUser":    shortUser,
+-			"repoURL":      repoURL,
+-		}).
+-		ParseFile("build/ui.html"),
++	template.New("ui").Funcs(tmplFuncs).ParseFile("build/ui.html"),
+ )
+ 
++var tmplFuncs = template.FuncMap{
++	"builderTitle": builderTitle,
++	"repoURL":      repoURL,
++	"shortDesc":    shortDesc,
++	"shortHash":    shortHash,
++	"shortUser":    shortUser,
++	"tail":         tail,
++}
++
+ // builderTitle formats "linux-amd64-foo" as "linux amd64 foo".
+ func builderTitle(s string) string {
+ 	return strings.Replace(s, "-", " ", -1)
+@@ -206,3 +207,12 @@ func repoURL(hash, packagePath string) (string, os.Error) {
+ 	}
+ 	return url, nil
+ }
++
++// tail returns the trailing n lines of s.
++func tail(n int, s string) string {
++	lines := strings.Split(s, "\n")
++	if len(lines) < n {
++		return s
++	}
++	return strings.Join(lines[len(lines)-n:], "\n")
++}

@@ -7,6 +7,19 @@ Date:   Fri Jan 16 22:08:22 2015 -0500
     Change-Id: I3f6ba5591130b2c4762d33bd4553220765ad9fc5
     Reviewed-on: https://go-review.googlesource.com/2996
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/dist/util.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 4628eead80..96632a05ab 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -397,6 +397,7 @@ func main() {
+ 
+ 	xinit()
+ 	xmain()
++	xexit(0)
+ }
+ 
+ // xsamefile reports whether f1 and f2 are the same file (or dir)

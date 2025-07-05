@@ -17,6 +17,34 @@ Date:   Wed Apr 12 11:56:14 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/log/syslog/syslog_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index c7a5bfbd7b..cec225f751 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -270,7 +270,7 @@ func TestDial(t *testing.T) {
+ func check(t *testing.T, in, out, transport string) {
+ 	hostname, err := os.Hostname()
+ 	if err != nil {
+-		t.Error("Error retrieving hostname")
++		t.Errorf("Error retrieving hostname: %v", err)
+ 		return
+ 	}
+ 
+@@ -290,9 +290,12 @@ func check(t *testing.T, in, out, transport string) {
+ 	var pid int
+ 	tmpl := fmt.Sprintf("<%d>%%s %%s syslog_test[%%d]: %s\n", LOG_USER+LOG_INFO, in)
+ 	n, err := fmt.Sscanf(out, tmpl, &timestamp, &parsedHostname, &pid)
+-	if n != 3 || err != nil || hostname != parsedHostname {
++	if n != 3 || err != nil {
+ 		t.Errorf("Got %q, does not match template %q (%d %s)", out, tmpl, n, err)
+ 	}
++	if hostname != parsedHostname {
++		t.Errorf("Hostname got %q want %q in %q", parsedHostname, hostname, out)
++	}
+ }
+ 
+ func TestWrite(t *testing.T) {

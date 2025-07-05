@@ -10,8 +10,86 @@ Date:   Thu Feb 18 15:37:16 2010 -0800
     R=rsc, kaib
     CC=golang-dev
     https://golang.org/cl/214049
-
+---
  src/pkg/sync/Makefile                  | 16 +++++++++++++-
  src/pkg/sync/asm_arm5.s                | 40 ++++++++++++++++++++++++++++++++++
  src/pkg/sync/{asm_arm.s => asm_arm6.s} |  0
  3 files changed, 55 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+index 25d11d03db..4b9a05816d 100644
+--- a/src/pkg/sync/Makefile
++++ b/src/pkg/sync/Makefile
+@@ -9,7 +9,21 @@ GOFILES=\
+ 	mutex.go\
+ 	rwmutex.go\
+ 
++# 386-specific object files
++OFILES_386=\
++	asm_386.$O\
++
++# amd64-specific object files
++OFILES_amd64=\
++	asm_amd64.$O\
++
++GOARM?=6
++
++# arm-specific object files
++OFILES_arm=\
++	asm_arm$(GOARM).$O\
++
+ OFILES=\
+-	asm_$(GOARCH).$O\
++	$(OFILES_$(GOARCH))\
+ 
+ include ../../Make.pkg
+diff --git a/src/pkg/sync/asm_arm5.s b/src/pkg/sync/asm_arm5.s
+new file mode 100644
+index 0000000000..3cdca0b870
+--- /dev/null
++++ b/src/pkg/sync/asm_arm5.s
+@@ -0,0 +1,40 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This version works on pre v6 architectures
++// func cas(val *int32, old, new int32) bool
++// Atomically:
++//	if *val == old {
++//		*val = new;
++//		return true;
++//	}else
++//		return false;
++
++TEXT    ·cas(SB),7,$0
++	MOVW	0(FP), R0	// *val
++	MOVW	4(FP), R1	// old
++	MOVW	8(FP), R2	// new
++	MOVW	$1, R3
++	MOVW	$cas_mutex(SB), R4
++l:
++	SWPW	(R4), R3	// acquire mutex
++	CMP		$0, R3
++	BNE		fail0
++	
++	MOVW	(R0), R5
++	CMP		R1, R5
++	BNE		fail1
++	
++	MOVW	R2, (R0)	
++	MOVW	R3, (R4)	// release mutex
++	MOVW	$1, R0
++	MOVW	R0, 16(SP)	
++	RET
++fail1:	
++	MOVW	R3, (R4)	// release mutex
++fail0:
++	MOVW	$0, R0
++	MOVW	R0, 16(SP)	
++	RET
++ 
+diff --git a/src/pkg/sync/asm_arm.s b/src/pkg/sync/asm_arm6.s
+similarity index 100%
+rename from src/pkg/sync/asm_arm.s
+rename to src/pkg/sync/asm_arm6.s

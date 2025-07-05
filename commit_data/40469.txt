@@ -13,6 +13,30 @@ Date:   Tue May 14 13:38:15 2019 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/load/test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index f6ba994260..c247d56c81 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -626,8 +626,7 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+ var testinginitTmpl = lazytemplate.New("init", `
+ package {{.Name}}
+ 
+-{{/* Avoid a name collision with a name "testing" in user code. */}}
+-import testing_xxxxxxxxxxxx "testing"
++import _go_testing "testing"
+ 
+ {{/*
+ Call testing.Init before any other user initialization code runs.
+@@ -636,7 +635,7 @@ This provides the illusion of the old behavior where testing flags
+ were registered as part of the testing package's initialization.
+ */}}
+ var _ = func() bool {
+-	testing_xxxxxxxxxxxx.Init()
++	_go_testing.Init()
+ 	return true
+ }()
+ `)

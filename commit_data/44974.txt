@@ -14,7 +14,51 @@ Date:   Fri Sep 18 21:01:34 2020 +0300
     Trust: Giovanni Bajo <rasky@develer.com>
     Run-TryBot: Giovanni Bajo <rasky@develer.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/unicode/utf8/example_test.go | 20 ++++++++++++++++++++
  src/unicode/utf8/utf8.go         |  1 +
  2 files changed, 21 insertions(+)
+
+diff --git a/src/unicode/utf8/example_test.go b/src/unicode/utf8/example_test.go
+index 7b3e7ac742..5cd931d242 100644
+--- a/src/unicode/utf8/example_test.go
++++ b/src/unicode/utf8/example_test.go
+@@ -107,6 +107,26 @@ func ExampleEncodeRune() {
+ 	// 3
+ }
+ 
++func ExampleEncodeRune_outOfRange() {
++	runes := []rune{
++		// Less than 0, out of range.
++		-1,
++		// Greater than 0x10FFFF, out of range.
++		0x110000,
++		// The Unicode replacement character.
++		utf8.RuneError,
++	}
++	for i, c := range runes {
++		buf := make([]byte, 3)
++		size := utf8.EncodeRune(buf, c)
++		fmt.Printf("%d: %d %[2]s %d\n", i, buf, size)
++	}
++	// Output:
++	// 0: [239 191 189] � 3
++	// 1: [239 191 189] � 3
++	// 2: [239 191 189] � 3
++}
++
+ func ExampleFullRune() {
+ 	buf := []byte{228, 184, 150} // 世
+ 	fmt.Println(utf8.FullRune(buf))
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index ef0d740960..557e8a7770 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -337,6 +337,7 @@ func RuneLen(r rune) int {
+ }
+ 
+ // EncodeRune writes into p (which must be large enough) the UTF-8 encoding of the rune.
++// If the rune is out of range, it writes the encoding of RuneError.
+ // It returns the number of bytes written.
+ func EncodeRune(p []byte, r rune) int {
+ 	// Negative values are erroneous. Making it unsigned addresses the problem.

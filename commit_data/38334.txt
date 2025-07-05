@@ -17,8 +17,107 @@ Date:   Mon Oct 22 10:54:38 2018 -0700
     Change-Id: I2e6f1497f46affdf7510547a64601de3787367db
     Reviewed-on: https://go-review.googlesource.com/c/143757
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/issues_test.go | 22 ++++++++++++++++++++++
  src/go/types/stdlib_test.go | 28 +++++++++++-----------------
  src/go/types/type.go        | 11 +++--------
  3 files changed, 36 insertions(+), 25 deletions(-)
+
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index f8810b6734..cf489b1c9a 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -422,3 +422,25 @@ func TestIssue28005(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue28282(t *testing.T) {
++	// create type interface { error }
++	et := Universe.Lookup("error").Type()
++	it := NewInterfaceType(nil, []Type{et})
++	it.Complete()
++	// verify that after completing the interface, the embedded method remains unchanged
++	want := et.Underlying().(*Interface).Method(0)
++	got := it.Method(0)
++	if got != want {
++		t.Fatalf("%s.Method(0): got %q (%p); want %q (%p)", it, got, got, want, want)
++	}
++	// verify that lookup finds the same method in both interfaces (redundant check)
++	obj, _, _ := LookupFieldOrMethod(et, false, nil, "Error")
++	if obj != want {
++		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", et, obj, obj, want, want)
++	}
++	obj, _, _ = LookupFieldOrMethod(it, false, nil, "Error")
++	if obj != want {
++		t.Fatalf("%s.Lookup: got %q (%p); want %q (%p)", it, obj, obj, want, want)
++	}
++}
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 6e492b5291..229d203099 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -231,25 +231,19 @@ func typecheck(t *testing.T, path string, filenames []string) {
+ 
+ 	// Perform checks of API invariants.
+ 
+-	// The code below fails at the moment - see issue #28282.
+-	// Exit early for now to keep the longtest builder happy.
+-	// TODO(gri) fix this ASAP and uncomment the code below.
+-
+-	/*
+-		// All Objects have a package, except predeclared ones.
+-		errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
+-		for id, obj := range info.Uses {
+-			predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
+-			if predeclared == (obj.Pkg() != nil) {
+-				posn := fset.Position(id.Pos())
+-				if predeclared {
+-					t.Errorf("%s: predeclared object with package: %s", posn, obj)
+-				} else {
+-					t.Errorf("%s: user-defined object without package: %s", posn, obj)
+-				}
++	// All Objects have a package, except predeclared ones.
++	errorError := Universe.Lookup("error").Type().Underlying().(*Interface).ExplicitMethod(0) // (error).Error
++	for id, obj := range info.Uses {
++		predeclared := obj == Universe.Lookup(obj.Name()) || obj == errorError
++		if predeclared == (obj.Pkg() != nil) {
++			posn := fset.Position(id.Pos())
++			if predeclared {
++				t.Errorf("%s: predeclared object with package: %s", posn, obj)
++			} else {
++				t.Errorf("%s: user-defined object without package: %s", posn, obj)
+ 			}
+ 		}
+-	*/
++	}
+ }
+ 
+ // pkgFilenames returns the list of package filenames for the given directory.
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 74b6bcfd67..77426ba618 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -352,19 +352,14 @@ func (t *Interface) Complete() *Interface {
+ 		return t
+ 	}
+ 
++	// collect all methods
+ 	var allMethods []*Func
+ 	allMethods = append(allMethods, t.methods...)
+ 	for _, et := range t.embeddeds {
+ 		it := et.Underlying().(*Interface)
+ 		it.Complete()
+-		for _, tm := range it.allMethods {
+-			// Make a copy of the method and adjust its receiver type.
+-			newm := *tm
+-			newmtyp := *tm.typ.(*Signature)
+-			newm.typ = &newmtyp
+-			newmtyp.recv = NewVar(newm.pos, newm.pkg, "", t)
+-			allMethods = append(allMethods, &newm)
+-		}
++		// copy embedded methods unchanged (see issue #28282)
++		allMethods = append(allMethods, it.allMethods...)
+ 	}
+ 	sort.Sort(byUniqueMethodName(allMethods))
+ 

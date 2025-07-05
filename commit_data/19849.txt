@@ -9,6 +9,20 @@ Date:   Wed Jul 30 09:18:00 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/117330044
-
+---
  src/pkg/runtime/os_freebsd.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 9299dbdc04..367fe0ba0d 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -110,7 +110,7 @@ runtime·newosproc(M *mp, void *stk)
+ 	param.stack_base = (void*)mp->g0->stackbase;
+ 	param.stack_size = (byte*)stk - (byte*)mp->g0->stackbase;
+ 
+-	param.child_tid = (intptr*)&mp->procid;
++	param.child_tid = (void*)&mp->procid;
+ 	param.parent_tid = nil;
+ 	param.tls_base = (void*)&mp->tls[0];
+ 	param.tls_size = sizeof mp->tls;

@@ -14,7 +14,41 @@ Date:   Thu Jan 24 14:21:51 2013 -0500
     R=iant, gri, gri
     CC=golang-dev
     https://golang.org/cl/7200046
-
+---
  src/pkg/go/types/errors.go | 13 +++++++++++++
  src/pkg/go/types/types.go  |  1 +
  2 files changed, 14 insertions(+)
+
+diff --git a/src/pkg/go/types/errors.go b/src/pkg/go/types/errors.go
+index 3fe0b29690..c8b420b4db 100644
+--- a/src/pkg/go/types/errors.go
++++ b/src/pkg/go/types/errors.go
+@@ -316,3 +316,16 @@ func writeType(buf *bytes.Buffer, typ Type) {
+ 		fmt.Fprintf(buf, "<type %T>", t)
+ 	}
+ }
++
++func (t *Array) String() string     { return typeString(t) }
++func (t *Basic) String() string     { return typeString(t) }
++func (t *Chan) String() string      { return typeString(t) }
++func (t *Interface) String() string { return typeString(t) }
++func (t *Map) String() string       { return typeString(t) }
++func (t *NamedType) String() string { return typeString(t) }
++func (t *Pointer) String() string   { return typeString(t) }
++func (t *Result) String() string    { return typeString(t) }
++func (t *Signature) String() string { return typeString(t) }
++func (t *Slice) String() string     { return typeString(t) }
++func (t *Struct) String() string    { return typeString(t) }
++func (t *builtin) String() string   { return typeString(t) }
+diff --git a/src/pkg/go/types/types.go b/src/pkg/go/types/types.go
+index 65daad5cfa..2107a20d16 100644
+--- a/src/pkg/go/types/types.go
++++ b/src/pkg/go/types/types.go
+@@ -8,6 +8,7 @@ import "go/ast"
+ 
+ // All types implement the Type interface.
+ type Type interface {
++	String() string
+ 	aType()
+ }
+ 

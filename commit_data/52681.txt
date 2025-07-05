@@ -14,6 +14,20 @@ Date:   Tue May 17 16:26:49 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+index af5134deb9..66ac7dde62 100644
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
++++ b/src/cmd/vendor/github.com/ianlancetaylor/demangle/demangle.go
+@@ -1715,7 +1715,7 @@ func (st *state) demangleCastTemplateArgs(tp AST, addSubst bool) AST {
+ 	return tp
+ }
+ 
+-// mergeQualifiers merges two qualifier lists into one.
++// mergeQualifiers merges two qualifer lists into one.
+ func mergeQualifiers(q1AST, q2AST AST) AST {
+ 	if q1AST == nil {
+ 		return q2AST

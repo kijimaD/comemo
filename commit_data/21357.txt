@@ -11,7 +11,37 @@ Date:   Tue Dec 23 09:05:28 2014 +0100
     Change-Id: I82707aae16013acc9a3800d39b0084588b852b53
     Reviewed-on: https://go-review.googlesource.com/2031
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  test/fixedbugs/bug248.go | 2 +-
  test/fixedbugs/bug345.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 13796eed28..3d9a408508 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!windows
++// +build !nacl,!plan9,!windows
+ // run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index bfa00938fd..745144fbf2 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,4 +1,4 @@
+-// +build !nacl,!windows
++// +build !nacl,!plan9,!windows
+ // run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+@@ -19,7 +19,7 @@ func main() {
+ 	a, err := build.ArchChar(build.Default.GOARCH)
+ 	check(err)
+ 
+-	// TODO: If we get rid of errchk, re-enable this test on Windows.
++	// TODO: If we get rid of errchk, re-enable this test on Plan 9 and Windows.
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+ 

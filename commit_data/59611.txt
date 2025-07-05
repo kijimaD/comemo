@@ -21,7 +21,7 @@ Date:   Fri Mar 22 11:41:58 2024 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Paul Murphy <murp@ibm.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/ppc64.s     |  7 ++-
  src/cmd/compile/internal/ppc64/ssa.go         |  2 +-
  src/cmd/compile/internal/ssa/_gen/PPC64.rules |  3 +
@@ -34,3 +34,342 @@ Date:   Fri Mar 22 11:41:58 2024 -0500
  src/cmd/internal/obj/ppc64/asm9.go            | 17 ++++--
  test/codegen/floats.go                        |  8 +++
  11 files changed, 153 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 57060a3c10..fc56a9530a 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -1133,7 +1133,10 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	PNOP                            // 0700000000000000
+ 
+ 	SETB CR1,R3                     // 7c640100
+-	VCLZLSBB V1, R2			// 10400e02
+-	VCTZLSBB V1, R2			// 10410e02
++	VCLZLSBB V1,R2                  // 10400e02
++	VCTZLSBB V1,R2                  // 10410e02
++
++	XSMAXJDP VS1,VS2,VS3            // f0611480
++	XSMINJDP VS1,VS2,VS3            // f06114c0
+ 
+ 	RET
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index cb030ed2b0..db420b7cb4 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -582,7 +582,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpPPC64MULHD, ssa.OpPPC64MULHW, ssa.OpPPC64MULHDU, ssa.OpPPC64MULHWU,
+ 		ssa.OpPPC64FMUL, ssa.OpPPC64FMULS, ssa.OpPPC64FDIV, ssa.OpPPC64FDIVS, ssa.OpPPC64FCPSGN,
+ 		ssa.OpPPC64AND, ssa.OpPPC64OR, ssa.OpPPC64ANDN, ssa.OpPPC64ORN, ssa.OpPPC64NOR, ssa.OpPPC64XOR, ssa.OpPPC64EQV,
+-		ssa.OpPPC64MODUD, ssa.OpPPC64MODSD, ssa.OpPPC64MODUW, ssa.OpPPC64MODSW:
++		ssa.OpPPC64MODUD, ssa.OpPPC64MODSD, ssa.OpPPC64MODUW, ssa.OpPPC64MODSW, ssa.OpPPC64XSMINJDP, ssa.OpPPC64XSMAXJDP:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 0b69f5cda9..7518119147 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -14,6 +14,9 @@
+ (Sub32F ...) => (FSUBS ...)
+ (Sub64F ...) => (FSUB ...)
+ 
++(Min(32|64)F x y) && buildcfg.GOPPC64 >= 9 => (XSMINJDP x y)
++(Max(32|64)F x y) && buildcfg.GOPPC64 >= 9 => (XSMAXJDP x y)
++
+ // Combine 64 bit integer multiply and adds
+ (ADD l:(MULLD x y) z) && buildcfg.GOPPC64 >= 9 && l.Uses == 1 && clobber(l) => (MADDLD x y z)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index c66413bb0a..7f0ee9ab91 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -189,6 +189,10 @@ func init() {
+ 		{name: "FSUB", argLength: 2, reg: fp21, asm: "FSUB"},                                               // arg0-arg1
+ 		{name: "FSUBS", argLength: 2, reg: fp21, asm: "FSUBS"},                                             // arg0-arg1
+ 
++		// Note, the FPU works with float64 in register.
++		{name: "XSMINJDP", argLength: 2, reg: fp21, asm: "XSMINJDP"}, // fmin(arg0,arg1)
++		{name: "XSMAXJDP", argLength: 2, reg: fp21, asm: "XSMAXJDP"}, // fmax(arg0,arg1)
++
+ 		{name: "MULLD", argLength: 2, reg: gp21, asm: "MULLD", typ: "Int64", commutative: true}, // arg0*arg1 (signed 64-bit)
+ 		{name: "MULLW", argLength: 2, reg: gp21, asm: "MULLW", typ: "Int32", commutative: true}, // arg0*arg1 (signed 32-bit)
+ 		{name: "MULLDconst", argLength: 1, reg: gp11, asm: "MULLD", aux: "Int32", typ: "Int64"}, // arg0*auxInt (signed 64-bit)
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ab106f2c6d..429c214395 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2116,6 +2116,8 @@ const (
+ 	OpPPC64SUBFCconst
+ 	OpPPC64FSUB
+ 	OpPPC64FSUBS
++	OpPPC64XSMINJDP
++	OpPPC64XSMAXJDP
+ 	OpPPC64MULLD
+ 	OpPPC64MULLW
+ 	OpPPC64MULLDconst
+@@ -28397,6 +28399,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "XSMINJDP",
++		argLen: 2,
++		asm:    ppc64.AXSMINJDP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++				{1, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++			},
++			outputs: []outputInfo{
++				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++			},
++		},
++	},
++	{
++		name:   "XSMAXJDP",
++		argLen: 2,
++		asm:    ppc64.AXSMAXJDP,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++				{1, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++			},
++			outputs: []outputInfo{
++				{0, 9223372032559808512}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30
++			},
++		},
++	},
+ 	{
+ 		name:        "MULLD",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index d530837ab7..4ac5eec073 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -340,6 +340,14 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpLsh8x64(v)
+ 	case OpLsh8x8:
+ 		return rewriteValuePPC64_OpLsh8x8(v)
++	case OpMax32F:
++		return rewriteValuePPC64_OpMax32F(v)
++	case OpMax64F:
++		return rewriteValuePPC64_OpMax64F(v)
++	case OpMin32F:
++		return rewriteValuePPC64_OpMin32F(v)
++	case OpMin64F:
++		return rewriteValuePPC64_OpMin64F(v)
+ 	case OpMod16:
+ 		return rewriteValuePPC64_OpMod16(v)
+ 	case OpMod16u:
+@@ -3296,6 +3304,78 @@ func rewriteValuePPC64_OpLsh8x8(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpMax32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Max32F x y)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (XSMAXJDP x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64XSMAXJDP)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpMax64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Max64F x y)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (XSMAXJDP x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64XSMAXJDP)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpMin32F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Min32F x y)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (XSMINJDP x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64XSMINJDP)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpMin64F(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (Min64F x y)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (XSMINJDP x y)
++	for {
++		x := v_0
++		y := v_1
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64XSMINJDP)
++		v.AddArg2(x, y)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpMod16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 37d6165e42..59b4c88089 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3698,8 +3698,15 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 		// string comparisons during walk, not ssagen.
+ 
+ 		if typ.IsFloat() {
++			hasIntrinsic := false
+ 			switch Arch.LinkArch.Family {
+ 			case sys.AMD64, sys.ARM64, sys.RISCV64:
++				hasIntrinsic = true
++			case sys.PPC64:
++				hasIntrinsic = buildcfg.GOPPC64 >= 9
++			}
++
++			if hasIntrinsic {
+ 				var op ssa.Op
+ 				switch {
+ 				case typ.Kind() == types.TFLOAT64 && n.Op() == ir.OMIN:
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index ab1b4eb19f..3782af2918 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -1074,6 +1074,8 @@ const (
+ 	AXVCVSXWSP
+ 	AXVCVUXDSP
+ 	AXVCVUXWSP
++	AXSMAXJDP
++	AXSMINJDP
+ 	ALASTAOUT // The last instruction in this list. Also the first opcode generated by ppc64map.
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index f4680cc368..1cf41b8307 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -610,5 +610,7 @@ var Anames = []string{
+ 	"XVCVSXWSP",
+ 	"XVCVUXDSP",
+ 	"XVCVUXWSP",
++	"XSMAXJDP",
++	"XSMINJDP",
+ 	"LASTAOUT",
+ }
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 2793600cd0..d9b7c2eed3 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -429,9 +429,9 @@ var optabBase = []Optab{
+ 	{as: AMTVSRD, a1: C_REG, a6: C_FREG, type_: 104, size: 4},
+ 	{as: AMTVSRDD, a1: C_REG, a2: C_REG, a6: C_VSREG, type_: 104, size: 4},
+ 
+-	/* VSX logical */
+-	{as: AXXLAND, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx and, xx3-form */
+-	{as: AXXLOR, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4},  /* vsx or, xx3-form */
++	/* VSX xx3-form */
++	{as: AXXLAND, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 90, size: 4},    /* vsx xx3-form (FPR usage) */
++	{as: AXXLAND, a1: C_VSREG, a2: C_VSREG, a6: C_VSREG, type_: 90, size: 4}, /* vsx xx3-form */
+ 
+ 	/* VSX select */
+ 	{as: AXXSEL, a1: C_VSREG, a2: C_VSREG, a3: C_VSREG, a6: C_VSREG, type_: 91, size: 4}, /* vsx select, xx4-form */
+@@ -1679,16 +1679,17 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMTVSRWZ, r0)
+ 			opset(AMTVSRWS, r0)
+ 
+-		case AXXLAND: /* xxland, xxlandc, xxleqv, xxlnand */
++		case AXXLAND:
+ 			opset(AXXLANDC, r0)
+ 			opset(AXXLEQV, r0)
+ 			opset(AXXLNAND, r0)
+-
+-		case AXXLOR: /* xxlorc, xxlnor, xxlor, xxlxor */
+ 			opset(AXXLORC, r0)
+ 			opset(AXXLNOR, r0)
+ 			opset(AXXLORQ, r0)
+ 			opset(AXXLXOR, r0)
++			opset(AXXLOR, r0)
++			opset(AXSMAXJDP, r0)
++			opset(AXSMINJDP, r0)
+ 
+ 		case AXXSEL: /* xxsel */
+ 			opset(AXXSEL, r0)
+@@ -4769,6 +4770,10 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVXX3(60, 146, 0) /* xxlor - v2.06 */
+ 	case AXXLXOR:
+ 		return OPVXX3(60, 154, 0) /* xxlxor - v2.06 */
++	case AXSMINJDP:
++		return OPVXX3(60, 152, 0) /* xsminjdp - v3.0 */
++	case AXSMAXJDP:
++		return OPVXX3(60, 144, 0) /* xsmaxjdp - v3.0 */
+ 
+ 	case AXXSEL:
+ 		return OPVXX4(60, 3, 0) /* xxsel - v2.06 */
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 54dc87ecfd..d5c5475567 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -165,6 +165,8 @@ func Float64Min(a, b float64) float64 {
+ 	// amd64:"MINSD"
+ 	// arm64:"FMIND"
+ 	// riscv64:"FMIN"
++	// ppc64/power9:"XSMINJDP"
++	// ppc64/power10:"XSMINJDP"
+ 	return min(a, b)
+ }
+ 
+@@ -172,6 +174,8 @@ func Float64Max(a, b float64) float64 {
+ 	// amd64:"MINSD"
+ 	// arm64:"FMAXD"
+ 	// riscv64:"FMAX"
++	// ppc64/power9:"XSMAXJDP"
++	// ppc64/power10:"XSMAXJDP"
+ 	return max(a, b)
+ }
+ 
+@@ -179,6 +183,8 @@ func Float32Min(a, b float32) float32 {
+ 	// amd64:"MINSS"
+ 	// arm64:"FMINS"
+ 	// riscv64:"FMINS"
++	// ppc64/power9:"XSMINJDP"
++	// ppc64/power10:"XSMINJDP"
+ 	return min(a, b)
+ }
+ 
+@@ -186,5 +192,7 @@ func Float32Max(a, b float32) float32 {
+ 	// amd64:"MINSS"
+ 	// arm64:"FMAXS"
+ 	// riscv64:"FMAXS"
++	// ppc64/power9:"XSMAXJDP"
++	// ppc64/power10:"XSMAXJDP"
+ 	return max(a, b)
+ }

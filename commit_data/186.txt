@@ -5,6 +5,87 @@ Date:   Tue Jun 17 17:57:31 2008 -0700
     optional semi-colons
     
     SVN=123245
-
+---
  src/cmd/gc/go.y | 36 +++++++++++++++++++++++++-----------
  1 file changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 519e3a9a68..c72900f808 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -33,7 +33,7 @@
+ %type	<node>		else_stmt1 else_stmt2
+ %type	<node>		complex_stmt compound_stmt ostmt_list
+ %type	<node>		stmt_list_r Astmt_list_r Bstmt_list_r
+-%type	<node>		Astmt Bstmt Cstmt
++%type	<node>		Astmt Bstmt Cstmt Dstmt
+ %type	<node>		for_stmt for_body for_header
+ %type	<node>		if_stmt if_body if_header
+ %type	<node>		range_header range_body range_stmt
+@@ -314,10 +314,6 @@ complex_stmt:
+ 		poptodcl();
+ 		$$ = nod(OXCASE, N, N);
+ 	}
+-|	new_name ':'
+-	{
+-		$$ = nod(OLABEL, $1, N);
+-	}
+ 
+ semi_stmt:
+ 	LFALL
+@@ -1101,31 +1097,49 @@ Cstmt:
+ 	simple_stmt
+ 
+ /*
+- * statement list that need semi in back  NO
++ * need semi in front YES
++ * need semi in back  NO
++ */
++Dstmt:
++	new_name ':'
++	{
++		$$ = nod(OLABEL, $1, N);
++	}
++
++/*
++ * statement list that ends AorD
+  */
+ Astmt_list_r:
+ 	Astmt
++|	Dstmt
+ |	Astmt_list_r Astmt
+ 	{
+ 		$$ = nod(OLIST, $1, $2);
+ 	}
+-|	Bstmt_list_r ';'
++|	Astmt_list_r Dstmt
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
++|	Bstmt_list_r Astmt
++	{
++		$$ = nod(OLIST, $1, $2);
++	}
+ 
+ /*
+- * statement list that need semi in back  YES
++ * statement list that ends BorC
+  */
+ Bstmt_list_r:
+ 	Bstmt
+ |	Cstmt
+-|	Bstmt_list_r Bstmt
++|	Astmt_list_r Bstmt
+ 	{
+ 		$$ = nod(OLIST, $1, $2);
+ 	}
+-|	Astmt_list_r Bstmt
++|	Astmt_list_r Cstmt
+ 	{
+ 		$$ = nod(OLIST, $1, $2);
+ 	}
+-|	Astmt_list_r Cstmt
++|	Bstmt_list_r Bstmt
+ 	{
+ 		$$ = nod(OLIST, $1, $2);
+ 	}

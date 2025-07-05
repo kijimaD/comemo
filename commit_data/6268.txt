@@ -9,10 +9,79 @@ Date:   Mon Sep 13 15:42:14 2010 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2132047
-
+---
  src/cmd/gc/print.c              | 2 +-
  src/cmd/gc/subr.c               | 2 +-
  test/fixedbugs/bug306.dir/p1.go | 9 +++++++++
  test/fixedbugs/bug306.dir/p2.go | 8 ++++++++
  test/fixedbugs/bug306.go        | 7 +++++++
  5 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index bb6ebfe36b..5db118f06a 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -192,7 +192,7 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 			exprfmt(f, n->left, 0);
+ 		} else {
+ 			fmtprint(f, " ");
+-			if(n->left->op == OTCHAN && n->left->etype == Crecv) {
++			if(n->left->op == OTCHAN && n->left->sym == S && n->left->etype == Crecv) {
+ 				fmtprint(f, "(");
+ 				exprfmt(f, n->left, 0);
+ 				fmtprint(f, ")");
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9c9377c4f5..d938c2d659 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1161,7 +1161,7 @@ Tpretty(Fmt *fp, Type *t)
+ 		case Csend:
+ 			return fmtprint(fp, "chan<- %T", t->type);
+ 		}
+-		if(t->type != T && t->type->etype == TCHAN && t->type->chan == Crecv)
++		if(t->type != T && t->type->etype == TCHAN && t->type->sym == S && t->type->chan == Crecv)
+ 			return fmtprint(fp, "chan (%T)", t->type);
+ 		return fmtprint(fp, "chan %T", t->type);
+ 
+diff --git a/test/fixedbugs/bug306.dir/p1.go b/test/fixedbugs/bug306.dir/p1.go
+new file mode 100644
+index 0000000000..bf87ea1491
+--- /dev/null
++++ b/test/fixedbugs/bug306.dir/p1.go
+@@ -0,0 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p1
++
++type T <-chan int
++var x = make(chan T)
++
+diff --git a/test/fixedbugs/bug306.dir/p2.go b/test/fixedbugs/bug306.dir/p2.go
+new file mode 100644
+index 0000000000..3f8bd9d49b
+--- /dev/null
++++ b/test/fixedbugs/bug306.dir/p2.go
+@@ -0,0 +1,8 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p2
++
++import _ "./p1"
++
+diff --git a/test/fixedbugs/bug306.go b/test/fixedbugs/bug306.go
+new file mode 100644
+index 0000000000..a0a43507dc
+--- /dev/null
++++ b/test/fixedbugs/bug306.go
+@@ -0,0 +1,7 @@
++// $G $D/$F.dir/p1.go && $G $D/$F.dir/p2.go
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++ignored

@@ -14,8 +14,200 @@ Date:   Thu Jan 19 23:21:59 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/errors/errors_test.go  | 38 -----------------------
  src/errors/example_test.go | 77 ++++++++++++++++++++++++++++++++++++++++++++++
  src/errors/wrap_test.go    | 37 ----------------------
  3 files changed, 77 insertions(+), 75 deletions(-)
+
+diff --git a/src/errors/errors_test.go b/src/errors/errors_test.go
+index 8b93f530d5..08ed54e041 100644
+--- a/src/errors/errors_test.go
++++ b/src/errors/errors_test.go
+@@ -6,7 +6,6 @@ package errors_test
+ 
+ import (
+ 	"errors"
+-	"fmt"
+ 	"testing"
+ )
+ 
+@@ -32,40 +31,3 @@ func TestErrorMethod(t *testing.T) {
+ 		t.Errorf(`New("abc").Error() = %q, want %q`, err.Error(), "abc")
+ 	}
+ }
+-
+-func ExampleNew() {
+-	err := errors.New("emit macho dwarf: elf header corrupted")
+-	if err != nil {
+-		fmt.Print(err)
+-	}
+-	// Output: emit macho dwarf: elf header corrupted
+-}
+-
+-// The fmt package's Errorf function lets us use the package's formatting
+-// features to create descriptive error messages.
+-func ExampleNew_errorf() {
+-	const name, id = "bimmler", 17
+-	err := fmt.Errorf("user %q (id %d) not found", name, id)
+-	if err != nil {
+-		fmt.Print(err)
+-	}
+-	// Output: user "bimmler" (id 17) not found
+-}
+-
+-func ExampleJoin() {
+-	err1 := errors.New("err1")
+-	err2 := errors.New("err2")
+-	err := errors.Join(err1, err2)
+-	fmt.Println(err)
+-	if errors.Is(err, err1) {
+-		fmt.Println("err is err1")
+-	}
+-	if errors.Is(err, err2) {
+-		fmt.Println("err is err2")
+-	}
+-	// Output:
+-	// err1
+-	// err2
+-	// err is err1
+-	// err is err2
+-}
+diff --git a/src/errors/example_test.go b/src/errors/example_test.go
+index 5dc8841237..beb5edcd2f 100644
+--- a/src/errors/example_test.go
++++ b/src/errors/example_test.go
+@@ -5,7 +5,10 @@
+ package errors_test
+ 
+ import (
++	"errors"
+ 	"fmt"
++	"io/fs"
++	"os"
+ 	"time"
+ )
+ 
+@@ -32,3 +35,77 @@ func Example() {
+ 	}
+ 	// Output: 1989-03-15 22:30:00 +0000 UTC: the file system has gone away
+ }
++
++func ExampleNew() {
++	err := errors.New("emit macho dwarf: elf header corrupted")
++	if err != nil {
++		fmt.Print(err)
++	}
++	// Output: emit macho dwarf: elf header corrupted
++}
++
++// The fmt package's Errorf function lets us use the package's formatting
++// features to create descriptive error messages.
++func ExampleNew_errorf() {
++	const name, id = "bimmler", 17
++	err := fmt.Errorf("user %q (id %d) not found", name, id)
++	if err != nil {
++		fmt.Print(err)
++	}
++	// Output: user "bimmler" (id 17) not found
++}
++
++func ExampleJoin() {
++	err1 := errors.New("err1")
++	err2 := errors.New("err2")
++	err := errors.Join(err1, err2)
++	fmt.Println(err)
++	if errors.Is(err, err1) {
++		fmt.Println("err is err1")
++	}
++	if errors.Is(err, err2) {
++		fmt.Println("err is err2")
++	}
++	// Output:
++	// err1
++	// err2
++	// err is err1
++	// err is err2
++}
++
++func ExampleIs() {
++	if _, err := os.Open("non-existing"); err != nil {
++		if errors.Is(err, fs.ErrNotExist) {
++			fmt.Println("file does not exist")
++		} else {
++			fmt.Println(err)
++		}
++	}
++
++	// Output:
++	// file does not exist
++}
++
++func ExampleAs() {
++	if _, err := os.Open("non-existing"); err != nil {
++		var pathError *fs.PathError
++		if errors.As(err, &pathError) {
++			fmt.Println("Failed at path:", pathError.Path)
++		} else {
++			fmt.Println(err)
++		}
++	}
++
++	// Output:
++	// Failed at path: non-existing
++}
++
++func ExampleUnwrap() {
++	err1 := errors.New("error1")
++	err2 := fmt.Errorf("error2: [%w]", err1)
++	fmt.Println(err2)
++	fmt.Println(errors.Unwrap(err2))
++	// Output
++	// error2: [error1]
++	// error1
++}
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 9efbe45ee0..ca9dc0f111 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -288,40 +288,3 @@ func (errorUncomparable) Is(target error) bool {
+ 	_, ok := target.(errorUncomparable)
+ 	return ok
+ }
+-
+-func ExampleIs() {
+-	if _, err := os.Open("non-existing"); err != nil {
+-		if errors.Is(err, fs.ErrNotExist) {
+-			fmt.Println("file does not exist")
+-		} else {
+-			fmt.Println(err)
+-		}
+-	}
+-
+-	// Output:
+-	// file does not exist
+-}
+-
+-func ExampleAs() {
+-	if _, err := os.Open("non-existing"); err != nil {
+-		var pathError *fs.PathError
+-		if errors.As(err, &pathError) {
+-			fmt.Println("Failed at path:", pathError.Path)
+-		} else {
+-			fmt.Println(err)
+-		}
+-	}
+-
+-	// Output:
+-	// Failed at path: non-existing
+-}
+-
+-func ExampleUnwrap() {
+-	err1 := errors.New("error1")
+-	err2 := fmt.Errorf("error2: [%w]", err1)
+-	fmt.Println(err2)
+-	fmt.Println(errors.Unwrap(err2))
+-	// Output
+-	// error2: [error1]
+-	// error1
+-}

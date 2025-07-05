@@ -11,8 +11,77 @@ Date:   Tue Mar 1 12:41:52 2016 +0530
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsmsg_test.go               |  4 ++--
  src/net/http/httptest/server_test.go |  2 +-
  src/net/net_windows_test.go          | 10 +++++-----
  3 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index 339fb83c62..841c32fa84 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -28,7 +28,7 @@ func TestStructPackUnpack(t *testing.T) {
+ 		t.Fatal("unpacking failed")
+ 	}
+ 	if n != len(buf) {
+-		t.Error("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
++		t.Errorf("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
+ 	}
+ 	if !reflect.DeepEqual(got, want) {
+ 		t.Errorf("got = %+v, want = %+v", got, want)
+@@ -69,7 +69,7 @@ func TestDomainNamePackUnpack(t *testing.T) {
+ 			continue
+ 		}
+ 		if n != len(buf) {
+-			t.Error(
++			t.Errorf(
+ 				"unpacked different amount than packed for %s: got n = %d, want = %d",
+ 				test.in,
+ 				n,
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 61470c3822..d032c5983b 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -95,6 +95,6 @@ func TestServerCloseClientConnections(t *testing.T) {
+ 	res, err := http.Get(s.URL)
+ 	if err == nil {
+ 		res.Body.Close()
+-		t.Fatal("Unexpected response: %#v", res)
++		t.Fatalf("Unexpected response: %#v", res)
+ 	}
+ }
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index ab21798969..1284642663 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -561,24 +561,24 @@ func TestInterfaceHardwareAddrWithGetmac(t *testing.T) {
+ 		if bytes.Contains(line, []byte("Connection Name:")) {
+ 			f := bytes.Split(line, []byte{':'})
+ 			if len(f) != 2 {
+-				t.Fatal("unexpected \"Connection Name\" line: %q", line)
++				t.Fatalf("unexpected \"Connection Name\" line: %q", line)
+ 			}
+ 			name = string(bytes.TrimSpace(f[1]))
+ 			if name == "" {
+-				t.Fatal("empty name on \"Connection Name\" line: %q", line)
++				t.Fatalf("empty name on \"Connection Name\" line: %q", line)
+ 			}
+ 		}
+ 		if bytes.Contains(line, []byte("Physical Address:")) {
+ 			if name == "" {
+-				t.Fatal("no matching name found: %q", string(out))
++				t.Fatalf("no matching name found: %q", string(out))
+ 			}
+ 			f := bytes.Split(line, []byte{':'})
+ 			if len(f) != 2 {
+-				t.Fatal("unexpected \"Physical Address\" line: %q", line)
++				t.Fatalf("unexpected \"Physical Address\" line: %q", line)
+ 			}
+ 			addr := string(bytes.ToLower(bytes.TrimSpace(f[1])))
+ 			if addr == "" {
+-				t.Fatal("empty address on \"Physical Address\" line: %q", line)
++				t.Fatalf("empty address on \"Physical Address\" line: %q", line)
+ 			}
+ 			if addr == "disabled" || addr == "n/a" {
+ 				continue

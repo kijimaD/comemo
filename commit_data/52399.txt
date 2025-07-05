@@ -12,7 +12,70 @@ Date:   Mon May 2 00:25:16 2022 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/compile/internal/walk/range.go |  8 +++++++-
  test/codegen/issue52635.go             | 36 ++++++++++++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index dcf7a786e7..6c30fa2877 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -403,8 +403,14 @@ func arrayClear(loop *ir.RangeStmt, v1, v2, a ir.Node) ir.Node {
+ 		return nil
+ 	}
+ 	lhs := stmt.X.(*ir.IndexExpr)
++	x := lhs.X
++	if a.Type().IsPtr() && a.Type().Elem().IsArray() {
++		if s, ok := x.(*ir.StarExpr); ok && s.Op() == ir.ODEREF {
++			x = s.X
++		}
++	}
+ 
+-	if !ir.SameSafeExpr(lhs.X, a) || !ir.SameSafeExpr(lhs.Index, v1) {
++	if !ir.SameSafeExpr(x, a) || !ir.SameSafeExpr(lhs.Index, v1) {
+ 		return nil
+ 	}
+ 
+diff --git a/test/codegen/issue52635.go b/test/codegen/issue52635.go
+new file mode 100644
+index 0000000000..0e4d169081
+--- /dev/null
++++ b/test/codegen/issue52635.go
+@@ -0,0 +1,36 @@
++// asmcheck
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that optimized range memclr works with pointers to arrays.
++
++package codegen
++
++type T struct {
++	a *[10]int
++	b [10]int
++}
++
++func (t *T) f() {
++	// amd64:".*runtime.memclrNoHeapPointers"
++	for i := range t.a {
++		t.a[i] = 0
++	}
++
++	// amd64:".*runtime.memclrNoHeapPointers"
++	for i := range *t.a {
++		t.a[i] = 0
++	}
++
++	// amd64:".*runtime.memclrNoHeapPointers"
++	for i := range t.a {
++		(*t.a)[i] = 0
++	}
++
++	// amd64:".*runtime.memclrNoHeapPointers"
++	for i := range *t.a {
++		(*t.a)[i] = 0
++	}
++}

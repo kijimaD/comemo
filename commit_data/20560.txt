@@ -30,8 +30,305 @@ Date:   Thu Sep 18 10:13:15 2014 -0700
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/147720043
-
+---
  src/encoding/gob/encode.go  | 77 ++++++++++++++++++++++-----------------------
  src/encoding/gob/encoder.go |  4 ---
  src/encoding/gob/type.go    | 76 ++++++++++++++++++++++++++++++--------------
  3 files changed, 91 insertions(+), 66 deletions(-)
+
+diff --git a/src/encoding/gob/encode.go b/src/encoding/gob/encode.go
+index 5d35db20e6..b7bf8b0022 100644
+--- a/src/encoding/gob/encode.go
++++ b/src/encoding/gob/encode.go
+@@ -470,7 +470,7 @@ var encOpTable = [...]encOp{
+ 
+ // encOpFor returns (a pointer to) the encoding op for the base type under rt and
+ // the indirection count to reach it.
+-func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int) {
++func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp, building map[*typeInfo]bool) (*encOp, int) {
+ 	ut := userType(rt)
+ 	// If the type implements GobEncoder, we handle it without further processing.
+ 	if ut.externalEnc != 0 {
+@@ -498,7 +498,7 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
+ 				break
+ 			}
+ 			// Slices have a header; we decode it to find the underlying array.
+-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
++			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+ 			op = func(i *encInstr, state *encoderState, slice reflect.Value) {
+ 				if !state.sendZero && slice.Len() == 0 {
+ 					return
+@@ -508,14 +508,14 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
+ 			}
+ 		case reflect.Array:
+ 			// True arrays have size in the type.
+-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
++			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+ 			op = func(i *encInstr, state *encoderState, array reflect.Value) {
+ 				state.update(i)
+ 				state.enc.encodeArray(state.b, array, *elemOp, elemIndir, array.Len())
+ 			}
+ 		case reflect.Map:
+-			keyOp, keyIndir := encOpFor(t.Key(), inProgress)
+-			elemOp, elemIndir := encOpFor(t.Elem(), inProgress)
++			keyOp, keyIndir := encOpFor(t.Key(), inProgress, building)
++			elemOp, elemIndir := encOpFor(t.Elem(), inProgress, building)
+ 			op = func(i *encInstr, state *encoderState, mv reflect.Value) {
+ 				// We send zero-length (but non-nil) maps because the
+ 				// receiver might want to use the map.  (Maps don't use append.)
+@@ -527,12 +527,13 @@ func encOpFor(rt reflect.Type, inProgress map[reflect.Type]*encOp) (*encOp, int)
+ 			}
+ 		case reflect.Struct:
+ 			// Generate a closure that calls out to the engine for the nested type.
+-			getEncEngine(userType(typ))
++			getEncEngine(userType(typ), building)
+ 			info := mustGetTypeInfo(typ)
+ 			op = func(i *encInstr, state *encoderState, sv reflect.Value) {
+ 				state.update(i)
+ 				// indirect through info to delay evaluation for recursive structs
+-				state.enc.encodeStruct(state.b, info.encoder, sv)
++				enc := info.encoder.Load().(*encEngine)
++				state.enc.encodeStruct(state.b, enc, sv)
+ 			}
+ 		case reflect.Interface:
+ 			op = func(i *encInstr, state *encoderState, iv reflect.Value) {
+@@ -579,7 +580,7 @@ func gobEncodeOpFor(ut *userTypeInfo) (*encOp, int) {
+ }
+ 
+ // compileEnc returns the engine to compile the type.
+-func compileEnc(ut *userTypeInfo) *encEngine {
++func compileEnc(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
+ 	srt := ut.base
+ 	engine := new(encEngine)
+ 	seen := make(map[reflect.Type]*encOp)
+@@ -593,7 +594,7 @@ func compileEnc(ut *userTypeInfo) *encEngine {
+ 			if !isSent(&f) {
+ 				continue
+ 			}
+-			op, indir := encOpFor(f.Type, seen)
++			op, indir := encOpFor(f.Type, seen, building)
+ 			engine.instr = append(engine.instr, encInstr{*op, wireFieldNum, f.Index, indir})
+ 			wireFieldNum++
+ 		}
+@@ -603,49 +604,47 @@ func compileEnc(ut *userTypeInfo) *encEngine {
+ 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, nil, 0})
+ 	} else {
+ 		engine.instr = make([]encInstr, 1)
+-		op, indir := encOpFor(rt, seen)
++		op, indir := encOpFor(rt, seen, building)
+ 		engine.instr[0] = encInstr{*op, singletonField, nil, indir}
+ 	}
+ 	return engine
+ }
+ 
+ // getEncEngine returns the engine to compile the type.
+-// typeLock must be held (or we're in initialization and guaranteed single-threaded).
+-func getEncEngine(ut *userTypeInfo) *encEngine {
+-	info, err1 := getTypeInfo(ut)
+-	if err1 != nil {
+-		error_(err1)
+-	}
+-	if info.encoder == nil {
+-		// Assign the encEngine now, so recursive types work correctly. But...
+-		info.encoder = new(encEngine)
+-		// ... if we fail to complete building the engine, don't cache the half-built machine.
+-		// Doing this here means we won't cache a type that is itself OK but
+-		// that contains a nested type that won't compile. The result is consistent
+-		// error behavior when Encode is called multiple times on the top-level type.
+-		ok := false
+-		defer func() {
+-			if !ok {
+-				info.encoder = nil
+-			}
+-		}()
+-		info.encoder = compileEnc(ut)
+-		ok = true
++func getEncEngine(ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
++	info, err := getTypeInfo(ut)
++	if err != nil {
++		error_(err)
++	}
++	enc, ok := info.encoder.Load().(*encEngine)
++	if !ok {
++		enc = buildEncEngine(info, ut, building)
+ 	}
+-	return info.encoder
++	return enc
+ }
+ 
+-// lockAndGetEncEngine is a function that locks and compiles.
+-// This lets us hold the lock only while compiling, not when encoding.
+-func lockAndGetEncEngine(ut *userTypeInfo) *encEngine {
+-	typeLock.Lock()
+-	defer typeLock.Unlock()
+-	return getEncEngine(ut)
++func buildEncEngine(info *typeInfo, ut *userTypeInfo, building map[*typeInfo]bool) *encEngine {
++	// Check for recursive types.
++	if building != nil && building[info] {
++		return nil
++	}
++	info.encInit.Lock()
++	defer info.encInit.Unlock()
++	enc, ok := info.encoder.Load().(*encEngine)
++	if !ok {
++		if building == nil {
++			building = make(map[*typeInfo]bool)
++		}
++		building[info] = true
++		enc = compileEnc(ut, building)
++		info.encoder.Store(enc)
++	}
++	return enc
+ }
+ 
+ func (enc *Encoder) encode(b *bytes.Buffer, value reflect.Value, ut *userTypeInfo) {
+ 	defer catchError(&enc.err)
+-	engine := lockAndGetEncEngine(ut)
++	engine := getEncEngine(ut, nil)
+ 	indir := ut.indir
+ 	if ut.externalEnc != 0 {
+ 		indir = int(ut.encIndir)
+diff --git a/src/encoding/gob/encoder.go b/src/encoding/gob/encoder.go
+index a3301c3bd3..4b5dc16c79 100644
+--- a/src/encoding/gob/encoder.go
++++ b/src/encoding/gob/encoder.go
+@@ -88,9 +88,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 	if _, alreadySent := enc.sent[actual]; alreadySent {
+ 		return false
+ 	}
+-	typeLock.Lock()
+ 	info, err := getTypeInfo(ut)
+-	typeLock.Unlock()
+ 	if err != nil {
+ 		enc.setError(err)
+ 		return
+@@ -191,9 +189,7 @@ func (enc *Encoder) sendTypeDescriptor(w io.Writer, state *encoderState, ut *use
+ 		// a singleton basic type (int, []byte etc.) at top level.  We don't
+ 		// need to send the type info but we do need to update enc.sent.
+ 		if !sent {
+-			typeLock.Lock()
+ 			info, err := getTypeInfo(ut)
+-			typeLock.Unlock()
+ 			if err != nil {
+ 				enc.setError(err)
+ 				return
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index cad1452795..a49b71a867 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -11,6 +11,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"sync"
++	"sync/atomic"
+ 	"unicode"
+ 	"unicode/utf8"
+ )
+@@ -681,29 +682,51 @@ func (w *wireType) string() string {
+ 
+ type typeInfo struct {
+ 	id      typeId
+-	encoder *encEngine
++	encInit sync.Mutex   // protects creation of encoder
++	encoder atomic.Value // *encEngine
+ 	wire    *wireType
+ }
+ 
+-var typeInfoMap = make(map[reflect.Type]*typeInfo) // protected by typeLock
++// typeInfoMap is an atomic pointer to map[reflect.Type]*typeInfo.
++// It's updated copy-on-write. Readers just do an atomic load
++// to get the current version of the map. Writers make a full copy of
++// the map and atomically update the pointer to point to the new map.
++// Under heavy read contention, this is significantly faster than a map
++// protected by a mutex.
++var typeInfoMap atomic.Value
++
++func lookupTypeInfo(rt reflect.Type) *typeInfo {
++	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
++	return m[rt]
++}
+ 
+-// typeLock must be held.
+ func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
+ 	rt := ut.base
+ 	if ut.externalEnc != 0 {
+ 		// We want the user type, not the base type.
+ 		rt = ut.user
+ 	}
+-	info, ok := typeInfoMap[rt]
+-	if ok {
++	if info := lookupTypeInfo(rt); info != nil {
+ 		return info, nil
+ 	}
+-	info = new(typeInfo)
++	return buildTypeInfo(ut, rt)
++}
++
++// buildTypeInfo constructs the type information for the type
++// and stores it in the type info map.
++func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
++	typeLock.Lock()
++	defer typeLock.Unlock()
++
++	if info := lookupTypeInfo(rt); info != nil {
++		return info, nil
++	}
++
+ 	gt, err := getBaseType(rt.Name(), rt)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	info.id = gt.id()
++	info := &typeInfo{id: gt.id()}
+ 
+ 	if ut.externalEnc != 0 {
+ 		userType, err := getType(rt.Name(), ut, rt)
+@@ -719,25 +742,32 @@ func getTypeInfo(ut *userTypeInfo) (*typeInfo, error) {
+ 		case xText:
+ 			info.wire = &wireType{TextMarshalerT: gt}
+ 		}
+-		typeInfoMap[ut.user] = info
+-		return info, nil
++		rt = ut.user
++	} else {
++		t := info.id.gobType()
++		switch typ := rt; typ.Kind() {
++		case reflect.Array:
++			info.wire = &wireType{ArrayT: t.(*arrayType)}
++		case reflect.Map:
++			info.wire = &wireType{MapT: t.(*mapType)}
++		case reflect.Slice:
++			// []byte == []uint8 is a special case handled separately
++			if typ.Elem().Kind() != reflect.Uint8 {
++				info.wire = &wireType{SliceT: t.(*sliceType)}
++			}
++		case reflect.Struct:
++			info.wire = &wireType{StructT: t.(*structType)}
++		}
+ 	}
+ 
+-	t := info.id.gobType()
+-	switch typ := rt; typ.Kind() {
+-	case reflect.Array:
+-		info.wire = &wireType{ArrayT: t.(*arrayType)}
+-	case reflect.Map:
+-		info.wire = &wireType{MapT: t.(*mapType)}
+-	case reflect.Slice:
+-		// []byte == []uint8 is a special case handled separately
+-		if typ.Elem().Kind() != reflect.Uint8 {
+-			info.wire = &wireType{SliceT: t.(*sliceType)}
+-		}
+-	case reflect.Struct:
+-		info.wire = &wireType{StructT: t.(*structType)}
++	// Create new map with old contents plus new entry.
++	newm := make(map[reflect.Type]*typeInfo)
++	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
++	for k, v := range m {
++		newm[k] = v
+ 	}
+-	typeInfoMap[rt] = info
++	newm[rt] = info
++	typeInfoMap.Store(newm)
+ 	return info, nil
+ }
+ 

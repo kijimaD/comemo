@@ -10,6 +10,48 @@ Date:   Wed Dec 9 17:07:44 2015 +0000
     Change-Id: I56840c0baf9b32a683086a80f5db1c5ea0a7aedf
     Reviewed-on: https://go-review.googlesource.com/17680
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/client.go | 27 +++++++++++++++++----------
  1 file changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 3a8b284859..c3f849e962 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -83,19 +83,26 @@ var DefaultClient = &Client{}
+ // goroutines.
+ type RoundTripper interface {
+ 	// RoundTrip executes a single HTTP transaction, returning
+-	// the Response for the request req.  RoundTrip should not
+-	// attempt to interpret the response.  In particular,
+-	// RoundTrip must return err == nil if it obtained a response,
+-	// regardless of the response's HTTP status code.  A non-nil
+-	// err should be reserved for failure to obtain a response.
+-	// Similarly, RoundTrip should not attempt to handle
+-	// higher-level protocol details such as redirects,
++	// a Response for the provided Request.
++	//
++	// RoundTrip should not attempt to interpret the response. In
++	// particular, RoundTrip must return err == nil if it obtained
++	// a response, regardless of the response's HTTP status code.
++	// A non-nil err should be reserved for failure to obtain a
++	// response. Similarly, RoundTrip should not attempt to
++	// handle higher-level protocol details such as redirects,
+ 	// authentication, or cookies.
+ 	//
+ 	// RoundTrip should not modify the request, except for
+-	// consuming and closing the Body, including on errors. The
+-	// request's URL and Header fields are guaranteed to be
+-	// initialized.
++	// consuming and closing the Request's Body.
++	//
++	// RoundTrip must always close the body, including on errors,
++	// but depending on the implementation may do so in a separate
++	// goroutine even after RoundTrip returns. This means that
++	// callers wanting to reuse the body for subsequent requests
++	// must arrange to wait for the Close call before doing so.
++	//
++	// The Request's URL and Header fields must be initialized.
+ 	RoundTrip(*Request) (*Response, error)
+ }
+ 

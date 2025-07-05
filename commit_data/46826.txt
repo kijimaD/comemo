@@ -11,8 +11,54 @@ Date:   Wed Feb 3 22:14:04 2021 -0800
     Trust: Robert Griesemer <gri@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go | 1 +
  test/fixedbugs/issue31747.go            | 4 ++--
  test/run.go                             | 1 -
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 1cef98742d..475e3bbddd 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -35,6 +35,7 @@ func check2(noders []*noder) {
+ 
+ 	// typechecking
+ 	conf := types2.Config{
++		GoVersion:             base.Flag.Lang,
+ 		InferFromConstraints:  true,
+ 		IgnoreLabels:          true, // parser already checked via syntax.CheckBranches mode
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+diff --git a/test/fixedbugs/issue31747.go b/test/fixedbugs/issue31747.go
+index 420fe30735..319a721337 100644
+--- a/test/fixedbugs/issue31747.go
++++ b/test/fixedbugs/issue31747.go
+@@ -8,7 +8,7 @@ package p
+ 
+ // numeric literals
+ const (
+-	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later \(-lang was set to go1.12; check go.mod\)"
++	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later \(-lang was set to go1.12; check go.mod\)|requires go1.13"
+ 	_ = 0b111 // ERROR "binary literals requires go1.13 or later"
+ 	_ = 0o567 // ERROR "0o/0O-style octal literals requires go1.13 or later"
+ 	_ = 0xabc // ok
+@@ -29,6 +29,6 @@ const (
+ // signed shift counts
+ var (
+ 	s int
+-	_ = 1 << s // ERROR "invalid operation: 1 << s \(signed shift count type int\) requires go1.13 or later"
++	_ = 1 << s // ERROR "invalid operation: 1 << s \(signed shift count type int\) requires go1.13 or later|signed shift count"
+ 	_ = 1 >> s // ERROR "signed shift count"
+ )
+diff --git a/test/run.go b/test/run.go
+index 492d9de5a6..b1d6fe2414 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1963,7 +1963,6 @@ var excluded = map[string]bool{
+ 	"fixedbugs/issue25958.go":  true, // types2 doesn't report a follow-on error (pref: types2)
+ 	"fixedbugs/issue28079b.go": true, // types2 reports follow-on errors
+ 	"fixedbugs/issue28268.go":  true, // types2 reports follow-on errors
+-	"fixedbugs/issue31747.go":  true, // types2 is missing support for -lang flag
+ 	"fixedbugs/issue33460.go":  true, // types2 reports alternative positions in separate error
+ 	"fixedbugs/issue34329.go":  true, // types2 is missing support for -lang flag
+ 	"fixedbugs/issue41575.go":  true, // types2 reports alternative positions in separate error

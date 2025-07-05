@@ -19,7 +19,7 @@ Date:   Mon May 3 16:06:07 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  6 +--
  src/cmd/vendor/modules.txt                         |  4 +-
@@ -29,3 +29,228 @@ Date:   Mon May 3 16:06:07 2021 -0400
  .../golang.org/x/crypto/poly1305/sum_ppc64le.s     | 18 ++++----
  src/vendor/modules.txt                             |  4 +-
  8 files changed, 71 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7629ef7dda..2956eed0d7 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20210226084205-cbba55b83ad5
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 // indirect
+ 	golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e
+-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 // indirect
++	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e // indirect
+ 	golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815
+ 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 77ad1ae05f..20b95eac85 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,8 +10,8 @@ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjc
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+ golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+ golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+-golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+-golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
++golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
++golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+ golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815 h1:9nyskUepGPcX93addfTsdRqsQ7rSWIdQOdWVcsWAYv0=
+ golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
+@@ -22,14 +22,12 @@ golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJ
+ golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+ golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210403161142-5e06dd20ab57/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=
+ golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 0576d2a26c..537b800740 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -24,8 +24,8 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-## explicit; go 1.11
++# golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
++## explicit; go 1.17
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ # golang.org/x/mod v0.4.3-0.20210503183026-4435ecfe4815
+diff --git a/src/go.mod b/src/go.mod
+index 7cddf04200..8402cf12aa 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.17
+ 
+ require (
+-	golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
++	golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
+ 	golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420
+ 	golang.org/x/sys v0.0.0-20210423082822-04245dca01da // indirect
+ 	golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f // indirect
+diff --git a/src/go.sum b/src/go.sum
+index 08db672f19..5f93c1cd49 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,14 +1,8 @@
+-golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
+-golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83 h1:/ZScEX8SfEmUGRHs0gxpqteO5nfNW6axyZbBdw9A12g=
+-golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83/go.mod h1:jdWPYTVW3xRLrWPugEBEK3UY2ZEsg3UU495nc5E+M+I=
+-golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
++golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
+ golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420 h1:a8jGStKg0XqKDlKqjLrXn0ioF5MH36pT7Z0BRTqLhbk=
+ golang.org/x/net v0.0.0-20210503060351-7fd8e65b6420/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+-golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+-golang.org/x/sys v0.0.0-20191026070338-33540a1f6037/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da h1:b3NXsE2LusjYGGjL5bxEVZZORm/YEFFrWFjR8eFrw/c=
+ golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+-golang.org/x/term v0.0.0-20201117132131-f5c789dd3221/go.mod h1:Nr5EML6q2oocZ2LXRh80K7BxOlk5/8JxuGnuhpl+muw=
+-golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f h1:yQJrRE0hDxDFmZLlRaw+3vusO4fwNHgHIjUOMO7bHYI=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index d3596ee66f..83c776de08 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -117,6 +117,19 @@ func (b *Builder) AddASN1GeneralizedTime(t time.Time) {
+ 	})
+ }
+ 
++// AddASN1UTCTime appends a DER-encoded ASN.1 UTCTime.
++func (b *Builder) AddASN1UTCTime(t time.Time) {
++	b.AddASN1(asn1.UTCTime, func(c *Builder) {
++		// As utilized by the X.509 profile, UTCTime can only
++		// represent the years 1950 through 2049.
++		if t.Year() < 1950 || t.Year() >= 2050 {
++			b.err = fmt.Errorf("cryptobyte: cannot represent %v as a UTCTime", t)
++			return
++		}
++		c.AddBytes([]byte(t.Format(defaultUTCTimeFormatStr)))
++	})
++}
++
+ // AddASN1BitString appends a DER-encoded ASN.1 BIT STRING. This does not
+ // support BIT STRINGs that are not a whole number of bytes.
+ func (b *Builder) AddASN1BitString(data []byte) {
+@@ -466,6 +479,45 @@ func (s *String) ReadASN1GeneralizedTime(out *time.Time) bool {
+ 	return true
+ }
+ 
++const defaultUTCTimeFormatStr = "060102150405Z0700"
++
++// ReadASN1UTCTime decodes an ASN.1 UTCTime into out and advances.
++// It reports whether the read was successful.
++func (s *String) ReadASN1UTCTime(out *time.Time) bool {
++	var bytes String
++	if !s.ReadASN1(&bytes, asn1.UTCTime) {
++		return false
++	}
++	t := string(bytes)
++
++	formatStr := defaultUTCTimeFormatStr
++	var err error
++	res, err := time.Parse(formatStr, t)
++	if err != nil {
++		// Fallback to minute precision if we can't parse second
++		// precision. If we are following X.509 or X.690 we shouldn't
++		// support this, but we do.
++		formatStr = "0601021504Z0700"
++		res, err = time.Parse(formatStr, t)
++	}
++	if err != nil {
++		return false
++	}
++
++	if serialized := res.Format(formatStr); serialized != t {
++		return false
++	}
++
++	if res.Year() >= 2050 {
++		// UTCTime interprets the low order digits 50-99 as 1950-99.
++		// This only applies to its use in the X.509 profile.
++		// See https://tools.ietf.org/html/rfc5280#section-4.1.2.5.1
++		res = res.AddDate(-100, 0, 0)
++	}
++	*out = res
++	return true
++}
++
+ // ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances.
+ // It reports whether the read was successful.
+ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
+diff --git a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+index 5cd7494b21..3cede539dc 100644
+--- a/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
++++ b/src/vendor/golang.org/x/crypto/poly1305/sum_ppc64le.s
+@@ -82,7 +82,7 @@ multiply:
+ 	BGE loop
+ 
+ bytes_between_0_and_15:
+-	CMP  $0, R5
++	CMP  R5, $0
+ 	BEQ  done
+ 	MOVD $0, R16 // h0
+ 	MOVD $0, R17 // h1
+@@ -122,7 +122,7 @@ just1:
+ 	// Exactly 8
+ 	MOVD (R4), R16
+ 
+-	CMP $0, R17
++	CMP R17, $0
+ 
+ 	// Check if we've already set R17; if not
+ 	// set 1 to indicate end of msg.
+@@ -151,7 +151,7 @@ less4:
+ 	ADD   $2, R4
+ 
+ less2:
+-	CMP   $0, R5
++	CMP   R5, $0
+ 	BEQ   insert1
+ 	MOVBZ (R4), R21
+ 	SLD   R22, R21, R21
+@@ -166,12 +166,12 @@ insert1:
+ 
+ carry:
+ 	// Add new values to h0, h1, h2
+-	ADDC R16, R8
+-	ADDE R17, R9
+-	ADDE $0, R10
+-	MOVD $16, R5
+-	ADD  R5, R4
+-	BR   multiply
++	ADDC  R16, R8
++	ADDE  R17, R9
++	ADDZE R10, R10
++	MOVD  $16, R5
++	ADD   R5, R4
++	BR    multiply
+ 
+ done:
+ 	// Save h0, h1, h2 in state
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 01a0a33f8c..8658b7da15 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,5 +1,5 @@
+-# golang.org/x/crypto v0.0.0-20210220033148-5ea612d1eb83
+-## explicit; go 1.11
++# golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e
++## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte

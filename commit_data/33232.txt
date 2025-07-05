@@ -12,6 +12,32 @@ Date:   Sun Aug 6 16:15:05 2017 +0200
     Reviewed-by: Han-Wen Nienhuys <hanwen@google.com>
     Reviewed-by: Avelino <t@avelino.xxx>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/cpu/cpu_x86.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 31e7084e78..5bbe999675 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -15,9 +15,9 @@ func cpuid(eaxArg, ecxArg uint32) (eax, ebx, ecx, edx uint32)
+ func xgetbv() (eax, edx uint32)
+ 
+ func init() {
+-	maxId, _, _, _ := cpuid(0, 0)
++	maxID, _, _, _ := cpuid(0, 0)
+ 
+-	if maxId < 1 {
++	if maxID < 1 {
+ 		return
+ 	}
+ 
+@@ -43,7 +43,7 @@ func init() {
+ 
+ 	X86.HasAVX = isSet(28, ecx1) && osSupportsAVX
+ 
+-	if maxId < 7 {
++	if maxID < 7 {
+ 		return
+ 	}
+ 

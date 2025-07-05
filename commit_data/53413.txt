@@ -18,6 +18,27 @@ Date:   Mon Aug 15 15:52:40 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/obj/objfile.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ec699a7951..729c5127b3 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -698,7 +698,6 @@ func nAuxSym(s *LSym) int {
+ // generate symbols for FuncInfo.
+ func genFuncInfoSyms(ctxt *Link) {
+ 	infosyms := make([]*LSym, 0, len(ctxt.Text))
+-	hashedsyms := make([]*LSym, 0, 4*len(ctxt.Text))
+ 	var b bytes.Buffer
+ 	symidx := int32(len(ctxt.defs))
+ 	for _, s := range ctxt.Text {
+@@ -760,7 +759,6 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		}
+ 	}
+ 	ctxt.defs = append(ctxt.defs, infosyms...)
+-	ctxt.hasheddefs = append(ctxt.hasheddefs, hashedsyms...)
+ }
+ 
+ func writeAuxSymDebug(ctxt *Link, par *LSym, aux *LSym) {

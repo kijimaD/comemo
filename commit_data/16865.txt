@@ -15,7 +15,114 @@ Date:   Wed Jul 24 10:28:57 2013 -0700
     R=golang-dev, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/11737043
-
+---
  src/pkg/log/syslog/syslog.go      | 38 +++++++++++++++++++++++++++++++-------
  src/pkg/log/syslog/syslog_unix.go |  4 ++--
  2 files changed, 33 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/log/syslog/syslog.go b/src/pkg/log/syslog/syslog.go
+index e3df9ac629..99c266ac8e 100644
+--- a/src/pkg/log/syslog/syslog.go
++++ b/src/pkg/log/syslog/syslog.go
+@@ -88,6 +88,21 @@ type Writer struct {
+ 	raddr    string
+ 
+ 	mu   sync.Mutex // guards conn
++	conn serverConn
++}
++
++// This interface and the separate syslog_unix.go file exist for
++// Solaris support as implemented by gccgo.  On Solaris you can not
++// simply open a TCP connection to the syslog daemon.  The gccgo
++// sources have a syslog_solaris.go file that implements unixSyslog to
++// return a type that satisfies this interface and simply calls the C
++// library syslog function.
++type serverConn interface {
++	writeString(p Priority, hostname, tag, s, nl string) error
++	close() error
++}
++
++type netConn struct {
+ 	conn net.Conn
+ }
+ 
+@@ -135,7 +150,7 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
+ func (w *Writer) connect() (err error) {
+ 	if w.conn != nil {
+ 		// ignore err from close, it makes sense to continue anyway
+-		w.conn.Close()
++		w.conn.close()
+ 		w.conn = nil
+ 	}
+ 
+@@ -148,7 +163,7 @@ func (w *Writer) connect() (err error) {
+ 		var c net.Conn
+ 		c, err = net.Dial(w.network, w.raddr)
+ 		if err == nil {
+-			w.conn = c
++			w.conn = netConn{c}
+ 			if w.hostname == "" {
+ 				w.hostname = c.LocalAddr().String()
+ 			}
+@@ -168,7 +183,7 @@ func (w *Writer) Close() error {
+ 	defer w.mu.Unlock()
+ 
+ 	if w.conn != nil {
+-		err := w.conn.Close()
++		err := w.conn.close()
+ 		w.conn = nil
+ 		return err
+ 	}
+@@ -257,10 +272,7 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
+ 		nl = "\n"
+ 	}
+ 
+-	timestamp := time.Now().Format(time.RFC3339)
+-	_, err := fmt.Fprintf(w.conn, "<%d>%s %s %s[%d]: %s%s",
+-		p, timestamp, w.hostname,
+-		w.tag, os.Getpid(), msg, nl)
++	err := w.conn.writeString(p, w.hostname, w.tag, msg, nl)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -270,6 +282,18 @@ func (w *Writer) write(p Priority, msg string) (int, error) {
+ 	return len(msg), nil
+ }
+ 
++func (n netConn) writeString(p Priority, hostname, tag, msg, nl string) error {
++	timestamp := time.Now().Format(time.RFC3339)
++	_, err := fmt.Fprintf(n.conn, "<%d>%s %s %s[%d]: %s%s",
++		p, timestamp, hostname,
++		tag, os.Getpid(), msg, nl)
++	return err
++}
++
++func (n netConn) close() error {
++	return n.conn.Close()
++}
++
+ // NewLogger creates a log.Logger whose output is written to
+ // the system log service with the specified priority. The logFlag
+ // argument is the flag set passed through to log.New to create
+diff --git a/src/pkg/log/syslog/syslog_unix.go b/src/pkg/log/syslog/syslog_unix.go
+index a0001ccaea..1716d60fea 100644
+--- a/src/pkg/log/syslog/syslog_unix.go
++++ b/src/pkg/log/syslog/syslog_unix.go
+@@ -14,7 +14,7 @@ import (
+ // unixSyslog opens a connection to the syslog daemon running on the
+ // local machine using a Unix domain socket.
+ 
+-func unixSyslog() (conn net.Conn, err error) {
++func unixSyslog() (conn serverConn, err error) {
+ 	logTypes := []string{"unixgram", "unix"}
+ 	logPaths := []string{"/dev/log", "/var/run/syslog"}
+ 	for _, network := range logTypes {
+@@ -23,7 +23,7 @@ func unixSyslog() (conn net.Conn, err error) {
+ 			if err != nil {
+ 				continue
+ 			} else {
+-				return conn, nil
++				return netConn{conn}, nil
+ 			}
+ 		}
+ 	}

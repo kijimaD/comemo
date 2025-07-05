@@ -7,6 +7,20 @@ Date:   Sat Feb 21 12:53:30 2015 -0500
     Change-Id: Ia6cf3204d71740bc2b6e26c53ac5206e8a33a180
     Reviewed-on: https://go-review.googlesource.com/5540
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 270f80d0f6..5ee6e80d2b 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -42,6 +42,8 @@ func testEndToEnd(t *testing.T, goarch string) {
+ 	}
+ 	result := string(testOut.Bytes())
+ 	expect, err := ioutil.ReadFile(output)
++	// For Windows.
++	result = strings.Replace(result, `testdata\`, `testdata/`, -1)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

@@ -7,7 +7,32 @@ Date:   Mon May 16 15:45:18 2016 -0700
     Change-Id: I7627e480d5d2366cba223fd81635c4115649f752
     Reviewed-on: https://go-review.googlesource.com/23154
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 34a78e5bd0..39098fca93 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -634,6 +634,7 @@ Tyler Treat <ttreat31@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+ Ulf Holm Nielsen <doktor@dyregod.dk>
+ Ulrich Kunitz <uli.kunitz@gmail.com>
++Upthere, Inc.
+ Uriel Mangado <uriel@berlinblue.org>
+ Vadim Vygonets <unixdj@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e225afec80..bffcb3c7f4 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -98,6 +98,7 @@ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Radev <andrey.radev@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrew Szeto <andrew@jabagawee.com>
++Andrew Werner <andrew@upthere.com> <awerner32@gmail.com>
+ Andrew Wilkins <axwalk@gmail.com>
+ Andrew Williams <williams.andrew@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>

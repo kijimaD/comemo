@@ -15,7 +15,7 @@ Date:   Thu Apr 11 14:20:54 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/proc.go        | 15 +++++++++++++++
  src/runtime/race.go        | 13 +++++++++++++
  src/runtime/race0.go       |  2 ++
@@ -25,3 +25,267 @@ Date:   Thu Apr 11 14:20:54 2019 -0700
  src/runtime/runtime2.go    |  3 +++
  src/runtime/time.go        | 22 ++++++++++++++++++++++
  8 files changed, 98 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index aa0a1fa2be..7d2ff2748b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4166,6 +4166,21 @@ func (pp *p) destroy() {
+ 	gfpurge(pp)
+ 	traceProcFree(pp)
+ 	if raceenabled {
++		if pp.timerRaceCtx != 0 {
++			// The race detector code uses a callback to fetch
++			// the proc context, so arrange for that callback
++			// to see the right thing.
++			// This hack only works because we are the only
++			// thread running.
++			mp := getg().m
++			phold := mp.p.ptr()
++			mp.p.set(pp)
++
++			racectxend(pp.timerRaceCtx)
++			pp.timerRaceCtx = 0
++
++			mp.p.set(phold)
++		}
+ 		raceprocdestroy(pp.raceprocctx)
+ 		pp.raceprocctx = 0
+ 	}
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index d2fc6a3c47..d11dc9b5bf 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -459,6 +459,11 @@ func racegoend() {
+ 	racecall(&__tsan_go_end, getg().racectx, 0, 0, 0)
+ }
+ 
++//go:nosplit
++func racectxend(racectx uintptr) {
++	racecall(&__tsan_go_end, racectx, 0, 0, 0)
++}
++
+ //go:nosplit
+ func racewriterangepc(addr unsafe.Pointer, sz, callpc, pc uintptr) {
+ 	_g_ := getg()
+@@ -506,6 +511,14 @@ func raceacquireg(gp *g, addr unsafe.Pointer) {
+ 	racecall(&__tsan_acquire, gp.racectx, uintptr(addr), 0, 0)
+ }
+ 
++//go:nosplit
++func raceacquirectx(racectx uintptr, addr unsafe.Pointer) {
++	if !isvalidaddr(addr) {
++		return
++	}
++	racecall(&__tsan_acquire, racectx, uintptr(addr), 0, 0)
++}
++
+ //go:nosplit
+ func racerelease(addr unsafe.Pointer) {
+ 	racereleaseg(getg(), addr)
+diff --git a/src/runtime/race0.go b/src/runtime/race0.go
+index f1d3706231..6f26afa854 100644
+--- a/src/runtime/race0.go
++++ b/src/runtime/race0.go
+@@ -29,6 +29,7 @@ func racereadrangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)         { th
+ func racewriterangepc(addr unsafe.Pointer, sz, callerpc, pc uintptr)        { throw("race") }
+ func raceacquire(addr unsafe.Pointer)                                       { throw("race") }
+ func raceacquireg(gp *g, addr unsafe.Pointer)                               { throw("race") }
++func raceacquirectx(racectx uintptr, addr unsafe.Pointer)                   { throw("race") }
+ func racerelease(addr unsafe.Pointer)                                       { throw("race") }
+ func racereleaseg(gp *g, addr unsafe.Pointer)                               { throw("race") }
+ func racereleasemerge(addr unsafe.Pointer)                                  { throw("race") }
+@@ -38,3 +39,4 @@ func racemalloc(p unsafe.Pointer, sz uintptr)                               { th
+ func racefree(p unsafe.Pointer, sz uintptr)                                 { throw("race") }
+ func racegostart(pc uintptr) uintptr                                        { throw("race"); return 0 }
+ func racegoend()                                                            { throw("race") }
++func racectxend(racectx uintptr)                                            { throw("race") }
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index 4ed9533bfb..758d543203 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -416,9 +416,11 @@ rest:
+ 	// Set g = g0.
+ 	get_tls(R12)
+ 	MOVQ	g(R12), R13
+-	MOVQ	g_m(R13), R13
+-	MOVQ	m_g0(R13), R14
+-	MOVQ	R14, g(R12)	// g = m->g0
++	MOVQ	g_m(R13), R14
++	MOVQ	m_g0(R14), R15
++	CMPQ	R13, R15
++	JEQ	noswitch	// branch if already on g0
++	MOVQ	R15, g(R12)	// g = m->g0
+ 	PUSHQ	RARG1	// func arg
+ 	PUSHQ	RARG0	// func arg
+ 	CALL	runtime·racecallback(SB)
+@@ -430,6 +432,7 @@ rest:
+ 	MOVQ	g_m(R13), R13
+ 	MOVQ	m_curg(R13), R14
+ 	MOVQ	R14, g(R12)	// g = m->curg
++ret:
+ 	// Restore callee-saved registers.
+ 	POPQ	R15
+ 	POPQ	R14
+@@ -440,3 +443,12 @@ rest:
+ 	POPQ	BP
+ 	POPQ	BX
+ 	RET
++
++noswitch:
++	// already on g0
++	PUSHQ	RARG1	// func arg
++	PUSHQ	RARG0	// func arg
++	CALL	runtime·racecallback(SB)
++	POPQ	R12
++	POPQ	R12
++	JMP	ret
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 00a67e8602..46224f8d73 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -448,7 +448,10 @@ rest:
+ 	// restore R0
+ 	MOVD	R13, R0
+ 	MOVD	g_m(g), R13
+-	MOVD	m_g0(R13), g
++	MOVD	m_g0(R13), R14
++	CMP	R14, g
++	BEQ	noswitch	// branch if already on g0
++	MOVD	R14, g
+ 
+ 	MOVD	R0, 8(RSP)	// func arg
+ 	MOVD	R1, 16(RSP)	// func arg
+@@ -457,6 +460,7 @@ rest:
+ 	// All registers are smashed after Go code, reload.
+ 	MOVD	g_m(g), R13
+ 	MOVD	m_curg(R13), g	// g = m->curg
++ret:
+ 	// Restore callee-saved registers.
+ 	MOVD	0(RSP), LR
+ 	LDP	24(RSP), (R19, R20)
+@@ -467,5 +471,12 @@ rest:
+ 	ADD	$112, RSP
+ 	JMP	(LR)
+ 
++noswitch:
++	// already on g0
++	MOVD	R0, 8(RSP)	// func arg
++	MOVD	R1, 16(RSP)	// func arg
++	BL	runtime·racecallback(SB)
++	JMP	ret
++
+ // tls_g, g value for each thread in TLS
+ GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 0486bb338b..7421d539ca 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -507,20 +507,29 @@ rest:
+ 	FMOVD   F30, 312(R1)
+ 	FMOVD   F31, 320(R1)
+ 
++	MOVD	R3, FIXED_FRAME+0(R1)
++	MOVD	R4, FIXED_FRAME+8(R1)
++
+ 	MOVD    runtime·tls_g(SB), R10
+ 	MOVD    0(R13)(R10*1), g
+ 
+ 	MOVD	g_m(g), R7
+-	MOVD	m_g0(R7), g // set g = m-> g0
+-	MOVD	R3, FIXED_FRAME+0(R1)
+-	MOVD	R4, FIXED_FRAME+8(R1)
++	MOVD	m_g0(R7), R8
++	CMP	g, R8
++	BEQ	noswitch
++
++	MOVD	R8, g // set g = m-> g0
++
+ 	BL	runtime·racecallback(SB)
++
+ 	// All registers are clobbered after Go code, reload.
+ 	MOVD    runtime·tls_g(SB), R10
+ 	MOVD    0(R13)(R10*1), g
+ 
+ 	MOVD	g_m(g), R7
+ 	MOVD	m_curg(R7), g // restore g = m->curg
++
++ret:
+ 	MOVD    328(R1), R14
+ 	MOVD    48(R1), R15
+ 	MOVD    56(R1), R16
+@@ -565,5 +574,9 @@ rest:
+ 	MOVD    R10, LR
+ 	RET
+ 
++noswitch:
++	BL      runtime·racecallback(SB)
++	JMP     ret
++
+ // tls_g, g value for each thread in TLS
+ GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b57ae75baf..2e6c3d9d79 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -613,6 +613,9 @@ type p struct {
+ 	// such as timerModifying.
+ 	adjustTimers uint32
+ 
++	// Race context used while executing timer functions.
++	timerRaceCtx uintptr
++
+ 	pad cpu.CacheLinePad
+ }
+ 
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 4bc819f023..fea5d6871c 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -1095,6 +1096,13 @@ func runtimer(pp *p, now int64) int64 {
+ // runOneTimer runs a single timer.
+ // The caller must have locked the timers for pp.
+ func runOneTimer(pp *p, t *timer, now int64) {
++	if raceenabled {
++		if pp.timerRaceCtx == 0 {
++			pp.timerRaceCtx = racegostart(funcPC(runtimer) + sys.PCQuantum)
++		}
++		raceacquirectx(pp.timerRaceCtx, unsafe.Pointer(t))
++	}
++
+ 	f := t.f
+ 	arg := t.arg
+ 	seq := t.seq
+@@ -1119,10 +1127,24 @@ func runOneTimer(pp *p, t *timer, now int64) {
+ 		}
+ 	}
+ 
++	if raceenabled {
++		// Temporarily use the P's racectx for g0.
++		gp := getg()
++		if gp.racectx != 0 {
++			throw("runOneTimer: unexpected racectx")
++		}
++		gp.racectx = pp.timerRaceCtx
++	}
++
+ 	// Note that since timers are locked here, f may not call
+ 	// addtimer or resettimer.
+ 
+ 	f(arg, seq)
++
++	if raceenabled {
++		gp := getg()
++		gp.racectx = 0
++	}
+ }
+ 
+ func timejump() *p {

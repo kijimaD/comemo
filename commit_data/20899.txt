@@ -12,6 +12,24 @@ Date:   Mon Oct 27 12:43:14 2014 +1100
     R=golang-codereviews
     CC=adg, golang-codereviews
     https://golang.org/cl/154580045
-
+---
  misc/makerelease/windows/installer.wxs | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/makerelease/windows/installer.wxs b/misc/makerelease/windows/installer.wxs
+index 66e0913ba8..01178e2651 100644
+--- a/misc/makerelease/windows/installer.wxs
++++ b/misc/makerelease/windows/installer.wxs
+@@ -39,9 +39,9 @@
+ 
+ <Property Id="ARPCOMMENTS" Value="The Go programming language is a fast, statically typed, compiled language that feels like a dynamically typed, interpreted language." />
+ <Property Id="ARPCONTACT" Value="golang-nuts@googlegroups.com" />
+-<Property Id="ARPHELPLINK" Value="golang.org/doc/community.html" />
+-<Property Id="ARPREADME" Value="golang.org" />
+-<Property Id="ARPURLINFOABOUT" Value="golang.org" />
++<Property Id="ARPHELPLINK" Value="https://golang.org/help/" />
++<Property Id="ARPREADME" Value="https://golang.org" />
++<Property Id="ARPURLINFOABOUT" Value="https://golang.org" />
+ <Property Id="LicenseAccepted">1</Property>
+ <Icon Id="gopher.ico" SourceFile="images\gopher.ico"/>
+ <Property Id="ARPPRODUCTICON" Value="gopher.ico" />

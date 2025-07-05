@@ -12,7 +12,7 @@ Date:   Tue Jul 21 12:32:59 2015 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  api/go1.5.txt              |  4 +---
  src/go/types/builtins.go   |  4 ++--
  src/go/types/expr.go       |  2 +-
@@ -20,3 +20,120 @@ Date:   Tue Jul 21 12:32:59 2015 -0700
  src/go/types/stmt.go       |  2 +-
  src/go/types/universe.go   | 12 ++++++------
  6 files changed, 12 insertions(+), 14 deletions(-)
+
+diff --git a/api/go1.5.txt b/api/go1.5.txt
+index 69ffeee339..069a87649b 100644
+--- a/api/go1.5.txt
++++ b/api/go1.5.txt
+@@ -712,10 +712,8 @@ pkg go/types, type TypeAndValue struct, Type Type
+ pkg go/types, type TypeAndValue struct, Value constant.Value
+ pkg go/types, type TypeName struct
+ pkg go/types, type Var struct
+-pkg go/types, var Typ [26]*Basic
++pkg go/types, var Typ []*Basic
+ pkg go/types, var Universe *Scope
+-pkg go/types, var UniverseByte *Basic
+-pkg go/types, var UniverseRune *Basic
+ pkg go/types, var Unsafe *Package
+ pkg html/template, method (*Template) Option(...string) *Template
+ pkg image, const YCbCrSubsampleRatio410 = 5
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 3b81b0760b..9a2b665cbf 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -95,7 +95,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// spec: "As a special case, append also accepts a first argument assignable
+ 		// to type []byte with a second argument of string type followed by ... .
+ 		// This form appends the bytes of the string.
+-		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(UniverseByte)) {
++		if nargs == 2 && call.Ellipsis.IsValid() && x.assignableTo(check.conf, NewSlice(universeByte)) {
+ 			arg(x, 1)
+ 			if x.mode == invalid {
+ 				return
+@@ -288,7 +288,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		switch t := y.typ.Underlying().(type) {
+ 		case *Basic:
+ 			if isString(y.typ) {
+-				src = UniverseByte
++				src = universeByte
+ 			}
+ 		case *Slice:
+ 			src = t.elem
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 63a014a929..9a057befa1 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1182,7 +1182,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 				// (not a constant) even if the string and the
+ 				// index are constant
+ 				x.mode = value
+-				x.typ = UniverseByte // use 'byte' name
++				x.typ = universeByte // use 'byte' name
+ 			}
+ 
+ 		case *Array:
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index b5c39d9d16..993c6d290b 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -296,7 +296,7 @@ func defaultType(typ Type) Type {
+ 		case UntypedInt:
+ 			return Typ[Int]
+ 		case UntypedRune:
+-			return UniverseRune // use 'rune' name
++			return universeRune // use 'rune' name
+ 		case UntypedFloat:
+ 			return Typ[Float64]
+ 		case UntypedComplex:
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7fdcb7925c..731059ef7d 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -628,7 +628,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			case *Basic:
+ 				if isString(typ) {
+ 					key = Typ[Int]
+-					val = UniverseRune // use 'rune' name
++					val = universeRune // use 'rune' name
+ 				}
+ 			case *Array:
+ 				key = Typ[Int]
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 79f9db5265..38a3a3eadb 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file implements the universe and unsafe package scopes.
++// This file sets up the universe scope and the unsafe package.
+ 
+ package types
+ 
+@@ -16,11 +16,11 @@ var (
+ 	Universe     *Scope
+ 	Unsafe       *Package
+ 	universeIota *Const
+-	UniverseByte *Basic // uint8 alias, but has name "byte"
+-	UniverseRune *Basic // int32 alias, but has name "rune"
++	universeByte *Basic // uint8 alias, but has name "byte"
++	universeRune *Basic // int32 alias, but has name "rune"
+ )
+ 
+-var Typ = [...]*Basic{
++var Typ = []*Basic{
+ 	Invalid: {Invalid, 0, "invalid type"},
+ 
+ 	Bool:          {Bool, IsBoolean, "bool"},
+@@ -186,8 +186,8 @@ func init() {
+ 	defPredeclaredFuncs()
+ 
+ 	universeIota = Universe.Lookup("iota").(*Const)
+-	UniverseByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
+-	UniverseRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
++	universeByte = Universe.Lookup("byte").(*TypeName).typ.(*Basic)
++	universeRune = Universe.Lookup("rune").(*TypeName).typ.(*Basic)
+ }
+ 
+ // Objects with names containing blanks are internal and not entered into

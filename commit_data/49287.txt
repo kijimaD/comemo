@@ -17,7 +17,7 @@ Date:   Mon Jul 26 10:39:38 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/go/internal/fsys/fsys_test.go              |   3 +-
@@ -35,3 +35,620 @@ Date:   Mon Jul 26 10:39:38 2021 -0700
  src/cmd/vendor/modules.txt                         |   4 +-
  src/cmd/vet/testdata/print/print.go                |   8 +-
  16 files changed, 249 insertions(+), 96 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 21d7d8b75a..b0a3f48045 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -10,6 +10,6 @@ require (
+ 	golang.org/x/mod v0.4.3-0.20210723200715-e41a6a4f3b61
+ 	golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 // indirect
+ 	golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+-	golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
++	golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6
+ 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 529b152b77..bf237d40bc 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -36,8 +36,8 @@ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+ golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+ golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+-golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9 h1:2XlR/j4I4xz5GQZI7zBjqTfezYyRIE2jD5IMousB2rg=
+-golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
++golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6 h1:er++nfKy5Irv8JPDfJ68QzoVKQ6MBF7cf5xC15O4Zy0=
++golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
+ golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 7f175c7031..c080c14987 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -1,7 +1,6 @@
+ package fsys
+ 
+ import (
+-	"cmd/go/internal/txtar"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -12,6 +11,8 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"testing"
++
++	"golang.org/x/tools/txtar"
+ )
+ 
+ // initOverlay resets the overlay state to reflect the config.
+diff --git a/src/cmd/go/internal/txtar/archive_test.go b/src/cmd/go/internal/txtar/archive_test.go
+deleted file mode 100644
+index 3f734f6762..0000000000
+--- a/src/cmd/go/internal/txtar/archive_test.go
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package txtar
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"reflect"
+-	"testing"
+-)
+-
+-var tests = []struct {
+-	name   string
+-	text   string
+-	parsed *Archive
+-}{
+-	{
+-		name: "basic",
+-		text: `comment1
+-comment2
+--- file1 --
+-File 1 text.
+--- foo ---
+-More file 1 text.
+--- file 2 --
+-File 2 text.
+--- empty --
+--- noNL --
+-hello world`,
+-		parsed: &Archive{
+-			Comment: []byte("comment1\ncomment2\n"),
+-			Files: []File{
+-				{"file1", []byte("File 1 text.\n-- foo ---\nMore file 1 text.\n")},
+-				{"file 2", []byte("File 2 text.\n")},
+-				{"empty", []byte{}},
+-				{"noNL", []byte("hello world\n")},
+-			},
+-		},
+-	},
+-}
+-
+-func Test(t *testing.T) {
+-	for _, tt := range tests {
+-		t.Run(tt.name, func(t *testing.T) {
+-			a := Parse([]byte(tt.text))
+-			if !reflect.DeepEqual(a, tt.parsed) {
+-				t.Fatalf("Parse: wrong output:\nhave:\n%s\nwant:\n%s", shortArchive(a), shortArchive(tt.parsed))
+-			}
+-			text := Format(a)
+-			a = Parse(text)
+-			if !reflect.DeepEqual(a, tt.parsed) {
+-				t.Fatalf("Parse after Format: wrong output:\nhave:\n%s\nwant:\n%s", shortArchive(a), shortArchive(tt.parsed))
+-			}
+-		})
+-	}
+-}
+-
+-func shortArchive(a *Archive) string {
+-	var buf bytes.Buffer
+-	fmt.Fprintf(&buf, "comment: %q\n", a.Comment)
+-	for _, f := range a.Files {
+-		fmt.Fprintf(&buf, "file %q: %q\n", f.Name, f.Data)
+-	}
+-	return buf.String()
+-}
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 74bfecc08d..a387fe67db 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -25,12 +25,12 @@ import (
+ 
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/par"
+-	"cmd/go/internal/txtar"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+ 	"golang.org/x/mod/sumdb"
+ 	"golang.org/x/mod/sumdb/dirhash"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ var (
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 8a7c77a46f..3c5855bd6f 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -31,9 +31,10 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+-	"cmd/go/internal/txtar"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
++
++	"golang.org/x/tools/txtar"
+ )
+ 
+ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 03869e68de..a1ace4ce59 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -29,7 +29,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 
+-	"cmd/go/internal/txtar"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index d469c31a91..6a8a232702 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -24,7 +24,7 @@ import (
+ 	"strings"
+ 	"unicode/utf8"
+ 
+-	"../internal/txtar"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 822820f06e..6589478af0 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -555,7 +555,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	format, idx := formatString(pass, call)
+ 	if idx < 0 {
+ 		if false {
+-			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.Name())
++			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.FullName())
+ 		}
+ 		return
+ 	}
+@@ -563,7 +563,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	firstArg := idx + 1 // Arguments are immediately after format string.
+ 	if !strings.Contains(format, "%") {
+ 		if len(call.Args) > firstArg {
+-			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", fn.Name())
++			pass.Reportf(call.Lparen, "%s call has arguments but no formatting directives", fn.FullName())
+ 		}
+ 		return
+ 	}
+@@ -577,7 +577,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 		if format[i] != '%' {
+ 			continue
+ 		}
+-		state := parsePrintfVerb(pass, call, fn.Name(), format[i:], firstArg, argNum)
++		state := parsePrintfVerb(pass, call, fn.FullName(), format[i:], firstArg, argNum)
+ 		if state == nil {
+ 			return
+ 		}
+@@ -589,8 +589,12 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 			anyIndex = true
+ 		}
+ 		if state.verb == 'w' {
+-			if kind != KindErrorf {
+-				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported by Errorf", state.name)
++			switch kind {
++			case KindNone, KindPrint:
++				pass.Reportf(call.Pos(), "%s does not support error-wrapping directive %%w", state.name)
++				return
++			case KindPrintf:
++				pass.Reportf(call.Pos(), "%s call has error-wrapping directive %%w, which is only supported for functions backed by fmt.Errorf", state.name)
+ 				return
+ 			}
+ 			if anyW {
+@@ -621,7 +625,7 @@ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.F
+ 	if maxArgNum != len(call.Args) {
+ 		expect := maxArgNum - firstArg
+ 		numArgs := len(call.Args) - firstArg
+-		pass.ReportRangef(call, "%s call needs %v but has %v", fn.Name(), count(expect, "arg"), count(numArgs, "arg"))
++		pass.ReportRangef(call, "%s call needs %v but has %v", fn.FullName(), count(expect, "arg"), count(numArgs, "arg"))
+ 	}
+ }
+ 
+@@ -949,7 +953,7 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) (string, bool) {
+ 	}
+ 	if id, ok := e.(*ast.Ident); ok {
+ 		if pass.TypesInfo.Uses[id] == sig.Recv() {
+-			return method.Name(), true
++			return method.FullName(), true
+ 		}
+ 	}
+ 	return "", false
+@@ -1044,7 +1048,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if sel, ok := call.Args[0].(*ast.SelectorExpr); ok {
+ 			if x, ok := sel.X.(*ast.Ident); ok {
+ 				if x.Name == "os" && strings.HasPrefix(sel.Sel.Name, "Std") {
+-					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.Name(), analysisutil.Format(pass.Fset, call.Args[0]))
++					pass.ReportRangef(call, "%s does not take io.Writer but has first arg %s", fn.FullName(), analysisutil.Format(pass.Fset, call.Args[0]))
+ 				}
+ 			}
+ 		}
+@@ -1058,7 +1062,7 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if strings.Contains(s, "%") {
+ 			m := printFormatRE.FindStringSubmatch(s)
+ 			if m != nil {
+-				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.Name(), m[0])
++				pass.ReportRangef(call, "%s call has possible formatting directive %s", fn.FullName(), m[0])
+ 			}
+ 		}
+ 	}
+@@ -1068,16 +1072,16 @@ func checkPrint(pass *analysis.Pass, call *ast.CallExpr, fn *types.Func) {
+ 		if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
+ 			str, _ := strconv.Unquote(lit.Value)
+ 			if strings.HasSuffix(str, "\n") {
+-				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.Name())
++				pass.ReportRangef(call, "%s arg list ends with redundant newline", fn.FullName())
+ 			}
+ 		}
+ 	}
+ 	for _, arg := range args {
+ 		if isFunctionValue(pass, arg) {
+-			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.Name(), analysisutil.Format(pass.Fset, arg))
++			pass.ReportRangef(call, "%s arg %s is a func value, not called", fn.FullName(), analysisutil.Format(pass.Fset, arg))
+ 		}
+ 		if methodName, ok := recursiveStringer(pass, arg); ok {
+-			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.Name(), analysisutil.Format(pass.Fset, arg), methodName)
++			pass.ReportRangef(call, "%s arg %s causes recursive call to %s method", fn.FullName(), analysisutil.Format(pass.Fset, arg), methodName)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+index cf72ea990b..b949fc8407 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/astutil/rewrite.go
+@@ -9,6 +9,8 @@ import (
+ 	"go/ast"
+ 	"reflect"
+ 	"sort"
++
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // An ApplyFunc is invoked by Apply for each node n, even if n is nil,
+@@ -437,7 +439,11 @@ func (a *application) apply(parent ast.Node, name string, iter *iterator, n ast.
+ 		}
+ 
+ 	default:
+-		panic(fmt.Sprintf("Apply: unexpected node type %T", n))
++		if typeparams.IsListExpr(n) {
++			a.applyList(n, "ElemList")
++		} else {
++			panic(fmt.Sprintf("Apply: unexpected node type %T", n))
++		}
+ 	}
+ 
+ 	if a.post != nil && !a.post(&a.cursor) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/doc.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/doc.go
+new file mode 100644
+index 0000000000..5583947e21
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/doc.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package typeparams provides functions to work indirectly with type parameter
++// data stored in go/ast and go/types objects, while these API are guarded by a
++// build constraint.
++//
++// This package exists to make it easier for tools to work with generic code,
++// while also compiling against older Go versions.
++package typeparams
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go
+new file mode 100644
+index 0000000000..3a0abc7c18
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/notypeparams.go
+@@ -0,0 +1,90 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !typeparams || !go1.17
++// +build !typeparams !go1.17
++
++package typeparams
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// NOTE: doc comments must be kept in sync with typeparams.go.
++
++// Enabled reports whether type parameters are enabled in the current build
++// environment.
++const Enabled = false
++
++// UnpackIndex extracts all index expressions from e. For non-generic code this
++// is always one expression: e.Index, but may be more than one expression for
++// generic type instantiation.
++func UnpackIndex(e *ast.IndexExpr) []ast.Expr {
++	return []ast.Expr{e.Index}
++}
++
++// IsListExpr reports whether n is an *ast.ListExpr, which is a new node type
++// introduced to hold type arguments for generic type instantiation.
++func IsListExpr(n ast.Node) bool {
++	return false
++}
++
++// ForTypeDecl extracts the (possibly nil) type parameter node list from n.
++func ForTypeDecl(*ast.TypeSpec) *ast.FieldList {
++	return nil
++}
++
++// ForFuncDecl extracts the (possibly nil) type parameter node list from n.
++func ForFuncDecl(*ast.FuncDecl) *ast.FieldList {
++	return nil
++}
++
++// ForSignature extracts the (possibly empty) type parameter object list from
++// sig.
++func ForSignature(*types.Signature) []*types.TypeName {
++	return nil
++}
++
++// HasTypeSet reports if iface has a type set.
++func HasTypeSet(*types.Interface) bool {
++	return false
++}
++
++// IsComparable reports if iface is the comparable interface.
++func IsComparable(*types.Interface) bool {
++	return false
++}
++
++// IsConstraint reports whether iface may only be used as a type parameter
++// constraint (i.e. has a type set or is the comparable interface).
++func IsConstraint(*types.Interface) bool {
++	return false
++}
++
++// ForNamed extracts the (possibly empty) type parameter object list from
++// named.
++func ForNamed(*types.Named) []*types.TypeName {
++	return nil
++}
++
++// NamedTArgs extracts the (possibly empty) type argument list from named.
++func NamedTArgs(*types.Named) []types.Type {
++	return nil
++}
++
++// InitInferred initializes info to record inferred type information.
++func InitInferred(*types.Info) {
++}
++
++// GetInferred extracts inferred type information from info for e.
++//
++// The expression e may have an inferred type if it is an *ast.IndexExpr
++// representing partial instantiation of a generic function type for which type
++// arguments have been inferred using constraint type inference, or if it is an
++// *ast.CallExpr for which type type arguments have be inferred using both
++// constraint type inference and function argument inference.
++func GetInferred(*types.Info, ast.Expr) ([]types.Type, *types.Signature) {
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+new file mode 100644
+index 0000000000..6b7958af06
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams.go
+@@ -0,0 +1,105 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build typeparams && go1.17
++// +build typeparams,go1.17
++
++package typeparams
++
++import (
++	"go/ast"
++	"go/types"
++)
++
++// NOTE: doc comments must be kept in sync with notypeparams.go.
++
++// Enabled reports whether type parameters are enabled in the current build
++// environment.
++const Enabled = true
++
++// UnpackIndex extracts all index expressions from e. For non-generic code this
++// is always one expression: e.Index, but may be more than one expression for
++// generic type instantiation.
++func UnpackIndex(e *ast.IndexExpr) []ast.Expr {
++	if x, _ := e.Index.(*ast.ListExpr); x != nil {
++		return x.ElemList
++	}
++	if e.Index != nil {
++		return []ast.Expr{e.Index}
++	}
++	return nil
++}
++
++// IsListExpr reports whether n is an *ast.ListExpr, which is a new node type
++// introduced to hold type arguments for generic type instantiation.
++func IsListExpr(n ast.Node) bool {
++	_, ok := n.(*ast.ListExpr)
++	return ok
++}
++
++// ForTypeDecl extracts the (possibly nil) type parameter node list from n.
++func ForTypeDecl(n *ast.TypeSpec) *ast.FieldList {
++	return n.TParams
++}
++
++// ForFuncDecl extracts the (possibly nil) type parameter node list from n.
++func ForFuncDecl(n *ast.FuncDecl) *ast.FieldList {
++	if n.Type != nil {
++		return n.Type.TParams
++	}
++	return nil
++}
++
++// ForSignature extracts the (possibly empty) type parameter object list from
++// sig.
++func ForSignature(sig *types.Signature) []*types.TypeName {
++	return sig.TParams()
++}
++
++// HasTypeSet reports if iface has a type set.
++func HasTypeSet(iface *types.Interface) bool {
++	return iface.HasTypeList()
++}
++
++// IsComparable reports if iface is the comparable interface.
++func IsComparable(iface *types.Interface) bool {
++	return iface.IsComparable()
++}
++
++// IsConstraint reports whether iface may only be used as a type parameter
++// constraint (i.e. has a type set or is the comparable interface).
++func IsConstraint(iface *types.Interface) bool {
++	return iface.IsConstraint()
++}
++
++// ForNamed extracts the (possibly empty) type parameter object list from
++// named.
++func ForNamed(named *types.Named) []*types.TypeName {
++	return named.TParams()
++}
++
++// NamedTArgs extracts the (possibly empty) type argument list from named.
++func NamedTArgs(named *types.Named) []types.Type {
++	return named.TArgs()
++}
++
++// InitInferred initializes info to record inferred type information.
++func InitInferred(info *types.Info) {
++	info.Inferred = make(map[ast.Expr]types.Inferred)
++}
++
++// GetInferred extracts inferred type information from info for e.
++//
++// The expression e may have an inferred type if it is an *ast.IndexExpr
++// representing partial instantiation of a generic function type for which type
++// arguments have been inferred using constraint type inference, or if it is an
++// *ast.CallExpr for which type type arguments have be inferred using both
++// constraint type inference and function argument inference.
++func GetInferred(info *types.Info, e ast.Expr) ([]types.Type, *types.Signature) {
++	if info.Inferred == nil {
++		return nil, nil
++	}
++	inf := info.Inferred[e]
++	return inf.TArgs, inf.Sig
++}
+diff --git a/src/cmd/go/internal/txtar/archive.go b/src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+similarity index 96%
+rename from src/cmd/go/internal/txtar/archive.go
+rename to src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+index 1796684877..214256617b 100644
+--- a/src/cmd/go/internal/txtar/archive.go
++++ b/src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+@@ -34,7 +34,7 @@ package txtar
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"os"
++	"io/ioutil"
+ 	"strings"
+ )
+ 
+@@ -66,7 +66,7 @@ func Format(a *Archive) []byte {
+ 
+ // ParseFile parses the named file as an archive.
+ func ParseFile(file string) (*Archive, error) {
+-	data, err := os.ReadFile(file)
++	data, err := ioutil.ReadFile(file)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -121,7 +121,7 @@ func isMarker(data []byte) (name string, after []byte) {
+ 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+ 		data, after = data[:i], data[i+1:]
+ 	}
+-	if !bytes.HasSuffix(data, markerEnd) {
++	if !(bytes.HasSuffix(data, markerEnd) && len(data) >= len(marker)+len(markerEnd)) {
+ 		return "", nil
+ 	}
+ 	return strings.TrimSpace(string(data[len(marker) : len(data)-len(markerEnd)])), after
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index beceef5392..e032ccc2c7 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -48,7 +48,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210503060354-a79de5458b56
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9
++# golang.org/x/tools v0.1.6-0.20210726171848-ebce39e5e3d6
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+@@ -92,6 +92,8 @@ golang.org/x/tools/go/types/objectpath
+ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
++golang.org/x/tools/internal/typeparams
++golang.org/x/tools/txtar
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+ ## explicit; go 1.11
+ golang.org/x/xerrors
+diff --git a/src/cmd/vet/testdata/print/print.go b/src/cmd/vet/testdata/print/print.go
+index fca594925f..be42a37717 100644
+--- a/src/cmd/vet/testdata/print/print.go
++++ b/src/cmd/vet/testdata/print/print.go
+@@ -491,10 +491,10 @@ type recursiveStringer int
+ func (s recursiveStringer) String() string {
+ 	_ = fmt.Sprintf("%d", s)
+ 	_ = fmt.Sprintf("%#v", s)
+-	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive String method call"
+-	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive String method call"
++	_ = fmt.Sprintf("%v", s)  // ERROR "Sprintf format %v with arg s causes recursive \(cmd/vet/testdata/print\.recursiveStringer\)\.String method call"
++	_ = fmt.Sprintf("%v", &s) // ERROR "Sprintf format %v with arg &s causes recursive \(cmd/vet/testdata/print\.recursiveStringer\)\.String method call"
+ 	_ = fmt.Sprintf("%T", s)  // ok; does not recursively call String
+-	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to String method"
++	return fmt.Sprintln(s)    // ERROR "Sprintln arg s causes recursive call to \(cmd/vet/testdata/print\.recursiveStringer\)\.String method"
+ }
+ 
+ type recursivePtrStringer int
+@@ -502,7 +502,7 @@ type recursivePtrStringer int
+ func (p *recursivePtrStringer) String() string {
+ 	_ = fmt.Sprintf("%v", *p)
+ 	_ = fmt.Sprint(&p)     // ok; prints address
+-	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to String method"
++	return fmt.Sprintln(p) // ERROR "Sprintln arg p causes recursive call to \(\*cmd/vet/testdata/print\.recursivePtrStringer\)\.String method"
+ }
+ 
+ type BoolFormatter bool

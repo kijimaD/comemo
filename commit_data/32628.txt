@@ -17,8 +17,138 @@ Date:   Tue May 9 08:22:43 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 31 +++++++++++++++++++++----------
  src/go/types/stdlib_test.go         | 15 +++++++++++++--
  test/fixedbugs/issue20298.go        | 32 ++++++++++++++++++++++++++++++++
  3 files changed, 66 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 058c08ec4f..f67822e613 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1043,35 +1043,46 @@ func mkpackage(pkgname string) {
+ }
+ 
+ func clearImports() {
++	type importedPkg struct {
++		pos  src.XPos
++		path string
++		name string
++	}
++	var unused []importedPkg
++
+ 	for _, s := range localpkg.Syms {
+-		if asNode(s.Def) == nil {
++		n := asNode(s.Def)
++		if n == nil {
+ 			continue
+ 		}
+-		if asNode(s.Def).Op == OPACK {
+-			// throw away top-level package name leftover
++		if n.Op == OPACK {
++			// throw away top-level package name left over
+ 			// from previous file.
+ 			// leave s->block set to cause redeclaration
+ 			// errors if a conflicting top-level name is
+ 			// introduced by a different file.
+-			if !asNode(s.Def).Name.Used() && nsyntaxerrors == 0 {
+-				pkgnotused(asNode(s.Def).Pos, asNode(s.Def).Name.Pkg.Path, s.Name)
++			if !n.Name.Used() && nsyntaxerrors == 0 {
++				unused = append(unused, importedPkg{n.Pos, n.Name.Pkg.Path, s.Name})
+ 			}
+ 			s.Def = nil
+ 			continue
+ 		}
+-
+ 		if IsAlias(s) {
+ 			// throw away top-level name left over
+ 			// from previous import . "x"
+-			if asNode(s.Def).Name != nil && asNode(s.Def).Name.Pack != nil && !asNode(s.Def).Name.Pack.Name.Used() && nsyntaxerrors == 0 {
+-				pkgnotused(asNode(s.Def).Name.Pack.Pos, asNode(s.Def).Name.Pack.Name.Pkg.Path, "")
+-				asNode(s.Def).Name.Pack.Name.SetUsed(true)
++			if n.Name != nil && n.Name.Pack != nil && !n.Name.Pack.Name.Used() && nsyntaxerrors == 0 {
++				unused = append(unused, importedPkg{n.Name.Pack.Pos, n.Name.Pack.Name.Pkg.Path, ""})
++				n.Name.Pack.Name.SetUsed(true)
+ 			}
+-
+ 			s.Def = nil
+ 			continue
+ 		}
+ 	}
++
++	obj.SortSlice(unused, func(i, j int) bool { return unused[i].pos.Before(unused[j].pos) })
++	for _, pkg := range unused {
++		pkgnotused(pkg.pos, pkg.path, pkg.name)
++	}
+ }
+ 
+ func IsAlias(sym *types.Sym) bool {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 4b6b1f0fad..a268d3b3bb 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -96,12 +96,23 @@ func testTestDir(t *testing.T, path string, ignore ...string) {
+ 		// get per-file instructions
+ 		expectErrors := false
+ 		filename := filepath.Join(path, f.Name())
+-		if cmd := firstComment(filename); cmd != "" {
+-			switch cmd {
++		if comment := firstComment(filename); comment != "" {
++			fields := strings.Fields(comment)
++			switch fields[0] {
+ 			case "skip", "compiledir":
+ 				continue // ignore this file
+ 			case "errorcheck":
+ 				expectErrors = true
++				for _, arg := range fields[1:] {
++					if arg == "-0" || arg == "-+" {
++						// Marked explicitly as not expected errors (-0),
++						// or marked as compiling_runtime, which is only done
++						// to trigger runtime-only error output.
++						// In both cases, the code should typecheck.
++						expectErrors = false
++						break
++					}
++				}
+ 			}
+ 		}
+ 
+diff --git a/test/fixedbugs/issue20298.go b/test/fixedbugs/issue20298.go
+new file mode 100644
+index 0000000000..7572a6b6c5
+--- /dev/null
++++ b/test/fixedbugs/issue20298.go
+@@ -0,0 +1,32 @@
++// errorcheck -e=0
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 20298: "imported and not used" error report order was non-deterministic.
++// This test works by limiting the number of errors (-e=0)
++// and checking that the errors are all at the beginning.
++
++package p
++
++import (
++	"bufio"       // ERROR "imported and not used"
++	"bytes"       // ERROR "imported and not used"
++	"crypto/x509" // ERROR "imported and not used"
++	"flag"        // ERROR "imported and not used"
++	"fmt"         // ERROR "imported and not used"
++	"io"          // ERROR "imported and not used"
++	"io/ioutil"   // ERROR "imported and not used"
++	"log"         // ERROR "imported and not used"
++	"math"        // ERROR "imported and not used"
++	"math/big"    // ERROR "imported and not used" "too many errors"
++	"math/bits"
++	"net"
++	"net/http"
++	"os"
++	"path"
++	"path/filepath"
++	"regexp"
++	"strings"
++)

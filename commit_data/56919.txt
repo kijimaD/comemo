@@ -18,8 +18,195 @@ Date:   Tue May 30 15:19:44 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Eli Bendersky <eliben@google.com>
-
+---
  api/next/56491.txt   |  2 --
  src/math/all_test.go | 94 ----------------------------------------------------
  src/math/compare.go  | 53 -----------------------------
  3 files changed, 149 deletions(-)
+
+diff --git a/api/next/56491.txt b/api/next/56491.txt
+deleted file mode 100644
+index 333f92e215..0000000000
+--- a/api/next/56491.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg math, func Compare(float64, float64) int #56491
+-pkg math, func Compare32(float32, float32) int #56491
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index e29610a1ed..886267bc17 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2094,67 +2094,6 @@ var sqrt32 = []float32{
+ 	-5.0106036182710749e+00,
+ }
+ 
+-type compareTest[F float32 | float64] struct {
+-	x, y F
+-	want int
+-}
+-
+-func compareCasesFloat64() []compareTest[float64] {
+-	zero, nan, inf := 0.0, NaN(), Inf(0)
+-
+-	// construct -NaN manually from its bit representation,
+-	// since IEEE doesn't mandate negate(NaN) change the sign bit
+-	unegnan := Float64bits(nan)
+-	unegnan ^= 1 << 63
+-	negnan := Float64frombits(unegnan)
+-	return []compareTest[float64]{
+-		{negnan, -inf, -1},
+-		{-inf, negnan, 1},
+-		{-inf, -Pi, -1},
+-		{-Pi, -inf, 1},
+-		{-Pi, -zero, -1},
+-		{-zero, -Pi, 1},
+-		{-zero, 0, -1},
+-		{0, -zero, 1},
+-		{0, Pi, -1},
+-		{Pi, 0, 1},
+-		{Pi, inf, -1},
+-		{inf, Pi, 1},
+-		{inf, nan, -1},
+-		{nan, inf, 1},
+-		{Pi, Pi, 0},
+-		{negnan, negnan, 0},
+-	}
+-}
+-
+-func compareCasesFloat32() []compareTest[float32] {
+-	zero, nan, inf := float32(0.0), float32(NaN()), float32(Inf(0))
+-
+-	// construct -NaN manually from its bit representation,
+-	// since IEEE doesn't mandate negate(NaN) change the sign bit
+-	unegnan := Float32bits(nan)
+-	unegnan ^= 1 << 31
+-	negnan := Float32frombits(unegnan)
+-	return []compareTest[float32]{
+-		{negnan, -inf, -1},
+-		{-inf, negnan, 1},
+-		{-inf, -Pi, -1},
+-		{-Pi, -inf, 1},
+-		{-Pi, -zero, -1},
+-		{-zero, -Pi, 1},
+-		{-zero, 0, -1},
+-		{0, -zero, 1},
+-		{0, Pi, -1},
+-		{Pi, 0, 1},
+-		{Pi, inf, -1},
+-		{inf, Pi, 1},
+-		{inf, nan, -1},
+-		{nan, inf, 1},
+-		{Pi, Pi, 0},
+-		{negnan, negnan, 0},
+-	}
+-}
+-
+ func tolerance(a, b, e float64) bool {
+ 	// Multiplying by e here can underflow denormal values to zero.
+ 	// Check a==b so that at least if a and b are small and identical
+@@ -2322,22 +2261,6 @@ func TestCeil(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCompare(t *testing.T) {
+-	// -NaN < -∞ < -3.14 < -0 < 0 < 3.14 < ∞ < NaN
+-	for _, c := range compareCasesFloat64() {
+-		cmp := Compare(c.x, c.y)
+-		if cmp != c.want {
+-			t.Errorf("Compare(%v, %v) = %d, want %v", c.x, c.y, cmp, c.want)
+-		}
+-	}
+-	for _, c := range compareCasesFloat32() {
+-		cmp := Compare32(c.x, c.y)
+-		if cmp != c.want {
+-			t.Errorf("Compare32(%v, %v) = %d, want %v", c.x, c.y, cmp, c.want)
+-		}
+-	}
+-}
+-
+ func TestCopysign(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Copysign(vf[i], -1); copysign[i] != f {
+@@ -3397,23 +3320,6 @@ func BenchmarkCeil(b *testing.B) {
+ 	GlobalF = x
+ }
+ 
+-func BenchmarkCompare(b *testing.B) {
+-	x := 0
+-	for i := 0; i < b.N; i++ {
+-		x = Compare(GlobalF, 1.5)
+-	}
+-	GlobalI = x
+-}
+-
+-func BenchmarkCompare32(b *testing.B) {
+-	x := 0
+-	globalF32 := float32(GlobalF)
+-	for i := 0; i < b.N; i++ {
+-		x = Compare32(globalF32, 1.5)
+-	}
+-	GlobalI = x
+-}
+-
+ var copysignNeg = -1.0
+ 
+ func BenchmarkCopysign(b *testing.B) {
+diff --git a/src/math/compare.go b/src/math/compare.go
+deleted file mode 100644
+index 3798110072..0000000000
+--- a/src/math/compare.go
++++ /dev/null
+@@ -1,53 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-func sign[I int32 | int64](a, b I) int {
+-	if a < b {
+-		return -1
+-	}
+-	if a > b {
+-		return 1
+-	}
+-	return 0
+-}
+-
+-// Compare compares a and b such that
+-// -NaN is ordered before any other value,
+-// +NaN is ordered after any other value,
+-// and -0 is ordered before +0.
+-// In other words, it defines a total order over floats
+-// (according to the total-ordering predicate in IEEE-754, section 5.10).
+-// It returns 0 if a == b, -1 if a < b, and +1 if a > b.
+-func Compare(a, b float64) int {
+-	// Perform a bitwise comparison (a < b) by casting the float64s into an int64s.
+-	x := int64(Float64bits(a))
+-	y := int64(Float64bits(b))
+-
+-	// If a and b are both negative, flip the comparison so that we check a > b.
+-	if x < 0 && y < 0 {
+-		return sign(y, x)
+-	}
+-	return sign(x, y)
+-}
+-
+-// Compare32 compares a and b such that
+-// -NaN is ordered before any other value,
+-// +NaN is ordered after any other value,
+-// and -0 is ordered before +0.
+-// In other words, it defines a total order over floats
+-// (according to the total-ordering predicate in IEEE-754, section 5.10).
+-// It returns 0 if a == b, -1 if a < b, and +1 if a > b.
+-func Compare32(a, b float32) int {
+-	// Perform a bitwise comparison (a < b) by casting the float32s into an int32s.
+-	x := int32(Float32bits(a))
+-	y := int32(Float32bits(b))
+-
+-	// If a and b are both negative, flip the comparison so that we check a > b.
+-	if x < 0 && y < 0 {
+-		return sign(y, x)
+-	}
+-	return sign(x, y)
+-}

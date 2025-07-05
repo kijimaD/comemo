@@ -12,7 +12,55 @@ Date:   Tue May 18 12:47:30 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/os_freebsd2.go      | 4 +++-
  src/runtime/os_freebsd_amd64.go | 6 ++++--
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_freebsd2.go b/src/runtime/os_freebsd2.go
+index fde6fbf1b1..53ba23b64c 100644
+--- a/src/runtime/os_freebsd2.go
++++ b/src/runtime/os_freebsd2.go
+@@ -7,6 +7,8 @@
+ 
+ package runtime
+ 
++import "internal/abi"
++
+ //go:nosplit
+ //go:nowritebarrierrec
+ func setsig(i uint32, fn uintptr) {
+@@ -14,7 +16,7 @@ func setsig(i uint32, fn uintptr) {
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_handler = fn
+ 	sigaction(i, &sa, nil)
+diff --git a/src/runtime/os_freebsd_amd64.go b/src/runtime/os_freebsd_amd64.go
+index dc0bb9ff96..7ae80c2506 100644
+--- a/src/runtime/os_freebsd_amd64.go
++++ b/src/runtime/os_freebsd_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "internal/abi"
++
+ func cgoSigtramp()
+ 
+ //go:nosplit
+@@ -14,9 +16,9 @@ func setsig(i uint32, fn uintptr) {
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+ 		if iscgo {
+-			fn = funcPC(cgoSigtramp)
++			fn = abi.FuncPCABI0(cgoSigtramp)
+ 		} else {
+-			fn = funcPC(sigtramp)
++			fn = abi.FuncPCABI0(sigtramp)
+ 		}
+ 	}
+ 	sa.sa_handler = fn

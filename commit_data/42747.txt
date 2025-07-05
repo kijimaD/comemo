@@ -19,6 +19,60 @@ Date:   Tue Feb 18 10:03:22 2020 -0500
     Reviewed-by: Toshihiro Shiino <shiino.toshihiro@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  doc/go1.14.html | 34 +++++++++++++++-------------------
  1 file changed, 15 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 0c34245f62..f83b365704 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -405,8 +405,22 @@ appropriately.)
+ 
+ <h2 id="library">Core library</h2>
+ 
++<h3 id="hash/maphash">New byte sequence hashing package</h3>
++
++<p> <!-- golang.org/issue/28322, CL 186877 -->
++  Go 1.14 includes a new package,
++  <a href="/pkg/hash/maphash/"><code>hash/maphash</code></a>,
++  which provides hash functions on byte sequences.
++  These hash functions are intended to be used to implement hash tables or
++  other data structures that need to map arbitrary strings or byte
++  sequences to a uniform distribution on unsigned 64-bit integers.
++</p>
++<p>
++  The hash functions are collision-resistant but not cryptographically secure.
++</p>
+ <p>
+-  All of the changes to the standard library are minor.
++  The hash value of a given byte sequence is consistent within a
++  single process, but will be different in different processes.
+ </p>
+ 
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+@@ -603,24 +617,6 @@ appropriately.)
+   </dd>
+ </dl><!-- go/doc -->
+ 
+-<dl id="hash/maphash"><dt><a href="/pkg/hash/maphash/">hash/maphash</a></dt>
+-  <dd>
+-    <p><!-- CL 186877 -->
+-      This new package provides hash functions on byte sequences.
+-      These hash functions are intended to be used to implement hash tables or
+-      other data structures that need to map arbitrary strings or byte
+-      sequences to a uniform distribution of integers.
+-    </p>
+-    <p>
+-      The hash functions are collision-resistant but not cryptographically secure.
+-    </p>
+-    <p>
+-      The hash value of a given byte sequence is consistent within a
+-      single process, but will be different in different processes.
+-    </p>
+-  </dd>
+-</dl><!-- hash/maphash -->
+-
+ <dl id="io/ioutil"><dt><a href="/pkg/io/ioutil/">io/ioutil</a></dt>
+   <dd>
+     <p><!-- CL 198488 -->

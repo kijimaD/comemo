@@ -8,6 +8,20 @@ Date:   Wed Aug 6 17:24:03 2014 +1000
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/117670043
-
+---
  src/pkg/runtime/os_windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index ee6eed002f..1dc0780ba9 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -280,7 +280,7 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
+ 	KSYSTEM_TIME t;
+ 	int32 i;
+ 
+-	for(i = 0; i < 10000; i++) {
++	for(i = 1; i < 10000; i++) {
+ 		// these fields must be read in that order (see URL above)
+ 		t.High1Time = timeaddr->High1Time;
+ 		t.LowPart = timeaddr->LowPart;

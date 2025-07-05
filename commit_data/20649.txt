@@ -12,8 +12,77 @@ Date:   Fri Sep 26 13:48:30 2014 -0400
     R=golang-codereviews, crawshaw
     CC=0xe2.0x9a.0x9b, adg, golang-codereviews, iant, r
     https://golang.org/cl/148180043
-
+---
  src/cmd/go/build.go  |  8 ++++++++
  src/cmd/go/test.bash | 11 +++++++++++
  src/cmd/ld/pobj.c    |  9 +++++++++
  3 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c72631ae9e..e2e17fd036 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1469,6 +1469,14 @@ func (b *builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 			continue
+ 		}
+ 
++		// err can be something like 'exit status 1'.
++		// Add information about what program was running.
++		// Note that if buf.Bytes() is non-empty, the caller usually
++		// shows buf.Bytes() and does not print err at all, so the
++		// prefix here does not make most output any more verbose.
++		if err != nil {
++			err = errors.New(cmdline[0] + ": " + err.Error())
++		}
+ 		return buf.Bytes(), err
+ 	}
+ }
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 243467ba9d..80af61ae0e 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -60,6 +60,17 @@ if ! grep -q "^$fn:" $d/err.out; then
+ fi
+ rm -r $d
+ 
++TEST 'program name in crash messages'
++linker=$(./testgo env GOCHAR)l
++d=$(TMPDIR=/var/tmp mktemp -d -t testgoXXX)
++./testgo build -ldflags -crash_for_testing $(./testgo env GOROOT)/test/helloworld.go 2>$d/err.out || true
++if ! grep -q "/tool/.*/$linker" $d/err.out; then
++	echo "missing linker name in error message"
++	cat $d/err.out
++	ok=false
++fi
++rm -r $d
++
+ # Test local (./) imports.
+ testlocal() {
+ 	local="$1"
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 54c5ef2472..63460df30a 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -45,6 +45,8 @@ char*	paramspace	= "FP";
+ void
+ main(int argc, char *argv[])
+ {
++	int i;
++
+ 	linkarchinit();
+ 	ctxt = linknew(thelinkarch);
+ 	ctxt->thechar = thechar;
+@@ -64,6 +66,13 @@ main(int argc, char *argv[])
+ 	INITENTRY = 0;
+ 	linkmode = LinkAuto;
+ 	
++	// For testing behavior of go command when tools crash.
++	// Undocumented, not in standard flag parser to avoid
++	// exposing in usage message.
++	for(i=1; i<argc; i++)
++		if(strcmp(argv[i], "-crash_for_testing") == 0)
++			*(volatile int*)0 = 0;
++	
+ 	if(thechar == '5' && ctxt->goarm == 5)
+ 		debug['F'] = 1;
+ 

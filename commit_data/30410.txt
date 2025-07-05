@@ -11,6 +11,21 @@ Date:   Thu Nov 3 22:25:42 2016 +0530
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 4f1c883b5a..10bd09e72f 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -17,7 +17,8 @@ func parseFile(filename string) {
+ 	p := noder{baseline: lexlineno}
+ 	file, err := syntax.ReadFile(filename, p.error, p.pragma, 0)
+ 	if err != nil {
+-		Fatalf("syntax.ReadFile %s: %v", filename, err)
++		fmt.Printf("parse %s: %v\n", filename, err)
++		errorexit()
+ 	}
+ 
+ 	p.file(file)

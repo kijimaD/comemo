@@ -15,7 +15,7 @@ Date:   Wed Feb 11 22:27:49 2015 -0500
     Change-Id: I4a94570257a3a7acc31601bfe0fad9dea0aea054
     Reviewed-on: https://go-review.googlesource.com/4649
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5l/asm.c       |  68 +++++----------
  src/cmd/5l/l.h         |  41 +--------
  src/cmd/5l/list.c      |  30 -------
@@ -50,3 +50,4186 @@ Date:   Wed Feb 11 22:27:49 2015 -0500
  src/cmd/ld/pobj.c      |  48 +++++-----
  src/cmd/ld/symtab.c    |  41 +++++----
  33 files changed, 843 insertions(+), 908 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 3ed5b673d4..ed4d68a1fb 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -36,13 +36,6 @@
+ #include	"../ld/macho.h"
+ #include	"../ld/dwarf.h"
+ 
+-char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
+-char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+-char openbsddynld[] = "XXX";
+-char netbsddynld[] = "/libexec/ld.elf_so";
+-char dragonflydynld[] = "XXX";
+-char solarisdynld[] = "XXX";
+-
+ static int
+ needlib(char *name)
+ {
+@@ -63,8 +56,6 @@ needlib(char *name)
+ 	return 0;
+ }
+ 
+-int	nelfsym = 1;
+-
+ static void	addpltsym(Link*, LSym*);
+ static void	addgotsym(Link*, LSym*);
+ static void	addgotsyminternal(Link*, LSym*);
+@@ -127,11 +118,11 @@ adddynrel(LSym *s, Reloc *r)
+ 			addgotsym(ctxt, targ);
+ 		}
+ 		r->type = R_CONST;	// write r->add during relocsym
+-		r->sym = S;
++		r->sym = nil;
+ 		r->add += targ->got;
+ 		return;
+ 
+-	case 256 + R_ARM_GOT_PREL: // GOT(S) + A - P
++	case 256 + R_ARM_GOT_PREL: // GOT(nil) + A - nil
+ 		if(targ->type != SDYNIMPORT) {
+ 			addgotsyminternal(ctxt, targ);
+ 		} else {
+@@ -178,7 +169,7 @@ adddynrel(LSym *s, Reloc *r)
+ 			// R_ARM_V4BX is ABS relocation, so this symbol is a dummy symbol, ignore it
+ 			r->sym->type = 0;
+ 		}
+-		r->sym = S;
++		r->sym = nil;
+ 		return;
+ 
+ 	case 256 + R_ARM_PC24:
+@@ -210,9 +201,9 @@ adddynrel(LSym *s, Reloc *r)
+ 			adddynsym(ctxt, targ);
+ 			rel = linklookup(ctxt, ".rel", 0);
+ 			addaddrplus(ctxt, rel, s, r->off);
+-			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a S + A dynmic reloc
++			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_ARM_GLOB_DAT)); // we need a nil + A dynmic reloc
+ 			r->type = R_CONST;	// write r->add during relocsym
+-			r->sym = S;
++			r->sym = nil;
+ 			return;
+ 		}
+ 		break;
+@@ -227,7 +218,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ {
+ 	int32 elfsym;
+ 	
+-	LPUT(sectoff);
++	thearch.lput(sectoff);
+ 
+ 	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+@@ -236,14 +227,14 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 
+ 	case R_ADDR:
+ 		if(r->siz == 4)
+-			LPUT(R_ARM_ABS32 | elfsym<<8);
++			thearch.lput(R_ARM_ABS32 | elfsym<<8);
+ 		else
+ 			return -1;
+ 		break;
+ 
+ 	case R_PCREL:
+ 		if(r->siz == 4)
+-			LPUT(R_ARM_REL32 | elfsym<<8);
++			thearch.lput(R_ARM_REL32 | elfsym<<8);
+ 		else
+ 			return -1;
+ 		break;
+@@ -251,9 +242,9 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_CALLARM:
+ 		if(r->siz == 4) {
+ 			if((r->add & 0xff000000) == 0xeb000000) // BL
+-				LPUT(R_ARM_CALL | elfsym<<8);
++				thearch.lput(R_ARM_CALL | elfsym<<8);
+ 			else
+-				LPUT(R_ARM_JUMP24 | elfsym<<8);
++				thearch.lput(R_ARM_JUMP24 | elfsym<<8);
+ 		} else
+ 			return -1;
+ 		break;
+@@ -261,9 +252,9 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_TLS:
+ 		if(r->siz == 4) {
+ 			if(flag_shared)
+-				LPUT(R_ARM_TLS_IE32 | elfsym<<8);
++				thearch.lput(R_ARM_TLS_IE32 | elfsym<<8);
+ 			else
+-				LPUT(R_ARM_TLS_LE32 | elfsym<<8);
++				thearch.lput(R_ARM_TLS_LE32 | elfsym<<8);
+ 		} else
+ 			return -1;
+ 		break;
+@@ -350,8 +341,8 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		break;
+ 	}
+ 
+-	LPUT(sectoff);
+-	LPUT(v);
++	thearch.lput(sectoff);
++	thearch.lput(v);
+ 	return 0;
+ }
+ 
+@@ -727,14 +718,14 @@ asmb(void)
+ 	switch(HEADTYPE) {
+ 	default:
+ 	case Hplan9:	/* plan 9 */
+-		LPUT(0x647);			/* magic */
+-		LPUT(segtext.filelen);			/* sizes */
+-		LPUT(segdata.filelen);
+-		LPUT(segdata.len - segdata.filelen);
+-		LPUT(symsize);			/* nsyms */
+-		LPUT(entryvalue());		/* va of entry */
+-		LPUT(0L);
+-		LPUT(lcsize);
++		thearch.lput(0x647);			/* magic */
++		thearch.lput(segtext.filelen);			/* sizes */
++		thearch.lput(segdata.filelen);
++		thearch.lput(segdata.len - segdata.filelen);
++		thearch.lput(symsize);			/* nsyms */
++		thearch.lput(entryvalue());		/* va of entry */
++		thearch.lput(0L);
++		thearch.lput(lcsize);
+ 		break;
+ 	case Hlinux:
+ 	case Hfreebsd:
+@@ -757,18 +748,3 @@ asmb(void)
+ 		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
+ 	}
+ }
+-
+-int32
+-rnd(int32 v, int32 r)
+-{
+-	int32 c;
+-
+-	if(r <= 0)
+-		return v;
+-	v += r - 1;
+-	c = v % r;
+-	if(c < 0)
+-		c += r;
+-	v -= c;
+-	return v;
+-}
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index f9cdc5bd7e..b32b89bb06 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -32,7 +32,6 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ #include	<link.h>
+-#include	"5.out.h"
+ 
+ enum
+ {
+@@ -41,43 +40,14 @@ enum
+ 	IntSize = 4,
+ 	RegSize = 4,
+ 	MaxAlign = 8,	// max data alignment
+-	FuncAlign = 4  // single-instruction alignment
++	FuncAlign = 4,  // single-instruction alignment
++	MINLC	= 4,
+ };
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+ #endif
+ 
+-#define	P		((Prog*)0)
+-#define	S		((LSym*)0)
+-
+-enum
+-{
+-/* mark flags */
+-	FOLL		= 1<<0,
+-	LABEL		= 1<<1,
+-	LEAF		= 1<<2,
+-
+-	MINLC	= 4,
+-};
+-
+-EXTERN	int32	autosize;
+-EXTERN	LSym*	datap;
+-EXTERN	int	debug[128];
+-EXTERN	char*	noname;
+-EXTERN	Prog*	lastp;
+-EXTERN	int32	lcsize;
+-EXTERN	char	literal[32];
+-EXTERN	int	nerrors;
+-EXTERN	int32	instoffset;
+-EXTERN	char*	rpath;
+-EXTERN	uint32	stroffset;
+-EXTERN	int32	symsize;
+-EXTERN	int	armsize;
+-
+-#pragma	varargck	type	"I"	uint32*
+-
+-int	Iconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rel, LSym *s, Reloc *r);
+@@ -89,13 +59,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+-void	main(int argc, char *argv[]);
+-int32	rnd(int32 v, int32 r);
+-
+-/* Native is little-endian */
+-#define	LPUT(a)	lputl(a)
+-#define	WPUT(a)	wputl(a)
+-#define	VPUT(a)	abort()
+ 
+ /* Used by ../ld/dwarf.c */
+ enum
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 875fc3e6b2..d4cc8acd7c 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -37,34 +37,4 @@ void
+ listinit(void)
+ {
+ 	listinit5();
+-	fmtinstall('I', Iconv);
+-}
+-
+-int
+-Iconv(Fmt *fp)
+-{
+-	int i, n;
+-	uint32 *p;
+-	char *s;
+-	Fmt fmt;
+-	
+-	n = fp->prec;
+-	fp->prec = 0;
+-	if(!(fp->flags&FmtPrec) || n < 0)
+-		return fmtstrcpy(fp, "%I");
+-	fp->flags &= ~FmtPrec;
+-	p = va_arg(fp->args, uint32*);
+-
+-	// format into temporary buffer and
+-	// call fmtstrcpy to handle padding.
+-	fmtstrinit(&fmt);
+-	for(i=0; i<n/4; i++) {
+-		if(i > 0)
+-			fmtprint(&fmt, " ");
+-		fmtprint(&fmt, "%.8ux", *p++);
+-	}
+-	s = fmtstrflush(&fmt);
+-	fmtstrcpy(fp, s);
+-	free(s);
+-	return 0;
+ }
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 73ff751487..a7bd0f45ea 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -37,12 +37,51 @@
+ #include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+-char *thestring = "arm";
+-LinkArch *thelinkarch = &linkarm;
++void
++main(int argc, char **argv)
++{
++	linkarchinit();
++	ldmain(argc, argv);
++}
++
+ 
+ void
+ linkarchinit(void)
+ {
++	thestring = "arm";
++	thelinkarch = &linkarm;
++
++	thearch.thechar = thechar;
++	thearch.ptrsize = thelinkarch->ptrsize;
++	thearch.intsize = thelinkarch->ptrsize;
++	thearch.regsize = thelinkarch->regsize;
++	thearch.funcalign = FuncAlign;
++	thearch.maxalign = MaxAlign;
++	thearch.minlc = MINLC;
++	thearch.dwarfregsp = DWARFREGSP;
++
++	thearch.adddynlib = adddynlib;
++	thearch.adddynrel = adddynrel;
++	thearch.adddynsym = adddynsym;
++	thearch.archinit = archinit;
++	thearch.archreloc = archreloc;
++	thearch.archrelocvariant = archrelocvariant;
++	thearch.asmb = asmb;
++	thearch.elfreloc1 = elfreloc1;
++	thearch.elfsetupplt = elfsetupplt;
++	thearch.gentext = gentext;
++	thearch.listinit = listinit;
++	thearch.machoreloc1 = machoreloc1;
++	thearch.lput = lputl;
++	thearch.wput = wputl;
++	thearch.vput = vputl;
++
++	thearch.linuxdynld = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
++	thearch.freebsddynld = "/usr/libexec/ld-elf.so.1";
++	thearch.openbsddynld = "XXX";
++	thearch.netbsddynld = "/libexec/ld.elf_so";
++	thearch.dragonflydynld = "XXX";
++	thearch.solarisdynld = "XXX";
+ }
+ 
+ void
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 032c1eea09..a983373fa0 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -39,13 +39,6 @@
+ 
+ #define PADDR(a)	((uint32)(a) & ~0x80000000)
+ 
+-char linuxdynld[] = "/lib64/ld-linux-x86-64.so.2";
+-char freebsddynld[] = "/libexec/ld-elf.so.1";
+-char openbsddynld[] = "/usr/libexec/ld.so";
+-char netbsddynld[] = "/libexec/ld.elf_so";
+-char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
+-char solarisdynld[] = "/lib/amd64/ld.so.1";
+-
+ char	zeroes[32];
+ 
+ static int
+@@ -68,8 +61,6 @@ needlib(char *name)
+ 	return 0;
+ }
+ 
+-int nelfsym = 1;
+-
+ static void addpltsym(LSym*);
+ static void addgotsym(LSym*);
+ 
+@@ -236,7 +227,7 @@ adddynrel(LSym *s, Reloc *r)
+ 			r->type = 256;	// ignore during relocsym
+ 			return;
+ 		}
+-		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
++		if(HEADTYPE == Hdarwin && s->size == thearch.ptrsize && r->off == 0) {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -271,7 +262,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ {
+ 	int32 elfsym;
+ 
+-	VPUT(sectoff);
++	thearch.vput(sectoff);
+ 
+ 	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+@@ -280,16 +271,16 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 
+ 	case R_ADDR:
+ 		if(r->siz == 4)
+-			VPUT(R_X86_64_32 | (uint64)elfsym<<32);
++			thearch.vput(R_X86_64_32 | (uint64)elfsym<<32);
+ 		else if(r->siz == 8)
+-			VPUT(R_X86_64_64 | (uint64)elfsym<<32);
++			thearch.vput(R_X86_64_64 | (uint64)elfsym<<32);
+ 		else
+ 			return -1;
+ 		break;
+ 
+ 	case R_TLS_LE:
+ 		if(r->siz == 4)
+-			VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
++			thearch.vput(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+ 		else
+ 			return -1;
+ 		break;
+@@ -297,16 +288,16 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_CALL:
+ 		if(r->siz == 4) {
+ 			if(r->xsym->type == SDYNIMPORT)
+-				VPUT(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
++				thearch.vput(R_X86_64_GOTPCREL | (uint64)elfsym<<32);
+ 			else
+-				VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
++				thearch.vput(R_X86_64_PC32 | (uint64)elfsym<<32);
+ 		} else
+ 			return -1;
+ 		break;
+ 
+ 	case R_PCREL:
+ 		if(r->siz == 4) {
+-			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
++			thearch.vput(R_X86_64_PC32 | (uint64)elfsym<<32);
+ 		} else
+ 			return -1;
+ 		break;
+@@ -314,15 +305,15 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_TLS:
+ 		if(r->siz == 4) {
+ 			if(flag_shared)
+-				VPUT(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
++				thearch.vput(R_X86_64_GOTTPOFF | (uint64)elfsym<<32);
+ 			else
+-				VPUT(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
++				thearch.vput(R_X86_64_TPOFF32 | (uint64)elfsym<<32);
+ 		} else
+ 			return -1;
+ 		break;		
+ 	}
+ 
+-	VPUT(r->xadd);
++	thearch.vput(r->xadd);
+ 	return 0;
+ }
+ 
+@@ -382,8 +373,8 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		break;
+ 	}
+ 
+-	LPUT(sectoff);
+-	LPUT(v);
++	thearch.lput(sectoff);
++	thearch.lput(v);
+ 	return 0;
+ }
+ 
+@@ -798,18 +789,3 @@ asmb(void)
+ 	}
+ 	cflush();
+ }
+-
+-vlong
+-rnd(vlong v, vlong r)
+-{
+-	vlong c;
+-
+-	if(r <= 0)
+-		return v;
+-	v += r - 1;
+-	c = v % r;
+-	if(c < 0)
+-		c += r;
+-	v -= c;
+-	return v;
+-}
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 24eaa453dd..acc97d93d4 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -32,7 +32,6 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ #include	<link.h>
+-#include	"6.out.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -42,49 +41,14 @@ enum
+ {
+ 	thechar = '6',
+ 	MaxAlign = 32,	// max data alignment
+-	
+-	// Loop alignment constants:
+-	// want to align loop entry to LoopAlign-byte boundary,
+-	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
+-	// We define a loop entry as the target of a backward jump.
+-	//
+-	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
+-	// and it aligns all jump targets, not just backward jump targets.
+-	//
+-	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
+-	// is very slight but negative, so the alignment is disabled by
+-	// setting MaxLoopPad = 0. The code is here for reference and
+-	// for future experiments.
+-	// 
+-	LoopAlign = 16,
+-	MaxLoopPad = 0,
+-
+ 	FuncAlign = 16
+ };
+ 
+-EXTERN	int	PtrSize;
+-EXTERN	int	IntSize;
+-EXTERN	int	RegSize;
+-
+-#define	P		((Prog*)0)
+-#define	S		((LSym*)0)
+ enum
+ {
+ 	MINLC		= 1,
+ };
+ 
+-#pragma	varargck	type	"I"	uchar*
+-
+-EXTERN	LSym*	datap;
+-EXTERN	int	debug[128];
+-EXTERN	char	literal[32];
+-EXTERN	int32	lcsize;
+-EXTERN	char*	rpath;
+-EXTERN	int32	spsize;
+-EXTERN	LSym*	symlist;
+-EXTERN	int32	symsize;
+-
+-int	Iconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+@@ -96,12 +60,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+-vlong	rnd(vlong v, vlong r);
+-
+-/* Native is little-endian */
+-#define	LPUT(a)	lputl(a)
+-#define	WPUT(a)	wputl(a)
+-#define	VPUT(a)	vputl(a)
+ 
+ /* Used by ../ld/dwarf.c */
+ enum
+diff --git a/src/cmd/6l/list.c b/src/cmd/6l/list.c
+index d960fcc915..6c4ea79f91 100644
+--- a/src/cmd/6l/list.c
++++ b/src/cmd/6l/list.c
+@@ -37,31 +37,4 @@ void
+ listinit(void)
+ {
+ 	listinit6();
+-	fmtinstall('I', Iconv);
+-}
+-
+-int
+-Iconv(Fmt *fp)
+-{
+-	int i, n;
+-	uchar *p;
+-	char *s;
+-	Fmt fmt;
+-	
+-	n = fp->prec;
+-	fp->prec = 0;
+-	if(!(fp->flags&FmtPrec) || n < 0)
+-		return fmtstrcpy(fp, "%I");
+-	fp->flags &= ~FmtPrec;
+-	p = va_arg(fp->args, uchar*);
+-
+-	// format into temporary buffer and
+-	// call fmtstrcpy to handle padding.
+-	fmtstrinit(&fmt);
+-	for(i=0; i<n; i++)
+-		fmtprint(&fmt, "%.2ux", *p++);
+-	s = fmtstrflush(&fmt);
+-	fmtstrcpy(fp, s);
+-	free(s);
+-	return 0;
+ }
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3b8e8f4d7a..0a2b2cb59e 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -38,17 +38,52 @@
+ #include	"../ld/pe.h"
+ #include	<ar.h>
+ 
+-char*	thestring 	= "amd64";
+-LinkArch*	thelinkarch = &linkamd64;
++void
++main(int argc, char **argv)
++{
++	linkarchinit();
++	ldmain(argc, argv);
++}
+ 
+ void
+ linkarchinit(void)
+ {
++	thestring = "amd64";
++	thelinkarch = &linkamd64;
+ 	if(strcmp(getgoarch(), "amd64p32") == 0)
+ 		thelinkarch = &linkamd64p32;
+-	PtrSize = thelinkarch->ptrsize;
+-	IntSize = PtrSize;
+-	RegSize = thelinkarch->regsize;
++
++	thearch.thechar = thechar;
++	thearch.ptrsize = thelinkarch->ptrsize;
++	thearch.intsize = thelinkarch->ptrsize;
++	thearch.regsize = thelinkarch->regsize;
++	thearch.funcalign = FuncAlign;
++	thearch.maxalign = MaxAlign;
++	thearch.minlc = MINLC;
++	thearch.dwarfregsp = DWARFREGSP;
++
++	thearch.adddynlib = adddynlib;
++	thearch.adddynrel = adddynrel;
++	thearch.adddynsym = adddynsym;
++	thearch.archinit = archinit;
++	thearch.archreloc = archreloc;
++	thearch.archrelocvariant = archrelocvariant;
++	thearch.asmb = asmb;
++	thearch.elfreloc1 = elfreloc1;
++	thearch.elfsetupplt = elfsetupplt;
++	thearch.gentext = gentext;
++	thearch.listinit = listinit;
++	thearch.machoreloc1 = machoreloc1;
++	thearch.lput = lputl;
++	thearch.wput = wputl;
++	thearch.vput = vputl;
++	
++	thearch.linuxdynld = "/lib64/ld-linux-x86-64.so.2";
++	thearch.freebsddynld = "/libexec/ld-elf.so.1";
++	thearch.openbsddynld = "/usr/libexec/ld.so";
++	thearch.netbsddynld = "/libexec/ld.elf_so";
++	thearch.dragonflydynld = "/usr/libexec/ld-elf.so.2";
++	thearch.solarisdynld = "/lib/amd64/ld.so.1";
+ }
+ 
+ void
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 44d1ecc035..2da1651c8b 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -37,13 +37,6 @@
+ #include	"../ld/macho.h"
+ #include	"../ld/pe.h"
+ 
+-char linuxdynld[] = "/lib/ld-linux.so.2";
+-char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+-char openbsddynld[] = "/usr/libexec/ld.so";
+-char netbsddynld[] = "/usr/libexec/ld.elf_so";
+-char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
+-char solarisdynld[] = "/lib/ld.so.1";
+-
+ static int
+ needlib(char *name)
+ {
+@@ -64,8 +57,6 @@ needlib(char *name)
+ 	return 0;
+ }
+ 
+-int	nelfsym = 1;
+-
+ static void	addpltsym(Link*, LSym*);
+ static void	addgotsym(Link*, LSym*);
+ 
+@@ -141,7 +132,7 @@ adddynrel(LSym *s, Reloc *r)
+ 		}
+ 		addgotsym(ctxt, targ);
+ 		r->type = R_CONST;	// write r->add during relocsym
+-		r->sym = S;
++		r->sym = nil;
+ 		r->add += targ->got;
+ 		return;
+ 	
+@@ -218,7 +209,7 @@ adddynrel(LSym *s, Reloc *r)
+ 			addaddrplus(ctxt, rel, s, r->off);
+ 			adduint32(ctxt, rel, ELF32_R_INFO(targ->dynid, R_386_32));
+ 			r->type = R_CONST;	// write r->add during relocsym
+-			r->sym = S;
++			r->sym = nil;
+ 			return;
+ 		}
+ 		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
+@@ -256,7 +247,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ {
+ 	int32 elfsym;
+ 
+-	LPUT(sectoff);
++	thearch.lput(sectoff);
+ 
+ 	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+@@ -265,7 +256,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 
+ 	case R_ADDR:
+ 		if(r->siz == 4)
+-			LPUT(R_386_32 | elfsym<<8);
++			thearch.lput(R_386_32 | elfsym<<8);
+ 		else
+ 			return -1;
+ 		break;
+@@ -273,7 +264,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_CALL:
+ 	case R_PCREL:
+ 		if(r->siz == 4)
+-			LPUT(R_386_PC32 | elfsym<<8);
++			thearch.lput(R_386_PC32 | elfsym<<8);
+ 		else
+ 			return -1;
+ 		break;
+@@ -281,7 +272,7 @@ elfreloc1(Reloc *r, vlong sectoff)
+ 	case R_TLS_LE:
+ 	case R_TLS_IE:
+ 		if(r->siz == 4)
+-			LPUT(R_386_TLS_LE | elfsym<<8);
++			thearch.lput(R_386_TLS_LE | elfsym<<8);
+ 		else
+ 			return -1;
+ 	}
+@@ -342,8 +333,8 @@ machoreloc1(Reloc *r, vlong sectoff)
+ 		break;
+ 	}
+ 
+-	LPUT(sectoff);
+-	LPUT(v);
++	thearch.lput(sectoff);
++	thearch.lput(v);
+ 	return 0;
+ }
+ 
+@@ -715,29 +706,3 @@ asmb(void)
+ 	}
+ 	cflush();
+ }
+-
+-void
+-s8put(char *n)
+-{
+-	char name[8];
+-	int i;
+-
+-	strncpy(name, n, sizeof(name));
+-	for(i=0; i<sizeof(name); i++)
+-		cput(name[i]);
+-}
+-
+-int32
+-rnd(int32 v, int32 r)
+-{
+-	int32 c;
+-
+-	if(r <= 0)
+-		return v;
+-	v += r - 1;
+-	c = v % r;
+-	if(c < 0)
+-		c += r;
+-	v -= c;
+-	return v;
+-}
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 3c84d1b21f..e844bc4180 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -32,7 +32,6 @@
+ #include	<libc.h>
+ #include	<bio.h>
+ #include	<link.h>
+-#include	"8.out.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -45,30 +44,10 @@ enum
+ 	IntSize = 4,
+ 	RegSize = 4,
+ 	MaxAlign = 32,	// max data alignment
+-	FuncAlign = 16
+-};
+-
+-#define	P		((Prog*)0)
+-#define	S		((LSym*)0)
+-
+-enum
+-{
++	FuncAlign = 16,
+ 	MINLC		= 1,
+ };
+ 
+-#pragma	varargck	type	"I"	uchar*
+-
+-EXTERN	LSym*	datap;
+-EXTERN	int	debug[128];
+-EXTERN	char	literal[32];
+-EXTERN	Prog*	firstp;
+-EXTERN	int32	lcsize;
+-EXTERN	char*	rpath;
+-EXTERN	int32	spsize;
+-EXTERN	LSym*	symlist;
+-EXTERN	int32	symsize;
+-
+-int	Iconv(Fmt *fp);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
+ void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+@@ -80,14 +59,6 @@ int	elfreloc1(Reloc *r, vlong sectoff);
+ void	elfsetupplt(void);
+ void	listinit(void);
+ int	machoreloc1(Reloc *r, vlong sectoff);
+-int32	rnd(int32 v, int32 r);
+-void	s8put(char *n);
+-char*	xsymname(LSym *s);
+-
+-/* Native is little-endian */
+-#define	LPUT(a)	lputl(a)
+-#define	WPUT(a)	wputl(a)
+-#define	VPUT(a)	vputl(a)
+ 
+ /* Used by ../ld/dwarf.c */
+ enum
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 0a75340603..4cd8f08d34 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -37,31 +37,4 @@ void
+ listinit(void)
+ {
+ 	listinit8();
+-	fmtinstall('I', Iconv);
+-}
+-
+-int
+-Iconv(Fmt *fp)
+-{
+-	int i, n;
+-	uchar *p;
+-	char *s;
+-	Fmt fmt;
+-	
+-	n = fp->prec;
+-	fp->prec = 0;
+-	if(!(fp->flags&FmtPrec) || n < 0)
+-		return fmtstrcpy(fp, "%I");
+-	fp->flags &= ~FmtPrec;
+-	p = va_arg(fp->args, uchar*);
+-
+-	// format into temporary buffer and
+-	// call fmtstrcpy to handle padding.
+-	fmtstrinit(&fmt);
+-	for(i=0; i<n; i++)
+-		fmtprint(&fmt, "%.2ux", *p++);
+-	s = fmtstrflush(&fmt);
+-	fmtstrcpy(fp, s);
+-	free(s);
+-	return 0;
+ }
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 1b65c5eb9e..41900d6543 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -38,12 +38,50 @@
+ #include	"../ld/pe.h"
+ #include	<ar.h>
+ 
+-char*	thestring 	= "386";
+-LinkArch*	thelinkarch = &link386;
++void
++main(int argc, char **argv)
++{
++	linkarchinit();
++	ldmain(argc, argv);
++}
+ 
+ void
+ linkarchinit(void)
+ {
++	thestring 	= "386";
++	thelinkarch = &link386;
++
++	thearch.thechar = thechar;
++	thearch.ptrsize = thelinkarch->ptrsize;
++	thearch.intsize = thelinkarch->ptrsize;
++	thearch.regsize = thelinkarch->regsize;
++	thearch.funcalign = FuncAlign;
++	thearch.maxalign = MaxAlign;
++	thearch.minlc = MINLC;
++	thearch.dwarfregsp = DWARFREGSP;
++
++	thearch.adddynlib = adddynlib;
++	thearch.adddynrel = adddynrel;
++	thearch.adddynsym = adddynsym;
++	thearch.archinit = archinit;
++	thearch.archreloc = archreloc;
++	thearch.archrelocvariant = archrelocvariant;
++	thearch.asmb = asmb;
++	thearch.elfreloc1 = elfreloc1;
++	thearch.elfsetupplt = elfsetupplt;
++	thearch.gentext = gentext;
++	thearch.listinit = listinit;
++	thearch.machoreloc1 = machoreloc1;
++	thearch.lput = lputl;
++	thearch.wput = wputl;
++	thearch.vput = vputl;
++
++	thearch.linuxdynld = "/lib/ld-linux.so.2";
++	thearch.freebsddynld = "/usr/libexec/ld-elf.so.1";
++	thearch.openbsddynld = "/usr/libexec/ld.so";
++	thearch.netbsddynld = "/usr/libexec/ld.elf_so";
++	thearch.dragonflydynld = "/usr/libexec/ld-elf.so.2";
++	thearch.solarisdynld = "/lib/ld.so.1";
+ }
+ 
+ void
+diff --git a/src/cmd/9l/asm.c b/src/cmd/9l/asm.c
+index 391f9562cf..01e17aaa09 100644
+--- a/src/cmd/9l/asm.c
++++ b/src/cmd/9l/asm.c
+@@ -35,15 +35,6 @@
+ #include	"../ld/elf.h"
+ #include	"../ld/dwarf.h"
+ 
+-
+-// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
+-char linuxdynld[] = "/lib64/ld64.so.1";
+-char freebsddynld[] = "XXX";
+-char openbsddynld[] = "XXX";
+-char netbsddynld[] = "XXX";
+-char dragonflydynld[] = "XXX";
+-char solarisdynld[] = "XXX";
+-
+ static int
+ needlib(char *name)
+ {
+@@ -64,8 +55,6 @@ needlib(char *name)
+ 	return 0;
+ }
+ 
+-int	nelfsym = 1;
+-
+ static void	gencallstub(int abicase, LSym *stub, LSym *targ);
+ static void	addpltsym(Link*, LSym*);
+ static LSym*	ensureglinkresolver(void);
+@@ -129,7 +118,7 @@ gentext(void)
+ 	// This assumes "case 1" from the ABI, where the caller needs
+ 	// us to save and restore the TOC pointer.
+ 	pprevtextp = &ctxt->textp;
+-	for(s=*pprevtextp; s!=S; pprevtextp=&s->next, s=*pprevtextp) {
++	for(s=*pprevtextp; s!=nil; pprevtextp=&s->next, s=*pprevtextp) {
+ 		for(r=s->r; r<s->r+s->nr; r++) {
+ 			if(!(r->type == 256 + R_PPC64_REL24 &&
+ 			     r->sym->type == SDYNIMPORT))
+@@ -797,14 +786,14 @@ asmb(void)
+ 	switch(HEADTYPE) {
+ 	default:
+ 	case Hplan9:	/* plan 9 */
+-		LPUT(0x647);			/* magic */
+-		LPUT(segtext.filelen);			/* sizes */
+-		LPUT(segdata.filelen);
+-		LPUT(segdata.len - segdata.filelen);
+-		LPUT(symsize);			/* nsyms */
+-		LPUT(entryvalue());		/* va of entry */
+-		LPUT(0L);
+-		LPUT(lcsize);
++		thearch.lput(0x647);			/* magic */
++		thearch.lput(segtext.filelen);			/* sizes */
++		thearch.lput(segdata.filelen);
++		thearch.lput(segdata.len - segdata.filelen);
++		thearch.lput(symsize);			/* nsyms */
++		thearch.lput(entryvalue());		/* va of entry */
++		thearch.lput(0L);
++		thearch.lput(lcsize);
+ 		break;
+ 	case Hlinux:
+ 	case Hfreebsd:
+@@ -824,18 +813,3 @@ asmb(void)
+ 		print("total=%lld\n", segtext.filelen+segdata.len+symsize+lcsize);
+ 	}
+ }
+-
+-vlong
+-rnd(vlong v, int32 r)
+-{
+-	vlong c;
+-
+-	if(r <= 0)
+-		return v;
+-	v += r - 1;
+-	c = v % r;
+-	if(c < 0)
+-		c += r;
+-	v -= c;
+-	return v;
+-}
+diff --git a/src/cmd/9l/l.h b/src/cmd/9l/l.h
+index 9d8a4fae2c..a634cf80b4 100644
+--- a/src/cmd/9l/l.h
++++ b/src/cmd/9l/l.h
+@@ -44,55 +44,21 @@ enum
+ 	IntSize = 8,
+ 	RegSize = 8,
+ 	MaxAlign = 32,	// max data alignment
+-	FuncAlign = 8
+-};
+-
+-#define	P		((Prog*)0)
+-#define	S		((LSym*)0)
+-
+-enum
+-{
+-	FPCHIP		= 1,
+-	STRINGSZ	= 200,
+-	MAXHIST		= 20,				/* limit of path elements for history symbols */
+-	DATBLK		= 1024,
+-	NHASH		= 10007,
+-	NHUNK		= 100000,
+-	MINSIZ		= 64,
+-	NENT		= 100,
+-	NSCHED		= 20,
++	FuncAlign = 8,
+ 	MINLC		= 4,
+-
+-	Roffset	= 22,		/* no. bits for offset in relocation address */
+-	Rindex	= 10		/* no. bits for index in relocation address */
+ };
+ 
+-EXTERN	int32	autosize;
+-EXTERN	LSym*	datap;
+-EXTERN	int	debug[128];
+-EXTERN	int32	lcsize;
+-EXTERN	char	literal[32];
+-EXTERN	int	nerrors;
+-EXTERN	vlong	instoffset;
+-EXTERN	char*	rpath;
+-EXTERN	vlong	pc;
+-EXTERN	int32	symsize;
+-EXTERN	int32	staticgen;
+-EXTERN	Prog*	lastp;
+-EXTERN	vlong	textsize;
+-
+-void	asmb(void);
+ void	adddynlib(char *lib);
+ void	adddynrel(LSym *s, Reloc *r);
++void	adddynrela(LSym *rela, LSym *s, Reloc *r);
+ void	adddynsym(Link *ctxt, LSym *s);
+ int	archreloc(Reloc *r, LSym *s, vlong *val);
+ vlong	archrelocvariant(Reloc *r, LSym *s, vlong t);
++void	asmb(void);
++int	elfreloc1(Reloc *r, vlong sectoff);
++void	elfsetupplt(void);
+ void	listinit(void);
+-vlong	rnd(vlong, int32);
+-
+-#define	LPUT(a)	(ctxt->arch->endian == BigEndian ? lputb(a):lputl(a))
+-#define	WPUT(a)	(ctxt->arch->endian == BigEndian ? wputb(a):wputl(a))
+-#define	VPUT(a)	(ctxt->arch->endian == BigEndian ? vputb(a):vputl(a))
++int	machoreloc1(Reloc *r, vlong sectoff);
+ 
+ /* Used by ../ld/dwarf.c */
+ enum
+diff --git a/src/cmd/9l/obj.c b/src/cmd/9l/obj.c
+index 77f665e5a2..17dd5caacd 100644
+--- a/src/cmd/9l/obj.c
++++ b/src/cmd/9l/obj.c
+@@ -36,8 +36,12 @@
+ #include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+-char *thestring = "ppc64";
+-LinkArch *thelinkarch;
++void
++main(int argc, char **argv)
++{
++	linkarchinit();
++	ldmain(argc, argv);
++}
+ 
+ void
+ linkarchinit(void)
+@@ -47,6 +51,45 @@ linkarchinit(void)
+ 		thelinkarch = &linkppc64le;
+ 	else
+ 		thelinkarch = &linkppc64;
++
++	thearch.thechar = thechar;
++	thearch.ptrsize = thelinkarch->ptrsize;
++	thearch.intsize = thelinkarch->ptrsize;
++	thearch.regsize = thelinkarch->regsize;
++	thearch.funcalign = FuncAlign;
++	thearch.maxalign = MaxAlign;
++	thearch.minlc = MINLC;
++	thearch.dwarfregsp = DWARFREGSP;
++
++	thearch.adddynlib = adddynlib;
++	thearch.adddynrel = adddynrel;
++	thearch.adddynsym = adddynsym;
++	thearch.archinit = archinit;
++	thearch.archreloc = archreloc;
++	thearch.archrelocvariant = archrelocvariant;
++	thearch.asmb = asmb;
++	thearch.elfreloc1 = elfreloc1;
++	thearch.elfsetupplt = elfsetupplt;
++	thearch.gentext = gentext;
++	thearch.listinit = listinit;
++	thearch.machoreloc1 = machoreloc1;
++	if(thelinkarch == &linkppc64le) {
++		thearch.lput = lputl;
++		thearch.wput = wputl;
++		thearch.vput = vputl;
++	} else {
++		thearch.lput = lputb;
++		thearch.wput = wputb;
++		thearch.vput = vputb;
++	}
++
++	// TODO(austin): ABI v1 uses /usr/lib/ld.so.1
++	thearch.linuxdynld = "/lib64/ld64.so.1";
++	thearch.freebsddynld = "XXX";
++	thearch.openbsddynld = "XXX";
++	thearch.netbsddynld = "XXX";
++	thearch.dragonflydynld = "XXX";
++	thearch.solarisdynld = "XXX";
+ }
+ 
+ void
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 8a408831d0..3932c0bc42 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -529,16 +529,16 @@ var deptab = []struct {
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+ 	}},
+ 	{"cmd/5l", []string{
+-		"../ld/*",
++		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
+ 	}},
+ 	{"cmd/6l", []string{
+-		"../ld/*",
++		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
+ 	}},
+ 	{"cmd/8l", []string{
+-		"../ld/*",
++		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
+ 	}},
+ 	{"cmd/9l", []string{
+-		"../ld/*",
++		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libld.a",
+ 	}},
+ 	{"cmd/go", []string{
+ 		"zdefaultcc.go",
+@@ -624,7 +624,7 @@ func install(dir string) {
+ 		ldargs = splitfields(defaultldflags)
+ 	}
+ 
+-	islib := strings.HasPrefix(dir, "lib") || dir == "cmd/gc"
++	islib := strings.HasPrefix(dir, "lib") || dir == "cmd/gc" || dir == "cmd/ld"
+ 	ispkg := !islib && !strings.HasPrefix(dir, "cmd/")
+ 	isgo := ispkg || dir == "cmd/go" || dir == "cmd/cgo"
+ 
+@@ -1101,6 +1101,7 @@ var buildorder = []string{
+ 	"liblink",
+ 
+ 	"cmd/gc",  // must be before g
++	"cmd/ld",  // must be before l
+ 	"cmd/%sl", // must be before a, g
+ 	"cmd/%sa",
+ 	"cmd/%sg",
+diff --git a/src/cmd/ld/Makefile b/src/cmd/ld/Makefile
+new file mode 100644
+index 0000000000..3f528d7517
+--- /dev/null
++++ b/src/cmd/ld/Makefile
+@@ -0,0 +1,5 @@
++# Copyright 2012 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.dist
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 0f287c202f..580d36f7e2 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -30,11 +30,14 @@
+ 
+ // Data layout and relocation.
+ 
+-#include	"l.h"
+-#include	"../ld/lib.h"
+-#include	"../ld/elf.h"
+-#include	"../ld/macho.h"
+-#include	"../ld/pe.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
++#include	"lib.h"
++#include	"elf.h"
++#include	"macho.h"
++#include	"pe.h"
+ #include	"../../runtime/mgc0.h"
+ 
+ void	dynreloc(void);
+@@ -150,7 +153,7 @@ relocsym(LSym *s)
+ 			diag("%s: invalid relocation %d+%d not in [%d,%d)", s->name, off, siz, 0, s->np);
+ 			continue;
+ 		}
+-		if(r->sym != S && ((r->sym->type & (SMASK | SHIDDEN)) == 0 || (r->sym->type & SMASK) == SXREF)) {
++		if(r->sym != nil && ((r->sym->type & (SMASK | SHIDDEN)) == 0 || (r->sym->type & SMASK) == SXREF)) {
+ 			diag("%s: not defined", r->sym->name);
+ 			continue;
+ 		}
+@@ -160,9 +163,9 @@ relocsym(LSym *s)
+ 			continue;
+ 
+ 		// Solaris needs the ability to reference dynimport symbols.
+-		if(HEADTYPE != Hsolaris && r->sym != S && r->sym->type == SDYNIMPORT)
++		if(HEADTYPE != Hsolaris && r->sym != nil && r->sym->type == SDYNIMPORT)
+ 			diag("unhandled relocation for %s (type %d rtype %d)", r->sym->name, r->sym->type, r->type);
+-		if(r->sym != S && r->sym->type != STLSBSS && !r->sym->reachable)
++		if(r->sym != nil && r->sym->type != STLSBSS && !r->sym->reachable)
+ 			diag("unreachable sym in relocation: %s %s", s->name, r->sym->name);
+ 
+ 		// Android emulates runtime.tlsg as a regular variable.
+@@ -172,11 +175,11 @@ relocsym(LSym *s)
+ 		switch(r->type) {
+ 		default:
+ 			o = 0;
+-			if(archreloc(r, s, &o) < 0)
++			if(thearch.archreloc(r, s, &o) < 0)
+ 				diag("unknown reloc %d", r->type);
+ 			break;
+ 		case R_TLS:
+-			if(linkmode == LinkInternal && iself && thechar == '5') {
++			if(linkmode == LinkInternal && iself && thearch.thechar == '5') {
+ 				// On ELF ARM, the thread pointer is 8 bytes before
+ 				// the start of the thread-local data block, so add 8
+ 				// to the actual TLS offset (r->sym->value).
+@@ -189,7 +192,7 @@ relocsym(LSym *s)
+ 			}
+ 			r->done = 0;
+ 			o = 0;
+-			if(thechar != '6')
++			if(thearch.thechar != '6')
+ 				o = r->add;
+ 			break;
+ 		case R_TLS_LE:
+@@ -199,7 +202,7 @@ relocsym(LSym *s)
+ 				r->xsym = ctxt->tlsg;
+ 				r->xadd = r->add;
+ 				o = 0;
+-				if(thechar != '6')
++				if(thearch.thechar != '6')
+ 					o = r->add;
+ 				break;
+ 			}
+@@ -213,7 +216,7 @@ relocsym(LSym *s)
+ 				r->xsym = ctxt->tlsg;
+ 				r->xadd = r->add;
+ 				o = 0;
+-				if(thechar != '6')
++				if(thearch.thechar != '6')
+ 					o = r->add;
+ 				break;
+ 			}
+@@ -241,7 +244,7 @@ relocsym(LSym *s)
+ 
+ 				o = r->xadd;
+ 				if(iself) {
+-					if(thechar == '6')
++					if(thearch.thechar == '6')
+ 						o = 0;
+ 				} else if(HEADTYPE == Hdarwin) {
+ 					if(rs->type != SHOSTOBJ)
+@@ -258,7 +261,7 @@ relocsym(LSym *s)
+ 			// fail at runtime. See http://golang.org/issue/7980.
+ 			// Instead of special casing only amd64, we treat this as an error on all
+ 			// 64-bit architectures so as to be future-proof.
+-			if((int32)o < 0 && PtrSize > 4 && siz == 4) {
++			if((int32)o < 0 && thearch.ptrsize > 4 && siz == 4) {
+ 				diag("non-pc-relative relocation address is too big: %#llux", o);
+ 				errorexit();
+ 			}
+@@ -283,7 +286,7 @@ relocsym(LSym *s)
+ 
+ 				o = r->xadd;
+ 				if(iself) {
+-					if(thechar == '6')
++					if(thearch.thechar == '6')
+ 						o = 0;
+ 				} else if(HEADTYPE == Hdarwin) {
+ 					if(r->type == R_CALL) {
+@@ -314,7 +317,7 @@ relocsym(LSym *s)
+ 			break;
+ 		}
+ 		if(r->variant != RV_NONE)
+-			o = archrelocvariant(r, s, o);
++			o = thearch.archrelocvariant(r, s, o);
+ //print("relocate %s %#llux (%#llux+%#llux, size %d) => %s %#llux +%#llx [%llx]\n", s->name, (uvlong)(s->value+off), (uvlong)s->value, (uvlong)r->off, r->siz, r->sym ? r->sym->name : "<nil>", (uvlong)symaddr(r->sym), (vlong)r->add, (vlong)o);
+ 		switch(siz) {
+ 		default:
+@@ -363,9 +366,9 @@ reloc(void)
+ 		Bprint(&bso, "%5.2f reloc\n", cputime());
+ 	Bflush(&bso);
+ 
+-	for(s=ctxt->textp; s!=S; s=s->next)
++	for(s=ctxt->textp; s!=nil; s=s->next)
+ 		relocsym(s);
+-	for(s=datap; s!=S; s=s->next)
++	for(s=datap; s!=nil; s=s->next)
+ 		relocsym(s);
+ }
+ 
+@@ -392,7 +395,7 @@ dynrelocsym(LSym *s)
+ 				r->add = targ->plt;
+ 
+ 				// jmp *addr
+-				if(thechar == '8') {
++				if(thearch.thechar == '8') {
+ 					adduint8(ctxt, rel, 0xff);
+ 					adduint8(ctxt, rel, 0x25);
+ 					addaddr(ctxt, rel, targ);
+@@ -414,10 +417,10 @@ dynrelocsym(LSym *s)
+ 	}
+ 
+ 	for(r=s->r; r<s->r+s->nr; r++) {
+-		if(r->sym != S && r->sym->type == SDYNIMPORT || r->type >= 256) {
+-			if(r->sym != S && !r->sym->reachable)
++		if(r->sym != nil && r->sym->type == SDYNIMPORT || r->type >= 256) {
++			if(r->sym != nil && !r->sym->reachable)
+ 				diag("internal inconsistency: dynamic symbol %s is not reachable.", r->sym->name);
+-			adddynrel(s, r);
++			thearch.adddynrel(s, r);
+ 		}
+ 	}
+ }
+@@ -435,9 +438,9 @@ dynreloc(void)
+ 		Bprint(&bso, "%5.2f reloc\n", cputime());
+ 	Bflush(&bso);
+ 
+-	for(s=ctxt->textp; s!=S; s=s->next)
++	for(s=ctxt->textp; s!=nil; s=s->next)
+ 		dynrelocsym(s);
+-	for(s=datap; s!=S; s=s->next)
++	for(s=datap; s!=nil; s=s->next)
+ 		dynrelocsym(s);
+ 	if(iself)
+ 		elfdynhash();
+@@ -650,7 +653,7 @@ addstrdata(char *name, char *value)
+ 	s->dupok = 1;
+ 	reachable = s->reachable;
+ 	addaddr(ctxt, s, sp);
+-	adduintxx(ctxt, s, strlen(value), PtrSize);
++	adduintxx(ctxt, s, strlen(value), thearch.ptrsize);
+ 
+ 	// addstring, addaddr, etc., mark the symbols as reachable.
+ 	// In this case that is not necessarily true, so stick to what
+@@ -701,7 +704,7 @@ symalign(LSym *s)
+ 	if(s->align != 0)
+ 		return s->align;
+ 
+-	align = MaxAlign;
++	align = thearch.maxalign;
+ 	while(align > s->size && align > 1)
+ 		align >>= 1;
+ 	if(align < s->align)
+@@ -723,7 +726,7 @@ maxalign(LSym *s, int type)
+ 	int32 align, max;
+ 	
+ 	max = 0;
+-	for(; s != S && s->type <= type; s = s->next) {
++	for(; s != nil && s->type <= type; s = s->next) {
+ 		align = symalign(s);
+ 		if(max < align)
+ 			max = align;
+@@ -789,7 +792,7 @@ proggenskip(ProgGen *g, vlong off, vlong v)
+ 	vlong i;
+ 
+ 	for(i = off; i < off+v; i++) {
+-		if((i%PtrSize) == 0)
++		if((i%thearch.ptrsize) == 0)
+ 			proggendata(g, BitsScalar);
+ 	}
+ }
+@@ -802,7 +805,7 @@ proggenarray(ProgGen *g, vlong len)
+ 
+ 	proggendataflush(g);
+ 	proggenemit(g, insArray);
+-	for(i = 0; i < PtrSize; i++, len >>= 8)
++	for(i = 0; i < thearch.ptrsize; i++, len >>= 8)
+ 		proggenemit(g, len);
+ }
+ 
+@@ -843,39 +846,39 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 	// and not SDATA, but sometimes that doesn't happen.
+ 	// Leave debugging the SDATA issue for the Go rewrite.
+ 
+-	if(s->gotype == nil && s->size >= PtrSize && s->name[0] != '.') {
++	if(s->gotype == nil && s->size >= thearch.ptrsize && s->name[0] != '.') {
+ 		// conservative scan
+ 		diag("missing Go type information for global symbol: %s size %d", s->name, (int)s->size);
+-		if((s->size%PtrSize) || (g->pos%PtrSize))
++		if((s->size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
+ 			diag("proggenaddsym: unaligned conservative symbol %s: size=%lld pos=%lld",
+ 				s->name, s->size, g->pos);
+-		size = (s->size+PtrSize-1)/PtrSize*PtrSize;
+-		if(size < 32*PtrSize) {
++		size = (s->size+thearch.ptrsize-1)/thearch.ptrsize*thearch.ptrsize;
++		if(size < 32*thearch.ptrsize) {
+ 			// Emit small symbols as data.
+-			for(i = 0; i < size/PtrSize; i++)
++			for(i = 0; i < size/thearch.ptrsize; i++)
+ 				proggendata(g, BitsPointer);
+ 		} else {
+ 			// Emit large symbols as array.
+-			proggenarray(g, size/PtrSize);
++			proggenarray(g, size/thearch.ptrsize);
+ 			proggendata(g, BitsPointer);
+ 			proggenarrayend(g);
+ 		}
+ 		g->pos = s->value + size;
+-	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < PtrSize || s->name[0] == '.') {
++	} else if(s->gotype == nil || decodetype_noptr(s->gotype) || s->size < thearch.ptrsize || s->name[0] == '.') {
+ 		// no scan
+-		if(s->size < 32*PtrSize) {
++		if(s->size < 32*thearch.ptrsize) {
+ 			// Emit small symbols as data.
+ 			// This case also handles unaligned and tiny symbols, so tread carefully.
+ 			for(i = s->value; i < s->value+s->size; i++) {
+-				if((i%PtrSize) == 0)
++				if((i%thearch.ptrsize) == 0)
+ 					proggendata(g, BitsScalar);
+ 			}
+ 		} else {
+ 			// Emit large symbols as array.
+-			if((s->size%PtrSize) || (g->pos%PtrSize))
++			if((s->size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
+ 				diag("proggenaddsym: unaligned noscan symbol %s: size=%lld pos=%lld",
+ 					s->name, s->size, g->pos);
+-			proggenarray(g, s->size/PtrSize);
++			proggenarray(g, s->size/thearch.ptrsize);
+ 			proggendata(g, BitsScalar);
+ 			proggenarrayend(g);
+ 		}
+@@ -885,7 +888,7 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 		proggendataflush(g);
+ 		gcprog = decodetype_gcprog(s->gotype);
+ 		size = decodetype_size(s->gotype);
+-		if((size%PtrSize) || (g->pos%PtrSize))
++		if((size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
+ 			diag("proggenaddsym: unaligned gcprog symbol %s: size=%lld pos=%lld",
+ 				s->name, s->size, g->pos);
+ 		for(i = 0; i < gcprog->np-1; i++)
+@@ -895,11 +898,11 @@ proggenaddsym(ProgGen *g, LSym *s)
+ 		// gc mask, it's small so emit as data
+ 		mask = decodetype_gcmask(s->gotype);
+ 		size = decodetype_size(s->gotype);
+-		if((size%PtrSize) || (g->pos%PtrSize))
++		if((size%thearch.ptrsize) || (g->pos%thearch.ptrsize))
+ 			diag("proggenaddsym: unaligned gcmask symbol %s: size=%lld pos=%lld",
+ 				s->name, s->size, g->pos);
+-		for(i = 0; i < size; i += PtrSize)
+-			proggendata(g, (mask[i/PtrSize/2]>>((i/PtrSize%2)*4+2))&BitsMask);
++		for(i = 0; i < size; i += thearch.ptrsize)
++			proggendata(g, (mask[i/thearch.ptrsize/2]>>((i/thearch.ptrsize%2)*4+2))&BitsMask);
+ 		g->pos = s->value + size;
+ 	}
+ }
+@@ -935,7 +938,7 @@ dodata(void)
+ 	last = nil;
+ 	datap = nil;
+ 
+-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
++	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
+ 		if(!s->reachable || s->special)
+ 			continue;
+ 		if(STEXT < s->type && s->type < SXREF) {
+@@ -1134,7 +1137,7 @@ dodata(void)
+ 	
+ 	if(iself && linkmode == LinkExternal && s != nil && s->type == STLSBSS && HEADTYPE != Hopenbsd) {
+ 		sect = addsection(&segdata, ".tbss", 06);
+-		sect->align = PtrSize;
++		sect->align = thearch.ptrsize;
+ 		sect->vaddr = 0;
+ 		datsize = 0;
+ 		for(; s != nil && s->type == STLSBSS; s = s->next) {
+@@ -1311,9 +1314,9 @@ textaddress(void)
+ 		else
+ 			va = rnd(va, funcalign);
+ 		sym->value = 0;
+-		for(sub = sym; sub != S; sub = sub->sub)
++		for(sub = sym; sub != nil; sub = sub->sub)
+ 			sub->value += va;
+-		if(sym->size == 0 && sym->sub != S)
++		if(sym->size == 0 && sym->sub != nil)
+ 			ctxt->cursym = sym;
+ 		if(sym->size < MINFUNC)
+ 			va += MINFUNC; // spacing required for findfunctab
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index eedb246789..c194a1f767 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+ #include	"../../runtime/typekind.h"
+ 
+@@ -70,42 +73,42 @@ decode_inuxi(uchar* p, int sz)
+ static int
+ commonsize(void)
+ {
+-	return 8*PtrSize + 8;
++	return 8*thearch.ptrsize + 8;
+ }
+ 
+ // Type.commonType.kind
+ uint8
+ decodetype_kind(LSym *s)
+ {
+-	return s->p[1*PtrSize + 7] & KindMask;	//  0x13 / 0x1f
++	return s->p[1*thearch.ptrsize + 7] & KindMask;	//  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ uint8
+ decodetype_noptr(LSym *s)
+ {
+-	return s->p[1*PtrSize + 7] & KindNoPointers;	//  0x13 / 0x1f
++	return s->p[1*thearch.ptrsize + 7] & KindNoPointers;	//  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.kind
+ uint8
+ decodetype_usegcprog(LSym *s)
+ {
+-	return s->p[1*PtrSize + 7] & KindGCProg;	//  0x13 / 0x1f
++	return s->p[1*thearch.ptrsize + 7] & KindGCProg;	//  0x13 / 0x1f
+ }
+ 
+ // Type.commonType.size
+ vlong
+ decodetype_size(LSym *s)
+ {
+-	return decode_inuxi(s->p, PtrSize);	 // 0x8 / 0x10
++	return decode_inuxi(s->p, thearch.ptrsize);	 // 0x8 / 0x10
+ }
+ 
+ // Type.commonType.gc
+ LSym*
+ decodetype_gcprog(LSym *s)
+ {
+-	return decode_reloc_sym(s, 1*PtrSize + 8 + 2*PtrSize);
++	return decode_reloc_sym(s, 1*thearch.ptrsize + 8 + 2*thearch.ptrsize);
+ }
+ 
+ uint8*
+@@ -113,7 +116,7 @@ decodetype_gcmask(LSym *s)
+ {
+ 	LSym *mask;
+ 	
+-	mask = decode_reloc_sym(s, 1*PtrSize + 8 + 1*PtrSize);
++	mask = decode_reloc_sym(s, 1*thearch.ptrsize + 8 + 1*thearch.ptrsize);
+ 	return mask->p;
+ }
+ 
+@@ -127,7 +130,7 @@ decodetype_arrayelem(LSym *s)
+ vlong
+ decodetype_arraylen(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize()+2*PtrSize, PtrSize);
++	return decode_inuxi(s->p + commonsize()+2*thearch.ptrsize, thearch.ptrsize);
+ }
+ 
+ // Type.PtrType.elem
+@@ -147,7 +150,7 @@ decodetype_mapkey(LSym *s)
+ LSym*
+ decodetype_mapvalue(LSym *s)
+ {
+-	return decode_reloc_sym(s, commonsize()+PtrSize);	// 0x20 / 0x38
++	return decode_reloc_sym(s, commonsize()+thearch.ptrsize);	// 0x20 / 0x38
+ }
+ 
+ // Type.ChanType.elem
+@@ -168,13 +171,13 @@ decodetype_funcdotdotdot(LSym *s)
+ int
+ decodetype_funcincount(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize()+2*PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize()+2*thearch.ptrsize, thearch.intsize);
+ }
+ 
+ int
+ decodetype_funcoutcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize()+3*PtrSize + 2*IntSize, IntSize);
++	return decode_inuxi(s->p + commonsize()+3*thearch.ptrsize + 2*thearch.intsize, thearch.intsize);
+ }
+ 
+ LSym*
+@@ -182,10 +185,10 @@ decodetype_funcintype(LSym *s, int i)
+ {
+ 	Reloc *r;
+ 
+-	r = decode_reloc(s, commonsize() + PtrSize);
++	r = decode_reloc(s, commonsize() + thearch.ptrsize);
+ 	if (r == nil)
+ 		return nil;
+-	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
++	return decode_reloc_sym(r->sym, r->add + i * thearch.ptrsize);
+ }
+ 
+ LSym*
+@@ -193,23 +196,23 @@ decodetype_funcouttype(LSym *s, int i)
+ {
+ 	Reloc *r;
+ 
+-	r = decode_reloc(s, commonsize() + 2*PtrSize + 2*IntSize);
++	r = decode_reloc(s, commonsize() + 2*thearch.ptrsize + 2*thearch.intsize);
+ 	if (r == nil)
+ 		return nil;
+-	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
++	return decode_reloc_sym(r->sym, r->add + i * thearch.ptrsize);
+ }
+ 
+ // Type.StructType.fields.Slice::len
+ int
+ decodetype_structfieldcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize() + PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + thearch.ptrsize, thearch.intsize);
+ }
+ 
+ static int
+ structfieldsize(void)
+ {
+-	return 5*PtrSize;
++	return 5*thearch.ptrsize;
+ }
+ 
+ // Type.StructType.fields[]-> name, typ and offset.
+@@ -219,7 +222,7 @@ decodetype_structfieldname(LSym *s, int i)
+ 	Reloc *r;
+ 
+ 	// go.string."foo"  0x28 / 0x40
+-	s = decode_reloc_sym(s, commonsize() + PtrSize + 2*IntSize + i*structfieldsize());
++	s = decode_reloc_sym(s, commonsize() + thearch.ptrsize + 2*thearch.intsize + i*structfieldsize());
+ 	if (s == nil)			// embedded structs have a nil name.
+ 		return nil;
+ 	r = decode_reloc(s, 0);		// s has a pointer to the string data at offset 0
+@@ -231,18 +234,18 @@ decodetype_structfieldname(LSym *s, int i)
+ LSym*
+ decodetype_structfieldtype(LSym *s, int i)
+ {
+-	return decode_reloc_sym(s, commonsize() + PtrSize + 2*IntSize + i*structfieldsize() + 2*PtrSize);
++	return decode_reloc_sym(s, commonsize() + thearch.ptrsize + 2*thearch.intsize + i*structfieldsize() + 2*thearch.ptrsize);
+ }
+ 
+ vlong
+ decodetype_structfieldoffs(LSym *s, int i)
+ {
+-	return decode_inuxi(s->p + commonsize() + PtrSize + 2*IntSize + i*structfieldsize() + 4*PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + thearch.ptrsize + 2*thearch.intsize + i*structfieldsize() + 4*thearch.ptrsize, thearch.intsize);
+ }
+ 
+ // InterfaceTYpe.methods.len
+ vlong
+ decodetype_ifacemethodcount(LSym *s)
+ {
+-	return decode_inuxi(s->p + commonsize() + PtrSize, IntSize);
++	return decode_inuxi(s->p + commonsize() + thearch.ptrsize, thearch.intsize);
+ }
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index fad35fa75d..53f0194b31 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -12,13 +12,16 @@
+ //   - file:line info for variables
+ //   - make strings a typedef so prettyprinters can see the underlying string type
+ //
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+-#include	"../ld/dwarf.h"
+-#include	"../ld/dwarf_defs.h"
+-#include	"../ld/elf.h"
+-#include	"../ld/macho.h"
+-#include	"../ld/pe.h"
++#include	"dwarf.h"
++#include	"dwarf_defs.h"
++#include	"elf.h"
++#include	"macho.h"
++#include	"pe.h"
+ #include	"../../runtime/typekind.h"
+ 
+ /*
+@@ -75,12 +78,12 @@ static char  gdbscript[1024];
+ static void
+ addrput(vlong addr)
+ {
+-	switch(PtrSize) {
++	switch(thearch.ptrsize) {
+ 	case 4:
+-		LPUT(addr);
++		thearch.lput(addr);
+ 		break;
+ 	case 8:
+-		VPUT(addr);
++		thearch.vput(addr);
+ 		break;
+ 	}
+ }
+@@ -629,14 +632,14 @@ adddwarfrel(LSym* sec, LSym* sym, vlong offsetbase, int siz, vlong addend)
+ 	r->type = R_ADDR;
+ 	r->add = addend;
+ 	r->xadd = addend;
+-	if(iself && thechar == '6')
++	if(iself && thearch.thechar == '6')
+ 		addend = 0;
+ 	switch(siz) {
+ 	case 4:
+-		LPUT(addend);
++		thearch.lput(addend);
+ 		break;
+ 	case 8:
+-		VPUT(addend);
++		thearch.vput(addend);
+ 		break;
+ 	default:
+ 		diag("bad size in adddwarfrel");
+@@ -663,7 +666,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 	case DW_FORM_addr:	// address
+ 		if(linkmode == LinkExternal) {
+ 			value -= ((LSym*)data)->value;
+-			adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
++			adddwarfrel(infosec, (LSym*)data, infoo, thearch.ptrsize, value);
+ 			break;
+ 		}
+ 		addrput(value);
+@@ -671,11 +674,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 
+ 	case DW_FORM_block1:	// block
+ 		if(cls == DW_CLS_ADDRESS) {
+-			cput(1+PtrSize);
++			cput(1+thearch.ptrsize);
+ 			cput(DW_OP_addr);
+ 			if(linkmode == LinkExternal) {
+ 				value -= ((LSym*)data)->value;
+-				adddwarfrel(infosec, (LSym*)data, infoo, PtrSize, value);
++				adddwarfrel(infosec, (LSym*)data, infoo, thearch.ptrsize, value);
+ 				break;
+ 			}
+ 			addrput(value);
+@@ -689,14 +692,14 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 
+ 	case DW_FORM_block2:	// block
+ 		value &= 0xffff;
+-		WPUT(value);
++		thearch.wput(value);
+ 		while(value--)
+ 			cput(*data++);
+ 		break;
+ 
+ 	case DW_FORM_block4:	// block
+ 		value &= 0xffffffff;
+-		LPUT(value);
++		thearch.lput(value);
+ 		while(value--)
+ 			cput(*data++);
+ 		break;
+@@ -712,7 +715,7 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 		break;
+ 
+ 	case DW_FORM_data2:	// constant
+-		WPUT(value);
++		thearch.wput(value);
+ 		break;
+ 
+ 	case DW_FORM_data4:	// constant, {line,loclist,mac,rangelist}ptr
+@@ -720,11 +723,11 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 			adddwarfrel(infosec, linesym, infoo, 4, value);
+ 			break;
+ 		}
+-		LPUT(value);
++		thearch.lput(value);
+ 		break;
+ 
+ 	case DW_FORM_data8:	// constant, {line,loclist,mac,rangelist}ptr
+-		VPUT(value);
++		thearch.vput(value);
+ 		break;
+ 
+ 	case DW_FORM_sdata:	// constant
+@@ -750,16 +753,16 @@ putattr(int abbrev, int form, int cls, vlong value, char *data)
+ 		// (> 4 GB of debug info aka "64-bit") unit, which we don't implement.
+ 		if (data == nil) {
+ 			diag("dwarf: null reference in %d", abbrev);
+-			if(PtrSize == 8)
+-				VPUT(0); // invalid dwarf, gdb will complain.
++			if(thearch.ptrsize == 8)
++				thearch.vput(0); // invalid dwarf, gdb will complain.
+ 			else
+-				LPUT(0); // invalid dwarf, gdb will complain.
++				thearch.lput(0); // invalid dwarf, gdb will complain.
+ 		} else {
+ 			off = ((DWDie*)data)->offs;
+ 			if (off == 0)
+ 				fwdcount++;
+ 			if(linkmode == LinkExternal) {
+-				adddwarfrel(infosec, infosym, infoo, PtrSize, off);
++				adddwarfrel(infosec, infosym, infoo, thearch.ptrsize, off);
+ 				break;
+ 			}
+ 			addrput(off);
+@@ -1236,17 +1239,17 @@ synthesizemaptypes(DWDie *die)
+ 
+ 		// compute size info like hashmap.c does.
+ 		a = getattr(keytype, DW_AT_byte_size);
+-		keysize = a ? a->value : PtrSize;  // We don't store size with Pointers
++		keysize = a ? a->value : thearch.ptrsize;  // We don't store size with Pointers
+ 		a = getattr(valtype, DW_AT_byte_size);
+-		valsize = a ? a->value : PtrSize;
++		valsize = a ? a->value : thearch.ptrsize;
+ 		indirect_key = 0;
+ 		indirect_val = 0;
+ 		if(keysize > MaxKeySize) {
+-			keysize = PtrSize;
++			keysize = thearch.ptrsize;
+ 			indirect_key = 1;
+ 		}
+ 		if(valsize > MaxValSize) {
+-			valsize = PtrSize;
++			valsize = thearch.ptrsize;
+ 			indirect_val = 1;
+ 		}
+ 
+@@ -1288,12 +1291,12 @@ synthesizemaptypes(DWDie *die)
+ 		fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "overflow");
+ 		newrefattr(fld, DW_AT_type, defptrto(dwhb));
+ 		newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize));
+-		if(RegSize > PtrSize) {
++		if(thearch.regsize > thearch.ptrsize) {
+ 			fld = newdie(dwhb, DW_ABRV_STRUCTFIELD, "pad");
+ 			newrefattr(fld, DW_AT_type, find_or_diag(&dwtypes, "uintptr"));
+-			newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize) + PtrSize);
++			newmemberoffsetattr(fld, BucketSize + BucketSize * (keysize + valsize) + thearch.ptrsize);
+ 		}
+-		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + BucketSize * keysize + BucketSize * valsize + RegSize, 0);
++		newattr(dwhb, DW_AT_byte_size, DW_CLS_CONSTANT, BucketSize + BucketSize * keysize + BucketSize * valsize + thearch.regsize, 0);
+ 
+ 		// Construct hash<K,V>
+ 		dwh = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+@@ -1332,7 +1335,7 @@ synthesizechantypes(DWDie *die)
+ 			continue;
+ 		elemtype = (DWDie*) getattr(die, DW_AT_go_elem)->data;
+ 		a = getattr(elemtype, DW_AT_byte_size);
+-		elemsize = a ? a->value : PtrSize;
++		elemsize = a ? a->value : thearch.ptrsize;
+ 
+ 		// sudog<T>
+ 		dws = newdie(&dwtypes, DW_ABRV_STRUCTTYPE,
+@@ -1519,9 +1522,9 @@ flushunit(DWDie *dwinfo, vlong pc, LSym *pcsym, vlong unitstart, int32 header_le
+ 
+ 		here = cpos();
+ 		cseek(unitstart);
+-		LPUT(here - unitstart - sizeof(int32));	 // unit_length
+-		WPUT(2);  // dwarf version
+-		LPUT(header_length); // header length starting here
++		thearch.lput(here - unitstart - sizeof(int32));	 // unit_length
++		thearch.wput(2);  // dwarf version
++		thearch.lput(header_length); // header length starting here
+ 		cseek(here);
+ 	}
+ }
+@@ -1540,14 +1543,14 @@ writelines(void)
+ 	Pciter pcfile, pcline;
+ 	LSym **files, *f;
+ 
+-	if(linesec == S)
++	if(linesec == nil)
+ 		linesec = linklookup(ctxt, ".dwarfline", 0);
+ 	linesec->nr = 0;
+ 
+ 	unitstart = -1;
+ 	headerend = -1;
+ 	epc = 0;
+-	epcs = S;
++	epcs = nil;
+ 	lineo = cpos();
+ 	dwinfo = nil;
+ 	
+@@ -1565,9 +1568,9 @@ writelines(void)
+ 
+ 	// Write .debug_line Line Number Program Header (sec 6.2.4)
+ 	// Fields marked with (*) must be changed for 64-bit dwarf
+-	LPUT(0);   // unit_length (*), will be filled in by flushunit.
+-	WPUT(2);   // dwarf version (appendix F)
+-	LPUT(0);   // header_length (*), filled in by flushunit.
++	thearch.lput(0);   // unit_length (*), will be filled in by flushunit.
++	thearch.wput(2);   // dwarf version (appendix F)
++	thearch.lput(0);   // header_length (*), filled in by flushunit.
+ 	// cpos == unitstart + 4 + 2 + 4
+ 	cput(1);   // minimum_instruction_length
+ 	cput(1);   // default_is_stmt
+@@ -1598,14 +1601,14 @@ writelines(void)
+ 	headerend = cpos();
+ 
+ 	cput(0);  // start extended opcode
+-	uleb128put(1 + PtrSize);
++	uleb128put(1 + thearch.ptrsize);
+ 	cput(DW_LNE_set_address);
+ 
+ 	pc = s->value;
+ 	line = 1;
+ 	file = 1;
+ 	if(linkmode == LinkExternal)
+-		adddwarfrel(linesec, s, lineo, PtrSize, 0);
++		adddwarfrel(linesec, s, lineo, thearch.ptrsize, 0);
+ 	else
+ 		addrput(pc);
+ 
+@@ -1661,7 +1664,7 @@ writelines(void)
+ 			switch (a->name) {
+ 			case A_AUTO:
+ 				dt = DW_ABRV_AUTO;
+-				offs = a->aoffset - PtrSize;
++				offs = a->aoffset - thearch.ptrsize;
+ 				break;
+ 			case A_PARAM:
+ 				dt = DW_ABRV_PARAM;
+@@ -1710,7 +1713,7 @@ writelines(void)
+ enum
+ {
+ 	CIERESERVE = 16,
+-	DATAALIGNMENTFACTOR = -4,	// TODO -PtrSize?
++	DATAALIGNMENTFACTOR = -4,	// TODO -thearch.ptrsize?
+ 	FAKERETURNCOLUMN = 16		// TODO gdb6 doesn't like > 15?
+ };
+ 
+@@ -1727,10 +1730,10 @@ putpccfadelta(vlong deltapc, vlong cfa)
+ 		cput(deltapc);
+ 	} else if (deltapc < 0x10000) {
+ 		cput(DW_CFA_advance_loc2);
+-		WPUT(deltapc);
++		thearch.wput(deltapc);
+ 	} else {
+ 		cput(DW_CFA_advance_loc4);
+-		LPUT(deltapc);
++		thearch.lput(deltapc);
+ 	}
+ }
+ 
+@@ -1742,14 +1745,14 @@ writeframes(void)
+ 	Pciter pcsp;
+ 	uint32 nextpc;
+ 
+-	if(framesec == S)
++	if(framesec == nil)
+ 		framesec = linklookup(ctxt, ".dwarfframe", 0);
+ 	framesec->nr = 0;
+ 	frameo = cpos();
+ 
+ 	// Emit the CIE, Section 6.4.1
+-	LPUT(CIERESERVE);	// initial length, must be multiple of PtrSize
+-	LPUT(0xffffffff);	// cid.
++	thearch.lput(CIERESERVE);	// initial length, must be multiple of thearch.ptrsize
++	thearch.lput(0xffffffff);	// cid.
+ 	cput(3);		// dwarf version (appendix F)
+ 	cput(0);		// augmentation ""
+ 	uleb128put(1);		// code_alignment_factor
+@@ -1757,11 +1760,11 @@ writeframes(void)
+ 	uleb128put(FAKERETURNCOLUMN);	// return_address_register
+ 
+ 	cput(DW_CFA_def_cfa);
+-	uleb128put(DWARFREGSP);	// register SP (**ABI-dependent, defined in l.h)
+-	uleb128put(PtrSize);	// offset
++	uleb128put(thearch.dwarfregsp);	// register SP (**ABI-dependent, defined in l.h)
++	uleb128put(thearch.ptrsize);	// offset
+ 
+ 	cput(DW_CFA_offset + FAKERETURNCOLUMN);	 // return address
+-	uleb128put(-PtrSize / DATAALIGNMENTFACTOR);  // at cfa - x*4
++	uleb128put(-thearch.ptrsize / DATAALIGNMENTFACTOR);  // at cfa - x*4
+ 
+ 	// 4 is to exclude the length field.
+ 	pad = CIERESERVE + frameo + 4 - cpos();
+@@ -1778,8 +1781,8 @@ writeframes(void)
+ 
+ 		fdeo = cpos();
+ 		// Emit a FDE, Section 6.4.1, starting wit a placeholder.
+-		LPUT(0);	// length, must be multiple of PtrSize
+-		LPUT(0);	// Pointer to the CIE above, at offset 0
++		thearch.lput(0);	// length, must be multiple of thearch.ptrsize
++		thearch.lput(0);	// Pointer to the CIE above, at offset 0
+ 		addrput(0);	// initial location
+ 		addrput(0);	// address range
+ 
+@@ -1792,23 +1795,23 @@ writeframes(void)
+ 				if(nextpc < pcsp.pc)
+ 					continue;
+ 			}
+-			putpccfadelta(nextpc - pcsp.pc, PtrSize + pcsp.value);
++			putpccfadelta(nextpc - pcsp.pc, thearch.ptrsize + pcsp.value);
+ 		}
+ 
+ 		fdesize = cpos() - fdeo - 4;	// exclude the length field.
+-		pad = rnd(fdesize, PtrSize) - fdesize;
++		pad = rnd(fdesize, thearch.ptrsize) - fdesize;
+ 		strnput("", pad);
+ 		fdesize += pad;
+ 
+ 		// Emit the FDE header for real, Section 6.4.1.
+ 		cseek(fdeo);
+-		LPUT(fdesize);
++		thearch.lput(fdesize);
+ 		if(linkmode == LinkExternal) {
+ 			adddwarfrel(framesec, framesym, frameo, 4, 0);
+-			adddwarfrel(framesec, s, frameo, PtrSize, 0);
++			adddwarfrel(framesec, s, frameo, thearch.ptrsize, 0);
+ 		}
+ 		else {
+-			LPUT(0);
++			thearch.lput(0);
+ 			addrput(s->value);
+ 		}
+ 		addrput(s->size);
+@@ -1834,11 +1837,11 @@ writeinfo(void)
+ 	vlong unitstart, here;
+ 
+ 	fwdcount = 0;
+-	if (infosec == S)
++	if (infosec == nil)
+ 		infosec = linklookup(ctxt, ".dwarfinfo", 0);
+ 	infosec->nr = 0;
+ 
+-	if(arangessec == S)
++	if(arangessec == nil)
+ 		arangessec = linklookup(ctxt, ".dwarfaranges", 0);
+ 	arangessec->nr = 0;
+ 
+@@ -1848,22 +1851,22 @@ writeinfo(void)
+ 		// Write .debug_info Compilation Unit Header (sec 7.5.1)
+ 		// Fields marked with (*) must be changed for 64-bit dwarf
+ 		// This must match COMPUNITHEADERSIZE above.
+-		LPUT(0);	// unit_length (*), will be filled in later.
+-		WPUT(2);	// dwarf version (appendix F)
++		thearch.lput(0);	// unit_length (*), will be filled in later.
++		thearch.wput(2);	// dwarf version (appendix F)
+ 
+ 		// debug_abbrev_offset (*)
+ 		if(linkmode == LinkExternal)
+ 			adddwarfrel(infosec, abbrevsym, infoo, 4, 0);
+ 		else
+-			LPUT(0);
++			thearch.lput(0);
+ 
+-		cput(PtrSize);	// address_size
++		cput(thearch.ptrsize);	// address_size
+ 
+ 		putdie(compunit);
+ 
+ 		here = cpos();
+ 		cseek(unitstart);
+-		LPUT(here - unitstart - 4);	// exclude the length field.
++		thearch.lput(here - unitstart - 4);	// exclude the length field.
+ 		cseek(here);
+ 	}
+ 	cflush();
+@@ -1910,22 +1913,22 @@ writepub(int (*ispub)(DWDie*))
+ 			unitend = infoo + infosize;
+ 
+ 		// Write .debug_pubnames/types	Header (sec 6.1.1)
+-		LPUT(0);			// unit_length (*), will be filled in later.
+-		WPUT(2);			// dwarf version (appendix F)
+-		LPUT(unitstart);		// debug_info_offset (of the Comp unit Header)
+-		LPUT(unitend - unitstart);	// debug_info_length
++		thearch.lput(0);			// unit_length (*), will be filled in later.
++		thearch.wput(2);			// dwarf version (appendix F)
++		thearch.lput(unitstart);		// debug_info_offset (of the Comp unit Header)
++		thearch.lput(unitend - unitstart);	// debug_info_length
+ 
+ 		for (die = compunit->child; die != nil; die = die->link) {
+ 			if (!ispub(die)) continue;
+-			LPUT(die->offs - unitstart);
++			thearch.lput(die->offs - unitstart);
+ 			dwa = getattr(die, DW_AT_name);
+ 			strnput(dwa->data, dwa->value + 1);
+ 		}
+-		LPUT(0);
++		thearch.lput(0);
+ 
+ 		here = cpos();
+ 		cseek(sectionstart);
+-		LPUT(here - sectionstart - 4);	// exclude the length field.
++		thearch.lput(here - sectionstart - 4);	// exclude the length field.
+ 		cseek(here);
+ 
+ 	}
+@@ -1947,7 +1950,7 @@ writearanges(void)
+ 	vlong value;
+ 
+ 	sectionstart = cpos();
+-	headersize = rnd(4+2+4+1+1, PtrSize);  // don't count unit_length field itself
++	headersize = rnd(4+2+4+1+1, thearch.ptrsize);  // don't count unit_length field itself
+ 
+ 	for (compunit = dwroot.child; compunit != nil; compunit = compunit->link) {
+ 		b = getattr(compunit,  DW_AT_low_pc);
+@@ -1958,21 +1961,21 @@ writearanges(void)
+ 			continue;
+ 
+ 		// Write .debug_aranges	 Header + entry	 (sec 6.1.2)
+-		LPUT(headersize + 4*PtrSize - 4);	// unit_length (*)
+-		WPUT(2);	// dwarf version (appendix F)
++		thearch.lput(headersize + 4*thearch.ptrsize - 4);	// unit_length (*)
++		thearch.wput(2);	// dwarf version (appendix F)
+ 
+ 		value = compunit->offs - COMPUNITHEADERSIZE;	// debug_info_offset
+ 		if(linkmode == LinkExternal)
+ 			adddwarfrel(arangessec, infosym, sectionstart, 4, value);
+ 		else
+-			LPUT(value);
++			thearch.lput(value);
+ 
+-		cput(PtrSize);	// address_size
++		cput(thearch.ptrsize);	// address_size
+ 		cput(0);	// segment_size
+-		strnput("", headersize - (4+2+4+1+1));	// align to PtrSize
++		strnput("", headersize - (4+2+4+1+1));	// align to thearch.ptrsize
+ 
+ 		if(linkmode == LinkExternal)
+-			adddwarfrel(arangessec, (LSym*)b->data, sectionstart, PtrSize, b->value-((LSym*)b->data)->value);
++			adddwarfrel(arangessec, (LSym*)b->data, sectionstart, thearch.ptrsize, b->value-((LSym*)b->data)->value);
+ 		else
+ 			addrput(b->value);
+ 
+@@ -2016,9 +2019,9 @@ writedwarfreloc(LSym* s)
+ 	start = cpos();
+ 	for(r = s->r; r < s->r+s->nr; r++) {
+ 		if(iself)
+-			i = elfreloc1(r, r->off);
++			i = thearch.elfreloc1(r, r->off);
+ 		else if(HEADTYPE == Hdarwin)
+-			i = machoreloc1(r, r->off);
++			i = thearch.machoreloc1(r, r->off);
+ 		else
+ 			i = -1;
+ 		if(i < 0)
+@@ -2062,7 +2065,7 @@ dwarfemitdebugsections(void)
+ 
+ 	die = newdie(&dwtypes, DW_ABRV_BASETYPE, "uintptr");  // needed for array size
+ 	newattr(die, DW_AT_encoding,  DW_CLS_CONSTANT, DW_ATE_unsigned, 0);
+-	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, PtrSize, 0);
++	newattr(die, DW_AT_byte_size, DW_CLS_CONSTANT, thearch.ptrsize, 0);
+ 	newattr(die, DW_AT_go_kind, DW_CLS_CONSTANT, KindUintptr, 0);
+ 
+ 	// Needed by the prettyprinter code for interface inspection.
+@@ -2196,7 +2199,7 @@ dwarfaddshstrings(LSym *shstrtab)
+ 	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
+ 	elfstrdbg[ElfStrGDBScripts]    = addstring(shstrtab, ".debug_gdb_scripts");
+ 	if(linkmode == LinkExternal) {
+-		if(thechar == '6' || thechar == '9') {
++		if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 			elfstrdbg[ElfStrRelDebugInfo] = addstring(shstrtab, ".rela.debug_info");
+ 			elfstrdbg[ElfStrRelDebugAranges] = addstring(shstrtab, ".rela.debug_aranges");
+ 			elfstrdbg[ElfStrRelDebugLine] = addstring(shstrtab, ".rela.debug_line");
+@@ -2251,17 +2254,17 @@ dwarfaddelfrelocheader(int elfstr, ElfShdr *shdata, vlong off, vlong size)
+ 	ElfShdr *sh;
+ 
+ 	sh = newElfShdr(elfstrdbg[elfstr]);
+-	if(thechar == '6' || thechar == '9') {
++	if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 		sh->type = SHT_RELA;
+ 	} else {
+ 		sh->type = SHT_REL;
+ 	}
+-	sh->entsize = PtrSize*(2+(sh->type==SHT_RELA));
++	sh->entsize = thearch.ptrsize*(2+(sh->type==SHT_RELA));
+ 	sh->link = elfshname(".symtab")->shnum;
+ 	sh->info = shdata->shnum;
+ 	sh->off = off;
+ 	sh->size = size;
+-	sh->addralign = PtrSize;
++	sh->addralign = thearch.ptrsize;
+ 	
+ }
+ 
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 89a0a5e87f..12ced98107 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+-#include	"../ld/elf.h"
++#include	"elf.h"
+ 
+ /*
+  * We use the 64-bit data structures on both 32- and 64-bit machines
+@@ -15,6 +18,8 @@
+ 
+ int	iself;
+ 
++int	nelfsym = 1;
++
+ static	int	elf64;
+ static	ElfEhdr	hdr;
+ static	ElfPhdr	*phdr[NSECT];
+@@ -42,7 +47,7 @@ elfinit(void)
+ {
+ 	iself = 1;
+ 
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	// 64-bit architectures
+ 	case '9':
+ 		if(ctxt->arch->endian == BigEndian)
+@@ -77,14 +82,14 @@ elfinit(void)
+ void
+ elf64phdr(ElfPhdr *e)
+ {
+-	LPUT(e->type);
+-	LPUT(e->flags);
+-	VPUT(e->off);
+-	VPUT(e->vaddr);
+-	VPUT(e->paddr);
+-	VPUT(e->filesz);
+-	VPUT(e->memsz);
+-	VPUT(e->align);
++	thearch.lput(e->type);
++	thearch.lput(e->flags);
++	thearch.vput(e->off);
++	thearch.vput(e->vaddr);
++	thearch.vput(e->paddr);
++	thearch.vput(e->filesz);
++	thearch.vput(e->memsz);
++	thearch.vput(e->align);
+ }
+ 
+ void
+@@ -103,44 +108,44 @@ elf32phdr(ElfPhdr *e)
+ 		e->filesz += frag;
+ 		e->memsz += frag;
+ 	}
+-	LPUT(e->type);
+-	LPUT(e->off);
+-	LPUT(e->vaddr);
+-	LPUT(e->paddr);
+-	LPUT(e->filesz);
+-	LPUT(e->memsz);
+-	LPUT(e->flags);
+-	LPUT(e->align);
++	thearch.lput(e->type);
++	thearch.lput(e->off);
++	thearch.lput(e->vaddr);
++	thearch.lput(e->paddr);
++	thearch.lput(e->filesz);
++	thearch.lput(e->memsz);
++	thearch.lput(e->flags);
++	thearch.lput(e->align);
+ }
+ 
+ void
+ elf64shdr(ElfShdr *e)
+ {
+-	LPUT(e->name);
+-	LPUT(e->type);
+-	VPUT(e->flags);
+-	VPUT(e->addr);
+-	VPUT(e->off);
+-	VPUT(e->size);
+-	LPUT(e->link);
+-	LPUT(e->info);
+-	VPUT(e->addralign);
+-	VPUT(e->entsize);
++	thearch.lput(e->name);
++	thearch.lput(e->type);
++	thearch.vput(e->flags);
++	thearch.vput(e->addr);
++	thearch.vput(e->off);
++	thearch.vput(e->size);
++	thearch.lput(e->link);
++	thearch.lput(e->info);
++	thearch.vput(e->addralign);
++	thearch.vput(e->entsize);
+ }
+ 
+ void
+ elf32shdr(ElfShdr *e)
+ {
+-	LPUT(e->name);
+-	LPUT(e->type);
+-	LPUT(e->flags);
+-	LPUT(e->addr);
+-	LPUT(e->off);
+-	LPUT(e->size);
+-	LPUT(e->link);
+-	LPUT(e->info);
+-	LPUT(e->addralign);
+-	LPUT(e->entsize);
++	thearch.lput(e->name);
++	thearch.lput(e->type);
++	thearch.lput(e->flags);
++	thearch.lput(e->addr);
++	thearch.lput(e->off);
++	thearch.lput(e->size);
++	thearch.lput(e->link);
++	thearch.lput(e->info);
++	thearch.lput(e->addralign);
++	thearch.lput(e->entsize);
+ }
+ 
+ uint32
+@@ -231,19 +236,19 @@ elf64writehdr(void)
+ 
+ 	for (i = 0; i < EI_NIDENT; i++)
+ 		cput(hdr.ident[i]);
+-	WPUT(hdr.type);
+-	WPUT(hdr.machine);
+-	LPUT(hdr.version);
+-	VPUT(hdr.entry);
+-	VPUT(hdr.phoff);
+-	VPUT(hdr.shoff);
+-	LPUT(hdr.flags);
+-	WPUT(hdr.ehsize);
+-	WPUT(hdr.phentsize);
+-	WPUT(hdr.phnum);
+-	WPUT(hdr.shentsize);
+-	WPUT(hdr.shnum);
+-	WPUT(hdr.shstrndx);
++	thearch.wput(hdr.type);
++	thearch.wput(hdr.machine);
++	thearch.lput(hdr.version);
++	thearch.vput(hdr.entry);
++	thearch.vput(hdr.phoff);
++	thearch.vput(hdr.shoff);
++	thearch.lput(hdr.flags);
++	thearch.wput(hdr.ehsize);
++	thearch.wput(hdr.phentsize);
++	thearch.wput(hdr.phnum);
++	thearch.wput(hdr.shentsize);
++	thearch.wput(hdr.shnum);
++	thearch.wput(hdr.shstrndx);
+ 	return ELF64HDRSIZE;
+ }
+ 
+@@ -254,19 +259,19 @@ elf32writehdr(void)
+ 
+ 	for (i = 0; i < EI_NIDENT; i++)
+ 		cput(hdr.ident[i]);
+-	WPUT(hdr.type);
+-	WPUT(hdr.machine);
+-	LPUT(hdr.version);
+-	LPUT(hdr.entry);
+-	LPUT(hdr.phoff);
+-	LPUT(hdr.shoff);
+-	LPUT(hdr.flags);
+-	WPUT(hdr.ehsize);
+-	WPUT(hdr.phentsize);
+-	WPUT(hdr.phnum);
+-	WPUT(hdr.shentsize);
+-	WPUT(hdr.shnum);
+-	WPUT(hdr.shstrndx);
++	thearch.wput(hdr.type);
++	thearch.wput(hdr.machine);
++	thearch.lput(hdr.version);
++	thearch.lput(hdr.entry);
++	thearch.lput(hdr.phoff);
++	thearch.lput(hdr.shoff);
++	thearch.lput(hdr.flags);
++	thearch.wput(hdr.ehsize);
++	thearch.wput(hdr.phentsize);
++	thearch.wput(hdr.phnum);
++	thearch.wput(hdr.shentsize);
++	thearch.wput(hdr.shnum);
++	thearch.wput(hdr.shstrndx);
+ 	return ELF32HDRSIZE;
+ }
+ 
+@@ -381,9 +386,9 @@ elfwritenotehdr(char *str, uint32 namesz, uint32 descsz, uint32 tag)
+ 
+ 	// Write Elf_Note header.
+ 	cseek(sh->off);
+-	LPUT(namesz);
+-	LPUT(descsz);
+-	LPUT(tag);
++	thearch.lput(namesz);
++	thearch.lput(descsz);
++	thearch.lput(tag);
+ 
+ 	return sh;
+ }
+@@ -416,7 +421,7 @@ elfwritenetbsdsig(void)
+ 
+ 	// Followed by NetBSD string and version.
+ 	cwrite(ELF_NOTE_NETBSD_NAME, ELF_NOTE_NETBSD_NAMESZ + 1);
+-	LPUT(ELF_NOTE_NETBSD_VERSION);
++	thearch.lput(ELF_NOTE_NETBSD_VERSION);
+ 
+ 	return sh->size;
+ }
+@@ -449,7 +454,7 @@ elfwriteopenbsdsig(void)
+ 
+ 	// Followed by OpenBSD string and version.
+ 	cwrite(ELF_NOTE_OPENBSD_NAME, ELF_NOTE_OPENBSD_NAMESZ);
+-	LPUT(ELF_NOTE_OPENBSD_VERSION);
++	thearch.lput(ELF_NOTE_OPENBSD_VERSION);
+ 
+ 	return sh->size;
+ }
+@@ -525,7 +530,6 @@ elfwritebuildinfo(void)
+ 	return sh->size;
+ }
+ 
+-extern int nelfsym;
+ int elfverneed;
+ 
+ typedef struct Elfaux Elfaux;
+@@ -610,7 +614,7 @@ elfdynhash(void)
+ 	memset(need, 0, nsym * sizeof need[0]);
+ 	memset(chain, 0, nsym * sizeof chain[0]);
+ 	memset(buckets, 0, nbucket * sizeof buckets[0]);
+-	for(sy=ctxt->allsym; sy!=S; sy=sy->allsym) {
++	for(sy=ctxt->allsym; sy!=nil; sy=sy->allsym) {
+ 		if (sy->dynid <= 0)
+ 			continue;
+ 
+@@ -690,7 +694,7 @@ elfdynhash(void)
+ 		elfwritedynentsym(s, DT_VERSYM, linklookup(ctxt, ".gnu.version", 0));
+ 	}
+ 
+-	if(thechar == '6' || thechar == '9') {
++	if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 		sy = linklookup(ctxt, ".rela.plt", 0);
+ 		if(sy->size > 0) {
+ 			elfwritedynent(s, DT_PLTREL, DT_RELA);
+@@ -816,7 +820,7 @@ elfshreloc(Section *sect)
+ 	if(strcmp(sect->name, ".shstrtab") == 0 || strcmp(sect->name, ".tbss") == 0)
+ 		return nil;
+ 
+-	if(thechar == '6' || thechar == '9') {
++	if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 		prefix = ".rela";
+ 		typ = SHT_RELA;
+ 	} else {
+@@ -827,12 +831,12 @@ elfshreloc(Section *sect)
+ 	snprint(buf, sizeof buf, "%s%s", prefix, sect->name);
+ 	sh = elfshname(buf);
+ 	sh->type = typ;
+-	sh->entsize = RegSize*(2+(typ==SHT_RELA));
++	sh->entsize = thearch.regsize*(2+(typ==SHT_RELA));
+ 	sh->link = elfshname(".symtab")->shnum;
+ 	sh->info = sect->elfsect->shnum;
+ 	sh->off = sect->reloff;
+ 	sh->size = sect->rellen;
+-	sh->addralign = RegSize;
++	sh->addralign = thearch.regsize;
+ 	return sh;
+ }
+ 
+@@ -875,7 +879,7 @@ elfrelocsect(Section *sect, LSym *first)
+ 			}
+ 			if(r->xsym->elfsym == 0)
+ 				diag("reloc %d to non-elf symbol %s (outer=%s) %d", r->type, r->sym->name, r->xsym->name, r->sym->type);
+-			if(elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
++			if(thearch.elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+ 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+ 		}
+ 	}
+@@ -943,7 +947,7 @@ doelf(void)
+ 		debug['s'] = 0;
+ 		debug['d'] = 1;
+ 
+-		if(thechar == '6' || thechar == '9') {
++		if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 			addstring(shstrtab, ".rela.text");
+ 			addstring(shstrtab, ".rela.rodata");
+ 			addstring(shstrtab, ".rela.typelink");
+@@ -966,7 +970,7 @@ doelf(void)
+ 
+ 	if(flag_shared) {
+ 		addstring(shstrtab, ".init_array");
+-		if(thechar == '6' || thechar == '9')
++		if(thearch.thechar == '6' || thearch.thechar == '9')
+ 			addstring(shstrtab, ".rela.init_array");
+ 		else
+ 			addstring(shstrtab, ".rel.init_array");
+@@ -983,13 +987,13 @@ doelf(void)
+ 		addstring(shstrtab, ".interp");
+ 		addstring(shstrtab, ".hash");
+ 		addstring(shstrtab, ".got");
+-		if(thechar == '9')
++		if(thearch.thechar == '9')
+ 			addstring(shstrtab, ".glink");
+ 		addstring(shstrtab, ".got.plt");
+ 		addstring(shstrtab, ".dynamic");
+ 		addstring(shstrtab, ".dynsym");
+ 		addstring(shstrtab, ".dynstr");
+-		if(thechar == '6' || thechar == '9') {
++		if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 			addstring(shstrtab, ".rela");
+ 			addstring(shstrtab, ".rela.plt");
+ 		} else {
+@@ -1004,7 +1008,7 @@ doelf(void)
+ 		s = linklookup(ctxt, ".dynsym", 0);
+ 		s->type = SELFROSECT;
+ 		s->reachable = 1;
+-		if(thechar == '6' || thechar == '9')
++		if(thearch.thechar == '6' || thearch.thechar == '9')
+ 			s->size += ELF64SYMSIZE;
+ 		else
+ 			s->size += ELF32SYMSIZE;
+@@ -1018,7 +1022,7 @@ doelf(void)
+ 		dynstr = s;
+ 
+ 		/* relocation table */
+-		if(thechar == '6' || thechar == '9')
++		if(thearch.thechar == '6' || thearch.thechar == '9')
+ 			s = linklookup(ctxt, ".rela", 0);
+ 		else
+ 			s = linklookup(ctxt, ".rel", 0);
+@@ -1031,7 +1035,7 @@ doelf(void)
+ 		s->type = SELFGOT; // writable
+ 
+ 		/* ppc64 glink resolver */
+-		if(thechar == '9') {
++		if(thearch.thechar == '9') {
+ 			s = linklookup(ctxt, ".glink", 0);
+ 			s->reachable = 1;
+ 			s->type = SELFRXSECT;
+@@ -1048,16 +1052,16 @@ doelf(void)
+ 
+ 		s = linklookup(ctxt, ".plt", 0);
+ 		s->reachable = 1;
+-		if(thechar == '9')
++		if(thearch.thechar == '9')
+ 			// In the ppc64 ABI, .plt is a data section
+ 			// written by the dynamic linker.
+ 			s->type = SELFSECT;
+ 		else
+ 			s->type = SELFRXSECT;
+ 		
+-		elfsetupplt();
++		thearch.elfsetupplt();
+ 		
+-		if(thechar == '6' || thechar == '9')
++		if(thearch.thechar == '6' || thearch.thechar == '9')
+ 			s = linklookup(ctxt, ".rela.plt", 0);
+ 		else
+ 			s = linklookup(ctxt, ".rel.plt", 0);
+@@ -1082,13 +1086,13 @@ doelf(void)
+ 		 */
+ 		elfwritedynentsym(s, DT_HASH, linklookup(ctxt, ".hash", 0));
+ 		elfwritedynentsym(s, DT_SYMTAB, linklookup(ctxt, ".dynsym", 0));
+-		if(thechar == '6' || thechar == '9')
++		if(thearch.thechar == '6' || thearch.thechar == '9')
+ 			elfwritedynent(s, DT_SYMENT, ELF64SYMSIZE);
+ 		else
+ 			elfwritedynent(s, DT_SYMENT, ELF32SYMSIZE);
+ 		elfwritedynentsym(s, DT_STRTAB, linklookup(ctxt, ".dynstr", 0));
+ 		elfwritedynentsymsize(s, DT_STRSZ, linklookup(ctxt, ".dynstr", 0));
+-		if(thechar == '6' || thechar == '9') {
++		if(thearch.thechar == '6' || thearch.thechar == '9') {
+ 			elfwritedynentsym(s, DT_RELA, linklookup(ctxt, ".rela", 0));
+ 			elfwritedynentsymsize(s, DT_RELASZ, linklookup(ctxt, ".rela", 0));
+ 			elfwritedynent(s, DT_RELAENT, ELF64RELASIZE);
+@@ -1100,12 +1104,12 @@ doelf(void)
+ 		if(rpath)
+ 			elfwritedynent(s, DT_RUNPATH, addstring(dynstr, rpath));
+ 
+-		if(thechar == '9')
++		if(thearch.thechar == '9')
+ 			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".plt", 0));
+ 		else
+ 			elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
+ 
+-		if(thechar == '9')
++		if(thearch.thechar == '9')
+ 			elfwritedynent(s, DT_PPC64_OPT, 0);
+ 
+ 		// Solaris dynamic linker can't handle an empty .rela.plt if
+@@ -1167,7 +1171,7 @@ asmbelf(vlong symo)
+ 	Section *sect;
+ 
+ 	eh = getElfEhdr();
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	default:
+ 		diag("unknown architecture in asmbelf");
+ 		errorexit();
+@@ -1228,22 +1232,22 @@ asmbelf(vlong symo)
+ 		if(interpreter == nil) {
+ 			switch(HEADTYPE) {
+ 			case Hlinux:
+-				interpreter = linuxdynld;
++				interpreter = thearch.linuxdynld;
+ 				break;
+ 			case Hfreebsd:
+-				interpreter = freebsddynld;
++				interpreter = thearch.freebsddynld;
+ 				break;
+ 			case Hnetbsd:
+-				interpreter = netbsddynld;
++				interpreter = thearch.netbsddynld;
+ 				break;
+ 			case Hopenbsd:
+-				interpreter = openbsddynld;
++				interpreter = thearch.openbsddynld;
+ 				break;
+ 			case Hdragonfly:
+-				interpreter = dragonflydynld;
++				interpreter = thearch.dragonflydynld;
+ 				break;
+ 			case Hsolaris:
+-				interpreter = solarisdynld;
++				interpreter = thearch.solarisdynld;
+ 				break;
+ 			}
+ 		}
+@@ -1304,7 +1308,7 @@ asmbelf(vlong symo)
+ 			sh->entsize = ELF64SYMSIZE;
+ 		else
+ 			sh->entsize = ELF32SYMSIZE;
+-		sh->addralign = RegSize;
++		sh->addralign = thearch.regsize;
+ 		sh->link = elfshname(".dynstr")->shnum;
+ 		// sh->info = index of first non-local symbol (number of local symbols)
+ 		shsym(sh, linklookup(ctxt, ".dynsym", 0));
+@@ -1327,7 +1331,7 @@ asmbelf(vlong symo)
+ 			sh = elfshname(".gnu.version_r");
+ 			sh->type = SHT_GNU_VERNEED;
+ 			sh->flags = SHF_ALLOC;
+-			sh->addralign = RegSize;
++			sh->addralign = thearch.regsize;
+ 			sh->info = elfverneed;
+ 			sh->link = elfshname(".dynstr")->shnum;
+ 			shsym(sh, linklookup(ctxt, ".gnu.version_r", 0));
+@@ -1340,7 +1344,7 @@ asmbelf(vlong symo)
+ 			sh->type = SHT_RELA;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->entsize = ELF64RELASIZE;
+-			sh->addralign = RegSize;
++			sh->addralign = thearch.regsize;
+ 			sh->link = elfshname(".dynsym")->shnum;
+ 			sh->info = elfshname(".plt")->shnum;
+ 			shsym(sh, linklookup(ctxt, ".rela.plt", 0));
+@@ -1402,15 +1406,15 @@ asmbelf(vlong symo)
+ 			sh = elfshname(".got");
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC+SHF_WRITE;
+-			sh->entsize = RegSize;
+-			sh->addralign = RegSize;
++			sh->entsize = thearch.regsize;
++			sh->addralign = thearch.regsize;
+ 			shsym(sh, linklookup(ctxt, ".got", 0));
+ 
+ 			sh = elfshname(".got.plt");
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC+SHF_WRITE;
+-			sh->entsize = RegSize;
+-			sh->addralign = RegSize;
++			sh->entsize = thearch.regsize;
++			sh->addralign = thearch.regsize;
+ 			shsym(sh, linklookup(ctxt, ".got.plt", 0));
+ 		}
+ 		
+@@ -1418,7 +1422,7 @@ asmbelf(vlong symo)
+ 		sh->type = SHT_HASH;
+ 		sh->flags = SHF_ALLOC;
+ 		sh->entsize = 4;
+-		sh->addralign = RegSize;
++		sh->addralign = thearch.regsize;
+ 		sh->link = elfshname(".dynsym")->shnum;
+ 		shsym(sh, linklookup(ctxt, ".hash", 0));
+ 
+@@ -1426,8 +1430,8 @@ asmbelf(vlong symo)
+ 		sh = elfshname(".dynamic");
+ 		sh->type = SHT_DYNAMIC;
+ 		sh->flags = SHF_ALLOC+SHF_WRITE;
+-		sh->entsize = 2*RegSize;
+-		sh->addralign = RegSize;
++		sh->entsize = 2*thearch.regsize;
++		sh->addralign = thearch.regsize;
+ 		sh->link = elfshname(".dynstr")->shnum;
+ 		shsym(sh, linklookup(ctxt, ".dynamic", 0));
+ 		ph = newElfPhdr();
+@@ -1446,7 +1450,7 @@ asmbelf(vlong symo)
+ 			ph->type = PT_TLS;
+ 			ph->flags = PF_R;
+ 			ph->memsz = -ctxt->tlsoffset;
+-			ph->align = RegSize;
++			ph->align = thearch.regsize;
+ 		}
+ 	}
+ 
+@@ -1454,12 +1458,12 @@ asmbelf(vlong symo)
+ 		ph = newElfPhdr();
+ 		ph->type = PT_GNU_STACK;
+ 		ph->flags = PF_W+PF_R;
+-		ph->align = RegSize;
++		ph->align = thearch.regsize;
+ 		
+ 		ph = newElfPhdr();
+ 		ph->type = PT_PAX_FLAGS;
+ 		ph->flags = 0x2a00; // mprotect, randexec, emutramp disabled
+-		ph->align = RegSize;
++		ph->align = thearch.regsize;
+ 	}
+ 
+ elfobj:
+@@ -1501,7 +1505,7 @@ elfobj:
+ 	if(linkmode == LinkInternal && !debug['d'] && HEADTYPE != Hopenbsd) {
+ 		sh = elfshname(".tbss");
+ 		sh->type = SHT_NOBITS;
+-		sh->addralign = RegSize;
++		sh->addralign = thearch.regsize;
+ 		sh->size = -ctxt->tlsoffset;
+ 		sh->flags = SHF_ALLOC | SHF_TLS | SHF_WRITE;
+ 	}
+@@ -1511,8 +1515,8 @@ elfobj:
+ 		sh->type = SHT_SYMTAB;
+ 		sh->off = symo;
+ 		sh->size = symsize;
+-		sh->addralign = RegSize;
+-		sh->entsize = 8+2*RegSize;
++		sh->addralign = thearch.regsize;
++		sh->entsize = 8+2*thearch.regsize;
+ 		sh->link = elfshname(".strtab")->shnum;
+ 		sh->info = elfglobalsymndx;
+ 
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 16c052fcb5..85589bd70f 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -1021,12 +1021,6 @@ void	dwarfaddelfsectionsyms(void);
+ void	dwarfaddelfheaders(void);
+ void	asmbelf(vlong symo);
+ void	asmbelfsetup(void);
+-extern char linuxdynld[];
+-extern char freebsddynld[];
+-extern char netbsddynld[];
+-extern char openbsddynld[];
+-extern char dragonflydynld[];
+-extern char solarisdynld[];
+ int	elfreloc1(Reloc*, vlong sectoff);
+ void	putelfsectionsyms(void);
+ 
+diff --git a/src/cmd/ld/go.c b/src/cmd/ld/go.c
+index 9c296b740f..8b1123d3de 100644
+--- a/src/cmd/ld/go.c
++++ b/src/cmd/ld/go.c
+@@ -4,8 +4,11 @@
+ 
+ // go-specific code shared across loaders (5l, 6l, 8l).
+ 
+-#include	"l.h"
+-#include	"../ld/lib.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
++#include	"lib.h"
+ 
+ // accumulate all type information from .6 files.
+ // check for inconsistencies.
+@@ -401,7 +404,7 @@ loadcgo(char *file, char *pkg, char *p, int n)
+ 				// allow #pragma dynimport _ _ "foo.so"
+ 				// to force a link of foo.so.
+ 				havedynamic = 1;
+-				adddynlib(lib);
++				thearch.adddynlib(lib);
+ 				continue;
+ 			}
+ 
+@@ -518,7 +521,7 @@ static LSym *emarkq;
+ static void
+ mark1(LSym *s, LSym *parent)
+ {
+-	if(s == S || s->reachable)
++	if(s == nil || s->reachable)
+ 		return;
+ 	if(strncmp(s->name, "go.weak.", 8) == 0)
+ 		return;
+@@ -544,7 +547,7 @@ markflood(void)
+ 	LSym *s;
+ 	int i;
+ 	
+-	for(s=markq; s!=S; s=s->queue) {
++	for(s=markq; s!=nil; s=s->queue) {
+ 		if(s->type == STEXT) {
+ 			if(debug['v'] > 1)
+ 				Bprint(&bso, "marktext %s\n", s->name);
+@@ -608,7 +611,7 @@ deadcode(void)
+ 	markflood();
+ 	
+ 	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(strncmp(s->name, "go.typelink.", 12) == 0)
+ 			s->reachable = s->nr==1 && s->r[0].sym->reachable;
+ 	}
+@@ -630,7 +633,7 @@ deadcode(void)
+ 	else
+ 		last->next = nil;
+ 	
+-	for(s = ctxt->allsym; s != S; s = s->allsym)
++	for(s = ctxt->allsym; s != nil; s = s->allsym)
+ 		if(strncmp(s->name, "go.weak.", 8) == 0) {
+ 			s->special = 1;  // do not lay out in data segment
+ 			s->reachable = 1;
+@@ -639,7 +642,7 @@ deadcode(void)
+ 	
+ 	// record field tracking references
+ 	fmtstrinit(&fmt);
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(strncmp(s->name, "go.track.", 9) == 0) {
+ 			s->special = 1;  // do not lay out in data segment
+ 			s->hide = 1;
+@@ -668,7 +671,7 @@ doweak(void)
+ 
+ 	// resolve weak references only if
+ 	// target symbol will be in binary anyway.
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(strncmp(s->name, "go.weak.", 8) == 0) {
+ 			t = linkrlookup(ctxt, s->name+8, s->version);
+ 			if(t && t->type != 0 && t->reachable) {
+@@ -693,7 +696,7 @@ addexport(void)
+ 		return;
+ 
+ 	for(i=0; i<ndynexp; i++)
+-		adddynsym(ctxt, dynexp[i]);
++		thearch.adddynsym(ctxt, dynexp[i]);
+ }
+ 
+ /* %Z from gc, for quoting import paths */
+diff --git a/src/cmd/ld/ldelf.c b/src/cmd/ld/ldelf.c
+index 29d32d283d..7beff337f2 100644
+--- a/src/cmd/ld/ldelf.c
++++ b/src/cmd/ld/ldelf.c
+@@ -25,9 +25,12 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+-#include	"../ld/elf.h"
++#include	"elf.h"
+ 
+ enum
+ {
+@@ -414,7 +417,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		return;
+ 	}
+ 
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	default:
+ 		diag("%s: elf %s unimplemented", pn, thestring);
+ 		return;
+@@ -590,7 +593,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(sym.shndx >= obj->nsect || sym.shndx == 0)
+ 			continue;
+ 		// even when we pass needSym == 1 to readsym, it might still return nil to skip some unwanted symbols
+-		if(sym.sym == S)
++		if(sym.sym == nil)
+ 			continue;
+ 		sect = obj->sect+sym.shndx;
+ 		if(sect->sym == nil) {
+@@ -600,7 +603,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			continue;
+ 		}
+ 		s = sym.sym;
+-		if(s->outer != S) {
++		if(s->outer != nil) {
+ 			if(s->dupok)
+ 				continue;
+ 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+@@ -632,7 +635,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// This keeps textp in increasing address order.
+ 	for(i=0; i<obj->nsect; i++) {
+ 		s = obj->sect[i].sym;
+-		if(s == S)
++		if(s == nil)
+ 			continue;
+ 		if(s->sub)
+ 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+@@ -645,7 +648,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+-			for(s = s->sub; s != S; s = s->sub) {
++			for(s = s->sub; s != nil; s = s->sub) {
+ 				if(s->onlist)
+ 					sysfatal("symbol %s listed multiple times", s->name);
+ 				s->onlist = 1;
+@@ -700,7 +703,7 @@ ldelf(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				continue;
+ 			}
+ 			if((info >> 32) == 0) { // absolute relocation, don't bother reading the null symbol
+-				rp->sym = S;
++				rp->sym = nil;
+ 			} else {
+ 				if(readsym(obj, info>>32, &sym, 0) < 0)
+ 					goto bad;
+@@ -844,7 +847,7 @@ readsym(ElfObj *obj, int i, ElfSym *sym, int needSym)
+ 			}
+ 			break;
+ 		case ElfSymBindLocal:
+-			if(thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
++			if(thearch.thechar == '5' && (strncmp(sym->name, "$a", 2) == 0 || strncmp(sym->name, "$d", 2) == 0)) {
+ 				// binutils for arm generate these mapping
+ 				// symbols, ignore these
+ 				break;
+@@ -905,7 +908,7 @@ rbyoff(const void *va, const void *vb)
+ static int
+ reltype(char *pn, int elftype, uchar *siz)
+ {
+-	switch(R(thechar, elftype)) {
++	switch(R(thearch.thechar, elftype)) {
+ 	default:
+ 		diag("%s: unknown relocation type %d; compiled without -fpic?", pn, elftype);
+ 	case R('9', R_PPC64_TOC16):
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 71cfa63dec..4cbfa8d1ce 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -25,7 +25,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ THE SOFTWARE.
+ */
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+ 
+ enum {
+@@ -477,7 +480,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	m->len = len;
+ 	m->name = pn;
+ 	
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	default:
+ 		diag("%s: mach-o %s unimplemented", pn, thestring);
+ 		return;
+@@ -627,7 +630,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			werrstr("reference to invalid section %s/%s", sect->segname, sect->name);
+ 			continue;
+ 		}
+-		if(s->outer != S) {
++		if(s->outer != nil) {
+ 			if(s->dupok)
+ 				continue;
+ 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+@@ -652,13 +655,13 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// This keeps textp in increasing address order.
+ 	for(i=0; i<c->seg.nsect; i++) {
+ 		sect = &c->seg.sect[i];
+-		if((s = sect->sym) == S)
++		if((s = sect->sym) == nil)
+ 			continue;
+ 		if(s->sub) {
+ 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+ 			
+ 			// assign sizes, now that we know symbols in sorted order.
+-			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
++			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
+ 				if(s1->sub)
+ 					s1->size = s1->sub->value - s1->value;
+ 				else
+@@ -674,7 +677,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+-			for(s1 = s->sub; s1 != S; s1 = s1->sub) {
++			for(s1 = s->sub; s1 != nil; s1 = s1->sub) {
+ 				if(s1->onlist)
+ 					sysfatal("symbol %s listed multiple times", s1->name);
+ 				s1->onlist = 1;
+@@ -687,7 +690,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// load relocations
+ 	for(i=0; i<c->seg.nsect; i++) {
+ 		sect = &c->seg.sect[i];
+-		if((s = sect->sym) == S)
++		if((s = sect->sym) == nil)
+ 			continue;
+ 		macholoadrel(m, sect);
+ 		if(sect->rel == nil)
+@@ -700,7 +703,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				int k;
+ 				MachoSect *ks;
+ 
+-				if(thechar != '8') {
++				if(thearch.thechar != '8') {
+ 					// mach-o only uses scattered relocation on 32-bit platforms
+ 					diag("unexpected scattered relocation");
+ 					continue;
+@@ -750,7 +753,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				werrstr("unsupported scattered relocation: invalid address %#ux", rel->addr);
+ 				goto bad;
+ 			foundk:
+-				if(ks->sym != S) {
++				if(ks->sym != nil) {
+ 					rp->sym = ks->sym;
+ 					rp->add += rel->value - ks->addr;
+ 				} else if(strcmp(ks->segname, "__IMPORT") == 0 && strcmp(ks->name, "__pointers") == 0) {
+@@ -788,7 +791,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			rp->off = rel->addr;
+ 
+ 			// Handle X86_64_RELOC_SIGNED referencing a section (rel->extrn == 0).
+-			if (thechar == '6' && rel->extrn == 0 && rel->type == 1) {
++			if (thearch.thechar == '6' && rel->extrn == 0 && rel->type == 1) {
+ 				// Calculate the addend as the offset into the section.
+ 				//
+ 				// The rip-relative offset stored in the object file is encoded
+@@ -812,7 +815,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			// For i386 Mach-O PC-relative, the addend is written such that
+ 			// it *is* the PC being subtracted.  Use that to make
+ 			// it match our version of PC-relative.
+-			if(rel->pcrel && thechar == '8')
++			if(rel->pcrel && thearch.thechar == '8')
+ 				rp->add += rp->off+rp->siz;
+ 			if(!rel->extrn) {
+ 				if(rel->symnum < 1 || rel->symnum > c->seg.nsect) {
+@@ -828,7 +831,7 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				// include that information in the addend.
+ 				// We only care about the delta from the 
+ 				// section base.
+-				if(thechar == '8')
++				if(thearch.thechar == '8')
+ 					rp->add -= c->seg.sect[rel->symnum-1].addr;
+ 			} else {
+ 				if(rel->symnum >= symtab->nsym) {
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 4f5e51f2f1..da11a3ea18 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+-#include	"../ld/pe.h"
++#include	"pe.h"
+ 
+ #define IMAGE_SCN_MEM_DISCARDABLE 0x2000000
+ 
+@@ -363,7 +366,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 		if(sect == nil) 
+ 			return;
+ 
+-		if(s->outer != S) {
++		if(s->outer != nil) {
+ 			if(s->dupok)
+ 				continue;
+ 			diag("%s: duplicate symbol reference: %s in both %s and %s", pn, s->name, s->outer->name, sect->sym->name);
+@@ -386,7 +389,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	// This keeps textp in increasing address order.
+ 	for(i=0; i<obj->nsect; i++) {
+ 		s = obj->sect[i].sym;
+-		if(s == S)
++		if(s == nil)
+ 			continue;
+ 		if(s->sub)
+ 			s->sub = listsort(s->sub, valuecmp, offsetof(LSym, sub));
+@@ -399,7 +402,7 @@ ldpe(Biobuf *f, char *pkg, int64 len, char *pn)
+ 			else
+ 				ctxt->textp = s;
+ 			ctxt->etextp = s;
+-			for(s = s->sub; s != S; s = s->sub) {
++			for(s = s->sub; s != nil; s = s->sub) {
+ 				if(s->onlist)
+ 					sysfatal("symbol %s listed multiple times", s->name);
+ 				s->onlist = 1;
+@@ -458,7 +461,7 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 		name = sym->name;
+ 		if(strncmp(name, "__imp_", 6) == 0)
+ 			name = &name[6]; // __imp_Name => Name
+-		if(thechar == '8' && name[0] == '_')
++		if(thearch.thechar == '8' && name[0] == '_')
+ 			name = &name[1]; // _Name => Name
+ 	}
+ 	// remove last @XXX
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 202841170b..72c903b4d2 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -29,10 +29,13 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+-#include	"../ld/elf.h"
+-#include	"../ld/dwarf.h"
++#include	"elf.h"
++#include	"dwarf.h"
+ #include	"../../runtime/stack.h"
+ #include	"../../runtime/funcdata.h"
+ 
+@@ -105,7 +108,7 @@ libinit(void)
+ {
+ 	char *suffix, *suffixsep;
+ 
+-	funcalign = FuncAlign;
++	funcalign = thearch.funcalign;
+ 	fmtinstall('i', iconv);
+ 	fmtinstall('Y', Yconv);
+ 	fmtinstall('Z', Zconv);
+@@ -191,7 +194,7 @@ loadlib(void)
+ 	}
+ 
+ 	loadinternal("runtime");
+-	if(thechar == '5')
++	if(thearch.thechar == '5')
+ 		loadinternal("math");
+ 	if(flag_race)
+ 		loadinternal("runtime/race");
+@@ -218,7 +221,7 @@ loadlib(void)
+ 		// dependency problems when compiling natively (external linking requires
+ 		// runtime/cgo, runtime/cgo requires cmd/cgo, but cmd/cgo needs to be
+ 		// compiled using external linking.)
+-		if(thechar == '5' && HEADTYPE == Hdarwin && iscgo)
++		if(thearch.thechar == '5' && HEADTYPE == Hdarwin && iscgo)
+ 			linkmode = LinkExternal;
+ 	}
+ 
+@@ -251,7 +254,7 @@ loadlib(void)
+ 	if(linkmode == LinkInternal) {
+ 		// Drop all the cgo_import_static declarations.
+ 		// Turns out we won't be needing them.
+-		for(s = ctxt->allsym; s != S; s = s->allsym)
++		for(s = ctxt->allsym; s != nil; s = s->allsym)
+ 			if(s->type == SHOSTOBJ) {
+ 				// If a symbol was marked both
+ 				// cgo_import_static and cgo_import_dynamic,
+@@ -272,7 +275,7 @@ loadlib(void)
+ 	// when the runtime has not declared its type already.
+ 	if(tlsg->type == 0)
+ 		tlsg->type = STLSBSS;
+-	tlsg->size = PtrSize;
++	tlsg->size = thearch.ptrsize;
+ 	tlsg->hide = 1;
+ 	tlsg->reachable = 1;
+ 	ctxt->tlsg = tlsg;
+@@ -440,7 +443,7 @@ dowrite(int fd, char *p, int n)
+ 	while(n > 0) {
+ 		m = write(fd, p, n);
+ 		if(m <= 0) {
+-			ctxt->cursym = S;
++			ctxt->cursym = nil;
+ 			diag("write error: %r");
+ 			errorexit();
+ 		}
+@@ -529,7 +532,7 @@ hostobjs(void)
+ 		h = &hostobj[i];
+ 		f = Bopen(h->file, OREAD);
+ 		if(f == nil) {
+-			ctxt->cursym = S;
++			ctxt->cursym = nil;
+ 			diag("cannot reopen %s: %r", h->pn);
+ 			errorexit();
+ 		}
+@@ -603,7 +606,7 @@ hostlink(void)
+ 	if(extld == nil)
+ 		extld = "gcc";
+ 	argv[argc++] = extld;
+-	switch(thechar){
++	switch(thearch.thechar){
+ 	case '8':
+ 		argv[argc++] = "-m32";
+ 		break;
+@@ -651,7 +654,7 @@ hostlink(void)
+ 		h = &hostobj[i];
+ 		f = Bopen(h->file, OREAD);
+ 		if(f == nil) {
+-			ctxt->cursym = S;
++			ctxt->cursym = nil;
+ 			diag("cannot reopen %s: %r", h->pn);
+ 			errorexit();
+ 		}
+@@ -660,7 +663,7 @@ hostlink(void)
+ 		argv[argc++] = p;
+ 		w = create(p, 1, 0775);
+ 		if(w < 0) {
+-			ctxt->cursym = S;
++			ctxt->cursym = nil;
+ 			diag("cannot create %s: %r", p);
+ 			errorexit();
+ 		}
+@@ -672,7 +675,7 @@ hostlink(void)
+ 			len -= n;
+ 		}
+ 		if(close(w) < 0) {
+-			ctxt->cursym = S;
++			ctxt->cursym = nil;
+ 			diag("cannot write %s: %r", p);
+ 			errorexit();
+ 		}
+@@ -719,7 +722,7 @@ hostlink(void)
+ 	}
+ 
+ 	if(runcmd(argv) < 0) {
+-		ctxt->cursym = S;
++		ctxt->cursym = nil;
+ 		diag("%s: running %s failed: %r", argv0, argv[0]);
+ 		errorexit();
+ 	}
+@@ -774,7 +777,7 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 	line[n] = '\0';
+ 	if(strncmp(line, "go object ", 10) != 0) {
+ 		if(strlen(pn) > 3 && strcmp(pn+strlen(pn)-3, ".go") == 0) {
+-			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thechar, pn, thechar, thechar);
++			print("%cl: input %s is not .%c file (use %cg to compile .go files)\n", thearch.thechar, pn, thearch.thechar, thearch.thechar);
+ 			errorexit();
+ 		}
+ 		if(strcmp(line, thestring) == 0) {
+@@ -860,7 +863,7 @@ mywhatsys(void)
+ 	goarch = getgoarch();
+ 
+ 	if(strncmp(goarch, thestring, strlen(thestring)) != 0)
+-		sysfatal("cannot use %cc with GOARCH=%s", thechar, goarch);
++		sysfatal("cannot use %cc with GOARCH=%s", thearch.thechar, goarch);
+ }
+ 
+ int
+@@ -988,7 +991,7 @@ addsection(Segment *seg, char *name, int rwx)
+ 	sect->rwx = rwx;
+ 	sect->name = name;
+ 	sect->seg = seg;
+-	sect->align = PtrSize; // everything is at least pointer-aligned
++	sect->align = thearch.ptrsize; // everything is at least pointer-aligned
+ 	*l = sect;
+ 	return sect;
+ }
+@@ -1046,20 +1049,21 @@ static void stkbroke(Chain*, int);
+ static LSym *morestack;
+ static LSym *newstack;
+ 
+-enum
+-{
+-	HasLinkRegister = (thechar == '5' || thechar == '9'),
+-};
+-
+ // TODO: Record enough information in new object files to
+ // allow stack checks here.
+ 
++static int
++haslinkregister(void)
++{
++	return thearch.thechar == '5' || thearch.thechar == '9';
++}
++
+ static int
+ callsize(void)
+ {
+-	if(HasLinkRegister)
++	if(haslinkregister())
+ 		return 0;
+-	return RegSize;
++	return thearch.regsize;
+ }
+ 
+ void
+@@ -1180,8 +1184,8 @@ stkcheck(Chain *up, int depth)
+ 				// to StackLimit beyond the frame size.
+ 				if(strncmp(r->sym->name, "runtime.morestack", 17) == 0) {
+ 					limit = StackLimit + s->locals;
+-					if(HasLinkRegister)
+-						limit += RegSize;
++					if(haslinkregister())
++						limit += thearch.regsize;
+ 				}
+ 				break;
+ 
+@@ -1229,8 +1233,8 @@ stkprint(Chain *ch, int limit)
+ 		else
+ 			print("\t%d\tguaranteed after split check in %s\n", ch->limit, name);
+ 	} else {
+-		stkprint(ch->up, ch->limit + (!HasLinkRegister)*RegSize);
+-		if(!HasLinkRegister)
++		stkprint(ch->up, ch->limit + callsize());
++		if(!haslinkregister())
+ 			print("\t%d\ton entry to %s\n", ch->limit, name);
+ 	}
+ 	if(ch->limit != limit)
+@@ -1246,7 +1250,7 @@ Yconv(Fmt *fp)
+ 	char *str;
+ 
+ 	s = va_arg(fp->args, LSym*);
+-	if (s == S) {
++	if (s == nil) {
+ 		fmtprint(fp, "<nil>");
+ 	} else {
+ 		fmtstrinit(&fmt);
+@@ -1331,7 +1335,7 @@ cwrite(void *buf, int n)
+ void
+ usage(void)
+ {
+-	fprint(2, "usage: %cl [options] main.%c\n", thechar, thechar);
++	fprint(2, "usage: %cl [options] main.%c\n", thearch.thechar, thearch.thechar);
+ 	flagprint(2);
+ 	exits("usage");
+ }
+@@ -1360,7 +1364,7 @@ setinterp(char *s)
+ void
+ doversion(void)
+ {
+-	print("%cl version %s\n", thechar, getgoversion());
++	print("%cl version %s\n", thearch.thechar, getgoversion());
+ 	errorexit();
+ }
+ 
+@@ -1380,7 +1384,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 	if(s->type == STEXT)
+ 		put(s, s->name, 'T', s->value, s->size, s->version, 0);
+ 
+-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
++	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
+ 		if(s->hide || (s->name[0] == '.' && s->version == 0 && strcmp(s->name, ".rathole") != 0))
+ 			continue;
+ 		switch(s->type&SMASK) {
+@@ -1420,7 +1424,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 		put(s, s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+ 		// NOTE(ality): acid can't produce a stack trace without .frame symbols
+-		put(nil, ".frame", 'm', s->locals+PtrSize, 0, 0, 0);
++		put(nil, ".frame", 'm', s->locals+thearch.ptrsize, 0, 0, 0);
+ 
+ 		for(a=s->autom; a; a=a->link) {
+ 			// Emit a or p according to actual offset, even if label is wrong.
+@@ -1432,7 +1436,7 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 			if(a->name == A_PARAM)
+ 				off = a->aoffset;
+ 			else
+-				off = a->aoffset - PtrSize;
++				off = a->aoffset - thearch.ptrsize;
+ 			
+ 			// FP
+ 			if(off >= 0) {
+@@ -1441,8 +1445,8 @@ genasmsym(void (*put)(LSym*, char*, int, vlong, vlong, int, LSym*))
+ 			}
+ 			
+ 			// SP
+-			if(off <= -PtrSize) {
+-				put(nil, a->asym->name, 'a', -(off+PtrSize), 0, 0, a->gotype);
++			if(off <= -thearch.ptrsize) {
++				put(nil, a->asym->name, 'a', -(off+thearch.ptrsize), 0, 0, a->gotype);
+ 				continue;
+ 			}
+ 			
+@@ -1563,7 +1567,7 @@ diag(char *fmt, ...)
+ 
+ 	tn = "";
+ 	sep = "";
+-	if(ctxt->cursym != S) {
++	if(ctxt->cursym != nil) {
+ 		tn = ctxt->cursym->name;
+ 		sep = ": ";
+ 	}
+@@ -1631,3 +1635,18 @@ checkgo(void)
+ 		}
+ 	}
+ }
++
++vlong
++rnd(vlong v, vlong r)
++{
++	vlong c;
++
++	if(r <= 0)
++		return v;
++	v += r - 1;
++	c = v % r;
++	if(c < 0)
++		c += r;
++	v -= c;
++	return v;
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index fd84c8bccb..f6a89535da 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -28,6 +28,58 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++#ifndef	EXTERN
++#define	EXTERN	extern
++#endif
++
++typedef struct Arch Arch;
++struct Arch {
++	int	thechar;
++	int	ptrsize;
++	int	intsize;
++	int	regsize;
++	int	funcalign;
++	int	maxalign;
++	int	minlc;
++	int	dwarfregsp;
++	
++	char *linuxdynld;
++	char *freebsddynld;
++	char *netbsddynld;
++	char *openbsddynld;
++	char *dragonflydynld;
++	char *solarisdynld;
++	
++	void	(*adddynlib)(char*);
++	void	(*adddynrel)(LSym*, Reloc*);
++	void	(*adddynsym)(Link*, LSym*);
++	void	(*archinit)(void);
++	int	(*archreloc)(Reloc*, LSym*, vlong*);
++	vlong	(*archrelocvariant)(Reloc*, LSym*, vlong);
++	void	(*asmb)(void);
++	int	(*elfreloc1)(Reloc*, vlong);
++	void	(*elfsetupplt)(void);
++	void	(*gentext)(void);
++	void	(*listinit)(void);
++	int	(*machoreloc1)(Reloc*, vlong);
++	
++	void	(*lput)(uint32);
++	void	(*wput)(uint16);
++	void	(*vput)(uint64);
++};
++
++vlong rnd(vlong, vlong);
++
++EXTERN	Arch	thearch;
++EXTERN	LSym*	datap;
++EXTERN	int	debug[128];
++EXTERN	char	literal[32];
++EXTERN	int32	lcsize;
++EXTERN	char*	rpath;
++EXTERN	int32	spsize;
++EXTERN	LSym*	symlist;
++EXTERN	int32	symsize;
++
+ // Terrible but standard terminology.
+ // A segment describes a block of file to load into memory.
+ // A section further describes the pieces of that block for
+@@ -71,8 +123,8 @@ struct Section
+ extern	char	symname[];
+ 
+ EXTERN	char*	INITENTRY;
+-extern	char*	thestring;
+-extern	LinkArch*	thelinkarch;
++EXTERN	char*	thestring;
++EXTERN	LinkArch*	thelinkarch;
+ EXTERN	char*	outfile;
+ EXTERN	int	ndynexp;
+ EXTERN	LSym**	dynexp;
+@@ -82,6 +134,7 @@ EXTERN	int	havedynamic;
+ EXTERN	int	funcalign;
+ EXTERN	int	iscgo;
+ EXTERN	int	elfglobalsymndx;
++extern	int	nelfsym;
+ EXTERN	char*	flag_installsuffix;
+ EXTERN	int	flag_race;
+ EXTERN	int flag_shared;
+@@ -250,8 +303,8 @@ void	libinit(void);
+ LSym*	listsort(LSym *l, int (*cmp)(LSym*, LSym*), int off);
+ void	loadinternal(char *name);
+ void	loadlib(void);
+-void	lputb(int32 l);
+-void	lputl(int32 l);
++void	lputb(uint32 l);
++void	lputl(uint32 l);
+ void*	mal(uint32 n);
+ void	mark(LSym *s);
+ void	mywhatsys(void);
+@@ -289,4 +342,8 @@ void	zerosig(char *sp);
+ void	archinit(void);
+ void	diag(char *fmt, ...);
+ 
++void	ldmain(int, char**);
++
+ #pragma	varargck	argpos	diag	1
++
++#define	SYMDEF	"__.GOSYMDEF"
+\ No newline at end of file
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index ce0aa77b66..b9b341031b 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -5,10 +5,13 @@
+ // Mach-O file writing
+ // http://developer.apple.com/mac/library/DOCUMENTATION/DeveloperTools/Conceptual/MachORuntime/Reference/reference.html
+ 
+-#include "l.h"
+-#include "../ld/dwarf.h"
+-#include "../ld/lib.h"
+-#include "../ld/macho.h"
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "dwarf.h"
++#include "lib.h"
++#include "macho.h"
+ 
+ static	int	macho64;
+ static	MachoHdr	hdr;
+@@ -41,7 +44,7 @@ static	void	machodysymtab(void);
+ void
+ machoinit(void)
+ {
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	// 64-bit architectures
+ 	case '6':
+ 	case '9':
+@@ -146,85 +149,85 @@ machowrite(void)
+ 	}
+ 
+ 	if(macho64)
+-		LPUT(0xfeedfacf);
++		thearch.lput(0xfeedfacf);
+ 	else
+-		LPUT(0xfeedface);
+-	LPUT(hdr.cpu);
+-	LPUT(hdr.subcpu);
++		thearch.lput(0xfeedface);
++	thearch.lput(hdr.cpu);
++	thearch.lput(hdr.subcpu);
+ 	if(linkmode == LinkExternal)
+-		LPUT(1);	/* file type - mach object */
++		thearch.lput(1);	/* file type - mach object */
+ 	else
+-		LPUT(2);	/* file type - mach executable */
+-	LPUT(nload+nseg+ndebug);
+-	LPUT(loadsize);
+-	LPUT(1);	/* flags - no undefines */
++		thearch.lput(2);	/* file type - mach executable */
++	thearch.lput(nload+nseg+ndebug);
++	thearch.lput(loadsize);
++	thearch.lput(1);	/* flags - no undefines */
+ 	if(macho64)
+-		LPUT(0);	/* reserved */
++		thearch.lput(0);	/* reserved */
+ 
+ 	for(i=0; i<nseg; i++) {
+ 		s = &seg[i];
+ 		if(macho64) {
+-			LPUT(25);	/* segment 64 */
+-			LPUT(72+80*s->nsect);
++			thearch.lput(25);	/* segment 64 */
++			thearch.lput(72+80*s->nsect);
+ 			strnput(s->name, 16);
+-			VPUT(s->vaddr);
+-			VPUT(s->vsize);
+-			VPUT(s->fileoffset);
+-			VPUT(s->filesize);
+-			LPUT(s->prot1);
+-			LPUT(s->prot2);
+-			LPUT(s->nsect);
+-			LPUT(s->flag);
++			thearch.vput(s->vaddr);
++			thearch.vput(s->vsize);
++			thearch.vput(s->fileoffset);
++			thearch.vput(s->filesize);
++			thearch.lput(s->prot1);
++			thearch.lput(s->prot2);
++			thearch.lput(s->nsect);
++			thearch.lput(s->flag);
+ 		} else {
+-			LPUT(1);	/* segment 32 */
+-			LPUT(56+68*s->nsect);
++			thearch.lput(1);	/* segment 32 */
++			thearch.lput(56+68*s->nsect);
+ 			strnput(s->name, 16);
+-			LPUT(s->vaddr);
+-			LPUT(s->vsize);
+-			LPUT(s->fileoffset);
+-			LPUT(s->filesize);
+-			LPUT(s->prot1);
+-			LPUT(s->prot2);
+-			LPUT(s->nsect);
+-			LPUT(s->flag);
++			thearch.lput(s->vaddr);
++			thearch.lput(s->vsize);
++			thearch.lput(s->fileoffset);
++			thearch.lput(s->filesize);
++			thearch.lput(s->prot1);
++			thearch.lput(s->prot2);
++			thearch.lput(s->nsect);
++			thearch.lput(s->flag);
+ 		}
+ 		for(j=0; j<s->nsect; j++) {
+ 			t = &s->sect[j];
+ 			if(macho64) {
+ 				strnput(t->name, 16);
+ 				strnput(t->segname, 16);
+-				VPUT(t->addr);
+-				VPUT(t->size);
+-				LPUT(t->off);
+-				LPUT(t->align);
+-				LPUT(t->reloc);
+-				LPUT(t->nreloc);
+-				LPUT(t->flag);
+-				LPUT(t->res1);	/* reserved */
+-				LPUT(t->res2);	/* reserved */
+-				LPUT(0);	/* reserved */
++				thearch.vput(t->addr);
++				thearch.vput(t->size);
++				thearch.lput(t->off);
++				thearch.lput(t->align);
++				thearch.lput(t->reloc);
++				thearch.lput(t->nreloc);
++				thearch.lput(t->flag);
++				thearch.lput(t->res1);	/* reserved */
++				thearch.lput(t->res2);	/* reserved */
++				thearch.lput(0);	/* reserved */
+ 			} else {
+ 				strnput(t->name, 16);
+ 				strnput(t->segname, 16);
+-				LPUT(t->addr);
+-				LPUT(t->size);
+-				LPUT(t->off);
+-				LPUT(t->align);
+-				LPUT(t->reloc);
+-				LPUT(t->nreloc);
+-				LPUT(t->flag);
+-				LPUT(t->res1);	/* reserved */
+-				LPUT(t->res2);	/* reserved */
++				thearch.lput(t->addr);
++				thearch.lput(t->size);
++				thearch.lput(t->off);
++				thearch.lput(t->align);
++				thearch.lput(t->reloc);
++				thearch.lput(t->nreloc);
++				thearch.lput(t->flag);
++				thearch.lput(t->res1);	/* reserved */
++				thearch.lput(t->res2);	/* reserved */
+ 			}
+ 		}
+ 	}
+ 
+ 	for(i=0; i<nload; i++) {
+ 		l = &load[i];
+-		LPUT(l->type);
+-		LPUT(4*(l->ndata+2));
++		thearch.lput(l->type);
++		thearch.lput(4*(l->ndata+2));
+ 		for(j=0; j<l->ndata; j++)
+-			LPUT(l->data[j]);
++			thearch.lput(l->data[j]);
+ 	}
+ 
+ 	return cpos() - o1;
+@@ -353,7 +356,7 @@ asmbmacho(void)
+ 	/* apple MACH */
+ 	va = INITTEXT - HEADR;
+ 	mh = getMachoHdr();
+-	switch(thechar){
++	switch(thearch.thechar){
+ 	default:
+ 		diag("unknown mach architecture");
+ 		errorexit();
+@@ -416,7 +419,7 @@ asmbmacho(void)
+ 		machoshbits(ms, sect, "__DATA");
+ 
+ 	if(linkmode != LinkExternal) {
+-		switch(thechar) {
++		switch(thearch.thechar) {
+ 		default:
+ 			diag("unknown macho architecture");
+ 			errorexit();
+@@ -615,7 +618,7 @@ machosymtab(void)
+ 			adduint8(ctxt, symtab, 0x01); // type N_EXT, external symbol
+ 			adduint8(ctxt, symtab, 0); // no section
+ 			adduint16(ctxt, symtab, 0); // desc
+-			adduintxx(ctxt, symtab, 0, PtrSize); // no value
++			adduintxx(ctxt, symtab, 0, thearch.ptrsize); // no value
+ 		} else {
+ 			if(s->cgoexport)
+ 				adduint8(ctxt, symtab, 0x0f);
+@@ -630,7 +633,7 @@ machosymtab(void)
+ 			} else
+ 				adduint8(ctxt, symtab, o->sect->extnum);
+ 			adduint16(ctxt, symtab, 0); // desc
+-			adduintxx(ctxt, symtab, symaddr(s), PtrSize);
++			adduintxx(ctxt, symtab, symaddr(s), thearch.ptrsize);
+ 		}
+ 	}
+ }
+@@ -756,7 +759,7 @@ machorelocsect(Section *sect, LSym *first)
+ 		for(r = sym->r; r < sym->r+sym->nr; r++) {
+ 			if(r->done)
+ 				continue;
+-			if(machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
++			if(thearch.machoreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+ 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+ 		}
+ 	}
+diff --git a/src/cmd/ld/pcln.c b/src/cmd/ld/pcln.c
+index 98d22d8f4a..adb7661301 100644
+--- a/src/cmd/ld/pcln.c
++++ b/src/cmd/ld/pcln.c
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include	"l.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
+ #include	"lib.h"
+ #include	"../../runtime/funcdata.h"
+ 
+@@ -134,23 +137,23 @@ pclntab(void)
+ 
+ 	// See golang.org/s/go12symtab for the format. Briefly:
+ 	//	8-byte header
+-	//	nfunc [PtrSize bytes]
+-	//	function table, alternating PC and offset to func struct [each entry PtrSize bytes]
+-	//	end PC [PtrSize bytes]
++	//	nfunc [thearch.ptrsize bytes]
++	//	function table, alternating PC and offset to func struct [each entry thearch.ptrsize bytes]
++	//	end PC [thearch.ptrsize bytes]
+ 	//	offset to file table [4 bytes]
+ 	nfunc = 0;
+ 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+ 		if(!container(ctxt->cursym))
+ 			nfunc++;
+ 	}
+-	symgrow(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize+4);
++	symgrow(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize+4);
+ 	setuint32(ctxt, ftab, 0, 0xfffffffb);
+-	setuint8(ctxt, ftab, 6, MINLC);
+-	setuint8(ctxt, ftab, 7, PtrSize);
+-	setuintxx(ctxt, ftab, 8, nfunc, PtrSize);
++	setuint8(ctxt, ftab, 6, thearch.minlc);
++	setuint8(ctxt, ftab, 7, thearch.ptrsize);
++	setuintxx(ctxt, ftab, 8, nfunc, thearch.ptrsize);
+ 
+ 	nfunc = 0;
+-	last = S;
++	last = nil;
+ 	for(ctxt->cursym = ctxt->textp; ctxt->cursym != nil; ctxt->cursym = ctxt->cursym->next) {
+ 		last = ctxt->cursym;
+ 		if(container(ctxt->cursym))
+@@ -160,15 +163,15 @@ pclntab(void)
+ 			pcln = &zpcln;
+ 	
+ 		funcstart = ftab->np;
+-		funcstart += -ftab->np & (PtrSize-1);
++		funcstart += -ftab->np & (thearch.ptrsize-1);
+ 
+-		setaddr(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, ctxt->cursym);
+-		setuintxx(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, funcstart, PtrSize);
++		setaddr(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, ctxt->cursym);
++		setuintxx(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, funcstart, thearch.ptrsize);
+ 
+ 		// fixed size of struct, checked below
+ 		off = funcstart;
+-		end = funcstart + PtrSize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*PtrSize;
+-		if(pcln->nfuncdata > 0 && (end&(PtrSize-1)))
++		end = funcstart + thearch.ptrsize + 3*4 + 5*4 + pcln->npcdata*4 + pcln->nfuncdata*thearch.ptrsize;
++		if(pcln->nfuncdata > 0 && (end&(thearch.ptrsize-1)))
+ 			end += 4;
+ 		symgrow(ctxt, ftab, end);
+ 
+@@ -188,7 +191,7 @@ pclntab(void)
+ 		// when a called function doesn't have argument information.
+ 		// We need to make sure everything has argument information
+ 		// and then remove this.
+-		frameptrsize = PtrSize;
++		frameptrsize = thearch.ptrsize;
+ 		if(ctxt->cursym->leaf)
+ 			frameptrsize = 0;
+ 		off = setuint32(ctxt, ftab, off, ctxt->cursym->locals + frameptrsize);
+@@ -218,38 +221,38 @@ pclntab(void)
+ 		// funcdata, must be pointer-aligned and we're only int32-aligned.
+ 		// Missing funcdata will be 0 (nil pointer).
+ 		if(pcln->nfuncdata > 0) {
+-			if(off&(PtrSize-1))
++			if(off&(thearch.ptrsize-1))
+ 				off += 4;
+ 			for(i=0; i<pcln->nfuncdata; i++) {
+ 				if(pcln->funcdata[i] == nil)
+-					setuintxx(ctxt, ftab, off+PtrSize*i, pcln->funcdataoff[i], PtrSize);
++					setuintxx(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdataoff[i], thearch.ptrsize);
+ 				else {
+ 					// TODO: Dedup.
+ 					funcdata_bytes += pcln->funcdata[i]->size;
+-					setaddrplus(ctxt, ftab, off+PtrSize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
++					setaddrplus(ctxt, ftab, off+thearch.ptrsize*i, pcln->funcdata[i], pcln->funcdataoff[i]);
+ 				}
+ 			}
+-			off += pcln->nfuncdata*PtrSize;
++			off += pcln->nfuncdata*thearch.ptrsize;
+ 		}
+ 
+ 		if(off != end) {
+-			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, PtrSize);
++			diag("bad math in functab: funcstart=%d off=%d but end=%d (npcdata=%d nfuncdata=%d ptrsize=%d)", funcstart, off, end, pcln->npcdata, pcln->nfuncdata, thearch.ptrsize);
+ 			errorexit();
+ 		}
+ 	
+ 		nfunc++;
+ 	}
+ 	// Final entry of table is just end pc.
+-	setaddrplus(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize, last, last->size);
++	setaddrplus(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize, last, last->size);
+ 	
+ 	// Start file table.
+ 	start = ftab->np;
+-	start += -ftab->np & (PtrSize-1);
+-	setuint32(ctxt, ftab, 8+PtrSize+nfunc*2*PtrSize+PtrSize, start);
++	start += -ftab->np & (thearch.ptrsize-1);
++	setuint32(ctxt, ftab, 8+thearch.ptrsize+nfunc*2*thearch.ptrsize+thearch.ptrsize, start);
+ 
+ 	symgrow(ctxt, ftab, start+(ctxt->nhistfile+1)*4);
+ 	setuint32(ctxt, ftab, start, ctxt->nhistfile);
+-	for(s = ctxt->filesyms; s != S; s = s->next)
++	for(s = ctxt->filesyms; s != nil; s = s->next)
+ 		setuint32(ctxt, ftab, start + s->value*4, ftabaddstring(ftab, s->name));
+ 
+ 	ftab->size = ftab->np;
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index e45beb62b5..cb87778abd 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -5,10 +5,13 @@
+ // PE (Portable Executable) file writing
+ // http://www.microsoft.com/whdc/system/platform/firmware/PECOFF.mspx
+ 
+-#include "l.h"
+-#include "../ld/lib.h"
+-#include "../ld/pe.h"
+-#include "../ld/dwarf.h"
++#include <u.h>
++#include <libc.h>
++#include <bio.h>
++#include <link.h>
++#include "lib.h"
++#include "pe.h"
++#include "dwarf.h"
+ 
+ // DOS stub that prints out
+ // "This program cannot be run in DOS mode."
+@@ -139,7 +142,7 @@ peinit(void)
+ {
+ 	int32 l;
+ 
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	// 64-bit architectures
+ 	case '6':
+ 		pe64 = 1;
+@@ -204,7 +207,7 @@ initdynimport(void)
+ 
+ 	dr = nil;
+ 	m = nil;
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(!s->reachable || s->type != SDYNIMPORT)
+ 			continue;
+ 		for(d = dr; d != nil; d = d->next) {
+@@ -234,9 +237,9 @@ initdynimport(void)
+ 			m->s->sub = dynamic->sub;
+ 			dynamic->sub = m->s;
+ 			m->s->value = dynamic->size;
+-			dynamic->size += PtrSize;
++			dynamic->size += thearch.ptrsize;
+ 		}
+-		dynamic->size += PtrSize;
++		dynamic->size += thearch.ptrsize;
+ 	}
+ 		
+ 	return dr;
+@@ -344,7 +347,7 @@ initdynexport(void)
+ 	LSym *s;
+ 	
+ 	nexport = 0;
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(!s->reachable || !(s->cgoexport & CgoExportDynamic))
+ 			continue;
+ 		if(nexport+1 > sizeof(dexport)/sizeof(dexport[0])) {
+@@ -611,7 +614,7 @@ asmbpe(void)
+ {
+ 	IMAGE_SECTION_HEADER *t, *d;
+ 
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	default:
+ 		diag("unknown PE architecture");
+ 		errorexit();
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 8ecd18b817..0a48eb3a76 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -31,31 +31,33 @@
+ // Reading object files.
+ 
+ #define	EXTERN
+-#include	"l.h"
+-#include	"../ld/lib.h"
+-#include	"../ld/elf.h"
+-#include	"../ld/macho.h"
+-#include	"../ld/dwarf.h"
+-#include	"../ld/pe.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
++#include	"lib.h"
++#include	"elf.h"
++#include	"macho.h"
++#include	"dwarf.h"
++#include	"pe.h"
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+ char*	paramspace	= "FP";
+ 
+ void
+-main(int argc, char *argv[])
++ldmain(int argc, char **argv)
+ {
+ 	int i;
+ 
+-	linkarchinit();
+ 	ctxt = linknew(thelinkarch);
+-	ctxt->thechar = thechar;
++	ctxt->thechar = thearch.thechar;
+ 	ctxt->thestring = thestring;
+ 	ctxt->diag = diag;
+ 	ctxt->bso = &bso;
+ 
+ 	Binit(&bso, 1, OWRITE);
+-	listinit();
++	thearch.listinit();
+ 	memset(debug, 0, sizeof(debug));
+ 	nerrors = 0;
+ 	outfile = nil;
+@@ -73,30 +75,30 @@ main(int argc, char *argv[])
+ 		if(strcmp(argv[i], "-crash_for_testing") == 0)
+ 			*(volatile int*)0 = 0;
+ 	
+-	if(thechar == '5' && ctxt->goarm == 5)
++	if(thearch.thechar == '5' && ctxt->goarm == 5)
+ 		debug['F'] = 1;
+ 
+ 	flagcount("1", "use alternate profiling code", &debug['1']);
+-	if(thechar == '6')
++	if(thearch.thechar == '6')
+ 		flagcount("8", "assume 64-bit addresses", &debug['8']);
+ 	flagfn1("B", "info: define ELF NT_GNU_BUILD_ID note", addbuildinfo);
+ 	flagcount("C", "check Go calls to C code", &debug['C']);
+ 	flagint64("D", "addr: data address", &INITDAT);
+ 	flagstr("E", "sym: entry symbol", &INITENTRY);
+-	if(thechar == '5')
++	if(thearch.thechar == '5')
+ 		flagcount("G", "debug pseudo-ops", &debug['G']);
+ 	flagfn1("I", "interp: set ELF interp", setinterp);
+ 	flagfn1("L", "dir: add dir to library path", Lflag);
+ 	flagfn1("H", "head: header type", setheadtype);
+ 	flagcount("K", "add stack underflow checks", &debug['K']);
+-	if(thechar == '5')
++	if(thearch.thechar == '5')
+ 		flagcount("M", "disable software div/mod", &debug['M']);
+ 	flagcount("O", "print pc-line tables", &debug['O']);
+ 	flagcount("Q", "debug byte-register code gen", &debug['Q']);
+-	if(thechar == '5')
++	if(thearch.thechar == '5')
+ 		flagcount("P", "debug code generation", &debug['P']);
+ 	flagint32("R", "rnd: address rounding", &INITRND);
+-	flagcount("S", "check type signatures", &debug['S']);
++	flagcount("nil", "check type signatures", &debug['S']);
+ 	flagint64("T", "addr: text address", &INITTEXT);
+ 	flagfn0("V", "print version and exit", doversion);
+ 	flagcount("W", "disassemble input", &debug['W']);
+@@ -117,7 +119,7 @@ main(int argc, char *argv[])
+ 	flagstr("r", "dir1:dir2:...: set ELF dynamic linker search path", &rpath);
+ 	flagcount("race", "enable race detector", &flag_race);
+ 	flagcount("s", "disable symbol table", &debug['s']);
+-	if(thechar == '5' || thechar == '6')
++	if(thearch.thechar == '5' || thearch.thechar == '6')
+ 		flagcount("shared", "generate shared object (implies -linkmode external)", &flag_shared);
+ 	flagstr("tmpdir", "dir: leave temporary files in this directory", &tmpdir);
+ 	flagcount("u", "reject unsafe packages", &debug['u']);
+@@ -139,9 +141,9 @@ main(int argc, char *argv[])
+ 
+ 	if(outfile == nil) {
+ 		if(HEADTYPE == Hwindows)
+-			outfile = smprint("%c.out.exe", thechar);
++			outfile = smprint("%c.out.exe", thearch.thechar);
+ 		else
+-			outfile = smprint("%c.out", thechar);
++			outfile = smprint("%c.out", thearch.thechar);
+ 	}
+ 	libinit(); // creates outfile
+ 
+@@ -151,7 +153,7 @@ main(int argc, char *argv[])
+ 	if(headstring == nil)
+ 		headstring = headstr(HEADTYPE);
+ 
+-	archinit();
++	thearch.archinit();
+ 	ctxt->debugfloat = debug['F'];
+ 
+ 	if(debug['v'])
+@@ -165,7 +167,7 @@ main(int argc, char *argv[])
+ 	addlibpath(ctxt, "command line", "command line", argv[0], "main");
+ 	loadlib();
+ 	
+-	if(thechar == '5') {
++	if(thearch.thechar == '5') {
+ 		// mark some functions that are only referenced after linker code editing
+ 		if(debug['F'])
+ 			mark(linkrlookup(ctxt, "_sfloat", 0));
+@@ -184,7 +186,7 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == Hwindows)
+ 		dope();
+ 	addexport();
+-	gentext();		// trampolines, call stubs, etc.
++	thearch.gentext();		// trampolines, call stubs, etc.
+ 	textaddress();
+ 	pclntab();
+ 	findfunctab();
+@@ -193,7 +195,7 @@ main(int argc, char *argv[])
+ 	address();
+ 	doweak();
+ 	reloc();
+-	asmb();
++	thearch.asmb();
+ 	undef();
+ 	hostlink();
+ 	if(debug['v']) {
+diff --git a/src/cmd/ld/symtab.c b/src/cmd/ld/symtab.c
+index c3a72c3cf6..55ef608c1d 100644
+--- a/src/cmd/ld/symtab.c
++++ b/src/cmd/ld/symtab.c
+@@ -30,9 +30,12 @@
+ 
+ // Symbol table.
+ 
+-#include	"l.h"
+-#include	"../ld/lib.h"
+-#include	"../ld/elf.h"
++#include	<u.h>
++#include	<libc.h>
++#include	<bio.h>
++#include	<link.h>
++#include	"lib.h"
++#include	"elf.h"
+ 
+ static int maxelfstr;
+ 
+@@ -76,24 +79,24 @@ putelfstr(char *s)
+ static void
+ putelfsyment(int off, vlong addr, vlong size, int info, int shndx, int other)
+ {
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	case '6':
+ 	case '9':
+-		LPUT(off);
++		thearch.lput(off);
+ 		cput(info);
+ 		cput(other);
+-		WPUT(shndx);
+-		VPUT(addr);
+-		VPUT(size);
++		thearch.wput(shndx);
++		thearch.vput(addr);
++		thearch.vput(size);
+ 		symsize += ELF64SYMSIZE;
+ 		break;
+ 	default:
+-		LPUT(off);
+-		LPUT(addr);
+-		LPUT(size);
++		thearch.lput(off);
++		thearch.lput(addr);
++		thearch.lput(size);
+ 		cput(info);
+ 		cput(other);
+-		WPUT(shndx);
++		thearch.wput(shndx);
+ 		symsize += ELF32SYMSIZE;
+ 		break;
+ 	}
+@@ -172,7 +175,7 @@ putelfsymshndx(vlong sympos, int shndx)
+ 	vlong here;
+ 
+ 	here = cpos();
+-	switch(thechar) {
++	switch(thearch.thechar) {
+ 	case '6':
+ 		cseek(sympos+6);
+ 		break;
+@@ -180,7 +183,7 @@ putelfsymshndx(vlong sympos, int shndx)
+ 		cseek(sympos+14);
+ 		break;
+ 	}
+-	WPUT(shndx);
++	thearch.wput(shndx);
+ 	cseek(here);
+ }
+ 
+@@ -218,7 +221,7 @@ asmelfsym(void)
+ 	elfglobalsymndx = numelfsym;
+ 	genasmsym(putelfsym);
+ 	
+-	for(s=ctxt->allsym; s!=S; s=s->allsym) {
++	for(s=ctxt->allsym; s!=nil; s=s->allsym) {
+ 		if(s->type != SHOSTOBJ && !(s->type == SDYNIMPORT && s->reachable))
+ 			continue;
+ 		if(s->type == SDYNIMPORT)
+@@ -253,7 +256,7 @@ putplan9sym(LSym *x, char *s, int t, vlong addr, vlong size, int ver, LSym *go)
+ 	case 'Z':
+ 	case 'm':
+ 		l = 4;
+-		if(HEADTYPE == Hplan9 && thechar == '6' && !debug['8']) {
++		if(HEADTYPE == Hplan9 && thearch.thechar == '6' && !debug['8']) {
+ 			lputb(addr>>32);
+ 			l = 8;
+ 		}
+@@ -307,7 +310,7 @@ wputb(ushort w)
+ }
+ 
+ void
+-lputb(int32 l)
++lputb(uint32 l)
+ {
+ 	cput(l>>24);
+ 	cput(l>>16);
+@@ -316,7 +319,7 @@ lputb(int32 l)
+ }
+ 
+ void
+-lputl(int32 l)
++lputl(uint32 l)
+ {
+ 	cput(l);
+ 	cput(l>>8);
+@@ -408,7 +411,7 @@ symtab(void)
+ 	// within a type they sort by size, so the .* symbols
+ 	// just defined above will be first.
+ 	// hide the specific symbols.
+-	for(s = ctxt->allsym; s != S; s = s->allsym) {
++	for(s = ctxt->allsym; s != nil; s = s->allsym) {
+ 		if(!s->reachable || s->special || s->type != SRODATA)
+ 			continue;
+ 		if(strncmp(s->name, "type.", 5) == 0) {

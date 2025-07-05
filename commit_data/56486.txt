@@ -16,6 +16,21 @@ Date:   Tue May 9 20:32:19 2023 -0700
     Auto-Submit: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
-
+---
  misc/wasm/go_wasip1_wasm_exec | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/wasm/go_wasip1_wasm_exec b/misc/wasm/go_wasip1_wasm_exec
+index 55917eae88..72228d0501 100755
+--- a/misc/wasm/go_wasip1_wasm_exec
++++ b/misc/wasm/go_wasip1_wasm_exec
+@@ -4,6 +4,9 @@
+ # license that can be found in the LICENSE file.
+ 
+ case "$GOWASIRUNTIME" in
++	"wasmedge")
++		exec wasmedge --dir=/ --env PWD="$PWD" "$1" "${@:2}"
++		;;
+ 	"wasmer")
+ 		exec wasmer run --dir=/ --env PWD="$PWD" "$1" -- "${@:2}"
+ 		;;

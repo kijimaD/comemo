@@ -19,7 +19,48 @@ Date:   Sat Mar 19 23:27:41 2016 +0200
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/util.go        |  2 ++
  src/cmd/link/internal/ld/objfile.go | 12 +++++++-----
  2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 18450962ed..b04b1a55d4 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -33,6 +33,8 @@ type Biobuf struct {
+ 	linelen int
+ }
+ 
++func (b *Biobuf) Reader() *bufio.Reader { return b.r }
++
+ func Bopenw(name string) (*Biobuf, error) {
+ 	f, err := os.Create(name)
+ 	if err != nil {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 21b9d6e820..c98080f57f 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -395,15 +395,17 @@ func readref(ctxt *Link, f *obj.Biobuf, pkg string, pn string) {
+ }
+ 
+ func rdint64(f *obj.Biobuf) int64 {
+-	var c int
+-
++	r := f.Reader()
+ 	uv := uint64(0)
+-	for shift := 0; ; shift += 7 {
++	for shift := uint(0); ; shift += 7 {
+ 		if shift >= 64 {
+ 			log.Fatalf("corrupt input")
+ 		}
+-		c = obj.Bgetc(f)
+-		uv |= uint64(c&0x7F) << uint(shift)
++		c, err := r.ReadByte()
++		if err != nil {
++			log.Fatalln("error reading input: ", err)
++		}
++		uv |= uint64(c&0x7F) << shift
+ 		if c&0x80 == 0 {
+ 			break
+ 		}

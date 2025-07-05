@@ -14,8 +14,155 @@ Date:   Tue Jan 18 17:52:16 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/379274
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go | 23 +++++++++++++++--------
  src/go/types/expr.go                    | 21 ++++++++++++++-------
  test/fixedbugs/issue28079c.go           |  2 +-
  3 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 0147e2adfd..3d6d9153ee 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -504,8 +504,11 @@ func (check *Checker) invalidConversion(code errorCode, x *operand, target Type)
+ // Also, if x is a constant, it must be representable as a value of typ,
+ // and if x is the (formerly untyped) lhs operand of a non-constant
+ // shift, it must be an integer value.
+-//
+ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
++	check.updateExprType0(nil, x, typ, final)
++}
++
++func (check *Checker) updateExprType0(parent, x syntax.Expr, typ Type, final bool) {
+ 	old, found := check.untyped[x]
+ 	if !found {
+ 		return // nothing to do
+@@ -548,7 +551,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 		// No operands to take care of.
+ 
+ 	case *syntax.ParenExpr:
+-		check.updateExprType(x.X, typ, final)
++		check.updateExprType0(x, x.X, typ, final)
+ 
+ 	// case *syntax.UnaryExpr:
+ 	// 	// If x is a constant, the operands were constants.
+@@ -559,7 +562,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 	// 	if old.val != nil {
+ 	// 		break
+ 	// 	}
+-	// 	check.updateExprType(x.X, typ, final)
++	// 	check.updateExprType0(x, x.X, typ, final)
+ 
+ 	case *syntax.Operation:
+ 		if x.Y == nil {
+@@ -580,7 +583,7 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 			if old.val != nil {
+ 				break
+ 			}
+-			check.updateExprType(x.X, typ, final)
++			check.updateExprType0(x, x.X, typ, final)
+ 			break
+ 		}
+ 
+@@ -594,11 +597,11 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 		} else if isShift(x.Op) {
+ 			// The result type depends only on lhs operand.
+ 			// The rhs type was updated when checking the shift.
+-			check.updateExprType(x.X, typ, final)
++			check.updateExprType0(x, x.X, typ, final)
+ 		} else {
+ 			// The operand types match the result type.
+-			check.updateExprType(x.X, typ, final)
+-			check.updateExprType(x.Y, typ, final)
++			check.updateExprType0(x, x.X, typ, final)
++			check.updateExprType0(x, x.Y, typ, final)
+ 		}
+ 
+ 	default:
+@@ -622,7 +625,11 @@ func (check *Checker) updateExprType(x syntax.Expr, typ Type, final bool) {
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+-			check.errorf(x, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
++			if check.conf.CompilerErrorMessages {
++				check.errorf(x, invalidOp+"%s (shift of type %s)", parent, typ)
++			} else {
++				check.errorf(x, invalidOp+"shifted operand %s (type %s) must be integer", x, typ)
++			}
+ 			return
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 73b01f4aa4..36f0f467be 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -472,8 +472,11 @@ func (check *Checker) invalidConversion(code errorCode, x *operand, target Type)
+ // Also, if x is a constant, it must be representable as a value of typ,
+ // and if x is the (formerly untyped) lhs operand of a non-constant
+ // shift, it must be an integer value.
+-//
+ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
++	check.updateExprType0(nil, x, typ, final)
++}
++
++func (check *Checker) updateExprType0(parent, x ast.Expr, typ Type, final bool) {
+ 	old, found := check.untyped[x]
+ 	if !found {
+ 		return // nothing to do
+@@ -515,7 +518,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		// No operands to take care of.
+ 
+ 	case *ast.ParenExpr:
+-		check.updateExprType(x.X, typ, final)
++		check.updateExprType0(x, x.X, typ, final)
+ 
+ 	case *ast.UnaryExpr:
+ 		// If x is a constant, the operands were constants.
+@@ -526,7 +529,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		if old.val != nil {
+ 			break
+ 		}
+-		check.updateExprType(x.X, typ, final)
++		check.updateExprType0(x, x.X, typ, final)
+ 
+ 	case *ast.BinaryExpr:
+ 		if old.val != nil {
+@@ -538,11 +541,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		} else if isShift(x.Op) {
+ 			// The result type depends only on lhs operand.
+ 			// The rhs type was updated when checking the shift.
+-			check.updateExprType(x.X, typ, final)
++			check.updateExprType0(x, x.X, typ, final)
+ 		} else {
+ 			// The operand types match the result type.
+-			check.updateExprType(x.X, typ, final)
+-			check.updateExprType(x.Y, typ, final)
++			check.updateExprType0(x, x.X, typ, final)
++			check.updateExprType0(x, x.Y, typ, final)
+ 		}
+ 
+ 	default:
+@@ -566,7 +569,11 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+ 		if !allInteger(typ) {
+-			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
++			if compilerErrorMessages {
++				check.invalidOp(x, _InvalidShiftOperand, "%s (shift of type %s)", parent, typ)
++			} else {
++				check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
++			}
+ 			return
+ 		}
+ 		// Even if we have an integer, if the value is a constant we
+diff --git a/test/fixedbugs/issue28079c.go b/test/fixedbugs/issue28079c.go
+index f6954eda42..dfac8d0155 100644
+--- a/test/fixedbugs/issue28079c.go
++++ b/test/fixedbugs/issue28079c.go
+@@ -11,5 +11,5 @@ package p
+ import "unsafe"
+ 
+ func f() {
+-	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift|shifted operand .* must be integer"
++	_ = complex(1<<uintptr(unsafe.Pointer(nil)), 0) // ERROR "invalid operation: .*shift of type float64.*|non-integer type for left operand of shift"
+ }

@@ -9,6 +9,29 @@ Date:   Thu Dec 8 23:20:21 2011 -0500
     TBR=gri
     CC=golang-dev
     https://golang.org/cl/5479045
-
+---
  src/pkg/exp/types/gcimporter.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/types/gcimporter.go b/src/pkg/exp/types/gcimporter.go
+index 150c6edb3c..0b10e5fb3f 100644
+--- a/src/pkg/exp/types/gcimporter.go
++++ b/src/pkg/exp/types/gcimporter.go
+@@ -199,7 +199,8 @@ func (p *gcParser) errorf(format string, args ...interface{}) {
+ func (p *gcParser) expect(tok rune) string {
+ 	lit := p.lit
+ 	if p.tok != tok {
+-		p.errorf("expected %q, got %q (%q)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
++		panic(1)
++		p.errorf("expected %s, got %s (%s)", scanner.TokenString(tok), scanner.TokenString(p.tok), lit)
+ 	}
+ 	p.next()
+ 	return lit
+@@ -681,6 +682,7 @@ func (p *gcParser) parseConstDecl() {
+ 			p.next()
+ 			p.expect('+')
+ 			p.parseNumber()
++			p.expect(')')
+ 			// TODO: x = ...
+ 			break
+ 		}

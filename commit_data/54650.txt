@@ -16,6 +16,29 @@ Date:   Mon Nov 7 10:24:23 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  misc/cgo/test/cgo_linux_test.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 2b6fe558d5..3a1cf98c2a 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -30,7 +30,14 @@ func TestSetgidStress(t *testing.T) {
+ 	testSetgidStress(t)
+ }
+ 
+-func Test1435(t *testing.T)    { test1435(t) }
+-func Test6997(t *testing.T)    { test6997(t) }
+-func Test9400(t *testing.T)    { test9400(t) }
++func Test1435(t *testing.T) { test1435(t) }
++func Test6997(t *testing.T) { test6997(t) }
++
++func Test9400(t *testing.T) {
++	if _, err := os.Stat("/etc/alpine-release"); err == nil {
++		t.Skip("setgid is broken with musl libc - go.dev/issue/39857")
++	}
++	test9400(t)
++}
++
+ func TestBuildID(t *testing.T) { testBuildID(t) }

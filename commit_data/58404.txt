@@ -17,7 +17,7 @@ Date:   Tue Oct 31 19:51:18 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  api/next/62039.txt                      |   3 +
  src/cmd/go/internal/gover/gover.go      | 201 ++--------------------------
  src/cmd/go/internal/gover/gover_test.go |  20 +--
@@ -28,3 +28,877 @@ Date:   Tue Oct 31 19:51:18 2023 -0400
  src/internal/gover/gover.go             | 223 ++++++++++++++++++++++++++++++++
  src/internal/gover/gover_test.go        | 138 ++++++++++++++++++++
  9 files changed, 545 insertions(+), 209 deletions(-)
+
+diff --git a/api/next/62039.txt b/api/next/62039.txt
+new file mode 100644
+index 0000000000..8280e87751
+--- /dev/null
++++ b/api/next/62039.txt
+@@ -0,0 +1,3 @@
++pkg go/version, func Compare(string, string) int #62039
++pkg go/version, func IsValid(string) bool #62039
++pkg go/version, func Lang(string) string #62039
+diff --git a/src/cmd/go/internal/gover/gover.go b/src/cmd/go/internal/gover/gover.go
+index b2a8261feb..19c6f670c5 100644
+--- a/src/cmd/go/internal/gover/gover.go
++++ b/src/cmd/go/internal/gover/gover.go
+@@ -11,68 +11,23 @@
+ package gover
+ 
+ import (
+-	"cmp"
++	"internal/gover"
+ )
+ 
+-// A version is a parsed Go version: major[.minor[.patch]][kind[pre]]
+-// The numbers are the original decimal strings to avoid integer overflows
+-// and since there is very little actual math. (Probably overflow doesn't matter in practice,
+-// but at the time this code was written, there was an existing test that used
+-// go1.99999999999, which does not fit in an int on 32-bit platforms.
+-// The "big decimal" representation avoids the problem entirely.)
+-type version struct {
+-	major string // decimal
+-	minor string // decimal or ""
+-	patch string // decimal or ""
+-	kind  string // "", "alpha", "beta", "rc"
+-	pre   string // decimal or ""
+-}
+-
+ // Compare returns -1, 0, or +1 depending on whether
+ // x < y, x == y, or x > y, interpreted as toolchain versions.
+ // The versions x and y must not begin with a "go" prefix: just "1.21" not "go1.21".
+ // Malformed versions compare less than well-formed versions and equal to each other.
+ // The language version "1.21" compares less than the release candidate and eventual releases "1.21rc1" and "1.21.0".
+ func Compare(x, y string) int {
+-	vx := parse(x)
+-	vy := parse(y)
+-
+-	if c := cmpInt(vx.major, vy.major); c != 0 {
+-		return c
+-	}
+-	if c := cmpInt(vx.minor, vy.minor); c != 0 {
+-		return c
+-	}
+-	if c := cmpInt(vx.patch, vy.patch); c != 0 {
+-		return c
+-	}
+-	if c := cmp.Compare(vx.kind, vy.kind); c != 0 { // "" < alpha < beta < rc
+-		return c
+-	}
+-	if c := cmpInt(vx.pre, vy.pre); c != 0 {
+-		return c
+-	}
+-	return 0
++	return gover.Compare(x, y)
+ }
+ 
+ // Max returns the maximum of x and y interpreted as toolchain versions,
+ // compared using Compare.
+ // If x and y compare equal, Max returns x.
+ func Max(x, y string) string {
+-	if Compare(x, y) < 0 {
+-		return y
+-	}
+-	return x
+-}
+-
+-// Toolchain returns the maximum of x and y interpreted as toolchain names,
+-// compared using Compare(FromToolchain(x), FromToolchain(y)).
+-// If x and y compare equal, Max returns x.
+-func ToolchainMax(x, y string) string {
+-	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
+-		return y
+-	}
+-	return x
++	return gover.Max(x, y)
+ }
+ 
+ // IsLang reports whether v denotes the overall Go language version
+@@ -85,22 +40,17 @@ func ToolchainMax(x, y string) string {
+ // meaning that Go 1.21rc1 and Go 1.21.0 will both handle go.mod files that
+ // say "go 1.21", but Go 1.21rc1 will not handle files that say "go 1.21.0".
+ func IsLang(x string) bool {
+-	v := parse(x)
+-	return v != version{} && v.patch == "" && v.kind == "" && v.pre == ""
++	return gover.IsLang(x)
+ }
+ 
+ // Lang returns the Go language version. For example, Lang("1.2.3") == "1.2".
+ func Lang(x string) string {
+-	v := parse(x)
+-	if v.minor == "" {
+-		return v.major
+-	}
+-	return v.major + "." + v.minor
++	return gover.Lang(x)
+ }
+ 
+ // IsPrerelease reports whether v denotes a Go prerelease version.
+ func IsPrerelease(x string) bool {
+-	return parse(x).kind != ""
++	return gover.Parse(x).Kind != ""
+ }
+ 
+ // Prev returns the Go major release immediately preceding v,
+@@ -112,143 +62,14 @@ func IsPrerelease(x string) bool {
+ //	Prev("1.2") = "1.1"
+ //	Prev("1.3rc4") = "1.2"
+ func Prev(x string) string {
+-	v := parse(x)
+-	if cmpInt(v.minor, "1") <= 0 {
+-		return v.major
++	v := gover.Parse(x)
++	if gover.CmpInt(v.Minor, "1") <= 0 {
++		return v.Major
+ 	}
+-	return v.major + "." + decInt(v.minor)
++	return v.Major + "." + gover.DecInt(v.Minor)
+ }
+ 
+ // IsValid reports whether the version x is valid.
+ func IsValid(x string) bool {
+-	return parse(x) != version{}
+-}
+-
+-// parse parses the Go version string x into a version.
+-// It returns the zero version if x is malformed.
+-func parse(x string) version {
+-	var v version
+-
+-	// Parse major version.
+-	var ok bool
+-	v.major, x, ok = cutInt(x)
+-	if !ok {
+-		return version{}
+-	}
+-	if x == "" {
+-		// Interpret "1" as "1.0.0".
+-		v.minor = "0"
+-		v.patch = "0"
+-		return v
+-	}
+-
+-	// Parse . before minor version.
+-	if x[0] != '.' {
+-		return version{}
+-	}
+-
+-	// Parse minor version.
+-	v.minor, x, ok = cutInt(x[1:])
+-	if !ok {
+-		return version{}
+-	}
+-	if x == "" {
+-		// Patch missing is same as "0" for older versions.
+-		// Starting in Go 1.21, patch missing is different from explicit .0.
+-		if cmpInt(v.minor, "21") < 0 {
+-			v.patch = "0"
+-		}
+-		return v
+-	}
+-
+-	// Parse patch if present.
+-	if x[0] == '.' {
+-		v.patch, x, ok = cutInt(x[1:])
+-		if !ok || x != "" {
+-			// Note that we are disallowing prereleases (alpha, beta, rc) for patch releases here (x != "").
+-			// Allowing them would be a bit confusing because we already have:
+-			//	1.21 < 1.21rc1
+-			// But a prerelease of a patch would have the opposite effect:
+-			//	1.21.3rc1 < 1.21.3
+-			// We've never needed them before, so let's not start now.
+-			return version{}
+-		}
+-		return v
+-	}
+-
+-	// Parse prerelease.
+-	i := 0
+-	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
+-		if x[i] < 'a' || 'z' < x[i] {
+-			return version{}
+-		}
+-		i++
+-	}
+-	if i == 0 {
+-		return version{}
+-	}
+-	v.kind, x = x[:i], x[i:]
+-	if x == "" {
+-		return v
+-	}
+-	v.pre, x, ok = cutInt(x)
+-	if !ok || x != "" {
+-		return version{}
+-	}
+-
+-	return v
+-}
+-
+-// cutInt scans the leading decimal number at the start of x to an integer
+-// and returns that value and the rest of the string.
+-func cutInt(x string) (n, rest string, ok bool) {
+-	i := 0
+-	for i < len(x) && '0' <= x[i] && x[i] <= '9' {
+-		i++
+-	}
+-	if i == 0 || x[0] == '0' && i != 1 {
+-		return "", "", false
+-	}
+-	return x[:i], x[i:], true
+-}
+-
+-// cmpInt returns cmp.Compare(x, y) interpreting x and y as decimal numbers.
+-// (Copied from golang.org/x/mod/semver's compareInt.)
+-func cmpInt(x, y string) int {
+-	if x == y {
+-		return 0
+-	}
+-	if len(x) < len(y) {
+-		return -1
+-	}
+-	if len(x) > len(y) {
+-		return +1
+-	}
+-	if x < y {
+-		return -1
+-	} else {
+-		return +1
+-	}
+-}
+-
+-// decInt returns the decimal string decremented by 1, or the empty string
+-// if the decimal is all zeroes.
+-// (Copied from golang.org/x/mod/module's decDecimal.)
+-func decInt(decimal string) string {
+-	// Scan right to left turning 0s to 9s until you find a digit to decrement.
+-	digits := []byte(decimal)
+-	i := len(digits) - 1
+-	for ; i >= 0 && digits[i] == '0'; i-- {
+-		digits[i] = '9'
+-	}
+-	if i < 0 {
+-		// decimal is all zeros
+-		return ""
+-	}
+-	if i == 0 && digits[i] == '1' && len(digits) > 1 {
+-		digits = digits[1:]
+-	} else {
+-		digits[i]--
+-	}
+-	return string(digits)
++	return gover.IsValid(x)
+ }
+diff --git a/src/cmd/go/internal/gover/gover_test.go b/src/cmd/go/internal/gover/gover_test.go
+index 3a0bf10fc5..68fd56f31d 100644
+--- a/src/cmd/go/internal/gover/gover_test.go
++++ b/src/cmd/go/internal/gover/gover_test.go
+@@ -39,31 +39,13 @@ var compareTests = []testCase2[string, string, int]{
+ 	{"1.99999999999999998", "1.99999999999999999", -1},
+ }
+ 
+-func TestParse(t *testing.T) { test1(t, parseTests, "parse", parse) }
+-
+-var parseTests = []testCase1[string, version]{
+-	{"1", version{"1", "0", "0", "", ""}},
+-	{"1.2", version{"1", "2", "0", "", ""}},
+-	{"1.2.3", version{"1", "2", "3", "", ""}},
+-	{"1.2rc3", version{"1", "2", "", "rc", "3"}},
+-	{"1.20", version{"1", "20", "0", "", ""}},
+-	{"1.21", version{"1", "21", "", "", ""}},
+-	{"1.21rc3", version{"1", "21", "", "rc", "3"}},
+-	{"1.21.0", version{"1", "21", "0", "", ""}},
+-	{"1.24", version{"1", "24", "", "", ""}},
+-	{"1.24rc3", version{"1", "24", "", "rc", "3"}},
+-	{"1.24.0", version{"1", "24", "0", "", ""}},
+-	{"1.999testmod", version{"1", "999", "", "testmod", ""}},
+-	{"1.99999999999999999", version{"1", "99999999999999999", "", "", ""}},
+-}
+-
+ func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
+ 
+ var langTests = []testCase1[string, string]{
+ 	{"1.2rc3", "1.2"},
+ 	{"1.2.3", "1.2"},
+ 	{"1.2", "1.2"},
+-	{"1", "1.0"},
++	{"1", "1"},
+ 	{"1.999testmod", "1.999"},
+ }
+ 
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index a24df98168..43b117edcf 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -52,6 +52,16 @@ func maybeToolchainVersion(name string) string {
+ 	return FromToolchain(name)
+ }
+ 
++// ToolchainMax returns the maximum of x and y interpreted as toolchain names,
++// compared using Compare(FromToolchain(x), FromToolchain(y)).
++// If x and y compare equal, Max returns x.
++func ToolchainMax(x, y string) string {
++	if Compare(FromToolchain(x), FromToolchain(y)) < 0 {
++		return y
++	}
++	return x
++}
++
+ // Startup records the information that went into the startup-time version switch.
+ // It is initialized by switchGoToolchain.
+ var Startup struct {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index a686bb7850..9d4e32d883 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -270,6 +270,8 @@ var depsRules = `
+ 
+ 	# go parser and friends.
+ 	FMT
++	< internal/gover
++	< go/version
+ 	< go/token
+ 	< go/scanner
+ 	< go/ast
+diff --git a/src/go/version/version.go b/src/go/version/version.go
+new file mode 100644
+index 0000000000..20c9cbc477
+--- /dev/null
++++ b/src/go/version/version.go
+@@ -0,0 +1,55 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package version provides operations on [Go versions].
++//
++// [Go versions]: https://go.dev/doc/toolchain#version
++package version // import "go/version"
++
++import "internal/gover"
++
++// stripGo converts from a "go1.21" version to a "1.21" version.
++// If v does not start with "go", stripGo returns the empty string (a known invalid version).
++func stripGo(v string) string {
++	if len(v) < 2 || v[:2] != "go" {
++		return ""
++	}
++	return v[2:]
++}
++
++// Lang returns the Go language version for version x.
++// If x is not a valid version, Lang returns the empty string.
++// For example:
++//
++//	Lang("go1.21rc2") = "go1.21"
++//	Lang("go1.21.2") = "go1.21"
++//	Lang("go1.21") = "go1.21"
++//	Lang("go1") = "go1"
++//	Lang("bad") = ""
++//	Lang("1.21") = ""
++func Lang(x string) string {
++	v := gover.Lang(stripGo(x))
++	if v == "" {
++		return ""
++	}
++	return x[:2+len(v)] // "go"+v without allocation
++}
++
++// Compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as Go versions.
++// The versions x and y must begin with a "go" prefix: "go1.21" not "1.21".
++// Invalid versions, including the empty string, compare less than
++// valid versions and equal to each other.
++// The language version "go1.21" compares less than the
++// release candidate and eventual releases "go1.21rc1" and "go1.21.0".
++// Custom toolchain suffixes are ignored during comparison:
++// "go1.21.0" and "go1.21.0-bigcorp" are equal.
++func Compare(x, y string) int {
++	return gover.Compare(stripGo(x), stripGo(y))
++}
++
++// IsValid reports whether the version x is valid.
++func IsValid(x string) bool {
++	return gover.IsValid(stripGo(x))
++}
+diff --git a/src/go/version/version_test.go b/src/go/version/version_test.go
+new file mode 100644
+index 0000000000..62aabad3a1
+--- /dev/null
++++ b/src/go/version/version_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package version
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestCompare(t *testing.T) { test2(t, compareTests, "Compare", Compare) }
++
++var compareTests = []testCase2[string, string, int]{
++	{"", "", 0},
++	{"x", "x", 0},
++	{"", "x", 0},
++	{"1", "1.1", 0},
++	{"go1", "go1.1", -1},
++	{"go1.5", "go1.6", -1},
++	{"go1.5", "go1.10", -1},
++	{"go1.6", "go1.6.1", -1},
++	{"go1.19", "go1.19.0", 0},
++	{"go1.19rc1", "go1.19", -1},
++	{"go1.20", "go1.20.0", 0},
++	{"go1.20rc1", "go1.20", -1},
++	{"go1.21", "go1.21.0", -1},
++	{"go1.21", "go1.21rc1", -1},
++	{"go1.21rc1", "go1.21.0", -1},
++	{"go1.6", "go1.19", -1},
++	{"go1.19", "go1.19.1", -1},
++	{"go1.19rc1", "go1.19", -1},
++	{"go1.19rc1", "go1.19.1", -1},
++	{"go1.19rc1", "go1.19rc2", -1},
++	{"go1.19.0", "go1.19.1", -1},
++	{"go1.19rc1", "go1.19.0", -1},
++	{"go1.19alpha3", "go1.19beta2", -1},
++	{"go1.19beta2", "go1.19rc1", -1},
++	{"go1.1", "go1.99999999999999998", -1},
++	{"go1.99999999999999998", "go1.99999999999999999", -1},
++}
++
++func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
++
++var langTests = []testCase1[string, string]{
++	{"bad", ""},
++	{"go1.2rc3", "go1.2"},
++	{"go1.2.3", "go1.2"},
++	{"go1.2", "go1.2"},
++	{"go1", "go1"},
++	{"go1.999testmod", "go1.999"},
++}
++
++func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
++
++var isValidTests = []testCase1[string, bool]{
++	{"", false},
++	{"1.2.3", false},
++	{"go1.2rc3", true},
++	{"go1.2.3", true},
++	{"go1.999testmod", true},
++	{"go1.600+auto", false},
++	{"go1.22", true},
++	{"go1.21.0", true},
++	{"go1.21rc2", true},
++	{"go1.21", true},
++	{"go1.20.0", true},
++	{"go1.20", true},
++	{"go1.19", true},
++	{"go1.3", true},
++	{"go1.2", true},
++	{"go1", true},
++}
++
++type testCase1[In, Out any] struct {
++	in  In
++	out Out
++}
++
++type testCase2[In1, In2, Out any] struct {
++	in1 In1
++	in2 In2
++	out Out
++}
++
++func test1[In, Out any](t *testing.T, tests []testCase1[In, Out], name string, f func(In) Out) {
++	t.Helper()
++	for _, tt := range tests {
++		if out := f(tt.in); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%v) = %v, want %v", name, tt.in, out, tt.out)
++		}
++	}
++}
++
++func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], name string, f func(In1, In2) Out) {
++	t.Helper()
++	for _, tt := range tests {
++		if out := f(tt.in1, tt.in2); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, out, tt.out)
++		}
++	}
++}
+diff --git a/src/internal/gover/gover.go b/src/internal/gover/gover.go
+new file mode 100644
+index 0000000000..2ad068464d
+--- /dev/null
++++ b/src/internal/gover/gover.go
+@@ -0,0 +1,223 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package gover implements support for Go toolchain versions like 1.21.0 and 1.21rc1.
++// (For historical reasons, Go does not use semver for its toolchains.)
++// This package provides the same basic analysis that golang.org/x/mod/semver does for semver.
++//
++// The go/version package should be imported instead of this one when possible.
++// Note that this package works on "1.21" while go/version works on "go1.21".
++package gover
++
++import (
++	"cmp"
++)
++
++// A Version is a parsed Go version: major[.Minor[.Patch]][kind[pre]]
++// The numbers are the original decimal strings to avoid integer overflows
++// and since there is very little actual math. (Probably overflow doesn't matter in practice,
++// but at the time this code was written, there was an existing test that used
++// go1.99999999999, which does not fit in an int on 32-bit platforms.
++// The "big decimal" representation avoids the problem entirely.)
++type Version struct {
++	Major string // decimal
++	Minor string // decimal or ""
++	Patch string // decimal or ""
++	Kind  string // "", "alpha", "beta", "rc"
++	Pre   string // decimal or ""
++}
++
++// Compare returns -1, 0, or +1 depending on whether
++// x < y, x == y, or x > y, interpreted as toolchain versions.
++// The versions x and y must not begin with a "go" prefix: just "1.21" not "go1.21".
++// Malformed versions compare less than well-formed versions and equal to each other.
++// The language version "1.21" compares less than the release candidate and eventual releases "1.21rc1" and "1.21.0".
++func Compare(x, y string) int {
++	vx := Parse(x)
++	vy := Parse(y)
++
++	if c := CmpInt(vx.Major, vy.Major); c != 0 {
++		return c
++	}
++	if c := CmpInt(vx.Minor, vy.Minor); c != 0 {
++		return c
++	}
++	if c := CmpInt(vx.Patch, vy.Patch); c != 0 {
++		return c
++	}
++	if c := cmp.Compare(vx.Kind, vy.Kind); c != 0 { // "" < alpha < beta < rc
++		return c
++	}
++	if c := CmpInt(vx.Pre, vy.Pre); c != 0 {
++		return c
++	}
++	return 0
++}
++
++// Max returns the maximum of x and y interpreted as toolchain versions,
++// compared using Compare.
++// If x and y compare equal, Max returns x.
++func Max(x, y string) string {
++	if Compare(x, y) < 0 {
++		return y
++	}
++	return x
++}
++
++// IsLang reports whether v denotes the overall Go language version
++// and not a specific release. Starting with the Go 1.21 release, "1.x" denotes
++// the overall language version; the first release is "1.x.0".
++// The distinction is important because the relative ordering is
++//
++//	1.21 < 1.21rc1 < 1.21.0
++//
++// meaning that Go 1.21rc1 and Go 1.21.0 will both handle go.mod files that
++// say "go 1.21", but Go 1.21rc1 will not handle files that say "go 1.21.0".
++func IsLang(x string) bool {
++	v := Parse(x)
++	return v != Version{} && v.Patch == "" && v.Kind == "" && v.Pre == ""
++}
++
++// Lang returns the Go language version. For example, Lang("1.2.3") == "1.2".
++func Lang(x string) string {
++	v := Parse(x)
++	if v.Minor == "" || v.Major == "1" && v.Minor == "0" {
++		return v.Major
++	}
++	return v.Major + "." + v.Minor
++}
++
++// IsValid reports whether the version x is valid.
++func IsValid(x string) bool {
++	return Parse(x) != Version{}
++}
++
++// Parse parses the Go version string x into a version.
++// It returns the zero version if x is malformed.
++func Parse(x string) Version {
++	var v Version
++
++	// Parse major version.
++	var ok bool
++	v.Major, x, ok = cutInt(x)
++	if !ok {
++		return Version{}
++	}
++	if x == "" {
++		// Interpret "1" as "1.0.0".
++		v.Minor = "0"
++		v.Patch = "0"
++		return v
++	}
++
++	// Parse . before minor version.
++	if x[0] != '.' {
++		return Version{}
++	}
++
++	// Parse minor version.
++	v.Minor, x, ok = cutInt(x[1:])
++	if !ok {
++		return Version{}
++	}
++	if x == "" {
++		// Patch missing is same as "0" for older versions.
++		// Starting in Go 1.21, patch missing is different from explicit .0.
++		if CmpInt(v.Minor, "21") < 0 {
++			v.Patch = "0"
++		}
++		return v
++	}
++
++	// Parse patch if present.
++	if x[0] == '.' {
++		v.Patch, x, ok = cutInt(x[1:])
++		if !ok || x != "" {
++			// Note that we are disallowing prereleases (alpha, beta, rc) for patch releases here (x != "").
++			// Allowing them would be a bit confusing because we already have:
++			//	1.21 < 1.21rc1
++			// But a prerelease of a patch would have the opposite effect:
++			//	1.21.3rc1 < 1.21.3
++			// We've never needed them before, so let's not start now.
++			return Version{}
++		}
++		return v
++	}
++
++	// Parse prerelease.
++	i := 0
++	for i < len(x) && (x[i] < '0' || '9' < x[i]) {
++		if x[i] < 'a' || 'z' < x[i] {
++			return Version{}
++		}
++		i++
++	}
++	if i == 0 {
++		return Version{}
++	}
++	v.Kind, x = x[:i], x[i:]
++	if x == "" {
++		return v
++	}
++	v.Pre, x, ok = cutInt(x)
++	if !ok || x != "" {
++		return Version{}
++	}
++
++	return v
++}
++
++// cutInt scans the leading decimal number at the start of x to an integer
++// and returns that value and the rest of the string.
++func cutInt(x string) (n, rest string, ok bool) {
++	i := 0
++	for i < len(x) && '0' <= x[i] && x[i] <= '9' {
++		i++
++	}
++	if i == 0 || x[0] == '0' && i != 1 { // no digits or unnecessary leading zero
++		return "", "", false
++	}
++	return x[:i], x[i:], true
++}
++
++// CmpInt returns cmp.Compare(x, y) interpreting x and y as decimal numbers.
++// (Copied from golang.org/x/mod/semver's compareInt.)
++func CmpInt(x, y string) int {
++	if x == y {
++		return 0
++	}
++	if len(x) < len(y) {
++		return -1
++	}
++	if len(x) > len(y) {
++		return +1
++	}
++	if x < y {
++		return -1
++	} else {
++		return +1
++	}
++}
++
++// DecInt returns the decimal string decremented by 1, or the empty string
++// if the decimal is all zeroes.
++// (Copied from golang.org/x/mod/module's decDecimal.)
++func DecInt(decimal string) string {
++	// Scan right to left turning 0s to 9s until you find a digit to decrement.
++	digits := []byte(decimal)
++	i := len(digits) - 1
++	for ; i >= 0 && digits[i] == '0'; i-- {
++		digits[i] = '9'
++	}
++	if i < 0 {
++		// decimal is all zeros
++		return ""
++	}
++	if i == 0 && digits[i] == '1' && len(digits) > 1 {
++		digits = digits[1:]
++	} else {
++		digits[i]--
++	}
++	return string(digits)
++}
+diff --git a/src/internal/gover/gover_test.go b/src/internal/gover/gover_test.go
+new file mode 100644
+index 0000000000..0edfb1f47d
+--- /dev/null
++++ b/src/internal/gover/gover_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import (
++	"reflect"
++	"testing"
++)
++
++func TestCompare(t *testing.T) { test2(t, compareTests, "Compare", Compare) }
++
++var compareTests = []testCase2[string, string, int]{
++	{"", "", 0},
++	{"x", "x", 0},
++	{"", "x", 0},
++	{"1", "1.1", -1},
++	{"1.5", "1.6", -1},
++	{"1.5", "1.10", -1},
++	{"1.6", "1.6.1", -1},
++	{"1.19", "1.19.0", 0},
++	{"1.19rc1", "1.19", -1},
++	{"1.20", "1.20.0", 0},
++	{"1.20rc1", "1.20", -1},
++	{"1.21", "1.21.0", -1},
++	{"1.21", "1.21rc1", -1},
++	{"1.21rc1", "1.21.0", -1},
++	{"1.6", "1.19", -1},
++	{"1.19", "1.19.1", -1},
++	{"1.19rc1", "1.19", -1},
++	{"1.19rc1", "1.19.1", -1},
++	{"1.19rc1", "1.19rc2", -1},
++	{"1.19.0", "1.19.1", -1},
++	{"1.19rc1", "1.19.0", -1},
++	{"1.19alpha3", "1.19beta2", -1},
++	{"1.19beta2", "1.19rc1", -1},
++	{"1.1", "1.99999999999999998", -1},
++	{"1.99999999999999998", "1.99999999999999999", -1},
++}
++
++func TestParse(t *testing.T) { test1(t, parseTests, "Parse", Parse) }
++
++var parseTests = []testCase1[string, Version]{
++	{"1", Version{"1", "0", "0", "", ""}},
++	{"1.2", Version{"1", "2", "0", "", ""}},
++	{"1.2.3", Version{"1", "2", "3", "", ""}},
++	{"1.2rc3", Version{"1", "2", "", "rc", "3"}},
++	{"1.20", Version{"1", "20", "0", "", ""}},
++	{"1.21", Version{"1", "21", "", "", ""}},
++	{"1.21rc3", Version{"1", "21", "", "rc", "3"}},
++	{"1.21.0", Version{"1", "21", "0", "", ""}},
++	{"1.24", Version{"1", "24", "", "", ""}},
++	{"1.24rc3", Version{"1", "24", "", "rc", "3"}},
++	{"1.24.0", Version{"1", "24", "0", "", ""}},
++	{"1.999testmod", Version{"1", "999", "", "testmod", ""}},
++	{"1.99999999999999999", Version{"1", "99999999999999999", "", "", ""}},
++}
++
++func TestLang(t *testing.T) { test1(t, langTests, "Lang", Lang) }
++
++var langTests = []testCase1[string, string]{
++	{"1.2rc3", "1.2"},
++	{"1.2.3", "1.2"},
++	{"1.2", "1.2"},
++	{"1", "1"},
++	{"1.999testmod", "1.999"},
++}
++
++func TestIsLang(t *testing.T) { test1(t, isLangTests, "IsLang", IsLang) }
++
++var isLangTests = []testCase1[string, bool]{
++	{"1.2rc3", false},
++	{"1.2.3", false},
++	{"1.999testmod", false},
++	{"1.22", true},
++	{"1.21", true},
++	{"1.20", false}, // == 1.20.0
++	{"1.19", false}, // == 1.20.0
++	{"1.3", false},  // == 1.3.0
++	{"1.2", false},  // == 1.2.0
++	{"1", false},    // == 1.0.0
++}
++
++func TestIsValid(t *testing.T) { test1(t, isValidTests, "IsValid", IsValid) }
++
++var isValidTests = []testCase1[string, bool]{
++	{"1.2rc3", true},
++	{"1.2.3", true},
++	{"1.999testmod", true},
++	{"1.600+auto", false},
++	{"1.22", true},
++	{"1.21.0", true},
++	{"1.21rc2", true},
++	{"1.21", true},
++	{"1.20.0", true},
++	{"1.20", true},
++	{"1.19", true},
++	{"1.3", true},
++	{"1.2", true},
++	{"1", true},
++}
++
++type testCase1[In, Out any] struct {
++	in  In
++	out Out
++}
++
++type testCase2[In1, In2, Out any] struct {
++	in1 In1
++	in2 In2
++	out Out
++}
++
++type testCase3[In1, In2, In3, Out any] struct {
++	in1 In1
++	in2 In2
++	in3 In3
++	out Out
++}
++
++func test1[In, Out any](t *testing.T, tests []testCase1[In, Out], name string, f func(In) Out) {
++	t.Helper()
++	for _, tt := range tests {
++		if out := f(tt.in); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%v) = %v, want %v", name, tt.in, out, tt.out)
++		}
++	}
++}
++
++func test2[In1, In2, Out any](t *testing.T, tests []testCase2[In1, In2, Out], name string, f func(In1, In2) Out) {
++	t.Helper()
++	for _, tt := range tests {
++		if out := f(tt.in1, tt.in2); !reflect.DeepEqual(out, tt.out) {
++			t.Errorf("%s(%+v, %+v) = %+v, want %+v", name, tt.in1, tt.in2, out, tt.out)
++		}
++	}
++}

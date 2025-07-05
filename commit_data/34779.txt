@@ -11,6 +11,20 @@ Date:   Mon Nov 13 23:06:54 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/78114
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/doc.go b/src/cmd/dist/doc.go
+index ec4116c0d3..a4e6aa5cbf 100644
+--- a/src/cmd/dist/doc.go
++++ b/src/cmd/dist/doc.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// dist is the bootstrapping tool for the Go distribution.
++// Dist helps bootstrap, build, and test the Go distribution.
+ //
+ // Usage:
+ //   go tool dist [command]

@@ -7,6 +7,10 @@ Date:   Wed Mar 7 18:31:46 2012 -0600
     R=golang-dev, r, jdpoirier
     CC=golang-dev
     https://golang.org/cl/5762045
-
+---
  misc/dist/windows/images/gopher.ico | Bin 22486 -> 30166 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/dist/windows/images/gopher.ico b/misc/dist/windows/images/gopher.ico
+index 39a6c47c4d..2e861ebe04 100644
+Binary files a/misc/dist/windows/images/gopher.ico and b/misc/dist/windows/images/gopher.ico differ

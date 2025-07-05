@@ -44,7 +44,7 @@ Date:   Fri Sep 20 06:38:58 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/62384.txt                            |   7 ++
  doc/next/6-stdlib/99-minor/net/62384.md       |   1 +
  doc/next/6-stdlib/99-minor/net/netip/62384.md |   2 +
@@ -53,3 +53,547 @@ Date:   Fri Sep 20 06:38:58 2024 +0000
  src/net/netip/netip.go                        | 123 +++++++++++++++++---------
  src/net/netip/netip_test.go                   |  99 +++++++++++++++++++++
  7 files changed, 287 insertions(+), 50 deletions(-)
+
+diff --git a/api/next/62384.txt b/api/next/62384.txt
+index 3a50a2792a..8f540825c5 100644
+--- a/api/next/62384.txt
++++ b/api/next/62384.txt
+@@ -15,3 +15,10 @@ pkg math/rand/v2, method (*ChaCha8) AppendBinary([]uint8) ([]uint8, error) #6238
+ pkg math/rand/v2, method (*PCG) AppendBinary([]uint8) ([]uint8, error) #62384
+ pkg crypto/x509, method (OID) AppendBinary([]uint8) ([]uint8, error) #62384
+ pkg crypto/x509, method (OID) AppendText([]uint8) ([]uint8, error) #62384
++pkg net, method (IP) AppendText([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (Addr) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (Addr) AppendText([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (AddrPort) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (AddrPort) AppendText([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (Prefix) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg net/netip, method (Prefix) AppendText([]uint8) ([]uint8, error) #62384
+diff --git a/doc/next/6-stdlib/99-minor/net/62384.md b/doc/next/6-stdlib/99-minor/net/62384.md
+new file mode 100644
+index 0000000000..b967047749
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/62384.md
+@@ -0,0 +1 @@
++[IP] now implements the [encoding.TextAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/net/netip/62384.md b/doc/next/6-stdlib/99-minor/net/netip/62384.md
+new file mode 100644
+index 0000000000..ceb5b30213
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/netip/62384.md
+@@ -0,0 +1,2 @@
++[Addr], [AddrPort] and [Prefix] now implement the [encoding.BinaryAppender] and
++[encoding.TextAppender] interfaces.
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 3e0e85e168..e3ee6ca70a 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -301,11 +301,18 @@ func (ip IP) String() string {
+ 	if len(ip) != IPv4len && len(ip) != IPv6len {
+ 		return "?" + hexString(ip)
+ 	}
+-	// If IPv4, use dotted notation.
+-	if p4 := ip.To4(); len(p4) == IPv4len {
+-		return netip.AddrFrom4([4]byte(p4)).String()
++
++	var buf []byte
++	switch len(ip) {
++	case IPv4len:
++		const maxCap = len("255.255.255.255")
++		buf = make([]byte, 0, maxCap)
++	case IPv6len:
++		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff")
++		buf = make([]byte, 0, maxCap)
+ 	}
+-	return netip.AddrFrom16([16]byte(ip)).String()
++	buf = ip.appendTo(buf)
++	return string(buf)
+ }
+ 
+ func hexString(b []byte) string {
+@@ -325,17 +332,41 @@ func ipEmptyString(ip IP) string {
+ 	return ip.String()
+ }
+ 
+-// MarshalText implements the [encoding.TextMarshaler] interface.
++// appendTo appends the string representation of ip to b and returns the expanded b
++// If len(ip) != IPv4len or IPv6len, it appends nothing.
++func (ip IP) appendTo(b []byte) []byte {
++	// If IPv4, use dotted notation.
++	if p4 := ip.To4(); len(p4) == IPv4len {
++		ip = p4
++	}
++	addr, _ := netip.AddrFromSlice(ip)
++	return addr.AppendTo(b)
++}
++
++// AppendText implements the [encoding.TextAppender] interface.
+ // The encoding is the same as returned by [IP.String], with one exception:
+-// When len(ip) is zero, it returns an empty slice.
+-func (ip IP) MarshalText() ([]byte, error) {
++// When len(ip) is zero, it appends nothing.
++func (ip IP) AppendText(b []byte) ([]byte, error) {
+ 	if len(ip) == 0 {
+-		return []byte(""), nil
++		return b, nil
+ 	}
+ 	if len(ip) != IPv4len && len(ip) != IPv6len {
+-		return nil, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
++		return b, &AddrError{Err: "invalid IP address", Addr: hexString(ip)}
++	}
++
++	return ip.appendTo(b), nil
++}
++
++// MarshalText implements the [encoding.TextMarshaler] interface.
++// The encoding is the same as returned by [IP.String], with one exception:
++// When len(ip) is zero, it returns an empty slice.
++func (ip IP) MarshalText() ([]byte, error) {
++	// 24 is satisfied with all IPv4 addresses and short IPv6 addresses
++	b, err := ip.AppendText(make([]byte, 0, 24))
++	if err != nil {
++		return nil, err
+ 	}
+-	return []byte(ip.String()), nil
++	return b, nil
+ }
+ 
+ // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 11c0b75246..55c66fdf31 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -149,6 +149,15 @@ func TestMarshalEmptyIP(t *testing.T) {
+ 	if !reflect.DeepEqual(got, []byte("")) {
+ 		t.Errorf(`got %#v, want []byte("")`, got)
+ 	}
++
++	buf := make([]byte, 4)
++	got, err = ip.AppendText(buf)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !reflect.DeepEqual(got, []byte("\x00\x00\x00\x00")) {
++		t.Errorf(`got %#v, want []byte("\x00\x00\x00\x00")`, got)
++	}
+ }
+ 
+ var ipStringTests = []*struct {
+@@ -266,9 +275,54 @@ func TestIPString(t *testing.T) {
+ 		if out, err := tt.in.MarshalText(); !bytes.Equal(out, tt.byt) || !reflect.DeepEqual(err, tt.error) {
+ 			t.Errorf("IP.MarshalText(%v) = %v, %v, want %v, %v", tt.in, out, err, tt.byt, tt.error)
+ 		}
++		buf := make([]byte, 4, 32)
++		if out, err := tt.in.AppendText(buf); !bytes.Equal(out[4:], tt.byt) || !reflect.DeepEqual(err, tt.error) {
++			t.Errorf("IP.AppendText(%v) = %v, %v, want %v, %v", tt.in, out[4:], err, tt.byt, tt.error)
++		}
++	}
++}
++
++func TestIPAppendTextNoAllocs(t *testing.T) {
++	// except the invalid IP
++	for _, tt := range ipStringTests[:len(ipStringTests)-1] {
++		allocs := int(testing.AllocsPerRun(1000, func() {
++			buf := make([]byte, 0, 64)
++			_, _ = tt.in.AppendText(buf)
++		}))
++		if allocs != 0 {
++			t.Errorf("IP(%q) AppendText allocs: %d times, want 0", tt.in, allocs)
++		}
+ 	}
+ }
+ 
++func BenchmarkIPMarshalText(b *testing.B) {
++	b.Run("IPv4", func(b *testing.B) {
++		b.ReportAllocs()
++		b.ResetTimer()
++		ip := IP{192, 0, 2, 1}
++		for range b.N {
++			_, _ = ip.MarshalText()
++		}
++	})
++	b.Run("IPv6", func(b *testing.B) {
++		b.ReportAllocs()
++		b.ResetTimer()
++		ip := IP{0x20, 0x1, 0xd, 0xb8, 0, 0, 0, 0, 0, 0xa, 0, 0xb, 0, 0xc, 0, 0xd}
++		for range b.N {
++			_, _ = ip.MarshalText()
++		}
++	})
++	b.Run("IPv6_long", func(b *testing.B) {
++		b.ReportAllocs()
++		b.ResetTimer()
++		// fd7a:115c:a1e0:ab12:4843:cd96:626b:430b
++		ip := IP{253, 122, 17, 92, 161, 224, 171, 18, 72, 67, 205, 150, 98, 107, 67, 11}
++		for range b.N {
++			_, _ = ip.MarshalText()
++		}
++	})
++}
++
+ var sink string
+ 
+ func BenchmarkIPString(b *testing.B) {
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 82c0501139..4a8ebc6785 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -966,27 +966,32 @@ func (ip Addr) StringExpanded() string {
+ 	return string(ret)
+ }
+ 
++// AppendText implements the [encoding.TextAppender] interface,
++// It is the same as [Addr.AppendTo].
++func (ip Addr) AppendText(b []byte) ([]byte, error) {
++	return ip.AppendTo(b), nil
++}
++
+ // MarshalText implements the [encoding.TextMarshaler] interface,
+ // The encoding is the same as returned by [Addr.String], with one exception:
+ // If ip is the zero [Addr], the encoding is the empty string.
+ func (ip Addr) MarshalText() ([]byte, error) {
++	buf := []byte{}
+ 	switch ip.z {
+ 	case z0:
+-		return []byte(""), nil
+ 	case z4:
+-		const max = len("255.255.255.255")
+-		b := make([]byte, 0, max)
+-		return ip.appendTo4(b), nil
++		const maxCap = len("255.255.255.255")
++		buf = make([]byte, 0, maxCap)
+ 	default:
+ 		if ip.Is4In6() {
+-			const max = len("::ffff:255.255.255.255%enp5s0")
+-			b := make([]byte, 0, max)
+-			return ip.appendTo4In6(b), nil
++			const maxCap = len("::ffff:255.255.255.255%enp5s0")
++			buf = make([]byte, 0, maxCap)
++			break
+ 		}
+-		const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+-		b := make([]byte, 0, max)
+-		return ip.appendTo6(b), nil
++		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
++		buf = make([]byte, 0, maxCap)
+ 	}
++	return ip.AppendText(buf)
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+@@ -1004,22 +1009,29 @@ func (ip *Addr) UnmarshalText(text []byte) error {
+ 	return err
+ }
+ 
+-func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
+-	var b []byte
++// AppendBinary implements the [encoding.BinaryAppender] interface.
++func (ip Addr) AppendBinary(b []byte) ([]byte, error) {
+ 	switch ip.z {
+ 	case z0:
+-		b = make([]byte, trailingBytes)
+ 	case z4:
+-		b = make([]byte, 4+trailingBytes)
+-		byteorder.BePutUint32(b, uint32(ip.addr.lo))
++		b = byteorder.BeAppendUint32(b, uint32(ip.addr.lo))
+ 	default:
+-		z := ip.Zone()
+-		b = make([]byte, 16+len(z)+trailingBytes)
+-		byteorder.BePutUint64(b[:8], ip.addr.hi)
+-		byteorder.BePutUint64(b[8:], ip.addr.lo)
+-		copy(b[16:], z)
++		b = byteorder.BeAppendUint64(b, ip.addr.hi)
++		b = byteorder.BeAppendUint64(b, ip.addr.lo)
++		b = append(b, ip.Zone()...)
++	}
++	return b, nil
++}
++
++func (ip Addr) marshalBinarySize() int {
++	switch ip.z {
++	case z0:
++		return 0
++	case z4:
++		return 4
++	default:
++		return 16 + len(ip.Zone())
+ 	}
+-	return b
+ }
+ 
+ // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+@@ -1027,7 +1039,7 @@ func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
+ // the 4-byte form for an IPv4 address,
+ // and the 16-byte form with zone appended for an IPv6 address.
+ func (ip Addr) MarshalBinary() ([]byte, error) {
+-	return ip.marshalBinaryWithTrailingBytes(0), nil
++	return ip.AppendBinary(make([]byte, 0, ip.marshalBinarySize()))
+ }
+ 
+ // UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+@@ -1198,21 +1210,27 @@ func (p AddrPort) AppendTo(b []byte) []byte {
+ 	return b
+ }
+ 
++// AppendText implements the [encoding.TextAppender] interface. The
++// encoding is the same as returned by [AddrPort.AppendTo].
++func (p AddrPort) AppendText(b []byte) ([]byte, error) {
++	return p.AppendTo(b), nil
++}
++
+ // MarshalText implements the [encoding.TextMarshaler] interface. The
+ // encoding is the same as returned by [AddrPort.String], with one exception: if
+ // p.Addr() is the zero [Addr], the encoding is the empty string.
+ func (p AddrPort) MarshalText() ([]byte, error) {
+-	var max int
++	buf := []byte{}
+ 	switch p.ip.z {
+ 	case z0:
+ 	case z4:
+-		max = len("255.255.255.255:65535")
++		const maxCap = len("255.255.255.255:65535")
++		buf = make([]byte, 0, maxCap)
+ 	default:
+-		max = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
++		const maxCap = len("[ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0]:65535")
++		buf = make([]byte, 0, maxCap)
+ 	}
+-	b := make([]byte, 0, max)
+-	b = p.AppendTo(b)
+-	return b, nil
++	return p.AppendText(buf)
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler
+@@ -1228,13 +1246,22 @@ func (p *AddrPort) UnmarshalText(text []byte) error {
+ 	return err
+ }
+ 
++// AppendBinary implements the [encoding.BinaryAppendler] interface.
++// It returns [Addr.AppendBinary] with an additional two bytes appended
++// containing the port in little-endian.
++func (p AddrPort) AppendBinary(b []byte) ([]byte, error) {
++	b, err := p.Addr().AppendBinary(b)
++	if err != nil {
++		return nil, err
++	}
++	return byteorder.LeAppendUint16(b, p.Port()), nil
++}
++
+ // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+ // It returns [Addr.MarshalBinary] with an additional two bytes appended
+ // containing the port in little-endian.
+ func (p AddrPort) MarshalBinary() ([]byte, error) {
+-	b := p.Addr().marshalBinaryWithTrailingBytes(2)
+-	byteorder.LePutUint16(b[len(b)-2:], p.Port())
+-	return b, nil
++	return p.AppendBinary(make([]byte, 0, p.Addr().marshalBinarySize()+2))
+ }
+ 
+ // UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+@@ -1487,21 +1514,27 @@ func (p Prefix) AppendTo(b []byte) []byte {
+ 	return b
+ }
+ 
++// AppendText implements the [encoding.TextAppender] interface.
++// It is the same as [Prefix.AppendTo].
++func (p Prefix) AppendText(b []byte) ([]byte, error) {
++	return p.AppendTo(b), nil
++}
++
+ // MarshalText implements the [encoding.TextMarshaler] interface,
+ // The encoding is the same as returned by [Prefix.String], with one exception:
+ // If p is the zero value, the encoding is the empty string.
+ func (p Prefix) MarshalText() ([]byte, error) {
+-	var max int
++	buf := []byte{}
+ 	switch p.ip.z {
+ 	case z0:
+ 	case z4:
+-		max = len("255.255.255.255/32")
++		const maxCap = len("255.255.255.255/32")
++		buf = make([]byte, 0, maxCap)
+ 	default:
+-		max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0/128")
++		const maxCap = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0/128")
++		buf = make([]byte, 0, maxCap)
+ 	}
+-	b := make([]byte, 0, max)
+-	b = p.AppendTo(b)
+-	return b, nil
++	return p.AppendText(buf)
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+@@ -1517,13 +1550,23 @@ func (p *Prefix) UnmarshalText(text []byte) error {
+ 	return err
+ }
+ 
++// AppendBinary implements the [encoding.AppendMarshaler] interface.
++// It returns [Addr.AppendBinary] with an additional byte appended
++// containing the prefix bits.
++func (p Prefix) AppendBinary(b []byte) ([]byte, error) {
++	b, err := p.Addr().withoutZone().AppendBinary(b)
++	if err != nil {
++		return nil, err
++	}
++	return append(b, uint8(p.Bits())), nil
++}
++
+ // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+ // It returns [Addr.MarshalBinary] with an additional byte appended
+ // containing the prefix bits.
+ func (p Prefix) MarshalBinary() ([]byte, error) {
+-	b := p.Addr().withoutZone().marshalBinaryWithTrailingBytes(1)
+-	b[len(b)-1] = uint8(p.Bits())
+-	return b, nil
++	// without the zone the max length is 16, plus an additional byte is 17
++	return p.AppendBinary(make([]byte, 0, p.Addr().withoutZone().marshalBinarySize()+1))
+ }
+ 
+ // UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 6067a1e668..68975ad234 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -351,6 +351,32 @@ func TestIPv4Constructors(t *testing.T) {
+ 	}
+ }
+ 
++func TestAddrAppendText(t *testing.T) {
++	tests := []struct {
++		ip   Addr
++		want string
++	}{
++		{Addr{}, ""}, // zero IP
++		{mustIP("1.2.3.4"), "1.2.3.4"},
++		{mustIP("fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"), "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b"},
++		{mustIP("::ffff:192.168.140.255"), "::ffff:192.168.140.255"},
++		{mustIP("::ffff:192.168.140.255%en0"), "::ffff:192.168.140.255%en0"},
++	}
++	for i, tc := range tests {
++		ip := tc.ip
++
++		mtAppend := make([]byte, 4, 32)
++		mtAppend, err := ip.AppendText(mtAppend)
++		mtAppend = mtAppend[4:]
++		if err != nil {
++			t.Fatal(err)
++		}
++		if string(mtAppend) != tc.want {
++			t.Errorf("%d. for (%v) AppendText = %q; want %q", i, ip, mtAppend, tc.want)
++		}
++	}
++}
++
+ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
+ 	tests := []struct {
+ 		ip       string
+@@ -381,6 +407,23 @@ func TestAddrMarshalUnmarshalBinary(t *testing.T) {
+ 		if ip != ip2 {
+ 			t.Fatalf("got %v; want %v", ip2, ip)
+ 		}
++
++		bAppend := make([]byte, 4, 32)
++		bAppend, err = ip.AppendBinary(bAppend)
++		bAppend = bAppend[4:]
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(bAppend) != tc.wantSize {
++			t.Fatalf("%q encoded to size %d; want %d", tc.ip, len(bAppend), tc.wantSize)
++		}
++		var ip3 Addr
++		if err := ip3.UnmarshalBinary(bAppend); err != nil {
++			t.Fatal(err)
++		}
++		if ip != ip3 {
++			t.Fatalf("got %v; want %v", ip3, ip)
++		}
+ 	}
+ 
+ 	// Cannot unmarshal from unexpected IP length.
+@@ -416,6 +459,17 @@ func TestAddrPortMarshalTextString(t *testing.T) {
+ 		if string(mt) != tt.want {
+ 			t.Errorf("%d. for (%v, %v) MarshalText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mt, tt.want)
+ 		}
++
++		mtAppend := make([]byte, 4, 32)
++		mtAppend, err = tt.in.AppendText(mtAppend)
++		mtAppend = mtAppend[4:]
++		if err != nil {
++			t.Errorf("%d. for (%v, %v) AppendText error: %v", i, tt.in.Addr(), tt.in.Port(), err)
++			continue
++		}
++		if string(mtAppend) != tt.want {
++			t.Errorf("%d. for (%v, %v) AppendText = %q; want %q", i, tt.in.Addr(), tt.in.Port(), mtAppend, tt.want)
++		}
+ 	}
+ }
+ 
+@@ -448,6 +502,23 @@ func TestAddrPortMarshalUnmarshalBinary(t *testing.T) {
+ 		if ipport != ipport2 {
+ 			t.Fatalf("got %v; want %v", ipport2, ipport)
+ 		}
++
++		bAppend := make([]byte, 4, 32)
++		bAppend, err = ipport.AppendBinary(bAppend)
++		bAppend = bAppend[4:]
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(bAppend) != tc.wantSize {
++			t.Fatalf("%q encoded to size %d; want %d", tc.ipport, len(bAppend), tc.wantSize)
++		}
++		var ipport3 AddrPort
++		if err := ipport3.UnmarshalBinary(bAppend); err != nil {
++			t.Fatal(err)
++		}
++		if ipport != ipport3 {
++			t.Fatalf("got %v; want %v", ipport3, ipport)
++		}
+ 	}
+ 
+ 	// Cannot unmarshal from unexpected lengths.
+@@ -482,6 +553,17 @@ func TestPrefixMarshalTextString(t *testing.T) {
+ 		if string(mt) != tt.want {
+ 			t.Errorf("%d. for %v MarshalText = %q; want %q", i, tt.in, mt, tt.want)
+ 		}
++
++		mtAppend := make([]byte, 4, 64)
++		mtAppend, err = tt.in.AppendText(mtAppend)
++		mtAppend = mtAppend[4:]
++		if err != nil {
++			t.Errorf("%d. for %v AppendText error: %v", i, tt.in, err)
++			continue
++		}
++		if string(mtAppend) != tt.want {
++			t.Errorf("%d. for %v AppendText = %q; want %q", i, tt.in, mtAppend, tt.want)
++		}
+ 	}
+ }
+ 
+@@ -515,6 +597,23 @@ func TestPrefixMarshalUnmarshalBinary(t *testing.T) {
+ 		if prefix != prefix2 {
+ 			t.Fatalf("got %v; want %v", prefix2, prefix)
+ 		}
++
++		bAppend := make([]byte, 4, 32)
++		bAppend, err = prefix.AppendBinary(bAppend)
++		bAppend = bAppend[4:]
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(bAppend) != tc.wantSize {
++			t.Fatalf("%q encoded to size %d; want %d", tc.prefix, len(bAppend), tc.wantSize)
++		}
++		var prefix3 Prefix
++		if err := prefix3.UnmarshalBinary(bAppend); err != nil {
++			t.Fatal(err)
++		}
++		if prefix != prefix3 {
++			t.Fatalf("got %v; want %v", prefix3, prefix)
++		}
+ 	}
+ 
+ 	// Cannot unmarshal from unexpected lengths.

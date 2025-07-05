@@ -8,9 +8,105 @@ Date:   Tue May 28 21:10:10 2013 +0400
     R=golang-dev, khr, dave, khr
     CC=golang-dev
     https://golang.org/cl/9728044
-
+---
  src/pkg/runtime/cpuprof.c |  4 ----
  src/pkg/runtime/proc.c    |  6 ++----
  src/pkg/runtime/runtime.h |  1 +
  src/pkg/runtime/symtab.c  | 26 ++------------------------
  4 files changed, 5 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 9a0606a225..6793e5d361 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -128,10 +128,6 @@ runtime·SetCPUProfileRate(intgo hz)
+ 	uintptr *p;
+ 	uintptr n;
+ 	
+-	// Call findfunc now so that it won't have to
+-	// build tables during the signal handler.
+-	runtime·findfunc(0);
+-
+ 	// Clamp hz to something reasonable.
+ 	if(hz < 0)
+ 		hz = 0;
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d6d308e524..7581b35d0b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -133,10 +133,8 @@ runtime·schedinit(void)
+ 	runtime·goargs();
+ 	runtime·goenvs();
+ 
+-	// For debugging:
+-	// Allocate internal symbol table representation now,
+-	// so that we don't need to call malloc when we crash.
+-	// runtime·findfunc(0);
++	// Allocate internal symbol table representation now, we need it for GC anyway.
++	runtime·symtabinit();
+ 
+ 	runtime·sched.lastpoll = runtime·nanotime();
+ 	procs = 1;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 17f8c9a94a..44cc0138c0 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -749,6 +749,7 @@ void	runtime·mpreinit(M*);
+ void	runtime·minit(void);
+ void	runtime·unminit(void);
+ void	runtime·signalstack(byte*, int32);
++void	runtime·symtabinit(void);
+ Func*	runtime·findfunc(uintptr);
+ int32	runtime·funcline(Func*, uintptr);
+ void*	runtime·stackalloc(uint32);
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 5edcb49bda..597fa49b7c 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -193,8 +193,6 @@ static int32 nfunc;
+ static byte **fname;
+ static int32 nfname;
+ 
+-static uint32 funcinit;
+-static Lock funclock;
+ static uintptr lastvalue;
+ 
+ static void
+@@ -539,8 +537,8 @@ runtime·funcline_go(Func *f, uintptr targetpc, String retfile, intgo retline)
+ 	FLUSH(&retline);
+ }
+ 
+-static void
+-buildfuncs(void)
++void
++runtime·symtabinit(void)
+ {
+ 	extern byte etext[];
+ 
+@@ -591,26 +589,6 @@ runtime·findfunc(uintptr addr)
+ 	Func *f;
+ 	int32 nf, n;
+ 
+-	// Use atomic double-checked locking,
+-	// because when called from pprof signal
+-	// handler, findfunc must run without
+-	// grabbing any locks.
+-	// (Before enabling the signal handler,
+-	// SetCPUProfileRate calls findfunc to trigger
+-	// the initialization outside the handler.)
+-	// Avoid deadlock on fault during malloc
+-	// by not calling buildfuncs if we're already in malloc.
+-	if(!m->mallocing && !m->gcing) {
+-		if(runtime·atomicload(&funcinit) == 0) {
+-			runtime·lock(&funclock);
+-			if(funcinit == 0) {
+-				buildfuncs();
+-				runtime·atomicstore(&funcinit, 1);
+-			}
+-			runtime·unlock(&funclock);
+-		}
+-	}
+-
+ 	if(nfunc == 0)
+ 		return nil;
+ 	if(addr < func[0].entry || addr >= func[nfunc].entry)

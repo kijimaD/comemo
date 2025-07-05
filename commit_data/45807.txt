@@ -12,6 +12,20 @@ Date:   Sun Nov 8 13:50:30 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/268277
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/fs/walk.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index dfc73767bc..06d0b1769c 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -64,7 +64,7 @@ var SkipDir = errors.New("skip this directory")
+ //   - If a directory read fails, the function is called a second time
+ //     for that directory to report the error.
+ //
+-type WalkDirFunc func(path string, entry DirEntry, err error) error
++type WalkDirFunc func(path string, d DirEntry, err error) error
+ 
+ // walkDir recursively descends path, calling walkDirFn.
+ func walkDir(fsys FS, name string, d DirEntry, walkDirFn WalkDirFunc) error {

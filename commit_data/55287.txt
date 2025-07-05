@@ -19,8 +19,53 @@ Date:   Thu Dec 1 16:43:05 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go | 1 -
  src/cmd/compile/internal/gc/main.go    | 6 ------
  src/cmd/compile/internal/inline/inl.go | 4 ----
  3 files changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index b1dc9bc211..f9debd5506 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -46,7 +46,6 @@ type DebugFlags struct {
+ 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
+ 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
+ 	TypeAssert            int    `help:"print information about type assertion inlining"`
+-	TypecheckInl          int    `help:"eager typechecking of inline function bodies" concurrent:"ok"`
+ 	WB                    int    `help:"print information about write barriers"`
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack          string `help:"call named function before all stack growth checks" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4a37548ecc..e391ae7b5a 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -250,12 +250,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	}
+ 	typecheck.IncrementalAddrtaken = true
+ 
+-	if base.Debug.TypecheckInl != 0 {
+-		// Typecheck imported function bodies if Debug.l > 1,
+-		// otherwise lazily when used or re-exported.
+-		typecheck.AllImportedBodies()
+-	}
+-
+ 	// Read profile file and build profile-graph and weighted-call-graph.
+ 	base.Timer.Start("fe", "pgoprofile")
+ 	var profile *pgo.Profile
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index de25d451eb..59d97e9b0f 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1096,10 +1096,6 @@ func CalleeEffects(init *ir.Nodes, callee ir.Node) {
+ // the inlining tree position index, for use with src.NewInliningBase
+ // when rewriting positions.
+ func oldInlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExpr {
+-	if base.Debug.TypecheckInl == 0 {
+-		typecheck.ImportedBody(fn)
+-	}
+-
+ 	SSADumpInline(fn)
+ 
+ 	ninit := call.Init()

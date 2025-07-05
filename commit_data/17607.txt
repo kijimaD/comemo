@@ -7,6 +7,37 @@ Date:   Mon Sep 16 13:02:01 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13634044
-
+---
  src/pkg/sort/example_interface_test.go | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/sort/example_interface_test.go b/src/pkg/sort/example_interface_test.go
+index 2b55ebfc53..442204ea9e 100644
+--- a/src/pkg/sort/example_interface_test.go
++++ b/src/pkg/sort/example_interface_test.go
+@@ -20,18 +20,18 @@ func (p Person) String() string {
+ 
+ // ByAge implements sort.Interface for []Person based on
+ // the Age field.
+-type ByAge []*Person
++type ByAge []Person
+ 
+ func (a ByAge) Len() int           { return len(a) }
+ func (a ByAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ func (a ByAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
+ 
+-func ExampleInterface() {
+-	people := []*Person{
+-		&Person{Name: "Bob", Age: 31},
+-		&Person{Name: "John", Age: 42},
+-		&Person{Name: "Michael", Age: 17},
+-		&Person{Name: "Jenny", Age: 26},
++func Example() {
++	people := []Person{
++		{"Bob", 31},
++		{"John", 42},
++		{"Michael", 17},
++		{"Jenny", 26},
+ 	}
+ 
+ 	fmt.Println(people)

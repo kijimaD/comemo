@@ -7,6 +7,20 @@ Date:   Tue Jan 11 10:17:54 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3902044
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4be9116169..481fff2197 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -180,7 +180,7 @@ func (p *Package) structType(n *Name) (string, int64) {
+ 		fmt.Fprintf(&buf, "\t\tchar unused;\n") // avoid empty struct
+ 		off++
+ 	}
+-	fmt.Fprintf(&buf, "\t}\n")
++	fmt.Fprintf(&buf, "\t}")
+ 	return buf.String(), off
+ }
+ 

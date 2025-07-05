@@ -11,7 +11,39 @@ Date:   Thu Dec 18 10:17:54 2014 -0800
     Change-Id: I5a51f9da6d71b79bc6c2ba45032be51d0f704b5e
     Reviewed-on: https://go-review.googlesource.com/1776
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/handshake_server.go      | 2 +-
  src/crypto/tls/handshake_server_test.go | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 0d907656c6..8f0ed1f70b 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -228,7 +228,7 @@ Curves:
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection.
+-			if hs.clientHello.vers < c.config.MaxVersion {
++			if hs.clientHello.vers < c.config.maxVersion() {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return false, errors.New("tls: client using inppropriate protocol fallback")
+ 			}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 0338af457e..f9545461a4 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -716,8 +716,12 @@ func TestResumptionDisabled(t *testing.T) {
+ }
+ 
+ func TestFallbackSCSV(t *testing.T) {
++	serverConfig := &Config{
++		Certificates: testConfig.Certificates,
++	}
+ 	test := &serverTest{
+-		name: "FallbackSCSV",
++		name:   "FallbackSCSV",
++		config: serverConfig,
+ 		// OpenSSL 1.0.1j is needed for the -fallback_scsv option.
+ 		command: []string{"openssl", "s_client", "-fallback_scsv"},
+ 		expectHandshakeErrorIncluding: "inppropriate protocol fallback",

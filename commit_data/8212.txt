@@ -9,7 +9,7 @@ Date:   Mon Apr 25 12:08:48 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4443060
-
+---
  src/cmd/5g/cgen.c              |  2 ++
  src/cmd/6g/cgen.c              |  2 ++
  src/cmd/8g/cgen.c              |  2 ++
@@ -19,3 +19,121 @@ Date:   Mon Apr 25 12:08:48 2011 -0400
  test/fixedbugs/bug335.dir/b.go | 11 +++++++++++
  test/fixedbugs/bug335.go       | 10 ++++++++++
  8 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 032409baee..e0fc768215 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -43,6 +43,8 @@ cgen(Node *n, Node *res)
+ 	}
+ 
+ 	if(isfat(n->type)) {
++		if(n->type->width < 0)
++			fatal("forgot to compute width for %T", n->type);
+ 		sgen(n, res, n->type->width);
+ 		goto ret;
+ 	}
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 47f3374f53..048174e086 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -47,6 +47,8 @@ cgen(Node *n, Node *res)
+ 	}
+ 
+ 	if(isfat(n->type)) {
++		if(n->type->width < 0)
++			fatal("forgot to compute width for %T", n->type);
+ 		sgen(n, res, n->type->width);
+ 		goto ret;
+ 	}
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 9c326e8ef1..036188fec4 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -78,6 +78,8 @@ cgen(Node *n, Node *res)
+ 
+ 	// structs etc get handled specially
+ 	if(isfat(n->type)) {
++		if(n->type->width < 0)
++			fatal("forgot to compute width for %T", n->type);
+ 		sgen(n, res, n->type->width);
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index bf164b3f43..80cb74408a 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -684,6 +684,10 @@ ok:
+ 	pt->nod = n;
+ 	pt->sym = n->sym;
+ 	pt->sym->lastlineno = parserline();
++	pt->siggen = 0;
++	pt->printed = 0;
++	pt->deferwidth = 0;
++	pt->local = 0;
+ 	declare(n, PEXTERN);
+ 
+ 	checkwidth(pt);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ae556ae3fb..bee3c25b0d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -142,7 +142,9 @@ walkdeftype(Node *n)
+ 	}
+ 
+ 	// copy new type and clear fields
+-	// that don't come along
++	// that don't come along.
++	// anything zeroed here must be zeroed in
++	// typedcl2 too.
+ 	maplineno = n->type->maplineno;
+ 	embedlineno = n->type->embedlineno;
+ 	*n->type = *t;
+diff --git a/test/fixedbugs/bug335.dir/a.go b/test/fixedbugs/bug335.dir/a.go
+new file mode 100644
+index 0000000000..5a8112a9de
+--- /dev/null
++++ b/test/fixedbugs/bug335.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "./b"
++
++var Bar = b.Foo
+diff --git a/test/fixedbugs/bug335.dir/b.go b/test/fixedbugs/bug335.dir/b.go
+new file mode 100644
+index 0000000000..7428c2a918
+--- /dev/null
++++ b/test/fixedbugs/bug335.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++type T interface{}
++
++func f() T { return nil }
++
++var Foo T = f()
+diff --git a/test/fixedbugs/bug335.go b/test/fixedbugs/bug335.go
+new file mode 100644
+index 0000000000..915b746578
+--- /dev/null
++++ b/test/fixedbugs/bug335.go
+@@ -0,0 +1,10 @@
++// $G $D/$F.dir/b.go && $G $D/$F.dir/a.go
++// rm -f a.$A b.$A
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1705.
++
++unused (see script at top of file)

@@ -19,7 +19,83 @@ Date:   Fri Feb 7 15:26:19 2020 -0800
     Change-Id: Ic1937e01891b3614a6f7965d4384aeb485f3fe3e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218617
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/example_test.go | 11 +++++++++++
  src/go/types/methodset.go    | 20 +++++++++-----------
  2 files changed, 20 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index b8fba7312a..3747f3b15a 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -120,6 +120,9 @@ import "fmt"
+ type Celsius float64
+ func (c Celsius) String() string  { return fmt.Sprintf("%g°C", c) }
+ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
++
++type S struct { I; m int }
++type I interface { m() byte }
+ `
+ 	fset := token.NewFileSet()
+ 	f, err := parser.ParseFile(fset, "celsius.go", input, 0)
+@@ -147,6 +150,11 @@ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
+ 		fmt.Println()
+ 	}
+ 
++	// Print the method set of S.
++	styp := pkg.Scope().Lookup("S").Type()
++	fmt.Printf("Method set of %s:\n", styp)
++	fmt.Println(types.NewMethodSet(styp))
++
+ 	// Output:
+ 	// Method set of temperature.Celsius:
+ 	// method (temperature.Celsius) String() string
+@@ -154,6 +162,9 @@ func (c *Celsius) SetF(f float64) { *c = Celsius(f - 32 / 9 * 5) }
+ 	// Method set of *temperature.Celsius:
+ 	// method (*temperature.Celsius) SetF(f float64)
+ 	// method (*temperature.Celsius) String() string
++	//
++	// Method set of temperature.S:
++	// MethodSet {}
+ }
+ 
+ // ExampleInfo prints various facts recorded by the type checker in a
+diff --git a/src/go/types/methodset.go b/src/go/types/methodset.go
+index a236fe2ea8..aacbb0f82a 100644
+--- a/src/go/types/methodset.go
++++ b/src/go/types/methodset.go
+@@ -166,17 +166,15 @@ func NewMethodSet(T Type) *MethodSet {
+ 			}
+ 		}
+ 
+-		// Multiple fields with matching names collide at this depth and shadow all
+-		// entries further down; add them as collisions to base if no entries with
+-		// matching names exist already.
+-		for k, f := range fset {
+-			if f == nil {
+-				if _, found := base[k]; !found {
+-					if base == nil {
+-						base = make(methodSet)
+-					}
+-					base[k] = nil // collision
++		// Add all fields at this depth as collisions (since they will hide any
++		// method further down) to base if no entries with matching names exist
++		// already.
++		for k := range fset {
++			if _, found := base[k]; !found {
++				if base == nil {
++					base = make(methodSet)
+ 				}
++				base[k] = nil // collision
+ 			}
+ 		}
+ 
+@@ -233,7 +231,7 @@ func (s fieldSet) add(f *Var, multiples bool) fieldSet {
+ 
+ // A methodSet is a set of methods and name collisions.
+ // A collision indicates that multiple methods with the
+-// same unique id appeared.
++// same unique id, or a field with that id appeared.
+ type methodSet map[string]*Selection // a nil entry indicates a name collision
+ 
+ // Add adds all functions in list to the method set s.

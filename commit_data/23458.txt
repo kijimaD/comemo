@@ -35,7 +35,7 @@ Date:   Thu May 14 17:57:42 2015 -0700
     Change-Id: I83ddfe003d48e0a73c92e819edd3b5e620023084
     Reviewed-on: https://go-review.googlesource.com/10059
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/cgen.go      |  60 +++++------
  src/cmd/internal/gc/const.go     | 228 +++++++++++++++++++--------------------
  src/cmd/internal/gc/cplx.go      |   6 +-
@@ -56,3 +56,2077 @@ Date:   Thu May 14 17:57:42 2015 -0700
  src/cmd/internal/gc/walk.go      |  48 ++++-----
  src/cmd/internal/gc/y.go         |  28 ++---
  19 files changed, 324 insertions(+), 324 deletions(-)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index a4b4f0b61b..7237e863ca 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -542,7 +542,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			var n1 Node
+ 			Regalloc(&n1, Types[Tptr], res)
+ 			p1 := Thearch.Gins(Thearch.Optoas(OAS, n1.Type), nil, &n1)
+-			Datastring(nl.Val.U.Sval, &p1.From)
++			Datastring(nl.Val.U.(string), &p1.From)
+ 			p1.From.Type = obj.TYPE_ADDR
+ 			Thearch.Gmove(&n1, res)
+ 			Regfree(&n1)
+@@ -1030,7 +1030,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				if Isconst(nl, CTSTR) {
+ 					Fatal("constant string constant index")
+ 				}
+-				v := uint64(Mpgetfix(nr.Val.U.Xval))
++				v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
+ 				var n2 Node
+ 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 					if Debug['B'] == 0 && !n.Bounded {
+@@ -1066,7 +1066,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Debug['B'] == 0 && !n.Bounded {
+ 				// check bounds
+ 				if Isconst(nl, CTSTR) {
+-					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val.U.Sval)))
++					Nodconst(&n4, Types[TUINT32], int64(len(nl.Val.U.(string))))
+ 				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 					n1 = n3
+ 					n1.Op = OINDREG
+@@ -1091,7 +1091,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isconst(nl, CTSTR) {
+ 				Regalloc(&n3, Types[Tptr], res)
+ 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
+-				Datastring(nl.Val.U.Sval, &p1.From)
++				Datastring(nl.Val.U.(string), &p1.From)
+ 				p1.From.Type = obj.TYPE_ADDR
+ 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 				n1 = n3
+@@ -1182,7 +1182,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				if Isconst(nl, CTSTR) {
+ 					Fatal("constant string constant index") // front end should handle
+ 				}
+-				v := uint64(Mpgetfix(nr.Val.U.Xval))
++				v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
+ 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 					if Debug['B'] == 0 && !n.Bounded {
+ 						nlen := n3
+@@ -1227,7 +1227,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 
+ 				var nlen Node
+ 				if Isconst(nl, CTSTR) {
+-					Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
++					Nodconst(&nlen, t, int64(len(nl.Val.U.(string))))
+ 				} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 					nlen = n3
+ 					nlen.Type = t
+@@ -1247,7 +1247,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isconst(nl, CTSTR) {
+ 				Regalloc(&n3, Types[Tptr], res)
+ 				p1 := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &n3)
+-				Datastring(nl.Val.U.Sval, &p1.From)
++				Datastring(nl.Val.U.(string), &p1.From)
+ 				p1.From.Type = obj.TYPE_ADDR
+ 				Thearch.Gins(Thearch.Optoas(OADD, n3.Type), &n2, &n3)
+ 				goto indexdone1
+@@ -1372,7 +1372,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			if Isconst(nl, CTSTR) {
+ 				Fatal("constant string constant index") // front end should handle
+ 			}
+-			v := uint64(Mpgetfix(nr.Val.U.Xval))
++			v := uint64(Mpgetfix(nr.Val.U.(*Mpint)))
+ 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 				if Debug['B'] == 0 && !n.Bounded {
+ 					p1 := Thearch.Ginscmp(OGT, Types[Simtype[TUINT]], &nlen, Nodintconst(int64(v)), +1)
+@@ -1410,7 +1410,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 				t = Types[TUINT64]
+ 			}
+ 			if Isconst(nl, CTSTR) {
+-				Nodconst(&nlen, t, int64(len(nl.Val.U.Sval)))
++				Nodconst(&nlen, t, int64(len(nl.Val.U.(string))))
+ 			} else if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+ 				// nlen already initialized
+ 			} else {
+@@ -1425,7 +1425,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 		if Isconst(nl, CTSTR) {
+ 			Regalloc(&n3, Types[Tptr], res)
+ 			p1 := Thearch.Gins(Thearch.Optoas(OAS, n3.Type), nil, &n3) // XXX was LEAQ!
+-			Datastring(nl.Val.U.Sval, &p1.From)
++			Datastring(nl.Val.U.(string), &p1.From)
+ 			p1.From.Type = obj.TYPE_ADDR
+ 			Thearch.Gins(Thearch.Optoas(OADD, n3.Type), &n2, &n3)
+ 			goto indexdone
+@@ -1712,7 +1712,7 @@ func Igen(n *Node, a *Node, res *Node) {
+ 				// Compute &a[i] as &a + i*width.
+ 				a.Type = n.Type
+ 
+-				a.Xoffset += Mpgetfix(n.Right.Val.U.Xval) * n.Type.Width
++				a.Xoffset += Mpgetfix(n.Right.Val.U.(*Mpint)) * n.Type.Width
+ 				Fixlargeoffset(a)
+ 				return
+ 			}
+@@ -1862,11 +1862,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
+ 		}
+ 		if genval {
+-			Cgen(Nodbool(wantTrue == n.Val.U.Bval), res)
++			Cgen(Nodbool(wantTrue == n.Val.U.(bool)), res)
+ 			return
+ 		}
+ 		// If n == wantTrue, jump; otherwise do nothing.
+-		if wantTrue == n.Val.U.Bval {
++		if wantTrue == n.Val.U.(bool) {
+ 			Patch(Gbranch(obj.AJMP, nil, likely), to)
+ 		}
+ 		return
+@@ -2187,7 +2187,7 @@ func stkof(n *Node) int64 {
+ 			return off
+ 		}
+ 		if Isconst(n.Right, CTINT) {
+-			return off + t.Type.Width*Mpgetfix(n.Right.Val.U.Xval)
++			return off + t.Type.Width*Mpgetfix(n.Right.Val.U.(*Mpint))
+ 		}
+ 		return 1000
+ 
+@@ -2642,7 +2642,7 @@ func cgen_div(op int, nl *Node, nr *Node, res *Node) {
+ 	case TUINT64:
+ 		var m Magic
+ 		m.W = w
+-		m.Ud = uint64(Mpgetfix(nr.Val.U.Xval))
++		m.Ud = uint64(Mpgetfix(nr.Val.U.(*Mpint)))
+ 		Umagic(&m)
+ 		if m.Bad != 0 {
+ 			break
+@@ -2680,7 +2680,7 @@ func cgen_div(op int, nl *Node, nr *Node, res *Node) {
+ 	case TINT64:
+ 		var m Magic
+ 		m.W = w
+-		m.Sd = Mpgetfix(nr.Val.U.Xval)
++		m.Sd = Mpgetfix(nr.Val.U.(*Mpint))
+ 		Smagic(&m)
+ 		if m.Bad != 0 {
+ 			break
+@@ -3024,7 +3024,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			return
+ 		}
+ 		if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+-			Nodconst(&xlen, indexRegType, int64(len(n.Left.Val.U.Sval)))
++			Nodconst(&xlen, indexRegType, int64(len(n.Left.Val.U.(string))))
+ 			return
+ 		}
+ 		regalloc(&xlen, indexRegType, nil)
+@@ -3180,20 +3180,20 @@ func cgen_slice(n, res *Node, wb bool) {
+ 	if n.Op == OSLICEARR || n.Op == OSLICE3ARR {
+ 		bound = n.Left.Type.Type.Bound
+ 	} else if n.Op == OSLICESTR && Isconst(n.Left, CTSTR) {
+-		bound = int64(len(n.Left.Val.U.Sval))
++		bound = int64(len(n.Left.Val.U.(string)))
+ 	}
+ 	if Isconst(&i, CTINT) {
+-		if mpcmpfixc(i.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(i.Val.U.Xval, bound) > 0 {
++		if mpcmpfixc(i.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(i.Val.U.(*Mpint), bound) > 0 {
+ 			Yyerror("slice index out of bounds")
+ 		}
+ 	}
+ 	if Isconst(&j, CTINT) {
+-		if mpcmpfixc(j.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(j.Val.U.Xval, bound) > 0 {
++		if mpcmpfixc(j.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(j.Val.U.(*Mpint), bound) > 0 {
+ 			Yyerror("slice index out of bounds")
+ 		}
+ 	}
+ 	if Isconst(&k, CTINT) {
+-		if mpcmpfixc(k.Val.U.Xval, 0) < 0 || bound >= 0 && mpcmpfixc(k.Val.U.Xval, bound) > 0 {
++		if mpcmpfixc(k.Val.U.(*Mpint), 0) < 0 || bound >= 0 && mpcmpfixc(k.Val.U.(*Mpint), bound) > 0 {
+ 			Yyerror("slice index out of bounds")
+ 		}
+ 	}
+@@ -3202,7 +3202,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 	same := func(n1, n2 *Node) bool {
+ 		return n1.Op == OREGISTER && n2.Op == OREGISTER && n1.Reg == n2.Reg ||
+ 			n1.Op == ONAME && n2.Op == ONAME && n1.Orig == n2.Orig && n1.Type == n2.Type && n1.Xoffset == n2.Xoffset ||
+-			n1.Op == OLITERAL && n2.Op == OLITERAL && Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval) == 0
++			n1.Op == OLITERAL && n2.Op == OLITERAL && Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint)) == 0
+ 	}
+ 
+ 	// obvious reports whether n1 <= n2 is obviously true,
+@@ -3221,7 +3221,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			return true // len(x) <= cap(x) always true
+ 		}
+ 		if Isconst(n1, CTINT) && Isconst(n2, CTINT) {
+-			if Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval) <= 0 {
++			if Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint)) <= 0 {
+ 				return true // n1, n2 constants such that n1 <= n2
+ 			}
+ 			Yyerror("slice index out of bounds")
+@@ -3312,9 +3312,9 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			switch j.Op {
+ 			case OLITERAL:
+ 				if Isconst(&i, CTINT) {
+-					Nodconst(&j, indexRegType, Mpgetfix(j.Val.U.Xval)-Mpgetfix(i.Val.U.Xval))
++					Nodconst(&j, indexRegType, Mpgetfix(j.Val.U.(*Mpint))-Mpgetfix(i.Val.U.(*Mpint)))
+ 					if Debug_slice > 0 {
+-						Warn("slice: result len == %d", Mpgetfix(j.Val.U.Xval))
++						Warn("slice: result len == %d", Mpgetfix(j.Val.U.(*Mpint)))
+ 					}
+ 					break
+ 				}
+@@ -3329,7 +3329,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 				fallthrough
+ 			case OREGISTER:
+ 				if i.Op == OLITERAL {
+-					v := Mpgetfix(i.Val.U.Xval)
++					v := Mpgetfix(i.Val.U.(*Mpint))
+ 					if v != 0 {
+ 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &j)
+ 					}
+@@ -3372,9 +3372,9 @@ func cgen_slice(n, res *Node, wb bool) {
+ 			switch k.Op {
+ 			case OLITERAL:
+ 				if Isconst(&i, CTINT) {
+-					Nodconst(&k, indexRegType, Mpgetfix(k.Val.U.Xval)-Mpgetfix(i.Val.U.Xval))
++					Nodconst(&k, indexRegType, Mpgetfix(k.Val.U.(*Mpint))-Mpgetfix(i.Val.U.(*Mpint)))
+ 					if Debug_slice > 0 {
+-						Warn("slice: result cap == %d", Mpgetfix(k.Val.U.Xval))
++						Warn("slice: result cap == %d", Mpgetfix(k.Val.U.(*Mpint)))
+ 					}
+ 					break
+ 				}
+@@ -3395,7 +3395,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 						Warn("slice: result cap == 0")
+ 					}
+ 				} else if i.Op == OLITERAL {
+-					v := Mpgetfix(i.Val.U.Xval)
++					v := Mpgetfix(i.Val.U.(*Mpint))
+ 					if v != 0 {
+ 						ginscon(Thearch.Optoas(OSUB, indexRegType), v, &k)
+ 					}
+@@ -3478,7 +3478,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 				w = res.Type.Type.Width // res is []T, elem size is T.width
+ 			}
+ 			if Isconst(&i, CTINT) {
+-				ginscon(Thearch.Optoas(OADD, xbase.Type), Mpgetfix(i.Val.U.Xval)*w, &xbase)
++				ginscon(Thearch.Optoas(OADD, xbase.Type), Mpgetfix(i.Val.U.(*Mpint))*w, &xbase)
+ 			} else if Thearch.AddIndex != nil && Thearch.AddIndex(&i, w, &xbase) {
+ 				// done by back end
+ 			} else if w == 1 {
+diff --git a/src/cmd/internal/gc/const.go b/src/cmd/internal/gc/const.go
+index 69f2e5c904..986e2c3337 100644
+--- a/src/cmd/internal/gc/const.go
++++ b/src/cmd/internal/gc/const.go
+@@ -16,7 +16,7 @@ func (n *Node) Int() int64 {
+ 	if !Isconst(n, CTINT) {
+ 		Fatal("Int(%v)", n)
+ 	}
+-	return Mpgetfix(n.Val.U.Xval)
++	return Mpgetfix(n.Val.U.(*Mpint))
+ }
+ 
+ // SetInt sets n's value to i.
+@@ -25,7 +25,7 @@ func (n *Node) SetInt(i int64) {
+ 	if !Isconst(n, CTINT) {
+ 		Fatal("SetInt(%v)", n)
+ 	}
+-	Mpmovecfix(n.Val.U.Xval, i)
++	Mpmovecfix(n.Val.U.(*Mpint), i)
+ }
+ 
+ // SetBigInt sets n's value to x.
+@@ -34,7 +34,7 @@ func (n *Node) SetBigInt(x *big.Int) {
+ 	if !Isconst(n, CTINT) {
+ 		Fatal("SetBigInt(%v)", n)
+ 	}
+-	n.Val.U.Xval.Val.Set(x)
++	n.Val.U.(*Mpint).Val.Set(x)
+ }
+ 
+ // Bool returns n as an bool.
+@@ -43,7 +43,7 @@ func (n *Node) Bool() bool {
+ 	if !Isconst(n, CTBOOL) {
+ 		Fatal("Int(%v)", n)
+ 	}
+-	return n.Val.U.Bval
++	return n.Val.U.(bool)
+ }
+ 
+ /*
+@@ -57,7 +57,7 @@ func truncfltlit(oldv *Mpflt, t *Type) *Mpflt {
+ 
+ 	var v Val
+ 	v.Ctype = CTFLT
+-	v.U.Fval = oldv
++	v.U = oldv
+ 	overflow(v, t)
+ 
+ 	fv := newMpflt()
+@@ -227,8 +227,8 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 		// if it is an unsafe.Pointer
+ 		case TUINTPTR:
+ 			if n.Type.Etype == TUNSAFEPTR {
+-				n.Val.U.Xval = new(Mpint)
+-				Mpmovecfix(n.Val.U.Xval, 0)
++				n.Val.U = new(Mpint)
++				Mpmovecfix(n.Val.U.(*Mpint), 0)
+ 				n.Val.Ctype = CTINT
+ 			} else {
+ 				goto bad
+@@ -269,7 +269,7 @@ func convlit1(np **Node, t *Type, explicit bool) {
+ 
+ 				// flowthrough
+ 			case CTFLT:
+-				n.Val.U.Fval = truncfltlit(n.Val.U.Fval, t)
++				n.Val.U = truncfltlit(n.Val.U.(*Mpflt), t)
+ 			}
+ 		} else if Iscomplex[et] {
+ 			switch ct {
+@@ -310,19 +310,19 @@ func copyval(v Val) Val {
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+ 		i := new(Mpint)
+-		mpmovefixfix(i, v.U.Xval)
+-		v.U.Xval = i
++		mpmovefixfix(i, v.U.(*Mpint))
++		v.U = i
+ 
+ 	case CTFLT:
+ 		f := newMpflt()
+-		mpmovefltflt(f, v.U.Fval)
+-		v.U.Fval = f
++		mpmovefltflt(f, v.U.(*Mpflt))
++		v.U = f
+ 
+ 	case CTCPLX:
+ 		c := new(Mpcplx)
+-		mpmovefltflt(&c.Real, &v.U.Cval.Real)
+-		mpmovefltflt(&c.Imag, &v.U.Cval.Imag)
+-		v.U.Cval = c
++		mpmovefltflt(&c.Real, &v.U.(*Mpcplx).Real)
++		mpmovefltflt(&c.Imag, &v.U.(*Mpcplx).Imag)
++		v.U = c
+ 	}
+ 
+ 	return v
+@@ -332,17 +332,17 @@ func tocplx(v Val) Val {
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+ 		c := new(Mpcplx)
+-		Mpmovefixflt(&c.Real, v.U.Xval)
++		Mpmovefixflt(&c.Real, v.U.(*Mpint))
+ 		Mpmovecflt(&c.Imag, 0.0)
+ 		v.Ctype = CTCPLX
+-		v.U.Cval = c
++		v.U = c
+ 
+ 	case CTFLT:
+ 		c := new(Mpcplx)
+-		mpmovefltflt(&c.Real, v.U.Fval)
++		mpmovefltflt(&c.Real, v.U.(*Mpflt))
+ 		Mpmovecflt(&c.Imag, 0.0)
+ 		v.Ctype = CTCPLX
+-		v.U.Cval = c
++		v.U = c
+ 	}
+ 
+ 	return v
+@@ -352,18 +352,18 @@ func toflt(v Val) Val {
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+ 		f := newMpflt()
+-		Mpmovefixflt(f, v.U.Xval)
++		Mpmovefixflt(f, v.U.(*Mpint))
+ 		v.Ctype = CTFLT
+-		v.U.Fval = f
++		v.U = f
+ 
+ 	case CTCPLX:
+ 		f := newMpflt()
+-		mpmovefltflt(f, &v.U.Cval.Real)
+-		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
++		mpmovefltflt(f, &v.U.(*Mpcplx).Real)
++		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
++			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+ 		}
+ 		v.Ctype = CTFLT
+-		v.U.Fval = f
++		v.U = f
+ 	}
+ 
+ 	return v
+@@ -376,22 +376,22 @@ func toint(v Val) Val {
+ 
+ 	case CTFLT:
+ 		i := new(Mpint)
+-		if mpmovefltfix(i, v.U.Fval) < 0 {
+-			Yyerror("constant %v truncated to integer", Fconv(v.U.Fval, obj.FmtSharp))
++		if mpmovefltfix(i, v.U.(*Mpflt)) < 0 {
++			Yyerror("constant %v truncated to integer", Fconv(v.U.(*Mpflt), obj.FmtSharp))
+ 		}
+ 		v.Ctype = CTINT
+-		v.U.Xval = i
++		v.U = i
+ 
+ 	case CTCPLX:
+ 		i := new(Mpint)
+-		if mpmovefltfix(i, &v.U.Cval.Real) < 0 {
+-			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
++		if mpmovefltfix(i, &v.U.(*Mpcplx).Real) < 0 {
++			Yyerror("constant %v%vi truncated to integer", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+ 		}
+-		if mpcmpfltc(&v.U.Cval.Imag, 0) != 0 {
+-			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp|obj.FmtSign))
++		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) != 0 {
++			Yyerror("constant %v%vi truncated to real", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp|obj.FmtSign))
+ 		}
+ 		v.Ctype = CTINT
+-		v.U.Xval = i
++		v.U = i
+ 	}
+ 
+ 	return v
+@@ -403,7 +403,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		if !Isint[t.Etype] {
+ 			Fatal("overflow: %v integer constant", t)
+ 		}
+-		if Mpcmpfixfix(v.U.Xval, Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[t.Etype]) > 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[t.Etype]) > 0 {
+ 			return true
+ 		}
+ 
+@@ -411,7 +411,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		if !Isfloat[t.Etype] {
+ 			Fatal("overflow: %v floating-point constant", t)
+ 		}
+-		if mpcmpfltflt(v.U.Fval, minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.Fval, maxfltval[t.Etype]) >= 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.(*Mpflt), maxfltval[t.Etype]) >= 0 {
+ 			return true
+ 		}
+ 
+@@ -419,7 +419,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 		if !Iscomplex[t.Etype] {
+ 			Fatal("overflow: %v complex constant", t)
+ 		}
+-		if mpcmpfltflt(&v.U.Cval.Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.Cval.Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.Cval.Imag, maxfltval[t.Etype]) >= 0 {
++		if mpcmpfltflt(&v.U.(*Mpcplx).Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, maxfltval[t.Etype]) >= 0 {
+ 			return true
+ 		}
+ 	}
+@@ -445,26 +445,26 @@ func overflow(v Val, t *Type) {
+ 
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+-		Yyerror("constant %v overflows %v", v.U.Xval, t)
++		Yyerror("constant %v overflows %v", v.U.(*Mpint), t)
+ 
+ 	case CTFLT:
+-		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), t)
++		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
+ 
+ 	case CTCPLX:
+-		Yyerror("constant %v overflows %v", Fconv(v.U.Fval, obj.FmtSharp), t)
++		Yyerror("constant %v overflows %v", Fconv(v.U.(*Mpflt), obj.FmtSharp), t)
+ 	}
+ }
+ 
+ func tostr(v Val) Val {
+ 	switch v.Ctype {
+ 	case CTINT, CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.Xval, Maxintval[TINT]) > 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), Minintval[TINT]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 			Yyerror("overflow in int -> string")
+ 		}
+-		r := uint(Mpgetfix(v.U.Xval))
++		r := uint(Mpgetfix(v.U.(*Mpint)))
+ 		v = Val{}
+ 		v.Ctype = CTSTR
+-		v.U.Sval = string(r)
++		v.U = string(r)
+ 
+ 	case CTFLT:
+ 		Yyerror("no float -> string")
+@@ -473,7 +473,7 @@ func tostr(v Val) Val {
+ 	case CTNIL:
+ 		v = Val{}
+ 		v.Ctype = CTSTR
+-		v.U.Sval = ""
++		v.U = ""
+ 	}
+ 
+ 	return v
+@@ -562,7 +562,7 @@ func evconst(n *Node) {
+ 				l2 = l1
+ 				for l2 != nil && Isconst(l2.N, CTSTR) {
+ 					nr = l2.N
+-					strs = append(strs, nr.Val.U.Sval)
++					strs = append(strs, nr.Val.U.(string))
+ 					l2 = l2.Next
+ 				}
+ 
+@@ -570,7 +570,7 @@ func evconst(n *Node) {
+ 				*nl = *l1.N
+ 				nl.Orig = nl
+ 				nl.Val.Ctype = CTSTR
+-				nl.Val.U.Sval = strings.Join(strs, "")
++				nl.Val.U = strings.Join(strs, "")
+ 				l1.N = nl
+ 				l1.Next = l2
+ 			}
+@@ -650,7 +650,7 @@ func evconst(n *Node) {
+ 
+ 		case OMINUS<<16 | CTINT,
+ 			OMINUS<<16 | CTRUNE:
+-			mpnegfix(v.U.Xval)
++			mpnegfix(v.U.(*Mpint))
+ 
+ 		case OCOM<<16 | CTINT,
+ 			OCOM<<16 | CTRUNE:
+@@ -677,23 +677,23 @@ func evconst(n *Node) {
+ 				mpmovefixfix(&b, Maxintval[et])
+ 			}
+ 
+-			mpxorfixfix(v.U.Xval, &b)
++			mpxorfixfix(v.U.(*Mpint), &b)
+ 
+ 		case OPLUS<<16 | CTFLT:
+ 			break
+ 
+ 		case OMINUS<<16 | CTFLT:
+-			mpnegflt(v.U.Fval)
++			mpnegflt(v.U.(*Mpflt))
+ 
+ 		case OPLUS<<16 | CTCPLX:
+ 			break
+ 
+ 		case OMINUS<<16 | CTCPLX:
+-			mpnegflt(&v.U.Cval.Real)
+-			mpnegflt(&v.U.Cval.Imag)
++			mpnegflt(&v.U.(*Mpcplx).Real)
++			mpnegflt(&v.U.(*Mpcplx).Imag)
+ 
+ 		case ONOT<<16 | CTBOOL:
+-			if !v.U.Bval {
++			if !v.U.(bool) {
+ 				goto settrue
+ 			}
+ 			goto setfalse
+@@ -797,77 +797,77 @@ func evconst(n *Node) {
+ 
+ 	case OADD<<16 | CTINT,
+ 		OADD<<16 | CTRUNE:
+-		mpaddfixfix(v.U.Xval, rv.U.Xval, 0)
++		mpaddfixfix(v.U.(*Mpint), rv.U.(*Mpint), 0)
+ 
+ 	case OSUB<<16 | CTINT,
+ 		OSUB<<16 | CTRUNE:
+-		mpsubfixfix(v.U.Xval, rv.U.Xval)
++		mpsubfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OMUL<<16 | CTINT,
+ 		OMUL<<16 | CTRUNE:
+-		mpmulfixfix(v.U.Xval, rv.U.Xval)
++		mpmulfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case ODIV<<16 | CTINT,
+ 		ODIV<<16 | CTRUNE:
+-		if mpcmpfixc(rv.U.Xval, 0) == 0 {
++		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+ 			Yyerror("division by zero")
+-			mpsetovf(v.U.Xval)
++			mpsetovf(v.U.(*Mpint))
+ 			break
+ 		}
+ 
+-		mpdivfixfix(v.U.Xval, rv.U.Xval)
++		mpdivfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OMOD<<16 | CTINT,
+ 		OMOD<<16 | CTRUNE:
+-		if mpcmpfixc(rv.U.Xval, 0) == 0 {
++		if mpcmpfixc(rv.U.(*Mpint), 0) == 0 {
+ 			Yyerror("division by zero")
+-			mpsetovf(v.U.Xval)
++			mpsetovf(v.U.(*Mpint))
+ 			break
+ 		}
+ 
+-		mpmodfixfix(v.U.Xval, rv.U.Xval)
++		mpmodfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OLSH<<16 | CTINT,
+ 		OLSH<<16 | CTRUNE:
+-		mplshfixfix(v.U.Xval, rv.U.Xval)
++		mplshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case ORSH<<16 | CTINT,
+ 		ORSH<<16 | CTRUNE:
+-		mprshfixfix(v.U.Xval, rv.U.Xval)
++		mprshfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OOR<<16 | CTINT,
+ 		OOR<<16 | CTRUNE:
+-		mporfixfix(v.U.Xval, rv.U.Xval)
++		mporfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OAND<<16 | CTINT,
+ 		OAND<<16 | CTRUNE:
+-		mpandfixfix(v.U.Xval, rv.U.Xval)
++		mpandfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OANDNOT<<16 | CTINT,
+ 		OANDNOT<<16 | CTRUNE:
+-		mpandnotfixfix(v.U.Xval, rv.U.Xval)
++		mpandnotfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OXOR<<16 | CTINT,
+ 		OXOR<<16 | CTRUNE:
+-		mpxorfixfix(v.U.Xval, rv.U.Xval)
++		mpxorfixfix(v.U.(*Mpint), rv.U.(*Mpint))
+ 
+ 	case OADD<<16 | CTFLT:
+-		mpaddfltflt(v.U.Fval, rv.U.Fval)
++		mpaddfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+ 	case OSUB<<16 | CTFLT:
+-		mpsubfltflt(v.U.Fval, rv.U.Fval)
++		mpsubfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+ 	case OMUL<<16 | CTFLT:
+-		mpmulfltflt(v.U.Fval, rv.U.Fval)
++		mpmulfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+ 	case ODIV<<16 | CTFLT:
+-		if mpcmpfltc(rv.U.Fval, 0) == 0 {
++		if mpcmpfltc(rv.U.(*Mpflt), 0) == 0 {
+ 			Yyerror("division by zero")
+-			Mpmovecflt(v.U.Fval, 1.0)
++			Mpmovecflt(v.U.(*Mpflt), 1.0)
+ 			break
+ 		}
+ 
+-		mpdivfltflt(v.U.Fval, rv.U.Fval)
++		mpdivfltflt(v.U.(*Mpflt), rv.U.(*Mpflt))
+ 
+ 		// The default case above would print 'ideal % ideal',
+ 	// which is not quite an ideal error.
+@@ -880,25 +880,25 @@ func evconst(n *Node) {
+ 		return
+ 
+ 	case OADD<<16 | CTCPLX:
+-		mpaddfltflt(&v.U.Cval.Real, &rv.U.Cval.Real)
+-		mpaddfltflt(&v.U.Cval.Imag, &rv.U.Cval.Imag)
++		mpaddfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
++		mpaddfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+ 
+ 	case OSUB<<16 | CTCPLX:
+-		mpsubfltflt(&v.U.Cval.Real, &rv.U.Cval.Real)
+-		mpsubfltflt(&v.U.Cval.Imag, &rv.U.Cval.Imag)
++		mpsubfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real)
++		mpsubfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag)
+ 
+ 	case OMUL<<16 | CTCPLX:
+-		cmplxmpy(v.U.Cval, rv.U.Cval)
++		cmplxmpy(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+ 
+ 	case ODIV<<16 | CTCPLX:
+-		if mpcmpfltc(&rv.U.Cval.Real, 0) == 0 && mpcmpfltc(&rv.U.Cval.Imag, 0) == 0 {
++		if mpcmpfltc(&rv.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&rv.U.(*Mpcplx).Imag, 0) == 0 {
+ 			Yyerror("complex division by zero")
+-			Mpmovecflt(&rv.U.Cval.Real, 1.0)
+-			Mpmovecflt(&rv.U.Cval.Imag, 0.0)
++			Mpmovecflt(&rv.U.(*Mpcplx).Real, 1.0)
++			Mpmovecflt(&rv.U.(*Mpcplx).Imag, 0.0)
+ 			break
+ 		}
+ 
+-		cmplxdiv(v.U.Cval, rv.U.Cval)
++		cmplxdiv(v.U.(*Mpcplx), rv.U.(*Mpcplx))
+ 
+ 	case OEQ<<16 | CTNIL:
+ 		goto settrue
+@@ -908,90 +908,90 @@ func evconst(n *Node) {
+ 
+ 	case OEQ<<16 | CTINT,
+ 		OEQ<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) == 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case ONE<<16 | CTINT,
+ 		ONE<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) != 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLT<<16 | CTINT,
+ 		OLT<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) < 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) < 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLE<<16 | CTINT,
+ 		OLE<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) <= 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) <= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGE<<16 | CTINT,
+ 		OGE<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) >= 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) >= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGT<<16 | CTINT,
+ 		OGT<<16 | CTRUNE:
+-		if Mpcmpfixfix(v.U.Xval, rv.U.Xval) > 0 {
++		if Mpcmpfixfix(v.U.(*Mpint), rv.U.(*Mpint)) > 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OEQ<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) == 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case ONE<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) != 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLT<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) < 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) < 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLE<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) <= 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) <= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGE<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) >= 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) >= 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGT<<16 | CTFLT:
+-		if mpcmpfltflt(v.U.Fval, rv.U.Fval) > 0 {
++		if mpcmpfltflt(v.U.(*Mpflt), rv.U.(*Mpflt)) > 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OEQ<<16 | CTCPLX:
+-		if mpcmpfltflt(&v.U.Cval.Real, &rv.U.Cval.Real) == 0 && mpcmpfltflt(&v.U.Cval.Imag, &rv.U.Cval.Imag) == 0 {
++		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) == 0 && mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) == 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case ONE<<16 | CTCPLX:
+-		if mpcmpfltflt(&v.U.Cval.Real, &rv.U.Cval.Real) != 0 || mpcmpfltflt(&v.U.Cval.Imag, &rv.U.Cval.Imag) != 0 {
++		if mpcmpfltflt(&v.U.(*Mpcplx).Real, &rv.U.(*Mpcplx).Real) != 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, &rv.U.(*Mpcplx).Imag) != 0 {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+@@ -1033,25 +1033,25 @@ func evconst(n *Node) {
+ 		goto setfalse
+ 
+ 	case OOROR<<16 | CTBOOL:
+-		if v.U.Bval || rv.U.Bval {
++		if v.U.(bool) || rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OANDAND<<16 | CTBOOL:
+-		if v.U.Bval && rv.U.Bval {
++		if v.U.(bool) && rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OEQ<<16 | CTBOOL:
+-		if v.U.Bval == rv.U.Bval {
++		if v.U.(bool) == rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case ONE<<16 | CTBOOL:
+-		if v.U.Bval != rv.U.Bval {
++		if v.U.(bool) != rv.U.(bool) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+@@ -1076,7 +1076,7 @@ ret:
+ 
+ 	// truncate precision for non-ideal float.
+ 	if v.Ctype == CTFLT && n.Type.Etype != TIDEAL {
+-		n.Val.U.Fval = truncfltlit(v.U.Fval, n.Type)
++		n.Val.U = truncfltlit(v.U.(*Mpflt), n.Type)
+ 	}
+ 	return
+ 
+@@ -1131,15 +1131,15 @@ func nodcplxlit(r Val, i Val) *Node {
+ 	c := new(Mpcplx)
+ 	n := Nod(OLITERAL, nil, nil)
+ 	n.Type = Types[TIDEAL]
+-	n.Val.U.Cval = c
++	n.Val.U = c
+ 	n.Val.Ctype = CTCPLX
+ 
+ 	if r.Ctype != CTFLT || i.Ctype != CTFLT {
+ 		Fatal("nodcplxlit ctype %d/%d", r.Ctype, i.Ctype)
+ 	}
+ 
+-	mpmovefltflt(&c.Real, r.U.Fval)
+-	mpmovefltflt(&c.Imag, i.U.Fval)
++	mpmovefltflt(&c.Real, r.U.(*Mpflt))
++	mpmovefltflt(&c.Imag, i.U.(*Mpflt))
+ 	return n
+ }
+ 
+@@ -1354,7 +1354,7 @@ func defaultlit2(lp **Node, rp **Node, force int) {
+ }
+ 
+ func cmpslit(l, r *Node) int {
+-	return stringsCompare(l.Val.U.Sval, r.Val.U.Sval)
++	return stringsCompare(l.Val.U.(string), r.Val.U.(string))
+ }
+ 
+ func Smallintconst(n *Node) bool {
+@@ -1371,7 +1371,7 @@ func Smallintconst(n *Node) bool {
+ 			return true
+ 
+ 		case TIDEAL, TINT64, TUINT64, TPTR64:
+-			if Mpcmpfixfix(n.Val.U.Xval, Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT32]) > 0 {
++			if Mpcmpfixfix(n.Val.U.(*Mpint), Minintval[TINT32]) < 0 || Mpcmpfixfix(n.Val.U.(*Mpint), Maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+ 			return true
+@@ -1394,10 +1394,10 @@ func nonnegconst(n *Node) int {
+ 			TINT64,
+ 			TUINT64,
+ 			TIDEAL:
+-			if Mpcmpfixfix(n.Val.U.Xval, Minintval[TUINT32]) < 0 || Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT32]) > 0 {
++			if Mpcmpfixfix(n.Val.U.(*Mpint), Minintval[TUINT32]) < 0 || Mpcmpfixfix(n.Val.U.(*Mpint), Maxintval[TINT32]) > 0 {
+ 				break
+ 			}
+-			return int(Mpgetfix(n.Val.U.Xval))
++			return int(Mpgetfix(n.Val.U.(*Mpint)))
+ 		}
+ 	}
+ 
+@@ -1448,24 +1448,24 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 
+ 	if Isint[tt] {
+ 		con.Val.Ctype = CTINT
+-		con.Val.U.Xval = new(Mpint)
++		con.Val.U = new(Mpint)
+ 		var i int64
+ 		switch n.Val.Ctype {
+ 		default:
+ 			Fatal("convconst ctype=%d %v", n.Val.Ctype, Tconv(t, obj.FmtLong))
+ 
+ 		case CTINT, CTRUNE:
+-			i = Mpgetfix(n.Val.U.Xval)
++			i = Mpgetfix(n.Val.U.(*Mpint))
+ 
+ 		case CTBOOL:
+-			i = int64(obj.Bool2int(n.Val.U.Bval))
++			i = int64(obj.Bool2int(n.Val.U.(bool)))
+ 
+ 		case CTNIL:
+ 			i = 0
+ 		}
+ 
+ 		i = iconv(i, tt)
+-		Mpmovecfix(con.Val.U.Xval, i)
++		Mpmovecfix(con.Val.U.(*Mpint), i)
+ 		return
+ 	}
+ 
+@@ -1475,7 +1475,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 			Fatal("convconst ctype=%d %v", con.Val.Ctype, t)
+ 		}
+ 		if tt == TFLOAT32 {
+-			con.Val.U.Fval = truncfltlit(con.Val.U.Fval, t)
++			con.Val.U = truncfltlit(con.Val.U.(*Mpflt), t)
+ 		}
+ 		return
+ 	}
+@@ -1483,8 +1483,8 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 	if Iscomplex[tt] {
+ 		con.Val = tocplx(con.Val)
+ 		if tt == TCOMPLEX64 {
+-			con.Val.U.Cval.Real = *truncfltlit(&con.Val.U.Cval.Real, Types[TFLOAT32])
+-			con.Val.U.Cval.Imag = *truncfltlit(&con.Val.U.Cval.Imag, Types[TFLOAT32])
++			con.Val.U.(*Mpcplx).Real = *truncfltlit(&con.Val.U.(*Mpcplx).Real, Types[TFLOAT32])
++			con.Val.U.(*Mpcplx).Imag = *truncfltlit(&con.Val.U.(*Mpcplx).Imag, Types[TFLOAT32])
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/internal/gc/cplx.go b/src/cmd/internal/gc/cplx.go
+index cf48c922d7..56a4892636 100644
+--- a/src/cmd/internal/gc/cplx.go
++++ b/src/cmd/internal/gc/cplx.go
+@@ -89,8 +89,8 @@ func subnode(nr *Node, ni *Node, nc *Node) {
+ 	t := Types[tc]
+ 
+ 	if nc.Op == OLITERAL {
+-		nodfconst(nr, t, &nc.Val.U.Cval.Real)
+-		nodfconst(ni, t, &nc.Val.U.Cval.Imag)
++		nodfconst(nr, t, &nc.Val.U.(*Mpcplx).Real)
++		nodfconst(ni, t, &nc.Val.U.(*Mpcplx).Imag)
+ 		return
+ 	}
+ 
+@@ -226,7 +226,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	n.Op = OLITERAL
+ 	n.Addable = true
+ 	ullmancalc(n)
+-	n.Val.U.Fval = fval
++	n.Val.U = fval
+ 	n.Val.Ctype = CTFLT
+ 	n.Type = t
+ 
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 627556eeef..85a33bec3f 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -830,7 +830,7 @@ func structfield(n *Node) *Type {
+ 	switch n.Val.Ctype {
+ 	case CTSTR:
+ 		f.Note = new(string)
+-		*f.Note = n.Val.U.Sval
++		*f.Note = n.Val.U.(string)
+ 
+ 	default:
+ 		Yyerror("field annotation must be string")
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 4e3045a929..9d8482bf76 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -302,12 +302,12 @@ func Vconv(v *Val, flag int) string {
+ 	switch v.Ctype {
+ 	case CTINT:
+ 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
+-			return Bconv(v.U.Xval, obj.FmtSharp)
++			return Bconv(v.U.(*Mpint), obj.FmtSharp)
+ 		}
+-		return Bconv(v.U.Xval, 0)
++		return Bconv(v.U.(*Mpint), 0)
+ 
+ 	case CTRUNE:
+-		x := Mpgetfix(v.U.Xval)
++		x := Mpgetfix(v.U.(*Mpint))
+ 		if ' ' <= x && x < 0x80 && x != '\\' && x != '\'' {
+ 			return fmt.Sprintf("'%c'", int(x))
+ 		}
+@@ -317,34 +317,34 @@ func Vconv(v *Val, flag int) string {
+ 		if 0 <= x && x <= utf8.MaxRune {
+ 			return fmt.Sprintf("'\\U%08x'", uint64(x))
+ 		}
+-		return fmt.Sprintf("('\\x00' + %v)", v.U.Xval)
++		return fmt.Sprintf("('\\x00' + %v)", v.U.(*Mpint))
+ 
+ 	case CTFLT:
+ 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
+-			return Fconv(v.U.Fval, 0)
++			return Fconv(v.U.(*Mpflt), 0)
+ 		}
+-		return Fconv(v.U.Fval, obj.FmtSharp)
++		return Fconv(v.U.(*Mpflt), obj.FmtSharp)
+ 
+ 	case CTCPLX:
+ 		if (flag&obj.FmtSharp != 0) || fmtmode == FExp {
+-			return fmt.Sprintf("(%v+%vi)", &v.U.Cval.Real, &v.U.Cval.Imag)
++			return fmt.Sprintf("(%v+%vi)", &v.U.(*Mpcplx).Real, &v.U.(*Mpcplx).Imag)
+ 		}
+-		if mpcmpfltc(&v.U.Cval.Real, 0) == 0 {
+-			return fmt.Sprintf("%vi", Fconv(&v.U.Cval.Imag, obj.FmtSharp))
++		if mpcmpfltc(&v.U.(*Mpcplx).Real, 0) == 0 {
++			return fmt.Sprintf("%vi", Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
+ 		}
+-		if mpcmpfltc(&v.U.Cval.Imag, 0) == 0 {
+-			return Fconv(&v.U.Cval.Real, obj.FmtSharp)
++		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) == 0 {
++			return Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp)
+ 		}
+-		if mpcmpfltc(&v.U.Cval.Imag, 0) < 0 {
+-			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp))
++		if mpcmpfltc(&v.U.(*Mpcplx).Imag, 0) < 0 {
++			return fmt.Sprintf("(%v%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
+ 		}
+-		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.Cval.Real, obj.FmtSharp), Fconv(&v.U.Cval.Imag, obj.FmtSharp))
++		return fmt.Sprintf("(%v+%vi)", Fconv(&v.U.(*Mpcplx).Real, obj.FmtSharp), Fconv(&v.U.(*Mpcplx).Imag, obj.FmtSharp))
+ 
+ 	case CTSTR:
+-		return strconv.Quote(v.U.Sval)
++		return strconv.Quote(v.U.(string))
+ 
+ 	case CTBOOL:
+-		if v.U.Bval {
++		if v.U.(bool) {
+ 			return "true"
+ 		}
+ 		return "false"
+diff --git a/src/cmd/internal/gc/gen.go b/src/cmd/internal/gc/gen.go
+index 8f6a43c121..cd0e650ca9 100644
+--- a/src/cmd/internal/gc/gen.go
++++ b/src/cmd/internal/gc/gen.go
+@@ -333,22 +333,22 @@ func Clearslim(n *Node) {
+ 
+ 	switch Simtype[n.Type.Etype] {
+ 	case TCOMPLEX64, TCOMPLEX128:
+-		z.Val.U.Cval = new(Mpcplx)
+-		Mpmovecflt(&z.Val.U.Cval.Real, 0.0)
+-		Mpmovecflt(&z.Val.U.Cval.Imag, 0.0)
++		z.Val.U = new(Mpcplx)
++		Mpmovecflt(&z.Val.U.(*Mpcplx).Real, 0.0)
++		Mpmovecflt(&z.Val.U.(*Mpcplx).Imag, 0.0)
+ 
+ 	case TFLOAT32, TFLOAT64:
+ 		var zero Mpflt
+ 		Mpmovecflt(&zero, 0.0)
+ 		z.Val.Ctype = CTFLT
+-		z.Val.U.Fval = &zero
++		z.Val.U = &zero
+ 
+ 	case TPTR32, TPTR64, TCHAN, TMAP:
+ 		z.Val.Ctype = CTNIL
+ 
+ 	case TBOOL:
+ 		z.Val.Ctype = CTBOOL
+-		z.Val.U.Bval = false
++		z.Val.U = false
+ 
+ 	case TINT8,
+ 		TINT16,
+@@ -359,8 +359,8 @@ func Clearslim(n *Node) {
+ 		TUINT32,
+ 		TUINT64:
+ 		z.Val.Ctype = CTINT
+-		z.Val.U.Xval = new(Mpint)
+-		Mpmovecfix(z.Val.U.Xval, 0)
++		z.Val.U = new(Mpint)
++		Mpmovecfix(z.Val.U.(*Mpint), 0)
+ 
+ 	default:
+ 		Fatal("clearslim called on type %v", n.Type)
+@@ -1122,7 +1122,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 		nodl.Type = Ptrto(Types[TUINT8])
+ 		Regalloc(&nodr, Types[Tptr], nil)
+ 		p := Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), nil, &nodr)
+-		Datastring(nr.Val.U.Sval, &p.From)
++		Datastring(nr.Val.U.(string), &p.From)
+ 		p.From.Type = obj.TYPE_ADDR
+ 		Thearch.Gmove(&nodr, &nodl)
+ 		Regfree(&nodr)
+@@ -1130,7 +1130,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 		// length
+ 		nodl.Type = Types[Simtype[TUINT]]
+ 		nodl.Xoffset += int64(Array_nel) - int64(Array_array)
+-		Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.Sval)))
++		Nodconst(&nodr, nodl.Type, int64(len(nr.Val.U.(string))))
+ 		Thearch.Gmove(&nodr, &nodl)
+ 		return true
+ 	}
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 404dcbb4ff..31692bdf00 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -83,13 +83,13 @@ type Mpcplx struct {
+ 
+ type Val struct {
+ 	Ctype int16
+-	U     struct {
+-		Bval bool    // bool value CTBOOL
+-		Xval *Mpint  // int CTINT, rune CTRUNE
+-		Fval *Mpflt  // float CTFLT
+-		Cval *Mpcplx // float CTCPLX
+-		Sval string  // string CTSTR
+-	}
++	// U contains one of:
++	// bool     bool when Ctype == CTBOOL
++	// *Mpint   int when Ctype == CTINT, rune when Ctype == CTRUNE
++	// *Mpflt   float when Ctype == CTFLT
++	// *Mpcplx  pair of floats when Ctype == CTCPLX
++	// string   string when Ctype == CTSTR
++	U interface{}
+ }
+ 
+ type Pkg struct {
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index bbee200889..e2e4331a77 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -1131,13 +1131,13 @@ hidden_importsym:
+ 	{
+ 		var p *Pkg
+ 
+-		if $2.U.Sval == "" {
++		if $2.U.(string) == "" {
+ 			p = importpkg;
+ 		} else {
+-			if isbadimport($2.U.Sval) {
++			if isbadimport($2.U.(string)) {
+ 				errorexit();
+ 			}
+-			p = mkpkg($2.U.Sval);
++			p = mkpkg($2.U.(string));
+ 		}
+ 		$$ = Pkglookup($4.Name, p);
+ 	}
+@@ -1145,13 +1145,13 @@ hidden_importsym:
+ 	{
+ 		var p *Pkg
+ 
+-		if $2.U.Sval == "" {
++		if $2.U.(string) == "" {
+ 			p = importpkg;
+ 		} else {
+-			if isbadimport($2.U.Sval) {
++			if isbadimport($2.U.(string)) {
+ 				errorexit();
+ 			}
+-			p = mkpkg($2.U.Sval);
++			p = mkpkg($2.U.(string));
+ 		}
+ 		$$ = Pkglookup("?", p);
+ 	}
+@@ -1945,7 +1945,7 @@ oliteral:
+ hidden_import:
+ 	LIMPORT LNAME LLITERAL ';'
+ 	{
+-		importimport($2, $3.U.Sval);
++		importimport($2, $3.U.(string));
+ 	}
+ |	LVAR hidden_pkg_importsym hidden_type ';'
+ 	{
+@@ -2172,14 +2172,14 @@ hidden_literal:
+ 		$$ = nodlit($2);
+ 		switch($$.Val.Ctype){
+ 		case CTINT, CTRUNE:
+-			mpnegfix($$.Val.U.Xval);
++			mpnegfix($$.Val.U.(*Mpint));
+ 			break;
+ 		case CTFLT:
+-			mpnegflt($$.Val.U.Fval);
++			mpnegflt($$.Val.U.(*Mpflt));
+ 			break;
+ 		case CTCPLX:
+-			mpnegflt(&$$.Val.U.Cval.Real);
+-			mpnegflt(&$$.Val.U.Cval.Imag);
++			mpnegflt(&$$.Val.U.(*Mpcplx).Real);
++			mpnegflt(&$$.Val.U.(*Mpcplx).Imag);
+ 			break;
+ 		default:
+ 			Yyerror("bad negated constant");
+@@ -2199,11 +2199,11 @@ hidden_constant:
+ 	{
+ 		if $2.Val.Ctype == CTRUNE && $4.Val.Ctype == CTINT {
+ 			$$ = $2;
+-			mpaddfixfix($2.Val.U.Xval, $4.Val.U.Xval, 0);
++			mpaddfixfix($2.Val.U.(*Mpint), $4.Val.U.(*Mpint), 0);
+ 			break;
+ 		}
+-		$4.Val.U.Cval.Real = $4.Val.U.Cval.Imag;
+-		Mpmovecflt(&$4.Val.U.Cval.Imag, 0.0);
++		$4.Val.U.(*Mpcplx).Real = $4.Val.U.(*Mpcplx).Imag;
++		Mpmovecflt(&$4.Val.U.(*Mpcplx).Imag, 0.0);
+ 		$$ = nodcplxlit($2.Val, $4.Val);
+ 	}
+ 
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 93e4852b6f..98d6346e2a 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -412,20 +412,20 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 		case CTFLT:
+ 			a.Type = obj.TYPE_FCONST
+-			a.Val = mpgetflt(n.Val.U.Fval)
++			a.Val = mpgetflt(n.Val.U.(*Mpflt))
+ 
+ 		case CTINT, CTRUNE:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = Mpgetfix(n.Val.U.Xval)
++			a.Offset = Mpgetfix(n.Val.U.(*Mpint))
+ 
+ 		case CTSTR:
+-			datagostring(n.Val.U.Sval, a)
++			datagostring(n.Val.U.(string), a)
+ 
+ 		case CTBOOL:
+ 			a.Sym = nil
+ 			a.Type = obj.TYPE_CONST
+-			a.Offset = int64(obj.Bool2int(n.Val.U.Bval))
++			a.Offset = int64(obj.Bool2int(n.Val.U.(bool)))
+ 
+ 		case CTNIL:
+ 			a.Sym = nil
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 96a1a01aaa..1bf0758000 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -647,13 +647,13 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	if len(f.U.Sval) == 0 {
++	if len(f.U.(string)) == 0 {
+ 		Yyerror("import path is empty")
+ 		fakeimport()
+ 		return
+ 	}
+ 
+-	if isbadimport(f.U.Sval) {
++	if isbadimport(f.U.(string)) {
+ 		fakeimport()
+ 		return
+ 	}
+@@ -662,29 +662,29 @@ func importfile(f *Val, line int) {
+ 	// but we reserve the import path "main" to identify
+ 	// the main package, just as we reserve the import
+ 	// path "math" to identify the standard math package.
+-	if f.U.Sval == "main" {
++	if f.U.(string) == "main" {
+ 		Yyerror("cannot import \"main\"")
+ 		errorexit()
+ 	}
+ 
+-	if myimportpath != "" && f.U.Sval == myimportpath {
+-		Yyerror("import %q while compiling that package (import cycle)", f.U.Sval)
++	if myimportpath != "" && f.U.(string) == myimportpath {
++		Yyerror("import %q while compiling that package (import cycle)", f.U.(string))
+ 		errorexit()
+ 	}
+ 
+-	if f.U.Sval == "unsafe" {
++	if f.U.(string) == "unsafe" {
+ 		if safemode != 0 {
+ 			Yyerror("cannot import package unsafe")
+ 			errorexit()
+ 		}
+ 
+-		importpkg = mkpkg(f.U.Sval)
++		importpkg = mkpkg(f.U.(string))
+ 		cannedimports("unsafe.6", unsafeimport)
+ 		imported_unsafe = 1
+ 		return
+ 	}
+ 
+-	path_ := f.U.Sval
++	path_ := f.U.(string)
+ 	if islocalname(path_) {
+ 		if path_[0] == '/' {
+ 			Yyerror("import path cannot be absolute path")
+@@ -710,7 +710,7 @@ func importfile(f *Val, line int) {
+ 
+ 	file, found := findpkg(path_)
+ 	if !found {
+-		Yyerror("can't find import: %q", f.U.Sval)
++		Yyerror("can't find import: %q", f.U.(string))
+ 		errorexit()
+ 	}
+ 
+@@ -735,7 +735,7 @@ func importfile(f *Val, line int) {
+ 	var imp *obj.Biobuf
+ 	imp, err = obj.Bopenr(file)
+ 	if err != nil {
+-		Yyerror("can't open import: %q: %v", f.U.Sval, err)
++		Yyerror("can't open import: %q: %v", f.U.(string), err)
+ 		errorexit()
+ 	}
+ 
+@@ -798,7 +798,7 @@ func importfile(f *Val, line int) {
+ 		return
+ 	}
+ 
+-	Yyerror("no import in %q", f.U.Sval)
++	Yyerror("no import in %q", f.U.(string))
+ 	unimportfile()
+ }
+ 
+@@ -1066,8 +1066,8 @@ l0:
+ 			ungetc(int(v))
+ 		}
+ 
+-		yylval.val.U.Xval = new(Mpint)
+-		Mpmovecfix(yylval.val.U.Xval, v)
++		yylval.val.U = new(Mpint)
++		Mpmovecfix(yylval.val.U.(*Mpint), v)
+ 		yylval.val.Ctype = CTRUNE
+ 		if Debug['x'] != 0 {
+ 			fmt.Printf("lex: codepoint literal\n")
+@@ -1405,11 +1405,11 @@ ncu:
+ 	ungetc(c)
+ 
+ 	str = lexbuf.String()
+-	yylval.val.U.Xval = new(Mpint)
+-	mpatofix(yylval.val.U.Xval, str)
+-	if yylval.val.U.Xval.Ovf {
++	yylval.val.U = new(Mpint)
++	mpatofix(yylval.val.U.(*Mpint), str)
++	if yylval.val.U.(*Mpint).Ovf {
+ 		Yyerror("overflow in constant")
+-		Mpmovecfix(yylval.val.U.Xval, 0)
++		Mpmovecfix(yylval.val.U.(*Mpint), 0)
+ 	}
+ 
+ 	yylval.val.Ctype = CTINT
+@@ -1461,12 +1461,12 @@ casei:
+ 	cp = nil
+ 
+ 	str = lexbuf.String()
+-	yylval.val.U.Cval = new(Mpcplx)
+-	Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
+-	mpatoflt(&yylval.val.U.Cval.Imag, str)
+-	if yylval.val.U.Cval.Imag.Val.IsInf() {
++	yylval.val.U = new(Mpcplx)
++	Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
++	mpatoflt(&yylval.val.U.(*Mpcplx).Imag, str)
++	if yylval.val.U.(*Mpcplx).Imag.Val.IsInf() {
+ 		Yyerror("overflow in imaginary constant")
+-		Mpmovecflt(&yylval.val.U.Cval.Real, 0.0)
++		Mpmovecflt(&yylval.val.U.(*Mpcplx).Real, 0.0)
+ 	}
+ 
+ 	yylval.val.Ctype = CTCPLX
+@@ -1481,11 +1481,11 @@ caseout:
+ 	ungetc(c)
+ 
+ 	str = lexbuf.String()
+-	yylval.val.U.Fval = newMpflt()
+-	mpatoflt(yylval.val.U.Fval, str)
+-	if yylval.val.U.Fval.Val.IsInf() {
++	yylval.val.U = newMpflt()
++	mpatoflt(yylval.val.U.(*Mpflt), str)
++	if yylval.val.U.(*Mpflt).Val.IsInf() {
+ 		Yyerror("overflow in float constant")
+-		Mpmovecflt(yylval.val.U.Fval, 0.0)
++		Mpmovecflt(yylval.val.U.(*Mpflt), 0.0)
+ 	}
+ 
+ 	yylval.val.Ctype = CTFLT
+@@ -1496,7 +1496,7 @@ caseout:
+ 	return LLITERAL
+ 
+ strlit:
+-	yylval.val.U.Sval = internString(cp.Bytes())
++	yylval.val.U = internString(cp.Bytes())
+ 	yylval.val.Ctype = CTSTR
+ 	if Debug['x'] != 0 {
+ 		fmt.Printf("lex: string literal\n")
+diff --git a/src/cmd/internal/gc/obj.go b/src/cmd/internal/gc/obj.go
+index 05c5b1a811..2afd786dc1 100644
+--- a/src/cmd/internal/gc/obj.go
++++ b/src/cmd/internal/gc/obj.go
+@@ -382,11 +382,11 @@ func gdata(nam *Node, nr *Node, wid int) {
+ 	if nr.Op == OLITERAL {
+ 		switch nr.Val.Ctype {
+ 		case CTCPLX:
+-			gdatacomplex(nam, nr.Val.U.Cval)
++			gdatacomplex(nam, nr.Val.U.(*Mpcplx))
+ 			return
+ 
+ 		case CTSTR:
+-			gdatastring(nam, nr.Val.U.Sval)
++			gdatastring(nam, nr.Val.U.(string))
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 06a1490be4..b3fd282a68 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -995,7 +995,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		haslit := false
+ 		for l := n.List; l != nil; l = l.Next {
+ 			hasbyte = hasbyte || l.N.Op == OARRAYBYTESTR
+-			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.Sval) != 0
++			haslit = haslit || l.N.Op == OLITERAL && len(l.N.Val.U.(string)) != 0
+ 		}
+ 
+ 		if haslit && hasbyte {
+diff --git a/src/cmd/internal/gc/sinit.go b/src/cmd/internal/gc/sinit.go
+index a9af9450ae..4fdb2e9223 100644
+--- a/src/cmd/internal/gc/sinit.go
++++ b/src/cmd/internal/gc/sinit.go
+@@ -437,7 +437,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 
+ 	case OSTRARRAYBYTE:
+ 		if l.Class == PEXTERN && r.Left.Op == OLITERAL {
+-			sval := r.Left.Val.U.Sval
++			sval := r.Left.Val.U.(string)
+ 			slicebytes(l, sval, len(sval))
+ 			return true
+ 		}
+@@ -449,7 +449,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 			ta := typ(TARRAY)
+ 
+ 			ta.Type = r.Type.Type
+-			ta.Bound = Mpgetfix(r.Right.Val.U.Xval)
++			ta.Bound = Mpgetfix(r.Right.Val.U.(*Mpint))
+ 			a := staticname(ta, 1)
+ 			r.Nname = a
+ 			n1 = *l
+@@ -722,7 +722,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	// make an array type
+ 	t := shallow(n.Type)
+ 
+-	t.Bound = Mpgetfix(n.Right.Val.U.Xval)
++	t.Bound = Mpgetfix(n.Right.Val.U.(*Mpint))
+ 	t.Width = 0
+ 	t.Sym = nil
+ 	t.Haspointers = 0
+@@ -1226,7 +1226,7 @@ func oaslit(n *Node, init **NodeList) bool {
+ 
+ func getlit(lit *Node) int {
+ 	if Smallintconst(lit) {
+-		return int(Mpgetfix(lit.Val.U.Xval))
++		return int(Mpgetfix(lit.Val.U.(*Mpint)))
+ 	}
+ 	return -1
+ }
+@@ -1290,7 +1290,7 @@ func initplan(n *Node) {
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+ 				Fatal("initplan arraylit")
+ 			}
+-			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val.U.Xval), nil, a.Right)
++			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val.U.(*Mpint)), nil, a.Right)
+ 		}
+ 
+ 	case OSTRUCTLIT:
+@@ -1360,19 +1360,19 @@ func iszero(n *Node) bool {
+ 			return true
+ 
+ 		case CTSTR:
+-			return n.Val.U.Sval == ""
++			return n.Val.U.(string) == ""
+ 
+ 		case CTBOOL:
+-			return !n.Val.U.Bval
++			return !n.Val.U.(bool)
+ 
+ 		case CTINT, CTRUNE:
+-			return mpcmpfixc(n.Val.U.Xval, 0) == 0
++			return mpcmpfixc(n.Val.U.(*Mpint), 0) == 0
+ 
+ 		case CTFLT:
+-			return mpcmpfltc(n.Val.U.Fval, 0) == 0
++			return mpcmpfltc(n.Val.U.(*Mpflt), 0) == 0
+ 
+ 		case CTCPLX:
+-			return mpcmpfltc(&n.Val.U.Cval.Real, 0) == 0 && mpcmpfltc(&n.Val.U.Cval.Imag, 0) == 0
++			return mpcmpfltc(&n.Val.U.(*Mpcplx).Real, 0) == 0 && mpcmpfltc(&n.Val.U.(*Mpcplx).Imag, 0) == 0
+ 		}
+ 
+ 	case OARRAYLIT:
+@@ -1510,10 +1510,10 @@ func gen_as_init(n *Node) bool {
+ 		gdata(&nam, nr, int(nr.Type.Width))
+ 
+ 	case TCOMPLEX64, TCOMPLEX128:
+-		gdatacomplex(&nam, nr.Val.U.Cval)
++		gdatacomplex(&nam, nr.Val.U.(*Mpcplx))
+ 
+ 	case TSTRING:
+-		gdatastring(&nam, nr.Val.U.Sval)
++		gdatastring(&nam, nr.Val.U.(string))
+ 	}
+ 
+ 	return true
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index dd84214dc8..b09f4232aa 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -666,8 +666,8 @@ func sortinter(t *Type) *Type {
+ func Nodintconst(v int64) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+ 	c.Addable = true
+-	c.Val.U.Xval = new(Mpint)
+-	Mpmovecfix(c.Val.U.Xval, v)
++	c.Val.U = new(Mpint)
++	Mpmovecfix(c.Val.U.(*Mpint), v)
+ 	c.Val.Ctype = CTINT
+ 	c.Type = Types[TIDEAL]
+ 	ullmancalc(c)
+@@ -677,8 +677,8 @@ func Nodintconst(v int64) *Node {
+ func nodfltconst(v *Mpflt) *Node {
+ 	c := Nod(OLITERAL, nil, nil)
+ 	c.Addable = true
+-	c.Val.U.Fval = newMpflt()
+-	mpmovefltflt(c.Val.U.Fval, v)
++	c.Val.U = newMpflt()
++	mpmovefltflt(c.Val.U.(*Mpflt), v)
+ 	c.Val.Ctype = CTFLT
+ 	c.Type = Types[TIDEAL]
+ 	ullmancalc(c)
+@@ -690,8 +690,8 @@ func Nodconst(n *Node, t *Type, v int64) {
+ 	n.Op = OLITERAL
+ 	n.Addable = true
+ 	ullmancalc(n)
+-	n.Val.U.Xval = new(Mpint)
+-	Mpmovecfix(n.Val.U.Xval, v)
++	n.Val.U = new(Mpint)
++	Mpmovecfix(n.Val.U.(*Mpint), v)
+ 	n.Val.Ctype = CTINT
+ 	n.Type = t
+ 
+@@ -710,7 +710,7 @@ func nodnil() *Node {
+ func Nodbool(b bool) *Node {
+ 	c := Nodintconst(0)
+ 	c.Val.Ctype = CTBOOL
+-	c.Val.U.Bval = b
++	c.Val.U = b
+ 	c.Type = idealbool
+ 	return c
+ }
+@@ -724,7 +724,7 @@ func aindex(b *Node, t *Type) *Type {
+ 			Yyerror("array bound must be an integer expression")
+ 
+ 		case CTINT, CTRUNE:
+-			bound = Mpgetfix(b.Val.U.Xval)
++			bound = Mpgetfix(b.Val.U.(*Mpint))
+ 			if bound < 0 {
+ 				Yyerror("array bound must be non negative")
+ 			}
+@@ -2422,11 +2422,11 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 
+ 		var v Val
+ 		v.Ctype = CTSTR
+-		v.U.Sval = rcvr.Type.Sym.Pkg.Name // package name
++		v.U = rcvr.Type.Sym.Pkg.Name // package name
+ 		l = list(l, nodlit(v))
+-		v.U.Sval = rcvr.Type.Sym.Name // type name
++		v.U = rcvr.Type.Sym.Name // type name
+ 		l = list(l, nodlit(v))
+-		v.U.Sval = method.Sym.Name
++		v.U = method.Sym.Name
+ 		l = list(l, nodlit(v)) // method name
+ 		call := Nod(OCALL, syslook("panicwrap", 0), nil)
+ 		call.List = l
+@@ -3139,7 +3139,7 @@ func powtwo(n *Node) int {
+ 		return -1
+ 	}
+ 
+-	v := uint64(Mpgetfix(n.Val.U.Xval))
++	v := uint64(Mpgetfix(n.Val.U.(*Mpint)))
+ 	b := uint64(1)
+ 	for i := 0; i < 64; i++ {
+ 		if b == v {
+diff --git a/src/cmd/internal/gc/swt.go b/src/cmd/internal/gc/swt.go
+index 7cb632cebe..e8f15a5ce5 100644
+--- a/src/cmd/internal/gc/swt.go
++++ b/src/cmd/internal/gc/swt.go
+@@ -218,7 +218,7 @@ func (s *exprSwitch) walk(sw *Node) {
+ 	s.kind = switchKindExpr
+ 	if Isconst(sw.Ntest, CTBOOL) {
+ 		s.kind = switchKindTrue
+-		if !sw.Ntest.Val.U.Bval {
++		if !sw.Ntest.Val.U.(bool) {
+ 			s.kind = switchKindFalse
+ 		}
+ 	}
+@@ -755,16 +755,16 @@ func exprcmp(c1, c2 *caseClause) int {
+ 	// sort by constant value to enable binary search
+ 	switch ct {
+ 	case CTFLT:
+-		return mpcmpfltflt(n1.Val.U.Fval, n2.Val.U.Fval)
++		return mpcmpfltflt(n1.Val.U.(*Mpflt), n2.Val.U.(*Mpflt))
+ 	case CTINT, CTRUNE:
+-		return Mpcmpfixfix(n1.Val.U.Xval, n2.Val.U.Xval)
++		return Mpcmpfixfix(n1.Val.U.(*Mpint), n2.Val.U.(*Mpint))
+ 	case CTSTR:
+ 		// Sort strings by length and then by value.
+ 		// It is much cheaper to compare lengths than values,
+ 		// and all we need here is consistency.
+ 		// We respect this sorting in exprSwitch.walkCases.
+-		a := n1.Val.U.Sval
+-		b := n2.Val.U.Sval
++		a := n1.Val.U.(string)
++		b := n2.Val.U.(string)
+ 		if len(a) < len(b) {
+ 			return -1
+ 		}
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 3061275da3..bc6bbdb7e3 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -392,7 +392,7 @@ OpSwitch:
+ 				return
+ 			}
+ 
+-			t.Bound = Mpgetfix(v.U.Xval)
++			t.Bound = Mpgetfix(v.U.(*Mpint))
+ 			if doesoverflow(v, Types[TINT]) {
+ 				Yyerror("array bound is too large")
+ 				n.Type = nil
+@@ -770,7 +770,7 @@ OpSwitch:
+ 		}
+ 
+ 		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
+-			if mpcmpfixc(r.Val.U.Xval, 0) == 0 {
++			if mpcmpfixc(r.Val.U.(*Mpint), 0) == 0 {
+ 				Yyerror("division by zero")
+ 				n.Type = nil
+ 				return
+@@ -1043,14 +1043,14 @@ OpSwitch:
+ 			}
+ 
+ 			if Isconst(n.Right, CTINT) {
+-				x := Mpgetfix(n.Right.Val.U.Xval)
++				x := Mpgetfix(n.Right.Val.U.(*Mpint))
+ 				if x < 0 {
+ 					Yyerror("invalid %s index %v (index must be non-negative)", why, n.Right)
+ 				} else if Isfixedarray(t) && t.Bound > 0 && x >= t.Bound {
+ 					Yyerror("invalid array index %v (out of bounds for %d-element array)", n.Right, t.Bound)
+-				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.Sval)) {
+-					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val.U.Sval))
+-				} else if Mpcmpfixfix(n.Right.Val.U.Xval, Maxintval[TINT]) > 0 {
++				} else if Isconst(n.Left, CTSTR) && x >= int64(len(n.Left.Val.U.(string))) {
++					Yyerror("invalid string index %v (out of bounds for %d-byte string)", n.Right, len(n.Left.Val.U.(string)))
++				} else if Mpcmpfixfix(n.Right.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 					Yyerror("invalid %s index %v (index too large)", why, n.Right)
+ 				}
+ 			}
+@@ -1435,9 +1435,9 @@ OpSwitch:
+ 			if Isconst(l, CTCPLX) {
+ 				r := n
+ 				if n.Op == OREAL {
+-					n = nodfltconst(&l.Val.U.Cval.Real)
++					n = nodfltconst(&l.Val.U.(*Mpcplx).Real)
+ 				} else {
+-					n = nodfltconst(&l.Val.U.Cval.Imag)
++					n = nodfltconst(&l.Val.U.(*Mpcplx).Imag)
+ 				}
+ 				n.Orig = r
+ 			}
+@@ -1451,7 +1451,7 @@ OpSwitch:
+ 		case TSTRING:
+ 			if Isconst(l, CTSTR) {
+ 				r := Nod(OXXX, nil, nil)
+-				Nodconst(r, Types[TINT], int64(len(l.Val.U.Sval)))
++				Nodconst(r, Types[TINT], int64(len(l.Val.U.(string))))
+ 				r.Orig = n
+ 				n = r
+ 			}
+@@ -1859,7 +1859,7 @@ OpSwitch:
+ 				n.Type = nil
+ 				return
+ 			}
+-			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val.U.Xval, r.Val.U.Xval) > 0 {
++			if Isconst(l, CTINT) && r != nil && Isconst(r, CTINT) && Mpcmpfixfix(l.Val.U.(*Mpint), r.Val.U.(*Mpint)) > 0 {
+ 				Yyerror("len larger than cap in make(%v)", t)
+ 				n.Type = nil
+ 				return
+@@ -2255,16 +2255,16 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
+ 	}
+ 
+ 	if r.Op == OLITERAL {
+-		if Mpgetfix(r.Val.U.Xval) < 0 {
++		if Mpgetfix(r.Val.U.(*Mpint)) < 0 {
+ 			Yyerror("invalid slice index %v (index must be non-negative)", r)
+ 			return -1
+-		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.Xval) > tp.Bound {
++		} else if tp != nil && tp.Bound > 0 && Mpgetfix(r.Val.U.(*Mpint)) > tp.Bound {
+ 			Yyerror("invalid slice index %v (out of bounds for %d-element array)", r, tp.Bound)
+ 			return -1
+-		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.Xval) > int64(len(l.Val.U.Sval)) {
+-			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val.U.Sval))
++		} else if Isconst(l, CTSTR) && Mpgetfix(r.Val.U.(*Mpint)) > int64(len(l.Val.U.(string))) {
++			Yyerror("invalid slice index %v (out of bounds for %d-byte string)", r, len(l.Val.U.(string)))
+ 			return -1
+-		} else if Mpcmpfixfix(r.Val.U.Xval, Maxintval[TINT]) > 0 {
++		} else if Mpcmpfixfix(r.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 			Yyerror("invalid slice index %v (index too large)", r)
+ 			return -1
+ 		}
+@@ -2274,7 +2274,7 @@ func checksliceindex(l *Node, r *Node, tp *Type) int {
+ }
+ 
+ func checksliceconst(lo *Node, hi *Node) int {
+-	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val.U.Xval, hi.Val.U.Xval) > 0 {
++	if lo != nil && hi != nil && lo.Op == OLITERAL && hi.Op == OLITERAL && Mpcmpfixfix(lo.Val.U.(*Mpint), hi.Val.U.(*Mpint)) > 0 {
+ 		Yyerror("invalid slice index: %v > %v", lo, hi)
+ 		return -1
+ 	}
+@@ -2824,10 +2824,10 @@ func keydup(n *Node, hash []*Node) {
+ 		b = 23
+ 
+ 	case CTINT, CTRUNE:
+-		b = uint32(Mpgetfix(n.Val.U.Xval))
++		b = uint32(Mpgetfix(n.Val.U.(*Mpint)))
+ 
+ 	case CTFLT:
+-		d := mpgetflt(n.Val.U.Fval)
++		d := mpgetflt(n.Val.U.(*Mpflt))
+ 		x := math.Float64bits(d)
+ 		for i := 0; i < 8; i++ {
+ 			b = b*PRIME1 + uint32(x&0xFF)
+@@ -2836,8 +2836,8 @@ func keydup(n *Node, hash []*Node) {
+ 
+ 	case CTSTR:
+ 		b = 0
+-		s := n.Val.U.Sval
+-		for i := len(n.Val.U.Sval); i > 0; i-- {
++		s := n.Val.U.(string)
++		for i := len(n.Val.U.(string)); i > 0; i-- {
+ 			b = b*PRIME1 + uint32(s[0])
+ 			s = s[1:]
+ 		}
+@@ -2853,12 +2853,12 @@ func keydup(n *Node, hash []*Node) {
+ 			if Eqtype(a.Left.Type, n.Type) {
+ 				cmp.Right = a.Left
+ 				evconst(&cmp)
+-				b = uint32(obj.Bool2int(cmp.Val.U.Bval))
++				b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+ 			}
+ 		} else if Eqtype(a.Type, n.Type) {
+ 			cmp.Right = a
+ 			evconst(&cmp)
+-			b = uint32(obj.Bool2int(cmp.Val.U.Bval))
++			b = uint32(obj.Bool2int(cmp.Val.U.(bool)))
+ 		}
+ 
+ 		if b != 0 {
+@@ -2876,11 +2876,11 @@ func indexdup(n *Node, hash []*Node) {
+ 		Fatal("indexdup: not OLITERAL")
+ 	}
+ 
+-	b := uint32(Mpgetfix(n.Val.U.Xval))
++	b := uint32(Mpgetfix(n.Val.U.(*Mpint)))
+ 	h := uint(b % uint32(len(hash)))
+ 	var c uint32
+ 	for a := hash[h]; a != nil; a = a.Ntest {
+-		c = uint32(Mpgetfix(a.Val.U.Xval))
++		c = uint32(Mpgetfix(a.Val.U.(*Mpint)))
+ 		if b == c {
+ 			Yyerror("duplicate index in array literal: %d", b)
+ 			return
+@@ -3529,7 +3529,7 @@ func stringtoarraylit(np **Node) {
+ 		Fatal("stringtoarraylit %v", n)
+ 	}
+ 
+-	s := n.Left.Val.U.Sval
++	s := n.Left.Val.U.(string)
+ 	var l *NodeList
+ 	if n.Type.Type.Etype == TUINT8 {
+ 		// []byte
+@@ -3886,12 +3886,12 @@ func checkmake(t *Type, arg string, n *Node) int {
+ 		switch n.Val.Ctype {
+ 		case CTINT, CTRUNE, CTFLT, CTCPLX:
+ 			n.Val = toint(n.Val)
+-			if mpcmpfixc(n.Val.U.Xval, 0) < 0 {
++			if mpcmpfixc(n.Val.U.(*Mpint), 0) < 0 {
+ 				Yyerror("negative %s argument in make(%v)", arg, t)
+ 				return -1
+ 			}
+ 
+-			if Mpcmpfixfix(n.Val.U.Xval, Maxintval[TINT]) > 0 {
++			if Mpcmpfixfix(n.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 				Yyerror("%s argument too large in make(%v)", arg, t)
+ 				return -1
+ 			}
+diff --git a/src/cmd/internal/gc/unsafe.go b/src/cmd/internal/gc/unsafe.go
+index aa90a19308..824ecd0339 100644
+--- a/src/cmd/internal/gc/unsafe.go
++++ b/src/cmd/internal/gc/unsafe.go
+@@ -140,8 +140,8 @@ ret:
+ 	var val Val
+ 	val.Ctype = CTINT
+ 
+-	val.U.Xval = new(Mpint)
+-	Mpmovecfix(val.U.Xval, v)
++	val.U = new(Mpint)
++	Mpmovecfix(val.U.(*Mpint), v)
+ 	n := Nod(OLITERAL, nil, nil)
+ 	n.Orig = nn
+ 	n.Val = val
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 495acb1861..81bb8524b3 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -1206,7 +1206,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 				Yyerror("index out of bounds")
+ 			}
+ 		} else if Isconst(n.Left, CTSTR) {
+-			n.Bounded = bounded(r, int64(len(n.Left.Val.U.Sval)))
++			n.Bounded = bounded(r, int64(len(n.Left.Val.U.(string))))
+ 			if Debug['m'] != 0 && n.Bounded && !Isconst(n.Right, CTINT) {
+ 				Warn("index bounds check elided")
+ 			}
+@@ -1217,16 +1217,16 @@ func walkexpr(np **Node, init **NodeList) {
+ 					// replace "abc"[1] with 'b'.
+ 					// delayed until now because "abc"[1] is not
+ 					// an ideal constant.
+-					v := Mpgetfix(n.Right.Val.U.Xval)
++					v := Mpgetfix(n.Right.Val.U.(*Mpint))
+ 
+-					Nodconst(n, n.Type, int64(n.Left.Val.U.Sval[v]))
++					Nodconst(n, n.Type, int64(n.Left.Val.U.(string)[v]))
+ 					n.Typecheck = 1
+ 				}
+ 			}
+ 		}
+ 
+ 		if Isconst(n.Right, CTINT) {
+-			if Mpcmpfixfix(n.Right.Val.U.Xval, &mpzero) < 0 || Mpcmpfixfix(n.Right.Val.U.Xval, Maxintval[TINT]) > 0 {
++			if Mpcmpfixfix(n.Right.Val.U.(*Mpint), &mpzero) < 0 || Mpcmpfixfix(n.Right.Val.U.(*Mpint), Maxintval[TINT]) > 0 {
+ 				Yyerror("index out of bounds")
+ 			}
+ 		}
+@@ -1338,7 +1338,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 	// comparing the lengths instead will yield the same result
+ 	// without the function call.
+ 	case OCMPSTR:
+-		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.Sval) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.Sval) == 0) {
++		if (Isconst(n.Left, CTSTR) && len(n.Left.Val.U.(string)) == 0) || (Isconst(n.Right, CTSTR) && len(n.Right.Val.U.(string)) == 0) {
+ 			r := Nod(int(n.Etype), Nod(OLEN, n.Left, nil), Nod(OLEN, n.Right, nil))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)
+@@ -1458,7 +1458,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 			l = r
+ 		}
+ 		t := n.Type
+-		if n.Esc == EscNone && Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.Xval) < (1<<16)/t.Type.Width) {
++		if n.Esc == EscNone && Smallintconst(l) && Smallintconst(r) && (t.Type.Width == 0 || Mpgetfix(r.Val.U.(*Mpint)) < (1<<16)/t.Type.Width) {
+ 			// var arr [r]T
+ 			// n = arr[:l]
+ 			t = aindex(r, t.Type) // [r]T
+@@ -2862,7 +2862,7 @@ func addstr(n *Node, init **NodeList) *Node {
+ 		sz := int64(0)
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if n.Op == OLITERAL {
+-				sz += int64(len(n.Val.U.Sval))
++				sz += int64(len(n.Val.U.(string)))
+ 			}
+ 		}
+ 
+@@ -3415,7 +3415,7 @@ func samecheap(a *Node, b *Node) bool {
+ 		case OINDEX:
+ 			ar = a.Right
+ 			br = b.Right
+-			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || Mpcmpfixfix(ar.Val.U.Xval, br.Val.U.Xval) != 0 {
++			if !Isconst(ar, CTINT) || !Isconst(br, CTINT) || Mpcmpfixfix(ar.Val.U.(*Mpint), br.Val.U.(*Mpint)) != 0 {
+ 				return false
+ 			}
+ 		}
+@@ -3451,9 +3451,9 @@ func walkrotate(np **Node) {
+ 	w := int(l.Type.Width * 8)
+ 
+ 	if Smallintconst(l.Right) && Smallintconst(r.Right) {
+-		sl := int(Mpgetfix(l.Right.Val.U.Xval))
++		sl := int(Mpgetfix(l.Right.Val.U.(*Mpint)))
+ 		if sl >= 0 {
+-			sr := int(Mpgetfix(r.Right.Val.U.Xval))
++			sr := int(Mpgetfix(r.Right.Val.U.(*Mpint)))
+ 			if sr >= 0 && sl+sr == w {
+ 				// Rewrite left shift half to left rotate.
+ 				if l.Op == OLSH {
+@@ -3464,7 +3464,7 @@ func walkrotate(np **Node) {
+ 				n.Op = OLROT
+ 
+ 				// Remove rotate 0 and rotate w.
+-				s := int(Mpgetfix(n.Right.Val.U.Xval))
++				s := int(Mpgetfix(n.Right.Val.U.(*Mpint)))
+ 
+ 				if s == 0 || s == w {
+ 					n = n.Left
+@@ -3507,7 +3507,7 @@ func walkmul(np **Node, init **NodeList) {
+ 	// x*0 is 0 (and side effects of x).
+ 	var pow int
+ 	var w int
+-	if Mpgetfix(nr.Val.U.Xval) == 0 {
++	if Mpgetfix(nr.Val.U.(*Mpint)) == 0 {
+ 		cheapexpr(nl, init)
+ 		Nodconst(n, n.Type, 0)
+ 		goto ret
+@@ -3600,10 +3600,10 @@ func walkdiv(np **Node, init **NodeList) {
+ 		m.W = w
+ 
+ 		if Issigned[nl.Type.Etype] {
+-			m.Sd = Mpgetfix(nr.Val.U.Xval)
++			m.Sd = Mpgetfix(nr.Val.U.(*Mpint))
+ 			Smagic(&m)
+ 		} else {
+-			m.Ud = uint64(Mpgetfix(nr.Val.U.Xval))
++			m.Ud = uint64(Mpgetfix(nr.Val.U.(*Mpint)))
+ 			Umagic(&m)
+ 		}
+ 
+@@ -3797,7 +3797,7 @@ func walkdiv(np **Node, init **NodeList) {
+ 			// n = nl & (nr-1)
+ 			n.Op = OAND
+ 
+-			Nodconst(nc, nl.Type, Mpgetfix(nr.Val.U.Xval)-1)
++			Nodconst(nc, nl.Type, Mpgetfix(nr.Val.U.(*Mpint))-1)
+ 		} else {
+ 			// n = nl >> pow
+ 			n.Op = ORSH
+@@ -3827,7 +3827,7 @@ func bounded(n *Node, max int64) bool {
+ 	bits := int32(8 * n.Type.Width)
+ 
+ 	if Smallintconst(n) {
+-		v := Mpgetfix(n.Val.U.Xval)
++		v := Mpgetfix(n.Val.U.(*Mpint))
+ 		return 0 <= v && v < max
+ 	}
+ 
+@@ -3835,9 +3835,9 @@ func bounded(n *Node, max int64) bool {
+ 	case OAND:
+ 		v := int64(-1)
+ 		if Smallintconst(n.Left) {
+-			v = Mpgetfix(n.Left.Val.U.Xval)
++			v = Mpgetfix(n.Left.Val.U.(*Mpint))
+ 		} else if Smallintconst(n.Right) {
+-			v = Mpgetfix(n.Right.Val.U.Xval)
++			v = Mpgetfix(n.Right.Val.U.(*Mpint))
+ 		}
+ 
+ 		if 0 <= v && v < max {
+@@ -3846,7 +3846,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case OMOD:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := Mpgetfix(n.Right.Val.U.Xval)
++			v := Mpgetfix(n.Right.Val.U.(*Mpint))
+ 			if 0 <= v && v <= max {
+ 				return true
+ 			}
+@@ -3854,7 +3854,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case ODIV:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := Mpgetfix(n.Right.Val.U.Xval)
++			v := Mpgetfix(n.Right.Val.U.(*Mpint))
+ 			for bits > 0 && v >= 2 {
+ 				bits--
+ 				v >>= 1
+@@ -3863,7 +3863,7 @@ func bounded(n *Node, max int64) bool {
+ 
+ 	case ORSH:
+ 		if !sign && Smallintconst(n.Right) {
+-			v := Mpgetfix(n.Right.Val.U.Xval)
++			v := Mpgetfix(n.Right.Val.U.(*Mpint))
+ 			if v > int64(bits) {
+ 				return true
+ 			}
+@@ -3996,17 +3996,17 @@ func candiscard(n *Node) bool {
+ 
+ 		// Discardable as long as we know it's not division by zero.
+ 	case ODIV, OMOD:
+-		if Isconst(n.Right, CTINT) && mpcmpfixc(n.Right.Val.U.Xval, 0) != 0 {
++		if Isconst(n.Right, CTINT) && mpcmpfixc(n.Right.Val.U.(*Mpint), 0) != 0 {
+ 			break
+ 		}
+-		if Isconst(n.Right, CTFLT) && mpcmpfltc(n.Right.Val.U.Fval, 0) != 0 {
++		if Isconst(n.Right, CTFLT) && mpcmpfltc(n.Right.Val.U.(*Mpflt), 0) != 0 {
+ 			break
+ 		}
+ 		return false
+ 
+ 		// Discardable as long as we know it won't fail because of a bad size.
+ 	case OMAKECHAN, OMAKEMAP:
+-		if Isconst(n.Left, CTINT) && mpcmpfixc(n.Left.Val.U.Xval, 0) == 0 {
++		if Isconst(n.Left, CTINT) && mpcmpfixc(n.Left.Val.U.(*Mpint), 0) == 0 {
+ 			break
+ 		}
+ 		return false
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index fd3f2b3176..06f6b13eb6 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -2327,13 +2327,13 @@ yydefault:
+ 		{
+ 			var p *Pkg
+ 
+-			if yyDollar[2].val.U.Sval == "" {
++			if yyDollar[2].val.U.(string) == "" {
+ 				p = importpkg
+ 			} else {
+-				if isbadimport(yyDollar[2].val.U.Sval) {
++				if isbadimport(yyDollar[2].val.U.(string)) {
+ 					errorexit()
+ 				}
+-				p = mkpkg(yyDollar[2].val.U.Sval)
++				p = mkpkg(yyDollar[2].val.U.(string))
+ 			}
+ 			yyVAL.sym = Pkglookup(yyDollar[4].sym.Name, p)
+ 		}
+@@ -2343,13 +2343,13 @@ yydefault:
+ 		{
+ 			var p *Pkg
+ 
+-			if yyDollar[2].val.U.Sval == "" {
++			if yyDollar[2].val.U.(string) == "" {
+ 				p = importpkg
+ 			} else {
+-				if isbadimport(yyDollar[2].val.U.Sval) {
++				if isbadimport(yyDollar[2].val.U.(string)) {
+ 					errorexit()
+ 				}
+-				p = mkpkg(yyDollar[2].val.U.Sval)
++				p = mkpkg(yyDollar[2].val.U.(string))
+ 			}
+ 			yyVAL.sym = Pkglookup("?", p)
+ 		}
+@@ -3156,7 +3156,7 @@ yydefault:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+ 		//line go.y:1947
+ 		{
+-			importimport(yyDollar[2].sym, yyDollar[3].val.U.Sval)
++			importimport(yyDollar[2].sym, yyDollar[3].val.U.(string))
+ 		}
+ 	case 305:
+ 		yyDollar = yyS[yypt-4 : yypt+1]
+@@ -3404,14 +3404,14 @@ yydefault:
+ 			yyVAL.node = nodlit(yyDollar[2].val)
+ 			switch yyVAL.node.Val.Ctype {
+ 			case CTINT, CTRUNE:
+-				mpnegfix(yyVAL.node.Val.U.Xval)
++				mpnegfix(yyVAL.node.Val.U.(*Mpint))
+ 				break
+ 			case CTFLT:
+-				mpnegflt(yyVAL.node.Val.U.Fval)
++				mpnegflt(yyVAL.node.Val.U.(*Mpflt))
+ 				break
+ 			case CTCPLX:
+-				mpnegflt(&yyVAL.node.Val.U.Cval.Real)
+-				mpnegflt(&yyVAL.node.Val.U.Cval.Imag)
++				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Real)
++				mpnegflt(&yyVAL.node.Val.U.(*Mpcplx).Imag)
+ 				break
+ 			default:
+ 				Yyerror("bad negated constant")
+@@ -3432,11 +3432,11 @@ yydefault:
+ 		{
+ 			if yyDollar[2].node.Val.Ctype == CTRUNE && yyDollar[4].node.Val.Ctype == CTINT {
+ 				yyVAL.node = yyDollar[2].node
+-				mpaddfixfix(yyDollar[2].node.Val.U.Xval, yyDollar[4].node.Val.U.Xval, 0)
++				mpaddfixfix(yyDollar[2].node.Val.U.(*Mpint), yyDollar[4].node.Val.U.(*Mpint), 0)
+ 				break
+ 			}
+-			yyDollar[4].node.Val.U.Cval.Real = yyDollar[4].node.Val.U.Cval.Imag
+-			Mpmovecflt(&yyDollar[4].node.Val.U.Cval.Imag, 0.0)
++			yyDollar[4].node.Val.U.(*Mpcplx).Real = yyDollar[4].node.Val.U.(*Mpcplx).Imag
++			Mpmovecflt(&yyDollar[4].node.Val.U.(*Mpcplx).Imag, 0.0)
+ 			yyVAL.node = nodcplxlit(yyDollar[2].node.Val, yyDollar[4].node.Val)
+ 		}
+ 	case 346:

@@ -13,8 +13,93 @@ Date:   Sat Jul 17 16:32:40 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1692055
-
+---
  src/cmd/gc/mparith1.c | 34 ++++++++++++++++++++++++++++++++--
  src/cmd/gc/mparith2.c |  6 +++++-
  src/cmd/gc/mparith3.c |  2 +-
  3 files changed, 38 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 8110e77b98..14226d6a9a 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -156,10 +156,11 @@ mpmovefixflt(Mpflt *a, Mpint *b)
+ 
+ // convert (truncate) b to a.
+ // return -1 (but still convert) if b was non-integer.
+-int
+-mpmovefltfix(Mpint *a, Mpflt *b)
++static int
++mpexactfltfix(Mpint *a, Mpflt *b)
+ {
+ 	Mpflt f;
++
+ 	*a = b->val;
+ 	mpshiftfix(a, b->exp);
+ 	if(b->exp < 0) {
+@@ -172,6 +173,35 @@ mpmovefltfix(Mpint *a, Mpflt *b)
+ 	return 0;
+ }
+ 
++int
++mpmovefltfix(Mpint *a, Mpflt *b)
++{
++	Mpflt f;
++	int i;
++
++	if(mpexactfltfix(a, b) == 0)
++		return 0;
++
++	// try rounding down a little
++	f = *b;
++	f.val.a[0] = 0;
++	if(mpexactfltfix(a, &f) == 0)
++		return 0;
++
++	// try rounding up a little
++	for(i=1; i<Mpprec; i++) {
++		f.val.a[i]++;
++		if(f.val.a[i] != Mpbase)
++			break;
++		f.val.a[i] = 0;
++	}
++	mpnorm(&f);
++	if(mpexactfltfix(a, &f) == 0)
++		return 0;
++
++	return -1;
++}
++
+ void
+ mpmovefixfix(Mpint *a, Mpint *b)
+ {
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index b025917fa8..67375adb17 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -319,7 +319,11 @@ mpmulfract(Mpint *a, Mpint *b)
+ 	s.neg = 0;
+ 	mpmovecfix(&q, 0);
+ 
+-	for(i=0; i<Mpprec; i++) {
++	x = *--a1;
++	if(x != 0)
++		yyerror("mpmulfract not normal");
++
++	for(i=0; i<Mpprec-1; i++) {
+ 		x = *--a1;
+ 		if(x == 0) {
+ 			mprshw(&s);
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index b9cd4ea847..5ee8b0308f 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -109,7 +109,7 @@ mpmulfltflt(Mpflt *a, Mpflt *b)
+ 	}
+ 
+ 	mpmulfract(&a->val, &b->val);
+-	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - 1;
++	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - Mpscale - 1;
+ 
+ 	mpnorm(a);
+ 	if(Mpdebug)

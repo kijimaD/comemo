@@ -10,7 +10,7 @@ Date:   Thu Jul 31 13:48:48 2014 -0700
     R=golang-codereviews, bradfitz, khr, dave, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/119240043
-
+---
  src/pkg/runtime/alg.goc         |   8 +--
  src/pkg/runtime/gc_test.go      |  24 ++++++++
  src/pkg/runtime/iface.goc       |   8 ---
@@ -27,3 +27,773 @@ Date:   Thu Jul 31 13:48:48 2014 -0700
  test/print.go                   |  42 +++++++++++++
  test/print.out                  |  24 ++++++++
  15 files changed, 322 insertions(+), 119 deletions(-)
+
+diff --git a/src/pkg/runtime/alg.goc b/src/pkg/runtime/alg.goc
+index 41be9c0e66..cb8e073151 100644
+--- a/src/pkg/runtime/alg.goc
++++ b/src/pkg/runtime/alg.goc
+@@ -66,7 +66,7 @@ runtime·memprint(uintptr s, void *a)
+ 		v = *(uint64*)a;
+ 		break;
+ 	}
+-	runtime·printint(v);
++	runtime·printint_c(v);
+ }
+ 
+ void
+@@ -332,7 +332,7 @@ void
+ runtime·strprint(uintptr s, void *a)
+ {
+ 	USED(s);
+-	runtime·printstring(*(String*)a);
++	runtime·printstring_c(*(String*)a);
+ }
+ 
+ void
+@@ -359,7 +359,7 @@ void
+ runtime·interprint(uintptr s, void *a)
+ {
+ 	USED(s);
+-	runtime·printiface(*(Iface*)a);
++	runtime·printiface_c(*(Iface*)a);
+ }
+ 
+ void
+@@ -393,7 +393,7 @@ void
+ runtime·nilinterprint(uintptr s, void *a)
+ {
+ 	USED(s);
+-	runtime·printeface(*(Eface*)a);
++	runtime·printeface_c(*(Eface*)a);
+ }
+ 
+ void
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 81ecc1aa62..073d9fa758 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -258,3 +258,27 @@ func BenchmarkAllocation(b *testing.B) {
+ 		<-result
+ 	}
+ }
++
++func TestPrintGC(t *testing.T) {
++	if testing.Short() {
++		t.Skip("Skipping in short mode")
++	}
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(2))
++	done := make(chan bool)
++	go func() {
++		for {
++			select {
++			case <-done:
++				return
++			default:
++				runtime.GC()
++			}
++		}
++	}()
++	for i := 0; i < 1e4; i++ {
++		func() {
++			defer print("")
++		}()
++	}
++	close(done)
++}
+diff --git a/src/pkg/runtime/iface.goc b/src/pkg/runtime/iface.goc
+index c0a17e3034..b5f5815275 100644
+--- a/src/pkg/runtime/iface.goc
++++ b/src/pkg/runtime/iface.goc
+@@ -10,14 +10,6 @@ package runtime
+ #include "malloc.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-func printiface(i Iface) {
+-	runtime·printf("(%p,%p)", i.tab, i.data);
+-}
+-
+-func printeface(e Eface) {
+-	runtime·printf("(%p,%p)", e.type, e.data);
+-}
+-
+ static	Itab*	hash[1009];
+ static	Lock	ifacelock;
+ 
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index c660fb8c10..84b69b047a 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -150,7 +150,7 @@ macherror(int32 r, int8 *fn)
+ 	runtime·prints("mach error ");
+ 	runtime·prints(fn);
+ 	runtime·prints(": ");
+-	runtime·printint(r);
++	runtime·printint_c(r);
+ 	runtime·prints("\n");
+ 	runtime·throw("mach error");
+ }
+@@ -218,7 +218,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 		runtime·prints("send:\t");
+ 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
+ 			runtime·prints(" ");
+-			runtime·printpointer((void*)p[i]);
++			runtime·printpointer_c((void*)p[i]);
+ 			if(i%8 == 7)
+ 				runtime·prints("\n\t");
+ 		}
+@@ -231,7 +231,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(ret != 0){
+ 		if(DebugMach){
+ 			runtime·prints("mach_msg error ");
+-			runtime·printint(ret);
++			runtime·printint_c(ret);
+ 			runtime·prints("\n");
+ 		}
+ 		return ret;
+@@ -242,7 +242,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 		runtime·prints("recv:\t");
+ 		for(i=0; i<h->msgh_size/sizeof(p[0]); i++){
+ 			runtime·prints(" ");
+-			runtime·printpointer((void*)p[i]);
++			runtime·printpointer_c((void*)p[i]);
+ 			if(i%8 == 7)
+ 				runtime·prints("\n\t");
+ 		}
+@@ -253,9 +253,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(h->msgh_id != id+Reply){
+ 		if(DebugMach){
+ 			runtime·prints("mach_msg reply id mismatch ");
+-			runtime·printint(h->msgh_id);
++			runtime·printint_c(h->msgh_id);
+ 			runtime·prints(" != ");
+-			runtime·printint(id+Reply);
++			runtime·printint_c(id+Reply);
+ 			runtime·prints("\n");
+ 		}
+ 		return -303;	// MIG_REPLY_MISMATCH
+@@ -272,7 +272,7 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	&& !(h->msgh_bits & MACH_MSGH_BITS_COMPLEX)){
+ 		if(DebugMach){
+ 			runtime·prints("mig result ");
+-			runtime·printint(c->code);
++			runtime·printint_c(c->code);
+ 			runtime·prints("\n");
+ 		}
+ 		return c->code;
+@@ -281,9 +281,9 @@ machcall(MachHeader *h, int32 maxsize, int32 rxsize)
+ 	if(h->msgh_size != rxsize){
+ 		if(DebugMach){
+ 			runtime·prints("mach_msg reply size mismatch ");
+-			runtime·printint(h->msgh_size);
++			runtime·printint_c(h->msgh_size);
+ 			runtime·prints(" != ");
+-			runtime·printint(rxsize);
++			runtime·printint_c(rxsize);
+ 			runtime·prints("\n");
+ 		}
+ 		return -307;	// MIG_ARRAY_TOO_LARGE
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index b8c967a07a..ce5307af07 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -63,11 +63,11 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 		return;
+ 
+ 	runtime·prints("umtx_wait addr=");
+-	runtime·printpointer(addr);
++	runtime·printpointer_c(addr);
+ 	runtime·prints(" val=");
+-	runtime·printint(val);
++	runtime·printint_c(val);
+ 	runtime·prints(" ret=");
+-	runtime·printint(ret);
++	runtime·printint_c(ret);
+ 	runtime·prints("\n");
+ 	*(int32*)0x1005 = 0x1005;
+ }
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 367fe0ba0d..794578c208 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -64,11 +64,11 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 
+ fail:
+ 	runtime·prints("umtx_wait addr=");
+-	runtime·printpointer(addr);
++	runtime·printpointer_c(addr);
+ 	runtime·prints(" val=");
+-	runtime·printint(val);
++	runtime·printint_c(val);
+ 	runtime·prints(" ret=");
+-	runtime·printint(ret);
++	runtime·printint_c(ret);
+ 	runtime·prints("\n");
+ 	*(int32*)0x1005 = 0x1005;
+ }
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index a04708fae9..e2905c2db3 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -36,8 +36,8 @@ runtime·dump(byte *p, int32 n)
+ 	int32 i;
+ 
+ 	for(i=0; i<n; i++) {
+-		runtime·printpointer((byte*)(p[i]>>4));
+-		runtime·printpointer((byte*)(p[i]&0xf));
++		runtime·printpointer_c((byte*)(p[i]>>4));
++		runtime·printpointer_c((byte*)(p[i]&0xf));
+ 		if((i&15) == 15)
+ 			runtime·prints("\n");
+ 		else
+@@ -144,49 +144,49 @@ vprintf(int8 *s, byte *base)
+ 		v = (byte*)arg;
+ 		switch(*p) {
+ 		case 'a':
+-			runtime·printslice(*(Slice*)v);
++			runtime·printslice_c(*(Slice*)v);
+ 			break;
+ 		case 'c':
+-			runtime·printbyte(*(int8*)v);
++			runtime·printbyte_c(*(int8*)v);
+ 			break;
+ 		case 'd':
+-			runtime·printint(*(int32*)v);
++			runtime·printint_c(*(int32*)v);
+ 			break;
+ 		case 'D':
+-			runtime·printint(*(int64*)v);
++			runtime·printint_c(*(int64*)v);
+ 			break;
+ 		case 'e':
+-			runtime·printeface(*(Eface*)v);
++			runtime·printeface_c(*(Eface*)v);
+ 			break;
+ 		case 'f':
+-			runtime·printfloat(*(float64*)v);
++			runtime·printfloat_c(*(float64*)v);
+ 			break;
+ 		case 'C':
+-			runtime·printcomplex(*(Complex128*)v);
++			runtime·printcomplex_c(*(Complex128*)v);
+ 			break;
+ 		case 'i':
+-			runtime·printiface(*(Iface*)v);
++			runtime·printiface_c(*(Iface*)v);
+ 			break;
+ 		case 'p':
+-			runtime·printpointer(*(void**)v);
++			runtime·printpointer_c(*(void**)v);
+ 			break;
+ 		case 's':
+ 			runtime·prints(*(int8**)v);
+ 			break;
+ 		case 'S':
+-			runtime·printstring(*(String*)v);
++			runtime·printstring_c(*(String*)v);
+ 			break;
+ 		case 't':
+-			runtime·printbool(*(bool*)v);
++			runtime·printbool_c(*(bool*)v);
+ 			break;
+ 		case 'U':
+-			runtime·printuint(*(uint64*)v);
++			runtime·printuint_c(*(uint64*)v);
+ 			break;
+ 		case 'x':
+-			runtime·printhex(*(uint32*)v);
++			runtime·printhex_c(*(uint32*)v);
+ 			break;
+ 		case 'X':
+-			runtime·printhex(*(uint64*)v);
++			runtime·printhex_c(*(uint64*)v);
+ 			break;
+ 		}
+ 		arg += siz;
+@@ -198,25 +198,35 @@ vprintf(int8 *s, byte *base)
+ 	//runtime·unlock(&debuglock);
+ }
+ 
+-#pragma textflag NOSPLIT
+-void
+-runtime·goprintf(String s, ...)
++static void
++goprintf_m(void)
+ {
+ 	// Can assume s has terminating NUL because only
+ 	// the Go compiler generates calls to runtime·goprintf, using
+ 	// string constants, and all the string constants have NULs.
+-	vprintf((int8*)s.str, (byte*)(&s+1));
++	vprintf(g->m->ptrarg[0], g->m->ptrarg[1]);
++	g->m->ptrarg[0] = nil;
++	g->m->ptrarg[1] = nil;
++}
++
++#pragma textflag NOSPLIT
++void
++runtime·goprintf(String s, ...)
++{
++	g->m->ptrarg[0] = s.str;
++	g->m->ptrarg[1] = (byte*)(&s+1);
++	runtime·onM(goprintf_m);
+ }
+ 
+ void
+-runtime·printpc(void *p)
++runtime·printpc_c(void *p)
+ {
+ 	runtime·prints("PC=");
+-	runtime·printhex((uint64)runtime·getcallerpc(p));
++	runtime·printhex_c((uint64)runtime·getcallerpc(p));
+ }
+ 
+ void
+-runtime·printbool(bool v)
++runtime·printbool_c(bool v)
+ {
+ 	if(v) {
+ 		gwrite((byte*)"true", 4);
+@@ -226,13 +236,13 @@ runtime·printbool(bool v)
+ }
+ 
+ void
+-runtime·printbyte(int8 c)
++runtime·printbyte_c(int8 c)
+ {
+ 	gwrite(&c, 1);
+ }
+ 
+ void
+-runtime·printfloat(float64 v)
++runtime·printfloat_c(float64 v)
+ {
+ 	byte buf[20];
+ 	int32 e, s, i, n;
+@@ -313,16 +323,16 @@ runtime·printfloat(float64 v)
+ }
+ 
+ void
+-runtime·printcomplex(Complex128 v)
++runtime·printcomplex_c(Complex128 v)
+ {
+ 	gwrite("(", 1);
+-	runtime·printfloat(v.real);
+-	runtime·printfloat(v.imag);
++	runtime·printfloat_c(v.real);
++	runtime·printfloat_c(v.imag);
+ 	gwrite("i)", 2);
+ }
+ 
+ void
+-runtime·printuint(uint64 v)
++runtime·printuint_c(uint64 v)
+ {
+ 	byte buf[100];
+ 	int32 i;
+@@ -337,17 +347,17 @@ runtime·printuint(uint64 v)
+ }
+ 
+ void
+-runtime·printint(int64 v)
++runtime·printint_c(int64 v)
+ {
+ 	if(v < 0) {
+ 		gwrite("-", 1);
+ 		v = -v;
+ 	}
+-	runtime·printuint(v);
++	runtime·printuint_c(v);
+ }
+ 
+ void
+-runtime·printhex(uint64 v)
++runtime·printhex_c(uint64 v)
+ {
+ 	static int8 *dig = "0123456789abcdef";
+ 	byte buf[100];
+@@ -364,13 +374,13 @@ runtime·printhex(uint64 v)
+ }
+ 
+ void
+-runtime·printpointer(void *p)
++runtime·printpointer_c(void *p)
+ {
+-	runtime·printhex((uintptr)p);
++	runtime·printhex_c((uintptr)p);
+ }
+ 
+ void
+-runtime·printstring(String v)
++runtime·printstring_c(String v)
+ {
+ 	if(v.len > runtime·maxstring) {
+ 		gwrite("[string too long]", 17);
+@@ -381,13 +391,53 @@ runtime·printstring(String v)
+ }
+ 
+ void
+-runtime·printsp(void)
++runtime·printslice_c(Slice s)
++{
++	runtime·prints("[");
++	runtime·printint_c(s.len);
++	runtime·prints("/");
++	runtime·printint_c(s.cap);
++	runtime·prints("]");
++	runtime·printpointer_c(s.array);
++}
++
++void
++runtime·printeface_c(Eface e)
++{
++	runtime·printf("(%p,%p)", e.type, e.data);
++}
++
++void
++runtime·printiface_c(Iface i)
++{
++	runtime·printf("(%p,%p)", i.tab, i.data);
++}
++
++void
++runtime·printstring_m(void)
++{
++	String s;
++
++	s.str = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	s.len = g->m->scalararg[0];
++	runtime·printstring_c(s);
++}
++
++void
++runtime·printuint_m(void)
++{
++	runtime·printuint_c(*(uint64*)(&g->m->scalararg[0]));
++}
++
++void
++runtime·printhex_m(void)
+ {
+-	gwrite(" ", 1);
++	runtime·printhex_c(g->m->scalararg[0]);
+ }
+ 
+ void
+-runtime·printnl(void)
++runtime·printfloat_m(void)
+ {
+-	gwrite("\n", 1);
++	runtime·printfloat_c(*(float64*)(&g->m->scalararg[0]));
+ }
+diff --git a/src/pkg/runtime/print.go b/src/pkg/runtime/print.go
+new file mode 100644
+index 0000000000..904af5d333
+--- /dev/null
++++ b/src/pkg/runtime/print.go
+@@ -0,0 +1,109 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"unsafe"
++)
++
++// these 4 functions are complicated enough that we will share
++// the print logic with the C printf.
++var printstring_m byte
++var printuint_m byte
++var printhex_m byte
++var printfloat_m byte
++
++func printstring(s string) {
++	mp := acquirem()
++	mp.scalararg[0] = uint(len(s))
++	mp.ptrarg[0] = (*stringStruct)(unsafe.Pointer(&s)).str
++	onM(&printstring_m)
++	releasem(mp)
++}
++
++func printuint(x uint64) {
++	mp := acquirem()
++	*(*uint64)(unsafe.Pointer(&mp.scalararg[0])) = x
++	onM(&printuint_m)
++	releasem(mp)
++}
++
++func printhex(x uintptr) {
++	mp := acquirem()
++	mp.scalararg[0] = uint(x)
++	onM(&printhex_m)
++	releasem(mp)
++}
++
++func printfloat(x float64) {
++	mp := acquirem()
++	*(*float64)(unsafe.Pointer(&mp.scalararg[0])) = x
++	onM(&printfloat_m)
++	releasem(mp)
++}
++
++// all other print functions are expressible as combinations
++// of the above 4 functions.
++func printnl() {
++	printstring("\n")
++}
++
++func printsp() {
++	printstring(" ")
++}
++
++func printbool(b bool) {
++	if b {
++		printstring("true")
++	} else {
++		printstring("false")
++	}
++}
++
++func printpointer(p unsafe.Pointer) {
++	printhex(uintptr(p))
++}
++
++func printint(x int64) {
++	if x < 0 {
++		printstring("-")
++		x = -x
++	}
++	printuint(uint64(x))
++}
++
++func printcomplex(x complex128) {
++	printstring("(")
++	printfloat(real(x))
++	printfloat(imag(x))
++	printstring("i)")
++}
++
++func printiface(i interface {
++	f()
++}) {
++	printstring("(")
++	printhex((*[2]uintptr)(unsafe.Pointer(&i))[0])
++	printstring(",")
++	printhex((*[2]uintptr)(unsafe.Pointer(&i))[1])
++	printstring(")")
++}
++
++func printeface(e interface{}) {
++	printstring("(")
++	printhex((*[2]uintptr)(unsafe.Pointer(&e))[0])
++	printstring(",")
++	printhex((*[2]uintptr)(unsafe.Pointer(&e))[1])
++	printstring(")")
++}
++
++func printslice(b []byte) {
++	printstring("[")
++	printint(int64(len(b)))
++	printstring("/")
++	printint(int64(cap(b)))
++	printstring("]")
++	printhex((*[3]uintptr)(unsafe.Pointer(&b))[0])
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 199b56a9cf..22551bda36 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1061,23 +1061,23 @@ void	runtime·madvise(byte*, uintptr, int32);
+ void	runtime·memclr(byte*, uintptr);
+ void	runtime·setcallerpc(void*, void*);
+ void*	runtime·getcallerpc(void*);
++void	runtime·printbool_c(bool);
++void	runtime·printbyte_c(int8);
++void	runtime·printfloat_c(float64);
++void	runtime·printint_c(int64);
++void	runtime·printiface_c(Iface);
++void	runtime·printeface_c(Eface);
++void	runtime·printstring_c(String);
++void	runtime·printpc_c(void*);
++void	runtime·printpointer_c(void*);
++void	runtime·printuint_c(uint64);
++void	runtime·printhex_c(uint64);
++void	runtime·printslice_c(Slice);
++void	runtime·printcomplex_c(Complex128);
+ 
+ /*
+  * runtime go-called
+  */
+-void	runtime·printbool(bool);
+-void	runtime·printbyte(int8);
+-void	runtime·printfloat(float64);
+-void	runtime·printint(int64);
+-void	runtime·printiface(Iface);
+-void	runtime·printeface(Eface);
+-void	runtime·printstring(String);
+-void	runtime·printpc(void*);
+-void	runtime·printpointer(void*);
+-void	runtime·printuint(uint64);
+-void	runtime·printhex(uint64);
+-void	runtime·printslice(Slice);
+-void	runtime·printcomplex(Complex128);
+ void	runtime·newstackcall(FuncVal*, byte*, uint32);
+ void	reflect·call(FuncVal*, byte*, uint32, uint32);
+ void	runtime·panic(Eface);
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+deleted file mode 100644
+index 5483a2084d..0000000000
+--- a/src/pkg/runtime/slice.c
++++ /dev/null
+@@ -1,27 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "arch_GOARCH.h"
+-
+-void
+-runtime·printslice_m(G *gp)
+-{
+-	void *array;
+-	uintptr len, cap;
+-
+-	array = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	len = g->m->scalararg[0];
+-	cap = g->m->scalararg[1];
+-
+-	runtime·prints("[");
+-	runtime·printint(len);
+-	runtime·prints("/");
+-	runtime·printint(cap);
+-	runtime·prints("]");
+-	runtime·printpointer(array);
+-
+-	runtime·gogo(&gp->sched);
+-}
+diff --git a/src/pkg/runtime/slice.go b/src/pkg/runtime/slice.go
+index 5349855ca4..e01ea2d7f5 100644
+--- a/src/pkg/runtime/slice.go
++++ b/src/pkg/runtime/slice.go
+@@ -141,14 +141,3 @@ func slicestringcopy(to []byte, fm string) int {
+ 	memmove(unsafe.Pointer(&to[0]), unsafe.Pointer((*stringStruct)(unsafe.Pointer(&fm)).str), uintptr(n))
+ 	return n
+ }
+-
+-var printslice_m byte
+-
+-func printslice(a sliceStruct) {
+-	mp := acquirem()
+-	mp.ptrarg[0] = a.array
+-	mp.scalararg[0] = uint(a.len)
+-	mp.scalararg[1] = uint(a.cap)
+-	mcall(&printslice_m)
+-	releasem(mp)
+-}
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index c297582059..757c1c39a3 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -229,7 +229,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					}
+ 					if(i != 0)
+ 						runtime·prints(", ");
+-					runtime·printhex(((uintptr*)frame.argp)[i]);
++					runtime·printhex_c(((uintptr*)frame.argp)[i]);
+ 				}
+ 				runtime·prints(")\n");
+ 				line = runtime·funcline(f, tracepc, &file);
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 23952b1726..a88e9372db 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -270,7 +270,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 					}
+ 					if(i != 0)
+ 						runtime·prints(", ");
+-					runtime·printhex(((uintptr*)frame.argp)[i]);
++					runtime·printhex_c(((uintptr*)frame.argp)[i]);
+ 				}
+ 				runtime·prints(")\n");
+ 				line = runtime·funcline(f, tracepc, &file);
+diff --git a/test/print.go b/test/print.go
+new file mode 100644
+index 0000000000..466e19f1bf
+--- /dev/null
++++ b/test/print.go
+@@ -0,0 +1,42 @@
++// cmpout
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test internal print routines that are generated
++// by the print builtin.  This test is not exhaustive,
++// we're just checking that the formatting is correct.
++
++package main
++
++func main() {
++	println((interface{})(nil)) // printeface
++	println((interface {        // printiface
++		f()
++	})(nil))
++	println((map[int]int)(nil)) // printpointer
++	println(([]int)(nil))       // printslice
++	println(int64(-7))          // printint
++	println(uint64(7))          // printuint
++	println(8.0)                // printfloat
++	println(complex(9.0, 10.0)) // printcomplex
++	println(true)               // printbool
++	println(false)              // printbool
++	println("hello")            // printstring
++	println("one", "two")       // printsp
++
++	// test goprintf
++	defer println((interface{})(nil))
++	defer println((interface{f()})(nil))
++	defer println((map[int]int)(nil))
++	defer println(([]int)(nil))
++	defer println(int64(-11))
++	defer println(uint64(12))
++	defer println(13.0)
++	defer println(complex(14.0, 15.0))
++	defer println(true)
++	defer println(false)
++	defer println("hello")
++	defer println("one", "two")
++}
+diff --git a/test/print.out b/test/print.out
+new file mode 100644
+index 0000000000..266fe5d6b0
+--- /dev/null
++++ b/test/print.out
+@@ -0,0 +1,24 @@
++(0x0,0x0)
++(0x0,0x0)
++0x0
++[0/0]0x0
++-7
++7
+++8.000000e+000
++(+9.000000e+000+1.000000e+001i)
++true
++false
++hello
++one two
++one two
++hello
++false
++true
++(+1.400000e+001+1.500000e+001i)
+++1.300000e+001
++12
++-11
++[0/0]0x0
++0x0
++(0x0,0x0)
++(0x0,0x0)

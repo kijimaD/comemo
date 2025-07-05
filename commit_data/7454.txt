@@ -7,7 +7,69 @@ Date:   Mon Feb 14 09:27:02 2011 -0500
     R=adg, r
     CC=golang-dev
     https://golang.org/cl/4183047
-
+---
  doc/install.html |  3 +--
  src/run.bash     | 31 ++++++++++++-------------------
  2 files changed, 13 insertions(+), 21 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 8630837b68..d8fa8b468c 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -153,8 +153,7 @@ If all goes well, it will finish by printing output like:
+ </p>
+ 
+ <pre>
+---- cd ../test
+-N known bugs; 0 unexpected bugs
++ALL TESTS PASSED
+ 
+ ---
+ Installed Go for linux/amd64 in /home/you/go.
+diff --git a/src/run.bash b/src/run.bash
+index f8f662b95f..a3e90cc4f8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -30,26 +30,17 @@ xcd() {
+ 	builtin cd "$GOROOT"/src/$1
+ }
+ 
+-maketest() {
+-	for i
+-	do
+-		(
+-			xcd $i
+-			if $rebuild; then
+-				gomake clean
+-				time gomake
+-				gomake install
+-			fi
+-			gomake test
+-		) || exit $?
+-	done
+-}
+-
+-maketest \
+-	pkg \
++if $rebuild; then
++	(xcd pkg
++		gomake clean
++		time gomake
++		gomake install
++	) || exit $i
++fi
+ 
+-# all of these are subtly different
+-# from what maketest does.
++(xcd pkg
++gomake test
++) || exit $?
+ 
+ (xcd pkg/sync;
+ if $rebuild; then
+@@ -126,3 +117,5 @@ done
+ ./run
+ ) || exit $?
+ 
++echo
++echo ALL TESTS PASSED

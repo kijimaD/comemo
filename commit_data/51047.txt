@@ -39,7 +39,7 @@ Date:   Mon Oct 25 16:02:07 2021 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                     |  4 +-
  src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++++------
  src/cmd/go/internal/work/init.go                   |  2 +-
@@ -49,3 +49,418 @@ Date:   Mon Oct 25 16:02:07 2021 -0400
  src/debug/buildinfo/buildinfo_test.go              |  4 +-
  src/runtime/debug/mod.go                           | 24 ++++++----
  8 files changed, 97 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 351c3ee6a5..5b84d8be92 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -63,6 +63,8 @@ var (
+ 	// GoPathError is set when GOPATH is not set. it contains an
+ 	// explanation why GOPATH is unset.
+ 	GoPathError string
++
++	GOEXPERIMENT = envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT)
+ )
+ 
+ func defaultContext() build.Context {
+@@ -89,7 +91,7 @@ func defaultContext() build.Context {
+ 
+ 	// The experiments flags are based on GOARCH, so they may
+ 	// need to change.  TODO: This should be cleaned up.
+-	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, envOr("GOEXPERIMENT", buildcfg.DefaultGOEXPERIMENT))
++	buildcfg.UpdateExperiments(ctxt.GOOS, ctxt.GOARCH, GOEXPERIMENT)
+ 	ctxt.ToolTags = nil
+ 	for _, exp := range buildcfg.EnabledExperiments() {
+ 		ctxt.ToolTags = append(ctxt.ToolTags, "goexperiment."+exp)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 41afa42f0f..589bf9e729 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2285,33 +2285,57 @@ func (p *Package) setBuildInfo() {
+ 		Deps: deps,
+ 	}
+ 	appendSetting := func(key, value string) {
++		value = strings.ReplaceAll(value, "\n", " ") // make value safe
+ 		info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
+ 	}
+ 
+ 	// Add command-line flags relevant to the build.
+ 	// This is informational, not an exhaustive list.
++	// Please keep the list sorted.
+ 	if cfg.BuildBuildinfo && !p.Standard {
+-		appendSetting("compiler", cfg.BuildContext.Compiler)
+-		if BuildAsmflags.present {
+-			appendSetting("asmflags", BuildAsmflags.String())
++		if cfg.BuildASan {
++			appendSetting("-asan", "true")
+ 		}
+-		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
+-			appendSetting("gcflags", BuildGcflags.String())
++		if BuildAsmflags.present {
++			appendSetting("-asmflags", BuildAsmflags.String())
+ 		}
++		appendSetting("-compiler", cfg.BuildContext.Compiler)
+ 		if BuildGccgoflags.present && cfg.BuildContext.Compiler == "gccgo" {
+-			appendSetting("gccgoflags", BuildGccgoflags.String())
++			appendSetting("-gccgoflags", BuildGccgoflags.String())
++		}
++		if BuildGcflags.present && cfg.BuildContext.Compiler == "gc" {
++			appendSetting("-gcflags", BuildGcflags.String())
+ 		}
+ 		if BuildLdflags.present {
+-			appendSetting("ldflags", BuildLdflags.String())
++			appendSetting("-ldflags", BuildLdflags.String())
++		}
++		if cfg.BuildMSan {
++			appendSetting("-msan", "true")
+ 		}
+-		tags := append(cfg.BuildContext.BuildTags, cfg.BuildContext.ToolTags...)
+-		appendSetting("tags", strings.Join(tags, ","))
+-		appendSetting("CGO_ENABLED", strconv.FormatBool(cfg.BuildContext.CgoEnabled))
++		if cfg.BuildRace {
++			appendSetting("-race", "true")
++		}
++		if tags := cfg.BuildContext.BuildTags; len(tags) > 0 {
++			appendSetting("-tags", strings.Join(tags, ","))
++		}
++		cgo := "0"
++		if cfg.BuildContext.CgoEnabled {
++			cgo = "1"
++		}
++		appendSetting("CGO_ENABLED", cgo)
+ 		if cfg.BuildContext.CgoEnabled {
+-			for _, name := range []string{"CGO_CPPFLAGS", "CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
++			for _, name := range []string{"CGO_CFLAGS", "CGO_CPPFLAGS", "CGO_CXXFLAGS", "CGO_LDFLAGS"} {
+ 				appendSetting(name, cfg.Getenv(name))
+ 			}
+ 		}
++		appendSetting("GOARCH", cfg.BuildContext.GOARCH)
++		if cfg.GOEXPERIMENT != "" {
++			appendSetting("GOEXPERIMENT", cfg.GOEXPERIMENT)
++		}
++		appendSetting("GOOS", cfg.BuildContext.GOOS)
++		if key, val := cfg.GetArchEnv(); key != "" && val != "" {
++			appendSetting(key, val)
++		}
+ 	}
+ 
+ 	// Add VCS status if all conditions are true:
+@@ -2383,14 +2407,15 @@ func (p *Package) setBuildInfo() {
+ 		}
+ 		st := cached.Status
+ 
++		appendSetting("vcs", vcsCmd.Cmd)
+ 		if st.Revision != "" {
+-			appendSetting(vcsCmd.Cmd+"revision", st.Revision)
++			appendSetting("vcs.revision", st.Revision)
+ 		}
+ 		if !st.CommitTime.IsZero() {
+ 			stamp := st.CommitTime.UTC().Format(time.RFC3339Nano)
+-			appendSetting(vcsCmd.Cmd+"committime", stamp)
++			appendSetting("vcs.time", stamp)
+ 		}
+-		appendSetting(vcsCmd.Cmd+"uncommitted", strconv.FormatBool(st.Uncommitted))
++		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
+ 	}
+ 
+ 	text, err := info.MarshalText()
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index dc368de1c1..26192ecaed 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -138,7 +138,7 @@ func instrumentInit() {
+ 		cfg.BuildContext.InstallSuffix += "_"
+ 	}
+ 	cfg.BuildContext.InstallSuffix += mode
+-	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, mode)
++	cfg.BuildContext.ToolTags = append(cfg.BuildContext.ToolTags, mode)
+ }
+ 
+ func buildModeInit() {
+diff --git a/src/cmd/go/testdata/script/version_build_settings.txt b/src/cmd/go/testdata/script/version_build_settings.txt
+index 1ced285ac3..dc9e67681e 100644
+--- a/src/cmd/go/testdata/script/version_build_settings.txt
++++ b/src/cmd/go/testdata/script/version_build_settings.txt
+@@ -3,22 +3,25 @@
+ # Compiler name is always added.
+ go build
+ go version -m m$GOEXE
+-stdout '^\tbuild\tcompiler\tgc$'
++stdout '^\tbuild\t-compiler=gc$'
++stdout '^\tbuild\tGOOS='
++stdout '^\tbuild\tGOARCH='
++[amd64] stdout '^\tbuild\tGOAMD64='
+ ! stdout asmflags|gcflags|ldflags|gccgoflags
+ 
+ # Toolchain flags are added if present.
+ # The raw flags are included, with package patterns if specified.
+ go build -asmflags=example.com/m=-D=FOO=bar
+ go version -m m$GOEXE
+-stdout '^\tbuild\tasmflags\texample\.com/m=-D=FOO=bar$'
++stdout '^\tbuild\t-asmflags=example\.com/m=-D=FOO=bar$'
+ 
+ go build -gcflags=example.com/m=-N
+ go version -m m$GOEXE
+-stdout '^\tbuild\tgcflags\texample\.com/m=-N$'
++stdout '^\tbuild\t-gcflags=example\.com/m=-N$'
+ 
+ go build -ldflags=example.com/m=-w
+ go version -m m$GOEXE
+-stdout '^\tbuild\tldflags\texample\.com/m=-w$'
++stdout '^\tbuild\t-ldflags=example\.com/m=-w$'
+ 
+ # gccgoflags are not added when gc is used, and vice versa.
+ # TODO: test gccgo.
+@@ -30,10 +33,11 @@ go version -m m$GOEXE
+ # "race" is included with build tags but not "cgo".
+ go build -tags=a,b
+ go version -m m$GOEXE
+-stdout '^\tbuild\ttags\ta,b(,goexperiment\.[a-z0-9]+)*$'
++stdout '^\tbuild\t-tags=a,b$'
+ [race] go build -race
+ [race] go version -m m$GOEXE
+-[race] stdout '^\tbuild\ttags\t.*race.*$'
++[race] ! stdout '^\tbuild\t-tags='
++[race] stdout '^\tbuild\t-race=true$'
+ 
+ # CGO flags are separate settings.
+ # CGO_ENABLED is always present.
+@@ -41,7 +45,7 @@ stdout '^\tbuild\ttags\ta,b(,goexperiment\.[a-z0-9]+)*$'
+ env CGO_ENABLED=0
+ go build
+ go version -m m$GOEXE
+-stdout '^\tbuild\tCGO_ENABLED\tfalse$'
++stdout '^\tbuild\tCGO_ENABLED=0$'
+ ! stdout CGO_CPPFLAGS|CGO_CFLAGS|CGO_CXXFLAGS|CGO_LDFLAGS
+ [cgo] env CGO_ENABLED=1
+ [cgo] env CGO_CPPFLAGS=-DFROM_CPPFLAGS=1
+@@ -50,11 +54,11 @@ stdout '^\tbuild\tCGO_ENABLED\tfalse$'
+ [cgo] env CGO_LDFLAGS=-L/extra/dir/does/not/exist
+ [cgo] go build
+ [cgo] go version -m m$GOEXE
+-[cgo] stdout '^\tbuild\tCGO_ENABLED\ttrue$'
+-[cgo] stdout '^\tbuild\tCGO_CPPFLAGS\t-DFROM_CPPFLAGS=1$'
+-[cgo] stdout '^\tbuild\tCGO_CFLAGS\t-DFROM_CFLAGS=1$'
+-[cgo] stdout '^\tbuild\tCGO_CXXFLAGS\t-DFROM_CXXFLAGS=1$'
+-[cgo] stdout '^\tbuild\tCGO_LDFLAGS\t-L/extra/dir/does/not/exist$'
++[cgo] stdout '^\tbuild\tCGO_ENABLED=1$'
++[cgo] stdout '^\tbuild\tCGO_CPPFLAGS=-DFROM_CPPFLAGS=1$'
++[cgo] stdout '^\tbuild\tCGO_CFLAGS=-DFROM_CFLAGS=1$'
++[cgo] stdout '^\tbuild\tCGO_CXXFLAGS=-DFROM_CXXFLAGS=1$'
++[cgo] stdout '^\tbuild\tCGO_LDFLAGS=-L/extra/dir/does/not/exist$'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_git.txt b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+index 72cbe28285..86d1de06df 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_git.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_git.txt
+@@ -11,7 +11,7 @@ cd repo/a
+ # If there's no local repository, there's no VCS info.
+ go install
+ go version -m $GOBIN/a$GOEXE
+-! stdout gitrevision
++! stdout vcs.revision
+ rm $GOBIN/a$GOEXE
+ 
+ # If there is a repository, but it can't be used for some reason,
+@@ -40,9 +40,10 @@ exec git config user.name 'J.R. Gopher'
+ cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+-! stdout gitrevision
+-! stdout gitcommittime
+-stdout '^\tbuild\tgituncommitted\ttrue$'
++stdout '^\tbuild\tvcs=git$'
++stdout '^\tbuild\tvcs.modified=true$'
++! stdout vcs.revision
++! stdout vcs.time
+ rm $GOBIN/a$GOEXE
+ 
+ # Revision and commit time are tagged for repositories with commits.
+@@ -50,22 +51,22 @@ exec git add -A
+ exec git commit -m 'initial commit'
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\tgitrevision\t'
+-stdout '^\tbuild\tgitcommittime\t'
+-stdout '^\tbuild\tgituncommitted\tfalse$'
++stdout '^\tbuild\tvcs.revision='
++stdout '^\tbuild\tvcs.time='
++stdout '^\tbuild\tvcs.modified=false$'
+ rm $GOBIN/a$GOEXE
+ 
+ # Building with -buildvcs=false suppresses the info.
+ go install -buildvcs=false
+ go version -m $GOBIN/a$GOEXE
+-! stdout gitrevision
++! stdout vcs.revision
+ rm $GOBIN/a$GOEXE
+ 
+ # An untracked file is shown as uncommitted, even if it isn't part of the build.
+ cp ../../outside/empty.txt .
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\tgituncommitted\ttrue$'
++stdout '^\tbuild\tvcs.modified=true$'
+ rm empty.txt
+ rm $GOBIN/a$GOEXE
+ 
+@@ -73,7 +74,7 @@ rm $GOBIN/a$GOEXE
+ cp ../../outside/empty.txt ../README
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\tgituncommitted\ttrue$'
++stdout '^\tbuild\tvcs.modified=true$'
+ exec git checkout ../README
+ rm $GOBIN/a$GOEXE
+ 
+@@ -81,14 +82,14 @@ rm $GOBIN/a$GOEXE
+ # there should be no VCS info.
+ go install example.com/cmd/a@v1.0.0
+ go version -m $GOBIN/a$GOEXE
+-! stdout gitrevision
++! stdout vcs.revision
+ rm $GOBIN/a$GOEXE
+ 
+ go mod edit -require=example.com/c@v0.0.0
+ go mod edit -replace=example.com/c@v0.0.0=../../outside/c
+ go install example.com/c
+ go version -m $GOBIN/c$GOEXE
+-! stdout gitrevision
++! stdout vcs.revision
+ rm $GOBIN/c$GOEXE
+ exec git checkout go.mod
+ 
+@@ -100,7 +101,7 @@ go mod edit -require=example.com/d@v0.0.0
+ go mod edit -replace=example.com/d@v0.0.0=../../outside/d
+ go install example.com/d
+ go version -m $GOBIN/d$GOEXE
+-! stdout gitrevision
++! stdout vcs.revision
+ exec git checkout go.mod
+ rm $GOBIN/d$GOEXE
+ 
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_hg.txt b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+index df4938742d..fbbd886102 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_hg.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+@@ -34,9 +34,9 @@ exec hg init
+ cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+-! stdout hgrevision
+-! stdout hgcommittime
+-stdout '^\tbuild\thguncommitted\ttrue$'
++! stdout vcs.revision
++! stdout vcs.time
++stdout '^\tbuild\tvcs.modified=true$'
+ cd ..
+ 
+ # Revision and commit time are tagged for repositories with commits.
+@@ -45,9 +45,9 @@ exec hg commit -m 'initial commit'
+ cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\thgrevision\t'
+-stdout '^\tbuild\thgcommittime\t'
+-stdout '^\tbuild\thguncommitted\tfalse$'
++stdout '^\tbuild\tvcs.revision='
++stdout '^\tbuild\tvcs.time='
++stdout '^\tbuild\tvcs.modified=false$'
+ rm $GOBIN/a$GOEXE
+ 
+ # Building with -buildvcs=false suppresses the info.
+@@ -60,7 +60,7 @@ rm $GOBIN/a$GOEXE
+ cp ../../outside/empty.txt .
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\thguncommitted\ttrue$'
++stdout '^\tbuild\tvcs.modified=true$'
+ rm empty.txt
+ rm $GOBIN/a$GOEXE
+ 
+@@ -68,7 +68,7 @@ rm $GOBIN/a$GOEXE
+ cp ../../outside/empty.txt ../README
+ go install
+ go version -m $GOBIN/a$GOEXE
+-stdout '^\tbuild\thguncommitted\ttrue$'
++stdout '^\tbuild\tvcs.modified=true$'
+ exec hg revert ../README
+ rm $GOBIN/a$GOEXE
+ 
+diff --git a/src/debug/buildinfo/buildinfo_test.go b/src/debug/buildinfo/buildinfo_test.go
+index 44d78a6be0..fd31caf135 100644
+--- a/src/debug/buildinfo/buildinfo_test.go
++++ b/src/debug/buildinfo/buildinfo_test.go
+@@ -124,7 +124,7 @@ func TestReadFile(t *testing.T) {
+ 		// build lines are included.
+ 		got = goVersionRe.ReplaceAllString(got, "go\tGOVERSION\n")
+ 		got = buildRe.ReplaceAllStringFunc(got, func(match string) string {
+-			if strings.HasPrefix(match, "build\tcompiler\t") {
++			if strings.HasPrefix(match, "build\t-compiler=") {
+ 				return match
+ 			}
+ 			return ""
+@@ -163,7 +163,7 @@ func TestReadFile(t *testing.T) {
+ 			want: "go\tGOVERSION\n" +
+ 				"path\texample.com/m\n" +
+ 				"mod\texample.com/m\t(devel)\t\n" +
+-				"build\tcompiler\tgc\n",
++				"build\t-compiler=gc\n",
+ 		},
+ 		{
+ 			name: "invalid_modules",
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index 14b99f5735..14a496a8eb 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -57,8 +57,9 @@ type Module struct {
+ // BuildSetting describes a setting that may be used to understand how the
+ // binary was built. For example, VCS commit and dirty status is stored here.
+ type BuildSetting struct {
+-	// Key and Value describe the build setting. They must not contain tabs
+-	// or newlines.
++	// Key and Value describe the build setting.
++	// Key must not contain an equals sign, space, tab, or newline.
++	// Value must not contain newlines ('\n').
+ 	Key, Value string
+ }
+ 
+@@ -97,10 +98,13 @@ func (bi *BuildInfo) MarshalText() ([]byte, error) {
+ 		formatMod("dep", *dep)
+ 	}
+ 	for _, s := range bi.Settings {
+-		if strings.ContainsAny(s.Key, "\n\t") || strings.ContainsAny(s.Value, "\n\t") {
+-			return nil, fmt.Errorf("build setting %q contains tab or newline", s.Key)
++		if strings.ContainsAny(s.Key, "= \t\n") {
++			return nil, fmt.Errorf("invalid build setting key %q", s.Key)
+ 		}
+-		fmt.Fprintf(buf, "build\t%s\t%s\n", s.Key, s.Value)
++		if strings.Contains(s.Value, "\n") {
++			return nil, fmt.Errorf("invalid build setting value for key %q: contains newline", s.Value)
++		}
++		fmt.Fprintf(buf, "build\t%s=%s\n", s.Key, s.Value)
+ 	}
+ 
+ 	return buf.Bytes(), nil
+@@ -185,14 +189,14 @@ func (bi *BuildInfo) UnmarshalText(data []byte) (err error) {
+ 			}
+ 			last = nil
+ 		case bytes.HasPrefix(line, buildLine):
+-			elem := bytes.Split(line[len(buildLine):], tab)
+-			if len(elem) != 2 {
+-				return fmt.Errorf("expected 2 columns for build setting; got %d", len(elem))
++			key, val, ok := strings.Cut(string(line[len(buildLine):]), "=")
++			if !ok {
++				return fmt.Errorf("invalid build line")
+ 			}
+-			if len(elem[0]) == 0 {
++			if key == "" {
+ 				return fmt.Errorf("empty key")
+ 			}
+-			bi.Settings = append(bi.Settings, BuildSetting{Key: string(elem[0]), Value: string(elem[1])})
++			bi.Settings = append(bi.Settings, BuildSetting{Key: key, Value: val})
+ 		}
+ 		lineNum++
+ 	}

@@ -1003,3 +1003,156 @@ Date:   Wed May 6 00:20:47 2020 -0400
  test/typecheck.go                                  |    12 +-
  test/writebarrier.go                               |     8 +-
  995 files changed, 118367 insertions(+), 139520 deletions(-)
+
+diff --cc src/crypto/rsa/pkcs1v15.go
+index 27278cd8da,3208119ae1..5475239c6b
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@@ -69,19 -58,10 +69,18 @@@ func EncryptPKCS1v15(random io.Reader, 
+  	em[len(em)-len(msg)-1] = 0
+  	copy(mm, msg)
+  
+ +	if boring.Enabled {
+ +		var bkey *boring.PublicKeyRSA
+ +		bkey, err = boringPublicKey(pub)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+ +		return boring.EncryptRSANoPadding(bkey, em)
+ +	}
+ +
+  	m := new(big.Int).SetBytes(em)
+  	c := encrypt(new(big.Int), pub, m)
+- 	copyWithLeftPad(em, c.Bytes())
+- 	return em, nil
+ -
++ 	return c.FillBytes(em), nil
+  }
+  
+  // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS#1 v1.5.
+@@@ -176,26 -143,13 +175,26 @@@ func decryptPKCS1v15(rand io.Reader, pr
+  		return
+  	}
+  
+ -	c := new(big.Int).SetBytes(ciphertext)
+ -	m, err := decrypt(rand, priv, c)
+ -	if err != nil {
+ -		return
+ +	if boring.Enabled {
+ +		var bkey *boring.PrivateKeyRSA
+ +		bkey, err = boringPrivateKey(priv)
+ +		if err != nil {
+ +			return
+ +		}
+ +		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
+ +		if err != nil {
+ +			return
+ +		}
+ +	} else {
+ +		c := new(big.Int).SetBytes(ciphertext)
+ +		var m *big.Int
+ +		m, err = decrypt(rand, priv, c)
+ +		if err != nil {
+ +			return
+ +		}
+- 		em = leftPad(m.Bytes(), k)
+++		em = m.FillBytes(make([]byte, k))
+  	}
+  
+ -	em = m.FillBytes(make([]byte, k))
+  	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+  	secondByteIsTwo := subtle.ConstantTimeByteEq(em[1], 2)
+  
+diff --cc src/crypto/rsa/pss.go
+index b653be23dc,b2adbedb28..cda1eafd6e
+--- a/src/crypto/rsa/pss.go
++++ b/src/crypto/rsa/pss.go
+@@@ -213,23 -211,8 +213,23 @@@ func signPSSWithSalt(rand io.Reader, pr
+  	emBits := priv.N.BitLen() - 1
+  	em, err := emsaPSSEncode(hashed, emBits, salt, hash.New())
+  	if err != nil {
+- 		return
++ 		return nil, err
+  	}
+ +
+ +	if boring.Enabled {
+ +		bkey, err := boringPrivateKey(priv)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+ +		// Note: BoringCrypto takes care of the "AndCheck" part of "decryptAndCheck".
+ +		// (It's not just decrypt.)
+ +		s, err := boring.DecryptRSANoPadding(bkey, em)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+ +		return s, nil
+ +	}
+ +
+  	m := new(big.Int).SetBytes(em)
+  	c, err := decryptAndCheck(rand, priv, m)
+  	if err != nil {
+diff --cc src/crypto/rsa/rsa.go
+index bd738f592c,28eb5926c1..4c67644ccb
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@@ -458,33 -413,12 +458,21 @@@ func EncryptOAEP(hash hash.Hash, rando
+  	mgf1XOR(db, hash, seed)
+  	mgf1XOR(seed, hash, db)
+  
+- 	var out []byte
+ +	if boring.Enabled {
+ +		var bkey *boring.PublicKeyRSA
+ +		bkey, err = boringPublicKey(pub)
+ +		if err != nil {
+ +			return nil, err
+ +		}
+- 		c, err := boring.EncryptRSANoPadding(bkey, em)
+- 		if err != nil {
+- 			return nil, err
+- 		}
+- 		out = c
+- 	} else {
+- 		m := new(big.Int)
+- 		m.SetBytes(em)
+- 		c := encrypt(new(big.Int), pub, m)
+- 		out = c.Bytes()
+++		return boring.EncryptRSANoPadding(bkey, em)
+ +	}
+ +
+- 	if len(out) < k {
+- 		// If the output is too small, we need to left-pad with zeros.
+- 		t := make([]byte, k)
+- 		copy(t[k-len(out):], out)
+- 		out = t
+- 	}
++ 	m := new(big.Int)
++ 	m.SetBytes(em)
++ 	c := encrypt(new(big.Int), pub, m)
+  
+- 	return out, nil
++ 	out := make([]byte, k)
++ 	return c.FillBytes(out), nil
+  }
+  
+  // ErrDecryption represents a failure to decrypt a message.
+diff --cc src/go/build/deps_test.go
+index 72d8c6b753,ee1252fda2..b8be271707
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -119,14 -120,9 +120,14 @@@ var pkgDeps = map[string][]string
+  	"image/color":            {"L2"},                // interfaces
+  	"image/color/palette":    {"L2", "image/color"},
+  	"internal/fmtsort":       {"reflect", "sort"},
+- 	"reflect":                {"L2"},
++ 	"reflect":                {"L2", "internal/unsafeheader"},
+  	"sort":                   {"internal/reflectlite"},
+  
+ +	"crypto/internal/boring":         {"L2", "C", "crypto", "crypto/cipher", "crypto/internal/boring/sig", "crypto/subtle", "encoding/asn1", "hash", "math/big"},
+ +	"crypto/internal/boring/fipstls": {"sync/atomic"},
+ +	"crypto/internal/cipherhw":       {"crypto/internal/boring"},
+ +	"crypto/tls/fipsonly":            {"crypto/internal/boring/fipstls", "crypto/internal/boring/sig"},
+ +
+  	"L3": {
+  		"L2",
+  		"crypto",

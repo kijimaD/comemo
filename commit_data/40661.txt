@@ -11,8 +11,75 @@ Date:   Thu Jun 6 14:43:28 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modfetch/proxy.go          |  9 +++++++++
  src/cmd/go/internal/modfetch/sumdb.go          |  2 +-
  src/cmd/go/testdata/script/mod_proxy_https.txt | 19 +++++++++++++++++++
  3 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 50e26625a1..ce74e826e1 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -12,7 +12,9 @@ import (
+ 	"io/ioutil"
+ 	"net/url"
+ 	"os"
++	"path"
+ 	pathpkg "path"
++	"path/filepath"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -110,6 +112,13 @@ func proxyURLs() ([]string, error) {
+ 				break
+ 			}
+ 
++			// Single-word tokens are reserved for built-in behaviors, and anything
++			// containing the string ":/" or matching an absolute file path must be a
++			// complete URL. For all other paths, implicitly add "https://".
++			if strings.ContainsAny(proxyURL, ".:/") && !strings.Contains(proxyURL, ":/") && !filepath.IsAbs(proxyURL) && !path.IsAbs(proxyURL) {
++				proxyURL = "https://" + proxyURL
++			}
++
+ 			// Check that newProxyRepo accepts the URL.
+ 			// It won't do anything with the path.
+ 			_, err := newProxyRepo(proxyURL, "golang.org/x/text")
+diff --git a/src/cmd/go/internal/modfetch/sumdb.go b/src/cmd/go/internal/modfetch/sumdb.go
+index 965898fbf5..66a09d32c2 100644
+--- a/src/cmd/go/internal/modfetch/sumdb.go
++++ b/src/cmd/go/internal/modfetch/sumdb.go
+@@ -145,7 +145,7 @@ func (c *dbClient) initBase() {
+ 		if proxyURL == "noproxy" {
+ 			continue
+ 		}
+-		if proxyURL == "direct" {
++		if proxyURL == "direct" || proxyURL == "off" {
+ 			break
+ 		}
+ 		proxy, err := url.Parse(proxyURL)
+diff --git a/src/cmd/go/testdata/script/mod_proxy_https.txt b/src/cmd/go/testdata/script/mod_proxy_https.txt
+new file mode 100644
+index 0000000000..a23090cd0a
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_proxy_https.txt
+@@ -0,0 +1,19 @@
++env GO111MODULE=on
++
++# GOPROXY file paths must provide the "file://" prefix explicitly.
++env GOPROXY=$WORK/proxydir
++! go list -versions -m golang.org/x/text
++stderr 'invalid proxy URL.*proxydir'
++
++[!net] stop
++
++# GOPROXY HTTPS paths may elide the "https://" prefix.
++# (See golang.org/issue/32191.)
++env GOPROXY=proxy.golang.org
++go list -versions -m golang.org/x/text
++
++-- go.mod --
++module example.com
++go 1.13
++-- $WORK/proxydir/README.md --
++This proxy contains no data.

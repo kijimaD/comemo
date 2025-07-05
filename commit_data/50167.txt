@@ -13,7 +13,7 @@ Date:   Tue Oct 5 14:03:47 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/354131
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/syntax/error_test.go      |  2 +-
  src/cmd/compile/internal/syntax/nodes.go           |  4 +--
  src/cmd/compile/internal/syntax/parser.go          | 33 ++------------------
@@ -28,3 +28,427 @@ Date:   Tue Oct 5 14:03:47 2021 -0700
  .../internal/types2/testdata/check/typeinst2.go2   |  5 +---
  .../types2/testdata/examples/constraints.go2       | 12 --------
  13 files changed, 29 insertions(+), 162 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/error_test.go b/src/cmd/compile/internal/syntax/error_test.go
+index 966b36f6bc..0ab3c20ce5 100644
+--- a/src/cmd/compile/internal/syntax/error_test.go
++++ b/src/cmd/compile/internal/syntax/error_test.go
+@@ -130,7 +130,7 @@ func testSyntaxErrors(t *testing.T, filename string) {
+ 
+ 	var mode Mode
+ 	if strings.HasSuffix(filename, ".go2") {
+-		mode = AllowGenerics | AllowTypeSets | AllowTypeLists
++		mode = AllowGenerics | AllowTypeSets
+ 	}
+ 	ParseFile(filename, func(err error) {
+ 		e, ok := err.(Error)
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index fb9786daa3..2f9b43edef 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -275,14 +275,14 @@ type (
+ 	// Name Type
+ 	//      Type
+ 	Field struct {
+-		Name *Name // nil means anonymous field/parameter (structs/parameters), or embedded interface (interfaces)
++		Name *Name // nil means anonymous field/parameter (structs/parameters), or embedded element (interfaces)
+ 		Type Expr  // field names declared in a list share the same Type (identical pointers)
+ 		node
+ 	}
+ 
+ 	// interface { MethodList[0]; MethodList[1]; ... }
+ 	InterfaceType struct {
+-		MethodList []*Field // a field named "type" means a type constraint
++		MethodList []*Field
+ 		expr
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 54e77b9958..a669c54712 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1450,30 +1450,6 @@ func (p *parser) interfaceType() *InterfaceType {
+ 				return false
+ 			}
+ 
+-		case _Type:
+-			// TODO(gri) remove TypeList syntax if we accept #45346
+-			if p.allowGenerics() && p.mode&AllowTypeLists != 0 {
+-				type_ := NewName(p.pos(), "type") // cannot have a method named "type"
+-				p.next()
+-				if p.tok != _Semi && p.tok != _Rbrace {
+-					f := new(Field)
+-					f.pos = p.pos()
+-					f.Name = type_
+-					f.Type = p.type_()
+-					typ.MethodList = append(typ.MethodList, f)
+-					for p.got(_Comma) {
+-						f := new(Field)
+-						f.pos = p.pos()
+-						f.Name = type_
+-						f.Type = p.type_()
+-						typ.MethodList = append(typ.MethodList, f)
+-					}
+-				} else {
+-					p.syntaxError("expecting type")
+-				}
+-				return false
+-			}
+-
+ 		default:
+ 			if p.allowGenerics() {
+ 				pos := p.pos()
+@@ -1488,13 +1464,8 @@ func (p *parser) interfaceType() *InterfaceType {
+ 		}
+ 
+ 		if p.allowGenerics() {
+-			if p.mode&AllowTypeLists != 0 {
+-				p.syntaxError("expecting method, type list, or embedded element")
+-				p.advance(_Semi, _Rbrace, _Type)
+-			} else {
+-				p.syntaxError("expecting method or embedded element")
+-				p.advance(_Semi, _Rbrace)
+-			}
++			p.syntaxError("expecting method or embedded element")
++			p.advance(_Semi, _Rbrace)
+ 			return false
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser_test.go b/src/cmd/compile/internal/syntax/parser_test.go
+index fb02c8b95f..29682012e5 100644
+--- a/src/cmd/compile/internal/syntax/parser_test.go
++++ b/src/cmd/compile/internal/syntax/parser_test.go
+@@ -46,7 +46,7 @@ func TestParseGo2(t *testing.T) {
+ 	for _, fi := range list {
+ 		name := fi.Name()
+ 		if !fi.IsDir() && !strings.HasPrefix(name, ".") {
+-			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeSets|AllowTypeLists)
++			ParseFile(filepath.Join(dir, name), func(err error) { t.Error(err) }, nil, AllowGenerics|AllowTypeSets)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index e557f5d924..c8d31799af 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -494,39 +494,16 @@ func (p *printer) printRawNode(n Node) {
+ 		p.printSignature(n)
+ 
+ 	case *InterfaceType:
+-		// separate type list and method list
+-		var types []Expr
+-		var methods []*Field
+-		for _, f := range n.MethodList {
+-			if f.Name != nil && f.Name.Value == "type" {
+-				types = append(types, f.Type)
+-			} else {
+-				// method or embedded interface
+-				methods = append(methods, f)
+-			}
+-		}
+-
+-		multiLine := len(n.MethodList) > 0 && p.linebreaks
+ 		p.print(_Interface)
+-		if multiLine {
++		if p.linebreaks && len(n.MethodList) > 1 {
+ 			p.print(blank)
+-		}
+-		p.print(_Lbrace)
+-		if multiLine {
++			p.print(_Lbrace)
+ 			p.print(newline, indent)
+-		}
+-		if len(types) > 0 {
+-			p.print(_Type, blank)
+-			p.printExprList(types)
+-			if len(methods) > 0 {
+-				p.print(_Semi, blank)
+-			}
+-		}
+-		if len(methods) > 0 {
+-			p.printMethodList(methods)
+-		}
+-		if multiLine {
++			p.printMethodList(n.MethodList)
+ 			p.print(outdent, newline)
++		} else {
++			p.print(_Lbrace)
++			p.printMethodList(n.MethodList)
+ 		}
+ 		p.print(_Rbrace)
+ 
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index ee083ad159..9b5331b148 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -60,12 +60,12 @@ var stringTests = []string{
+ 	// generic type declarations
+ 	"package p; type _[T any] struct{}",
+ 	"package p; type _[A, B, C interface{m()}] struct{}",
+-	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}] struct{}",
++	"package p; type _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}] struct{}",
+ 
+ 	// generic function declarations
+ 	"package p; func _[T any]()",
+ 	"package p; func _[A, B, C interface{m()}]()",
+-	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{type int}]()",
++	"package p; func _[T any, A, B, C interface{m()}, X, Y, Z interface{~int}]()",
+ 
+ 	// methods with generic receiver types
+ 	"package p; func (R[T]) _()",
+@@ -94,7 +94,7 @@ var stringTests = []string{
+ 
+ func TestPrintString(t *testing.T) {
+ 	for _, want := range stringTests {
+-		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeSets|AllowTypeLists)
++		ast, err := Parse(nil, strings.NewReader(want), nil, nil, AllowGenerics|AllowTypeSets)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue
+@@ -140,10 +140,10 @@ var exprTests = [][2]string{
+ 	dup("func(int, float32) string"),
+ 	dup("interface{m()}"),
+ 	dup("interface{m() string; n(x int)}"),
+-	dup("interface{type int}"),
+-	dup("interface{type int, float64, string}"),
+-	dup("interface{type int; m()}"),
+-	dup("interface{type int, float64, string; m() string; n(x int)}"),
++	dup("interface{~int}"),
++	dup("interface{~int | ~float64 | ~string}"),
++	dup("interface{~int; m()}"),
++	dup("interface{~int | ~float64 | ~string; m() string; n(x int)}"),
+ 	dup("map[string]int"),
+ 	dup("chan E"),
+ 	dup("<-chan E"),
+@@ -155,7 +155,7 @@ var exprTests = [][2]string{
+ 	dup("interface{~int}"),
+ 	dup("interface{int | string}"),
+ 	dup("interface{~int | ~string; float64; m()}"),
+-	dup("interface{type a, b, c; ~int | ~string; float64; m()}"),
++	dup("interface{~a | ~b | ~c; ~int | ~string; float64; m()}"),
+ 	dup("interface{~T[int, string] | string}"),
+ 
+ 	// non-type expressions
+@@ -214,7 +214,7 @@ var exprTests = [][2]string{
+ func TestShortString(t *testing.T) {
+ 	for _, test := range exprTests {
+ 		src := "package p; var _ = " + test[0]
+-		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics|AllowTypeLists)
++		ast, err := Parse(nil, strings.NewReader(src), nil, nil, AllowGenerics)
+ 		if err != nil {
+ 			t.Errorf("%s: %s", test[0], err)
+ 			continue
+diff --git a/src/cmd/compile/internal/syntax/syntax.go b/src/cmd/compile/internal/syntax/syntax.go
+index 8828c39ad5..49ba87786e 100644
+--- a/src/cmd/compile/internal/syntax/syntax.go
++++ b/src/cmd/compile/internal/syntax/syntax.go
+@@ -17,8 +17,7 @@ type Mode uint
+ const (
+ 	CheckBranches Mode = 1 << iota // check correct use of labels, break, continue, and goto statements
+ 	AllowGenerics
+-	AllowTypeSets  // requires AllowGenerics; remove once #48424 is decided
+-	AllowTypeLists // requires AllowGenerics; remove once 1.18 is out
++	AllowTypeSets // requires AllowGenerics; remove once #48424 is decided
+ )
+ 
+ // Error describes a syntax error. Error implements the error interface.
+diff --git a/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2 b/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
+index f3deb703b6..76b8d5591f 100644
+--- a/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
++++ b/src/cmd/compile/internal/syntax/testdata/go2/typeinst2.go2
+@@ -148,31 +148,7 @@ func _[T any](r R2[T, int], p *R2[string, T]) {
+ 	p.pm()
+ }
+ 
+-// An interface can (explicitly) declare at most one type list.
+-type _ interface {
+-	m0()
+-	type int, string, bool
+-	type /* ERROR multiple type lists */ float32, float64
+-	m1()
+-	m2()
+-	type /* ERROR multiple type lists */ complex64, complex128
+-	type /* ERROR multiple type lists */ rune
+-}
+-
+-// Interface type lists may contain each type at most once.
+-// (If there are multiple lists, we assume the author intended
+-// for them to be all in a single list, and we report the error
+-// as well.)
+-type _ interface {
+-	type int, int /* ERROR duplicate type int */
+-	type /* ERROR multiple type lists */ int /* ERROR duplicate type int */
+-}
+-
+-type _ interface {
+-	type struct{f int}, struct{g int}, struct /* ERROR duplicate type */ {f int}
+-}
+-
+-// Interface type lists can contain any type, incl. *Named types.
++// Interface type constraints can contain any type, incl. *Named types.
+ // Verify that we use the underlying type to compute the operational type.
+ type MyInt int
+ func add1[T interface{ ~MyInt }](x T) T {
+@@ -184,9 +160,9 @@ func double[T interface{ ~MyInt | ~MyString }](x T) T {
+ 	return x + x
+ }
+ 
+-// Embedding of interfaces with type lists leads to interfaces
+-// with type lists that are the intersection of the embedded
+-// type lists.
++// Embedding of interfaces with type constraints leads to interfaces
++// with type constraints that are the intersection of the embedded
++// type constraints.
+ 
+ type E0 interface {
+ 	~int | ~bool | ~string
+@@ -246,7 +222,7 @@ var _ = f12[float64]
+ 
+ type I0_ interface {
+ 	E0
+-	type int
++	~int
+ }
+ 
+ func f0_[T I0_]()
+diff --git a/src/cmd/compile/internal/syntax/testdata/interface.go2 b/src/cmd/compile/internal/syntax/testdata/interface.go2
+index b399d75148..dbc4187989 100644
+--- a/src/cmd/compile/internal/syntax/testdata/interface.go2
++++ b/src/cmd/compile/internal/syntax/testdata/interface.go2
+@@ -4,16 +4,11 @@
+ 
+ // This file contains test cases for interfaces containing
+ // constraint elements.
+-//
+-// For now, we accept both ordinary type lists and the
+-// more complex constraint elements.
+ 
+ package p
+ 
+ type _ interface {
+ 	m()
+-	type int
+-	type int, string
+ 	E
+ }
+ 
+@@ -31,7 +26,6 @@ type _ interface {
+ 	T[int, string] | string
+ 	int | ~T[string, struct{}]
+ 	~int | ~string
+-	type bool, int, float64
+ }
+ 
+ type _ interface {
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 1ca2eea5c6..5b2f09425b 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -100,7 +100,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 
+ 	var mode syntax.Mode
+ 	if strings.HasSuffix(filenames[0], ".go2") {
+-		mode |= syntax.AllowGenerics | syntax.AllowTypeSets | syntax.AllowTypeLists
++		mode |= syntax.AllowGenerics | syntax.AllowTypeSets
+ 	}
+ 	// parse files and collect parser errors
+ 	files, errlist := parseFiles(t, filenames, mode)
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 431ba93c17..0879d29d3d 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -93,9 +93,6 @@ func (t *Interface) String() string   { return TypeString(t, nil) }
+ // Implementation
+ 
+ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType, def *Named) {
+-	var tlist []syntax.Expr // types collected from all type lists
+-	var tname *syntax.Name  // most recent "type" name
+-
+ 	addEmbedded := func(pos syntax.Pos, typ Type) {
+ 		ityp.embeddeds = append(ityp.embeddeds, typ)
+ 		if ityp.embedPos == nil {
+@@ -122,31 +119,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 			continue // ignore
+ 		}
+ 
+-		// TODO(gri) Remove type list handling once the parser doesn't accept type lists anymore.
+-		if name == "type" {
+-			// Report an error for the first type list per interface
+-			// if we don't allow type lists, but continue.
+-			if !check.conf.AllowTypeLists && tlist == nil {
+-				check.softErrorf(f.Name, "use generalized embedding syntax instead of a type list")
+-			}
+-			// For now, collect all type list entries as if it
+-			// were a single union, where each union element is
+-			// of the form ~T.
+-			op := new(syntax.Operation)
+-			// We should also set the position (but there is no setter);
+-			// we don't care because this code will eventually go away.
+-			op.Op = syntax.Tilde
+-			op.X = f.Type
+-			tlist = append(tlist, op)
+-			// Report an error if we have multiple type lists in an
+-			// interface, but only if they are permitted in the first place.
+-			if check.conf.AllowTypeLists && tname != nil && tname != f.Name {
+-				check.error(f.Name, "cannot have multiple type lists in an interface")
+-			}
+-			tname = f.Name
+-			continue
+-		}
+-
+ 		typ := check.typ(f.Type)
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+@@ -175,13 +147,6 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		ityp.methods = append(ityp.methods, m)
+ 	}
+ 
+-	// If we saw a type list, add it like an embedded union.
+-	if tlist != nil {
+-		// Types T in a type list are added as ~T expressions but we don't
+-		// have the position of the '~'. Use the first type position instead.
+-		addEmbedded(tlist[0].(*syntax.Operation).X.Pos(), parseUnion(check, tlist))
+-	}
+-
+ 	// All methods and embedded elements for this interface are collected;
+ 	// i.e., this interface may be used in a type set computation.
+ 	ityp.complete = true
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2 b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+index d087c26a47..49f48c7283 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst2.go2
+@@ -159,10 +159,7 @@ type _ interface {
+ 	~rune
+ }
+ 
+-// Interface type lists may contain each type at most once.
+-// (If there are multiple lists, we assume the author intended
+-// for them to be all in a single list, and we report the error
+-// as well.)
++// Type sets may contain each type at most once.
+ type _ interface {
+ 	~int|~int /* ERROR overlapping terms ~int */
+ 	~int|int /* ERROR overlapping terms int */
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2 b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+index ecc75c1a46..4d7f70313a 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/constraints.go2
+@@ -6,18 +6,6 @@
+ 
+ package p
+ 
+-type (
+-	// Type lists are processed as unions but an error is reported.
+-	// TODO(gri) remove this once the parser doesn't accept type lists anymore.
+-	_ interface{
+-		type /* ERROR use generalized embedding syntax instead of a type list */ int
+-	}
+-	_ interface{
+-		type /* ERROR use generalized embedding syntax instead of a type list */ int
+-		type float32
+-	}
+-)
+-
+ type MyInt int
+ 
+ type (

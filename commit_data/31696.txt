@@ -7,6 +7,20 @@ Date:   Wed Mar 8 10:22:00 2017 -0800
     Change-Id: I04e150d4e4123aad2f277e5c6e9f2abd15628a28
     Reviewed-on: https://go-review.googlesource.com/37941
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 79732d4703..4c1adf51b6 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1161,7 +1161,7 @@ func TestParentStmtOutlivesTxStmt(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that tx.Stmt called with a statment already
++// Test that tx.Stmt called with a statement already
+ // associated with tx as argument re-prepares the same
+ // statement again.
+ func TestTxStmtFromTxStmtRePrepares(t *testing.T) {

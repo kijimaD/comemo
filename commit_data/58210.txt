@@ -31,7 +31,7 @@ Date:   Mon May 15 18:00:57 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |  27 +-----
  src/cmd/compile/internal/ir/expr.go                |  45 +++++++++
  src/cmd/compile/internal/ir/func.go                |  62 ++++++++++++
@@ -45,3 +45,653 @@ Date:   Mon May 15 18:00:57 2023 -0400
  .../pgo/devirtualize/{mult => mult.pkg}/mult.go    |   0
  src/cmd/compile/internal/types/pkg.go              |  12 +++
  12 files changed, 367 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 7576b4371a..8efd622bab 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -30,7 +30,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/goexperiment"
+-	"sort"
+ 	"strconv"
+ 
+ 	"cmd/compile/internal/base"
+@@ -122,38 +121,18 @@ func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
+ // comparing with the threshold may not accurately reflect which nodes are
+ // considiered hot).
+ func hotNodesFromCDF(p *pgo.Profile) (float64, []pgo.NodeMapKey) {
+-	nodes := make([]pgo.NodeMapKey, len(p.NodeMap))
+-	i := 0
+-	for n := range p.NodeMap {
+-		nodes[i] = n
+-		i++
+-	}
+-	sort.Slice(nodes, func(i, j int) bool {
+-		ni, nj := nodes[i], nodes[j]
+-		if wi, wj := p.NodeMap[ni].EWeight, p.NodeMap[nj].EWeight; wi != wj {
+-			return wi > wj // want larger weight first
+-		}
+-		// same weight, order by name/line number
+-		if ni.CallerName != nj.CallerName {
+-			return ni.CallerName < nj.CallerName
+-		}
+-		if ni.CalleeName != nj.CalleeName {
+-			return ni.CalleeName < nj.CalleeName
+-		}
+-		return ni.CallSiteOffset < nj.CallSiteOffset
+-	})
+ 	cum := int64(0)
+-	for i, n := range nodes {
++	for i, n := range p.NodesByWeight {
+ 		w := p.NodeMap[n].EWeight
+ 		cum += w
+ 		if pgo.WeightInPercentage(cum, p.TotalEdgeWeight) > inlineCDFHotCallSiteThresholdPercent {
+ 			// nodes[:i+1] to include the very last node that makes it to go over the threshold.
+ 			// (Say, if the CDF threshold is 50% and one hot node takes 60% of weight, we want to
+ 			// include that node instead of excluding it.)
+-			return pgo.WeightInPercentage(w, p.TotalEdgeWeight), nodes[:i+1]
++			return pgo.WeightInPercentage(w, p.TotalEdgeWeight), p.NodesByWeight[:i+1]
+ 		}
+ 	}
+-	return 0, nodes
++	return 0, p.NodesByWeight
+ }
+ 
+ // InlinePackage finds functions that can be inlined and clones them before walk expands them.
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 7704a23d5f..7e7f8ac24b 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1189,6 +1189,51 @@ func MethodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
+ 	return rpkg.LookupBytes(b.Bytes())
+ }
+ 
++// LookupMethodSelector returns the types.Sym of the selector for a method
++// named in local symbol name, as well as the types.Sym of the receiver.
++//
++// TODO(prattmic): this does not attempt to handle method suffixes (wrappers).
++func LookupMethodSelector(pkg *types.Pkg, name string) (typ, meth *types.Sym, err error) {
++	typeName, methName := splitType(name)
++	if typeName == "" {
++		return nil, nil, fmt.Errorf("%s doesn't contain type split", name)
++	}
++
++	if len(typeName) > 3 && typeName[:2] == "(*" && typeName[len(typeName)-1] == ')' {
++		// Symbol name is for a pointer receiver method. We just want
++		// the base type name.
++		typeName = typeName[2 : len(typeName)-1]
++	}
++
++	typ = pkg.Lookup(typeName)
++	meth = pkg.Selector(methName)
++	return typ, meth, nil
++}
++
++// splitType splits a local symbol name into type and method (fn). If this a
++// free function, typ == "".
++//
++// N.B. closures and methods can be ambiguous (e.g., bar.func1). These cases
++// are returned as methods.
++func splitType(name string) (typ, fn string) {
++	// Types are split on the first dot, ignoring everything inside
++	// brackets (instantiation of type parameter, usually including
++	// "go.shape").
++	bracket := 0
++	for i, r := range name {
++		if r == '.' && bracket == 0 {
++			return name[:i], name[i+1:]
++		}
++		if r == '[' {
++			bracket++
++		}
++		if r == ']' {
++			bracket--
++		}
++	}
++	return "", name
++}
++
+ // MethodExprName returns the ONAME representing the method
+ // referenced by expression n, which must be a method selector,
+ // method expression, or method value.
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index c693850d4a..a4a31f314d 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"strings"
++	"unicode/utf8"
+ )
+ 
+ // A Func corresponds to a single function in a Go program
+@@ -312,6 +313,67 @@ func LinkFuncName(f *Func) string {
+ 	return objabi.PathToPrefix(pkg.Path) + "." + s.Name
+ }
+ 
++// ParseLinkFuncName parsers a symbol name (as returned from LinkFuncName) back
++// to the package path and local symbol name.
++func ParseLinkFuncName(name string) (pkg, sym string, err error) {
++	pkg, sym = splitPkg(name)
++	if pkg == "" {
++		return "", "", fmt.Errorf("no package path in name")
++	}
++
++	pkg, err = objabi.PrefixToPath(pkg) // unescape
++	if err != nil {
++		return "", "", fmt.Errorf("malformed package path: %v", err)
++	}
++
++	return pkg, sym, nil
++}
++
++// Borrowed from x/mod.
++func modPathOK(r rune) bool {
++	if r < utf8.RuneSelf {
++		return r == '-' || r == '.' || r == '_' || r == '~' ||
++			'0' <= r && r <= '9' ||
++			'A' <= r && r <= 'Z' ||
++			'a' <= r && r <= 'z'
++	}
++	return false
++}
++
++func escapedImportPathOK(r rune) bool {
++	return modPathOK(r) || r == '+' || r == '/' || r == '%'
++}
++
++// splitPkg splits the full linker symbol name into package and local symbol
++// name.
++func splitPkg(name string) (pkgpath, sym string) {
++	// package-sym split is at first dot after last the / that comes before
++	// any characters illegal in a package path.
++
++	lastSlashIdx := 0
++	for i, r := range name {
++		// Catches cases like:
++		// * example.foo[sync/atomic.Uint64].
++		// * example%2ecom.foo[sync/atomic.Uint64].
++		//
++		// Note that name is still escaped; unescape occurs after splitPkg.
++		if !escapedImportPathOK(r) {
++			break
++		}
++		if r == '/' {
++			lastSlashIdx = i
++		}
++	}
++	for i := lastSlashIdx; i < len(name); i++ {
++		r := name[i]
++		if r == '.' {
++			return name[:i], name[i+1:]
++		}
++	}
++
++	return "", name
++}
++
+ var CurFunc *Func
+ 
+ // WithFunc invokes do with CurFunc and base.Pos set to curfn and
+diff --git a/src/cmd/compile/internal/ir/func_test.go b/src/cmd/compile/internal/ir/func_test.go
+new file mode 100644
+index 0000000000..5b40c02dc4
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/func_test.go
+@@ -0,0 +1,82 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"testing"
++)
++
++func TestSplitPkg(t *testing.T) {
++	tests := []struct {
++		in  string
++		pkg string
++		sym string
++	}{
++		{
++			in:  "foo.Bar",
++			pkg: "foo",
++			sym: "Bar",
++		},
++		{
++			in:  "foo/bar.Baz",
++			pkg: "foo/bar",
++			sym: "Baz",
++		},
++		{
++			in:  "memeqbody",
++			pkg: "",
++			sym: "memeqbody",
++		},
++		{
++			in:  `example%2ecom.Bar`,
++			pkg: `example%2ecom`,
++			sym: "Bar",
++		},
++		{
++			// Not a real generated symbol name, but easier to catch the general parameter form.
++			in:  `foo.Bar[sync/atomic.Uint64]`,
++			pkg: `foo`,
++			sym: "Bar[sync/atomic.Uint64]",
++		},
++		{
++			in:  `example%2ecom.Bar[sync/atomic.Uint64]`,
++			pkg: `example%2ecom`,
++			sym: "Bar[sync/atomic.Uint64]",
++		},
++		{
++			in:  `gopkg.in/yaml%2ev3.Bar[sync/atomic.Uint64]`,
++			pkg: `gopkg.in/yaml%2ev3`,
++			sym: "Bar[sync/atomic.Uint64]",
++		},
++		{
++			// This one is a real symbol name.
++			in:  `foo.Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]`,
++			pkg: `foo`,
++			sym: "Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]",
++		},
++		{
++			in:  `example%2ecom.Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]`,
++			pkg: `example%2ecom`,
++			sym: "Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]",
++		},
++		{
++			in:  `gopkg.in/yaml%2ev3.Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]`,
++			pkg: `gopkg.in/yaml%2ev3`,
++			sym: "Bar[go.shape.struct { sync/atomic._ sync/atomic.noCopy; sync/atomic._ sync/atomic.align64; sync/atomic.v uint64 }]",
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.in, func(t *testing.T) {
++			pkg, sym := splitPkg(tc.in)
++			if pkg != tc.pkg {
++				t.Errorf("splitPkg(%q) got pkg %q want %q", tc.in, pkg, tc.pkg)
++			}
++			if sym != tc.sym {
++				t.Errorf("splitPkg(%q) got sym %q want %q", tc.in, sym, tc.sym)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 59a3536000..5948cac58c 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -5,6 +5,7 @@
+ package noder
+ 
+ import (
++	"fmt"
+ 	"internal/pkgbits"
+ 	"io"
+ 	"runtime"
+@@ -14,6 +15,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/pgo"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/types2"
+@@ -25,6 +27,65 @@ import (
+ // later.
+ var localPkgReader *pkgReader
+ 
++// LookupMethodFunc returns the ir.Func for an arbitrary full symbol name if
++// that function exists in the set of available export data.
++//
++// This allows lookup of arbitrary methods that aren't otherwise referenced by
++// the local package and thus haven't been read yet.
++//
++// TODO(prattmic): Does not handle instantiation of generic types. Currently
++// profiles don't contain the original type arguments, so we won't be able to
++// create the runtime dictionaries.
++//
++// TODO(prattmic): Hit rate of this function is usually fairly low, and errors
++// are only used when debug logging is enabled. Consider constructing cheaper
++// errors by default.
++func LookupMethodFunc(fullName string) (*ir.Func, error) {
++	pkgPath, symName, err := ir.ParseLinkFuncName(fullName)
++	if err != nil {
++		return nil, fmt.Errorf("error parsing symbol name %q: %v", fullName, err)
++	}
++
++	pkg, ok := types.PkgMap()[pkgPath]
++	if !ok {
++		return nil, fmt.Errorf("pkg %s doesn't exist in %v", pkgPath, types.PkgMap())
++	}
++
++	// N.B. readPackage creates a Sym for every object in the package to
++	// initialize objReader and importBodyReader, even if the object isn't
++	// read.
++	//
++	// However, objReader is only initialized for top-level objects, so we
++	// must first lookup the type and use that to find the method rather
++	// than looking for the method directly.
++	typ, meth, err := ir.LookupMethodSelector(pkg, symName)
++	if err != nil {
++		return nil, fmt.Errorf("error looking up method symbol %q: %v", symName, err)
++	}
++
++	pri, ok := objReader[typ]
++	if !ok {
++		return nil, fmt.Errorf("type sym %v missing objReader", typ)
++	}
++
++	name := pri.pr.objIdx(pri.idx, nil, nil, false).(*ir.Name)
++	if name.Op() != ir.OTYPE {
++		return nil, fmt.Errorf("type sym %v refers to non-type name: %v", typ, name)
++	}
++	if name.Alias() {
++		return nil, fmt.Errorf("type sym %v refers to alias", typ)
++	}
++
++	for _, m := range name.Type().Methods() {
++		if m.Sym == meth {
++			fn := m.Nname.(*ir.Name).Func
++			return fn, nil
++		}
++	}
++
++	return nil, fmt.Errorf("method %s missing from method set of %v", symName, typ)
++}
++
+ // unified constructs the local package's Internal Representation (IR)
+ // from its syntax tree (AST).
+ //
+@@ -69,6 +130,7 @@ var localPkgReader *pkgReader
+ func unified(m posMap, noders []*noder) {
+ 	inline.InlineCall = unifiedInlineCall
+ 	typecheck.HaveInlineBody = unifiedHaveInlineBody
++	pgo.LookupMethodFunc = LookupMethodFunc
+ 
+ 	data := writePkgStub(m, noders)
+ 
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index f8f59acafe..e7cd9e688b 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -49,6 +49,7 @@ import (
+ 	"fmt"
+ 	"internal/profile"
+ 	"os"
++	"sort"
+ )
+ 
+ // IRGraph is a call graph with nodes pointing to IRs of functions and edges
+@@ -133,6 +134,9 @@ type Profile struct {
+ 	// aggregated weight.
+ 	NodeMap map[NodeMapKey]*Weights
+ 
++	// NodesByWeight lists all entries in NodeMap, sorted by edge weight.
++	NodesByWeight []NodeMapKey
++
+ 	// WeightedCG represents the IRGraph built from profile, which we will
+ 	// update as part of inlining.
+ 	WeightedCG *IRGraph
+@@ -267,6 +271,26 @@ func (p *Profile) initializeIRGraph() {
+ 		}
+ 	})
+ 
++	nodes := make([]NodeMapKey, 0, len(p.NodeMap))
++	for node := range p.NodeMap {
++		nodes = append(nodes, node)
++	}
++	sort.Slice(nodes, func(i, j int) bool {
++		ni, nj := nodes[i], nodes[j]
++		if wi, wj := p.NodeMap[ni].EWeight, p.NodeMap[nj].EWeight; wi != wj {
++			return wi > wj // want larger weight first
++		}
++		// same weight, order by name/line number
++		if ni.CallerName != nj.CallerName {
++			return ni.CallerName < nj.CallerName
++		}
++		if ni.CalleeName != nj.CalleeName {
++			return ni.CalleeName < nj.CalleeName
++		}
++		return ni.CallSiteOffset < nj.CallSiteOffset
++	})
++	p.NodesByWeight = nodes
++
+ 	// Add additional edges for indirect calls. This must be done second so
+ 	// that IRNodes is fully populated (see the dummy node TODO in
+ 	// addIndirectEdges).
+@@ -349,6 +373,13 @@ func (p *Profile) addIREdge(callerNode *IRNode, callerName string, call ir.Node,
+ 	callerNode.OutEdges[nodeinfo] = edge
+ }
+ 
++// LookupMethodFunc looks up a method in export data. It is expected to be
++// overridden by package noder, to break a dependency cycle.
++var LookupMethodFunc = func(fullName string) (*ir.Func, error) {
++	base.Fatalf("pgo.LookupMethodFunc not overridden")
++	panic("unreachable")
++}
++
+ // addIndirectEdges adds indirect call edges found in the profile to the graph,
+ // to be used for devirtualization.
+ //
+@@ -372,7 +403,16 @@ func (p *Profile) addIndirectEdges() {
+ 		localNodes[k] = v
+ 	}
+ 
+-	for key, weights := range p.NodeMap {
++	// N.B. We must consider nodes in a stable order because export data
++	// lookup order (LookupMethodFunc, below) can impact the export data of
++	// this package, which must be stable across different invocations for
++	// reproducibility.
++	//
++	// The weight ordering of NodesByWeight is irrelevant, NodesByWeight
++	// just happens to be an ordered list of nodes that is already
++	// available.
++	for _, key := range p.NodesByWeight {
++		weights := p.NodeMap[key]
+ 		// All callers in the local package build were added to IRNodes
+ 		// in VisitIR. If a caller isn't in the local package build we
+ 		// can skip adding edges, since we won't be devirtualizing in
+@@ -389,25 +429,57 @@ func (p *Profile) addIndirectEdges() {
+ 
+ 		calleeNode, ok := g.IRNodes[key.CalleeName]
+ 		if !ok {
+-			// IR is missing for this callee. Most likely this is
+-			// because the callee isn't in the transitive deps of
+-			// this package.
++			// IR is missing for this callee. VisitIR populates
++			// IRNodes with all functions discovered via local
++			// package function declarations and calls. This
++			// function may still be available from export data of
++			// a transitive dependency.
+ 			//
+-			// Record this call anyway. If this is the hottest,
+-			// then we want to skip devirtualization rather than
+-			// devirtualizing to the second most common callee.
++			// TODO(prattmic): Currently we only attempt to lookup
++			// methods because we can only devirtualize interface
++			// calls, not any function pointer. Generic types are
++			// not supported.
+ 			//
+-			// TODO(prattmic): VisitIR populates IRNodes with all
+-			// of the functions discovered via local package
+-			// function declarations and calls. Thus we could miss
+-			// functions that are available in export data of
+-			// transitive deps, but aren't directly reachable. We
+-			// need to do a lookup directly from package export
+-			// data to get complete coverage.
+-			calleeNode = &IRNode{
+-				LinkerSymbolName: key.CalleeName,
+-				// TODO: weights? We don't need them.
++			// TODO(prattmic): This eager lookup during graph load
++			// is simple, but wasteful. We are likely to load many
++			// functions that we never need. We could delay load
++			// until we actually need the method in
++			// devirtualization. Instantiation of generic functions
++			// will likely need to be done at the devirtualization
++			// site, if at all.
++			fn, err := LookupMethodFunc(key.CalleeName)
++			if err == nil {
++				if base.Debug.PGODebug >= 3 {
++					fmt.Printf("addIndirectEdges: %s found in export data\n", key.CalleeName)
++				}
++				calleeNode = &IRNode{AST: fn}
++
++				// N.B. we could call createIRGraphEdge to add
++				// direct calls in this newly-imported
++				// function's body to the graph. Similarly, we
++				// could add to this function's queue to add
++				// indirect calls. However, those would be
++				// useless given the visit order of inlining,
++				// and the ordering of PGO devirtualization and
++				// inlining. This function can only be used as
++				// an inlined body. We will never do PGO
++				// devirtualization inside an inlined call. Nor
++				// will we perform inlining inside an inlined
++				// call.
++			} else {
++				// Still not found. Most likely this is because
++				// the callee isn't in the transitive deps of
++				// this package.
++				//
++				// Record this call anyway. If this is the hottest,
++				// then we want to skip devirtualization rather than
++				// devirtualizing to the second most common callee.
++				if base.Debug.PGODebug >= 3 {
++					fmt.Printf("addIndirectEdges: %s not found in export data: %v\n", key.CalleeName, err)
++				}
++				calleeNode = &IRNode{LinkerSymbolName: key.CalleeName}
+ 			}
++
+ 			// Add dummy node back to IRNodes. We don't need this
+ 			// directly, but PrintWeightedCallGraphDOT uses these
+ 			// to print nodes.
+diff --git a/src/cmd/compile/internal/test/pgo_devirtualize_test.go b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+index 49e95e9a80..fbee8dedfd 100644
+--- a/src/cmd/compile/internal/test/pgo_devirtualize_test.go
++++ b/src/cmd/compile/internal/test/pgo_devirtualize_test.go
+@@ -31,7 +31,7 @@ go 1.19
+ 
+ 	// Build the test with the profile.
+ 	pprof := filepath.Join(dir, "devirt.pprof")
+-	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=2", pprof)
++	gcflag := fmt.Sprintf("-gcflags=-m=2 -pgoprofile=%s -d=pgodebug=3", pprof)
+ 	out := filepath.Join(dir, "test.exe")
+ 	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.GoToolPath(t), "build", "-o", out, gcflag, "."))
+ 	cmd.Dir = dir
+@@ -57,11 +57,11 @@ go 1.19
+ 
+ 	want := []devirtualization{
+ 		{
+-			pos:    "./devirt.go:61:21",
++			pos:    "./devirt.go:66:21",
+ 			callee: "mult.Mult.Multiply",
+ 		},
+ 		{
+-			pos:    "./devirt.go:61:31",
++			pos:    "./devirt.go:66:31",
+ 			callee: "Add.Add",
+ 		},
+ 	}
+@@ -115,10 +115,10 @@ func TestPGODevirtualize(t *testing.T) {
+ 
+ 	// Copy the module to a scratch location so we can add a go.mod.
+ 	dir := t.TempDir()
+-	if err := os.Mkdir(filepath.Join(dir, "mult"), 0755); err != nil {
++	if err := os.Mkdir(filepath.Join(dir, "mult.pkg"), 0755); err != nil {
+ 		t.Fatalf("error creating dir: %v", err)
+ 	}
+-	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult", "mult.go")} {
++	for _, file := range []string{"devirt.go", "devirt_test.go", "devirt.pprof", filepath.Join("mult.pkg", "mult.go")} {
+ 		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
+ 			t.Fatalf("error copying %s: %v", file, err)
+ 		}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+index 390b6c350a..4748e19e10 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.go
+@@ -11,7 +11,12 @@
+ 
+ package devirt
+ 
+-import "example.com/pgo/devirtualize/mult"
++// Devirtualization of callees from transitive dependencies should work even if
++// they aren't directly referenced in the package. See #61577.
++//
++// Dots in the last package path component are escaped in symbol names. Use one
++// to ensure the escaping doesn't break lookup.
++import "example.com/pgo/devirtualize/mult.pkg"
+ 
+ var sink int
+ 
+@@ -61,13 +66,3 @@ func Exercise(iter int, a1, a2 Adder, m1, m2 mult.Multiplier) {
+ 		sink += m.Multiply(42, a.Add(1, 2))
+ 	}
+ }
+-
+-func init() {
+-	// TODO: until https://golang.org/cl/497175 or similar lands,
+-	// we need to create an explicit reference to callees
+-	// in another package for devirtualization to work.
+-	m := mult.Mult{}
+-	m.Multiply(42, 0)
+-	n := mult.NegMult{}
+-	n.Multiply(42, 0)
+-}
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof
+index 5fe5dd606f..87e7b62736 100644
+Binary files a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof and b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt.pprof differ
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+index f4cbbb8069..ef637a876b 100644
+--- a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
++++ b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/devirt_test.go
+@@ -14,7 +14,7 @@ package devirt
+ import (
+ 	"testing"
+ 
+-	"example.com/pgo/devirtualize/mult"
++	"example.com/pgo/devirtualize/mult.pkg"
+ )
+ 
+ func BenchmarkDevirt(b *testing.B) {
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult/mult.go b/src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+similarity index 100%
+rename from src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult/mult.go
+rename to src/cmd/compile/internal/test/testdata/pgo/devirtualize/mult.pkg/mult.go
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index d77b92d2a3..8223d80135 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -54,6 +54,10 @@ func NewPkg(path, name string) *Pkg {
+ 	return p
+ }
+ 
++func PkgMap() map[string]*Pkg {
++	return pkgMap
++}
++
+ var nopkg = &Pkg{
+ 	Syms: make(map[string]*Sym),
+ }
+@@ -102,6 +106,14 @@ func (pkg *Pkg) LookupNum(prefix string, n int) *Sym {
+ 	return pkg.LookupBytes(b)
+ }
+ 
++// Selector looks up a selector identifier.
++func (pkg *Pkg) Selector(name string) *Sym {
++	if IsExported(name) {
++		pkg = LocalPkg
++	}
++	return pkg.Lookup(name)
++}
++
+ var (
+ 	internedStringsmu sync.Mutex // protects internedStrings
+ 	internedStrings   = map[string]string{}

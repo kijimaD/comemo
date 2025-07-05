@@ -13,10 +13,145 @@ Date:   Mon Nov 15 22:33:22 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go                   |  2 +-
  src/go/types/index.go                      |  2 +-
  src/go/types/stmt.go                       |  4 ++--
  src/go/types/testdata/check/builtins.go2   |  6 +++---
  src/go/types/testdata/check/typeparams.go2 | 12 ++++++------
  5 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 9b50403d7f..b767128367 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -479,7 +479,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, _InvalidMake, "cannot make %s; type set has no single underlying type", arg0)
++			check.errorf(arg0, _InvalidMake, "cannot make %s: no structural type", arg0)
+ 			return
+ 		default:
+ 			check.invalidArg(arg0, _InvalidMake, "cannot make %s; type must be slice, map, or channel", arg0)
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 534b445e9e..0284716277 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -213,7 +213,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 	length := int64(-1) // valid if >= 0
+ 	switch u := structuralType(x.typ).(type) {
+ 	case nil:
+-		check.errorf(x, _NonSliceableOperand, "cannot slice %s: type set has no single underlying type", x)
++		check.invalidOp(x, _NonSliceableOperand, "cannot slice %s: %s has no structural type", x, x.typ)
+ 		x.mode = invalid
+ 		return
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 3d4a20f808..e7514f19ae 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -832,12 +832,12 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		// determine key/value types
+ 		var key, val Type
+ 		if x.mode != invalid {
+-			// Ranging over a type parameter is permitted if it has a single underlying type.
++			// Ranging over a type parameter is permitted if it has a structural type.
+ 			var cause string
+ 			u := structuralType(x.typ)
+ 			switch t := u.(type) {
+ 			case nil:
+-				cause = "type set has no single underlying type"
++				cause = check.sprintf("%s has no structural type", x.typ)
+ 			case *Chan:
+ 				if s.Value != nil {
+ 					check.softErrorf(s.Value, _InvalidIterVar, "range over %s permits only one iteration variable", &x)
+diff --git a/src/go/types/testdata/check/builtins.go2 b/src/go/types/testdata/check/builtins.go2
+index 7cca6fd714..c1accff016 100644
+--- a/src/go/types/testdata/check/builtins.go2
++++ b/src/go/types/testdata/check/builtins.go2
+@@ -148,7 +148,7 @@ func _[
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
+ 	_ = make(S1, 10, 20)
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
+-	_ = make(S2 /* ERROR cannot make .* no single underlying type */ , 10)
++	_ = make(S2 /* ERROR cannot make S2: no structural type */ , 10)
+ 
+ 	type M0 map[string]int
+ 	_ = make(map[string]int)
+@@ -156,7 +156,7 @@ func _[
+ 	_ = make(M1)
+ 	_ = make(M1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(M1, 10, 20)
+-	_ = make(M2 /* ERROR cannot make .* no single underlying type */ )
++	_ = make(M2 /* ERROR cannot make M2: no structural type */ )
+ 
+ 	type C0 chan int
+ 	_ = make(chan int)
+@@ -164,7 +164,7 @@ func _[
+ 	_ = make(C1)
+ 	_ = make(C1, 10)
+ 	_ = make/* ERROR expects 1 or 2 arguments */(C1, 10, 20)
+-	_ = make(C2 /* ERROR cannot make .* no single underlying type */ )
++	_ = make(C2 /* ERROR cannot make C2: no structural type */ )
+ 	_ = make(C3)
+ }
+ 
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 09d478c4d7..6bf303af90 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -134,7 +134,7 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x /* ERROR 3-index
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no single underlying type */ [i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no structural type */ [i:j:k] }
+ 
+ // len/cap built-ins
+ 
+@@ -210,7 +210,7 @@ func _[
+         for _, _ /* ERROR permits only one iteration variable */ = range c1 {}
+ 
+         var c2 C2
+-        for range c2 /* ERROR cannot range over c2.*no single underlying type */ {}
++        for range c2 /* ERROR cannot range over c2.*no structural type */ {}
+ 
+         var c3 C3
+         for range c3 /* ERROR receive from send-only channel */ {}
+@@ -226,7 +226,7 @@ func _[
+         for _, _ = range s1 {}
+ 
+         var s2 S2
+-        for range s2 /* ERROR cannot range over s2.*no single underlying type */ {}
++        for range s2 /* ERROR cannot range over s2.*no structural type */ {}
+ 
+         var a0 []int
+         for range a0 {}
+@@ -239,7 +239,7 @@ func _[
+         for _, _ = range a1 {}
+ 
+         var a2 A2
+-        for range a2 /* ERROR cannot range over a2.*no single underlying type */ {}
++        for range a2 /* ERROR cannot range over a2.*no structural type */ {}
+ 
+         var p0 *[10]int
+         for range p0 {}
+@@ -252,7 +252,7 @@ func _[
+         for _, _ = range p1 {}
+ 
+         var p2 P2
+-        for range p2 /* ERROR cannot range over p2.*no single underlying type */ {}
++        for range p2 /* ERROR cannot range over p2.*no structural type */ {}
+ 
+         var m0 map[string]int
+         for range m0 {}
+@@ -265,7 +265,7 @@ func _[
+         for _, _ = range m1 {}
+ 
+         var m2 M2
+-        for range m2 /* ERROR cannot range over m2.*no single underlying type */ {}
++        for range m2 /* ERROR cannot range over m2.*no structural type */ {}
+ }
+ 
+ // type inference checks

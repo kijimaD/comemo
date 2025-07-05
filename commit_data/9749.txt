@@ -8,9 +8,169 @@ Date:   Mon Sep 19 16:55:08 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5082041
-
+---
  src/pkg/gob/codec_test.go   |  2 +-
  src/pkg/gob/decode.go       | 33 +++++++++++++++++++---------
  src/pkg/gob/doc.go          |  5 ++++-
  src/pkg/gob/encoder_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++-
  4 files changed, 79 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index a5fb91cda7..2bcbf82a30 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -544,7 +544,7 @@ func TestScalarDecInstructions(t *testing.T) {
+ 		var data struct {
+ 			a []byte
+ 		}
+-		instr := &decInstr{decUint8Array, 6, 0, 0, ovfl}
++		instr := &decInstr{decUint8Slice, 6, 0, 0, ovfl}
+ 		state := newDecodeStateFromData(bytesResult)
+ 		execDec("bytes", instr, state, t, unsafe.Pointer(&data))
+ 		if string(data.a) != "hello" {
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index bf7cb95f22..9bbe1286e0 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -385,19 +385,29 @@ func decComplex128(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	*(*complex128)(p) = complex(real, imag)
+ }
+ 
+-// decUint8Array decodes byte array and stores through p a slice header
++// decUint8Slice decodes a byte slice and stores through p a slice header
+ // describing the data.
+-// uint8 arrays are encoded as an unsigned count followed by the raw bytes.
+-func decUint8Array(i *decInstr, state *decoderState, p unsafe.Pointer) {
++// uint8 slices are encoded as an unsigned count followed by the raw bytes.
++func decUint8Slice(i *decInstr, state *decoderState, p unsafe.Pointer) {
+ 	if i.indir > 0 {
+ 		if *(*unsafe.Pointer)(p) == nil {
+ 			*(*unsafe.Pointer)(p) = unsafe.Pointer(new([]uint8))
+ 		}
+ 		p = *(*unsafe.Pointer)(p)
+ 	}
+-	b := make([]uint8, state.decodeUint())
+-	state.b.Read(b)
+-	*(*[]uint8)(p) = b
++	n := int(state.decodeUint())
++	if n < 0 {
++		errorf("negative length decoding []byte")
++	}
++	slice := (*[]uint8)(p)
++	if cap(*slice) < n {
++		*slice = make([]uint8, n)
++	} else {
++		*slice = (*slice)[0:n]
++	}
++	if _, err := state.b.Read(*slice); err != nil {
++		errorf("error decoding []byte: %s", err)
++	}
+ }
+ 
+ // decString decodes byte array and stores through p a string header
+@@ -653,12 +663,15 @@ func (dec *Decoder) decodeSlice(atyp reflect.Type, state *decoderState, p uintpt
+ 		}
+ 		p = *(*uintptr)(up)
+ 	}
+-	// Allocate storage for the slice elements, that is, the underlying array.
++	// Allocate storage for the slice elements, that is, the underlying array,
++	// if the existing slice does not have the capacity.
+ 	// Always write a header at p.
+ 	hdrp := (*reflect.SliceHeader)(unsafe.Pointer(p))
+-	hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
++	if hdrp.Cap < n {
++		hdrp.Data = uintptr(unsafe.NewArray(atyp.Elem(), n))
++		hdrp.Cap = n
++	}
+ 	hdrp.Len = n
+-	hdrp.Cap = n
+ 	dec.decodeArrayHelper(state, hdrp.Data, elemOp, elemWid, n, elemIndir, ovfl)
+ }
+ 
+@@ -842,7 +855,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string, inProg
+ 		case reflect.Slice:
+ 			name = "element of " + name
+ 			if t.Elem().Kind() == reflect.Uint8 {
+-				op = decUint8Array
++				op = decUint8Slice
+ 				break
+ 			}
+ 			var elemId typeId
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index a9284ced7f..05ebef1959 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -68,7 +68,10 @@ the destination variable must be able to represent the value or the decode
+ operation will fail.
+ 
+ Structs, arrays and slices are also supported.  Strings and arrays of bytes are
+-supported with a special, efficient representation (see below).
++supported with a special, efficient representation (see below).  When a slice is
++decoded, if the existing slice has capacity the slice will be extended in place;
++if not, a new array is allocated.  Regardless, the length of the resuling slice
++reports the number of elements decoded.
+ 
+ Functions and channels cannot be sent in a gob.  Attempting
+ to encode a value that contains one will fail.
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index f5ee423cb2..79d2897010 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -575,6 +575,56 @@ func TestGobMapInterfaceEncode(t *testing.T) {
+ 	enc := NewEncoder(buf)
+ 	err := enc.Encode(m)
+ 	if err != nil {
+-		t.Errorf("gob.Encode map: %s", err)
++		t.Errorf("encode map: %s", err)
++	}
++}
++
++func TestSliceReusesMemory(t *testing.T) {
++	buf := bytes.NewBuffer(nil)
++	// Bytes
++	{
++		x := []byte("abcd")
++		enc := NewEncoder(buf)
++		err := enc.Encode(x)
++		if err != nil {
++			t.Errorf("bytes: encode: %s", err)
++		}
++		// Decode into y, which is big enough.
++		y := []byte("ABCDE")
++		addr := &y[0]
++		dec := NewDecoder(buf)
++		err = dec.Decode(&y)
++		if err != nil {
++			t.Fatal("bytes: decode:", err)
++		}
++		if !bytes.Equal(x, y) {
++			t.Errorf("bytes: expected %q got %q\n", x, y)
++		}
++		if addr != &y[0] {
++			t.Errorf("bytes: unnecessary reallocation")
++		}
++	}
++	// general slice
++	{
++		x := []int("abcd")
++		enc := NewEncoder(buf)
++		err := enc.Encode(x)
++		if err != nil {
++			t.Errorf("ints: encode: %s", err)
++		}
++		// Decode into y, which is big enough.
++		y := []int("ABCDE")
++		addr := &y[0]
++		dec := NewDecoder(buf)
++		err = dec.Decode(&y)
++		if err != nil {
++			t.Fatal("ints: decode:", err)
++		}
++		if !reflect.DeepEqual(x, y) {
++			t.Errorf("ints: expected %q got %q\n", x, y)
++		}
++		if addr != &y[0] {
++			t.Errorf("ints: unnecessary reallocation")
++		}
+ 	}
+ }

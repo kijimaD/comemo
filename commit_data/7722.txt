@@ -10,7 +10,62 @@ Date:   Wed Mar 9 17:30:27 2011 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4240101
-
+---
  src/pkg/gob/decode.go | 6 +++---
  src/pkg/gob/encode.go | 5 +++--
  2 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 6d7ddfdfbc..c47fea1a70 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -19,7 +19,7 @@ import (
+ var (
+ 	errBadUint = os.ErrorString("gob: encoded unsigned integer out of range")
+ 	errBadType = os.ErrorString("gob: unknown type id or corrupted data")
+-	errRange   = os.ErrorString("gob: internal error: field numbers out of bounds")
++	errRange   = os.ErrorString("gob: bad data: field numbers out of bounds")
+ )
+ 
+ // decoderState is the execution state of an instance of the decoder. A new state
+@@ -885,7 +885,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
+ 		wire := dec.wireType[wireId]
+ 		switch {
+ 		case wire == nil:
+-			panic("internal error: can't find ignore op for type " + wireId.string())
++			errorf("gob: bad data: undefined type %s", wireId.string())
+ 		case wire.ArrayT != nil:
+ 			elemId := wire.ArrayT.Elem
+ 			elemOp := dec.decIgnoreOpFor(elemId)
+@@ -927,7 +927,7 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
+ 		}
+ 	}
+ 	if op == nil {
+-		errorf("ignore can't handle type %s", wireId.string())
++		errorf("gob: bad data: ignore can't handle type %s", wireId.string())
+ 	}
+ 	return op
+ }
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index cfee6f6d85..adaf958e78 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -579,7 +579,8 @@ func methodIndex(rt reflect.Type, method string) int {
+ 			return i
+ 		}
+ 	}
+-	panic("can't find method " + method)
++	errorf("gob: internal error: can't find method %s", method)
++	return 0
+ }
+ 
+ // gobEncodeOpFor returns the op for a type that is known to implement
+@@ -628,7 +629,7 @@ func (enc *Encoder) compileEnc(ut *userTypeInfo) *encEngine {
+ 			wireFieldNum++
+ 		}
+ 		if srt.NumField() > 0 && len(engine.instr) == 0 {
+-			errorf("type %s has no exported fields", rt)
++			errorf("gob: type %s has no exported fields", rt)
+ 		}
+ 		engine.instr = append(engine.instr, encInstr{encStructTerminator, 0, 0, 0})
+ 	} else {

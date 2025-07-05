@@ -16,6 +16,20 @@ Date:   Mon Aug 11 13:53:38 2014 -0400
     R=golang-codereviews, minux, rsc
     CC=golang-codereviews
     https://golang.org/cl/119630043
-
+---
  src/cmd/link/pclntab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/pclntab.go b/src/cmd/link/pclntab.go
+index b0b19ad53c..a950895aa5 100644
+--- a/src/cmd/link/pclntab.go
++++ b/src/cmd/link/pclntab.go
+@@ -437,7 +437,7 @@ func (it *PCIter) Next() {
+ 		return
+ 	}
+ 	it.start = false
+-	sv := int32(uv)>>1 ^ int32(uv)<<31>>31
++	sv := int32(uv>>1) ^ int32(uv<<31)>>31
+ 	it.Value += sv
+ 
+ 	// pc delta

@@ -7,6 +7,25 @@ Date:   Wed Mar 2 14:22:39 2011 -0500
     R=golang-dev, rsc
     CC=albert.strasheim, golang-dev
     https://golang.org/cl/4240055
-
+---
  src/cmd/Makefile | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index b78574bae2..104e9f5df3 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -55,11 +55,9 @@ clean: $(patsubst %,%.clean,$(CLEANDIRS))
+ 	@echo
+ 	$(MAKE) -C $* install
+ 
+-gc.install: cc.install
+-
+-$(O)c.install: cc.install
+-
++gc.install $(O)c.install: cc.install
+ $(O)g.install: gc.install
++$(O)a.install $(O)c.install $(O)g.install: $(O)l.install
+ 
+ %.clean:
+ 	$(MAKE) -C $* clean

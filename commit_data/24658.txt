@@ -15,7 +15,7 @@ Date:   Tue Aug 18 15:25:40 2015 -0700
     Change-Id: Ifee6e510cdea49cc7c7056887e4f06c67488d491
     Reviewed-on: https://go-review.googlesource.com/13687
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 50 +++++++++++++++++++-------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  5 ++-
@@ -23,3 +23,250 @@ Date:   Tue Aug 18 15:25:40 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 24 +++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 32 +++++++++++++++++
  6 files changed, 104 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 6a5ecbf04d..1fb5485183 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1617,6 +1617,9 @@ func (s *state) nilCheck(ptr *ssa.Value) {
+ // boundsCheck generates bounds checking code.  Checks if 0 <= idx < len, branches to exit if not.
+ // Starts a new block on return.
+ func (s *state) boundsCheck(idx, len *ssa.Value) {
++	if Debug['B'] != 0 {
++		return
++	}
+ 	// TODO: convert index to full width?
+ 	// TODO: if index is 64-bit and we're compiling to 32-bit, check that high 32 bits are zero.
+ 
+@@ -1627,9 +1630,15 @@ func (s *state) boundsCheck(idx, len *ssa.Value) {
+ 	b.Control = cmp
+ 	b.Likely = ssa.BranchLikely
+ 	bNext := s.f.NewBlock(ssa.BlockPlain)
++	bPanic := s.f.NewBlock(ssa.BlockPlain)
+ 	addEdge(b, bNext)
+-	addEdge(b, s.exit)
+-	// TODO: don't go directly to s.exit.  Go to a stub that calls panicindex first.
++	addEdge(b, bPanic)
++	addEdge(bPanic, s.exit)
++	s.startBlock(bPanic)
++	// The panic check takes/returns memory to ensure that the right
++	// memory state is observed if the panic happens.
++	s.vars[&memvar] = s.newValue1(ssa.OpPanicIndexCheck, ssa.TypeMem, s.mem())
++	s.endBlock()
+ 	s.startBlock(bNext)
+ }
+ 
+@@ -2416,20 +2425,26 @@ func genValue(v *ssa.Value) {
+ 			Warnl(int(v.Line), "generated nil check")
+ 		}
+ 		// Write to memory address 0. It doesn't matter what we write; use AX.
+-		// XORL AX, AX; MOVL AX, (AX) is shorter than MOVL AX, 0.
+-		// TODO: If we had the pointer (v.Args[0]) in a register r,
+-		// we could use MOVL AX, (r) instead of having to zero AX.
+-		// But it isn't worth loading r just to accomplish that.
+-		p := Prog(x86.AXORL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
++		// Input 0 is the pointer we just checked, use it as the destination.
++		r := regnum(v.Args[0])
+ 		q := Prog(x86.AMOVL)
+ 		q.From.Type = obj.TYPE_REG
+ 		q.From.Reg = x86.REG_AX
+ 		q.To.Type = obj.TYPE_MEM
+-		q.To.Reg = x86.REG_AX
++		q.To.Reg = r
++		// TODO: need AUNDEF here?
++	case ssa.OpAMD64LoweredPanicIndexCheck:
++		p := Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = Linksym(Panicindex.Sym)
++		// TODO: need AUNDEF here?
++	case ssa.OpAMD64LoweredPanicSliceCheck:
++		p := Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = Linksym(panicslice.Sym)
++		// TODO: need AUNDEF here?
+ 	case ssa.OpAMD64LoweredGetG:
+ 		r := regnum(v)
+ 		// See the comments in cmd/internal/obj/x86/obj6.go
+@@ -2545,6 +2560,17 @@ var blockJump = [...]struct{ asm, invasm int }{
+ 
+ func genBlock(b, next *ssa.Block, branches []branch) []branch {
+ 	lineno = b.Line
++
++	// after a panic call, don't emit any branch code
++	if len(b.Values) > 0 {
++		switch b.Values[len(b.Values)-1].Op {
++		case ssa.OpAMD64LoweredPanicNilCheck,
++			ssa.OpAMD64LoweredPanicIndexCheck,
++			ssa.OpAMD64LoweredPanicSliceCheck:
++			return branches
++		}
++	}
++
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+ 		if b.Succs[0] != next {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 21f4d01296..919336e869 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -245,6 +245,8 @@
+ (IsInBounds idx len) -> (SETB (CMPQ <TypeFlags> idx len))
+ 
+ (PanicNilCheck ptr mem) -> (LoweredPanicNilCheck ptr mem)
++(PanicIndexCheck mem) -> (LoweredPanicIndexCheck mem)
++(PanicSliceCheck mem) -> (LoweredPanicSliceCheck mem)
+ (GetG) -> (LoweredGetG)
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (MOVQconst <config.Frontend().TypeUInt64()> [size]) mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 24c8a199b5..e633f82348 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -103,6 +103,7 @@ func init() {
+ 			clobbers: dx | flags}
+ 		gp11hmul = regInfo{inputs: []regMask{ax, gpsp}, outputs: []regMask{dx},
+ 			clobbers: ax | flags}
++		gp10 = regInfo{inputs: []regMask{gp}}
+ 
+ 		gp2flags = regInfo{inputs: []regMask{gpsp, gpsp}, outputs: flagsonly}
+ 		gp1flags = regInfo{inputs: []regMask{gpsp}, outputs: flagsonly}
+@@ -353,7 +354,9 @@ func init() {
+ 		{name: "InvertFlags"}, // reverse direction of arg0
+ 
+ 		// Pseudo-ops
+-		{name: "LoweredPanicNilCheck"},
++		{name: "LoweredPanicNilCheck", reg: gp10},
++		{name: "LoweredPanicIndexCheck"},
++		{name: "LoweredPanicSliceCheck"},
+ 		{name: "LoweredGetG", reg: gp01},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 44eed6aeba..2024788c5d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -282,8 +282,10 @@ var genericOps = []opData{
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+ 
+ 	// Pseudo-ops
+-	{name: "PanicNilCheck"}, // trigger a dereference fault; arg0=nil ptr, arg1=mem
+-	{name: "GetG"},          // runtime.getg() (read g pointer)
++	{name: "PanicNilCheck"},   // trigger a dereference fault; arg0=nil ptr, arg1=mem, returns mem
++	{name: "PanicIndexCheck"}, // trigger a bounds check failure, arg0=mem, returns mem
++	{name: "PanicSliceCheck"}, // trigger a slice bounds check failure, arg0=mem, returns mem
++	{name: "GetG"},            // runtime.getg() (read g pointer)
+ 
+ 	// Indexing operations
+ 	{name: "ArrayIndex"},   // arg0=array, arg1=index.  Returns a[i]
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f8e5e623b6..003aacffbb 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -227,6 +227,8 @@ const (
+ 	OpAMD64REPMOVSB
+ 	OpAMD64InvertFlags
+ 	OpAMD64LoweredPanicNilCheck
++	OpAMD64LoweredPanicIndexCheck
++	OpAMD64LoweredPanicSliceCheck
+ 	OpAMD64LoweredGetG
+ 
+ 	OpAdd8
+@@ -426,6 +428,8 @@ const (
+ 	OpIsNonNil
+ 	OpIsInBounds
+ 	OpPanicNilCheck
++	OpPanicIndexCheck
++	OpPanicSliceCheck
+ 	OpGetG
+ 	OpArrayIndex
+ 	OpPtrIndex
+@@ -2686,6 +2690,18 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name: "LoweredPanicNilCheck",
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 65519}, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "LoweredPanicIndexCheck",
++		reg:  regInfo{},
++	},
++	{
++		name: "LoweredPanicSliceCheck",
+ 		reg:  regInfo{},
+ 	},
+ 	{
+@@ -3486,6 +3502,14 @@ var opcodeTable = [...]opInfo{
+ 		name:    "PanicNilCheck",
+ 		generic: true,
+ 	},
++	{
++		name:    "PanicIndexCheck",
++		generic: true,
++	},
++	{
++		name:    "PanicSliceCheck",
++		generic: true,
++	},
+ 	{
+ 		name:    "GetG",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 4013611b88..4265cfcb84 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -5789,6 +5789,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end6f8a8c559a167d1f0a5901d09a1fb248
+ 	end6f8a8c559a167d1f0a5901d09a1fb248:
+ 		;
++	case OpPanicIndexCheck:
++		// match: (PanicIndexCheck mem)
++		// cond:
++		// result: (LoweredPanicIndexCheck mem)
++		{
++			mem := v.Args[0]
++			v.Op = OpAMD64LoweredPanicIndexCheck
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(mem)
++			return true
++		}
++		goto enda5014ba73d3550a5b66424044395c70f
++	enda5014ba73d3550a5b66424044395c70f:
++		;
+ 	case OpPanicNilCheck:
+ 		// match: (PanicNilCheck ptr mem)
+ 		// cond:
+@@ -5807,6 +5823,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enda02b1ad5a6f929b782190145f2c8628b
+ 	enda02b1ad5a6f929b782190145f2c8628b:
+ 		;
++	case OpPanicSliceCheck:
++		// match: (PanicSliceCheck mem)
++		// cond:
++		// result: (LoweredPanicSliceCheck mem)
++		{
++			mem := v.Args[0]
++			v.Op = OpAMD64LoweredPanicSliceCheck
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(mem)
++			return true
++		}
++		goto end238ed0074810b55bd2bba7b45cdeed68
++	end238ed0074810b55bd2bba7b45cdeed68:
++		;
+ 	case OpRsh16Ux16:
+ 		// match: (Rsh16Ux16 <t> x y)
+ 		// cond:

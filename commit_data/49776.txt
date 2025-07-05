@@ -13,7 +13,40 @@ Date:   Thu Sep 9 14:42:42 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/348740
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go |  2 +-
  test/fixedbugs/issue48301.go       | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index d19fe453ef..22fbf39975 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -559,7 +559,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 	}
+ 
+ 	nprec := OpPrec[n.Op()]
+-	if n.Op() == OTYPE && n.Type().IsPtr() {
++	if n.Op() == OTYPE && n.Type() != nil && n.Type().IsPtr() {
+ 		nprec = OpPrec[ODEREF]
+ 	}
+ 
+diff --git a/test/fixedbugs/issue48301.go b/test/fixedbugs/issue48301.go
+new file mode 100644
+index 0000000000..46fe779a42
+--- /dev/null
++++ b/test/fixedbugs/issue48301.go
+@@ -0,0 +1,13 @@
++// errorcheck -G=0
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Don't crash while reporting the error.
++
++package p
++
++func _() {
++	type T = T // ERROR "T uses T"
++}

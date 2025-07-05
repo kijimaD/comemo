@@ -7,6 +7,20 @@ Date:   Thu Oct 1 07:55:51 2015 +0000
     Change-Id: I8f22434ade576cc7e3e6d9f357bba12c1296e3d1
     Reviewed-on: https://go-review.googlesource.com/15250
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/signal1_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal1_unix.go b/src/runtime/signal1_unix.go
+index 56d9755190..e351d57b77 100644
+--- a/src/runtime/signal1_unix.go
++++ b/src/runtime/signal1_unix.go
+@@ -195,7 +195,7 @@ func crash() {
+ 	raise(_SIGABRT)
+ }
+ 
+-// createSigM starts one global, sleeping thread to make sure at least one thread
++// ensureSigM starts one global, sleeping thread to make sure at least one thread
+ // is available to catch signals enabled for os/signal.
+ func ensureSigM() {
+ 	if maskUpdatedChan != nil {

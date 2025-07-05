@@ -9,6 +9,20 @@ Date:   Tue Apr 15 16:40:48 2014 -0700
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/88280044
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index c44efc4452..5bd250754f 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -14,7 +14,7 @@
+ 
+ <p>
+ <a href="http://code.google.com/p/go/downloads" target="_blank">Official binary
+-distributions</a> are available for the FreeBSD, Linux, Mac OS X (Snow Leopard
++distributions</a> are available for the FreeBSD (release 8 and above), Linux, Mac OS X (Snow Leopard
+ and above), and Windows operating systems and the 32-bit (<code>386</code>) and
+ 64-bit (<code>amd64</code>) x86 processor architectures.
+ </p>

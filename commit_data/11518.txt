@@ -11,7 +11,44 @@ Date:   Tue Jan 31 19:41:38 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev, remy
     https://golang.org/cl/5580051
-
+---
  src/cmd/go/build.go | 6 ++++++
  src/cmd/go/pkg.go   | 8 --------
  2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 1e27b3da0d..b0e05b2c16 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -349,6 +349,12 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 			// Fake packages - nothing to build.
+ 			return a
+ 		}
++		// gccgo standard library is "fake" too.
++		if _, ok := buildToolchain.(gccgoToolchain); ok {
++			// the target name is needed for cgo.
++			a.target = p.target
++			return a
++		}
+ 	}
+ 
+ 	if !p.Stale && !buildA && p.target != "" {
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 2a32e2aea4..ad7d7c95ab 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -295,14 +295,6 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 			dir = filepath.Join(filepath.Dir(dir), "gccgo", filepath.Base(dir))
+ 		}
+ 		p.target = buildToolchain.pkgpath(dir, p)
+-
+-		// NB. Currently we have gccgo install the standard libraries
+-		// in the "usual" location, where the Go toolchain puts them.
+-		if p.Standard {
+-			if _, ok := buildToolchain.(gccgoToolchain); ok {
+-				p.target = goToolchain{}.pkgpath(dir, p)
+-			}
+-		}
+ 	}
+ 
+ 	var built time.Time

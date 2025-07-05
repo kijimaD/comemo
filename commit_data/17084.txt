@@ -7,6 +7,19 @@ Date:   Thu Aug 8 12:40:09 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12642043
-
+---
  doc/go1.2.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index ad693fd704..88a2249d4c 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -19,6 +19,7 @@ crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
+ crypto/tls: add support for TLS 1.1. (CL 7872043).
+ encoding/json: accept but correct invalid UTF-8 in Marshal (CL 11211045).
+ flag: add Getter interface (CL 10472043).
++flag: export commandLine (now CommandLine) (CL 12587043).
+ fmt: indexed access to arguments in Printf etc. (CL 9680043).
+ go/build: support including C++ code with cgo (CL 8248043).
+ image/draw: added Drawer, FloydSteinberg and the op.Draw method (CL 10977043).

@@ -13,6 +13,22 @@ Date:   Fri Aug 7 10:52:18 2015 +1000
     Change-Id: Ic88ba342d41f673391efaa96fb581712fa10a0fd
     Reviewed-on: https://go-review.googlesource.com/13341
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.5.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 39b5699942..0d5cc56b81 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -247,8 +247,8 @@ On FreeBSD, Go 1.5 requires FreeBSD 8-STABLE+ because of its new use of the <cod
+ </p>
+ 
+ <p>
+-On NaCl, Go 1.5 requires SDK version pepper-39 or above because it now uses the
+-<code>get_random_bytes</code> system call.
++On NaCl, Go 1.5 requires SDK version pepper-41. Later pepper versions are not
++compatible due to the removal of the sRPC subsystem from the NaCl runtime.
+ </p>
+ 
+ <p>

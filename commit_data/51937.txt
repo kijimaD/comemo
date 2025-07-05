@@ -18,7 +18,63 @@ Date:   Fri Mar 25 19:08:19 2022 +0000
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/netip/netip.go      | 10 +++++-----
  src/net/netip/netip_test.go |  2 +-
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index f27984ab57..1cf75fb5a1 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -90,7 +90,7 @@ func AddrFrom4(addr [4]byte) Addr {
+ }
+ 
+ // AddrFrom16 returns the IPv6 address given by the bytes in addr.
+-// An IPv6-mapped IPv4 address is left as an IPv6 address.
++// An IPv4-mapped IPv6 address is left as an IPv6 address.
+ // (Use Unmap to convert them if needed.)
+ func AddrFrom16(addr [16]byte) Addr {
+ 	return Addr{
+@@ -675,7 +675,7 @@ const (
+ )
+ 
+ // As16 returns the IP address in its 16-byte representation.
+-// IPv4 addresses are returned in their v6-mapped form.
++// IPv4 addresses are returned in their IPv4-mapped IPv6 form.
+ // IPv6 addresses with zones are returned without their zone (use the
+ // Zone method to get it).
+ // The ip zero value returns all zeroes.
+@@ -1340,7 +1340,7 @@ func (p Prefix) Masked() Prefix {
+ // Contains reports whether the network p includes ip.
+ //
+ // An IPv4 address will not match an IPv6 prefix.
+-// A v6-mapped IPv6 address will not match an IPv4 prefix.
++// An IPv4-mapped IPv6 address will not match an IPv4 prefix.
+ // A zero-value IP will not match any prefix.
+ // If ip has an IPv6 zone, Contains returns false,
+ // because Prefixes strip zones.
+@@ -1372,8 +1372,8 @@ func (p Prefix) Contains(ip Addr) bool {
+ // Overlaps reports whether p and o contain any IP addresses in common.
+ //
+ // If p and o are of different address families or either have a zero
+-// IP, it reports false. Like the Contains method, a prefix with a
+-// v6-mapped IPv4 IP is still treated as an IPv6 mask.
++// IP, it reports false. Like the Contains method, a prefix with an
++// IPv4-mapped IPv6 IP is still treated as an IPv6 mask.
+ func (p Prefix) Overlaps(o Prefix) bool {
+ 	if !p.IsValid() || !o.IsValid() {
+ 		return false
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index d988864827..a72390fd5b 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1776,7 +1776,7 @@ func TestPrefixOverlaps(t *testing.T) {
+ 		{pfx("1::1/128"), pfx("2::2/128"), false},
+ 		{pfx("0100::0/8"), pfx("::1/128"), false},
+ 
+-		// v6-mapped v4 should not overlap with IPv4.
++		// IPv4-mapped IPv6 should not overlap with IPv4.
+ 		{PrefixFrom(AddrFrom16(mustIP("1.2.0.0").As16()), 16), pfx("1.2.3.0/24"), false},
+ 
+ 		// Invalid prefixes

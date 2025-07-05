@@ -45,9 +45,209 @@ Date:   Sat Aug 13 12:35:57 2022 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/lookup.go      | 16 ++++++-
  src/cmd/compile/internal/types2/lookup_test.go | 55 ++++++++++++++++++++++++
  src/go/types/lookup.go                         | 16 ++++++-
  src/go/types/lookup_test.go                    | 58 ++++++++++++++++++++++++++
  4 files changed, 143 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 5f76752086..3e04798815 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -261,10 +261,18 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ }
+ 
+ type instanceLookup struct {
+-	m map[*Named][]*Named
++	// buf is used to avoid allocating the map m in the common case of a small
++	// number of instances.
++	buf [3]*Named
++	m   map[*Named][]*Named
+ }
+ 
+ func (l *instanceLookup) lookup(inst *Named) *Named {
++	for _, t := range l.buf {
++		if t != nil && Identical(inst, t) {
++			return t
++		}
++	}
+ 	for _, t := range l.m[inst.Origin()] {
+ 		if Identical(inst, t) {
+ 			return t
+@@ -274,6 +282,12 @@ func (l *instanceLookup) lookup(inst *Named) *Named {
+ }
+ 
+ func (l *instanceLookup) add(inst *Named) {
++	for i, t := range l.buf {
++		if t == nil {
++			l.buf[i] = inst
++			return
++		}
++	}
+ 	if l.m == nil {
+ 		l.m = make(map[*Named][]*Named)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/lookup_test.go b/src/cmd/compile/internal/types2/lookup_test.go
+new file mode 100644
+index 0000000000..56fe48c1e2
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/lookup_test.go
+@@ -0,0 +1,55 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2_test
++
++import (
++	"path/filepath"
++	"runtime"
++	"testing"
++
++	. "cmd/compile/internal/types2"
++)
++
++// BenchmarkLookupFieldOrMethod measures types.LookupFieldOrMethod performance.
++// LookupFieldOrMethod is a performance hotspot for both type-checking and
++// external API calls.
++func BenchmarkLookupFieldOrMethod(b *testing.B) {
++	// Choose an arbitrary, large package.
++	path := filepath.Join(runtime.GOROOT(), "src", "net", "http")
++
++	files, err := pkgFiles(path)
++	if err != nil {
++		b.Fatal(err)
++	}
++
++	conf := Config{
++		Importer: defaultImporter(),
++	}
++
++	pkg, err := conf.Check("http", files, nil)
++	if err != nil {
++		b.Fatal(err)
++	}
++
++	scope := pkg.Scope()
++	names := scope.Names()
++
++	// Look up an arbitrary name for each type referenced in the package scope.
++	lookup := func() {
++		for _, name := range names {
++			typ := scope.Lookup(name).Type()
++			LookupFieldOrMethod(typ, true, pkg, "m")
++		}
++	}
++
++	// Perform a lookup once, to ensure that any lazily-evaluated state is
++	// complete.
++	lookup()
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		lookup()
++	}
++}
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 9e0a06aedb..828c881367 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -261,10 +261,18 @@ func lookupType(m map[Type]int, typ Type) (int, bool) {
+ }
+ 
+ type instanceLookup struct {
+-	m map[*Named][]*Named
++	// buf is used to avoid allocating the map m in the common case of a small
++	// number of instances.
++	buf [3]*Named
++	m   map[*Named][]*Named
+ }
+ 
+ func (l *instanceLookup) lookup(inst *Named) *Named {
++	for _, t := range l.buf {
++		if t != nil && Identical(inst, t) {
++			return t
++		}
++	}
+ 	for _, t := range l.m[inst.Origin()] {
+ 		if Identical(inst, t) {
+ 			return t
+@@ -274,6 +282,12 @@ func (l *instanceLookup) lookup(inst *Named) *Named {
+ }
+ 
+ func (l *instanceLookup) add(inst *Named) {
++	for i, t := range l.buf {
++		if t == nil {
++			l.buf[i] = inst
++			return
++		}
++	}
+ 	if l.m == nil {
+ 		l.m = make(map[*Named][]*Named)
+ 	}
+diff --git a/src/go/types/lookup_test.go b/src/go/types/lookup_test.go
+new file mode 100644
+index 0000000000..cd5e3fb13d
+--- /dev/null
++++ b/src/go/types/lookup_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types_test
++
++import (
++	"go/importer"
++	"go/token"
++	"path/filepath"
++	"runtime"
++	"testing"
++
++	. "go/types"
++)
++
++// BenchmarkLookupFieldOrMethod measures types.LookupFieldOrMethod performance.
++// LookupFieldOrMethod is a performance hotspot for both type-checking and
++// external API calls.
++func BenchmarkLookupFieldOrMethod(b *testing.B) {
++	// Choose an arbitrary, large package.
++	path := filepath.Join(runtime.GOROOT(), "src", "net", "http")
++
++	fset := token.NewFileSet()
++	files, err := pkgFiles(fset, path, 0)
++	if err != nil {
++		b.Fatal(err)
++	}
++
++	conf := Config{
++		Importer: importer.Default(),
++	}
++
++	pkg, err := conf.Check("http", fset, files, nil)
++	if err != nil {
++		b.Fatal(err)
++	}
++
++	scope := pkg.Scope()
++	names := scope.Names()
++
++	// Look up an arbitrary name for each type referenced in the package scope.
++	lookup := func() {
++		for _, name := range names {
++			typ := scope.Lookup(name).Type()
++			LookupFieldOrMethod(typ, true, pkg, "m")
++		}
++	}
++
++	// Perform a lookup once, to ensure that any lazily-evaluated state is
++	// complete.
++	lookup()
++
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		lookup()
++	}
++}

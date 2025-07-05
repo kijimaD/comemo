@@ -18,6 +18,23 @@ Date:   Tue Feb 4 15:15:39 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/217737
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alexander Rakoczy <alex@golang.org>
-
+---
  doc/go1.14.html | 5 -----
  1 file changed, 5 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index f99aaf4cd9..17fd2ba248 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -52,11 +52,6 @@ appropriately.)
+ 
+ <h2 id="ports">Ports</h2>
+ 
+-<p>
+-  TODO: is Illumos up with a builder and passing?
+-  https://golang.org/issue/15581.
+-</p>
+-
+ <p>
+   TODO: announce something about the Go Solaris port? Solaris itself
+   is unmaintained? The builder is still running at Oracle, but the

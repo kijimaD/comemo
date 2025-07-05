@@ -16,7 +16,50 @@ Date:   Sat Jan 14 05:23:23 2017 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go |  9 +++++++--
  test/switch6.go                    | 14 ++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 5c96361f98..8f6ffa2690 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -162,8 +162,13 @@ func typecheckswitch(n *Node) {
+ 							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+ 								" (wrong type for %v method)\n\thave %v%S\n\twant %v%S", n.Left.Right, n1.Type, missing.Sym, have.Sym, have.Type, missing.Sym, missing.Type)
+ 						} else if !missing.Broke {
+-							yyerror("impossible type switch case: %L cannot have dynamic type %v"+
+-								" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
++							if ptr != 0 {
++								yyerror("impossible type switch case: %L cannot have dynamic type %v"+
++									" (%v method has pointer receiver)", n.Left.Right, n1.Type, missing.Sym)
++							} else {
++								yyerror("impossible type switch case: %L cannot have dynamic type %v"+
++									" (missing %v method)", n.Left.Right, n1.Type, missing.Sym)
++							}
+ 						}
+ 					}
+ 				}
+diff --git a/test/switch6.go b/test/switch6.go
+index 32392d8f73..9d102fef51 100644
+--- a/test/switch6.go
++++ b/test/switch6.go
+@@ -30,3 +30,17 @@ func f1(e interface{}) {
+ 	default: // ERROR "multiple defaults in switch"
+ 	}
+ }
++
++type I interface {
++	Foo()
++}
++
++type X int
++
++func (*X) Foo() {}
++func f2() {
++	var i I
++	switch i.(type) {
++	case X: // ERROR "impossible type switch case: i \(type I\) cannot have dynamic type X \(Foo method has pointer receiver\)"
++	}
++}

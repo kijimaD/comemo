@@ -17,9 +17,65 @@ Date:   Mon Mar 21 13:44:17 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go.mod                                                        | 2 +-
  src/cmd/go.sum                                                        | 4 ++--
  .../vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go   | 4 ++--
  src/cmd/vendor/modules.txt                                            | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index c99cb8cdb3..33ba0a6ae8 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/sys v0.0.0-20220317061510-51cd9980dadf
+ 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+-	golang.org/x/tools v0.1.11-0.20220317151829-c7b0e9aca63d
++	golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 39d9e109ad..5f625110c2 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20220317061510-51cd9980dadf h1:Fm4IcnUL803i92qDlmB0obyHm
+ golang.org/x/sys v0.0.0-20220317061510-51cd9980dadf/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 h1:JGgROgKl9N8DuW20oFS5gxc+lE67/N3FcwmBPMe7ArY=
+ golang.org/x/term v0.0.0-20210927222741-03fcf44c2211/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.11-0.20220317151829-c7b0e9aca63d h1:zv4ADrxllJLdyAP+2lxm5nF9jMTnLYo1PdWi1xLBCsU=
+-golang.org/x/tools v0.1.11-0.20220317151829-c7b0e9aca63d/go.mod h1:Uh6Zz+xoGYZom868N8YTex3t7RhtHDBrE8Gzo9bV56E=
++golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197 h1:WMZWqasfF4Mn7qLi4QW7JmUmwV6ucBntOppK8p6dYKQ=
++golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197/go.mod h1:Uh6Zz+xoGYZom868N8YTex3t7RhtHDBrE8Gzo9bV56E=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 7b82d0b6dd..b05ed5c157 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -90,8 +90,8 @@ var (
+ 	asmArchMipsLE   = asmArch{name: "mipsle", bigEndian: false, stack: "R29", lr: true}
+ 	asmArchMips64   = asmArch{name: "mips64", bigEndian: true, stack: "R29", lr: true}
+ 	asmArchMips64LE = asmArch{name: "mips64le", bigEndian: false, stack: "R29", lr: true}
+-	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true}
+-	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true}
++	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
++	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true, retRegs: []string{"R3", "F1"}}
+ 	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true}
+ 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
+ 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e6989eaac8..eecc6414a2 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -49,7 +49,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210927222741-03fcf44c2211
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.11-0.20220317151829-c7b0e9aca63d
++# golang.org/x/tools v0.1.11-0.20220321170318-c717623e3197
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

@@ -13,6 +13,30 @@ Date:   Thu Jul 22 15:30:01 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/types/fmt.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index a52dd060a0..0824f6d093 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -590,6 +590,18 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			b.WriteString(fmt.Sprintf("%p", t))
+ 		}
+ 
++	case TUNION:
++		for i := 0; i < t.NumTerms(); i++ {
++			if i > 0 {
++				b.WriteString("|")
++			}
++			elem, tilde := t.Term(i)
++			if tilde {
++				b.WriteString("~")
++			}
++			tconv2(b, elem, 0, mode, visited)
++		}
++
+ 	case Txxx:
+ 		b.WriteString("Txxx")
+ 

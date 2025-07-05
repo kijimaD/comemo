@@ -10,7 +10,78 @@ Date:   Fri Apr 22 11:02:33 2011 -0700
     R=iant, iant2
     CC=golang-dev
     https://golang.org/cl/4435065
-
+---
  src/pkg/http/cgi/host.go            | 21 +++++++++++++++++++++
  src/pkg/http/cgi/matryoshka_test.go |  8 --------
  2 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/http/cgi/host.go b/src/pkg/http/cgi/host.go
+index 1ab5716766..35fbde705a 100644
+--- a/src/pkg/http/cgi/host.go
++++ b/src/pkg/http/cgi/host.go
+@@ -25,12 +25,21 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+ 
++var osDefaultInheritEnv = map[string][]string{
++	"darwin":  []string{"DYLD_LIBRARY_PATH"},
++	"freebsd": []string{"LD_LIBRARY_PATH"},
++	"hpux":    []string{"LD_LIBRARY_PATH", "SHLIB_PATH"},
++	"linux":   []string{"LD_LIBRARY_PATH"},
++	"windows": []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"},
++}
++
+ // Handler runs an executable in a subprocess with a CGI environment.
+ type Handler struct {
+ 	Path string // path to the CGI executable
+@@ -111,12 +120,24 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		env = append(env, h.Env...)
+ 	}
+ 
++	path := os.Getenv("PATH")
++	if path == "" {
++		path = "/bin:/usr/bin:/usr/ucb:/usr/bsd:/usr/local/bin"
++	}
++	env = append(env, "PATH="+path)
++
+ 	for _, e := range h.InheritEnv {
+ 		if v := os.Getenv(e); v != "" {
+ 			env = append(env, e+"="+v)
+ 		}
+ 	}
+ 
++	for _, e := range osDefaultInheritEnv[runtime.GOOS] {
++		if v := os.Getenv(e); v != "" {
++			env = append(env, e+"="+v)
++		}
++	}
++
+ 	cwd, pathBase := filepath.Split(h.Path)
+ 	if cwd == "" {
+ 		cwd = "."
+diff --git a/src/pkg/http/cgi/matryoshka_test.go b/src/pkg/http/cgi/matryoshka_test.go
+index 548c050d41..3e4a6addfa 100644
+--- a/src/pkg/http/cgi/matryoshka_test.go
++++ b/src/pkg/http/cgi/matryoshka_test.go
+@@ -22,14 +22,6 @@ func TestHostingOurselves(t *testing.T) {
+ 		Path: os.Args[0],
+ 		Root: "/test.go",
+ 		Args: []string{"-test.run=TestBeChildCGIProcess"},
+-		// When using a shared library with gccgo, make sure
+-		// we can still find the library when we exec
+-		// ourselves.
+-		InheritEnv: []string{
+-			"LD_LIBRARY_PATH",
+-			"SHLIB_PATH",
+-			"DYLD_LIBRARY_PATH",
+-		},
+ 	}
+ 	expectedMap := map[string]string{
+ 		"test":                  "Hello CGI-in-CGI",

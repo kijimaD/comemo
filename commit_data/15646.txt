@@ -16,8 +16,91 @@ Date:   Fri Mar 8 11:26:00 2013 -0500
     R=golang-dev, iant, dvyukov
     CC=golang-dev
     https://golang.org/cl/7627043
-
+---
  src/pkg/runtime/cgocall.c               | 20 +++++++++++++-------
  src/pkg/runtime/proc.c                  |  5 +++++
  src/pkg/runtime/syscall_windows_test.go |  3 ---
  3 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 3ed1243aac..0c96187495 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -95,7 +95,8 @@ static void unwindm(void);
+ 
+ // Call from Go to C.
+ 
+-static FuncVal unlockOSThread = { runtime·unlockOSThread };
++static void endcgo(void);
++static FuncVal endcgoV = { endcgo };
+ 
+ void
+ runtime·cgocall(void (*fn)(void*), void *arg)
+@@ -123,7 +124,7 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	 * cgo callback. Add entry to defer stack in case of panic.
+ 	 */
+ 	runtime·lockOSThread();
+-	d.fn = &unlockOSThread;
++	d.fn = &endcgoV;
+ 	d.siz = 0;
+ 	d.link = g->defer;
+ 	d.argp = (void*)-1;  // unused because unlockm never recovers
+@@ -148,6 +149,16 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 	runtime·asmcgocall(fn, arg);
+ 	runtime·exitsyscall();
+ 
++	if(g->defer != &d || d.fn != &endcgoV)
++		runtime·throw("runtime: bad defer entry in cgocallback");
++	g->defer = d.link;
++	endcgo();
++}
++
++static void
++endcgo(void)
++{
++	runtime·unlockOSThread();
+ 	m->ncgo--;
+ 	if(m->ncgo == 0) {
+ 		// We are going back to Go and are not in a recursive
+@@ -156,11 +167,6 @@ runtime·cgocall(void (*fn)(void*), void *arg)
+ 		m->cgomal = nil;
+ 	}
+ 
+-	if(g->defer != &d || d.fn != &unlockOSThread)
+-		runtime·throw("runtime: bad defer entry in cgocallback");
+-	g->defer = d.link;
+-	runtime·unlockOSThread();
+-
+ 	if(raceenabled)
+ 		runtime·raceacquire(&cgosync);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d0f6745aa7..8429826974 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1173,6 +1173,11 @@ goexit0(G *gp)
+ 	gp->lockedm = nil;
+ 	m->curg = nil;
+ 	m->lockedg = nil;
++	if(m->locked & ~LockExternal) {
++		runtime·printf("invalid m->locked = %d", m->locked);
++		runtime·throw("internal lockOSThread error");
++	}	
++	m->locked = 0;
+ 	runtime·unwindstack(gp, nil);
+ 	gfput(m->p, gp);
+ 	schedule();
+diff --git a/src/pkg/runtime/syscall_windows_test.go b/src/pkg/runtime/syscall_windows_test.go
+index 0b6503b1e8..f04d2cd543 100644
+--- a/src/pkg/runtime/syscall_windows_test.go
++++ b/src/pkg/runtime/syscall_windows_test.go
+@@ -172,9 +172,6 @@ func TestCallbackGC(t *testing.T) {
+ }
+ 
+ func TestCallbackPanic(t *testing.T) {
+-	// TODO(brainman): http://golang.org/issue/4971
+-	t.Skip("TestCallbackPanic disabled: http://golang.org/issue/4971")
+-
+ 	// Make sure panic during callback unwinds properly.
+ 	if runtime.LockedOSThread() {
+ 		t.Fatal("locked OS thread on entry to TestCallbackPanic")

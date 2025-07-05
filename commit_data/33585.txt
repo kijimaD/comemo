@@ -10,6 +10,16 @@ Date:   Thu Aug 24 12:57:28 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+index 0a14d06d2c..f213576692 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-go1.9rc2
+\ No newline at end of file
++go1.9
+\ No newline at end of file

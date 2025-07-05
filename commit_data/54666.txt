@@ -11,6 +11,52 @@ Date:   Tue Nov 8 14:07:46 2022 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/reflect/type.go | 17 +++++------------
  1 file changed, 5 insertions(+), 12 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index b06b7ffd9e..01d14567c3 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -17,7 +17,6 @@ package reflect
+ 
+ import (
+ 	"internal/goarch"
+-	"internal/unsafeheader"
+ 	"strconv"
+ 	"sync"
+ 	"unicode"
+@@ -525,27 +524,21 @@ func writeVarint(buf []byte, n int) int {
+ 	}
+ }
+ 
+-func (n name) name() (s string) {
++func (n name) name() string {
+ 	if n.bytes == nil {
+-		return
++		return ""
+ 	}
+ 	i, l := n.readVarint(1)
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(1+i, "non-empty string"))
+-	hdr.Len = l
+-	return
++	return unsafe.String(n.data(1+i, "non-empty string"), l)
+ }
+ 
+-func (n name) tag() (s string) {
++func (n name) tag() string {
+ 	if !n.hasTag() {
+ 		return ""
+ 	}
+ 	i, l := n.readVarint(1)
+ 	i2, l2 := n.readVarint(1 + i + l)
+-	hdr := (*unsafeheader.String)(unsafe.Pointer(&s))
+-	hdr.Data = unsafe.Pointer(n.data(1+i+l+i2, "non-empty string"))
+-	hdr.Len = l2
+-	return
++	return unsafe.String(n.data(1+i+l+i2, "non-empty string"), l2)
+ }
+ 
+ func (n name) pkgPath() string {

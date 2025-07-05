@@ -15,7 +15,176 @@ Date:   Tue Sep 27 16:21:28 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5141049
-
+---
  src/pkg/index/suffixarray/qsufsort.go    | 38 ++++++++++++++++----------------
  src/pkg/index/suffixarray/suffixarray.go | 10 ++++-----
  2 files changed, 23 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/index/suffixarray/qsufsort.go b/src/pkg/index/suffixarray/qsufsort.go
+index f4ec3a1037..c69be43c2a 100644
+--- a/src/pkg/index/suffixarray/qsufsort.go
++++ b/src/pkg/index/suffixarray/qsufsort.go
+@@ -26,7 +26,7 @@ package suffixarray
+ 
+ import "sort"
+ 
+-func qsufsort(data []byte) []int32 {
++func qsufsort(data []byte) []int {
+ 	// initial sorting by first byte of suffix
+ 	sa := sortedByFirstByte(data)
+ 	if len(sa) < 2 {
+@@ -39,20 +39,20 @@ func qsufsort(data []byte) []int32 {
+ 	// the index starts 1-ordered
+ 	sufSortable := &suffixSortable{sa: sa, inv: inv, h: 1}
+ 
+-	for int(sa[0]) > -len(sa) { // until all suffixes are one big sorted group
++	for sa[0] > -len(sa) { // until all suffixes are one big sorted group
+ 		// The suffixes are h-ordered, make them 2*h-ordered
+ 		pi := 0 // pi is first position of first group
+ 		sl := 0 // sl is negated length of sorted groups
+ 		for pi < len(sa) {
+-			if s := int(sa[pi]); s < 0 { // if pi starts sorted group
++			if s := sa[pi]; s < 0 { // if pi starts sorted group
+ 				pi -= s // skip over sorted group
+ 				sl += s // add negated length to sl
+ 			} else { // if pi starts unsorted group
+ 				if sl != 0 {
+-					sa[pi+sl] = int32(sl) // combine sorted groups before pi
++					sa[pi+sl] = sl // combine sorted groups before pi
+ 					sl = 0
+ 				}
+-				pk := int(inv[s]) + 1 // pk-1 is last position of unsorted group
++				pk := inv[s] + 1 // pk-1 is last position of unsorted group
+ 				sufSortable.sa = sa[pi:pk]
+ 				sort.Sort(sufSortable)
+ 				sufSortable.updateGroups(pi)
+@@ -60,19 +60,19 @@ func qsufsort(data []byte) []int32 {
+ 			}
+ 		}
+ 		if sl != 0 { // if the array ends with a sorted group
+-			sa[pi+sl] = int32(sl) // combine sorted groups at end of sa
++			sa[pi+sl] = sl // combine sorted groups at end of sa
+ 		}
+ 
+ 		sufSortable.h *= 2 // double sorted depth
+ 	}
+ 
+ 	for i := range sa { // reconstruct suffix array from inverse
+-		sa[inv[i]] = int32(i)
++		sa[inv[i]] = i
+ 	}
+ 	return sa
+ }
+ 
+-func sortedByFirstByte(data []byte) []int32 {
++func sortedByFirstByte(data []byte) []int {
+ 	// total byte counts
+ 	var count [256]int
+ 	for _, b := range data {
+@@ -84,17 +84,17 @@ func sortedByFirstByte(data []byte) []int32 {
+ 		count[b], sum = sum, count[b]+sum
+ 	}
+ 	// iterate through bytes, placing index into the correct spot in sa
+-	sa := make([]int32, len(data))
++	sa := make([]int, len(data))
+ 	for i, b := range data {
+-		sa[count[b]] = int32(i)
++		sa[count[b]] = i
+ 		count[b]++
+ 	}
+ 	return sa
+ }
+ 
+-func initGroups(sa []int32, data []byte) []int32 {
++func initGroups(sa []int, data []byte) []int {
+ 	// label contiguous same-letter groups with the same group number
+-	inv := make([]int32, len(data))
++	inv := make([]int, len(data))
+ 	prevGroup := len(sa) - 1
+ 	groupByte := data[sa[prevGroup]]
+ 	for i := len(sa) - 1; i >= 0; i-- {
+@@ -105,7 +105,7 @@ func initGroups(sa []int32, data []byte) []int32 {
+ 			groupByte = b
+ 			prevGroup = i
+ 		}
+-		inv[sa[i]] = int32(prevGroup)
++		inv[sa[i]] = prevGroup
+ 		if prevGroup == 0 {
+ 			sa[0] = -1
+ 		}
+@@ -120,9 +120,9 @@ func initGroups(sa []int32, data []byte) []int32 {
+ 			if data[sa[i]] == lastByte && s == -1 {
+ 				s = i
+ 			}
+-			if int(sa[i]) == len(sa)-1 {
++			if sa[i] == len(sa)-1 {
+ 				sa[i], sa[s] = sa[s], sa[i]
+-				inv[sa[s]] = int32(s)
++				inv[sa[s]] = s
+ 				sa[s] = -1 // mark it as an isolated sorted group
+ 				break
+ 			}
+@@ -132,9 +132,9 @@ func initGroups(sa []int32, data []byte) []int32 {
+ }
+ 
+ type suffixSortable struct {
+-	sa  []int32
+-	inv []int32
+-	h   int32
++	sa  []int
++	inv []int
++	h   int
+ 	buf []int // common scratch space
+ }
+ 
+@@ -158,7 +158,7 @@ func (x *suffixSortable) updateGroups(offset int) {
+ 	prev := 0
+ 	for _, b := range bounds {
+ 		for i := prev; i < b; i++ {
+-			x.inv[x.sa[i]] = int32(offset + b - 1)
++			x.inv[x.sa[i]] = offset + b - 1
+ 		}
+ 		if b-prev == 1 {
+ 			x.sa[prev] = -1
+diff --git a/src/pkg/index/suffixarray/suffixarray.go b/src/pkg/index/suffixarray/suffixarray.go
+index 4747ba9907..05b06c6bdc 100644
+--- a/src/pkg/index/suffixarray/suffixarray.go
++++ b/src/pkg/index/suffixarray/suffixarray.go
+@@ -28,7 +28,7 @@ import (
+ // Index implements a suffix array for fast substring search.
+ type Index struct {
+ 	data []byte
+-	sa   []int32 // suffix array for data; len(sa) == len(data)
++	sa   []int // suffix array for data; len(sa) == len(data)
+ }
+ 
+ // New creates a new Index for data.
+@@ -52,7 +52,7 @@ func (x *Index) Read(r io.Reader) os.Error {
+ 		// new data is significantly smaller or larger then
+ 		// existing buffers - allocate new ones
+ 		x.data = make([]byte, n)
+-		x.sa = make([]int32, n)
++		x.sa = make([]int, n)
+ 	} else {
+ 		// re-use existing buffers
+ 		x.data = x.data[0:n]
+@@ -120,7 +120,7 @@ func (x *Index) at(i int) []byte {
+ 
+ // lookupAll returns a slice into the matching region of the index.
+ // The runtime is O(log(N)*len(s)).
+-func (x *Index) lookupAll(s []byte) []int32 {
++func (x *Index) lookupAll(s []byte) []int {
+ 	// find matching suffix index range [i:j]
+ 	// find the first index where s would be the prefix
+ 	i := sort.Search(len(x.sa), func(i int) bool { return bytes.Compare(x.at(i), s) >= 0 })
+@@ -144,9 +144,7 @@ func (x *Index) Lookup(s []byte, n int) (result []int) {
+ 		// 0 <= n <= len(matches)
+ 		if n > 0 {
+ 			result = make([]int, n)
+-			for i, x := range matches[0:n] {
+-				result[i] = int(x)
+-			}
++			copy(result, matches)
+ 		}
+ 	}
+ 	return

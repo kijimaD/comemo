@@ -28,8 +28,94 @@ Date:   Sat May 2 11:03:35 2015 +0000
     Change-Id: I903706d1c17861b5a8354632c291e73c9c0bc4e1
     Reviewed-on: https://go-review.googlesource.com/9621
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec_test.go        |  6 ++++--
  src/text/template/parse/parse.go      |  7 +++++--
  src/text/template/parse/parse_test.go | 13 ++++++++++++-
  3 files changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 27c74eb44d..abce27ff3d 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -527,8 +527,10 @@ var execTests = []execTest{
+ 	{"bug12XE", "{{printf `%T` 0XEE}}", "int", T{}, true},
+ 	// Chained nodes did not work as arguments. Issue 8473.
+ 	{"bug13", "{{print (.Copy).I}}", "17", tVal, true},
+-	// Didn't protect against explicit nil in field chains.
+-	{"bug14", "{{nil.True}}", "", tVal, false},
++	// Didn't protect against nil or literal values in field chains.
++	{"bug14a", "{{(nil).True}}", "", tVal, false},
++	{"bug14b", "{{$x := nil}}{{$x.anything}}", "", tVal, false},
++	{"bug14c", `{{$x := (1.0)}}{{$y := ("hello")}}{{$x.anything}}{{$y.true}}`, "", tVal, false},
+ }
+ 
+ func zeroArgs() string {
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index d0efcbf609..f4daa37954 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -554,7 +554,7 @@ func (t *Tree) command() *CommandNode {
+ 			t.backup()
+ 		case itemPipe:
+ 		default:
+-			t.errorf("unexpected %s in operand; missing space?", token)
++			t.errorf("unexpected %s in operand", token)
+ 		}
+ 		break
+ 	}
+@@ -582,12 +582,15 @@ func (t *Tree) operand() Node {
+ 		// Compatibility with original API: If the term is of type NodeField
+ 		// or NodeVariable, just put more fields on the original.
+ 		// Otherwise, keep the Chain node.
+-		// TODO: Switch to Chains always when we can.
++		// Obvious parsing errors involving literal values are detected here.
++		// More complex error cases will have to be handled at execution time.
+ 		switch node.Type() {
+ 		case NodeField:
+ 			node = t.newField(chain.Position(), chain.String())
+ 		case NodeVariable:
+ 			node = t.newVariable(chain.Position(), chain.String())
++		case NodeBool, NodeString, NodeNumber, NodeNil, NodeDot:
++			t.errorf("unexpected . after term %q", node.String())
+ 		default:
+ 			node = chain
+ 		}
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index faac06fe5a..a2ca98b0b1 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -260,6 +260,14 @@ var parseTests = []parseTest{
+ 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
+ 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
+ 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
++	// dot following a literal value
++	{"dot after integer", "{{1.E}}", hasError, ""},
++	{"dot after float", "{{0.1.E}}", hasError, ""},
++	{"dot after boolean", "{{true.E}}", hasError, ""},
++	{"dot after char", "{{'a'.any}}", hasError, ""},
++	{"dot after string", `{{"hello".guys}}`, hasError, ""},
++	{"dot after dot", "{{..E}}", hasError, ""},
++	{"dot after nil", "{{nil.E}}", hasError, ""},
+ }
+ 
+ var builtins = map[string]interface{}{
+@@ -378,7 +386,7 @@ var errorTests = []parseTest{
+ 		hasError, `unexpected ")"`},
+ 	{"space",
+ 		"{{`x`3}}",
+-		hasError, `missing space?`},
++		hasError, `in operand`},
+ 	{"idchar",
+ 		"{{a#}}",
+ 		hasError, `'#'`},
+@@ -410,6 +418,9 @@ var errorTests = []parseTest{
+ 	{"undefvar",
+ 		"{{$a}}",
+ 		hasError, `undefined variable`},
++	{"wrongdot",
++		"{{true.any}}",
++		hasError, `unexpected . after term`},
+ }
+ 
+ func TestErrors(t *testing.T) {

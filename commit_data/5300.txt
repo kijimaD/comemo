@@ -7,7 +7,70 @@ Date:   Thu Apr 15 18:04:24 2010 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/908044
-
+---
  src/pkg/exp/eval/expr.go      | 14 ++++++++------
  src/pkg/exp/eval/expr_test.go | 15 +++++++++++++++
  2 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 15520830ff..8651b07806 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -589,14 +589,16 @@ func (a *exprCompiler) compile(x ast.Expr, callCtx bool) *expr {
+ 		return ei.compileIndexExpr(l, r)
+ 
+ 	case *ast.SliceExpr:
+-		end := x.End
+-		if end == nil {
+-			// TODO: set end to len(x.X)
+-			panic("unimplemented")
+-		}
++		var hi *expr
+ 		arr := a.compile(x.X, false)
+ 		lo := a.compile(x.Index, false)
+-		hi := a.compile(end, false)
++		if x.End == nil {
++			// End was omitted, so we need to compute len(x.X)
++			ei := &exprInfo{a.compiler, x.Pos()}
++			hi = ei.compileBuiltinCallExpr(a.block, lenType, []*expr{arr})
++		} else {
++			hi = a.compile(x.End, false)
++		}
+ 		if arr == nil || lo == nil || hi == nil {
+ 			return nil
+ 		}
+diff --git a/src/pkg/exp/eval/expr_test.go b/src/pkg/exp/eval/expr_test.go
+index 10c7f6be52..f7f367d5e9 100644
+--- a/src/pkg/exp/eval/expr_test.go
++++ b/src/pkg/exp/eval/expr_test.go
+@@ -85,6 +85,15 @@ var exprTests = []test{
+ 	RErr("s[-i]", "negative index"),
+ 	RErr("s[3]", "index 3 exceeds"),
+ 
++	Val("ai[0:2]", vslice{varray{1, 2}, 2, 2}),
++	Val("ai[0:1]", vslice{varray{1, 2}, 1, 2}),
++	Val("ai[0:]", vslice{varray{1, 2}, 2, 2}),
++	Val("ai[i:]", vslice{varray{2}, 1, 1}),
++
++	Val("sli[0:2]", vslice{varray{1, 2, 3}, 2, 3}),
++	Val("sli[0:i]", vslice{varray{1, 2, 3}, 1, 3}),
++	Val("sli[1:]", vslice{varray{2, 3}, 1, 2}),
++
+ 	CErr("1(2)", "cannot call"),
+ 	CErr("fn(1,2)", "too many"),
+ 	CErr("fn()", "not enough"),
+@@ -112,8 +121,14 @@ var exprTests = []test{
+ 	Val("len(s)", 3),
+ 	Val("len(ai)", 2),
+ 	Val("len(&ai)", 2),
++	Val("len(ai[0:])", 2),
++	Val("len(ai[1:])", 1),
++	Val("len(ai[2:])", 0),
+ 	Val("len(aai)", 2),
+ 	Val("len(sli)", 2),
++	Val("len(sli[0:])", 2),
++	Val("len(sli[1:])", 1),
++	Val("len(sli[2:])", 0),
+ 	// TODO(austin) Test len of map
+ 	CErr("len(0)", opTypes),
+ 	CErr("len(i)", opTypes),

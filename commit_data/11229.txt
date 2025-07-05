@@ -8,6 +8,27 @@ Date:   Wed Jan 18 10:03:00 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5532090
-
+---
  src/pkg/crypto/tls/root_unix.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/root_unix.go b/src/pkg/crypto/tls/root_unix.go
+index 5bbd9825dc..acaf3dd9d6 100644
+--- a/src/pkg/crypto/tls/root_unix.go
++++ b/src/pkg/crypto/tls/root_unix.go
+@@ -13,10 +13,11 @@ import (
+ 
+ // Possible certificate files; stop after finding one.
+ var certFiles = []string{
+-	"/etc/ssl/certs/ca-certificates.crt", // Linux etc
+-	"/etc/pki/tls/certs/ca-bundle.crt",   // Fedora/RHEL
+-	"/etc/ssl/ca-bundle.pem",             // OpenSUSE
+-	"/etc/ssl/cert.pem",                  // OpenBSD
++	"/etc/ssl/certs/ca-certificates.crt",     // Linux etc
++	"/etc/pki/tls/certs/ca-bundle.crt",       // Fedora/RHEL
++	"/etc/ssl/ca-bundle.pem",                 // OpenSUSE
++	"/etc/ssl/cert.pem",                      // OpenBSD
++	"/usr/local/share/certs/ca-root-nss.crt", // FreeBSD
+ }
+ 
+ func initDefaultRoots() {

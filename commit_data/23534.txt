@@ -20,8 +20,260 @@ Date:   Wed Apr 22 15:03:59 2015 -0700
     Reviewed-by: Adam Langley <agl@golang.org>
     Reviewed-by: Vlad Krasnov <vlad@cloudflare.com>
     Run-TryBot: Adam Langley <agl@golang.org>
-
+---
  src/math/big/arith_amd64.s |  28 +++++++++++
  src/math/big/nat.go        | 114 ++++++++++++++++++++++++++++++++++++++++++++-
  src/math/big/nat_test.go   |  61 ++++++++++++++++++++++++
  3 files changed, 202 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index d2d5187a48..b69a2c616a 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -351,6 +351,34 @@ TEXT ·addMulVVW(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 	MOVQ $0, CX		// c = 0
++	MOVQ R11, R12
++	ANDQ $-2, R12
++	CMPQ R11, $2
++	JAE A6
++	JMP E6
++
++A6:
++	MOVQ (R8)(BX*8), AX
++	MULQ R9
++	ADDQ (R10)(BX*8), AX
++	ADCQ $0, DX
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ DX, CX
++	MOVQ AX, (R10)(BX*8)
++
++	MOVQ (8)(R8)(BX*8), AX
++	MULQ R9
++	ADDQ (8)(R10)(BX*8), AX
++	ADCQ $0, DX
++	ADDQ CX, AX
++	ADCQ $0, DX
++	MOVQ DX, CX
++	MOVQ AX, (8)(R10)(BX*8)
++
++	ADDQ $2, BX
++	CMPQ BX, R12
++	JL A6
+ 	JMP E6
+ 
+ L6:	MOVQ (R8)(BX*8), AX
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 7157a5487b..c3eef76fa1 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -216,6 +216,34 @@ func basicMul(z, x, y nat) {
+ 	}
+ }
+ 
++// montgomery computes x*y*2^(-n*_W) mod m,
++// assuming k = -1/m mod 2^_W.
++// z is used for storing the result which is returned;
++// z must not alias x, y or m.
++func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
++	var c1, c2 Word
++	z = z.make(n)
++	z.clear()
++	for i := 0; i < n; i++ {
++		d := y[i]
++		c1 += addMulVVW(z, x, d)
++		t := z[0] * k
++		c2 = addMulVVW(z, m, t)
++
++		copy(z, z[1:])
++		z[n-1] = c1 + c2
++		if z[n-1] < c1 {
++			c1 = 1
++		} else {
++			c1 = 0
++		}
++	}
++	if c1 != 0 {
++		subVV(z, z, m)
++	}
++	return z
++}
++
+ // Fast version of z[0:n+n>>1].add(z[0:n+n>>1], x[0:n]) w/o bounds checks.
+ // Factored out for readability - do not use outside karatsuba.
+ func karatsubaAdd(z, x nat, n int) {
+@@ -905,8 +933,11 @@ func (z nat) expNN(x, y, m nat) nat {
+ 	// 4-bit, windowed exponentiation. This involves precomputing 14 values
+ 	// (x^2...x^15) but then reduces the number of multiply-reduces by a
+ 	// third. Even for a 32-bit exponent, this reduces the number of
+-	// operations.
++	// operations. Uses Montgomery method for odd moduli.
+ 	if len(x) > 1 && len(y) > 1 && len(m) > 0 {
++		if m[0]&1 == 1 {
++			return z.expNNMontgomery(x, y, m)
++		}
+ 		return z.expNNWindowed(x, y, m)
+ 	}
+ 
+@@ -1029,6 +1060,87 @@ func (z nat) expNNWindowed(x, y, m nat) nat {
+ 	return z.norm()
+ }
+ 
++// expNNMontgomery calculates x**y mod m using a fixed, 4-bit window.
++// Uses Montgomery representation.
++func (z nat) expNNMontgomery(x, y, m nat) nat {
++	var zz, one, rr, RR nat
++
++	numWords := len(m)
++
++	// We want the lengths of x and m to be equal.
++	if len(x) > numWords {
++		_, rr = rr.div(rr, x, m)
++	} else if len(x) < numWords {
++		rr = rr.make(numWords)
++		rr.clear()
++		for i := range x {
++			rr[i] = x[i]
++		}
++	} else {
++		rr = x
++	}
++	x = rr
++
++	// Ideally the precomputations would be performed outside, and reused
++	// k0 = -mˆ-1 mod 2ˆ_W. Algorithm from: Dumas, J.G. "On Newton–Raphson
++	// Iteration for Multiplicative Inverses Modulo Prime Powers".
++	k0 := 2 - m[0]
++	t := m[0] - 1
++	for i := 1; i < _W; i <<= 1 {
++		t *= t
++		k0 *= (t + 1)
++	}
++	k0 = -k0
++
++	// RR = 2ˆ(2*_W*len(m)) mod m
++	RR = RR.setWord(1)
++	zz = zz.shl(RR, uint(2*numWords*_W))
++	_, RR = RR.div(RR, zz, m)
++	if len(RR) < numWords {
++		zz = zz.make(numWords)
++		copy(zz, RR)
++		RR = zz
++	}
++	// one = 1, with equal length to that of m
++	one = one.make(numWords)
++	one.clear()
++	one[0] = 1
++
++	const n = 4
++	// powers[i] contains x^i
++	var powers [1 << n]nat
++	powers[0] = powers[0].montgomery(one, RR, m, k0, numWords)
++	powers[1] = powers[1].montgomery(x, RR, m, k0, numWords)
++	for i := 2; i < 1<<n; i++ {
++		powers[i] = powers[i].montgomery(powers[i-1], powers[1], m, k0, numWords)
++	}
++
++	// initialize z = 1 (Montgomery 1)
++	z = z.make(numWords)
++	copy(z, powers[0])
++
++	zz = zz.make(numWords)
++
++	// same windowed exponent, but with Montgomery multiplications
++	for i := len(y) - 1; i >= 0; i-- {
++		yi := y[i]
++		for j := 0; j < _W; j += n {
++			if i != len(y)-1 || j != 0 {
++				zz = zz.montgomery(z, z, m, k0, numWords)
++				z = z.montgomery(zz, zz, m, k0, numWords)
++				zz = zz.montgomery(z, z, m, k0, numWords)
++				z = z.montgomery(zz, zz, m, k0, numWords)
++			}
++			zz = zz.montgomery(z, powers[yi>>(_W-n)], m, k0, numWords)
++			z, zz = zz, z
++			yi <<= n
++		}
++	}
++	// convert to regular number
++	zz = zz.montgomery(z, one, m, k0, numWords)
++	return zz.norm()
++}
++
+ // probablyPrime performs reps Miller-Rabin tests to check whether n is prime.
+ // If it returns true, n is prime with probability 1 - 1/4^reps.
+ // If it returns false, n is not prime.
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index b25a89f731..69b9c30a71 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -332,6 +332,67 @@ func TestTrailingZeroBits(t *testing.T) {
+ 	}
+ }
+ 
++var montgomeryTests = []struct {
++	x, y, m string
++	k0      uint64
++	out32, out64     string
++}{
++	{
++		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
++		"0xffffffffffffffffffffffffffffffffffffffffffffffffe",
++		"0xfffffffffffffffffffffffffffffffffffffffffffffffff",
++		0x0000000000000000,
++		"0xffffffffffffffffffffffffffffffffffffffffff",
++		"0xffffffffffffffffffffffffffffffffff",
++	},
++	{
++		"0x0000000080000000",
++		"0x00000000ffffffff",
++		"0x0000000010000001",
++		0xff0000000fffffff,
++		"0x0000000088000000",
++		"0x0000000007800001",
++	},
++	{
++		"0xffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
++		"0xffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
++		"0x33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
++		0xdecc8f1249812adf,
++		"0x22bb05b6d95eaaeca2bb7c05e51f807bce9064b5fbad177161695e4558f9474e91cd79",
++		"0x14beb58d230f85b6d95eaaeca2bb7c05e51f807bce9064b5fb45669afa695f228e48cd",
++	},
++	{
++		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444",
++		"0x10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff999999999999999aaabbbbbbbbcccccccccccc",
++		"0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1",
++		0xdecc8f1249812adf,
++		"0x5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d7a11c7772cba02c22f9711078d51a3797eb18e691295293284d988e349fa6deba46b25a4ecd9f715",
++		"0x92fcad4b5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d799c32fe2f3cc5422f9711078d51a3797eb18e691295293284d8f5e69caf6decddfe1df6",
++	},
++}
++
++func TestMontgomery(t *testing.T) {
++	for i, test := range montgomeryTests {
++		x := natFromString(test.x)
++		y := natFromString(test.y)
++		m := natFromString(test.m)
++
++		var out nat
++		if _W == 32 {
++			out = natFromString(test.out32)
++		} else {
++			out = natFromString(test.out64)
++		}
++
++		k0 := Word(test.k0 & _M)  // mask k0 to ensure that it fits for 32-bit systems.
++		z := nat(nil).montgomery(x, y, m, k0, len(m))
++		z = z.norm()
++		if z.cmp(out) != 0 {
++			t.Errorf("#%d got %s want %s", i, z.decimalString(), out.decimalString())
++		}
++	}
++}
++
+ var expNNTests = []struct {
+ 	x, y, m string
+ 	out     string

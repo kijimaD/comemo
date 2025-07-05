@@ -22,6 +22,36 @@ Date:   Wed May 11 14:57:33 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ae81b8681b..b079a07d51 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -699,16 +699,16 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 			scanSize = typ.ptrdata
+ 		}
+ 		c.local_scan += scanSize
+-
+-		// Ensure that the stores above that initialize x to
+-		// type-safe memory and set the heap bits occur before
+-		// the caller can make x observable to the garbage
+-		// collector. Otherwise, on weakly ordered machines,
+-		// the garbage collector could follow a pointer to x,
+-		// but see uninitialized memory or stale heap bits.
+-		publicationBarrier()
+ 	}
+ 
++	// Ensure that the stores above that initialize x to
++	// type-safe memory and set the heap bits occur before
++	// the caller can make x observable to the garbage
++	// collector. Otherwise, on weakly ordered machines,
++	// the garbage collector could follow a pointer to x,
++	// but see uninitialized memory or stale heap bits.
++	publicationBarrier()
++
+ 	// Allocate black during GC.
+ 	// All slots hold nil so no scanning is needed.
+ 	// This may be racing with GC so do it atomically if there can be

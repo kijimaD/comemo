@@ -7,6 +7,18 @@ Date:   Tue Apr 10 01:49:49 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5986063
-
+---
  src/all.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/all.bash b/src/all.bash
+index 932b65dc07..454582c0c7 100755
+--- a/src/all.bash
++++ b/src/all.bash
+@@ -9,5 +9,5 @@ if [ ! -f make.bash ]; then
+ 	exit 1
+ fi
+ . ./make.bash --no-banner
+-bash run.bash --no-rebuild --banner
++bash run.bash --no-rebuild
+ $GOTOOLDIR/dist banner  # print build info

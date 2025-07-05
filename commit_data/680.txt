@@ -7,6 +7,22 @@ Date:   Thu Sep 18 23:30:32 2008 -0700
     R=r
     OCL=15518
     CL=15518
-
+---
  usr/gri/pretty/parser.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index d1a0b62305..01f1609ed3 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -680,7 +680,9 @@ func (P *Parser) ParseCall(x AST.Expr) AST.Expr {
+ 	P.Expect(Scanner.LPAREN);
+ 	if P.tok != Scanner.RPAREN {
+ 	   	// first arguments could be a type if the call is to "new"
+-		if P.tok != Scanner.IDENT && P.TryType() {
++		// - exclude type names because they could be expression starts
++		// - exclude "("'s because function types are not allowed and they indicate an expression
++		if P.tok != Scanner.IDENT && P.tok != Scanner.LPAREN && P.TryType() {
+ 		   	if P.tok == Scanner.COMMA {
+ 			   	 P.Next();
+ 				 if P.tok != Scanner.RPAREN {

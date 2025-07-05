@@ -16,7 +16,142 @@ Date:   Thu Aug 8 14:02:54 2013 -0700
     R=golang-dev, rsc, nightlyone
     CC=golang-dev
     https://golang.org/cl/12632043
-
+---
  src/pkg/net/http/serve_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/net/http/server.go     | 46 ++++++++++++++++++++++++++++++++++--------
  2 files changed, 83 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 5b394660a3..70b7e0f103 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1815,6 +1815,51 @@ func TestHTTP10ConnectionHeader(t *testing.T) {
+ 	}
+ }
+ 
++// See golang.org/issue/5660
++func TestServerReaderFromOrder(t *testing.T) {
++	defer afterTest(t)
++	pr, pw := io.Pipe()
++	const size = 3 << 20
++	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, req *Request) {
++		rw.Header().Set("Content-Type", "text/plain") // prevent sniffing path
++		done := make(chan bool)
++		go func() {
++			io.Copy(rw, pr)
++			close(done)
++		}()
++		time.Sleep(25 * time.Millisecond) // give Copy a chance to break things
++		n, err := io.Copy(ioutil.Discard, req.Body)
++		if err != nil {
++			t.Errorf("handler Copy: %v", err)
++			return
++		}
++		if n != size {
++			t.Errorf("handler Copy = %d; want %d", n, size)
++		}
++		pw.Write([]byte("hi"))
++		pw.Close()
++		<-done
++	}))
++	defer ts.Close()
++
++	req, err := NewRequest("POST", ts.URL, io.LimitReader(neverEnding('a'), size))
++	if err != nil {
++		t.Fatal(err)
++	}
++	res, err := DefaultClient.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	all, err := ioutil.ReadAll(res.Body)
++	if err != nil {
++		t.Fatal(err)
++	}
++	res.Body.Close()
++	if string(all) != "hi" {
++		t.Errorf("Body = %q; want hi", all)
++	}
++}
++
+ func BenchmarkClientServer(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.StopTimer()
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 9294705292..56b8f4a58a 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -16,6 +16,7 @@ import (
+ 	"log"
+ 	"net"
+ 	"net/url"
++	"os"
+ 	"path"
+ 	"runtime"
+ 	"strconv"
+@@ -345,11 +346,44 @@ func (w *response) needsSniff() bool {
+ 	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
+ }
+ 
++// writerOnly hides an io.Writer value's optional ReadFrom method
++// from io.Copy.
+ type writerOnly struct {
+ 	io.Writer
+ }
+ 
++func srcIsRegularFile(src io.Reader) (isRegular bool, err error) {
++	switch v := src.(type) {
++	case *os.File:
++		fi, err := v.Stat()
++		if err != nil {
++			return false, err
++		}
++		return fi.Mode().IsRegular(), nil
++	case *io.LimitedReader:
++		return srcIsRegularFile(v.R)
++	default:
++		return
++	}
++}
++
++// ReadFrom is here to optimize copying from an *os.File regular file
++// to a *net.TCPConn with sendfile.
+ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
++	// Our underlying w.conn.rwc is usually a *TCPConn (with its
++	// own ReadFrom method). If not, or if our src isn't a regular
++	// file, just fall back to the normal copy method.
++	rf, ok := w.conn.rwc.(io.ReaderFrom)
++	regFile, err := srcIsRegularFile(src)
++	if err != nil {
++		return 0, err
++	}
++	if !ok || !regFile {
++		return io.Copy(writerOnly{w}, src)
++	}
++
++	// sendfile path:
++
+ 	if !w.wroteHeader {
+ 		w.WriteHeader(StatusOK)
+ 	}
+@@ -367,16 +401,12 @@ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+ 
+ 	// Now that cw has been flushed, its chunking field is guaranteed initialized.
+ 	if !w.cw.chunking && w.bodyAllowed() {
+-		if rf, ok := w.conn.rwc.(io.ReaderFrom); ok {
+-			n0, err := rf.ReadFrom(src)
+-			n += n0
+-			w.written += n0
+-			return n, err
+-		}
++		n0, err := rf.ReadFrom(src)
++		n += n0
++		w.written += n0
++		return n, err
+ 	}
+ 
+-	// Fall back to default io.Copy implementation.
+-	// Use wrapper to hide w.ReadFrom from io.Copy.
+ 	n0, err := io.Copy(writerOnly{w}, src)
+ 	n += n0
+ 	return n, err

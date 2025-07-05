@@ -19,9 +19,206 @@ Date:   Tue May 18 12:58:02 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  16 ++++-
  test/closure3.dir/main.go              |   8 +--
  test/fixedbugs/issue46234.go           | 103 +++++++++++++++++++++++++++++++++
  test/inline.go                         |   4 +-
  4 files changed, 124 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index a6829e9835..d6b4ced4e1 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1124,6 +1124,10 @@ type inlsubst struct {
+ 	newclofn *ir.Func
+ 
+ 	fn *ir.Func // For debug -- the func that is being inlined
++
++	// If true, then don't update source positions during substitution
++	// (retain old source positions).
++	noPosUpdate bool
+ }
+ 
+ // list inlines a list of nodes.
+@@ -1219,7 +1223,14 @@ func (subst *inlsubst) clovar(n *ir.Name) *ir.Name {
+ // closure node.
+ func (subst *inlsubst) closure(n *ir.ClosureExpr) ir.Node {
+ 	m := ir.Copy(n)
+-	m.SetPos(subst.updatedPos(m.Pos()))
++
++	// Prior to the subst edit, set a flag in the inlsubst to
++	// indicated that we don't want to update the source positions in
++	// the new closure. If we do this, it will appear that the closure
++	// itself has things inlined into it, which is not the case. See
++	// issue #46234 for more details.
++	defer func(prev bool) { subst.noPosUpdate = prev }(subst.noPosUpdate)
++	subst.noPosUpdate = true
+ 	ir.EditChildren(m, subst.edit)
+ 
+ 	//fmt.Printf("Inlining func %v with closure into %v\n", subst.fn, ir.FuncName(ir.CurFunc))
+@@ -1445,6 +1456,9 @@ func (subst *inlsubst) node(n ir.Node) ir.Node {
+ }
+ 
+ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
++	if subst.noPosUpdate {
++		return xpos
++	}
+ 	pos := base.Ctxt.PosTable.Pos(xpos)
+ 	oldbase := pos.Base() // can be nil
+ 	newbase := subst.bases[oldbase]
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 2fc33753ed..662a2e967b 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -94,10 +94,10 @@ func main() {
+ 			return x + 2
+ 		}
+ 		y, sink = func() (func(int) int, int) { // ERROR "can inline main.func12"
+-			return func(x int) int { // ERROR "can inline main.func12"
++			return func(x int) int { // ERROR "func literal does not escape" "can inline main.func12"
+ 				return x + 1
+ 			}, 42
+-		}() // ERROR "func literal does not escape" "inlining call to main.func12"
++		}() // ERROR "inlining call to main.func12"
+ 		if y(40) != 41 {
+ 			ppanic("y(40) != 41")
+ 		}
+@@ -109,10 +109,10 @@ func main() {
+ 				return x + 2
+ 			}
+ 			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
+-				return func(x int) int { // ERROR "can inline main.func13.2"
++				return func(x int) int { // ERROR  "func literal does not escape" "can inline main.func13.2"
+ 					return x + 1
+ 				}, 42
+-			}() // ERROR "inlining call to main.func13.2" "func literal does not escape"
++			}() // ERROR "inlining call to main.func13.2"
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+diff --git a/test/fixedbugs/issue46234.go b/test/fixedbugs/issue46234.go
+new file mode 100644
+index 0000000000..c669cc01a6
+--- /dev/null
++++ b/test/fixedbugs/issue46234.go
+@@ -0,0 +1,103 @@
++// buildrun -t 30
++
++// +build !js
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that runtime traceback does not infinite loop for
++// the testcase below.
++
++package main
++
++import (
++	"bytes"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++const prog = `
++
++package main
++
++import "context"
++
++var gpi *int
++
++type nAO struct {
++	eE bool
++}
++
++type NAO func(*nAO)
++
++func WEA() NAO {
++	return func(o *nAO) { o.eE = true }
++}
++
++type R struct {
++	cM *CM
++}
++
++type CM int
++
++type A string
++
++func (m *CM) NewA(ctx context.Context, cN string, nn *nAO, opts ...NAO) (*A, error) {
++	for _, o := range opts {
++		o(nn)
++	}
++	s := A("foo")
++	return &s, nil
++}
++
++func (r *R) CA(ctx context.Context, cN string, nn *nAO) (*int, error) {
++	cA, err := r.cM.NewA(ctx, cN, nn, WEA(), WEA())
++	if err == nil {
++		return nil, err
++	}
++	println(cA)
++	x := int(42)
++	return &x, nil
++}
++
++func main() {
++	c := CM(1)
++	r := R{cM: &c}
++	var ctx context.Context
++	nnr := nAO{}
++	pi, err := r.CA(ctx, "foo", nil)
++	if err != nil {
++		panic("bad")
++	}
++	println(nnr.eE)
++	gpi = pi
++}
++`
++
++func main() {
++	dir, err := ioutil.TempDir("", "46234")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	file := filepath.Join(dir, "main.go")
++	if err := ioutil.WriteFile(file, []byte(prog), 0655); err != nil {
++		log.Fatalf("Write error %v", err)
++	}
++
++	cmd := exec.Command("go", "run", file)
++	output, err := cmd.CombinedOutput()
++	if err == nil {
++		log.Fatalf("Passed, expected an error")
++	}
++
++	want := []byte("segmentation violation")
++	if !bytes.Contains(output, want) {
++		log.Fatalf("Unmatched error message %q:\nin\n%s\nError: %v", want, output, err)
++	}
++}
+diff --git a/test/inline.go b/test/inline.go
+index bc23768d01..472a941dca 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -92,9 +92,9 @@ func o() int {
+ 	foo := func() int { return 1 } // ERROR "can inline o.func1" "func literal does not escape"
+ 	func(x int) {                  // ERROR "can inline o.func2"
+ 		if x > 10 {
+-			foo = func() int { return 2 } // ERROR "can inline o.func2"
++			foo = func() int { return 2 } // ERROR "func literal does not escape" "can inline o.func2"
+ 		}
+-	}(11) // ERROR "func literal does not escape" "inlining call to o.func2"
++	}(11) // ERROR "inlining call to o.func2"
+ 	return foo()
+ }
+ 

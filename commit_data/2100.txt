@@ -19,6 +19,58 @@ Date:   Tue Apr 28 07:16:03 2009 -0700
     DELTA=10  (0 added, 0 deleted, 10 changed)
     OCL=27934
     CL=27957
-
+---
  test/declbad.go | 20 ++++++++++----------
  1 file changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/test/declbad.go b/test/declbad.go
+index 755450788e..7f6e56d7e4 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -16,36 +16,36 @@ func main() {
+ 	{
+ 		// simple redeclaration
+ 		i := f1();
+-		i := f1();	// ERROR "redeclared"
++		i := f1();	// ERROR "redeclared|redefinition"
+ 	}
+ 	{
+ 		// change of type for f
+-		i, f, s := f3();
+-		f, g, t := f3();	// ERROR "redeclared"
++		i, f, s := f3();	// GCCGO_ERROR "previous"
++		f, g, t := f3();	// ERROR "redeclared|redefinition"
+ 	}
+ 	{
+ 		// change of type for i
+-		i, f, s := f3();
+-		j, i, t := f3();	// ERROR "redeclared"
++		i, f, s := f3();	// GCCGO_ERROR "previous"
++		j, i, t := f3();	// ERROR "redeclared|redefinition"
+ 	}
+ 	{
+ 		// no new variables
+ 		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared"
++		i, f := f2();	// ERROR "redeclared|redefinition"
+ 	}
+ 	{
+ 		// single redeclaration
+-		i, f, s := f3();
+-		i := f1();	// ERROR "redeclared"
++		i, f, s := f3();	// GCCGO_ERROR "previous"
++		i := f1();		// ERROR "redeclared|redefinition"
+ 	}
+ 		// double redeclaration
+ 	{
+ 		i, f, s := f3();
+-		i, f := f2();	// ERROR "redeclared"
++		i, f := f2();	// ERROR "redeclared|redefinition"
+ 	}
+ 	{
+ 		// triple redeclaration
+ 		i, f, s := f3();
+-		i, f, s := f3();	// ERROR "redeclared"
++		i, f, s := f3();	// ERROR "redeclared|redefinition"
+ 	}
+ }

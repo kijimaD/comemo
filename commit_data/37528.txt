@@ -12,7 +12,57 @@ Date:   Fri Aug 10 08:51:54 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                 | 18 +++++++++++++++---
  src/cmd/go/internal/modfetch/proxy.go |  2 +-
  2 files changed, 16 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index aea77175e8..1292596697 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1133,8 +1133,20 @@
+ // with a comment line "# package" or "# module" giving the target
+ // package or module. Subsequent lines give a path through the import
+ // graph, one package per line. If the package or module is not
+-// referenced from the main module the stanza will be empty except for
+-// the comment line.
++// referenced from the main module, the stanza will display a single
++// parenthesized note indicating that fact.
++//
++// For example:
++//
++// 	$ go mod why golang.org/x/text/language golang.org/x/text/encoding
++// 	# golang.org/x/text/language
++// 	rsc.io/quote
++// 	rsc.io/sampler
++// 	golang.org/x/text/language
++//
++// 	# golang.org/x/text/encoding
++// 	(main module does not need package golang.org/x/text/encoding)
++// 	$
+ //
+ //
+ // Compile and run Go program
+@@ -1795,7 +1807,7 @@
+ //
+ // To avoid problems when serving from case-sensitive file systems,
+ // the <module> and <version> elements are case-encoded, replacing every
+-// uppercase letter with an exclamation mark followed by the correponding
++// uppercase letter with an exclamation mark followed by the corresponding
+ // lower-case letter: github.com/Azure encodes as github.com/!azure.
+ //
+ // The JSON-formatted metadata about a given module corresponds to
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index 693eb18b49..5f856b80d2 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -55,7 +55,7 @@ for that version of the given module.
+ 
+ To avoid problems when serving from case-sensitive file systems,
+ the <module> and <version> elements are case-encoded, replacing every
+-uppercase letter with an exclamation mark followed by the correponding
++uppercase letter with an exclamation mark followed by the corresponding
+ lower-case letter: github.com/Azure encodes as github.com/!azure.
+ 
+ The JSON-formatted metadata about a given module corresponds to

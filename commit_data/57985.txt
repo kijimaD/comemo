@@ -11,9 +11,161 @@ Date:   Thu Sep 14 14:02:47 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/528575
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/link/internal/ld/data.go                | 14 +++++++-------
  src/cmd/link/internal/ld/macho.go               | 10 +++++-----
  src/cmd/link/internal/ld/macho_combine_dwarf.go |  4 ++--
  src/cmd/link/internal/ld/xcoff.go               |  2 +-
  4 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d3d0881b2c..cd72b8e3f7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2667,7 +2667,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		//
+ 		// Ideally the last page of the text segment would not be
+ 		// writable even for this short period.
+-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		va = uint64(Rnd(int64(va), *FlagRound))
+ 
+ 		order = append(order, &Segrodata)
+ 		Segrodata.Rwx = 04
+@@ -2683,7 +2683,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	if len(Segrelrodata.Sections) > 0 {
+ 		// align to page boundary so as not to mix
+ 		// rodata, rel-ro data, and executable text.
+-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		va = uint64(Rnd(int64(va), *FlagRound))
+ 		if ctxt.HeadType == objabi.Haix {
+ 			// Relro data are inside data segment on AIX.
+ 			va += uint64(XCOFFDATABASE) - uint64(XCOFFTEXTBASE)
+@@ -2701,7 +2701,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		Segrelrodata.Length = va - Segrelrodata.Vaddr
+ 	}
+ 
+-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
++	va = uint64(Rnd(int64(va), *FlagRound))
+ 	if ctxt.HeadType == objabi.Haix && len(Segrelrodata.Sections) == 0 {
+ 		// Data sections are moved to an unreachable segment
+ 		// to ensure that they are position-independent.
+@@ -2746,7 +2746,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	Segdata.Filelen = bss.Vaddr - Segdata.Vaddr
+ 
+ 	if len(Segpdata.Sections) > 0 {
+-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		va = uint64(Rnd(int64(va), *FlagRound))
+ 		order = append(order, &Segpdata)
+ 		Segpdata.Rwx = 04
+ 		Segpdata.Vaddr = va
+@@ -2761,7 +2761,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	}
+ 
+ 	if len(Segxdata.Sections) > 0 {
+-		va = uint64(Rnd(int64(va), int64(*FlagRound)))
++		va = uint64(Rnd(int64(va), *FlagRound))
+ 		order = append(order, &Segxdata)
+ 		Segxdata.Rwx = 04
+ 		Segxdata.Vaddr = va
+@@ -2775,7 +2775,7 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		Segxdata.Length = va - Segxdata.Vaddr
+ 	}
+ 
+-	va = uint64(Rnd(int64(va), int64(*FlagRound)))
++	va = uint64(Rnd(int64(va), *FlagRound))
+ 	order = append(order, &Segdwarf)
+ 	Segdwarf.Rwx = 06
+ 	Segdwarf.Vaddr = va
+@@ -2952,7 +2952,7 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
+ 				// aligned, the following rounding
+ 				// should ensure that this segment's
+ 				// VA ≡ Fileoff mod FlagRound.
+-				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), int64(*FlagRound)))
++				seg.Fileoff = uint64(Rnd(int64(prev.Fileoff+prev.Filelen), *FlagRound))
+ 				if seg.Vaddr%uint64(*FlagRound) != seg.Fileoff%uint64(*FlagRound) {
+ 					Exitf("bad segment rounding (Vaddr=%#x Fileoff=%#x FlagRound=%#x)", seg.Vaddr, seg.Fileoff, *FlagRound)
+ 				}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 6722eed4ba..fc38b0d99d 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -666,7 +666,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ func asmbMacho(ctxt *Link) {
+ 	machlink := doMachoLink(ctxt)
+ 	if ctxt.IsExternal() {
+-		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))) + uint64(machlink))
++		symo := int64(Segdwarf.Fileoff + uint64(Rnd(int64(Segdwarf.Filelen), *FlagRound)) + uint64(machlink))
+ 		ctxt.Out.SeekSet(symo)
+ 		machoEmitReloc(ctxt)
+ 	}
+@@ -708,7 +708,7 @@ func asmbMacho(ctxt *Link) {
+ 	}
+ 
+ 	/* text */
+-	v := Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound))
++	v := Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound)
+ 
+ 	var mstext *MachoSeg
+ 	if ctxt.LinkMode != LinkExternal {
+@@ -803,7 +803,7 @@ func asmbMacho(ctxt *Link) {
+ 
+ 		if ctxt.LinkMode != LinkExternal {
+ 			ms := newMachoSeg("__LINKEDIT", 0)
+-			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), int64(*FlagRound)))
++			ms.vaddr = uint64(Rnd(int64(Segdata.Vaddr+Segdata.Length), *FlagRound))
+ 			ms.vsize = uint64(s1 + s2 + s3 + s4 + s5 + s6 + s7)
+ 			ms.fileoffset = uint64(linkoff)
+ 			ms.filesize = ms.vsize
+@@ -1185,7 +1185,7 @@ func doMachoLink(ctxt *Link) int64 {
+ 	}
+ 
+ 	if size > 0 {
+-		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), int64(*FlagRound)) + Rnd(int64(Segrelrodata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdata.Filelen), int64(*FlagRound)) + Rnd(int64(Segdwarf.Filelen), int64(*FlagRound))
++		linkoff = Rnd(int64(uint64(HEADR)+Segtext.Length), *FlagRound) + Rnd(int64(Segrelrodata.Filelen), *FlagRound) + Rnd(int64(Segdata.Filelen), *FlagRound) + Rnd(int64(Segdwarf.Filelen), *FlagRound)
+ 		ctxt.Out.SeekSet(linkoff)
+ 
+ 		ctxt.Out.Write(ldr.Data(s1))
+@@ -1200,7 +1200,7 @@ func doMachoLink(ctxt *Link) int64 {
+ 		size += ldr.SymSize(s7)
+ 	}
+ 
+-	return Rnd(size, int64(*FlagRound))
++	return Rnd(size, *FlagRound)
+ }
+ 
+ func machorelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym) {
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index 2ab7da967a..2e8bfcdbed 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -134,7 +134,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 	// Now copy the dwarf data into the output.
+ 	// Kernel requires all loaded segments to be page-aligned in the file,
+ 	// even though we mark this one as being 0 bytes of virtual address space.
+-	dwarfstart := Rnd(int64(linkseg.Offset), int64(*FlagRound))
++	dwarfstart := Rnd(int64(linkseg.Offset), *FlagRound)
+ 	if _, err := outf.Seek(dwarfstart, 0); err != nil {
+ 		return err
+ 	}
+@@ -162,7 +162,7 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 	if _, err := exef.Seek(int64(linkseg.Offset), 0); err != nil {
+ 		return err
+ 	}
+-	linkstart := Rnd(dwarfstart+int64(dwarfsize), int64(*FlagRound))
++	linkstart := Rnd(dwarfstart+int64(dwarfsize), *FlagRound)
+ 	if _, err := outf.Seek(linkstart, 0); err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 1e4a85a12e..2f887366b7 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1580,7 +1580,7 @@ func xcoffwrite(ctxt *Link) {
+ func asmbXcoff(ctxt *Link) {
+ 	ctxt.Out.SeekSet(0)
+ 	fileoff := int64(Segdwarf.Fileoff + Segdwarf.Filelen)
+-	fileoff = int64(Rnd(int64(fileoff), int64(*FlagRound)))
++	fileoff = int64(Rnd(int64(fileoff), *FlagRound))
+ 
+ 	xfile.sectNameToScnum = make(map[string]int16)
+ 

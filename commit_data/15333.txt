@@ -7,6 +7,50 @@ Date:   Wed Feb 20 13:38:19 2013 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7385045
-
+---
  src/pkg/strconv/fp_test.go | 19 ++++++-------------
  1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/strconv/fp_test.go b/src/pkg/strconv/fp_test.go
+index 294b7a9bfb..6de2f8bc6f 100644
+--- a/src/pkg/strconv/fp_test.go
++++ b/src/pkg/strconv/fp_test.go
+@@ -7,7 +7,6 @@ package strconv_test
+ import (
+ 	"bufio"
+ 	"fmt"
+-	"io"
+ 	"os"
+ 	"strconv"
+ 	"strings"
+@@ -102,19 +101,10 @@ func TestFp(t *testing.T) {
+ 	}
+ 	defer f.Close()
+ 
+-	b := bufio.NewReader(f)
++	s := bufio.NewScanner(f)
+ 
+-	lineno := 0
+-	for {
+-		line, err2 := b.ReadString('\n')
+-		if err2 == io.EOF {
+-			break
+-		}
+-		if err2 != nil {
+-			t.Fatal("testfp: read testdata/testfp.txt: " + err2.Error())
+-		}
+-		line = line[0 : len(line)-1]
+-		lineno++
++	for lineno := 1; s.Scan(); lineno++ {
++		line := s.Text()
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+@@ -148,4 +138,7 @@ func TestFp(t *testing.T) {
+ 				"want ", a[3], " got ", s)
+ 		}
+ 	}
++	if s.Err() != nil {
++		t.Fatal("testfp: read testdata/testfp.txt: ", s.Err())
++	}
+ }

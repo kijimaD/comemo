@@ -7,7 +7,32 @@ Date:   Fri Feb 10 22:35:42 2012 -0200
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5645085
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 4ef7bd30f6..ec71bb9e6e 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -32,6 +32,7 @@ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <berengar.lehr@gmx.de>
++Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fb02b3013b..65d401aa0f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -64,6 +64,7 @@ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Berengar Lehr <Berengar.Lehr@gmx.de>
+ Bill Neubauer <wcn@golang.org> <wcn@google.com>
++Bjorn Tipling <bjorn.tipling@gmail.com>
+ Blake Mizerany <blake.mizerany@gmail.com>
+ Bobby Powers <bobbypowers@gmail.com>
+ Brad Fitzpatrick <bradfitz@golang.org> <bradfitz@gmail.com>

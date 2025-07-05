@@ -18,7 +18,81 @@ Date:   Sat Sep 9 15:54:15 2017 +0000
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testplugin/test.bash | 30 +++++++++++++++---------------
  src/cmd/dist/test.go          |  8 --------
  2 files changed, 15 insertions(+), 23 deletions(-)
+
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index b532676eb6..3f964c1b04 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -23,21 +23,21 @@ trap cleanup EXIT
+ rm -rf pkg sub
+ mkdir sub
+ 
+-GOPATH=$(pwd) go build -buildmode=plugin plugin1
+-GOPATH=$(pwd) go build -buildmode=plugin plugin2
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin1
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin2
+ cp plugin2.so plugin2-dup.so
+-GOPATH=$(pwd)/altpath go build -buildmode=plugin plugin-mismatch
+-GOPATH=$(pwd) go build -buildmode=plugin -o=sub/plugin1.so sub/plugin1
+-GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed1.so unnamed1/main.go
+-GOPATH=$(pwd) go build -buildmode=plugin -o=unnamed2.so unnamed2/main.go
+-GOPATH=$(pwd) go build host
++GOPATH=$(pwd)/altpath go build -gcflags "$GO_GCFLAGS" -buildmode=plugin plugin-mismatch
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=sub/plugin1.so sub/plugin1
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed1.so unnamed1/main.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o=unnamed2.so unnamed2/main.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" host
+ 
+ LD_LIBRARY_PATH=$(pwd) ./host
+ 
+ # Test that types and itabs get properly uniqified.
+-GOPATH=$(pwd) go build -buildmode=plugin iface_a
+-GOPATH=$(pwd) go build -buildmode=plugin iface_b
+-GOPATH=$(pwd) go build iface
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_a
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin iface_b
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" iface
+ LD_LIBRARY_PATH=$(pwd) ./iface
+ 
+ function _timeout() (
+@@ -52,12 +52,12 @@ function _timeout() (
+ 
+ # Test for issue 18676 - make sure we don't add the same itab twice.
+ # The buggy code hangs forever, so use a timeout to check for that.
+-GOPATH=$(pwd) go build -buildmode=plugin -o plugin.so src/issue18676/plugin.go
+-GOPATH=$(pwd) go build -o issue18676 src/issue18676/main.go
+-_timeout 10 ./issue18676
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o plugin.so src/issue18676/plugin.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue18676 src/issue18676/main.go
++_timeout 10s ./issue18676
+ 
+ # Test for issue 19534 - that we can load a plugin built in a path with non-alpha
+ # characters
+-GOPATH=$(pwd) go build -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
+-GOPATH=$(pwd) go build -o issue19534 src/issue19534/main.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -ldflags='-pluginpath=issue.19534' -o plugin.so src/issue19534/plugin.go
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue19534 src/issue19534/main.go
+ ./issue19534
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b9766019be..ef41d76258 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -837,14 +837,6 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		}
+ 		return false
+ 	case "plugin":
+-		if os.Getenv("GO_BUILDER_NAME") == "linux-amd64-noopt" {
+-			// Skip the plugin tests on noopt. They're
+-			// causing build failures potentially
+-			// obscuring other issues. This is hopefully a
+-			// temporary workaround. See golang.org/issue/17937.
+-			return false
+-		}
+-
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {

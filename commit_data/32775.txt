@@ -31,10 +31,282 @@ Date:   Wed May 24 16:21:01 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/debug/dwarf/export_test.go            |   7 +++
  src/debug/dwarf/line.go                   |  74 ++++++++++++++++++++++++--
  src/debug/dwarf/line_test.go              |  85 ++++++++++++++++++++++++++++++
  src/debug/dwarf/testdata/line-gcc-win.bin | Bin 0 -> 133202 bytes
  src/debug/dwarf/type_test.go              |  14 +++++
  5 files changed, 176 insertions(+), 4 deletions(-)
+
+diff --git a/src/debug/dwarf/export_test.go b/src/debug/dwarf/export_test.go
+new file mode 100644
+index 0000000000..b8a25ff531
+--- /dev/null
++++ b/src/debug/dwarf/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf
++
++var PathJoin = pathJoin
+diff --git a/src/debug/dwarf/line.go b/src/debug/dwarf/line.go
+index ed82feef92..4e6e1429d9 100644
+--- a/src/debug/dwarf/line.go
++++ b/src/debug/dwarf/line.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"path"
++	"strings"
+ )
+ 
+ // A LineReader reads a sequence of LineEntry structures from a DWARF
+@@ -247,10 +248,10 @@ func (r *LineReader) readHeader() error {
+ 		if len(directory) == 0 {
+ 			break
+ 		}
+-		if !path.IsAbs(directory) {
++		if !pathIsAbs(directory) {
+ 			// Relative paths are implicitly relative to
+ 			// the compilation directory.
+-			directory = path.Join(r.directories[0], directory)
++			directory = pathJoin(r.directories[0], directory)
+ 		}
+ 		r.directories = append(r.directories, directory)
+ 	}
+@@ -283,11 +284,11 @@ func (r *LineReader) readFileEntry() (bool, error) {
+ 	}
+ 	off := r.buf.off
+ 	dirIndex := int(r.buf.uint())
+-	if !path.IsAbs(name) {
++	if !pathIsAbs(name) {
+ 		if dirIndex >= len(r.directories) {
+ 			return false, DecodeError{"line", off, "directory index too large"}
+ 		}
+-		name = path.Join(r.directories[dirIndex], name)
++		name = pathJoin(r.directories[dirIndex], name)
+ 	}
+ 	mtime := r.buf.uint()
+ 	length := int(r.buf.uint())
+@@ -588,3 +589,68 @@ func (r *LineReader) SeekPC(pc uint64, entry *LineEntry) error {
+ 		*entry = next
+ 	}
+ }
++
++// pathIsAbs returns whether path is an absolute path (or "full path
++// name" in DWARF parlance). This is in "whatever form makes sense for
++// the host system", so this accepts both UNIX-style and DOS-style
++// absolute paths. We avoid the filepath package because we want this
++// to behave the same regardless of our host system and because we
++// don't know what system the paths came from.
++func pathIsAbs(path string) bool {
++	_, path = splitDrive(path)
++	return len(path) > 0 && (path[0] == '/' || path[0] == '\\')
++}
++
++// pathJoin joins dirname and filename. filename must be relative.
++// DWARF paths can be UNIX-style or DOS-style, so this handles both.
++func pathJoin(dirname, filename string) string {
++	if len(dirname) == 0 {
++		return filename
++	}
++	// dirname should be absolute, which means we can determine
++	// whether it's a DOS path reasonably reliably by looking for
++	// a drive letter or UNC path.
++	drive, dirname := splitDrive(dirname)
++	if drive == "" {
++		// UNIX-style path.
++		return path.Join(dirname, filename)
++	}
++	// DOS-style path.
++	drive2, filename := splitDrive(filename)
++	if drive2 != "" {
++		if strings.ToLower(drive) != strings.ToLower(drive2) {
++			// Different drives. There's not much we can
++			// do here, so just ignore the directory.
++			return drive2 + filename
++		}
++		// Drives are the same. Ignore drive on filename.
++	}
++	if !(strings.HasSuffix(dirname, "/") || strings.HasSuffix(dirname, `\`)) && dirname != "" {
++		dirname += `\`
++	}
++	return drive + dirname + filename
++}
++
++// splitDrive splits the DOS drive letter or UNC share point from
++// path, if any. path == drive + rest
++func splitDrive(path string) (drive, rest string) {
++	if len(path) >= 2 && path[1] == ':' {
++		if c := path[0]; 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
++			return path[:2], path[2:]
++		}
++	}
++	if len(path) > 3 && (path[0] == '\\' || path[0] == '/') && (path[1] == '\\' || path[1] == '/') {
++		// Normalize the path so we can search for just \ below.
++		npath := strings.Replace(path, "/", `\`, -1)
++		// Get the host part, which must be non-empty.
++		slash1 := strings.IndexByte(npath[2:], '\\') + 2
++		if slash1 > 2 {
++			// Get the mount-point part, which must be non-empty.
++			slash2 := strings.IndexByte(npath[slash1+1:], '\\') + slash1 + 1
++			if slash2 > slash1 {
++				return path[:slash2], path[slash2:]
++			}
++		}
++	}
++	return "", path
++}
+diff --git a/src/debug/dwarf/line_test.go b/src/debug/dwarf/line_test.go
+index cc363f5478..11a254464a 100644
+--- a/src/debug/dwarf/line_test.go
++++ b/src/debug/dwarf/line_test.go
+@@ -7,6 +7,7 @@ package dwarf_test
+ import (
+ 	. "debug/dwarf"
+ 	"io"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -46,6 +47,46 @@ func TestLineELFGCC(t *testing.T) {
+ 	testLineTable(t, want, elfData(t, "testdata/line-gcc.elf"))
+ }
+ 
++func TestLineGCCWindows(t *testing.T) {
++	// Generated by:
++	//   > gcc --version
++	//   gcc (tdm64-1) 4.9.2
++	//   > gcc -g -o line-gcc-win.bin line1.c C:\workdir\go\src\debug\dwarf\testdata\line2.c
++
++	toWindows := func(lf *LineFile) *LineFile {
++		lf2 := *lf
++		lf2.Name = strings.Replace(lf2.Name, "/home/austin/go.dev/", "C:\\workdir\\go\\", -1)
++		lf2.Name = strings.Replace(lf2.Name, "/", "\\", -1)
++		return &lf2
++	}
++	file1C := toWindows(file1C)
++	file1H := toWindows(file1H)
++	file2C := toWindows(file2C)
++
++	// Line table based on objdump --dwarf=rawline,decodedline
++	want := []LineEntry{
++		{Address: 0x401530, File: file1H, Line: 2, IsStmt: true},
++		{Address: 0x401538, File: file1H, Line: 5, IsStmt: true},
++		{Address: 0x401541, File: file1H, Line: 6, IsStmt: true, Discriminator: 3},
++		{Address: 0x40154b, File: file1H, Line: 5, IsStmt: true, Discriminator: 3},
++		{Address: 0x40154f, File: file1H, Line: 5, IsStmt: false, Discriminator: 1},
++		{Address: 0x401555, File: file1H, Line: 7, IsStmt: true},
++		{Address: 0x40155b, File: file1C, Line: 6, IsStmt: true},
++		{Address: 0x401563, File: file1C, Line: 6, IsStmt: true},
++		{Address: 0x401568, File: file1C, Line: 7, IsStmt: true},
++		{Address: 0x40156d, File: file1C, Line: 8, IsStmt: true},
++		{Address: 0x401572, File: file1C, Line: 9, IsStmt: true},
++		{Address: 0x401578, EndSequence: true},
++
++		{Address: 0x401580, File: file2C, Line: 4, IsStmt: true},
++		{Address: 0x401588, File: file2C, Line: 5, IsStmt: true},
++		{Address: 0x401595, File: file2C, Line: 6, IsStmt: true},
++		{Address: 0x40159b, EndSequence: true},
++	}
++
++	testLineTable(t, want, peData(t, "testdata/line-gcc-win.bin"))
++}
++
+ func TestLineELFClang(t *testing.T) {
+ 	// Generated by:
+ 	//   # clang --version | head -n1
+@@ -183,6 +224,11 @@ func testLineTable(t *testing.T, want []LineEntry, d *Data) {
+ 				}
+ 				t.Fatal("lr.Next:", err)
+ 			}
++			// Ignore sources from the Windows build environment.
++			if strings.HasPrefix(line.File.Name, "C:\\crossdev\\") ||
++				strings.HasPrefix(line.File.Name, "C:/crossdev/") {
++				continue
++			}
+ 			got = append(got, line)
+ 		}
+ 	}
+@@ -227,3 +273,42 @@ func dumpLines(t *testing.T, lines []LineEntry) {
+ 		t.Logf("  %+v File:%+v", l, l.File)
+ 	}
+ }
++
++type joinTest struct {
++	dirname, filename string
++	path              string
++}
++
++var joinTests = []joinTest{
++	{"a", "b", "a/b"},
++	{"a", "", "a"},
++	{"", "b", "b"},
++	{"/a", "b", "/a/b"},
++	{"/a/", "b", "/a/b"},
++
++	{`C:\Windows\`, `System32`, `C:\Windows\System32`},
++	{`C:\Windows\`, ``, `C:\Windows\`},
++	{`C:\`, `Windows`, `C:\Windows`},
++	{`C:\Windows\`, `C:System32`, `C:\Windows\System32`},
++	{`C:\Windows`, `a/b`, `C:\Windows\a/b`},
++	{`\\host\share\`, `foo`, `\\host\share\foo`},
++	{`\\host\share\`, `foo\bar`, `\\host\share\foo\bar`},
++	{`//host/share/`, `foo/bar`, `//host/share/foo/bar`},
++
++	// The following are "best effort". We shouldn't see relative
++	// base directories in DWARF, but these test that pathJoin
++	// doesn't fail miserably if it sees one.
++	{`C:`, `a`, `C:a`},
++	{`C:`, `a\b`, `C:a\b`},
++	{`C:.`, `a`, `C:.\a`},
++	{`C:a`, `b`, `C:a\b`},
++}
++
++func TestPathJoin(t *testing.T) {
++	for _, test := range joinTests {
++		got := PathJoin(test.dirname, test.filename)
++		if test.path != got {
++			t.Errorf("pathJoin(%q, %q) = %q, want %q", test.dirname, test.filename, got, test.path)
++		}
++	}
++}
+diff --git a/src/debug/dwarf/testdata/line-gcc-win.bin b/src/debug/dwarf/testdata/line-gcc-win.bin
+new file mode 100644
+index 0000000000..583ad44dd0
+Binary files /dev/null and b/src/debug/dwarf/testdata/line-gcc-win.bin differ
+diff --git a/src/debug/dwarf/type_test.go b/src/debug/dwarf/type_test.go
+index 0283466f08..6c06731ea1 100644
+--- a/src/debug/dwarf/type_test.go
++++ b/src/debug/dwarf/type_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "debug/dwarf"
+ 	"debug/elf"
+ 	"debug/macho"
++	"debug/pe"
+ 	"testing"
+ )
+ 
+@@ -67,6 +68,19 @@ func machoData(t *testing.T, name string) *Data {
+ 	return d
+ }
+ 
++func peData(t *testing.T, name string) *Data {
++	f, err := pe.Open(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatal(err)
++	}
++	return d
++}
++
+ func TestTypedefsELF(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf"), "elf") }
+ 
+ func TestTypedefsMachO(t *testing.T) {

@@ -8,7 +8,37 @@ Date:   Thu May 14 00:58:06 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/10042
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/build/build.go | 6 +-----
  src/go/build/doc.go   | 1 +
  2 files changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index d91eb0b24d..820434bc4a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -296,11 +296,7 @@ func defaultContext() Context {
+ 	// in all releases >= Go 1.x. Code that requires Go 1.x or later should
+ 	// say "+build go1.x", and code that should only be built before Go 1.x
+ 	// (perhaps it is the stub to use in that case) should say "+build !go1.x".
+-	//
+-	// When we reach Go 1.5 the line will read
+-	//	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
+-	// and so on.
+-	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4"}
++	c.ReleaseTags = []string{"go1.1", "go1.2", "go1.3", "go1.4", "go1.5"}
+ 
+ 	switch os.Getenv("CGO_ENABLED") {
+ 	case "1":
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index 78e17b220a..233f8b989d 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -101,6 +101,7 @@
+ //	- "go1.2", from Go version 1.2 onward
+ //	- "go1.3", from Go version 1.3 onward
+ //	- "go1.4", from Go version 1.4 onward
++//	- "go1.5", from Go version 1.5 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // If a file's name, after stripping the extension and a possible _test suffix,

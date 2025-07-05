@@ -24,7 +24,133 @@ Date:   Sun Jan 1 17:02:44 2017 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/jpeg/writer.go      | 27 ++++++++++++++++++++
  src/image/jpeg/writer_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 84 insertions(+), 1 deletion(-)
+
+diff --git a/src/image/jpeg/writer.go b/src/image/jpeg/writer.go
+index 91bbde3bf8..ce7728b484 100644
+--- a/src/image/jpeg/writer.go
++++ b/src/image/jpeg/writer.go
+@@ -441,6 +441,30 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block)
+ 	}
+ }
+ 
++// yCbCrToYCbCr is a specialized version of toYCbCr for image.YCbCr images.
++func yCbCrToYCbCr(m *image.YCbCr, p image.Point, yBlock, cbBlock, crBlock *block) {
++	b := m.Bounds()
++	xmax := b.Max.X - 1
++	ymax := b.Max.Y - 1
++	for j := 0; j < 8; j++ {
++		sy := p.Y + j
++		if sy > ymax {
++			sy = ymax
++		}
++		for i := 0; i < 8; i++ {
++			sx := p.X + i
++			if sx > xmax {
++				sx = xmax
++			}
++			yi := m.YOffset(sx, sy)
++			ci := m.COffset(sx, sy)
++			yBlock[8*j+i] = int32(m.Y[yi])
++			cbBlock[8*j+i] = int32(m.Cb[ci])
++			crBlock[8*j+i] = int32(m.Cr[ci])
++		}
++	}
++}
++
+ // scale scales the 16x16 region represented by the 4 src blocks to the 8x8
+ // dst block.
+ func scale(dst *block, src *[4]block) {
+@@ -510,6 +534,7 @@ func (e *encoder) writeSOS(m image.Image) {
+ 		}
+ 	default:
+ 		rgba, _ := m.(*image.RGBA)
++		ycbcr, _ := m.(*image.YCbCr)
+ 		for y := bounds.Min.Y; y < bounds.Max.Y; y += 16 {
+ 			for x := bounds.Min.X; x < bounds.Max.X; x += 16 {
+ 				for i := 0; i < 4; i++ {
+@@ -518,6 +543,8 @@ func (e *encoder) writeSOS(m image.Image) {
+ 					p := image.Pt(x+xOff, y+yOff)
+ 					if rgba != nil {
+ 						rgbaToYCbCr(rgba, p, &b, &cb[i], &cr[i])
++					} else if ycbcr != nil {
++						yCbCrToYCbCr(ycbcr, p, &b, &cb[i], &cr[i])
+ 					} else {
+ 						toYCbCr(m, p, &b, &cb[i], &cr[i])
+ 					}
+diff --git a/src/image/jpeg/writer_test.go b/src/image/jpeg/writer_test.go
+index 3df3cfcc5b..a6c056174b 100644
+--- a/src/image/jpeg/writer_test.go
++++ b/src/image/jpeg/writer_test.go
+@@ -208,7 +208,41 @@ func averageDelta(m0, m1 image.Image) int64 {
+ 	return sum / n
+ }
+ 
+-func BenchmarkEncode(b *testing.B) {
++func TestEncodeYCbCr(t *testing.T) {
++	bo := image.Rect(0, 0, 640, 480)
++	imgRGBA := image.NewRGBA(bo)
++	// Must use 444 subsampling to avoid lossy RGBA to YCbCr conversion.
++	imgYCbCr := image.NewYCbCr(bo, image.YCbCrSubsampleRatio444)
++	rnd := rand.New(rand.NewSource(123))
++	// Create identical rgba and ycbcr images.
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			col := color.RGBA{
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				uint8(rnd.Intn(256)),
++				255,
++			}
++			imgRGBA.SetRGBA(x, y, col)
++			yo := imgYCbCr.YOffset(x, y)
++			co := imgYCbCr.COffset(x, y)
++			cy, ccr, ccb := color.RGBToYCbCr(col.R, col.G, col.B)
++			imgYCbCr.Y[yo] = cy
++			imgYCbCr.Cb[co] = ccr
++			imgYCbCr.Cr[co] = ccb
++		}
++	}
++
++	// Now check that both images are identical after an encode.
++	var bufRGBA, bufYCbCr bytes.Buffer
++	Encode(&bufRGBA, imgRGBA, nil)
++	Encode(&bufYCbCr, imgYCbCr, nil)
++	if !bytes.Equal(bufRGBA.Bytes(), bufYCbCr.Bytes()) {
++		t.Errorf("RGBA and YCbCr encoded bytes differ")
++	}
++}
++
++func BenchmarkEncodeRGBA(b *testing.B) {
+ 	b.StopTimer()
+ 	img := image.NewRGBA(image.Rect(0, 0, 640, 480))
+ 	bo := img.Bounds()
+@@ -230,3 +264,25 @@ func BenchmarkEncode(b *testing.B) {
+ 		Encode(ioutil.Discard, img, options)
+ 	}
+ }
++
++func BenchmarkEncodeYCbCr(b *testing.B) {
++	b.StopTimer()
++	img := image.NewYCbCr(image.Rect(0, 0, 640, 480), image.YCbCrSubsampleRatio420)
++	bo := img.Bounds()
++	rnd := rand.New(rand.NewSource(123))
++	for y := bo.Min.Y; y < bo.Max.Y; y++ {
++		for x := bo.Min.X; x < bo.Max.X; x++ {
++			cy := img.YOffset(x, y)
++			ci := img.COffset(x, y)
++			img.Y[cy] = uint8(rnd.Intn(256))
++			img.Cb[ci] = uint8(rnd.Intn(256))
++			img.Cr[ci] = uint8(rnd.Intn(256))
++		}
++	}
++	b.SetBytes(640 * 480 * 3)
++	b.StartTimer()
++	options := &Options{Quality: 90}
++	for i := 0; i < b.N; i++ {
++		Encode(ioutil.Discard, img, options)
++	}
++}

@@ -8,7 +8,85 @@ Date:   Mon Jun 22 14:24:32 2009 -0700
     DELTA=19  (3 added, 1 deleted, 15 changed)
     OCL=30591
     CL=30601
-
+---
  src/cmd/gobuild/gobuild.go | 18 ++++++++++--------
  src/cmd/gobuild/util.go    | 10 +++++-----
  2 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index d7e9de8ffa..ae1ea938a6 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -60,31 +60,33 @@ type Info struct {
+ var verbose = flag.Bool("v", false, "verbose mode")
+ var writeMakefile = flag.Bool("m", false, "write Makefile to standard output")
+ 
+-func PushPkg(v *[]*Pkg, p *Pkg) {
++func PushPkg(vp *[]*Pkg, p *Pkg) {
++	v := *vp;
+ 	n := len(v);
+ 	if n >= cap(v) {
+ 		m := 2*n + 10;
+ 		a := make([]*Pkg, n, m);
+-		for i := range *v {
++		for i := range v {
+ 			a[i] = v[i];
+ 		}
+-		*v = a;
++		v = a;
+ 	}
+-	*v = v[0:n+1];
++	*vp = v[0:n+1];
+ 	v[n] = p;
+ }
+ 
+-func PushFile(v *[]*File, p *File) {
++func PushFile(vp *[]*File, p *File) {
++	v := *vp;
+ 	n := len(v);
+ 	if n >= cap(v) {
+ 		m := 2*n + 10;
+ 		a := make([]*File, n, m);
+-		for i := range *v {
++		for i := range v {
+ 			a[i] = v[i];
+ 		}
+-		*v = a;
++		v = a;
+ 	}
+-	*v = v[0:n+1];
++	*vp = v[0:n+1];
+ 	v[n] = p;
+ }
+ 
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 94a4e6a73d..bc826dbafb 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -71,21 +71,21 @@ func init() {
+ 	}
+ }
+ 
+-func PushString(v *[]string, p string) {
++func PushString(vp *[]string, p string) {
++	v := *vp;
+ 	n := len(v);
+ 	if n >= cap(v) {
+ 		m := 2*n + 10;
+ 		a := make([]string, n, m);
+-		for i := range *v {
++		for i := range v {
+ 			a[i] = v[i];
+ 		}
+-		*v = a;
++		v = a;
+ 	}
+-	*v = v[0:n+1];
++	*vp = v[0:n+1];
+ 	v[n] = p;
+ }
+ 
+-
+ func run(argv []string, flag int) (ok bool) {
+ 	argv0 := bin[argv[0]];
+ 	null, err := os.Open("/dev/null", os.O_RDWR, 0);

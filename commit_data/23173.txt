@@ -10,6 +10,11 @@ Date:   Wed Apr 29 07:36:16 2015 +0900
     Change-Id: Ib460b0c51961159830357652dbf5430e1ba01514
     Reviewed-on: https://go-review.googlesource.com/9461
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/net/{dialgoogle_test.go => external_test.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/net/dialgoogle_test.go b/src/net/external_test.go
+similarity index 100%
+rename from src/net/dialgoogle_test.go
+rename to src/net/external_test.go

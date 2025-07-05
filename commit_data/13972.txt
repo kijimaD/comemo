@@ -7,6 +7,27 @@ Date:   Thu Sep 27 15:39:56 2012 +1000
     R=bradfitz, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6543064
-
+---
  src/cmd/api/goapi.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 4d888edf16..7463e20d6d 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -228,13 +228,14 @@ func main() {
+ 		}
+ 	}
+ 
++	// In next file, but not in API.
+ 	var missing []string
+ 	for feature := range optional {
+ 		missing = append(missing, feature)
+ 	}
+ 	sort.Strings(missing)
+ 	for _, feature := range missing {
+-		fmt.Fprintf(bw, "(in next file, but not in API) -%s\n", feature)
++		fmt.Fprintf(bw, "±%s\n", feature)
+ 	}
+ }
+ 

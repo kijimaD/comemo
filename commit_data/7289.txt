@@ -15,8 +15,82 @@ Date:   Mon Jan 31 14:31:34 2011 -0500
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/4082047
-
+---
  src/cmd/cgo/ast.go  | 15 +++++++++++----
  src/cmd/cgo/gcc.go  |  8 +-------
  src/cmd/cgo/main.go |  3 ++-
  3 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 8689ac3dac..9bb8a55fd4 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -35,6 +35,10 @@ func parse(name string, flags uint) *ast.File {
+ 	return ast1
+ }
+ 
++func sourceLine(n ast.Node) int {
++	return fset.Position(n.Pos()).Line
++}
++
+ // ReadGo populates f with information learned from reading the
+ // Go source file with the given file name.  It gathers the C preamble
+ // attached to the import "C" comment, a list of references to C.xxx,
+@@ -69,10 +73,13 @@ func (f *File) ReadGo(name string) {
+ 			if s.Name != nil {
+ 				error(s.Path.Pos(), `cannot rename import "C"`)
+ 			}
+-			if s.Doc != nil {
+-				f.Preamble += doc.CommentText(s.Doc) + "\n"
+-			} else if len(d.Specs) == 1 && d.Doc != nil {
+-				f.Preamble += doc.CommentText(d.Doc) + "\n"
++			cg := s.Doc
++			if cg == nil && len(d.Specs) == 1 {
++				cg = d.Doc
++			}
++			if cg != nil {
++				f.Preamble += fmt.Sprintf("#line %d %q\n", sourceLine(cg), name)
++				f.Preamble += doc.CommentText(cg) + "\n"
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 57dc4dc83d..e400fcdde7 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -207,9 +207,7 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 
+ 	for _, line := range strings.Split(stderr, "\n", -1) {
+ 		if len(line) < 9 || line[0:9] != "cgo-test:" {
+-			if len(line) > 8 && line[0:8] == "<stdin>:" {
+-				fatal("gcc produced unexpected output:\n%s\non input:\n%s", line, b.Bytes())
+-			}
++			// the user will see any compiler errors when the code is compiled later.
+ 			continue
+ 		}
+ 		line = line[9:]
+@@ -570,10 +568,6 @@ func runGcc(stdin []byte, args []string) (string, string) {
+ 		os.Stderr.Write(stderr)
+ 	}
+ 	if !ok {
+-		fmt.Fprint(os.Stderr, "Error running gcc:\n")
+-		fmt.Fprintf(os.Stderr, "$ %s <<EOF\n", strings.Join(args, " "))
+-		os.Stderr.Write(stdin)
+-		fmt.Fprint(os.Stderr, "EOF\n")
+ 		os.Stderr.Write(stderr)
+ 		os.Exit(2)
+ 	}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 14bb7ec2b0..5d2bfd0e3b 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -98,7 +98,8 @@ type FuncType struct {
+ }
+ 
+ func usage() {
+-	fmt.Fprint(os.Stderr, "usage: cgo [compiler options] file.go ...\n")
++	fmt.Fprint(os.Stderr, "usage: cgo -- [compiler options] file.go ...\n")
++	flag.PrintDefaults()
+ 	os.Exit(2)
+ }
+ 

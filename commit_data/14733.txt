@@ -11,7 +11,42 @@ Date:   Sat Dec 22 16:45:35 2012 -0500
     R=golang-dev, ken2, ken
     CC=golang-dev
     https://golang.org/cl/6999054
-
+---
  src/cmd/yacc/units.y | 5 +++++
  src/cmd/yacc/yacc.go | 7 ++++---
  2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/yacc/units.y b/src/cmd/yacc/units.y
+index 00ccaf2ece..9c1b0b3364 100644
+--- a/src/cmd/yacc/units.y
++++ b/src/cmd/yacc/units.y
+@@ -11,6 +11,11 @@
+ 
+ %{
+ 
++// This tag will end up in the generated y.go, so that forgetting
++// 'make clean' does not fail the next build.
++
++// +build ignore
++
+ // units.y
+ // example of a Go yacc program
+ // usage is
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 62655e7cd2..0c18f93b6c 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -3228,9 +3228,10 @@ type $$Lexer interface {
+ const $$Flag = -1000
+ 
+ func $$Tokname(c int) string {
+-	if c > 0 && c <= len($$Toknames) {
+-		if $$Toknames[c-1] != "" {
+-			return $$Toknames[c-1]
++	// 4 is TOKSTART above
++	if c >= 4 && c-4 < len($$Toknames) {
++		if $$Toknames[c-4] != "" {
++			return $$Toknames[c-4]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)

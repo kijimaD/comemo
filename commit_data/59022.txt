@@ -12,6 +12,22 @@ Date:   Mon Jan 8 21:55:30 2024 +0800
     Run-TryBot: shuang cui <imcusg@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/dwtest/dwtest.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/dwtest/dwtest.go b/src/cmd/link/internal/dwtest/dwtest.go
+index 3fb02ee1db..c69a5aa4fc 100644
+--- a/src/cmd/link/internal/dwtest/dwtest.go
++++ b/src/cmd/link/internal/dwtest/dwtest.go
+@@ -69,8 +69,8 @@ func (ex *Examiner) Populate(rdr *dwarf.Reader) error {
+ 	return nil
+ }
+ 
+-func (e *Examiner) DIEs() []*dwarf.Entry {
+-	return e.dies
++func (ex *Examiner) DIEs() []*dwarf.Entry {
++	return ex.dies
+ }
+ 
+ func indent(ilevel int) {

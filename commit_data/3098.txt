@@ -9,10 +9,295 @@ Date:   Wed Aug 26 21:51:03 2009 -0700
     DELTA=244  (244 added, 0 deleted, 0 changed)
     OCL=33733
     CL=33940
-
+---
  src/pkg/Make.deps      |   1 +
  src/pkg/Makefile       |   1 +
  src/pkg/image/Makefile |  12 +++++
  src/pkg/image/color.go |  90 +++++++++++++++++++++++++++++++
  src/pkg/image/image.go | 140 +++++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 244 insertions(+)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index b600bcb467..0ae5ddf32e 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -32,6 +32,7 @@ hash.install: io.install
+ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+ http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
++image.install:
+ io.install: bytes.install os.install strings.install sync.install
+ json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6aecc9c52a..3575a61226 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -46,6 +46,7 @@ DIRS=\
+ 	hash/adler32\
+ 	hash/crc32\
+ 	http\
++	image\
+ 	io\
+ 	json\
+ 	log\
+diff --git a/src/pkg/image/Makefile b/src/pkg/image/Makefile
+new file mode 100644
+index 0000000000..3180708269
+--- /dev/null
++++ b/src/pkg/image/Makefile
+@@ -0,0 +1,12 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=image
++GOFILES=\
++	color.go\
++	image.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/image/color.go b/src/pkg/image/color.go
+new file mode 100644
+index 0000000000..44b27643c9
+--- /dev/null
++++ b/src/pkg/image/color.go
+@@ -0,0 +1,90 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package image
++
++// TODO(nigeltao): Clarify semantics wrt premultiplied vs unpremultiplied colors.
++// It's probably also worth thinking about floating-point color models.
++
++// All Colors can convert themselves, with a possible loss of precision, to 128-bit RGBA.
++type Color interface {
++	RGBA() (r, g, b, a uint32);
++}
++
++// An RGBAColor represents a traditional 32-bit color, having 8 bits for each of red, green, blue and alpha.
++type RGBAColor struct {
++	R, G, B, A uint8;
++}
++
++func (c RGBAColor) RGBA() (r, g, b, a uint32) {
++	r = uint32(c.R);
++	r |= r<<8;
++	r |= r<<16;
++	g = uint32(c.G);
++	g |= g<<8;
++	g |= g<<16;
++	b = uint32(c.B);
++	b |= b<<8;
++	b |= b<<16;
++	a = uint32(c.A);
++	a |= a<<8;
++	a |= a<<16;
++	return;
++}
++
++// An RGBA64Color represents a 64-bit color, having 16 bits for each of red, green, blue and alpha.
++type RGBA64Color struct {
++	R, G, B, A uint16;
++}
++
++func (c RGBA64Color) RGBA() (r, g, b, a uint32) {
++	r = uint32(c.R);
++	r |= r<<16;
++	g = uint32(c.G);
++	g |= g<<16;
++	b = uint32(c.B);
++	b |= b<<16;
++	a = uint32(c.A);
++	a |= a<<16;
++	return;
++}
++
++// A ColorModel can convert foreign Colors, with a possible loss of precision, to a Color
++// from its own color model.
++type ColorModel interface {
++	Convert(c Color) Color;
++}
++
++// The ColorModelFunc type is an adapter to allow the use of an ordinary
++// color conversion function as a ColorModel.  If f is such a function,
++// ColorModelFunc(f) is a ColorModel object that invokes f to implement
++// the conversion.
++type ColorModelFunc func(Color) Color
++
++func (f ColorModelFunc) Convert(c Color) Color {
++	return f(c);
++}
++
++func toRGBAColor(c Color) Color {
++	if _, ok := c.(RGBAColor); ok {	// no-op conversion
++		return c;
++	}
++	r, g, b, a := c.RGBA();
++	return RGBAColor{ uint8(r>>24), uint8(g>>24), uint8(b>>24), uint8(a>>24) };
++}
++
++func toRGBA64Color(c Color) Color {
++	if _, ok := c.(RGBA64Color); ok {	// no-op conversion
++		return c;
++	}
++	r, g, b, a := c.RGBA();
++	return RGBA64Color{ uint16(r>>16), uint16(g>>16), uint16(b>>16), uint16(a>>16) };
++}
++
++// The ColorModel associated with RGBAColor.
++var RGBAColorModel ColorModel = ColorModelFunc(toRGBAColor);
++
++// The ColorModel associated with RGBA64Color.
++var RGBA64ColorModel ColorModel = ColorModelFunc(toRGBA64Color);
++
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+new file mode 100644
+index 0000000000..f63df1bd3a
+--- /dev/null
++++ b/src/pkg/image/image.go
+@@ -0,0 +1,140 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The image package implements a basic 2-D image library.
++package image
++
++// An Image is a rectangular grid of Colors drawn from a ColorModel.
++type Image interface {
++	ColorModel() ColorModel;
++	Width() int;
++	Height() int;
++	// At(0, 0) returns the upper-left pixel of the grid.
++	// At(Width()-1, Height()-1) returns the lower-right pixel.
++	At(x, y int) Color;
++}
++
++// An RGBA is an in-memory image backed by a 2-D slice of RGBAColor values.
++type RGBA struct {
++	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
++	Pixel [][]RGBAColor;
++}
++
++func (p *RGBA) ColorModel() ColorModel {
++	return RGBAColorModel;
++}
++
++func (p *RGBA) Width() int {
++	if len(p.Pixel) == 0 {
++		return 0;
++	}
++	return len(p.Pixel[0]);
++}
++
++func (p *RGBA) Height() int {
++	return len(p.Pixel);
++}
++
++func (p *RGBA) At(x, y int) Color {
++	return p.Pixel[y][x];
++}
++
++func (p *RGBA) Set(x, y int, c Color) {
++	p.Pixel[y][x] = toRGBAColor(c).(RGBAColor);
++}
++
++// An RGBA64 is an in-memory image backed by a 2-D slice of RGBA64Color values.
++type RGBA64 struct {
++	// The Pixel field's indices are y first, then x, so that At(x, y) == Pixel[y][x].
++	Pixel [][]RGBA64Color;
++}
++
++func (p *RGBA64) ColorModel() ColorModel {
++	return RGBA64ColorModel;
++}
++
++func (p *RGBA64) Width() int {
++	if len(p.Pixel) == 0 {
++		return 0;
++	}
++	return len(p.Pixel[0]);
++}
++
++func (p *RGBA64) Height() int {
++	return len(p.Pixel);
++}
++
++func (p *RGBA64) At(x, y int) Color {
++	return p.Pixel[y][x];
++}
++
++func (p *RGBA64) Set(x, y int, c Color) {
++	p.Pixel[y][x] = toRGBA64Color(c).(RGBA64Color);
++}
++
++// A PalettedColorModel represents a fixed palette of colors.
++type PalettedColorModel []Color;
++
++func diff(a, b uint32) uint32 {
++	if a > b {
++		return a - b;
++	}
++	return b - a;
++}
++
++// Convert returns the palette color closest to c in Euclidean R,G,B space.
++func (p PalettedColorModel) Convert(c Color) Color {
++	if len(p) == 0 {
++		return nil;
++	}
++	// TODO(nigeltao): Revisit the "pick the palette color which minimizes sum-squared-difference"
++	// algorithm when the premultiplied vs unpremultiplied issue is resolved.
++	// Currently, we only compare the R, G and B values, and ignore A.
++	cr, cg, cb, ca := c.RGBA();
++	// Shift by 17 bits to avoid potential uint32 overflow in sum-squared-difference.
++	cr >>= 17;
++	cg >>= 17;
++	cb >>= 17;
++	result := Color(nil);
++	bestSSD := uint32(1<<32 - 1);
++	for _, v := range p {
++		vr, vg, vb, va := v.RGBA();
++		vr >>= 17;
++		vg >>= 17;
++		vb >>= 17;
++		dr, dg, db := diff(cr, vr), diff(cg, vg), diff(cb, vb);
++		ssd := (dr * dr) + (dg * dg) + (db * db);
++		if ssd < bestSSD {
++			bestSSD = ssd;
++			result = v;
++		}
++	}
++	return result;
++}
++
++// A Paletted is an in-memory image backed by a 2-D slice of byte values and a PalettedColorModel.
++type Paletted struct {
++	// The Pixel field's indices are y first, then x, so that At(x, y) == Palette[Pixel[y][x]].
++	Pixel [][]byte;
++	Palette PalettedColorModel;
++}
++
++func (p *Paletted) ColorModel() ColorModel {
++	return p.Palette;
++}
++
++func (p *Paletted) Width() int {
++	if len(p.Pixel) == 0 {
++		return 0;
++	}
++	return len(p.Pixel[0]);
++}
++
++func (p *Paletted) Height() int {
++	return len(p.Pixel);
++}
++
++func (p *Paletted) At(x, y int) Color {
++	return p.Palette[p.Pixel[y][x]];
++}

@@ -10,6 +10,21 @@ Date:   Mon Feb 4 12:43:05 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/160431
     Run-TryBot: Leon Klingele <git@leonklingele.de>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/compress/gzip/gzip_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/compress/gzip/gzip_test.go b/src/compress/gzip/gzip_test.go
+index e16aba1572..f18c5cb454 100644
+--- a/src/compress/gzip/gzip_test.go
++++ b/src/compress/gzip/gzip_test.go
+@@ -214,6 +214,9 @@ func TestConcat(t *testing.T) {
+ 	w.Close()
+ 
+ 	r, err := NewReader(&buf)
++	if err != nil {
++		t.Fatal(err)
++	}
+ 	data, err := ioutil.ReadAll(r)
+ 	if string(data) != "hello world\n" || err != nil {
+ 		t.Fatalf("ReadAll = %q, %v, want %q, nil", data, err, "hello world")

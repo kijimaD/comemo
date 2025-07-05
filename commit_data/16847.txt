@@ -16,7 +16,7 @@ Date:   Tue Jul 23 11:59:49 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/11699043
-
+---
  doc/play/life.go                         |  2 +-
  src/cmd/dist/plan9.c                     |  2 +-
  src/cmd/dist/unix.c                      |  2 +-
@@ -63,3 +63,888 @@ Date:   Tue Jul 23 11:59:49 2013 +1000
  src/pkg/sort/sort.go                     |  4 ++--
  src/pkg/text/template/exec.go            |  2 +-
  45 files changed, 92 insertions(+), 92 deletions(-)
+
+diff --git a/doc/play/life.go b/doc/play/life.go
+index 08271761c5..51afb61f3d 100644
+--- a/doc/play/life.go
++++ b/doc/play/life.go
+@@ -28,7 +28,7 @@ func (f *Field) Set(x, y int, b bool) {
+ 	f.s[y][x] = b
+ }
+ 
+-// Alive returns whether the specified cell is alive.
++// Alive reports whether the specified cell is alive.
+ // If the x or y coordinates are outside the field boundaries they are wrapped
+ // toroidally. For instance, an x value of -1 is treated as width-1.
+ func (f *Field) Alive(x, y int) bool {
+diff --git a/src/cmd/dist/plan9.c b/src/cmd/dist/plan9.c
+index d954cb35a2..8d492ebc67 100644
+--- a/src/cmd/dist/plan9.c
++++ b/src/cmd/dist/plan9.c
+@@ -736,7 +736,7 @@ xstrrchr(char *p, int c)
+ 	return strrchr(p, c);
+ }
+ 
+-// xsamefile returns whether f1 and f2 are the same file (or dir)
++// xsamefile reports whether f1 and f2 are the same file (or dir)
+ int
+ xsamefile(char *f1, char *f2)
+ {
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 3ab40f1b51..fbb3a70ccd 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -747,7 +747,7 @@ xstrrchr(char *p, int c)
+ 	return strrchr(p, c);
+ }
+ 
+-// xsamefile returns whether f1 and f2 are the same file (or dir)
++// xsamefile reports whether f1 and f2 are the same file (or dir)
+ int
+ xsamefile(char *f1, char *f2)
+ {
+diff --git a/src/cmd/dist/windows.c b/src/cmd/dist/windows.c
+index ba23a7ae82..75f7896eb7 100644
+--- a/src/cmd/dist/windows.c
++++ b/src/cmd/dist/windows.c
+@@ -929,7 +929,7 @@ xstrrchr(char *p, int c)
+ 	return nil;
+ }
+ 
+-// xsamefile returns whether f1 and f2 are the same file (or dir)
++// xsamefile reports whether f1 and f2 are the same file (or dir)
+ int
+ xsamefile(char *f1, char *f2)
+ {
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index caac330d52..ece02bc3bd 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -44,7 +44,7 @@ initname(char *s)
+ 	return strcmp(s, "init") == 0;
+ }
+ 
+-// exportedsym returns whether a symbol will be visible
++// exportedsym reports whether a symbol will be visible
+ // to files that import our package.
+ static int
+ exportedsym(Sym *sym)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 3b1b0543e0..d828c784b0 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -525,7 +525,7 @@ saveorignode(Node *n)
+ 	n->orig = norig;
+ }
+ 
+-// ispaddedfield returns whether the given field
++// ispaddedfield reports whether the given field
+ // is followed by padding. For the case where t is
+ // the last field, total gives the size of the enclosing struct.
+ static int
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 31e6da6d34..3c7b844197 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -492,12 +492,12 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 	return p
+ }
+ 
+-// usesSwig returns whether the package needs to run SWIG.
++// usesSwig reports whether the package needs to run SWIG.
+ func (p *Package) usesSwig() bool {
+ 	return len(p.SwigFiles) > 0 || len(p.SwigCXXFiles) > 0
+ }
+ 
+-// usesCgo returns whether the package needs to run cgo
++// usesCgo reports whether the package needs to run cgo
+ func (p *Package) usesCgo() bool {
+ 	return len(p.CgoFiles) > 0
+ }
+diff --git a/src/pkg/bufio/scan.go b/src/pkg/bufio/scan.go
+index 537a6db058..423505fbcb 100644
+--- a/src/pkg/bufio/scan.go
++++ b/src/pkg/bufio/scan.go
+@@ -287,7 +287,7 @@ func ScanLines(data []byte, atEOF bool) (advance int, token []byte, err error) {
+ 	return 0, nil, nil
+ }
+ 
+-// isSpace returns whether the character is a Unicode white space character.
++// isSpace reports whether the character is a Unicode white space character.
+ // We avoid dependency on the unicode package, but check validity of the implementation
+ // in the tests.
+ func isSpace(r rune) bool {
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index b07902579c..405b10a1db 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -77,7 +77,7 @@ func Count(s, sep []byte) int {
+ 	return count
+ }
+ 
+-// Contains returns whether subslice is within b.
++// Contains reports whether subslice is within b.
+ func Contains(b, subslice []byte) bool {
+ 	return Index(b, subslice) != -1
+ }
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index f642cb9ab7..d02f15c34d 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -123,8 +123,8 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ 	return
+ }
+ 
+-// Verify verifies the signature in r, s of hash using the public key, pub. It
+-// returns whether the signature is valid.
++// Verify verifies the signature in r, s of hash using the public key, pub. Its
++// return value records whether the signature is valid.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ 	// See [NSA] 3.4.2
+ 	c := pub.Curve
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index 2c600aee3a..5034946f71 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -144,7 +144,7 @@ type CertificateList struct {
+ 	SignatureValue     asn1.BitString
+ }
+ 
+-// HasExpired returns whether now is past the expiry time of certList.
++// HasExpired reports whether now is past the expiry time of certList.
+ func (certList *CertificateList) HasExpired(now time.Time) bool {
+ 	return now.After(certList.TBSCertList.NextUpdate)
+ }
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index 6a60b51e37..9ab05bac2f 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -34,7 +34,7 @@ type Sym struct {
+ 	Func *Func
+ }
+ 
+-// Static returns whether this symbol is static (not visible outside its file).
++// Static reports whether this symbol is static (not visible outside its file).
+ func (s *Sym) Static() bool { return s.Type >= 'a' }
+ 
+ // PackageName returns the package part of the symbol name,
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index c53430850d..992356c263 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -183,7 +183,7 @@ func parseBitString(bytes []byte) (ret BitString, err error) {
+ // An ObjectIdentifier represents an ASN.1 OBJECT IDENTIFIER.
+ type ObjectIdentifier []int
+ 
+-// Equal returns whether oi and other represent the same identifier.
++// Equal reports whether oi and other represent the same identifier.
+ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+ 	if len(oi) != len(other) {
+ 		return false
+diff --git a/src/pkg/encoding/gob/encode.go b/src/pkg/encoding/gob/encode.go
+index 2726bcd7e7..ee9b0783e0 100644
+--- a/src/pkg/encoding/gob/encode.go
++++ b/src/pkg/encoding/gob/encode.go
+@@ -474,7 +474,7 @@ func (enc *Encoder) encodeInterface(b *bytes.Buffer, iv reflect.Value) {
+ 	enc.freeEncoderState(state)
+ }
+ 
+-// isZero returns whether the value is the zero of its type.
++// isZero reports whether the value is the zero of its type.
+ func isZero(val reflect.Value) bool {
+ 	switch val.Kind() {
+ 	case reflect.Array:
+diff --git a/src/pkg/encoding/json/tags.go b/src/pkg/encoding/json/tags.go
+index 58cda2027c..c38fd5102f 100644
+--- a/src/pkg/encoding/json/tags.go
++++ b/src/pkg/encoding/json/tags.go
+@@ -21,7 +21,7 @@ func parseTag(tag string) (string, tagOptions) {
+ 	return tag, tagOptions("")
+ }
+ 
+-// Contains returns whether checks that a comma-separated list of options
++// Contains reports whether a comma-separated list of options
+ // contains a particular substr flag. substr must be surrounded by a
+ // string boundary or commas.
+ func (o tagOptions) Contains(optionName string) bool {
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index c6bb1f0633..bde055d3bd 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -699,7 +699,7 @@ func (f *FlagSet) usage() {
+ 	}
+ }
+ 
+-// parseOne parses one flag. It returns whether a flag was seen.
++// parseOne parses one flag. It reports whether a flag was seen.
+ func (f *FlagSet) parseOne() (bool, error) {
+ 	if len(f.args) == 0 {
+ 		return false, nil
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 2da95b58af..fd37b5ac64 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -43,7 +43,7 @@ type State interface {
+ 	// Precision returns the value of the precision option and whether it has been set.
+ 	Precision() (prec int, ok bool)
+ 
+-	// Flag returns whether the flag c, a character, has been set.
++	// Flag reports whether the flag c, a character, has been set.
+ 	Flag(c int) bool
+ }
+ 
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index efa0f04936..e7e357106c 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -519,15 +519,15 @@ func (*ChanType) exprNode()      {}
+ //
+ func NewIdent(name string) *Ident { return &Ident{token.NoPos, name, nil} }
+ 
+-// IsExported returns whether name is an exported Go symbol
+-// (i.e., whether it begins with an uppercase letter).
++// IsExported reports whether name is an exported Go symbol
++// (that is, whether it begins with an upper-case letter).
+ //
+ func IsExported(name string) bool {
+ 	ch, _ := utf8.DecodeRuneInString(name)
+ 	return unicode.IsUpper(ch)
+ }
+ 
+-// IsExported returns whether id is an exported Go symbol
++// IsExported reports whether id is an exported Go symbol
+ // (i.e., whether it begins with an uppercase letter).
+ //
+ func (id *Ident) IsExported() bool { return IsExported(id.Name) }
+diff --git a/src/pkg/go/doc/testdata/testing.0.golden b/src/pkg/go/doc/testdata/testing.0.golden
+index 15a9039866..f8348f1ac3 100644
+--- a/src/pkg/go/doc/testdata/testing.0.golden
++++ b/src/pkg/go/doc/testdata/testing.0.golden
+@@ -57,7 +57,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *B) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *B) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+@@ -136,7 +136,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *T) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *T) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+diff --git a/src/pkg/go/doc/testdata/testing.1.golden b/src/pkg/go/doc/testdata/testing.1.golden
+index ffdb5c3b58..282bb1015a 100644
+--- a/src/pkg/go/doc/testdata/testing.1.golden
++++ b/src/pkg/go/doc/testdata/testing.1.golden
+@@ -130,7 +130,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *B) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *B) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+@@ -232,7 +232,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *T) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *T) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+@@ -278,7 +278,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *common) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *common) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+diff --git a/src/pkg/go/doc/testdata/testing.2.golden b/src/pkg/go/doc/testdata/testing.2.golden
+index 15a9039866..f8348f1ac3 100644
+--- a/src/pkg/go/doc/testdata/testing.2.golden
++++ b/src/pkg/go/doc/testdata/testing.2.golden
+@@ -57,7 +57,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *B) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *B) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+@@ -136,7 +136,7 @@ TYPES
+ 	// FailNow marks the function as having failed and stops its ...
+ 	func (c *T) FailNow()
+ 
+-	// Failed returns whether the function has failed. 
++	// Failed reports whether the function has failed. 
+ 	func (c *T) Failed() bool
+ 
+ 	// Fatal is equivalent to Log() followed by FailNow(). 
+diff --git a/src/pkg/go/doc/testdata/testing.go b/src/pkg/go/doc/testdata/testing.go
+index c2499ad779..93ed494c32 100644
+--- a/src/pkg/go/doc/testdata/testing.go
++++ b/src/pkg/go/doc/testdata/testing.go
+@@ -130,7 +130,7 @@ type T struct {
+ // Fail marks the function as having failed but continues execution.
+ func (c *common) Fail() { c.failed = true }
+ 
+-// Failed returns whether the function has failed.
++// Failed reports whether the function has failed.
+ func (c *common) Failed() bool { return c.failed }
+ 
+ // FailNow marks the function as having failed and stops its execution.
+diff --git a/src/pkg/html/template/context.go b/src/pkg/html/template/context.go
+index 7202221b83..eb47e2be3c 100644
+--- a/src/pkg/html/template/context.go
++++ b/src/pkg/html/template/context.go
+@@ -29,7 +29,7 @@ func (c context) String() string {
+ 	return fmt.Sprintf("{%v %v %v %v %v %v %v}", c.state, c.delim, c.urlPart, c.jsCtx, c.attr, c.element, c.err)
+ }
+ 
+-// eq returns whether two contexts are equal.
++// eq reports whether two contexts are equal.
+ func (c context) eq(d context) bool {
+ 	return c.state == d.state &&
+ 		c.delim == d.delim &&
+diff --git a/src/pkg/html/template/css.go b/src/pkg/html/template/css.go
+index 3bcd984983..c5cb074345 100644
+--- a/src/pkg/html/template/css.go
++++ b/src/pkg/html/template/css.go
+@@ -11,7 +11,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// endsWithCSSKeyword returns whether b ends with an ident that
++// endsWithCSSKeyword reports whether b ends with an ident that
+ // case-insensitively matches the lower-case kw.
+ func endsWithCSSKeyword(b []byte, kw string) bool {
+ 	i := len(b) - len(kw)
+@@ -34,7 +34,7 @@ func endsWithCSSKeyword(b []byte, kw string) bool {
+ 	return string(bytes.ToLower(b[i:])) == kw
+ }
+ 
+-// isCSSNmchar returns whether rune is allowed anywhere in a CSS identifier.
++// isCSSNmchar reports whether rune is allowed anywhere in a CSS identifier.
+ func isCSSNmchar(r rune) bool {
+ 	// Based on the CSS3 nmchar production but ignores multi-rune escape
+ 	// sequences.
+@@ -99,7 +99,7 @@ func decodeCSS(s []byte) []byte {
+ 	return b
+ }
+ 
+-// isHex returns whether the given character is a hex digit.
++// isHex reports reports whether the given character is a hex digit.
+ func isHex(c byte) bool {
+ 	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
+ }
+@@ -144,7 +144,7 @@ func skipCSSSpace(c []byte) []byte {
+ 	return c
+ }
+ 
+-// isCSSSpace returns whether b is a CSS space char as defined in wc.
++// isCSSSpace reports whether b is a CSS space char as defined in wc.
+ func isCSSSpace(b byte) bool {
+ 	switch b {
+ 	case '\t', '\n', '\f', '\r', ' ':
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 4829bfcc43..f2a4c8acaa 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -301,7 +301,7 @@ func indexOfStr(s string, strs []string, eq func(a, b string) bool) int {
+ 	return -1
+ }
+ 
+-// escFnsEq returns whether the two escaping functions are equivalent.
++// escFnsEq reports whether the two escaping functions are equivalent.
+ func escFnsEq(a, b string) bool {
+ 	if e := equivEscapers[a]; e != "" {
+ 		a = e
+diff --git a/src/pkg/html/template/js.go b/src/pkg/html/template/js.go
+index a9740931fc..d594e0ad71 100644
+--- a/src/pkg/html/template/js.go
++++ b/src/pkg/html/template/js.go
+@@ -341,7 +341,7 @@ var jsRegexpReplacementTable = []string{
+ 	'}':  `\}`,
+ }
+ 
+-// isJSIdentPart returns whether the given rune is a JS identifier part.
++// isJSIdentPart reports whether the given rune is a JS identifier part.
+ // It does not handle all the non-Latin letters, joiners, and combining marks,
+ // but it does handle every codepoint that can occur in a numeric literal or
+ // a keyword.
+diff --git a/src/pkg/html/template/transition.go b/src/pkg/html/template/transition.go
+index 564eb20207..7f30a7ab8d 100644
+--- a/src/pkg/html/template/transition.go
++++ b/src/pkg/html/template/transition.go
+@@ -504,12 +504,12 @@ var elementNameMap = map[string]element{
+ 	"title":    elementTitle,
+ }
+ 
+-// asciiAlpha returns whether c is an ASCII letter.
++// asciiAlpha reports whether c is an ASCII letter.
+ func asciiAlpha(c byte) bool {
+ 	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z'
+ }
+ 
+-// asciiAlphaNum returns whether c is an ASCII letter or digit.
++// asciiAlphaNum reports whether c is an ASCII letter or digit.
+ func asciiAlphaNum(c byte) bool {
+ 	return asciiAlpha(c) || '0' <= c && c <= '9'
+ }
+diff --git a/src/pkg/image/format.go b/src/pkg/image/format.go
+index 3040247f1f..3668de4e68 100644
+--- a/src/pkg/image/format.go
++++ b/src/pkg/image/format.go
+@@ -47,7 +47,7 @@ func asReader(r io.Reader) reader {
+ 	return bufio.NewReader(r)
+ }
+ 
+-// Match returns whether magic matches b. Magic may contain "?" wildcards.
++// Match reports whether magic matches b. Magic may contain "?" wildcards.
+ func match(magic string, b []byte) bool {
+ 	if len(magic) != len(b) {
+ 		return false
+diff --git a/src/pkg/image/geom.go b/src/pkg/image/geom.go
+index e123483314..6ebaf67da8 100644
+--- a/src/pkg/image/geom.go
++++ b/src/pkg/image/geom.go
+@@ -38,7 +38,7 @@ func (p Point) Div(k int) Point {
+ 	return Point{p.X / k, p.Y / k}
+ }
+ 
+-// In returns whether p is in r.
++// In reports whether p is in r.
+ func (p Point) In(r Rectangle) bool {
+ 	return r.Min.X <= p.X && p.X < r.Max.X &&
+ 		r.Min.Y <= p.Y && p.Y < r.Max.Y
+@@ -60,7 +60,7 @@ func (p Point) Mod(r Rectangle) Point {
+ 	return p.Add(r.Min)
+ }
+ 
+-// Eq returns whether p and q are equal.
++// Eq reports whether p and q are equal.
+ func (p Point) Eq(q Point) bool {
+ 	return p.X == q.X && p.Y == q.Y
+ }
+@@ -179,24 +179,24 @@ func (r Rectangle) Union(s Rectangle) Rectangle {
+ 	return r
+ }
+ 
+-// Empty returns whether the rectangle contains no points.
++// Empty reports whether the rectangle contains no points.
+ func (r Rectangle) Empty() bool {
+ 	return r.Min.X >= r.Max.X || r.Min.Y >= r.Max.Y
+ }
+ 
+-// Eq returns whether r and s are equal.
++// Eq reports whether r and s are equal.
+ func (r Rectangle) Eq(s Rectangle) bool {
+ 	return r.Min.X == s.Min.X && r.Min.Y == s.Min.Y &&
+ 		r.Max.X == s.Max.X && r.Max.Y == s.Max.Y
+ }
+ 
+-// Overlaps returns whether r and s have a non-empty intersection.
++// Overlaps reports whether r and s have a non-empty intersection.
+ func (r Rectangle) Overlaps(s Rectangle) bool {
+ 	return r.Min.X < s.Max.X && s.Min.X < r.Max.X &&
+ 		r.Min.Y < s.Max.Y && s.Min.Y < r.Max.Y
+ }
+ 
+-// In returns whether every point in r is in s.
++// In reports whether every point in r is in s.
+ func (r Rectangle) In(s Rectangle) bool {
+ 	if r.Empty() {
+ 		return true
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 03ac606067..32a89ef34c 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -126,7 +126,7 @@ func (p *RGBA) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *RGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -234,7 +234,7 @@ func (p *RGBA64) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *RGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -329,7 +329,7 @@ func (p *NRGBA) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *NRGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -437,7 +437,7 @@ func (p *NRGBA64) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *NRGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -525,7 +525,7 @@ func (p *Alpha) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *Alpha) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -616,7 +616,7 @@ func (p *Alpha16) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *Alpha16) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+@@ -704,7 +704,7 @@ func (p *Gray) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *Gray) Opaque() bool {
+ 	return true
+ }
+@@ -782,7 +782,7 @@ func (p *Gray16) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *Gray16) Opaque() bool {
+ 	return true
+ }
+@@ -873,7 +873,7 @@ func (p *Paletted) SubImage(r Rectangle) Image {
+ 	}
+ }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (p *Paletted) Opaque() bool {
+ 	var present [256]bool
+ 	i0, i1 := 0, p.Rect.Dx()
+diff --git a/src/pkg/image/jpeg/dct_test.go b/src/pkg/image/jpeg/dct_test.go
+index 7389f7e4fe..845e758878 100644
+--- a/src/pkg/image/jpeg/dct_test.go
++++ b/src/pkg/image/jpeg/dct_test.go
+@@ -90,7 +90,7 @@ func TestDCT(t *testing.T) {
+ 	}
+ }
+ 
+-// differ returns whether any pair-wise elements in b0 and b1 differ by 2 or
++// differ reports whether any pair-wise elements in b0 and b1 differ by 2 or
+ // more. That tolerance is because there isn't a single definitive decoding of
+ // a given JPEG image, even before the YCbCr to RGB conversion; implementations
+ // can have different IDCT rounding errors.
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 04ee2cfb47..8985f49214 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -41,7 +41,7 @@ func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point
+ 
+ func (c *Uniform) At(x, y int) color.Color { return c.C }
+ 
+-// Opaque scans the entire image and returns whether or not it is fully opaque.
++// Opaque scans the entire image and reports whether it is fully opaque.
+ func (c *Uniform) Opaque() bool {
+ 	_, _, _, a := c.C.RGBA()
+ 	return a == 0xffff
+diff --git a/src/pkg/math/bits.go b/src/pkg/math/bits.go
+index 0df0b1cc9f..d85ee9cb13 100644
+--- a/src/pkg/math/bits.go
++++ b/src/pkg/math/bits.go
+@@ -27,7 +27,7 @@ func Inf(sign int) float64 {
+ // NaN returns an IEEE 754 ``not-a-number'' value.
+ func NaN() float64 { return Float64frombits(uvnan) }
+ 
+-// IsNaN returns whether f is an IEEE 754 ``not-a-number'' value.
++// IsNaN reports whether f is an IEEE 754 ``not-a-number'' value.
+ func IsNaN(f float64) (is bool) {
+ 	// IEEE 754 says that only NaNs satisfy f != f.
+ 	// To avoid the floating-point hardware, could use:
+@@ -36,10 +36,10 @@ func IsNaN(f float64) (is bool) {
+ 	return f != f
+ }
+ 
+-// IsInf returns whether f is an infinity, according to sign.
+-// If sign > 0, IsInf returns whether f is positive infinity.
+-// If sign < 0, IsInf returns whether f is negative infinity.
+-// If sign == 0, IsInf returns whether f is either infinity.
++// IsInf reports whether f is an infinity, according to sign.
++// If sign > 0, IsInf reports whether f is positive infinity.
++// If sign < 0, IsInf reports whether f is negative infinity.
++// If sign == 0, IsInf reports whether f is either infinity.
+ func IsInf(f float64, sign int) bool {
+ 	// Test for infinity by comparing against maximum float.
+ 	// To avoid the floating-point hardware, could use:
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index 2c862a6479..2b4f5b433e 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -272,7 +272,7 @@ func (r *Reader) NextPart() (*Part, error) {
+ 	}
+ }
+ 
+-// isFinalBoundary returns whether line is the final boundary line
++// isFinalBoundary reports whether line is the final boundary line
+ // indicating that all parts are over.
+ // It matches `^--boundary--[ \t]*(\r\n)?$`
+ func (mr *Reader) isFinalBoundary(line []byte) bool {
+@@ -307,8 +307,8 @@ func (mr *Reader) isBoundaryDelimiterLine(line []byte) (ret bool) {
+ 	return bytes.Equal(rest, mr.nl)
+ }
+ 
+-// peekBufferIsEmptyPart returns whether the provided peek-ahead
+-// buffer represents an empty part.  This is only called if we've not
++// peekBufferIsEmptyPart reports whether the provided peek-ahead
++// buffer represents an empty part. It is called only if we've not
+ // already read any bytes in this part and checks for the case of MIME
+ // software not writing the \r\n on empty parts. Some does, some
+ // doesn't.
+diff --git a/src/pkg/net/http/cookiejar/jar.go b/src/pkg/net/http/cookiejar/jar.go
+index 5977d48b63..389ab58e41 100644
+--- a/src/pkg/net/http/cookiejar/jar.go
++++ b/src/pkg/net/http/cookiejar/jar.go
+@@ -142,7 +142,7 @@ func (e *entry) pathMatch(requestPath string) bool {
+ 	return false
+ }
+ 
+-// hasDotSuffix returns whether s ends in "."+suffix.
++// hasDotSuffix reports whether s ends in "."+suffix.
+ func hasDotSuffix(s, suffix string) bool {
+ 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
+ }
+@@ -316,7 +316,7 @@ func canonicalHost(host string) (string, error) {
+ 	return toASCII(host)
+ }
+ 
+-// hasPort returns whether host contains a port number. host may be a host
++// hasPort reports whether host contains a port number. host may be a host
+ // name, an IPv4 or an IPv6 address.
+ func hasPort(host string) bool {
+ 	colons := strings.Count(host, ":")
+@@ -357,7 +357,7 @@ func jarKey(host string, psl PublicSuffixList) string {
+ 	return host[prevDot+1:]
+ }
+ 
+-// isIP returns whether host is an IP address.
++// isIP reports whether host is an IP address.
+ func isIP(host string) bool {
+ 	return net.ParseIP(host) != nil
+ }
+@@ -380,7 +380,7 @@ func defaultPath(path string) string {
+ // is compared to c.Expires to determine deletion of c. defPath and host are the
+ // default-path and the canonical host name of the URL c was received from.
+ //
+-// remove is whether the jar should delete this cookie, as it has already
++// remove records whether the jar should delete this cookie, as it has already
+ // expired with respect to now. In this case, e may be incomplete, but it will
+ // be valid to call e.id (which depends on e's Name, Domain and Path).
+ //
+diff --git a/src/pkg/net/http/header.go b/src/pkg/net/http/header.go
+index 6374237fba..ca1ae07c25 100644
+--- a/src/pkg/net/http/header.go
++++ b/src/pkg/net/http/header.go
+@@ -173,7 +173,7 @@ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ // canonical key for "accept-encoding" is "Accept-Encoding".
+ func CanonicalHeaderKey(s string) string { return textproto.CanonicalMIMEHeaderKey(s) }
+ 
+-// hasToken returns whether token appears with v, ASCII
++// hasToken reports whether token appears with v, ASCII
+ // case-insensitive, with space or comma boundaries.
+ // token must be all lowercase.
+ // v may contain mixed cased.
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 3b29aefcd0..14cc42f53c 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -183,7 +183,7 @@ type Request struct {
+ 	TLS *tls.ConnectionState
+ }
+ 
+-// ProtoAtLeast returns whether the HTTP protocol used
++// ProtoAtLeast reports whether the HTTP protocol used
+ // in the request is at least major.minor.
+ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ 	return r.ProtoMajor > major ||
+diff --git a/src/pkg/net/http/response.go b/src/pkg/net/http/response.go
+index 9a7e4e319b..0d7c8248a7 100644
+--- a/src/pkg/net/http/response.go
++++ b/src/pkg/net/http/response.go
+@@ -168,7 +168,7 @@ func fixPragmaCacheControl(header Header) {
+ 	}
+ }
+ 
+-// ProtoAtLeast returns whether the HTTP protocol used
++// ProtoAtLeast reports whether the HTTP protocol used
+ // in the response is at least major.minor.
+ func (r *Response) ProtoAtLeast(major, minor int) bool {
+ 	return r.ProtoMajor > major ||
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index e000285047..e0f629347e 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -336,7 +336,7 @@ func (w *response) requestTooLarge() {
+ 	}
+ }
+ 
+-// needsSniff returns whether a Content-Type still needs to be sniffed.
++// needsSniff reports whether a Content-Type still needs to be sniffed.
+ func (w *response) needsSniff() bool {
+ 	return !w.cw.wroteHeader && w.handlerHeader.Get("Content-Type") == "" && w.written < sniffLen
+ }
+@@ -1044,7 +1044,7 @@ func (c *conn) closeWriteAndWait() {
+ 	time.Sleep(rstAvoidanceDelay)
+ }
+ 
+-// validNPN returns whether the proto is not a blacklisted Next
++// validNPN reports whether the proto is not a blacklisted Next
+ // Protocol Negotiation protocol.  Empty and built-in protocol types
+ // are blacklisted and can't be overridden with alternate
+ // implementations.
+diff --git a/src/pkg/net/http/transfer.go b/src/pkg/net/http/transfer.go
+index 2b227735a8..ce56a563e5 100644
+--- a/src/pkg/net/http/transfer.go
++++ b/src/pkg/net/http/transfer.go
+@@ -238,7 +238,7 @@ type transferReader struct {
+ 	Trailer          Header
+ }
+ 
+-// bodyAllowedForStatus returns whether a given response status code
++// bodyAllowedForStatus reports whether a given response status code
+ // permits a body.  See RFC2616, section 4.4.
+ func bodyAllowedForStatus(status int) bool {
+ 	switch {
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index 2cc17530c2..c8d0a8632a 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -58,7 +58,7 @@ func (p *ProcessState) SystemTime() time.Duration {
+ 	return p.systemTime()
+ }
+ 
+-// Exited returns whether the program has exited.
++// Exited reports whether the program has exited.
+ func (p *ProcessState) Exited() bool {
+ 	return p.exited()
+ }
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index a7977ff191..8810e69306 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -43,20 +43,23 @@ func NewSyscallError(syscall string, err error) error {
+ 	return &SyscallError{syscall, err}
+ }
+ 
+-// IsExist returns whether the error is known to report that a file or directory
+-// already exists. It is satisfied by ErrExist as well as some syscall errors.
++// IsExist returns a boolean indicating whether the error is known to report
++// that a file or directory already exists. It is satisfied by ErrExist as
++// well as some syscall errors.
+ func IsExist(err error) bool {
+ 	return isExist(err)
+ }
+ 
+-// IsNotExist returns whether the error is known to report that a file or directory
+-// does not exist. It is satisfied by ErrNotExist as well as some syscall errors.
++// IsNotExist returns a boolean indicating whether the error is known to
++// report that a file or directory does not exist. It is satisfied by
++// ErrNotExist as well as some syscall errors.
+ func IsNotExist(err error) bool {
+ 	return isNotExist(err)
+ }
+ 
+-// IsPermission returns whether the error is known to report that permission is denied.
+-// It is satisfied by ErrPermission as well as some syscall errors.
++// IsPermission returns a boolean indicating whether the error is known to
++// report that permission is denied. It is satisfied by ErrPermission as well
++// as some syscall errors.
+ func IsPermission(err error) bool {
+ 	return isPermission(err)
+ }
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index c392b376f1..0046026eae 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -375,21 +375,18 @@ func (re *Regexp) LiteralPrefix() (prefix string, complete bool) {
+ 	return re.prefix, re.prefixComplete
+ }
+ 
+-// MatchReader returns whether the Regexp matches the text read by the
+-// RuneReader.  The return value is a boolean: true for match, false for no
+-// match.
++// MatchReader reports whether the Regexp matches the text read by the
++// RuneReader.
+ func (re *Regexp) MatchReader(r io.RuneReader) bool {
+ 	return re.doExecute(r, nil, "", 0, 0) != nil
+ }
+ 
+-// MatchString returns whether the Regexp matches the string s.
+-// The return value is a boolean: true for match, false for no match.
++// MatchString reports whether the Regexp matches the string s.
+ func (re *Regexp) MatchString(s string) bool {
+ 	return re.doExecute(nil, nil, s, 0, 0) != nil
+ }
+ 
+-// Match returns whether the Regexp matches the byte slice b.
+-// The return value is a boolean: true for match, false for no match.
++// Match reports whether the Regexp matches the byte slice b.
+ func (re *Regexp) Match(b []byte) bool {
+ 	return re.doExecute(nil, b, "", 0, 0) != nil
+ }
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index edef06ff36..f06eb3827a 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -12,8 +12,8 @@ package sort
+ type Interface interface {
+ 	// Len is the number of elements in the collection.
+ 	Len() int
+-	// Less returns whether the element with index i should sort
+-	// before the element with index j.
++	// Less reports whether the element with
++	// index i should sort before the element with index j.
+ 	Less(i, j int) bool
+ 	// Swap swaps the elements with indexes i and j.
+ 	Swap(i, j int)
+diff --git a/src/pkg/text/template/exec.go b/src/pkg/text/template/exec.go
+index 8ec8174a16..b227a3534f 100644
+--- a/src/pkg/text/template/exec.go
++++ b/src/pkg/text/template/exec.go
+@@ -201,7 +201,7 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
+ 	}
+ }
+ 
+-// isTrue returns whether the value is 'true', in the sense of not the zero of its type,
++// isTrue reports whether the value is 'true', in the sense of not the zero of its type,
+ // and whether the value has a meaningful truth value.
+ func isTrue(val reflect.Value) (truth, ok bool) {
+ 	if !val.IsValid() {

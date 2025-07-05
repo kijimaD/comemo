@@ -9,7 +9,7 @@ Date:   Fri Mar 18 19:02:52 2016 -0400
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/cgocall.go           | 6 +++---
  src/runtime/extern.go            | 2 +-
  src/runtime/gcinfo_test.go       | 2 +-
@@ -20,3 +20,128 @@ Date:   Fri Mar 18 19:02:52 2016 -0400
  src/runtime/runtime-gdb_test.go  | 2 +-
  src/runtime/unaligned1.go        | 2 +-
  9 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index d5248803a4..c6000bf98f 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -246,8 +246,8 @@ func cgocallbackg1() {
+ 	case "386":
+ 		// On 386, stack frame is three words, plus caller PC.
+ 		cb = (*args)(unsafe.Pointer(sp + 4*sys.PtrSize))
+-	case "ppc64", "ppc64le":
+-		// On ppc64, the callback arguments are in the arguments area of
++	case "ppc64", "ppc64le", "s390x":
++		// On ppc64 and s390x, the callback arguments are in the arguments area of
+ 		// cgocallback's stack frame. The stack looks like this:
+ 		// +--------------------+------------------------------+
+ 		// |                    | ...                          |
+@@ -300,7 +300,7 @@ func unwindm(restore *bool) {
+ 	switch GOARCH {
+ 	default:
+ 		throw("unwindm not implemented")
+-	case "386", "amd64", "arm", "ppc64", "ppc64le":
++	case "386", "amd64", "arm", "ppc64", "ppc64le", "s390x":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
+ 	case "arm64":
+ 		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 984b0ca817..1d8304f4fc 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -227,5 +227,5 @@ func Version() string {
+ const GOOS string = sys.TheGoos
+ 
+ // GOARCH is the running program's architecture target:
+-// 386, amd64, or arm.
++// 386, amd64, arm, or s390x.
+ const GOARCH string = sys.TheGoarch
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index edb6361642..c1c2354bf9 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -144,7 +144,7 @@ func infoBigStruct() []byte {
+ 			typeScalar, typeScalar, typeScalar, typeScalar, // t int; y uint16; u uint64
+ 			typePointer, typeScalar, // i string
+ 		}
+-	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le":
++	case "arm64", "amd64", "mips64", "mips64le", "ppc64", "ppc64le", "s390x":
+ 		return []byte{
+ 			typePointer,                        // q *int
+ 			typeScalar, typeScalar, typeScalar, // w byte; e [17]byte
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index fb3dba4000..d61f114475 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -6,7 +6,7 @@
+ //   xxhash: https://code.google.com/p/xxhash/
+ // cityhash: https://code.google.com/p/cityhash/
+ 
+-// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le
++// +build amd64 amd64p32 arm64 mips64 mips64le ppc64 ppc64le s390x
+ 
+ package runtime
+ 
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 351e325f4f..0a8f9e6f52 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x}.s
++// Routines that are implemented in assembly in asm_{amd64,386,arm,arm64,ppc64x,s390x}.s
+ 
+ // +build mips64 mips64le
+ 
+diff --git a/src/runtime/os1_linux_generic.go b/src/runtime/os1_linux_generic.go
+index 2c8b743aeb..50d6d6afb4 100644
+--- a/src/runtime/os1_linux_generic.go
++++ b/src/runtime/os1_linux_generic.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !mips64
+ // +build !mips64le
++// +build !s390x
+ // +build linux
+ 
+ package runtime
+diff --git a/src/runtime/os2_linux_generic.go b/src/runtime/os2_linux_generic.go
+index 01e6c8a5ec..f1a2dd5130 100644
+--- a/src/runtime/os2_linux_generic.go
++++ b/src/runtime/os2_linux_generic.go
+@@ -4,6 +4,7 @@
+ 
+ // +build !mips64
+ // +build !mips64le
++// +build !s390x
+ // +build linux
+ 
+ package runtime
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 110d99064f..7cfcefc2c2 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -104,7 +104,7 @@ func TestGdbPython(t *testing.T) {
+ 	// stack frames on RISC architectures.
+ 	canBackTrace := false
+ 	switch runtime.GOARCH {
+-	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64", "mips64", "mips64le":
++	case "amd64", "386", "ppc64", "ppc64le", "arm", "arm64", "mips64", "mips64le", "s390x":
+ 		canBackTrace = true
+ 		args = append(args,
+ 			"-ex", "echo BEGIN goroutine 2 bt\n",
+diff --git a/src/runtime/unaligned1.go b/src/runtime/unaligned1.go
+index 6bd9018352..754d63b417 100644
+--- a/src/runtime/unaligned1.go
++++ b/src/runtime/unaligned1.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build 386 amd64 amd64p32 arm64 ppc64 ppc64le
++// +build 386 amd64 amd64p32 arm64 ppc64 ppc64le s390x
+ 
+ package runtime
+ 

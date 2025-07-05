@@ -10,6 +10,20 @@ Date:   Mon Aug 22 18:53:01 2016 -0400
     Change-Id: Ia24002469e557fb29badfd830134e61c1dd7e16e
     Reviewed-on: https://go-review.googlesource.com/27555
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/cmd/link/internal/mips64/asm.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 404dfa21b7..0b0479e336 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -226,7 +226,7 @@ func asmb(ctxt *ld.Link) {
+ 
+ 	ld.Lcsize = 0
+ 	symo := uint32(0)
+-	if *ld.FlagS {
++	if !*ld.FlagS {
+ 		// TODO: rationalize
+ 		if ctxt.Debugvlog != 0 {
+ 			fmt.Fprintf(ctxt.Bso, "%5.2f sym\n", obj.Cputime())

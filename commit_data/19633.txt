@@ -10,6 +10,20 @@ Date:   Sun Jun 29 20:34:35 2014 +1000
     R=golang-codereviews, ruiu, r
     CC=golang-codereviews
     https://golang.org/cl/106210047
-
+---
  test/fixedbugs/issue8074.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue8074.go b/test/fixedbugs/issue8074.go
+index 776563ac28..aedab240e3 100644
+--- a/test/fixedbugs/issue8074.go
++++ b/test/fixedbugs/issue8074.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// issue 8073.
++// issue 8074.
+ // was "cannot take the address of 1"
+ 
+ package main

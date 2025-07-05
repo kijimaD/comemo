@@ -15,8 +15,170 @@ Date:   Fri Jun 16 18:13:13 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/executable_path.go   | 104 ++++++++++++++++++++++++++++++++++++++++++++
  src/os/executable_procfs.go |   4 +-
  src/os/executable_test.go   |  11 +++--
  3 files changed, 112 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/executable_path.go b/src/os/executable_path.go
+new file mode 100644
+index 0000000000..057e6a72f4
+--- /dev/null
++++ b/src/os/executable_path.go
+@@ -0,0 +1,104 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build openbsd
++
++package os
++
++// We query the working directory at init, to use it later to search for the
++// executable file
++// errWd will be checked later, if we need to use initWd
++var initWd, errWd = Getwd()
++
++func executable() (string, error) {
++	var exePath string
++	if len(Args) == 0 || Args[0] == "" {
++		return "", ErrNotExist
++	}
++	if IsPathSeparator(Args[0][0]) {
++		// Args[0] is an absolute path, so it is the executable.
++		// Note that we only need to worry about Unix paths here.
++		exePath = Args[0]
++	} else {
++		for i := 1; i < len(Args[0]); i++ {
++			if IsPathSeparator(Args[0][i]) {
++				// Args[0] is a relative path: prepend the
++				// initial working directory.
++				if errWd != nil {
++					return "", errWd
++				}
++				exePath = initWd + string(PathSeparator) + Args[0]
++				break
++			}
++		}
++	}
++	if exePath != "" {
++		if err := isExecutable(exePath); err != nil {
++			return "", err
++		}
++		return exePath, nil
++	}
++	// Search for executable in $PATH.
++	for _, dir := range splitPathList(Getenv("PATH")) {
++		if len(dir) == 0 {
++			dir = "."
++		}
++		if !IsPathSeparator(dir[0]) {
++			if errWd != nil {
++				return "", errWd
++			}
++			dir = initWd + string(PathSeparator) + dir
++		}
++		exePath = dir + string(PathSeparator) + Args[0]
++		switch isExecutable(exePath) {
++		case nil:
++			return exePath, nil
++		case ErrPermission:
++			return "", ErrPermission
++		}
++	}
++	return "", ErrNotExist
++}
++
++// isExecutable returns an error if a given file is not an executable.
++func isExecutable(path string) error {
++	stat, err := Stat(path)
++	if err != nil {
++		return err
++	}
++	mode := stat.Mode()
++	if !mode.IsRegular() {
++		return ErrPermission
++	}
++	if (mode & 0111) == 0 {
++		return ErrPermission
++	}
++	return nil
++}
++
++// splitPathList splits a path list.
++// This is based on genSplit from strings/strings.go
++func splitPathList(pathList string) []string {
++	if pathList == "" {
++		return nil
++	}
++	n := 1
++	for i := 0; i < len(pathList); i++ {
++		if pathList[i] == PathListSeparator {
++			n++
++		}
++	}
++	start := 0
++	a := make([]string, n)
++	na := 0
++	for i := 0; i+1 <= len(pathList) && na+1 < n; i++ {
++		if pathList[i] == PathListSeparator {
++			a[na] = pathList[start:i]
++			na++
++			start = i + 1
++		}
++	}
++	a[na] = pathList[start:]
++	return a[:na+1]
++}
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index 69a70e18df..b5fae59046 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux netbsd openbsd dragonfly nacl
++// +build linux netbsd dragonfly nacl
+ 
+ package os
+ 
+@@ -23,8 +23,6 @@ var executablePath, executablePathErr = func() (string, error) {
+ 		procfn = "/proc/self/exe"
+ 	case "netbsd":
+ 		procfn = "/proc/curproc/exe"
+-	case "openbsd":
+-		procfn = "/proc/curproc/file"
+ 	case "dragonfly":
+ 		procfn = "/proc/curproc/file"
+ 	}
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index a4d89092ac..a6aeb0723f 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -20,10 +20,6 @@ func TestExecutable(t *testing.T) {
+ 	testenv.MustHaveExec(t) // will also execlude nacl, which doesn't support Executable anyway
+ 	ep, err := os.Executable()
+ 	if err != nil {
+-		switch goos := runtime.GOOS; goos {
+-		case "openbsd": // procfs is not mounted by default
+-			t.Skipf("Executable failed on %s: %v, expected", goos, err)
+-		}
+ 		t.Fatalf("Executable failed: %v", err)
+ 	}
+ 	// we want fn to be of the form "dir/prog"
+@@ -32,6 +28,13 @@ func TestExecutable(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("filepath.Rel: %v", err)
+ 	}
++
++	if runtime.GOOS == "openbsd" {
++		// The rest of the test doesn't work on OpenBSD,
++		// which relies on argv[0].
++		t.Skipf("skipping remainder of test on %s", runtime.GOOS)
++	}
++
+ 	cmd := &osexec.Cmd{}
+ 	// make child start with a relative program path
+ 	cmd.Dir = dir

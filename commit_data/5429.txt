@@ -7,6 +7,22 @@ Date:   Mon May 3 13:24:26 2010 -0700
     TBR=kaib
     CC=golang-dev
     https://golang.org/cl/1080041
-
+---
  test/run-arm | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/run-arm b/test/run-arm
+index 4a469ceae1..c7545ae0e9 100755
+--- a/test/run-arm
++++ b/test/run-arm
+@@ -90,8 +90,8 @@ then
+ 	failed=1
+ fi
+ 
+-notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
+-inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
++notinbugs=$(sed '/== bugs/q' run.out | grep -c '^BUG')
++inbugs=$(sed '1,/== bugs/d' run.out | grep -c '^BUG')
+ 
+ echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
+ 

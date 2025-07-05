@@ -14,6 +14,65 @@ Date:   Wed May 15 21:22:32 2013 +0400
     R=golang-dev, remyoudompheng, minux.ma, bradfitz, iant
     CC=golang-dev
     https://golang.org/cl/9090045
-
+---
  src/pkg/runtime/malloc_test.go | 52 ++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 52 insertions(+)
+
+diff --git a/src/pkg/runtime/malloc_test.go b/src/pkg/runtime/malloc_test.go
+new file mode 100644
+index 0000000000..1afd32d08c
+--- /dev/null
++++ b/src/pkg/runtime/malloc_test.go
+@@ -0,0 +1,52 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"testing"
++	"unsafe"
++)
++
++var mallocSink uintptr
++
++func BenchmarkMalloc8(b *testing.B) {
++	var x uintptr
++	for i := 0; i < b.N; i++ {
++		p := new(int64)
++		x ^= uintptr(unsafe.Pointer(p))
++	}
++	mallocSink = x
++}
++
++func BenchmarkMalloc16(b *testing.B) {
++	var x uintptr
++	for i := 0; i < b.N; i++ {
++		p := new([2]int64)
++		x ^= uintptr(unsafe.Pointer(p))
++	}
++	mallocSink = x
++}
++
++func BenchmarkMallocTypeInfo8(b *testing.B) {
++	var x uintptr
++	for i := 0; i < b.N; i++ {
++		p := new(struct {
++			p [8 / unsafe.Sizeof(uintptr(0))]*int
++		})
++		x ^= uintptr(unsafe.Pointer(p))
++	}
++	mallocSink = x
++}
++
++func BenchmarkMallocTypeInfo16(b *testing.B) {
++	var x uintptr
++	for i := 0; i < b.N; i++ {
++		p := new(struct {
++			p [16 / unsafe.Sizeof(uintptr(0))]*int
++		})
++		x ^= uintptr(unsafe.Pointer(p))
++	}
++	mallocSink = x
++}

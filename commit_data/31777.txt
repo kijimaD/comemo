@@ -23,7 +23,7 @@ Date:   Tue Mar 14 13:25:12 2017 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go        |  70 +++-
  src/cmd/compile/internal/gc/ssa.go             | 466 ++++++++++++++-----------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |   8 +-
@@ -39,3 +39,1113 @@ Date:   Tue Mar 14 13:25:12 2017 -0700
  src/runtime/mbitmap.go                         |   2 +-
  test/intrinsic.dir/main.go                     |  10 +-
  14 files changed, 484 insertions(+), 280 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index e5c30c63fe..15b8fecdc4 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -162,7 +162,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "amd64",
+ 		os:      "linux",
+-		imports: []string{"encoding/binary"},
++		imports: []string{"encoding/binary", "math/bits"},
+ 		tests:   linuxAMD64Tests,
+ 	},
+ 	{
+@@ -174,7 +174,7 @@ var allAsmTests = []*asmTests{
+ 	{
+ 		arch:    "s390x",
+ 		os:      "linux",
+-		imports: []string{"encoding/binary"},
++		imports: []string{"encoding/binary", "math/bits"},
+ 		tests:   linuxS390XTests,
+ 	},
+ 	{
+@@ -543,6 +543,39 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tBTQ\t\\$60"},
+ 	},
++	// Intrinsic tests for math/bits
++	{
++		`
++		func f41(a uint64) int {
++			return bits.TrailingZeros64(a)
++		}
++		`,
++		[]string{"\tBSFQ\t", "\tMOVQ\t\\$64,", "\tCMOVQEQ\t"},
++	},
++	{
++		`
++		func f42(a uint32) int {
++			return bits.TrailingZeros32(a)
++		}
++		`,
++		[]string{"\tBSFQ\t", "\tORQ\t[^$]", "\tMOVQ\t\\$4294967296,"},
++	},
++	{
++		`
++		func f43(a uint16) int {
++			return bits.TrailingZeros16(a)
++		}
++		`,
++		[]string{"\tBSFQ\t", "\tORQ\t\\$65536,"},
++	},
++	{
++		`
++		func f44(a uint8) int {
++			return bits.TrailingZeros8(a)
++		}
++		`,
++		[]string{"\tBSFQ\t", "\tORQ\t\\$256,"},
++	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+@@ -710,6 +743,39 @@ var linuxS390XTests = []*asmTest{
+ 		`,
+ 		[]string{"\tFMSUBS\t"},
+ 	},
++	// Intrinsic tests for math/bits
++	{
++		`
++		func f18(a uint64) int {
++			return bits.TrailingZeros64(a)
++		}
++		`,
++		[]string{"\tFLOGR\t"},
++	},
++	{
++		`
++		func f19(a uint32) int {
++			return bits.TrailingZeros32(a)
++		}
++		`,
++		[]string{"\tFLOGR\t", "\tMOVWZ\t"},
++	},
++	{
++		`
++		func f20(a uint16) int {
++			return bits.TrailingZeros16(a)
++		}
++		`,
++		[]string{"\tFLOGR\t", "\tOR\t\\$65536,"},
++	},
++	{
++		`
++		func f21(a uint8) int {
++			return bits.TrailingZeros8(a)
++		}
++		`,
++		[]string{"\tFLOGR\t", "\tOR\t\\$256,"},
++	},
+ }
+ 
+ var linuxARMTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e7f82861b1..afa600f526 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2455,270 +2455,334 @@ const (
+ 	callGo
+ )
+ 
+-// TODO: make this a field of a configuration object instead of a global.
+-var intrinsics *intrinsicInfo
+-
+-type intrinsicInfo struct {
+-	std      map[intrinsicKey]intrinsicBuilder
+-	intSized map[sizedIntrinsicKey]intrinsicBuilder
+-	ptrSized map[sizedIntrinsicKey]intrinsicBuilder
+-}
++var intrinsics map[intrinsicKey]intrinsicBuilder
+ 
+ // An intrinsicBuilder converts a call node n into an ssa value that
+ // implements that call as an intrinsic. args is a list of arguments to the func.
+ type intrinsicBuilder func(s *state, n *Node, args []*ssa.Value) *ssa.Value
+ 
+ type intrinsicKey struct {
+-	pkg string
+-	fn  string
+-}
+-
+-type sizedIntrinsicKey struct {
++	arch *sys.Arch
+ 	pkg  string
+ 	fn   string
+-	size int
+ }
+ 
+-// disableForInstrumenting returns nil when instrumenting, fn otherwise
+-func disableForInstrumenting(fn intrinsicBuilder) intrinsicBuilder {
+-	if instrumenting {
+-		return nil
++func init() {
++	intrinsics = map[intrinsicKey]intrinsicBuilder{}
++
++	var all []*sys.Arch
++	var i4 []*sys.Arch
++	var i8 []*sys.Arch
++	var p4 []*sys.Arch
++	var p8 []*sys.Arch
++	for _, a := range sys.Archs {
++		all = append(all, a)
++		if a.IntSize == 4 {
++			i4 = append(i4, a)
++		} else {
++			i8 = append(i8, a)
++		}
++		if a.PtrSize == 4 {
++			p4 = append(p4, a)
++		} else {
++			p8 = append(p8, a)
++		}
+ 	}
+-	return fn
+-}
+ 
+-// enableOnArch returns fn on given archs, nil otherwise
+-func enableOnArch(fn intrinsicBuilder, archs ...sys.ArchFamily) intrinsicBuilder {
+-	if Thearch.LinkArch.InFamily(archs...) {
+-		return fn
++	// add adds the intrinsic b for pkg.fn for the given list of architectures.
++	add := func(pkg, fn string, b intrinsicBuilder, archs ...*sys.Arch) {
++		for _, a := range archs {
++			intrinsics[intrinsicKey{a, pkg, fn}] = b
++		}
++	}
++	// addF does the same as add but operates on architecture families.
++	addF := func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily) {
++		m := 0
++		for _, f := range archFamilies {
++			if f >= 32 {
++				panic("too many architecture families")
++			}
++			m |= 1 << uint(f)
++		}
++		for _, a := range all {
++			if m>>uint(a.Family)&1 != 0 {
++				intrinsics[intrinsicKey{a, pkg, fn}] = b
++			}
++		}
++	}
++	// alias defines pkg.fn = pkg2.fn2 for all architectures in archs for which pkg2.fn2 exists.
++	alias := func(pkg, fn, pkg2, fn2 string, archs ...*sys.Arch) {
++		for _, a := range archs {
++			if b, ok := intrinsics[intrinsicKey{a, pkg2, fn2}]; ok {
++				intrinsics[intrinsicKey{a, pkg, fn}] = b
++			}
++		}
+ 	}
+-	return nil
+-}
+ 
+-func intrinsicInit() {
+-	i := &intrinsicInfo{}
+-	intrinsics = i
+-
+-	// initial set of intrinsics.
+-	i.std = map[intrinsicKey]intrinsicBuilder{
+-		/******** runtime ********/
+-		intrinsicKey{"runtime", "slicebytetostringtmp"}: disableForInstrumenting(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
+-			// for the backend instead of slicebytetostringtmp calls
+-			// when not instrumenting.
+-			slice := args[0]
+-			ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
+-			len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
+-			return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
+-		}),
+-		intrinsicKey{"runtime", "KeepAlive"}: func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	/******** runtime ********/
++	if !instrumenting {
++		add("runtime", "slicebytetostringtmp",
++			func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++				// Compiler frontend optimizations emit OARRAYBYTESTRTMP nodes
++				// for the backend instead of slicebytetostringtmp calls
++				// when not instrumenting.
++				slice := args[0]
++				ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), slice)
++				len := s.newValue1(ssa.OpSliceLen, Types[TINT], slice)
++				return s.newValue2(ssa.OpStringMake, n.Type, ptr, len)
++			},
++			all...)
++	}
++	add("runtime", "KeepAlive",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			data := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), args[0])
+ 			s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, data, s.mem())
+ 			return nil
+ 		},
++		all...)
+ 
+-		/******** runtime/internal/sys ********/
+-		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			return s.newValue1(ssa.OpCtz32, Types[TUINT32], args[0])
+-		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS),
+-		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			return s.newValue1(ssa.OpCtz64, Types[TUINT64], args[0])
+-		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS),
+-		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	/******** runtime/internal/sys ********/
++	addF("runtime/internal/sys", "Ctz32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz32, Types[TINT], args[0])
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++	addF("runtime/internal/sys", "Ctz64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz64, Types[TINT], args[0])
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++	addF("runtime/internal/sys", "Bswap32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], args[0])
+-		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
+-		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
++	addF("runtime/internal/sys", "Bswap64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], args[0])
+-		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
+ 
+-		/******** runtime/internal/atomic ********/
+-		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	/******** runtime/internal/atomic ********/
++	addF("runtime/internal/atomic", "Load",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Load64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
++
++	addF("runtime/internal/atomic", "Load64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoad64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Loadp"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
++	addF("runtime/internal/atomic", "Loadp",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadPtr, ssa.MakeTuple(ptrto(Types[TUINT8]), ssa.TypeMem), args[0], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, ptrto(Types[TUINT8]), v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Store"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	addF("runtime/internal/atomic", "Store",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore32, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Store64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("runtime/internal/atomic", "Store64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStore64, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "StorepNoWB"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
++	addF("runtime/internal/atomic", "StorepNoWB",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicStorePtrNoWB, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS),
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS)
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Xchg"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	addF("runtime/internal/atomic", "Xchg",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Xchg64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("runtime/internal/atomic", "Xchg64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Xadd"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	addF("runtime/internal/atomic", "Xadd",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd32, ssa.MakeTuple(Types[TUINT32], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT32], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Xadd64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("runtime/internal/atomic", "Xadd64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd64, ssa.MakeTuple(Types[TUINT64], ssa.TypeMem), args[0], args[1], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TUINT64], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
+ 
+-		intrinsicKey{"runtime/internal/atomic", "Cas"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	addF("runtime/internal/atomic", "Cas",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Cas64"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.MIPS, sys.PPC64)
++	addF("runtime/internal/atomic", "Cas64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, ssa.MakeTuple(Types[TBOOL], ssa.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[&memVar] = s.newValue1(ssa.OpSelect1, ssa.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, Types[TBOOL], v)
+-		}, sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64),
++		},
++		sys.AMD64, sys.ARM64, sys.S390X, sys.PPC64)
+ 
+-		intrinsicKey{"runtime/internal/atomic", "And8"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	addF("runtime/internal/atomic", "And8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicAnd8, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64),
+-		intrinsicKey{"runtime/internal/atomic", "Or8"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
++	addF("runtime/internal/atomic", "Or8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue3(ssa.OpAtomicOr8, ssa.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+-		}, sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64),
+-
+-		/******** math ********/
+-		intrinsicKey{"math", "Sqrt"}: enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.AMD64, sys.ARM64, sys.MIPS, sys.PPC64)
++
++	alias("runtime/internal/atomic", "Loadint64", "runtime/internal/atomic", "Load64", all...)
++	alias("runtime/internal/atomic", "Xaddint64", "runtime/internal/atomic", "Xadd64", all...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load", i4...)
++	alias("runtime/internal/atomic", "Loaduint", "runtime/internal/atomic", "Load64", i8...)
++	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load", p4...)
++	alias("runtime/internal/atomic", "Loaduintptr", "runtime/internal/atomic", "Load64", p8...)
++	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store", p4...)
++	alias("runtime/internal/atomic", "Storeuintptr", "runtime/internal/atomic", "Store64", p8...)
++	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg", p4...)
++	alias("runtime/internal/atomic", "Xchguintptr", "runtime/internal/atomic", "Xchg64", p8...)
++	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd", p4...)
++	alias("runtime/internal/atomic", "Xadduintptr", "runtime/internal/atomic", "Xadd64", p8...)
++	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas", p4...)
++	alias("runtime/internal/atomic", "Casuintptr", "runtime/internal/atomic", "Cas64", p8...)
++	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas", p4...)
++	alias("runtime/internal/atomic", "Casp1", "runtime/internal/atomic", "Cas64", p8...)
++
++	/******** math ********/
++	addF("math", "Sqrt",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpSqrt, Types[TFLOAT64], args[0])
+-		}, sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X),
+-	}
+-
+-	// aliases internal to runtime/internal/atomic
+-	i.std[intrinsicKey{"runtime/internal/atomic", "Loadint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}]
+-	i.std[intrinsicKey{"runtime/internal/atomic", "Xaddint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
+-
+-	// intrinsics which vary depending on the size of int/ptr.
+-	i.intSized = map[sizedIntrinsicKey]intrinsicBuilder{
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Loaduint", 4}: i.std[intrinsicKey{"runtime/internal/atomic", "Load"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Loaduint", 8}: i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}],
+-	}
+-	i.ptrSized = map[sizedIntrinsicKey]intrinsicBuilder{
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Loaduintptr", 4}:  i.std[intrinsicKey{"runtime/internal/atomic", "Load"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Loaduintptr", 8}:  i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Storeuintptr", 4}: i.std[intrinsicKey{"runtime/internal/atomic", "Store"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Storeuintptr", 8}: i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Xchguintptr", 4}:  i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Xchguintptr", 8}:  i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Xadduintptr", 4}:  i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Xadduintptr", 8}:  i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Casuintptr", 4}:   i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Casuintptr", 8}:   i.std[intrinsicKey{"runtime/internal/atomic", "Cas64"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Casp1", 4}:        i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}],
+-		sizedIntrinsicKey{"runtime/internal/atomic", "Casp1", 8}:        i.std[intrinsicKey{"runtime/internal/atomic", "Cas64"}],
+-	}
++		},
++		sys.AMD64, sys.ARM, sys.ARM64, sys.MIPS, sys.PPC64, sys.S390X)
++
++	/******** math/bits ********/
++	addF("math/bits", "TrailingZeros64",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz64, Types[TINT], args[0])
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++	addF("math/bits", "TrailingZeros32",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpCtz32, Types[TINT], args[0])
++		},
++		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS)
++	addF("math/bits", "TrailingZeros16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			x := s.newValue1(ssa.OpZeroExt16to32, Types[TUINT32], args[0])
++			c := s.constInt32(Types[TUINT32], 1<<16)
++			y := s.newValue2(ssa.OpOr32, Types[TUINT32], x, c)
++			return s.newValue1(ssa.OpCtz32, Types[TINT], y)
++		},
++		sys.ARM, sys.MIPS)
++	addF("math/bits", "TrailingZeros16",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			x := s.newValue1(ssa.OpZeroExt16to64, Types[TUINT64], args[0])
++			c := s.constInt64(Types[TUINT64], 1<<16)
++			y := s.newValue2(ssa.OpOr64, Types[TUINT64], x, c)
++			return s.newValue1(ssa.OpCtz64, Types[TINT], y)
++		},
++		sys.AMD64, sys.ARM64, sys.S390X)
++	addF("math/bits", "TrailingZeros8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			x := s.newValue1(ssa.OpZeroExt8to32, Types[TUINT32], args[0])
++			c := s.constInt32(Types[TUINT32], 1<<8)
++			y := s.newValue2(ssa.OpOr32, Types[TUINT32], x, c)
++			return s.newValue1(ssa.OpCtz32, Types[TINT], y)
++		},
++		sys.ARM, sys.MIPS)
++	addF("math/bits", "TrailingZeros8",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			x := s.newValue1(ssa.OpZeroExt8to64, Types[TUINT64], args[0])
++			c := s.constInt64(Types[TUINT64], 1<<8)
++			y := s.newValue2(ssa.OpOr64, Types[TUINT64], x, c)
++			return s.newValue1(ssa.OpCtz64, Types[TINT], y)
++		},
++		sys.AMD64, sys.ARM64, sys.S390X)
+ 
+ 	/******** sync/atomic ********/
+-	if flag_race {
+-		// The race detector needs to be able to intercept these calls.
+-		// We can't intrinsify them.
+-		return
+-	}
+-	// these are all aliases to runtime/internal/atomic implementations.
+-	i.std[intrinsicKey{"sync/atomic", "LoadInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load"}]
+-	i.std[intrinsicKey{"sync/atomic", "LoadInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}]
+-	i.std[intrinsicKey{"sync/atomic", "LoadPointer"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Loadp"}]
+-	i.std[intrinsicKey{"sync/atomic", "LoadUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load"}]
+-	i.std[intrinsicKey{"sync/atomic", "LoadUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "LoadUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "LoadUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Load64"}]
+-
+-	i.std[intrinsicKey{"sync/atomic", "StoreInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store"}]
+-	i.std[intrinsicKey{"sync/atomic", "StoreInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}]
++
++	// Note: these are disabled by flag_race in findIntrinsic below.
++	alias("sync/atomic", "LoadInt32", "runtime/internal/atomic", "Load", all...)
++	alias("sync/atomic", "LoadInt64", "runtime/internal/atomic", "Load64", all...)
++	alias("sync/atomic", "LoadPointer", "runtime/internal/atomic", "Loadp", all...)
++	alias("sync/atomic", "LoadUint32", "runtime/internal/atomic", "Load", all...)
++	alias("sync/atomic", "LoadUint64", "runtime/internal/atomic", "Load64", all...)
++	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load", p4...)
++	alias("sync/atomic", "LoadUintptr", "runtime/internal/atomic", "Load64", p8...)
++
++	alias("sync/atomic", "StoreInt32", "runtime/internal/atomic", "Store", all...)
++	alias("sync/atomic", "StoreInt64", "runtime/internal/atomic", "Store64", all...)
+ 	// Note: not StorePointer, that needs a write barrier.  Same below for {CompareAnd}Swap.
+-	i.std[intrinsicKey{"sync/atomic", "StoreUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store"}]
+-	i.std[intrinsicKey{"sync/atomic", "StoreUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "StoreUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "StoreUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Store64"}]
+-
+-	i.std[intrinsicKey{"sync/atomic", "SwapInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+-	i.std[intrinsicKey{"sync/atomic", "SwapInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+-	i.std[intrinsicKey{"sync/atomic", "SwapUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+-	i.std[intrinsicKey{"sync/atomic", "SwapUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "SwapUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xchg64"}]
+-
+-	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}]
+-	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas64"}]
+-	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}]
+-	i.std[intrinsicKey{"sync/atomic", "CompareAndSwapUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas64"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "CompareAndSwapUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "CompareAndSwapUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Cas64"}]
+-
+-	i.std[intrinsicKey{"sync/atomic", "AddInt32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}]
+-	i.std[intrinsicKey{"sync/atomic", "AddInt64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
+-	i.std[intrinsicKey{"sync/atomic", "AddUint32"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}]
+-	i.std[intrinsicKey{"sync/atomic", "AddUint64"}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "AddUintptr", 4}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd"}]
+-	i.ptrSized[sizedIntrinsicKey{"sync/atomic", "AddUintptr", 8}] =
+-		i.std[intrinsicKey{"runtime/internal/atomic", "Xadd64"}]
++	alias("sync/atomic", "StoreUint32", "runtime/internal/atomic", "Store", all...)
++	alias("sync/atomic", "StoreUint64", "runtime/internal/atomic", "Store64", all...)
++	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store", p4...)
++	alias("sync/atomic", "StoreUintptr", "runtime/internal/atomic", "Store64", p8...)
++
++	alias("sync/atomic", "SwapInt32", "runtime/internal/atomic", "Xchg", all...)
++	alias("sync/atomic", "SwapInt64", "runtime/internal/atomic", "Xchg64", all...)
++	alias("sync/atomic", "SwapUint32", "runtime/internal/atomic", "Xchg", all...)
++	alias("sync/atomic", "SwapUint64", "runtime/internal/atomic", "Xchg64", all...)
++	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg", p4...)
++	alias("sync/atomic", "SwapUintptr", "runtime/internal/atomic", "Xchg64", p8...)
++
++	alias("sync/atomic", "CompareAndSwapInt32", "runtime/internal/atomic", "Cas", all...)
++	alias("sync/atomic", "CompareAndSwapInt64", "runtime/internal/atomic", "Cas64", all...)
++	alias("sync/atomic", "CompareAndSwapUint32", "runtime/internal/atomic", "Cas", all...)
++	alias("sync/atomic", "CompareAndSwapUint64", "runtime/internal/atomic", "Cas64", all...)
++	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas", p4...)
++	alias("sync/atomic", "CompareAndSwapUintptr", "runtime/internal/atomic", "Cas64", p8...)
++
++	alias("sync/atomic", "AddInt32", "runtime/internal/atomic", "Xadd", all...)
++	alias("sync/atomic", "AddInt64", "runtime/internal/atomic", "Xadd64", all...)
++	alias("sync/atomic", "AddUint32", "runtime/internal/atomic", "Xadd", all...)
++	alias("sync/atomic", "AddUint64", "runtime/internal/atomic", "Xadd64", all...)
++	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd", p4...)
++	alias("sync/atomic", "AddUintptr", "runtime/internal/atomic", "Xadd64", p8...)
+ 
+ 	/******** math/big ********/
+-	i.intSized[sizedIntrinsicKey{"math/big", "mulWW", 8}] =
+-		enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++	add("math/big", "mulWW",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpMul64uhilo, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), args[0], args[1])
+-		}, sys.AMD64)
+-	i.intSized[sizedIntrinsicKey{"math/big", "divWW", 8}] =
+-		enableOnArch(func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++		},
++		sys.ArchAMD64)
++	add("math/big", "divWW",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpDiv128u, ssa.MakeTuple(Types[TUINT64], Types[TUINT64]), args[0], args[1], args[2])
+-		}, sys.AMD64)
++		},
++		sys.ArchAMD64)
+ }
+ 
+ // findIntrinsic returns a function which builds the SSA equivalent of the
+@@ -2730,23 +2794,17 @@ func findIntrinsic(sym *Sym) intrinsicBuilder {
+ 	if sym == nil || sym.Pkg == nil {
+ 		return nil
+ 	}
+-	if intrinsics == nil {
+-		intrinsicInit()
+-	}
+ 	pkg := sym.Pkg.Path
+ 	if sym.Pkg == localpkg {
+ 		pkg = myimportpath
+ 	}
+-	fn := sym.Name
+-	f := intrinsics.std[intrinsicKey{pkg, fn}]
+-	if f != nil {
+-		return f
+-	}
+-	f = intrinsics.intSized[sizedIntrinsicKey{pkg, fn, Widthint}]
+-	if f != nil {
+-		return f
++	if flag_race && pkg == "sync/atomic" {
++		// The race detector needs to be able to intercept these calls.
++		// We can't intrinsify them.
++		return nil
+ 	}
+-	return intrinsics.ptrSized[sizedIntrinsicKey{pkg, fn, Widthptr}]
++	fn := sym.Name
++	return intrinsics[intrinsicKey{Thearch.LinkArch.Arch, pkg, fn}]
+ }
+ 
+ func isIntrinsicCall(n *Node) bool {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index ca760cad15..101d8a20db 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -98,7 +98,7 @@
+ 
+ // Lowering other arithmetic
+ (Ctz64 <t> x) -> (CMOVQEQ (Select0 <t> (BSFQ x)) (MOVQconst <t> [64]) (Select1 <TypeFlags> (BSFQ x)))
+-(Ctz32 <t> x) -> (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
++(Ctz32 x) -> (Select0 (BSFQ (ORQ <config.Frontend().TypeUInt64()> (MOVQconst [1<<32]) x)))
+ 
+ (Bswap64 x) -> (BSWAPQ x)
+ (Bswap32 x) -> (BSWAPL x)
+@@ -2083,3 +2083,9 @@
+ 	(CMPXCHGQlock [off1+off2] {sym} ptr old new_ mem)
+ (CMPXCHGLlock [off1] {sym} (ADDQconst [off2] ptr) old new_ mem) && is32Bit(off1+off2) ->
+ 	(CMPXCHGLlock [off1+off2] {sym} ptr old new_ mem)
++
++// We don't need the conditional move if we know the arg of BSF is not zero.
++(CMOVQEQ x _ (Select1 (BSFQ (ORQconst [c] _)))) && c != 0 -> x
++// Extension is unnecessary for trailing zeros.
++(BSFQ (ORQconst <t> [1<<8] (MOVBQZX x))) -> (BSFQ (ORQconst <t> [1<<8] x))
++(BSFQ (ORQconst <t> [1<<16] (MOVWQZX x))) -> (BSFQ (ORQconst <t> [1<<16] x))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index d8b755b8d7..bfa0beeeb2 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -108,13 +108,11 @@
+ 		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
+ 
+ (Ctz64 x) ->
+-	(Int64Make
+-		(Const32 <config.fe.TypeUInt32()> [0])
+-		(Add32 <config.fe.TypeUInt32()>
+-			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x))
+-			(And32 <config.fe.TypeUInt32()>
+-				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x)))
+-				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
++	(Add32 <config.fe.TypeUInt32()>
++		(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x))
++		(And32 <config.fe.TypeUInt32()>
++			(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x)))
++			(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x))))
+ 
+ (Bswap64 x) ->
+ 	(Int64Make
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index ad90855e40..400bdce395 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -236,7 +236,7 @@ var genericOps = []opData{
+ 	{name: "Com32", argLength: 1},
+ 	{name: "Com64", argLength: 1},
+ 
+-	{name: "Ctz32", argLength: 1}, // Count trailing (low  order) zeroes (returns 0-32)
++	{name: "Ctz32", argLength: 1}, // Count trailing (low order) zeroes (returns 0-32)
+ 	{name: "Ctz64", argLength: 1}, // Count trailing zeroes (returns 0-64)
+ 
+ 	{name: "Bswap32", argLength: 1}, // Swap bytes
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e581dfe513..b75b78d96f 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -28,8 +28,12 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		return rewriteValueAMD64_OpAMD64ANDQ(v, config)
+ 	case OpAMD64ANDQconst:
+ 		return rewriteValueAMD64_OpAMD64ANDQconst(v, config)
++	case OpAMD64BSFQ:
++		return rewriteValueAMD64_OpAMD64BSFQ(v, config)
+ 	case OpAMD64BTQconst:
+ 		return rewriteValueAMD64_OpAMD64BTQconst(v, config)
++	case OpAMD64CMOVQEQ:
++		return rewriteValueAMD64_OpAMD64CMOVQEQ(v, config)
+ 	case OpAMD64CMPB:
+ 		return rewriteValueAMD64_OpAMD64CMPB(v, config)
+ 	case OpAMD64CMPBconst:
+@@ -2158,6 +2162,59 @@ func rewriteValueAMD64_OpAMD64ANDQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64BSFQ(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (BSFQ (ORQconst <t> [1<<8] (MOVBQZX x)))
++	// cond:
++	// result: (BSFQ (ORQconst <t> [1<<8] x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ORQconst {
++			break
++		}
++		t := v_0.Type
++		if v_0.AuxInt != 1<<8 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAMD64MOVBQZX {
++			break
++		}
++		x := v_0_0.Args[0]
++		v.reset(OpAMD64BSFQ)
++		v0 := b.NewValue0(v.Pos, OpAMD64ORQconst, t)
++		v0.AuxInt = 1 << 8
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (BSFQ (ORQconst <t> [1<<16] (MOVWQZX x)))
++	// cond:
++	// result: (BSFQ (ORQconst <t> [1<<16] x))
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64ORQconst {
++			break
++		}
++		t := v_0.Type
++		if v_0.AuxInt != 1<<16 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpAMD64MOVWQZX {
++			break
++		}
++		x := v_0_0.Args[0]
++		v.reset(OpAMD64BSFQ)
++		v0 := b.NewValue0(v.Pos, OpAMD64ORQconst, t)
++		v0.AuxInt = 1 << 16
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64BTQconst(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2177,6 +2234,37 @@ func rewriteValueAMD64_OpAMD64BTQconst(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64CMOVQEQ(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (CMOVQEQ x _ (Select1 (BSFQ (ORQconst [c] _))))
++	// cond: c != 0
++	// result: x
++	for {
++		x := v.Args[0]
++		v_2 := v.Args[2]
++		if v_2.Op != OpSelect1 {
++			break
++		}
++		v_2_0 := v_2.Args[0]
++		if v_2_0.Op != OpAMD64BSFQ {
++			break
++		}
++		v_2_0_0 := v_2_0.Args[0]
++		if v_2_0_0.Op != OpAMD64ORQconst {
++			break
++		}
++		c := v_2_0_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64CMPB(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -17902,26 +17990,20 @@ func rewriteValueAMD64_OpConvert(v *Value, config *Config) bool {
+ func rewriteValueAMD64_OpCtz32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (Ctz32 <t> x)
++	// match: (Ctz32 x)
+ 	// cond:
+-	// result: (CMOVLEQ (Select0 <t> (BSFL x)) (MOVLconst <t> [32]) (Select1 <TypeFlags> (BSFL x)))
++	// result: (Select0 (BSFQ (ORQ <config.Frontend().TypeUInt64()> (MOVQconst [1<<32]) x)))
+ 	for {
+-		t := v.Type
+ 		x := v.Args[0]
+-		v.reset(OpAMD64CMOVLEQ)
+-		v0 := b.NewValue0(v.Pos, OpSelect0, t)
+-		v1 := b.NewValue0(v.Pos, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
++		v.reset(OpSelect0)
++		v0 := b.NewValue0(v.Pos, OpAMD64BSFQ, MakeTuple(config.fe.TypeUInt64(), TypeFlags))
++		v1 := b.NewValue0(v.Pos, OpAMD64ORQ, config.Frontend().TypeUInt64())
++		v2 := b.NewValue0(v.Pos, OpAMD64MOVQconst, config.fe.TypeUInt64())
++		v2.AuxInt = 1 << 32
++		v1.AddArg(v2)
+ 		v1.AddArg(x)
+ 		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v2 := b.NewValue0(v.Pos, OpAMD64MOVLconst, t)
+-		v2.AuxInt = 32
+-		v.AddArg(v2)
+-		v3 := b.NewValue0(v.Pos, OpSelect1, TypeFlags)
+-		v4 := b.NewValue0(v.Pos, OpAMD64BSFL, MakeTuple(config.fe.TypeUInt32(), TypeFlags))
+-		v4.AddArg(x)
+-		v3.AddArg(v4)
+-		v.AddArg(v3)
+ 		return true
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index 8d2f0d60ad..d04676fadb 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -368,34 +368,30 @@ func rewriteValuedec64_OpCtz64(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Ctz64 x)
+ 	// cond:
+-	// result: (Int64Make 		(Const32 <config.fe.TypeUInt32()> [0]) 		(Add32 <config.fe.TypeUInt32()> 			(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x)) 			(And32 <config.fe.TypeUInt32()> 				(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x))) 				(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x)))))
++	// result: (Add32 <config.fe.TypeUInt32()> 		(Ctz32 <config.fe.TypeUInt32()> (Int64Lo x)) 		(And32 <config.fe.TypeUInt32()> 			(Com32 <config.fe.TypeUInt32()> (Zeromask (Int64Lo x))) 			(Ctz32 <config.fe.TypeUInt32()> (Int64Hi x))))
+ 	for {
+ 		x := v.Args[0]
+-		v.reset(OpInt64Make)
+-		v0 := b.NewValue0(v.Pos, OpConst32, config.fe.TypeUInt32())
+-		v0.AuxInt = 0
++		v.reset(OpAdd32)
++		v.Type = config.fe.TypeUInt32()
++		v0 := b.NewValue0(v.Pos, OpCtz32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Pos, OpInt64Lo, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
+ 		v.AddArg(v0)
+-		v1 := b.NewValue0(v.Pos, OpAdd32, config.fe.TypeUInt32())
+-		v2 := b.NewValue0(v.Pos, OpCtz32, config.fe.TypeUInt32())
+-		v3 := b.NewValue0(v.Pos, OpInt64Lo, config.fe.TypeUInt32())
+-		v3.AddArg(x)
++		v2 := b.NewValue0(v.Pos, OpAnd32, config.fe.TypeUInt32())
++		v3 := b.NewValue0(v.Pos, OpCom32, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Pos, OpZeromask, config.fe.TypeUInt32())
++		v5 := b.NewValue0(v.Pos, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v3.AddArg(v4)
+ 		v2.AddArg(v3)
+-		v1.AddArg(v2)
+-		v4 := b.NewValue0(v.Pos, OpAnd32, config.fe.TypeUInt32())
+-		v5 := b.NewValue0(v.Pos, OpCom32, config.fe.TypeUInt32())
+-		v6 := b.NewValue0(v.Pos, OpZeromask, config.fe.TypeUInt32())
+-		v7 := b.NewValue0(v.Pos, OpInt64Lo, config.fe.TypeUInt32())
++		v6 := b.NewValue0(v.Pos, OpCtz32, config.fe.TypeUInt32())
++		v7 := b.NewValue0(v.Pos, OpInt64Hi, config.fe.TypeUInt32())
+ 		v7.AddArg(x)
+ 		v6.AddArg(v7)
+-		v5.AddArg(v6)
+-		v4.AddArg(v5)
+-		v8 := b.NewValue0(v.Pos, OpCtz32, config.fe.TypeUInt32())
+-		v9 := b.NewValue0(v.Pos, OpInt64Hi, config.fe.TypeUInt32())
+-		v9.AddArg(x)
+-		v8.AddArg(v9)
+-		v4.AddArg(v8)
+-		v1.AddArg(v4)
+-		v.AddArg(v1)
++		v2.AddArg(v6)
++		v.AddArg(v2)
+ 		return true
+ 	}
+ }
+diff --git a/src/runtime/internal/sys/intrinsics.go b/src/runtime/internal/sys/intrinsics.go
+index db2cbecc0e..4e119b0470 100644
+--- a/src/runtime/internal/sys/intrinsics.go
++++ b/src/runtime/internal/sys/intrinsics.go
+@@ -32,22 +32,22 @@ var deBruijnIdx32 = [32]byte{
+ 
+ // Ctz64 counts trailing (low-order) zeroes,
+ // and if all are zero, then 64.
+-func Ctz64(x uint64) uint64 {
++func Ctz64(x uint64) int {
+ 	x &= -x                      // isolate low-order bit
+ 	y := x * deBruijn64 >> 58    // extract part of deBruijn sequence
+-	y = uint64(deBruijnIdx64[y]) // convert to bit index
+-	z := (x - 1) >> 57 & 64      // adjustment if zero
+-	return y + z
++	i := int(deBruijnIdx64[y])   // convert to bit index
++	z := int((x - 1) >> 57 & 64) // adjustment if zero
++	return i + z
+ }
+ 
+ // Ctz32 counts trailing (low-order) zeroes,
+ // and if all are zero, then 32.
+-func Ctz32(x uint32) uint32 {
++func Ctz32(x uint32) int {
+ 	x &= -x                      // isolate low-order bit
+ 	y := x * deBruijn32 >> 27    // extract part of deBruijn sequence
+-	y = uint32(deBruijnIdx32[y]) // convert to bit index
+-	z := (x - 1) >> 26 & 32      // adjustment if zero
+-	return y + z
++	i := int(deBruijnIdx32[y])   // convert to bit index
++	z := int((x - 1) >> 26 & 32) // adjustment if zero
++	return i + z
+ }
+ 
+ // Bswap64 returns its input with byte order reversed
+diff --git a/src/runtime/internal/sys/intrinsics_386.s b/src/runtime/internal/sys/intrinsics_386.s
+index bc63e5ebdf..4bb4cd63f8 100644
+--- a/src/runtime/internal/sys/intrinsics_386.s
++++ b/src/runtime/internal/sys/intrinsics_386.s
+@@ -4,14 +4,12 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT runtime∕internal∕sys·Ctz64(SB), NOSPLIT, $0-16
+-	MOVL	$0, ret_hi+12(FP)
+-
++TEXT runtime∕internal∕sys·Ctz64(SB), NOSPLIT, $0-12
+ 	// Try low 32 bits.
+ 	MOVL	x_lo+0(FP), AX
+ 	BSFL	AX, AX
+ 	JZ	tryhigh
+-	MOVL	AX, ret_lo+8(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ tryhigh:
+@@ -20,12 +18,12 @@ tryhigh:
+ 	BSFL	AX, AX
+ 	JZ	none
+ 	ADDL	$32, AX
+-	MOVL	AX, ret_lo+8(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ none:
+ 	// No bits are set.
+-	MOVL	$64, ret_lo+8(FP)
++	MOVL	$64, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime∕internal∕sys·Ctz32(SB), NOSPLIT, $0-8
+diff --git a/src/runtime/internal/sys/intrinsics_stubs.go b/src/runtime/internal/sys/intrinsics_stubs.go
+index d351048f86..4d991f43bf 100644
+--- a/src/runtime/internal/sys/intrinsics_stubs.go
++++ b/src/runtime/internal/sys/intrinsics_stubs.go
+@@ -6,7 +6,7 @@
+ 
+ package sys
+ 
+-func Ctz64(x uint64) uint64
+-func Ctz32(x uint32) uint32
++func Ctz64(x uint64) int
++func Ctz32(x uint32) int
+ func Bswap64(x uint64) uint64
+ func Bswap32(x uint32) uint32
+diff --git a/src/runtime/internal/sys/intrinsics_test.go b/src/runtime/internal/sys/intrinsics_test.go
+index 1f2c8daa96..0444183e9d 100644
+--- a/src/runtime/internal/sys/intrinsics_test.go
++++ b/src/runtime/internal/sys/intrinsics_test.go
+@@ -6,17 +6,17 @@ import (
+ )
+ 
+ func TestCtz64(t *testing.T) {
+-	for i := uint(0); i <= 64; i++ {
+-		x := uint64(5) << i
+-		if got := sys.Ctz64(x); got != uint64(i) {
++	for i := 0; i <= 64; i++ {
++		x := uint64(5) << uint(i)
++		if got := sys.Ctz64(x); got != i {
+ 			t.Errorf("Ctz64(%d)=%d, want %d", x, got, i)
+ 		}
+ 	}
+ }
+ func TestCtz32(t *testing.T) {
+-	for i := uint(0); i <= 32; i++ {
+-		x := uint32(5) << i
+-		if got := sys.Ctz32(x); got != uint32(i) {
++	for i := 0; i <= 32; i++ {
++		x := uint32(5) << uint(i)
++		if got := sys.Ctz32(x); got != i {
+ 			t.Errorf("Ctz32(%d)=%d, want %d", x, got, i)
+ 		}
+ 	}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 25ae261bb2..344771c899 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -491,7 +491,7 @@ func nextFreeFast(s *mspan) gclinkptr {
+ 			if freeidx%64 == 0 && freeidx != s.nelems {
+ 				return 0
+ 			}
+-			s.allocCache >>= (theBit + 1)
++			s.allocCache >>= uint(theBit + 1)
+ 			s.freeindex = freeidx
+ 			v := gclinkptr(result*s.elemsize + s.base())
+ 			s.allocCount++
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 4e1a3e29f9..b48dbff7f6 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -248,7 +248,7 @@ func (s *mspan) nextFreeIndex() uintptr {
+ 		return snelems
+ 	}
+ 
+-	s.allocCache >>= (bitIndex + 1)
++	s.allocCache >>= uint(bitIndex + 1)
+ 	sfreeindex = result + 1
+ 
+ 	if sfreeindex%64 == 0 && sfreeindex != snelems {
+diff --git a/test/intrinsic.dir/main.go b/test/intrinsic.dir/main.go
+index e0c11d0907..4340dd4b11 100644
+--- a/test/intrinsic.dir/main.go
++++ b/test/intrinsic.dir/main.go
+@@ -22,7 +22,7 @@ func logf(f string, args ...interface{}) {
+ 	}
+ }
+ 
+-func test(i, x uint64) {
++func test(i int, x uint64) {
+ 	t := T.Ctz64(x) // ERROR "intrinsic substitution for Ctz64"
+ 	if i != t {
+ 		logf("Ctz64(0x%x) expected %d but got %d\n", x, i, t)
+@@ -36,12 +36,12 @@ func test(i, x uint64) {
+ 	if i <= 32 {
+ 		x32 := uint32(x)
+ 		t32 := T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
+-		if uint32(i) != t32 {
++		if i != t32 {
+ 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
+ 		}
+ 		x32 = -x32
+ 		t32 = T.Ctz32(x32) // ERROR "intrinsic substitution for Ctz32"
+-		if uint32(i) != t32 {
++		if i != t32 {
+ 			logf("Ctz32(0x%x) expected %d but got %d\n", x32, i, t32)
+ 		}
+ 	}
+@@ -83,10 +83,10 @@ func main() {
+ 		logf("ctz64(0) != 64")
+ 	}
+ 
+-	for i := uint64(0); i <= 64; i++ {
++	for i := 0; i <= 64; i++ {
+ 		for j := uint64(1); j <= 255; j += 2 {
+ 			for k := uint64(1); k <= 65537; k += 128 {
+-				x := (j * k) << i
++				x := (j * k) << uint(i)
+ 				test(i, x)
+ 			}
+ 		}

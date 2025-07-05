@@ -13,9 +13,94 @@ Date:   Tue May 23 11:16:28 2023 +0200
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/metrics.go             | 6 ++++++
  src/runtime/metrics/description.go | 7 +++++++
  src/runtime/metrics/doc.go         | 5 +++++
  src/runtime/metrics_test.go        | 8 ++++++++
  4 files changed, 26 insertions(+)
+
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index ad6348136e..9308a784b7 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -248,6 +248,12 @@ func initMetrics() {
+ 				out.scalar = in.sysStats.heapGoal
+ 			},
+ 		},
++		"/gc/gomemlimit:bytes": {
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(gcController.memoryLimit.Load())
++			},
++		},
+ 		"/gc/heap/live:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index f5b1020271..e9c8ccc0fe 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -193,6 +193,13 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  true,
+ 	},
++	{
++		Name: "/gc/gomemlimit:bytes",
++		Description: "Go runtime memory limit configured by the user, otherwise " +
++			"math.MaxInt64. This value is set by the GOMEMLIMIT environment variable, and " +
++			"the runtime/debug.SetMemoryLimit function.",
++		Kind: KindUint64,
++	},
+ 	{
+ 		Name: "/gc/heap/allocs-by-size:bytes",
+ 		Description: "Distribution of heap allocations by approximate size. " +
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fe0d1f58e9..61326ed1df 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -147,6 +147,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/cycles/total:gc-cycles
+ 		Count of all completed GC cycles.
+ 
++	/gc/gomemlimit:bytes
++		Go runtime memory limit configured by the user, otherwise
++		math.MaxInt64. This value is set by the GOMEMLIMIT environment
++		variable, and the runtime/debug.SetMemoryLimit function.
++
+ 	/gc/heap/allocs-by-size:bytes
+ 		Distribution of heap allocations by approximate size.
+ 		Bucket counts increase monotonically. Note that this does not
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index c1a991ead0..19888376a4 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -7,6 +7,7 @@ package runtime_test
+ import (
+ 	"reflect"
+ 	"runtime"
++	"runtime/debug"
+ 	"runtime/metrics"
+ 	"sort"
+ 	"strings"
+@@ -31,6 +32,11 @@ func TestReadMetrics(t *testing.T) {
+ 	// Run a GC cycle to get some of the stats to be non-zero.
+ 	runtime.GC()
+ 
++	// Set an arbitrary memory limit to check the metric for it
++	limit := int64(512 * 1024 * 1024)
++	oldLimit := debug.SetMemoryLimit(limit)
++	defer debug.SetMemoryLimit(oldLimit)
++
+ 	// Tests whether readMetrics produces values aligning
+ 	// with ReadMemStats while the world is stopped.
+ 	var mstats runtime.MemStats
+@@ -138,6 +144,8 @@ func TestReadMetrics(t *testing.T) {
+ 				// Might happen if we don't call runtime.GC() above.
+ 				t.Error("live bytes is 0")
+ 			}
++		case "/gc/gomemlimit:bytes":
++			checkUint64(t, name, samples[i].Value.Uint64(), uint64(limit))
+ 		case "/gc/heap/objects:objects":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		case "/gc/heap/goal:bytes":

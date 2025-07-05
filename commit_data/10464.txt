@@ -7,7 +7,32 @@ Date:   Sat Nov 19 13:47:15 2011 +0900
     R=adg, golang-dev
     CC=golang-dev
     https://golang.org/cl/5417052
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 7c13a6417f..38c14222f2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -152,6 +152,7 @@ Ross Light <rlight2@gmail.com>
+ Ryan Hitchman <hitchmanr@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Sebastien Binet	<seb.binet@gmail.com>
++Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7869fa297b..30d8651a70 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -229,6 +229,7 @@ Sameer Ajmani <ajmani@gmail.com>
+ Scott Lawrence <bytbox@gmail.com>
+ Scott Schwartz <scotts@golang.org>
+ Sebastien Binet	<seb.binet@gmail.com>
++Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>

@@ -80,7 +80,118 @@ Date:   Wed Dec 2 19:26:56 2020 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go | 27 +++++++--------------------
  src/cmd/compile/internal/ir/expr.go  | 25 +++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 8771d82cfa..9aa65f97b6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -115,22 +115,12 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 		return n
+ 	}
+ 
+-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
+-		// Can't always set n.Type directly on OLITERAL nodes.
+-		// See discussion on CL 20813.
+-		old := n
+-		n = ir.Copy(old)
+-		if old.Op() == ir.OLITERAL {
+-			// Keep untyped constants in their original untyped syntax for error messages.
+-			n.(ir.OrigNode).SetOrig(old)
+-		}
+-	}
+-
+ 	// Nil is technically not a constant, so handle it specially.
+ 	if n.Type().Kind() == types.TNIL {
+ 		if n.Op() != ir.ONIL {
+ 			base.Fatalf("unexpected op: %v (%v)", n, n.Op())
+ 		}
++		n = ir.Copy(n)
+ 		if t == nil {
+ 			base.Errorf("use of untyped nil")
+ 			n.SetDiag(true)
+@@ -158,10 +148,11 @@ func convlit1(n ir.Node, t *types.Type, explicit bool, context func() string) ir
+ 	case ir.OLITERAL:
+ 		v := convertVal(n.Val(), t, explicit)
+ 		if v.Kind() == constant.Unknown {
++			n = ir.NewConstExpr(n.Val(), n)
+ 			break
+ 		}
++		n = ir.NewConstExpr(v, n)
+ 		n.SetType(t)
+-		n.SetVal(v)
+ 		return n
+ 
+ 	case ir.OPLUS, ir.ONEG, ir.OBITNOT, ir.ONOT, ir.OREAL, ir.OIMAG:
+@@ -541,8 +532,9 @@ func evalConst(n ir.Node) ir.Node {
+ 					i2++
+ 				}
+ 
+-				nl := origConst(s[i], constant.MakeString(strings.Join(strs, "")))
+-				nl.(ir.OrigNode).SetOrig(nl) // it's bigger than just s[i]
++				nl := ir.Copy(n)
++				nl.PtrList().Set(s[i:i2])
++				nl = origConst(nl, constant.MakeString(strings.Join(strs, "")))
+ 				newList = append(newList, nl)
+ 				i = i2 - 1
+ 			} else {
+@@ -645,12 +637,7 @@ func origConst(n ir.Node, v constant.Value) ir.Node {
+ 		return n
+ 	}
+ 
+-	orig := n
+-	n = ir.NodAt(orig.Pos(), ir.OLITERAL, nil, nil)
+-	n.(ir.OrigNode).SetOrig(orig)
+-	n.SetType(orig.Type())
+-	n.SetVal(v)
+-	return n
++	return ir.NewConstExpr(v, n)
+ }
+ 
+ func origBoolConst(n ir.Node, v bool) ir.Node {
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 2a7211cfda..412b7a18f0 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"go/constant"
+ )
+ 
+ // A miniStmt is a miniNode with extra fields common to expressions.
+@@ -300,6 +301,30 @@ func (n *CompLitExpr) SetOp(op Op) {
+ 	}
+ }
+ 
++type ConstExpr struct {
++	miniExpr
++	val  constant.Value
++	orig Node
++}
++
++func NewConstExpr(val constant.Value, orig Node) Node {
++	n := &ConstExpr{orig: orig, val: val}
++	n.op = OLITERAL
++	n.pos = orig.Pos()
++	n.SetType(orig.Type())
++	n.SetTypecheck(orig.Typecheck())
++	n.SetDiag(orig.Diag())
++	return n
++}
++
++func (n *ConstExpr) String() string                { return fmt.Sprint(n) }
++func (n *ConstExpr) Format(s fmt.State, verb rune) { FmtNode(n, s, verb) }
++func (n *ConstExpr) rawCopy() Node                 { c := *n; return &c }
++func (n *ConstExpr) Sym() *types.Sym               { return n.orig.Sym() }
++func (n *ConstExpr) Orig() Node                    { return n.orig }
++func (n *ConstExpr) SetOrig(orig Node)             { n.orig = orig }
++func (n *ConstExpr) Val() constant.Value           { return n.val }
++
+ // A ConvExpr is a conversion Type(X).
+ // It may end up being a value or a type.
+ type ConvExpr struct {

@@ -10,6 +10,20 @@ Date:   Mon Mar 3 07:08:44 2014 +0900
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/70490043
-
+---
  src/pkg/runtime/signals_freebsd.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/signals_freebsd.h b/src/pkg/runtime/signals_freebsd.h
+index 4d27e050d0..8d45c50c3b 100644
+--- a/src/pkg/runtime/signals_freebsd.h
++++ b/src/pkg/runtime/signals_freebsd.h
+@@ -21,7 +21,7 @@ SigTab runtime·sigtab[] = {
+ 	/* 9 */	0, "SIGKILL: kill",
+ 	/* 10 */	P, "SIGBUS: bus error",
+ 	/* 11 */	P, "SIGSEGV: segmentation violation",
+-	/* 12 */	T, "SIGSYS: bad system call",
++	/* 12 */	N, "SIGSYS: bad system call",
+ 	/* 13 */	N, "SIGPIPE: write to broken pipe",
+ 	/* 14 */	N, "SIGALRM: alarm clock",
+ 	/* 15 */	N+K, "SIGTERM: termination",

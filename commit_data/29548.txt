@@ -9,6 +9,22 @@ Date:   Thu Sep 22 10:58:43 2016 +1000
     Change-Id: I2e78e8d0dadd78c8b0389514cad3c45d061b663b
     Reviewed-on: https://go-review.googlesource.com/29496
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rsa/rsa.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 94862597dc..f809a9b9bc 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -362,8 +362,8 @@ func encrypt(c *big.Int, pub *PublicKey, m *big.Int) *big.Int {
+ // values could be used to ensure that a ciphertext for one purpose cannot be
+ // used for another by an attacker. If not required it can be empty.
+ //
+-// The message must be no longer than the length of the public modulus less
+-// twice the hash length plus 2.
++// The message must be no longer than the length of the public modulus minus
++// twice the hash length, minus a further 2.
+ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	if err := checkPub(pub); err != nil {
+ 		return nil, err

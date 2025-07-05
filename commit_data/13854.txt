@@ -19,10 +19,207 @@ Date:   Wed Sep 19 01:33:03 2012 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6533043
-
+---
  src/pkg/net/fd_unix.go    |  3 ++-
  src/pkg/net/file_unix.go  |  4 +++-
  src/pkg/net/ipraw_test.go | 49 -----------------------------------------------
  src/pkg/net/sock_posix.go | 43 +++++------------------------------------
  src/pkg/net/udp_test.go   | 27 --------------------------
  5 files changed, 10 insertions(+), 116 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index e9927d9534..1b157daef1 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -615,7 +615,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (netfd *netFD, err e
+ 		closesocket(s)
+ 		return nil, err
+ 	}
+-	netfd.setAddr(localSockname(fd, toAddr), toAddr(rsa))
++	lsa, _ := syscall.Getsockname(netfd.sysfd)
++	netfd.setAddr(toAddr(lsa), toAddr(rsa))
+ 	return netfd, nil
+ }
+ 
+diff --git a/src/pkg/net/file_unix.go b/src/pkg/net/file_unix.go
+index 60911b17d3..0a64080177 100644
+--- a/src/pkg/net/file_unix.go
++++ b/src/pkg/net/file_unix.go
+@@ -58,13 +58,15 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 		}
+ 	}
+ 	laddr := toAddr(lsa)
++	rsa, _ := syscall.Getpeername(fd)
++	raddr := toAddr(rsa)
+ 
+ 	netfd, err := newFD(fd, family, sotype, laddr.Network())
+ 	if err != nil {
+ 		closesocket(fd)
+ 		return nil, err
+ 	}
+-	netfd.setAddr(laddr, remoteSockname(netfd, toAddr))
++	netfd.setAddr(laddr, raddr)
+ 	return netfd, nil
+ }
+ 
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 5b5b68377f..d37272c106 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -14,55 +14,6 @@ import (
+ 	"time"
+ )
+ 
+-var ipConnAddrStringTests = []struct {
+-	net   string
+-	laddr string
+-	raddr string
+-	ipv6  bool
+-}{
+-	{"ip:icmp", "127.0.0.1", "", false},
+-	{"ip:icmp", "::1", "", true},
+-	{"ip:icmp", "", "127.0.0.1", false},
+-	{"ip:icmp", "", "::1", true},
+-}
+-
+-func TestIPConnAddrString(t *testing.T) {
+-	if os.Getuid() != 0 {
+-		t.Logf("skipping test; must be root")
+-		return
+-	}
+-
+-	for i, tt := range ipConnAddrStringTests {
+-		if tt.ipv6 && !supportsIPv6 {
+-			continue
+-		}
+-		var (
+-			err  error
+-			c    *IPConn
+-			mode string
+-		)
+-		if tt.raddr == "" {
+-			mode = "listen"
+-			la, _ := ResolveIPAddr(tt.net, tt.laddr)
+-			c, err = ListenIP(tt.net, la)
+-			if err != nil {
+-				t.Fatalf("ListenIP(%q, %q) failed: %v", tt.net, la.String(), err)
+-			}
+-		} else {
+-			mode = "dial"
+-			la, _ := ResolveIPAddr(tt.net, tt.laddr)
+-			ra, _ := ResolveIPAddr(tt.net, tt.raddr)
+-			c, err = DialIP(tt.net, la, ra)
+-			if err != nil {
+-				t.Fatalf("DialIP(%q, %q) failed: %v", tt.net, ra.String(), err)
+-			}
+-		}
+-		t.Logf("%s-%v: LocalAddr: %q, %q", mode, i, c.LocalAddr(), c.LocalAddr().String())
+-		t.Logf("%s-%v: RemoteAddr: %q, %q", mode, i, c.RemoteAddr(), c.RemoteAddr().String())
+-		c.Close()
+-	}
+-}
+-
+ var icmpTests = []struct {
+ 	net   string
+ 	laddr string
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index bc9606048a..e9e5735478 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -58,13 +58,16 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		fd.isConnected = true
+ 	}
+ 
++	lsa, _ := syscall.Getsockname(s)
+ 	var laddr Addr
+ 	if ulsa != nil && blsa != ulsa {
+ 		laddr = toAddr(ulsa)
+ 	} else {
+-		laddr = localSockname(fd, toAddr)
++		laddr = toAddr(lsa)
+ 	}
+-	fd.setAddr(laddr, remoteSockname(fd, toAddr))
++	rsa, _ := syscall.Getpeername(s)
++	raddr := toAddr(rsa)
++	fd.setAddr(laddr, raddr)
+ 	return fd, nil
+ }
+ 
+@@ -78,39 +81,3 @@ func genericReadFrom(w io.Writer, r io.Reader) (n int64, err error) {
+ 	// Use wrapper to hide existing r.ReadFrom from io.Copy.
+ 	return io.Copy(writerOnly{w}, r)
+ }
+-
+-func localSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
+-	sa, _ := syscall.Getsockname(fd.sysfd)
+-	if sa == nil {
+-		return nullProtocolAddr(fd.family, fd.sotype)
+-	}
+-	return toAddr(sa)
+-}
+-
+-func remoteSockname(fd *netFD, toAddr func(syscall.Sockaddr) Addr) Addr {
+-	sa, _ := syscall.Getpeername(fd.sysfd)
+-	if sa == nil {
+-		return nullProtocolAddr(fd.family, fd.sotype)
+-	}
+-	return toAddr(sa)
+-}
+-
+-func nullProtocolAddr(f, t int) Addr {
+-	switch f {
+-	case syscall.AF_INET, syscall.AF_INET6:
+-		switch t {
+-		case syscall.SOCK_STREAM:
+-			return (*TCPAddr)(nil)
+-		case syscall.SOCK_DGRAM:
+-			return (*UDPAddr)(nil)
+-		case syscall.SOCK_RAW:
+-			return (*IPAddr)(nil)
+-		}
+-	case syscall.AF_UNIX:
+-		switch t {
+-		case syscall.SOCK_STREAM, syscall.SOCK_DGRAM, syscall.SOCK_SEQPACKET:
+-			return (*UnixAddr)(nil)
+-		}
+-	}
+-	panic("unreachable")
+-}
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 90365c05f0..f80d3b5a9c 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -9,33 +9,6 @@ import (
+ 	"testing"
+ )
+ 
+-var udpConnAddrStringTests = []struct {
+-	net   string
+-	laddr string
+-	raddr string
+-	ipv6  bool
+-}{
+-	{"udp", "127.0.0.1:0", "", false},
+-	{"udp", "[::1]:0", "", true},
+-}
+-
+-func TestUDPConnAddrString(t *testing.T) {
+-	for i, tt := range udpConnAddrStringTests {
+-		if tt.ipv6 && !supportsIPv6 {
+-			continue
+-		}
+-		mode := "listen"
+-		la, _ := ResolveUDPAddr(tt.net, tt.laddr)
+-		c, err := ListenUDP(tt.net, la)
+-		if err != nil {
+-			t.Fatalf("ListenUDP(%q, %q) failed: %v", tt.net, la.String(), err)
+-		}
+-		t.Logf("%s-%v: LocalAddr: %q, %q", mode, i, c.LocalAddr(), c.LocalAddr().String())
+-		t.Logf("%s-%v: RemoteAddr: %q, %q", mode, i, c.RemoteAddr(), c.RemoteAddr().String())
+-		c.Close()
+-	}
+-}
+-
+ func TestWriteToUDP(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":

@@ -11,7 +11,32 @@ Date:   Thu Nov 25 09:41:06 2021 +0800
     Trust: Meng Zhuo <mzh@golangcn.org>
     Run-TryBot: Meng Zhuo <mzh@golangcn.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6f304f3672..43dded948d 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -262,6 +262,7 @@ Casey Callendrello <squeed@gmail.com>
+ Casey Marshall <casey.marshall@gmail.com>
+ Cezar Sá Espinola <cezarsa@gmail.com>
+ ChaiShushan <chaishushan@gmail.com>
++Chaoqun Han <hanssccv@gmail.com>
+ Charles Fenwick Elliott <Charles@FenwickElliott.io>
+ Charles L. Dorian <cldorian@gmail.com>
+ Charles Lee <zombie.fml@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 7f74b0ce5b..8018f9518a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -475,6 +475,7 @@ ChaiShushan <chaishushan@gmail.com>
+ Changkun Ou <hi@changkun.us>
+ Channing Kimble-Brown <channing@golang.org>
+ Chao Xu <xuchao@google.com>
++Chaoqun Han <hanssccv@gmail.com>
+ Charles Fenwick Elliott <Charles@FenwickElliott.io>
+ Charles Kenney <charlesc.kenney@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>

@@ -30,9 +30,133 @@ Date:   Mon Sep 12 17:30:35 2016 -0700
     Change-Id: Iedbeb408e2f1e68dd4a3201bf8813c8066ebf7ed
     Reviewed-on: https://go-review.googlesource.com/29089
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go         |  4 ----
  src/cmd/compile/internal/gc/fmt.go  | 13 +++++++++----
  src/cmd/compile/internal/gc/subr.go |  7 ++++---
  src/cmd/compile/internal/gc/swt.go  |  9 +++------
  4 files changed, 16 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 89a5a68465..48999aec15 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -552,19 +552,15 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/gc.Node %j":                "",
+ 	"*cmd/compile/internal/gc.Node %p":                "",
+ 	"*cmd/compile/internal/gc.Node %v":                "",
+-	"*cmd/compile/internal/gc.Sym % v":                "",
+ 	"*cmd/compile/internal/gc.Sym %+v":                "",
+ 	"*cmd/compile/internal/gc.Sym %-v":                "",
+ 	"*cmd/compile/internal/gc.Sym %0S":                "",
+ 	"*cmd/compile/internal/gc.Sym %S":                 "",
+ 	"*cmd/compile/internal/gc.Sym %p":                 "",
+ 	"*cmd/compile/internal/gc.Sym %v":                 "",
+-	"*cmd/compile/internal/gc.Type % -v":              "",
+ 	"*cmd/compile/internal/gc.Type %#v":               "",
+ 	"*cmd/compile/internal/gc.Type %+v":               "",
+-	"*cmd/compile/internal/gc.Type %- v":              "",
+ 	"*cmd/compile/internal/gc.Type %-S":               "",
+-	"*cmd/compile/internal/gc.Type %-v":               "",
+ 	"*cmd/compile/internal/gc.Type %0S":               "",
+ 	"*cmd/compile/internal/gc.Type %L":                "",
+ 	"*cmd/compile/internal/gc.Type %S":                "",
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index c65c382ae4..0563d88b49 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -17,6 +17,9 @@ import (
+ // See the respective function's documentation for details.
+ type FmtFlag int
+ 
++// TODO(gri) The ' ' flag is not used anymore in %-formats.
++//           Eliminate eventually.
++
+ const ( //                                 fmt.Format flag/prec or verb
+ 	FmtLeft     FmtFlag = 1 << iota // '-'
+ 	FmtSharp                        // '#'
+@@ -1556,6 +1559,7 @@ func (n *Node) nodedump(s fmt.State, flag FmtFlag) {
+ 	}
+ }
+ 
++// "%S" suppresses qualifying with package
+ func (s *Sym) Format(f fmt.State, verb rune) {
+ 	switch verb {
+ 	case 'v', 'S':
+@@ -1570,7 +1574,7 @@ func (s *Sym) String() string {
+ 	return s.sconv(0)
+ }
+ 
+-// "%S" suppresses qualifying with package
++// See #16897 before changing the implementation of sconv.
+ func (s *Sym) sconv(flag FmtFlag) string {
+ 	if flag&FmtLong != 0 {
+ 		panic("linksymfmt")
+@@ -1671,6 +1675,9 @@ func Fldconv(f *Field, flag FmtFlag) string {
+ 	return str
+ }
+ 
++// "%L"  print definition, not name
++// "%S"  omit 'func' and receiver from function types, short type names
++// "% v" package name, not prefix (FTypeId mode, sticky)
+ func (t *Type) Format(s fmt.State, verb rune) {
+ 	switch verb {
+ 	case 'v', 'S', 'L':
+@@ -1681,9 +1688,7 @@ func (t *Type) Format(s fmt.State, verb rune) {
+ 	}
+ }
+ 
+-// "%L"  print definition, not name
+-// "%S"  omit 'func' and receiver from function types, short type names
+-// "% v" package name, not prefix (FTypeId mode, sticky)
++// See #16897 before changing the implementation of tconv.
+ func (t *Type) tconv(flag FmtFlag) string {
+ 	if t == nil {
+ 		return "<T>"
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 409ea3da0b..fe8f820c5f 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1147,10 +1147,11 @@ func syslook(name string) *Node {
+ // typehash computes a hash value for type t to use in type switch
+ // statements.
+ func typehash(t *Type) uint32 {
+-	// fmt.Sprintf("%- v", t) already contains all the necessary logic to generate
+-	// a representation that completely describes the type, so using
++	// t.tconv(FmtLeft | FmtUnsigned) already contains all the necessary logic
++	// to generate a representation that completely describes the type, so using
+ 	// it here avoids duplicating that code.
+-	p := fmt.Sprintf("%- v", t)
++	// See the comments in exprSwitch.checkDupCases.
++	p := t.tconv(FmtLeft | FmtUnsigned)
+ 
+ 	// Using MD5 is overkill, but reduces accidental collisions.
+ 	h := md5.Sum([]byte(p))
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index a5dda73225..bfe5c1fb23 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -4,10 +4,7 @@
+ 
+ package gc
+ 
+-import (
+-	"fmt"
+-	"sort"
+-)
++import "sort"
+ 
+ const (
+ 	// expression switch
+@@ -647,9 +644,9 @@ func (s *exprSwitch) checkDupCases(cc []caseClause) {
+ 		}
+ 		n := c.node.Left
+ 		tv := typeVal{
+-			// fmt.Sprintf("% -v", n.Type) here serves to completely describe the type.
++			// n.Type.tconv(FmtLeft | FmtUnsigned) here serves to completely describe the type.
+ 			// See the comments in func typehash.
+-			typ: fmt.Sprintf("% -v", n.Type),
++			typ: n.Type.tconv(FmtLeft | FmtUnsigned),
+ 			val: n.Val().Interface(),
+ 		}
+ 		prev, dup := seen[tv]

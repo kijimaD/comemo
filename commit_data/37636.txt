@@ -10,6 +10,34 @@ Date:   Fri Jun 15 00:07:32 2018 +0530
     Reviewed-on: https://go-review.googlesource.com/118915
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/objdump/main.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 71636990a1..6a60697ebd 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -75,6 +75,7 @@ func main() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
++	defer f.Close()
+ 
+ 	dis, err := f.Disasm()
+ 	if err != nil {
+@@ -87,7 +88,6 @@ func main() {
+ 	case 1:
+ 		// disassembly of entire object
+ 		dis.Print(os.Stdout, symRE, 0, ^uint64(0), *printCode)
+-		os.Exit(0)
+ 
+ 	case 3:
+ 		// disassembly of PC range
+@@ -100,6 +100,5 @@ func main() {
+ 			log.Fatalf("invalid end PC: %v", err)
+ 		}
+ 		dis.Print(os.Stdout, symRE, start, end, *printCode)
+-		os.Exit(0)
+ 	}
+ }

@@ -15,8 +15,55 @@ Date:   Sat Mar 2 19:53:20 2024 +1100
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/dist/test.go               | 1 +
  src/cmd/link/internal/ld/lib.go    | 6 ++++--
  src/internal/platform/supported.go | 1 +
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 8f4b081ad1..95d9cab816 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1637,6 +1637,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"darwin/amd64", "darwin/arm64",
+ 			"ios/amd64", "ios/arm64",
+ 			"aix/ppc64",
++			"openbsd/arm64",
+ 			"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 			return true
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c68da4070b..35b9ca01d2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1436,13 +1436,15 @@ func (ctxt *Link) hostlink() {
+ 			}
+ 		}
+ 	case objabi.Hopenbsd:
+-		argv = append(argv, "-Wl,-nopie")
++		argv = append(argv, "-pthread")
++		if ctxt.BuildMode != BuildModePIE {
++			argv = append(argv, "-Wl,-nopie")
++		}
+ 		if linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,-z,nobtcfi") {
+ 			// -Wl,-z,nobtcfi is only supported on OpenBSD 7.4+, remove guard
+ 			// when OpenBSD 7.5 is released and 7.3 is no longer supported.
+ 			argv = append(argv, "-Wl,-z,nobtcfi")
+ 		}
+-		argv = append(argv, "-pthread")
+ 		if ctxt.Arch.InFamily(sys.ARM64) {
+ 			// Disable execute-only on openbsd/arm64 - the Go arm64 assembler
+ 			// currently stores constants in the text section rather than in rodata.
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 82c66e2195..8f43cbf25f 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -192,6 +192,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 			"darwin/amd64", "darwin/arm64",
+ 			"ios/amd64", "ios/arm64",
+ 			"aix/ppc64",
++			"openbsd/arm64",
+ 			"windows/386", "windows/amd64", "windows/arm", "windows/arm64":
+ 			return true
+ 		}

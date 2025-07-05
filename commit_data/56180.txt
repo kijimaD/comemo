@@ -20,7 +20,40 @@ Date:   Thu Apr 13 17:44:32 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/pkginit/init.go            | 2 +-
  src/cmd/compile/internal/pkginit/initAsanGlobals.go | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 814127c66c..edb0d6a533 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -144,7 +144,7 @@ func Task() *ir.Name {
+ 			asancall := ir.NewCallExpr(base.Pos, ir.OCALL, asanf, nil)
+ 			asancall.Args.Append(typecheck.ConvNop(typecheck.NodAddr(
+ 				ir.NewIndexExpr(base.Pos, globals, ir.NewInt(base.Pos, 0))), types.Types[types.TUNSAFEPTR]))
+-			asancall.Args.Append(typecheck.ConvNop(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
++			asancall.Args.Append(typecheck.DefaultLit(ir.NewInt(base.Pos, int64(ni)), types.Types[types.TUINTPTR]))
+ 
+ 			fnInit.Body.Append(asancall)
+ 			typecheck.FinishFuncBody()
+diff --git a/src/cmd/compile/internal/pkginit/initAsanGlobals.go b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+index 4164dee8db..ce26cbf189 100644
+--- a/src/cmd/compile/internal/pkginit/initAsanGlobals.go
++++ b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+@@ -79,12 +79,12 @@ func instrumentGlobals(fn *ir.Func) *ir.Name {
+ 		// Assign globals[i].size.
+ 		g := n.(*ir.Name)
+ 		size := g.Type().Size()
+-		c = tconv(ir.NewInt(base.Pos, size), types.Types[types.TUINTPTR])
++		c = typecheck.DefaultLit(ir.NewInt(base.Pos, size), types.Types[types.TUINTPTR])
+ 		setField("size", c, i)
+ 		// Assign globals[i].sizeWithRedzone.
+ 		rzSize := GetRedzoneSizeForGlobal(size)
+ 		sizeWithRz := rzSize + size
+-		c = tconv(ir.NewInt(base.Pos, sizeWithRz), types.Types[types.TUINTPTR])
++		c = typecheck.DefaultLit(ir.NewInt(base.Pos, sizeWithRz), types.Types[types.TUINTPTR])
+ 		setField("sizeWithRedzone", c, i)
+ 		// The C string type is terminated by a null character "\0", Go should use three-digit
+ 		// octal "\000" or two-digit hexadecimal "\x00" to create null terminated string.

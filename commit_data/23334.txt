@@ -13,9 +13,108 @@ Date:   Thu May 7 08:20:42 2015 +0900
     Change-Id: I7db0e572e252aa0a9f9f54c8e557955077b72e44
     Reviewed-on: https://go-review.googlesource.com/9777
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go     |  4 ++--
  src/net/ipsock_test.go   |  2 +-
  src/net/listen_test.go   |  8 ++++++++
  src/net/platform_test.go | 17 ++++++++++++++---
  4 files changed, 25 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index fab5262769..f5141bcd5e 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -155,7 +155,7 @@ func TestDialerDualStackFDLeak(t *testing.T) {
+ 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 {
+-		t.Skip("ipv4 or ipv6 is not supported")
++		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+ 	origTestHookLookupIP := testHookLookupIP
+@@ -247,7 +247,7 @@ func TestDialerLocalAddr(t *testing.T) {
+ 
+ func TestDialerDualStack(t *testing.T) {
+ 	if !supportsIPv4 || !supportsIPv6 {
+-		t.Skip("ipv4 or ipv6 is not supported")
++		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+ 	origTestHookLookupIP := testHookLookupIP
+diff --git a/src/net/ipsock_test.go b/src/net/ipsock_test.go
+index c06f15e846..b36557a157 100644
+--- a/src/net/ipsock_test.go
++++ b/src/net/ipsock_test.go
+@@ -216,7 +216,7 @@ var addrListTests = []struct {
+ 
+ func TestAddrList(t *testing.T) {
+ 	if !supportsIPv4 || !supportsIPv6 {
+-		t.Skip("ipv4 or ipv6 is not supported")
++		t.Skip("both IPv4 and IPv6 are required")
+ 	}
+ 
+ 	for i, tt := range addrListTests {
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 995792bed3..8f43c846d9 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -218,9 +218,14 @@ var dualStackTCPListenerTests = []struct {
+ // listening address and same port.
+ func TestDualStackTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
++	case "dragonfly":
++		t.Skip("not supported on DragonFly, see golang.org/issue/10729")
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++	if !supportsIPv4 || !supportsIPv6 {
++		t.Skip("both IPv4 and IPv6 are required")
++	}
+ 
+ 	for _, tt := range dualStackTCPListenerTests {
+ 		if !testableListenArgs(tt.network1, JoinHostPort(tt.address1, "0"), "") {
+@@ -305,6 +310,9 @@ func TestDualStackUDPListener(t *testing.T) {
+ 	case "nacl", "plan9":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
++	if !supportsIPv4 || !supportsIPv6 {
++		t.Skip("both IPv4 and IPv6 are required")
++	}
+ 
+ 	for _, tt := range dualStackUDPListenerTests {
+ 		if !testableListenArgs(tt.network1, JoinHostPort(tt.address1, "0"), "") {
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index eb680b8e34..b700091dc5 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -103,15 +103,26 @@ func testableListenArgs(network, address, client string) bool {
+ 		return false
+ 	}
+ 
+-	// Test functionality of IPv6 communication using AF_INET6
+-	// sockets.
++	// Test functionality of IPv4 communication using AF_INET and
++	// IPv6 communication using AF_INET6 sockets.
++	if !supportsIPv4 && ip.To4() != nil {
++		return false
++	}
+ 	if !supportsIPv6 && ip.To16() != nil && ip.To4() == nil {
+ 		return false
+ 	}
++	cip := ParseIP(client)
++	if cip != nil {
++		if !supportsIPv4 && cip.To4() != nil {
++			return false
++		}
++		if !supportsIPv6 && cip.To16() != nil && cip.To4() == nil {
++			return false
++		}
++	}
+ 
+ 	// Test functionality of IPv4 communication using AF_INET6
+ 	// sockets.
+-	cip := ParseIP(client)
+ 	if !supportsIPv4map && (network == "tcp" || network == "udp" || network == "ip") && wildcard {
+ 		// At this point, we prefer IPv4 when ip is nil.
+ 		// See favoriteAddrFamily for further information.

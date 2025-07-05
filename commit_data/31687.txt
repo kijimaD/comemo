@@ -14,7 +14,7 @@ Date:   Tue Mar 7 12:31:59 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go  | 19 -------------------
  src/cmd/compile/internal/arm/ssa.go    | 19 -------------------
  src/cmd/compile/internal/arm64/ssa.go  | 19 -------------------
@@ -25,3 +25,425 @@ Date:   Tue Mar 7 12:31:59 2017 -0800
  src/cmd/compile/internal/s390x/ssa.go  | 19 -------------------
  src/cmd/compile/internal/x86/ssa.go    | 18 ------------------
  9 files changed, 30 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 53f3b8d540..9940dcf520 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -147,7 +147,6 @@ func duff(size int64) (int64, int64) {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+ 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
+ 		r := v.Reg()
+@@ -714,12 +713,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		gc.AddrAuto(&p.To, v)
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+ 		// Closure pointer is DX.
+ 		gc.CheckLoweredGetClosurePtr(v)
+@@ -821,10 +814,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpSP, ssa.OpSB:
+-		// nothing to do
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+ 		ssa.OpAMD64SETL, ssa.OpAMD64SETLE,
+ 		ssa.OpAMD64SETG, ssa.OpAMD64SETGE,
+@@ -868,14 +857,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64REPMOVSQ:
+ 		gc.Prog(x86.AREP)
+ 		gc.Prog(x86.AMOVSQ)
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.OpAMD64LoweredNilCheck:
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index c595ffab60..cea0c96c68 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -118,14 +118,7 @@ func genregshift(as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+-		// nothing to do
+ 	case ssa.OpCopy, ssa.OpARMMOVWconvert, ssa.OpARMMOVWreg:
+ 		if v.Type.IsMemory() {
+ 			return
+@@ -165,8 +158,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+ 	case ssa.OpStoreReg:
+ 		if v.Type.IsFlags() {
+ 			v.Fatalf("store flags not implemented: %v", v.LongString())
+@@ -783,14 +774,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p4 := gc.Prog(arm.ABLE)
+ 		p4.To.Type = obj.TYPE_BRANCH
+ 		gc.Patch(p4, p)
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.OpARMEqual,
+ 		ssa.OpARMNotEqual,
+ 		ssa.OpARMLessThan,
+@@ -814,8 +797,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = 1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.OpARMLoweredGetClosurePtr:
+ 		// Closure pointer is R7 (arm.REGCTXT).
+ 		gc.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 63490e8f1e..158d2a4e8a 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -92,14 +92,7 @@ func genshift(as obj.As, r0, r1, r int16, typ int64, s int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+-		// nothing to do
+ 	case ssa.OpCopy, ssa.OpARM64MOVDconvert, ssa.OpARM64MOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+@@ -139,8 +132,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.AddrAuto(&p.From, v.Args[0])
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+ 	case ssa.OpStoreReg:
+ 		if v.Type.IsFlags() {
+ 			v.Fatalf("store flags not implemented: %v", v.LongString())
+@@ -693,14 +684,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.OpARM64Equal,
+ 		ssa.OpARM64NotEqual,
+ 		ssa.OpARM64LessThan,
+@@ -717,8 +700,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = condBits[v.Op]
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.OpARM64LoweredGetClosurePtr:
+ 		// Closure pointer is R26 (arm64.REGCTXT).
+ 		gc.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fd6cef9c8b..21a7c17aaa 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4385,7 +4385,36 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		Thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+ 			x := pc
+-			Thearch.SSAGenValue(&s, v)
++			s.SetPos(v.Pos)
++
++			switch v.Op {
++			case ssa.OpInitMem:
++				// memory arg needs no code
++			case ssa.OpArg:
++				// input args need no code
++			case ssa.OpSP, ssa.OpSB:
++				// nothing to do
++			case ssa.OpSelect0, ssa.OpSelect1:
++				// nothing to do
++			case ssa.OpGetG:
++				// nothing to do when there's a g register,
++				// and checkLower complains if there's not
++			case ssa.OpVarDef:
++				Gvardef(v.Aux.(*Node))
++			case ssa.OpVarKill:
++				Gvarkill(v.Aux.(*Node))
++			case ssa.OpVarLive:
++				Gvarlive(v.Aux.(*Node))
++			case ssa.OpKeepAlive:
++				KeepAlive(v)
++			case ssa.OpPhi:
++				CheckLoweredPhi(v)
++
++			default:
++				// let the backend handle it
++				Thearch.SSAGenValue(&s, v)
++			}
++
+ 			if logProgs {
+ 				for ; x != pc; x = x.Link {
+ 					valueProgs[x] = v
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 5c69adf6cd..0d0e7eae96 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -74,16 +74,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+-		// nothing to do
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.OpCopy, ssa.OpMIPSMOVWconvert, ssa.OpMIPSMOVWreg:
+ 		t := v.Type
+ 		if t.IsMemory() {
+@@ -778,16 +769,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p6 := gc.Prog(obj.ANOP)
+ 		gc.Patch(p2, p6)
+ 
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+ 	case ssa.OpMIPSLoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(mips.AMOVB)
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index e67be062fb..cd524f06c2 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -82,14 +82,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+-		// nothing to do
+ 	case ssa.OpCopy, ssa.OpMIPS64MOVVconvert, ssa.OpMIPS64MOVVreg:
+ 		if v.Type.IsMemory() {
+ 			return
+@@ -141,8 +134,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+ 		}
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+ 	case ssa.OpStoreReg:
+ 		if v.Type.IsFlags() {
+ 			v.Fatalf("store flags not implemented: %v", v.LongString())
+@@ -551,14 +542,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Pos.Line() > 1 { // v.Pos.Line()==1 in generated wrappers
+ 			gc.Warnl(v.Pos, "generated nil check")
+ 		}
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.OpMIPS64FPFlagTrue,
+ 		ssa.OpMIPS64FPFlagFalse:
+ 		// MOVV	$0, r
+@@ -582,8 +565,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p3.To.Reg = v.Reg()
+ 		p4 := gc.Prog(obj.ANOP) // not a machine instruction, for branch to land
+ 		gc.Patch(p2, p4)
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.OpMIPS64LoweredGetClosurePtr:
+ 		// Closure pointer is R22 (mips.REGCTXT).
+ 		gc.CheckLoweredGetClosurePtr(v)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 11555c25c4..c04172081f 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -143,15 +143,7 @@ func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+-	case ssa.OpSP, ssa.OpSB, ssa.OpGetG:
+-		// nothing to do
+-
+ 	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
+ 		t := v.Type
+ 		if t.IsMemory() {
+@@ -1046,19 +1038,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+-
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(ppc64.AMOVBZ)
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index b349f01295..65d7e8a9d5 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -156,7 +156,6 @@ func opregregimm(op obj.As, dest, src int16, off int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+ 	switch v.Op {
+ 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
+ 		ssa.OpS390XSRD, ssa.OpS390XSRW,
+@@ -470,12 +469,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		gc.AddrAuto(&p.To, v)
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+ 	case ssa.OpS390XLoweredGetClosurePtr:
+ 		// Closure pointer is R12 (already)
+ 		gc.CheckLoweredGetClosurePtr(v)
+@@ -565,18 +558,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpSP, ssa.OpSB:
+-		// nothing to do
+-	case ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.OpS390XInvertFlags:
+ 		v.Fatalf("InvertFlags should never make it to codegen %v", v.LongString())
+ 	case ssa.OpS390XFlagEQ, ssa.OpS390XFlagLT, ssa.OpS390XFlagGT:
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index a82083af09..1e37abb3f0 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -114,8 +114,6 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetPos(v.Pos)
+-
+ 	if gc.Thearch.Use387 {
+ 		if ssaGenValue387(s, v) {
+ 			return // v was handled by 387 generation.
+@@ -641,12 +639,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+ 		gc.AddrAuto(&p.To, v)
+-	case ssa.OpPhi:
+-		gc.CheckLoweredPhi(v)
+-	case ssa.OpInitMem:
+-		// memory arg needs no code
+-	case ssa.OpArg:
+-		// input args need no code
+ 	case ssa.Op386LoweredGetClosurePtr:
+ 		// Closure pointer is DX.
+ 		gc.CheckLoweredGetClosurePtr(v)
+@@ -744,8 +736,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-	case ssa.OpSP, ssa.OpSB, ssa.OpSelect0, ssa.OpSelect1:
+-		// nothing to do
+ 	case ssa.Op386SETEQ, ssa.Op386SETNE,
+ 		ssa.Op386SETL, ssa.Op386SETLE,
+ 		ssa.Op386SETG, ssa.Op386SETGE,
+@@ -785,14 +775,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.Op386REPMOVSL:
+ 		gc.Prog(x86.AREP)
+ 		gc.Prog(x86.AMOVSL)
+-	case ssa.OpVarDef:
+-		gc.Gvardef(v.Aux.(*gc.Node))
+-	case ssa.OpVarKill:
+-		gc.Gvarkill(v.Aux.(*gc.Node))
+-	case ssa.OpVarLive:
+-		gc.Gvarlive(v.Aux.(*gc.Node))
+-	case ssa.OpKeepAlive:
+-		gc.KeepAlive(v)
+ 	case ssa.Op386LoweredNilCheck:
+ 		// Issue a load which will fault if the input is nil.
+ 		// TODO: We currently use the 2-byte instruction TESTB AX, (reg).

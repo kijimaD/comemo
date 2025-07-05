@@ -9,6 +9,22 @@ Date:   Wed Jun 10 13:30:42 2020 +0000
     GitHub-Pull-Request: golang/go#39500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237220
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/symtab.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index ce2ec6dd1d..1e86662adc 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -563,8 +563,8 @@ func moduledataverify1(datap *moduledata) {
+ // given program counter address, or else nil.
+ //
+ // If pc represents multiple functions because of inlining, it returns
+-// the a *Func describing the innermost function, but with an entry
+-// of the outermost function.
++// the *Func describing the innermost function, but with an entry of
++// the outermost function.
+ func FuncForPC(pc uintptr) *Func {
+ 	f := findfunc(pc)
+ 	if !f.valid() {

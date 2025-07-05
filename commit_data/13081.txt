@@ -10,6 +10,22 @@ Date:   Thu May 17 02:54:03 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6201069
-
+---
  lib/codereview/codereview.py | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index b72cd86b07..d26df2a5f1 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -3343,6 +3343,10 @@ class FakeMercurialUI(object):
+ 		return self
+ 	def status(self, *args, **opts):
+ 		pass
++
++	def formatter(self, topic, opts):
++		from mercurial.formatter import plainformatter
++		return plainformatter(self, topic, opts)
+ 	
+ 	def readconfig(self, *args, **opts):
+ 		pass

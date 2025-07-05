@@ -7,6 +7,24 @@ Date:   Sun Apr 11 10:19:32 2010 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/822047
-
+---
  src/pkg/exp/nacl/srpc/client.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/nacl/srpc/client.go b/src/pkg/exp/nacl/srpc/client.go
+index a17f8f9d7b..d271a82ffe 100644
+--- a/src/pkg/exp/nacl/srpc/client.go
++++ b/src/pkg/exp/nacl/srpc/client.go
+@@ -199,9 +199,9 @@ func (r *RPC) Start(name string, arg []interface{}) {
+ // waits for it to finish, and then returns the results.
+ // Its implementation is:
+ //
+-//	r.Start(name, arg);
+-//	<-r.Done;
+-//	return r.Ret, r.Errno;
++//	r.Start(name, arg)
++//	<-r.Done
++//	return r.Ret, r.Errno
+ //
+ func (r *RPC) Call(name string, arg []interface{}) (ret []interface{}, err Errno) {
+ 	r.Start(name, arg)

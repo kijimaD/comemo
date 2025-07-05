@@ -22,8 +22,46 @@ Date:   Thu Jul 19 10:41:54 2018 +0200
     Reviewed-on: https://go-review.googlesource.com/124435
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/script_test.go                             | 1 +
  src/cmd/go/testdata/script/README                     | 2 +-
  src/cmd/go/testdata/script/install_rebuild_gopath.txt | 3 +--
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 33bd6440e7..d8bcd07962 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -95,6 +95,7 @@ func (ts *testScript) setup() {
+ 		"GOROOT=" + testGOROOT,
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
++		":=" + string(os.PathListSeparator),
+ 	}
+ 
+ 	if runtime.GOOS == "windows" {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 0418bc9f13..a80233b8c3 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -149,7 +149,7 @@ and only shows the # comments for earlier phases. For example, here is a
+ multi-phase script with a bug in it:
+ 
+ 	# GOPATH with p1 in d2, p2 in d2
+-	env GOPATH=$WORK/d1:$WORK/d2
++	env GOPATH=$WORK/d1${:}$WORK/d2
+ 
+ 	# build & install p1
+ 	env
+diff --git a/src/cmd/go/testdata/script/install_rebuild_gopath.txt b/src/cmd/go/testdata/script/install_rebuild_gopath.txt
+index 568249bf70..d42b07004b 100644
+--- a/src/cmd/go/testdata/script/install_rebuild_gopath.txt
++++ b/src/cmd/go/testdata/script/install_rebuild_gopath.txt
+@@ -1,6 +1,5 @@
+ # GOPATH with p1 in d1, p2 in d2
+-[!windows] env GOPATH=$WORK/d1:$WORK/d2
+-[windows]  env GOPATH=$WORK/d1;$WORK/d2
++env GOPATH=$WORK/d1${:}$WORK/d2
+ 
+ # build & install p1
+ go install -i p1

@@ -7,7 +7,136 @@ Date:   Wed Dec 21 14:57:46 2011 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5503056
-
+---
  misc/dashboard/app/build/handler.go | 12 ++++++++++++
  misc/dashboard/app/build/ui.go      | 39 +++++++++++++++++++++++++++++++++++--
  2 files changed, 49 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/app/build/handler.go b/misc/dashboard/app/build/handler.go
+index facfeea814..576d7cb132 100644
+--- a/misc/dashboard/app/build/handler.go
++++ b/misc/dashboard/app/build/handler.go
+@@ -7,6 +7,7 @@ package build
+ import (
+ 	"appengine"
+ 	"appengine/datastore"
++	"appengine/memcache"
+ 	"crypto/hmac"
+ 	"fmt"
+ 	"http"
+@@ -58,6 +59,7 @@ func commitHandler(r *http.Request) (interface{}, os.Error) {
+ 	if err := com.Valid(); err != nil {
+ 		return nil, fmt.Errorf("validating Commit: %v", err)
+ 	}
++	defer invalidateCache(c)
+ 	tx := func(c appengine.Context) os.Error {
+ 		return addCommit(c, com)
+ 	}
+@@ -131,6 +133,7 @@ func tagHandler(r *http.Request) (interface{}, os.Error) {
+ 		return nil, err
+ 	}
+ 	c := appengine.NewContext(r)
++	defer invalidateCache(c)
+ 	_, err := datastore.Put(c, t.Key(c), t)
+ 	return nil, err
+ }
+@@ -226,6 +229,7 @@ func resultHandler(r *http.Request) (interface{}, os.Error) {
+ 	if err := res.Valid(); err != nil {
+ 		return nil, fmt.Errorf("validating Result: %v", err)
+ 	}
++	defer invalidateCache(c)
+ 	// store the Log text if supplied
+ 	if len(res.Log) > 0 {
+ 		hash, err := PutLog(c, res.Log)
+@@ -375,3 +379,11 @@ func logErr(w http.ResponseWriter, r *http.Request, err os.Error) {
+ 	w.WriteHeader(http.StatusInternalServerError)
+ 	fmt.Fprint(w, "Error: ", err)
+ }
++
++// invalidateCache deletes the ui cache record from memcache.
++func invalidateCache(c appengine.Context) {
++	err := memcache.Delete(c, uiCacheKey)
++	if err != nil && err != memcache.ErrCacheMiss {
++		c.Errorf("memcache.Delete(%q): %v", uiCacheKey, err)
++	}
++}
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 5070400d96..8a1cca320d 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -10,6 +10,8 @@ package build
+ import (
+ 	"appengine"
+ 	"appengine/datastore"
++	"appengine/memcache"
++	"bytes"
+ 	"exp/template/html"
+ 	"http"
+ 	"os"
+@@ -20,6 +22,11 @@ import (
+ 	"template"
+ )
+ 
++const (
++	uiCacheKey    = "build-ui"
++	uiCacheExpiry = 10 * 60 // 10 minutes in seconds
++)
++
+ func init() {
+ 	http.HandleFunc("/", uiHandler)
+ 	html.Escape(uiTemplate)
+@@ -27,7 +34,6 @@ func init() {
+ 
+ // uiHandler draws the build status page.
+ func uiHandler(w http.ResponseWriter, r *http.Request) {
+-	// TODO(adg): put the HTML in memcache and invalidate on updates
+ 	c := appengine.NewContext(r)
+ 
+ 	page, _ := strconv.Atoi(r.FormValue("page"))
+@@ -35,6 +41,18 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
+ 		page = 0
+ 	}
+ 
++	// Used cached version of front page, if available.
++	if page == 0 {
++		t, err := memcache.Get(c, uiCacheKey)
++		if err == nil {
++			w.Write(t.Value)
++			return
++		}
++		if err != memcache.ErrCacheMiss {
++			c.Errorf("get ui cache: %v", err)
++		}
++	}
++
+ 	commits, err := goCommits(c, page)
+ 	if err != nil {
+ 		logErr(w, r, err)
+@@ -57,9 +75,26 @@ func uiHandler(w http.ResponseWriter, r *http.Request) {
+ 		p.HasPrev = true
+ 	}
+ 	data := &uiTemplateData{commits, builders, tipState, p}
+-	if err := uiTemplate.Execute(w, data); err != nil {
++
++	var buf bytes.Buffer
++	if err := uiTemplate.Execute(&buf, data); err != nil {
+ 		logErr(w, r, err)
++		return
++	}
++
++	// Cache the front page.
++	if page == 0 {
++		t := &memcache.Item{
++			Key:        uiCacheKey,
++			Value:      buf.Bytes(),
++			Expiration: uiCacheExpiry,
++		}
++		if err := memcache.Set(c, t); err != nil {
++			c.Errorf("set ui cache: %v", err)
++		}
+ 	}
++
++	buf.WriteTo(w)
+ }
+ 
+ type Pagination struct {

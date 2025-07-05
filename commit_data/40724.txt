@@ -11,6 +11,29 @@ Date:   Fri Jun 21 15:03:57 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/testdata/addmod.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 8bb6056a54..d9c3aab9c4 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -29,7 +29,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 
+-	"../internal/txtar"
++	"cmd/go/internal/txtar"
+ )
+ 
+ func usage() {
+@@ -44,7 +44,7 @@ func fatalf(format string, args ...interface{}) {
+ 	log.Fatalf(format, args...)
+ }
+ 
+-const goCmd = "vgo"
++const goCmd = "go"
+ 
+ func main() {
+ 	flag.Usage = usage

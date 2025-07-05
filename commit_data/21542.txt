@@ -10,8 +10,50 @@ Date:   Wed Jan 14 15:14:54 2015 -0500
     Change-Id: Id0f367f03485100a896e61cfdace4ac44a22e16d
     Reviewed-on: https://go-review.googlesource.com/2818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/make.bash | 2 +-
  src/make.bat  | 4 ++--
  src/make.rc   | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index 2b07ee7780..c8573c9954 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -121,7 +121,7 @@ if [ ! -x "$GOROOT_BOOTSTRAP/bin/go" ]; then
+ 	echo "Set \$GOROOT_BOOTSTRAP to a working Go tree >= Go 1.4." >&2
+ fi
+ rm -f cmd/dist/dist
+-GOROOT="$GOROOT_BOOTSTRAP" GOOS="$GOHOSTOS" GOARCH="$GOHOSTARCH" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
++GOROOT="$GOROOT_BOOTSTRAP" GOOS="" GOARCH="" "$GOROOT_BOOTSTRAP/bin/go" build -o cmd/dist/dist ./cmd/dist
+ 
+ # -e doesn't propagate out of eval, so check success by hand.
+ eval $(./cmd/dist/dist env -p || echo FAIL=true)
+diff --git a/src/make.bat b/src/make.bat
+index 62401b622d..fab9c88ff6 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -57,8 +57,8 @@ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+ if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
+ setlocal
+ set GOROOT=%GOROOT_BOOTSTRAP%
+-set GOOS=%GOHOSTOS%
+-set GOARCH=%GOHOSTARCH%
++set GOOS=
++set GOARCH=
+ "%GOROOT_BOOTSTRAP%\bin\go" build -o cmd\dist\dist.exe .\cmd\dist
+ endlocal
+ if errorlevel 1 goto fail
+diff --git a/src/make.rc b/src/make.rc
+index 761b93e995..5fe30aced7 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -58,7 +58,7 @@ if(! test -x $GOROOT_BOOTSTRAP/bin/go){
+ 	exit bootstrap
+ }
+ rm -f cmd/dist/dist
+-GOROOT=$GOROOT_BOOTSTRAP GOOS=$GOHOSTOS GOARCH=$GOHOSTARCH $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
++GOROOT=$GOROOT_BOOTSTRAP GOOS='' GOARCH='' $GOROOT_BOOTSTRAP/bin/go build -o cmd/dist/dist ./cmd/dist
+ 
+ eval `{./cmd/dist/dist env -9}
+ echo

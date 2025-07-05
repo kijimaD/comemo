@@ -11,7 +11,74 @@ Date:   Tue Sep 2 19:18:46 2014 -0400
     R=rlh
     CC=dvyukov, golang-codereviews
     https://golang.org/cl/133470043
-
+---
  src/pkg/runtime/proc.c  |  9 ++++++---
  src/pkg/runtime/proc.go | 34 ++++++++++++++++++----------------
  2 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index d1ebd853bb..9229c53a8c 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2846,9 +2846,12 @@ sysmon(void)
+ 		lastgc = runtime·atomicload64(&mstats.last_gc);
+ 		if(lastgc != 0 && unixnow - lastgc > forcegcperiod && runtime·atomicload(&runtime·forcegc.idle)) {
+ 			runtime·lock(&runtime·forcegc.lock);
+-			runtime·forcegc.idle = 0;
+-			runtime·forcegc.g->schedlink = nil;
+-			injectglist(runtime·forcegc.g);
++			if(runtime·forcegc.g != nil) {
++				// Goroutine may be started but has not initialized g yet.
++				runtime·forcegc.idle = 0;
++				runtime·forcegc.g->schedlink = nil;
++				injectglist(runtime·forcegc.g);
++			}
+ 			runtime·unlock(&runtime·forcegc.lock);
+ 		}
+ 
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index 6c295c7b18..d47503e230 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -31,23 +31,25 @@ var parkunlock_c byte
+ 
+ // start forcegc helper goroutine
+ func init() {
+-	go func() {
+-		forcegc.g = getg()
+-		forcegc.g.issystem = true
+-		for {
+-			lock(&forcegc.lock)
+-			if forcegc.idle != 0 {
+-				gothrow("forcegc: phase error")
+-			}
+-			atomicstore(&forcegc.idle, 1)
+-			goparkunlock(&forcegc.lock, "force gc (idle)")
+-			// this goroutine is explicitly resumed by sysmon
+-			if debug.gctrace > 0 {
+-				println("GC forced")
+-			}
+-			gogc(1)
++	go forcegchelper()
++}
++
++func forcegchelper() {
++	forcegc.g = getg()
++	forcegc.g.issystem = true
++	for {
++		lock(&forcegc.lock)
++		if forcegc.idle != 0 {
++			gothrow("forcegc: phase error")
+ 		}
+-	}()
++		atomicstore(&forcegc.idle, 1)
++		goparkunlock(&forcegc.lock, "force gc (idle)")
++		// this goroutine is explicitly resumed by sysmon
++		if debug.gctrace > 0 {
++			println("GC forced")
++		}
++		gogc(1)
++	}
+ }
+ 
+ // Gosched yields the processor, allowing other goroutines to run.  It does not

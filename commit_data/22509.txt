@@ -9,6 +9,22 @@ Date:   Fri Mar 20 00:40:37 2015 +1000
     Change-Id: Icd7948b358f52df1acc7e033ab27a062990ef977
     Reviewed-on: https://go-review.googlesource.com/7795
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/pprof/pprof.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index 61ac67f3b1..02cde50535 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -222,9 +222,9 @@ var indexTmpl = template.Must(template.New("index").Parse(`<html>
+ <head>
+ <title>/debug/pprof/</title>
+ </head>
++<body>
+ /debug/pprof/<br>
+ <br>
+-<body>
+ profiles:<br>
+ <table>
+ {{range .}}

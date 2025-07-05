@@ -8,6 +8,20 @@ Date:   Thu Apr 18 02:33:55 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8833044
-
+---
  misc/cgo/test/issue5227.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/test/issue5227.go b/misc/cgo/test/issue5227.go
+index d89a1cabf2..336c4c6091 100644
+--- a/misc/cgo/test/issue5227.go
++++ b/misc/cgo/test/issue5227.go
+@@ -17,7 +17,7 @@ Fontinfo SansTypeface;
+ extern void init();
+ 
+ Fontinfo loadfont() {
+-        Fontinfo f;
++        Fontinfo f = {0};
+         return f;
+ }
+ 

@@ -10,6 +10,20 @@ Date:   Wed Dec 2 08:18:26 2009 -0800
     
     R=rsc
     https://golang.org/cl/163082
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 51f9b8ee08..41f74d2b2e 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -46,7 +46,7 @@ from HTMLParser import HTMLParser
+ try:
+ 	from xml.etree import ElementTree as ET
+ except:
+-	from lxml.etree import ElementTree as ET
++	from elementtree import ElementTree as ET
+ 
+ try:
+ 	hgversion = util.version()

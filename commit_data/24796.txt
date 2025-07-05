@@ -9,6 +9,22 @@ Date:   Wed Aug 26 17:52:13 2015 -0400
     Change-Id: I17a8b3711a8593ec60882a0dcadb38f0cc138f4b
     Reviewed-on: https://go-review.googlesource.com/13949
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index ef91368ef0..20a09c5f5b 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -34,8 +34,8 @@
+ 		%b	decimalless scientific notation with exponent a power of two,
+ 			in the manner of strconv.FormatFloat with the 'b' format,
+ 			e.g. -123456p-78
+-		%e	scientific notation, e.g. -1234.456e+78
+-		%E	scientific notation, e.g. -1234.456E+78
++		%e	scientific notation, e.g. -1.234456e+78
++		%E	scientific notation, e.g. -1.234456E+78
+ 		%f	decimal point but no exponent, e.g. 123.456
+ 		%F	synonym for %f
+ 		%g	%e for large exponents, %f otherwise

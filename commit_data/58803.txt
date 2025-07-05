@@ -17,7 +17,7 @@ Date:   Fri Dec 8 00:17:19 2023 +0300
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/compile/internal/base/hashdebug.go           | 1 -
  src/cmd/compile/internal/loopvar/loopvar_test.go     | 8 ++++----
  src/cmd/compile/internal/loopvar/testdata/opt-121.go | 1 -
@@ -51,3 +51,440 @@ Date:   Fri Dec 8 00:17:19 2023 +0300
  test/typeparam/issue50485.dir/a.go                   | 1 -
  test/typeparam/issue51925.go                         | 1 -
  32 files changed, 4 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index de7f01f09e..8342a5b9d9 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -204,7 +204,6 @@ func NewHashDebug(ev, s string, file io.Writer) *HashDebug {
+ 		i++
+ 	}
+ 	return hd
+-
+ }
+ 
+ // TODO: Delete when we switch to bisect-only.
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index c8e11dbd07..64cfdb77d9 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -251,7 +251,7 @@ func TestLoopVarVersionEnableFlag(t *testing.T) {
+ 
+ 	t.Logf(m)
+ 
+-	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
++	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
+ 	nCount := strings.Count(m, "shared")
+ 
+ 	if yCount != 1 {
+@@ -290,7 +290,7 @@ func TestLoopVarVersionEnableGoBuild(t *testing.T) {
+ 
+ 	t.Logf(m)
+ 
+-	yCount := strings.Count(m, "opt-122.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-122.go:32)")
++	yCount := strings.Count(m, "opt-122.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-122.go:31)")
+ 	nCount := strings.Count(m, "shared")
+ 
+ 	if yCount != 1 {
+@@ -329,7 +329,7 @@ func TestLoopVarVersionDisableFlag(t *testing.T) {
+ 
+ 	t.Logf(m) // expect error
+ 
+-	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:30)")
++	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
+ 	nCount := strings.Count(m, "shared")
+ 
+ 	if yCount != 0 {
+@@ -368,7 +368,7 @@ func TestLoopVarVersionDisableGoBuild(t *testing.T) {
+ 
+ 	t.Logf(m) // expect error
+ 
+-	yCount := strings.Count(m, "opt-121.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-121.go:32)")
++	yCount := strings.Count(m, "opt-121.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-121.go:31)")
+ 	nCount := strings.Count(m, "shared")
+ 
+ 	if yCount != 0 {
+diff --git a/src/cmd/compile/internal/loopvar/testdata/opt-121.go b/src/cmd/compile/internal/loopvar/testdata/opt-121.go
+index 131033b13c..4afb658fc8 100644
+--- a/src/cmd/compile/internal/loopvar/testdata/opt-121.go
++++ b/src/cmd/compile/internal/loopvar/testdata/opt-121.go
+@@ -19,7 +19,6 @@ func inline(j, k int) []*int {
+ 		a = append(a, &private)
+ 	}
+ 	return a
+-
+ }
+ 
+ //go:noinline
+diff --git a/src/cmd/compile/internal/loopvar/testdata/opt-122.go b/src/cmd/compile/internal/loopvar/testdata/opt-122.go
+index 0ed6feee04..9dceab9175 100644
+--- a/src/cmd/compile/internal/loopvar/testdata/opt-122.go
++++ b/src/cmd/compile/internal/loopvar/testdata/opt-122.go
+@@ -19,7 +19,6 @@ func inline(j, k int) []*int {
+ 		a = append(a, &private)
+ 	}
+ 	return a
+-
+ }
+ 
+ //go:noinline
+diff --git a/src/cmd/compile/internal/loopvar/testdata/opt.go b/src/cmd/compile/internal/loopvar/testdata/opt.go
+index 1bcd73614d..82c8616bcd 100644
+--- a/src/cmd/compile/internal/loopvar/testdata/opt.go
++++ b/src/cmd/compile/internal/loopvar/testdata/opt.go
+@@ -17,7 +17,6 @@ func inline(j, k int) []*int {
+ 		a = append(a, &private)
+ 	}
+ 	return a
+-
+ }
+ 
+ //go:noinline
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 529c119dc3..031d94f90c 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -721,7 +721,6 @@ func (f *Func) ConstOffPtrSP(t *types.Type, c int64, sp *Value) *Value {
+ 		v.AddArg(sp)
+ 	}
+ 	return v
+-
+ }
+ 
+ func (f *Func) Frontend() Frontend                                  { return f.fe }
+diff --git a/src/cmd/compile/internal/test/testdata/ctl_test.go b/src/cmd/compile/internal/test/testdata/ctl_test.go
+index ff3a1609c5..501f79eee1 100644
+--- a/src/cmd/compile/internal/test/testdata/ctl_test.go
++++ b/src/cmd/compile/internal/test/testdata/ctl_test.go
+@@ -70,7 +70,6 @@ func switch_ssa(a int) int {
+ 		ret += 1
+ 	}
+ 	return ret
+-
+ }
+ 
+ func fallthrough_ssa(a int) int {
+@@ -92,7 +91,6 @@ func fallthrough_ssa(a int) int {
+ 		ret++
+ 	}
+ 	return ret
+-
+ }
+ 
+ func testFallthrough(t *testing.T) {
+diff --git a/src/cmd/link/internal/loadxcoff/ldxcoff.go b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+index 920e1c85fd..29d162596a 100644
+--- a/src/cmd/link/internal/loadxcoff/ldxcoff.go
++++ b/src/cmd/link/internal/loadxcoff/ldxcoff.go
+@@ -155,7 +155,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, input *bio.Read
+ 		}
+ 	}
+ 	return textp, nil
+-
+ }
+ 
+ // Convert symbol xcoff type to sym.SymKind
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index e07ee0b208..c76e267cc2 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -103,5 +103,4 @@ func archinit(ctxt *ld.Link) {
+ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
+ 	ld.Exitf("adddynrel currently unimplemented for MIPS")
+ 	return false
+-
+ }
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 91eef5e461..09647d84b1 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -917,7 +917,6 @@ func xcoffreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 		emitReloc(ld.XCOFF_R_REF|0x3F<<8, 0)
+ 	}
+ 	return true
+-
+ }
+ 
+ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym, r loader.ExtReloc, ri int, sectoff int64) bool {
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index d1a8981e5e..cca5d15e07 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -203,7 +203,6 @@ func driverArgsConnLocked(ci driver.Conn, ds *driverStmt, args []any) ([]driver.
+ 	}
+ 
+ 	return nvargs, nil
+-
+ }
+ 
+ // convertAssign is the same as convertAssignRows, but without the optional
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index a3a944a05e..29439e2c1d 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -241,7 +241,6 @@ func (s *sum64) MarshalBinary() ([]byte, error) {
+ 	b = append(b, magic64...)
+ 	b = appendUint64(b, uint64(*s))
+ 	return b, nil
+-
+ }
+ 
+ func (s *sum64a) MarshalBinary() ([]byte, error) {
+diff --git a/src/internal/bisect/bisect.go b/src/internal/bisect/bisect.go
+index bf67ceb9d7..3e5a6849f7 100644
+--- a/src/internal/bisect/bisect.go
++++ b/src/internal/bisect/bisect.go
+@@ -482,7 +482,6 @@ func (m *Matcher) stack(w Writer) bool {
+ 		}
+ 	}
+ 	return m.ShouldEnable(h)
+-
+ }
+ 
+ // Writer is the same interface as io.Writer.
+diff --git a/src/internal/syscall/unix/at_fstatat.go b/src/internal/syscall/unix/at_fstatat.go
+index 8f25fe9f64..25de336a80 100644
+--- a/src/internal/syscall/unix/at_fstatat.go
++++ b/src/internal/syscall/unix/at_fstatat.go
+@@ -24,5 +24,4 @@ func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
+ 	}
+ 
+ 	return nil
+-
+ }
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index f03aeec295..4d21ee7990 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -145,7 +145,6 @@ func (l *Logger) WithGroup(name string) *Logger {
+ 	c := l.clone()
+ 	c.handler = l.handler.WithGroup(name)
+ 	return c
+-
+ }
+ 
+ // New creates a new Logger with the given non-nil Handler.
+diff --git a/src/math/big/float_test.go b/src/math/big/float_test.go
+index 7d6bf034df..bb045a0b48 100644
+--- a/src/math/big/float_test.go
++++ b/src/math/big/float_test.go
+@@ -194,13 +194,11 @@ func alike(x, y *Float) bool {
+ func alike32(x, y float32) bool {
+ 	// we can ignore NaNs
+ 	return x == y && math.Signbit(float64(x)) == math.Signbit(float64(y))
+-
+ }
+ 
+ func alike64(x, y float64) bool {
+ 	// we can ignore NaNs
+ 	return x == y && math.Signbit(x) == math.Signbit(y)
+-
+ }
+ 
+ func TestFloatMantExp(t *testing.T) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 36a03f4a32..9245778590 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3812,7 +3812,6 @@ func numLeadingCRorLF(v []byte) (n int) {
+ 		break
+ 	}
+ 	return
+-
+ }
+ 
+ func strSliceContains(ss []string, s string) bool {
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 4cab2d4cdf..c0ee6b33f9 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -542,7 +542,6 @@ func tempDir() string {
+ 		dir = "/tmp"
+ 	}
+ 	return dir
+-
+ }
+ 
+ // Chdir changes the current working directory to the file,
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 8af88d1832..0d20079242 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -428,7 +428,6 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ 	}
+ 	// Note that in this case we can't return a valid errno value.
+ 	return write2(fd, uintptr(p), n)
+-
+ }
+ 
+ //go:nosplit
+@@ -641,7 +640,6 @@ func sysconf(name int32) uintptr {
+ 		throw("syscall sysconf")
+ 	}
+ 	return r
+-
+ }
+ 
+ // pthread functions returns its error code in the main return value
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 6f4a89df2b..afe1bdd298 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -623,7 +623,6 @@ func reflect_resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ //go:linkname reflect_resolveTextOff reflect.resolveTextOff
+ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ 	return toRType((*_type)(rtype)).textOff(textOff(off))
+-
+ }
+ 
+ // reflectlite_resolveNameOff resolves a name offset from a base pointer.
+diff --git a/src/runtime/syscall_aix.go b/src/runtime/syscall_aix.go
+index e87d4d6d7a..7738fca602 100644
+--- a/src/runtime/syscall_aix.go
++++ b/src/runtime/syscall_aix.go
+@@ -164,7 +164,6 @@ func syscall_exit(code uintptr) {
+ func syscall_fcntl1(fd, cmd, arg uintptr) (val, err uintptr) {
+ 	val, err = syscall3(&libc_fcntl, fd, cmd, arg)
+ 	return
+-
+ }
+ 
+ //go:linkname syscall_forkx syscall.forkx
+diff --git a/src/runtime/traceback_test.go b/src/runtime/traceback_test.go
+index 88318782da..8cbccac673 100644
+--- a/src/runtime/traceback_test.go
++++ b/src/runtime/traceback_test.go
+@@ -461,7 +461,6 @@ func testTracebackArgs2(a bool, b struct {
+ 		return b.a + b.b + b.c + b.x[0] + b.x[1] + int(d[0]) + int(d[1]) + int(d[2])
+ 	}
+ 	return n
+-
+ }
+ 
+ //go:noinline
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 47268225c8..c36688825c 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -284,7 +284,6 @@ func (a *ActionNode) tree() *Tree {
+ 
+ func (a *ActionNode) Copy() Node {
+ 	return a.tr.newAction(a.Pos, a.Line, a.Pipe.CopyPipe())
+-
+ }
+ 
+ // CommandNode holds a command (a pipeline inside an evaluating action).
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 67daf12d62..4b6c8b94b8 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -382,7 +382,6 @@ func signextendAndMask8to64(a int8) (s, z uint64) {
+ 	// ppc64x: -"MOVB", "ANDCC\t[$]247,"
+ 	z = uint64(uint8(a)) & 0x3F7
+ 	return
+-
+ }
+ 
+ // Verify zero-extended values are not sign-extended under a bit mask (#61297)
+@@ -392,7 +391,6 @@ func zeroextendAndMask8to64(a int8, b int16) (x, y uint64) {
+ 	// ppc64x: -"MOVH\t", -"ANDCC", "MOVHZ"
+ 	y = uint64(b) & 0xFFFF
+ 	return
+-
+ }
+ 
+ // Verify rotate and mask instructions, and further simplified instructions for small types
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index db5c81f905..6d6c33d947 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -348,7 +348,6 @@ func reassoc_load_uint32(b []byte) uint32 {
+ func extrashift_load_uint32(b []byte) uint32 {
+ 	// amd64:`MOVL\s\([A-Z]+\)`,`SHLL\s[$]2`,-`MOV[BW]`,-`OR`
+ 	return uint32(b[0])<<2 | uint32(b[1])<<10 | uint32(b[2])<<18 | uint32(b[3])<<26
+-
+ }
+ 
+ func outoforder_load_uint32(b []byte) uint32 {
+diff --git a/test/codegen/noextend.go b/test/codegen/noextend.go
+index 98ad0ece89..193f75b092 100644
+--- a/test/codegen/noextend.go
++++ b/test/codegen/noextend.go
+@@ -277,7 +277,6 @@ func shouldSignEXT(x int) int64 {
+ 	ret += int64(int8(x & 0x1100000000000011))
+ 
+ 	return ret
+-
+ }
+ 
+ func noIntermediateExtension(a, b, c uint32) uint32 {
+diff --git a/test/escape2.go b/test/escape2.go
+index 99f85914a3..3e5d11f88e 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -397,7 +397,6 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 		return nil
+ 	}
+ 	return nil
+-
+ }
+ 
+ // assigning to an array element is like assigning to the array
+diff --git a/test/escape2n.go b/test/escape2n.go
+index 350be65202..2613152150 100644
+--- a/test/escape2n.go
++++ b/test/escape2n.go
+@@ -397,7 +397,6 @@ func exprsw(i *int) *int { // ERROR "leaking param: i to result ~r0 level=0$"
+ 		return nil
+ 	}
+ 	return nil
+-
+ }
+ 
+ // assigning to an array element is like assigning to the array
+diff --git a/test/fixedbugs/issue32680b.go b/test/fixedbugs/issue32680b.go
+index 61e531701a..09bc3a9ce0 100644
+--- a/test/fixedbugs/issue32680b.go
++++ b/test/fixedbugs/issue32680b.go
+@@ -12,5 +12,4 @@ func hashBytesRaw(b0, b1, b2, b3, b7 byte) uint64 {
+ 
+ func doStuff(data []byte) uint64 {
+ 	return hashBytesRaw(data[0], data[1], data[2], data[3], data[7])
+-
+ }
+diff --git a/test/fixedbugs/issue56923.go b/test/fixedbugs/issue56923.go
+index 700a1046a9..7cc9494b76 100644
+--- a/test/fixedbugs/issue56923.go
++++ b/test/fixedbugs/issue56923.go
+@@ -18,7 +18,6 @@ func (r EqFunc[T]) Eqv(a, b T) bool {
+ 
+ func New[T any](f func(a, b T) bool) Eq[T] {
+ 	return EqFunc[T](f)
+-
+ }
+ 
+ func Equal(a, b []byte) bool {
+diff --git a/test/typeparam/issue50485.dir/a.go b/test/typeparam/issue50485.dir/a.go
+index 3a7c71a711..97cf4d2549 100644
+--- a/test/typeparam/issue50485.dir/a.go
++++ b/test/typeparam/issue50485.dir/a.go
+@@ -219,7 +219,6 @@ func (r ApplicativeFunctor2[H, HT, A1, A2, R]) ApOption(a Option[A1]) Applicativ
+ func (r ApplicativeFunctor2[H, HT, A1, A2, R]) Ap(a A1) ApplicativeFunctor1[Cons[A1, H], A1, A2, R] {
+ 
+ 	return r.ApOption(Some(a))
+-
+ }
+ 
+ func Applicative2[A1, A2, R any](fn Func2[A1, A2, R]) ApplicativeFunctor2[Nil, Nil, A1, A2, R] {
+diff --git a/test/typeparam/issue51925.go b/test/typeparam/issue51925.go
+index 0a385acd17..abebf67766 100644
+--- a/test/typeparam/issue51925.go
++++ b/test/typeparam/issue51925.go
+@@ -25,7 +25,6 @@ func min[T IntLike](x, y T) T {
+ 		return x
+ 	}
+ 	return y
+-
+ }
+ 
+ // Min returns the minimum element of `nums`.

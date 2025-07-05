@@ -19,7 +19,7 @@ Date:   Fri Aug 31 10:00:12 2012 +1000
     R=andybalholm, r, adg
     CC=golang-dev
     https://golang.org/cl/6495061
-
+---
  src/pkg/exp/html/node.go        | 107 ++++++++++++++------
  src/pkg/exp/html/node_test.go   | 146 +++++++++++++++++++++++++++
  src/pkg/exp/html/parse.go       |  73 +++++++-------
@@ -27,3 +27,839 @@ Date:   Fri Aug 31 10:00:12 2012 +1000
  src/pkg/exp/html/render.go      |  10 +-
  src/pkg/exp/html/render_test.go | 213 ++++++++++++++++++++++++----------------
  6 files changed, 398 insertions(+), 165 deletions(-)
+
+diff --git a/src/pkg/exp/html/node.go b/src/pkg/exp/html/node.go
+index 46c21417d7..01f8c42ce3 100644
+--- a/src/pkg/exp/html/node.go
++++ b/src/pkg/exp/html/node.go
+@@ -36,8 +36,8 @@ var scopeMarker = Node{Type: scopeMarkerNode}
+ // Similarly, "math" is short for "http://www.w3.org/1998/Math/MathML", and
+ // "svg" is short for "http://www.w3.org/2000/svg".
+ type Node struct {
+-	Parent    *Node
+-	Child     []*Node
++	Parent, FirstChild, LastChild, PrevSibling, NextSibling *Node
++
+ 	Type      NodeType
+ 	DataAtom  atom.Atom
+ 	Data      string
+@@ -45,48 +45,93 @@ type Node struct {
+ 	Attr      []Attribute
+ }
+ 
+-// Add adds a node as a child of n.
+-// It will panic if the child's parent is not nil.
+-func (n *Node) Add(child *Node) {
+-	if child.Parent != nil {
+-		panic("html: Node.Add called for a child Node that already has a parent")
++// InsertBefore inserts newChild as a child of n, immediately before oldChild
++// in the sequence of n's children. oldChild may be nil, in which case newChild
++// is appended to the end of n's children.
++//
++// It will panic if newChild already has a parent or siblings.
++func (n *Node) InsertBefore(newChild, oldChild *Node) {
++	if newChild.Parent != nil || newChild.PrevSibling != nil || newChild.NextSibling != nil {
++		panic("html: InsertBefore called for an attached child Node")
++	}
++	var prev, next *Node
++	if oldChild != nil {
++		prev, next = oldChild.PrevSibling, oldChild
++	} else {
++		prev = n.LastChild
++	}
++	if prev != nil {
++		prev.NextSibling = newChild
++	} else {
++		n.FirstChild = newChild
+ 	}
+-	child.Parent = n
+-	n.Child = append(n.Child, child)
++	if next != nil {
++		next.PrevSibling = newChild
++	} else {
++		n.LastChild = newChild
++	}
++	newChild.Parent = n
++	newChild.PrevSibling = prev
++	newChild.NextSibling = next
+ }
+ 
+-// Remove removes a node as a child of n.
+-// It will panic if the child's parent is not n.
+-func (n *Node) Remove(child *Node) {
+-	if child.Parent == n {
+-		child.Parent = nil
+-		for i, m := range n.Child {
+-			if m == child {
+-				copy(n.Child[i:], n.Child[i+1:])
+-				j := len(n.Child) - 1
+-				n.Child[j] = nil
+-				n.Child = n.Child[:j]
+-				return
+-			}
+-		}
++// AppendChild adds a node c as a child of n.
++//
++// It will panic if c already has a parent or siblings.
++func (n *Node) AppendChild(c *Node) {
++	if c.Parent != nil || c.PrevSibling != nil || c.NextSibling != nil {
++		panic("html: AppendChild called for an attached child Node")
++	}
++	last := n.LastChild
++	if last != nil {
++		last.NextSibling = c
++	} else {
++		n.FirstChild = c
++	}
++	n.LastChild = c
++	c.Parent = n
++	c.PrevSibling = last
++}
++
++// RemoveChild removes a node c that is a child of n. Afterwards, c will have
++// no parent and no siblings.
++//
++// It will panic if c's parent is not n.
++func (n *Node) RemoveChild(c *Node) {
++	if c.Parent != n {
++		panic("html: RemoveChild called for a non-child Node")
++	}
++	if n.FirstChild == c {
++		n.FirstChild = c.NextSibling
++	}
++	if c.NextSibling != nil {
++		c.NextSibling.PrevSibling = c.PrevSibling
++	}
++	if n.LastChild == c {
++		n.LastChild = c.PrevSibling
++	}
++	if c.PrevSibling != nil {
++		c.PrevSibling.NextSibling = c.NextSibling
+ 	}
+-	panic("html: Node.Remove called for a non-child Node")
++	c.Parent = nil
++	c.PrevSibling = nil
++	c.NextSibling = nil
+ }
+ 
+ // reparentChildren reparents all of src's child nodes to dst.
+ func reparentChildren(dst, src *Node) {
+-	for _, n := range src.Child {
+-		if n.Parent != src {
+-			panic("html: nodes have an inconsistent parent/child relationship")
++	for {
++		child := src.FirstChild
++		if child == nil {
++			break
+ 		}
+-		n.Parent = dst
++		src.RemoveChild(child)
++		dst.AppendChild(child)
+ 	}
+-	dst.Child = append(dst.Child, src.Child...)
+-	src.Child = nil
+ }
+ 
+ // clone returns a new node with the same type, data and attributes.
+-// The clone has no parent and no children.
++// The clone has no parent, no siblings and no children.
+ func (n *Node) clone() *Node {
+ 	m := &Node{
+ 		Type:     n.Type,
+diff --git a/src/pkg/exp/html/node_test.go b/src/pkg/exp/html/node_test.go
+new file mode 100644
+index 0000000000..471102f3a2
+--- /dev/null
++++ b/src/pkg/exp/html/node_test.go
+@@ -0,0 +1,146 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package html
++
++import (
++	"fmt"
++)
++
++// checkTreeConsistency checks that a node and its descendants are all
++// consistent in their parent/child/sibling relationships.
++func checkTreeConsistency(n *Node) error {
++	return checkTreeConsistency1(n, 0)
++}
++
++func checkTreeConsistency1(n *Node, depth int) error {
++	if depth == 1e4 {
++		return fmt.Errorf("html: tree looks like it contains a cycle")
++	}
++	if err := checkNodeConsistency(n); err != nil {
++		return err
++	}
++	for c := n.FirstChild; c != nil; c = c.NextSibling {
++		if err := checkTreeConsistency1(c, depth+1); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// checkNodeConsistency checks that a node's parent/child/sibling relationships
++// are consistent.
++func checkNodeConsistency(n *Node) error {
++	if n == nil {
++		return nil
++	}
++
++	nParent := 0
++	for p := n.Parent; p != nil; p = p.Parent {
++		nParent++
++		if nParent == 1e4 {
++			return fmt.Errorf("html: parent list looks like an infinite loop")
++		}
++	}
++
++	nForward := 0
++	for c := n.FirstChild; c != nil; c = c.NextSibling {
++		nForward++
++		if nForward == 1e6 {
++			return fmt.Errorf("html: forward list of children looks like an infinite loop")
++		}
++		if c.Parent != n {
++			return fmt.Errorf("html: inconsistent child/parent relationship")
++		}
++	}
++
++	nBackward := 0
++	for c := n.LastChild; c != nil; c = c.PrevSibling {
++		nBackward++
++		if nBackward == 1e6 {
++			return fmt.Errorf("html: backward list of children looks like an infinite loop")
++		}
++		if c.Parent != n {
++			return fmt.Errorf("html: inconsistent child/parent relationship")
++		}
++	}
++
++	if n.Parent != nil {
++		if n.Parent == n {
++			return fmt.Errorf("html: inconsistent parent relationship")
++		}
++		if n.Parent == n.FirstChild {
++			return fmt.Errorf("html: inconsistent parent/first relationship")
++		}
++		if n.Parent == n.LastChild {
++			return fmt.Errorf("html: inconsistent parent/last relationship")
++		}
++		if n.Parent == n.PrevSibling {
++			return fmt.Errorf("html: inconsistent parent/prev relationship")
++		}
++		if n.Parent == n.NextSibling {
++			return fmt.Errorf("html: inconsistent parent/next relationship")
++		}
++
++		parentHasNAsAChild := false
++		for c := n.Parent.FirstChild; c != nil; c = c.NextSibling {
++			if c == n {
++				parentHasNAsAChild = true
++				break
++			}
++		}
++		if !parentHasNAsAChild {
++			return fmt.Errorf("html: inconsistent parent/child relationship")
++		}
++	}
++
++	if n.PrevSibling != nil && n.PrevSibling.NextSibling != n {
++		return fmt.Errorf("html: inconsistent prev/next relationship")
++	}
++	if n.NextSibling != nil && n.NextSibling.PrevSibling != n {
++		return fmt.Errorf("html: inconsistent next/prev relationship")
++	}
++
++	if (n.FirstChild == nil) != (n.LastChild == nil) {
++		return fmt.Errorf("html: inconsistent first/last relationship")
++	}
++	if n.FirstChild != nil && n.FirstChild == n.LastChild {
++		// We have a sole child.
++		if n.FirstChild.PrevSibling != nil || n.FirstChild.NextSibling != nil {
++			return fmt.Errorf("html: inconsistent sole child's sibling relationship")
++		}
++	}
++
++	seen := map[*Node]bool{}
++
++	var last *Node
++	for c := n.FirstChild; c != nil; c = c.NextSibling {
++		if seen[c] {
++			return fmt.Errorf("html: inconsistent repeated child")
++		}
++		seen[c] = true
++		last = c
++	}
++	if last != n.LastChild {
++		return fmt.Errorf("html: inconsistent last relationship")
++	}
++
++	var first *Node
++	for c := n.LastChild; c != nil; c = c.PrevSibling {
++		if !seen[c] {
++			return fmt.Errorf("html: inconsistent missing child")
++		}
++		delete(seen, c)
++		first = c
++	}
++	if first != n.FirstChild {
++		return fmt.Errorf("html: inconsistent first relationship")
++	}
++
++	if len(seen) != 0 {
++		return fmt.Errorf("html: inconsistent forwards/backwards child list")
++	}
++
++	return nil
++}
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 2a93e2f26c..cae836e14b 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -212,7 +212,7 @@ func (p *parser) addChild(n *Node) {
+ 	if p.shouldFosterParent() {
+ 		p.fosterParent(n)
+ 	} else {
+-		p.top().Add(n)
++		p.top().AppendChild(n)
+ 	}
+ 
+ 	if n.Type == ElementNode {
+@@ -235,7 +235,7 @@ func (p *parser) shouldFosterParent() bool {
+ // fosterParent adds a child node according to the foster parenting rules.
+ // Section 12.2.5.3, "foster parenting".
+ func (p *parser) fosterParent(n *Node) {
+-	var table, parent *Node
++	var table, parent, prev *Node
+ 	var i int
+ 	for i = len(p.oe) - 1; i >= 0; i-- {
+ 		if p.oe[i].DataAtom == a.Table {
+@@ -254,26 +254,17 @@ func (p *parser) fosterParent(n *Node) {
+ 		parent = p.oe[i-1]
+ 	}
+ 
+-	var child *Node
+-	for i, child = range parent.Child {
+-		if child == table {
+-			break
+-		}
++	if table != nil {
++		prev = table.PrevSibling
++	} else {
++		prev = parent.LastChild
+ 	}
+-
+-	if i > 0 && parent.Child[i-1].Type == TextNode && n.Type == TextNode {
+-		parent.Child[i-1].Data += n.Data
++	if prev != nil && prev.Type == TextNode && n.Type == TextNode {
++		prev.Data += n.Data
+ 		return
+ 	}
+ 
+-	if i == len(parent.Child) {
+-		parent.Add(n)
+-	} else {
+-		// Insert n into parent.Child at index i.
+-		parent.Child = append(parent.Child[:i+1], parent.Child[i:]...)
+-		parent.Child[i] = n
+-		n.Parent = parent
+-	}
++	parent.InsertBefore(n, table)
+ }
+ 
+ // addText adds text to the preceding node if it is a text node, or else it
+@@ -292,8 +283,8 @@ func (p *parser) addText(text string) {
+ 	}
+ 
+ 	t := p.top()
+-	if i := len(t.Child); i > 0 && t.Child[i-1].Type == TextNode {
+-		t.Child[i-1].Data += text
++	if n := t.LastChild; n != nil && n.Type == TextNode {
++		n.Data += text
+ 		return
+ 	}
+ 	p.addChild(&Node{
+@@ -470,14 +461,14 @@ func initialIM(p *parser) bool {
+ 			return true
+ 		}
+ 	case CommentToken:
+-		p.doc.Add(&Node{
++		p.doc.AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+ 		return true
+ 	case DoctypeToken:
+ 		n, quirks := parseDoctype(p.tok.Data)
+-		p.doc.Add(n)
++		p.doc.AppendChild(n)
+ 		p.quirks = quirks
+ 		p.im = beforeHTMLIM
+ 		return true
+@@ -515,7 +506,7 @@ func beforeHTMLIM(p *parser) bool {
+ 			return true
+ 		}
+ 	case CommentToken:
+-		p.doc.Add(&Node{
++		p.doc.AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -712,7 +703,7 @@ func inBodyIM(p *parser) bool {
+ 		d := p.tok.Data
+ 		switch n := p.oe.top(); n.DataAtom {
+ 		case a.Pre, a.Listing:
+-			if len(n.Child) == 0 {
++			if n.FirstChild == nil {
+ 				// Ignore a newline at the start of a <pre> block.
+ 				if d != "" && d[0] == '\r' {
+ 					d = d[1:]
+@@ -753,7 +744,7 @@ func inBodyIM(p *parser) bool {
+ 			}
+ 			body := p.oe[1]
+ 			if body.Parent != nil {
+-				body.Parent.Remove(body)
++				body.Parent.RemoveChild(body)
+ 			}
+ 			p.oe = p.oe[:1]
+ 			p.addElement()
+@@ -1128,9 +1119,9 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) {
+ 			}
+ 			// Step 9.9.
+ 			if lastNode.Parent != nil {
+-				lastNode.Parent.Remove(lastNode)
++				lastNode.Parent.RemoveChild(lastNode)
+ 			}
+-			node.Add(lastNode)
++			node.AppendChild(lastNode)
+ 			// Step 9.10.
+ 			lastNode = node
+ 		}
+@@ -1138,20 +1129,20 @@ func (p *parser) inBodyEndTagFormatting(tagAtom a.Atom) {
+ 		// Step 10. Reparent lastNode to the common ancestor,
+ 		// or for misnested table nodes, to the foster parent.
+ 		if lastNode.Parent != nil {
+-			lastNode.Parent.Remove(lastNode)
++			lastNode.Parent.RemoveChild(lastNode)
+ 		}
+ 		switch commonAncestor.DataAtom {
+ 		case a.Table, a.Tbody, a.Tfoot, a.Thead, a.Tr:
+ 			p.fosterParent(lastNode)
+ 		default:
+-			commonAncestor.Add(lastNode)
++			commonAncestor.AppendChild(lastNode)
+ 		}
+ 
+ 		// Steps 11-13. Reparent nodes from the furthest block's children
+ 		// to a clone of the formatting element.
+ 		clone := formattingElement.clone()
+ 		reparentChildren(clone, furthestBlock)
+-		furthestBlock.Add(clone)
++		furthestBlock.AppendChild(clone)
+ 
+ 		// Step 14. Fix up the list of active formatting elements.
+ 		if oldLoc := p.afe.index(formattingElement); oldLoc != -1 && oldLoc < bookmark {
+@@ -1187,7 +1178,7 @@ func textIM(p *parser) bool {
+ 		p.oe.pop()
+ 	case TextToken:
+ 		d := p.tok.Data
+-		if n := p.oe.top(); n.DataAtom == a.Textarea && len(n.Child) == 0 {
++		if n := p.oe.top(); n.DataAtom == a.Textarea && n.FirstChild == nil {
+ 			// Ignore a newline at the start of a <textarea> block.
+ 			if d != "" && d[0] == '\r' {
+ 				d = d[1:]
+@@ -1626,7 +1617,7 @@ func inSelectIM(p *parser) bool {
+ 			}
+ 		}
+ 	case CommentToken:
+-		p.doc.Add(&Node{
++		p.doc.AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -1684,7 +1675,7 @@ func afterBodyIM(p *parser) bool {
+ 		if len(p.oe) < 1 || p.oe[0].DataAtom != a.Html {
+ 			panic("html: bad parser state: <html> element not found, in the after-body insertion mode")
+ 		}
+-		p.oe[0].Add(&Node{
++		p.oe[0].AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -1800,7 +1791,7 @@ func afterAfterBodyIM(p *parser) bool {
+ 			return inBodyIM(p)
+ 		}
+ 	case CommentToken:
+-		p.doc.Add(&Node{
++		p.doc.AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -1816,7 +1807,7 @@ func afterAfterBodyIM(p *parser) bool {
+ func afterAfterFramesetIM(p *parser) bool {
+ 	switch p.tok.Type {
+ 	case CommentToken:
+-		p.doc.Add(&Node{
++		p.doc.AppendChild(&Node{
+ 			Type: CommentNode,
+ 			Data: p.tok.Data,
+ 		})
+@@ -2068,7 +2059,7 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+ 		DataAtom: a.Html,
+ 		Data:     a.Html.String(),
+ 	}
+-	p.doc.Add(root)
++	p.doc.AppendChild(root)
+ 	p.oe = nodeStack{root}
+ 	p.resetInsertionMode()
+ 
+@@ -2089,10 +2080,12 @@ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+ 		parent = root
+ 	}
+ 
+-	result := parent.Child
+-	parent.Child = nil
+-	for _, n := range result {
+-		n.Parent = nil
++	var result []*Node
++	for c := parent.FirstChild; c != nil; {
++		next := c.NextSibling
++		parent.RemoveChild(c)
++		result = append(result, c)
++		c = next
+ 	}
+ 	return result, nil
+ }
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index b24f8f4e68..7cf2ff4163 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -177,7 +177,7 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ 		return errors.New("unknown node type")
+ 	}
+ 	io.WriteString(w, "\n")
+-	for _, c := range n.Child {
++	for c := n.FirstChild; c != nil; c = c.NextSibling {
+ 		if err := dumpLevel(w, c, level+1); err != nil {
+ 			return err
+ 		}
+@@ -186,12 +186,12 @@ func dumpLevel(w io.Writer, n *Node, level int) error {
+ }
+ 
+ func dump(n *Node) (string, error) {
+-	if n == nil || len(n.Child) == 0 {
++	if n == nil || n.FirstChild == nil {
+ 		return "", nil
+ 	}
+ 	var b bytes.Buffer
+-	for _, child := range n.Child {
+-		if err := dumpLevel(&b, child, 0); err != nil {
++	for c := n.FirstChild; c != nil; c = c.NextSibling {
++		if err := dumpLevel(&b, c, 0); err != nil {
+ 			return "", err
+ 		}
+ 	}
+@@ -267,10 +267,14 @@ func testParseCase(text, want, context string) (err error) {
+ 			Type: DocumentNode,
+ 		}
+ 		for _, n := range nodes {
+-			doc.Add(n)
++			doc.AppendChild(n)
+ 		}
+ 	}
+ 
++	if err := checkTreeConsistency(doc); err != nil {
++		return err
++	}
++
+ 	got, err := dump(doc)
+ 	if err != nil {
+ 		return err
+diff --git a/src/pkg/exp/html/render.go b/src/pkg/exp/html/render.go
+index 10a756e266..65b10046a4 100644
+--- a/src/pkg/exp/html/render.go
++++ b/src/pkg/exp/html/render.go
+@@ -73,7 +73,7 @@ func render1(w writer, n *Node) error {
+ 	case TextNode:
+ 		return escape(w, n.Data)
+ 	case DocumentNode:
+-		for _, c := range n.Child {
++		for c := n.FirstChild; c != nil; c = c.NextSibling {
+ 			if err := render1(w, c); err != nil {
+ 				return err
+ 			}
+@@ -171,7 +171,7 @@ func render1(w writer, n *Node) error {
+ 		}
+ 	}
+ 	if voidElements[n.Data] {
+-		if len(n.Child) != 0 {
++		if n.FirstChild != nil {
+ 			return fmt.Errorf("html: void element <%s> has child nodes", n.Data)
+ 		}
+ 		_, err := w.WriteString("/>")
+@@ -182,7 +182,7 @@ func render1(w writer, n *Node) error {
+ 	}
+ 
+ 	// Add initial newline where there is danger of a newline beging ignored.
+-	if len(n.Child) > 0 && n.Child[0].Type == TextNode && strings.HasPrefix(n.Child[0].Data, "\n") {
++	if c := n.FirstChild; c != nil && c.Type == TextNode && strings.HasPrefix(c.Data, "\n") {
+ 		switch n.Data {
+ 		case "pre", "listing", "textarea":
+ 			if err := w.WriteByte('\n'); err != nil {
+@@ -194,7 +194,7 @@ func render1(w writer, n *Node) error {
+ 	// Render any child nodes.
+ 	switch n.Data {
+ 	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "xmp":
+-		for _, c := range n.Child {
++		for c := n.FirstChild; c != nil; c = c.NextSibling {
+ 			if c.Type == TextNode {
+ 				if _, err := w.WriteString(c.Data); err != nil {
+ 					return err
+@@ -211,7 +211,7 @@ func render1(w writer, n *Node) error {
+ 			return plaintextAbort
+ 		}
+ 	default:
+-		for _, c := range n.Child {
++		for c := n.FirstChild; c != nil; c = c.NextSibling {
+ 			if err := render1(w, c); err != nil {
+ 				return err
+ 			}
+diff --git a/src/pkg/exp/html/render_test.go b/src/pkg/exp/html/render_test.go
+index a2e205275d..11da54b313 100644
+--- a/src/pkg/exp/html/render_test.go
++++ b/src/pkg/exp/html/render_test.go
+@@ -10,99 +10,144 @@ import (
+ )
+ 
+ func TestRenderer(t *testing.T) {
+-	n := &Node{
+-		Type: ElementNode,
+-		Data: "html",
+-		Child: []*Node{
+-			{
+-				Type: ElementNode,
+-				Data: "head",
++	nodes := [...]*Node{
++		0: {
++			Type: ElementNode,
++			Data: "html",
++		},
++		1: {
++			Type: ElementNode,
++			Data: "head",
++		},
++		2: {
++			Type: ElementNode,
++			Data: "body",
++		},
++		3: {
++			Type: TextNode,
++			Data: "0<1",
++		},
++		4: {
++			Type: ElementNode,
++			Data: "p",
++			Attr: []Attribute{
++				{
++					Key: "id",
++					Val: "A",
++				},
++				{
++					Key: "foo",
++					Val: `abc"def`,
++				},
+ 			},
+-			{
+-				Type: ElementNode,
+-				Data: "body",
+-				Child: []*Node{
+-					{
+-						Type: TextNode,
+-						Data: "0<1",
+-					},
+-					{
+-						Type: ElementNode,
+-						Data: "p",
+-						Attr: []Attribute{
+-							{
+-								Key: "id",
+-								Val: "A",
+-							},
+-							{
+-								Key: "foo",
+-								Val: `abc"def`,
+-							},
+-						},
+-						Child: []*Node{
+-							{
+-								Type: TextNode,
+-								Data: "2",
+-							},
+-							{
+-								Type: ElementNode,
+-								Data: "b",
+-								Attr: []Attribute{
+-									{
+-										Key: "empty",
+-										Val: "",
+-									},
+-								},
+-								Child: []*Node{
+-									{
+-										Type: TextNode,
+-										Data: "3",
+-									},
+-								},
+-							},
+-							{
+-								Type: ElementNode,
+-								Data: "i",
+-								Attr: []Attribute{
+-									{
+-										Key: "backslash",
+-										Val: `\`,
+-									},
+-								},
+-								Child: []*Node{
+-									{
+-										Type: TextNode,
+-										Data: "&4",
+-									},
+-								},
+-							},
+-						},
+-					},
+-					{
+-						Type: TextNode,
+-						Data: "5",
+-					},
+-					{
+-						Type: ElementNode,
+-						Data: "blockquote",
+-					},
+-					{
+-						Type: ElementNode,
+-						Data: "br",
+-					},
+-					{
+-						Type: TextNode,
+-						Data: "6",
+-					},
++		},
++		5: {
++			Type: TextNode,
++			Data: "2",
++		},
++		6: {
++			Type: ElementNode,
++			Data: "b",
++			Attr: []Attribute{
++				{
++					Key: "empty",
++					Val: "",
++				},
++			},
++		},
++		7: {
++			Type: TextNode,
++			Data: "3",
++		},
++		8: {
++			Type: ElementNode,
++			Data: "i",
++			Attr: []Attribute{
++				{
++					Key: "backslash",
++					Val: `\`,
+ 				},
+ 			},
+ 		},
++		9: {
++			Type: TextNode,
++			Data: "&4",
++		},
++		10: {
++			Type: TextNode,
++			Data: "5",
++		},
++		11: {
++			Type: ElementNode,
++			Data: "blockquote",
++		},
++		12: {
++			Type: ElementNode,
++			Data: "br",
++		},
++		13: {
++			Type: TextNode,
++			Data: "6",
++		},
+ 	}
++
++	// Build a tree out of those nodes, based on a textual representation.
++	// Only the ".\t"s are significant. The trailing HTML-like text is
++	// just commentary. The "0:" prefixes are for easy cross-reference with
++	// the nodes array.
++	treeAsText := [...]string{
++		0: `<html>`,
++		1: `.	<head>`,
++		2: `.	<body>`,
++		3: `.	.	"0&lt;1"`,
++		4: `.	.	<p id="A" foo="abc&#34;def">`,
++		5: `.	.	.	"2"`,
++		6: `.	.	.	<b empty="">`,
++		7: `.	.	.	.	"3"`,
++		8: `.	.	.	<i backslash="\">`,
++		9: `.	.	.	.	"&amp;4"`,
++		10: `.	.	"5"`,
++		11: `.	.	<blockquote>`,
++		12: `.	.	<br>`,
++		13: `.	.	"6"`,
++	}
++	if len(nodes) != len(treeAsText) {
++		t.Fatal("len(nodes) != len(treeAsText)")
++	}
++	var stack [8]*Node
++	for i, line := range treeAsText {
++		level := 0
++		for line[0] == '.' {
++			// Strip a leading ".\t".
++			line = line[2:]
++			level++
++		}
++		n := nodes[i]
++		if level == 0 {
++			if stack[0] != nil {
++				t.Fatal("multiple root nodes")
++			}
++			stack[0] = n
++		} else {
++			stack[level-1].AppendChild(n)
++			stack[level] = n
++			for i := level + 1; i < len(stack); i++ {
++				stack[i] = nil
++			}
++		}
++		// At each stage of tree construction, we check all nodes for consistency.
++		for j, m := range nodes {
++			if err := checkNodeConsistency(m); err != nil {
++				t.Fatalf("i=%d, j=%d: %v", i, j, err)
++			}
++		}
++	}
++
+ 	want := `<html><head></head><body>0&lt;1<p id="A" foo="abc&#34;def">` +
+ 		`2<b empty="">3</b><i backslash="\">&amp;4</i></p>` +
+ 		`5<blockquote></blockquote><br/>6</body></html>`
+ 	b := new(bytes.Buffer)
+-	if err := Render(b, n); err != nil {
++	if err := Render(b, nodes[0]); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	if got := b.String(); got != want {

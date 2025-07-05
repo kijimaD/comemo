@@ -9,7 +9,7 @@ Date:   Wed Dec 7 17:40:46 2016 -0800
     Change-Id: Iedfb97989f7bedaa3e9e8993b167e05f162434a7
     Reviewed-on: https://go-review.googlesource.com/34136
     Reviewed-by: David Lazar <lazard@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go    |  4 +-
  src/cmd/compile/internal/arm/ssa.go      |  4 +-
  src/cmd/compile/internal/arm64/ssa.go    |  4 +-
@@ -39,3 +39,1313 @@ Date:   Wed Dec 7 17:40:46 2016 -0800
  src/cmd/compile/internal/s390x/ssa.go    |  4 +-
  src/cmd/compile/internal/x86/ssa.go      |  4 +-
  28 files changed, 155 insertions(+), 155 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 98ea7cadf1..0ddfbd5e7a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -147,7 +147,7 @@ func duff(size int64) (int64, int64) {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
+ 		r := v.Reg()
+@@ -962,7 +962,7 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 799d395208..042edc5552 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -118,7 +118,7 @@ func genregshift(as obj.As, r0, r1, r2, r int16, typ int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpInitMem:
+ 		// memory arg needs no code
+@@ -861,7 +861,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 47976eb91b..c1b777e1b5 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -92,7 +92,7 @@ func genshift(as obj.As, r0, r1, r int16, typ int64, s int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpInitMem:
+ 		// memory arg needs no code
+@@ -768,7 +768,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index eee801fb8e..27e9848640 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -120,7 +120,7 @@ func dowidth(t *Type) {
+ 	if t.Width == -2 {
+ 		if !t.Broke {
+ 			t.Broke = true
+-			yyerrorl(t.Lineno, "invalid recursive type %v", t)
++			yyerrorl(t.Pos, "invalid recursive type %v", t)
+ 		}
+ 
+ 		t.Width = 0
+@@ -137,7 +137,7 @@ func dowidth(t *Type) {
+ 	defercalc++
+ 
+ 	lno := lineno
+-	lineno = t.Lineno
++	lineno = t.Pos
+ 	t.Width = -2
+ 	t.Align = 0
+ 
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 2e5d7e7488..e6082edbeb 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -257,6 +257,6 @@ var issue16214src = `
+ package main
+ 
+ func Mod32(x uint32) uint32 {
+-	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has Lineno 0
++	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has unknown Pos
+ }
+ `
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index c87ab9fb13..438446147a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -591,7 +591,7 @@ func (p *exporter) pos(n *Node) {
+ 
+ func fileLine(n *Node) (file string, line int) {
+ 	if n != nil {
+-		file, line = Ctxt.LineHist.AbsFileLine(int(n.Lineno.Line()))
++		file, line = Ctxt.LineHist.AbsFileLine(int(n.Pos.Line()))
+ 	}
+ 	return
+ }
+@@ -801,7 +801,7 @@ func (p *exporter) typ(t *Type) {
+ 		// for the issue.
+ 		if p.nesting > 100 {
+ 			p.int(0) // 0 methods to indicate empty interface
+-			yyerrorl(t.Lineno, "cannot export unnamed recursive interface")
++			yyerrorl(t.Pos, "cannot export unnamed recursive interface")
+ 			break
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 5183510fe5..9e181e5b11 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -247,7 +247,7 @@ func makeclosure(func_ *Node) *Node {
+ // after capturing (effectively constant).
+ func capturevars(xfunc *Node) {
+ 	lno := lineno
+-	lineno = xfunc.Lineno
++	lineno = xfunc.Pos
+ 
+ 	func_ := xfunc.Func.Closure
+ 	func_.Func.Enter.Set(nil)
+@@ -288,7 +288,7 @@ func capturevars(xfunc *Node) {
+ 			if v.Name.Byval {
+ 				how = "value"
+ 			}
+-			Warnl(v.Lineno, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken, outermost.Assigned, int32(v.Type.Width))
++			Warnl(v.Pos, "%v capturing by %s: %v (addr=%v assign=%v width=%d)", name, how, v.Sym, outermost.Addrtaken, outermost.Assigned, int32(v.Type.Width))
+ 		}
+ 
+ 		outer = typecheck(outer, Erv)
+@@ -302,7 +302,7 @@ func capturevars(xfunc *Node) {
+ // It transform closure bodies to properly reference captured variables.
+ func transformclosure(xfunc *Node) {
+ 	lno := lineno
+-	lineno = xfunc.Lineno
++	lineno = xfunc.Pos
+ 	func_ := xfunc.Func.Closure
+ 
+ 	if func_.Func.Top&Ecall != 0 {
+@@ -441,13 +441,13 @@ func hasemptycvars(func_ *Node) bool {
+ func closuredebugruntimecheck(r *Node) {
+ 	if Debug_closure > 0 {
+ 		if r.Esc == EscHeap {
+-			Warnl(r.Lineno, "heap closure, captured vars = %v", r.Func.Cvars)
++			Warnl(r.Pos, "heap closure, captured vars = %v", r.Func.Cvars)
+ 		} else {
+-			Warnl(r.Lineno, "stack closure, captured vars = %v", r.Func.Cvars)
++			Warnl(r.Pos, "stack closure, captured vars = %v", r.Func.Cvars)
+ 		}
+ 	}
+ 	if compiling_runtime && r.Esc == EscHeap {
+-		yyerrorl(r.Lineno, "heap-allocated closure, not allowed in runtime.")
++		yyerrorl(r.Pos, "heap-allocated closure, not allowed in runtime.")
+ 	}
+ }
+ 
+@@ -455,7 +455,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 	// If no closure vars, don't bother wrapping.
+ 	if hasemptycvars(func_) {
+ 		if Debug_closure > 0 {
+-			Warnl(func_.Lineno, "closure converted to global")
++			Warnl(func_.Pos, "closure converted to global")
+ 		}
+ 		return func_.Func.Closure.Func.Nname
+ 	} else {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 4f2254e689..51a4924ffc 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -163,7 +163,7 @@ func declare(n *Node, ctxt Class) {
+ 		// named OLITERAL needs Name; most OLITERALs don't.
+ 		n.Name = new(Name)
+ 	}
+-	n.Lineno = lineno
++	n.Pos = lineno
+ 	s := n.Sym
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+@@ -295,7 +295,7 @@ func constiter(vl []*Node, t *Node, cl []*Node) []*Node {
+ 		}
+ 		cl = lastconst
+ 		t = lasttype
+-		lno = vl[0].Lineno
++		lno = vl[0].Pos
+ 	} else {
+ 		lastconst = cl
+ 		lasttype = t
+@@ -468,13 +468,13 @@ func colasdefn(left []*Node, defn *Node) {
+ 			continue
+ 		}
+ 		if !colasname(n) {
+-			yyerrorl(defn.Lineno, "non-name %v on left side of :=", n)
++			yyerrorl(defn.Pos, "non-name %v on left side of :=", n)
+ 			nerr++
+ 			continue
+ 		}
+ 
+ 		if n.Sym.Flags&SymUniq == 0 {
+-			yyerrorl(defn.Lineno, "%v repeated on left side of :=", n.Sym)
++			yyerrorl(defn.Pos, "%v repeated on left side of :=", n.Sym)
+ 			n.Diag = true
+ 			nerr++
+ 			continue
+@@ -494,7 +494,7 @@ func colasdefn(left []*Node, defn *Node) {
+ 	}
+ 
+ 	if nnew == 0 && nerr == 0 {
+-		yyerrorl(defn.Lineno, "no new variables on left side of :=")
++		yyerrorl(defn.Pos, "no new variables on left side of :=")
+ 	}
+ }
+ 
+@@ -726,7 +726,7 @@ func checkembeddedtype(t *Type) {
+ 
+ func structfield(n *Node) *Field {
+ 	lno := lineno
+-	lineno = n.Lineno
++	lineno = n.Pos
+ 
+ 	if n.Op != ODCLFIELD {
+ 		Fatalf("structfield: oops %v\n", n)
+@@ -784,7 +784,7 @@ func checkdupfields(what string, ts ...*Type) {
+ 				continue
+ 			}
+ 			if seen[f.Sym] {
+-				lineno = f.Nname.Lineno
++				lineno = f.Nname.Pos
+ 				yyerror("duplicate %s %s", what, f.Sym.Name)
+ 				continue
+ 			}
+@@ -865,7 +865,7 @@ func tofunargsfield(fields []*Field, funarg Funarg) *Type {
+ 
+ func interfacefield(n *Node) *Field {
+ 	lno := lineno
+-	lineno = n.Lineno
++	lineno = n.Pos
+ 
+ 	if n.Op != ODCLFIELD {
+ 		Fatalf("interfacefield: oops %v\n", n)
+@@ -1355,8 +1355,8 @@ func checknowritebarrierrec() {
+ 	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+ 		// Functions with write barriers have depth 0.
+ 		for _, n := range list {
+-			if n.Func.WBLineno.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
+-				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
++			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
++				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBPos}
+ 			}
+ 		}
+ 
+@@ -1373,7 +1373,7 @@ func checknowritebarrierrec() {
+ 					// yeswritebarrierrec function.
+ 					continue
+ 				}
+-				if !n.Func.WBLineno.IsKnown() {
++				if !n.Func.WBPos.IsKnown() {
+ 					c.curfn = n
+ 					c.visitcodelist(n.Nbody)
+ 				}
+@@ -1401,7 +1401,7 @@ func checknowritebarrierrec() {
+ 				call = c.best[n]
+ 			}
+ 			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
+-			yyerrorl(n.Func.WBLineno, err)
++			yyerrorl(n.Func.WBPos, err)
+ 		}
+ 	})
+ }
+@@ -1447,6 +1447,6 @@ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+ 	if ok && fnbest.depth+1 >= best.depth {
+ 		return
+ 	}
+-	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Lineno}
++	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Pos}
+ 	c.stable = false
+ }
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4f37ff0e34..b1e4a7992c 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -504,7 +504,7 @@ func escAnalyze(all []*Node, recursive bool) {
+ 			if n.Esc != escapes[i] {
+ 				done = false
+ 				if Debug['m'] > 2 {
+-					Warnl(n.Lineno, "Reflooding %v %S", e.curfnSym(n), n)
++					Warnl(n.Pos, "Reflooding %v %S", e.curfnSym(n), n)
+ 				}
+ 				escapes[i] = n.Esc
+ 				e.escflood(n)
+@@ -525,7 +525,7 @@ func escAnalyze(all []*Node, recursive bool) {
+ 	if Debug['m'] != 0 {
+ 		for _, n := range e.noesc {
+ 			if n.Esc == EscNone {
+-				Warnl(n.Lineno, "%v %S does not escape", e.curfnSym(n), n)
++				Warnl(n.Pos, "%v %S does not escape", e.curfnSym(n), n)
+ 			}
+ 		}
+ 	}
+@@ -678,7 +678,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 			(n.Op == ONEW || n.Op == OPTRLIT) && n.Type.Elem().Width >= 1<<16 ||
+ 			n.Op == OMAKESLICE && !isSmallMakeSlice(n)) {
+ 		if Debug['m'] > 2 {
+-			Warnl(n.Lineno, "%v is too large for stack", n)
++			Warnl(n.Pos, "%v is too large for stack", n)
+ 		}
+ 		n.Esc = EscHeap
+ 		addrescapes(n)
+@@ -778,7 +778,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 			// b escapes as well. If we ignore such OSLICEARR, we will conclude
+ 			// that b does not escape when b contents do.
+ 			if Debug['m'] != 0 {
+-				Warnl(n.Lineno, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
++				Warnl(n.Pos, "%v ignoring self-assignment to %S", e.curfnSym(n), n.Left)
+ 			}
+ 
+ 			break
+@@ -882,7 +882,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 			slice2 := n.List.Second()
+ 			e.escassignDereference(&e.theSink, slice2, e.stepAssignWhere(n, slice2, "appended slice...", n)) // lose track of assign of dereference
+ 			if Debug['m'] > 3 {
+-				Warnl(n.Lineno, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
++				Warnl(n.Pos, "%v special treatment of append(slice1, slice2...) %S", e.curfnSym(n), n)
+ 			}
+ 		}
+ 		e.escassignDereference(&e.theSink, n.List.First(), e.stepAssignWhere(n, n.List.First(), "appendee slice", n)) // The original elements are now leaked, too
+@@ -952,7 +952,7 @@ func (e *EscState) esc(n *Node, parent *Node) {
+ 			a := v.Name.Defn
+ 			if !v.Name.Byval {
+ 				a = nod(OADDR, a, nil)
+-				a.Lineno = v.Lineno
++				a.Pos = v.Pos
+ 				e.nodeEscState(a).Loopdepth = e.loopdepth
+ 				a = typecheck(a, Erv)
+ 			}
+@@ -1145,7 +1145,7 @@ func (e *EscState) escassign(dst, src *Node, step *EscStep) {
+ 		// OCLOSURE is lowered to OPTRLIT,
+ 		// insert OADDR to account for the additional indirection.
+ 		a := nod(OADDR, src, nil)
+-		a.Lineno = src.Lineno
++		a.Pos = src.Pos
+ 		e.nodeEscState(a).Loopdepth = e.nodeEscState(src).Loopdepth
+ 		a.Type = ptrto(src.Type)
+ 		e.escflows(dst, a, e.stepAssign(nil, originalDst, src, dstwhy))
+@@ -1383,7 +1383,7 @@ func (e *EscState) escassignDereference(dst *Node, src *Node, step *EscStep) {
+ func (e *EscState) addDereference(n *Node) *Node {
+ 	ind := nod(OIND, n, nil)
+ 	e.nodeEscState(ind).Loopdepth = e.nodeEscState(n).Loopdepth
+-	ind.Lineno = n.Lineno
++	ind.Pos = n.Pos
+ 	t := n.Type
+ 	if t.IsKind(Tptr) {
+ 		// This should model our own sloppy use of OIND to encode
+@@ -1441,7 +1441,7 @@ func (e *EscState) initEscRetval(call *Node, fntype *Type) {
+ 		ret.Name.Curfn = Curfn
+ 		e.nodeEscState(ret).Loopdepth = e.loopdepth
+ 		ret.Used = true
+-		ret.Lineno = call.Lineno
++		ret.Pos = call.Pos
+ 		cE.Retval.Append(ret)
+ 	}
+ }
+@@ -1546,7 +1546,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 					arg = nod(ODDDARG, nil, nil)
+ 					arr := typArray(n.Type.Elem(), int64(len(args)))
+ 					arg.Type = ptrto(arr) // make pointer so it will be tracked
+-					arg.Lineno = call.Lineno
++					arg.Pos = call.Pos
+ 					e.track(arg)
+ 					call.Right = arg
+ 				}
+@@ -1607,7 +1607,7 @@ func (e *EscState) esccall(call *Node, parent *Node) {
+ 		if param.Isddd && !call.Isddd {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			arg = nod(ODDDARG, nil, nil)
+-			arg.Lineno = call.Lineno
++			arg.Pos = call.Pos
+ 			arr := typArray(param.Type.Elem(), int64(len(args)-i))
+ 			arg.Type = ptrto(arr) // make pointer so it will be tracked
+ 			e.track(arg)
+@@ -1757,7 +1757,7 @@ func (es *EscStep) describe(src *Node) {
+ 		if where == nil {
+ 			where = dst
+ 		}
+-		Warnl(src.Lineno, "\tfrom %v (%s) at %s", dst, step.why, where.Line())
++		Warnl(src.Pos, "\tfrom %v (%s) at %s", dst, step.why, where.Line())
+ 	}
+ 	for step := step0; step != nil && step.busy; step = step.parent {
+ 		step.busy = false
+@@ -1821,10 +1821,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 		// 4. return *in
+ 		if Debug['m'] != 0 {
+ 			if Debug['m'] <= 2 {
+-				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
++				Warnl(src.Pos, "leaking param: %S to result %v level=%v", src, dst.Sym, level.int())
+ 				step.describe(src)
+ 			} else {
+-				Warnl(src.Lineno, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
++				Warnl(src.Pos, "leaking param: %S to result %v level=%v", src, dst.Sym, level)
+ 			}
+ 		}
+ 		if src.Esc&EscMask != EscReturn {
+@@ -1841,7 +1841,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 		level.int() > 0 {
+ 		src.Esc = escMax(EscContentEscapes|src.Esc, EscNone)
+ 		if Debug['m'] != 0 {
+-			Warnl(src.Lineno, "mark escaped content: %S", src)
++			Warnl(src.Pos, "mark escaped content: %S", src)
+ 			step.describe(src)
+ 		}
+ 	}
+@@ -1858,11 +1858,11 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] <= 2 {
+ 						if osrcesc != src.Esc {
+-							Warnl(src.Lineno, "leaking param content: %S", src)
++							Warnl(src.Pos, "leaking param content: %S", src)
+ 							step.describe(src)
+ 						}
+ 					} else {
+-						Warnl(src.Lineno, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
++						Warnl(src.Pos, "leaking param content: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+ 							src, level, dstE.Loopdepth, modSrcLoopdepth, dst)
+ 					}
+ 				}
+@@ -1870,10 +1870,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 				src.Esc = EscHeap
+ 				if Debug['m'] != 0 {
+ 					if Debug['m'] <= 2 {
+-						Warnl(src.Lineno, "leaking param: %S", src)
++						Warnl(src.Pos, "leaking param: %S", src)
+ 						step.describe(src)
+ 					} else {
+-						Warnl(src.Lineno, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
++						Warnl(src.Pos, "leaking param: %S level=%v dst.eld=%v src.eld=%v dst=%S",
+ 							src, level, dstE.Loopdepth, modSrcLoopdepth, dst)
+ 					}
+ 				}
+@@ -1884,7 +1884,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 		// original variable.
+ 		if src.isClosureVar() {
+ 			if leaks && Debug['m'] != 0 {
+-				Warnl(src.Lineno, "leaking closure reference %S", src)
++				Warnl(src.Pos, "leaking closure reference %S", src)
+ 				step.describe(src)
+ 			}
+ 			e.escwalk(level, dst, src.Name.Defn, e.stepWalk(dst, src.Name.Defn, "closure-var", step))
+@@ -1903,10 +1903,10 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 					p = p.Left // merely to satisfy error messages in tests
+ 				}
+ 				if Debug['m'] > 2 {
+-					Warnl(src.Lineno, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
++					Warnl(src.Pos, "%S escapes to heap, level=%v, dst=%v dst.eld=%v, src.eld=%v",
+ 						p, level, dst, dstE.Loopdepth, modSrcLoopdepth)
+ 				} else {
+-					Warnl(src.Lineno, "%S escapes to heap", p)
++					Warnl(src.Pos, "%S escapes to heap", p)
+ 					step.describe(src)
+ 				}
+ 			}
+@@ -1924,7 +1924,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 && osrcesc != src.Esc {
+-				Warnl(src.Lineno, "%S escapes to heap", src)
++				Warnl(src.Pos, "%S escapes to heap", src)
+ 				step.describe(src)
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+@@ -1959,7 +1959,7 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 		if leaks {
+ 			src.Esc = EscHeap
+ 			if Debug['m'] != 0 && osrcesc != src.Esc {
+-				Warnl(src.Lineno, "%S escapes to heap", src)
++				Warnl(src.Pos, "%S escapes to heap", src)
+ 				step.describe(src)
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
+@@ -2064,7 +2064,7 @@ func (e *EscState) esctag(fn *Node) {
+ 			narg++
+ 			if f.Type.Etype == TUINTPTR {
+ 				if Debug['m'] != 0 {
+-					Warnl(fn.Lineno, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
++					Warnl(fn.Pos, "%v assuming %v is unsafe uintptr", funcSym(fn), name(f.Sym, narg))
+ 				}
+ 				f.Note = unsafeUintptrTag
+ 			}
+@@ -2079,7 +2079,7 @@ func (e *EscState) esctag(fn *Node) {
+ 			narg++
+ 			if f.Type.Etype == TUINTPTR {
+ 				if Debug['m'] != 0 {
+-					Warnl(fn.Lineno, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
++					Warnl(fn.Pos, "%v marking %v as escaping uintptr", funcSym(fn), name(f.Sym, narg))
+ 				}
+ 				f.Note = uintptrEscapesTag
+ 			}
+@@ -2087,7 +2087,7 @@ func (e *EscState) esctag(fn *Node) {
+ 			if f.Isddd && f.Type.Elem().Etype == TUINTPTR {
+ 				// final argument is ...uintptr.
+ 				if Debug['m'] != 0 {
+-					Warnl(fn.Lineno, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
++					Warnl(fn.Pos, "%v marking %v as escaping ...uintptr", funcSym(fn), name(f.Sym, narg))
+ 				}
+ 				f.Note = uintptrEscapesTag
+ 			}
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 53889be531..6e973eee5c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -283,8 +283,8 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " g(%d)", n.Name.Vargen)
+ 	}
+ 
+-	if n.Lineno.IsKnown() {
+-		fmt.Fprintf(s, " l(%d)", n.Lineno.Line())
++	if n.Pos.IsKnown() {
++		fmt.Fprintf(s, " l(%d)", n.Pos.Line())
+ 	}
+ 
+ 	if c == 0 && n.Xoffset != BADWIDTH {
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index c3d2c44a16..e9234802b3 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -64,7 +64,7 @@ func addrescapes(n *Node) {
+ 			Curfn = Curfn.Func.Closure
+ 		}
+ 		ln := lineno
+-		lineno = Curfn.Lineno
++		lineno = Curfn.Pos
+ 		moveToHeap(n)
+ 		Curfn = oldfn
+ 		lineno = ln
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 1fe25fa15e..b5f1cbd310 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -840,7 +840,7 @@ func mkinlcall1(n *Node, fn *Node, isddd bool) *Node {
+ 	args := as.Rlist
+ 	as.Rlist.Set(nil)
+ 
+-	setlno(call, n.Lineno)
++	setlno(call, n.Pos)
+ 
+ 	as.Rlist.Set(args.Slice())
+ 
+@@ -1029,8 +1029,8 @@ func setlno(n *Node, lno src.Pos) {
+ 	}
+ 
+ 	// don't clobber names, unless they're freshly synthesized
+-	if n.Op != ONAME || !n.Lineno.IsKnown() {
+-		n.Lineno = lno
++	if n.Op != ONAME || !n.Pos.IsKnown() {
++		n.Pos = lno
+ 	}
+ 
+ 	setlno(n.Left, lno)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 0fdb862c28..a3487afb44 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -918,7 +918,7 @@ func mkpackage(pkgname string) {
+ 				// errors if a conflicting top-level name is
+ 				// introduced by a different file.
+ 				if !s.Def.Used && nsyntaxerrors == 0 {
+-					pkgnotused(s.Def.Lineno, s.Def.Name.Pkg.Path, s.Name)
++					pkgnotused(s.Def.Pos, s.Def.Name.Pkg.Path, s.Name)
+ 				}
+ 				s.Def = nil
+ 				continue
+@@ -928,7 +928,7 @@ func mkpackage(pkgname string) {
+ 				// throw away top-level name left over
+ 				// from previous import . "x"
+ 				if s.Def.Name != nil && s.Def.Name.Pack != nil && !s.Def.Name.Pack.Used && nsyntaxerrors == 0 {
+-					pkgnotused(s.Def.Name.Pack.Lineno, s.Def.Name.Pack.Name.Pkg.Path, "")
++					pkgnotused(s.Def.Name.Pack.Pos, s.Def.Name.Pack.Name.Pkg.Path, "")
+ 					s.Def.Name.Pack.Used = true
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index e52b0c7511..2366cf31f6 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -136,18 +136,18 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return
+ 	}
+ 	if my.Name == "init" {
+-		yyerrorl(pack.Lineno, "cannot import package as init - init must be a func")
++		yyerrorl(pack.Pos, "cannot import package as init - init must be a func")
+ 		return
+ 	}
+ 	if my.Name == "_" {
+ 		return
+ 	}
+ 	if my.Def != nil {
+-		lineno = pack.Lineno
++		lineno = pack.Pos
+ 		redeclare(my, "as imported package name")
+ 	}
+ 	my.Def = pack
+-	my.Lastlineno = pack.Lineno
++	my.Lastlineno = pack.Pos
+ 	my.Block = 1 // at top level
+ }
+ 
+@@ -991,7 +991,7 @@ func (p *noder) setlineno(src_ syntax.Node, dst *Node) *Node {
+ 		// TODO(mdempsky): Shouldn't happen. Fix package syntax.
+ 		return dst
+ 	}
+-	dst.Lineno = src.MakePos(p.baseline + int32(l) - 1)
++	dst.Pos = src.MakePos(p.baseline + int32(l) - 1)
+ 	return dst
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 350c867725..7a07d4ea0c 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -258,7 +258,7 @@ func staticinit(n *Node, out *[]*Node) bool {
+ 		Fatalf("staticinit")
+ 	}
+ 
+-	lineno = n.Lineno
++	lineno = n.Pos
+ 	l := n.Name.Defn.Left
+ 	r := n.Name.Defn.Right
+ 	return staticassign(l, r, out)
+@@ -469,7 +469,7 @@ func staticassign(l *Node, r *Node, out *[]*Node) bool {
+ 	case OCLOSURE:
+ 		if hasemptycvars(r) {
+ 			if Debug_closure > 0 {
+-				Warnl(r.Lineno, "closure converted to global")
++				Warnl(r.Pos, "closure converted to global")
+ 			}
+ 			// Closures with no captured variables are globals,
+ 			// so the assignment can be done at link time.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ae0f49bd63..6adae5627b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -44,7 +44,7 @@ func buildssa(fn *Node) *ssa.Func {
+ 	}
+ 
+ 	var s state
+-	s.pushLine(fn.Lineno)
++	s.pushLine(fn.Pos)
+ 	defer s.popLine()
+ 
+ 	if fn.Func.Pragma&CgoUnsafeArgs != 0 {
+@@ -54,8 +54,8 @@ func buildssa(fn *Node) *ssa.Func {
+ 		s.noWB = true
+ 	}
+ 	defer func() {
+-		if s.WBLineno.IsKnown() {
+-			fn.Func.WBLineno = s.WBLineno
++		if s.WBPos.IsKnown() {
++			fn.Func.WBPos = s.WBPos
+ 		}
+ 	}()
+ 	// TODO(khr): build config just once at the start of the compiler binary
+@@ -146,11 +146,11 @@ func buildssa(fn *Node) *ssa.Func {
+ 	// Check that we used all labels
+ 	for name, lab := range s.labels {
+ 		if !lab.used() && !lab.reported && !lab.defNode.Used {
+-			yyerrorl(lab.defNode.Lineno, "label %v defined and not used", name)
++			yyerrorl(lab.defNode.Pos, "label %v defined and not used", name)
+ 			lab.reported = true
+ 		}
+ 		if lab.used() && !lab.defined() && !lab.reported {
+-			yyerrorl(lab.useNode.Lineno, "label %v not defined", name)
++			yyerrorl(lab.useNode.Pos, "label %v not defined", name)
+ 			lab.reported = true
+ 		}
+ 	}
+@@ -243,7 +243,7 @@ type state struct {
+ 
+ 	cgoUnsafeArgs bool
+ 	noWB          bool
+-	WBLineno      src.Pos // line number of first write barrier. 0=no write barriers
++	WBPos         src.Pos // line number of first write barrier. 0=no write barriers
+ }
+ 
+ type funcLine struct {
+@@ -492,7 +492,7 @@ func (s *state) stmtList(l Nodes) {
+ 
+ // stmt converts the statement n to SSA and adds it to s.
+ func (s *state) stmt(n *Node) {
+-	s.pushLine(n.Lineno)
++	s.pushLine(n.Pos)
+ 	defer s.popLine()
+ 
+ 	// If s.curBlock is nil, then we're about to generate dead code.
+@@ -558,8 +558,8 @@ func (s *state) stmt(n *Node) {
+ 			deref = true
+ 			res = res.Args[0]
+ 		}
+-		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, n.Lineno, 0, false)
+-		s.assign(n.List.Second(), resok, false, false, n.Lineno, 0, false)
++		s.assign(n.List.First(), res, needwritebarrier(n.List.First(), n.Rlist.First()), deref, n.Pos, 0, false)
++		s.assign(n.List.Second(), resok, false, false, n.Pos, 0, false)
+ 		return
+ 
+ 	case OAS2FUNC:
+@@ -574,8 +574,8 @@ func (s *state) stmt(n *Node) {
+ 		// This is future-proofing against non-scalar 2-result intrinsics.
+ 		// Currently we only have scalar ones, which result in no write barrier.
+ 		fakeret := &Node{Op: OINDREGSP}
+-		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Lineno, 0, false)
+-		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Lineno, 0, false)
++		s.assign(n.List.First(), v1, needwritebarrier(n.List.First(), fakeret), false, n.Pos, 0, false)
++		s.assign(n.List.Second(), v2, needwritebarrier(n.List.Second(), fakeret), false, n.Pos, 0, false)
+ 		return
+ 
+ 	case ODCL:
+@@ -605,7 +605,7 @@ func (s *state) stmt(n *Node) {
+ 		if !lab.defined() {
+ 			lab.defNode = n
+ 		} else {
+-			s.Error("label %v already defined at %v", sym, linestr(lab.defNode.Lineno))
++			s.Error("label %v already defined at %v", sym, linestr(lab.defNode.Pos))
+ 			lab.reported = true
+ 		}
+ 		// The label might already have a target block via a goto.
+@@ -690,13 +690,13 @@ func (s *state) stmt(n *Node) {
+ 				if samesafeexpr(n.Left, rhs.List.First()) {
+ 					if !s.canSSA(n.Left) {
+ 						if Debug_append > 0 {
+-							Warnl(n.Lineno, "append: len-only update")
++							Warnl(n.Pos, "append: len-only update")
+ 						}
+ 						s.append(rhs, true)
+ 						return
+ 					} else {
+ 						if Debug_append > 0 { // replicating old diagnostic message
+-							Warnl(n.Lineno, "append: len-only update (in local slice)")
++							Warnl(n.Pos, "append: len-only update (in local slice)")
+ 						}
+ 					}
+ 				}
+@@ -759,7 +759,7 @@ func (s *state) stmt(n *Node) {
+ 			}
+ 		}
+ 
+-		s.assign(n.Left, r, needwb, deref, n.Lineno, skip, isVolatile)
++		s.assign(n.Left, r, needwb, deref, n.Pos, skip, isVolatile)
+ 
+ 	case OIF:
+ 		bThen := s.f.NewBlock(ssa.BlockPlain)
+@@ -1435,7 +1435,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 	if !(n.Op == ONAME || n.Op == OLITERAL && n.Sym != nil) {
+ 		// ONAMEs and named OLITERALs have the line number
+ 		// of the decl, not the use. See issue 14742.
+-		s.pushLine(n.Lineno)
++		s.pushLine(n.Pos)
+ 		defer s.popLine()
+ 	}
+ 
+@@ -1969,7 +1969,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.newValue2(ssa.OpLoad, n.Type, addr, s.mem())
+ 
+ 	case OIND:
+-		p := s.exprPtr(n.Left, false, n.Lineno)
++		p := s.exprPtr(n.Left, false, n.Pos)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case ODOT:
+@@ -1982,7 +1982,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+ 	case ODOTPTR:
+-		p := s.exprPtr(n.Left, false, n.Lineno)
++		p := s.exprPtr(n.Left, false, n.Pos)
+ 		p = s.newValue1I(ssa.OpOffPtr, p.Type, n.Xoffset, p)
+ 		return s.newValue2(ssa.OpLoad, n.Type, p, s.mem())
+ 
+@@ -2223,7 +2223,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 		if ssa.IsStackAddr(addr) {
+ 			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
+ 		} else {
+-			s.insertWBstore(pt, addr, r[0], n.Lineno, 0)
++			s.insertWBstore(pt, addr, r[0], n.Pos, 0)
+ 		}
+ 		// load the value we just stored to avoid having to spill it
+ 		s.vars[&ptrVar] = s.newValue2(ssa.OpLoad, pt, addr, s.mem())
+@@ -2278,13 +2278,13 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 		addr := s.newValue2(ssa.OpPtrIndex, pt, p2, s.constInt(Types[TINT], int64(i)))
+ 		if arg.store {
+ 			if haspointers(et) {
+-				s.insertWBstore(et, addr, arg.v, n.Lineno, 0)
++				s.insertWBstore(et, addr, arg.v, n.Pos, 0)
+ 			} else {
+ 				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
+ 			}
+ 		} else {
+ 			if haspointers(et) {
+-				s.insertWBmove(et, addr, arg.v, n.Lineno, arg.isVolatile)
++				s.insertWBmove(et, addr, arg.v, n.Pos, arg.isVolatile)
+ 			} else {
+ 				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
+ 			}
+@@ -2855,7 +2855,7 @@ func (s *state) intrinsicCall(n *Node) *ssa.Value {
+ 		if x.Op == ssa.OpSelect0 || x.Op == ssa.OpSelect1 {
+ 			x = x.Args[0]
+ 		}
+-		Warnl(n.Lineno, "intrinsic substitution for %v with %s", n.Left.Sym.Name, x.LongString())
++		Warnl(n.Pos, "intrinsic substitution for %v with %s", n.Left.Sym.Name, x.LongString())
+ 	}
+ 	return v
+ }
+@@ -2945,7 +2945,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		// We can then pass that to defer or go.
+ 		n2 := newname(fn.Sym)
+ 		n2.Class = PFUNC
+-		n2.Lineno = fn.Lineno
++		n2.Pos = fn.Pos
+ 		n2.Type = Types[TUINT8] // dummy type for a static closure. Could use runtime.funcval if we had it.
+ 		closure = s.expr(n2)
+ 		// Note: receiver is already assigned in n.List, so we don't
+@@ -3146,12 +3146,12 @@ func (s *state) addr(n *Node, bounded bool) (*ssa.Value, bool) {
+ 			return s.newValue2(ssa.OpPtrIndex, ptrto(n.Left.Type.Elem()), a, i), isVolatile
+ 		}
+ 	case OIND:
+-		return s.exprPtr(n.Left, bounded, n.Lineno), false
++		return s.exprPtr(n.Left, bounded, n.Pos), false
+ 	case ODOT:
+ 		p, isVolatile := s.addr(n.Left, bounded)
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p), isVolatile
+ 	case ODOTPTR:
+-		p := s.exprPtr(n.Left, bounded, n.Lineno)
++		p := s.exprPtr(n.Left, bounded, n.Pos)
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset, p), false
+ 	case OCLOSUREVAR:
+ 		return s.newValue1I(ssa.OpOffPtr, t, n.Xoffset,
+@@ -3426,8 +3426,8 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value, line src.Pos, righ
+ 	if s.noWB {
+ 		s.Error("write barrier prohibited")
+ 	}
+-	if !s.WBLineno.IsKnown() {
+-		s.WBLineno = left.Line
++	if !s.WBPos.IsKnown() {
++		s.WBPos = left.Line
+ 	}
+ 
+ 	var val *ssa.Value
+@@ -3467,8 +3467,8 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, line src.Pos, ski
+ 	if s.noWB {
+ 		s.Error("write barrier prohibited")
+ 	}
+-	if !s.WBLineno.IsKnown() {
+-		s.WBLineno = left.Line
++	if !s.WBPos.IsKnown() {
++		s.WBPos = left.Line
+ 	}
+ 	s.storeTypeScalars(t, left, right, skip)
+ 	s.storeTypePtrsWB(t, left, right)
+@@ -4062,7 +4062,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 			// Converting to an empty interface.
+ 			// Input could be an empty or nonempty interface.
+ 			if Debug_typeassert > 0 {
+-				Warnl(n.Lineno, "type assertion inlined")
++				Warnl(n.Pos, "type assertion inlined")
+ 			}
+ 
+ 			// Get itab/type field from input.
+@@ -4129,7 +4129,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		}
+ 		// converting to a nonempty interface needs a runtime call.
+ 		if Debug_typeassert > 0 {
+-			Warnl(n.Lineno, "type assertion not inlined")
++			Warnl(n.Pos, "type assertion not inlined")
+ 		}
+ 		if n.Left.Type.IsEmptyInterface() {
+ 			if commaok {
+@@ -4146,7 +4146,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	}
+ 
+ 	if Debug_typeassert > 0 {
+-		Warnl(n.Lineno, "type assertion inlined")
++		Warnl(n.Pos, "type assertion inlined")
+ 	}
+ 
+ 	// Converting to a concrete type.
+@@ -4154,7 +4154,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	typ := s.ifaceType(n.Left.Type, iface) // actual concrete type of input interface
+ 
+ 	if Debug_typeassert > 0 {
+-		Warnl(n.Lineno, "type assertion inlined")
++		Warnl(n.Pos, "type assertion inlined")
+ 	}
+ 
+ 	var tmp *Node       // temporary for use with large types
+@@ -4293,7 +4293,7 @@ func (s *state) checkgoto(from *Node, to *Node) {
+ 			fs = fs.Link
+ 		}
+ 
+-		lno := from.Left.Lineno
++		lno := from.Left.Pos
+ 		if block != nil {
+ 			yyerrorl(lno, "goto %v jumps into block starting at %v", from.Left.Sym, linestr(block.Lastlineno))
+ 		} else {
+@@ -4380,9 +4380,9 @@ func (s *SSAGenState) Pc() *obj.Prog {
+ 	return pc
+ }
+ 
+-// SetLineno sets the current source line number.
+-func (s *SSAGenState) SetLineno(l src.Pos) {
+-	lineno = l
++// SetPos sets the current source position.
++func (s *SSAGenState) SetPos(pos src.Pos) {
++	lineno = pos
+ }
+ 
+ // genssa appends entries to ptxt for each instruction in f.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index f4a5cc97d9..6d3d9688d4 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -21,8 +21,8 @@ import (
+ )
+ 
+ type Error struct {
+-	lineno src.Pos
+-	msg    string
++	pos src.Pos
++	msg string
+ }
+ 
+ var errors []Error
+@@ -40,24 +40,24 @@ func adderrorname(n *Node) {
+ 		return
+ 	}
+ 	old := fmt.Sprintf("%v: undefined: %v\n", n.Line(), n.Left)
+-	if len(errors) > 0 && errors[len(errors)-1].lineno == n.Lineno && errors[len(errors)-1].msg == old {
++	if len(errors) > 0 && errors[len(errors)-1].pos.Line() == n.Pos.Line() && errors[len(errors)-1].msg == old {
+ 		errors[len(errors)-1].msg = fmt.Sprintf("%v: undefined: %v in %v\n", n.Line(), n.Left, n)
+ 	}
+ }
+ 
+-func adderr(line src.Pos, format string, args ...interface{}) {
++func adderr(pos src.Pos, format string, args ...interface{}) {
+ 	errors = append(errors, Error{
+-		lineno: line,
+-		msg:    fmt.Sprintf("%v: %s\n", linestr(line), fmt.Sprintf(format, args...)),
++		pos: pos,
++		msg: fmt.Sprintf("%v: %s\n", linestr(pos), fmt.Sprintf(format, args...)),
+ 	})
+ }
+ 
+-// byLineno sorts errors by lineno.
+-type byLineno []Error
++// byPos sorts errors by source position.
++type byPos []Error
+ 
+-func (x byLineno) Len() int           { return len(x) }
+-func (x byLineno) Less(i, j int) bool { return x[i].lineno.Before(x[j].lineno) }
+-func (x byLineno) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byPos) Len() int           { return len(x) }
++func (x byPos) Less(i, j int) bool { return x[i].pos.Before(x[j].pos) }
++func (x byPos) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ 
+ // flusherrors sorts errors seen so far by line number, prints them to stdout,
+ // and empties the errors array.
+@@ -66,7 +66,7 @@ func flusherrors() {
+ 	if len(errors) == 0 {
+ 		return
+ 	}
+-	sort.Stable(byLineno(errors))
++	sort.Stable(byPos(errors))
+ 	for i := 0; i < len(errors); i++ {
+ 		if i == 0 || errors[i].msg != errors[i-1].msg {
+ 			fmt.Printf("%s", errors[i].msg)
+@@ -215,7 +215,7 @@ func setlineno(n *Node) src.Pos {
+ 			fallthrough
+ 
+ 		default:
+-			lineno = n.Lineno
++			lineno = n.Pos
+ 			if !lineno.IsKnown() {
+ 				if Debug['K'] != 0 {
+ 					Warn("setlineno: unknown position (line 0)")
+@@ -349,7 +349,7 @@ func importdot(opkg *Pkg, pack *Node) {
+ 
+ 	if n == 0 {
+ 		// can't possibly be used - there were no symbols
+-		yyerrorl(pack.Lineno, "imported and not used: %q", opkg.Path)
++		yyerrorl(pack.Pos, "imported and not used: %q", opkg.Path)
+ 	}
+ }
+ 
+@@ -358,7 +358,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
+ 	n.Op = op
+ 	n.Left = nleft
+ 	n.Right = nright
+-	n.Lineno = lineno
++	n.Pos = lineno
+ 	n.Xoffset = BADWIDTH
+ 	n.Orig = n
+ 	switch op {
+@@ -489,7 +489,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
+ 		m.Right = treecopy(n.Right, lineno)
+ 		m.List.Set(listtreecopy(n.List.Slice(), lineno))
+ 		if lineno.IsKnown() {
+-			m.Lineno = lineno
++			m.Pos = lineno
+ 		}
+ 		if m.Name != nil && n.Op != ODCLFIELD {
+ 			Dump("treecopy", n)
+@@ -505,7 +505,7 @@ func treecopy(n *Node, lineno src.Pos) *Node {
+ 			// don't have the same iota value.
+ 			m := *n
+ 			if lineno.IsKnown() {
+-				m.Lineno = lineno
++				m.Pos = lineno
+ 			}
+ 			m.SetIota(iota_)
+ 			return &m
+@@ -2004,7 +2004,7 @@ func liststmt(l []*Node) *Node {
+ 	n := nod(OBLOCK, nil, nil)
+ 	n.List.Set(l)
+ 	if len(l) != 0 {
+-		n.Lineno = l[0].Lineno
++		n.Pos = l[0].Pos
+ 	}
+ 	return n
+ }
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 3d3496d643..5c96361f98 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -578,7 +578,7 @@ Outer:
+ 		}
+ 		for _, n := range prev {
+ 			if eqtype(n.Left.Type, c.node.Left.Type) {
+-				yyerrorl(c.node.Lineno, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
++				yyerrorl(c.node.Pos, "duplicate case %v in type switch\n\tprevious case at %v", c.node.Left.Type, n.Line())
+ 				// avoid double-reporting errors
+ 				continue Outer
+ 			}
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 20044a5d62..faeb6e9027 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -44,7 +44,7 @@ type Node struct {
+ 	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+-	Lineno src.Pos
++	Pos src.Pos
+ 
+ 	Esc uint16 // EscXXX
+ 
+@@ -311,7 +311,7 @@ type Func struct {
+ 	Label int32 // largest auto-generated label in this function
+ 
+ 	Endlineno src.Pos
+-	WBLineno  src.Pos // line number of first write barrier
++	WBPos     src.Pos // position of first write barrier
+ 
+ 	Pragma          Pragma // go:xxx function annotations
+ 	Dupok           bool   // duplicate definitions ok
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 229763ddef..2f5717a0a5 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -152,7 +152,7 @@ type Type struct {
+ 
+ 	Sym    *Sym    // symbol containing name, for named types
+ 	Vargen int32   // unique name for OTYPE/ONAME
+-	Lineno src.Pos // line at which this type was declared, implicitly or explicitly
++	Pos    src.Pos // position at which this type was declared, implicitly or explicitly
+ 
+ 	Etype      EType // kind of type
+ 	Noalg      bool  // suppress hash and eq algorithm generation
+@@ -376,9 +376,9 @@ func (f *Fields) Append(s ...*Field) {
+ // typ returns a new Type of the specified kind.
+ func typ(et EType) *Type {
+ 	t := &Type{
+-		Etype:  et,
+-		Width:  BADWIDTH,
+-		Lineno: lineno,
++		Etype: et,
++		Width: BADWIDTH,
++		Pos:   lineno,
+ 	}
+ 	t.Orig = t
+ 	// TODO(josharian): lazily initialize some of these?
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8da07c4ccd..bbbfb3e6c7 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -167,7 +167,7 @@ func typecheck(n *Node, top int) *Node {
+ 				break
+ 			}
+ 			sprint_depchain(&fmt_, typecheck_tcstack, n, n)
+-			yyerrorl(n.Lineno, "constant definition loop%s", fmt_)
++			yyerrorl(n.Pos, "constant definition loop%s", fmt_)
+ 		}
+ 
+ 		if nsavederrors+nerrors == 0 {
+@@ -415,7 +415,7 @@ OpSwitch:
+ 		if alg == ANOEQ {
+ 			if bad.Etype == TFORW {
+ 				// queue check for map until all the types are done settling.
+-				mapqueue = append(mapqueue, mapqueueval{l, n.Lineno})
++				mapqueue = append(mapqueue, mapqueueval{l, n.Pos})
+ 			} else if bad.Etype != TANY {
+ 				// no need to queue, key is already bad
+ 				yyerror("invalid map key type %v", l.Type)
+@@ -3629,8 +3629,8 @@ func typecheckdef(n *Node) *Node {
+ 	if n.Op == ONONAME {
+ 		if !n.Diag {
+ 			n.Diag = true
+-			if n.Lineno.IsKnown() {
+-				lineno = n.Lineno
++			if n.Pos.IsKnown() {
++				lineno = n.Pos
+ 			}
+ 
+ 			// Note: adderrorname looks for this string and
+@@ -3684,7 +3684,7 @@ func typecheckdef(n *Node) *Node {
+ 		e := n.Name.Defn
+ 		n.Name.Defn = nil
+ 		if e == nil {
+-			lineno = n.Lineno
++			lineno = n.Pos
+ 			Dump("typecheckdef nil defn", n)
+ 			yyerror("xxx")
+ 		}
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index adc8518bf4..7f1d26d370 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ func (n *Node) Line() string {
+-	return Ctxt.LineHist.LineString(int(n.Lineno.Line()))
++	return Ctxt.LineHist.LineString(int(n.Pos.Line()))
+ }
+ 
+ var atExitFuncs []func()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 8248d503b3..4db28342a2 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -49,11 +49,11 @@ func walk(fn *Node) {
+ 			if defn.Left.Used {
+ 				continue
+ 			}
+-			lineno = defn.Left.Lineno
++			lineno = defn.Left.Pos
+ 			yyerror("%v declared and not used", ln.Sym)
+ 			defn.Left.Used = true // suppress repeats
+ 		} else {
+-			lineno = ln.Lineno
++			lineno = ln.Pos
+ 			yyerror("%v declared and not used", ln.Sym)
+ 		}
+ 	}
+@@ -2133,7 +2133,7 @@ func needwritebarrier(l *Node, r *Node) bool {
+ func applywritebarrier(n *Node) *Node {
+ 	if n.Left != nil && n.Right != nil && needwritebarrier(n.Left, n.Right) {
+ 		if Debug_wb > 1 {
+-			Warnl(n.Lineno, "marking %v for barrier", n.Left)
++			Warnl(n.Pos, "marking %v for barrier", n.Left)
+ 		}
+ 		n.Op = OASWB
+ 		return n
+@@ -2588,7 +2588,7 @@ func returnsfromheap(params *Type) []*Node {
+ // Enter and Exit lists.
+ func heapmoves() {
+ 	lno := lineno
+-	lineno = Curfn.Lineno
++	lineno = Curfn.Pos
+ 	nn := paramstoheap(Curfn.Type.Recvs())
+ 	nn = append(nn, paramstoheap(Curfn.Type.Params())...)
+ 	nn = append(nn, paramstoheap(Curfn.Type.Results())...)
+@@ -3414,7 +3414,7 @@ func walkinrange(n *Node, init *Nodes) *Node {
+ 		opr = brcom(opr)
+ 	}
+ 	cmp := nod(opr, lhs, rhs)
+-	cmp.Lineno = n.Lineno
++	cmp.Pos = n.Pos
+ 	cmp = addinit(cmp, l.Ninit.Slice())
+ 	cmp = addinit(cmp, r.Ninit.Slice())
+ 	// Typecheck the AST rooted at cmp...
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 15ff16aa12..51b594fc52 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -74,7 +74,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpInitMem:
+ 		// memory arg needs no code
+@@ -841,7 +841,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index d6c00d1a50..482c2fb836 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -82,7 +82,7 @@ func storeByType(t ssa.Type, r int16) obj.As {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpInitMem:
+ 		// memory arg needs no code
+@@ -606,7 +606,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 3f36096565..6c30381192 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -143,7 +143,7 @@ func ssaGenISEL(v *ssa.Value, cr int64, r1, r2 int16) {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpInitMem:
+ 		// memory arg needs no code
+@@ -837,7 +837,7 @@ var blockJump = [...]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 61bf228d09..4cf50d3b84 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -156,7 +156,7 @@ func opregregimm(op obj.As, dest, src int16, off int64) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 	switch v.Op {
+ 	case ssa.OpS390XSLD, ssa.OpS390XSLW,
+ 		ssa.OpS390XSRD, ssa.OpS390XSRW,
+@@ -796,7 +796,7 @@ var blockJump = [...]struct {
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	switch b.Kind {
+ 	case ssa.BlockPlain:
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 52c3eebb20..6456f2f320 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -114,7 +114,7 @@ func opregreg(op obj.As, dest, src int16) *obj.Prog {
+ }
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+-	s.SetLineno(v.Line)
++	s.SetPos(v.Line)
+ 
+ 	if gc.Thearch.Use387 {
+ 		if ssaGenValue387(s, v) {
+@@ -825,7 +825,7 @@ var nefJumps = [2][2]gc.FloatingEQNEJump{
+ }
+ 
+ func ssaGenBlock(s *gc.SSAGenState, b, next *ssa.Block) {
+-	s.SetLineno(b.Line)
++	s.SetPos(b.Line)
+ 
+ 	if gc.Thearch.Use387 {
+ 		// Empty the 387's FP stack before the block ends.

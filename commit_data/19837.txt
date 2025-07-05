@@ -8,9 +8,131 @@ Date:   Tue Jul 29 22:06:47 2014 +0400
     R=golang-codereviews, khr
     CC=golang-codereviews, khr
     https://golang.org/cl/115280043
-
+---
  src/pkg/runtime/chan.goc  | 43 ++++++++++++++++++++++++++++++++++++++-----
  src/pkg/runtime/chan.h    |  6 ++----
  src/pkg/runtime/proc.c    |  1 +
  src/pkg/runtime/runtime.h |  1 +
  4 files changed, 42 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.goc b/src/pkg/runtime/chan.goc
+index 39d53aa16e..b3520b60fc 100644
+--- a/src/pkg/runtime/chan.goc
++++ b/src/pkg/runtime/chan.goc
+@@ -9,16 +9,40 @@ package runtime
+ #include "race.h"
+ #include "malloc.h"
+ #include "chan.h"
++#include "mgc0.h"
++#include "typekind.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+-uint32 runtime·Hchansize = sizeof(Hchan);
+-
+ static	void	dequeueg(WaitQ*);
+ static	SudoG*	dequeue(WaitQ*);
+ static	void	enqueue(WaitQ*, SudoG*);
+-static	void	destroychan(Hchan*);
+ static	void	racesync(Hchan*, SudoG*);
+ 
++static	Type	hchanType;
++static	String	hchanStr;
++
++void
++runtime·chaninit(void)
++{
++	int32 i, off;
++	byte *mask;
++
++	// Generate (bare minimum) type descriptor for Hchan.
++	hchanType.size = sizeof(Hchan);
++	hchanStr = runtime·gostringnocopy((byte*)"chan");
++	hchanType.string = &hchanStr;
++	// Hchan has only one interesting pointer -- buf.
++	off = offsetof(Hchan, buf)/PtrSize*gcBits;
++	if(off%8)
++		runtime·throw("makechan: unaligned buffer");
++	if(off+8 >= sizeof(hchanType.gc)*8)
++		runtime·throw("makechan: gc mask does not fit");
++	mask = (byte*)hchanType.gc;
++	for(i = 0; i < off/8; i++)
++		mask[i] = (BitsScalar<<2) | (BitsScalar<<6);
++	mask[off/8] = (BitsPointer<<2) | (BitsDead<<6);
++}
++
+ static Hchan*
+ makechan(ChanType *t, int64 hint)
+ {
+@@ -36,8 +60,17 @@ makechan(ChanType *t, int64 hint)
+ 	if(hint < 0 || (intgo)hint != hint || (elem->size > 0 && hint > (MaxMem - sizeof(*c)) / elem->size))
+ 		runtime·panicstring("makechan: size out of range");
+ 
+-	// allocate memory in one call
+-	c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, nil, 0);
++	if((elem->kind&KindNoPointers) || hint == 0) {
++		// allocate memory in one call
++		c = (Hchan*)runtime·mallocgc(sizeof(*c) + hint*elem->size, nil, FlagNoScan);
++		if(hint > 0 && elem->size != 0)
++			c->buf = (byte*)(c+1);
++		else
++			c->buf = (byte*)c;  // race detector uses this location for synchronization
++	} else {
++		c = (Hchan*)runtime·cnew(&hchanType);
++		c->buf = runtime·cnewarray(elem, hint);
++	}
+ 	c->elemsize = elem->size;
+ 	c->elemtype = elem;
+ 	c->dataqsiz = hint;
+diff --git a/src/pkg/runtime/chan.h b/src/pkg/runtime/chan.h
+index b23b3417fe..043ef7d21c 100644
+--- a/src/pkg/runtime/chan.h
++++ b/src/pkg/runtime/chan.h
+@@ -26,14 +26,12 @@ struct	WaitQ
+ 	SudoG*	last;
+ };
+ 
+-// The garbage collector is assuming that Hchan can only contain pointers into the stack
+-// and cannot contain pointers into the heap.
+ struct	Hchan
+ {
+ 	uintgo	qcount;			// total data in the q
+ 	uintgo	dataqsiz;		// size of the circular q
++	byte*	buf;
+ 	uint16	elemsize;
+-	uint16	pad;			// ensures proper alignment of the buffer that follows Hchan in memory
+ 	bool	closed;
+ 	Type*	elemtype;		// element type
+ 	uintgo	sendx;			// send index
+@@ -45,7 +43,7 @@ struct	Hchan
+ 
+ // Buffer follows Hchan immediately in memory.
+ // chanbuf(c, i) is pointer to the i'th slot in the buffer.
+-#define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
++#define chanbuf(c, i) ((byte*)((c)->buf)+(uintptr)(c)->elemsize*(i))
+ 
+ enum
+ {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 9ccb1751e4..1e7fdd421e 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -158,6 +158,7 @@ runtime·schedinit(void)
+ 	runtime·symtabinit();
+ 	runtime·stackinit();
+ 	runtime·mallocinit();
++	runtime·chaninit();
+ 	mcommoninit(g->m);
+ 	
+ 	// Initialize the itable value for newErrorCString,
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ecff3f3b79..d21112de5a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -862,6 +862,7 @@ void	runtime·shrinkstack(G*);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+ void	runtime·mallocinit(void);
++void	runtime·chaninit(void);
+ bool	runtime·ifaceeq_c(Iface, Iface);
+ bool	runtime·efaceeq_c(Eface, Eface);
+ uintptr	runtime·ifacehash(Iface, uintptr);

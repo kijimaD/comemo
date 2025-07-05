@@ -7,7 +7,34 @@ Date:   Sun Sep 8 03:34:30 2019 -0400
     Change-Id: I27ca0d71cdc7b13388556aa7c1987320b6b41849
     Reviewed-on: https://go-review.googlesource.com/c/go/+/194178
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
-
+---
  AUTHORS      | 2 +-
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index b2a6b3fc45..6d2ae6378b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -47,7 +47,7 @@ Ahmy Yulrizka <yulrizka@gmail.com>
+ Aiden Scandella <ai@uber.com>
+ Ainar Garipov <gugl.zadolbal@gmail.com>
+ Aishraj Dahal <aishraj@users.noreply.github.com>
+-Akhil Indurti <contact@akhilindurti.com>
++Akhil Indurti <aindurti@gmail.com>
+ Akihiro Suda <suda.kyoto@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Alan Shreve <alan@inconshreveable.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index e52d73d97b..46e6212858 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -67,7 +67,7 @@ Ahsun Ahmed <ahmed.ahsun@gmail.com>
+ Aiden Scandella <ai@uber.com>
+ Ainar Garipov <gugl.zadolbal@gmail.com>
+ Aishraj Dahal <aishraj@users.noreply.github.com>
+-Akhil Indurti <contact@akhilindurti.com>
++Akhil Indurti <aindurti@gmail.com>
+ Akihiro Suda <suda.kyoto@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Al Cutter <al@google.com>

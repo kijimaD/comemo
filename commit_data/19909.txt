@@ -10,9 +10,170 @@ Date:   Wed Aug 6 10:28:19 2014 -0700
     R=iant
     CC=golang-codereviews
     https://golang.org/cl/122150043
-
+---
  misc/cgo/testgodefs/issue8478.go | 20 +++++++++++++++++++
  misc/cgo/testgodefs/main.go      |  3 +++
  misc/cgo/testgodefs/test.bash    |  2 +-
  src/cmd/cgo/gcc.go               | 42 ++++++++++++----------------------------
  4 files changed, 36 insertions(+), 31 deletions(-)
+
+diff --git a/misc/cgo/testgodefs/issue8478.go b/misc/cgo/testgodefs/issue8478.go
+new file mode 100644
+index 0000000000..92258fde72
+--- /dev/null
++++ b/misc/cgo/testgodefs/issue8478.go
+@@ -0,0 +1,20 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// +build ignore
++
++package main
++
++// Issue 8478.  Test that void* is consistently mapped to *byte.
++
++/*
++typedef struct {
++	void *p;
++	void **q;
++	void ***r;
++} s;
++*/
++import "C"
++
++type Issue8478 C.s
+diff --git a/misc/cgo/testgodefs/main.go b/misc/cgo/testgodefs/main.go
+index eaf91bc111..7faccf2654 100644
+--- a/misc/cgo/testgodefs/main.go
++++ b/misc/cgo/testgodefs/main.go
+@@ -8,5 +8,8 @@ package main
+ var v1 T
+ var v2 = v1.L
+ 
++// Test that P, Q, and R all point to byte.
++var v3 = Issue8478{P: (*byte)(nil), Q: (**byte)(nil), R: (***byte)(nil)}
++
+ func main() {
+ }
+diff --git a/misc/cgo/testgodefs/test.bash b/misc/cgo/testgodefs/test.bash
+index cfbeae7dc9..5281b10568 100755
+--- a/misc/cgo/testgodefs/test.bash
++++ b/misc/cgo/testgodefs/test.bash
+@@ -5,7 +5,7 @@
+ # We are testing cgo -godefs, which translates Go files that use
+ # import "C" into Go files with Go definitions of types defined in the
+ # import "C" block.  Add more tests here.
+-FILE_PREFIXES="anonunion"
++FILE_PREFIXES="anonunion issue8478"
+ 
+ RM=
+ for FP in $FILE_PREFIXES
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index b514a8f74b..841c848332 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -929,9 +929,6 @@ type typeConv struct {
+ 	// Map from types to incomplete pointers to those types.
+ 	ptrs map[dwarf.Type][]*Type
+ 
+-	// Fields to be processed by godefsField after completing pointers.
+-	todoFlds [][]*ast.Field
+-
+ 	// Predeclared types.
+ 	bool                                   ast.Expr
+ 	byte                                   ast.Expr // denotes padding
+@@ -940,9 +937,9 @@ type typeConv struct {
+ 	float32, float64                       ast.Expr
+ 	complex64, complex128                  ast.Expr
+ 	void                                   ast.Expr
+-	unsafePointer                          ast.Expr
+ 	string                                 ast.Expr
+ 	goVoid                                 ast.Expr // _Ctype_void, denotes C's void
++	goVoidPtr                              ast.Expr // unsafe.Pointer or *byte
+ 
+ 	ptrSize int64
+ 	intSize int64
+@@ -972,10 +969,17 @@ func (c *typeConv) Init(ptrSize, intSize int64) {
+ 	c.float64 = c.Ident("float64")
+ 	c.complex64 = c.Ident("complex64")
+ 	c.complex128 = c.Ident("complex128")
+-	c.unsafePointer = c.Ident("unsafe.Pointer")
+ 	c.void = c.Ident("void")
+ 	c.string = c.Ident("string")
+ 	c.goVoid = c.Ident("_Ctype_void")
++
++	// Normally cgo translates void* to unsafe.Pointer,
++	// but for historical reasons -cdefs and -godefs use *byte instead.
++	if *cdefs || *godefs {
++		c.goVoidPtr = &ast.StarExpr{X: c.byte}
++	} else {
++		c.goVoidPtr = c.Ident("unsafe.Pointer")
++	}
+ }
+ 
+ // base strips away qualifiers and typedefs to get the underlying type
+@@ -1037,8 +1041,7 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+ }
+ 
+ // FinishType completes any outstanding type mapping work.
+-// In particular, it resolves incomplete pointer types and also runs
+-// godefsFields on any new struct types.
++// In particular, it resolves incomplete pointer types.
+ func (c *typeConv) FinishType(pos token.Pos) {
+ 	// Completing one pointer type might produce more to complete.
+ 	// Keep looping until they're all done.
+@@ -1053,13 +1056,6 @@ func (c *typeConv) FinishType(pos token.Pos) {
+ 			delete(c.ptrs, dtype)
+ 		}
+ 	}
+-
+-	// Now that pointer types are completed, we can invoke godefsFields
+-	// to rewrite struct definitions.
+-	for _, fld := range c.todoFlds {
+-		godefsFields(fld)
+-	}
+-	c.todoFlds = nil
+ }
+ 
+ // Type returns a *Type with the same memory layout as
+@@ -1209,9 +1205,8 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 	case *dwarf.PtrType:
+ 		t.Align = c.ptrSize
+ 
+-		// Translate void* as unsafe.Pointer
+ 		if _, ok := base(dt.Type).(*dwarf.VoidType); ok {
+-			t.Go = c.unsafePointer
++			t.Go = c.goVoidPtr
+ 			t.C.Set("void*")
+ 			break
+ 		}
+@@ -1656,7 +1651,7 @@ func (c *typeConv) Struct(dt *dwarf.StructType, pos token.Pos) (expr *ast.Struct
+ 	csyntax = buf.String()
+ 
+ 	if *godefs || *cdefs {
+-		c.todoFlds = append(c.todoFlds, fld)
++		godefsFields(fld)
+ 	}
+ 	expr = &ast.StructType{Fields: &ast.FieldList{List: fld}}
+ 	return
+@@ -1694,19 +1689,6 @@ func godefsFields(fld []*ast.Field) {
+ 				n.Name = upper(n.Name)
+ 			}
+ 		}
+-		p := &f.Type
+-		t := *p
+-		if star, ok := t.(*ast.StarExpr); ok {
+-			star = &ast.StarExpr{X: star.X}
+-			*p = star
+-			p = &star.X
+-			t = *p
+-		}
+-		if id, ok := t.(*ast.Ident); ok {
+-			if id.Name == "unsafe.Pointer" {
+-				*p = ast.NewIdent("*byte")
+-			}
+-		}
+ 	}
+ }
+ 

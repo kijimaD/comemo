@@ -7,8 +7,82 @@ Date:   Mon Apr 26 23:01:31 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/897042
-
+---
  src/pkg/os/Makefile                      |  6 +++++-
  src/pkg/os/{sys_darwin.go => sys_bsd.go} |  3 ++-
  src/pkg/os/sys_freebsd.go                | 16 ----------------
  3 files changed, 7 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index b69ac24f2a..ebb1665d42 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -15,24 +15,28 @@ GOFILES=\
+ 	path.go\
+ 	proc.go\
+ 	stat_$(GOOS).go\
+-	sys_$(GOOS).go\
+ 	time.go\
+ 	types.go\
+ 
+ GOFILES_freebsd=\
+ 	file_unix.go\
++	sys_bsd.go\
+ 
+ GOFILES_darwin=\
+ 	file_unix.go\
++	sys_bsd.go\
+ 
+ GOFILES_linux=\
+ 	file_unix.go\
++	sys_linux.go\
+ 
+ GOFILES_nacl=\
+ 	file_unix.go\
++	sys_nacl.go\
+ 
+ GOFILES_mingw=\
+ 	file_mingw.go\
++	sys_mingw.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+diff --git a/src/pkg/os/sys_darwin.go b/src/pkg/os/sys_bsd.go
+similarity index 83%
+rename from src/pkg/os/sys_darwin.go
+rename to src/pkg/os/sys_bsd.go
+index 2e3ab21279..188993b696 100644
+--- a/src/pkg/os/sys_darwin.go
++++ b/src/pkg/os/sys_bsd.go
+@@ -2,7 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Darwin-specific
++// os code shared between *BSD systems including OS X (Darwin)
++// and FreeBSD.
+ 
+ package os
+ 
+diff --git a/src/pkg/os/sys_freebsd.go b/src/pkg/os/sys_freebsd.go
+deleted file mode 100644
+index c567f5c358..0000000000
+--- a/src/pkg/os/sys_freebsd.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os
+-
+-import "syscall"
+-
+-func Hostname() (name string, err Error) {
+-	var errno int
+-	name, errno = syscall.Sysctl("kern.hostname")
+-	if errno != 0 {
+-		return "", NewSyscallError("sysctl kern.hostname", errno)
+-	}
+-	return name, nil
+-}

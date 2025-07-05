@@ -11,9 +11,200 @@ Date:   Thu Nov 12 09:33:34 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/269538
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go |  4 ++
  src/cmd/compile/internal/gc/dcl.go     |  2 +
  src/cmd/compile/internal/gc/inl.go     | 23 ++++++------
  src/cmd/compile/internal/gc/syntax.go  | 68 ++++++++++++++++++++++------------
  4 files changed, 63 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 902d2e34a3..bd350f696e 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -71,6 +71,10 @@ func (p *noder) funcLit(expr *syntax.FuncLit) *Node {
+ 	return clo
+ }
+ 
++// typecheckclosure typechecks an OCLOSURE node. It also creates the named
++// function associated with the closure.
++// TODO: This creation of the named function should probably really be done in a
++// separate pass from type-checking.
+ func typecheckclosure(clo *Node, top int) {
+ 	xfunc := clo.Func.Closure
+ 	// Set current associated iota value, so iota can be used inside
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index b8ca0d2e03..6e90eb4d65 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -257,6 +257,8 @@ func symfield(s *types.Sym, typ *types.Type) *Node {
+ 
+ // oldname returns the Node that declares symbol s in the current scope.
+ // If no such Node currently exists, an ONONAME Node is returned instead.
++// Automatically creates a new closure variable if the referenced symbol was
++// declared in a different (containing) function.
+ func oldname(s *types.Sym) *Node {
+ 	n := asNode(s.Def)
+ 	if n == nil {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 139572f652..d49a09458c 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -94,10 +94,11 @@ func typecheckinl(fn *Node) {
+ 	typecheckslice(fn.Func.Inl.Body, ctxStmt)
+ 	Curfn = savefn
+ 
+-	// During typechecking, declarations are added to
+-	// Curfn.Func.Dcl. Move them to Inl.Dcl for consistency with
+-	// how local functions behave. (Append because typecheckinl
+-	// may be called multiple times.)
++	// During expandInline (which imports fn.Func.Inl.Body),
++	// declarations are added to fn.Func.Dcl by funcHdr(). Move them
++	// to fn.Func.Inl.Dcl for consistency with how local functions
++	// behave. (Append because typecheckinl may be called multiple
++	// times.)
+ 	fn.Func.Inl.Dcl = append(fn.Func.Inl.Dcl, fn.Func.Dcl...)
+ 	fn.Func.Dcl = nil
+ 
+@@ -448,9 +449,9 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		v.visitList(n.Ninit) || v.visitList(n.Nbody)
+ }
+ 
+-// Inlcopy and inlcopylist recursively copy the body of a function.
+-// Any name-like node of non-local class is marked for re-export by adding it to
+-// the exportlist.
++// inlcopylist (together with inlcopy) recursively copies a list of nodes, except
++// that it keeps the same ONAME, OTYPE, and OLITERAL nodes. It is used for copying
++// the body and dcls of an inlineable function.
+ func inlcopylist(ll []*Node) []*Node {
+ 	s := make([]*Node, 0, len(ll))
+ 	for _, n := range ll {
+@@ -889,10 +890,10 @@ func inlParam(t *types.Field, as *Node, inlvars map[*Node]*Node) *Node {
+ 
+ var inlgen int
+ 
+-// If n is a call, and fn is a function with an inlinable body,
+-// return an OINLCALL.
+-// On return ninit has the parameter assignments, the nbody is the
+-// inlined function body and list, rlist contain the input, output
++// If n is a call node (OCALLFUNC or OCALLMETH), and fn is an ONAME node for a
++// function with an inlinable body, return an OINLCALL node that can replace n.
++// The returned node's Ninit has the parameter assignments, the Nbody is the
++// inlined function body, and (List, Rlist) contain the (input, output)
+ // parameters.
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ // 	n.Left = mkinlcall(n.Left, fn, isddd)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 649f7f4157..43358333b8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -344,14 +344,22 @@ func (n *Node) CanBeAnSSASym() {
+ 
+ // Name holds Node fields used only by named nodes (ONAME, OTYPE, OPACK, OLABEL, some OLITERAL).
+ type Name struct {
+-	Pack      *Node      // real package for import . names
+-	Pkg       *types.Pkg // pkg for OPACK nodes
+-	Defn      *Node      // initializing assignment
+-	Curfn     *Node      // function for local variables
+-	Param     *Param     // additional fields for ONAME, OTYPE
+-	Decldepth int32      // declaration loop depth, increased for every loop or label
+-	Vargen    int32      // unique name for ONAME within a function.  Function outputs are numbered starting at one.
+-	flags     bitset16
++	Pack *Node      // real package for import . names
++	Pkg  *types.Pkg // pkg for OPACK nodes
++	// For a local variable (not param) or extern, the initializing assignment (OAS or OAS2).
++	// For a closure var, the ONAME node of the outer captured variable
++	Defn *Node
++	// The ODCLFUNC node (for a static function/method or a closure) in which
++	// local variable or param is declared.
++	Curfn     *Node
++	Param     *Param // additional fields for ONAME, OTYPE
++	Decldepth int32  // declaration loop depth, increased for every loop or label
++	// Unique number for ONAME nodes within a function. Function outputs
++	// (results) are numbered starting at one, followed by function inputs
++	// (parameters), and then local variables. Vargen is used to distinguish
++	// local variables/params with the same name.
++	Vargen int32
++	flags  bitset16
+ }
+ 
+ const (
+@@ -608,10 +616,16 @@ func (p *Param) SetEmbedFiles(list []string) {
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+ 	Shortname *types.Sym
+-	Enter     Nodes // for example, allocate and initialize memory for escaping parameters
+-	Exit      Nodes
+-	Cvars     Nodes   // closure params
+-	Dcl       []*Node // autodcl for this func/closure
++	// Extra entry code for the function. For example, allocate and initialize
++	// memory for escaping parameters. However, just for OCLOSURE, Enter is a
++	// list of ONAME nodes of captured variables
++	Enter Nodes
++	Exit  Nodes
++	// ONAME nodes for closure params, each should have closurevar set
++	Cvars Nodes
++	// ONAME nodes for all params/locals for this func/closure, does NOT
++	// include closurevars until transformclosure runs.
++	Dcl []*Node
+ 
+ 	// Parents records the parent scope of each scope within a
+ 	// function. The root scope (0) has no parent, so the i'th
+@@ -630,7 +644,7 @@ type Func struct {
+ 	DebugInfo  *ssa.FuncDebug
+ 	Ntype      *Node // signature
+ 	Top        int   // top context (ctxCallee, etc)
+-	Closure    *Node // OCLOSURE <-> ODCLFUNC
++	Closure    *Node // OCLOSURE <-> ODCLFUNC (see header comment above)
+ 	Nname      *Node // The ONAME node associated with an ODCLFUNC (both have same Type)
+ 	lsym       *obj.LSym
+ 
+@@ -680,6 +694,8 @@ const (
+ 	funcWrapper                   // is method wrapper
+ 	funcNeedctxt                  // function uses context register (has closure variables)
+ 	funcReflectMethod             // function calls reflect.Type.Method or MethodByName
++	// true if closure inside a function; false if a simple function or a
++	// closure in a global variable initialization
+ 	funcIsHiddenClosure
+ 	funcHasDefer                 // contains a defer statement
+ 	funcNilCheckDisabled         // disable nil checks when compiling this function
+@@ -731,8 +747,10 @@ const (
+ 	OXXX Op = iota
+ 
+ 	// names
+-	ONAME    // var or func name
+-	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
++	ONAME // var or func name
++	// Unnamed arg or return value: f(int, string) (int, error) { etc }
++	// Also used for a qualified package identifier that hasn't been resolved yet.
++	ONONAME
+ 	OTYPE    // type name
+ 	OPACK    // import
+ 	OLITERAL // literal
+@@ -752,14 +770,18 @@ const (
+ 	OSTR2BYTES    // Type(Left) (Type is []byte, Left is a string)
+ 	OSTR2BYTESTMP // Type(Left) (Type is []byte, Left is a string, ephemeral)
+ 	OSTR2RUNES    // Type(Left) (Type is []rune, Left is a string)
+-	OAS           // Left = Right or (if Colas=true) Left := Right
+-	OAS2          // List = Rlist (x, y, z = a, b, c)
+-	OAS2DOTTYPE   // List = Right (x, ok = I.(int))
+-	OAS2FUNC      // List = Right (x, y = f())
+-	OAS2MAPR      // List = Right (x, ok = m["foo"])
+-	OAS2RECV      // List = Right (x, ok = <-c)
+-	OASOP         // Left Etype= Right (x += y)
+-	OCALL         // Left(List) (function call, method call or type conversion)
++	// Left = Right or (if Colas=true) Left := Right
++	// If Colas, then Ninit includes a DCL node for Left.
++	OAS
++	// List = Rlist (x, y, z = a, b, c) or (if Colas=true) List := Rlist
++	// If Colas, then Ninit includes DCL nodes for List
++	OAS2
++	OAS2DOTTYPE // List = Right (x, ok = I.(int))
++	OAS2FUNC    // List = Right (x, y = f())
++	OAS2MAPR    // List = Right (x, ok = m["foo"])
++	OAS2RECV    // List = Right (x, ok = <-c)
++	OASOP       // Left Etype= Right (x += y)
++	OCALL       // Left(List) (function call, method call or type conversion)
+ 
+ 	// OCALLFUNC, OCALLMETH, and OCALLINTER have the same structure.
+ 	// Prior to walk, they are: Left(List), where List is all regular arguments.

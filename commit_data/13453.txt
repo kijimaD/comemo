@@ -33,9 +33,206 @@ Date:   Tue Jul 10 07:44:23 2012 +0200
     R=rsc, r
     CC=golang-dev, remy
     https://golang.org/cl/6303087
-
+---
  src/pkg/strconv/decimal.go   |  2 +-
  src/pkg/strconv/extfloat.go  | 77 +++++++++++++++++++++++++++-----------------
  src/pkg/strconv/ftoa.go      |  4 +--
  src/pkg/strconv/ftoa_test.go | 42 ++++++++----------------
  4 files changed, 65 insertions(+), 60 deletions(-)
+
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index a75071dcc4..42601283d2 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -79,7 +79,7 @@ func trim(a *decimal) {
+ 
+ // Assign v to a.
+ func (a *decimal) Assign(v uint64) {
+-	var buf [50]byte
++	var buf [24]byte
+ 
+ 	// Write reversed decimal in buf.
+ 	n := 0
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 05e13bf967..3b54d7b9f8 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -190,29 +190,24 @@ func (f *extFloat) Assign(x float64) {
+ 	f.exp -= 64
+ }
+ 
+-// AssignComputeBounds sets f to the value of x and returns
++// AssignComputeBounds sets f to the floating point value
++// defined by mant, exp and precision given by flt. It returns
+ // lower, upper such that any number in the closed interval
+-// [lower, upper] is converted back to x.
+-func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
+-	// Special cases.
+-	bits := math.Float64bits(x)
+-	flt := &float64info
+-	neg := bits>>(flt.expbits+flt.mantbits) != 0
+-	expBiased := int(bits>>flt.mantbits) & (1<<flt.expbits - 1)
+-	mant := bits & (uint64(1)<<flt.mantbits - 1)
+-
+-	if expBiased == 0 {
+-		// denormalized.
+-		f.mant = mant
+-		f.exp = 1 + flt.bias - int(flt.mantbits)
+-	} else {
+-		f.mant = mant | 1<<flt.mantbits
+-		f.exp = expBiased + flt.bias - int(flt.mantbits)
+-	}
++// [lower, upper] is converted back to the same floating point number.
++func (f *extFloat) AssignComputeBounds(mant uint64, exp int, neg bool, flt *floatInfo) (lower, upper extFloat) {
++	f.mant = mant
++	f.exp = exp - int(flt.mantbits)
+ 	f.neg = neg
++	if f.exp <= 0 && mant == (mant>>uint(-f.exp))<<uint(-f.exp) {
++		// An exact integer
++		f.mant >>= uint(-f.exp)
++		f.exp = 0
++		return *f, *f
++	}
++	expBiased := exp - flt.bias
+ 
+ 	upper = extFloat{mant: 2*f.mant + 1, exp: f.exp - 1, neg: f.neg}
+-	if mant != 0 || expBiased == 1 {
++	if mant != 1<<flt.mantbits || expBiased == 1 {
+ 		lower = extFloat{mant: 2*f.mant - 1, exp: f.exp - 1, neg: f.neg}
+ 	} else {
+ 		lower = extFloat{mant: 4*f.mant - 1, exp: f.exp - 2, neg: f.neg}
+@@ -222,20 +217,38 @@ func (f *extFloat) AssignComputeBounds(x float64) (lower, upper extFloat) {
+ 
+ // Normalize normalizes f so that the highest bit of the mantissa is
+ // set, and returns the number by which the mantissa was left-shifted.
+-func (f *extFloat) Normalize() uint {
+-	if f.mant == 0 {
++func (f *extFloat) Normalize() (shift uint) {
++	mant, exp := f.mant, f.exp
++	if mant == 0 {
+ 		return 0
+ 	}
+-	exp_before := f.exp
+-	for f.mant < (1 << 55) {
+-		f.mant <<= 8
+-		f.exp -= 8
++	if mant>>(64-32) == 0 {
++		mant <<= 32
++		exp -= 32
++	}
++	if mant>>(64-16) == 0 {
++		mant <<= 16
++		exp -= 16
++	}
++	if mant>>(64-8) == 0 {
++		mant <<= 8
++		exp -= 8
+ 	}
+-	for f.mant < (1 << 63) {
+-		f.mant <<= 1
+-		f.exp -= 1
++	if mant>>(64-4) == 0 {
++		mant <<= 4
++		exp -= 4
+ 	}
+-	return uint(exp_before - f.exp)
++	if mant>>(64-2) == 0 {
++		mant <<= 2
++		exp -= 2
++	}
++	if mant>>(64-1) == 0 {
++		mant <<= 1
++		exp -= 1
++	}
++	shift = uint(f.exp - exp)
++	f.mant, f.exp = mant, exp
++	return
+ }
+ 
+ // Multiply sets f to the product f*g: the result is correctly rounded,
+@@ -390,6 +403,12 @@ func (f *extFloat) ShortestDecimal(d *decimal, lower, upper *extFloat) bool {
+ 		d.dp = 0
+ 		d.neg = f.neg
+ 	}
++	if f.exp == 0 && *lower == *f && *lower == *upper {
++		// an exact integer.
++		d.Assign(f.mant)
++		d.neg = f.neg
++		return true
++	}
+ 	const minExp = -60
+ 	const maxExp = -32
+ 	upper.Normalize()
+diff --git a/src/pkg/strconv/ftoa.go b/src/pkg/strconv/ftoa.go
+index 8eefbee79f..7ee5d07e01 100644
+--- a/src/pkg/strconv/ftoa.go
++++ b/src/pkg/strconv/ftoa.go
+@@ -104,10 +104,10 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
+ 	d := new(decimal)
+ 	if shortest {
+ 		ok := false
+-		if optimize && bitSize == 64 {
++		if optimize {
+ 			// Try Grisu3 algorithm.
+ 			f := new(extFloat)
+-			lower, upper := f.AssignComputeBounds(val)
++			lower, upper := f.AssignComputeBounds(mant, exp, neg, flt)
+ 			ok = f.ShortestDecimal(d, &lower, &upper)
+ 		}
+ 		if !ok {
+diff --git a/src/pkg/strconv/ftoa_test.go b/src/pkg/strconv/ftoa_test.go
+index f69e3624ed..7b06235a40 100644
+--- a/src/pkg/strconv/ftoa_test.go
++++ b/src/pkg/strconv/ftoa_test.go
+@@ -203,37 +203,23 @@ func BenchmarkFormatFloatBig(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkAppendFloatDecimal(b *testing.B) {
+-	dst := make([]byte, 0, 30)
++func benchmarkAppendFloat(b *testing.B, f float64, fmt byte, prec, bitSize int) {
++	dst := make([]byte, 30)
+ 	for i := 0; i < b.N; i++ {
+-		AppendFloat(dst, 33909, 'g', -1, 64)
+-	}
+-}
+-
+-func BenchmarkAppendFloat(b *testing.B) {
+-	dst := make([]byte, 0, 30)
+-	for i := 0; i < b.N; i++ {
+-		AppendFloat(dst, 339.7784, 'g', -1, 64)
+-	}
+-}
+-
+-func BenchmarkAppendFloatExp(b *testing.B) {
+-	dst := make([]byte, 0, 30)
+-	for i := 0; i < b.N; i++ {
+-		AppendFloat(dst, -5.09e75, 'g', -1, 64)
+-	}
+-}
+-
+-func BenchmarkAppendFloatNegExp(b *testing.B) {
+-	dst := make([]byte, 0, 30)
+-	for i := 0; i < b.N; i++ {
+-		AppendFloat(dst, -5.11e-95, 'g', -1, 64)
++		AppendFloat(dst[:0], f, fmt, prec, bitSize)
+ 	}
+ }
+ 
++func BenchmarkAppendFloatDecimal(b *testing.B) { benchmarkAppendFloat(b, 33909, 'g', -1, 64) }
++func BenchmarkAppendFloat(b *testing.B)        { benchmarkAppendFloat(b, 339.7784, 'g', -1, 64) }
++func BenchmarkAppendFloatExp(b *testing.B)     { benchmarkAppendFloat(b, -5.09e75, 'g', -1, 64) }
++func BenchmarkAppendFloatNegExp(b *testing.B)  { benchmarkAppendFloat(b, -5.11e-95, 'g', -1, 64) }
+ func BenchmarkAppendFloatBig(b *testing.B) {
+-	dst := make([]byte, 0, 30)
+-	for i := 0; i < b.N; i++ {
+-		AppendFloat(dst, 123456789123456789123456789, 'g', -1, 64)
+-	}
++	benchmarkAppendFloat(b, 123456789123456789123456789, 'g', -1, 64)
+ }
++
++func BenchmarkAppendFloat32Integer(b *testing.B)       { benchmarkAppendFloat(b, 33909, 'g', -1, 32) }
++func BenchmarkAppendFloat32ExactFraction(b *testing.B) { benchmarkAppendFloat(b, 3.375, 'g', -1, 32) }
++func BenchmarkAppendFloat32Point(b *testing.B)         { benchmarkAppendFloat(b, 339.7784, 'g', -1, 32) }
++func BenchmarkAppendFloat32Exp(b *testing.B)           { benchmarkAppendFloat(b, -5.09e25, 'g', -1, 32) }
++func BenchmarkAppendFloat32NegExp(b *testing.B)        { benchmarkAppendFloat(b, -5.11e-25, 'g', -1, 32) }

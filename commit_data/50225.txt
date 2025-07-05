@@ -13,8 +13,65 @@ Date:   Sat Oct 9 17:57:06 2021 +0200
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386Ops.go   | 2 +-
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 4 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 3 ---
  3 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 3512d60865..a6da7a5fce 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -298,7 +298,7 @@ func init() {
+ 		// unary ops
+ 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
+ 
+-		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
++		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
+ 
+ 		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+ 		{name: "BSFW", argLength: 1, reg: gp11, asm: "BSFW", clobberFlags: true}, // arg0 # of low-order zeroes ; undef if zero
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 1887772736..731454c761 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -513,8 +513,8 @@ func init() {
+ 		{name: "NEGQ", argLength: 1, reg: gp11, asm: "NEGQ", resultInArg0: true, clobberFlags: true}, // -arg0
+ 		{name: "NEGL", argLength: 1, reg: gp11, asm: "NEGL", resultInArg0: true, clobberFlags: true}, // -arg0
+ 
+-		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true, clobberFlags: true}, // ^arg0
+-		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true, clobberFlags: true}, // ^arg0
++		{name: "NOTQ", argLength: 1, reg: gp11, asm: "NOTQ", resultInArg0: true}, // ^arg0
++		{name: "NOTL", argLength: 1, reg: gp11, asm: "NOTL", resultInArg0: true}, // ^arg0
+ 
+ 		// BS{F,R}Q returns a tuple [result, flags]
+ 		// result is undefined if the input is zero.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 09006c8c85..640e517fe7 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4733,7 +4733,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "NOTL",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ANOTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -10777,7 +10776,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "NOTQ",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ANOTQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+@@ -10792,7 +10790,6 @@ var opcodeTable = [...]opInfo{
+ 		name:         "NOTL",
+ 		argLen:       1,
+ 		resultInArg0: true,
+-		clobberFlags: true,
+ 		asm:          x86.ANOTL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{

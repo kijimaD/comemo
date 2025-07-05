@@ -19,10 +19,137 @@ Date:   Mon Jul 18 11:47:19 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/transform.go      | 10 +++---
  src/cmd/compile/internal/test/issue53888_test.go | 44 ++++++++++++++++++++++++
  src/cmd/compile/internal/typecheck/func.go       |  6 +++-
  src/runtime/slice.go                             |  4 +--
  test/fixedbugs/issue29190.go                     |  4 +--
  5 files changed, 58 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index ddbccf4ff4..50254e694a 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -730,11 +730,11 @@ func transformAppend(n *ir.CallExpr) ir.Node {
+ 	assert(t.IsSlice())
+ 
+ 	if n.IsDDD {
+-		if t.Elem().IsKind(types.TUINT8) && args[1].Type().IsString() {
+-			return n
+-		}
+-
+-		args[1] = assignconvfn(args[1], t.Underlying())
++		// assignconvfn is of args[1] not required here, as the
++		// types of args[0] and args[1] don't need to match
++		// (They will both have an underlying type which are
++		// slices of indentical base types, or be []byte and string.)
++		// See issue 53888.
+ 		return n
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/test/issue53888_test.go b/src/cmd/compile/internal/test/issue53888_test.go
+new file mode 100644
+index 0000000000..9f50a82a3c
+--- /dev/null
++++ b/src/cmd/compile/internal/test/issue53888_test.go
+@@ -0,0 +1,44 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !race
++
++package test
++
++import (
++	"testing"
++)
++
++func TestAppendOfMake(t *testing.T) {
++	for n := 32; n < 33; n++ { // avoid stack allocation of make()
++		b := make([]byte, n)
++		f := func() {
++			b = append(b[:0], make([]byte, n)...)
++		}
++		if n := testing.AllocsPerRun(10, f); n > 0 {
++			t.Errorf("got %f allocs, want 0", n)
++		}
++		type S []byte
++
++		s := make(S, n)
++		g := func() {
++			s = append(s[:0], make(S, n)...)
++		}
++		if n := testing.AllocsPerRun(10, g); n > 0 {
++			t.Errorf("got %f allocs, want 0", n)
++		}
++		h := func() {
++			s = append(s[:0], make([]byte, n)...)
++		}
++		if n := testing.AllocsPerRun(10, h); n > 0 {
++			t.Errorf("got %f allocs, want 0", n)
++		}
++		i := func() {
++			b = append(b[:0], make(S, n)...)
++		}
++		if n := testing.AllocsPerRun(10, i); n > 0 {
++			t.Errorf("got %f allocs, want 0", n)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 0988ce8dc7..7790e65ca2 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -465,7 +465,11 @@ func tcAppend(n *ir.CallExpr) ir.Node {
+ 			return n
+ 		}
+ 
+-		args[1] = AssignConv(args[1], t.Underlying(), "append")
++		// AssignConv is of args[1] not required here, as the
++		// types of args[0] and args[1] don't need to match
++		// (They will both have an underlying type which are
++		// slices of indentical base types, or be []byte and string.)
++		// See issue 53888.
+ 		return n
+ 	}
+ 
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 9ca0adefd8..75f202fca0 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -194,7 +194,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	}
+ 
+ 	if cap < old.cap {
+-		panic(errorString("growslice: cap out of range"))
++		panic(errorString("growslice: len out of range"))
+ 	}
+ 
+ 	if et.size == 0 {
+@@ -284,7 +284,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 	//   print(len(s), "\n")
+ 	// }
+ 	if overflow || capmem > maxAlloc {
+-		panic(errorString("growslice: cap out of range"))
++		panic(errorString("growslice: len out of range"))
+ 	}
+ 
+ 	var p unsafe.Pointer
+diff --git a/test/fixedbugs/issue29190.go b/test/fixedbugs/issue29190.go
+index c0c4bb12b4..9f9b864eab 100644
+--- a/test/fixedbugs/issue29190.go
++++ b/test/fixedbugs/issue29190.go
+@@ -16,9 +16,9 @@ const maxInt = int(^uint(0) >> 1)
+ 
+ func main() {
+ 	s := make([]T, maxInt)
+-	shouldPanic("cap out of range", func() { s = append(s, T{}) })
++	shouldPanic("len out of range", func() { s = append(s, T{}) })
+ 	var oneElem = make([]T, 1)
+-	shouldPanic("cap out of range", func() { s = append(s, oneElem...) })
++	shouldPanic("len out of range", func() { s = append(s, oneElem...) })
+ }
+ 
+ func shouldPanic(str string, f func()) {

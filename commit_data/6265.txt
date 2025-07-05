@@ -8,6 +8,20 @@ Date:   Mon Sep 13 00:12:18 2010 -0400
     R=aclements, rsc
     CC=golang-dev
     https://golang.org/cl/2111046
-
+---
  misc/emacs/go-mode.el | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 0b02219887..2624e87cbd 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -92,7 +92,7 @@ some syntax analysis.")
+       ;; Map key type
+       (,(concat "\\<map\\s *\\[" type-name) 1 font-lock-type-face)
+       ;; Channel value type
+-      (,(concat "\\<chan\\s *\\(?:<-\\)?" type-name) 1 font-lock-type-face)
++      (,(concat "\\<chan\\>\\s *\\(?:<-\\)?" type-name) 1 font-lock-type-face)
+       ;; new/make type
+       (,(concat "\\<\\(?:new\\|make\\)\\>\\(?:\\s \\|)\\)*(" type-name) 1 font-lock-type-face)
+       ;; Type conversion

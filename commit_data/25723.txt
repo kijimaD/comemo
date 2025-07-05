@@ -15,7 +15,34 @@ Date:   Mon Nov 16 20:59:35 2015 +0530
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/path.go      | 2 +-
  src/path/filepath/path_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 7164c070bb..dd6f3e7a99 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -258,7 +258,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 	targVol := VolumeName(targpath)
+ 	base := Clean(basepath)
+ 	targ := Clean(targpath)
+-	if targ == base {
++	if sameWord(targ, base) {
+ 		return ".", nil
+ 	}
+ 	base = base[len(baseVol):]
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index 057aa6a2c0..e41a97da11 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -1034,6 +1034,8 @@ var winreltests = []RelTests{
+ 	{`C:\`, `D:\`, `err`},
+ 	{`C:`, `D:`, `err`},
+ 	{`C:\Projects`, `c:\projects\src`, `src`},
++	{`C:\Projects`, `c:\projects`, `.`},
++	{`C:\Projects\a\..`, `c:\projects`, `.`},
+ }
+ 
+ func TestRel(t *testing.T) {

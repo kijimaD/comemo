@@ -28,8 +28,49 @@ Date:   Wed Nov 2 17:23:47 2022 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go       | 1 +
  src/cmd/compile/internal/noder/unified.go    | 3 ++-
  src/cmd/compile/internal/ssa/fmahash_test.go | 3 ++-
  3 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index ca3552733d..7acebb466e 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -27,6 +27,7 @@ type DebugFlags struct {
+ 	Export                int    `help:"print export data"`
+ 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+ 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
++	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
+ 	GCProg                int    `help:"print dump of GC programs"`
+ 	Gossahash             string `help:"hash value for use in debugging the compiler"`
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 61767ea2d9..ed97a09302 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -255,7 +255,8 @@ func freePackage(pkg *types2.Package) {
+ 	// not because of #22350). To avoid imposing unnecessary
+ 	// restrictions on the GOROOT_BOOTSTRAP toolchain, we skip the test
+ 	// during bootstrapping.
+-	if base.CompilerBootstrap {
++	if base.CompilerBootstrap || base.Debug.GCCheck == 0 {
++		*pkg = types2.Package{}
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+index 1df6a63c25..6e78e66045 100644
+--- a/src/cmd/compile/internal/ssa/fmahash_test.go
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -15,7 +15,8 @@ import (
+ )
+ 
+ // TestFmaHash checks that the hash-test machinery works properly for a single case.
+-// It does not check or run the generated code.
++// It also runs ssa/check and gccheck to be sure that those are checked at least a
++// little in each run.bash.  It does not check or run the generated code.
+ // The test file is however a useful example of fused-vs-cascaded multiply-add.
+ func TestFmaHash(t *testing.T) {
+ 	switch runtime.GOOS {

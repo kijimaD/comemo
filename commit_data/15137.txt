@@ -9,6 +9,19 @@ Date:   Mon Feb 4 22:59:30 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7304043
-
+---
  src/pkg/path/filepath/path.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index bbd738d8c8..bcb81824ab 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -374,6 +374,7 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ // and directories are filtered by walkFn. The files are walked in lexical
+ // order, which makes the output deterministic but means that for very
+ // large directories Walk can be inefficient.
++// Walk does not follow symbolic links.
+ func Walk(root string, walkFn WalkFunc) error {
+ 	info, err := os.Lstat(root)
+ 	if err != nil {

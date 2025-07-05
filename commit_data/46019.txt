@@ -12,10 +12,116 @@ Date:   Wed Dec 2 17:03:18 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/inl.go       | 4 ++--
  src/cmd/compile/internal/gc/order.go     | 2 +-
  src/cmd/compile/internal/gc/subr.go      | 6 +++---
  src/cmd/compile/internal/gc/typecheck.go | 4 ++--
  src/cmd/compile/internal/gc/walk.go      | 6 +++---
  5 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index fd8e9cfd46..42125f38f3 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -537,7 +537,7 @@ func inlconv2stmt(inlcall ir.Node) ir.Node {
+ // 	n.Left = inlconv2expr(n.Left)
+ func inlconv2expr(n ir.Node) ir.Node {
+ 	r := n.Rlist().First()
+-	return addinit(r, append(n.Init().Slice(), n.Body().Slice()...))
++	return initExpr(append(n.Init().Slice(), n.Body().Slice()...), r)
+ }
+ 
+ // Turn the rlist (with the return values) of the OINLCALL in
+@@ -551,7 +551,7 @@ func inlconv2list(n ir.Node) []ir.Node {
+ 	}
+ 
+ 	s := n.Rlist().Slice()
+-	s[0] = addinit(s[0], append(n.Init().Slice(), n.Body().Slice()...))
++	s[0] = initExpr(append(n.Init().Slice(), n.Body().Slice()...), s[0])
+ 	return s
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 7816e684dc..e4175bbf36 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -433,7 +433,7 @@ func (o *Order) exprInPlace(n ir.Node) ir.Node {
+ 	var order Order
+ 	order.free = o.free
+ 	n = order.expr(n, nil)
+-	n = addinit(n, order.out)
++	n = initExpr(order.out, n)
+ 
+ 	// insert new temporaries from order
+ 	// at head of outer list.
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 011a7ac5bc..970f78b355 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -1355,9 +1355,9 @@ func ngotype(n ir.Node) *types.Sym {
+ 	return nil
+ }
+ 
+-// The result of addinit MUST be assigned back to n, e.g.
+-// 	n.Left = addinit(n.Left, init)
+-func addinit(n ir.Node, init []ir.Node) ir.Node {
++// The result of initExpr MUST be assigned back to n, e.g.
++// 	n.Left = initExpr(init, n.Left)
++func initExpr(init []ir.Node, n ir.Node) ir.Node {
+ 	if len(init) == 0 {
+ 		return n
+ 	}
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 5a073ac324..55443ba596 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1314,7 +1314,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				}
+ 				old := n
+ 				n = ir.NodAt(n.Pos(), l.SubOp(), arg, nil)
+-				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
++				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
+ 
+ 			case ir.OCOMPLEX, ir.OCOPY:
+ 				typecheckargs(n)
+@@ -1325,7 +1325,7 @@ func typecheck1(n ir.Node, top int) (res ir.Node) {
+ 				}
+ 				old := n
+ 				n = ir.NodAt(n.Pos(), l.SubOp(), arg1, arg2)
+-				n = addinit(n, old.Init().Slice()) // typecheckargs can add to old.Init
++				n = initExpr(old.Init().Slice(), n) // typecheckargs can add to old.Init
+ 			}
+ 			n = typecheck1(n, top)
+ 			return n
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c0f447f1a2..e72015c05e 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -180,7 +180,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 		n = mkcall1(chanfn("chanrecv1", 2, n.Left().Type()), nil, &init, n.Left(), nodnil())
+ 		n = walkexpr(n, &init)
+ 
+-		n = addinit(n, init.Slice())
++		n = initExpr(init.Slice(), n)
+ 
+ 	case ir.OBREAK,
+ 		ir.OCONTINUE,
+@@ -268,7 +268,7 @@ func walkstmt(n ir.Node) ir.Node {
+ 			init := n.Left().Init()
+ 			n.Left().PtrInit().Set(nil)
+ 			n.SetLeft(walkexpr(n.Left(), &init))
+-			n.SetLeft(addinit(n.Left(), init.Slice()))
++			n.SetLeft(initExpr(init.Slice(), n.Left()))
+ 		}
+ 
+ 		n.SetRight(walkstmt(n.Right()))
+@@ -557,7 +557,7 @@ opswitch:
+ 		var ll ir.Nodes
+ 
+ 		n.SetRight(walkexpr(n.Right(), &ll))
+-		n.SetRight(addinit(n.Right(), ll.Slice()))
++		n.SetRight(initExpr(ll.Slice(), n.Right()))
+ 
+ 	case ir.OPRINT, ir.OPRINTN:
+ 		n = walkprint(n, init)

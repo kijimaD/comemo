@@ -12,6 +12,21 @@ Date:   Sun Mar 31 22:33:52 2019 +0100
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 973e3cd4f2..a73cd613f2 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -175,8 +175,7 @@ type factsTable struct {
+ 	lens map[ID]*Value
+ 	caps map[ID]*Value
+ 
+-	// zero is a reference to the zero-valued constant assigned or created
+-	// during the len/cap sweep that begins prove.
++	// zero is a zero-valued constant
+ 	zero *Value
+ }
+ 

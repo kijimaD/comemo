@@ -15,10 +15,90 @@ Date:   Thu Aug 5 13:58:24 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 7 ++-----
  src/cmd/compile/internal/noder/reader2.go     | 4 +---
  src/cmd/compile/internal/noder/writer.go      | 2 +-
  src/cmd/compile/internal/typecheck/iexport.go | 6 +++---
  src/cmd/compile/internal/typecheck/iimport.go | 2 +-
  5 files changed, 8 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 3aab32fc6b..6dd8d595ae 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -676,12 +676,9 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		if r.p.exportVersion < iexportVersionGenerics {
+ 			errorf("unexpected instantiation type")
+ 		}
+-		nt := int(r.uint64())
+-		terms := make([]*types2.Term, nt)
++		terms := make([]*types2.Term, r.uint64())
+ 		for i := range terms {
+-			typ := r.typ()
+-			tilde := r.bool()
+-			terms[i] = types2.NewTerm(tilde, typ)
++			terms[i] = types2.NewTerm(r.bool(), r.typ())
+ 		}
+ 		return types2.NewUnion(terms)
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 0bea6675ea..fe1f329c82 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -283,9 +283,7 @@ func (r *reader2) structType() *types2.Struct {
+ func (r *reader2) unionType() *types2.Union {
+ 	terms := make([]*types2.Term, r.len())
+ 	for i := range terms {
+-		typ := r.typ()
+-		tilde := r.bool()
+-		terms[i] = types2.NewTerm(tilde, typ)
++		terms[i] = types2.NewTerm(r.bool(), r.typ())
+ 	}
+ 	return types2.NewUnion(terms)
+ }
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 8b65559d1a..b5028e7f69 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -397,8 +397,8 @@ func (w *writer) unionType(typ *types2.Union) {
+ 	w.len(typ.Len())
+ 	for i := 0; i < typ.Len(); i++ {
+ 		t := typ.Term(i)
+-		w.typ(t.Type())
+ 		w.bool(t.Tilde())
++		w.typ(t.Type())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 25a0bfbb3a..d877b03e48 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1002,9 +1002,9 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 		nt := t.NumTerms()
+ 		w.uint64(uint64(nt))
+ 		for i := 0; i < nt; i++ {
+-			t, b := t.Term(i)
+-			w.typ(t)
+-			w.bool(b)
++			typ, tilde := t.Term(i)
++			w.bool(tilde)
++			w.typ(typ)
+ 		}
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 8d960e5808..2957212fb2 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -847,8 +847,8 @@ func (r *importReader) typ1() *types.Type {
+ 		terms := make([]*types.Type, nt)
+ 		tildes := make([]bool, nt)
+ 		for i := range terms {
+-			terms[i] = r.typ()
+ 			tildes[i] = r.bool()
++			terms[i] = r.typ()
+ 		}
+ 		return types.NewUnion(terms, tildes)
+ 	}

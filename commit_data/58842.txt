@@ -42,6 +42,26 @@ Date:   Wed Dec 20 14:33:46 2023 -0500
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/runtime.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 92cdfc310e..c70a76e409 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -167,13 +167,10 @@ func (g *godebugInc) IncNonDefault() {
+ 		if newInc == nil {
+ 			return
+ 		}
+-		// If other goroutines are racing here, no big deal. One will win,
+-		// and all the inc functions will be using the same underlying
+-		// *godebug.Setting.
+ 		inc = new(func())
+ 		*inc = (*newInc)(g.name)
+ 		if raceenabled {
+-			racerelease(unsafe.Pointer(&g.inc))
++			racereleasemerge(unsafe.Pointer(&g.inc))
+ 		}
+ 		if !g.inc.CompareAndSwap(nil, inc) {
+ 			inc = g.inc.Load()

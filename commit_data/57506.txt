@@ -14,10 +14,103 @@ Date:   Fri Aug 11 14:35:23 2023 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 10 ----------
  src/cmd/compile/internal/staticinit/sched.go    |  4 ++--
  src/cmd/compile/internal/walk/assign.go         |  4 ++--
  src/cmd/compile/internal/walk/builtin.go        |  2 +-
  src/cmd/compile/internal/walk/expr.go           |  2 +-
  5 files changed, 6 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 728976f48e..2e5301c823 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -839,11 +839,6 @@ func TypeLinksym(t *types.Type) *obj.LSym {
+ 	return lsym
+ }
+ 
+-// Deprecated: Use TypePtrAt instead.
+-func TypePtr(t *types.Type) *ir.AddrExpr {
+-	return TypePtrAt(base.Pos, t)
+-}
+-
+ // TypePtrAt returns an expression that evaluates to the
+ // *runtime._type value for t.
+ func TypePtrAt(pos src.XPos, t *types.Type) *ir.AddrExpr {
+@@ -867,11 +862,6 @@ func ITabLsym(typ, iface *types.Type) *obj.LSym {
+ 	return lsym
+ }
+ 
+-// Deprecated: Use ITabAddrAt instead.
+-func ITabAddr(typ, iface *types.Type) *ir.AddrExpr {
+-	return ITabAddrAt(base.Pos, typ, iface)
+-}
+-
+ // ITabAddrAt returns an expression that evaluates to the
+ // *runtime.itab value for concrete type typ implementing interface
+ // iface.
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index ca70591cd9..b1c91089b9 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -377,9 +377,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 
+ 		var itab *ir.AddrExpr
+ 		if typ.IsEmptyInterface() {
+-			itab = reflectdata.TypePtr(val.Type())
++			itab = reflectdata.TypePtrAt(base.Pos, val.Type())
+ 		} else {
+-			itab = reflectdata.ITabAddr(val.Type(), typ)
++			itab = reflectdata.ITabAddrAt(base.Pos, val.Type(), typ)
+ 		}
+ 
+ 		// Create a copy of l to modify while we emit data.
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index 4207b487a7..5672a6d982 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -518,7 +518,7 @@ func appendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 	fn = typecheck.SubstArgTypes(fn, elemtype, elemtype)
+ 
+ 	// else { s = growslice(oldPtr, newLen, oldCap, num, T) }
+-	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtr(elemtype))
++	call := mkcall1(fn, s.Type(), nif.PtrInit(), oldPtr, newLen, oldCap, num, reflectdata.TypePtrAt(base.Pos, elemtype))
+ 	nif.Else = []ir.Node{ir.NewAssignStmt(base.Pos, s, call)}
+ 
+ 	nodes.Append(nif)
+@@ -706,7 +706,7 @@ func extendSlice(n *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 			nn,
+ 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
+ 			l2,
+-			reflectdata.TypePtr(elemtype))),
++			reflectdata.TypePtrAt(base.Pos, elemtype))),
+ 	}
+ 
+ 	nodes = append(nodes, nif)
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 0bb5018250..c81cd0b3fa 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -111,7 +111,7 @@ func walkAppend(n *ir.CallExpr, init *ir.Nodes, dst ir.Node) ir.Node {
+ 			newLen,
+ 			ir.NewUnaryExpr(base.Pos, ir.OCAP, s),
+ 			num,
+-			reflectdata.TypePtr(s.Type().Elem()))),
++			reflectdata.TypePtrAt(base.Pos, s.Type().Elem()))),
+ 	}
+ 
+ 	l = append(l, nif)
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 909e7d624e..2d2e47d956 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -714,7 +714,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	// Set up interface type addresses for back end.
+ 	if !n.Type().IsInterface() && !n.X.Type().IsEmptyInterface() {
+-		n.ITab = reflectdata.ITabAddr(n.Type(), n.X.Type())
++		n.ITab = reflectdata.ITabAddrAt(base.Pos, n.Type(), n.X.Type())
+ 	}
+ 	return n
+ }

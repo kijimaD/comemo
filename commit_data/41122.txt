@@ -11,8 +11,69 @@ Date:   Wed Sep 4 12:28:03 2019 -0400
     Change-Id: Ib2f226bbbebbfae33b41037438fe34dc5f2ad034
     Reviewed-on: https://go-review.googlesource.com/c/go/+/193261
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/issue33866.dir/a.go | 18 ++++++++++++++++++
  test/fixedbugs/issue33866.dir/b.go | 15 +++++++++++++++
  test/fixedbugs/issue33866.go       |  9 +++++++++
  3 files changed, 42 insertions(+)
+
+diff --git a/test/fixedbugs/issue33866.dir/a.go b/test/fixedbugs/issue33866.dir/a.go
+new file mode 100644
+index 0000000000..9c782c5eed
+--- /dev/null
++++ b/test/fixedbugs/issue33866.dir/a.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Builder struct {
++	x int
++}
++
++func (tb Builder) Build() (out struct {
++	x interface{}
++	s string
++}) {
++	out.x = nil
++	out.s = "hello!"
++	return
++}
+diff --git a/test/fixedbugs/issue33866.dir/b.go b/test/fixedbugs/issue33866.dir/b.go
+new file mode 100644
+index 0000000000..aa2a32271c
+--- /dev/null
++++ b/test/fixedbugs/issue33866.dir/b.go
+@@ -0,0 +1,15 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++type (
++	ABuilder = a.Builder
++)
++
++func Bfunc() ABuilder {
++	return ABuilder{}
++}
+diff --git a/test/fixedbugs/issue33866.go b/test/fixedbugs/issue33866.go
+new file mode 100644
+index 0000000000..220c732a9a
+--- /dev/null
++++ b/test/fixedbugs/issue33866.go
+@@ -0,0 +1,9 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 33866: assert in gccgo during compilation
++
++package ignored

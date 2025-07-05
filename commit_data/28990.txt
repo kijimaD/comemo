@@ -12,6 +12,35 @@ Date:   Sat Aug 20 19:29:01 2016 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/index/suffixarray/example_test.go | 22 ++++++++++++++++++++++
  1 file changed, 22 insertions(+)
+
+diff --git a/src/index/suffixarray/example_test.go b/src/index/suffixarray/example_test.go
+new file mode 100644
+index 0000000000..ea10bfd06a
+--- /dev/null
++++ b/src/index/suffixarray/example_test.go
+@@ -0,0 +1,22 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package suffixarray_test
++
++import (
++	"fmt"
++	"index/suffixarray"
++)
++
++func ExampleIndex_Lookup() {
++	index := suffixarray.New([]byte("banana"))
++	offsets := index.Lookup([]byte("ana"), -1)
++	for _, off := range offsets {
++		fmt.Println(off)
++	}
++
++	// Unordered output:
++	// 1
++	// 3
++}

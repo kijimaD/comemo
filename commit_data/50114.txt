@@ -21,9 +21,79 @@ Date:   Fri Oct 1 16:19:27 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/objfile.go   | 3 +++
  src/cmd/internal/obj/plist.go     | 7 +++++--
  src/cmd/internal/objabi/funcid.go | 1 +
  src/runtime/symtab.go             | 3 +++
  4 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 3d8d69f069..4fd2119b96 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -772,6 +772,9 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_TOPFRAME != 0 {
+ 		fmt.Fprintf(ctxt.Bso, "topframe ")
+ 	}
++	if s.Func() != nil && s.Func().FuncFlag&objabi.FuncFlag_ASM != 0 {
++		fmt.Fprintf(ctxt.Bso, "asm ")
++	}
+ 	fmt.Fprintf(ctxt.Bso, "size=%d", s.Size)
+ 	if s.Type == objabi.STEXT {
+ 		fn := s.Func()
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 6beb4dd94c..348a16356e 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -156,7 +156,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	}
+ 	name := strings.Replace(s.Name, "\"\"", ctxt.Pkgpath, -1)
+ 	s.Func().FuncID = objabi.GetFuncID(name, flag&WRAPPER != 0 || flag&ABIWRAPPER != 0)
+-	s.Func().FuncFlag = toFuncFlag(flag)
++	s.Func().FuncFlag = ctxt.toFuncFlag(flag)
+ 	s.Set(AttrOnList, true)
+ 	s.Set(AttrDuplicateOK, flag&DUPOK != 0)
+ 	s.Set(AttrNoSplit, flag&NOSPLIT != 0)
+@@ -172,11 +172,14 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.dwarfSym(s)
+ }
+ 
+-func toFuncFlag(flag int) objabi.FuncFlag {
++func (ctxt *Link) toFuncFlag(flag int) objabi.FuncFlag {
+ 	var out objabi.FuncFlag
+ 	if flag&TOPFRAME != 0 {
+ 		out |= objabi.FuncFlag_TOPFRAME
+ 	}
++	if ctxt.IsAsm {
++		out |= objabi.FuncFlag_ASM
++	}
+ 	return out
+ }
+ 
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 68f6a26a76..084fcdf712 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -13,6 +13,7 @@ type FuncFlag uint8
+ const (
+ 	FuncFlag_TOPFRAME = 1 << iota
+ 	FuncFlag_SPWRITE
++	FuncFlag_ASM
+ )
+ 
+ // A FuncID identifies particular functions that need to be treated
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index d1fe1a4fcc..14591602a3 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -383,6 +383,9 @@ const (
+ 	// to be an incomplete unwinding of the stack. In certain contexts
+ 	// (in particular garbage collector stack scans) that is a fatal error.
+ 	funcFlag_SPWRITE
++
++	// ASM indicates that a function was implemented in assembly.
++	funcFlag_ASM
+ )
+ 
+ // pcHeader holds data used by the pclntab lookups.

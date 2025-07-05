@@ -8,10 +8,317 @@ Date:   Thu Feb 21 10:47:31 2013 -0800
     R=mpvl
     CC=golang-dev
     https://golang.org/cl/7395045
-
+---
  src/pkg/exp/locale/collate/maketables.go | 17 ++++-------
  src/pkg/exp/locale/collate/regtest.go    | 15 ++++------
  src/pkg/exp/norm/maketables.go           | 47 +++++++++++------------------
  src/pkg/exp/norm/normregtest.go          | 20 +++++--------
  src/pkg/unicode/maketables.go            | 51 +++++++++++++-------------------
  5 files changed, 59 insertions(+), 91 deletions(-)
+
+diff --git a/src/pkg/exp/locale/collate/maketables.go b/src/pkg/exp/locale/collate/maketables.go
+index 19f176e9ef..86feaf2886 100644
+--- a/src/pkg/exp/locale/collate/maketables.go
++++ b/src/pkg/exp/locale/collate/maketables.go
+@@ -236,18 +236,10 @@ func parseUCA(builder *build.Builder) {
+ 	}
+ 	failOnError(err)
+ 	defer r.Close()
+-	input := bufio.NewReader(r)
++	scanner := bufio.NewScanner(r)
+ 	colelem := regexp.MustCompile(`\[([.*])([0-9A-F.]+)\]`)
+-	for i := 1; err == nil; i++ {
+-		l, prefix, e := input.ReadLine()
+-		err = e
+-		line := string(l)
+-		if prefix {
+-			log.Fatalf("%d: buffer overflow", i)
+-		}
+-		if err != nil && err != io.EOF {
+-			log.Fatalf("%d: %v", i, err)
+-		}
++	for i := 1; scanner.Scan(); i++ {
++		line := scanner.Text()
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+@@ -300,6 +292,9 @@ func parseUCA(builder *build.Builder) {
+ 			failOnError(builder.Add(lhs, rhs, vars))
+ 		}
+ 	}
++	if scanner.Err() != nil {
++		log.Fatal(scanner.Err())
++	}
+ }
+ 
+ func convHex(line int, s string) int {
+diff --git a/src/pkg/exp/locale/collate/regtest.go b/src/pkg/exp/locale/collate/regtest.go
+index fd4fc6eb34..55c81f5738 100644
+--- a/src/pkg/exp/locale/collate/regtest.go
++++ b/src/pkg/exp/locale/collate/regtest.go
+@@ -166,16 +166,10 @@ func loadTestData() []Test {
+ 		ff, err := f.Open()
+ 		Error(err)
+ 		defer ff.Close()
+-		input := bufio.NewReader(ff)
++		scanner := bufio.NewScanner(ff)
+ 		test := Test{name: path.Base(f.Name)}
+-		for {
+-			line, err := input.ReadString('\n')
+-			if err != nil {
+-				if err == io.EOF {
+-					break
+-				}
+-				log.Fatal(err)
+-			}
++		for scanner.Scan() {
++			line := scanner.Text()
+ 			if len(line) <= 1 || line[0] == '#' {
+ 				if m := versionRe.FindStringSubmatch(line); m != nil {
+ 					if m[1] != unicode.Version {
+@@ -206,6 +200,9 @@ func loadTestData() []Test {
+ 				test.comment = append(test.comment, m[2])
+ 			}
+ 		}
++		if scanner.Err() != nil {
++			log.Fatal(scanner.Err())
++		}
+ 		tests = append(tests, test)
+ 	}
+ 	return tests
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 03e1e2e33f..50c0c310a8 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -307,16 +307,12 @@ func parseCharacter(line string) {
+ func loadUnicodeData() {
+ 	f := openReader("UnicodeData.txt")
+ 	defer f.Close()
+-	input := bufio.NewReader(f)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
+-		parseCharacter(line[0 : len(line)-1])
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		parseCharacter(scanner.Text())
++	}
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
+ 	}
+ }
+ 
+@@ -347,16 +343,9 @@ func parseExclusion(line string) int {
+ func loadCompositionExclusions() {
+ 	f := openReader("CompositionExclusions.txt")
+ 	defer f.Close()
+-	input := bufio.NewReader(f)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
+-		point := parseExclusion(line[0 : len(line)-1])
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		point := parseExclusion(scanner.Text())
+ 		if point == 0 {
+ 			continue
+ 		}
+@@ -366,6 +355,9 @@ func loadCompositionExclusions() {
+ 		}
+ 		c.excludeInComp = true
+ 	}
++	if scanner.Err() != nil {
++		log.Fatal(scanner.Err())
++	}
+ }
+ 
+ // hasCompatDecomp returns true if any of the recursive
+@@ -853,15 +845,9 @@ func testDerived() {
+ 	}
+ 	f := openReader("DerivedNormalizationProps.txt")
+ 	defer f.Close()
+-	input := bufio.NewReader(f)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		line := scanner.Text()
+ 		qc := qcRe.FindStringSubmatch(line)
+ 		if qc == nil {
+ 			continue
+@@ -920,6 +906,9 @@ func testDerived() {
+ 			}
+ 		}
+ 	}
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
++	}
+ 	// Any unspecified value must be QCYes. Verify this.
+ 	for i, c := range chars {
+ 		for j, fd := range c.forms {
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index d7ef9ba3ec..b77b5b545a 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -12,7 +12,6 @@ import (
+ 	"exp/norm"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"log"
+ 	"net/http"
+ 	"os"
+@@ -118,8 +117,8 @@ func (t Test) Name() string {
+ 	return fmt.Sprintf("%s:%d", part[t.partnr].name, t.number)
+ }
+ 
+-var partRe = regexp.MustCompile(`@Part(\d) # (.*)\n$`)
+-var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)\n?$`)
++var partRe = regexp.MustCompile(`@Part(\d) # (.*)$`)
++var testRe = regexp.MustCompile(`^` + strings.Repeat(`([\dA-F ]+);`, 5) + ` # (.*)$`)
+ 
+ var counter int
+ 
+@@ -141,15 +140,9 @@ func loadTestData() {
+ 	}
+ 	f := resp.Body
+ 	defer f.Close()
+-	input := bufio.NewReader(f)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
++	scanner := bufio.NewScanner(f)
++	for scanner.Scan() {
++		line := scanner.Text()
+ 		if len(line) == 0 || line[0] == '#' {
+ 			continue
+ 		}
+@@ -190,6 +183,9 @@ func loadTestData() {
+ 		part := &part[len(part)-1]
+ 		part.tests = append(part.tests, test)
+ 	}
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
++	}
+ }
+ 
+ var fstr = []string{"NFC", "NFD", "NFKC", "NFKD"}
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 915101d004..53d8b967e9 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -13,7 +13,6 @@ import (
+ 	"bufio"
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"log"
+ 	"net/http"
+ 	"os"
+@@ -321,16 +320,11 @@ func loadChars() {
+ 		flag.Set("data", *url+"UnicodeData.txt")
+ 	}
+ 	input := open(*dataURL)
++	defer input.close()
++	scanner := bufio.NewScanner(input)
+ 	var first rune = 0
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
+-		switch parseCategory(line[0 : len(line)-1]) {
++	for scanner.Scan() {
++		switch parseCategory(scanner.Text()) {
+ 		case SNormal:
+ 			if first != 0 {
+ 				logger.Fatalf("bad state normal at %U", lastChar)
+@@ -351,7 +345,9 @@ func loadChars() {
+ 			first = 0
+ 		}
+ 	}
+-	input.close()
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
++	}
+ }
+ 
+ func loadCasefold() {
+@@ -359,15 +355,11 @@ func loadCasefold() {
+ 		flag.Set("casefolding", *url+"CaseFolding.txt")
+ 	}
+ 	input := open(*casefoldingURL)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
+-		if line[0] == '#' || len(strings.TrimSpace(line)) == 0 {
++	defer input.close()
++	scanner := bufio.NewScanner(input)
++	for scanner.Scan() {
++		line := scanner.Text()
++		if len(line) == 0 || line[0] == '#' || len(strings.TrimSpace(line)) == 0 {
+ 			continue
+ 		}
+ 		field := strings.Split(line, "; ")
+@@ -389,7 +381,9 @@ func loadCasefold() {
+ 		}
+ 		chars[p1].foldCase = rune(p2)
+ 	}
+-	input.close()
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
++	}
+ }
+ 
+ const progHeader = `// Generated by running
+@@ -710,15 +704,12 @@ func printScriptOrProperty(doProps bool) {
+ 		return
+ 	}
+ 	input := open(*url + file)
+-	for {
+-		line, err := input.ReadString('\n')
+-		if err != nil {
+-			if err == io.EOF {
+-				break
+-			}
+-			logger.Fatal(err)
+-		}
+-		parseScript(line[0:len(line)-1], table)
++	scanner := bufio.NewScanner(input)
++	for scanner.Scan() {
++		parseScript(scanner.Text(), table)
++	}
++	if scanner.Err() != nil {
++		logger.Fatal(scanner.Err())
+ 	}
+ 	input.close()
+ 

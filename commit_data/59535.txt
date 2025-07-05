@@ -18,7 +18,7 @@ Date:   Sun Mar 17 01:02:16 2024 +1100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/syscall/exec_aix_test.go      | 11 ++++++++++-
  src/syscall/exec_solaris_test.go  | 11 ++++++++++-
  src/syscall/exec_unix_test.go     | 31 ++++++++++++-------------------
@@ -27,3 +27,236 @@ Date:   Sun Mar 17 01:02:16 2024 +1100
  src/syscall/export_linux_test.go  | 20 ++++++++++++++++++++
  src/syscall/export_unix_test.go   | 14 --------------
  7 files changed, 77 insertions(+), 50 deletions(-)
+
+diff --git a/src/syscall/exec_aix_test.go b/src/syscall/exec_aix_test.go
+index e8eeae193b..4f1cdb672d 100644
+--- a/src/syscall/exec_aix_test.go
++++ b/src/syscall/exec_aix_test.go
+@@ -34,4 +34,13 @@ func Getpgrp() (pgrp int) {
+ 	return
+ }
+ 
+-var IoctlPtr = ioctlPtr
++func Tcgetpgrp(fd int) (pgid int32, err error) {
++	if errno := ioctlPtr(uintptr(fd), TIOCGPGRP, unsafe.Pointer(&pgid)); errno != 0 {
++		return -1, errno
++	}
++	return pgid, nil
++}
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	return ioctlPtr(uintptr(fd), TIOCSPGRP, unsafe.Pointer(&pgid))
++}
+diff --git a/src/syscall/exec_solaris_test.go b/src/syscall/exec_solaris_test.go
+index 0c653f71da..3957d62f5d 100644
+--- a/src/syscall/exec_solaris_test.go
++++ b/src/syscall/exec_solaris_test.go
+@@ -34,4 +34,13 @@ func Getpgrp() (pgrp int) {
+ 	return
+ }
+ 
+-var IoctlPtr = ioctlPtr
++func Tcgetpgrp(fd int) (pgid int32, err error) {
++	if errno := ioctlPtr(uintptr(fd), TIOCGPGRP, unsafe.Pointer(&pgid)); errno != 0 {
++		return -1, errno
++	}
++	return pgid, nil
++}
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	return ioctlPtr(uintptr(fd), TIOCSPGRP, unsafe.Pointer(&pgid))
++}
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 5584f7d444..bb0b3e7037 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -19,7 +19,6 @@ import (
+ 	"syscall"
+ 	"testing"
+ 	"time"
+-	"unsafe"
+ )
+ 
+ type command struct {
+@@ -176,15 +175,12 @@ func TestForeground(t *testing.T) {
+ 	}
+ 	defer tty.Close()
+ 
+-	// This should really be pid_t, however _C_int (aka int32) is generally
+-	// equivalent.
+-	fpgrp := int32(0)
++	ttyFD := int(tty.Fd())
+ 
+-	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
+-	if errno != 0 {
+-		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
++	fpgrp, err := syscall.Tcgetpgrp(ttyFD)
++	if err != nil {
++		t.Fatalf("Tcgetpgrp failed: %v", err)
+ 	}
+-
+ 	if fpgrp == 0 {
+ 		t.Fatalf("Foreground process group is zero")
+ 	}
+@@ -194,7 +190,7 @@ func TestForeground(t *testing.T) {
+ 	cmd := create(t)
+ 
+ 	cmd.proc.SysProcAttr = &syscall.SysProcAttr{
+-		Ctty:       int(tty.Fd()),
++		Ctty:       ttyFD,
+ 		Foreground: true,
+ 	}
+ 	cmd.Start()
+@@ -217,7 +213,7 @@ func TestForeground(t *testing.T) {
+ 
+ 	// This call fails on darwin/arm64. The failure doesn't matter, though.
+ 	// This is just best effort.
+-	syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
++	syscall.Tcsetpgrp(ttyFD, fpgrp)
+ }
+ 
+ func TestForegroundSignal(t *testing.T) {
+@@ -227,22 +223,19 @@ func TestForegroundSignal(t *testing.T) {
+ 	}
+ 	defer tty.Close()
+ 
+-	// This should really be pid_t, however _C_int (aka int32) is generally
+-	// equivalent.
+-	fpgrp := int32(0)
++	ttyFD := int(tty.Fd())
+ 
+-	errno := syscall.IoctlPtr(tty.Fd(), syscall.TIOCGPGRP, unsafe.Pointer(&fpgrp))
+-	if errno != 0 {
+-		t.Fatalf("TIOCGPGRP failed with error code: %s", errno)
++	fpgrp, err := syscall.Tcgetpgrp(ttyFD)
++	if err != nil {
++		t.Fatalf("Tcgetpgrp failed: %v", err)
+ 	}
+-
+ 	if fpgrp == 0 {
+ 		t.Fatalf("Foreground process group is zero")
+ 	}
+ 
+ 	defer func() {
+ 		signal.Ignore(syscall.SIGTTIN, syscall.SIGTTOU)
+-		syscall.IoctlPtr(tty.Fd(), syscall.TIOCSPGRP, unsafe.Pointer(&fpgrp))
++		syscall.Tcsetpgrp(ttyFD, fpgrp)
+ 		signal.Reset()
+ 	}()
+ 
+@@ -256,7 +249,7 @@ func TestForegroundSignal(t *testing.T) {
+ 
+ 	go func() {
+ 		cmd.proc.SysProcAttr = &syscall.SysProcAttr{
+-			Ctty:       int(tty.Fd()),
++			Ctty:       ttyFD,
+ 			Foreground: true,
+ 		}
+ 		cmd.Start()
+diff --git a/src/syscall/export_bsd_test.go b/src/syscall/export_bsd_test.go
+new file mode 100644
+index 0000000000..457203f1c0
+--- /dev/null
++++ b/src/syscall/export_bsd_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++// pgid should really be pid_t, however _C_int (aka int32) is generally
++// equivalent.
++
++func Tcgetpgrp(fd int) (pgid int32, err error) {
++	if err := ioctlPtr(fd, TIOCGPGRP, unsafe.Pointer(&pgid)); err != nil {
++		return -1, err
++	}
++	return pgid, nil
++}
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	return ioctlPtr(fd, TIOCSPGRP, unsafe.Pointer(&pgid))
++}
+diff --git a/src/syscall/export_darwin_test.go b/src/syscall/export_darwin_test.go
+deleted file mode 100644
+index 0cf992bb00..0000000000
+--- a/src/syscall/export_darwin_test.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-
+-import "unsafe"
+-
+-func IoctlPtr(fd, req uintptr, arg unsafe.Pointer) Errno {
+-	err := ioctlPtr(int(fd), uint(req), arg)
+-	if err != nil {
+-		return err.(Errno)
+-	}
+-	return 0
+-}
+diff --git a/src/syscall/export_linux_test.go b/src/syscall/export_linux_test.go
+index 3aa877cfe3..9bcf73e771 100644
+--- a/src/syscall/export_linux_test.go
++++ b/src/syscall/export_linux_test.go
+@@ -4,6 +4,10 @@
+ 
+ package syscall
+ 
++import (
++	"unsafe"
++)
++
+ var (
+ 	RawSyscallNoError = rawSyscallNoError
+ 	ForceClone3       = &forceClone3
+@@ -12,3 +16,19 @@ var (
+ const (
+ 	Sys_GETEUID = sys_GETEUID
+ )
++
++func Tcgetpgrp(fd int) (pgid int32, err error) {
++	_, _, errno := Syscall6(SYS_IOCTL, uintptr(fd), uintptr(TIOCGPGRP), uintptr(unsafe.Pointer(&pgid)), 0, 0, 0)
++	if errno != 0 {
++		return -1, errno
++	}
++	return pgid, nil
++}
++
++func Tcsetpgrp(fd int, pgid int32) (err error) {
++	_, _, errno := Syscall6(SYS_IOCTL, uintptr(fd), uintptr(TIOCSPGRP), uintptr(unsafe.Pointer(&pgid)), 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/syscall/export_unix_test.go b/src/syscall/export_unix_test.go
+deleted file mode 100644
+index c7486af595..0000000000
+--- a/src/syscall/export_unix_test.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd
+-
+-package syscall
+-
+-import "unsafe"
+-
+-func IoctlPtr(fd, req uintptr, arg unsafe.Pointer) (err Errno) {
+-	_, _, err = Syscall(SYS_IOCTL, fd, req, uintptr(arg))
+-	return err
+-}

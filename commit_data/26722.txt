@@ -7,6 +7,19 @@ Date:   Tue Feb 23 23:15:57 2016 -0500
     Change-Id: I6d5db2781d05d6e7e49f5059db1fd84ad6ec328e
     Reviewed-on: https://go-review.googlesource.com/19839
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  .gitignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.gitignore b/.gitignore
+index de48481bf1..1677a18fc8 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -28,6 +28,7 @@ src/cmd/**/y.output
+ src/cmd/cgo/zdefaultcc.go
+ src/cmd/go/zdefaultcc.go
+ src/cmd/internal/obj/zbootstrap.go
++src/go/build/zcgo.go
+ src/go/doc/headscan
+ src/runtime/internal/sys/zversion.go
+ src/unicode/maketables

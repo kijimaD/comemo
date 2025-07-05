@@ -10,7 +10,50 @@ Date:   Fri Sep 19 11:28:38 2014 -0400
     R=bradfitz
     CC=golang-codereviews, jtuley
     https://golang.org/cl/136710044
-
+---
  src/net/http/transport.go      |  2 +-
  src/net/http/transport_test.go | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 527ed8bdd1..f1aab8587c 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -316,7 +316,7 @@ func (t *Transport) connectMethodForRequest(treq *transportRequest) (cm connectM
+ 	if t.Proxy != nil {
+ 		cm.proxyURL, err = t.Proxy(treq.Request)
+ 	}
+-	return cm, nil
++	return cm, err
+ }
+ 
+ // proxyAuth returns the Proxy-Authorization header to set
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3460d690e3..bdfeba3626 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2136,6 +2136,24 @@ func TestTransportDialTLS(t *testing.T) {
+ 	}
+ }
+ 
++// Test for issue 8755
++// Ensure that if a proxy returns an error, it is exposed by RoundTrip
++func TestRoundTripReturnsProxyError(t *testing.T) {
++	badProxy := func(*http.Request) (*url.URL, error) {
++		return nil, errors.New("errorMessage")
++	}
++
++	tr := &Transport{Proxy: badProxy}
++
++	req, _ := http.NewRequest("GET", "http://example.com", nil)
++
++	_, err := tr.RoundTrip(req)
++
++	if err == nil {
++		t.Error("Expected proxy error to be returned by RoundTrip")
++	}
++}
++
+ func wantBody(res *http.Response, err error, want string) error {
+ 	if err != nil {
+ 		return err

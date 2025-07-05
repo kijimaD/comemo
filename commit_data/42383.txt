@@ -11,7 +11,117 @@ Date:   Fri Dec 6 20:47:29 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/transport.go      | 23 ++++++++++++++++++
  src/net/http/transport_test.go | 55 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index dd61617fd1..7cf4615586 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1568,6 +1568,25 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 		if pa := cm.proxyAuth(); pa != "" {
+ 			connectReq.Header.Set("Proxy-Authorization", pa)
+ 		}
++		didReadResponse := make(chan struct{}) // closed after reading CONNECT response
++
++		// If there's no deadline, at least set some (long) timeout here.
++		// This will make sure we don't block here forever and leak a goroutine
++		// if the connection stops replying after the TCP connect.
++		connectCtx := ctx
++		if _, ok := ctx.Deadline(); !ok {
++			newCtx, cancel := context.WithTimeout(ctx, 1*time.Minute)
++			defer cancel()
++			connectCtx = newCtx
++		}
++		go func() {
++			select {
++			case <-connectCtx.Done():
++				conn.Close()
++			case <-didReadResponse:
++			}
++		}()
++
+ 		connectReq.Write(conn)
+ 
+ 		// Read response.
+@@ -1575,8 +1594,12 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 		// TLS server will not speak until spoken to.
+ 		br := bufio.NewReader(conn)
+ 		resp, err := ReadResponse(br, connectReq)
++		close(didReadResponse)
+ 		if err != nil {
+ 			conn.Close()
++			if err := connectCtx.Err(); err != nil {
++				return nil, err
++			}
+ 			return nil, err
+ 		}
+ 		if resp.StatusCode != 200 {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 517b03bf48..39a924310d 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1442,6 +1442,61 @@ func TestTransportProxy(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 28012: verify that the Transport closes its TCP connection to http proxies
++// when they're slow to reply to HTTPS CONNECT responses.
++func TestTransportProxyHTTPSConnectTimeout(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++	ln := newLocalListener(t)
++	defer ln.Close()
++	listenerDone := make(chan struct{})
++	go func() {
++		defer close(listenerDone)
++		c, err := ln.Accept()
++		if err != nil {
++			t.Errorf("Accept: %v", err)
++			return
++		}
++		defer c.Close()
++		// Read the CONNECT request
++		br := bufio.NewReader(c)
++		cr, err := ReadRequest(br)
++		if err != nil {
++			t.Errorf("proxy server failed to read CONNECT request")
++			return
++		}
++		if cr.Method != "CONNECT" {
++			t.Errorf("unexpected method %q", cr.Method)
++			return
++		}
++		// now hang and never write a response; wait for the client to give up on us and
++		// close (prior to Issue 28012 being fixed, we never closed)
++		var buf [1]byte
++		_, err = br.Read(buf[:])
++		if err != io.EOF {
++			t.Errorf("proxy server Read err = %v; want EOF", err)
++		}
++		return
++	}()
++	tr := &Transport{
++		Proxy: func(*Request) (*url.URL, error) {
++			return url.Parse("http://" + ln.Addr().String())
++		},
++	}
++	c := &Client{Transport: tr, Timeout: 50 * time.Millisecond}
++	_, err := c.Get("https://golang.fake.tld/")
++	if err == nil {
++		t.Errorf("unexpected Get success")
++	}
++	timer := time.NewTimer(5 * time.Second)
++	defer timer.Stop()
++	select {
++	case <-listenerDone:
++	case <-timer.C:
++		t.Errorf("timeout waiting for Transport to close its connection to the proxy")
++	}
++}
++
+ // Issue 16997: test transport dial preserves typed errors
+ func TestTransportDialPreservesNetOpProxyError(t *testing.T) {
+ 	defer afterTest(t)

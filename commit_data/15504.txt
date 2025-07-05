@@ -18,7 +18,7 @@ Date:   Thu Feb 28 16:24:38 2013 -0500
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/7416046
-
+---
  src/pkg/runtime/asm_386.s               |  8 ++++----
  src/pkg/runtime/asm_amd64.s             |  6 +++---
  src/pkg/runtime/asm_arm.s               | 16 ++++++++--------
@@ -47,3 +47,1002 @@ Date:   Thu Feb 28 16:24:38 2013 -0500
  src/pkg/runtime/sys_linux_arm.s         |  4 ++--
  src/pkg/runtime/sys_netbsd_arm.s        |  4 ++--
  27 files changed, 139 insertions(+), 138 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 05b929f340..96f04e0ae9 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -14,22 +14,22 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	BX, 124(SP)
+ 
+ 	// set default stack bounds.
+-	// initcgo may update stackguard.
++	// _cgo_init may update stackguard.
+ 	MOVL	$runtime·g0(SB), BP
+ 	LEAL	(-64*1024+104)(SP), BX
+ 	MOVL	BX, g_stackguard(BP)
+ 	MOVL	SP, g_stackbase(BP)
+ 	
+-	// if there is an initcgo, call it to let it
++	// if there is an _cgo_init, call it to let it
+ 	// initialize and to set up GS.  if not,
+ 	// we set up GS ourselves.
+-	MOVL	initcgo(SB), AX
++	MOVL	_cgo_init(SB), AX
+ 	TESTL	AX, AX
+ 	JZ	needtls
+ 	PUSHL	BP
+ 	CALL	AX
+ 	POPL	BP
+-	// skip runtime·ldt0setup(SB) and tls test after initcgo for non-windows
++	// skip runtime·ldt0setup(SB) and tls test after _cgo_init for non-windows
+ 	CMPL runtime·iswindows(SB), $0
+ 	JEQ ok
+ needtls:
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 9591437eec..987958498e 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -14,14 +14,14 @@ TEXT _rt0_amd64(SB),7,$-8
+ 	MOVQ	BX, 24(SP)
+ 	
+ 	// create istack out of the given (operating system) stack.
+-	// initcgo may update stackguard.
++	// _cgo_init may update stackguard.
+ 	MOVQ	$runtime·g0(SB), DI
+ 	LEAQ	(-64*1024+104)(SP), BX
+ 	MOVQ	BX, g_stackguard(DI)
+ 	MOVQ	SP, g_stackbase(DI)
+ 
+-	// if there is an initcgo, call it.
+-	MOVQ	initcgo(SB), AX
++	// if there is an _cgo_init, call it.
++	MOVQ	_cgo_init(SB), AX
+ 	TESTQ	AX, AX
+ 	JZ	needtls
+ 	// g0 already in DI
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index c0b728ab25..45b53541b6 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -31,10 +31,10 @@ TEXT _rt0_arm(SB),7,$-4
+ 	MOVW	R13, g_stackbase(g)
+ 	BL	runtime·emptyfunc(SB)	// fault if stack check is wrong
+ 
+-	// if there is an initcgo, call it.
+-	MOVW	initcgo(SB), R2
++	// if there is an _cgo_init, call it.
++	MOVW	_cgo_init(SB), R2
+ 	CMP	$0, R2
+-	MOVW.NE	g, R0 // first argument of initcgo is g
++	MOVW.NE	g, R0 // first argument of _cgo_init is g
+ 	BL.NE	(R2) // will clobber R0-R3
+ 
+ 	BL	runtime·checkgoarm(SB)
+@@ -105,7 +105,7 @@ TEXT runtime·gogo(SB), 7, $-4
+ 	MOVW	0(FP), R1		// gobuf
+ 	MOVW	gobuf_g(R1), g
+ 	MOVW	0(g), R2		// make sure g != nil
+-	MOVW	cgo_save_gm(SB), R2
++	MOVW	_cgo_save_gm(SB), R2
+ 	CMP 	$0, R2 // if in Cgo, we have to save g and m
+ 	BL.NE	(R2) // this call will clobber R0
+ 	MOVW	4(FP), R0		// return 2nd arg
+@@ -121,7 +121,7 @@ TEXT runtime·gogocall(SB), 7, $-4
+ 	MOVW	4(FP), R1		// fn
+ 	MOVW	gobuf_g(R3), g
+ 	MOVW	0(g), R0		// make sure g != nil
+-	MOVW	cgo_save_gm(SB), R0
++	MOVW	_cgo_save_gm(SB), R0
+ 	CMP 	$0, R0 // if in Cgo, we have to save g and m
+ 	BL.NE	(R0) // this call will clobber R0
+ 	MOVW	8(FP), R7	// context
+@@ -138,7 +138,7 @@ TEXT runtime·gogocallfn(SB), 7, $-4
+ 	MOVW	4(FP), R1		// fn
+ 	MOVW	gobuf_g(R3), g
+ 	MOVW	0(g), R0		// make sure g != nil
+-	MOVW	cgo_save_gm(SB), R0
++	MOVW	_cgo_save_gm(SB), R0
+ 	CMP 	$0, R0 // if in Cgo, we have to save g and m
+ 	BL.NE	(R0) // this call will clobber R0
+ 	MOVW	gobuf_sp(R3), SP	// restore SP
+@@ -327,7 +327,7 @@ TEXT runtime·cgocallback(SB),7,$12
+ // See cgocall.c for more details.
+ TEXT	runtime·cgocallback_gofunc(SB),7,$16
+ 	// Load m and g from thread-local storage.
+-	MOVW	cgo_load_gm(SB), R0
++	MOVW	_cgo_load_gm(SB), R0
+ 	CMP	$0, R0
+ 	BL.NE	(R0)
+ 
+@@ -425,7 +425,7 @@ TEXT runtime·setmg(SB), 7, $-4
+ 	MOVW	gg+4(FP), g
+ 
+ 	// Save m and g to thread-local storage.
+-	MOVW	cgo_save_gm(SB), R0
++	MOVW	_cgo_save_gm(SB), R0
+ 	CMP	$0, R0
+ 	BL.NE	(R0)
+ 
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_386.c b/src/pkg/runtime/cgo/gcc_darwin_386.c
+index 20a0395975..fd4d7a63a9 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_386.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_386.c
+@@ -101,8 +101,8 @@ inittls(void)
+ 		pthread_key_delete(tofree[i]);
+ }
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -115,10 +115,10 @@ xinitcgo(G *g)
+ 	inittls();
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -153,7 +153,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_amd64.c b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+index 1c3fe0968c..c3519360a4 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_amd64.c
+@@ -72,7 +72,7 @@ inittls(void)
+ }
+ 
+ void
+-xinitcgo(G *g)
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -85,10 +85,10 @@ xinitcgo(G *g)
+ 	inittls();
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -123,7 +123,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_386.c b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+index 5dae2bfe91..f22d47b591 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_386.c
+@@ -11,8 +11,8 @@
+ 
+ static void* threadentry(void*);
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -23,10 +23,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -61,7 +61,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+index 313e4fae7e..27023c3a5e 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_amd64.c
+@@ -11,8 +11,8 @@
+ 
+ static void* threadentry(void*);
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -23,10 +23,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -62,7 +62,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_freebsd_arm.c b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+index 3240af652d..9052b63073 100644
+--- a/src/pkg/runtime/cgo/gcc_freebsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_freebsd_arm.c
+@@ -16,8 +16,8 @@ static void *threadentry(void*);
+ // Note: all three functions will clobber R0, and the last
+ // two can be called from 5c ABI code.
+ void __aeabi_read_tp(void) __attribute__((naked));
+-void cgo_tls_set_gm(void) __attribute__((naked));
+-void cgo_tls_get_gm(void) __attribute__((naked));
++void x_cgo_save_gm(void) __attribute__((naked));
++void x_cgo_load_gm(void) __attribute__((naked));
+ 
+ void
+ __aeabi_read_tp(void)
+@@ -32,7 +32,7 @@ __aeabi_read_tp(void)
+ 
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+ void
+-cgo_tls_get_gm(void)
++x_cgo_load_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -44,7 +44,7 @@ cgo_tls_get_gm(void)
+ }
+ 
+ void
+-cgo_tls_set_gm(void)
++x_cgo_save_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -56,15 +56,15 @@ cgo_tls_set_gm(void)
+ }
+ 
+ // both cgo_tls_{get,set}_gm can be called from runtime
+-void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+-void (*cgo_save_gm)(void) = cgo_tls_set_gm;
++void (*_cgo_load_gm)(void) = x_cgo_load_gm;
++void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+-	cgo_tls_set_gm(); // save g and m for the initial thread
++	x_cgo_save_gm(); // save g and m for the initial thread
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -72,10 +72,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+@@ -109,7 +109,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
+diff --git a/src/pkg/runtime/cgo/gcc_linux_386.c b/src/pkg/runtime/cgo/gcc_linux_386.c
+index 7d84acc11e..0cac96f81f 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_386.c
++++ b/src/pkg/runtime/cgo/gcc_linux_386.c
+@@ -9,8 +9,8 @@
+ 
+ static void *threadentry(void*);
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -21,10 +21,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -64,7 +64,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_linux_amd64.c b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+index 28cbf78c52..10981d62c5 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_linux_amd64.c
+@@ -10,7 +10,7 @@
+ static void* threadentry(void*);
+ 
+ void
+-xinitcgo(G* g)
++x_cgo_init(G* g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -21,10 +21,10 @@ xinitcgo(G* g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -59,7 +59,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_linux_arm.c b/src/pkg/runtime/cgo/gcc_linux_arm.c
+index b1436b3ce9..93004ddcbc 100644
+--- a/src/pkg/runtime/cgo/gcc_linux_arm.c
++++ b/src/pkg/runtime/cgo/gcc_linux_arm.c
+@@ -16,8 +16,8 @@ static void *threadentry(void*);
+ // Note: all three functions will clobber R0, and the last
+ // two can be called from 5c ABI code.
+ void __aeabi_read_tp(void) __attribute__((naked));
+-void cgo_tls_set_gm(void) __attribute__((naked));
+-void cgo_tls_get_gm(void) __attribute__((naked));
++void x_cgo_save_gm(void) __attribute__((naked));
++void x_cgo_load_gm(void) __attribute__((naked));
+ 
+ void
+ __aeabi_read_tp(void)
+@@ -32,7 +32,7 @@ __aeabi_read_tp(void)
+ 
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+ void
+-cgo_tls_get_gm(void)
++x_cgo_load_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -44,7 +44,7 @@ cgo_tls_get_gm(void)
+ }
+ 
+ void
+-cgo_tls_set_gm(void)
++x_cgo_save_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -56,15 +56,15 @@ cgo_tls_set_gm(void)
+ }
+ 
+ // both cgo_tls_{get,set}_gm can be called from runtime
+-void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+-void (*cgo_save_gm)(void) = cgo_tls_set_gm;
++void (*_cgo_load_gm)(void) = x_cgo_load_gm;
++void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+-	cgo_tls_set_gm(); // save g and m for the initial thread
++	x_cgo_save_gm(); // save g and m for the initial thread
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -72,10 +72,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	pthread_t p;
+@@ -109,7 +109,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_386.c b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+index 880c02f82c..1232541547 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_386.c
+@@ -10,8 +10,8 @@
+ 
+ static void* threadentry(void*);
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -22,10 +22,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -60,7 +60,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+index 1020306d02..bc2e2b9c66 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_amd64.c
+@@ -10,8 +10,8 @@
+ 
+ static void* threadentry(void*);
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -22,10 +22,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -61,7 +61,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_netbsd_arm.c b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+index 1c156bdca7..1b9ba39361 100644
+--- a/src/pkg/runtime/cgo/gcc_netbsd_arm.c
++++ b/src/pkg/runtime/cgo/gcc_netbsd_arm.c
+@@ -18,8 +18,8 @@ static void *threadentry(void*);
+ // Note: all three functions will clobber R0, and the last
+ // two can be called from 5c ABI code.
+ void __aeabi_read_tp(void) __attribute__((naked));
+-void cgo_tls_set_gm(void) __attribute__((naked));
+-void cgo_tls_get_gm(void) __attribute__((naked));
++void x_cgo_save_gm(void) __attribute__((naked));
++void x_cgo_load_gm(void) __attribute__((naked));
+ 
+ void
+ __aeabi_read_tp(void)
+@@ -38,7 +38,7 @@ __aeabi_read_tp(void)
+ 
+ // g (R10) at 8(TP), m (R9) at 12(TP)
+ void
+-cgo_tls_get_gm(void)
++x_cgo_load_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -50,7 +50,7 @@ cgo_tls_get_gm(void)
+ }
+ 
+ void
+-cgo_tls_set_gm(void)
++x_cgo_save_gm(void)
+ {
+ 	__asm__ __volatile__ (
+ 		"push {lr}\n\t"
+@@ -62,15 +62,15 @@ cgo_tls_set_gm(void)
+ }
+ 
+ // both cgo_tls_{get,set}_gm can be called from runtime
+-void (*cgo_load_gm)(void) = cgo_tls_get_gm;
+-void (*cgo_save_gm)(void) = cgo_tls_set_gm;
++void (*_cgo_load_gm)(void) = x_cgo_load_gm;
++void (*_cgo_save_gm)(void) = x_cgo_save_gm;
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+-	cgo_tls_set_gm(); // save g and m for the initial thread
++	x_cgo_save_gm(); // save g and m for the initial thread
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+@@ -78,10 +78,10 @@ xinitcgo(G *g)
+ 	pthread_attr_destroy(&attr);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -117,7 +117,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096 * 2;
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_386.c b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+index 7ead2e9589..c0b90cce69 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_386.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_386.c
+@@ -81,8 +81,8 @@ pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+ 	return sys_pthread_create(thread, attr, thread_start_wrapper, p);
+ }
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -109,10 +109,10 @@ xinitcgo(G *g)
+ 	tcb_fixup(1);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -149,7 +149,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+index 23cbe18a73..3984480dfa 100644
+--- a/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_openbsd_amd64.c
+@@ -81,8 +81,8 @@ pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+ 	return sys_pthread_create(thread, attr, thread_start_wrapper, p);
+ }
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -109,10 +109,10 @@ xinitcgo(G *g)
+ 	tcb_fixup(1);
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	pthread_attr_t attr;
+ 	sigset_t ign, oset;
+@@ -150,7 +150,7 @@ threadentry(void *v)
+ 	ts.g->stackbase = (uintptr)&ts;
+ 
+ 	/*
+-	 * libcgo_sys_thread_start set stackguard to stack size;
++	 * _cgo_sys_thread_start set stackguard to stack size;
+ 	 * change to actual guard pointer.
+ 	 */
+ 	ts.g->stackguard = (uintptr)&ts - ts.g->stackguard + 4096;
+diff --git a/src/pkg/runtime/cgo/gcc_setenv.c b/src/pkg/runtime/cgo/gcc_setenv.c
+index 7da4ad9156..c99853a0ff 100644
+--- a/src/pkg/runtime/cgo/gcc_setenv.c
++++ b/src/pkg/runtime/cgo/gcc_setenv.c
+@@ -9,10 +9,10 @@
+ #include <stdlib.h>
+ 
+ /* Stub for calling setenv */
+-static void
+-xlibcgo_setenv(char **arg)
++void
++x_cgo_setenv(char **arg)
+ {
+ 	setenv(arg[0], arg[1], 1);
+ }
+ 
+-void (*libcgo_setenv)(char**) = xlibcgo_setenv;
++void (*_cgo_setenv)(char**) = x_cgo_setenv;
+diff --git a/src/pkg/runtime/cgo/gcc_util.c b/src/pkg/runtime/cgo/gcc_util.c
+index e06b6f64d9..0e289166fc 100644
+--- a/src/pkg/runtime/cgo/gcc_util.c
++++ b/src/pkg/runtime/cgo/gcc_util.c
+@@ -5,7 +5,7 @@
+ #include "libcgo.h"
+ 
+ /* Stub for calling malloc from Go */
+-static void
++void
+ x_cgo_malloc(void *p)
+ {
+ 	struct a {
+@@ -19,7 +19,7 @@ x_cgo_malloc(void *p)
+ void (*_cgo_malloc)(void*) = x_cgo_malloc;
+ 
+ /* Stub for calling free from Go */
+-static void
++void
+ x_cgo_free(void *p)
+ {
+ 	struct a {
+@@ -32,8 +32,8 @@ x_cgo_free(void *p)
+ void (*_cgo_free)(void*) = x_cgo_free;
+ 
+ /* Stub for creating a new thread */
+-static void
+-xlibcgo_thread_start(ThreadStart *arg)
++void
++x_cgo_thread_start(ThreadStart *arg)
+ {
+ 	ThreadStart *ts;
+ 
+@@ -45,7 +45,7 @@ xlibcgo_thread_start(ThreadStart *arg)
+ 	}
+ 	*ts = *arg;
+ 
+-	libcgo_sys_thread_start(ts);	/* OS-dependent half */
++	_cgo_sys_thread_start(ts);	/* OS-dependent half */
+ }
+ 
+-void (*libcgo_thread_start)(ThreadStart*) = xlibcgo_thread_start;
++void (*_cgo_thread_start)(ThreadStart*) = x_cgo_thread_start;
+diff --git a/src/pkg/runtime/cgo/gcc_windows_386.c b/src/pkg/runtime/cgo/gcc_windows_386.c
+index 38ca730675..5e9d4a94d5 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_386.c
++++ b/src/pkg/runtime/cgo/gcc_windows_386.c
+@@ -14,17 +14,17 @@ static void threadentry(void*);
+    The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
+ #define STACKSIZE (1*1024*1024)
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	int tmp;
+ 	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	_beginthread(threadentry, 0, ts);
+ }
+diff --git a/src/pkg/runtime/cgo/gcc_windows_amd64.c b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+index cf1895cfbc..386e5bbe3a 100644
+--- a/src/pkg/runtime/cgo/gcc_windows_amd64.c
++++ b/src/pkg/runtime/cgo/gcc_windows_amd64.c
+@@ -14,17 +14,17 @@ static void threadentry(void*);
+    The constant is also hardcoded in cmd/ld/pe.c (keep synchronized). */
+ #define STACKSIZE (2*1024*1024)
+ 
+-static void
+-xinitcgo(G *g)
++void
++x_cgo_init(G *g)
+ {
+ 	int tmp;
+ 	g->stackguard = (uintptr)&tmp - STACKSIZE + 8*1024;
+ }
+ 
+-void (*initcgo)(G*) = xinitcgo;
++void (*_cgo_init)(G*) = x_cgo_init;
+ 
+ void
+-libcgo_sys_thread_start(ThreadStart *ts)
++_cgo_sys_thread_start(ThreadStart *ts)
+ {
+ 	_beginthread(threadentry, 0, ts);
+ }
+diff --git a/src/pkg/runtime/cgo/libcgo.h b/src/pkg/runtime/cgo/libcgo.h
+index c31d19d76d..41a371c270 100644
+--- a/src/pkg/runtime/cgo/libcgo.h
++++ b/src/pkg/runtime/cgo/libcgo.h
+@@ -26,7 +26,7 @@ struct G
+ };
+ 
+ /*
+- * Arguments to the libcgo_thread_start call.
++ * Arguments to the _cgo_thread_start call.
+  * Also known to ../pkg/runtime/runtime.h.
+  */
+ typedef struct ThreadStart ThreadStart;
+@@ -40,14 +40,14 @@ struct ThreadStart
+ /*
+  * Called by 5c/6c/8c world.
+  * Makes a local copy of the ThreadStart and
+- * calls libcgo_sys_thread_start(ts).
++ * calls _cgo_sys_thread_start(ts).
+  */
+-extern void (*libcgo_thread_start)(ThreadStart *ts);
++extern void (*_cgo_thread_start)(ThreadStart *ts);
+ 
+ /*
+  * Creates the new operating system thread (OS, arch dependent).
+  */
+-void libcgo_sys_thread_start(ThreadStart *ts);
++void _cgo_sys_thread_start(ThreadStart *ts);
+ 
+ /*
+  * Call fn in the 6c world.
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 7848437a23..590bf9b672 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -83,13 +83,13 @@
+ // _cgoexp_GoF immediately returns to crosscall2, which restores the
+ // callee-save registers for gcc and returns to GoF, which returns to f.
+ 
+-void *initcgo;	/* filled in by dynamic linker when Cgo is available */
++void *_cgo_init;	/* filled in by dynamic linker when Cgo is available */
+ static int64 cgosync;  /* represents possible synchronization in C code */
+ 
+ // These two are only used by the architecture where TLS based storage isn't
+ // the default for g and m (e.g., ARM)
+-void *cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
+-void *cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
++void *_cgo_load_gm; /* filled in by dynamic linker when Cgo is available */
++void *_cgo_save_gm; /* filled in by dynamic linker when Cgo is available */
+ 
+ static void unwindm(void);
+ 
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index b4342d37b6..8333811fb8 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -35,7 +35,7 @@ runtime·getenv(int8 *s)
+ 	return nil;
+ }
+ 
+-void (*libcgo_setenv)(byte**);
++void (*_cgo_setenv)(byte**);
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.Setenv.
+@@ -44,7 +44,7 @@ syscall·setenv_c(String k, String v)
+ {
+ 	byte *arg[2];
+ 
+-	if(libcgo_setenv == nil)
++	if(_cgo_setenv == nil)
+ 		return;
+ 
+ 	arg[0] = runtime·malloc(k.len + 1);
+@@ -55,7 +55,7 @@ syscall·setenv_c(String k, String v)
+ 	runtime·memmove(arg[1], v.str, v.len);
+ 	arg[1][v.len] = 0;
+ 
+-	runtime·asmcgocall((void*)libcgo_setenv, arg);
++	runtime·asmcgocall((void*)_cgo_setenv, arg);
+ 	runtime·free(arg[0]);
+ 	runtime·free(arg[1]);
+ }
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5ba8a4caa3..5bc91cd1f4 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -846,10 +846,10 @@ runtime·mstart(void)
+ 	// is enabled, we must remove our seh here.
+ }
+ 
+-// When running with cgo, we call libcgo_thread_start
++// When running with cgo, we call _cgo_thread_start
+ // to start threads for us so that we can play nicely with
+ // foreign code.
+-void (*libcgo_thread_start)(void*);
++void (*_cgo_thread_start)(void*);
+ 
+ typedef struct CgoThreadStart CgoThreadStart;
+ struct CgoThreadStart
+@@ -1119,12 +1119,12 @@ runtime·newm(void)
+ 	if(runtime·iscgo) {
+ 		CgoThreadStart ts;
+ 
+-		if(libcgo_thread_start == nil)
+-			runtime·throw("libcgo_thread_start missing");
++		if(_cgo_thread_start == nil)
++			runtime·throw("_cgo_thread_start missing");
+ 		ts.m = mp;
+ 		ts.g = mp->g0;
+ 		ts.fn = runtime·mstart;
+-		runtime·asmcgocall(libcgo_thread_start, &ts);
++		runtime·asmcgocall(_cgo_thread_start, &ts);
+ 	} else {
+ 		runtime·newosproc(mp, mp->g0, (byte*)mp->g0->stackbase, runtime·mstart);
+ 	}
+@@ -2102,4 +2102,5 @@ runtime·testSchedLocalQueueSteal(void)
+ 			runtime·throw("bad steal");
+ 		}
+ 	}
+-}
+\ No newline at end of file
++}
++
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index c67d597f5a..b6b007759b 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -133,10 +133,10 @@ TEXT runtime·sigaction(SB),7,$-8
+ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, because cgo_load_gm will clobber it
++	// first save R0, because _cgo_load_gm will clobber it
+ 	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13) // signum
+-	MOVW	cgo_load_gm(SB), R0
++	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index 1001e44553..8bae2933f7 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -280,10 +280,10 @@ TEXT runtime·sigaltstack(SB),7,$0
+ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, because cgo_load_gm will clobber it
++	// first save R0, because _cgo_load_gm will clobber it
+ 	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13)
+-	MOVW	cgo_load_gm(SB), R0
++	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 
+diff --git a/src/pkg/runtime/sys_netbsd_arm.s b/src/pkg/runtime/sys_netbsd_arm.s
+index 0393568fae..4a119c5dee 100644
+--- a/src/pkg/runtime/sys_netbsd_arm.s
++++ b/src/pkg/runtime/sys_netbsd_arm.s
+@@ -181,10 +181,10 @@ TEXT runtime·sigaction(SB),7,$4
+ TEXT runtime·sigtramp(SB),7,$24
+ 	// this might be called in external code context,
+ 	// where g and m are not set.
+-	// first save R0, because cgo_load_gm will clobber it
++	// first save R0, because _cgo_load_gm will clobber it
+ 	// TODO(adonovan): call runtime·badsignal if m=0, like other platforms?
+ 	MOVW	R0, 4(R13) // signum
+-	MOVW	cgo_load_gm(SB), R0
++	MOVW	_cgo_load_gm(SB), R0
+ 	CMP 	$0, R0
+ 	BL.NE	(R0)
+ 

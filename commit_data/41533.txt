@@ -11,7 +11,59 @@ Date:   Tue Oct 8 15:16:41 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/doc/main.go                    | 17 ++++++++++++++---
  src/cmd/go/testdata/script/mod_doc.txt |  5 +++++
  2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index dd15e801fb..0f817b612b 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -231,8 +231,8 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	// First, is it a complete package path as it is? If so, we are done.
+ 	// This avoids confusion over package paths that have other
+ 	// package paths as their prefix.
+-	pkg, err = build.Import(arg, wd, build.ImportComment)
+-	if err == nil {
++	pkg, importErr := build.Import(arg, wd, build.ImportComment)
++	if importErr == nil {
+ 		return pkg, arg, "", false
+ 	}
+ 	// Another disambiguator: If the symbol starts with an upper
+@@ -286,7 +286,18 @@ func parseArgs(args []string) (pkg *build.Package, path, symbol string, more boo
+ 	}
+ 	// If it has a slash, we've failed.
+ 	if slash >= 0 {
+-		log.Fatalf("no such package %s", arg[0:period])
++		// build.Import should always include the path in its error message,
++		// and we should avoid repeating it. Unfortunately, build.Import doesn't
++		// return a structured error. That can't easily be fixed, since it
++		// invokes 'go list' and returns the error text from the loaded package.
++		// TODO(golang.org/issue/34750): load using golang.org/x/tools/go/packages
++		// instead of go/build.
++		importErrStr := importErr.Error()
++		if strings.Contains(importErrStr, arg[:period]) {
++			log.Fatal(importErrStr)
++		} else {
++			log.Fatalf("no such package %s: %s", arg[:period], importErrStr)
++		}
+ 	}
+ 	// Guess it's a symbol in the current directory.
+ 	return importDir(wd), "", arg, false
+diff --git a/src/cmd/go/testdata/script/mod_doc.txt b/src/cmd/go/testdata/script/mod_doc.txt
+index d7aa553c1d..047e9f46eb 100644
+--- a/src/cmd/go/testdata/script/mod_doc.txt
++++ b/src/cmd/go/testdata/script/mod_doc.txt
+@@ -36,6 +36,11 @@ go doc rsc.io/quote
+ ! stdout 'Package quote is located in a GOPATH workspace.'
+ stdout 'Package quote collects pithy sayings.'
+ 
++# Check that a sensible error message is printed when a package is not found.
++env GOPROXY=off
++! go doc example.com/hello
++stderr '^doc: cannot find module providing package example.com/hello: module lookup disabled by GOPROXY=off$'
++
+ -- go.mod --
+ module x
+ require rsc.io/quote v1.5.2

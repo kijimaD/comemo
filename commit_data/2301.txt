@@ -9,7 +9,43 @@ Date:   Sat May 23 19:39:25 2009 -0700
     DELTA=7  (5 added, 1 deleted, 1 changed)
     OCL=29319
     CL=29319
-
+---
  src/lib/Makefile  | 2 +-
  src/lib/deps.bash | 6 +++++-
  2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 6539002366..8aa70cd476 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -5,7 +5,7 @@
+ # After editing the DIRS= list or adding imports to any Go files
+ # in any of those directories, run:
+ #
+-#	p4 edit Make.deps; ./deps.bash
++#	./deps.bash
+ #
+ # to rebuild the dependency information in Make.deps.
+ 
+diff --git a/src/lib/deps.bash b/src/lib/deps.bash
+index d6796c9406..db05f2a1d9 100755
+--- a/src/lib/deps.bash
++++ b/src/lib/deps.bash
+@@ -6,6 +6,11 @@
+ OUT="Make.deps"
+ TMP="Make.deps.tmp"
+ 
++if [ -f $OUT ] && ! [ -w $OUT ]; then
++	echo "$0: $OUT is read-only; aborting." 1>&2
++	exit 1
++fi
++
+ # Get list of directories from Makefile
+ dirs=$(sed '1,/^DIRS=/d; /^$/,$d; s/\\//g' Makefile)
+ dirpat=$(echo $dirs | sed 's/ /|/g; s/.*/^(&)$/')
+@@ -28,5 +33,4 @@ for dir in $dirs; do (
+ 	echo $dir.install: $deps
+ ) done > $TMP
+ 
+-p4 open $OUT
+ mv $TMP $OUT

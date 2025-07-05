@@ -8,7 +8,7 @@ Date:   Wed Jul 8 15:00:54 2009 -0700
     DELTA=188  (171 added, 6 deleted, 11 changed)
     OCL=31352
     CL=31361
-
+---
  src/pkg/reflect/all_test.go | 78 +++++++++++++++++++++++++++++++++++++++++++--
  src/pkg/reflect/value.go    | 57 ++++++++++++++++++++++++++++++---
  src/pkg/runtime/chan.c      | 28 +++++++++-------
@@ -16,3 +16,365 @@ Date:   Wed Jul 8 15:00:54 2009 -0700
  src/pkg/runtime/runtime.h   |  6 ++++
  src/pkg/runtime/type.h      |  8 +++++
  6 files changed, 183 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index af1504b8a0..6c216b78cf 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -598,7 +598,7 @@ func TestNilPtrValueSub(t *testing.T) {
+ 	}
+ }
+ 
+-func TestMapAccess(t *testing.T) {
++func TestMap(t *testing.T) {
+ 	m := map[string]int{ "a": 1, "b": 2 };
+ 	mv := NewValue(m).(*MapValue);
+ 	if n := mv.Len(); n != len(m) {
+@@ -644,10 +644,84 @@ func TestMapAccess(t *testing.T) {
+ 			t.Errorf("newm[%q] = %d, but m[%q] = %d, %v", k, v, k, mv, ok);
+ 		}
+ 	}
+-	
++
+ 	newmap.Put(NewValue("a"), nil);
+ 	v, ok := newm["a"];
+ 	if ok {
+ 		t.Errorf("newm[\"a\"] = %d after delete", v);
+ 	}
+ }
++
++func TestChan(t *testing.T) {
++	for loop := 0; loop < 2; loop++ {
++		var c chan int;
++		var cv *ChanValue;
++
++		// check both ways to allocate channels
++		switch loop {
++		case 1:
++			c = make(chan int, 1);
++			cv = NewValue(c).(*ChanValue);
++		case 0:
++			cv = MakeChan(Typeof(c).(*ChanType), 1);
++			c = cv.Interface().(chan int);
++		}
++
++		// Send
++		cv.Send(NewValue(2));
++		if i := <-c; i != 2 {
++			t.Errorf("reflect Send 2, native recv %d", i);
++		}
++
++		// Recv
++		c <- 3;
++		if i := cv.Recv().(*IntValue).Get(); i != 3 {
++			t.Errorf("native send 3, reflect Recv %d", i);
++		}
++
++		// TryRecv fail
++		val := cv.TryRecv();
++		if val != nil {
++			t.Errorf("TryRecv on empty chan: %s", valueToString(val));
++		}
++
++		// TryRecv success
++		c <- 4;
++		val = cv.TryRecv();
++		if val == nil {
++			t.Errorf("TryRecv on ready chan got nil");
++		} else if i := val.(*IntValue).Get(); i != 4 {
++			t.Errorf("native send 4, TryRecv %d", i);
++		}
++
++		// TrySend fail
++		c <- 100;
++		ok := cv.TrySend(NewValue(5));
++		i := <-c;
++		if ok {
++			t.Errorf("TrySend on full chan succeeded: value %d", i);
++		}
++
++		// TrySend success
++		ok = cv.TrySend(NewValue(6));
++		if !ok {
++			t.Errorf("TrySend on empty chan failed");
++		} else {
++			if i = <-c; i != 6 {
++				t.Errorf("TrySend 6, recv %d", i);
++			}
++		}
++	}
++
++	// check creation of unbuffered channel
++	var c chan int;
++	cv := MakeChan(Typeof(c).(*ChanType), 0);
++	c = cv.Interface().(chan int);
++	if cv.TrySend(NewValue(7)) {
++		t.Errorf("TrySend on sync chan succeeded");
++	}
++	if cv.TryRecv() != nil {
++		t.Errorf("TryRecv on sync chan succeeded");
++	}
++}
++
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 11c07c5e4c..e98ff500df 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -631,26 +631,74 @@ func (v *ChanValue) Get() uintptr {
+ 	return *(*uintptr)(v.addr);
+ }
+ 
++// implemented in ../pkg/runtime/reflect.cgo
++func makechan(typ *runtime.ChanType, size uint32) (ch *byte)
++func chansend(ch, val *byte, pres *bool)
++func chanrecv(ch, val *byte, pres *bool)
++
++// internal send; non-blocking if b != nil
++func (v *ChanValue) send(x Value, b *bool) {
++	t := v.Type().(*ChanType);
++	if t.Dir() & SendDir == 0{
++		panic("send on recv-only channel");
++	}
++	ch := *(**byte)(v.addr);
++	chansend(ch, (*byte)(x.getAddr()), b);
++}
++
++// internal recv; non-blocking if b != nil
++func (v *ChanValue) recv(b *bool) Value {
++	t := v.Type().(*ChanType);
++	if t.Dir() & RecvDir == 0 {
++		panic("recv on send-only channel");
++	}
++	ch := *(**byte)(v.addr);
++	newval := MakeZero(t.Elem());
++	x := MakeZero(t.Elem());
++	chanrecv(ch, (*byte)(x.getAddr()), b);
++	return x;
++}
++
+ // Send sends x on the channel v.
+ func (v *ChanValue) Send(x Value) {
+-	panic("unimplemented: channel Send");
++	v.send(x, nil);
+ }
+ 
+ // Recv receives and returns a value from the channel v.
+ func (v *ChanValue) Recv() Value {
+-	panic("unimplemented: channel Receive");
++	return v.recv(nil);
+ }
+ 
+ // TrySend attempts to sends x on the channel v but will not block.
+ // It returns true if the value was sent, false otherwise.
+ func (v *ChanValue) TrySend(x Value) bool {
+-	panic("unimplemented: channel TrySend");
++	var ok bool;
++	v.send(x, &ok);
++	return ok;
+ }
+ 
+ // TryRecv attempts to receive a value from the channel v but will not block.
+ // It returns the value if one is received, nil otherwise.
+ func (v *ChanValue) TryRecv() Value {
+-	panic("unimplemented: channel TryRecv");
++	var ok bool;
++	x := v.recv(&ok);
++	if !ok {
++		return nil;
++	}
++	return x;
++}
++
++// MakeChan creates a new channel with the specified type and buffer size.
++func MakeChan(typ *ChanType, buffer int) *ChanValue {
++	if buffer < 0 {
++		panic("MakeChan: negative buffer size");
++	}
++	if typ.Dir() != BothDir {
++		panic("MakeChan: unidirectional channel type");
++	}
++	v := MakeZero(typ).(*ChanValue);
++	*(**byte)(v.addr) = makechan((*runtime.ChanType)(unsafe.Pointer(typ)), uint32(buffer));
++	return v;
+ }
+ 
+ /*
+@@ -818,6 +866,7 @@ func (v *MapValue) Keys() []Value {
+ 	return a[0:i];
+ }
+ 
++// MakeMap creates a new map of the specified type.
+ func MakeMap(typ *MapType) *MapValue {
+ 	v := MakeZero(typ).(*MapValue);
+ 	*(**byte)(v.addr) = makemap((*runtime.MapType)(unsafe.Pointer(typ)));
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 82167ffff2..b5c3926058 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -15,7 +15,6 @@ enum
+ 	Emax		= 0x0800,	// error limit before throw
+ };
+ 
+-typedef	struct	Hchan	Hchan;
+ typedef	struct	Link	Link;
+ typedef	struct	WaitQ	WaitQ;
+ typedef	struct	SudoG	SudoG;
+@@ -88,10 +87,8 @@ static	uint32	gcd(uint32, uint32);
+ static	uint32	fastrand1(void);
+ static	uint32	fastrand2(void);
+ 
+-// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+-void
+-sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+-	Hchan* ret)
++Hchan*
++makechan(uint32 elemsize, uint32 elemalg, uint32 hint)
+ {
+ 	Hchan *c;
+ 	int32 i;
+@@ -126,9 +123,6 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+ 		c->dataqsiz = hint;
+ 	}
+ 
+-	ret = c;
+-	FLUSH(&ret);
+-
+ 	if(debug) {
+ 		prints("newchan: chan=");
+ 		sys·printpointer(c);
+@@ -140,6 +134,16 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+ 		sys·printint(c->dataqsiz);
+ 		prints("\n");
+ 	}
++
++	return c;
++}
++
++// newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
++void
++sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint, Hchan *ret)
++{
++	ret = makechan(elemsize, elemalg, hint);
++	FLUSH(&ret);
+ }
+ 
+ static void
+@@ -162,7 +166,7 @@ incerr(Hchan* c)
+  * not complete
+  */
+ void
+-sendchan(Hchan *c, byte *ep, bool *pres)
++chansend(Hchan *c, byte *ep, bool *pres)
+ {
+ 	SudoG *sg;
+ 	G* gp;
+@@ -266,7 +270,7 @@ closed:
+ 	unlock(&chanlock);
+ }
+ 
+-static void
++void
+ chanrecv(Hchan* c, byte *ep, bool* pres)
+ {
+ 	SudoG *sg;
+@@ -381,7 +385,7 @@ sys·chansend1(Hchan* c, ...)
+ 
+ 	o = rnd(sizeof(c), c->elemsize);
+ 	ae = (byte*)&c + o;
+-	sendchan(c, ae, nil);
++	chansend(c, ae, nil);
+ }
+ 
+ // chansend2(hchan *chan any, elem any) (pres bool);
+@@ -396,7 +400,7 @@ sys·chansend2(Hchan* c, ...)
+ 	o = rnd(o+c->elemsize, Structrnd);
+ 	ap = (byte*)&c + o;
+ 
+-	sendchan(c, ae, ap);
++	chansend(c, ae, ap);
+ }
+ 
+ // chanrecv1(hchan *chan any) (elem any);
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.cgo
+index da74195092..1c72d2bc18 100644
+--- a/src/pkg/runtime/reflect.cgo
++++ b/src/pkg/runtime/reflect.cgo
+@@ -49,3 +49,27 @@ func makemap(typ *byte) (map *byte) {
+ 
+ 	map = (byte*)makemap(t->key->size, t->elem->size, t->key->alg, t->elem->alg, 0);
+ }
++
++/*
++ * Go wrappers around the C functions in chan.c
++ */
++
++func makechan(typ *byte, size uint32) (ch *byte) {
++	ChanType *t;
++
++	// typ is a *runtime.ChanType, but the ChanType
++	// defined in type.h includes an interface value header
++	// in front of the raw ChanType.  the -2 below backs up
++	// to the interface value header.
++	t = (ChanType*)((void**)typ - 2);
++	ch = (byte*)makechan(t->elem->size, t->elem->alg, size);
++}
++
++func chansend(ch *byte, val *byte, pres *bool) {
++	chansend((Hchan*)ch, val, pres);
++}
++
++func chanrecv(ch *byte, val *byte, pres *bool) {
++	chanrecv((Hchan*)ch, val, pres);
++}
++
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ee2f9820af..1902f003bc 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -61,6 +61,7 @@ typedef	struct	Eface	Eface;
+ typedef	struct	Type		Type;
+ typedef	struct	Defer		Defer;
+ typedef	struct	hash		Hmap;
++typedef	struct	Hchan		Hchan;
+ 
+ /*
+  * per cpu declaration
+@@ -458,6 +459,7 @@ float64	ldexp(float64 d, int32 e);
+ float64	modf(float64 d, float64 *ip);
+ void	semacquire(uint32*);
+ void	semrelease(uint32*);
++
+ void	mapassign(Hmap*, byte*, byte*);
+ void	mapaccess(Hmap*, byte*, byte*, bool*);
+ struct hash_iter*	mapiterinit(Hmap*);
+@@ -465,3 +467,7 @@ void	mapiternext(struct hash_iter*);
+ bool	mapiterkey(struct hash_iter*, void*);
+ void	mapiterkeyvalue(struct hash_iter*, void*, void*);
+ Hmap*	makemap(uint32, uint32, uint32, uint32, uint32);
++
++Hchan*	makechan(uint32, uint32, uint32);
++void	chansend(Hchan*, void*, bool*);
++void	chanrecv(Hchan*, void*, bool*);
+diff --git a/src/pkg/runtime/type.h b/src/pkg/runtime/type.h
+index 21c1dd7b8c..10d0068eac 100644
+--- a/src/pkg/runtime/type.h
++++ b/src/pkg/runtime/type.h
+@@ -12,6 +12,7 @@ typedef struct InterfaceType InterfaceType;
+ typedef struct Method Method;
+ typedef struct IMethod IMethod;
+ typedef struct MapType MapType;
++typedef struct ChanType ChanType;
+ 
+ struct CommonType
+ {
+@@ -71,3 +72,10 @@ struct MapType
+ 	Type *key;
+ 	Type *elem;
+ };
++
++struct ChanType
++{
++	Type;
++	Type *elem;
++	uintptr dir;
++};

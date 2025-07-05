@@ -27,7 +27,7 @@ Date:   Mon Dec 16 19:24:20 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/internal/fips140/aes/aes.go             | 13 +++++++++++--
  src/crypto/internal/fips140/aes/cbc.go             |  4 ++--
  src/crypto/internal/fips140/aes/ctr.go             |  2 +-
@@ -35,3 +35,182 @@ Date:   Mon Dec 16 19:24:20 2024 +0100
  src/crypto/internal/fips140/aes/gcm/gcm_asm.go     |  4 ++--
  src/crypto/internal/fips140/aes/gcm/gcm_generic.go |  8 ++++----
  6 files changed, 24 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/aes/aes.go b/src/crypto/internal/fips140/aes/aes.go
+index 739f1a3dbe..62f6919eda 100644
+--- a/src/crypto/internal/fips140/aes/aes.go
++++ b/src/crypto/internal/fips140/aes/aes.go
+@@ -94,6 +94,8 @@ func newBlockExpanded(c *blockExpanded, key []byte) {
+ func (c *Block) BlockSize() int { return BlockSize }
+ 
+ func (c *Block) Encrypt(dst, src []byte) {
++	// AES-ECB is not approved in FIPS 140-3 mode.
++	fips140.RecordNonApproved()
+ 	if len(src) < BlockSize {
+ 		panic("crypto/aes: input not full block")
+ 	}
+@@ -103,11 +105,12 @@ func (c *Block) Encrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	fips140.RecordApproved()
+ 	encryptBlock(c, dst, src)
+ }
+ 
+ func (c *Block) Decrypt(dst, src []byte) {
++	// AES-ECB is not approved in FIPS 140-3 mode.
++	fips140.RecordNonApproved()
+ 	if len(src) < BlockSize {
+ 		panic("crypto/aes: input not full block")
+ 	}
+@@ -117,6 +120,12 @@ func (c *Block) Decrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	fips140.RecordApproved()
+ 	decryptBlock(c, dst, src)
+ }
++
++// EncryptBlockInternal applies the AES encryption function to one block.
++//
++// It is an internal function meant only for the gcm package.
++func EncryptBlockInternal(c *Block, dst, src []byte) {
++	encryptBlock(c, dst, src)
++}
+diff --git a/src/crypto/internal/fips140/aes/cbc.go b/src/crypto/internal/fips140/aes/cbc.go
+index c7837b9d87..f92af23a2a 100644
+--- a/src/crypto/internal/fips140/aes/cbc.go
++++ b/src/crypto/internal/fips140/aes/cbc.go
+@@ -50,7 +50,7 @@ func cryptBlocksEncGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
+ 	for len(src) > 0 {
+ 		// Write the xor to dst, then encrypt in place.
+ 		subtle.XORBytes(dst[:BlockSize], src[:BlockSize], iv)
+-		b.Encrypt(dst[:BlockSize], dst[:BlockSize])
++		encryptBlock(b, dst[:BlockSize], dst[:BlockSize])
+ 
+ 		// Move to the next block with this block as the next iv.
+ 		iv = dst[:BlockSize]
+@@ -111,7 +111,7 @@ func cryptBlocksDecGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
+ 	copy(civ[:], src[start:end])
+ 
+ 	for start >= 0 {
+-		b.Decrypt(dst[start:end], src[start:end])
++		decryptBlock(b, dst[start:end], src[start:end])
+ 
+ 		if start > 0 {
+ 			subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])
+diff --git a/src/crypto/internal/fips140/aes/ctr.go b/src/crypto/internal/fips140/aes/ctr.go
+index f612034d85..2b0ee44cdd 100644
+--- a/src/crypto/internal/fips140/aes/ctr.go
++++ b/src/crypto/internal/fips140/aes/ctr.go
+@@ -132,7 +132,7 @@ func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
+ 		byteorder.BEPutUint64(buf[i:], ivhi)
+ 		byteorder.BEPutUint64(buf[i+8:], ivlo)
+ 		ivlo, ivhi = add128(ivlo, ivhi, 1)
+-		b.Encrypt(buf[i:], buf[i:])
++		encryptBlock(b, buf[i:], buf[i:])
+ 	}
+ 	// XOR into buf first, in case src and dst overlap (see above).
+ 	subtle.XORBytes(buf, src, buf)
+diff --git a/src/crypto/internal/fips140/aes/gcm/cmac.go b/src/crypto/internal/fips140/aes/gcm/cmac.go
+index e0a9dc43de..3a979a5c70 100644
+--- a/src/crypto/internal/fips140/aes/gcm/cmac.go
++++ b/src/crypto/internal/fips140/aes/gcm/cmac.go
+@@ -28,7 +28,7 @@ func NewCMAC(b *aes.Block) *CMAC {
+ }
+ 
+ func (c *CMAC) deriveSubkeys() {
+-	c.b.Encrypt(c.k1[:], c.k1[:])
++	aes.EncryptBlockInternal(&c.b, c.k1[:], c.k1[:])
+ 	msb := shiftLeft(&c.k1)
+ 	c.k1[len(c.k1)-1] ^= msb * 0b10000111
+ 
+@@ -45,7 +45,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
+ 		// Special-cased as a single empty partial final block.
+ 		x = c.k2
+ 		x[len(m)] ^= 0b10000000
+-		c.b.Encrypt(x[:], x[:])
++		aes.EncryptBlockInternal(&c.b, x[:], x[:])
+ 		return x
+ 	}
+ 	for len(m) >= aes.BlockSize {
+@@ -54,7 +54,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
+ 			// Final complete block.
+ 			subtle.XORBytes(x[:], c.k1[:], x[:])
+ 		}
+-		c.b.Encrypt(x[:], x[:])
++		aes.EncryptBlockInternal(&c.b, x[:], x[:])
+ 		m = m[aes.BlockSize:]
+ 	}
+ 	if len(m) > 0 {
+@@ -62,7 +62,7 @@ func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
+ 		subtle.XORBytes(x[:], m, x[:])
+ 		subtle.XORBytes(x[:], c.k2[:], x[:])
+ 		x[len(m)] ^= 0b10000000
+-		c.b.Encrypt(x[:], x[:])
++		aes.EncryptBlockInternal(&c.b, x[:], x[:])
+ 	}
+ 	return x
+ }
+diff --git a/src/crypto/internal/fips140/aes/gcm/gcm_asm.go b/src/crypto/internal/fips140/aes/gcm/gcm_asm.go
+index d513f77a2f..7924e457de 100644
+--- a/src/crypto/internal/fips140/aes/gcm/gcm_asm.go
++++ b/src/crypto/internal/fips140/aes/gcm/gcm_asm.go
+@@ -81,7 +81,7 @@ func seal(out []byte, g *GCM, nonce, plaintext, data []byte) {
+ 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+ 	}
+ 
+-	g.cipher.Encrypt(tagMask[:], counter[:])
++	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
+ 
+ 	var tagOut [gcmTagSize]byte
+ 	gcmAesData(&g.productTable, data, &tagOut)
+@@ -114,7 +114,7 @@ func open(out []byte, g *GCM, nonce, ciphertext, data []byte) error {
+ 		gcmAesFinish(&g.productTable, &tagMask, &counter, uint64(len(nonce)), uint64(0))
+ 	}
+ 
+-	g.cipher.Encrypt(tagMask[:], counter[:])
++	aes.EncryptBlockInternal(&g.cipher, tagMask[:], counter[:])
+ 
+ 	var expectedTag [gcmTagSize]byte
+ 	gcmAesData(&g.productTable, data, &expectedTag)
+diff --git a/src/crypto/internal/fips140/aes/gcm/gcm_generic.go b/src/crypto/internal/fips140/aes/gcm/gcm_generic.go
+index 778392661d..385955ed77 100644
+--- a/src/crypto/internal/fips140/aes/gcm/gcm_generic.go
++++ b/src/crypto/internal/fips140/aes/gcm/gcm_generic.go
+@@ -12,7 +12,7 @@ import (
+ 
+ func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
+ 	var H, counter, tagMask [gcmBlockSize]byte
+-	g.cipher.Encrypt(H[:], H[:])
++	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
+ 	deriveCounterGeneric(&H, &counter, nonce)
+ 	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
+ 
+@@ -25,7 +25,7 @@ func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
+ 
+ func openGeneric(out []byte, g *GCM, nonce, ciphertext, additionalData []byte) error {
+ 	var H, counter, tagMask [gcmBlockSize]byte
+-	g.cipher.Encrypt(H[:], H[:])
++	aes.EncryptBlockInternal(&g.cipher, H[:], H[:])
+ 	deriveCounterGeneric(&H, &counter, nonce)
+ 	gcmCounterCryptGeneric(&g.cipher, tagMask[:], tagMask[:], &counter)
+ 
+@@ -70,7 +70,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
+ 	var mask [gcmBlockSize]byte
+ 
+ 	for len(src) >= gcmBlockSize {
+-		b.Encrypt(mask[:], counter[:])
++		aes.EncryptBlockInternal(b, mask[:], counter[:])
+ 		gcmInc32(counter)
+ 
+ 		subtle.XORBytes(out, src, mask[:])
+@@ -79,7 +79,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
+ 	}
+ 
+ 	if len(src) > 0 {
+-		b.Encrypt(mask[:], counter[:])
++		aes.EncryptBlockInternal(b, mask[:], counter[:])
+ 		gcmInc32(counter)
+ 		subtle.XORBytes(out, src, mask[:])
+ 	}

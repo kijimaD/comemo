@@ -22,7 +22,51 @@ Date:   Sat Sep 5 16:06:43 2015 +0200
     Change-Id: I6f1328c410cf41e17de0a93cf357a69f12c2a9f7
     Reviewed-on: https://go-review.googlesource.com/14315
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/encoding/xml/xml.go      |  3 +++
  src/encoding/xml/xml_test.go | 21 +++++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index 0a21c93053..6c7debe521 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -245,6 +245,9 @@ func (d *Decoder) Token() (t Token, err error) {
+ 		t = d.nextToken
+ 		d.nextToken = nil
+ 	} else if t, err = d.rawToken(); err != nil {
++		if err == io.EOF && d.stk != nil && d.stk.kind != stkEOF {
++			err = d.syntaxError("unexpected EOF")
++		}
+ 		return
+ 	}
+ 
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 312a7c98a5..19465d7fb1 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -750,3 +750,24 @@ func TestIssue5880(t *testing.T) {
+ 		t.Errorf("Marshal generated invalid UTF-8: %x", data)
+ 	}
+ }
++
++func TestIssue11405(t *testing.T) {
++	testCases := []string{
++		"<root>",
++		"<root><foo>",
++		"<root><foo></foo>",
++	}
++	for _, tc := range testCases {
++		d := NewDecoder(strings.NewReader(tc))
++		var err error
++		for {
++			_, err = d.Token()
++			if err != nil {
++				break
++			}
++		}
++		if _, ok := err.(*SyntaxError); !ok {
++			t.Errorf("%s: Token: Got error %v, want SyntaxError", tc, err)
++		}
++	}
++}

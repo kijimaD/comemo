@@ -23,7 +23,105 @@ Date:   Fri Mar 31 11:10:01 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/gen.go  | 28 +++++++++++++---------------
  src/cmd/compile/internal/gc/subr.go | 13 ++++++++++---
  2 files changed, 23 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 0429c0c9e7..b0689b22ca 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -195,12 +195,12 @@ func autotmpname(n int) string {
+ }
+ 
+ // make a new Node off the books
+-func tempname(nn *Node, t *Type) {
+-	if Curfn == nil {
++func tempnamel(pos src.XPos, curfn *Node, nn *Node, t *Type) {
++	if curfn == nil {
+ 		Fatalf("no curfn for tempname")
+ 	}
+-	if Curfn.Func.Closure != nil && Curfn.Op == OCLOSURE {
+-		Dump("tempname", Curfn)
++	if curfn.Func.Closure != nil && curfn.Op == OCLOSURE {
++		Dump("tempname", curfn)
+ 		Fatalf("adding tempname to wrong closure function")
+ 	}
+ 	if t == nil {
+@@ -208,17 +208,17 @@ func tempname(nn *Node, t *Type) {
+ 	}
+ 
+ 	s := &Sym{
+-		Name: autotmpname(len(Curfn.Func.Dcl)),
++		Name: autotmpname(len(curfn.Func.Dcl)),
+ 		Pkg:  localpkg,
+ 	}
+-	n := newname(s)
++	n := newnamel(pos, s)
+ 	s.Def = n
+ 	n.Type = t
+ 	n.Class = PAUTO
+ 	n.Esc = EscNever
+-	n.Name.Curfn = Curfn
++	n.Name.Curfn = curfn
+ 	n.Name.SetAutoTemp(true)
+-	Curfn.Func.Dcl = append(Curfn.Func.Dcl, n)
++	curfn.Func.Dcl = append(curfn.Func.Dcl, n)
+ 
+ 	dowidth(t)
+ 	*nn = *n
+@@ -226,16 +226,14 @@ func tempname(nn *Node, t *Type) {
+ 
+ func temp(t *Type) *Node {
+ 	var n Node
+-	tempname(&n, t)
++	tempnamel(lineno, Curfn, &n, t)
+ 	n.Sym.Def.SetUsed(true)
+ 	return n.Orig
+ }
+ 
+ func tempAt(pos src.XPos, curfn *Node, t *Type) *Node {
+-	// TODO(mdempsky/josharian): Remove all reads and writes of lineno and Curfn.
+-	lineno = pos
+-	Curfn = curfn
+-	n := temp(t)
+-	Curfn = nil
+-	return n
++	var n Node
++	tempnamel(pos, curfn, &n, t)
++	n.Sym.Def.SetUsed(true)
++	return n.Orig
+ }
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index a61f339a1b..9bdecec5ce 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -365,8 +365,16 @@ func nodl(pos src.XPos, op Op, nleft, nright *Node) *Node {
+ 
+ // newname returns a new ONAME Node associated with symbol s.
+ func newname(s *Sym) *Node {
++	n := newnamel(lineno, s)
++	n.Name.Curfn = Curfn
++	return n
++}
++
++// newname returns a new ONAME Node associated with symbol s at position pos.
++// The caller is responsible for setting n.Name.Curfn.
++func newnamel(pos src.XPos, s *Sym) *Node {
+ 	if s == nil {
+-		Fatalf("newname nil")
++		Fatalf("newnamel nil")
+ 	}
+ 
+ 	var x struct {
+@@ -379,8 +387,7 @@ func newname(s *Sym) *Node {
+ 	n.Name.Param = &x.Param
+ 
+ 	n.Op = ONAME
+-	n.Pos = lineno
+-	n.Name.Curfn = Curfn
++	n.Pos = pos
+ 	n.Orig = n
+ 
+ 	n.Sym = s

@@ -13,10 +13,126 @@ Date:   Wed Mar 23 08:51:38 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/closure.go |  8 ++------
  src/cmd/compile/internal/gc/const.go   | 10 +++-------
  src/cmd/compile/internal/gc/esc.go     |  3 +--
  src/cmd/compile/internal/gc/export.go  |  3 +--
  src/cmd/compile/internal/gc/inl.go     |  6 ++----
  5 files changed, 9 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 46b263fb8e..194c028a62 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -457,9 +457,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 		delete(prealloc, func_)
+ 	}
+ 
+-	clos = walkexpr(clos, init)
+-
+-	return clos
++	return walkexpr(clos, init)
+ }
+ 
+ func typecheckpartialcall(fn *Node, sym *Sym) {
+@@ -662,7 +660,5 @@ func walkpartialcall(n *Node, init *Nodes) *Node {
+ 		delete(prealloc, n)
+ 	}
+ 
+-	clos = walkexpr(clos, init)
+-
+-	return clos
++	return walkexpr(clos, init)
+ }
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index b09fc2215e..012de65e63 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -143,8 +143,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
+ 		// target is invalid type for a constant?  leave alone.
+ 	case OLITERAL:
+ 		if !okforconst[t.Etype] && n.Type.Etype != TNIL {
+-			n = defaultlit(n, nil)
+-			return n
++			return defaultlit(n, nil)
+ 		}
+ 
+ 	case OLSH, ORSH:
+@@ -204,9 +203,7 @@ func convlit1(n *Node, t *Type, explicit bool) *Node {
+ 			n.Type = t
+ 			return n
+ 		}
+-
+-		n = defaultlit(n, nil)
+-		return n
++		return defaultlit(n, nil)
+ 	}
+ 
+ 	switch ct {
+@@ -1264,8 +1261,7 @@ func defaultlit(n *Node, t *Type) *Node {
+ 	switch ctype {
+ 	default:
+ 		if t != nil {
+-			n = convlit(n, t)
+-			return n
++			return convlit(n, t)
+ 		}
+ 
+ 		if n.Val().Ctype() == CTNIL {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 037ddf4822..20e03f5cd9 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -902,12 +902,11 @@ func esc(e *EscState, n *Node, up *Node) {
+ 
+ 		// Link addresses of captured variables to closure.
+ 	case OCLOSURE:
+-		var a *Node
+ 		for _, v := range n.Func.Cvars.Slice() {
+ 			if v.Op == OXXX { // unnamed out argument; see dcl.go:/^funcargs
+ 				continue
+ 			}
+-			a = v.Name.Param.Closure
++			a := v.Name.Param.Closure
+ 			if !v.Name.Byval {
+ 				a = Nod(OADDR, a, nil)
+ 				a.Lineno = v.Lineno
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index d1ec784e93..b814a4c469 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -225,8 +225,7 @@ func reexportdep(n *Node) {
+ }
+ 
+ func dumpexportconst(s *Sym) {
+-	n := s.Def
+-	n = typecheck(n, Erv)
++	n := typecheck(s.Def, Erv)
+ 	if n == nil || n.Op != OLITERAL {
+ 		Fatalf("dumpexportconst: oconst nil: %v", s)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index fa4dfb33f2..ce0b6c38d8 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -292,8 +292,7 @@ func inlconv2stmt(n *Node) {
+ // 	n.Left = inlconv2expr(n.Left)
+ func inlconv2expr(n *Node) *Node {
+ 	r := n.Rlist.First()
+-	r = addinit(r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
+-	return r
++	return addinit(r, append(n.Ninit.Slice(), n.Nbody.Slice()...))
+ }
+ 
+ // Turn the rlist (with the return values) of the OINLCALL in
+@@ -509,8 +508,7 @@ func tinlvar(t *Field) *Node {
+ 		return t.Nname.Name.Inlvar
+ 	}
+ 
+-	nblank = typecheck(nblank, Erv|Easgn)
+-	return nblank
++	return typecheck(nblank, Erv|Easgn)
+ }
+ 
+ var inlgen int

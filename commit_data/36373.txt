@@ -44,7 +44,7 @@ Date:   Thu Apr 19 14:58:42 2018 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: JBD <jbd@google.com>
-
+---
  src/cmd/trace/annotations.go         | 204 +++++++++++++++++------------------
  src/cmd/trace/annotations_test.go    | 110 +++++++++----------
  src/cmd/trace/main.go                |   2 +-
@@ -57,3 +57,1646 @@ Date:   Thu Apr 19 14:58:42 2018 -0400
  src/runtime/trace/annotation_test.go |  46 ++++----
  src/runtime/trace/trace.go           |  30 +++---
  11 files changed, 369 insertions(+), 335 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index 0d2bdfcbba..5f672de3b4 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -18,8 +18,8 @@ import (
+ func init() {
+ 	http.HandleFunc("/usertasks", httpUserTasks)
+ 	http.HandleFunc("/usertask", httpUserTask)
+-	http.HandleFunc("/userspans", httpUserSpans)
+-	http.HandleFunc("/userspan", httpUserSpan)
++	http.HandleFunc("/userregions", httpUserRegions)
++	http.HandleFunc("/userregion", httpUserRegion)
+ }
+ 
+ // httpUserTasks reports all tasks found in the trace.
+@@ -59,46 +59,46 @@ func httpUserTasks(w http.ResponseWriter, r *http.Request) {
+ 	}
+ }
+ 
+-func httpUserSpans(w http.ResponseWriter, r *http.Request) {
++func httpUserRegions(w http.ResponseWriter, r *http.Request) {
+ 	res, err := analyzeAnnotations()
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	allSpans := res.spans
++	allRegions := res.regions
+ 
+-	summary := make(map[spanTypeID]spanStats)
+-	for id, spans := range allSpans {
++	summary := make(map[regionTypeID]regionStats)
++	for id, regions := range allRegions {
+ 		stats, ok := summary[id]
+ 		if !ok {
+-			stats.spanTypeID = id
++			stats.regionTypeID = id
+ 		}
+-		for _, s := range spans {
++		for _, s := range regions {
+ 			stats.add(s)
+ 		}
+ 		summary[id] = stats
+ 	}
+-	// Sort spans by pc and name
+-	userSpans := make([]spanStats, 0, len(summary))
++	// Sort regions by pc and name
++	userRegions := make([]regionStats, 0, len(summary))
+ 	for _, stats := range summary {
+-		userSpans = append(userSpans, stats)
++		userRegions = append(userRegions, stats)
+ 	}
+-	sort.Slice(userSpans, func(i, j int) bool {
+-		if userSpans[i].Type != userSpans[j].Type {
+-			return userSpans[i].Type < userSpans[j].Type
++	sort.Slice(userRegions, func(i, j int) bool {
++		if userRegions[i].Type != userRegions[j].Type {
++			return userRegions[i].Type < userRegions[j].Type
+ 		}
+-		return userSpans[i].Frame.PC < userSpans[j].Frame.PC
++		return userRegions[i].Frame.PC < userRegions[j].Frame.PC
+ 	})
+ 	// Emit table.
+-	err = templUserSpanTypes.Execute(w, userSpans)
++	err = templUserRegionTypes.Execute(w, userRegions)
+ 	if err != nil {
+ 		http.Error(w, fmt.Sprintf("failed to execute template: %v", err), http.StatusInternalServerError)
+ 		return
+ 	}
+ }
+ 
+-func httpUserSpan(w http.ResponseWriter, r *http.Request) {
+-	filter, err := newSpanFilter(r)
++func httpUserRegion(w http.ResponseWriter, r *http.Request) {
++	filter, err := newRegionFilter(r)
+ 	if err != nil {
+ 		http.Error(w, err.Error(), http.StatusBadRequest)
+ 		return
+@@ -108,13 +108,13 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
+ 		http.Error(w, err.Error(), http.StatusInternalServerError)
+ 		return
+ 	}
+-	allSpans := res.spans
++	allRegions := res.regions
+ 
+-	var data []spanDesc
++	var data []regionDesc
+ 
+ 	var maxTotal int64
+-	for id, spans := range allSpans {
+-		for _, s := range spans {
++	for id, regions := range allRegions {
++		for _, s := range regions {
+ 			if !filter.match(id, s) {
+ 				continue
+ 			}
+@@ -126,7 +126,7 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	sortby := r.FormValue("sortby")
+-	_, ok := reflect.TypeOf(spanDesc{}).FieldByNameFunc(func(s string) bool {
++	_, ok := reflect.TypeOf(regionDesc{}).FieldByNameFunc(func(s string) bool {
+ 		return s == sortby
+ 	})
+ 	if !ok {
+@@ -138,9 +138,9 @@ func httpUserSpan(w http.ResponseWriter, r *http.Request) {
+ 		return ival > jval
+ 	})
+ 
+-	err = templUserSpanType.Execute(w, struct {
++	err = templUserRegionType.Execute(w, struct {
+ 		MaxTotal int64
+-		Data     []spanDesc
++		Data     []regionDesc
+ 		Name     string
+ 	}{
+ 		MaxTotal: maxTotal,
+@@ -193,9 +193,9 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
+ 		if !filter.match(task) {
+ 			continue
+ 		}
+-		// merge events in the task.events and task.spans.Start
++		// merge events in the task.events and task.regions.Start
+ 		rawEvents := append([]*trace.Event{}, task.events...)
+-		for _, s := range task.spans {
++		for _, s := range task.regions {
+ 			if s.Start != nil {
+ 				rawEvents = append(rawEvents, s.Start)
+ 			}
+@@ -254,12 +254,12 @@ func httpUserTask(w http.ResponseWriter, r *http.Request) {
+ }
+ 
+ type annotationAnalysisResult struct {
+-	tasks    map[uint64]*taskDesc      // tasks
+-	spans    map[spanTypeID][]spanDesc // spans
+-	gcEvents []*trace.Event            // GCStartevents, sorted
++	tasks    map[uint64]*taskDesc          // tasks
++	regions  map[regionTypeID][]regionDesc // regions
++	gcEvents []*trace.Event                // GCStartevents, sorted
+ }
+ 
+-type spanTypeID struct {
++type regionTypeID struct {
+ 	Frame trace.Frame // top frame
+ 	Type  string
+ }
+@@ -278,7 +278,7 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 	}
+ 
+ 	tasks := allTasks{}
+-	spans := map[spanTypeID][]spanDesc{}
++	regions := map[regionTypeID][]regionDesc{}
+ 	var gcEvents []*trace.Event
+ 
+ 	for _, ev := range events {
+@@ -303,38 +303,38 @@ func analyzeAnnotations() (annotationAnalysisResult, error) {
+ 			gcEvents = append(gcEvents, ev)
+ 		}
+ 	}
+-	// combine span info.
++	// combine region info.
+ 	analyzeGoroutines(events)
+ 	for goid, stats := range gs {
+ 		// gs is a global var defined in goroutines.go as a result
+ 		// of analyzeGoroutines. TODO(hyangah): fix this not to depend
+ 		// on a 'global' var.
+-		for _, s := range stats.Spans {
++		for _, s := range stats.Regions {
+ 			if s.TaskID != 0 {
+ 				task := tasks.task(s.TaskID)
+ 				task.goroutines[goid] = struct{}{}
+-				task.spans = append(task.spans, spanDesc{UserSpanDesc: s, G: goid})
++				task.regions = append(task.regions, regionDesc{UserRegionDesc: s, G: goid})
+ 			}
+ 			var frame trace.Frame
+ 			if s.Start != nil {
+ 				frame = *s.Start.Stk[0]
+ 			}
+-			id := spanTypeID{Frame: frame, Type: s.Name}
+-			spans[id] = append(spans[id], spanDesc{UserSpanDesc: s, G: goid})
++			id := regionTypeID{Frame: frame, Type: s.Name}
++			regions[id] = append(regions[id], regionDesc{UserRegionDesc: s, G: goid})
+ 		}
+ 	}
+ 
+-	// sort spans in tasks based on the timestamps.
++	// sort regions in tasks based on the timestamps.
+ 	for _, task := range tasks {
+-		sort.SliceStable(task.spans, func(i, j int) bool {
+-			si, sj := task.spans[i].firstTimestamp(), task.spans[j].firstTimestamp()
++		sort.SliceStable(task.regions, func(i, j int) bool {
++			si, sj := task.regions[i].firstTimestamp(), task.regions[j].firstTimestamp()
+ 			if si != sj {
+ 				return si < sj
+ 			}
+-			return task.spans[i].lastTimestamp() < task.spans[i].lastTimestamp()
++			return task.regions[i].lastTimestamp() < task.regions[i].lastTimestamp()
+ 		})
+ 	}
+-	return annotationAnalysisResult{tasks: tasks, spans: spans, gcEvents: gcEvents}, nil
++	return annotationAnalysisResult{tasks: tasks, regions: regions, gcEvents: gcEvents}, nil
+ }
+ 
+ // taskDesc represents a task.
+@@ -342,7 +342,7 @@ type taskDesc struct {
+ 	name       string              // user-provided task name
+ 	id         uint64              // internal task id
+ 	events     []*trace.Event      // sorted based on timestamp.
+-	spans      []spanDesc          // associated spans, sorted based on the start timestamp and then the last timestamp.
++	regions    []regionDesc        // associated regions, sorted based on the start timestamp and then the last timestamp.
+ 	goroutines map[uint64]struct{} // involved goroutines
+ 
+ 	create *trace.Event // Task create event
+@@ -367,8 +367,8 @@ func (task *taskDesc) String() string {
+ 	fmt.Fprintf(wb, "task %d:\t%s\n", task.id, task.name)
+ 	fmt.Fprintf(wb, "\tstart: %v end: %v complete: %t\n", task.firstTimestamp(), task.lastTimestamp(), task.complete())
+ 	fmt.Fprintf(wb, "\t%d goroutines\n", len(task.goroutines))
+-	fmt.Fprintf(wb, "\t%d spans:\n", len(task.spans))
+-	for _, s := range task.spans {
++	fmt.Fprintf(wb, "\t%d regions:\n", len(task.regions))
++	for _, s := range task.regions {
+ 		fmt.Fprintf(wb, "\t\t%s(goid=%d)\n", s.Name, s.G)
+ 	}
+ 	if task.parent != nil {
+@@ -382,10 +382,10 @@ func (task *taskDesc) String() string {
+ 	return wb.String()
+ }
+ 
+-// spanDesc represents a span.
+-type spanDesc struct {
+-	*trace.UserSpanDesc
+-	G uint64 // id of goroutine where the span was defined
++// regionDesc represents a region.
++type regionDesc struct {
++	*trace.UserRegionDesc
++	G uint64 // id of goroutine where the region was defined
+ }
+ 
+ type allTasks map[uint64]*taskDesc
+@@ -473,8 +473,8 @@ func (task *taskDesc) duration() time.Duration {
+ 	return time.Duration(task.lastTimestamp()-task.firstTimestamp()) * time.Nanosecond
+ }
+ 
+-func (span *spanDesc) duration() time.Duration {
+-	return time.Duration(span.lastTimestamp()-span.firstTimestamp()) * time.Nanosecond
++func (region *regionDesc) duration() time.Duration {
++	return time.Duration(region.lastTimestamp()-region.firstTimestamp()) * time.Nanosecond
+ }
+ 
+ // overlappingGCDuration returns the sum of GC period overlapping with the task's lifetime.
+@@ -493,7 +493,7 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
+ }
+ 
+ // overlappingInstant returns true if the instantaneous event, ev, occurred during
+-// any of the task's span if ev is a goroutine-local event, or overlaps with the
++// any of the task's region if ev is a goroutine-local event, or overlaps with the
+ // task's lifetime if ev is a global event.
+ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+ 	if isUserAnnotationEvent(ev) && task.id != ev.Args[0] {
+@@ -510,13 +510,13 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+ 		return true
+ 	}
+ 
+-	// Goroutine local event. Check whether there are spans overlapping with the event.
++	// Goroutine local event. Check whether there are regions overlapping with the event.
+ 	goid := ev.G
+-	for _, span := range task.spans {
+-		if span.G != goid {
++	for _, region := range task.regions {
++		if region.G != goid {
+ 			continue
+ 		}
+-		if span.firstTimestamp() <= ts && ts <= span.lastTimestamp() {
++		if region.firstTimestamp() <= ts && ts <= region.lastTimestamp() {
+ 			return true
+ 		}
+ 	}
+@@ -524,7 +524,7 @@ func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
+ }
+ 
+ // overlappingDuration returns whether the durational event, ev, overlaps with
+-// any of the task's span if ev is a goroutine-local event, or overlaps with
++// any of the task's region if ev is a goroutine-local event, or overlaps with
+ // the task's lifetime if ev is a global event. It returns the overlapping time
+ // as well.
+ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool) {
+@@ -552,21 +552,21 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
+ 		return o, o > 0
+ 	}
+ 
+-	// Goroutine local event. Check whether there are spans overlapping with the event.
++	// Goroutine local event. Check whether there are regions overlapping with the event.
+ 	var overlapping time.Duration
+-	var lastSpanEnd int64 // the end of previous overlapping span
+-	for _, span := range task.spans {
+-		if span.G != goid && span.G != goid2 {
++	var lastRegionEnd int64 // the end of previous overlapping region
++	for _, region := range task.regions {
++		if region.G != goid && region.G != goid2 {
+ 			continue
+ 		}
+-		spanStart, spanEnd := span.firstTimestamp(), span.lastTimestamp()
+-		if spanStart < lastSpanEnd { // skip nested spans
++		regionStart, regionEnd := region.firstTimestamp(), region.lastTimestamp()
++		if regionStart < lastRegionEnd { // skip nested regions
+ 			continue
+ 		}
+ 
+-		if o := overlappingDuration(spanStart, spanEnd, start, end); o > 0 {
++		if o := overlappingDuration(regionStart, regionEnd, start, end); o > 0 {
+ 			// overlapping.
+-			lastSpanEnd = spanEnd
++			lastRegionEnd = regionEnd
+ 			overlapping += o
+ 		}
+ 	}
+@@ -602,22 +602,22 @@ func (task *taskDesc) lastEvent() *trace.Event {
+ 	return nil
+ }
+ 
+-// firstTimestamp returns the timestamp of span start event.
+-// If the span's start event is not present in the trace,
++// firstTimestamp returns the timestamp of region start event.
++// If the region's start event is not present in the trace,
+ // the first timestamp of the trace will be returned.
+-func (span *spanDesc) firstTimestamp() int64 {
+-	if span.Start != nil {
+-		return span.Start.Ts
++func (region *regionDesc) firstTimestamp() int64 {
++	if region.Start != nil {
++		return region.Start.Ts
+ 	}
+ 	return firstTimestamp()
+ }
+ 
+-// lastTimestamp returns the timestamp of span end event.
+-// If the span's end event is not present in the trace,
++// lastTimestamp returns the timestamp of region end event.
++// If the region's end event is not present in the trace,
+ // the last timestamp of the trace will be returned.
+-func (span *spanDesc) lastTimestamp() int64 {
+-	if span.End != nil {
+-		return span.End.Ts
++func (region *regionDesc) lastTimestamp() int64 {
++	if region.End != nil {
++		return region.End.Ts
+ 	}
+ 	return lastTimestamp()
+ }
+@@ -721,7 +721,7 @@ func newTaskFilter(r *http.Request) (*taskFilter, error) {
+ func taskMatches(t *taskDesc, text string) bool {
+ 	for _, ev := range t.events {
+ 		switch ev.Type {
+-		case trace.EvUserTaskCreate, trace.EvUserSpan, trace.EvUserLog:
++		case trace.EvUserTaskCreate, trace.EvUserRegion, trace.EvUserLog:
+ 			for _, s := range ev.SArgs {
+ 				if strings.Contains(s, text) {
+ 					return true
+@@ -732,12 +732,12 @@ func taskMatches(t *taskDesc, text string) bool {
+ 	return false
+ }
+ 
+-type spanFilter struct {
++type regionFilter struct {
+ 	name string
+-	cond []func(spanTypeID, spanDesc) bool
++	cond []func(regionTypeID, regionDesc) bool
+ }
+ 
+-func (f *spanFilter) match(id spanTypeID, s spanDesc) bool {
++func (f *regionFilter) match(id regionTypeID, s regionDesc) bool {
+ 	for _, c := range f.cond {
+ 		if !c(id, s) {
+ 			return false
+@@ -746,42 +746,42 @@ func (f *spanFilter) match(id spanTypeID, s spanDesc) bool {
+ 	return true
+ }
+ 
+-func newSpanFilter(r *http.Request) (*spanFilter, error) {
++func newRegionFilter(r *http.Request) (*regionFilter, error) {
+ 	if err := r.ParseForm(); err != nil {
+ 		return nil, err
+ 	}
+ 
+ 	var name []string
+-	var conditions []func(spanTypeID, spanDesc) bool
++	var conditions []func(regionTypeID, regionDesc) bool
+ 
+ 	param := r.Form
+ 	if typ, ok := param["type"]; ok && len(typ) > 0 {
+ 		name = append(name, "type="+typ[0])
+-		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
++		conditions = append(conditions, func(id regionTypeID, s regionDesc) bool {
+ 			return id.Type == typ[0]
+ 		})
+ 	}
+ 	if pc, err := strconv.ParseUint(r.FormValue("pc"), 16, 64); err == nil {
+ 		name = append(name, fmt.Sprintf("pc=%x", pc))
+-		conditions = append(conditions, func(id spanTypeID, s spanDesc) bool {
++		conditions = append(conditions, func(id regionTypeID, s regionDesc) bool {
+ 			return id.Frame.PC == pc
+ 		})
+ 	}
+ 
+ 	if lat, err := time.ParseDuration(r.FormValue("latmin")); err == nil {
+ 		name = append(name, fmt.Sprintf("latency >= %s", lat))
+-		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
++		conditions = append(conditions, func(_ regionTypeID, s regionDesc) bool {
+ 			return s.duration() >= lat
+ 		})
+ 	}
+ 	if lat, err := time.ParseDuration(r.FormValue("latmax")); err == nil {
+ 		name = append(name, fmt.Sprintf("latency <= %s", lat))
+-		conditions = append(conditions, func(_ spanTypeID, s spanDesc) bool {
++		conditions = append(conditions, func(_ regionTypeID, s regionDesc) bool {
+ 			return s.duration() <= lat
+ 		})
+ 	}
+ 
+-	return &spanFilter{name: strings.Join(name, ","), cond: conditions}, nil
++	return &regionFilter{name: strings.Join(name, ","), cond: conditions}, nil
+ }
+ 
+ type durationHistogram struct {
+@@ -893,22 +893,22 @@ func (h *durationHistogram) String() string {
+ 	return w.String()
+ }
+ 
+-type spanStats struct {
+-	spanTypeID
++type regionStats struct {
++	regionTypeID
+ 	Histogram durationHistogram
+ }
+ 
+-func (s *spanStats) UserSpanURL() func(min, max time.Duration) string {
++func (s *regionStats) UserRegionURL() func(min, max time.Duration) string {
+ 	return func(min, max time.Duration) string {
+-		return fmt.Sprintf("/userspan?type=%s&pc=%x&latmin=%v&latmax=%v", template.URLQueryEscaper(s.Type), s.Frame.PC, template.URLQueryEscaper(min), template.URLQueryEscaper(max))
++		return fmt.Sprintf("/userregion?type=%s&pc=%x&latmin=%v&latmax=%v", template.URLQueryEscaper(s.Type), s.Frame.PC, template.URLQueryEscaper(min), template.URLQueryEscaper(max))
+ 	}
+ }
+ 
+-func (s *spanStats) add(span spanDesc) {
+-	s.Histogram.add(span.duration())
++func (s *regionStats) add(region regionDesc) {
++	s.Histogram.add(region.duration())
+ }
+ 
+-var templUserSpanTypes = template.Must(template.New("").Parse(`
++var templUserRegionTypes = template.Must(template.New("").Parse(`
+ <html>
+ <style type="text/css">
+ .histoTime {
+@@ -920,15 +920,15 @@ var templUserSpanTypes = template.Must(template.New("").Parse(`
+ <body>
+ <table border="1" sortable="1">
+ <tr>
+-<th>Span type</th>
++<th>Region type</th>
+ <th>Count</th>
+ <th>Duration distribution (complete tasks)</th>
+ </tr>
+ {{range $}}
+   <tr>
+     <td>{{.Type}}<br>{{.Frame.Fn}}<br>{{.Frame.File}}:{{.Frame.Line}}</td>
+-    <td><a href="/userspan?type={{.Type}}&pc={{.Frame.PC}}">{{.Histogram.Count}}</a></td>
+-    <td>{{.Histogram.ToHTML (.UserSpanURL)}}</td>
++    <td><a href="/userregion?type={{.Type}}&pc={{.Frame.PC}}">{{.Histogram.Count}}</a></td>
++    <td>{{.Histogram.ToHTML (.UserRegionURL)}}</td>
+   </tr>
+ {{end}}
+ </table>
+@@ -1109,15 +1109,15 @@ func describeEvent(ev *trace.Event) string {
+ 		return "goroutine stopped"
+ 	case trace.EvUserLog:
+ 		return formatUserLog(ev)
+-	case trace.EvUserSpan:
++	case trace.EvUserRegion:
+ 		if ev.Args[1] == 0 {
+ 			duration := "unknown"
+ 			if ev.Link != nil {
+ 				duration = (time.Duration(ev.Link.Ts-ev.Ts) * time.Nanosecond).String()
+ 			}
+-			return fmt.Sprintf("span %s started (duration: %v)", ev.SArgs[0], duration)
++			return fmt.Sprintf("region %s started (duration: %v)", ev.SArgs[0], duration)
+ 		}
+-		return fmt.Sprintf("span %s ended", ev.SArgs[0])
++		return fmt.Sprintf("region %s ended", ev.SArgs[0])
+ 	case trace.EvUserTaskCreate:
+ 		return fmt.Sprintf("task %v (id %d, parent %d) created", ev.SArgs[0], ev.Args[0], ev.Args[1])
+ 		// TODO: add child task creation events into the parent task events
+@@ -1129,13 +1129,13 @@ func describeEvent(ev *trace.Event) string {
+ 
+ func isUserAnnotationEvent(ev *trace.Event) bool {
+ 	switch ev.Type {
+-	case trace.EvUserLog, trace.EvUserSpan, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
++	case trace.EvUserLog, trace.EvUserRegion, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
+ 		return true
+ 	}
+ 	return false
+ }
+ 
+-var templUserSpanType = template.Must(template.New("").Funcs(template.FuncMap{
++var templUserRegionType = template.Must(template.New("").Funcs(template.FuncMap{
+ 	"prettyDuration": func(nsec int64) template.HTML {
+ 		d := time.Duration(nsec) * time.Nanosecond
+ 		return template.HTML(niceDuration(d))
+@@ -1152,7 +1152,7 @@ var templUserSpanType = template.Must(template.New("").Funcs(template.FuncMap{
+ 		}
+ 		return template.HTML(fmt.Sprintf("%.2f%%", float64(dividened)/float64(divisor)*100))
+ 	},
+-	"unknownTime": func(desc spanDesc) int64 {
++	"unknownTime": func(desc regionDesc) int64 {
+ 		sum := desc.ExecTime + desc.IOTime + desc.BlockTime + desc.SyscallTime + desc.SchedWaitTime
+ 		if sum < desc.TotalTime {
+ 			return desc.TotalTime - sum
+diff --git a/src/cmd/trace/annotations_test.go b/src/cmd/trace/annotations_test.go
+index 96b83734d7..5d2b226b35 100644
+--- a/src/cmd/trace/annotations_test.go
++++ b/src/cmd/trace/annotations_test.go
+@@ -47,9 +47,9 @@ func TestOverlappingDuration(t *testing.T) {
+ 
+ // prog0 starts three goroutines.
+ //
+-//   goroutine 1: taskless span
+-//   goroutine 2: starts task0, do work in task0.span0, starts task1 which ends immediately.
+-//   goroutine 3: do work in task0.span1 and task0.span2, ends task0
++//   goroutine 1: taskless region
++//   goroutine 2: starts task0, do work in task0.region0, starts task1 which ends immediately.
++//   goroutine 3: do work in task0.region1 and task0.region2, ends task0
+ func prog0() {
+ 	ctx := context.Background()
+ 
+@@ -58,7 +58,7 @@ func prog0() {
+ 	wg.Add(1)
+ 	go func() { // goroutine 1
+ 		defer wg.Done()
+-		trace.WithSpan(ctx, "taskless.span", func(ctx context.Context) {
++		trace.WithRegion(ctx, "taskless.region", func() {
+ 			trace.Log(ctx, "key0", "val0")
+ 		})
+ 	}()
+@@ -66,29 +66,29 @@ func prog0() {
+ 	wg.Add(1)
+ 	go func() { // goroutine 2
+ 		defer wg.Done()
+-		ctx, taskDone := trace.NewContext(ctx, "task0")
+-		trace.WithSpan(ctx, "task0.span0", func(ctx context.Context) {
++		ctx, task := trace.NewTask(ctx, "task0")
++		trace.WithRegion(ctx, "task0.region0", func() {
+ 			wg.Add(1)
+ 			go func() { // goroutine 3
+ 				defer wg.Done()
+-				defer taskDone()
+-				trace.WithSpan(ctx, "task0.span1", func(ctx context.Context) {
+-					trace.WithSpan(ctx, "task0.span2", func(ctx context.Context) {
++				defer task.End()
++				trace.WithRegion(ctx, "task0.region1", func() {
++					trace.WithRegion(ctx, "task0.region2", func() {
+ 						trace.Log(ctx, "key2", "val2")
+ 					})
+ 					trace.Log(ctx, "key1", "val1")
+ 				})
+ 			}()
+ 		})
+-		ctx2, taskDone2 := trace.NewContext(ctx, "task1")
++		ctx2, task2 := trace.NewTask(ctx, "task1")
+ 		trace.Log(ctx2, "key3", "val3")
+-		taskDone2()
++		task2.End()
+ 	}()
+ 	wg.Wait()
+ }
+ 
+ func TestAnalyzeAnnotations(t *testing.T) {
+-	// TODO: classify taskless spans
++	// TODO: classify taskless regions
+ 
+ 	// Run prog0 and capture the execution trace.
+ 	if err := traceProgram(t, prog0, "TestAnalyzeAnnotations"); err != nil {
+@@ -101,17 +101,17 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 	}
+ 
+ 	// For prog0, we expect
+-	//   - task with name = "task0", with three spans.
+-	//   - task with name = "task1", with no span.
++	//   - task with name = "task0", with three regions.
++	//   - task with name = "task1", with no region.
+ 	wantTasks := map[string]struct {
+ 		complete   bool
+ 		goroutines int
+-		spans      []string
++		regions    []string
+ 	}{
+ 		"task0": {
+ 			complete:   true,
+ 			goroutines: 2,
+-			spans:      []string{"task0.span0", "", "task0.span1", "task0.span2"},
++			regions:    []string{"task0.region0", "", "task0.region1", "task0.region2"},
+ 		},
+ 		"task1": {
+ 			complete:   true,
+@@ -125,7 +125,7 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 			t.Errorf("unexpected task: %s", task)
+ 			continue
+ 		}
+-		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(spanNames(task), want.spans) {
++		if task.complete() != want.complete || len(task.goroutines) != want.goroutines || !reflect.DeepEqual(regionNames(task), want.regions) {
+ 			t.Errorf("got task %v; want %+v", task, want)
+ 		}
+ 
+@@ -135,37 +135,37 @@ func TestAnalyzeAnnotations(t *testing.T) {
+ 		t.Errorf("no more tasks; want %+v", wantTasks)
+ 	}
+ 
+-	wantSpans := []string{
+-		"", // an auto-created span for the goroutine 3
+-		"taskless.span",
+-		"task0.span0",
+-		"task0.span1",
+-		"task0.span2",
++	wantRegions := []string{
++		"", // an auto-created region for the goroutine 3
++		"taskless.region",
++		"task0.region0",
++		"task0.region1",
++		"task0.region2",
+ 	}
+-	var gotSpans []string
+-	for spanID := range res.spans {
+-		gotSpans = append(gotSpans, spanID.Type)
++	var gotRegions []string
++	for regionID := range res.regions {
++		gotRegions = append(gotRegions, regionID.Type)
+ 	}
+ 
+-	sort.Strings(wantSpans)
+-	sort.Strings(gotSpans)
+-	if !reflect.DeepEqual(gotSpans, wantSpans) {
+-		t.Errorf("got spans %q, want spans %q", gotSpans, wantSpans)
++	sort.Strings(wantRegions)
++	sort.Strings(gotRegions)
++	if !reflect.DeepEqual(gotRegions, wantRegions) {
++		t.Errorf("got regions %q, want regions %q", gotRegions, wantRegions)
+ 	}
+ }
+ 
+ // prog1 creates a task hierarchy consisting of three tasks.
+ func prog1() {
+ 	ctx := context.Background()
+-	ctx1, done1 := trace.NewContext(ctx, "task1")
+-	defer done1()
+-	trace.WithSpan(ctx1, "task1.span", func(ctx context.Context) {
+-		ctx2, done2 := trace.NewContext(ctx, "task2")
+-		defer done2()
+-		trace.WithSpan(ctx2, "task2.span", func(ctx context.Context) {
+-			ctx3, done3 := trace.NewContext(ctx, "task3")
+-			defer done3()
+-			trace.WithSpan(ctx3, "task3.span", func(ctx context.Context) {
++	ctx1, task1 := trace.NewTask(ctx, "task1")
++	defer task1.End()
++	trace.WithRegion(ctx1, "task1.region", func() {
++		ctx2, task2 := trace.NewTask(ctx1, "task2")
++		defer task2.End()
++		trace.WithRegion(ctx2, "task2.region", func() {
++			ctx3, task3 := trace.NewTask(ctx2, "task3")
++			defer task3.End()
++			trace.WithRegion(ctx3, "task3.region", func() {
+ 			})
+ 		})
+ 	})
+@@ -184,27 +184,27 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
+ 	tasks := res.tasks
+ 
+ 	// For prog0, we expect
+-	//   - task with name = "", with taskless.span in spans.
+-	//   - task with name = "task0", with three spans.
++	//   - task with name = "", with taskless.region in regions.
++	//   - task with name = "task0", with three regions.
+ 	wantTasks := map[string]struct {
+ 		parent   string
+ 		children []string
+-		spans    []string
++		regions  []string
+ 	}{
+ 		"task1": {
+ 			parent:   "",
+ 			children: []string{"task2"},
+-			spans:    []string{"task1.span"},
++			regions:  []string{"task1.region"},
+ 		},
+ 		"task2": {
+ 			parent:   "task1",
+ 			children: []string{"task3"},
+-			spans:    []string{"task2.span"},
++			regions:  []string{"task2.region"},
+ 		},
+ 		"task3": {
+ 			parent:   "task2",
+ 			children: nil,
+-			spans:    []string{"task3.span"},
++			regions:  []string{"task3.region"},
+ 		},
+ 	}
+ 
+@@ -218,7 +218,7 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
+ 
+ 		if parentName(task) != want.parent ||
+ 			!reflect.DeepEqual(childrenNames(task), want.children) ||
+-			!reflect.DeepEqual(spanNames(task), want.spans) {
++			!reflect.DeepEqual(regionNames(task), want.regions) {
+ 			t.Errorf("got %v; want %+v", task, want)
+ 		}
+ 	}
+@@ -234,10 +234,10 @@ func TestAnalyzeAnnotationTaskTree(t *testing.T) {
+ // prog2 returns the upper-bound gc time that overlaps with the first task.
+ func prog2() (gcTime time.Duration) {
+ 	ch := make(chan bool)
+-	ctx1, done := trace.NewContext(context.Background(), "taskWithGC")
+-	trace.WithSpan(ctx1, "taskWithGC.span1", func(ctx context.Context) {
++	ctx1, task := trace.NewTask(context.Background(), "taskWithGC")
++	trace.WithRegion(ctx1, "taskWithGC.region1", func() {
+ 		go func() {
+-			defer trace.StartSpan(ctx, "taskWithGC.span2")()
++			defer trace.StartRegion(ctx1, "taskWithGC.region2").End()
+ 			<-ch
+ 		}()
+ 		s := time.Now()
+@@ -245,13 +245,13 @@ func prog2() (gcTime time.Duration) {
+ 		gcTime = time.Since(s)
+ 		close(ch)
+ 	})
+-	done()
++	task.End()
+ 
+-	ctx2, done2 := trace.NewContext(context.Background(), "taskWithoutGC")
+-	trace.WithSpan(ctx2, "taskWithoutGC.span1", func(ctx context.Context) {
++	ctx2, task2 := trace.NewTask(context.Background(), "taskWithoutGC")
++	trace.WithRegion(ctx2, "taskWithoutGC.region1", func() {
+ 		// do nothing.
+ 	})
+-	done2()
++	task2.End()
+ 	return gcTime
+ }
+ 
+@@ -343,8 +343,8 @@ func traceProgram(t *testing.T, f func(), name string) error {
+ 	return nil
+ }
+ 
+-func spanNames(task *taskDesc) (ret []string) {
+-	for _, s := range task.spans {
++func regionNames(task *taskDesc) (ret []string) {
++	for _, s := range task.regions {
+ 		ret = append(ret, s.Name)
+ 	}
+ 	return ret
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 57608067f1..0c98b85c37 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -200,7 +200,7 @@ var templMain = template.Must(template.New("").Parse(`
+ <a href="/syscall">Syscall blocking profile</a> (<a href="/syscall?raw=1" download="syscall.profile">⬇</a>)<br>
+ <a href="/sched">Scheduler latency profile</a> (<a href="/sche?raw=1" download="sched.profile">⬇</a>)<br>
+ <a href="/usertasks">User-defined tasks</a><br>
+-<a href="/userspans">User-defined spans</a><br>
++<a href="/userregions">User-defined regions</a><br>
+ </body>
+ </html>
+ `))
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index c0972f2b46..3389d2799b 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -42,10 +42,10 @@ func init() {
+ 	http.HandleFunc("/syscall", serveSVGProfile(pprofByGoroutine(computePprofSyscall)))
+ 	http.HandleFunc("/sched", serveSVGProfile(pprofByGoroutine(computePprofSched)))
+ 
+-	http.HandleFunc("/spanio", serveSVGProfile(pprofBySpan(computePprofIO)))
+-	http.HandleFunc("/spanblock", serveSVGProfile(pprofBySpan(computePprofBlock)))
+-	http.HandleFunc("/spansyscall", serveSVGProfile(pprofBySpan(computePprofSyscall)))
+-	http.HandleFunc("/spansched", serveSVGProfile(pprofBySpan(computePprofSched)))
++	http.HandleFunc("/regionio", serveSVGProfile(pprofByRegion(computePprofIO)))
++	http.HandleFunc("/regionblock", serveSVGProfile(pprofByRegion(computePprofBlock)))
++	http.HandleFunc("/regionsyscall", serveSVGProfile(pprofByRegion(computePprofSyscall)))
++	http.HandleFunc("/regionsched", serveSVGProfile(pprofByRegion(computePprofSched)))
+ }
+ 
+ // Record represents one entry in pprof-like profiles.
+@@ -75,13 +75,13 @@ func pprofByGoroutine(compute func(io.Writer, map[uint64][]interval, []*trace.Ev
+ 	}
+ }
+ 
+-func pprofBySpan(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
++func pprofByRegion(compute func(io.Writer, map[uint64][]interval, []*trace.Event) error) func(w io.Writer, r *http.Request) error {
+ 	return func(w io.Writer, r *http.Request) error {
+-		filter, err := newSpanFilter(r)
++		filter, err := newRegionFilter(r)
+ 		if err != nil {
+ 			return err
+ 		}
+-		gToIntervals, err := pprofMatchingSpans(filter)
++		gToIntervals, err := pprofMatchingRegions(filter)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -123,9 +123,9 @@ func pprofMatchingGoroutines(id string, events []*trace.Event) (map[uint64][]int
+ 	return res, nil
+ }
+ 
+-// pprofMatchingSpans returns the time intervals of matching spans
++// pprofMatchingRegions returns the time intervals of matching regions
+ // grouped by the goroutine id. If the filter is nil, returns nil without an error.
+-func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
++func pprofMatchingRegions(filter *regionFilter) (map[uint64][]interval, error) {
+ 	res, err := analyzeAnnotations()
+ 	if err != nil {
+ 		return nil, err
+@@ -135,8 +135,8 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
+ 	}
+ 
+ 	gToIntervals := make(map[uint64][]interval)
+-	for id, spans := range res.spans {
+-		for _, s := range spans {
++	for id, regions := range res.regions {
++		for _, s := range regions {
+ 			if filter.match(id, s) {
+ 				gToIntervals[s.G] = append(gToIntervals[s.G], interval{begin: s.firstTimestamp(), end: s.lastTimestamp()})
+ 			}
+@@ -144,10 +144,10 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
+ 	}
+ 
+ 	for g, intervals := range gToIntervals {
+-		// in order to remove nested spans and
+-		// consider only the outermost spans,
++		// in order to remove nested regions and
++		// consider only the outermost regions,
+ 		// first, we sort based on the start time
+-		// and then scan through to select only the outermost spans.
++		// and then scan through to select only the outermost regions.
+ 		sort.Slice(intervals, func(i, j int) bool {
+ 			x := intervals[i].begin
+ 			y := intervals[j].begin
+@@ -158,13 +158,13 @@ func pprofMatchingSpans(filter *spanFilter) (map[uint64][]interval, error) {
+ 		})
+ 		var lastTimestamp int64
+ 		var n int
+-		// select only the outermost spans.
++		// select only the outermost regions.
+ 		for _, i := range intervals {
+ 			if lastTimestamp <= i.begin {
+-				intervals[n] = i // new non-overlapping span starts.
++				intervals[n] = i // new non-overlapping region starts.
+ 				lastTimestamp = i.end
+ 				n++
+-			} // otherwise, skip because this span overlaps with a previous span.
++			} // otherwise, skip because this region overlaps with a previous region.
+ 		}
+ 		gToIntervals[g] = intervals[:n]
+ 	}
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index e3bb40614d..19d6fa36a7 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -405,7 +405,7 @@ type traceContext struct {
+ 	threadStats, prevThreadStats threadStats
+ 	gstates, prevGstates         [gStateCount]int64
+ 
+-	spanID int // last emitted span id. incremented in each emitSpan call.
++	regionID int // last emitted region id. incremented in each emitRegion call.
+ }
+ 
+ type heapStats struct {
+@@ -738,7 +738,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 		}
+ 	}
+ 
+-	// Display task and its spans if we are in task-oriented presentation mode.
++	// Display task and its regions if we are in task-oriented presentation mode.
+ 	if ctx.mode&modeTaskOriented != 0 {
+ 		taskRow := uint64(trace.GCP + 1)
+ 		for _, task := range ctx.tasks {
+@@ -757,11 +757,11 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 			}
+ 			ctx.emit(tEnd)
+ 
+-			// If we are in goroutine-oriented mode, we draw spans.
++			// If we are in goroutine-oriented mode, we draw regions.
+ 			// TODO(hyangah): add this for task/P-oriented mode (i.e., focustask view) too.
+ 			if ctx.mode&modeGoroutineOriented != 0 {
+-				for _, s := range task.spans {
+-					ctx.emitSpan(s)
++				for _, s := range task.regions {
++					ctx.emitRegion(s)
+ 				}
+ 			}
+ 		}
+@@ -859,23 +859,23 @@ func (ctx *traceContext) emitSlice(ev *trace.Event, name string) *ViewerEvent {
+ 	return sl
+ }
+ 
+-func (ctx *traceContext) emitSpan(s spanDesc) {
++func (ctx *traceContext) emitRegion(s regionDesc) {
+ 	if s.Name == "" {
+ 		return
+ 	}
+-	ctx.spanID++
+-	spanID := ctx.spanID
++	ctx.regionID++
++	regionID := ctx.regionID
+ 
+ 	id := s.TaskID
+ 	scopeID := fmt.Sprintf("%x", id)
+ 
+ 	sl0 := &ViewerEvent{
+-		Category: "Span",
++		Category: "Region",
+ 		Name:     s.Name,
+ 		Phase:    "b",
+ 		Time:     float64(s.firstTimestamp()) / 1e3,
+ 		Tid:      s.G,
+-		ID:       uint64(spanID),
++		ID:       uint64(regionID),
+ 		Scope:    scopeID,
+ 		Cname:    colorDeepMagenta,
+ 	}
+@@ -885,12 +885,12 @@ func (ctx *traceContext) emitSpan(s spanDesc) {
+ 	ctx.emit(sl0)
+ 
+ 	sl1 := &ViewerEvent{
+-		Category: "Span",
++		Category: "Region",
+ 		Name:     s.Name,
+ 		Phase:    "e",
+ 		Time:     float64(s.lastTimestamp()) / 1e3,
+ 		Tid:      s.G,
+-		ID:       uint64(spanID),
++		ID:       uint64(regionID),
+ 		Scope:    scopeID,
+ 		Cname:    colorDeepMagenta,
+ 	}
+diff --git a/src/internal/trace/goroutines.go b/src/internal/trace/goroutines.go
+index 8938936a16..2d7d3aa3ae 100644
+--- a/src/internal/trace/goroutines.go
++++ b/src/internal/trace/goroutines.go
+@@ -15,8 +15,8 @@ type GDesc struct {
+ 	StartTime    int64
+ 	EndTime      int64
+ 
+-	// List of spans in the goroutine, sorted based on the start time.
+-	Spans []*UserSpanDesc
++	// List of regions in the goroutine, sorted based on the start time.
++	Regions []*UserRegionDesc
+ 
+ 	// Statistics of execution time during the goroutine execution.
+ 	GExecutionStat
+@@ -24,20 +24,20 @@ type GDesc struct {
+ 	*gdesc // private part.
+ }
+ 
+-// UserSpanDesc represents a span and goroutine execution stats
+-// while the span was active.
+-type UserSpanDesc struct {
++// UserRegionDesc represents a region and goroutine execution stats
++// while the region was active.
++type UserRegionDesc struct {
+ 	TaskID uint64
+ 	Name   string
+ 
+-	// Span start event. Normally EvUserSpan start event or nil,
+-	// but can be EvGoCreate event if the span is a synthetic
+-	// span representing task inheritance from the parent goroutine.
++	// Region start event. Normally EvUserRegion start event or nil,
++	// but can be EvGoCreate event if the region is a synthetic
++	// region representing task inheritance from the parent goroutine.
+ 	Start *Event
+ 
+-	// Span end event. Normally EvUserSpan end event or nil,
++	// Region end event. Normally EvUserRegion end event or nil,
+ 	// but can be EvGoStop or EvGoEnd event if the goroutine
+-	// terminated without explicitely ending the span.
++	// terminated without explicitely ending the region.
+ 	End *Event
+ 
+ 	GExecutionStat
+@@ -118,7 +118,7 @@ func (g *GDesc) snapshotStat(lastTs, activeGCStartTime int64) (ret GExecutionSta
+ 
+ // finalize is called when processing a goroutine end event or at
+ // the end of trace processing. This finalizes the execution stat
+-// and any active spans in the goroutine, in which case trigger is nil.
++// and any active regions in the goroutine, in which case trigger is nil.
+ func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
+ 	if trigger != nil {
+ 		g.EndTime = trigger.Ts
+@@ -126,10 +126,10 @@ func (g *GDesc) finalize(lastTs, activeGCStartTime int64, trigger *Event) {
+ 	finalStat := g.snapshotStat(lastTs, activeGCStartTime)
+ 
+ 	g.GExecutionStat = finalStat
+-	for _, s := range g.activeSpans {
++	for _, s := range g.activeRegions {
+ 		s.End = trigger
+ 		s.GExecutionStat = finalStat.sub(s.GExecutionStat)
+-		g.Spans = append(g.Spans, s)
++		g.Regions = append(g.Regions, s)
+ 	}
+ 	*(g.gdesc) = gdesc{}
+ }
+@@ -144,7 +144,7 @@ type gdesc struct {
+ 	blockGCTime      int64
+ 	blockSchedTime   int64
+ 
+-	activeSpans []*UserSpanDesc // stack of active spans
++	activeRegions []*UserRegionDesc // stack of active regions
+ }
+ 
+ // GoroutineStats generates statistics for all goroutines in the trace.
+@@ -159,14 +159,14 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
+ 			g.blockSchedTime = ev.Ts
+ 			// When a goroutine is newly created, inherit the
+-			// task of the active span. For ease handling of
+-			// this case, we create a fake span description with
++			// task of the active region. For ease handling of
++			// this case, we create a fake region description with
+ 			// the task id.
+-			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeSpans) > 0 {
+-				spans := creatorG.gdesc.activeSpans
+-				s := spans[len(spans)-1]
++			if creatorG := gs[ev.G]; creatorG != nil && len(creatorG.gdesc.activeRegions) > 0 {
++				regions := creatorG.gdesc.activeRegions
++				s := regions[len(regions)-1]
+ 				if s.TaskID != 0 {
+-					g.gdesc.activeSpans = []*UserSpanDesc{
++					g.gdesc.activeRegions = []*UserRegionDesc{
+ 						{TaskID: s.TaskID, Start: ev},
+ 					}
+ 				}
+@@ -263,32 +263,32 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 				}
+ 			}
+ 			gcStartTime = 0 // indicates gc is inactive.
+-		case EvUserSpan:
++		case EvUserRegion:
+ 			g := gs[ev.G]
+ 			switch mode := ev.Args[1]; mode {
+-			case 0: // span start
+-				g.activeSpans = append(g.activeSpans, &UserSpanDesc{
++			case 0: // region start
++				g.activeRegions = append(g.activeRegions, &UserRegionDesc{
+ 					Name:           ev.SArgs[0],
+ 					TaskID:         ev.Args[0],
+ 					Start:          ev,
+ 					GExecutionStat: g.snapshotStat(lastTs, gcStartTime),
+ 				})
+-			case 1: // span end
+-				var sd *UserSpanDesc
+-				if spanStk := g.activeSpans; len(spanStk) > 0 {
+-					n := len(spanStk)
+-					sd = spanStk[n-1]
+-					spanStk = spanStk[:n-1] // pop
+-					g.activeSpans = spanStk
++			case 1: // region end
++				var sd *UserRegionDesc
++				if regionStk := g.activeRegions; len(regionStk) > 0 {
++					n := len(regionStk)
++					sd = regionStk[n-1]
++					regionStk = regionStk[:n-1] // pop
++					g.activeRegions = regionStk
+ 				} else {
+-					sd = &UserSpanDesc{
++					sd = &UserRegionDesc{
+ 						Name:   ev.SArgs[0],
+ 						TaskID: ev.Args[0],
+ 					}
+ 				}
+ 				sd.GExecutionStat = g.snapshotStat(lastTs, gcStartTime).sub(sd.GExecutionStat)
+ 				sd.End = ev
+-				g.Spans = append(g.Spans, sd)
++				g.Regions = append(g.Regions, sd)
+ 			}
+ 		}
+ 	}
+@@ -296,10 +296,10 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 	for _, g := range gs {
+ 		g.finalize(lastTs, gcStartTime, nil)
+ 
+-		// sort based on span start time
+-		sort.Slice(g.Spans, func(i, j int) bool {
+-			x := g.Spans[i].Start
+-			y := g.Spans[j].Start
++		// sort based on region start time
++		sort.Slice(g.Regions, func(i, j int) bool {
++			x := g.Regions[i].Start
++			y := g.Regions[j].Start
+ 			if x == nil {
+ 				return true
+ 			}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 6d142a593f..c371ff3092 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -56,7 +56,7 @@ type Event struct {
+ 	// for GoSysExit: the next GoStart
+ 	// for GCMarkAssistStart: the associated GCMarkAssistDone
+ 	// for UserTaskCreate: the UserTaskEnd
+-	// for UserSpan: if the start span, the corresponding UserSpan end event
++	// for UserRegion: if the start region, the corresponding UserRegion end event
+ 	Link *Event
+ }
+ 
+@@ -442,7 +442,7 @@ func parseEvents(ver int, rawEvents []rawEvent, strings map[uint64]string) (even
+ 			case EvUserTaskCreate:
+ 				// e.Args 0: taskID, 1:parentID, 2:nameID
+ 				e.SArgs = []string{strings[e.Args[2]]}
+-			case EvUserSpan:
++			case EvUserRegion:
+ 				// e.Args 0: taskID, 1: mode, 2:nameID
+ 				e.SArgs = []string{strings[e.Args[2]]}
+ 			case EvUserLog:
+@@ -583,8 +583,8 @@ func postProcessTrace(ver int, events []*Event) error {
+ 
+ 	gs := make(map[uint64]gdesc)
+ 	ps := make(map[int]pdesc)
+-	tasks := make(map[uint64]*Event)         // task id to task creation events
+-	activeSpans := make(map[uint64][]*Event) // goroutine id to stack of spans
++	tasks := make(map[uint64]*Event)           // task id to task creation events
++	activeRegions := make(map[uint64][]*Event) // goroutine id to stack of regions
+ 	gs[0] = gdesc{state: gRunning}
+ 	var evGC, evSTW *Event
+ 
+@@ -730,12 +730,12 @@ func postProcessTrace(ver int, events []*Event) error {
+ 			g.state = gDead
+ 			p.g = 0
+ 
+-			if ev.Type == EvGoEnd { // flush all active spans
+-				spans := activeSpans[ev.G]
+-				for _, s := range spans {
++			if ev.Type == EvGoEnd { // flush all active regions
++				regions := activeRegions[ev.G]
++				for _, s := range regions {
+ 					s.Link = ev
+ 				}
+-				delete(activeSpans, ev.G)
++				delete(activeRegions, ev.G)
+ 			}
+ 
+ 		case EvGoSched, EvGoPreempt:
+@@ -811,29 +811,29 @@ func postProcessTrace(ver int, events []*Event) error {
+ 				taskCreateEv.Link = ev
+ 				delete(tasks, taskid)
+ 			}
+-		case EvUserSpan:
++		case EvUserRegion:
+ 			mode := ev.Args[1]
+-			spans := activeSpans[ev.G]
+-			if mode == 0 { // span start
+-				activeSpans[ev.G] = append(spans, ev) // push
+-			} else if mode == 1 { // span end
+-				n := len(spans)
+-				if n > 0 { // matching span start event is in the trace.
+-					s := spans[n-1]
+-					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, span name mismatch
+-						return fmt.Errorf("misuse of span in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
++			regions := activeRegions[ev.G]
++			if mode == 0 { // region start
++				activeRegions[ev.G] = append(regions, ev) // push
++			} else if mode == 1 { // region end
++				n := len(regions)
++				if n > 0 { // matching region start event is in the trace.
++					s := regions[n-1]
++					if s.Args[0] != ev.Args[0] || s.SArgs[0] != ev.SArgs[0] { // task id, region name mismatch
++						return fmt.Errorf("misuse of region in goroutine %d: span end %q when the inner-most active span start event is %q", ev.G, ev, s)
+ 					}
+-					// Link span start event with span end event
++					// Link region start event with span end event
+ 					s.Link = ev
+ 
+ 					if n > 1 {
+-						activeSpans[ev.G] = spans[:n-1]
++						activeRegions[ev.G] = regions[:n-1]
+ 					} else {
+-						delete(activeSpans, ev.G)
++						delete(activeRegions, ev.G)
+ 					}
+ 				}
+ 			} else {
+-				return fmt.Errorf("invalid user span mode: %q", ev)
++				return fmt.Errorf("invalid user region mode: %q", ev)
+ 			}
+ 		}
+ 
+@@ -1056,7 +1056,7 @@ const (
+ 	EvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+ 	EvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent id, stack, name string]
+ 	EvUserTaskEnd       = 46 // end of task [timestamp, internal task id, stack]
+-	EvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	EvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+ 	EvUserLog           = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+ 	EvCount             = 49
+ )
+@@ -1115,6 +1115,6 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGCMarkAssistDone:  {"GCMarkAssistDone", 1009, false, []string{}, nil},
+ 	EvUserTaskCreate:    {"UserTaskCreate", 1011, true, []string{"taskid", "pid", "typeid"}, []string{"name"}},
+ 	EvUserTaskEnd:       {"UserTaskEnd", 1011, true, []string{"taskid"}, nil},
+-	EvUserSpan:          {"UserSpan", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
++	EvUserRegion:        {"UserRegion", 1011, true, []string{"taskid", "mode", "typeid"}, []string{"name"}},
+ 	EvUserLog:           {"UserLog", 1011, true, []string{"id", "keyid"}, []string{"category", "message"}},
+ }
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index c4090ff29a..89e0096031 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -66,7 +66,7 @@ const (
+ 	traceEvGCMarkAssistDone  = 44 // GC mark assist done [timestamp]
+ 	traceEvUserTaskCreate    = 45 // trace.NewContext [timestamp, internal task id, internal parent task id, stack, name string]
+ 	traceEvUserTaskEnd       = 46 // end of a task [timestamp, internal task id, stack]
+-	traceEvUserSpan          = 47 // trace.WithSpan [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
++	traceEvUserRegion        = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), stack, name string]
+ 	traceEvUserLog           = 48 // trace.Log [timestamp, internal task id, key string id, stack, value string]
+ 	traceEvCount             = 49
+ 	// Byte is used but only 6 bits are available for event type.
+@@ -129,7 +129,7 @@ var trace struct {
+ 	// Dictionary for traceEvString.
+ 	//
+ 	// TODO: central lock to access the map is not ideal.
+-	//   option: pre-assign ids to all user annotation span names and tags
++	//   option: pre-assign ids to all user annotation region names and tags
+ 	//   option: per-P cache
+ 	//   option: sync.Map like data structure
+ 	stringsLock mutex
+@@ -1171,8 +1171,8 @@ func trace_userTaskEnd(id uint64) {
+ 	traceEvent(traceEvUserTaskEnd, 2, id)
+ }
+ 
+-//go:linkname trace_userSpan runtime/trace.userSpan
+-func trace_userSpan(id, mode uint64, name string) {
++//go:linkname trace_userRegion runtime/trace.userRegion
++func trace_userRegion(id, mode uint64, name string) {
+ 	if !trace.enabled {
+ 		return
+ 	}
+@@ -1184,7 +1184,7 @@ func trace_userSpan(id, mode uint64, name string) {
+ 	}
+ 
+ 	nameStringID, bufp := traceString(bufp, pid, name)
+-	traceEventLocked(0, mp, pid, bufp, traceEvUserSpan, 3, id, mode, nameStringID)
++	traceEventLocked(0, mp, pid, bufp, traceEvUserRegion, 3, id, mode, nameStringID)
+ 	traceReleaseBuffer(pid)
+ }
+ 
+diff --git a/src/runtime/trace/annotation.go b/src/runtime/trace/annotation.go
+index be92d52af8..0261d1c162 100644
+--- a/src/runtime/trace/annotation.go
++++ b/src/runtime/trace/annotation.go
+@@ -9,9 +9,9 @@ import (
+ 
+ type traceContextKey struct{}
+ 
+-// NewContext creates a child context with a new task instance with
+-// the type taskType. If the input context contains a task, the
+-// new task is its subtask.
++// NewTask creates a task instance with the type taskType and returns
++// it along with a Context that carries the task.
++// If the input context contains a task, the new task is its subtask.
+ //
+ // The taskType is used to classify task instances. Analysis tools
+ // like the Go execution tracer may assume there are only a bounded
+@@ -24,21 +24,19 @@ type traceContextKey struct{}
+ // If the end function is called multiple times, only the first
+ // call is used in the latency measurement.
+ //
+-//   ctx, taskEnd := trace.NewContext(ctx, "awesome task")
+-//   trace.WithSpan(ctx, prepWork)
++//   ctx, task := trace.NewContext(ctx, "awesome task")
++//   trace.WithRegion(ctx, prepWork)
+ //   // preparation of the task
+ //   go func() {  // continue processing the task in a separate goroutine.
+-//       defer taskEnd()
+-//       trace.WithSpan(ctx, remainingWork)
++//       defer task.End()
++//       trace.WithRegion(ctx, remainingWork)
+ //   }
+-func NewContext(pctx context.Context, taskType string) (ctx context.Context, end func()) {
++func NewTask(pctx context.Context, taskType string) (ctx context.Context, task *Task) {
+ 	pid := fromContext(pctx).id
+ 	id := newID()
+ 	userTaskCreate(id, pid, taskType)
+-	s := &task{id: id}
+-	return context.WithValue(pctx, traceContextKey{}, s), func() {
+-		userTaskEnd(id)
+-	}
++	s := &Task{id: id}
++	return context.WithValue(pctx, traceContextKey{}, s), s
+ 
+ 	// We allocate a new task and the end function even when
+ 	// the tracing is disabled because the context and the detach
+@@ -47,8 +45,8 @@ func NewContext(pctx context.Context, taskType string) (ctx context.Context, end
+ 	//
+ 	// For example, consider the following scenario:
+ 	//   - trace is enabled.
+-	//   - trace.WithSpan is called, so a new context ctx
+-	//     with a new span is created.
++	//   - trace.WithRegion is called, so a new context ctx
++	//     with a new region is created.
+ 	//   - trace is disabled.
+ 	//   - trace is enabled again.
+ 	//   - trace APIs with the ctx is called. Is the ID in the task
+@@ -60,18 +58,30 @@ func NewContext(pctx context.Context, taskType string) (ctx context.Context, end
+ 	// tracing round.
+ }
+ 
+-func fromContext(ctx context.Context) *task {
+-	if s, ok := ctx.Value(traceContextKey{}).(*task); ok {
++// NewContext is obsolete by NewTask. Do not use.
++func NewContext(pctx context.Context, taskType string) (ctx context.Context, endTask func()) {
++	ctx, t := NewTask(pctx, taskType)
++	return ctx, t.End
++}
++
++func fromContext(ctx context.Context) *Task {
++	if s, ok := ctx.Value(traceContextKey{}).(*Task); ok {
+ 		return s
+ 	}
+ 	return &bgTask
+ }
+ 
+-type task struct {
++// Task is a data type for tracing a user-defined, logical operation.
++type Task struct {
+ 	id uint64
+ 	// TODO(hyangah): record parent id?
+ }
+ 
++// End marks the end of the operation represented by the Task.
++func (t *Task) End() {
++	userTaskEnd(t.id)
++}
++
+ var lastTaskID uint64 = 0 // task id issued last time
+ 
+ func newID() uint64 {
+@@ -79,7 +89,7 @@ func newID() uint64 {
+ 	return atomic.AddUint64(&lastTaskID, 1)
+ }
+ 
+-var bgTask = task{id: uint64(0)}
++var bgTask = Task{id: uint64(0)}
+ 
+ // Log emits a one-off event with the given category and message.
+ // Category can be empty and the API assumes there are only a handful of
+@@ -100,24 +110,24 @@ func Logf(ctx context.Context, category, format string, args ...interface{}) {
+ }
+ 
+ const (
+-	spanStartCode = uint64(0)
+-	spanEndCode   = uint64(1)
++	regionStartCode = uint64(0)
++	regionEndCode   = uint64(1)
+ )
+ 
+-// WithSpan starts a span associated with its calling goroutine, runs fn,
+-// and then ends the span. If the context carries a task, the span is
+-// attached to the task. Otherwise, the span is attached to the background
++// WithRegion starts a region associated with its calling goroutine, runs fn,
++// and then ends the region. If the context carries a task, the region is
++// associated with the task. Otherwise, the region is attached to the background
+ // task.
+ //
+-// The spanType is used to classify spans, so there should be only a
+-// handful of unique span types.
+-func WithSpan(ctx context.Context, spanType string, fn func(context.Context)) {
++// The regionType is used to classify regions, so there should be only a
++// handful of unique region types.
++func WithRegion(ctx context.Context, regionType string, fn func()) {
+ 	// NOTE:
+-	// WithSpan helps avoiding misuse of the API but in practice,
++	// WithRegion helps avoiding misuse of the API but in practice,
+ 	// this is very restrictive:
+-	// - Use of WithSpan makes the stack traces captured from
+-	//   span start and end are identical.
+-	// - Refactoring the existing code to use WithSpan is sometimes
++	// - Use of WithRegion makes the stack traces captured from
++	//   region start and end are identical.
++	// - Refactoring the existing code to use WithRegion is sometimes
+ 	//   hard and makes the code less readable.
+ 	//     e.g. code block nested deep in the loop with various
+ 	//          exit point with return values
+@@ -128,22 +138,46 @@ func WithSpan(ctx context.Context, spanType string, fn func(context.Context)) {
+ 	// makes the code less readable.
+ 
+ 	id := fromContext(ctx).id
+-	userSpan(id, spanStartCode, spanType)
+-	defer userSpan(id, spanEndCode, spanType)
+-	fn(ctx)
++	userRegion(id, regionStartCode, regionType)
++	defer userRegion(id, regionEndCode, regionType)
++	fn()
+ }
+ 
+-// StartSpan starts a span and returns a function for marking the
+-// end of the span. The span end function must be called from the
+-// same goroutine where the span was started.
+-// Within each goroutine, spans must nest. That is, spans started
+-// after this span must be ended before this span can be ended.
+-// Callers are encouraged to instead use WithSpan when possible,
+-// since it naturally satisfies these restrictions.
+-func StartSpan(ctx context.Context, spanType string) func() {
++// WithSpan is obsolete by WithRegion. Do not use.
++func WithSpan(ctx context.Context, spanType string, fn func(ctx context.Context)) {
++	WithRegion(ctx, spanType, func() { fn(ctx) })
++}
++
++// StartRegion starts a region and returns a function for marking the
++// end of the region. The returned Region's End function must be called
++// from the same goroutine where the region was started.
++// Within each goroutine, regions must nest. That is, regions started
++// after this region must be ended before this region can be ended.
++// Recommended usage is
++//
++//     defer trace.StartRegion(ctx, "myTracedRegion").End()
++//
++func StartRegion(ctx context.Context, regionType string) *Region {
+ 	id := fromContext(ctx).id
+-	userSpan(id, spanStartCode, spanType)
+-	return func() { userSpan(id, spanEndCode, spanType) }
++	userRegion(id, regionStartCode, regionType)
++	return &Region{id, regionType}
++}
++
++// StartSpan is obsolete by StartRegion. Do not use.
++func StartSpan(ctx context.Context, spanType string) func() {
++	r := StartRegion(ctx, spanType)
++	return r.End
++}
++
++// Region is a region of code whose execution time interval is traced.
++type Region struct {
++	id         uint64
++	regionType string
++}
++
++// End marks the end of the traced code region.
++func (r *Region) End() {
++	userRegion(r.id, regionEndCode, r.regionType)
+ }
+ 
+ // IsEnabled returns whether tracing is enabled.
+@@ -164,8 +198,8 @@ func userTaskCreate(id, parentID uint64, taskType string)
+ // emits UserTaskEnd event.
+ func userTaskEnd(id uint64)
+ 
+-// emits UserSpan event.
+-func userSpan(id, mode uint64, spanType string)
++// emits UserRegion event.
++func userRegion(id, mode uint64, regionType string)
+ 
+ // emits UserLog event.
+ func userLog(id uint64, category, message string)
+diff --git a/src/runtime/trace/annotation_test.go b/src/runtime/trace/annotation_test.go
+index 0dcb9aca29..c20b009daa 100644
+--- a/src/runtime/trace/annotation_test.go
++++ b/src/runtime/trace/annotation_test.go
+@@ -12,11 +12,11 @@ import (
+ 	"testing"
+ )
+ 
+-func TestUserTaskSpan(t *testing.T) {
++func TestUserTaskRegion(t *testing.T) {
+ 	bgctx, cancel := context.WithCancel(context.Background())
+ 	defer cancel()
+ 
+-	preExistingSpanEnd := StartSpan(bgctx, "pre-existing span")
++	preExistingRegion := StartRegion(bgctx, "pre-existing region")
+ 
+ 	buf := new(bytes.Buffer)
+ 	if err := Start(buf); err != nil {
+@@ -25,32 +25,32 @@ func TestUserTaskSpan(t *testing.T) {
+ 
+ 	// Beginning of traced execution
+ 	var wg sync.WaitGroup
+-	ctx, end := NewContext(bgctx, "task0") // EvUserTaskCreate("task0")
++	ctx, task := NewTask(bgctx, "task0") // EvUserTaskCreate("task0")
+ 	wg.Add(1)
+ 	go func() {
+ 		defer wg.Done()
+-		defer end() // EvUserTaskEnd("task0")
++		defer task.End() // EvUserTaskEnd("task0")
+ 
+-		WithSpan(ctx, "span0", func(ctx context.Context) {
+-			// EvUserSpanCreate("span0", start)
+-			WithSpan(ctx, "span1", func(ctx context.Context) {
++		WithRegion(ctx, "region0", func() {
++			// EvUserRegionCreate("region0", start)
++			WithRegion(ctx, "region1", func() {
+ 				Log(ctx, "key0", "0123456789abcdef") // EvUserLog("task0", "key0", "0....f")
+ 			})
+-			// EvUserSpan("span0", end)
++			// EvUserRegion("region0", end)
+ 		})
+ 	}()
+ 
+ 	wg.Wait()
+ 
+-	preExistingSpanEnd()
+-	postExistingSpanEnd := StartSpan(bgctx, "post-existing span")
++	preExistingRegion.End()
++	postExistingRegion := StartRegion(bgctx, "post-existing region")
+ 
+ 	// End of traced execution
+ 	Stop()
+ 
+-	postExistingSpanEnd()
++	postExistingRegion.End()
+ 
+-	saveTrace(t, buf, "TestUserTaskSpan")
++	saveTrace(t, buf, "TestUserTaskRegion")
+ 	res, err := trace.Parse(buf, "")
+ 	if err == trace.ErrTimeOrder {
+ 		// golang.org/issues/16755
+@@ -90,25 +90,25 @@ func TestUserTaskSpan(t *testing.T) {
+ 			if e.Link != nil && e.Link.Type != trace.EvUserTaskCreate {
+ 				t.Errorf("Unexpected linked event %q->%q", e, e.Link)
+ 			}
+-		case trace.EvUserSpan:
++		case trace.EvUserRegion:
+ 			taskName := tasks[e.Args[0]]
+-			spanName := e.SArgs[0]
+-			got = append(got, testData{trace.EvUserSpan, []string{taskName, spanName}, []uint64{e.Args[1]}, e.Link != nil})
+-			if e.Link != nil && (e.Link.Type != trace.EvUserSpan || e.Link.SArgs[0] != spanName) {
++			regionName := e.SArgs[0]
++			got = append(got, testData{trace.EvUserRegion, []string{taskName, regionName}, []uint64{e.Args[1]}, e.Link != nil})
++			if e.Link != nil && (e.Link.Type != trace.EvUserRegion || e.Link.SArgs[0] != regionName) {
+ 				t.Errorf("Unexpected linked event %q->%q", e, e.Link)
+ 			}
+ 		}
+ 	}
+ 	want := []testData{
+ 		{trace.EvUserTaskCreate, []string{"task0"}, nil, true},
+-		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{0}, true},
+-		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{0}, true},
++		{trace.EvUserRegion, []string{"task0", "region0"}, []uint64{0}, true},
++		{trace.EvUserRegion, []string{"task0", "region1"}, []uint64{0}, true},
+ 		{trace.EvUserLog, []string{"task0", "key0", "0123456789abcdef"}, nil, false},
+-		{trace.EvUserSpan, []string{"task0", "span1"}, []uint64{1}, false},
+-		{trace.EvUserSpan, []string{"task0", "span0"}, []uint64{1}, false},
++		{trace.EvUserRegion, []string{"task0", "region1"}, []uint64{1}, false},
++		{trace.EvUserRegion, []string{"task0", "region0"}, []uint64{1}, false},
+ 		{trace.EvUserTaskEnd, []string{"task0"}, nil, false},
+-		{trace.EvUserSpan, []string{"", "pre-existing span"}, []uint64{1}, false},
+-		{trace.EvUserSpan, []string{"", "post-existing span"}, []uint64{0}, false},
++		{trace.EvUserRegion, []string{"", "pre-existing region"}, []uint64{1}, false},
++		{trace.EvUserRegion, []string{"", "post-existing region"}, []uint64{0}, false},
+ 	}
+ 	if !reflect.DeepEqual(got, want) {
+ 		pretty := func(data []testData) string {
+@@ -118,6 +118,6 @@ func TestUserTaskSpan(t *testing.T) {
+ 			}
+ 			return s.String()
+ 		}
+-		t.Errorf("Got user span related events\n%+v\nwant:\n%+v", pretty(got), pretty(want))
++		t.Errorf("Got user region related events\n%+v\nwant:\n%+v", pretty(got), pretty(want))
+ 	}
+ }
+diff --git a/src/runtime/trace/trace.go b/src/runtime/trace/trace.go
+index 1472dc31c5..f3ea312d27 100644
+--- a/src/runtime/trace/trace.go
++++ b/src/runtime/trace/trace.go
+@@ -39,7 +39,7 @@
+ // Package trace provides user annotation APIs that can be used to
+ // log interesting events during execution.
+ //
+-// There are three types of user annotations: log messages, spans,
++// There are three types of user annotations: log messages, regions,
+ // and tasks.
+ //
+ // Log emits a timestamped message to the execution trace along with
+@@ -48,22 +48,22 @@
+ // and group goroutines using the log category and the message supplied
+ // in Log.
+ //
+-// A span is for logging a time interval during a goroutine's execution.
+-// By definition, a span starts and ends in the same goroutine.
+-// Spans can be nested to represent subintervals.
+-// For example, the following code records four spans in the execution
++// A region is for logging a time interval during a goroutine's execution.
++// By definition, a region starts and ends in the same goroutine.
++// Regions can be nested to represent subintervals.
++// For example, the following code records four regions in the execution
+ // trace to trace the durations of sequential steps in a cappuccino making
+ // operation.
+ //
+-//   trace.WithSpan(ctx, "makeCappuccino", func(ctx context.Context) {
++//   trace.WithRegion(ctx, "makeCappuccino", func() {
+ //
+ //      // orderID allows to identify a specific order
+-//      // among many cappuccino order span records.
++//      // among many cappuccino order region records.
+ //      trace.Log(ctx, "orderID", orderID)
+ //
+-//      trace.WithSpan(ctx, "steamMilk", steamMilk)
+-//      trace.WithSpan(ctx, "extractCoffee", extractCoffee)
+-//      trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
++//      trace.WithRegion(ctx, "steamMilk", steamMilk)
++//      trace.WithRegion(ctx, "extractCoffee", extractCoffee)
++//      trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+ //   })
+ //
+ // A task is a higher-level component that aids tracing of logical
+@@ -72,8 +72,8 @@
+ // working together. Since tasks can involve multiple goroutines,
+ // they are tracked via a context.Context object. NewContext creates
+ // a new task and embeds it in the returned context.Context object.
+-// Log messages and spans are attached to the task, if any, in the
+-// Context passed to Log and WithSpan.
++// Log messages and regions are attached to the task, if any, in the
++// Context passed to Log and WithRegion.
+ //
+ // For example, assume that we decided to froth milk, extract coffee,
+ // and mix milk and coffee in separate goroutines. With a task,
+@@ -87,18 +87,18 @@
+ //     espresso := make(chan bool)
+ //
+ //     go func() {
+-//        trace.WithSpan(ctx, "steamMilk", steamMilk)
++//        trace.WithRegion(ctx, "steamMilk", steamMilk)
+ //        milk<-true
+ //     })()
+ //     go func() {
+-//        trace.WithSpan(ctx, "extractCoffee", extractCoffee)
++//        trace.WithRegion(ctx, "extractCoffee", extractCoffee)
+ //        espresso<-true
+ //     })()
+ //     go func() {
+ //        defer taskEnd()  // When assemble is done, the order is complete.
+ //        <-espresso
+ //        <-milk
+-//        trace.WithSpan(ctx, "mixMilkCoffee", mixMilkCoffee)
++//        trace.WithRegion(ctx, "mixMilkCoffee", mixMilkCoffee)
+ //     })()
+ //
+ // The trace tool computes the latency of a task by measuring the

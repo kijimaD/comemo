@@ -9,6 +9,29 @@ Date:   Wed Nov 7 10:28:38 2018 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/internal/traceparser/gc_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/traceparser/gc_test.go b/src/internal/traceparser/gc_test.go
+index 1cd8fb6f78..0b07f735f8 100644
+--- a/src/internal/traceparser/gc_test.go
++++ b/src/internal/traceparser/gc_test.go
+@@ -6,6 +6,7 @@ package traceparser
+ 
+ import (
+ 	"math"
++	"runtime"
+ 	"testing"
+ 	"time"
+ )
+@@ -75,6 +76,9 @@ func TestMMU(t *testing.T) {
+ }
+ 
+ func TestMMUTrace(t *testing.T) {
++	if runtime.GOOS == "darwin" && (runtime.GOARCH == "arm" || runtime.GOARCH == "arm64") {
++		t.Skipf("files from outside the package are not available on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
+ 	// Can't be t.Parallel() because it modifies the
+ 	// testingOneBand package variable.
+ 

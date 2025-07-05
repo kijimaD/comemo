@@ -10,9 +10,66 @@ Date:   Tue Feb 23 12:47:08 2021 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/decl.go                 | 2 +-
  src/cmd/compile/internal/types2/testdata/typeparams.go2 | 4 ++++
  src/go/types/decl.go                                    | 2 +-
  src/go/types/testdata/typeparams.go2                    | 4 ++++
  4 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 677172d40f..f0a037adb0 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -707,7 +707,7 @@ func (check *Checker) collectTypeParams(list []*syntax.Field) (tparams []*TypeNa
+ 		// The predeclared identifier "any" is visible only as a constraint
+ 		// in a type parameter list. Look for it before general constraint
+ 		// resolution.
+-		if tident, _ := f.Type.(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
++		if tident, _ := unparen(f.Type).(*syntax.Name); tident != nil && tident.Value == "any" && check.lookup("any") == nil {
+ 			bound = universeAny
+ 		} else {
+ 			bound = check.typ(f.Type)
+diff --git a/src/cmd/compile/internal/types2/testdata/typeparams.go2 b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+index 04f563029f..41306b6e23 100644
+--- a/src/cmd/compile/internal/types2/testdata/typeparams.go2
++++ b/src/cmd/compile/internal/types2/testdata/typeparams.go2
+@@ -19,6 +19,10 @@ func _[_ any](x int) int
+ func _[T any](T /* ERROR redeclared */ T)()
+ func _[T, T /* ERROR redeclared */ any]()
+ 
++// Constraints (incl. any) may be parenthesized.
++func _[_ (any)]() {}
++func _[_ (interface{})]() {}
++
+ func reverse[T any](list []T) []T {
+         rlist := make([]T, len(list))
+         i := len(list)
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index c97b1a66bb..1134607e92 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -726,7 +726,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
+ 		// The predeclared identifier "any" is visible only as a constraint
+ 		// in a type parameter list. Look for it before general constraint
+ 		// resolution.
+-		if tident, _ := f.Type.(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
++		if tident, _ := unparen(f.Type).(*ast.Ident); tident != nil && tident.Name == "any" && check.lookup("any") == nil {
+ 			bound = universeAny
+ 		} else {
+ 			bound = check.typ(f.Type)
+diff --git a/src/go/types/testdata/typeparams.go2 b/src/go/types/testdata/typeparams.go2
+index 2dd8f64dc0..bb7f016a83 100644
+--- a/src/go/types/testdata/typeparams.go2
++++ b/src/go/types/testdata/typeparams.go2
+@@ -19,6 +19,10 @@ func _[_ any](x int) int
+ func _[T any](T /* ERROR redeclared */ T)()
+ func _[T, T /* ERROR redeclared */ any]()
+ 
++// Constraints (incl. any) may be parenthesized.
++func _[_ (any)]() {}
++func _[_ (interface{})]() {}
++
+ func reverse[T any](list []T) []T {
+         rlist := make([]T, len(list))
+         i := len(list)

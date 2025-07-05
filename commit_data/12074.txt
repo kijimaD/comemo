@@ -7,8 +7,112 @@ Date:   Mon Feb 20 13:42:37 2012 +1100
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/5683045
-
+---
  src/cmd/cov/doc.go                   |  5 ++---
  src/pkg/go/doc/testdata/benchmark.go |  6 +++---
  src/pkg/go/doc/testdata/testing.go   | 10 +++++-----
  3 files changed, 10 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cov/doc.go b/src/cmd/cov/doc.go
+index 5de00e19cd..edeb915733 100644
+--- a/src/cmd/cov/doc.go
++++ b/src/cmd/cov/doc.go
+@@ -11,7 +11,7 @@ sections of code have been executed.  When the command finishes,
+ cov prints the line numbers of sections of code in the binary that
+ were not executed.   With no arguments it assumes the command "6.out".
+ 
+-Usage: cov [-lsv] [-g substring] [-m minlines] [6.out args]
++Usage: go tool cov [-lsv] [-g substring] [-m minlines] [6.out args]
+ 
+ The options are:
+ 
+@@ -26,8 +26,7 @@ The options are:
+ 	-m minlines
+ 		only report uncovered sections of code larger than minlines lines
+ 
+-For reasons of disambiguation it is installed as 6cov although it also serves
+-as an 8cov and a 5cov.
++The program is the same for all architectures: 386, amd64, and arm.
+ 
+ */
+ package documentation
+diff --git a/src/pkg/go/doc/testdata/benchmark.go b/src/pkg/go/doc/testdata/benchmark.go
+index 0bf567b7c4..0aded5bb4c 100644
+--- a/src/pkg/go/doc/testdata/benchmark.go
++++ b/src/pkg/go/doc/testdata/benchmark.go
+@@ -16,7 +16,7 @@ var matchBenchmarks = flag.String("test.bench", "", "regular expression to selec
+ var benchTime = flag.Float64("test.benchtime", 1, "approximate run time for each benchmark, in seconds")
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+-// of gotest.
++// of go test.
+ type InternalBenchmark struct {
+ 	Name string
+ 	F    func(b *B)
+@@ -213,7 +213,7 @@ func (r BenchmarkResult) String() string {
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation
+-// of gotest.
++// of go test.
+ func RunBenchmarks(matchString func(pat, str string) (bool, error), benchmarks []InternalBenchmark) {
+ 	// If no flag was specified, don't run benchmarks.
+ 	if len(*matchBenchmarks) == 0 {
+@@ -281,7 +281,7 @@ func (b *B) trimOutput() {
+ }
+ 
+ // Benchmark benchmarks a single function. Useful for creating
+-// custom benchmarks that do not use gotest.
++// custom benchmarks that do not use go test.
+ func Benchmark(f func(b *B)) BenchmarkResult {
+ 	b := &B{
+ 		common: common{
+diff --git a/src/pkg/go/doc/testdata/testing.go b/src/pkg/go/doc/testdata/testing.go
+index cfe212dc1d..71c1d1eaf0 100644
+--- a/src/pkg/go/doc/testdata/testing.go
++++ b/src/pkg/go/doc/testdata/testing.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package testing provides support for automated testing of Go packages.
+-// It is intended to be used in concert with the ``gotest'' utility, which automates
++// It is intended to be used in concert with the ``go test'' utility, which automates
+ // execution of any function of the form
+ //     func TestXxx(*testing.T)
+ // where Xxx can be any alphanumeric string (but the first letter must not be in
+@@ -12,7 +12,7 @@
+ //
+ // Functions of the form
+ //     func BenchmarkXxx(*testing.B)
+-// are considered benchmarks, and are executed by gotest when the -test.bench
++// are considered benchmarks, and are executed by go test when the -test.bench
+ // flag is provided.
+ //
+ // A sample benchmark function looks like this:
+@@ -53,7 +53,7 @@ var (
+ 	// The short flag requests that tests run more quickly, but its functionality
+ 	// is provided by test writers themselves.  The testing package is just its
+ 	// home.  The all.bash installation script sets it to make installation more
+-	// efficient, but by default the flag is off so a plain "gotest" will do a
++	// efficient, but by default the flag is off so a plain "go test" will do a
+ 	// full test of the package.
+ 	short = flag.Bool("test.short", false, "run smaller test suite to save time")
+ 
+@@ -205,7 +205,7 @@ func (t *T) Parallel() {
+ }
+ 
+ // An internal type but exported because it is cross-package; part of the implementation
+-// of gotest.
++// of go test.
+ type InternalTest struct {
+ 	Name string
+ 	F    func(*T)
+@@ -227,7 +227,7 @@ func tRunner(t *T, test *InternalTest) {
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation
+-// of gotest.
++// of go test.
+ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+ 	flag.Parse()
+ 	parseCpuList()

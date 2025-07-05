@@ -16,7 +16,7 @@ Date:   Tue Sep 22 16:28:32 2009 -0700
     DELTA=365  (357 added, 5 deleted, 3 changed)
     OCL=34880
     CL=34906
-
+---
  src/pkg/runtime/386/asm.s         |   9 +--
  src/pkg/runtime/386/closure.c     |   3 +
  src/pkg/runtime/darwin/386/sys.s  |   6 ++
@@ -33,3 +33,528 @@ Date:   Tue Sep 22 16:28:32 2009 -0700
  src/pkg/runtime/runtime.h         |   1 +
  src/pkg/runtime/symtab.c          |  17 ++++
  15 files changed, 358 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index a7265b2b2d..67b72f73f3 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -13,12 +13,9 @@ TEXT _rt0_386(SB),7,$0
+ 	MOVL	AX, 120(SP)		// save argc, argv away
+ 	MOVL	BX, 124(SP)
+ 
++	// set up %gs
+ 	CALL	ldt0setup(SB)
+ 
+-	// set up %gs to refer to that ldt entry
+-	MOVL	$(7*8+7), AX
+-	MOVW	AX, GS
+-
+ 	// store through it, to make sure it works
+ 	MOVL	$0x123, 0(GS)
+ 	MOVL	tls0(SB), AX
+@@ -80,7 +77,7 @@ TEXT mainstart(SB),7,$0
+ 	RET
+ 
+ TEXT	breakpoint(SB),7,$0
+-	BYTE $0xcc
++	INT $3
+ 	RET
+ 
+ /*
+@@ -280,6 +277,7 @@ TEXT	sys·setcallerpc+0(SB),7,$0
+ TEXT ldt0setup(SB),7,$16
+ 	// set up ldt 7 to point at tls0
+ 	// ldt 1 would be fine on Linux, but on OS X, 7 is as low as we can go.
++	// the entry number is just a hint.  setldt will set up GS with what it used.
+ 	MOVL	$7, 0(SP)
+ 	LEAL	tls0(SB), AX
+ 	MOVL	AX, 4(SP)
+@@ -297,4 +295,3 @@ TEXT emptyfunc(SB),0,$0
+ 
+ TEXT	abort(SB),7,$0
+ 	INT $0x3
+-
+diff --git a/src/pkg/runtime/386/closure.c b/src/pkg/runtime/386/closure.c
+index 1a211bd1f3..763fc45da3 100644
+--- a/src/pkg/runtime/386/closure.c
++++ b/src/pkg/runtime/386/closure.c
+@@ -15,6 +15,9 @@ sys·closure(int32 siz, byte *fn, byte *arg0)
+ 	int32 i, n;
+ 	int32 pcrel;
+ 
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
++		throw("no closures in native client yet");
++
+ 	if(siz < 0 || siz%4 != 0)
+ 		throw("bad closure size");
+ 
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 49743359fd..bded7e4211 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -270,6 +270,12 @@ TEXT setldt(SB),7,$32
+ 	MOVL	AX, 4(SP)
+ 	MOVL	$1, 8(SP)
+ 	CALL	i386_set_ldt(SB)
++
++	// compute segment selector - (entry*8+7)
++	MOVL	entry+0(FP), AX
++	SHLL	$3, AX
++	ADDL	$7, AX
++	MOVW	AX, GS
+ 	RET
+ 
+ TEXT i386_set_ldt(SB),7,$0
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index 7f4787700b..fe07ddd54f 100755
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -219,5 +219,12 @@ TEXT setldt(SB),7,$32
+ 	CMPL AX, $0xfffff001
+ 	JLS 2(PC)
+ 	INT $3
++
++	// compute segment selector - (entry*8+7)
++	MOVL	entry+0(FP), AX
++	SHLL	$3, AX
++	ADDL	$7, AX
++	MOVW	AX, GS
++
+ 	RET
+ 
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index d0cf2237bd..8f85b5e091 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -170,6 +170,8 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 	// Ask for a big chunk, to reduce the number of mappings
+ 	// the operating system needs to track; also amortizes
+ 	// the overhead of an operating system mapping.
++	// For Native Client, allocate a multiple of 64kB (16 pages).
++	npage = (npage+15)&~15;
+ 	ask = npage<<PageShift;
+ 	if(ask < HeapAllocChunk)
+ 		ask = HeapAllocChunk;
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index bc99a26255..30df166652 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -13,6 +13,7 @@ EOF
+ 
+ case "$GOARCH" in
+ 386)
++	# The offsets 0 and 4 are known to nacl/thread.c:/^newosproc too.
+ 	echo '#define	g	0(GS)'
+ 	echo '#define	m	4(GS)'
+ 	;;
+diff --git a/src/pkg/runtime/nacl/386/defs.h b/src/pkg/runtime/nacl/386/defs.h
+new file mode 100755
+index 0000000000..420b6910b2
+--- /dev/null
++++ b/src/pkg/runtime/nacl/386/defs.h
+@@ -0,0 +1,17 @@
++// godefs -f-m32 -f-I/home/rsc/pub/nacl/native_client/src/third_party/nacl_sdk/linux/sdk/nacl-sdk/nacl/include -f-I/home/rsc/pub/nacl/native_client defs.c
++
++// MACHINE GENERATED - DO NOT EDIT.
++
++// Constants
++enum {
++	PROT_NONE = 0,
++	PROT_READ = 0x1,
++	PROT_WRITE = 0x2,
++	PROT_EXEC = 0x4,
++	MAP_ANON = 0x20,
++	MAP_PRIVATE = 0x2,
++};
++
++// Types
++#pragma pack on
++#pragma pack off
+diff --git a/src/pkg/runtime/nacl/386/rt0.s b/src/pkg/runtime/nacl/386/rt0.s
+new file mode 100755
+index 0000000000..d967bafd42
+--- /dev/null
++++ b/src/pkg/runtime/nacl/386/rt0.s
+@@ -0,0 +1,8 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Native Client and Linux use the same linkage to main
++
++TEXT	_rt0_386_nacl(SB),7,$0
++	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/nacl/386/signal.c b/src/pkg/runtime/nacl/386/signal.c
+new file mode 100644
+index 0000000000..79a760a360
+--- /dev/null
++++ b/src/pkg/runtime/nacl/386/signal.c
+@@ -0,0 +1,14 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs.h"
++#include "signals.h"
++#include "os.h"
++
++void
++initsig(void)
++{
++}
++
+diff --git a/src/pkg/runtime/nacl/386/sys.s b/src/pkg/runtime/nacl/386/sys.s
+new file mode 100755
+index 0000000000..5f8a1c0ac2
+--- /dev/null
++++ b/src/pkg/runtime/nacl/386/sys.s
+@@ -0,0 +1,110 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//
++// System calls and other sys.stuff for 386, Linux
++//
++
++#include "386/asm.h"
++
++// http://code.google.com/p/nativeclient/source/browse/trunk/src/native_client/src/trusted/service_runtime/include/bits/nacl_syscalls.h
++#define SYS_exit 30
++#define SYS_mmap 21
++#define SYS_thread_create 80
++#define SYS_thread_exit 81
++#define SYS_tls_init 82
++#define SYS_write 13
++#define SYS_close 11
++#define SYS_mutex_create 70
++#define SYS_mutex_lock  71
++#define SYS_mutex_unlock 73
++
++#define SYSCALL(x)	$(0x10000+SYS_/**/x * 32)
++
++TEXT exit(SB),7,$4
++	MOVL	code+0(FP), AX
++	MOVL	AX, 0(SP)
++	CALL	SYSCALL(exit)
++	INT $3	// not reached
++	RET
++
++TEXT exit1(SB),7,$4
++	MOVL	code+0(FP), AX
++	MOVL	AX, 0(SP)
++	CALL	SYSCALL(thread_exit)
++	INT $3	// not reached
++	RET
++
++TEXT write(SB),7,$0
++	JMP	SYSCALL(write)
++
++TEXT close(SB),7,$0
++	JMP	SYSCALL(close)
++
++TEXT mutex_create(SB),7,$0
++	JMP	SYSCALL(mutex_create)
++
++TEXT mutex_lock(SB),7,$0
++	JMP	SYSCALL(mutex_lock)
++
++TEXT	mutex_unlock(SB),7,$0
++	JMP	SYSCALL(mutex_unlock)
++
++TEXT thread_create(SB),7,$0
++	JMP	SYSCALL(thread_create)
++
++TEXT sys·mmap(SB),7,$24
++	MOVL	a1+0(FP), BX
++	MOVL	a2+4(FP), CX	// round up to 64 kB boundary; silences nacl warning
++	ADDL	$(64*1024-1), CX
++	ANDL	$~(64*1024-1), CX
++	MOVL	a3+8(FP), DX
++	MOVL	a4+12(FP), SI
++	MOVL	a5+16(FP), DI
++	MOVL	a6+20(FP), BP
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	MOVL	SI, 12(SP)
++	MOVL	DI, 16(SP)
++	MOVL	BP, 20(SP)
++	CALL	SYSCALL(mmap)
++	CMPL	AX, $0xfffff001
++	JLS	6(PC)
++	MOVL	$1, 0(SP)
++	MOVL	$mmap_failed(SB), 4(SP)
++	MOVL	$12, 8(SP)	// "mmap failed\n"
++	CALL	SYSCALL(write)
++	INT $3
++	RET
++
++// setldt(int entry, int address, int limit)
++TEXT setldt(SB),7,$32
++	// entry is ignored - nacl tells us the
++	// segment selector to use and stores it in GS.
++	MOVL	address+4(FP), BX
++	MOVL	limit+8(FP), CX
++	MOVL	BX, 0(SP)
++	MOVL	CX, 4(SP)
++	CALL	SYSCALL(tls_init)
++	CMPL	AX, $0xfffff001
++	JLS	6(PC)
++	MOVL	$1, 0(SP)
++	MOVL	$tls_init_failed(SB), 4(SP)
++	MOVL	$16, 8(SP)	// "tls_init failed\n"
++	CALL	SYSCALL(write)
++	INT $3
++	RET
++
++// There's no good way (yet?) to get stack traces out of a
++// broken NaCl process, so if something goes wrong,
++// print an error string before dying.
++
++DATA mmap_failed(SB)/8, $"mmap fai"
++DATA mmap_failed+8(SB)/4, $"led\n"
++GLOBL mmap_failed(SB), $12
++
++DATA tls_init_failed(SB)/8, $"tls_init"
++DATA tls_init_failed+8(SB)/8, $" failed\n"
++GLOBL tls_init_failed(SB), $16
+diff --git a/src/pkg/runtime/nacl/os.h b/src/pkg/runtime/nacl/os.h
+new file mode 100644
+index 0000000000..eb4af57b2d
+--- /dev/null
++++ b/src/pkg/runtime/nacl/os.h
+@@ -0,0 +1,9 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++int32 thread_create(void(*fn)(void), void *stk, void *tls, int32 tlssize);
++void close(int32);
++int32 mutex_create(void);
++int32 mutex_lock(int32);
++int32 mutex_unlock(int32);
+diff --git a/src/pkg/runtime/nacl/signals.h b/src/pkg/runtime/nacl/signals.h
+new file mode 100644
+index 0000000000..e69de29bb2
+diff --git a/src/pkg/runtime/nacl/thread.c b/src/pkg/runtime/nacl/thread.c
+new file mode 100644
+index 0000000000..906f0bbeee
+--- /dev/null
++++ b/src/pkg/runtime/nacl/thread.c
+@@ -0,0 +1,160 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "defs.h"
++#include "os.h"
++
++int8 *goos = "nacl";
++
++// Thread-safe allocation of a mutex.
++// (The name sema is left over from the Darwin implementation.
++// Native Client implements semaphores too, but it is just a shim
++// over the host implementation, which on some hosts imposes a very
++// low limit on how many semaphores can be created.)
++//
++// Psema points at a mutex descriptor.
++// It starts out zero, meaning no mutex.
++// Fill it in, being careful of others calling initsema
++// simultaneously.
++static void
++initsema(uint32 *psema)
++{
++	uint32 sema;
++
++	if(*psema != 0)	// already have one
++		return;
++
++	sema = mutex_create();
++	if((int32)sema < 0) {
++		printf("mutex_create failed\n");
++		breakpoint();
++	}
++	// mutex_create returns a file descriptor;
++	// shift it up and add the 1 bit so that can
++	// distinguish unintialized from fd 0.
++	sema = (sema<<1) | 1;
++	if(!cas(psema, 0, sema)){
++		// Someone else filled it in.  Use theirs.
++		close(sema);
++		return;
++	}
++}
++
++// Lock and unlock.
++// Defer entirely to Native Client.
++// The expense of a call into Native Client is more like
++// a function call than a system call, so as long as the
++// Native Client lock implementation is good, we can't
++// do better ourselves.
++
++static void
++xlock(int32 fd)
++{
++	if(mutex_lock(fd) < 0) {
++		printf("mutex_lock failed\n");
++		breakpoint();
++	}
++}
++
++static void
++xunlock(int32 fd)
++{
++	if(mutex_unlock(fd) < 0) {
++		printf("mutex_lock failed\n");
++		breakpoint();
++	}
++}
++
++void
++lock(Lock *l)
++{
++	if(m->locks < 0)
++		throw("lock count");
++	m->locks++;
++	if(l->sema == 0)
++		initsema(&l->sema);
++	xlock(l->sema>>1);
++}
++
++void
++unlock(Lock *l)
++{
++	m->locks--;
++	if(m->locks < 0)
++		throw("lock count");
++	xunlock(l->sema>>1);
++}
++
++
++// One-time notifications.
++//
++// Since the lock/unlock implementation already
++// takes care of sleeping in the kernel, we just reuse it.
++// (But it's a weird use, so it gets its own interface.)
++//
++// We use a lock to represent the event:
++// unlocked == event has happened.
++// Thus the lock starts out locked, and to wait for the
++// event you try to lock the lock.  To signal the event,
++// you unlock the lock.
++//
++// Native Client does not require that the thread acquiring
++// a lock be the thread that releases the lock, so this is safe.
++
++void
++noteclear(Note *n)
++{
++	if(n->lock.sema == 0)
++		initsema(&n->lock.sema);
++	xlock(n->lock.sema>>1);
++}
++
++void
++notewakeup(Note *n)
++{
++	if(n->lock.sema == 0) {
++		printf("notewakeup without noteclear");
++		breakpoint();
++	}
++	xunlock(n->lock.sema>>1);
++}
++
++void
++notesleep(Note *n)
++{
++	if(n->lock.sema == 0) {
++		printf("notesleep without noteclear");
++		breakpoint();
++	}
++	xlock(n->lock.sema>>1);
++	xunlock(n->lock.sema>>1);	// Let other sleepers find out too.
++}
++
++void
++newosproc(M *m, G *g, void *stk, void (*fn)(void))
++{
++	void **vstk;
++
++	// I wish every OS made thread creation this easy.
++	m->tls[0] = (uint32)g;
++	m->tls[1] = (uint32)m;
++	vstk = stk;
++	*--vstk = nil;
++	if(thread_create(fn, vstk, m->tls, sizeof m->tls) < 0) {
++		printf("thread_create failed\n");
++		breakpoint();
++	}
++}
++
++void
++osinit(void)
++{
++}
++
++// Called to initialize a new m (including the bootstrap m).
++void
++minit(void)
++{
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 58839f97f0..34bc262525 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -308,6 +308,7 @@ int32	goidgen;
+ extern	int32	gomaxprocs;
+ extern	int32	panicking;
+ extern	int32	maxround;
++int8*	goos;
+ 
+ /*
+  * common functions and data
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 97501623d3..a082a7615d 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -32,6 +32,15 @@ sys·symdat(Slice *symtab, Slice *pclntab)
+ 	Slice *a;
+ 	int32 *v;
+ 
++	// TODO(rsc): Remove once TODO at top of file is done.
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0) {
++		symtab = mal(sizeof *a);
++		pclntab = mal(sizeof *a);
++		FLUSH(&symtab);
++		FLUSH(&pclntab);
++		return;
++	}
++
+ 	v = SYMCOUNTS;
+ 
+ 	a = mal(sizeof *a);
+@@ -66,6 +75,10 @@ walksymtab(void (*fn)(Sym*))
+ 	byte *p, *ep, *q;
+ 	Sym s;
+ 
++	// TODO(rsc): Remove once TODO at top of file is done.
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
++		return;
++
+ 	v = SYMCOUNTS;
+ 	p = SYMDATA;
+ 	ep = p + v[0];
+@@ -260,6 +273,10 @@ splitpcln(void)
+ 	Func *f, *ef;
+ 	int32 *v;
+ 
++	// TODO(rsc): Remove once TODO at top of file is done.
++	if(goos != nil && strcmp((uint8*)goos, (uint8*)"nacl") == 0)
++		return;
++
+ 	// pc/ln table bounds
+ 	v = SYMCOUNTS;
+ 	p = SYMDATA;

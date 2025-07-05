@@ -12,7 +12,55 @@ Date:   Wed Jan 8 15:56:40 2014 -0800
     R=golang-codereviews, gobot, rsc
     CC=golang-codereviews
     https://golang.org/cl/48500044
-
+---
  src/cmd/nm/doc.go |  3 ++-
  src/cmd/nm/nm.go  | 10 +++++++++-
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index f40073f7a2..81662f8721 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -31,8 +31,9 @@
+ //		for compatibility with other nm commands
+ //	-size
+ //		print symbol size in decimal between address and type
+-//	-sort {address,name,none}
++//	-sort {address,name,none,size}
+ //		sort output in the given order (default name)
++//		size orders from largest to smallest
+ //	-type
+ //		print symbol type after name
+ //
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index d369a4ab54..fdf6ef673e 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -58,7 +58,7 @@ func main() {
+ 	flag.Parse()
+ 
+ 	switch *sortOrder {
+-	case "address", "name", "none":
++	case "address", "name", "none", "size":
+ 		// ok
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "nm: unknown sort order %q\n", *sortOrder)
+@@ -135,6 +135,8 @@ HaveSyms:
+ 		sort.Sort(byAddr(syms))
+ 	case "name":
+ 		sort.Sort(byName(syms))
++	case "size":
++		sort.Sort(bySize(syms))
+ 	}
+ 
+ 	w := bufio.NewWriter(os.Stdout)
+@@ -170,3 +172,9 @@ type byName []Sym
+ func (x byName) Len() int           { return len(x) }
+ func (x byName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+ func (x byName) Less(i, j int) bool { return x[i].Name < x[j].Name }
++
++type bySize []Sym
++
++func (x bySize) Len() int           { return len(x) }
++func (x bySize) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x bySize) Less(i, j int) bool { return x[i].Size > x[j].Size }

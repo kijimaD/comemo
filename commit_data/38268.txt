@@ -553,3 +553,22 @@ Date:   Mon Oct 15 17:09:34 2018 -0400
  test/stackobj3.go                                  |    93 +
  test/uintptrescapes2.go                            |     8 +-
  545 files changed, 54625 insertions(+), 40475 deletions(-)
+
+diff --cc src/crypto/rand/rand_unix.go
+index 13c874a961,d49f693746..272b83d52b
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@@ -51,7 -48,12 +53,13 @@@ type devReader struct 
+  var altGetRandom func([]byte) (ok bool)
+  
+  func (r *devReader) Read(b []byte) (n int, err error) {
+ +	boring.Unreachable()
++ 	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
++ 		// First use of randomness. Start timer to warn about
++ 		// being blocked on entropy not being available.
++ 		t := time.AfterFunc(60*time.Second, warnBlocked)
++ 		defer t.Stop()
++ 	}
+  	if altGetRandom != nil && r.name == urandomDevice && altGetRandom(b) {
+  		return len(b), nil
+  	}

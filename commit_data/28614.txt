@@ -13,7 +13,51 @@ Date:   Sat Jun 11 19:36:17 2016 +0900
     Change-Id: Ib1fb9f957fafd0f91da6fceea56620e29ad82b00
     Reviewed-on: https://go-review.googlesource.com/24020
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/wait_unimp.go                     | 2 +-
  src/os/{wait_linux.go => wait_waitid.go} | 9 +++++++--
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 802b032c6e..254bf7ec17 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd nacl netbsd openbsd solaris
++// +build dragonfly freebsd nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_linux.go b/src/os/wait_waitid.go
+similarity index 71%
+rename from src/os/wait_linux.go
+rename to src/os/wait_waitid.go
+index 7707539630..5dbd7f9766 100644
+--- a/src/os/wait_linux.go
++++ b/src/os/wait_waitid.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin linux
++
+ package os
+ 
+ import (
+@@ -16,8 +18,11 @@ const _P_PID = 1
+ // succeed immediately, and returns whether it has done so.
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+-	// waitid expects a pointer to a siginfo_t, which is 128 bytes
+-	// on all systems. We don't care about the values it returns.
++	// The waitid system call expects a pointer to a siginfo_t,
++	// which is 128 bytes on all GNU/Linux systems.
++	// On Darwin, it requires greater than or equal to 64 bytes
++	// for darwin/{386,arm} and 104 bytes for darwin/amd64.
++	// We don't care about the values it returns.
+ 	var siginfo [128]byte
+ 	psig := &siginfo[0]
+ 	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)

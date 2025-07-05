@@ -8,6 +8,20 @@ Date:   Sat Jul 27 13:36:27 2013 +0400
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/11938046
-
+---
  src/pkg/net/timeout_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 2e92147b8e..ac552c0518 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -423,6 +423,8 @@ func testVariousDeadlines(t *testing.T, maxProcs int) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
++	case "windows":
++		t.Skipf("skipping test on %q, see issue 5971", runtime.GOOS)
+ 	}
+ 
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(maxProcs))

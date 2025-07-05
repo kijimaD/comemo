@@ -12,7 +12,7 @@ Date:   Thu Feb 16 23:50:37 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5673079
-
+---
  test/fixedbugs/bug397.go     | 2 +-
  test/fixedbugs/bug398.go     | 2 +-
  test/fixedbugs/bug402.go     | 2 +-
@@ -113,3 +113,994 @@ Date:   Thu Feb 16 23:50:37 2012 -0500
  test/mallocrand.go           | 2 +-
  test/mallocrep.go            | 2 +-
  99 files changed, 99 insertions(+), 99 deletions(-)
+
+diff --git a/test/fixedbugs/bug397.go b/test/fixedbugs/bug397.go
+index 0395701302..56cc7cdd4d 100644
+--- a/test/fixedbugs/bug397.go
++++ b/test/fixedbugs/bug397.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug398.go b/test/fixedbugs/bug398.go
+index 1eee2292c2..1dd3fa4213 100644
+--- a/test/fixedbugs/bug398.go
++++ b/test/fixedbugs/bug398.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug402.go b/test/fixedbugs/bug402.go
+index 4b03d51860..db3f3da448 100644
+--- a/test/fixedbugs/bug402.go
++++ b/test/fixedbugs/bug402.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug403.go b/test/fixedbugs/bug403.go
+index ec02ca7333..ed7b49aea2 100644
+--- a/test/fixedbugs/bug403.go
++++ b/test/fixedbugs/bug403.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug405.go b/test/fixedbugs/bug405.go
+index dcca000449..e8ecc4d034 100644
+--- a/test/fixedbugs/bug405.go
++++ b/test/fixedbugs/bug405.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug410.go b/test/fixedbugs/bug410.go
+index 6eee6cfd48..35ecbfc05c 100644
+--- a/test/fixedbugs/bug410.go
++++ b/test/fixedbugs/bug410.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug411.go b/test/fixedbugs/bug411.go
+index 3ca6a3de25..3b90db88d6 100644
+--- a/test/fixedbugs/bug411.go
++++ b/test/fixedbugs/bug411.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug412.go b/test/fixedbugs/bug412.go
+index e05b555759..9148b68e74 100644
+--- a/test/fixedbugs/bug412.go
++++ b/test/fixedbugs/bug412.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug413.go b/test/fixedbugs/bug413.go
+index 32b7efc76d..41270d9063 100644
+--- a/test/fixedbugs/bug413.go
++++ b/test/fixedbugs/bug413.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug416.go b/test/fixedbugs/bug416.go
+index cc6d4a9f28..c128538429 100644
+--- a/test/fixedbugs/bug416.go
++++ b/test/fixedbugs/bug416.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug418.go b/test/fixedbugs/bug418.go
+index c7b758feb3..64d86b3400 100644
+--- a/test/fixedbugs/bug418.go
++++ b/test/fixedbugs/bug418.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/float_lit.go b/test/float_lit.go
+index 7b91d88e51..3189cac223 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/floatcmp.go b/test/floatcmp.go
+index f51cbc2777..2a5bd75df2 100644
+--- a/test/floatcmp.go
++++ b/test/floatcmp.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/for.go b/test/for.go
+index 36ad15709b..a21213ff3f 100644
+--- a/test/for.go
++++ b/test/for.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func.go b/test/func.go
+index e8ed928bcd..15839c05fa 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func1.go b/test/func1.go
+index 056ff9877d..d5adea71ec 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -1,4 +1,4 @@
+-// errchk $G $F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func3.go b/test/func3.go
+index 110b0ef1c4..587b7c4a14 100644
+--- a/test/func3.go
++++ b/test/func3.go
+@@ -1,4 +1,4 @@
+-// errchk $G $F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func4.go b/test/func4.go
+index 2a1a932de9..c53e7a23ac 100644
+--- a/test/func4.go
++++ b/test/func4.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func5.go b/test/func5.go
+index e27825c2b2..68ab7a54b9 100644
+--- a/test/func5.go
++++ b/test/func5.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func6.go b/test/func6.go
+index 1356b6aa8b..39c15329ef 100644
+--- a/test/func6.go
++++ b/test/func6.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func7.go b/test/func7.go
+index e38b008cc0..015b881fb0 100644
+--- a/test/func7.go
++++ b/test/func7.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/func8.go b/test/func8.go
+index bb61064535..a1ea9b7e4c 100644
+--- a/test/func8.go
++++ b/test/func8.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/gc.go b/test/gc.go
+index 3aab8fac95..e610d2bde8 100644
+--- a/test/gc.go
++++ b/test/gc.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/gc1.go b/test/gc1.go
+index 84034e7cea..190b29b005 100644
+--- a/test/gc1.go
++++ b/test/gc1.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/gc2.go b/test/gc2.go
+index 772f9810da..739183e598 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/goto.go b/test/goto.go
+index 1fccb314c8..11417f86b7 100644
+--- a/test/goto.go
++++ b/test/goto.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/hashmap.go b/test/hashmap.go
+index 0a4d7ab61e..0e7a2b4aea 100644
+--- a/test/hashmap.go
++++ b/test/hashmap.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/if.go b/test/if.go
+index 18a6715d7e..13955781f9 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/import.go b/test/import.go
+index bd83dc3bdd..a02a4ad8a4 100644
+--- a/test/import.go
++++ b/test/import.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/import1.go b/test/import1.go
+index ebd704ef99..f5b8926a70 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/import5.go b/test/import5.go
+index ee041709a1..acd03c9ce9 100644
+--- a/test/import5.go
++++ b/test/import5.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/indirect1.go b/test/indirect1.go
+index ecb4f138ac..e49eeb0650 100644
+--- a/test/indirect1.go
++++ b/test/indirect1.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/init.go b/test/init.go
+index 74c2d5c261..0146f4b3ee 100644
+--- a/test/init.go
++++ b/test/init.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/init1.go b/test/init1.go
+index 56ef17249f..a888ad7440 100644
+--- a/test/init1.go
++++ b/test/init1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/initcomma.go b/test/initcomma.go
+index 195d4575f7..7fa069044d 100644
+--- a/test/initcomma.go
++++ b/test/initcomma.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/initialize.go b/test/initialize.go
+index 6dd7d67dc3..5bab5a708d 100644
+--- a/test/initialize.go
++++ b/test/initialize.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/initializerr.go b/test/initializerr.go
+index e7f8b0e92f..c2703e3eb4 100644
+--- a/test/initializerr.go
++++ b/test/initializerr.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+index d0c26d2a83..492b188c92 100644
+--- a/test/initsyscall.go
++++ b/test/initsyscall.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 2644e17b57..a109fa9574 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/intcvt.go b/test/intcvt.go
+index 407bcfd9ba..81b04effdc 100644
+--- a/test/intcvt.go
++++ b/test/intcvt.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/bigdata.go b/test/interface/bigdata.go
+index 44f6ab127e..0d8c408c81 100644
+--- a/test/interface/bigdata.go
++++ b/test/interface/bigdata.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/convert.go b/test/interface/convert.go
+index 7f429f7031..2b4f45d14f 100644
+--- a/test/interface/convert.go
++++ b/test/interface/convert.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/convert1.go b/test/interface/convert1.go
+index 658b1a92fa..4833e847a2 100644
+--- a/test/interface/convert1.go
++++ b/test/interface/convert1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/convert2.go b/test/interface/convert2.go
+index 658b1a92fa..4833e847a2 100644
+--- a/test/interface/convert2.go
++++ b/test/interface/convert2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/embed.go b/test/interface/embed.go
+index 2fddee1905..46c02cc80e 100644
+--- a/test/interface/embed.go
++++ b/test/interface/embed.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/embed2.go b/test/interface/embed2.go
+index c18a1fecec..bac214397a 100644
+--- a/test/interface/embed2.go
++++ b/test/interface/embed2.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/explicit.go b/test/interface/explicit.go
+index daae59b361..fbe65e7e39 100644
+--- a/test/interface/explicit.go
++++ b/test/interface/explicit.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 0c20bcf756..5a2f57fe9f 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index ddb8325427..55650cc8dd 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/pointer.go b/test/interface/pointer.go
+index f1e363cbff..0548c24046 100644
+--- a/test/interface/pointer.go
++++ b/test/interface/pointer.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/receiver.go b/test/interface/receiver.go
+index f53daf8dab..dc2e7808f7 100644
+--- a/test/interface/receiver.go
++++ b/test/interface/receiver.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/receiver1.go b/test/interface/receiver1.go
+index 51312d0002..19ca6d4626 100644
+--- a/test/interface/receiver1.go
++++ b/test/interface/receiver1.go
+@@ -1,4 +1,4 @@
+-// errchk $G $D/$F.go
++// errorcheck
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/interface/returntype.go b/test/interface/returntype.go
+index 5cf0836178..b7bebe4f61 100644
+--- a/test/interface/returntype.go
++++ b/test/interface/returntype.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/iota.go b/test/iota.go
+index c40ca1f382..7e9e352797 100644
+--- a/test/iota.go
++++ b/test/iota.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 12694fec62..53f6fc88e1 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index ef75b044d7..3bfa5b2d2b 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index e5fc033f3d..ccb2619959 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/complit.go b/test/ken/complit.go
+index da0a84a043..cab3bca38c 100644
+--- a/test/ken/complit.go
++++ b/test/ken/complit.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/convert.go b/test/ken/convert.go
+index 3780ec886a..83e573a3f1 100644
+--- a/test/ken/convert.go
++++ b/test/ken/convert.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx1.go b/test/ken/cplx1.go
+index 8ec7d40f5e..9421c53e1e 100644
+--- a/test/ken/cplx1.go
++++ b/test/ken/cplx1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx2.go b/test/ken/cplx2.go
+index 89f4a04181..a3c1570ba3 100644
+--- a/test/ken/cplx2.go
++++ b/test/ken/cplx2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx3.go b/test/ken/cplx3.go
+index 048c93eef6..092354983d 100644
+--- a/test/ken/cplx3.go
++++ b/test/ken/cplx3.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx4.go b/test/ken/cplx4.go
+index 738afcd2ca..8104ff14d0 100644
+--- a/test/ken/cplx4.go
++++ b/test/ken/cplx4.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/cplx5.go b/test/ken/cplx5.go
+index e6696674b0..0e2c88221e 100644
+--- a/test/ken/cplx5.go
++++ b/test/ken/cplx5.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 5a64d16b49..46786fb67c 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/divmod.go b/test/ken/divmod.go
+index dc44ea245b..02c762dd04 100644
+--- a/test/ken/divmod.go
++++ b/test/ken/divmod.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index 9805e479bb..a3e1980e84 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/for.go b/test/ken/for.go
+index 176ecd7493..914229b582 100644
+--- a/test/ken/for.go
++++ b/test/ken/for.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index 9bb50886a4..113fe3c9be 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index 94bc7eaada..ca875e8378 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 73d1b0660b..30815d06b8 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/label.go b/test/ken/label.go
+index 7a509f0484..b8867a7d1c 100644
+--- a/test/ken/label.go
++++ b/test/ken/label.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/litfun.go b/test/ken/litfun.go
+index bac2bc17cc..4c40ee24cc 100644
+--- a/test/ken/litfun.go
++++ b/test/ken/litfun.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+index ae0bc0c58a..2213b8132b 100644
+--- a/test/ken/mfunc.go
++++ b/test/ken/mfunc.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index c2603a0a09..3905b8123c 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index 6739ba33ae..b115931566 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/ptrvar.go b/test/ken/ptrvar.go
+index e2ddde6292..c6b4656fc5 100644
+--- a/test/ken/ptrvar.go
++++ b/test/ken/ptrvar.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 9535fd497d..07d0e9a677 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index a5854b93e2..35720c928c 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index d13e2441d4..bd8a435158 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/robfor.go b/test/ken/robfor.go
+index 05188a4723..958efca3a2 100644
+--- a/test/ken/robfor.go
++++ b/test/ken/robfor.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index 6b3d4b2e46..40c5b9042a 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+index 157a07aec5..c60143d700 100644
+--- a/test/ken/shift.go
++++ b/test/ken/shift.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index 1b6f245eea..553bc4d689 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index dbd9c8d8bc..4a8324ccb7 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index feb85d2999..9dc7ebf934 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+index ba9ce6f7bc..b2c803e891 100644
+--- a/test/ken/simpfun.go
++++ b/test/ken/simpfun.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+index 710af2e08c..cc5f281fcf 100644
+--- a/test/ken/simpswitch.go
++++ b/test/ken/simpswitch.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+index fd060b0e2e..324008d236 100644
+--- a/test/ken/simpvar.go
++++ b/test/ken/simpvar.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index 5c31270fcd..e0f2d322b5 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index 6390421287..ed1a5fe5a1 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/ken/strvar.go b/test/ken/strvar.go
+index dfaaf12131..34b2621b17 100644
+--- a/test/ken/strvar.go
++++ b/test/ken/strvar.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/label.go b/test/label.go
+index e3d853266e..8f2df4ccbc 100644
+--- a/test/label.go
++++ b/test/label.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/label1.go b/test/label1.go
+index 656daaeea5..8a192c2910 100644
+--- a/test/label1.go
++++ b/test/label1.go
+@@ -1,4 +1,4 @@
+-// errchk $G -e $D/$F.go
++// errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/literal.go b/test/literal.go
+index bf05388127..396d75c01f 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -1,4 +1,4 @@
+-// $G $F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/malloc1.go b/test/malloc1.go
+index 0f7f0b267a..3ec7369099 100644
+--- a/test/malloc1.go
++++ b/test/malloc1.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index ff62392473..2f9f8386da 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/mallocrand.go b/test/mallocrand.go
+index 69d07cec5d..cdd8c6f44c 100644
+--- a/test/mallocrand.go
++++ b/test/mallocrand.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 4188da9b83..977c6fac24 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

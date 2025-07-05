@@ -16,7 +16,42 @@ Date:   Fri May 27 19:06:30 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 5 +----
  test/run.go                              | 7 +++----
  2 files changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c3955c2cb6..2b22046de1 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1661,10 +1661,7 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
+ 				}
+ 
+ 			default:
+-				// TODO(mdempsky): Enable after #42938 is fixed.
+-				if false {
+-					pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+-				}
++				pw.errorf(l.pos, "//go:linkname must refer to declared function or variable")
+ 			}
+ 		}
+ 	}
+diff --git a/test/run.go b/test/run.go
+index 8ef11020da..a4ec19c73c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1993,10 +1993,9 @@ var _ = setOf(
+ )
+ 
+ var unifiedFailures = setOf(
+-	"closure3.go",  // unified IR numbers closures differently than -d=inlfuncswithclosures
+-	"escape4.go",   // unified IR can inline f5 and f6; test doesn't expect this
+-	"inline.go",    // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+-	"linkname3.go", // unified IR is missing some linkname errors
++	"closure3.go", // unified IR numbers closures differently than -d=inlfuncswithclosures
++	"escape4.go",  // unified IR can inline f5 and f6; test doesn't expect this
++	"inline.go",   // unified IR reports function literal diagnostics on different lines than -d=inlfuncswithclosures
+ 
+ 	"fixedbugs/issue7921.go",   // prints "… escapes to heap", but test expects "string(…) escapes to heap"
+ 	"typeparam/issue47631.go",  // unified IR can handle local type declarations

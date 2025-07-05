@@ -7,7 +7,7 @@ Date:   Thu Apr 29 23:45:14 2010 -0700
     R=rsc, Joe Poirier
     CC=golang-dev
     https://golang.org/cl/1015043
-
+---
  src/cmd/8l/obj.c                                   |  2 +-
  src/env.bash                                       |  4 +--
  src/lib9/Makefile                                  |  2 +-
@@ -46,3 +46,491 @@ Date:   Thu Apr 29 23:45:14 2010 -0700
  ...zsysnum_mingw_386.go => zsysnum_windows_386.go} |  0
  .../{ztypes_mingw_386.go => ztypes_windows_386.go} |  2 +-
  37 files changed, 48 insertions(+), 48 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 82f4e47b7c..c4732b6681 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -168,7 +168,7 @@ main(int argc, char *argv[])
+ 		if(strcmp(goos, "freebsd") == 0)
+ 			HEADTYPE = 9;
+ 		else
+-		if(strcmp(goos, "mingw") == 0)
++		if(strcmp(goos, "windows") == 0)
+ 			HEADTYPE = 10;
+ 		else
+ 		if(strcmp(goos, "pchw") == 0)
+diff --git a/src/env.bash b/src/env.bash
+index 6ab491ae43..2a63e64806 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -45,10 +45,10 @@ esac
+ 
+ GOOS=${GOOS:-$(uname | tr A-Z a-z)}
+ case "$GOOS" in
+-darwin | freebsd | linux | mingw | nacl)
++darwin | freebsd | linux | windows | nacl)
+ 	;;
+ *)
+-	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, mingw, or nacl' 1>&2
++	echo '$GOOS is set to <'$GOOS'>, must be darwin, freebsd, linux, windows, or nacl' 1>&2
+ 	exit 1
+ esac
+ 
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index 3061cfdbb4..ccaf41a0fe 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -81,7 +81,7 @@ LIB9OFILES=\
+ 	time.$O\
+ 	tokenize.$O\
+ 
+-ifeq ($(GOOS),mingw)
++ifeq ($(GOOS),windows)
+ LIB9OFILES+=\
+ 	win32.$O\
+ 
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index deb6b48a34..0d65af70c7 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -23,7 +23,7 @@ CFLAGS_amd64=-m64
+ LDFLAGS_linux=-shared -lpthread -lm
+ LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup /usr/lib/libpthread.dylib
+ LDFLAGS_freebsd=-pthread -shared -lm
+-LDFLAGS_mingw=-shared -lm -mthreads
++LDFLAGS_windows=-shared -lm -mthreads
+ 
+ %.o: %.c
+ 	gcc $(CFLAGS_$(GOARCH)) -O2 -fPIC -o $@ -c $*.c
+diff --git a/src/libcgo/mingw_386.c b/src/libcgo/windows_386.c
+similarity index 100%
+rename from src/libcgo/mingw_386.c
+rename to src/libcgo/windows_386.c
+diff --git a/src/libcgo/mingw_amd64.c b/src/libcgo/windows_amd64.c
+similarity index 100%
+rename from src/libcgo/mingw_amd64.c
+rename to src/libcgo/windows_amd64.c
+diff --git a/src/libmach/Makefile b/src/libmach/Makefile
+index 69d52c288c..900d278617 100644
+--- a/src/libmach/Makefile
++++ b/src/libmach/Makefile
+@@ -48,7 +48,7 @@ OFILES=\
+ 	6obj.$O\
+ 	8obj.$O\
+ 
+-ifneq ($(GOOS),mingw)
++ifneq ($(GOOS),windows)
+ OFILES+=\
+ 	$(shell uname | tr A-Z a-z).$O\
+ 
+diff --git a/src/pkg/debug/proc/proc_mingw.go b/src/pkg/debug/proc/proc_windows.go
+similarity index 75%
+rename from src/pkg/debug/proc/proc_mingw.go
+rename to src/pkg/debug/proc/proc_windows.go
+index c3e07688ba..dc22faef81 100644
+--- a/src/pkg/debug/proc/proc_mingw.go
++++ b/src/pkg/debug/proc/proc_windows.go
+@@ -6,10 +6,10 @@ package proc
+ 
+ import "os"
+ 
+-// Process tracing is not supported on MinGW yet.
++// Process tracing is not supported on windows yet.
+ 
+ func Attach(pid int) (Process, os.Error) {
+-	return nil, os.NewError("debug/proc not implemented on MinGW")
++	return nil, os.NewError("debug/proc not implemented on windows")
+ }
+ 
+ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*os.File) (Process, os.Error) {
+diff --git a/src/pkg/debug/proc/regs_mingw_386.go b/src/pkg/debug/proc/regs_windows_386.go
+similarity index 100%
+rename from src/pkg/debug/proc/regs_mingw_386.go
+rename to src/pkg/debug/proc/regs_windows_386.go
+diff --git a/src/pkg/debug/proc/regs_mingw_amd64.go b/src/pkg/debug/proc/regs_windows_amd64.go
+similarity index 100%
+rename from src/pkg/debug/proc/regs_mingw_amd64.go
+rename to src/pkg/debug/proc/regs_windows_amd64.go
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index ebb1665d42..71de949514 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -34,9 +34,9 @@ GOFILES_nacl=\
+ 	file_unix.go\
+ 	sys_nacl.go\
+ 
+-GOFILES_mingw=\
+-	file_mingw.go\
+-	sys_mingw.go\
++GOFILES_windows=\
++	file_windows.go\
++	sys_windows.go\
+ 
+ GOFILES+=$(GOFILES_$(GOOS))
+ 
+diff --git a/src/pkg/os/dir_mingw.go b/src/pkg/os/dir_windows.go
+similarity index 100%
+rename from src/pkg/os/dir_mingw.go
+rename to src/pkg/os/dir_windows.go
+diff --git a/src/pkg/os/file_mingw.go b/src/pkg/os/file_windows.go
+similarity index 100%
+rename from src/pkg/os/file_mingw.go
+rename to src/pkg/os/file_windows.go
+diff --git a/src/pkg/os/stat_mingw.go b/src/pkg/os/stat_windows.go
+similarity index 100%
+rename from src/pkg/os/stat_mingw.go
+rename to src/pkg/os/stat_windows.go
+diff --git a/src/pkg/os/sys_mingw.go b/src/pkg/os/sys_windows.go
+similarity index 100%
+rename from src/pkg/os/sys_mingw.go
+rename to src/pkg/os/sys_windows.go
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 6b3ab21e35..881f15a1a1 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -17,7 +17,7 @@ CFLAGS_64=-D_64BIT
+ # TODO(kaib): fix register allocation to honor extern register so we
+ # can enable optimizations again.
+ CFLAGS_arm=-N
+-CFLAGS_mingw=-D__MINGW__
++CFLAGS_windows=-D__WINDOWS__
+ CFLAGS=-I$(GOOS) -I$(GOARCH) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH)) $(CFLAGS_$(GOOS))
+ 
+ GOFILES=\
+@@ -29,7 +29,7 @@ GOFILES=\
+ GOFILES_pchw=\
+ 	pchw/io.go\
+ 
+-OFILES_mingw=\
++OFILES_windows=\
+ 	syscall.$O\
+ 
+ # 386-specific object files
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index fdd2668406..aae773cfee 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -19,7 +19,7 @@ case "$GOARCH" in
+ 	#	../../libcgo/linux_386.c:/^start
+ 	#	../../libcgo/darwin_386.c:/^start
+ 	case "$GOOS" in
+-	mingw)
++	windows)
+ 		echo '#define	get_tls(r)	MOVL 0x2c(FS), r'
+ 		echo '#define	g(r)	0(r)'
+ 		echo '#define	m(r)	4(r)'
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ca957f177d..ff4f463b37 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -117,7 +117,7 @@ enum
+ struct	Lock
+ {
+ 	uint32	key;
+-#ifdef __MINGW__
++#ifdef __WINDOWS__
+ 	void*	event;
+ #else
+ 	uint32	sema;	// for OS X
+@@ -231,7 +231,7 @@ struct	M
+ 	MCache	*mcache;
+ 	G*	lockedg;
+ 	uint64 freg[8];	// Floating point register storage used by ARM software fp routines
+-#ifdef __MINGW__
++#ifdef __WINDOWS__
+ 	void*	return_address;	// saved return address and stack
+ 	void*	stack_pointer;	// pointer for Windows stdcall
+ 	void*	os_stack_pointer;
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index 4707b1537b..0284c9f019 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -39,7 +39,7 @@ walksymtab(void (*fn)(Sym*))
+ 	if(symdat == nil)
+ 		return;
+ 
+-#ifdef __MINGW__
++#ifdef __WINDOWS__
+ 	v = get_symdat_addr();
+ 	p = (byte*)v+8;
+ #else
+@@ -256,7 +256,7 @@ splitpcln(void)
+ 		return;
+ 
+ 	// pc/ln table bounds
+-#ifdef __MINGW__
++#ifdef __WINDOWS__
+ 	v = get_symdat_addr();
+ 	p = (byte*)v+8;
+ #else
+diff --git a/src/pkg/runtime/mingw/386/defs.h b/src/pkg/runtime/windows/386/defs.h
+similarity index 100%
+rename from src/pkg/runtime/mingw/386/defs.h
+rename to src/pkg/runtime/windows/386/defs.h
+diff --git a/src/pkg/runtime/mingw/386/rt0.s b/src/pkg/runtime/windows/386/rt0.s
+similarity index 85%
+rename from src/pkg/runtime/mingw/386/rt0.s
+rename to src/pkg/runtime/windows/386/rt0.s
+index efd8ce3e68..4e68504166 100644
+--- a/src/pkg/runtime/mingw/386/rt0.s
++++ b/src/pkg/runtime/windows/386/rt0.s
+@@ -2,5 +2,5 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-TEXT	_rt0_386_mingw(SB),7,$0
++TEXT	_rt0_386_windows(SB),7,$0
+ 	JMP	_rt0_386(SB)
+diff --git a/src/pkg/runtime/mingw/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+similarity index 100%
+rename from src/pkg/runtime/mingw/386/signal.c
+rename to src/pkg/runtime/windows/386/signal.c
+diff --git a/src/pkg/runtime/mingw/386/sys.s b/src/pkg/runtime/windows/386/sys.s
+similarity index 100%
+rename from src/pkg/runtime/mingw/386/sys.s
+rename to src/pkg/runtime/windows/386/sys.s
+diff --git a/src/pkg/runtime/mingw/defs.c b/src/pkg/runtime/windows/defs.c
+similarity index 100%
+rename from src/pkg/runtime/mingw/defs.c
+rename to src/pkg/runtime/windows/defs.c
+diff --git a/src/pkg/runtime/mingw/mem.c b/src/pkg/runtime/windows/mem.c
+similarity index 100%
+rename from src/pkg/runtime/mingw/mem.c
+rename to src/pkg/runtime/windows/mem.c
+diff --git a/src/pkg/runtime/mingw/os.h b/src/pkg/runtime/windows/os.h
+similarity index 91%
+rename from src/pkg/runtime/mingw/os.h
+rename to src/pkg/runtime/windows/os.h
+index 0de3885243..98876c888e 100644
+--- a/src/pkg/runtime/mingw/os.h
++++ b/src/pkg/runtime/windows/os.h
+@@ -16,8 +16,8 @@ extern void *LoadLibraryEx;
+ extern void *GetProcAddress;
+ extern void *GetLastError;
+ 
+-#define goargs mingw_goargs
+-void mingw_goargs(void);
++#define goargs windows_goargs
++void windows_goargs(void);
+ 
+ // Get start address of symbol data in memory.
+ void *get_symdat_addr(void);
+diff --git a/src/pkg/runtime/mingw/syscall.goc b/src/pkg/runtime/windows/syscall.goc
+similarity index 100%
+rename from src/pkg/runtime/mingw/syscall.goc
+rename to src/pkg/runtime/windows/syscall.goc
+diff --git a/src/pkg/runtime/mingw/thread.c b/src/pkg/runtime/windows/thread.c
+similarity index 99%
+rename from src/pkg/runtime/mingw/thread.c
+rename to src/pkg/runtime/windows/thread.c
+index 9a0bf2a8a6..b5f8cc0330 100644
+--- a/src/pkg/runtime/mingw/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -80,7 +80,7 @@ get_proc_addr(void *library, void *name)
+ }
+ 
+ void
+-mingw_goargs(void)
++windows_goargs(void)
+ {
+ 	extern Slice os·Args;
+ 	extern Slice os·Envs;
+diff --git a/src/pkg/syscall/asm_mingw_386.s b/src/pkg/syscall/asm_windows_386.s
+similarity index 66%
+rename from src/pkg/syscall/asm_mingw_386.s
+rename to src/pkg/syscall/asm_windows_386.s
+index c1bd3cc9ed..3d9f6fc943 100644
+--- a/src/pkg/syscall/asm_mingw_386.s
++++ b/src/pkg/syscall/asm_windows_386.s
+@@ -3,5 +3,5 @@
+ // license that can be found in the LICENSE file.
+ 
+ //
+-// System calls for 386, Windows are implemented in ../runtime/mingw/syscall.cgo
++// System calls for 386, Windows are implemented in ../runtime/windows/syscall.cgo
+ //
+diff --git a/src/pkg/syscall/mkall.sh b/src/pkg/syscall/mkall.sh
+index 714a47ead2..06c1898720 100755
+--- a/src/pkg/syscall/mkall.sh
++++ b/src/pkg/syscall/mkall.sh
+@@ -150,8 +150,8 @@ linux_arm)
+ 	mktypes="godefs -gsyscall -carm-gcc"
+ 	mkerrors="./mkerrors.sh"
+ 	;;
+-mingw_386)
+-	mksyscall="./mksyscall_mingw.sh -l32"
++windows_386)
++	mksyscall="./mksyscall_windows.sh -l32"
+ 	mksysnum=
+ 	mktypes=
+ 	mkerrors=
+diff --git a/src/pkg/syscall/mksyscall_mingw.sh b/src/pkg/syscall/mksyscall_windows.sh
+similarity index 97%
+rename from src/pkg/syscall/mksyscall_mingw.sh
+rename to src/pkg/syscall/mksyscall_windows.sh
+index 0daceac4ec..7732015395 100755
+--- a/src/pkg/syscall/mksyscall_mingw.sh
++++ b/src/pkg/syscall/mksyscall_windows.sh
+@@ -23,7 +23,7 @@
+ #	  //sys LoadLibrary(libname string) (handle uint32, errno int) [failretval=-1] = LoadLibraryA
+ #	  and is 0 by default.
+ 
+-$cmdline = "mksyscall_mingw.sh " . join(' ', @ARGV);
++$cmdline = "mksyscall_windows.sh " . join(' ', @ARGV);
+ $errors = 0;
+ $_32bit = "";
+ 
+@@ -36,7 +36,7 @@ if($ARGV[0] eq "-b32") {
+ }
+ 
+ if($ARGV[0] =~ /^-/) {
+-	print STDERR "usage: mksyscall_mingw.sh [-b32 | -l32] [file ...]\n";
++	print STDERR "usage: mksyscall_windows.sh [-b32 | -l32] [file ...]\n";
+ 	exit 1;
+ }
+ 
+diff --git a/src/pkg/syscall/syscall_mingw.go b/src/pkg/syscall/syscall_windows.go
+similarity index 96%
+rename from src/pkg/syscall/syscall_mingw.go
+rename to src/pkg/syscall/syscall_windows.go
+index be09480dbd..ec889f9e60 100644
+--- a/src/pkg/syscall/syscall_mingw.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -11,7 +11,7 @@ import (
+ 	"utf16"
+ )
+ 
+-const OS = "mingw"
++const OS = "windows"
+ 
+ /*
+ 
+@@ -72,7 +72,7 @@ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+ // dll helpers
+ 
+-// implemented in ../pkg/runtime/mingw/syscall.cgo
++// implemented in ../pkg/runtime/windows/syscall.cgo
+ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, lasterr uintptr)
+ func loadlibraryex(filename uintptr) (handle uint32)
+ func getprocaddress(handle uint32, procname uintptr) (proc uintptr)
+@@ -134,7 +134,7 @@ func Sleep(nsec int64) (errno int) {
+ }
+ 
+ func Errstr(errno int) string {
+-	if errno == EMINGW {
++	if errno == EWINDOWS {
+ 		return "not supported by windows"
+ 	}
+ 	b := make([]uint16, 300)
+@@ -381,32 +381,32 @@ const (
+ func Getpid() (pid int)   { return -1 }
+ func Getppid() (ppid int) { return -1 }
+ 
+-func Fchdir(fd int) (errno int)                           { return EMINGW }
+-func Link(oldpath, newpath string) (errno int)            { return EMINGW }
+-func Symlink(path, link string) (errno int)               { return EMINGW }
+-func Readlink(path string, buf []byte) (n int, errno int) { return 0, EMINGW }
+-func Chmod(path string, mode int) (errno int)             { return EMINGW }
+-func Fchmod(fd int, mode int) (errno int)                 { return EMINGW }
+-func Chown(path string, uid int, gid int) (errno int)     { return EMINGW }
+-func Lchown(path string, uid int, gid int) (errno int)    { return EMINGW }
+-func Fchown(fd int, uid int, gid int) (errno int)         { return EMINGW }
++func Fchdir(fd int) (errno int)                           { return EWINDOWS }
++func Link(oldpath, newpath string) (errno int)            { return EWINDOWS }
++func Symlink(path, link string) (errno int)               { return EWINDOWS }
++func Readlink(path string, buf []byte) (n int, errno int) { return 0, EWINDOWS }
++func Chmod(path string, mode int) (errno int)             { return EWINDOWS }
++func Fchmod(fd int, mode int) (errno int)                 { return EWINDOWS }
++func Chown(path string, uid int, gid int) (errno int)     { return EWINDOWS }
++func Lchown(path string, uid int, gid int) (errno int)    { return EWINDOWS }
++func Fchown(fd int, uid int, gid int) (errno int)         { return EWINDOWS }
+ 
+ func Getuid() (uid int)                  { return -1 }
+ func Geteuid() (euid int)                { return -1 }
+ func Getgid() (gid int)                  { return -1 }
+ func Getegid() (egid int)                { return -1 }
+-func Getgroups() (gids []int, errno int) { return nil, EMINGW }
++func Getgroups() (gids []int, errno int) { return nil, EWINDOWS }
+ 
+ // TODO(brainman): fix all this meaningless code, it is here to compile exec.go
+ 
+-func Pipe(p []int) (errno int) { return EMINGW }
++func Pipe(p []int) (errno int) { return EWINDOWS }
+ 
+ func read(fd int, buf *byte, nbuf int) (n int, errno int) {
+-	return 0, EMINGW
++	return 0, EWINDOWS
+ }
+ 
+ func fcntl(fd, cmd, arg int) (val int, errno int) {
+-	return 0, EMINGW
++	return 0, EWINDOWS
+ }
+ 
+ const (
+@@ -439,7 +439,7 @@ type Rusage struct {
+ }
+ 
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+-	return 0, EMINGW
++	return 0, EWINDOWS
+ }
+ 
+ type WaitStatus uint32
+diff --git a/src/pkg/syscall/syscall_mingw_386.go b/src/pkg/syscall/syscall_windows_386.go
+similarity index 100%
+rename from src/pkg/syscall/syscall_mingw_386.go
+rename to src/pkg/syscall/syscall_windows_386.go
+diff --git a/src/pkg/syscall/zerrors_mingw_386.go b/src/pkg/syscall/zerrors_windows_386.go
+similarity index 94%
+rename from src/pkg/syscall/zerrors_mingw_386.go
+rename to src/pkg/syscall/zerrors_windows_386.go
+index 606ccab7bd..d8b22846c7 100644
+--- a/src/pkg/syscall/zerrors_mingw_386.go
++++ b/src/pkg/syscall/zerrors_windows_386.go
+@@ -3,7 +3,7 @@
+ 
+ package syscall
+ 
+-// TODO(brainman): populate errors in zerrors_mingw.go
++// TODO(brainman): populate errors in zerrors_windows.go
+ 
+ const (
+ 	ERROR_FILE_NOT_FOUND      = 2
+@@ -12,8 +12,8 @@ const (
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
+ 	ERROR_DIRECTORY           = 267
+-	// TODO(brainman): should use value for EMINGW that does not clashes with anything else
+-	EMINGW = 99999 /* otherwise unused */
++	// TODO(brainman): should use value for EWINDOWS that does not clashes with anything else
++	EWINDOWS = 99999 /* otherwise unused */
+ )
+ 
+ // TODO(brainman): fix all needed for os
+diff --git a/src/pkg/syscall/zsyscall_mingw_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+similarity index 100%
+rename from src/pkg/syscall/zsyscall_mingw_386.go
+rename to src/pkg/syscall/zsyscall_windows_386.go
+diff --git a/src/pkg/syscall/zsysnum_mingw_386.go b/src/pkg/syscall/zsysnum_windows_386.go
+similarity index 100%
+rename from src/pkg/syscall/zsysnum_mingw_386.go
+rename to src/pkg/syscall/zsysnum_windows_386.go
+diff --git a/src/pkg/syscall/ztypes_mingw_386.go b/src/pkg/syscall/ztypes_windows_386.go
+similarity index 98%
+rename from src/pkg/syscall/ztypes_mingw_386.go
+rename to src/pkg/syscall/ztypes_windows_386.go
+index 95ffb4abfe..d6f2d72090 100644
+--- a/src/pkg/syscall/ztypes_mingw_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -4,7 +4,7 @@
+ 
+ package syscall
+ 
+-// TODO(brainman): autogenerate types in ztypes_mingw_386.go
++// TODO(brainman): autogenerate types in ztypes_windows_386.go
+ 
+ //import "unsafe"
+ 

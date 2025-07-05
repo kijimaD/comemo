@@ -23,6 +23,25 @@ Date:   Sat Aug 18 00:05:46 2018 +0200
     Change-Id: Id6ff926c5c379f63cab2dfc378fa6c15293fd453
     Reviewed-on: https://go-review.googlesource.com/129775
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_plan9.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 3a0b774aa2..2c74403434 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -478,7 +478,12 @@ func (f *File) Chown(uid, gid int) error {
+ }
+ 
+ func tempDir() string {
+-	return "/tmp"
++	dir := Getenv("TMPDIR")
++	if dir == "" {
++		dir = "/tmp"
++	}
++	return dir
++
+ }
+ 
+ // Chdir changes the current working directory to the file,

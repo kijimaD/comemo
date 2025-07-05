@@ -7,6 +7,20 @@ Date:   Wed Oct 27 11:27:52 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2759041
-
+---
  misc/dashboard/builder/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index a27abe06d9..2b8b855dd7 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -265,6 +265,8 @@ func (b *Builder) buildCommit(c Commit) (err os.Error) {
+ 	env := []string{
+ 		"GOOS=" + b.goos,
+ 		"GOARCH=" + b.goarch,
++		"GOHOSTOS=" + os.Getenv("GOHOSTOS"),
++		"GOHOSTARCH=" + os.Getenv("GOHOSTARCH"),
+ 		"GOROOT_FINAL=/usr/local/go",
+ 		"PATH=" + os.Getenv("PATH"),
+ 	}

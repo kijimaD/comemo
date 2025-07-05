@@ -17,9 +17,122 @@ Date:   Wed Apr 21 10:54:13 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  test/fixedbugs/issue20014.dir/a/a.go  | 21 ++++++++++++++
  test/fixedbugs/issue20014.dir/main.go | 54 +++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue20014.go          |  7 +++++
  test/fixedbugs/issue20014.out         |  6 ++++
  4 files changed, 88 insertions(+)
+
+diff --git a/test/fixedbugs/issue20014.dir/a/a.go b/test/fixedbugs/issue20014.dir/a/a.go
+new file mode 100644
+index 0000000000..1e66326276
+--- /dev/null
++++ b/test/fixedbugs/issue20014.dir/a/a.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T struct {
++	X int `go:"track"`
++	Y int `go:"track"`
++	Z int // untracked
++}
++
++func (t *T) GetX() int {
++	return t.X
++}
++func (t *T) GetY() int {
++	return t.Y
++}
++func (t *T) GetZ() int {
++	return t.Z
++}
+diff --git a/test/fixedbugs/issue20014.dir/main.go b/test/fixedbugs/issue20014.dir/main.go
+new file mode 100644
+index 0000000000..ac9957de40
+--- /dev/null
++++ b/test/fixedbugs/issue20014.dir/main.go
+@@ -0,0 +1,54 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"strings"
++
++	"issue20014.dir/a"
++)
++
++func main() {
++	samePackage()
++	crossPackage()
++	// Print fields registered with field tracking.
++	for _, line := range strings.Split(fieldTrackInfo, "\n") {
++		if line == "" {
++			continue
++		}
++		println(strings.Split(line, "\t")[0])
++	}
++}
++
++type T struct {
++	X int `go:"track"`
++	Y int `go:"track"`
++	Z int // untracked
++}
++
++func (t *T) GetX() int {
++	return t.X
++}
++func (t *T) GetY() int {
++	return t.Y
++}
++func (t *T) GetZ() int {
++	return t.Z
++}
++
++func samePackage() {
++	var t T
++	println(t.GetX())
++	println(t.GetZ())
++}
++
++func crossPackage() {
++	var t a.T
++	println(t.GetX())
++	println(t.GetZ())
++}
++
++// This global variable is set by the linker using the -k option.
++var fieldTrackInfo string
+diff --git a/test/fixedbugs/issue20014.go b/test/fixedbugs/issue20014.go
+new file mode 100644
+index 0000000000..e186aa1d07
+--- /dev/null
++++ b/test/fixedbugs/issue20014.go
+@@ -0,0 +1,7 @@
++// runindir -goexperiment fieldtrack -ldflags -k=main.fieldTrackInfo
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/fixedbugs/issue20014.out b/test/fixedbugs/issue20014.out
+new file mode 100644
+index 0000000000..252e78da5e
+--- /dev/null
++++ b/test/fixedbugs/issue20014.out
+@@ -0,0 +1,6 @@
++0
++0
++0
++0
++main.T.X
++issue20014.dir/a.T.X

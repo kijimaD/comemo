@@ -14,6 +14,20 @@ Date:   Fri Dec 1 21:05:34 2023 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/546636
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/trace2status.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace2status.go b/src/runtime/trace2status.go
+index c4a0eced8c..a4a8905196 100644
+--- a/src/runtime/trace2status.go
++++ b/src/runtime/trace2status.go
+@@ -88,7 +88,7 @@ func (w traceWriter) writeProcStatusForP(pp *p, inSTW bool) traceWriter {
+ 		// but it still owns the P (it's not in _Psyscall yet). The goroutine entering
+ 		// _Gsyscall is the tracer's signal that the P its bound to is also in a syscall,
+ 		// so we need to emit a status that matches. See #64318.
+-		if w.mp.p.ptr() == pp && readgstatus(w.mp.curg)&^_Gscan == _Gsyscall {
++		if w.mp.p.ptr() == pp && w.mp.curg != nil && readgstatus(w.mp.curg)&^_Gscan == _Gsyscall {
+ 			status = traceProcSyscall
+ 		}
+ 	case _Psyscall:

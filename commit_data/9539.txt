@@ -7,8 +7,48 @@ Date:   Mon Aug 29 10:55:21 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4978042
-
+---
  src/pkg/runtime/amd64/traceback.c | 2 +-
  src/pkg/runtime/arm/traceback.c   | 2 +-
  src/pkg/runtime/symtab.c          | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 6b758c270d..c03a6f7cc1 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -123,7 +123,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			if(showframe(f)) {
++			if(runtime·showframe(f)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index f99d738a93..63528104c6 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -117,7 +117,7 @@ runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr
+ 		else if(pcbuf != nil)
+ 			pcbuf[n++] = pc;
+ 		else {
+-			if(showframe(f)) {
++			if(runtime·showframe(f)) {
+ 				// Print during crash.
+ 				//	main(0x1, 0x2, 0x3)
+ 				//		/home/rsc/go/src/runtime/x.go:23 +0xf
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+index b9035119fe..d0468c6dd4 100644
+--- a/src/pkg/runtime/symtab.c
++++ b/src/pkg/runtime/symtab.c
+@@ -496,7 +496,7 @@ contains(String s, int8 *p)
+ }
+ 
+ bool
+-showframe(Func *f)
++runtime·showframe(Func *f)
+ {
+ 	// return 1;  // for debugging - show all frames
+ 	return contains(f->name, ".") && !hasprefix(f->name, "runtime.");

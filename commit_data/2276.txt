@@ -8,10 +8,80 @@ Date:   Thu May 21 15:44:06 2009 -0700
     R=r
     OCL=29205
     CL=29205
-
+---
  src/cmd/6g/Makefile              | 6 +++---
  src/cmd/6g/{align.c => galign.c} | 0
  src/cmd/6g/{gen.c => ggen.c}     | 0
  src/cmd/6g/{obj.c => gobj.c}     | 0
  src/cmd/gc/walk.c                | 9 ++++++---
  5 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 4d2b6ab97d..d4bb7c4b45 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -15,9 +15,9 @@ HFILES=\
+ 
+ OFILES=\
+ 	list.$O\
+-	obj.$O\
+-	align.$O\
+-	gen.$O\
++	gobj.$O\
++	galign.$O\
++	ggen.$O\
+ 	cgen.$O\
+ 	gsubr.$O\
+ 	peep.$O\
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/galign.c
+similarity index 100%
+rename from src/cmd/6g/align.c
+rename to src/cmd/6g/galign.c
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/ggen.c
+similarity index 100%
+rename from src/cmd/6g/gen.c
+rename to src/cmd/6g/ggen.c
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/gobj.c
+similarity index 100%
+rename from src/cmd/6g/obj.c
+rename to src/cmd/6g/gobj.c
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 8b4fc40f23..e20f0c75ce 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3970,9 +3970,11 @@ structlit(Node *n, Node *var)
+ 	r = listfirst(&saver, &n->left);
+ 	if(r != N && r->op == OEMPTY)
+ 		r = N;
++	if(r == N)
++		return var;
+ 
+ 	mixflag = 0;
+-	if(r != N && r->op == OKEY) {
++	if(r->op == OKEY) {
+ 		a = nod(OAS, var, N);
+ 		addtop = list(addtop, a);
+ 		goto loop2;
+@@ -4050,11 +4052,11 @@ arraylit(Node *n, Node *var)
+ 		r = N;
+ 
+ 	while(r != N) {
+-		b++;
+ 		if(r->op == OKEY) {
+ 			evconst(r->left);
+ 			b = nonnegconst(r->left);
+ 		}
++		b++;
+ 		if(b > ninit)
+ 			ninit = b;
+ 		r = listnext(&saver);
+@@ -4064,7 +4066,8 @@ arraylit(Node *n, Node *var)
+ 	if(b == -100) {
+ 		// flag for [...]
+ 		b = ninit;
+-		t = shallow(t);
++		if(var == N)
++			t = shallow(t);
+ 		t->bound = b;
+ 	}
+ 

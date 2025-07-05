@@ -9,9 +9,75 @@ Date:   Thu Nov 5 09:55:44 2015 +1300
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/build.go                | 4 ++--
  src/cmd/link/internal/ld/lib.go    | 2 +-
  src/cmd/link/internal/ld/symtab.go | 2 +-
  src/cmd/link/internal/ppc64/obj.go | 6 +++++-
  4 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 4c832d38d3..40e1e41e4e 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -391,7 +391,7 @@ func buildModeInit() {
+ 			codegenArg = "-fPIC"
+ 		} else {
+ 			switch platform {
+-			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
++			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+ 			}
+@@ -412,7 +412,7 @@ func buildModeInit() {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64", "linux/ppc64le":
+ 				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+-				fatalf("-buildmode=shared not supported on %s\n", platform)
++				fatalf("-linkshared not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
+ 			// TODO(mwhudson): remove -w when that gets fixed in linker.
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8101353485..e2ffa1a123 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -322,7 +322,7 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildmodeCShared
+ 	case "shared":
+-		if goos != "linux" || (goarch != "386" && goarch != "amd64" && goarch != "arm" && goarch != "arm64") {
++		if goos != "linux" || (goarch != "386" && goarch != "amd64" && goarch != "arm" && goarch != "arm64" && goarch != "ppc64le") {
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeShared
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 16b6ee1a55..3e6169e453 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -162,7 +162,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	if x.Type&obj.SHIDDEN != 0 {
+ 		other = STV_HIDDEN
+ 	}
+-	if Buildmode == BuildmodePIE && Thearch.Thechar == '9' && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
++	if (Buildmode == BuildmodePIE || DynlinkingGo()) && Thearch.Thechar == '9' && type_ == STT_FUNC && x.Name != "runtime.duffzero" && x.Name != "runtime.duffcopy" {
+ 		// On ppc64 the top three bits of the st_other field indicate how
+ 		// many instructions separate the global and local entry points. In
+ 		// our case it is two instructions, indicated by the value 3.
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 248c66e25b..c604d3b492 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -99,7 +99,11 @@ func archinit() {
+ 	}
+ 
+ 	switch ld.Buildmode {
+-	case ld.BuildmodePIE:
++	case ld.BuildmodePIE, ld.BuildmodeShared:
++		ld.Linkmode = ld.LinkExternal
++	}
++
++	if ld.Linkshared {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 

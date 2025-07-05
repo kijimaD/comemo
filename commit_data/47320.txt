@@ -19,9 +19,123 @@ Date:   Wed Mar 10 07:21:56 2021 -0700
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/syscall/exec_windows.go         |  3 +++
  src/syscall/syscall_windows.go      |  2 +-
  src/syscall/syscall_windows_test.go | 36 ------------------------------------
  src/syscall/types_windows.go        |  8 +-------
  4 files changed, 5 insertions(+), 44 deletions(-)
+
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index b20a27d28b..253e9e8c1f 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"runtime"
+ 	"sync"
+ 	"unicode/utf16"
+ 	"unsafe"
+@@ -368,6 +369,8 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 		return 0, 0, err
+ 	}
+ 	defer CloseHandle(Handle(pi.Thread))
++	runtime.KeepAlive(fd)
++	runtime.KeepAlive(sys)
+ 
+ 	return int(pi.ProcessId), uintptr(pi.Process), nil
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 05a7d3027d..65af6637ae 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -1257,7 +1257,7 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
+ 		return nil, err
+ 	}
+ 	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
+-	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]unsafe.Pointer, (size+ptrSize-1)/ptrSize)[0]))
++	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
+ 	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index d5e8d58b5a..a9ae54752b 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -7,11 +7,8 @@ package syscall_test
+ import (
+ 	"os"
+ 	"path/filepath"
+-	"runtime"
+ 	"syscall"
+ 	"testing"
+-	"time"
+-	"unsafe"
+ )
+ 
+ func TestWin32finddata(t *testing.T) {
+@@ -78,36 +75,3 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
+ 		t.Errorf("TOKEN_ALL_ACCESS = %x, want 0xF01FF", syscall.TOKEN_ALL_ACCESS)
+ 	}
+ }
+-
+-func TestProcThreadAttributeListPointers(t *testing.T) {
+-	list, err := syscall.NewProcThreadAttributeList(1)
+-	if err != nil {
+-		t.Errorf("unable to create ProcThreadAttributeList: %v", err)
+-	}
+-	done := make(chan struct{})
+-	fds := make([]syscall.Handle, 20)
+-	runtime.SetFinalizer(&fds[0], func(*syscall.Handle) {
+-		close(done)
+-	})
+-	err = syscall.UpdateProcThreadAttribute(list, 0, syscall.PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fds[0]), uintptr(len(fds))*unsafe.Sizeof(fds[0]), nil, nil)
+-	if err != nil {
+-		syscall.DeleteProcThreadAttributeList(list)
+-		t.Errorf("unable to update ProcThreadAttributeList: %v", err)
+-		return
+-	}
+-	runtime.GC()
+-	runtime.GC()
+-	select {
+-	case <-done:
+-		t.Error("ProcThreadAttributeList was garbage collected unexpectedly")
+-	default:
+-	}
+-	syscall.DeleteProcThreadAttributeList(list)
+-	runtime.GC()
+-	runtime.GC()
+-	select {
+-	case <-done:
+-	case <-time.After(time.Second):
+-		t.Error("ProcThreadAttributeList was not garbage collected after a second")
+-	}
+-}
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index 31fe7664c9..384b5b4f2c 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -4,8 +4,6 @@
+ 
+ package syscall
+ 
+-import "unsafe"
+-
+ const (
+ 	// Windows errors.
+ 	ERROR_FILE_NOT_FOUND      Errno = 2
+@@ -493,11 +491,7 @@ type StartupInfo struct {
+ }
+ 
+ type _PROC_THREAD_ATTRIBUTE_LIST struct {
+-	// This is of type unsafe.Pointer, not of type byte or uintptr, because
+-	// the contents of it is mostly a list of pointers, and in most cases,
+-	// that's a list of pointers to Go-allocated objects. In order to keep
+-	// the GC from collecting these objects, we declare this as unsafe.Pointer.
+-	_ [1]unsafe.Pointer
++	_ [1]byte
+ }
+ 
+ const (

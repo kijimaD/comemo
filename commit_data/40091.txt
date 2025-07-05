@@ -9,8 +9,57 @@ Date:   Tue Apr 16 21:39:00 2019 +0000
     Change-Id: Ia813a81d25603883114c4e4b6997eb560d6a3690
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172457
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/crypto/tls/handshake_messages.go | 2 +-
  src/crypto/x509/pkcs8.go             | 4 ++--
  src/crypto/x509/pkcs8_test.go        | 2 +-
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index 864fbd4757..2d21377737 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -320,7 +320,7 @@ func (m *clientHelloMsg) marshalWithoutBinders() []byte {
+ }
+ 
+ // updateBinders updates the m.pskBinders field, if necessary updating the
+-// cached marshalled representation. The supplied binders must have the same
++// cached marshaled representation. The supplied binders must have the same
+ // length as the current m.pskBinders.
+ func (m *clientHelloMsg) updateBinders(pskBinders [][]byte) {
+ 	if len(pskBinders) != len(m.pskBinders) {
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index bf3bd9e565..fa8d408228 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -80,7 +80,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
+ 	case *ecdsa.PrivateKey:
+ 		oid, ok := oidFromNamedCurve(k.Curve)
+ 		if !ok {
+-			return nil, errors.New("x509: unknown curve while marshalling to PKCS#8")
++			return nil, errors.New("x509: unknown curve while marshaling to PKCS#8")
+ 		}
+ 
+ 		oidBytes, err := asn1.Marshal(oid)
+@@ -100,7 +100,7 @@ func MarshalPKCS8PrivateKey(key interface{}) ([]byte, error) {
+ 		}
+ 
+ 	default:
+-		return nil, fmt.Errorf("x509: unknown key type while marshalling PKCS#8: %T", key)
++		return nil, fmt.Errorf("x509: unknown key type while marshaling PKCS#8: %T", key)
+ 	}
+ 
+ 	return asn1.Marshal(privKey)
+diff --git a/src/crypto/x509/pkcs8_test.go b/src/crypto/x509/pkcs8_test.go
+index 4a72cc0c5e..9e890c386e 100644
+--- a/src/crypto/x509/pkcs8_test.go
++++ b/src/crypto/x509/pkcs8_test.go
+@@ -103,7 +103,7 @@ func TestPKCS8(t *testing.T) {
+ 			continue
+ 		}
+ 		if !bytes.Equal(derBytes, reserialised) {
+-			t.Errorf("%s: marshalled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
++			t.Errorf("%s: marshaled PKCS#8 didn't match original: got %x, want %x", test.name, reserialised, derBytes)
+ 			continue
+ 		}
+ 	}

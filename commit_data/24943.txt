@@ -11,7 +11,7 @@ Date:   Wed Sep 2 10:35:54 2015 +1200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/a.out.go   | 10 +++++++
  src/cmd/internal/obj/arm/anames5.go |  2 ++
  src/cmd/internal/obj/arm/asm5.go    | 56 +++++++++++++++++++++++++++++++++++++
@@ -19,3 +19,272 @@ Date:   Wed Sep 2 10:35:54 2015 +1200
  src/cmd/link/internal/ld/data.go    | 33 ++++++++++++----------
  src/runtime/tls_arm.s               | 27 ++++++++----------
  6 files changed, 104 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 6c9cfd52d1..ca166e1317 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -155,6 +155,16 @@ const (
+ 	C_HREG
+ 
+ 	C_ADDR /* reference to relocatable address */
++
++	// TLS "var" in local exec mode: will become a constant offset from
++	// thread local base that is ultimately chosen by the program linker.
++	C_TLS_LE
++
++	// TLS "var" in initial exec mode: will become a memory address (chosen
++	// by the program linker) that the dynamic linker will fill with the
++	// offset from the thread local base.
++	C_TLS_IE
++
+ 	C_TEXTSIZE
+ 
+ 	C_GOK
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index 2e3a1f92dd..e3f98ce831 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -41,6 +41,8 @@ var cnames5 = []string{
+ 	"SP",
+ 	"HREG",
+ 	"ADDR",
++	"C_TLS_LE",
++	"C_TLS_IE",
+ 	"TEXTSIZE",
+ 	"GOK",
+ 	"NCLASS",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 12012965b1..60baa8d1d5 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -104,6 +104,8 @@ var optab = []Optab{
+ 	Optab{AWORD, C_NONE, C_NONE, C_LCON, 11, 4, 0, 0, 0},
+ 	Optab{AWORD, C_NONE, C_NONE, C_LCONADDR, 11, 4, 0, 0, 0},
+ 	Optab{AWORD, C_NONE, C_NONE, C_ADDR, 11, 4, 0, 0, 0},
++	Optab{AWORD, C_NONE, C_NONE, C_TLS_LE, 103, 4, 0, 0, 0},
++	Optab{AWORD, C_NONE, C_NONE, C_TLS_IE, 104, 4, 0, 0, 0},
+ 	Optab{AMOVW, C_NCON, C_NONE, C_REG, 12, 4, 0, 0, 0},
+ 	Optab{AMOVW, C_LCON, C_NONE, C_REG, 12, 4, 0, LFROM, 0},
+ 	Optab{AMOVW, C_LCONADDR, C_NONE, C_REG, 12, 4, 0, LFROM | LPCREL, 4},
+@@ -151,6 +153,8 @@ var optab = []Optab{
+ 	Optab{AMOVBU, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
+ 	Optab{AMOVBU, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+ 	Optab{AMOVBU, C_REG, C_NONE, C_ADDR, 64, 8, 0, LTO | LPCREL, 4},
++	Optab{AMOVW, C_TLS_LE, C_NONE, C_REG, 101, 4, 0, LFROM, 0},
++	Optab{AMOVW, C_TLS_IE, C_NONE, C_REG, 102, 8, 0, LFROM, 0},
+ 	Optab{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
+ 	Optab{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+ 	Optab{AMOVW, C_ADDR, C_NONE, C_REG, 65, 8, 0, LFROM | LPCREL, 4},
+@@ -1016,6 +1020,14 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 
+ 			ctxt.Instoffset = 0 // s.b. unused but just in case
++			if a.Sym.Type == obj.STLSBSS {
++				if ctxt.Flag_shared != 0 {
++					return C_TLS_IE
++				} else {
++					return C_TLS_LE
++				}
++			}
++
+ 			return C_ADDR
+ 
+ 		case obj.NAME_AUTO:
+@@ -2037,6 +2049,50 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			o2 = oprrr(ctxt, AADD, int(p.Scond)) | REGTMP&15 | (REGPC&15)<<16 | (REGTMP&15)<<12
+ 		}
+ 
++	case 101: /* movw tlsvar,R, local exec*/
++		if p.Scond&C_SCOND != C_SCOND_NONE {
++			ctxt.Diag("conditional tls")
++		}
++		o1 = omvl(ctxt, p, &p.From, int(p.To.Reg))
++
++	case 102: /* movw tlsvar,R, initial exec*/
++		if p.Scond&C_SCOND != C_SCOND_NONE {
++			ctxt.Diag("conditional tls")
++		}
++		o1 = omvl(ctxt, p, &p.From, int(p.To.Reg))
++		o2 = olrr(ctxt, int(p.To.Reg)&15, (REGPC & 15), int(p.To.Reg), int(p.Scond))
++
++	case 103: /* word tlsvar, local exec */
++		if p.To.Sym == nil {
++			ctxt.Diag("nil sym in tls %v", p)
++		}
++		if p.To.Offset != 0 {
++			ctxt.Diag("offset against tls var in %v", p)
++		}
++		// This case happens with words generated in the PC stream as part of
++		// the literal pool.
++		rel := obj.Addrel(ctxt.Cursym)
++
++		rel.Off = int32(ctxt.Pc)
++		rel.Siz = 4
++		rel.Sym = p.To.Sym
++		rel.Type = obj.R_TLS_LE
++		o1 = 0
++
++	case 104: /* word tlsvar, initial exec */
++		if p.To.Sym == nil {
++			ctxt.Diag("nil sym in tls %v", p)
++		}
++		if p.To.Offset != 0 {
++			ctxt.Diag("offset against tls var in %v", p)
++		}
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc)
++		rel.Siz = 4
++		rel.Sym = p.To.Sym
++		rel.Type = obj.R_TLS_IE
++		rel.Add = ctxt.Pc - p.Rel.Pc - 8 - int64(rel.Siz)
++
+ 	case 68: /* floating point store -> ADDR */
+ 		o1 = omvl(ctxt, p, &p.To, REGTMP)
+ 
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index a0e31a3c49..848d0963ce 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -233,6 +233,12 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 		} else {
+ 			return -1
+ 		}
++
++	case obj.R_TLS_LE:
++		ld.Thearch.Lput(ld.R_ARM_TLS_LE32 | uint32(elfsym)<<8)
++
++	case obj.R_TLS_IE:
++		ld.Thearch.Lput(ld.R_ARM_TLS_IE32 | uint32(elfsym)<<8)
+ 	}
+ 
+ 	return 0
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 4263e8cf26..b8cf5b9fc2 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -395,15 +395,7 @@ func relocsym(s *LSym) {
+ 				break
+ 			}
+ 			if Linkmode == LinkInternal && Iself && Thearch.Thechar == '5' {
+-				// On ELF ARM, the thread pointer is 8 bytes before
+-				// the start of the thread-local data block, so add 8
+-				// to the actual TLS offset (r->sym->value).
+-				// This 8 seems to be a fundamental constant of
+-				// ELF on ARM (or maybe Glibc on ARM); it is not
+-				// related to the fact that our own TLS storage happens
+-				// to take up 8 bytes.
+-				o = 8 + r.Sym.Value
+-
++				panic("should no longer get here")
+ 				break
+ 			}
+ 
+@@ -416,8 +408,10 @@ func relocsym(s *LSym) {
+ 		case obj.R_TLS_LE:
+ 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+ 				r.Done = 0
+-				r.Sym = Ctxt.Tlsg
+-				r.Xsym = Ctxt.Tlsg
++				if r.Sym == nil {
++					r.Sym = Ctxt.Tlsg
++				}
++				r.Xsym = r.Sym
+ 				r.Xadd = r.Add
+ 				o = 0
+ 				if Thearch.Thechar != '6' {
+@@ -426,7 +420,16 @@ func relocsym(s *LSym) {
+ 				break
+ 			}
+ 
+-			if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
++			if Iself && Thearch.Thechar == '5' {
++				// On ELF ARM, the thread pointer is 8 bytes before
++				// the start of the thread-local data block, so add 8
++				// to the actual TLS offset (r->sym->value).
++				// This 8 seems to be a fundamental constant of
++				// ELF on ARM (or maybe Glibc on ARM); it is not
++				// related to the fact that our own TLS storage happens
++				// to take up 8 bytes.
++				o = 8 + r.Sym.Value
++			} else if Iself || Ctxt.Headtype == obj.Hplan9 || Ctxt.Headtype == obj.Hdarwin {
+ 				o = int64(Ctxt.Tlsoffset) + r.Add
+ 			} else if Ctxt.Headtype == obj.Hwindows {
+ 				o = r.Add
+@@ -437,8 +440,10 @@ func relocsym(s *LSym) {
+ 		case obj.R_TLS_IE:
+ 			if Linkmode == LinkExternal && Iself && HEADTYPE != obj.Hopenbsd {
+ 				r.Done = 0
+-				r.Sym = Ctxt.Tlsg
+-				r.Xsym = Ctxt.Tlsg
++				if r.Sym == nil {
++					r.Sym = Ctxt.Tlsg
++				}
++				r.Xsym = r.Sym
+ 				r.Xadd = r.Add
+ 				o = 0
+ 				if Thearch.Thechar != '6' {
+diff --git a/src/runtime/tls_arm.s b/src/runtime/tls_arm.s
+index d37970e1f8..4ff0ae4ccc 100644
+--- a/src/runtime/tls_arm.s
++++ b/src/runtime/tls_arm.s
+@@ -15,7 +15,7 @@
+ // Note: both functions will clobber R0 and R11 and
+ // can be called from 5c ABI code.
+ 
+-// On android and darwin, runtime.tlsg is a normal variable.
++// On android and darwin, runtime.tls_g is a normal variable.
+ // TLS offset is computed in x_cgo_inittls.
+ #ifdef GOOS_android
+ #define TLSG_IS_VARIABLE
+@@ -41,14 +41,7 @@ TEXT runtime·save_g(SB),NOSPLIT,$-4
+ 	// The replacement function saves LR in R11 over the call to read_tls_fallback.
+ 	MRC	15, 0, R0, C13, C0, 3 // fetch TLS base pointer
+ 	BIC $3, R0 // Darwin/ARM might return unaligned pointer
+-	// $runtime.tlsg(SB) is a special linker symbol.
+-	// It is the offset from the TLS base pointer to our
+-	// thread-local storage for g.
+-#ifdef TLSG_IS_VARIABLE
+-	MOVW	runtime·tlsg(SB), R11
+-#else
+-	MOVW	$runtime·tlsg(SB), R11
+-#endif
++	MOVW	runtime·tls_g(SB), R11
+ 	ADD	R11, R0
+ 	MOVW	g, 0(R0)
+ 	MOVW	g, R0 // preserve R0 across call to setg<>
+@@ -68,11 +61,7 @@ TEXT runtime·load_g(SB),NOSPLIT,$0
+ 	// $runtime.tlsg(SB) is a special linker symbol.
+ 	// It is the offset from the TLS base pointer to our
+ 	// thread-local storage for g.
+-#ifdef TLSG_IS_VARIABLE
+-	MOVW	runtime·tlsg(SB), R11
+-#else
+-	MOVW	$runtime·tlsg(SB), R11
+-#endif
++	MOVW	runtime·tls_g(SB), R11
+ 	ADD	R11, R0
+ 	MOVW	0(R0), g
+ 	RET
+@@ -95,7 +84,11 @@ TEXT runtime·_initcgo(SB),NOSPLIT,$4
+ 	B.EQ	nocgo
+ 	MRC     15, 0, R0, C13, C0, 3 	// load TLS base pointer
+ 	MOVW 	R0, R3 			// arg 3: TLS base pointer
+-	MOVW 	$runtime·tlsg(SB), R2 	// arg 2: tlsg
++#ifdef TLSG_IS_VARIABLE
++	MOVW 	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
++#else
++        MOVW	$0, R2			// arg 2: not used when using platform tls
++#endif
+ 	MOVW	$setg_gcc<>(SB), R1 	// arg 1: setg
+ 	MOVW	g, R0 			// arg 0: G
+ 	BL	(R4) // will clobber R0-R3
+@@ -109,5 +102,7 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0
+ 	B		runtime·save_g(SB)
+ 
+ #ifdef TLSG_IS_VARIABLE
+-GLOBL runtime·tlsg+0(SB), NOPTR, $4
++GLOBL runtime·tls_g+0(SB), NOPTR, $4
++#else
++GLOBL runtime·tls_g+0(SB), TLSBSS, $4
+ #endif

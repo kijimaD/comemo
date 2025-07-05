@@ -8,7 +8,7 @@ Date:   Tue Jan 11 13:44:00 2011 -0800
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/3889043
-
+---
  src/pkg/gob/codec_test.go   | 486 +++++++++++++++++++++++---------------------
  src/pkg/gob/debug.go        |  66 +++---
  src/pkg/gob/decode.go       |  73 ++++---
@@ -17,3 +17,1702 @@ Date:   Tue Jan 11 13:44:00 2011 -0800
  src/pkg/gob/encoder_test.go |  68 +++----
  src/pkg/gob/type.go         | 116 +++++------
  7 files changed, 457 insertions(+), 407 deletions(-)
+
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index 3fe5fe2b00..686fd2d748 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -599,35 +599,35 @@ func TestScalarDecInstructions(t *testing.T) {
+ 
+ func TestEndToEnd(t *testing.T) {
+ 	type T2 struct {
+-		t string
++		T string
+ 	}
+ 	s1 := "string1"
+ 	s2 := "string2"
+ 	type T1 struct {
+-		a, b, c int
+-		m       map[string]*float
+-		n       *[3]float
+-		strs    *[2]string
+-		int64s  *[]int64
+-		ri      complex64
+-		s       string
+-		y       []byte
+-		t       *T2
++		A, B, C int
++		M       map[string]*float
++		N       *[3]float
++		Strs    *[2]string
++		Int64s  *[]int64
++		RI      complex64
++		S       string
++		Y       []byte
++		T       *T2
+ 	}
+ 	pi := 3.14159
+ 	e := 2.71828
+ 	t1 := &T1{
+-		a:      17,
+-		b:      18,
+-		c:      -5,
+-		m:      map[string]*float{"pi": &pi, "e": &e},
+-		n:      &[3]float{1.5, 2.5, 3.5},
+-		strs:   &[2]string{s1, s2},
+-		int64s: &[]int64{77, 89, 123412342134},
+-		ri:     17 - 23i,
+-		s:      "Now is the time",
+-		y:      []byte("hello, sailor"),
+-		t:      &T2{"this is T2"},
++		A:      17,
++		B:      18,
++		C:      -5,
++		M:      map[string]*float{"pi": &pi, "e": &e},
++		N:      &[3]float{1.5, 2.5, 3.5},
++		Strs:   &[2]string{s1, s2},
++		Int64s: &[]int64{77, 89, 123412342134},
++		RI:     17 - 23i,
++		S:      "Now is the time",
++		Y:      []byte("hello, sailor"),
++		T:      &T2{"this is T2"},
+ 	}
+ 	b := new(bytes.Buffer)
+ 	err := NewEncoder(b).Encode(t1)
+@@ -646,13 +646,13 @@ func TestEndToEnd(t *testing.T) {
+ 
+ func TestOverflow(t *testing.T) {
+ 	type inputT struct {
+-		maxi int64
+-		mini int64
+-		maxu uint64
+-		maxf float64
+-		minf float64
+-		maxc complex128
+-		minc complex128
++		Maxi int64
++		Mini int64
++		Maxu uint64
++		Maxf float64
++		Minf float64
++		Maxc complex128
++		Minc complex128
+ 	}
+ 	var it inputT
+ 	var err os.Error
+@@ -663,152 +663,152 @@ func TestOverflow(t *testing.T) {
+ 	// int8
+ 	b.Reset()
+ 	it = inputT{
+-		maxi: math.MaxInt8 + 1,
++		Maxi: math.MaxInt8 + 1,
+ 	}
+ 	type outi8 struct {
+-		maxi int8
+-		mini int8
++		Maxi int8
++		Mini int8
+ 	}
+ 	var o1 outi8
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o1)
+-	if err == nil || err.String() != `value for "maxi" out of range` {
++	if err == nil || err.String() != `value for "Maxi" out of range` {
+ 		t.Error("wrong overflow error for int8:", err)
+ 	}
+ 	it = inputT{
+-		mini: math.MinInt8 - 1,
++		Mini: math.MinInt8 - 1,
+ 	}
+ 	b.Reset()
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o1)
+-	if err == nil || err.String() != `value for "mini" out of range` {
++	if err == nil || err.String() != `value for "Mini" out of range` {
+ 		t.Error("wrong underflow error for int8:", err)
+ 	}
+ 
+ 	// int16
+ 	b.Reset()
+ 	it = inputT{
+-		maxi: math.MaxInt16 + 1,
++		Maxi: math.MaxInt16 + 1,
+ 	}
+ 	type outi16 struct {
+-		maxi int16
+-		mini int16
++		Maxi int16
++		Mini int16
+ 	}
+ 	var o2 outi16
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o2)
+-	if err == nil || err.String() != `value for "maxi" out of range` {
++	if err == nil || err.String() != `value for "Maxi" out of range` {
+ 		t.Error("wrong overflow error for int16:", err)
+ 	}
+ 	it = inputT{
+-		mini: math.MinInt16 - 1,
++		Mini: math.MinInt16 - 1,
+ 	}
+ 	b.Reset()
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o2)
+-	if err == nil || err.String() != `value for "mini" out of range` {
++	if err == nil || err.String() != `value for "Mini" out of range` {
+ 		t.Error("wrong underflow error for int16:", err)
+ 	}
+ 
+ 	// int32
+ 	b.Reset()
+ 	it = inputT{
+-		maxi: math.MaxInt32 + 1,
++		Maxi: math.MaxInt32 + 1,
+ 	}
+ 	type outi32 struct {
+-		maxi int32
+-		mini int32
++		Maxi int32
++		Mini int32
+ 	}
+ 	var o3 outi32
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o3)
+-	if err == nil || err.String() != `value for "maxi" out of range` {
++	if err == nil || err.String() != `value for "Maxi" out of range` {
+ 		t.Error("wrong overflow error for int32:", err)
+ 	}
+ 	it = inputT{
+-		mini: math.MinInt32 - 1,
++		Mini: math.MinInt32 - 1,
+ 	}
+ 	b.Reset()
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o3)
+-	if err == nil || err.String() != `value for "mini" out of range` {
++	if err == nil || err.String() != `value for "Mini" out of range` {
+ 		t.Error("wrong underflow error for int32:", err)
+ 	}
+ 
+ 	// uint8
+ 	b.Reset()
+ 	it = inputT{
+-		maxu: math.MaxUint8 + 1,
++		Maxu: math.MaxUint8 + 1,
+ 	}
+ 	type outu8 struct {
+-		maxu uint8
++		Maxu uint8
+ 	}
+ 	var o4 outu8
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o4)
+-	if err == nil || err.String() != `value for "maxu" out of range` {
++	if err == nil || err.String() != `value for "Maxu" out of range` {
+ 		t.Error("wrong overflow error for uint8:", err)
+ 	}
+ 
+ 	// uint16
+ 	b.Reset()
+ 	it = inputT{
+-		maxu: math.MaxUint16 + 1,
++		Maxu: math.MaxUint16 + 1,
+ 	}
+ 	type outu16 struct {
+-		maxu uint16
++		Maxu uint16
+ 	}
+ 	var o5 outu16
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o5)
+-	if err == nil || err.String() != `value for "maxu" out of range` {
++	if err == nil || err.String() != `value for "Maxu" out of range` {
+ 		t.Error("wrong overflow error for uint16:", err)
+ 	}
+ 
+ 	// uint32
+ 	b.Reset()
+ 	it = inputT{
+-		maxu: math.MaxUint32 + 1,
++		Maxu: math.MaxUint32 + 1,
+ 	}
+ 	type outu32 struct {
+-		maxu uint32
++		Maxu uint32
+ 	}
+ 	var o6 outu32
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o6)
+-	if err == nil || err.String() != `value for "maxu" out of range` {
++	if err == nil || err.String() != `value for "Maxu" out of range` {
+ 		t.Error("wrong overflow error for uint32:", err)
+ 	}
+ 
+ 	// float32
+ 	b.Reset()
+ 	it = inputT{
+-		maxf: math.MaxFloat32 * 2,
++		Maxf: math.MaxFloat32 * 2,
+ 	}
+ 	type outf32 struct {
+-		maxf float32
+-		minf float32
++		Maxf float32
++		Minf float32
+ 	}
+ 	var o7 outf32
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o7)
+-	if err == nil || err.String() != `value for "maxf" out of range` {
++	if err == nil || err.String() != `value for "Maxf" out of range` {
+ 		t.Error("wrong overflow error for float32:", err)
+ 	}
+ 
+ 	// complex64
+ 	b.Reset()
+ 	it = inputT{
+-		maxc: cmplx(math.MaxFloat32*2, math.MaxFloat32*2),
++		Maxc: cmplx(math.MaxFloat32*2, math.MaxFloat32*2),
+ 	}
+ 	type outc64 struct {
+-		maxc complex64
+-		minc complex64
++		Maxc complex64
++		Minc complex64
+ 	}
+ 	var o8 outc64
+ 	enc.Encode(it)
+ 	err = dec.Decode(&o8)
+-	if err == nil || err.String() != `value for "maxc" out of range` {
++	if err == nil || err.String() != `value for "Maxc" out of range` {
+ 		t.Error("wrong overflow error for complex64:", err)
+ 	}
+ }
+@@ -816,92 +816,92 @@ func TestOverflow(t *testing.T) {
+ 
+ func TestNesting(t *testing.T) {
+ 	type RT struct {
+-		a    string
+-		next *RT
++		A    string
++		Next *RT
+ 	}
+ 	rt := new(RT)
+-	rt.a = "level1"
+-	rt.next = new(RT)
+-	rt.next.a = "level2"
++	rt.A = "level1"
++	rt.Next = new(RT)
++	rt.Next.A = "level2"
+ 	b := new(bytes.Buffer)
+ 	NewEncoder(b).Encode(rt)
+ 	var drt RT
+ 	dec := NewDecoder(b)
+ 	err := dec.Decode(&drt)
+ 	if err != nil {
+-		t.Error("decoder error:", err)
++		t.Fatal("decoder error:", err)
+ 	}
+-	if drt.a != rt.a {
++	if drt.A != rt.A {
+ 		t.Errorf("nesting: encode expected %v got %v", *rt, drt)
+ 	}
+-	if drt.next == nil {
++	if drt.Next == nil {
+ 		t.Errorf("nesting: recursion failed")
+ 	}
+-	if drt.next.a != rt.next.a {
+-		t.Errorf("nesting: encode expected %v got %v", *rt.next, *drt.next)
++	if drt.Next.A != rt.Next.A {
++		t.Errorf("nesting: encode expected %v got %v", *rt.Next, *drt.Next)
+ 	}
+ }
+ 
+ // These three structures have the same data with different indirections
+ type T0 struct {
+-	a int
+-	b int
+-	c int
+-	d int
++	A int
++	B int
++	C int
++	D int
+ }
+ type T1 struct {
+-	a int
+-	b *int
+-	c **int
+-	d ***int
++	A int
++	B *int
++	C **int
++	D ***int
+ }
+ type T2 struct {
+-	a ***int
+-	b **int
+-	c *int
+-	d int
++	A ***int
++	B **int
++	C *int
++	D int
+ }
+ 
+ func TestAutoIndirection(t *testing.T) {
+ 	// First transfer t1 into t0
+ 	var t1 T1
+-	t1.a = 17
+-	t1.b = new(int)
+-	*t1.b = 177
+-	t1.c = new(*int)
+-	*t1.c = new(int)
+-	**t1.c = 1777
+-	t1.d = new(**int)
+-	*t1.d = new(*int)
+-	**t1.d = new(int)
+-	***t1.d = 17777
++	t1.A = 17
++	t1.B = new(int)
++	*t1.B = 177
++	t1.C = new(*int)
++	*t1.C = new(int)
++	**t1.C = 1777
++	t1.D = new(**int)
++	*t1.D = new(*int)
++	**t1.D = new(int)
++	***t1.D = 17777
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+ 	enc.Encode(t1)
+ 	dec := NewDecoder(b)
+ 	var t0 T0
+ 	dec.Decode(&t0)
+-	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
++	if t0.A != 17 || t0.B != 177 || t0.C != 1777 || t0.D != 17777 {
+ 		t.Errorf("t1->t0: expected {17 177 1777 17777}; got %v", t0)
+ 	}
+ 
+ 	// Now transfer t2 into t0
+ 	var t2 T2
+-	t2.d = 17777
+-	t2.c = new(int)
+-	*t2.c = 1777
+-	t2.b = new(*int)
+-	*t2.b = new(int)
+-	**t2.b = 177
+-	t2.a = new(**int)
+-	*t2.a = new(*int)
+-	**t2.a = new(int)
+-	***t2.a = 17
++	t2.D = 17777
++	t2.C = new(int)
++	*t2.C = 1777
++	t2.B = new(*int)
++	*t2.B = new(int)
++	**t2.B = 177
++	t2.A = new(**int)
++	*t2.A = new(*int)
++	**t2.A = new(int)
++	***t2.A = 17
+ 	b.Reset()
+ 	enc.Encode(t2)
+ 	t0 = T0{}
+ 	dec.Decode(&t0)
+-	if t0.a != 17 || t0.b != 177 || t0.c != 1777 || t0.d != 17777 {
++	if t0.A != 17 || t0.B != 177 || t0.C != 1777 || t0.D != 17777 {
+ 		t.Errorf("t2->t0 expected {17 177 1777 17777}; got %v", t0)
+ 	}
+ 
+@@ -911,8 +911,8 @@ func TestAutoIndirection(t *testing.T) {
+ 	enc.Encode(t0)
+ 	t1 = T1{}
+ 	dec.Decode(&t1)
+-	if t1.a != 17 || *t1.b != 177 || **t1.c != 1777 || ***t1.d != 17777 {
+-		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.a, *t1.b, **t1.c, ***t1.d)
++	if t1.A != 17 || *t1.B != 177 || **t1.C != 1777 || ***t1.D != 17777 {
++		t.Errorf("t0->t1 expected {17 177 1777 17777}; got {%d %d %d %d}", t1.A, *t1.B, **t1.C, ***t1.D)
+ 	}
+ 
+ 	// Now transfer t0 into t2
+@@ -920,40 +920,40 @@ func TestAutoIndirection(t *testing.T) {
+ 	enc.Encode(t0)
+ 	t2 = T2{}
+ 	dec.Decode(&t2)
+-	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
+-		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
++	if ***t2.A != 17 || **t2.B != 177 || *t2.C != 1777 || t2.D != 17777 {
++		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.A, **t2.B, *t2.C, t2.D)
+ 	}
+ 
+ 	// Now do t2 again but without pre-allocated pointers.
+ 	b.Reset()
+ 	enc.Encode(t0)
+-	***t2.a = 0
+-	**t2.b = 0
+-	*t2.c = 0
+-	t2.d = 0
++	***t2.A = 0
++	**t2.B = 0
++	*t2.C = 0
++	t2.D = 0
+ 	dec.Decode(&t2)
+-	if ***t2.a != 17 || **t2.b != 177 || *t2.c != 1777 || t2.d != 17777 {
+-		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.a, **t2.b, *t2.c, t2.d)
++	if ***t2.A != 17 || **t2.B != 177 || *t2.C != 1777 || t2.D != 17777 {
++		t.Errorf("t0->t2 expected {17 177 1777 17777}; got {%d %d %d %d}", ***t2.A, **t2.B, *t2.C, t2.D)
+ 	}
+ }
+ 
+ type RT0 struct {
+-	a int
+-	b string
+-	c float
++	A int
++	B string
++	C float
+ }
+ type RT1 struct {
+-	c      float
+-	b      string
+-	a      int
+-	notSet string
++	C      float
++	B      string
++	A      int
++	NotSet string
+ }
+ 
+ func TestReorderedFields(t *testing.T) {
+ 	var rt0 RT0
+-	rt0.a = 17
+-	rt0.b = "hello"
+-	rt0.c = 3.14159
++	rt0.A = 17
++	rt0.B = "hello"
++	rt0.C = 3.14159
+ 	b := new(bytes.Buffer)
+ 	NewEncoder(b).Encode(rt0)
+ 	dec := NewDecoder(b)
+@@ -961,41 +961,41 @@ func TestReorderedFields(t *testing.T) {
+ 	// Wire type is RT0, local type is RT1.
+ 	err := dec.Decode(&rt1)
+ 	if err != nil {
+-		t.Error("decode error:", err)
++		t.Fatal("decode error:", err)
+ 	}
+-	if rt0.a != rt1.a || rt0.b != rt1.b || rt0.c != rt1.c {
++	if rt0.A != rt1.A || rt0.B != rt1.B || rt0.C != rt1.C {
+ 		t.Errorf("rt1->rt0: expected %v; got %v", rt0, rt1)
+ 	}
+ }
+ 
+ // Like an RT0 but with fields we'll ignore on the decode side.
+ type IT0 struct {
+-	a        int64
+-	b        string
+-	ignore_d []int
+-	ignore_e [3]float
+-	ignore_f bool
+-	ignore_g string
+-	ignore_h []byte
+-	ignore_i *RT1
+-	ignore_m map[string]int
+-	c        float
++	A        int64
++	B        string
++	Ignore_d []int
++	Ignore_e [3]float
++	Ignore_f bool
++	Ignore_g string
++	Ignore_h []byte
++	Ignore_i *RT1
++	Ignore_m map[string]int
++	C        float
+ }
+ 
+ func TestIgnoredFields(t *testing.T) {
+ 	var it0 IT0
+-	it0.a = 17
+-	it0.b = "hello"
+-	it0.c = 3.14159
+-	it0.ignore_d = []int{1, 2, 3}
+-	it0.ignore_e[0] = 1.0
+-	it0.ignore_e[1] = 2.0
+-	it0.ignore_e[2] = 3.0
+-	it0.ignore_f = true
+-	it0.ignore_g = "pay no attention"
+-	it0.ignore_h = []byte("to the curtain")
+-	it0.ignore_i = &RT1{3.1, "hi", 7, "hello"}
+-	it0.ignore_m = map[string]int{"one": 1, "two": 2}
++	it0.A = 17
++	it0.B = "hello"
++	it0.C = 3.14159
++	it0.Ignore_d = []int{1, 2, 3}
++	it0.Ignore_e[0] = 1.0
++	it0.Ignore_e[1] = 2.0
++	it0.Ignore_e[2] = 3.0
++	it0.Ignore_f = true
++	it0.Ignore_g = "pay no attention"
++	it0.Ignore_h = []byte("to the curtain")
++	it0.Ignore_i = &RT1{3.1, "hi", 7, "hello"}
++	it0.Ignore_m = map[string]int{"one": 1, "two": 2}
+ 
+ 	b := new(bytes.Buffer)
+ 	NewEncoder(b).Encode(it0)
+@@ -1006,8 +1006,8 @@ func TestIgnoredFields(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("error: ", err)
+ 	}
+-	if int(it0.a) != rt1.a || it0.b != rt1.b || it0.c != rt1.c {
+-		t.Errorf("rt1->rt0: expected %v; got %v", it0, rt1)
++	if int(it0.A) != rt1.A || it0.B != rt1.B || it0.C != rt1.C {
++		t.Errorf("rt0->rt1: expected %v; got %v", it0, rt1)
+ 	}
+ }
+ 
+@@ -1031,33 +1031,33 @@ func TestInvalidField(t *testing.T) {
+ }
+ 
+ type Indirect struct {
+-	a ***[3]int
+-	s ***[]int
+-	m ****map[string]int
++	A ***[3]int
++	S ***[]int
++	M ****map[string]int
+ }
+ 
+ type Direct struct {
+-	a [3]int
+-	s []int
+-	m map[string]int
++	A [3]int
++	S []int
++	M map[string]int
+ }
+ 
+ func TestIndirectSliceMapArray(t *testing.T) {
+ 	// Marshal indirect, unmarshal to direct.
+ 	i := new(Indirect)
+-	i.a = new(**[3]int)
+-	*i.a = new(*[3]int)
+-	**i.a = new([3]int)
+-	***i.a = [3]int{1, 2, 3}
+-	i.s = new(**[]int)
+-	*i.s = new(*[]int)
+-	**i.s = new([]int)
+-	***i.s = []int{4, 5, 6}
+-	i.m = new(***map[string]int)
+-	*i.m = new(**map[string]int)
+-	**i.m = new(*map[string]int)
+-	***i.m = new(map[string]int)
+-	****i.m = map[string]int{"one": 1, "two": 2, "three": 3}
++	i.A = new(**[3]int)
++	*i.A = new(*[3]int)
++	**i.A = new([3]int)
++	***i.A = [3]int{1, 2, 3}
++	i.S = new(**[]int)
++	*i.S = new(*[]int)
++	**i.S = new([]int)
++	***i.S = []int{4, 5, 6}
++	i.M = new(***map[string]int)
++	*i.M = new(**map[string]int)
++	**i.M = new(*map[string]int)
++	***i.M = new(map[string]int)
++	****i.M = map[string]int{"one": 1, "two": 2, "three": 3}
+ 	b := new(bytes.Buffer)
+ 	NewEncoder(b).Encode(i)
+ 	dec := NewDecoder(b)
+@@ -1066,35 +1066,35 @@ func TestIndirectSliceMapArray(t *testing.T) {
+ 	if err != nil {
+ 		t.Error("error: ", err)
+ 	}
+-	if len(d.a) != 3 || d.a[0] != 1 || d.a[1] != 2 || d.a[2] != 3 {
+-		t.Errorf("indirect to direct: d.a is %v not %v", d.a, ***i.a)
++	if len(d.A) != 3 || d.A[0] != 1 || d.A[1] != 2 || d.A[2] != 3 {
++		t.Errorf("indirect to direct: d.A is %v not %v", d.A, ***i.A)
+ 	}
+-	if len(d.s) != 3 || d.s[0] != 4 || d.s[1] != 5 || d.s[2] != 6 {
+-		t.Errorf("indirect to direct: d.s is %v not %v", d.s, ***i.s)
++	if len(d.S) != 3 || d.S[0] != 4 || d.S[1] != 5 || d.S[2] != 6 {
++		t.Errorf("indirect to direct: d.S is %v not %v", d.S, ***i.S)
+ 	}
+-	if len(d.m) != 3 || d.m["one"] != 1 || d.m["two"] != 2 || d.m["three"] != 3 {
+-		t.Errorf("indirect to direct: d.m is %v not %v", d.m, ***i.m)
++	if len(d.M) != 3 || d.M["one"] != 1 || d.M["two"] != 2 || d.M["three"] != 3 {
++		t.Errorf("indirect to direct: d.M is %v not %v", d.M, ***i.M)
+ 	}
+ 	// Marshal direct, unmarshal to indirect.
+-	d.a = [3]int{11, 22, 33}
+-	d.s = []int{44, 55, 66}
+-	d.m = map[string]int{"four": 4, "five": 5, "six": 6}
++	d.A = [3]int{11, 22, 33}
++	d.S = []int{44, 55, 66}
++	d.M = map[string]int{"four": 4, "five": 5, "six": 6}
+ 	i = new(Indirect)
+ 	b.Reset()
+ 	NewEncoder(b).Encode(d)
+ 	dec = NewDecoder(b)
+ 	err = dec.Decode(&i)
+ 	if err != nil {
+-		t.Error("error: ", err)
++		t.Fatal("error: ", err)
+ 	}
+-	if len(***i.a) != 3 || (***i.a)[0] != 11 || (***i.a)[1] != 22 || (***i.a)[2] != 33 {
+-		t.Errorf("direct to indirect: ***i.a is %v not %v", ***i.a, d.a)
++	if len(***i.A) != 3 || (***i.A)[0] != 11 || (***i.A)[1] != 22 || (***i.A)[2] != 33 {
++		t.Errorf("direct to indirect: ***i.A is %v not %v", ***i.A, d.A)
+ 	}
+-	if len(***i.s) != 3 || (***i.s)[0] != 44 || (***i.s)[1] != 55 || (***i.s)[2] != 66 {
+-		t.Errorf("direct to indirect: ***i.s is %v not %v", ***i.s, ***i.s)
++	if len(***i.S) != 3 || (***i.S)[0] != 44 || (***i.S)[1] != 55 || (***i.S)[2] != 66 {
++		t.Errorf("direct to indirect: ***i.S is %v not %v", ***i.S, ***i.S)
+ 	}
+-	if len(****i.m) != 3 || (****i.m)["four"] != 4 || (****i.m)["five"] != 5 || (****i.m)["six"] != 6 {
+-		t.Errorf("direct to indirect: ****i.m is %v not %v", ****i.m, d.m)
++	if len(****i.M) != 3 || (****i.M)["four"] != 4 || (****i.M)["five"] != 5 || (****i.M)["six"] != 6 {
++		t.Errorf("direct to indirect: ****i.M is %v not %v", ****i.M, d.M)
+ 	}
+ }
+ 
+@@ -1135,16 +1135,16 @@ func (p Point) Square() int {
+ 
+ // A struct with interfaces in it.
+ type InterfaceItem struct {
+-	i             int
+-	sq1, sq2, sq3 Squarer
+-	f             float
+-	sq            []Squarer
++	I             int
++	Sq1, Sq2, Sq3 Squarer
++	F             float
++	Sq            []Squarer
+ }
+ 
+ // The same struct without interfaces
+ type NoInterfaceItem struct {
+-	i int
+-	f float
++	I int
++	F float
+ }
+ 
+ func TestInterface(t *testing.T) {
+@@ -1169,27 +1169,27 @@ func TestInterface(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("decode:", err)
+ 	}
+-	if item2.i != item1.i {
++	if item2.I != item1.I {
+ 		t.Error("normal int did not decode correctly")
+ 	}
+-	if item2.sq1 == nil || item2.sq1.Square() != iVal.Square() {
++	if item2.Sq1 == nil || item2.Sq1.Square() != iVal.Square() {
+ 		t.Error("Int did not decode correctly")
+ 	}
+-	if item2.sq2 == nil || item2.sq2.Square() != fVal.Square() {
++	if item2.Sq2 == nil || item2.Sq2.Square() != fVal.Square() {
+ 		t.Error("Float did not decode correctly")
+ 	}
+-	if item2.sq3 == nil || item2.sq3.Square() != vVal.Square() {
++	if item2.Sq3 == nil || item2.Sq3.Square() != vVal.Square() {
+ 		t.Error("Vector did not decode correctly")
+ 	}
+-	if item2.f != item1.f {
++	if item2.F != item1.F {
+ 		t.Error("normal float did not decode correctly")
+ 	}
+ 	// Now check that we received a slice of Squarers correctly, including a nil element
+-	if len(item1.sq) != len(item2.sq) {
+-		t.Fatalf("[]Squarer length wrong: got %d; expected %d", len(item2.sq), len(item1.sq))
++	if len(item1.Sq) != len(item2.Sq) {
++		t.Fatalf("[]Squarer length wrong: got %d; expected %d", len(item2.Sq), len(item1.Sq))
+ 	}
+-	for i, v1 := range item1.sq {
+-		v2 := item2.sq[i]
++	for i, v1 := range item1.Sq {
++		v2 := item2.Sq[i]
+ 		if v1 == nil || v2 == nil {
+ 			if v1 != nil || v2 != nil {
+ 				t.Errorf("item %d inconsistent nils", i)
+@@ -1250,8 +1250,8 @@ func TestInterfaceBasic(t *testing.T) {
+ type String string
+ 
+ type PtrInterfaceItem struct {
+-	str interface{} // basic
+-	Str interface{} // derived
++	Str1 interface{} // basic
++	Str2 interface{} // derived
+ }
+ 
+ // We'll send pointers; should receive values.
+@@ -1277,10 +1277,10 @@ func TestInterfacePointer(t *testing.T) {
+ 		t.Fatal("decode:", err)
+ 	}
+ 	// Hand test for correct types and values.
+-	if v, ok := item2.str.(string); !ok || v != str1 {
++	if v, ok := item2.Str1.(string); !ok || v != str1 {
+ 		t.Errorf("basic string failed: %q should be %q", v, str1)
+ 	}
+-	if v, ok := item2.Str.(String); !ok || v != str2 {
++	if v, ok := item2.Str2.(String); !ok || v != str2 {
+ 		t.Errorf("derived type String failed: %q should be %q", v, str2)
+ 	}
+ }
+@@ -1307,30 +1307,60 @@ func TestIgnoreInterface(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("decode:", err)
+ 	}
+-	if item2.i != item1.i {
++	if item2.I != item1.I {
+ 		t.Error("normal int did not decode correctly")
+ 	}
+-	if item2.f != item2.f {
++	if item2.F != item2.F {
+ 		t.Error("normal float did not decode correctly")
+ 	}
+ }
+ 
++type U struct {
++	A int
++	B string
++	c float
++	D uint
++}
++
++func TestUnexportedFields(t *testing.T) {
++	var u0 U
++	u0.A = 17
++	u0.B = "hello"
++	u0.c = 3.14159
++	u0.D = 23
++	b := new(bytes.Buffer)
++	NewEncoder(b).Encode(u0)
++	dec := NewDecoder(b)
++	var u1 U
++	u1.c = 1234.
++	err := dec.Decode(&u1)
++	if err != nil {
++		t.Fatal("decode error:", err)
++	}
++	if u0.A != u0.A || u0.B != u1.B || u0.D != u1.D {
++		t.Errorf("u1->u0: expected %v; got %v", u0, u1)
++	}
++	if u1.c != 1234. {
++		t.Error("u1.c modified")
++	}
++}
++
+ // A type that won't be defined in the gob until we send it in an interface value.
+ type OnTheFly struct {
+-	a int
++	A int
+ }
+ 
+ type DT struct {
+ 	//	X OnTheFly
+-	a     int
+-	b     string
+-	c     float
+-	i     interface{}
+-	j     interface{}
+-	i_nil interface{}
+-	m     map[string]int
+-	r     [3]int
+-	s     []string
++	A     int
++	B     string
++	C     float
++	I     interface{}
++	J     interface{}
++	I_nil interface{}
++	M     map[string]int
++	T     [3]int
++	S     []string
+ }
+ 
+ func TestDebug(t *testing.T) {
+@@ -1339,15 +1369,15 @@ func TestDebug(t *testing.T) {
+ 	}
+ 	Register(OnTheFly{})
+ 	var dt DT
+-	dt.a = 17
+-	dt.b = "hello"
+-	dt.c = 3.14159
+-	dt.i = 271828
+-	dt.j = OnTheFly{3}
+-	dt.i_nil = nil
+-	dt.m = map[string]int{"one": 1, "two": 2}
+-	dt.r = [3]int{11, 22, 33}
+-	dt.s = []string{"hi", "joe"}
++	dt.A = 17
++	dt.B = "hello"
++	dt.C = 3.14159
++	dt.I = 271828
++	dt.J = OnTheFly{3}
++	dt.I_nil = nil
++	dt.M = map[string]int{"one": 1, "two": 2}
++	dt.T = [3]int{11, 22, 33}
++	dt.S = []string{"hi", "joe"}
+ 	b := new(bytes.Buffer)
+ 	err := NewEncoder(b).Encode(dt)
+ 	if err != nil {
+diff --git a/src/pkg/gob/debug.go b/src/pkg/gob/debug.go
+index 1daf3b914c..c1636a759b 100644
+--- a/src/pkg/gob/debug.go
++++ b/src/pkg/gob/debug.go
+@@ -137,32 +137,32 @@ func (dec *Decoder) debugRecvType(id typeId) {
+ func printWireType(wire *wireType) {
+ 	fmt.Printf("type definition {\n")
+ 	switch {
+-	case wire.arrayT != nil:
+-		printCommonType("array", &wire.arrayT.commonType)
+-		fmt.Printf("\tlen %d\n\telemid %d\n", wire.arrayT.Len, wire.arrayT.Elem)
+-	case wire.mapT != nil:
+-		printCommonType("map", &wire.mapT.commonType)
+-		fmt.Printf("\tkeyid %d\n", wire.mapT.Key)
+-		fmt.Printf("\telemid %d\n", wire.mapT.Elem)
+-	case wire.sliceT != nil:
+-		printCommonType("slice", &wire.sliceT.commonType)
+-		fmt.Printf("\telemid %d\n", wire.sliceT.Elem)
+-	case wire.structT != nil:
+-		printCommonType("struct", &wire.structT.commonType)
+-		for i, field := range wire.structT.field {
+-			fmt.Printf("\tfield %d:\t%s\tid=%d\n", i, field.name, field.id)
++	case wire.ArrayT != nil:
++		printCommonType("array", &wire.ArrayT.CommonType)
++		fmt.Printf("\tlen %d\n\telemid %d\n", wire.ArrayT.Len, wire.ArrayT.Elem)
++	case wire.MapT != nil:
++		printCommonType("map", &wire.MapT.CommonType)
++		fmt.Printf("\tkeyid %d\n", wire.MapT.Key)
++		fmt.Printf("\telemid %d\n", wire.MapT.Elem)
++	case wire.SliceT != nil:
++		printCommonType("slice", &wire.SliceT.CommonType)
++		fmt.Printf("\telemid %d\n", wire.SliceT.Elem)
++	case wire.StructT != nil:
++		printCommonType("struct", &wire.StructT.CommonType)
++		for i, field := range wire.StructT.Field {
++			fmt.Printf("\tfield %d:\t%s\tid=%d\n", i, field.Name, field.Id)
+ 		}
+ 	}
+ 	fmt.Printf("}\n")
+ }
+ 
+-func printCommonType(kind string, common *commonType) {
+-	fmt.Printf("\t%s %q\n\tid: %d\n", kind, common.name, common._id)
++func printCommonType(kind string, common *CommonType) {
++	fmt.Printf("\t%s %q\n\tid: %d\n", kind, common.Name, common.Id)
+ }
+ 
+ func (dec *Decoder) debugPrint(indent int, id typeId) {
+ 	wire, ok := dec.wireType[id]
+-	if ok && wire.structT != nil {
++	if ok && wire.StructT != nil {
+ 		dec.debugStruct(indent+1, id, wire)
+ 	} else {
+ 		dec.debugSingle(indent+1, id, wire)
+@@ -193,32 +193,32 @@ func (dec *Decoder) printItem(indent int, id typeId) {
+ 		errorf("type id %d not defined\n", id)
+ 	}
+ 	switch {
+-	case wire.arrayT != nil:
++	case wire.ArrayT != nil:
+ 		dec.printArray(indent, wire)
+-	case wire.mapT != nil:
++	case wire.MapT != nil:
+ 		dec.printMap(indent, wire)
+-	case wire.sliceT != nil:
++	case wire.SliceT != nil:
+ 		dec.printSlice(indent, wire)
+-	case wire.structT != nil:
++	case wire.StructT != nil:
+ 		dec.debugStruct(indent, id, wire)
+ 	}
+ }
+ 
+ func (dec *Decoder) printArray(indent int, wire *wireType) {
+-	elemId := wire.arrayT.Elem
++	elemId := wire.ArrayT.Elem
+ 	n := int(decodeUint(dec.state))
+ 	for i := 0; i < n && dec.err == nil; i++ {
+ 		dec.printItem(indent, elemId)
+ 	}
+-	if n != wire.arrayT.Len {
++	if n != wire.ArrayT.Len {
+ 		tab(indent)
+-		fmt.Printf("(wrong length for array: %d should be %d)\n", n, wire.arrayT.Len)
++		fmt.Printf("(wrong length for array: %d should be %d)\n", n, wire.ArrayT.Len)
+ 	}
+ }
+ 
+ func (dec *Decoder) printMap(indent int, wire *wireType) {
+-	keyId := wire.mapT.Key
+-	elemId := wire.mapT.Elem
++	keyId := wire.MapT.Key
++	elemId := wire.MapT.Elem
+ 	n := int(decodeUint(dec.state))
+ 	for i := 0; i < n && dec.err == nil; i++ {
+ 		dec.printItem(indent, keyId)
+@@ -227,7 +227,7 @@ func (dec *Decoder) printMap(indent int, wire *wireType) {
+ }
+ 
+ func (dec *Decoder) printSlice(indent int, wire *wireType) {
+-	elemId := wire.sliceT.Elem
++	elemId := wire.SliceT.Elem
+ 	n := int(decodeUint(dec.state))
+ 	for i := 0; i < n && dec.err == nil; i++ {
+ 		dec.printItem(indent, elemId)
+@@ -273,8 +273,8 @@ func (dec *Decoder) printBuiltin(indent int, id typeId) {
+ 
+ func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
+ 	tab(indent)
+-	fmt.Printf("%s struct {\n", id.Name())
+-	strct := wire.structT
++	fmt.Printf("%s struct {\n", id.name())
++	strct := wire.StructT
+ 	state := newDecodeState(dec, dec.state.b)
+ 	state.fieldnum = -1
+ 	for dec.err == nil {
+@@ -286,17 +286,17 @@ func (dec *Decoder) debugStruct(indent int, id typeId, wire *wireType) {
+ 			break
+ 		}
+ 		fieldNum := state.fieldnum + delta
+-		if fieldNum < 0 || fieldNum >= len(strct.field) {
++		if fieldNum < 0 || fieldNum >= len(strct.Field) {
+ 			errorf("field number out of range")
+ 			break
+ 		}
+ 		tab(indent)
+-		fmt.Printf("%s(%d):\n", wire.structT.field[fieldNum].name, fieldNum)
+-		dec.printItem(indent+1, strct.field[fieldNum].id)
++		fmt.Printf("%s(%d):\n", wire.StructT.Field[fieldNum].Name, fieldNum)
++		dec.printItem(indent+1, strct.Field[fieldNum].Id)
+ 		state.fieldnum = fieldNum
+ 	}
+ 	tab(indent)
+-	fmt.Printf(" } // end %s struct\n", id.Name())
++	fmt.Printf(" } // end %s struct\n", id.name())
+ }
+ 
+ func tab(indent int) {
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index 5791f62f30..6509e7d633 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -13,7 +13,9 @@ import (
+ 	"math"
+ 	"os"
+ 	"reflect"
++	"unicode"
+ 	"unsafe"
++	"utf8"
+ )
+ 
+ var (
+@@ -684,7 +686,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
+ 		switch t := typ.(type) {
+ 		case *reflect.ArrayType:
+ 			name = "element of " + name
+-			elemId := dec.wireType[wireId].arrayT.Elem
++			elemId := dec.wireType[wireId].ArrayT.Elem
+ 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
+ 			ovfl := overflow(name)
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+@@ -693,8 +695,8 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
+ 
+ 		case *reflect.MapType:
+ 			name = "element of " + name
+-			keyId := dec.wireType[wireId].mapT.Key
+-			elemId := dec.wireType[wireId].mapT.Elem
++			keyId := dec.wireType[wireId].MapT.Key
++			elemId := dec.wireType[wireId].MapT.Elem
+ 			keyOp, keyIndir := dec.decOpFor(keyId, t.Key(), name)
+ 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
+ 			ovfl := overflow(name)
+@@ -713,7 +715,7 @@ func (dec *Decoder) decOpFor(wireId typeId, rt reflect.Type, name string) (decOp
+ 			if tt, ok := builtinIdToType[wireId]; ok {
+ 				elemId = tt.(*sliceType).Elem
+ 			} else {
+-				elemId = dec.wireType[wireId].sliceT.Elem
++				elemId = dec.wireType[wireId].SliceT.Elem
+ 			}
+ 			elemOp, elemIndir := dec.decOpFor(elemId, t.Elem(), name)
+ 			ovfl := overflow(name)
+@@ -763,30 +765,30 @@ func (dec *Decoder) decIgnoreOpFor(wireId typeId) decOp {
+ 		switch {
+ 		case wire == nil:
+ 			panic("internal error: can't find ignore op for type " + wireId.string())
+-		case wire.arrayT != nil:
+-			elemId := wire.arrayT.Elem
++		case wire.ArrayT != nil:
++			elemId := wire.ArrayT.Elem
+ 			elemOp := dec.decIgnoreOpFor(elemId)
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+-				state.dec.ignoreArray(state, elemOp, wire.arrayT.Len)
++				state.dec.ignoreArray(state, elemOp, wire.ArrayT.Len)
+ 			}
+ 
+-		case wire.mapT != nil:
+-			keyId := dec.wireType[wireId].mapT.Key
+-			elemId := dec.wireType[wireId].mapT.Elem
++		case wire.MapT != nil:
++			keyId := dec.wireType[wireId].MapT.Key
++			elemId := dec.wireType[wireId].MapT.Elem
+ 			keyOp := dec.decIgnoreOpFor(keyId)
+ 			elemOp := dec.decIgnoreOpFor(elemId)
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				state.dec.ignoreMap(state, keyOp, elemOp)
+ 			}
+ 
+-		case wire.sliceT != nil:
+-			elemId := wire.sliceT.Elem
++		case wire.SliceT != nil:
++			elemId := wire.SliceT.Elem
+ 			elemOp := dec.decIgnoreOpFor(elemId)
+ 			op = func(i *decInstr, state *decodeState, p unsafe.Pointer) {
+ 				state.dec.ignoreSlice(state, elemOp)
+ 			}
+ 
+-		case wire.structT != nil:
++		case wire.StructT != nil:
+ 			// Generate a closure that calls out to the engine for the nested type.
+ 			enginePtr, err := dec.getIgnoreEnginePtr(wireId)
+ 			if err != nil {
+@@ -829,18 +831,18 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 		return fw == tInterface
+ 	case *reflect.ArrayType:
+ 		wire, ok := dec.wireType[fw]
+-		if !ok || wire.arrayT == nil {
++		if !ok || wire.ArrayT == nil {
+ 			return false
+ 		}
+-		array := wire.arrayT
++		array := wire.ArrayT
+ 		return t.Len() == array.Len && dec.compatibleType(t.Elem(), array.Elem)
+ 	case *reflect.MapType:
+ 		wire, ok := dec.wireType[fw]
+-		if !ok || wire.mapT == nil {
++		if !ok || wire.MapT == nil {
+ 			return false
+ 		}
+-		mapType := wire.mapT
+-		return dec.compatibleType(t.Key(), mapType.Key) && dec.compatibleType(t.Elem(), mapType.Elem)
++		MapType := wire.MapT
++		return dec.compatibleType(t.Key(), MapType.Key) && dec.compatibleType(t.Elem(), MapType.Elem)
+ 	case *reflect.SliceType:
+ 		// Is it an array of bytes?
+ 		if t.Elem().Kind() == reflect.Uint8 {
+@@ -851,7 +853,7 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId) bool {
+ 		if tt, ok := builtinIdToType[fw]; ok {
+ 			sw = tt.(*sliceType)
+ 		} else {
+-			sw = dec.wireType[fw].sliceT
++			sw = dec.wireType[fw].SliceT
+ 		}
+ 		elem, _ := indirect(t.Elem())
+ 		return sw != nil && dec.compatibleType(elem, sw.Elem)
+@@ -885,6 +887,12 @@ func (dec *Decoder) compileSingle(remoteId typeId, rt reflect.Type) (engine *dec
+ 	return
+ }
+ 
++// Is this an exported - upper case - name?
++func isExported(name string) bool {
++	rune, _ := utf8.DecodeRuneInString(name)
++	return unicode.IsUpper(rune)
++}
++
+ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEngine, err os.Error) {
+ 	defer catchError(&err)
+ 	srt, ok := rt.(*reflect.StructType)
+@@ -897,29 +905,32 @@ func (dec *Decoder) compileDec(remoteId typeId, rt reflect.Type) (engine *decEng
+ 	if t, ok := builtinIdToType[remoteId]; ok {
+ 		wireStruct, _ = t.(*structType)
+ 	} else {
+-		wireStruct = dec.wireType[remoteId].structT
++		wireStruct = dec.wireType[remoteId].StructT
+ 	}
+ 	if wireStruct == nil {
+ 		errorf("gob: type mismatch in decoder: want struct type %s; got non-struct", rt.String())
+ 	}
+ 	engine = new(decEngine)
+-	engine.instr = make([]decInstr, len(wireStruct.field))
++	engine.instr = make([]decInstr, len(wireStruct.Field))
+ 	// Loop over the fields of the wire type.
+-	for fieldnum := 0; fieldnum < len(wireStruct.field); fieldnum++ {
+-		wireField := wireStruct.field[fieldnum]
++	for fieldnum := 0; fieldnum < len(wireStruct.Field); fieldnum++ {
++		wireField := wireStruct.Field[fieldnum]
++		if wireField.Name == "" {
++			errorf("gob: empty name for remote field of type %s", wireStruct.Name)
++		}
++		ovfl := overflow(wireField.Name)
+ 		// Find the field of the local type with the same name.
+-		localField, present := srt.FieldByName(wireField.name)
+-		ovfl := overflow(wireField.name)
++		localField, present := srt.FieldByName(wireField.Name)
+ 		// TODO(r): anonymous names
+-		if !present {
+-			op := dec.decIgnoreOpFor(wireField.id)
++		if !present || !isExported(wireField.Name) {
++			op := dec.decIgnoreOpFor(wireField.Id)
+ 			engine.instr[fieldnum] = decInstr{op, fieldnum, 0, 0, ovfl}
+ 			continue
+ 		}
+-		if !dec.compatibleType(localField.Type, wireField.id) {
+-			errorf("gob: wrong type (%s) for received field %s.%s", localField.Type, wireStruct.name, wireField.name)
++		if !dec.compatibleType(localField.Type, wireField.Id) {
++			errorf("gob: wrong type (%s) for received field %s.%s", localField.Type, wireStruct.Name, wireField.Name)
+ 		}
+-		op, indir := dec.decOpFor(wireField.id, localField.Type, localField.Name)
++		op, indir := dec.decOpFor(wireField.Id, localField.Type, localField.Name)
+ 		engine.instr[fieldnum] = decInstr{op, fieldnum, indir, uintptr(localField.Offset), ovfl}
+ 		engine.numInstr++
+ 	}
+@@ -972,7 +983,7 @@ func (dec *Decoder) decode(wireId typeId, val reflect.Value) os.Error {
+ 	}
+ 	engine := *enginePtr
+ 	if st, ok := rt.(*reflect.StructType); ok {
+-		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].structT.field) > 0 {
++		if engine.numInstr == 0 && st.NumField() > 0 && len(dec.wireType[wireId].StructT.Field) > 0 {
+ 			name := rt.Name()
+ 			return os.ErrorString("gob: type mismatch: no fields matched compiling decoder for " + name)
+ 		}
+diff --git a/src/pkg/gob/doc.go b/src/pkg/gob/doc.go
+index 5d9eb51800..31253f16d0 100644
+--- a/src/pkg/gob/doc.go
++++ b/src/pkg/gob/doc.go
+@@ -149,31 +149,34 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
+ description, constructed from these types:
+ 
+ 	type wireType struct {
+-		s structType
++		ArrayT  *ArrayType
++		SliceT  *SliceType
++		StructT *StructType
++		MapT    *MapType
+ 	}
+-	type arrayType struct {
+-		commonType
++	type ArrayType struct {
++		CommonType
+ 		Elem typeId
+ 		Len  int
+ 	}
+-	type commonType {
+-		name string // the name of the struct type
+-		_id  int    // the id of the type, repeated for so it's inside the type
++	type CommonType {
++		Name string // the name of the struct type
++		Id  int    // the id of the type, repeated so it's inside the type
+ 	}
+-	type sliceType struct {
+-		commonType
++	type SliceType struct {
++		CommonType
+ 		Elem typeId
+ 	}
+-	type structType struct {
+-		commonType
+-		field []*fieldType // the fields of the struct.
++	type StructType struct {
++		CommonType
++		Field []*fieldType // the fields of the struct.
+ 	}
+-	type fieldType struct {
+-		name string // the name of the field.
+-		id   int    // the type id of the field, which must be already defined
++	type FieldType struct {
++		Name string // the name of the field.
++		Id   int    // the type id of the field, which must be already defined
+ 	}
+-	type mapType struct {
+-		commonType
++	type MapType struct {
++		CommonType
+ 		Key  typeId
+ 		Elem typeId
+ 	}
+@@ -193,14 +196,14 @@ priori, as well as the basic gob types int, uint, etc.  Their ids are:
+ 	complex     7
+ 	interface   8
+ 	// gap for reserved ids.
+-	wireType    16
+-	arrayType   17
+-	commonType  18
+-	sliceType   19
+-	structType  20
+-	fieldType   21
++	WireType    16
++	ArrayType   17
++	CommonType  18
++	SliceType   19
++	StructType  20
++	FieldType   21
+ 	// 22 is slice of fieldType.
+-	mapType     23
++	MapType     23
+ 
+ Finally, each message created by a call to Encode is preceded by an encoded
+ unsigned integer count of the number of bytes remaining in the message.  After
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index db1f136f10..e76709477d 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -284,6 +284,9 @@ func encComplex128(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 	}
+ }
+ 
++func encNoOp(i *encInstr, state *encoderState, p unsafe.Pointer) {
++}
++
+ // Byte arrays are encoded as an unsigned count followed by the raw bytes.
+ func encUint8Array(i *encInstr, state *encoderState, p unsafe.Pointer) {
+ 	b := *(*[]byte)(p)
+@@ -539,6 +542,9 @@ func (enc *Encoder) compileEnc(rt reflect.Type) *encEngine {
+ 		for fieldnum := 0; fieldnum < srt.NumField(); fieldnum++ {
+ 			f := srt.Field(fieldnum)
+ 			op, indir := enc.encOpFor(f.Type)
++			if !isExported(f.Name) {
++				op = encNoOp
++			}
+ 			engine.instr[fieldnum] = encInstr{op, fieldnum, indir, uintptr(f.Offset)}
+ 		}
+ 		engine.instr[srt.NumField()] = encInstr{encStructTerminator, 0, 0, 0}
+diff --git a/src/pkg/gob/encoder_test.go b/src/pkg/gob/encoder_test.go
+index e5fc80837e..db0b7db667 100644
+--- a/src/pkg/gob/encoder_test.go
++++ b/src/pkg/gob/encoder_test.go
+@@ -14,35 +14,35 @@ import (
+ )
+ 
+ type ET2 struct {
+-	x string
++	X string
+ }
+ 
+ type ET1 struct {
+-	a    int
+-	et2  *ET2
+-	next *ET1
++	A    int
++	Et2  *ET2
++	Next *ET1
+ }
+ 
+ // Like ET1 but with a different name for a field
+ type ET3 struct {
+-	a             int
+-	et2           *ET2
+-	differentNext *ET1
++	A             int
++	Et2           *ET2
++	DifferentNext *ET1
+ }
+ 
+ // Like ET1 but with a different type for a field
+ type ET4 struct {
+-	a    int
+-	et2  float
+-	next int
++	A    int
++	Et2  float
++	Next int
+ }
+ 
+ func TestEncoderDecoder(t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+ 	et1 := new(ET1)
+-	et1.a = 7
+-	et1.et2 = new(ET2)
++	et1.A = 7
++	et1.Et2 = new(ET2)
+ 	err := enc.Encode(et1)
+ 	if err != nil {
+ 		t.Error("encoder fail:", err)
+@@ -92,8 +92,8 @@ func badTypeCheck(e interface{}, shouldFail bool, msg string, t *testing.T) {
+ 	b := new(bytes.Buffer)
+ 	enc := NewEncoder(b)
+ 	et1 := new(ET1)
+-	et1.a = 7
+-	et1.et2 = new(ET2)
++	et1.A = 7
++	et1.Et2 = new(ET2)
+ 	err := enc.Encode(et1)
+ 	if err != nil {
+ 		t.Error("encoder fail:", err)
+@@ -166,7 +166,7 @@ func encAndDec(in, out interface{}) os.Error {
+ func TestTypeToPtrType(t *testing.T) {
+ 	// Encode a T, decode a *T
+ 	type Type0 struct {
+-		a int
++		A int
+ 	}
+ 	t0 := Type0{7}
+ 	t0p := (*Type0)(nil)
+@@ -178,7 +178,7 @@ func TestTypeToPtrType(t *testing.T) {
+ func TestPtrTypeToType(t *testing.T) {
+ 	// Encode a *T, decode a T
+ 	type Type1 struct {
+-		a uint
++		A uint
+ 	}
+ 	t1p := &Type1{17}
+ 	var t1 Type1
+@@ -189,26 +189,26 @@ func TestPtrTypeToType(t *testing.T) {
+ 
+ func TestTypeToPtrPtrPtrPtrType(t *testing.T) {
+ 	type Type2 struct {
+-		a ****float
++		A ****float
+ 	}
+ 	t2 := Type2{}
+-	t2.a = new(***float)
+-	*t2.a = new(**float)
+-	**t2.a = new(*float)
+-	***t2.a = new(float)
+-	****t2.a = 27.4
++	t2.A = new(***float)
++	*t2.A = new(**float)
++	**t2.A = new(*float)
++	***t2.A = new(float)
++	****t2.A = 27.4
+ 	t2pppp := new(***Type2)
+ 	if err := encAndDec(t2, t2pppp); err != nil {
+-		t.Error(err)
++		t.Fatal(err)
+ 	}
+-	if ****(****t2pppp).a != ****t2.a {
+-		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).a, ****t2.a)
++	if ****(****t2pppp).A != ****t2.A {
++		t.Errorf("wrong value after decode: %g not %g", ****(****t2pppp).A, ****t2.A)
+ 	}
+ }
+ 
+ func TestSlice(t *testing.T) {
+ 	type Type3 struct {
+-		a []string
++		A []string
+ 	}
+ 	t3p := &Type3{[]string{"hello", "world"}}
+ 	var t3 Type3
+@@ -231,11 +231,11 @@ func TestValueError(t *testing.T) {
+ 
+ func TestArray(t *testing.T) {
+ 	type Type5 struct {
+-		a [3]string
+-		b [3]byte
++		A [3]string
++		B [3]byte
+ 	}
+ 	type Type6 struct {
+-		a [2]string // can't hold t5.a
++		A [2]string // can't hold t5.a
+ 	}
+ 	t5 := Type5{[3]string{"hello", ",", "world"}, [3]byte{1, 2, 3}}
+ 	var t5p Type5
+@@ -251,10 +251,10 @@ func TestArray(t *testing.T) {
+ // Regression test for bug: must send zero values inside arrays
+ func TestDefaultsInArray(t *testing.T) {
+ 	type Type7 struct {
+-		b []bool
+-		i []int
+-		s []string
+-		f []float
++		B []bool
++		I []int
++		S []string
++		F []float
+ 	}
+ 	t7 := Type7{
+ 		[]bool{false, false, true},
+@@ -329,7 +329,7 @@ func TestSingletons(t *testing.T) {
+ 
+ func TestStructNonStruct(t *testing.T) {
+ 	type Struct struct {
+-		a string
++		A string
+ 	}
+ 	type NonStruct string
+ 	s := Struct{"hello"}
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index 2ca96ce90d..c00af87bf2 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -29,7 +29,7 @@ const firstUserId = 64  // lowest id number granted to user
+ type gobType interface {
+ 	id() typeId
+ 	setId(id typeId)
+-	Name() string
++	name() string
+ 	string() string // not public; only for debugging
+ 	safeString(seen map[typeId]bool) string
+ }
+@@ -60,30 +60,30 @@ func (t typeId) string() string {
+ }
+ 
+ // Name returns the name of the type associated with the typeId.
+-func (t typeId) Name() string {
++func (t typeId) name() string {
+ 	if t.gobType() == nil {
+ 		return "<nil>"
+ 	}
+-	return t.gobType().Name()
++	return t.gobType().name()
+ }
+ 
+ // Common elements of all types.
+-type commonType struct {
+-	name string
+-	_id  typeId
++type CommonType struct {
++	Name string
++	Id   typeId
+ }
+ 
+-func (t *commonType) id() typeId { return t._id }
++func (t *CommonType) id() typeId { return t.Id }
+ 
+-func (t *commonType) setId(id typeId) { t._id = id }
++func (t *CommonType) setId(id typeId) { t.Id = id }
+ 
+-func (t *commonType) string() string { return t.name }
++func (t *CommonType) string() string { return t.Name }
+ 
+-func (t *commonType) safeString(seen map[typeId]bool) string {
+-	return t.name
++func (t *CommonType) safeString(seen map[typeId]bool) string {
++	return t.Name
+ }
+ 
+-func (t *commonType) Name() string { return t.name }
++func (t *CommonType) name() string { return t.Name }
+ 
+ // Create and check predefined types
+ // The string for tBytes is "bytes" not "[]byte" to signify its specialness.
+@@ -115,7 +115,7 @@ func init() {
+ 	// Some magic numbers to make sure there are no surprises.
+ 	checkId(16, tWireType)
+ 	checkId(17, mustGetTypeInfo(reflect.Typeof(arrayType{})).id)
+-	checkId(18, mustGetTypeInfo(reflect.Typeof(commonType{})).id)
++	checkId(18, mustGetTypeInfo(reflect.Typeof(CommonType{})).id)
+ 	checkId(19, mustGetTypeInfo(reflect.Typeof(sliceType{})).id)
+ 	checkId(20, mustGetTypeInfo(reflect.Typeof(structType{})).id)
+ 	checkId(21, mustGetTypeInfo(reflect.Typeof(fieldType{})).id)
+@@ -137,22 +137,22 @@ func init() {
+ 
+ // Array type
+ type arrayType struct {
+-	commonType
++	CommonType
+ 	Elem typeId
+ 	Len  int
+ }
+ 
+ func newArrayType(name string, elem gobType, length int) *arrayType {
+-	a := &arrayType{commonType{name: name}, elem.id(), length}
++	a := &arrayType{CommonType{Name: name}, elem.id(), length}
+ 	setTypeId(a)
+ 	return a
+ }
+ 
+ func (a *arrayType) safeString(seen map[typeId]bool) string {
+-	if seen[a._id] {
+-		return a.name
++	if seen[a.Id] {
++		return a.Name
+ 	}
+-	seen[a._id] = true
++	seen[a.Id] = true
+ 	return fmt.Sprintf("[%d]%s", a.Len, a.Elem.gobType().safeString(seen))
+ }
+ 
+@@ -160,22 +160,22 @@ func (a *arrayType) string() string { return a.safeString(make(map[typeId]bool))
+ 
+ // Map type
+ type mapType struct {
+-	commonType
++	CommonType
+ 	Key  typeId
+ 	Elem typeId
+ }
+ 
+ func newMapType(name string, key, elem gobType) *mapType {
+-	m := &mapType{commonType{name: name}, key.id(), elem.id()}
++	m := &mapType{CommonType{Name: name}, key.id(), elem.id()}
+ 	setTypeId(m)
+ 	return m
+ }
+ 
+ func (m *mapType) safeString(seen map[typeId]bool) string {
+-	if seen[m._id] {
+-		return m.name
++	if seen[m.Id] {
++		return m.Name
+ 	}
+-	seen[m._id] = true
++	seen[m.Id] = true
+ 	key := m.Key.gobType().safeString(seen)
+ 	elem := m.Elem.gobType().safeString(seen)
+ 	return fmt.Sprintf("map[%s]%s", key, elem)
+@@ -185,21 +185,21 @@ func (m *mapType) string() string { return m.safeString(make(map[typeId]bool)) }
+ 
+ // Slice type
+ type sliceType struct {
+-	commonType
++	CommonType
+ 	Elem typeId
+ }
+ 
+ func newSliceType(name string, elem gobType) *sliceType {
+-	s := &sliceType{commonType{name: name}, elem.id()}
++	s := &sliceType{CommonType{Name: name}, elem.id()}
+ 	setTypeId(s)
+ 	return s
+ }
+ 
+ func (s *sliceType) safeString(seen map[typeId]bool) string {
+-	if seen[s._id] {
+-		return s.name
++	if seen[s.Id] {
++		return s.Name
+ 	}
+-	seen[s._id] = true
++	seen[s.Id] = true
+ 	return fmt.Sprintf("[]%s", s.Elem.gobType().safeString(seen))
+ }
+ 
+@@ -207,26 +207,26 @@ func (s *sliceType) string() string { return s.safeString(make(map[typeId]bool))
+ 
+ // Struct type
+ type fieldType struct {
+-	name string
+-	id   typeId
++	Name string
++	Id   typeId
+ }
+ 
+ type structType struct {
+-	commonType
+-	field []*fieldType
++	CommonType
++	Field []*fieldType
+ }
+ 
+ func (s *structType) safeString(seen map[typeId]bool) string {
+ 	if s == nil {
+ 		return "<nil>"
+ 	}
+-	if _, ok := seen[s._id]; ok {
+-		return s.name
++	if _, ok := seen[s.Id]; ok {
++		return s.Name
+ 	}
+-	seen[s._id] = true
+-	str := s.name + " = struct { "
+-	for _, f := range s.field {
+-		str += fmt.Sprintf("%s %s; ", f.name, f.id.gobType().safeString(seen))
++	seen[s.Id] = true
++	str := s.Name + " = struct { "
++	for _, f := range s.Field {
++		str += fmt.Sprintf("%s %s; ", f.Name, f.Id.gobType().safeString(seen))
+ 	}
+ 	str += "}"
+ 	return str
+@@ -235,7 +235,7 @@ func (s *structType) safeString(seen map[typeId]bool) string {
+ func (s *structType) string() string { return s.safeString(make(map[typeId]bool)) }
+ 
+ func newStructType(name string) *structType {
+-	s := &structType{commonType{name: name}, nil}
++	s := &structType{CommonType{Name: name}, nil}
+ 	setTypeId(s)
+ 	return s
+ }
+@@ -329,7 +329,7 @@ func newTypeObject(name string, rt reflect.Type) (gobType, os.Error) {
+ 			}
+ 			field[i] = &fieldType{f.Name, gt.id()}
+ 		}
+-		strType.field = field
++		strType.Field = field
+ 		return strType, nil
+ 
+ 	default:
+@@ -356,7 +356,7 @@ func getType(name string, rt reflect.Type) (gobType, os.Error) {
+ func checkId(want, got typeId) {
+ 	if want != got {
+ 		fmt.Fprintf(os.Stderr, "checkId: %d should be %d\n", int(want), int(got))
+-		panic("bootstrap type wrong id: " + got.Name() + " " + got.string() + " not " + want.string())
++		panic("bootstrap type wrong id: " + got.name() + " " + got.string() + " not " + want.string())
+ 	}
+ }
+ 
+@@ -367,7 +367,7 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ 	if present {
+ 		panic("bootstrap type already present: " + name + ", " + rt.String())
+ 	}
+-	typ := &commonType{name: name}
++	typ := &CommonType{Name: name}
+ 	types[rt] = typ
+ 	setTypeId(typ)
+ 	checkId(expect, nextId)
+@@ -386,10 +386,10 @@ func bootstrapType(name string, e interface{}, expect typeId) typeId {
+ // To maintain binary compatibility, if you extend this type, always put
+ // the new fields last.
+ type wireType struct {
+-	arrayT  *arrayType
+-	sliceT  *sliceType
+-	structT *structType
+-	mapT    *mapType
++	ArrayT  *arrayType
++	SliceT  *sliceType
++	StructT *structType
++	MapT    *mapType
+ }
+ 
+ func (w *wireType) string() string {
+@@ -398,14 +398,14 @@ func (w *wireType) string() string {
+ 		return unknown
+ 	}
+ 	switch {
+-	case w.arrayT != nil:
+-		return w.arrayT.name
+-	case w.sliceT != nil:
+-		return w.sliceT.name
+-	case w.structT != nil:
+-		return w.structT.name
+-	case w.mapT != nil:
+-		return w.mapT.name
++	case w.ArrayT != nil:
++		return w.ArrayT.Name
++	case w.SliceT != nil:
++		return w.SliceT.Name
++	case w.StructT != nil:
++		return w.StructT.Name
++	case w.MapT != nil:
++		return w.MapT.Name
+ 	}
+ 	return unknown
+ }
+@@ -436,16 +436,16 @@ func getTypeInfo(rt reflect.Type) (*typeInfo, os.Error) {
+ 		t := info.id.gobType()
+ 		switch typ := rt.(type) {
+ 		case *reflect.ArrayType:
+-			info.wire = &wireType{arrayT: t.(*arrayType)}
++			info.wire = &wireType{ArrayT: t.(*arrayType)}
+ 		case *reflect.MapType:
+-			info.wire = &wireType{mapT: t.(*mapType)}
++			info.wire = &wireType{MapT: t.(*mapType)}
+ 		case *reflect.SliceType:
+ 			// []byte == []uint8 is a special case handled separately
+ 			if typ.Elem().Kind() != reflect.Uint8 {
+-				info.wire = &wireType{sliceT: t.(*sliceType)}
++				info.wire = &wireType{SliceT: t.(*sliceType)}
+ 			}
+ 		case *reflect.StructType:
+-			info.wire = &wireType{structT: t.(*structType)}
++			info.wire = &wireType{StructT: t.(*structType)}
+ 		}
+ 		typeInfoMap[rt] = info
+ 	}

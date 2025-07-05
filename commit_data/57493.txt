@@ -19,7 +19,7 @@ Date:   Wed Aug 9 08:39:47 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/coverage/cover.go  | 10 ++----
  src/cmd/compile/internal/escape/escape.go   |  2 +-
  src/cmd/compile/internal/gc/main.go         | 29 +++++++--------
@@ -37,3 +37,670 @@ Date:   Wed Aug 9 08:39:47 2023 -0700
  src/cmd/compile/internal/ssagen/nowb.go     | 14 ++------
  src/cmd/compile/internal/typecheck/subr.go  | 33 ++++++++---------
  16 files changed, 117 insertions(+), 144 deletions(-)
+
+diff --git a/src/cmd/compile/internal/coverage/cover.go b/src/cmd/compile/internal/coverage/cover.go
+index b5ac72d404..d17940fd40 100644
+--- a/src/cmd/compile/internal/coverage/cover.go
++++ b/src/cmd/compile/internal/coverage/cover.go
+@@ -53,11 +53,7 @@ func FixupVars() Names {
+ 		}
+ 	}
+ 
+-	for _, n := range typecheck.Target.Externs {
+-		nm, ok := n.(*ir.Name)
+-		if !ok {
+-			continue
+-		}
++	for _, nm := range typecheck.Target.Externs {
+ 		s := nm.Sym()
+ 		switch s.Name {
+ 		case metaVarName:
+@@ -108,8 +104,8 @@ func FixupVars() Names {
+ // fixup. It adds calls to the pkg init function as appropriate to
+ // register coverage-related variables with the runtime.
+ func FixupInit(cnames Names) {
+-	for _, n := range typecheck.Target.Decls {
+-		if fn, ok := n.(*ir.Func); ok && ir.FuncName(fn) == "init" {
++	for _, fn := range typecheck.Target.Funcs {
++		if ir.FuncName(fn) == "init" {
+ 			cnames.InitFn = fn
+ 			break
+ 		}
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index f17ac13fe8..bd80fc5832 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -115,7 +115,7 @@ type escape struct {
+ 	loopDepth int
+ }
+ 
+-func Funcs(all []ir.Node) {
++func Funcs(all []*ir.Func) {
+ 	ir.VisitFuncsBottomUp(all, Batch)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e9af8aa325..39505a37b1 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -233,7 +233,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// We compute Addrtaken in bulk here.
+ 	// After this phase, we maintain Addrtaken incrementally.
+ 	if typecheck.DirtyAddrtaken {
+-		typecheck.ComputeAddrtaken(typecheck.Target.Decls)
++		typecheck.ComputeAddrtaken(typecheck.Target.Funcs)
+ 		typecheck.DirtyAddrtaken = false
+ 	}
+ 	typecheck.IncrementalAddrtaken = true
+@@ -254,7 +254,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		// TODO(prattmic): No need to use bottom-up visit order. This
+ 		// is mirroring the PGO IRGraph visit order, which also need
+ 		// not be bottom-up.
+-		ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++		ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+ 			for _, fn := range list {
+ 				devirtualize.ProfileGuided(fn, profile)
+ 			}
+@@ -271,11 +271,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	// Devirtualize and get variable capture right in for loops
+ 	var transformed []loopvar.VarAndLoop
+-	for _, n := range typecheck.Target.Decls {
+-		if n.Op() == ir.ODCLFUNC {
+-			devirtualize.Static(n.(*ir.Func))
+-			transformed = append(transformed, loopvar.ForCapture(n.(*ir.Func))...)
+-		}
++	for _, n := range typecheck.Target.Funcs {
++		devirtualize.Static(n)
++		transformed = append(transformed, loopvar.ForCapture(n)...)
+ 	}
+ 	ir.CurFunc = nil
+ 
+@@ -297,7 +295,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// Large values are also moved off stack in escape analysis;
+ 	// because large values may contain pointers, it must happen early.
+ 	base.Timer.Start("fe", "escapes")
+-	escape.Funcs(typecheck.Target.Decls)
++	escape.Funcs(typecheck.Target.Funcs)
+ 
+ 	loopvar.LogTransformations(transformed)
+ 
+@@ -315,15 +313,14 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// Don't use range--walk can add functions to Target.Decls.
+ 	base.Timer.Start("be", "compilefuncs")
+ 	fcount := int64(0)
+-	for i := 0; i < len(typecheck.Target.Decls); i++ {
+-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+-			// Don't try compiling dead hidden closure.
+-			if fn.IsDeadcodeClosure() {
+-				continue
+-			}
+-			enqueueFunc(fn)
+-			fcount++
++	for i := 0; i < len(typecheck.Target.Funcs); i++ {
++		fn := typecheck.Target.Funcs[i]
++		// Don't try compiling dead hidden closure.
++		if fn.IsDeadcodeClosure() {
++			continue
+ 		}
++		enqueueFunc(fn)
++		fcount++
+ 	}
+ 	base.Timer.AddEvent(fcount, "funcs")
+ 
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index e895c452f2..a246177aa5 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -111,7 +111,7 @@ func dumpCompilerObj(bout *bio.Writer) {
+ 
+ func dumpdata() {
+ 	numExterns := len(typecheck.Target.Externs)
+-	numDecls := len(typecheck.Target.Decls)
++	numDecls := len(typecheck.Target.Funcs)
+ 	dumpglobls(typecheck.Target.Externs)
+ 	reflectdata.CollectPTabs()
+ 	numExports := len(typecheck.Target.Exports)
+@@ -131,15 +131,14 @@ func dumpdata() {
+ 	// In the typical case, we loop 0 or 1 times.
+ 	// It was not until issue 24761 that we found any code that required a loop at all.
+ 	for {
+-		for i := numDecls; i < len(typecheck.Target.Decls); i++ {
+-			if n, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+-				enqueueFunc(n)
+-			}
++		for i := numDecls; i < len(typecheck.Target.Funcs); i++ {
++			fn := typecheck.Target.Funcs[i]
++			enqueueFunc(fn)
+ 		}
+-		numDecls = len(typecheck.Target.Decls)
++		numDecls = len(typecheck.Target.Funcs)
+ 		compileFunctions()
+ 		reflectdata.WriteRuntimeTypes()
+-		if numDecls == len(typecheck.Target.Decls) {
++		if numDecls == len(typecheck.Target.Funcs) {
+ 			break
+ 		}
+ 	}
+@@ -201,7 +200,7 @@ func dumpGlobal(n *ir.Name) {
+ 	base.Ctxt.DwarfGlobal(base.Ctxt.Pkgpath, types.TypeSymName(n.Type()), n.Linksym())
+ }
+ 
+-func dumpGlobalConst(n ir.Node) {
++func dumpGlobalConst(n *ir.Name) {
+ 	// only export typed constants
+ 	t := n.Type()
+ 	if t == nil {
+@@ -229,12 +228,12 @@ func dumpGlobalConst(n ir.Node) {
+ 	base.Ctxt.DwarfIntConst(base.Ctxt.Pkgpath, n.Sym().Name, types.TypeSymName(t), ir.IntVal(t, v))
+ }
+ 
+-func dumpglobls(externs []ir.Node) {
++func dumpglobls(externs []*ir.Name) {
+ 	// add globals
+ 	for _, n := range externs {
+ 		switch n.Op() {
+ 		case ir.ONAME:
+-			dumpGlobal(n.(*ir.Name))
++			dumpGlobal(n)
+ 		case ir.OLITERAL:
+ 			dumpGlobalConst(n)
+ 		}
+@@ -336,7 +335,7 @@ func dumpembeds() {
+ 	}
+ }
+ 
+-func addsignats(dcls []ir.Node) {
++func addsignats(dcls []*ir.Name) {
+ 	// copy types from dcl list to signatset
+ 	for _, n := range dcls {
+ 		if n.Op() == ir.OTYPE {
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 414129d937..28cd870a54 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -78,7 +78,7 @@ var (
+ )
+ 
+ // pgoInlinePrologue records the hot callsites from ir-graph.
+-func pgoInlinePrologue(p *pgo.Profile, decls []ir.Node) {
++func pgoInlinePrologue(p *pgo.Profile, funcs []*ir.Func) {
+ 	if base.Debug.PGOInlineCDFThreshold != "" {
+ 		if s, err := strconv.ParseFloat(base.Debug.PGOInlineCDFThreshold, 64); err == nil && s >= 0 && s <= 100 {
+ 			inlineCDFHotCallSiteThresholdPercent = s
+@@ -161,7 +161,7 @@ func InlinePackage(p *pgo.Profile) {
+ 		p = nil
+ 	}
+ 
+-	InlineDecls(p, typecheck.Target.Decls, true)
++	InlineDecls(p, typecheck.Target.Funcs, true)
+ 
+ 	// Perform a garbage collection of hidden closures functions that
+ 	// are no longer reachable from top-level functions following
+@@ -174,9 +174,9 @@ func InlinePackage(p *pgo.Profile) {
+ }
+ 
+ // InlineDecls applies inlining to the given batch of declarations.
+-func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
++func InlineDecls(p *pgo.Profile, funcs []*ir.Func, doInline bool) {
+ 	if p != nil {
+-		pgoInlinePrologue(p, decls)
++		pgoInlinePrologue(p, funcs)
+ 	}
+ 
+ 	doCanInline := func(n *ir.Func, recursive bool, numfns int) {
+@@ -192,7 +192,7 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 		}
+ 	}
+ 
+-	ir.VisitFuncsBottomUp(decls, func(list []*ir.Func, recursive bool) {
++	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
+ 		numfns := numNonClosures(list)
+ 		// We visit functions within an SCC in fairly arbitrary order,
+ 		// so by computing inlinability for all functions in the SCC
+@@ -235,33 +235,31 @@ func garbageCollectUnreferencedHiddenClosures() {
+ 		})
+ 	}
+ 
+-	for i := 0; i < len(typecheck.Target.Decls); i++ {
+-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+-			if fn.IsHiddenClosure() {
+-				continue
+-			}
+-			markLiveFuncs(fn)
++	for i := 0; i < len(typecheck.Target.Funcs); i++ {
++		fn := typecheck.Target.Funcs[i]
++		if fn.IsHiddenClosure() {
++			continue
+ 		}
++		markLiveFuncs(fn)
+ 	}
+ 
+-	for i := 0; i < len(typecheck.Target.Decls); i++ {
+-		if fn, ok := typecheck.Target.Decls[i].(*ir.Func); ok {
+-			if !fn.IsHiddenClosure() {
+-				continue
+-			}
+-			if fn.IsDeadcodeClosure() {
+-				continue
+-			}
+-			if liveFuncs[fn] {
+-				continue
+-			}
+-			fn.SetIsDeadcodeClosure(true)
+-			if base.Flag.LowerM > 2 {
+-				fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
+-			}
+-			if fn.Inl != nil && fn.LSym == nil {
+-				ir.InitLSym(fn, true)
+-			}
++	for i := 0; i < len(typecheck.Target.Funcs); i++ {
++		fn := typecheck.Target.Funcs[i]
++		if !fn.IsHiddenClosure() {
++			continue
++		}
++		if fn.IsDeadcodeClosure() {
++			continue
++		}
++		if liveFuncs[fn] {
++			continue
++		}
++		fn.SetIsDeadcodeClosure(true)
++		if base.Flag.LowerM > 2 {
++			fmt.Printf("%v: unreferenced closure %v marked as dead\n", ir.Line(fn), fn)
++		}
++		if fn.Inl != nil && fn.LSym == nil {
++			ir.InitLSym(fn, true)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 5c41893fc6..a232c0fb70 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -462,7 +462,7 @@ func UseClosure(clo *ClosureExpr, pkg *Package) Node {
+ 	}
+ 
+ 	if pkg != nil {
+-		pkg.Decls = append(pkg.Decls, fn)
++		pkg.Funcs = append(pkg.Funcs, fn)
+ 	}
+ 
+ 	if false && IsTrivialClosure(clo) {
+diff --git a/src/cmd/compile/internal/ir/package.go b/src/cmd/compile/internal/ir/package.go
+index 26d4b1ece3..6efdfb5e1f 100644
+--- a/src/cmd/compile/internal/ir/package.go
++++ b/src/cmd/compile/internal/ir/package.go
+@@ -19,11 +19,13 @@ type Package struct {
+ 	// Init functions, listed in source order.
+ 	Inits []*Func
+ 
+-	// Top-level declarations.
+-	Decls []Node
++	// Funcs contains all (instantiated) functions, methods, and
++	// function literals to be compiled.
++	Funcs []*Func
+ 
+-	// Extern (package global) declarations.
+-	Externs []Node
++	// Externs holds constants, (non-generic) types, and variables
++	// declared at package scope.
++	Externs []*Name
+ 
+ 	// Assembly function declarations.
+ 	Asms []*Name
+diff --git a/src/cmd/compile/internal/ir/scc.go b/src/cmd/compile/internal/ir/scc.go
+index b222939a1e..a640f4fc16 100644
+--- a/src/cmd/compile/internal/ir/scc.go
++++ b/src/cmd/compile/internal/ir/scc.go
+@@ -49,16 +49,13 @@ type bottomUpVisitor struct {
+ // If recursive is false, the list consists of only a single function and its closures.
+ // If recursive is true, the list may still contain only a single function,
+ // if that function is itself recursive.
+-func VisitFuncsBottomUp(list []Node, analyze func(list []*Func, recursive bool)) {
++func VisitFuncsBottomUp(list []*Func, analyze func(list []*Func, recursive bool)) {
+ 	var v bottomUpVisitor
+ 	v.analyze = analyze
+ 	v.nodeID = make(map[*Func]uint32)
+ 	for _, n := range list {
+-		if n.Op() == ODCLFUNC {
+-			n := n.(*Func)
+-			if !n.IsHiddenClosure() {
+-				v.visit(n)
+-			}
++		if !n.IsHiddenClosure() {
++			v.visit(n)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a92a890437..0f936b4764 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3015,7 +3015,14 @@ func (r *reader) tempCopy(pos src.XPos, expr ir.Node, init *ir.Nodes) *ir.Name {
+ 		assign.Def = true
+ 		tmp.Defn = assign
+ 
+-		typecheck.Target.Decls = append(typecheck.Target.Decls, typecheck.Stmt(assign))
++		// TODO(mdempsky): This code doesn't work anymore, because we now
++		// rely on types2 to compute InitOrder. If it's going to be used
++		// for testing again, the assignment here probably needs to be
++		// added to typecheck.Target.InitOrder somewhere.
++		//
++		// Probably just easier to address the escape analysis limitation.
++		//
++		// typecheck.Target.Decls = append(typecheck.Target.Decls, typecheck.Stmt(assign))
+ 
+ 		return tmp
+ 	}
+@@ -3353,14 +3360,14 @@ func (r *reader) pkgDecls(target *ir.Package) {
+ 		case declFunc:
+ 			names := r.pkgObjs(target)
+ 			assert(len(names) == 1)
+-			target.Decls = append(target.Decls, names[0].Func)
++			target.Funcs = append(target.Funcs, names[0].Func)
+ 
+ 		case declMethod:
+ 			typ := r.typ()
+ 			_, sym := r.selector()
+ 
+ 			method := typecheck.Lookdot1(nil, sym, typ, typ.Methods(), 0)
+-			target.Decls = append(target.Decls, method.Nname.(*ir.Name).Func)
++			target.Funcs = append(target.Funcs, method.Nname.(*ir.Name).Func)
+ 
+ 		case declVar:
+ 			names := r.pkgObjs(target)
+@@ -3629,7 +3636,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	// with the same information some other way.
+ 
+ 	fndcls := len(fn.Dcl)
+-	topdcls := len(typecheck.Target.Decls)
++	topdcls := len(typecheck.Target.Funcs)
+ 
+ 	tmpfn := ir.NewFunc(fn.Pos())
+ 	tmpfn.Nname = ir.NewNameAt(fn.Nname.Pos(), fn.Sym())
+@@ -3661,7 +3668,7 @@ func expandInline(fn *ir.Func, pri pkgReaderIndex) {
+ 	// typecheck.Stmts may have added function literals to
+ 	// typecheck.Target.Decls. Remove them again so we don't risk trying
+ 	// to compile them multiple times.
+-	typecheck.Target.Decls = typecheck.Target.Decls[:topdcls]
++	typecheck.Target.Funcs = typecheck.Target.Funcs[:topdcls]
+ }
+ 
+ // usedLocals returns a set of local variables that are used within body.
+@@ -3925,7 +3932,7 @@ func finishWrapperFunc(fn *ir.Func, target *ir.Package) {
+ 		}
+ 	})
+ 
+-	target.Decls = append(target.Decls, fn)
++	target.Funcs = append(target.Funcs, fn)
+ }
+ 
+ // newWrapperType returns a copy of the given signature type, but with
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index 0afa505550..3e5ab2ec39 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -91,27 +91,17 @@ func unified(m posMap, noders []*noder) {
+ 	r := localPkgReader.newReader(pkgbits.RelocMeta, pkgbits.PrivateRootIdx, pkgbits.SyncPrivate)
+ 	r.pkgInit(types.LocalPkg, target)
+ 
+-	// Type-check any top-level assignments. We ignore non-assignments
+-	// here because other declarations are typechecked as they're
+-	// constructed.
+-	for i, ndecls := 0, len(target.Decls); i < ndecls; i++ {
+-		switch n := target.Decls[i]; n.Op() {
+-		case ir.OAS, ir.OAS2:
+-			target.Decls[i] = typecheck.Stmt(n)
+-		}
+-	}
+-
+ 	readBodies(target, false)
+ 
+ 	// Check that nothing snuck past typechecking.
+-	for _, n := range target.Decls {
+-		if n.Typecheck() == 0 {
+-			base.FatalfAt(n.Pos(), "missed typecheck: %v", n)
++	for _, fn := range target.Funcs {
++		if fn.Typecheck() == 0 {
++			base.FatalfAt(fn.Pos(), "missed typecheck: %v", fn)
+ 		}
+ 
+ 		// For functions, check that at least their first statement (if
+ 		// any) was typechecked too.
+-		if fn, ok := n.(*ir.Func); ok && len(fn.Body) != 0 {
++		if len(fn.Body) != 0 {
+ 			if stmt := fn.Body[0]; stmt.Typecheck() == 0 {
+ 				base.FatalfAt(stmt.Pos(), "missed typecheck: %v", stmt)
+ 			}
+@@ -120,11 +110,9 @@ func unified(m posMap, noders []*noder) {
+ 
+ 	// For functions originally came from package runtime,
+ 	// mark as norace to prevent instrumenting, see issue #60439.
+-	for _, n := range target.Decls {
+-		if fn, ok := n.(*ir.Func); ok {
+-			if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
+-				fn.Pragma |= ir.Norace
+-			}
++	for _, fn := range target.Funcs {
++		if !base.Flag.CompilingRuntime && types.IsRuntimePkg(fn.Sym().Pkg) {
++			fn.Pragma |= ir.Norace
+ 		}
+ 	}
+ 
+@@ -138,7 +126,7 @@ func unified(m posMap, noders []*noder) {
+ // necessary on instantiations of imported generic functions, so their
+ // inlining costs can be computed.
+ func readBodies(target *ir.Package, duringInlining bool) {
+-	var inlDecls []ir.Node
++	var inlDecls []*ir.Func
+ 
+ 	// Don't use range--bodyIdx can add closures to todoBodies.
+ 	for {
+@@ -175,7 +163,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
+ 				if duringInlining && canSkipNonGenericMethod {
+ 					inlDecls = append(inlDecls, fn)
+ 				} else {
+-					target.Decls = append(target.Decls, fn)
++					target.Funcs = append(target.Funcs, fn)
+ 				}
+ 			}
+ 
+@@ -208,7 +196,7 @@ func readBodies(target *ir.Package, duringInlining bool) {
+ 		base.Flag.LowerM = oldLowerM
+ 
+ 		for _, fn := range inlDecls {
+-			fn.(*ir.Func).Body = nil // free memory
++			fn.Body = nil // free memory
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 074f4a5a2f..01ffc8e867 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -261,7 +261,7 @@ func (p *Profile) processprofileGraph(g *graph.Graph) error {
+ // of a package.
+ func (p *Profile) initializeIRGraph() {
+ 	// Bottomup walk over the function to create IRGraph.
+-	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+ 		for _, fn := range list {
+ 			p.VisitIR(fn)
+ 		}
+@@ -467,7 +467,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 
+ 	// List of functions in this package.
+ 	funcs := make(map[string]struct{})
+-	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+ 		for _, f := range list {
+ 			name := ir.LinkFuncName(f)
+ 			funcs[name] = struct{}{}
+@@ -511,7 +511,7 @@ func (p *Profile) PrintWeightedCallGraphDOT(edgeThreshold float64) {
+ 		}
+ 	}
+ 	// Print edges.
+-	ir.VisitFuncsBottomUp(typecheck.Target.Decls, func(list []*ir.Func, recursive bool) {
++	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+ 		for _, f := range list {
+ 			name := ir.LinkFuncName(f)
+ 			if n, ok := p.WeightedCG.IRNodes[name]; ok {
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index 9703436673..dbd88dcda9 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -56,7 +56,7 @@ func MakeInit() {
+ 	ir.WithFunc(fn, func() {
+ 		typecheck.Stmts(nf)
+ 	})
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+ 	if base.Debug.WrapGlobalMapDbg > 1 {
+ 		fmt.Fprintf(os.Stderr, "=-= len(newfuncs) is %d for %v\n",
+ 			len(newfuncs), fn)
+@@ -65,7 +65,7 @@ func MakeInit() {
+ 		if base.Debug.WrapGlobalMapDbg > 1 {
+ 			fmt.Fprintf(os.Stderr, "=-= add to target.decls %v\n", nfn)
+ 		}
+-		typecheck.Target.Decls = append(typecheck.Target.Decls, ir.Node(nfn))
++		typecheck.Target.Funcs = append(typecheck.Target.Funcs, nfn)
+ 	}
+ 
+ 	// Prepend to Inits, so it runs first, before any user-declared init
+@@ -150,7 +150,7 @@ func Task() *ir.Name {
+ 			typecheck.Stmts(fnInit.Body)
+ 			ir.CurFunc = nil
+ 
+-			typecheck.Target.Decls = append(typecheck.Target.Decls, fnInit)
++			typecheck.Target.Funcs = append(typecheck.Target.Funcs, fnInit)
+ 			typecheck.Target.Inits = append(typecheck.Target.Inits, fnInit)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 69de685ca0..4489f59c26 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -242,7 +242,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 	})
+ 
+ 	fn.SetNilCheckDisabled(true)
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+ 
+ 	return fn
+ }
+@@ -630,7 +630,7 @@ func eqFunc(t *types.Type) *ir.Func {
+ 	// neither of which can be nil, and our comparisons
+ 	// are shallow.
+ 	fn.SetNilCheckDisabled(true)
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+ 	return fn
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index c97d60b996..2b08d5a63b 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -125,11 +125,7 @@ func (s *SymABIs) GenABIWrappers() {
+ 	// This may generate new decls for the wrappers, but we
+ 	// specifically *don't* want to visit those, lest we create
+ 	// wrappers for wrappers.
+-	for _, fn := range typecheck.Target.Decls {
+-		if fn.Op() != ir.ODCLFUNC {
+-			continue
+-		}
+-		fn := fn.(*ir.Func)
++	for _, fn := range typecheck.Target.Funcs {
+ 		nam := fn.Nname
+ 		if ir.IsBlank(nam) {
+ 			continue
+@@ -332,7 +328,7 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	ir.CurFunc = fn
+ 	typecheck.Stmts(fn.Body)
+ 
+-	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++	typecheck.Target.Funcs = append(typecheck.Target.Funcs, fn)
+ 
+ 	// Restore previous context.
+ 	base.Pos = savepos
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index 9de1b9ae36..8a020611df 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -56,11 +56,8 @@ func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
+ 	// important to handle it for this check, so we model it
+ 	// directly. This has to happen before transforming closures in walk since
+ 	// it's a lot harder to work out the argument after.
+-	for _, n := range typecheck.Target.Decls {
+-		if n.Op() != ir.ODCLFUNC {
+-			continue
+-		}
+-		c.curfn = n.(*ir.Func)
++	for _, n := range typecheck.Target.Funcs {
++		c.curfn = n
+ 		if c.curfn.ABIWrapper() {
+ 			// We only want "real" calls to these
+ 			// functions, not the generated ones within
+@@ -139,12 +136,7 @@ func (c *nowritebarrierrecChecker) check() {
+ 	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
+ 	var q ir.NameQueue
+ 
+-	for _, n := range typecheck.Target.Decls {
+-		if n.Op() != ir.ODCLFUNC {
+-			continue
+-		}
+-		fn := n.(*ir.Func)
+-
++	for _, fn := range typecheck.Target.Funcs {
+ 		symToFunc[fn.LSym] = fn
+ 
+ 		// Make nowritebarrierrec functions BFS roots.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 011cb3c7cf..18b93ba0ad 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -96,25 +96,26 @@ var IncrementalAddrtaken = false
+ // have not yet been marked as Addrtaken.
+ var DirtyAddrtaken = false
+ 
+-func ComputeAddrtaken(top []ir.Node) {
+-	for _, n := range top {
+-		var doVisit func(n ir.Node)
+-		doVisit = func(n ir.Node) {
+-			if n.Op() == ir.OADDR {
+-				if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
+-					x.Name().SetAddrtaken(true)
+-					if x.Name().IsClosureVar() {
+-						// Mark the original variable as Addrtaken so that capturevars
+-						// knows not to pass it by value.
+-						x.Name().Defn.Name().SetAddrtaken(true)
+-					}
++func ComputeAddrtaken(funcs []*ir.Func) {
++	var doVisit func(n ir.Node)
++	doVisit = func(n ir.Node) {
++		if n.Op() == ir.OADDR {
++			if x := ir.OuterValue(n.(*ir.AddrExpr).X); x.Op() == ir.ONAME {
++				x.Name().SetAddrtaken(true)
++				if x.Name().IsClosureVar() {
++					// Mark the original variable as Addrtaken so that capturevars
++					// knows not to pass it by value.
++					x.Name().Defn.Name().SetAddrtaken(true)
+ 				}
+ 			}
+-			if n.Op() == ir.OCLOSURE {
+-				ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
+-			}
+ 		}
+-		ir.Visit(n, doVisit)
++		if n.Op() == ir.OCLOSURE {
++			ir.VisitList(n.(*ir.ClosureExpr).Func.Body, doVisit)
++		}
++	}
++
++	for _, fn := range funcs {
++		ir.Visit(fn, doVisit)
+ 	}
+ }
+ 

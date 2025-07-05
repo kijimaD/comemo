@@ -13,6 +13,20 @@ Date:   Wed Apr 21 10:28:27 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/work/exec.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index a68bdd6d29..ab9ce88c3c 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -289,7 +289,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		magic := []string{
+ 			"GOCLOBBERDEADHASH",
+ 			"GOSSAFUNC",
+-			"GO_SSA_PHI_LOC_CUTOFF",
++			"GOSSADIR",
+ 			"GOSSAHASH",
+ 		}
+ 		for _, env := range magic {

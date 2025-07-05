@@ -7,6 +7,29 @@ Date:   Tue Apr 6 18:30:36 2010 -0700
     TBR=kaib
     CC=golang-dev
     https://golang.org/cl/897041
-
+---
  test/arm-pass.txt | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/arm-pass.txt b/test/arm-pass.txt
+index ce3897dd22..57d795d30d 100644
+--- a/test/arm-pass.txt
++++ b/test/arm-pass.txt
+@@ -34,7 +34,7 @@
+ ./defer.go
+ # ./deferprint.go  # need floating point
+ ./empty.go
+-./env.go
++# ./env.go  # android runner doesn't pass env through
+ ./escape.go
+ ./float_lit.go
+ # ./floatcmp.go  # need floating point
+@@ -80,7 +80,7 @@
+ ./named.go
+ ./named1.go
+ ./nil.go
+-./nul1.go
++# ./nul1.go  # android runner gets confused
+ ./parentype.go
+ # ./peano.go  # foo
+ ./printbig.go

@@ -10,6 +10,23 @@ Date:   Mon Jun 17 19:31:58 2013 +1000
     R=golang-dev, minux.ma, rsc, dave
     CC=golang-dev
     https://golang.org/cl/10078047
-
+---
  src/run.bash | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/run.bash b/src/run.bash
+index 685bc8279c..b29846a262 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -20,6 +20,11 @@ ulimit -c 0
+ [ "$(ulimit -H -n)" == "unlimited" ] || ulimit -S -n $(ulimit -H -n)
+ [ "$(ulimit -H -d)" == "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+ 
++# Thread count limit on NetBSD 7.
++if ulimit -T &> /dev/null; then
++	[ "$(ulimit -H -T)" == "unlimited" ] || ulimit -S -T $(ulimit -H -T)
++fi
++
+ # allow all.bash to avoid double-build of everything
+ rebuild=true
+ if [ "$1" = "--no-rebuild" ]; then

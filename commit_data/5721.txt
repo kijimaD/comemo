@@ -8,9 +8,241 @@ Date:   Mon Jun 28 17:12:09 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1707047
-
+---
  src/pkg/netchan/common.go       |  5 +++--
  src/pkg/netchan/export.go       | 19 ++++++++-----------
  src/pkg/netchan/import.go       | 36 +++++++++++++-----------------------
  src/pkg/netchan/netchan_test.go |  8 ++++----
  4 files changed, 28 insertions(+), 40 deletions(-)
+
+diff --git a/src/pkg/netchan/common.go b/src/pkg/netchan/common.go
+index 0fe9c96bb8..624397ef46 100644
+--- a/src/pkg/netchan/common.go
++++ b/src/pkg/netchan/common.go
+@@ -8,6 +8,7 @@ import (
+ 	"gob"
+ 	"net"
+ 	"os"
++	"reflect"
+ 	"sync"
+ )
+ 
+@@ -62,9 +63,9 @@ func newEncDec(conn net.Conn) *encDec {
+ }
+ 
+ // Decode an item from the connection.
+-func (ed *encDec) decode(e interface{}) os.Error {
++func (ed *encDec) decode(value reflect.Value) os.Error {
+ 	ed.decLock.Lock()
+-	err := ed.dec.Decode(e)
++	err := ed.dec.DecodeValue(value)
+ 	if err != nil {
+ 		// TODO: tear down connection?
+ 	}
+diff --git a/src/pkg/netchan/export.go b/src/pkg/netchan/export.go
+index 203741cd71..a16714ba23 100644
+--- a/src/pkg/netchan/export.go
++++ b/src/pkg/netchan/export.go
+@@ -36,7 +36,6 @@ import (
+ type exportChan struct {
+ 	ch  *reflect.ChanValue
+ 	dir Dir
+-	ptr *reflect.PtrValue // a pointer value we can point at each new received item
+ }
+ 
+ // An Exporter allows a set of channels to be published on a single
+@@ -101,17 +100,19 @@ func (client *expClient) getChan(hdr *header, dir Dir) *exportChan {
+ // while (client Send) requests are handled as data arrives from the client.
+ func (client *expClient) run() {
+ 	hdr := new(header)
++	hdrValue := reflect.NewValue(hdr)
+ 	req := new(request)
++	reqValue := reflect.NewValue(req)
+ 	error := new(error)
+ 	for {
+-		if err := client.decode(hdr); err != nil {
++		if err := client.decode(hdrValue); err != nil {
+ 			log.Stderr("error decoding client header:", err)
+ 			// TODO: tear down connection
+ 			return
+ 		}
+ 		switch hdr.payloadType {
+ 		case payRequest:
+-			if err := client.decode(req); err != nil {
++			if err := client.decode(reqValue); err != nil {
+ 				log.Stderr("error decoding client request:", err)
+ 				// TODO: tear down connection
+ 				return
+@@ -169,9 +170,8 @@ func (client *expClient) serveSend(hdr header) {
+ 		return
+ 	}
+ 	// Create a new value for each received item.
+-	val := reflect.MakeZero(ech.ptr.Type().(*reflect.PtrType).Elem())
+-	ech.ptr.PointTo(val)
+-	if err := client.decode(ech.ptr.Interface()); err != nil {
++	val := reflect.MakeZero(ech.ch.Type().(*reflect.ChanType).Elem())
++	if err := client.decode(val); err != nil {
+ 		log.Stderr("exporter value decode:", err)
+ 		return
+ 	}
+@@ -224,9 +224,7 @@ func checkChan(chT interface{}, dir Dir) (*reflect.ChanValue, os.Error) {
+ // channel type.
+ // Despite the literal signature, the effective signature is
+ //	Export(name string, chT chan T, dir Dir)
+-// where T must be a struct, pointer to struct, etc.
+-// TODO: fix reflection so we can eliminate the need for pT.
+-func (exp *Exporter) Export(name string, chT interface{}, dir Dir, pT interface{}) os.Error {
++func (exp *Exporter) Export(name string, chT interface{}, dir Dir) os.Error {
+ 	ch, err := checkChan(chT, dir)
+ 	if err != nil {
+ 		return err
+@@ -237,7 +235,6 @@ func (exp *Exporter) Export(name string, chT interface{}, dir Dir, pT interface{
+ 	if present {
+ 		return os.ErrorString("channel name already being exported:" + name)
+ 	}
+-	ptr := reflect.MakeZero(reflect.Typeof(pT)).(*reflect.PtrValue)
+-	exp.chans[name] = &exportChan{ch, dir, ptr}
++	exp.chans[name] = &exportChan{ch, dir}
+ 	return nil
+ }
+diff --git a/src/pkg/netchan/import.go b/src/pkg/netchan/import.go
+index d2fd23473c..244a83c5bc 100644
+--- a/src/pkg/netchan/import.go
++++ b/src/pkg/netchan/import.go
+@@ -19,7 +19,6 @@ import (
+ type importChan struct {
+ 	ch  *reflect.ChanValue
+ 	dir Dir
+-	ptr *reflect.PtrValue // a pointer value we can point at each new received item
+ }
+ 
+ // An Importer allows a set of channels to be imported from a single
+@@ -67,9 +66,11 @@ func (imp *Importer) shutdown() {
+ func (imp *Importer) run() {
+ 	// Loop on responses; requests are sent by ImportNValues()
+ 	hdr := new(header)
++	hdrValue := reflect.NewValue(hdr)
+ 	err := new(error)
++	errValue := reflect.NewValue(err)
+ 	for {
+-		if e := imp.decode(hdr); e != nil {
++		if e := imp.decode(hdrValue); e != nil {
+ 			log.Stderr("importer header:", e)
+ 			imp.shutdown()
+ 			return
+@@ -78,7 +79,7 @@ func (imp *Importer) run() {
+ 		case payData:
+ 			// done lower in loop
+ 		case payError:
+-			if e := imp.decode(err); e != nil {
++			if e := imp.decode(errValue); e != nil {
+ 				log.Stderr("importer error:", e)
+ 				return
+ 			}
+@@ -103,20 +104,19 @@ func (imp *Importer) run() {
+ 			return
+ 		}
+ 		// Create a new value for each received item.
+-		val := reflect.MakeZero(ich.ptr.Type().(*reflect.PtrType).Elem())
+-		ich.ptr.PointTo(val)
+-		if e := imp.decode(ich.ptr.Interface()); e != nil {
++		value := reflect.MakeZero(ich.ch.Type().(*reflect.ChanType).Elem())
++		if e := imp.decode(value); e != nil {
+ 			log.Stderr("importer value decode:", e)
+ 			return
+ 		}
+-		ich.ch.Send(val)
++		ich.ch.Send(value)
+ 	}
+ }
+ 
+ // Import imports a channel of the given type and specified direction.
+ // It is equivalent to ImportNValues with a count of 0, meaning unbounded.
+-func (imp *Importer) Import(name string, chT interface{}, dir Dir, pT interface{}) os.Error {
+-	return imp.ImportNValues(name, chT, dir, pT, 0)
++func (imp *Importer) Import(name string, chT interface{}, dir Dir) os.Error {
++	return imp.ImportNValues(name, chT, dir, 0)
+ }
+ 
+ // ImportNValues imports a channel of the given type and specified direction
+@@ -125,36 +125,26 @@ func (imp *Importer) Import(name string, chT interface{}, dir Dir, pT interface{
+ // the remote site's channel is provided in the call and may be of arbitrary
+ // channel type.
+ // Despite the literal signature, the effective signature is
+-//	ImportNValues(name string, chT chan T, dir Dir, pT T, n int) os.Error
+-// where T must be a struct, pointer to struct, etc.  pT may be more indirect
+-// than the value type of the channel (e.g.  chan T, pT *T) but it must be a
+-// pointer.
++//	ImportNValues(name string, chT chan T, dir Dir, n int) os.Error
+ // Example usage:
+ //	imp, err := NewImporter("tcp", "netchanserver.mydomain.com:1234")
+ //	if err != nil { log.Exit(err) }
+ //	ch := make(chan myType)
+-//	err := imp.ImportNValues("name", ch, Recv, new(myType), 1)
++//	err := imp.ImportNValues("name", ch, Recv, 1)
+ //	if err != nil { log.Exit(err) }
+ //	fmt.Printf("%+v\n", <-ch)
+-// TODO: fix reflection so we can eliminate the need for pT.
+-func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, pT interface{}, n int) os.Error {
++func (imp *Importer) ImportNValues(name string, chT interface{}, dir Dir, n int) os.Error {
+ 	ch, err := checkChan(chT, dir)
+ 	if err != nil {
+ 		return err
+ 	}
+-	// Make sure pT is a pointer (to a pointer...) to a struct.
+-	rt := reflect.Typeof(pT)
+-	if _, ok := rt.(*reflect.PtrType); !ok {
+-		return os.ErrorString("not a pointer:" + rt.String())
+-	}
+ 	imp.chanLock.Lock()
+ 	defer imp.chanLock.Unlock()
+ 	_, present := imp.chans[name]
+ 	if present {
+ 		return os.ErrorString("channel name already being imported:" + name)
+ 	}
+-	ptr := reflect.MakeZero(reflect.Typeof(pT)).(*reflect.PtrValue)
+-	imp.chans[name] = &importChan{ch, dir, ptr}
++	imp.chans[name] = &importChan{ch, dir}
+ 	// Tell the other side about this channel.
+ 	hdr := new(header)
+ 	hdr.name = name
+diff --git a/src/pkg/netchan/netchan_test.go b/src/pkg/netchan/netchan_test.go
+index 98799be91e..6b5c67c3ca 100644
+--- a/src/pkg/netchan/netchan_test.go
++++ b/src/pkg/netchan/netchan_test.go
+@@ -11,7 +11,7 @@ const closeCount = 5 // number of items when sender closes early
+ 
+ func exportSend(exp *Exporter, n int, t *testing.T) {
+ 	ch := make(chan int)
+-	err := exp.Export("exportedSend", ch, Send, new(int))
++	err := exp.Export("exportedSend", ch, Send)
+ 	if err != nil {
+ 		t.Fatal("exportSend:", err)
+ 	}
+@@ -23,7 +23,7 @@ func exportSend(exp *Exporter, n int, t *testing.T) {
+ 
+ func exportReceive(exp *Exporter, t *testing.T) {
+ 	ch := make(chan int)
+-	err := exp.Export("exportedRecv", ch, Recv, new(int))
++	err := exp.Export("exportedRecv", ch, Recv)
+ 	if err != nil {
+ 		t.Fatal("exportReceive:", err)
+ 	}
+@@ -37,7 +37,7 @@ func exportReceive(exp *Exporter, t *testing.T) {
+ 
+ func importReceive(imp *Importer, t *testing.T) {
+ 	ch := make(chan int)
+-	err := imp.ImportNValues("exportedSend", ch, Recv, new(int), count)
++	err := imp.ImportNValues("exportedSend", ch, Recv, count)
+ 	if err != nil {
+ 		t.Fatal("importReceive:", err)
+ 	}
+@@ -57,7 +57,7 @@ func importReceive(imp *Importer, t *testing.T) {
+ 
+ func importSend(imp *Importer, t *testing.T) {
+ 	ch := make(chan int)
+-	err := imp.ImportNValues("exportedRecv", ch, Send, new(int), count)
++	err := imp.ImportNValues("exportedRecv", ch, Send, count)
+ 	if err != nil {
+ 		t.Fatal("importSend:", err)
+ 	}

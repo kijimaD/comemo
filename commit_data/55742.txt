@@ -13,7 +13,41 @@ Date:   Thu Mar 9 14:44:46 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api.go    | 2 ++
  src/cmd/compile/internal/types2/errors.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index e60396b143..56fb578943 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
++	. "internal/types/errors"
+ 	"strings"
+ )
+ 
+@@ -39,6 +40,7 @@ type Error struct {
+ 	Msg  string     // default error message, user-friendly
+ 	Full string     // full error message, for debugging (may contain internal details)
+ 	Soft bool       // if set, error is "soft"
++	Code Code       // error code
+ }
+ 
+ // Error returns an error string formatted as follows:
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 8bbd719335..bbe4cc3fea 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -250,7 +250,7 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
+ 		pos = check.errpos
+ 	}
+ 
+-	err := Error{pos, stripAnnotations(msg), msg, soft}
++	err := Error{pos, stripAnnotations(msg), msg, soft, code}
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+ 	}

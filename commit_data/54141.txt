@@ -14,6 +14,22 @@ Date:   Fri May 13 01:34:02 2022 +0300
     Run-TryBot: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  misc/wasm/wasm_exec.js | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 9ce6a20c3f..e6c8921091 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -19,8 +19,8 @@
+ 				outputBuf += decoder.decode(buf);
+ 				const nl = outputBuf.lastIndexOf("\n");
+ 				if (nl != -1) {
+-					console.log(outputBuf.substr(0, nl));
+-					outputBuf = outputBuf.substr(nl + 1);
++					console.log(outputBuf.substring(0, nl));
++					outputBuf = outputBuf.substring(nl + 1);
+ 				}
+ 				return buf.length;
+ 			},

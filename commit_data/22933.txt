@@ -7,9 +7,89 @@ Date:   Thu Apr 16 10:13:23 2015 +1000
     Change-Id: I211c0d33dc292c6a703d788f6d4d286107bcb6b0
     Reviewed-on: https://go-review.googlesource.com/8906
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/draw/clip_test.go          |  6 +++---
  src/image/draw/draw.go               | 10 ++++++----
  src/image/internal/imageutil/gen.go  |  2 +-
  src/image/internal/imageutil/impl.go |  2 +-
  4 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/image/draw/clip_test.go b/src/image/draw/clip_test.go
+index 5903338a07..0abf53e5c7 100644
+--- a/src/image/draw/clip_test.go
++++ b/src/image/draw/clip_test.go
+@@ -185,17 +185,17 @@ func TestClip(t *testing.T) {
+ 		}
+ 
+ 		// Check that the clipped rectangle is contained by the dst / src / mask
+-		// rectangles, in their respective co-ordinate spaces.
++		// rectangles, in their respective coordinate spaces.
+ 		if !r.In(c.dr) {
+ 			t.Errorf("%s: c.dr %v does not contain r %v", c.desc, c.dr, r)
+ 		}
+-		// sr is r translated into src's co-ordinate space.
++		// sr is r translated into src's coordinate space.
+ 		sr := r.Add(c.sp.Sub(c.dr.Min))
+ 		if !sr.In(c.sr) {
+ 			t.Errorf("%s: c.sr %v does not contain sr %v", c.desc, c.sr, sr)
+ 		}
+ 		if !c.nilMask {
+-			// mr is r translated into mask's co-ordinate space.
++			// mr is r translated into mask's coordinate space.
+ 			mr := r.Add(c.mp.Sub(c.dr.Min))
+ 			if !mr.In(c.mr) {
+ 				t.Errorf("%s: c.mr %v does not contain mr %v", c.desc, c.mr, mr)
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 420fd05e36..24968156bd 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -68,7 +68,7 @@ func (floydSteinberg) Draw(dst Image, r image.Rectangle, src image.Image, sp ima
+ }
+ 
+ // clip clips r against each image's bounds (after translating into the
+-// destination image's co-ordinate space) and shifts the points sp and mp by
++// destination image's coordinate space) and shifts the points sp and mp by
+ // the same amount as the change in r.Min.
+ func clip(dst Image, r *image.Rectangle, src image.Image, sp *image.Point, mask image.Image, mp *image.Point) {
+ 	orig := r.Min
+@@ -336,9 +336,11 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
+ 		ddelta = dst.Stride
+ 		sdelta = src.Stride
+ 	} else {
+-		// If the source start point is higher than the destination start point, then we compose the rows
+-		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
+-		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
++		// If the source start point is higher than the destination start
++		// point, then we compose the rows in bottom-up order instead of
++		// top-down. Unlike the drawCopyOver function, we don't have to check
++		// the x coordinates because the built-in copy function can handle
++		// overlapping slices.
+ 		d0 += (dy - 1) * dst.Stride
+ 		s0 += (dy - 1) * src.Stride
+ 		ddelta = -dst.Stride
+diff --git a/src/image/internal/imageutil/gen.go b/src/image/internal/imageutil/gen.go
+index cde05ad088..6779b4959d 100644
+--- a/src/image/internal/imageutil/gen.go
++++ b/src/image/internal/imageutil/gen.go
+@@ -54,7 +54,7 @@ import (
+ // successful. If it returns false, no dst pixels were changed.
+ //
+ // This function assumes that r is entirely within dst's bounds and the
+-// translation of r from dst co-ordinate space to src co-ordinate space is
++// translation of r from dst coordinate space to src coordinate space is
+ // entirely within src's bounds.
+ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
+ 	// This function exists in the image/internal/imageutil package because it
+diff --git a/src/image/internal/imageutil/impl.go b/src/image/internal/imageutil/impl.go
+index d4bd3250fd..d5dee468b3 100644
+--- a/src/image/internal/imageutil/impl.go
++++ b/src/image/internal/imageutil/impl.go
+@@ -11,7 +11,7 @@ import (
+ // successful. If it returns false, no dst pixels were changed.
+ //
+ // This function assumes that r is entirely within dst's bounds and the
+-// translation of r from dst co-ordinate space to src co-ordinate space is
++// translation of r from dst coordinate space to src coordinate space is
+ // entirely within src's bounds.
+ func DrawYCbCr(dst *image.RGBA, r image.Rectangle, src *image.YCbCr, sp image.Point) (ok bool) {
+ 	// This function exists in the image/internal/imageutil package because it

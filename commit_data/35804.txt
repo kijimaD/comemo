@@ -23,7 +23,7 @@ Date:   Fri Jan 12 12:39:22 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/asm_386.s      |  1 +
  src/runtime/asm_amd64.s    |  1 +
  src/runtime/asm_amd64p32.s |  1 +
@@ -39,3 +39,237 @@ Date:   Fri Jan 12 12:39:22 2018 -0500
  src/runtime/stack.go       |  4 +---
  src/runtime/stubs.go       |  7 ++++++-
  14 files changed, 27 insertions(+), 26 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index d1935d28da..6cea848374 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -479,6 +479,7 @@ bad:
+ 	// Hide call from linker nosplit analysis.
+ 	MOVL	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
++	INT	$3
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index ab5407bbcd..953f118146 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -424,6 +424,7 @@ bad:
+ 	// Bad: g is not gsignal, not g0, not curg. What is it?
+ 	MOVQ	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
++	INT	$3
+ 
+ 
+ /*
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 0c104b23e7..1fbc6c4218 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -310,6 +310,7 @@ bad:
+ 	// Hide call from linker nosplit analysis.
+ 	MOVL	$runtime·badsystemstack(SB), AX
+ 	CALL	AX
++	INT	$3
+ 
+ /*
+  * support for morestack
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index d54dc62ba4..c51e0f0b78 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -317,6 +317,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
+ 	// Hide call from linker nosplit analysis.
+ 	MOVW	$runtime·badsystemstack(SB), R0
+ 	BL	(R0)
++	B	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched. Pretend to
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index ef32beecb5..e88532728a 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -201,6 +201,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	// Hide call from linker nosplit analysis.
+ 	MOVD	$runtime·badsystemstack(SB), R3
+ 	BL	(R3)
++	B	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched. Pretend to
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 00a7951fc1..e4a5a32ad0 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -179,6 +179,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	// Hide call from linker nosplit analysis.
+ 	MOVV	$runtime·badsystemstack(SB), R4
+ 	JAL	(R4)
++	JAL	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched. Pretend to
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 0eb9bb1e6c..ef63f41289 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -180,6 +180,7 @@ TEXT runtime·systemstack(SB),NOSPLIT,$0-4
+ 	// Hide call from linker nosplit analysis.
+ 	MOVW	$runtime·badsystemstack(SB), R4
+ 	JAL	(R4)
++	JAL	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched.  Pretend to
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index fef603dc30..b565a1370a 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -222,6 +222,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	MOVD	$runtime·badsystemstack(SB), R12
+ 	MOVD	R12, CTR
+ 	BL	(CTR)
++	BL	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched. Pretend to
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 1c7e44cdae..1d8c4032e5 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -266,6 +266,7 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	// Hide call from linker nosplit analysis.
+ 	MOVD	$runtime·badsystemstack(SB), R3
+ 	BL	(R3)
++	BL	runtime·abort(SB)
+ 
+ switch:
+ 	// save our state in g->sched.  Pretend to
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 95f6522e94..73cb6ecae2 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -148,9 +148,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		if i >= off && bits&bitPointer != 0 {
+ 			v := *(*unsafe.Pointer)(add(src, i))
+ 			if cgoIsGoPointer(v) {
+-				systemstack(func() {
+-					throw(cgoWriteBarrierFail)
+-				})
++				throw(cgoWriteBarrierFail)
+ 			}
+ 		}
+ 		hbits = hbits.next()
+@@ -183,9 +181,7 @@ func cgoCheckBits(src unsafe.Pointer, gcbits *byte, off, size uintptr) {
+ 			if bits&1 != 0 {
+ 				v := *(*unsafe.Pointer)(add(src, i))
+ 				if cgoIsGoPointer(v) {
+-					systemstack(func() {
+-						throw(cgoWriteBarrierFail)
+-					})
++					throw(cgoWriteBarrierFail)
+ 				}
+ 			}
+ 		}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index cd2b18cc51..d9fa512530 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -586,7 +586,11 @@ func sync_throw(s string) {
+ 
+ //go:nosplit
+ func throw(s string) {
+-	print("fatal error: ", s, "\n")
++	// Everything throw does should be recursively nosplit so it
++	// can be called even when it's unsafe to grow the stack.
++	systemstack(func() {
++		print("fatal error: ", s, "\n")
++	})
+ 	gp := getg()
+ 	if gp.m.throwing == 0 {
+ 		gp.m.throwing = 1
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c3c64ebfaf..9ed8c14e7a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -796,9 +796,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 	// GC time to finish and change the state to oldval.
+ 	for i := 0; !atomic.Cas(&gp.atomicstatus, oldval, newval); i++ {
+ 		if oldval == _Gwaiting && gp.atomicstatus == _Grunnable {
+-			systemstack(func() {
+-				throw("casgstatus: waiting for Gwaiting but is Grunnable")
+-			})
++			throw("casgstatus: waiting for Gwaiting but is Grunnable")
+ 		}
+ 		// Help GC if needed.
+ 		// if gp.preemptscan && !gp.gcworkdone && (oldval == _Grunning || oldval == _Gsyscall) {
+@@ -2925,21 +2923,14 @@ func exitsyscall(dummy int32) {
+ 
+ 	_g_.m.locks++ // see comment in entersyscall
+ 	if getcallersp(unsafe.Pointer(&dummy)) > _g_.syscallsp {
+-		// throw calls print which may try to grow the stack,
+-		// but throwsplit == true so the stack can not be grown;
+-		// use systemstack to avoid that possible problem.
+-		systemstack(func() {
+-			throw("exitsyscall: syscall frame is no longer valid")
+-		})
++		throw("exitsyscall: syscall frame is no longer valid")
+ 	}
+ 
+ 	_g_.waitsince = 0
+ 	oldp := _g_.m.p.ptr()
+ 	if exitsyscallfast() {
+ 		if _g_.m.mcache == nil {
+-			systemstack(func() {
+-				throw("lost mcache")
+-			})
++			throw("lost mcache")
+ 		}
+ 		if trace.enabled {
+ 			if oldp != _g_.m.p.ptr() || _g_.m.syscalltick != _g_.m.p.ptr().syscalltick {
+@@ -2986,9 +2977,7 @@ func exitsyscall(dummy int32) {
+ 	mcall(exitsyscall0)
+ 
+ 	if _g_.m.mcache == nil {
+-		systemstack(func() {
+-			throw("lost mcache")
+-		})
++		throw("lost mcache")
+ 	}
+ 
+ 	// Scheduler returned, so we're allowed to run now.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b5dda0d9e6..5a6259c6e2 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1184,7 +1184,5 @@ func freeStackSpans() {
+ 
+ //go:nosplit
+ func morestackc() {
+-	systemstack(func() {
+-		throw("attempt to execute system stack code on user stack")
+-	})
++	throw("attempt to execute system stack code on user stack")
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index e83064166a..6019005fbe 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -53,8 +53,13 @@ func mcall(fn func(*g))
+ //go:noescape
+ func systemstack(fn func())
+ 
++var badsystemstackMsg = "fatal: systemstack called from unexpected goroutine"
++
++//go:nosplit
++//go:nowritebarrierrec
+ func badsystemstack() {
+-	throw("systemstack called from unexpected goroutine")
++	sp := stringStructOf(&badsystemstackMsg)
++	write(2, sp.str, int32(sp.len))
+ }
+ 
+ // memclrNoHeapPointers clears n bytes starting at ptr.

@@ -10,6 +10,19 @@ Date:   Thu Mar 21 13:08:24 2024 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
-
+---
  src/net/http/serve_test.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 94b8bdcc2e..c03157e814 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -814,7 +814,6 @@ func testServerNoReadTimeout(t *testing.T, mode testMode) {
+ 			res.Write([]byte(resBody))
+ 		}), func(ts *httptest.Server) {
+ 			ts.Config.ReadTimeout = timeout
+-			ts.Config.IdleTimeout = 10 * time.Millisecond
+ 			t.Logf("Server.Config.ReadTimeout = %d", timeout)
+ 		})
+ 

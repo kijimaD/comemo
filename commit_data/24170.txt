@@ -12,8 +12,119 @@ Date:   Thu Jun 18 12:37:26 2015 +0200
     Change-Id: I23c7d821cd9dbf66c3c15d26750f305e3672d984
     Reviewed-on: https://go-review.googlesource.com/11241
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/http_test.go    | 17 +++++++++++++++++
  src/net/http/request.go      | 32 +++++++++++++++++++++++++++-----
  src/net/http/request_test.go | 18 ++++++++++++++++++
  3 files changed, 62 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index 8948601632..dead3b0454 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -39,3 +39,20 @@ func TestForeachHeaderElement(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestCleanHost(t *testing.T) {
++	tests := []struct {
++		in, want string
++	}{
++		{"www.google.com", "www.google.com"},
++		{"www.google.com foo", "www.google.com"},
++		{"www.google.com/foo", "www.google.com"},
++		{" first character is a space", ""},
++	}
++	for _, tt := range tests {
++		got := cleanHost(tt.in)
++		if tt.want != got {
++			t.Errorf("cleanHost(%q) = %q, want %q", tt.in, got, tt.want)
++		}
++	}
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index f95f774135..f41672210a 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -369,17 +369,23 @@ func (r *Request) WriteProxy(w io.Writer) error {
+ 
+ // extraHeaders may be nil
+ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
+-	// According to RFC 6874, an HTTP client, proxy, or other
+-	// intermediary must remove any IPv6 zone identifier attached
+-	// to an outgoing URI.
+-	host := removeZone(req.Host)
++	// Find the target host. Prefer the Host: header, but if that
++	// is not given, use the host from the request URL.
++	//
++	// Clean the host, in case it arrives with unexpected stuff in it.
++	host := cleanHost(req.Host)
+ 	if host == "" {
+ 		if req.URL == nil {
+ 			return errors.New("http: Request.Write on Request with no Host or URL set")
+ 		}
+-		host = removeZone(req.URL.Host)
++		host = cleanHost(req.URL.Host)
+ 	}
+ 
++	// According to RFC 6874, an HTTP client, proxy, or other
++	// intermediary must remove any IPv6 zone identifier attached
++	// to an outgoing URI.
++	host = removeZone(host)
++
+ 	ruri := req.URL.RequestURI()
+ 	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
+ 		ruri = req.URL.Scheme + "://" + host + ruri
+@@ -464,6 +470,22 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 	return nil
+ }
+ 
++// cleanHost strips anything after '/' or ' '.
++// Ideally we'd clean the Host header according to the spec:
++//   https://tools.ietf.org/html/rfc7230#section-5.4 (Host = uri-host [ ":" port ]")
++//   https://tools.ietf.org/html/rfc7230#section-2.7 (uri-host -> rfc3986's host)
++//   https://tools.ietf.org/html/rfc3986#section-3.2.2 (definition of host)
++// But practically, what we are trying to avoid is the situation in
++// issue 11206, where a malformed Host header used in the proxy context
++// would create a bad request. So it is enough to just truncate at the
++// first offending character.
++func cleanHost(in string) string {
++	if i := strings.IndexAny(in, " /"); i != -1 {
++		return in[:i]
++	}
++	return in
++}
++
+ // removeZone removes IPv6 zone identifer from host.
+ // E.g., "[fe80::1%en0]:8080" to "[fe80::1]:8080"
+ func removeZone(host string) string {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 1b36c14c98..627620c0c4 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -513,6 +513,24 @@ func TestRequestWriteBufferedWriter(t *testing.T) {
+ 	}
+ }
+ 
++func TestRequestBadHost(t *testing.T) {
++	got := []string{}
++	req, err := NewRequest("GET", "http://foo.com with spaces/after", nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.Write(logWrites{t, &got})
++	want := []string{
++		"GET /after HTTP/1.1\r\n",
++		"Host: foo.com\r\n",
++		"User-Agent: " + DefaultUserAgent + "\r\n",
++		"\r\n",
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("Writes = %q\n  Want = %q", got, want)
++	}
++}
++
+ func TestStarRequest(t *testing.T) {
+ 	req, err := ReadRequest(bufio.NewReader(strings.NewReader("M-SEARCH * HTTP/1.1\r\n\r\n")))
+ 	if err != nil {

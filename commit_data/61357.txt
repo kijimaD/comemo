@@ -25,6 +25,20 @@ Date:   Thu Oct 31 11:49:44 2024 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/os_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5b1c8ba2f0..4470acd83b 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2626,6 +2626,8 @@ func TestRemoveAllRace(t *testing.T) {
+ // Test that reading from a pipe doesn't use up a thread.
+ func TestPipeThreads(t *testing.T) {
+ 	switch runtime.GOOS {
++	case "aix":
++		t.Skip("skipping on aix; issue 70131")
+ 	case "illumos", "solaris":
+ 		t.Skip("skipping on Solaris and illumos; issue 19111")
+ 	case "windows":

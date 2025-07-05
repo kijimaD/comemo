@@ -11,6 +11,27 @@ Date:   Fri May 19 11:42:04 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
-
+---
  doc/go1.21.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index 743e2a3e28..1cf4bfe1a2 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -154,6 +154,15 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="library">Core library</h2>
+ 
++<h3 id="slog">New log/slog package</h3>
++
++<p>
++  The new <a href="/pkg/log/slog">log/slog</a> package provides structured logging with levels.
++  Structured logging emits key-value pairs
++  to enable fast, accurate processing of large amounts of log data.
++  The package supports integration with popular log analysis tools and services.
++</p>
++
+ <h3 id="minor_library_changes">Minor changes to the library</h3>
+ 
+ <p>

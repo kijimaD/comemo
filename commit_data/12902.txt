@@ -7,6 +7,20 @@ Date:   Mon Apr 16 17:36:36 2012 -0700
     R=golang-dev, bradfitz, akumar
     CC=golang-dev
     https://golang.org/cl/5629054
-
+---
  src/cmd/prof/main.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/prof/main.c b/src/cmd/prof/main.c
+index f0acaf1c07..a2ae2e11e6 100644
+--- a/src/cmd/prof/main.c
++++ b/src/cmd/prof/main.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
++
+ #include <u.h>
+ #include <time.h>
+ #include <libc.h>

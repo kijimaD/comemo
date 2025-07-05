@@ -21,10 +21,355 @@ Date:   Fri Mar 7 20:52:29 2014 +0400
     R=golang-codereviews, rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/72440043
-
+---
  src/pkg/runtime/panic.c   |  5 +---
  src/pkg/runtime/proc.c    | 34 +++++++++++++++--------
  src/pkg/runtime/runtime.h |  6 ++--
  src/pkg/runtime/stack.c   | 71 ++++++++++++++++++++++++++++-------------------
  src/pkg/runtime/stack.h   |  2 +-
  5 files changed, 69 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index a580e9f310..29bf7de27f 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -339,10 +339,7 @@ runtime·unwindstack(G *gp, byte *sp)
+ 		gp->stackbase = top->stackbase;
+ 		gp->stackguard = top->stackguard;
+ 		gp->stackguard0 = gp->stackguard;
+-		if(top->free != 0) {
+-			gp->stacksize -= top->free;
+-			runtime·stackfree(stk, top->free);
+-		}
++		runtime·stackfree(gp, stk, top);
+ 	}
+ 
+ 	if(sp != nil && (sp < (byte*)gp->stackguard - StackGuard || (byte*)gp->stackbase < sp)) {
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a99e56dde2..bf55912783 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1727,7 +1727,13 @@ syscall·runtime_AfterFork(void)
+ static void
+ mstackalloc(G *gp)
+ {
+-	gp->param = runtime·stackalloc((uintptr)gp->param);
++	G *newg;
++	uintptr size;
++
++	newg = (G*)gp->param;
++	size = newg->stacksize;
++	newg->stacksize = 0;
++	gp->param = runtime·stackalloc(newg, size);
+ 	runtime·gogo(&gp->sched);
+ }
+ 
+@@ -1747,20 +1753,19 @@ runtime·malg(int32 stacksize)
+ 	if(stacksize >= 0) {
+ 		if(g == m->g0) {
+ 			// running on scheduler stack already.
+-			stk = runtime·stackalloc(StackSystem + stacksize);
++			stk = runtime·stackalloc(newg, StackSystem + stacksize);
+ 		} else {
+ 			// have to call stackalloc on scheduler stack.
+-			g->param = (void*)(StackSystem + stacksize);
++			newg->stacksize = StackSystem + stacksize;
++			g->param = newg;
+ 			runtime·mcall(mstackalloc);
+ 			stk = g->param;
+ 			g->param = nil;
+ 		}
+-		newg->stacksize = StackSystem + stacksize;
+ 		newg->stack0 = (uintptr)stk;
+ 		newg->stackguard = (uintptr)stk + StackGuard;
+ 		newg->stackguard0 = newg->stackguard;
+ 		newg->stackbase = (uintptr)stk + StackSystem + stacksize - sizeof(Stktop);
+-		runtime·memclr((byte*)newg->stackbase, sizeof(Stktop));
+ 	}
+ 	return newg;
+ }
+@@ -1883,14 +1888,20 @@ static void
+ gfput(P *p, G *gp)
+ {
+ 	uintptr stksize;
++	Stktop *top;
+ 
+ 	if(gp->stackguard - StackGuard != gp->stack0)
+ 		runtime·throw("invalid stack in gfput");
+ 	stksize = gp->stackbase + sizeof(Stktop) - gp->stack0;
+-	if(stksize != FixedStack) {
++	if(stksize != gp->stacksize) {
++		runtime·printf("runtime: bad stacksize, goroutine %D, remain=%d, last=%d\n",
++			gp->goid, (int32)gp->stacksize, (int32)stksize);
++		runtime·throw("gfput: bad stacksize");
++	}
++	top = (Stktop*)gp->stackbase;
++	if(top->malloced) {
+ 		// non-standard stack size - free it.
+-		runtime·stackfree((void*)gp->stack0, stksize);
+-		gp->stacksize = 0;
++		runtime·stackfree(gp, (void*)gp->stack0, top);
+ 		gp->stack0 = 0;
+ 		gp->stackguard = 0;
+ 		gp->stackguard0 = 0;
+@@ -1941,19 +1952,18 @@ retry:
+ 		if(gp->stack0 == 0) {
+ 			// Stack was deallocated in gfput.  Allocate a new one.
+ 			if(g == m->g0) {
+-				stk = runtime·stackalloc(FixedStack);
++				stk = runtime·stackalloc(gp, FixedStack);
+ 			} else {
+-				g->param = (void*)FixedStack;
++				gp->stacksize = FixedStack;
++				g->param = gp;
+ 				runtime·mcall(mstackalloc);
+ 				stk = g->param;
+ 				g->param = nil;
+ 			}
+-			gp->stacksize = FixedStack;
+ 			gp->stack0 = (uintptr)stk;
+ 			gp->stackbase = (uintptr)stk + FixedStack - sizeof(Stktop);
+ 			gp->stackguard = (uintptr)stk + StackGuard;
+ 			gp->stackguard0 = gp->stackguard;
+-			runtime·memclr((byte*)gp->stackbase, sizeof(Stktop));
+ 		}
+ 	}
+ 	return gp;
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 2db18003de..4415f550d4 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -452,8 +452,8 @@ struct	Stktop
+ 	uint32	panicwrap;
+ 
+ 	uint8*	argp;	// pointer to arguments in old frame
+-	uintptr	free;	// if free>0, call stackfree using free as size
+ 	bool	panic;	// is this frame the top of a panic?
++	bool	malloced;
+ };
+ struct	SigTab
+ {
+@@ -880,8 +880,8 @@ int32	runtime·funcarglen(Func*, uintptr);
+ int32	runtime·funcspdelta(Func*, uintptr);
+ int8*	runtime·funcname(Func*);
+ int32	runtime·pcdatavalue(Func*, int32, uintptr);
+-void*	runtime·stackalloc(uint32);
+-void	runtime·stackfree(void*, uintptr);
++void*	runtime·stackalloc(G*, uint32);
++void	runtime·stackfree(G*, void*, Stktop*);
+ void	runtime·shrinkstack(G*);
+ MCache*	runtime·allocmcache(void);
+ void	runtime·freemcache(MCache*);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index 4abdd7bdb5..d1ba2bfdb9 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -84,10 +84,12 @@ stackcacherelease(void)
+ }
+ 
+ void*
+-runtime·stackalloc(uint32 n)
++runtime·stackalloc(G *gp, uint32 n)
+ {
+ 	uint32 pos;
+ 	void *v;
++	bool malloced;
++	Stktop *top;
+ 
+ 	// Stackalloc must be called on scheduler stack, so that we
+ 	// never try to grow the stack during the code that stackalloc runs.
+@@ -99,6 +101,7 @@ runtime·stackalloc(uint32 n)
+ 	if(StackDebug >= 1)
+ 		runtime·printf("stackalloc %d\n", n);
+ 
++	gp->stacksize += n;
+ 	if(StackFromSystem)
+ 		return runtime·SysAlloc(ROUND(n, PageSize), &mstats.stacks_sys);
+ 
+@@ -106,6 +109,7 @@ runtime·stackalloc(uint32 n)
+ 	// but if we need a stack of a bigger size, we fall back on malloc
+ 	// (assuming that inside malloc all the stack frames are small,
+ 	// so that we do not deadlock).
++	malloced = true;
+ 	if(n == FixedStack || m->mallocing) {
+ 		if(n != FixedStack) {
+ 			runtime·printf("stackalloc: in malloc, size=%d want %d\n", FixedStack, n);
+@@ -119,18 +123,26 @@ runtime·stackalloc(uint32 n)
+ 		m->stackcachepos = pos;
+ 		m->stackcachecnt--;
+ 		m->stackinuse++;
+-		return v;
+-	}
+-	return runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
++		malloced = false;
++	} else
++		v = runtime·mallocgc(n, 0, FlagNoProfiling|FlagNoGC|FlagNoZero|FlagNoInvokeGC);
++
++	top = (Stktop*)((byte*)v+n-sizeof(Stktop));
++	runtime·memclr((byte*)top, sizeof(*top));
++	top->malloced = malloced;
++	return v;
+ }
+ 
+ void
+-runtime·stackfree(void *v, uintptr n)
++runtime·stackfree(G *gp, void *v, Stktop *top)
+ {
+ 	uint32 pos;
++	uintptr n;
+ 
++	n = (uintptr)(top+1) - (uintptr)v;
+ 	if(StackDebug >= 1)
+ 		runtime·printf("stackfree %p %d\n", v, (int32)n);
++	gp->stacksize -= n;
+ 	if(StackFromSystem) {
+ 		if(StackFaultOnFree)
+ 			runtime·SysFault(v, n);
+@@ -138,18 +150,19 @@ runtime·stackfree(void *v, uintptr n)
+ 			runtime·SysFree(v, n, &mstats.stacks_sys);
+ 		return;
+ 	}
+-
+-	if(n == FixedStack || m->mallocing || m->gcing) {
+-		if(m->stackcachecnt == StackCacheSize)
+-			stackcacherelease();
+-		pos = m->stackcachepos;
+-		m->stackcache[pos] = v;
+-		m->stackcachepos = (pos + 1) % StackCacheSize;
+-		m->stackcachecnt++;
+-		m->stackinuse--;
++	if(top->malloced) {
++		runtime·free(v);
+ 		return;
+ 	}
+-	runtime·free(v);
++	if(n != FixedStack)
++		runtime·throw("stackfree: bad fixed size");
++	if(m->stackcachecnt == StackCacheSize)
++		stackcacherelease();
++	pos = m->stackcachepos;
++	m->stackcache[pos] = v;
++	m->stackcachepos = (pos + 1) % StackCacheSize;
++	m->stackcachecnt++;
++	m->stackinuse--;
+ }
+ 
+ // Called from runtime·lessstack when returning from a function which
+@@ -202,11 +215,7 @@ runtime·oldstack(void)
+ 	gp->stackguard = top->stackguard;
+ 	gp->stackguard0 = gp->stackguard;
+ 	gp->panicwrap = top->panicwrap;
+-
+-	if(top->free != 0) {
+-		gp->stacksize -= top->free;
+-		runtime·stackfree(old, top->free);
+-	}
++	runtime·stackfree(gp, old, top);
+ 
+ 	gp->status = oldstatus;
+ 	runtime·gogo(&gp->sched);
+@@ -498,6 +507,8 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	byte *oldstk, *oldbase, *newstk, *newbase;
+ 	uintptr oldsize, used;
+ 	AdjustInfo adjinfo;
++	Stktop *oldtop, *newtop;
++	bool malloced;
+ 
+ 	if(gp->syscallstack != 0)
+ 		runtime·throw("can't handle stack copy in syscall yet");
+@@ -505,13 +516,17 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	oldbase = (byte*)gp->stackbase + sizeof(Stktop);
+ 	oldsize = oldbase - oldstk;
+ 	used = oldbase - (byte*)gp->sched.sp;
++	oldtop = (Stktop*)gp->stackbase;
+ 
+ 	// allocate new stack
+-	newstk = runtime·stackalloc(newsize);
++	newstk = runtime·stackalloc(gp, newsize);
+ 	newbase = newstk + newsize;
++	newtop = (Stktop*)(newbase - sizeof(Stktop));
++	malloced = newtop->malloced;
+ 
+ 	if(StackDebug >= 1)
+ 		runtime·printf("copystack [%p %p]/%d -> [%p %p]/%d\n", oldstk, oldbase, (int32)oldsize, newstk, newbase, (int32)newsize);
++	USED(oldsize);
+ 	
+ 	// adjust pointers in the to-be-copied frames
+ 	adjinfo.oldstk = oldstk;
+@@ -523,11 +538,12 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	adjustctxt(gp, &adjinfo);
+ 	adjustdefers(gp, &adjinfo);
+ 	
+-	// copy the stack to the new location
++	// copy the stack (including Stktop) to the new location
+ 	runtime·memmove(newbase - used, oldbase - used, used);
++	newtop->malloced = malloced;
+ 	
+ 	// Swap out old stack for new one
+-	gp->stackbase = (uintptr)newbase - sizeof(Stktop);
++	gp->stackbase = (uintptr)newtop;
+ 	gp->stackguard = (uintptr)newstk + StackGuard;
+ 	gp->stackguard0 = (uintptr)newstk + StackGuard; // NOTE: might clobber a preempt request
+ 	if(gp->stack0 == (uintptr)oldstk)
+@@ -535,7 +551,7 @@ copystack(G *gp, uintptr nframes, uintptr newsize)
+ 	gp->sched.sp = (uintptr)(newbase - used);
+ 
+ 	// free old stack
+-	runtime·stackfree(oldstk, oldsize);
++	runtime·stackfree(gp, oldstk, oldtop);
+ }
+ 
+ // round x up to a power of 2.
+@@ -566,7 +582,6 @@ runtime·newstack(void)
+ 	G *gp;
+ 	Gobuf label;
+ 	bool newstackcall;
+-	uintptr free;
+ 
+ 	if(m->morebuf.g != m->curg) {
+ 		runtime·printf("runtime: newstack called from g=%p\n"
+@@ -669,14 +684,12 @@ runtime·newstack(void)
+ 		framesize = StackMin;
+ 	framesize += StackSystem;
+ 	framesize = round2(framesize);
+-	gp->stacksize += framesize;
++	stk = runtime·stackalloc(gp, framesize);
+ 	if(gp->stacksize > runtime·maxstacksize) {
+ 		runtime·printf("runtime: goroutine stack exceeds %D-byte limit\n", (uint64)runtime·maxstacksize);
+ 		runtime·throw("stack overflow");
+ 	}
+-	stk = runtime·stackalloc(framesize);
+ 	top = (Stktop*)(stk+framesize-sizeof(*top));
+-	free = framesize;
+ 
+ 	if(StackDebug >= 1) {
+ 		runtime·printf("\t-> new stack [%p, %p]\n", stk, top);
+@@ -687,7 +700,6 @@ runtime·newstack(void)
+ 	top->gobuf = m->morebuf;
+ 	top->argp = m->moreargp;
+ 	top->argsize = argsize;
+-	top->free = free;
+ 	m->moreargp = nil;
+ 	m->morebuf.pc = (uintptr)nil;
+ 	m->morebuf.lr = (uintptr)nil;
+@@ -805,6 +817,7 @@ runtime·shrinkstack(G *gp)
+ 	gp->stackguard0 = (uintptr)oldstk + newsize + StackGuard;
+ 	if(gp->stack0 == (uintptr)oldstk)
+ 		gp->stack0 = (uintptr)oldstk + newsize;
++	gp->stacksize -= oldsize - newsize;
+ 
+ 	// Free bottom half of the stack.  First, we trick malloc into thinking
+ 	// we allocated the stack as two separate half-size allocs.  Then the
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index 5175b98080..df965e1587 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -102,7 +102,7 @@ enum {
+ 	// The assumed size of the top-of-stack data block.
+ 	// The actual size can be smaller than this but cannot be larger.
+ 	// Checked in proc.c's runtime.malg.
+-	StackTop = 96,
++	StackTop = 88,
+ };
+ 
+ // Goroutine preemption request.

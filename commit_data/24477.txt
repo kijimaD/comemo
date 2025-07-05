@@ -9,6 +9,31 @@ Date:   Thu Jul 30 12:59:49 2015 -0700
     Change-Id: I4329604a24efc7f40cf5bf52fb3c9e30916b3cc2
     Reviewed-on: https://go-review.googlesource.com/12931
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index a916ee04a8..b0478b3239 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -14,8 +14,8 @@
+ // language object (Object) it denotes.
+ // Use Info.{Defs,Uses,Implicits} for the results of name resolution.
+ //
+-// Constant folding computes the exact constant value (exact.Value) for
+-// every expression (ast.Expr) that is a compile-time constant.
++// Constant folding computes the exact constant value (constant.Value)
++// for every expression (ast.Expr) that is a compile-time constant.
+ // Use Info.Types[expr].Value for the results of constant folding.
+ //
+ // Type inference computes the type (Type) of every expression (ast.Expr)
+@@ -218,7 +218,7 @@ func (info *Info) ObjectOf(id *ast.Ident) Object {
+ type TypeAndValue struct {
+ 	mode  operandMode
+ 	Type  Type
+-	Value exact.Value
++	Value exact.Value // == constant.Value
+ }
+ 
+ // TODO(gri) Consider eliminating the IsVoid predicate. Instead, report

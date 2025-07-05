@@ -7,7 +7,50 @@ Date:   Thu Oct 16 14:02:20 2008 -0700
     R=ken
     OCL=17307
     CL=17307
-
+---
  src/cmd/gc/go.y | 4 ++++
  test/addr.go    | 9 +++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 656bc64867..3e69c305e7 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -754,6 +754,8 @@ uexpr:
+ 	}
+ |	'&' uexpr
+ 	{
++		if($2->op == OCONV && !func)
++			yyerror("& of composite literal at top level");
+ 		$$ = nod(OADDR, $2, N);
+ 	}
+ |	'+' uexpr
+@@ -1179,11 +1181,13 @@ xfndcl:
+ 	{
+ 		maxarg = 0;
+ 		stksize = 0;
++		func++;
+ 	} fndcl fnbody
+ 	{
+ 		$$ = $3;
+ 		$$->nbody = $4;
+ 		funcbody($$);
++		func--;
+ 	}
+ 
+ fndcl:
+diff --git a/test/addr.go b/test/addr.go
+new file mode 100644
+index 0000000000..c803ee7c25
+--- /dev/null
++++ b/test/addr.go
+@@ -0,0 +1,9 @@
++// errchk $G $D/$F.go
++
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a = &[]int{1,2};	// ERROR "composite"

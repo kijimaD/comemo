@@ -16,9 +16,257 @@ Date:   Thu Feb 19 16:34:51 2015 -0800
     Change-Id: Ib093271b0f7ffd64ffed164ed2a820ebf2420e34
     Reviewed-on: https://go-review.googlesource.com/5361
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/asm/internal/arch/ppc64.go       | 18 ++++++++
  src/cmd/asm/internal/asm/asm.go          | 74 +++++++++++++++++++++++++++-----
  src/cmd/asm/internal/asm/operand_test.go | 12 ++++++
  src/cmd/asm/internal/asm/parse.go        | 44 ++++++++++++++-----
  4 files changed, 126 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index 7fb9f7dd2e..f2b32f5c9d 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -40,6 +40,24 @@ func IsPPC64CMP(op int) bool {
+ 	return false
+ }
+ 
++// IsPPC64NEG reports whether the op (as defined by an ppc64.A* constant) is
++// one of the NEG-like instructions that require special handling.
++func IsPPC64NEG(op int) bool {
++	switch op {
++	case ppc64.AADDMECC, ppc64.AADDMEVCC, ppc64.AADDMEV, ppc64.AADDME,
++		ppc64.AADDZECC, ppc64.AADDZEVCC, ppc64.AADDZEV, ppc64.AADDZE,
++		ppc64.ACNTLZDCC, ppc64.ACNTLZD, ppc64.ACNTLZWCC, ppc64.ACNTLZW,
++		ppc64.AEXTSBCC, ppc64.AEXTSB, ppc64.AEXTSHCC, ppc64.AEXTSH,
++		ppc64.AEXTSWCC, ppc64.AEXTSW, ppc64.ANEGCC, ppc64.ANEGVCC,
++		ppc64.ANEGV, ppc64.ANEG, ppc64.ASLBMFEE, ppc64.ASLBMFEV,
++		ppc64.ASLBMTE, ppc64.ASUBMECC, ppc64.ASUBMEVCC, ppc64.ASUBMEV,
++		ppc64.ASUBME, ppc64.ASUBZECC, ppc64.ASUBZEVCC, ppc64.ASUBZEV,
++		ppc64.ASUBZE:
++		return true
++	}
++	return false
++}
++
+ func ppc64RegisterNumber(name string, n int16) (int16, bool) {
+ 	switch name {
+ 	case "CR":
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 2cb8f9737f..af7366dba5 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -301,11 +301,20 @@ func (p *Parser) asmJump(op int, cond string, a []obj.Addr) {
+ 	switch len(a) {
+ 	case 1:
+ 		target = &a[0]
++	case 2:
++		if p.arch.Thechar == '9' {
++			// Special 2-operand jumps.
++			target = &a[1]
++			prog.From = a[0]
++			break
++		}
++		p.errorf("wrong number of arguments to %s instruction", p.arch.Aconv(op))
++		return
+ 	case 3:
+ 		if p.arch.Thechar == '9' {
+-			target = &a[2]
+ 			// Special 3-operand jumps.
+-			// First two must be constants.
++			// First two must be constants; a[1] is a register number.
++			target = &a[2]
+ 			prog.From = obj.Addr{
+ 				Type:   obj.TYPE_CONST,
+ 				Offset: p.getConstant(prog, op, &a[0]),
+@@ -384,7 +393,7 @@ func (p *Parser) branch(jmp, target *obj.Prog) {
+ // asmInstruction assembles an instruction.
+ // MOVW R9, (R10)
+ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+-	// fmt.Printf("%+v\n", a)
++	// fmt.Printf("%s %+v\n", p.arch.Aconv(op), a)
+ 	prog := &obj.Prog{
+ 		Ctxt:   p.linkCtxt,
+ 		Lineno: p.histLineNum,
+@@ -401,6 +410,12 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			prog.From = a[0]
+ 			// prog.To is no address.
+ 		}
++		if p.arch.Thechar == '9' && arch.IsPPC64NEG(op) {
++			// NEG: From and To are both a[0].
++			prog.To = a[0]
++			prog.From = a[0]
++			break
++		}
+ 	case 2:
+ 		if p.arch.Thechar == '5' {
+ 			if arch.IsARMCMP(op) {
+@@ -432,15 +447,31 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 		}
+ 		prog.From = a[0]
+ 		prog.To = a[1]
+-		// DX:AX as a register pair can only appear on the RHS.
+-		// Bizarrely, to obj it's specified by setting index on the LHS.
+-		// TODO: can we fix this?
+-		if a[1].Class != 0 {
+-			if a[0].Class != 0 {
+-				p.errorf("register pair must be on LHS")
++		switch p.arch.Thechar {
++		case '6', '8':
++			// DX:AX as a register pair can only appear on the RHS.
++			// Bizarrely, to obj it's specified by setting index on the LHS.
++			// TODO: can we fix this?
++			if a[1].Class != 0 {
++				if a[0].Class != 0 {
++					p.errorf("register pair must be on LHS")
++				}
++				prog.From.Index = int16(a[1].Class)
++				prog.To.Class = 0
++			}
++		case '9':
++			var reg0, reg1 int16
++			// Handle (R1+R2)
++			if a[0].Scale != 0 {
++				reg0 = int16(a[0].Scale)
++				prog.Reg = reg0
++			} else if a[1].Scale != 0 {
++				reg1 = int16(a[1].Scale)
++				prog.Reg = reg1
++			}
++			if reg0 != 0 && reg1 != 0 {
++				p.errorf("register pair cannot be both left and right operands")
+ 			}
+-			prog.From.Index = int16(a[1].Class)
+-			prog.To.Class = 0
+ 		}
+ 	case 3:
+ 		switch p.arch.Thechar {
+@@ -526,6 +557,27 @@ func (p *Parser) asmInstruction(op int, cond string, a []obj.Addr) {
+ 			break
+ 		}
+ 		p.errorf("can't handle %s instruction with 4 operands", p.arch.Aconv(op))
++	case 5:
++		if p.arch.Thechar == '9' && arch.IsPPC64RLD(op) {
++			// Always reg, reg, con, con, reg.  (con, con is a 'mask').
++			prog.From = a[0]
++			prog.Reg = p.getRegister(prog, op, &a[1])
++			mask1 := p.getConstant(prog, op, &a[2])
++			mask2 := p.getConstant(prog, op, &a[3])
++			var mask uint32
++			if mask1 < mask2 {
++				mask = (^uint32(0) >> uint(mask1)) & (^uint32(0) << uint(31-mask2))
++			} else {
++				mask = (^uint32(0) >> uint(mask2+1)) & (^uint32(0) << uint(31-(mask1-1)))
++			}
++			prog.From3 = obj.Addr{
++				Type:   obj.TYPE_CONST,
++				Offset: int64(mask),
++			}
++			prog.To = a[4]
++			break
++		}
++		p.errorf("can't handle %s instruction with 5 operands", p.arch.Aconv(op))
+ 	case 6:
+ 		// MCR and MRC on ARM
+ 		if p.arch.Thechar == '5' && arch.IsARMMRC(op) {
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index 58b9274426..0e3d844954 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -70,6 +70,18 @@ func TestARMOperandParser(t *testing.T) {
+ func TestPPC64OperandParser(t *testing.T) {
+ 	parser := newParser("ppc64")
+ 	testOperandParser(t, parser, ppc64OperandTests)
++	// Special encoding for (R1+R2).
++	parser.start(lex.Tokenize("(R1+R2)"))
++	addr := obj.Addr{}
++	parser.operand(&addr)
++	want := obj.Addr{
++		Type:  obj.TYPE_MEM,
++		Reg:   parser.arch.Register["R1"],
++		Scale: int8(parser.arch.Register["R2"]), // TODO: clean up how this is encoded in parse.go
++	}
++	if want != addr {
++		t.Errorf("(R1+R2): expected %+v got %+v", want, addr)
++	}
+ }
+ 
+ type operandTest struct {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 3ed7b28191..05db95b420 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -410,7 +410,7 @@ func (p *Parser) registerReference(name string) (int16, bool) {
+ // register parses a full register reference where there is no symbol present (as in 4(R0) or R(10) but not sym(SB))
+ // including forms involving multiple registers such as R1:R2.
+ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, ok bool) {
+-	// R1 or R(1) R1:R2 R1,R2 or R1*scale.
++	// R1 or R(1) R1:R2 R1,R2 R1+R2, or R1*scale.
+ 	r1, ok = p.registerReference(name)
+ 	if !ok {
+ 		return
+@@ -418,8 +418,10 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 	if prefix != 0 {
+ 		p.errorf("prefix %c not allowed for register: $%s", prefix, name)
+ 	}
+-	if p.peek() == ':' || p.peek() == ',' {
+-		// 2nd register; syntax (R1:R2). Check the architectures match.
++	c := p.peek()
++	if c == ':' || c == ',' || c == '+' {
++		// 2nd register; syntax (R1:R2) etc. No two architectures agree.
++		// Check the architectures match the syntax.
+ 		char := p.arch.Thechar
+ 		switch p.next().ScanToken {
+ 		case ':':
+@@ -432,6 +434,11 @@ func (p *Parser) register(name string, prefix rune) (r1, r2 int16, scale int8, o
+ 				p.errorf("illegal register pair syntax")
+ 				return
+ 			}
++		case '+':
++			if char != '9' {
++				p.errorf("illegal register pair syntax")
++				return
++			}
+ 		}
+ 		name := p.next().String()
+ 		r2, ok = p.registerReference(name)
+@@ -589,16 +596,31 @@ func (p *Parser) registerIndirect(a *obj.Addr, prefix rune) {
+ 		return
+ 	}
+ 	a.Reg = r1
+-	if r2 != 0 && p.arch.Thechar == '5' {
+-		// Special form for ARM: destination register pair (R1, R2).
+-		if prefix != 0 || scale != 0 {
+-			p.errorf("illegal address mode for register pair")
++	if r2 != 0 {
++		// TODO: Consistency in the encoding would be nice here.
++		if p.arch.Thechar == '5' {
++			// Special form for ARM: destination register pair (R1, R2).
++			if prefix != 0 || scale != 0 {
++				p.errorf("illegal address mode for register pair")
++				return
++			}
++			a.Type = obj.TYPE_REGREG
++			a.Offset = int64(r2)
++			// Nothing may follow; this is always a pure destination.
++			return
++		}
++		if p.arch.Thechar == '9' {
++			// Special form for PPC64: register pair (R1+R2).
++			if prefix != 0 || scale != 0 {
++				p.errorf("illegal address mode for register pair")
++				return
++			}
++			// TODO: This is rewritten in asm. Clumsy.
++			a.Type = obj.TYPE_MEM
++			a.Scale = int8(r2)
++			// Nothing may follow.
+ 			return
+ 		}
+-		a.Type = obj.TYPE_REGREG
+-		a.Offset = int64(r2)
+-		// Nothing may follow; this is always a pure destination.
+-		return
+ 	}
+ 	if r2 != 0 {
+ 		p.errorf("indirect through register pair")

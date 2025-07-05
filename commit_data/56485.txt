@@ -17,7 +17,58 @@ Date:   Mon May 1 15:23:42 2023 -0400
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go |  1 -
  src/cmd/compile/internal/inline/inl.go | 26 ++++++++------------------
  2 files changed, 8 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 81e8ed645d..ec20b18134 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -32,7 +32,6 @@ type DebugFlags struct {
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+ 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+ 	InterfaceCycles       int    `help:"allow anonymous interface cycles"`
+-	InlineSCCOnePass      int    `help:"visit SCC funcs only once during inlining (legacy behavior)"`
+ 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
+ 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index b6949bb5ac..528e964611 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -211,25 +211,15 @@ func InlineDecls(p *pgo.Profile, decls []ir.Node, doInline bool) {
+ 		// before performing any inlining, the results are less
+ 		// sensitive to the order within the SCC (see #58905 for an
+ 		// example).
+-		if base.Debug.InlineSCCOnePass == 0 {
+-			// Compute inlinability for all functions in the SCC ...
+-			for _, n := range list {
+-				doCanInline(n, recursive, numfns)
+-			}
+-			// ... then make a second pass to do inlining of calls.
+-			if doInline {
+-				for _, n := range list {
+-					InlineCalls(n, p)
+-				}
+-			}
+-		} else {
+-			// Legacy ordering to make it easier to triage any bugs
+-			// or compile time issues that might crop up.
++
++		// First compute inlinability for all functions in the SCC ...
++		for _, n := range list {
++			doCanInline(n, recursive, numfns)
++		}
++		// ... then make a second pass to do inlining of calls.
++		if doInline {
+ 			for _, n := range list {
+-				doCanInline(n, recursive, numfns)
+-				if doInline {
+-					InlineCalls(n, p)
+-				}
++				InlineCalls(n, p)
+ 			}
+ 		}
+ 	})

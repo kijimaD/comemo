@@ -9,7 +9,37 @@ Date:   Fri Feb 24 11:32:33 2012 +1100
     R=golang-dev, rsc, nigeltao
     CC=golang-dev
     https://golang.org/cl/5687065
-
+---
  src/pkg/html/template/escape.go      | 2 +-
  src/pkg/html/template/escape_test.go | 5 +++++
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index 02fa3eaad6..a058e20d7b 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -593,7 +593,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 				}
+ 			}
+ 			for j := i; j < end; j++ {
+-				if s[j] == '<' && !bytes.HasPrefix(s[j:], doctypeBytes) {
++				if s[j] == '<' && !bytes.HasPrefix(bytes.ToUpper(s[j:]), doctypeBytes) {
+ 					b.Write(s[written:j])
+ 					b.WriteString("&lt;")
+ 					written = j + 1
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 70cada3f50..a92a0596c7 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -431,6 +431,11 @@ func TestEscape(t *testing.T) {
+ 			"<!DOCTYPE html>Hello, World!",
+ 			"<!DOCTYPE html>Hello, World!",
+ 		},
++		{
++			"HTML doctype not case-insensitive",
++			"<!doCtYPE htMl>Hello, World!",
++			"<!doCtYPE htMl>Hello, World!",
++		},
+ 		{
+ 			"No doctype injection",
+ 			`<!{{"DOCTYPE"}}`,

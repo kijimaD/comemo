@@ -41,9 +41,179 @@ Date:   Tue Jun 9 03:17:17 2020 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/compile.go |  3 ++
  src/cmd/compile/internal/ssa/cse.go     | 54 ------------------------------
  src/cmd/compile/internal/ssa/tuple.go   | 59 +++++++++++++++++++++++++++++++++
  test/fixedbugs/issue39472.go            | 12 +++++++
  4 files changed, 74 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index 2dbe9cf405..dbdd027716 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -451,6 +451,7 @@ var passes = [...]pass{
+ 	{name: "lowered deadcode for cse", fn: deadcode}, // deadcode immediately before CSE avoids CSE making dead values live again
+ 	{name: "lowered cse", fn: cse},
+ 	{name: "elim unread autos", fn: elimUnreadAutos},
++	{name: "tighten tuple selectors", fn: tightenTupleSelectors, required: true},
+ 	{name: "lowered deadcode", fn: deadcode, required: true},
+ 	{name: "checkLower", fn: checkLower, required: true},
+ 	{name: "late phielim", fn: phielim},
+@@ -509,6 +510,8 @@ var passOrder = [...]constraint{
+ 	{"decompose builtin", "late opt"},
+ 	// decompose builtin is the last pass that may introduce new float ops, so run softfloat after it
+ 	{"decompose builtin", "softfloat"},
++	// tuple selectors must be tightened to generators and de-duplicated before scheduling
++	{"tighten tuple selectors", "schedule"},
+ 	// remove critical edges before phi tighten, so that phi args get better placement
+ 	{"critical", "phi tighten"},
+ 	// don't layout blocks until critical edges have been removed
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index 6bfd2960c1..3b4f2be37e 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -223,60 +223,6 @@ func cse(f *Func) {
+ 		}
+ 	}
+ 
+-	// Fixup tuple selectors.
+-	//
+-	// If we have rewritten a tuple generator to a new one in a different
+-	// block, copy its selectors to the new generator's block, so tuple
+-	// generator and selectors stay together.
+-	//
+-	// Note: that there must be only one selector of each type per tuple
+-	// generator. CSE may have left us with more than one so we de-duplicate
+-	// them using a map. See issue 16741.
+-	selectors := make(map[struct {
+-		id ID
+-		op Op
+-	}]*Value)
+-	for _, b := range f.Blocks {
+-		for _, selector := range b.Values {
+-			if selector.Op != OpSelect0 && selector.Op != OpSelect1 {
+-				continue
+-			}
+-
+-			// Get the tuple generator to use as a key for de-duplication.
+-			tuple := selector.Args[0]
+-			if !tuple.Type.IsTuple() {
+-				f.Fatalf("arg of tuple selector %s is not a tuple: %s", selector.String(), tuple.LongString())
+-			}
+-
+-			// If there is a pre-existing selector in the target block then
+-			// use that. Do this even if the selector is already in the
+-			// target block to avoid duplicate tuple selectors.
+-			key := struct {
+-				id ID
+-				op Op
+-			}{tuple.ID, selector.Op}
+-			if t := selectors[key]; t != nil {
+-				if selector != t {
+-					selector.copyOf(t)
+-				}
+-				continue
+-			}
+-
+-			// If the selector is in the wrong block copy it into the target
+-			// block.
+-			if selector.Block != tuple.Block {
+-				t := selector.copyInto(tuple.Block)
+-				selector.copyOf(t)
+-				selectors[key] = t
+-				continue
+-			}
+-
+-			// The selector is in the target block. Add it to the map so it
+-			// cannot be duplicated.
+-			selectors[key] = selector
+-		}
+-	}
+-
+ 	if f.pass.stats > 0 {
+ 		f.LogStat("CSE REWRITES", rewrites)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/tuple.go b/src/cmd/compile/internal/ssa/tuple.go
+new file mode 100644
+index 0000000000..38deabf83d
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/tuple.go
+@@ -0,0 +1,59 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++// tightenTupleSelectors ensures that tuple selectors (Select0 and
++// Select1 ops) are in the same block as their tuple generator. The
++// function also ensures that there are no duplicate tuple selectors.
++// These properties are expected by the scheduler but may not have
++// been maintained by the optimization pipeline up to this point.
++//
++// See issues 16741 and 39472.
++func tightenTupleSelectors(f *Func) {
++	selectors := make(map[struct {
++		id ID
++		op Op
++	}]*Value)
++	for _, b := range f.Blocks {
++		for _, selector := range b.Values {
++			if selector.Op != OpSelect0 && selector.Op != OpSelect1 {
++				continue
++			}
++
++			// Get the tuple generator to use as a key for de-duplication.
++			tuple := selector.Args[0]
++			if !tuple.Type.IsTuple() {
++				f.Fatalf("arg of tuple selector %s is not a tuple: %s", selector.String(), tuple.LongString())
++			}
++
++			// If there is a pre-existing selector in the target block then
++			// use that. Do this even if the selector is already in the
++			// target block to avoid duplicate tuple selectors.
++			key := struct {
++				id ID
++				op Op
++			}{tuple.ID, selector.Op}
++			if t := selectors[key]; t != nil {
++				if selector != t {
++					selector.copyOf(t)
++				}
++				continue
++			}
++
++			// If the selector is in the wrong block copy it into the target
++			// block.
++			if selector.Block != tuple.Block {
++				t := selector.copyInto(tuple.Block)
++				selector.copyOf(t)
++				selectors[key] = t
++				continue
++			}
++
++			// The selector is in the target block. Add it to the map so it
++			// cannot be duplicated.
++			selectors[key] = selector
++		}
++	}
++}
+diff --git a/test/fixedbugs/issue39472.go b/test/fixedbugs/issue39472.go
+new file mode 100644
+index 0000000000..61444a28b9
+--- /dev/null
++++ b/test/fixedbugs/issue39472.go
+@@ -0,0 +1,12 @@
++// compile -N
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(x float64) bool {
++	x += 1
++	return (x != 0) == (x != 0)
++}

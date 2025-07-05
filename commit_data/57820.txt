@@ -15,6 +15,28 @@ Date:   Mon Sep 4 00:00:11 2023 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/syscall/exec_linux_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 4a6c34e6e6..d192b904d2 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -8,6 +8,7 @@ package syscall_test
+ 
+ import (
+ 	"bytes"
++	"errors"
+ 	"flag"
+ 	"fmt"
+ 	"internal/platform"
+@@ -460,7 +461,7 @@ func TestUseCgroupFD(t *testing.T) {
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		if err != syscall.EINVAL && testenv.SyscallIsNotSupported(err) {
++		if testenv.SyscallIsNotSupported(err) && !errors.Is(err, syscall.EINVAL) {
+ 			// Can be one of:
+ 			// - clone3 not supported (old kernel);
+ 			// - clone3 not allowed (by e.g. seccomp);

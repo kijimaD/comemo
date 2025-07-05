@@ -10,7 +10,75 @@ Date:   Fri May 27 14:25:16 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/23514
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/crypto/tls/conn.go     | 10 +++++-----
  src/crypto/tls/tls_test.go |  7 +++----
  2 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index f93a5f28ae..40c17440d6 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -78,9 +78,9 @@ type Conn struct {
+ 
+ 	// bytesSent counts the bytes of application data sent.
+ 	// packetsSent counts packets.
+-	bytesSent int64
++	bytesSent   int64
+ 	packetsSent int64
+-	
++
+ 	// activeCall is an atomic int32; the low bit is whether Close has
+ 	// been called. the rest of the bits are the number of goroutines
+ 	// in Conn.Write.
+@@ -788,15 +788,15 @@ func (c *Conn) maxPayloadSizeForWrite(typ recordType, explicitIVLen int) int {
+ 			panic("unknown cipher type")
+ 		}
+ 	}
+-	
++
+ 	// Allow packet growth in arithmetic progression up to max.
+ 	pkt := c.packetsSent
+ 	c.packetsSent++
+ 	if pkt > 1000 {
+ 		return maxPlaintext // avoid overflow in multiply below
+ 	}
+-	
+-	n := payloadBytes * int(pkt + 1)
++
++	n := payloadBytes * int(pkt+1)
+ 	if n > maxPlaintext {
+ 		n = maxPlaintext
+ 	}
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 8dc4533a52..894d7e82ab 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -527,7 +527,7 @@ func throughput(b *testing.B, totalBytes int64, dynamicRecordSizingDisabled bool
+ 
+ func BenchmarkThroughput(b *testing.B) {
+ 	for _, mode := range []string{"Max", "Dynamic"} {
+-		for size := 1; size <= 64; size<<=1{
++		for size := 1; size <= 64; size <<= 1 {
+ 			name := fmt.Sprintf("%sPacket/%dMB", mode, size)
+ 			b.Run(name, func(b *testing.B) {
+ 				throughput(b, int64(size<<20), mode == "Max")
+@@ -548,8 +548,8 @@ func (c *slowConn) Write(p []byte) (int, error) {
+ 	t0 := time.Now()
+ 	wrote := 0
+ 	for wrote < len(p) {
+-		time.Sleep(100*time.Microsecond)
+-		allowed := int(time.Since(t0).Seconds() * float64(c.bps)) / 8
++		time.Sleep(100 * time.Microsecond)
++		allowed := int(time.Since(t0).Seconds()*float64(c.bps)) / 8
+ 		if allowed > len(p) {
+ 			allowed = len(p)
+ 		}
+@@ -617,7 +617,6 @@ func latency(b *testing.B, bps int, dynamicRecordSizingDisabled bool) {
+ 	}
+ }
+ 
+-
+ func BenchmarkLatency(b *testing.B) {
+ 	for _, mode := range []string{"Max", "Dynamic"} {
+ 		for _, kbps := range []int{200, 500, 1000, 2000, 5000} {

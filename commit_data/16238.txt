@@ -12,7 +12,44 @@ Date:   Tue Apr 30 04:13:32 2013 +0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9019043
-
+---
  misc/cgo/test/cthread.go  | 5 -----
  src/pkg/runtime/asm_arm.s | 2 +-
  2 files changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/cthread.go b/misc/cgo/test/cthread.go
+index bdfd1103d6..68d4a03eac 100644
+--- a/misc/cgo/test/cthread.go
++++ b/misc/cgo/test/cthread.go
+@@ -8,7 +8,6 @@ package cgotest
+ import "C"
+ 
+ import (
+-	"runtime"
+ 	"sync"
+ 	"testing"
+ )
+@@ -31,10 +30,6 @@ func Add(x int) {
+ }
+ 
+ func testCthread(t *testing.T) {
+-	if runtime.GOARCH == "arm" {
+-		t.Skip("testCthread disabled on arm")
+-	}
+-
+ 	sum.i = 0
+ 	C.doAdd(10, 6)
+ 
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index ee9acb749c..fed9b30215 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -417,7 +417,7 @@ havem:
+ 	RET
+ 
+ // void setmg(M*, G*); set m and g. for use by needm.
+-TEXT runtime·setmg(SB), 7, $-4
++TEXT runtime·setmg(SB), 7, $0
+ 	MOVW	mm+0(FP), m
+ 	MOVW	gg+4(FP), g
+ 

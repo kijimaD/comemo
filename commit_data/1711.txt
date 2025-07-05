@@ -7,6 +7,19 @@ Date:   Mon Feb 23 22:43:04 2009 -0800
     R=r
     OCL=25356
     CL=25356
-
+---
  src/cmd/6g/gen.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index e2c06d1967..d14ad30bb9 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -776,6 +776,7 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	cgen(&nodo, &nodr);	// REG = 32+offset(REG) -- i.m->fun[f]
+ 
+ 	// BOTCH nodr.type = fntype;
++	nodr.type = n->left->type;
+ 	ginscall(&nodr, proc);
+ 
+ 	regfree(&nodr);

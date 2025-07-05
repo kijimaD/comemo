@@ -41,7 +41,7 @@ Date:   Wed May 20 14:57:55 2009 -0700
     R=ken
     OCL=28701
     CL=29121
-
+---
  src/cmd/gc/builtin.c.boot |  11 +-
  src/cmd/gc/go.h           |   1 +
  src/cmd/gc/subr.c         |   8 +-
@@ -53,3 +53,1182 @@ Date:   Wed May 20 14:57:55 2009 -0700
  src/runtime/runtime.h     |  16 +-
  test/golden.out           |   2 +-
  10 files changed, 440 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 8506947e70..164a27822c 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -9,7 +9,8 @@ char *sysimport =
+ 	"func sys.printint (? int64)\n"
+ 	"func sys.printstring (? string)\n"
+ 	"func sys.printpointer (? any)\n"
+-	"func sys.printinter (? any)\n"
++	"func sys.printiface (? any)\n"
++	"func sys.printeface (? any)\n"
+ 	"func sys.printarray (? any)\n"
+ 	"func sys.printnl ()\n"
+ 	"func sys.printsp ()\n"
+@@ -21,13 +22,21 @@ char *sysimport =
+ 	"func sys.arraystring (? []uint8) (? string)\n"
+ 	"func sys.stringiter (? string, ? int) (? int)\n"
+ 	"func sys.stringiter2 (? string, ? int) (retk int, retv int)\n"
++	"func sys.ifaceI2E (iface any) (ret any)\n"
++	"func sys.ifaceE2I (sigi *uint8, iface any) (ret any)\n"
++	"func sys.ifaceT2E (sigt *uint8, elem any) (ret any)\n"
++	"func sys.ifaceE2T (sigt *uint8, elem any) (ret any)\n"
++	"func sys.ifaceE2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
++	"func sys.ifaceE2T2 (sigt *uint8, elem any) (ret any, ok bool)\n"
+ 	"func sys.ifaceT2I (sigi *uint8, sigt *uint8, elem any) (ret any)\n"
+ 	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
+ 	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
+ 	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+ 	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+ 	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
++	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"func sys.ifacethash (i1 any) (ret uint32)\n"
++	"func sys.efacethash (i1 any) (ret uint32)\n"
+ 	"func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
+ 	"func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+ 	"func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 267d12aa8e..763e2b5550 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -43,6 +43,7 @@ enum
+ 	ANOEQ,
+ 	ASTRING,
+ 	AINTER,
++	ANILINTER,
+ 
+ 	BADWIDTH	= -1000000000
+ };
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 295a062ba6..38226a25c5 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -323,11 +323,11 @@ algtype(Type *t)
+ 
+ 	if(issimple[t->etype] || isptr[t->etype] || t->etype == TCHAN || t->etype == TFUNC)
+ 		a = AMEM;	// just bytes (int, ptr, etc)
+-	else
+-	if(t->etype == TSTRING)
++	else if(t->etype == TSTRING)
+ 		a = ASTRING;	// string
+-	else
+-	if(t->etype == TINTER)
++	else if(isnilinter(t))
++		a = ANILINTER;	// nil interface
++	else if(t->etype == TINTER)
+ 		a = AINTER;	// interface
+ 	else
+ 		a = ANOEQ;	// just bytes, but no hash/eq
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 263496701f..3f62706f70 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -762,6 +762,7 @@ typeswitch(Node *sw)
+ 	Node *a;
+ 	Case *c, *c0, *c1;
+ 	int ncase;
++	Type *t;
+ 
+ 	if(sw->ntest == nil)
+ 		return;
+@@ -793,8 +794,12 @@ typeswitch(Node *sw)
+ 	hashname = nod(OXXX, N, N);
+ 	tempname(hashname, types[TUINT32]);
+ 
+-	a = syslook("ifacethash", 1);
+-	argtype(a, sw->ntest->right->type);
++	t = sw->ntest->right->type;
++	if(isnilinter(t))
++		a = syslook("efacethash", 1);
++	else
++		a = syslook("ifacethash", 1);
++	argtype(a, t);
+ 	a = nod(OCALL, a, facename);
+ 	a = nod(OAS, hashname, a);
+ 	cas = list(cas, a);
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 67fbb0391d..e139e759c6 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -17,7 +17,8 @@ func	printfloat(float64);
+ func	printint(int64);
+ func	printstring(string);
+ func	printpointer(any);
+-func	printinter(any);
++func	printiface(any);
++func	printeface(any);
+ func	printarray(any);
+ func	printnl();
+ func	printsp();
+@@ -31,13 +32,21 @@ func	arraystring([]byte) string;
+ func	stringiter(string, int) int;
+ func	stringiter2(string, int) (retk int, retv int);
+ 
++func	ifaceI2E(iface any) (ret any);
++func	ifaceE2I(sigi *byte, iface any) (ret any);
++func	ifaceT2E(sigt *byte, elem any) (ret any);
++func	ifaceE2T(sigt *byte, elem any) (ret any);
++func	ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
++func	ifaceE2T2(sigt *byte, elem any) (ret any, ok bool);
+ func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+ func	ifaceI2T(sigt *byte, iface any) (ret any);
+ func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+ func	ifaceI2I(sigi *byte, iface any) (ret any);
+ func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ func	ifaceeq(i1 any, i2 any) (ret bool);
++func	efaceeq(i1 any, i2 any) (ret bool);
+ func	ifacethash(i1 any) (ret uint32);
++func	efacethash(i1 any) (ret uint32);
+ 
+ func	newmap(keysize int, valsize int,
+ 			keyalg int, valalg int,
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3013faf19e..ea6dd8ced3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -15,6 +15,14 @@ enum
+ 	I2I2,
+ 	T2I,
+ 	I2Isame,
++	E2T,
++	E2T2,
++	E2I,
++	E2I2,
++	I2E,
++	I2E2,
++	T2E,
++	E2Esame,
+ };
+ 
+ // can this code branch reach the end
+@@ -444,6 +452,7 @@ loop:
+ 		cr = listcount(r);
+ 
+ 		if(cl == cr) {
++		simpleas:
+ 			walktype(r, Erv);
+ 			l = ascompatee(n->op, &n->left, &n->right);
+ 			if(l != N)
+@@ -505,13 +514,25 @@ loop:
+ 					break;
+ 				et = ifaceas1(r->type, r->left->type, 1);
+ 				switch(et) {
++				case I2Isame:
++				case E2Esame:
++					n->right = nod(OLIST, r->left, nodbool(1));
++					goto simpleas;
++				case I2E:
++					n->right = nod(OLIST, n->right, nodbool(1));
++					goto simpleas;
+ 				case I2T:
+ 					et = I2T2;
+ 					break;
+-				case I2Isame:
+ 				case I2I:
+ 					et = I2I2;
+ 					break;
++				case E2I:
++					et = E2I2;
++					break;
++				case E2T:
++					et = E2T2;
++					break;
+ 				default:
+ 					et = Inone;
+ 					break;
+@@ -1180,6 +1201,7 @@ void
+ walkconv(Node *n)
+ {
+ 	int et;
++	char *what;
+ 	Type *t;
+ 	Node *l;
+ 
+@@ -1199,9 +1221,13 @@ walkconv(Node *n)
+ 		defaultlit(l, T);
+ 		if(!isinter(l->type))
+ 			yyerror("type assertion requires interface on left, have %T", l->type);
+-		et = ifaceas(n->type, l->type, 1);
++		et = ifaceas1(t, l->type, 1);
++		if(et == I2Isame || et == E2Esame) {
++			n->op = OCONV;
++			goto nop;
++		}
+ 		if(et != Inone) {
+-			indir(n, ifaceop(n->type, l, et));
++			indir(n, ifaceop(t, l, et));
+ 			return;
+ 		}
+ 		goto bad;
+@@ -1212,8 +1238,9 @@ walkconv(Node *n)
+ 	if(l->type == T)
+ 		return;
+ 
+-	// nil conversion
++	// no-op conversion
+ 	if(cvttype(t, l->type)) {
++	nop:
+ 		if(l->op != ONAME) {
+ 			indir(n, l);
+ 			n->type = t;
+@@ -1267,9 +1294,9 @@ walkconv(Node *n)
+ 
+ 	// convert from unsafe.pointer
+ 	if(isptrto(l->type, TANY)) {
+-		if(isptr[n->type->etype])
++		if(isptr[t->etype])
+ 			return;
+-		if(n->type->etype == TUINTPTR)
++		if(t->etype == TUINTPTR)
+ 			return;
+ 	}
+ 
+@@ -1277,8 +1304,12 @@ bad:
+ 	if(n->diag)
+ 		return;
+ 	n->diag = 1;
++	if(n->op == ODOTTYPE)
++		what = "type assertion";
++	else
++		what = "conversion";
+ 	if(l->type != T)
+-		yyerror("invalid conversion: %T to %T", l->type, t);
++		yyerror("invalid %s: %T to %T", what, l->type, t);
+ 	else
+ 	if(n->left->op == OLIST)
+ 		yyerror("invalid type for composite literal: %T", t);
+@@ -2095,7 +2126,10 @@ loop:
+ 
+ 	et = l->type->etype;
+ 	if(isinter(l->type)) {
+-		on = syslook("printinter", 1);
++		if(isnilinter(l->type))
++			on = syslook("printeface", 1);
++		else
++			on = syslook("printiface", 1);
+ 		argtype(on, l->type);		// any-1
+ 	} else if(isptr[et] || et == TCHAN || et == TMAP || et == TFUNC) {
+ 		on = syslook("printpointer", 1);
+@@ -2903,19 +2937,27 @@ ifaceas1(Type *dst, Type *src, int explicit)
+ 
+ 	if(isinter(dst)) {
+ 		if(isinter(src)) {
++			if(isnilinter(dst)) {
++				if(isnilinter(src))
++					return E2Esame;
++				return I2E;
++			}
+ 			if(eqtype(dst, src))
+ 				return I2Isame;
+-			if(!isnilinter(dst))
+-				ifacecheck(dst, src, lineno, explicit);
++			ifacecheck(dst, src, lineno, explicit);
++			if(isnilinter(src))
++				return E2I;
+ 			return I2I;
+ 		}
+ 		if(isnilinter(dst))
+-			return T2I;
++			return T2E;
+ 		ifacecheck(dst, src, lineno, explicit);
+ 		return T2I;
+ 	}
+ 	if(isinter(src)) {
+ 		ifacecheck(dst, src, lineno, explicit);
++		if(isnilinter(src))
++			return E2T;
+ 		return I2T;
+ 	}
+ 	return Inone;
+@@ -2930,7 +2972,7 @@ ifaceas(Type *dst, Type *src, int explicit)
+ 	int et;
+ 
+ 	et = ifaceas1(dst, src, explicit);
+-	if(et == I2Isame)
++	if(et == I2Isame || et == E2Esame)
+ 		et = Inone;
+ 	return et;
+ }
+@@ -2943,6 +2985,15 @@ ifacename[] =
+ 	[I2I]		= "ifaceI2I",
+ 	[I2I2]		= "ifaceI2I2",
+ 	[I2Isame]	= "ifaceI2Isame",
++	[E2T]		= "ifaceE2T",
++	[E2T2]		= "ifaceE2T2",
++	[E2I]		= "ifaceE2I",
++	[E2I2]		= "ifaceE2I2",
++	[I2E]		= "ifaceI2E",
++	[I2E2]		= "ifaceI2E2",
++	[T2I]		= "ifaceT2I",
++	[T2E]		= "ifaceT2E",
++	[E2Esame]	= "ifaceE2Esame",
+ };
+ 
+ Node*
+@@ -2982,19 +3033,21 @@ ifaceop(Type *tl, Node *n, int op)
+ 		on = syslook("ifaceT2I", 1);
+ 		argtype(on, tr);
+ 		argtype(on, tl);
+-
+ 		break;
+ 
+ 	case I2T:
+ 	case I2T2:
+ 	case I2I:
+ 	case I2I2:
++	case E2T:
++	case E2T2:
++	case E2I:
++	case E2I2:
+ 		// iface[IT]2[IT][2](sigt *byte, iface any) (ret any[, ok bool]);
+-
+ 		a = n;				// interface
+ 		r = a;
+ 
+-		s = signame(tl);		// sigi
++		s = signame(tl);		// sigi or sigt
+ 		if(s == S)
+ 			fatal("ifaceop: signame %d", op);
+ 		a = s->oname;
+@@ -3004,7 +3057,34 @@ ifaceop(Type *tl, Node *n, int op)
+ 		on = syslook(ifacename[op], 1);
+ 		argtype(on, tr);
+ 		argtype(on, tl);
++		break;
+ 
++	case I2E:
++		// TODO(rsc): Should do this in back end, without a call.
++		// ifaceI2E(elem any) (ret any);
++		a = n;				// interface
++		r = a;
++		on = syslook("ifaceI2E", 1);
++		argtype(on, tr);
++		argtype(on, tl);
++		break;
++
++	case T2E:
++		// TODO(rsc): Should do this in back end for pointer case, without a call.
++		// ifaceT2E(sigt *byte, elem any) (ret any);
++		a = n;				// elem
++		r = a;
++
++		s = signame(tr);		// sigt
++		if(s == S)
++			fatal("ifaceop: signame-1 T2E: %lT", tr);
++		a = s->oname;
++		a = nod(OADDR, a, N);
++		r = list(a, r);
++
++		on = syslook("ifaceT2E", 1);
++		argtype(on, tr);
++		argtype(on, tl);
+ 		break;
+ 
+ 	case OEQ:
+@@ -3016,7 +3096,12 @@ ifaceop(Type *tl, Node *n, int op)
+ 		a = n->left;				// i1
+ 		r = list(a, r);
+ 
+-		on = syslook("ifaceeq", 1);
++		if(!eqtype(n->left->type, n->right->type))
++			fatal("ifaceop %O %T %T", op, n->left->type, n->right->type);
++		if(isnilinter(n->left->type))
++			on = syslook("efaceeq", 1);
++		else
++			on = syslook("ifaceeq", 1);
+ 		argtype(on, n->right->type);
+ 		argtype(on, n->left->type);
+ 
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index cad7370c5f..9e65a267aa 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -53,6 +53,8 @@ struct	Itype
+ };
+ 
+ static	Iface	niliface;
++static	Eface	nileface;
++
+ static	Itype*	hash[1009];
+ static	Lock	ifacelock;
+ 
+@@ -129,6 +131,16 @@ printiface(Iface i)
+ 	prints(")");
+ }
+ 
++static void
++printeface(Eface e)
++{
++	prints("(");
++	sys·printpointer(e.type);
++	prints(",");
++	sys·printpointer(e.data);
++	prints(")");
++}
++
+ static Itype*
+ itype(Sigi *si, Sigt *st, int32 canfail)
+ {
+@@ -138,6 +150,17 @@ itype(Sigi *si, Sigt *st, int32 canfail)
+ 	byte *sname, *iname;
+ 	Itype *m;
+ 
++	if(si->size == 0)
++		throw("internal error - misuse of itype");
++
++	// easy case
++	if(st->meth[0].fname == nil) {
++		if(canfail)
++			return nil;
++		iname = si->meth[0].fname;
++		goto throw1;
++	}
++
+ 	// compiler has provided some good hash codes for us.
+ 	h = 0;
+ 	if(si)
+@@ -169,7 +192,6 @@ itype(Sigi *si, Sigt *st, int32 canfail)
+ 						goto throw;
+ 					}
+ 				}
+-				// prints("old itype\n");
+ 				if(locked)
+ 					unlock(&ifacelock);
+ 				return m;
+@@ -199,6 +221,7 @@ throw:
+ 			sname = st->meth[nt].fname;
+ 			if(sname == nil) {
+ 				if(!canfail) {
++				throw1:
+ 					printf("cannot convert type %s to interface %s: missing method %s\n",
+ 						st->name, si->name, iname);
+ 					if(iface_debug) {
+@@ -209,6 +232,7 @@ throw:
+ 						prints("\n");
+ 					}
+ 					throw("interface conversion");
++					return nil;	// not reached
+ 				}
+ 				m->bad = 1;
+ 				m->link = hash[h];
+@@ -227,124 +251,108 @@ throw:
+ 	if(locked)
+ 		unlock(&ifacelock);
+ 
+-	// printf("new itype %p\n", m);
+ 	return m;
+ }
+ 
++static void
++copyin(Sigt *st, void *src, void **dst)
++{
++	int32 wid, alg;
++	void *p;
++
++	wid = st->width;
++	alg = st->alg;
++
++	if(wid <= sizeof(*dst))
++		algarray[alg].copy(wid, dst, src);
++	else {
++		p = mal(wid);
++		algarray[alg].copy(wid, p, src);
++		*dst = p;
++	}
++}
++
++static void
++copyout(Sigt *st, void **src, void *dst)
++{
++	int32 wid, alg;
++
++	wid = st->width;
++	alg = st->alg;
++
++	if(wid <= sizeof(*src))
++		algarray[alg].copy(wid, dst, src);
++	else
++		algarray[alg].copy(wid, dst, *src);
++}
++
+ // ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
++#pragma textflag 7
+ void
+ sys·ifaceT2I(Sigi *si, Sigt *st, ...)
+ {
+ 	byte *elem;
+ 	Iface *ret;
+-	int32 alg, wid;
++	int32 wid;
+ 
+ 	elem = (byte*)(&st+1);
+-
+-	if(iface_debug) {
+-		prints("T2I sigi=");
+-		printsigi(si);
+-		prints(" sigt=");
+-		printsigt(st);
+-		prints(" elem=");
+-		sys·printpointer(*(void**)elem);
+-		prints("\n");
+-	}
+-
+ 	wid = st->width;
+-	alg = st->alg;
+ 	ret = (Iface*)(elem + rnd(wid, sizeof(uintptr)));
++
+ 	ret->type = itype(si, st, 0);
++	copyin(st, elem, &ret->data);
++}
+ 
+-	if(wid <= sizeof(ret->data))
+-		algarray[alg].copy(wid, &ret->data, elem);
+-	else {
+-		ret->data = mal(wid);
+-		if(iface_debug)
+-			printf("T2I mal %d %p\n", wid, ret->data);
+-		algarray[alg].copy(wid, ret->data, elem);
+-	}
++// ifaceT2E(sigt *byte, elem any) (ret any);
++#pragma textflag 7
++void
++sys·ifaceT2E(Sigt *st, ...)
++{
++	byte *elem;
++	Eface *ret;
++	int32 wid;
+ 
+-	if(iface_debug) {
+-		prints("T2I ret=");
+-		printiface(*ret);
+-		prints("\n");
+-	}
++	elem = (byte*)(&st+1);
++	wid = st->width;
++	ret = (Eface*)(elem + rnd(wid, sizeof(uintptr)));
+ 
+-	FLUSH(&ret);
++	ret->type = st;
++	copyin(st, elem, &ret->data);
+ }
+ 
+ // ifaceI2T(sigt *byte, iface any) (ret any);
++#pragma textflag 7
+ void
+ sys·ifaceI2T(Sigt *st, Iface i, ...)
+ {
+ 	Itype *im;
+ 	byte *ret;
+-	int32 wid, alg;
+ 
+ 	ret = (byte*)(&i+1);
+ 
+-	if(iface_debug) {
+-		prints("I2T sigt=");
+-		printsigt(st);
+-		prints(" iface=");
+-		printiface(i);
+-		prints("\n");
+-	}
+-
+ 	im = i.type;
+ 	if(im == nil) {
+-		prints("interface is nil, not ");
+-		prints((int8*)st->name);
+-		prints("\n");
++		printf("interface is nil, not %s\n", st->name);
+ 		throw("interface conversion");
+ 	}
+-
+ 	if(im->sigt != st) {
+-		prints((int8*)im->sigi->name);
+-		prints(" is ");
+-		prints((int8*)im->sigt->name);
+-		prints(", not ");
+-		prints((int8*)st->name);
+-		prints("\n");
++		printf("%s is %s, not %s\n", im->sigi->name, im->sigt->name, st->name);
+ 		throw("interface conversion");
+ 	}
+-
+-	alg = st->alg;
+-	wid = st->width;
+-	if(wid <= sizeof(i.data))
+-		algarray[alg].copy(wid, ret, &i.data);
+-	else
+-		algarray[alg].copy(wid, ret, i.data);
+-
+-	if(iface_debug) {
+-		prints("I2T ret=");
+-		sys·printpointer(*(void**)ret);
+-		prints("\n");
+-	}
+-	FLUSH(&ret);
++	copyout(st, &i.data, ret);
+ }
+ 
+ // ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
++#pragma textflag 7
+ void
+ sys·ifaceI2T2(Sigt *st, Iface i, ...)
+ {
+ 	byte *ret;
+ 	bool *ok;
+ 	Itype *im;
+-	int32 alg, wid;
+-
+-
+-	if(iface_debug) {
+-		prints("I2T2 sigt=");
+-		printsigt(st);
+-		prints(" iface=");
+-		printiface(i);
+-		prints("\n");
+-	}
++	int32 wid;
+ 
+ 	ret = (byte*)(&i+1);
+-	alg = st->alg;
+ 	wid = st->width;
+ 	ok = (bool*)(ret+rnd(wid, 1));
+ 
+@@ -352,19 +360,74 @@ sys·ifaceI2T2(Sigt *st, Iface i, ...)
+ 	if(im == nil || im->sigt != st) {
+ 		*ok = false;
+ 		sys·memclr(ret, wid);
+-	} else {
+-		*ok = true;
+-		if(wid <= sizeof(i.data))
+-			algarray[alg].copy(wid, ret, &i.data);
+-		else
+-			algarray[alg].copy(wid, ret, i.data);
++		return;
++	}
++
++	*ok = true;
++	copyout(st, &i.data, ret);
++}
++
++// ifaceE2T(sigt *byte, iface any) (ret any);
++#pragma textflag 7
++void
++sys·ifaceE2T(Sigt *st, Eface e, ...)
++{
++	Sigt *t;
++	byte *ret;
++
++	ret = (byte*)(&e+1);
++
++	t = e.type;
++	if(t == nil) {
++		printf("interface is nil, not %s\n", st->name);
++		throw("interface conversion");
++	}
++	if(t != st) {
++		printf("interface is %s, not %s\n", t->name, st->name);
++		throw("interface conversion");
+ 	}
+-	if(iface_debug) {
+-		prints("I2T2 ret=");
+-		sys·printpointer(*(void**)ret);
+-		sys·printbool(*ok);
+-		prints("\n");
++	copyout(st, &e.data, ret);
++}
++
++// ifaceE2T2(sigt *byte, iface any) (ret any, ok bool);
++#pragma textflag 7
++void
++sys·ifaceE2T2(Sigt *st, Eface e, ...)
++{
++	byte *ret;
++	bool *ok;
++	Sigt *t;
++	int32 wid;
++
++	ret = (byte*)(&e+1);
++	wid = st->width;
++	ok = (bool*)(ret+rnd(wid, 1));
++
++	t = e.type;
++	if(t != st) {
++		*ok = false;
++		sys·memclr(ret, wid);
++		return;
+ 	}
++
++	*ok = true;
++	copyout(st, &e.data, ret);
++}
++
++// ifaceI2E(sigi *byte, iface any) (ret any);
++// TODO(rsc): Move to back end, throw away function.
++void
++sys·ifaceI2E(Iface i, Eface ret)
++{
++	Itype *im;
++
++	ret.data = i.data;
++	im = i.type;
++	if(im == nil)
++		ret.type = nil;
++	else
++		ret.type = im->sigt;
++	FLUSH(&ret);
+ }
+ 
+ // ifaceI2I(sigi *byte, iface any) (ret any);
+@@ -373,16 +436,9 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ {
+ 	Itype *im;
+ 
+-	if(iface_debug) {
+-		prints("I2I sigi=");
+-		printsigi(si);
+-		prints(" iface=");
+-		printiface(i);
+-		prints("\n");
+-	}
+-
+ 	im = i.type;
+ 	if(im == nil) {
++//TODO(rsc): fixme
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+ 		ret = niliface;
+@@ -392,12 +448,6 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ 			ret.type = itype(si, im->sigt, 0);
+ 	}
+ 
+-	if(iface_debug) {
+-		prints("I2I ret=");
+-		printiface(ret);
+-		prints("\n");
+-	}
+-
+ 	FLUSH(&ret);
+ }
+ 
+@@ -407,52 +457,76 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ {
+ 	Itype *im;
+ 
+-	if(iface_debug) {
+-		prints("I2I2 sigi=");
+-		printsigi(si);
+-		prints(" iface=");
+-		printiface(i);
+-		prints("\n");
+-	}
+-
+ 	im = i.type;
++	ok = true;
+ 	if(im == nil) {
++//TODO: fixme
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+ 		ret = niliface;
+-		ok = 1;
+ 	} else {
+ 		ret = i;
+-		ok = 1;
+ 		if(im->sigi != si) {
+ 			ret.type = itype(si, im->sigt, 1);
+ 			if(ret.type == nil) {
+ 				ret = niliface;
+-				ok = 0;
++				ok = false;
+ 			}
+ 		}
+ 	}
+ 
+-	if(iface_debug) {
+-		prints("I2I ret=");
+-		printiface(ret);
+-		prints("\n");
++	FLUSH(&ret);
++	FLUSH(&ok);
++}
++
++// ifaceE2I(sigi *byte, iface any) (ret any);
++void
++sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
++{
++	Sigt *t;
++
++	t = e.type;
++	if(t == nil) {
++//TODO(rsc): fixme
++		ret = niliface;
++	} else {
++		ret.data = e.data;
++		ret.type = itype(si, t, 0);
+ 	}
++	FLUSH(&ret);
++}
++
++// ifaceE2I2(sigi *byte, iface any) (ret any, ok bool);
++void
++sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
++{
++	Sigt *t;
+ 
++	t = e.type;
++	ok = true;
++	if(t == nil) {
++//TODO(rsc): fixme
++		ret = niliface;
++	} else {
++		ret.data = e.data;
++		ret.type = itype(si, t, 1);
++		if(ret.type == nil) {
++			ret = niliface;
++			ok = false;
++		}
++	}
+ 	FLUSH(&ret);
+ 	FLUSH(&ok);
+ }
+ 
+-uint64
+-ifacehash(Iface a)
++static uint64
++ifacehash1(void *data, Sigt *sigt)
+ {
+ 	int32 alg, wid;
+-	Sigt *sigt;
+ 
+-	if(a.type == nil)
++	if(sigt == nil)
+ 		return 0;
+ 
+-	sigt = a.type->sigt;
+ 	alg = sigt->alg;
+ 	wid = sigt->width;
+ 	if(algarray[alg].hash == nohash) {
+@@ -463,69 +537,65 @@ ifacehash(Iface a)
+ 			throw("fake interface hash");
+ 		throw("interface hash");
+ 	}
+-	if(wid <= sizeof(a.data))
+-		return algarray[alg].hash(wid, &a.data);
+-	return algarray[alg].hash(wid, a.data);
++	if(wid <= sizeof(data))
++		return algarray[alg].hash(wid, &data);
++	return algarray[alg].hash(wid, data);
+ }
+ 
+-bool
+-ifaceeq(Iface i1, Iface i2)
++uint64
++ifacehash(Iface a)
+ {
+-	int32 alg, wid;
+-	bool ret;
+-
+-	if(iface_debug) {
+-		prints("Ieq i1=");
+-		printiface(i1);
+-		prints(" i2=");
+-		printiface(i2);
+-		prints("\n");
+-	}
+-
+-	ret = false;
++	if(a.type == nil)
++		return 0;
++	return ifacehash1(a.data, a.type->sigt);
++}
+ 
+-	// are they both nil
+-	if(i1.type == nil) {
+-		if(i2.type == nil)
+-			goto yes;
+-		goto no;
+-	}
+-	if(i2.type == nil)
+-		goto no;
++uint64
++efacehash(Eface a)
++{
++	return ifacehash1(a.data, a.type);
++}
+ 
+-	// are they the same type?
+-	if(i1.type->sigt != i2.type->sigt)
+-		goto no;
++static bool
++ifaceeq1(void *data1, void *data2, Sigt *sigt)
++{
++	int32 alg, wid;
+ 
+-	alg = i1.type->sigt->alg;
+-	wid = i1.type->sigt->width;
++	alg = sigt->alg;
++	wid = sigt->width;
+ 
+ 	if(algarray[alg].equal == noequal) {
+ 		// calling noequal will throw too,
+ 		// but we can print a better error.
+-		printf("comparing uncomparable type %s\n", i1.type->sigt->name);
++		printf("comparing uncomparable type %s\n", sigt->name);
+ 		if(alg == AFAKE)
+ 			throw("fake interface compare");
+ 		throw("interface compare");
+ 	}
+ 
+-	if(wid <= sizeof(i1.data)) {
+-		if(!algarray[alg].equal(wid, &i1.data, &i2.data))
+-			goto no;
+-	} else {
+-		if(!algarray[alg].equal(wid, i1.data, i2.data))
+-			goto no;
+-	}
++	if(wid <= sizeof(data1))
++		return algarray[alg].equal(wid, &data1, &data2);
++	return algarray[alg].equal(wid, data1, data2);
++}
+ 
+-yes:
+-	ret = true;
+-no:
+-	if(iface_debug) {
+-		prints("Ieq ret=");
+-		sys·printbool(ret);
+-		prints("\n");
+-	}
+-	return ret;
++bool
++ifaceeq(Iface i1, Iface i2)
++{
++	if(i1.type != i2.type)
++		return false;
++	if(i1.type == nil)
++		return true;
++	return ifaceeq1(i1.data, i2.data, i1.type->sigt);
++}
++
++bool
++efaceeq(Eface e1, Eface e2)
++{
++	if(e1.type != e2.type)
++		return false;
++	if(e1.type == nil)
++		return true;
++	return ifaceeq1(e1.data, e2.data, e1.type);
+ }
+ 
+ // ifaceeq(i1 any, i2 any) (ret bool);
+@@ -536,6 +606,14 @@ sys·ifaceeq(Iface i1, Iface i2, bool ret)
+ 	FLUSH(&ret);
+ }
+ 
++// efaceeq(i1 any, i2 any) (ret bool)
++void
++sys·efaceeq(Eface e1, Eface e2, bool ret)
++{
++	ret = efaceeq(e1, e2);
++	FLUSH(&ret);
++}
++
+ // ifacethash(i1 any) (ret uint32);
+ void
+ sys·ifacethash(Iface i1, uint32 ret)
+@@ -553,14 +631,33 @@ sys·ifacethash(Iface i1, uint32 ret)
+ 	FLUSH(&ret);
+ }
+ 
++// efacethash(e1 any) (ret uint32)
++void
++sys·efacethash(Eface e1, uint32 ret)
++{
++	Sigt *st;
++
++	ret = 0;
++	st = e1.type;
++	if(st != nil)
++		ret = st->thash;
++	FLUSH(&ret);
++}
++
+ void
+-sys·printinter(Iface i)
++sys·printiface(Iface i)
+ {
+ 	printiface(i);
+ }
+ 
+ void
+-unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
++sys·printeface(Eface e)
++{
++	printeface(e);
++}
++
++void
++unsafe·Reflect(Eface i, uint64 retit, String rettype, bool retindir)
+ {
+ 	int32 wid;
+ 
+@@ -570,8 +667,8 @@ unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
+ 		retindir = false;
+ 	} else {
+ 		retit = (uint64)i.data;
+-		rettype = gostring(i.type->sigt->name);
+-		wid = i.type->sigt->width;
++		rettype = gostring(i.type->name);
++		wid = i.type->width;
+ 		retindir = wid > sizeof(i.data);
+ 	}
+ 	FLUSH(&retit);
+@@ -757,11 +854,11 @@ findtype(String type, bool indir)
+ 
+ 
+ void
+-unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
++unsafe·Unreflect(uint64 it, String type, bool indir, Eface ret)
+ {
+ 	Sigt *sigt;
+ 
+-	ret = niliface;
++	ret = nileface;
+ 
+ 	if(cmpstring(type, emptystring) == 0)
+ 		goto out;
+@@ -777,7 +874,7 @@ unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
+ 	if(indir != (sigt->width > sizeof(ret.data)))
+ 		goto out;
+ 
+-	ret.type = itype(sigi·empty, sigt, 0);
++	ret.type = sigt;
+ 	ret.data = (void*)it;
+ 
+ out:
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index afb9cce172..57e2570905 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -363,7 +363,7 @@ static void
+ interprint(uint32 s, Iface *a)
+ {
+ 	USED(s);
+-	sys·printinter(*a);
++	sys·printiface(*a);
+ }
+ 
+ static uint32
+@@ -373,6 +373,27 @@ interequal(uint32 s, Iface *a, Iface *b)
+ 	return ifaceeq(*a, *b);
+ }
+ 
++static uint64
++nilinterhash(uint32 s, Eface *a)
++{
++	USED(s);
++	return efacehash(*a);
++}
++
++static void
++nilinterprint(uint32 s, Eface *a)
++{
++	USED(s);
++	sys·printeface(*a);
++}
++
++static uint32
++nilinterequal(uint32 s, Eface *a, Eface *b)
++{
++	USED(s);
++	return efaceeq(*a, *b);
++}
++
+ uint64
+ nohash(uint32 s, void *a)
+ {
+@@ -416,6 +437,7 @@ algarray[] =
+ [ANOEQ]	{ nohash, noequal, memprint, memcopy },
+ [ASTRING]	{ strhash, strequal, strprint, memcopy },
+ [AINTER]		{ interhash, interequal, interprint, memcopy },
++[ANILINTER]	{ nilinterhash, nilinterequal, nilinterprint, memcopy },
+ [AFAKE]	{ nohash, noequal, noprint, nocopy },
+ };
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 68d3748f37..f2926037aa 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -57,6 +57,8 @@ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+ typedef	struct	Iface		Iface;
+ typedef	struct	Itype		Itype;
++typedef	struct	Eface	Eface;
++typedef	struct	Sigt		Sigt;
+ typedef	struct	Defer		Defer;
+ 
+ /*
+@@ -118,6 +120,11 @@ struct Iface
+ 	Itype*	type;
+ 	void*	data;
+ };
++struct Eface
++{
++	Sigt*		type;
++	void*	data;
++};
+ 
+ struct	Array
+ {				// must not move anything
+@@ -238,6 +245,7 @@ enum
+ 	ANOEQ,
+ 	ASTRING,
+ 	AINTER,
++	ANILINTER,
+ 	AFAKE,
+ 	Amax
+ };
+@@ -323,7 +331,9 @@ void	stackfree(void*);
+ MCache*	allocmcache(void);
+ void	mallocinit(void);
+ bool	ifaceeq(Iface, Iface);
++bool	efaceeq(Eface, Eface);
+ uint64	ifacehash(Iface);
++uint64	efacehash(Eface);
+ uint64	nohash(uint32, void*);
+ uint32	noequal(uint32, void*, void*);
+ void*	malloc(uintptr size);
+@@ -396,7 +406,8 @@ void	notewakeup(Note*);
+ #define sys_printfloat sys·printfloat
+ #define sys_printhex sys·printhex
+ #define sys_printint sys·printint
+-#define sys_printinter sys·printinter
++#define sys_printiface sys·printiface
++#define sys_printeface sys·printeface
+ #define sys_printpc sys·printpc
+ #define sys_printpointer sys·printpointer
+ #define sys_printstring sys·printstring
+@@ -420,7 +431,8 @@ void*	sys_getcallerpc(void*);
+ void	sys_printbool(bool);
+ void	sys_printfloat(float64);
+ void	sys_printint(int64);
+-void	sys_printinter(Iface);
++void	sys_printiface(Iface);
++void	sys_printeface(Eface);
+ void	sys_printstring(String);
+ void	sys_printpc(void*);
+ void	sys_printpointer(void*);
+diff --git a/test/golden.out b/test/golden.out
+index 8258f621d6..aaef7c3073 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -225,7 +225,7 @@ fixedbugs/bug103.go:8: illegal types for operand: AS
+ 	int
+ 
+ =========== fixedbugs/bug113.go
+-main.I is int, not int32
++interface is int, not int32
+ throw: interface conversion
+ 
+ panic PC=xxx

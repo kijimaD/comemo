@@ -7,6 +7,19 @@ Date:   Wed Sep 12 06:34:42 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6494121
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f21cbc9380..4ac62be42c 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -47,6 +47,7 @@ Alexey Borzenkov <snaury@gmail.com>
+ Amir Mohammad Saied <amir@gluegadget.com>
+ Amrut Joshi <amrut.joshi@gmail.com>
+ Andrea Spadaccini <spadaccio@google.com>
++Andreas Jellinghaus <andreas@ionisiert.de> <anj@google.com>
+ Andrei Vieru <euvieru@gmail.com>
+ Andrew Balholm <andybalholm@gmail.com>
+ Andrew Gerrand <adg@golang.org>

@@ -7,6 +7,20 @@ Date:   Sun Aug 21 13:17:02 2011 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/4935046
-
+---
  src/cmd/gotry/gotry | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotry/gotry b/src/cmd/gotry/gotry
+index 3cc7a9864d..c81b6c7d05 100755
+--- a/src/cmd/gotry/gotry
++++ b/src/cmd/gotry/gotry
+@@ -112,7 +112,7 @@ functions=$(getFunctions)
+ 
+ # Write file to compile
+ file="/tmp/$USER.try"
+-rm -f "file.go"
++rm -f "$file.go"
+ (
+ cat <<'!'
+ package main

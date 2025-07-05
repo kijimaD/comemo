@@ -20,7 +20,53 @@ Date:   Thu Sep 7 21:34:01 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/archive/zip/writer.go      |  3 +++
  src/archive/zip/writer_test.go | 23 +++++++++++++++++++++++
  2 files changed, 26 insertions(+)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 3da5ad612b..5dd6096fc5 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -504,6 +504,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
++		if !info.Mode().IsRegular() {
++			return errors.New("zip: cannot add non-regular file")
++		}
+ 		h, err := FileInfoHeader(info)
+ 		if err != nil {
+ 			return err
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 5250bc112e..bd33a07c3c 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -648,3 +648,26 @@ func TestWriterAddFS(t *testing.T) {
+ 		testReadFile(t, r.File[i], &wt)
+ 	}
+ }
++
++func TestIssue61875(t *testing.T) {
++	buf := new(bytes.Buffer)
++	w := NewWriter(buf)
++	tests := []WriteTest{
++		{
++			Name:   "symlink",
++			Data:   []byte("../link/target"),
++			Method: Deflate,
++			Mode:   0755 | fs.ModeSymlink,
++		},
++		{
++			Name:   "device",
++			Data:   []byte(""),
++			Method: Deflate,
++			Mode:   0755 | fs.ModeDevice,
++		},
++	}
++	err := w.AddFS(writeTestsToFS(tests))
++	if err == nil {
++		t.Errorf("expected error, got nil")
++	}
++}

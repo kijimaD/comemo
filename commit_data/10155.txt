@@ -10,9 +10,96 @@ Date:   Mon Oct 31 13:59:23 2011 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5257053
-
+---
  src/pkg/json/decode.go      |  2 +-
  src/pkg/json/decode_test.go | 14 +++++++-------
  src/pkg/json/encode.go      | 10 +++++++++-
  src/pkg/json/encode_test.go |  2 +-
  4 files changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index cd4b5f12c2..800df985ab 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -588,7 +588,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 		switch v.Kind() {
+ 		default:
+ 			d.saveError(&UnmarshalTypeError{"null", v.Type()})
+-		case reflect.Interface, reflect.Ptr, reflect.Map:
++		case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Slice:
+ 			v.Set(reflect.Zero(v.Type()))
+ 		}
+ 
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 6a6c32d292..d745e8dd26 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -456,7 +456,7 @@ var allValueIndent = `{
+ 	"PSlice": null,
+ 	"PSliceP": null,
+ 	"EmptySlice": [],
+-	"NilSlice": [],
++	"NilSlice": null,
+ 	"StringSlice": [
+ 		"str24",
+ 		"str25",
+@@ -528,8 +528,8 @@ var pallValueIndent = `{
+ 	},
+ 	"EmptyMap": null,
+ 	"NilMap": null,
+-	"Slice": [],
+-	"SliceP": [],
++	"Slice": null,
++	"SliceP": null,
+ 	"PSlice": [
+ 		{
+ 			"Tag": "tag20"
+@@ -547,10 +547,10 @@ var pallValueIndent = `{
+ 			"Tag": "tag23"
+ 		}
+ 	],
+-	"EmptySlice": [],
+-	"NilSlice": [],
+-	"StringSlice": [],
+-	"ByteSlice": "",
++	"EmptySlice": null,
++	"NilSlice": null,
++	"StringSlice": null,
++	"ByteSlice": null,
+ 	"Small": {
+ 		"Tag": ""
+ 	},
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 46abe4360e..ba5c15cc49 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -352,7 +352,15 @@ func (e *encodeState) reflectValueQuoted(v reflect.Value, quoted bool) {
+ 		}
+ 		e.WriteByte('}')
+ 
+-	case reflect.Array, reflect.Slice:
++	case reflect.Slice:
++		if v.IsNil() {
++			e.WriteString("null")
++			break
++		}
++		// Slices can be marshalled as nil, but otherwise are handled
++		// as arrays.
++		fallthrough
++	case reflect.Array:
+ 		if v.Type() == byteSliceType {
+ 			e.WriteByte('"')
+ 			s := v.Interface().([]byte)
+diff --git a/src/pkg/json/encode_test.go b/src/pkg/json/encode_test.go
+index f85bb6216a..92f266aba6 100644
+--- a/src/pkg/json/encode_test.go
++++ b/src/pkg/json/encode_test.go
+@@ -28,7 +28,7 @@ type Optionals struct {
+ var optionalsExpected = `{
+  "sr": "",
+  "omitempty": 0,
+- "slr": [],
++ "slr": null,
+  "mr": {}
+ }`
+ 

@@ -13,7 +13,73 @@ Date:   Thu Jul 16 12:45:22 2015 -0600
     Change-Id: Ic7d4eea659e1fe3f2c9b3e8a4eee5567494f46ad
     Reviewed-on: https://go-review.googlesource.com/12310
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go    |  9 +++++----
  src/cmd/compile/internal/ssa/print.go | 13 ++++++++++---
  2 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 2ba1ddbb44..96351def6e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -108,17 +108,18 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	// Link up variable uses to variable definitions
+ 	s.linkForwardReferences()
+ 
+-	// Main call to ssa package to compile function
+-	ssa.Compile(s.f)
+-
+ 	// Calculate stats about what percentage of functions SSA handles.
+ 	if false {
+-		fmt.Printf("SSA implemented: %t\n", !e.unimplemented)
++		defer func() { fmt.Printf("SSA implemented: %t\n", !e.unimplemented) }()
+ 	}
+ 
+ 	if e.unimplemented {
+ 		return nil, false
+ 	}
++
++	// Main call to ssa package to compile function.
++	ssa.Compile(s.f)
++
+ 	return s.f, usessa // TODO: return s.f, true once runtime support is in (gc maps, write barriers, etc.)
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index c8b90c6f93..e46590224d 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"os"
+ )
+ 
+ func printFunc(f *Func) {
+@@ -68,16 +69,22 @@ func fprintFunc(w io.Writer, f *Func) {
+ 				n++
+ 			}
+ 			if m == n {
+-				fmt.Fprintln(w, "dependency cycle!")
++				fmt.Fprintln(os.Stderr, "dependency cycle in block", b)
+ 				for _, v := range b.Values {
+ 					if printed[v.ID] {
+ 						continue
+ 					}
+-					fmt.Fprint(w, "    ")
+-					fmt.Fprintln(w, v.LongString())
++					fmt.Fprintf(os.Stderr, "    %v\n", v.LongString())
+ 					printed[v.ID] = true
+ 					n++
+ 				}
++				// Things are going to go very badly from here;
++				// one of the optimization passes is likely to hang.
++				// Frustratingly, panics here get swallowed by fmt,
++				// and just we end up here again if we call Fatalf.
++				// Use our last resort.
++				os.Exit(1)
++				return
+ 			}
+ 		}
+ 

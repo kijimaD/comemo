@@ -13,6 +13,21 @@ Date:   Tue Jun 2 11:04:45 2015 +1000
     Change-Id: I28f2da6f98c52afcbb45e17d2b4f36c586598f98
     Reviewed-on: https://go-review.googlesource.com/10600
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
-
+---
  src/net/file_unix.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index df884d1603..83a2936c82 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -45,7 +45,8 @@ func newFileFD(f *os.File, sa SocketAddr) (*netFD, error) {
+ 		fd, err = newFD(s, -1, -1, laddr.Network())
+ 	} else {
+ 		family := syscall.AF_UNSPEC
+-		sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
++		var sotype int
++		sotype, err = syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 		if err != nil {
+ 			closeFunc(s)
+ 			return nil, os.NewSyscallError("getsockopt", err)

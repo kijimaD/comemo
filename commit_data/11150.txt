@@ -9,7 +9,34 @@ Date:   Thu Jan 12 17:54:17 2012 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5545043
-
+---
  lib/godoc/package.html | 2 +-
  lib/godoc/package.txt  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index d0a42b47ba..7073d72baa 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -44,7 +44,7 @@
+ {{end}}
+ {{with .PDoc}}
+ 	<h2 id="Overview">Overview</h2>
+-	<!-- PackageName is printed as title by the top-level template -->
++	<!-- The package's Name is printed as title by the top-level template -->
+ 	{{if $.IsPkg}}
+ 		<p><code>import "{{html .ImportPath}}"</code></p>
+ 	{{end}}
+diff --git a/lib/godoc/package.txt b/lib/godoc/package.txt
+index f219ecee96..d88cda79fe 100644
+--- a/lib/godoc/package.txt
++++ b/lib/godoc/package.txt
+@@ -4,7 +4,7 @@
+ 
+ */}}{{with .PDoc}}{{if $.IsPkg}}PACKAGE
+ 
+-package {{.PackageName}}
++package {{.Name}}
+     import "{{.ImportPath}}"
+ 
+ {{else}}COMMAND DOCUMENTATION

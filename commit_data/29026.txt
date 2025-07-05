@@ -10,6 +10,20 @@ Date:   Tue Aug 9 20:05:41 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/27491
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/sys_plan9_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 1492ef2fed..c18aecaa26 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -65,7 +65,7 @@ TEXT runtime·exits(SB),NOSPLIT,$0
+ TEXT runtime·brk_(SB),NOSPLIT,$0
+ 	MOVQ	$24, BP
+ 	SYSCALL
+-	MOVQ	AX, ret+8(FP)
++	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+ TEXT runtime·sleep(SB),NOSPLIT,$0

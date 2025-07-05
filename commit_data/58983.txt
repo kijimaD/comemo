@@ -17,7 +17,53 @@ Date:   Sat Jan 27 11:53:43 2024 +0000
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mprof.go       |  5 +++++
  src/runtime/pprof/pprof.go | 11 ++++++++++-
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index abdd2f3e8c..09cea65bd9 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -1131,6 +1131,11 @@ func (p *goroutineProfileStateHolder) CompareAndSwap(old, new goroutineProfileSt
+ 	return (*atomic.Uint32)(p).CompareAndSwap(uint32(old), uint32(new))
+ }
+ 
++//go:linkname runtime_gcount runtime/pprof.runtime_gcount
++func runtime_gcount() int {
++	return int(gcount())
++}
++
+ func goroutineProfileWithLabelsConcurrent(p []StackRecord, labels []unsafe.Pointer) (n int, ok bool) {
+ 	semacquire(&goroutineProfile.sema)
+ 
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index a4dcf33508..79ca11c6b4 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -755,6 +755,9 @@ func writeGoroutineStacks(w io.Writer) error {
+ 	return err
+ }
+ 
++// runtime_gcount is defined in runtime/mprof.go
++func runtime_gcount() (n int)
++
+ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runtime.StackRecord, []unsafe.Pointer) (int, bool)) error {
+ 	// Find out how many records there are (fetch(nil)),
+ 	// allocate that many records, and get the data.
+@@ -764,7 +767,13 @@ func writeRuntimeProfile(w io.Writer, debug int, name string, fetch func([]runti
+ 	// The loop should only execute one iteration in the common case.
+ 	var p []runtime.StackRecord
+ 	var labels []unsafe.Pointer
+-	n, ok := fetch(nil, nil)
++	var n, ok = 0, false
++	if name == "goroutine" {
++		n = runtime_gcount()
++	} else {
++		n, ok = fetch(nil, nil)
++	}
++
+ 	for {
+ 		// Allocate room for a slightly bigger profile,
+ 		// in case a few more entries have been added

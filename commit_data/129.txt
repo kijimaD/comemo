@@ -5,9 +5,167 @@ Date:   Sun Jun 8 17:19:11 2008 -0700
     Fix a few tests
     
     SVN=121614
-
+---
  test/char_lit.go                   | 57 +++++++++++++++++++++-----------------
  test/{bugs => fixedbugs}/bug024.go |  0
  test/golden.out                    | 16 +++--------
  test/int_lit.go                    | 25 +++++++++--------
  4 files changed, 50 insertions(+), 48 deletions(-)
+
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 7943f164f1..d061f0be4f 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -6,30 +6,37 @@
+ 
+ package main
+ 
+-func main() {
+-  []int(
+-    ' ',
+-    'a',
+-    'ä',
+-    '本',
+-    '\a',
+-    '\b',
+-    '\f',
+-    '\n',
+-    '\r',
+-    '\t',
+-    '\v',
+-    '\\',
+-    '\'',
+-    '\"',
+-    '\000',
+-    '\123',
+-    '\x00',
+-    '\xca',
+-    '\xFE',
+-    '\u0123',
+-    '\ubabe',
+-    '\U0123ABCD',
++func main() int {
++  var i uint64 =
++    ' ' +
++    'a' +
++    'ä' +
++    '本' +
++    '\a' +
++    '\b' +
++    '\f' +
++    '\n' +
++    '\r' +
++    '\t' +
++    '\v' +
++    '\\' +
++    '\'' +
++    '\000' +
++    '\123' +
++    '\x00' +
++    '\xca' +
++    '\xFE' +
++    '\u0123' +
++    '\ubabe' +
++    '\U0123ABCD' +
+     '\Ucafebabe'
+-  );
++  ;
++  if '\Ucafebabe' != 0xcafebabe {
++  	print "cafebabe wrong\n";
++  	return 1;
++  }
++  if i != 0xcc238de1 {
++  	print "number is ", i, " should be ", 0xcc238de1, "\n";
++  	return 1;
++  }
+ }
+diff --git a/test/bugs/bug024.go b/test/fixedbugs/bug024.go
+similarity index 100%
+rename from test/bugs/bug024.go
+rename to test/fixedbugs/bug024.go
+diff --git a/test/golden.out b/test/golden.out
+index 9b3db19747..2c5cbc697e 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,9 +1,5 @@
+ 
+ =========== ./char_lit.go
+-char_lit.go:5: syntax error
+-char_lit.go:17: unknown escape sequence: \
+-char_lit.go:19: unknown escape sequence: "
+-BUG: known to fail incorrectly
+ 
+ =========== ./float_lit.go
+ float_lit.go:5: syntax error
+@@ -39,8 +35,6 @@ hello, world
+ BUG: known to succeed incorrectly
+ 
+ =========== ./int_lit.go
+-int_lit.go:5: syntax error
+-BUG: known to fail incorrectly
+ 
+ =========== ./iota.go
+ 
+@@ -52,8 +46,8 @@ BUG: known to fail incorrectly
+ 
+ =========== ./string_lit.go
+ string_lit.go:5: syntax error
+-string_lit.go:12: unknown escape sequence: \
+-BUG: known to fail incorrectly
++string_lit.go:12: unknown escape sequence: \ 
++BUG: known to fail incorrectly                                                                                    
+ 
+ =========== ./switch.go
+ 
+@@ -205,10 +199,6 @@ BUG: known to fail incorrectly
+ bugs/bug023.go:20: fatal error: naddr: const <Type>I{<TypeName>110(<_t117>{},<_o119>{},{});}
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug024.go
+-bugs/bug024.go:8: unknown escape sequence: \
+-BUG: erroneous errors but compiles anyway
+-
+ =========== bugs/bug025.go
+ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+ 
+@@ -301,4 +291,6 @@ fixedbugs/bug007.go:7: addtyp: renaming Point/<Point>{<x><float32>FLOAT32;<y><fl
+ 
+ =========== fixedbugs/bug021.go
+ 
++=========== fixedbugs/bug024.go
++
+ =========== fixedbugs/bug031.go
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 9ce5fa3177..28c83d9656 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -6,15 +6,18 @@
+ 
+ package main
+ 
+-func main() {
+-  []int(
+-    0,
+-    123,
+-    0123,
+-    0000,
+-    0x0,
+-    0x123,
+-    0X0,
+-    0X123
+-  );
++func main() int {
++  s := 
++    0 +
++    123 +
++    0123 +
++    0000 +
++    0x0 +
++    0x123 +
++    0X0 +
++    0X123;
++  if s != 788 {
++    print "s is ", s, "; should be 788\n";
++    return 1;
++  }
+ }

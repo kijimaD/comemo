@@ -16,9 +16,229 @@ Date:   Wed Nov 9 14:04:10 2022 -0800
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  api/next/43958.txt           |   1 +
  src/crypto/x509/root.go      |  56 ++++++++++++++++++----
  src/crypto/x509/root_test.go | 108 +++++++++++++++++++++++++++++++++++++++++++
  src/crypto/x509/verify.go    |   5 +-
  4 files changed, 161 insertions(+), 9 deletions(-)
+
+diff --git a/api/next/43958.txt b/api/next/43958.txt
+new file mode 100644
+index 0000000000..18b0e59ae5
+--- /dev/null
++++ b/api/next/43958.txt
+@@ -0,0 +1 @@
++pkg crypto/x509, func SetFallbackRoots(*CertPool) #43958
+diff --git a/src/crypto/x509/root.go b/src/crypto/x509/root.go
+index 91f4d29a1f..d6b07a18dc 100644
+--- a/src/crypto/x509/root.go
++++ b/src/crypto/x509/root.go
+@@ -4,29 +4,69 @@
+ 
+ package x509
+ 
+-// To update the embedded iOS root store, update the -version
+-// argument to the latest security_certificates version from
+-// https://opensource.apple.com/source/security_certificates/
+-// and run "go generate". See https://golang.org/issue/38843.
+-//
+-//go:generate go run root_ios_gen.go -version 55188.120.1.0.1
+-
+-import "sync"
++import (
++	"internal/godebug"
++	"sync"
++)
+ 
+ var (
+ 	once           sync.Once
++	systemRootsMu  sync.RWMutex
+ 	systemRoots    *CertPool
+ 	systemRootsErr error
++	fallbacksSet   bool
+ )
+ 
+ func systemRootsPool() *CertPool {
+ 	once.Do(initSystemRoots)
++	systemRootsMu.RLock()
++	defer systemRootsMu.RUnlock()
+ 	return systemRoots
+ }
+ 
+ func initSystemRoots() {
++	systemRootsMu.Lock()
++	defer systemRootsMu.Unlock()
+ 	systemRoots, systemRootsErr = loadSystemRoots()
+ 	if systemRootsErr != nil {
+ 		systemRoots = nil
+ 	}
+ }
++
++var forceFallback = godebug.New("x509usefallbackroots")
++
++// SetFallbackRoots sets the roots to use during certificate verification, if no
++// custom roots are specified and a platform verifier or a system certificate
++// pool is not available (for instance in a container which does not have a root
++// certificate bundle). SetFallbackRoots will panic if roots is nil.
++//
++// SetFallbackRoots may only be called once, if called multiple times it will
++// panic.
++//
++// The fallback behavior can be forced on all platforms, even when there is a
++// system certificate pool, by setting GODEBUG=x509usefallbackroots=1 (note that
++// on Windows and macOS this will disable usage of the platform verification
++// APIs and cause the pure Go verifier to be used). Setting
++// x509usefallbackroots=1 without calling SetFallbackRoots has no effect.
++func SetFallbackRoots(roots *CertPool) {
++	if roots == nil {
++		panic("roots must be non-nil")
++	}
++
++	// trigger initSystemRoots if it hasn't already been called before we
++	// take the lock
++	_ = systemRootsPool()
++
++	systemRootsMu.Lock()
++	defer systemRootsMu.Unlock()
++
++	if fallbacksSet {
++		panic("SetFallbackRoots has already been called")
++	}
++	fallbacksSet = true
++
++	if systemRoots != nil && (systemRoots.len() > 0 || systemRoots.systemPool) && forceFallback.Value() != "1" {
++		return
++	}
++	systemRoots, systemRootsErr = roots, nil
++}
+diff --git a/src/crypto/x509/root_test.go b/src/crypto/x509/root_test.go
+new file mode 100644
+index 0000000000..94ee6a632d
+--- /dev/null
++++ b/src/crypto/x509/root_test.go
+@@ -0,0 +1,108 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package x509
++
++import (
++	"testing"
++)
++
++func TestFallbackPanic(t *testing.T) {
++	defer func() {
++		if recover() == nil {
++			t.Fatal("Multiple calls to SetFallbackRoots should panic")
++		}
++	}()
++	SetFallbackRoots(nil)
++	SetFallbackRoots(nil)
++}
++
++func TestFallback(t *testing.T) {
++	// call systemRootsPool so that the sync.Once is triggered, and we can
++	// manipulate systemRoots without worrying about our working being overwritten
++	systemRootsPool()
++	if systemRoots != nil {
++		originalSystemRoots := *systemRoots
++		defer func() { systemRoots = &originalSystemRoots }()
++	}
++
++	tests := []struct {
++		name            string
++		systemRoots     *CertPool
++		systemPool      bool
++		poolContent     []*Certificate
++		forceFallback   bool
++		returnsFallback bool
++	}{
++		{
++			name:            "nil systemRoots",
++			returnsFallback: true,
++		},
++		{
++			name:            "empty systemRoots",
++			systemRoots:     NewCertPool(),
++			returnsFallback: true,
++		},
++		{
++			name:        "empty systemRoots system pool",
++			systemRoots: NewCertPool(),
++			systemPool:  true,
++		},
++		{
++			name:        "filled systemRoots system pool",
++			systemRoots: NewCertPool(),
++			poolContent: []*Certificate{{}},
++			systemPool:  true,
++		},
++		{
++			name:        "filled systemRoots",
++			systemRoots: NewCertPool(),
++			poolContent: []*Certificate{{}},
++		},
++		{
++			name:            "filled systemRoots, force fallback",
++			systemRoots:     NewCertPool(),
++			poolContent:     []*Certificate{{}},
++			forceFallback:   true,
++			returnsFallback: true,
++		},
++		{
++			name:            "filled systemRoot system pool, force fallback",
++			systemRoots:     NewCertPool(),
++			poolContent:     []*Certificate{{}},
++			systemPool:      true,
++			forceFallback:   true,
++			returnsFallback: true,
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			fallbacksSet = false
++			systemRoots = tc.systemRoots
++			if systemRoots != nil {
++				systemRoots.systemPool = tc.systemPool
++			}
++			for _, c := range tc.poolContent {
++				systemRoots.AddCert(c)
++			}
++			if tc.forceFallback {
++				t.Setenv("GODEBUG", "x509usefallbackroots=1")
++			} else {
++				t.Setenv("GODEBUG", "x509usefallbackroots=0")
++			}
++
++			fallbackPool := NewCertPool()
++			SetFallbackRoots(fallbackPool)
++
++			systemPoolIsFallback := systemRoots == fallbackPool
++
++			if tc.returnsFallback && !systemPoolIsFallback {
++				t.Error("systemRoots was not set to fallback pool")
++			} else if !tc.returnsFallback && systemPoolIsFallback {
++				t.Error("systemRoots was set to fallback pool when it shouldn't have been")
++			}
++		})
++	}
++}
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 23b1ec6668..cb6479f345 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -766,7 +766,10 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 
+ 	// Use platform verifiers, where available, if Roots is from SystemCertPool.
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-		if opts.Roots == nil {
++		// Don't use the system verifier if the system pool was replaced with a non-system pool,
++		// i.e. if SetFallbackRoots was called with x509usefallbackroots=1.
++		systemPool := systemRootsPool()
++		if opts.Roots == nil && (systemPool == nil || systemPool.systemPool) {
+ 			return c.systemVerify(&opts)
+ 		}
+ 		if opts.Roots != nil && opts.Roots.systemPool {

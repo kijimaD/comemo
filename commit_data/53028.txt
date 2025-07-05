@@ -22,7 +22,188 @@ Date:   Fri Jun 24 15:36:25 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/exec/dot_test.go   | 98 ++++++++++++++++++++++++++++++++++++++++++++---
  src/os/exec/lp_windows.go | 25 +++++++++++-
  2 files changed, 116 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/exec/dot_test.go b/src/os/exec/dot_test.go
+index 932d907c9e..e2d2dba7a5 100644
+--- a/src/os/exec/dot_test.go
++++ b/src/os/exec/dot_test.go
+@@ -15,6 +15,13 @@ import (
+ 	"testing"
+ )
+ 
++var pathVar string = func() string {
++	if runtime.GOOS == "plan9" {
++		return "path"
++	}
++	return "PATH"
++}()
++
+ func TestLookPath(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+@@ -42,22 +49,24 @@ func TestLookPath(t *testing.T) {
+ 	if err = os.Chdir(tmpDir); err != nil {
+ 		t.Fatal(err)
+ 	}
+-	origPath := os.Getenv("PATH")
+-	defer os.Setenv("PATH", origPath)
++	t.Setenv("PWD", tmpDir)
++	t.Logf(". is %#q", tmpDir)
++
++	origPath := os.Getenv(pathVar)
+ 
+ 	// Add "." to PATH so that exec.LookPath looks in the current directory on all systems.
+ 	// And try to trick it with "../testdir" too.
+ 	for _, dir := range []string{".", "../testdir"} {
+-		os.Setenv("PATH", dir+string(filepath.ListSeparator)+origPath)
+-		t.Run("PATH="+dir, func(t *testing.T) {
++		t.Run(pathVar+"="+dir, func(t *testing.T) {
++			t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
+ 			good := dir + "/execabs-test"
+ 			if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+-				t.Fatalf("LookPath(%q) = %q, %v, want \"%s...\", nil", good, found, err, good)
++				t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+ 			}
+ 			if runtime.GOOS == "windows" {
+ 				good = dir + `\execabs-test`
+ 				if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
+-					t.Fatalf("LookPath(%q) = %q, %v, want \"%s...\", nil", good, found, err, good)
++					t.Fatalf(`LookPath(%#q) = %#q, %v, want "%s...", nil`, good, found, err, good)
+ 				}
+ 			}
+ 
+@@ -84,4 +93,81 @@ func TestLookPath(t *testing.T) {
+ 			}
+ 		})
+ 	}
++
++	// Test the behavior when the first entry in PATH is an absolute name for the
++	// current directory.
++	//
++	// On Windows, "." may or may not be implicitly included before the explicit
++	// %PATH%, depending on the process environment;
++	// see https://go.dev/issue/4394.
++	//
++	// If the relative entry from "." resolves to the same executable as what
++	// would be resolved from an absolute entry in %PATH% alone, LookPath should
++	// return the absolute version of the path instead of ErrDot.
++	// (See https://go.dev/issue/53536.)
++	//
++	// If PATH does not implicitly include "." (such as on Unix platforms, or on
++	// Windows configured with NoDefaultCurrentDirectoryInExePath), then this
++	// lookup should succeed regardless of the behavior for ".", so it may be
++	// useful to run as a control case even on those platforms.
++	t.Run(pathVar+"=$PWD", func(t *testing.T) {
++		t.Setenv(pathVar, tmpDir+string(filepath.ListSeparator)+origPath)
++		good := filepath.Join(tmpDir, "execabs-test")
++		if found, err := LookPath(good); err != nil || !strings.HasPrefix(found, good) {
++			t.Fatalf(`LookPath(%#q) = %#q, %v, want \"%s...\", nil`, good, found, err, good)
++		}
++
++		if found, err := LookPath("execabs-test"); err != nil || !strings.HasPrefix(found, good) {
++			t.Fatalf(`LookPath(%#q) = %#q, %v, want \"%s...\", nil`, "execabs-test", found, err, good)
++		}
++
++		cmd := Command("execabs-test")
++		if cmd.Err != nil {
++			t.Fatalf("Command(%#q).Err = %v; want nil", "execabs-test", cmd.Err)
++		}
++	})
++
++	t.Run(pathVar+"=$OTHER", func(t *testing.T) {
++		// Control case: if the lookup returns ErrDot when PATH is empty, then we
++		// know that PATH implicitly includes ".". If it does not, then we don't
++		// expect to see ErrDot at all in this test (because the path will be
++		// unambiguously absolute).
++		wantErrDot := false
++		t.Setenv(pathVar, "")
++		if found, err := LookPath("execabs-test"); errors.Is(err, ErrDot) {
++			wantErrDot = true
++		} else if err == nil {
++			t.Fatalf(`with PATH='', LookPath(%#q) = %#q; want non-nil error`, "execabs-test", found)
++		}
++
++		// Set PATH to include an explicit directory that contains a completely
++		// independent executable that happens to have the same name as an
++		// executable in ".". If "." is included implicitly, looking up the
++		// (unqualified) executable name will return ErrDot; otherwise, the
++		// executable in "." should have no effect and the lookup should
++		// unambiguously resolve to the directory in PATH.
++
++		dir := t.TempDir()
++		executable := "execabs-test"
++		if runtime.GOOS == "windows" {
++			executable += ".exe"
++		}
++		if err := os.WriteFile(filepath.Join(dir, executable), []byte{1, 2, 3}, 0777); err != nil {
++			t.Fatal(err)
++		}
++		t.Setenv(pathVar, dir+string(filepath.ListSeparator)+origPath)
++
++		found, err := LookPath("execabs-test")
++		if wantErrDot {
++			wantFound := filepath.Join(".", executable)
++			if found != wantFound || !errors.Is(err, ErrDot) {
++				t.Fatalf(`LookPath(%#q) = %#q, %v, want %#q, Is ErrDot`, "execabs-test", found, err, wantFound)
++			}
++		} else {
++			wantFound := filepath.Join(dir, executable)
++			if found != wantFound || err != nil {
++				t.Fatalf(`LookPath(%#q) = %#q, %v, want %#q, nil`, "execabs-test", found, err, wantFound)
++			}
++		}
++	})
+ }
+diff --git a/src/os/exec/lp_windows.go b/src/os/exec/lp_windows.go
+index dab5770298..da047585eb 100644
+--- a/src/os/exec/lp_windows.go
++++ b/src/os/exec/lp_windows.go
+@@ -96,20 +96,43 @@ func LookPath(file string) (string, error) {
+ 	// have configured their environment this way!
+ 	// https://docs.microsoft.com/en-us/windows/win32/api/processenv/nf-processenv-needcurrentdirectoryforexepathw
+ 	// See also go.dev/issue/43947.
++	var (
++		dotf   string
++		dotErr error
++	)
+ 	if _, found := syscall.Getenv("NoDefaultCurrentDirectoryInExePath"); !found {
+ 		if f, err := findExecutable(filepath.Join(".", file), exts); err == nil {
+-			return f, &Error{file, ErrDot}
++			dotf, dotErr = f, &Error{file, ErrDot}
+ 		}
+ 	}
+ 
+ 	path := os.Getenv("path")
+ 	for _, dir := range filepath.SplitList(path) {
+ 		if f, err := findExecutable(filepath.Join(dir, file), exts); err == nil {
++			if dotErr != nil {
++				// https://go.dev/issue/53536: if we resolved a relative path implicitly,
++				// and it is the same executable that would be resolved from the explicit %PATH%,
++				// prefer the explicit name for the executable (and, likely, no error) instead
++				// of the equivalent implicit name with ErrDot.
++				//
++				// Otherwise, return the ErrDot for the implicit path as soon as we find
++				// out that the explicit one doesn't match.
++				dotfi, dotfiErr := os.Lstat(dotf)
++				fi, fiErr := os.Lstat(f)
++				if dotfiErr != nil || fiErr != nil || !os.SameFile(dotfi, fi) {
++					return dotf, dotErr
++				}
++			}
++
+ 			if !filepath.IsAbs(f) {
+ 				return f, &Error{file, ErrDot}
+ 			}
+ 			return f, nil
+ 		}
+ 	}
++
++	if dotErr != nil {
++		return dotf, dotErr
++	}
+ 	return "", &Error{file, ErrNotFound}
+ }

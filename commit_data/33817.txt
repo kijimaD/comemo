@@ -13,7 +13,7 @@ Date:   Sun Sep 10 09:45:49 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/goobj/goobj_test.go         | 185 ++++++++++++++++++++++++++-
  src/cmd/internal/goobj/read.go               |  60 ++++++---
  src/cmd/internal/goobj/testdata/mycgo/c1.c   |   9 ++
@@ -23,3 +23,454 @@ Date:   Sun Sep 10 09:45:49 2017 +0900
  src/cmd/internal/goobj/testdata/mycgo/go2.go |  11 ++
  src/internal/testenv/testenv.go              |   5 +
  8 files changed, 274 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/goobj/goobj_test.go
+index 5375c4e712..30d79f2215 100644
+--- a/src/cmd/internal/goobj/goobj_test.go
++++ b/src/cmd/internal/goobj/goobj_test.go
+@@ -5,8 +5,12 @@
+ package goobj
+ 
+ import (
++	"debug/elf"
++	"debug/macho"
++	"debug/pe"
+ 	"fmt"
+ 	"internal/testenv"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+@@ -16,10 +20,11 @@ import (
+ )
+ 
+ var (
+-	buildDir  string
+-	go1obj    string
+-	go2obj    string
+-	goarchive string
++	buildDir   string
++	go1obj     string
++	go2obj     string
++	goarchive  string
++	cgoarchive string
+ )
+ 
+ func TestMain(m *testing.M) {
+@@ -47,6 +52,48 @@ func TestMain(m *testing.M) {
+ 	os.Exit(exit)
+ }
+ 
++func copyDir(dst, src string) error {
++	err := os.MkdirAll(dst, 0777)
++	if err != nil {
++		return err
++	}
++	fis, err := ioutil.ReadDir(src)
++	if err != nil {
++		return err
++	}
++	for _, fi := range fis {
++		err = copyFile(filepath.Join(dst, fi.Name()), filepath.Join(src, fi.Name()))
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func copyFile(dst, src string) (err error) {
++	var s, d *os.File
++	s, err = os.Open(src)
++	if err != nil {
++		return err
++	}
++	defer s.Close()
++	d, err = os.Create(dst)
++	if err != nil {
++		return err
++	}
++	defer func() {
++		e := d.Close()
++		if err == nil {
++			err = e
++		}
++	}()
++	_, err = io.Copy(d, s)
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
+ func buildGoobj() error {
+ 	var err error
+ 
+@@ -80,6 +127,29 @@ func buildGoobj() error {
+ 		return fmt.Errorf("go tool pack c %s %s %s: %v\n%s", goarchive, go1obj, go2obj, err, out)
+ 	}
+ 
++	if testenv.HasCGO() {
++		gopath := filepath.Join(buildDir, "gopath")
++		err = copyDir(filepath.Join(gopath, "src", "mycgo"), filepath.Join("testdata", "mycgo"))
++		if err != nil {
++			return err
++		}
++		cmd := exec.Command(gotool, "install", "mycgo")
++		cmd.Env = append(os.Environ(), "GOPATH="+gopath)
++		out, err = cmd.CombinedOutput()
++		if err != nil {
++			return fmt.Errorf("go install mycgo: %v\n%s", err, out)
++		}
++		pat := filepath.Join(gopath, "pkg", "*", "mycgo.a")
++		ms, err := filepath.Glob(pat)
++		if err != nil {
++			return err
++		}
++		if len(ms) == 0 {
++			return fmt.Errorf("cannot found paths for pattern %s", pat)
++		}
++		cgoarchive = ms[0]
++	}
++
+ 	return nil
+ }
+ 
+@@ -144,3 +214,110 @@ func TestParseArchive(t *testing.T) {
+ 		t.Errorf(`%s: symbol "mypkg.go2" not found`, path)
+ 	}
+ }
++
++func TestParseCGOArchive(t *testing.T) {
++	testenv.MustHaveCGO(t)
++
++	path := cgoarchive
++
++	f, err := os.Open(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	p, err := Parse(f, "mycgo")
++	if err != nil {
++		t.Fatal(err)
++	}
++	if p.Arch != runtime.GOARCH {
++		t.Errorf("%s: got %v, want %v", path, p.Arch, runtime.GOARCH)
++	}
++	var found1 bool
++	var found2 bool
++	for _, s := range p.Syms {
++		if s.Name == "mycgo.go1" {
++			found1 = true
++		}
++		if s.Name == "mycgo.go2" {
++			found2 = true
++		}
++	}
++	if !found1 {
++		t.Errorf(`%s: symbol "mycgo.go1" not found`, path)
++	}
++	if !found2 {
++		t.Errorf(`%s: symbol "mycgo.go2" not found`, path)
++	}
++
++	c1 := "c1"
++	c2 := "c2"
++
++	found1 = false
++	found2 = false
++
++	switch runtime.GOOS {
++	case "darwin":
++		c1 = "_" + c1
++		c2 = "_" + c2
++		for _, obj := range p.Native {
++			mf, err := macho.NewFile(obj)
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, s := range mf.Symtab.Syms {
++				switch s.Name {
++				case c1:
++					found1 = true
++				case c2:
++					found2 = true
++				}
++			}
++		}
++	case "windows":
++		if runtime.GOARCH == "386" {
++			c1 = "_" + c1
++			c2 = "_" + c2
++		}
++		for _, obj := range p.Native {
++			pf, err := pe.NewFile(obj)
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, s := range pf.Symbols {
++				switch s.Name {
++				case c1:
++					found1 = true
++				case c2:
++					found2 = true
++				}
++			}
++		}
++	default:
++		for _, obj := range p.Native {
++			ef, err := elf.NewFile(obj)
++			if err != nil {
++				t.Fatal(err)
++			}
++			syms, err := ef.Symbols()
++			if err != nil {
++				t.Fatal(err)
++			}
++			for _, s := range syms {
++				switch s.Name {
++				case c1:
++					found1 = true
++				case c2:
++					found2 = true
++				}
++			}
++		}
++	}
++
++	if !found1 {
++		t.Errorf(`%s: symbol %q not found`, path, c1)
++	}
++	if !found2 {
++		t.Errorf(`%s: symbol %q not found`, path, c2)
++	}
++}
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index b6c90d3bd7..2a12ff13c7 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -6,7 +6,6 @@
+ //
+ // TODO(rsc): Decide where this package should live. (golang.org/issue/6932)
+ // TODO(rsc): Decide the appropriate integer types for various fields.
+-// TODO(rsc): Write tests. (File format still up in the air a little.)
+ package goobj
+ 
+ import (
+@@ -16,6 +15,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"os"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -127,12 +127,13 @@ type InlinedCall struct {
+ 
+ // A Package is a parsed Go object file or archive defining a Go package.
+ type Package struct {
+-	ImportPath string   // import path denoting this package
+-	Imports    []string // packages imported by this package
+-	SymRefs    []SymID  // list of symbol names and versions referred to by this pack
+-	Syms       []*Sym   // symbols defined by this package
+-	MaxVersion int      // maximum Version in any SymID in Syms
+-	Arch       string   // architecture
++	ImportPath string        // import path denoting this package
++	Imports    []string      // packages imported by this package
++	SymRefs    []SymID       // list of symbol names and versions referred to by this pack
++	Syms       []*Sym        // symbols defined by this package
++	MaxVersion int           // maximum Version in any SymID in Syms
++	Arch       string        // architecture
++	Native     []io.ReaderAt // native object data (e.g. ELF)
+ }
+ 
+ var (
+@@ -150,7 +151,7 @@ var (
+ type objReader struct {
+ 	p          *Package
+ 	b          *bufio.Reader
+-	f          io.ReadSeeker
++	f          *os.File
+ 	err        error
+ 	offset     int64
+ 	dataOffset int64
+@@ -160,7 +161,7 @@ type objReader struct {
+ }
+ 
+ // init initializes r to read package p from f.
+-func (r *objReader) init(f io.ReadSeeker, p *Package) {
++func (r *objReader) init(f *os.File, p *Package) {
+ 	r.f = f
+ 	r.p = p
+ 	r.offset, _ = f.Seek(0, io.SeekCurrent)
+@@ -185,6 +186,24 @@ func (r *objReader) error(err error) error {
+ 	return r.err
+ }
+ 
++// peek returns the next n bytes without advancing the reader.
++func (r *objReader) peek(n int) ([]byte, error) {
++	if r.err != nil {
++		return nil, r.err
++	}
++	if r.offset >= r.limit {
++		r.error(io.ErrUnexpectedEOF)
++		return nil, r.err
++	}
++	b, err := r.b.Peek(n)
++	if err != nil {
++		if err != bufio.ErrBufferFull {
++			r.error(err)
++		}
++	}
++	return b, err
++}
++
+ // readByte reads and returns a byte from the input file.
+ // On I/O error or EOF, it records the error but returns byte 0.
+ // A sequence of 0 bytes will eventually terminate any
+@@ -322,9 +341,9 @@ func (r *objReader) skip(n int64) {
+ 	}
+ }
+ 
+-// Parse parses an object file or archive from r,
++// Parse parses an object file or archive from f,
+ // assuming that its import path is pkgpath.
+-func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
++func Parse(f *os.File, pkgpath string) (*Package, error) {
+ 	if pkgpath == "" {
+ 		pkgpath = `""`
+ 	}
+@@ -332,7 +351,7 @@ func Parse(r io.ReadSeeker, pkgpath string) (*Package, error) {
+ 	p.ImportPath = pkgpath
+ 
+ 	var rd objReader
+-	rd.init(r, p)
++	rd.init(f, p)
+ 	err := rd.readFull(rd.tmp[:8])
+ 	if err != nil {
+ 		if err == io.EOF {
+@@ -365,9 +384,6 @@ func trimSpace(b []byte) string {
+ }
+ 
+ // parseArchive parses a Unix archive of Go object files.
+-// TODO(rsc): Need to skip non-Go object files.
+-// TODO(rsc): Maybe record table of contents in r.p so that
+-// linker can avoid having code to parse archives too.
+ func (r *objReader) parseArchive() error {
+ 	for r.offset < r.limit {
+ 		if err := r.readFull(r.tmp[:60]); err != nil {
+@@ -413,9 +429,19 @@ func (r *objReader) parseArchive() error {
+ 		default:
+ 			oldLimit := r.limit
+ 			r.limit = r.offset + size
+-			if err := r.parseObject(nil); err != nil {
+-				return fmt.Errorf("parsing archive member %q: %v", name, err)
++
++			p, err := r.peek(8)
++			if err != nil {
++				return err
++			}
++			if bytes.Equal(p, goobjHeader) {
++				if err := r.parseObject(nil); err != nil {
++					return fmt.Errorf("parsing archive member %q: %v", name, err)
++				}
++			} else {
++				r.p.Native = append(r.p.Native, io.NewSectionReader(r.f, r.offset, size))
+ 			}
++
+ 			r.skip(r.limit - r.offset)
+ 			r.limit = oldLimit
+ 		}
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/c1.c b/src/cmd/internal/goobj/testdata/mycgo/c1.c
+new file mode 100644
+index 0000000000..869a324a8b
+--- /dev/null
++++ b/src/cmd/internal/goobj/testdata/mycgo/c1.c
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdio.h>
++
++void c1(void) {
++	puts("c1");
++}
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/c2.c b/src/cmd/internal/goobj/testdata/mycgo/c2.c
+new file mode 100644
+index 0000000000..1cf904fb6f
+--- /dev/null
++++ b/src/cmd/internal/goobj/testdata/mycgo/c2.c
+@@ -0,0 +1,9 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <stdio.h>
++
++void c2(void) {
++	puts("c2");
++}
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go.go b/src/cmd/internal/goobj/testdata/mycgo/go.go
+new file mode 100644
+index 0000000000..7b74f9138a
+--- /dev/null
++++ b/src/cmd/internal/goobj/testdata/mycgo/go.go
+@@ -0,0 +1,5 @@
++package mycgo
++
++// void c1(void);
++// void c2(void);
++import "C"
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go1.go b/src/cmd/internal/goobj/testdata/mycgo/go1.go
+new file mode 100644
+index 0000000000..eb3924cc4c
+--- /dev/null
++++ b/src/cmd/internal/goobj/testdata/mycgo/go1.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mycgo
++
++import "fmt"
++
++func go1() {
++	fmt.Println("go1")
++}
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go2.go b/src/cmd/internal/goobj/testdata/mycgo/go2.go
+new file mode 100644
+index 0000000000..ea3e26fa91
+--- /dev/null
++++ b/src/cmd/internal/goobj/testdata/mycgo/go2.go
+@@ -0,0 +1,11 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mycgo
++
++import "fmt"
++
++func go2() {
++	fmt.Println("go2")
++}
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 1a13ac3f2b..d7d7fe31a2 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -153,6 +153,11 @@ func MustHaveExternalNetwork(t *testing.T) {
+ 
+ var haveCGO bool
+ 
++// HasCGO reports whether the current system can use cgo.
++func HasCGO() bool {
++	return haveCGO
++}
++
+ // MustHaveCGO calls t.Skip if cgo is not available.
+ func MustHaveCGO(t *testing.T) {
+ 	if !haveCGO {

@@ -9,7 +9,89 @@ Date:   Fri Nov 13 13:00:45 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/154121
-
+---
  src/pkg/json/struct.go      | 20 ++++++++++++++++++--
  src/pkg/json/struct_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index d94988b647..ab07d93399 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -224,7 +224,7 @@ func (b *structBuilder) Key(k string) Builder {
+ }
+ 
+ // Unmarshal parses the JSON syntax string s and fills in
+-// an arbitrary struct or array pointed at by val.
++// an arbitrary struct or slice pointed at by val.
+ // It uses the reflect package to assign to fields
+ // and arrays embedded in val.  Well-formed data that does not fit
+ // into the struct is discarded.
+@@ -279,11 +279,27 @@ func (b *structBuilder) Key(k string) Builder {
+ // assign to upper case fields.  Unmarshal uses a case-insensitive
+ // comparison to match JSON field names to struct field names.
+ //
++// To unmarshal a top-level JSON array, pass in a pointer to an empty
++// slice of the correct type.
++//
+ // On success, Unmarshal returns with ok set to true.
+ // On a syntax error, it returns with ok set to false and errtok
+ // set to the offending token.
+ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+-	b := &structBuilder{val: reflect.NewValue(val)};
++	v := reflect.NewValue(val);
++	var b *structBuilder;
++
++	// If val is a pointer to a slice, we mutate the pointee.
++	if ptr, ok := v.(*reflect.PtrValue); ok {
++		if slice, ok := ptr.Elem().(*reflect.SliceValue); ok {
++			b = &structBuilder{val: slice}
++		}
++	}
++
++	if b == nil {
++		b = &structBuilder{val: v}
++	}
++
+ 	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+ 		return false, errtok
+diff --git a/src/pkg/json/struct_test.go b/src/pkg/json/struct_test.go
+index 15446961a8..89d363d9ee 100644
+--- a/src/pkg/json/struct_test.go
++++ b/src/pkg/json/struct_test.go
+@@ -126,9 +126,34 @@ func TestIssue147(t *testing.T) {
+ 	var timeline Issue147;
+ 	Unmarshal(issue147Input, &timeline);
+ 
++	if len(timeline.Test) != 30 {
++		t.Errorf("wrong length: got %d want 30", len(timeline.Test))
++	}
++
+ 	for i, e := range timeline.Test {
+ 		if e.Text != strconv.Itoa(i) {
+ 			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
+ 		}
+ 	}
+ }
++
++type Issue114 struct {
++	Text string;
++}
++
++const issue114Input = `[{"text" : "0"}, {"text" : "1"}, {"text" : "2"}, {"text" : "3"}]`
++
++func TestIssue114(t *testing.T) {
++	var items []Issue114;
++	Unmarshal(issue114Input, &items);
++
++	if len(items) != 4 {
++		t.Errorf("wrong length: got %d want 4", len(items))
++	}
++
++	for i, e := range items {
++		if e.Text != strconv.Itoa(i) {
++			t.Errorf("index: %d got: %s want: %d", i, e.Text, i)
++		}
++	}
++}

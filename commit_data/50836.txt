@@ -34,8 +34,101 @@ Date:   Fri Nov 12 11:16:43 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-
+---
  src/runtime/crash_cgo_test.go                   |  5 -----
  src/runtime/testdata/testprogcgo/pprof.go       | 11 +----------
  src/runtime/testdata/testprogcgo/threadpprof.go | 14 +-------------
  3 files changed, 2 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 58c340f8ad..9a174fa549 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -302,12 +302,7 @@ func testCgoPprof(t *testing.T, buildArg, runArg, top, bottom string) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	// pprofCgoTraceback is called whenever CGO code is executing and a signal
+-	// is received. Disable signal preemption to increase the likelihood at
+-	// least one SIGPROF signal fired to capture a sample. See issue #37201.
+ 	cmd := testenv.CleanCmdEnv(exec.Command(exe, runArg))
+-	cmd.Env = append(cmd.Env, "GODEBUG=asyncpreemptoff=1")
+-
+ 	got, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		if testenv.Builder() == "linux-amd64-alpine" {
+diff --git a/src/runtime/testdata/testprogcgo/pprof.go b/src/runtime/testdata/testprogcgo/pprof.go
+index 3b73fa0bdd..8870d0c415 100644
+--- a/src/runtime/testdata/testprogcgo/pprof.go
++++ b/src/runtime/testdata/testprogcgo/pprof.go
+@@ -29,8 +29,6 @@ void cpuHog() {
+ void cpuHog2() {
+ }
+ 
+-static int cpuHogCount;
+-
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
+ 	uintptr_t  sigContext;
+@@ -47,13 +45,6 @@ void pprofCgoTraceback(void* parg) {
+ 	arg->buf[0] = (uintptr_t)(cpuHog) + 0x10;
+ 	arg->buf[1] = (uintptr_t)(cpuHog2) + 0x4;
+ 	arg->buf[2] = 0;
+-	++cpuHogCount;
+-}
+-
+-// getCpuHogCount fetches the number of times we've seen cpuHog in the
+-// traceback.
+-int getCpuHogCount() {
+-	return cpuHogCount;
+ }
+ */
+ import "C"
+@@ -86,7 +77,7 @@ func CgoPprof() {
+ 	}
+ 
+ 	t0 := time.Now()
+-	for C.getCpuHogCount() < 2 && time.Since(t0) < time.Second {
++	for time.Since(t0) < time.Second {
+ 		C.cpuHog()
+ 	}
+ 
+diff --git a/src/runtime/testdata/testprogcgo/threadpprof.go b/src/runtime/testdata/testprogcgo/threadpprof.go
+index feb774ba59..4bc84d16d0 100644
+--- a/src/runtime/testdata/testprogcgo/threadpprof.go
++++ b/src/runtime/testdata/testprogcgo/threadpprof.go
+@@ -33,8 +33,6 @@ void cpuHogThread() {
+ void cpuHogThread2() {
+ }
+ 
+-static int cpuHogThreadCount;
+-
+ struct cgoTracebackArg {
+ 	uintptr_t  context;
+ 	uintptr_t  sigContext;
+@@ -49,13 +47,6 @@ void pprofCgoThreadTraceback(void* parg) {
+ 	arg->buf[0] = (uintptr_t)(cpuHogThread) + 0x10;
+ 	arg->buf[1] = (uintptr_t)(cpuHogThread2) + 0x4;
+ 	arg->buf[2] = 0;
+-	__sync_add_and_fetch(&cpuHogThreadCount, 1);
+-}
+-
+-// getCPUHogThreadCount fetches the number of times we've seen cpuHogThread
+-// in the traceback.
+-int getCPUHogThreadCount() {
+-	return __sync_add_and_fetch(&cpuHogThreadCount, 0);
+ }
+ 
+ static void* cpuHogDriver(void* arg __attribute__ ((unused))) {
+@@ -109,10 +100,7 @@ func pprofThread() {
+ 
+ 	C.runCPUHogThread()
+ 
+-	t0 := time.Now()
+-	for C.getCPUHogThreadCount() < 2 && time.Since(t0) < time.Second {
+-		time.Sleep(100 * time.Millisecond)
+-	}
++	time.Sleep(1*time.Second)
+ 
+ 	pprof.StopCPUProfile()
+ 

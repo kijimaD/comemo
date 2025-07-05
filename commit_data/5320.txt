@@ -13,7 +13,50 @@ Date:   Tue Apr 20 20:39:55 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/954041
-
+---
  src/cmd/6l/asm.c | 10 +++++-----
  src/cmd/8l/asm.c | 10 +++++-----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index af00f55944..b83cec68fb 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -713,11 +713,11 @@ asmb(void)
+ 		ph = newElfPhdr();
+ 		ph->type = PT_LOAD;
+ 		ph->flags = PF_X+PF_R;
+-		ph->vaddr = va;
+-		ph->paddr = va;
+-		ph->off = fo;
+-		ph->filesz = w;
+-		ph->memsz = w;
++		ph->vaddr = va - fo;
++		ph->paddr = va - fo;
++		ph->off = 0;
++		ph->filesz = w + fo;
++		ph->memsz = w + fo;
+ 		ph->align = INITRND;
+ 
+ 		fo = rnd(fo+w, INITRND);
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index eddf6617b1..4e8c0560d9 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -829,11 +829,11 @@ asmb(void)
+ 		ph = newElfPhdr();
+ 		ph->type = PT_LOAD;
+ 		ph->flags = PF_X+PF_R;
+-		ph->vaddr = va;
+-		ph->paddr = va;
+-		ph->off = fo;
+-		ph->filesz = w;
+-		ph->memsz = w;
++		ph->vaddr = va - fo;
++		ph->paddr = va - fo;
++		ph->off = 0;
++		ph->filesz = w + fo;
++		ph->memsz = w + fo;
+ 		ph->align = INITRND;
+ 
+ 		fo = rnd(fo+w, INITRND);

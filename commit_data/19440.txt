@@ -17,6 +17,33 @@ Date:   Thu May 22 11:45:03 2014 -0400
     R=r
     CC=golang-codereviews
     https://golang.org/cl/98370045
-
+---
  doc/go1.3.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index 4c59f212cd..d98cdf629f 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -136,17 +136,17 @@ contain pointers and other values do not.
+ This assumption is fundamental to the precise behavior of both stack expansion
+ and garbage collection.
+ Programs that use <a href="/pkg/unsafe/">package unsafe</a>
+-to store <code>uintptrs</code> in pointer values are illegal and will crash if the runtime detects the behavior.
++to store integers in pointer-typed values are illegal and will crash if the runtime detects the behavior.
+ Programs that use <a href="/pkg/unsafe/">package unsafe</a> to store pointers
+-in <code>uintptr</code> values are also illegal but more difficult to diagnose during execution.
++in integer-typed values are also illegal but more difficult to diagnose during execution.
+ Because the pointers are hidden from the runtime, a stack expansion or garbage collection
+ may reclaim the memory they point at, creating
+ <a href="http://en.wikipedia.org/wiki/Dangling_pointer">dangling pointers</a>.
+ </p>
+ 
+ <p>
+-<em>Updating</em>: Code that converts a <code>uintptr</code> value stored in memory
+-to <code>unsafe.Pointer</code> is illegal and must be rewritten.
++<em>Updating</em>: Code that uses <code>unsafe.Pointer</code> to convert
++an integer-typed value held in memory into a pointer is illegal and must be rewritten.
+ Such code can be identified by <code>go vet</code>.
+ </p>
+ 

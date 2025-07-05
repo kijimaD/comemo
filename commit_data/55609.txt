@@ -20,6 +20,45 @@ Date:   Thu Feb 23 13:28:48 2023 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/decode.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 7ad66cfeb6..0a1cadf42e 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -577,13 +577,11 @@ func (d *decodeState) array(v reflect.Value) error {
+ 
+ 	if i < v.Len() {
+ 		if v.Kind() == reflect.Array {
+-			// Array. Zero the rest.
+-			z := reflect.Zero(v.Type().Elem())
+ 			for ; i < v.Len(); i++ {
+-				v.Index(i).Set(z)
++				v.Index(i).SetZero() // zero remainder of array
+ 			}
+ 		} else {
+-			v.SetLen(i)
++			v.SetLen(i) // truncate the slice
+ 		}
+ 	}
+ 	if i == 0 && v.Kind() == reflect.Slice {
+@@ -688,7 +686,7 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			if !mapElem.IsValid() {
+ 				mapElem = reflect.New(elemType).Elem()
+ 			} else {
+-				mapElem.Set(reflect.Zero(elemType))
++				mapElem.SetZero()
+ 			}
+ 			subv = mapElem
+ 		} else {
+@@ -902,7 +900,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		}
+ 		switch v.Kind() {
+ 		case reflect.Interface, reflect.Pointer, reflect.Map, reflect.Slice:
+-			v.Set(reflect.Zero(v.Type()))
++			v.SetZero()
+ 			// otherwise, ignore null for primitives/string
+ 		}
+ 	case 't', 'f': // true, false

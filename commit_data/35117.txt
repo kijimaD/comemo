@@ -27,10 +27,798 @@ Date:   Mon Dec 11 15:53:31 2017 -0500
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/dwinl.go   | 140 +++++++++++++++++++--------
  src/cmd/compile/internal/gc/inl.go     |  33 +------
  src/cmd/compile/internal/gc/pgen.go    |  74 +++++++++------
  src/cmd/internal/dwarf/dwarf.go        |  65 ++++++++-----
  src/cmd/link/internal/ld/dwarf_test.go | 167 +++++++++++++++++++++++++++++----
  5 files changed, 345 insertions(+), 134 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+index dd91b6c0fc..06eebc96e5 100644
+--- a/src/cmd/compile/internal/gc/dwinl.go
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -76,55 +76,82 @@ func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCa
+ 			append(inlcalls.Calls[idx].InlVars, dwv)
+ 	}
+ 
+-	// Post process the map above to assign child indices to vars. For
+-	// variables that weren't produced by an inline, sort them
+-	// according to class and name and assign indices that way. For
+-	// vars produced by an inline, assign child index by looking up
+-	// the var name in the origin pre-optimization dcl list for the
+-	// inlined function.
++	// Post process the map above to assign child indices to vars.
++	//
++	// A given variable is treated differently depending on whether it
++	// is part of the top-level function (ii == 0) or if it was
++	// produced as a result of an inline (ii != 0).
++	//
++	// If a variable was not produced by an inline and its containing
++	// function was not inlined, then we just assign an ordering of
++	// based on variable name.
++	//
++	// If a variable was not produced by an inline and its containing
++	// function was inlined, then we need to assign a child index
++	// based on the order of vars in the abstract function (in
++	// addition, those vars that don't appear in the abstract
++	// function, such as "~r1", are flagged as such).
++	//
++	// If a variable was produced by an inline, then we locate it in
++	// the pre-inlining decls for the target function and assign child
++	// index accordingly.
+ 	for ii, sl := range vmap {
++		sort.Sort(byClassThenName(sl))
++		var m map[varPos]int
+ 		if ii == 0 {
+-			sort.Sort(byClassThenName(sl))
+-			for j := 0; j < len(sl); j++ {
+-				sl[j].ChildIndex = int32(j)
++			if !fnsym.WasInlined() {
++				for j := 0; j < len(sl); j++ {
++					sl[j].ChildIndex = int32(j)
++				}
++				continue
+ 			}
++			m = makePreinlineDclMap(fnsym)
+ 		} else {
+-			// Assign child index based on pre-inlined decls
+ 			ifnlsym := Ctxt.InlTree.InlinedFunction(int(ii - 1))
+-			dcl, _ := preInliningDcls(ifnlsym)
+-			m := make(map[varPos]int)
+-			for i := 0; i < len(dcl); i++ {
+-				n := dcl[i]
+-				pos := Ctxt.InnermostPos(n.Pos)
+-				vp := varPos{
+-					DeclName: n.Sym.Name,
+-					DeclFile: pos.Base().SymFilename(),
+-					DeclLine: pos.Line(),
+-					DeclCol:  pos.Col(),
+-				}
+-				if _, found := m[vp]; found {
+-					Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
+-				}
+-				m[vp] = i
++			m = makePreinlineDclMap(ifnlsym)
++		}
++
++		// Here we assign child indices to variables based on
++		// pre-inlined decls, and set the "IsInAbstract" flag
++		// appropriately. In addition: parameter and local variable
++		// names are given "middle dot" version numbers as part of the
++		// writing them out to export data (see issue 4326). If DWARF
++		// inlined routine generation is turned on, we want to undo
++		// this versioning, since DWARF variables in question will be
++		// parented by the inlined routine and not the top-level
++		// caller.
++		synthCount := len(m)
++		for j := 0; j < len(sl); j++ {
++			canonName := unversion(sl[j].Name)
++			vp := varPos{
++				DeclName: canonName,
++				DeclFile: sl[j].DeclFile,
++				DeclLine: sl[j].DeclLine,
++				DeclCol:  sl[j].DeclCol,
+ 			}
+-			for j := 0; j < len(sl); j++ {
+-				vp := varPos{
+-					DeclName: sl[j].Name,
+-					DeclFile: sl[j].DeclFile,
+-					DeclLine: sl[j].DeclLine,
+-					DeclCol:  sl[j].DeclCol,
+-				}
+-				if idx, found := m[vp]; found {
+-					sl[j].ChildIndex = int32(idx)
+-				} else {
++			returnTmp := strings.HasPrefix(sl[j].Name, "~r")
++			if idx, found := m[vp]; found {
++				sl[j].ChildIndex = int32(idx)
++				sl[j].IsInAbstract = !returnTmp
++				sl[j].Name = canonName
++			} else {
++				// Variable can't be found in the pre-inline dcl list.
++				// In the top-level case (ii=0) this can happen
++				// because a composite variable was split into pieces,
++				// and we're looking at a piece. We can also see
++				// return temps (~r%d) that were created during
++				// lowering.
++				if ii != 0 && !returnTmp {
+ 					Fatalf("unexpected: can't find var %s in preInliningDcls for %v\n", sl[j].Name, Ctxt.InlTree.InlinedFunction(int(ii-1)))
+ 				}
++				sl[j].ChildIndex = int32(synthCount)
++				synthCount += 1
+ 			}
+ 		}
+ 	}
+ 
+-	// Make a second pass through the progs to compute PC ranges
+-	// for the various inlined calls.
++	// Make a second pass through the progs to compute PC ranges for
++	// the various inlined calls.
+ 	curii := -1
+ 	var crange *dwarf.Range
+ 	var prevp *obj.Prog
+@@ -173,6 +200,39 @@ func genAbstractFunc(fn *obj.LSym) {
+ 	Ctxt.DwarfAbstractFunc(ifn, fn, myimportpath)
+ }
+ 
++// Undo any versioning performed when a name was written
++// out as part of export data.
++func unversion(name string) string {
++	if i := strings.Index(name, "·"); i > 0 {
++		name = name[:i]
++	}
++	return name
++}
++
++// Given a function that was inlined as part of the compilation, dig
++// up the pre-inlining DCL list for the function and create a map that
++// supports lookup of pre-inline dcl index, based on variable
++// position/name.
++func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
++	dcl := preInliningDcls(fnsym)
++	m := make(map[varPos]int)
++	for i := 0; i < len(dcl); i++ {
++		n := dcl[i]
++		pos := Ctxt.InnermostPos(n.Pos)
++		vp := varPos{
++			DeclName: unversion(n.Sym.Name),
++			DeclFile: pos.Base().SymFilename(),
++			DeclLine: pos.Line(),
++			DeclCol:  pos.Col(),
++		}
++		if _, found := m[vp]; found {
++			Fatalf("child dcl collision on symbol %s within %v\n", n.Sym.Name, fnsym.Name)
++		}
++		m[vp] = i
++	}
++	return m
++}
++
+ func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
+ 	callIdx, found := imap[inlIdx]
+ 	if found {
+@@ -318,6 +378,10 @@ func dumpInlVars(dwvars []*dwarf.Var) {
+ 		if dwv.Abbrev == dwarf.DW_ABRV_PARAM_LOCLIST || dwv.Abbrev == dwarf.DW_ABRV_PARAM {
+ 			typ = "param"
+ 		}
+-		Ctxt.Logf("V%d: %s CI:%d II:%d %s\n", i, dwv.Name, dwv.ChildIndex, dwv.InlIndex-1, typ)
++		ia := 0
++		if dwv.IsInAbstract {
++			ia = 1
++		}
++		Ctxt.Logf("V%d: %s CI:%d II:%d IA:%d %s\n", i, dwv.Name, dwv.ChildIndex, dwv.InlIndex-1, ia, typ)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index c5e1f1390d..2f96b46f2b 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -34,7 +34,6 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"sort"
+ 	"strings"
+ )
+ 
+@@ -883,9 +882,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 
+ 		if genDwarfInline > 0 {
+ 			// Don't update the src.Pos on a return variable if it
+-			// was manufactured by the inliner (e.g. "~r2"); such vars
++			// was manufactured by the inliner (e.g. "~R2"); such vars
+ 			// were not part of the original callee.
+-			if !strings.HasPrefix(m.Sym.Name, "~r") {
++			if !strings.HasPrefix(m.Sym.Name, "~R") {
+ 				m.SetInlFormal(true)
+ 				m.Pos = mpos
+ 				inlfvars = append(inlfvars, m)
+@@ -986,7 +985,6 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
+ 		parent = b.InliningIndex()
+ 	}
+-	sort.Sort(byNodeName(dcl))
+ 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+ 
+ 	if genDwarfInline > 0 {
+@@ -1067,7 +1065,7 @@ func inlvar(var_ *Node) *Node {
+ 
+ // Synthesize a variable to store the inlined function's results in.
+ func retvar(t *types.Field, i int) *Node {
+-	n := newname(lookupN("~r", i))
++	n := newname(lookupN("~R", i))
+ 	n.Type = t.Type
+ 	n.SetClass(PAUTO)
+ 	n.Name.SetUsed(true)
+@@ -1216,28 +1214,3 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+ 	pos.SetBase(newbase)
+ 	return Ctxt.PosTable.XPos(pos)
+ }
+-
+-func cmpNodeName(a, b *Node) bool {
+-	// named before artificial
+-	aart := 0
+-	if strings.HasPrefix(a.Sym.Name, "~r") {
+-		aart = 1
+-	}
+-	bart := 0
+-	if strings.HasPrefix(b.Sym.Name, "~r") {
+-		bart = 1
+-	}
+-	if aart != bart {
+-		return aart < bart
+-	}
+-
+-	// otherwise sort by name
+-	return a.Sym.Name < b.Sym.Name
+-}
+-
+-// byNodeName implements sort.Interface for []*Node using cmpNodeName.
+-type byNodeName []*Node
+-
+-func (s byNodeName) Len() int           { return len(s) }
+-func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
+-func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index cf99931bb5..07e4f9d2e9 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -414,6 +414,9 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
+ 		if genDwarfInline > 1 {
+ 			if n.InlFormal() || n.InlLocal() {
+ 				inlIndex = posInlIndex(n.Pos) + 1
++				if n.InlFormal() {
++					abbrev = dwarf.DW_ABRV_PARAM
++				}
+ 			}
+ 		}
+ 		declpos := Ctxt.InnermostPos(n.Pos)
+@@ -513,9 +516,8 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 	}
+ 
+ 	var dcl []*Node
+-	var chopVersion bool
+ 	if fnsym.WasInlined() {
+-		dcl, chopVersion = preInliningDcls(fnsym)
++		dcl = preInliningDcls(fnsym)
+ 	} else {
+ 		dcl = automDecls
+ 	}
+@@ -534,7 +536,7 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 			continue
+ 		}
+ 		c := n.Sym.Name[0]
+-		if c == '~' || c == '.' || n.Type.IsUntyped() {
++		if c == '.' || n.Type.IsUntyped() {
+ 			continue
+ 		}
+ 		typename := dwarf.InfoPrefix + typesymname(n.Type)
+@@ -547,6 +549,9 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 		if genDwarfInline > 1 {
+ 			if n.InlFormal() || n.InlLocal() {
+ 				inlIndex = posInlIndex(n.Pos) + 1
++				if n.InlFormal() {
++					abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
++				}
+ 			}
+ 		}
+ 		declpos := Ctxt.InnermostPos(n.Pos)
+@@ -575,49 +580,59 @@ func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*No
+ 
+ 	}
+ 
+-	// Parameter and local variable names are given middle dot
+-	// version numbers as part of the writing them out to export
+-	// data (see issue 4326).  If DWARF inlined routine generation
+-	// is turned on, undo this versioning, since DWARF variables
+-	// in question will be parented by the inlined routine and
+-	// not the top-level caller.
+-	if genDwarfInline > 1 && chopVersion {
+-		for _, v := range vars {
+-			if v.InlIndex != -1 {
+-				if i := strings.Index(v.Name, "·"); i > 0 {
+-					v.Name = v.Name[:i] // cut off Vargen
+-				}
+-			}
+-		}
+-	}
+-
+ 	return decls, vars
+ }
+ 
+-// Given a function that was inlined at some point during the compilation,
+-// return a list of nodes corresponding to the autos/locals in that
+-// function prior to inlining. Untyped and compiler-synthesized vars are
+-// stripped out along the way.
+-func preInliningDcls(fnsym *obj.LSym) ([]*Node, bool) {
++// Given a function that was inlined at some point during the
++// compilation, return a sorted list of nodes corresponding to the
++// autos/locals in that function prior to inlining. If this is a
++// function that is not local to the package being compiled, then the
++// names of the variables may have been "versioned" to avoid conflicts
++// with local vars; disregard this versioning when sorting.
++func preInliningDcls(fnsym *obj.LSym) []*Node {
+ 	fn := Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*Node)
+-	imported := false
+ 	var dcl, rdcl []*Node
+ 	if fn.Name.Defn != nil {
+ 		dcl = fn.Func.Inldcl.Slice() // local function
+ 	} else {
+ 		dcl = fn.Func.Dcl // imported function
+-		imported = true
+ 	}
+ 	for _, n := range dcl {
+ 		c := n.Sym.Name[0]
+-		if c == '~' || c == '.' || n.Type.IsUntyped() {
++		if c == '.' || n.Type.IsUntyped() {
+ 			continue
+ 		}
+ 		rdcl = append(rdcl, n)
+ 	}
+-	return rdcl, imported
++	sort.Sort(byNodeName(rdcl))
++	return rdcl
++}
++
++func cmpNodeName(a, b *Node) bool {
++	aart := 0
++	if strings.HasPrefix(a.Sym.Name, "~") {
++		aart = 1
++	}
++	bart := 0
++	if strings.HasPrefix(b.Sym.Name, "~") {
++		bart = 1
++	}
++	if aart != bart {
++		return aart < bart
++	}
++
++	aname := unversion(a.Sym.Name)
++	bname := unversion(b.Sym.Name)
++	return aname < bname
+ }
+ 
++// byNodeName implements sort.Interface for []*Node using cmpNodeName.
++type byNodeName []*Node
++
++func (s byNodeName) Len() int           { return len(s) }
++func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
++func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++
+ // varOffset returns the offset of slot within the user variable it was
+ // decomposed from. This has nothing to do with its stack offset.
+ func varOffset(slot *ssa.LocalSlot) int64 {
+@@ -682,6 +697,9 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
+ 	if genDwarfInline > 1 {
+ 		if n.InlFormal() || n.InlLocal() {
+ 			inlIndex = posInlIndex(n.Pos) + 1
++			if n.InlFormal() {
++				abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
++			}
+ 		}
+ 	}
+ 	declpos := Ctxt.InnermostPos(n.Pos)
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 8997fbf41e..b6a0604590 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -76,6 +76,7 @@ type Var struct {
+ 	DeclCol       uint
+ 	InlIndex      int32 // subtract 1 to form real index into InlTree
+ 	ChildIndex    int32 // child DIE index in abstract function
++	IsInAbstract  bool  // variable exists in abstract function
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -1121,14 +1122,23 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 		for _, scope := range s.Scopes {
+ 			for i := 0; i < len(scope.Vars); i++ {
+ 				_, found := pvars[scope.Vars[i]]
+-				if !found {
+-					flattened = append(flattened, scope.Vars[i])
++				if found || !scope.Vars[i].IsInAbstract {
++					continue
+ 				}
++				flattened = append(flattened, scope.Vars[i])
+ 			}
+ 		}
+ 		if len(flattened) > 0 {
+ 			sort.Sort(byChildIndex(flattened))
+ 
++			if logDwarf {
++				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
++				for i, v := range flattened {
++					ctxt.Logf(" %d:%s", i, v.Name)
++				}
++				ctxt.Logf("\n")
++			}
++
+ 			// This slice will hold the offset in bytes for each child
+ 			// variable DIE with respect to the start of the parent
+ 			// subprogram DIE.
+@@ -1186,6 +1196,9 @@ func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error
+ 	inlIndex := ic.InlIndex
+ 	var encbuf [20]byte
+ 	for _, v := range vars {
++		if !v.IsInAbstract {
++			continue
++		}
+ 		putvar(ctxt, s, v, callee, abbrev, inlIndex, encbuf[:0])
+ 	}
+ 
+@@ -1324,6 +1337,22 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
+ 	return curscope
+ }
+ 
++// Given a default var abbrev code, select corresponding concrete code.
++func concreteVarAbbrev(varAbbrev int) int {
++	switch varAbbrev {
++	case DW_ABRV_AUTO:
++		return DW_ABRV_AUTO_CONCRETE
++	case DW_ABRV_PARAM:
++		return DW_ABRV_PARAM_CONCRETE
++	case DW_ABRV_AUTO_LOCLIST:
++		return DW_ABRV_AUTO_CONCRETE_LOCLIST
++	case DW_ABRV_PARAM_LOCLIST:
++		return DW_ABRV_PARAM_CONCRETE_LOCLIST
++	default:
++		panic("should never happen")
++	}
++}
++
+ // Pick the correct abbrev code for variable or parameter DIE.
+ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
+ 	abbrev := v.Abbrev
+@@ -1340,35 +1369,29 @@ func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
+ 		abbrev = DW_ABRV_PARAM
+ 	}
+ 
++	// Determine whether to use a concrete variable or regular variable DIE.
+ 	concrete := true
+ 	switch fnabbrev {
+ 	case DW_ABRV_FUNCTION:
+ 		concrete = false
+ 		break
+-	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_INLINED_SUBROUTINE, DW_ABRV_INLINED_SUBROUTINE_RANGES:
+-		switch abbrev {
+-		case DW_ABRV_AUTO:
+-			if v.IsInlFormal {
+-				abbrev = DW_ABRV_PARAM_CONCRETE
+-			} else {
+-				abbrev = DW_ABRV_AUTO_CONCRETE
+-			}
+-			concrete = true
+-		case DW_ABRV_AUTO_LOCLIST:
+-			if v.IsInlFormal {
+-				abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
+-			} else {
+-				abbrev = DW_ABRV_AUTO_CONCRETE_LOCLIST
+-			}
+-		case DW_ABRV_PARAM:
+-			abbrev = DW_ABRV_PARAM_CONCRETE
+-		case DW_ABRV_PARAM_LOCLIST:
+-			abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
++	case DW_ABRV_FUNCTION_CONCRETE:
++		// If we're emitting a concrete subprogram DIE and the variable
++		// in question is not part of the corresponding abstract function DIE,
++		// then use the default (non-concrete) abbrev for this param.
++		if !v.IsInAbstract {
++			concrete = false
+ 		}
++	case DW_ABRV_INLINED_SUBROUTINE, DW_ABRV_INLINED_SUBROUTINE_RANGES:
+ 	default:
+ 		panic("should never happen")
+ 	}
+ 
++	// Select proper abbrev based on concrete/non-concrete
++	if concrete {
++		abbrev = concreteVarAbbrev(abbrev)
++	}
++
+ 	return abbrev, missing, concrete
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 4332a3dfba..e959aeed65 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -19,6 +19,13 @@ import (
+ 	"testing"
+ )
+ 
++const (
++	NoOpt        = "-gcflags=-l -N"
++	Opt          = ""
++	OptInl4      = "-gcflags=all=-l=4"
++	OptInl4DwLoc = "-gcflags=all=-l=4 -dwarflocationlists"
++)
++
+ func TestRuntimeTypeDIEs(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+@@ -32,7 +39,7 @@ func TestRuntimeTypeDIEs(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, `package main; func main() { }`, false)
++	f := gobuild(t, dir, `package main; func main() { }`, NoOpt)
+ 	defer f.Close()
+ 
+ 	dwarf, err := f.DWARF()
+@@ -77,7 +84,7 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
+ 	return
+ }
+ 
+-func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.File {
++func gobuild(t *testing.T, dir string, testfile string, gcflags string) *objfilepkg.File {
+ 	src := filepath.Join(dir, "test.go")
+ 	dst := filepath.Join(dir, "out")
+ 
+@@ -85,10 +92,6 @@ func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.Fi
+ 		t.Fatal(err)
+ 	}
+ 
+-	gcflags := "-gcflags=-N -l"
+-	if opt {
+-		gcflags = "-gcflags=-l=4"
+-	}
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", b)
+@@ -142,7 +145,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog, false)
++	f := gobuild(t, dir, prog, NoOpt)
+ 
+ 	defer f.Close()
+ 
+@@ -220,7 +223,7 @@ func main() {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+-	f := gobuild(t, dir, prog, false)
++	f := gobuild(t, dir, prog, NoOpt)
+ 	defer f.Close()
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -268,7 +271,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog, false)
++	f := gobuild(t, dir, prog, NoOpt)
+ 	defer f.Close()
+ 
+ 	d, err := f.DWARF()
+@@ -326,7 +329,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog, false)
++	f := gobuild(t, dir, prog, NoOpt)
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -391,6 +394,7 @@ type examiner struct {
+ 	dies        []*dwarf.Entry
+ 	idxByOffset map[dwarf.Offset]int
+ 	kids        map[int][]int
++	parent      map[int]int
+ 	byname      map[string][]int
+ }
+ 
+@@ -398,6 +402,7 @@ type examiner struct {
+ func (ex *examiner) populate(rdr *dwarf.Reader) error {
+ 	ex.idxByOffset = make(map[dwarf.Offset]int)
+ 	ex.kids = make(map[int][]int)
++	ex.parent = make(map[int]int)
+ 	ex.byname = make(map[string][]int)
+ 	var nesting []int
+ 	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+@@ -424,6 +429,7 @@ func (ex *examiner) populate(rdr *dwarf.Reader) error {
+ 		if len(nesting) > 0 {
+ 			parent := nesting[len(nesting)-1]
+ 			ex.kids[parent] = append(ex.kids[parent], idx)
++			ex.parent[idx] = parent
+ 		}
+ 		if entry.Children {
+ 			nesting = append(nesting, idx)
+@@ -449,10 +455,10 @@ func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
+ 	}
+ 	entry := ex.dies[idx]
+ 	indent(ilevel)
+-	fmt.Printf("%d: %v\n", idx, entry.Tag)
++	fmt.Printf("0x%x: %v\n", idx, entry.Tag)
+ 	for _, f := range entry.Field {
+ 		indent(ilevel)
+-		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
++		fmt.Printf("at=%v val=0x%x\n", f.Attr, f.Val)
+ 	}
+ 	if dumpKids {
+ 		ksl := ex.kids[idx]
+@@ -481,7 +487,7 @@ func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
+ 
+ // Return the dwarf.Entry pointer for the DIE with id 'idx'
+ func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
+-	if idx >= len(ex.dies) {
++	if idx >= len(ex.dies) || idx < 0 {
+ 		return nil
+ 	}
+ 	return ex.dies[idx]
+@@ -497,6 +503,15 @@ func (ex *examiner) Children(idx int) []*dwarf.Entry {
+ 	return ret
+ }
+ 
++// Returns parent DIE for DIE 'idx', or nil if the DIE is top level
++func (ex *examiner) Parent(idx int) *dwarf.Entry {
++	p, found := ex.parent[idx]
++	if !found {
++		return nil
++	}
++	return ex.entryFromIdx(p)
++}
++
+ // Return a list of all DIEs with name 'name'. When searching for DIEs
+ // by name, keep in mind that the returned results will include child
+ // DIEs such as params/variables. For example, asking for all DIEs named
+@@ -542,10 +557,10 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	// Note: this is a regular go build here, without "-l -N". The
+-	// test is intended to verify DWARF that is only generated when the
+-	// inliner is active.
+-	f := gobuild(t, dir, prog, true)
++	// Note: this is a build with "-l=4", as opposed to "-l -N". The
++	// test is intended to verify DWARF that is only generated when
++	// the inliner is active.
++	f := gobuild(t, dir, prog, OptInl4)
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -628,3 +643,121 @@ func main() {
+ 		t.Fatalf("not enough inlined subroutines found in main.main")
+ 	}
+ }
++
++func abstractOriginSanity(t *testing.T, flags string) {
++
++	// Nothing special about net/http here, this is just a convenient
++	// way to pull in a lot of code.
++	const prog = `
++package main
++
++import (
++	"net/http"
++	"net/http/httptest"
++)
++
++type statusHandler int
++
++func (h *statusHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
++	w.WriteHeader(int(*h))
++}
++
++func main() {
++	status := statusHandler(http.StatusNotFound)
++	s := httptest.NewServer(&status)
++	defer s.Close()
++}
++`
++	dir, err := ioutil.TempDir("", "TestAbstractOriginSanity")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Build with inlining, to exercise DWARF inlining support.
++	f := gobuild(t, dir, prog, flags)
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++	rdr := d.Reader()
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	// Make a pass through all DIEs looking for abstract origin
++	// references.
++	abscount := 0
++	for i, die := range ex.dies {
++
++		// Does it have an abstract origin?
++		ooff, originOK := die.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
++		if !originOK {
++			continue
++		}
++
++		// All abstract origin references should be resolvable.
++		abscount += 1
++		originDIE := ex.entryFromOffset(ooff)
++		if originDIE == nil {
++			ex.dumpEntry(i, false, 0)
++			t.Fatalf("unresolved abstract origin ref in DIE at offset 0x%x\n", die.Offset)
++		}
++
++		// Suppose that DIE X has parameter/variable children {K1,
++		// K2, ... KN}. If X has an abstract origin of A, then for
++		// each KJ, the abstract origin of KJ should be a child of A.
++		// Note that this same rule doesn't hold for non-variable DIEs.
++		pidx := ex.idxFromOffset(die.Offset)
++		if pidx < 0 {
++			t.Fatalf("can't locate DIE id")
++		}
++		kids := ex.Children(pidx)
++		for _, kid := range kids {
++			if kid.Tag != dwarf.TagVariable &&
++				kid.Tag != dwarf.TagFormalParameter {
++				continue
++			}
++			kooff, originOK := kid.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
++			if !originOK {
++				continue
++			}
++			childOriginDIE := ex.entryFromOffset(kooff)
++			if childOriginDIE == nil {
++				ex.dumpEntry(i, false, 0)
++				t.Fatalf("unresolved abstract origin ref in DIE at offset %x", kid.Offset)
++			}
++			coidx := ex.idxFromOffset(childOriginDIE.Offset)
++			childOriginParent := ex.Parent(coidx)
++			if childOriginParent != originDIE {
++				ex.dumpEntry(i, false, 0)
++				t.Fatalf("unexpected parent of abstract origin DIE at offset %v", childOriginDIE.Offset)
++			}
++		}
++	}
++	if abscount == 0 {
++		t.Fatalf("no abstract origin refs found, something is wrong")
++	}
++}
++
++func TestAbstractOriginSanity(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	abstractOriginSanity(t, OptInl4)
++}
++
++func TestAbstractOriginSanityWithLocationLists(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	abstractOriginSanity(t, OptInl4DwLoc)
++}

@@ -7,7 +7,86 @@ Date:   Mon Mar 11 12:21:46 2013 -0400
     R=golang-dev, bradfitz, dvyukov
     CC=golang-dev
     https://golang.org/cl/7702043
-
+---
  src/pkg/sync/atomic/asm_386.s      | 12 ++++++++++++
  src/pkg/sync/atomic/atomic_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 38 insertions(+)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 7a98a61d80..19d129bcb7 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -28,6 +28,9 @@ TEXT ·CompareAndSwapInt64(SB),7,$0
+ 
+ TEXT ·CompareAndSwapUint64(SB),7,$0
+ 	MOVL	addr+0(FP), BP
++	TESTL	$7, BP
++	JZ	2(PC)
++	MOVL	0, AX // crash with nil ptr deref
+ 	MOVL	old+4(FP), AX
+ 	MOVL	old+8(FP), DX
+ 	MOVL	new+12(FP), BX
+@@ -61,6 +64,9 @@ TEXT ·AddInt64(SB),7,$0
+ TEXT ·AddUint64(SB),7,$0
+ 	// no XADDQ so use CMPXCHG8B loop
+ 	MOVL	addr+0(FP), BP
++	TESTL	$7, BP
++	JZ	2(PC)
++	MOVL	0, AX // crash with nil ptr deref
+ 	// DI:SI = delta
+ 	MOVL	delta+4(FP), SI
+ 	MOVL	delta+8(FP), DI
+@@ -105,6 +111,9 @@ TEXT ·LoadInt64(SB),7,$0
+ 
+ TEXT ·LoadUint64(SB),7,$0
+ 	MOVL	addr+0(FP), AX
++	TESTL	$7, AX
++	JZ	2(PC)
++	MOVL	0, AX // crash with nil ptr deref
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	// MOVQ (%EAX), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x00
+@@ -133,6 +142,9 @@ TEXT ·StoreInt64(SB),7,$0
+ 
+ TEXT ·StoreUint64(SB),7,$0
+ 	MOVL	addr+0(FP), AX
++	TESTL	$7, AX
++	JZ	2(PC)
++	MOVL	0, AX // crash with nil ptr deref
+ 	// MOVQ and EMMS were introduced on the Pentium MMX.
+ 	// MOVQ 0x8(%ESP), %MM0
+ 	BYTE $0x0f; BYTE $0x6f; BYTE $0x44; BYTE $0x24; BYTE $0x08
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 3e105561c4..72f303040f 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -1177,3 +1177,29 @@ func TestStoreLoadRelAcq64(t *testing.T) {
+ 	<-c
+ 	<-c
+ }
++
++func shouldPanic(t *testing.T, name string, f func()) {
++	defer func() {
++		if recover() == nil {
++			t.Errorf("%s did not panic", name)
++		}
++	}()
++	f()
++}
++
++func TestUnaligned64(t *testing.T) {
++	// Unaligned 64-bit atomics on 32-bit systems are
++	// a continual source of pain. Test that on 386 they crash
++	// instead of failing silently.
++	if runtime.GOARCH != "386" {
++		t.Skip("test only runs on 386")
++	}
++
++	x := make([]uint32, 4)
++	p := (*uint64)(unsafe.Pointer(&x[1])) // misaligned
++
++	shouldPanic(t, "LoadUint64", func() { LoadUint64(p) })
++	shouldPanic(t, "StoreUint64", func() { StoreUint64(p, 1) })
++	shouldPanic(t, "CompareAndSwapUint64", func() { CompareAndSwapUint64(p, 1, 2) })
++	shouldPanic(t, "AddUint64", func() { AddUint64(p, 3) })
++}

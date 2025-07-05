@@ -30,9 +30,127 @@ Date:   Thu Jun 9 22:24:40 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/exec.go       |  6 ++++--
  src/os/exec_unix.go  | 18 ++++++++++++++++++
  src/os/wait_linux.go | 29 +++++++++++++++++++++++++++++
  src/os/wait_unimp.go | 16 ++++++++++++++++
  4 files changed, 67 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 239fd92888..bf3249864d 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"runtime"
++	"sync"
+ 	"sync/atomic"
+ 	"syscall"
+ )
+@@ -13,8 +14,9 @@ import (
+ // Process stores the information about a process created by StartProcess.
+ type Process struct {
+ 	Pid    int
+-	handle uintptr // handle is accessed atomically on Windows
+-	isdone uint32  // process has been successfully waited on, non zero if true
++	handle uintptr      // handle is accessed atomically on Windows
++	isdone uint32       // process has been successfully waited on, non zero if true
++	sigMu  sync.RWMutex // avoid race between wait and signal
+ }
+ 
+ func newProcess(pid int, handle uintptr) *Process {
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index ed97f85e22..c4999db57f 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -17,6 +17,22 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if p.Pid == -1 {
+ 		return nil, syscall.EINVAL
+ 	}
++
++	// If we can block until Wait4 will succeed immediately, do so.
++	ready, err := p.blockUntilWaitable()
++	if err != nil {
++		return nil, err
++	}
++	if ready {
++		// Mark the process done now, before the call to Wait4,
++		// so that Process.signal will not send a signal.
++		p.setDone()
++		// Acquire a write lock on sigMu to wait for any
++		// active call to the signal method to complete.
++		p.sigMu.Lock()
++		p.sigMu.Unlock()
++	}
++
+ 	var status syscall.WaitStatus
+ 	var rusage syscall.Rusage
+ 	pid1, e := syscall.Wait4(p.Pid, &status, 0, &rusage)
+@@ -43,6 +59,8 @@ func (p *Process) signal(sig Signal) error {
+ 	if p.Pid == 0 {
+ 		return errors.New("os: process not initialized")
+ 	}
++	p.sigMu.RLock()
++	defer p.sigMu.RUnlock()
+ 	if p.done() {
+ 		return errFinished
+ 	}
+diff --git a/src/os/wait_linux.go b/src/os/wait_linux.go
+new file mode 100644
+index 0000000000..7707539630
+--- /dev/null
++++ b/src/os/wait_linux.go
+@@ -0,0 +1,29 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"runtime"
++	"syscall"
++	"unsafe"
++)
++
++const _P_PID = 1
++
++// blockUntilWaitable attempts to block until a call to p.Wait will
++// succeed immediately, and returns whether it has done so.
++// It does not actually call p.Wait.
++func (p *Process) blockUntilWaitable() (bool, error) {
++	// waitid expects a pointer to a siginfo_t, which is 128 bytes
++	// on all systems. We don't care about the values it returns.
++	var siginfo [128]byte
++	psig := &siginfo[0]
++	_, _, e := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++	runtime.KeepAlive(psig)
++	if e != 0 {
++		return false, NewSyscallError("waitid", e)
++	}
++	return true, nil
++}
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+new file mode 100644
+index 0000000000..802b032c6e
+--- /dev/null
++++ b/src/os/wait_unimp.go
+@@ -0,0 +1,16 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd nacl netbsd openbsd solaris
++
++package os
++
++// blockUntilWaitable attempts to block until a call to p.Wait will
++// succeed immediately, and returns whether it has done so.
++// It does not actually call p.Wait.
++// This version is used on systems that do not implement waitid,
++// or where we have not implemented it yet.
++func (p *Process) blockUntilWaitable() (bool, error) {
++	return false, nil
++}

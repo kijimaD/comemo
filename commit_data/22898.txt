@@ -7,10 +7,100 @@ Date:   Mon Apr 13 18:04:02 2015 -0500
     Change-Id: Ie5fe5cf3e2926ba4f91271bd47f3f998c26e003e
     Reviewed-on: https://go-review.googlesource.com/8914
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/5g/galign.go | 3 +--
  src/cmd/6g/galign.go | 2 +-
  src/cmd/7g/galign.go | 2 +-
  src/cmd/8g/galign.go | 3 +--
  src/cmd/9g/galign.go | 3 +--
  5 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5g/galign.go b/src/cmd/5g/galign.go
+index 0a6c6552bf..51c6e1e45a 100644
+--- a/src/cmd/5g/galign.go
++++ b/src/cmd/5g/galign.go
+@@ -23,7 +23,7 @@ var MAXWIDTH int64 = (1 << 32) - 1
+ 
+ /*
+  * go declares several platform-specific type aliases:
+- * int, uint, float, and uintptr
++ * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+ 	gc.Typedef{"int", gc.TINT, gc.TINT32},
+@@ -35,7 +35,6 @@ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+ 	gc.Widthreg = 4
+-
+ }
+ 
+ func main() {
+diff --git a/src/cmd/6g/galign.go b/src/cmd/6g/galign.go
+index fb31710a14..8ba8dd434e 100644
+--- a/src/cmd/6g/galign.go
++++ b/src/cmd/6g/galign.go
+@@ -37,7 +37,7 @@ var cmpptr int = x86.ACMPQ
+ 
+ /*
+  * go declares several platform-specific type aliases:
+- * int, uint, float, and uintptr
++ * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+ 	gc.Typedef{"int", gc.TINT, gc.TINT64},
+diff --git a/src/cmd/7g/galign.go b/src/cmd/7g/galign.go
+index 36b54aa935..c21cb67fab 100644
+--- a/src/cmd/7g/galign.go
++++ b/src/cmd/7g/galign.go
+@@ -23,7 +23,7 @@ var MAXWIDTH int64 = 1 << 50
+ 
+ /*
+  * go declares several platform-specific type aliases:
+- * int, uint, float, and uintptr
++ * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+ 	gc.Typedef{"int", gc.TINT, gc.TINT64},
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index 2a8e0b7aa9..36328dc002 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -23,7 +23,7 @@ var MAXWIDTH int64 = (1 << 32) - 1
+ 
+ /*
+  * go declares several platform-specific type aliases:
+- * int, uint, float, and uintptr
++ * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+ 	gc.Typedef{"int", gc.TINT, gc.TINT32},
+@@ -35,7 +35,6 @@ func betypeinit() {
+ 	gc.Widthptr = 4
+ 	gc.Widthint = 4
+ 	gc.Widthreg = 4
+-
+ }
+ 
+ func main() {
+diff --git a/src/cmd/9g/galign.go b/src/cmd/9g/galign.go
+index 68eab5852c..4aa84f8b62 100644
+--- a/src/cmd/9g/galign.go
++++ b/src/cmd/9g/galign.go
+@@ -31,7 +31,7 @@ var MAXWIDTH int64 = 1 << 50
+ 
+ /*
+  * go declares several platform-specific type aliases:
+- * int, uint, float, and uintptr
++ * int, uint, and uintptr
+  */
+ var typedefs = []gc.Typedef{
+ 	gc.Typedef{"int", gc.TINT, gc.TINT64},
+@@ -43,7 +43,6 @@ func betypeinit() {
+ 	gc.Widthptr = 8
+ 	gc.Widthint = 8
+ 	gc.Widthreg = 8
+-
+ }
+ 
+ func main() {

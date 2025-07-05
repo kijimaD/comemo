@@ -18,7 +18,7 @@ Date:   Fri Apr 5 11:42:37 2019 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/crash_unix_test.go    | 24 ++++++++++++++++++++++++
  src/runtime/os2_aix.go            | 11 +++++++++--
  src/runtime/os3_solaris.go        | 12 ++++++++++--
@@ -50,3 +50,771 @@ Date:   Fri Apr 5 11:42:37 2019 -0700
  src/runtime/sys_openbsd_arm.s     |  4 ++--
  src/runtime/sys_openbsd_arm64.s   |  4 ++--
  30 files changed, 141 insertions(+), 93 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index ce227feebd..4be4962f90 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"strings"
+ 	"syscall"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ // sigquit is the signal to send to kill a hanging testdata program.
+@@ -33,6 +34,29 @@ func init() {
+ 	}
+ }
+ 
++func TestBadOpen(t *testing.T) {
++	// make sure we get the correct error code if open fails. Same for
++	// read/write/close on the resulting -1 fd. See issue 10052.
++	nonfile := []byte("/notreallyafile")
++	fd := runtime.Open(&nonfile[0], 0, 0)
++	if fd != -1 {
++		t.Errorf("open(%q)=%d, want -1", nonfile, fd)
++	}
++	var buf [32]byte
++	r := runtime.Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
++	if got, want := r, -int32(syscall.EBADF); got != want {
++		t.Errorf("read()=%d, want %d", got, want)
++	}
++	w := runtime.Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
++	if got, want := w, -int32(syscall.EBADF); got != want {
++		t.Errorf("write()=%d, want %d", got, want)
++	}
++	c := runtime.Close(-1)
++	if c != -1 {
++		t.Errorf("close()=%d, want -1", c)
++	}
++}
++
+ func TestCrashDumpsAllThreads(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 9f5c185bac..7f69d6d1e3 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -399,16 +399,23 @@ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
+ 	// Check the validity of g because without a g during
+ 	// newosproc0.
+ 	if _g_ != nil {
+-		r, _ := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
++		r, errno := syscall3(&libc_write, uintptr(fd), uintptr(p), uintptr(n))
++		if int32(r) < 0 {
++			return -int32(errno)
++		}
+ 		return int32(r)
+ 	}
++	// Note that in this case we can't return a valid errno value.
+ 	return write2(fd, uintptr(p), n)
+ 
+ }
+ 
+ //go:nosplit
+ func read(fd int32, p unsafe.Pointer, n int32) int32 {
+-	r, _ := syscall3(&libc_read, uintptr(fd), uintptr(p), uintptr(n))
++	r, errno := syscall3(&libc_read, uintptr(fd), uintptr(p), uintptr(n))
++	if int32(r) < 0 {
++		return -int32(errno)
++	}
+ 	return int32(r)
+ }
+ 
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index cdec190de5..4ac191fab8 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -447,7 +447,11 @@ func raiseproc(sig uint32) /* int32 */ {
+ 
+ //go:nosplit
+ func read(fd int32, buf unsafe.Pointer, nbyte int32) int32 {
+-	return int32(sysvicall3(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte)))
++	r1, err := sysvicall3Err(&libc_read, uintptr(fd), uintptr(buf), uintptr(nbyte))
++	if c := int32(r1); c >= 0 {
++		return c
++	}
++	return -int32(err)
+ }
+ 
+ //go:nosplit
+@@ -511,7 +515,11 @@ func walltime1() (sec int64, nsec int32) {
+ 
+ //go:nosplit
+ func write1(fd uintptr, buf unsafe.Pointer, nbyte int32) int32 {
+-	return int32(sysvicall3(&libc_write, uintptr(fd), uintptr(buf), uintptr(nbyte)))
++	r1, err := sysvicall3Err(&libc_write, fd, uintptr(buf), uintptr(nbyte))
++	if c := int32(r1); c >= 0 {
++		return c
++	}
++	return -int32(err)
+ }
+ 
+ func osyield1()
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 989edb5dcd..d6c09156bd 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -122,6 +122,16 @@ func sysvicall2(fn *libcFunc, a1, a2 uintptr) uintptr {
+ 
+ //go:nosplit
+ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
++	r1, _ := sysvicall3Err(fn, a1, a2, a3)
++	return r1
++}
++
++//go:nosplit
++//go:cgo_unsafe_args
++
++// sysvicall3Err returns both the system call result and the errno value.
++// This is used by sysicall3 and write1.
++func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
+ 	// Leave caller's PC/SP around for traceback.
+ 	gp := getg()
+ 	var mp *m
+@@ -146,7 +156,7 @@ func sysvicall3(fn *libcFunc, a1, a2, a3 uintptr) uintptr {
+ 	if mp != nil {
+ 		mp.libcallsp = 0
+ 	}
+-	return libcall.r1
++	return libcall.r1, libcall.err
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index ab7a03b2d1..26ae77456a 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -290,32 +290,6 @@ func TestTrailingZero(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBadOpen(t *testing.T) {
+-	if GOOS == "windows" || GOOS == "js" {
+-		t.Skip("skipping OS that doesn't have open/read/write/close")
+-	}
+-	// make sure we get the correct error code if open fails. Same for
+-	// read/write/close on the resulting -1 fd. See issue 10052.
+-	nonfile := []byte("/notreallyafile")
+-	fd := Open(&nonfile[0], 0, 0)
+-	if fd != -1 {
+-		t.Errorf("open(\"%s\")=%d, want -1", string(nonfile), fd)
+-	}
+-	var buf [32]byte
+-	r := Read(-1, unsafe.Pointer(&buf[0]), int32(len(buf)))
+-	if r != -1 {
+-		t.Errorf("read()=%d, want -1", r)
+-	}
+-	w := Write(^uintptr(0), unsafe.Pointer(&buf[0]), int32(len(buf)))
+-	if w != -1 {
+-		t.Errorf("write()=%d, want -1", w)
+-	}
+-	c := Close(-1)
+-	if c != -1 {
+-		t.Errorf("close()=%d, want -1", c)
+-	}
+-}
+-
+ func TestAppendGrowth(t *testing.T) {
+ 	var x []int64
+ 	check := func(want int) {
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index cf2b124812..4a1a5cc3d9 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -13,12 +13,17 @@ package runtime
+ 
+ import "unsafe"
+ 
++// read calls the read system call.
++// It returns a non-negative number of bytes written or a negative errno value.
+ func read(fd int32, p unsafe.Pointer, n int32) int32
++
+ func closefd(fd int32) int32
+ 
+ func exit(code int32)
+ func usleep(usec uint32)
+ 
++// write calls the write system call.
++// It returns a non-negative number of bytes written or a negative errno value.
+ //go:noescape
+ func write1(fd uintptr, p unsafe.Pointer, n int32) int32
+ 
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index e653c54f61..bea804b8dd 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -64,6 +64,12 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	MOVL	8(CX), AX		// arg 3 count
+ 	MOVL	AX, 8(SP)
+ 	CALL	libc_read(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+@@ -80,6 +86,12 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	MOVL	8(CX), AX		// arg 3 count
+ 	MOVL	AX, 8(SP)
+ 	CALL	libc_write(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	MOVL	BP, SP
+ 	POPL	BP
+ 	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 87c8db8c82..ea8cf1abb1 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -46,6 +46,12 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	MOVL	16(DI), DX		// arg 3 count
+ 	MOVL	0(DI), DI		// arg 1 fd
+ 	CALL	libc_read(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	POPQ	BP
+ 	RET
+ 
+@@ -56,6 +62,12 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	MOVL	16(DI), DX		// arg 3 count
+ 	MOVQ	0(DI), DI		// arg 1 fd
+ 	CALL	libc_write(SB)
++	TESTL	AX, AX
++	JGE	noerr
++	CALL	libc_error(SB)
++	MOVL	(AX), AX
++	NEGL	AX			// caller expects negative errno value
++noerr:
+ 	POPQ	BP
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 996f8028a3..84b0b0f5f4 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -32,6 +32,13 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	MOVW	8(R0), R2	// arg 3 count
+ 	MOVW	0(R0), R0	// arg 1 fd
+ 	BL	libc_write(SB)
++	MOVW	$-1, R1
++	CMP	R0, R1
++	BNE	noerr
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	RSB	$0, R0, R0	// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+@@ -39,6 +46,13 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	MOVW	8(R0), R2	// arg 3 count
+ 	MOVW	0(R0), R0	// arg 1 fd
+ 	BL	libc_read(SB)
++	MOVW	$-1, R1
++	CMP	R0, R1
++	BNE	noerr
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	RSB	$0, R0, R0	// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index ac3ca74f63..8d39a0727f 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -35,6 +35,13 @@ TEXT runtime·write_trampoline(SB),NOSPLIT,$0
+ 	MOVW	16(R0), R2	// arg 3 count
+ 	MOVW	0(R0), R0	// arg 1 fd
+ 	BL	libc_write(SB)
++	MOVD	$-1, R1
++	CMP	R0, R1
++	BNE	noerr
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	NEG	R0, R0		// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+@@ -42,6 +49,13 @@ TEXT runtime·read_trampoline(SB),NOSPLIT,$0
+ 	MOVW	16(R0), R2	// arg 3 count
+ 	MOVW	0(R0), R0	// arg 1 fd
+ 	BL	libc_read(SB)
++	MOVD	$-1, R1
++	CMP	R0, R1
++	BNE	noerr
++	BL	libc_error(SB)
++	MOVW	(R0), R0
++	NEG	R0, R0		// caller expects negative errno value
++noerr:
+ 	RET
+ 
+ TEXT runtime·pipe_trampoline(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_dragonfly_amd64.s b/src/runtime/sys_dragonfly_amd64.s
+index b3f9f1eb01..68962d9e30 100644
+--- a/src/runtime/sys_dragonfly_amd64.s
++++ b/src/runtime/sys_dragonfly_amd64.s
+@@ -104,7 +104,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	$3, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -130,7 +130,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVL	$4, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_386.s b/src/runtime/sys_freebsd_386.s
+index d8474546fb..48f64b9f8b 100644
+--- a/src/runtime/sys_freebsd_386.s
++++ b/src/runtime/sys_freebsd_386.s
+@@ -93,7 +93,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -127,7 +127,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_amd64.s b/src/runtime/sys_freebsd_amd64.s
+index 7d6d7164f4..d24ab1f643 100644
+--- a/src/runtime/sys_freebsd_amd64.s
++++ b/src/runtime/sys_freebsd_amd64.s
+@@ -93,7 +93,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	$3, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -128,7 +128,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVL	$4, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index 27b45888f4..cdfecacfbc 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -117,7 +117,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_read, R7
+ 	SWI $0
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -153,7 +153,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_write, R7
+ 	SWI $0
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 2e4f66c55a..4b440b13cb 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -115,9 +115,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0
+ 	MOVL	p+4(FP), CX
+ 	MOVL	n+8(FP), DX
+ 	INVOKE_SYSCALL
+-	CMPL	AX, $0xfffff001
+-	JLS	2(PC)
+-	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -127,9 +124,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVL	p+4(FP), CX
+ 	MOVL	n+8(FP), DX
+ 	INVOKE_SYSCALL
+-	CMPL	AX, $0xfffff001
+-	JLS	2(PC)
+-	MOVL	$-1, AX
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index ae4d0ef060..0728d1766e 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -97,9 +97,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0-28
+ 	MOVL	n+16(FP), DX
+ 	MOVL	$SYS_write, AX
+ 	SYSCALL
+-	CMPQ	AX, $0xfffffffffffff001
+-	JLS	2(PC)
+-	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -109,9 +106,6 @@ TEXT runtime·read(SB),NOSPLIT,$0-28
+ 	MOVL	n+16(FP), DX
+ 	MOVL	$SYS_read, AX
+ 	SYSCALL
+-	CMPQ	AX, $0xfffffffffffff001
+-	JLS	2(PC)
+-	MOVL	$-1, AX
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 047dfed497..23a66554ab 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -83,9 +83,6 @@ TEXT runtime·write1(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_write, R7
+ 	SWI	$0
+-	MOVW	$0xfffff001, R1
+-	CMP	R1, R0
+-	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -95,9 +92,6 @@ TEXT runtime·read(SB),NOSPLIT,$0
+ 	MOVW	n+8(FP), R2
+ 	MOVW	$SYS_read, R7
+ 	SWI	$0
+-	MOVW	$0xfffff001, R1
+-	CMP	R1, R0
+-	MOVW.HI	$-1, R0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index d5ffe7fd57..5514a6be62 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -98,10 +98,6 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R2
+ 	MOVD	$SYS_write, R8
+ 	SVC
+-	CMN	$4095, R0
+-	BCC	done
+-	MOVW	$-1, R0
+-done:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+@@ -111,10 +107,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R2
+ 	MOVD	$SYS_read, R8
+ 	SVC
+-	CMN	$4095, R0
+-	BCC	done
+-	MOVW	$-1, R0
+-done:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index b0cb0672fa..49459b0cec 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -96,7 +96,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVV	$SYS_write, R2
+ 	SYSCALL
+ 	BEQ	R7, 2(PC)
+-	MOVW	$-1, R2
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+@@ -107,7 +107,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVV	$SYS_read, R2
+ 	SYSCALL
+ 	BEQ	R7, 2(PC)
+-	MOVW	$-1, R2
++	SUBVU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_mipsx.s b/src/runtime/sys_linux_mipsx.s
+index 77f932f50a..3c405c264e 100644
+--- a/src/runtime/sys_linux_mipsx.s
++++ b/src/runtime/sys_linux_mipsx.s
+@@ -95,7 +95,7 @@ TEXT runtime·write1(SB),NOSPLIT,$0-16
+ 	MOVW	$SYS_write, R2
+ 	SYSCALL
+ 	BEQ	R7, 2(PC)
+-	MOVW	$-1, R2
++	SUBU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+@@ -106,7 +106,7 @@ TEXT runtime·read(SB),NOSPLIT,$0-16
+ 	MOVW	$SYS_read, R2
+ 	SYSCALL
+ 	BEQ	R7, 2(PC)
+-	MOVW	$-1, R2
++	SUBU	R2, R0, R2	// caller expects negative errno
+ 	MOVW	R2, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index d4908a127c..203ce089c1 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -88,7 +88,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R5
+ 	SYSCALL	$SYS_write
+ 	BVC	2(PC)
+-	MOVW	$-1, R3
++	NEG	R3	// caller expects negative errno
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+@@ -98,7 +98,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R5
+ 	SYSCALL	$SYS_read
+ 	BVC	2(PC)
+-	MOVW	$-1, R3
++	NEG	R3	// caller expects negative errno
+ 	MOVW	R3, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index 01f408e70b..df01271f7b 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -88,9 +88,6 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R4
+ 	MOVW	$SYS_write, R1
+ 	SYSCALL
+-	MOVD	$-4095, R3
+-	CMPUBLT	R2, R3, 2(PC)
+-	MOVW	$-1, R2
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+@@ -100,9 +97,6 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0-28
+ 	MOVW	n+16(FP), R4
+ 	MOVW	$SYS_read, R1
+ 	SYSCALL
+-	MOVD	$-4095, R3
+-	CMPUBLT	R2, R3, 2(PC)
+-	MOVW	$-1, R2
+ 	MOVW	R2, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_386.s b/src/runtime/sys_netbsd_386.s
+index c882d1332b..7a542da526 100644
+--- a/src/runtime/sys_netbsd_386.s
++++ b/src/runtime/sys_netbsd_386.s
+@@ -83,7 +83,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$SYS_read, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -117,7 +117,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-4
+ 	MOVL	$SYS_write, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_amd64.s b/src/runtime/sys_netbsd_amd64.s
+index 0784b84455..4d1d36f01b 100644
+--- a/src/runtime/sys_netbsd_amd64.s
++++ b/src/runtime/sys_netbsd_amd64.s
+@@ -154,7 +154,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	$SYS_read, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -189,7 +189,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVL	$SYS_write, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index ce2afc2d88..423982b115 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -92,7 +92,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW p+4(FP), R1
+ 	MOVW n+8(FP), R2
+ 	SWI $SYS_read
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -125,7 +125,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	p+4(FP), R1	// arg 2 - buf
+ 	MOVW	n+8(FP), R2	// arg 3 - nbyte
+ 	SWI $SYS_write
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_arm64.s b/src/runtime/sys_netbsd_arm64.s
+index ab0579772b..ccc34142aa 100644
+--- a/src/runtime/sys_netbsd_arm64.s
++++ b/src/runtime/sys_netbsd_arm64.s
+@@ -145,7 +145,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	n+16(FP), R2		// arg 3 - count
+ 	SVC	$SYS_read
+ 	BCC	ok
+-	MOVW	$-1, R0
++	NEG	R0, R0
+ ok:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+@@ -183,7 +183,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVW	n+16(FP), R2		// arg 3 - nbyte
+ 	SVC	$SYS_write
+ 	BCC	ok
+-	MOVW	$-1, R0
++	NEG	R0, R0
+ ok:
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+diff --git a/src/runtime/sys_openbsd_386.s b/src/runtime/sys_openbsd_386.s
+index 1a216a572f..9805a43802 100644
+--- a/src/runtime/sys_openbsd_386.s
++++ b/src/runtime/sys_openbsd_386.s
+@@ -46,7 +46,7 @@ TEXT runtime·read(SB),NOSPLIT,$-4
+ 	MOVL	$3, AX
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+@@ -74,7 +74,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-4
+ 	MOVL	$4, AX			// sys_write
+ 	INT	$0x80
+ 	JAE	2(PC)
+-	MOVL	$-1, AX
++	NEGL	AX			// caller expects negative errno
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 8bb2b265be..66526bff0d 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -123,7 +123,7 @@ TEXT runtime·read(SB),NOSPLIT,$-8
+ 	MOVL	$3, AX
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+@@ -151,7 +151,7 @@ TEXT runtime·write1(SB),NOSPLIT,$-8
+ 	MOVL	$4, AX			// sys_write
+ 	SYSCALL
+ 	JCC	2(PC)
+-	MOVL	$-1, AX
++	NEGQ	AX			// caller expects negative errno
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 16de1efd03..3736451ba2 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -55,7 +55,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$3, R12			// sys_read
+ 	SWI	$0
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -82,7 +82,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$4, R12			// sys_write
+ 	SWI	$0
+-	MOVW.CS	$-1, R0
++	SUB.CS	$0, R0, R0	// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_arm64.s b/src/runtime/sys_openbsd_arm64.s
+index 66b4e89388..c8bf2d345e 100644
+--- a/src/runtime/sys_openbsd_arm64.s
++++ b/src/runtime/sys_openbsd_arm64.s
+@@ -59,7 +59,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$3, R8			// sys_read
+ 	SVC
+ 	BCC	2(PC)
+-	MOVW	$-1, R0
++	NEG	R0, R0
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 
+@@ -92,7 +92,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	$4, R8			// sys_write
+ 	SVC
+ 	BCC	2(PC)
+-	MOVW	$-1, R0
++	NEG	R0, R0
+ 	MOVW	R0, ret+24(FP)
+ 	RET
+ 

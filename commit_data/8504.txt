@@ -9,7 +9,206 @@ Date:   Thu May 26 11:02:07 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4560045
-
+---
  src/pkg/strings/reader.go       | 66 +++++++++++++++++++++++++++++------------
  src/pkg/strings/strings_test.go | 65 +++++++++++++++++++++++++++++++++++++++-
  2 files changed, 111 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/strings/reader.go b/src/pkg/strings/reader.go
+index 4eae90e73a..cd424115d0 100644
+--- a/src/pkg/strings/reader.go
++++ b/src/pkg/strings/reader.go
+@@ -9,50 +9,78 @@ import (
+ 	"utf8"
+ )
+ 
+-// A Reader satisfies calls to Read, ReadByte, and ReadRune by
+-// reading from a string.
+-type Reader string
++// A Reader implements the io.Reader, io.ByteScanner, and
++// io.RuneScanner interfaces by reading from a string.
++type Reader struct {
++	s        string
++	i        int // current reading index
++	prevRune int // index of previous rune; or < 0
++}
+ 
+ func (r *Reader) Read(b []byte) (n int, err os.Error) {
+-	s := *r
+-	if len(s) == 0 {
++	if r.i >= len(r.s) {
+ 		return 0, os.EOF
+ 	}
+-	n = copy(b, s)
+-	*r = s[n:]
++	n = copy(b, r.s[r.i:])
++	r.i += n
++	r.prevRune = -1
+ 	return
+ }
+ 
+ func (r *Reader) ReadByte() (b byte, err os.Error) {
+-	s := *r
+-	if len(s) == 0 {
++	if r.i >= len(r.s) {
+ 		return 0, os.EOF
+ 	}
+-	b = s[0]
+-	*r = s[1:]
++	b = r.s[r.i]
++	r.i++
++	r.prevRune = -1
+ 	return
+ }
+ 
++
++// UnreadByte moves the reading position back by one byte.
++// It is an error to call UnreadByte if nothing has been
++// read yet.
++func (r *Reader) UnreadByte() os.Error {
++	if r.i <= 0 {
++		return os.ErrorString("strings.Reader: at beginning of string")
++	}
++	r.i--
++	r.prevRune = -1
++	return nil
++}
++
+ // ReadRune reads and returns the next UTF-8-encoded
+ // Unicode code point from the buffer.
+ // If no bytes are available, the error returned is os.EOF.
+ // If the bytes are an erroneous UTF-8 encoding, it
+ // consumes one byte and returns U+FFFD, 1.
+ func (r *Reader) ReadRune() (rune int, size int, err os.Error) {
+-	s := *r
+-	if len(s) == 0 {
++	if r.i >= len(r.s) {
+ 		return 0, 0, os.EOF
+ 	}
+-	c := s[0]
+-	if c < utf8.RuneSelf {
+-		*r = s[1:]
++	r.prevRune = r.i
++	if c := r.s[r.i]; c < utf8.RuneSelf {
++		r.i++
+ 		return int(c), 1, nil
+ 	}
+-	rune, size = utf8.DecodeRuneInString(string(s))
+-	*r = s[size:]
++	rune, size = utf8.DecodeRuneInString(r.s[r.i:])
++	r.i += size
+ 	return
+ }
+ 
++// UnreadRune causes the next call to ReadRune to return the same rune
++// as the previous call to ReadRune.
++// The last method called on r must have been ReadRune.
++func (r *Reader) UnreadRune() os.Error {
++	if r.prevRune < 0 {
++		return os.ErrorString("strings.Reader: previous operation was not ReadRune")
++	}
++	r.i = r.prevRune
++	r.prevRune = -1
++	return nil
++}
++
+ // NewReader returns a new Reader reading from s.
+ // It is similar to bytes.NewBufferString but more efficient and read-only.
+-func NewReader(s string) *Reader { return (*Reader)(&s) }
++func NewReader(s string) *Reader { return &Reader{s, 0, -1} }
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index c45b1485d8..a1a635dddb 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -5,6 +5,7 @@
+ package strings_test
+ 
+ import (
++	"bytes"
+ 	"os"
+ 	"reflect"
+ 	"strconv"
+@@ -751,13 +752,56 @@ func TestRunes(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadByte(t *testing.T) {
++	testStrings := []string{"", abcd, faces, commas}
++	for _, s := range testStrings {
++		reader := NewReader(s)
++		if e := reader.UnreadByte(); e == nil {
++			t.Errorf("Unreading %q at beginning: expected error", s)
++		}
++		var res bytes.Buffer
++		for {
++			b, e := reader.ReadByte()
++			if e == os.EOF {
++				break
++			}
++			if e != nil {
++				t.Errorf("Reading %q: %s", s, e)
++				break
++			}
++			res.WriteByte(b)
++			// unread and read again
++			e = reader.UnreadByte()
++			if e != nil {
++				t.Errorf("Unreading %q: %s", s, e)
++				break
++			}
++			b1, e := reader.ReadByte()
++			if e != nil {
++				t.Errorf("Reading %q after unreading: %s", s, e)
++				break
++			}
++			if b1 != b {
++				t.Errorf("Reading %q after unreading: want byte %q, got %q", s, b, b1)
++				break
++			}
++		}
++		if res.String() != s {
++			t.Errorf("Reader(%q).ReadByte() produced %q", s, res.String())
++		}
++	}
++}
++
+ func TestReadRune(t *testing.T) {
+ 	testStrings := []string{"", abcd, faces, commas}
+ 	for _, s := range testStrings {
+ 		reader := NewReader(s)
++		if e := reader.UnreadRune(); e == nil {
++			t.Errorf("Unreading %q at beginning: expected error", s)
++		}
+ 		res := ""
+ 		for {
+-			r, _, e := reader.ReadRune()
++			r, z, e := reader.ReadRune()
+ 			if e == os.EOF {
+ 				break
+ 			}
+@@ -766,6 +810,25 @@ func TestReadRune(t *testing.T) {
+ 				break
+ 			}
+ 			res += string(r)
++			// unread and read again
++			e = reader.UnreadRune()
++			if e != nil {
++				t.Errorf("Unreading %q: %s", s, e)
++				break
++			}
++			r1, z1, e := reader.ReadRune()
++			if e != nil {
++				t.Errorf("Reading %q after unreading: %s", s, e)
++				break
++			}
++			if r1 != r {
++				t.Errorf("Reading %q after unreading: want rune %q, got %q", s, r, r1)
++				break
++			}
++			if z1 != z {
++				t.Errorf("Reading %q after unreading: want size %d, got %d", s, z, z1)
++				break
++			}
+ 		}
+ 		if res != s {
+ 			t.Errorf("Reader(%q).ReadRune() produced %q", s, res)

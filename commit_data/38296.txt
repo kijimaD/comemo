@@ -11,6 +11,31 @@ Date:   Wed Oct 17 12:46:20 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/signal/signal_cgo_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/os/signal/signal_cgo_test.go b/src/os/signal/signal_cgo_test.go
+index 16aeea8221..3c23090489 100644
+--- a/src/os/signal/signal_cgo_test.go
++++ b/src/os/signal/signal_cgo_test.go
+@@ -22,6 +22,7 @@ import (
+ 	"os/signal/internal/pty"
+ 	"strconv"
+ 	"strings"
++	"sync"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -113,7 +114,11 @@ func TestTerminalSignal(t *testing.T) {
+ 	const prompt = "prompt> "
+ 
+ 	// Read data from master in the background.
++	var wg sync.WaitGroup
++	wg.Add(1)
++	defer wg.Wait()
+ 	go func() {
++		defer wg.Done()
+ 		input := bufio.NewReader(master)
+ 		var line, handled []byte
+ 		for {

@@ -18,7 +18,7 @@ Date:   Mon Nov 21 16:57:52 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testcshared/cshared_test.go               | 82 +++++++---------------
  src/cmd/go/go_test.go                              | 32 ---------
  src/cmd/go/internal/modindex/read.go               |  6 --
@@ -27,3 +27,299 @@ Date:   Mon Nov 21 16:57:52 2022 -0500
  src/go/build/build.go                              |  6 --
  src/go/build/build_test.go                         | 18 -----
  7 files changed, 33 insertions(+), 130 deletions(-)
+
+diff --git a/misc/cgo/testcshared/cshared_test.go b/misc/cgo/testcshared/cshared_test.go
+index 0d1b0ad9b7..7bb5a2dba5 100644
+--- a/misc/cgo/testcshared/cshared_test.go
++++ b/misc/cgo/testcshared/cshared_test.go
+@@ -31,7 +31,7 @@ var exeSuffix string
+ 
+ var GOOS, GOARCH, GOROOT string
+ var installdir, androiddir string
+-var libSuffix, libgoname string
++var libgoname string
+ 
+ func TestMain(m *testing.M) {
+ 	os.Exit(testMain(m))
+@@ -153,18 +153,6 @@ func testMain(m *testing.M) int {
+ 		log.Panic(err)
+ 	}
+ 
+-	// Directory where cgo headers and outputs will be installed.
+-	// The installation directory format varies depending on the platform.
+-	output, err := exec.Command("go", "list",
+-		"-buildmode=c-shared",
+-		"-f", "{{.Target}}",
+-		"runtime/cgo").CombinedOutput()
+-	if err != nil {
+-		log.Panicf("go list failed: %v\n%s", err, output)
+-	}
+-	runtimeCgoTarget := string(bytes.TrimSpace(output))
+-	libSuffix = strings.TrimPrefix(filepath.Ext(runtimeCgoTarget), ".")
+-
+ 	defer func() {
+ 		if installdir != "" {
+ 			err := os.RemoveAll(installdir)
+@@ -300,7 +288,7 @@ func createHeaders() error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	libgoname = "libgo." + libSuffix
++	libgoname = "libgo.a"
+ 
+ 	args = []string{"go", "build", "-buildmode=c-shared", "-o", filepath.Join(installdir, libgoname), "./libgo"}
+ 	cmd = exec.Command(args[0], args[1:]...)
+@@ -335,46 +323,30 @@ func createHeaders() error {
+ 		if err != nil {
+ 			return fmt.Errorf("unable to find dlltool path: %v\n%s\n", err, out)
+ 		}
+-		dlltoolpath := strings.TrimSpace(string(out))
+-		if filepath.Ext(dlltoolpath) == "" {
+-			// Some compilers report slash-separated paths without extensions
+-			// instead of ordinary Windows paths.
+-			// Try to find the canonical name for the path.
+-			if lp, err := exec.LookPath(dlltoolpath); err == nil {
+-				dlltoolpath = lp
+-			}
+-		}
++		args := []string{strings.TrimSpace(string(out)), "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+ 
+-		args := []string{dlltoolpath, "-D", args[6], "-l", libgoname, "-d", "libgo.def"}
+-
+-		if filepath.Ext(dlltoolpath) == "" {
+-			// This is an unfortunate workaround for
+-			// https://github.com/mstorsjo/llvm-mingw/issues/205 in which
+-			// we basically reimplement the contents of the dlltool.sh
+-			// wrapper: https://git.io/JZFlU.
+-			// TODO(thanm): remove this workaround once we can upgrade
+-			// the compilers on the windows-arm64 builder.
+-			dlltoolContents, err := os.ReadFile(args[0])
+-			if err != nil {
+-				return fmt.Errorf("unable to read dlltool: %v\n", err)
++		// This is an unfortunate workaround for https://github.com/mstorsjo/llvm-mingw/issues/205 in which
++		// we basically reimplement the contents of the dlltool.sh wrapper: https://git.io/JZFlU
++		dlltoolContents, err := os.ReadFile(args[0])
++		if err != nil {
++			return fmt.Errorf("unable to read dlltool: %v\n", err)
++		}
++		if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
++			base, name := filepath.Split(args[0])
++			args[0] = filepath.Join(base, "llvm-dlltool")
++			var machine string
++			switch prefix, _, _ := strings.Cut(name, "-"); prefix {
++			case "i686":
++				machine = "i386"
++			case "x86_64":
++				machine = "i386:x86-64"
++			case "armv7":
++				machine = "arm"
++			case "aarch64":
++				machine = "arm64"
+ 			}
+-			if bytes.HasPrefix(dlltoolContents, []byte("#!/bin/sh")) && bytes.Contains(dlltoolContents, []byte("llvm-dlltool")) {
+-				base, name := filepath.Split(args[0])
+-				args[0] = filepath.Join(base, "llvm-dlltool")
+-				var machine string
+-				switch prefix, _, _ := strings.Cut(name, "-"); prefix {
+-				case "i686":
+-					machine = "i386"
+-				case "x86_64":
+-					machine = "i386:x86-64"
+-				case "armv7":
+-					machine = "arm"
+-				case "aarch64":
+-					machine = "arm64"
+-				}
+-				if len(machine) > 0 {
+-					args = append(args, "-m", machine)
+-				}
++			if len(machine) > 0 {
++				args = append(args, "-m", machine)
+ 			}
+ 		}
+ 
+@@ -578,7 +550,7 @@ func TestUnexportedSymbols(t *testing.T) {
+ 
+ 	cmd := "testp2"
+ 	bin := cmdToRun(cmd)
+-	libname := "libgo2." + libSuffix
++	libname := "libgo2.a"
+ 
+ 	run(t,
+ 		nil,
+@@ -636,7 +608,7 @@ func TestMainExportedOnAndroid(t *testing.T) {
+ }
+ 
+ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+-	libname := pkgname + "." + libSuffix
++	libname := pkgname + ".a"
+ 	run(t,
+ 		nil,
+ 		"go", "build",
+@@ -838,7 +810,7 @@ func TestGo2C2Go(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(tmpdir)
+ 
+-	lib := filepath.Join(tmpdir, "libtestgo2c2go."+libSuffix)
++	lib := filepath.Join(tmpdir, "libtestgo2c2go.a")
+ 	var env []string
+ 	if GOOS == "windows" && strings.HasSuffix(lib, ".a") {
+ 		env = append(env, "CGO_LDFLAGS=-Wl,--out-implib,"+lib, "CGO_LDFLAGS_ALLOW=.*")
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d162dc8e2c..c51f212025 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2918,35 +2918,3 @@ func TestExecInDeletedDir(t *testing.T) {
+ 	// `go version` should not fail
+ 	tg.run("version")
+ }
+-
+-// A missing C compiler should not force the net package to be stale.
+-// Issue 47215.
+-func TestMissingCC(t *testing.T) {
+-	if !canCgo {
+-		t.Skip("test is only meaningful on systems with cgo")
+-	}
+-	cc := os.Getenv("CC")
+-	if cc == "" {
+-		cc = "gcc"
+-	}
+-	if filepath.IsAbs(cc) {
+-		t.Skipf(`"CC" (%s) is an absolute path`, cc)
+-	}
+-	_, err := exec.LookPath(cc)
+-	if err != nil {
+-		t.Skipf(`"CC" (%s) not on PATH`, cc)
+-	}
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	netStale, _ := tg.isStale("net")
+-	if netStale {
+-		t.Skip(`skipping test because "net" package is currently stale`)
+-	}
+-
+-	tg.setenv("PATH", "") // No C compiler on PATH.
+-	netStale, _ = tg.isStale("net")
+-	if netStale {
+-		t.Error(`clearing "PATH" causes "net" to be stale`)
+-	}
+-}
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index eaf921b6df..7c4fa7a6ee 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -629,12 +629,6 @@ func (rp *IndexPackage) Import(bctxt build.Context, mode build.ImportMode) (p *b
+ 		}
+ 	}
+ 
+-	// Now that p.CgoFiles has been set, use it to determine whether
+-	// a package in GOROOT gets an install target:
+-	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
+-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
+-	}
+-
+ 	p.EmbedPatterns, p.EmbedPatternPos = cleanDecls(embedPos)
+ 	p.TestEmbedPatterns, p.TestEmbedPatternPos = cleanDecls(testEmbedPos)
+ 	p.XTestEmbedPatterns, p.XTestEmbedPatternPos = cleanDecls(xTestEmbedPos)
+diff --git a/src/cmd/go/testdata/script/cgo_stale.txt b/src/cmd/go/testdata/script/cgo_stale.txt
+index 9e46855ead..0d30aeaa9d 100644
+--- a/src/cmd/go/testdata/script/cgo_stale.txt
++++ b/src/cmd/go/testdata/script/cgo_stale.txt
+@@ -12,21 +12,21 @@ stale runtime/cgo
+ 
+ 
+ # If we then build a package that uses cgo, runtime/cgo should be rebuilt and
+-# cached with the new flag, but not installed to GOROOT (and thus still stale).
++# cached with the new flag, but not installed to GOROOT.
++# It has no install target, and thus is never stale.
+ 
+ env GOCACHE=$WORK/cache  # Use a fresh cache to avoid interference between runs.
+ 
+ go build -x .
+ stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+-stale runtime/cgo
++! stale runtime/cgo
+ 
+ 
+-# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again
+-# even though it is still reported as stale.
++# After runtime/cgo has been rebuilt and cached, it should not be rebuilt again.
+ 
+ go build -x .
+ ! stderr '[/\\]cgo'$GOEXE'["]? .* -importpath runtime/cgo'
+-stale runtime/cgo
++! stale runtime/cgo
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/install_goroot_targets.txt b/src/cmd/go/testdata/script/install_goroot_targets.txt
+index 25b97b4b73..f26ee828fa 100644
+--- a/src/cmd/go/testdata/script/install_goroot_targets.txt
++++ b/src/cmd/go/testdata/script/install_goroot_targets.txt
+@@ -1,18 +1,11 @@
+ [short] skip
+ 
+-# Most packages in std do not have an install target.
++# Packages in std do not have an install target.
+ go list -f '{{.Target}}' fmt
+ ! stdout .
+ go list -export -f '{{.Export}}' fmt
+ stdout $GOCACHE
+ 
+-# Packages that use cgo still do.
+-[cgo] go list -f '{{.Target}}' runtime/cgo
+-[cgo] stdout .
+-[cgo] go list -export -f '{{.Export}}' runtime/cgo
+-[cgo] ! stdout $GOCACHE
+-[cgo] stdout cgo\.a
+-
+ # With GODEBUG=installgoroot=all, fmt has a target.
+ # (Though we can't try installing it without modifying goroot).
+ env GODEBUG=installgoroot=all
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 53d4b27e10..420873c256 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1003,12 +1003,6 @@ Found:
+ 		}
+ 	}
+ 
+-	// Now that p.CgoFiles has been set, use it to determine whether
+-	// a package in GOROOT gets an install target:
+-	if len(p.CgoFiles) != 0 && p.Root != "" && p.Goroot && pkga != "" {
+-		p.PkgObj = ctxt.joinPath(p.Root, pkga)
+-	}
+-
+ 	for tag := range allTags {
+ 		p.AllTags = append(p.AllTags, tag)
+ 	}
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 3eebfd8e9e..2e60ecc5cc 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -671,24 +671,6 @@ func TestImportPackageOutsideModule(t *testing.T) {
+ 	}
+ }
+ 
+-func TestImportDirTarget(t *testing.T) {
+-	testenv.MustHaveGoBuild(t) // really must just have source
+-	ctxt := Default
+-	ctxt.GOPATH = ""
+-	// In GOROOT only a handful of packages have install targets. Most stdlib packages will
+-	// only be built and placed in the build cache.
+-	p, err := ctxt.ImportDir(filepath.Join(testenv.GOROOT(t), "src/runtime/cgo"), 0)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if p.PkgTargetRoot == "" {
+-		t.Errorf("p.PkgTargetRoot == %q, want non-empty", p.PkgTargetRoot)
+-	}
+-	if testenv.HasCGO() && p.PkgObj == "" {
+-		t.Errorf("p.PkgObj == %q, want non-empty", p.PkgObj)
+-	}
+-}
+-
+ // TestIssue23594 prevents go/build from regressing and populating Package.Doc
+ // from comments in test files.
+ func TestIssue23594(t *testing.T) {

@@ -7,6 +7,20 @@ Date:   Mon Jul 18 10:48:31 2011 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4754050
-
+---
  src/pkg/gob/encode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 941e26052f..78455981eb 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -62,7 +62,7 @@ func (state *encoderState) encodeUint(x uint64) {
+ 	var n, m int
+ 	m = uint64Size
+ 	for n = 1; x > 0; n++ {
+-		state.buf[m] = uint8(x & 0xFF)
++		state.buf[m] = uint8(x)
+ 		x >>= 8
+ 		m--
+ 	}

@@ -12,7 +12,69 @@ Date:   Sun Aug 4 23:31:23 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12400045
-
+---
  src/pkg/net/fd_windows.go |  2 ++
  src/pkg/net/tcp_test.go   | 33 +++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 5d584621a7..f51d1616e0 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -579,6 +579,8 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	}
+ 
+ 	// Submit accept request.
++	fd.rio.Lock()
++	defer fd.rio.Unlock()
+ 	var o acceptOp
+ 	o.Init(fd, 'r')
+ 	o.newsock = s
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index a71b02b477..f356f92f09 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"reflect"
+ 	"runtime"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -294,3 +295,35 @@ func TestIPv6LinkLocalUnicastTCP(t *testing.T) {
+ 		<-done
+ 	}
+ }
++
++func TestTCPConcurrentAccept(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	ln, err := Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatalf("Listen failed: %v", err)
++	}
++	const N = 10
++	var wg sync.WaitGroup
++	wg.Add(N)
++	for i := 0; i < N; i++ {
++		go func() {
++			for {
++				c, err := ln.Accept()
++				if err != nil {
++					break
++				}
++				c.Close()
++			}
++			wg.Done()
++		}()
++	}
++	for i := 0; i < 10*N; i++ {
++		c, err := Dial("tcp", ln.Addr().String())
++		if err != nil {
++			t.Fatalf("Dial failed: %v", err)
++		}
++		c.Close()
++	}
++	ln.Close()
++	wg.Wait()
++}

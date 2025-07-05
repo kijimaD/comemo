@@ -7,9 +7,344 @@ Date:   Tue Nov 3 14:20:37 2009 -0800
     
     R=r
     http://go/go-review/1017016
-
+---
  src/cmd/6l/asm.c  | 52 ++++++++++++++++++++++++++++-
  src/cmd/6l/l.h    |  4 +++
  src/cmd/6l/span.c | 98 +++++++++++++++++++++++++++++++++++++++++++++++--------
  src/cmd/ld/elf.c  |  2 +-
  4 files changed, 140 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 9ae5409cfc..077755105d 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -255,6 +255,8 @@ enum {
+ 	ElfStrGosymtab,
+ 	ElfStrGopclntab,
+ 	ElfStrShstrtab,
++	ElfStrSymtab,
++	ElfStrStrtab,
+ 	NElfStr
+ };
+ 
+@@ -294,6 +296,10 @@ doelf(void)
+ 	if(!debug['s']) {
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
++		if(debug['e']) {
++			elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
++			elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
++		}
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -426,7 +432,7 @@ asmb(void)
+ 	int32 v, magic;
+ 	int a, dynsym;
+ 	uchar *op1;
+-	vlong vl, va, startva, fo, w, symo, machlink;
++	vlong vl, va, startva, fo, w, symo, elfsymo, elfstro, elfsymsize, machlink;
+ 	vlong symdatva = 0x99LL<<32;
+ 	ElfEhdr *eh;
+ 	ElfPhdr *ph, *pph;
+@@ -436,6 +442,10 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f asmb\n", cputime());
+ 	Bflush(&bso);
+ 
++	elftextsh = 0;
++	elfsymsize = 0;
++	elfstro = 0;
++	elfsymo = 0;
+ 	seek(cout, HEADR, 0);
+ 	pc = INITTEXT;
+ 	curp = firstp;
+@@ -498,6 +508,12 @@ asmb(void)
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		v = rnd(HEADR+textsize, INITRND);
+ 		seek(cout, v, 0);
++		
++		/* index of elf text section; needed by asmelfsym, double-checked below */
++		/* debug['d'] causes 8 extra sections before the .text section */
++		elftextsh = 1;
++		if(!debug['d'])
++			elftextsh += 8;
+ 		break;
+ 	}
+ 
+@@ -546,6 +562,13 @@ asmb(void)
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
++		/*
++		 * the symbol information is stored as
++		 *	32-bit symbol table size
++		 *	32-bit line number table size
++		 *	symbol table
++		 *	line number table
++		 */
+ 		seek(cout, symo+8, 0);
+ 		if(!debug['s'])
+ 			asmsym();
+@@ -564,6 +587,15 @@ asmb(void)
+ 		lputl(symsize);
+ 		lputl(lcsize);
+ 		cflush();
++		if(!debug['s'] && debug['e']) {
++			elfsymo = symo+8+symsize+lcsize;
++			seek(cout, elfsymo, 0);
++			asmelfsym();
++			cflush();
++			elfstro = seek(cout, 0, 1);
++			elfsymsize = elfstro - elfsymo;
++			write(cout, elfstrdat, elfstrsize);
++		}		
+ 	} else
+ 	if(dlm){
+ 		seek(cout, HEADR+textsize+datsize, 0);
+@@ -752,6 +784,8 @@ asmb(void)
+ 		va = startva + fo;
+ 		w = textsize;
+ 
++		if(elftextsh != eh->shnum)
++			diag("elftextsh = %d, want %d", elftextsh, eh->shnum);
+ 		sh = newElfShdr(elfstr[ElfStrText]);
+ 		sh->type = SHT_PROGBITS;
+ 		sh->flags = SHF_ALLOC+SHF_EXECINSTR;
+@@ -802,6 +836,22 @@ asmb(void)
+ 			sh->off = fo;
+ 			sh->size = w;
+ 			sh->addralign = 1;
++			
++			if(debug['e']) {
++				sh = newElfShdr(elfstr[ElfStrSymtab]);
++				sh->type = SHT_SYMTAB;
++				sh->off = elfsymo;
++				sh->size = elfsymsize;
++				sh->addralign = 8;
++				sh->entsize = 24;
++				sh->link = eh->shnum;	// link to strtab
++			
++				sh = newElfShdr(elfstr[ElfStrStrtab]);
++				sh->type = SHT_STRTAB;
++				sh->off = elfstro;
++				sh->size = elfstrsize;
++				sh->addralign = 1;
++			}
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 2b5c886497..91cfbabfd1 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -350,6 +350,9 @@ EXTERN	vlong	textstksiz;
+ EXTERN	vlong	textarg;
+ extern	char	thechar;
+ EXTERN	int	dynptrsize;
++EXTERN	int	elfstrsize;
++EXTERN	char*	elfstrdat;
++EXTERN	int	elftextsh;
+ 
+ #define	UP	(&undefp)
+ 
+@@ -376,6 +379,7 @@ void	asmins(Prog*);
+ void	asmlc(void);
+ void	asmsp(void);
+ void	asmsym(void);
++void	asmelfsym(void);
+ vlong	atolwhex(char*);
+ Prog*	brchain(Prog*);
+ Prog*	brloop(Prog*);
+diff --git a/src/cmd/6l/span.c b/src/cmd/6l/span.c
+index 41f20fac91..4930e545b3 100644
+--- a/src/cmd/6l/span.c
++++ b/src/cmd/6l/span.c
+@@ -30,6 +30,7 @@
+ 
+ #include	"l.h"
+ #include	"../ld/lib.h"
++#include	"../ld/elf.h"
+ 
+ static int	rexflag;
+ static int	asmode;
+@@ -151,7 +152,7 @@ xdefine(char *p, int t, vlong v)
+ }
+ 
+ void
+-putsymb(char *s, int t, vlong v, int ver, Sym *go)
++putsymb(char *s, int t, vlong v, vlong size, int ver, Sym *go)
+ {
+ 	int i, f, l;
+ 	vlong gv;
+@@ -212,7 +213,7 @@ putsymb(char *s, int t, vlong v, int ver, Sym *go)
+ }
+ 
+ void
+-asmsym(void)
++genasmsym(void (*put)(char*, int, vlong, vlong, int, Sym*))
+ {
+ 	Prog *p;
+ 	Auto *a;
+@@ -221,7 +222,7 @@ asmsym(void)
+ 
+ 	s = lookup("etext", 0);
+ 	if(s->type == STEXT)
+-		putsymb(s->name, 'T', s->value, s->version, 0);
++		put(s->name, 'T', s->value, s->size, s->version, 0);
+ 
+ 	for(h=0; h<NHASH; h++) {
+ 		for(s=hash[h]; s!=S; s=s->link) {
+@@ -229,29 +230,29 @@ asmsym(void)
+ 			case SCONST:
+ 				if(!s->reachable)
+ 					continue;
+-				putsymb(s->name, 'D', s->value, s->version, s->gotype);
++				put(s->name, 'D', s->value, s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SDATA:
+ 				if(!s->reachable)
+ 					continue;
+-				putsymb(s->name, 'D', s->value+INITDAT, s->version, s->gotype);
++				put(s->name, 'D', s->value+INITDAT, s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SMACHO:
+ 				if(!s->reachable)
+ 					continue;
+-				putsymb(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->version, s->gotype);
++				put(s->name, 'D', s->value+INITDAT+datsize+bsssize, s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SBSS:
+ 				if(!s->reachable)
+ 					continue;
+-				putsymb(s->name, 'B', s->value+INITDAT, s->version, s->gotype);
++				put(s->name, 'B', s->value+INITDAT, s->size, s->version, s->gotype);
+ 				continue;
+ 
+ 			case SFILE:
+-				putsymb(s->name, 'f', s->value, s->version, 0);
++				put(s->name, 'f', s->value, 0, s->version, 0);
+ 				continue;
+ 			}
+ 		}
+@@ -265,30 +266,99 @@ asmsym(void)
+ 		/* filenames first */
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_FILE)
+-				putsymb(a->asym->name, 'z', a->aoffset, 0, 0);
++				put(a->asym->name, 'z', a->aoffset, 0, 0, 0);
+ 			else
+ 			if(a->type == D_FILE1)
+-				putsymb(a->asym->name, 'Z', a->aoffset, 0, 0);
++				put(a->asym->name, 'Z', a->aoffset, 0, 0, 0);
+ 
+ 		if(!s->reachable)
+ 			continue;
+-		putsymb(s->name, 'T', s->value, s->version, s->gotype);
++		put(s->name, 'T', s->value, s->size, s->version, s->gotype);
+ 
+ 		/* frame, auto and param after */
+-		putsymb(".frame", 'm', p->to.offset+8, 0, 0);
++		put(".frame", 'm', p->to.offset+8, 0, 0, 0);
+ 
+ 		for(a=p->to.autom; a; a=a->link)
+ 			if(a->type == D_AUTO)
+-				putsymb(a->asym->name, 'a', -a->aoffset, 0, a->gotype);
++				put(a->asym->name, 'a', -a->aoffset, 0, 0, a->gotype);
+ 			else
+ 			if(a->type == D_PARAM)
+-				putsymb(a->asym->name, 'p', a->aoffset, 0, a->gotype);
++				put(a->asym->name, 'p', a->aoffset, 0, 0, a->gotype);
+ 	}
+ 	if(debug['v'] || debug['n'])
+ 		Bprint(&bso, "symsize = %lud\n", symsize);
+ 	Bflush(&bso);
+ }
+ 
++void
++asmsym(void)
++{
++	genasmsym(putsymb);
++}
++
++char *elfstrdat;
++int elfstrsize;
++int maxelfstr;
++
++int
++putelfstr(char *s)
++{
++	int off, n;
++
++	if(elfstrsize == 0 && s[0] != 0) {
++		// first entry must be empty string
++		putelfstr("");
++	}
++
++	n = strlen(s)+1;
++	if(elfstrsize+n > maxelfstr) {
++		maxelfstr = 2*(elfstrsize+n+(1<<20));
++		elfstrdat = realloc(elfstrdat, maxelfstr);
++	}
++	off = elfstrsize;
++	elfstrsize += n;
++	memmove(elfstrdat+off, s, n);
++	return off;
++}
++
++void
++putelfsymb(char *s, int t, vlong addr, vlong size, int ver, Sym *go)
++{
++	int bind, type, shndx, stroff;
++	
++	bind = STB_GLOBAL;
++	switch(t) {
++	default:
++		return;
++	case 'T':
++		type = STT_FUNC;
++		shndx = elftextsh + 0;
++		break;
++	case 'D':
++		type = STT_OBJECT;
++		shndx = elftextsh + 1;
++		break;
++	case 'B':
++		type = STT_OBJECT;
++		shndx = elftextsh + 2;
++		break;
++	}
++	
++	stroff = putelfstr(s);
++	lputl(stroff);	// string
++	cput((bind<<4)|(type&0xF));
++	cput(0);
++	wputl(shndx);
++	vputl(addr);
++	vputl(size);
++}
++
++void
++asmelfsym(void)
++{
++	genasmsym(putelfsymb);
++}
++
+ void
+ asmlc(void)
+ {
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index a556d92aa2..f4809e07cf 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -11,7 +11,7 @@
+  * in order to write the code just once.  The 64-bit data structure is
+  * written in the 32-bit format on the 32-bit machines.
+  */
+-#define	NSECT	16
++#define	NSECT	32
+ 
+ static	int	elf64;
+ static	ElfEhdr	hdr;

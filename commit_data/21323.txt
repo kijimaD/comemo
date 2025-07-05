@@ -9,6 +9,25 @@ Date:   Mon Dec 22 11:16:04 2014 -0800
     Change-Id: I765e8009c7ee22473ac8c2d81c7f6c8ec9866c51
     Reviewed-on: https://go-review.googlesource.com/1980
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/api/run.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index c2c665014c..fb4cf78551 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -92,7 +92,12 @@ func file(s ...string) string {
+ // It tries to re-use a go.tools checkout from a previous run if possible,
+ // else it hg clones it.
+ func prepGoPath() string {
+-	const tempBase = "go.tools.TMP"
++	// Use a builder-specific temp directory name, so builders running
++	// two copies don't trample on each other: https://golang.org/issue/9407
++	// We don't use io.TempDir or a PID or timestamp here because we do
++	// want this to be stable between runs, to minimize "git clone" calls
++	// in the common case.
++	var tempBase = fmt.Sprintf("go.tools.TMP.%s.%s", runtime.GOOS, runtime.GOARCH)
+ 
+ 	username := ""
+ 	u, err := user.Current()

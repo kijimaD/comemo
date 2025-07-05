@@ -9,7 +9,51 @@ Date:   Wed Jun 13 10:33:02 2012 +1000
     R=golang-dev, kevlar, rsc, r
     CC=golang-dev
     https://golang.org/cl/6304049
-
+---
  doc/install-source.html |  6 ++++++
  doc/install.html        | 10 ++++++----
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 87c187ba8e..721d28b9ea 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -218,6 +218,12 @@ hello, world
+ If you see the "hello, world" message then Go is installed correctly.
+ </p>
+ 
++<h2 id="gopath">Set up your work environment</h2>
++
++<p>
++The document <a href="/doc/code.html">How to Write Go Code</a> explains how to
++set up a work environment in which to build and test Go code.
++</p>
+ 
+ <h2 id="community">Community resources</h2>
+ 
+diff --git a/doc/install.html b/doc/install.html
+index b856836ff9..ae5bffab18 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -227,15 +227,17 @@ hello, world
+ If you see the "hello, world" message then your Go installation is working.
+ </p>
+ 
+-<h2 id="next">What's next</h2>
++<h2 id="gopath">Set up your work environment</h2>
+ 
+ <p>
+-Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>.
++The document <a href="/doc/code.html">How to Write Go Code</a> explains how to
++set up a work environment in which to build and test Go code.
+ </p>
+ 
++<h2 id="next">What's next</h2>
++
+ <p>
+-For more detail about the process of building and testing Go programs
+-read <a href="/doc/code.html">How to Write Go Code</a>.
++Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>.
+ </p>
+ 
+ <p>

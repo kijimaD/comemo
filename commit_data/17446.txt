@@ -19,7 +19,7 @@ Date:   Fri Aug 30 15:46:12 2013 +0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12745047
-
+---
  include/bio.h         | 26 +++++++++++++++--
  src/cmd/5a/lex.c      | 76 +++++++++++++++++++-----------------------------
  src/cmd/5c/swt.c      | 10 +++----
@@ -49,3 +49,1971 @@ Date:   Fri Aug 30 15:46:12 2013 +0400
  src/libmach/obj.c     |  6 ++--
  src/libmach/sym.c     |  6 ++--
  28 files changed, 355 insertions(+), 520 deletions(-)
+
+diff --git a/include/bio.h b/include/bio.h
+index c754d7a57d..be4d8d80ee 100644
+--- a/include/bio.h
++++ b/include/bio.h
+@@ -70,10 +70,28 @@ struct	Biobuf
+ 	unsigned char	b[Bungetsize+Bsize];
+ };
+ 
++/*
++ * These macros get 1-, 2-, and 4-byte integer values by reading the
++ * next few bytes in little-endian order.
++ */
+ #define	BGETC(bp)\
+-	((bp)->icount?(bp)->bbuf[(bp)->bsize+(bp)->icount++]:Bgetc((bp)))
++	((bp)->icount?(bp)->ebuf[(bp)->icount++]:Bgetc((bp)))
++#define	BGETLE2(bp)\
++	((bp)->icount<=-2?((bp)->icount+=2,((bp)->ebuf[(bp)->icount-2])|((bp)->ebuf[(bp)->icount-1]<<8)):Bgetle2((bp)))
++#define	BGETLE4(bp)\
++	((bp)->icount<=-4?((bp)->icount+=4,((bp)->ebuf[(bp)->icount-4])|((bp)->ebuf[(bp)->icount-3]<<8)|((bp)->ebuf[(bp)->icount-2]<<16)|((bp)->ebuf[(bp)->icount-1]<<24)):Bgetle4((bp)))
++
++/*
++ * These macros put 1-, 2-, and 4-byte integer values by writing the
++ * next few bytes in little-endian order.
++ */
+ #define	BPUTC(bp,c)\
+-	((bp)->ocount?(bp)->bbuf[(bp)->bsize+(bp)->ocount++]=(c),0:Bputc((bp),(c)))
++	((bp)->ocount?(bp)->ebuf[(bp)->ocount++]=(unsigned char)(c),0:Bputc((bp),(c)))
++#define	BPUTLE2(bp,c)\
++	((bp)->ocount<=-2?(bp)->ocount+=2,(bp)->ebuf[(bp)->ocount-2]=(unsigned char)(c),(bp)->ebuf[(bp)->ocount-1]=(unsigned char)(c>>8),0:Bputle2((bp),(c)))
++#define	BPUTLE4(bp,c)\
++	((bp)->ocount<=-4?(bp)->ocount+=4,(bp)->ebuf[(bp)->ocount-4]=(unsigned char)(c),(bp)->ebuf[(bp)->ocount-3]=(unsigned char)(c>>8),(bp)->ebuf[(bp)->ocount-2]=(unsigned char)(c>>16),(bp)->ebuf[(bp)->ocount-1]=(unsigned char)(c>>24),0:Bputle4((bp),(c)))
++
+ #define	BOFFSET(bp)\
+ 	(((bp)->state==Bractive)?\
+ 		(bp)->offset + (bp)->icount:\
+@@ -90,6 +108,8 @@ Biobuf*	Bfdopen(int, int);
+ int	Bfildes(Biobuf*);
+ int	Bflush(Biobuf*);
+ int	Bgetc(Biobuf*);
++int	Bgetle2(Biobuf*);
++int	Bgetle4(Biobuf*);
+ int	Bgetd(Biobuf*, double*);
+ long	Bgetrune(Biobuf*);
+ int	Binit(Biobuf*, int, int);
+@@ -99,6 +119,8 @@ vlong	Boffset(Biobuf*);
+ Biobuf*	Bopen(char*, int);
+ int	Bprint(Biobuf*, char*, ...);
+ int	Bputc(Biobuf*, int);
++int	Bputle2(Biobuf*, int);
++int	Bputle4(Biobuf*, int);
+ int	Bputrune(Biobuf*, long);
+ void*	Brdline(Biobuf*, int);
+ char*	Brdstr(Biobuf*, int, int);
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 3b537a9675..c1b54e50b0 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -485,14 +485,14 @@ void
+ zname(char *n, int t, int s)
+ {
+ 
+-	Bputc(&obuf, ANAME);
+-	Bputc(&obuf, t);	/* type */
+-	Bputc(&obuf, s);	/* sym */
++	BPUTC(&obuf, ANAME);
++	BPUTC(&obuf, t);	/* type */
++	BPUTC(&obuf, s);	/* sym */
+ 	while(*n) {
+-		Bputc(&obuf, *n);
++		BPUTC(&obuf, *n);
+ 		n++;
+ 	}
+-	Bputc(&obuf, 0);
++	BPUTC(&obuf, 0);
+ }
+ 
+ void
+@@ -503,11 +503,11 @@ zaddr(Gen *a, int s)
+ 	char *n;
+ 	Ieee e;
+ 
+-	Bputc(&obuf, a->type);
+-	Bputc(&obuf, a->reg);
+-	Bputc(&obuf, s);
+-	Bputc(&obuf, a->name);
+-	Bputc(&obuf, 0);
++	BPUTC(&obuf, a->type);
++	BPUTC(&obuf, a->reg);
++	BPUTC(&obuf, s);
++	BPUTC(&obuf, a->name);
++	BPUTC(&obuf, 0);
+ 	switch(a->type) {
+ 	default:
+ 		print("unknown type %d\n", a->type);
+@@ -522,45 +522,33 @@ zaddr(Gen *a, int s)
+ 
+ 	case D_REGREG:
+ 	case D_REGREG2:
+-		Bputc(&obuf, a->offset);
++		BPUTC(&obuf, a->offset);
+ 		break;
+ 
+ 	case D_CONST2:
+ 		l = a->offset2;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 		// fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_BRANCH:
+ 	case D_SHIFT:
+ 		l = a->offset;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 		break;
+ 
+ 	case D_SCONST:
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(&obuf, *n);
++			BPUTC(&obuf, *n);
+ 			n++;
+ 		}
+ 		break;
+ 
+ 	case D_FCONST:
+ 		ieeedtod(&e, a->dval);
+-		Bputc(&obuf, e.l);
+-		Bputc(&obuf, e.l>>8);
+-		Bputc(&obuf, e.l>>16);
+-		Bputc(&obuf, e.l>>24);
+-		Bputc(&obuf, e.h);
+-		Bputc(&obuf, e.h>>8);
+-		Bputc(&obuf, e.h>>16);
+-		Bputc(&obuf, e.h>>24);
++		BPUTLE4(&obuf, e.l);
++		BPUTLE4(&obuf, e.h);
+ 		break;
+ 	}
+ }
+@@ -642,13 +630,10 @@ jackpot:
+ 			goto jackpot;
+ 		break;
+ 	}
+-	Bputc(&obuf, a);
+-	Bputc(&obuf, scond);
+-	Bputc(&obuf, reg);
+-	Bputc(&obuf, stmtline);
+-	Bputc(&obuf, stmtline>>8);
+-	Bputc(&obuf, stmtline>>16);
+-	Bputc(&obuf, stmtline>>24);
++	BPUTC(&obuf, a);
++	BPUTC(&obuf, scond);
++	BPUTC(&obuf, reg);
++	BPUTLE4(&obuf, stmtline);
+ 	zaddr(g1, sf);
+ 	zaddr(g2, st);
+ 
+@@ -722,12 +707,12 @@ outhist(void)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(&obuf, ANAME);
+-				Bputc(&obuf, D_FILE);	/* type */
+-				Bputc(&obuf, 1);	/* sym */
+-				Bputc(&obuf, '<');
++				BPUTC(&obuf, ANAME);
++				BPUTC(&obuf, D_FILE);	/* type */
++				BPUTC(&obuf, 1);	/* sym */
++				BPUTC(&obuf, '<');
+ 				Bwrite(&obuf, p, n);
+-				Bputc(&obuf, 0);
++				BPUTC(&obuf, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+@@ -737,13 +722,10 @@ outhist(void)
+ 		}
+ 		g.offset = h->offset;
+ 
+-		Bputc(&obuf, AHISTORY);
+-		Bputc(&obuf, Always);
+-		Bputc(&obuf, 0);
+-		Bputc(&obuf, h->line);
+-		Bputc(&obuf, h->line>>8);
+-		Bputc(&obuf, h->line>>16);
+-		Bputc(&obuf, h->line>>24);
++		BPUTC(&obuf, AHISTORY);
++		BPUTC(&obuf, Always);
++		BPUTC(&obuf, 0);
++		BPUTLE4(&obuf, h->line);
+ 		zaddr(&nullgen, 0);
+ 		zaddr(&g, 0);
+ 
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index 87b77518b5..0f0c457f8f 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -525,12 +525,12 @@ outhist(Biobuf *b)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(b, ANAME);
+-				Bputc(b, D_FILE);
+-				Bputc(b, 1);
+-				Bputc(b, '<');
++				BPUTC(b, ANAME);
++				BPUTC(b, D_FILE);
++				BPUTC(b, 1);
++				BPUTC(b, '<');
+ 				Bwrite(b, p, n);
+-				Bputc(b, 0);
++				BPUTC(b, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index ef48a39a06..212ffc271d 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -35,9 +35,9 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	Bputc(b, ANAME);	/* as */
+-	Bputc(b, t);		/* type */
+-	Bputc(b, s->sym);	/* sym */
++	BPUTC(b, ANAME);	/* as */
++	BPUTC(b, t);		/* type */
++	BPUTC(b, s->sym);	/* sym */
+ 
+ 	Bputname(b, s);
+ }
+@@ -45,12 +45,12 @@ zname(Biobuf *b, Sym *s, int t)
+ void
+ zfile(Biobuf *b, char *p, int n)
+ {
+-	Bputc(b, ANAME);
+-	Bputc(b, D_FILE);
+-	Bputc(b, 1);
+-	Bputc(b, '<');
++	BPUTC(b, ANAME);
++	BPUTC(b, D_FILE);
++	BPUTC(b, 1);
++	BPUTC(b, '<');
+ 	Bwrite(b, p, n);
+-	Bputc(b, 0);
++	BPUTC(b, 0);
+ }
+ 
+ void
+@@ -58,13 +58,10 @@ zhist(Biobuf *b, int line, vlong offset)
+ {
+ 	Addr a;
+ 
+-	Bputc(b, AHISTORY);
+-	Bputc(b, C_SCOND_NONE);
+-	Bputc(b, NREG);
+-	Bputc(b, line);
+-	Bputc(b, line>>8);
+-	Bputc(b, line>>16);
+-	Bputc(b, line>>24);
++	BPUTC(b, AHISTORY);
++	BPUTC(b, C_SCOND_NONE);
++	BPUTC(b, NREG);
++	BPUTLE4(b, line);
+ 	zaddr(b, &zprog.from, 0, 0);
+ 	a = zprog.to;
+ 	if(offset != 0) {
+@@ -91,11 +88,11 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 		fatal("We should no longer generate these as types");
+ 
+ 	default:
+-		Bputc(b, a->type);
+-		Bputc(b, a->reg);
+-		Bputc(b, s);
+-		Bputc(b, a->name);
+-		Bputc(b, gotype);
++		BPUTC(b, a->type);
++		BPUTC(b, a->reg);
++		BPUTC(b, s);
++		BPUTC(b, a->name);
++		BPUTC(b, gotype);
+ 	}
+ 
+ 	switch(a->type) {
+@@ -110,10 +107,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 
+ 	case D_CONST2:
+ 		l = a->offset2;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24); // fall through
++		BPUTLE4(b, l); // fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_SHIFT:
+@@ -122,10 +116,7 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 	case D_EXTERN:
+ 	case D_PARAM:
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		break;
+ 
+ 	case D_BRANCH:
+@@ -133,37 +124,26 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 			fatal("unpatched branch");
+ 		a->offset = a->u.branch->loc;
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		break;
+ 
+ 	case D_SCONST:
+ 		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(b, *n);
++			BPUTC(b, *n);
+ 			n++;
+ 		}
+ 		break;
+ 
+ 	case D_REGREG:
+ 	case D_REGREG2:
+-		Bputc(b, a->offset);
++		BPUTC(b, a->offset);
+ 		break;
+ 
+ 	case D_FCONST:
+ 		ieeedtod(&e, a->u.dval);
+-		l = e;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
+-		l = e >> 32;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, e);
++		BPUTLE4(b, e >> 32);
+ 		break;
+ 	}
+ }
+@@ -271,13 +251,10 @@ dumpfuncs(void)
+ 				break;
+ 			}
+ 
+-			Bputc(bout, p->as);
+-			Bputc(bout, p->scond);
+- 			Bputc(bout, p->reg);
+-			Bputc(bout, p->lineno);
+-			Bputc(bout, p->lineno>>8);
+-			Bputc(bout, p->lineno>>16);
+-			Bputc(bout, p->lineno>>24);
++			BPUTC(bout, p->as);
++			BPUTC(bout, p->scond);
++ 			BPUTC(bout, p->reg);
++			BPUTLE4(bout, p->lineno);
+ 			zaddr(bout, &p->from, sf, gf);
+ 			zaddr(bout, &p->to, st, gt);
+ 		}
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 824a05fd8d..0b687a2ee8 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -334,7 +334,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 	c = BGETC(f);
+ 	if(c < 0 || c > NSYM){
+ 		print("sym out of range: %d\n", c);
+-		Bputc(f, ALAST+1);
++		BPUTC(f, ALAST+1);
+ 		return;
+ 	}
+ 	a->sym = h[c];
+@@ -343,7 +343,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 
+ 	if((schar)a->reg < 0 || a->reg > NREG) {
+ 		print("register out of range %d\n", a->reg);
+-		Bputc(f, ALAST+1);
++		BPUTC(f, ALAST+1);
+ 		return;	/*  force real diagnostic */
+ 	}
+ 
+@@ -361,7 +361,7 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 	switch(a->type) {
+ 	default:
+ 		print("unknown type %d\n", a->type);
+-		Bputc(f, ALAST+1);
++		BPUTC(f, ALAST+1);
+ 		return;	/*  force real diagnostic */
+ 
+ 	case D_NONE:
+@@ -377,13 +377,13 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		break;
+ 
+ 	case D_CONST2:
+-		a->offset2 = Bget4(f);	// fall through
++		a->offset2 = BGETLE4(f);	// fall through
+ 	case D_BRANCH:
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_OCONST:
+ 	case D_SHIFT:
+-		a->offset = Bget4(f);
++		a->offset = BGETLE4(f);
+ 		break;
+ 
+ 	case D_SCONST:
+@@ -392,8 +392,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		break;
+ 
+ 	case D_FCONST:
+-		a->ieee.l = Bget4(f);
+-		a->ieee.h = Bget4(f);
++		a->ieee.l = BGETLE4(f);
++		a->ieee.h = BGETLE4(f);
+ 		break;
+ 	}
+ 	s = a->sym;
+@@ -476,7 +476,7 @@ loop:
+ 	if(o == ANAME || o == ASIGNAME) {
+ 		sig = 0;
+ 		if(o == ASIGNAME)
+-			sig = Bget4(f);
++			sig = BGETLE4(f);
+ 		v = BGETC(f); /* type */
+ 		o = BGETC(f); /* sym */
+ 		r = 0;
+@@ -531,7 +531,7 @@ loop:
+ 	p->as = o;
+ 	p->scond = BGETC(f);
+ 	p->reg = BGETC(f);
+-	p->line = Bget4(f);
++	p->line = BGETLE4(f);
+ 
+ 	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index c7cfd1bcd3..ab34e82209 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -1101,15 +1101,14 @@ void
+ zname(char *n, int t, int s)
+ {
+ 
+-	Bputc(&obuf, ANAME);		/* as(2) */
+-	Bputc(&obuf, ANAME>>8);
+-	Bputc(&obuf, t);		/* type */
+-	Bputc(&obuf, s);		/* sym */
++	BPUTLE2(&obuf, ANAME);		/* as(2) */
++	BPUTC(&obuf, t);		/* type */
++	BPUTC(&obuf, s);		/* sym */
+ 	while(*n) {
+-		Bputc(&obuf, *n);
++		BPUTC(&obuf, *n);
+ 		n++;
+ 	}
+-	Bputc(&obuf, 0);
++	BPUTC(&obuf, 0);
+ }
+ 
+ void
+@@ -1145,52 +1144,40 @@ zaddr(Gen *a, int s)
+ 	case D_NONE:
+ 		break;
+ 	}
+-	Bputc(&obuf, t);
++	BPUTC(&obuf, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(&obuf, a->index);
+-		Bputc(&obuf, a->scale);
++		BPUTC(&obuf, a->index);
++		BPUTC(&obuf, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 		if(t & T_64) {
+ 			l = a->offset>>32;
+-			Bputc(&obuf, l);
+-			Bputc(&obuf, l>>8);
+-			Bputc(&obuf, l>>16);
+-			Bputc(&obuf, l>>24);
++			BPUTLE4(&obuf, l);
+ 		}
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(&obuf, s);
++		BPUTC(&obuf, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->dval);
+ 		l = e.l;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 		l = e.h;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(&obuf, *n);
++			BPUTC(&obuf, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(&obuf, a->type);
++		BPUTC(&obuf, a->type);
+ }
+ 
+ void
+@@ -1249,12 +1236,8 @@ jackpot:
+ 			goto jackpot;
+ 		break;
+ 	}
+-	Bputc(&obuf, a);
+-	Bputc(&obuf, a>>8);
+-	Bputc(&obuf, stmtline);
+-	Bputc(&obuf, stmtline>>8);
+-	Bputc(&obuf, stmtline>>16);
+-	Bputc(&obuf, stmtline>>24);
++	BPUTLE2(&obuf, a);
++	BPUTLE4(&obuf, stmtline);
+ 	zaddr(&g2->from, sf);
+ 	zaddr(&g2->to, st);
+ 
+@@ -1329,13 +1312,12 @@ outhist(void)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(&obuf, ANAME);
+-				Bputc(&obuf, ANAME>>8);
+-				Bputc(&obuf, D_FILE);	/* type */
+-				Bputc(&obuf, 1);	/* sym */
+-				Bputc(&obuf, '<');
++				BPUTLE2(&obuf, ANAME);
++				BPUTC(&obuf, D_FILE);	/* type */
++				BPUTC(&obuf, 1);	/* sym */
++				BPUTC(&obuf, '<');
+ 				Bwrite(&obuf, p, n);
+-				Bputc(&obuf, 0);
++				BPUTC(&obuf, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+@@ -1345,12 +1327,8 @@ outhist(void)
+ 		}
+ 		g.offset = h->offset;
+ 
+-		Bputc(&obuf, AHISTORY);
+-		Bputc(&obuf, AHISTORY>>8);
+-		Bputc(&obuf, h->line);
+-		Bputc(&obuf, h->line>>8);
+-		Bputc(&obuf, h->line>>16);
+-		Bputc(&obuf, h->line>>24);
++		BPUTLE2(&obuf, AHISTORY);
++		BPUTLE4(&obuf, h->line);
+ 		zaddr(&nullgen, 0);
+ 		zaddr(&g, 0);
+ 
+diff --git a/src/cmd/6c/swt.c b/src/cmd/6c/swt.c
+index 541c7beaaa..2496da477b 100644
+--- a/src/cmd/6c/swt.c
++++ b/src/cmd/6c/swt.c
+@@ -311,12 +311,8 @@ outcode(void)
+ 				goto jackpot;
+ 			break;
+ 		}
+-		Bputc(&b, p->as);
+-		Bputc(&b, p->as>>8);
+-		Bputc(&b, p->lineno);
+-		Bputc(&b, p->lineno>>8);
+-		Bputc(&b, p->lineno>>16);
+-		Bputc(&b, p->lineno>>24);
++		BPUTLE2(&b, p->as);
++		BPUTLE4(&b, p->lineno);
+ 		zaddr(&b, &p->from, sf);
+ 		zaddr(&b, &p->to, st);
+ 	}
+@@ -392,13 +388,12 @@ outhist(Biobuf *b)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(b, ANAME);
+-				Bputc(b, ANAME>>8);
+-				Bputc(b, D_FILE);
+-				Bputc(b, 1);
+-				Bputc(b, '<');
++				BPUTLE2(b, ANAME);
++				BPUTC(b, D_FILE);
++				BPUTC(b, 1);
++				BPUTC(b, '<');
+ 				Bwrite(b, p, n);
+-				Bputc(b, 0);
++				BPUTC(b, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+@@ -412,12 +407,8 @@ outhist(Biobuf *b)
+ 		if(h->offset)
+ 			pg.to.type = D_CONST;
+ 
+-		Bputc(b, pg.as);
+-		Bputc(b, pg.as>>8);
+-		Bputc(b, pg.lineno);
+-		Bputc(b, pg.lineno>>8);
+-		Bputc(b, pg.lineno>>16);
+-		Bputc(b, pg.lineno>>24);
++		BPUTLE2(b, pg.as);
++		BPUTLE4(b, pg.lineno);
+ 		zaddr(b, &pg.from, 0);
+ 		zaddr(b, &pg.to, 0);
+ 
+@@ -436,26 +427,21 @@ zname(Biobuf *b, Sym *s, int t)
+ 
+ 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+ 		sig = sign(s);
+-		Bputc(b, ASIGNAME);
+-		Bputc(b, ASIGNAME>>8);
+-		Bputc(b, sig);
+-		Bputc(b, sig>>8);
+-		Bputc(b, sig>>16);
+-		Bputc(b, sig>>24);
++		BPUTLE2(b, ASIGNAME);
++		BPUTLE4(b, sig);
+ 		s->sig = SIGDONE;
+ 	}
+ 	else{
+-		Bputc(b, ANAME);	/* as */
+-		Bputc(b, ANAME>>8);	/* as */
++		BPUTLE2(b, ANAME);	/* as */
+ 	}
+-	Bputc(b, t);			/* type */
+-	Bputc(b, s->sym);		/* sym */
++	BPUTC(b, t);			/* type */
++	BPUTC(b, s->sym);		/* sym */
+ 	n = s->name;
+ 	while(*n) {
+-		Bputc(b, *n);
++		BPUTC(b, *n);
+ 		n++;
+ 	}
+-	Bputc(b, 0);
++	BPUTC(b, 0);
+ }
+ 
+ void
+@@ -490,52 +476,40 @@ zaddr(Biobuf *b, Adr *a, int s)
+ 		t |= T_SCONST;
+ 		break;
+ 	}
+-	Bputc(b, t);
++	BPUTC(b, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(b, a->index);
+-		Bputc(b, a->scale);
++		BPUTC(b, a->index);
++		BPUTC(b, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		if(t & T_64) {
+ 			l = a->offset>>32;
+-			Bputc(b, l);
+-			Bputc(b, l>>8);
+-			Bputc(b, l>>16);
+-			Bputc(b, l>>24);
++			BPUTLE4(b, l);
+ 		}
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(b, s);
++		BPUTC(b, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->dval);
+ 		l = e.l;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		l = e.h;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(b, *n);
++			BPUTC(b, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(b, a->type);
++		BPUTC(b, a->type);
+ }
+ 
+ int32
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index 28c4ed6faf..a9bd5e8338 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -35,10 +35,9 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	Bputc(b, ANAME);	/* as */
+-	Bputc(b, ANAME>>8);	/* as */
+-	Bputc(b, t);		/* type */
+-	Bputc(b, s->sym);	/* sym */
++	BPUTLE2(b, ANAME);	/* as */
++	BPUTC(b, t);		/* type */
++	BPUTC(b, s->sym);	/* sym */
+ 
+ 	Bputname(b, s);
+ }
+@@ -46,13 +45,12 @@ zname(Biobuf *b, Sym *s, int t)
+ void
+ zfile(Biobuf *b, char *p, int n)
+ {
+-	Bputc(b, ANAME);
+-	Bputc(b, ANAME>>8);
+-	Bputc(b, D_FILE);
+-	Bputc(b, 1);
+-	Bputc(b, '<');
++	BPUTLE2(b, ANAME);
++	BPUTC(b, D_FILE);
++	BPUTC(b, 1);
++	BPUTC(b, '<');
+ 	Bwrite(b, p, n);
+-	Bputc(b, 0);
++	BPUTC(b, 0);
+ }
+ 
+ void
+@@ -60,12 +58,8 @@ zhist(Biobuf *b, int line, vlong offset)
+ {
+ 	Addr a;
+ 
+-	Bputc(b, AHISTORY);
+-	Bputc(b, AHISTORY>>8);
+-	Bputc(b, line);
+-	Bputc(b, line>>8);
+-	Bputc(b, line>>16);
+-	Bputc(b, line>>24);
++	BPUTLE2(b, AHISTORY);
++	BPUTLE4(b, line);
+ 	zaddr(b, &zprog.from, 0, 0);
+ 	a = zprog.to;
+ 	if(offset != 0) {
+@@ -116,54 +110,40 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 		t |= T_SCONST;
+ 		break;
+ 	}
+-	Bputc(b, t);
++	BPUTC(b, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(b, a->index);
+-		Bputc(b, a->scale);
++		BPUTC(b, a->index);
++		BPUTC(b, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 		if(t & T_64) {
+ 			l = a->offset>>32;
+-			Bputc(b, l);
+-			Bputc(b, l>>8);
+-			Bputc(b, l>>16);
+-			Bputc(b, l>>24);
++			BPUTLE4(b, l);
+ 		}
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(b, s);
++		BPUTC(b, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->u.dval);
+-		l = e;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
+-		l = e >> 32;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, e);
++		BPUTLE4(b, e >> 32);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(b, *n);
++			BPUTC(b, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(b, a->type);
++		BPUTC(b, a->type);
+ 	if(t & T_GOTYPE)
+-		Bputc(b, gotype);
++		BPUTC(b, gotype);
+ }
+ 
+ static struct {
+@@ -269,12 +249,8 @@ dumpfuncs(void)
+ 				break;
+ 			}
+ 
+-			Bputc(bout, p->as);
+-			Bputc(bout, p->as>>8);
+-			Bputc(bout, p->lineno);
+-			Bputc(bout, p->lineno>>8);
+-			Bputc(bout, p->lineno>>16);
+-			Bputc(bout, p->lineno>>24);
++			BPUTLE2(bout, p->as);
++			BPUTLE4(bout, p->lineno);
+ 			zaddr(bout, &p->from, sf, gf);
+ 			zaddr(bout, &p->to, st, gt);
+ 		}
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 5337ecace9..b972c535b9 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -342,10 +342,10 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 	}
+ 	a->offset = 0;
+ 	if(t & T_OFFSET) {
+-		a->offset = Bget4(f);
++		a->offset = BGETLE4(f);
+ 		if(t & T_64) {
+ 			a->offset &= 0xFFFFFFFFULL;
+-			a->offset |= (vlong)Bget4(f) << 32;
++			a->offset |= (vlong)BGETLE4(f) << 32;
+ 		}
+ 	}
+ 	a->sym = S;
+@@ -353,8 +353,8 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 		a->sym = zsym(pn, f, h);
+ 	a->type = D_NONE;
+ 	if(t & T_FCONST) {
+-		a->ieee.l = Bget4(f);
+-		a->ieee.h = Bget4(f);
++		a->ieee.l = BGETLE4(f);
++		a->ieee.h = BGETLE4(f);
+ 		a->type = D_FCONST;
+ 	} else
+ 	if(t & T_SCONST) {
+@@ -461,7 +461,7 @@ loop:
+ 	if(o == ANAME || o == ASIGNAME) {
+ 		sig = 0;
+ 		if(o == ASIGNAME)
+-			sig = Bget4(f);
++			sig = BGETLE4(f);
+ 		v = BGETC(f);	/* type */
+ 		o = BGETC(f);	/* sym */
+ 		r = 0;
+@@ -516,7 +516,7 @@ loop:
+ 
+ 	p = mal(sizeof(*p));
+ 	p->as = o;
+-	p->line = Bget4(f);
++	p->line = BGETLE4(f);
+ 	p->back = 2;
+ 	p->mode = mode;
+ 	zaddr(pn, f, &p->from, h);
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index 474f965b35..f2ccc3361a 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -880,15 +880,14 @@ void
+ zname(char *n, int t, int s)
+ {
+ 
+-	Bputc(&obuf, ANAME);		/* as(2) */
+-	Bputc(&obuf, ANAME>>8);
+-	Bputc(&obuf, t);		/* type */
+-	Bputc(&obuf, s);		/* sym */
++	BPUTLE2(&obuf, ANAME);		/* as(2) */
++	BPUTC(&obuf, t);		/* type */
++	BPUTC(&obuf, s);		/* sym */
+ 	while(*n) {
+-		Bputc(&obuf, *n);
++		BPUTC(&obuf, *n);
+ 		n++;
+ 	}
+-	Bputc(&obuf, 0);
++	BPUTC(&obuf, 0);
+ }
+ 
+ void
+@@ -923,52 +922,38 @@ zaddr(Gen *a, int s)
+ 	case D_NONE:
+ 		break;
+ 	}
+-	Bputc(&obuf, t);
++	BPUTC(&obuf, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(&obuf, a->index);
+-		Bputc(&obuf, a->scale);
++		BPUTC(&obuf, a->index);
++		BPUTC(&obuf, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 	}
+ 	if(t & T_OFFSET2) {
+ 		l = a->offset2;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, l);
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(&obuf, s);
++		BPUTC(&obuf, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->dval);
+-		l = e.l;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
+-		l = e.h;
+-		Bputc(&obuf, l);
+-		Bputc(&obuf, l>>8);
+-		Bputc(&obuf, l>>16);
+-		Bputc(&obuf, l>>24);
++		BPUTLE4(&obuf, e.l);
++		BPUTLE4(&obuf, e.h);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(&obuf, *n);
++			BPUTC(&obuf, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(&obuf, a->type);
++		BPUTC(&obuf, a->type);
+ }
+ 
+ void
+@@ -1027,12 +1012,8 @@ jackpot:
+ 			goto jackpot;
+ 		break;
+ 	}
+-	Bputc(&obuf, a);
+-	Bputc(&obuf, a>>8);
+-	Bputc(&obuf, stmtline);
+-	Bputc(&obuf, stmtline>>8);
+-	Bputc(&obuf, stmtline>>16);
+-	Bputc(&obuf, stmtline>>24);
++	BPUTLE2(&obuf, a);
++	BPUTLE4(&obuf, stmtline);
+ 	zaddr(&g2->from, sf);
+ 	zaddr(&g2->to, st);
+ 
+@@ -1107,13 +1088,12 @@ outhist(void)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(&obuf, ANAME);
+-				Bputc(&obuf, ANAME>>8);
+-				Bputc(&obuf, D_FILE);	/* type */
+-				Bputc(&obuf, 1);	/* sym */
+-				Bputc(&obuf, '<');
++				BPUTLE2(&obuf, ANAME);
++				BPUTC(&obuf, D_FILE);	/* type */
++				BPUTC(&obuf, 1);	/* sym */
++				BPUTC(&obuf, '<');
+ 				Bwrite(&obuf, p, n);
+-				Bputc(&obuf, 0);
++				BPUTC(&obuf, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+@@ -1123,12 +1103,8 @@ outhist(void)
+ 		}
+ 		g.offset = h->offset;
+ 
+-		Bputc(&obuf, AHISTORY);
+-		Bputc(&obuf, AHISTORY>>8);
+-		Bputc(&obuf, h->line);
+-		Bputc(&obuf, h->line>>8);
+-		Bputc(&obuf, h->line>>16);
+-		Bputc(&obuf, h->line>>24);
++		BPUTLE2(&obuf, AHISTORY);
++		BPUTLE4(&obuf, h->line);
+ 		zaddr(&nullgen, 0);
+ 		zaddr(&g, 0);
+ 
+diff --git a/src/cmd/8c/swt.c b/src/cmd/8c/swt.c
+index 1b8ceb0c69..b681974472 100644
+--- a/src/cmd/8c/swt.c
++++ b/src/cmd/8c/swt.c
+@@ -315,12 +315,8 @@ outcode(void)
+ 				goto jackpot;
+ 			break;
+ 		}
+-		Bputc(&b, p->as);
+-		Bputc(&b, p->as>>8);
+-		Bputc(&b, p->lineno);
+-		Bputc(&b, p->lineno>>8);
+-		Bputc(&b, p->lineno>>16);
+-		Bputc(&b, p->lineno>>24);
++		BPUTLE2(&b, p->as);
++		BPUTLE4(&b, p->lineno);
+ 		zaddr(&b, &p->from, sf);
+ 		zaddr(&b, &p->to, st);
+ 	}
+@@ -396,13 +392,12 @@ outhist(Biobuf *b)
+ 				q = 0;
+ 			}
+ 			if(n) {
+-				Bputc(b, ANAME);
+-				Bputc(b, ANAME>>8);
+-				Bputc(b, D_FILE);
+-				Bputc(b, 1);
+-				Bputc(b, '<');
++				BPUTLE2(b, ANAME);
++				BPUTC(b, D_FILE);
++				BPUTC(b, 1);
++				BPUTC(b, '<');
+ 				Bwrite(b, p, n);
+-				Bputc(b, 0);
++				BPUTC(b, 0);
+ 			}
+ 			p = q;
+ 			if(p == 0 && op) {
+@@ -416,12 +411,8 @@ outhist(Biobuf *b)
+ 		if(h->offset)
+ 			pg.to.type = D_CONST;
+ 
+-		Bputc(b, pg.as);
+-		Bputc(b, pg.as>>8);
+-		Bputc(b, pg.lineno);
+-		Bputc(b, pg.lineno>>8);
+-		Bputc(b, pg.lineno>>16);
+-		Bputc(b, pg.lineno>>24);
++		BPUTLE2(b, pg.as);
++		BPUTLE4(b, pg.lineno);
+ 		zaddr(b, &pg.from, 0);
+ 		zaddr(b, &pg.to, 0);
+ 
+@@ -440,26 +431,21 @@ zname(Biobuf *b, Sym *s, int t)
+ 
+ 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+ 		sig = sign(s);
+-		Bputc(b, ASIGNAME);
+-		Bputc(b, ASIGNAME>>8);
+-		Bputc(b, sig);
+-		Bputc(b, sig>>8);
+-		Bputc(b, sig>>16);
+-		Bputc(b, sig>>24);
++		BPUTLE2(b, ASIGNAME);
++		BPUTLE4(b, sig);
+ 		s->sig = SIGDONE;
+ 	}
+ 	else{
+-		Bputc(b, ANAME);	/* as */
+-		Bputc(b, ANAME>>8);	/* as */
++		BPUTLE2(b, ANAME);	/* as */
+ 	}
+-	Bputc(b, t);			/* type */
+-	Bputc(b, s->sym);		/* sym */
++	BPUTC(b, t);			/* type */
++	BPUTC(b, s->sym);		/* sym */
+ 	n = s->name;
+ 	while(*n) {
+-		Bputc(b, *n);
++		BPUTC(b, *n);
+ 		n++;
+ 	}
+-	Bputc(b, 0);
++	BPUTC(b, 0);
+ }
+ 
+ void
+@@ -493,52 +479,38 @@ zaddr(Biobuf *b, Adr *a, int s)
+ 		t |= T_OFFSET|T_OFFSET2;
+ 		break;
+ 	}
+-	Bputc(b, t);
++	BPUTC(b, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(b, a->index);
+-		Bputc(b, a->scale);
++		BPUTC(b, a->index);
++		BPUTC(b, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 	}
+ 	if(t & T_OFFSET2) {	/* implies offset2 */
+ 		l = a->offset2;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(b, s);
++		BPUTC(b, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->dval);
+-		l = e.l;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
+-		l = e.h;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, e.l);
++		BPUTLE4(b, e.h);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(b, *n);
++			BPUTC(b, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(b, a->type);
++		BPUTC(b, a->type);
+ }
+ 
+ int32
+diff --git a/src/cmd/8g/gobj.c b/src/cmd/8g/gobj.c
+index 4ed3c96e9d..0517824e09 100644
+--- a/src/cmd/8g/gobj.c
++++ b/src/cmd/8g/gobj.c
+@@ -35,10 +35,9 @@
+ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+-	Bputc(b, ANAME);	/* as */
+-	Bputc(b, ANAME>>8);	/* as */
+-	Bputc(b, t);		/* type */
+-	Bputc(b, s->sym);	/* sym */
++	BPUTLE2(b, ANAME);	/* as */
++	BPUTC(b, t);		/* type */
++	BPUTC(b, s->sym);	/* sym */
+ 
+ 	Bputname(b, s);
+ }
+@@ -46,13 +45,12 @@ zname(Biobuf *b, Sym *s, int t)
+ void
+ zfile(Biobuf *b, char *p, int n)
+ {
+-	Bputc(b, ANAME);
+-	Bputc(b, ANAME>>8);
+-	Bputc(b, D_FILE);
+-	Bputc(b, 1);
+-	Bputc(b, '<');
++	BPUTLE2(b, ANAME);
++	BPUTC(b, D_FILE);
++	BPUTC(b, 1);
++	BPUTC(b, '<');
+ 	Bwrite(b, p, n);
+-	Bputc(b, 0);
++	BPUTC(b, 0);
+ }
+ 
+ void
+@@ -60,12 +58,8 @@ zhist(Biobuf *b, int line, vlong offset)
+ {
+ 	Addr a;
+ 
+-	Bputc(b, AHISTORY);
+-	Bputc(b, AHISTORY>>8);
+-	Bputc(b, line);
+-	Bputc(b, line>>8);
+-	Bputc(b, line>>16);
+-	Bputc(b, line>>24);
++	BPUTLE2(b, AHISTORY);
++	BPUTLE4(b, line);
+ 	zaddr(b, &zprog.from, 0, 0);
+ 	a = zprog.to;
+ 	if(offset != 0) {
+@@ -114,54 +108,40 @@ zaddr(Biobuf *b, Addr *a, int s, int gotype)
+ 		t |= T_SCONST;
+ 		break;
+ 	}
+-	Bputc(b, t);
++	BPUTC(b, t);
+ 
+ 	if(t & T_INDEX) {	/* implies index, scale */
+-		Bputc(b, a->index);
+-		Bputc(b, a->scale);
++		BPUTC(b, a->index);
++		BPUTC(b, a->scale);
+ 	}
+ 	if(t & T_OFFSET) {	/* implies offset */
+ 		l = a->offset;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 	}
+ 	if(t & T_OFFSET2) {	/* implies offset */
+ 		l = a->offset2;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, l);
+ 	}
+ 	if(t & T_SYM)		/* implies sym */
+-		Bputc(b, s);
++		BPUTC(b, s);
+ 	if(t & T_FCONST) {
+ 		ieeedtod(&e, a->u.dval);
+-		l = e;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
+-		l = e >> 32;
+-		Bputc(b, l);
+-		Bputc(b, l>>8);
+-		Bputc(b, l>>16);
+-		Bputc(b, l>>24);
++		BPUTLE4(b, e);
++		BPUTLE4(b, e >> 32);
+ 		return;
+ 	}
+ 	if(t & T_SCONST) {
+ 		n = a->u.sval;
+ 		for(i=0; i<NSNAME; i++) {
+-			Bputc(b, *n);
++			BPUTC(b, *n);
+ 			n++;
+ 		}
+ 		return;
+ 	}
+ 	if(t & T_TYPE)
+-		Bputc(b, a->type);
++		BPUTC(b, a->type);
+ 	if(t & T_GOTYPE)
+-		Bputc(b, gotype);
++		BPUTC(b, gotype);
+ }
+ 
+ static struct {
+@@ -267,12 +247,8 @@ dumpfuncs(void)
+ 				break;
+ 			}
+ 
+-			Bputc(bout, p->as);
+-			Bputc(bout, p->as>>8);
+-			Bputc(bout, p->lineno);
+-			Bputc(bout, p->lineno>>8);
+-			Bputc(bout, p->lineno>>16);
+-			Bputc(bout, p->lineno>>24);
++			BPUTLE2(bout, p->as);
++			BPUTLE4(bout, p->lineno);
+ 			zaddr(bout, &p->from, sf, gf);
+ 			zaddr(bout, &p->to, st, gt);
+ 		}
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 853abc0b65..316d79f451 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -365,18 +365,18 @@ zaddr(char *pn, Biobuf *f, Adr *a, Sym *h[])
+ 	a->type = D_NONE;
+ 	a->offset = 0;
+ 	if(t & T_OFFSET)
+-		a->offset = Bget4(f);
++		a->offset = BGETLE4(f);
+ 	a->offset2 = 0;
+ 	if(t & T_OFFSET2) {
+-		a->offset2 = Bget4(f);
++		a->offset2 = BGETLE4(f);
+ 		a->type = D_CONST2;
+ 	}
+ 	a->sym = S;
+ 	if(t & T_SYM)
+ 		a->sym = zsym(pn, f, h);
+ 	if(t & T_FCONST) {
+-		a->ieee.l = Bget4(f);
+-		a->ieee.h = Bget4(f);
++		a->ieee.l = BGETLE4(f);
++		a->ieee.h = BGETLE4(f);
+ 		a->type = D_FCONST;
+ 	} else
+ 	if(t & T_SCONST) {
+@@ -475,7 +475,7 @@ loop:
+ 	if(o == ANAME || o == ASIGNAME) {
+ 		sig = 0;
+ 		if(o == ASIGNAME)
+-			sig = Bget4(f);
++			sig = BGETLE4(f);
+ 		v = BGETC(f);	/* type */
+ 		o = BGETC(f);	/* sym */
+ 		r = 0;
+@@ -530,7 +530,7 @@ loop:
+ 
+ 	p = mal(sizeof(*p));
+ 	p->as = o;
+-	p->line = Bget4(f);
++	p->line = BGETLE4(f);
+ 	p->back = 2;
+ 	zaddr(pn, f, &p->from, h);
+ 	fromgotype = adrgotype;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index ef8546638e..21708aae2c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1616,10 +1616,10 @@ getc(void)
+ 			curio.cp++;
+ 	} else {
+ 	loop:
+-		c = Bgetc(curio.bin);
++		c = BGETC(curio.bin);
+ 		if(c == 0xef) {
+-			c1 = Bgetc(curio.bin);
+-			c2 = Bgetc(curio.bin);
++			c1 = BGETC(curio.bin);
++			c2 = BGETC(curio.bin);
+ 			if(c1 == 0xbb && c2 == 0xbf) {
+ 				yyerrorl(lexlineno, "Unicode (UTF-8) BOM in middle of file");
+ 				goto loop;
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 5709a7aa4e..4cad089247 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -87,7 +87,7 @@ void
+ Bputname(Biobuf *b, Sym *s)
+ {
+ 	Bprint(b, "%s", s->pkg->prefix);
+-	Bputc(b, '.');
++	BPUTC(b, '.');
+ 	Bwrite(b, s->name, strlen(s->name)+1);
+ }
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 3e8d49adaf..c400c622fa 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -801,10 +801,10 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 
+ 	pn = estrdup(pn);
+ 
+-	c1 = Bgetc(f);
+-	c2 = Bgetc(f);
+-	c3 = Bgetc(f);
+-	c4 = Bgetc(f);
++	c1 = BGETC(f);
++	c2 = BGETC(f);
++	c3 = BGETC(f);
++	c4 = BGETC(f);
+ 	Bungetc(f);
+ 	Bungetc(f);
+ 	Bungetc(f);
+@@ -882,12 +882,12 @@ ldobj(Biobuf *f, char *pkg, int64 len, char *pn, char *file, int whence)
+ 	/* skip over exports and other info -- ends with \n!\n */
+ 	import0 = Boffset(f);
+ 	c1 = '\n';	// the last line ended in \n
+-	c2 = Bgetc(f);
+-	c3 = Bgetc(f);
++	c2 = BGETC(f);
++	c3 = BGETC(f);
+ 	while(c1 != '\n' || c2 != '!' || c3 != '\n') {
+ 		c1 = c2;
+ 		c2 = c3;
+-		c3 = Bgetc(f);
++		c3 = BGETC(f);
+ 		if(c3 == Beof)
+ 			goto eof;
+ 	}
+@@ -1221,16 +1221,6 @@ zerosig(char *sp)
+ 	s->sig = 0;
+ }
+ 
+-int32
+-Bget4(Biobuf *f)
+-{
+-	uchar p[4];
+-
+-	if(Bread(f, p, 4) != 4)
+-		return 0;
+-	return p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24);
+-}
+-
+ void
+ mywhatsys(void)
+ {
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 7ad630e1f0..f268ea13ad 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -212,7 +212,6 @@ double	ieeedtod(Ieee *e);
+ void	undefsym(Sym *s);
+ void	zerosig(char *sp);
+ void	readundefs(char *f, int t);
+-int32	Bget4(Biobuf *f);
+ void	loadlib(void);
+ void	errorexit(void);
+ void	mangle(char*);
+diff --git a/src/cmd/pack/ar.c b/src/cmd/pack/ar.c
+index 284eff5ca5..aff5f37eb9 100644
+--- a/src/cmd/pack/ar.c
++++ b/src/cmd/pack/ar.c
+@@ -700,7 +700,7 @@ scanobj(Biobuf *b, Arfile *ap, long size)
+ 	// the ! comes immediately.  Catch that so we can avoid
+ 	// the call to scanpkg below, since scanpkg assumes that the
+ 	// Go metadata is present.
+-	if(Bgetc(b) == '!')
++	if(BGETC(b) == '!')
+ 		goobject = 0;
+ 
+ 	Bseek(b, offset1, 0);
+@@ -807,13 +807,13 @@ scanpkg(Biobuf *b, long size)
+ 	 * scan until $$
+ 	 */
+ 	for (n=0; n<size; ) {
+-		c = Bgetc(b);
++		c = BGETC(b);
+ 		if(c == Beof)
+ 			break;
+ 		n++;
+ 		if(c != '$')
+ 			continue;
+-		c = Bgetc(b);
++		c = BGETC(b);
+ 		if(c == Beof)
+ 			break;
+ 		n++;
+@@ -828,7 +828,7 @@ scanpkg(Biobuf *b, long size)
+ 
+ foundstart:
+ 	/* found $$; skip rest of line */
+-	while((c = Bgetc(b)) != '\n')
++	while((c = BGETC(b)) != '\n')
+ 		if(c == Beof)
+ 			goto bad;
+ 
+@@ -1263,7 +1263,7 @@ rl(int fd)
+ 		wrsym(&b, len, aend->sym);
+ 
+ 	if(symdefsize&0x01)
+-		Bputc(&b, 0);
++		BPUTC(&b, 0);
+ 
+ 	if (gflag) {
+ 		len = pkgdefsize;
+@@ -1283,7 +1283,7 @@ rl(int fd)
+ 		if (Bwrite(&b, pkgdefdata, pkgdefsize) != pkgdefsize)
+ 			wrerr();
+ 		if(len&0x01)
+-			Bputc(&b, 0);
++			BPUTC(&b, 0);
+ 	}
+ 	Bterm(&b);
+ }
+@@ -1297,12 +1297,9 @@ wrsym(Biobuf *bp, long offset, Arsymref *as)
+ 	int off;
+ 
+ 	while(as) {
+-		Bputc(bp, as->type);
++		BPUTC(bp, as->type);
+ 		off = as->offset+offset;
+-		Bputc(bp, off);
+-		Bputc(bp, off>>8);
+-		Bputc(bp, off>>16);
+-		Bputc(bp, off>>24);
++		BPUTLE4(bp, off);
+ 		if (Bwrite(bp, as->name, as->len+1) != as->len+1)
+ 			wrerr();
+ 		as = as->next;
+@@ -1454,7 +1451,7 @@ select(int *ap, long mode)
+ 	n = *ap++;
+ 	while(--n>=0 && (mode&*ap++)==0)
+ 		ap++;
+-	Bputc(&bout, *ap);
++	BPUTC(&bout, *ap);
+ }
+ 
+ /*
+@@ -1506,7 +1503,7 @@ arread(Biobuf *b, Armember *bp)	/* read an image into a member buffer */
+ 		rderr();
+ 	}
+ 	if(bp->size&1)
+-		Bgetc(b);
++		BGETC(b);
+ }
+ 
+ /*
+@@ -1734,6 +1731,6 @@ arread_cutprefix(Biobuf *b, Armember *bp)
+ 	strncpy(bp->hdr.fmag, ARFMAG, 2);
+ 	Bseek(b, end, 0);
+ 	if(Boffset(b)&1)
+-		Bgetc(b);
++		BGETC(b);
+ 	return 1;
+ }
+diff --git a/src/libbio/bgetc.c b/src/libbio/bgetc.c
+index 4ddfba1526..f3db0f3029 100644
+--- a/src/libbio/bgetc.c
++++ b/src/libbio/bgetc.c
+@@ -66,6 +66,26 @@ loop:
+ 	goto loop;
+ }
+ 
++int
++Bgetle2(Biobuf *bp)
++{
++	int l, h;
++
++	l = Bgetc(bp);
++	h = Bgetc(bp);
++	return l|(h<<8);
++}
++
++int
++Bgetle4(Biobuf *bp)
++{
++	int l, h;
++
++	l = Bgetle2(bp);
++	h = Bgetle2(bp);
++	return l|(h<<16);
++}
++
+ int
+ Bungetc(Biobuf *bp)
+ {
+diff --git a/src/libbio/bgetd.c b/src/libbio/bgetd.c
+index cf76a755ad..12d2c5b372 100644
+--- a/src/libbio/bgetd.c
++++ b/src/libbio/bgetd.c
+@@ -39,7 +39,7 @@ Bgetdf(void *vp)
+ 	int c;
+ 	struct bgetd *bg = vp;
+ 
+-	c = Bgetc(bg->b);
++	c = BGETC(bg->b);
+ 	if(c == Beof)
+ 		bg->eof = 1;
+ 	return c;
+diff --git a/src/libbio/bgetrune.c b/src/libbio/bgetrune.c
+index dd59eb38ff..441c079916 100644
+--- a/src/libbio/bgetrune.c
++++ b/src/libbio/bgetrune.c
+@@ -35,7 +35,7 @@ Bgetrune(Biobuf *bp)
+ 	Rune rune;
+ 	char str[UTFmax];
+ 
+-	c = Bgetc(bp);
++	c = BGETC(bp);
+ 	if(c < Runeself) {		/* one char */
+ 		bp->runesize = 1;
+ 		return c;
+@@ -43,7 +43,7 @@ Bgetrune(Biobuf *bp)
+ 	str[0] = (char)c;
+ 
+ 	for(i=1;;) {
+-		c = Bgetc(bp);
++		c = BGETC(bp);
+ 		if(c < 0)
+ 			return c;
+ 		str[i++] = (char)c;
+diff --git a/src/libbio/bputc.c b/src/libbio/bputc.c
+index ec98144a47..07b4789b70 100644
+--- a/src/libbio/bputc.c
++++ b/src/libbio/bputc.c
+@@ -44,3 +44,17 @@ Bputc(Biobuf *bp, int c)
+ 	}
+ 	return Beof;
+ }
++
++int
++Bputle2(Biobuf *bp, int c)
++{
++	Bputc(bp, c);
++	return Bputc(bp, c>>8);
++}
++
++int
++Bputle4(Biobuf *bp, int c)
++{
++	Bputle2(bp, c);
++	return Bputle2(bp, c>>16);
++}
+diff --git a/src/libbio/bputrune.c b/src/libbio/bputrune.c
+index 34f4fffdd8..7fe0e6569f 100644
+--- a/src/libbio/bputrune.c
++++ b/src/libbio/bputrune.c
+@@ -37,7 +37,7 @@ Bputrune(Biobuf *bp, long c)
+ 
+ 	rune = (Rune)c;
+ 	if(rune < Runeself) {
+-		Bputc(bp, (int)rune);
++		BPUTC(bp, (int)rune);
+ 		return 1;
+ 	}
+ 	n = runetochar(str, &rune);
+diff --git a/src/libmach/5obj.c b/src/libmach/5obj.c
+index 57573b8663..c2a7931e1a 100644
+--- a/src/libmach/5obj.c
++++ b/src/libmach/5obj.c
+@@ -63,7 +63,7 @@ _read5(Biobuf *bp, Prog *p)
+ 	int as, n;
+ 	Addr a;
+ 
+-	as = Bgetc(bp);			/* as */
++	as = BGETC(bp);			/* as */
+ 	if(as < 0)
+ 		return 0;
+ 	p->kind = aNone;
+@@ -74,11 +74,11 @@ _read5(Biobuf *bp, Prog *p)
+ 			p->sig = leswal(p->sig);
+ 		}
+ 		p->kind = aName;
+-		p->type = type2char(Bgetc(bp));		/* type */
+-		p->sym = Bgetc(bp);			/* sym */
++		p->type = type2char(BGETC(bp));		/* type */
++		p->sym = BGETC(bp);			/* sym */
+ 		n = 0;
+ 		for(;;) {
+-			as = Bgetc(bp);
++			as = BGETC(bp);
+ 			if(as < 0)
+ 				return 0;
+ 			n++;
+@@ -112,11 +112,11 @@ addr(Biobuf *bp)
+ 	Addr a;
+ 	long off;
+ 
+-	a.type = Bgetc(bp);	/* a.type */
++	a.type = BGETC(bp);	/* a.type */
+ 	skip(bp,1);		/* reg */
+-	a.sym = Bgetc(bp);	/* sym index */
+-	a.name = Bgetc(bp);	/* sym type */
+-	a.gotype = Bgetc(bp);	/* go type */
++	a.sym = BGETC(bp);	/* sym index */
++	a.name = BGETC(bp);	/* sym type */
++	a.gotype = BGETC(bp);	/* go type */
+ 	switch(a.type){
+ 	default:
+ 	case D_NONE:
+@@ -127,21 +127,15 @@ addr(Biobuf *bp)
+ 		break;
+ 	case D_REGREG:
+ 	case D_REGREG2:
+-		Bgetc(bp);
++		BGETC(bp);
+ 		break;
+ 	case D_CONST2:
+-		Bgetc(bp);
+-		Bgetc(bp);
+-		Bgetc(bp);
+-		Bgetc(bp);	// fall through
++		BGETLE4(bp);	// fall through
+ 	case D_OREG:
+ 	case D_CONST:
+ 	case D_BRANCH:
+ 	case D_SHIFT:
+-		off = Bgetc(bp);
+-		off |= Bgetc(bp) << 8;
+-		off |= Bgetc(bp) << 16;
+-		off |= Bgetc(bp) << 24;
++		off = BGETLE4(bp);
+ 		if(off < 0)
+ 			off = -off;
+ 		if(a.sym && (a.name==D_PARAM || a.name==D_AUTO))
+@@ -173,5 +167,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		Bgetc(bp);
++		BGETC(bp);
+ }
+diff --git a/src/libmach/6obj.c b/src/libmach/6obj.c
+index bade9479c7..9971ccfcad 100644
+--- a/src/libmach/6obj.c
++++ b/src/libmach/6obj.c
+@@ -65,10 +65,10 @@ _read6(Biobuf *bp, Prog* p)
+ 	int as, n, c;
+ 	Addr a;
+ 
+-	as = Bgetc(bp);		/* as(low) */
++	as = BGETC(bp);		/* as(low) */
+ 	if(as < 0)
+ 		return 0;
+-	c = Bgetc(bp);		/* as(high) */
++	c = BGETC(bp);		/* as(high) */
+ 	if(c < 0)
+ 		return 0;
+ 	as |= ((c & 0xff) << 8);
+@@ -80,11 +80,11 @@ _read6(Biobuf *bp, Prog* p)
+ 			p->sig = leswal(p->sig);
+ 		}
+ 		p->kind = aName;
+-		p->type = type2char(Bgetc(bp));		/* type */
+-		p->sym = Bgetc(bp);			/* sym */
++		p->type = type2char(BGETC(bp));		/* type */
++		p->sym = BGETC(bp);			/* sym */
+ 		n = 0;
+ 		for(;;) {
+-			as = Bgetc(bp);
++			as = BGETC(bp);
+ 			if(as < 0)
+ 				return 0;
+ 			n++;
+@@ -122,40 +122,34 @@ addr(Biobuf *bp)
+ 
+ 	off = 0;
+ 	a.sym = -1;
+-	a.flags = Bgetc(bp);			/* flags */
++	a.flags = BGETC(bp);			/* flags */
+ 	a.gotype = 0;
+ 	if(a.flags & T_INDEX)
+ 		skip(bp, 2);
+ 	if(a.flags & T_OFFSET){
+-		l = Bgetc(bp);
+-		l |= Bgetc(bp) << 8;
+-		l |= Bgetc(bp) << 16;
+-		l |= Bgetc(bp) << 24;
++		l = BGETLE4(bp);
+ 		off = l;
+ 		if(a.flags & T_64){
+-			l = Bgetc(bp);
+-			l |= Bgetc(bp) << 8;
+-			l |= Bgetc(bp) << 16;
+-			l |= Bgetc(bp) << 24;
++			l = BGETLE4(bp);
+ 			off = ((vlong)l << 32) | (off & 0xFFFFFFFF);
+ 		}
+ 		if(off < 0)
+ 			off = -off;
+ 	}
+ 	if(a.flags & T_SYM)
+-		a.sym = Bgetc(bp);
++		a.sym = BGETC(bp);
+ 	if(a.flags & T_FCONST)
+ 		skip(bp, 8);
+ 	else
+ 	if(a.flags & T_SCONST)
+ 		skip(bp, NSNAME);
+ 	if(a.flags & T_TYPE) {
+-		t = Bgetc(bp);
++		t = BGETC(bp);
+ 		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
+ 			_offset(a.sym, off);
+ 	}
+ 	if(a.flags & T_GOTYPE)
+-		a.gotype = Bgetc(bp);
++		a.gotype = BGETC(bp);
+ 	return a;
+ }
+ 
+@@ -175,5 +169,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		Bgetc(bp);
++		BGETC(bp);
+ }
+diff --git a/src/libmach/8obj.c b/src/libmach/8obj.c
+index 9933dc0a53..efa61252e1 100644
+--- a/src/libmach/8obj.c
++++ b/src/libmach/8obj.c
+@@ -65,10 +65,10 @@ _read8(Biobuf *bp, Prog* p)
+ 	int as, n, c;
+ 	Addr a;
+ 
+-	as = Bgetc(bp);		/* as(low) */
++	as = BGETC(bp);		/* as(low) */
+ 	if(as < 0)
+ 		return 0;
+-	c = Bgetc(bp);		/* as(high) */
++	c = BGETC(bp);		/* as(high) */
+ 	if(c < 0)
+ 		return 0;
+ 	as |= ((c & 0xff) << 8);
+@@ -80,11 +80,11 @@ _read8(Biobuf *bp, Prog* p)
+ 			p->sig = leswal(p->sig);
+ 		}
+ 		p->kind = aName;
+-		p->type = type2char(Bgetc(bp));		/* type */
+-		p->sym = Bgetc(bp);			/* sym */
++		p->type = type2char(BGETC(bp));		/* type */
++		p->sym = BGETC(bp);			/* sym */
+ 		n = 0;
+ 		for(;;) {
+-			as = Bgetc(bp);
++			as = BGETC(bp);
+ 			if(as < 0)
+ 				return 0;
+ 			n++;
+@@ -122,37 +122,31 @@ addr(Biobuf *bp)
+ 	off = 0;
+ 	a.gotype = 0;
+ 	a.sym = -1;
+-	a.flags = Bgetc(bp);			/* flags */
++	a.flags = BGETC(bp);			/* flags */
+ 	if(a.flags & T_INDEX)
+ 		skip(bp, 2);
+ 	if(a.flags & T_OFFSET){
+-		off = Bgetc(bp);
+-		off |= Bgetc(bp) << 8;
+-		off |= Bgetc(bp) << 16;
+-		off |= Bgetc(bp) << 24;
++		off = BGETLE4(bp);
+ 		if(off < 0)
+ 			off = -off;
+ 	}
+ 	if(a.flags & T_OFFSET2){
+-		Bgetc(bp);
+-		Bgetc(bp);
+-		Bgetc(bp);
+-		Bgetc(bp);
++		BGETLE4(bp);
+ 	}
+ 	if(a.flags & T_SYM)
+-		a.sym = Bgetc(bp);
++		a.sym = BGETC(bp);
+ 	if(a.flags & T_FCONST)
+ 		skip(bp, 8);
+ 	else
+ 	if(a.flags & T_SCONST)
+ 		skip(bp, NSNAME);
+ 	if(a.flags & T_TYPE) {
+-		t = Bgetc(bp);
++		t = BGETC(bp);
+ 		if(a.sym > 0 && (t==D_PARAM || t==D_AUTO))
+ 			_offset(a.sym, off);
+ 	}
+ 	if(a.flags & T_GOTYPE)
+-		a.gotype = Bgetc(bp);
++		a.gotype = BGETC(bp);
+ 	return a;
+ }
+ 
+@@ -172,5 +166,5 @@ static void
+ skip(Biobuf *bp, int n)
+ {
+ 	while (n-- > 0)
+-		Bgetc(bp);
++		BGETC(bp);
+ }
+diff --git a/src/libmach/obj.c b/src/libmach/obj.c
+index 2a5e047583..0e1421d859 100644
+--- a/src/libmach/obj.c
++++ b/src/libmach/obj.c
+@@ -132,16 +132,16 @@ objtype(Biobuf *bp, char **name)
+ 	 * Found one.  Skip until "\n!\n"
+ 	 */
+ 	for(;;) {
+-		if((c = Bgetc(bp)) == Beof)
++		if((c = BGETC(bp)) == Beof)
+ 			return -1;
+ 		if(c != '\n')
+ 			continue;
+-		c = Bgetc(bp);
++		c = BGETC(bp);
+ 		if(c != '!'){
+ 			Bungetc(bp);
+ 			continue;
+ 		}
+-		c = Bgetc(bp);
++		c = BGETC(bp);
+ 		if(c != '\n'){
+ 			Bungetc(bp);
+ 			continue;
+diff --git a/src/libmach/sym.c b/src/libmach/sym.c
+index b9732012f2..474cc0c62c 100644
+--- a/src/libmach/sym.c
++++ b/src/libmach/sym.c
+@@ -371,13 +371,13 @@ decodename(Biobuf *bp, Sym *p)
+ 	p->type &= ~0x80;
+ 	if(p->type == 'z' || p->type == 'Z') {
+ 		o = Bseek(bp, 0, 1);
+-		if(Bgetc(bp) < 0) {
++		if(BGETC(bp) < 0) {
+ 			werrstr("can't read symbol name");
+ 			return -1;
+ 		}
+ 		for(;;) {
+-			c1 = Bgetc(bp);
+-			c2 = Bgetc(bp);
++			c1 = BGETC(bp);
++			c2 = BGETC(bp);
+ 			if(c1 < 0 || c2 < 0) {
+ 				werrstr("can't read symbol name");
+ 				return -1;

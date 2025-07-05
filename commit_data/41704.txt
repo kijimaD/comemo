@@ -44,7 +44,7 @@ Date:   Wed Oct 16 21:42:18 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go | 1 +
  src/cmd/go/alldocs.go               | 4 ++--
  src/cmd/go/internal/work/build.go   | 4 ++--
@@ -52,3 +52,83 @@ Date:   Wed Oct 16 21:42:18 2019 -0400
  src/cmd/internal/obj/link.go        | 1 +
  src/cmd/internal/obj/sym.go         | 2 +-
  6 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c21d939b4c..121342e80d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -251,6 +251,7 @@ func Main(archInit func(*Arch)) {
+ 	if supportsDynlink(thearch.LinkArch.Arch) {
+ 		flag.BoolVar(&flag_shared, "shared", false, "generate code that can be linked into a shared library")
+ 		flag.BoolVar(&flag_dynlink, "dynlink", false, "support references to Go symbols defined in other shared libraries")
++		flag.BoolVar(&Ctxt.Flag_linkshared, "linkshared", false, "generate code that will be linked against Go shared libraries")
+ 	}
+ 	flag.StringVar(&cpuprofile, "cpuprofile", "", "write cpu profile to `file`")
+ 	flag.StringVar(&memprofile, "memprofile", "", "write memory profile to `file`")
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2561f5b2f8..4774ee8201 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -145,8 +145,8 @@
+ // 	-ldflags '[pattern=]arg list'
+ // 		arguments to pass on each go tool link invocation.
+ // 	-linkshared
+-// 		link against shared libraries previously created with
+-// 		-buildmode=shared.
++// 		build code that will be linked against shared libraries previously
++// 		created with -buildmode=shared.
+ // 	-mod mode
+ // 		module download mode to use: readonly or vendor.
+ // 		See 'go help modules' for more.
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 54b049b68f..6264593c34 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -97,8 +97,8 @@ and test commands:
+ 	-ldflags '[pattern=]arg list'
+ 		arguments to pass on each go tool link invocation.
+ 	-linkshared
+-		link against shared libraries previously created with
+-		-buildmode=shared.
++		build code that will be linked against shared libraries previously
++		created with -buildmode=shared.
+ 	-mod mode
+ 		module download mode to use: readonly or vendor.
+ 		See 'go help modules' for more.
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index f3055b6293..f4ae0e11c1 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -224,6 +224,7 @@ func buildModeInit() {
+ 				base.Fatalf("-linkshared not supported on %s\n", platform)
+ 			}
+ 			codegenArg = "-dynlink"
++			forcedGcflags = append(forcedGcflags, "-linkshared")
+ 			// TODO(mwhudson): remove -w when that gets fixed in linker.
+ 			forcedLdflags = append(forcedLdflags, "-linkshared", "-w")
+ 		}
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 2c106bab30..2e94d55225 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -648,6 +648,7 @@ type Link struct {
+ 	Debugpcln          string
+ 	Flag_shared        bool
+ 	Flag_dynlink       bool
++	Flag_linkshared    bool
+ 	Flag_optimize      bool
+ 	Flag_locationlists bool
+ 	Flag_newobj        bool // use new object file format
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index de415695f3..4c116d28f2 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -184,7 +184,7 @@ func (ctxt *Link) NumberSyms(asm bool) {
+ 
+ 	var idx, nonpkgidx int32 = 0, 0
+ 	ctxt.traverseSyms(traverseDefs, func(s *LSym) {
+-		if asm || s.Pkg == "_" || s.DuplicateOK() {
++		if asm || s.Pkg == "_" || s.DuplicateOK() || ctxt.Flag_linkshared {
+ 			s.PkgIdx = goobj2.PkgIdxNone
+ 			s.SymIdx = nonpkgidx
+ 			if nonpkgidx != int32(len(ctxt.nonpkgdefs)) {

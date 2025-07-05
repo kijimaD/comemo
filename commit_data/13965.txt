@@ -11,7 +11,44 @@ Date:   Wed Sep 26 14:39:31 2012 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6559043
-
+---
  doc/contribute.html     |  2 +-
  doc/install-source.html | 12 ++++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 6c0d78549b..7a80fca012 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -7,7 +7,7 @@
+ <p>
+ This document explains how to contribute changes to the Go project.
+ It assumes you have installed Go using the
+-<a href="/doc/install">installation instructions</a> and
++<a href="/doc/install/source">installation instructions</a> and
+ have <a href="code.html">written and tested your code</a>.
+ (Note that the <code>gccgo</code> frontend lives elsewhere;
+ see <a href="gccgo_contribute.html">Contributing to gccgo</a>.)
+diff --git a/doc/install-source.html b/doc/install-source.html
+index d9f9577a67..d356cdfc0a 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -150,6 +150,18 @@ Then check out the repository:</p>
+ $ hg clone -u release https://code.google.com/p/go
+ </pre>
+ 
++<h2 id="head">(Optional) Switch to the default branch</h2>
++
++<p>If you intend to modify the go source code, and
++<a href="/doc/contribute.html">contribute your changes</a>
++to the project, then move your repository
++off the release branch, and onto the default (development) branch.
++Otherwise, skip this step.</p>
++
++<pre>
++$ hg update default
++</pre>
++
+ <h2 id="install">Install Go</h2>
+ 
+ <p>

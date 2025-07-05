@@ -56,7 +56,7 @@ Date:   Mon Dec 9 21:50:16 2019 -0800
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  misc/cgo/test/cgo_linux_test.go        |   1 +
  misc/cgo/test/issue1435.go             | 152 ++++++++++++++++++++
  src/runtime/cgo/linux.go               |  74 ++++++++++
@@ -90,3 +90,2345 @@ Date:   Mon Dec 9 21:50:16 2019 -0800
  src/syscall/zsyscall_linux_riscv64.go  |  50 -------
  src/syscall/zsyscall_linux_s390x.go    |  50 -------
  32 files changed, 1020 insertions(+), 660 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 7b56e11a27..a9746b552e 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -15,5 +15,6 @@ func TestSetgid(t *testing.T) {
+ 	}
+ 	testSetgid(t)
+ }
++func Test1435(t *testing.T)    { test1435(t) }
+ func Test6997(t *testing.T)    { test6997(t) }
+ func TestBuildID(t *testing.T) { testBuildID(t) }
+diff --git a/misc/cgo/test/issue1435.go b/misc/cgo/test/issue1435.go
+new file mode 100644
+index 0000000000..155d33baff
+--- /dev/null
++++ b/misc/cgo/test/issue1435.go
+@@ -0,0 +1,152 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,cgo
++
++package cgotest
++
++import (
++	"fmt"
++	"io/ioutil"
++	"strings"
++	"syscall"
++	"testing"
++)
++
++// #include <stdio.h>
++// #include <stdlib.h>
++// #include <pthread.h>
++// #include <unistd.h>
++// #include <sys/types.h>
++//
++// pthread_t *t = NULL;
++// pthread_mutex_t mu;
++// int nts = 0;
++// int all_done = 0;
++//
++// static void *aFn(void *vargp) {
++//   int done = 0;
++//   while (!done) {
++//     usleep(100);
++//     pthread_mutex_lock(&mu);
++//     done = all_done;
++//     pthread_mutex_unlock(&mu);
++//   }
++//   return NULL;
++// }
++//
++// void trial(int argc) {
++//   int i;
++//   nts = argc;
++//   t = calloc(nts, sizeof(pthread_t));
++//   pthread_mutex_init(&mu, NULL);
++//   for (i = 0; i < nts; i++) {
++//     pthread_create(&t[i], NULL, aFn, NULL);
++//   }
++// }
++//
++// void cleanup(void) {
++//   int i;
++//   pthread_mutex_lock(&mu);
++//   all_done = 1;
++//   pthread_mutex_unlock(&mu);
++//   for (i = 0; i < nts; i++) {
++//     pthread_join(t[i], NULL);
++//   }
++//   pthread_mutex_destroy(&mu);
++//   free(t);
++// }
++import "C"
++
++// compareStatus is used to confirm the contents of the thread
++// specific status files match expectations.
++func compareStatus(filter, expect string) error {
++	expected := filter + "\t" + expect
++	pid := syscall.Getpid()
++	fs, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
++	if err != nil {
++		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
++	}
++	for _, f := range fs {
++		tf := fmt.Sprintf("/proc/%s/status", f.Name())
++		d, err := ioutil.ReadFile(tf)
++		if err != nil {
++			return fmt.Errorf("unable to read %q: %v", tf, err)
++		}
++		lines := strings.Split(string(d), "\n")
++		for _, line := range lines {
++			if strings.HasPrefix(line, filter) {
++				if line != expected {
++					return fmt.Errorf("%s %s (bad)\n", tf, line)
++				}
++				break
++			}
++		}
++	}
++	return nil
++}
++
++// test1435 test 9 glibc implemented setuid/gid syscall functions are
++// mapped.  This test is a slightly more expansive test than that of
++// src/syscall/syscall_linux_test.go:TestSetuidEtc() insofar as it
++// launches concurrent threads from C code via CGo and validates that
++// they are subject to the system calls being tested. For the actual
++// Go functionality being tested here, the syscall_linux_test version
++// is considered authoritative, but non-trivial improvements to that
++// should be mirrored here.
++func test1435(t *testing.T) {
++	if syscall.Getuid() != 0 {
++		t.Skip("skipping root only test")
++	}
++
++	// Launch some threads in C.
++	const cts = 5
++	C.trial(cts)
++	defer C.cleanup()
++
++	vs := []struct {
++		call           string
++		fn             func() error
++		filter, expect string
++	}{
++		{call: "Setegid(1)", fn: func() error { return syscall.Setegid(1) }, filter: "Gid:", expect: "0\t1\t0\t1"},
++		{call: "Setegid(0)", fn: func() error { return syscall.Setegid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Seteuid(1)", fn: func() error { return syscall.Seteuid(1) }, filter: "Uid:", expect: "0\t1\t0\t1"},
++		{call: "Setuid(0)", fn: func() error { return syscall.Setuid(0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setgid(1)", fn: func() error { return syscall.Setgid(1) }, filter: "Gid:", expect: "1\t1\t1\t1"},
++		{call: "Setgid(0)", fn: func() error { return syscall.Setgid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setgroups([]int{0,1,2,3})", fn: func() error { return syscall.Setgroups([]int{0, 1, 2, 3}) }, filter: "Groups:", expect: "0 1 2 3 "},
++		{call: "Setgroups(nil)", fn: func() error { return syscall.Setgroups(nil) }, filter: "Groups:", expect: " "},
++		{call: "Setgroups([]int{0})", fn: func() error { return syscall.Setgroups([]int{0}) }, filter: "Groups:", expect: "0 "},
++
++		{call: "Setregid(101,0)", fn: func() error { return syscall.Setregid(101, 0) }, filter: "Gid:", expect: "101\t0\t0\t0"},
++		{call: "Setregid(0,102)", fn: func() error { return syscall.Setregid(0, 102) }, filter: "Gid:", expect: "0\t102\t102\t102"},
++		{call: "Setregid(0,0)", fn: func() error { return syscall.Setregid(0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setreuid(1,0)", fn: func() error { return syscall.Setreuid(1, 0) }, filter: "Uid:", expect: "1\t0\t0\t0"},
++		{call: "Setreuid(0,2)", fn: func() error { return syscall.Setreuid(0, 2) }, filter: "Uid:", expect: "0\t2\t2\t2"},
++		{call: "Setreuid(0,0)", fn: func() error { return syscall.Setreuid(0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setresgid(101,0,102)", fn: func() error { return syscall.Setresgid(101, 0, 102) }, filter: "Gid:", expect: "101\t0\t102\t0"},
++		{call: "Setresgid(0,102,101)", fn: func() error { return syscall.Setresgid(0, 102, 101) }, filter: "Gid:", expect: "0\t102\t101\t102"},
++		{call: "Setresgid(0,0,0)", fn: func() error { return syscall.Setresgid(0, 0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setresuid(1,0,2)", fn: func() error { return syscall.Setresuid(1, 0, 2) }, filter: "Uid:", expect: "1\t0\t2\t0"},
++		{call: "Setresuid(0,2,1)", fn: func() error { return syscall.Setresuid(0, 2, 1) }, filter: "Uid:", expect: "0\t2\t1\t2"},
++		{call: "Setresuid(0,0,0)", fn: func() error { return syscall.Setresuid(0, 0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++	}
++
++	for i, v := range vs {
++		if err := v.fn(); err != nil {
++			t.Errorf("[%d] %q failed: %v", i, v.call, err)
++			continue
++		}
++		if err := compareStatus(v.filter, v.expect); err != nil {
++			t.Errorf("[%d] %q comparison: %v", i, v.call, err)
++		}
++	}
++}
+diff --git a/src/runtime/cgo/linux.go b/src/runtime/cgo/linux.go
+new file mode 100644
+index 0000000000..76c0192c20
+--- /dev/null
++++ b/src/runtime/cgo/linux.go
+@@ -0,0 +1,74 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linux system call wrappers that provide POSIX semantics through the
++// corresponding cgo->libc (nptl) wrappers for various system calls.
++
++// +build linux
++
++package cgo
++
++import "unsafe"
++
++// Each of the following entries is needed to ensure that the
++// syscall.syscall_linux code can conditionally call these
++// function pointers:
++//
++//  1. find the C-defined function start
++//  2. force the local byte alias to be mapped to that location
++//  3. map the Go pointer to the function to the syscall package
++
++//go:cgo_import_static _cgo_libc_setegid
++//go:linkname _cgo_libc_setegid _cgo_libc_setegid
++//go:linkname cgo_libc_setegid syscall.cgo_libc_setegid
++var _cgo_libc_setegid byte
++var cgo_libc_setegid = unsafe.Pointer(&_cgo_libc_setegid)
++
++//go:cgo_import_static _cgo_libc_seteuid
++//go:linkname _cgo_libc_seteuid _cgo_libc_seteuid
++//go:linkname cgo_libc_seteuid syscall.cgo_libc_seteuid
++var _cgo_libc_seteuid byte
++var cgo_libc_seteuid = unsafe.Pointer(&_cgo_libc_seteuid)
++
++//go:cgo_import_static _cgo_libc_setregid
++//go:linkname _cgo_libc_setregid _cgo_libc_setregid
++//go:linkname cgo_libc_setregid syscall.cgo_libc_setregid
++var _cgo_libc_setregid byte
++var cgo_libc_setregid = unsafe.Pointer(&_cgo_libc_setregid)
++
++//go:cgo_import_static _cgo_libc_setresgid
++//go:linkname _cgo_libc_setresgid _cgo_libc_setresgid
++//go:linkname cgo_libc_setresgid syscall.cgo_libc_setresgid
++var _cgo_libc_setresgid byte
++var cgo_libc_setresgid = unsafe.Pointer(&_cgo_libc_setresgid)
++
++//go:cgo_import_static _cgo_libc_setresuid
++//go:linkname _cgo_libc_setresuid _cgo_libc_setresuid
++//go:linkname cgo_libc_setresuid syscall.cgo_libc_setresuid
++var _cgo_libc_setresuid byte
++var cgo_libc_setresuid = unsafe.Pointer(&_cgo_libc_setresuid)
++
++//go:cgo_import_static _cgo_libc_setreuid
++//go:linkname _cgo_libc_setreuid _cgo_libc_setreuid
++//go:linkname cgo_libc_setreuid syscall.cgo_libc_setreuid
++var _cgo_libc_setreuid byte
++var cgo_libc_setreuid = unsafe.Pointer(&_cgo_libc_setreuid)
++
++//go:cgo_import_static _cgo_libc_setgroups
++//go:linkname _cgo_libc_setgroups _cgo_libc_setgroups
++//go:linkname cgo_libc_setgroups syscall.cgo_libc_setgroups
++var _cgo_libc_setgroups byte
++var cgo_libc_setgroups = unsafe.Pointer(&_cgo_libc_setgroups)
++
++//go:cgo_import_static _cgo_libc_setgid
++//go:linkname _cgo_libc_setgid _cgo_libc_setgid
++//go:linkname cgo_libc_setgid syscall.cgo_libc_setgid
++var _cgo_libc_setgid byte
++var cgo_libc_setgid = unsafe.Pointer(&_cgo_libc_setgid)
++
++//go:cgo_import_static _cgo_libc_setuid
++//go:linkname _cgo_libc_setuid _cgo_libc_setuid
++//go:linkname cgo_libc_setuid syscall.cgo_libc_setuid
++var _cgo_libc_setuid byte
++var cgo_libc_setuid = unsafe.Pointer(&_cgo_libc_setuid)
+diff --git a/src/runtime/cgo/linux_syscall.c b/src/runtime/cgo/linux_syscall.c
+new file mode 100644
+index 0000000000..c8e91918a1
+--- /dev/null
++++ b/src/runtime/cgo/linux_syscall.c
+@@ -0,0 +1,85 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++#ifndef _GNU_SOURCE // setres[ug]id() API.
++#define _GNU_SOURCE
++#endif
++
++#include <grp.h>
++#include <sys/types.h>
++#include <sys/unistd.h>
++#include <errno.h>
++#include "libcgo.h"
++
++/*
++ * Assumed POSIX compliant libc system call wrappers. For linux, the
++ * glibc/nptl/setxid mechanism ensures that POSIX semantics are
++ * honored for all pthreads (by default), and this in turn with cgo
++ * ensures that all Go threads launched with cgo are kept in sync for
++ * these function calls.
++ */
++
++// argset_t matches runtime/cgocall.go:argset.
++typedef struct {
++	uintptr_t* args;
++	uintptr_t retval;
++} argset_t;
++
++// libc backed posix-compliant syscalls.
++
++#define SET_RETVAL(fn) \
++  uintptr_t ret = (uintptr_t) fn ; \
++  if (ret == -1) {                 \
++    x->retval = (uintptr_t) errno; \
++  } else                           \
++    x->retval = ret
++
++void
++_cgo_libc_setegid(argset_t* x) {
++	SET_RETVAL(setegid((gid_t) x->args[0]));
++}
++
++void
++_cgo_libc_seteuid(argset_t* x) {
++	SET_RETVAL(seteuid((uid_t) x->args[0]));
++}
++
++void
++_cgo_libc_setgid(argset_t* x) {
++	SET_RETVAL(setgid((gid_t) x->args[0]));
++}
++
++void
++_cgo_libc_setgroups(argset_t* x) {
++	SET_RETVAL(setgroups((size_t) x->args[0], (const gid_t *) x->args[1]));
++}
++
++void
++_cgo_libc_setregid(argset_t* x) {
++	SET_RETVAL(setregid((gid_t) x->args[0], (gid_t) x->args[1]));
++}
++
++void
++_cgo_libc_setresgid(argset_t* x) {
++	SET_RETVAL(setresgid((gid_t) x->args[0], (gid_t) x->args[1],
++			     (gid_t) x->args[2]));
++}
++
++void
++_cgo_libc_setresuid(argset_t* x) {
++	SET_RETVAL(setresuid((uid_t) x->args[0], (uid_t) x->args[1],
++			     (uid_t) x->args[2]));
++}
++
++void
++_cgo_libc_setreuid(argset_t* x) {
++	SET_RETVAL(setreuid((uid_t) x->args[0], (uid_t) x->args[1]));
++}
++
++void
++_cgo_libc_setuid(argset_t* x) {
++	SET_RETVAL(setuid((uid_t) x->args[0]));
++}
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 0b69ff3233..7ab42a0ed0 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -93,6 +93,22 @@ import (
+ // Length must match arg.Max in x_cgo_callers in runtime/cgo/gcc_traceback.c.
+ type cgoCallers [32]uintptr
+ 
++// argset matches runtime/cgo/linux_syscall.c:argset_t
++type argset struct {
++	args   unsafe.Pointer
++	retval uintptr
++}
++
++// wrapper for syscall package to call cgocall for libc (cgo) calls.
++//go:linkname syscall_cgocaller syscall.cgocaller
++//go:nosplit
++//go:uintptrescapes
++func syscall_cgocaller(fn unsafe.Pointer, args ...uintptr) uintptr {
++	as := argset{args: unsafe.Pointer(&args[0])}
++	cgocall(fn, unsafe.Pointer(&as))
++	return as.retval
++}
++
+ // Call from Go to C.
+ //
+ // This must be nosplit because it's used for syscalls on some
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d088b969c8..aeacb23391 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -137,6 +137,10 @@ func main() {
+ 	mainStarted = true
+ 
+ 	if GOARCH != "wasm" { // no threads on wasm yet, so no sysmon
++		// For runtime_syscall_doAllThreadsSyscall, we
++		// register sysmon is not ready for the world to be
++		// stopped.
++		atomic.Store(&sched.sysmonStarting, 1)
+ 		systemstack(func() {
+ 			newm(sysmon, nil, -1)
+ 		})
+@@ -153,6 +157,7 @@ func main() {
+ 	if g.m != &m0 {
+ 		throw("runtime.main not on m0")
+ 	}
++	m0.doesPark = true
+ 
+ 	// Record when the world started.
+ 	// Must be before doInit for tracing init.
+@@ -1226,6 +1231,21 @@ func mstartm0() {
+ 	initsig(false)
+ }
+ 
++// mPark causes a thread to park itself - temporarily waking for
++// fixups but otherwise waiting to be fully woken. This is the
++// only way that m's should park themselves.
++//go:nosplit
++func mPark() {
++	g := getg()
++	for {
++		notesleep(&g.m.park)
++		noteclear(&g.m.park)
++		if !mDoFixup() {
++			return
++		}
++	}
++}
++
+ // mexit tears down and exits the current thread.
+ //
+ // Don't call this directly to exit the thread, since it must run at
+@@ -1257,7 +1277,7 @@ func mexit(osStack bool) {
+ 		sched.nmfreed++
+ 		checkdead()
+ 		unlock(&sched.lock)
+-		notesleep(&m.park)
++		mPark()
+ 		throw("locked m0 woke up")
+ 	}
+ 
+@@ -1424,6 +1444,127 @@ func forEachP(fn func(*p)) {
+ 	releasem(mp)
+ }
+ 
++// syscall_runtime_doAllThreadsSyscall serializes Go execution and
++// executes a specified fn() call on all m's.
++//
++// The boolean argument to fn() indicates whether the function's
++// return value will be consulted or not. That is, fn(true) should
++// return true if fn() succeeds, and fn(true) should return false if
++// it failed. When fn(false) is called, its return status will be
++// ignored.
++//
++// syscall_runtime_doAllThreadsSyscall first invokes fn(true) on a
++// single, coordinating, m, and only if it returns true does it go on
++// to invoke fn(false) on all of the other m's known to the process.
++//
++//go:linkname syscall_runtime_doAllThreadsSyscall syscall.runtime_doAllThreadsSyscall
++func syscall_runtime_doAllThreadsSyscall(fn func(bool) bool) {
++	if iscgo {
++		panic("doAllThreadsSyscall not supported with cgo enabled")
++	}
++	if fn == nil {
++		return
++	}
++	for atomic.Load(&sched.sysmonStarting) != 0 {
++		osyield()
++	}
++	stopTheWorldGC("doAllThreadsSyscall")
++	if atomic.Load(&newmHandoff.haveTemplateThread) != 0 {
++		// Ensure that there are no in-flight thread
++		// creations: don't want to race with allm.
++		lock(&newmHandoff.lock)
++		for !newmHandoff.waiting {
++			unlock(&newmHandoff.lock)
++			osyield()
++			lock(&newmHandoff.lock)
++		}
++		unlock(&newmHandoff.lock)
++	}
++	if netpollinited() {
++		netpollBreak()
++	}
++	_g_ := getg()
++	if raceenabled {
++		// For m's running without racectx, we loan out the
++		// racectx of this call.
++		lock(&mFixupRace.lock)
++		mFixupRace.ctx = _g_.racectx
++		unlock(&mFixupRace.lock)
++	}
++	if ok := fn(true); ok {
++		tid := _g_.m.procid
++		for mp := allm; mp != nil; mp = mp.alllink {
++			if mp.procid == tid {
++				// This m has already completed fn()
++				// call.
++				continue
++			}
++			// Be wary of mp's without procid values if
++			// they are known not to park. If they are
++			// marked as parking with a zero procid, then
++			// they will be racing with this code to be
++			// allocated a procid and we will annotate
++			// them with the need to execute the fn when
++			// they acquire a procid to run it.
++			if mp.procid == 0 && !mp.doesPark {
++				// Reaching here, we are either
++				// running Windows, or cgo linked
++				// code. Neither of which are
++				// currently supported by this API.
++				throw("unsupported runtime environment")
++			}
++			// stopTheWorldGC() doesn't guarantee stopping
++			// all the threads, so we lock here to avoid
++			// the possibility of racing with mp.
++			lock(&mp.mFixup.lock)
++			mp.mFixup.fn = fn
++			if mp.doesPark {
++				// For non-service threads this will
++				// cause the wakeup to be short lived
++				// (once the mutex is unlocked). The
++				// next real wakeup will occur after
++				// startTheWorldGC() is called.
++				notewakeup(&mp.park)
++			}
++			unlock(&mp.mFixup.lock)
++		}
++		for {
++			done := true
++			for mp := allm; done && mp != nil; mp = mp.alllink {
++				if mp.procid == tid {
++					continue
++				}
++				lock(&mp.mFixup.lock)
++				done = done && (mp.mFixup.fn == nil)
++				unlock(&mp.mFixup.lock)
++			}
++			if done {
++				break
++			}
++			// if needed force sysmon and/or newmHandoff to wakeup.
++			lock(&sched.lock)
++			if atomic.Load(&sched.sysmonwait) != 0 {
++				atomic.Store(&sched.sysmonwait, 0)
++				notewakeup(&sched.sysmonnote)
++			}
++			unlock(&sched.lock)
++			lock(&newmHandoff.lock)
++			if newmHandoff.waiting {
++				newmHandoff.waiting = false
++				notewakeup(&newmHandoff.wake)
++			}
++			unlock(&newmHandoff.lock)
++			osyield()
++		}
++	}
++	if raceenabled {
++		lock(&mFixupRace.lock)
++		mFixupRace.ctx = 0
++		unlock(&mFixupRace.lock)
++	}
++	startTheWorldGC()
++}
++
+ // runSafePointFn runs the safe point function, if any, for this P.
+ // This should be called like
+ //
+@@ -1816,6 +1957,7 @@ var newmHandoff struct {
+ //go:nowritebarrierrec
+ func newm(fn func(), _p_ *p, id int64) {
+ 	mp := allocm(_p_, fn, id)
++	mp.doesPark = (_p_ != nil)
+ 	mp.nextp.set(_p_)
+ 	mp.sigmask = initSigmask
+ 	if gp := getg(); gp != nil && gp.m != nil && (gp.m.lockedExt != 0 || gp.m.incgo) && GOOS != "plan9" {
+@@ -1888,6 +2030,57 @@ func startTemplateThread() {
+ 	releasem(mp)
+ }
+ 
++// mFixupRace is used to temporarily borrow the race context from the
++// coordinating m during a syscall_runtime_doAllThreadsSyscall and
++// loan it out to each of the m's of the runtime so they can execute a
++// mFixup.fn in that context.
++var mFixupRace struct {
++	lock mutex
++	ctx  uintptr
++}
++
++// mDoFixup runs any outstanding fixup function for the running m.
++// Returns true if a fixup was outstanding and actually executed.
++//
++//go:nosplit
++func mDoFixup() bool {
++	_g_ := getg()
++	lock(&_g_.m.mFixup.lock)
++	fn := _g_.m.mFixup.fn
++	if fn != nil {
++		if gcphase != _GCoff {
++			// We can't have a write barrier in this
++			// context since we may not have a P, but we
++			// clear fn to signal that we've executed the
++			// fixup. As long as fn is kept alive
++			// elsewhere, technically we should have no
++			// issues with the GC, but fn is likely
++			// generated in a different package altogether
++			// that may change independently. Just assert
++			// the GC is off so this lack of write barrier
++			// is more obviously safe.
++			throw("GC must be disabled to protect validity of fn value")
++		}
++		*(*uintptr)(unsafe.Pointer(&_g_.m.mFixup.fn)) = 0
++		if _g_.racectx != 0 || !raceenabled {
++			fn(false)
++		} else {
++			// temporarily acquire the context of the
++			// originator of the
++			// syscall_runtime_doAllThreadsSyscall and
++			// block others from using it for the duration
++			// of the fixup call.
++			lock(&mFixupRace.lock)
++			_g_.racectx = mFixupRace.ctx
++			fn(false)
++			_g_.racectx = 0
++			unlock(&mFixupRace.lock)
++		}
++	}
++	unlock(&_g_.m.mFixup.lock)
++	return fn != nil
++}
++
+ // templateThread is a thread in a known-good state that exists solely
+ // to start new threads in known-good states when the calling thread
+ // may not be in a good state.
+@@ -1924,6 +2117,7 @@ func templateThread() {
+ 		noteclear(&newmHandoff.wake)
+ 		unlock(&newmHandoff.lock)
+ 		notesleep(&newmHandoff.wake)
++		mDoFixup()
+ 	}
+ }
+ 
+@@ -1945,8 +2139,7 @@ func stopm() {
+ 	lock(&sched.lock)
+ 	mput(_g_.m)
+ 	unlock(&sched.lock)
+-	notesleep(&_g_.m.park)
+-	noteclear(&_g_.m.park)
++	mPark()
+ 	acquirep(_g_.m.nextp.ptr())
+ 	_g_.m.nextp = 0
+ }
+@@ -2106,8 +2299,7 @@ func stoplockedm() {
+ 	}
+ 	incidlelocked(1)
+ 	// Wait until another thread schedules lockedg again.
+-	notesleep(&_g_.m.park)
+-	noteclear(&_g_.m.park)
++	mPark()
+ 	status := readgstatus(_g_.m.lockedg.ptr())
+ 	if status&^_Gscan != _Grunnable {
+ 		print("runtime:stoplockedm: g is not Grunnable or Gscanrunnable\n")
+@@ -4715,9 +4907,14 @@ func sysmon() {
+ 	checkdead()
+ 	unlock(&sched.lock)
+ 
++	// For syscall_runtime_doAllThreadsSyscall, sysmon is
++	// sufficiently up to participate in fixups.
++	atomic.Store(&sched.sysmonStarting, 0)
++
+ 	lasttrace := int64(0)
+ 	idle := 0 // how many cycles in succession we had not wokeup somebody
+ 	delay := uint32(0)
++
+ 	for {
+ 		if idle == 0 { // start with 20us sleep...
+ 			delay = 20
+@@ -4728,6 +4925,7 @@ func sysmon() {
+ 			delay = 10 * 1000
+ 		}
+ 		usleep(delay)
++		mDoFixup()
+ 		now := nanotime()
+ 		next, _ := timeSleepUntil()
+ 		if debug.schedtrace <= 0 && (sched.gcwaiting != 0 || atomic.Load(&sched.npidle) == uint32(gomaxprocs)) {
+@@ -4747,6 +4945,7 @@ func sysmon() {
+ 						osRelax(true)
+ 					}
+ 					notetsleep(&sched.sysmonnote, sleep)
++					mDoFixup()
+ 					if shouldRelax {
+ 						osRelax(false)
+ 					}
+@@ -4795,6 +4994,7 @@ func sysmon() {
+ 				incidlelocked(1)
+ 			}
+ 		}
++		mDoFixup()
+ 		if next < now {
+ 			// There are timers that should have already run,
+ 			// perhaps because there is an unpreemptible P.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 0758a35e01..21dd7b3949 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -528,6 +528,7 @@ type m struct {
+ 	ncgo          int32       // number of cgo calls currently in progress
+ 	cgoCallersUse uint32      // if non-zero, cgoCallers in use temporarily
+ 	cgoCallers    *cgoCallers // cgo traceback if crashing in cgo call
++	doesPark      bool        // non-P running threads: sysmon and newmHandoff never use .park
+ 	park          note
+ 	alllink       *m // on allm
+ 	schedlink     muintptr
+@@ -544,6 +545,13 @@ type m struct {
+ 	syscalltick   uint32
+ 	freelink      *m // on sched.freem
+ 
++	// mFixup is used to synchronize OS related m state (credentials etc)
++	// use mutex to access.
++	mFixup struct {
++		lock mutex
++		fn   func(bool) bool
++	}
++
+ 	// these are here because they are too large to be on the stack
+ 	// of low-level NOSPLIT functions.
+ 	libcall   libcall
+@@ -768,6 +776,10 @@ type schedt struct {
+ 	sysmonwait uint32
+ 	sysmonnote note
+ 
++	// While true, sysmon not ready for mFixup calls.
++	// Accessed atomically.
++	sysmonStarting uint32
++
+ 	// safepointFn should be called on each P at the next GC
+ 	// safepoint if p.runSafePointFn is set.
+ 	safePointFn   func(*p)
+diff --git a/src/syscall/setuidgid_32_linux.go b/src/syscall/setuidgid_32_linux.go
+index 1fe7120d1c..b0b7f61d22 100644
+--- a/src/syscall/setuidgid_32_linux.go
++++ b/src/syscall/setuidgid_32_linux.go
+@@ -12,4 +12,10 @@ const (
+ 
+ 	sys_SETGID = SYS_SETGID32
+ 	sys_SETUID = SYS_SETUID32
++
++	sys_SETREGID = SYS_SETREGID32
++	sys_SETREUID = SYS_SETREUID32
++
++	sys_SETRESGID = SYS_SETRESGID32
++	sys_SETRESUID = SYS_SETRESUID32
+ )
+diff --git a/src/syscall/setuidgid_linux.go b/src/syscall/setuidgid_linux.go
+index 22fa334bfa..38c83c92f9 100644
+--- a/src/syscall/setuidgid_linux.go
++++ b/src/syscall/setuidgid_linux.go
+@@ -12,4 +12,10 @@ const (
+ 
+ 	sys_SETGID = SYS_SETGID
+ 	sys_SETUID = SYS_SETUID
++
++	sys_SETREGID = SYS_SETREGID
++	sys_SETREUID = SYS_SETREUID
++
++	sys_SETRESGID = SYS_SETRESGID
++	sys_SETRESUID = SYS_SETRESUID
+ )
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 07fe6a6c2b..54e5cfc2f2 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -271,16 +271,37 @@ func Getgroups() (gids []int, err error) {
+ 	return
+ }
+ 
++var cgo_libc_setgroups unsafe.Pointer // non-nil if cgo linked.
++
+ func Setgroups(gids []int) (err error) {
+-	if len(gids) == 0 {
+-		return setgroups(0, nil)
++	n := uintptr(len(gids))
++	if n == 0 {
++		if cgo_libc_setgroups == nil {
++			if _, _, e1 := AllThreadsSyscall(_SYS_setgroups, 0, 0, 0); e1 != 0 {
++				err = errnoErr(e1)
++			}
++			return
++		}
++		if ret := cgocaller(cgo_libc_setgroups, 0, 0); ret != 0 {
++			err = errnoErr(Errno(ret))
++		}
++		return
+ 	}
+ 
+ 	a := make([]_Gid_t, len(gids))
+ 	for i, v := range gids {
+ 		a[i] = _Gid_t(v)
+ 	}
+-	return setgroups(len(a), &a[0])
++	if cgo_libc_setgroups == nil {
++		if _, _, e1 := AllThreadsSyscall(_SYS_setgroups, n, uintptr(unsafe.Pointer(&a[0])), 0); e1 != 0 {
++			err = errnoErr(e1)
++		}
++		return
++	}
++	if ret := cgocaller(cgo_libc_setgroups, n, uintptr(unsafe.Pointer(&a[0]))); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
+ }
+ 
+ type WaitStatus uint32
+@@ -957,17 +978,223 @@ func Getpgrp() (pid int) {
+ //sysnb	Setsid() (pid int, err error)
+ //sysnb	Settimeofday(tv *Timeval) (err error)
+ 
+-// issue 1435.
+-// On linux Setuid and Setgid only affects the current thread, not the process.
+-// This does not match what most callers expect so we must return an error
+-// here rather than letting the caller think that the call succeeded.
++// allThreadsCaller holds the input and output state for performing a
++// allThreadsSyscall that needs to synchronize all OS thread state. Linux
++// generally does not always support this natively, so we have to
++// manipulate the runtime to fix things up.
++type allThreadsCaller struct {
++	// arguments
++	trap, a1, a2, a3, a4, a5, a6 uintptr
++
++	// return values (only set by 0th invocation)
++	r1, r2 uintptr
++
++	// err is the error code
++	err Errno
++}
++
++// doSyscall is a callback for executing a syscall on the current m
++// (OS thread).
++//go:nosplit
++//go:norace
++func (pc *allThreadsCaller) doSyscall(initial bool) bool {
++	r1, r2, err := RawSyscall(pc.trap, pc.a1, pc.a2, pc.a3)
++	if initial {
++		pc.r1 = r1
++		pc.r2 = r2
++		pc.err = err
++	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
++		panic("AllThreadsSyscall results differ between threads; runtime corrupted")
++	}
++	return err == 0
++}
++
++// doSyscall6 is a callback for executing a syscall6 on the current m
++// (OS thread).
++//go:nosplit
++//go:norace
++func (pc *allThreadsCaller) doSyscall6(initial bool) bool {
++	r1, r2, err := RawSyscall6(pc.trap, pc.a1, pc.a2, pc.a3, pc.a4, pc.a5, pc.a6)
++	if initial {
++		pc.r1 = r1
++		pc.r2 = r2
++		pc.err = err
++	} else if pc.r1 != r1 || pc.r2 != r2 || pc.err != err {
++		panic("AllThreadsSyscall6 results differ between threads; runtime corrupted")
++	}
++	return err == 0
++}
++
++// Provided by runtime.syscall_runtime_doAllThreadsSyscall which
++// serializes the world and invokes the fn on each OS thread (what the
++// runtime refers to as m's). Once this function returns, all threads
++// are in sync.
++func runtime_doAllThreadsSyscall(fn func(bool) bool)
++
++// AllThreadsSyscall performs a syscall on each OS thread of the Go
++// runtime. It first invokes the syscall on one thread. Should that
++// invocation fail, it returns immediately with the error status.
++// Otherwise, it invokes the syscall on all of the remaining threads
++// in parallel. It will terminate the program if it observes any
++// invoked syscall's return value differs from that of the first
++// invocation.
++//
++// AllThreadsSyscall is intended for emulating simultaneous
++// process-wide state changes that require consistently modifying
++// per-thread state of the Go runtime.
++//
++// AllThreadsSyscall is unaware of any threads that are launched
++// explicitly by cgo linked code, so the function always returns
++// ENOTSUP in binaries that use cgo.
++//go:uintptrescapes
++func AllThreadsSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	if cgo_libc_setegid != nil {
++		return minus1, minus1, ENOTSUP
++	}
++	pc := &allThreadsCaller{
++		trap: trap,
++		a1:   a1,
++		a2:   a2,
++		a3:   a3,
++	}
++	runtime_doAllThreadsSyscall(pc.doSyscall)
++	r1 = pc.r1
++	r2 = pc.r2
++	err = pc.err
++	return
++}
+ 
+-func Setuid(uid int) (err error) {
+-	return EOPNOTSUPP
++// AllThreadsSyscall6 is like AllThreadsSyscall, but extended to six
++// arguments.
++//go:uintptrescapes
++func AllThreadsSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
++	if cgo_libc_setegid != nil {
++		return minus1, minus1, ENOTSUP
++	}
++	pc := &allThreadsCaller{
++		trap: trap,
++		a1:   a1,
++		a2:   a2,
++		a3:   a3,
++		a4:   a4,
++		a5:   a5,
++		a6:   a6,
++	}
++	runtime_doAllThreadsSyscall(pc.doSyscall6)
++	r1 = pc.r1
++	r2 = pc.r2
++	err = pc.err
++	return
++}
++
++// linked by runtime.cgocall.go
++//go:uintptrescapes
++func cgocaller(unsafe.Pointer, ...uintptr) uintptr
++
++var cgo_libc_setegid unsafe.Pointer // non-nil if cgo linked.
++
++const minus1 = ^uintptr(0)
++
++func Setegid(egid int) (err error) {
++	if cgo_libc_setegid == nil {
++		if _, _, e1 := AllThreadsSyscall(SYS_SETRESGID, minus1, uintptr(egid), minus1); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setegid, uintptr(egid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_seteuid unsafe.Pointer // non-nil if cgo linked.
++
++func Seteuid(euid int) (err error) {
++	if cgo_libc_seteuid == nil {
++		if _, _, e1 := AllThreadsSyscall(SYS_SETRESUID, minus1, uintptr(euid), minus1); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_seteuid, uintptr(euid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
+ }
+ 
++var cgo_libc_setgid unsafe.Pointer // non-nil if cgo linked.
++
+ func Setgid(gid int) (err error) {
+-	return EOPNOTSUPP
++	if cgo_libc_setgid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETGID, uintptr(gid), 0, 0); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setgid, uintptr(gid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_setregid unsafe.Pointer // non-nil if cgo linked.
++
++func Setregid(rgid, egid int) (err error) {
++	if cgo_libc_setregid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETREGID, uintptr(rgid), uintptr(egid), 0); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setregid, uintptr(rgid), uintptr(egid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_setresgid unsafe.Pointer // non-nil if cgo linked.
++
++func Setresgid(rgid, egid, sgid int) (err error) {
++	if cgo_libc_setresgid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid)); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setresgid, uintptr(rgid), uintptr(egid), uintptr(sgid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_setresuid unsafe.Pointer // non-nil if cgo linked.
++
++func Setresuid(ruid, euid, suid int) (err error) {
++	if cgo_libc_setresuid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid)); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setresuid, uintptr(ruid), uintptr(euid), uintptr(suid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_setreuid unsafe.Pointer // non-nil if cgo linked.
++
++func Setreuid(ruid, euid int) (err error) {
++	if cgo_libc_setreuid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETREUID, uintptr(ruid), uintptr(euid), 0); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setreuid, uintptr(ruid), uintptr(euid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
++}
++
++var cgo_libc_setuid unsafe.Pointer // non-nil if cgo linked.
++
++func Setuid(uid int) (err error) {
++	if cgo_libc_setuid == nil {
++		if _, _, e1 := AllThreadsSyscall(sys_SETUID, uintptr(uid), 0, 0); e1 != 0 {
++			err = errnoErr(e1)
++		}
++	} else if ret := cgocaller(cgo_libc_setuid, uintptr(uid)); ret != 0 {
++		err = errnoErr(Errno(ret))
++	}
++	return
+ }
+ 
+ //sys	Setpriority(which int, who int, prio int) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index 54baff5127..dd5f2735d8 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -64,16 +64,11 @@ func Pipe2(p []int, flags int) (err error) {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
+-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ //sys	SyncFileRange(fd int, off int64, n int64, flags int) (err error)
+ //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
+-//sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ 
+ //sys	mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset uintptr) (xaddr uintptr, err error)
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index bf340d9996..5518f44a07 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -30,11 +30,7 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -47,7 +43,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	fstatat(fd int, path string, stat *Stat_t, flags int) (err error) = SYS_NEWFSTATAT
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index c4c403a400..61133a59fb 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -63,7 +63,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error) = SYS_GETGROUPS32
+-//sysnb	setgroups(n int, list *_Gid_t) (err error) = SYS_SETGROUPS32
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+@@ -94,10 +93,6 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+ //sys	Setfsuid(uid int) (err error) = SYS_SETFSUID32
+-//sysnb	Setregid(rgid int, egid int) (err error) = SYS_SETREGID32
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error) = SYS_SETRESGID32
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error) = SYS_SETRESUID32
+-//sysnb	Setreuid(ruid int, euid int) (err error) = SYS_SETREUID32
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 61014b264a..16382102c8 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -35,9 +35,6 @@ func EpollCreate(size int) (fd int, err error) {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+@@ -63,7 +60,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index e3683def67..4986baa319 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -31,11 +31,7 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -47,7 +43,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index cbe2f0233f..5126b0e43c 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -32,11 +32,6 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+-
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error)
+ 
+@@ -48,7 +43,6 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index ba52e5a3ac..bb2d904b5f 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -37,11 +37,7 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+@@ -53,7 +49,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 088e23439f..aa1014f8ae 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -35,11 +35,7 @@ func EpollCreate(size int) (fd int, err error) {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ 
+@@ -67,7 +63,6 @@ func Lstat(path string, stat *Stat_t) (err error) {
+ //sys	bind(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	connect(s int, addr unsafe.Pointer, addrlen _Socklen) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ //sys	getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error)
+ //sys	setsockopt(s int, level int, name int, val unsafe.Pointer, vallen uintptr) (err error)
+ //sysnb	socket(domain int, typ int, proto int) (fd int, err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 80cb1ccc19..dc97d5c65a 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -33,11 +33,7 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	Setregid(rgid int, egid int) (err error)
+-//sysnb	Setresgid(rgid int, egid int, sgid int) (err error)
+-//sysnb	Setresuid(ruid int, euid int, suid int) (err error)
+ //sysnb	Setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -45,7 +41,6 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Truncate(path string, length int64) (err error)
+ //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
+ //sysnb	getgroups(n int, list *_Gid_t) (nn int, err error)
+-//sysnb	setgroups(n int, list *_Gid_t) (err error)
+ 
+ //sys	futimesat(dirfd int, path string, times *[2]Timeval) (err error)
+ //sysnb	Gettimeofday(tv *Timeval) (err error)
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 93a4d236d8..d196534c64 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -399,3 +399,229 @@ func syscallNoError() {
+ 	fmt.Println(uintptr(euid1), "/", int(e), "/", uintptr(euid2))
+ 	os.Exit(0)
+ }
++
++// reference uapi/linux/prctl.h
++const (
++	PR_GET_KEEPCAPS uintptr = 7
++	PR_SET_KEEPCAPS         = 8
++)
++
++// TestAllThreadsSyscall tests that the go runtime can perform
++// syscalls that execute on all OSThreads - with which to support
++// POSIX semantics for security state changes.
++func TestAllThreadsSyscall(t *testing.T) {
++	if _, _, err := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, 0, 0); err == syscall.ENOTSUP {
++		t.Skip("AllThreadsSyscall disabled with cgo")
++	}
++
++	fns := []struct {
++		label string
++		fn    func(uintptr) error
++	}{
++		{
++			label: "prctl<3-args>",
++			fn: func(v uintptr) error {
++				_, _, e := syscall.AllThreadsSyscall(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, v, 0)
++				if e != 0 {
++					return e
++				}
++				return nil
++			},
++		},
++		{
++			label: "prctl<6-args>",
++			fn: func(v uintptr) error {
++				_, _, e := syscall.AllThreadsSyscall6(syscall.SYS_PRCTL, PR_SET_KEEPCAPS, v, 0, 0, 0, 0)
++				if e != 0 {
++					return e
++				}
++				return nil
++			},
++		},
++	}
++
++	waiter := func(q <-chan uintptr, r chan<- uintptr, once bool) {
++		for x := range q {
++			runtime.LockOSThread()
++			v, _, e := syscall.Syscall(syscall.SYS_PRCTL, PR_GET_KEEPCAPS, 0, 0)
++			if e != 0 {
++				t.Errorf("tid=%d prctl(PR_GET_KEEPCAPS) failed: %v", syscall.Gettid(), e)
++			} else if x != v {
++				t.Errorf("tid=%d prctl(PR_GET_KEEPCAPS) mismatch: got=%d want=%d", syscall.Gettid(), v, x)
++			}
++			r <- v
++			if once {
++				break
++			}
++			runtime.UnlockOSThread()
++		}
++	}
++
++	// launches per fns member.
++	const launches = 11
++	question := make(chan uintptr)
++	response := make(chan uintptr)
++	defer close(question)
++
++	routines := 0
++	for i, v := range fns {
++		for j := 0; j < launches; j++ {
++			// Add another goroutine - the closest thing
++			// we can do to encourage more OS thread
++			// creation - while the test is running.  The
++			// actual thread creation may or may not be
++			// needed, based on the number of available
++			// unlocked OS threads at the time waiter
++			// calls runtime.LockOSThread(), but the goal
++			// of doing this every time through the loop
++			// is to race thread creation with v.fn(want)
++			// being executed. Via the once boolean we
++			// also encourage one in 5 waiters to return
++			// locked after participating in only one
++			// question response sequence. This allows the
++			// test to race thread destruction too.
++			once := routines%5 == 4
++			go waiter(question, response, once)
++
++			// Keep a count of how many goroutines are
++			// going to participate in the
++			// question/response test. This will count up
++			// towards 2*launches minus the count of
++			// routines that have been invoked with
++			// once=true.
++			routines++
++
++			// Decide what value we want to set the
++			// process-shared KEEPCAPS. Note, there is
++			// an explicit repeat of 0 when we change the
++			// variant of the syscall being used.
++			want := uintptr(j & 1)
++
++			// Invoke the AllThreadsSyscall* variant.
++			if err := v.fn(want); err != nil {
++				t.Errorf("[%d,%d] %s(PR_SET_KEEPCAPS, %d, ...): %v", i, j, v.label, j&1, err)
++			}
++
++			// At this point, we want all launched Go
++			// routines to confirm that they see the
++			// wanted value for KEEPCAPS.
++			for k := 0; k < routines; k++ {
++				question <- want
++			}
++
++			// At this point, we should have a large
++			// number of locked OS threads all wanting to
++			// reply.
++			for k := 0; k < routines; k++ {
++				if got := <-response; got != want {
++					t.Errorf("[%d,%d,%d] waiter result got=%d, want=%d", i, j, k, got, want)
++				}
++			}
++
++			// Provide an explicit opportunity for this Go
++			// routine to change Ms.
++			runtime.Gosched()
++
++			if once {
++				// One waiter routine will have exited.
++				routines--
++			}
++
++			// Whatever M we are now running on, confirm
++			// we see the wanted value too.
++			if v, _, e := syscall.Syscall(syscall.SYS_PRCTL, PR_GET_KEEPCAPS, 0, 0); e != 0 {
++				t.Errorf("[%d,%d] prctl(PR_GET_KEEPCAPS) failed: %v", i, j, e)
++			} else if v != want {
++				t.Errorf("[%d,%d] prctl(PR_GET_KEEPCAPS) gave wrong value: got=%v, want=1", i, j, v)
++			}
++		}
++	}
++}
++
++// compareStatus is used to confirm the contents of the thread
++// specific status files match expectations.
++func compareStatus(filter, expect string) error {
++	expected := filter + "\t" + expect
++	pid := syscall.Getpid()
++	fs, err := ioutil.ReadDir(fmt.Sprintf("/proc/%d/task", pid))
++	if err != nil {
++		return fmt.Errorf("unable to find %d tasks: %v", pid, err)
++	}
++	for _, f := range fs {
++		tf := fmt.Sprintf("/proc/%s/status", f.Name())
++		d, err := ioutil.ReadFile(tf)
++		if err != nil {
++			return fmt.Errorf("unable to read %q: %v", tf, err)
++		}
++		lines := strings.Split(string(d), "\n")
++		for _, line := range lines {
++			if strings.HasPrefix(line, filter) {
++				if line != expected {
++					return fmt.Errorf("%s %s (bad)\n", tf, line)
++				}
++				break
++			}
++		}
++	}
++	return nil
++}
++
++// TestSetuidEtc performs tests on all of the wrapped system calls
++// that mirror to the 9 glibc syscalls with POSIX semantics. The test
++// here is considered authoritative and should compile and run
++// CGO_ENABLED=0 or 1. Note, there is an extended copy of this same
++// test in ../../misc/cgo/test/issue1435.go which requires
++// CGO_ENABLED=1 and launches pthreads from C that run concurrently
++// with the Go code of the test - and the test validates that these
++// pthreads are also kept in sync with the security state changed with
++// the syscalls. Care should be taken to mirror any enhancements to
++// this test here in that file too.
++func TestSetuidEtc(t *testing.T) {
++	if syscall.Getuid() != 0 {
++		t.Skip("skipping root only test")
++	}
++	vs := []struct {
++		call           string
++		fn             func() error
++		filter, expect string
++	}{
++		{call: "Setegid(1)", fn: func() error { return syscall.Setegid(1) }, filter: "Gid:", expect: "0\t1\t0\t1"},
++		{call: "Setegid(0)", fn: func() error { return syscall.Setegid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Seteuid(1)", fn: func() error { return syscall.Seteuid(1) }, filter: "Uid:", expect: "0\t1\t0\t1"},
++		{call: "Setuid(0)", fn: func() error { return syscall.Setuid(0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setgid(1)", fn: func() error { return syscall.Setgid(1) }, filter: "Gid:", expect: "1\t1\t1\t1"},
++		{call: "Setgid(0)", fn: func() error { return syscall.Setgid(0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setgroups([]int{0,1,2,3})", fn: func() error { return syscall.Setgroups([]int{0, 1, 2, 3}) }, filter: "Groups:", expect: "0 1 2 3 "},
++		{call: "Setgroups(nil)", fn: func() error { return syscall.Setgroups(nil) }, filter: "Groups:", expect: " "},
++		{call: "Setgroups([]int{0})", fn: func() error { return syscall.Setgroups([]int{0}) }, filter: "Groups:", expect: "0 "},
++
++		{call: "Setregid(101,0)", fn: func() error { return syscall.Setregid(101, 0) }, filter: "Gid:", expect: "101\t0\t0\t0"},
++		{call: "Setregid(0,102)", fn: func() error { return syscall.Setregid(0, 102) }, filter: "Gid:", expect: "0\t102\t102\t102"},
++		{call: "Setregid(0,0)", fn: func() error { return syscall.Setregid(0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setreuid(1,0)", fn: func() error { return syscall.Setreuid(1, 0) }, filter: "Uid:", expect: "1\t0\t0\t0"},
++		{call: "Setreuid(0,2)", fn: func() error { return syscall.Setreuid(0, 2) }, filter: "Uid:", expect: "0\t2\t2\t2"},
++		{call: "Setreuid(0,0)", fn: func() error { return syscall.Setreuid(0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setresgid(101,0,102)", fn: func() error { return syscall.Setresgid(101, 0, 102) }, filter: "Gid:", expect: "101\t0\t102\t0"},
++		{call: "Setresgid(0,102,101)", fn: func() error { return syscall.Setresgid(0, 102, 101) }, filter: "Gid:", expect: "0\t102\t101\t102"},
++		{call: "Setresgid(0,0,0)", fn: func() error { return syscall.Setresgid(0, 0, 0) }, filter: "Gid:", expect: "0\t0\t0\t0"},
++
++		{call: "Setresuid(1,0,2)", fn: func() error { return syscall.Setresuid(1, 0, 2) }, filter: "Uid:", expect: "1\t0\t2\t0"},
++		{call: "Setresuid(0,2,1)", fn: func() error { return syscall.Setresuid(0, 2, 1) }, filter: "Uid:", expect: "0\t2\t1\t2"},
++		{call: "Setresuid(0,0,0)", fn: func() error { return syscall.Setresuid(0, 0, 0) }, filter: "Uid:", expect: "0\t0\t0\t0"},
++	}
++
++	for i, v := range vs {
++		if err := v.fn(); err != nil {
++			t.Errorf("[%d] %q failed: %v", i, v.call, err)
++			continue
++		}
++		if err := compareStatus(v.filter, v.expect); err != nil {
++			t.Errorf("[%d] %q comparison: %v", i, v.call, err)
++		}
++	}
++}
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index cdf0bfb86e..5a749ff3f3 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1291,46 +1291,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID32, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID32, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID32, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID32, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags))
+ 	n = int(r0)
+@@ -1388,16 +1348,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) {
+ 	r0, _, e1 := Syscall6(SYS__NEWSELECT, uintptr(nfd), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0)
+ 	n = int(r0)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index a7d55e6894..34b624c1d4 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1308,36 +1308,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1348,16 +1318,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1497,16 +1457,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 1a9a21a4f3..4d133766f7 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1120,16 +1120,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS32, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+@@ -1427,46 +1417,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID32, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID32, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID32, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID32, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index f20f05e8d5..e7f7b7e3f8 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1282,36 +1282,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1322,16 +1292,6 @@ func setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1446,16 +1406,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 7945b55642..a8522dc571 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1266,46 +1266,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1415,16 +1375,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index c0aad6439f..1219fcc6cb 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1297,36 +1297,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1337,16 +1307,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1471,16 +1431,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 271684137d..c3737bf3cf 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1297,36 +1297,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1337,16 +1307,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1471,16 +1431,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index f0ee48f9be..5006f4a409 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1266,46 +1266,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1415,16 +1375,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index 7bdf981dcd..323be988be 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1370,36 +1370,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1410,16 +1380,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1549,16 +1509,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index c45eebf4ad..99aea6b559 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1370,36 +1370,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1410,16 +1380,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1549,16 +1509,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index 7bdb8046d1..afa8945944 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -1282,36 +1282,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1322,16 +1292,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+@@ -1446,16 +1406,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func getsockopt(s int, level int, name int, val unsafe.Pointer, vallen *_Socklen) (err error) {
+ 	_, _, e1 := Syscall6(SYS_GETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(unsafe.Pointer(vallen)), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 9ada8dc534..5717206f28 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -1340,36 +1340,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setregid(rgid int, egid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREGID, uintptr(rgid), uintptr(egid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresgid(rgid int, egid int, sgid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESGID, uintptr(rgid), uintptr(egid), uintptr(sgid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func Setresuid(ruid int, euid int, suid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRESUID, uintptr(ruid), uintptr(euid), uintptr(suid))
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+ 	if e1 != 0 {
+@@ -1380,16 +1350,6 @@ func Setrlimit(resource int, rlim *Rlimit) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Setreuid(ruid int, euid int) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETREUID, uintptr(ruid), uintptr(euid), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags))
+ 	n = int64(r0)
+@@ -1477,16 +1437,6 @@ func getgroups(n int, list *_Gid_t) (nn int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setgroups(n int, list *_Gid_t) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETGROUPS, uintptr(n), uintptr(unsafe.Pointer(list)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)

@@ -7,6 +7,20 @@ Date:   Mon Oct 11 13:13:57 2010 -0400
     R=Sam
     CC=golang-dev
     https://golang.org/cl/2437041
-
+---
  CONTRIBUTORS | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 9391e78b93..22b1b5f184 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -135,7 +135,7 @@ Robert Griesemer <gri@golang.org>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>
+-Sam Thorogood <thorogood@google.com>
++Sam Thorogood <thorogood@google.com> <sam.thorogood@gmail.com>
+ Scott Schwartz <scotts@golang.org>
+ Scott Lawrence <bytbox@gmail.com>
+ Sebastien Binet	<seb.binet@gmail.com>

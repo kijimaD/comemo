@@ -9,6 +9,20 @@ Date:   Tue Oct 14 14:58:25 2014 -0400
     TBR=r
     CC=golang-codereviews
     https://golang.org/cl/156200044
-
+---
  src/cmd/gc/pgen.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 50c03788e8..39028e3f88 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -182,6 +182,8 @@ compile(Node *fn)
+ 			yyerror("missing function body", fn);
+ 			goto ret;
+ 		}
++		if(debug['A'])
++			goto ret;
+ 		emitptrargsmap();
+ 		goto ret;
+ 	}

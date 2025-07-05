@@ -9,6 +9,20 @@ Date:   Sat Dec 22 17:23:50 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7004050
-
+---
  src/pkg/runtime/debug/stack.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/runtime/debug/stack.go b/src/pkg/runtime/debug/stack.go
+index a533a5c3bf..2896b21417 100644
+--- a/src/pkg/runtime/debug/stack.go
++++ b/src/pkg/runtime/debug/stack.go
+@@ -29,6 +29,8 @@ func PrintStack() {
+ // For each routine, it includes the source line information and PC value,
+ // then attempts to discover, for Go functions, the calling function or
+ // method and the text of the line containing the invocation.
++//
++// This function is deprecated. Use package runtime's Stack instead.
+ func Stack() []byte {
+ 	return stack()
+ }

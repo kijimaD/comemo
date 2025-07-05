@@ -12,7 +12,280 @@ Date:   Sat Jan 16 03:09:15 2021 +1100
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
-
+---
  .../obj/riscv/testdata/testbranch/branch_test.go   | 117 ++++++++++-----------
  .../obj/riscv/testdata/testbranch/branch_test.s    |  28 ++---
  2 files changed, 67 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+index 279aeb2c32..3fa95222ff 100644
+--- a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.go
+@@ -25,84 +25,73 @@ func testBLTU(a, b int64) (r bool)
+ func testBLTZ(a int64) (r bool)
+ func testBNEZ(a int64) (r bool)
+ 
++func testGoBGE(a, b int64) bool { return a >= b }
++func testGoBGEU(a, b int64) bool { return uint64(a) >= uint64(b) }
++func testGoBGT(a, b int64) bool { return a > b }
++func testGoBGTU(a, b int64) bool { return uint64(a) > uint64(b) }
++func testGoBLE(a, b int64) bool { return a <= b }
++func testGoBLEU(a, b int64) bool { return uint64(a) <= uint64(b) }
++func testGoBLT(a, b int64) bool { return a < b }
++func testGoBLTZ(a, b int64) bool { return uint64(a) < uint64(b) }
++
+ func TestBranchCondition(t *testing.T) {
+ 	tests := []struct {
+ 		ins  string
+ 		a    int64
+ 		b    int64
+ 		fn   func(a, b int64) bool
++		goFn func(a, b int64) bool
+ 		want bool
+ 	}{
+-		{"BGE", 0, 1, testBGE, false},
+-		{"BGE", 0, 0, testBGE, true},
+-		{"BGE", 0, -1, testBGE, true},
+-		{"BGE", -1, 0, testBGE, false},
+-		{"BGE", 1, 0, testBGE, true},
+-		{"BGEU", 0, 1, testBGEU, false},
+-		{"BGEU", 0, 0, testBGEU, true},
+-		{"BGEU", 0, -1, testBGEU, false},
+-		{"BGEU", -1, 0, testBGEU, true},
+-		{"BGEU", 1, 0, testBGEU, true},
+-		{"BGT", 0, 1, testBGT, false},
+-		{"BGT", 0, 0, testBGT, false},
+-		{"BGT", 0, -1, testBGT, true},
+-		{"BGT", -1, 0, testBGT, false},
+-		{"BGT", 1, 0, testBGT, true},
+-		{"BGTU", 0, 1, testBGTU, false},
+-		{"BGTU", 0, 0, testBGTU, false},
+-		{"BGTU", 0, -1, testBGTU, false},
+-		{"BGTU", -1, 0, testBGTU, true},
+-		{"BGTU", 1, 0, testBGTU, true},
+-		{"BLE", 0, 1, testBLE, true},
+-		{"BLE", 0, 0, testBLE, true},
+-		{"BLE", 0, -1, testBLE, false},
+-		{"BLE", -1, 0, testBLE, true},
+-		{"BLE", 1, 0, testBLE, false},
+-		{"BLEU", 0, 1, testBLEU, true},
+-		{"BLEU", 0, 0, testBLEU, true},
+-		{"BLEU", 0, -1, testBLEU, true},
+-		{"BLEU", -1, 0, testBLEU, false},
+-		{"BLEU", 1, 0, testBLEU, false},
+-		{"BLT", 0, 1, testBLT, true},
+-		{"BLT", 0, 0, testBLT, false},
+-		{"BLT", 0, -1, testBLT, false},
+-		{"BLT", -1, 0, testBLT, true},
+-		{"BLT", 1, 0, testBLT, false},
+-		{"BLTU", 0, 1, testBLTU, true},
+-		{"BLTU", 0, 0, testBLTU, false},
+-		{"BLTU", 0, -1, testBLTU, true},
+-		{"BLTU", -1, 0, testBLTU, false},
+-		{"BLTU", 1, 0, testBLTU, false},
++		{"BGE", 0, 1, testBGE, testGoBGE, false},
++		{"BGE", 0, 0, testBGE, testGoBGE, true},
++		{"BGE", 0, -1, testBGE, testGoBGE, true},
++		{"BGE", -1, 0, testBGE, testGoBGE, false},
++		{"BGE", 1, 0, testBGE, testGoBGE, true},
++		{"BGEU", 0, 1, testBGEU, testGoBGEU, false},
++		{"BGEU", 0, 0, testBGEU, testGoBGEU, true},
++		{"BGEU", 0, -1, testBGEU, testGoBGEU, false},
++		{"BGEU", -1, 0, testBGEU, testGoBGEU, true},
++		{"BGEU", 1, 0, testBGEU, testGoBGEU, true},
++		{"BGT", 0, 1, testBGT, testGoBGT, false},
++		{"BGT", 0, 0, testBGT, testGoBGT, false},
++		{"BGT", 0, -1, testBGT, testGoBGT, true},
++		{"BGT", -1, 0, testBGT, testGoBGT, false},
++		{"BGT", 1, 0, testBGT, testGoBGT, true},
++		{"BGTU", 0, 1, testBGTU, testGoBGTU, false},
++		{"BGTU", 0, 0, testBGTU, testGoBGTU, false},
++		{"BGTU", 0, -1, testBGTU, testGoBGTU, false},
++		{"BGTU", -1, 0, testBGTU, testGoBGTU, true},
++		{"BGTU", 1, 0, testBGTU, testGoBGTU, true},
++		{"BLE", 0, 1, testBLE, testGoBLE, true},
++		{"BLE", 0, 0, testBLE, testGoBLE, true},
++		{"BLE", 0, -1, testBLE, testGoBLE, false},
++		{"BLE", -1, 0, testBLE, testGoBLE, true},
++		{"BLE", 1, 0, testBLE, testGoBLE, false},
++		{"BLEU", 0, 1, testBLEU, testGoBLEU, true},
++		{"BLEU", 0, 0, testBLEU, testGoBLEU, true},
++		{"BLEU", 0, -1, testBLEU, testGoBLEU, true},
++		{"BLEU", -1, 0, testBLEU, testGoBLEU, false},
++		{"BLEU", 1, 0, testBLEU, testGoBLEU, false},
++		{"BLT", 0, 1, testBLT, testGoBLT, true},
++		{"BLT", 0, 0, testBLT, testGoBLT, false},
++		{"BLT", 0, -1, testBLT, testGoBLT, false},
++		{"BLT", -1, 0, testBLT, testGoBLT, true},
++		{"BLT", 1, 0, testBLT, testGoBLT, false},
++		{"BLTU", 0, 1, testBLTU, testGoBLTU, true},
++		{"BLTU", 0, 0, testBLTU, testGoBLTU, false},
++		{"BLTU", 0, -1, testBLTU, testGoBLTU, true},
++		{"BLTU", -1, 0, testBLTU, testGoBLTU, false},
++		{"BLTU", 1, 0, testBLTU, testGoBLTU, false},
+ 	}
+ 	for _, test := range tests {
+ 		t.Run(test.ins, func(t *testing.T) {
+-			var fn func(a, b int64) bool
+-			switch test.ins {
+-			case "BGE":
+-				fn = func(a, b int64) bool { return a >= b }
+-			case "BGEU":
+-				fn = func(a, b int64) bool { return uint64(a) >= uint64(b) }
+-			case "BGT":
+-				fn = func(a, b int64) bool { return a > b }
+-			case "BGTU":
+-				fn = func(a, b int64) bool { return uint64(a) > uint64(b) }
+-			case "BLE":
+-				fn = func(a, b int64) bool { return a <= b }
+-			case "BLEU":
+-				fn = func(a, b int64) bool { return uint64(a) <= uint64(b) }
+-			case "BLT":
+-				fn = func(a, b int64) bool { return a < b }
+-			case "BLTU":
+-				fn = func(a, b int64) bool { return uint64(a) < uint64(b) }
+-			default:
+-				t.Fatalf("Unknown instruction %q", test.ins)
+-			}
+-			if got := fn(test.a, test.b); got != test.want {
+-				t.Errorf("Go %v %v, %v = %v, want %v", test.ins, test.a, test.b, got, test.want)
+-			}
+ 			if got := test.fn(test.a, test.b); got != test.want {
+ 				t.Errorf("Assembly %v %v, %v = %v, want %v", test.ins, test.a, test.b, got, test.want)
+ 			}
++			if got := test.goFn(test.a, test.b); got != test.want {
++				t.Errorf("Go %v %v, %v = %v, want %v", test.ins, test.a, test.b, got, test.want)
++			}
+ 		})
+ 	}
+ }
+diff --git a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+index 8dd6f563af..cce296feb5 100644
+--- a/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
++++ b/src/cmd/internal/obj/riscv/testdata/testbranch/branch_test.s
+@@ -7,7 +7,7 @@
+ #include "textflag.h"
+ 
+ // func testBEQZ(a int64) (r bool)
+-TEXT ·testBEQZ(SB),NOSPLIT,$0-0
++TEXT ·testBEQZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BEQZ	X5, b
+@@ -17,7 +17,7 @@ b:
+ 	RET
+ 
+ // func testBGE(a, b int64) (r bool)
+-TEXT ·testBGE(SB),NOSPLIT,$0-0
++TEXT ·testBGE(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -28,7 +28,7 @@ b:
+ 	RET
+ 
+ // func testBGEU(a, b int64) (r bool)
+-TEXT ·testBGEU(SB),NOSPLIT,$0-0
++TEXT ·testBGEU(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -39,7 +39,7 @@ b:
+ 	RET
+ 
+ // func testBGEZ(a int64) (r bool)
+-TEXT ·testBGEZ(SB),NOSPLIT,$0-0
++TEXT ·testBGEZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BGEZ	X5, b
+@@ -49,7 +49,7 @@ b:
+ 	RET
+ 
+ // func testBGT(a, b int64) (r bool)
+-TEXT ·testBGT(SB),NOSPLIT,$0-0
++TEXT ·testBGT(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -60,7 +60,7 @@ b:
+ 	RET
+ 
+ // func testBGTU(a, b int64) (r bool)
+-TEXT ·testBGTU(SB),NOSPLIT,$0-0
++TEXT ·testBGTU(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -71,7 +71,7 @@ b:
+ 	RET
+ 
+ // func testBGTZ(a int64) (r bool)
+-TEXT ·testBGTZ(SB),NOSPLIT,$0-0
++TEXT ·testBGTZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BGTZ	X5, b
+@@ -81,7 +81,7 @@ b:
+ 	RET
+ 
+ // func testBLE(a, b int64) (r bool)
+-TEXT ·testBLE(SB),NOSPLIT,$0-0
++TEXT ·testBLE(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -92,7 +92,7 @@ b:
+ 	RET
+ 
+ // func testBLEU(a, b int64) (r bool)
+-TEXT ·testBLEU(SB),NOSPLIT,$0-0
++TEXT ·testBLEU(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -103,7 +103,7 @@ b:
+ 	RET
+ 
+ // func testBLEZ(a int64) (r bool)
+-TEXT ·testBLEZ(SB),NOSPLIT,$0-0
++TEXT ·testBLEZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BLEZ	X5, b
+@@ -113,7 +113,7 @@ b:
+ 	RET
+ 
+ // func testBLT(a, b int64) (r bool)
+-TEXT ·testBLT(SB),NOSPLIT,$0-0
++TEXT ·testBLT(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -124,7 +124,7 @@ b:
+ 	RET
+ 
+ // func testBLTU(a, b int64) (r bool)
+-TEXT ·testBLTU(SB),NOSPLIT,$0-0
++TEXT ·testBLTU(SB),NOSPLIT,$0-17
+ 	MOV	a+0(FP), X5
+ 	MOV	b+8(FP), X6
+ 	MOV	$1, X7
+@@ -135,7 +135,7 @@ b:
+ 	RET
+ 
+ // func testBLTZ(a int64) (r bool)
+-TEXT ·testBLTZ(SB),NOSPLIT,$0-0
++TEXT ·testBLTZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BLTZ	X5, b
+@@ -145,7 +145,7 @@ b:
+ 	RET
+ 
+ // func testBNEZ(a int64) (r bool)
+-TEXT ·testBNEZ(SB),NOSPLIT,$0-0
++TEXT ·testBNEZ(SB),NOSPLIT,$0-9
+ 	MOV	a+0(FP), X5
+ 	MOV	$1, X6
+ 	BNEZ	X5, b

@@ -12,7 +12,7 @@ Date:   Fri Sep 19 14:39:49 2008 -0700
     DELTA=90  (73 added, 8 deleted, 9 changed)
     OCL=15513
     CL=15566
-
+---
  test/errchk              | 74 ++++++++++++++++++++++++++++++++++++++++++++++++
  test/fixedbugs/bug014.go |  8 +++---
  test/fixedbugs/bug015.go |  2 +-
@@ -20,3 +20,161 @@ Date:   Fri Sep 19 14:39:49 2008 -0700
  test/golden.out          |  7 -----
  test/run                 |  2 ++
  6 files changed, 82 insertions(+), 13 deletions(-)
+
+diff --git a/test/errchk b/test/errchk
+new file mode 100755
+index 0000000000..19fa1a5ccb
+--- /dev/null
++++ b/test/errchk
+@@ -0,0 +1,74 @@
++#!/bin/bash
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This script checks that the compilers emits the errors which we
++# expect.  Usage: errchk COMPILER [OPTS] SOURCEFILE.  This will run
++# the command COMPILER [OPTS] SOURCEFILE.  The compilation is expected
++# to fail; if it succeeds, this script will report an error.  The
++# stderr output of the compiler will be matched against comments in
++# SOURCEFILE.  For each line of the source file which should generate
++# an error, there should be a comment of the form // ERROR "regexp".
++# If the compiler generates an error for a line which has no such
++# commnt, this script will report an error.  Likewise if the compiler
++# does not generate an error for a line which has a comment, or if the
++# error message does not match the <regexp>.  The <regexp> is
++# interpreted by egrep.
++
++if test $# -lt 2; then
++  echo 1>&2 "Usage: errchk COMPILER [OPTS] SOURCEFILE"
++  exit 1
++fi
++
++ARGCOUNT=$#
++SOURCEFILE=${!ARGCOUNT}
++
++TMPOUT=/tmp/errchk-out-$$
++TMPERR=/tmp/errchk-err-$$
++TMPALL=/tmp/errchk-all-$$
++TMPTMP=/tmp/errchk-tmp-$$
++TMPSTAT=/tmp/errchk-stat-$$
++rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT
++
++trap "rm -f $TMPOUT $TMPERR $TMPALL $TMPTMP $TMPSTAT" 0 1 2 3 14 15
++
++if $* >$TMPOUT 2>$TMPERR; then
++  echo 1>&2 "errchk: command succeeded unexpectedly: " "$@"
++  cat $TMPOUT
++  cat 1>&2 $TMPERR
++  rm -f $TMPOUT $TMPERR
++  exit 1
++fi
++
++cat $TMPOUT $TMPERR > $TMPALL
++
++header=0
++echo 0 > $TMPSTAT
++pr -n -t $SOURCEFILE | grep '// ERROR' | while read line; do
++  lineno=`echo $line | sed -e 's/^[ ]*\([0-9]*\).*$/\1/'`
++  regexp=`echo $line | sed -e 's|.*// ERROR "\([^"]*\)".*$|\1|'`
++  errmsg=`grep "$SOURCEFILE:$lineno" <$TMPALL`
++  grep -v "$SOURCEFILE:$lineno" < $TMPALL > $TMPTMP
++  mv -f $TMPTMP $TMPALL
++  if test -z "$errmsg"; then
++    echo 1>&2 "errchk: $SOURCEFILE: missing expected error message on line $lineno: '$regexp'"
++    echo 1 > $TMPSTAT
++  elif ! echo "$errmsg" | egrep -q "$regexp"; then
++    echo 1>&2 "errchk: $SOURCEFILE: error message on line $lineno does not match '$regexp'"
++    echo 1>&2 $errmsg
++    echo 1 > $TMPSTAT
++  fi
++done
++
++if test -s $TMPALL; then
++  echo 1>&2 "errchk: $SOURCEFILE: unmatched error messages:"
++  echo 1>&2 "=================================================="
++  cat 1>&2 $TMPALL
++  echo 1>&2 "=================================================="
++  echo 1 > $TMPSTAT
++fi
++
++status=`cat $TMPSTAT`
++
++exit $status
+diff --git a/test/fixedbugs/bug014.go b/test/fixedbugs/bug014.go
+index 25a8af292f..dac2ce5174 100644
+--- a/test/fixedbugs/bug014.go
++++ b/test/fixedbugs/bug014.go
+@@ -7,8 +7,8 @@
+ package main
+ 
+ func main() {
+-	var c00 uint8 = '\0';  // three octal required; should not compile
+-	var c01 uint8 = '\07';  // three octal required; should not compile
+-	var cx0 uint8 = '\x0';  // two hex required; should not compile
+-	var cx1 uint8 = '\x';  // two hex required; REALLY should not compile
++	var c00 uint8 = '\0';  // ERROR "oct|char"
++	var c01 uint8 = '\07';  // ERROR "oct|char"
++	var cx0 uint8 = '\x0';  // ERROR "hex|char"
++	var cx1 uint8 = '\x';  // ERROR "hex|char"
+ }
+diff --git a/test/fixedbugs/bug015.go b/test/fixedbugs/bug015.go
+index cbb9652c06..9178f626fc 100644
+--- a/test/fixedbugs/bug015.go
++++ b/test/fixedbugs/bug015.go
+@@ -8,6 +8,6 @@ package main
+ 
+ func main() {
+ 	var i33 int64;
+-	if i33 == (1<<64) -1 {  // BUG: should not compile; constant too large
++	if i33 == (1<<64) -1 {  // ERROR "overflow"
+ 	}
+ }
+diff --git a/test/func1.go b/test/func1.go
+index 895fe94b8d..2c767d21d5 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -13,6 +13,6 @@ func f1(a int) (int, float) {  // BUG (not caught by compiler): multiple return
+ }
+ 
+ 
+-func f2(a int) (a int, b float) {  // return value names must be different from parameter names
++func f2(a int) (a int, b float) {  // ERROR "redeclared|definition"
+ 	return 8, 8.0;
+ }
+diff --git a/test/golden.out b/test/golden.out
+index 9689f1cb73..66ff715505 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,8 +1,4 @@
+ 
+-=========== ./func1.go
+-func1.go:12: var a redeclared in this block
+-     previous declaration at func1.go:12
+-
+ =========== ./helloworld.go
+ hello, world
+ 
+@@ -201,9 +197,6 @@ pc: 0x2615
+ 	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
+ 
+ 
+-=========== fixedbugs/bug015.go
+-fixedbugs/bug015.go:7: overflow converting constant to <int64>INT64
+-
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to <uint32>UINT32
+ 
+diff --git a/test/run b/test/run
+index 8013efe4ab..dc429dd67b 100755
+--- a/test/run
++++ b/test/run
+@@ -18,6 +18,8 @@ export L=${A}l
+ 
+ failed=0
+ 
++PATH=/bin:/usr/bin:$HOME/bin:`pwd`
++
+ # don't use $$ in file names to avoid spurious diffs
+ RUNFILE=/tmp/gorun-$USER
+ TMP1FILE=/tmp/gotest1-$USER

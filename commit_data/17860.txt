@@ -30,10 +30,295 @@ Date:   Wed Oct 30 18:50:34 2013 +0000
     R=golang-dev, r, josharian
     CC=golang-dev
     https://golang.org/cl/19810043
-
+---
  src/cmd/5l/noop.c                   | 51 +++++++++++--------------------------
  src/pkg/runtime/pprof/pprof_test.go | 25 ++++++++++++++++++
  src/pkg/runtime/runtime.h           |  1 +
  src/pkg/runtime/traceback_arm.c     |  2 +-
  src/pkg/runtime/vlop_arm.s          | 44 ++++++++++++++------------------
  5 files changed, 61 insertions(+), 62 deletions(-)
+
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index fb70599b51..70cec1f9ce 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -60,7 +60,7 @@ linkcase(Prog *casep)
+ void
+ noops(void)
+ {
+-	Prog *p, *q, *q1, *q2;
++	Prog *p, *q, *q1, *q2, orig;
+ 	int o;
+ 	Sym *tlsfallback, *gmsym;
+ 
+@@ -401,26 +401,27 @@ noops(void)
+ 					break;
+ 				if(p->to.type != D_REG)
+ 					break;
+-				q1 = p;
++
++				orig = *p;
+ 	
+-				/* MOV a,4(SP) */
+-				p = appendp(p);
++				/* MOV a,4(M) */
+ 				p->as = AMOVW;
+-				p->line = q1->line;
++				p->line = orig.line;
+ 				p->from.type = D_REG;
+-				p->from.reg = q1->from.reg;
++				p->from.reg = orig.from.reg;
++				p->reg = NREG;
+ 				p->to.type = D_OREG;
+-				p->to.reg = REGSP;
++				p->to.reg = REGM;
+ 				p->to.offset = 4;
+ 	
+ 				/* MOV b,REGTMP */
+ 				p = appendp(p);
+ 				p->as = AMOVW;
+-				p->line = q1->line;
++				p->line = orig.line;
+ 				p->from.type = D_REG;
+-				p->from.reg = q1->reg;
+-				if(q1->reg == NREG)
+-					p->from.reg = q1->to.reg;
++				p->from.reg = orig.reg;
++				if(orig.reg == NREG)
++					p->from.reg = orig.to.reg;
+ 				p->to.type = D_REG;
+ 				p->to.reg = REGTMP;
+ 				p->to.offset = 0;
+@@ -428,7 +429,7 @@ noops(void)
+ 				/* CALL appropriate */
+ 				p = appendp(p);
+ 				p->as = ABL;
+-				p->line = q1->line;
++				p->line = orig.line;
+ 				p->to.type = D_BRANCH;
+ 				p->cond = p;
+ 				switch(o) {
+@@ -453,34 +454,12 @@ noops(void)
+ 				/* MOV REGTMP, b */
+ 				p = appendp(p);
+ 				p->as = AMOVW;
+-				p->line = q1->line;
++				p->line = orig.line;
+ 				p->from.type = D_REG;
+ 				p->from.reg = REGTMP;
+ 				p->from.offset = 0;
+ 				p->to.type = D_REG;
+-				p->to.reg = q1->to.reg;
+-	
+-				/* ADD $8,SP */
+-				p = appendp(p);
+-				p->as = AADD;
+-				p->line = q1->line;
+-				p->from.type = D_CONST;
+-				p->from.reg = NREG;
+-				p->from.offset = 8;
+-				p->reg = NREG;
+-				p->to.type = D_REG;
+-				p->to.reg = REGSP;
+-				p->spadj = -8;
+-	
+-				/* SUB $8,SP */
+-				q1->as = ASUB;
+-				q1->from.type = D_CONST;
+-				q1->from.offset = 8;
+-				q1->from.reg = NREG;
+-				q1->reg = NREG;
+-				q1->to.type = D_REG;
+-				q1->to.reg = REGSP;
+-				q1->spadj = 8;
++				p->to.reg = orig.to.reg;
+ 	
+ 				break;
+ 			case AMOVW:
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index f1fc5faec6..eb76b93c44 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"hash/crc32"
++	"math/big"
+ 	"os/exec"
+ 	"regexp"
+ 	"runtime"
+@@ -123,6 +124,10 @@ func testCPUProfile(t *testing.T, need []string, f func()) {
+ 		}
+ 	})
+ 
++	if len(need) == 0 {
++		return
++	}
++
+ 	var total uintptr
+ 	for i, name := range need {
+ 		total += have[i]
+@@ -237,6 +242,26 @@ func TestGoroutineSwitch(t *testing.T) {
+ 	}
+ }
+ 
++// Test that profiling of division operations is okay, especially on ARM. See issue 6681.
++func TestMathBigDivide(t *testing.T) {
++	testCPUProfile(t, nil, func() {
++		t := time.After(5 * time.Second)
++		pi := new(big.Int)
++		for {
++			for i := 0; i < 100; i++ {
++				n := big.NewInt(2646693125139304345)
++				d := big.NewInt(842468587426513207)
++				pi.Div(n, d)
++			}
++			select {
++			case <-t:
++				return
++			default:
++			}
++		}
++	})
++}
++
+ // Operating systems that are expected to fail the tests. See issue 6047.
+ var badOS = map[string]bool{
+ 	"darwin":  true,
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index f7c2adb121..02c7041ba7 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -290,6 +290,7 @@ struct	G
+ struct	M
+ {
+ 	G*	g0;		// goroutine with scheduling stack
++	uint32	divmod;		// div/mod denominator on arm
+ 	void*	moreargp;	// argument pointer for more stack
+ 	Gobuf	morebuf;	// gobuf arg to morestack
+ 
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 02586f036b..7c21dc7981 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -84,7 +84,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 			frame.lr = 0;
+ 			flr = nil;
+ 		} else {
+-			if(frame.lr == 0)
++			if((n == 0 && frame.fp > frame.sp) || frame.lr == 0)
+ 				frame.lr = *(uintptr*)frame.sp;
+ 			flr = runtime·findfunc(frame.lr);
+ 			if(flr == nil) {
+diff --git a/src/pkg/runtime/vlop_arm.s b/src/pkg/runtime/vlop_arm.s
+index d7c566afb8..76c0d5dabb 100644
+--- a/src/pkg/runtime/vlop_arm.s
++++ b/src/pkg/runtime/vlop_arm.s
+@@ -105,7 +105,7 @@ s = 2 // three temporary variables
+ M = 3
+ a = 11
+ // Be careful: R(a) == R11 will be used by the linker for synthesized instructions.
+-TEXT udiv<>(SB),NOSPLIT,$-4
++TEXT udiv<>(SB),NOSPLIT,$-4-0
+ 	CLZ 	R(q), R(s) // find normalizing shift
+ 	MOVW.S	R(q)<<R(s), R(a)
+ 	MOVW	$fast_udiv_tab<>-64(SB), R(M)
+@@ -165,22 +165,8 @@ udiv_by_0_or_1:
+ 	RET
+ 
+ udiv_by_0:
+-	// The ARM toolchain expects it can emit references to DIV and MOD
+-	// instructions. The linker rewrites each pseudo-instruction into
+-	// a sequence that pushes two values onto the stack and then calls
+-	// _divu, _modu, _div, or _mod (below), all of which have a 16-byte
+-	// frame plus the saved LR. The traceback routine knows the expanded
+-	// stack frame size at the pseudo-instruction call site, but it
+-	// doesn't know that the frame has a non-standard layout. In particular,
+-	// it expects to find a saved LR in the bottom word of the frame.
+-	// Unwind the stack back to the pseudo-instruction call site, copy the
+-	// saved LR where the traceback routine will look for it, and make it
+-	// appear that panicdivide was called from that PC.
+-	MOVW	0(R13), LR
+-	ADD	$20, R13
+-	MOVW	8(R13), R1 // actual saved LR
+-	MOVW	R1, 0(R13) // expected here for traceback
+-	B 	runtime·panicdivide(SB)
++	MOVW 	$runtime·panicdivide(SB),R11
++	B	(R11)
+ 
+ TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
+ 	// var tab [64]byte
+@@ -207,14 +193,16 @@ TEXT fast_udiv_tab<>(SB),NOSPLIT,$-4
+ // expects the result in R(TMP)
+ TMP = 11
+ 
+-TEXT _divu(SB), NOSPLIT, $16
++TEXT _divu(SB), NOSPLIT, $16-0
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+ 	MOVW	R(M), 16(R13)
+ 
+ 	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	m_divmod(m), R(q) 	/* denominator */
++	MOVW	$0, R(s)
++	MOVW	R(s), m_divmod(m)
+ 	BL  	udiv<>(SB)
+ 	MOVW	R(q), R(TMP)
+ 	MOVW	4(R13), R(q)
+@@ -223,14 +211,16 @@ TEXT _divu(SB), NOSPLIT, $16
+ 	MOVW	16(R13), R(M)
+ 	RET
+ 
+-TEXT _modu(SB), NOSPLIT, $16
++TEXT _modu(SB), NOSPLIT, $16-0
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+ 	MOVW	R(M), 16(R13)
+ 
+ 	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	m_divmod(m), R(q) 	/* denominator */
++	MOVW	$0, R(s)
++	MOVW	R(s), m_divmod(m)
+ 	BL  	udiv<>(SB)
+ 	MOVW	R(r), R(TMP)
+ 	MOVW	4(R13), R(q)
+@@ -239,13 +229,15 @@ TEXT _modu(SB), NOSPLIT, $16
+ 	MOVW	16(R13), R(M)
+ 	RET
+ 
+-TEXT _div(SB),NOSPLIT,$16
++TEXT _div(SB),NOSPLIT,$16-0
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+ 	MOVW	R(M), 16(R13)
+ 	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	m_divmod(m), R(q) 		/* denominator */
++	MOVW	$0, R(s)
++	MOVW	R(s), m_divmod(m)
+ 	CMP 	$0, R(r)
+ 	BGE 	d1
+ 	RSB 	$0, R(r), R(r)
+@@ -265,13 +257,15 @@ d2:
+ 	RSB		$0, R(q), R(TMP)
+ 	B   	out
+ 
+-TEXT _mod(SB),NOSPLIT,$16
++TEXT _mod(SB),NOSPLIT,$16-0
+ 	MOVW	R(q), 4(R13)
+ 	MOVW	R(r), 8(R13)
+ 	MOVW	R(s), 12(R13)
+ 	MOVW	R(M), 16(R13)
+ 	MOVW	R(TMP), R(r)		/* numerator */
+-	MOVW	0(FP), R(q) 		/* denominator */
++	MOVW	m_divmod(m), R(q) 		/* denominator */
++	MOVW	$0, R(s)
++	MOVW	R(s), m_divmod(m)
+ 	CMP 	$0, R(q)
+ 	RSB.LT	$0, R(q), R(q)
+ 	CMP 	$0, R(r)

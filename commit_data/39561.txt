@@ -22,7 +22,155 @@ Date:   Wed Mar 6 08:43:27 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/poll/fd_windows.go | 58 +++++++++++++++++++++++++----------------
  src/os/os_test.go               |  8 ++++--
  2 files changed, 42 insertions(+), 24 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 19d9a12dad..eeef5a78d3 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -309,7 +309,6 @@ type FD struct {
+ 	l sync.Mutex
+ 
+ 	// For console I/O.
+-	isConsole      bool
+ 	lastbits       []byte   // first few bytes of the last incomplete rune in last write
+ 	readuint16     []uint16 // buffer to hold uint16s obtained with ReadConsole
+ 	readbyte       []byte   // buffer to hold decoding of readuint16 from utf16 to utf8
+@@ -328,13 +327,23 @@ type FD struct {
+ 	// message based socket connection.
+ 	ZeroReadIsEOF bool
+ 
+-	// Whether this is a normal file.
++	// Whether this is a file rather than a network socket.
+ 	isFile bool
+ 
+-	// Whether this is a directory.
+-	isDir bool
++	// The kind of this file.
++	kind fileKind
+ }
+ 
++// fileKind describes the kind of file.
++type fileKind byte
++
++const (
++	kindNet fileKind = iota
++	kindFile
++	kindConsole
++	kindDir
++)
++
+ // logInitFD is set by tests to enable file descriptor initialization logging.
+ var logInitFD func(net string, fd *FD, err error)
+ 
+@@ -350,18 +359,20 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 
+ 	switch net {
+ 	case "file":
+-		fd.isFile = true
++		fd.kind = kindFile
+ 	case "console":
+-		fd.isConsole = true
++		fd.kind = kindConsole
+ 	case "dir":
+-		fd.isDir = true
+-	case "tcp", "tcp4", "tcp6":
+-	case "udp", "udp4", "udp6":
+-	case "ip", "ip4", "ip6":
+-	case "unix", "unixgram", "unixpacket":
++		fd.kind = kindDir
++	case "tcp", "tcp4", "tcp6",
++		"udp", "udp4", "udp6",
++		"ip", "ip4", "ip6",
++		"unix", "unixgram", "unixpacket":
++		fd.kind = kindNet
+ 	default:
+ 		return "", errors.New("internal error: unknown network type " + net)
+ 	}
++	fd.isFile = fd.kind != kindNet
+ 
+ 	var err error
+ 	if pollable {
+@@ -430,13 +441,14 @@ func (fd *FD) destroy() error {
+ 	// so this must be executed before fd.CloseFunc.
+ 	fd.pd.close()
+ 	var err error
+-	if fd.isFile || fd.isConsole {
+-		err = syscall.CloseHandle(fd.Sysfd)
+-	} else if fd.isDir {
+-		err = syscall.FindClose(fd.Sysfd)
+-	} else {
++	switch fd.kind {
++	case kindNet:
+ 		// The net package uses the CloseFunc variable for testing.
+ 		err = CloseFunc(fd.Sysfd)
++	case kindDir:
++		err = syscall.FindClose(fd.Sysfd)
++	default:
++		err = syscall.CloseHandle(fd.Sysfd)
+ 	}
+ 	fd.Sysfd = syscall.InvalidHandle
+ 	runtime_Semrelease(&fd.csema)
+@@ -485,12 +497,13 @@ func (fd *FD) Read(buf []byte) (int, error) {
+ 
+ 	var n int
+ 	var err error
+-	if fd.isFile || fd.isDir || fd.isConsole {
++	if fd.isFile {
+ 		fd.l.Lock()
+ 		defer fd.l.Unlock()
+-		if fd.isConsole {
++		switch fd.kind {
++		case kindConsole:
+ 			n, err = fd.readConsole(buf)
+-		} else {
++		default:
+ 			n, err = syscall.Read(fd.Sysfd, buf)
+ 		}
+ 		if err != nil {
+@@ -669,12 +682,13 @@ func (fd *FD) Write(buf []byte) (int, error) {
+ 		}
+ 		var n int
+ 		var err error
+-		if fd.isFile || fd.isDir || fd.isConsole {
++		if fd.isFile {
+ 			fd.l.Lock()
+ 			defer fd.l.Unlock()
+-			if fd.isConsole {
++			switch fd.kind {
++			case kindConsole:
+ 				n, err = fd.writeConsole(b)
+-			} else {
++			default:
+ 				n, err = syscall.Write(fd.Sysfd, b)
+ 			}
+ 			if err != nil {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 9c4d5dada9..c5c6b49e8f 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2279,8 +2279,7 @@ func TestPipeThreads(t *testing.T) {
+ 	}
+ }
+ 
+-func TestDoubleCloseError(t *testing.T) {
+-	path := sfdir + "/" + sfname
++func testDoubleCloseError(t *testing.T, path string) {
+ 	file, err := Open(path)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -2299,6 +2298,11 @@ func TestDoubleCloseError(t *testing.T) {
+ 	}
+ }
+ 
++func TestDoubleCloseError(t *testing.T) {
++	testDoubleCloseError(t, filepath.Join(sfdir, sfname))
++	testDoubleCloseError(t, sfdir)
++}
++
+ func TestUserHomeDir(t *testing.T) {
+ 	dir, err := UserHomeDir()
+ 	if dir == "" && err == nil {

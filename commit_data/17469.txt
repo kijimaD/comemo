@@ -10,8 +10,97 @@ Date:   Thu Sep 5 08:23:11 2013 +1000
     R=mikesamuel
     CC=golang-dev
     https://golang.org/cl/13479044
-
+---
  src/pkg/html/template/escape.go      | 2 ++
  src/pkg/html/template/escape_test.go | 4 ++++
  src/pkg/html/template/template.go    | 9 ++++++++-
  3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index f2a4c8acaa..9ae9749db0 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -35,11 +35,13 @@ func escapeTemplates(tmpl *Template, names ...string) error {
+ 			for _, name := range names {
+ 				if t := tmpl.set[name]; t != nil {
+ 					t.text.Tree = nil
++					t.Tree = nil
+ 				}
+ 			}
+ 			return err
+ 		}
+ 		tmpl.escaped = true
++		tmpl.Tree = tmpl.text.Tree
+ 	}
+ 	e.commit()
+ 	return nil
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 4c349d9618..befdb215be 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -673,6 +673,10 @@ func TestEscape(t *testing.T) {
+ 			t.Errorf("%s: escaped output for pointer: want\n\t%q\ngot\n\t%q", test.name, w, g)
+ 			continue
+ 		}
++		if tmpl.Tree != tmpl.text.Tree {
++			t.Errorf("%s: tree mismatch", test.name)
++			continue
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/html/template/template.go b/src/pkg/html/template/template.go
+index e183898d50..5862f01f45 100644
+--- a/src/pkg/html/template/template.go
++++ b/src/pkg/html/template/template.go
+@@ -21,7 +21,9 @@ type Template struct {
+ 	// We could embed the text/template field, but it's safer not to because
+ 	// we need to keep our version of the name space and the underlying
+ 	// template's in sync.
+-	text       *template.Template
++	text *template.Template
++	// The underlying template's parse tree, updated to be HTML-safe.
++	Tree       *parse.Tree
+ 	*nameSpace // common to all associated templates
+ }
+ 
+@@ -149,6 +151,7 @@ func (t *Template) AddParseTree(name string, tree *parse.Tree) (*Template, error
+ 	ret := &Template{
+ 		false,
+ 		text,
++		text.Tree,
+ 		t.nameSpace,
+ 	}
+ 	t.set[name] = ret
+@@ -176,6 +179,7 @@ func (t *Template) Clone() (*Template, error) {
+ 	ret := &Template{
+ 		false,
+ 		textClone,
++		textClone.Tree,
+ 		&nameSpace{
+ 			set: make(map[string]*Template),
+ 		},
+@@ -195,6 +199,7 @@ func (t *Template) Clone() (*Template, error) {
+ 		ret.set[name] = &Template{
+ 			false,
+ 			x,
++			x.Tree,
+ 			ret.nameSpace,
+ 		}
+ 	}
+@@ -206,6 +211,7 @@ func New(name string) *Template {
+ 	tmpl := &Template{
+ 		false,
+ 		template.New(name),
++		nil,
+ 		&nameSpace{
+ 			set: make(map[string]*Template),
+ 		},
+@@ -228,6 +234,7 @@ func (t *Template) new(name string) *Template {
+ 	tmpl := &Template{
+ 		false,
+ 		t.text.New(name),
++		nil,
+ 		t.nameSpace,
+ 	}
+ 	tmpl.set[name] = tmpl

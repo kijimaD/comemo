@@ -7,7 +7,65 @@ Date:   Wed Jul 30 10:14:39 2008 -0700
     R=r
     OCL=13640
     CL=13640
-
+---
  test/bugs/bug080.go | 23 +++++++++++++++++++++++
  test/golden.out     | 10 ++++++++--
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/test/bugs/bug080.go b/test/bugs/bug080.go
+new file mode 100644
+index 0000000000..319eb91c71
+--- /dev/null
++++ b/test/bugs/bug080.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go || echo BUG: fails incorrectly
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main	
++ 	
++func f1() (x int, y float) {
++}
++
++func f2   (x int, y float) {
++}
++
++func main() {
++	f2(f1());  // this should be a legal call
++}
++
++/*
++bug080.go:12: illegal types for operand: CALL
++	(<int32>INT32)
++	({<x><int32>INT32;<y><float32>FLOAT32;})
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 368ac538bd..b35a1707c2 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -213,8 +213,8 @@ outer loop top k 1
+ k not zero
+ panic on line 305 PC=0x1362
+ 0x1362?zi
+-	main·main(1, 0, 1606414952, ...)
+-	main·main(0x1, 0x7fff5fbff268, 0x0, ...)
++	main·main(1, 0, 1606416400, ...)
++	main·main(0x1, 0x7fff5fbff810, 0x0, ...)
+ BUG: crashes
+ 
+ =========== bugs/bug072.go
+@@ -241,6 +241,12 @@ BUG: known to succeed incorrectly
+ =========== bugs/bug079.go
+ BUG: succeeds incorrectly
+ 
++=========== bugs/bug080.go
++bugs/bug080.go:12: illegal types for operand: CALL
++	(<int32>INT32)
++	({<x><int32>INT32;<y><float32>FLOAT32;})
++BUG: fails incorrectly
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug001.go

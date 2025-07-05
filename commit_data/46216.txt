@@ -24,10 +24,312 @@ Date:   Tue Dec 15 09:49:10 2020 -0500
     Trust: Robert Findley <rfindley@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/api.go      |  13 ++++
  src/go/types/check.go    |  21 +++++--
  src/go/types/lookup.go   |   2 +-
  src/go/types/object.go   |   8 ++-
  src/go/types/sanitize.go | 150 +++++++++++++++++++++++++++++++++++++++++++++++
  5 files changed, 187 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index d625959817..ec12fcf380 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -177,6 +177,12 @@ type Info struct {
+ 	// qualified identifiers are collected in the Uses map.
+ 	Types map[ast.Expr]TypeAndValue
+ 
++	// Inferred maps calls of parameterized functions that use
++	// type inference to the inferred type arguments and signature
++	// of the function called. The recorded "call" expression may be
++	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
++	Inferred map[ast.Expr]Inferred
++
+ 	// Defs maps identifiers to the objects they define (including
+ 	// package names, dots "." of dot-imports, and blank "_" identifiers).
+ 	// For identifiers that do not denote objects (e.g., the package name
+@@ -333,6 +339,13 @@ func (tv TypeAndValue) HasOk() bool {
+ 	return tv.mode == commaok || tv.mode == mapindex
+ }
+ 
++// Inferred reports the inferred type arguments and signature
++// for a parameterized function call that uses type inference.
++type Inferred struct {
++	Targs []Type
++	Sig   *Signature
++}
++
+ // An Initializer describes a package-level variable, or a list of variables in case
+ // of a multi-valued initialization expression, and the corresponding initialization
+ // expression.
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 73330db6e4..d1672837b8 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -19,18 +19,18 @@ const (
+ 	trace = false // turn on for detailed type resolution traces
+ )
+ 
+-// If Strict is set, the type-checker enforces additional
++// If forceStrict is set, the type-checker enforces additional
+ // rules not specified by the Go 1 spec, but which will
+ // catch guaranteed run-time errors if the respective
+ // code is executed. In other words, programs passing in
+-// Strict mode are Go 1 compliant, but not all Go 1 programs
+-// will pass in Strict mode. The additional rules are:
++// strict mode are Go 1 compliant, but not all Go 1 programs
++// will pass in strict mode. The additional rules are:
+ //
+ // - A type assertion x.(T) where T is an interface type
+ //   is invalid if any (statically known) method that exists
+ //   for both x and T have different signatures.
+ //
+-const strict = false
++const forceStrict = false
+ 
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {
+@@ -192,6 +192,7 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 		fset:   fset,
+ 		pkg:    pkg,
+ 		Info:   info,
++		nextId: 1,
+ 		objMap: make(map[Object]*declInfo),
+ 		impMap: make(map[importKey]*Package),
+ 		posMap: make(map[*Interface][]token.Pos),
+@@ -278,6 +279,10 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 
+ 	check.recordUntyped()
+ 
++	if check.Info != nil {
++		sanitizeInfo(check.Info)
++	}
++
+ 	check.pkg.complete = true
+ 	return
+ }
+@@ -380,6 +385,14 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+ 	}
+ }
+ 
++func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
++	assert(call != nil)
++	assert(sig != nil)
++	if m := check.Inferred; m != nil {
++		m[call] = Inferred{targs, sig}
++	}
++}
++
+ func (check *Checker) recordDef(id *ast.Ident, obj Object) {
+ 	assert(id != nil)
+ 	if m := check.Defs; m != nil {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 2497843b21..e7091a63e5 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -343,7 +343,7 @@ func (check *Checker) assertableTo(V *Interface, T Type) (method, wrongType *Fun
+ 	// no static check is required if T is an interface
+ 	// spec: "If T is an interface type, x.(T) asserts that the
+ 	//        dynamic type of x implements the interface T."
+-	if _, ok := T.Underlying().(*Interface); ok && !strict {
++	if _, ok := T.Underlying().(*Interface); ok && !forceStrict {
+ 		return
+ 	}
+ 	return check.missingMethod(T, V, false)
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 374b24d1ac..50346ec691 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -36,6 +36,9 @@ type Object interface {
+ 	// color returns the object's color.
+ 	color() color
+ 
++	// setType sets the type of the object.
++	setType(Type)
++
+ 	// setOrder sets the order number of the object. It must be > 0.
+ 	setOrder(uint32)
+ 
+@@ -149,6 +152,7 @@ func (obj *object) color() color        { return obj.color_ }
+ func (obj *object) scopePos() token.Pos { return obj.scopePos_ }
+ 
+ func (obj *object) setParent(parent *Scope)   { obj.parent = parent }
++func (obj *object) setType(typ Type)          { obj.typ = typ }
+ func (obj *object) setOrder(order uint32)     { assert(order > 0); obj.order_ = order }
+ func (obj *object) setColor(color color)      { assert(color != white); obj.color_ = color }
+ func (obj *object) setScopePos(pos token.Pos) { obj.scopePos_ = pos }
+@@ -299,7 +303,7 @@ type Func struct {
+ // NewFunc returns a new function with the given signature, representing
+ // the function's type.
+ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+-	// don't store a nil signature
++	// don't store a (typed) nil signature
+ 	var typ Type
+ 	if sig != nil {
+ 		typ = sig
+@@ -420,7 +424,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		if tname.IsAlias() {
+ 			buf.WriteString(" =")
+ 		} else {
+-			typ = typ.Underlying()
++			typ = under(typ)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+new file mode 100644
+index 0000000000..c4e729ec9b
+--- /dev/null
++++ b/src/go/types/sanitize.go
+@@ -0,0 +1,150 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++// sanitizeInfo walks the types contained in info to ensure that all instances
++// are expanded.
++func sanitizeInfo(info *Info) {
++	var s sanitizer = make(map[Type]Type)
++
++	// Note: Some map entries are not references.
++	// If modified, they must be assigned back.
++
++	for e, tv := range info.Types {
++		tv.Type = s.typ(tv.Type)
++		info.Types[e] = tv
++	}
++
++	for e, inf := range info.Inferred {
++		for i, targ := range inf.Targs {
++			inf.Targs[i] = s.typ(targ)
++		}
++		inf.Sig = s.typ(inf.Sig).(*Signature)
++		info.Inferred[e] = inf
++	}
++
++	for _, obj := range info.Defs {
++		if obj != nil {
++			obj.setType(s.typ(obj.Type()))
++		}
++	}
++
++	for _, obj := range info.Uses {
++		if obj != nil {
++			obj.setType(s.typ(obj.Type()))
++		}
++	}
++
++	// TODO(gri) sanitize as needed
++	// - info.Implicits
++	// - info.Selections
++	// - info.Scopes
++	// - info.InitOrder
++}
++
++type sanitizer map[Type]Type
++
++func (s sanitizer) typ(typ Type) Type {
++	if t, found := s[typ]; found {
++		return t
++	}
++	s[typ] = typ
++
++	switch t := typ.(type) {
++	case nil, *Basic, *bottom, *top:
++		// nothing to do
++
++	case *Array:
++		t.elem = s.typ(t.elem)
++
++	case *Slice:
++		t.elem = s.typ(t.elem)
++
++	case *Struct:
++		s.varList(t.fields)
++
++	case *Pointer:
++		t.base = s.typ(t.base)
++
++	case *Tuple:
++		s.tuple(t)
++
++	case *Signature:
++		s.var_(t.recv)
++		s.tuple(t.params)
++		s.tuple(t.results)
++
++	case *Sum:
++		s.typeList(t.types)
++
++	case *Interface:
++		s.funcList(t.methods)
++		s.typ(t.types)
++		s.typeList(t.embeddeds)
++		s.funcList(t.allMethods)
++		s.typ(t.allTypes)
++
++	case *Map:
++		t.key = s.typ(t.key)
++		t.elem = s.typ(t.elem)
++
++	case *Chan:
++		t.elem = s.typ(t.elem)
++
++	case *Named:
++		t.orig = s.typ(t.orig)
++		t.underlying = s.typ(t.underlying)
++		s.typeList(t.targs)
++		s.funcList(t.methods)
++
++	case *TypeParam:
++		t.bound = s.typ(t.bound)
++
++	case *instance:
++		typ = t.expand()
++		s[t] = typ
++
++	default:
++		panic("unimplemented")
++	}
++
++	return typ
++}
++
++func (s sanitizer) var_(v *Var) {
++	if v != nil {
++		v.typ = s.typ(v.typ)
++	}
++}
++
++func (s sanitizer) varList(list []*Var) {
++	for _, v := range list {
++		s.var_(v)
++	}
++}
++
++func (s sanitizer) tuple(t *Tuple) {
++	if t != nil {
++		s.varList(t.vars)
++	}
++}
++
++func (s sanitizer) func_(f *Func) {
++	if f != nil {
++		f.typ = s.typ(f.typ)
++	}
++}
++
++func (s sanitizer) funcList(list []*Func) {
++	for _, f := range list {
++		s.func_(f)
++	}
++}
++
++func (s sanitizer) typeList(list []Type) {
++	for i, t := range list {
++		list[i] = s.typ(t)
++	}
++}

@@ -12,9 +12,394 @@ Date:   Sun Sep 29 10:01:45 2024 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/crypto/hmac/hmac.go               | 132 +-------------------------
  src/crypto/internal/fips/hash.go      |  32 +++++++
  src/crypto/internal/fips/hmac/hmac.go | 168 ++++++++++++++++++++++++++++++++++
  src/go/build/deps_test.go             |   4 +-
  4 files changed, 206 insertions(+), 130 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 46ec81b8c5..b8c909cf01 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -23,105 +23,13 @@ package hmac
+ 
+ import (
+ 	"crypto/internal/boring"
++	"crypto/internal/fips/hmac"
+ 	"crypto/subtle"
+ 	"hash"
+ )
+ 
+-// FIPS 198-1:
+-// https://csrc.nist.gov/publications/fips/fips198-1/FIPS-198-1_final.pdf
+-
+-// key is zero padded to the block size of the hash function
+-// ipad = 0x36 byte repeated for key length
+-// opad = 0x5c byte repeated for key length
+-// hmac = H([key ^ opad] H([key ^ ipad] text))
+-
+-// marshalable is the combination of encoding.BinaryMarshaler and
+-// encoding.BinaryUnmarshaler. Their method definitions are repeated here to
+-// avoid a dependency on the encoding package.
+-type marshalable interface {
+-	MarshalBinary() ([]byte, error)
+-	UnmarshalBinary([]byte) error
+-}
+-
+-type hmac struct {
+-	opad, ipad   []byte
+-	outer, inner hash.Hash
+-
+-	// If marshaled is true, then opad and ipad do not contain a padded
+-	// copy of the key, but rather the marshaled state of outer/inner after
+-	// opad/ipad has been fed into it.
+-	marshaled bool
+-}
+-
+-func (h *hmac) Sum(in []byte) []byte {
+-	origLen := len(in)
+-	in = h.inner.Sum(in)
+-
+-	if h.marshaled {
+-		if err := h.outer.(marshalable).UnmarshalBinary(h.opad); err != nil {
+-			panic(err)
+-		}
+-	} else {
+-		h.outer.Reset()
+-		h.outer.Write(h.opad)
+-	}
+-	h.outer.Write(in[origLen:])
+-	return h.outer.Sum(in[:origLen])
+-}
+-
+-func (h *hmac) Write(p []byte) (n int, err error) {
+-	return h.inner.Write(p)
+-}
+-
+-func (h *hmac) Size() int      { return h.outer.Size() }
+-func (h *hmac) BlockSize() int { return h.inner.BlockSize() }
+-
+-func (h *hmac) Reset() {
+-	if h.marshaled {
+-		if err := h.inner.(marshalable).UnmarshalBinary(h.ipad); err != nil {
+-			panic(err)
+-		}
+-		return
+-	}
+-
+-	h.inner.Reset()
+-	h.inner.Write(h.ipad)
+-
+-	// If the underlying hash is marshalable, we can save some time by
+-	// saving a copy of the hash state now, and restoring it on future
+-	// calls to Reset and Sum instead of writing ipad/opad every time.
+-	//
+-	// If either hash is unmarshalable for whatever reason,
+-	// it's safe to bail out here.
+-	marshalableInner, innerOK := h.inner.(marshalable)
+-	if !innerOK {
+-		return
+-	}
+-	marshalableOuter, outerOK := h.outer.(marshalable)
+-	if !outerOK {
+-		return
+-	}
+-
+-	imarshal, err := marshalableInner.MarshalBinary()
+-	if err != nil {
+-		return
+-	}
+-
+-	h.outer.Reset()
+-	h.outer.Write(h.opad)
+-	omarshal, err := marshalableOuter.MarshalBinary()
+-	if err != nil {
+-		return
+-	}
+-
+-	// Marshaling succeeded; save the marshaled state for later
+-	h.ipad = imarshal
+-	h.opad = omarshal
+-	h.marshaled = true
+-}
+-
+ // New returns a new HMAC hash using the given [hash.Hash] type and key.
+-// New functions like sha256.New from [crypto/sha256] can be used as h.
++// New functions like [crypto/sha256.New] can be used as h.
+ // h must return a new Hash every time it is called.
+ // Note that unlike other hash implementations in the standard library,
+ // the returned Hash does not implement [encoding.BinaryMarshaler]
+@@ -134,41 +42,7 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 		}
+ 		// BoringCrypto did not recognize h, so fall through to standard Go code.
+ 	}
+-	hm := new(hmac)
+-	hm.outer = h()
+-	hm.inner = h()
+-	unique := true
+-	func() {
+-		defer func() {
+-			// The comparison might panic if the underlying types are not comparable.
+-			_ = recover()
+-		}()
+-		if hm.outer == hm.inner {
+-			unique = false
+-		}
+-	}()
+-	if !unique {
+-		panic("crypto/hmac: hash generation function does not produce unique values")
+-	}
+-	blocksize := hm.inner.BlockSize()
+-	hm.ipad = make([]byte, blocksize)
+-	hm.opad = make([]byte, blocksize)
+-	if len(key) > blocksize {
+-		// If key is too big, hash it.
+-		hm.outer.Write(key)
+-		key = hm.outer.Sum(nil)
+-	}
+-	copy(hm.ipad, key)
+-	copy(hm.opad, key)
+-	for i := range hm.ipad {
+-		hm.ipad[i] ^= 0x36
+-	}
+-	for i := range hm.opad {
+-		hm.opad[i] ^= 0x5c
+-	}
+-	hm.inner.Write(hm.ipad)
+-
+-	return hm
++	return hmac.New(h, key)
+ }
+ 
+ // Equal compares two MACs for equality without leaking timing information.
+diff --git a/src/crypto/internal/fips/hash.go b/src/crypto/internal/fips/hash.go
+new file mode 100644
+index 0000000000..abea818791
+--- /dev/null
++++ b/src/crypto/internal/fips/hash.go
+@@ -0,0 +1,32 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++import "io"
++
++// Hash is the common interface implemented by all hash functions. It is a copy
++// of [hash.Hash] from the standard library, to avoid depending on security
++// definitions from outside of the module.
++type Hash interface {
++	// Write (via the embedded io.Writer interface) adds more data to the
++	// running hash. It never returns an error.
++	io.Writer
++
++	// Sum appends the current hash to b and returns the resulting slice.
++	// It does not change the underlying hash state.
++	Sum(b []byte) []byte
++
++	// Reset resets the Hash to its initial state.
++	Reset()
++
++	// Size returns the number of bytes Sum will return.
++	Size() int
++
++	// BlockSize returns the hash's underlying block size.
++	// The Write method must be able to accept any amount
++	// of data, but it may operate more efficiently if all writes
++	// are a multiple of the block size.
++	BlockSize() int
++}
+diff --git a/src/crypto/internal/fips/hmac/hmac.go b/src/crypto/internal/fips/hmac/hmac.go
+new file mode 100644
+index 0000000000..8c795927d1
+--- /dev/null
++++ b/src/crypto/internal/fips/hmac/hmac.go
+@@ -0,0 +1,168 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package hmac implements HMAC according to [FIPS 198-1].
++//
++// [FIPS 198-1]: https://doi.org/10.6028/NIST.FIPS.198-1
++package hmac
++
++import (
++	"crypto/internal/fips"
++	"crypto/internal/fips/sha256"
++	"crypto/internal/fips/sha512"
++)
++
++// key is zero padded to the block size of the hash function
++// ipad = 0x36 byte repeated for key length
++// opad = 0x5c byte repeated for key length
++// hmac = H([key ^ opad] H([key ^ ipad] text))
++
++// marshalable is the combination of encoding.BinaryMarshaler and
++// encoding.BinaryUnmarshaler. Their method definitions are repeated here to
++// avoid a dependency on the encoding package.
++type marshalable interface {
++	MarshalBinary() ([]byte, error)
++	UnmarshalBinary([]byte) error
++}
++
++type HMAC struct {
++	opad, ipad   []byte
++	outer, inner fips.Hash
++
++	// If marshaled is true, then opad and ipad do not contain a padded
++	// copy of the key, but rather the marshaled state of outer/inner after
++	// opad/ipad has been fed into it.
++	marshaled bool
++}
++
++func (h *HMAC) Sum(in []byte) []byte {
++	origLen := len(in)
++	in = h.inner.Sum(in)
++
++	if h.marshaled {
++		if err := h.outer.(marshalable).UnmarshalBinary(h.opad); err != nil {
++			panic(err)
++		}
++	} else {
++		h.outer.Reset()
++		h.outer.Write(h.opad)
++	}
++	h.outer.Write(in[origLen:])
++	return h.outer.Sum(in[:origLen])
++}
++
++func (h *HMAC) Write(p []byte) (n int, err error) {
++	return h.inner.Write(p)
++}
++
++func (h *HMAC) Size() int      { return h.outer.Size() }
++func (h *HMAC) BlockSize() int { return h.inner.BlockSize() }
++
++func (h *HMAC) Reset() {
++	if h.marshaled {
++		if err := h.inner.(marshalable).UnmarshalBinary(h.ipad); err != nil {
++			panic(err)
++		}
++		return
++	}
++
++	h.inner.Reset()
++	h.inner.Write(h.ipad)
++
++	// If the underlying hash is marshalable, we can save some time by saving a
++	// copy of the hash state now, and restoring it on future calls to Reset and
++	// Sum instead of writing ipad/opad every time.
++	//
++	// We do this on Reset to avoid slowing down the common single-use case.
++	//
++	// This is allowed by FIPS 198-1, Section 6: "Conceptually, the intermediate
++	// results of the compression function on the B-byte blocks (K0 ⊕ ipad) and
++	// (K0 ⊕ opad) can be precomputed once, at the time of generation of the key
++	// K, or before its first use. These intermediate results can be stored and
++	// then used to initialize H each time that a message needs to be
++	// authenticated using the same key. [...] These stored intermediate values
++	// shall be treated and protected in the same manner as secret keys."
++	marshalableInner, innerOK := h.inner.(marshalable)
++	if !innerOK {
++		return
++	}
++	marshalableOuter, outerOK := h.outer.(marshalable)
++	if !outerOK {
++		return
++	}
++
++	imarshal, err := marshalableInner.MarshalBinary()
++	if err != nil {
++		return
++	}
++
++	h.outer.Reset()
++	h.outer.Write(h.opad)
++	omarshal, err := marshalableOuter.MarshalBinary()
++	if err != nil {
++		return
++	}
++
++	// Marshaling succeeded; save the marshaled state for later
++	h.ipad = imarshal
++	h.opad = omarshal
++	h.marshaled = true
++}
++
++// New returns a new HMAC hash using the given [fips.Hash] type and key.
++func New[H fips.Hash](h func() H, key []byte) *HMAC {
++	hm := new(HMAC)
++	hm.outer = h()
++	hm.inner = h()
++	unique := true
++	func() {
++		defer func() {
++			// The comparison might panic if the underlying types are not comparable.
++			_ = recover()
++		}()
++		if hm.outer == hm.inner {
++			unique = false
++		}
++	}()
++	if !unique {
++		panic("crypto/hmac: hash generation function does not produce unique values")
++	}
++	setServiceIndicator(hm.outer, key)
++	blocksize := hm.inner.BlockSize()
++	hm.ipad = make([]byte, blocksize)
++	hm.opad = make([]byte, blocksize)
++	if len(key) > blocksize {
++		// If key is too big, hash it.
++		hm.outer.Write(key)
++		key = hm.outer.Sum(nil)
++	}
++	copy(hm.ipad, key)
++	copy(hm.opad, key)
++	for i := range hm.ipad {
++		hm.ipad[i] ^= 0x36
++	}
++	for i := range hm.opad {
++		hm.opad[i] ^= 0x5c
++	}
++	hm.inner.Write(hm.ipad)
++
++	return hm
++}
++
++func setServiceIndicator(h fips.Hash, key []byte) {
++	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
++	// legacy use (i.e. verification only) and we don't support that.
++	if len(key) < 112/8 {
++		return
++	}
++
++	switch h.(type) {
++	case *sha256.Digest, *sha512.Digest:
++	// TODO(fips): SHA-3
++	default:
++		return
++	}
++
++	// TODO(fips): set service indicator.
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 01f4f2c3c6..98bcaccdc2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -448,9 +448,11 @@ var depsRules = `
+ 	# It must not depend on external crypto packages.
+ 	# Internal packages imported by FIPS might need to retain
+ 	# backwards compatibility with older versions of the module.
+-	RUNTIME, crypto/internal/impl
++	STR, crypto/internal/impl
++	< crypto/internal/fips
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
++	< crypto/internal/fips/hmac
+ 	< FIPS;
+ 
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;

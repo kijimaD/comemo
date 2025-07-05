@@ -12,6 +12,20 @@ Date:   Wed Apr 26 15:38:08 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/cgi/host.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 349dda15ac..073952a7bd 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -39,7 +39,7 @@ var osDefaultInheritEnv = func() []string {
+ 	switch runtime.GOOS {
+ 	case "darwin", "ios":
+ 		return []string{"DYLD_LIBRARY_PATH"}
+-	case "linux", "freebsd", "netbsd", "openbsd":
++	case "android", "linux", "freebsd", "netbsd", "openbsd":
+ 		return []string{"LD_LIBRARY_PATH"}
+ 	case "hpux":
+ 		return []string{"LD_LIBRARY_PATH", "SHLIB_PATH"}

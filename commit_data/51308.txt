@@ -47,7 +47,7 @@ Date:   Wed Dec 29 07:08:55 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/375494
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go             | 10 -----
  src/cmd/compile/internal/noder/irgen.go         |  2 +-
  src/cmd/compile/internal/noder/stencil.go       | 49 ++++++-------------------
@@ -60,3 +60,324 @@ Date:   Wed Dec 29 07:08:55 2021 -0800
  test/typeparam/issue50121b.dir/main.go          | 12 ++++++
  test/typeparam/issue50121b.go                   |  7 ++++
  11 files changed, 134 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 669e53d932..96c6730803 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -245,16 +245,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "inlining")
+ 	if base.Flag.LowerL != 0 {
+ 		inline.InlinePackage()
+-		// If any new fully-instantiated types were referenced during
+-		// inlining, we need to create needed instantiations.
+-		if len(typecheck.GetInstTypeList()) > 0 {
+-			// typecheck.IncrementalAddrtaken must be false when loading
+-			// an inlined body. See comment in typecheck.ImportedBody function.
+-			old := typecheck.IncrementalAddrtaken
+-			typecheck.IncrementalAddrtaken = false
+-			noder.BuildInstantiations(false)
+-			typecheck.IncrementalAddrtaken = old
+-		}
+ 	}
+ 	noder.MakeWrappers(typecheck.Target) // must happen after inlining
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 344a2639ac..52224c4046 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -328,7 +328,7 @@ Outer:
+ 
+ 	// Create any needed instantiations of generic functions and transform
+ 	// existing and new functions to use those instantiations.
+-	BuildInstantiations(true)
++	BuildInstantiations()
+ 
+ 	// Remove all generic functions from g.target.Decl, since they have been
+ 	// used for stenciling, but don't compile. Generic functions will already
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index d3006d40f8..4c6eaf3fb0 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -9,7 +9,6 @@ package noder
+ 
+ import (
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/inline"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/reflectdata"
+@@ -40,34 +39,29 @@ func infoPrint(format string, a ...interface{}) {
+ 
+ var geninst genInst
+ 
+-func BuildInstantiations(preinliningMainScan bool) {
+-	if geninst.instInfoMap == nil {
+-		geninst.instInfoMap = make(map[*types.Sym]*instInfo)
+-	}
+-	geninst.buildInstantiations(preinliningMainScan)
++func BuildInstantiations() {
++	geninst.instInfoMap = make(map[*types.Sym]*instInfo)
++	geninst.buildInstantiations()
++	geninst.instInfoMap = nil
+ }
+ 
+ // buildInstantiations scans functions for generic function calls and methods, and
+ // creates the required instantiations. It also creates instantiated methods for all
+ // fully-instantiated generic types that have been encountered already or new ones
+-// that are encountered during the instantiation process. If preinliningMainScan is
+-// true, it scans all declarations in typecheck.Target.Decls first, before scanning
+-// any new instantiations created. If preinliningMainScan is false, we do not scan
+-// any existing decls - we only scan method instantiations for any new
+-// fully-instantiated types that we saw during inlining.
+-func (g *genInst) buildInstantiations(preinliningMainScan bool) {
++// that are encountered during the instantiation process. It scans all declarations
++// in typecheck.Target.Decls first, before scanning any new instantiations created.
++func (g *genInst) buildInstantiations() {
+ 	// Instantiate the methods of instantiated generic types that we have seen so far.
+ 	g.instantiateMethods()
+ 
+-	if preinliningMainScan {
+-		n := len(typecheck.Target.Decls)
+-		for i := 0; i < n; i++ {
+-			g.scanForGenCalls(typecheck.Target.Decls[i])
+-		}
++	// Scan all currentdecls for call to generic functions/methods.
++	n := len(typecheck.Target.Decls)
++	for i := 0; i < n; i++ {
++		g.scanForGenCalls(typecheck.Target.Decls[i])
+ 	}
+ 
+ 	// Scan all new instantiations created due to g.instantiateMethods() and the
+-	// scan of current decls (if done). This loop purposely runs until no new
++	// scan of current decls. This loop purposely runs until no new
+ 	// instantiations are created.
+ 	for i := 0; i < len(g.newInsts); i++ {
+ 		g.scanForGenCalls(g.newInsts[i])
+@@ -82,10 +76,6 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
+ 	for _, fun := range g.newInsts {
+ 		info := g.instInfoMap[fun.Sym()]
+ 		g.dictPass(info)
+-		if !preinliningMainScan {
+-			// Prepare for the round of inlining below.
+-			inline.CanInline(fun.(*ir.Func))
+-		}
+ 		if doubleCheck {
+ 			ir.Visit(info.fun, func(n ir.Node) {
+ 				if n.Op() != ir.OCONVIFACE {
+@@ -103,21 +93,6 @@ func (g *genInst) buildInstantiations(preinliningMainScan bool) {
+ 			ir.Dump(fmt.Sprintf("\ndictpass %v", info.fun), info.fun)
+ 		}
+ 	}
+-	if !preinliningMainScan {
+-		// Extra round of inlining for the new instantiations (only if
+-		// preinliningMainScan is false, which means we have already done the
+-		// main round of inlining)
+-		for _, fun := range g.newInsts {
+-			inline.InlineCalls(fun.(*ir.Func))
+-			// New instantiations created during inlining should run
+-			// ComputeAddrTaken directly, since we are past the main pass
+-			// that did ComputeAddrTaken(). We could instead do this
+-			// incrementally during stenciling (for all instantiations,
+-			// including main ones before inlining), since we have the
+-			// type information.
+-			typecheck.ComputeAddrtaken(fun.(*ir.Func).Body)
+-		}
+-	}
+ 	assert(l == len(g.newInsts))
+ 	g.newInsts = nil
+ }
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index b1e2902385..eb1d7b0e07 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1928,11 +1928,17 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 
+ 			sym := typecheck.MakeFuncInstSym(ir.MethodSym(methodrcvr, method.Sym), targs, false, true)
+ 			if sym.Def == nil {
+-				// Currently we make sure that we have all the instantiations
+-				// we need by generating them all in ../noder/stencil.go:instantiateMethods
+-				// TODO: maybe there's a better, more incremental way to generate
+-				// only the instantiations we need?
+-				base.Fatalf("instantiation %s not found", sym.Name)
++				// Currently we make sure that we have all the
++				// instantiations we need by generating them all in
++				// ../noder/stencil.go:instantiateMethods
++				// Extra instantiations because of an inlined function
++				// should have been exported, and so available via
++				// Resolve.
++				in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
++				if in.Op() == ir.ONONAME {
++					base.Fatalf("instantiation %s not found", sym.Name)
++				}
++				sym = in.Sym()
+ 			}
+ 			target := ir.AsNode(sym.Def)
+ 			call = ir.NewCallExpr(base.Pos, ir.OCALL, target, args)
+@@ -2058,8 +2064,14 @@ func getDictionary(gf *types.Sym, targs []*types.Type) ir.Node {
+ 	sym := typecheck.MakeDictSym(gf, targs, true)
+ 
+ 	// Dictionary should already have been generated by instantiateMethods().
++	// Extra dictionaries needed because of an inlined function should have been
++	// exported, and so available via Resolve.
+ 	if lsym := sym.Linksym(); len(lsym.P) == 0 {
+-		base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
++		in := typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
++		if in.Op() == ir.ONONAME {
++			base.Fatalf("Dictionary should have already been generated: %s.%s", sym.Pkg.Path, sym.Name)
++		}
++		sym = in.Sym()
+ 	}
+ 
+ 	// Make (or reuse) a node referencing the dictionary symbol.
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index ae6542d071..5a9649e7a1 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -222,7 +222,38 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 	doFlood = func(n ir.Node) {
+ 		t := n.Type()
+ 		if t != nil {
+-			if t.HasTParam() || t.IsFullyInstantiated() {
++			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
++				// For any fully-instantiated type, the relevant
++				// dictionaries and shape instantiations will have
++				// already been created. Make sure that they are
++				// exported, so that any other package that inlines
++				// this function will have them available for import,
++				// and so will not need another round of method and
++				// dictionary instantiation after inlining.
++				baseType := t.OrigSym().Def.(*ir.Name).Type()
++				shapes := make([]*types.Type, len(t.RParams()))
++				for i, t1 := range t.RParams() {
++					shapes[i] = Shapify(t1, i)
++				}
++				for j := range t.Methods().Slice() {
++					baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
++					dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
++					Export(dictsym.Def.(*ir.Name))
++					methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
++					methNode := methsym.Def.(*ir.Name)
++					Export(methNode)
++					if HaveInlineBody(methNode.Func) {
++						// Export the body as well if
++						// instantiation is inlineable.
++						methNode.Func.SetExportInline(true)
++					}
++				}
++			}
++
++			if t.HasTParam() {
++				// If any generic types are used, then make sure that
++				// the methods of the generic type are exported and
++				// scanned for other possible exports.
+ 				p.markGeneric(t)
+ 			}
+ 			if base.Debug.Unified == 0 {
+diff --git a/test/typeparam/issue50121b.dir/a.go b/test/typeparam/issue50121b.dir/a.go
+new file mode 100644
+index 0000000000..f2b706e0fd
+--- /dev/null
++++ b/test/typeparam/issue50121b.dir/a.go
+@@ -0,0 +1,15 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"constraints"
++)
++
++type Builder[T constraints.Integer] struct{}
++
++func (r Builder[T]) New() T {
++	return T(42)
++}
+diff --git a/test/typeparam/issue50121b.dir/b.go b/test/typeparam/issue50121b.dir/b.go
+new file mode 100644
+index 0000000000..20f9b38b5f
+--- /dev/null
++++ b/test/typeparam/issue50121b.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"a"
++)
++
++var IntBuilder = a.Builder[int]{}
+diff --git a/test/typeparam/issue50121b.dir/c.go b/test/typeparam/issue50121b.dir/c.go
+new file mode 100644
+index 0000000000..ee9ff9fff7
+--- /dev/null
++++ b/test/typeparam/issue50121b.dir/c.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import (
++	"b"
++)
++
++func BuildInt() int {
++	return b.IntBuilder.New()
++}
+diff --git a/test/typeparam/issue50121b.dir/d.go b/test/typeparam/issue50121b.dir/d.go
+new file mode 100644
+index 0000000000..3020381736
+--- /dev/null
++++ b/test/typeparam/issue50121b.dir/d.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package d
++
++import (
++	"c"
++)
++
++func BuildInt() int {
++	return c.BuildInt()
++}
+diff --git a/test/typeparam/issue50121b.dir/main.go b/test/typeparam/issue50121b.dir/main.go
+new file mode 100644
+index 0000000000..4b6ae414c4
+--- /dev/null
++++ b/test/typeparam/issue50121b.dir/main.go
+@@ -0,0 +1,12 @@
++package main
++
++import (
++	"d"
++	"fmt"
++)
++
++func main() {
++	if got, want := d.BuildInt(), 42; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}
+diff --git a/test/typeparam/issue50121b.go b/test/typeparam/issue50121b.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue50121b.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

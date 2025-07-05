@@ -13,7 +13,7 @@ Date:   Tue May 12 17:18:05 2020 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go   | 2 +-
  src/cmd/link/internal/amd64/obj.go   | 2 +-
  src/cmd/link/internal/arm/asm.go     | 2 +-
@@ -36,3 +36,332 @@ Date:   Tue May 12 17:18:05 2020 -0400
  src/cmd/link/internal/x86/asm.go     | 2 +-
  src/cmd/link/internal/x86/obj.go     | 2 +-
  21 files changed, 20 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 554379d625..0b65d5dec4 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -78,7 +78,7 @@ func makeWritable(s *sym.Symbol) {
+ 	}
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+ 	if targ != 0 {
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 1fa8cbb4d0..a98fff6b69 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -51,7 +51,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 0c1f89c6c8..8222b74099 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -103,7 +103,7 @@ func braddoff(a int32, b int32) int32 {
+ 	return int32((uint32(a))&0xff000000 | 0x00ffffff&uint32(a+b))
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index ecdddb597b..9a66c44a03 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index bb6a059c46..45bf47ec44 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -78,7 +78,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	initfunc.AddReloc(rel2)
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index e948273ab9..6bac8b42a2 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 71e2c30798..7254d2b172 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -391,7 +391,7 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 				// symbol which isn't in .data. However, as .text has the
+ 				// same address once loaded, this is possible.
+ 				if ldr.SymSect(s).Seg == &Segdata {
+-					Xcoffadddynrel2(target, ldr, syms, s, r, ri)
++					Xcoffadddynrel(target, ldr, syms, s, r, ri)
+ 				}
+ 			}
+ 
+@@ -775,7 +775,7 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
+ 			// It's expected that some relocations will be done
+ 			// later by relocsym (R_TLS_LE, R_ADDROFF), so
+ 			// don't worry if Adddynrel returns false.
+-			thearch.Adddynrel2(target, ldr, syms, s, r, ri)
++			thearch.Adddynrel(target, ldr, syms, s, r, ri)
+ 			continue
+ 		}
+ 
+@@ -784,7 +784,7 @@ func dynrelocsym2(ctxt *Link, s loader.Sym) {
+ 			if rSym != 0 && !ldr.AttrReachable(rSym) {
+ 				ctxt.Errorf(s, "dynamic relocation to unreachable symbol %s", ldr.SymName(rSym))
+ 			}
+-			if !thearch.Adddynrel2(target, ldr, syms, s, r, ri) {
++			if !thearch.Adddynrel(target, ldr, syms, s, r, ri) {
+ 				ctxt.Errorf(s, "unsupported dynamic relocation for symbol %s (type=%d (%s) stype=%d (%s))", ldr.SymName(rSym), r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymType(rSym), ldr.SymType(rSym))
+ 			}
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 09b9c18024..e5378225dc 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -232,8 +232,7 @@ type Arch struct {
+ 	Openbsddynld   string
+ 	Dragonflydynld string
+ 	Solarisdynld   string
+-	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, *sym.Symbol, *sym.Reloc) bool
+-	Adddynrel2     func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
++	Adddynrel      func(*Target, *loader.Loader, *ArchSyms, loader.Sym, loader.Reloc2, int) bool
+ 	Archinit       func(*Link)
+ 	// Archreloc is an arch-specific hook that assists in relocation processing
+ 	// (invoked by 'relocsym'); it handles target-specific relocation tasks.
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index f0ddc408fe..96c5a58af5 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1109,7 +1109,7 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
+ 
+ // Xcoffadddynrel adds a dynamic relocation in a XCOFF file.
+ // This relocation will be made by the loader.
+-func Xcoffadddynrel2(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func Xcoffadddynrel(target *Target, ldr *loader.Loader, syms *ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	if target.IsExternal() {
+ 		return true
+ 	}
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 49002c6dd5..81e1582c0a 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -38,7 +38,6 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+-	"log"
+ 	"sync"
+ )
+ 
+@@ -46,11 +45,6 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	return
+ }
+ 
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	log.Fatalf("adddynrel not implemented")
+-	return false
+-}
+-
+ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 	ctxt.Out.Write32(uint32(sectoff))
+ 
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index 7fc14638e5..3594f4ac6c 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -49,7 +49,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: DWARFREGSP,
+ 		Dwarfreglr: DWARFREGLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index 3834d74c66..044dcd6a71 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -38,17 +38,11 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+-	"log"
+ 	"sync"
+ )
+ 
+ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {}
+ 
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	log.Fatalf("adddynrel not implemented")
+-	return false
+-}
+-
+ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 
+ 	// mips64 ELF relocation (endian neutral)
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index e56e31f222..bf464c207b 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -48,7 +48,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Minalign:         minAlign,
+ 		Dwarfregsp:       dwarfRegSP,
+ 		Dwarfreglr:       dwarfRegLR,
+-		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 5d4157c200..185d668db7 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -267,16 +267,16 @@ func gencallstub2(ctxt *ld.Link, ldr *loader.Loader, abicase int, stub *loader.S
+ 	stub.AddUint32(ctxt.Arch, 0x4e800420) // bctr
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	if target.IsElf() {
+-		return addelfdynrel2(target, ldr, syms, s, r, rIdx)
++		return addelfdynrel(target, ldr, syms, s, r, rIdx)
+ 	} else if target.IsAIX() {
+-		return ld.Xcoffadddynrel2(target, ldr, syms, s, r, rIdx)
++		return ld.Xcoffadddynrel(target, ldr, syms, s, r, rIdx)
+ 	}
+ 	return false
+ }
+ 
+-func addelfdynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func addelfdynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+ 	if targ != 0 {
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index ffd07d62bd..1589df4abc 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -49,7 +49,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index cd4cd1015d..c21f667da2 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -19,15 +19,6 @@ import (
+ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+ }
+ 
+-func adddynrela(target *ld.Target, syms *ld.ArchSyms, rel *sym.Symbol, s *sym.Symbol, r *sym.Reloc) {
+-	log.Fatalf("adddynrela not implemented")
+-}
+-
+-func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s *sym.Symbol, r *sym.Reloc) bool {
+-	log.Fatalf("adddynrel not implemented")
+-	return false
+-}
+-
+ func elfreloc2(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelocView, sectoff int64) bool {
+ 	log.Fatalf("elfreloc2")
+ 	return false
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index a46b6cefb9..9e6cec2b35 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -20,7 +20,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 8c91dd724a..63d397f887 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -75,7 +75,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	initfunc.AddUint32(ctxt.Arch, 0)
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+ 	if targ != 0 {
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 72da719ee4..8d8dd76133 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index a058bdb9b3..39cca29239 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -129,7 +129,7 @@ func gentext2(ctxt *ld.Link, ldr *loader.Loader) {
+ 	o(0xc3)
+ }
+ 
+-func adddynrel2(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc2, rIdx int) bool {
+ 	targ := r.Sym()
+ 	var targType sym.SymKind
+ 	if targ != 0 {
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index dc1a0021fa..286d6a83dd 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -46,7 +46,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
+-		Adddynrel2:       adddynrel2,
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,

@@ -12,6 +12,20 @@ Date:   Sun Aug 29 21:45:35 2021 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Keith Randall <khr@golang.org>
-
+---
  test/typeparam/sliceimp.dir/a.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/typeparam/sliceimp.dir/a.go b/test/typeparam/sliceimp.dir/a.go
+index da12e9f9fc..dbcfae8931 100644
+--- a/test/typeparam/sliceimp.dir/a.go
++++ b/test/typeparam/sliceimp.dir/a.go
+@@ -45,7 +45,7 @@ func Equal[Elem comparable](s1, s2 []Elem) bool {
+ 	return true
+ }
+ 
+-// EqualFn reports whether two slices are equal using a comparision
++// EqualFn reports whether two slices are equal using a comparison
+ // function on each element.
+ func EqualFn[Elem any](s1, s2 []Elem, eq func(Elem, Elem) bool) bool {
+ 	if len(s1) != len(s2) {

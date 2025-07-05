@@ -15,10 +15,98 @@ Date:   Thu Mar 28 00:53:19 2019 +1100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/test/testdata/issue29563.go      | 12 ++++++++++++
  misc/cgo/test/testdata/issue29563/weak.go | 13 +++++++++++++
  misc/cgo/test/testdata/issue29563/weak1.c | 11 +++++++++++
  misc/cgo/test/testdata/issue29563/weak2.c | 11 +++++++++++
  src/cmd/link/internal/loadelf/ldelf.go    |  5 +++++
  5 files changed, 52 insertions(+)
+
+diff --git a/misc/cgo/test/testdata/issue29563.go b/misc/cgo/test/testdata/issue29563.go
+new file mode 100644
+index 0000000000..84def3ca44
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue29563.go
+@@ -0,0 +1,12 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !windows
++
++// Issue 29563: internal linker fails on duplicate weak symbols.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++import _ "cgotest/issue29563"
+diff --git a/misc/cgo/test/testdata/issue29563/weak.go b/misc/cgo/test/testdata/issue29563/weak.go
+new file mode 100644
+index 0000000000..21cf635cca
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue29563/weak.go
+@@ -0,0 +1,13 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue29563
++
++//int foo1();
++//int foo2();
++import "C"
++
++func Bar() int {
++	return int(C.foo1()) + int(C.foo2())
++}
+diff --git a/misc/cgo/test/testdata/issue29563/weak1.c b/misc/cgo/test/testdata/issue29563/weak1.c
+new file mode 100644
+index 0000000000..86a22734ad
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue29563/weak1.c
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern int weaksym __attribute__((__weak__));
++int weaksym = 42;
++
++int foo1()
++{
++	return weaksym;
++}
+diff --git a/misc/cgo/test/testdata/issue29563/weak2.c b/misc/cgo/test/testdata/issue29563/weak2.c
+new file mode 100644
+index 0000000000..e01eae8b58
+--- /dev/null
++++ b/misc/cgo/test/testdata/issue29563/weak2.c
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern int weaksym __attribute__((__weak__));
++int weaksym = 42;
++
++int foo2()
++{
++	return weaksym;
++}
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index d85d91948a..916b7cf9f2 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1088,6 +1088,11 @@ func readelfsym(arch *sys.Arch, syms *sym.Symbols, elfobj *ElfObj, i int, elfsym
+ 				if elfsym.other == 2 {
+ 					s.Attr |= sym.AttrVisibilityHidden
+ 				}
++
++				// Allow weak symbols to be duplicated when already defined.
++				if s.Outer != nil {
++					s.Attr |= sym.AttrDuplicateOK
++				}
+ 			}
+ 
+ 		default:

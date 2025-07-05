@@ -23,7 +23,50 @@ Date:   Fri May 5 13:10:34 2023 -0700
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/security.go      | 6 +++---
  src/cmd/go/internal/work/security_test.go | 5 +++++
  2 files changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index f4f1880c84..270a34e9c7 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -180,10 +180,10 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,-berok`),
+ 	re(`-Wl,-Bstatic`),
+ 	re(`-Wl,-Bsymbolic-functions`),
+-	re(`-Wl,-O([^@,\-][^,]*)?`),
++	re(`-Wl,-O[0-9]+`),
+ 	re(`-Wl,-d[ny]`),
+ 	re(`-Wl,--disable-new-dtags`),
+-	re(`-Wl,-e[=,][a-zA-Z0-9]*`),
++	re(`-Wl,-e[=,][a-zA-Z0-9]+`),
+ 	re(`-Wl,--enable-new-dtags`),
+ 	re(`-Wl,--end-group`),
+ 	re(`-Wl,--(no-)?export-dynamic`),
+@@ -192,7 +192,7 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,--hash-style=(sysv|gnu|both)`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),
+-	re(`-Wl,-R([^@\-][^,@]*$)`),
++	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
+ 	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
+ 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
+ 	re(`-Wl,-s`),
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 8cecc74eae..c05ba7b9a4 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -230,6 +230,11 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,-R,@foo"},
+ 	{"-Wl,--just-symbols,@foo"},
+ 	{"../x.o"},
++	{"-Wl,-R,"},
++	{"-Wl,-O"},
++	{"-Wl,-e="},
++	{"-Wl,-e,"},
++	{"-Wl,-R,-flag"},
+ }
+ 
+ func TestCheckLinkerFlags(t *testing.T) {

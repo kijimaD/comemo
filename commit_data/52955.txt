@@ -15,7 +15,54 @@ Date:   Tue Jun 14 15:34:05 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/walk/complit.go |  4 ++--
  src/cmd/compile/internal/walk/range.go   | 12 ++++++------
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index 595fe8538c..46744a7130 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -414,9 +414,9 @@ func slicelit(ctxt initContext, n *ir.CompLitExpr, var_ ir.Node, init *ir.Nodes)
+ 
+ func maplit(n *ir.CompLitExpr, m ir.Node, init *ir.Nodes) {
+ 	// make the map var
+-	a := ir.NewCallExpr(base.Pos, ir.OMAKE, nil, nil)
++	args := []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
++	a := typecheck.Expr(ir.NewCallExpr(base.Pos, ir.OMAKE, nil, args)).(*ir.MakeExpr)
+ 	a.SetEsc(n.Esc())
+-	a.Args = []ir.Node{ir.TypeNode(n.Type()), ir.NewInt(n.Len + int64(len(n.List)))}
+ 	appendWalkStmt(init, ir.NewAssignStmt(base.Pos, m, a))
+ 
+ 	entries := n.List
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index 6c30fa2877..48155a817c 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -38,11 +38,7 @@ func cheapComputableIndex(width int64) bool {
+ // the returned node.
+ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 	if isMapClear(nrange) {
+-		m := nrange.X
+-		lno := ir.SetPos(m)
+-		n := mapClear(m)
+-		base.Pos = lno
+-		return n
++		return mapClear(nrange)
+ 	}
+ 
+ 	nfor := ir.NewForStmt(nrange.Pos(), nil, nil, nil, nil)
+@@ -360,7 +356,11 @@ func isMapClear(n *ir.RangeStmt) bool {
+ }
+ 
+ // mapClear constructs a call to runtime.mapclear for the map m.
+-func mapClear(m ir.Node) ir.Node {
++func mapClear(nrange *ir.RangeStmt) ir.Node {
++	m := nrange.X
++	origPos := ir.SetPos(m)
++	defer func() { base.Pos = origPos }()
++
+ 	t := m.Type()
+ 
+ 	// instantiate mapclear(typ *type, hmap map[any]any)

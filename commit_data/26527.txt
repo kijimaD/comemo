@@ -11,6 +11,36 @@ Date:   Tue Feb 2 10:10:27 2016 -0500
     Change-Id: I4f563b2b8a38f3040d7631f74a7908ab65e0860b
     Reviewed-on: https://go-review.googlesource.com/19154
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/vcs.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 074dd8b2b1..342edee50d 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -122,7 +122,7 @@ var vcsGit = &vcsCmd{
+ 	name: "Git",
+ 	cmd:  "git",
+ 
+-	createCmd:   []string{"clone {repo} {dir}", "-C {dir} submodule update --init --recursive"},
++	createCmd:   []string{"clone {repo} {dir}", "-go-internal-cd {dir} submodule update --init --recursive"},
+ 	downloadCmd: []string{"pull --ff-only", "submodule update --init --recursive"},
+ 
+ 	tagCmd: []tagCmd{
+@@ -335,6 +335,15 @@ func (v *vcsCmd) run1(dir string, cmdline string, keyval []string, verbose bool)
+ 		args[i] = expand(m, arg)
+ 	}
+ 
++	if len(args) >= 2 && args[0] == "-go-internal-cd" {
++		if filepath.IsAbs(args[1]) {
++			dir = args[1]
++		} else {
++			dir = filepath.Join(dir, args[1])
++		}
++		args = args[2:]
++	}
++
+ 	_, err := exec.LookPath(v.cmd)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr,

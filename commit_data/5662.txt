@@ -8,7 +8,38 @@ Date:   Mon Jun 14 17:42:31 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1704041
-
+---
  src/pkg/fmt/fmt_test.go | 6 ++++++
  src/pkg/fmt/print.go    | 2 +-
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d9bb167dd9..e48e874b15 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -314,6 +314,12 @@ var fmttests = []fmtTest{
+ 	fmtTest{"%v", renamedComplex64(3 + 4i), "(3+4i)"},
+ 	fmtTest{"%v", renamedComplex128(4 - 3i), "(4-3i)"},
+ 
++	// %T
++	fmtTest{"%T", (4 - 3i), "complex"},
++	fmtTest{"%T", renamedComplex128(4 - 3i), "fmt_test.renamedComplex128"},
++	fmtTest{"%T", intVal, "int"},
++	fmtTest{"%6T", &intVal, "  *int"},
++
+ 	// erroneous things
+ 	fmtTest{"%d", "hello", "%d(string=hello)"},
+ 	fmtTest{"no args", "hello", "no args?(extra string=hello)"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 31bd1f6f73..16ab719523 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -959,7 +959,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 				p.buf.Write(nilAngleBytes)
+ 				break
+ 			}
+-			p.buf.WriteString(reflect.Typeof(field).String())
++			p.printField(reflect.Typeof(field).String(), 's', false, false, 0)
+ 			continue
+ 		}
+ 

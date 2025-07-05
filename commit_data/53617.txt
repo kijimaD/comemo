@@ -15,7 +15,37 @@ Date:   Wed Aug 24 10:10:12 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/link_syso_deps.txt       | 3 ++-
  src/cmd/go/testdata/script/link_syso_issue33139.txt | 2 ++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/link_syso_deps.txt b/src/cmd/go/testdata/script/link_syso_deps.txt
+index 7b458b0826..c713304d9f 100644
+--- a/src/cmd/go/testdata/script/link_syso_deps.txt
++++ b/src/cmd/go/testdata/script/link_syso_deps.txt
+@@ -1,7 +1,8 @@
+ # Test that syso in deps is available to cgo.
+ 
+-[!gc] skip
++[!gc] skip 'requires syso support'
+ [!cgo] skip
++[short] skip 'invokes system C compiler'
+ 
+ # External linking is not supported on linux/ppc64.
+ # See: https://github.com/golang/go/issues/8912
+diff --git a/src/cmd/go/testdata/script/link_syso_issue33139.txt b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+index 8a8cb4aa8c..36746e6499 100644
+--- a/src/cmd/go/testdata/script/link_syso_issue33139.txt
++++ b/src/cmd/go/testdata/script/link_syso_issue33139.txt
+@@ -1,8 +1,10 @@
+ # Test that we can use the external linker with a host syso file that is
+ # embedded in a package, that is referenced by a Go assembly function.
+ # See issue 33139.
++
+ [!gc] skip
+ [!cgo] skip
++[short] skip 'invokes system C compiler'
+ 
+ # External linking is not supported on linux/ppc64.
+ # See: https://github.com/golang/go/issues/8912

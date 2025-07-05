@@ -16,7 +16,7 @@ Date:   Thu Mar 5 13:57:36 2015 -0500
     Change-Id: I323ab45c7ef9d51e28eab3b699eb14bee1eef66b
     Reviewed-on: https://go-review.googlesource.com/6899
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5l/asm.go                   |   2 +-
  src/cmd/5l/l.go                     |   4 +-
  src/cmd/6l/asm.go                   |   2 +-
@@ -54,3 +54,3424 @@ Date:   Thu Mar 5 13:57:36 2015 -0500
  src/cmd/internal/obj/x86/6.out.go   |  61 ++++-
  src/cmd/internal/obj/x86/asm6.go    |  64 +++--
  36 files changed, 1271 insertions(+), 931 deletions(-)
+
+diff --git a/src/cmd/5l/asm.go b/src/cmd/5l/asm.go
+index 3f9b7ada90..525764edf4 100644
+--- a/src/cmd/5l/asm.go
++++ b/src/cmd/5l/asm.go
+@@ -619,7 +619,7 @@ func asmb() {
+ 			fmt.Fprintf(&ld.Bso, "%5.2f dwarf\n", obj.Cputime())
+ 		}
+ 
+-		if ld.Debug['w'] == 0 {
++		if ld.Debug['w'] == 0 { // TODO(minux): enable DWARF Support
+ 			dwarfoff := uint32(ld.Rnd(int64(uint64(ld.HEADR)+ld.Segtext.Length), int64(ld.INITRND)) + ld.Rnd(int64(ld.Segdata.Filelen), int64(ld.INITRND)))
+ 			ld.Cseek(int64(dwarfoff))
+ 
+diff --git a/src/cmd/5l/l.go b/src/cmd/5l/l.go
+index 9eb078dcc5..a52154594d 100644
+--- a/src/cmd/5l/l.go
++++ b/src/cmd/5l/l.go
+@@ -67,8 +67,8 @@ const (
+ 	PtrSize   = 4
+ 	IntSize   = 4
+ 	RegSize   = 4
+-	MaxAlign  = 8
+-	FuncAlign = 4
++	MaxAlign  = 8 // max data alignment
++	FuncAlign = 4 // single-instruction alignment
+ 	MINLC     = 4
+ )
+ 
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index 828aafc648..3617a95bf5 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -134,11 +134,11 @@ func adddynrel(s *ld.LSym, r *ld.Reloc) {
+ 		r.Type = ld.R_ADDR
+ 		return
+ 
+-		// TODO: What is the difference between all these?
+ 	// Handle relocations found in Mach-O object files.
+ 	case 512 + ld.MACHO_X86_64_RELOC_UNSIGNED*2 + 0,
+ 		512 + ld.MACHO_X86_64_RELOC_SIGNED*2 + 0,
+ 		512 + ld.MACHO_X86_64_RELOC_BRANCH*2 + 0:
++		// TODO: What is the difference between all these?
+ 		r.Type = ld.R_ADDR
+ 
+ 		if targ.Type == ld.SDYNIMPORT {
+diff --git a/src/cmd/6l/l.go b/src/cmd/6l/l.go
+index f698679aac..6b42088de3 100644
+--- a/src/cmd/6l/l.go
++++ b/src/cmd/6l/l.go
+@@ -1,37 +1,3 @@
+-// Inferno utils/6l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6l/asm.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package main
+-
+-// Writing object files.
+-
+ // Inferno utils/6l/l.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/6l/l.h
+ //
+@@ -62,9 +28,11 @@ package main
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++package main
++
+ const (
+ 	thechar   = '6'
+-	MaxAlign  = 32
++	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 16
+ )
+ 
+diff --git a/src/cmd/8g/reg.go b/src/cmd/8g/reg.go
+index 47498552f5..9f2cb608e1 100644
+--- a/src/cmd/8g/reg.go
++++ b/src/cmd/8g/reg.go
+@@ -34,7 +34,7 @@ import "cmd/internal/obj/x86"
+ import "cmd/internal/gc"
+ 
+ const (
+-	NREGVAR = 16
++	NREGVAR = 16 /* 8 integer + 8 floating */
+ )
+ 
+ var regname = []string{
+diff --git a/src/cmd/8l/l.go b/src/cmd/8l/l.go
+index fbeee984a3..60050857c4 100644
+--- a/src/cmd/8l/l.go
++++ b/src/cmd/8l/l.go
+@@ -1,37 +1,3 @@
+-// Inferno utils/8l/asm.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/8l/asm.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package main
+-
+-// Writing object files.
+-
+ // Inferno utils/8l/l.h
+ // http://code.google.com/p/inferno-os/source/browse/utils/8l/l.h
+ //
+@@ -62,12 +28,14 @@ package main
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++package main
++
+ const (
+ 	thechar   = '8'
+ 	PtrSize   = 4
+ 	IntSize   = 4
+ 	RegSize   = 4
+-	MaxAlign  = 32
++	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 16
+ 	MINLC     = 1
+ )
+diff --git a/src/cmd/9g/opt.go b/src/cmd/9g/opt.go
+index a0294209aa..4a134f134f 100644
+--- a/src/cmd/9g/opt.go
++++ b/src/cmd/9g/opt.go
+@@ -1,42 +1,12 @@
+-// Derived from Inferno utils/6c/peep.c
+-// http://code.google.com/p/inferno-os/source/browse/utils/6c/peep.c
+-//
+-//	Copyright © 1994-1999 Lucent Technologies Inc.  All rights reserved.
+-//	Portions Copyright © 1995-1997 C H Forsyth (forsyth@terzarima.net)
+-//	Portions Copyright © 1997-1999 Vita Nuova Limited
+-//	Portions Copyright © 2000-2007 Vita Nuova Holdings Limited (www.vitanuova.com)
+-//	Portions Copyright © 2004,2006 Bruce Ellis
+-//	Portions Copyright © 2005-2007 C H Forsyth (forsyth@terzarima.net)
+-//	Revisions Copyright © 2000-2007 Lucent Technologies Inc. and others
+-//	Portions Copyright © 2009 The Go Authors.  All rights reserved.
+-//
+-// Permission is hereby granted, free of charge, to any person obtaining a copy
+-// of this software and associated documentation files (the "Software"), to deal
+-// in the Software without restriction, including without limitation the rights
+-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-// copies of the Software, and to permit persons to whom the Software is
+-// furnished to do so, subject to the following conditions:
+-//
+-// The above copyright notice and this permission notice shall be included in
+-// all copies or substantial portions of the Software.
+-//
+-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-// THE SOFTWARE.
+-
+-package main
+-
+ // Copyright 2014 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package main
++
+ // Many Power ISA arithmetic and logical instructions come in four
+ // standard variants.  These bits let us map between variants.
+ const (
+-	V_CC = 1 << 0
+-	V_V  = 1 << 1
++	V_CC = 1 << 0 // xCC (affect CR field 0 flags)
++	V_V  = 1 << 1 // xV (affect SO and OV flags)
+ )
+diff --git a/src/cmd/9g/reg.go b/src/cmd/9g/reg.go
+index b1b681a6fb..fb0c2e37ec 100644
+--- a/src/cmd/9g/reg.go
++++ b/src/cmd/9g/reg.go
+@@ -34,7 +34,7 @@ import "cmd/internal/obj/ppc64"
+ import "cmd/internal/gc"
+ 
+ const (
+-	NREGVAR = 64
++	NREGVAR = 64 /* 32 general + 32 floating */
+ )
+ 
+ var regname = []string{
+diff --git a/src/cmd/9l/l.go b/src/cmd/9l/l.go
+index 7ddac3f34f..e7dc102af2 100644
+--- a/src/cmd/9l/l.go
++++ b/src/cmd/9l/l.go
+@@ -66,7 +66,7 @@ const (
+ 	PtrSize   = 8
+ 	IntSize   = 8
+ 	RegSize   = 8
+-	MaxAlign  = 32
++	MaxAlign  = 32 // max data alignment
+ 	FuncAlign = 8
+ 	MINLC     = 4
+ )
+diff --git a/src/cmd/internal/gc/esc.go b/src/cmd/internal/gc/esc.go
+index 169dec6341..8b5430b741 100644
+--- a/src/cmd/internal/gc/esc.go
++++ b/src/cmd/internal/gc/esc.go
+@@ -206,15 +206,27 @@ const (
+ )
+ 
+ type EscState struct {
+-	theSink   Node
++	// Fake node that all
++	//   - return values and output variables
++	//   - parameters on imported functions not marked 'safe'
++	//   - assignments to global variables
++	// flow to.
++	theSink Node
++
++	// If an analyzed function is recorded to return
++	// pieces obtained via indirection from a parameter,
++	// and later there is a call f(x) to that function,
++	// we create a link funcParam <- x to record that fact.
++	// The funcParam node is handled specially in escflood.
+ 	funcParam Node
+-	dsts      *NodeList
+-	loopdepth int
+-	pdepth    int
+-	dstcount  int
+-	edgecount int
+-	noesc     *NodeList
+-	recursive bool
++
++	dsts      *NodeList // all dst nodes
++	loopdepth int       // for detecting nested loop scopes
++	pdepth    int       // for debug printing in recursions.
++	dstcount  int       // diagnostic
++	edgecount int       // diagnostic
++	noesc     *NodeList // list of possible non-escaping nodes, for printing
++	recursive bool      // recursive function or group of mutually recursive functions.
+ }
+ 
+ var tags [16]*string
+@@ -530,7 +542,10 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	// However, without this special case b will escape, because we assign to OIND/ODOTPTR.
+ 	case OAS,
+ 		OASOP:
+-		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && (n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && (n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && n.Left.Left == n.Right.Left.Left { // dst is ONAME dereference // src is slice operation // slice is applied to ONAME dereference // dst and src reference the same base ONAME
++		if (n.Left.Op == OIND || n.Left.Op == ODOTPTR) && n.Left.Left.Op == ONAME && // dst is ONAME dereference
++			(n.Right.Op == OSLICE || n.Right.Op == OSLICE3 || n.Right.Op == OSLICESTR) && // src is slice operation
++			(n.Right.Left.Op == OIND || n.Right.Left.Op == ODOTPTR) && n.Right.Left.Left.Op == ONAME && // slice is applied to ONAME dereference
++			n.Left.Left == n.Right.Left.Left { // dst and src reference the same base ONAME
+ 
+ 			// Here we also assume that the statement will not contain calls,
+ 			// that is, that order will move any calls to init.
+@@ -578,13 +593,12 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		if e.loopdepth == 1 { // top level
+ 			break
+ 		}
++		// arguments leak out of scope
++		// TODO: leak to a dummy node instead
+ 		fallthrough
+ 
+-		// go f(x) - f and x escape
+-	// arguments leak out of scope
+-	// TODO: leak to a dummy node instead
+-	// fallthrough
+ 	case OPROC:
++		// go f(x) - f and x escape
+ 		escassign(e, &e.theSink, n.Left.Left)
+ 
+ 		escassign(e, &e.theSink, n.Left.Right) // ODDDARG for call
+@@ -899,14 +913,15 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 		OSLICEARR,
+ 		OSLICE3ARR,
+ 		OSLICESTR:
++		// Conversions, field access, slice all preserve the input value.
+ 		escassign(e, dst, src.Left)
+ 
+-		// Append returns first argument.
+ 	case OAPPEND:
++		// Append returns first argument.
+ 		escassign(e, dst, src.List.N)
+ 
+-		// Index of array preserves input value.
+ 	case OINDEX:
++		// Index of array preserves input value.
+ 		if Isfixedarray(src.Left.Type) {
+ 			escassign(e, dst, src.Left)
+ 		}
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 95c3c7ca13..f05ba2721b 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -32,6 +32,8 @@ const (
+ )
+ 
+ const (
++	// These values are known by runtime.
++	// The MEMx and NOEQx values must run in parallel.  See algtype.
+ 	AMEM = iota
+ 	AMEM0
+ 	AMEM8
+@@ -58,9 +60,9 @@ const (
+ )
+ 
+ const (
+-	Mpscale = 29
+-	Mpprec  = 16
+-	Mpnorm  = Mpprec - 1
++	Mpscale = 29         // safely smaller than bits in a long
++	Mpprec  = 16         // Mpscale*Mpprec is max number of bits
++	Mpnorm  = Mpprec - 1 // significant words in a normalized float
+ 	Mpbase  = 1 << Mpscale
+ 	Mpsign  = Mpbase >> 1
+ 	Mpmask  = Mpbase - 1
+@@ -86,42 +88,44 @@ type Mpcplx struct {
+ type Val struct {
+ 	Ctype int16
+ 	U     struct {
+-		Reg  int16
+-		Bval int16
+-		Xval *Mpint
+-		Fval *Mpflt
+-		Cval *Mpcplx
+-		Sval string
++		Reg  int16   // OREGISTER
++		Bval int16   // bool value CTBOOL
++		Xval *Mpint  // int CTINT, rune CTRUNE
++		Fval *Mpflt  // float CTFLT
++		Cval *Mpcplx // float CTCPLX
++		Sval string  // string CTSTR
+ 	}
+ }
+ 
+ type Pkg struct {
+-	Name     string
+-	Path     string
++	Name     string // package name
++	Path     string // string literal used in import statement
+ 	Pathsym  *Sym
+-	Prefix   string
+-	Imported uint8
+-	Exported int8
+-	Direct   int8
+-	Safe     bool
++	Prefix   string // escaped path for use in symbol table
++	Imported uint8  // export data of this package was parsed
++	Exported int8   // import line written in export data
++	Direct   int8   // imported directly
++	Safe     bool   // whether the package is marked as safe
+ 	Syms     map[string]*Sym
+ }
+ 
+ type Sym struct {
+-	Lexical    uint16
+-	Flags      uint8
+-	Sym        uint8
+-	Link       *Sym
+-	Uniqgen    uint32
+-	Importdef  *Pkg
+-	Linkname   string
++	Lexical   uint16
++	Flags     uint8
++	Sym       uint8 // huffman encoding in object file
++	Link      *Sym
++	Uniqgen   uint32
++	Importdef *Pkg   // where imported definition was found
++	Linkname  string // link name
++
++	// saved and restored by dcopy
+ 	Pkg        *Pkg
+-	Name       string
+-	Def        *Node
+-	Label      *Label
+-	Block      int32
+-	Lastlineno int32
+-	Origpkg    *Pkg
++	Name       string // variable name
++	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
++	Label      *Label // corresponding label (ephemeral)
++	Block      int32  // blocknumber to catch redeclaration
++	Lastlineno int32  // last declaration for diagnostic
++	Origpkg    *Pkg   // original package for . import
+ 	Lsym       *obj.LSym
+ }
+ 
+@@ -130,63 +134,83 @@ type Type struct {
+ 	Nointerface bool
+ 	Noalg       uint8
+ 	Chan        uint8
+-	Trecur      uint8
++	Trecur      uint8 // to detect loops
+ 	Printed     uint8
+-	Embedded    uint8
++	Embedded    uint8 // TFIELD embedded type
+ 	Siggen      uint8
+-	Funarg      uint8
++	Funarg      uint8 // on TSTRUCT and TFIELD
+ 	Copyany     uint8
+-	Local       uint8
++	Local       uint8 // created in this file
+ 	Deferwidth  uint8
+-	Broke       uint8
+-	Isddd       uint8
++	Broke       uint8 // broken type definition.
++	Isddd       uint8 // TFIELD is ... argument
+ 	Align       uint8
+-	Haspointers uint8
+-	Nod         *Node
+-	Orig        *Type
+-	Lineno      int
+-	Thistuple   int
+-	Outtuple    int
+-	Intuple     int
+-	Outnamed    uint8
+-	Method      *Type
+-	Xmethod     *Type
+-	Sym         *Sym
+-	Vargen      int32
+-	Nname       *Node
+-	Argwid      int64
+-	Type        *Type
+-	Width       int64
+-	Down        *Type
+-	Outer       *Type
+-	Note        *string
+-	Bound       int64
+-	Bucket      *Type
+-	Hmap        *Type
+-	Hiter       *Type
+-	Map         *Type
+-	Maplineno   int32
+-	Embedlineno int32
+-	Copyto      *NodeList
+-	Lastfn      *Node
++	Haspointers uint8 // 0 unknown, 1 no, 2 yes
++
++	Nod    *Node // canonical OTYPE node
++	Orig   *Type // original type (type literal or predefined type)
++	Lineno int
++
++	// TFUNC
++	Thistuple int
++	Outtuple  int
++	Intuple   int
++	Outnamed  uint8
++
++	Method  *Type
++	Xmethod *Type
++
++	Sym    *Sym
++	Vargen int32 // unique name for OTYPE/ONAME
++
++	Nname  *Node
++	Argwid int64
++
++	// most nodes
++	Type  *Type // actual type for TFIELD, element type for TARRAY, TCHAN, TMAP, TPTRxx
++	Width int64 // offset in TFIELD, width in all others
++
++	// TFIELD
++	Down  *Type   // next struct field, also key type in TMAP
++	Outer *Type   // outer struct
++	Note  *string // literal string annotation
++
++	// TARRAY
++	Bound int64 // negative is dynamic array
++
++	// TMAP
++	Bucket *Type // internal type representing a hash bucket
++	Hmap   *Type // internal type representing a Hmap (map header object)
++	Hiter  *Type // internal type representing hash iterator state
++	Map    *Type // link from the above 3 internal types back to the map type.
++
++	Maplineno   int32 // first use of TFORW as map key
++	Embedlineno int32 // first use of TFORW as embedded type
++
++	// for TFORW, where to copy the eventual value to
++	Copyto *NodeList
++
++	Lastfn *Node // for usefield
+ }
+ 
+ type Label struct {
+-	Used     uint8
+-	Sym      *Sym
+-	Def      *Node
+-	Use      *NodeList
+-	Link     *Label
+-	Gotopc   *obj.Prog
+-	Labelpc  *obj.Prog
+-	Breakpc  *obj.Prog
+-	Continpc *obj.Prog
++	Used uint8
++	Sym  *Sym
++	Def  *Node
++	Use  *NodeList
++	Link *Label
++
++	// for use during gen
++	Gotopc   *obj.Prog // pointer to unresolved gotos
++	Labelpc  *obj.Prog // pointer to code
++	Breakpc  *obj.Prog // pointer to code
++	Continpc *obj.Prog // pointer to code
+ }
+ 
+ type InitEntry struct {
+-	Xoffset int64
+-	Key     *Node
+-	Expr    *Node
++	Xoffset int64 // struct, array only
++	Key     *Node // map only
++	Expr    *Node // bytes of run-time computed expressions
+ }
+ 
+ type InitPlan struct {
+@@ -205,14 +229,14 @@ const (
+ 	EscNever
+ 	EscBits           = 3
+ 	EscMask           = (1 << EscBits) - 1
+-	EscContentEscapes = 1 << EscBits
++	EscContentEscapes = 1 << EscBits // value obtained by indirect of parameter escapes to some returned result
+ 	EscReturnBits     = EscBits + 1
+ )
+ 
+ const (
+-	SymExport   = 1 << 0
++	SymExport   = 1 << 0 // to be exported
+ 	SymPackage  = 1 << 1
+-	SymExported = 1 << 2
++	SymExported = 1 << 2 // already written out by export
+ 	SymUniq     = 1 << 3
+ 	SymSiggen   = 1 << 4
+ 	SymAsm      = 1 << 5
+@@ -231,6 +255,7 @@ type Iter struct {
+ 
+ const (
+ 	Txxx = iota
++
+ 	TINT8
+ 	TUINT8
+ 	TINT16
+@@ -242,13 +267,18 @@ const (
+ 	TINT
+ 	TUINT
+ 	TUINTPTR
++
+ 	TCOMPLEX64
+ 	TCOMPLEX128
++
+ 	TFLOAT32
+ 	TFLOAT64
++
+ 	TBOOL
++
+ 	TPTR32
+ 	TPTR64
++
+ 	TFUNC
+ 	TARRAY
+ 	T_old_DARRAY
+@@ -261,17 +291,23 @@ const (
+ 	TANY
+ 	TSTRING
+ 	TUNSAFEPTR
++
++	// pseudo-types for literals
+ 	TIDEAL
+ 	TNIL
+ 	TBLANK
++
++	// pseudo-type for frame layout
+ 	TFUNCARGS
+ 	TCHANARGS
+ 	TINTERMETH
++
+ 	NTYPE
+ )
+ 
+ const (
+ 	CTxxx = iota
++
+ 	CTINT
+ 	CTRUNE
+ 	CTFLT
+@@ -282,6 +318,8 @@ const (
+ )
+ 
+ const (
++	/* types of channel */
++	/* must match ../../pkg/nreflect/type.go:/Chandir */
+ 	Cxxx  = 0
+ 	Crecv = 1 << 0
+ 	Csend = 1 << 1
+@@ -290,29 +328,31 @@ const (
+ 
+ // declaration context
+ const (
+-	Pxxx = iota
+-	PEXTERN
+-	PAUTO
+-	PPARAM
+-	PPARAMOUT
+-	PPARAMREF
+-	PFUNC
+-	PDISCARD
+-	PHEAP = 1 << 7
++	Pxxx      = iota
++	PEXTERN   // global variable
++	PAUTO     // local variables
++	PPARAM    // input arguments
++	PPARAMOUT // output results
++	PPARAMREF // closure variable reference
++	PFUNC     // global function
++
++	PDISCARD // discard during parse of duplicate import
++
++	PHEAP = 1 << 7 // an extra bit to identify an escaped variable
+ )
+ 
+ const (
+-	Etop      = 1 << 1
+-	Erv       = 1 << 2
++	Etop      = 1 << 1 // evaluated at statement level
++	Erv       = 1 << 2 // evaluated in value context
+ 	Etype     = 1 << 3
+-	Ecall     = 1 << 4
+-	Efnstruct = 1 << 5
+-	Eiota     = 1 << 6
+-	Easgn     = 1 << 7
+-	Eindir    = 1 << 8
+-	Eaddr     = 1 << 9
+-	Eproc     = 1 << 10
+-	Ecomplit  = 1 << 11
++	Ecall     = 1 << 4  // call-only expressions are ok
++	Efnstruct = 1 << 5  // multivalue function returns are ok
++	Eiota     = 1 << 6  // iota is ok
++	Easgn     = 1 << 7  // assigning to expression
++	Eindir    = 1 << 8  // indirecting through expression
++	Eaddr     = 1 << 9  // taking address of expression
++	Eproc     = 1 << 10 // inside a go statement
++	Ecomplit  = 1 << 11 // type in composite literal
+ )
+ 
+ const (
+@@ -364,8 +404,8 @@ type Io struct {
+ 	eofnl      int
+ 	last       int
+ 	peekc      int
+-	peekc1     int
+-	cp         string
++	peekc1     int    // second peekc for ...
++	cp         string // used for content when bin==nil
+ 	importsafe bool
+ }
+ 
+@@ -383,14 +423,18 @@ type Idir struct {
+  * smagic and umagic
+  */
+ type Magic struct {
+-	W   int
+-	S   int
+-	Bad int
+-	Sd  int64
+-	Sm  int64
+-	Ud  uint64
+-	Um  uint64
+-	Ua  int
++	W   int // input for both - width
++	S   int // output for both - shift
++	Bad int // output for both - unexpected failure
++
++	// magic multiplier for signed literal divisors
++	Sd int64 // input - literal divisor
++	Sm int64 // output - multiplier
++
++	// magic multiplier for unsigned literal divisors
++	Ud uint64 // input - literal divisor
++	Um uint64 // output - multiplier
++	Ua int    // output - adder
+ }
+ 
+ /*
+@@ -670,67 +714,94 @@ var Disable_checknil int
+ var zerosize int64
+ 
+ type Flow struct {
+-	Prog   *obj.Prog
+-	P1     *Flow
+-	P2     *Flow
++	Prog   *obj.Prog // actual instruction
++	P1     *Flow     // predecessors of this instruction: p1,
++	P2     *Flow     // and then p2 linked though p2link.
+ 	P2link *Flow
+-	S1     *Flow
++	S1     *Flow // successors of this instruction (at most two: s1 and s2).
+ 	S2     *Flow
+-	Link   *Flow
+-	Active int32
+-	Id     int32
+-	Rpo    int32
+-	Loop   uint16
+-	Refset uint8
+-	Data   interface{}
++	Link   *Flow // next instruction in function code
++
++	Active int32 // usable by client
++
++	Id     int32  // sequence number in flow graph
++	Rpo    int32  // reverse post ordering
++	Loop   uint16 // x5 for every loop
++	Refset uint8  // diagnostic generated
++
++	Data interface{} // for use by client
+ }
+ 
+ type Graph struct {
+ 	Start *Flow
+ 	Num   int
+-	Rpo   []*Flow
++
++	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
++	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
++	Rpo []*Flow
+ }
+ 
+ /*
+  *	interface to back end
+  */
+ type ProgInfo struct {
+-	Flags    uint32
+-	Reguse   uint64
+-	Regset   uint64
+-	Regindex uint64
++	Flags    uint32 // the bits below
++	Reguse   uint64 // registers implicitly used by this instruction
++	Regset   uint64 // registers implicitly set by this instruction
++	Regindex uint64 // registers used by addressing mode
+ }
+ 
+ const (
+-	Pseudo     = 1 << 1
+-	OK         = 1 << 2
+-	SizeB      = 1 << 3
+-	SizeW      = 1 << 4
+-	SizeL      = 1 << 5
+-	SizeQ      = 1 << 6
+-	SizeF      = 1 << 7
+-	SizeD      = 1 << 8
+-	LeftAddr   = 1 << 9
+-	LeftRead   = 1 << 10
+-	LeftWrite  = 1 << 11
++	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
++	Pseudo = 1 << 1
++
++	// There's nothing to say about the instruction,
++	// but it's still okay to see.
++	OK = 1 << 2
++
++	// Size of right-side write, or right-side read if no write.
++	SizeB = 1 << 3
++	SizeW = 1 << 4
++	SizeL = 1 << 5
++	SizeQ = 1 << 6
++	SizeF = 1 << 7
++	SizeD = 1 << 8
++
++	// Left side (Prog.from): address taken, read, write.
++	LeftAddr  = 1 << 9
++	LeftRead  = 1 << 10
++	LeftWrite = 1 << 11
++
++	// Register in middle (Prog.reg); only ever read. (arm, ppc64)
+ 	RegRead    = 1 << 12
+ 	CanRegRead = 1 << 13
++
++	// Right side (Prog.to): address taken, read, write.
+ 	RightAddr  = 1 << 14
+ 	RightRead  = 1 << 15
+ 	RightWrite = 1 << 16
+-	Move       = 1 << 17
+-	Conv       = 1 << 18
+-	Cjmp       = 1 << 19
+-	Break      = 1 << 20
+-	Call       = 1 << 21
+-	Jump       = 1 << 22
+-	Skip       = 1 << 23
+-	SetCarry   = 1 << 24
+-	UseCarry   = 1 << 25
+-	KillCarry  = 1 << 26
+-	ShiftCX    = 1 << 27
+-	ImulAXDX   = 1 << 28
+-	PostInc    = 1 << 29
++
++	// Instruction kinds
++	Move  = 1 << 17 // straight move
++	Conv  = 1 << 18 // size conversion
++	Cjmp  = 1 << 19 // conditional jump
++	Break = 1 << 20 // breaks control flow (no fallthrough)
++	Call  = 1 << 21 // function call
++	Jump  = 1 << 22 // jump
++	Skip  = 1 << 23 // data instruction
++
++	// Set, use, or kill of carry bit.
++	// Kill means we never look at the carry bit after this kind of instruction.
++	SetCarry  = 1 << 24
++	UseCarry  = 1 << 25
++	KillCarry = 1 << 26
++
++	// Special cases for register use. (amd64, 386)
++	ShiftCX  = 1 << 27 // possible shift by CX
++	ImulAXDX = 1 << 28 // possible multiply into DX:AX
++
++	// Instruction updates whichever of from/to is type D_OREG. (ppc64)
++	PostInc = 1 << 29
+ )
+ 
+ type Arch struct {
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 48a24a6b56..cee5099e3a 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -167,6 +167,7 @@ func dumpdata() {
+ 	Clearp(Pc)
+ }
+ 
++// Fixup instructions after allocauto (formerly compactframe) has moved all autos around.
+ func fixautoused(p *obj.Prog) {
+ 	for lp := &p; ; {
+ 		p = *lp
+@@ -258,6 +259,7 @@ func Isfat(t *Type) bool {
+ 	return false
+ }
+ 
++// Sweep the prog list to mark any used nodes.
+ func markautoused(p *obj.Prog) {
+ 	for ; p != nil; p = p.Link {
+ 		if p.As == obj.ATYPE || p.As == obj.AVARDEF || p.As == obj.AVARKILL {
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 3f16d75447..f7e9d4ba2b 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -41,9 +41,9 @@ import (
+ 
+ // Order holds state during the ordering process.
+ type Order struct {
+-	out  *NodeList
+-	temp *NodeList
+-	free *NodeList
++	out  *NodeList // list of generated statements
++	temp *NodeList // head of stack of temporary variables
++	free *NodeList // free list of NodeList* structs (for use in temp)
+ }
+ 
+ // Order rewrites fn->nbody to apply the ordering constraints
+diff --git a/src/cmd/internal/gc/plive.go b/src/cmd/internal/gc/plive.go
+index 100b82be06..97e870b57a 100644
+--- a/src/cmd/internal/gc/plive.go
++++ b/src/cmd/internal/gc/plive.go
+@@ -2,6 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Garbage collector liveness bitmap generation.
++
++// The command line flag -live causes this code to print debug information.
++// The levels are:
++//
++//	-live (aka -live=1): print liveness lists as code warnings at safe points
++//	-live=2: print an assembly listing with liveness annotations
++//	-live=3: print information during each computation phase (much chattier)
++//
++// Each level includes the earlier output as well.
++
+ package gc
+ 
+ import (
+@@ -34,28 +45,49 @@ const (
+ //     ...
+ //   }
+ type BasicBlock struct {
+-	pred            []*BasicBlock
+-	succ            []*BasicBlock
+-	first           *obj.Prog
+-	last            *obj.Prog
+-	rpo             int
+-	mark            int
+-	lastbitmapindex int
+-	uevar           Bvec
+-	varkill         Bvec
+-	livein          Bvec
+-	liveout         Bvec
+-	avarinit        Bvec
+-	avarinitany     Bvec
+-	avarinitall     Bvec
++	pred            []*BasicBlock // predecessors; if none, probably start of CFG
++	succ            []*BasicBlock // successors; if none, probably ends in return statement
++	first           *obj.Prog     // first instruction in block
++	last            *obj.Prog     // last instruction in block
++	rpo             int           // reverse post-order number (also index in cfg)
++	mark            int           // mark bit for traversals
++	lastbitmapindex int           // for livenessepilogue
++
++	// Summary sets of block effects.
++
++	// Computed during livenessprologue using only the content of
++	// individual blocks:
++	//
++	//	uevar: upward exposed variables (used before set in block)
++	//	varkill: killed variables (set in block)
++	//	avarinit: addrtaken variables set or used (proof of initialization)
++	uevar    Bvec
++	varkill  Bvec
++	avarinit Bvec
++
++	// Computed during livenesssolve using control flow information:
++	//
++	//	livein: variables live at block entry
++	//	liveout: variables live at block exit
++	//	avarinitany: addrtaken variables possibly initialized at block exit
++	//		(initialized in block or at exit from any predecessor block)
++	//	avarinitall: addrtaken variables certainly initialized at block exit
++	//		(initialized in block or at exit from all predecessor blocks)
++	livein      Bvec
++	liveout     Bvec
++	avarinitany Bvec
++	avarinitall Bvec
+ }
+ 
+ // A collection of global state used by liveness analysis.
+ type Liveness struct {
+-	fn               *Node
+-	ptxt             *obj.Prog
+-	vars             []*Node
+-	cfg              []*BasicBlock
++	fn   *Node
++	ptxt *obj.Prog
++	vars []*Node
++	cfg  []*BasicBlock
++
++	// An array with a bit vector for each safe point tracking live pointers
++	// in the arguments and locals area, indexed by bb.rpo.
+ 	argslivepointers []Bvec
+ 	livepointers     []Bvec
+ }
+diff --git a/src/cmd/internal/gc/popt.go b/src/cmd/internal/gc/popt.go
+index c56dc8e90d..813f24af3c 100644
+--- a/src/cmd/internal/gc/popt.go
++++ b/src/cmd/internal/gc/popt.go
+@@ -79,16 +79,25 @@ const (
+ )
+ 
+ type Reg struct {
+-	set       Bits
+-	use1      Bits
+-	use2      Bits
++	set  Bits // regopt variables written by this instruction.
++	use1 Bits // regopt variables read by prog->from.
++	use2 Bits // regopt variables read by prog->to.
++
++	// refahead/refbehind are the regopt variables whose current
++	// value may be used in the following/preceding instructions
++	// up to a CALL (or the value is clobbered).
+ 	refbehind Bits
+ 	refahead  Bits
++
++	// calahead/calbehind are similar, but for variables in
++	// instructions that are reachable after hitting at least one
++	// CALL.
+ 	calbehind Bits
+ 	calahead  Bits
+-	regdiff   Bits
+-	act       Bits
+-	regu      uint64
++
++	regdiff Bits
++	act     Bits
++	regu    uint64 // register used bitmap
+ }
+ 
+ type Rgn struct {
+@@ -639,14 +648,14 @@ func Uniqs(r *Flow) *Flow {
+ 
+ type TempVar struct {
+ 	node     *Node
+-	def      *Flow
+-	use      *Flow
+-	freelink *TempVar
+-	merge    *TempVar
+-	start    int64
+-	end      int64
+-	addr     uint8
+-	removed  uint8
++	def      *Flow    // definition of temp var
++	use      *Flow    // use list, chained through Flow.data
++	freelink *TempVar // next free temp in Type.opt list
++	merge    *TempVar // merge var with this one
++	start    int64    // smallest Prog.pc in live range
++	end      int64    // largest Prog.pc in live range
++	addr     uint8    // address taken - no accurate end
++	removed  uint8    // removed from program
+ }
+ 
+ type startcmp []*TempVar
+diff --git a/src/cmd/internal/gc/range.go b/src/cmd/internal/gc/range.go
+index 3de70ba71c..8dbb002b24 100644
+--- a/src/cmd/internal/gc/range.go
++++ b/src/cmd/internal/gc/range.go
+@@ -135,6 +135,13 @@ out:
+ }
+ 
+ func walkrange(n *Node) {
++	// variable name conventions:
++	//	ohv1, hv1, hv2: hidden (old) val 1, 2
++	//	ha, hit: hidden aggregate, iterator
++	//	hn, hp: hidden len, pointer
++	//	hb: hidden bool
++	//	a, v1, v2: not hidden aggregate, val 1, 2
++
+ 	t := n.Type
+ 
+ 	a := n.Right
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index d2b735aa01..7584af2d77 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -11,31 +11,34 @@ package gc
+ // node with Op=ONAME for a given instance of a variable x.
+ // The same is true for Op=OTYPE and Op=OLITERAL.
+ type Node struct {
+-	Left           *Node
+-	Right          *Node
+-	Ntest          *Node
+-	Nincr          *Node
+-	Ninit          *NodeList
+-	Nbody          *NodeList
+-	Nelse          *NodeList
+-	List           *NodeList
+-	Rlist          *NodeList
++	// Tree structure.
++	// Generic recursive walks should follow these fields.
++	Left  *Node
++	Right *Node
++	Ntest *Node
++	Nincr *Node
++	Ninit *NodeList
++	Nbody *NodeList
++	Nelse *NodeList
++	List  *NodeList
++	Rlist *NodeList
++
+ 	Op             uint8
+ 	Nointerface    bool
+-	Ullman         uint8
+-	Addable        uint8
+-	Trecur         uint8
+-	Etype          uint8
+-	Bounded        bool
+-	Class          uint8
+-	Method         uint8
+-	Embedded       uint8
+-	Colas          uint8
+-	Diag           uint8
+-	Noescape       bool
+-	Nosplit        bool
+-	Builtin        uint8
+-	Nowritebarrier bool
++	Ullman         uint8 // sethi/ullman number
++	Addable        uint8 // type of addressability - 0 is not addressable
++	Trecur         uint8 // to detect loops
++	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
++	Bounded        bool  // bounds check unnecessary
++	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc
++	Method         uint8 // OCALLMETH name
++	Embedded       uint8 // ODCLFIELD embedded type
++	Colas          uint8 // OAS resulting from :=
++	Diag           uint8 // already printed error about this
++	Noescape       bool  // func arguments do not escape
++	Nosplit        bool  // func should not execute on separate stack
++	Builtin        uint8 // built-in name, like len or close
++	Nowritebarrier bool  // emit compiler error instead of write barrier
+ 	Walkdef        uint8
+ 	Typecheck      uint8
+ 	Local          uint8
+@@ -45,219 +48,255 @@ type Node struct {
+ 	Isddd          uint8
+ 	Readonly       uint8
+ 	Implicit       uint8
+-	Addrtaken      uint8
+-	Assigned       uint8
+-	Captured       uint8
+-	Byval          uint8
+-	Dupok          uint8
+-	Wrapper        uint8
+-	Reslice        uint8
+-	Likely         int8
+-	Hasbreak       uint8
+-	Needzero       bool
+-	Needctxt       bool
+-	Esc            uint
++	Addrtaken      uint8 // address taken, even if not moved to heap
++	Assigned       uint8 // is the variable ever assigned to
++	Captured       uint8 // is the variable captured by a closure
++	Byval          uint8 // is the variable captured by value or by reference
++	Dupok          uint8 // duplicate definitions ok (for func)
++	Wrapper        uint8 // is method wrapper (for func)
++	Reslice        uint8 // this is a reslice x = x[0:y] or x = append(x, ...)
++	Likely         int8  // likeliness of if statement
++	Hasbreak       uint8 // has break statement
++	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
++	Needctxt       bool  // function uses context register (has closure variables)
++	Esc            uint  // EscXXX
+ 	Funcdepth      int
+-	Type           *Type
+-	Orig           *Node
+-	Nname          *Node
+-	Shortname      *Node
+-	Enter          *NodeList
+-	Exit           *NodeList
+-	Cvars          *NodeList
+-	Dcl            *NodeList
+-	Inl            *NodeList
+-	Inldcl         *NodeList
+-	Closgen        int
+-	Outerfunc      *Node
+-	Val            Val
+-	Ntype          *Node
+-	Defn           *Node
+-	Pack           *Node
+-	Curfn          *Node
+-	Paramfld       *Type
+-	Decldepth      int
+-	Heapaddr       *Node
+-	Outerexpr      *Node
+-	Stackparam     *Node
+-	Alloc          *Node
+-	Outer          *Node
+-	Closure        *Node
+-	Top            int
+-	Inlvar         *Node
+-	Pkg            *Pkg
+-	Initplan       *InitPlan
+-	Escflowsrc     *NodeList
+-	Escretval      *NodeList
+-	Escloopdepth   int
+-	Sym            *Sym
+-	InlCost        int32
+-	Vargen         int32
+-	Lineno         int32
+-	Endlineno      int32
+-	Xoffset        int64
+-	Stkdelta       int64
+-	Ostk           int32
+-	Iota           int32
+-	Walkgen        uint32
+-	Esclevel       int32
+-	Opt            interface{}
++
++	// most nodes
++	Type *Type
++	Orig *Node // original form, for printing, and tracking copies of ONAMEs
++
++	// func
++	Nname     *Node
++	Shortname *Node
++	Enter     *NodeList
++	Exit      *NodeList
++	Cvars     *NodeList // closure params
++	Dcl       *NodeList // autodcl for this func/closure
++	Inl       *NodeList // copy of the body for use in inlining
++	Inldcl    *NodeList // copy of dcl for use in inlining
++	Closgen   int
++	Outerfunc *Node
++
++	// OLITERAL/OREGISTER
++	Val Val
++
++	// ONAME
++	Ntype     *Node
++	Defn      *Node // ONAME: initializing assignment; OLABEL: labeled statement
++	Pack      *Node // real package for import . names
++	Curfn     *Node // function for local variables
++	Paramfld  *Type // TFIELD for this PPARAM; also for ODOT, curfn
++	Decldepth int   // declaration loop depth, increased for every loop or label
++
++	// ONAME func param with PHEAP
++	Heapaddr   *Node // temp holding heap address of param
++	Outerexpr  *Node // expression copied into closure for variable
++	Stackparam *Node // OPARAM node referring to stack copy of param
++	Alloc      *Node // allocation call
++
++	// ONAME closure param with PPARAMREF
++	Outer   *Node // outer PPARAMREF in nested closure
++	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
++	Top     int   // top context (Ecall, Eproc, etc)
++
++	// ONAME substitute while inlining
++	Inlvar *Node
++
++	// OPACK
++	Pkg *Pkg
++
++	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
++	Initplan *InitPlan
++
++	// Escape analysis.
++	Escflowsrc   *NodeList // flow(this, src)
++	Escretval    *NodeList // on OCALLxxx, list of dummy return values
++	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
++
++	Sym       *Sym  // various
++	InlCost   int32 // unique name for OTYPE/ONAME
++	Vargen    int32
++	Lineno    int32
++	Endlineno int32
++	Xoffset   int64
++	Stkdelta  int64 // offset added by stack frame compaction phase.
++	Ostk      int32
++	Iota      int32
++	Walkgen   uint32
++	Esclevel  int32
++	Opt       interface{} // for optimization passes
+ }
+ 
+ // Node ops.
+ const (
+ 	OXXX = iota
+-	ONAME
+-	ONONAME
+-	OTYPE
+-	OPACK
+-	OLITERAL
+-	OADD
+-	OSUB
+-	OOR
+-	OXOR
+-	OADDSTR
+-	OADDR
+-	OANDAND
+-	OAPPEND
+-	OARRAYBYTESTR
+-	OARRAYBYTESTRTMP
+-	OARRAYRUNESTR
+-	OSTRARRAYBYTE
+-	OSTRARRAYBYTETMP
+-	OSTRARRAYRUNE
+-	OAS
+-	OAS2
+-	OAS2FUNC
+-	OAS2RECV
+-	OAS2MAPR
+-	OAS2DOTTYPE
+-	OASOP
+-	OCALL
+-	OCALLFUNC
+-	OCALLMETH
+-	OCALLINTER
+-	OCALLPART
+-	OCAP
+-	OCLOSE
+-	OCLOSURE
+-	OCMPIFACE
+-	OCMPSTR
+-	OCOMPLIT
+-	OMAPLIT
+-	OSTRUCTLIT
+-	OARRAYLIT
+-	OPTRLIT
+-	OCONV
+-	OCONVIFACE
+-	OCONVNOP
+-	OCOPY
+-	ODCL
+-	ODCLFUNC
+-	ODCLFIELD
+-	ODCLCONST
+-	ODCLTYPE
+-	ODELETE
+-	ODOT
+-	ODOTPTR
+-	ODOTMETH
+-	ODOTINTER
+-	OXDOT
+-	ODOTTYPE
+-	ODOTTYPE2
+-	OEQ
+-	ONE
+-	OLT
+-	OLE
+-	OGE
+-	OGT
+-	OIND
+-	OINDEX
+-	OINDEXMAP
+-	OKEY
+-	OPARAM
+-	OLEN
+-	OMAKE
+-	OMAKECHAN
+-	OMAKEMAP
+-	OMAKESLICE
+-	OMUL
+-	ODIV
+-	OMOD
+-	OLSH
+-	ORSH
+-	OAND
+-	OANDNOT
+-	ONEW
+-	ONOT
+-	OCOM
+-	OPLUS
+-	OMINUS
+-	OOROR
+-	OPANIC
+-	OPRINT
+-	OPRINTN
+-	OPAREN
+-	OSEND
+-	OSLICE
+-	OSLICEARR
+-	OSLICESTR
+-	OSLICE3
+-	OSLICE3ARR
+-	ORECOVER
+-	ORECV
+-	ORUNESTR
+-	OSELRECV
+-	OSELRECV2
+-	OIOTA
+-	OREAL
+-	OIMAG
+-	OCOMPLEX
+-	OBLOCK
+-	OBREAK
+-	OCASE
+-	OXCASE
+-	OCONTINUE
+-	ODEFER
+-	OEMPTY
+-	OFALL
+-	OXFALL
+-	OFOR
+-	OGOTO
+-	OIF
+-	OLABEL
+-	OPROC
+-	ORANGE
+-	ORETURN
+-	OSELECT
+-	OSWITCH
+-	OTYPESW
+-	OTCHAN
+-	OTMAP
+-	OTSTRUCT
+-	OTINTER
+-	OTFUNC
+-	OTARRAY
+-	ODDD
+-	ODDDARG
+-	OINLCALL
+-	OEFACE
+-	OITAB
+-	OSPTR
+-	OCLOSUREVAR
+-	OCFUNC
+-	OCHECKNIL
+-	OVARKILL
+-	OREGISTER
+-	OINDREG
+-	OCMP
+-	ODEC
+-	OINC
+-	OEXTEND
+-	OHMUL
+-	OLROT
+-	ORROTC
+-	ORETJMP
++
++	// names
++	ONAME    // var, const or func name
++	ONONAME  // unnamed arg or return value: f(int, string) (int, error) { etc }
++	OTYPE    // type name
++	OPACK    // import
++	OLITERAL // literal
++
++	// expressions
++	OADD             // x + y
++	OSUB             // x - y
++	OOR              // x | y
++	OXOR             // x ^ y
++	OADDSTR          // s + "foo"
++	OADDR            // &x
++	OANDAND          // b0 && b1
++	OAPPEND          // append
++	OARRAYBYTESTR    // string(bytes)
++	OARRAYBYTESTRTMP // string(bytes) ephemeral
++	OARRAYRUNESTR    // string(runes)
++	OSTRARRAYBYTE    // []byte(s)
++	OSTRARRAYBYTETMP // []byte(s) ephemeral
++	OSTRARRAYRUNE    // []rune(s)
++	OAS              // x = y or x := y
++	OAS2             // x, y, z = xx, yy, zz
++	OAS2FUNC         // x, y = f()
++	OAS2RECV         // x, ok = <-c
++	OAS2MAPR         // x, ok = m["foo"]
++	OAS2DOTTYPE      // x, ok = I.(int)
++	OASOP            // x += y
++	OCALL            // function call, method call or type conversion, possibly preceded by defer or go.
++	OCALLFUNC        // f()
++	OCALLMETH        // t.Method()
++	OCALLINTER       // err.Error()
++	OCALLPART        // t.Method (without ())
++	OCAP             // cap
++	OCLOSE           // close
++	OCLOSURE         // f = func() { etc }
++	OCMPIFACE        // err1 == err2
++	OCMPSTR          // s1 == s2
++	OCOMPLIT         // composite literal, typechecking may convert to a more specific OXXXLIT.
++	OMAPLIT          // M{"foo":3, "bar":4}
++	OSTRUCTLIT       // T{x:3, y:4}
++	OARRAYLIT        // [2]int{3, 4}
++	OPTRLIT          // &T{x:3, y:4}
++	OCONV            // var i int; var u uint; i = int(u)
++	OCONVIFACE       // I(t)
++	OCONVNOP         // type Int int; var i int; var j Int; i = int(j)
++	OCOPY            // copy
++	ODCL             // var x int
++	ODCLFUNC         // func f() or func (r) f()
++	ODCLFIELD        // struct field, interface field, or func/method argument/return value.
++	ODCLCONST        // const pi = 3.14
++	ODCLTYPE         // type Int int
++	ODELETE          // delete
++	ODOT             // t.x
++	ODOTPTR          // p.x that is implicitly (*p).x
++	ODOTMETH         // t.Method
++	ODOTINTER        // err.Error
++	OXDOT            // t.x, typechecking may convert to a more specific ODOTXXX.
++	ODOTTYPE         // e = err.(MyErr)
++	ODOTTYPE2        // e, ok = err.(MyErr)
++	OEQ              // x == y
++	ONE              // x != y
++	OLT              // x < y
++	OLE              // x <= y
++	OGE              // x >= y
++	OGT              // x > y
++	OIND             // *p
++	OINDEX           // a[i]
++	OINDEXMAP        // m[s]
++	OKEY             // The x:3 in t{x:3, y:4}, the 1:2 in a[1:2], the 2:20 in [3]int{2:20}, etc.
++	OPARAM           // The on-stack copy of a parameter or return value that escapes.
++	OLEN             // len
++	OMAKE            // make, typechecking may convert to a more specific OMAKEXXX.
++	OMAKECHAN        // make(chan int)
++	OMAKEMAP         // make(map[string]int)
++	OMAKESLICE       // make([]int, 0)
++	OMUL             // *
++	ODIV             // x / y
++	OMOD             // x % y
++	OLSH             // x << u
++	ORSH             // x >> u
++	OAND             // x & y
++	OANDNOT          // x &^ y
++	ONEW             // new
++	ONOT             // !b
++	OCOM             // ^x
++	OPLUS            // +x
++	OMINUS           // -y
++	OOROR            // b1 || b2
++	OPANIC           // panic
++	OPRINT           // print
++	OPRINTN          // println
++	OPAREN           // (x)
++	OSEND            // c <- x
++	OSLICE           // v[1:2], typechecking may convert to a more specific OSLICEXXX.
++	OSLICEARR        // a[1:2]
++	OSLICESTR        // s[1:2]
++	OSLICE3          // v[1:2:3], typechecking may convert to OSLICE3ARR.
++	OSLICE3ARR       // a[1:2:3]
++	ORECOVER         // recover
++	ORECV            // <-c
++	ORUNESTR         // string(i)
++	OSELRECV         // case x = <-c:
++	OSELRECV2        // case x, ok = <-c:
++	OIOTA            // iota
++	OREAL            // real
++	OIMAG            // imag
++	OCOMPLEX         // complex
++
++	// statements
++	OBLOCK    // block of code
++	OBREAK    // break
++	OCASE     // case, after being verified by swt.c's casebody.
++	OXCASE    // case, before verification.
++	OCONTINUE // continue
++	ODEFER    // defer
++	OEMPTY    // no-op
++	OFALL     // fallthrough, after being verified by swt.c's casebody.
++	OXFALL    // fallthrough, before verification.
++	OFOR      // for
++	OGOTO     // goto
++	OIF       // if
++	OLABEL    // label:
++	OPROC     // go
++	ORANGE    // range
++	ORETURN   // return
++	OSELECT   // select
++	OSWITCH   // switch x
++	OTYPESW   // switch err.(type)
++
++	// types
++	OTCHAN   // chan int
++	OTMAP    // map[string]int
++	OTSTRUCT // struct{}
++	OTINTER  // interface{}
++	OTFUNC   // func()
++	OTARRAY  // []int, [8]int, [N]int or [...]int
++
++	// misc
++	ODDD        // func f(args ...int) or f(l...) or var a = [...]int{0, 1, 2}.
++	ODDDARG     // func f(args ...int), introduced by escape analysis.
++	OINLCALL    // intermediary representation of an inlined call.
++	OEFACE      // itable and data words of an empty-interface value.
++	OITAB       // itable word of an interface value.
++	OSPTR       // base pointer of a slice or string.
++	OCLOSUREVAR // variable reference at beginning of closure function
++	OCFUNC      // reference to c function pointer (not go func value)
++	OCHECKNIL   // emit code to ensure pointer/interface not nil
++	OVARKILL    // variable is dead
++
++	// thearch-specific registers
++	OREGISTER // a register, such as AX.
++	OINDREG   // offset plus indirect of a register, such as 8(SP).
++
++	// 386/amd64-specific opcodes
++	OCMP    // compare: ACMP.
++	ODEC    // decrement: ADEC.
++	OINC    // increment: AINC.
++	OEXTEND // extend: ACWD/ACDQ/ACQO.
++	OHMUL   // high mul: AMUL/AIMUL for unsigned/signed (OMUL uses AIMUL for both).
++	OLROT   // left rotate: AROL.
++	ORROTC  // right rotate-carry: ARCR.
++	ORETJMP // return to other function
++
+ 	OEND
+ )
+ 
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index 845aac6965..5ae418ca2e 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -490,7 +490,7 @@ OpSwitch:
+ 	case OIND:
+ 		ntop := Erv | Etype
+ 
+-		if top&Eaddr == 0 {
++		if top&Eaddr == 0 { // The *x in &*x is not an indirect.
+ 			ntop |= Eindir
+ 		}
+ 		ntop |= top & Ecomplit
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index 842deab593..a96ce07905 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -2950,10 +2950,9 @@ func appendslice(n *Node, init **NodeList) *Node {
+ 	nif.Ntest = Nod(OGT, nt, Nodintconst(0))
+ 
+ 	// instantiate growslice(Type*, []any, int) []any
+-	fn := syslook("growslice", 1)
+-
+-	argtype(fn, s.Type.Type)
+-	argtype(fn, s.Type.Type)
++	fn := syslook("growslice", 1) //   growslice(<type>, old []T, n int64) (ret []T)
++	argtype(fn, s.Type.Type)      // 1 old []any
++	argtype(fn, s.Type.Type)      // 2 ret []any
+ 
+ 	// s = growslice(T, s, n)
+ 	nif.Nbody = list1(Nod(OAS, s, mkcall1(fn, s.Type, &nif.Ninit, typename(s.Type), s, nt)))
+@@ -3774,8 +3773,8 @@ func walkdiv(np **Node, init **NodeList) {
+ 	// by a constant
+ 	w := int(nl.Type.Width * 8)
+ 
+-	s := 0
+-	pow := powtwo(nr)
++	s := 0            // 1 if nr is negative.
++	pow := powtwo(nr) // if >= 0, nr is 1<<pow
+ 	if pow >= 1000 {
+ 		// negative power of 2
+ 		s = 1
+diff --git a/src/cmd/internal/ld/decodesym.go b/src/cmd/internal/ld/decodesym.go
+index 74fa4b5f7c..e960f101b9 100644
+--- a/src/cmd/internal/ld/decodesym.go
++++ b/src/cmd/internal/ld/decodesym.go
+@@ -165,7 +165,7 @@ func decodetype_structfieldoffs(s *LSym, i int) int64 {
+ 	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize+2*Thearch.Intsize+i*structfieldsize()+4*Thearch.Ptrsize:], Thearch.Intsize))
+ }
+ 
+-// InterfaceTYpe.methods.length
++// InterfaceType.methods.length
+ func decodetype_ifacemethodcount(s *LSym) int64 {
+ 	return int64(decode_inuxi(s.P[commonsize()+Thearch.Ptrsize:], Thearch.Intsize))
+ }
+diff --git a/src/cmd/internal/ld/dwarf.go b/src/cmd/internal/ld/dwarf.go
+index f850180822..c103438892 100644
+--- a/src/cmd/internal/ld/dwarf.go
++++ b/src/cmd/internal/ld/dwarf.go
+@@ -2,6 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// TODO/NICETOHAVE:
++//   - eliminate DW_CLS_ if not used
++//   - package info in compilation units
++//   - assign global variables and types to their packages
++//   - gdb uses c syntax, meaning clumsy quoting is needed for go identifiers. eg
++//     ptype struct '[]uint8' and qualifiers need to be quoted away
++//   - lexical scoping is lost, so gdb gets confused as to which 'main.i' you mean.
++//   - file:line info for variables
++//   - make strings a typedef so prettyprinters can see the underlying string type
++
+ package ld
+ 
+ import (
+@@ -173,10 +183,11 @@ type DWAttrForm struct {
+ 
+ // Go-specific type attributes.
+ const (
+-	DW_AT_go_kind           = 0x2900
+-	DW_AT_go_key            = 0x2901
+-	DW_AT_go_elem           = 0x2902
+-	DW_AT_internal_location = 253
++	DW_AT_go_kind = 0x2900
++	DW_AT_go_key  = 0x2901
++	DW_AT_go_elem = 0x2902
++
++	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+ 
+ // Index into the abbrevs table below.
+@@ -201,7 +212,7 @@ const (
+ 	DW_ABRV_IFACETYPE
+ 	DW_ABRV_MAPTYPE
+ 	DW_ABRV_PTRTYPE
+-	DW_ABRV_BARE_PTRTYPE
++	DW_ABRV_BARE_PTRTYPE // only for void*, no DW_AT_type attr to please gdb 6.
+ 	DW_ABRV_SLICETYPE
+ 	DW_ABRV_STRINGTYPE
+ 	DW_ABRV_STRUCTTYPE
+@@ -632,8 +643,8 @@ func dwarfhashstr(s string) uint32 {
+ 
+ type DWAttr struct {
+ 	link  *DWAttr
+-	atr   uint16
+-	cls   uint8
++	atr   uint16 // DW_AT_
++	cls   uint8  // DW_CLS_
+ 	value int64
+ 	data  interface{}
+ }
+@@ -643,9 +654,11 @@ type DWDie struct {
+ 	link   *DWDie
+ 	child  *DWDie
+ 	attr   *DWAttr
+-	offs   int64
+-	hash   []*DWDie
+-	hlink  *DWDie
++	// offset into .debug_info section, i.e relative to
++	// infoo. only valid after call to putdie()
++	offs  int64
++	hash  []*DWDie // optional index of children by name, enabled by mkindex()
++	hlink *DWDie   // bucket chain in parent's index
+ }
+ 
+ /*
+@@ -1871,7 +1884,7 @@ func writelines() {
+ const (
+ 	CIERESERVE          = 16
+ 	DATAALIGNMENTFACTOR = -4
+-	FAKERETURNCOLUMN    = 16
++	FAKERETURNCOLUMN    = 16 // TODO gdb6 doesn't like > 15?
+ )
+ 
+ func putpccfadelta(deltapc int64, cfa int64) {
+diff --git a/src/cmd/internal/ld/dwarf_defs.go b/src/cmd/internal/ld/dwarf_defs.go
+index 5be838965a..61389d9218 100644
+--- a/src/cmd/internal/ld/dwarf_defs.go
++++ b/src/cmd/internal/ld/dwarf_defs.go
+@@ -89,21 +89,25 @@ const (
+ 	DW_TAG_variant_part             = 0x33
+ 	DW_TAG_variable                 = 0x34
+ 	DW_TAG_volatile_type            = 0x35
+-	DW_TAG_dwarf_procedure          = 0x36
+-	DW_TAG_restrict_type            = 0x37
+-	DW_TAG_interface_type           = 0x38
+-	DW_TAG_namespace                = 0x39
+-	DW_TAG_imported_module          = 0x3a
+-	DW_TAG_unspecified_type         = 0x3b
+-	DW_TAG_partial_unit             = 0x3c
+-	DW_TAG_imported_unit            = 0x3d
+-	DW_TAG_condition                = 0x3f
+-	DW_TAG_shared_type              = 0x40
+-	DW_TAG_type_unit                = 0x41
+-	DW_TAG_rvalue_reference_type    = 0x42
+-	DW_TAG_template_alias           = 0x43
+-	DW_TAG_lo_user                  = 0x4080
+-	DW_TAG_hi_user                  = 0xffff
++	// Dwarf3
++	DW_TAG_dwarf_procedure  = 0x36
++	DW_TAG_restrict_type    = 0x37
++	DW_TAG_interface_type   = 0x38
++	DW_TAG_namespace        = 0x39
++	DW_TAG_imported_module  = 0x3a
++	DW_TAG_unspecified_type = 0x3b
++	DW_TAG_partial_unit     = 0x3c
++	DW_TAG_imported_unit    = 0x3d
++	DW_TAG_condition        = 0x3f
++	DW_TAG_shared_type      = 0x40
++	// Dwarf4
++	DW_TAG_type_unit             = 0x41
++	DW_TAG_rvalue_reference_type = 0x42
++	DW_TAG_template_alias        = 0x43
++
++	// User defined
++	DW_TAG_lo_user = 0x4080
++	DW_TAG_hi_user = 0xffff
+ )
+ 
+ // Table 19
+@@ -118,7 +122,7 @@ const (
+ 	DW_CLS_BLOCK
+ 	DW_CLS_CONSTANT
+ 	DW_CLS_FLAG
+-	DW_CLS_PTR
++	DW_CLS_PTR // lineptr, loclistptr, macptr, rangelistptr
+ 	DW_CLS_REFERENCE
+ 	DW_CLS_ADDRLOC
+ 	DW_CLS_STRING
+@@ -126,185 +130,187 @@ const (
+ 
+ // Table 20
+ const (
+-	DW_AT_sibling              = 0x01
+-	DW_AT_location             = 0x02
+-	DW_AT_name                 = 0x03
+-	DW_AT_ordering             = 0x09
+-	DW_AT_byte_size            = 0x0b
+-	DW_AT_bit_offset           = 0x0c
+-	DW_AT_bit_size             = 0x0d
+-	DW_AT_stmt_list            = 0x10
+-	DW_AT_low_pc               = 0x11
+-	DW_AT_high_pc              = 0x12
+-	DW_AT_language             = 0x13
+-	DW_AT_discr                = 0x15
+-	DW_AT_discr_value          = 0x16
+-	DW_AT_visibility           = 0x17
+-	DW_AT_import               = 0x18
+-	DW_AT_string_length        = 0x19
+-	DW_AT_common_reference     = 0x1a
+-	DW_AT_comp_dir             = 0x1b
+-	DW_AT_const_value          = 0x1c
+-	DW_AT_containing_type      = 0x1d
+-	DW_AT_default_value        = 0x1e
+-	DW_AT_inline               = 0x20
+-	DW_AT_is_optional          = 0x21
+-	DW_AT_lower_bound          = 0x22
+-	DW_AT_producer             = 0x25
+-	DW_AT_prototyped           = 0x27
+-	DW_AT_return_addr          = 0x2a
+-	DW_AT_start_scope          = 0x2c
+-	DW_AT_bit_stride           = 0x2e
+-	DW_AT_upper_bound          = 0x2f
+-	DW_AT_abstract_origin      = 0x31
+-	DW_AT_accessibility        = 0x32
+-	DW_AT_address_class        = 0x33
+-	DW_AT_artificial           = 0x34
+-	DW_AT_base_types           = 0x35
+-	DW_AT_calling_convention   = 0x36
+-	DW_AT_count                = 0x37
+-	DW_AT_data_member_location = 0x38
+-	DW_AT_decl_column          = 0x39
+-	DW_AT_decl_file            = 0x3a
+-	DW_AT_decl_line            = 0x3b
+-	DW_AT_declaration          = 0x3c
+-	DW_AT_discr_list           = 0x3d
+-	DW_AT_encoding             = 0x3e
+-	DW_AT_external             = 0x3f
+-	DW_AT_frame_base           = 0x40
+-	DW_AT_friend               = 0x41
+-	DW_AT_identifier_case      = 0x42
+-	DW_AT_macro_info           = 0x43
+-	DW_AT_namelist_item        = 0x44
+-	DW_AT_priority             = 0x45
+-	DW_AT_segment              = 0x46
+-	DW_AT_specification        = 0x47
+-	DW_AT_static_link          = 0x48
+-	DW_AT_type                 = 0x49
+-	DW_AT_use_location         = 0x4a
+-	DW_AT_variable_parameter   = 0x4b
+-	DW_AT_virtuality           = 0x4c
+-	DW_AT_vtable_elem_location = 0x4d
+-	DW_AT_allocated            = 0x4e
+-	DW_AT_associated           = 0x4f
+-	DW_AT_data_location        = 0x50
+-	DW_AT_byte_stride          = 0x51
+-	DW_AT_entry_pc             = 0x52
+-	DW_AT_use_UTF8             = 0x53
+-	DW_AT_extension            = 0x54
+-	DW_AT_ranges               = 0x55
+-	DW_AT_trampoline           = 0x56
+-	DW_AT_call_column          = 0x57
+-	DW_AT_call_file            = 0x58
+-	DW_AT_call_line            = 0x59
+-	DW_AT_description          = 0x5a
+-	DW_AT_binary_scale         = 0x5b
+-	DW_AT_decimal_scale        = 0x5c
+-	DW_AT_small                = 0x5d
+-	DW_AT_decimal_sign         = 0x5e
+-	DW_AT_digit_count          = 0x5f
+-	DW_AT_picture_string       = 0x60
+-	DW_AT_mutable              = 0x61
+-	DW_AT_threads_scaled       = 0x62
+-	DW_AT_explicit             = 0x63
+-	DW_AT_object_pointer       = 0x64
+-	DW_AT_endianity            = 0x65
+-	DW_AT_elemental            = 0x66
+-	DW_AT_pure                 = 0x67
+-	DW_AT_recursive            = 0x68
+-	DW_AT_lo_user              = 0x2000
+-	DW_AT_hi_user              = 0x3fff
++	DW_AT_sibling              = 0x01 // reference
++	DW_AT_location             = 0x02 // block, loclistptr
++	DW_AT_name                 = 0x03 // string
++	DW_AT_ordering             = 0x09 // constant
++	DW_AT_byte_size            = 0x0b // block, constant, reference
++	DW_AT_bit_offset           = 0x0c // block, constant, reference
++	DW_AT_bit_size             = 0x0d // block, constant, reference
++	DW_AT_stmt_list            = 0x10 // lineptr
++	DW_AT_low_pc               = 0x11 // address
++	DW_AT_high_pc              = 0x12 // address
++	DW_AT_language             = 0x13 // constant
++	DW_AT_discr                = 0x15 // reference
++	DW_AT_discr_value          = 0x16 // constant
++	DW_AT_visibility           = 0x17 // constant
++	DW_AT_import               = 0x18 // reference
++	DW_AT_string_length        = 0x19 // block, loclistptr
++	DW_AT_common_reference     = 0x1a // reference
++	DW_AT_comp_dir             = 0x1b // string
++	DW_AT_const_value          = 0x1c // block, constant, string
++	DW_AT_containing_type      = 0x1d // reference
++	DW_AT_default_value        = 0x1e // reference
++	DW_AT_inline               = 0x20 // constant
++	DW_AT_is_optional          = 0x21 // flag
++	DW_AT_lower_bound          = 0x22 // block, constant, reference
++	DW_AT_producer             = 0x25 // string
++	DW_AT_prototyped           = 0x27 // flag
++	DW_AT_return_addr          = 0x2a // block, loclistptr
++	DW_AT_start_scope          = 0x2c // constant
++	DW_AT_bit_stride           = 0x2e // constant
++	DW_AT_upper_bound          = 0x2f // block, constant, reference
++	DW_AT_abstract_origin      = 0x31 // reference
++	DW_AT_accessibility        = 0x32 // constant
++	DW_AT_address_class        = 0x33 // constant
++	DW_AT_artificial           = 0x34 // flag
++	DW_AT_base_types           = 0x35 // reference
++	DW_AT_calling_convention   = 0x36 // constant
++	DW_AT_count                = 0x37 // block, constant, reference
++	DW_AT_data_member_location = 0x38 // block, constant, loclistptr
++	DW_AT_decl_column          = 0x39 // constant
++	DW_AT_decl_file            = 0x3a // constant
++	DW_AT_decl_line            = 0x3b // constant
++	DW_AT_declaration          = 0x3c // flag
++	DW_AT_discr_list           = 0x3d // block
++	DW_AT_encoding             = 0x3e // constant
++	DW_AT_external             = 0x3f // flag
++	DW_AT_frame_base           = 0x40 // block, loclistptr
++	DW_AT_friend               = 0x41 // reference
++	DW_AT_identifier_case      = 0x42 // constant
++	DW_AT_macro_info           = 0x43 // macptr
++	DW_AT_namelist_item        = 0x44 // block
++	DW_AT_priority             = 0x45 // reference
++	DW_AT_segment              = 0x46 // block, loclistptr
++	DW_AT_specification        = 0x47 // reference
++	DW_AT_static_link          = 0x48 // block, loclistptr
++	DW_AT_type                 = 0x49 // reference
++	DW_AT_use_location         = 0x4a // block, loclistptr
++	DW_AT_variable_parameter   = 0x4b // flag
++	DW_AT_virtuality           = 0x4c // constant
++	DW_AT_vtable_elem_location = 0x4d // block, loclistptr
++	// Dwarf3
++	DW_AT_allocated      = 0x4e // block, constant, reference
++	DW_AT_associated     = 0x4f // block, constant, reference
++	DW_AT_data_location  = 0x50 // block
++	DW_AT_byte_stride    = 0x51 // block, constant, reference
++	DW_AT_entry_pc       = 0x52 // address
++	DW_AT_use_UTF8       = 0x53 // flag
++	DW_AT_extension      = 0x54 // reference
++	DW_AT_ranges         = 0x55 // rangelistptr
++	DW_AT_trampoline     = 0x56 // address, flag, reference, string
++	DW_AT_call_column    = 0x57 // constant
++	DW_AT_call_file      = 0x58 // constant
++	DW_AT_call_line      = 0x59 // constant
++	DW_AT_description    = 0x5a // string
++	DW_AT_binary_scale   = 0x5b // constant
++	DW_AT_decimal_scale  = 0x5c // constant
++	DW_AT_small          = 0x5d // reference
++	DW_AT_decimal_sign   = 0x5e // constant
++	DW_AT_digit_count    = 0x5f // constant
++	DW_AT_picture_string = 0x60 // string
++	DW_AT_mutable        = 0x61 // flag
++	DW_AT_threads_scaled = 0x62 // flag
++	DW_AT_explicit       = 0x63 // flag
++	DW_AT_object_pointer = 0x64 // reference
++	DW_AT_endianity      = 0x65 // constant
++	DW_AT_elemental      = 0x66 // flag
++	DW_AT_pure           = 0x67 // flag
++	DW_AT_recursive      = 0x68 // flag
++
++	DW_AT_lo_user = 0x2000 // ---
++	DW_AT_hi_user = 0x3fff // ---
+ )
+ 
+ // Table 21
+ const (
+-	DW_FORM_addr      = 0x01
+-	DW_FORM_block2    = 0x03
+-	DW_FORM_block4    = 0x04
+-	DW_FORM_data2     = 0x05
+-	DW_FORM_data4     = 0x06
+-	DW_FORM_data8     = 0x07
+-	DW_FORM_string    = 0x08
+-	DW_FORM_block     = 0x09
+-	DW_FORM_block1    = 0x0a
+-	DW_FORM_data1     = 0x0b
+-	DW_FORM_flag      = 0x0c
+-	DW_FORM_sdata     = 0x0d
+-	DW_FORM_strp      = 0x0e
+-	DW_FORM_udata     = 0x0f
+-	DW_FORM_ref_addr  = 0x10
+-	DW_FORM_ref1      = 0x11
+-	DW_FORM_ref2      = 0x12
+-	DW_FORM_ref4      = 0x13
+-	DW_FORM_ref8      = 0x14
+-	DW_FORM_ref_udata = 0x15
+-	DW_FORM_indirect  = 0x16
++	DW_FORM_addr      = 0x01 // address
++	DW_FORM_block2    = 0x03 // block
++	DW_FORM_block4    = 0x04 // block
++	DW_FORM_data2     = 0x05 // constant
++	DW_FORM_data4     = 0x06 // constant, lineptr, loclistptr, macptr, rangelistptr
++	DW_FORM_data8     = 0x07 // constant, lineptr, loclistptr, macptr, rangelistptr
++	DW_FORM_string    = 0x08 // string
++	DW_FORM_block     = 0x09 // block
++	DW_FORM_block1    = 0x0a // block
++	DW_FORM_data1     = 0x0b // constant
++	DW_FORM_flag      = 0x0c // flag
++	DW_FORM_sdata     = 0x0d // constant
++	DW_FORM_strp      = 0x0e // string
++	DW_FORM_udata     = 0x0f // constant
++	DW_FORM_ref_addr  = 0x10 // reference
++	DW_FORM_ref1      = 0x11 // reference
++	DW_FORM_ref2      = 0x12 // reference
++	DW_FORM_ref4      = 0x13 // reference
++	DW_FORM_ref8      = 0x14 // reference
++	DW_FORM_ref_udata = 0x15 // reference
++	DW_FORM_indirect  = 0x16 // (see Section 7.5.3)
+ )
+ 
+ // Table 24 (#operands, notes)
+ const (
+-	DW_OP_addr                = 0x03
+-	DW_OP_deref               = 0x06
+-	DW_OP_const1u             = 0x08
+-	DW_OP_const1s             = 0x09
+-	DW_OP_const2u             = 0x0a
+-	DW_OP_const2s             = 0x0b
+-	DW_OP_const4u             = 0x0c
+-	DW_OP_const4s             = 0x0d
+-	DW_OP_const8u             = 0x0e
+-	DW_OP_const8s             = 0x0f
+-	DW_OP_constu              = 0x10
+-	DW_OP_consts              = 0x11
+-	DW_OP_dup                 = 0x12
+-	DW_OP_drop                = 0x13
+-	DW_OP_over                = 0x14
+-	DW_OP_pick                = 0x15
+-	DW_OP_swap                = 0x16
+-	DW_OP_rot                 = 0x17
+-	DW_OP_xderef              = 0x18
+-	DW_OP_abs                 = 0x19
+-	DW_OP_and                 = 0x1a
+-	DW_OP_div                 = 0x1b
+-	DW_OP_minus               = 0x1c
+-	DW_OP_mod                 = 0x1d
+-	DW_OP_mul                 = 0x1e
+-	DW_OP_neg                 = 0x1f
+-	DW_OP_not                 = 0x20
+-	DW_OP_or                  = 0x21
+-	DW_OP_plus                = 0x22
+-	DW_OP_plus_uconst         = 0x23
+-	DW_OP_shl                 = 0x24
+-	DW_OP_shr                 = 0x25
+-	DW_OP_shra                = 0x26
+-	DW_OP_xor                 = 0x27
+-	DW_OP_skip                = 0x2f
+-	DW_OP_bra                 = 0x28
+-	DW_OP_eq                  = 0x29
+-	DW_OP_ge                  = 0x2a
+-	DW_OP_gt                  = 0x2b
+-	DW_OP_le                  = 0x2c
+-	DW_OP_lt                  = 0x2d
+-	DW_OP_ne                  = 0x2e
+-	DW_OP_lit0                = 0x30
+-	DW_OP_lit31               = 0x4f
+-	DW_OP_reg0                = 0x50
+-	DW_OP_reg31               = 0x6f
+-	DW_OP_breg0               = 0x70
+-	DW_OP_breg31              = 0x8f
+-	DW_OP_regx                = 0x90
+-	DW_OP_fbreg               = 0x91
+-	DW_OP_bregx               = 0x92
+-	DW_OP_piece               = 0x93
+-	DW_OP_deref_size          = 0x94
+-	DW_OP_xderef_size         = 0x95
+-	DW_OP_nop                 = 0x96
+-	DW_OP_push_object_address = 0x97
+-	DW_OP_call2               = 0x98
+-	DW_OP_call4               = 0x99
+-	DW_OP_call_ref            = 0x9a
+-	DW_OP_form_tls_address    = 0x9b
+-	DW_OP_call_frame_cfa      = 0x9c
+-	DW_OP_bit_piece           = 0x9d
++	DW_OP_addr                = 0x03 // 1 constant address (size target specific)
++	DW_OP_deref               = 0x06 // 0
++	DW_OP_const1u             = 0x08 // 1 1-byte constant
++	DW_OP_const1s             = 0x09 // 1 1-byte constant
++	DW_OP_const2u             = 0x0a // 1 2-byte constant
++	DW_OP_const2s             = 0x0b // 1 2-byte constant
++	DW_OP_const4u             = 0x0c // 1 4-byte constant
++	DW_OP_const4s             = 0x0d // 1 4-byte constant
++	DW_OP_const8u             = 0x0e // 1 8-byte constant
++	DW_OP_const8s             = 0x0f // 1 8-byte constant
++	DW_OP_constu              = 0x10 // 1 ULEB128 constant
++	DW_OP_consts              = 0x11 // 1 SLEB128 constant
++	DW_OP_dup                 = 0x12 // 0
++	DW_OP_drop                = 0x13 // 0
++	DW_OP_over                = 0x14 // 0
++	DW_OP_pick                = 0x15 // 1 1-byte stack index
++	DW_OP_swap                = 0x16 // 0
++	DW_OP_rot                 = 0x17 // 0
++	DW_OP_xderef              = 0x18 // 0
++	DW_OP_abs                 = 0x19 // 0
++	DW_OP_and                 = 0x1a // 0
++	DW_OP_div                 = 0x1b // 0
++	DW_OP_minus               = 0x1c // 0
++	DW_OP_mod                 = 0x1d // 0
++	DW_OP_mul                 = 0x1e // 0
++	DW_OP_neg                 = 0x1f // 0
++	DW_OP_not                 = 0x20 // 0
++	DW_OP_or                  = 0x21 // 0
++	DW_OP_plus                = 0x22 // 0
++	DW_OP_plus_uconst         = 0x23 // 1 ULEB128 addend
++	DW_OP_shl                 = 0x24 // 0
++	DW_OP_shr                 = 0x25 // 0
++	DW_OP_shra                = 0x26 // 0
++	DW_OP_xor                 = 0x27 // 0
++	DW_OP_skip                = 0x2f // 1 signed 2-byte constant
++	DW_OP_bra                 = 0x28 // 1 signed 2-byte constant
++	DW_OP_eq                  = 0x29 // 0
++	DW_OP_ge                  = 0x2a // 0
++	DW_OP_gt                  = 0x2b // 0
++	DW_OP_le                  = 0x2c // 0
++	DW_OP_lt                  = 0x2d // 0
++	DW_OP_ne                  = 0x2e // 0
++	DW_OP_lit0                = 0x30 // 0 ...
++	DW_OP_lit31               = 0x4f // 0 literals 0..31 = (DW_OP_lit0 + literal)
++	DW_OP_reg0                = 0x50 // 0 ..
++	DW_OP_reg31               = 0x6f // 0 reg 0..31 = (DW_OP_reg0 + regnum)
++	DW_OP_breg0               = 0x70 // 1 ...
++	DW_OP_breg31              = 0x8f // 1 SLEB128 offset base register 0..31 = (DW_OP_breg0 + regnum)
++	DW_OP_regx                = 0x90 // 1 ULEB128 register
++	DW_OP_fbreg               = 0x91 // 1 SLEB128 offset
++	DW_OP_bregx               = 0x92 // 2 ULEB128 register followed by SLEB128 offset
++	DW_OP_piece               = 0x93 // 1 ULEB128 size of piece addressed
++	DW_OP_deref_size          = 0x94 // 1 1-byte size of data retrieved
++	DW_OP_xderef_size         = 0x95 // 1 1-byte size of data retrieved
++	DW_OP_nop                 = 0x96 // 0
++	DW_OP_push_object_address = 0x97 // 0
++	DW_OP_call2               = 0x98 // 1 2-byte offset of DIE
++	DW_OP_call4               = 0x99 // 1 4-byte offset of DIE
++	DW_OP_call_ref            = 0x9a // 1 4- or 8-byte offset of DIE
++	DW_OP_form_tls_address    = 0x9b // 0
++	DW_OP_call_frame_cfa      = 0x9c // 0
++	DW_OP_bit_piece           = 0x9d // 2
+ 	DW_OP_lo_user             = 0xe0
+ 	DW_OP_hi_user             = 0xff
+ )
+@@ -371,16 +377,17 @@ const (
+ 
+ // Table 31
+ const (
+-	DW_LANG_C89            = 0x0001
+-	DW_LANG_C              = 0x0002
+-	DW_LANG_Ada83          = 0x0003
+-	DW_LANG_C_plus_plus    = 0x0004
+-	DW_LANG_Cobol74        = 0x0005
+-	DW_LANG_Cobol85        = 0x0006
+-	DW_LANG_Fortran77      = 0x0007
+-	DW_LANG_Fortran90      = 0x0008
+-	DW_LANG_Pascal83       = 0x0009
+-	DW_LANG_Modula2        = 0x000a
++	DW_LANG_C89         = 0x0001
++	DW_LANG_C           = 0x0002
++	DW_LANG_Ada83       = 0x0003
++	DW_LANG_C_plus_plus = 0x0004
++	DW_LANG_Cobol74     = 0x0005
++	DW_LANG_Cobol85     = 0x0006
++	DW_LANG_Fortran77   = 0x0007
++	DW_LANG_Fortran90   = 0x0008
++	DW_LANG_Pascal83    = 0x0009
++	DW_LANG_Modula2     = 0x000a
++	// Dwarf3
+ 	DW_LANG_Java           = 0x000b
+ 	DW_LANG_C99            = 0x000c
+ 	DW_LANG_Ada95          = 0x000d
+@@ -390,10 +397,13 @@ const (
+ 	DW_LANG_ObjC_plus_plus = 0x0011
+ 	DW_LANG_UPC            = 0x0012
+ 	DW_LANG_D              = 0x0013
+-	DW_LANG_Python         = 0x0014
+-	DW_LANG_Go             = 0x0016
+-	DW_LANG_lo_user        = 0x8000
+-	DW_LANG_hi_user        = 0xffff
++	// Dwarf4
++	DW_LANG_Python = 0x0014
++	// Dwarf5
++	DW_LANG_Go = 0x0016
++
++	DW_LANG_lo_user = 0x8000
++	DW_LANG_hi_user = 0xffff
+ )
+ 
+ // Table 32
+@@ -435,15 +445,16 @@ const (
+ 
+ // Table 37
+ const (
+-	DW_LNS_copy               = 0x01
+-	DW_LNS_advance_pc         = 0x02
+-	DW_LNS_advance_line       = 0x03
+-	DW_LNS_set_file           = 0x04
+-	DW_LNS_set_column         = 0x05
+-	DW_LNS_negate_stmt        = 0x06
+-	DW_LNS_set_basic_block    = 0x07
+-	DW_LNS_const_add_pc       = 0x08
+-	DW_LNS_fixed_advance_pc   = 0x09
++	DW_LNS_copy             = 0x01
++	DW_LNS_advance_pc       = 0x02
++	DW_LNS_advance_line     = 0x03
++	DW_LNS_set_file         = 0x04
++	DW_LNS_set_column       = 0x05
++	DW_LNS_negate_stmt      = 0x06
++	DW_LNS_set_basic_block  = 0x07
++	DW_LNS_const_add_pc     = 0x08
++	DW_LNS_fixed_advance_pc = 0x09
++	// Dwarf3
+ 	DW_LNS_set_prologue_end   = 0x0a
+ 	DW_LNS_set_epilogue_begin = 0x0b
+ 	DW_LNS_set_isa            = 0x0c
+@@ -469,32 +480,37 @@ const (
+ 
+ // Table 40.
+ const (
+-	DW_CFA_nop                = 0x00
+-	DW_CFA_set_loc            = 0x01
+-	DW_CFA_advance_loc1       = 0x02
+-	DW_CFA_advance_loc2       = 0x03
+-	DW_CFA_advance_loc4       = 0x04
+-	DW_CFA_offset_extended    = 0x05
+-	DW_CFA_restore_extended   = 0x06
+-	DW_CFA_undefined          = 0x07
+-	DW_CFA_same_value         = 0x08
+-	DW_CFA_register           = 0x09
+-	DW_CFA_remember_state     = 0x0a
+-	DW_CFA_restore_state      = 0x0b
+-	DW_CFA_def_cfa            = 0x0c
+-	DW_CFA_def_cfa_register   = 0x0d
+-	DW_CFA_def_cfa_offset     = 0x0e
+-	DW_CFA_def_cfa_expression = 0x0f
+-	DW_CFA_expression         = 0x10
+-	DW_CFA_offset_extended_sf = 0x11
+-	DW_CFA_def_cfa_sf         = 0x12
+-	DW_CFA_def_cfa_offset_sf  = 0x13
+-	DW_CFA_val_offset         = 0x14
+-	DW_CFA_val_offset_sf      = 0x15
+-	DW_CFA_val_expression     = 0x16
+-	DW_CFA_lo_user            = 0x1c
+-	DW_CFA_hi_user            = 0x3f
+-	DW_CFA_advance_loc        = 0x1 << 6
+-	DW_CFA_offset             = 0x2 << 6
+-	DW_CFA_restore            = 0x3 << 6
++	// operand,...
++	DW_CFA_nop              = 0x00
++	DW_CFA_set_loc          = 0x01 // address
++	DW_CFA_advance_loc1     = 0x02 // 1-byte delta
++	DW_CFA_advance_loc2     = 0x03 // 2-byte delta
++	DW_CFA_advance_loc4     = 0x04 // 4-byte delta
++	DW_CFA_offset_extended  = 0x05 // ULEB128 register, ULEB128 offset
++	DW_CFA_restore_extended = 0x06 // ULEB128 register
++	DW_CFA_undefined        = 0x07 // ULEB128 register
++	DW_CFA_same_value       = 0x08 // ULEB128 register
++	DW_CFA_register         = 0x09 // ULEB128 register, ULEB128 register
++	DW_CFA_remember_state   = 0x0a
++	DW_CFA_restore_state    = 0x0b
++
++	DW_CFA_def_cfa            = 0x0c // ULEB128 register, ULEB128 offset
++	DW_CFA_def_cfa_register   = 0x0d // ULEB128 register
++	DW_CFA_def_cfa_offset     = 0x0e // ULEB128 offset
++	DW_CFA_def_cfa_expression = 0x0f // BLOCK
++	DW_CFA_expression         = 0x10 // ULEB128 register, BLOCK
++	DW_CFA_offset_extended_sf = 0x11 // ULEB128 register, SLEB128 offset
++	DW_CFA_def_cfa_sf         = 0x12 // ULEB128 register, SLEB128 offset
++	DW_CFA_def_cfa_offset_sf  = 0x13 // SLEB128 offset
++	DW_CFA_val_offset         = 0x14 // ULEB128, ULEB128
++	DW_CFA_val_offset_sf      = 0x15 // ULEB128, SLEB128
++	DW_CFA_val_expression     = 0x16 // ULEB128, BLOCK
++
++	DW_CFA_lo_user = 0x1c
++	DW_CFA_hi_user = 0x3f
++
++	// Opcodes that take an addend operand.
++	DW_CFA_advance_loc = 0x1 << 6 // +delta
++	DW_CFA_offset      = 0x2 << 6 // +register (ULEB128 offset)
++	DW_CFA_restore     = 0x3 << 6 // +register
+ )
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index 32c9aeb9d5..9e85885067 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -776,6 +776,7 @@ func Elfinit() {
+ 		// we use EABI on both linux/arm and freebsd/arm.
+ 	// 32-bit architectures
+ 	case '5':
++		// we use EABI on both linux/arm and freebsd/arm.
+ 		if HEADTYPE == Hlinux || HEADTYPE == Hfreebsd {
+ 			ehdr.flags = 0x5000002 // has entry point, Version5 EABI
+ 		}
+@@ -1071,7 +1072,7 @@ const (
+ 	ELF_NOTE_NETBSD_NAMESZ  = 7
+ 	ELF_NOTE_NETBSD_DESCSZ  = 4
+ 	ELF_NOTE_NETBSD_TAG     = 1
+-	ELF_NOTE_NETBSD_VERSION = 599000000
++	ELF_NOTE_NETBSD_VERSION = 599000000 /* NetBSD 5.99 */
+ )
+ 
+ var ELF_NOTE_NETBSD_NAME = []byte("NetBSD\x00")
+@@ -1671,7 +1672,7 @@ func doelf() {
+ 
+ 	Addstring(shstrtab, ".shstrtab")
+ 
+-	if Debug['d'] == 0 {
++	if Debug['d'] == 0 { /* -d suppresses dynamic loader format */
+ 		Addstring(shstrtab, ".interp")
+ 		Addstring(shstrtab, ".hash")
+ 		Addstring(shstrtab, ".got")
+@@ -1919,7 +1920,7 @@ func Asmbelf(symo int64) {
+ 		Segtext.Filelen += uint64(o)
+ 	}
+ 
+-	if Debug['d'] == 0 {
++	if Debug['d'] == 0 { /* -d suppresses dynamic loader format */
+ 		/* interpreter */
+ 		sh := elfshname(".interp")
+ 
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index 1ad3bff866..dd2ba9ff6f 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -37,8 +37,8 @@ func expandpkg(t0 string, pkg string) string {
+  *	package import data
+  */
+ type Import struct {
+-	hash   *Import
+-	prefix string
++	hash   *Import // next in hash table
++	prefix string  // "type", "var", "func", "const"
+ 	name   string
+ 	def    string
+ 	file   string
+diff --git a/src/cmd/internal/ld/ldelf.go b/src/cmd/internal/ld/ldelf.go
+index ce52f12cef..a02ec60f25 100644
+--- a/src/cmd/internal/ld/ldelf.go
++++ b/src/cmd/internal/ld/ldelf.go
+@@ -265,8 +265,8 @@ type ElfSect struct {
+ 
+ type ElfObj struct {
+ 	f         *Biobuf
+-	base      int64
+-	length    int64
++	base      int64 // offset in f where ELF begins
++	length    int64 // length of ELF
+ 	is64      int
+ 	name      string
+ 	e         binary.ByteOrder
+@@ -624,7 +624,7 @@ func ldelf(f *Biobuf, pkg string, length int64, pn string) {
+ 		}
+ 		sect = &elfobj.sect[sym.shndx:][0]
+ 		if sect.sym == nil {
+-			if strings.HasPrefix(sym.name, ".Linfo_string") {
++			if strings.HasPrefix(sym.name, ".Linfo_string") { // clang does this
+ 				continue
+ 			}
+ 			Diag("%s: sym#%d: ignoring %s in section %d (type %d)", pn, i, sym.name, sym.shndx, sym.type_)
+@@ -901,7 +901,7 @@ func readelfsym(elfobj *ElfObj, i int, sym *ElfSym, needSym int) (err error) {
+ 
+ 		case ElfSymBindLocal:
+ 			if Thearch.Thechar == '5' && (strings.HasPrefix(sym.name, "$a") || strings.HasPrefix(sym.name, "$d")) {
+-				// binutils for arm generate these elfmapping
++				// binutils for arm generate these mapping
+ 				// symbols, ignore these
+ 				break
+ 			}
+diff --git a/src/cmd/internal/ld/ldmacho.go b/src/cmd/internal/ld/ldmacho.go
+index 14e9923325..9ed40935e2 100644
+--- a/src/cmd/internal/ld/ldmacho.go
++++ b/src/cmd/internal/ld/ldmacho.go
+@@ -41,8 +41,8 @@ const (
+ 
+ type LdMachoObj struct {
+ 	f          *Biobuf
+-	base       int64
+-	length     int64
++	base       int64 // off in f where Mach-O begins
++	length     int64 // length of Mach-O
+ 	is64       bool
+ 	name       string
+ 	e          binary.ByteOrder
+diff --git a/src/cmd/internal/ld/ldpe.go b/src/cmd/internal/ld/ldpe.go
+index bd33fce4d6..18d39d4083 100644
+--- a/src/cmd/internal/ld/ldpe.go
++++ b/src/cmd/internal/ld/ldpe.go
+@@ -58,7 +58,7 @@ const (
+ 	IMAGE_SYM_CLASS_MEMBER_OF_ENUM   = 16
+ 	IMAGE_SYM_CLASS_REGISTER_PARAM   = 17
+ 	IMAGE_SYM_CLASS_BIT_FIELD        = 18
+-	IMAGE_SYM_CLASS_FAR_EXTERNAL     = 68
++	IMAGE_SYM_CLASS_FAR_EXTERNAL     = 68 /* Not in PECOFF v8 spec */
+ 	IMAGE_SYM_CLASS_BLOCK            = 100
+ 	IMAGE_SYM_CLASS_FUNCTION         = 101
+ 	IMAGE_SYM_CLASS_END_OF_STRUCT    = 102
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 7fd76b9410..282245458b 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -129,15 +129,15 @@ var Symsize int32
+ 
+ const (
+ 	MAXIO   = 8192
+-	MINFUNC = 16
++	MINFUNC = 16 // minimum size for a function
+ )
+ 
+ type Segment struct {
+-	Rwx     uint8
+-	Vaddr   uint64
+-	Length  uint64
+-	Fileoff uint64
+-	Filelen uint64
++	Rwx     uint8  // permission as usual unix bits (5 = r-x etc)
++	Vaddr   uint64 // virtual address
++	Length  uint64 // length in memory
++	Fileoff uint64 // file offset
++	Filelen uint64 // length on disk
+ 	Sect    *Section
+ }
+ 
+@@ -253,6 +253,8 @@ var Bso Biobuf
+ var coutbuf Biobuf
+ 
+ const (
++	// Whether to assume that the external linker is "gold"
++	// (http://sourceware.org/ml/binutils/2008-03/msg00162.html).
+ 	AssumeGoldLinker = 0
+ )
+ 
+@@ -1137,7 +1139,7 @@ var le = Endian{Le16, Le32, Le64}
+ type Chain struct {
+ 	sym   *LSym
+ 	up    *Chain
+-	limit int
++	limit int // limit on entry to sym
+ }
+ 
+ var morestack *LSym
+diff --git a/src/cmd/internal/ld/pe.go b/src/cmd/internal/ld/pe.go
+index 7af1e5a63d..40bfc23776 100644
+--- a/src/cmd/internal/ld/pe.go
++++ b/src/cmd/internal/ld/pe.go
+@@ -95,8 +95,15 @@ type IMAGE_EXPORT_DIRECTORY struct {
+ }
+ 
+ const (
+-	PEBASE      = 0x00400000
++	PEBASE = 0x00400000
++
++	// SectionAlignment must be greater than or equal to FileAlignment.
++	// The default is the page size for the architecture.
+ 	PESECTALIGN = 0x1000
++
++	// FileAlignment should be a power of 2 between 512 and 64 K, inclusive.
++	// The default is 512. If the SectionAlignment is less than
++	// the architecture's page size, then FileAlignment must match SectionAlignment.
+ 	PEFILEALIGN = 2 << 8
+ )
+ 
+@@ -921,7 +928,7 @@ func Asmbpe() {
+ 	if pe64 != 0 {
+ 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh64))
+ 		fh.Characteristics |= IMAGE_FILE_LARGE_ADDRESS_AWARE
+-		oh64.Magic = 0x20b
++		oh64.Magic = 0x20b // PE32+
+ 	} else {
+ 		fh.SizeOfOptionalHeader = uint16(binary.Size(&oh))
+ 		fh.Characteristics |= IMAGE_FILE_32BIT_MACHINE
+diff --git a/src/cmd/internal/obj/arm/5.out.go b/src/cmd/internal/obj/arm/5.out.go
+index 424dd3d58e..d187367e46 100644
+--- a/src/cmd/internal/obj/arm/5.out.go
++++ b/src/cmd/internal/obj/arm/5.out.go
+@@ -44,7 +44,7 @@ const (
+ )
+ 
+ const (
+-	REG_R0 = obj.RBaseARM + iota
++	REG_R0 = obj.RBaseARM + iota // must be 16-aligned
+ 	REG_R1
+ 	REG_R2
+ 	REG_R3
+@@ -60,7 +60,8 @@ const (
+ 	REG_R13
+ 	REG_R14
+ 	REG_R15
+-	REG_F0
++
++	REG_F0 // must be 16-aligned
+ 	REG_F1
+ 	REG_F2
+ 	REG_F3
+@@ -76,28 +77,37 @@ const (
+ 	REG_F13
+ 	REG_F14
+ 	REG_F15
+-	REG_FPSR
++
++	REG_FPSR // must be 2-aligned
+ 	REG_FPCR
+-	REG_CPSR
++
++	REG_CPSR // must be 2-aligned
+ 	REG_SPSR
++
+ 	MAXREG
+-	REGRET  = REG_R0
+-	REGEXT  = REG_R10
+-	REGG    = REGEXT - 0
+-	REGM    = REGEXT - 1
++	REGRET = REG_R0
++	/* compiler allocates R1 up as temps */
++	/* compiler allocates register variables R3 up */
++	/* compiler allocates external registers R10 down */
++	REGEXT = REG_R10
++	/* these two registers are declared in runtime.h */
++	REGG = REGEXT - 0
++	REGM = REGEXT - 1
++
+ 	REGCTXT = REG_R7
+ 	REGTMP  = REG_R11
+ 	REGSP   = REG_R13
+ 	REGLINK = REG_R14
+ 	REGPC   = REG_R15
+-	NFREG   = 16
++
++	NFREG = 16
++	/* compiler allocates register variables F0 up */
++	/* compiler allocates external registers F7 down */
+ 	FREGRET = REG_F0
+ 	FREGEXT = REG_F7
+ 	FREGTMP = REG_F15
+ )
+ 
+-/* compiler allocates register variables F0 up */
+-/* compiler allocates external registers F7 down */
+ const (
+ 	C_NONE = iota
+ 	C_REG
+@@ -108,37 +118,46 @@ const (
+ 	C_FREG
+ 	C_PSR
+ 	C_FCR
+-	C_RCON
+-	C_NCON
+-	C_SCON
++
++	C_RCON /* 0xff rotated */
++	C_NCON /* ~RCON */
++	C_SCON /* 0xffff */
+ 	C_LCON
+ 	C_LCONADDR
+ 	C_ZFCON
+ 	C_SFCON
+ 	C_LFCON
++
+ 	C_RACON
+ 	C_LACON
++
+ 	C_SBRA
+ 	C_LBRA
+-	C_HAUTO
+-	C_FAUTO
+-	C_HFAUTO
+-	C_SAUTO
++
++	C_HAUTO  /* halfword insn offset (-0xff to 0xff) */
++	C_FAUTO  /* float insn offset (0 to 0x3fc, word aligned) */
++	C_HFAUTO /* both H and F */
++	C_SAUTO  /* -0xfff to 0xfff */
+ 	C_LAUTO
++
+ 	C_HOREG
+ 	C_FOREG
+ 	C_HFOREG
+ 	C_SOREG
+ 	C_ROREG
+-	C_SROREG
++	C_SROREG /* both nil and R */
+ 	C_LOREG
++
+ 	C_PC
+ 	C_SP
+ 	C_HREG
+-	C_ADDR
++
++	C_ADDR /* reference to relocatable address */
+ 	C_TEXTSIZE
++
+ 	C_GOK
+-	C_NCLASS
++
++	C_NCLASS /* must be the last */
+ )
+ 
+ const (
+@@ -156,7 +175,13 @@ const (
+ 	ACMN
+ 	AORR
+ 	ABIC
++
+ 	AMVN
++
++	/*
++	 * Do not reorder or fragment the conditional branch
++	 * opcodes, or the predication code will break
++	 */
+ 	ABEQ
+ 	ABNE
+ 	ABCS
+@@ -173,6 +198,7 @@ const (
+ 	ABLT
+ 	ABGT
+ 	ABLE
++
+ 	AMOVWD
+ 	AMOVWF
+ 	AMOVDW
+@@ -181,6 +207,7 @@ const (
+ 	AMOVDF
+ 	AMOVF
+ 	AMOVD
++
+ 	ACMPF
+ 	ACMPD
+ 	AADDF
+@@ -195,6 +222,7 @@ const (
+ 	ASQRTD
+ 	AABSF
+ 	AABSD
++
+ 	ASRL
+ 	ASRA
+ 	ASLL
+@@ -204,6 +232,7 @@ const (
+ 	ADIV
+ 	AMOD
+ 	AMODU
++
+ 	AMOVB
+ 	AMOVBS
+ 	AMOVBU
+@@ -214,46 +243,64 @@ const (
+ 	AMOVM
+ 	ASWPBU
+ 	ASWPW
++
+ 	ARFE
+ 	ASWI
+ 	AMULA
++
+ 	AWORD
+ 	ABCASE
+ 	ACASE
++
+ 	AMULL
+ 	AMULAL
+ 	AMULLU
+ 	AMULALU
++
+ 	ABX
+ 	ABXRET
+ 	ADWORD
++
+ 	ALDREX
+ 	ASTREX
+ 	ALDREXD
+ 	ASTREXD
++
+ 	APLD
++
+ 	ACLZ
++
+ 	AMULWT
+ 	AMULWB
+ 	AMULAWT
+ 	AMULAWB
++
+ 	ADATABUNDLE
+ 	ADATABUNDLEEND
+-	AMRC
++
++	AMRC // MRC/MCR
++
+ 	ALAST
++
++	// aliases
+ 	AB  = obj.AJMP
+ 	ABL = obj.ACALL
+ )
+ 
+ /* scond byte */
+ const (
+-	C_SCOND      = (1 << 4) - 1
+-	C_SBIT       = 1 << 4
+-	C_PBIT       = 1 << 5
+-	C_WBIT       = 1 << 6
+-	C_FBIT       = 1 << 7
+-	C_UBIT       = 1 << 7
+-	C_SCOND_XOR  = 14
++	C_SCOND = (1 << 4) - 1
++	C_SBIT  = 1 << 4
++	C_PBIT  = 1 << 5
++	C_WBIT  = 1 << 6
++	C_FBIT  = 1 << 7 /* psr flags-only */
++	C_UBIT  = 1 << 7 /* up bit, unsigned bit */
++
++	// These constants are the ARM condition codes encodings,
++	// XORed with 14 so that C_SCOND_NONE has value 0,
++	// so that a zeroed Prog.scond means "always execute".
++	C_SCOND_XOR = 14
++
+ 	C_SCOND_EQ   = 0 ^ C_SCOND_XOR
+ 	C_SCOND_NE   = 1 ^ C_SCOND_XOR
+ 	C_SCOND_HS   = 2 ^ C_SCOND_XOR
+@@ -270,13 +317,10 @@ const (
+ 	C_SCOND_LE   = 13 ^ C_SCOND_XOR
+ 	C_SCOND_NONE = 14 ^ C_SCOND_XOR
+ 	C_SCOND_NV   = 15 ^ C_SCOND_XOR
+-	SHIFT_LL     = 0 << 5
+-	SHIFT_LR     = 1 << 5
+-	SHIFT_AR     = 2 << 5
+-	SHIFT_RR     = 3 << 5
+-)
+ 
+-/*
+- * this is the ranlib header
+- */
+-var SYMDEF string
++	/* D_SHIFT type */
++	SHIFT_LL = 0 << 5
++	SHIFT_LR = 1 << 5
++	SHIFT_AR = 2 << 5
++	SHIFT_RR = 3 << 5
++)
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 980bbebca6..b801bd7e41 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -350,8 +350,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 			if out != nil {
+ 				out[0] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x03c0013f | (uint32(p.To.Reg)&15)<<12 | (uint32(p.To.Reg)&15)<<16 // BIC $0xc000000f, Rx
+ 				if p.As == AB {
+-					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx // ABL
+-				} else {
++					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff10 | (uint32(p.To.Reg)&15)<<0 // BX Rx
++				} else { // ABL
+ 					out[1] = ((uint32(p.Scond)&C_SCOND)^C_SCOND_XOR)<<28 | 0x012fff30 | (uint32(p.To.Reg)&15)<<0 // BLX Rx
+ 				}
+ 			}
+@@ -473,7 +473,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 			break
+ 		}
+ 
+-		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || (p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW Rx, X(Ry), y != 13 && y != 9 // MOVW X(Rx), Ry, x != 13 && x != 9
++		if (p.To.Type == obj.TYPE_MEM && p.To.Reg != REG_R13 && p.To.Reg != REG_R9) || // MOVW Rx, X(Ry), y != 13 && y != 9
++			(p.From.Type == obj.TYPE_MEM && p.From.Reg != REG_R13 && p.From.Reg != REG_R9) { // MOVW X(Rx), Ry, x != 13 && x != 9
+ 			var a *obj.Addr
+ 			if p.To.Type == obj.TYPE_MEM {
+ 				a = &p.To
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index ef17d721f7..e69e246e2c 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -2,6 +2,102 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Writing of Go object files.
++//
++// Originally, Go object files were Plan 9 object files, but no longer.
++// Now they are more like standard object files, in that each symbol is defined
++// by an associated memory image (bytes) and a list of relocations to apply
++// during linking. We do not (yet?) use a standard file format, however.
++// For now, the format is chosen to be as simple as possible to read and write.
++// It may change for reasons of efficiency, or we may even switch to a
++// standard file format if there are compelling benefits to doing so.
++// See golang.org/s/go13linker for more background.
++//
++// The file format is:
++//
++//	- magic header: "\x00\x00go13ld"
++//	- byte 1 - version number
++//	- sequence of strings giving dependencies (imported packages)
++//	- empty string (marks end of sequence)
++//	- sequence of defined symbols
++//	- byte 0xff (marks end of sequence)
++//	- magic footer: "\xff\xffgo13ld"
++//
++// All integers are stored in a zigzag varint format.
++// See golang.org/s/go12symtab for a definition.
++//
++// Data blocks and strings are both stored as an integer
++// followed by that many bytes.
++//
++// A symbol reference is a string name followed by a version.
++// An empty name corresponds to a nil LSym* pointer.
++//
++// Each symbol is laid out as the following fields (taken from LSym*):
++//
++//	- byte 0xfe (sanity check for synchronization)
++//	- type [int]
++//	- name [string]
++//	- version [int]
++//	- flags [int]
++//		1 dupok
++//	- size [int]
++//	- gotype [symbol reference]
++//	- p [data block]
++//	- nr [int]
++//	- r [nr relocations, sorted by off]
++//
++// If type == STEXT, there are a few more fields:
++//
++//	- args [int]
++//	- locals [int]
++//	- nosplit [int]
++//	- flags [int]
++//		1 leaf
++//		2 C function
++//	- nlocal [int]
++//	- local [nlocal automatics]
++//	- pcln [pcln table]
++//
++// Each relocation has the encoding:
++//
++//	- off [int]
++//	- siz [int]
++//	- type [int]
++//	- add [int]
++//	- xadd [int]
++//	- sym [symbol reference]
++//	- xsym [symbol reference]
++//
++// Each local has the encoding:
++//
++//	- asym [symbol reference]
++//	- offset [int]
++//	- type [int]
++//	- gotype [symbol reference]
++//
++// The pcln table has the encoding:
++//
++//	- pcsp [data block]
++//	- pcfile [data block]
++//	- pcline [data block]
++//	- npcdata [int]
++//	- pcdata [npcdata data blocks]
++//	- nfuncdata [int]
++//	- funcdata [nfuncdata symbol references]
++//	- funcdatasym [nfuncdata ints]
++//	- nfile [int]
++//	- file [nfile symbol references]
++//
++// The file layout and meaning of type integers are architecture-independent.
++//
++// TODO(rsc): The file format is good for a first pass but needs work.
++//	- There are SymID in the object file that should really just be strings.
++//	- The actual symbol memory images are interlaced with the symbol
++//	  metadata. They should be separated, to reduce the I/O required to
++//	  load just the metadata.
++//	- The symbol references should be shortened, either with a symbol
++//	  table or by using a simple backward index to an earlier mentioned symbol.
++
+ package obj
+ 
+ import (
+diff --git a/src/cmd/internal/obj/ppc64/9.out.go b/src/cmd/internal/obj/ppc64/9.out.go
+index d3d54fda79..90377ff07a 100644
+--- a/src/cmd/internal/obj/ppc64/9.out.go
++++ b/src/cmd/internal/obj/ppc64/9.out.go
+@@ -39,11 +39,10 @@ import "cmd/internal/obj"
+ const (
+ 	NSNAME = 8
+ 	NSYM   = 50
+-	NREG   = 32
+-	NFREG  = 32
++	NREG   = 32 /* number of general registers */
++	NFREG  = 32 /* number of floating point registers */
+ )
+ 
+-// avoid conflict with ucontext.h. sigh.
+ const (
+ 	REG_R0 = obj.RBasePPC64 + iota
+ 	REG_R1
+@@ -77,6 +76,7 @@ const (
+ 	REG_R29
+ 	REG_R30
+ 	REG_R31
++
+ 	REG_F0 = obj.RBasePPC64 + 32 + iota - 32
+ 	REG_F1
+ 	REG_F2
+@@ -109,8 +109,10 @@ const (
+ 	REG_F29
+ 	REG_F30
+ 	REG_F31
++
+ 	REG_SPECIAL = obj.RBasePPC64 + 64
+-	REG_CR0     = obj.RBasePPC64 + 64 + iota - 65
++
++	REG_CR0 = obj.RBasePPC64 + 64 + iota - 65
+ 	REG_CR1
+ 	REG_CR2
+ 	REG_CR3
+@@ -118,37 +120,41 @@ const (
+ 	REG_CR5
+ 	REG_CR6
+ 	REG_CR7
++
+ 	REG_MSR = obj.RBasePPC64 + 72 + iota - 73
+ 	REG_FPSCR
+ 	REG_CR
+-	REG_SPR0 = obj.RBasePPC64 + 1024
+-	REG_DCR0 = obj.RBasePPC64 + 2048
+-	REG_XER  = REG_SPR0 + 1
+-	REG_LR   = REG_SPR0 + 8
+-	REG_CTR  = REG_SPR0 + 9
+-	REGZERO  = REG_R0
++
++	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
++	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
++
++	REG_XER = REG_SPR0 + 1
++	REG_LR  = REG_SPR0 + 8
++	REG_CTR = REG_SPR0 + 9
++
++	REGZERO  = REG_R0 /* set to zero */
+ 	REGSP    = REG_R1
+ 	REGSB    = REG_R2
+ 	REGRET   = REG_R3
+-	REGARG   = -1
+-	REGRT1   = REG_R3
+-	REGRT2   = REG_R4
+-	REGMIN   = REG_R7
+-	REGCTXT  = REG_R11
+-	REGTLS   = REG_R13
++	REGARG   = -1      /* -1 disables passing the first argument in register */
++	REGRT1   = REG_R3  /* reserved for runtime, duffzero and duffcopy */
++	REGRT2   = REG_R4  /* reserved for runtime, duffcopy */
++	REGMIN   = REG_R7  /* register variables allocated from here to REGMAX */
++	REGCTXT  = REG_R11 /* context for closures */
++	REGTLS   = REG_R13 /* C ABI TLS base pointer */
+ 	REGMAX   = REG_R27
+-	REGEXT   = REG_R30
+-	REGG     = REG_R30
+-	REGTMP   = REG_R31
++	REGEXT   = REG_R30 /* external registers allocated from here down */
++	REGG     = REG_R30 /* G */
++	REGTMP   = REG_R31 /* used by the linker */
+ 	FREGRET  = REG_F0
+-	FREGMIN  = REG_F17
+-	FREGMAX  = REG_F26
+-	FREGEXT  = REG_F26
+-	FREGCVI  = REG_F27
+-	FREGZERO = REG_F28
+-	FREGHALF = REG_F29
+-	FREGONE  = REG_F30
+-	FREGTWO  = REG_F31
++	FREGMIN  = REG_F17 /* first register variable */
++	FREGMAX  = REG_F26 /* last register variable for 9g only */
++	FREGEXT  = REG_F26 /* first external register */
++	FREGCVI  = REG_F27 /* floating conversion constant */
++	FREGZERO = REG_F28 /* both float and double */
++	FREGHALF = REG_F29 /* double */
++	FREGONE  = REG_F30 /* double */
++	FREGTWO  = REG_F31 /* double */
+ )
+ 
+ /*
+@@ -166,6 +172,7 @@ const (
+ )
+ 
+ const (
++	/* mark flags */
+ 	LABEL   = 1 << 0
+ 	LEAF    = 1 << 1
+ 	FLOAT   = 1 << 2
+@@ -183,19 +190,19 @@ const (
+ 	C_REG
+ 	C_FREG
+ 	C_CREG
+-	C_SPR
++	C_SPR /* special processor register */
+ 	C_ZCON
+-	C_SCON
+-	C_UCON
+-	C_ADDCON
+-	C_ANDCON
+-	C_LCON
+-	C_DCON
+-	C_SACON
++	C_SCON   /* 16 bit signed */
++	C_UCON   /* 32 bit signed, low 16 bits 0 */
++	C_ADDCON /* -0x8000 <= v < 0 */
++	C_ANDCON /* 0 < v <= 0xFFFF */
++	C_LCON   /* other 32 */
++	C_DCON   /* other 64 (could subdivide further) */
++	C_SACON  /* $n(REG) where n <= int16 */
+ 	C_SECON
+-	C_LACON
++	C_LACON /* $n(REG) where int16 < n <= int32 */
+ 	C_LECON
+-	C_DACON
++	C_DACON /* $n(REG) where int32 < n */
+ 	C_SBRA
+ 	C_LBRA
+ 	C_SAUTO
+@@ -214,7 +221,8 @@ const (
+ 	C_GOK
+ 	C_ADDR
+ 	C_TEXTSIZE
+-	C_NCLASS
++
++	C_NCLASS /* must be the last */
+ )
+ 
+ const (
+@@ -414,6 +422,7 @@ const (
+ 	ASYNC
+ 	AXOR
+ 	AXORCC
++
+ 	ADCBF
+ 	ADCBI
+ 	ADCBST
+@@ -430,9 +439,13 @@ const (
+ 	ATLBIEL
+ 	ATLBSYNC
+ 	ATW
++
+ 	ASYSCALL
+ 	AWORD
++
+ 	ARFCI
++
++	/* optional on 32-bit */
+ 	AFRES
+ 	AFRESCC
+ 	AFRSQRTE
+@@ -443,9 +456,12 @@ const (
+ 	AFSQRTCC
+ 	AFSQRTS
+ 	AFSQRTSCC
++
++	/* 64-bit */
++
+ 	ACNTLZD
+ 	ACNTLZDCC
+-	ACMPW
++	ACMPW /* CMP with L=0 */
+ 	ACMPWU
+ 	ADIVD
+ 	ADIVDCC
+@@ -457,6 +473,7 @@ const (
+ 	ADIVDUV
+ 	AEXTSW
+ 	AEXTSWCC
++	/* AFCFIW; AFCFIWCC */
+ 	AFCFID
+ 	AFCFIDCC
+ 	AFCTID
+@@ -498,6 +515,8 @@ const (
+ 	ASRDCC
+ 	ASTDCCC
+ 	ATD
++
++	/* 64-bit pseudo operation */
+ 	ADWORD
+ 	AREMD
+ 	AREMDCC
+@@ -507,8 +526,13 @@ const (
+ 	AREMDUCC
+ 	AREMDUV
+ 	AREMDUVCC
++
++	/* more 64-bit operations */
+ 	AHRFID
++
+ 	ALAST
++
++	// aliases
+ 	ABR     = obj.AJMP
+ 	ABL     = obj.ACALL
+ 	ARETURN = obj.ARET
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 9e227c427d..470f6f9ff2 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1331,6 +1331,7 @@ func OP_RLW(op uint32, a uint32, s uint32, sh uint32, mb uint32, me uint32) uint
+ }
+ 
+ const (
++	/* each rhs is OPVCC(_, _, _, _) */
+ 	OP_ADD    = 31<<26 | 266<<1 | 0<<10 | 0
+ 	OP_ADDI   = 14<<26 | 0<<1 | 0<<10 | 0
+ 	OP_ADDIS  = 15<<26 | 0<<1 | 0<<10 | 0
+diff --git a/src/cmd/internal/obj/x86/6.out.go b/src/cmd/internal/obj/x86/6.out.go
+index 0e136985df..495ecd2707 100644
+--- a/src/cmd/internal/obj/x86/6.out.go
++++ b/src/cmd/internal/obj/x86/6.out.go
+@@ -264,6 +264,7 @@ const (
+ 	AXORB
+ 	AXORL
+ 	AXORW
++
+ 	AFMOVB
+ 	AFMOVBP
+ 	AFMOVD
+@@ -278,6 +279,7 @@ const (
+ 	AFMOVWP
+ 	AFMOVX
+ 	AFMOVXP
++
+ 	AFCOMB
+ 	AFCOMBP
+ 	AFCOMD
+@@ -292,38 +294,46 @@ const (
+ 	AFUCOM
+ 	AFUCOMP
+ 	AFUCOMPP
++
+ 	AFADDDP
+ 	AFADDW
+ 	AFADDL
+ 	AFADDF
+ 	AFADDD
++
+ 	AFMULDP
+ 	AFMULW
+ 	AFMULL
+ 	AFMULF
+ 	AFMULD
++
+ 	AFSUBDP
+ 	AFSUBW
+ 	AFSUBL
+ 	AFSUBF
+ 	AFSUBD
++
+ 	AFSUBRDP
+ 	AFSUBRW
+ 	AFSUBRL
+ 	AFSUBRF
+ 	AFSUBRD
++
+ 	AFDIVDP
+ 	AFDIVW
+ 	AFDIVL
+ 	AFDIVF
+ 	AFDIVD
++
+ 	AFDIVRDP
+ 	AFDIVRW
+ 	AFDIVRL
+ 	AFDIVRF
+ 	AFDIVRD
++
+ 	AFXCHD
+ 	AFFREE
++
+ 	AFLDCW
+ 	AFLDENV
+ 	AFRSTOR
+@@ -331,6 +341,7 @@ const (
+ 	AFSTCW
+ 	AFSTENV
+ 	AFSTSW
++
+ 	AF2XM1
+ 	AFABS
+ 	AFCHS
+@@ -361,6 +372,8 @@ const (
+ 	AFXTRACT
+ 	AFYL2X
+ 	AFYL2XP1
++
++	// extra 32-bit operations
+ 	ACMPXCHGB
+ 	ACMPXCHGL
+ 	ACMPXCHGW
+@@ -382,6 +395,8 @@ const (
+ 	AXADDB
+ 	AXADDL
+ 	AXADDW
++
++	// conditional move
+ 	ACMOVLCC
+ 	ACMOVLCS
+ 	ACMOVLEQ
+@@ -430,6 +445,8 @@ const (
+ 	ACMOVWPC
+ 	ACMOVWPL
+ 	ACMOVWPS
++
++	// 64-bit
+ 	AADCQ
+ 	AADDQ
+ 	AANDQ
+@@ -481,6 +498,8 @@ const (
+ 	AXADDQ
+ 	AXCHGQ
+ 	AXORQ
++
++	// media
+ 	AADDPD
+ 	AADDPS
+ 	AADDSD
+@@ -682,6 +701,7 @@ const (
+ 	AUNPCKLPS
+ 	AXORPD
+ 	AXORPS
++
+ 	APF2IW
+ 	APF2IL
+ 	API2FW
+@@ -690,25 +710,32 @@ const (
+ 	ARETFL
+ 	ARETFQ
+ 	ASWAPGS
++
+ 	AMODE
+ 	ACRC32B
+ 	ACRC32Q
+ 	AIMUL3Q
++
+ 	APREFETCHT0
+ 	APREFETCHT1
+ 	APREFETCHT2
+ 	APREFETCHNTA
++
+ 	AMOVQL
+ 	ABSWAPL
+ 	ABSWAPQ
++
+ 	AAESENC
+ 	AAESENCLAST
+ 	AAESDEC
+ 	AAESDECLAST
+ 	AAESIMC
+ 	AAESKEYGENASSIST
++
+ 	APSHUFD
+ 	APCLMULQDQ
++
++	// from 386
+ 	AJCXZW
+ 	AFCMOVCC
+ 	AFCMOVCS
+@@ -722,6 +749,7 @@ const (
+ 	AFCOMIP
+ 	AFUCOMI
+ 	AFUCOMIP
++
+ 	ALAST
+ )
+ 
+@@ -743,6 +771,7 @@ const (
+ 	REG_R13B
+ 	REG_R14B
+ 	REG_R15B
++
+ 	REG_AX = obj.RBaseAMD64 + 16 + iota - 17
+ 	REG_CX
+ 	REG_DX
+@@ -759,12 +788,16 @@ const (
+ 	REG_R13
+ 	REG_R14
+ 	REG_R15
++
+ 	REG_AH = obj.RBaseAMD64 + 32 + iota - 33
+ 	REG_CH
+ 	REG_DH
+ 	REG_BH
++
+ 	REG_F0 = obj.RBaseAMD64 + 36
++
+ 	REG_M0 = obj.RBaseAMD64 + 44
++
+ 	REG_X0 = obj.RBaseAMD64 + 52 + iota - 39
+ 	REG_X1
+ 	REG_X2
+@@ -781,31 +814,37 @@ const (
+ 	REG_X13
+ 	REG_X14
+ 	REG_X15
++
+ 	REG_CS = obj.RBaseAMD64 + 68 + iota - 55
+ 	REG_SS
+ 	REG_DS
+ 	REG_ES
+ 	REG_FS
+ 	REG_GS
+-	REG_GDTR
+-	REG_IDTR
+-	REG_LDTR
+-	REG_MSW
+-	REG_TASK
+-	REG_CR  = obj.RBaseAMD64 + 79
+-	REG_DR  = obj.RBaseAMD64 + 95
+-	REG_TR  = obj.RBaseAMD64 + 103
++
++	REG_GDTR /* global descriptor table register */
++	REG_IDTR /* interrupt descriptor table register */
++	REG_LDTR /* local descriptor table register */
++	REG_MSW  /* machine status word */
++	REG_TASK /* task register */
++
++	REG_CR = obj.RBaseAMD64 + 79
++	REG_DR = obj.RBaseAMD64 + 95
++	REG_TR = obj.RBaseAMD64 + 103
++
+ 	REG_TLS = obj.RBaseAMD64 + 111 + iota - 69
++
+ 	MAXREG
++
+ 	REGARG   = -1
+ 	REGRET   = REG_AX
+ 	FREGRET  = REG_X0
+ 	REGSP    = REG_SP
+ 	REGTMP   = REG_DI
+ 	REGCTXT  = REG_DX
+-	REGEXT   = REG_R15
+-	FREGMIN  = REG_X0 + 5
+-	FREGEXT  = REG_X0 + 15
++	REGEXT   = REG_R15     /* compiler allocates external registers R15 down */
++	FREGMIN  = REG_X0 + 5  /* first register variable */
++	FREGEXT  = REG_X0 + 15 /* first external register */
+ 	T_TYPE   = 1 << 0
+ 	T_INDEX  = 1 << 1
+ 	T_OFFSET = 1 << 2
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 4ec4b2537d..ae47801249 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -40,7 +40,21 @@ import (
+ // Instruction layout.
+ 
+ const (
+-	MaxAlign   = 32
++	MaxAlign = 32 // max data alignment
++
++	// Loop alignment constants:
++	// want to align loop entry to LoopAlign-byte boundary,
++	// and willing to insert at most MaxLoopPad bytes of NOP to do so.
++	// We define a loop entry as the target of a backward jump.
++	//
++	// gcc uses MaxLoopPad = 10 for its 'generic x86-64' config,
++	// and it aligns all jump targets, not just backward jump targets.
++	//
++	// As of 6/1/2012, the effect of setting MaxLoopPad = 10 here
++	// is very slight but negative, so the alignment is disabled by
++	// setting MaxLoopPad = 0. The code is here for reference and
++	// for future experiments.
++	//
+ 	LoopAlign  = 16
+ 	MaxLoopPad = 0
+ 	FuncAlign  = 16
+@@ -173,7 +187,7 @@ const (
+ 	Zm_r_3d
+ 	Zm_r_xm_nr
+ 	Zr_m_xm_nr
+-	Zibm_r
++	Zibm_r /* mmx1,mmx2/mem64,imm8 */
+ 	Zmb_r
+ 	Zaut_r
+ 	Zo_m
+@@ -194,28 +208,30 @@ const (
+ )
+ 
+ const (
+-	Px     = 0
+-	Px1    = 1 // symbolic; exact value doesn't matter
+-	P32    = 0x32
+-	Pe     = 0x66
+-	Pm     = 0x0f
+-	Pq     = 0xff
+-	Pb     = 0xfe
+-	Pf2    = 0xf2
+-	Pf3    = 0xf3
+-	Pq3    = 0x67
+-	Pw     = 0x48
+-	Pw8    = 0x90 // symbolic; exact value doesn't matter
+-	Py     = 0x80
+-	Py1    = 0x81 // symbolic; exact value doesn't matter
+-	Py3    = 0x83 // symbolic; exact value doesn't matter
+-	Rxf    = 1 << 9
+-	Rxt    = 1 << 8
+-	Rxw    = 1 << 3
+-	Rxr    = 1 << 2
+-	Rxx    = 1 << 1
+-	Rxb    = 1 << 0
+-	Maxand = 10
++	Px  = 0
++	Px1 = 1    // symbolic; exact value doesn't matter
++	P32 = 0x32 /* 32-bit only */
++	Pe  = 0x66 /* operand escape */
++	Pm  = 0x0f /* 2byte opcode escape */
++	Pq  = 0xff /* both escapes: 66 0f */
++	Pb  = 0xfe /* byte operands */
++	Pf2 = 0xf2 /* xmm escape 1: f2 0f */
++	Pf3 = 0xf3 /* xmm escape 2: f3 0f */
++	Pq3 = 0x67 /* xmm escape 3: 66 48 0f */
++	Pw  = 0x48 /* Rex.w */
++	Pw8 = 0x90 // symbolic; exact value doesn't matter
++	Py  = 0x80 /* defaults to 64-bit mode */
++	Py1 = 0x81 // symbolic; exact value doesn't matter
++	Py3 = 0x83 // symbolic; exact value doesn't matter
++
++	Rxf = 1 << 9 /* internal flag for Rxr on from */
++	Rxt = 1 << 8 /* internal flag for Rxr on to */
++	Rxw = 1 << 3 /* =1, 64-bit operand size */
++	Rxr = 1 << 2 /* extend modrm reg */
++	Rxx = 1 << 1 /* extend sib index */
++	Rxb = 1 << 0 /* extend modrm r/m, sib base, or opcode reg */
++
++	Maxand = 10 /* in -a output width of the byte codes */
+ )
+ 
+ var ycover [Ymax * Ymax]uint8

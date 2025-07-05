@@ -25,7 +25,53 @@ Date:   Sun Oct 22 18:10:08 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go  | 13 ++++++++++---
  src/runtime/proc.go |  2 ++
  2 files changed, 12 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c1edd17842..628a77fc1e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -2099,9 +2099,14 @@ func clearpools() {
+ 	unlock(&sched.deferlock)
+ }
+ 
+-// Timing
+-
+-//go:nowritebarrier
++// gchelper runs mark termination tasks on Ps other than the P
++// coordinating mark termination.
++//
++// The caller is responsible for ensuring that this has a P to run on,
++// even though it's running during STW. Because of this, it's allowed
++// to have write barriers.
++//
++//go:yeswritebarrierrec
+ func gchelper() {
+ 	_g_ := getg()
+ 	_g_.m.traceback = 2
+@@ -2136,6 +2141,8 @@ func gchelperstart() {
+ 	}
+ }
+ 
++// Timing
++
+ // itoaDiv formats val/(10**dec) into buf.
+ func itoaDiv(buf []byte, val uint64, dec int) []byte {
+ 	i := len(buf) - 1
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index af9b33886c..8383eb51a1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1938,7 +1938,9 @@ retry:
+ 	notesleep(&_g_.m.park)
+ 	noteclear(&_g_.m.park)
+ 	if _g_.m.helpgc != 0 {
++		// helpgc() set _g_.m.p and _g_.m.mcache, so we have a P.
+ 		gchelper()
++		// Undo the effects of helpgc().
+ 		_g_.m.helpgc = 0
+ 		_g_.m.mcache = nil
+ 		_g_.m.p = 0

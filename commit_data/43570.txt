@@ -12,6 +12,31 @@ Date:   Sun Apr 12 10:00:27 2020 -0400
     Change-Id: I1b9a6667614635aa3a5ed8b2c108d8eb6f35748b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228038
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/errors/wrap_test.go | 13 +++++++++++++
  1 file changed, 13 insertions(+)
+
+diff --git a/src/errors/wrap_test.go b/src/errors/wrap_test.go
+index 590c1857e3..4a4a732c9b 100644
+--- a/src/errors/wrap_test.go
++++ b/src/errors/wrap_test.go
+@@ -238,6 +238,19 @@ func (errorUncomparable) Is(target error) bool {
+ 	return ok
+ }
+ 
++func ExampleIs() {
++	if _, err := os.Open("non-existing"); err != nil {
++		if errors.Is(err, os.ErrNotExist) {
++			fmt.Println("file does not exist")
++		} else {
++			fmt.Println(err)
++		}
++	}
++
++	// Output:
++	// file does not exist
++}
++
+ func ExampleAs() {
+ 	if _, err := os.Open("non-existing"); err != nil {
+ 		var pathError *os.PathError

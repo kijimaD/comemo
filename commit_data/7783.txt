@@ -7,7 +7,7 @@ Date:   Wed Mar 16 10:50:06 2011 -0400
     R=bradfitzgo, nsz
     CC=golang-dev
     https://golang.org/cl/4280041
-
+---
  src/pkg/crypto/openpgp/packet/packet.go      |  8 ++-
  src/pkg/crypto/openpgp/packet/private_key.go | 31 +++++++++-
  src/pkg/crypto/openpgp/packet/public_key.go  | 31 ++++++----
@@ -16,3 +16,421 @@ Date:   Wed Mar 16 10:50:06 2011 -0400
  src/pkg/crypto/openpgp/write.go              |  4 ++
  src/pkg/crypto/openpgp/write_test.go         | 16 ++++-
  7 files changed, 180 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/packet/packet.go b/src/pkg/crypto/openpgp/packet/packet.go
+index 832daa64e2..57ff3afbfc 100644
+--- a/src/pkg/crypto/openpgp/packet/packet.go
++++ b/src/pkg/crypto/openpgp/packet/packet.go
+@@ -7,6 +7,7 @@
+ package packet
+ 
+ import (
++	"big"
+ 	"crypto/aes"
+ 	"crypto/cast5"
+ 	"crypto/cipher"
+@@ -385,7 +386,7 @@ func readMPI(r io.Reader) (mpi []byte, bitLength uint16, err os.Error) {
+ 	return
+ }
+ 
+-// writeMPI serializes a big integer to r.
++// writeMPI serializes a big integer to w.
+ func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
+ 	_, err = w.Write([]byte{byte(bitLength >> 8), byte(bitLength)})
+ 	if err == nil {
+@@ -393,3 +394,8 @@ func writeMPI(w io.Writer, bitLength uint16, mpiBytes []byte) (err os.Error) {
+ 	}
+ 	return
+ }
++
++// writeBig serializes a *big.Int to w.
++func writeBig(w io.Writer, i *big.Int) os.Error {
++	return writeMPI(w, uint16(i.BitLen()), i.Bytes())
++}
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index b22891755e..6944823902 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -8,6 +8,7 @@ import (
+ 	"big"
+ 	"bytes"
+ 	"crypto/cipher"
++	"crypto/dsa"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/s2k"
+ 	"crypto/rsa"
+@@ -134,7 +135,16 @@ func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
+ }
+ 
+ func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
+-	// TODO(agl): support DSA and ECDSA private keys.
++	switch pk.PublicKey.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoRSAEncryptOnly:
++		return pk.parseRSAPrivateKey(data)
++	case PubKeyAlgoDSA:
++		return pk.parseDSAPrivateKey(data)
++	}
++	panic("impossible")
++}
++
++func (pk *PrivateKey) parseRSAPrivateKey(data []byte) (err os.Error) {
+ 	rsaPub := pk.PublicKey.PublicKey.(*rsa.PublicKey)
+ 	rsaPriv := new(rsa.PrivateKey)
+ 	rsaPriv.PublicKey = *rsaPub
+@@ -162,3 +172,22 @@ func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
+ 
+ 	return nil
+ }
++
++func (pk *PrivateKey) parseDSAPrivateKey(data []byte) (err os.Error) {
++	dsaPub := pk.PublicKey.PublicKey.(*dsa.PublicKey)
++	dsaPriv := new(dsa.PrivateKey)
++	dsaPriv.PublicKey = *dsaPub
++
++	buf := bytes.NewBuffer(data)
++	x, _, err := readMPI(buf)
++	if err != nil {
++		return
++	}
++
++	dsaPriv.X = new(big.Int).SetBytes(x)
++	pk.PrivateKey = dsaPriv
++	pk.Encrypted = false
++	pk.encryptedData = nil
++
++	return nil
++}
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index 9b6dc4aa12..ebef481fb7 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -179,12 +179,6 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err os.E
+ 		return error.InvalidArgumentError("public key cannot generate signatures")
+ 	}
+ 
+-	rsaPublicKey, ok := pk.PublicKey.(*rsa.PublicKey)
+-	if !ok {
+-		// TODO(agl): support DSA and ECDSA keys.
+-		return error.UnsupportedError("non-RSA public key")
+-	}
+-
+ 	signed.Write(sig.HashSuffix)
+ 	hashBytes := signed.Sum()
+ 
+@@ -192,11 +186,28 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err os.E
+ 		return error.SignatureError("hash tag doesn't match")
+ 	}
+ 
+-	err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.Signature)
+-	if err != nil {
+-		return error.SignatureError("RSA verification failure")
++	if pk.PubKeyAlgo != sig.PubKeyAlgo {
++		return error.InvalidArgumentError("public key and signature use different algorithms")
++	}
++
++	switch pk.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++		rsaPublicKey, _ := pk.PublicKey.(*rsa.PublicKey)
++		err = rsa.VerifyPKCS1v15(rsaPublicKey, sig.Hash, hashBytes, sig.RSASignature)
++		if err != nil {
++			return error.SignatureError("RSA verification failure")
++		}
++		return nil
++	case PubKeyAlgoDSA:
++		dsaPublicKey, _ := pk.PublicKey.(*dsa.PublicKey)
++		if !dsa.Verify(dsaPublicKey, hashBytes, sig.DSASigR, sig.DSASigS) {
++			return error.SignatureError("DSA verification failure")
++		}
++		return nil
++	default:
++		panic("shouldn't happen")
+ 	}
+-	return nil
++	panic("unreachable")
+ }
+ 
+ // VerifyKeySignature returns nil iff sig is a valid signature, make by this
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 2d95ba522a..719657e76e 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -5,7 +5,9 @@
+ package packet
+ 
+ import (
++	"big"
+ 	"crypto"
++	"crypto/dsa"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/s2k"
+ 	"crypto/rand"
+@@ -29,7 +31,9 @@ type Signature struct {
+ 	// of bad signed data.
+ 	HashTag      [2]byte
+ 	CreationTime uint32 // Unix epoch time
+-	Signature    []byte
++
++	RSASignature     []byte
++	DSASigR, DSASigS *big.Int
+ 
+ 	// The following are optional so are nil when not included in the
+ 	// signature.
+@@ -66,7 +70,7 @@ func (sig *Signature) parse(r io.Reader) (err os.Error) {
+ 	sig.SigType = SignatureType(buf[0])
+ 	sig.PubKeyAlgo = PublicKeyAlgorithm(buf[1])
+ 	switch sig.PubKeyAlgo {
+-	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly, PubKeyAlgoDSA:
+ 	default:
+ 		err = error.UnsupportedError("public key algorithm " + strconv.Itoa(int(sig.PubKeyAlgo)))
+ 		return
+@@ -122,8 +126,20 @@ func (sig *Signature) parse(r io.Reader) (err os.Error) {
+ 		return
+ 	}
+ 
+-	// We have already checked that the public key algorithm is RSA.
+-	sig.Signature, _, err = readMPI(r)
++	switch sig.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++		sig.RSASignature, _, err = readMPI(r)
++	case PubKeyAlgoDSA:
++		var rBytes, sBytes []byte
++		rBytes, _, err = readMPI(r)
++		sig.DSASigR = new(big.Int).SetBytes(rBytes)
++		if err == nil {
++			sBytes, _, err = readMPI(r)
++			sig.DSASigS = new(big.Int).SetBytes(sBytes)
++		}
++	default:
++		panic("unreachable")
++	}
+ 	return
+ }
+ 
+@@ -392,31 +408,65 @@ func (sig *Signature) buildHashSuffix() (err os.Error) {
+ 	return
+ }
+ 
+-// SignRSA signs a message with an RSA private key. The hash, h, must contain
+-// the hash of message to be signed and will be mutated by this function.
+-func (sig *Signature) SignRSA(h hash.Hash, priv *rsa.PrivateKey) (err os.Error) {
++func (sig *Signature) signPrepareHash(h hash.Hash) (digest []byte, err os.Error) {
+ 	err = sig.buildHashSuffix()
+ 	if err != nil {
+ 		return
+ 	}
+ 
+ 	h.Write(sig.HashSuffix)
+-	digest := h.Sum()
++	digest = h.Sum()
+ 	copy(sig.HashTag[:], digest)
+-	sig.Signature, err = rsa.SignPKCS1v15(rand.Reader, priv, sig.Hash, digest)
+ 	return
+ }
+ 
+-// Serialize marshals sig to w. SignRSA must have been called first.
++// SignRSA signs a message with an RSA private key. The hash, h, must contain
++// the hash of the message to be signed and will be mutated by this function.
++// On success, the signature is stored in sig. Call Serialize to write it out.
++func (sig *Signature) SignRSA(h hash.Hash, priv *rsa.PrivateKey) (err os.Error) {
++	digest, err := sig.signPrepareHash(h)
++	if err != nil {
++		return
++	}
++	sig.RSASignature, err = rsa.SignPKCS1v15(rand.Reader, priv, sig.Hash, digest)
++	return
++}
++
++// SignDSA signs a message with a DSA private key. The hash, h, must contain
++// the hash of the message to be signed and will be mutated by this function.
++// On success, the signature is stored in sig. Call Serialize to write it out.
++func (sig *Signature) SignDSA(h hash.Hash, priv *dsa.PrivateKey) (err os.Error) {
++	digest, err := sig.signPrepareHash(h)
++	if err != nil {
++		return
++	}
++	sig.DSASigR, sig.DSASigS, err = dsa.Sign(rand.Reader, priv, digest)
++	return
++}
++
++// Serialize marshals sig to w. SignRSA or SignDSA must have been called first.
+ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
+-	if sig.Signature == nil {
+-		return error.InvalidArgumentError("Signature: need to call SignRSA before Serialize")
++	if sig.RSASignature == nil && sig.DSASigR == nil {
++		return error.InvalidArgumentError("Signature: need to call SignRSA or SignDSA before Serialize")
++	}
++
++	sigLength := 0
++	switch sig.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++		sigLength = len(sig.RSASignature)
++	case PubKeyAlgoDSA:
++		sigLength = 2 /* MPI length */
++		sigLength += (sig.DSASigR.BitLen() + 7) / 8
++		sigLength += 2 /* MPI length */
++		sigLength += (sig.DSASigS.BitLen() + 7) / 8
++	default:
++		panic("impossible")
+ 	}
+ 
+ 	unhashedSubpacketsLen := subpacketsLength(sig.outSubpackets, false)
+ 	length := len(sig.HashSuffix) - 6 /* trailer not included */ +
+ 		2 /* length of unhashed subpackets */ + unhashedSubpacketsLen +
+-		2 /* hash tag */ + 2 /* length of signature MPI */ + len(sig.Signature)
++		2 /* hash tag */ + 2 /* length of signature MPI */ + sigLength
+ 	err = serializeHeader(w, packetTypeSignature, length)
+ 	if err != nil {
+ 		return
+@@ -440,7 +490,19 @@ func (sig *Signature) Serialize(w io.Writer) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	return writeMPI(w, 8*uint16(len(sig.Signature)), sig.Signature)
++
++	switch sig.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++		err = writeMPI(w, 8*uint16(len(sig.RSASignature)), sig.RSASignature)
++	case PubKeyAlgoDSA:
++		err = writeBig(w, sig.DSASigR)
++		if err == nil {
++			err = writeBig(w, sig.DSASigS)
++		}
++	default:
++		panic("impossible")
++	}
++	return
+ }
+ 
+ // outputSubpacket represents a subpacket to be marshaled.
+diff --git a/src/pkg/crypto/openpgp/read_test.go b/src/pkg/crypto/openpgp/read_test.go
+index 58199e1329..6218d9990d 100644
+--- a/src/pkg/crypto/openpgp/read_test.go
++++ b/src/pkg/crypto/openpgp/read_test.go
+@@ -44,6 +44,17 @@ func TestReadPrivateKeyRing(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadDSAKey(t *testing.T) {
++	kring, err := ReadKeyRing(readerFromHex(dsaTestKeyHex))
++	if err != nil {
++		t.Error(err)
++		return
++	}
++	if len(kring) != 1 || uint32(kring[0].PrimaryKey.KeyId) != 0x0CCC0360 {
++		t.Errorf("bad parse: %#v", kring)
++	}
++}
++
+ func TestGetKeyById(t *testing.T) {
+ 	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2Hex))
+ 
+@@ -192,7 +203,7 @@ func TestSymmetricallyEncrypted(t *testing.T) {
+ 	}
+ }
+ 
+-func testDetachedSignature(t *testing.T, kring KeyRing, signature io.Reader, sigInput, tag string) {
++func testDetachedSignature(t *testing.T, kring KeyRing, signature io.Reader, sigInput, tag string, expectedSignerKeyId uint64) {
+ 	signed := bytes.NewBufferString(sigInput)
+ 	signer, err := CheckDetachedSignature(kring, signed, signature)
+ 	if err != nil {
+@@ -203,7 +214,6 @@ func testDetachedSignature(t *testing.T, kring KeyRing, signature io.Reader, sig
+ 		t.Errorf("%s: signer is nil", tag)
+ 		return
+ 	}
+-	expectedSignerKeyId := uint64(0xa34d7e18c20c31bb)
+ 	if signer.PrimaryKey.KeyId != expectedSignerKeyId {
+ 		t.Errorf("%s: wrong signer got:%x want:%x", tag, signer.PrimaryKey.KeyId, expectedSignerKeyId)
+ 	}
+@@ -211,10 +221,18 @@ func testDetachedSignature(t *testing.T, kring KeyRing, signature io.Reader, sig
+ 
+ func TestDetachedSignature(t *testing.T) {
+ 	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2Hex))
+-	testDetachedSignature(t, kring, readerFromHex(detachedSignatureHex), signedInput, "binary")
+-	testDetachedSignature(t, kring, readerFromHex(detachedSignatureTextHex), signedInput, "text")
++	testDetachedSignature(t, kring, readerFromHex(detachedSignatureHex), signedInput, "binary", testKey1KeyId)
++	testDetachedSignature(t, kring, readerFromHex(detachedSignatureTextHex), signedInput, "text", testKey1KeyId)
+ }
+ 
++func TestDetachedSignatureDSA(t *testing.T) {
++	kring, _ := ReadKeyRing(readerFromHex(dsaTestKeyHex))
++	testDetachedSignature(t, kring, readerFromHex(detachedSignatureDSAHex), signedInput, "binary", testKey3KeyId)
++}
++
++const testKey1KeyId = 0xA34D7E18C20C31BB
++const testKey3KeyId = 0x338934250CCC0360
++
+ const signedInput = "Signed message\nline 2\nline 3\n"
+ const signedTextInput = "Signed message\r\nline 2\r\nline 3\r\n"
+ 
+@@ -224,6 +242,8 @@ const detachedSignatureHex = "889c04000102000605024d449cd1000a0910a34d7e18c20c31
+ 
+ const detachedSignatureTextHex = "889c04010102000605024d449d21000a0910a34d7e18c20c31bbc8c60400a24fbef7342603a41cb1165767bd18985d015fb72fe05db42db36cfb2f1d455967f1e491194fbf6cf88146222b23bf6ffbd50d17598d976a0417d3192ff9cc0034fd00f287b02e90418bbefe609484b09231e4e7a5f3562e199bf39909ab5276c4d37382fe088f6b5c3426fc1052865da8b3ab158672d58b6264b10823dc4b39"
+ 
++const detachedSignatureDSAHex = "884604001102000605024d6c4eac000a0910338934250ccc0360f18d00a087d743d6405ed7b87755476629600b8b694a39e900a0abff8126f46faf1547c1743c37b21b4ea15b8f83"
++
+ const testKeys1And2Hex = "988d044d3c5c10010400b1d13382944bd5aba23a4312968b5095d14f947f600eb478e14a6fcb16b0e0cac764884909c020bc495cfcc39a935387c661507bdb236a0612fb582cac3af9b29cc2c8c70090616c41b662f4da4c1201e195472eb7f4ae1ccbcbf9940fe21d985e379a5563dde5b9a23d35f1cfaa5790da3b79db26f23695107bfaca8e7b5bcd0011010001b41054657374204b6579203120285253412988b804130102002205024d3c5c10021b03060b090807030206150802090a0b0416020301021e01021780000a0910a34d7e18c20c31bbb5b304009cc45fe610b641a2c146331be94dade0a396e73ca725e1b25c21708d9cab46ecca5ccebc23055879df8f99eea39b377962a400f2ebdc36a7c99c333d74aeba346315137c3ff9d0a09b0273299090343048afb8107cf94cbd1400e3026f0ccac7ecebbc4d78588eb3e478fe2754d3ca664bcf3eac96ca4a6b0c8d7df5102f60f6b0020003b88d044d3c5c10010400b201df61d67487301f11879d514f4248ade90c8f68c7af1284c161098de4c28c2850f1ec7b8e30f959793e571542ffc6532189409cb51c3d30dad78c4ad5165eda18b20d9826d8707d0f742e2ab492103a85bbd9ddf4f5720f6de7064feb0d39ee002219765bb07bcfb8b877f47abe270ddeda4f676108cecb6b9bb2ad484a4f0011010001889f04180102000905024d3c5c10021b0c000a0910a34d7e18c20c31bb1a03040085c8d62e16d05dc4e9dad64953c8a2eed8b6c12f92b1575eeaa6dcf7be9473dd5b24b37b6dffbb4e7c99ed1bd3cb11634be19b3e6e207bed7505c7ca111ccf47cb323bf1f8851eb6360e8034cbff8dd149993c959de89f8f77f38e7e98b8e3076323aa719328e2b408db5ec0d03936efd57422ba04f925cdc7b4c1af7590e40ab0020003988d044d3c5c33010400b488c3e5f83f4d561f317817538d9d0397981e9aef1321ca68ebfae1cf8b7d388e19f4b5a24a82e2fbbf1c6c26557a6c5845307a03d815756f564ac7325b02bc83e87d5480a8fae848f07cb891f2d51ce7df83dcafdc12324517c86d472cc0ee10d47a68fd1d9ae49a6c19bbd36d82af597a0d88cc9c49de9df4e696fc1f0b5d0011010001b42754657374204b6579203220285253412c20656e637279707465642070726976617465206b65792988b804130102002205024d3c5c33021b03060b090807030206150802090a0b0416020301021e01021780000a0910d4984f961e35246b98940400908a73b6a6169f700434f076c6c79015a49bee37130eaf23aaa3cfa9ce60bfe4acaa7bc95f1146ada5867e0079babb38804891f4f0b8ebca57a86b249dee786161a755b7a342e68ccf3f78ed6440a93a6626beb9a37aa66afcd4f888790cb4bb46d94a4ae3eb3d7d3e6b00f6bfec940303e89ec5b32a1eaaacce66497d539328b0020003b88d044d3c5c33010400a4e913f9442abcc7f1804ccab27d2f787ffa592077ca935a8bb23165bd8d57576acac647cc596b2c3f814518cc8c82953c7a4478f32e0cf645630a5ba38d9618ef2bc3add69d459ae3dece5cab778938d988239f8c5ae437807075e06c828019959c644ff05ef6a5a1dab72227c98e3a040b0cf219026640698d7a13d8538a570011010001889f04180102000905024d3c5c33021b0c000a0910d4984f961e35246b26c703ff7ee29ef53bc1ae1ead533c408fa136db508434e233d6e62be621e031e5940bbd4c08142aed0f82217e7c3e1ec8de574bc06ccf3c36633be41ad78a9eacd209f861cae7b064100758545cc9dd83db71806dc1cfd5fb9ae5c7474bba0c19c44034ae61bae5eca379383339dece94ff56ff7aa44a582f3e5c38f45763af577c0934b0020003"
+ 
+ const testKeys1And2PrivateHex = "9501d8044d3c5c10010400b1d13382944bd5aba23a4312968b5095d14f947f600eb478e14a6fcb16b0e0cac764884909c020bc495cfcc39a935387c661507bdb236a0612fb582cac3af9b29cc2c8c70090616c41b662f4da4c1201e195472eb7f4ae1ccbcbf9940fe21d985e379a5563dde5b9a23d35f1cfaa5790da3b79db26f23695107bfaca8e7b5bcd00110100010003ff4d91393b9a8e3430b14d6209df42f98dc927425b881f1209f319220841273a802a97c7bdb8b3a7740b3ab5866c4d1d308ad0d3a79bd1e883aacf1ac92dfe720285d10d08752a7efe3c609b1d00f17f2805b217be53999a7da7e493bfc3e9618fd17018991b8128aea70a05dbce30e4fbe626aa45775fa255dd9177aabf4df7cf0200c1ded12566e4bc2bb590455e5becfb2e2c9796482270a943343a7835de41080582c2be3caf5981aa838140e97afa40ad652a0b544f83eb1833b0957dce26e47b0200eacd6046741e9ce2ec5beb6fb5e6335457844fb09477f83b050a96be7da043e17f3a9523567ed40e7a521f818813a8b8a72209f1442844843ccc7eb9805442570200bdafe0438d97ac36e773c7162028d65844c4d463e2420aa2228c6e50dc2743c3d6c72d0d782a5173fe7be2169c8a9f4ef8a7cf3e37165e8c61b89c346cdc6c1799d2b41054657374204b6579203120285253412988b804130102002205024d3c5c10021b03060b090807030206150802090a0b0416020301021e01021780000a0910a34d7e18c20c31bbb5b304009cc45fe610b641a2c146331be94dade0a396e73ca725e1b25c21708d9cab46ecca5ccebc23055879df8f99eea39b377962a400f2ebdc36a7c99c333d74aeba346315137c3ff9d0a09b0273299090343048afb8107cf94cbd1400e3026f0ccac7ecebbc4d78588eb3e478fe2754d3ca664bcf3eac96ca4a6b0c8d7df5102f60f6b00200009d01d8044d3c5c10010400b201df61d67487301f11879d514f4248ade90c8f68c7af1284c161098de4c28c2850f1ec7b8e30f959793e571542ffc6532189409cb51c3d30dad78c4ad5165eda18b20d9826d8707d0f742e2ab492103a85bbd9ddf4f5720f6de7064feb0d39ee002219765bb07bcfb8b877f47abe270ddeda4f676108cecb6b9bb2ad484a4f00110100010003fd17a7490c22a79c59281fb7b20f5e6553ec0c1637ae382e8adaea295f50241037f8997cf42c1ce26417e015091451b15424b2c59eb8d4161b0975630408e394d3b00f88d4b4e18e2cc85e8251d4753a27c639c83f5ad4a571c4f19d7cd460b9b73c25ade730c99df09637bd173d8e3e981ac64432078263bb6dc30d3e974150dd0200d0ee05be3d4604d2146fb0457f31ba17c057560785aa804e8ca5530a7cd81d3440d0f4ba6851efcfd3954b7e68908fc0ba47f7ac37bf559c6c168b70d3a7c8cd0200da1c677c4bce06a068070f2b3733b0a714e88d62aa3f9a26c6f5216d48d5c2b5624144f3807c0df30be66b3268eeeca4df1fbded58faf49fc95dc3c35f134f8b01fd1396b6c0fc1b6c4f0eb8f5e44b8eace1e6073e20d0b8bc5385f86f1cf3f050f66af789f3ef1fc107b7f4421e19e0349c730c68f0a226981f4e889054fdb4dc149e8e889f04180102000905024d3c5c10021b0c000a0910a34d7e18c20c31bb1a03040085c8d62e16d05dc4e9dad64953c8a2eed8b6c12f92b1575eeaa6dcf7be9473dd5b24b37b6dffbb4e7c99ed1bd3cb11634be19b3e6e207bed7505c7ca111ccf47cb323bf1f8851eb6360e8034cbff8dd149993c959de89f8f77f38e7e98b8e3076323aa719328e2b408db5ec0d03936efd57422ba04f925cdc7b4c1af7590e40ab00200009501fe044d3c5c33010400b488c3e5f83f4d561f317817538d9d0397981e9aef1321ca68ebfae1cf8b7d388e19f4b5a24a82e2fbbf1c6c26557a6c5845307a03d815756f564ac7325b02bc83e87d5480a8fae848f07cb891f2d51ce7df83dcafdc12324517c86d472cc0ee10d47a68fd1d9ae49a6c19bbd36d82af597a0d88cc9c49de9df4e696fc1f0b5d0011010001fe030302e9030f3c783e14856063f16938530e148bc57a7aa3f3e4f90df9dceccdc779bc0835e1ad3d006e4a8d7b36d08b8e0de5a0d947254ecfbd22037e6572b426bcfdc517796b224b0036ff90bc574b5509bede85512f2eefb520fb4b02aa523ba739bff424a6fe81c5041f253f8d757e69a503d3563a104d0d49e9e890b9d0c26f96b55b743883b472caa7050c4acfd4a21f875bdf1258d88bd61224d303dc9df77f743137d51e6d5246b88c406780528fd9a3e15bab5452e5b93970d9dcc79f48b38651b9f15bfbcf6da452837e9cc70683d1bdca94507870f743e4ad902005812488dd342f836e72869afd00ce1850eea4cfa53ce10e3608e13d3c149394ee3cbd0e23d018fcbcb6e2ec5a1a22972d1d462ca05355d0d290dd2751e550d5efb38c6c89686344df64852bf4ff86638708f644e8ec6bd4af9b50d8541cb91891a431326ab2e332faa7ae86cfb6e0540aa63160c1e5cdd5a4add518b303fff0a20117c6bc77f7cfbaf36b04c865c6c2b42754657374204b6579203220285253412c20656e637279707465642070726976617465206b65792988b804130102002205024d3c5c33021b03060b090807030206150802090a0b0416020301021e01021780000a0910d4984f961e35246b98940400908a73b6a6169f700434f076c6c79015a49bee37130eaf23aaa3cfa9ce60bfe4acaa7bc95f1146ada5867e0079babb38804891f4f0b8ebca57a86b249dee786161a755b7a342e68ccf3f78ed6440a93a6626beb9a37aa66afcd4f888790cb4bb46d94a4ae3eb3d7d3e6b00f6bfec940303e89ec5b32a1eaaacce66497d539328b00200009d01fe044d3c5c33010400a4e913f9442abcc7f1804ccab27d2f787ffa592077ca935a8bb23165bd8d57576acac647cc596b2c3f814518cc8c82953c7a4478f32e0cf645630a5ba38d9618ef2bc3add69d459ae3dece5cab778938d988239f8c5ae437807075e06c828019959c644ff05ef6a5a1dab72227c98e3a040b0cf219026640698d7a13d8538a570011010001fe030302e9030f3c783e148560f936097339ae381d63116efcf802ff8b1c9360767db5219cc987375702a4123fd8657d3e22700f23f95020d1b261eda5257e9a72f9a918e8ef22dd5b3323ae03bbc1923dd224db988cadc16acc04b120a9f8b7e84da9716c53e0334d7b66586ddb9014df604b41be1e960dcfcbc96f4ed150a1a0dd070b9eb14276b9b6be413a769a75b519a53d3ecc0c220e85cd91ca354d57e7344517e64b43b6e29823cbd87eae26e2b2e78e6dedfbb76e3e9f77bcb844f9a8932eb3db2c3f9e44316e6f5d60e9e2a56e46b72abe6b06dc9a31cc63f10023d1f5e12d2a3ee93b675c96f504af0001220991c88db759e231b3320dcedf814dcf723fd9857e3d72d66a0f2af26950b915abdf56c1596f46a325bf17ad4810d3535fb02a259b247ac3dbd4cc3ecf9c51b6c07cebb009c1506fba0a89321ec8683e3fd009a6e551d50243e2d5092fefb3321083a4bad91320dc624bd6b5dddf93553e3d53924c05bfebec1fb4bd47e89a1a889f04180102000905024d3c5c33021b0c000a0910d4984f961e35246b26c703ff7ee29ef53bc1ae1ead533c408fa136db508434e233d6e62be621e031e5940bbd4c08142aed0f82217e7c3e1ec8de574bc06ccf3c36633be41ad78a9eacd209f861cae7b064100758545cc9dd83db71806dc1cfd5fb9ae5c7474bba0c19c44034ae61bae5eca379383339dece94ff56ff7aa44a582f3e5c38f45763af577c0934b0020000"
+@@ -235,3 +255,7 @@ const signedTextMessageHex = "a3019bc0cbccc8c4b8d8b74ee2108fe16ec6d36a250cbece0c
+ const signedEncryptedMessageHex = "848c032a67d68660df41c70103ff5789d0de26b6a50c985a02a13131ca829c413a35d0e6fa8d6842599252162808ac7439c72151c8c6183e76923fe3299301414d0c25a2f06a2257db3839e7df0ec964773f6e4c4ac7ff3b48c444237166dd46ba8ff443a5410dc670cb486672fdbe7c9dfafb75b4fea83af3a204fe2a7dfa86bd20122b4f3d2646cbeecb8f7be8d2c03b018bd210b1d3791e1aba74b0f1034e122ab72e760492c192383cf5e20b5628bd043272d63df9b923f147eb6091cd897553204832aba48fec54aa447547bb16305a1024713b90e77fd0065f1918271947549205af3c74891af22ee0b56cd29bfec6d6e351901cd4ab3ece7c486f1e32a792d4e474aed98ee84b3f591c7dff37b64e0ecd68fd036d517e412dcadf85840ce184ad7921ad446c4ee28db80447aea1ca8d4f574db4d4e37688158ddd19e14ee2eab4873d46947d65d14a23e788d912cf9a19624ca7352469b72a83866b7c23cb5ace3deab3c7018061b0ba0f39ed2befe27163e5083cf9b8271e3e3d52cc7ad6e2a3bd81d4c3d7022f8d"
+ 
+ const symmetricallyEncryptedCompressedHex = "8c0d04030302eb4a03808145d0d260c92f714339e13de5a79881216431925bf67ee2898ea61815f07894cd0703c50d0a76ef64d482196f47a8bc729af9b80bb6"
++
++const dsaTestKeyHex = "9901a2044d6c49de110400cb5ce438cf9250907ac2ba5bf6547931270b89f7c4b53d9d09f4d0213a5ef2ec1f26806d3d259960f872a4a102ef1581ea3f6d6882d15134f21ef6a84de933cc34c47cc9106efe3bd84c6aec12e78523661e29bc1a61f0aab17fa58a627fd5fd33f5149153fbe8cd70edf3d963bc287ef875270ff14b5bfdd1bca4483793923b00a0fe46d76cb6e4cbdc568435cd5480af3266d610d303fe33ae8273f30a96d4d34f42fa28ce1112d425b2e3bf7ea553d526e2db6b9255e9dc7419045ce817214d1a0056dbc8d5289956a4b1b69f20f1105124096e6a438f41f2e2495923b0f34b70642607d45559595c7fe94d7fa85fc41bf7d68c1fd509ebeaa5f315f6059a446b9369c277597e4f474a9591535354c7e7f4fd98a08aa60400b130c24ff20bdfbf683313f5daebf1c9b34b3bdadfc77f2ddd72ee1fb17e56c473664bc21d66467655dd74b9005e3a2bacce446f1920cd7017231ae447b67036c9b431b8179deacd5120262d894c26bc015bffe3d827ba7087ad9b700d2ca1f6d16cc1786581e5dd065f293c31209300f9b0afcc3f7c08dd26d0a22d87580b4db41054657374204b65792033202844534129886204131102002205024d6c49de021b03060b090807030206150802090a0b0416020301021e01021780000a0910338934250ccc03607e0400a0bdb9193e8a6b96fc2dfc108ae848914b504481f100a09c4dc148cb693293a67af24dd40d2b13a9e36794"
++
++const dsaTestKeyPrivateHex = "9501bb044d6c49de110400cb5ce438cf9250907ac2ba5bf6547931270b89f7c4b53d9d09f4d0213a5ef2ec1f26806d3d259960f872a4a102ef1581ea3f6d6882d15134f21ef6a84de933cc34c47cc9106efe3bd84c6aec12e78523661e29bc1a61f0aab17fa58a627fd5fd33f5149153fbe8cd70edf3d963bc287ef875270ff14b5bfdd1bca4483793923b00a0fe46d76cb6e4cbdc568435cd5480af3266d610d303fe33ae8273f30a96d4d34f42fa28ce1112d425b2e3bf7ea553d526e2db6b9255e9dc7419045ce817214d1a0056dbc8d5289956a4b1b69f20f1105124096e6a438f41f2e2495923b0f34b70642607d45559595c7fe94d7fa85fc41bf7d68c1fd509ebeaa5f315f6059a446b9369c277597e4f474a9591535354c7e7f4fd98a08aa60400b130c24ff20bdfbf683313f5daebf1c9b34b3bdadfc77f2ddd72ee1fb17e56c473664bc21d66467655dd74b9005e3a2bacce446f1920cd7017231ae447b67036c9b431b8179deacd5120262d894c26bc015bffe3d827ba7087ad9b700d2ca1f6d16cc1786581e5dd065f293c31209300f9b0afcc3f7c08dd26d0a22d87580b4d00009f592e0619d823953577d4503061706843317e4fee083db41054657374204b65792033202844534129886204131102002205024d6c49de021b03060b090807030206150802090a0b0416020301021e01021780000a0910338934250ccc03607e0400a0bdb9193e8a6b96fc2dfc108ae848914b504481f100a09c4dc148cb693293a67af24dd40d2b13a9e36794"
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index 9bef5e3b0b..ef7b11230a 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -6,6 +6,7 @@ package openpgp
+ 
+ import (
+ 	"crypto"
++	"crypto/dsa"
+ 	"crypto/openpgp/armor"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/packet"
+@@ -80,6 +81,9 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
+ 	case packet.PubKeyAlgoRSA, packet.PubKeyAlgoRSASignOnly:
+ 		priv := signer.PrivateKey.PrivateKey.(*rsa.PrivateKey)
+ 		err = sig.SignRSA(h, priv)
++	case packet.PubKeyAlgoDSA:
++		priv := signer.PrivateKey.PrivateKey.(*dsa.PrivateKey)
++		err = sig.SignDSA(h, priv)
+ 	default:
+ 		err = error.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
+ 	}
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index 33e8809f22..42cd0d27f8 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -18,7 +18,7 @@ func TestSignDetached(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ 
+-	testDetachedSignature(t, kring, out, signedInput, "check")
++	testDetachedSignature(t, kring, out, signedInput, "check", testKey1KeyId)
+ }
+ 
+ func TestSignTextDetached(t *testing.T) {
+@@ -30,5 +30,17 @@ func TestSignTextDetached(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ 
+-	testDetachedSignature(t, kring, out, signedInput, "check")
++	testDetachedSignature(t, kring, out, signedInput, "check", testKey1KeyId)
++}
++
++func TestSignDetachedDSA(t *testing.T) {
++	kring, _ := ReadKeyRing(readerFromHex(dsaTestKeyPrivateHex))
++	out := bytes.NewBuffer(nil)
++	message := bytes.NewBufferString(signedInput)
++	err := DetachSign(out, kring[0], message)
++	if err != nil {
++		t.Error(err)
++	}
++
++	testDetachedSignature(t, kring, out, signedInput, "check", testKey3KeyId)
+ }

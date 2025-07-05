@@ -9,7 +9,204 @@ Date:   Thu Feb 18 11:29:05 2016 -0800
     Change-Id: I40d594582639e87ef2574d37ac868e37ffaa17dc
     Reviewed-on: https://go-review.googlesource.com/19623
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/dnsmsg.go      | 36 +++++++++++++++++--
  src/net/dnsmsg_test.go | 97 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 130 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/dnsmsg.go b/src/net/dnsmsg.go
+index 93078fe849..2ec4c8c301 100644
+--- a/src/net/dnsmsg.go
++++ b/src/net/dnsmsg.go
+@@ -406,6 +406,13 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 		s += "."
+ 	}
+ 
++	// Allow root domain.
++	if s == "." {
++		msg[off] = 0
++		off++
++		return off, true
++	}
++
+ 	// Each dot ends a segment of the name.
+ 	// We trade each dot byte for a length byte.
+ 	// There is also a trailing zero.
+@@ -422,8 +429,13 @@ func packDomainName(s string, msg []byte, off int) (off1 int, ok bool) {
+ 			if i-begin >= 1<<6 { // top two bits of length must be clear
+ 				return len(msg), false
+ 			}
++			if i-begin == 0 {
++				return len(msg), false
++			}
++
+ 			msg[off] = byte(i - begin)
+ 			off++
++
+ 			for j := begin; j < i; j++ {
+ 				msg[off] = s[j]
+ 				off++
+@@ -494,6 +506,9 @@ Loop:
+ 			return "", len(msg), false
+ 		}
+ 	}
++	if len(s) == 0 {
++		s = "."
++	}
+ 	if ptr == 0 {
+ 		off1 = off
+ 	}
+@@ -803,20 +818,32 @@ func (dns *dnsMsg) Pack() (msg []byte, ok bool) {
+ 	// Pack it in: header and then the pieces.
+ 	off := 0
+ 	off, ok = packStruct(&dh, msg, off)
++	if !ok {
++		return nil, false
++	}
+ 	for i := 0; i < len(question); i++ {
+ 		off, ok = packStruct(&question[i], msg, off)
++		if !ok {
++			return nil, false
++		}
+ 	}
+ 	for i := 0; i < len(answer); i++ {
+ 		off, ok = packRR(answer[i], msg, off)
++		if !ok {
++			return nil, false
++		}
+ 	}
+ 	for i := 0; i < len(ns); i++ {
+ 		off, ok = packRR(ns[i], msg, off)
++		if !ok {
++			return nil, false
++		}
+ 	}
+ 	for i := 0; i < len(extra); i++ {
+ 		off, ok = packRR(extra[i], msg, off)
+-	}
+-	if !ok {
+-		return nil, false
++		if !ok {
++			return nil, false
++		}
+ 	}
+ 	return msg[0:off], true
+ }
+@@ -848,6 +875,9 @@ func (dns *dnsMsg) Unpack(msg []byte) bool {
+ 
+ 	for i := 0; i < len(dns.question); i++ {
+ 		off, ok = unpackStruct(&dns.question[i], msg, off)
++		if !ok {
++			return false
++		}
+ 	}
+ 	for i := 0; i < int(dh.Ancount); i++ {
+ 		rec, off, ok = unpackRR(msg, off)
+diff --git a/src/net/dnsmsg_test.go b/src/net/dnsmsg_test.go
+index 1078d77ceb..339fb83c62 100644
+--- a/src/net/dnsmsg_test.go
++++ b/src/net/dnsmsg_test.go
+@@ -10,6 +10,103 @@ import (
+ 	"testing"
+ )
+ 
++func TestStructPackUnpack(t *testing.T) {
++	want := dnsQuestion{
++		Name:   ".",
++		Qtype:  dnsTypeA,
++		Qclass: dnsClassINET,
++	}
++	buf := make([]byte, 50)
++	n, ok := packStruct(&want, buf, 0)
++	if !ok {
++		t.Fatal("packing failed")
++	}
++	buf = buf[:n]
++	got := dnsQuestion{}
++	n, ok = unpackStruct(&got, buf, 0)
++	if !ok {
++		t.Fatal("unpacking failed")
++	}
++	if n != len(buf) {
++		t.Error("unpacked different amount than packed: got n = %d, want = %d", n, len(buf))
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("got = %+v, want = %+v", got, want)
++	}
++}
++
++func TestDomainNamePackUnpack(t *testing.T) {
++	tests := []struct {
++		in   string
++		want string
++		ok   bool
++	}{
++		{"", ".", true},
++		{".", ".", true},
++		{"google..com", "", false},
++		{"google.com", "google.com.", true},
++		{"google..com.", "", false},
++		{"google.com.", "google.com.", true},
++		{".google.com.", "", false},
++		{"www..google.com.", "", false},
++		{"www.google.com.", "www.google.com.", true},
++	}
++
++	for _, test := range tests {
++		buf := make([]byte, 30)
++		n, ok := packDomainName(test.in, buf, 0)
++		if ok != test.ok {
++			t.Errorf("packing of %s: got ok = %t, want = %t", test.in, ok, test.ok)
++			continue
++		}
++		if !test.ok {
++			continue
++		}
++		buf = buf[:n]
++		got, n, ok := unpackDomainName(buf, 0)
++		if !ok {
++			t.Errorf("unpacking for %s failed", test.in)
++			continue
++		}
++		if n != len(buf) {
++			t.Error(
++				"unpacked different amount than packed for %s: got n = %d, want = %d",
++				test.in,
++				n,
++				len(buf),
++			)
++		}
++		if got != test.want {
++			t.Errorf("unpacking packing of %s: got = %s, want = %s", test.in, got, test.want)
++		}
++	}
++}
++
++func TestDNSPackUnpack(t *testing.T) {
++	want := dnsMsg{
++		question: []dnsQuestion{{
++			Name:   ".",
++			Qtype:  dnsTypeAAAA,
++			Qclass: dnsClassINET,
++		}},
++		answer: []dnsRR{},
++		ns:     []dnsRR{},
++		extra:  []dnsRR{},
++	}
++	b, ok := want.Pack()
++	if !ok {
++		t.Fatal("packing failed")
++	}
++	var got dnsMsg
++	ok = got.Unpack(b)
++	if !ok {
++		t.Fatal("unpacking failed")
++	}
++	if !reflect.DeepEqual(got, want) {
++		t.Errorf("got = %+v, want = %+v", got, want)
++	}
++}
++
+ func TestDNSParseSRVReply(t *testing.T) {
+ 	data, err := hex.DecodeString(dnsSRVReply)
+ 	if err != nil {

@@ -17,7 +17,54 @@ Date:   Tue May 14 22:34:58 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/585458
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 5 +++++
  test/linkname3.go                        | 6 +++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index a48e193c5f..13706f9dd2 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -12,6 +12,7 @@ import (
+ 	"internal/buildcfg"
+ 	"internal/pkgbits"
+ 	"os"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -2610,6 +2611,10 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
+ 				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+ 				continue
+ 			}
++			if strings.Contains(l.remote, "[") && strings.Contains(l.remote, "]") {
++				pw.errorf(l.pos, "//go:linkname reference of an instantiation is not allowed")
++				continue
++			}
+ 
+ 			switch obj := pw.curpkg.Scope().Lookup(l.local).(type) {
+ 			case *types2.Func, *types2.Var:
+diff --git a/test/linkname3.go b/test/linkname3.go
+index df110cd064..0d5df0b86e 100644
+--- a/test/linkname3.go
++++ b/test/linkname3.go
+@@ -13,13 +13,17 @@ type t int
+ 
+ var x, y int
+ 
++func F[T any](T) {}
++
+ //go:linkname x ok
+ 
+ // ERROR "//go:linkname must refer to declared function or variable"
+ // ERROR "//go:linkname must refer to declared function or variable"
+ // ERROR "duplicate //go:linkname for x"
++// ERROR "//go:linkname reference of an instantiation is not allowed"
+ 
+-//line linkname3.go:18
++//line linkname3.go:20
+ //go:linkname nonexist nonexist
+ //go:linkname t notvarfunc
+ //go:linkname x duplicate
++//go:linkname i F[go.shape.int]

@@ -9,6 +9,20 @@ Date:   Wed Feb 2 11:02:56 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3981054
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 3f6f89b8bc..9ca5e7eb3b 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2705,7 +2705,7 @@ func init() {
+ 
+ <p>
+ When <code>panic</code> is called, including implicitly for run-time
+-errors such indexing an array out of bounds or failing a type
++errors such as indexing an array out of bounds or failing a type
+ assertion, it immediately stops execution of the current function
+ and begins unwinding the stack of the goroutine, running any deferred
+ functions along the way.  If that unwinding reaches the top of the

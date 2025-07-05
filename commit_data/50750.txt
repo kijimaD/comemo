@@ -12,7 +12,7 @@ Date:   Tue Nov 9 10:20:50 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/builtins.go    | 12 ++++++------
  src/go/types/check.go       |  2 +-
  src/go/types/conversions.go | 12 ++++++------
@@ -23,3 +23,396 @@ Date:   Tue Nov 9 10:20:50 2021 -0500
  src/go/types/stmt.go        |  2 +-
  src/go/types/typexpr.go     |  2 +-
  9 files changed, 49 insertions(+), 49 deletions(-)
+
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 0390ac0192..577a71fd60 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -147,7 +147,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		var val constant.Value
+ 		switch typ = arrayPtrDeref(under(x.typ)); t := typ.(type) {
+ 		case *Basic:
+-			if is_String(t) && id == _Len {
++			if isString(t) && id == _Len {
+ 				if x.mode == constant_ {
+ 					mode = constant_
+ 					val = constant.MakeInt64(int64(len(constant.StringVal(x.val))))
+@@ -183,7 +183,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			if t.underIs(func(t Type) bool {
+ 				switch t := arrayPtrDeref(t).(type) {
+ 				case *Basic:
+-					if is_String(t) && id == _Len {
++					if isString(t) && id == _Len {
+ 						return true
+ 					}
+ 				case *Array, *Slice, *Chan:
+@@ -272,7 +272,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			//    because shifts of floats are not permitted)
+ 			if x.mode == constant_ && y.mode == constant_ {
+ 				toFloat := func(x *operand) {
+-					if is_Numeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
++					if isNumeric(x.typ) && constant.Sign(constant.Imag(x.val)) == 0 {
+ 						x.typ = Typ[UntypedFloat]
+ 					}
+ 				}
+@@ -403,7 +403,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			if x.mode == constant_ {
+ 				// an untyped constant number can always be considered
+ 				// as a complex constant
+-				if is_Numeric(x.typ) {
++				if isNumeric(x.typ) {
+ 					x.typ = Typ[UntypedComplex]
+ 				}
+ 			} else {
+@@ -735,7 +735,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// assert(pred) causes a typechecker error if pred is false.
+ 		// The result of assert is the value of pred if there is no error.
+ 		// Note: assert is only available in self-test mode.
+-		if x.mode != constant_ || !is_Boolean(x.typ) {
++		if x.mode != constant_ || !isBoolean(x.typ) {
+ 			check.invalidArg(x, _Test, "%s is not a boolean constant", x)
+ 			return
+ 		}
+@@ -801,7 +801,7 @@ func structure(typ Type) Type {
+ func structureString(typ Type) Type {
+ 	var su Type
+ 	if underIs(typ, func(u Type) bool {
+-		if is_String(u) {
++		if isString(u) {
+ 			u = NewSlice(universeByte)
+ 		}
+ 		if su != nil && !Identical(su, u) {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index c828cf54e4..1d55fb4342 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -451,7 +451,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+ 	if a[0] == nil || a[1] == nil {
+ 		return
+ 	}
+-	assert(isTyped(a[0]) && isTyped(a[1]) && (is_Boolean(a[1]) || a[1] == universeError))
++	assert(isTyped(a[0]) && isTyped(a[1]) && (isBoolean(a[1]) || a[1] == universeError))
+ 	if m := check.Types; m != nil {
+ 		for {
+ 			tv := m[x]
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index c99bd6332a..c171b2c8d6 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -22,7 +22,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 			// nothing to do
+ 		case representableConst(x.val, check, t, val):
+ 			return true
+-		case is_Integer(x.typ) && is_String(t):
++		case isInteger(x.typ) && isString(t):
+ 			codepoint := unicode.ReplacementChar
+ 			if i, ok := constant.Uint64Val(x.val); ok && i <= unicode.MaxRune {
+ 				codepoint = rune(i)
+@@ -91,7 +91,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		//   (See also the TODO below.)
+ 		if IsInterface(T) || constArg && !isConstType(T) || x.isNil() {
+ 			final = Default(x.typ) // default type of untyped nil is untyped nil
+-		} else if is_Integer(x.typ) && allString(T) {
++		} else if isInteger(x.typ) && allString(T) {
+ 			final = x.typ
+ 		}
+ 		check.updateExprType(x.expr, final, true)
+@@ -195,22 +195,22 @@ func convertibleToImpl(check *Checker, V, T Type, cause *string) bool {
+ 	}
+ 
+ 	// "V and T are both integer or floating point types"
+-	if is_IntegerOrFloat(V) && is_IntegerOrFloat(T) {
++	if isIntegerOrFloat(V) && isIntegerOrFloat(T) {
+ 		return true
+ 	}
+ 
+ 	// "V and T are both complex types"
+-	if is_Complex(V) && is_Complex(T) {
++	if isComplex(V) && isComplex(T) {
+ 		return true
+ 	}
+ 
+ 	// "V is an integer or a slice of bytes or runes and T is a string type"
+-	if (is_Integer(V) || isBytesOrRunes(Vu)) && is_String(T) {
++	if (isInteger(V) || isBytesOrRunes(Vu)) && isString(T) {
+ 		return true
+ 	}
+ 
+ 	// "V is a string and T is a slice of bytes or runes"
+-	if is_String(V) && isBytesOrRunes(Tu) {
++	if isString(V) && isBytesOrRunes(Tu) {
+ 		return true
+ 	}
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index cdb18eb963..83022ed660 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -212,7 +212,7 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 			return
+ 		}
+ 		var prec uint
+-		if is_Unsigned(x.typ) {
++		if isUnsigned(x.typ) {
+ 			prec = uint(check.conf.sizeof(x.typ) * 8)
+ 		}
+ 		x.val = constant.UnaryOp(e.Op, x.val, prec)
+@@ -289,7 +289,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 	}
+ 
+ 	switch {
+-	case is_Integer(typ):
++	case isInteger(typ):
+ 		x := constant.ToInt(x)
+ 		if x.Kind() != constant.Int {
+ 			return false
+@@ -344,7 +344,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 			return true
+ 		}
+ 
+-	case is_Float(typ):
++	case isFloat(typ):
+ 		x := constant.ToFloat(x)
+ 		if x.Kind() != constant.Float {
+ 			return false
+@@ -374,7 +374,7 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 			unreachable()
+ 		}
+ 
+-	case is_Complex(typ):
++	case isComplex(typ):
+ 		x := constant.ToComplex(x)
+ 		if x.Kind() != constant.Complex {
+ 			return false
+@@ -406,10 +406,10 @@ func representableConst(x constant.Value, check *Checker, typ *Basic, rounded *c
+ 			unreachable()
+ 		}
+ 
+-	case is_String(typ):
++	case isString(typ):
+ 		return x.Kind() == constant.String
+ 
+-	case is_Boolean(typ):
++	case isBoolean(typ):
+ 		return x.Kind() == constant.Bool
+ 	}
+ 
+@@ -437,7 +437,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
+ 	assert(x.mode == constant_)
+ 	v := x.val
+ 	if !representableConst(x.val, check, typ, &v) {
+-		if is_Numeric(x.typ) && is_Numeric(typ) {
++		if isNumeric(x.typ) && isNumeric(typ) {
+ 			// numeric conversion : error msg
+ 			//
+ 			// integer -> integer : overflows
+@@ -445,7 +445,7 @@ func (check *Checker) representation(x *operand, typ *Basic) (constant.Value, er
+ 			// float   -> integer : truncated
+ 			// float   -> float   : overflows
+ 			//
+-			if !is_Integer(x.typ) && is_Integer(typ) {
++			if !isInteger(x.typ) && isInteger(typ) {
+ 				return nil, _TruncatedFloat
+ 			} else {
+ 				return nil, _NumericOverflow
+@@ -569,7 +569,7 @@ func (check *Checker) updateExprType(x ast.Expr, typ Type, final bool) {
+ 		// If x is the lhs of a shift, its final type must be integer.
+ 		// We already know from the shift check that it is representable
+ 		// as an integer if it is a constant.
+-		if !is_Integer(typ) {
++		if !isInteger(typ) {
+ 			check.invalidOp(x, _InvalidShiftOperand, "shifted operand %s (type %s) must be integer", x, typ)
+ 			return
+ 		}
+@@ -631,7 +631,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		// both x and target are untyped
+ 		xkind := x.typ.(*Basic).kind
+ 		tkind := target.(*Basic).kind
+-		if is_Numeric(x.typ) && is_Numeric(target) {
++		if isNumeric(x.typ) && isNumeric(target) {
+ 			if xkind < tkind {
+ 				return target, nil, 0
+ 			}
+@@ -656,18 +656,18 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		// the value nil.
+ 		switch x.typ.(*Basic).kind {
+ 		case UntypedBool:
+-			if !is_Boolean(target) {
++			if !isBoolean(target) {
+ 				return nil, nil, _InvalidUntypedConversion
+ 			}
+ 		case UntypedInt, UntypedRune, UntypedFloat, UntypedComplex:
+-			if !is_Numeric(target) {
++			if !isNumeric(target) {
+ 				return nil, nil, _InvalidUntypedConversion
+ 			}
+ 		case UntypedString:
+ 			// Non-constant untyped string values are not permitted by the spec and
+ 			// should not occur during normal typechecking passes, but this path is
+ 			// reachable via the AssignableTo API.
+-			if !is_String(target) {
++			if !isString(target) {
+ 				return nil, nil, _InvalidUntypedConversion
+ 			}
+ 		case UntypedNil:
+@@ -810,7 +810,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 
+ 		if isUntyped(y.typ) {
+ 			// Caution: Check for representability here, rather than in the switch
+-			// below, because is_Integer includes untyped integers (was bug #43697).
++			// below, because isInteger includes untyped integers (was bug #43697).
+ 			check.representable(y, Typ[Uint])
+ 			if y.mode == invalid {
+ 				x.mode = invalid
+@@ -847,7 +847,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			if x.val.Kind() == constant.Unknown || y.val.Kind() == constant.Unknown {
+ 				x.val = constant.MakeUnknown()
+ 				// ensure the correct type - see comment below
+-				if !is_Integer(x.typ) {
++				if !isInteger(x.typ) {
+ 					x.typ = Typ[UntypedInt]
+ 				}
+ 				return
+@@ -864,7 +864,7 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 			// (e.g., 2.0, an untyped float) - this can only happen for untyped
+ 			// non-integer numeric constants. Correct the type so that the shift
+ 			// result is of integer type.
+-			if !is_Integer(x.typ) {
++			if !isInteger(x.typ) {
+ 				x.typ = Typ[UntypedInt]
+ 			}
+ 			// x is a constant so xval != nil and it must be of Int kind.
+@@ -1029,7 +1029,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 		}
+ 
+ 		// check for divisor underflow in complex division (see issue 20227)
+-		if x.mode == constant_ && y.mode == constant_ && is_Complex(x.typ) {
++		if x.mode == constant_ && y.mode == constant_ && isComplex(x.typ) {
+ 			re, im := constant.Real(y.val), constant.Imag(y.val)
+ 			re2, im2 := constant.BinaryOp(re, token.MUL, re), constant.BinaryOp(im, token.MUL, im)
+ 			if constant.Sign(re2) == 0 && constant.Sign(im2) == 0 {
+@@ -1048,7 +1048,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 			return
+ 		}
+ 		// force integer division of integer operands
+-		if op == token.QUO && is_Integer(x.typ) {
++		if op == token.QUO && isInteger(x.typ) {
+ 			op = token.QUO_ASSIGN
+ 		}
+ 		x.val = constant.BinaryOp(x.val, op, y.val)
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 5d35458011..7ef8231f0b 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -52,7 +52,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 	length := int64(-1) // valid if >= 0
+ 	switch typ := under(x.typ).(type) {
+ 	case *Basic:
+-		if is_String(typ) {
++		if isString(typ) {
+ 			valid = true
+ 			if x.mode == constant_ {
+ 				length = int64(len(constant.StringVal(x.val)))
+@@ -110,7 +110,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 			var k, e Type  // k is only set for maps
+ 			switch t := u.(type) {
+ 			case *Basic:
+-				if is_String(t) {
++				if isString(t) {
+ 					e = universeByte
+ 					mode = value
+ 				}
+@@ -218,7 +218,7 @@ func (check *Checker) sliceExpr(x *operand, e *ast.SliceExpr) {
+ 		return
+ 
+ 	case *Basic:
+-		if is_String(u) {
++		if isString(u) {
+ 			if e.Slice3 {
+ 				check.invalidOp(x, _InvalidSliceExpr, "3-index slice of string")
+ 				x.mode = invalid
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 4ca962e77e..1ecb6a8c7e 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -27,18 +27,18 @@ func isGeneric(typ Type) bool {
+ 	return named != nil && named.obj != nil && named.targs == nil && named.TypeParams() != nil
+ }
+ 
+-// The is_X predicates below report whether t is an X.
++// The isX predicates below report whether t is an X.
+ // If t is a type parameter the result is false; i.e.,
+ // these predicates don't look inside a type parameter.
+ 
+-func is_Boolean(t Type) bool        { return isBasic(t, IsBoolean) }
+-func is_Integer(t Type) bool        { return isBasic(t, IsInteger) }
+-func is_Unsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
+-func is_Float(t Type) bool          { return isBasic(t, IsFloat) }
+-func is_Complex(t Type) bool        { return isBasic(t, IsComplex) }
+-func is_Numeric(t Type) bool        { return isBasic(t, IsNumeric) }
+-func is_String(t Type) bool         { return isBasic(t, IsString) }
+-func is_IntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
++func isBoolean(t Type) bool        { return isBasic(t, IsBoolean) }
++func isInteger(t Type) bool        { return isBasic(t, IsInteger) }
++func isUnsigned(t Type) bool       { return isBasic(t, IsUnsigned) }
++func isFloat(t Type) bool          { return isBasic(t, IsFloat) }
++func isComplex(t Type) bool        { return isBasic(t, IsComplex) }
++func isNumeric(t Type) bool        { return isBasic(t, IsNumeric) }
++func isString(t Type) bool         { return isBasic(t, IsString) }
++func isIntegerOrFloat(t Type) bool { return isBasic(t, IsInteger|IsFloat) }
+ 
+ // isBasic reports whether under(t) is a basic type with the specified info.
+ // If t is a type parameter the result is false; i.e.,
+@@ -49,10 +49,10 @@ func isBasic(t Type, info BasicInfo) bool {
+ }
+ 
+ // The allX predicates below report whether t is an X.
+-// If t is a type parameter the result is true if is_X is true
++// If t is a type parameter the result is true if isX is true
+ // for all specified types of the type parameter's type set.
+-// allX is an optimized version of is_X(structure(t)) (which
+-// is the same as underIs(t, is_X)).
++// allX is an optimized version of isX(structure(t)) (which
++// is the same as underIs(t, isX)).
+ 
+ func allBoolean(typ Type) bool         { return allBasic(typ, IsBoolean) }
+ func allInteger(typ Type) bool         { return allBasic(typ, IsInteger) }
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index badba82cfa..4c85bfe057 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -82,7 +82,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		return 1
+ 	}
+ 	// complex{64,128} are aligned like [2]float{32,64}.
+-	if is_Complex(T) {
++	if isComplex(T) {
+ 		a /= 2
+ 	}
+ 	if a > s.MaxAlign {
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 6e69646455..11032f44dd 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -944,7 +944,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ func rangeKeyVal(typ Type) (key, val Type) {
+ 	switch typ := arrayPtrDeref(typ).(type) {
+ 	case *Basic:
+-		if is_String(typ) {
++		if isString(typ) {
+ 			return Typ[Int], universeRune // use 'rune' name
+ 		}
+ 	case *Array:
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 30e817f416..e1d942a5c6 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -489,7 +489,7 @@ func (check *Checker) arrayLength(e ast.Expr) int64 {
+ 		return -1
+ 	}
+ 
+-	if isUntyped(x.typ) || is_Integer(x.typ) {
++	if isUntyped(x.typ) || isInteger(x.typ) {
+ 		if val := constant.ToInt(x.val); val.Kind() == constant.Int {
+ 			if representableConst(val, check, Typ[Int], nil) {
+ 				if n, ok := constant.Int64Val(val); ok && n >= 0 {

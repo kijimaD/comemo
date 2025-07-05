@@ -9,6 +9,23 @@ Date:   Thu Apr 13 09:35:31 2017 -0400
     Run-TryBot: David Lazar <lazard@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/trace/trace_stack_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index fed6bad3a0..274cdf7800 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -276,9 +276,10 @@ func TestTraceSymbolize(t *testing.T) {
+ 				continue
+ 			}
+ 			for _, f := range ev.Stk {
+-				t.Logf("  %v:%v", f.Fn, f.Line)
++				t.Logf("  %v :: %s:%v", f.Fn, f.File, f.Line)
+ 			}
+ 			t.Logf("---")
+ 		}
++		t.Logf("======")
+ 	}
+ }

@@ -7,10 +7,108 @@ Date:   Fri Jun 11 15:28:43 2010 -0700
     R=ken2
     CC=golang-dev
     https://golang.org/cl/1597043
-
+---
  src/cmd/gc/export.c    |  5 ++++-
  src/cmd/gc/go.h        |  1 +
  src/cmd/gc/go.y        | 13 ++++++++++++-
  src/cmd/gc/lex.c       |  1 +
  src/cmd/gc/typecheck.c |  5 ++++-
  5 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 9992c5219e..c73c476b6e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -268,7 +268,10 @@ dumpexport(void)
+ 	packagequotes = 1;
+ 	Bprint(bout, "\n$$  // exports\n");
+ 
+-	Bprint(bout, "    package %s\n", localpkg->name);
++	Bprint(bout, "    package %s", localpkg->name);
++	if(safemode)
++		Bprint(bout, " safe");
++	Bprint(bout, "\n");
+ 
+ 	for(l=exportlist; l; l=l->next) {
+ 		lineno = l->n->lineno;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2cf408e760..2f63ba40f0 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -578,6 +578,7 @@ struct	Io
+ 	int	peekc;
+ 	int	peekc1;	// second peekc for ...
+ 	char*	cp;	// used for content when bin==nil
++	int	importsafe;
+ };
+ 
+ typedef	struct	Dlist	Dlist;
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c7a1f111bc..2c4623f15c 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -152,6 +152,7 @@ loadsys:
+ 			cannedimports("runtime.builtin", "package runtime\n\n$$\n\n");
+ 		else
+ 			cannedimports("runtime.builtin", runtimeimport);
++		curio.importsafe = 1;
+ 	}
+ 	import_package
+ 	import_there
+@@ -236,10 +237,13 @@ import_here:
+ 	}
+ 
+ import_package:
+-	LPACKAGE sym ';'
++	LPACKAGE sym import_safety ';'
+ 	{
+ 		importpkg->name = $2->name;
+ 		importpkg->direct = 1;
++		
++		if(safemode && !curio.importsafe)
++			yyerror("cannot import unsafe package %Z", importpkg->path);
+ 
+ 		// NOTE(rsc): This is no longer a technical restriction:
+ 		// the 6g tool chain would work just fine without giving
+@@ -250,6 +254,13 @@ import_package:
+ 			yyerror("cannot import package main");
+ 	}
+ 
++import_safety:
++|	LNAME
++	{
++		if(strcmp($1->name, "safe") == 0)
++			curio.importsafe = 1;
++	}
++
+ import_there:
+ 	{
+ 		defercheckwidth();
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 5dc6d78cfe..b08100993c 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -442,6 +442,7 @@ cannedimports(char *file, char *cp)
+ 	curio.infile = file;
+ 	curio.cp = cp;
+ 	curio.nlsemi = 0;
++	curio.importsafe = 0;
+ 
+ 	typecheckok = 1;
+ 	incannedimport = 1;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 592166c885..70aa3cb9d1 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1191,7 +1191,10 @@ ret:
+ 			checkwidth(t);
+ 		}
+ 	}
+-	if(safemode && isptrto(t, TANY))
++
++	// TODO(rsc): should not need to check importpkg,
++	// but reflect mentions unsafe.Pointer.
++	if(safemode && !incannedimport && !importpkg && isptrto(t, TANY))
+ 		yyerror("cannot use unsafe.Pointer");
+ 
+ 	evconst(n);

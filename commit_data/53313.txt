@@ -21,7 +21,36 @@ Date:   Mon Aug 8 13:23:04 2022 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/expr.go | 2 +-
  src/cmd/compile/internal/escape/stmt.go | 4 ++++
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/escape/expr.go b/src/cmd/compile/internal/escape/expr.go
+index 9c3e09d10d..f9d83b3f35 100644
+--- a/src/cmd/compile/internal/escape/expr.go
++++ b/src/cmd/compile/internal/escape/expr.go
+@@ -123,7 +123,7 @@ func (e *escape) exprSkipInit(k hole, n ir.Node) {
+ 		n := n.(*ir.BinaryExpr)
+ 		// Note: n.X is not needed because it can never point to memory that might escape.
+ 		e.expr(k, n.Y)
+-	case ir.OIDATA, ir.OSPTR:
++	case ir.OITAB, ir.OIDATA, ir.OSPTR:
+ 		n := n.(*ir.UnaryExpr)
+ 		e.expr(k, n.X)
+ 	case ir.OSLICE2ARRPTR:
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 4e8dd904ff..8b361bcbd0 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -74,6 +74,10 @@ func (e *escape) stmt(n ir.Node) {
+ 		e.block(n.Body)
+ 		e.block(n.Else)
+ 
++	case ir.OCHECKNIL:
++		n := n.(*ir.UnaryExpr)
++		e.discard(n.X)
++
+ 	case ir.OFOR, ir.OFORUNTIL:
+ 		n := n.(*ir.ForStmt)
+ 		e.loopDepth++

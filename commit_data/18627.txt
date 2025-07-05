@@ -18,8 +18,132 @@ Date:   Mon Feb 24 19:51:59 2014 +0100
     R=rsc, iant, khr
     CC=golang-codereviews
     https://golang.org/cl/66930044
-
+---
  src/cmd/gc/walk.c           | 34 +++++++++++++++++-----------------
  test/cmp.go                 | 17 +++++++++++++++++
  test/fixedbugs/issue7366.go | 21 +++++++++++++++++++++
  3 files changed, 55 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 97473de071..068e38cf3b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3171,13 +3171,10 @@ walkcompare(Node **np, NodeList **init)
+ 		}
+ 		if(expr == N)
+ 			expr = nodbool(n->op == OEQ);
+-		typecheck(&expr, Erv);
+-		walkexpr(&expr, init);
+-		expr->type = n->type;
+-		*np = expr;
+-		return;
++		r = expr;
++		goto ret;
+ 	}
+-	
++
+ 	if(t->etype == TSTRUCT && countfield(t) <= 4) {
+ 		// Struct of four or fewer fields.
+ 		// Inline comparisons.
+@@ -3194,13 +3191,10 @@ walkcompare(Node **np, NodeList **init)
+ 		}
+ 		if(expr == N)
+ 			expr = nodbool(n->op == OEQ);
+-		typecheck(&expr, Erv);
+-		walkexpr(&expr, init);
+-		expr->type = n->type;
+-		*np = expr;
+-		return;
++		r = expr;
++		goto ret;
+ 	}
+-	
++
+ 	// Chose not to inline, but still have addresses.
+ 	// Call equality function directly.
+ 	// The equality function requires a bool pointer for
+@@ -3233,10 +3227,7 @@ walkcompare(Node **np, NodeList **init)
+ 
+ 	if(n->op != OEQ)
+ 		r = nod(ONOT, r, N);
+-	typecheck(&r, Erv);
+-	walkexpr(&r, init);
+-	*np = r;
+-	return;
++	goto ret;
+ 
+ hard:
+ 	// Cannot take address of one or both of the operands.
+@@ -3252,7 +3243,16 @@ hard:
+ 	r = mkcall1(fn, n->type, init, typename(n->left->type), l, r);
+ 	if(n->op == ONE) {
+ 		r = nod(ONOT, r, N);
+-		typecheck(&r, Erv);
++	}
++	goto ret;
++
++ret:
++	typecheck(&r, Erv);
++	walkexpr(&r, init);
++	if(r->type != n->type) {
++		r = nod(OCONVNOP, r, N);
++		r->type = n->type;
++		r->typecheck = 1;
+ 	}
+ 	*np = r;
+ 	return;
+diff --git a/test/cmp.go b/test/cmp.go
+index 73de502f39..9ac0ebe79d 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -387,6 +387,23 @@ func main() {
+ 		isfalse(iz != x)
+ 	}
+ 
++	// named booleans
++	{
++		type mybool bool
++		var b mybool
++
++		type T struct{ data [20]byte }
++		var x, y T
++		b = x == y
++		istrue(x == y)
++		istrue(bool(b))
++
++		m := make(map[string][10]interface{})
++		b = m["x"] == m["y"]
++		istrue(m["x"] == m["y"])
++		istrue(bool(b))
++	}
++
+ 	shouldPanic(p1)
+ 	shouldPanic(p2)
+ 	shouldPanic(p3)
+diff --git a/test/fixedbugs/issue7366.go b/test/fixedbugs/issue7366.go
+new file mode 100644
+index 0000000000..754da6fa27
+--- /dev/null
++++ b/test/fixedbugs/issue7366.go
+@@ -0,0 +1,21 @@
++// compile
++
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// issue 7366: generates a temporary with ideal type
++// during comparison of small structs.
++
++package main
++
++type T struct {
++	data [10]byte
++}
++
++func main() {
++	var a T
++	var b T
++	if a == b {
++	}
++}

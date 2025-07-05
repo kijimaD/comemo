@@ -15,6 +15,23 @@ Date:   Wed Jun 8 12:24:55 2022 -0400
     Change-Id: I016cbb06f48673f064733da3e3f1ddcbefd58159
     Reviewed-on: https://go-review.googlesource.com/c/go/+/411117
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 063b9a7d45..d97c2a2524 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -435,6 +435,11 @@ func TestGdbBacktrace(t *testing.T) {
+ 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
+ 			testenv.SkipFlaky(t, 50838)
+ 		}
++		if bytes.Contains(got, []byte(" exited normally]\n")) {
++			// GDB bug: Sometimes the inferior exits fine,
++			// but then GDB hangs.
++			testenv.SkipFlaky(t, 37405)
++		}
+ 		t.Fatalf("gdb exited with error: %v", err)
+ 	}
+ 

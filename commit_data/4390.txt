@@ -7,7 +7,126 @@ Date:   Fri Dec 11 13:04:03 2009 -0800
     R=rsc
     CC=krasin
     https://golang.org/cl/167050
-
+---
  src/pkg/encoding/binary/binary.go      | 43 +++++++++++++++++++++++++++++-----
  src/pkg/encoding/binary/binary_test.go | 15 ++++++++++++
  2 files changed, 52 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index f3cc8584a8..419ec03a51 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -113,15 +113,24 @@ func (bigEndian) String() string	{ return "BigEndian" }
+ func (bigEndian) GoString() string	{ return "binary.BigEndian" }
+ 
+ // Read reads structured binary data from r into data.
+-// Data must be a pointer to a fixed-size value.
++// Data must be a pointer to a fixed-size value or a slice
++// of fixed-size values.
+ // A fixed-size value is either a fixed-size integer
+ // (int8, uint8, int16, uint16, ...) or an array or struct
+ // containing only fixed-size values.  Bytes read from
+ // r are decoded using the specified byte order and written
+ // to successive fields of the data.
+ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+-	v := reflect.NewValue(data).(*reflect.PtrValue).Elem();
+-	size := sizeof(v.Type());
++	var v reflect.Value;
++	switch d := reflect.NewValue(data).(type) {
++	case *reflect.PtrValue:
++		v = d.Elem()
++	case *reflect.SliceValue:
++		v = d
++	default:
++		return os.NewError("binary.Read: invalid type " + v.Type().String())
++	}
++	size := TotalSize(v);
+ 	if size < 0 {
+ 		return os.NewError("binary.Read: invalid type " + v.Type().String())
+ 	}
+@@ -143,7 +152,7 @@ func Read(r io.Reader, order ByteOrder, data interface{}) os.Error {
+ // from successive fields of the data.
+ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+ 	v := reflect.Indirect(reflect.NewValue(data));
+-	size := sizeof(v.Type());
++	size := TotalSize(v);
+ 	if size < 0 {
+ 		return os.NewError("binary.Write: invalid type " + v.Type().String())
+ 	}
+@@ -154,8 +163,19 @@ func Write(w io.Writer, order ByteOrder, data interface{}) os.Error {
+ 	return err;
+ }
+ 
+-func sizeof(t reflect.Type) int {
+-	switch t := t.(type) {
++func TotalSize(v reflect.Value) int {
++	if sv, ok := v.(*reflect.SliceValue); ok {
++		elem := sizeof(v.Type().(*reflect.SliceType).Elem());
++		if elem < 0 {
++			return -1
++		}
++		return sv.Len() * elem;
++	}
++	return sizeof(v.Type());
++}
++
++func sizeof(v reflect.Type) int {
++	switch t := v.(type) {
+ 	case *reflect.ArrayType:
+ 		n := sizeof(t.Elem());
+ 		if n < 0 {
+@@ -281,6 +301,12 @@ func (d *decoder) value(v reflect.Value) {
+ 			d.value(v.Field(i))
+ 		}
+ 
++	case *reflect.SliceValue:
++		l := v.Len();
++		for i := 0; i < l; i++ {
++			d.value(v.Elem(i))
++		}
++
+ 	case *reflect.Uint8Value:
+ 		v.Set(d.uint8())
+ 	case *reflect.Uint16Value:
+@@ -316,6 +342,11 @@ func (e *encoder) value(v reflect.Value) {
+ 		for i := 0; i < l; i++ {
+ 			e.value(v.Field(i))
+ 		}
++	case *reflect.SliceValue:
++		l := v.Len();
++		for i := 0; i < l; i++ {
++			e.value(v.Elem(i))
++		}
+ 
+ 	case *reflect.Uint8Value:
+ 		e.uint8(v.Get())
+diff --git a/src/pkg/encoding/binary/binary_test.go b/src/pkg/encoding/binary/binary_test.go
+index d98f050563..33e6b0bea6 100644
+--- a/src/pkg/encoding/binary/binary_test.go
++++ b/src/pkg/encoding/binary/binary_test.go
+@@ -64,6 +64,9 @@ var little = []byte{
+ 	39, 40, 41, 42,
+ }
+ 
++var src = []byte{1, 2, 3, 4, 5, 6, 7, 8}
++var res = []int32{0x01020304, 0x05060708}
++
+ func checkResult(t *testing.T, dir string, order, err os.Error, have, want interface{}) {
+ 	if err != nil {
+ 		t.Errorf("%v %v: %v", dir, order, err);
+@@ -97,3 +100,15 @@ func TestLittleEndianWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, s)
+ func TestBigEndianPtrWrite(t *testing.T)	{ testWrite(t, BigEndian, big, &s) }
+ 
+ func TestLittleEndianPtrWrite(t *testing.T)	{ testWrite(t, LittleEndian, little, &s) }
++
++func TestReadSlice(t *testing.T) {
++	slice := make([]int32, 2);
++	err := Read(bytes.NewBuffer(src), BigEndian, slice);
++	checkResult(t, "ReadSlice", BigEndian, err, slice, res);
++}
++
++func TestWriteSlice(t *testing.T) {
++	buf := new(bytes.Buffer);
++	err := Write(buf, BigEndian, res);
++	checkResult(t, "WriteSlice", BigEndian, err, buf.Bytes(), src);
++}

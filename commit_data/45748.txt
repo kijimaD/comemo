@@ -17,6 +17,21 @@ Date:   Tue Nov 10 17:02:27 2020 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/dwarf.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 328fb03b24..87c62e2981 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -104,7 +104,8 @@ func (ctxt *Link) generateDebugLinesSymbol(s, lines *LSym) {
+ 	// GDB will assign a line number of zero the last row in the line
+ 	// table, which we don't want.
+ 	lastlen := uint64(s.Size - (lastpc - s.Func().Text.Pc))
+-	putpclcdelta(ctxt, dctxt, lines, lastlen, 0)
++	dctxt.AddUint8(lines, dwarf.DW_LNS_advance_pc)
++	dwarf.Uleb128put(dctxt, lines, int64(lastlen))
+ 	dctxt.AddUint8(lines, 0) // start extended opcode
+ 	dwarf.Uleb128put(dctxt, lines, 1)
+ 	dctxt.AddUint8(lines, dwarf.DW_LNE_end_sequence)

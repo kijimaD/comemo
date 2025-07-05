@@ -12,7 +12,7 @@ Date:   Wed Oct 4 18:13:35 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/ar.go       |  2 +-
  src/cmd/link/internal/ld/elf.go      |  2 +-
  src/cmd/link/internal/ld/ld.go       |  7 ++++---
@@ -23,3 +23,344 @@ Date:   Wed Oct 4 18:13:35 2017 -0400
  src/cmd/link/internal/ld/symtab.go   | 10 +++++-----
  src/cmd/link/internal/sym/library.go | 22 ++++++++++++++++++++++
  9 files changed, 59 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 31374d0635..13e29aa1a3 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -123,7 +123,7 @@ func hostArchive(ctxt *Link, name string) {
+ 			pname := fmt.Sprintf("%s(%s)", name, arhdr.name)
+ 			l = atolwhex(arhdr.size)
+ 
+-			libgcc := Library{Pkg: "libgcc"}
++			libgcc := sym.Library{Pkg: "libgcc"}
+ 			h := ldobj(ctxt, f, &libgcc, l, pname, name, ArchiveObj)
+ 			f.Seek(h.off, 0)
+ 			h.ld(ctxt, f, h.pkg, h.length, h.pn)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index da1a042fb5..ba18ec2188 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -2112,7 +2112,7 @@ func (ctxt *Link) doelf() {
+ 		sort.Sort(byPkg(ctxt.Library))
+ 		h := sha1.New()
+ 		for _, l := range ctxt.Library {
+-			io.WriteString(h, l.hash)
++			io.WriteString(h, l.Hash)
+ 		}
+ 		addgonote(ctxt, ".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+ 		addgonote(ctxt, ".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 4a9709dd35..f2a98e2d51 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -32,6 +32,7 @@
+ package ld
+ 
+ import (
++	"cmd/link/internal/sym"
+ 	"io/ioutil"
+ 	"log"
+ 	"os"
+@@ -147,7 +148,7 @@ func findlib(ctxt *Link, lib string) (string, bool) {
+ 	return pname, isshlib
+ }
+ 
+-func addlib(ctxt *Link, src string, obj string, lib string) *Library {
++func addlib(ctxt *Link, src string, obj string, lib string) *sym.Library {
+ 	pkg := pkgname(lib)
+ 
+ 	// already loaded?
+@@ -175,7 +176,7 @@ func addlib(ctxt *Link, src string, obj string, lib string) *Library {
+  *	pkg: package import path, e.g. container/vector
+  *	shlib: path to shared library, or .shlibname file holding path
+  */
+-func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *Library {
++func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg string, shlib string) *sym.Library {
+ 	if l := ctxt.LibraryByPkg[pkg]; l != nil {
+ 		return l
+ 	}
+@@ -184,7 +185,7 @@ func addlibpath(ctxt *Link, srcref string, objref string, file string, pkg strin
+ 		ctxt.Logf("%5.2f addlibpath: srcref: %s objref: %s file: %s pkg: %s shlib: %s\n", Cputime(), srcref, objref, file, pkg, shlib)
+ 	}
+ 
+-	l := &Library{}
++	l := &sym.Library{}
+ 	ctxt.LibraryByPkg[pkg] = l
+ 	ctxt.Library = append(ctxt.Library, l)
+ 	l.Objref = objref
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 22c028a763..bec2f6f045 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -265,7 +265,7 @@ func errorexit() {
+ 	Exit(0)
+ }
+ 
+-func loadinternal(ctxt *Link, name string) *Library {
++func loadinternal(ctxt *Link, name string) *sym.Library {
+ 	if *FlagLinkshared && ctxt.PackageShlib != nil {
+ 		if shlib := ctxt.PackageShlib[name]; shlib != "" {
+ 			return addlibpath(ctxt, "internal", "internal", "", name, shlib)
+@@ -608,8 +608,8 @@ func (ctxt *Link) loadlib() {
+ 			if isRuntimeDepPkg(lib.Pkg) != doInternal {
+ 				continue
+ 			}
+-			ctxt.Textp = append(ctxt.Textp, lib.textp...)
+-			for _, s := range lib.dupTextSyms {
++			ctxt.Textp = append(ctxt.Textp, lib.Textp...)
++			for _, s := range lib.DupTextSyms {
+ 				if !s.Attr.OnList() {
+ 					ctxt.Textp = append(ctxt.Textp, s)
+ 					s.Attr |= sym.AttrOnList
+@@ -708,7 +708,7 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
+ 	return arsize + SAR_HDR
+ }
+ 
+-func genhash(ctxt *Link, lib *Library) {
++func genhash(ctxt *Link, lib *sym.Library) {
+ 	f, err := bio.Open(lib.File)
+ 	if err != nil {
+ 		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
+@@ -762,10 +762,10 @@ func genhash(ctxt *Link, lib *Library) {
+ 	}
+ 	h.Write(pkgDefBytes[0:firstEOL])
+ 	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
+-	lib.hash = hex.EncodeToString(h.Sum(nil))
++	lib.Hash = hex.EncodeToString(h.Sum(nil))
+ }
+ 
+-func objfile(ctxt *Link, lib *Library) {
++func objfile(ctxt *Link, lib *sym.Library) {
+ 	pkg := objabi.PathToPrefix(lib.Pkg)
+ 
+ 	if ctxt.Debugvlog > 1 {
+@@ -1369,7 +1369,7 @@ func hostlinkArchArgs(arch *sys.Arch) []string {
+ // ldobj loads an input object. If it is a host object (an object
+ // compiled by a non-Go compiler) it returns the Hostobj pointer. If
+ // it is a Go object, it returns nil.
+-func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, file string, whence int) *Hostobj {
++func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string, file string, whence int) *Hostobj {
+ 	pkg := objabi.PathToPrefix(lib.Pkg)
+ 
+ 	eof := f.Offset() + length
+@@ -1460,7 +1460,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *Library, length int64, pn string, fil
+ 	f.Seek(import1, 0)
+ 
+ 	LoadObjFile(ctxt.Arch, ctxt.Syms, f, lib, eof-f.Offset(), pn)
+-	lib.addImports(ctxt, pn)
++	addImports(ctxt, lib, pn)
+ 	return nil
+ }
+ 
+@@ -2199,16 +2199,16 @@ const (
+ 	visited
+ )
+ 
+-func postorder(libs []*Library) []*Library {
+-	order := make([]*Library, 0, len(libs)) // hold the result
+-	mark := make(map[*Library]markKind, len(libs))
++func postorder(libs []*sym.Library) []*sym.Library {
++	order := make([]*sym.Library, 0, len(libs)) // hold the result
++	mark := make(map[*sym.Library]markKind, len(libs))
+ 	for _, lib := range libs {
+ 		dfs(lib, mark, &order)
+ 	}
+ 	return order
+ }
+ 
+-func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
++func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library) {
+ 	if mark[lib] == visited {
+ 		return
+ 	}
+@@ -2216,7 +2216,7 @@ func dfs(lib *Library, mark map[*Library]markKind, order *[]*Library) {
+ 		panic("found import cycle while visiting " + lib.Pkg)
+ 	}
+ 	mark[lib] = visiting
+-	for _, i := range lib.imports {
++	for _, i := range lib.Imports {
+ 		dfs(i, mark, order)
+ 	}
+ 	mark[lib] = visited
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 25db52f3f4..4c00b30f18 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -62,8 +62,8 @@ type Link struct {
+ 
+ 	Tlsg         *sym.Symbol
+ 	Libdir       []string
+-	Library      []*Library
+-	LibraryByPkg map[string]*Library
++	Library      []*sym.Library
++	LibraryByPkg map[string]*sym.Library
+ 	Shlibs       []Shlib
+ 	Tlsoffset    int
+ 	Textp        []*sym.Symbol
+@@ -98,32 +98,15 @@ func (l *Link) Logf(format string, args ...interface{}) {
+ 	l.Bso.Flush()
+ }
+ 
+-type Library struct {
+-	Objref        string
+-	Srcref        string
+-	File          string
+-	Pkg           string
+-	Shlib         string
+-	hash          string
+-	importStrings []string
+-	imports       []*Library
+-	textp         []*sym.Symbol // text symbols defined in this library
+-	dupTextSyms   []*sym.Symbol // dupok text symbols defined in this library
+-}
+-
+-func (l Library) String() string {
+-	return l.Pkg
+-}
+-
+-func (l *Library) addImports(ctxt *Link, pn string) {
++func addImports(ctxt *Link, l *sym.Library, pn string) {
+ 	pkg := objabi.PathToPrefix(l.Pkg)
+-	for _, importStr := range l.importStrings {
++	for _, importStr := range l.ImportStrings {
+ 		lib := addlib(ctxt, pkg, pn, importStr)
+ 		if lib != nil {
+-			l.imports = append(l.imports, lib)
++			l.Imports = append(l.Imports, lib)
+ 		}
+ 	}
+-	l.importStrings = nil
++	l.ImportStrings = nil
+ }
+ 
+ type Pciter struct {
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 221183891f..77ef1418f0 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -32,7 +32,7 @@ type objReader struct {
+ 	rd              *bufio.Reader
+ 	arch            *sys.Arch
+ 	syms            *sym.Symbols
+-	lib             *Library
++	lib             *sym.Library
+ 	pn              string
+ 	dupSym          *sym.Symbol
+ 	localSymVersion int
+@@ -51,7 +51,7 @@ type objReader struct {
+ 	file        []*sym.Symbol
+ }
+ 
+-func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *Library, length int64, pn string) {
++func LoadObjFile(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, length int64, pn string) {
+ 	start := f.Offset()
+ 	r := &objReader{
+ 		rd:              f.Reader,
+@@ -88,7 +88,7 @@ func (r *objReader) loadObjFile() {
+ 		if lib == "" {
+ 			break
+ 		}
+-		r.lib.importStrings = append(r.lib.importStrings, lib)
++		r.lib.ImportStrings = append(r.lib.ImportStrings, lib)
+ 	}
+ 
+ 	// sym.Symbol references
+@@ -319,14 +319,14 @@ overwrite:
+ 				log.Fatalf("symbol %s listed multiple times", s.Name)
+ 			}
+ 			s.Attr |= sym.AttrOnList
+-			r.lib.textp = append(r.lib.textp, s)
++			r.lib.Textp = append(r.lib.Textp, s)
+ 		} else {
+ 			// there may ba a dup in another package
+ 			// put into a temp list and add to text later
+ 			if !isdup {
+-				r.lib.dupTextSyms = append(r.lib.dupTextSyms, s)
++				r.lib.DupTextSyms = append(r.lib.DupTextSyms, s)
+ 			} else {
+-				r.lib.dupTextSyms = append(r.lib.dupTextSyms, dup)
++				r.lib.DupTextSyms = append(r.lib.DupTextSyms, dup)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 9b60cedbbf..1c75ead6c1 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -43,7 +43,7 @@ func linknew(arch *sys.Arch) *Link {
+ 		Syms:         sym.NewSymbols(),
+ 		Out:          &OutBuf{arch: arch},
+ 		Arch:         arch,
+-		LibraryByPkg: make(map[string]*Library),
++		LibraryByPkg: make(map[string]*sym.Library),
+ 	}
+ 
+ 	if objabi.GOARCH != arch.Name {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index a6100e306e..b5b0db4779 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -250,7 +250,7 @@ func Asmplan9sym(ctxt *Link) {
+ 
+ var symt *sym.Symbol
+ 
+-type byPkg []*Library
++type byPkg []*sym.Library
+ 
+ func (libs byPkg) Len() int {
+ 	return len(libs)
+@@ -500,13 +500,13 @@ func (ctxt *Link) symtab() {
+ 			s := ctxt.Syms.Lookup("go.link.pkghashbytes."+l.Pkg, 0)
+ 			s.Attr |= sym.AttrReachable
+ 			s.Type = sym.SRODATA
+-			s.Size = int64(len(l.hash))
+-			s.P = []byte(l.hash)
++			s.Size = int64(len(l.Hash))
++			s.P = []byte(l.Hash)
+ 			str := ctxt.Syms.Lookup("go.link.pkghash."+l.Pkg, 0)
+ 			str.Attr |= sym.AttrReachable
+ 			str.Type = sym.SRODATA
+ 			str.AddAddr(ctxt.Arch, s)
+-			str.AddUint(ctxt.Arch, uint64(len(l.hash)))
++			str.AddUint(ctxt.Arch, uint64(len(l.Hash)))
+ 		}
+ 	}
+ 
+@@ -592,7 +592,7 @@ func (ctxt *Link) symtab() {
+ 			// pkghashes[i].name
+ 			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
+ 			// pkghashes[i].linktimehash
+-			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.hash))
++			addgostring(ctxt, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Hash))
+ 			// pkghashes[i].runtimehash
+ 			hash := ctxt.Syms.ROLookup("go.link.pkghash."+l.Pkg, 0)
+ 			pkghashes.AddAddr(ctxt.Arch, hash)
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+new file mode 100644
+index 0000000000..ee96f4aaa9
+--- /dev/null
++++ b/src/cmd/link/internal/sym/library.go
+@@ -0,0 +1,22 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sym
++
++type Library struct {
++	Objref        string
++	Srcref        string
++	File          string
++	Pkg           string
++	Shlib         string
++	Hash          string
++	ImportStrings []string
++	Imports       []*Library
++	Textp         []*Symbol // text symbols defined in this library
++	DupTextSyms   []*Symbol // dupok text symbols defined in this library
++}
++
++func (l Library) String() string {
++	return l.Pkg
++}

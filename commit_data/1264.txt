@@ -9,8 +9,57 @@ Date:   Tue Dec 2 17:01:31 2008 -0800
     R=r
     OCL=20296
     CL=20296
-
+---
  usr/gri/pretty/printer.go   | 3 ++-
  usr/gri/pretty/selftest2.go | 3 +++
  usr/gri/pretty/test.sh      | 2 +-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index f1da8c3d39..29c65e2b1e 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -348,7 +348,7 @@ func (P *Printer) Fields(list *array.Array, end int) {
+ 	P.state = opening_scope;
+ 	P.String(0, "{");
+ 
+-	if list != nil {
++	if list.Len() > 0 {
+ 		P.newlines = 1;
+ 		var prev int;
+ 		for i, n := 0, list.Len(); i < n; i++ {
+@@ -547,6 +547,7 @@ func (P *Printer) StatementList(list *array.Array) {
+ 		for i, n := 0, list.Len(); i < n; i++ {
+ 			P.Stat(list.At(i).(*AST.Stat));
+ 			P.newlines = 1;
++			P.state = inside_list;
+ 		}
+ 	}
+ }
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 3062399329..eb7dcb2e2f 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -25,6 +25,9 @@ const /* enum */ (
+ )
+ 
+ 
++type S struct {}
++
++
+ type T struct {
+ 	x, y int;
+ 	s string;
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 4840778d5f..3b8d6e6871 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -23,7 +23,7 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	# these files don't pass the idempotency test yet
+-	log.go | decimal.go | type.go | tabwriter_test.go | \
++	log.go | type.go | \
+ 	\
+ 	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+ 	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go ) ;;  # skip - files contain syntax errors

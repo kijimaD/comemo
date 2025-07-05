@@ -12,6 +12,20 @@ Date:   Mon Nov 4 13:25:34 2024 +0100
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/platform/supported.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 193658f878..e864c37d68 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -281,7 +281,7 @@ func FirstClass(goos, goarch string) bool {
+ 	return distInfo[OSArch{goos, goarch}].FirstClass
+ }
+ 
+-// Broken reportsr whether goos/goarch is considered a broken port.
++// Broken reports whether goos/goarch is considered a broken port.
+ // (See https://go.dev/wiki/PortingPolicy#broken-ports.)
+ func Broken(goos, goarch string) bool {
+ 	return distInfo[OSArch{goos, goarch}].Broken

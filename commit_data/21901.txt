@@ -10,6 +10,19 @@ Date:   Tue Feb 10 22:22:33 2015 -0500
     Change-Id: I278f6cbcfc883ea7efad07f99fc8c853b9b5d274
     Reviewed-on: https://go-review.googlesource.com/4591
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/gc/lex.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 01dd1664cb..bad4123575 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -179,6 +179,7 @@ gcmain(int argc, char *argv[])
+ 	
+ 	// pseudo-package, for scoping
+ 	builtinpkg = mkpkg(newstrlit("go.builtin"));
++	builtinpkg->prefix = "go.builtin"; // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+ 	unsafepkg = mkpkg(newstrlit("unsafe"));

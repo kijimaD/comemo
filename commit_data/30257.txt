@@ -19,7 +19,58 @@ Date:   Fri Sep 9 09:34:26 2016 -0400
     Change-Id: I04d4df7cc2f553f8f7b1e4cb0b52e2946588111a
     Reviewed-on: https://go-review.googlesource.com/31456
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     |  7 +++++++
  src/runtime/mgcmark.go | 21 +++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index aa7aa8bd0d..29bb8cde19 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1025,6 +1025,13 @@ func gcStart(mode gcMode, forceTrigger bool) {
+ 		gcBgMarkPrepare() // Must happen before assist enable.
+ 		gcMarkRootPrepare()
+ 
++		// Mark all active tinyalloc blocks. Since we're
++		// allocating from these, they need to be black like
++		// other allocations. The alternative is to blacken
++		// the tiny block on every allocation from it, which
++		// would slow down the tiny allocator.
++		gcMarkTinyAllocs()
++
+ 		// At this point all Ps have enabled the write
+ 		// barrier, thus maintaining the no white to
+ 		// black invariant. Enable mutator assists to
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index edb8af25f5..13bbd071b1 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -1396,6 +1396,27 @@ func gcmarknewobject(obj, size, scanSize uintptr) {
+ 	}
+ }
+ 
++// gcMarkTinyAllocs greys all active tiny alloc blocks.
++//
++// The world must be stopped.
++func gcMarkTinyAllocs() {
++	for _, p := range &allp {
++		if p == nil || p.status == _Pdead {
++			break
++		}
++		c := p.mcache
++		if c == nil || c.tiny == 0 {
++			continue
++		}
++		_, hbits, span, objIndex := heapBitsForObject(c.tiny, 0, 0)
++		gcw := &p.gcw
++		greyobject(c.tiny, 0, 0, hbits, span, gcw, objIndex)
++		if gcBlackenPromptly {
++			gcw.dispose()
++		}
++	}
++}
++
+ // Checkmarking
+ 
+ // To help debug the concurrent GC we remark with the world

@@ -21,7 +21,7 @@ Date:   Sun Oct 2 17:10:13 2016 -0400
     Change-Id: I7ebee31eaee81795445b33f521ab6a79624c4ceb
     Reviewed-on: https://go-review.googlesource.com/30138
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/obj/arm/obj5.go   | 14 +++++++++++++-
  src/cmd/internal/obj/arm64/obj7.go | 14 +++++++++++++-
  src/cmd/internal/obj/pcln.go       | 17 ++++++++++++-----
@@ -36,3 +36,448 @@ Date:   Sun Oct 2 17:10:13 2016 -0400
  src/runtime/sys_s390x.go           | 27 ---------------------------
  src/runtime/sys_x86.go             | 30 ------------------------------
  13 files changed, 103 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index beb845f2cd..f9bdf03d91 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -803,12 +803,24 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
++	// Now we are at the end of the function, but logically
++	// we are still in function prologue. We need to fix the
++	// SP data and PCDATA.
+ 	spfix := obj.Appendp(ctxt, last)
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
++	pcdata := obj.Appendp(ctxt, spfix)
++	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Mode = ctxt.Cursym.Text.Mode
++	pcdata.As = obj.APCDATA
++	pcdata.From.Type = obj.TYPE_CONST
++	pcdata.From.Offset = obj.PCDATA_StackMapIndex
++	pcdata.To.Type = obj.TYPE_CONST
++	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++
+ 	// MOVW	LR, R3
+-	movw := obj.Appendp(ctxt, spfix)
++	movw := obj.Appendp(ctxt, pcdata)
+ 	movw.As = AMOVW
+ 	movw.From.Type = obj.TYPE_REG
+ 	movw.From.Reg = REGLINK
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 718769ba61..410110c9fd 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -161,12 +161,24 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
++	// Now we are at the end of the function, but logically
++	// we are still in function prologue. We need to fix the
++	// SP data and PCDATA.
+ 	spfix := obj.Appendp(ctxt, last)
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
++	pcdata := obj.Appendp(ctxt, spfix)
++	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Mode = ctxt.Cursym.Text.Mode
++	pcdata.As = obj.APCDATA
++	pcdata.From.Type = obj.TYPE_CONST
++	pcdata.From.Offset = obj.PCDATA_StackMapIndex
++	pcdata.To.Type = obj.TYPE_CONST
++	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++
+ 	// MOV	LR, R3
+-	movlr := obj.Appendp(ctxt, spfix)
++	movlr := obj.Appendp(ctxt, pcdata)
+ 	movlr.As = AMOVD
+ 	movlr.From.Type = obj.TYPE_REG
+ 	movlr.From.Reg = REGLINK
+diff --git a/src/cmd/internal/obj/pcln.go b/src/cmd/internal/obj/pcln.go
+index db5a364070..d9893e42cd 100644
+--- a/src/cmd/internal/obj/pcln.go
++++ b/src/cmd/internal/obj/pcln.go
+@@ -25,11 +25,12 @@ func addvarint(ctxt *Link, d *Pcdata, val uint32) {
+ // where func is the function, val is the current value, p is the instruction being
+ // considered, and arg can be used to further parameterize valfunc.
+ func funcpctab(ctxt *Link, dst *Pcdata, func_ *LSym, desc string, valfunc func(*Link, *LSym, int32, *Prog, int32, interface{}) int32, arg interface{}) {
+-	// To debug a specific function, uncomment second line and change name.
++	// To debug a specific function, uncomment lines and change name.
+ 	dbg := 0
+ 
+-	//dbg = strcmp(func->name, "main.main") == 0;
+-	//dbg = strcmp(desc, "pctofile") == 0;
++	//if func_.Name == "main.main" || desc == "pctospadj" {
++	//	dbg = 1
++	//}
+ 
+ 	ctxt.Debugpcln += int32(dbg)
+ 
+@@ -214,9 +215,15 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 	npcdata := 0
+ 	nfuncdata := 0
+ 	for p := cursym.Text; p != nil; p = p.Link {
+-		if p.As == APCDATA && p.From.Offset >= int64(npcdata) {
++		// Find the highest ID of any used PCDATA table. This ignores PCDATA table
++		// that consist entirely of "-1", since that's the assumed default value.
++		//   From.Offset is table ID
++		//   To.Offset is data
++		if p.As == APCDATA && p.From.Offset >= int64(npcdata) && p.To.Offset != -1 { // ignore -1 as we start at -1, if we only see -1, nothing changed
+ 			npcdata = int(p.From.Offset + 1)
+ 		}
++		// Find the highest ID of any FUNCDATA table.
++		//   From.Offset is table ID
+ 		if p.As == AFUNCDATA && p.From.Offset >= int64(nfuncdata) {
+ 			nfuncdata = int(p.From.Offset + 1)
+ 		}
+@@ -243,7 +250,7 @@ func linkpcln(ctxt *Link, cursym *LSym) {
+ 			havefunc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
+ 		}
+ 
+-		if p.As == APCDATA {
++		if p.As == APCDATA && p.To.Offset != -1 {
+ 			havepc[p.From.Offset/32] |= 1 << uint64(p.From.Offset%32)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 8688b97bc8..0786870fe9 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -823,6 +823,8 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ */
+ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
++	p0 := p // save entry point, but skipping the two instructions setting R2 in shared mode
++
+ 	// MOVD	g_stackguard(g), R3
+ 	p = obj.Appendp(ctxt, p)
+ 
+@@ -953,6 +955,24 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		morestacksym = obj.Linklookup(ctxt, "runtime.morestack", 0)
+ 	}
+ 
++	if ctxt.Flag_shared {
++		// In PPC64 PIC code, R2 is used as TOC pointer derived from R12
++		// which is the address of function entry point when entering
++		// the function. We need to preserve R2 across call to morestack.
++		// Fortunately, in shared mode, 8(SP) and 16(SP) are reserved in
++		// the caller's frame, but not used (0(SP) is caller's saved LR,
++		// 24(SP) is caller's saved R2). Use 8(SP) to save this function's R2.
++
++		// MOVD R12, 8(SP)
++		p = obj.Appendp(ctxt, p)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = REG_R2
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = REGSP
++		p.To.Offset = 8
++	}
++
+ 	if ctxt.Flag_dynlink {
+ 		// Avoid calling morestack via a PLT when dynamically linking. The
+ 		// PLT stubs generated by the system linker on ppc64le when "std r2,
+@@ -1000,12 +1020,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Type = obj.TYPE_BRANCH
+ 		p.To.Sym = morestacksym
+ 	}
++
++	if ctxt.Flag_shared {
++		// MOVD 8(SP), R2
++		p = obj.Appendp(ctxt, p)
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = REGSP
++		p.From.Offset = 8
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REG_R2
++	}
++
+ 	// BR	start
+ 	p = obj.Appendp(ctxt, p)
+-
+ 	p.As = ABR
+ 	p.To.Type = obj.TYPE_BRANCH
+-	p.Pcond = ctxt.Cursym.Text.Link
++	p.Pcond = p0.Link
+ 
+ 	// placeholder for q1's jump target
+ 	p = obj.Appendp(ctxt, p)
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index 1e8ff97ba8..941e1e8d10 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -599,7 +599,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		}
+ 	}
+ 	if wasSplit {
+-		pLast = stacksplitPost(ctxt, pLast, pPre, pPreempt) // emit post part of split check
++		pLast = stacksplitPost(ctxt, pLast, pPre, pPreempt, autosize) // emit post part of split check
+ 	}
+ }
+ 
+@@ -775,10 +775,25 @@ func stacksplitPre(ctxt *obj.Link, p *obj.Prog, framesize int32) (*obj.Prog, *ob
+ 	return p, q
+ }
+ 
+-func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog) *obj.Prog {
++func stacksplitPost(ctxt *obj.Link, p *obj.Prog, pPre *obj.Prog, pPreempt *obj.Prog, framesize int32) *obj.Prog {
++	// Now we are at the end of the function, but logically
++	// we are still in function prologue. We need to fix the
++	// SP data and PCDATA.
++	spfix := obj.Appendp(ctxt, p)
++	spfix.As = obj.ANOP
++	spfix.Spadj = -framesize
++
++	pcdata := obj.Appendp(ctxt, spfix)
++	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Mode = ctxt.Cursym.Text.Mode
++	pcdata.As = obj.APCDATA
++	pcdata.From.Type = obj.TYPE_CONST
++	pcdata.From.Offset = obj.PCDATA_StackMapIndex
++	pcdata.To.Type = obj.TYPE_CONST
++	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
+ 
+ 	// MOVD	LR, R5
+-	p = obj.Appendp(ctxt, p)
++	p = obj.Appendp(ctxt, pcdata)
+ 	pPre.Pcond = p
+ 	p.As = AMOVD
+ 	p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index c479a07fe4..4e7c1538e9 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1113,11 +1113,23 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32) *ob
+ 	for last = ctxt.Cursym.Text; last.Link != nil; last = last.Link {
+ 	}
+ 
++	// Now we are at the end of the function, but logically
++	// we are still in function prologue. We need to fix the
++	// SP data and PCDATA.
+ 	spfix := obj.Appendp(ctxt, last)
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	call := obj.Appendp(ctxt, spfix)
++	pcdata := obj.Appendp(ctxt, spfix)
++	pcdata.Lineno = ctxt.Cursym.Text.Lineno
++	pcdata.Mode = ctxt.Cursym.Text.Mode
++	pcdata.As = obj.APCDATA
++	pcdata.From.Type = obj.TYPE_CONST
++	pcdata.From.Offset = obj.PCDATA_StackMapIndex
++	pcdata.To.Type = obj.TYPE_CONST
++	pcdata.To.Offset = -1 // pcdata starts at -1 at function entry
++
++	call := obj.Appendp(ctxt, pcdata)
+ 	call.Lineno = ctxt.Cursym.Text.Lineno
+ 	call.Mode = ctxt.Cursym.Text.Mode
+ 	call.As = obj.ACALL
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d022b8274b..90db4204a9 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -602,7 +602,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 			}
+ 			if minp <= p && p < maxp {
+ 				if stackDebug >= 3 {
+-					print("adjust ptr ", p, " ", funcname(f), "\n")
++					print("adjust ptr ", hex(p), " ", funcname(f), "\n")
+ 				}
+ 				if useCAS {
+ 					ppu := (*unsafe.Pointer)(unsafe.Pointer(pp))
+@@ -957,7 +957,6 @@ func newstack() {
+ 	thisg.m.morebuf.lr = 0
+ 	thisg.m.morebuf.sp = 0
+ 	thisg.m.morebuf.g = 0
+-	rewindmorestack(&gp.sched)
+ 
+ 	// NOTE: stackguard0 may change underfoot, if another thread
+ 	// is about to try to preempt gp. Read it just once and use that same
+diff --git a/src/runtime/sys_arm.go b/src/runtime/sys_arm.go
+index d2e69146af..730b9c918f 100644
+--- a/src/runtime/sys_arm.go
++++ b/src/runtime/sys_arm.go
+@@ -17,22 +17,5 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.ctxt = ctxt
+ }
+ 
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	var inst uint32
+-	if buf.pc&3 == 0 && buf.pc != 0 {
+-		inst = *(*uint32)(unsafe.Pointer(buf.pc))
+-		if inst>>24 == 0x9a || inst>>24 == 0xea {
+-			buf.pc += uintptr(int32(inst<<8)>>6) + 8
+-			return
+-		}
+-	}
+-
+-	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}
+-
+ // for testing
+ func usplit(x uint32) (q, r uint32)
+diff --git a/src/runtime/sys_arm64.go b/src/runtime/sys_arm64.go
+index dee23ef5ff..230241d5f2 100644
+--- a/src/runtime/sys_arm64.go
++++ b/src/runtime/sys_arm64.go
+@@ -16,21 +16,3 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.pc = uintptr(fn)
+ 	buf.ctxt = ctxt
+ }
+-
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	var inst uint32
+-	if buf.pc&3 == 0 && buf.pc != 0 {
+-		inst = *(*uint32)(unsafe.Pointer(buf.pc))
+-		// section C3.2.6 Unconditional branch (immediate)
+-		if inst>>26 == 0x05 {
+-			buf.pc += uintptr(int32(inst<<6) >> 4)
+-			return
+-		}
+-	}
+-
+-	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}
+diff --git a/src/runtime/sys_mips64x.go b/src/runtime/sys_mips64x.go
+index 9e7d805d7d..cb429c3147 100644
+--- a/src/runtime/sys_mips64x.go
++++ b/src/runtime/sys_mips64x.go
+@@ -18,26 +18,3 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.pc = uintptr(fn)
+ 	buf.ctxt = ctxt
+ }
+-
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	var inst uint32
+-	if buf.pc&3 == 0 && buf.pc != 0 {
+-		inst = *(*uint32)(unsafe.Pointer(buf.pc))
+-		if inst>>26 == 2 { // JMP addr
+-			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(buf.pc &^ uintptr(1<<28-1) | uintptr((inst&^0xfc000000)<<2)), "\n");
+-			buf.pc &^= 1<<28 - 1
+-			buf.pc |= uintptr((inst &^ 0xfc000000) << 2)
+-			return
+-		}
+-		if inst>>16 == 0x1000 { // BEQ	R0, R0, offset
+-			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(buf.pc + uintptr(int32(int16(inst&0xffff))<<2 + 4)), "\n");
+-			buf.pc += uintptr(int32(int16(inst&0xffff))<<2 + 4)
+-			return
+-		}
+-	}
+-	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}
+diff --git a/src/runtime/sys_ppc64x.go b/src/runtime/sys_ppc64x.go
+index 2ea1f81ee3..796f27c4e3 100644
+--- a/src/runtime/sys_ppc64x.go
++++ b/src/runtime/sys_ppc64x.go
+@@ -19,21 +19,4 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.ctxt = ctxt
+ }
+ 
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	var inst uint32
+-	if buf.pc&3 == 0 && buf.pc != 0 {
+-		inst = *(*uint32)(unsafe.Pointer(buf.pc))
+-		if inst>>26 == 18 && inst&3 == 0 {
+-			//print("runtime: rewind pc=", hex(buf.pc), " to pc=", hex(uintptr(buf.pc + int32(inst<<6)>>6)), "\n");
+-			buf.pc += uintptr(int32(inst<<6) >> 6)
+-			return
+-		}
+-	}
+-	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}
+-
+ func prepGoExitFrame(sp uintptr)
+diff --git a/src/runtime/sys_s390x.go b/src/runtime/sys_s390x.go
+index 2aa81e75c0..e710840819 100644
+--- a/src/runtime/sys_s390x.go
++++ b/src/runtime/sys_s390x.go
+@@ -16,30 +16,3 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.pc = uintptr(fn)
+ 	buf.ctxt = ctxt
+ }
+-
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	var inst uint64
+-	if buf.pc&1 == 0 && buf.pc != 0 {
+-		inst = *(*uint64)(unsafe.Pointer(buf.pc))
+-		switch inst >> 48 {
+-		case 0xa7f4: // BRC (branch relative on condition) instruction.
+-			inst >>= 32
+-			inst &= 0xFFFF
+-			offset := int64(int16(inst))
+-			offset <<= 1
+-			buf.pc += uintptr(offset)
+-			return
+-		case 0xc0f4: // BRCL (branch relative on condition long) instruction.
+-			inst >>= 16
+-			inst = inst & 0xFFFFFFFF
+-			inst = (inst << 1) & 0xFFFFFFFF
+-			buf.pc += uintptr(int32(inst))
+-			return
+-		}
+-	}
+-	print("runtime: pc=", hex(buf.pc), " ", hex(inst), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index f6e45cc2dc..7e4e27354e 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -25,33 +25,3 @@ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	buf.pc = uintptr(fn)
+ 	buf.ctxt = ctxt
+ }
+-
+-// Called to rewind context saved during morestack back to beginning of function.
+-// To help us, the linker emits a jmp back to the beginning right after the
+-// call to morestack. We just have to decode and apply that jump.
+-func rewindmorestack(buf *gobuf) {
+-	pc := (*[8]byte)(unsafe.Pointer(buf.pc))
+-	if pc[0] == 0xe9 { // jmp 4-byte offset
+-		buf.pc = buf.pc + 5 + uintptr(int64(*(*int32)(unsafe.Pointer(&pc[1]))))
+-		return
+-	}
+-	if pc[0] == 0xeb { // jmp 1-byte offset
+-		buf.pc = buf.pc + 2 + uintptr(int64(*(*int8)(unsafe.Pointer(&pc[1]))))
+-		return
+-	}
+-	if pc[0] == 0xcc {
+-		// This is a breakpoint inserted by gdb. We could use
+-		// runtime·findfunc to find the function. But if we
+-		// do that, then we will continue execution at the
+-		// function entry point, and we will not hit the gdb
+-		// breakpoint. So for this case we don't change
+-		// buf.pc, so that when we return we will execute
+-		// the jump instruction and carry on. This means that
+-		// stack unwinding may not work entirely correctly
+-		// (https://golang.org/issue/5723) but the user is
+-		// running under gdb anyhow.
+-		return
+-	}
+-	print("runtime: pc=", pc, " ", hex(pc[0]), " ", hex(pc[1]), " ", hex(pc[2]), " ", hex(pc[3]), " ", hex(pc[4]), "\n")
+-	throw("runtime: misuse of rewindmorestack")
+-}

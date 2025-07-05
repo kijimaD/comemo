@@ -24,6 +24,66 @@ Date:   Wed Sep 6 08:36:10 2017 +0200
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hashmap_fast.go | 15 +++++++--------
  1 file changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/hashmap_fast.go b/src/runtime/hashmap_fast.go
+index 21e1f68bf7..e7b8448203 100644
+--- a/src/runtime/hashmap_fast.go
++++ b/src/runtime/hashmap_fast.go
+@@ -373,15 +373,14 @@ again:
+ 		growWork_fast32(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+ 	var val unsafe.Pointer
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] != top {
+-				if b.tophash[i] == empty && inserti == nil {
++			if b.tophash[i] == empty {
++				if inserti == nil {
+ 					inserti = &b.tophash[i]
+ 					insertk = add(unsafe.Pointer(b), dataOffset+i*4)
+ 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*4+i*uintptr(t.valuesize))
+@@ -425,7 +424,8 @@ again:
+ 	} else {
+ 		*(*uint32)(insertk) = key
+ 	}
+-	*inserti = top
++
++	*inserti = tophash(hash)
+ 	h.count++
+ 
+ done:
+@@ -462,15 +462,14 @@ again:
+ 		growWork_fast64(t, h, bucket)
+ 	}
+ 	b := (*bmap)(unsafe.Pointer(uintptr(h.buckets) + bucket*uintptr(t.bucketsize)))
+-	top := tophash(hash)
+ 
+ 	var inserti *uint8
+ 	var insertk unsafe.Pointer
+ 	var val unsafe.Pointer
+ 	for {
+ 		for i := uintptr(0); i < bucketCnt; i++ {
+-			if b.tophash[i] != top {
+-				if b.tophash[i] == empty && inserti == nil {
++			if b.tophash[i] == empty {
++				if inserti == nil {
+ 					inserti = &b.tophash[i]
+ 					insertk = add(unsafe.Pointer(b), dataOffset+i*8)
+ 					val = add(unsafe.Pointer(b), dataOffset+bucketCnt*8+i*uintptr(t.valuesize))
+@@ -521,7 +520,7 @@ again:
+ 		*(*uint64)(insertk) = key
+ 	}
+ 
+-	*inserti = top
++	*inserti = tophash(hash)
+ 	h.count++
+ 
+ done:

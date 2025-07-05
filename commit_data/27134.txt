@@ -21,7 +21,105 @@ Date:   Wed Mar 9 23:28:05 2016 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/link/internal/ld/link.go | 28 +++++++++++++++++-----------
  src/cmd/link/internal/ld/sym.go  | 32 ++++++++++++++++++++++++--------
  2 files changed, 41 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 0fadaf4b85..2f2be3a5cb 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -161,17 +161,23 @@ type Shlib struct {
+ }
+ 
+ type Link struct {
+-	Thechar    int32
+-	Thestring  string
+-	Goarm      int32
+-	Headtype   int
+-	Arch       *LinkArch
+-	Debugasm   int32
+-	Debugvlog  int32
+-	Bso        *obj.Biobuf
+-	Windows    int32
+-	Goroot     string
+-	Hash       map[symVer]*LSym
++	Thechar   int32
++	Thestring string
++	Goarm     int32
++	Headtype  int
++	Arch      *LinkArch
++	Debugasm  int32
++	Debugvlog int32
++	Bso       *obj.Biobuf
++	Windows   int32
++	Goroot    string
++
++	// Map for fast access of symbols based on name.
++	HashName map[string]*LSym
++	// Fallback map based also on version, for symbols
++	// with more than one version (see func _lookup).
++	HashVersion map[symVer]*LSym
++
+ 	Allsym     []*LSym
+ 	Nsymbol    int32
+ 	Tlsg       *LSym
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index 6df4839468..05b3252add 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -58,11 +58,12 @@ var headers = []struct {
+ 
+ func linknew(arch *LinkArch) *Link {
+ 	ctxt := &Link{
+-		Hash:    make(map[symVer]*LSym, 100000), // preallocate about 2mb for hash
+-		Allsym:  make([]*LSym, 0, 100000),
+-		Arch:    arch,
+-		Version: obj.HistVersion,
+-		Goroot:  obj.Getgoroot(),
++		HashName:    make(map[string]*LSym, 100000), // preallocate about 2mb for hash
++		HashVersion: make(map[symVer]*LSym),
++		Allsym:      make([]*LSym, 0, 100000),
++		Arch:        arch,
++		Version:     obj.HistVersion,
++		Goroot:      obj.Getgoroot(),
+ 	}
+ 
+ 	p := obj.Getgoarch()
+@@ -182,9 +183,20 @@ type symVer struct {
+ }
+ 
+ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
+-	s := ctxt.Hash[symVer{symb, v}]
++	// Most symbols have only a single version, and a string key
++	// is faster to search for. So we store the first symbol in HashName,
++	// keyed only by symbol name. If there are name collisions, the
++	// alternate versions are stored in the spill over map
++	// HashVersion.
++	s, exist := ctxt.HashName[symb]
+ 	if s != nil {
+-		return s
++		if int(s.Version) == v {
++			return s
++		}
++		s = ctxt.HashVersion[symVer{symb, v}]
++		if s != nil {
++			return s
++		}
+ 	}
+ 	if creat == 0 {
+ 		return nil
+@@ -192,7 +204,11 @@ func _lookup(ctxt *Link, symb string, v int, creat int) *LSym {
+ 
+ 	s = linknewsym(ctxt, symb, v)
+ 	s.Extname = s.Name
+-	ctxt.Hash[symVer{symb, v}] = s
++	if exist {
++		ctxt.HashVersion[symVer{symb, v}] = s
++	} else {
++		ctxt.HashName[symb] = s
++	}
+ 	return s
+ }
+ 

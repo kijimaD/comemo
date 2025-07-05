@@ -14,7 +14,7 @@ Date:   Sun Oct 2 03:36:51 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/base/mapfile_mmap.go | 2 +-
  src/cmd/compile/internal/base/print.go        | 2 +-
  src/cmd/compile/internal/importer/iimport.go  | 2 +-
@@ -31,3 +31,219 @@ Date:   Sun Oct 2 03:36:51 2022 +0000
  src/cmd/compile/internal/walk/expr.go         | 2 +-
  src/cmd/compile/internal/walk/order.go        | 2 +-
  15 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/mapfile_mmap.go b/src/cmd/compile/internal/base/mapfile_mmap.go
+index b01d0f4efc..ceeb3c82d0 100644
+--- a/src/cmd/compile/internal/base/mapfile_mmap.go
++++ b/src/cmd/compile/internal/base/mapfile_mmap.go
+@@ -18,7 +18,7 @@ import (
+ // TODO(mdempsky): Is there a higher-level abstraction that still
+ // works well for iimport?
+ 
+-// mapFile returns length bytes from the file starting at the
++// MapFile returns length bytes from the file starting at the
+ // specified offset as a string.
+ func MapFile(f *os.File, offset, length int64) (string, error) {
+ 	// POSIX mmap: "The implementation may require that off is a
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 955f9d2077..70a9e9fb74 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -161,7 +161,7 @@ func UpdateErrorDot(line string, name, expr string) {
+ 	}
+ }
+ 
+-// Warnf reports a formatted warning at the current line.
++// Warn reports a formatted warning at the current line.
+ // In general the Go compiler does NOT generate warnings,
+ // so this should be used only when the user has opted in
+ // to additional output by setting a particular flag.
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 82aff18335..24d3d4b6e7 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -79,7 +79,7 @@ const (
+ 
+ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+ 
+-// iImportData imports a package from the serialized package data
++// ImportData imports a package from the serialized package data
+ // and returns the number of bytes consumed and a reference to the package.
+ // If the export data version is not recognized or the format is otherwise
+ // compromised, an error is returned.
+diff --git a/src/cmd/compile/internal/ir/abi.go b/src/cmd/compile/internal/ir/abi.go
+index 938e5564ae..cf223ff395 100644
+--- a/src/cmd/compile/internal/ir/abi.go
++++ b/src/cmd/compile/internal/ir/abi.go
+@@ -33,7 +33,7 @@ func InitLSym(f *Func, hasBody bool) {
+ 	}
+ }
+ 
+-// setupTextLsym initializes the LSym for a with-body text symbol.
++// setupTextLSym initializes the LSym for a with-body text symbol.
+ func setupTextLSym(f *Func, flag int) {
+ 	if f.Dupok() {
+ 		flag |= obj.DUPOK
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 7a0d8a62c1..bac172dbbd 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -123,8 +123,8 @@ func (o Op) Format(s fmt.State, verb rune) {
+ 
+ // Node
+ 
+-// FmtNode implements formatting for a Node n.
+-// Every Node implementation must define a Format method that calls FmtNode.
++// fmtNode implements formatting for a Node n.
++// Every Node implementation must define a Format method that calls fmtNode.
+ // The valid formats are:
+ //
+ //	%v	Go syntax
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 09825e8278..711b5b9d75 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -329,7 +329,7 @@ func NewLoggedOpt(pos src.XPos, what, pass, funcName string, args ...interface{}
+ 	return &LoggedOpt{pos, pass, funcName, what, args}
+ }
+ 
+-// Logopt logs information about a (usually missed) optimization performed by the compiler.
++// LogOpt logs information about a (usually missed) optimization performed by the compiler.
+ // Pos is the source position (including inlining), what is the message, pass is which pass created the message,
+ // funcName is the name of the function
+ func LogOpt(pos src.XPos, what, pass, funcName string, args ...interface{}) {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 8fd40fb9ba..26a088e363 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -2265,7 +2265,7 @@ func parameterizedBy1(t *types.Type, params []*types.Type, visited map[*types.Ty
+ 	}
+ }
+ 
+-// startClosures starts creation of a closure that has the function type typ. It
++// startClosure starts creation of a closure that has the function type typ. It
+ // creates all the formal params and results according to the type typ. On return,
+ // the body and closure variables of the closure must still be filled in, and
+ // ir.UseClosure() called.
+diff --git a/src/cmd/compile/internal/objw/objw.go b/src/cmd/compile/internal/objw/objw.go
+index a73ed286ae..4189337b8f 100644
+--- a/src/cmd/compile/internal/objw/objw.go
++++ b/src/cmd/compile/internal/objw/objw.go
+@@ -73,7 +73,7 @@ func Global(s *obj.LSym, width int32, flags int16) {
+ 	base.Ctxt.Globl(s, int64(width), int(flags))
+ }
+ 
+-// Bitvec writes the contents of bv into s as sequence of bytes
++// BitVec writes the contents of bv into s as sequence of bytes
+ // in little-endian order, and returns the next unused offset.
+ func BitVec(s *obj.LSym, off int, bv bitvec.BitVec) int {
+ 	// Runtime reads the bitmaps as byte arrays. Oblige.
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index a85d763a30..949a8d3a24 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1786,7 +1786,7 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 
+ }
+ 
+-// argOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
++// ArgOpAndRegisterFor converts an abi register index into an ssa Op and corresponding
+ // arg register index.
+ func ArgOpAndRegisterFor(r abi.RegIndex, abiConfig *abi.ABIConfig) (Op, int64) {
+ 	i := abiConfig.FloatIndexFor(r)
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index a3e8dcd2f6..d1b88d9f09 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -478,7 +478,7 @@ const (
+ 	BoundsKindCount
+ )
+ 
+-// boundsAPI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
++// boundsABI determines which register arguments a bounds check call should use. For an [a:b:c] slice, we do:
+ //
+ //	CMPQ c, cap
+ //	JA   fail1
+diff --git a/src/cmd/compile/internal/ssa/shortcircuit.go b/src/cmd/compile/internal/ssa/shortcircuit.go
+index 5f1f892120..d7d0b6fe33 100644
+--- a/src/cmd/compile/internal/ssa/shortcircuit.go
++++ b/src/cmd/compile/internal/ssa/shortcircuit.go
+@@ -4,7 +4,7 @@
+ 
+ package ssa
+ 
+-// Shortcircuit finds situations where branch directions
++// shortcircuit finds situations where branch directions
+ // are always correlated and rewrites the CFG to take
+ // advantage of that fact.
+ // This optimization is useful for compiling && and || expressions.
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index f616b13781..419396d87e 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -50,7 +50,7 @@ func NewFuncParams(tl *types.Type, mustname bool) []*ir.Field {
+ 	return args
+ }
+ 
+-// newname returns a new ONAME Node associated with symbol s.
++// NewName returns a new ONAME Node associated with symbol s.
+ func NewName(s *types.Sym) *ir.Name {
+ 	n := ir.NewNameAt(base.Pos, s)
+ 	n.Curfn = ir.CurFunc
+@@ -62,7 +62,7 @@ func NodAddr(n ir.Node) *ir.AddrExpr {
+ 	return NodAddrAt(base.Pos, n)
+ }
+ 
+-// nodAddrPos returns a node representing &n at position pos.
++// NodAddrAt returns a node representing &n at position pos.
+ func NodAddrAt(pos src.XPos, n ir.Node) *ir.AddrExpr {
+ 	n = markAddrOf(n)
+ 	return ir.NewAddrExpr(pos, n)
+@@ -1419,7 +1419,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
+ 	return t
+ }
+ 
+-// genericSym returns the name of the base generic type for the type named by
++// genericTypeName returns the name of the base generic type for the type named by
+ // sym. It simply returns the name obtained by removing everything after the
+ // first bracket ("[").
+ func genericTypeName(sym *types.Sym) string {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index a69245ea69..f4e6b92bd6 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1805,7 +1805,7 @@ func fieldsHasShape(fields []*Field) bool {
+ 	return false
+ }
+ 
+-// NewBasic returns a new basic type of the given kind.
++// newBasic returns a new basic type of the given kind.
+ func newBasic(kind Kind, obj Object) *Type {
+ 	t := newType(kind)
+ 	t.obj = obj
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index ede904c8a3..7205107f6f 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -712,7 +712,7 @@ func walkDotType(n *ir.TypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	return n
+ }
+ 
+-// walkDynamicdotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
++// walkDynamicDotType walks an ODYNAMICDOTTYPE or ODYNAMICDOTTYPE2 node.
+ func walkDynamicDotType(n *ir.DynamicTypeAssertExpr, init *ir.Nodes) ir.Node {
+ 	n.X = walkExpr(n.X, init)
+ 	n.RType = walkExpr(n.RType, init)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index d423934721..c7c3d97621 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -44,7 +44,7 @@ type orderState struct {
+ 	edit func(ir.Node) ir.Node // cached closure of o.exprNoLHS
+ }
+ 
+-// Order rewrites fn.Nbody to apply the ordering constraints
++// order rewrites fn.Nbody to apply the ordering constraints
+ // described in the comment at the top of the file.
+ func order(fn *ir.Func) {
+ 	if base.Flag.W > 1 {

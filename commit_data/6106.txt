@@ -7,6 +7,22 @@ Date:   Thu Aug 26 17:06:36 2010 -0400
     R=gri
     CC=golang-dev
     https://golang.org/cl/1950045
-
+---
  lib/codereview/codereview.py | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 3d87f298f4..4b03b085f2 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -457,7 +457,9 @@ class StatusThread(threading.Thread):
+ 			print >>sys.stderr, time.asctime(), s
+ 
+ def start_status_thread():
+-	StatusThread().start()
++	t = StatusThread()
++	t.setDaemon(True)  # allowed to exit if t is still running
++	t.start()
+ 
+ class LoadCLThread(threading.Thread):
+ 	def __init__(self, ui, repo, dir, f, web):

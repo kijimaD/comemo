@@ -19,10 +19,148 @@ Date:   Tue Sep 7 13:23:08 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/noder/decoder.go |  3 ++-
  src/cmd/compile/internal/noder/encoder.go |  3 ++-
  src/cmd/compile/internal/noder/reader.go  | 12 ++++--------
  src/cmd/compile/internal/noder/reader2.go | 10 ++--------
  src/cmd/compile/internal/noder/writer.go  | 12 ++++--------
  5 files changed, 14 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decoder.go b/src/cmd/compile/internal/noder/decoder.go
+index 3dc61c6a69..2c18727420 100644
+--- a/src/cmd/compile/internal/noder/decoder.go
++++ b/src/cmd/compile/internal/noder/decoder.go
+@@ -255,7 +255,8 @@ func (r *decoder) strings() []string {
+ 	return res
+ }
+ 
+-func (r *decoder) rawValue() constant.Value {
++func (r *decoder) value() constant.Value {
++	r.sync(syncValue)
+ 	isComplex := r.bool()
+ 	val := r.scalar()
+ 	if isComplex {
+diff --git a/src/cmd/compile/internal/noder/encoder.go b/src/cmd/compile/internal/noder/encoder.go
+index d8ab0f6255..b07b3a4a48 100644
+--- a/src/cmd/compile/internal/noder/encoder.go
++++ b/src/cmd/compile/internal/noder/encoder.go
+@@ -237,7 +237,8 @@ func (w *encoder) strings(ss []string) {
+ 	}
+ }
+ 
+-func (w *encoder) rawValue(val constant.Value) {
++func (w *encoder) value(val constant.Value) {
++	w.sync(syncValue)
+ 	if w.bool(val.Kind() == constant.Complex) {
+ 		w.scalar(constant.Real(val))
+ 		w.scalar(constant.Imag(val))
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index b3cb10dadb..e235dd5792 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -626,7 +626,8 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 
+ 	case objConst:
+ 		name := do(ir.OLITERAL, false)
+-		typ, val := r.value()
++		typ := r.typ()
++		val := FixValue(typ, r.value())
+ 		setType(name, typ)
+ 		setValue(name, val)
+ 		return name
+@@ -755,12 +756,6 @@ func (r *reader) typeParamNames() {
+ 	}
+ }
+ 
+-func (r *reader) value() (*types.Type, constant.Value) {
+-	r.sync(syncValue)
+-	typ := r.typ()
+-	return typ, FixValue(typ, r.rawValue())
+-}
+-
+ func (r *reader) method() *types.Field {
+ 	r.sync(syncMethod)
+ 	pos := r.pos()
+@@ -1556,7 +1551,8 @@ func (r *reader) expr() (res ir.Node) {
+ 
+ 	case exprConst:
+ 		pos := r.pos()
+-		typ, val := r.value()
++		typ := r.typ()
++		val := FixValue(typ, r.value())
+ 		op := r.op()
+ 		orig := r.string()
+ 		return typecheck.Expr(OrigConst(pos, typ, val, op, orig))
+diff --git a/src/cmd/compile/internal/noder/reader2.go b/src/cmd/compile/internal/noder/reader2.go
+index 6e2d1f2e76..0cfde24b58 100644
+--- a/src/cmd/compile/internal/noder/reader2.go
++++ b/src/cmd/compile/internal/noder/reader2.go
+@@ -7,8 +7,6 @@
+ package noder
+ 
+ import (
+-	"go/constant"
+-
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+@@ -388,7 +386,8 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 
+ 		case objConst:
+ 			pos := r.pos()
+-			typ, val := r.value()
++			typ := r.typ()
++			val := r.value()
+ 			return types2.NewConst(pos, objPkg, objName, typ, val)
+ 
+ 		case objFunc:
+@@ -428,11 +427,6 @@ func (pr *pkgReader2) objIdx(idx int) (*types2.Package, string) {
+ 	return objPkg, objName
+ }
+ 
+-func (r *reader2) value() (types2.Type, constant.Value) {
+-	r.sync(syncValue)
+-	return r.typ(), r.rawValue()
+-}
+-
+ func (pr *pkgReader2) objDictIdx(idx int) *reader2Dict {
+ 	r := pr.newReader(relocObjDict, idx, syncObject1)
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index d1e5605739..694035b73f 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -542,7 +542,8 @@ func (w *writer) doObj(obj types2.Object) codeObj {
+ 
+ 	case *types2.Const:
+ 		w.pos(obj)
+-		w.value(obj.Type(), obj.Val())
++		w.typ(obj.Type())
++		w.value(obj.Val())
+ 		return objConst
+ 
+ 	case *types2.Func:
+@@ -598,12 +599,6 @@ func (w *writer) typExpr(expr syntax.Expr) {
+ 	w.typ(tv.Type)
+ }
+ 
+-func (w *writer) value(typ types2.Type, val constant.Value) {
+-	w.sync(syncValue)
+-	w.typ(typ)
+-	w.rawValue(val)
+-}
+-
+ // objDict writes the dictionary needed for reading the given object.
+ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	// TODO(mdempsky): Split objDict into multiple entries? reader.go
+@@ -1199,7 +1194,8 @@ func (w *writer) expr(expr syntax.Expr) {
+ 
+ 			w.code(exprConst)
+ 			w.pos(pos)
+-			w.value(tv.Type, tv.Value)
++			w.typ(tv.Type)
++			w.value(tv.Value)
+ 
+ 			// TODO(mdempsky): These details are only important for backend
+ 			// diagnostics. Explore writing them out separately.

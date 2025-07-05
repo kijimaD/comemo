@@ -9,6 +9,20 @@ Date:   Tue Sep 1 16:46:16 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=34216
     CL=34220
-
+---
  src/pkg/testing/regexp.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index 2b12250f58..e5b5eac4f3 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -265,7 +265,7 @@ func (re *Regexp) add(i instr) instr {
+ 	i.setIndex(len(re.inst));
+ 	if n >= cap(re.inst) {
+ 		ni := make([]instr, n, 2*n);
+-		for i, j := range ni {
++		for i, j := range re.inst {
+ 			ni[i] = j
+ 		}
+ 		re.inst = ni;

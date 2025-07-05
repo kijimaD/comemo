@@ -12,7 +12,7 @@ Date:   Fri Sep 16 21:42:18 2016 -0400
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s    |  1 +
  src/cmd/compile/internal/gc/ssa.go           |  8 +--
  src/cmd/compile/internal/s390x/prog.go       |  1 +
@@ -27,3 +27,410 @@ Date:   Fri Sep 16 21:42:18 2016 -0400
  src/math/big/arith_s390x.s                   | 10 ++--
  test/intrinsic.go                            |  2 +-
  13 files changed, 185 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 6b6e2236d4..3a01f29419 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -104,6 +104,7 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	NEG	R1, R2                // b9030021
+ 	NEGW	R1                    // b9130011
+ 	NEGW	R1, R2                // b9130021
++	FLOGR	R2, R2                // b9830022
+ 
+ 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
+ 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5927fde86e..44be52b937 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2519,16 +2519,16 @@ func intrinsicInit() {
+ 		/******** runtime/internal/sys ********/
+ 		intrinsicKey{"runtime/internal/sys", "Ctz32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64, sys.ARM),
++		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
+ 		intrinsicKey{"runtime/internal/sys", "Ctz64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64, sys.ARM),
++		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
+ 		intrinsicKey{"runtime/internal/sys", "Bswap32"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, Types[TUINT32], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64, sys.ARM),
++		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
+ 		intrinsicKey{"runtime/internal/sys", "Bswap64"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, Types[TUINT64], s.intrinsicFirstArg(n))
+-		}, sys.AMD64, sys.ARM64, sys.ARM),
++		}, sys.AMD64, sys.ARM64, sys.ARM, sys.S390X),
+ 
+ 		/******** runtime/internal/atomic ********/
+ 		intrinsicKey{"runtime/internal/atomic", "Load"}: enableOnArch(func(s *state, n *Node) *ssa.Value {
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index c0920b2e8b..1dd5740f82 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -67,6 +67,7 @@ var progtable = [s390x.ALAST & obj.AMask]obj.ProgInfo{
+ 	s390x.AMODDU & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AMODW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AMODWU & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AFLOGR & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RightWrite},
+ 
+ 	// Floating point.
+ 	s390x.AFADD & obj.AMask:  {Flags: gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite},
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index e6c5849e1c..2e21f7b0d8 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -525,16 +525,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
+-	case ssa.OpS390XNEG, ssa.OpS390XNEGW:
+-		r := v.Reg()
++	case ssa.OpS390XFLOGR, ssa.OpS390XNEG, ssa.OpS390XNEGW,
++		ssa.OpS390XMOVWBR, ssa.OpS390XMOVDBR:
+ 		p := gc.Prog(v.Op.Asm())
+-		r1 := v.Args[0].Reg()
+-		if r != r1 {
+-			p.From.Type = obj.TYPE_REG
+-			p.From.Reg = r1
+-		}
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XNOT, ssa.OpS390XNOTW:
+ 		v.Fatalf("NOT/NOTW generated %s", v.LongString())
+ 	case ssa.OpS390XMOVDEQ, ssa.OpS390XMOVDNE,
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 264e2805f9..44fdd146b1 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -101,6 +101,13 @@
+ (OffPtr [off] ptr) && is32Bit(off) -> (ADDconst [off] ptr)
+ (OffPtr [off] ptr) -> (ADD (MOVDconst [off]) ptr)
+ 
++// Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
++(Ctz64 <t> x) -> (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
++(Ctz32 <t> x) -> (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
++
++(Bswap64 x) -> (MOVDBR x)
++(Bswap32 x) -> (MOVWBR x)
++
+ (Sqrt x) -> (FSQRT x)
+ 
+ // Lowering extension
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 69fcc4bf65..9c362ae5e6 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -315,6 +315,9 @@ func init() {
+ 		{name: "MOVWload", argLength: 2, reg: gpload, asm: "MOVW", aux: "SymOff", clobberFlags: true, faultOnNilArg0: true},                  // ditto, sign extend to int64
+ 		{name: "MOVDload", argLength: 2, reg: gpload, asm: "MOVD", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true},   // load 8 bytes from arg0+auxint+aux. arg1=mem
+ 
++		{name: "MOVWBR", argLength: 1, reg: gp11, asm: "MOVWBR"}, // arg0 swap bytes
++		{name: "MOVDBR", argLength: 1, reg: gp11, asm: "MOVDBR"}, // arg0 swap bytes
++
+ 		{name: "MOVHBRload", argLength: 2, reg: gpload, asm: "MOVHBR", aux: "SymOff", typ: "UInt16", clobberFlags: true, faultOnNilArg0: true}, // load 2 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+ 		{name: "MOVWBRload", argLength: 2, reg: gpload, asm: "MOVWBR", aux: "SymOff", typ: "UInt32", clobberFlags: true, faultOnNilArg0: true}, // load 4 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+ 		{name: "MOVDBRload", argLength: 2, reg: gpload, asm: "MOVDBR", aux: "SymOff", typ: "UInt64", clobberFlags: true, faultOnNilArg0: true}, // load 8 bytes from arg0+auxint+aux. arg1=mem. Reverse bytes.
+@@ -387,6 +390,16 @@ func init() {
+ 		{name: "FlagLT"}, // <
+ 		{name: "FlagGT"}, // >
+ 
++		// find leftmost one
++		{
++			name:         "FLOGR",
++			argLength:    1,
++			reg:          regInfo{inputs: gponly, outputs: []regMask{buildReg("R0")}, clobbers: buildReg("R1")},
++			asm:          "FLOGR",
++			typ:          "UInt64",
++			clobberFlags: true,
++		},
++
+ 		// store multiple
+ 		{
+ 			name:           "STMG2",
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 8c2814658d..8ae954227c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1354,6 +1354,8 @@ const (
+ 	OpS390XMOVWZload
+ 	OpS390XMOVWload
+ 	OpS390XMOVDload
++	OpS390XMOVWBR
++	OpS390XMOVDBR
+ 	OpS390XMOVHBRload
+ 	OpS390XMOVWBRload
+ 	OpS390XMOVDBRload
+@@ -1391,6 +1393,7 @@ const (
+ 	OpS390XFlagEQ
+ 	OpS390XFlagLT
+ 	OpS390XFlagGT
++	OpS390XFLOGR
+ 	OpS390XSTMG2
+ 	OpS390XSTMG3
+ 	OpS390XSTMG4
+@@ -17110,6 +17113,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVWBR",
++		argLen: 1,
++		asm:    s390x.AMOVWBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []outputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MOVDBR",
++		argLen: 1,
++		asm:    s390x.AMOVDBR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []outputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:           "MOVHBRload",
+ 		auxType:        auxSymOff,
+@@ -17581,6 +17610,21 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg:    regInfo{},
+ 	},
++	{
++		name:         "FLOGR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.AFLOGR,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 2, // R1
++			outputs: []outputInfo{
++				{0, 1}, // R0
++			},
++		},
++	},
+ 	{
+ 		name:           "STMG2",
+ 		auxType:        auxSymOff,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 2b03ce4b10..2cd878a31d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -36,6 +36,10 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpAndB(v, config)
+ 	case OpAvg64u:
+ 		return rewriteValueS390X_OpAvg64u(v, config)
++	case OpBswap32:
++		return rewriteValueS390X_OpBswap32(v, config)
++	case OpBswap64:
++		return rewriteValueS390X_OpBswap64(v, config)
+ 	case OpClosureCall:
+ 		return rewriteValueS390X_OpClosureCall(v, config)
+ 	case OpCom16:
+@@ -64,6 +68,10 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpConstNil(v, config)
+ 	case OpConvert:
+ 		return rewriteValueS390X_OpConvert(v, config)
++	case OpCtz32:
++		return rewriteValueS390X_OpCtz32(v, config)
++	case OpCtz64:
++		return rewriteValueS390X_OpCtz64(v, config)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueS390X_OpCvt32Fto32(v, config)
+ 	case OpCvt32Fto64:
+@@ -887,6 +895,32 @@ func rewriteValueS390X_OpAvg64u(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpBswap32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap32 x)
++	// cond:
++	// result: (MOVWBR x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XMOVWBR)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValueS390X_OpBswap64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Bswap64 x)
++	// cond:
++	// result: (MOVDBR x)
++	for {
++		x := v.Args[0]
++		v.reset(OpS390XMOVDBR)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueS390X_OpClosureCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -1078,6 +1112,62 @@ func rewriteValueS390X_OpConvert(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCtz32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz32 <t> x)
++	// cond:
++	// result: (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpS390XSUB)
++		v0 := b.NewValue0(v.Line, OpS390XMOVDconst, config.fe.TypeUInt64())
++		v0.AuxInt = 64
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpS390XFLOGR, config.fe.TypeUInt64())
++		v2 := b.NewValue0(v.Line, OpS390XMOVWZreg, config.fe.TypeUInt64())
++		v3 := b.NewValue0(v.Line, OpS390XANDW, t)
++		v4 := b.NewValue0(v.Line, OpS390XSUBWconst, t)
++		v4.AuxInt = 1
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpS390XNOTW, t)
++		v5.AddArg(x)
++		v3.AddArg(v5)
++		v2.AddArg(v3)
++		v1.AddArg(v2)
++		v.AddArg(v1)
++		return true
++	}
++}
++func rewriteValueS390X_OpCtz64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Ctz64 <t> x)
++	// cond:
++	// result: (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpS390XSUB)
++		v0 := b.NewValue0(v.Line, OpS390XMOVDconst, config.fe.TypeUInt64())
++		v0.AuxInt = 64
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpS390XFLOGR, config.fe.TypeUInt64())
++		v2 := b.NewValue0(v.Line, OpS390XAND, t)
++		v3 := b.NewValue0(v.Line, OpS390XSUBconst, t)
++		v3.AuxInt = 1
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Line, OpS390XNOT, t)
++		v4.AddArg(x)
++		v2.AddArg(v4)
++		v1.AddArg(v2)
++		v.AddArg(v1)
++		return true
++	}
++}
+ func rewriteValueS390X_OpCvt32Fto32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 0f23931e00..b6d1975c79 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -255,6 +255,9 @@ const (
+ 	AMOVDLT
+ 	AMOVDNE
+ 
++	// find leftmost one
++	AFLOGR
++
+ 	// integer bitwise
+ 	AAND
+ 	AANDN
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 00a8d4126d..589206f3ae 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -49,6 +49,7 @@ var Anames = []string{
+ 	"MOVDLE",
+ 	"MOVDLT",
+ 	"MOVDNE",
++	"FLOGR",
+ 	"AND",
+ 	"ANDN",
+ 	"NAND",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 9d072041d0..700137c322 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -220,6 +220,9 @@ var optab = []Optab{
+ 	// move on condition
+ 	Optab{AMOVDEQ, C_REG, C_NONE, C_NONE, C_REG, 17, 0},
+ 
++	// find leftmost one
++	Optab{AFLOGR, C_REG, C_NONE, C_NONE, C_REG, 8, 0},
++
+ 	// compare
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_REG, 70, 0},
+ 	Optab{ACMP, C_REG, C_NONE, C_NONE, C_LCON, 71, 0},
+@@ -2864,6 +2867,13 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		}
+ 		zRSY(opcode, uint32(r1), uint32(r3), uint32(b2), uint32(d2), asm)
+ 
++	case 8: // find leftmost one
++		if p.To.Reg&1 != 0 {
++			ctxt.Diag("target must be an even-numbered register")
++		}
++		// FLOGR also writes a mask to p.To.Reg+1.
++		zRRE(op_FLOGR, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++
+ 	case 10: // subtract reg [reg] reg
+ 		r := int(p.Reg)
+ 
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index 21929c169f..0a27eb9bcb 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -559,9 +559,9 @@ E7:	SUB  $1, R7		// i--
+ 
+ // func bitLen(x Word) (n int)
+ TEXT ·bitLen(SB),NOSPLIT,$0
+-	MOVD x+0(FP), R2
+-	WORD $0xb9830022 // FLOGR R2,R2
+-	MOVD $64, R3
+-	SUB  R2, R3
+-	MOVD R3, n+8(FP)
++	MOVD  x+0(FP), R2
++	FLOGR R2, R2 // clobbers R3
++	MOVD  $64, R3
++	SUB   R2, R3
++	MOVD  R3, n+8(FP)
+ 	RET
+diff --git a/test/intrinsic.go b/test/intrinsic.go
+index 3e3ec12fa4..0b783d15df 100644
+--- a/test/intrinsic.go
++++ b/test/intrinsic.go
+@@ -1,5 +1,5 @@
+ // errorcheckandrundir -0 -d=ssa/intrinsics/debug
+-// +build amd64 arm64 arm
++// +build amd64 arm64 arm s390x
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

@@ -89,7 +89,7 @@ Date:   Wed Jan 25 10:46:08 2023 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/pgen.go            |  4 --
  src/cmd/link/internal/ld/deadcode.go               | 48 ++++++++++++++++++++++
  src/cmd/link/internal/ld/deadcode_test.go          | 28 ++++++++-----
@@ -98,3 +98,232 @@ Date:   Wed Jan 25 10:46:08 2023 -0500
  src/runtime/asm.s                                  |  4 ++
  src/runtime/map.go                                 |  7 ++++
  7 files changed, 103 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index d3b01aceb4..3320f746bb 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -240,10 +240,6 @@ func RegisterMapInitLsym(s *obj.LSym) {
+ // outlined global map initializer functions; if it finds any such
+ // relocs, it flags them as R_WEAK.
+ func weakenGlobalMapInitRelocs(fn *ir.Func) {
+-	// Disabled until next patch.
+-	if true {
+-		return
+-	}
+ 	if globalMapInitLsyms == nil {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 0738a51deb..307a6dd42f 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/link/internal/sym"
+ 	"fmt"
+ 	"internal/buildcfg"
++	"strings"
+ 	"unicode"
+ )
+ 
+@@ -29,6 +30,8 @@ type deadcodePass struct {
+ 	dynlink            bool
+ 
+ 	methodsigstmp []methodsig // scratch buffer for decoding method signatures
++	pkginits      []loader.Sym
++	mapinitnoop   loader.Sym
+ }
+ 
+ func (d *deadcodePass) init() {
+@@ -105,6 +108,11 @@ func (d *deadcodePass) init() {
+ 		}
+ 		d.mark(s, 0)
+ 	}
++
++	d.mapinitnoop = d.ldr.Lookup("runtime.mapinitnoop", abiInternalVer)
++	if d.mapinitnoop == 0 {
++		panic("could not look up runtime.mapinitnoop")
++	}
+ }
+ 
+ func (d *deadcodePass) flood() {
+@@ -229,6 +237,12 @@ func (d *deadcodePass) flood() {
+ 			}
+ 			d.mark(a.Sym(), symIdx)
+ 		}
++		// Record sym if package init func (here naux != 0 is a cheap way
++		// to check first if it is a function symbol).
++		if naux != 0 && d.ldr.IsPkgInit(symIdx) {
++
++			d.pkginits = append(d.pkginits, symIdx)
++		}
+ 		// Some host object symbols have an outer object, which acts like a
+ 		// "carrier" symbol, or it holds all the symbols for a particular
+ 		// section. We need to mark all "referenced" symbols from that carrier,
+@@ -262,6 +276,37 @@ func (d *deadcodePass) flood() {
+ 	}
+ }
+ 
++// mapinitcleanup walks all pkg init functions and looks for weak relocations
++// to mapinit symbols that are no longer reachable. It rewrites
++// the relocs to target a new no-op routine in the runtime.
++func (d *deadcodePass) mapinitcleanup() {
++	for _, idx := range d.pkginits {
++		relocs := d.ldr.Relocs(idx)
++		var su *loader.SymbolBuilder
++		for i := 0; i < relocs.Count(); i++ {
++			r := relocs.At(i)
++			rs := r.Sym()
++			if r.Weak() && r.Type().IsDirectCall() && !d.ldr.AttrReachable(rs) {
++				// double check to make sure target is indeed map.init
++				rsn := d.ldr.SymName(rs)
++				if !strings.Contains(rsn, "map.init") {
++					panic(fmt.Sprintf("internal error: expected map.init sym for weak call reloc, got %s -> %s", d.ldr.SymName(idx), rsn))
++				}
++				d.ldr.SetAttrReachable(d.mapinitnoop, true)
++				if d.ctxt.Debugvlog > 1 {
++					d.ctxt.Logf("deadcode: %s rewrite %s ref to %s\n",
++						d.ldr.SymName(idx), rsn,
++						d.ldr.SymName(d.mapinitnoop))
++				}
++				if su == nil {
++					su = d.ldr.MakeSymbolUpdater(idx)
++				}
++				su.SetRelocSym(i, d.mapinitnoop)
++			}
++		}
++	}
++}
++
+ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
+ 		d.wq.push(symIdx)
+@@ -370,6 +415,9 @@ func deadcode(ctxt *Link) {
+ 		}
+ 		d.flood()
+ 	}
++	if *flagPruneWeakMap {
++		d.mapinitcleanup()
++	}
+ }
+ 
+ // methodsig is a typed method signature (name + type).
+diff --git a/src/cmd/link/internal/ld/deadcode_test.go b/src/cmd/link/internal/ld/deadcode_test.go
+index 573bff3c85..633a0d0bfb 100644
+--- a/src/cmd/link/internal/ld/deadcode_test.go
++++ b/src/cmd/link/internal/ld/deadcode_test.go
+@@ -19,14 +19,16 @@ func TestDeadcode(t *testing.T) {
+ 
+ 	tests := []struct {
+ 		src      string
+-		pos, neg string // positive and negative patterns
++		pos, neg []string // positive and negative patterns
+ 	}{
+-		{"reflectcall", "", "main.T.M"},
+-		{"typedesc", "", "type:main.T"},
+-		{"ifacemethod", "", "main.T.M"},
+-		{"ifacemethod2", "main.T.M", ""},
+-		{"ifacemethod3", "main.S.M", ""},
+-		{"ifacemethod4", "", "main.T.M"},
++		{"reflectcall", nil, []string{"main.T.M"}},
++		{"typedesc", nil, []string{"type:main.T"}},
++		{"ifacemethod", nil, []string{"main.T.M"}},
++		{"ifacemethod2", []string{"main.T.M"}, nil},
++		{"ifacemethod3", []string{"main.S.M"}, nil},
++		{"ifacemethod4", nil, []string{"main.T.M"}},
++		{"globalmap", []string{"main.small", "main.effect"},
++			[]string{"main.large"}},
+ 	}
+ 	for _, test := range tests {
+ 		test := test
+@@ -39,11 +41,15 @@ func TestDeadcode(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+ 			}
+-			if test.pos != "" && !bytes.Contains(out, []byte(test.pos+"\n")) {
+-				t.Errorf("%s should be reachable. Output:\n%s", test.pos, out)
++			for _, pos := range test.pos {
++				if !bytes.Contains(out, []byte(pos+"\n")) {
++					t.Errorf("%s should be reachable. Output:\n%s", pos, out)
++				}
+ 			}
+-			if test.neg != "" && bytes.Contains(out, []byte(test.neg+"\n")) {
+-				t.Errorf("%s should not be reachable. Output:\n%s", test.neg, out)
++			for _, neg := range test.neg {
++				if bytes.Contains(out, []byte(neg+"\n")) {
++					t.Errorf("%s should not be reachable. Output:\n%s", neg, out)
++				}
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 0058bd4d3e..396eb221df 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -100,6 +100,7 @@ var (
+ 	FlagRound         = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr      = flag.Int64("T", -1, "set text segment `address`")
+ 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
++	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+diff --git a/src/cmd/link/internal/ld/testdata/deadcode/globalmap.go b/src/cmd/link/internal/ld/testdata/deadcode/globalmap.go
+new file mode 100644
+index 0000000000..35672fe7a3
+--- /dev/null
++++ b/src/cmd/link/internal/ld/testdata/deadcode/globalmap.go
+@@ -0,0 +1,26 @@
++package main
++
++import "os"
++
++// Too small to trigger deadcode (currently)
++var small = map[string]int{"foo": 1}
++
++// Has side effects, which prevent deadcode
++var effect = map[string]int{"foo": os.Getpid()}
++
++// Large and side-effect free
++var large = map[string]int{
++	"11": 1, "12": 2, "13": 3, "14": 4, "15": 5, "16": 6, "17": 7, "18": 8, "19": 9, "110": 10,
++	"21": 1, "22": 2, "23": 3, "24": 4, "25": 5, "26": 6, "27": 7, "28": 8, "29": 9, "210": 10,
++	"31": 1, "32": 2, "33": 3, "34": 4, "35": 5, "36": 6, "37": 7, "38": 8, "39": 9, "310": 10,
++	"41": 1, "42": 2, "43": 3, "44": 4, "45": 5, "46": 6, "47": 7, "48": 8, "49": 9, "410": 10,
++	"51": 1, "52": 2, "53": 3, "54": 4, "55": 5, "56": 6, "57": 7, "58": 8, "59": 9, "510": 10,
++	"61": 1, "62": 2, "63": 3, "64": 4, "65": 5, "66": 6, "67": 7, "68": 8, "69": 9, "610": 10,
++	"71": 1, "72": 2, "73": 3, "74": 4, "75": 5, "76": 6, "77": 7, "78": 8, "79": 9, "710": 10,
++	"81": 1, "82": 2, "83": 3, "84": 4, "85": 5, "86": 6, "87": 7, "88": 8, "89": 9, "810": 10,
++	"91": 1, "92": 2, "93": 3, "94": 4, "95": 5, "96": 6, "97": 7, "98": 8, "99": 9, "910": 10,
++	"101": 1, "102": 2, "103": 3, "104": 4, "105": 5, "106": 6, "107": 7, "108": 8, "109": 9, "1010": 10, "1021": 2,
++}
++
++func main() {
++}
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 84d56de7dd..f7bc5d432e 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -8,3 +8,7 @@
+ TEXT ·sigpanic0(SB),NOSPLIT,$0-0
+ 	JMP	·sigpanic<ABIInternal>(SB)
+ #endif
++
++// See map.go comment on the need for this routine.
++TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
++	RET
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 3f5817a577..273e315ea0 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1422,3 +1422,10 @@ func reflectlite_maplen(h *hmap) int {
+ 
+ const maxZero = 1024 // must match value in reflect/value.go:maxZero cmd/compile/internal/gc/walk.go:zeroValSize
+ var zeroVal [maxZero]byte
++
++// mapinitnoop is a no-op function known the Go linker; if a given global
++// map (of the right size) is determined to be dead, the linker will
++// rewrite the relocation (from the package init func) from the outlined
++// map init function to this symbol. Defined in assembly so as to avoid
++// complications with instrumentation (coverage, etc).
++func mapinitnoop()

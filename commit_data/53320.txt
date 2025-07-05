@@ -14,6 +14,30 @@ Date:   Mon Jul 18 08:51:32 2022 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/url/url.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index e82ae6aeef..a21af7e479 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -351,11 +351,14 @@ func escape(s string, mode encoding) string {
+ // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
+ // A consequence is that it is impossible to tell which slashes in the Path were
+ // slashes in the raw URL and which were %2f. This distinction is rarely important,
+-// but when it is, the code should use RawPath, an optional field which only gets
+-// set if the default encoding is different from Path.
++// but when it is, the code should use the EscapedPath method, which preserves
++// the original encoding of Path.
+ //
+-// URL's String method uses the EscapedPath method to obtain the path. See the
+-// EscapedPath method for more details.
++// The RawPath field is an optional field which is only set when the default
++// encoding of Path is different from the escaped path. See the EscapedPath method
++// for more details.
++//
++// URL's String method uses the EscapedPath method to obtain the path.
+ type URL struct {
+ 	Scheme      string
+ 	Opaque      string    // encoded opaque data

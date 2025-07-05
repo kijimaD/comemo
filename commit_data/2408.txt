@@ -8,6 +8,19 @@ Date:   Fri Jun 5 23:54:44 2009 -0700
     DELTA=1  (1 added, 0 deleted, 0 changed)
     OCL=29970
     CL=29973
-
+---
  usr/gri/pretty/godoc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 069f969d2d..caecdad52b 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -106,6 +106,7 @@ func init() {
+ 		goroot = "/home/r/go-release/go";
+ 	}
+ 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
++	syncTime.set();  // have a reasonable initial value
+ }
+ 
+ 

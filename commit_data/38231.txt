@@ -9,10 +9,207 @@ Date:   Tue Jul 10 21:39:50 2018 +0000
     Change-Id: I0f8964593d69623b85d5759f6276063ee62b2915
     Reviewed-on: https://go-review.googlesource.com/c/123156
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go           |  3 ++
  src/net/http/requestwrite_test.go | 32 +++++++++++++++++++
  src/net/http/transfer.go          | 24 ++++++++++++++-
  src/net/http/transport.go         |  9 ------
  src/net/http/transport_test.go    | 65 +++++++++++++++++++++++++++++++++++++++
  5 files changed, 123 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 967de7917f..3669f17f66 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -545,6 +545,9 @@ func (r *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, waitF
+ 	} else if r.Method == "CONNECT" && r.URL.Path == "" {
+ 		// CONNECT requests normally give just the host and port, not a full URL.
+ 		ruri = host
++		if r.URL.Opaque != "" {
++			ruri = r.URL.Opaque
++		}
+ 	}
+ 	// TODO(bradfitz): escape at least newlines in ruri?
+ 
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index eb65b9f736..246fb4e65d 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -512,6 +512,38 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go-http-client/1.1\r\n" +
+ 			"\r\n",
+ 	},
++
++	// CONNECT without Opaque
++	21: {
++		Req: Request{
++			Method: "CONNECT",
++			URL: &url.URL{
++				Scheme: "https", // of proxy.com
++				Host:   "proxy.com",
++			},
++		},
++		// What we used to do, locking that behavior in:
++		WantWrite: "CONNECT proxy.com HTTP/1.1\r\n" +
++			"Host: proxy.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"\r\n",
++	},
++
++	// CONNECT with Opaque
++	22: {
++		Req: Request{
++			Method: "CONNECT",
++			URL: &url.URL{
++				Scheme: "https", // of proxy.com
++				Host:   "proxy.com",
++				Opaque: "backend:443",
++			},
++		},
++		WantWrite: "CONNECT backend:443 HTTP/1.1\r\n" +
++			"Host: proxy.com\r\n" +
++			"User-Agent: Go-http-client/1.1\r\n" +
++			"\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index a41d034204..f0b43844dd 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -184,6 +184,9 @@ func (t *transferWriter) shouldSendChunkedRequestBody() bool {
+ 	if t.ContentLength >= 0 || t.Body == nil { // redundant checks; caller did them
+ 		return false
+ 	}
++	if t.Method == "CONNECT" {
++		return false
++	}
+ 	if requestMethodUsuallyLacksBody(t.Method) {
+ 		// Only probe the Request.Body for GET/HEAD/DELETE/etc
+ 		// requests, because it's only those types of requests
+@@ -357,7 +360,11 @@ func (t *transferWriter) writeBody(w io.Writer) error {
+ 				err = cw.Close()
+ 			}
+ 		} else if t.ContentLength == -1 {
+-			ncopy, err = io.Copy(w, body)
++			dst := w
++			if t.Method == "CONNECT" {
++				dst = bufioFlushWriter{dst}
++			}
++			ncopy, err = io.Copy(dst, body)
+ 		} else {
+ 			ncopy, err = io.Copy(w, io.LimitReader(body, t.ContentLength))
+ 			if err != nil {
+@@ -1050,3 +1057,18 @@ func isKnownInMemoryReader(r io.Reader) bool {
+ 	}
+ 	return false
+ }
++
++// bufioFlushWriter is an io.Writer wrapper that flushes all writes
++// on its wrapped writer if it's a *bufio.Writer.
++type bufioFlushWriter struct{ w io.Writer }
++
++func (fw bufioFlushWriter) Write(p []byte) (n int, err error) {
++	n, err = fw.w.Write(p)
++	if bw, ok := fw.w.(*bufio.Writer); n > 0 && ok {
++		ferr := bw.Flush()
++		if ferr != nil && err == nil {
++			err = ferr
++		}
++	}
++	return
++}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index b298ec6d7d..c459092cb8 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -85,15 +85,6 @@ func init() {
+ // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
+ // and call ConfigureTransport. See the package docs for more about HTTP/2.
+ //
+-// The Transport will send CONNECT requests to a proxy for its own use
+-// when processing HTTPS requests, but Transport should generally not
+-// be used to send a CONNECT request. That is, the Request passed to
+-// the RoundTrip method should not have a Method of "CONNECT", as Go's
+-// HTTP/1.x implementation does not support full-duplex request bodies
+-// being written while the response body is streamed. Go's HTTP/2
+-// implementation does support full duplex, but many CONNECT proxies speak
+-// HTTP/1.x.
+-//
+ // Responses with status codes in the 1xx range are either handled
+ // automatically (100 expect-continue) or ignored. The one
+ // exception is HTTP status code 101 (Switching Protocols), which is
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 8c31238c11..211f8cb467 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -4887,3 +4887,68 @@ func TestTransportResponseBodyWritableOnProtocolSwitch(t *testing.T) {
+ 		t.Errorf("read %q; want %q", got, want)
+ 	}
+ }
++
++func TestTransportCONNECTBidi(t *testing.T) {
++	defer afterTest(t)
++	const target = "backend:443"
++	cst := newClientServerTest(t, h1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		if r.Method != "CONNECT" {
++			t.Errorf("unexpected method %q", r.Method)
++			w.WriteHeader(500)
++			return
++		}
++		if r.RequestURI != target {
++			t.Errorf("unexpected CONNECT target %q", r.RequestURI)
++			w.WriteHeader(500)
++			return
++		}
++		nc, brw, err := w.(Hijacker).Hijack()
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		defer nc.Close()
++		nc.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
++		// Switch to a little protocol that capitalize its input lines:
++		for {
++			line, err := brw.ReadString('\n')
++			if err != nil {
++				if err != io.EOF {
++					t.Error(err)
++				}
++				return
++			}
++			io.WriteString(brw, strings.ToUpper(line))
++			brw.Flush()
++		}
++	}))
++	defer cst.close()
++	pr, pw := io.Pipe()
++	defer pw.Close()
++	req, err := NewRequest("CONNECT", cst.ts.URL, pr)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.URL.Opaque = target
++	res, err := cst.c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer res.Body.Close()
++	if res.StatusCode != 200 {
++		t.Fatalf("status code = %d; want 200", res.StatusCode)
++	}
++	br := bufio.NewReader(res.Body)
++	for _, str := range []string{"foo", "bar", "baz"} {
++		fmt.Fprintf(pw, "%s\n", str)
++		got, err := br.ReadString('\n')
++		if err != nil {
++			t.Fatal(err)
++		}
++		got = strings.TrimSpace(got)
++		want := strings.ToUpper(str)
++		if got != want {
++			t.Fatalf("got %q; want %q", got, want)
++		}
++	}
++}

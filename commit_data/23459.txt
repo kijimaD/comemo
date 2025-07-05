@@ -24,8 +24,123 @@ Date:   Fri Apr 3 17:43:38 2015 -0700
     Change-Id: I21479527c136add4f1efb9342774e3be3e276e83
     Reviewed-on: https://go-review.googlesource.com/10120
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/subr.go      |  3 ++-
  src/cmd/internal/gc/syntax.go    | 33 ++++++++++++++++++---------------
  src/cmd/internal/gc/typecheck.go |  3 +++
  3 files changed, 23 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index b09f4232aa..7f9e78810f 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -380,6 +380,8 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	switch op {
+ 	case OCLOSURE, ODCLFUNC:
+ 		n.Func = new(Func)
++	case ONAME:
++		n.Name = new(Name)
+ 	}
+ 	return n
+ }
+@@ -771,7 +773,6 @@ func treecopy(n *Node) *Node {
+ 		}
+ 		fallthrough
+ 
+-		// fall through
+ 	case ONAME, OLITERAL, OTYPE:
+ 		m = n
+ 	}
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 70c6f3f567..9ef00a09cb 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -30,7 +30,6 @@ type Node struct {
+ 	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
+ 	Bounded     bool  // bounds check unnecessary
+ 	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
+-	Method      bool  // OCALLMETH is direct method call
+ 	Embedded    uint8 // ODCLFIELD embedded type
+ 	Colas       bool  // OAS resulting from :=
+ 	Diag        uint8 // already printed error about this
+@@ -42,15 +41,11 @@ type Node struct {
+ 	Initorder   uint8
+ 	Used        bool
+ 	Isddd       bool // is the argument variadic
+-	Readonly    bool
+ 	Implicit    bool
+ 	Addrtaken   bool   // address taken, even if not moved to heap
+ 	Assigned    bool   // is the variable ever assigned to
+-	Captured    bool   // is the variable captured by a closure
+-	Byval       bool   // is the variable captured by value or by reference
+ 	Likely      int8   // likeliness of if statement
+ 	Hasbreak    bool   // has break statement
+-	Needzero    bool   // if it contains pointers, needs to be zeroed on function entry
+ 	Esc         uint16 // EscXXX
+ 	Funcdepth   int32
+ 
+@@ -69,15 +64,14 @@ type Node struct {
+ 	Reg int16
+ 
+ 	// ONAME
+-	Ntype     *Node
+-	Defn      *Node // ONAME: initializing assignment; OLABEL: labeled statement
+-	Pack      *Node // real package for import . names
+-	Curfn     *Node // function for local variables
+-	Paramfld  *Type // TFIELD for this PPARAM; also for ODOT, curfn
+-	Decldepth int   // declaration loop depth, increased for every loop or label
++	*Name
++	Ntype    *Node
++	Defn     *Node // ONAME: initializing assignment; OLABEL: labeled statement
++	Pack     *Node // real package for import . names
++	Curfn    *Node // function for local variables
++	Paramfld *Type // TFIELD for this PPARAM; also for ODOT, curfn
+ 
+ 	// ONAME func param with PHEAP
+-	Heapaddr   *Node // temp holding heap address of param
+ 	Outerexpr  *Node // expression copied into closure for variable
+ 	Stackparam *Node // OPARAM node referring to stack copy of param
+ 	Alloc      *Node // allocation call
+@@ -87,9 +81,6 @@ type Node struct {
+ 	Closure *Node // ONAME/PHEAP <-> ONAME/PPARAMREF
+ 	Top     int   // top context (Ecall, Eproc, etc)
+ 
+-	// ONAME substitute while inlining
+-	Inlvar *Node
+-
+ 	// OPACK
+ 	Pkg *Pkg
+ 
+@@ -113,6 +104,18 @@ type Node struct {
+ 	Opt      interface{} // for optimization passes
+ }
+ 
++// Name holds Node fields used only by ONAME nodes.
++type Name struct {
++	Heapaddr  *Node // temp holding heap address of param
++	Inlvar    *Node // ONAME substitute while inlining
++	Decldepth int   // declaration loop depth, increased for every loop or label
++	Method    bool  // OCALLMETH name
++	Readonly  bool
++	Captured  bool // is the variable captured by a closure
++	Byval     bool // is the variable captured by value or by reference
++	Needzero  bool // if it contains pointers, needs to be zeroed on function entry
++}
++
+ // Func holds Node fields used only with function-like nodes.
+ type Func struct {
+ 	Shortname *Node
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index bc6bbdb7e3..6ad8c82c32 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -891,6 +891,9 @@ OpSwitch:
+ 			}
+ 
+ 			n.Op = ONAME
++			if n.Name == nil {
++				n.Name = new(Name)
++			}
+ 			n.Sym = n.Right.Sym
+ 			n.Type = methodfunc(n.Type, n.Left.Type)
+ 			n.Xoffset = 0

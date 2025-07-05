@@ -7,7 +7,54 @@ Date:   Fri May 15 13:17:07 2009 -0700
     R=ken
     OCL=28918
     CL=28918
-
+---
  test/bugs/bug152.go | 17 +++++++++++++++++
  test/golden.out     |  5 ++++-
  2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/test/bugs/bug152.go b/test/bugs/bug152.go
+new file mode 100644
+index 0000000000..29cb1a065b
+--- /dev/null
++++ b/test/bugs/bug152.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	s := 0;
++	for i, v := range []int{1} {
++		s += v;
++	}
++	if s != 1 {
++		println("BUG: s =", s);
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+index 7337d648a8..8258f621d6 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -106,7 +106,7 @@ bugs/bug149.go:14: cannot convert []uint8 constant to string
+ BUG: should compile
+ 
+ =========== bugs/bug150.go
+-bugs/bug150.go:13: reorder2: too many funcation calls evaluating parameters
++bugs/bug150.go:13: reorder2: too many function calls evaluating parameters
+ BUG: bug150
+ 
+ =========== bugs/bug151.go
+@@ -115,6 +115,9 @@ bugs/bug151.go:10: illegal types for operand: CALL
+ 	S
+ BUG: bug151
+ 
++=========== bugs/bug152.go
++BUG: s = 0
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

@@ -20,7 +20,1286 @@ Date:   Sun Oct 15 12:21:00 2017 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/crypto/x509/name_constraints_test.go | 465 ++++++++++++++++++++++++++-----
  src/crypto/x509/verify.go                | 217 ++++++++-------
  2 files changed, 514 insertions(+), 168 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 84e66be2e5..8b7845ea42 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/rand"
+ 	"crypto/x509/pkix"
++	"encoding/asn1"
+ 	"encoding/pem"
+ 	"fmt"
+ 	"io/ioutil"
+@@ -40,14 +41,20 @@ const (
+ type nameConstraintsTest struct {
+ 	roots         []constraintsSpec
+ 	intermediates [][]constraintsSpec
+-	leaf          []string
++	leaf          leafSpec
+ 	expectedError string
+ 	noOpenSSL     bool
+ }
+ 
+ type constraintsSpec struct {
+-	ok  []string
+-	bad []string
++	ok   []string
++	bad  []string
++	ekus []string
++}
++
++type leafSpec struct {
++	sans []string
++	ekus []string
+ }
+ 
+ var nameConstraintsTests = []nameConstraintsTest{
+@@ -56,7 +63,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 		roots: []constraintsSpec{
+ 			constraintsSpec{},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #1: dummy test for the certificate generation process itself: single
+@@ -70,7 +79,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #2: dummy test for the certificate generation process itself: two
+@@ -87,7 +98,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #3: matching DNS constraint in root
+@@ -102,7 +115,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #4: matching DNS constraint in intermediate.
+@@ -117,7 +132,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #5: .example.com only matches subdomains.
+@@ -132,7 +149,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 		expectedError: "\"example.com\" is not permitted",
+ 	},
+ 
+@@ -148,7 +167,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.example.com"},
++		},
+ 	},
+ 
+ 	// #7: .example.com matches multiple levels of subdomains
+@@ -163,7 +184,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.bar.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.bar.example.com"},
++		},
+ 	},
+ 
+ 	// #8: specifying a permitted list of names does not exclude other name
+@@ -179,7 +202,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:10.1.1.1"},
++		leaf: leafSpec{
++			sans: []string{"ip:10.1.1.1"},
++		},
+ 	},
+ 
+ 	// #9: specifying a permitted list of names does not exclude other name
+@@ -195,7 +220,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #10: intermediates can try to permit other names, which isn't
+@@ -214,7 +241,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #11: intermediates cannot add permitted names that the root doesn't
+@@ -232,7 +261,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:          []string{"dns:foo.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.com"},
++		},
+ 		expectedError: "\"foo.com\" is not permitted",
+ 	},
+ 
+@@ -250,7 +281,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.bar.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.bar.example.com"},
++		},
+ 	},
+ 
+ 	// #13: intermediates can further limit their scope and that limitation
+@@ -268,7 +301,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:          []string{"dns:foo.notbar.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.notbar.example.com"},
++		},
+ 		expectedError: "\"foo.notbar.example.com\" is not permitted",
+ 	},
+ 
+@@ -284,7 +319,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.com"},
++		},
+ 	},
+ 
+ 	// #15: roots exclusions are effective.
+@@ -299,7 +336,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"dns:foo.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.example.com"},
++		},
+ 		expectedError: "\"foo.example.com\" is excluded",
+ 	},
+ 
+@@ -316,7 +355,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.com"},
++		},
+ 	},
+ 
+ 	// #17: intermediate exclusions are effective.
+@@ -331,7 +372,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:          []string{"dns:foo.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.example.com"},
++		},
+ 		expectedError: "\"foo.example.com\" is excluded",
+ 	},
+ 
+@@ -347,7 +390,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:foo.com", "ip:10.1.1.1"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.com", "ip:10.1.1.1"},
++		},
+ 	},
+ 
+ 	// #19: IP-based exclusions are permitted and don't affect unrelated IP
+@@ -363,7 +408,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:192.168.1.1"},
++		leaf: leafSpec{
++			sans: []string{"ip:192.168.1.1"},
++		},
+ 	},
+ 
+ 	// #20: IP-based exclusions are effective
+@@ -378,7 +425,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"ip:10.0.0.1"},
++		leaf: leafSpec{
++			sans: []string{"ip:10.0.0.1"},
++		},
+ 		expectedError: "\"10.0.0.1\" is excluded",
+ 	},
+ 
+@@ -396,7 +445,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:          []string{"ip:11.0.0.1"},
++		leaf: leafSpec{
++			sans: []string{"ip:11.0.0.1"},
++		},
+ 		expectedError: "\"11.0.0.1\" is excluded",
+ 	},
+ 
+@@ -416,7 +467,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:      []string{"dns:foo.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.example.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
+ 	},
+ 
+@@ -436,7 +489,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:      []string{"dns:foo.example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:foo.example.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
+ 	},
+ 
+@@ -454,7 +509,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:      []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
+ 	},
+ 
+@@ -472,7 +529,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:      []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
+ 	},
+ 
+@@ -502,7 +561,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:      []string{"dns:bar.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:bar.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL's chain building is not informed by constraints.
+ 	},
+ 
+@@ -532,7 +593,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				},
+ 			},
+ 		},
+-		leaf:          []string{"dns:bar.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:bar.com"},
++		},
+ 		expectedError: "\"bar.com\" is not permitted",
+ 	},
+ 
+@@ -546,7 +609,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"unknown:"},
++		leaf: leafSpec{
++			sans: []string{"unknown:"},
++		},
+ 	},
+ 
+ 	// #29: unknown name types are allowed even in constrained chains.
+@@ -561,7 +626,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"unknown:"},
++		leaf: leafSpec{
++			sans: []string{"unknown:"},
++		},
+ 	},
+ 
+ 	// #30: without SANs, a certificate is rejected in a constrained chain.
+@@ -576,7 +643,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{},
++		leaf: leafSpec{
++			sans: []string{},
++		},
+ 		expectedError: "leaf doesn't have a SAN extension",
+ 		noOpenSSL:     true, // OpenSSL doesn't require SANs in this case.
+ 	},
+@@ -594,7 +663,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:2000:abcd:1234::"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:abcd:1234::"},
++		},
+ 	},
+ 
+ 	// #32: IPv6 addresses work in constraints: root restrictions are
+@@ -610,7 +681,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"ip:2000:1234:abcd::"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:1234:abcd::"},
++		},
+ 		expectedError: "\"2000:1234:abcd::\" is not permitted",
+ 	},
+ 
+@@ -626,7 +699,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:2000:abcd::", "dns:foo.com"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:abcd::", "dns:foo.com"},
++		},
+ 	},
+ 
+ 	// #34: IPv6 exclusions don't affect unrelated addresses.
+@@ -641,7 +716,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:2000:1234::"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:1234::"},
++		},
+ 	},
+ 
+ 	// #35: IPv6 exclusions are effective.
+@@ -656,7 +733,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"ip:2000:abcd::"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:abcd::"},
++		},
+ 		expectedError: "\"2000:abcd::\" is excluded",
+ 	},
+ 
+@@ -672,7 +751,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"ip:10.0.0.1"},
++		leaf: leafSpec{
++			sans: []string{"ip:10.0.0.1"},
++		},
+ 		expectedError: "\"10.0.0.1\" is not permitted",
+ 	},
+ 
+@@ -688,7 +769,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"ip:2000:abcd::"},
++		leaf: leafSpec{
++			sans: []string{"ip:2000:abcd::"},
++		},
+ 		expectedError: "\"2000:abcd::\" is not permitted",
+ 	},
+ 
+@@ -704,7 +787,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #39: a permitted subtree of an unknown type doesn't affect other
+@@ -720,7 +805,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #40: exact email constraints work
+@@ -735,7 +822,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"email:foo@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@example.com"},
++		},
+ 	},
+ 
+ 	// #41: exact email constraints are effective
+@@ -750,7 +839,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"email:bar@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:bar@example.com"},
++		},
+ 		expectedError: "\"bar@example.com\" is not permitted",
+ 	},
+ 
+@@ -766,7 +857,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:      []string{"email:\"\\f\\o\\o\"@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:\"\\f\\o\\o\"@example.com"},
++		},
+ 		noOpenSSL: true, // OpenSSL doesn't canonicalise email addresses before matching
+ 	},
+ 
+@@ -782,7 +875,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"email:foo@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@example.com"},
++		},
+ 	},
+ 
+ 	// #44: a leading dot matches hosts one level deep
+@@ -797,7 +892,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"email:foo@sub.example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@sub.example.com"},
++		},
+ 	},
+ 
+ 	// #45: a leading dot does not match the host itself
+@@ -812,7 +909,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"email:foo@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@example.com"},
++		},
+ 		expectedError: "\"foo@example.com\" is not permitted",
+ 	},
+ 
+@@ -828,7 +927,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"email:foo@sub.sub.example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@sub.sub.example.com"},
++		},
+ 	},
+ 
+ 	// #47: the local part of an email is case-sensitive
+@@ -843,7 +944,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"email:Foo@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:Foo@example.com"},
++		},
+ 		expectedError: "\"Foo@example.com\" is not permitted",
+ 	},
+ 
+@@ -859,7 +962,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"email:foo@example.com"},
++		leaf: leafSpec{
++			sans: []string{"email:foo@example.com"},
++		},
+ 	},
+ 
+ 	// #49: the domain part of a DNS constraint is also not case-sensitive.
+@@ -874,7 +979,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"dns:example.com"},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++		},
+ 	},
+ 
+ 	// #50: URI constraints only cover the host part of the URI
+@@ -889,10 +996,12 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{
+-			"uri:http://example.com/bar",
+-			"uri:http://example.com:8080/",
+-			"uri:https://example.com/wibble#bar",
++		leaf: leafSpec{
++			sans: []string{
++				"uri:http://example.com/bar",
++				"uri:http://example.com:8080/",
++				"uri:https://example.com/wibble#bar",
++			},
+ 		},
+ 	},
+ 
+@@ -908,7 +1017,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://1.2.3.4/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://1.2.3.4/"},
++		},
+ 		expectedError: "URI with IP",
+ 	},
+ 
+@@ -924,7 +1035,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://1.2.3.4:43/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://1.2.3.4:43/"},
++		},
+ 		expectedError: "URI with IP",
+ 	},
+ 
+@@ -940,7 +1053,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://[2006:abcd::1]/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://[2006:abcd::1]/"},
++		},
+ 		expectedError: "URI with IP",
+ 	},
+ 
+@@ -956,7 +1071,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://[2006:abcd::1]:16/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://[2006:abcd::1]:16/"},
++		},
+ 		expectedError: "URI with IP",
+ 	},
+ 
+@@ -972,7 +1089,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://bar.com/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://bar.com/"},
++		},
+ 		expectedError: "\"http://bar.com/\" is not permitted",
+ 	},
+ 
+@@ -988,7 +1107,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:http://foo.com/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://foo.com/"},
++		},
+ 		expectedError: "\"http://foo.com/\" is excluded",
+ 	},
+ 
+@@ -1004,7 +1125,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"uri:http://www.foo.com/"},
++		leaf: leafSpec{
++			sans: []string{"uri:http://www.foo.com/"},
++		},
+ 	},
+ 
+ 	// #58: excluding an IPv4-mapped-IPv6 address doesn't affect the IPv4
+@@ -1020,7 +1143,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:1.2.3.4"},
++		leaf: leafSpec{
++			sans: []string{"ip:1.2.3.4"},
++		},
+ 	},
+ 
+ 	// #59: a URI constraint isn't matched by a URN.
+@@ -1035,7 +1160,9 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf:          []string{"uri:urn:example"},
++		leaf: leafSpec{
++			sans: []string{"uri:urn:example"},
++		},
+ 		expectedError: "URI with empty host",
+ 	},
+ 
+@@ -1053,11 +1180,171 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 				constraintsSpec{},
+ 			},
+ 		},
+-		leaf: []string{"ip:1.2.3.4"},
++		leaf: leafSpec{
++			sans: []string{"ip:1.2.3.4"},
++		},
+ 	},
+ 
+ 	// TODO(agl): handle empty name constraints. Currently this doesn't
+ 	// work because empty values are treated as missing.
++
++	// #61: omitting extended key usage in a CA certificate implies that
++	// any usage is ok.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth", "other"},
++		},
++	},
++
++	// #62: The “any” EKU also means that any usage is ok.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"any"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth", "other"},
++		},
++	},
++
++	// #63: A specified key usage in an intermediate forbids other usages
++	// in the leaf.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"email"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth"},
++		},
++		expectedError: "EKU not permitted",
++	},
++
++	// #64: A specified key usage in an intermediate forbids other usages
++	// in the leaf, even if we don't recognise them.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"email"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"other"},
++		},
++		expectedError: "EKU not permitted",
++	},
++
++	// #65: trying to add extra permitted key usages in an intermediate
++	// (after a limitation in the root) is acceptable so long as the leaf
++	// certificate doesn't use them.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ekus: []string{"serverAuth"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"serverAuth", "email"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth"},
++		},
++	},
++
++	// #66: trying to add extra permitted key usages in an intermediate
++	// (after a limitation in the root) doesn't allow those usages in a
++	// leaf.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{
++				ekus: []string{"serverAuth"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"serverAuth", "email"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth", "email"},
++		},
++		expectedError: "EKU not permitted",
++	},
++
++	// #67: in order to support COMODO chains, SGC key usages permit
++	// serverAuth and clientAuth.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"netscapeSGC"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth", "clientAuth"},
++		},
++	},
++
++	// #68: in order to support COMODO chains, SGC key usages permit
++	// serverAuth and clientAuth.
++	nameConstraintsTest{
++		roots: []constraintsSpec{
++			constraintsSpec{},
++		},
++		intermediates: [][]constraintsSpec{
++			[]constraintsSpec{
++				constraintsSpec{
++					ekus: []string{"msSGC"},
++				},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"dns:example.com"},
++			ekus: []string{"serverAuth", "clientAuth"},
++		},
++	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+@@ -1096,7 +1383,7 @@ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.
+ 	return caCert, nil
+ }
+ 
+-func makeConstraintsLeafCert(sans []string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
++func makeConstraintsLeafCert(leaf leafSpec, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+ 	var serialBytes [16]byte
+ 	rand.Read(serialBytes[:])
+ 
+@@ -1114,7 +1401,7 @@ func makeConstraintsLeafCert(sans []string, key *ecdsa.PrivateKey, parent *Certi
+ 		IsCA: false,
+ 	}
+ 
+-	for _, name := range sans {
++	for _, name := range leaf.sans {
+ 		switch {
+ 		case strings.HasPrefix(name, "dns:"):
+ 			template.DNSNames = append(template.DNSNames, name[4:])
+@@ -1140,7 +1427,7 @@ func makeConstraintsLeafCert(sans []string, key *ecdsa.PrivateKey, parent *Certi
+ 			// This is a special case for testing unknown
+ 			// name types. A custom SAN extension is
+ 			// injected into the certificate.
+-			if len(sans) != 1 {
++			if len(leaf.sans) != 1 {
+ 				panic("when using unknown name types, it must be the sole name")
+ 			}
+ 
+@@ -1160,6 +1447,11 @@ func makeConstraintsLeafCert(sans []string, key *ecdsa.PrivateKey, parent *Certi
+ 		}
+ 	}
+ 
++	var err error
++	if template.ExtKeyUsage, template.UnknownExtKeyUsage, err = parseEKUs(leaf.ekus); err != nil {
++		return nil, err
++	}
++
+ 	if parent == nil {
+ 		parent = template
+ 	}
+@@ -1264,10 +1556,39 @@ func addConstraintsToTemplate(constraints constraintsSpec, template *Certificate
+ 		return err
+ 	}
+ 
++	if template.ExtKeyUsage, template.UnknownExtKeyUsage, err = parseEKUs(constraints.ekus); err != nil {
++		return err
++	}
++
+ 	return nil
+ }
+ 
+-func TestNameConstraintCases(t *testing.T) {
++func parseEKUs(ekuStrs []string) (ekus []ExtKeyUsage, unknowns []asn1.ObjectIdentifier, err error) {
++	for _, s := range ekuStrs {
++		switch s {
++		case "serverAuth":
++			ekus = append(ekus, ExtKeyUsageServerAuth)
++		case "clientAuth":
++			ekus = append(ekus, ExtKeyUsageClientAuth)
++		case "email":
++			ekus = append(ekus, ExtKeyUsageEmailProtection)
++		case "netscapeSGC":
++			ekus = append(ekus, ExtKeyUsageNetscapeServerGatedCrypto)
++		case "msSGC":
++			ekus = append(ekus, ExtKeyUsageMicrosoftServerGatedCrypto)
++		case "any":
++			ekus = append(ekus, ExtKeyUsageAny)
++		case "other":
++			unknowns = append(unknowns, asn1.ObjectIdentifier{2, 4, 1, 2, 3})
++		default:
++			return nil, nil, fmt.Errorf("unknown EKU %q", s)
++		}
++	}
++
++	return
++}
++
++func TestConstraintCases(t *testing.T) {
+ 	privateKeys := sync.Pool{
+ 		New: func() interface{} {
+ 			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+@@ -1553,7 +1874,7 @@ func TestBadNamesInSANs(t *testing.T) {
+ 	}
+ 
+ 	for _, badName := range badNames {
+-		_, err := makeConstraintsLeafCert([]string{badName}, priv, nil, priv)
++		_, err := makeConstraintsLeafCert(leafSpec{sans: []string{badName}}, priv, nil, priv)
+ 
+ 		if err == nil {
+ 			t.Errorf("bad name %q unexpectedly accepted in SAN", badName)
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index bbc4ad8f00..e89585e223 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -53,6 +53,10 @@ const (
+ 	// prevent pathological certificates can consuming excessive amounts of
+ 	// CPU time to verify.
+ 	TooManyConstraints
++	// CANotAuthorizedForExtKeyUsage results when an intermediate or root
++	// certificate does not permit an extended key usage that is claimed by
++	// the leaf certificate.
++	CANotAuthorizedForExtKeyUsage
+ )
+ 
+ // CertificateInvalidError results when an odd error occurs. Users of this
+@@ -71,10 +75,12 @@ func (e CertificateInvalidError) Error() string {
+ 		return "x509: certificate has expired or is not yet valid"
+ 	case CANotAuthorizedForThisName:
+ 		return "x509: a root or intermediate certificate is not authorized to sign for this name: " + e.Detail
++	case CANotAuthorizedForExtKeyUsage:
++		return "x509: a root or intermediate certificate is not authorized for an extended key usage: " + e.Detail
+ 	case TooManyIntermediates:
+ 		return "x509: too many intermediates for path length constraint"
+ 	case IncompatibleUsage:
+-		return "x509: certificate specifies an incompatible key usage"
++		return "x509: certificate specifies an incompatible key usage: " + e.Detail
+ 	case NameMismatch:
+ 		return "x509: issuer name does not match subject from issuing certificate"
+ 	case NameConstraintsWithoutSANs:
+@@ -537,6 +543,24 @@ func (c *Certificate) checkNameConstraints(count *int,
+ 	return nil
+ }
+ 
++// ekuPermittedBy returns true iff the given extended key usage is permitted by
++// the given EKU from a certificate. Normally, this would be a simple
++// comparison plus a special case for the “any” EKU. But, in order to support
++// COMODO chains, SGC EKUs permit generic server and client authentication
++// EKUs.
++func ekuPermittedBy(eku, certEKU ExtKeyUsage) bool {
++	if certEKU == ExtKeyUsageAny || eku == certEKU {
++		return true
++	}
++
++	if (eku == ExtKeyUsageServerAuth || eku == ExtKeyUsageClientAuth) &&
++		(certEKU == ExtKeyUsageNetscapeServerGatedCrypto || certEKU == ExtKeyUsageMicrosoftServerGatedCrypto) {
++		return true
++	}
++
++	return false
++}
++
+ // isValid performs validity checks on c given that it is a candidate to append
+ // to the chain in currentChain.
+ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *VerifyOptions) error {
+@@ -559,18 +583,21 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		return CertificateInvalidError{c, Expired, ""}
+ 	}
+ 
+-	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
+-		maxConstraintComparisons := opts.MaxConstraintComparisions
+-		if maxConstraintComparisons == 0 {
+-			maxConstraintComparisons = 250000
+-		}
+-		count := 0
++	maxConstraintComparisons := opts.MaxConstraintComparisions
++	if maxConstraintComparisons == 0 {
++		maxConstraintComparisons = 250000
++	}
++	comparisonCount := 0
+ 
++	var leaf *Certificate
++	if certType == intermediateCertificate || certType == rootCertificate {
+ 		if len(currentChain) == 0 {
+ 			return errors.New("x509: internal error: empty chain when appending CA cert")
+ 		}
+-		leaf := currentChain[0]
++		leaf = currentChain[0]
++	}
+ 
++	if (certType == intermediateCertificate || certType == rootCertificate) && c.hasNameConstraints() {
+ 		sanExtension, ok := leaf.getSANExtension()
+ 		if !ok {
+ 			// This is the deprecated, legacy case of depending on
+@@ -590,7 +617,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 					return errors.New("x509: internal error: rfc822Name SAN failed to parse")
+ 				}
+ 
+-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "email address", name, mailbox,
++				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "email address", name, mailbox,
+ 					func(parsedName, constraint interface{}) (bool, error) {
+ 						return matchEmailConstraint(parsedName.(rfc2821Mailbox), constraint.(string))
+ 					}, c.PermittedEmailAddresses, c.ExcludedEmailAddresses); err != nil {
+@@ -599,7 +626,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 
+ 			case nameTypeDNS:
+ 				name := string(data)
+-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "DNS name", name, name,
++				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "DNS name", name, name,
+ 					func(parsedName, constraint interface{}) (bool, error) {
+ 						return matchDomainConstraint(parsedName.(string), constraint.(string))
+ 					}, c.PermittedDNSDomains, c.ExcludedDNSDomains); err != nil {
+@@ -613,7 +640,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
+ 				}
+ 
+-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "URI", name, uri,
++				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "URI", name, uri,
+ 					func(parsedName, constraint interface{}) (bool, error) {
+ 						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
+ 					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
+@@ -626,7 +653,7 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
+ 				}
+ 
+-				if err := c.checkNameConstraints(&count, maxConstraintComparisons, "IP address", ip.String(), ip,
++				if err := c.checkNameConstraints(&comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
+ 					func(parsedName, constraint interface{}) (bool, error) {
+ 						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
+ 					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
+@@ -645,6 +672,59 @@ func (c *Certificate) isValid(certType int, currentChain []*Certificate, opts *V
+ 		}
+ 	}
+ 
++	checkEKUs := certType == intermediateCertificate || certType == rootCertificate
++
++	// If no extended key usages are specified, then all are acceptable.
++	if checkEKUs && (len(c.ExtKeyUsage) == 0 && len(c.UnknownExtKeyUsage) == 0) {
++		checkEKUs = false
++	}
++
++	// If the “any” key usage is permitted, then no more checks are needed.
++	if checkEKUs {
++		for _, caEKU := range c.ExtKeyUsage {
++			comparisonCount++
++			if caEKU == ExtKeyUsageAny {
++				checkEKUs = false
++				break
++			}
++		}
++	}
++
++	if checkEKUs {
++	NextEKU:
++		for _, eku := range leaf.ExtKeyUsage {
++			if comparisonCount > maxConstraintComparisons {
++				return CertificateInvalidError{c, TooManyConstraints, ""}
++			}
++
++			for _, caEKU := range c.ExtKeyUsage {
++				comparisonCount++
++				if ekuPermittedBy(eku, caEKU) {
++					continue NextEKU
++				}
++			}
++
++			oid, _ := oidFromExtKeyUsage(eku)
++			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", oid)}
++		}
++
++	NextUnknownEKU:
++		for _, eku := range leaf.UnknownExtKeyUsage {
++			if comparisonCount > maxConstraintComparisons {
++				return CertificateInvalidError{c, TooManyConstraints, ""}
++			}
++
++			for _, caEKU := range c.UnknownExtKeyUsage {
++				comparisonCount++
++				if caEKU.Equal(eku) {
++					continue NextUnknownEKU
++				}
++			}
++
++			return CertificateInvalidError{c, CANotAuthorizedForExtKeyUsage, fmt.Sprintf("EKU not permitted: %#v", eku)}
++		}
++	}
++
+ 	// KeyUsage status flags are ignored. From Engineering Security, Peter
+ 	// Gutmann: A European government CA marked its signing certificates as
+ 	// being valid for encryption only, but no-one noticed. Another
+@@ -723,39 +803,46 @@ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err e
+ 		}
+ 	}
+ 
+-	var candidateChains [][]*Certificate
+-	if opts.Roots.contains(c) {
+-		candidateChains = append(candidateChains, []*Certificate{c})
+-	} else {
+-		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
+-			return nil, err
+-		}
++	requestedKeyUsages := make([]ExtKeyUsage, len(opts.KeyUsages))
++	copy(requestedKeyUsages, opts.KeyUsages)
++	if len(requestedKeyUsages) == 0 {
++		requestedKeyUsages = append(requestedKeyUsages, ExtKeyUsageServerAuth)
+ 	}
+ 
+-	keyUsages := opts.KeyUsages
+-	if len(keyUsages) == 0 {
+-		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+-	}
++	// If no key usages are specified, then any are acceptable.
++	checkEKU := len(c.ExtKeyUsage) > 0
+ 
+-	// If any key usage is acceptable then we're done.
+-	for _, usage := range keyUsages {
+-		if usage == ExtKeyUsageAny {
+-			chains = candidateChains
+-			return
++	for _, eku := range requestedKeyUsages {
++		if eku == ExtKeyUsageAny {
++			checkEKU = false
++			break
+ 		}
+ 	}
+ 
+-	for _, candidate := range candidateChains {
+-		if checkChainForKeyUsage(candidate, keyUsages) {
+-			chains = append(chains, candidate)
++	if checkEKU {
++	NextUsage:
++		for _, eku := range requestedKeyUsages {
++			for _, leafEKU := range c.ExtKeyUsage {
++				if ekuPermittedBy(eku, leafEKU) {
++					continue NextUsage
++				}
++			}
++
++			oid, _ := oidFromExtKeyUsage(eku)
++			return nil, CertificateInvalidError{c, IncompatibleUsage, fmt.Sprintf("%#v", oid)}
+ 		}
+ 	}
+ 
+-	if len(chains) == 0 {
+-		err = CertificateInvalidError{c, IncompatibleUsage, ""}
++	var candidateChains [][]*Certificate
++	if opts.Roots.contains(c) {
++		candidateChains = append(candidateChains, []*Certificate{c})
++	} else {
++		if candidateChains, err = c.buildChains(make(map[int][][]*Certificate), []*Certificate{c}, &opts); err != nil {
++			return nil, err
++		}
+ 	}
+ 
+-	return
++	return candidateChains, nil
+ }
+ 
+ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate {
+@@ -916,65 +1003,3 @@ func (c *Certificate) VerifyHostname(h string) error {
+ 
+ 	return HostnameError{c, h}
+ }
+-
+-func checkChainForKeyUsage(chain []*Certificate, keyUsages []ExtKeyUsage) bool {
+-	usages := make([]ExtKeyUsage, len(keyUsages))
+-	copy(usages, keyUsages)
+-
+-	if len(chain) == 0 {
+-		return false
+-	}
+-
+-	usagesRemaining := len(usages)
+-
+-	// We walk down the list and cross out any usages that aren't supported
+-	// by each certificate. If we cross out all the usages, then the chain
+-	// is unacceptable.
+-
+-NextCert:
+-	for i := len(chain) - 1; i >= 0; i-- {
+-		cert := chain[i]
+-		if len(cert.ExtKeyUsage) == 0 && len(cert.UnknownExtKeyUsage) == 0 {
+-			// The certificate doesn't have any extended key usage specified.
+-			continue
+-		}
+-
+-		for _, usage := range cert.ExtKeyUsage {
+-			if usage == ExtKeyUsageAny {
+-				// The certificate is explicitly good for any usage.
+-				continue NextCert
+-			}
+-		}
+-
+-		const invalidUsage ExtKeyUsage = -1
+-
+-	NextRequestedUsage:
+-		for i, requestedUsage := range usages {
+-			if requestedUsage == invalidUsage {
+-				continue
+-			}
+-
+-			for _, usage := range cert.ExtKeyUsage {
+-				if requestedUsage == usage {
+-					continue NextRequestedUsage
+-				} else if requestedUsage == ExtKeyUsageServerAuth &&
+-					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
+-						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
+-					// In order to support COMODO
+-					// certificate chains, we have to
+-					// accept Netscape or Microsoft SGC
+-					// usages as equal to ServerAuth.
+-					continue NextRequestedUsage
+-				}
+-			}
+-
+-			usages[i] = invalidUsage
+-			usagesRemaining--
+-			if usagesRemaining == 0 {
+-				return false
+-			}
+-		}
+-	}
+-
+-	return true
+-}

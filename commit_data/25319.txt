@@ -17,9 +17,106 @@ Date:   Fri Oct 16 14:17:25 2015 -0400
     Change-Id: I66368a03316e253561e9e76aadd180c2cd2e48f3
     Reviewed-on: https://go-review.googlesource.com/15993
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/defs_linux_amd64.go     |  9 +++++++++
  src/runtime/print1_write_android.go |  2 +-
  src/runtime/stubs_android.go        |  8 +++++++-
  src/runtime/sys_linux_amd64.s       | 30 ++++++++++++++++++++++++++++++
  4 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 48aeb80203..19362855e7 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -87,6 +87,10 @@ const (
+ 	_EPOLL_CTL_ADD = 0x1
+ 	_EPOLL_CTL_DEL = 0x2
+ 	_EPOLL_CTL_MOD = 0x3
++
++	_AF_UNIX    = 0x1
++	_F_SETFL    = 0x4
++	_SOCK_DGRAM = 0x2
+ )
+ 
+ type timespec struct {
+@@ -253,3 +257,8 @@ type sigcontext struct {
+ 	fpstate     *fpstate1
+ 	__reserved1 [8]uint64
+ }
++
++type sockaddr_un struct {
++	family uint16
++	path   [108]byte
++}
+diff --git a/src/runtime/print1_write_android.go b/src/runtime/print1_write_android.go
+index 54d4826375..4411a14755 100644
+--- a/src/runtime/print1_write_android.go
++++ b/src/runtime/print1_write_android.go
+@@ -116,7 +116,7 @@ func initLogd() {
+ 		exit(2)
+ 	}
+ 
+-	errno := connect(uintptr(fd), unsafe.Pointer(&logdAddr), int32(unsafe.Sizeof(logdAddr)))
++	errno := connect(fd, unsafe.Pointer(&logdAddr), int32(unsafe.Sizeof(logdAddr)))
+ 	if errno < 0 {
+ 		msg := []byte("runtime: cannot connect to /dev/socket/logdw\x00")
+ 		write(2, unsafe.Pointer(&msg[0]), int32(len(msg)))
+diff --git a/src/runtime/stubs_android.go b/src/runtime/stubs_android.go
+index e3723778d9..0380dca891 100644
+--- a/src/runtime/stubs_android.go
++++ b/src/runtime/stubs_android.go
+@@ -2,9 +2,15 @@ package runtime
+ 
+ import "unsafe"
+ 
++// Return values of access/connect/socket are the return values of the syscall
++// (may encode error numbers).
++
++// int access(const char *, int)
+ //go:noescape
+ func access(name *byte, mode int32) int32
+ 
+-func connect(fd uintptr, addr unsafe.Pointer, len int32) int32
++// int connect(int, const struct sockaddr*, socklen_t)
++func connect(fd int32, addr unsafe.Pointer, len int32) int32
+ 
++// int socket(int, int, int)
+ func socket(domain int32, typ int32, prot int32) int32
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 7ad704f306..df72a77afc 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -442,3 +442,33 @@ TEXT runtime·closeonexec(SB),NOSPLIT,$0
+ 	MOVL	$72, AX  // fcntl
+ 	SYSCALL
+ 	RET
++
++
++// int access(const char *name, int mode)
++TEXT runtime·access(SB),NOSPLIT,$0
++	MOVQ	name+0(FP), DI
++	MOVL	mode+8(FP), SI
++	MOVL	$21, AX  // syscall entry
++	SYSCALL
++	MOVL	AX, ret+16(FP)
++	RET
++
++// int connect(int fd, const struct sockaddr *addr, socklen_t addrlen)
++TEXT runtime·connect(SB),NOSPLIT,$0-28
++	MOVL	fd+0(FP), DI
++	MOVQ	addr+8(FP), SI
++	MOVL	addrlen+16(FP), DX
++	MOVL	$42, AX  // syscall entry
++	SYSCALL
++	MOVL	AX, ret+24(FP)
++	RET
++
++// int socket(int domain, int type, int protocol)
++TEXT runtime·socket(SB),NOSPLIT,$0-20
++	MOVL	domain+0(FP), DI
++	MOVL	type+4(FP), SI
++	MOVL	protocol+8(FP), DX
++	MOVL	$41, AX  // syscall entry
++	SYSCALL
++	MOVL	AX, ret+16(FP)
++	RET

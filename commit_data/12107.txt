@@ -9,9 +9,50 @@ Date:   Tue Feb 21 10:50:58 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5685065
-
+---
  src/cmd/5a/Makefile | 2 +-
  src/cmd/6a/Makefile | 2 +-
  src/cmd/8a/Makefile | 2 +-
  src/cmd/cc/Makefile | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+index 538ffb1a76..27290ddd71 100644
+--- a/src/cmd/5a/Makefile
++++ b/src/cmd/5a/Makefile
+@@ -7,4 +7,4 @@ include ../../Make.dist
+ install: y.tab.h
+ 
+ y.tab.h: a.y
+-	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
++	LANG=C LANGUAGE=en_US.UTF8 bison -d -v -y a.y
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+index 538ffb1a76..27290ddd71 100644
+--- a/src/cmd/6a/Makefile
++++ b/src/cmd/6a/Makefile
+@@ -7,4 +7,4 @@ include ../../Make.dist
+ install: y.tab.h
+ 
+ y.tab.h: a.y
+-	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
++	LANG=C LANGUAGE=en_US.UTF8 bison -d -v -y a.y
+diff --git a/src/cmd/8a/Makefile b/src/cmd/8a/Makefile
+index 538ffb1a76..27290ddd71 100644
+--- a/src/cmd/8a/Makefile
++++ b/src/cmd/8a/Makefile
+@@ -7,4 +7,4 @@ include ../../Make.dist
+ install: y.tab.h
+ 
+ y.tab.h: a.y
+-	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
++	LANG=C LANGUAGE=en_US.UTF8 bison -d -v -y a.y
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+index 8cfd64cd66..109578297b 100644
+--- a/src/cmd/cc/Makefile
++++ b/src/cmd/cc/Makefile
+@@ -7,4 +7,4 @@ include ../../Make.dist
+ install: y.tab.h
+ 
+ y.tab.h: cc.y
+-	LANG=C LANGUAGE=en_US.UTF8 bison -v -y a.y
++	LANG=C LANGUAGE=en_US.UTF8 bison -d -v -y a.y

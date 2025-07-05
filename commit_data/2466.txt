@@ -8,7 +8,46 @@ Date:   Wed Jun 17 11:44:51 2009 -0700
     DELTA=17  (17 added, 0 deleted, 0 changed)
     OCL=30417
     CL=30422
-
+---
  test/bugs/bug164.go | 18 ++++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 21 insertions(+)
+
+diff --git a/test/bugs/bug164.go b/test/bugs/bug164.go
+new file mode 100644
+index 0000000000..7a78c86f2b
+--- /dev/null
++++ b/test/bugs/bug164.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// Multi-line string literal do not allow newline chars according to spec
++// but 6g accepts this code with the newlines interpreted as newlines.
++
++const s = `
++Hello, World!
++`
++
++func main() {
++	print(s)
++}
+diff --git a/test/golden.out b/test/golden.out
+index 60e6f6f566..289b12e32a 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -108,6 +108,9 @@ BUG: should fail
+ =========== bugs/bug163.go
+ BUG: should not compile
+ 
++=========== bugs/bug164.go
++BUG: should not compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

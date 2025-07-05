@@ -17,6 +17,19 @@ Date:   Thu Mar 30 12:14:55 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/go/internal/modindex/syslist.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/modindex/syslist.go b/src/cmd/go/internal/modindex/syslist.go
+index 69b8fac331..41adcc5342 100644
+--- a/src/cmd/go/internal/modindex/syslist.go
++++ b/src/cmd/go/internal/modindex/syslist.go
+@@ -25,6 +25,7 @@ var knownOS = map[string]bool{
+ 	"openbsd":   true,
+ 	"plan9":     true,
+ 	"solaris":   true,
++	"wasip1":    true,
+ 	"windows":   true,
+ 	"zos":       true,
+ }

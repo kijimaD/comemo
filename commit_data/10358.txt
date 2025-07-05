@@ -9,6 +9,26 @@ Date:   Sun Nov 13 03:58:24 2011 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5376062
-
+---
  src/pkg/runtime/openbsd/thread.c | 8 --------
  1 file changed, 8 deletions(-)
+
+diff --git a/src/pkg/runtime/openbsd/thread.c b/src/pkg/runtime/openbsd/thread.c
+index 995a46edd6..55ca64b80b 100644
+--- a/src/pkg/runtime/openbsd/thread.c
++++ b/src/pkg/runtime/openbsd/thread.c
+@@ -8,14 +8,6 @@
+ 
+ enum
+ {
+-	MUTEX_UNLOCKED = 0,
+-	MUTEX_LOCKED = 1,
+-	MUTEX_SLEEPING = 2,
+-
+-	ACTIVE_SPIN = 4,
+-	ACTIVE_SPIN_CNT = 30,
+-	PASSIVE_SPIN = 1,
+-
+ 	ESRCH = 3,
+ 	ENOTSUP = 91,
+ 

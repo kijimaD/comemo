@@ -14,7 +14,7 @@ Date:   Sun Feb 14 17:27:56 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  misc/chrome/gophertool/popup.html | 2 +-
  src/cmd/go/internal/vcs/vcs.go    | 2 +-
  src/crypto/md5/md5_test.go        | 2 +-
@@ -22,3 +22,82 @@ Date:   Sun Feb 14 17:27:56 2021 +0000
  src/crypto/sha256/sha256_test.go  | 2 +-
  src/crypto/sha512/sha512_test.go  | 2 +-
  6 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/misc/chrome/gophertool/popup.html b/misc/chrome/gophertool/popup.html
+index 9740406276..ad42a3847c 100644
+--- a/misc/chrome/gophertool/popup.html
++++ b/misc/chrome/gophertool/popup.html
+@@ -15,7 +15,7 @@
+ <a href="#" url="https://golang.org/pkg/">pkg</a> id/name:</small>
+ <form style='margin: 0' id='navform'><nobr><input id="inputbox" size=10 tabindex=1 /><input type="submit" value="go" /></nobr></form>
+ <small>Also: <a href="#" url="https://build.golang.org">buildbots</a>
+-<a href="#" url="https://github.com/golang/go">Github</a>
++<a href="#" url="https://github.com/golang/go">GitHub</a>
+ </small>
+ </body>
+ </html>
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 9feffe0765..91485f6f74 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -1176,7 +1176,7 @@ func expand(match map[string]string, s string) string {
+ // and import paths referring to a fully-qualified importPath
+ // containing a VCS type (foo.com/repo.git/dir)
+ var vcsPaths = []*vcsPath{
+-	// Github
++	// GitHub
+ 	{
+ 		pathPrefix: "github.com",
+ 		regexp:     lazyregexp.New(`^(?P<root>github\.com/[A-Za-z0-9_.\-]+/[A-Za-z0-9_.\-]+)(/[A-Za-z0-9_.\-]+)*$`),
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index 282ba1b859..c0ac0971c4 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -157,7 +157,7 @@ func TestBlockGeneric(t *testing.T) {
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+-// Tests a problem that is outlined in Github issue #29541
++// Tests a problem that is outlined in GitHub issue #29541
+ // The problem is triggered when an amount of data has been hashed for which
+ // the data length has a 1 in the 32nd bit. When casted to int, this changes
+ // the sign of the value, and causes the modulus operation to return a
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 681e928de2..c3e6010af1 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -156,7 +156,7 @@ func TestBlockGeneric(t *testing.T) {
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+-// Tests a problem that is outlined in Github issue #29543
++// Tests a problem that is outlined in GitHub issue #29543
+ // The problem is triggered when an amount of data has been hashed for which
+ // the data length has a 1 in the 32nd bit. When casted to int, this changes
+ // the sign of the value, and causes the modulus operation to return a
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 433c5a4c5e..a2794b015d 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -229,7 +229,7 @@ func TestBlockGeneric(t *testing.T) {
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+-// Tests a problem that is outlined in Github issue #29517
++// Tests a problem that is outlined in GitHub issue #29517
+ // The problem is triggered when an amount of data has been hashed for which
+ // the data length has a 1 in the 32nd bit. When casted to int, this changes
+ // the sign of the value, and causes the modulus operation to return a
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 59998b1d38..74a13331af 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -835,7 +835,7 @@ func TestBlockGeneric(t *testing.T) {
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+-// Tests a problem that is outlined in Github issue #29541
++// Tests a problem that is outlined in GitHub issue #29541
+ // The problem is triggered when an amount of data has been hashed for which
+ // the data length has a 1 in the 32nd bit. When casted to int, this changes
+ // the sign of the value, and causes the modulus operation to return a

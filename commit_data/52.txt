@@ -16,7 +16,7 @@ Date:   Wed Apr 2 20:23:01 2008 -0700
     "b" will be undefined.
     
     SVN=114788
-
+---
  src/c/dcl.c  |  9 +++++++++
  src/c/gen.c  | 29 +++++++++++++++++++----------
  src/c/go.h   | 11 ++++++-----
@@ -24,3 +24,428 @@ Date:   Wed Apr 2 20:23:01 2008 -0700
  src/c/subr.c | 50 ++++++++++++++++++++++++++++++++++++++++++++------
  src/c/walk.c | 31 +++++++++++++++++++++----------
  6 files changed, 108 insertions(+), 57 deletions(-)
+
+diff --git a/src/c/dcl.c b/src/c/dcl.c
+index 3c89e75d33..6cf10e16d2 100644
+--- a/src/c/dcl.c
++++ b/src/c/dcl.c
+@@ -283,6 +283,15 @@ funchdr(Node *n)
+ 	s = n->nname->sym;
+ 	on = s->oname;
+ 
++	// check for same types
++	if(on != N) {
++		if(eqtype(n->type, on->type, 0)) {
++			if(!eqargs(n->type, on->type))
++				yyerror("foreward declarations not the same: %S", s);
++		} else
++			yyerror("redeclare of function: %S", s);
++	}
++
+ 	// check for foreward declaration
+ 	if(on == N || !eqtype(n->type, on->type, 0)) {
+ 		// initial declaration or redeclaration
+diff --git a/src/c/gen.c b/src/c/gen.c
+index 99993145b7..dc9e550387 100644
+--- a/src/c/gen.c
++++ b/src/c/gen.c
+@@ -87,9 +87,6 @@ loop:
+ 		dump("gen: unknown op", n);
+ 		break;
+ 
+-	case ODCLTYPE:
+-		break;
+-
+ 	case OLIST:
+ 		gen(n->left);
+ 		n = n->right;
+@@ -216,8 +213,6 @@ loop:
+ 		cgen_asop(n->left, n->right, n->kaka);
+ 		break;
+ 
+-	case ODCLVAR:
+-	case OCOLAS:
+ 	case OAS:
+ 		cgen_as(n->left, n->right, n->op, n->kaka);
+ 		break;
+@@ -342,6 +337,19 @@ cgen(Node *n)
+ 		gopcode(PCONV, PTNIL, nod(OCONV, n->type, nl->type));
+ 		break;
+ 
++	case OINDEXPTRSTR:
++		nl = n->left;
++		nr = n->right;
++		if(nl->addable) {
++			cgen(nr);
++			cgen(nl);
++			gopcode(PLOADI, PTADDR, N);
++			gopcodet(PINDEXZ, nr->type, N);
++			break;
++		}
++fatal("xxx");
++		break;
++
+ 	case OINDEXSTR:
+ 		nl = n->left;
+ 		nr = n->right;
+@@ -357,7 +365,8 @@ cgen(Node *n)
+ 		gopcodet(PINDEXZ, nr->type, r);
+ 		break;
+ 
+-	case OSLICE:
++	case OSLICESTR:
++	case OSLICEPTRSTR:
+ 		nl = n->left;	// name
+ 		nr = n->right;
+ 
+@@ -375,6 +384,9 @@ cgen(Node *n)
+ 		} else
+ 			gopcode(PLOAD, PTADDR, nl);
+ 
++		if(n->op == OSLICEPTRSTR)
++			gopcode(PLOADI, PTADDR, N);
++
+ 		// offset in int reg
+ 		cgen(nr->left);
+ 
+@@ -806,16 +818,13 @@ loop:
+ 	default:
+ 		fatal("cgen_as: unknown op %O", op);
+ 
+-	case ODCLVAR:
++	case OAS:
+ 		if(nr == N && nl->op == OLIST) {
+ 			kaka = PAS_SINGLE;
+ 			cgen_as(nl->left, nr, op, kaka);
+ 			nl = nl->right;
+ 			goto loop;
+ 		}
+-
+-	case OCOLAS:
+-	case OAS:
+ 		switch(kaka) {
+ 		default:
+ 			yyerror("cgen_as: unknown param %d %d", kaka, PAS_CALLM);
+diff --git a/src/c/go.h b/src/c/go.h
+index 003bb0d2e4..1af887ab5e 100644
+--- a/src/c/go.h
++++ b/src/c/go.h
+@@ -171,12 +171,11 @@ enum
+ 
+ 	ONAME,
+ 	ODOT, ODOTPTR, ODOTMETH, ODOTINTER,
+-	ODCLFUNC, ODCLCONST, ODCLVAR,
+-	ODCLTYPE, ODCLFIELD, ODCLARG,
++	ODCLFUNC, ODCLFIELD, ODCLARG,
+ 	OLIST,
+ 	OPTR, OARRAY,
+ 	ORETURN, OFOR, OIF, OSWITCH,
+-	OAS, OASOP, OCOLAS, OCASE, OXCASE, OFALL, OXFALL,
++	OAS, OASOP, OCASE, OXCASE, OFALL, OXFALL,
+ 	OGOTO, OPROC, ONEW, OPANIC, OPRINT, OEMPTY,
+ 
+ 	OOROR,
+@@ -193,8 +192,9 @@ enum
+ 	OADDR,
+ 	OIND,
+ 	OCALL, OCALLPTR, OCALLMETH, OCALLINTER,
+-	OINDEX, OINDEXPTR, OINDEXSTR, OINDEXMAP, OINDEXPTRMAP,
+-	OSLICE,
++	OINDEX, OINDEXSTR, OINDEXMAP,
++	OINDEXPTR, OINDEXPTRSTR, OINDEXPTRMAP,
++	OSLICE, OSLICESTR, OSLICEPTRSTR,
+ 	ONOT, OCOM, OPLUS, OMINUS, OSEND, ORECV,
+ 	OLITERAL,
+ 	OCONV,
+@@ -400,6 +400,7 @@ int	isptrto(Node*, int);
+ int	isinter(Node*);
+ int	isbytearray(Node*);
+ int	eqtype(Node*, Node*, int);
++int	eqargs(Node*, Node*);
+ ulong	typehash(Node*, int);
+ void	frame(int);
+ Node*	literal(long);
+diff --git a/src/c/go.y b/src/c/go.y
+index 50fd4f5684..a8c70c7dde 100644
+--- a/src/c/go.y
++++ b/src/c/go.y
+@@ -39,8 +39,6 @@
+ %type	<node>		name name_name new_name new_name_list_r
+ %type	<node>		type new_type
+ %type	<node>		vardcl_list_r vardcl
+-%type	<node>		constdcl_list_r constdcl
+-%type	<node>		typedcl_list_r typedcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+ %type	<node>		export_list_r export
+@@ -142,21 +140,21 @@ common_dcl:
+ 	}
+ |	LCONST constdcl
+ 	{
+-		$$ = $2;
++		$$ = N;
+ 		iota = 0;
+ 	}
+ |	LCONST '(' constdcl_list_r osemi ')'
+ 	{
+-		$$ = rev($3);
++		$$ = N;
+ 		iota = 0;
+ 	}
+ |	LTYPE typedcl
+ 	{
+-		$$ = $2;
++		$$ = N;
+ 	}
+ |	LTYPE '(' typedcl_list_r osemi ')'
+ 	{
+-		$$ = rev($3);
++		$$ = N;
+ 	}
+ 
+ vardcl:
+@@ -165,16 +163,14 @@ vardcl:
+ 		$$ = rev($1);
+ 		dodclvar($$, $2);
+ 
+-		$$ = nod(ODCLVAR, $$, N);
+-		$$->type = $2;
++		$$ = nod(OAS, $$, N);
+ 	}
+ |	new_name_list_r type '=' oexpr_list
+ 	{
+ 		$$ = rev($1);
+ 		dodclvar($$, $2);
+ 
+-		$$ = nod(ODCLVAR, $$, $4);
+-		$$->type = $2;
++		$$ = nod(OAS, $$, $4);
+ 	}
+ |	new_name '=' expr
+ 	{
+@@ -182,8 +178,7 @@ vardcl:
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+ 
+-		$$ = nod(ODCLVAR, $1, $3);
+-		$$->type = $3->type;
++		$$ = nod(OAS, $1, $3);
+ 	}
+ 
+ constdcl:
+@@ -191,8 +186,6 @@ constdcl:
+ 	{
+ 		walktype($3, 0);
+ 		dodclconst($1, $3);
+-
+-		$$ = nod(ODCLCONST, $1, $3);
+ 		iota += 1;
+ 	}
+ |	new_name type '=' expr
+@@ -200,8 +193,6 @@ constdcl:
+ 		walktype($4, 0);
+ 		convlit($4, $2);
+ 		dodclconst($1, $4);
+-
+-		$$ = nod(ODCLCONST, $1, $4);
+ 		iota += 1;
+ 	}
+ 
+@@ -209,9 +200,6 @@ typedcl:
+ 	new_type type
+ 	{
+ 		dodcltype($1, $2);
+-
+-		$$ = nod(ODCLTYPE, $1, N);
+-		$$->type = $2;
+ 	}
+ 
+ /*
+@@ -279,7 +267,8 @@ simple_stmt:
+ 		walktype($3, 0);	// this is a little harry
+ 		defaultlit($3);
+ 		dodclvar($1, $3->type);
+-		$$ = nod(OCOLAS, $1, $3);
++
++		$$ = nod(OAS, $1, $3);
+ 	}
+ 
+ complex_stmt:
+@@ -957,16 +946,10 @@ vardcl_list_r:
+ constdcl_list_r:
+ 	constdcl
+ |	constdcl_list_r ';' constdcl
+-	{
+-		$$ = nod(OLIST, $1, $3);
+-	}
+ 
+ typedcl_list_r:
+ 	typedcl
+ |	typedcl_list_r ';' typedcl
+-	{
+-		$$ = nod(OLIST, $1, $3);
+-	}
+ 
+ structdcl_list_r:
+ 	structdcl
+diff --git a/src/c/subr.c b/src/c/subr.c
+index e03cf85850..1bb6ac520f 100644
+--- a/src/c/subr.c
++++ b/src/c/subr.c
+@@ -542,16 +542,12 @@ opnames[] =
+ 	[OXCASE]	= "XCASE",
+ 	[OFALL]		= "FALL",
+ 	[OCONV]		= "CONV",
+-	[OCOLAS]	= "COLAS",
+ 	[OCOM]		= "COM",
+ 	[OCONST]	= "CONST",
+ 	[OCONTINUE]	= "CONTINUE",
+ 	[ODCLARG]	= "DCLARG",
+-	[ODCLCONST]	= "DCLCONST",
+ 	[ODCLFIELD]	= "DCLFIELD",
+ 	[ODCLFUNC]	= "DCLFUNC",
+-	[ODCLTYPE]	= "DCLTYPE",
+-	[ODCLVAR]	= "DCLVAR",
+ 	[ODIV]		= "DIV",
+ 	[ODOT]		= "DOT",
+ 	[ODOTPTR]	= "DOTPTR",
+@@ -570,6 +566,7 @@ opnames[] =
+ 	[OINDEX]	= "INDEX",
+ 	[OINDEXPTR]	= "INDEXPTR",
+ 	[OINDEXSTR]	= "INDEXSTR",
++	[OINDEXPTRSTR]	= "INDEXPTRSTR",
+ 	[OINDEXMAP]	= "INDEXMAP",
+ 	[OINDEXPTRMAP]	= "INDEXPTRMAP",
+ 	[OIND]		= "IND",
+@@ -597,6 +594,8 @@ opnames[] =
+ 	[ORETURN]	= "RETURN",
+ 	[ORSH]		= "RSH",
+ 	[OSLICE]	= "SLICE",
++	[OSLICESTR]	= "SLICESTR",
++	[OSLICEPTRSTR]	= "SLICEPTRSTR",
+ 	[OSUB]		= "SUB",
+ 	[OSWITCH]	= "SWITCH",
+ 	[OTYPE]		= "TYPE",
+@@ -1076,8 +1075,12 @@ eqtype(Node *t1, Node *t2, int d)
+ 			if(t1->nname != N && t1->nname->sym != S) {
+ 				if(t2->nname == N || t2->nname->sym == S)
+ 					return 0;
+-				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0)
+-					return 0;
++				if(strcmp(t1->nname->sym->name, t2->nname->sym->name) != 0) {
++					// assigned names dont count
++					if(t1->nname->sym->name[0] != '_' ||
++				   	   t2->nname->sym->name[0] != '_')
++						return 0;
++				}
+ 			}
+ 			t1 = t1->down;
+ 			t2 = t2->down;
+@@ -1106,6 +1109,41 @@ eqtype(Node *t1, Node *t2, int d)
+ 	return eqtype(t1->type, t2->type, d+1);
+ }
+ 
++/*
++ * are the arg names of two
++ * functions the same. we know
++ * that eqtype has been called
++ * and has returned true.
++ */
++int
++eqargs(Node *t1, Node *t2)
++{
++	if(t1 == t2)
++		return 1;
++	if(t1 == N || t2 == N)
++		return 0;
++	if(t1->op != OTYPE || t2->op != OTYPE)
++		fatal("eqargs: oops %O %O", t1->op, t2->op);
++
++	if(t1->etype != t2->etype)
++		return 0;
++
++	if(t1->etype != TFUNC)
++		fatal("eqargs: oops %E", t1->etype);
++
++	t1 = t1->type;
++	t2 = t2->type;
++	for(;;) {
++		if(t1 == t2)
++			break;
++		if(!eqtype(t1, t2, 0))
++			return 0;
++		t1 = t1->down;
++		t2 = t2->down;
++	}
++	return 1;
++}
++
+ ulong
+ typehash(Node *at, int d)
+ {
+diff --git a/src/c/walk.c b/src/c/walk.c
+index c6602953c5..a8552e512f 100644
+--- a/src/c/walk.c
++++ b/src/c/walk.c
+@@ -46,9 +46,6 @@ loop:
+ 		fatal("walktype: switch 1 unknown op %N", n);
+ 		goto ret;
+ 
+-	case ODCLTYPE:
+-		goto ret;
+-
+ 	case OPANIC:
+ 	case OPRINT:
+ 		walktype(n->left, 0);
+@@ -172,8 +169,6 @@ loop:
+ 		ascompatte(n->op, getinarg(t), &n->right);
+ 		goto ret;
+ 
+-	case OCOLAS:
+-	case ODCLVAR:
+ 	case OAS:
+ 		if(!top)
+ 			goto nottop;
+@@ -364,6 +359,13 @@ loop:
+ 			goto ret;
+ 		}
+ 
++		// left side is ptr to string
++		if(isptrto(t, TPTR) && isptrto(t->type, TSTRING)) {
++			n->op = OINDEXPTRSTR;
++			n->type = types[TUINT8];
++			goto ret;
++		}
++
+ 		// left side is array
+ 		if(t->etype == TPTR) {
+ 			t = t->type;
+@@ -741,14 +743,23 @@ walkslice(Node *n)
+ 
+ 	if(n->left == N || n->right == N)
+ 		return;
+-	walktype(n->left, 0);
+-	if(!isptrto(n->left->type, TSTRING)) {
+-		badtype(OSLICE, n->left->type, N);
+-		return;
+-	}
+ 	if(n->right->op != OLIST)
+ 		fatal("slice not a list");
+ 
++	walktype(n->left, 0);
++	if(isptrto(n->left->type, TSTRING)) {
++		n->op = OSLICESTR;
++		goto ok;
++	}
++	if(isptrto(n->left->type->type, TPTR) && isptrto(n->left->type->type, TSTRING)) {
++		n->op = OSLICEPTRSTR;
++		goto ok;
++	}
++
++	badtype(OSLICE, n->left->type, N);
++	return;
++
++ok:
+ 	// check for type errors
+ 	walktype(n->right, 0);
+ 	l = n->right->left;

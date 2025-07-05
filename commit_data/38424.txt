@@ -9,6 +9,24 @@ Date:   Sat Oct 27 20:43:21 2018 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/example_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/encoding/json/example_test.go b/src/encoding/json/example_test.go
+index 39b3231850..2031cba793 100644
+--- a/src/encoding/json/example_test.go
++++ b/src/encoding/json/example_test.go
+@@ -292,3 +292,12 @@ func ExampleMarshalIndent() {
+ 	// <prefix><indent>"b": 2
+ 	// <prefix>}
+ }
++
++func ExampleValid() {
++	goodJSON := `{"example": 1}`
++	badJSON := `{"example":2:]}}`
++
++	fmt.Println(json.Valid([]byte(goodJSON)), json.Valid([]byte(badJSON)))
++	// Output:
++	// true false
++}

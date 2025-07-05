@@ -32,7 +32,7 @@ Date:   Mon Feb 7 12:00:44 2022 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/escape/call.go    |  9 +++++++++
  src/cmd/compile/internal/gc/obj.go         |  4 ++++
  src/cmd/compile/internal/ir/func.go        |  4 ++++
@@ -46,3 +46,227 @@ Date:   Mon Feb 7 12:00:44 2022 -0500
  src/runtime/symtab.go                      |  1 +
  src/runtime/trace.go                       | 18 ++++++++++++++++--
  12 files changed, 70 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index d1215afca8..ee76adb0fa 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -238,6 +238,15 @@ func (e *escape) goDeferStmt(n *ir.GoDeferStmt) {
+ 	fn.SetWrapper(true)
+ 	fn.Nname.SetType(types.NewSignature(types.LocalPkg, nil, nil, nil, nil))
+ 	fn.Body = []ir.Node{call}
++	if call, ok := call.(*ir.CallExpr); ok && call.Op() == ir.OCALLFUNC {
++		// If the callee is a named function, link to the original callee.
++		x := call.X
++		if x.Op() == ir.ONAME && x.(*ir.Name).Class == ir.PFUNC {
++			fn.WrappedFunc = call.X.(*ir.Name).Func
++		} else if x.Op() == ir.OMETHEXPR && ir.MethodExprFunc(x).Nname != nil {
++			fn.WrappedFunc = ir.MethodExprName(x).Func
++		}
++	}
+ 
+ 	clo := fn.OClosure
+ 	if n.Op() == ir.OGO {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index dcb54047f1..5353435ed1 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -263,6 +263,10 @@ func addGCLocals() {
+ 			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
+ 			x.Set(obj.AttrStatic, true)
+ 		}
++		if x := fn.WrapInfo; x != nil && !x.OnList() {
++			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.DUPOK)
++			x.Set(obj.AttrStatic, true)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 41c96079f7..23d56f7234 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -133,6 +133,10 @@ type Func struct {
+ 	// function for go:nowritebarrierrec analysis. Only filled in
+ 	// if nowritebarrierrecCheck != nil.
+ 	NWBRCalls *[]SymAndPos
++
++	// For wrapper functions, WrappedFunc point to the original Func.
++	// Currently only used for go/defer wrappers.
++	WrappedFunc *Func
+ }
+ 
+ func NewFunc(pos src.XPos) *Func {
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index a4421fcf53..72b6320261 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 192, 328},
++		{Func{}, 196, 336},
+ 		{Name{}, 112, 200},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0b54925696..364e0c8197 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6768,6 +6768,34 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 	return x
+ }
+ 
++// for wrapper, emit info of wrapped function.
++func emitWrappedFuncInfo(e *ssafn, pp *objw.Progs) {
++	if base.Ctxt.Flag_linkshared {
++		// Relative reference (SymPtrOff) to another shared object doesn't work.
++		// Unfortunate.
++		return
++	}
++
++	wfn := e.curfn.WrappedFunc
++	if wfn == nil {
++		return
++	}
++
++	wsym := wfn.Linksym()
++	x := base.Ctxt.LookupInit(fmt.Sprintf("%s.wrapinfo", wsym.Name), func(x *obj.LSym) {
++		objw.SymPtrOff(x, 0, wsym)
++		x.Set(obj.AttrContentAddressable, true)
++	})
++	e.curfn.LSym.Func().WrapInfo = x
++
++	// Emit a funcdata pointing at the wrap info data.
++	p := pp.Prog(obj.AFUNCDATA)
++	p.From.SetConst(objabi.FUNCDATA_WrapInfo)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = x
++}
++
+ // genssa appends entries to pp for each instruction in f.
+ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	var s State
+@@ -6790,6 +6818,8 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		p.To.Sym = openDeferInfo
+ 	}
+ 
++	emitWrappedFuncInfo(e, pp)
++
+ 	// Remember where each block starts.
+ 	s.bstart = make([]*obj.Prog, f.NumBlocks())
+ 	s.pp = pp
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 11af143f22..e0a3138c38 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -487,6 +487,7 @@ type FuncInfo struct {
+ 	OpenCodedDeferInfo *LSym
+ 	ArgInfo            *LSym // argument info for traceback
+ 	ArgLiveInfo        *LSym // argument liveness info for traceback
++	WrapInfo           *LSym // for wrapper, info of wrapped function
+ 
+ 	FuncInfoSym *LSym
+ }
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index fa616691eb..560e8e24c4 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -417,6 +417,7 @@ func contentHashSection(s *LSym) byte {
+ 		strings.HasSuffix(name, ".arginfo0") ||
+ 		strings.HasSuffix(name, ".arginfo1") ||
+ 		strings.HasSuffix(name, ".argliveinfo") ||
++		strings.HasSuffix(name, ".wrapinfo") ||
+ 		strings.HasSuffix(name, ".args_stackmap") ||
+ 		strings.HasSuffix(name, ".stkobj") {
+ 		return 'F' // go.func.* or go.funcrel.*
+diff --git a/src/cmd/internal/objabi/funcdata.go b/src/cmd/internal/objabi/funcdata.go
+index 4d49a8d548..05a1d49dec 100644
+--- a/src/cmd/internal/objabi/funcdata.go
++++ b/src/cmd/internal/objabi/funcdata.go
+@@ -23,6 +23,7 @@ const (
+ 	FUNCDATA_OpenCodedDeferInfo = 4
+ 	FUNCDATA_ArgInfo            = 5
+ 	FUNCDATA_ArgLiveInfo        = 6
++	FUNCDATA_WrapInfo           = 7
+ 
+ 	// ArgsSizeUnknown is set in Func.argsize to mark all functions
+ 	// whose argument size is unknown (C vararg functions, and
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 720c03afd2..39066da286 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -567,6 +567,7 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 			strings.HasSuffix(name, ".arginfo0"),
+ 			strings.HasSuffix(name, ".arginfo1"),
+ 			strings.HasSuffix(name, ".argliveinfo"),
++			strings.HasSuffix(name, ".wrapinfo"),
+ 			strings.HasSuffix(name, ".args_stackmap"),
+ 			strings.HasSuffix(name, ".stkobj"):
+ 			ldr.SetAttrNotInSymbolTable(s, true)
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index a454dcaa69..2e2bb30446 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -20,6 +20,7 @@
+ #define FUNCDATA_OpenCodedDeferInfo 4 /* info for func with open-coded defers */
+ #define FUNCDATA_ArgInfo 5
+ #define FUNCDATA_ArgLiveInfo 6
++#define FUNCDATA_WrapInfo 7
+ 
+ // Pseudo-assembly statements.
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 017b0a0749..ee4db47314 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -310,6 +310,7 @@ const (
+ 	_FUNCDATA_OpenCodedDeferInfo = 4
+ 	_FUNCDATA_ArgInfo            = 5
+ 	_FUNCDATA_ArgLiveInfo        = 6
++	_FUNCDATA_WrapInfo           = 7
+ 
+ 	_ArgsSizeUnknown = -0x80000000
+ )
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 71a29d4316..8f60de2b05 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -229,7 +229,7 @@ func StartTrace() error {
+ 			gp.traceseq = 0
+ 			gp.tracelastp = getg().m.p
+ 			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+-			id := trace.stackTab.put([]uintptr{gp.startpc + sys.PCQuantum})
++			id := trace.stackTab.put([]uintptr{startPCforTrace(gp.startpc) + sys.PCQuantum})
+ 			traceEvent(traceEvGoCreate, -1, uint64(gp.goid), uint64(id), stackID)
+ 		}
+ 		if status == _Gwaiting {
+@@ -1071,7 +1071,7 @@ func traceGoCreate(newg *g, pc uintptr) {
+ 	newg.traceseq = 0
+ 	newg.tracelastp = getg().m.p
+ 	// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
+-	id := trace.stackTab.put([]uintptr{pc + sys.PCQuantum})
++	id := trace.stackTab.put([]uintptr{startPCforTrace(pc) + sys.PCQuantum})
+ 	traceEvent(traceEvGoCreate, 2, uint64(newg.goid), uint64(id))
+ }
+ 
+@@ -1244,3 +1244,17 @@ func trace_userLog(id uint64, category, message string) {
+ 
+ 	traceReleaseBuffer(pid)
+ }
++
++// the start PC of a goroutine for tracing purposes. If pc is a wrapper,
++// it returns the PC of the wrapped function. Otherwise it returns pc.
++func startPCforTrace(pc uintptr) uintptr {
++	f := findfunc(pc)
++	if !f.valid() {
++		return pc // should not happen, but don't care
++	}
++	w := funcdata(f, _FUNCDATA_WrapInfo)
++	if w == nil {
++		return pc // not a wrapper
++	}
++	return f.datap.textAddr(*(*uint32)(w))
++}

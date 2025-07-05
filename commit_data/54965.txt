@@ -10,6 +10,20 @@ Date:   Mon Nov 28 11:38:59 2022 -0500
     TryBot-Bypass: Russ Cox <rsc@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  doc/go1.20.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 347cf101d8..1a39993c78 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -316,7 +316,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   Previously, we have added new per-request functionality by defining optional
+   interfaces which a <code>ResponseWriter</code> can implement, such as
+-  <a href="/pkg/net/http/#Flusher"><code>Flusher<code></a>. These interfaces
++  <a href="/pkg/net/http/#Flusher"><code>Flusher</code></a>. These interfaces
+   are not discoverable and clumsy to use.
+ </p>
+ 

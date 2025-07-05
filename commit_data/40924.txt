@@ -9,6 +9,27 @@ Date:   Thu Aug 22 15:50:06 2019 +1000
     Change-Id: If115b2ae0df5e5cb9babd60802947ddb687d56c2
     Reviewed-on: https://go-review.googlesource.com/c/go/+/191219
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/strconv/atoi.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 0233f14b40..e811bc4df1 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -152,11 +152,10 @@ func ParseUint(s string, base int, bitSize int) (uint64, error) {
+ // ParseInt interprets a string s in the given base (0, 2 to 36) and
+ // bit size (0 to 64) and returns the corresponding value i.
+ //
+-// If base == 0, the base is implied by the string's prefix:
+-// base 2 for "0b", base 8 for "0" or "0o", base 16 for "0x",
+-// and base 10 otherwise. Also, for base == 0 only, underscore
+-// characters are permitted per the Go integer literal syntax.
+-// If base is below 0, is 1, or is above 36, an error is returned.
++// If the base argument is 0, the true base is implied by the string's
++// prefix: 2 for "0b", 8 for "0" or "0o", 16 for "0x", and 10 otherwise.
++// Also, for argument base 0 only, underscore characters are permitted
++// as defined by the Go syntax for integer literals.
+ //
+ // The bitSize argument specifies the integer type
+ // that the result must fit into. Bit sizes 0, 8, 16, 32, and 64

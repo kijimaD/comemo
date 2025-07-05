@@ -22,7 +22,49 @@ Date:   Fri Apr 1 08:33:25 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/21392
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/runtime/cgo/callbacks.go           |  8 --------
  src/runtime/cgo/callbacks_traceback.go | 17 +++++++++++++++++
  2 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/cgo/callbacks.go b/src/runtime/cgo/callbacks.go
+index 4f31d1c82c..47bd2b0edc 100644
+--- a/src/runtime/cgo/callbacks.go
++++ b/src/runtime/cgo/callbacks.go
+@@ -92,13 +92,5 @@ var _cgo_sys_thread_create = &x_cgo_sys_thread_create
+ var x_cgo_notify_runtime_init_done byte
+ var _cgo_notify_runtime_init_done = &x_cgo_notify_runtime_init_done
+ 
+-// Calls the traceback function passed to SetCgoTraceback.
+-
+-//go:cgo_import_static x_cgo_callers
+-//go:linkname x_cgo_callers x_cgo_callers
+-//go:linkname _cgo_callers _cgo_callers
+-var x_cgo_callers byte
+-var _cgo_callers = &x_cgo_callers
+-
+ //go:cgo_export_static _cgo_topofstack
+ //go:cgo_export_dynamic _cgo_topofstack
+diff --git a/src/runtime/cgo/callbacks_traceback.go b/src/runtime/cgo/callbacks_traceback.go
+new file mode 100644
+index 0000000000..f754846722
+--- /dev/null
++++ b/src/runtime/cgo/callbacks_traceback.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package cgo
++
++import _ "unsafe" // for go:linkname
++
++// Calls the traceback function passed to SetCgoTraceback.
++
++//go:cgo_import_static x_cgo_callers
++//go:linkname x_cgo_callers x_cgo_callers
++//go:linkname _cgo_callers _cgo_callers
++var x_cgo_callers byte
++var _cgo_callers = &x_cgo_callers

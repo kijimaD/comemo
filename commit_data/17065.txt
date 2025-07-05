@@ -9,6 +9,27 @@ Date:   Tue Aug 6 14:41:07 2013 -0700
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/12486044
-
+---
  src/pkg/strings/strings_test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 68b658ca46..5ffb4e208c 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -168,6 +168,15 @@ func BenchmarkIndex(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkIndexByte(b *testing.B) {
++	if got := IndexByte(benchmarkString, 'v'); got != 17 {
++		b.Fatalf("wrong index: expected 17, got=%d", got)
++	}
++	for i := 0; i < b.N; i++ {
++		IndexByte(benchmarkString, 'v')
++	}
++}
++
+ var explodetests = []struct {
+ 	s string
+ 	n int

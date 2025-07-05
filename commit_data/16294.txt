@@ -8,8 +8,70 @@ Date:   Wed May 15 04:40:42 2013 +0800
     R=golang-dev, dave, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/8763044
-
+---
  src/pkg/archive/tar/reader.go            |  16 +++++++++-------
  src/pkg/archive/tar/reader_test.go       |  19 +++++++++++++++++++
  src/pkg/archive/tar/testdata/nil-uid.tar | Bin 0 -> 1024 bytes
  3 files changed, 28 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 05f82a40dd..c6c101507b 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -243,13 +243,15 @@ func (tr *Reader) octal(b []byte) int64 {
+ 		return x
+ 	}
+ 
+-	// Removing leading spaces.
+-	for len(b) > 0 && b[0] == ' ' {
+-		b = b[1:]
+-	}
+-	// Removing trailing NULs and spaces.
+-	for len(b) > 0 && (b[len(b)-1] == ' ' || b[len(b)-1] == '\x00') {
+-		b = b[0 : len(b)-1]
++	// Because unused fields are filled with NULs, we need
++	// to skip leading NULs. Fields may also be padded with
++	// spaces or NULs.
++	// So we remove leading and trailing NULs and spaces to
++	// be sure.
++	b = bytes.Trim(b, " \x00")
++
++	if len(b) == 0 {
++		return 0
+ 	}
+ 	x, err := strconv.ParseUint(cString(b), 8, 64)
+ 	if err != nil {
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 9a19682371..2cf3d717d5 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -142,6 +142,25 @@ var untarTests = []*untarTest{
+ 			},
+ 		},
+ 	},
++	{
++		file: "testdata/nil-uid.tar", // golang.org/issue/5290
++		headers: []*Header{
++			{
++				Name:     "P1050238.JPG.log",
++				Mode:     0664,
++				Uid:      0,
++				Gid:      0,
++				Size:     14,
++				ModTime:  time.Unix(1365454838, 0),
++				Typeflag: TypeReg,
++				Linkname: "",
++				Uname:    "eyefi",
++				Gname:    "eyefi",
++				Devmajor: 0,
++				Devminor: 0,
++			},
++		},
++	},
+ }
+ 
+ func TestReader(t *testing.T) {
+diff --git a/src/pkg/archive/tar/testdata/nil-uid.tar b/src/pkg/archive/tar/testdata/nil-uid.tar
+new file mode 100644
+index 0000000000..cc9cfaa33c
+Binary files /dev/null and b/src/pkg/archive/tar/testdata/nil-uid.tar differ

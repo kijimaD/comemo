@@ -16,7 +16,7 @@ Date:   Fri Feb 11 11:55:27 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/base/debug.go          |   1 -
  src/cmd/compile/internal/gc/main.go             |  12 -
  src/cmd/compile/internal/noder/quirks.go        | 369 ------------------------
@@ -29,3 +29,963 @@ Date:   Fri Feb 11 11:55:27 2022 -0800
  src/cmd/compile/internal/typecheck/iexport.go   |  15 +-
  src/cmd/compile/internal/walk/closure.go        |   2 +-
  11 files changed, 10 insertions(+), 707 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index b105e46e35..80b2ff5bd6 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -39,7 +39,6 @@ type DebugFlags struct {
+ 	TypeAssert           int    `help:"print information about type assertion inlining"`
+ 	TypecheckInl         int    `help:"eager typechecking of inline function bodies"`
+ 	Unified              int    `help:"enable unified IR construction"`
+-	UnifiedQuirks        int    `help:"enable unified IR construction's quirks mode"`
+ 	WB                   int    `help:"print information about write barriers"`
+ 	ABIWrap              int    `help:"print information about ABI wrapper generation"`
+ 	MayMoreStack         string `help:"call named function before all stack growth checks"`
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 4c4a724cdf..5a9a889894 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -32,7 +32,6 @@ import (
+ 	"log"
+ 	"os"
+ 	"runtime"
+-	"sort"
+ )
+ 
+ // handlePanic ensures that we print out an "internal compiler error" for any panic
+@@ -205,17 +204,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// removal can skew the results (e.g., #43444).
+ 	pkginit.MakeInit()
+ 
+-	// Stability quirk: sort top-level declarations, so we're not
+-	// sensitive to the order that functions are added. In particular,
+-	// the order that noder+typecheck add function closures is very
+-	// subtle, and not important to reproduce.
+-	if base.Debug.UnifiedQuirks != 0 {
+-		s := typecheck.Target.Decls
+-		sort.SliceStable(s, func(i, j int) bool {
+-			return s[i].Pos().Before(s[j].Pos())
+-		})
+-	}
+-
+ 	// Eliminate some obviously dead code.
+ 	// Must happen after typechecking.
+ 	for _, n := range typecheck.Target.Decls {
+diff --git a/src/cmd/compile/internal/noder/quirks.go b/src/cmd/compile/internal/noder/quirks.go
+index 914c5d2bd7..c4cb9b9a2c 100644
+--- a/src/cmd/compile/internal/noder/quirks.go
++++ b/src/cmd/compile/internal/noder/quirks.go
+@@ -9,254 +9,13 @@ package noder
+ import (
+ 	"fmt"
+ 
+-	"cmd/compile/internal/base"
+-	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+-	"cmd/compile/internal/types2"
+-	"cmd/internal/src"
+ )
+ 
+ // This file defines helper functions useful for satisfying toolstash
+ // -cmp when compared against the legacy frontend behavior, but can be
+ // removed after that's no longer a concern.
+ 
+-// quirksMode controls whether behavior specific to satisfying
+-// toolstash -cmp is used.
+-func quirksMode() bool {
+-	return base.Debug.UnifiedQuirks != 0
+-}
+-
+-// posBasesOf returns all of the position bases in the source files,
+-// as seen in a straightforward traversal.
+-//
+-// This is necessary to ensure position bases (and thus file names)
+-// get registered in the same order as noder would visit them.
+-func posBasesOf(noders []*noder) []*syntax.PosBase {
+-	seen := make(map[*syntax.PosBase]bool)
+-	var bases []*syntax.PosBase
+-
+-	for _, p := range noders {
+-		syntax.Crawl(p.file, func(n syntax.Node) bool {
+-			if b := n.Pos().Base(); !seen[b] {
+-				bases = append(bases, b)
+-				seen[b] = true
+-			}
+-			return false
+-		})
+-	}
+-
+-	return bases
+-}
+-
+-// importedObjsOf returns the imported objects (i.e., referenced
+-// objects not declared by curpkg) from the parsed source files, in
+-// the order that typecheck used to load their definitions.
+-//
+-// This is needed because loading the definitions for imported objects
+-// can also add file names.
+-func importedObjsOf(curpkg *types2.Package, info *types2.Info, noders []*noder) []types2.Object {
+-	// This code is complex because it matches the precise order that
+-	// typecheck recursively and repeatedly traverses the IR. It's meant
+-	// to be thrown away eventually anyway.
+-
+-	seen := make(map[types2.Object]bool)
+-	var objs []types2.Object
+-
+-	var phase int
+-
+-	decls := make(map[types2.Object]syntax.Decl)
+-	assoc := func(decl syntax.Decl, names ...*syntax.Name) {
+-		for _, name := range names {
+-			obj, ok := info.Defs[name]
+-			assert(ok)
+-			decls[obj] = decl
+-		}
+-	}
+-
+-	for _, p := range noders {
+-		syntax.Crawl(p.file, func(n syntax.Node) bool {
+-			switch n := n.(type) {
+-			case *syntax.ConstDecl:
+-				assoc(n, n.NameList...)
+-			case *syntax.FuncDecl:
+-				assoc(n, n.Name)
+-			case *syntax.TypeDecl:
+-				assoc(n, n.Name)
+-			case *syntax.VarDecl:
+-				assoc(n, n.NameList...)
+-			case *syntax.BlockStmt:
+-				return true
+-			}
+-			return false
+-		})
+-	}
+-
+-	var visited map[syntax.Decl]bool
+-
+-	var resolveDecl func(n syntax.Decl)
+-	var resolveNode func(n syntax.Node, top bool)
+-
+-	resolveDecl = func(n syntax.Decl) {
+-		if visited[n] {
+-			return
+-		}
+-		visited[n] = true
+-
+-		switch n := n.(type) {
+-		case *syntax.ConstDecl:
+-			resolveNode(n.Type, true)
+-			resolveNode(n.Values, true)
+-
+-		case *syntax.FuncDecl:
+-			if n.Recv != nil {
+-				resolveNode(n.Recv, true)
+-			}
+-			resolveNode(n.Type, true)
+-
+-		case *syntax.TypeDecl:
+-			resolveNode(n.Type, true)
+-
+-		case *syntax.VarDecl:
+-			if n.Type != nil {
+-				resolveNode(n.Type, true)
+-			} else {
+-				resolveNode(n.Values, true)
+-			}
+-		}
+-	}
+-
+-	resolveObj := func(pos syntax.Pos, obj types2.Object) {
+-		switch obj.Pkg() {
+-		case nil:
+-			// builtin; nothing to do
+-
+-		case curpkg:
+-			if decl, ok := decls[obj]; ok {
+-				resolveDecl(decl)
+-			}
+-
+-		default:
+-			if obj.Parent() == obj.Pkg().Scope() && !seen[obj] {
+-				seen[obj] = true
+-				objs = append(objs, obj)
+-			}
+-		}
+-	}
+-
+-	checkdefat := func(pos syntax.Pos, n *syntax.Name) {
+-		if n.Value == "_" {
+-			return
+-		}
+-		obj, ok := info.Uses[n]
+-		if !ok {
+-			obj, ok = info.Defs[n]
+-			if !ok {
+-				return
+-			}
+-		}
+-		if obj == nil {
+-			return
+-		}
+-		resolveObj(pos, obj)
+-	}
+-	checkdef := func(n *syntax.Name) { checkdefat(n.Pos(), n) }
+-
+-	var later []syntax.Node
+-
+-	resolveNode = func(n syntax.Node, top bool) {
+-		if n == nil {
+-			return
+-		}
+-		syntax.Crawl(n, func(n syntax.Node) bool {
+-			switch n := n.(type) {
+-			case *syntax.Name:
+-				checkdef(n)
+-
+-			case *syntax.SelectorExpr:
+-				if name, ok := n.X.(*syntax.Name); ok {
+-					if _, isPkg := info.Uses[name].(*types2.PkgName); isPkg {
+-						checkdefat(n.X.Pos(), n.Sel)
+-						return true
+-					}
+-				}
+-
+-			case *syntax.AssignStmt:
+-				resolveNode(n.Rhs, top)
+-				resolveNode(n.Lhs, top)
+-				return true
+-
+-			case *syntax.VarDecl:
+-				resolveNode(n.Values, top)
+-
+-			case *syntax.FuncLit:
+-				if top {
+-					resolveNode(n.Type, top)
+-					later = append(later, n.Body)
+-					return true
+-				}
+-
+-			case *syntax.BlockStmt:
+-				if phase >= 3 {
+-					for _, stmt := range n.List {
+-						resolveNode(stmt, false)
+-					}
+-				}
+-				return true
+-			}
+-
+-			return false
+-		})
+-	}
+-
+-	for phase = 1; phase <= 5; phase++ {
+-		visited = map[syntax.Decl]bool{}
+-
+-		for _, p := range noders {
+-			for _, decl := range p.file.DeclList {
+-				switch decl := decl.(type) {
+-				case *syntax.ConstDecl:
+-					resolveDecl(decl)
+-
+-				case *syntax.FuncDecl:
+-					resolveDecl(decl)
+-					if phase >= 3 && decl.Body != nil {
+-						resolveNode(decl.Body, true)
+-					}
+-
+-				case *syntax.TypeDecl:
+-					if !decl.Alias || phase >= 2 {
+-						resolveDecl(decl)
+-					}
+-
+-				case *syntax.VarDecl:
+-					if phase >= 2 {
+-						resolveNode(decl.Values, true)
+-						resolveDecl(decl)
+-					}
+-				}
+-			}
+-
+-			if phase >= 5 {
+-				syntax.Crawl(p.file, func(n syntax.Node) bool {
+-					if name, ok := n.(*syntax.Name); ok {
+-						if obj, ok := info.Uses[name]; ok {
+-							resolveObj(name.Pos(), obj)
+-						}
+-					}
+-					return false
+-				})
+-			}
+-		}
+-
+-		for i := 0; i < len(later); i++ {
+-			resolveNode(later[i], true)
+-		}
+-		later = nil
+-	}
+-
+-	return objs
+-}
+-
+ // typeExprEndPos returns the position that noder would leave base.Pos
+ // after parsing the given type expression.
+ func typeExprEndPos(expr0 syntax.Expr) syntax.Pos {
+@@ -320,131 +79,3 @@ func lastFieldType(fields []*syntax.Field) syntax.Expr {
+ 	}
+ 	return fields[len(fields)-1].Type
+ }
+-
+-// sumPos returns the position that noder.sum would produce for
+-// constant expression x.
+-func sumPos(x syntax.Expr) syntax.Pos {
+-	orig := x
+-	for {
+-		switch x1 := x.(type) {
+-		case *syntax.BasicLit:
+-			assert(x1.Kind == syntax.StringLit)
+-			return x1.Pos()
+-		case *syntax.Operation:
+-			assert(x1.Op == syntax.Add && x1.Y != nil)
+-			if r, ok := x1.Y.(*syntax.BasicLit); ok {
+-				assert(r.Kind == syntax.StringLit)
+-				x = x1.X
+-				continue
+-			}
+-		}
+-		return orig.Pos()
+-	}
+-}
+-
+-// funcParamsEndPos returns the value of base.Pos left by noder after
+-// processing a function signature.
+-func funcParamsEndPos(fn *ir.Func) src.XPos {
+-	sig := fn.Nname.Type()
+-
+-	fields := sig.Results().FieldSlice()
+-	if len(fields) == 0 {
+-		fields = sig.Params().FieldSlice()
+-		if len(fields) == 0 {
+-			fields = sig.Recvs().FieldSlice()
+-			if len(fields) == 0 {
+-				if fn.OClosure != nil {
+-					return fn.Nname.Ntype.Pos()
+-				}
+-				return fn.Pos()
+-			}
+-		}
+-	}
+-
+-	return fields[len(fields)-1].Pos
+-}
+-
+-type dupTypes struct {
+-	origs map[types2.Type]types2.Type
+-}
+-
+-func (d *dupTypes) orig(t types2.Type) types2.Type {
+-	if orig, ok := d.origs[t]; ok {
+-		return orig
+-	}
+-	return t
+-}
+-
+-func (d *dupTypes) add(t, orig types2.Type) {
+-	if t == orig {
+-		return
+-	}
+-
+-	if d.origs == nil {
+-		d.origs = make(map[types2.Type]types2.Type)
+-	}
+-	assert(d.origs[t] == nil)
+-	d.origs[t] = orig
+-
+-	switch t := t.(type) {
+-	case *types2.Pointer:
+-		orig := orig.(*types2.Pointer)
+-		d.add(t.Elem(), orig.Elem())
+-
+-	case *types2.Slice:
+-		orig := orig.(*types2.Slice)
+-		d.add(t.Elem(), orig.Elem())
+-
+-	case *types2.Map:
+-		orig := orig.(*types2.Map)
+-		d.add(t.Key(), orig.Key())
+-		d.add(t.Elem(), orig.Elem())
+-
+-	case *types2.Array:
+-		orig := orig.(*types2.Array)
+-		assert(t.Len() == orig.Len())
+-		d.add(t.Elem(), orig.Elem())
+-
+-	case *types2.Chan:
+-		orig := orig.(*types2.Chan)
+-		assert(t.Dir() == orig.Dir())
+-		d.add(t.Elem(), orig.Elem())
+-
+-	case *types2.Struct:
+-		orig := orig.(*types2.Struct)
+-		assert(t.NumFields() == orig.NumFields())
+-		for i := 0; i < t.NumFields(); i++ {
+-			d.add(t.Field(i).Type(), orig.Field(i).Type())
+-		}
+-
+-	case *types2.Interface:
+-		orig := orig.(*types2.Interface)
+-		assert(t.NumExplicitMethods() == orig.NumExplicitMethods())
+-		assert(t.NumEmbeddeds() == orig.NumEmbeddeds())
+-		for i := 0; i < t.NumExplicitMethods(); i++ {
+-			d.add(t.ExplicitMethod(i).Type(), orig.ExplicitMethod(i).Type())
+-		}
+-		for i := 0; i < t.NumEmbeddeds(); i++ {
+-			d.add(t.EmbeddedType(i), orig.EmbeddedType(i))
+-		}
+-
+-	case *types2.Signature:
+-		orig := orig.(*types2.Signature)
+-		assert((t.Recv() == nil) == (orig.Recv() == nil))
+-		if t.Recv() != nil {
+-			d.add(t.Recv().Type(), orig.Recv().Type())
+-		}
+-		d.add(t.Params(), orig.Params())
+-		d.add(t.Results(), orig.Results())
+-
+-	case *types2.Tuple:
+-		orig := orig.(*types2.Tuple)
+-		assert(t.Len() == orig.Len())
+-		for i := 0; i < t.Len(); i++ {
+-			d.add(t.At(i).Type(), orig.At(i).Type())
+-		}
+-
+-	default:
+-		assert(types2.Identical(t, orig))
+-	}
+-}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 5d17c534c1..60b0b7b40a 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -968,11 +968,7 @@ func (r *reader) funcBody(fn *ir.Func) {
+ 
+ 		body := r.stmts()
+ 		if body == nil {
+-			pos := src.NoXPos
+-			if quirksMode() {
+-				pos = funcParamsEndPos(fn)
+-			}
+-			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(pos, nil))}
++			body = []ir.Node{typecheck.Stmt(ir.NewBlockStmt(src.NoXPos, nil))}
+ 		}
+ 		fn.Body = body
+ 		fn.Endlineno = r.pos()
+@@ -1291,18 +1287,6 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 
+ 	case stmtSwitch:
+ 		return r.switchStmt(label)
+-
+-	case stmtTypeDeclHack:
+-		// fake "type _ = int" declaration to prevent inlining in quirks mode.
+-		assert(quirksMode())
+-
+-		name := ir.NewDeclNameAt(src.NoXPos, ir.OTYPE, ir.BlankNode.Sym())
+-		name.SetAlias(true)
+-		setType(name, types.Types[types.TINT])
+-
+-		n := ir.NewDecl(src.NoXPos, ir.ODCLTYPE, name)
+-		n.SetTypecheck(1)
+-		return n
+ 	}
+ }
+ 
+@@ -1712,22 +1696,15 @@ func (r *reader) funcLit() ir.Node {
+ 	r.sync(syncFuncLit)
+ 
+ 	pos := r.pos()
+-	typPos := r.pos()
+ 	xtype2 := r.signature(types.LocalPkg, nil)
+ 
+ 	opos := pos
+-	if quirksMode() {
+-		opos = r.origPos(pos)
+-	}
+ 
+ 	fn := ir.NewClosureFunc(opos, r.curfn != nil)
+ 	clo := fn.OClosure
+ 	ir.NameClosure(clo, r.curfn)
+ 
+ 	setType(fn.Nname, xtype2)
+-	if quirksMode() {
+-		fn.Nname.Ntype = ir.TypeNodeAt(typPos, xtype2)
+-	}
+ 	typecheck.Func(fn)
+ 	setType(clo, fn.Type())
+ 
+@@ -1767,23 +1744,6 @@ func (r *reader) op() ir.Op {
+ // @@@ Package initialization
+ 
+ func (r *reader) pkgInit(self *types.Pkg, target *ir.Package) {
+-	if quirksMode() {
+-		for i, n := 0, r.len(); i < n; i++ {
+-			// Eagerly register position bases, so their filenames are
+-			// assigned stable indices.
+-			posBase := r.posBase()
+-			_ = base.Ctxt.PosTable.XPos(src.MakePos(posBase, 0, 0))
+-		}
+-
+-		for i, n := 0, r.len(); i < n; i++ {
+-			// Eagerly resolve imported objects, so any filenames registered
+-			// in the process are assigned stable indices too.
+-			_, sym := r.qualifiedIdent()
+-			typecheck.Resolve(ir.NewIdent(src.NoXPos, sym))
+-			assert(sym.Def != nil)
+-		}
+-	}
+-
+ 	cgoPragmas := make([][]string, r.len())
+ 	for i := range cgoPragmas {
+ 		cgoPragmas[i] = r.strings()
+@@ -2027,17 +1987,6 @@ func InlineCall(call *ir.CallExpr, fn *ir.Func, inlIndex int) *ir.InlinedCallExp
+ 
+ 	body := ir.Nodes(r.curfn.Body)
+ 
+-	// Quirk: If deadcode elimination turned a non-empty function into
+-	// an empty one, we need to set the position for the empty block
+-	// left behind to the inlined position for src.NoXPos, so that
+-	// an empty string gets added into the DWARF file name listing at
+-	// the appropriate index.
+-	if quirksMode() && len(body) == 1 {
+-		if block, ok := body[0].(*ir.BlockStmt); ok && len(block.List) == 0 {
+-			block.SetPos(r.updatePos(src.NoXPos))
+-		}
+-	}
+-
+ 	// Quirkish: We need to eagerly prune variables added during
+ 	// inlining, but removed by deadcode.FuncBody above. Unused
+ 	// variables will get removed during stack frame layout anyway, but
+@@ -2218,8 +2167,8 @@ func (r *reader) importedDef() bool {
+ }
+ 
+ func MakeWrappers(target *ir.Package) {
+-	// Only unified IR in non-quirks mode emits its own wrappers.
+-	if base.Debug.Unified == 0 || quirksMode() {
++	// Only unified IR emits its own wrappers.
++	if base.Debug.Unified == 0 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ec0012db4c..57bec43890 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -72,11 +72,7 @@ var localPkgReader *pkgReader
+ func unified(noders []*noder) {
+ 	inline.NewInline = InlineCall
+ 
+-	if !quirksMode() {
+-		writeNewExportFunc = writeNewExport
+-	} else if base.Flag.G != 0 {
+-		base.Errorf("cannot use -G and -d=quirksmode together")
+-	}
++	writeNewExportFunc = writeNewExport
+ 
+ 	newReadImportFunc = func(data string, pkg1 *types.Pkg, ctxt *types2.Context, packages map[string]*types2.Package) (pkg2 *types2.Package, err error) {
+ 		pr := newPkgDecoder(pkg1.Path, data)
+diff --git a/src/cmd/compile/internal/noder/unified_test.go b/src/cmd/compile/internal/noder/unified_test.go
+deleted file mode 100644
+index d7334df282..0000000000
+--- a/src/cmd/compile/internal/noder/unified_test.go
++++ /dev/null
+@@ -1,160 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package noder_test
+-
+-import (
+-	"encoding/json"
+-	"flag"
+-	exec "internal/execabs"
+-	"os"
+-	"reflect"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-var (
+-	flagCmp      = flag.Bool("cmp", false, "enable TestUnifiedCompare")
+-	flagPkgs     = flag.String("pkgs", "std", "list of packages to compare (ignored in -short mode)")
+-	flagAll      = flag.Bool("all", false, "enable testing of all GOOS/GOARCH targets")
+-	flagParallel = flag.Bool("parallel", false, "test GOOS/GOARCH targets in parallel")
+-)
+-
+-// TestUnifiedCompare implements a test similar to running:
+-//
+-//	$ go build -toolexec="toolstash -cmp" std
+-//
+-// The -pkgs flag controls the list of packages tested.
+-//
+-// By default, only the native GOOS/GOARCH target is enabled. The -all
+-// flag enables testing of non-native targets. The -parallel flag
+-// additionally enables testing of targets in parallel.
+-//
+-// Caution: Testing all targets is very resource intensive! On an IBM
+-// P920 (dual Intel Xeon Gold 6154 CPUs; 36 cores, 192GB RAM), testing
+-// all targets in parallel takes about 5 minutes. Using the 'go test'
+-// command's -run flag for subtest matching is recommended for less
+-// powerful machines.
+-func TestUnifiedCompare(t *testing.T) {
+-	// TODO(mdempsky): Either re-enable or delete. Disabled for now to
+-	// avoid impeding others' forward progress.
+-	if !*flagCmp {
+-		t.Skip("skipping TestUnifiedCompare (use -cmp to enable)")
+-	}
+-
+-	targets, err := exec.Command("go", "tool", "dist", "list").Output()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	for _, target := range strings.Fields(string(targets)) {
+-		t.Run(target, func(t *testing.T) {
+-			parts := strings.Split(target, "/")
+-			goos, goarch := parts[0], parts[1]
+-
+-			if !(*flagAll || goos == runtime.GOOS && goarch == runtime.GOARCH) {
+-				t.Skip("skipping non-native target (use -all to enable)")
+-			}
+-			if *flagParallel {
+-				t.Parallel()
+-			}
+-
+-			pkgs1 := loadPackages(t, goos, goarch, "-d=unified=0 -d=inlfuncswithclosures=0 -d=unifiedquirks=1 -G=0")
+-			pkgs2 := loadPackages(t, goos, goarch, "-d=unified=1 -d=inlfuncswithclosures=0 -d=unifiedquirks=1 -G=0")
+-
+-			if len(pkgs1) != len(pkgs2) {
+-				t.Fatalf("length mismatch: %v != %v", len(pkgs1), len(pkgs2))
+-			}
+-
+-			for i := range pkgs1 {
+-				pkg1 := pkgs1[i]
+-				pkg2 := pkgs2[i]
+-
+-				path := pkg1.ImportPath
+-				if path != pkg2.ImportPath {
+-					t.Fatalf("mismatched paths: %q != %q", path, pkg2.ImportPath)
+-				}
+-
+-				// Packages that don't have any source files (e.g., packages
+-				// unsafe, embed/internal/embedtest, and cmd/internal/moddeps).
+-				if pkg1.Export == "" && pkg2.Export == "" {
+-					continue
+-				}
+-
+-				if pkg1.BuildID == pkg2.BuildID {
+-					t.Errorf("package %q: build IDs unexpectedly matched", path)
+-				}
+-
+-				// Unlike toolstash -cmp, we're comparing the same compiler
+-				// binary against itself, just with different flags. So we
+-				// don't need to worry about skipping over mismatched version
+-				// strings, but we do need to account for differing build IDs.
+-				//
+-				// Fortunately, build IDs are cryptographic 256-bit hashes,
+-				// and cmd/go provides us with them up front. So we can just
+-				// use them as delimeters to split the files, and then check
+-				// that the substrings are all equal.
+-				file1 := strings.Split(readFile(t, pkg1.Export), pkg1.BuildID)
+-				file2 := strings.Split(readFile(t, pkg2.Export), pkg2.BuildID)
+-				if !reflect.DeepEqual(file1, file2) {
+-					t.Errorf("package %q: compile output differs", path)
+-				}
+-			}
+-		})
+-	}
+-}
+-
+-type pkg struct {
+-	ImportPath string
+-	Export     string
+-	BuildID    string
+-	Incomplete bool
+-}
+-
+-func loadPackages(t *testing.T, goos, goarch, gcflags string) []pkg {
+-	args := []string{"list", "-e", "-export", "-json", "-gcflags=all=" + gcflags, "--"}
+-	if testing.Short() {
+-		t.Log("short testing mode; only testing package runtime")
+-		args = append(args, "runtime")
+-	} else {
+-		args = append(args, strings.Fields(*flagPkgs)...)
+-	}
+-
+-	cmd := exec.Command("go", args...)
+-	cmd.Env = append(os.Environ(), "GOOS="+goos, "GOARCH="+goarch)
+-	cmd.Stderr = os.Stderr
+-	t.Logf("running %v", cmd)
+-	stdout, err := cmd.StdoutPipe()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if err := cmd.Start(); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	var res []pkg
+-	for dec := json.NewDecoder(stdout); dec.More(); {
+-		var pkg pkg
+-		if err := dec.Decode(&pkg); err != nil {
+-			t.Fatal(err)
+-		}
+-		if pkg.Incomplete {
+-			t.Fatalf("incomplete package: %q", pkg.ImportPath)
+-		}
+-		res = append(res, pkg)
+-	}
+-	if err := cmd.Wait(); err != nil {
+-		t.Fatal(err)
+-	}
+-	return res
+-}
+-
+-func readFile(t *testing.T, name string) string {
+-	buf, err := os.ReadFile(name)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return string(buf)
+-}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 46e8339120..97b3d878d0 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -8,7 +8,6 @@ package noder
+ 
+ import (
+ 	"fmt"
+-	"go/constant"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -33,8 +32,6 @@ type pkgWriter struct {
+ 
+ 	linknames  map[types2.Object]string
+ 	cgoPragmas [][]string
+-
+-	dups dupTypes
+ }
+ 
+ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info) *pkgWriter {
+@@ -251,10 +248,6 @@ func (w *writer) typInfo(info typeInfo) {
+ // typIdx also reports whether typ is a derived type; that is, whether
+ // its identity depends on type parameters.
+ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+-	if quirksMode() {
+-		typ = pw.dups.orig(typ)
+-	}
+-
+ 	if idx, ok := pw.typsIdx[typ]; ok {
+ 		return typeInfo{idx: idx, derived: false}
+ 	}
+@@ -999,36 +992,9 @@ func (w *writer) declStmt(decl syntax.Decl) {
+ 	default:
+ 		w.p.unexpected("declaration", decl)
+ 
+-	case *syntax.ConstDecl:
+-
+-	case *syntax.TypeDecl:
+-		// Quirk: The legacy inliner doesn't support inlining functions
+-		// with type declarations. Unified IR doesn't have any need to
+-		// write out type declarations explicitly (they're always looked
+-		// up via global index tables instead), so we just write out a
+-		// marker so the reader knows to synthesize a fake declaration to
+-		// prevent inlining.
+-		if quirksMode() {
+-			w.code(stmtTypeDeclHack)
+-		}
++	case *syntax.ConstDecl, *syntax.TypeDecl:
+ 
+ 	case *syntax.VarDecl:
+-		values := unpackListExpr(decl.Values)
+-
+-		// Quirk: When N variables are declared with N initialization
+-		// values, we need to decompose that into N interleaved
+-		// declarations+initializations, because it leads to different
+-		// (albeit semantically equivalent) code generation.
+-		if quirksMode() && len(decl.NameList) == len(values) {
+-			for i, name := range decl.NameList {
+-				w.code(stmtAssign)
+-				w.pos(decl)
+-				w.exprList(values[i])
+-				w.assignList(name)
+-			}
+-			break
+-		}
+-
+ 		w.code(stmtAssign)
+ 		w.pos(decl)
+ 		w.exprList(decl.Values)
+@@ -1184,21 +1150,8 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		}
+ 
+ 		if tv.Value != nil {
+-			pos := expr.Pos()
+-			if quirksMode() {
+-				if obj != nil {
+-					// Quirk: IR (and thus iexport) doesn't track position
+-					// information for uses of declared objects.
+-					pos = syntax.Pos{}
+-				} else if tv.Value.Kind() == constant.String {
+-					// Quirk: noder.sum picks a particular position for certain
+-					// string concatenations.
+-					pos = sumPos(expr)
+-				}
+-			}
+-
+ 			w.code(exprConst)
+-			w.pos(pos)
++			w.pos(expr.Pos())
+ 			w.typ(tv.Type)
+ 			w.value(tv.Value)
+ 
+@@ -1377,15 +1330,11 @@ func (w *writer) funcLit(expr *syntax.FuncLit) {
+ 
+ 	w.sync(syncFuncLit)
+ 	w.pos(expr)
+-	w.pos(expr.Type) // for QuirksMode
+ 	w.signature(sig)
+ 
+ 	w.len(len(closureVars))
+ 	for _, cv := range closureVars {
+ 		w.pos(cv.pos)
+-		if quirksMode() {
+-			cv.pos = expr.Body.Rbrace
+-		}
+ 		w.useLocal(cv.pos, cv.obj)
+ 	}
+ 
+@@ -1538,21 +1487,6 @@ func (c *declCollector) Visit(n syntax.Node) syntax.Visitor {
+ 			}
+ 		}
+ 
+-		// Workaround for #46208. For variable declarations that
+-		// declare multiple variables and have an explicit type
+-		// expression, the type expression is evaluated multiple
+-		// times. This affects toolstash -cmp, because iexport is
+-		// sensitive to *types.Type pointer identity.
+-		if quirksMode() && n.Type != nil {
+-			tv, ok := pw.info.Types[n.Type]
+-			assert(ok)
+-			assert(tv.IsType())
+-			for _, name := range n.NameList {
+-				obj := pw.info.Defs[name].(*types2.Var)
+-				pw.dups.add(obj.Type(), tv.Type)
+-			}
+-		}
+-
+ 	case *syntax.BlockStmt:
+ 		if !c.withinFunc {
+ 			copy := *c
+@@ -1621,20 +1555,6 @@ func (pw *pkgWriter) checkPragmas(p syntax.Pragma, allowed ir.PragmaFlag, embedO
+ }
+ 
+ func (w *writer) pkgInit(noders []*noder) {
+-	if quirksMode() {
+-		posBases := posBasesOf(noders)
+-		w.len(len(posBases))
+-		for _, posBase := range posBases {
+-			w.posBase(posBase)
+-		}
+-
+-		objs := importedObjsOf(w.p.curpkg, w.p.info, noders)
+-		w.len(len(objs))
+-		for _, obj := range objs {
+-			w.qualifiedIdent(obj)
+-		}
+-	}
+-
+ 	w.len(len(w.p.cgoPragmas))
+ 	for _, cgoPragma := range w.p.cgoPragmas {
+ 		w.strings(cgoPragma)
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 42ea7bac46..bd55c91c38 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1826,8 +1826,8 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 	}
+ 	newnam.SetSiggen(true)
+ 
+-	// Except in quirks mode, unified IR creates its own wrappers.
+-	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
++	// Unified IR creates its own wrappers.
++	if base.Debug.Unified != 0 {
+ 		return lsym
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index 68ab05a538..e9e4f0ba67 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -455,13 +455,6 @@ func autotmpname(n int) string {
+ 		// Add a preceding . to avoid clashing with legal names.
+ 		prefix := ".autotmp_%d"
+ 
+-		// In quirks mode, pad out the number to stabilize variable
+-		// sorting. This ensures autotmps 8 and 9 sort the same way even
+-		// if they get renumbered to 9 and 10, respectively.
+-		if base.Debug.UnifiedQuirks != 0 {
+-			prefix = ".autotmp_%06d"
+-		}
+-
+ 		s = fmt.Sprintf(prefix, n)
+ 		autotmpnames[n] = s
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index ae3c41ca04..947d029ae2 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -621,12 +621,7 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			break
+ 		}
+ 
+-		// Sort methods, for consistency with types2.
+-		methods := append([]*types.Field(nil), t.Methods().Slice()...)
+-		if base.Debug.UnifiedQuirks != 0 {
+-			sort.Sort(types.MethodsByName(methods))
+-		}
+-
++		methods := t.Methods().Slice()
+ 		w.uint64(uint64(len(methods)))
+ 		for _, m := range methods {
+ 			w.pos(m.Pos)
+@@ -1052,14 +1047,6 @@ func (w *exportWriter) doTyp(t *types.Type) {
+ 			}
+ 		}
+ 
+-		// Sort methods and embedded types, for consistency with types2.
+-		// Note: embedded types may be anonymous, and types2 sorts them
+-		// with sort.Stable too.
+-		if base.Debug.UnifiedQuirks != 0 {
+-			sort.Sort(types.MethodsByName(methods))
+-			sort.Stable(types.EmbeddedsByName(embeddeds))
+-		}
+-
+ 		w.startType(interfaceType)
+ 		w.setPkg(t.Pkg(), true)
+ 
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 4d1c5621fe..68e16803be 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -227,7 +227,7 @@ func methodValueWrapper(dot *ir.SelectorExpr) *ir.Name {
+ 	}
+ 	sym.SetUniq(true)
+ 
+-	if base.Debug.Unified != 0 && base.Debug.UnifiedQuirks == 0 {
++	if base.Debug.Unified != 0 {
+ 		base.FatalfAt(dot.Pos(), "missing wrapper for %v", meth)
+ 	}
+ 

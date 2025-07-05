@@ -9,6 +9,23 @@ Date:   Wed Sep 4 17:02:08 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13546044
-
+---
  src/cmd/dist/build.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index 0a74ce8bbe..f02bfd8e71 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1660,7 +1660,10 @@ cmdbanner(int argc, char **argv)
+ 	xprintf("Installed Go for %s/%s in %s\n", goos, goarch, goroot);
+ 	xprintf("Installed commands in %s\n", gobin);
+ 
+-	if(streq(gohostos, "plan9")) {
++	if(!xsamefile(goroot_final, goroot)) {
++		// If the files are to be moved, don't check that gobin
++		// is on PATH; assume they know what they are doing.
++	} else if(streq(gohostos, "plan9")) {
+ 		// Check that gobin is bound before /bin.
+ 		readfile(&b, "#c/pid");
+ 		bsubst(&b, " ", "");

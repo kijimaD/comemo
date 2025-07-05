@@ -11,6 +11,19 @@ Date:   Fri Nov 2 21:51:01 2018 -0700
     Change-Id: Idaf5488fedfc05d6ff71706fa0bcd70bf98ab25a
     Reviewed-on: https://go-review.googlesource.com/c/147283
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 6dfdea1a34..1195117c2d 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -587,6 +587,7 @@ var knownFormats = map[string]string{
+ 	"*cmd/compile/internal/types.Sym %S":              "",
+ 	"*cmd/compile/internal/types.Sym %p":              "",
+ 	"*cmd/compile/internal/types.Sym %v":              "",
++	"*cmd/compile/internal/types.Type %#L":            "",
+ 	"*cmd/compile/internal/types.Type %#v":            "",
+ 	"*cmd/compile/internal/types.Type %+v":            "",
+ 	"*cmd/compile/internal/types.Type %-S":            "",

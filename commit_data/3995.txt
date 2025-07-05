@@ -6,6 +6,19 @@ Date:   Wed Nov 11 14:52:15 2009 -0800
     
     R=r
     https://golang.org/cl/154067
-
+---
  src/cmd/gotest/gotest | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 956a67965a..8d43cb7dc7 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -11,6 +11,7 @@
+ # Makes egrep,grep work better with · if we put them
+ # in ordinary C mode instead of what the current language is.
+ unset LANG
++export LC_ALL=C
+ export LC_CTYPE=C
+ 
+ _GC=$GC	# Make.$GOARCH will overwrite this

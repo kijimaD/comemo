@@ -44,10 +44,132 @@ Date:   Wed Jul 7 11:49:57 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go     |  5 +++--
  src/cmd/compile/internal/typecheck/iimport.go |  8 +++++++-
  src/cmd/compile/internal/typecheck/subr.go    | 10 +++++++++-
  src/cmd/compile/internal/types/size.go        |  7 +++++--
  test/run.go                                   | 11 ++---------
  5 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index ce9dc09bc3..d292bfd5c6 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1026,7 +1026,8 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				// an error.
+ 				_, isCallExpr := m.(*ir.CallExpr)
+ 				_, isStructKeyExpr := m.(*ir.StructKeyExpr)
+-				if !isCallExpr && !isStructKeyExpr && x.Op() != ir.OPANIC &&
++				_, isKeyExpr := m.(*ir.KeyExpr)
++				if !isCallExpr && !isStructKeyExpr && !isKeyExpr && x.Op() != ir.OPANIC &&
+ 					x.Op() != ir.OCLOSE {
+ 					base.Fatalf(fmt.Sprintf("Nil type for %v", x))
+ 				}
+@@ -1136,7 +1137,7 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 					}
+ 				}
+ 
+-			case ir.OMETHVALUE:
++			case ir.OMETHVALUE, ir.OMETHEXPR:
+ 				// Redo the transformation of OXDOT, now that we
+ 				// know the method value is being called. Then
+ 				// transform the call.
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7b7cd7f148..4a97267f05 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -567,9 +567,11 @@ func (r *importReader) pos() src.XPos {
+ func (r *importReader) typ() *types.Type {
+ 	// If this is a top-level type call, defer type instantiations until the
+ 	// type is fully constructed.
++	types.DeferCheckSize()
+ 	deferDoInst()
+ 	t := r.p.typAt(r.uint64())
+ 	resumeDoInst()
++	types.ResumeCheckSize()
+ 	return t
+ }
+ 
+@@ -1738,7 +1740,11 @@ func InstTypeName(name string, targs []*types.Type) string {
+ 			b.WriteString(targ.Sym().Pkg.Name)
+ 			b.WriteByte('.')
+ 		}
+-		b.WriteString(targ.String())
++		// types1 uses "interface {" and types2 uses "interface{" - convert
++		// to consistent types2 format.
++		tstring := targ.String()
++		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
++		b.WriteString(tstring)
+ 	}
+ 	b.WriteByte(']')
+ 	return b.String()
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index db1faaf6f7..d9e6612dfc 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -931,7 +931,11 @@ func makeGenericName(name string, targs []*types.Type, hasBrackets bool) string
+ 			b.WriteString(targ.Sym().Pkg.Name)
+ 			b.WriteByte('.')
+ 		}
+-		b.WriteString(targ.String())
++		// types1 uses "interface {" and types2 uses "interface{" - convert
++		// to consistent types2 format.
++		tstring := targ.String()
++		tstring = strings.Replace(tstring, "interface {", "interface{", -1)
++		b.WriteString(tstring)
+ 	}
+ 	b.WriteString("]")
+ 	if i >= 0 {
+@@ -1163,6 +1167,10 @@ func (ts *Tsubster) Typ(t *types.Type) *types.Type {
+ 		} else {
+ 			assert(false)
+ 		}
++	case types.TINT, types.TINT8, types.TINT16, types.TINT32, types.TINT64,
++		types.TUINT, types.TUINT8, types.TUINT16, types.TUINT32, types.TUINT64,
++		types.TUINTPTR, types.TBOOL, types.TSTRING:
++		newt = t.Underlying()
+ 	}
+ 	if newt == nil {
+ 		// Even though there were typeparams in the type, there may be no
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index f5a74f83b3..89391ade68 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -128,9 +128,12 @@ func expandiface(t *Type) {
+ 			continue
+ 		}
+ 
+-		// Once we go to 1.18, then embedded types can be anything, but
+-		// for now, just interfaces and unions.
++		// In 1.18, embedded types can be anything. In Go 1.17, we disallow
++		// embedding anything other than interfaces.
+ 		if !m.Type.IsInterface() {
++			if AllowsGoVersion(t.Pkg(), 1, 18) {
++				continue
++			}
+ 			base.ErrorfAt(m.Pos, "interface contains embedded non-interface, non-union %v", m.Type)
+ 			m.SetBroke(true)
+ 			t.SetBroke(true)
+diff --git a/test/run.go b/test/run.go
+index 0251dc1c6a..90861786df 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2204,15 +2204,8 @@ var g3Failures = setOf(
+ 
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+-	"typeparam/mdempsky/1.go",
+-	"typeparam/mdempsky/2.go",
+-	"typeparam/mdempsky/3.go",
+-	"typeparam/mdempsky/4.go",
+-	"typeparam/mdempsky/5.go",
+-	"typeparam/mdempsky/9.go",
+-	"typeparam/mdempsky/11.go",
+-	"typeparam/mdempsky/12.go",
+-	"typeparam/mdempsky/13.go",
++	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops
++	"typeparam/mdempsky/11.go", // types2/noder2 should give conversion error, because of "notinheap" mismatch
+ )
+ 
+ var unifiedFailures = setOf(

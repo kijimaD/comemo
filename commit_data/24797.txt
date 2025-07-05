@@ -14,6 +14,20 @@ Date:   Mon Aug 24 21:10:36 2015 -0700
     Change-Id: I784e91b5d21f4f1f166dc51bde2d1cd3a7a3bfea
     Reviewed-on: https://go-review.googlesource.com/13902
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/runtime/hash_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 6b229bdb88..579b0e3e67 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -74,7 +74,7 @@ func (s *HashSet) check(t *testing.T) {
+ 	pairs := int64(s.n) * int64(s.n-1) / 2
+ 	expected := float64(pairs) / math.Pow(2.0, float64(hashSize))
+ 	stddev := math.Sqrt(expected)
+-	if float64(collisions) > expected+SLOP*3*stddev {
++	if float64(collisions) > expected+SLOP*(3*stddev+1) {
+ 		t.Errorf("unexpected number of collisions: got=%d mean=%f stddev=%f", collisions, expected, stddev)
+ 	}
+ }

@@ -21,7 +21,74 @@ Date:   Thu Sep 29 11:45:33 2022 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/internal/singleflight/singleflight.go      |  2 +-
  src/internal/singleflight/singleflight_test.go | 43 ++++++++++++++++++++++++++
  2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/singleflight/singleflight.go b/src/internal/singleflight/singleflight.go
+index 755bf1c350..d0e6d2f84a 100644
+--- a/src/internal/singleflight/singleflight.go
++++ b/src/internal/singleflight/singleflight.go
+@@ -91,9 +91,9 @@ func (g *Group) DoChan(key string, fn func() (any, error)) <-chan Result {
+ // doCall handles the single call for a key.
+ func (g *Group) doCall(c *call, key string, fn func() (any, error)) {
+ 	c.val, c.err = fn()
+-	c.wg.Done()
+ 
+ 	g.mu.Lock()
++	c.wg.Done()
+ 	if g.m[key] == c {
+ 		delete(g.m, key)
+ 	}
+diff --git a/src/internal/singleflight/singleflight_test.go b/src/internal/singleflight/singleflight_test.go
+index c8b4a81d52..a13893dd34 100644
+--- a/src/internal/singleflight/singleflight_test.go
++++ b/src/internal/singleflight/singleflight_test.go
+@@ -141,3 +141,46 @@ func TestForgetUnshared(t *testing.T) {
+ 		t.Errorf("We should receive result produced by second call, expected: 2, got %d", result.Val)
+ 	}
+ }
++
++func TestDoAndForgetUnsharedRace(t *testing.T) {
++	t.Parallel()
++
++	var g Group
++	key := "key"
++	d := time.Millisecond
++	for {
++		var calls, shared atomic.Int64
++		const n = 1000
++		var wg sync.WaitGroup
++		wg.Add(n)
++		for i := 0; i < n; i++ {
++			go func() {
++				g.Do(key, func() (interface{}, error) {
++					time.Sleep(d)
++					return calls.Add(1), nil
++				})
++				if !g.ForgetUnshared(key) {
++					shared.Add(1)
++				}
++				wg.Done()
++			}()
++		}
++		wg.Wait()
++
++		if calls.Load() != 1 {
++			// The goroutines didn't park in g.Do in time,
++			// so the key was re-added and may have been shared after the call.
++			// Try again with more time to park.
++			d *= 2
++			continue
++		}
++
++		// All of the Do calls ended up sharing the first
++		// invocation, so the key should have been unused
++		// (and therefore unshared) when they returned.
++		if shared.Load() > 0 {
++			t.Errorf("after a single shared Do, ForgetUnshared returned false %d times", shared.Load())
++		}
++		break
++	}
++}

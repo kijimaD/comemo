@@ -13,6 +13,27 @@ Date:   Thu Apr 8 16:47:13 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/308652
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/objdump/objdump_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 1748e13a53..ac184441ea 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -64,13 +64,13 @@ var x86Need = []string{ // for both 386 and AMD64
+ }
+ 
+ var amd64GnuNeed = []string{
+-	"movq",
++	"jmp",
+ 	"callq",
+ 	"cmpb",
+ }
+ 
+ var i386GnuNeed = []string{
+-	"mov",
++	"jmp",
+ 	"call",
+ 	"cmp",
+ }

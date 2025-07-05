@@ -7,7 +7,34 @@ Date:   Tue Nov 3 22:48:48 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1018034
-
+---
  src/cmd/clean.bash | 2 +-
  src/make.bash      | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 4bcc7ecd0c..e18c600381 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt prof gotest goyacc
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/make.bash b/src/make.bash
+index b223d23b72..97750acc5b 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -20,7 +20,7 @@ CC=${CC:-gcc}
+ sed -e "s|@CC@|$CC|" < quietgcc.bash > $GOBIN/quietgcc
+ chmod +x $GOBIN/quietgcc
+ 
+-for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt
++for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc
+ do
+ 	case "$i-$GOOS" in
+ 	libcgo-nacl)

@@ -7,8 +7,78 @@ Date:   Sun Apr 7 11:37:37 2013 -0700
     R=golang-dev, dvyukov, bradfitz
     CC=golang-dev
     https://golang.org/cl/8366044
-
+---
  src/pkg/runtime/crash_test.go         | 20 ++++++++++++++++++--
  src/pkg/runtime/debug/garbage_test.go |  2 ++
  src/pkg/runtime/race/race_test.go     |  2 +-
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+index 80549a5054..929d4a9636 100644
+--- a/src/pkg/runtime/crash_test.go
++++ b/src/pkg/runtime/crash_test.go
+@@ -14,6 +14,22 @@ import (
+ 	"text/template"
+ )
+ 
++// testEnv excludes GOGCTRACE from the environment
++// to prevent its output from breaking tests that
++// are trying to parse other command output.
++func testEnv(cmd *exec.Cmd) *exec.Cmd {
++	if cmd.Env != nil {
++		panic("environment already set")
++	}
++	for _, env := range os.Environ() {
++		if strings.HasPrefix(env, "GOGCTRACE=") {
++			continue
++		}
++		cmd.Env = append(cmd.Env, env)
++	}
++	return cmd
++}
++
+ func executeTest(t *testing.T, templ string, data interface{}) string {
+ 	checkStaleRuntime(t)
+ 
+@@ -37,13 +53,13 @@ func executeTest(t *testing.T, templ string, data interface{}) string {
+ 	}
+ 	f.Close()
+ 
+-	got, _ := exec.Command("go", "run", src).CombinedOutput()
++	got, _ := testEnv(exec.Command("go", "run", src)).CombinedOutput()
+ 	return string(got)
+ }
+ 
+ func checkStaleRuntime(t *testing.T) {
+ 	// 'go run' uses the installed copy of runtime.a, which may be out of date.
+-	out, err := exec.Command("go", "list", "-f", "{{.Stale}}", "runtime").CombinedOutput()
++	out, err := testEnv(exec.Command("go", "list", "-f", "{{.Stale}}", "runtime")).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to execute 'go list': %v\n%v", err, string(out))
+ 	}
+diff --git a/src/pkg/runtime/debug/garbage_test.go b/src/pkg/runtime/debug/garbage_test.go
+index b93cfee568..149bafc6f3 100644
+--- a/src/pkg/runtime/debug/garbage_test.go
++++ b/src/pkg/runtime/debug/garbage_test.go
+@@ -11,6 +11,8 @@ import (
+ )
+ 
+ func TestReadGCStats(t *testing.T) {
++	defer SetGCPercent(SetGCPercent(-1))
++
+ 	var stats GCStats
+ 	var mstats runtime.MemStats
+ 	var min, max time.Duration
+diff --git a/src/pkg/runtime/race/race_test.go b/src/pkg/runtime/race/race_test.go
+index c77569c37f..47d34d7ad9 100644
+--- a/src/pkg/runtime/race/race_test.go
++++ b/src/pkg/runtime/race/race_test.go
+@@ -147,7 +147,7 @@ func runTests() ([]byte, error) {
+ 	// It is required because the tests contain a lot of data races on the same addresses
+ 	// (the tests are simple and the memory is constantly reused).
+ 	for _, env := range os.Environ() {
+-		if strings.HasPrefix(env, "GOMAXPROCS=") {
++		if strings.HasPrefix(env, "GOMAXPROCS=") || strings.HasPrefix(env, "GOGCTRACE=") {
+ 			continue
+ 		}
+ 		cmd.Env = append(cmd.Env, env)

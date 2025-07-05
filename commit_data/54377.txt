@@ -16,6 +16,21 @@ Date:   Wed Oct 12 10:39:27 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/sys_windows_arm64.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_windows_arm64.s b/src/runtime/sys_windows_arm64.s
+index 024625f821..b39df4f124 100644
+--- a/src/runtime/sys_windows_arm64.s
++++ b/src/runtime/sys_windows_arm64.s
+@@ -113,7 +113,8 @@ TEXT runtime·badsignal2(SB),NOSPLIT,$16-0
+ 	MOVD	$runtime·badsignalmsg(SB), R1	// lpBuffer
+ 	MOVD	$runtime·badsignallen(SB), R2	// lpNumberOfBytesToWrite
+ 	MOVD	(R2), R2
+-	MOVD	R13, R3		// lpNumberOfBytesWritten
++	// point R3 to stack local that will receive number of bytes written
++	ADD	$16, RSP, R3		// lpNumberOfBytesWritten
+ 	MOVD	$0, R4			// lpOverlapped
+ 	MOVD	runtime·_WriteFile(SB), R12
+ 	SUB	$16, RSP	// skip over saved frame pointer below RSP

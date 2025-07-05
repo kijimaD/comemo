@@ -16,7 +16,38 @@ Date:   Thu Sep 23 11:46:28 2021 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/alldocs.go             | 4 ++--
  src/cmd/go/internal/work/build.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 744d462c00..0036d8615f 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -167,8 +167,8 @@
+ // 		directory, but it is not accessed. When -modfile is specified, an
+ // 		alternate go.sum file is also used: its path is derived from the
+ // 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+-//   -workfile file
+-//     in module aware mode, use the given go.work file as a workspace file.
++// 	-workfile file
++// 		in module aware mode, use the given go.work file as a workspace file.
+ // 		By default or when -workfile is "auto", the go command searches for a
+ // 		file named go.work in the current directory and then containing directories
+ // 		until one is found. If a valid go.work file is found, the modules
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index e5d7f4a8fd..55e4954eee 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -121,8 +121,8 @@ and test commands:
+ 		directory, but it is not accessed. When -modfile is specified, an
+ 		alternate go.sum file is also used: its path is derived from the
+ 		-modfile flag by trimming the ".mod" extension and appending ".sum".
+-  -workfile file
+-    in module aware mode, use the given go.work file as a workspace file.
++	-workfile file
++		in module aware mode, use the given go.work file as a workspace file.
+ 		By default or when -workfile is "auto", the go command searches for a
+ 		file named go.work in the current directory and then containing directories
+ 		until one is found. If a valid go.work file is found, the modules

@@ -9,6 +9,25 @@ Date:   Thu Apr 11 16:48:05 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 1e3c53826c..16794e1ab0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -692,13 +692,6 @@ func freezetheworld() {
+ 	usleep(1000)
+ }
+ 
+-func isscanstatus(status uint32) bool {
+-	if status == _Gscan {
+-		throw("isscanstatus: Bad status Gscan")
+-	}
+-	return status&_Gscan == _Gscan
+-}
+-
+ // All reads and writes of g's status go through readgstatus, casgstatus
+ // castogscanstatus, casfrom_Gscanstatus.
+ //go:nosplit

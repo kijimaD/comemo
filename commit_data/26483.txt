@@ -9,7 +9,57 @@ Date:   Wed Jan 27 11:49:58 2016 +0000
     Change-Id: If95ad29750b776338178d660646568bf26a4abda
     Reviewed-on: https://go-review.googlesource.com/18964
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/link/internal/arm/asm.go | 16 ++++++++--------
  src/runtime/asm_arm.s            |  5 +++++
  2 files changed, 13 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 8ffa656208..74c2249702 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -689,14 +689,14 @@ func asmb() {
+ 	switch ld.HEADTYPE {
+ 	default:
+ 	case obj.Hplan9: /* plan 9 */
+-		ld.Thearch.Lput(0x647)                      /* magic */
+-		ld.Thearch.Lput(uint32(ld.Segtext.Filelen)) /* sizes */
+-		ld.Thearch.Lput(uint32(ld.Segdata.Filelen))
+-		ld.Thearch.Lput(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
+-		ld.Thearch.Lput(uint32(ld.Symsize))      /* nsyms */
+-		ld.Thearch.Lput(uint32(ld.Entryvalue())) /* va of entry */
+-		ld.Thearch.Lput(0)
+-		ld.Thearch.Lput(uint32(ld.Lcsize))
++		ld.Lputb(0x647)                      /* magic */
++		ld.Lputb(uint32(ld.Segtext.Filelen)) /* sizes */
++		ld.Lputb(uint32(ld.Segdata.Filelen))
++		ld.Lputb(uint32(ld.Segdata.Length - ld.Segdata.Filelen))
++		ld.Lputb(uint32(ld.Symsize))      /* nsyms */
++		ld.Lputb(uint32(ld.Entryvalue())) /* va of entry */
++		ld.Lputb(0)
++		ld.Lputb(uint32(ld.Lcsize))
+ 
+ 	case obj.Hlinux,
+ 		obj.Hfreebsd,
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 09fbc952e0..53128e7eb1 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -81,12 +81,17 @@ DATA	runtime·mainPC+0(SB)/4,$runtime·main(SB)
+ GLOBL	runtime·mainPC(SB),RODATA,$4
+ 
+ TEXT runtime·breakpoint(SB),NOSPLIT,$0-0
++	BL		runtime·emptyfunc(SB)	// force R14 save for traceback
+ 	// gdb won't skip this breakpoint instruction automatically,
+ 	// so you must manually "set $pc+=4" to skip it and continue.
+ #ifdef GOOS_nacl
+ 	WORD	$0xe125be7f	// BKPT 0x5bef, NACL_INSTR_ARM_BREAKPOINT
++#else
++#ifdef GOOS_plan9
++	WORD	$0xD1200070	// undefined instruction used as armv5 breakpoint in Plan 9
+ #else
+ 	WORD	$0xe7f001f0	// undefined instruction that gdb understands is a software breakpoint
++#endif
+ #endif
+ 	RET
+ 

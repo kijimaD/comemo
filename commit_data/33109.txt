@@ -17,7 +17,7 @@ Date:   Thu Jul 13 08:10:43 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go                            | 11 ----
  src/cmd/go/testdata/inprogress_interrupt_test.go | 40 --------------
  src/go/build/deps_test.go                        |  2 +-
@@ -26,3 +26,258 @@ Date:   Thu Jul 13 08:10:43 2017 -0700
  src/os/signal/signal_windows_test.go             |  2 +-
  src/testing/testing.go                           | 66 ------------------------
  7 files changed, 4 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f36432cf34..e706e27bdf 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2633,17 +2633,6 @@ func TestGoTestFlagsAfterPackage(t *testing.T) {
+ 	tg.run("test", "-v", "testdata/flag_test.go", "-args", "-v=7") // Two distinct -v flags.
+ }
+ 
+-func TestGoTestShowInProgressOnInterrupt(t *testing.T) {
+-	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
+-		t.Skipf("skipping test on %s - lack of full unix-like signal support", runtime.GOOS)
+-	}
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "-v", "testdata/inprogress_interrupt_test.go")
+-	testsInProgress := "tests in progress: TestParallel, TestSerial"
+-	tg.grepStdout(testsInProgress, "tests which haven't completed should be listed in progress")
+-}
+-
+ func TestGoTestXtestonlyWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/inprogress_interrupt_test.go b/src/cmd/go/testdata/inprogress_interrupt_test.go
+deleted file mode 100644
+index 135cfa96c4..0000000000
+--- a/src/cmd/go/testdata/inprogress_interrupt_test.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-package inprogress_interrupt_test
+-
+-import (
+-	"os"
+-	"os/signal"
+-	"sync"
+-	"syscall"
+-	"testing"
+-)
+-
+-func TestParallel(t *testing.T) {
+-	t.Parallel()
+-}
+-
+-func TestSerial(t *testing.T) {
+-	sigCh := make(chan os.Signal, 1)
+-	signal.Notify(sigCh, os.Interrupt)
+-
+-	var wg sync.WaitGroup
+-	wg.Add(1)
+-	go func() {
+-		<-sigCh // catch initial signal
+-		<-sigCh // catch propagated signal
+-		wg.Done()
+-	}()
+-
+-	proc, err := os.FindProcess(syscall.Getpid())
+-	if err != nil {
+-		t.Fatalf("unable to find current process: %v", err)
+-	}
+-	err = proc.Signal(os.Interrupt)
+-	if err != nil {
+-		t.Fatalf("failed to interrupt current process: %v", err)
+-	}
+-
+-	wg.Wait()
+-}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f9f655b449..ec8dd06788 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -183,7 +183,7 @@ var pkgDeps = map[string][]string{
+ 	"runtime/trace":  {"L0"},
+ 	"text/tabwriter": {"L2"},
+ 
+-	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "os/signal", "runtime/debug", "runtime/pprof", "runtime/trace", "syscall", "time"},
++	"testing":          {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect", "time"},
+ 	"internal/testenv": {"L2", "OS", "flag", "testing", "syscall"},
+diff --git a/src/os/signal/signal_plan9_test.go b/src/os/signal/signal_plan9_test.go
+index 49b7aff6e2..10bfdc3ff1 100644
+--- a/src/os/signal/signal_plan9_test.go
++++ b/src/os/signal/signal_plan9_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package signal_test
++package signal
+ 
+ import (
+ 	"os"
+-	. "os/signal"
+ 	"runtime"
+ 	"syscall"
+ 	"testing"
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index 6cf05f5d3e..dea2add0ab 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -4,7 +4,7 @@
+ 
+ // +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+-package signal_test
++package signal
+ 
+ import (
+ 	"bytes"
+@@ -14,7 +14,6 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+-	. "os/signal"
+ 	"runtime"
+ 	"strconv"
+ 	"sync"
+diff --git a/src/os/signal/signal_windows_test.go b/src/os/signal/signal_windows_test.go
+index 2892125ff6..c2b59010fc 100644
+--- a/src/os/signal/signal_windows_test.go
++++ b/src/os/signal/signal_windows_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package signal_test
++package signal
+ 
+ import (
+ 	"bytes"
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 80031039b4..3d1c0c6947 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -224,16 +224,13 @@ import (
+ 	"internal/race"
+ 	"io"
+ 	"os"
+-	"os/signal"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"runtime/trace"
+-	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+-	"syscall"
+ 	"time"
+ )
+ 
+@@ -272,10 +269,6 @@ var (
+ 	haveExamples bool // are there examples?
+ 
+ 	cpuList []int
+-
+-	inProgressMu       sync.Mutex // guards this group of fields
+-	inProgressRegistry = make(map[string]int)
+-	inProgressIdx      int
+ )
+ 
+ // common holds the elements common between T and B and
+@@ -785,12 +778,9 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 		root := t.parent
+ 		for ; root.parent != nil; root = root.parent {
+ 		}
+-		inProgressMu.Lock()
+ 		root.mu.Lock()
+-		t.registerInProgress()
+ 		fmt.Fprintf(root.w, "=== RUN   %s\n", t.name)
+ 		root.mu.Unlock()
+-		inProgressMu.Unlock()
+ 	}
+ 	// Instead of reducing the running count of this test before calling the
+ 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
+@@ -952,11 +942,6 @@ func (t *T) report() {
+ 	}
+ 	dstr := fmtDuration(t.duration)
+ 	format := "--- %s: %s (%s)\n"
+-
+-	inProgressMu.Lock()
+-	defer inProgressMu.Unlock()
+-	defer t.registerComplete()
+-
+ 	if t.Failed() {
+ 		t.flushToParent(format, "FAIL", t.name, dstr)
+ 	} else if t.chatty {
+@@ -968,39 +953,6 @@ func (t *T) report() {
+ 	}
+ }
+ 
+-func (t *T) registerInProgress() {
+-	if !t.chatty {
+-		return
+-	}
+-	inProgressRegistry[t.name] = inProgressIdx
+-	inProgressIdx++
+-}
+-
+-func (t *T) registerComplete() {
+-	if !t.chatty {
+-		return
+-	}
+-	delete(inProgressRegistry, t.name)
+-}
+-
+-func reportTestsInProgress() {
+-	if len(inProgressRegistry) == 0 {
+-		return
+-	}
+-	idxToName := make(map[int]string)
+-	var indexes []int
+-	for name, idx := range inProgressRegistry {
+-		idxToName[idx] = name
+-		indexes = append(indexes, idx)
+-	}
+-	sort.Ints(indexes)
+-	var namesInOrder []string
+-	for _, idx := range indexes {
+-		namesInOrder = append(namesInOrder, idxToName[idx])
+-	}
+-	fmt.Printf("\ntests in progress: %s\n", strings.Join(namesInOrder, ", "))
+-}
+-
+ func listTests(matchString func(pat, str string) (bool, error), tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) {
+ 	if _, err := matchString(*matchList, "non-empty"); err != nil {
+ 		fmt.Fprintf(os.Stderr, "testing: invalid regexp in -test.list (%q): %s\n", *matchList, err)
+@@ -1104,24 +1056,6 @@ func (m *M) before() {
+ 		fmt.Fprintf(os.Stderr, "testing: cannot use -test.coverprofile because test binary was not built with coverage enabled\n")
+ 		os.Exit(2)
+ 	}
+-	if Verbose() {
+-		sigCh := make(chan os.Signal, 1)
+-		signal.Notify(sigCh, os.Interrupt)
+-		go func() {
+-			<-sigCh
+-			signal.Stop(sigCh)
+-			inProgressMu.Lock()
+-			reportTestsInProgress()
+-			inProgressMu.Unlock()
+-			proc, err := os.FindProcess(syscall.Getpid())
+-			if err == nil {
+-				err = proc.Signal(os.Interrupt)
+-			}
+-			if err != nil {
+-				os.Exit(2)
+-			}
+-		}()
+-	}
+ }
+ 
+ // after runs after all testing.

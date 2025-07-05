@@ -9,8 +9,154 @@ Date:   Wed Jul 31 16:11:12 2013 +1000
     R=dsymonds, r, kamil.kisiel
     CC=golang-dev
     https://golang.org/cl/11998044
-
+---
  src/pkg/fmt/doc.go      |  8 ++++----
  src/pkg/fmt/fmt_test.go | 30 +++++++++++++++---------------
  src/pkg/fmt/print.go    | 35 ++++++++++++++++++-----------------
  3 files changed, 37 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index e1fca445e3..095fd03b23 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -156,8 +156,8 @@
+ 			Printf("%*s", 4.5, "hi"):  %!(BADWIDTH)hi
+ 			Printf("%.*s", 4.5, "hi"): %!(BADPREC)hi
+ 		Invalid or invalid use of argument index: %!(BADINDEX)
+-			Printf("%*[2]d", 7):       %d!(BADINDEX)
+-			Printf("%.[2]d", 7):       %d!(BADINDEX)
++			Printf("%*[2]d", 7):       %!d(BADINDEX)
++			Printf("%.[2]d", 7):       %!d(BADINDEX)
+ 
+ 	All errors begin with the string "%!" followed sometimes
+ 	by a single character (the verb) and end with a parenthesized
+@@ -169,9 +169,9 @@
+ 	through the fmt package.  For example, if a String method
+ 	calls panic("bad"), the resulting formatted message will look
+ 	like
+-		%s(PANIC=bad)
++		%!s(PANIC=bad)
+ 
+-	The %s just shows the print verb in use when the failure
++	The %!s just shows the print verb in use when the failure
+ 	occurred.
+ 
+ 	Scanning
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index d3df109cde..fb326ed8e2 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -563,17 +563,17 @@ var reorderTests = []struct {
+ 	{"%d %d %d %#[1]o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015"},
+ 
+ 	// Erroneous cases.
+-	{"%[d", SE{2, 1}, "%d!(BADINDEX)"},
++	{"%[d", SE{2, 1}, "%!d(BADINDEX)"},
+ 	{"%]d", SE{2, 1}, "%!](int=2)d%!(EXTRA int=1)"},
+-	{"%[]d", SE{2, 1}, "%d!(BADINDEX)"},
+-	{"%[-3]d", SE{2, 1}, "%d!(BADINDEX)"},
+-	{"%[99]d", SE{2, 1}, "%d!(BADINDEX)"},
++	{"%[]d", SE{2, 1}, "%!d(BADINDEX)"},
++	{"%[-3]d", SE{2, 1}, "%!d(BADINDEX)"},
++	{"%[99]d", SE{2, 1}, "%!d(BADINDEX)"},
+ 	{"%[3]", SE{2, 1}, "%!(NOVERB)"},
+-	{"%[1].2d", SE{5, 6}, "%d!(BADINDEX)"},
+-	{"%[1]2d", SE{2, 1}, "%d!(BADINDEX)"},
+-	{"%3.[2]d", SE{7}, "%d!(BADINDEX)"},
+-	{"%.[2]d", SE{7}, "%d!(BADINDEX)"},
+-	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %o!(MISSING)"},
++	{"%[1].2d", SE{5, 6}, "%!d(BADINDEX)"},
++	{"%[1]2d", SE{2, 1}, "%!d(BADINDEX)"},
++	{"%3.[2]d", SE{7}, "%!d(BADINDEX)"},
++	{"%.[2]d", SE{7}, "%!d(BADINDEX)"},
++	{"%d %d %d %#[1]o %#o %#o %#o", SE{11, 12, 13}, "11 12 13 013 014 015 %!o(MISSING)"},
+ }
+ 
+ func TestReorder(t *testing.T) {
+@@ -877,16 +877,16 @@ var panictests = []struct {
+ }{
+ 	// String
+ 	{"%s", (*Panic)(nil), "<nil>"}, // nil pointer special case
+-	{"%s", Panic{io.ErrUnexpectedEOF}, "%s!(PANIC=unexpected EOF)"},
+-	{"%s", Panic{3}, "%s!(PANIC=3)"},
++	{"%s", Panic{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
++	{"%s", Panic{3}, "%!s(PANIC=3)"},
+ 	// GoString
+ 	{"%#v", (*Panic)(nil), "<nil>"}, // nil pointer special case
+-	{"%#v", Panic{io.ErrUnexpectedEOF}, "%v!(PANIC=unexpected EOF)"},
+-	{"%#v", Panic{3}, "%v!(PANIC=3)"},
++	{"%#v", Panic{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
++	{"%#v", Panic{3}, "%!v(PANIC=3)"},
+ 	// Format
+ 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
+-	{"%s", PanicF{io.ErrUnexpectedEOF}, "%s!(PANIC=unexpected EOF)"},
+-	{"%s", PanicF{3}, "%s!(PANIC=3)"},
++	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
++	{"%s", PanicF{3}, "%!s(PANIC=3)"},
+ }
+ 
+ func TestPanics(t *testing.T) {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index bca2d35fb0..1b0c207d3b 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -16,20 +16,21 @@ import (
+ // Some constants in the form of bytes, to avoid string overhead.
+ // Needlessly fastidious, I suppose.
+ var (
+-	commaSpaceBytes = []byte(", ")
+-	nilAngleBytes   = []byte("<nil>")
+-	nilParenBytes   = []byte("(nil)")
+-	nilBytes        = []byte("nil")
+-	mapBytes        = []byte("map[")
+-	missingBytes    = []byte("!(MISSING)")
+-	badIndexBytes   = []byte("!(BADINDEX)")
+-	panicBytes      = []byte("!(PANIC=")
+-	extraBytes      = []byte("%!(EXTRA ")
+-	irparenBytes    = []byte("i)")
+-	bytesBytes      = []byte("[]byte{")
+-	badWidthBytes   = []byte("%!(BADWIDTH)")
+-	badPrecBytes    = []byte("%!(BADPREC)")
+-	noVerbBytes     = []byte("%!(NOVERB)")
++	commaSpaceBytes  = []byte(", ")
++	nilAngleBytes    = []byte("<nil>")
++	nilParenBytes    = []byte("(nil)")
++	nilBytes         = []byte("nil")
++	mapBytes         = []byte("map[")
++	percentBangBytes = []byte("%!")
++	missingBytes     = []byte("(MISSING)")
++	badIndexBytes    = []byte("(BADINDEX)")
++	panicBytes       = []byte("(PANIC=")
++	extraBytes       = []byte("%!(EXTRA ")
++	irparenBytes     = []byte("i)")
++	bytesBytes       = []byte("[]byte{")
++	badWidthBytes    = []byte("%!(BADWIDTH)")
++	badPrecBytes     = []byte("%!(BADPREC)")
++	noVerbBytes      = []byte("%!(NOVERB)")
+ )
+ 
+ // State represents the printer state passed to custom formatters.
+@@ -660,7 +661,7 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
+ 			// Nested panics; the recursion in printArg cannot succeed.
+ 			panic(err)
+ 		}
+-		p.buf.WriteByte('%')
++		p.buf.Write(percentBangBytes)
+ 		p.add(verb)
+ 		p.buf.Write(panicBytes)
+ 		p.panicking = true
+@@ -1165,12 +1166,12 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			continue
+ 		}
+ 		if !p.goodArgNum {
+-			p.buf.WriteByte('%')
++			p.buf.Write(percentBangBytes)
+ 			p.add(c)
+ 			p.buf.Write(badIndexBytes)
+ 			continue
+ 		} else if argNum >= len(a) { // out of operands
+-			p.buf.WriteByte('%')
++			p.buf.Write(percentBangBytes)
+ 			p.add(c)
+ 			p.buf.Write(missingBytes)
+ 			continue

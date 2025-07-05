@@ -7,7 +7,63 @@ Date:   Tue Mar 23 12:56:39 2010 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/643042
-
+---
  .hgtags                |  1 -
  doc/devel/release.html | 35 +++++++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/.hgtags b/.hgtags
+index 59a47eb216..0f5a957548 100644
+--- a/.hgtags
++++ b/.hgtags
+@@ -14,4 +14,3 @@ db4262ce882d8445764312d41547ee8f11a7f7a9 release.2010-02-04
+ 4a0661b86e50eae734dbe43ed1312c4a0304676b release.2010-02-23
+ a215d03e7ee1013b2abe3f1e2c84457ec51c68e4 release.2010-03-04
+ 194d473264c1a015803d07bed200e0c312aca43e release.2010-03-15
+-194d473264c1a015803d07bed200e0c312aca43e release
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index c9fb0a3feb..1dd4b3f5db 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -5,6 +5,41 @@
+ <p>This page summarizes the changes between tagged releases of Go.
+ For full details, see the <a href="http://code.google.com/p/go/source/list">Mercurial change log</a>.</p>
+ 
++<h3 id="2010-03-22">2010-03-22</h3>
++
++<pre>
++With this release we announce the launch of the Go Blog:
++	http://blog.golang.org/
++The first post is a brief update covering what has happened since the launch.
++
++This release contains some new packages and functionality, and many fixes:
++* 6g/8g: fix issues with complex data types, other bug fixes.
++* Makefiles: refactored to make writing external Makefiles easier.
++* crypto/rand: new package.
++* godoc: implemented command-line search via RPC,
++	improved comment formatting: recognize URLs.
++* gofmt: more consistent formatting of const/var decls.
++* http: add Error helper function,
++	add ParseQuery (thanks Petar Maymounkov),
++	change RawPath to mean raw path, not raw everything-after-scheme.
++* image/jpeg: fix typos.
++* json: add MarshalIndent (accepts user-specified indent string).
++* math: add Gamma function (thanks Charles L. Dorian).
++* misc/bbedit: support for cmplx, real, imag (thanks Anthony Starks).
++* misc/vim: add new complex types, functions and literals.
++* net: fix IPMask.String not to crash on all-0xff mask.
++* os: drop File finalizer after normal Close.
++* runtime: add GOROOT and Version,
++	lock finalizer table accesses.
++* sha512: add sha384 (truncated version) (thanks Conrad Meyer).
++* syscall: add const ARCH, analogous to OS.
++* syscall: further additions to mingw port (thanks Alex Brainman).
++* template: fixed html formatter []byte input bug.
++* utf16: new package.
++* version.bash: cope with ancient Mercurial.
++* websocket: use URL.RawPath to construct WebSocket-Location: header.
++</pre>
++
+ <h3 id="2010-03-15">2010-03-15</h3>
+ 
+ <pre>

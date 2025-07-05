@@ -9,7 +9,7 @@ Date:   Fri Sep 18 11:50:24 2009 -0700
     DELTA=83  (44 added, 10 deleted, 29 changed)
     OCL=34717
     CL=34790
-
+---
  src/pkg/Make.deps                      | 19 +++++++------
  src/pkg/Makefile                       |  1 +
  src/pkg/debug/dwarf/testdata/typedef.c |  6 +++-
@@ -17,3 +17,267 @@ Date:   Fri Sep 18 11:50:24 2009 -0700
  src/pkg/debug/dwarf/type_test.go       | 51 ++++++++++++++++++++--------------
  src/pkg/debug/elf/file.go              | 24 ++++++++++++++++
  6 files changed, 76 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 2bb2cc8052..710c34532a 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -18,22 +18,23 @@ crypto/md5.install: hash.install os.install
+ crypto/sha1.install: hash.install os.install
+ datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+ debug/binary.install: io.install math.install os.install reflect.install
+-debug/dwarf.install: debug/binary.install fmt.install os.install strconv.install
+-debug/elf.install: debug/binary.install fmt.install io.install os.install strconv.install
+-debug/gosym.install: debug/binary.install fmt.install io.install os.install strconv.install strings.install
++debug/dwarf.install: debug/binary.install os.install strconv.install
++debug/macho.install: bytes.install debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
++debug/elf.install: debug/binary.install debug/dwarf.install fmt.install io.install os.install strconv.install
++debug/gosym.install: debug/binary.install fmt.install os.install strconv.install strings.install
+ debug/proc.install: container/vector.install fmt.install io.install os.install runtime.install strconv.install strings.install sync.install syscall.install
+-ebnf.install: container/vector.install fmt.install go/scanner.install go/token.install os.install strconv.install strings.install unicode.install utf8.install
++ebnf.install: container/vector.install go/scanner.install go/token.install os.install strconv.install unicode.install utf8.install
+ exec.install: os.install strings.install
+-exvar.install: bytes.install fmt.install http.install io.install log.install strconv.install sync.install
++exvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+ go/ast.install: go/token.install unicode.install utf8.install
+-go/doc.install: container/vector.install fmt.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
++go/doc.install: container/vector.install go/ast.install go/token.install io.install once.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+ go/printer.install: container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install strings.install tabwriter.install
+ go/scanner.install: bytes.install container/vector.install fmt.install go/token.install io.install os.install sort.install strconv.install unicode.install utf8.install
+ go/token.install: fmt.install strconv.install
+-gob.install: bytes.install fmt.install io.install math.install os.install reflect.install strings.install sync.install unicode.install
++gob.install: bytes.install fmt.install io.install math.install os.install reflect.install sync.install
+ hash.install: io.install
+ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+@@ -50,9 +51,9 @@ once.install: sync.install
+ os.install: once.install syscall.install
+ path.install: strings.install
+ rand.install:
+-reflect.install: runtime.install strconv.install strings.install
++reflect.install: runtime.install strconv.install
+ regexp.install: bytes.install container/vector.install io.install os.install runtime.install utf8.install
+-rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strconv.install strings.install sync.install template.install unicode.install utf8.install
++rpc.install: bufio.install fmt.install gob.install http.install io.install log.install net.install os.install reflect.install sort.install strings.install sync.install template.install unicode.install utf8.install
+ runtime.install:
+ sort.install:
+ strconv.install: bytes.install math.install os.install unicode.install utf8.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 263b9fedaa..eefd6ffac0 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -33,6 +33,7 @@ DIRS=\
+ 	datafmt\
+ 	debug/binary\
+ 	debug/dwarf\
++	debug/macho\
+ 	debug/elf\
+ 	debug/gosym\
+ 	debug/proc\
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.c b/src/pkg/debug/dwarf/testdata/typedef.c
+index 9a46d42e08..2ceb00ced8 100644
+--- a/src/pkg/debug/dwarf/testdata/typedef.c
++++ b/src/pkg/debug/dwarf/testdata/typedef.c
+@@ -3,7 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-gcc -gdwarf-2 -c typedef.c && gcc -gdwarf-2 -o typedef.elf typedef.o
++Linux ELF:
++gcc -gdwarf-2 -m64 -c typedef.c && gcc -gdwarf-2 -m64 -o typedef.elf typedef.o
++
++OS X Mach-O:
++gcc -gdwarf-2 -m64 -c typedef.c -o typedef.macho
+ */
+ 
+ typedef volatile int* t_ptr_volatile_int;
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 335ef314a1..09672f392f 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -103,7 +103,7 @@ type ArrayType struct {
+ 	CommonType;
+ 	Type Type;
+ 	StrideBitSize int64;	// if > 0, number of bits to hold each element
+-	Count int64;
++	Count int64;	// if == -1, an incomplete array, like char x[].
+ }
+ 
+ func (t *ArrayType) String() string {
+@@ -111,8 +111,6 @@ func (t *ArrayType) String() string {
+ }
+ 
+ // A VoidType represents the C void type.
+-// It is only used as the subtype for a pointer:
+-// a FuncType that returns no value has a nil ReturnType.
+ type VoidType struct {
+ 	CommonType;
+ }
+@@ -306,8 +304,8 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 	typeOf := func(e *Entry) Type {
+ 		toff, ok := e.Val(AttrType).(Offset);
+ 		if !ok {
+-			err = DecodeError{"info", e.Offset, "missing type attribute"};
+-			return nil;
++			// It appears that no Type means "void".
++			return new(VoidType);
+ 		}
+ 		var t Type;
+ 		if t, err = d.Type(toff); err != nil {
+@@ -343,8 +341,7 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 			case TagSubrangeType:
+ 				max, ok := kid.Val(AttrUpperBound).(int64);
+ 				if !ok {
+-					err = DecodeError{"info", kid.Offset, "missing upper bound"};
+-					goto Error;
++					max = -2;	 // Count == -1, as in x[].
+ 				}
+ 				if ndim == 0 {
+ 					t.Count = max+1;
+@@ -548,10 +545,8 @@ func (d *Data) Type(off Offset) (Type, os.Error) {
+ 		t := new(FuncType);
+ 		typ = t;
+ 		d.typeCache[off] = t;
+-		if e.Val(AttrType) != nil {
+-			if t.ReturnType = typeOf(e); err != nil {
+-				goto Error;
+-			}
++		if t.ReturnType = typeOf(e); err != nil {
++			goto Error;
+ 		}
+ 		t.ParamType = make([]Type, 0, 8);
+ 		for kid := next(); kid != nil; kid = next() {
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index ea7f219767..0534518cc1 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -2,10 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package dwarf
++package dwarf_test
+ 
+ import (
++	. "debug/dwarf";
+ 	"debug/elf";
++	"debug/macho";
+ 	"testing";
+ )
+ 
+@@ -32,30 +34,37 @@ func elfData(t *testing.T, name string) *Data {
+ 	if err != nil {
+ 		t.Fatal(err);
+ 	}
+-	
+-	dat := func(name string) []byte {
+-		s := f.Section(".debug_" + name);
+-		if s == nil {
+-			return nil
+-		}
+-		b, err := s.Data();
+-		if err != nil {
+-			t.Fatal(".debug_"+name+":", err);
+-		}
+-		return b;
+-	};
+-	
+-	d, err := New(dat("abbrev"), nil, nil, dat("info"), nil, nil, nil, dat("str"));
++
++	d, err := f.DWARF();
+ 	if err != nil {
+-		t.Fatal("New:", err);
++		t.Fatal(err);
+ 	}
+-	
+ 	return d;
+ }
+ 
++func machoData(t *testing.T, name string) *Data {
++	f, err := macho.Open(name);
++	if err != nil {
++		t.Fatal(err);
++	}
+ 
+-func TestTypedefs(t *testing.T) {
+-	d := elfData(t, "testdata/typedef.elf");
++	d, err := f.DWARF();
++	if err != nil {
++		t.Fatal(err);
++	}
++	return d;
++}
++
++
++func TestTypedefsELF(t *testing.T) {
++	testTypedefs(t, elfData(t, "testdata/typedef.elf"));
++}
++
++func TestTypedefsMachO(t *testing.T) {
++	testTypedefs(t, machoData(t, "testdata/typedef.macho"));
++}
++
++func testTypedefs(t *testing.T, d *Data) {
+ 	r := d.Reader();
+ 	seen := make(map[string]bool);
+ 	for {
+@@ -78,7 +87,7 @@ func TestTypedefs(t *testing.T) {
+ 			} else {
+ 				typstr = t1.Type.String();
+ 			}
+-			
++
+ 			if want, ok := typedefTests[t1.Name]; ok {
+ 				if _, ok := seen[t1.Name]; ok {
+ 					t.Errorf("multiple definitions for %s", t1.Name);
+@@ -93,7 +102,7 @@ func TestTypedefs(t *testing.T) {
+ 			r.SkipChildren();
+ 		}
+ 	}
+-	
++
+ 	for k := range typedefTests {
+ 		if _, ok := seen[k]; !ok {
+ 			t.Errorf("missing %s", k);
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index 2bdf100d71..6bb36bd6fd 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -7,6 +7,7 @@ package elf
+ 
+ import (
+ 	"debug/binary";
++	"debug/dwarf";
+ 	"fmt";
+ 	"io";
+ 	"os";
+@@ -330,3 +331,26 @@ func (f *File) Section(name string) *Section {
+ 	}
+ 	return nil;
+ }
++
++func (f *File) DWARF() (*dwarf.Data, os.Error) {
++	// There are many other DWARF sections, but these
++	// are the required ones, and the debug/dwarf package
++	// does not use the others, so don't bother loading them.
++	var names = [...]string{"abbrev", "info", "str"};
++	var dat [len(names)][]byte;
++	for i, name := range names {
++		name = ".debug_" + name;
++		s := f.Section(name);
++		if s == nil {
++			continue;
++		}
++		b, err := s.Data();
++		if err != nil && uint64(len(b)) < s.Size {
++			return nil, err;
++		}
++		dat[i] = b;
++	}
++
++	abbrev, info, str := dat[0], dat[1], dat[2];
++	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str);
++}

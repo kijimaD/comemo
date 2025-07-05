@@ -8,6 +8,37 @@ Date:   Wed Aug 19 10:07:31 2009 -0700
     DELTA=3  (0 added, 0 deleted, 3 changed)
     OCL=33496
     CL=33519
-
+---
  src/pkg/http/url.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index 87612a96af..bd73cd4ad2 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -73,7 +73,7 @@ func shouldEscape(c byte) bool {
+ func URLUnescape(s string) (string, os.Error) {
+ 	// Count %, check that they're well-formed.
+ 	n := 0;
+-	anyPlusses := false;
++	hasPlus := false;
+ 	for i := 0; i < len(s); {
+ 		switch s[i] {
+ 		case '%':
+@@ -87,14 +87,14 @@ func URLUnescape(s string) (string, os.Error) {
+ 			}
+ 			i += 3;
+ 		case '+':
+-			anyPlusses = true;
++			hasPlus = true;
+ 			i++;
+ 		default:
+ 			i++
+ 		}
+ 	}
+ 
+-	if n == 0 && !anyPlusses {
++	if n == 0 && !hasPlus {
+ 		return s, nil
+ 	}
+ 

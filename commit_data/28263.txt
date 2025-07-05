@@ -20,10 +20,126 @@ Date:   Mon May 9 17:21:11 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go | 14 +++++++++++++-
  src/time/sys_plan9.go     |  5 ++---
  src/time/sys_unix.go      |  5 ++---
  src/time/sys_windows.go   |  5 ++---
  src/time/zoneinfo_read.go |  7 +++++++
  5 files changed, 26 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8a8c4be217..d0d4fbba16 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -136,7 +136,19 @@ var pkgDeps = map[string][]string{
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+ 	"internal/syscall/windows":          {"L0", "syscall", "internal/syscall/windows/sysdll"},
+ 	"internal/syscall/windows/registry": {"L0", "syscall", "internal/syscall/windows/sysdll", "unicode/utf16"},
+-	"time":          {"L0", "syscall", "internal/syscall/windows/registry"},
++	"time": {
++		// "L0" without the "io" package:
++		"errors",
++		"runtime",
++		"runtime/internal/atomic",
++		"sync",
++		"sync/atomic",
++		"unsafe",
++		// Other time dependencies:
++		"internal/syscall/windows/registry",
++		"syscall",
++	},
++
+ 	"os":            {"L1", "os", "syscall", "time", "internal/syscall/windows"},
+ 	"path/filepath": {"L2", "os", "syscall"},
+ 	"io/ioutil":     {"L2", "os", "path/filepath", "time"},
+diff --git a/src/time/sys_plan9.go b/src/time/sys_plan9.go
+index 507d1159cf..11365a791f 100644
+--- a/src/time/sys_plan9.go
++++ b/src/time/sys_plan9.go
+@@ -8,7 +8,6 @@ package time
+ 
+ import (
+ 	"errors"
+-	"io"
+ 	"syscall"
+ )
+ 
+@@ -56,9 +55,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := io.SeekStart
++	whence := seekStart
+ 	if off < 0 {
+-		whence = io.SeekEnd
++		whence = seekEnd
+ 	}
+ 	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
+ 		return err
+diff --git a/src/time/sys_unix.go b/src/time/sys_unix.go
+index dea03e06d5..91d54c9ffd 100644
+--- a/src/time/sys_unix.go
++++ b/src/time/sys_unix.go
+@@ -8,7 +8,6 @@ package time
+ 
+ import (
+ 	"errors"
+-	"io"
+ 	"syscall"
+ )
+ 
+@@ -56,9 +55,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := io.SeekStart
++	whence := seekStart
+ 	if off < 0 {
+-		whence = io.SeekEnd
++		whence = seekEnd
+ 	}
+ 	if _, err := syscall.Seek(int(fd), int64(off), whence); err != nil {
+ 		return err
+diff --git a/src/time/sys_windows.go b/src/time/sys_windows.go
+index 4f41b1a7a3..a4a068f784 100644
+--- a/src/time/sys_windows.go
++++ b/src/time/sys_windows.go
+@@ -6,7 +6,6 @@ package time
+ 
+ import (
+ 	"errors"
+-	"io"
+ 	"syscall"
+ )
+ 
+@@ -53,9 +52,9 @@ func closefd(fd uintptr) {
+ }
+ 
+ func preadn(fd uintptr, buf []byte, off int) error {
+-	whence := io.SeekStart
++	whence := seekStart
+ 	if off < 0 {
+-		whence = io.SeekEnd
++		whence = seekEnd
+ 	}
+ 	if _, err := syscall.Seek(syscall.Handle(fd), int64(off), whence); err != nil {
+ 		return err
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 66777f6d73..19cd40d847 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -11,6 +11,13 @@ package time
+ 
+ import "errors"
+ 
++// Copies of io.Seek* constants to avoid importing "io":
++const (
++	seekStart   = 0
++	seekCurrent = 1
++	seekEnd     = 2
++)
++
+ // Simple I/O interface to binary blob of data.
+ type data struct {
+ 	p     []byte

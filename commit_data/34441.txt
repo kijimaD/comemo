@@ -19,7 +19,38 @@ Date:   Wed Oct 25 11:13:23 2017 -0400
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-on: https://go-review.googlesource.com/73491
     TryBot-Result: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/proc.go | 3 +++
  src/runtime/time.go | 8 +++++++-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a631a016a3..5787991f07 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -142,6 +142,9 @@ func main() {
+ 	}
+ 
+ 	runtime_init() // must be before defer
++	if nanotime() == 0 {
++		throw("nanotime returning zero")
++	}
+ 
+ 	// Defer unlock so that runtime.Goexit during init does the unlock too.
+ 	needUnlock := true
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index abf200d7d3..23f61d62d0 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -309,4 +309,10 @@ func time_runtimeNano() int64 {
+ 	return nanotime()
+ }
+ 
+-var startNano int64 = nanotime()
++// Monotonic times are reported as offsets from startNano.
++// We initialize startNano to nanotime() - 1 so that on systems where
++// monotonic time resolution is fairly low (e.g. Windows 2008
++// which appears to have a default resolution of 15ms),
++// we avoid ever reporting a nanotime of 0.
++// (Callers may want to use 0 as "time not set".)
++var startNano int64 = nanotime() - 1

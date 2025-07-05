@@ -20,7 +20,363 @@ Date:   Sat Aug 6 15:27:30 2022 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 102 +++++---------------------
  src/cmd/compile/internal/noder/writer.go | 122 ++-----------------------------
  2 files changed, 24 insertions(+), 200 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 11428b1928..8c80c78c0b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -164,18 +164,6 @@ type readerDict struct {
+ 
+ 	derived      []derivedInfo // reloc index of the derived type's descriptor
+ 	derivedTypes []*types.Type // slice of previously computed derived types
+-
+-	funcs    []objInfo
+-	funcsObj []ir.Node
+-
+-	itabs []itabInfo2
+-
+-	methodExprs []ir.Node
+-}
+-
+-type itabInfo2 struct {
+-	typ  *types.Type
+-	lsym *obj.LSym
+ }
+ 
+ func setType(n ir.Node, typ *types.Type) {
+@@ -744,41 +732,6 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx pkgbits.Index, implicits, ex
+ 		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
+ 	}
+ 
+-	dict.funcs = make([]objInfo, r.Len())
+-	dict.funcsObj = make([]ir.Node, len(dict.funcs))
+-	for i := range dict.funcs {
+-		objIdx := r.Reloc(pkgbits.RelocObj)
+-		targs := make([]typeInfo, r.Len())
+-		for j := range targs {
+-			targs[j] = r.typInfo()
+-		}
+-		dict.funcs[i] = objInfo{idx: objIdx, explicits: targs}
+-	}
+-
+-	dict.itabs = make([]itabInfo2, r.Len())
+-	for i := range dict.itabs {
+-		typ := pr.typIdx(typeInfo{idx: pkgbits.Index(r.Len()), derived: true}, &dict, true)
+-		ifaceInfo := r.typInfo()
+-
+-		var lsym *obj.LSym
+-		if typ.IsInterface() {
+-			lsym = reflectdata.TypeLinksym(typ)
+-		} else {
+-			iface := pr.typIdx(ifaceInfo, &dict, true)
+-			lsym = reflectdata.ITabLsym(typ, iface)
+-		}
+-
+-		dict.itabs[i] = itabInfo2{typ: typ, lsym: lsym}
+-	}
+-
+-	dict.methodExprs = make([]ir.Node, r.Len())
+-	for i := range dict.methodExprs {
+-		recv := pr.typIdx(typeInfo{idx: pkgbits.Index(r.Len()), derived: true}, &dict, true)
+-		_, sym := r.selector()
+-
+-		dict.methodExprs[i] = typecheck.Expr(ir.NewSelectorExpr(src.NoXPos, ir.OXDOT, ir.TypeNode(recv), sym))
+-	}
+-
+ 	return &dict
+ }
+ 
+@@ -1844,22 +1797,6 @@ func (r *reader) expr() (res ir.Node) {
+ 		return typecheck.Callee(r.obj())
+ 
+ 	case exprFuncInst:
+-		if r.Bool() {
+-			idx := r.Len()
+-			obj := r.dict.funcsObj[idx]
+-			if obj == nil {
+-				fn := r.dict.funcs[idx]
+-				targs := make([]*types.Type, len(fn.explicits))
+-				for i, targ := range fn.explicits {
+-					targs[i] = r.p.typIdx(targ, r.dict, true)
+-				}
+-
+-				obj = r.p.objIdx(fn.idx, nil, targs)
+-				assert(r.dict.funcsObj[idx] == nil)
+-				r.dict.funcsObj[idx] = obj
+-			}
+-			return obj
+-		}
+ 		return r.obj()
+ 
+ 	case exprConst:
+@@ -1906,10 +1843,6 @@ func (r *reader) expr() (res ir.Node) {
+ 		return n
+ 
+ 	case exprMethodExpr:
+-		if r.Bool() {
+-			return r.dict.methodExprs[r.Len()]
+-		}
+-
+ 		typ := r.typ()
+ 		pos := r.pos()
+ 		_, sym := r.selector()
+@@ -2259,9 +2192,19 @@ func (r *reader) rtypeInfo(pos src.XPos, info typeInfo) ir.Node {
+ 		typ := r.p.typIdx(info, r.dict, true)
+ 		return reflectdata.TypePtrAt(pos, typ)
+ 	}
++	assert(r.dict.derived[info.idx].needed)
+ 	return typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, types.NewPtr(types.Types[types.TUINT8]), r.dictWord(pos, int64(info.idx))))
+ }
+ 
++// itabInfo returns an expression of type *runtime.itab representing
++// the itab for the given decoded type and interface reference pair.
++func (r *reader) itabInfo(pos src.XPos, typInfo, ifaceInfo typeInfo) ir.Node {
++	typ := r.p.typIdx(typInfo, r.dict, true)
++	iface := r.p.typIdx(ifaceInfo, r.dict, true)
++	lsym := reflectdata.ITabLsym(typ, iface)
++	return typecheck.LinksymAddr(pos, lsym, types.Types[types.TUINT8])
++}
++
+ // convRTTI returns expressions appropriate for populating an
+ // ir.ConvExpr's TypeWord and SrcRType fields, respectively.
+ func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
+@@ -2283,7 +2226,7 @@ func (r *reader) convRTTI(pos src.XPos) (typeWord, srcRType ir.Node) {
+ 			typeWord = r.rtypeInfo(pos, srcInfo) // direct eface construction
+ 		}
+ 	case !src.IsInterface():
+-		typeWord = reflectdata.ITabAddrAt(pos, src, dst) // direct iface construction
++		typeWord = r.itabInfo(pos, srcInfo, dstInfo) // direct iface construction
+ 	default:
+ 		typeWord = r.rtypeInfo(pos, dstInfo) // convI2I
+ 	}
+@@ -2302,35 +2245,28 @@ func (r *reader) exprType() ir.Node {
+ 	pos := r.pos()
+ 	setBasePos(pos)
+ 
+-	lsymPtr := func(lsym *obj.LSym) ir.Node {
+-		return typecheck.Expr(typecheck.NodAddrAt(pos, ir.NewLinksymExpr(pos, lsym, types.Types[types.TUINT8])))
+-	}
+-
+-	var typ *types.Type
+ 	var rtype, itab ir.Node
+ 
++	typInfo := r.typInfo()
++	typ := r.p.typIdx(typInfo, r.dict, true)
++
+ 	if r.Bool() {
+-		info := r.dict.itabs[r.Len()]
+-		typ = info.typ
++		ifaceInfo := r.typInfo()
+ 
+-		// TODO(mdempsky): Populate rtype unconditionally?
+ 		if typ.IsInterface() {
+-			rtype = lsymPtr(info.lsym)
++			rtype = r.rtypeInfo(pos, typInfo)
+ 		} else {
+-			itab = lsymPtr(info.lsym)
++			itab = r.itabInfo(pos, typInfo, ifaceInfo)
+ 		}
+ 	} else {
+-		info := r.typInfo()
+-		typ = r.p.typIdx(info, r.dict, true)
+-
+-		if !info.derived {
++		if !typInfo.derived {
+ 			// TODO(mdempsky): ir.TypeNode should probably return a typecheck'd node.
+ 			n := ir.TypeNode(typ)
+ 			n.SetTypecheck(1)
+ 			return n
+ 		}
+ 
+-		rtype = r.rtypeInfo(pos, info)
++		rtype = r.rtypeInfo(pos, typInfo)
+ 	}
+ 
+ 	dt := ir.NewDynamicType(pos, rtype)
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 71ebd2dbb6..9cf914743d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -172,19 +172,6 @@ type writerDict struct {
+ 	// derivedIdx maps a Type to its corresponding index within the
+ 	// derived slice, if present.
+ 	derivedIdx map[types2.Type]pkgbits.Index
+-
+-	// funcs lists references to generic functions that were
+-	// instantiated with derived types (i.e., that require
+-	// sub-dictionaries when called at run time).
+-	funcs []objInfo
+-
+-	// itabs lists itabs that are needed for dynamic type assertions
+-	// (including type switches).
+-	itabs []itabInfo
+-
+-	// methodsExprs lists method expressions with derived-type receiver
+-	// parameters.
+-	methodExprs []methodExprInfo
+ }
+ 
+ // A derivedInfo represents a reference to an encoded generic Go type.
+@@ -213,21 +200,6 @@ type objInfo struct {
+ 	explicits []typeInfo    // info for the type arguments
+ }
+ 
+-// An itabInfo represents a reference to an encoded itab entry (i.e.,
+-// a non-empty interface type along with a concrete type that
+-// implements that interface).
+-type itabInfo struct {
+-	typIdx pkgbits.Index // always a derived type index
+-	iface  typeInfo      // always a non-empty interface type
+-}
+-
+-// A methodExprInfo represents a reference to an encoded method
+-// expression, whose receiver parameter is a derived type.
+-type methodExprInfo struct {
+-	recvIdx    pkgbits.Index // always a derived type index
+-	methodInfo selectorInfo
+-}
+-
+ // A selectorInfo represents a reference to an encoded field or method
+ // name (i.e., objects that can only be accessed using selector
+ // expressions).
+@@ -785,31 +757,7 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 		w.Bool(typ.needed)
+ 	}
+ 
+-	nfuncs := len(dict.funcs)
+-	w.Len(nfuncs)
+-	for _, fn := range dict.funcs {
+-		w.Reloc(pkgbits.RelocObj, fn.idx)
+-		w.Len(len(fn.explicits))
+-		for _, targ := range fn.explicits {
+-			w.typInfo(targ)
+-		}
+-	}
+-
+-	nitabs := len(dict.itabs)
+-	w.Len(nitabs)
+-	for _, itab := range dict.itabs {
+-		w.Len(int(itab.typIdx))
+-		w.typInfo(itab.iface)
+-	}
+-
+-	w.Len(len(dict.methodExprs))
+-	for _, methodExpr := range dict.methodExprs {
+-		w.Len(int(methodExpr.recvIdx))
+-		w.selectorInfo(methodExpr.methodInfo)
+-	}
+-
+ 	assert(len(dict.derived) == nderived)
+-	assert(len(dict.funcs) == nfuncs)
+ }
+ 
+ func (w *writer) typeParamNames(tparams *types2.TypeParamList) {
+@@ -1544,14 +1492,9 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	if obj != nil {
+ 		if targs.Len() != 0 {
+ 			obj := obj.(*types2.Func)
+-			info := w.p.objInstIdx(obj, targs, w.dict)
+ 
+ 			w.Code(exprFuncInst)
+-			if w.Bool(info.anyDerived()) {
+-				w.Len(w.dict.funcIdx(info))
+-				return
+-			}
+-			w.objInfo(info)
++			w.obj(obj, targs)
+ 			return
+ 		}
+ 
+@@ -1608,15 +1551,7 @@ func (w *writer) expr(expr syntax.Expr) {
+ 			assert(ok)
+ 			assert(tv.IsType())
+ 
+-			typInfo := w.p.typIdx(tv.Type, w.dict)
+-			if w.Bool(typInfo.derived) {
+-				methodInfo := w.p.selectorIdx(sel.Obj())
+-				idx := w.dict.methodExprIdx(typInfo, methodInfo)
+-				w.Len(idx)
+-				break
+-			}
+-
+-			w.typInfo(typInfo)
++			w.typ(tv.Type)
+ 			w.pos(expr)
+ 			w.selector(sel.Obj())
+ 		}
+@@ -1800,20 +1735,6 @@ func sliceElem(typ types2.Type) types2.Type {
+ 	return types2.CoreType(typ).(*types2.Slice).Elem()
+ }
+ 
+-// funcIdx returns the index of a given encoded function instantiation
+-// within the dictionary, adding it if not already present.
+-func (dict *writerDict) funcIdx(newInfo objInfo) int {
+-	for idx, oldInfo := range dict.funcs {
+-		if oldInfo.equals(newInfo) {
+-			return idx
+-		}
+-	}
+-
+-	idx := len(dict.funcs)
+-	dict.funcs = append(dict.funcs, newInfo)
+-	return idx
+-}
+-
+ func (w *writer) optExpr(expr syntax.Expr) {
+ 	if w.Bool(expr != nil) {
+ 		w.expr(expr)
+@@ -2004,47 +1925,14 @@ func (w *writer) exprType(iface types2.Type, typ syntax.Expr) {
+ 	tv, ok := w.p.info.Types[typ]
+ 	assert(ok)
+ 	assert(tv.IsType())
+-	info := w.p.typIdx(tv.Type, w.dict)
+ 
+ 	w.Sync(pkgbits.SyncExprType)
+ 	w.pos(typ)
+ 
+-	if w.Bool(info.derived && iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
+-		ifaceInfo := w.p.typIdx(iface, w.dict)
+-
+-		idx := -1
+-		for i, itab := range w.dict.itabs {
+-			if itab.typIdx == info.idx && itab.iface == ifaceInfo {
+-				idx = i
+-			}
+-		}
+-		if idx < 0 {
+-			idx = len(w.dict.itabs)
+-			w.dict.itabs = append(w.dict.itabs, itabInfo{typIdx: info.idx, iface: ifaceInfo})
+-		}
+-		w.Len(idx)
+-		return
+-	}
+-
+-	w.typInfo(info)
+-	if info.derived {
+-		w.dict.derived[info.idx].needed = true
+-	}
+-}
+-
+-func (dict *writerDict) methodExprIdx(recvInfo typeInfo, methodInfo selectorInfo) int {
+-	assert(recvInfo.derived)
+-	newInfo := methodExprInfo{recvIdx: recvInfo.idx, methodInfo: methodInfo}
+-
+-	for idx, oldInfo := range dict.methodExprs {
+-		if oldInfo == newInfo {
+-			return idx
+-		}
++	w.typNeeded(tv.Type)
++	if w.Bool(iface != nil && !iface.Underlying().(*types2.Interface).Empty()) {
++		w.typ(iface)
+ 	}
+-
+-	idx := len(dict.methodExprs)
+-	dict.methodExprs = append(dict.methodExprs, newInfo)
+-	return idx
+ }
+ 
+ // isInterface reports whether typ is known to be an interface type.

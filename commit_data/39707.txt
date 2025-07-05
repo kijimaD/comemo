@@ -21,6 +21,30 @@ Date:   Wed Mar 13 16:47:44 2019 +0100
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/errors/errors.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/errors/errors.go b/src/errors/errors.go
+index f23a96c43e..ebb136cdd4 100644
+--- a/src/errors/errors.go
++++ b/src/errors/errors.go
+@@ -5,12 +5,17 @@
+ // Package errors implements functions to manipulate errors.
+ package errors
+ 
++import "runtime"
++
+ // New returns an error that formats as the given text.
+ //
+ // The returned error contains a Frame set to the caller's location and
+ // implements Formatter to show this information when printed with details.
+ func New(text string) error {
+-	return &errorString{text, Caller(1)}
++	// Inline call to errors.Callers to improve performance.
++	var s Frame
++	runtime.Callers(2, s.frames[:])
++	return &errorString{text, s}
+ }
+ 
+ // errorString is a trivial implementation of error.

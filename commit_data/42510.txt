@@ -13,7 +13,7 @@ Date:   Mon Dec 30 15:47:54 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212811
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 26 ----------------------
  .../go/testdata/script/cover_import_main_loop.txt  | 22 ++++++++++++++++++
  .../test_main_twice.txt}                           |  7 ++++++
@@ -21,3 +21,124 @@ Date:   Mon Dec 30 15:47:54 2019 -0500
  src/cmd/go/testdata/src/importmain/test/test.go    |  1 -
  .../go/testdata/src/importmain/test/test_test.go   |  6 -----
  6 files changed, 29 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0d657b2ef8..072de5d18c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2144,17 +2144,6 @@ func TestCoverageNoStatements(t *testing.T) {
+ 	tg.grepStdout("[no statements]", "expected [no statements] for pkg4")
+ }
+ 
+-func TestCoverageImportMainLoop(t *testing.T) {
+-	skipIfGccgo(t, "gccgo has no cover tool")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("test", "importmain/test")
+-	tg.grepStderr("not an importable package", "did not detect import main")
+-	tg.runFail("test", "-cover", "importmain/test")
+-	tg.grepStderr("not an importable package", "did not detect import main")
+-}
+-
+ func TestCoverageErrorLine(t *testing.T) {
+ 	skipIfGccgo(t, "gccgo has no cover tool")
+ 	tooSlow(t)
+@@ -2587,21 +2576,6 @@ func TestGoTestMainAsNormalTest(t *testing.T) {
+ 	tg.grepBoth(okPattern, "go test did not say ok")
+ }
+ 
+-func TestGoTestMainTwice(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("Skipping in short mode")
+-	}
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.makeTempdir()
+-	tg.setenv("GOCACHE", tg.tempdir)
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.run("test", "-v", "multimain")
+-	if strings.Count(tg.getStdout(), "notwithstanding") != 2 {
+-		t.Fatal("tests did not run twice")
+-	}
+-}
+-
+ func TestGoTestXtestonlyWorks(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/testdata/script/cover_import_main_loop.txt b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+new file mode 100644
+index 0000000000..83eef0c8a8
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_import_main_loop.txt
+@@ -0,0 +1,22 @@
++[gccgo] skip # gccgo has no cover tool
++
++! go test -n importmain/test
++stderr 'not an importable package' # check that import main was detected
++! go test -n -cover importmain/test
++stderr 'not an importable package' # check that import main was detected
++
++-- importmain/ismain/main.go --
++package main
++
++import _ "importmain/test"
++
++func main() {}
++-- importmain/test/test.go --
++package test
++-- importmain/test/test_test.go --
++package test_test
++
++import "testing"
++import _ "importmain/ismain"
++
++func TestCase(t *testing.T) {}
+diff --git a/src/cmd/go/testdata/src/multimain/multimain_test.go b/src/cmd/go/testdata/script/test_main_twice.txt
+similarity index 69%
+rename from src/cmd/go/testdata/src/multimain/multimain_test.go
+rename to src/cmd/go/testdata/script/test_main_twice.txt
+index 007a86a5da..bc48140694 100644
+--- a/src/cmd/go/testdata/src/multimain/multimain_test.go
++++ b/src/cmd/go/testdata/script/test_main_twice.txt
+@@ -1,3 +1,10 @@
++[short] skip
++
++env GOCACHE=$TMPDIR
++go test -v multimain
++stdout -count=2 notwithstanding # check tests ran twice
++
++-- multimain/multimain_test.go --
+ package multimain_test
+ 
+ import "testing"
+diff --git a/src/cmd/go/testdata/src/importmain/ismain/main.go b/src/cmd/go/testdata/src/importmain/ismain/main.go
+deleted file mode 100644
+index bf019076dd..0000000000
+--- a/src/cmd/go/testdata/src/importmain/ismain/main.go
++++ /dev/null
+@@ -1,5 +0,0 @@
+-package main
+-
+-import _ "importmain/test"
+-
+-func main() {}
+diff --git a/src/cmd/go/testdata/src/importmain/test/test.go b/src/cmd/go/testdata/src/importmain/test/test.go
+deleted file mode 100644
+index 56e5404079..0000000000
+--- a/src/cmd/go/testdata/src/importmain/test/test.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package test
+diff --git a/src/cmd/go/testdata/src/importmain/test/test_test.go b/src/cmd/go/testdata/src/importmain/test/test_test.go
+deleted file mode 100644
+index 2268a8267e..0000000000
+--- a/src/cmd/go/testdata/src/importmain/test/test_test.go
++++ /dev/null
+@@ -1,6 +0,0 @@
+-package test_test
+-
+-import "testing"
+-import _ "importmain/ismain"
+-
+-func TestCase(t *testing.T) {}

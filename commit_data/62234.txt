@@ -21,6 +21,24 @@ Date:   Thu Feb 13 10:31:53 2025 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/fips140test/acvp_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 119fdefc64..ddb234bab6 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -2132,8 +2132,10 @@ func TestACVP(t *testing.T) {
+ 	}
+ 	cmd = testenv.Command(t, goTool, args...)
+ 	cmd.Dir = dataDir
+-	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
+-	cmd.Env = append(os.Environ(), "GODEBUG=fips140=on")
++	cmd.Env = append(os.Environ(),
++		"ACVP_WRAPPER=1",
++		"GODEBUG=fips140=on",
++	)
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))

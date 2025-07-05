@@ -13,6 +13,20 @@ Date:   Sat Oct 19 16:14:51 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/lex.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index e05b454805..2b502c4601 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -61,7 +61,7 @@ func pragmaValue(verb string) syntax.Pragma {
+ 	case "go:norace":
+ 		return Norace
+ 	case "go:nosplit":
+-		return Nosplit
++		return Nosplit | NoCheckPtr // implies NoCheckPtr (see #34972)
+ 	case "go:noinline":
+ 		return Noinline
+ 	case "go:nocheckptr":

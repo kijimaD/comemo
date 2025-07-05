@@ -17,8 +17,65 @@ Date:   Mon Jun 24 10:16:12 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/coderepo.go           |  8 +++++++-
  src/cmd/go/internal/modfetch/coderepo_test.go      |  2 +-
  src/cmd/go/testdata/script/mod_invalid_version.txt | 11 +++++++++--
  3 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 45243681f8..267b76349d 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -255,7 +255,13 @@ func (r *codeRepo) convert(info *codehost.RevInfo, statVers string) (*RevInfo, e
+ 			if err != nil {
+ 				// TODO: It would be nice to return an error like "not a module".
+ 				// Right now we return "missing go.mod", which is a little confusing.
+-				return nil, err
++				return nil, &module.ModuleError{
++					Path: r.modPath,
++					Err: &module.InvalidVersionError{
++						Version: info2.Version,
++						Err:     notExistError(err.Error()),
++					},
++				}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index bfb1dff3de..5fc9bc3439 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -638,7 +638,7 @@ var latestTests = []struct {
+ 	{
+ 		vcs:  "git",
+ 		path: "github.com/rsc/vgotest1/subdir",
+-		err:  "missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
++		err:  "github.com/rsc/vgotest1/subdir@v0.0.0-20180219223237-a08abb797a67: invalid version: missing github.com/rsc/vgotest1/subdir/go.mod at revision a08abb797a67",
+ 	},
+ 	{
+ 		vcs:     "mod",
+diff --git a/src/cmd/go/testdata/script/mod_invalid_version.txt b/src/cmd/go/testdata/script/mod_invalid_version.txt
+index 34cdfe4902..2be0d01cce 100644
+--- a/src/cmd/go/testdata/script/mod_invalid_version.txt
++++ b/src/cmd/go/testdata/script/mod_invalid_version.txt
+@@ -29,10 +29,17 @@ cp go.mod.orig go.mod
+ go mod edit -require golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
+ cd outside
+ ! go list -m golang.org/x/text
+-stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++stderr 'go: example.com@v0.0.0 requires\n\tgolang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
+ cd ..
+ ! go list -m golang.org/x/text
+-stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++stderr 'golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c: invalid version: missing golang.org/x/text/unicode/go.mod at revision 14c0d48ead0c'
++
++# However, arguments to 'go get' can name packages above the root.
++cp go.mod.orig go.mod
++go get -d golang.org/x/text/unicode@v0.0.0-20170915032832-14c0d48ead0c
++go list -m golang.org/x/text/...
++stdout 'golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c'
++! stdout 'golang.org/x/text/unicode'
+ 
+ # A major version that does not match the module path is invalid.
+ cp go.mod.orig go.mod

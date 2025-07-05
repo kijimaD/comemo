@@ -26,6 +26,20 @@ Date:   Wed Nov 11 21:27:56 2020 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index c89ce78012..55845bf2e5 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -467,7 +467,7 @@ func setNonblock(fd int32) {
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
+-//go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_exit _exit "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_raise raise "/usr/lib/libSystem.B.dylib"
+ 
+ //go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"

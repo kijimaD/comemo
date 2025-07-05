@@ -8,6 +8,20 @@ Date:   Tue Aug 7 10:00:58 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6357064
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 0ded45ed19..ff5e0b9c3f 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1299,7 +1299,7 @@ func (gcToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, tool("pack"), "grcP", b.work, mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (gcToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {

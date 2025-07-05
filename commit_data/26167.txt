@@ -9,6 +9,20 @@ Date:   Wed Dec 23 23:56:47 2015 +0100
     Change-Id: Ib2bbc929b38b1993000da57daed2d795f4a93997
     Reviewed-on: https://go-review.googlesource.com/18131
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 15a1cc4144..f9f4806f1e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -478,7 +478,7 @@ type readResult struct {
+ // connReader is the io.Reader wrapper used by *conn. It combines a
+ // selectively-activated io.LimitedReader (to bound request header
+ // read sizes) with support for selectively keeping an io.Reader.Read
+-// call blocked in a background goroutine to wait for activitiy and
++// call blocked in a background goroutine to wait for activity and
+ // trigger a CloseNotifier channel.
+ type connReader struct {
+ 	r      io.Reader

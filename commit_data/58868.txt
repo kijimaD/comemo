@@ -12,7 +12,46 @@ Date:   Fri Jan 5 12:47:56 2024 +0000
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/io/fs/walk.go         | 4 ++--
  src/path/filepath/path.go | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/io/fs/walk.go b/src/io/fs/walk.go
+index 48145d4cfc..2e8a8db111 100644
+--- a/src/io/fs/walk.go
++++ b/src/io/fs/walk.go
+@@ -9,12 +9,12 @@ import (
+ 	"path"
+ )
+ 
+-// SkipDir is used as a return value from WalkDirFuncs to indicate that
++// SkipDir is used as a return value from [WalkDirFunc] to indicate that
+ // the directory named in the call is to be skipped. It is not returned
+ // as an error by any function.
+ var SkipDir = errors.New("skip this directory")
+ 
+-// SkipAll is used as a return value from WalkDirFuncs to indicate that
++// SkipAll is used as a return value from [WalkDirFunc] to indicate that
+ // all remaining files and directories are to be skipped. It is not returned
+ // as an error by any function.
+ var SkipAll = errors.New("skip everything and stop the walk")
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 075cea848e..2af0f5b04c 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -386,12 +386,12 @@ func Rel(basepath, targpath string) (string, error) {
+ 	return targ[t0:], nil
+ }
+ 
+-// SkipDir is used as a return value from WalkFuncs to indicate that
++// SkipDir is used as a return value from [WalkFunc] to indicate that
+ // the directory named in the call is to be skipped. It is not returned
+ // as an error by any function.
+ var SkipDir error = fs.SkipDir
+ 
+-// SkipAll is used as a return value from WalkFuncs to indicate that
++// SkipAll is used as a return value from [WalkFunc] to indicate that
+ // all remaining files and directories are to be skipped. It is not returned
+ // as an error by any function.
+ var SkipAll error = fs.SkipAll

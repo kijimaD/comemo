@@ -16,8 +16,105 @@ Date:   Fri Nov 24 10:02:34 2023 +0000
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/io/fs/readdir_test.go  | 18 ++++++++++++++++++
  src/io/fs/readfile_test.go | 10 ++++++++++
  src/os/file.go             | 20 ++++++++++++++++++--
  3 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/io/fs/readdir_test.go b/src/io/fs/readdir_test.go
+index a2b2c121ff..4c409ae7a0 100644
+--- a/src/io/fs/readdir_test.go
++++ b/src/io/fs/readdir_test.go
+@@ -5,6 +5,7 @@
+ package fs_test
+ 
+ import (
++	"errors"
+ 	. "io/fs"
+ 	"os"
+ 	"testing"
+@@ -91,3 +92,20 @@ func TestFileInfoToDirEntry(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func errorPath(err error) string {
++	var perr *PathError
++	if !errors.As(err, &perr) {
++		return ""
++	}
++	return perr.Path
++}
++
++func TestReadDirPath(t *testing.T) {
++	fsys := os.DirFS(t.TempDir())
++	_, err1 := ReadDir(fsys, "non-existent")
++	_, err2 := ReadDir(struct{ FS }{fsys}, "non-existent")
++	if s1, s2 := errorPath(err1), errorPath(err2); s1 != s2 {
++		t.Fatalf("s1: %s != s2: %s", s1, s2)
++	}
++}
+diff --git a/src/io/fs/readfile_test.go b/src/io/fs/readfile_test.go
+index 07219c1445..3c521f6142 100644
+--- a/src/io/fs/readfile_test.go
++++ b/src/io/fs/readfile_test.go
+@@ -6,6 +6,7 @@ package fs_test
+ 
+ import (
+ 	. "io/fs"
++	"os"
+ 	"testing"
+ 	"testing/fstest"
+ 	"time"
+@@ -57,3 +58,12 @@ func TestReadFile(t *testing.T) {
+ 		t.Fatalf(`ReadFile(sub(.), "hello.txt") = %q, %v, want %q, nil`, data, err, "hello, world")
+ 	}
+ }
++
++func TestReadFilePath(t *testing.T) {
++	fsys := os.DirFS(t.TempDir())
++	_, err1 := ReadFile(fsys, "non-existent")
++	_, err2 := ReadFile(struct{ FS }{fsys}, "non-existent")
++	if s1, s2 := errorPath(err1), errorPath(err2); s1 != s2 {
++		t.Fatalf("s1: %s != s2: %s", s1, s2)
++	}
++}
+diff --git a/src/os/file.go b/src/os/file.go
+index 37a30ccf04..6fd0550eeb 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -690,7 +690,15 @@ func (dir dirFS) ReadFile(name string) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, &PathError{Op: "readfile", Path: name, Err: err}
+ 	}
+-	return ReadFile(fullname)
++	b, err := ReadFile(fullname)
++	if err != nil {
++		if e, ok := err.(*PathError); ok {
++			// See comment in dirFS.Open.
++			e.Path = name
++		}
++		return nil, err
++	}
++	return b, nil
+ }
+ 
+ // ReadDir reads the named directory, returning all its directory entries sorted
+@@ -700,7 +708,15 @@ func (dir dirFS) ReadDir(name string) ([]DirEntry, error) {
+ 	if err != nil {
+ 		return nil, &PathError{Op: "readdir", Path: name, Err: err}
+ 	}
+-	return ReadDir(fullname)
++	entries, err := ReadDir(fullname)
++	if err != nil {
++		if e, ok := err.(*PathError); ok {
++			// See comment in dirFS.Open.
++			e.Path = name
++		}
++		return nil, err
++	}
++	return entries, nil
+ }
+ 
+ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {

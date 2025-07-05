@@ -16,6 +16,20 @@ Date:   Sun Oct 28 10:01:39 2018 +0100
     Change-Id: I82e57ba014735a9fdb6262874ddf498754d30d33
     Reviewed-on: https://go-review.googlesource.com/c/145280
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/arith.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index ad352403a7..f9db9118eb 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -82,7 +82,7 @@ func nlz(x Word) uint {
+ 	return uint(bits.LeadingZeros(uint(x)))
+ }
+ 
+-// q = (u1<<_W + u0 - r)/y
++// q = (u1<<_W + u0 - r)/v
+ // Adapted from Warren, Hacker's Delight, p. 152.
+ func divWW_g(u1, u0, v Word) (q, r Word) {
+ 	if u1 >= v {

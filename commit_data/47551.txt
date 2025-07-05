@@ -15,7 +15,126 @@ Date:   Wed Feb 17 14:13:01 2021 -0800
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/time/time.go      | 30 ++++++++++++++++++++++++++++++
  src/time/time_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 68 insertions(+)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 841f989293..cd756bbf5f 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1135,6 +1135,24 @@ func (t Time) Unix() int64 {
+ 	return t.unixSec()
+ }
+ 
++// UnixMilli returns t as a Unix time, the number of milliseconds elapsed since
++// January 1, 1970 UTC. The result is undefined if the Unix time in
++// milliseconds cannot be represented by an int64 (a date more than 292 million
++// years before or after 1970). The result does not depend on the
++// location associated with t.
++func (t Time) UnixMilli() int64 {
++	return t.unixSec()*1e3 + int64(t.nsec())/1e6
++}
++
++// UnixMicro returns t as a Unix time, the number of microseconds elapsed since
++// January 1, 1970 UTC. The result is undefined if the Unix time in
++// microseconds cannot be represented by an int64 (a date before year -290307 or
++// after year 294246). The result does not depend on the location associated
++// with t.
++func (t Time) UnixMicro() int64 {
++	return t.unixSec()*1e6 + int64(t.nsec())/1e3
++}
++
+ // UnixNano returns t as a Unix time, the number of nanoseconds elapsed
+ // since January 1, 1970 UTC. The result is undefined if the Unix time
+ // in nanoseconds cannot be represented by an int64 (a date before the year
+@@ -1309,6 +1327,18 @@ func Unix(sec int64, nsec int64) Time {
+ 	return unixTime(sec, int32(nsec))
+ }
+ 
++// UnixMilli returns the local Time corresponding to the given Unix time,
++// msec milliseconds since January 1, 1970 UTC.
++func UnixMilli(msec int64) Time {
++	return Unix(msec/1e3, (msec%1e3)*1e6)
++}
++
++// UnixMicro returns the local Time corresponding to the given Unix time,
++// usec milliseconds since January 1, 1970 UTC.
++func UnixMicro(usec int64) Time {
++	return Unix(usec/1e6, (usec%1e6)*1e3)
++}
++
+ // IsDST reports whether the time in the configured location is in Daylight Savings Time.
+ func (t *Time) IsDST() bool {
+ 	_, _, _, _, isDST := t.loc.lookup(t.Unix())
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 3a58bfe4e9..f272bbd558 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -202,6 +202,28 @@ func TestNanosecondsToUTCAndBack(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnixMilli(t *testing.T) {
++	f := func(msec int64) bool {
++		t := UnixMilli(msec)
++		return t.UnixMilli() == msec
++	}
++	cfg := &quick.Config{MaxCount: 10000}
++	if err := quick.Check(f, cfg); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestUnixMicro(t *testing.T) {
++	f := func(usec int64) bool {
++		t := UnixMicro(usec)
++		return t.UnixMicro() == usec
++	}
++	cfg := &quick.Config{MaxCount: 10000}
++	if err := quick.Check(f, cfg); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ // The time routines provide no way to get absolute time
+ // (seconds since zero), but we need it to compute the right
+ // answer for bizarre roundings like "to the nearest 3 ns".
+@@ -959,6 +981,8 @@ var mallocTest = []struct {
+ }{
+ 	{0, `time.Now()`, func() { t = Now() }},
+ 	{0, `time.Now().UnixNano()`, func() { u = Now().UnixNano() }},
++	{0, `time.Now().UnixMilli()`, func() { u = Now().UnixMilli() }},
++	{0, `time.Now().UnixMicro()`, func() { u = Now().UnixMicro() }},
+ }
+ 
+ func TestCountMallocs(t *testing.T) {
+@@ -1249,6 +1273,8 @@ var defaultLocTests = []struct {
+ 
+ 	{"Unix", func(t1, t2 Time) bool { return t1.Unix() == t2.Unix() }},
+ 	{"UnixNano", func(t1, t2 Time) bool { return t1.UnixNano() == t2.UnixNano() }},
++	{"UnixMilli", func(t1, t2 Time) bool { return t1.UnixMilli() == t2.UnixMilli() }},
++	{"UnixMicro", func(t1, t2 Time) bool { return t1.UnixMicro() == t2.UnixMicro() }},
+ 
+ 	{"MarshalBinary", func(t1, t2 Time) bool {
+ 		a1, b1 := t1.MarshalBinary()
+@@ -1301,6 +1327,18 @@ func BenchmarkNowUnixNano(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkNowUnixMilli(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u = Now().UnixMilli()
++	}
++}
++
++func BenchmarkNowUnixMicro(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		u = Now().UnixMicro()
++	}
++}
++
+ func BenchmarkFormat(b *testing.B) {
+ 	t := Unix(1265346057, 0)
+ 	for i := 0; i < b.N; i++ {

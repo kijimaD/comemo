@@ -9,7 +9,7 @@ Date:   Mon May 16 09:26:16 2011 -0700
     R=rsc, r, alex.brainman, bsiegert, jdpoirier
     CC=golang-dev
     https://golang.org/cl/4536058
-
+---
  src/pkg/os/dir_unix.go     | 43 ++++++++++++++++++++++++++++---------------
  src/pkg/os/dir_windows.go  | 12 +++++++-----
  src/pkg/os/file_unix.go    | 27 ++++++++++++++++++++-------
@@ -17,3 +17,261 @@ Date:   Mon May 16 09:26:16 2011 -0700
  src/pkg/os/os_test.go      |  7 +++++--
  src/pkg/os/path.go         |  3 +++
  6 files changed, 88 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/os/dir_unix.go b/src/pkg/os/dir_unix.go
+index f5b82230d1..9c543838e7 100644
+--- a/src/pkg/os/dir_unix.go
++++ b/src/pkg/os/dir_unix.go
+@@ -12,30 +12,40 @@ const (
+ 	blockSize = 4096
+ )
+ 
+-// Readdirnames reads the contents of the directory associated with file and
+-// returns an array of up to count names, in directory order.  Subsequent
+-// calls on the same file will yield further names.
+-// A negative count means to read until EOF.
+-// Readdirnames returns the array and an Error, if any.
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
++// Readdirnames reads and returns a slice of names from the directory f.
++//
++// If n > 0, Readdirnames returns at most n names. In this case, if
++// Readdirnames returns an empty slice, it will return a non-nil error
++// explaining why. At the end of a directory, the error is os.EOF.
++//
++// If n <= 0, Readdirnames returns all the names from the directory in
++// a single slice. In this case, if Readdirnames succeeds (reads all
++// the way to the end of the directory), it returns the slice and a
++// nil os.Error. If it encounters an error before the end of the
++// directory, Readdirnames returns the names read until that point and
++// a non-nil error.
++func (f *File) Readdirnames(n int) (names []string, err Error) {
+ 	// If this file has no dirinfo, create one.
+-	if file.dirinfo == nil {
+-		file.dirinfo = new(dirInfo)
++	if f.dirinfo == nil {
++		f.dirinfo = new(dirInfo)
+ 		// The buffer must be at least a block long.
+-		file.dirinfo.buf = make([]byte, blockSize)
++		f.dirinfo.buf = make([]byte, blockSize)
+ 	}
+-	d := file.dirinfo
+-	size := count
++	d := f.dirinfo
++	wantAll := n < 0
++
++	size := n
+ 	if size < 0 {
+ 		size = 100
+ 	}
++
+ 	names = make([]string, 0, size) // Empty with room to grow.
+-	for count != 0 {
++	for n != 0 {
+ 		// Refill the buffer if necessary
+ 		if d.bufp >= d.nbuf {
+ 			d.bufp = 0
+ 			var errno int
+-			d.nbuf, errno = syscall.ReadDirent(file.fd, d.buf)
++			d.nbuf, errno = syscall.ReadDirent(f.fd, d.buf)
+ 			if errno != 0 {
+ 				return names, NewSyscallError("readdirent", errno)
+ 			}
+@@ -46,9 +56,12 @@ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 
+ 		// Drain the buffer
+ 		var nb, nc int
+-		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], count, names)
++		nb, nc, names = syscall.ParseDirent(d.buf[d.bufp:d.nbuf], n, names)
+ 		d.bufp += nb
+-		count -= nc
++		n -= nc
++	}
++	if !wantAll && len(names) == 0 {
++		return names, EOF
+ 	}
+ 	return names, nil
+ }
+diff --git a/src/pkg/os/dir_windows.go b/src/pkg/os/dir_windows.go
+index 0d8267b59a..5a12d00612 100644
+--- a/src/pkg/os/dir_windows.go
++++ b/src/pkg/os/dir_windows.go
+@@ -4,14 +4,16 @@
+ 
+ package os
+ 
+-func (file *File) Readdirnames(count int) (names []string, err Error) {
+-	fis, e := file.Readdir(count)
+-	if e != nil {
+-		return nil, e
++func (file *File) Readdirnames(n int) (names []string, err Error) {
++	fis, err := file.Readdir(n)
++	// If n > 0 and we get an error, we return now.
++	// If n < 0, we return whatever we got + any error.
++	if n > 0 && e != nil {
++		return nil, err
+ 	}
+ 	names = make([]string, len(fis))
+ 	for i, fi := range fis {
+ 		names[i] = fi.Name
+ 	}
+-	return names, nil
++	return names, err
+ }
+diff --git a/src/pkg/os/file_unix.go b/src/pkg/os/file_unix.go
+index 2fb28df655..c65c5b3ffd 100644
+--- a/src/pkg/os/file_unix.go
++++ b/src/pkg/os/file_unix.go
+@@ -70,19 +70,29 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ 
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+-// by Lstat, in directory order.  Subsequent calls on the same file will yield
++// by Lstat, in directory order. Subsequent calls on the same file will yield
+ // further FileInfos.
+-// A negative count means to read until EOF.
+-// Readdir returns the array and an Error, if any.
+-func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
++//
++// If n > 0, Readdir returns at most n names. In this case, if
++// Readdirnames returns an empty slice, it will return a non-nil error
++// explaining why. At the end of a directory, the error is os.EOF.
++//
++// If n <= 0, Readdir returns all the FileInfo from the directory in
++// a single slice. In this case, if Readdir succeeds (reads all
++// the way to the end of the directory), it returns the slice and a
++// nil os.Error. If it encounters an error before the end of the
++// directory, Readdir returns the FileInfo read until that point
++// and a non-nil error.
++func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 	dirname := file.name
+ 	if dirname == "" {
+ 		dirname = "."
+ 	}
+ 	dirname += "/"
+-	names, err1 := file.Readdirnames(count)
+-	if err1 != nil {
+-		return nil, err1
++	wantAll := n < 0
++	names, namesErr := file.Readdirnames(n)
++	if namesErr != nil && !wantAll {
++		return nil, namesErr
+ 	}
+ 	fi = make([]FileInfo, len(names))
+ 	for i, filename := range names {
+@@ -93,6 +103,9 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 			fi[i] = *fip
+ 		}
+ 	}
++	if !wantAll && namesErr != EOF {
++		err = namesErr
++	}
+ 	return
+ }
+ 
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index 95f60b7351..74ff3eb88c 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -124,11 +124,20 @@ func (file *File) Stat() (fi *FileInfo, err Error) {
+ 
+ // Readdir reads the contents of the directory associated with file and
+ // returns an array of up to count FileInfo structures, as would be returned
+-// by Lstat, in directory order.  Subsequent calls on the same file will yield
++// by Lstat, in directory order. Subsequent calls on the same file will yield
+ // further FileInfos.
+-// A negative count means to read until EOF.
+-// Readdir returns the array and an Error, if any.
+-func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
++//
++// If n > 0, Readdir returns at most n names. In this case, if
++// Readdirnames returns an empty slice, it will return a non-nil error
++// explaining why. At the end of a directory, the error is os.EOF.
++//
++// If n <= 0, Readdir returns all the FileInfo from the directory in
++// a single slice. In this case, if Readdir succeeds (reads all
++// the way to the end of the directory), it returns the slice and a
++// nil os.Error. If it encounters an error before the end of the
++// directory, Readdir returns the FileInfo read until that point
++// and a non-nil error.
++func (file *File) Readdir(n int) (fi []FileInfo, err Error) {
+ 	if file == nil || file.fd < 0 {
+ 		return nil, EINVAL
+ 	}
+@@ -136,12 +145,13 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 		return nil, &PathError{"Readdir", file.name, ENOTDIR}
+ 	}
+ 	di := file.dirinfo
+-	size := count
++	wantAll := n < 0
++	size := n
+ 	if size < 0 {
+ 		size = 100
+ 	}
+ 	fi = make([]FileInfo, 0, size) // Empty with room to grow.
+-	for count != 0 {
++	for n != 0 {
+ 		if di.usefirststat {
+ 			di.usefirststat = false
+ 		} else {
+@@ -150,7 +160,11 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 				if e == syscall.ERROR_NO_MORE_FILES {
+ 					break
+ 				} else {
+-					return nil, &PathError{"FindNextFile", file.name, Errno(e)}
++					err = &PathError{"FindNextFile", file.name, Errno(e)}
++					if !wantAll {
++						fi = nil
++					}
++					return
+ 				}
+ 			}
+ 		}
+@@ -159,9 +173,12 @@ func (file *File) Readdir(count int) (fi []FileInfo, err Error) {
+ 		if f.Name == "." || f.Name == ".." { // Useless names
+ 			continue
+ 		}
+-		count--
++		n--
+ 		fi = append(fi, f)
+ 	}
++	if !wantAll && len(fi) == 0 {
++		return fi, EOF
++	}
+ 	return fi, nil
+ }
+ 
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 65475c118a..51ea8189e7 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -236,11 +236,14 @@ func smallReaddirnames(file *File, length int, t *testing.T) []string {
+ 	count := 0
+ 	for {
+ 		d, err := file.Readdirnames(1)
++		if err == EOF {
++			break
++		}
+ 		if err != nil {
+-			t.Fatalf("readdir %q failed: %v", file.Name(), err)
++			t.Fatalf("readdirnames %q failed: %v", file.Name(), err)
+ 		}
+ 		if len(d) == 0 {
+-			break
++			t.Fatalf("readdirnames %q returned empty slice and no error")
+ 		}
+ 		names[count] = d[0]
+ 		count++
+diff --git a/src/pkg/os/path.go b/src/pkg/os/path.go
+index 0eb3ee5036..5565aaa299 100644
+--- a/src/pkg/os/path.go
++++ b/src/pkg/os/path.go
+@@ -95,6 +95,9 @@ func RemoveAll(path string) Error {
+ 				err = err1
+ 			}
+ 		}
++		if err1 == EOF {
++			break
++		}
+ 		// If Readdirnames returned an error, use it.
+ 		if err == nil {
+ 			err = err1

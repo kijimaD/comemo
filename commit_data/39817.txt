@@ -37,10 +37,186 @@ Date:   Thu Mar 21 13:31:32 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167503
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 53 ++++++++++++++--------
  src/cmd/go/internal/test/test.go                   |  2 +-
  src/cmd/go/internal/work/build.go                  | 10 ++--
  .../go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt   |  6 +++
  src/cmd/go/testdata/script/mod_build_versioned.txt | 16 +++++++
  5 files changed, 60 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a0333bd522..431dfe318e 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1186,6 +1186,36 @@ var cgoSyscallExclude = map[string]bool{
+ 
+ var foldPath = make(map[string]string)
+ 
++// DefaultExecName returns the default executable name
++// for a package with the import path importPath.
++//
++// The default executable name is the last element of the import path.
++// In module-aware mode, an additional rule is used. If the last element
++// is a vN path element specifying the major version, then the second last
++// element of the import path is used instead.
++func DefaultExecName(importPath string) string {
++	_, elem := pathpkg.Split(importPath)
++	if cfg.ModulesEnabled {
++		// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
++		// See golang.org/issue/24667.
++		isVersion := func(v string) bool {
++			if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
++				return false
++			}
++			for i := 2; i < len(v); i++ {
++				if c := v[i]; c < '0' || '9' < c {
++					return false
++				}
++			}
++			return true
++		}
++		if isVersion(elem) {
++			_, elem = pathpkg.Split(pathpkg.Dir(importPath))
++		}
++	}
++	return elem
++}
++
+ // load populates p using information from bp, err, which should
+ // be the result of calling build.Context.Import.
+ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+@@ -1228,7 +1258,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		}
+ 		_, elem := filepath.Split(p.Dir)
+ 		if cfg.ModulesEnabled {
+-			// NOTE(rsc): Using p.ImportPath instead of p.Dir
++			// NOTE(rsc,dmitshur): Using p.ImportPath instead of p.Dir
+ 			// makes sure we install a package in the root of a
+ 			// cached module directory as that package name
+ 			// not name@v1.2.3.
+@@ -1237,26 +1267,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 			// even for non-module-enabled code,
+ 			// but I'm not brave enough to change the
+ 			// non-module behavior this late in the
+-			// release cycle. Maybe for Go 1.12.
++			// release cycle. Can be done for Go 1.13.
+ 			// See golang.org/issue/26869.
+-			_, elem = pathpkg.Split(p.ImportPath)
+-
+-			// If this is example.com/mycmd/v2, it's more useful to install it as mycmd than as v2.
+-			// See golang.org/issue/24667.
+-			isVersion := func(v string) bool {
+-				if len(v) < 2 || v[0] != 'v' || v[1] < '1' || '9' < v[1] {
+-					return false
+-				}
+-				for i := 2; i < len(v); i++ {
+-					if c := v[i]; c < '0' || '9' < c {
+-						return false
+-					}
+-				}
+-				return true
+-			}
+-			if isVersion(elem) {
+-				_, elem = pathpkg.Split(pathpkg.Dir(p.ImportPath))
+-			}
++			elem = DefaultExecName(p.ImportPath)
+ 		}
+ 		full := cfg.BuildContext.GOOS + "_" + cfg.BuildContext.GOARCH + "/" + elem
+ 		if cfg.BuildContext.GOOS != base.ToolGOOS || cfg.BuildContext.GOARCH != base.ToolGOARCH {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index fe90af3be5..b43925d5e5 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -811,7 +811,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	if p.ImportPath == "command-line-arguments" {
+ 		elem = p.Name
+ 	} else {
+-		_, elem = path.Split(p.ImportPath)
++		elem = load.DefaultExecName(p.ImportPath)
+ 	}
+ 	testBinary := elem + ".test"
+ 
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 21abd5ef5b..eac027e09e 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -10,7 +10,6 @@ import (
+ 	"go/build"
+ 	"os"
+ 	"os/exec"
+-	"path"
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+@@ -285,7 +284,7 @@ func runBuild(cmd *base.Command, args []string) {
+ 	pkgs := load.PackagesForBuild(args)
+ 
+ 	if len(pkgs) == 1 && pkgs[0].Name == "main" && cfg.BuildO == "" {
+-		_, cfg.BuildO = path.Split(pkgs[0].ImportPath)
++		cfg.BuildO = load.DefaultExecName(pkgs[0].ImportPath)
+ 		cfg.BuildO += cfg.ExeSuffix
+ 	}
+ 
+@@ -320,14 +319,13 @@ func runBuild(cmd *base.Command, args []string) {
+ 		// If the -o name exists and is a directory, then
+ 		// write all main packages to that directory.
+ 		// Otherwise require only a single package be built.
+-		if bs, err := os.Stat(cfg.BuildO); err == nil && bs.IsDir() {
++		if fi, err := os.Stat(cfg.BuildO); err == nil && fi.IsDir() {
+ 			a := &Action{Mode: "go build"}
+ 			for _, p := range pkgs {
+ 				if p.Name != "main" {
+ 					continue
+ 				}
+-				_, elem := path.Split(p.ImportPath)
+-				p.Target = filepath.Join(cfg.BuildO, elem)
++				p.Target = filepath.Join(cfg.BuildO, load.DefaultExecName(p.ImportPath))
+ 				p.Target += cfg.ExeSuffix
+ 				p.Stale = true
+ 				p.StaleReason = "build -o flag in use"
+@@ -540,7 +538,7 @@ func InstallPackages(patterns []string, pkgs []*load.Package) {
+ 	if len(patterns) == 0 && len(pkgs) == 1 && pkgs[0].Name == "main" {
+ 		// Compute file 'go build' would have created.
+ 		// If it exists and is an executable file, remove it.
+-		_, targ := filepath.Split(pkgs[0].ImportPath)
++		targ := load.DefaultExecName(pkgs[0].ImportPath)
+ 		targ += cfg.ExeSuffix
+ 		if filepath.Join(pkgs[0].Dir, targ) != pkgs[0].Target { // maybe $GOBIN is the current directory
+ 			fi, err := os.Stat(targ)
+diff --git a/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt
+index cfa91f08a5..3acd637931 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_fortune_v2_v2.0.0.txt
+@@ -13,3 +13,9 @@ import "rsc.io/quote"
+ func main() {
+ 	println(quote.Hello())
+ }
++-- fortune_test.go --
++package main
++
++import "testing"
++
++func TestFortuneV2(t *testing.T) {}
+diff --git a/src/cmd/go/testdata/script/mod_build_versioned.txt b/src/cmd/go/testdata/script/mod_build_versioned.txt
+new file mode 100644
+index 0000000000..eb081c9be1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_build_versioned.txt
+@@ -0,0 +1,16 @@
++env GO111MODULE=on
++
++go get -m rsc.io/fortune/v2
++
++# The default executable name shouldn't be v2$exe
++go build rsc.io/fortune/v2
++! exists v2$exe
++exists fortune$exe
++
++# The default test binary name shouldn't be v2.test$exe
++go test -c rsc.io/fortune/v2
++! exists v2.test$exe
++exists fortune.test$exe
++
++-- go.mod --
++module scratch

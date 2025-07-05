@@ -23,7 +23,7 @@ Date:   Wed May 8 13:38:14 2019 -0700
     Run-TryBot: Caleb Spare <cespare@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/go_test.go                              |  6 --
  src/cmd/go/internal/list/list.go                   |  2 +-
  src/cmd/go/internal/load/pkg.go                    |  3 +-
@@ -35,3 +35,367 @@ Date:   Wed May 8 13:38:14 2019 -0700
  .../go/testdata/standalone_testmain_flag_test.go   | 29 -------
  src/testing/testing.go                             |  5 ++
  10 files changed, 163 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3f7164dd50..f34339ab57 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3176,12 +3176,6 @@ func TestGoTestFooTestWorks(t *testing.T) {
+ 	tg.run("test", "testdata/standalone_test.go")
+ }
+ 
+-func TestGoTestTestMainSeesTestingFlags(t *testing.T) {
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.run("test", "testdata/standalone_testmain_flag_test.go")
+-}
+-
+ // Issue 22388
+ func TestGoTestMainWithWrongSignature(t *testing.T) {
+ 	tg := testgo(t)
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 4a6633d9a1..e7e78e7c59 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -459,7 +459,7 @@ func runList(cmd *base.Command, args []string) {
+ 				}
+ 				if pmain != nil {
+ 					pkgs = append(pkgs, pmain)
+-					data := *pmain.Internal.TestmainGo
++					data := pmain.Internal.TestmainGo
+ 					h := cache.NewHash("testmain")
+ 					h.Write([]byte("testmain\n"))
+ 					h.Write(data)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 68acb96a80..7ee335c5d6 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -177,7 +177,8 @@ type PackageInternal struct {
+ 	OmitDebug         bool                 // tell linker not to write debug information
+ 	GobinSubdir       bool                 // install target would be subdir of GOBIN
+ 	BuildInfo         string               // add this info to package main
+-	TestmainGo        *[]byte              // content for _testmain.go
++	TestinginitGo     []byte               // content for _testinginit.go
++	TestmainGo        []byte               // content for _testmain.go
+ 
+ 	Asmflags   []string // -asmflags for this package
+ 	Gcflags    []string // -gcflags for this package
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index d3bfb23ce0..1dd439480f 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -102,6 +102,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 	var stk ImportStack
+ 	stk.Push(p.ImportPath + " (test)")
+ 	rawTestImports := str.StringList(p.TestImports)
++	var ptestImportsTesting, pxtestImportsTesting bool
+ 	for i, path := range p.TestImports {
+ 		p1 := loadImport(pre, path, p.Dir, p, &stk, p.Internal.Build.TestImportPos[path], ResolveImport)
+ 		if str.Contains(p1.Deps, p.ImportPath) || p1.ImportPath == p.ImportPath {
+@@ -116,6 +117,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 		}
+ 		p.TestImports[i] = p1.ImportPath
+ 		imports = append(imports, p1)
++		if path == "testing" {
++			ptestImportsTesting = true
++		}
+ 	}
+ 	stk.Pop()
+ 	stk.Push(p.ImportPath + "_test")
+@@ -129,6 +133,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 			ximports = append(ximports, p1)
+ 		}
+ 		p.XTestImports[i] = p1.ImportPath
++		if path == "testing" {
++			pxtestImportsTesting = true
++		}
+ 	}
+ 	stk.Pop()
+ 
+@@ -138,6 +145,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 		*ptest = *p
+ 		ptest.Error = ptestErr
+ 		ptest.ForTest = p.ImportPath
++		if ptestImportsTesting {
++			ptest.Internal.TestinginitGo = formatTestinginit(p)
++		}
+ 		ptest.GoFiles = nil
+ 		ptest.GoFiles = append(ptest.GoFiles, p.GoFiles...)
+ 		ptest.GoFiles = append(ptest.GoFiles, p.TestGoFiles...)
+@@ -201,6 +211,9 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 				Gccgoflags: p.Internal.Gccgoflags,
+ 			},
+ 		}
++		if pxtestImportsTesting {
++			pxtest.Internal.TestinginitGo = formatTestinginit(pxtest)
++		}
+ 		if pxtestNeedsPtest {
+ 			pxtest.Internal.Imports = append(pxtest.Internal.Imports, ptest)
+ 		}
+@@ -323,9 +336,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 	if err != nil && pmain.Error == nil {
+ 		pmain.Error = &PackageError{Err: err.Error()}
+ 	}
+-	if data != nil {
+-		pmain.Internal.TestmainGo = &data
+-	}
++	pmain.Internal.TestmainGo = data
+ 
+ 	return pmain, ptest, pxtest
+ }
+@@ -473,6 +484,15 @@ func loadTestFuncs(ptest *Package) (*testFuncs, error) {
+ 	return t, err
+ }
+ 
++// formatTestinginit returns the content of the _testinginit.go file for p.
++func formatTestinginit(p *Package) []byte {
++	var buf bytes.Buffer
++	if err := testinginitTmpl.Execute(&buf, p); err != nil {
++		panic("testinginit template execution failed") // shouldn't be possible
++	}
++	return buf.Bytes()
++}
++
+ // formatTestmain returns the content of the _testmain.go file for t.
+ func formatTestmain(t *testFuncs) ([]byte, error) {
+ 	var buf bytes.Buffer
+@@ -602,6 +622,24 @@ func checkTestFunc(fn *ast.FuncDecl, arg string) error {
+ 	return nil
+ }
+ 
++var testinginitTmpl = lazytemplate.New("init", `
++package {{.Name}}
++
++{{/* Avoid a name collision with a name "testing" in user code. */}}
++import testing_xxxxxxxxxxxx "testing"
++
++{{/*
++Call testing.Init before any other user initialization code runs.
++(This file is passed to the compiler first.)
++This provides the illusion of the old behavior where testing flags
++were registered as part of the testing package's initialization.
++*/}}
++var _ = func() bool {
++	testing_xxxxxxxxxxxx.Init()
++	return true
++}()
++`)
++
+ var testmainTmpl = lazytemplate.New("main", `
+ package main
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 9b9bbce0dd..98a8c8756c 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -835,7 +835,7 @@ func builderTest(b *work.Builder, p *load.Package) (buildAction, runAction, prin
+ 	if !cfg.BuildN {
+ 		// writeTestmain writes _testmain.go,
+ 		// using the test description gathered in t.
+-		if err := ioutil.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
++		if err := ioutil.WriteFile(testDir+"_testmain.go", pmain.Internal.TestmainGo, 0666); err != nil {
+ 			return nil, nil, nil, err
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index cb380d1702..6f8dca9b89 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -523,6 +523,15 @@ func (b *Builder) build(a *Action) (err error) {
+ 		}
+ 	}
+ 
++	// Write out the _testinginit.go file for any test packages that import "testing".
++	if a.Package.Internal.TestinginitGo != nil {
++		initfile := objdir + "_testinginit.go"
++		if err := b.writeFile(initfile, a.Package.Internal.TestinginitGo); err != nil {
++			return err
++		}
++		gofiles = append([]string{initfile}, gofiles...)
++	}
++
+ 	// Run cgo.
+ 	if a.Package.UsesCgo() || a.Package.UsesSwig() {
+ 		// In a package using cgo, cgo compiles the C, C++ and assembly files with gcc.
+diff --git a/src/cmd/go/testdata/flag_test.go b/src/cmd/go/testdata/flag_test.go
+index ddf613d870..a4e5507f2c 100644
+--- a/src/cmd/go/testdata/flag_test.go
++++ b/src/cmd/go/testdata/flag_test.go
+@@ -1,16 +1,19 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package flag_test
+ 
+ import (
+ 	"flag"
+-	"log"
+ 	"testing"
+ )
+ 
+ var v = flag.Int("v", 0, "v flag")
+ 
+-// Run this as go test pkg -v=7
++// Run this as go test pkg -args -v=7
+ func TestVFlagIsSet(t *testing.T) {
+ 	if *v != 7 {
+-		log.Fatal("v flag not set")
++		t.Fatal("v flag not set")
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/test_init.txt b/src/cmd/go/testdata/script/test_init.txt
+new file mode 100644
+index 0000000000..43471557f3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_init.txt
+@@ -0,0 +1,98 @@
++# Tests for automatic testing.Init calls when using 'go test'.
++
++env GO111MODULE=on
++
++# A TestMain should be able to access testing flags if it calls flag.Parse
++# without needing to use testing.Init.
++go test testmain_flag_test.go
++
++# Test code can use the name 'testing' without colliding with generated
++# testinginit code.
++go test testing_collision_test.go
++
++# Tests running under 'go test' should observe that testing.Init is called
++# before any user package initialization code runs.
++go test ./testinitflag
++
++-- testmain_flag_test.go --
++package testmain_flag_test
++
++import (
++	"flag"
++	"fmt"
++	"os"
++	"testing"
++)
++
++func TestMain(m *testing.M) {
++	flag.Parse()
++	found := false
++	flag.VisitAll(func(f *flag.Flag) {
++		if f.Name == "test.count" {
++			found = true
++		}
++	})
++	if !found {
++		fmt.Println("testing flags not registered")
++		os.Exit(1)
++	}
++	os.Exit(m.Run())
++}
++
++func TestX(t *testing.T) {}
++
++-- testing_collision_test.go --
++package testing_collision_test
++
++import testing2 "testing"
++
++var testing = 3
++
++func TestX(t *testing2.T) {}
++
++-- go.mod --
++module m
++
++-- testinitflag/init.go --
++package testinitflag
++
++import "flag"
++
++func TestFlagsInitialized() bool {
++	found := false
++	flag.VisitAll(func(f *flag.Flag) {
++		if f.Name == "test.count" {
++			found = true
++		}
++	})
++	return found
++}
++
++-- testinitflag/init_test.go --
++package testinitflag
++
++import "testing"
++
++var testingInitAtInitialization = TestFlagsInitialized()
++
++func TestInit(t *testing.T) {
++	if !testingInitAtInitialization {
++		t.Fatal("testing.Init not called before package initialization")
++	}
++}
++
++-- testinitflag/external_test.go --
++package testinitflag_test
++
++import (
++	"testing"
++	"m/testinitflag"
++)
++
++var testingInitAtInitialization = testinitflag.TestFlagsInitialized()
++
++func TestInitExternal(t *testing.T) {
++	if !testingInitAtInitialization {
++		t.Fatal("testing.Init not called before package initialization")
++	}
++}
+diff --git a/src/cmd/go/testdata/standalone_testmain_flag_test.go b/src/cmd/go/testdata/standalone_testmain_flag_test.go
+deleted file mode 100644
+index a59555bb61..0000000000
+--- a/src/cmd/go/testdata/standalone_testmain_flag_test.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package standalone_testmain_flag_test
+-
+-import (
+-	"flag"
+-	"fmt"
+-	"os"
+-	"testing"
+-)
+-
+-func TestMain(m *testing.M) {
+-	// A TestMain should be able to access testing flags if it calls
+-	// flag.Parse without needing to use testing.Init.
+-	flag.Parse()
+-	found := false
+-	flag.VisitAll(func(f *flag.Flag) {
+-		if f.Name == "test.count" {
+-			found = true
+-		}
+-	})
+-	if !found {
+-		fmt.Println("testing flags not registered")
+-		os.Exit(1)
+-	}
+-	os.Exit(m.Run())
+-}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 7db7c630c2..2f05203f27 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1078,6 +1078,11 @@ type testDeps interface {
+ // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
+ // It may change signature from release to release.
+ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, examples []InternalExample) *M {
++	// In most cases, Init has already been called by the testinginit code
++	// that 'go test' injects into test packages.
++	// Call it again here to handle cases such as:
++	// - test packages that don't import "testing" (such as example-only packages)
++	// - direct use of MainStart (though that isn't well-supported)
+ 	Init()
+ 	return &M{
+ 		deps:       deps,

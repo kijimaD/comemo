@@ -44,8 +44,104 @@ Date:   Fri Sep 8 07:46:19 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/example_test.go | 22 ++++++++++++++++++----
  src/time/time.go         | 20 ++++++++++++++------
  src/time/zoneinfo.go     |  4 ++++
  3 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 059c6310a6..cfdee8f4d7 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -591,19 +591,33 @@ func ExampleTime_Add() {
+ }
+ 
+ func ExampleTime_AddDate() {
+-	start := time.Date(2009, 1, 1, 0, 0, 0, 0, time.UTC)
++	start := time.Date(2023, 03, 25, 12, 0, 0, 0, time.UTC)
+ 	oneDayLater := start.AddDate(0, 0, 1)
++	dayDuration := oneDayLater.Sub(start)
+ 	oneMonthLater := start.AddDate(0, 1, 0)
+ 	oneYearLater := start.AddDate(1, 0, 0)
+ 
++	zurich, err := time.LoadLocation("Europe/Zurich")
++	if err != nil {
++		panic(err)
++	}
++	// This was the day before a daylight saving time transition in Zürich.
++	startZurich := time.Date(2023, 03, 25, 12, 0, 0, 0, zurich)
++	oneDayLaterZurich := startZurich.AddDate(0, 0, 1)
++	dayDurationZurich := oneDayLaterZurich.Sub(startZurich)
++
+ 	fmt.Printf("oneDayLater: start.AddDate(0, 0, 1) = %v\n", oneDayLater)
+ 	fmt.Printf("oneMonthLater: start.AddDate(0, 1, 0) = %v\n", oneMonthLater)
+ 	fmt.Printf("oneYearLater: start.AddDate(1, 0, 0) = %v\n", oneYearLater)
++	fmt.Printf("oneDayLaterZurich: startZurich.AddDate(0, 0, 1) = %v\n", oneDayLaterZurich)
++	fmt.Printf("Day duration in UTC: %v | Day duration in Zürich: %v\n", dayDuration, dayDurationZurich)
+ 
+ 	// Output:
+-	// oneDayLater: start.AddDate(0, 0, 1) = 2009-01-02 00:00:00 +0000 UTC
+-	// oneMonthLater: start.AddDate(0, 1, 0) = 2009-02-01 00:00:00 +0000 UTC
+-	// oneYearLater: start.AddDate(1, 0, 0) = 2010-01-01 00:00:00 +0000 UTC
++	// oneDayLater: start.AddDate(0, 0, 1) = 2023-03-26 12:00:00 +0000 UTC
++	// oneMonthLater: start.AddDate(0, 1, 0) = 2023-04-25 12:00:00 +0000 UTC
++	// oneYearLater: start.AddDate(1, 0, 0) = 2024-03-25 12:00:00 +0000 UTC
++	// oneDayLaterZurich: startZurich.AddDate(0, 0, 1) = 2023-03-26 12:00:00 +0200 CEST
++	// Day duration in UTC: 24h0m0s | Day duration in Zürich: 23h0m0s
+ }
+ 
+ func ExampleTime_After() {
+diff --git a/src/time/time.go b/src/time/time.go
+index 3d4416e76b..1db9d3768e 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -109,12 +109,11 @@ import (
+ // As this time is unlikely to come up in practice, the IsZero method gives
+ // a simple way of detecting a time that has not been initialized explicitly.
+ //
+-// Each Time has associated with it a Location, consulted when computing the
+-// presentation form of the time, such as in the Format, Hour, and Year methods.
+-// The methods Local, UTC, and In return a Time with a specific location.
+-// Changing the location in this way changes only the presentation; it does not
+-// change the instant in time being denoted and therefore does not affect the
+-// computations described in earlier paragraphs.
++// Each time has an associated Location. The methods Local, UTC, and In return a
++// Time with a specific Location. Changing the Location of a Time value with
++// these methods does not change the actual instant it represents, only the time
++// zone in which to interpret it.
++
+ //
+ // Representations of a Time value saved by the GobEncode, MarshalBinary,
+ // MarshalJSON, and MarshalText methods store the Time.Location's offset, but not
+@@ -951,6 +950,15 @@ func Until(t Time) Duration {
+ // For example, AddDate(-1, 2, 3) applied to January 1, 2011
+ // returns March 4, 2010.
+ //
++// Note that dates are fundamentally coupled to timezones, and calendrical
++// periods like days don't have fixed durations. AddDate uses the Location of
++// the Time value to determine these durations. That means that the same
++// AddDate arguments can produce a different shift in absolute time depending on
++// the base Time value and its Location. For example, AddDate(0, 0, 1) applied
++// to 12:00 on March 27 always returns 12:00 on March 28. At some locations and
++// in some years this is a 24 hour shift. In others it's a 23 hour shift due to
++// daylight savings time transitions.
++//
+ // AddDate normalizes its result in the same way that Date does,
+ // so, for example, adding one month to October 31 yields
+ // December 1, the normalized form for November 31.
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index 42d40d584e..c8d1762302 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -16,6 +16,10 @@ import (
+ // Typically, the Location represents the collection of time offsets
+ // in use in a geographical area. For many Locations the time offset varies
+ // depending on whether daylight savings time is in use at the time instant.
++//
++// Location is used to provide a time zone in a printed Time value and for
++// calculations involving intervals that may cross daylight savings time
++// boundaries.
+ type Location struct {
+ 	name string
+ 	zone []zone

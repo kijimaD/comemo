@@ -13,6 +13,21 @@ Date:   Sat Apr 11 21:49:10 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 57d71bf3d4..9eab170ddb 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1352,7 +1352,8 @@ opswitch:
+ 				Fatalf("walkexpr: invalid index %v", r)
+ 			}
+ 
+-			// cap is constrained to [0,2^31), so it's safe to do:
++			// cap is constrained to [0,2^31) or [0,2^63) depending on whether
++			// we're in 32-bit or 64-bit systems. So it's safe to do:
+ 			//
+ 			// if uint64(len) > cap {
+ 			//     if len < 0 { panicmakeslicelen() }

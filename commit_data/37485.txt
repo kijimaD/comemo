@@ -12,7 +12,40 @@ Date:   Fri Aug 3 11:27:32 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/fmtcmd/fmt.go                |  2 +-
  src/cmd/go/testdata/script/mod_gofmt_invalid.txt | 13 +++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 0e5509edfa..8e4ef37281 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -60,7 +60,7 @@ func runFmt(cmd *base.Command, args []string) {
+ 		}()
+ 	}
+ 	for _, pkg := range load.PackagesAndErrors(args) {
+-		if modload.Enabled() && !pkg.Module.Main {
++		if modload.Enabled() && pkg.Module != nil && !pkg.Module.Main {
+ 			if !printed {
+ 				fmt.Fprintf(os.Stderr, "go: not formatting packages in dependency modules\n")
+ 				printed = true
+diff --git a/src/cmd/go/testdata/script/mod_gofmt_invalid.txt b/src/cmd/go/testdata/script/mod_gofmt_invalid.txt
+new file mode 100644
+index 0000000000..21edc7dc2f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_gofmt_invalid.txt
+@@ -0,0 +1,13 @@
++# Test for a crash in go fmt on invalid input when using modules.
++# Issue 26792.
++
++env GO111MODULE=on
++! go fmt x.go
++! stderr panic
++
++-- go.mod --
++module x
++
++-- x.go --
++// Missing package declaration.
++var V int

@@ -20,7 +20,129 @@ Date:   Thu Mar 3 22:37:14 2016 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 44 ++++++++++++++---------------------------
  test/fixedbugs/issue14636.go    | 43 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 4d4ac51ea7..c5f68273f4 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"crypto/sha1"
+ 	"encoding/binary"
++	"encoding/hex"
+ 	"fmt"
+ 	"path/filepath"
+ 	"sort"
+@@ -1196,45 +1197,30 @@ func elfwriteopenbsdsig() int {
+ }
+ 
+ func addbuildinfo(val string) {
+-	var j int
+-
+-	if val[0] != '0' || val[1] != 'x' {
++	if !strings.HasPrefix(val, "0x") {
+ 		Exitf("-B argument must start with 0x: %s", val)
+ 	}
+ 
+ 	ov := val
+ 	val = val[2:]
+-	i := 0
+-	var b int
+-	for val != "" {
+-		if len(val) == 1 {
+-			Exitf("-B argument must have even number of digits: %s", ov)
+-		}
+ 
+-		b = 0
+-		for j = 0; j < 2; j, val = j+1, val[1:] {
+-			b *= 16
+-			if val[0] >= '0' && val[0] <= '9' {
+-				b += int(val[0]) - '0'
+-			} else if val[0] >= 'a' && val[0] <= 'f' {
+-				b += int(val[0]) - 'a' + 10
+-			} else if val[0] >= 'A' && val[0] <= 'F' {
+-				b += int(val[0]) - 'A' + 10
+-			} else {
+-				Exitf("-B argument contains invalid hex digit %c: %s", val[0], ov)
+-			}
+-		}
++	const maxLen = 32
++	if hex.DecodedLen(len(val)) > maxLen {
++		Exitf("-B option too long (max %d digits): %s", maxLen, ov)
++	}
+ 
+-		const maxLen = 32
+-		if i >= maxLen {
+-			Exitf("-B option too long (max %d digits): %s", maxLen, ov)
++	b, err := hex.DecodeString(val)
++	if err != nil {
++		if err == hex.ErrLength {
++			Exitf("-B argument must have even number of digits: %s", ov)
+ 		}
+-
+-		buildinfo = append(buildinfo, uint8(b))
+-		i++
++		if inv, ok := err.(hex.InvalidByteError); ok {
++			Exitf("-B argument contains invalid hex digit %c: %s", byte(inv), ov)
++		}
++		Exitf("-B argument contains invalid hex: %s", ov)
+ 	}
+ 
+-	buildinfo = buildinfo[:i]
++	buildinfo = b
+ }
+ 
+ // Build info note
+diff --git a/test/fixedbugs/issue14636.go b/test/fixedbugs/issue14636.go
+new file mode 100644
+index 0000000000..7d1b606241
+--- /dev/null
++++ b/test/fixedbugs/issue14636.go
+@@ -0,0 +1,43 @@
++// +build !nacl,!android,!darwin darwin,!arm
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"log"
++	"os/exec"
++	"strings"
++)
++
++func main() {
++	checkLinkOutput("", "-B argument must start with 0x")
++	checkLinkOutput("0", "-B argument must start with 0x")
++	checkLinkOutput("0x", "usage")
++	checkLinkOutput("0x0", "-B argument must have even number of digits")
++	checkLinkOutput("0x00", "usage")
++	checkLinkOutput("0xYZ", "-B argument contains invalid hex digit")
++	checkLinkOutput("0x"+strings.Repeat("00", 32), "usage")
++	checkLinkOutput("0x"+strings.Repeat("00", 33), "-B option too long (max 32 digits)")
++}
++
++func checkLinkOutput(buildid string, message string) {
++	cmd := exec.Command("go", "tool", "link", "-B", buildid)
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		log.Fatalf("expected cmd/link to fail")
++	}
++
++	firstLine := string(bytes.SplitN(out, []byte("\n"), 2)[0])
++	if strings.HasPrefix(firstLine, "panic") {
++		log.Fatalf("cmd/link panicked:\n%s", out)
++	}
++
++	if !strings.Contains(firstLine, message) {
++		log.Fatalf("cmd/link output did not include expected message %q: %s", message, firstLine)
++	}
++}

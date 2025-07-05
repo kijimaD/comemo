@@ -18,6 +18,20 @@ Date:   Thu Apr 10 12:46:52 2025 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: t hepudds <thepudds1460@gmail.com>
-
+---
  src/cmd/compile/internal/walk/builtin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index f5e558b471..018782211b 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -568,7 +568,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 			// The conv is necessary in case n.Type is named.
+ 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
+ 		}
+-		tryStack = true
++		tryStack = base.Flag.N == 0
+ 	}
+ 
+ 	// The final result is assigned to this variable.

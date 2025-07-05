@@ -19,8 +19,96 @@ Date:   Fri Mar 13 16:46:51 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go    |  6 +++---
  src/cmd/go/internal/modload/modfile.go | 14 ++++++++------
  src/cmd/go/internal/modload/vendor.go  |  4 +++-
  3 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 93027c44c4..71c7b158b8 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -483,15 +483,15 @@ func setDefaultBuildMod() {
+ 
+ 	if fi, err := os.Stat(filepath.Join(modRoot, "vendor")); err == nil && fi.IsDir() {
+ 		modGo := "unspecified"
+-		if index.goVersion != "" {
+-			if semver.Compare("v"+index.goVersion, "v1.14") >= 0 {
++		if index.goVersionV != "" {
++			if semver.Compare(index.goVersionV, "v1.14") >= 0 {
+ 				// The Go version is at least 1.14, and a vendor directory exists.
+ 				// Set -mod=vendor by default.
+ 				cfg.BuildMod = "vendor"
+ 				cfg.BuildModReason = "Go version in go.mod is at least 1.14 and vendor directory exists."
+ 				return
+ 			} else {
+-				modGo = index.goVersion
++				modGo = index.goVersionV[1:]
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 9f4ec5a49f..9a166cae54 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -20,7 +20,7 @@ type modFileIndex struct {
+ 	data         []byte
+ 	dataNeedsFix bool // true if fixVersion applied a change while parsing data
+ 	module       module.Version
+-	goVersion    string
++	goVersionV   string // GoVersion with "v" prefix
+ 	require      map[module.Version]requireMeta
+ 	replace      map[module.Version]module.Version
+ 	exclude      map[module.Version]bool
+@@ -66,9 +66,11 @@ func indexModFile(data []byte, modFile *modfile.File, needsFix bool) *modFileInd
+ 		i.module = modFile.Module.Mod
+ 	}
+ 
+-	i.goVersion = ""
++	i.goVersionV = ""
+ 	if modFile.Go != nil {
+-		i.goVersion = modFile.Go.Version
++		// We're going to use the semver package to compare Go versions, so go ahead
++		// and add the "v" prefix it expects once instead of every time.
++		i.goVersionV = "v" + modFile.Go.Version
+ 	}
+ 
+ 	i.require = make(map[module.Version]requireMeta, len(modFile.Require))
+@@ -114,11 +116,11 @@ func (i *modFileIndex) modFileIsDirty(modFile *modfile.File) bool {
+ 	}
+ 
+ 	if modFile.Go == nil {
+-		if i.goVersion != "" {
++		if i.goVersionV != "" {
+ 			return true
+ 		}
+-	} else if modFile.Go.Version != i.goVersion {
+-		if i.goVersion == "" && cfg.BuildMod == "readonly" {
++	} else if "v"+modFile.Go.Version != i.goVersionV {
++		if i.goVersionV == "" && cfg.BuildMod == "readonly" {
+ 			// go.mod files did not always require a 'go' version, so do not error out
+ 			// if one is missing — we may be inside an older module in the module
+ 			// cache, and should bias toward providing useful behavior.
+diff --git a/src/cmd/go/internal/modload/vendor.go b/src/cmd/go/internal/modload/vendor.go
+index 71f68efbcc..9f34b829fc 100644
+--- a/src/cmd/go/internal/modload/vendor.go
++++ b/src/cmd/go/internal/modload/vendor.go
+@@ -133,7 +133,7 @@ func checkVendorConsistency() {
+ 	readVendorList()
+ 
+ 	pre114 := false
+-	if modFile.Go == nil || semver.Compare("v"+modFile.Go.Version, "v1.14") < 0 {
++	if semver.Compare(index.goVersionV, "v1.14") < 0 {
+ 		// Go versions before 1.14 did not include enough information in
+ 		// vendor/modules.txt to check for consistency.
+ 		// If we know that we're on an earlier version, relax the consistency check.
+@@ -150,6 +150,8 @@ func checkVendorConsistency() {
+ 		}
+ 	}
+ 
++	// Iterate over the Require directives in their original (not indexed) order
++	// so that the errors match the original file.
+ 	for _, r := range modFile.Require {
+ 		if !vendorMeta[r.Mod].Explicit {
+ 			if pre114 {

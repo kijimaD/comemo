@@ -46,7 +46,7 @@ Date:   Fri Mar 2 22:16:02 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5732045
-
+---
  src/cmd/gc/doc.go                         |  2 +
  src/cmd/gc/go.h                           |  1 +
  src/cmd/gc/lex.c                          | 26 +++++++---
@@ -62,3 +62,647 @@ Date:   Fri Mar 2 22:16:02 2012 -0500
  src/cmd/go/testdata/testimport/p_test.go  | 13 +++++
  src/cmd/go/testdata/testimport/x_test.go  | 15 ++++++
  14 files changed, 171 insertions(+), 92 deletions(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index c704011ef7..5a2977eab0 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -38,6 +38,8 @@ Flags:
+ 	-p path
+ 		assume that path is the eventual import path for this code,
+ 		and diagnose any attempt to import a package that depends on it.
++	-D path
++		treat a relative import as relative to path
+ 	-L
+ 		show entire file path when printing line numbers in errors
+ 	-I dir1 -I dir2
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c348526437..753360e46f 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -772,6 +772,7 @@ extern	char*	runtimeimport;
+ extern	char*	unsafeimport;
+ EXTERN	char*	myimportpath;
+ EXTERN	Idir*	idirs;
++EXTERN	char*	localimport;
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	Type*	idealstring;
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index b393bccc45..96786b5e6a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -148,6 +148,7 @@ usage(void)
+ 	// -y print declarations in cannedimports (used with -d)
+ 	// -% print non-static initializers
+ 	// -+ indicate that the runtime is being compiled
++	print("  -D PATH interpret local imports relative to this import path\n");
+ 	print("  -I DIR search for packages in DIR\n");
+ 	print("  -L show full path in file:line prints\n");
+ 	print("  -N disable optimizations\n");
+@@ -238,14 +239,18 @@ main(int argc, char *argv[])
+ 		myimportpath = EARGF(usage());
+ 		break;
+ 
+-	case 'I':
+-		addidir(EARGF(usage()));
+-		break;
+-	
+ 	case 'u':
+ 		safemode = 1;
+ 		break;
+ 
++	case 'D':
++		localimport = EARGF(usage());
++		break;
++
++	case 'I':
++		addidir(EARGF(usage()));
++		break;
++	
+ 	case 'V':
+ 		p = expstring();
+ 		if(strcmp(p, "X:none") == 0)
+@@ -516,8 +521,12 @@ islocalname(Strlit *name)
+ 	   	return 1;
+ 	if(name->len >= 2 && strncmp(name->s, "./", 2) == 0)
+ 		return 1;
++	if(name->len == 1 && strncmp(name->s, ".", 1) == 0)
++		return 1;
+ 	if(name->len >= 3 && strncmp(name->s, "../", 3) == 0)
+ 		return 1;
++	if(name->len == 2 && strncmp(name->s, "..", 2) == 0)
++		return 1;
+ 	return 0;
+ }
+ 
+@@ -588,7 +597,7 @@ importfile(Val *f, int line)
+ 	int32 c;
+ 	int len;
+ 	Strlit *path;
+-	char *cleanbuf;
++	char *cleanbuf, *prefix;
+ 
+ 	USED(line);
+ 
+@@ -642,8 +651,11 @@ importfile(Val *f, int line)
+ 			fakeimport();
+ 			return;
+ 		}
+-		cleanbuf = mal(strlen(pathname) + strlen(path->s) + 2);
+-		strcpy(cleanbuf, pathname);
++		prefix = pathname;
++		if(localimport != nil)
++			prefix = localimport;
++		cleanbuf = mal(strlen(prefix) + strlen(path->s) + 2);
++		strcpy(cleanbuf, prefix);
+ 		strcat(cleanbuf, "/");
+ 		strcat(cleanbuf, path->s);
+ 		cleanname(cleanbuf);
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2323195120..cb1774103a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -349,8 +349,9 @@ func goFilesPackage(gofiles []string) *Package {
+ 	bp, err := ctxt.ImportDir(dir, 0)
+ 	pkg := new(Package)
+ 	pkg.load(&stk, bp, err)
++	pkg.localPrefix = dirToImportPath(dir)
++	pkg.ImportPath = "command-line-arguments"
+ 
+-	pkg.ImportPath = "command-line arguments"
+ 	if *buildO == "" {
+ 		if pkg.Name == "main" {
+ 			_, elem := filepath.Split(gofiles[0])
+@@ -425,14 +426,12 @@ func (b *builder) action(mode buildMode, depMode buildMode, p *Package) *action
+ 		return a
+ 	}
+ 
+-	prefix := "obj"
+-	if p.target == "" && p.Dir == p.ImportPath {
++	if p.local {
+ 		// Imported via local path.  No permanent target.
+ 		mode = modeBuild
+-		prefix = "local"
+ 	}
+-	a.objdir = filepath.Join(b.work, prefix, a.p.ImportPath, "_obj") + string(filepath.Separator)
+-	a.objpkg = buildToolchain.pkgpath(b.work+"/"+prefix, a.p)
++	a.objdir = filepath.Join(b.work, a.p.ImportPath, "_obj") + string(filepath.Separator)
++	a.objpkg = buildToolchain.pkgpath(b.work, a.p)
+ 	a.link = p.Name == "main"
+ 
+ 	switch mode {
+@@ -635,32 +634,9 @@ func (b *builder) build(a *action) error {
+ 	// Prepare Go import path list.
+ 	inc := b.includeArgs("-I", a.deps)
+ 
+-	// In what directory shall we run the Go compiler?
+-	// We only pass absolute paths, so most of the time it doesn't matter.
+-	// Default to the root directory.
+-	// However, if the package contains local imports (./ or ../)
+-	// then we need to run the compiler in a directory in the parallel
+-	// tree of local package objects, so that those imports resolve to the
+-	// compiled package objects.
+-	gcdir := filepath.Clean("/")
+-	for _, imp := range a.p.Imports {
+-		if build.IsLocalImport(imp) {
+-			dir := a.p.Dir
+-			if filepath.Separator == '\\' {
+-				// Avoid use of : on Windows.
+-				dir = strings.Replace(dir, ":", "_", -1)
+-			}
+-			gcdir = filepath.Join(b.work, "local", dir)
+-			if err := b.mkdir(gcdir); err != nil {
+-				return err
+-			}
+-			break
+-		}
+-	}
+-
+ 	// Compile Go.
+ 	if len(gofiles) > 0 {
+-		if out, err := buildToolchain.gc(b, a.p, obj, gcdir, inc, gofiles); err != nil {
++		if out, err := buildToolchain.gc(b, a.p, obj, inc, gofiles); err != nil {
+ 			return err
+ 		} else {
+ 			objects = append(objects, out)
+@@ -768,9 +744,9 @@ func (b *builder) install(a *action) error {
+ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 	inc := []string{}
+ 	incMap := map[string]bool{
+-		b.work + "/obj": true, // handled later
+-		gorootPkg:       true,
+-		"":              true, // ignore empty strings
++		b.work:    true, // handled later
++		gorootPkg: true,
++		"":        true, // ignore empty strings
+ 	}
+ 
+ 	// Look in the temporary space for results of test-specific actions.
+@@ -785,7 +761,7 @@ func (b *builder) includeArgs(flag string, all []*action) []string {
+ 
+ 	// Also look in $WORK for any non-test packages that have
+ 	// been built but not installed.
+-	inc = append(inc, flag, b.work+"/obj")
++	inc = append(inc, flag, b.work)
+ 
+ 	// Finally, look in the installed package directories for each action.
+ 	for _, a1 := range all {
+@@ -994,7 +970,7 @@ var errPrintedOutput = errors.New("already printed output - no need to show erro
+ // run runs the command given by cmdline in the directory dir.
+ // If the command fails, run prints information about the failure
+ // and returns a non-nil error.
+-func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{}) error {
++func (b *builder) run(dir string, desc string, cmdargs ...interface{}) error {
+ 	out, err := b.runOut(dir, desc, cmdargs...)
+ 	if len(out) > 0 {
+ 		if out[len(out)-1] != '\n' {
+@@ -1003,7 +979,7 @@ func (b *builder) run(dir, shortenDir string, desc string, cmdargs ...interface{
+ 		if desc == "" {
+ 			desc = b.fmtcmd(dir, "%s", strings.Join(stringList(cmdargs...), " "))
+ 		}
+-		b.showOutput(shortenDir, desc, string(out))
++		b.showOutput(dir, desc, string(out))
+ 		if err != nil {
+ 			err = errPrintedOutput
+ 		}
+@@ -1076,7 +1052,7 @@ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+ 	// and returns the name of the generated output file.
+ 	// The compiler runs in the directory dir.
+-	gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error)
++	gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *builder, p *Package, objdir, ofile, cfile string) error
+@@ -1121,7 +1097,7 @@ func (goToolchain) linker() string {
+ 	return tool(archChar + "l")
+ }
+ 
+-func (goToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
++func (goToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := "_go_." + archChar
+ 	ofile = obj + out
+ 	gcargs := []string{"-p", p.ImportPath}
+@@ -1131,16 +1107,16 @@ func (goToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []stri
+ 		gcargs = append(gcargs, "-+")
+ 	}
+ 
+-	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, importArgs)
++	args := stringList(tool(archChar+"g"), "-o", ofile, buildGcflags, gcargs, "-D", p.localPrefix, importArgs)
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+-	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
++	return ofile, b.run(p.Dir, p.ImportPath, args)
+ }
+ 
+ func (goToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, tool(archChar+"a"), "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+ }
+ 
+ func (goToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1153,18 +1129,18 @@ func (goToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles []s
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, tool("pack"), "grc", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (goToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+ 	importArgs := b.includeArgs("-L", allactions)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
++	return b.run(p.Dir, p.ImportPath, tool(archChar+"l"), "-o", out, importArgs, buildLdflags, mainpkg)
+ }
+ 
+ func (goToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
++	return b.run(p.Dir, p.ImportPath, tool(archChar+"c"), "-FVw",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+ 		"-DGOOS_"+goos, "-DGOARCH_"+goarch, cfile)
+ }
+@@ -1181,7 +1157,7 @@ func (gccgoToolchain) linker() string {
+ 	return gccgoBin
+ }
+ 
+-func (gccgoToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []string, gofiles []string) (ofile string, err error) {
++func (gccgoToolchain) gc(b *builder, p *Package, obj string, importArgs []string, gofiles []string) (ofile string, err error) {
+ 	out := p.Name + ".o"
+ 	ofile = obj + out
+ 	gcargs := []string{"-g"}
+@@ -1196,12 +1172,12 @@ func (gccgoToolchain) gc(b *builder, p *Package, obj, dir string, importArgs []s
+ 	for _, f := range gofiles {
+ 		args = append(args, mkAbs(p.Dir, f))
+ 	}
+-	return ofile, b.run(dir, p.Dir, p.ImportPath, args)
++	return ofile, b.run(p.Dir, p.ImportPath, args)
+ }
+ 
+ func (gccgoToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	sfile = mkAbs(p.Dir, sfile)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
++	return b.run(p.Dir, p.ImportPath, "gccgo", "-I", obj, "-o", ofile, "-DGOOS_"+goos, "-DGOARCH_"+goarch, sfile)
+ }
+ 
+ func (gccgoToolchain) pkgpath(basedir string, p *Package) string {
+@@ -1216,7 +1192,7 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objDir, f))
+ 	}
+-	return b.run(p.Dir, p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
++	return b.run(p.Dir, p.ImportPath, "ar", "cru", mkAbs(objDir, afile), absOfiles)
+ }
+ 
+ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+@@ -1239,13 +1215,13 @@ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []
+ 		ldflags = append(ldflags, afile)
+ 	}
+ 	ldflags = append(ldflags, cgoldflags...)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
++	return b.run(p.Dir, p.ImportPath, "gccgo", "-o", out, buildGccgoflags, ofiles, "-Wl,-(", ldflags, "-Wl,-)")
+ }
+ 
+ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) error {
+ 	inc := filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s", goos, goarch))
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
++	return b.run(p.Dir, p.ImportPath, "gcc", "-Wall", "-g",
+ 		"-I", objdir, "-I", inc, "-o", ofile,
+ 		"-DGOOS_"+goos, "-DGOARCH_"+goarch, "-c", cfile)
+ }
+@@ -1253,12 +1229,12 @@ func (gccgoToolchain) cc(b *builder, p *Package, objdir, ofile, cfile string) er
+ // gcc runs the gcc C compiler to create an object from a single C file.
+ func (b *builder) gcc(p *Package, out string, flags []string, cfile string) error {
+ 	cfile = mkAbs(p.Dir, cfile)
+-	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
++	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), flags, "-o", out, "-c", cfile)
+ }
+ 
+ // gccld runs the gcc linker to create an executable from a set of object files
+ func (b *builder) gccld(p *Package, out string, flags []string, obj []string) error {
+-	return b.run(p.Dir, p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
++	return b.run(p.Dir, p.ImportPath, b.gccCmd(p.Dir), "-o", out, obj, flags)
+ }
+ 
+ // gccCmd returns a gcc command line prefix
+@@ -1348,7 +1324,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 	if _, ok := buildToolchain.(gccgoToolchain); ok {
+ 		cgoflags = append(cgoflags, "-gccgo")
+ 	}
+-	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
++	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, cgoflags, "--", cgoCFLAGS, p.CgoFiles); err != nil {
+ 		return nil, nil, err
+ 	}
+ 	outGo = append(outGo, gofiles...)
+@@ -1392,7 +1368,7 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles []string) (outGo,
+ 
+ 	// cgo -dynimport
+ 	importC := obj + "_cgo_import.c"
+-	if err := b.run(p.Dir, p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
++	if err := b.run(p.Dir, p.ImportPath, cgoExe, "-objdir", obj, "-dynimport", dynobj, "-dynout", importC); err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 7973c8e7cc..3763000c6b 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/scanner"
+ 	"go/token"
+ 	"os"
++	pathpkg "path"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -60,15 +61,16 @@ type Package struct {
+ 	XTestImports []string `json:",omitempty"` // imports from XTestGoFiles
+ 
+ 	// Unexported fields are not part of the public API.
+-	build      *build.Package
+-	pkgdir     string // overrides build.PkgDir
+-	imports    []*Package
+-	deps       []*Package
+-	gofiles    []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
+-	target     string   // installed file for this package (may be executable)
+-	fake       bool     // synthesized package
+-	forceBuild bool     // this package must be rebuilt
+-	local      bool     // imported via local path (./ or ../)
++	build       *build.Package
++	pkgdir      string // overrides build.PkgDir
++	imports     []*Package
++	deps        []*Package
++	gofiles     []string // GoFiles+CgoFiles+TestGoFiles+XTestGoFiles files, absolute paths
++	target      string   // installed file for this package (may be executable)
++	fake        bool     // synthesized package
++	forceBuild  bool     // this package must be rebuilt
++	local       bool     // imported via local path (./ or ../)
++	localPrefix string   // interpret ./ and ../ imports relative to this prefix
+ }
+ 
+ func (p *Package) copyBuild(pp *build.Package) {
+@@ -161,6 +163,17 @@ func reloadPackage(arg string, stk *importStack) *Package {
+ 	return loadPackage(arg, stk)
+ }
+ 
++// dirToImportPath returns the pseudo-import path we use for a package
++// outside the Go path.  It begins with _/ and then contains the full path
++// to the directory.  If the package lives in c:\home\gopher\my\pkg then
++// the pseudo-import path is _/c_/home/gopher/my/pkg.
++// Using a pseudo-import path like this makes the ./ imports no longer
++// a special case, so that all the code to deal with ordinary imports works
++// automatically.
++func dirToImportPath(dir string) string {
++	return pathpkg.Join("_", strings.Replace(filepath.ToSlash(dir), ":", "_", -1))
++}
++
+ // loadImport scans the directory named by path, which must be an import path,
+ // but possibly a local import path (an absolute file system path or one beginning
+ // with ./ or ../).  A local relative path is interpreted relative to srcDir.
+@@ -170,24 +183,28 @@ func loadImport(path string, srcDir string, stk *importStack, importPos []token.
+ 	defer stk.pop()
+ 
+ 	// Determine canonical identifier for this package.
+-	// For a local path (./ or ../) the identifier is the full
+-	// directory name.  Otherwise it is the import path.
+-	pkgid := path
++	// For a local import the identifier is the pseudo-import path
++	// we create from the full directory to the package.
++	// Otherwise it is the usual import path.
++	importPath := path
+ 	isLocal := build.IsLocalImport(path)
+ 	if isLocal {
+-		pkgid = filepath.Join(srcDir, path)
++		importPath = dirToImportPath(filepath.Join(srcDir, path))
+ 	}
+-	if p := packageCache[pkgid]; p != nil {
++	if p := packageCache[importPath]; p != nil {
+ 		return reusePackage(p, stk)
+ 	}
+ 
+ 	p := new(Package)
+-	packageCache[pkgid] = p
++	p.local = isLocal
++	p.ImportPath = importPath
++	packageCache[importPath] = p
+ 
+ 	// Load package.
+ 	// Import always returns bp != nil, even if an error occurs,
+ 	// in order to return partial information.
+ 	bp, err := buildContext.Import(path, srcDir, build.AllowBinary)
++	bp.ImportPath = importPath
+ 	p.load(stk, bp, err)
+ 	if p.Error != nil && len(importPos) > 0 {
+ 		pos := importPos[0]
+@@ -211,7 +228,6 @@ func reusePackage(p *Package, stk *importStack) *Package {
+ 				ImportStack: stk.copy(),
+ 				Err:         "import loop",
+ 			}
+-			panic("loop")
+ 		}
+ 		p.Incomplete = true
+ 	}
+@@ -258,14 +274,12 @@ func expandScanner(err error) error {
+ // be the result of calling build.Context.Import.
+ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package {
+ 	p.copyBuild(bp)
+-	p.local = build.IsLocalImport(p.ImportPath)
+-	if p.local {
+-		// The correct import for this package depends on which
+-		// directory you are in.  Instead, record the full directory path.
+-		// That can't be used as an import path at all, but at least
+-		// it uniquely identifies the package.
+-		p.ImportPath = p.Dir
+-	}
++
++	// The localPrefix is the path we interpret ./ imports relative to.
++	// Now that we've fixed the import path, it's just the import path.
++	// Synthesized main packages sometimes override this.
++	p.localPrefix = p.ImportPath
++
+ 	if err != nil {
+ 		p.Incomplete = true
+ 		err = expandScanner(err)
+@@ -326,7 +340,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		}
+ 		p1 := loadImport(path, p.Dir, stk, p.build.ImportPos[path])
+ 		if p1.local {
+-			path = p1.Dir
++			path = p1.ImportPath
+ 			importPaths[i] = path
+ 		}
+ 		deps[path] = true
+diff --git a/src/cmd/go/run.go b/src/cmd/go/run.go
+index 522baabb23..2976d5c8dd 100644
+--- a/src/cmd/go/run.go
++++ b/src/cmd/go/run.go
+@@ -45,6 +45,12 @@ func runRun(cmd *Command, args []string) {
+ 	}
+ 	files, cmdArgs := args[:i], args[i:]
+ 	p := goFilesPackage(files)
++	if p.Error != nil {
++		fatalf("%s", p.Error)
++	}
++	if p.Name != "main" {
++		fatalf("cannot run non-main package")
++	}
+ 	p.target = "" // must build - not up to date
+ 	a1 := b.action(modeBuild, modeBuild, p)
+ 	a := &action{f: (*builder).runProgram, args: cmdArgs, deps: []*action{a1}}
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index b8da82513b..daca144ee0 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -30,6 +30,14 @@ if ! grep -q '^easysub\.Hello' hello.out; then
+ 	ok=false
+ fi
+ 
++./testgo build -o hello testdata/local/easysub/main.go
++./hello >hello.out
++if ! grep -q '^easysub\.Hello' hello.out; then
++	echo "testdata/local/easysub/main.go did not generate expected output"
++	cat hello.out
++	ok=false
++fi
++
+ ./testgo build -o hello testdata/local/hard.go
+ ./hello >hello.out
+ if ! grep -q '^sub\.Hello' hello.out || ! grep -q '^subsub\.Hello' hello.out ; then
+@@ -46,6 +54,19 @@ if ./testgo install testdata/local/easy.go >/dev/null 2>&1; then
+ 	ok=false
+ fi
+ 
++# Test tests with relative imports.
++if ! ./testgo test ./testdata/testimport; then
++	echo "go test ./testdata/testimport failed"
++	ok=false
++fi
++
++# Test tests with relative imports in packages synthesized
++# from Go files named on the command line.
++if ! ./testgo test ./testdata/testimport/*.go; then
++	echo "go test ./testdata/testimport/*.go failed"
++	ok=false
++fi
++
+ if $ok; then
+ 	echo PASS
+ else
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index b4e54207a3..6ca49d10fe 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -351,7 +351,7 @@ func runTest(cmd *Command, args []string) {
+ 
+ 	warned := false
+ 	for _, a := range actionList(root) {
+-		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake {
++		if a.p != nil && a.f != nil && !okBuild[a.p] && !a.p.fake && !a.p.local {
+ 			okBuild[a.p] = true // don't warn again
+ 			if !warned {
+ 				fmt.Fprintf(os.Stderr, "warning: building out-of-date packages:\n")
+@@ -474,11 +474,12 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	// External test package.
+ 	if len(p.XTestGoFiles) > 0 {
+ 		pxtest = &Package{
+-			Name:       p.Name + "_test",
+-			ImportPath: p.ImportPath + "_test",
+-			Dir:        p.Dir,
+-			GoFiles:    p.XTestGoFiles,
+-			Imports:    p.XTestImports,
++			Name:        p.Name + "_test",
++			ImportPath:  p.ImportPath + "_test",
++			localPrefix: p.localPrefix,
++			Dir:         p.Dir,
++			GoFiles:     p.XTestGoFiles,
++			Imports:     p.XTestImports,
+ 			build: &build.Package{
+ 				ImportPos: p.build.XTestImportPos,
+ 			},
+diff --git a/src/cmd/go/testdata/local/easysub/main.go b/src/cmd/go/testdata/local/easysub/main.go
+new file mode 100644
+index 0000000000..6c30b52362
+--- /dev/null
++++ b/src/cmd/go/testdata/local/easysub/main.go
+@@ -0,0 +1,9 @@
++// +build ignore
++
++package main
++
++import "."
++
++func main() {
++	easysub.Hello()
++}
+diff --git a/src/cmd/go/testdata/testimport/p.go b/src/cmd/go/testdata/testimport/p.go
+new file mode 100644
+index 0000000000..f94d2cd0e6
+--- /dev/null
++++ b/src/cmd/go/testdata/testimport/p.go
+@@ -0,0 +1,3 @@
++package p
++
++func F() int { return 1 }
+diff --git a/src/cmd/go/testdata/testimport/p1/p1.go b/src/cmd/go/testdata/testimport/p1/p1.go
+new file mode 100644
+index 0000000000..fd315272ea
+--- /dev/null
++++ b/src/cmd/go/testdata/testimport/p1/p1.go
+@@ -0,0 +1,3 @@
++package p1
++
++func F() int { return 1 }
+diff --git a/src/cmd/go/testdata/testimport/p2/p2.go b/src/cmd/go/testdata/testimport/p2/p2.go
+new file mode 100644
+index 0000000000..d4888865dd
+--- /dev/null
++++ b/src/cmd/go/testdata/testimport/p2/p2.go
+@@ -0,0 +1,3 @@
++package p2
++
++func F() int { return 1 }
+diff --git a/src/cmd/go/testdata/testimport/p_test.go b/src/cmd/go/testdata/testimport/p_test.go
+new file mode 100644
+index 0000000000..a3fb4a9e27
+--- /dev/null
++++ b/src/cmd/go/testdata/testimport/p_test.go
+@@ -0,0 +1,13 @@
++package p
++
++import (
++	"./p1"
++
++	"testing"
++)
++
++func TestF(t *testing.T) {
++	if F() != p1.F() {
++		t.Fatal(F())
++	}
++}
+diff --git a/src/cmd/go/testdata/testimport/x_test.go b/src/cmd/go/testdata/testimport/x_test.go
+new file mode 100644
+index 0000000000..b253e3fd2d
+--- /dev/null
++++ b/src/cmd/go/testdata/testimport/x_test.go
+@@ -0,0 +1,15 @@
++package p_test
++
++import (
++	. "../testimport"
++
++	"./p2"
++
++	"testing"
++)
++
++func TestF1(t *testing.T) {
++	if F() != p2.F() {
++		t.Fatal(F())
++	}
++}

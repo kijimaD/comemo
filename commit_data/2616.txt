@@ -11,6 +11,21 @@ Date:   Tue Jul 7 10:15:01 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=31046
     CL=31267
-
+---
  src/pkg/datafmt/datafmt.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 48c24e7264..96dc1d743d 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -745,7 +745,8 @@ func (f Format) Eval(env Environment, args ...) ([]byte, os.Error) {
+ 		errors <- nil;  // no errors
+ 	}();
+ 
+-	return s.output.Data(), <- errors;
++	err := <- errors;
++	return s.output.Data(), err;
+ }
+ 
+ 

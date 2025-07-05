@@ -22,7 +22,7 @@ Date:   Thu Apr 2 17:01:14 2015 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/lex.go   | 22 ++++++++++++++-
  src/cmd/internal/gc/subr.go  | 55 +++++++++++++++++--------------------
  src/cmd/internal/gc/y.go     | 35 +++++++++++++++++++-----
@@ -32,3 +32,382 @@ Date:   Thu Apr 2 17:01:14 2015 -0700
  test/fixedbugs/bug388.go     |  3 ---
  test/fixedbugs/bug435.go     |  3 ---
  8 files changed, 110 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index ed6a1950eb..5eede0ba8c 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -2436,7 +2436,6 @@ var yytfix = []struct {
+ 	want string
+ }{
+ 	{"$end", "EOF"},
+-	{"LLITERAL", "literal"},
+ 	{"LASOP", "op="},
+ 	{"LBREAK", "break"},
+ 	{"LCASE", "case"},
+@@ -2486,6 +2485,27 @@ var yytfix = []struct {
+ 	{"','", "comma"},
+ }
+ 
++func init() {
++	yyErrorVerbose = true
++
++Outer:
++	for i, s := range yyToknames {
++		// Apply yytfix if possible.
++		for _, fix := range yytfix {
++			if s == fix.have {
++				yyToknames[i] = fix.want
++				continue Outer
++			}
++		}
++
++		// Turn 'x' into x.
++		if len(s) == 3 && s[0] == '\'' && s[2] == '\'' {
++			yyToknames[i] = s[1:2]
++			continue
++		}
++	}
++}
++
+ func pkgnotused(lineno int, path string, name string) {
+ 	// If the package was imported with a name other than the final
+ 	// import path element, show it explicitly in the error message.
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 559bf74964..689adeeff2 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -55,7 +55,7 @@ func adderrorname(n *Node) {
+ 	}
+ }
+ 
+-func adderr(line int, format string, args []interface{}) {
++func adderr(line int, format string, args ...interface{}) {
+ 	errors = append(errors, Error{
+ 		seq:    len(errors),
+ 		lineno: line,
+@@ -110,8 +110,8 @@ func hcrash() {
+ 	}
+ }
+ 
+-func yyerrorl(line int, fmt_ string, args ...interface{}) {
+-	adderr(line, fmt_, args)
++func yyerrorl(line int, format string, args ...interface{}) {
++	adderr(line, format, args...)
+ 
+ 	hcrash()
+ 	nerrors++
+@@ -124,15 +124,9 @@ func yyerrorl(line int, fmt_ string, args ...interface{}) {
+ 
+ var yyerror_lastsyntax int
+ 
+-func Yyerror(fmt_ string, args ...interface{}) {
+-	// bison used to invoke yyerror("syntax error").
+-	// With Go yacc we get yyerror("%s", "syntax error").
+-	// Convert to keep the old code working.
+-	if fmt_ == "%s" && len(args) == 1 && args[0] == "syntax error" {
+-		fmt_ = "syntax error"
+-		args = nil
+-	}
+-	if strings.HasPrefix(fmt_, "syntax error") {
++func Yyerror(format string, args ...interface{}) {
++	msg := fmt.Sprintf(format, args...)
++	if strings.HasPrefix(msg, "syntax error") {
+ 		nsyntaxerrors++
+ 
+ 		yystate := theparser.(*yyParserImpl).state()
+@@ -154,16 +148,6 @@ func Yyerror(fmt_ string, args ...interface{}) {
+ 		}
+ 		yyerror_lastsyntax = int(lexlineno)
+ 
+-		if strings.Contains(fmt_, "{ or {") || strings.Contains(fmt_, " or ?") || strings.Contains(fmt_, " or @") {
+-			// The grammar has { and LBRACE but both show up as {.
+-			// Rewrite syntax error referring to "{ or {" to say just "{".
+-			// The grammar has ? and @ but only for reading imports.
+-			// Silence them in ordinary errors.
+-			fmt_ = strings.Replace(fmt_, "{ or {", "{", -1)
+-			fmt_ = strings.Replace(fmt_, " or ?", "", -1)
+-			fmt_ = strings.Replace(fmt_, " or @", "", -1)
+-		}
+-
+ 		// look for parse state-specific errors in list (see go.errors).
+ 		for i := range yymsg {
+ 			if yymsg[i].yystate == yystate && yymsg[i].yychar == yychar {
+@@ -173,22 +157,31 @@ func Yyerror(fmt_ string, args ...interface{}) {
+ 		}
+ 
+ 		// plain "syntax error" gets "near foo" added
+-		if fmt_ == "syntax error" {
++		if msg == "syntax error" {
+ 			yyerrorl(int(lexlineno), "syntax error near %s", lexbuf.String())
+ 			return
+ 		}
+ 
+-		// if bison says "syntax error, more info"; print "syntax error: more info".
+-		if fmt_[12] == ',' {
+-			yyerrorl(int(lexlineno), "syntax error:%s", fmt_[13:])
+-			return
++		// TODO(mdempsky): Extend cmd/yacc's verbose error
++		// messages to suggest expected tokens like Bison:
++		// "syntax error: unexpected literal 2.01, expecting semicolon or newline or }"
++		if false {
++			// The grammar has { and LBRACE but both show up as {.
++			// Rewrite syntax error referring to "{ or {" to say just "{".
++			// The grammar has ? and @ but only for reading imports.
++			// Silence them in ordinary errors.
++			msg = strings.Replace(msg, "{ or {", "{", -1)
++			msg = strings.Replace(msg, " or ?", "", -1)
++			msg = strings.Replace(msg, " or @", "", -1)
+ 		}
+ 
+-		yyerrorl(int(lexlineno), "%s", fmt_)
++		msg = strings.Replace(msg, "LLITERAL", litbuf, -1)
++
++		yyerrorl(int(lexlineno), "%s", msg)
+ 		return
+ 	}
+ 
+-	adderr(parserline(), fmt_, args)
++	adderr(parserline(), "%s", msg)
+ 
+ 	hcrash()
+ 	nerrors++
+@@ -200,13 +193,13 @@ func Yyerror(fmt_ string, args ...interface{}) {
+ }
+ 
+ func Warn(fmt_ string, args ...interface{}) {
+-	adderr(parserline(), fmt_, args)
++	adderr(parserline(), fmt_, args...)
+ 
+ 	hcrash()
+ }
+ 
+ func Warnl(line int, fmt_ string, args ...interface{}) {
+-	adderr(line, fmt_, args)
++	adderr(line, fmt_, args...)
+ 	if Debug['m'] != 0 {
+ 		Flusherrors()
+ 	}
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index c991829864..62dc53b787 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -70,6 +70,9 @@ const NotParen = 57393
+ const PreferToRightParen = 57394
+ 
+ var yyToknames = [...]string{
++	"$end",
++	"error",
++	"$unk",
+ 	"LLITERAL",
+ 	"LASOP",
+ 	"LCOLAS",
+@@ -129,6 +132,20 @@ var yyToknames = [...]string{
+ 	"'('",
+ 	"')'",
+ 	"PreferToRightParen",
++	"';'",
++	"'.'",
++	"'$'",
++	"'='",
++	"':'",
++	"'{'",
++	"'}'",
++	"'!'",
++	"'~'",
++	"'['",
++	"']'",
++	"'?'",
++	"'@'",
++	"','",
+ }
+ var yyStatenames = [...]string{}
+ 
+@@ -843,7 +860,10 @@ var yyTok3 = [...]int{
+ 
+ /*	parser for yacc output	*/
+ 
+-var yyDebug = 0
++var (
++	yyDebug        = 0
++	yyErrorVerbose = false
++)
+ 
+ type yyLexer interface {
+ 	Lex(lval *yySymType) int
+@@ -875,10 +895,9 @@ func yyNewParser() yyParser {
+ const yyFlag = -1000
+ 
+ func yyTokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len(yyToknames) {
+-		if yyToknames[c-4] != "" {
+-			return yyToknames[c-4]
++	if c >= 1 && c-1 < len(yyToknames) {
++		if yyToknames[c-1] != "" {
++			return yyToknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -1031,7 +1050,11 @@ yydefault:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			yylex.Error("syntax error")
++			yyErrMsg := "syntax error"
++			if yyErrorVerbose {
++				yyErrMsg += ": unexpected " + yyTokname(yytoken)
++			}
++			yylex.Error(yyErrMsg)
+ 			Nerrs++
+ 			if yyDebug >= 1 {
+ 				__yyfmt__.Printf("%s", yyStatname(yystate))
+diff --git a/src/cmd/internal/gc/yymsg.go b/src/cmd/internal/gc/yymsg.go
+index b1309595f7..cb45cb8d1b 100644
+--- a/src/cmd/internal/gc/yymsg.go
++++ b/src/cmd/internal/gc/yymsg.go
+@@ -15,7 +15,7 @@ var yymsg = []struct {
+ 	msg     string
+ }{
+ 	// Each line of the form % token list
+-	// is converted by bisonerrors into the yystate and yychar caused
++	// is converted by yaccerrors.go into the yystate and yychar caused
+ 	// by that token list.
+ 
+ 	{332, ',',
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index bb13b6d719..d0a9279c87 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -507,29 +507,6 @@ outer:
+ 		errorf("unexpected EOF before %%")
+ 	}
+ 
+-	// put out non-literal terminals
+-	for i := TOKSTART; i <= ntokens; i++ {
+-		// non-literals
+-		if !tokset[i].noconst {
+-			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
+-		}
+-	}
+-
+-	// put out names of token names
+-	ftable.WriteRune('\n')
+-	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
+-	for i := TOKSTART; i <= ntokens; i++ {
+-		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
+-	}
+-	fmt.Fprintf(ftable, "}\n")
+-
+-	// put out names of state names
+-	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
+-	//	for i:=TOKSTART; i<=ntokens; i++ {
+-	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
+-	//	}
+-	fmt.Fprintf(ftable, "}\n")
+-
+ 	fmt.Fprintf(fcode, "switch %snt {\n", prefix)
+ 
+ 	moreprod()
+@@ -679,6 +656,29 @@ outer:
+ 
+ 	fmt.Fprintf(fcode, "\n\t}")
+ 
++	// put out non-literal terminals
++	for i := TOKSTART; i <= ntokens; i++ {
++		// non-literals
++		if !tokset[i].noconst {
++			fmt.Fprintf(ftable, "const %v = %v\n", tokset[i].name, tokset[i].value)
++		}
++	}
++
++	// put out names of token names
++	ftable.WriteRune('\n')
++	fmt.Fprintf(ftable, "var %sToknames = [...]string{\n", prefix)
++	for i := 1; i <= ntokens; i++ {
++		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name)
++	}
++	fmt.Fprintf(ftable, "}\n")
++
++	// put out names of state names
++	fmt.Fprintf(ftable, "var %sStatenames = [...]string{", prefix)
++	//	for i:=TOKSTART; i<=ntokens; i++ {
++	//		fmt.Fprintf(ftable, "\t\"%v\",\n", tokset[i].name);
++	//	}
++	fmt.Fprintf(ftable, "}\n")
++
+ 	ftable.WriteRune('\n')
+ 	fmt.Fprintf(ftable, "const %sEofCode = 1\n", prefix)
+ 	fmt.Fprintf(ftable, "const %sErrCode = 2\n", prefix)
+@@ -3198,7 +3198,10 @@ var yaccpar string // will be processed version of yaccpartext: s/$$/prefix/g
+ var yaccpartext = `
+ /*	parser for yacc output	*/
+ 
+-var $$Debug = 0
++var (
++	$$Debug        = 0
++	$$ErrorVerbose = false
++)
+ 
+ type $$Lexer interface {
+ 	Lex(lval *$$SymType) int
+@@ -3230,10 +3233,9 @@ func $$NewParser() $$Parser {
+ const $$Flag = -1000
+ 
+ func $$Tokname(c int) string {
+-	// 4 is TOKSTART above
+-	if c >= 4 && c-4 < len($$Toknames) {
+-		if $$Toknames[c-4] != "" {
+-			return $$Toknames[c-4]
++	if c >= 1 && c-1 < len($$Toknames) {
++		if $$Toknames[c-1] != "" {
++			return $$Toknames[c-1]
+ 		}
+ 	}
+ 	return __yyfmt__.Sprintf("tok-%v", c)
+@@ -3386,7 +3388,11 @@ $$default:
+ 		/* error ... attempt to resume parsing */
+ 		switch Errflag {
+ 		case 0: /* brand new error */
+-			$$lex.Error("syntax error")
++			$$ErrMsg := "syntax error"
++			if $$ErrorVerbose {
++				$$ErrMsg += ": unexpected " + $$Tokname($$token)
++			}
++			$$lex.Error($$ErrMsg)
+ 			Nerrs++
+ 			if $$Debug >= 1 {
+ 				__yyfmt__.Printf("%s", $$Statname($$state))
+diff --git a/test/fixedbugs/bug349.go b/test/fixedbugs/bug349.go
+index 2157d0741f..a3e6bd1619 100644
+--- a/test/fixedbugs/bug349.go
++++ b/test/fixedbugs/bug349.go
+@@ -1,6 +1,3 @@
+-// skip
+-// TODO(rsc): Reenable. See issue 9968.
+-
+ // errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+diff --git a/test/fixedbugs/bug388.go b/test/fixedbugs/bug388.go
+index 4431f0c9e3..d41f9ea543 100644
+--- a/test/fixedbugs/bug388.go
++++ b/test/fixedbugs/bug388.go
+@@ -1,6 +1,3 @@
+-// skip
+-// TODO(rsc): Reenable. See issue 9968.
+-
+ // errorcheck
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+diff --git a/test/fixedbugs/bug435.go b/test/fixedbugs/bug435.go
+index fc5bf8ab0b..0c2ac7b3be 100644
+--- a/test/fixedbugs/bug435.go
++++ b/test/fixedbugs/bug435.go
+@@ -1,6 +1,3 @@
+-// skip
+-// TODO(rsc): Reenable. See issue 9968.
+-
+ // errorcheck
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.

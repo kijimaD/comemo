@@ -9,6 +9,20 @@ Date:   Wed Aug 5 10:20:02 2015 -0400
     Change-Id: Ic0600341abbc423cd8d7b2201bf50e3b0bf398a7
     Reviewed-on: https://go-review.googlesource.com/13167
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index a8e072efef..b07491100b 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -1227,7 +1227,7 @@ adds new <a href="/pkg/os/signal/#Ignore"><code>Ignore</code></a> and
+ 
+ <li>
+ The <a href="/pkg/runtime/"><code>runtime</code></a>,
+-<a href="/pkg/runtime/pprof/"><code>runtime/trace</code></a>,
++<a href="/pkg/runtime/trace/"><code>runtime/trace</code></a>,
+ and <a href="/pkg/net/http/pprof/"><code>net/http/pprof</code></a> packages
+ each have new functions to support the tracing facilities described above:
+ <a href="/pkg/runtime/#ReadTrace"><code>ReadTrace</code></a>,

@@ -12,7 +12,7 @@ Date:   Sun Feb 19 13:19:43 2012 +1100
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/5656100
-
+---
  test/235.go        | 3 +++
  test/alias.go      | 5 +++--
  test/alias1.go     | 4 ++--
@@ -46,3 +46,454 @@ Date:   Sun Feb 19 13:19:43 2012 +1100
  test/copy.go       | 2 +-
  test/zerodivide.go | 2 ++
  32 files changed, 79 insertions(+), 10 deletions(-)
+
+diff --git a/test/235.go b/test/235.go
+index 65b39972d3..6745dde41a 100644
+--- a/test/235.go
++++ b/test/235.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Solve the 2,3,5 problem (print all numbers with 2, 3, or 5 as factor) using channels.
++// Test the solution, silently.
++
+ package main
+ 
+ type T chan uint64
+diff --git a/test/alias.go b/test/alias.go
+index d345d7af78..ec93a2d101 100644
+--- a/test/alias.go
++++ b/test/alias.go
+@@ -4,10 +4,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
+-
+ // Test that error messages say what the source file says
+ // (uint8 vs byte, int32 vs. rune).
++// Does not compile.
++
++package main
+ 
+ import (
+ 	"fmt"
+diff --git a/test/alias1.go b/test/alias1.go
+index 11c18f8bfb..4219af8cd5 100644
+--- a/test/alias1.go
++++ b/test/alias1.go
+@@ -4,11 +4,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package main
+-
+ // Test that dynamic interface checks treat byte=uint8
+ // and rune=int or rune=int32.
+ 
++package main
++
+ func main() {
+ 	var x interface{}
+ 
+diff --git a/test/append.go b/test/append.go
+index 6f35398eab..3f6251ee50 100644
+--- a/test/append.go
++++ b/test/append.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Semi-exhaustive test for append()
++// Semi-exhaustive test for the append predeclared function.
+ 
+ package main
+ 
+diff --git a/test/args.go b/test/args.go
+index ba9a377a6f..db624e9c2c 100644
+--- a/test/args.go
++++ b/test/args.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test os.Args.
++
+ package main
+ 
+ import "os"
+diff --git a/test/assign.go b/test/assign.go
+index 2035df738b..da0192f838 100644
+--- a/test/assign.go
++++ b/test/assign.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify simple assignment errors are caught by the compiler.
++// Does not compile.
++
+ package main
+ 
+ import "sync"
+diff --git a/test/assign1.go b/test/assign1.go
+index a80e89b67b..b9e0325ce8 100644
+--- a/test/assign1.go
++++ b/test/assign1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify assignment rules are enforced by the compiler.
++// Does not compile.
++
+ package main
+ 
+ type (
+diff --git a/test/bigalg.go b/test/bigalg.go
+index f100998498..55a15c30ab 100644
+--- a/test/bigalg.go
++++ b/test/bigalg.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test the internal "algorithms" for objects larger than a word: hashing, equality etc.
++
+ package main
+ 
+ type T struct {
+diff --git a/test/bigmap.go b/test/bigmap.go
+index 57330d559d..37e0498467 100644
+--- a/test/bigmap.go
++++ b/test/bigmap.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test behavior of maps with large elements.
++
+ package main
+ 
+ func seq(x, y int) [1000]byte {
+diff --git a/test/blank.go b/test/blank.go
+index 069edfd748..961ed153bb 100644
+--- a/test/blank.go
++++ b/test/blank.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test behavior of the blank identifier (_).
++
+ package main
+ 
+ import _ "fmt"
+diff --git a/test/blank1.go b/test/blank1.go
+index 63174cca96..c6e038a0d9 100644
+--- a/test/blank1.go
++++ b/test/blank1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that incorrect uses of the blank identifer are caught.
++// Does not compile.
++
+ package _	// ERROR "invalid package name _"
+ 
+ func main() {
+diff --git a/test/chancap.go b/test/chancap.go
+index 8692c2d89f..b3e40233f5 100644
+--- a/test/chancap.go
++++ b/test/chancap.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test the cap predeclared function applied to channels.
++
+ package main
+ 
+ func main() {
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 99be77a570..836c3c1a2d 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -1,9 +1,11 @@
+-// $G $F.go && $L $F.$A &&./$A.out
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test character literal syntax.
++
+ package main
+ 
+ import "os"
+diff --git a/test/char_lit1.go b/test/char_lit1.go
+index 7684e0b0b3..489744b6e9 100644
+--- a/test/char_lit1.go
++++ b/test/char_lit1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal character literals are detected.
++// Does not compile.
++
+ package main
+ 
+ const (
+diff --git a/test/closure.go b/test/closure.go
+index 26518a1386..ae38900baa 100644
+--- a/test/closure.go
++++ b/test/closure.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test the behavior of closures.
++
+ package main
+ 
+ import "runtime"
+diff --git a/test/cmp.go b/test/cmp.go
+index a9d0375b24..a56ca6eadd 100644
+--- a/test/cmp.go
++++ b/test/cmp.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test equality and inequality operations.
++
+ package main
+ 
+ import "unsafe"
+diff --git a/test/cmp6.go b/test/cmp6.go
+index 1e286750ab..7d99aae18b 100644
+--- a/test/cmp6.go
++++ b/test/cmp6.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that incorrect comparisons are detected.
++// Does not compile.
++
+ package main
+ 
+ func use(bool) {}
+diff --git a/test/cmplx.go b/test/cmplx.go
+index fe05d2defa..248672e7dd 100644
+--- a/test/cmplx.go
++++ b/test/cmplx.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that incorrect invocations of the complex predeclared function are detected.
++// Does not compile.
++
+ package main
+ 
+ var (
+diff --git a/test/complit.go b/test/complit.go
+index 164829761c..649be6d4d3 100644
+--- a/test/complit.go
++++ b/test/complit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test composite literals.
++
+ package main
+ 
+ type T struct {
+diff --git a/test/complit1.go b/test/complit1.go
+index d36864e619..521401d739 100644
+--- a/test/complit1.go
++++ b/test/complit1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal composite literals are detected.
++// Does not compile.
++
+ package main
+ 
+ var m map[int][3]int
+diff --git a/test/compos.go b/test/compos.go
+index 65aca4f1e0..de688b39bb 100644
+--- a/test/compos.go
++++ b/test/compos.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that returning &T{} from a function causes an allocation.
++
+ package main
+ 
+ type T struct {
+diff --git a/test/const.go b/test/const.go
+index 966860a912..80fbfaf3ea 100644
+--- a/test/const.go
++++ b/test/const.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple boolean and numeric constants.
++
+ package main
+ 
+ const (
+diff --git a/test/const1.go b/test/const1.go
+index 53c194041e..b24d274faa 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify overflow is detected when using numeric constants.
++// Does not compile.
++
+ package main
+ 
+ type I interface{}
+diff --git a/test/const2.go b/test/const2.go
+index f88b041a00..97d3d4c7d0 100644
+--- a/test/const2.go
++++ b/test/const2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that large integer constant expressions cause overflow.
++// Does not compile.
++
+ package main
+ 
+ const (
+diff --git a/test/const3.go b/test/const3.go
+index 4500b20990..3f4e3d1ae6 100644
+--- a/test/const3.go
++++ b/test/const3.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test typed integer constants.
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/convert.go b/test/convert.go
+index 8e2b9fa7bf..7280edf333 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test types of constant expressions, using reflect.
++
+ package main
+ 
+ import "reflect"
+diff --git a/test/convert1.go b/test/convert1.go
+index 9dadbee96c..0f417a3380 100644
+--- a/test/convert1.go
++++ b/test/convert1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal conversions involving strings are detected.
++// Does not compile.
++
+ package main
+ 
+ type Tbyte []byte
+diff --git a/test/convert3.go b/test/convert3.go
+index 336a3fa801..143aff04f6 100644
+--- a/test/convert3.go
++++ b/test/convert3.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify allowed and disallowed conversions.
++// Does not compile.
++
+ package main
+ 
+ // everything here is legal except the ERROR line
+diff --git a/test/convlit.go b/test/convlit.go
+index 964481dc97..8a6145d2a0 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -4,11 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal assignments with both explicit and implicit conversions of literals are detected.
++// Does not compile.
++
+ package main
+ 
+-// explicit conversion of constants is work in progress.
+-// the ERRORs in this block are debatable, but they're what
+-// the language spec says for now.
++// explicit conversion of constants
+ var x1 = string(1)
+ var x2 string = string(1)
+ var x3 = int(1.5)     // ERROR "convert|truncate"
+diff --git a/test/convlit1.go b/test/convlit1.go
+index 09d96f0fd6..c06bd74438 100644
+--- a/test/convlit1.go
++++ b/test/convlit1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal uses of composite literals are detected.
++// Does not compile.
++
+ package main
+ 
+ var a = []int { "a" };	// ERROR "conver|incompatible|cannot"
+diff --git a/test/copy.go b/test/copy.go
+index 2abf413f95..65ffb6ff8f 100644
+--- a/test/copy.go
++++ b/test/copy.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Semi-exhaustive test for copy()
++// Semi-exhaustive test for the copy predeclared function.
+ 
+ package main
+ 
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index b88b7fc687..673d1d18d8 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that zero division causes a panic.
++
+ package main
+ 
+ import (

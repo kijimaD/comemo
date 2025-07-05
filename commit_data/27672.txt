@@ -10,7 +10,46 @@ Date:   Thu Apr 7 10:07:10 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21585
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/go/types/api_test.go   | 17 +++++++++++++++++
  src/go/types/predicates.go |  2 ++
  2 files changed, 19 insertions(+)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index c2feed3813..9573d80a17 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -1042,3 +1042,20 @@ func f() {
+ 		}
+ 	}
+ }
++
++func TestIdentical_issue15173(t *testing.T) {
++	// Identical should allow nil arguments and be symmetric.
++	for _, test := range []struct {
++		x, y Type
++		want bool
++	}{
++		{Typ[Int], Typ[Int], true},
++		{Typ[Int], nil, false},
++		{nil, Typ[Int], false},
++		{nil, nil, true},
++	} {
++		if got := Identical(test.x, test.y); got != test.want {
++			t.Errorf("Identical(%v, %v) = %t", test.x, test.y, got)
++		}
++	}
++}
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 993c6d290b..5509069fb6 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -277,6 +277,8 @@ func identical(x, y Type, p *ifacePair) bool {
+ 			return x.obj == y.obj
+ 		}
+ 
++	case nil:
++
+ 	default:
+ 		unreachable()
+ 	}

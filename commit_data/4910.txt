@@ -8,7 +8,7 @@ Date:   Fri Feb 19 20:42:50 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/217061
-
+---
  src/cmd/6g/Makefile       |   1 +
  src/cmd/6g/cgen.c         |   8 +++
  src/cmd/6g/cplx.c         | 147 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -22,3 +22,538 @@ Date:   Fri Feb 19 20:42:50 2010 -0800
  src/pkg/runtime/print.c   |  13 ++++
  src/pkg/runtime/runtime.h |  16 ++++-
  12 files changed, 262 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index a6d3eb7623..f1e76692ef 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -19,6 +19,7 @@ OFILES=\
+ 	galign.$O\
+ 	ggen.$O\
+ 	cgen.$O\
++	cplx.$O\
+ 	gsubr.$O\
+ 	peep.$O\
+ 	reg.$O\
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 483c093c83..7344fe7102 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -134,6 +134,13 @@ cgen(Node *n, Node *res)
+ 		goto ret;
+ 	}
+ 
++	// complex ops are special.
++	if(iscomplex[n->type->etype] || iscomplex[res->type->etype] ||
++	   n->left != N && iscomplex[n->left->type->etype]) {
++		complexgen(n, res);
++		goto ret;
++	}
++
+ 	a = optoas(OAS, n->type);
+ 	if(sudoaddable(a, n, &addr)) {
+ 		if(res->op == OREGISTER) {
+@@ -222,6 +229,7 @@ cgen(Node *n, Node *res)
+ 		regalloc(&n1, nl->type, res);
+ 		regalloc(&n2, n->type, &n1);
+ 		cgen(nl, &n1);
++
+ 		// if we do the conversion n1 -> n2 here
+ 		// reusing the register, then gmove won't
+ 		// have to allocate its own register.
+diff --git a/src/cmd/6g/cplx.c b/src/cmd/6g/cplx.c
+new file mode 100644
+index 0000000000..0a8b999c43
+--- /dev/null
++++ b/src/cmd/6g/cplx.c
+@@ -0,0 +1,147 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "gg.h"
++
++#define	CASE(a,b)	(((a)<<16)|((b)<<0))
++
++/*
++ * generate:
++ *	res = n;
++ * simplifies and calls gmove.
++ */
++void
++complexmove(Node *f, Node *t)
++{
++	int ft, tt;
++	Node n1, n2;
++
++	if(debug['g']) {
++		dump("\ncomplex-f", f);
++		dump("complex-t", t);
++	}
++
++	if(!t->addable)
++		fatal("to no addable");
++
++	ft = cplxsubtype(simsimtype(f->type));
++	tt = cplxsubtype(simsimtype(t->type));
++
++	// copy halfs of complex literal
++	if(f->op == OLITERAL) {
++		// real part
++		nodfconst(&n1, types[ft], &f->val.u.cval->real);
++		n2 = *t;
++		n2.type = types[tt];
++		gmove(&n1, &n2);
++
++		// imag part
++		nodfconst(&n1, types[ft], &f->val.u.cval->imag);
++		n2.xoffset += n2.type->width;
++		gmove(&n1, &n2);
++		return;
++	}
++
++	// make from addable
++	if(!f->addable) {
++		tempname(&n1, f->type);
++		complexgen(f, &n1);
++		f = &n1;
++	}
++
++	// real part
++	n1 = *f;
++	n1.type = types[ft];
++
++	n2 = *t;
++	n2.type = types[tt];
++
++	gmove(&n1, &n2);
++
++	// imag part
++	n1.xoffset += n1.type->width;
++	n2.xoffset += n2.type->width;
++	gmove(&n1, &n2);
++
++}
++
++void
++complexgen(Node *n, Node *res)
++{
++	Node *nl, *nr;
++	Node n1, n2;
++	int tl, tr;
++
++	if(debug['g']) {
++		dump("\ncomplex-n", n);
++		dump("complex-res", res);
++	}
++
++	// perform conversion from n to res
++	tl = simsimtype(res->type);
++	tl = cplxsubtype(tl);
++	tr = simsimtype(n->type);
++	tr = cplxsubtype(tr);
++	if(tl != tr) {
++		tempname(&n1, n->type);
++		complexgen(n, &n1);
++		complexmove(&n1, n);
++		return;
++	}
++
++	nl = n->left;
++	if(nl == N)
++		return;
++
++	nr = n->right;
++	if(nr != N) {
++		// make both sides addable in ullman order
++		if(nl->ullman > nr->ullman) {
++			if(!nl->addable) {
++				tempname(&n1, nl->type);
++				complexgen(nl, &n1);
++				nl = &n1;
++			}
++			if(!nr->addable) {
++				tempname(&n1, nr->type);
++				complexgen(nr, &n2);
++				nr = &n2;
++			}
++		} else {
++			if(!nr->addable) {
++				tempname(&n1, nr->type);
++				complexgen(nr, &n2);
++				nr = &n2;
++			}
++			if(!nl->addable) {
++				tempname(&n1, nl->type);
++				complexgen(nl, &n1);
++				nl = &n1;
++			}
++		}
++	}
++
++	switch(n->op) {
++	default:
++		fatal("opcode %O", n->op);
++		break;
++
++	case OADD:
++	case OSUB:
++	case OMUL:
++	case ODIV:
++		if(nr == N)
++			fatal("");
++		fatal("opcode %O", n->op);
++		break;
++
++	case OMINUS:
++		fatal("opcode %O", n->op);
++		break;
++
++	case OCONV:
++		complexmove(nl, res);
++		break;
++	}
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 8d0c383856..264d01f851 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -128,6 +128,14 @@ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*);
+ void	datagostring(Strlit*, Addr*);
++int	cplxsubtype(int);
++void	nodfconst(Node*, Type*, Mpflt*);
++
++/*
++ * cplx.c
++ */
++void	complexmove(Node*, Node*);
++void	complexgen(Node*, Node*);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 5549830e3f..c58ebb78de 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -475,6 +475,11 @@ gmove(Node *f, Node *t)
+ 	tt = simsimtype(t->type);
+ 	cvt = t->type;
+ 
++	if(iscomplex[ft] || iscomplex[tt]) {
++		complexmove(f, t);
++		return;
++	}
++
+ 	// cannot have two memory operands
+ 	if(ismem(f) && ismem(t))
+ 		goto hard;
+@@ -490,6 +495,7 @@ gmove(Node *f, Node *t)
+ 			// float constants come from memory.
+ 			if(isfloat[tt])
+ 				goto hard;
++			// complex constants take double move.
+ 			// 64-bit immediates are really 32-bit sign-extended
+ 			// unless moving into a register.
+ 			if(isint[tt]) {
+@@ -1973,3 +1979,29 @@ no:
+ 	sudoclean();
+ 	return 0;
+ }
++
++int
++cplxsubtype(int et)
++{
++	if(et == TCOMPLEX64)
++		return TFLOAT32;
++	if(et == TCOMPLEX128)
++		return TFLOAT64;
++	fatal("cplxsubtype: %E\n", et);
++	return 0;
++}
++
++void
++nodfconst(Node *n, Type *t, Mpflt* fval)
++{
++	memset(n, 0, sizeof(*n));
++	n->op = OLITERAL;
++	n->addable = 1;
++	ullmancalc(n);
++	n->val.u.fval = fval;
++	n->val.ctype = CTFLT;
++	n->type = t;
++
++	if(!isfloat[t->etype])
++		fatal("nodfconst: bad type %T", t);
++}
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index f16c52d58c..0cf6922d7d 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -9,8 +9,8 @@ static	Val	tocplx(Val);
+ static	Val	toflt(Val);
+ static	Val	tostr(Val);
+ static	Val	copyval(Val);
+-static	void	cmplxmpy(Mpcplx *v, Mpcplx *rv);
+-static	void	cmplxdiv(Mpcplx *v, Mpcplx *rv);
++static	void	cmplxmpy(Mpcplx*, Mpcplx*);
++static	void	cmplxdiv(Mpcplx*, Mpcplx*);
+ 
+ /*
+  * truncate float literal fv to 32-bit or 64-bit precision
+@@ -589,6 +589,7 @@ evconst(Node *n)
+ 	case TUP(OXOR, CTINT):
+ 		mpxorfixfix(v.u.xval, rv.u.xval);
+ 		break;
++
+ 	case TUP(OADD, CTFLT):
+ 		mpaddfltflt(v.u.fval, rv.u.fval);
+ 		break;
+@@ -619,6 +620,13 @@ evconst(Node *n)
+ 		cmplxmpy(v.u.cval, rv.u.cval);
+ 		break;
+ 	case TUP(ODIV, CTCPLX):
++		if(mpcmpfltc(&rv.u.cval->real, 0) == 0 &&
++		   mpcmpfltc(&rv.u.cval->imag, 0) == 0) {
++			yyerror("complex division by zero");
++			mpmovecflt(&rv.u.cval->real, 1.0);
++			mpmovecflt(&rv.u.cval->imag, 0.0);
++			break;
++		}
+ 		cmplxdiv(v.u.cval, rv.u.cval);
+ 		break;
+ 
+@@ -677,6 +685,17 @@ evconst(Node *n)
+ 			goto settrue;
+ 		goto setfalse;
+ 
++	case TUP(OEQ, CTCPLX):
++		if(mpcmpfltflt(&v.u.cval->real, &rv.u.cval->real) == 0 &&
++		   mpcmpfltflt(&v.u.cval->imag, &rv.u.cval->imag) == 0)
++			goto settrue;
++		goto setfalse;
++	case TUP(ONE, CTCPLX):
++		if(mpcmpfltflt(&v.u.cval->real, &rv.u.cval->real) != 0 ||
++		   mpcmpfltflt(&v.u.cval->imag, &rv.u.cval->imag) != 0)
++			goto settrue;
++		goto setfalse;
++
+ 	case TUP(OEQ, CTSTR):
+ 		if(cmpslit(nl, nr) == 0)
+ 			goto settrue;
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 8bf7131520..8110e77b98 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -206,7 +206,7 @@ void
+ mpatoflt(Mpflt *a, char *as)
+ {
+ 	Mpflt b;
+-	int dp, c, f, ef, ex, eb, zer;
++	int dp, c, f, ef, ex, eb;
+ 	char *s;
+ 
+ 	s = as;
+@@ -214,7 +214,6 @@ mpatoflt(Mpflt *a, char *as)
+ 	f = 0;		/* sign */
+ 	ex = 0;		/* exponent */
+ 	eb = 0;		/* binary point */
+-	zer = 1;	/* zero */
+ 
+ 	mpmovecflt(a, 0.0);
+ 	for(;;) {
+@@ -243,8 +242,6 @@ mpatoflt(Mpflt *a, char *as)
+ 		case '7':
+ 		case '8':
+ 		case '9':
+-			zer = 0;
+-
+ 		case '0':
+ 			mpmulcflt(a, 10);
+ 			mpaddcflt(a, c-'0');
+diff --git a/src/cmd/gc/mparith3.c b/src/cmd/gc/mparith3.c
+index f97d0b829d..b9cd4ea847 100644
+--- a/src/cmd/gc/mparith3.c
++++ b/src/cmd/gc/mparith3.c
+@@ -53,18 +53,12 @@ mpaddfltflt(Mpflt *a, Mpflt *b)
+ 		print("\n%F + %F", a, b);
+ 
+ 	sa = sigfig(a);
+-	sb = sigfig(b);
+-
+ 	if(sa == 0) {
+-		if(sb == 0) {
+-			// zero
+-			a->exp = 0;
+-			a->val.neg = 0;
+-			return;
+-		}
+ 		mpmovefltflt(a, b);
+ 		goto out;
+ 	}
++
++	sb = sigfig(b);
+ 	if(sb == 0)
+ 		goto out;
+ 
+@@ -100,15 +94,20 @@ mpmulfltflt(Mpflt *a, Mpflt *b)
+ 		print("%F\n * %F\n", a, b);
+ 
+ 	sa = sigfig(a);
+-	sb = sigfig(b);
+-
+-	if(sa == 0 || sb == 0) {
++	if(sa == 0) {
+ 		// zero
+ 		a->exp = 0;
+ 		a->val.neg = 0;
+ 		return;
+ 	}
+ 
++	sb = sigfig(b);
++	if(sb == 0) {
++		// zero
++		mpmovefltflt(a, b);
++		return;
++	}
++
+ 	mpmulfract(&a->val, &b->val);
+ 	a->exp = (a->exp + b->exp) + Mpscale*Mpprec - 1;
+ 
+@@ -126,9 +125,7 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
+ 	if(Mpdebug)
+ 		print("%F\n / %F\n", a, b);
+ 
+-	sa = sigfig(a);
+ 	sb = sigfig(b);
+-
+ 	if(sb == 0) {
+ 		// zero and ovfl
+ 		a->exp = 0;
+@@ -137,6 +134,8 @@ mpdivfltflt(Mpflt *a, Mpflt *b)
+ 		yyerror("mpdivfltflt divide by zero");
+ 		return;
+ 	}
++
++	sa = sigfig(a);
+ 	if(sa == 0) {
+ 		// zero
+ 		a->exp = 0;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2908459fc4..158dee6738 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1367,13 +1367,9 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et, char *desc)
+ 		return 1;
+ 	}
+ 
+-	// simple fix-float
+-	if(isint[t->etype] || isfloat[t->etype])
+-	if(isint[nt->etype] || isfloat[nt->etype])
+-		return 1;
+-
+-	// between versions of complex
+-	if(iscomplex[t->etype] || iscomplex[nt->etype])
++	// simple fix-float-complex
++	if(isint[t->etype] || isfloat[t->etype] || iscomplex[t->etype])
++	if(isint[nt->etype] || isfloat[nt->etype] || iscomplex[nt->etype])
+ 		return 1;
+ 
+ 	// to string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 5113094304..e902600ba0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1727,7 +1727,7 @@ walkprint(Node *nn, NodeList **init, int defer)
+ 				on = syslook("printfloat", 0);
+ 		} else if(iscomplex[et]) {
+ 			if(defer) {
+-				fmtprint(&fmt, "%%f");
++				fmtprint(&fmt, "%%C");
+ 				t = types[TCOMPLEX128];
+ 			} else
+ 				on = syslook("printcomplex", 0);
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 1214fed51d..d721f39535 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -118,6 +118,9 @@ vprintf(int8 *s, byte *arg)
+ 		case 'f':
+ 			·printfloat(*(float64*)arg);
+ 			break;
++		case 'C':
++			·printcomplex(*(Complex128*)arg);
++			break;
+ 		case 'i':
+ 			·printiface(*(Iface*)arg);
+ 			break;
+@@ -258,6 +261,16 @@ void
+ 	write(fd, buf, n+7);
+ }
+ 
++void
++·printcomplex(Complex128 v)
++{
++	write(fd, "(", 1);
++	·printfloat(v.real);
++	write(fd, ",", 1);
++	·printfloat(v.imag);
++	write(fd, "i)", 2);
++}
++
+ void
+ ·printuint(uint64 v)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index b361bacc1e..194503ec8a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -59,11 +59,13 @@ typedef	struct	SigTab		SigTab;
+ typedef	struct	MCache		MCache;
+ typedef	struct	Iface		Iface;
+ typedef	struct	Itab		Itab;
+-typedef	struct	Eface	Eface;
++typedef	struct	Eface		Eface;
+ typedef	struct	Type		Type;
+ typedef	struct	Defer		Defer;
+ typedef	struct	hash		Hmap;
+ typedef	struct	Hchan		Hchan;
++typedef	struct	Complex64	Complex64;
++typedef	struct	Complex128	Complex128;
+ 
+ /*
+  * per-cpu declaration.
+@@ -145,6 +147,16 @@ struct Eface
+ 	Type*	type;
+ 	void*	data;
+ };
++struct Complex64
++{
++	float32	real;
++	float32	imag;
++};
++struct Complex128
++{
++	float64	real;
++	float64	imag;
++};
+ 
+ struct	Slice
+ {				// must not move anything
+@@ -460,6 +472,7 @@ void	notewakeup(Note*);
+ #define runtime_printpointer ·printpointer
+ #define runtime_printstring ·printstring
+ #define runtime_printuint ·printuint
++#define runtime_printcomplex ·printcomplex
+ #define runtime_setcallerpc ·setcallerpc
+ #endif
+ 
+@@ -492,6 +505,7 @@ void	runtime_printpointer(void*);
+ void	runtime_printuint(uint64);
+ void	runtime_printhex(uint64);
+ void	runtime_printslice(Slice);
++void	runtime_printcomplex(Complex128);
+ void	·panicl(int32);
+ 
+ /*

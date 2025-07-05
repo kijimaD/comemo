@@ -11,6 +11,26 @@ Date:   Thu Sep 18 20:13:07 2014 -0400
     TBR=brainman
     CC=golang-codereviews
     https://golang.org/cl/142270043
-
+---
  src/os/os_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7a28497414..973cc3a7bf 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1422,6 +1422,14 @@ func mkdirTree(t *testing.T, root string, level, max int) {
+ // Test that simultaneous RemoveAll do not report an error.
+ // As long as it gets removed, we should be happy.
+ func TestRemoveAllRace(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		// Windows has very strict rules about things like
++		// removing directories while someone else has
++		// them open. The racing doesn't work out nicely
++		// like it does on Unix.
++		t.Skip("skipping on windows")
++	}
++
+ 	n := runtime.GOMAXPROCS(16)
+ 	defer runtime.GOMAXPROCS(n)
+ 	root, err := ioutil.TempDir("", "issue")

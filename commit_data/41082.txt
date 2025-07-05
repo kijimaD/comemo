@@ -9,6 +9,20 @@ Date:   Mon Sep 2 11:41:23 2019 +0000
     GitHub-Pull-Request: golang/go#34017
     Reviewed-on: https://go-review.googlesource.com/c/go/+/192877
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/math/big/ratconv.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index f29ec98cdc..941139e72d 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -123,7 +123,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	// Multiplications are commutative, so we can apply them in any
+ 	// order. We only have powers of 2 and 10, and we split powers
+ 	// of 10 into the product of the same powers of 2 and 5. This
+-	// may reduce the the size of shift/multiplication factors or
++	// may reduce the size of shift/multiplication factors or
+ 	// divisors required to create the final fraction, depending
+ 	// on the actual floating-point value.
+ 

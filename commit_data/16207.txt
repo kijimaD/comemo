@@ -7,8 +7,95 @@ Date:   Sat Apr 20 17:20:14 2013 -0700
     R=golang-dev, dsymonds, r
     CC=golang-dev
     https://golang.org/cl/8721045
-
+---
  src/pkg/net/http/client_test.go |  2 +-
  src/pkg/net/http/server.go      |  4 ++--
  src/pkg/net/http/server_test.go | 35 ++++++++++++++++++++++-------------
  3 files changed, 25 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index d7d2c18799..73f1fe3c10 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -180,7 +180,7 @@ func TestPostFormRequestFormat(t *testing.T) {
+ 	}
+ }
+ 
+-func TestRedirects(t *testing.T) {
++func TestClientRedirects(t *testing.T) {
+ 	defer afterTest(t)
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 4792bfba22..eebefbbbf4 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -1222,9 +1222,9 @@ func Redirect(w ResponseWriter, r *Request, urlStr string, code int) {
+ 			}
+ 
+ 			// clean up but preserve trailing slash
+-			trailing := urlStr[len(urlStr)-1] == '/'
++			trailing := strings.HasSuffix(urlStr, "/")
+ 			urlStr = path.Clean(urlStr)
+-			if trailing && urlStr[len(urlStr)-1] != '/' {
++			if trailing && !strings.HasSuffix(urlStr, "/") {
+ 				urlStr += "/"
+ 			}
+ 			urlStr += query
+diff --git a/src/pkg/net/http/server_test.go b/src/pkg/net/http/server_test.go
+index 8b4e8c6d6f..e8b69f76cc 100644
+--- a/src/pkg/net/http/server_test.go
++++ b/src/pkg/net/http/server_test.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package http
++package http_test
+ 
+ import (
++	. "net/http"
++	"net/http/httptest"
+ 	"net/url"
+ 	"testing"
+ )
+@@ -76,20 +78,27 @@ func TestServeMuxHandler(t *testing.T) {
+ 			},
+ 		}
+ 		h, pattern := mux.Handler(r)
+-		cs := &codeSaver{h: Header{}}
+-		h.ServeHTTP(cs, r)
+-		if pattern != tt.pattern || cs.code != tt.code {
+-			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, cs.code, pattern, tt.code, tt.pattern)
++		rr := httptest.NewRecorder()
++		h.ServeHTTP(rr, r)
++		if pattern != tt.pattern || rr.Code != tt.code {
++			t.Errorf("%s %s %s = %d, %q, want %d, %q", tt.method, tt.host, tt.path, rr.Code, pattern, tt.code, tt.pattern)
+ 		}
+ 	}
+ }
+ 
+-// A codeSaver is a ResponseWriter that saves the code passed to WriteHeader.
+-type codeSaver struct {
+-	h    Header
+-	code int
++func TestServerRedirect(t *testing.T) {
++	// This used to crash. It's not valid input (bad path), but it
++	// shouldn't crash.
++	rr := httptest.NewRecorder()
++	req := &Request{
++		Method: "GET",
++		URL: &url.URL{
++			Scheme: "http",
++			Path:   "not-empty-but-no-leading-slash", // bogus
++		},
++	}
++	Redirect(rr, req, "", 304)
++	if rr.Code != 304 {
++		t.Errorf("Code = %d; want 304", rr.Code)
++	}
+ }
+-
+-func (cs *codeSaver) Header() Header              { return cs.h }
+-func (cs *codeSaver) Write(p []byte) (int, error) { return len(p), nil }
+-func (cs *codeSaver) WriteHeader(code int)        { cs.code = code }

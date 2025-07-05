@@ -19,7 +19,91 @@ Date:   Fri Sep 7 12:53:52 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go  | 53 ++++++++++++++++++++++++++++++++++++++--
  src/cmd/link/internal/ld/util.go | 10 ++++++++
  2 files changed, 61 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 60124e3212..7029ba19c6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1379,9 +1379,58 @@ func linkerFlagSupported(linker, flag string) bool {
+ 		}
+ 	})
+ 
++	flagsWithNextArgSkip := []string{
++		"-F",
++		"-l",
++		"-L",
++		"-framework",
++		"-Wl,-framework",
++		"-Wl,-rpath",
++		"-Wl,-undefined",
++	}
++	flagsWithNextArgKeep := []string{
++		"-arch",
++		"-isysroot",
++		"--sysroot",
++		"-target",
++	}
++	prefixesToKeep := []string{
++		"-f",
++		"-m",
++		"-p",
++		"-Wl,",
++		"-arch",
++		"-isysroot",
++		"--sysroot",
++		"-target",
++	}
++
+ 	var flags []string
+-	flags = append(flags, ldflag...)
+-	flags = append(flags, strings.Fields(*flagExtldflags)...)
++	keep := false
++	skip := false
++	extldflags := strings.Fields(*flagExtldflags)
++	for _, f := range append(extldflags, ldflag...) {
++		if keep {
++			flags = append(flags, f)
++			keep = false
++		} else if skip {
++			skip = false
++		} else if f == "" || f[0] != '-' {
++		} else if contains(flagsWithNextArgSkip, f) {
++			skip = true
++		} else if contains(flagsWithNextArgKeep, f) {
++			flags = append(flags, f)
++			keep = true
++		} else {
++			for _, p := range prefixesToKeep {
++				if strings.HasPrefix(f, p) {
++					flags = append(flags, f)
++					break
++				}
++			}
++		}
++	}
++
+ 	flags = append(flags, flag, "trivial.c")
+ 
+ 	cmd := exec.Command(linker, flags...)
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index b80e6106ba..b5b02296a1 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -89,3 +89,13 @@ var start = time.Now()
+ func elapsed() float64 {
+ 	return time.Since(start).Seconds()
+ }
++
++// contains reports whether v is in s.
++func contains(s []string, v string) bool {
++	for _, x := range s {
++		if x == v {
++			return true
++		}
++	}
++	return false
++}

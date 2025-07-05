@@ -31,7 +31,52 @@ Date:   Wed Jan 24 22:15:15 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/net/netip/netip.go      | 13 ++++++++-----
  src/net/netip/netip_test.go |  2 +-
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index e566a4861f..5c0c7afd97 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -756,11 +756,7 @@ func (ip Addr) String() string {
+ 		return ip.string4()
+ 	default:
+ 		if ip.Is4In6() {
+-			if z := ip.Zone(); z != "" {
+-				return "::ffff:" + ip.Unmap().string4() + "%" + z
+-			} else {
+-				return "::ffff:" + ip.Unmap().string4()
+-			}
++			return ip.string4In6()
+ 		}
+ 		return ip.string6()
+ 	}
+@@ -847,6 +843,13 @@ func (ip Addr) appendTo4(ret []byte) []byte {
+ 	return ret
+ }
+ 
++func (ip Addr) string4In6() string {
++	const max = len("::ffff:255.255.255.255%enp5s0")
++	ret := make([]byte, 0, max)
++	ret = ip.appendTo4In6(ret)
++	return string(ret)
++}
++
+ func (ip Addr) appendTo4In6(ret []byte) []byte {
+ 	ret = append(ret, "::ffff:"...)
+ 	ret = ip.Unmap().appendTo4(ret)
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index d80582139e..c914c5f256 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -1691,7 +1691,7 @@ func BenchmarkStdParseIP(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkIPString(b *testing.B) {
++func BenchmarkAddrString(b *testing.B) {
+ 	for _, test := range parseBenchInputs {
+ 		ip := MustParseAddr(test.ip)
+ 		b.Run(test.name, func(b *testing.B) {

@@ -7,9 +7,173 @@ Date:   Tue Mar 1 09:20:32 2011 +1100
     R=adg, bsiegert, rsc
     CC=golang-dev
     https://golang.org/cl/4221047
-
+---
  src/cmd/Makefile   | 68 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/clean.bash | 16 -------------
  src/cmd/make.bash  | 30 ------------------------
  src/make.bash      | 20 ++--------------
  4 files changed, 70 insertions(+), 64 deletions(-)
+
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+new file mode 100644
+index 0000000000..b78574bae2
+--- /dev/null
++++ b/src/cmd/Makefile
+@@ -0,0 +1,68 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../Make.inc
++
++all: install
++
++# Only build tools for current architecture, and only tools written in C.
++# The tools written in Go are managed by ../pkg/Makefile.
++DIRS=\
++	$(O)a\
++	$(O)c\
++	$(O)g\
++	$(O)l\
++	cc\
++	cov\
++	gc\
++	godefs\
++	gopack\
++	gotest\
++	nm\
++	prof\
++	
++# Clean applies to all directories, even for other architectures or 
++# written in Go.
++CLEANDIRS=\
++	$(DIRS)\
++	5a\
++	5c\
++	5g\
++	5l\
++	6a\
++	6c\
++	6g\
++	6l\
++	8a\
++	8c\
++	8g\
++	8l\
++	cgo\
++	ebnflint\
++	godoc\
++	gofmt\
++	goinstall\
++	goyacc\
++	hgpatch\
++
++install: $(patsubst %,%.install,$(DIRS))
++clean: $(patsubst %,%.clean,$(CLEANDIRS))
++
++%.install:
++	@echo
++	@echo %%%% making $* %%%%
++	@echo
++	$(MAKE) -C $* install
++
++gc.install: cc.install
++
++$(O)c.install: cc.install
++
++$(O)g.install: gc.install
++
++%.clean:
++	$(MAKE) -C $* clean
++
++echo-dirs:
++	@echo $(DIRS)
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+deleted file mode 100644
+index 92d8cc5c92..0000000000
+--- a/src/cmd/clean.bash
++++ /dev/null
+@@ -1,16 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-gomake=gomake
+-if [ "$1" == "--gomake" -a "$2" != "" ]; then
+-	gomake=$2
+-fi
+-
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt goinstall gotest goyacc hgpatch prof
+-do
+-	cd $i
+-	$gomake clean
+-	cd ..
+-done
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+deleted file mode 100755
+index 63da74625c..0000000000
+--- a/src/cmd/make.bash
++++ /dev/null
+@@ -1,30 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-set -e
+-
+-bash clean.bash
+-
+-eval $(gomake --no-print-directory -f ../Make.inc go-env)
+-if [ -z "$O" ]; then
+-	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+-	exit 1
+-fi
+-
+-cd ${O}l
+-bash mkenam
+-gomake enam.o
+-cd ..
+-
+-# Note: commands written in Go are not listed here.
+-# They are in ../pkg/Makefile so that they can be built
+-# after the Go libraries on which they depend.
+-for i in cc ${O}l ${O}a ${O}c gc ${O}g cov godefs gopack gotest nm prof
+-do
+-	echo; echo; echo %%%% making $i %%%%; echo
+-	cd $i
+-	gomake install
+-	cd ..
+-done
+diff --git a/src/make.bash b/src/make.bash
+index 0cbf3becb4..d9ca40d427 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -61,24 +61,8 @@ bash "$GOROOT"/src/clean.bash
+ # pkg builds libcgo and the Go programs in cmd.
+ for i in lib9 libbio libmach cmd pkg
+ do
+-	# The ( ) here are to preserve the current directory
+-	# for the next round despite the cd $i below.
+-	# set -e does not apply to ( ) so we must explicitly
+-	# test the exit status.
+-	(
+-		echo; echo; echo %%%% making $i %%%%; echo
+-		cd "$GOROOT"/src/$i
+-		case $i in
+-		cmd)
+-			bash make.bash
+-			;;
+-		pkg)
+-			gomake install
+-			;;
+-		*)
+-			gomake install
+-		esac
+-	)  || exit 1
++	echo; echo; echo %%%% making $i %%%%; echo
++	gomake -C $i install
+ done
+ 
+ # Print post-install messages.

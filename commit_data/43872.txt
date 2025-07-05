@@ -20,7 +20,86 @@ Date:   Wed Apr 22 21:36:11 2020 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/mpagecache.go      | 13 +++++++++----
  src/runtime/mpagecache_test.go | 33 +++++++++++++++++++++++++++++++--
  2 files changed, 40 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mpagecache.go b/src/runtime/mpagecache.go
+index 5b679d357d..fae54d7cdd 100644
+--- a/src/runtime/mpagecache.go
++++ b/src/runtime/mpagecache.go
+@@ -148,9 +148,14 @@ func (s *pageAlloc) allocToCache() pageCache {
+ 	// Update as an allocation, but note that it's not contiguous.
+ 	s.update(c.base, pageCachePages, false, true)
+ 
+-	// We're always searching for the first free page, and we always know the
+-	// up to pageCache size bits will be allocated, so we can always move the
+-	// searchAddr past the cache.
+-	s.searchAddr = c.base + pageSize*pageCachePages
++	// Set the search address to the last page represented by the cache.
++	// Since all of the pages in this block are going to the cache, and we
++	// searched for the first free page, we can confidently start at the
++	// next page.
++	//
++	// However, s.searchAddr is not allowed to point into unmapped heap memory
++	// unless it is maxSearchAddr, so make it the last page as opposed to
++	// the page after.
++	s.searchAddr = c.base + pageSize*(pageCachePages-1)
+ 	return c
+ }
+diff --git a/src/runtime/mpagecache_test.go b/src/runtime/mpagecache_test.go
+index b8cc0bd965..2ed0c0aa6a 100644
+--- a/src/runtime/mpagecache_test.go
++++ b/src/runtime/mpagecache_test.go
+@@ -260,12 +260,13 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 	if GOOS == "openbsd" && testing.Short() {
+ 		t.Skip("skipping because virtual memory is limited; see #36210")
+ 	}
+-	tests := map[string]struct {
++	type test struct {
+ 		before map[ChunkIdx][]BitRange
+ 		scav   map[ChunkIdx][]BitRange
+ 		hits   []PageCache // expected base addresses and patterns
+ 		after  map[ChunkIdx][]BitRange
+-	}{
++	}
++	tests := map[string]test{
+ 		"AllFree": {
+ 			before: map[ChunkIdx][]BitRange{
+ 				BaseChunkIdx: {},
+@@ -349,6 +350,34 @@ func TestPageAllocAllocToCache(t *testing.T) {
+ 			},
+ 		},
+ 	}
++	if PageAlloc64Bit != 0 {
++		const chunkIdxBigJump = 0x100000 // chunk index offset which translates to O(TiB)
++
++		// This test is similar to the one with the same name for
++		// pageAlloc.alloc and serves the same purpose.
++		// See mpagealloc_test.go for details.
++		sumsPerPhysPage := ChunkIdx(PhysPageSize / PallocSumBytes)
++		baseChunkIdx := BaseChunkIdx &^ (sumsPerPhysPage - 1)
++		tests["DiscontiguousMappedSumBoundary"] = test{
++			before: map[ChunkIdx][]BitRange{
++				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages - 1}},
++				baseChunkIdx + chunkIdxBigJump:     {{1, PallocChunkPages - 1}},
++			},
++			scav: map[ChunkIdx][]BitRange{
++				baseChunkIdx + sumsPerPhysPage - 1: {},
++				baseChunkIdx + chunkIdxBigJump:     {},
++			},
++			hits: []PageCache{
++				NewPageCache(PageBase(baseChunkIdx+sumsPerPhysPage-1, PallocChunkPages-64), 1<<63, 0),
++				NewPageCache(PageBase(baseChunkIdx+chunkIdxBigJump, 0), 1, 0),
++				NewPageCache(0, 0, 0),
++			},
++			after: map[ChunkIdx][]BitRange{
++				baseChunkIdx + sumsPerPhysPage - 1: {{0, PallocChunkPages}},
++				baseChunkIdx + chunkIdxBigJump:     {{0, PallocChunkPages}},
++			},
++		}
++	}
+ 	for name, v := range tests {
+ 		v := v
+ 		t.Run(name, func(t *testing.T) {

@@ -7,7 +7,7 @@ Date:   Wed Mar 23 11:43:37 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4306043
-
+---
  src/pkg/runtime/Makefile               |   1 +
  src/pkg/runtime/amd64/traceback.c      |   9 +-
  src/pkg/runtime/arm/traceback.c        |   7 +-
@@ -25,3 +25,1333 @@ Date:   Wed Mar 23 11:43:37 2011 -0400
  src/pkg/runtime/runtime.h              |   5 +
  src/pkg/runtime/windows/386/signal.c   |   8 +
  16 files changed, 852 insertions(+), 105 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 0cdb57ee71..4da78c5f09 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -53,6 +53,7 @@ OFILES=\
+ 	cgocall.$O\
+ 	chan.$O\
+ 	closure.$O\
++	cpuprof.$O\
+ 	float.$O\
+ 	complex.$O\
+ 	hashmap.$O\
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index 0f6733c364..d422cb6922 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -18,8 +18,8 @@ void runtime·morestack(void);
+ // as well as the runtime.Callers function (pcbuf != nil).
+ // A little clunky to merge the two but avoids duplicating
+ // the code and all its subtlety.
+-static int32
+-gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
++int32
++runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ {
+ 	byte *p;
+ 	int32 i, n, iter, sawnewstack;
+@@ -28,6 +28,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ 	Stktop *stk;
+ 	Func *f;
+ 
++	USED(lr0);
+ 	pc = (uintptr)pc0;
+ 	lr = 0;
+ 	fp = nil;
+@@ -199,7 +200,7 @@ gentraceback(byte *pc0, byte *sp, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ void
+ runtime·traceback(byte *pc0, byte *sp, byte*, G *g)
+ {
+-	gentraceback(pc0, sp, g, 0, nil, 100);
++	runtime·gentraceback(pc0, sp, nil, g, 0, nil, 100);
+ }
+ 
+ int32
+@@ -211,7 +212,7 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+ 	sp = (byte*)&skip;
+ 	pc = runtime·getcallerpc(&skip);
+ 
+-	return gentraceback(pc, sp, g, skip, pcbuf, m);
++	return runtime·gentraceback(pc, sp, nil, g, skip, pcbuf, m);
+ }
+ 
+ static uintptr
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index ad3096823e..5a289db4e3 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -15,7 +15,7 @@ void _divu(void);
+ void _modu(void);
+ 
+ static int32
+-gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
++runtime·gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, int32 max)
+ {
+ 	int32 i, n, iter;
+ 	uintptr pc, lr, tracepc, x;
+@@ -189,11 +189,10 @@ gentraceback(byte *pc0, byte *sp, byte *lr0, G *g, int32 skip, uintptr *pcbuf, i
+ 	return n;		
+ }
+ 
+-
+ void
+ runtime·traceback(byte *pc0, byte *sp, byte *lr, G *g)
+ {
+-	gentraceback(pc0, sp, lr, g, 0, nil, 100);
++	runtime·gentraceback(pc0, sp, lr, g, 0, nil, 100);
+ }
+ 
+ // func caller(n int) (pc uintptr, file string, line int, ok bool)
+@@ -205,5 +204,5 @@ runtime·callers(int32 skip, uintptr *pcbuf, int32 m)
+ 	sp = runtime·getcallersp(&skip);
+ 	pc = runtime·getcallerpc(&skip);
+ 
+-	return gentraceback(pc, sp, 0, g, skip, pcbuf, m);
++	return runtime·gentraceback(pc, sp, 0, g, skip, pcbuf, m);
+ }
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+new file mode 100644
+index 0000000000..6233bcb457
+--- /dev/null
++++ b/src/pkg/runtime/cpuprof.c
+@@ -0,0 +1,421 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// CPU profiling.
++// Based on algorithms and data structures used in
++// http://code.google.com/p/google-perftools/.
++//
++// The main difference between this code and the google-perftools
++// code is that this code is written to allow copying the profile data
++// to an arbitrary io.Writer, while the google-perftools code always
++// writes to an operating system file.
++//
++// The signal handler for the profiling clock tick adds a new stack trace
++// to a hash table tracking counts for recent traces.  Most clock ticks
++// hit in the cache.  In the event of a cache miss, an entry must be 
++// evicted from the hash table, copied to a log that will eventually be
++// written as profile data.  The google-perftools code flushed the
++// log itself during the signal handler.  This code cannot do that, because
++// the io.Writer might block or need system calls or locks that are not
++// safe to use from within the signal handler.  Instead, we split the log
++// into two halves and let the signal handler fill one half while a goroutine
++// is writing out the other half.  When the signal handler fills its half, it
++// offers to swap with the goroutine.  If the writer is not done with its half,
++// we lose the stack trace for this clock tick (and record that loss).
++// The goroutine interacts with the signal handler by calling getprofile() to
++// get the next log piece to write, implicitly handing back the last log
++// piece it obtained.
++//
++// The state of this dance between the signal handler and the goroutine
++// is encoded in the Profile.handoff field.  If handoff == 0, then the goroutine
++// is not using either log half and is waiting (or will soon be waiting) for
++// a new piece by calling notesleep(&p->wait).  If the signal handler
++// changes handoff from 0 to non-zero, it must call notewakeup(&p->wait)
++// to wake the goroutine.  The value indicates the number of entries in the
++// log half being handed off.  The goroutine leaves the non-zero value in
++// place until it has finished processing the log half and then flips the number
++// back to zero.  Setting the high bit in handoff means that the profiling is over, 
++// and the goroutine is now in charge of flushing the data left in the hash table
++// to the log and returning that data.  
++//
++// The handoff field is manipulated using atomic operations.
++// For the most part, the manipulation of handoff is orderly: if handoff == 0
++// then the signal handler owns it and can change it to non-zero.  
++// If handoff != 0 then the goroutine owns it and can change it to zero.
++// If that were the end of the story then we would not need to manipulate
++// handoff using atomic operations.  The operations are needed, however,
++// in order to let the log closer set the high bit to indicate "EOF" safely
++// in the situation when normally the goroutine "owns" handoff.
++
++#include "runtime.h"
++#include "malloc.h"
++
++enum
++{
++	HashSize = 1<<10,
++	LogSize = 1<<17,
++	Assoc = 4,
++	MaxStack = 64,
++};
++
++typedef struct Profile Profile;
++typedef struct Bucket Bucket;
++typedef struct Entry Entry;
++
++struct Entry {
++	uintptr count;
++	uintptr depth;
++	uintptr stack[MaxStack];
++};
++
++struct Bucket {
++	Entry entry[Assoc];
++};
++
++struct Profile {
++	bool on;		// profiling is on
++	Note wait;		// goroutine waits here
++	uintptr count;		// tick count
++	uintptr evicts;		// eviction count
++	uintptr lost;		// lost ticks that need to be logged
++	uintptr totallost;	// total lost ticks
++
++	// Active recent stack traces.
++	Bucket hash[HashSize];
++
++	// Log of traces evicted from hash.
++	// Signal handler has filled log[toggle][:nlog].
++	// Goroutine is writing log[1-toggle][:handoff].
++	uintptr log[2][LogSize/2];
++	uintptr nlog;
++	int32 toggle;
++	uint32 handoff;
++	
++	// Writer state.
++	// Writer maintains its own toggle to avoid races
++	// looking at signal handler's toggle.
++	uint32 wtoggle;
++	bool wholding;	// holding & need to release a log half
++	bool flushing;	// flushing hash table - profile is over
++};
++
++static Lock lk;
++static Profile *prof;
++
++static void tick(uintptr*, int32);
++static void add(Profile*, uintptr*, int32);
++static bool evict(Profile*, Entry*);
++static bool flushlog(Profile*);
++
++// LostProfileData is a no-op function used in profiles
++// to mark the number of profiling stack traces that were
++// discarded due to slow data writers.
++static void LostProfileData(void) {
++}
++
++// SetCPUProfileRate sets the CPU profiling rate.
++// The user documentation is in debug.go.
++void
++runtime·SetCPUProfileRate(int32 hz)
++{
++	uintptr *p;
++	uintptr n;
++
++	// Clamp hz to something reasonable.
++	if(hz < 0)
++		hz = 0;
++	if(hz > 1000000)
++		hz = 1000000;
++
++	runtime·lock(&lk);
++	if(hz > 0) {
++		if(prof == nil) {
++			prof = runtime·SysAlloc(sizeof *prof);
++			if(prof == nil) {
++				runtime·printf("runtime: cpu profiling cannot allocate memory\n");
++				runtime·unlock(&lk);
++				return;
++			}
++		}
++		if(prof->on || prof->handoff != 0) {
++			runtime·printf("runtime: cannot set cpu profile rate until previous profile has finished.\n");
++			runtime·unlock(&lk);
++			return;
++		}
++
++		prof->on = true;
++		p = prof->log[0];
++		// pprof binary header format.
++		// http://code.google.com/p/google-perftools/source/browse/trunk/src/profiledata.cc#117
++		*p++ = 0;  // count for header
++		*p++ = 3;  // depth for header
++		*p++ = 0;  // version number
++		*p++ = 1000000 / hz;  // period (microseconds)
++		*p++ = 0;
++		prof->nlog = p - prof->log[0];
++		prof->toggle = 0;
++		prof->wholding = false;
++		prof->wtoggle = 0;
++		prof->flushing = false;
++		runtime·noteclear(&prof->wait);
++
++		runtime·setcpuprofilerate(tick, hz);
++	} else if(prof->on) {
++		runtime·setcpuprofilerate(nil, 0);
++		prof->on = false;
++
++		// Now add is not running anymore, and getprofile owns the entire log.
++		// Set the high bit in prof->handoff to tell getprofile.
++		for(;;) {
++			n = prof->handoff;
++			if(n&0x80000000)
++				runtime·printf("runtime: setcpuprofile(off) twice");
++			if(runtime·cas(&prof->handoff, n, n|0x80000000))
++				break;
++		}
++		if(n == 0) {
++			// we did the transition from 0 -> nonzero so we wake getprofile
++			runtime·notewakeup(&prof->wait);
++		}
++	}
++	runtime·unlock(&lk);
++}
++
++static void
++tick(uintptr *pc, int32 n)
++{
++	add(prof, pc, n);
++}
++
++// add adds the stack trace to the profile.
++// It is called from signal handlers and other limited environments
++// and cannot allocate memory or acquire locks that might be
++// held at the time of the signal, nor can it use substantial amounts
++// of stack.  It is allowed to call evict.
++static void
++add(Profile *p, uintptr *pc, int32 n)
++{
++	int32 i, j;
++	uintptr h, x;
++	Bucket *b;
++	Entry *e;
++
++	if(n > MaxStack)
++		n = MaxStack;
++	
++	// Compute hash.
++	h = 0;
++	for(i=0; i<n; i++) {
++		h = h<<8 | (h>>(8*(sizeof(h)-1)));
++		x = pc[i];
++		h += x*31 + x*7 + x*3;
++	}
++	p->count++;
++
++	// Add to entry count if already present in table.
++	b = &p->hash[h%HashSize];
++	for(i=0; i<Assoc; i++) {
++		e = &b->entry[i];
++		if(e->depth != n)	
++			continue;
++		for(j=0; j<n; j++)
++			if(e->stack[j] != pc[j])
++				goto ContinueAssoc;
++		e->count++;
++		return;
++	ContinueAssoc:;
++	}
++
++	// Evict entry with smallest count.
++	e = &b->entry[0];
++	for(i=1; i<Assoc; i++)
++		if(b->entry[i].count < e->count)
++			e = &b->entry[i];
++	if(e->count > 0) {
++		if(!evict(p, e)) {
++			// Could not evict entry.  Record lost stack.
++			p->lost++;
++			p->totallost++;
++			return;
++		}
++		p->evicts++;
++	}
++	
++	// Reuse the newly evicted entry.
++	e->depth = n;
++	e->count = 1;
++	for(i=0; i<n; i++)
++		e->stack[i] = pc[i];
++}
++
++// evict copies the given entry's data into the log, so that
++// the entry can be reused.  evict is called from add, which
++// is called from the profiling signal handler, so it must not
++// allocate memory or block.  It is safe to call flushLog.
++// evict returns true if the entry was copied to the log,
++// false if there was no room available.
++static bool
++evict(Profile *p, Entry *e)
++{
++	int32 i, d, nslot;
++	uintptr *log, *q;
++	
++	d = e->depth;
++	nslot = d+2;
++	log = p->log[p->toggle];
++	if(p->nlog+nslot > nelem(p->log[0])) {
++		if(!flushlog(p))
++			return false;
++		log = p->log[p->toggle];
++	}
++	
++	q = log+p->nlog;
++	*q++ = e->count;
++	*q++ = d;
++	for(i=0; i<d; i++)
++		*q++ = e->stack[i];
++	p->nlog = q - log;
++	e->count = 0;
++	return true;
++}
++
++// flushlog tries to flush the current log and switch to the other one.
++// flushlog is called from evict, called from add, called from the signal handler,
++// so it cannot allocate memory or block.  It can try to swap logs with
++// the writing goroutine, as explained in the comment at the top of this file.
++static bool
++flushlog(Profile *p)
++{
++	uintptr *log, *q;
++
++	if(!runtime·cas(&p->handoff, 0, p->nlog))
++		return false;
++	runtime·notewakeup(&p->wait);
++
++	p->toggle = 1 - p->toggle;
++	log = p->log[p->toggle];
++	q = log;
++	if(p->lost > 0) {
++		*q++ = p->lost;
++		*q++ = 1;
++		*q++ = (uintptr)LostProfileData;
++	}
++	p->nlog = q - log;
++	return true;
++}
++
++// getprofile blocks until the next block of profiling data is available
++// and returns it as a []byte.  It is called from the writing goroutine.
++Slice
++getprofile(Profile *p)
++{
++	uint32 i, j, n;
++	Slice ret;
++	Bucket *b;
++	Entry *e;
++
++	ret.array = nil;
++	ret.len = 0;
++	ret.cap = 0;
++	
++	if(p == nil)	
++		return ret;
++
++	if(p->wholding) {
++		// Release previous log to signal handling side.
++		// Loop because we are racing against setprofile(off).
++		for(;;) {
++			n = p->handoff;
++			if(n == 0) {
++				runtime·printf("runtime: phase error during cpu profile handoff\n");
++				return ret;
++			}
++			if(n & 0x80000000) {
++				p->wtoggle = 1 - p->wtoggle;
++				p->wholding = false;
++				p->flushing = true;
++				goto flush;
++			}
++			if(runtime·cas(&p->handoff, n, 0))
++				break;
++		}
++		p->wtoggle = 1 - p->wtoggle;
++		p->wholding = false;
++	}
++	
++	if(p->flushing)
++		goto flush;
++	
++	if(!p->on && p->handoff == 0)
++		return ret;
++
++	// Wait for new log.
++	runtime·entersyscall();
++	runtime·notesleep(&p->wait);
++	runtime·exitsyscall();
++	runtime·noteclear(&p->wait);
++
++	n = p->handoff;
++	if(n == 0) {
++		runtime·printf("runtime: phase error during cpu profile wait\n");
++		return ret;
++	}
++	if(n == 0x80000000) {
++		p->flushing = true;
++		goto flush;
++	}
++	n &= ~0x80000000;
++
++	// Return new log to caller.
++	p->wholding = true;
++
++	ret.array = (byte*)p->log[p->wtoggle];
++	ret.len = n*sizeof(uintptr);
++	ret.cap = ret.len;
++	return ret;
++
++flush:
++	// In flush mode.
++	// Add is no longer being called.  We own the log.
++	// Also, p->handoff is non-zero, so flushlog will return false.
++	// Evict the hash table into the log and return it.
++	for(i=0; i<HashSize; i++) {
++		b = &p->hash[i];
++		for(j=0; j<Assoc; j++) {
++			e = &b->entry[j];
++			if(e->count > 0 && !evict(p, e)) {
++				// Filled the log.  Stop the loop and return what we've got.
++				goto breakflush;
++			}
++		}
++	}
++breakflush:
++
++	// Return pending log data.
++	if(p->nlog > 0) {
++		// Note that we're using toggle now, not wtoggle,
++		// because we're working on the log directly.
++		ret.array = (byte*)p->log[p->toggle];
++		ret.len = p->nlog*sizeof(uintptr);
++		ret.cap = ret.len;
++		p->nlog = 0;
++		return ret;
++	}
++
++	// Made it through the table without finding anything to log.
++	// Finally done.  Clean up and return nil.
++	p->flushing = false;
++	if(!runtime·cas(&p->handoff, p->handoff, 0))
++		runtime·printf("runtime: profile flush racing with something\n");
++	return ret;  // set to nil at top of function
++}
++
++// CPUProfile returns the next cpu profile block as a []byte.
++// The user documentation is in debug.go.
++void
++runtime·CPUProfile(Slice ret)
++{
++	ret = getprofile(prof);
++	FLUSH(&ret);
++}
+diff --git a/src/pkg/runtime/darwin/386/signal.c b/src/pkg/runtime/darwin/386/signal.c
+index aeef5de3fc..6f69340034 100644
+--- a/src/pkg/runtime/darwin/386/signal.c
++++ b/src/pkg/runtime/darwin/386/signal.c
+@@ -46,6 +46,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	mc = uc->uc_mcontext;
+ 	r = &mc->ss;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+@@ -126,31 +131,58 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0U;
++	sa.sa_tramp = (uintptr)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
++	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+ 	int32 i;
+-	static Sigaction sa;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+-	sa.sa_mask = 0xFFFFFFFFU;
+-	sa.sa_tramp = runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+-			if(runtime·sigtab[i].flags & (SigCatch | SigQueue)) {
+-				sa.__sigaction_u.__sa_sigaction = runtime·sighandler;
+-			} else {
+-				sa.__sigaction_u.__sa_sigaction = runtime·sigignore;
+-			}
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
++			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
++				fn = runtime·sighandler;
+ 			else
+-				sa.sa_flags &= ~SA_RESTART;
+-			runtime·sigaction(i, &sa, nil);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Sigaction sa;
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/darwin/amd64/signal.c b/src/pkg/runtime/darwin/amd64/signal.c
+index 402ab33ca0..77f0eb84be 100644
+--- a/src/pkg/runtime/darwin/amd64/signal.c
++++ b/src/pkg/runtime/darwin/amd64/signal.c
+@@ -54,6 +54,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	mc = uc->uc_mcontext;
+ 	r = &mc->ss;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Work around Leopard bug that doesn't set FPE_INTDIV.
+ 		// Look at instruction to see if it is a divide.
+@@ -136,31 +141,58 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.sa_tramp = (uintptr)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
++	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+ 	int32 i;
+-	static Sigaction sa;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	sa.sa_flags |= SA_SIGINFO|SA_ONSTACK;
+-	sa.sa_mask = 0xFFFFFFFFU;
+-	sa.sa_tramp = runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+-			if(runtime·sigtab[i].flags & (SigCatch | SigQueue)) {
+-				sa.__sigaction_u.__sa_sigaction = runtime·sighandler;
+-			} else {
+-				sa.__sigaction_u.__sa_sigaction = runtime·sigignore;
+-			}
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
++			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
++				fn = runtime·sighandler;
+ 			else
+-				sa.sa_flags &= ~SA_RESTART;
+-			runtime·sigaction(i, &sa, nil);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Sigaction sa;
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/debug.go b/src/pkg/runtime/debug.go
+index b2357db303..6370a57d80 100644
+--- a/src/pkg/runtime/debug.go
++++ b/src/pkg/runtime/debug.go
+@@ -92,4 +92,24 @@ func (r *MemProfileRecord) Stack() []uintptr {
+ // where r.AllocBytes > 0 but r.AllocBytes == r.FreeBytes.
+ // These are sites where memory was allocated, but it has all
+ // been released back to the runtime.
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.memprofile flag instead
++// of calling MemProfile directly.
+ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool)
++
++// CPUProfile returns the next chunk of binary CPU profiling stack trace data,
++// blocking until data is available.  If profiling is turned off and all the profile
++// data accumulated while it was on has been returned, CPUProfile returns nil.
++// The caller must save the returned data before calling CPUProfile again.
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.cpuprofile flag instead of calling
++// CPUProfile directly.
++func CPUProfile() []byte
++
++// SetCPUProfileRate sets the CPU profiling rate to hz samples per second.
++// If hz <= 0, SetCPUProfileRate turns off profiling.
++// If the profiler is on, the rate cannot be changed without first turning it off.
++// Most clients should use the runtime/pprof package or
++// the testing package's -test.cpuprofile flag instead of calling
++// SetCPUProfileRate directly.
++func SetCPUProfileRate(hz int)
+diff --git a/src/pkg/runtime/freebsd/386/signal.c b/src/pkg/runtime/freebsd/386/signal.c
+index 8e9d742564..2b9d9aa988 100644
+--- a/src/pkg/runtime/freebsd/386/signal.c
++++ b/src/pkg/runtime/freebsd/386/signal.c
+@@ -54,6 +54,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->mc_eip, (uint8*)r->mc_esp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -122,32 +127,57 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+-	static Sigaction sa;
++	int32 i;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	int32 i;
+-	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+-	sa.sa_mask = ~0x0ull;
+-	
+-	for(i = 0; i < NSIG; i++) {
++	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+ 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigtramp;
++				fn = runtime·sighandler;
+ 			else
+-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigignore;
+-
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
+-			else
+-				sa.sa_flags &= ~SA_RESTART;
+-
+-			runtime·sigaction(i, &sa, nil);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Sigaction sa;
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/freebsd/amd64/signal.c b/src/pkg/runtime/freebsd/amd64/signal.c
+index f145371b47..ddab9ee51a 100644
+--- a/src/pkg/runtime/freebsd/amd64/signal.c
++++ b/src/pkg/runtime/freebsd/amd64/signal.c
+@@ -62,6 +62,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->mc_rip, (uint8*)r->mc_rsp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -130,32 +135,57 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_SIGINFO|SA_ONSTACK;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.__sigaction_u.__sa_sigaction = (uintptr)fn;
++	runtime·sigaction(i, &sa, nil);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+-	static Sigaction sa;
++	int32 i;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	int32 i;
+-	sa.sa_flags |= SA_ONSTACK | SA_SIGINFO;
+-	sa.sa_mask = ~0x0ull;
+-	
+-	for(i = 0; i < NSIG; i++) {
++	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+ 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigtramp;
++				fn = runtime·sighandler;
+ 			else
+-				sa.__sigaction_u.__sa_sigaction = (void*) runtime·sigignore;
+-
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
+-			else
+-				sa.sa_flags &= ~SA_RESTART;
+-
+-			runtime·sigaction(i, &sa, nil);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Sigaction sa;
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index bd918c7ea5..9b72ecbaee 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -51,6 +51,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->eip, (uint8*)r->esp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -114,30 +119,59 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.sa_restorer = (void*)runtime·sigreturn;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.k_sa_handler = fn;
++	runtime·rt_sigaction(i, &sa, nil, 8);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+-	static Sigaction sa;
++	int32 i;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	int32 i;
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+ 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+-				sa.k_sa_handler = (void*)runtime·sigtramp;
++				fn = runtime·sighandler;
+ 			else
+-				sa.k_sa_handler = (void*)runtime·sigignore;
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
+-			else
+-				sa.sa_flags &= ~SA_RESTART;
+-			runtime·rt_sigaction(i, &sa, nil, 8);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/linux/amd64/signal.c b/src/pkg/runtime/linux/amd64/signal.c
+index ea0932523e..1db9c95e50 100644
+--- a/src/pkg/runtime/linux/amd64/signal.c
++++ b/src/pkg/runtime/linux/amd64/signal.c
+@@ -61,6 +61,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	mc = &uc->uc_mcontext;
+ 	r = (Sigcontext*)mc;	// same layout, more conveient names
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->rip, (uint8*)r->rsp, nil, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -124,30 +129,59 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.sa_restorer = (void*)runtime·sigreturn;
++	if(fn == runtime·sighandler)
++		fn = (void*)runtime·sigtramp;
++	sa.sa_handler = fn;
++	runtime·rt_sigaction(i, &sa, nil, 8);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+-	static Sigaction sa;
++	int32 i;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	int32 i;
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	sa.sa_mask = 0xFFFFFFFFFFFFFFFFULL;
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+ 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+-				sa.sa_handler = (void*)runtime·sigtramp;
++				fn = runtime·sighandler;
+ 			else
+-				sa.sa_handler = (void*)runtime·sigignore;
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
+-			else
+-				sa.sa_flags &= ~SA_RESTART;
+-			runtime·rt_sigaction(i, &sa, nil, 8);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/linux/arm/signal.c b/src/pkg/runtime/linux/arm/signal.c
+index 843c40b683..5a2b47dd6a 100644
+--- a/src/pkg/runtime/linux/arm/signal.c
++++ b/src/pkg/runtime/linux/arm/signal.c
+@@ -58,6 +58,11 @@ runtime·sighandler(int32 sig, Siginfo *info, void *context, G *gp)
+ 	uc = context;
+ 	r = &uc->uc_mcontext;
+ 
++	if(sig == SIGPROF) {
++		runtime·sigprof((uint8*)r->arm_pc, (uint8*)r->arm_sp, (uint8*)r->arm_lr, gp);
++		return;
++	}
++
+ 	if(gp != nil && (runtime·sigtab[sig].flags & SigPanic)) {
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+@@ -119,31 +124,58 @@ runtime·signalstack(byte *p, int32 n)
+ 	runtime·sigaltstack(&st, nil);
+ }
+ 
++static void
++sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
++{
++	Sigaction sa;
++
++	runtime·memclr((byte*)&sa, sizeof sa);
++	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
++	if(restart)
++		sa.sa_flags |= SA_RESTART;
++	sa.sa_mask = ~0ULL;
++	sa.sa_restorer = (void*)runtime·sigreturn;
++	sa.k_sa_handler = fn;
++	runtime·rt_sigaction(i, &sa, nil, 8);
++}
++
+ void
+ runtime·initsig(int32 queue)
+ {
+-	static Sigaction sa;
++	int32 i;
++	void *fn;
+ 
+ 	runtime·siginit();
+ 
+-	int32 i;
+-	sa.sa_flags = SA_ONSTACK | SA_SIGINFO | SA_RESTORER;
+-	sa.sa_mask.sig[0] = 0xFFFFFFFF;
+-	sa.sa_mask.sig[1] = 0xFFFFFFFF;
+-	sa.sa_restorer = (void*)runtime·sigreturn;
+ 	for(i = 0; i<NSIG; i++) {
+ 		if(runtime·sigtab[i].flags) {
+ 			if((runtime·sigtab[i].flags & SigQueue) != queue)
+ 				continue;
+ 			if(runtime·sigtab[i].flags & (SigCatch | SigQueue))
+-				sa.sa_handler = (void*)runtime·sigtramp;
++				fn = runtime·sighandler;
+ 			else
+-				sa.sa_handler = (void*)runtime·sigignore;
+-			if(runtime·sigtab[i].flags & SigRestart)
+-				sa.sa_flags |= SA_RESTART;
+-			else
+-				sa.sa_flags &= ~SA_RESTART;
+-			runtime·rt_sigaction(i, &sa, nil, 8);
++				fn = runtime·sigignore;
++			sigaction(i, fn, (runtime·sigtab[i].flags & SigRestart) != 0);
+ 		}
+ 	}
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	Sigaction sa;
++	Itimerval it;
++	
++	runtime·memclr((byte*)&it, sizeof it);
++	if(hz == 0) {
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++		sigaction(SIGPROF, SIG_IGN, true);
++	} else {
++		sigaction(SIGPROF, runtime·sighandler, true);
++		it.it_interval.tv_sec = 0;
++		it.it_interval.tv_usec = 1000000 / hz;
++		it.it_value = it.it_interval;
++		runtime·setitimer(ITIMER_PROF, &it, nil);
++	}
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/plan9/386/signal.c b/src/pkg/runtime/plan9/386/signal.c
+index 6bde098466..364fd1c418 100644
+--- a/src/pkg/runtime/plan9/386/signal.c
++++ b/src/pkg/runtime/plan9/386/signal.c
+@@ -14,3 +14,11 @@ runtime·signame(int32)
+ {
+ 	return runtime·emptystring;
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	// TODO: Enable profiling interrupts.
++	
++	m->profilehz = hz;
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 79dcbd2815..e212c7820f 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -70,6 +70,7 @@ struct Sched {
+ 	int32 msyscall;	// number of ms in system calls
+ 
+ 	int32 predawn;	// running initialization, don't run new gs.
++	int32 profilehz;	// cpu profiling rate
+ 
+ 	Note	stopped;	// one g can wait here for ms to stop
+ 	int32 waitstop;	// after setting this flag
+@@ -96,9 +97,6 @@ static void matchmg(void);	// match ms to gs
+ static void readylocked(G*);	// ready, but sched is locked
+ static void mnextg(M*, G*);
+ 
+-// Scheduler loop.
+-static void scheduler(void);
+-
+ // The bootstrap sequence is:
+ //
+ //	call osinit
+@@ -529,6 +527,8 @@ matchmg(void)
+ static void
+ schedule(G *gp)
+ {
++	int32 hz;
++
+ 	schedlock();
+ 	if(gp != nil) {
+ 		if(runtime·sched.predawn)
+@@ -574,6 +574,12 @@ schedule(G *gp)
+ 	gp->status = Grunning;
+ 	m->curg = gp;
+ 	gp->m = m;
++	
++	// Check whether the profiler needs to be turned on or off.
++	hz = runtime·sched.profilehz;
++	if(m->profilehz != hz)
++		runtime·resetcpuprofiler(hz);
++
+ 	if(gp->sched.pc == (byte*)runtime·goexit) {	// kickoff
+ 		runtime·gogocall(&gp->sched, (void(*)(void))gp->entry);
+ 	}
+@@ -640,7 +646,7 @@ runtime·exitsyscall(void)
+ 	runtime·sched.msyscall--;
+ 	runtime·sched.mcpu++;
+ 	// Fast path - if there's room for this m, we're done.
+-	if(runtime·sched.mcpu <= runtime·sched.mcpumax) {
++	if(m->profilehz == runtime·sched.profilehz && runtime·sched.mcpu <= runtime·sched.mcpumax) {
+ 		g->status = Grunning;
+ 		schedunlock();
+ 		return;
+@@ -1251,3 +1257,57 @@ runtime·badmcall2(void)  // called from assembly
+ {
+ 	runtime·throw("runtime: mcall function returned");
+ }
++
++static struct {
++	Lock;
++	void (*fn)(uintptr*, int32);
++	int32 hz;
++	uintptr pcbuf[100];
++} prof;
++
++void
++runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp)
++{
++	int32 n;
++	
++	if(prof.fn == nil || prof.hz == 0)
++		return;
++	
++	runtime·lock(&prof);
++	if(prof.fn == nil) {
++		runtime·unlock(&prof);
++		return;
++	}
++	n = runtime·gentraceback(pc, sp, lr, gp, 0, prof.pcbuf, nelem(prof.pcbuf));
++	if(n > 0)
++		prof.fn(prof.pcbuf, n);
++	runtime·unlock(&prof);
++}
++
++void
++runtime·setcpuprofilerate(void (*fn)(uintptr*, int32), int32 hz)
++{
++	// Force sane arguments.
++	if(hz < 0)
++		hz = 0;
++	if(hz == 0)
++		fn = nil;
++	if(fn == nil)
++		hz = 0;
++
++	// Stop profiler on this cpu so that it is safe to lock prof.
++	// if a profiling signal came in while we had prof locked,
++	// it would deadlock.
++	runtime·resetcpuprofiler(0);
++
++	runtime·lock(&prof);
++	prof.fn = fn;
++	prof.hz = hz;
++	runtime·unlock(&prof);
++	runtime·lock(&runtime·sched);
++	runtime·sched.profilehz = hz;
++	runtime·unlock(&runtime·sched);
++	
++	if(hz != 0)
++		runtime·resetcpuprofiler(hz);
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 8eddda6a5c..6cf2685fde 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -225,6 +225,7 @@ struct	M
+ 	int32	nomemprof;
+ 	int32	waitnextg;
+ 	int32	dying;
++	int32	profilehz;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	alllink;	// on allm
+@@ -453,9 +454,13 @@ void	runtime·siginit(void);
+ bool	runtime·sigsend(int32 sig);
+ void	runtime·gettime(int64*, int32*);
+ int32	runtime·callers(int32, uintptr*, int32);
++int32	runtime·gentraceback(byte*, byte*, byte*, G*, int32, uintptr*, int32);
+ int64	runtime·nanotime(void);
+ void	runtime·dopanic(int32);
+ void	runtime·startpanic(void);
++void	runtime·sigprof(uint8 *pc, uint8 *sp, uint8 *lr, G *gp);
++void	runtime·resetcpuprofiler(int32);
++void	runtime·setcpuprofilerate(void(*)(uintptr*, int32), int32);
+ 
+ #pragma	varargck	argpos	runtime·printf	1
+ #pragma	varargck	type	"d"	int32
+diff --git a/src/pkg/runtime/windows/386/signal.c b/src/pkg/runtime/windows/386/signal.c
+index 08b32a137b..cc6a2302ff 100644
+--- a/src/pkg/runtime/windows/386/signal.c
++++ b/src/pkg/runtime/windows/386/signal.c
+@@ -88,3 +88,11 @@ runtime·sighandler(ExceptionRecord *info, void *frame, Context *r)
+ 	runtime·exit(2);
+ 	return 0;
+ }
++
++void
++runtime·resetcpuprofiler(int32 hz)
++{
++	// TODO: Enable profiling interrupts.
++	
++	m->profilehz = hz;
++}

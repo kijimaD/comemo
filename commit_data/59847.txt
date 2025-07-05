@@ -17,7 +17,74 @@ Date:   Tue Apr 30 16:23:24 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/582695
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/internal/telemetry/telemetry.go           | 12 +++++++++++-
  src/cmd/internal/telemetry/telemetry_bootstrap.go | 13 +++++++------
  2 files changed, 18 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+index 0e223442ff..d31f0eeff3 100644
+--- a/src/cmd/internal/telemetry/telemetry.go
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !cmd_go_bootstrap
++//go:build !cmd_go_bootstrap && !compiler_bootstrap
+ 
+ // Package telemetry is a shim package around the golang.org/x/telemetry
+ // and golang.org/x/telemetry/counter packages that has code build tagged
+@@ -38,14 +38,24 @@ func StartWithUpload() {
+ 	})
+ }
+ 
++// Inc increments the counter with the given name.
+ func Inc(name string) {
+ 	counter.Inc(name)
+ }
+ 
++// NewCounter returns a counter with the given name.
+ func NewCounter(name string) *counter.Counter {
+ 	return counter.New(name)
+ }
+ 
++// NewStack returns a new stack counter with the given name and depth.
++func NewStackCounter(name string, depth int) *counter.StackCounter {
++	return counter.NewStack(name, depth)
++}
++
++// CountFlags creates a counter for every flag that is set
++// and increments the counter. The name of the counter is
++// the concatenation of prefix and the flag name.
+ func CountFlags(prefix string, flagSet flag.FlagSet) {
+ 	counter.CountFlags(prefix, flagSet)
+ }
+diff --git a/src/cmd/internal/telemetry/telemetry_bootstrap.go b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+index 9fb03507d9..2e127bec28 100644
+--- a/src/cmd/internal/telemetry/telemetry_bootstrap.go
++++ b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cmd_go_bootstrap
++//go:build cmd_go_bootstrap || compiler_bootstrap
+ 
+ package telemetry
+ 
+@@ -12,8 +12,9 @@ type dummyCounter struct{}
+ 
+ func (dc dummyCounter) Inc() {}
+ 
+-func Start()                                       {}
+-func StartWithUpload()                             {}
+-func Inc(name string)                              {}
+-func NewCounter(name string) dummyCounter          { return dummyCounter{} }
+-func CountFlags(name string, flagSet flag.FlagSet) {}
++func Start()                                              {}
++func StartWithUpload()                                    {}
++func Inc(name string)                                     {}
++func NewCounter(name string) dummyCounter                 { return dummyCounter{} }
++func NewStackCounter(name string, depth int) dummyCounter { return dummyCounter{} }
++func CountFlags(name string, flagSet flag.FlagSet)        {}

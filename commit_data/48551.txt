@@ -10,6 +10,29 @@ Date:   Thu May 27 17:19:12 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/323350
     Trust: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.17.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 9480b1205c..65d8efdc1b 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -413,6 +413,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- flag -->
+ 
++<dl id="go/build"><dt><a href="/pkg/go/build/">go/build</a></dt>
++  <dd>
++    <p><!-- CL 310732 -->
++      The new
++      <a href="/pkg/go/build/#Context.ToolTags"><code>Context.ToolTags</code></a>
++      field holds the build tags appropriate to the current Go
++      toolchain configuration.
++    </p>
++  </dd>
++</dl><!-- go/build -->
++
+ <dl id="io/fs"><dt><a href="/pkg/io/fs/">io/fs</a></dt>
+   <dd>
+     <p><!-- CL 293649 -->

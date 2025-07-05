@@ -9,7 +9,35 @@ Date:   Wed Jun 22 10:40:30 2016 -0400
     Change-Id: Id9d257aee54d31fbf0d478cb07339729cd9712c0
     Reviewed-on: https://go-review.googlesource.com/24325
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/lostcancel.go          | 2 +-
  src/cmd/vet/testdata/lostcancel.go | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/lostcancel.go b/src/cmd/vet/lostcancel.go
+index 708b6f3029..3649e138b9 100644
+--- a/src/cmd/vet/lostcancel.go
++++ b/src/cmd/vet/lostcancel.go
+@@ -276,7 +276,7 @@ func callName(info *types.Info, call *ast.CallExpr) string {
+ 			return obj.Name()
+ 		}
+ 	case *ast.SelectorExpr:
+-		if sel, ok := info.Selections[fun]; ok {
++		if sel, ok := info.Selections[fun]; ok && sel.Kind() == types.MethodVal {
+ 			// method call, e.g. "(*testing.common).Fatal"
+ 			meth := sel.Obj()
+ 			return fmt.Sprintf("(%s).%s",
+diff --git a/src/cmd/vet/testdata/lostcancel.go b/src/cmd/vet/testdata/lostcancel.go
+index 143456e52f..213dd1832d 100644
+--- a/src/cmd/vet/testdata/lostcancel.go
++++ b/src/cmd/vet/testdata/lostcancel.go
+@@ -135,3 +135,9 @@ func _() {
+ 
+ var condition bool
+ var someInt int
++
++// Regression test for Go issue 16143.
++func _() {
++	var x struct{ f func() }
++	x.f()
++}

@@ -11,10 +11,230 @@ Date:   Wed Dec 9 17:22:48 2015 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/mparith3.go | 27 ++++++----
  test/fixedbugs/issue11326.go            | 16 +++---
  test/fixedbugs/issue11590.go            |  2 +-
  test/fixedbugs/issue13471.go            | 22 ++++----
  test/fixedbugs/issue13559.go            | 89 +++++++++++++++++++++++++++++++++
  5 files changed, 127 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mparith3.go b/src/cmd/compile/internal/gc/mparith3.go
+index 889c461cc9..9bcfda7c0d 100644
+--- a/src/cmd/compile/internal/gc/mparith3.go
++++ b/src/cmd/compile/internal/gc/mparith3.go
+@@ -212,31 +212,40 @@ func Fconv(fvp *Mpflt, flag int) string {
+ 		return sign + "Inf"
+ 	}
+ 
+-	// Use fmt formatting if in float64 range (common case).
+-	if x, _ := f.Float64(); !math.IsInf(x, 0) {
++	// Use exact fmt formatting if in float64 range (common case):
++	// proceed if f doesn't underflow to 0 or overflow to inf.
++	if x, _ := f.Float64(); f.Sign() == 0 == (x == 0) && !math.IsInf(x, 0) {
+ 		return fmt.Sprintf("%s%.6g", sign, x)
+ 	}
+ 
+ 	// Out of float64 range. Do approximate manual to decimal
+ 	// conversion to avoid precise but possibly slow Float
+-	// formatting. The exponent is > 0 since a negative out-
+-	// of-range exponent would have underflowed and led to 0.
++	// formatting.
+ 	// f = mant * 2**exp
+ 	var mant big.Float
+-	exp := float64(f.MantExp(&mant)) // 0.5 <= mant < 1.0, exp > 0
++	exp := f.MantExp(&mant) // 0.5 <= mant < 1.0
+ 
+ 	// approximate float64 mantissa m and decimal exponent d
+ 	// f ~ m * 10**d
+-	m, _ := mant.Float64()            // 0.5 <= m < 1.0
+-	d := exp * (math.Ln2 / math.Ln10) // log_10(2)
++	m, _ := mant.Float64()                     // 0.5 <= m < 1.0
++	d := float64(exp) * (math.Ln2 / math.Ln10) // log_10(2)
+ 
+ 	// adjust m for truncated (integer) decimal exponent e
+ 	e := int64(d)
+ 	m *= math.Pow(10, d-float64(e))
+-	for m >= 10 {
++
++	// ensure 1 <= m < 10
++	switch {
++	case m < 1-0.5e-6:
++		// The %.6g format below rounds m to 5 digits after the
++		// decimal point. Make sure that m*10 < 10 even after
++		// rounding up: m*10 + 0.5e-5 < 10 => m < 1 - 0.5e6.
++		m *= 10
++		e--
++	case m >= 10:
+ 		m /= 10
+ 		e++
+ 	}
+ 
+-	return fmt.Sprintf("%s%.5fe+%d", sign, m, e)
++	return fmt.Sprintf("%s%.6ge%+d", sign, m, e)
+ }
+diff --git a/test/fixedbugs/issue11326.go b/test/fixedbugs/issue11326.go
+index 85f56a3dda..3a4fbff375 100644
+--- a/test/fixedbugs/issue11326.go
++++ b/test/fixedbugs/issue11326.go
+@@ -18,14 +18,14 @@ func main() {
+ 
+ 	// Any implementation must be able to handle these constants at
+ 	// compile time (even though they cannot be assigned to a float64).
+-	var _ = 1e646456992  // ERROR "1.00000e\+646456992 overflows float64"
+-	var _ = 1e64645699   // ERROR "1.00000e\+64645699 overflows float64"
+-	var _ = 1e6464569    // ERROR "1.00000e\+6464569 overflows float64"
+-	var _ = 1e646456     // ERROR "1.00000e\+646456 overflows float64"
+-	var _ = 1e64645      // ERROR "1.00000e\+64645 overflows float64"
+-	var _ = 1e6464       // ERROR "1.00000e\+6464 overflows float64"
+-	var _ = 1e646        // ERROR "1.00000e\+646 overflows float64"
+-	var _ = 1e309        // ERROR "1.00000e\+309 overflows float64"
++	var _ = 1e646456992  // ERROR "1e\+646456992 overflows float64"
++	var _ = 1e64645699   // ERROR "1e\+64645699 overflows float64"
++	var _ = 1e6464569    // ERROR "1e\+6464569 overflows float64"
++	var _ = 1e646456     // ERROR "1e\+646456 overflows float64"
++	var _ = 1e64645      // ERROR "1e\+64645 overflows float64"
++	var _ = 1e6464       // ERROR "1e\+6464 overflows float64"
++	var _ = 1e646        // ERROR "1e\+646 overflows float64"
++	var _ = 1e309        // ERROR "1e\+309 overflows float64"
+ 
+ 	var _ = 1e308
+ }
+diff --git a/test/fixedbugs/issue11590.go b/test/fixedbugs/issue11590.go
+index 1acac64c73..f3032fcd53 100644
+--- a/test/fixedbugs/issue11590.go
++++ b/test/fixedbugs/issue11590.go
+@@ -8,4 +8,4 @@ package p
+ 
+ var _ = int8(4) * 300         // ERROR "constant 300 overflows int8" "constant 1200 overflows int8"
+ var _ = complex64(1) * 1e200  // ERROR "constant 1e\+200 overflows complex64"
+-var _ = complex128(1) * 1e500 // ERROR "constant 1\.00000e\+500 overflows complex128"
++var _ = complex128(1) * 1e500 // ERROR "constant 1e\+500 overflows complex128"
+diff --git a/test/fixedbugs/issue13471.go b/test/fixedbugs/issue13471.go
+index cda668a1a5..eee408105d 100644
+--- a/test/fixedbugs/issue13471.go
++++ b/test/fixedbugs/issue13471.go
+@@ -9,17 +9,17 @@
+ package main
+ 
+ func main() {
+-	const _ int64 = 1e646456992 // ERROR "1.00000e\+646456992 overflows integer"
+-	const _ int32 = 1e64645699  // ERROR "1.00000e\+64645699 overflows integer"
+-	const _ int16 = 1e6464569   // ERROR "1.00000e\+6464569 overflows integer"
+-	const _ int8 = 1e646456     // ERROR "1.00000e\+646456 overflows integer"
+-	const _ int = 1e64645       // ERROR "1.00000e\+64645 overflows integer"
++	const _ int64 = 1e646456992 // ERROR "1e\+646456992 overflows integer"
++	const _ int32 = 1e64645699  // ERROR "1e\+64645699 overflows integer"
++	const _ int16 = 1e6464569   // ERROR "1e\+6464569 overflows integer"
++	const _ int8 = 1e646456     // ERROR "1e\+646456 overflows integer"
++	const _ int = 1e64645       // ERROR "1e\+64645 overflows integer"
+ 
+-	const _ uint64 = 1e646456992 // ERROR "1.00000e\+646456992 overflows integer"
+-	const _ uint32 = 1e64645699  // ERROR "1.00000e\+64645699 overflows integer"
+-	const _ uint16 = 1e6464569   // ERROR "1.00000e\+6464569 overflows integer"
+-	const _ uint8 = 1e646456     // ERROR "1.00000e\+646456 overflows integer"
+-	const _ uint = 1e64645       // ERROR "1.00000e\+64645 overflows integer"
++	const _ uint64 = 1e646456992 // ERROR "1e\+646456992 overflows integer"
++	const _ uint32 = 1e64645699  // ERROR "1e\+64645699 overflows integer"
++	const _ uint16 = 1e6464569   // ERROR "1e\+6464569 overflows integer"
++	const _ uint8 = 1e646456     // ERROR "1e\+646456 overflows integer"
++	const _ uint = 1e64645       // ERROR "1e\+64645 overflows integer"
+ 
+-	const _ rune = 1e64645 // ERROR "1.00000e\+64645 overflows integer"
++	const _ rune = 1e64645 // ERROR "1e\+64645 overflows integer"
+ }
+diff --git a/test/fixedbugs/issue13559.go b/test/fixedbugs/issue13559.go
+new file mode 100644
+index 0000000000..4783c62f68
+--- /dev/null
++++ b/test/fixedbugs/issue13559.go
+@@ -0,0 +1,89 @@
++// errorcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that error messages print meaningful values
++// for various extreme floating-point constants.
++
++package p
++
++// failure case in issue
++const _ int64 = 1e-10000 // ERROR "1e\-10000 truncated"
++
++const (
++	_ int64 = 1e10000000 // ERROR "1e\+10000000 overflows"
++	_ int64 = 1e1000000  // ERROR "1e\+1000000 overflows"
++	_ int64 = 1e100000   // ERROR "1e\+100000 overflows"
++	_ int64 = 1e10000    // ERROR "1e\+10000 overflows"
++	_ int64 = 1e1000     // ERROR "1e\+1000 overflows"
++	_ int64 = 1e100      // ERROR "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = 1e10
++	_ int64 = 1e1
++	_ int64 = 1e0
++	_ int64 = 1e-1       // ERROR "0\.1 truncated"
++	_ int64 = 1e-10      // ERROR "1e\-10 truncated"
++	_ int64 = 1e-100     // ERROR "1e\-100 truncated"
++	_ int64 = 1e-1000    // ERROR "1e\-1000 truncated"
++	_ int64 = 1e-10000   // ERROR "1e\-10000 truncated"
++	_ int64 = 1e-100000  // ERROR "1e\-100000 truncated"
++	_ int64 = 1e-1000000 // ERROR "1e\-1000000 truncated"
++)
++
++const (
++	_ int64 = -1e10000000 // ERROR "\-1e\+10000000 overflows"
++	_ int64 = -1e1000000  // ERROR "\-1e\+1000000 overflows"
++	_ int64 = -1e100000   // ERROR "\-1e\+100000 overflows"
++	_ int64 = -1e10000    // ERROR "\-1e\+10000 overflows"
++	_ int64 = -1e1000     // ERROR "\-1e\+1000 overflows"
++	_ int64 = -1e100      // ERROR "\-10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = -1e10
++	_ int64 = -1e1
++	_ int64 = -1e0
++	_ int64 = -1e-1       // ERROR "\-0\.1 truncated"
++	_ int64 = -1e-10      // ERROR "\-1e\-10 truncated"
++	_ int64 = -1e-100     // ERROR "\-1e\-100 truncated"
++	_ int64 = -1e-1000    // ERROR "\-1e\-1000 truncated"
++	_ int64 = -1e-10000   // ERROR "\-1e\-10000 truncated"
++	_ int64 = -1e-100000  // ERROR "\-1e\-100000 truncated"
++	_ int64 = -1e-1000000 // ERROR "\-1e\-1000000 truncated"
++)
++
++const (
++	_ int64 = 1.23456789e10000000 // ERROR "1\.23457e\+10000000 overflows"
++	_ int64 = 1.23456789e1000000  // ERROR "1\.23457e\+1000000 overflows"
++	_ int64 = 1.23456789e100000   // ERROR "1\.23457e\+100000 overflows"
++	_ int64 = 1.23456789e10000    // ERROR "1\.23457e\+10000 overflows"
++	_ int64 = 1.23456789e1000     // ERROR "1\.23457e\+1000 overflows"
++	_ int64 = 1.23456789e100      // ERROR "12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = 1.23456789e10
++	_ int64 = 1.23456789e1        // ERROR "12\.3457 truncated"
++	_ int64 = 1.23456789e0        // ERROR "1\.23457 truncated"
++	_ int64 = 1.23456789e-1       // ERROR "0\.123457 truncated"
++	_ int64 = 1.23456789e-10      // ERROR "1\.23457e\-10 truncated"
++	_ int64 = 1.23456789e-100     // ERROR "1\.23457e\-100 truncated"
++	_ int64 = 1.23456789e-1000    // ERROR "1\.23457e\-1000 truncated"
++	_ int64 = 1.23456789e-10000   // ERROR "1\.23457e\-10000 truncated"
++	_ int64 = 1.23456789e-100000  // ERROR "1\.23457e\-100000 truncated"
++	_ int64 = 1.23456789e-1000000 // ERROR "1\.23457e\-1000000 truncated"
++)
++
++const (
++	_ int64 = -1.23456789e10000000 // ERROR "\-1\.23457e\+10000000 overflows"
++	_ int64 = -1.23456789e1000000  // ERROR "\-1\.23457e\+1000000 overflows"
++	_ int64 = -1.23456789e100000   // ERROR "\-1\.23457e\+100000 overflows"
++	_ int64 = -1.23456789e10000    // ERROR "\-1\.23457e\+10000 overflows"
++	_ int64 = -1.23456789e1000     // ERROR "\-1\.23457e\+1000 overflows"
++	_ int64 = -1.23456789e100      // ERROR "\-12345678900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 overflows"
++	_ int64 = -1.23456789e10
++	_ int64 = -1.23456789e1        // ERROR "\-12\.3457 truncated"
++	_ int64 = -1.23456789e0        // ERROR "\-1\.23457 truncated"
++	_ int64 = -1.23456789e-1       // ERROR "\-0\.123457 truncated"
++	_ int64 = -1.23456789e-10      // ERROR "\-1\.23457e\-10 truncated"
++	_ int64 = -1.23456789e-100     // ERROR "\-1\.23457e\-100 truncated"
++	_ int64 = -1.23456789e-1000    // ERROR "\-1\.23457e\-1000 truncated"
++	_ int64 = -1.23456789e-10000   // ERROR "\-1\.23457e\-10000 truncated"
++	_ int64 = -1.23456789e-100000  // ERROR "\-1\.23457e\-100000 truncated"
++	_ int64 = -1.23456789e-1000000 // ERROR "\-1\.23457e\-1000000 truncated"
++)

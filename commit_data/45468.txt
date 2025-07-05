@@ -20,7 +20,7 @@ Date:   Tue Aug 4 17:29:03 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go | 37 ++++++++--------------
  src/runtime/malloc.go      |  2 +-
  src/runtime/mcache.go      | 70 ++++++++++++++---------------------------
@@ -28,3 +28,371 @@ Date:   Tue Aug 4 17:29:03 2020 +0000
  src/runtime/mstats.go      | 78 ++++++++++++++++++++++++++--------------------
  src/runtime/proc.go        |  2 +-
  6 files changed, 90 insertions(+), 109 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index cb753ee819..ff901fd7be 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -337,33 +337,22 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			}
+ 		}
+ 
+-		// Add in frees. readmemstats_m flushed the cached stats, so
+-		// these are up-to-date.
+-		var tinyAllocs, largeFree, smallFree uint64
+-		for _, p := range allp {
+-			c := p.mcache
+-			if c == nil {
+-				continue
+-			}
+-			// Collect large allocation stats.
+-			largeFree += uint64(c.largeFree)
+-			slow.Frees += uint64(c.largeFreeCount)
+-
+-			// Collect tiny allocation stats.
+-			tinyAllocs += uint64(c.tinyAllocCount)
+-
+-			// Collect per-sizeclass stats.
+-			for i := 0; i < _NumSizeClasses; i++ {
+-				slow.Frees += uint64(c.smallFreeCount[i])
+-				bySize[i].Frees += uint64(c.smallFreeCount[i])
+-				bySize[i].Mallocs += uint64(c.smallFreeCount[i])
+-				smallFree += uint64(c.smallFreeCount[i]) * uint64(class_to_size[i])
+-			}
++		// Add in frees by just reading the stats for those directly.
++		var m heapStatsDelta
++		memstats.heapStats.unsafeRead(&m)
++
++		// Collect per-sizeclass free stats.
++		var smallFree uint64
++		for i := 0; i < _NumSizeClasses; i++ {
++			slow.Frees += uint64(m.smallFreeCount[i])
++			bySize[i].Frees += uint64(m.smallFreeCount[i])
++			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
++			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
+ 		}
+-		slow.Frees += tinyAllocs
++		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
+ 		slow.Mallocs += slow.Frees
+ 
+-		slow.TotalAlloc = slow.Alloc + largeFree + smallFree
++		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
+ 
+ 		for i := range slow.BySize {
+ 			slow.BySize[i].Mallocs = bySize[i].Mallocs
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 6383c34817..d0b8c668c3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1028,7 +1028,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				// The object fits into existing tiny block.
+ 				x = unsafe.Pointer(c.tiny + off)
+ 				c.tinyoffset = off + size
+-				c.tinyAllocCount++
++				c.tinyAllocs++
+ 				mp.mallocing = 0
+ 				releasem(mp)
+ 				return x
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index e27a1c9ec0..c9342a41c9 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -32,8 +32,12 @@ type mcache struct {
+ 	// tiny is a heap pointer. Since mcache is in non-GC'd memory,
+ 	// we handle it by clearing it in releaseAll during mark
+ 	// termination.
++	//
++	// tinyAllocs is the number of tiny allocations performed
++	// by the P that owns this mcache.
+ 	tiny       uintptr
+ 	tinyoffset uintptr
++	tinyAllocs uintptr
+ 
+ 	// The rest is not accessed on every malloc.
+ 
+@@ -41,21 +45,6 @@ type mcache struct {
+ 
+ 	stackcache [_NumStackOrders]stackfreelist
+ 
+-	// Allocator stats (source-of-truth).
+-	// Only the P that owns this mcache may write to these
+-	// variables, so it's safe for that P to read non-atomically.
+-	//
+-	// When read with stats from other mcaches and with the world
+-	// stopped, the result will accurately reflect the state of the
+-	// application.
+-	tinyAllocCount  uintptr                  // number of tiny allocs not counted in other stats
+-	largeAlloc      uintptr                  // bytes allocated for large objects
+-	largeAllocCount uintptr                  // number of large object allocations
+-	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
+-	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
+-	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
+-	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
+-
+ 	// flushGen indicates the sweepgen during which this mcache
+ 	// was last flushed. If flushGen != mheap_.sweepgen, the spans
+ 	// in this mcache are stale and need to the flushed so they
+@@ -117,7 +106,7 @@ func allocmcache() *mcache {
+ // In some cases there is no way to simply release
+ // resources, such as statistics, so donate them to
+ // a different mcache (the recipient).
+-func freemcache(c *mcache, recipient *mcache) {
++func freemcache(c *mcache) {
+ 	systemstack(func() {
+ 		c.releaseAll()
+ 		stackcache_clear(c)
+@@ -128,8 +117,6 @@ func freemcache(c *mcache, recipient *mcache) {
+ 		// gcworkbuffree(c.gcworkbuf)
+ 
+ 		lock(&mheap_.lock)
+-		// Donate anything else that's left.
+-		c.donate(recipient)
+ 		mheap_.cachealloc.free(unsafe.Pointer(c))
+ 		unlock(&mheap_.lock)
+ 	})
+@@ -158,31 +145,6 @@ func getMCache() *mcache {
+ 	return c
+ }
+ 
+-// donate flushes data and resources which have no global
+-// pool to another mcache.
+-func (c *mcache) donate(d *mcache) {
+-	// scanAlloc is handled separately because it's not
+-	// like these stats -- it's used for GC pacing.
+-	d.largeAlloc += c.largeAlloc
+-	c.largeAlloc = 0
+-	d.largeAllocCount += c.largeAllocCount
+-	c.largeAllocCount = 0
+-	for i := range c.smallAllocCount {
+-		d.smallAllocCount[i] += c.smallAllocCount[i]
+-		c.smallAllocCount[i] = 0
+-	}
+-	d.largeFree += c.largeFree
+-	c.largeFree = 0
+-	d.largeFreeCount += c.largeFreeCount
+-	c.largeFreeCount = 0
+-	for i := range c.smallFreeCount {
+-		d.smallFreeCount[i] += c.smallFreeCount[i]
+-		c.smallFreeCount[i] = 0
+-	}
+-	d.tinyAllocCount += c.tinyAllocCount
+-	c.tinyAllocCount = 0
+-}
+-
+ // refill acquires a new span of span class spc for c. This span will
+ // have at least one free object. The current span in c must be full.
+ //
+@@ -219,12 +181,20 @@ func (c *mcache) refill(spc spanClass) {
+ 
+ 	// Assume all objects from this span will be allocated in the
+ 	// mcache. If it gets uncached, we'll adjust this.
+-	c.smallAllocCount[spc.sizeclass()] += uintptr(s.nelems) - uintptr(s.allocCount)
++	stats := memstats.heapStats.acquire(c)
++	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
++	memstats.heapStats.release(c)
+ 
+ 	// Update heap_live with the same assumption.
+ 	usedBytes := uintptr(s.allocCount) * s.elemsize
+ 	atomic.Xadd64(&memstats.heap_live, int64(s.npages*pageSize)-int64(usedBytes))
+ 
++	// Flush tinyAllocs.
++	if spc == tinySpanClass {
++		atomic.Xadd64(&memstats.tinyallocs, int64(c.tinyAllocs))
++		c.tinyAllocs = 0
++	}
++
+ 	// While we're here, flush scanAlloc, since we have to call
+ 	// revise anyway.
+ 	atomic.Xadd64(&memstats.heap_scan, int64(c.scanAlloc))
+@@ -262,8 +232,10 @@ func (c *mcache) allocLarge(size uintptr, needzero bool, noscan bool) *mspan {
+ 	if s == nil {
+ 		throw("out of memory")
+ 	}
+-	c.largeAlloc += npages * pageSize
+-	c.largeAllocCount++
++	stats := memstats.heapStats.acquire(c)
++	atomic.Xadduintptr(&stats.largeAlloc, npages*pageSize)
++	atomic.Xadduintptr(&stats.largeAllocCount, 1)
++	memstats.heapStats.release(c)
+ 
+ 	// Update heap_live and revise pacing if needed.
+ 	atomic.Xadd64(&memstats.heap_live, int64(npages*pageSize))
+@@ -294,7 +266,9 @@ func (c *mcache) releaseAll() {
+ 		if s != &emptymspan {
+ 			// Adjust nsmallalloc in case the span wasn't fully allocated.
+ 			n := uintptr(s.nelems) - uintptr(s.allocCount)
+-			c.smallAllocCount[spanClass(i).sizeclass()] -= n
++			stats := memstats.heapStats.acquire(c)
++			atomic.Xadduintptr(&stats.smallAllocCount[spanClass(i).sizeclass()], -n)
++			memstats.heapStats.release(c)
+ 			if s.sweepgen != sg+1 {
+ 				// refill conservatively counted unallocated slots in heap_live.
+ 				// Undo this.
+@@ -313,6 +287,8 @@ func (c *mcache) releaseAll() {
+ 	// Clear tinyalloc pool.
+ 	c.tiny = 0
+ 	c.tinyoffset = 0
++	atomic.Xadd64(&memstats.tinyallocs, int64(c.tinyAllocs))
++	c.tinyAllocs = 0
+ 
+ 	// Updated heap_scan and possible heap_live.
+ 	if gcBlackenEnabled != 0 {
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 7103b08455..9b77ce635c 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -503,7 +503,9 @@ func (s *mspan) sweep(preserve bool) bool {
+ 			// wasn't totally filled, but then swept, still has all of its
+ 			// free slots zeroed.
+ 			s.needzero = 1
+-			c.smallFreeCount[spc.sizeclass()] += uintptr(nfreed)
++			stats := memstats.heapStats.acquire(c)
++			atomic.Xadduintptr(&stats.smallFreeCount[spc.sizeclass()], uintptr(nfreed))
++			memstats.heapStats.release(c)
+ 		}
+ 		if !preserve {
+ 			// The caller may not have removed this span from whatever
+@@ -548,8 +550,10 @@ func (s *mspan) sweep(preserve bool) bool {
+ 			} else {
+ 				mheap_.freeSpan(s)
+ 			}
+-			c.largeFreeCount++
+-			c.largeFree += size
++			stats := memstats.heapStats.acquire(c)
++			atomic.Xadduintptr(&stats.largeFreeCount, 1)
++			atomic.Xadduintptr(&stats.largeFree, size)
++			memstats.heapStats.release(c)
+ 			return true
+ 		}
+ 
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 4363eff1e0..a8eca85fe6 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -612,48 +612,36 @@ func updatememstats() {
+ 	memstats.total_alloc = 0
+ 	memstats.nmalloc = 0
+ 	memstats.nfree = 0
+-	memstats.tinyallocs = 0
+ 	for i := 0; i < len(memstats.by_size); i++ {
+ 		memstats.by_size[i].nmalloc = 0
+ 		memstats.by_size[i].nfree = 0
+ 	}
+-
+-	// Collect allocation stats. This is safe and consistent
+-	// because the world is stopped.
+-	var smallFree, totalAlloc, totalFree uint64
+-	for _, p := range allp {
+-		c := p.mcache
+-		if c == nil {
+-			continue
+-		}
+-		// Collect large allocation stats.
+-		memstats.nmalloc += uint64(c.largeAllocCount)
+-		totalAlloc += uint64(c.largeAlloc)
+-		totalFree += uint64(c.largeFree)
+-		memstats.nfree += uint64(c.largeFreeCount)
+-
+-		// Collect tiny allocation stats.
+-		memstats.tinyallocs += uint64(c.tinyAllocCount)
+-
+-		// Collect per-sizeclass stats.
+-		for i := 0; i < _NumSizeClasses; i++ {
+-			// Malloc stats.
+-			memstats.nmalloc += uint64(c.smallAllocCount[i])
+-			memstats.by_size[i].nmalloc += uint64(c.smallAllocCount[i])
+-			totalAlloc += uint64(c.smallAllocCount[i]) * uint64(class_to_size[i])
+-
+-			// Free stats.
+-			memstats.nfree += uint64(c.smallFreeCount[i])
+-			memstats.by_size[i].nfree += uint64(c.smallFreeCount[i])
+-			smallFree += uint64(c.smallFreeCount[i]) * uint64(class_to_size[i])
+-		}
+-	}
+ 	// Collect consistent stats, which are the source-of-truth in the some cases.
+ 	var consStats heapStatsDelta
+ 	memstats.heapStats.unsafeRead(&consStats)
+ 
+-	totalFree += smallFree
++	// Collect large allocation stats.
++	totalAlloc := uint64(consStats.largeAlloc)
++	memstats.nmalloc += uint64(consStats.largeAllocCount)
++	totalFree := uint64(consStats.largeFree)
++	memstats.nfree += uint64(consStats.largeFreeCount)
++
++	// Collect per-sizeclass stats.
++	for i := 0; i < _NumSizeClasses; i++ {
++		// Malloc stats.
++		a := uint64(consStats.smallAllocCount[i])
++		totalAlloc += a * uint64(class_to_size[i])
++		memstats.nmalloc += a
++		memstats.by_size[i].nmalloc = a
++
++		// Free stats.
++		f := uint64(consStats.smallFreeCount[i])
++		totalFree += f * uint64(class_to_size[i])
++		memstats.nfree += f
++		memstats.by_size[i].nfree = f
++	}
+ 
++	// Account for tiny allocations.
+ 	memstats.nfree += memstats.tinyallocs
+ 	memstats.nmalloc += memstats.tinyallocs
+ 
+@@ -752,12 +740,25 @@ func (s *sysMemStat) add(n int64) {
+ // that need to be updated together in order for them to be kept
+ // consistent with one another.
+ type heapStatsDelta struct {
++	// Memory stats.
+ 	committed       int64 // byte delta of memory committed
+ 	released        int64 // byte delta of released memory generated
+ 	inHeap          int64 // byte delta of memory placed in the heap
+ 	inStacks        int64 // byte delta of memory reserved for stacks
+ 	inWorkBufs      int64 // byte delta of memory reserved for work bufs
+ 	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
++
++	// Allocator stats.
++	largeAlloc      uintptr                  // bytes allocated for large objects
++	largeAllocCount uintptr                  // number of large object allocations
++	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
++	largeFree       uintptr                  // bytes freed for large objects (>maxSmallSize)
++	largeFreeCount  uintptr                  // number of frees for large objects (>maxSmallSize)
++	smallFreeCount  [_NumSizeClasses]uintptr // number of frees for small objects (<=maxSmallSize)
++
++	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
++	// Only necessary on 32-bit platforms.
++	// _ [(sys.PtrSize / 4) % 2]uint32
+ }
+ 
+ // merge adds in the deltas from b into a.
+@@ -768,6 +769,17 @@ func (a *heapStatsDelta) merge(b *heapStatsDelta) {
+ 	a.inStacks += b.inStacks
+ 	a.inWorkBufs += b.inWorkBufs
+ 	a.inPtrScalarBits += b.inPtrScalarBits
++
++	a.largeAlloc += b.largeAlloc
++	a.largeAllocCount += b.largeAllocCount
++	for i := range b.smallAllocCount {
++		a.smallAllocCount[i] += b.smallAllocCount[i]
++	}
++	a.largeFree += b.largeFree
++	a.largeFreeCount += b.largeFreeCount
++	for i := range b.smallFreeCount {
++		a.smallFreeCount[i] += b.smallFreeCount[i]
++	}
+ }
+ 
+ // consistentHeapStats represents a set of various memory statistics
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4f4cff38aa..ebecc92745 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4550,7 +4550,7 @@ func (pp *p) destroy() {
+ 		pp.mspancache.len = 0
+ 		pp.pcache.flush(&mheap_.pages)
+ 	})
+-	freemcache(pp.mcache, allp[0].mcache)
++	freemcache(pp.mcache)
+ 	pp.mcache = nil
+ 	gfpurge(pp)
+ 	traceProcFree(pp)

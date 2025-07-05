@@ -9,7 +9,39 @@ Date:   Thu Apr 14 15:08:24 2016 -0400
     Change-Id: I94545238e40fa6a6832a7c3b40aedfc6c1f6a97b
     Reviewed-on: https://go-review.googlesource.com/22063
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_linux_386.go    | 12 ------------
  src/runtime/os_linux_noauxv.go |  2 +-
  2 files changed, 1 insertion(+), 13 deletions(-)
+
+diff --git a/src/runtime/os_linux_386.go b/src/runtime/os_linux_386.go
+deleted file mode 100644
+index cf031afe45..0000000000
+--- a/src/runtime/os_linux_386.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-const (
+-	_AT_SYSINFO = 32
+-)
+-
+-func archauxv(tag, val uintptr) {
+-}
+diff --git a/src/runtime/os_linux_noauxv.go b/src/runtime/os_linux_noauxv.go
+index d26c85bbb6..0b46f594ce 100644
+--- a/src/runtime/os_linux_noauxv.go
++++ b/src/runtime/os_linux_noauxv.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64,!arm,!arm64
++// +build !amd64,!arm,!arm64
+ 
+ package runtime
+ 

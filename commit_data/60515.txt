@@ -16,7 +16,7 @@ Date:   Mon Jul 22 15:09:57 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/601356
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/go_test.go                                  | 2 +-
  src/cmd/go/go_windows_test.go                          | 2 +-
  src/cmd/go/internal/modfetch/cache.go                  | 2 +-
@@ -29,3 +29,128 @@ Date:   Mon Jul 22 15:09:57 2024 +0000
  src/cmd/{go => }/internal/robustio/robustio_other.go   | 0
  src/cmd/{go => }/internal/robustio/robustio_windows.go | 0
  11 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 59520cd2b4..5315779246 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -34,13 +34,13 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+-	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/toolchain"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/vcweb/vcstest"
+ 	"cmd/go/internal/web"
+ 	"cmd/go/internal/work"
++	"cmd/internal/robustio"
+ 	"cmd/internal/sys"
+ 
+ 	cmdgo "cmd/go"
+diff --git a/src/cmd/go/go_windows_test.go b/src/cmd/go/go_windows_test.go
+index 0c443eb64d..63bcc4a4ea 100644
+--- a/src/cmd/go/go_windows_test.go
++++ b/src/cmd/go/go_windows_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	"cmd/go/internal/robustio"
++	"cmd/internal/robustio"
+ )
+ 
+ func TestAbsolutePath(t *testing.T) {
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 18a1ab099b..02d3849314 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -24,8 +24,8 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch/codehost"
+-	"cmd/go/internal/robustio"
+ 	"cmd/internal/par"
++	"cmd/internal/robustio"
+ 	"cmd/internal/telemetry/counter"
+ 
+ 	"golang.org/x/mod/module"
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index c1f500ee00..5cf63c45f7 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -25,10 +25,10 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/par"
++	"cmd/internal/robustio"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/sumdb/dirhash"
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index 50c752c2cc..3ea9193cb1 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -6,7 +6,7 @@ package script
+ 
+ import (
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/robustio"
++	"cmd/internal/robustio"
+ 	"errors"
+ 	"fmt"
+ 	"internal/diff"
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 5e83f1ebfd..48ed3b7641 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -26,10 +26,10 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/internal/buildid"
++	"cmd/internal/robustio"
+ )
+ 
+ // A Builder holds global state about a build.
+@@ -560,9 +560,9 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 		if p.Internal.PGOProfile != "" {
+ 			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
+ 				a := &Action{
+-					Mode:    "preprocess PGO profile",
+-					Actor:   &pgoActor{input: p.Internal.PGOProfile},
+-					Objdir:  b.NewObjdir(),
++					Mode:   "preprocess PGO profile",
++					Actor:  &pgoActor{input: p.Internal.PGOProfile},
++					Objdir: b.NewObjdir(),
+ 				}
+ 				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
+ 
+diff --git a/src/cmd/go/internal/robustio/robustio.go b/src/cmd/internal/robustio/robustio.go
+similarity index 100%
+rename from src/cmd/go/internal/robustio/robustio.go
+rename to src/cmd/internal/robustio/robustio.go
+diff --git a/src/cmd/go/internal/robustio/robustio_darwin.go b/src/cmd/internal/robustio/robustio_darwin.go
+similarity index 100%
+rename from src/cmd/go/internal/robustio/robustio_darwin.go
+rename to src/cmd/internal/robustio/robustio_darwin.go
+diff --git a/src/cmd/go/internal/robustio/robustio_flaky.go b/src/cmd/internal/robustio/robustio_flaky.go
+similarity index 100%
+rename from src/cmd/go/internal/robustio/robustio_flaky.go
+rename to src/cmd/internal/robustio/robustio_flaky.go
+diff --git a/src/cmd/go/internal/robustio/robustio_other.go b/src/cmd/internal/robustio/robustio_other.go
+similarity index 100%
+rename from src/cmd/go/internal/robustio/robustio_other.go
+rename to src/cmd/internal/robustio/robustio_other.go
+diff --git a/src/cmd/go/internal/robustio/robustio_windows.go b/src/cmd/internal/robustio/robustio_windows.go
+similarity index 100%
+rename from src/cmd/go/internal/robustio/robustio_windows.go
+rename to src/cmd/internal/robustio/robustio_windows.go

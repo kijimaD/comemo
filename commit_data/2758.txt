@@ -8,6 +8,25 @@ Date:   Mon Jul 20 13:37:35 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=31863
     CL=31870
-
+---
  src/lib9/fmt/fmtnull.c | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib9/fmt/fmtnull.c b/src/lib9/fmt/fmtnull.c
+index b8caacbf7b..dbbf02f9d4 100644
+--- a/src/lib9/fmt/fmtnull.c
++++ b/src/lib9/fmt/fmtnull.c
+@@ -16,8 +16,11 @@
+  * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+  */
+ 
+-#include <u.h>
+-#include <libc.h>
++/* Copyright (c) 2004 Google Inc.; see LICENSE */
++#include <stdarg.h>
++#include <string.h>
++#include "plan9.h"
++#include "fmt.h"
+ #include "fmtdef.h"
+ 
+ /*

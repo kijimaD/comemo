@@ -10,6 +10,31 @@ Date:   Fri Dec 15 18:02:57 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/84379
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/debug/dwarf/entry.go | 13 ++++++++++++-
  1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index ffa61c28d1..6be0700b7e 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -461,7 +461,18 @@ func (b *buf) entry(atab abbrevTable, ubase Offset) *Entry {
+ 		case formString:
+ 			val = b.string()
+ 		case formStrp:
+-			off := b.uint32() // offset into .debug_str
++			var off uint64 // offset into .debug_str
++			is64, known := b.format.dwarf64()
++			if !known {
++				b.error("unknown size for DW_FORM_strp")
++			} else if is64 {
++				off = b.uint64()
++			} else {
++				off = uint64(b.uint32())
++			}
++			if uint64(int(off)) != off {
++				b.error("DW_FORM_strp offset out of range")
++			}
+ 			if b.err != nil {
+ 				return nil
+ 			}

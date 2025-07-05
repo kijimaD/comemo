@@ -8,6 +8,23 @@ Date:   Thu Sep 20 22:46:24 2012 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6535048
-
+---
  src/pkg/runtime/parfor.c | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/runtime/parfor.c b/src/pkg/runtime/parfor.c
+index 7ebbaac4cd..36dd65852f 100644
+--- a/src/pkg/runtime/parfor.c
++++ b/src/pkg/runtime/parfor.c
+@@ -196,6 +196,11 @@ exit:
+ 	runtime·xadd64(&desc->nprocyield, me->nprocyield);
+ 	runtime·xadd64(&desc->nosyield, me->nosyield);
+ 	runtime·xadd64(&desc->nsleep, me->nsleep);
++	me->nsteal = 0;
++	me->nstealcnt = 0;
++	me->nprocyield = 0;
++	me->nosyield = 0;
++	me->nsleep = 0;
+ }
+ 
+ // For testing from Go

@@ -7,6 +7,21 @@ Date:   Wed Oct 29 00:02:29 2014 -0400
     TBR=austin
     CC=golang-codereviews
     https://golang.org/cl/167820043
-
+---
  src/runtime/crash_cgo_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 7877965587..5958ad8914 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -36,6 +36,9 @@ func TestCgoTraceback(t *testing.T) {
+ }
+ 
+ func TestCgoExternalThreadPanic(t *testing.T) {
++	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		t.Skipf("no pthreads on %s", runtime.GOOS)
++	}
+ 	got := executeTest(t, cgoExternalThreadPanicSource, nil, "main.c", cgoExternalThreadPanicC)
+ 	want := "panic: BOOM"
+ 	if !strings.Contains(got, want) {

@@ -11,6 +11,20 @@ Date:   Fri Apr 20 17:51:57 2018 +0000
     GitHub-Pull-Request: golang/go#24975
     Reviewed-on: https://go-review.googlesource.com/108458
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/os/os_windows_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index faf0d99992..e28f0f4fa5 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -191,7 +191,7 @@ func (rd *reparseData) addUTF16s(s []uint16) (offset uint16) {
+ 
+ func (rd *reparseData) addString(s string) (offset, length uint16) {
+ 	p := syscall.StringToUTF16(s)
+-	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the legth (as per PrintNameLength and SubstituteNameLength documentation)
++	return rd.addUTF16s(p), uint16(len(p)-1) * 2 // do not include terminating NUL in the length (as per PrintNameLength and SubstituteNameLength documentation)
+ }
+ 
+ func (rd *reparseData) addSubstituteName(name string) {

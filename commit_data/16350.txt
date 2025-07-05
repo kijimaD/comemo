@@ -22,9 +22,264 @@ Date:   Mon May 20 14:20:26 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9104051
-
+---
  src/pkg/crypto/x509/cert_pool.go    | 11 +++--
  src/pkg/crypto/x509/root_windows.go |  6 +--
  src/pkg/crypto/x509/verify.go       | 34 ++++++++++++--
  src/pkg/crypto/x509/verify_test.go  | 90 +++++++++++++++++++++++++++++++++++++
  4 files changed, 130 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+index 505f4d4f77..babe94d41c 100644
+--- a/src/pkg/crypto/x509/cert_pool.go
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -25,9 +25,10 @@ func NewCertPool() *CertPool {
+ }
+ 
+ // findVerifiedParents attempts to find certificates in s which have signed the
+-// given certificate. If no such certificate can be found or the signature
+-// doesn't match, it returns nil.
+-func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
++// given certificate. If any candidates were rejected then errCert will be set
++// to one of them, arbitrarily, and err will contain the reason that it was
++// rejected.
++func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int, errCert *Certificate, err error) {
+ 	if s == nil {
+ 		return
+ 	}
+@@ -41,8 +42,10 @@ func (s *CertPool) findVerifiedParents(cert *Certificate) (parents []int) {
+ 	}
+ 
+ 	for _, c := range candidates {
+-		if cert.CheckSignatureFrom(s.certs[c]) == nil {
++		if err = cert.CheckSignatureFrom(s.certs[c]); err == nil {
+ 			parents = append(parents, c)
++		} else {
++			errCert = s.certs[c]
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/root_windows.go b/src/pkg/crypto/x509/root_windows.go
+index e8f70a49da..81018b78fe 100644
+--- a/src/pkg/crypto/x509/root_windows.go
++++ b/src/pkg/crypto/x509/root_windows.go
+@@ -89,7 +89,7 @@ func checkChainTrustStatus(c *Certificate, chainCtx *syscall.CertChainContext) e
+ 		case syscall.CERT_TRUST_IS_NOT_TIME_VALID:
+ 			return CertificateInvalidError{c, Expired}
+ 		default:
+-			return UnknownAuthorityError{c}
++			return UnknownAuthorityError{c, nil, nil}
+ 		}
+ 	}
+ 	return nil
+@@ -129,9 +129,9 @@ func checkChainSSLServerPolicy(c *Certificate, chainCtx *syscall.CertChainContex
+ 		case syscall.CERT_E_CN_NO_MATCH:
+ 			return HostnameError{c, opts.DNSName}
+ 		case syscall.CERT_E_UNTRUSTEDROOT:
+-			return UnknownAuthorityError{c}
++			return UnknownAuthorityError{c, nil, nil}
+ 		default:
+-			return UnknownAuthorityError{c}
++			return UnknownAuthorityError{c, nil, nil}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index b29ddbc80f..e9c5a7f466 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"fmt"
+ 	"net"
+ 	"runtime"
+ 	"strings"
+@@ -91,10 +92,27 @@ func (h HostnameError) Error() string {
+ // UnknownAuthorityError results when the certificate issuer is unknown
+ type UnknownAuthorityError struct {
+ 	cert *Certificate
++	// hintErr contains an error that may be helpful in determining why an
++	// authority wasn't found.
++	hintErr error
++	// hintCert contains a possible authority certificate that was rejected
++	// because of the error in hintErr.
++	hintCert *Certificate
+ }
+ 
+ func (e UnknownAuthorityError) Error() string {
+-	return "x509: certificate signed by unknown authority"
++	s := "x509: certificate signed by unknown authority"
++	if e.hintErr != nil {
++		certName := e.hintCert.Subject.CommonName
++		if len(certName) == 0 {
++			if len(e.hintCert.Subject.Organization) > 0 {
++				certName = e.hintCert.Subject.Organization[0]
++			}
++			certName = "serial:" + e.hintCert.SerialNumber.String()
++		}
++		s += fmt.Sprintf(" (possibly because of %q while trying to verify candidate authority certificate %q)", e.hintErr, certName)
++	}
++	return s
+ }
+ 
+ // SystemRootsError results when we fail to load the system root certificates.
+@@ -249,7 +267,8 @@ func appendToFreshChain(chain []*Certificate, cert *Certificate) []*Certificate
+ }
+ 
+ func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain []*Certificate, opts *VerifyOptions) (chains [][]*Certificate, err error) {
+-	for _, rootNum := range opts.Roots.findVerifiedParents(c) {
++	possibleRoots, failedRoot, rootErr := opts.Roots.findVerifiedParents(c)
++	for _, rootNum := range possibleRoots {
+ 		root := opts.Roots.certs[rootNum]
+ 		err = root.isValid(rootCertificate, currentChain, opts)
+ 		if err != nil {
+@@ -258,8 +277,9 @@ func (c *Certificate) buildChains(cache map[int][][]*Certificate, currentChain [
+ 		chains = append(chains, appendToFreshChain(currentChain, root))
+ 	}
+ 
++	possibleIntermediates, failedIntermediate, intermediateErr := opts.Intermediates.findVerifiedParents(c)
+ nextIntermediate:
+-	for _, intermediateNum := range opts.Intermediates.findVerifiedParents(c) {
++	for _, intermediateNum := range possibleIntermediates {
+ 		intermediate := opts.Intermediates.certs[intermediateNum]
+ 		for _, cert := range currentChain {
+ 			if cert == intermediate {
+@@ -284,7 +304,13 @@ nextIntermediate:
+ 	}
+ 
+ 	if len(chains) == 0 && err == nil {
+-		err = UnknownAuthorityError{c}
++		hintErr := rootErr
++		hintCert := failedRoot
++		if hintErr == nil {
++			hintErr = intermediateErr
++			hintCert = failedIntermediate
++		}
++		err = UnknownAuthorityError{c, hintErr, hintCert}
+ 	}
+ 
+ 	return
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 5103ed814a..e9b3af83b0 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -126,6 +126,18 @@ var verifyTests = []verifyTest{
+ 			{"dnssec-exp", "StartCom Class 1", "StartCom Certification Authority", "StartCom Certification Authority"},
+ 		},
+ 	},
++	{
++		leaf:          googleLeafWithInvalidHash,
++		intermediates: []string{thawteIntermediate},
++		roots:         []string{verisignRoot},
++		currentTime:   1302726541,
++		dnsName:       "www.google.com",
++
++		// The specific error message may not occur when using system
++		// verification.
++		systemSkip:    true,
++		errorCallback: expectHashError,
++	},
+ 	{
+ 		// The default configuration should reject an S/MIME chain.
+ 		leaf:        smimeLeaf,
+@@ -213,6 +225,18 @@ func expectSystemRootsError(t *testing.T, i int, err error) bool {
+ 	return true
+ }
+ 
++func expectHashError(t *testing.T, i int, err error) bool {
++	if err == nil {
++		t.Errorf("#%d: no error resulted from invalid hash", i)
++		return false
++	}
++	if expected := "algorithm unimplemented"; !strings.Contains(err.Error(), expected) {
++		t.Errorf("#%d: error resulting from invalid hash didn't contain '%s', rather it was: %s", i, expected, err)
++		return false
++	}
++	return true
++}
++
+ func certificateFromPEM(pemBytes string) (*Certificate, error) {
+ 	block, _ := pem.Decode([]byte(pemBytes))
+ 	if block == nil {
+@@ -400,6 +424,28 @@ u2ONgJd8IyAPkU0Wueru9G2Jysa9zCRo1kNbzipYvzwY4OA8Ys+WAi0oR1A04Se6
+ z5nRUP8pJcA2NhUzUnC+MY+f6H/nEQyNv4SgQhqAibAxWEEHXw==
+ -----END CERTIFICATE-----`
+ 
++// googleLeafWithInvalidHash is the same as googleLeaf, but the signature
++// algorithm in the certificate contains a nonsense OID.
++const googleLeafWithInvalidHash = `-----BEGIN CERTIFICATE-----
++MIIDITCCAoqgAwIBAgIQL9+89q6RUm0PmqPfQDQ+mjANBgkqhkiG9w0BATIFADBM
++MQswCQYDVQQGEwJaQTElMCMGA1UEChMcVGhhd3RlIENvbnN1bHRpbmcgKFB0eSkg
++THRkLjEWMBQGA1UEAxMNVGhhd3RlIFNHQyBDQTAeFw0wOTEyMTgwMDAwMDBaFw0x
++MTEyMTgyMzU5NTlaMGgxCzAJBgNVBAYTAlVTMRMwEQYDVQQIEwpDYWxpZm9ybmlh
++MRYwFAYDVQQHFA1Nb3VudGFpbiBWaWV3MRMwEQYDVQQKFApHb29nbGUgSW5jMRcw
++FQYDVQQDFA53d3cuZ29vZ2xlLmNvbTCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkC
++gYEA6PmGD5D6htffvXImttdEAoN4c9kCKO+IRTn7EOh8rqk41XXGOOsKFQebg+jN
++gtXj9xVoRaELGYW84u+E593y17iYwqG7tcFR39SDAqc9BkJb4SLD3muFXxzW2k6L
++05vuuWciKh0R73mkszeK9P4Y/bz5RiNQl/Os/CRGK1w7t0UCAwEAAaOB5zCB5DAM
++BgNVHRMBAf8EAjAAMDYGA1UdHwQvMC0wK6ApoCeGJWh0dHA6Ly9jcmwudGhhd3Rl
++LmNvbS9UaGF3dGVTR0NDQS5jcmwwKAYDVR0lBCEwHwYIKwYBBQUHAwEGCCsGAQUF
++BwMCBglghkgBhvhCBAEwcgYIKwYBBQUHAQEEZjBkMCIGCCsGAQUFBzABhhZodHRw
++Oi8vb2NzcC50aGF3dGUuY29tMD4GCCsGAQUFBzAChjJodHRwOi8vd3d3LnRoYXd0
++ZS5jb20vcmVwb3NpdG9yeS9UaGF3dGVfU0dDX0NBLmNydDANBgkqhkiG9w0BAVAF
++AAOBgQCfQ89bxFApsb/isJr/aiEdLRLDLE5a+RLizrmCUi3nHX4adpaQedEkUjh5
++u2ONgJd8IyAPkU0Wueru9G2Jysa9zCRo1kNbzipYvzwY4OA8Ys+WAi0oR1A04Se6
++z5nRUP8pJcA2NhUzUnC+MY+f6H/nEQyNv4SgQhqAibAxWEEHXw==
++-----END CERTIFICATE-----`
++
+ const dnssecExpLeaf = `-----BEGIN CERTIFICATE-----
+ MIIGzTCCBbWgAwIBAgIDAdD6MA0GCSqGSIb3DQEBBQUAMIGMMQswCQYDVQQGEwJJ
+ TDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0
+@@ -522,6 +568,50 @@ um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh
+ NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=
+ -----END CERTIFICATE-----`
+ 
++const startComRootSHA256 = `-----BEGIN CERTIFICATE-----
++MIIHhzCCBW+gAwIBAgIBLTANBgkqhkiG9w0BAQsFADB9MQswCQYDVQQGEwJJTDEW
++MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
++Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
++dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM3WhcNMzYwOTE3MTk0NjM2WjB9
++MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi
++U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh
++cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA
++A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk
++pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf
++OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C
++Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT
++Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi
++HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM
++Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w
+++2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+
++Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3
++Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B
++26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID
++AQABo4ICEDCCAgwwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYD
++VR0OBBYEFE4L7xqkQFulF2mHMMo0aEPQQa7yMB8GA1UdIwQYMBaAFE4L7xqkQFul
++F2mHMMo0aEPQQa7yMIIBWgYDVR0gBIIBUTCCAU0wggFJBgsrBgEEAYG1NwEBATCC
++ATgwLgYIKwYBBQUHAgEWImh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL3BvbGljeS5w
++ZGYwNAYIKwYBBQUHAgEWKGh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL2ludGVybWVk
++aWF0ZS5wZGYwgc8GCCsGAQUFBwICMIHCMCcWIFN0YXJ0IENvbW1lcmNpYWwgKFN0
++YXJ0Q29tKSBMdGQuMAMCAQEagZZMaW1pdGVkIExpYWJpbGl0eSwgcmVhZCB0aGUg
++c2VjdGlvbiAqTGVnYWwgTGltaXRhdGlvbnMqIG9mIHRoZSBTdGFydENvbSBDZXJ0
++aWZpY2F0aW9uIEF1dGhvcml0eSBQb2xpY3kgYXZhaWxhYmxlIGF0IGh0dHA6Ly93
++d3cuc3RhcnRzc2wuY29tL3BvbGljeS5wZGYwEQYJYIZIAYb4QgEBBAQDAgAHMDgG
++CWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNTTCBDZXJ0aWZpY2F0aW9uIEF1
++dGhvcml0eTANBgkqhkiG9w0BAQsFAAOCAgEAjo/n3JR5fPGFf59Jb2vKXfuM/gTF
++wWLRfUKKvFO3lANmMD+x5wqnUCBVJX92ehQN6wQOQOY+2IirByeDqXWmN3PH/UvS
++Ta0XQMhGvjt/UfzDtgUx3M2FIk5xt/JxXrAaxrqTi3iSSoX4eA+D/i+tLPfkpLst
++0OcNOrg+zvZ49q5HJMqjNTbOx8aHmNrs++myziebiMMEofYLWWivydsQD032ZGNc
++pRJvkrKTlMeIFw6Ttn5ii5B/q06f/ON1FE8qMt9bDeD1e5MNq6HPh+GlBEXoPBKl
++CcWw0bdT82AUuoVpaiF8H3VhFyAXe2w7QSlc4axa0c2Mm+tgHRns9+Ww2vl5GKVF
++P0lDV9LdJNUso/2RjSe15esUBppMeyG7Oq0wBhjA2MFrLH9ZXF2RsXAiV+uKa0hK
++1Q8p7MZAwC+ITGgBF3f0JBlPvfrhsiAhS90a2Cl9qrjeVOwhVYBsHvUwyKMQ5bLm
++KhQxw4UtjJixhlpPiVktucf3HMiKf8CdBUrmQk9io20ppB+Fq9vlgcitKj1MXVuE
++JnHEhV5xJMqlG2zYYdMa4FTbzrqpMrUi9nNBCV24F10OD5mQ1kfabwo6YigUZ4LZ
++8dCAWZvLMdibD4x3TrVoivJs9iQOLWxwxXPR3hTQcY+203sC9uO41Alua551hDnm
++fyWl8kgAwKQB2j8=
++-----END CERTIFICATE-----`
++
+ const smimeLeaf = `-----BEGIN CERTIFICATE-----
+ MIIFBjCCA+6gAwIBAgISESFvrjT8XcJTEe6rBlPptILlMA0GCSqGSIb3DQEBBQUA
+ MFQxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSowKAYD

@@ -12,6 +12,20 @@ Date:   Wed Sep 28 21:32:34 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/cgo/out.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index e2e2e0b8c5..8736455f4f 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -427,7 +427,7 @@ func checkImportSymName(s string) {
+ 			fatalf("dynamic symbol %q contains unsupported character", s)
+ 		}
+ 	}
+-	if strings.Index(s, "//") >= 0 || strings.Index(s, "/*") >= 0 {
++	if strings.Contains(s, "//") || strings.Contains(s, "/*") {
+ 		fatalf("dynamic symbol %q contains Go comment")
+ 	}
+ }

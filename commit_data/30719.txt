@@ -11,6 +11,26 @@ Date:   Tue Nov 29 14:20:58 2016 -0800
     Change-Id: I28559724322007d4259810c209a92ec1cc10f338
     Reviewed-on: https://go-review.googlesource.com/33668
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index f5851e30e1..480042630c 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -277,7 +277,13 @@ checked for Go pointers.
+ 
+ <h3 id="gccgo">Gccgo</h3>
+ 
+-<p>TODO</p>
++<p>
++Due to the alignment of Go's semiannual release schedule with GCC's
++annual release schedule,
++GCC release 6 contains the Go 1.6.1 version of gccgo.
++We expect that the next release, GCC 7, will contain the Go 1.8
++version of gccgo.
++</p>
+ 
+ <h3 id="cmd_go">Go command</h3>
+ 

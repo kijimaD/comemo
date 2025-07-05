@@ -12,7 +12,33 @@ Date:   Mon Jun 26 22:34:05 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/export_linux_test.go  | 1 -
  src/runtime/runtime_linux_test.go | 2 +-
  2 files changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/runtime/export_linux_test.go b/src/runtime/export_linux_test.go
+index 426fd1e109..52afd28666 100644
+--- a/src/runtime/export_linux_test.go
++++ b/src/runtime/export_linux_test.go
+@@ -11,7 +11,6 @@ const SigeventMaxSize = _sigev_max_size
+ 
+ var NewOSProc0 = newosproc0
+ var Mincore = mincore
+-var Add = add
+ 
+ type Siginfo siginfo
+ type Sigevent sigevent
+diff --git a/src/runtime/runtime_linux_test.go b/src/runtime/runtime_linux_test.go
+index 6af5561e91..ab2452c9e7 100644
+--- a/src/runtime/runtime_linux_test.go
++++ b/src/runtime/runtime_linux_test.go
+@@ -45,7 +45,7 @@ func TestLockOSThread(t *testing.T) {
+ // Use a misaligned pointer to get -EINVAL.
+ func TestMincoreErrorSign(t *testing.T) {
+ 	var dst byte
+-	v := Mincore(Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
++	v := Mincore(unsafe.Add(unsafe.Pointer(new(int32)), 1), 1, &dst)
+ 
+ 	const EINVAL = 0x16
+ 	if v != -EINVAL {

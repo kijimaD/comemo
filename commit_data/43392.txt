@@ -433,7 +433,7 @@ Date:   Tue Mar 24 22:14:02 2020 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go        |  3 +-
  src/cmd/compile/internal/gc/go.go            |  3 ++
  src/cmd/compile/internal/gc/ssa.go           | 15 +++++++++
@@ -443,3 +443,181 @@ Date:   Tue Mar 24 22:14:02 2020 -0700
  src/runtime/stubs_amd64.go                   |  9 +++++
  test/codegen/structs.go                      |  2 +-
  8 files changed, 81 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index b6c1039d9e..5d79095025 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -947,7 +947,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = v.Aux.(*obj.LSym)
++		// arg0 is in DI. Set sym to match where regalloc put arg1.
++		p.To.Sym = gc.GCWriteBarrierReg[v.Args[1].Reg()]
+ 
+ 	case ssa.OpAMD64LoweredPanicBoundsA, ssa.OpAMD64LoweredPanicBoundsB, ssa.OpAMD64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 85c857c214..d2a1b21cbd 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -334,3 +334,6 @@ var (
+ 	WasmTruncU,
+ 	SigPanic *obj.LSym
+ )
++
++// GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
++var GCWriteBarrierReg map[int16]*obj.LSym
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b7dc511fd3..00587aa3bf 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"cmd/internal/sys"
+@@ -104,6 +105,20 @@ func initssaconfig() {
+ 	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
+ 	zerobaseSym = sysvar("zerobase")
+ 
++	// asm funcs with special ABI
++	if thearch.LinkArch.Name == "amd64" {
++		GCWriteBarrierReg = map[int16]*obj.LSym{
++			x86.REG_AX: sysvar("gcWriteBarrier"),
++			x86.REG_CX: sysvar("gcWriteBarrierCX"),
++			x86.REG_DX: sysvar("gcWriteBarrierDX"),
++			x86.REG_BX: sysvar("gcWriteBarrierBX"),
++			x86.REG_BP: sysvar("gcWriteBarrierBP"),
++			x86.REG_SI: sysvar("gcWriteBarrierSI"),
++			x86.REG_R8: sysvar("gcWriteBarrierR8"),
++			x86.REG_R9: sysvar("gcWriteBarrierR9"),
++		}
++	}
++
+ 	if thearch.LinkArch.Family == sys.Wasm {
+ 		BoundsCheckFunc[ssa.BoundsIndex] = sysvar("goPanicIndex")
+ 		BoundsCheckFunc[ssa.BoundsIndexU] = sysvar("goPanicIndexU")
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 08aa65b0a8..74cdf0283b 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -717,7 +717,7 @@ func init() {
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpsp}}, clobberFlags: true, nilCheck: true, faultOnNilArg0: true},
+ 		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
+ 		// It saves all GP registers if necessary, but may clobber others.
+-		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), buildReg("AX CX DX BX BP SI R8 R9")}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e2b83e20b3..5e91856e48 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -11420,7 +11420,7 @@ var opcodeTable = [...]opInfo{
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+-				{1, 1},   // AX
++				{1, 879}, // AX CX DX BX BP SI R8 R9
+ 			},
+ 			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 		},
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index b872b8834d..ed7cec7233 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1475,6 +1475,55 @@ flush:
+ 	MOVQ	96(SP), R15
+ 	JMP	ret
+ 
++// gcWriteBarrierCX is gcWriteBarrier, but with args in DI and CX.
++TEXT runtime·gcWriteBarrierCX(SB),NOSPLIT,$0
++	XCHGQ CX, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ CX, AX
++	RET
++
++// gcWriteBarrierDX is gcWriteBarrier, but with args in DI and DX.
++TEXT runtime·gcWriteBarrierDX(SB),NOSPLIT,$0
++	XCHGQ DX, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ DX, AX
++	RET
++
++// gcWriteBarrierBX is gcWriteBarrier, but with args in DI and BX.
++TEXT runtime·gcWriteBarrierBX(SB),NOSPLIT,$0
++	XCHGQ BX, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ BX, AX
++	RET
++
++// gcWriteBarrierBP is gcWriteBarrier, but with args in DI and BP.
++TEXT runtime·gcWriteBarrierBP(SB),NOSPLIT,$0
++	XCHGQ BP, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ BP, AX
++	RET
++
++// gcWriteBarrierSI is gcWriteBarrier, but with args in DI and SI.
++TEXT runtime·gcWriteBarrierSI(SB),NOSPLIT,$0
++	XCHGQ SI, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ SI, AX
++	RET
++
++// gcWriteBarrierR8 is gcWriteBarrier, but with args in DI and R8.
++TEXT runtime·gcWriteBarrierR8(SB),NOSPLIT,$0
++	XCHGQ R8, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ R8, AX
++	RET
++
++// gcWriteBarrierR9 is gcWriteBarrier, but with args in DI and R9.
++TEXT runtime·gcWriteBarrierR9(SB),NOSPLIT,$0
++	XCHGQ R9, AX
++	CALL runtime·gcWriteBarrier(SB)
++	XCHGQ R9, AX
++	RET
++
+ DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
+ GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
+ 
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index 5b79d66762..8c14bc2271 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -4,6 +4,15 @@
+ 
+ package runtime
+ 
++// Called from compiled code; declared for vet; do NOT call from Go.
++func gcWriteBarrierCX()
++func gcWriteBarrierDX()
++func gcWriteBarrierBX()
++func gcWriteBarrierBP()
++func gcWriteBarrierSI()
++func gcWriteBarrierR8()
++func gcWriteBarrierR9()
++
+ // stackcheck checks that SP is in range [g->stack.lo, g->stack.hi).
+ func stackcheck()
+ 
+diff --git a/test/codegen/structs.go b/test/codegen/structs.go
+index b81ad67c44..9eddc5b16e 100644
+--- a/test/codegen/structs.go
++++ b/test/codegen/structs.go
+@@ -28,7 +28,7 @@ type Z2 struct {
+ 
+ func Zero2(t *Z2) {
+ 	// amd64:`XORPS\tX., X`,`MOVUPS\tX., \(.*\)`,`MOVQ\t\$0, 16\(.*\)`
+-	// amd64:`.*runtime[.]gcWriteBarrier\(SB\)`
++	// amd64:`.*runtime[.]gcWriteBarrier.*\(SB\)`
+ 	*t = Z2{}
+ }
+ 

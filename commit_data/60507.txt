@@ -12,6 +12,20 @@ Date:   Sun Jul 28 15:08:33 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/test/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 0ac5666620..ff22e4a457 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -569,7 +569,7 @@ func (f *testVFlag) Set(arg string) error {
+ 	}
+ 	if arg == "test2json" {
+ 		f.on = true
+-		f.json = arg == "test2json"
++		f.json = true
+ 		return nil
+ 	}
+ 	return fmt.Errorf("invalid flag -test.v=%s", arg)

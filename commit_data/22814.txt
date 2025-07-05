@@ -21,6 +21,27 @@ Date:   Sat Apr 4 12:27:46 2015 -0400
     Change-Id: I08476b9fbcfb2de90592405e9c9f434dfb9eb1f8
     Reviewed-on: https://go-review.googlesource.com/8512
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 855430e48c..a0975046c7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -314,7 +314,14 @@ func gc(mode int) {
+ 	if debug.gctrace > 0 {
+ 		stwprocs, maxprocs = gcprocs(), gomaxprocs
+ 		tSweepTerm = nanotime()
+-		heap0 = memstats.heap_live
++		if mode == gcBackgroundMode {
++			// We started GC when heap_live == next_gc,
++			// but the mutator may have allocated between
++			// then and now. Report heap when GC started.
++			heap0 = memstats.next_gc
++		} else {
++			heap0 = memstats.heap_live
++		}
+ 	}
+ 
+ 	if trace.enabled {

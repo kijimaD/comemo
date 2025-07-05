@@ -8,7 +8,7 @@ Date:   Tue Apr 29 12:44:40 2014 -0400
     R=golang-codereviews, bradfitz, ruiu
     CC=golang-codereviews
     https://golang.org/cl/91840044
-
+---
  src/cmd/cgo/out.go                    | 2 +-
  src/pkg/archive/tar/reader_test.go    | 2 +-
  src/pkg/bufio/bufio_test.go           | 2 +-
@@ -33,3 +33,357 @@ Date:   Tue Apr 29 12:44:40 2014 -0400
  src/pkg/go/parser/parser.go           | 2 +-
  src/pkg/go/printer/printer_test.go    | 6 +++---
  23 files changed, 29 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index a1fc2bd4ff..76c7247af0 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -485,7 +485,7 @@ func (p *Package) writeOutput(f *File, srcfile string) {
+ 	fgcc.Close()
+ }
+ 
+-// fixGo convers the internal Name.Go field into the name we should show
++// fixGo converts the internal Name.Go field into the name we should show
+ // to users in error messages. There's only one for now: on input we rewrite
+ // C.malloc into C._CMalloc, so change it back here.
+ func fixGo(name string) string {
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 6d4e06a58d..ed058978cc 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -471,7 +471,7 @@ func TestParsePAXHeader(t *testing.T) {
+ func TestParsePAXTime(t *testing.T) {
+ 	// Some valid PAX time values
+ 	timestamps := map[string]time.Time{
+-		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The commoon case
++		"1350244992.023960108":  time.Unix(1350244992, 23960108), // The common case
+ 		"1350244992.02396010":   time.Unix(1350244992, 23960100), // Lower precision value
+ 		"1350244992.0239601089": time.Unix(1350244992, 23960108), // Higher precision value
+ 		"1350244992":            time.Unix(1350244992, 0),        // Low precision value
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 49803009f9..76d3c8eade 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -349,7 +349,7 @@ func TestUnreadByteMultiple(t *testing.T) {
+ }
+ 
+ func TestUnreadByteOthers(t *testing.T) {
+-	// A list of readers to use in conjuction with UnreadByte.
++	// A list of readers to use in conjunction with UnreadByte.
+ 	var readers = []func(*Reader, byte) ([]byte, error){
+ 		(*Reader).ReadBytes,
+ 		(*Reader).ReadSlice,
+diff --git a/src/pkg/bufio/scan.go b/src/pkg/bufio/scan.go
+index 3f8d2a82a6..715ce071e3 100644
+--- a/src/pkg/bufio/scan.go
++++ b/src/pkg/bufio/scan.go
+@@ -135,7 +135,7 @@ func (s *Scanner) Scan() bool {
+ 		}
+ 		// Must read more data.
+ 		// First, shift data to beginning of buffer if there's lots of empty space
+-		// or space is neded.
++		// or space is needed.
+ 		if s.start > 0 && (s.end == len(s.buf) || s.start > len(s.buf)/2) {
+ 			copy(s.buf, s.buf[s.start:s.end])
+ 			s.end -= s.start
+diff --git a/src/pkg/bufio/scan_test.go b/src/pkg/bufio/scan_test.go
+index 4ac529fd6d..0db7cad204 100644
+--- a/src/pkg/bufio/scan_test.go
++++ b/src/pkg/bufio/scan_test.go
+@@ -277,7 +277,7 @@ func TestScanLineNoNewline(t *testing.T) {
+ 	testNoNewline(text, lines, t)
+ }
+ 
+-// Test that the line splitter handles a final line with a carriage return but nonewline.
++// Test that the line splitter handles a final line with a carriage return but no newline.
+ func TestScanLineReturnButNoNewline(t *testing.T) {
+ 	const text = "abcdefghijklmn\nopqrstuvwxyz\r"
+ 	lines := []string{
+diff --git a/src/pkg/compress/bzip2/bzip2_test.go b/src/pkg/compress/bzip2/bzip2_test.go
+index cd647e5ae0..727249dc46 100644
+--- a/src/pkg/compress/bzip2/bzip2_test.go
++++ b/src/pkg/compress/bzip2/bzip2_test.go
+@@ -177,7 +177,7 @@ const (
+ 
+ var testfiles = []string{
+ 	// Digits is the digits of the irrational number e. Its decimal representation
+-	// does not repeat, but there are only 10 posible digits, so it should be
++	// does not repeat, but there are only 10 possible digits, so it should be
+ 	// reasonably compressible.
+ 	digits: "testdata/e.txt.bz2",
+ 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index bbe4c5a16f..ce4923eca3 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -54,7 +54,7 @@ func (e *WriteError) Error() string {
+ 	return "flate: write error at offset " + strconv.FormatInt(e.Offset, 10) + ": " + e.Err.Error()
+ }
+ 
+-// Note that much of the implemenation of huffmanDecoder is also copied
++// Note that much of the implementation of huffmanDecoder is also copied
+ // into gen.go (in package main) for the purpose of precomputing the
+ // fixed huffman tables so they can be included statically.
+ 
+diff --git a/src/pkg/compress/flate/reader_test.go b/src/pkg/compress/flate/reader_test.go
+index 2a8ebbc943..a62ef741df 100644
+--- a/src/pkg/compress/flate/reader_test.go
++++ b/src/pkg/compress/flate/reader_test.go
+@@ -29,7 +29,7 @@ const (
+ 
+ var testfiles = []string{
+ 	// Digits is the digits of the irrational number e. Its decimal representation
+-	// does not repeat, but there are only 10 posible digits, so it should be
++	// does not repeat, but there are only 10 possible digits, so it should be
+ 	// reasonably compressible.
+ 	digits: "../testdata/e.txt",
+ 	// Twain is Project Gutenberg's edition of Mark Twain's classic English novel.
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index cf9c832545..71ba81aaa7 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -120,7 +120,7 @@ func testFileLevelDictReset(t *testing.T, fn string, level int, dict []byte) {
+ 	}
+ 	out := buf.String()
+ 
+-	// Reset and comprses again.
++	// Reset and compress again.
+ 	buf2 := new(bytes.Buffer)
+ 	zlibw.Reset(buf2)
+ 	_, err = zlibw.Write(b0)
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index cf174b6a21..d9957aec1d 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -214,7 +214,7 @@ func SignPKCS1v15(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []b
+ // hashed is the result of hashing the input message using the given hash
+ // function and sig is the signature. A valid signature is indicated by
+ // returning a nil error. If hash is zero then hashed is used directly. This
+-// isn't advisable except for interopability.
++// isn't advisable except for interoperability.
+ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) (err error) {
+ 	hashLen, prefix, err := pkcs1v15HashInfo(hash, len(hashed))
+ 	if err != nil {
+diff --git a/src/pkg/crypto/rsa/pss.go b/src/pkg/crypto/rsa/pss.go
+index f9abec3949..18eafbc05f 100644
+--- a/src/pkg/crypto/rsa/pss.go
++++ b/src/pkg/crypto/rsa/pss.go
+@@ -4,7 +4,7 @@
+ 
+ package rsa
+ 
+-// This file implementes the PSS signature scheme [1].
++// This file implements the PSS signature scheme [1].
+ //
+ // [1] http://www.rsa.com/rsalabs/pkcs/files/h11300-wp-pkcs-1v2-2-rsa-cryptography-standard.pdf
+ 
+@@ -189,7 +189,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 
+ // signPSSWithSalt calculates the signature of hashed using PSS [1] with specified salt.
+ // Note that hashed must be the result of hashing the input message using the
+-// given hash funcion. salt is a random sequence of bytes whose length will be
++// given hash function. salt is a random sequence of bytes whose length will be
+ // later used to verify the signature.
+ func signPSSWithSalt(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) (s []byte, err error) {
+ 	nBits := priv.N.BitLen()
+@@ -233,7 +233,7 @@ func (opts *PSSOptions) saltLength() int {
+ 
+ // SignPSS calculates the signature of hashed using RSASSA-PSS [1].
+ // Note that hashed must be the result of hashing the input message using the
+-// given hash funcion. The opts argument may be nil, in which case sensible
++// given hash function. The opts argument may be nil, in which case sensible
+ // defaults are used.
+ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte, opts *PSSOptions) (s []byte, err error) {
+ 	saltLength := opts.saltLength()
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 550bc7f8fe..8f7d2c144f 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -82,7 +82,7 @@ func (c *Conn) SetReadDeadline(t time.Time) error {
+ 	return c.conn.SetReadDeadline(t)
+ }
+ 
+-// SetWriteDeadline sets the write deadline on the underlying conneciton.
++// SetWriteDeadline sets the write deadline on the underlying connection.
+ // A zero value for t means Write will not time out.
+ // After a Write has timed out, the TLS state is corrupt and all future writes will return the same error.
+ func (c *Conn) SetWriteDeadline(t time.Time) error {
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index e891d4f4c4..4874574c30 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -405,7 +405,7 @@ func (db *DB) removeDepLocked(x finalCloser, dep interface{}) func() error {
+ // This value should be larger than the maximum typical value
+ // used for db.maxOpen. If maxOpen is significantly larger than
+ // connectionRequestQueueSize then it is possible for ALL calls into the *DB
+-// to block until the connectionOpener can satify the backlog of requests.
++// to block until the connectionOpener can satisfy the backlog of requests.
+ var connectionRequestQueueSize = 1000000
+ 
+ // Open opens a database specified by its database driver name and a
+@@ -778,7 +778,7 @@ func (db *DB) putConn(dc *driverConn, err error) {
+ // connection limit will not be exceeded.
+ // If err != nil, the value of dc is ignored.
+ // If err == nil, then dc must not equal nil.
+-// If a connRequest was fullfilled or the *driverConn was placed in the
++// If a connRequest was fulfilled or the *driverConn was placed in the
+ // freeConn list, then true is returned, otherwise false is returned.
+ func (db *DB) putConnDBLocked(dc *driverConn, err error) bool {
+ 	if db.connRequests.Len() > 0 {
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index a0a20df6f8..7971f14917 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -461,7 +461,7 @@ func TestTxStmt(t *testing.T) {
+ }
+ 
+ // Issue: http://golang.org/issue/2784
+-// This test didn't fail before because we got luckly with the fakedb driver.
++// This test didn't fail before because we got lucky with the fakedb driver.
+ // It was failing, and now not, in github.com/bradfitz/go-sql-test
+ func TestTxQuery(t *testing.T) {
+ 	db := newTestDB(t, "")
+diff --git a/src/pkg/debug/elf/elf.go b/src/pkg/debug/elf/elf.go
+index 03e42b0346..d622dae2af 100644
+--- a/src/pkg/debug/elf/elf.go
++++ b/src/pkg/debug/elf/elf.go
+@@ -517,7 +517,7 @@ const (
+ 	DT_INIT_ARRAY   DynTag = 25 /* Address of the array of pointers to initialization functions */
+ 	DT_FINI_ARRAY   DynTag = 26 /* Address of the array of pointers to termination functions */
+ 	DT_INIT_ARRAYSZ DynTag = 27 /* Size in bytes of the array of initialization functions. */
+-	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of terminationfunctions. */
++	DT_FINI_ARRAYSZ DynTag = 28 /* Size in bytes of the array of termination functions. */
+ 	DT_RUNPATH      DynTag = 29 /* String table offset of a null-terminated library search path string. */
+ 	DT_FLAGS        DynTag = 30 /* Object specific flag values. */
+ 	DT_ENCODING     DynTag = 32 /* Values greater than or equal to DT_ENCODING
+diff --git a/src/pkg/debug/goobj/read.go b/src/pkg/debug/goobj/read.go
+index 8af7d68d8b..c95fe1e47f 100644
+--- a/src/pkg/debug/goobj/read.go
++++ b/src/pkg/debug/goobj/read.go
+@@ -135,7 +135,7 @@ type SymID struct {
+ 
+ 	// Version is zero for symbols with global visibility.
+ 	// Symbols with only file visibility (such as file-level static
+-	// declarations in C) have a non-zero version distinguising
++	// declarations in C) have a non-zero version distinguishing
+ 	// a symbol in one file from a symbol of the same name
+ 	// in another file
+ 	Version int
+diff --git a/src/pkg/expvar/expvar.go b/src/pkg/expvar/expvar.go
+index 6639ecc294..9b6dab487c 100644
+--- a/src/pkg/expvar/expvar.go
++++ b/src/pkg/expvar/expvar.go
+@@ -205,7 +205,7 @@ func (v *Map) Do(f func(KeyValue)) {
+ 	v.doLocked(f)
+ }
+ 
+-// doRLocked calls f for each entry in the map.
++// doLocked calls f for each entry in the map.
+ // v.mu must be held for reads.
+ func (v *Map) doLocked(f func(KeyValue)) {
+ 	for _, k := range v.keys {
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 6f5d244f8a..02642d6ae7 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -82,7 +82,7 @@
+ 	number of digits necessary to identify the value uniquely.
+ 
+ 	For complex numbers, the width and precision apply to the two
+-	components independently and the result is parenthsized, so %f applied
++	components independently and the result is parenthesized, so %f applied
+ 	to 1.2+3.4i produces (1.200000+3.400000i).
+ 
+ 	Other flags:
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index b0f4ad4b73..6c1c62575a 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -369,7 +369,7 @@ func (f *fmt) formatFloat(v float64, verb byte, prec, n int) {
+ 	switch slice[1] {
+ 	case '-', '+':
+ 		// If we're zero padding, want the sign before the leading zeros.
+-		// Achieve this by writing the sign out and padding the postive number.
++		// Achieve this by writing the sign out and padding the positive number.
+ 		if f.zero && f.widPresent && f.wid > len(slice) {
+ 			f.buf.WriteByte(slice[1])
+ 			f.wid--
+diff --git a/src/pkg/go/ast/commentmap.go b/src/pkg/go/ast/commentmap.go
+index 1fb4867dd2..ac999d627c 100644
+--- a/src/pkg/go/ast/commentmap.go
++++ b/src/pkg/go/ast/commentmap.go
+@@ -149,7 +149,7 @@ func NewCommentMap(fset *token.FileSet, node Node, comments []*CommentGroup) Com
+ 
+ 	// set up comment reader r
+ 	tmp := make([]*CommentGroup, len(comments))
+-	copy(tmp, comments) // don't change incomming comments
++	copy(tmp, comments) // don't change incoming comments
+ 	sortComments(tmp)
+ 	r := commentListReader{fset: fset, list: tmp} // !r.eol() because len(comments) > 0
+ 	r.next()
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index f4ce9f6541..c414e548cc 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -255,7 +255,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 		}
+ 	}
+ 
+-	// Strip "Output:" commment and adjust body end position.
++	// Strip "Output:" comment and adjust body end position.
+ 	body, comments = stripOutputComment(body, comments)
+ 
+ 	// Synthesize import declaration.
+@@ -318,7 +318,7 @@ func playExampleFile(file *ast.File) *ast.File {
+ 	return &f
+ }
+ 
+-// stripOutputComment finds and removes an "Output:" commment from body
++// stripOutputComment finds and removes an "Output:" comment from body
+ // and comments, and adjusts the body block's end position.
+ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
+ 	// Do nothing if no "Output:" comment found.
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 68eb3cd1e2..00dd532b23 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -496,7 +496,7 @@ func syncDecl(p *parser) {
+ // is valid to begin with, safePos returns pos. If pos is out-of-range,
+ // safePos returns the EOF position.
+ //
+-// This is hack to work around "artifical" end positions in the AST which
++// This is hack to work around "artificial" end positions in the AST which
+ // are computed by adding 1 to (presumably valid) token positions. If the
+ // token positions are invalid due to parse errors, the resulting end position
+ // may be past the file's EOF position, which would lead to panics if used
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index 8454ac12b9..306928a69a 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -63,7 +63,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
+ 		return nil, fmt.Errorf("print: %s", err)
+ 	}
+ 
+-	// make sure formated output is syntactically correct
++	// make sure formatted output is syntactically correct
+ 	res := buf.Bytes()
+ 	if _, err := parser.ParseFile(fset, "", res, 0); err != nil {
+ 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
+@@ -179,7 +179,7 @@ func check(t *testing.T, source, golden string, mode checkMode) {
+ 		// test running past time out
+ 		t.Errorf("%s: running too slowly", source)
+ 	case <-cc:
+-		// test finished within alloted time margin
++		// test finished within allotted time margin
+ 	}
+ }
+ 
+@@ -212,7 +212,7 @@ func TestFiles(t *testing.T) {
+ 	}
+ }
+ 
+-// TestLineComments, using a simple test case, checks that consequtive line
++// TestLineComments, using a simple test case, checks that consecutive line
+ // comments are properly terminated with a newline even if the AST position
+ // information is incorrect.
+ //

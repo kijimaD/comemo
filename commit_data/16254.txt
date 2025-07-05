@@ -7,6 +7,24 @@ Date:   Wed May 1 10:00:05 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/9047045
-
+---
  doc/docs.html | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index 3112381c25..2dcab5d51c 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -82,6 +82,12 @@ Answers to common questions about Go.
+ A guide for updating your code to work with Go 1.
+ </p>
+ 
++<h3 id="go1.1notes"><a href="/doc/go1.1.html">Go 1.1 Release Notes</a></h3>
++<p>
++A list of significant changes in Go 1.1, with instructions for updating your
++code where necessary.
++</p>
++
+ <h3 id="go1compat"><a href="/doc/go1compat.html">Go 1 and the Future of Go Programs</a></h3>
+ <p>
+ What Go 1 defines and the backwards-compatibility guarantees one can expect as

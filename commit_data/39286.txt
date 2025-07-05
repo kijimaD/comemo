@@ -14,7 +14,7 @@ Date:   Wed Feb 13 15:06:46 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                                  | 1 +
  src/cmd/go/testdata/script/binary_only.txt             | 2 ++
  src/cmd/go/testdata/script/build_GOTMPDIR.txt          | 2 ++
@@ -66,3 +66,532 @@ Date:   Wed Feb 13 15:06:46 2019 -0500
  src/cmd/go/testdata/script/vendor_complex.txt          | 2 ++
  src/cmd/go/testdata/script/vet_asm.txt                 | 2 ++
  50 files changed, 99 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index c58bc7408d..866241bf39 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -394,6 +394,7 @@ func (tg *testgoData) setenv(name, val string) {
+ func (tg *testgoData) unsetenv(name string) {
+ 	if tg.env == nil {
+ 		tg.env = append([]string(nil), os.Environ()...)
++		tg.env = append(tg.env, "GO111MODULE=off")
+ 	}
+ 	for i, v := range tg.env {
+ 		if strings.HasPrefix(v, name+"=") {
+diff --git a/src/cmd/go/testdata/script/binary_only.txt b/src/cmd/go/testdata/script/binary_only.txt
+index 397904efaa..1842d8cea3 100644
+--- a/src/cmd/go/testdata/script/binary_only.txt
++++ b/src/cmd/go/testdata/script/binary_only.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # check that error for missing binary-only says where it should be
+ ! go build b
+ stderr pkg[\\/].*a\.a
+diff --git a/src/cmd/go/testdata/script/build_GOTMPDIR.txt b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+index ea06dcc472..da54ced524 100644
+--- a/src/cmd/go/testdata/script/build_GOTMPDIR.txt
++++ b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+ env GOCACHE=$WORK/gocache
+ 
+diff --git a/src/cmd/go/testdata/script/build_cache_compile.txt b/src/cmd/go/testdata/script/build_cache_compile.txt
+index 7db881a268..04a6f9af1d 100644
+--- a/src/cmd/go/testdata/script/build_cache_compile.txt
++++ b/src/cmd/go/testdata/script/build_cache_compile.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+ mkdir $GOCACHE
+diff --git a/src/cmd/go/testdata/script/build_cache_gomips.txt b/src/cmd/go/testdata/script/build_cache_gomips.txt
+index c77acc3f2f..3218354929 100644
+--- a/src/cmd/go/testdata/script/build_cache_gomips.txt
++++ b/src/cmd/go/testdata/script/build_cache_gomips.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+ mkdir $GOCACHE
+diff --git a/src/cmd/go/testdata/script/build_cache_link.txt b/src/cmd/go/testdata/script/build_cache_link.txt
+index 61e7ee46d3..658bb88496 100644
+--- a/src/cmd/go/testdata/script/build_cache_link.txt
++++ b/src/cmd/go/testdata/script/build_cache_link.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+ mkdir $GOCACHE
+diff --git a/src/cmd/go/testdata/script/build_cache_output.txt b/src/cmd/go/testdata/script/build_cache_output.txt
+index ee4099e5f3..41c84ace7a 100644
+--- a/src/cmd/go/testdata/script/build_cache_output.txt
++++ b/src/cmd/go/testdata/script/build_cache_output.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!gc] skip
+ 
+ # Set up fresh GOCACHE.
+diff --git a/src/cmd/go/testdata/script/build_nocache.txt b/src/cmd/go/testdata/script/build_nocache.txt
+index 5aa46e0b77..46e95fa89d 100644
+--- a/src/cmd/go/testdata/script/build_nocache.txt
++++ b/src/cmd/go/testdata/script/build_nocache.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # As of Go 1.12, the module cache is required.
+ 
+ # If none of the variables we use to locate GOCACHE are set, the cache is off
+diff --git a/src/cmd/go/testdata/script/build_relative_pkgdir.txt b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+index 76098a0662..0716bcd56a 100644
+--- a/src/cmd/go/testdata/script/build_relative_pkgdir.txt
++++ b/src/cmd/go/testdata/script/build_relative_pkgdir.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Regression test for golang.org/issue/21309: accept relative -pkgdir argument.
+ 
+ [short] skip
+diff --git a/src/cmd/go/testdata/script/build_relative_tmpdir.txt b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+index 9490a285d3..3e98a67b81 100644
+--- a/src/cmd/go/testdata/script/build_relative_tmpdir.txt
++++ b/src/cmd/go/testdata/script/build_relative_tmpdir.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # If GOTMPDIR is relative, 'go build' should derive an absolute $WORK directory.
+ cd $WORK
+ mkdir tmp
+diff --git a/src/cmd/go/testdata/script/build_runtime_gcflags.txt b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+index 767b768b82..5354a73935 100644
+--- a/src/cmd/go/testdata/script/build_runtime_gcflags.txt
++++ b/src/cmd/go/testdata/script/build_runtime_gcflags.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Set up fresh GOCACHE.
+ env GOCACHE=$WORK/gocache
+ mkdir $GOCACHE
+diff --git a/src/cmd/go/testdata/script/cache_unix.txt b/src/cmd/go/testdata/script/cache_unix.txt
+index f700ebe3ed..0e07ba6382 100644
+--- a/src/cmd/go/testdata/script/cache_unix.txt
++++ b/src/cmd/go/testdata/script/cache_unix.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Integration test for cache directory calculation (cmd/go/internal/cache).
+ 
+ [windows] skip
+diff --git a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+index 0d18fa91d6..9825d1e3e9 100644
+--- a/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
++++ b/src/cmd/go/testdata/script/cgo_syso_issue29253.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # This test tests that we can link in-package syso files that provides symbols
+ # for cgo. See issue 29253.
+ [!cgo] stop
+diff --git a/src/cmd/go/testdata/script/clean_testcache.txt b/src/cmd/go/testdata/script/clean_testcache.txt
+index a2d592deff..5ac968b7d0 100644
+--- a/src/cmd/go/testdata/script/clean_testcache.txt
++++ b/src/cmd/go/testdata/script/clean_testcache.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go clean -testcache
+ # should work (see golang.org/issue/29757).
+ cd x
+diff --git a/src/cmd/go/testdata/script/cover_atomic_pkgall.txt b/src/cmd/go/testdata/script/cover_atomic_pkgall.txt
+index c122c05cb6..c3bc67df53 100644
+--- a/src/cmd/go/testdata/script/cover_atomic_pkgall.txt
++++ b/src/cmd/go/testdata/script/cover_atomic_pkgall.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [short] skip
+ 
+ go test -coverpkg=all -covermode=atomic x
+diff --git a/src/cmd/go/testdata/script/cover_pkgall_runtime.txt b/src/cmd/go/testdata/script/cover_pkgall_runtime.txt
+index 5d169d6312..9927c30690 100644
+--- a/src/cmd/go/testdata/script/cover_pkgall_runtime.txt
++++ b/src/cmd/go/testdata/script/cover_pkgall_runtime.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Issue 23882
+ 
+ [short] skip
+diff --git a/src/cmd/go/testdata/script/cpu_profile_twice.txt b/src/cmd/go/testdata/script/cpu_profile_twice.txt
+index 142d5ee718..38d6439fb1 100644
+--- a/src/cmd/go/testdata/script/cpu_profile_twice.txt
++++ b/src/cmd/go/testdata/script/cpu_profile_twice.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Issue 23150
+ 
+ [short] skip
+diff --git a/src/cmd/go/testdata/script/fileline.txt b/src/cmd/go/testdata/script/fileline.txt
+index cdc3be2df8..5cb35f0dac 100644
+--- a/src/cmd/go/testdata/script/fileline.txt
++++ b/src/cmd/go/testdata/script/fileline.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # look for short, relative file:line in error message
+ ! go run ../../gopath/x/y/z/err.go
+ stderr ^..[\\/]x[\\/]y[\\/]z[\\/]err.go:
+diff --git a/src/cmd/go/testdata/script/gcflags_patterns.txt b/src/cmd/go/testdata/script/gcflags_patterns.txt
+index 40f80b7d6e..f2e6e2b67d 100644
+--- a/src/cmd/go/testdata/script/gcflags_patterns.txt
++++ b/src/cmd/go/testdata/script/gcflags_patterns.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!gc] skip 'using -gcflags and -ldflags'
+ 
+ # -gcflags=-e applies to named packages, not dependencies
+diff --git a/src/cmd/go/testdata/script/get_brace.txt b/src/cmd/go/testdata/script/get_brace.txt
+index be81d8f487..3449a0c2c8 100644
+--- a/src/cmd/go/testdata/script/get_brace.txt
++++ b/src/cmd/go/testdata/script/get_brace.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!exec:git] skip
+ 
+ # Set up some empty repositories.
+diff --git a/src/cmd/go/testdata/script/get_dotfiles.txt b/src/cmd/go/testdata/script/get_dotfiles.txt
+index 1876114362..38a3fac612 100644
+--- a/src/cmd/go/testdata/script/get_dotfiles.txt
++++ b/src/cmd/go/testdata/script/get_dotfiles.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!exec:git] skip
+ 
+ # Set up a benign repository and a repository with a dotfile name.
+diff --git a/src/cmd/go/testdata/script/get_tilde.txt b/src/cmd/go/testdata/script/get_tilde.txt
+index 08289ca405..6d18174acc 100644
+--- a/src/cmd/go/testdata/script/get_tilde.txt
++++ b/src/cmd/go/testdata/script/get_tilde.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Paths containing windows short names should be rejected before attempting to fetch.
+ ! go get example.com/longna~1.dir/thing
+ stderr 'trailing tilde and digits'
+diff --git a/src/cmd/go/testdata/script/get_unicode.txt b/src/cmd/go/testdata/script/get_unicode.txt
+index 31edcdb9f6..ab1b914f50 100644
+--- a/src/cmd/go/testdata/script/get_unicode.txt
++++ b/src/cmd/go/testdata/script/get_unicode.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!exec:git] skip
+ 
+ # Construct a repository that imports a non-ASCII path.
+diff --git a/src/cmd/go/testdata/script/get_with_git_trace.txt b/src/cmd/go/testdata/script/get_with_git_trace.txt
+index 93341a302c..98854c72ad 100644
+--- a/src/cmd/go/testdata/script/get_with_git_trace.txt
++++ b/src/cmd/go/testdata/script/get_with_git_trace.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ env GIT_TRACE=1
+ 
+ [!net] skip
+diff --git a/src/cmd/go/testdata/script/goflags.txt b/src/cmd/go/testdata/script/goflags.txt
+index 20de325ac2..fac6d80720 100644
+--- a/src/cmd/go/testdata/script/goflags.txt
++++ b/src/cmd/go/testdata/script/goflags.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # GOFLAGS sets flags for commands
+ 
+ env GOFLAGS='-e -f={{.Dir}} --test.benchtime=1s -count=10'
+diff --git a/src/cmd/go/testdata/script/help.txt b/src/cmd/go/testdata/script/help.txt
+index 9f455256f7..e6cbc82928 100644
+--- a/src/cmd/go/testdata/script/help.txt
++++ b/src/cmd/go/testdata/script/help.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go help shows overview.
+ go help
+ stdout 'Go is a tool'
+diff --git a/src/cmd/go/testdata/script/install_cleans_build.txt b/src/cmd/go/testdata/script/install_cleans_build.txt
+index b8d322de62..7f1b917439 100644
+--- a/src/cmd/go/testdata/script/install_cleans_build.txt
++++ b/src/cmd/go/testdata/script/install_cleans_build.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # 'go install' with no arguments should clean up after go build
+ cd mycmd
+ go build
+diff --git a/src/cmd/go/testdata/script/install_cross_gobin.txt b/src/cmd/go/testdata/script/install_cross_gobin.txt
+index 587081f135..d9ab35c2e1 100644
+--- a/src/cmd/go/testdata/script/install_cross_gobin.txt
++++ b/src/cmd/go/testdata/script/install_cross_gobin.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ cd mycmd
+ go build mycmd
+ 
+diff --git a/src/cmd/go/testdata/script/install_rebuild_gopath.txt b/src/cmd/go/testdata/script/install_rebuild_gopath.txt
+index d42b07004b..14a6c8611e 100644
+--- a/src/cmd/go/testdata/script/install_rebuild_gopath.txt
++++ b/src/cmd/go/testdata/script/install_rebuild_gopath.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # GOPATH with p1 in d1, p2 in d2
+ env GOPATH=$WORK/d1${:}$WORK/d2
+ 
+diff --git a/src/cmd/go/testdata/script/install_rebuild_removed.txt b/src/cmd/go/testdata/script/install_rebuild_removed.txt
+index e7620a08ca..5db3778d8e 100644
+--- a/src/cmd/go/testdata/script/install_rebuild_removed.txt
++++ b/src/cmd/go/testdata/script/install_rebuild_removed.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go command should detect package staleness as source file set changes
+ go install mypkg
+ ! stale mypkg
+diff --git a/src/cmd/go/testdata/script/linkname.txt b/src/cmd/go/testdata/script/linkname.txt
+index e2ec00c6ed..11336594d3 100644
+--- a/src/cmd/go/testdata/script/linkname.txt
++++ b/src/cmd/go/testdata/script/linkname.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # check for linker name in error message about linker crash
+ [!gc] skip
+ ! go build -ldflags=-crash_for_testing x.go
+diff --git a/src/cmd/go/testdata/script/list_bad_import.txt b/src/cmd/go/testdata/script/list_bad_import.txt
+index 3d9cac0d5f..958c576c53 100644
+--- a/src/cmd/go/testdata/script/list_bad_import.txt
++++ b/src/cmd/go/testdata/script/list_bad_import.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # This test matches mod_list_bad_import, but in GOPATH mode.
+ # Please keep them in sync.
+ 
+diff --git a/src/cmd/go/testdata/script/list_compiled_imports.txt b/src/cmd/go/testdata/script/list_compiled_imports.txt
+index e6f5abb6af..7780b074c1 100644
+--- a/src/cmd/go/testdata/script/list_compiled_imports.txt
++++ b/src/cmd/go/testdata/script/list_compiled_imports.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!cgo] skip
+ 
+ # go list should report import "C"
+diff --git a/src/cmd/go/testdata/script/list_find.txt b/src/cmd/go/testdata/script/list_find.txt
+index 63c6896e50..aaac6585dd 100644
+--- a/src/cmd/go/testdata/script/list_find.txt
++++ b/src/cmd/go/testdata/script/list_find.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go list -find should not report imports
+ 
+ go list -f {{.Incomplete}} x/y/z...  # should probably exit non-zero but never has
+diff --git a/src/cmd/go/testdata/script/list_importmap.txt b/src/cmd/go/testdata/script/list_importmap.txt
+index a42dc47f24..52ee6028f5 100644
+--- a/src/cmd/go/testdata/script/list_importmap.txt
++++ b/src/cmd/go/testdata/script/list_importmap.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # gccgo does not have standard packages.
+ [gccgo] skip
+ 
+diff --git a/src/cmd/go/testdata/script/list_std.txt b/src/cmd/go/testdata/script/list_std.txt
+index 046bec6ac5..88a659f743 100644
+--- a/src/cmd/go/testdata/script/list_std.txt
++++ b/src/cmd/go/testdata/script/list_std.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!gc] skip
+ 
+ # listing GOROOT should only find standard packages
+diff --git a/src/cmd/go/testdata/script/list_tags.txt b/src/cmd/go/testdata/script/list_tags.txt
+index c5dc99e9fb..49069bd213 100644
+--- a/src/cmd/go/testdata/script/list_tags.txt
++++ b/src/cmd/go/testdata/script/list_tags.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go list supports -tags
+ go list -tags=thetag ./my...
+ stdout mypkg
+diff --git a/src/cmd/go/testdata/script/list_test_e.txt b/src/cmd/go/testdata/script/list_test_e.txt
+index f1473322c6..4e36b88e85 100644
+--- a/src/cmd/go/testdata/script/list_test_e.txt
++++ b/src/cmd/go/testdata/script/list_test_e.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # issue 25980: crash in go list -e -test
+ go list -e -test -f '{{.Error}}' p
+ stdout '^p[/\\]d_test.go:2:8: cannot find package "d" in any of:'
+diff --git a/src/cmd/go/testdata/script/list_test_imports.txt b/src/cmd/go/testdata/script/list_test_imports.txt
+index 51d1ce9a69..b2a6bc45f9 100644
+--- a/src/cmd/go/testdata/script/list_test_imports.txt
++++ b/src/cmd/go/testdata/script/list_test_imports.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # issue 26880: list with tests has wrong variant in imports
+ go list -test -f '{{.ImportPath}}:{{with .Imports}} {{join . ", "}}{{end}}' a b
+ cmp stdout imports.txt
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index eb7f974b3b..703a88e99c 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=auto
++
+ # Derive module path from import comment.
+ cd $WORK/x
+ exists x.go
+diff --git a/src/cmd/go/testdata/script/mod_gobuild_import.txt b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+index 932b8b66f9..d2d1645b83 100644
+--- a/src/cmd/go/testdata/script/mod_gobuild_import.txt
++++ b/src/cmd/go/testdata/script/mod_gobuild_import.txt
+@@ -7,14 +7,12 @@ env GO111MODULE=off
+ ! exec $WORK/testimport.exe x/y/z/w .
+ 
+ # GO111MODULE=auto in GOPATH/src
+-env GO111MODULE=
+-! exec $WORK/testimport.exe x/y/z/w .
+ env GO111MODULE=auto
+ ! exec $WORK/testimport.exe x/y/z/w .
+ 
+ # GO111MODULE=auto outside GOPATH/src
+ cd $GOPATH/other
+-env GO111MODULE=
++env GO111MODULE=auto
+ exec $WORK/testimport.exe other/x/y/z/w .
+ stdout w2.go
+ 
+@@ -22,7 +20,6 @@ stdout w2.go
+ stderr 'cannot find module providing package x/y/z/w'
+ 
+ cd z
+-env GO111MODULE=auto
+ exec $WORK/testimport.exe other/x/y/z/w .
+ stdout w2.go
+ 
+@@ -33,6 +30,7 @@ stdout w2.go
+ 
+ # GO111MODULE=on in GOPATH/src
+ cd $GOPATH/src
++env GO111MODULE=on
+ exec $WORK/testimport.exe x/y/z/w .
+ stdout w1.go
+ cd w
+diff --git a/src/cmd/go/testdata/script/pattern_syntax_error.txt b/src/cmd/go/testdata/script/pattern_syntax_error.txt
+index 8e6549b5c5..9a1f5e52f0 100644
+--- a/src/cmd/go/testdata/script/pattern_syntax_error.txt
++++ b/src/cmd/go/testdata/script/pattern_syntax_error.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # patterns match directories with syntax errors
+ ! go list ./...
+ ! go build ./...
+diff --git a/src/cmd/go/testdata/script/run_hello.txt b/src/cmd/go/testdata/script/run_hello.txt
+index 8c4c1c1683..939b661e58 100644
+--- a/src/cmd/go/testdata/script/run_hello.txt
++++ b/src/cmd/go/testdata/script/run_hello.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # hello world
+ go run hello.go
+ stderr 'hello world'
+diff --git a/src/cmd/go/testdata/script/run_wildcard.txt b/src/cmd/go/testdata/script/run_wildcard.txt
+index cd401e00e6..72036d1d8d 100644
+--- a/src/cmd/go/testdata/script/run_wildcard.txt
++++ b/src/cmd/go/testdata/script/run_wildcard.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Fix for https://github.com/golang/go/issues/28696:
+ # go run x/... should not panic when directory x doesn't exist.
+ 
+diff --git a/src/cmd/go/testdata/script/script_wait.txt b/src/cmd/go/testdata/script/script_wait.txt
+index 0770b39523..3cd4ded9dd 100644
+--- a/src/cmd/go/testdata/script/script_wait.txt
++++ b/src/cmd/go/testdata/script/script_wait.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ [!exec:echo] skip
+ [!exec:false] skip
+ 
+diff --git a/src/cmd/go/testdata/script/test_badtest.txt b/src/cmd/go/testdata/script/test_badtest.txt
+index 42fcfed2fc..f5db6941a0 100644
+--- a/src/cmd/go/testdata/script/test_badtest.txt
++++ b/src/cmd/go/testdata/script/test_badtest.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ ! go test badtest/...
+ ! stdout ^ok
+ stdout ^FAIL\tbadtest/badexec
+diff --git a/src/cmd/go/testdata/script/test_compile_binary.txt b/src/cmd/go/testdata/script/test_compile_binary.txt
+index 6c01bc5729..6562f2453f 100644
+--- a/src/cmd/go/testdata/script/test_compile_binary.txt
++++ b/src/cmd/go/testdata/script/test_compile_binary.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ ! go test -c compile_binary/...
+ stderr 'build comment'
+ 
+diff --git a/src/cmd/go/testdata/script/test_devnull.txt b/src/cmd/go/testdata/script/test_devnull.txt
+index c414e59ba3..e7ebda33ee 100644
+--- a/src/cmd/go/testdata/script/test_devnull.txt
++++ b/src/cmd/go/testdata/script/test_devnull.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # go test -c -o NUL
+ # should work (see golang.org/issue/28035).
+ cd x
+diff --git a/src/cmd/go/testdata/script/vendor_complex.txt b/src/cmd/go/testdata/script/vendor_complex.txt
+index 6513451df8..9ca94e72c5 100644
+--- a/src/cmd/go/testdata/script/vendor_complex.txt
++++ b/src/cmd/go/testdata/script/vendor_complex.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # smoke test for complex build configuration
+ go build -o complex.exe complex
+ [exec:gccgo] go build -compiler=gccgo -o complex.exe complex
+diff --git a/src/cmd/go/testdata/script/vet_asm.txt b/src/cmd/go/testdata/script/vet_asm.txt
+index 807e2b76f5..ea920ea866 100644
+--- a/src/cmd/go/testdata/script/vet_asm.txt
++++ b/src/cmd/go/testdata/script/vet_asm.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # Issue 27665. Verify that "go vet" analyzes non-Go files.
+ 
+ env GOOS=linux

@@ -20,7 +20,7 @@ Date:   Thu Feb 9 09:46:44 2017 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 115 ++++++++++++++++++-------
  src/cmd/compile/internal/gc/type.go            |  15 ++++
  src/cmd/compile/internal/ssa/gen/dec.rules     |  22 ++---
@@ -36,3 +36,1014 @@ Date:   Thu Feb 9 09:46:44 2017 -0500
  src/cmd/compile/internal/ssa/type_test.go      |   4 +
  src/cmd/compile/internal/ssa/writebarrier.go   |   5 +-
  14 files changed, 217 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index afa600f526..e776d3f9f4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -896,7 +896,9 @@ func (s *state) exit() *ssa.Block {
+ 		addr := s.decladdrs[n]
+ 		val := s.variable(n, n.Type)
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
++		store.Aux = n.Type
++		s.vars[&memVar] = store
+ 		// TODO: if val is ever spilled, we'd like to use the
+ 		// PPARAMOUT slot for spilling it. That won't happen
+ 		// currently.
+@@ -2129,9 +2131,13 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, sn, s.mem())
+ 		}
+ 		capaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_cap), addr)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capaddr, r[2], s.mem())
++		store.Aux = Types[TINT]
++		s.vars[&memVar] = store
+ 		if ssa.IsStackAddr(addr) {
+-			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
++			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, pt.Size(), addr, r[0], s.mem())
++			store.Aux = pt
++			s.vars[&memVar] = store
+ 		} else {
+ 			s.insertWBstore(pt, addr, r[0], 0)
+ 		}
+@@ -2154,7 +2160,9 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 		l = s.variable(&lenVar, Types[TINT]) // generates phi for len
+ 		nl = s.newValue2(s.ssaOp(OADD, Types[TINT]), Types[TINT], l, s.constInt(Types[TINT], nargs))
+ 		lenaddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), int64(array_nel), addr)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenaddr, nl, s.mem())
++		store.Aux = Types[TINT]
++		s.vars[&memVar] = store
+ 	}
+ 
+ 	// Evaluate args
+@@ -2188,13 +2196,17 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 			if haspointers(et) {
+ 				s.insertWBstore(et, addr, arg.v, 0)
+ 			} else {
+-				s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
++				store := s.newValue3I(ssa.OpStore, ssa.TypeMem, et.Size(), addr, arg.v, s.mem())
++				store.Aux = et
++				s.vars[&memVar] = store
+ 			}
+ 		} else {
+ 			if haspointers(et) {
+ 				s.insertWBmove(et, addr, arg.v)
+ 			} else {
+-				s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
++				store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(et), addr, arg.v, s.mem())
++				store.Aux = et
++				s.vars[&memVar] = store
+ 			}
+ 		}
+ 	}
+@@ -2354,10 +2366,14 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
+ 			return
+ 		}
+ 		if right == nil {
+-			s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
++			store := s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(t), addr, s.mem())
++			store.Aux = t
++			s.vars[&memVar] = store
+ 			return
+ 		}
+-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
++		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(t), addr, right, s.mem())
++		store.Aux = t
++		s.vars[&memVar] = store
+ 		return
+ 	}
+ 	// Treat as a store.
+@@ -2378,7 +2394,9 @@ func (s *state) assign(left *Node, right *ssa.Value, wb, deref bool, skip skipMa
+ 		s.storeTypeScalars(t, addr, right, skip)
+ 		return
+ 	}
+-	s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
++	store := s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), addr, right, s.mem())
++	store.Aux = t
++	s.vars[&memVar] = store
+ }
+ 
+ // zeroVal returns the zero value for type t.
+@@ -2954,7 +2972,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			argStart += int64(2 * Widthptr)
+ 		}
+ 		addr := s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, rcvr, s.mem())
++		store.Aux = Types[TUINTPTR]
++		s.vars[&memVar] = store
+ 	}
+ 
+ 	// Defer/go args
+@@ -2963,9 +2983,13 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		argStart := Ctxt.FixedFrameSize()
+ 		argsize := s.constInt32(Types[TUINT32], int32(stksize))
+ 		addr := s.constOffPtrSP(ptrto(Types[TUINT32]), argStart)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, 4, addr, argsize, s.mem())
++		store.Aux = Types[TUINT32]
++		s.vars[&memVar] = store
+ 		addr = s.constOffPtrSP(ptrto(Types[TUINTPTR]), argStart+int64(Widthptr))
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
++		store = s.newValue3I(ssa.OpStore, ssa.TypeMem, int64(Widthptr), addr, closure, s.mem())
++		store.Aux = Types[TUINTPTR]
++		s.vars[&memVar] = store
+ 		stksize += 2 * int64(Widthptr)
+ 	}
+ 
+@@ -3328,7 +3352,9 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
+ 		off = Rnd(off, t.Alignment())
+ 		ptr := s.constOffPtrSP(t.PtrTo(), off)
+ 		size := t.Size()
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, size, ptr, arg, s.mem())
++		store.Aux = t
++		s.vars[&memVar] = store
+ 		off += size
+ 	}
+ 	off = Rnd(off, int64(Widthptr))
+@@ -3400,7 +3426,8 @@ func (s *state) insertWBmove(t *Type, left, right *ssa.Value) {
+ 	} else {
+ 		val = s.newValue3I(ssa.OpMoveWB, ssa.TypeMem, sizeAlignAuxInt(t), left, right, s.mem())
+ 	}
+-	val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
++	//val.Aux = &ssa.ExternSymbol{Typ: Types[TUINTPTR], Sym: Linksym(typenamesym(t))}
++	val.Aux = t
+ 	s.vars[&memVar] = val
+ }
+ 
+@@ -3433,7 +3460,9 @@ func (s *state) insertWBstore(t *Type, left, right *ssa.Value, skip skipMask) {
+ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask) {
+ 	switch {
+ 	case t.IsBoolean() || t.IsInteger() || t.IsFloat() || t.IsComplex():
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, t.Size(), left, right, s.mem())
++		store.Aux = t
++		s.vars[&memVar] = store
+ 	case t.IsPtrShaped():
+ 		// no scalar fields.
+ 	case t.IsString():
+@@ -3442,22 +3471,30 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
+ 		}
+ 		len := s.newValue1(ssa.OpStringLen, Types[TINT], right)
+ 		lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
++		store.Aux = Types[TINT]
++		s.vars[&memVar] = store
+ 	case t.IsSlice():
+ 		if skip&skipLen == 0 {
+ 			len := s.newValue1(ssa.OpSliceLen, Types[TINT], right)
+ 			lenAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), s.config.IntSize, left)
+-			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
++			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, lenAddr, len, s.mem())
++			store.Aux = Types[TINT]
++			s.vars[&memVar] = store
+ 		}
+ 		if skip&skipCap == 0 {
+ 			cap := s.newValue1(ssa.OpSliceCap, Types[TINT], right)
+ 			capAddr := s.newValue1I(ssa.OpOffPtr, ptrto(Types[TINT]), 2*s.config.IntSize, left)
+-			s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
++			store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, capAddr, cap, s.mem())
++			store.Aux = Types[TINT]
++			s.vars[&memVar] = store
+ 		}
+ 	case t.IsInterface():
+ 		// itab field doesn't need a write barrier (even though it is a pointer).
+ 		itab := s.newValue1(ssa.OpITab, ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.IntSize, left, itab, s.mem())
++		store.Aux = Types[TUINTPTR]
++		s.vars[&memVar] = store
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+ 		for i := 0; i < n; i++ {
+@@ -3479,18 +3516,26 @@ func (s *state) storeTypeScalars(t *Type, left, right *ssa.Value, skip skipMask)
+ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtrShaped():
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		store.Aux = t
++		s.vars[&memVar] = store
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsInterface():
+ 		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		store := s.newValue3I(ssa.OpStore, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+ 		for i := 0; i < n; i++ {
+@@ -3515,18 +3560,26 @@ func (s *state) storeTypePtrs(t *Type, left, right *ssa.Value) {
+ func (s *state) storeTypePtrsWB(t *Type, left, right *ssa.Value) {
+ 	switch {
+ 	case t.IsPtrShaped():
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, right, s.mem())
++		store.Aux = t
++		s.vars[&memVar] = store
+ 	case t.IsString():
+ 		ptr := s.newValue1(ssa.OpStringPtr, ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsSlice():
+ 		ptr := s.newValue1(ssa.OpSlicePtr, ptrto(Types[TUINT8]), right)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, left, ptr, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsInterface():
+ 		// itab field is treated as a scalar.
+ 		idata := s.newValue1(ssa.OpIData, ptrto(Types[TUINT8]), right)
+ 		idataAddr := s.newValue1I(ssa.OpOffPtr, ptrto(ptrto(Types[TUINT8])), s.config.PtrSize, left)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		store := s.newValue3I(ssa.OpStoreWB, ssa.TypeMem, s.config.PtrSize, idataAddr, idata, s.mem())
++		store.Aux = ptrto(Types[TUINT8])
++		s.vars[&memVar] = store
+ 	case t.IsStruct():
+ 		n := t.NumFields()
+ 		for i := 0; i < n; i++ {
+@@ -4127,7 +4180,9 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		}
+ 	} else {
+ 		p := s.newValue1(ssa.OpIData, ptrto(n.Type), iface)
+-		s.vars[&memVar] = s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, p, s.mem())
++		store := s.newValue3I(ssa.OpMove, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, p, s.mem())
++		store.Aux = n.Type
++		s.vars[&memVar] = store
+ 	}
+ 	s.vars[&okVar] = s.constBool(true)
+ 	s.endBlock()
+@@ -4138,7 +4193,9 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 	if tmp == nil {
+ 		s.vars[valVar] = s.zeroVal(n.Type)
+ 	} else {
+-		s.vars[&memVar] = s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, s.mem())
++		store := s.newValue2I(ssa.OpZero, ssa.TypeMem, sizeAlignAuxInt(n.Type), addr, s.mem())
++		store.Aux = n.Type
++		s.vars[&memVar] = store
+ 	}
+ 	s.vars[&okVar] = s.constBool(false)
+ 	s.endBlock()
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 3ebe622b61..cde9980d59 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -11,6 +11,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ssa"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ )
+@@ -1279,3 +1280,17 @@ func (t *Type) IsUntyped() bool {
+ 	}
+ 	return false
+ }
++
++// HasPointer returns whether t contains heap pointer.
++// This is used for write barrier insertion, so we ignore
++// pointers to go:notinheap types.
++func (t *Type) HasPointer() bool {
++	if t.IsPtr() && t.Elem().NotInHeap() {
++		return false
++	}
++	return haspointers(t)
++}
++
++func (t *Type) Symbol() *obj.LSym {
++	return Linksym(typenamesym(t))
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/dec.rules b/src/cmd/compile/internal/ssa/gen/dec.rules
+index 401fba809e..97f6a11c74 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec.rules
+@@ -19,10 +19,10 @@
+       mem)
+     )
+ (Store [8] dst (ComplexMake real imag) mem) ->
+-  (Store [4]
++  (Store [4] {config.fe.TypeFloat32()}
+     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)
+     imag
+-    (Store [4] dst real mem))
++    (Store [4] {config.fe.TypeFloat32()} dst real mem))
+ (Load <t> ptr mem) && t.IsComplex() && t.Size() == 16 ->
+   (ComplexMake
+     (Load <config.fe.TypeFloat64()> ptr mem)
+@@ -31,10 +31,10 @@
+       mem)
+     )
+ (Store [16] dst (ComplexMake real imag) mem) ->
+-  (Store [8]
++  (Store [8] {config.fe.TypeFloat64()}
+     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)
+     imag
+-    (Store [8] dst real mem))
++    (Store [8] {config.fe.TypeFloat64()} dst real mem))
+ 
+ // string ops
+ (StringPtr (StringMake ptr _)) -> ptr
+@@ -47,10 +47,10 @@
+       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] ptr)
+       mem))
+ (Store [2*config.PtrSize] dst (StringMake ptr len) mem) ->
+-  (Store [config.PtrSize]
++  (Store [config.PtrSize] {config.fe.TypeInt()}
+     (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+     len
+-    (Store [config.PtrSize] dst ptr mem))
++    (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem))
+ 
+ // slice ops
+ (SlicePtr (SliceMake ptr _ _ )) -> ptr
+@@ -67,13 +67,13 @@
+       (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] ptr)
+       mem))
+ (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem) ->
+-  (Store [config.PtrSize]
++  (Store [config.PtrSize] {config.fe.TypeInt()}
+     (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)
+     cap
+-    (Store [config.PtrSize]
++    (Store [config.PtrSize] {config.fe.TypeInt()}
+       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)
+       len
+-      (Store [config.PtrSize] dst ptr mem)))
++      (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem)))
+ 
+ // interface ops
+ (ITab (IMake itab _)) -> itab
+@@ -86,7 +86,7 @@
+       (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] ptr)
+       mem))
+ (Store [2*config.PtrSize] dst (IMake itab data) mem) ->
+-  (Store [config.PtrSize]
++  (Store [config.PtrSize] {config.fe.TypeBytePtr()}
+     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)
+     data
+-    (Store [config.PtrSize] dst itab mem))
++    (Store [config.PtrSize] {config.fe.TypeUintptr()} dst itab mem))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+index bfa0beeeb2..47399e35e2 100644
+--- a/src/cmd/compile/internal/ssa/gen/dec64.rules
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -31,16 +31,16 @@
+ 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem))
+ 
+ (Store [8] dst (Int64Make hi lo) mem) && !config.BigEndian ->
+-	(Store [4]
++	(Store [4] {hi.Type}
+ 		(OffPtr <hi.Type.PtrTo()> [4] dst)
+ 		hi
+-		(Store [4] dst lo mem))
++		(Store [4] {lo.Type} dst lo mem))
+ 
+ (Store [8] dst (Int64Make hi lo) mem) && config.BigEndian ->
+-	(Store [4]
++	(Store [4] {lo.Type}
+ 		(OffPtr <lo.Type.PtrTo()> [4] dst)
+ 		lo
+-		(Store [4] dst hi mem))
++		(Store [4] {hi.Type} dst hi mem))
+ 
+ (Arg {n} [off]) && is64BitInt(v.Type) && !config.BigEndian && v.Type.IsSigned() ->
+   (Int64Make
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 73341a52d7..29ff6c1c19 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -795,35 +795,35 @@
+ 
+ (Store _ (StructMake0) mem) -> mem
+ (Store dst (StructMake1 <t> f0) mem) ->
+-  (Store [t.FieldType(0).Size()] (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
++  (Store [t.FieldType(0).Size()] {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
+ (Store dst (StructMake2 <t> f0 f1) mem) ->
+-  (Store [t.FieldType(1).Size()]
++  (Store [t.FieldType(1).Size()] {t.FieldType(1)}
+     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
+     f1
+-    (Store [t.FieldType(0).Size()]
++    (Store [t.FieldType(0).Size()] {t.FieldType(0)}
+       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
+         f0 mem))
+ (Store dst (StructMake3 <t> f0 f1 f2) mem) ->
+-  (Store [t.FieldType(2).Size()]
++  (Store [t.FieldType(2).Size()] {t.FieldType(2)}
+     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
+     f2
+-    (Store [t.FieldType(1).Size()]
++    (Store [t.FieldType(1).Size()] {t.FieldType(1)}
+       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
+       f1
+-      (Store [t.FieldType(0).Size()]
++      (Store [t.FieldType(0).Size()] {t.FieldType(0)}
+         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
+           f0 mem)))
+ (Store dst (StructMake4 <t> f0 f1 f2 f3) mem) ->
+-  (Store [t.FieldType(3).Size()]
++  (Store [t.FieldType(3).Size()] {t.FieldType(3)}
+     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)
+     f3
+-    (Store [t.FieldType(2).Size()]
++    (Store [t.FieldType(2).Size()] {t.FieldType(2)}
+       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)
+       f2
+-      (Store [t.FieldType(1).Size()]
++      (Store [t.FieldType(1).Size()] {t.FieldType(1)}
+         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)
+         f1
+-        (Store [t.FieldType(0).Size()]
++        (Store [t.FieldType(0).Size()] {t.FieldType(0)}
+           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)
+             f0 mem))))
+ 
+@@ -833,9 +833,9 @@
+ 
+ // un-SSAable values use mem->mem copies
+ (Store [size] dst (Load <t> src mem) mem) && !config.fe.CanSSA(t) ->
+-	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
++	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src mem)
+ (Store [size] dst (Load <t> src mem) (VarDef {x} mem)) && !config.fe.CanSSA(t) ->
+-	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
++	(Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src (VarDef {x} mem))
+ 
+ // array ops
+ (ArraySelect (ArrayMake1 x)) -> x
+@@ -847,7 +847,7 @@
+   (ArrayMake1 (Load <t.ElemType()> ptr mem))
+ 
+ (Store _ (ArrayMake0) mem) -> mem
+-(Store [size] dst (ArrayMake1 e) mem) -> (Store [size] dst e mem)
++(Store [size] dst (ArrayMake1 e) mem) -> (Store [size] {e.Type} dst e mem)
+ 
+ (ArraySelect [0] (Load ptr mem)) -> (Load ptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 400bdce395..892641d9cd 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -286,16 +286,16 @@ var genericOps = []opData{
+ 	{name: "Invalid"},            // unused value
+ 
+ 	// Memory operations
+-	{name: "Load", argLength: 2},                                  // Load from arg0.  arg1=memory
+-	{name: "Store", argLength: 3, typ: "Mem", aux: "Int64"},       // Store arg1 to arg0.  arg2=memory, auxint=size.  Returns memory.
+-	{name: "Move", argLength: 3, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment.  Returns memory.
+-	{name: "Zero", argLength: 2, typ: "Mem", aux: "SizeAndAlign"}, // arg0=destptr, arg1=mem, auxint=size+alignment. Returns memory.
++	{name: "Load", argLength: 2},                                                        // Load from arg0.  arg1=memory
++	{name: "Store", argLength: 3, typ: "Mem", aux: "SymOff", symEffect: "None"},         // Store arg1 to arg0.  arg2=memory, auxint=size, aux=type.  Returns memory.
++	{name: "Move", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=type.  Returns memory.
++	{name: "Zero", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=type. Returns memory.
+ 
+ 	// Memory operations with write barriers.
+ 	// Expand to runtime calls. Write barrier will be removed if write on stack.
+-	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "Int64"},                             // Store arg1 to arg0. arg2=memory, auxint=size.  Returns memory.
+-	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=symbol-of-type (for typedmemmove).  Returns memory.
+-	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=symbol-of-type. Returns memory.
++	{name: "StoreWB", argLength: 3, typ: "Mem", aux: "SymOff", symEffect: "None"},         // Store arg1 to arg0. arg2=memory, auxint=size, aux=type.  Returns memory.
++	{name: "MoveWB", argLength: 3, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=srcptr, arg2=mem, auxint=size+alignment, aux=type.  Returns memory.
++	{name: "ZeroWB", argLength: 2, typ: "Mem", aux: "SymSizeAndAlign", symEffect: "None"}, // arg0=destptr, arg1=mem, auxint=size+alignment, aux=type. Returns memory.
+ 
+ 	// Function calls. Arguments to the call have already been written to the stack.
+ 	// Return values appear on the stack. The method receiver, if any, is treated
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index c027541eba..fd7b33be12 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -657,14 +657,14 @@ func parseValue(val string, arch arch, loc string) (op opData, oparch string, ty
+ 	// Sanity check aux, auxint.
+ 	if auxint != "" {
+ 		switch op.aux {
+-		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "SizeAndAlign":
++		case "Bool", "Int8", "Int16", "Int32", "Int64", "Int128", "Float32", "Float64", "SymOff", "SymValAndOff", "SymInt32", "SizeAndAlign", "SymSizeAndAlign":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have auxint", loc, op.name, op.aux)
+ 		}
+ 	}
+ 	if aux != "" {
+ 		switch op.aux {
+-		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32":
++		case "String", "Sym", "SymOff", "SymValAndOff", "SymInt32", "SymSizeAndAlign":
+ 		default:
+ 			log.Fatalf("%s: op %s %s can't have aux", loc, op.name, op.aux)
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 390455c2bb..9abd265f31 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -21557,28 +21557,32 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Store",
+-		auxType: auxInt64,
+-		argLen:  3,
+-		generic: true,
++		name:      "Store",
++		auxType:   auxSymOff,
++		argLen:    3,
++		symEffect: SymNone,
++		generic:   true,
+ 	},
+ 	{
+-		name:    "Move",
+-		auxType: auxSizeAndAlign,
+-		argLen:  3,
+-		generic: true,
++		name:      "Move",
++		auxType:   auxSymSizeAndAlign,
++		argLen:    3,
++		symEffect: SymNone,
++		generic:   true,
+ 	},
+ 	{
+-		name:    "Zero",
+-		auxType: auxSizeAndAlign,
+-		argLen:  2,
+-		generic: true,
++		name:      "Zero",
++		auxType:   auxSymSizeAndAlign,
++		argLen:    2,
++		symEffect: SymNone,
++		generic:   true,
+ 	},
+ 	{
+-		name:    "StoreWB",
+-		auxType: auxInt64,
+-		argLen:  3,
+-		generic: true,
++		name:      "StoreWB",
++		auxType:   auxSymOff,
++		argLen:    3,
++		symEffect: SymNone,
++		generic:   true,
+ 	},
+ 	{
+ 		name:      "MoveWB",
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index 60c18bdd33..8a113743a4 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -303,7 +303,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Store [8] dst (ComplexMake real imag) mem)
+ 	// cond:
+-	// result: (Store [4]     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] dst real mem))
++	// result: (Store [4] {config.fe.TypeFloat32()}     (OffPtr <config.fe.TypeFloat32().PtrTo()> [4] dst)     imag     (Store [4] {config.fe.TypeFloat32()} dst real mem))
+ 	for {
+ 		if v.AuxInt != 8 {
+ 			break
+@@ -318,6 +318,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = 4
++		v.Aux = config.fe.TypeFloat32()
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat32().PtrTo())
+ 		v0.AuxInt = 4
+ 		v0.AddArg(dst)
+@@ -325,6 +326,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(imag)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = 4
++		v1.Aux = config.fe.TypeFloat32()
+ 		v1.AddArg(dst)
+ 		v1.AddArg(real)
+ 		v1.AddArg(mem)
+@@ -333,7 +335,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [16] dst (ComplexMake real imag) mem)
+ 	// cond:
+-	// result: (Store [8]     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store [8] dst real mem))
++	// result: (Store [8] {config.fe.TypeFloat64()}     (OffPtr <config.fe.TypeFloat64().PtrTo()> [8] dst)     imag     (Store [8] {config.fe.TypeFloat64()} dst real mem))
+ 	for {
+ 		if v.AuxInt != 16 {
+ 			break
+@@ -348,6 +350,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = 8
++		v.Aux = config.fe.TypeFloat64()
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeFloat64().PtrTo())
+ 		v0.AuxInt = 8
+ 		v0.AddArg(dst)
+@@ -355,6 +358,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(imag)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = 8
++		v1.Aux = config.fe.TypeFloat64()
+ 		v1.AddArg(dst)
+ 		v1.AddArg(real)
+ 		v1.AddArg(mem)
+@@ -363,7 +367,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [2*config.PtrSize] dst (StringMake ptr len) mem)
+ 	// cond:
+-	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] dst ptr mem))
++	// result: (Store [config.PtrSize] {config.fe.TypeInt()}     (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)     len     (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem))
+ 	for {
+ 		if v.AuxInt != 2*config.PtrSize {
+ 			break
+@@ -378,6 +382,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = config.PtrSize
++		v.Aux = config.fe.TypeInt()
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
+ 		v0.AuxInt = config.PtrSize
+ 		v0.AddArg(dst)
+@@ -385,6 +390,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(len)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = config.PtrSize
++		v1.Aux = config.fe.TypeBytePtr()
+ 		v1.AddArg(dst)
+ 		v1.AddArg(ptr)
+ 		v1.AddArg(mem)
+@@ -393,7 +399,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [3*config.PtrSize] dst (SliceMake ptr len cap) mem)
+ 	// cond:
+-	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize]       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] dst ptr mem)))
++	// result: (Store [config.PtrSize] {config.fe.TypeInt()}     (OffPtr <config.fe.TypeInt().PtrTo()> [2*config.PtrSize] dst)     cap     (Store [config.PtrSize] {config.fe.TypeInt()}       (OffPtr <config.fe.TypeInt().PtrTo()> [config.PtrSize] dst)       len       (Store [config.PtrSize] {config.fe.TypeBytePtr()} dst ptr mem)))
+ 	for {
+ 		if v.AuxInt != 3*config.PtrSize {
+ 			break
+@@ -409,6 +415,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = config.PtrSize
++		v.Aux = config.fe.TypeInt()
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
+ 		v0.AuxInt = 2 * config.PtrSize
+ 		v0.AddArg(dst)
+@@ -416,6 +423,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(cap)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = config.PtrSize
++		v1.Aux = config.fe.TypeInt()
+ 		v2 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeInt().PtrTo())
+ 		v2.AuxInt = config.PtrSize
+ 		v2.AddArg(dst)
+@@ -423,6 +431,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v1.AddArg(len)
+ 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v3.AuxInt = config.PtrSize
++		v3.Aux = config.fe.TypeBytePtr()
+ 		v3.AddArg(dst)
+ 		v3.AddArg(ptr)
+ 		v3.AddArg(mem)
+@@ -432,7 +441,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [2*config.PtrSize] dst (IMake itab data) mem)
+ 	// cond:
+-	// result: (Store [config.PtrSize]     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store [config.PtrSize] dst itab mem))
++	// result: (Store [config.PtrSize] {config.fe.TypeBytePtr()}     (OffPtr <config.fe.TypeBytePtr().PtrTo()> [config.PtrSize] dst)     data     (Store [config.PtrSize] {config.fe.TypeUintptr()} dst itab mem))
+ 	for {
+ 		if v.AuxInt != 2*config.PtrSize {
+ 			break
+@@ -447,6 +456,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = config.PtrSize
++		v.Aux = config.fe.TypeBytePtr()
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, config.fe.TypeBytePtr().PtrTo())
+ 		v0.AuxInt = config.PtrSize
+ 		v0.AddArg(dst)
+@@ -454,6 +464,7 @@ func rewriteValuedec_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(data)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = config.PtrSize
++		v1.Aux = config.fe.TypeUintptr()
+ 		v1.AddArg(dst)
+ 		v1.AddArg(itab)
+ 		v1.AddArg(mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+index d04676fadb..be1684030d 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec64.go
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -2398,7 +2398,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (Store [8] dst (Int64Make hi lo) mem)
+ 	// cond: !config.BigEndian
+-	// result: (Store [4] 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store [4] dst lo mem))
++	// result: (Store [4] {hi.Type} 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store [4] {lo.Type} dst lo mem))
+ 	for {
+ 		if v.AuxInt != 8 {
+ 			break
+@@ -2416,6 +2416,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 		}
+ 		v.reset(OpStore)
+ 		v.AuxInt = 4
++		v.Aux = hi.Type
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, hi.Type.PtrTo())
+ 		v0.AuxInt = 4
+ 		v0.AddArg(dst)
+@@ -2423,6 +2424,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(hi)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = 4
++		v1.Aux = lo.Type
+ 		v1.AddArg(dst)
+ 		v1.AddArg(lo)
+ 		v1.AddArg(mem)
+@@ -2431,7 +2433,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [8] dst (Int64Make hi lo) mem)
+ 	// cond: config.BigEndian
+-	// result: (Store [4] 		(OffPtr <lo.Type.PtrTo()> [4] dst) 		lo 		(Store [4] dst hi mem))
++	// result: (Store [4] {lo.Type} 		(OffPtr <lo.Type.PtrTo()> [4] dst) 		lo 		(Store [4] {hi.Type} dst hi mem))
+ 	for {
+ 		if v.AuxInt != 8 {
+ 			break
+@@ -2449,6 +2451,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 		}
+ 		v.reset(OpStore)
+ 		v.AuxInt = 4
++		v.Aux = lo.Type
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, lo.Type.PtrTo())
+ 		v0.AuxInt = 4
+ 		v0.AddArg(dst)
+@@ -2456,6 +2459,7 @@ func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(lo)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = 4
++		v1.Aux = hi.Type
+ 		v1.AddArg(dst)
+ 		v1.AddArg(hi)
+ 		v1.AddArg(mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b998266f2b..172e77783d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -14748,7 +14748,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store dst (StructMake1 <t> f0) mem)
+ 	// cond:
+-	// result: (Store [t.FieldType(0).Size()] (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
++	// result: (Store [t.FieldType(0).Size()] {t.FieldType(0)} (OffPtr <t.FieldType(0).PtrTo()> [0] dst) f0 mem)
+ 	for {
+ 		dst := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -14760,6 +14760,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = t.FieldType(0).Size()
++		v.Aux = t.FieldType(0)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+ 		v0.AuxInt = 0
+ 		v0.AddArg(dst)
+@@ -14770,7 +14771,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store dst (StructMake2 <t> f0 f1) mem)
+ 	// cond:
+-	// result: (Store [t.FieldType(1).Size()]     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()]       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)         f0 mem))
++	// result: (Store [t.FieldType(1).Size()] {t.FieldType(1)}     (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)     f1     (Store [t.FieldType(0).Size()] {t.FieldType(0)}       (OffPtr <t.FieldType(0).PtrTo()> [0] dst)         f0 mem))
+ 	for {
+ 		dst := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -14783,6 +14784,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = t.FieldType(1).Size()
++		v.Aux = t.FieldType(1)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+ 		v0.AuxInt = t.FieldOff(1)
+ 		v0.AddArg(dst)
+@@ -14790,6 +14792,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(f1)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = t.FieldType(0).Size()
++		v1.Aux = t.FieldType(0)
+ 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+ 		v2.AuxInt = 0
+ 		v2.AddArg(dst)
+@@ -14801,7 +14804,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store dst (StructMake3 <t> f0 f1 f2) mem)
+ 	// cond:
+-	// result: (Store [t.FieldType(2).Size()]     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()]       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()]         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)           f0 mem)))
++	// result: (Store [t.FieldType(2).Size()] {t.FieldType(2)}     (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)     f2     (Store [t.FieldType(1).Size()] {t.FieldType(1)}       (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)       f1       (Store [t.FieldType(0).Size()] {t.FieldType(0)}         (OffPtr <t.FieldType(0).PtrTo()> [0] dst)           f0 mem)))
+ 	for {
+ 		dst := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -14815,6 +14818,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = t.FieldType(2).Size()
++		v.Aux = t.FieldType(2)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
+ 		v0.AuxInt = t.FieldOff(2)
+ 		v0.AddArg(dst)
+@@ -14822,6 +14826,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(f2)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = t.FieldType(1).Size()
++		v1.Aux = t.FieldType(1)
+ 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+ 		v2.AuxInt = t.FieldOff(1)
+ 		v2.AddArg(dst)
+@@ -14829,6 +14834,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v1.AddArg(f1)
+ 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v3.AuxInt = t.FieldType(0).Size()
++		v3.Aux = t.FieldType(0)
+ 		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+ 		v4.AuxInt = 0
+ 		v4.AddArg(dst)
+@@ -14841,7 +14847,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store dst (StructMake4 <t> f0 f1 f2 f3) mem)
+ 	// cond:
+-	// result: (Store [t.FieldType(3).Size()]     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()]       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()]         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()]           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)             f0 mem))))
++	// result: (Store [t.FieldType(3).Size()] {t.FieldType(3)}     (OffPtr <t.FieldType(3).PtrTo()> [t.FieldOff(3)] dst)     f3     (Store [t.FieldType(2).Size()] {t.FieldType(2)}       (OffPtr <t.FieldType(2).PtrTo()> [t.FieldOff(2)] dst)       f2       (Store [t.FieldType(1).Size()] {t.FieldType(1)}         (OffPtr <t.FieldType(1).PtrTo()> [t.FieldOff(1)] dst)         f1         (Store [t.FieldType(0).Size()] {t.FieldType(0)}           (OffPtr <t.FieldType(0).PtrTo()> [0] dst)             f0 mem))))
+ 	for {
+ 		dst := v.Args[0]
+ 		v_1 := v.Args[1]
+@@ -14856,6 +14862,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = t.FieldType(3).Size()
++		v.Aux = t.FieldType(3)
+ 		v0 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(3).PtrTo())
+ 		v0.AuxInt = t.FieldOff(3)
+ 		v0.AddArg(dst)
+@@ -14863,6 +14870,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v.AddArg(f3)
+ 		v1 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v1.AuxInt = t.FieldType(2).Size()
++		v1.Aux = t.FieldType(2)
+ 		v2 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(2).PtrTo())
+ 		v2.AuxInt = t.FieldOff(2)
+ 		v2.AddArg(dst)
+@@ -14870,6 +14878,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v1.AddArg(f2)
+ 		v3 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v3.AuxInt = t.FieldType(1).Size()
++		v3.Aux = t.FieldType(1)
+ 		v4 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(1).PtrTo())
+ 		v4.AuxInt = t.FieldOff(1)
+ 		v4.AddArg(dst)
+@@ -14877,6 +14886,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		v3.AddArg(f1)
+ 		v5 := b.NewValue0(v.Pos, OpStore, TypeMem)
+ 		v5.AuxInt = t.FieldType(0).Size()
++		v5.Aux = t.FieldType(0)
+ 		v6 := b.NewValue0(v.Pos, OpOffPtr, t.FieldType(0).PtrTo())
+ 		v6.AuxInt = 0
+ 		v6.AddArg(dst)
+@@ -14890,7 +14900,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [size] dst (Load <t> src mem) mem)
+ 	// cond: !config.fe.CanSSA(t)
+-	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src mem)
++	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src mem)
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+@@ -14909,6 +14919,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
++		v.Aux = t
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v.AddArg(mem)
+@@ -14916,7 +14927,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [size] dst (Load <t> src mem) (VarDef {x} mem))
+ 	// cond: !config.fe.CanSSA(t)
+-	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] dst src (VarDef {x} mem))
++	// result: (Move [MakeSizeAndAlign(size, t.Alignment()).Int64()] {t} dst src (VarDef {x} mem))
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+@@ -14940,6 +14951,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		}
+ 		v.reset(OpMove)
+ 		v.AuxInt = MakeSizeAndAlign(size, t.Alignment()).Int64()
++		v.Aux = t
+ 		v.AddArg(dst)
+ 		v.AddArg(src)
+ 		v0 := b.NewValue0(v.Pos, OpVarDef, TypeMem)
+@@ -14964,7 +14976,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 	}
+ 	// match: (Store [size] dst (ArrayMake1 e) mem)
+ 	// cond:
+-	// result: (Store [size] dst e mem)
++	// result: (Store [size] {e.Type} dst e mem)
+ 	for {
+ 		size := v.AuxInt
+ 		dst := v.Args[0]
+@@ -14976,6 +14988,7 @@ func rewriteValuegeneric_OpStore(v *Value, config *Config) bool {
+ 		mem := v.Args[2]
+ 		v.reset(OpStore)
+ 		v.AuxInt = size
++		v.Aux = e.Type
+ 		v.AddArg(dst)
+ 		v.AddArg(e)
+ 		v.AddArg(mem)
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 3ebee6a8f1..0936cc5184 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++import "cmd/internal/obj"
++
+ // TODO: use go/types instead?
+ 
+ // A type interface used to import cmd/internal/gc:Type
+@@ -39,9 +41,12 @@ type Type interface {
+ 
+ 	NumElem() int64 // # of elements of an array
+ 
++	HasPointer() bool // has heap pointer
++
+ 	String() string
+ 	SimpleString() string // a coarser generic description of T, e.g. T's underlying type
+ 	Compare(Type) Cmp     // compare types, returning one of CMPlt, CMPeq, CMPgt.
++	Symbol() *obj.LSym    // the symbol of the type
+ }
+ 
+ // Special compiler-only types.
+@@ -80,6 +85,8 @@ func (t *CompilerType) FieldType(i int) Type   { panic("not implemented") }
+ func (t *CompilerType) FieldOff(i int) int64   { panic("not implemented") }
+ func (t *CompilerType) FieldName(i int) string { panic("not implemented") }
+ func (t *CompilerType) NumElem() int64         { panic("not implemented") }
++func (t *CompilerType) HasPointer() bool       { panic("not implemented") }
++func (t *CompilerType) Symbol() *obj.LSym      { panic("not implemented") }
+ 
+ type TupleType struct {
+ 	first  Type
+@@ -122,6 +129,8 @@ func (t *TupleType) FieldType(i int) Type {
+ func (t *TupleType) FieldOff(i int) int64   { panic("not implemented") }
+ func (t *TupleType) FieldName(i int) string { panic("not implemented") }
+ func (t *TupleType) NumElem() int64         { panic("not implemented") }
++func (t *TupleType) HasPointer() bool       { panic("not implemented") }
++func (t *TupleType) Symbol() *obj.LSym      { panic("not implemented") }
+ 
+ // Cmp is a comparison between values a and b.
+ // -1 if a < b
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 2f917288de..90958995ce 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -4,6 +4,8 @@
+ 
+ package ssa
+ 
++import "cmd/internal/obj"
++
+ // Stub implementation used for testing.
+ type TypeImpl struct {
+ 	Size_   int64
+@@ -50,6 +52,8 @@ func (t *TypeImpl) FieldType(i int) Type   { panic("not implemented") }
+ func (t *TypeImpl) FieldOff(i int) int64   { panic("not implemented") }
+ func (t *TypeImpl) FieldName(i int) string { panic("not implemented") }
+ func (t *TypeImpl) NumElem() int64         { panic("not implemented") }
++func (t *TypeImpl) HasPointer() bool       { return t.Ptr }
++func (t *TypeImpl) Symbol() *obj.LSym      { panic("not implemented") }
+ 
+ func (t *TypeImpl) Equal(u Type) bool {
+ 	x, ok := u.(*TypeImpl)
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 0b82a5ba4c..961cf2b2a8 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -159,7 +159,10 @@ func writebarrier(f *Func) {
+ 			var val *Value
+ 			ptr := w.Args[0]
+ 			siz := w.AuxInt
+-			typ := w.Aux // only non-nil for MoveWB, ZeroWB
++			var typ interface{}
++			if w.Op != OpStoreWB {
++				typ = &ExternSymbol{Typ: f.Config.fe.TypeUintptr(), Sym: w.Aux.(Type).Symbol()}
++			}
+ 			pos = w.Pos
+ 
+ 			var op Op

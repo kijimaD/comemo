@@ -11,9 +11,77 @@ Date:   Wed Feb 14 17:17:40 2024 -0500
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/types/stmt.go                          | 2 +-
  src/os/exec/exec_test.go                      | 4 ++--
  src/runtime/internal/wasitest/tcpecho_test.go | 6 +-----
  src/runtime/trace2cpu.go                      | 4 +---
  4 files changed, 5 insertions(+), 11 deletions(-)
+
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 2bfe5890da..25acf1ab43 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 	type identType = ast.Ident
+ 	identName := func(n *identType) string { return n.Name }
+ 	sKey, sValue := s.Key, s.Value
+-	var sExtra ast.Expr = nil
++	var sExtra ast.Expr = nil // (used only in types2 fork)
+ 	isDef := s.Tok == token.DEFINE
+ 	rangeVar := s.X
+ 	noNewVarPos := inNode(s, s.TokPos)
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 71a00494ad..0f9c71ab57 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1659,8 +1659,8 @@ func TestCancelErrors(t *testing.T) {
+ 		// This test should kill the child process after 1ms,
+ 		// To maximize compatibility with existing uses of exec.CommandContext, the
+ 		// resulting error should be an exec.ExitError without additional wrapping.
+-		if ee, ok := err.(*exec.ExitError); !ok {
+-			t.Errorf("Wait error = %v; want %T", err, *ee)
++		if _, ok := err.(*exec.ExitError); !ok {
++			t.Errorf("Wait error = %v; want *exec.ExitError", err)
+ 		}
+ 	})
+ 
+diff --git a/src/runtime/internal/wasitest/tcpecho_test.go b/src/runtime/internal/wasitest/tcpecho_test.go
+index 11373955f3..bbcea90310 100644
+--- a/src/runtime/internal/wasitest/tcpecho_test.go
++++ b/src/runtime/internal/wasitest/tcpecho_test.go
+@@ -68,18 +68,14 @@ func TestTCPEcho(t *testing.T) {
+ 	defer subProcess.Process.Kill()
+ 
+ 	var conn net.Conn
+-	var err error
+ 	for {
++		var err error
+ 		conn, err = net.Dial("tcp", host)
+ 		if err == nil {
+ 			break
+ 		}
+ 		time.Sleep(500 * time.Millisecond)
+ 	}
+-	if err != nil {
+-		t.Log(b.String())
+-		t.Fatal(err)
+-	}
+ 	defer conn.Close()
+ 
+ 	payload := []byte("foobar")
+diff --git a/src/runtime/trace2cpu.go b/src/runtime/trace2cpu.go
+index 4635662c08..b3b0fb046d 100644
+--- a/src/runtime/trace2cpu.go
++++ b/src/runtime/trace2cpu.go
+@@ -261,9 +261,7 @@ func traceCPUSample(gp *g, mp *m, pp *p, stk []uintptr) {
+ 	if gp != nil {
+ 		hdr[1] = gp.goid
+ 	}
+-	if mp != nil {
+-		hdr[2] = uint64(mp.procid)
+-	}
++	hdr[2] = uint64(mp.procid)
+ 
+ 	// Allow only one writer at a time
+ 	for !trace.signalLock.CompareAndSwap(0, 1) {

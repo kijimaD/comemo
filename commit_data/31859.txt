@@ -13,7 +13,32 @@ Date:   Mon Mar 20 20:18:02 2017 -0700
     Change-Id: I8b7f8c8cf85b028c18e5ca3b9797de92ea910669
     Reviewed-on: https://go-review.googlesource.com/38413
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/html/template/template.go | 1 +
  src/text/template/template.go | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index b313a6b104..e1f179abc2 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -325,6 +325,7 @@ func (t *Template) Name() string {
+ type FuncMap map[string]interface{}
+ 
+ // Funcs adds the elements of the argument map to the template's function map.
++// It must be called before the template is parsed.
+ // It panics if a value in the map is not a function with appropriate return
+ // type. However, it is legal to overwrite elements of the map. The return
+ // value is the template, so calls can be chained.
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index b6fceb1795..ed1ef3cf8d 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -159,6 +159,7 @@ func (t *Template) Delims(left, right string) *Template {
+ }
+ 
+ // Funcs adds the elements of the argument map to the template's function map.
++// It must be called before the template is parsed.
+ // It panics if a value in the map is not a function with appropriate return
+ // type or if the name cannot be used syntactically as a function in a template.
+ // It is legal to overwrite elements of the map. The return value is the template,

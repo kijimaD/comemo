@@ -19,9 +19,197 @@ Date:   Fri Apr 10 19:13:01 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/data.go       |  2 +-
  src/cmd/link/internal/ld/deadcode.go   | 40 ++------------------------------
  src/cmd/link/internal/loader/loader.go | 42 ++++++++++++----------------------
  src/cmd/link/internal/sym/library.go   |  2 --
  4 files changed, 17 insertions(+), 69 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 44eea8429e..d8c11fa4c0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -413,7 +413,7 @@ func relocsym(target *Target, ldr *loader.Loader, err *ErrorReporter, syms *Arch
+ 		case objabi.R_ADDRCUOFF:
+ 			// debug_range and debug_loc elements use this relocation type to get an
+ 			// offset from the start of the compile unit.
+-			o = Symaddr(r.Sym) + r.Add - Symaddr(r.Sym.Unit.Textp[0])
++			o = Symaddr(r.Sym) + r.Add - Symaddr(ldr.Syms[r.Sym.Unit.Textp2[0]])
+ 
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+ 		case objabi.R_GOTPCREL:
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 13ddcdac24..e5bd73cd94 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -5,7 +5,6 @@
+ package ld
+ 
+ import (
+-	"cmd/internal/objabi"
+ 	"cmd/link/internal/sym"
+ )
+ 
+@@ -46,11 +45,9 @@ func deadcode(ctxt *Link) {
+ }
+ 
+ // addToTextp populates the context Textp slice (needed in various places
+-// in the linker) and also the unit Textp slices (needed by the "old"
+-// phase 2 DWARF generation).
++// in the linker).
+ func addToTextp(ctxt *Link) {
+-
+-	// First set up ctxt.Textp, based on ctxt.Textp2.
++	// Set up ctxt.Textp, based on ctxt.Textp2.
+ 	textp := make([]*sym.Symbol, 0, len(ctxt.Textp2))
+ 	haveshlibs := len(ctxt.Shlibs) > 0
+ 	for _, tsym := range ctxt.Textp2 {
+@@ -64,37 +61,4 @@ func addToTextp(ctxt *Link) {
+ 		textp = append(textp, sp)
+ 	}
+ 	ctxt.Textp = textp
+-
+-	// Dupok symbols may be defined in multiple packages; the
+-	// associated package for a dupok sym is chosen sort of
+-	// arbitrarily (the first containing package that the linker
+-	// loads). The loop below canonicalizes the File to the package
+-	// with which it will be laid down in text. Assumes that
+-	// ctxt.Library is already in postorder.
+-	for _, doInternal := range [2]bool{true, false} {
+-		for _, lib := range ctxt.Library {
+-			if isRuntimeDepPkg(lib.Pkg) != doInternal {
+-				continue
+-			}
+-			for _, dsym := range lib.DupTextSyms2 {
+-				tsp := ctxt.loader.Syms[dsym]
+-				if !tsp.Attr.OnList() {
+-					tsp.Attr |= sym.AttrOnList
+-					tsp.File = objabi.PathToPrefix(lib.Pkg)
+-				}
+-			}
+-		}
+-	}
+-
+-	// Finally, set up compilation unit Textp slices. Can be removed
+-	// once loader-Sym DWARF-gen phase 2 is always enabled.
+-	for _, lib := range ctxt.Library {
+-		for _, unit := range lib.Units {
+-			for _, usym := range unit.Textp2 {
+-				usp := ctxt.loader.Syms[usym]
+-				usp.Attr |= sym.AttrOnList
+-				unit.Textp = append(unit.Textp, usp)
+-			}
+-		}
+-	}
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index daf91dd258..ff5d8ed322 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1252,10 +1252,10 @@ func (l *Loader) SymUnit(i Sym) *sym.CompilationUnit {
+ // shared library), will hold the library name.
+ // NOTE: this correspondes to sym.Symbol.File field.
+ func (l *Loader) SymPkg(i Sym) string {
++	if f, ok := l.symPkg[i]; ok {
++		return f
++	}
+ 	if l.IsExternal(i) {
+-		if f, ok := l.symPkg[i]; ok {
+-			return f
+-		}
+ 		pp := l.getPayload(i)
+ 		if pp.objidx != 0 {
+ 			r := l.objs[pp.objidx].r
+@@ -1275,9 +1275,6 @@ func (l *Loader) SetSymPkg(i Sym, pkg string) {
+ 	if i >= Sym(len(l.objSyms)) || i == 0 {
+ 		panic("bad symbol index in SetSymPkg")
+ 	}
+-	if !l.IsExternal(i) {
+-		panic("can't set file for non-external sym")
+-	}
+ 	l.symPkg[i] = pkg
+ }
+ 
+@@ -2452,7 +2449,6 @@ func (l *Loader) CreateStaticSym(name string) Sym {
+ }
+ 
+ func loadObjFull(l *Loader, r *oReader) {
+-	lib := r.unit.Lib
+ 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
+ 		i := l.resolve(r, s)
+ 		return l.Syms[i]
+@@ -2463,34 +2459,16 @@ func loadObjFull(l *Loader, r *oReader) {
+ 		// content will actually be provided by a different object
+ 		// (to which its global index points). Skip those symbols.
+ 		gi := l.toGlobal(r, i)
+-		var isdup bool
+ 		if r2, i2 := l.toLocal(gi); r2 != r || i2 != i {
+-			isdup = true
+-		}
+-
+-		osym := r.Sym(i)
+-		dupok := osym.Dupok()
+-		if dupok && isdup {
+-			if l.attrReachable.Has(gi) {
+-				// A dupok symbol is resolved to another package. We still need
+-				// to record its presence in the current package, as the trampoline
+-				// pass expects packages are laid out in dependency order.
+-				s := l.Syms[gi]
+-				if s.Type == sym.STEXT {
+-					lib.DupTextSyms = append(lib.DupTextSyms, s)
+-				}
+-			}
+ 			continue
+ 		}
+-
+-		if isdup {
+-			continue // come from a different object
+-		}
+ 		s := l.Syms[gi]
+ 		if s == nil {
+ 			continue
+ 		}
+ 
++		osym := r.Sym(i)
++		dupok := osym.Dupok()
+ 		local := osym.Local()
+ 		makeTypelink := osym.Typelink()
+ 		size := osym.Siz()
+@@ -2711,7 +2689,7 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 			}
+ 			libtextp2 := []sym.LoaderSym{}
+ 			lists := [2][]sym.LoaderSym{lib.Textp2, lib.DupTextSyms2}
+-			for _, list := range lists {
++			for i, list := range lists {
+ 				for _, s := range list {
+ 					sym := Sym(s)
+ 					if l.attrReachable.Has(sym) && !assignedToUnit.Has(sym) {
+@@ -2722,6 +2700,14 @@ func (l *Loader) AssignTextSymbolOrder(libs []*sym.Library, intlibs []bool, exts
+ 							unit.Textp2 = append(unit.Textp2, s)
+ 							assignedToUnit.Set(sym)
+ 						}
++						// Dupok symbols may be defined in multiple packages; the
++						// associated package for a dupok sym is chosen sort of
++						// arbitrarily (the first containing package that the linker
++						// loads). Canonicalizes its Pkg to the package with which
++						// it will be laid down in text.
++						if i == 1 /* DupTextSyms2 */ && l.SymPkg(sym) != lib.Pkg {
++							l.SetSymPkg(sym, lib.Pkg)
++						}
+ 					}
+ 				}
+ 			}
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+index 21568dfbe2..bed16565ba 100644
+--- a/src/cmd/link/internal/sym/library.go
++++ b/src/cmd/link/internal/sym/library.go
+@@ -13,8 +13,6 @@ type Library struct {
+ 	Hash          string
+ 	ImportStrings []string
+ 	Imports       []*Library
+-	Textp         []*Symbol // text symbols defined in this library
+-	DupTextSyms   []*Symbol // dupok text symbols defined in this library
+ 	Main          bool
+ 	Safe          bool
+ 	Units         []*CompilationUnit

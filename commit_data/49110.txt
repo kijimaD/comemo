@@ -14,7 +14,7 @@ Date:   Fri Jul 16 20:57:10 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/testdata/check/issues.go2         |  2 +-
  src/go/types/testdata/check/tinference.go2     | 42 ++++++++++++++------------
  src/go/types/testdata/fixedbugs/issue39634.go2 |  7 +++--
@@ -24,3 +24,223 @@ Date:   Fri Jul 16 20:57:10 2021 -0400
  src/go/types/typeset.go                        |  8 ++---
  src/go/types/union.go                          | 11 +++++--
  8 files changed, 81 insertions(+), 40 deletions(-)
+
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index 607da1df19..c57f002303 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -239,7 +239,7 @@ func _[T interface{ ~func() }](f T) {
+ 
+ type sliceOf[E any] interface{ ~[]E }
+ 
+-func append[T interface{}, S sliceOf[T], T2 interface{ T }](s S, t ...T2) S
++func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S
+ 
+ var f           func()
+ var cancelSlice []context.CancelFunc
+diff --git a/src/go/types/testdata/check/tinference.go2 b/src/go/types/testdata/check/tinference.go2
+index 7ed358e078..44e8dc0059 100644
+--- a/src/go/types/testdata/check/tinference.go2
++++ b/src/go/types/testdata/check/tinference.go2
+@@ -11,19 +11,20 @@ type any interface{}
+ // TODO(rFindley) the below partially applied function types should probably
+ //                not be permitted (spec question).
+ 
+-func f0[A any, B interface{~C}, C interface{~D}, D interface{~A}](A, B, C, D)
+-func _() {
+-	f := f0[string]
+-	f("a", "b", "c", "d")
+-	f0("a", "b", "c", "d")
+-}
+-
+-func f1[A any, B interface{~A}](A, B)
+-func _() {
+-	f := f1[int]
+-	f(int(0), int(0))
+-	f1(int(0), int(0))
+-}
++// Embedding stand-alone type parameters is not permitted for now. Disabled.
++// func f0[A any, B interface{~C}, C interface{~D}, D interface{~A}](A, B, C, D)
++// func _() {
++// 	f := f0[string]
++// 	f("a", "b", "c", "d")
++// 	f0("a", "b", "c", "d")
++// }
++//
++// func f1[A any, B interface{~A}](A, B)
++// func _() {
++// 	f := f1[int]
++// 	f(int(0), int(0))
++// 	f1(int(0), int(0))
++// }
+ 
+ func f2[A any, B interface{~[]A}](A, B)
+ func _() {
+@@ -32,13 +33,14 @@ func _() {
+ 	f2(byte(0), []byte{})
+ }
+ 
+-func f3[A any, B interface{~C}, C interface{~*A}](A, B, C)
+-func _() {
+-	f := f3[int]
+-	var x int
+-	f(x, &x, &x)
+-	f3(x, &x, &x)
+-}
++// Embedding stand-alone type parameters is not permitted for now. Disabled.
++// func f3[A any, B interface{~C}, C interface{~*A}](A, B, C)
++// func _() {
++// 	f := f3[int]
++// 	var x int
++// 	f(x, &x, &x)
++// 	f3(x, &x, &x)
++// }
+ 
+ func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C)
+ func _() {
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index 2a1367373f..aec404e294 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -31,9 +31,10 @@ type x7[A any] struct{ foo7 }
+ func main7() { var _ foo7 = x7[int]{} }
+ 
+ // crash 8
+-type foo8[A any] interface { ~A }
+-func bar8[A foo8[A]](a A) {}
+-func main8() {}
++// Embedding stand-alone type parameters is not permitted for now. Disabled.
++// type foo8[A any] interface { ~A }
++// func bar8[A foo8[A]](a A) {}
++// func main8() {}
+ 
+ // crash 9
+ type foo9[A any] interface { foo9 /* ERROR illegal cycle */ [A] }
+diff --git a/src/go/types/testdata/fixedbugs/issue39680.go2 b/src/go/types/testdata/fixedbugs/issue39680.go2
+index 01eadd2dbf..e56bc35475 100644
+--- a/src/go/types/testdata/fixedbugs/issue39680.go2
++++ b/src/go/types/testdata/fixedbugs/issue39680.go2
+@@ -4,6 +4,9 @@
+ 
+ package p
+ 
++// Embedding stand-alone type parameters is not permitted for now. Disabled.
++
++/*
+ import "fmt"
+ 
+ // Minimal test case.
+@@ -25,3 +28,4 @@ func Print[T constr[T]](s []T) {
+ func f() {
+ 	Print([]string{"Hello, ", "playground\n"})
+ }
++*/
+diff --git a/src/go/types/testdata/fixedbugs/issue39948.go2 b/src/go/types/testdata/fixedbugs/issue39948.go2
+index d83084b52a..e38e57268d 100644
+--- a/src/go/types/testdata/fixedbugs/issue39948.go2
++++ b/src/go/types/testdata/fixedbugs/issue39948.go2
+@@ -2,14 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(rfindley) Eventually, once we disallow type lists, we need to
+-//                adjust this code: for 1.17 we don't accept type parameters,
+-//                and for 1.18 this code is valid.
+-//                Leaving for now so we can see that existing errors
+-//                are being reported.
+-
+-package go1_17 // don't permit non-interface elements in interfaces
++package p
+ 
+ type T[P any] interface{
+-	P // ERROR P is a type parameter, not an interface
++	P // ERROR cannot embed a type parameter
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue47127.go2 b/src/go/types/testdata/fixedbugs/issue47127.go2
+new file mode 100644
+index 0000000000..387c946957
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue47127.go2
+@@ -0,0 +1,37 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Embedding of stand-alone type parameters is not permitted.
++
++package p
++
++type (
++        _[P any] interface{ *P | []P | chan P | map[string]P }
++        _[P any] interface{ P /* ERROR "cannot embed a type parameter" */ }
++        _[P any] interface{ ~P /* ERROR "cannot embed a type parameter" */ }
++        _[P any] interface{ int | P /* ERROR "cannot embed a type parameter" */ }
++        _[P any] interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }
++)
++
++func _[P any]() {
++        type (
++                _[P any] interface{ *P | []P | chan P | map[string]P }
++                _[P any] interface{ P /* ERROR "cannot embed a type parameter" */ }
++                _[P any] interface{ ~P /* ERROR "cannot embed a type parameter" */ }
++                _[P any] interface{ int | P /* ERROR "cannot embed a type parameter" */ }
++                _[P any] interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }
++
++                _ interface{ *P | []P | chan P | map[string]P }
++                _ interface{ P /* ERROR "cannot embed a type parameter" */ }
++                _ interface{ ~P /* ERROR "cannot embed a type parameter" */ }
++                _ interface{ int | P /* ERROR "cannot embed a type parameter" */ }
++                _ interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }
++        )
++}
++
++func _[P any, Q interface{ *P | []P | chan P | map[string]P }]()
++func _[P any, Q interface{ P /* ERROR "cannot embed a type parameter" */ }]()
++func _[P any, Q interface{ ~P /* ERROR "cannot embed a type parameter" */ }]()
++func _[P any, Q interface{ int | P /* ERROR "cannot embed a type parameter" */ }]()
++func _[P any, Q interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }]()
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d8fe42f7d0..3df2f1235f 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -217,11 +217,9 @@ func computeTypeSet(check *Checker, pos token.Pos, ityp *Interface) *TypeSet {
+ 			//           interface before go1.18.
+ 			types = typ
+ 		case *TypeParam:
+-			if check != nil && !check.allowVersion(check.pkg, 1, 18) {
+-				check.errorf(atPos(pos), _InvalidIfaceEmbed, "%s is a type parameter, not an interface", typ)
+-				continue
+-			}
+-			types = typ
++			// Embedding stand-alone type parameters is not permitted for now.
++			// This case is handled during union parsing.
++			unreachable()
+ 		default:
+ 			if typ == Typ[Invalid] {
+ 				continue
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 7c69ec7b10..556be46bf6 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -131,13 +131,18 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 	return newUnion(types, tilde)
+ }
+ 
+-func parseTilde(check *Checker, x ast.Expr) (Type, bool) {
+-	tilde := false
++func parseTilde(check *Checker, x ast.Expr) (typ Type, tilde bool) {
+ 	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
+ 		x = op.X
+ 		tilde = true
+ 	}
+-	return check.anyType(x), tilde
++	typ = check.anyType(x)
++	// embedding stand-alone type parameters is not permitted (issue #47127).
++	if _, ok := under(typ).(*TypeParam); ok {
++		check.error(x, _Todo, "cannot embed a type parameter")
++		typ = Typ[Invalid]
++	}
++	return
+ }
+ 
+ // intersect computes the intersection of the types x and y,

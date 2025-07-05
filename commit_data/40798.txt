@@ -14,8 +14,67 @@ Date:   Wed Jul 3 14:42:32 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/fixedbugs/issue32922.dir/a.go | 18 ++++++++++++++++++
  test/fixedbugs/issue32922.dir/b.go | 11 +++++++++++
  test/fixedbugs/issue32922.go       | 11 +++++++++++
  3 files changed, 40 insertions(+)
+
+diff --git a/test/fixedbugs/issue32922.dir/a.go b/test/fixedbugs/issue32922.dir/a.go
+new file mode 100644
+index 0000000000..b13c4b404d
+--- /dev/null
++++ b/test/fixedbugs/issue32922.dir/a.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func A() int {
++	return p("count")
++}
++
++func p(which string, args ...string) int {
++	switch which {
++	case "count", "something":
++		return 1
++	default:
++		return 2
++	}
++}
+diff --git a/test/fixedbugs/issue32922.dir/b.go b/test/fixedbugs/issue32922.dir/b.go
+new file mode 100644
+index 0000000000..fdaf42d3df
+--- /dev/null
++++ b/test/fixedbugs/issue32922.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++func B() int {
++	return 99 + a.A()
++}
+diff --git a/test/fixedbugs/issue32922.go b/test/fixedbugs/issue32922.go
+new file mode 100644
+index 0000000000..005c8e68cb
+--- /dev/null
++++ b/test/fixedbugs/issue32922.go
+@@ -0,0 +1,11 @@
++// compiledir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This directory contains a pair of packages that triggers a compiler
++// error in gccgo (problem with the way inlinable call expressions are
++// imported). See issue 32922 for details.
++
++package ignored

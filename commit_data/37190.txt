@@ -33,10 +33,135 @@ Date:   Fri Jun 29 17:31:37 2018 -0700
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/html/template/content.go      | 13 +++++++++++--
  src/html/template/content_test.go |  5 ++---
  src/html/template/doc.go          |  3 +++
  src/html/template/escape_test.go  | 21 +++++++++++++++++++--
  src/text/template/exec_test.go    |  2 ++
  5 files changed, 37 insertions(+), 7 deletions(-)
+
+diff --git a/src/html/template/content.go b/src/html/template/content.go
+index 4aadf64df2..6ba87a9550 100644
+--- a/src/html/template/content.go
++++ b/src/html/template/content.go
+@@ -169,8 +169,17 @@ func stringify(args ...interface{}) (string, contentType) {
+ 			return string(s), contentTypeSrcset
+ 		}
+ 	}
+-	for i, arg := range args {
++	i := 0
++	for _, arg := range args {
++		// We skip untyped nil arguments for backward compatibility.
++		// Without this they would be output as <nil>, escaped.
++		// See issue 25875.
++		if arg == nil {
++			continue
++		}
++
+ 		args[i] = indirectToStringerOrError(arg)
++		i++
+ 	}
+-	return fmt.Sprint(args...), contentTypePlain
++	return fmt.Sprint(args[:i]...), contentTypePlain
+ }
+diff --git a/src/html/template/content_test.go b/src/html/template/content_test.go
+index cc092f50c0..72d56f50c1 100644
+--- a/src/html/template/content_test.go
++++ b/src/html/template/content_test.go
+@@ -447,10 +447,9 @@ func TestEscapingNilNonemptyInterfaces(t *testing.T) {
+ 	testData := struct{ E error }{} // any non-empty interface here will do; error is just ready at hand
+ 	tmpl.Execute(got, testData)
+ 
+-	// Use this data instead of just hard-coding "&lt;nil&gt;" to avoid
+-	// dependencies on the html escaper and the behavior of fmt w.r.t. nil.
++	// A non-empty interface should print like an empty interface.
+ 	want := new(bytes.Buffer)
+-	data := struct{ E string }{E: fmt.Sprint(nil)}
++	data := struct{ E interface{} }{}
+ 	tmpl.Execute(want, data)
+ 
+ 	if !bytes.Equal(want.Bytes(), got.Bytes()) {
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index 35d171c3fc..290ec81b96 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -70,6 +70,9 @@ In this case it becomes
+ where urlescaper, attrescaper, and htmlescaper are aliases for internal escaping
+ functions.
+ 
++For these internal escaping functions, if an action pipeline evaluates to
++a nil interface value, it is treated as though it were an empty string.
++
+ Errors
+ 
+ See the documentation of ErrorCode for details.
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index d5c258ecaa..e6c12a8a25 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -35,7 +35,8 @@ func TestEscape(t *testing.T) {
+ 		A, E    []string
+ 		B, M    json.Marshaler
+ 		N       int
+-		Z       *int
++		U       interface{} // untyped nil
++		Z       *int        // typed nil
+ 		W       HTML
+ 	}{
+ 		F: false,
+@@ -48,6 +49,7 @@ func TestEscape(t *testing.T) {
+ 		N: 42,
+ 		B: &badMarshaler{},
+ 		M: &goodMarshaler{},
++		U: nil,
+ 		Z: nil,
+ 		W: HTML(`&iexcl;<b class="foo">Hello</b>, <textarea>O'World</textarea>!`),
+ 	}
+@@ -113,6 +115,16 @@ func TestEscape(t *testing.T) {
+ 			"{{.T}}",
+ 			"true",
+ 		},
++		{
++			"untypedNilValue",
++			"{{.U}}",
++			"",
++		},
++		{
++			"typedNilValue",
++			"{{.Z}}",
++			"&lt;nil&gt;",
++		},
+ 		{
+ 			"constant",
+ 			`<a href="/search?q={{"'a<b'"}}">`,
+@@ -199,10 +211,15 @@ func TestEscape(t *testing.T) {
+ 			`<button onclick='alert( true )'>`,
+ 		},
+ 		{
+-			"jsNilValue",
++			"jsNilValueTyped",
+ 			"<button onclick='alert(typeof{{.Z}})'>",
+ 			`<button onclick='alert(typeof null )'>`,
+ 		},
++		{
++			"jsNilValueUntyped",
++			"<button onclick='alert(typeof{{.U}})'>",
++			`<button onclick='alert(typeof null )'>`,
++		},
+ 		{
+ 			"jsObjValue",
+ 			"<button onclick='alert({{.A}})'>",
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index e54a9ca3c7..6f40d80635 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -448,6 +448,8 @@ var execTests = []execTest{
+ 	{"html pipeline", `{{printf "<script>alert(\"XSS\");</script>" | html}}`,
+ 		"&lt;script&gt;alert(&#34;XSS&#34;);&lt;/script&gt;", nil, true},
+ 	{"html", `{{html .PS}}`, "a string", tVal, true},
++	{"html typed nil", `{{html .NIL}}`, "&lt;nil&gt;", tVal, true},
++	{"html untyped nil", `{{html .Empty0}}`, "&lt;no value&gt;", tVal, true},
+ 
+ 	// JavaScript.
+ 	{"js", `{{js .}}`, `It\'d be nice.`, `It'd be nice.`, true},

@@ -20,6 +20,33 @@ Date:   Wed Nov 9 09:09:37 2016 -0600
     Change-Id: I6940e76a5238727b0a9ac23dc80000996db2579a
     Reviewed-on: https://go-review.googlesource.com/32972
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/symtab.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 686af08ef0..8a5b0df310 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -442,11 +442,18 @@ func findfunc(pc uintptr) *_func {
+ 
+ 	ffb := (*findfuncbucket)(add(unsafe.Pointer(datap.findfunctab), b*unsafe.Sizeof(findfuncbucket{})))
+ 	idx := ffb.idx + uint32(ffb.subbuckets[i])
++
++	// If the idx is beyond the end of the ftab, set it to the end of the table and search backward.
++	// This situation can occur if multiple text sections are generated to handle large text sections
++	// and the linker has inserted jump tables between them.
++
++	if idx >= uint32(len(datap.ftab)) {
++		idx = uint32(len(datap.ftab) - 1)
++	}
+ 	if pc < datap.ftab[idx].entry {
+ 
+-		// If there are multiple text sections then the buckets for the secondary
+-		// text sections will be off because the addresses in those text sections
+-		// were relocated to higher addresses.  Search back to find it.
++		// With multiple text sections, the idx might reference a function address that
++		// is higher than the pc being searched, so search backward until the matching address is found.
+ 
+ 		for datap.ftab[idx].entry > pc && idx > 0 {
+ 			idx--

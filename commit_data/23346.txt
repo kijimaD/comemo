@@ -18,7 +18,33 @@ Date:   Thu May 7 15:29:48 2015 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go  | 2 +-
  src/runtime/runtime1.go | 1 +
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index f69166ee22..9d78ddecae 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -673,7 +673,7 @@ func greyobject(obj, base, off uintptr, hbits heapBits, span *mspan, gcw *gcWork
+ 
+ 			throw("checkmark found unmarked object")
+ 		}
+-		if !hbits.isCheckmarked() {
++		if hbits.isCheckmarked() {
+ 			return
+ 		}
+ 		hbits.setCheckmarked()
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index ea3883018b..3bf0b95f6d 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -336,6 +336,7 @@ var dbgvars = []dbgVar{
+ }
+ 
+ func parsedebugvars() {
++	debug.gccheckmark=1
+ 	for p := gogetenv("GODEBUG"); p != ""; {
+ 		field := ""
+ 		i := index(p, ",")

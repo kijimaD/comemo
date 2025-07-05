@@ -14,8 +14,69 @@ Date:   Tue May 3 16:30:30 2022 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64.rules |  3 ++-
  src/cmd/compile/internal/ssa/rewritePPC64.go | 18 ++++++++++++++++++
  test/codegen/logic.go                        |  8 ++++++++
  3 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index eb9fe3cf72..1fe7ae9e53 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -381,8 +381,9 @@
+ (OrB ...) => (OR ...)
+ (Not x) => (XORconst [1] x)
+ 
+-// Use ANDN for AND x NOT y
++// Merge logical operations
+ (AND x (NOR y y)) => (ANDN x y)
++(OR x (NOR y y)) => (ORN x y)
+ 
+ // Lowering comparisons
+ (EqB x y)  => (ANDconst [1] (EQV x y))
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 5da6d9641c..1d945be741 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -11687,6 +11687,24 @@ func rewriteValuePPC64_OpPPC64OR(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (OR x (NOR y y))
++	// result: (ORN x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpPPC64NOR {
++				continue
++			}
++			y := v_1.Args[1]
++			if y != v_1.Args[0] {
++				continue
++			}
++			v.reset(OpPPC64ORN)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	// match: (OR (MOVDconst [c]) (MOVDconst [d]))
+ 	// result: (MOVDconst [c|d])
+ 	for {
+diff --git a/test/codegen/logic.go b/test/codegen/logic.go
+index 9afdfd760f..50ce5f0cca 100644
+--- a/test/codegen/logic.go
++++ b/test/codegen/logic.go
+@@ -22,3 +22,11 @@ func andWithUse(x, y int) int {
+ 	// use z by returning it
+ 	return z
+ }
++
++// Verify (OR x (NOT y)) rewrites to (ORN x y) where supported
++func ornot(x, y int) int {
++	// ppc64:"ORN"
++	// ppc64le:"ORN"
++	z := x | ^y
++	return z
++}

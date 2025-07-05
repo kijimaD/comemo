@@ -14,10 +14,871 @@ Date:   Mon Jul 27 17:32:35 2009 -0700
     DELTA=510  (335 added, 74 deleted, 101 changed)
     OCL=32248
     CL=32258
-
+---
  usr/austin/eval/compiler.go |   6 +-
  usr/austin/eval/expr.go     | 288 ++++++++++++++++++++++++++++++++------------
  usr/austin/eval/stmt.go     | 195 ++++++++++++++++++------------
  usr/austin/eval/type.go     |  68 ++++++++++-
  usr/austin/eval/value.go    |  32 +++++
  5 files changed, 425 insertions(+), 164 deletions(-)
+
+diff --git a/usr/austin/eval/compiler.go b/usr/austin/eval/compiler.go
+index ab505dec1a..47ff12f36e 100644
+--- a/usr/austin/eval/compiler.go
++++ b/usr/austin/eval/compiler.go
+@@ -35,6 +35,9 @@ type FuncDecl struct
+ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt) (func (f *Frame) Func)
+ type exprCompiler struct
+ func (a *compiler) compileExpr(scope *Scope, expr ast.Expr, constant bool) *exprCompiler
++type assignCompiler struct
++func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool)
++func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame))
+ func (a *compiler) compileType(scope *Scope, typ ast.Expr) Type
+ func (a *compiler) compileFuncType(scope *Scope, typ *ast.FuncType) *FuncDecl
+ 
+@@ -42,11 +45,12 @@ func (a *compiler) compileArrayLen(scope *Scope, expr ast.Expr) (int64, bool)
+ 
+ 
+ type codeBuf struct
++type FuncType struct
+ // A funcCompiler captures information used throughout the compilation
+ // of a single function body.
+ type funcCompiler struct {
+ 	*compiler;
+-	outVars []*Variable;
++	fnType *FuncType;
+ 	// Whether the out variables are named.  This affects what
+ 	// kinds of return statements are legal.
+ 	outVarsNamed bool;
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index 758558ff59..309caa0abf 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -37,6 +37,7 @@ type exprCompiler struct {
+ 	evalArray func(f *Frame) ArrayValue;
+ 	evalPtr func(f *Frame) Value;
+ 	evalFunc func(f *Frame) Func;
++	evalMulti func(f *Frame) []Value;
+ 	// Evaluate to the "address of" this value; that is, the
+ 	// settable Value object.  nil for expressions whose address
+ 	// cannot be taken.
+@@ -179,6 +180,13 @@ func (a *exprCompiler) asFunc() (func(f *Frame) Func) {
+ 	return a.evalFunc;
+ }
+ 
++func (a *exprCompiler) asMulti() (func(f *Frame) []Value) {
++	if a.evalMulti == nil {
++		log.Crashf("tried to get %v node as MultiType", a.t);
++	}
++	return a.evalMulti;
++}
++
+ /*
+  * Common expression manipulations
+  */
+@@ -186,6 +194,8 @@ func (a *exprCompiler) asFunc() (func(f *Frame) Func) {
+ // a.convertTo(t) converts the value of the analyzed expression a,
+ // which must be a constant, ideal number, to a new analyzed
+ // expression with a constant value of type t.
++//
++// TODO(austin) Rename to resolveIdeal or something?
+ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+ 	if !a.t.isIdeal() {
+ 		log.Crashf("attempted to convert from %v, expected ideal", a.t);
+@@ -256,66 +266,193 @@ func (a *exprCompiler) convertTo(t Type) *exprCompiler {
+ 	return res;
+ }
+ 
+-// mkAssign takes an optional expected l-value type, lt, and an
+-// r-value expression compiler, r, and returns the expected l-value
+-// type and a function that evaluates the r-value and assigns it to
+-// the l-value lv.
+-//
+-// If lt is non-nil, the returned l-value type will always be lt.  If
+-// lt is nil, mkAssign will infer and return the appropriate l-value
+-// type, or produce an error.
+-//
+-// errOp specifies the operation name to use for error messages, such
+-// as "assignment", or "function call".  errPosName specifies the name
+-// to use for positions.  errPos, if non-zero, specifies the position
+-// of this assignment (for tuple assignments or function arguments).
++/*
++ * Assignments
++ */
++
++// An assignCompiler compiles assignment operations.  Anything other
++// than short declarations should use the compileAssign wrapper.
+ //
+-// If the assignment fails to typecheck, this generates an error
+-// message and returns nil, nil.
+-func mkAssign(lt Type, r *exprCompiler, errOp string, errPosName string, errPos int) (Type, func(lv Value, f *Frame)) {
+-	// However, when [an ideal is] (used in an expression)
+-	// assigned to a variable or typed constant, the destination
+-	// must be able to represent the assigned value.
+-	if r.t.isIdeal() && (lt == nil || lt.isInteger() || lt.isFloat()) {
+-		// If the type is absent and the corresponding
+-		// expression is a constant expression of ideal
+-		// integer or ideal float type, the type of the
+-		// declared variable is int or float respectively.
+-		if lt == nil {
+-			switch {
+-			case r.t.isInteger():
+-				lt = IntType;
+-			case r.t.isFloat():
+-				lt = FloatType;
+-			default:
+-				log.Crashf("unexpected ideal type %v", r.t);
+-			}
++// There are three valid types of assignment:
++// 1) T = T
++//    Assigning a single expression with single-valued type to a
++//    single-valued type.
++// 2) MT = T, T, ...
++//    Assigning multiple expressions with single-valued types to a
++//    multi-valued type.
++// 3) MT = MT
++//    Assigning a single expression with multi-valued type to a
++//    multi-valued type.
++type assignCompiler struct {
++	*compiler;
++	pos token.Position;
++	// The RHS expressions.  This may include nil's for
++	// expressions that failed to compile.
++	rs []*exprCompiler;
++	// The (possibly unary) MultiType of the RHS.
++	rmt *MultiType;
++	// Whether this is an unpack assignment (case 3).
++	isUnpack bool;
++	// The operation name to use in error messages, such as
++	// "assignment" or "function call".
++	errOp string;
++	// The name to use for positions in error messages, such as
++	// "argument".
++	errPosName string;
++}
++
++// Type check the RHS of an assignment, returning a new assignCompiler
++// and indicating if the type check succeeded.  This always returns an
++// assignCompiler with rmt set, but if type checking fails, slots in
++// the MultiType may be nil.  If rs contains nil's, type checking will
++// fail and these expressions given a nil type.
++func (a *compiler) checkAssign(pos token.Position, rs []*exprCompiler, errOp, errPosName string) (*assignCompiler, bool) {
++	c := &assignCompiler{
++		compiler: a,
++		pos: pos,
++		rs: rs,
++		errOp: errOp,
++		errPosName: errPosName,
++	};
++
++	// Is this an unpack?
++	if len(rs) == 1 && rs[0] != nil {
++		if rmt, isUnpack := rs[0].t.(*MultiType); isUnpack {
++			c.rmt = rmt;
++			c.isUnpack = true;
++			return c, true;
+ 		}
+-		r = r.convertTo(lt);
++	}
++
++	// Create MultiType for RHS and check that all RHS expressions
++	// are single-valued.
++	rts := make([]Type, len(rs));
++	ok := true;
++	for i, r := range rs {
+ 		if r == nil {
+-			return nil, nil;
++			ok = false;
++			continue;
++		}
++
++		if _, isMT := r.t.(*MultiType); isMT {
++			r.diag("multi-valued expression not allowed in %s", errOp);
++			ok = false;
++			continue;
+ 		}
++
++		rts[i] = r.t;
+ 	}
+ 
+-	// TOOD(austin) Deal with assignment special cases
++	c.rmt = NewMultiType(rts);
++	return c, ok;
++}
++
++// compile type checks and compiles an assignment operation, returning
++// a function that expects an l-value and the frame in which to
++// evaluate the RHS expressions.  The l-value must have exactly the
++// type given by lt.  Returns nil if type checking fails.
++func (a *assignCompiler) compile(lt Type) (func(lv Value, f *Frame)) {
++	lmt, isMT := lt.(*MultiType);
++	rmt, isUnpack := a.rmt, a.isUnpack;
++
++	// Create unary MultiType for single LHS
++	if !isMT {
++		lmt = NewMultiType([]Type{lt});
++	}
++
++	// Check that the assignment count matches
++	lcount := len(lmt.Elems);
++	rcount := len(rmt.Elems);
++	if lcount != rcount {
++		msg := "not enough";
++		pos := a.pos;
++		if rcount > lcount {
++			msg = "too many";
++			if lcount > 0 {
++				pos = a.rs[lcount-1].pos;
++			}
++		}
++		a.diagAt(&pos, "%s %ss for %s\n\t%s\n\t%s", msg, a.errPosName, a.errOp, lt, rmt);
++		return nil;
++	}
++
++	bad := false;
++
++	// TODO(austin) Deal with assignment special cases.  This is
++	// tricky in the unpack case, since some of the conversions
++	// can apply to single types within the multi-type.
++
++	// Values of any type may always be assigned to variables of
++	// compatible static type.
++	for i, lt := range lmt.Elems {
++		// Check each type individually so we can produce a
++		// better error message.
++		rt := rmt.Elems[i];
++
++		// When [an ideal is] (used in an expression) assigned
++		// to a variable or typed constant, the destination
++		// must be able to represent the assigned value.
++		if rt.isIdeal() {
++			if isUnpack {
++				log.Crashf("Right side of unpack contains ideal: %s", rmt);
++			}
++			a.rs[i] = a.rs[i].convertTo(lmt.Elems[i]);
++			if a.rs[i] == nil {
++				bad = true;
++				continue;
++			}
++			rt = a.rs[i].t;
++		}
+ 
+-	if lt == nil {
+-		lt = r.t;
+-	} else {
+-		// Values of any type may always be assigned to
+-		// variables of compatible static type.
+-		if lt.literal() != r.t.literal() {
+-			if errPos == 0 {
+-				r.diag("illegal operand types for %s\n\t%v\n\t%v", errOp, lt, r.t);
++		if lt.literal() != rt.literal() {
++			if len(a.rs) == 1 {
++				a.rs[0].diag("illegal operand types for %s\n\t%v\n\t%v", a.errOp, lt, rt);
+ 			} else {
+-				r.diag("illegal operand types in %s %d of %s\n\t%v\n\t%v", errPosName, errPos, errOp, lt, r.t);
++				a.rs[i].diag("illegal operand types in %s %d of %s\n\t%v\n\t%v", a.errPosName, i+1, a.errOp, lt, rt);
+ 			}
+-			return nil, nil;
++			bad = true;
+ 		}
+ 	}
++	if bad {
++		return nil;
++	}
+ 
+ 	// Compile
+-	return lt, genAssign(lt, r);
++	switch {
++	case !isMT:
++		// Case 1
++		return genAssign(lt, a.rs[0]);
++	case !isUnpack:
++		// Case 2
++		as := make([]func(lv Value, f *Frame), len(a.rs));
++		for i, r := range a.rs {
++			as[i] = genAssign(lmt.Elems[i], r);
++		}
++		return func(lv Value, f *Frame) {
++			lmv := lv.(multiV);
++			for i, a := range as {
++				a(lmv[i], f);
++			}
++		};
++	default:
++		// Case 3
++		rf := a.rs[0].asMulti();
++		return func(lv Value, f *Frame) {
++			lv.Assign(multiV(rf(f)));
++		};
++	}
++	panic();
++}
++
++// compileAssign compiles an assignment operation without the full
++// generality of an assignCompiler.  See assignCompiler for a
++// description of the arguments.
++func (a *compiler) compileAssign(pos token.Position, lt Type, rs []*exprCompiler, errOp, errPosName string) (func(lv Value, f *Frame)) {
++	ac, ok := a.checkAssign(pos, rs, errOp, errPosName);
++	if !ok {
++		return nil;
++	}
++	return ac.compile(lt);
+ }
+ 
+ /*
+@@ -342,6 +479,10 @@ func (a *exprCompiler) DoIdent(x *ast.Ident) {
+ 			a.diag("variable %s used in constant expression", x.Value);
+ 			return;
+ 		}
++		if def.Type == nil {
++			// Placeholder definition from an earlier error
++			return;
++		}
+ 		a.t = def.Type;
+ 		defidx := def.Index;
+ 		a.genIdentOp(dscope, defidx);
+@@ -611,51 +752,37 @@ func (a *exprCompiler) DoCallExpr(x *ast.CallExpr) {
+ 		return;
+ 	}
+ 
+-	if len(as) != len(lt.In) {
+-		msg := "too many";
+-		if len(as) < len(lt.In) {
+-			msg = "not enough";
+-		}
+-		a.diag("%s arguments to call\n\t%s\n\t%s", msg, typeListString(lt.In, nil), typeListString(ats, nil));
+-		return;
+-	}
+-
+ 	// The arguments must be single-valued expressions assignment
+ 	// compatible with the parameters of F.
+-	afs := make([]func(lv Value, f *Frame), len(as));
+-	for i := 0; i < len(as); i++ {
+-		var at Type;
+-		at, afs[i] = mkAssign(lt.In[i], as[i], "function call", "argument", i + 1);
+-		if at == nil {
+-			bad = true;
+-		}
+-	}
+-	if bad {
++	//
++	// XXX(Spec) The spec is wrong.  It can also be a single
++	// multi-valued expression.
++	assign := a.compileAssign(x.Pos(), NewMultiType(lt.In), as, "function call", "argument");
++	if assign == nil {
+ 		return;
+ 	}
+ 
+-	nResults := len(lt.Out);
+-	if nResults != 1 {
+-		log.Crashf("Multi-valued return type not implemented");
++	nout := len(lt.Out);
++	switch nout {
++	case 0:
++		a.t = EmptyType;
++	case 1:
++		a.t = lt.Out[0];
++	default:
++		a.t = NewMultiType(lt.Out);
+ 	}
+-	a.t = lt.Out[0];
+ 
+ 	// Compile
+ 	lf := l.asFunc();
++	nin := len(lt.In);
+ 	call := func(f *Frame) []Value {
+ 		fun := lf(f);
+ 		fr := fun.NewFrame();
+-		for i, af := range afs {
+-			af(fr.Vars[i], f);
+-		}
++		assign(multiV(fr.Vars[0:nin]), f);
+ 		fun.Call(fr);
+-		return fr.Vars[len(afs):len(afs)+nResults];
++		return fr.Vars[nin:nin+nout];
+ 	};
+ 	a.genFuncCall(call);
+-
+-	// Function calls, method calls, and channel operations can
+-	// appear in statement context.
+-	a.exec = func(f *Frame) { call(f) };
+ }
+ 
+ func (a *exprCompiler) DoStarExpr(x *ast.StarExpr) {
+@@ -1150,9 +1277,9 @@ func (a *exprCompiler) extractEffect() (func(f *Frame), *exprCompiler) {
+ 	addr.t = tempType;
+ 	addr.genUnaryAddrOf(a);
+ 
+-	_, assign := mkAssign(tempType, addr, "", "", 0);
++	assign := a.compileAssign(a.pos, tempType, []*exprCompiler{addr}, "", "");
+ 	if assign == nil {
+-		log.Crashf("extractEffect: mkAssign type check failed");
++		log.Crashf("compileAssign type check failed");
+ 	}
+ 
+ 	effect := func(f *Frame) {
+@@ -1311,6 +1438,7 @@ func (a *exprCompiler) genIndexArray(l *exprCompiler, r *exprCompiler) {
+ }
+ 
+ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
++	a.exec = func(f *Frame) { call(f) };
+ 	switch _ := a.t.rep().(type) {
+ 	case *boolType:
+ 		a.evalBool = func(f *Frame) bool { return call(f)[0].(BoolValue).Get() };
+@@ -1328,6 +1456,8 @@ func (a *exprCompiler) genFuncCall(call func(f *Frame) []Value) {
+ 		a.evalPtr = func(f *Frame) Value { return call(f)[0].(PtrValue).Get() };
+ 	case *FuncType:
+ 		a.evalFunc = func(f *Frame) Func { return call(f)[0].(FuncValue).Get() };
++	case *MultiType:
++		a.evalMulti = func(f *Frame) []Value { return call(f) };
+ 	default:
+ 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+ 	}
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 6e3b2a5074..629d77434f 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -91,21 +91,27 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 		}
+ 	}
+ 
+-	// Check the assignment count
+-	if len(s.Lhs) != len(s.Rhs) {
+-		log.Crashf("Unbalanced assignment not implemented %v %v %v", len(s.Lhs), s.Tok, len(s.Rhs));
++	errOp := "assignment";
++	if s.Tok == token.DEFINE {
++		errOp = "definition";
++	}
++	ac, ok := a.checkAssign(s.Pos(), rs, "assignment", "value");
++	if !ok {
++		bad = true;
++	}
++
++	// If this is a definition and the LHS is too big, we won't be
++	// able to produce the usual error message because we can't
++	// begin to infer the types of the LHS.
++	if s.Tok == token.DEFINE && len(s.Lhs) > len(ac.rmt.Elems) {
++		a.diag("not enough values for definition");
++		bad = true;
+ 	}
+ 
+-	// Compile left side and generate assigners
++	// Compile left side
+ 	ls := make([]*exprCompiler, len(s.Lhs));
+-	as := make([]func(lv Value, f *Frame), len(s.Lhs));
+ 	nDefs := 0;
+ 	for i, le := range s.Lhs {
+-		errPos := i + 1;
+-		if len(s.Lhs) == 1 {
+-			errPos = 0;
+-		}
+-
+ 		if s.Tok == token.DEFINE {
+ 			// Check that it's an identifier
+ 			ident, ok := le.(*ast.Ident);
+@@ -123,17 +129,39 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 			}
+ 			nDefs++;
+ 
+-			if rs[i] == nil {
+-				// TODO(austin) Define a placeholder.
+-				continue;
+-			}
+-
+-			// Generate assigner and get type
++			// Compute the identifier's type from the RHS
++			// type.  We use the computed MultiType so we
++			// don't have to worry about unpacking.
+ 			var lt Type;
+-			lt, as[i] = mkAssign(nil, rs[i], "assignment", "position", errPos);
+-			if lt == nil {
+-				bad = true;
+-				continue;
++			switch {
++			case i >= len(ac.rmt.Elems):
++				// Define a placeholder.  We already
++				// gave the "not enough" error above.
++				lt = nil;
++
++			case ac.rmt.Elems[i] == nil:
++				// We gave the error when we compiled
++				// the RHS.
++				lt = nil;
++
++			case ac.rmt.Elems[i].isIdeal():
++				// If the type is absent and the
++				// corresponding expression is a
++				// constant expression of ideal
++				// integer or ideal float type, the
++				// type of the declared variable is
++				// int or float respectively.
++				switch {
++				case ac.rmt.Elems[i].isInteger():
++					lt = IntType;
++				case ac.rmt.Elems[i].isFloat():
++					lt = FloatType;
++				default:
++					log.Crashf("unexpected ideal type %v", rs[i].t);
++				}
++
++			default:
++				lt = ac.rmt.Elems[i];
+ 			}
+ 
+ 			// Define identifier
+@@ -155,16 +183,6 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 			bad = true;
+ 			continue;
+ 		}
+-
+-		// Generate assigner
+-		if as[i] == nil {
+-			var lt Type;
+-			lt, as[i] = mkAssign(ls[i].t, rs[i], "assignment", "position", errPos);
+-			if lt == nil {
+-				bad = true;
+-				continue;
+-			}
+-		}
+ 	}
+ 
+ 	// A short variable declaration may redeclare variables
+@@ -180,23 +198,58 @@ func (a *stmtCompiler) doAssign(s *ast.AssignStmt) {
+ 		return;
+ 	}
+ 
++	// Create assigner
++	var lt Type;
+ 	n := len(s.Lhs);
+ 	if n == 1 {
++		lt = ls[0].t;
++	} else {
++		lts := make([]Type, len(ls));
++		for i, l := range ls {
++			if l != nil {
++				lts[i] = l.t;
++			}
++		}
++		lt = NewMultiType(lts);
++	}
++	assign := ac.compile(lt);
++	if assign == nil {
++		return;
++	}
++
++	// Compile
++	if n == 1 {
++		// Don't need temporaries and can avoid []Value.
+ 		lf := ls[0].evalAddr;
+-		assign := as[0];
+ 		a.push(func(v *vm) { assign(lf(v.f), v.f) });
+-	} else {
++	} else if s.Tok == token.DEFINE && nDefs == n {
++		// Don't need temporaries
++		lfs := make([]func(*Frame) Value, n);
++		for i, l := range ls {
++			lfs[i] = l.evalAddr;
++		}
+ 		a.push(func(v *vm) {
+-			temps := make([]Value, n);
+-			// Assign to temporaries
+-			for i := 0; i < n; i++ {
+-				// TODO(austin) Don't capture ls
+-				temps[i] = ls[i].t.Zero();
+-				as[i](temps[i], v.f);
++			dest := make([]Value, n);
++			for i, lf := range lfs {
++				dest[i] = lf(v.f);
+ 			}
++			assign(multiV(dest), v.f);
++		});
++	} else {
++		// Need temporaries
++		lmt := lt.(*MultiType);
++		lfs := make([]func(*Frame) Value, n);
++		for i, l := range ls {
++			lfs[i] = l.evalAddr;
++		}
++		a.push(func(v *vm) {
++			temp := lmt.Zero().(multiV);
++			assign(temp, v.f);
+ 			// Copy to destination
+-			for i := 0; i < n; i++ {
+-				ls[i].evalAddr(v.f).Assign(temps[i]);
++			for i := 0; i < n; i ++ {
++				// TODO(austin) Need to evaluate LHS
++				// before RHS
++				lfs[i](v.f).Assign(temp[i]);
+ 			}
+ 		});
+ 	}
+@@ -244,9 +297,9 @@ func (a *stmtCompiler) doAssignOp(s *ast.AssignStmt) {
+ 		return;
+ 	}
+ 
+-	_, assign := mkAssign(l.t, binop, "assignment", "", 0);
++	assign := a.compileAssign(s.Pos(), l.t, []*exprCompiler{binop}, "assignment", "value");
+ 	if assign == nil {
+-		return;
++		log.Crashf("compileAssign type check failed");
+ 	}
+ 
+ 	lf := l.evalAddr;
+@@ -280,58 +333,46 @@ func (a *stmtCompiler) DoReturnStmt(s *ast.ReturnStmt) {
+ 	// return statement.
+ 	a.returned = true;
+ 
+-	if len(s.Results) == 0 && (len(a.outVars) == 0 || a.outVarsNamed) {
++	if len(s.Results) == 0 && (len(a.fnType.Out) == 0 || a.outVarsNamed) {
+ 		// Simple case.  Simply exit from the function.
+ 		a.push(func(v *vm) { v.pc = ^uint(0) });
+ 		a.err = false;
+ 		return;
+ 	}
+ 
+-	// TODO(austin) Might be a call of a multi-valued function.
+-	// It might be possible to combine this code with the
+-	// assignment code.
+-	if len(s.Results) != len(a.outVars) {
+-		a.diag("Unbalanced return not implemented");
+-		return;
+-	}
+-
+-	// Compile expressions and create assigners
++	// Compile expressions
+ 	bad := false;
+ 	rs := make([]*exprCompiler, len(s.Results));
+-	as := make([]func(lv Value, f *Frame), len(s.Results));
+ 	for i, re := range s.Results {
+ 		rs[i] = a.compileExpr(a.scope, re, false);
+ 		if rs[i] == nil {
+ 			bad = true;
+-			continue;
+-		}
+-
+-		errPos := i + 1;
+-		if len(s.Results) == 1 {
+-			errPos = 0;
+-		}
+-		var lt Type;
+-		lt, as[i] = mkAssign(a.outVars[i].Type, rs[i], "return", "value", errPos);
+-		if as[i] == nil {
+-			bad = true;
+ 		}
+ 	}
+-
+ 	if bad {
+ 		return;
+ 	}
+ 
+-	// Save indexes of return values
+-	idxs := make([]int, len(s.Results));
+-	for i, outVar := range a.outVars {
+-		idxs[i] = outVar.Index;
++	// Create assigner
++
++	// However, if the expression list in the "return" statement
++	// is a single call to a multi-valued function, the values
++	// returned from the called function will be returned from
++	// this one.
++	assign := a.compileAssign(s.Pos(), NewMultiType(a.fnType.Out), rs, "return", "value");
++	if assign == nil {
++		return;
+ 	}
+ 
++	// XXX(Spec) "The result types of the current function and the
++	// called function must match."  Match is fuzzy.  It should
++	// say that they must be assignment compatible.
++
+ 	// Compile
++	start := len(a.fnType.In);
++	nout := len(a.fnType.Out);
+ 	a.push(func(v *vm) {
+-		for i, assign := range as {
+-			assign(v.activation.Vars[idxs[i]], v.f);
+-		}
++		assign(multiV(v.activation.Vars[start:start+nout]), v.f);
+ 		v.pc = ^uint(0);
+ 	});
+ 	a.err = false;
+@@ -410,19 +451,17 @@ func (a *compiler) compileFunc(scope *Scope, decl *FuncDecl, body *ast.BlockStmt
+ 	for i, t := range decl.Type.In {
+ 		bodyScope.DefineVar(decl.InNames[i].Value, t);
+ 	}
+-	outVars := make([]*Variable, len(decl.Type.Out));
+ 	for i, t := range decl.Type.Out {
+ 		if decl.OutNames[i] != nil {
+-			outVars[i] = bodyScope.DefineVar(decl.OutNames[i].Value, t);
++			bodyScope.DefineVar(decl.OutNames[i].Value, t);
+ 		} else {
+-			// TODO(austin) It would be nice to have a
+-			// better way to define unnamed slots.
+-			outVars[i] = bodyScope.DefineVar(":out" + strconv.Itoa(i), t);
++			// TODO(austin) Not technically a temp
++			bodyScope.DefineTemp(t);
+ 		}
+ 	}
+ 
+ 	// Create block context
+-	fc := &funcCompiler{a, outVars, false, newCodeBuf(), false};
++	fc := &funcCompiler{a, decl.Type, false, newCodeBuf(), false};
+ 	if len(decl.OutNames) > 0 && decl.OutNames[0] != nil {
+ 		fc.outVarsNamed = true;
+ 	}
+diff --git a/usr/austin/eval/type.go b/usr/austin/eval/type.go
+index f204845e1d..2a5f22e1be 100644
+--- a/usr/austin/eval/type.go
++++ b/usr/austin/eval/type.go
+@@ -45,8 +45,11 @@ type typeArrayMap map[uintptr] *typeArrayMapEntry
+ func hashTypeArray(key []Type) uintptr {
+ 	hash := uintptr(0);
+ 	for _, t := range key {
+-		addr := reflect.NewValue(t).Addr();
+ 		hash = hash * 33;
++		if t == nil {
++			continue;
++		}
++		addr := reflect.NewValue(t).Addr();
+ 		hash ^= addr;
+ 	}
+ 	return hash;
+@@ -153,7 +156,6 @@ type uintType struct {
+ 	Bits uint;
+ 	// true for uintptr, false for all others
+ 	Ptr bool;
+-
+ 	name string;
+ }
+ 
+@@ -224,7 +226,6 @@ type intType struct {
+ 
+ 	// 0 for architecture-dependent types
+ 	Bits uint;
+-
+ 	name string;
+ }
+ 
+@@ -437,10 +438,8 @@ func (t *stringType) Zero() Value
+ 
+ type ArrayType struct {
+ 	commonType;
+-
+ 	Len int64;
+ 	Elem Type;
+-
+ 	lit Type;
+ }
+ 
+@@ -595,7 +594,12 @@ func typeListString(ts []Type, ns []*ast.Ident) string {
+ 		if ns != nil && ns[i] != nil {
+ 			s += ns[i].Value + " ";
+ 		}
+-		s += t.String();
++		if t == nil {
++			// Some places use nil types to represent errors
++			s += "<none>";
++		} else {
++			s += t.String();
++		}
+ 	}
+ 	return s;
+ }
+@@ -708,3 +712,55 @@ func (t *NamedType) String() string {
+ func (t *NamedType) Zero() Value {
+ 	return t.def.Zero();
+ }
++
++/*
++ * Multi-valued type
++ */
++
++// MultiType is a special type used for multi-valued expressions, akin
++// to a tuple type.  It's not generally accessible within the
++// language.
++type MultiType struct {
++	commonType;
++	Elems []Type;
++	lit Type;
++}
++
++var multiTypes = newTypeArrayMap()
++
++func NewMultiType(elems []Type) *MultiType {
++	if t := multiTypes.Get(elems); t != nil {
++		return t.(*MultiType);
++	}
++
++	t := &MultiType{commonType{}, elems, nil};
++	multiTypes.Put(elems, t);
++	return t;
++}
++
++var EmptyType Type = NewMultiType([]Type{});
++
++func (t *MultiType) literal() Type {
++	if t.lit == nil {
++		elems := make([]Type, len(t.Elems));
++		for i, e := range t.Elems {
++			elems[i] = e.literal();
++		}
++
++		t.lit = NewMultiType(elems);
++	}
++	return t.lit;
++}
++
++func (t *MultiType) rep() Type {
++	return t;
++}
++
++func (t *MultiType) String() string {
++	if len(t.Elems) == 0 {
++		return "<none>";
++	}
++	return typeListString(t.Elems, nil);
++}
++
++func (t *MultiType) Zero() Value
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index b050448a7e..de5813e6d1 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -536,6 +536,38 @@ func (t *FuncType) Zero() Value {
+ 	return &funcV{nil};
+ }
+ 
++/*
++ * Multi-values
++ */
++
++type multiV []Value
++
++func (v multiV) String() string {
++	res := "(";
++	for i, v := range v {
++		if i > 0 {
++			res += ", ";
++		}
++		res += v.String();
++	}
++	return res + ")";
++}
++
++func (v multiV) Assign(o Value) {
++	omv := o.(multiV);
++	for i := range v {
++		v[i].Assign(omv[i]);
++	}
++}
++
++func (t *MultiType) Zero() Value {
++	res := make([]Value, len(t.Elems));
++	for i := 0; i < len(t.Elems); i++ {
++		res[i] = t.Elems[i].Zero();
++	}
++	return multiV(res);
++}
++
+ /*
+  * Universal constants
+  */

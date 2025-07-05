@@ -8,9 +8,97 @@ Date:   Thu Oct 4 11:35:17 2012 +1000
     R=golang-dev, adg, bradfitz, dsymonds, dave
     CC=golang-dev
     https://golang.org/cl/6586074
-
+---
  api/README           |  3 +++
  api/except.txt       |  2 ++
  src/cmd/api/goapi.go | 27 ++++++++++++++++++++-------
  src/run.bash         |  2 +-
  4 files changed, 26 insertions(+), 8 deletions(-)
+
+diff --git a/api/README b/api/README
+index 6adc55454c..34b86efd99 100644
+--- a/api/README
++++ b/api/README
+@@ -5,6 +5,9 @@ Each file is a list of of API features, one per line.
+ go1.txt (and similarly named files) are frozen once a version has been
+ shipped. Each file adds new lines but does not remove any.
+ 
++except.txt lists features that may disappear without breaking
++true compatibility. The only package there is text/template/parse.
++
+ next.txt is the only file intended to be mutated. It's a list of
+ features that may be added to the next version. It only affects
+ warning output from the go api tool.
+diff --git a/api/except.txt b/api/except.txt
+new file mode 100644
+index 0000000000..e9fb24b466
+--- /dev/null
++++ b/api/except.txt
+@@ -0,0 +1,2 @@
++pkg text/template/parse, type DotNode bool
++pkg text/template/parse, type Node interface { Copy, String, Type }
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7463e20d6d..391cbe76fa 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -38,11 +38,12 @@ import (
+ var (
+ 	// TODO(bradfitz): once Go 1.1 comes out, allow the -c flag to take a comma-separated
+ 	// list of files, rather than just one.
+-	checkFile = flag.String("c", "", "optional filename to check API against")
+-	allowNew  = flag.Bool("allow_new", true, "allow API additions")
+-	nextFile  = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
+-	verbose   = flag.Bool("v", false, "verbose debugging")
+-	forceCtx  = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
++	checkFile  = flag.String("c", "", "optional filename to check API against")
++	allowNew   = flag.Bool("allow_new", true, "allow API additions")
++	exceptFile = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
++	nextFile   = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
++	verbose    = flag.Bool("v", false, "verbose debugging")
++	forceCtx   = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+ )
+ 
+ // contexts are the default contexts which are scanned, unless
+@@ -198,6 +199,13 @@ func main() {
+ 		}
+ 	}
+ 
++	var exception = make(map[string]bool) // exception => true
++	if *exceptFile != "" {
++		for _, feature := range fileFeatures(*exceptFile) {
++			exception[feature] = true
++		}
++	}
++
+ 	take := func(sl *[]string) string {
+ 		s := (*sl)[0]
+ 		*sl = (*sl)[1:]
+@@ -207,8 +215,13 @@ func main() {
+ 	for len(required) > 0 || len(features) > 0 {
+ 		switch {
+ 		case len(features) == 0 || required[0] < features[0]:
+-			fmt.Fprintf(bw, "-%s\n", take(&required))
+-			fail = true // broke compatibility
++			feature := take(&required)
++			if exception[feature] {
++				fmt.Fprintf(bw, "~%s\n", feature)
++			} else {
++				fmt.Fprintf(bw, "-%s\n", feature)
++				fail = true // broke compatibility
++			}
+ 		case len(required) == 0 || required[0] > features[0]:
+ 			newFeature := take(&features)
+ 			if optional[newFeature] {
+diff --git a/src/run.bash b/src/run.bash
+index f379ff5a70..1859555fb1 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -112,7 +112,7 @@ time go run run.go
+ 
+ echo
+ echo '# Checking API compatibility.'
+-go tool api -c $GOROOT/api/go1.txt -next $GOROOT/api/next.txt
++go tool api -c $GOROOT/api/go1.txt -next $GOROOT/api/next.txt -except $GOROOT/api/except.txt
+ 
+ echo
+ echo ALL TESTS PASSED

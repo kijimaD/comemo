@@ -11,6 +11,21 @@ Date:   Wed Dec 11 00:31:44 2019 +0000
     GitHub-Pull-Request: golang/go#36076
     Reviewed-on: https://go-review.googlesource.com/c/go/+/210742
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/syscall_solaris.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/syscall_solaris.go b/src/runtime/syscall_solaris.go
+index 76db54d274..094516927f 100644
+--- a/src/runtime/syscall_solaris.go
++++ b/src/runtime/syscall_solaris.go
+@@ -142,6 +142,9 @@ func syscall_forkx(flags uintptr) (pid uintptr, err uintptr) {
+ 		args: uintptr(unsafe.Pointer(&flags)),
+ 	}
+ 	asmcgocall(unsafe.Pointer(&asmsysvicall6x), unsafe.Pointer(&call))
++	if int(call.r1) != -1 {
++		call.err = 0
++	}
+ 	return call.r1, call.err
+ }
+ 

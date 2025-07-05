@@ -33,6 +33,20 @@ Date:   Fri Dec 7 11:58:44 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6905049
-
+---
  src/pkg/math/rand/rand.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/math/rand/rand.go b/src/pkg/math/rand/rand.go
+index ad2bf2fac0..94f84a85fb 100644
+--- a/src/pkg/math/rand/rand.go
++++ b/src/pkg/math/rand/rand.go
+@@ -100,7 +100,7 @@ func (r *Rand) Perm(n int) []int {
+ 	for i := 0; i < n; i++ {
+ 		m[i] = i
+ 	}
+-	for i := 1; i < n; i++ {
++	for i := 0; i < n; i++ {
+ 		j := r.Intn(i + 1)
+ 		m[i], m[j] = m[j], m[i]
+ 	}

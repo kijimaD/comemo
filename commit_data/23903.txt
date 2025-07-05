@@ -16,10 +16,705 @@ Date:   Fri Jun 19 12:39:02 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/11272
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
-
+---
  misc/nacl/testzip.proto     |   6 +
  src/cmd/doc/doc_test.go     | 343 ++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/doc/main.go         |  53 +++++--
  src/cmd/doc/pkg.go          |  49 +++++--
  src/cmd/doc/testdata/pkg.go |  91 ++++++++++++
  5 files changed, 514 insertions(+), 28 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 8e53726ea5..1a3064a477 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -18,6 +18,12 @@ go	src=..
+ 					asm
+ 						testdata
+ 							+
++			doc
++				main.go
++				pkg.go
++				doc_test.go
++				testdata
++					+
+ 			internal
+ 				objfile
+ 					objfile.go
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+new file mode 100644
+index 0000000000..0936d4d2d4
+--- /dev/null
++++ b/src/cmd/doc/doc_test.go
+@@ -0,0 +1,343 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"bytes"
++	"flag"
++	"os"
++	"os/exec"
++	"regexp"
++	"testing"
++)
++
++const (
++	dataDir = "testdata"
++	binary  = "testdoc"
++)
++
++type test struct {
++	name string
++	args []string // Arguments to "[go] doc".
++	yes  []string // Regular expressions that should match.
++	no   []string // Regular expressions that should not match.
++}
++
++const p = "cmd/doc/testdata"
++
++var tests = []test{
++	// Sanity check.
++	{
++		"fmt",
++		[]string{`fmt`},
++		[]string{`type Formatter interface`},
++		nil,
++	},
++
++	// Package dump includes import, package statement.
++	{
++		"package clause",
++		[]string{p},
++		[]string{`package pkg.*cmd/doc/testdata`},
++		nil,
++	},
++
++	// Constants.
++	// Package dump
++	{
++		"full package",
++		[]string{p},
++		[]string{
++			`Package comment`,
++			`const ExportedConstant = 1`,                            // Simple constant.
++			`ConstOne = 1`,                                          // First entry in constant block.
++			`const ExportedVariable = 1`,                            // Simple variable.
++			`VarOne = 1`,                                            // First entry in variable block.
++			`func ExportedFunc\(a int\) bool`,                       // Function.
++			`type ExportedType struct { ... }`,                      // Exported type.
++			`const ExportedTypedConstant ExportedType = iota`,       // Typed constant.
++			`const ExportedTypedConstant_unexported unexportedType`, // Typed constant, exported for unexported type.
++		},
++		[]string{
++			`const internalConstant = 2`,        // No internal constants.
++			`const internalVariable = 2`,        // No internal variables.
++			`func internalFunc(a int) bool`,     // No internal functions.
++			`Comment about exported constant`,   // No comment for single constant.
++			`Comment about exported variable`,   // No comment for single variable.
++			`Comment about block of constants.`, // No comment for constant block.
++			`Comment about block of variables.`, // No comment for variable block.
++			`Comment before ConstOne`,           // No comment for first entry in constant block.
++			`Comment before VarOne`,             // No comment for first entry in variable block.
++			`ConstTwo = 2`,                      // No second entry in constant block.
++			`VarTwo = 2`,                        // No second entry in variable block.
++			`type unexportedType`,               // No unexported type.
++			`unexportedTypedConstant`,           // No unexported typed constant.
++			`Field`,                             // No fields.
++			`Method`,                            // No methods.
++		},
++	},
++	// Package dump -u
++	{
++		"full package with u",
++		[]string{`-u`, p},
++		[]string{
++			`const ExportedConstant = 1`,      // Simple constant.
++			`const internalConstant = 2`,      // Internal constants.
++			`func internalFunc\(a int\) bool`, // Internal functions.
++		},
++		[]string{
++			`Comment about exported constant`,  // No comment for simple constant.
++			`Comment about block of constants`, // No comment for constant block.
++			`Comment about internal function`,  // No comment for internal function.
++		},
++	},
++
++	// Single constant.
++	{
++		"single constant",
++		[]string{p, `ExportedConstant`},
++		[]string{
++			`Comment about exported constant`, // Include comment.
++			`const ExportedConstant = 1`,
++		},
++		nil,
++	},
++	// Single constant -u.
++	{
++		"single constant with -u",
++		[]string{`-u`, p, `internalConstant`},
++		[]string{
++			`Comment about internal constant`, // Include comment.
++			`const internalConstant = 2`,
++		},
++		nil,
++	},
++	// Block of constants.
++	{
++		"block of constants",
++		[]string{p, `ConstTwo`},
++		[]string{
++			`Comment before ConstOne.\n.*ConstOne = 1`,    // First...
++			`ConstTwo = 2.*Comment on line with ConstTwo`, // And second show up.
++			`Comment about block of constants`,            // Comment does too.
++		},
++		[]string{
++			`constThree`, // No unexported constant.
++		},
++	},
++	// Block of constants -u.
++	{
++		"block of constants with -u",
++		[]string{"-u", p, `constThree`},
++		[]string{
++			`constThree = 3.*Comment on line with constThree`,
++		},
++		nil,
++	},
++
++	// Single variable.
++	{
++		"single variable",
++		[]string{p, `ExportedVariable`},
++		[]string{
++			`ExportedVariable`, // Include comment.
++			`const ExportedVariable = 1`,
++		},
++		nil,
++	},
++	// Single variable -u.
++	{
++		"single variable with -u",
++		[]string{`-u`, p, `internalVariable`},
++		[]string{
++			`Comment about internal variable`, // Include comment.
++			`const internalVariable = 2`,
++		},
++		nil,
++	},
++	// Block of variables.
++	{
++		"block of variables",
++		[]string{p, `VarTwo`},
++		[]string{
++			`Comment before VarOne.\n.*VarOne = 1`,    // First...
++			`VarTwo = 2.*Comment on line with VarTwo`, // And second show up.
++			`Comment about block of variables`,        // Comment does too.
++		},
++		[]string{
++			`varThree= 3`, // No unexported variable.
++		},
++	},
++	// Block of variables -u.
++	{
++		"block of variables with -u",
++		[]string{"-u", p, `varThree`},
++		[]string{
++			`varThree = 3.*Comment on line with varThree`,
++		},
++		nil,
++	},
++
++	// Function.
++	{
++		"function",
++		[]string{p, `ExportedFunc`},
++		[]string{
++			`Comment about exported function`, // Include comment.
++			`func ExportedFunc\(a int\) bool`,
++		},
++		nil,
++	},
++	// Function -u.
++	{
++		"function with -u",
++		[]string{"-u", p, `internalFunc`},
++		[]string{
++			`Comment about internal function`, // Include comment.
++			`func internalFunc\(a int\) bool`,
++		},
++		nil,
++	},
++
++	// Type.
++	{
++		"type",
++		[]string{p, `ExportedType`},
++		[]string{
++			`Comment about exported type`, // Include comment.
++			`type ExportedType struct`,    // Type definition.
++			`Comment before exported field.*\n.*ExportedField +int`,
++			`Has unexported fields`,
++			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
++			`const ExportedTypedConstant ExportedType = iota`, // Must include associated constant.
++		},
++		[]string{
++			`unexportedField`,                // No unexported field.
++			`Comment about exported method.`, // No comment about exported method.
++			`unexportedMethod`,               // No unexported method.
++			`unexportedTypedConstant`,        // No unexported constant.
++		},
++	},
++	// Type -u with unexported fields.
++	{
++		"type with unexported fields and -u",
++		[]string{"-u", p, `ExportedType`},
++		[]string{
++			`Comment about exported type`, // Include comment.
++			`type ExportedType struct`,    // Type definition.
++			`Comment before exported field.*\n.*ExportedField +int`,
++			`unexportedField int.*Comment on line with unexported field.`,
++			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
++			`unexportedTypedConstant`,
++		},
++		[]string{
++			`Has unexported fields`,
++		},
++	},
++	// Unexported type with -u.
++	{
++		"unexported type with -u",
++		[]string{"-u", p, `unexportedType`},
++		[]string{
++			`Comment about unexported type`, // Include comment.
++			`type unexportedType int`,       // Type definition.
++			`func \(unexportedType\) ExportedMethod\(\) bool`,
++			`func \(unexportedType\) unexportedMethod\(\) bool`,
++			`ExportedTypedConstant_unexported unexportedType = iota`,
++			`const unexportedTypedConstant unexportedType = 1`,
++		},
++		nil,
++	},
++
++	// Method.
++	{
++		"method",
++		[]string{p, `ExportedType.ExportedMethod`},
++		[]string{
++			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
++			`Comment about exported method.`,
++		},
++		nil,
++	},
++	// Method  with -u.
++	{
++		"method with -u",
++		[]string{"-u", p, `ExportedType.unexportedMethod`},
++		[]string{
++			`func \(ExportedType\) unexportedMethod\(a int\) bool`,
++			`Comment about unexported method.`,
++		},
++		nil,
++	},
++
++	// Case matching off.
++	{
++		"case matching off",
++		[]string{p, `casematch`},
++		[]string{
++			`CaseMatch`,
++			`Casematch`,
++		},
++		nil,
++	},
++
++	// Case matching on.
++	{
++		"case matching on",
++		[]string{"-c", p, `Casematch`},
++		[]string{
++			`Casematch`,
++		},
++		[]string{
++			`CaseMatch`,
++		},
++	},
++}
++
++func TestDoc(t *testing.T) {
++	for _, test := range tests {
++		var b bytes.Buffer
++		var flagSet flag.FlagSet
++		err := do(&b, &flagSet, test.args)
++		if err != nil {
++			t.Fatalf("%s: %s\n", test.name, err)
++		}
++		output := b.Bytes()
++		failed := false
++		for j, yes := range test.yes {
++			re, err := regexp.Compile(yes)
++			if err != nil {
++				t.Fatalf("%s.%d: compiling %#q: %s", test.name, j, yes, err)
++			}
++			if !re.Match(output) {
++				t.Errorf("%s.%d: no match for %s %#q", test.name, j, test.args, yes)
++				failed = true
++			}
++		}
++		for j, no := range test.no {
++			re, err := regexp.Compile(no)
++			if err != nil {
++				t.Fatalf("%s.%d: compiling %#q: %s", test.name, j, no, err)
++			}
++			if re.Match(output) {
++				t.Errorf("%s.%d: incorrect match for %s %#q", test.name, j, test.args, no)
++				failed = true
++			}
++		}
++		if failed {
++			t.Logf("\n%s", output)
++		}
++	}
++}
++
++// run runs the command, but calls t.Fatal if there is an error.
++func run(c *exec.Cmd, t *testing.T) []byte {
++	output, err := c.CombinedOutput()
++	if err != nil {
++		os.Stdout.Write(output)
++		t.Fatal(err)
++	}
++	return output
++}
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 720b85e902..8d6a0c2fce 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -30,6 +30,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"io"
+ 	"log"
+ 	"os"
+ 	"path"
+@@ -40,8 +41,8 @@ import (
+ )
+ 
+ var (
+-	unexported = flag.Bool("u", false, "show unexported symbols as well as exported")
+-	matchCase  = flag.Bool("c", false, "symbol matching honors case (paths not affected)")
++	unexported bool // -u flag
++	matchCase  bool // -c flag
+ )
+ 
+ // usage is a replacement usage function for the flags package.
+@@ -62,11 +63,36 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("doc: ")
+-	flag.Usage = usage
+-	flag.Parse()
+-	buildPackage, userPath, symbol := parseArgs()
++	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
++	if err != nil {
++		log.Fatal(err)
++	}
++}
++
++// do is the workhorse, broken out of main to make testing easier.
++func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
++	flagSet.Usage = usage
++	unexported = false
++	matchCase = false
++	flagSet.BoolVar(&unexported, "u", false, "show unexported symbols as well as exported")
++	flagSet.BoolVar(&matchCase, "c", false, "symbol matching honors case (paths not affected)")
++	flagSet.Parse(args)
++	buildPackage, userPath, symbol := parseArgs(flagSet.Args())
+ 	symbol, method := parseSymbol(symbol)
+-	pkg := parsePackage(buildPackage, userPath)
++	pkg := parsePackage(writer, buildPackage, userPath)
++	defer func() {
++		pkg.flush()
++		e := recover()
++		if e == nil {
++			return
++		}
++		pkgError, ok := e.(PackageError)
++		if ok {
++			err = pkgError
++			return
++		}
++		panic(e)
++	}()
+ 	switch {
+ 	case symbol == "":
+ 		pkg.packageDoc()
+@@ -76,6 +102,7 @@ func main() {
+ 	default:
+ 		pkg.methodDoc(symbol, method)
+ 	}
++	return nil
+ }
+ 
+ // parseArgs analyzes the arguments (if any) and returns the package
+@@ -83,8 +110,8 @@ func main() {
+ // the path (or "" if it's the current package) and the symbol
+ // (possibly with a .method) within that package.
+ // parseSymbol is used to analyze the symbol itself.
+-func parseArgs() (*build.Package, string, string) {
+-	switch flag.NArg() {
++func parseArgs(args []string) (*build.Package, string, string) {
++	switch len(args) {
+ 	default:
+ 		usage()
+ 	case 0:
+@@ -94,14 +121,14 @@ func parseArgs() (*build.Package, string, string) {
+ 		// Done below.
+ 	case 2:
+ 		// Package must be importable.
+-		pkg, err := build.Import(flag.Arg(0), "", build.ImportComment)
++		pkg, err := build.Import(args[0], "", build.ImportComment)
+ 		if err != nil {
+-			log.Fatal(err)
++			log.Fatalf("%s", err)
+ 		}
+-		return pkg, flag.Arg(0), flag.Arg(1)
++		return pkg, args[0], args[1]
+ 	}
+ 	// Usual case: one argument.
+-	arg := flag.Arg(0)
++	arg := args[0]
+ 	// If it contains slashes, it begins with a package path.
+ 	// First, is it a complete package path as it is? If so, we are done.
+ 	// This avoids confusion over package paths that have other
+@@ -209,7 +236,7 @@ func isIdentifier(name string) {
+ // If the unexported flag (-u) is true, isExported returns true because
+ // it means that we treat the name as if it is exported.
+ func isExported(name string) bool {
+-	return *unexported || isUpper(name)
++	return unexported || isUpper(name)
+ }
+ 
+ // isUpper reports whether the name starts with an upper case letter.
+diff --git a/src/cmd/doc/pkg.go b/src/cmd/doc/pkg.go
+index 17ee8cee4f..01268bb52a 100644
+--- a/src/cmd/doc/pkg.go
++++ b/src/cmd/doc/pkg.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/format"
+ 	"go/parser"
+ 	"go/token"
++	"io"
+ 	"log"
+ 	"os"
+ 	"unicode"
+@@ -20,19 +21,36 @@ import (
+ )
+ 
+ type Package struct {
+-	name     string       // Package name, json for encoding/json.
+-	userPath string       // String the user used to find this package.
+-	pkg      *ast.Package // Parsed package.
+-	file     *ast.File    // Merged from all files in the package
+-	doc      *doc.Package
+-	build    *build.Package
+-	fs       *token.FileSet // Needed for printing.
+-	buf      bytes.Buffer
++	writer     io.Writer // Destination for output.
++	name       string    // Package name, json for encoding/json.
++	userPath   string    // String the user used to find this package.
++	unexported bool
++	matchCase  bool
++	pkg        *ast.Package // Parsed package.
++	file       *ast.File    // Merged from all files in the package
++	doc        *doc.Package
++	build      *build.Package
++	fs         *token.FileSet // Needed for printing.
++	buf        bytes.Buffer
++}
++
++type PackageError string // type returned by pkg.Fatalf.
++
++func (p PackageError) Error() string {
++	return string(p)
++}
++
++// pkg.Fatalf is like log.Fatalf, but panics so it can be recovered in the
++// main do function, so it doesn't cause an exit. Allows testing to work
++// without running a subprocess. The log prefix will be added when
++// logged in main; it is not added here.
++func (pkg *Package) Fatalf(format string, args ...interface{}) {
++	panic(PackageError(fmt.Sprintf(format, args...)))
+ }
+ 
+ // parsePackage turns the build package we found into a parsed package
+ // we can then use to generate documentation.
+-func parsePackage(pkg *build.Package, userPath string) *Package {
++func parsePackage(writer io.Writer, pkg *build.Package, userPath string) *Package {
+ 	fs := token.NewFileSet()
+ 	// include tells parser.ParseDir which files to include.
+ 	// That means the file must be in the build package's GoFiles or CgoFiles
+@@ -56,7 +74,7 @@ func parsePackage(pkg *build.Package, userPath string) *Package {
+ 	}
+ 	// Make sure they are all in one package.
+ 	if len(pkgs) != 1 {
+-		log.Fatalf("multiple packages directory %s", pkg.Dir)
++		log.Fatalf("multiple packages in directory %s", pkg.Dir)
+ 	}
+ 	astPkg := pkgs[pkg.Name]
+ 
+@@ -76,6 +94,7 @@ func parsePackage(pkg *build.Package, userPath string) *Package {
+ 	}
+ 
+ 	return &Package{
++		writer:   writer,
+ 		name:     pkg.Name,
+ 		userPath: userPath,
+ 		pkg:      astPkg,
+@@ -91,7 +110,7 @@ func (pkg *Package) Printf(format string, args ...interface{}) {
+ }
+ 
+ func (pkg *Package) flush() {
+-	_, err := os.Stdout.Write(pkg.buf.Bytes())
++	_, err := pkg.writer.Write(pkg.buf.Bytes())
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+@@ -391,7 +410,7 @@ func (pkg *Package) symbolDoc(symbol string) {
+ // trimUnexportedElems modifies spec in place to elide unexported fields from
+ // structs and methods from interfaces (unless the unexported flag is set).
+ func trimUnexportedElems(spec *ast.TypeSpec) {
+-	if *unexported {
++	if unexported {
+ 		return
+ 	}
+ 	switch typ := spec.Type.(type) {
+@@ -450,7 +469,7 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
+ 		if symbol == "" {
+ 			return false
+ 		}
+-		log.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
++		pkg.Fatalf("symbol %s is not a type in package %s installed in %q", symbol, pkg.name, pkg.build.ImportPath)
+ 	}
+ 	found := false
+ 	for _, typ := range types {
+@@ -470,7 +489,7 @@ func (pkg *Package) printMethodDoc(symbol, method string) bool {
+ func (pkg *Package) methodDoc(symbol, method string) {
+ 	defer pkg.flush()
+ 	if !pkg.printMethodDoc(symbol, method) {
+-		log.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
++		pkg.Fatalf("no method %s.%s in package %s installed in %q", symbol, method, pkg.name, pkg.build.ImportPath)
+ 	}
+ }
+ 
+@@ -481,7 +500,7 @@ func match(user, program string) bool {
+ 	if !isExported(program) {
+ 		return false
+ 	}
+-	if *matchCase {
++	if matchCase {
+ 		return user == program
+ 	}
+ 	for _, u := range user {
+diff --git a/src/cmd/doc/testdata/pkg.go b/src/cmd/doc/testdata/pkg.go
+new file mode 100644
+index 0000000000..ccc2ed64e0
+--- /dev/null
++++ b/src/cmd/doc/testdata/pkg.go
+@@ -0,0 +1,91 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package comment.
++package pkg
++
++// Constants
++
++// Comment about exported constant.
++const ExportedConstant = 1
++
++// Comment about internal constant.
++const internalConstant = 2
++
++// Comment about block of constants.
++const (
++	// Comment before ConstOne.
++	ConstOne   = 1
++	ConstTwo   = 2 // Comment on line with ConstTwo.
++	constThree = 3 // Comment on line with constThree.
++)
++
++// Variables
++
++// Comment about exported variable.
++const ExportedVariable = 1
++
++// Comment about internal variable.
++const internalVariable = 2
++
++// Comment about block of variables.
++const (
++	// Comment before VarOne.
++	VarOne   = 1
++	VarTwo   = 2 // Comment on line with VarTwo.
++	varThree = 3 // Comment on line with varThree.
++)
++
++// Comment about exported function.
++func ExportedFunc(a int) bool
++
++// Comment about internal function.
++func internalFunc(a int) bool
++
++// Comment about exported type.
++type ExportedType struct {
++	// Comment before exported field.
++	ExportedField   int
++	unexportedField int // Comment on line with unexported field.
++}
++
++// Comment about exported method.
++func (ExportedType) ExportedMethod(a int) bool {
++	return true
++}
++
++// Comment about unexported method.
++func (ExportedType) unexportedMethod(a int) bool {
++	return true
++}
++
++// Constants tied to ExportedType. (The type is a struct so this isn't valid Go,
++// but it parses and that's all we need.)
++const (
++	ExportedTypedConstant ExportedType = iota
++)
++
++const unexportedTypedConstant ExportedType = 1 // In a separate section to test -u.
++
++// Comment about unexported type.
++type unexportedType int
++
++func (unexportedType) ExportedMethod() bool {
++	return true
++}
++
++func (unexportedType) unexportedMethod() bool {
++	return true
++}
++
++// Constants tied to unexportedType.
++const (
++	ExportedTypedConstant_unexported unexportedType = iota
++)
++
++const unexportedTypedConstant unexportedType = 1 // In a separate section to test -u.
++
++// For case matching.
++const CaseMatch = 1
++const Casematch = 2

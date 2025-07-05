@@ -7,6 +7,28 @@ Date:   Wed Jan 28 11:40:32 2015 -0800
     Change-Id: I369723c7a65f9a72c60b55704cebf40d78cf4f75
     Reviewed-on: https://go-review.googlesource.com/3444
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/unsafe/unsafe.go | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index f492e9758b..752792f41b 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -24,11 +24,11 @@ type ArbitraryType int
+ // arbitrary memory. It should be used with extreme care.
+ type Pointer *ArbitraryType
+ 
+-// Sizeof takes an expression x of any type and returns the size of
+-// a hypothetical variable v as if v was declared via var v = x.
+-// Note that the size does not include any memory possibly referenced
+-// by x. For instance, if x is a slice,  Sizeof returns the size of the
+-// slice descriptor, not the size of the memory referenced by the slice.
++// Sizeof takes an expression x of any type and returns the size in bytes
++// of a hypothetical variable v as if v was declared via var v = x.
++// The size does not include any memory possibly referenced by x.
++// For instance, if x is a slice,  Sizeof returns the size of the slice
++// descriptor, not the size of the memory referenced by the slice.
+ func Sizeof(x ArbitraryType) uintptr
+ 
+ // Offsetof returns the offset within the struct of the field represented by x,

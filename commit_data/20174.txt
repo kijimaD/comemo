@@ -9,7 +9,7 @@ Date:   Fri Aug 22 22:13:01 2014 +0400
     R=golang-codereviews, rsc
     CC=golang-codereviews, khr, rlh
     https://golang.org/cl/128620043
-
+---
  src/cmd/api/goapi.go           |  1 +
  src/pkg/runtime/export_test.go |  1 -
  src/pkg/runtime/lock_futex.c   | 26 ++++++++++++++++++++++++++
@@ -18,3 +18,203 @@ Date:   Fri Aug 22 22:13:01 2014 +0400
  src/pkg/runtime/runtime.h      |  1 +
  src/pkg/runtime/stubs.go       | 27 ++++++++++++++++++++++++++-
  7 files changed, 108 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 07f007fdfb..7117254e53 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -383,6 +383,7 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" mspan struct{}; m struct{}; lock struct{}; slicetype struct{};" +
+ 			" iface struct{}; eface struct{}; interfacetype struct{}; itab struct{};" +
+ 			" mcache struct{}; bucket struct{}; sudog struct{}; g struct{};" +
++			" note struct{};" +
+ 			")"
+ 		f, err = parser.ParseFile(fset, filename, src, 0)
+ 		if err != nil {
+diff --git a/src/pkg/runtime/export_test.go b/src/pkg/runtime/export_test.go
+index 4ca5a7354f..9d25cafebb 100644
+--- a/src/pkg/runtime/export_test.go
++++ b/src/pkg/runtime/export_test.go
+@@ -19,7 +19,6 @@ var Fintto64 = fintto64
+ var F64toint = f64toint
+ 
+ func entersyscall()
+-func exitsyscall()
+ func golockedOSThread() bool
+ func stackguard() (sp, limit uintptr)
+ 
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 7fc2d5547d..2f4de03104 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -125,6 +125,16 @@ runtime·notewakeup(Note *n)
+ 	runtime·futexwakeup((uint32*)&n->key, 1);
+ }
+ 
++void
++runtime·notewakeup_m(void)
++{
++	Note *n;
++
++	n = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	runtime·notewakeup(n);
++}
++
+ void
+ runtime·notesleep(Note *n)
+ {
+@@ -199,3 +209,19 @@ runtime·notetsleepg(Note *n, int64 ns)
+ 	runtime·exitsyscall();
+ 	return res;
+ }
++
++void
++runtime·notetsleepg_m(void)
++{
++	Note *n;
++	int64 ns;
++
++	n = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
++
++	runtime·entersyscallblock_m(pc, sp);
++	notetsleep(n, ns, 0, 0);
++	// caller will call exitsyscall on g stack
++	runtime·gogo(&g->m->curg->sched);
++}
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index a4274e6555..98eea91d5f 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -147,6 +147,16 @@ runtime·notewakeup(Note *n)
+ 	}
+ }
+ 
++void
++runtime·notewakeup_m(void)
++{
++	Note *n;
++
++	n = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	runtime·notewakeup(n);
++}
++
+ void
+ runtime·notesleep(Note *n)
+ {
+@@ -264,3 +274,22 @@ runtime·notetsleepg(Note *n, int64 ns)
+ 	runtime·exitsyscall();
+ 	return res;
+ }
++
++void
++runtime·notetsleepg_m(void)
++{
++	Note *n;
++	int64 ns;
++
++	n = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++	ns = g->m->scalararg[0] + ((int64)g->m->scalararg[1] << 32);
++
++	if(g->m->waitsema == 0)
++		g->m->waitsema = runtime·semacreate();
++
++	runtime·entersyscallblock_m();
++	notetsleep(n, ns, 0, nil);
++	// caller will call exitsyscall on g stack
++	runtime·gogo(&g->m->curg->sched);
++}
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 5ff38fb692..df85042340 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1630,6 +1630,31 @@ void
+ 	g->m->locks--;
+ }
+ 
++// The same as runtime·entersyscallblock(), but called on g0 stack.
++void
++runtime·entersyscallblock_m(void)
++{
++	G *gp;
++
++	gp = g->m->curg;
++	// sched.{g,pc,sp,lr} are already set by mcall.
++	gp->stackguard0 = StackPreempt;  // we are on g0, the goroutine must not touch its stack until exitsyscall
++	gp->sched.ret = 0;
++	gp->sched.ctxt = 0;
++	gp->syscallsp = gp->sched.sp;
++	gp->syscallpc = gp->sched.pc;
++	gp->syscallstack = gp->stackbase;
++	gp->syscallguard = gp->stackguard;
++	gp->status = Gsyscall;
++	if(gp->syscallsp < gp->syscallguard-StackGuard || gp->syscallstack < gp->syscallsp) {
++		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
++		//	gp->syscallsp, gp->syscallguard-StackGuard, gp->syscallstack);
++		runtime·throw("entersyscall_m");
++	}
++
++	handoffp(releasep());
++}
++
+ // The goroutine g exited its system call.
+ // Arrange for it to run on a cpu again.
+ // This is called only from the go syscall library, not
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index d38eb454b7..35574f4cd6 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -931,6 +931,7 @@ void	runtime·asmcgocall(void (*fn)(void*), void*);
+ void	runtime·entersyscall(void);
+ void	runtime·entersyscallblock(void);
+ void	runtime·exitsyscall(void);
++void	runtime·entersyscallblock_m(void);
+ G*	runtime·newproc1(FuncVal*, byte*, int32, int32, void*);
+ bool	runtime·sigsend(int32 sig);
+ int32	runtime·callers(int32, uintptr*, int32);
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index f3ac783aca..a31589ca86 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -73,7 +73,9 @@ var (
+ 	gosched_m,
+ 	ready_m,
+ 	park_m,
+-	blockevent_m mFunction
++	blockevent_m,
++	notewakeup_m,
++	notetsleepg_m mFunction
+ )
+ 
+ // memclr clears n bytes starting at ptr.
+@@ -169,3 +171,26 @@ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ func gopersistentalloc(n uintptr) unsafe.Pointer
+ 
+ func gocputicks() int64
++
++func gonoteclear(n *note) {
++	n.key = 0
++}
++
++func gonotewakeup(n *note) {
++	mp := acquirem()
++	mp.ptrarg[0] = unsafe.Pointer(n)
++	onM(&notewakeup_m)
++	releasem(mp)
++}
++
++func gonotetsleepg(n *note, t int64) {
++	mp := acquirem()
++	mp.ptrarg[0] = unsafe.Pointer(n)
++	mp.scalararg[0] = uint(uint32(t)) // low 32 bits
++	mp.scalararg[1] = uint(t >> 32)   // high 32 bits
++	releasem(mp)
++	mcall(&notetsleepg_m)
++	exitsyscall()
++}
++
++func exitsyscall()

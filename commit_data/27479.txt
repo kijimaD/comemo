@@ -8,6 +8,20 @@ Date:   Tue Mar 29 10:11:09 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/21205
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgcsweep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index d6d91d2021..31d1a80183 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -96,7 +96,7 @@ func sweepone() uintptr {
+ 			mheap_.sweepdone = 1
+ 			_g_.m.locks--
+ 			if debug.gcpacertrace > 0 && idx == uint32(len(work.spans)) {
+-				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages\n")
++				print("pacer: sweep done at heap size ", memstats.heap_live>>20, "MB; allocated ", mheap_.spanBytesAlloc>>20, "MB of spans; swept ", mheap_.pagesSwept, " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+ 			}
+ 			return ^uintptr(0)
+ 		}

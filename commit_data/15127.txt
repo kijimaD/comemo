@@ -9,7 +9,7 @@ Date:   Mon Feb 4 00:00:55 2013 -0500
     R=golang-dev, iant, bradfitz, dsymonds
     CC=golang-dev
     https://golang.org/cl/7229070
-
+---
  src/pkg/go/build/deps_test.go         |   2 +-
  src/pkg/runtime/debug/debug.c         |   9 +++
  src/pkg/runtime/debug/garbage.go      | 101 ++++++++++++++++++++++++++++++++++
@@ -19,3 +19,502 @@ Date:   Mon Feb 4 00:00:55 2013 -0500
  src/pkg/runtime/mgc0.c                |  72 +++++++++++++++++++++---
  src/pkg/runtime/mheap.c               |  70 ++++++++++++++++-------
  8 files changed, 325 insertions(+), 34 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index e303b7ae23..f084659667 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -142,7 +142,7 @@ var pkgDeps = map[string][]string{
+ 	// Packages used by testing must be low-level (L2+fmt).
+ 	"regexp":         {"L2", "regexp/syntax"},
+ 	"regexp/syntax":  {"L2"},
+-	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os"},
++	"runtime/debug":  {"L2", "fmt", "io/ioutil", "os", "time"},
+ 	"runtime/pprof":  {"L2", "fmt", "text/tabwriter"},
+ 	"text/tabwriter": {"L2"},
+ 
+diff --git a/src/pkg/runtime/debug/debug.c b/src/pkg/runtime/debug/debug.c
+new file mode 100644
+index 0000000000..a7292c477b
+--- /dev/null
++++ b/src/pkg/runtime/debug/debug.c
+@@ -0,0 +1,9 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Nothing to see here.
++// This file exists so that the go command knows that parts of the
++// package are implemented in C, so that it does not instruct the
++// Go compiler to complain about extern declarations.
++// The actual implementations are in package runtime.
+diff --git a/src/pkg/runtime/debug/garbage.go b/src/pkg/runtime/debug/garbage.go
+new file mode 100644
+index 0000000000..8f30264264
+--- /dev/null
++++ b/src/pkg/runtime/debug/garbage.go
+@@ -0,0 +1,101 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package debug
++
++import (
++	"runtime"
++	"sort"
++	"time"
++)
++
++// GCStats collect information about recent garbage collections.
++type GCStats struct {
++	LastGC         time.Time       // time of last collection
++	NumGC          int64           // number of garbage collections
++	PauseTotal     time.Duration   // total pause for all collections
++	Pause          []time.Duration // pause history, most recent first
++	PauseQuantiles []time.Duration
++}
++
++// Implemented in package runtime.
++func readGCStats(*[]time.Duration)
++func enableGC(bool) bool
++func setGCPercent(int) int
++func freeOSMemory()
++
++// ReadGCStats reads statistics about garbage collection into stats.
++// The number of entries in the pause history is system-dependent;
++// stats.Pause slice will be reused if large enough, reallocated otherwise.
++// ReadGCStats may use the full capacity of the stats.Pause slice.
++// If stats.PauseQuantiles is non-empty, ReadGCStats fills it with quantiles
++// summarizing the distribution of pause time. For example, if
++// len(stats.PauseQuantiles) is 5, it will be filled with the minimum,
++// 25%, 50%, 75%, and maximum pause times.
++func ReadGCStats(stats *GCStats) {
++	// Create a buffer with space for at least two copies of the
++	// pause history tracked by the runtime. One will be returned
++	// to the caller and the other will be used as a temporary buffer
++	// for computing quantiles.
++	const maxPause = len(((*runtime.MemStats)(nil)).PauseNs)
++	if cap(stats.Pause) < 2*maxPause {
++		stats.Pause = make([]time.Duration, 2*maxPause)
++	}
++
++	// readGCStats fills in the pause history (up to maxPause entries)
++	// and then three more: Unix ns time of last GC, number of GC,
++	// and total pause time in nanoseconds. Here we depend on the
++	// fact that time.Duration's native unit is nanoseconds, so the
++	// pauses and the total pause time do not need any conversion.
++	readGCStats(&stats.Pause)
++	n := len(stats.Pause) - 3
++	stats.LastGC = time.Unix(0, int64(stats.Pause[n]))
++	stats.NumGC = int64(stats.Pause[n+1])
++	stats.PauseTotal = stats.Pause[n+2]
++	stats.Pause = stats.Pause[:n]
++
++	if len(stats.PauseQuantiles) > 0 {
++		if n == 0 {
++			for i := range stats.PauseQuantiles {
++				stats.PauseQuantiles[i] = 0
++			}
++		} else {
++			// There's room for a second copy of the data in stats.Pause.
++			// See the allocation at the top of the function.
++			sorted := stats.Pause[n : n+n]
++			copy(sorted, stats.Pause)
++			sort.Sort(byDuration(sorted))
++			nq := len(stats.PauseQuantiles) - 1
++			for i := 0; i < nq; i++ {
++				stats.PauseQuantiles[i] = sorted[len(sorted)*i/nq]
++			}
++			stats.PauseQuantiles[nq] = sorted[len(sorted)-1]
++		}
++	}
++}
++
++type byDuration []time.Duration
++
++func (x byDuration) Len() int           { return len(x) }
++func (x byDuration) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++func (x byDuration) Less(i, j int) bool { return x[i] < x[j] }
++
++// SetGCPercent sets the garbage collection target percentage:
++// a collection is triggered when the ratio of freshly allocated data
++// to live data remaining after the previous collection reaches this percentage.
++// SetGCPercent returns the previous setting.
++// The initial setting is the value of the GOGC environment variable
++// at startup, or 100 if the variable is not set.
++// A negative percentage disables garbage collection.
++func SetGCPercent(percent int) int {
++	return setGCPercent(percent)
++}
++
++// FreeOSMemory forces a garbage collection followed by an
++// attempt to return as much memory to the operating system
++// as possible. (Even if this is not called, the runtime gradually
++// returns memory to the operating system in a background task.)
++func FreeOSMemory() {
++	freeOSMemory()
++}
+diff --git a/src/pkg/runtime/debug/garbage_test.go b/src/pkg/runtime/debug/garbage_test.go
+new file mode 100644
+index 0000000000..b8e2d622a6
+--- /dev/null
++++ b/src/pkg/runtime/debug/garbage_test.go
+@@ -0,0 +1,98 @@
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package debug_test
++
++import (
++	"runtime"
++	. "runtime/debug"
++	"testing"
++	"time"
++)
++
++func TestReadGCStats(t *testing.T) {
++	var stats GCStats
++	var mstats runtime.MemStats
++	var min, max time.Duration
++
++	// First ReadGCStats will allocate, second should not,
++	// especially if we follow up with an explicit garbage collection.
++	stats.PauseQuantiles = make([]time.Duration, 10)
++	ReadGCStats(&stats)
++	runtime.GC()
++
++	// Assume these will return same data: no GC during ReadGCStats.
++	ReadGCStats(&stats)
++	runtime.ReadMemStats(&mstats)
++
++	if stats.NumGC != int64(mstats.NumGC) {
++		t.Errorf("stats.NumGC = %d, but mstats.NumGC = %d", stats.NumGC, mstats.NumGC)
++	}
++	if stats.PauseTotal != time.Duration(mstats.PauseTotalNs) {
++		t.Errorf("stats.PauseTotal = %d, but mstats.PauseTotalNs = %d", stats.PauseTotal, mstats.PauseTotalNs)
++	}
++	if stats.LastGC.UnixNano() != int64(mstats.LastGC) {
++		t.Errorf("stats.LastGC.UnixNano = %d, but mstats.LastGC = %d", stats.LastGC.UnixNano(), mstats.LastGC)
++	}
++	n := int(mstats.NumGC)
++	if n > len(mstats.PauseNs) {
++		n = len(mstats.PauseNs)
++	}
++	if len(stats.Pause) != n {
++		t.Errorf("len(stats.Pause) = %d, want %d", len(stats.Pause), n)
++	} else {
++		off := (int(mstats.NumGC) + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
++		for i := 0; i < n; i++ {
++			dt := stats.Pause[i]
++			if dt != time.Duration(mstats.PauseNs[off]) {
++				t.Errorf("stats.Pause[%d] = %d, want %d", i, dt, mstats.PauseNs[off])
++			}
++			if max < dt {
++				max = dt
++			}
++			if min > dt || i == 0 {
++				min = dt
++			}
++			off = (off + len(mstats.PauseNs) - 1) % len(mstats.PauseNs)
++		}
++	}
++
++	q := stats.PauseQuantiles
++	nq := len(q)
++	if q[0] != min || q[nq-1] != max {
++		t.Errorf("stats.PauseQuantiles = [%d, ..., %d], want [%d, ..., %d]", q[0], q[nq-1], min, max)
++	}
++
++	for i := 0; i < nq-1; i++ {
++		if q[i] > q[i+1] {
++			t.Errorf("stats.PauseQuantiles[%d]=%d > stats.PauseQuantiles[%d]=%d", i, q[i], i+1, q[i+1])
++		}
++	}
++}
++
++var big = make([]byte, 1<<20)
++
++func TestFreeOSMemory(t *testing.T) {
++	var ms1, ms2 runtime.MemStats
++
++	big = nil
++	runtime.GC()
++	runtime.ReadMemStats(&ms1)
++	FreeOSMemory()
++	runtime.ReadMemStats(&ms2)
++	if ms1.HeapReleased >= ms2.HeapReleased {
++		t.Errorf("released before=%d; released after=%d; did not go up", ms1.HeapReleased, ms2.HeapReleased)
++	}
++}
++
++func TestSetGCPercent(t *testing.T) {
++	// Test that the variable is being set and returned correctly.
++	// Assume the percentage itself is implemented fine during GC,
++	// which is harder to test.
++	old := SetGCPercent(123)
++	new := SetGCPercent(old)
++	if new != 123 {
++		t.Errorf("SetGCPercent(123); SetGCPercent(x) = %d, want 123", new)
++	}
++}
+diff --git a/src/pkg/runtime/debug/stack_test.go b/src/pkg/runtime/debug/stack_test.go
+index bbd662618f..8daa3b2424 100644
+--- a/src/pkg/runtime/debug/stack_test.go
++++ b/src/pkg/runtime/debug/stack_test.go
+@@ -2,9 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package debug
++package debug_test
+ 
+ import (
++	. "runtime/debug"
+ 	"strings"
+ 	"testing"
+ )
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 2c34398a72..5c65f62a24 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -86,6 +86,7 @@ typedef struct MSpan	MSpan;
+ typedef struct MStats	MStats;
+ typedef struct MLink	MLink;
+ typedef struct MTypes	MTypes;
++typedef struct GCStats	GCStats;
+ 
+ enum
+ {
+@@ -229,7 +230,7 @@ struct MStats
+ 	uint64	buckhash_sys;	// profiling bucket hash table
+ 
+ 	// Statistics about garbage collector.
+-	// Protected by stopping the world during GC.
++	// Protected by mheap or stopping the world during GC.
+ 	uint64	next_gc;	// next GC (in heap_alloc time)
+ 	uint64  last_gc;	// last GC (in absolute time)
+ 	uint64	pause_total_ns;
+@@ -249,7 +250,6 @@ struct MStats
+ #define mstats runtime·memStats	/* name shared with Go */
+ extern MStats mstats;
+ 
+-
+ // Size classes.  Computed and initialized by InitSizes.
+ //
+ // SizeToClass(0 <= n <= MaxSmallSize) returns the size class,
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index a025121fef..b5325a507a 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1353,6 +1353,8 @@ runtime·gchelper(void)
+ 		runtime·notewakeup(&work.alldone);
+ }
+ 
++#define GcpercentUnknown (-2)
++
+ // Initialized from $GOGC.  GOGC=off means no gc.
+ //
+ // Next gc is after we've allocated an extra amount of
+@@ -1362,7 +1364,7 @@ runtime·gchelper(void)
+ // proportion to the allocation cost.  Adjusting gcpercent
+ // just changes the linear constant (and also the amount of
+ // extra memory used).
+-static int32 gcpercent = -2;
++static int32 gcpercent = GcpercentUnknown;
+ 
+ static void
+ stealcache(void)
+@@ -1415,6 +1417,19 @@ struct gc_args
+ 
+ static void gc(struct gc_args *args);
+ 
++static int32
++readgogc(void)
++{
++	byte *p;
++
++	p = runtime·getenv("GOGC");
++	if(p == nil || p[0] == '\0')
++		return 100;
++	if(runtime·strcmp(p, (byte*)"off") == 0)
++		return -1;
++	return runtime·atoi(p);
++}
++
+ void
+ runtime·gc(int32 force)
+ {
+@@ -1438,14 +1453,8 @@ runtime·gc(int32 force)
+ 	if(!mstats.enablegc || m->locks > 0 || runtime·panicking)
+ 		return;
+ 
+-	if(gcpercent == -2) {	// first time through
+-		p = runtime·getenv("GOGC");
+-		if(p == nil || p[0] == '\0')
+-			gcpercent = 100;
+-		else if(runtime·strcmp(p, (byte*)"off") == 0)
+-			gcpercent = -1;
+-		else
+-			gcpercent = runtime·atoi(p);
++	if(gcpercent == GcpercentUnknown) {	// first time through
++		gcpercent = readgogc();
+ 
+ 		p = runtime·getenv("GOGCTRACE");
+ 		if(p != nil)
+@@ -1612,6 +1621,51 @@ runtime·ReadMemStats(MStats *stats)
+ 	runtime·starttheworld();
+ }
+ 
++void
++runtime∕debug·readGCStats(Slice *pauses)
++{
++	uint64 *p;
++	uint32 i, n;
++
++	// Calling code in runtime/debug should make the slice large enough.
++	if(pauses->cap < nelem(mstats.pause_ns)+3)
++		runtime·throw("runtime: short slice passed to readGCStats");
++
++	// Pass back: pauses, last gc (absolute time), number of gc, total pause ns.
++	p = (uint64*)pauses->array;
++	runtime·lock(&runtime·mheap);
++	n = mstats.numgc;
++	if(n > nelem(mstats.pause_ns))
++		n = nelem(mstats.pause_ns);
++	
++	// The pause buffer is circular. The most recent pause is at
++	// pause_ns[(numgc-1)%nelem(pause_ns)], and then backward
++	// from there to go back farther in time. We deliver the times
++	// most recent first (in p[0]).
++	for(i=0; i<n; i++)
++		p[i] = mstats.pause_ns[(mstats.numgc-1-i)%nelem(mstats.pause_ns)];
++
++	p[n] = mstats.last_gc;
++	p[n+1] = mstats.numgc;
++	p[n+2] = mstats.pause_total_ns;	
++	runtime·unlock(&runtime·mheap);
++	pauses->len = n+3;
++}
++
++void
++runtime∕debug·setGCPercent(intgo in, intgo out)
++{
++	runtime·lock(&runtime·mheap);
++	if(gcpercent == GcpercentUnknown)
++		gcpercent = readgogc();
++	out = gcpercent;
++	if(in < 0)
++		in = -1;
++	gcpercent = in;
++	runtime·unlock(&runtime·mheap);
++	FLUSH(&out);
++}
++
+ static void
+ runfinq(void)
+ {
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 1af53e7503..840fd8bbfb 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -354,6 +354,43 @@ forcegchelper(Note *note)
+ 	runtime·notewakeup(note);
+ }
+ 
++static uintptr
++scavengelist(MSpan *list, uint64 now, uint64 limit)
++{
++	uintptr released, sumreleased;
++	MSpan *s;
++
++	if(runtime·MSpanList_IsEmpty(list))
++		return 0;
++
++	sumreleased = 0;
++	for(s=list->next; s != list; s=s->next) {
++		if((now - s->unusedsince) > limit) {
++			released = (s->npages - s->npreleased) << PageShift;
++			mstats.heap_released += released;
++			sumreleased += released;
++			s->npreleased = s->npages;
++			runtime·SysUnused((void*)(s->start << PageShift), s->npages << PageShift);
++		}
++	}
++	return sumreleased;
++}
++
++static uintptr
++scavenge(uint64 now, uint64 limit)
++{
++	uint32 i;
++	uintptr sumreleased;
++	MHeap *h;
++	
++	h = &runtime·mheap;
++	sumreleased = 0;
++	for(i=0; i < nelem(h->free); i++)
++		sumreleased += scavengelist(&h->free[i], now, limit);
++	sumreleased += scavengelist(&h->large, now, limit);
++	return sumreleased;
++}
++
+ // Release (part of) unused memory to OS.
+ // Goroutine created at startup.
+ // Loop forever.
+@@ -361,10 +398,9 @@ void
+ runtime·MHeap_Scavenger(void)
+ {
+ 	MHeap *h;
+-	MSpan *s, *list;
+ 	uint64 tick, now, forcegc, limit;
+-	uint32 k, i;
+-	uintptr released, sumreleased;
++	uint32 k;
++	uintptr sumreleased;
+ 	byte *env;
+ 	bool trace;
+ 	Note note, *notep;
+@@ -410,24 +446,7 @@ runtime·MHeap_Scavenger(void)
+ 			runtime·lock(h);
+ 			now = runtime·nanotime();
+ 		}
+-		sumreleased = 0;
+-		for(i=0; i < nelem(h->free)+1; i++) {
+-			if(i < nelem(h->free))
+-				list = &h->free[i];
+-			else
+-				list = &h->large;
+-			if(runtime·MSpanList_IsEmpty(list))
+-				continue;
+-			for(s=list->next; s != list; s=s->next) {
+-				if((now - s->unusedsince) > limit) {
+-					released = (s->npages - s->npreleased) << PageShift;
+-					mstats.heap_released += released;
+-					sumreleased += released;
+-					s->npreleased = s->npages;
+-					runtime·SysUnused((void*)(s->start << PageShift), s->npages << PageShift);
+-				}
+-			}
+-		}
++		sumreleased = scavenge(now, limit);
+ 		runtime·unlock(h);
+ 
+ 		if(trace) {
+@@ -440,6 +459,15 @@ runtime·MHeap_Scavenger(void)
+ 	}
+ }
+ 
++void
++runtime∕debug·freeOSMemory(void)
++{
++	runtime·gc(1);
++	runtime·lock(&runtime·mheap);
++	scavenge(~(uintptr)0, 0);
++	runtime·unlock(&runtime·mheap);
++}
++
+ // Initialize a new span with the given start and npages.
+ void
+ runtime·MSpan_Init(MSpan *span, PageID start, uintptr npages)

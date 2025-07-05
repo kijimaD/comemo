@@ -7,7 +7,31 @@ Date:   Tue Jun 1 11:55:55 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1454041
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index b0331fcdfd..01bb7c0a1f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -69,5 +69,6 @@ Stephen Weinberg <stephen@q5comm.com>
+ Sven Almgren <sven@tras.se>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Vinu Rajashekhar <vinutheraj@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 884dd72703..991a4d4792 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -118,6 +118,7 @@ Tom Szymanski <tgs@google.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
++Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>
+ William Josephson <wjosephson@gmail.com>
+ Yongjian Xu <i3dmaster@gmail.com>

@@ -13,7 +13,32 @@ Date:   Thu Nov 19 19:15:57 2020 -0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/poll/copy_file_range_linux.go | 1 +
  src/net/sock_linux.go                      | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index 1635bb1bfc..fc34aef4cb 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -35,6 +35,7 @@ func kernelVersion() (major int, minor int) {
+ 			if vi >= len(values) {
+ 				break
+ 			}
++			value = 0
+ 		}
+ 	}
+ 	switch vi {
+diff --git a/src/net/sock_linux.go b/src/net/sock_linux.go
+index 4d91001937..9f62ed3dee 100644
+--- a/src/net/sock_linux.go
++++ b/src/net/sock_linux.go
+@@ -27,6 +27,7 @@ func kernelVersion() (major int, minor int) {
+ 			if vi >= len(values) {
+ 				break
+ 			}
++			value = 0
+ 		}
+ 	}
+ 	switch vi {

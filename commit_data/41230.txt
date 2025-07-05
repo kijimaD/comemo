@@ -16,7 +16,64 @@ Date:   Mon Sep 16 19:46:12 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/decode.go      |  3 +++
  src/encoding/json/decode_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 360fc69d04..407fbcedbe 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -949,6 +949,9 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 			}
+ 			v.SetBytes(b[:n])
+ 		case reflect.String:
++			if v.Type() == numberType && !isValidNumber(string(s)) {
++				return fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item)
++			}
+ 			v.SetString(string(s))
+ 		case reflect.Interface:
+ 			if v.NumMethod() == 0 {
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 489f8674d0..4cbd2172d0 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -949,6 +949,37 @@ var unmarshalTests = []unmarshalTest{
+ 			Offset: 29,
+ 		},
+ 	},
++	// #14702
++	{
++		in:  `invalid`,
++		ptr: new(Number),
++		err: &SyntaxError{
++			msg:    "invalid character 'i' looking for beginning of value",
++			Offset: 1,
++		},
++	},
++	{
++		in:  `"invalid"`,
++		ptr: new(Number),
++		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
++	},
++	{
++		in:  `{"A":"invalid"}`,
++		ptr: new(struct{ A Number }),
++		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
++	},
++	{
++		in: `{"A":"invalid"}`,
++		ptr: new(struct {
++			A Number `json:",string"`
++		}),
++		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into json.Number", `invalid`),
++	},
++	{
++		in:  `{"A":"invalid"}`,
++		ptr: new(map[string]Number),
++		err: fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

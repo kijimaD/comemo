@@ -13,8 +13,70 @@ Date:   Tue Jan 31 15:04:42 2012 -0800
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/5609045
-
+---
  src/pkg/net/fd.go         | 6 ------
  src/pkg/net/fd_windows.go | 6 ------
  src/pkg/net/sock.go       | 9 ---------
  3 files changed, 21 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 98e5a69502..2352d22e11 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -43,12 +43,6 @@ type netFD struct {
+ 	ncr, ncw int
+ }
+ 
+-type InvalidConnError struct{}
+-
+-func (e *InvalidConnError) Error() string   { return "invalid Conn" }
+-func (e *InvalidConnError) Temporary() bool { return false }
+-func (e *InvalidConnError) Timeout() bool   { return false }
+-
+ // A pollServer helps FDs determine when to retry a non-blocking
+ // read or write after they get EAGAIN.  When an FD needs to wait,
+ // send the fd on s.cr (for a read) or s.cw (for a write) to pass the
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 0f89868e39..78168eb6c8 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -14,12 +14,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-type InvalidConnError struct{}
+-
+-func (e *InvalidConnError) Error() string   { return "invalid Conn" }
+-func (e *InvalidConnError) Temporary() bool { return false }
+-func (e *InvalidConnError) Timeout() bool   { return false }
+-
+ var initErr error
+ 
+ func init() {
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 2dbe1082e4..70064c307e 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -10,7 +10,6 @@ package net
+ 
+ import (
+ 	"io"
+-	"reflect"
+ 	"syscall"
+ )
+ 
+@@ -70,14 +69,6 @@ func socket(net string, f, t, p int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	return fd, nil
+ }
+ 
+-type UnknownSocketError struct {
+-	sa syscall.Sockaddr
+-}
+-
+-func (e *UnknownSocketError) Error() string {
+-	return "unknown socket address type " + reflect.TypeOf(e.sa).String()
+-}
+-
+ type writerOnly struct {
+ 	io.Writer
+ }

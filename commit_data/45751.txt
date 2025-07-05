@@ -13,6 +13,21 @@ Date:   Thu Nov 12 08:12:08 2020 +0000
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/build_plugin_non_main.txt | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_plugin_non_main.txt b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+index 3c82dced73..e0bbbefb19 100644
+--- a/src/cmd/go/testdata/script/build_plugin_non_main.txt
++++ b/src/cmd/go/testdata/script/build_plugin_non_main.txt
+@@ -1,7 +1,5 @@
+-# Plugins are only supported on linux,cgo (!riscv64) and darwin,cgo.
+-[!linux] [!darwin] skip
+-[linux] [riscv64] skip
+-[!cgo] skip
++# Plugins are not supported on all platforms.
++[!buildmode:plugin] skip
+ 
+ go build -n testdep
+ ! go build -buildmode=plugin testdep

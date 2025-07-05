@@ -7,7 +7,113 @@ Date:   Tue Dec 23 15:33:51 2014 +1100
     Change-Id: I171298e7942093e9cc82e3a0c4fcbb5b10298816
     Reviewed-on: https://go-review.googlesource.com/1998
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/syscall_windows.go |  8 ++++++++
  src/runtime/thunk_windows.s    | 31 -------------------------------
  2 files changed, 8 insertions(+), 31 deletions(-)
+
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 661ee59d7b..822e09e8e8 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -39,6 +39,7 @@ func callbackasmAddr(i int) uintptr {
+ 	return uintptr(add(unsafe.Pointer(&callbackasm), uintptr(i*5)))
+ }
+ 
++//go:linkname compileCallback syscall.compileCallback
+ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 	if fn._type == nil || (fn._type.kind&kindMask) != kindFunc {
+ 		panic("compileCallback: not a function")
+@@ -87,6 +88,7 @@ func compileCallback(fn eface, cleanstack bool) (code uintptr) {
+ 	return callbackasmAddr(n)
+ }
+ 
++//go:linkname syscall_loadlibrary syscall.loadlibrary
+ //go:nosplit
+ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
+ 	var c libcall
+@@ -101,6 +103,7 @@ func syscall_loadlibrary(filename *uint16) (handle, err uintptr) {
+ 	return
+ }
+ 
++//go:linkname syscall_getprocaddress syscall.getprocaddress
+ //go:nosplit
+ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uintptr) {
+ 	var c libcall
+@@ -115,6 +118,7 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
+ 	return
+ }
+ 
++//go:linkname syscall_Syscall syscall.Syscall
+ //go:nosplit
+ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	var c libcall
+@@ -125,6 +129,7 @@ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+ 	return c.r1, c.r2, c.err
+ }
+ 
++//go:linkname syscall_Syscall6 syscall.Syscall6
+ //go:nosplit
+ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+ 	var c libcall
+@@ -135,6 +140,7 @@ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err ui
+ 	return c.r1, c.r2, c.err
+ }
+ 
++//go:linkname syscall_Syscall9 syscall.Syscall9
+ //go:nosplit
+ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+ 	var c libcall
+@@ -145,6 +151,7 @@ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1
+ 	return c.r1, c.r2, c.err
+ }
+ 
++//go:linkname syscall_Syscall12 syscall.Syscall12
+ //go:nosplit
+ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
+ 	var c libcall
+@@ -155,6 +162,7 @@ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11,
+ 	return c.r1, c.r2, c.err
+ }
+ 
++//go:linkname syscall_Syscall15 syscall.Syscall15
+ //go:nosplit
+ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+ 	var c libcall
+diff --git a/src/runtime/thunk_windows.s b/src/runtime/thunk_windows.s
+deleted file mode 100644
+index b1d5d5753b..0000000000
+--- a/src/runtime/thunk_windows.s
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "go_asm.h"
+-#include "go_tls.h"
+-#include "textflag.h"
+-
+-TEXT syscall·Syscall(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_Syscall(SB)
+-
+-TEXT syscall·Syscall6(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_Syscall6(SB)
+-
+-TEXT syscall·Syscall9(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_Syscall9(SB)
+-
+-TEXT syscall·Syscall12(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_Syscall12(SB)
+-
+-TEXT syscall·Syscall15(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_Syscall15(SB)
+-
+-TEXT syscall·loadlibrary(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_loadlibrary(SB)
+-
+-TEXT syscall·getprocaddress(SB),NOSPLIT,$0-0
+-	JMP	runtime·syscall_getprocaddress(SB)
+-
+-TEXT syscall·compileCallback(SB),NOSPLIT,$0
+-	JMP	runtime·compileCallback(SB)

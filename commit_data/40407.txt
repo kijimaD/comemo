@@ -9,6 +9,30 @@ Date:   Thu May 9 21:04:39 2019 +0000
     Change-Id: Ib96a43e4c56a00c5ba04e4d213255a063058ae08
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176337
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/user/lookup_stubs.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index 6a20d78781..d3acbddd18 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -57,7 +57,17 @@ func current() (*User, error) {
+ 	if u.Uid != "" && u.Username != "" && u.HomeDir != "" {
+ 		return u, nil
+ 	}
+-	return u, fmt.Errorf("user: Current not implemented on %s/%s", runtime.GOOS, runtime.GOARCH)
++	var missing string
++	if u.Username == "" {
++		missing = "$USER"
++	}
++	if u.HomeDir == "" {
++		if missing != "" {
++			missing += ", "
++		}
++		missing += "$HOME"
++	}
++	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
+ }
+ 
+ func listGroups(*User) ([]string, error) {

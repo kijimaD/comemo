@@ -9,6 +9,20 @@ Date:   Thu Mar 1 13:38:05 2012 -0500
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5712051
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index cd2581c3a8..a40853fad0 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -1491,7 +1491,7 @@ cmdbanner(int argc, char **argv)
+ 
+ 	if(streq(gohostos, "darwin")) {
+ 		xprintf("\n"
+-			"On OS X the debuggers must be installed setgrp procmod.\n"
++			"On OS X the debuggers must be installed setgid procmod.\n"
+ 			"Read and run ./sudo.bash to install the debuggers.\n");
+ 	}
+ 

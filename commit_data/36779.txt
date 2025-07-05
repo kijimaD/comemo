@@ -12,8 +12,102 @@ Date:   Sat May 26 21:25:57 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/fmt_test.go | 56 ++++++++++++++++++++++-----------------------
  src/go/build/build_test.go  |  2 +-
  src/internal/cpu/cpu.go     |  4 ++--
  3 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index 9d47b04b1c..531298a216 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -702,32 +702,32 @@ var knownFormats = map[string]string{
+ 	"interface{} %v":                                  "",
+ 	"map[*cmd/compile/internal/gc.Node]*cmd/compile/internal/ssa.Value %v": "",
+ 	"map[cmd/compile/internal/ssa.ID]uint32 %v":                            "",
+-	"reflect.Type %s":                                                      "",
+-	"rune %#U":                                                             "",
+-	"rune %c":                                                              "",
+-	"string %-*s":                                                          "",
+-	"string %-16s":                                                         "",
+-	"string %-6s":                                                          "",
+-	"string %.*s":                                                          "",
+-	"string %q":                                                            "",
+-	"string %s":                                                            "",
+-	"string %v":                                                            "",
+-	"time.Duration %d":                                                     "",
+-	"time.Duration %v":                                                     "",
+-	"uint %04x":                                                            "",
+-	"uint %5d":                                                             "",
+-	"uint %d":                                                              "",
+-	"uint %x":                                                              "",
+-	"uint16 %d":                                                            "",
+-	"uint16 %v":                                                            "",
+-	"uint16 %x":                                                            "",
+-	"uint32 %d":                                                            "",
+-	"uint32 %v":                                                            "",
+-	"uint32 %x":                                                            "",
+-	"uint64 %08x":                                                          "",
+-	"uint64 %d":                                                            "",
+-	"uint64 %x":                                                            "",
+-	"uint8 %d":                                                             "",
+-	"uint8 %x":                                                             "",
+-	"uintptr %d":                                                           "",
++	"reflect.Type %s":  "",
++	"rune %#U":         "",
++	"rune %c":          "",
++	"string %-*s":      "",
++	"string %-16s":     "",
++	"string %-6s":      "",
++	"string %.*s":      "",
++	"string %q":        "",
++	"string %s":        "",
++	"string %v":        "",
++	"time.Duration %d": "",
++	"time.Duration %v": "",
++	"uint %04x":        "",
++	"uint %5d":         "",
++	"uint %d":          "",
++	"uint %x":          "",
++	"uint16 %d":        "",
++	"uint16 %v":        "",
++	"uint16 %x":        "",
++	"uint32 %d":        "",
++	"uint32 %v":        "",
++	"uint32 %x":        "",
++	"uint64 %08x":      "",
++	"uint64 %d":        "",
++	"uint64 %x":        "",
++	"uint8 %d":         "",
++	"uint8 %x":         "",
++	"uintptr %d":       "",
+ }
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 3d4c92dcec..091443f646 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -177,7 +177,7 @@ func TestShouldBuild(t *testing.T) {
+ }
+ 
+ func TestGoodOSArchFile(t *testing.T) {
+-	ctx := &Context{BuildTags: []string{"linux"}, GOOS:"darwin"}
++	ctx := &Context{BuildTags: []string{"linux"}, GOOS: "darwin"}
+ 	m := map[string]bool{}
+ 	want := map[string]bool{"linux": true}
+ 	if !ctx.goodOSArchFile("hello_linux.go", m) {
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 6f7d89f1c2..b1a8d9bf63 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -98,8 +98,8 @@ type arm64 struct {
+ var S390X s390x
+ 
+ type s390x struct {
+-	_     [CacheLineSize]byte
+-	HasVX bool // vector facility. Note: the runtime sets this when it processes auxv records.
++	_        [CacheLineSize]byte
++	HasVX    bool // vector facility. Note: the runtime sets this when it processes auxv records.
+ 	HasKM    bool // cipher message (KM)
+ 	HasKMA   bool // cipher message assist (KMA)
+ 	HasKMC   bool // cipher message with chaining (KMC)

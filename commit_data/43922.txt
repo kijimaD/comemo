@@ -17,6 +17,85 @@ Date:   Fri Apr 24 11:55:21 2020 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/pkix/pkix.go | 44 ++++++++++++++++++++++++++++++++++++++++----
  1 file changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/pkix/pkix.go b/src/crypto/x509/pkix/pkix.go
+index 0f59578087..6253a42654 100644
+--- a/src/crypto/x509/pkix/pkix.go
++++ b/src/crypto/x509/pkix/pkix.go
+@@ -117,19 +117,30 @@ type Extension struct {
+ }
+ 
+ // Name represents an X.509 distinguished name. This only includes the common
+-// elements of a DN. When parsing, all elements are stored in Names and
+-// non-standard elements can be extracted from there. When marshaling, elements
+-// in ExtraNames are appended and override other values with the same OID.
++// elements of a DN. Note that Name is only an approximation of the X.509
++// structure. If an accurate representation is needed, asn1.Unmarshal the raw
++// subject or issuer as an RDNSequence.
+ type Name struct {
+ 	Country, Organization, OrganizationalUnit []string
+ 	Locality, Province                        []string
+ 	StreetAddress, PostalCode                 []string
+ 	SerialNumber, CommonName                  string
+ 
+-	Names      []AttributeTypeAndValue
++	// Names contains all parsed attributes. When parsing distinguished names,
++	// this can be used to extract non-standard attributes that are not parsed
++	// by this package. When marshaling to RDNSequences, the Names field is
++	// ignored, see ExtraNames.
++	Names []AttributeTypeAndValue
++
++	// ExtraNames contains attributes to be copied, raw, into any marshaled
++	// distinguished names. Values override any attributes with the same OID.
++	// The ExtraNames field is not populated when parsing, see Names.
+ 	ExtraNames []AttributeTypeAndValue
+ }
+ 
++// FillFromRDNSequence populates n from the provided RDNSequence.
++// Multi-entry RDNs are flattened, all entries are added to the
++// relevant n fields, and the grouping is not preserved.
+ func (n *Name) FillFromRDNSequence(rdns *RDNSequence) {
+ 	for _, rdn := range *rdns {
+ 		if len(rdn) == 0 {
+@@ -200,6 +211,18 @@ func (n Name) appendRDNs(in RDNSequence, values []string, oid asn1.ObjectIdentif
+ 	return append(in, s)
+ }
+ 
++// ToRDNSequence converts n into a single RDNSequence. The following
++// attributes are encoded as multi-value RDNs:
++//
++//  - Country
++//  - Organization
++//  - OrganizationalUnit
++//  - Locality
++//  - Province
++//  - StreetAddress
++//  - PostalCode
++//
++// Each ExtraNames entry is encoded as an individual RDN.
+ func (n Name) ToRDNSequence() (ret RDNSequence) {
+ 	ret = n.appendRDNs(ret, n.Country, oidCountry)
+ 	ret = n.appendRDNs(ret, n.Province, oidProvince)
+@@ -224,6 +247,19 @@ func (n Name) ToRDNSequence() (ret RDNSequence) {
+ // String returns the string form of n, roughly following
+ // the RFC 2253 Distinguished Names syntax.
+ func (n Name) String() string {
++	if len(n.ExtraNames) == 0 {
++		for _, atv := range n.Names {
++			t := atv.Type
++			if len(t) == 4 && t[0] == 2 && t[1] == 5 && t[2] == 4 {
++				switch t[3] {
++				case 3, 5, 6, 7, 8, 9, 10, 11, 17:
++					// These attributes are already parsed into named fields.
++					continue
++				}
++			}
++			n.ExtraNames = append(n.ExtraNames, atv)
++		}
++	}
+ 	return n.ToRDNSequence().String()
+ }
+ 

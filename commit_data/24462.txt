@@ -14,6 +14,21 @@ Date:   Thu Jul 30 11:47:01 2015 +0200
     Change-Id: I576a312e51b2a3445691da6b277c7b4717173197
     Reviewed-on: https://go-review.googlesource.com/12900
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/rand/rand.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index 3ffb5c4e5c..6360128e39 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -9,6 +9,9 @@
+ // sequence of values each time a program is run. Use the Seed function to
+ // initialize the default Source if different behavior is required for each run.
+ // The default Source is safe for concurrent use by multiple goroutines.
++//
++// For random numbers suitable for security-sensitive work, see the crypto/rand
++// package.
+ package rand
+ 
+ import "sync"

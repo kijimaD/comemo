@@ -8,6 +8,19 @@ Date:   Fri Mar 19 14:20:15 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/657042
-
+---
  src/cmd/6c/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+index 1bf1da9d30..53a8e80e65 100644
+--- a/src/cmd/6c/Makefile
++++ b/src/cmd/6c/Makefile
+@@ -24,6 +24,7 @@ OFILES=\
+ 	mul.$O\
+ 	reg.$O\
+ 	peep.$O\
++	machcap.$O\
+ 	../6l/enam.$O\
+ 
+ LIB=\

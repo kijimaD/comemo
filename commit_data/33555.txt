@@ -19,6 +19,20 @@ Date:   Wed Aug 23 13:48:05 2017 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/hashmap.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/hashmap.go b/src/runtime/hashmap.go
+index d4d02388db..77a09b676a 100644
+--- a/src/runtime/hashmap.go
++++ b/src/runtime/hashmap.go
+@@ -255,7 +255,7 @@ func (h *hmap) createOverflow() {
+ 	}
+ }
+ 
+-func makemap64(t *maptype, hint int64, h *hmap, bucket unsafe.Pointer) *hmap {
++func makemap64(t *maptype, hint int64, h *hmap) *hmap {
+ 	if int64(int(hint)) != hint {
+ 		hint = 0
+ 	}

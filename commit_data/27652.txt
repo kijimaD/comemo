@@ -18,7 +18,7 @@ Date:   Wed Apr 6 19:02:27 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/21614
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/context/context_test.go     | 4 ++++
  src/go/build/deps_test.go       | 2 +-
  src/internal/testenv/testenv.go | 9 +++++++++
@@ -29,3 +29,198 @@ Date:   Wed Apr 6 19:02:27 2016 +0000
  src/net/unixsock_test.go        | 4 ++++
  src/runtime/pprof/pprof_test.go | 3 +++
  9 files changed, 31 insertions(+), 11 deletions(-)
+
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 05345fc5e5..60020303c7 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -6,6 +6,7 @@ package context
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"math/rand"
+ 	"runtime"
+ 	"strings"
+@@ -258,6 +259,9 @@ func TestDeadline(t *testing.T) {
+ }
+ 
+ func TestTimeout(t *testing.T) {
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 15158)
++	}
+ 	c, _ := WithTimeout(Background(), 100*time.Millisecond)
+ 	if got, prefix := fmt.Sprint(c), "context.Background.WithDeadline("; !strings.HasPrefix(got, prefix) {
+ 		t.Errorf("c.String() = %q want prefix %q", got, prefix)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c066048630..8e2fd6e584 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -168,7 +168,7 @@ var pkgDeps = map[string][]string{
+ 	"testing":          {"L2", "flag", "fmt", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":   {"L2", "log"},
+ 	"testing/quick":    {"L2", "flag", "fmt", "reflect"},
+-	"internal/testenv": {"L2", "OS", "testing"},
++	"internal/testenv": {"L2", "OS", "flag", "testing"},
+ 
+ 	// L4 is defined as L3+fmt+log+time, because in general once
+ 	// you're using L3 packages, use of fmt, log, or time is not a big deal.
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index e751e0cf11..9e684e3034 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -11,6 +11,7 @@
+ package testenv
+ 
+ import (
++	"flag"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -124,3 +125,11 @@ func MustHaveExternalNetwork(t *testing.T) {
+ 		t.Skipf("skipping test: no external network in -short mode")
+ 	}
+ }
++
++var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
++
++func SkipFlaky(t *testing.T, issue int) {
++	if !*flaky {
++		t.Skipf("skipping known flaky test without the -flaky flag; see golang.org/issue/%d", issue)
++	}
++}
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index 2fc75c6356..f8e90abb48 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -59,6 +59,8 @@ func TestDialTimeoutFDLeak(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "plan9":
+ 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
++	case "openbsd":
++		testenv.SkipFlaky(t, 15157)
+ 	}
+ 
+ 	const T = 100 * time.Millisecond
+@@ -126,6 +128,8 @@ func TestDialerDualStackFDLeak(t *testing.T) {
+ 		t.Skipf("%s does not have full support of socktest", runtime.GOOS)
+ 	case "windows":
+ 		t.Skipf("not implemented a way to cancel dial racers in TCP SYN-SENT state on %s", runtime.GOOS)
++	case "openbsd":
++		testenv.SkipFlaky(t, 15157)
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 {
+ 		t.Skip("both IPv4 and IPv6 are required")
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 299cd7b2d2..1163874ac2 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -5,7 +5,6 @@
+ package http_test
+ 
+ import (
+-	"flag"
+ 	"fmt"
+ 	"net/http"
+ 	"os"
+@@ -16,8 +15,6 @@ import (
+ 	"time"
+ )
+ 
+-var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
+-
+ func TestMain(m *testing.M) {
+ 	v := m.Run()
+ 	if v == 0 && goroutineLeaked() {
+@@ -91,12 +88,6 @@ func setParallel(t *testing.T) {
+ 	}
+ }
+ 
+-func setFlaky(t *testing.T, issue int) {
+-	if !*flaky {
+-		t.Skipf("skipping known flaky test; see golang.org/issue/%d", issue)
+-	}
+-}
+-
+ func afterTest(t testing.TB) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 7a01dca394..1aa26610b0 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"log"
+@@ -2229,7 +2230,7 @@ func TestTransportTLSHandshakeTimeout(t *testing.T) {
+ // Trying to repro golang.org/issue/3514
+ func TestTLSServerClosesConnection(t *testing.T) {
+ 	defer afterTest(t)
+-	setFlaky(t, 7634)
++	testenv.SkipFlaky(t, 7634)
+ 
+ 	closedc := make(chan bool, 1)
+ 	ts := httptest.NewTLSServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index d80e478c77..3ea0ec1ebd 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"io/ioutil"
+ 	"net/internal/socktest"
+@@ -112,6 +113,9 @@ var dialTimeoutMaxDurationTests = []struct {
+ 
+ func TestDialTimeoutMaxDuration(t *testing.T) {
+ 	t.Parallel()
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 15157)
++	}
+ 
+ 	ln, err := newLocalListener("tcp")
+ 	if err != nil {
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index d70c0d1953..f0f88ed37b 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -8,6 +8,7 @@ package net
+ 
+ import (
+ 	"bytes"
++	"internal/testenv"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+@@ -20,6 +21,9 @@ func TestReadUnixgramWithUnnamedSocket(t *testing.T) {
+ 	if !testableNetwork("unixgram") {
+ 		t.Skip("unixgram test")
+ 	}
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 15157)
++	}
+ 
+ 	addr := testUnixAddr()
+ 	la, err := ResolveUnixAddr("unixgram", addr)
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index fa0af59b37..23bc72c1e4 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -585,6 +585,9 @@ func func3(c chan int) { <-c }
+ func func4(c chan int) { <-c }
+ 
+ func TestGoroutineCounts(t *testing.T) {
++	if runtime.GOOS == "openbsd" {
++		testenv.SkipFlaky(t, 15156)
++	}
+ 	c := make(chan int)
+ 	for i := 0; i < 100; i++ {
+ 		if i%10 == 0 {

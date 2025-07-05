@@ -8,6 +8,34 @@ Date:   Wed Feb 15 13:12:53 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37102
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 14 +++-----------
  1 file changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 21f6e651d8..403e03f9ff 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -120,19 +120,11 @@ func buildssa(fn *Node) *ssa.Func {
+ 		}
+ 	}
+ 
+-	// Populate arguments.
++	// Populate SSAable arguments.
+ 	for _, n := range fn.Func.Dcl {
+-		if n.Class != PPARAM {
+-			continue
+-		}
+-		var v *ssa.Value
+-		if s.canSSA(n) {
+-			v = s.newValue0A(ssa.OpArg, n.Type, n)
+-		} else {
+-			// Not SSAable. Load it.
+-			v = s.newValue2(ssa.OpLoad, n.Type, s.decladdrs[n], s.startmem)
++		if n.Class == PPARAM && s.canSSA(n) {
++			s.vars[n] = s.newValue0A(ssa.OpArg, n.Type, n)
+ 		}
+-		s.vars[n] = v
+ 	}
+ 
+ 	// Convert the AST-based IR to the SSA-based IR

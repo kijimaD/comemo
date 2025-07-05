@@ -14,9 +14,115 @@ Date:   Wed Jan 19 14:33:05 2011 -0800
     R=rsc, gri1
     CC=golang-dev
     https://golang.org/cl/4049042
-
+---
  lib/godoc/search.html  |  4 ++++
  src/cmd/godoc/doc.go   |  5 +++--
  src/cmd/godoc/godoc.go | 22 +++++++++++++---------
  src/cmd/godoc/main.go  |  4 ++--
  4 files changed, 22 insertions(+), 13 deletions(-)
+
+diff --git a/lib/godoc/search.html b/lib/godoc/search.html
+index 3d3dd19582..58a933fef0 100644
+--- a/lib/godoc/search.html
++++ b/lib/godoc/search.html
+@@ -79,6 +79,10 @@
+ 		{.repeated section Lines}
+ 			<a href="/{Filename|url-src}?h={Query|urlquery-esc}#L{@|html-esc}">{@|html-esc}</a>
+ 		{.end}
++		{.section Complete}
++		{.or}
++			...
++		{.end}
+ 		</td>
+ 		</tr>
+ 	{.end}
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 02779384c5..f0006e750e 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -47,8 +47,9 @@ The flags are:
+ 		width of tabs in units of spaces
+ 	-timestamps=true
+ 		show timestamps with directory listings
+-	-fulltext=false
+-		build full text index for regular expression queries
++	-maxresults=10000
++		maximum number of full text search results shown
++		(no full text index is built if maxresults <= 0)
+ 	-path=""
+ 		additional package directories (colon-separated)
+ 	-html
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index c53e04eba9..7cee541f98 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -64,7 +64,7 @@ var (
+ 	// layout control
+ 	tabwidth       = flag.Int("tabwidth", 4, "tab width")
+ 	showTimestamps = flag.Bool("timestamps", true, "show timestamps with directory listings")
+-	fulltextIndex  = flag.Bool("fulltext", false, "build full text index for regular expression queries")
++	maxResults     = flag.Int("maxresults", 10000, "maximum number of full text search results shown")
+ 
+ 	// file system mapping
+ 	fsMap      Mapping // user-defined mapping
+@@ -1166,7 +1166,7 @@ func lookup(query string) (result SearchResult) {
+ 		// identifier search
+ 		var err os.Error
+ 		result.Hit, result.Alt, err = index.Lookup(query)
+-		if err != nil && !*fulltextIndex {
++		if err != nil && *maxResults <= 0 {
+ 			// ignore the error if full text search is enabled
+ 			// since the query may be a valid regular expression
+ 			result.Alert = "Error in query string: " + err.String()
+@@ -1174,17 +1174,21 @@ func lookup(query string) (result SearchResult) {
+ 		}
+ 
+ 		// full text search
+-		if *fulltextIndex {
++		if *maxResults > 0 && query != "" {
+ 			rx, err := regexp.Compile(query)
+ 			if err != nil {
+ 				result.Alert = "Error in query regular expression: " + err.String()
+ 				return
+ 			}
+-
+-			// TODO(gri) should max be a flag?
+-			const max = 10000 // show at most this many fulltext results
+-			result.Found, result.Textual = index.LookupRegexp(rx, max+1)
+-			result.Complete = result.Found <= max
++			// If we get maxResults+1 results we know that there are more than
++			// maxResults results and thus the result may be incomplete (to be
++			// precise, we should remove one result from the result set, but
++			// nobody is going to count the results on the result page).
++			result.Found, result.Textual = index.LookupRegexp(rx, *maxResults+1)
++			result.Complete = result.Found <= *maxResults
++			if !result.Complete {
++				result.Found-- // since we looked for maxResults+1
++			}
+ 		}
+ 	}
+ 
+@@ -1280,7 +1284,7 @@ func indexer() {
+ 				log.Printf("updating index...")
+ 			}
+ 			start := time.Nanoseconds()
+-			index := NewIndex(fsDirnames(), *fulltextIndex)
++			index := NewIndex(fsDirnames(), *maxResults > 0)
+ 			stop := time.Nanoseconds()
+ 			searchIndex.set(index)
+ 			if *verbose {
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index fe3d22fb93..20e2e82108 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -242,8 +242,8 @@ func main() {
+ 			log.Printf("address = %s", *httpAddr)
+ 			log.Printf("goroot = %s", *goroot)
+ 			log.Printf("tabwidth = %d", *tabwidth)
+-			if *fulltextIndex {
+-				log.Print("full text index enabled")
++			if *maxResults > 0 {
++				log.Printf("maxresults = %d (full text index enabled)", *maxResults)
+ 			}
+ 			if !fsMap.IsEmpty() {
+ 				log.Print("user-defined mapping:")

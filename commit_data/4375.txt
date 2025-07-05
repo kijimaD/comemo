@@ -6,7 +6,7 @@ Date:   Thu Dec 10 12:53:23 2009 -0800
     
     R=rsc, ken2, ken3
     https://golang.org/cl/174042
-
+---
  test/ken/array.go      | 36 ++++++++---------------
  test/ken/chan.go       | 70 ++++++++++++++++----------------------------
  test/ken/chan1.go      | 11 +++----
@@ -40,3 +40,1877 @@ Date:   Thu Dec 10 12:53:23 2009 -0800
  test/ken/string.go     |  3 +-
  test/ken/strvar.go     |  3 +-
  32 files changed, 188 insertions(+), 394 deletions(-)
+
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 809d243a42..9600e8a1a6 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -7,8 +7,7 @@
+ package	main
+ 
+ func
+-setpd(a []int)
+-{
++setpd(a []int) {
+ //	print("setpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
+ 	for i:=0; i<len(a); i++ {
+ 		a[i] = i;
+@@ -16,8 +15,7 @@ setpd(a []int)
+ }
+ 
+ func
+-sumpd(a []int) int
+-{
++sumpd(a []int) int {
+ //	print("sumpd a=", a, " len=", len(a), " cap=", cap(a), "\n");
+ 	t := 0;
+ 	for i:=0; i<len(a); i++ {
+@@ -28,8 +26,7 @@ sumpd(a []int) int
+ }
+ 
+ func
+-setpf(a *[20]int)
+-{
++setpf(a *[20]int) {
+ //	print("setpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
+ 	for i:=0; i<len(a); i++ {
+ 		a[i] = i;
+@@ -37,8 +34,7 @@ setpf(a *[20]int)
+ }
+ 
+ func
+-sumpf(a *[20]int) int
+-{
++sumpf(a *[20]int) int {
+ //	print("sumpf a=", a, " len=", len(a), " cap=", cap(a), "\n");
+ 	t := 0;
+ 	for i:=0; i<len(a); i++ {
+@@ -49,8 +45,7 @@ sumpf(a *[20]int) int
+ }
+ 
+ func
+-res(t int, lb, hb int)
+-{
++res(t int, lb, hb int) {
+ 	sb := (hb-lb)*(hb+lb-1)/2;
+ 	if t != sb {
+ 		print(	"lb=", lb,
+@@ -64,8 +59,7 @@ res(t int, lb, hb int)
+ 
+ // call ptr dynamic with ptr dynamic
+ func
+-testpdpd()
+-{
++testpdpd() {
+ 	a := make([]int, 10, 100);
+ 	if len(a) != 10 && cap(a) != 100 {
+ 		panic("len and cap from new: ", len(a), " ", cap(a), "\n");
+@@ -83,8 +77,7 @@ testpdpd()
+ 
+ // call ptr fixed with ptr fixed
+ func
+-testpfpf()
+-{
++testpfpf() {
+ 	var a [20]int;
+ 
+ 	setpf(&a);
+@@ -93,8 +86,7 @@ testpfpf()
+ 
+ // call ptr dynamic with ptr fixed from new
+ func
+-testpdpf1()
+-{
++testpdpf1() {
+ 	a := new([40]int);
+ 	setpd(a);
+ 	res(sumpd(a), 0, 40);
+@@ -105,8 +97,7 @@ testpdpf1()
+ 
+ // call ptr dynamic with ptr fixed from var
+ func
+-testpdpf2()
+-{
++testpdpf2() {
+ 	var a [80]int;
+ 
+ 	setpd(&a);
+@@ -115,8 +106,7 @@ testpdpf2()
+ 
+ // generate bounds error with ptr dynamic
+ func
+-testpdfault()
+-{
++testpdfault() {
+ 	a := make([]int, 100);
+ 
+ 	print("good\n");
+@@ -130,8 +120,7 @@ testpdfault()
+ 
+ // generate bounds error with ptr fixed
+ func
+-testfdfault()
+-{
++testfdfault() {
+ 	var a [80]int;
+ 
+ 	print("good\n");
+@@ -145,8 +134,7 @@ testfdfault()
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	testpdpd();
+ 	testpfpf();
+ 	testpdpf1();
+diff --git a/test/ken/chan.go b/test/ken/chan.go
+index d56d77ade2..98bcbb09f6 100644
+--- a/test/ken/chan.go
++++ b/test/ken/chan.go
+@@ -12,8 +12,7 @@ import "runtime"
+ var	randx	int;
+ 
+ func
+-nrand(n int) int
+-{
++nrand(n int) int {
+ 	randx += 10007;
+ 	if randx >= 1000000 {
+ 		randx -= 1000000;
+@@ -21,9 +20,7 @@ nrand(n int) int
+ 	return randx%n;
+ }
+ 
+-type	Chan
+-struct
+-{
++type	Chan struct {
+ 	sc,rc	chan int;	// send and recv chan
+ 	sv,rv	int;		// send and recv seq
+ }
+@@ -38,14 +35,12 @@ var
+ )
+ 
+ func
+-init()
+-{
++init() {
+ 	nc = new(Chan);
+ }
+ 
+ func
+-mkchan(c,n int) []*Chan
+-{
++mkchan(c,n int) []*Chan {
+ 	ca := make([]*Chan, n);
+ 	for i:=0; i<n; i++ {
+ 		cval = cval+100;
+@@ -60,8 +55,7 @@ mkchan(c,n int) []*Chan
+ }
+ 
+ func
+-expect(v, v0 int) (newv int)
+-{
++expect(v, v0 int) (newv int) {
+ 	if v == v0 {
+ 		if v%100 == 75 {
+ 			return end;
+@@ -71,9 +65,7 @@ expect(v, v0 int) (newv int)
+ 	panic("got ", v, " expected ", v0+1, "\n");
+ }
+ 
+-func (c *Chan)
+-send() bool
+-{
++func (c *Chan) send() bool {
+ //	print("send ", c.sv, "\n");
+ 	tots++;
+ 	c.sv = expect(c.sv, c.sv);
+@@ -85,8 +77,7 @@ send() bool
+ }
+ 
+ func
+-send(c *Chan)
+-{
++send(c *Chan) {
+ 	nproc++;	// total goroutines running
+ 	for {
+ 		for r:=nrand(10); r>=0; r-- {
+@@ -100,9 +91,7 @@ send(c *Chan)
+ 	nproc--;
+ }
+ 
+-func (c *Chan)
+-recv(v int) bool
+-{
++func (c *Chan) recv(v int) bool {
+ //	print("recv ", v, "\n");
+ 	totr++;
+ 	c.rv = expect(c.rv, v);
+@@ -114,8 +103,7 @@ recv(v int) bool
+ }
+ 
+ func
+-recv(c *Chan)
+-{
++recv(c *Chan) {
+ 	var v int;
+ 
+ 	nproc++;	// total goroutines running
+@@ -132,8 +120,7 @@ recv(c *Chan)
+ }
+ 
+ func
+-sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
+-{
++sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan) {
+ 	var v int;
+ 
+ 	nproc++;	// total goroutines running
+@@ -196,16 +183,14 @@ sel(r0,r1,r2,r3, s0,s1,s2,s3 *Chan)
+ 
+ // direct send to direct recv
+ func
+-test1(c *Chan)
+-{
++test1(c *Chan) {
+ 	go send(c);
+ 	go recv(c);
+ }
+ 
+ // direct send to select recv
+ func
+-test2(c int)
+-{
++test2(c int) {
+ 	ca := mkchan(c,4);
+ 
+ 	go send(ca[0]);
+@@ -218,8 +203,7 @@ test2(c int)
+ 
+ // select send to direct recv
+ func
+-test3(c int)
+-{
++test3(c int) {
+ 	ca := mkchan(c,4);
+ 
+ 	go recv(ca[0]);
+@@ -232,8 +216,7 @@ test3(c int)
+ 
+ // select send to select recv
+ func
+-test4(c int)
+-{
++test4(c int) {
+ 	ca := mkchan(c,4);
+ 
+ 	go sel(nc,nc,nc,nc, ca[0],ca[1],ca[2],ca[3]);
+@@ -241,8 +224,7 @@ test4(c int)
+ }
+ 
+ func
+-test5(c int)
+-{
++test5(c int) {
+ 	ca := mkchan(c,8);
+ 
+ 	go sel(ca[4],ca[5],ca[6],ca[7], ca[0],ca[1],ca[2],ca[3]);
+@@ -250,8 +232,7 @@ test5(c int)
+ }
+ 
+ func
+-test6(c int)
+-{
++test6(c int) {
+ 	ca := mkchan(c,12);
+ 
+ 	go send(ca[4]);
+@@ -270,8 +251,7 @@ test6(c int)
+ 
+ // wait for outstanding tests to finish
+ func
+-wait()
+-{
++wait() {
+ 	runtime.Gosched();
+ 	for nproc != 0 {
+ 		runtime.Gosched();
+@@ -280,8 +260,7 @@ wait()
+ 
+ // run all tests with specified buffer size
+ func
+-tests(c int)
+-{
++tests(c int) {
+ 	ca := mkchan(c,4);
+ 	test1(ca[0]);
+ 	test1(ca[1]);
+@@ -307,19 +286,18 @@ tests(c int)
+ 
+ // run all test with 4 buffser sizes
+ func
+-main()
+-{
++main() {
+ 
+ 	tests(0);
+ 	tests(1);
+ 	tests(10);
+ 	tests(100);
+ 
+-	t :=	4			// buffer sizes
+-		* (	4*4		// tests 1,2,3,4 channels
+-			+ 8		// test 5 channels
+-			+ 12		// test 6 channels
+-		) * 76;			// sends/recvs on a channel
++	t :=	4 *			// buffer sizes
++		(	4*4 +		// tests 1,2,3,4 channels
++			8 +		// test 5 channels
++			12 ) *		// test 6 channels
++		76;			// sends/recvs on a channel
+ 
+ 	if tots != t || totr != t {
+ 		print("tots=", tots, " totr=", totr, " sb=", t, "\n");
+diff --git a/test/ken/chan1.go b/test/ken/chan1.go
+index 2905e08c54..0008e314b6 100644
+--- a/test/ken/chan1.go
++++ b/test/ken/chan1.go
+@@ -14,8 +14,7 @@ const	W	= 2;		// channel buffering
+ var	h	[N]int;		// marking of send/recv
+ 
+ func
+-r(c chan int, m int)
+-{
++r(c chan int, m int) {
+ 	for {
+ 		select {
+ 		case r := <- c:
+@@ -23,7 +22,7 @@ r(c chan int, m int)
+ 				panicln("r",
+ 					"m=", m,
+ 					"r=", r,
+-					"h=", h[r]
++					"h=", h[r],
+ 				);
+ 			}
+ 			h[r] = 2;
+@@ -32,8 +31,7 @@ r(c chan int, m int)
+ }
+ 
+ func
+-s(c chan int)
+-{
++s(c chan int) {
+ 	for n:=0; n<N; n++ {
+ 		r := n;
+ 		if h[r] != 0 {
+@@ -45,8 +43,7 @@ s(c chan int)
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	c := make(chan int, W);
+ 	for m:=0; m<M; m++ {
+ 		go r(c, m);
+diff --git a/test/ken/complit.go b/test/ken/complit.go
+index 3132cf9936..da0a84a043 100644
+--- a/test/ken/complit.go
++++ b/test/ken/complit.go
+@@ -14,8 +14,7 @@ type	SC	struct{ a,b,c []int };
+ type	SM	struct{ a,b,c M };
+ 
+ func
+-main()
+-{
++main() {
+ 	test("s.a", s.a);
+ 	test("s.b", s.b);
+ 	test("s.c", s.c);
+@@ -79,8 +78,7 @@ main()
+ var	ref	= 0;
+ 
+ func
+-test(xs string, x int)
+-{
++test(xs string, x int) {
+ 
+ 	if ref >= len(answers) {
+ 		println(xs, x);
+@@ -119,8 +117,7 @@ var	ms	= map[int]S{0:S{5101,5102,5103},1:S{5104,5105,5106},2:S{5107,5108,5109}}
+ var	mc	= map[int][]int{0:[]int{5201,5202,5203}, 1:[]int{5204,5205,5206}, 2:[]int{5207,5208,5209}}
+ var	mm	= map[int]M{0:M{0:5301,1:5302,2:5303}, 1:M{0:5304,1:5305,2:5306}, 2:M{0:5307,1:5308,2:5309}}
+ 
+-var	answers	= [...]int
+-{
++var	answers	= [...]int {
+ 	// s
+ 	1101, 1102, 1103,
+ 
+diff --git a/test/ken/divconst.go b/test/ken/divconst.go
+index 0b2e059748..4143dc5817 100644
+--- a/test/ken/divconst.go
++++ b/test/ken/divconst.go
+@@ -11,8 +11,7 @@ import	"rand"
+ const	Count	= 1e5
+ 
+ func
+-i64rand() int64
+-{
++i64rand() int64 {
+ 	for {
+ 		a := int64(rand.Uint32());
+ 		a = (a<<32) | int64(rand.Uint32());
+@@ -25,8 +24,7 @@ i64rand() int64
+ }
+ 
+ func
+-i64test(a,b,c int64)
+-{
++i64test(a,b,c int64) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("i64", a, b, c, d);
+@@ -34,8 +32,7 @@ i64test(a,b,c int64)
+ }
+ 
+ func
+-i64run()
+-{
++i64run() {
+ 	var a, b int64;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -80,8 +77,7 @@ i64run()
+ }
+ 
+ func
+-u64rand() uint64
+-{
++u64rand() uint64 {
+ 	a := uint64(rand.Uint32());
+ 	a = (a<<32) | uint64(rand.Uint32());
+ 	a >>= uint(rand.Intn(64));
+@@ -89,8 +85,7 @@ u64rand() uint64
+ }
+ 
+ func
+-u64test(a,b,c uint64)
+-{
++u64test(a,b,c uint64) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("u64", a, b, c, d);
+@@ -98,8 +93,7 @@ u64test(a,b,c uint64)
+ }
+ 
+ func
+-u64run()
+-{
++u64run() {
+ 	var a, b uint64;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -126,8 +120,7 @@ u64run()
+ }
+ 
+ func
+-i32rand() int32
+-{
++i32rand() int32 {
+ 	for {
+ 		a := int32(rand.Uint32());
+ 		a >>= uint(rand.Intn(32));
+@@ -139,8 +132,7 @@ i32rand() int32
+ }
+ 
+ func
+-i32test(a,b,c int32)
+-{
++i32test(a,b,c int32) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("i32", a, b, c, d);
+@@ -148,8 +140,7 @@ i32test(a,b,c int32)
+ }
+ 
+ func
+-i32run()
+-{
++i32run() {
+ 	var a, b int32;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -193,16 +184,14 @@ i32run()
+ }
+ 
+ func
+-u32rand() uint32
+-{
++u32rand() uint32 {
+ 	a := uint32(rand.Uint32());
+ 	a >>= uint(rand.Intn(32));
+ 	return a;
+ }
+ 
+ func
+-u32test(a,b,c uint32)
+-{
++u32test(a,b,c uint32) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("u32", a, b, c, d);
+@@ -210,8 +199,7 @@ u32test(a,b,c uint32)
+ }
+ 
+ func
+-u32run()
+-{
++u32run() {
+ 	var a, b uint32;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -238,8 +226,7 @@ u32run()
+ }
+ 
+ func
+-i16rand() int16
+-{
++i16rand() int16 {
+ 	for {
+ 		a := int16(rand.Uint32());
+ 		a >>= uint(rand.Intn(16));
+@@ -251,8 +238,7 @@ i16rand() int16
+ }
+ 
+ func
+-i16test(a,b,c int16)
+-{
++i16test(a,b,c int16) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("i16", a, b, c, d);
+@@ -260,8 +246,7 @@ i16test(a,b,c int16)
+ }
+ 
+ func
+-i16run()
+-{
++i16run() {
+ 	var a, b int16;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -306,16 +291,14 @@ i16run()
+ }
+ 
+ func
+-u16rand() uint16
+-{
++u16rand() uint16 {
+ 	a := uint16(rand.Uint32());
+ 	a >>= uint(rand.Intn(16));
+ 	return a;
+ }
+ 
+ func
+-u16test(a,b,c uint16)
+-{
++u16test(a,b,c uint16) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("u16", a, b, c, d);
+@@ -323,8 +306,7 @@ u16test(a,b,c uint16)
+ }
+ 
+ func
+-u16run()
+-{
++u16run() {
+ 	var a, b uint16;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -351,8 +333,7 @@ u16run()
+ }
+ 
+ func
+-i8rand() int8
+-{
++i8rand() int8 {
+ 	for {
+ 		a := int8(rand.Uint32());
+ 		a >>= uint(rand.Intn(8));
+@@ -364,8 +345,7 @@ i8rand() int8
+ }
+ 
+ func
+-i8test(a,b,c int8)
+-{
++i8test(a,b,c int8) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("i8", a, b, c, d);
+@@ -373,8 +353,7 @@ i8test(a,b,c int8)
+ }
+ 
+ func
+-i8run()
+-{
++i8run() {
+ 	var a, b int8;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -415,16 +394,14 @@ i8run()
+ }
+ 
+ func
+-u8rand() uint8
+-{
++u8rand() uint8 {
+ 	a := uint8(rand.Uint32());
+ 	a >>= uint(rand.Intn(8));
+ 	return a;
+ }
+ 
+ func
+-u8test(a,b,c uint8)
+-{
++u8test(a,b,c uint8) {
+ 	d := a/c;
+ 	if d != b {
+ 		panicln("u8", a, b, c, d);
+@@ -432,8 +409,7 @@ u8test(a,b,c uint8)
+ }
+ 
+ func
+-u8run()
+-{
++u8run() {
+ 	var a, b uint8;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -459,8 +435,7 @@ u8run()
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	xtest();
+ 	i64run();
+ 	u64run();
+@@ -473,6 +448,5 @@ main()
+ }
+ 
+ func
+-xtest()
+-{
++xtest() {
+ }
+diff --git a/test/ken/divmod.go b/test/ken/divmod.go
+index d0096288c0..73c26927b5 100644
+--- a/test/ken/divmod.go
++++ b/test/ken/divmod.go
+@@ -26,8 +26,7 @@ const
+ )
+ 
+ func
+-main()
+-{
++main() {
+ 	/* ideals */
+ 	if n1/d1 != q1 || n1%d1 != r1 {
+ 		panicln("ideal-1", n1, d1, n1/d1, n1%d1);
+diff --git a/test/ken/embed.go b/test/ken/embed.go
+index 5978f7747f..893485bfa2 100644
+--- a/test/ken/embed.go
++++ b/test/ken/embed.go
+@@ -8,8 +8,7 @@ package main
+ 
+ 
+ type
+-I	interface
+-{
++I	interface {
+ 	test1() int;
+ 	test2() int;
+ 	test3() int;
+@@ -24,20 +23,15 @@ I	interface
+  ******/
+ 
+ type
+-SubpSubp	struct
+-{
++SubpSubp	struct {
+ 	a7	int;
+ 	a	int;
+ }
+-func (p *SubpSubp)
+-test7() int
+-{
++func (p *SubpSubp) test7() int {
+ 	if p.a != p.a7 { panicln("SubpSubp", p, p.a7) }
+ 	return p.a
+ }
+-func (p *SubpSubp)
+-testx()
+-{
++func (p *SubpSubp) testx() {
+ 	println("SubpSubp", p, p.a7);
+ }
+ 
+@@ -46,21 +40,16 @@ testx()
+  ******/
+ 
+ type
+-SubpSub	struct
+-{
++SubpSub	struct {
+ 	a6	int;
+ 		SubpSubp;
+ 	a	int;
+ }
+-func (p *SubpSub)
+-test6() int
+-{
++func (p *SubpSub) test6() int {
+ 	if p.a != p.a6 { panicln("SubpSub", p, p.a6) }
+ 	return p.a
+ }
+-func (p *SubpSub)
+-testx()
+-{
++func (p *SubpSub) testx() {
+ 	println("SubpSub", p, p.a6);
+ }
+ 
+@@ -69,14 +58,11 @@ testx()
+  ******/
+ 
+ type
+-SubSubp	struct
+-{
++SubSubp	struct {
+ 	a5	int;
+ 	a	int;
+ }
+-func (p *SubSubp)
+-test5() int
+-{
++func (p *SubSubp) test5() int {
+ 	if p.a != p.a5 { panicln("SubpSub", p, p.a5) }
+ 	return p.a
+ }
+@@ -86,14 +72,11 @@ test5() int
+  ******/
+ 
+ type
+-SubSub	struct
+-{
++SubSub	struct {
+ 	a4	int;
+ 	a	int;
+ }
+-func (p *SubSub)
+-test4() int
+-{
++func (p *SubSub) test4() int {
+ 	if p.a != p.a4 { panicln("SubpSub", p, p.a4) }
+ 	return p.a
+ }
+@@ -103,16 +86,13 @@ test4() int
+  ******/
+ 
+ type
+-Subp	struct
+-{
++Subp	struct {
+ 	a3	int;
+ 		*SubpSubp;
+ 		SubpSub;
+ 	a	int;
+ }
+-func (p *Subp)
+-test3() int
+-{
++func (p *Subp) test3() int {
+ 	if p.a != p.a3 { panicln("SubpSub", p, p.a3) }
+ 	return p.a
+ }
+@@ -129,9 +109,7 @@ Sub	struct
+ 		SubSub;
+ 	a	int;
+ }
+-func (p *Sub)
+-test2() int
+-{
++func (p *Sub) test2() int {
+ 	if p.a != p.a2 { panicln("SubpSub", p, p.a2) }
+ 	return p.a
+ }
+@@ -141,16 +119,13 @@ test2() int
+  ******/
+ 
+ type
+-S	struct
+-{
++S	struct {
+ 	a1	int;
+ 		Sub;
+ 		*Subp;
+ 	a	int;
+ }
+-func (p *S)
+-test1() int
+-{
++func (p *S) test1() int {
+ 	if p.a != p.a1 { panicln("SubpSub", p, p.a1) }
+ 	return p.a
+ }
+@@ -160,8 +135,7 @@ test1() int
+  ******/
+ 
+ func
+-main()
+-{
++main() {
+ 	var i I;
+ 	var s *S;
+ 
+diff --git a/test/ken/for.go b/test/ken/for.go
+index 74434b2678..176ecd7493 100644
+--- a/test/ken/for.go
++++ b/test/ken/for.go
+@@ -8,8 +8,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	var t,i int;
+ 
+ 	for i=0; i<100; i=i+1 {
+diff --git a/test/ken/interbasic.go b/test/ken/interbasic.go
+index c6b982fe14..5199c4174a 100644
+--- a/test/ken/interbasic.go
++++ b/test/ken/interbasic.go
+@@ -11,8 +11,7 @@ type	mystring	string;
+ type	I0		interface {};
+ 
+ func
+-f()
+-{
++f() {
+ 	var ia, ib I0;
+ 	var i myint;
+ 	var s mystring;
+@@ -52,8 +51,7 @@ f()
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var ia [20]I0;
+ 	var b bool;
+ 	var s string;
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index c508c73c30..94bc7eaada 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -6,37 +6,29 @@
+ 
+ package main
+ 
+-type S struct
+-{
++type S struct {
+ 	a,b	int;
+ }
+ 
+-type I1 interface
+-{
++type I1 interface {
+ 	f	()int;
+ }
+ 
+-type I2 interface
+-{
++type I2 interface {
+ 	g() int;
+ 	f() int;
+ }
+ 
+-func
+-(this *S) f()int
+-{
++func (this *S) f()int {
+ 	return this.a;
+ }
+ 
+-func
+-(this *S) g()int
+-{
++func (this *S) g()int {
+ 	return this.b;
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var i1 I1;
+ 	var i2 I2;
+ 	var g *S;
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 1c3d650006..c2aaaa8705 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -6,58 +6,47 @@
+ 
+ package main
+ 
+-type	Iputs	interface
+-{
++type	Iputs	interface {
+ 	puts	(s string);
+ }
+ 
+ // ---------
+ 
+-type	Print	struct
+-{
++type	Print	struct {
+ 	whoami	int;
+ 	put	Iputs;
+ }
+ 
+-func (p *Print)
+-dop()
+-{
++func (p *Print) dop() {
+ 	print(" print ", p.whoami);
+ 	p.put.puts("abc");
+ }
+ 
+ // ---------
+ 
+-type	Bio	struct
+-{
++type	Bio	struct {
+ 	whoami	int;
+ 	put	Iputs;
+ }
+ 
+-func (b *Bio)
+-puts(s string)
+-{
++func (b *Bio) puts(s string) {
+ 	print(" bio ", b.whoami);
+ 	b.put.puts(s);
+ }
+ 
+ // ---------
+ 
+-type	File	struct
+-{
++type	File	struct {
+ 	whoami	int;
+ 	put	Iputs;
+ }
+ 
+-func (f *File)
+-puts(s string)
+-{
++func (f *File) puts(s string) {
+ 	print(" file ", f.whoami, " -- ", s);
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	p := new(Print);
+ 	b := new(Bio);
+ 	f := new(File);
+diff --git a/test/ken/label.go b/test/ken/label.go
+index 17294ef865..770f33e39f 100644
+--- a/test/ken/label.go
++++ b/test/ken/label.go
+@@ -8,8 +8,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	i := 0;
+ 	if false {
+ 		goto gogoloop;
+diff --git a/test/ken/litfun.go b/test/ken/litfun.go
+index 85b4b0a6a3..bac2bc17cc 100644
+--- a/test/ken/litfun.go
++++ b/test/ken/litfun.go
+@@ -8,8 +8,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	x := func(a int)int {
+ 		x := func(a int)int {
+ 			x := func(a int)int {
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+index 78c9617a8f..ae0bc0c58a 100644
+--- a/test/ken/mfunc.go
++++ b/test/ken/mfunc.go
+@@ -7,8 +7,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	var x,y int;
+ 
+ 	x,y = simple(10,20,30);
+@@ -16,7 +15,6 @@ main()
+ }
+ 
+ func
+-simple(ia,ib,ic int) (oa,ob int)
+-{
++simple(ia,ib,ic int) (oa,ob int) {
+ 	return ia+5, ib+ic;
+ }
+diff --git a/test/ken/modconst.go b/test/ken/modconst.go
+index 2419a4cf5e..fa53d0b256 100644
+--- a/test/ken/modconst.go
++++ b/test/ken/modconst.go
+@@ -11,8 +11,7 @@ import	"rand"
+ const	Count	= 1e5
+ 
+ func
+-i64rand() int64
+-{
++i64rand() int64 {
+ 	for {
+ 		a := int64(rand.Uint32());
+ 		a = (a<<32) | int64(rand.Uint32());
+@@ -25,8 +24,7 @@ i64rand() int64
+ }
+ 
+ func
+-i64test(a,b,c int64)
+-{
++i64test(a,b,c int64) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("i64", a, b, c, d);
+@@ -34,8 +32,7 @@ i64test(a,b,c int64)
+ }
+ 
+ func
+-i64run()
+-{
++i64run() {
+ 	var a, b int64;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -80,8 +77,7 @@ i64run()
+ }
+ 
+ func
+-u64rand() uint64
+-{
++u64rand() uint64 {
+ 	a := uint64(rand.Uint32());
+ 	a = (a<<32) | uint64(rand.Uint32());
+ 	a >>= uint(rand.Intn(64));
+@@ -89,8 +85,7 @@ u64rand() uint64
+ }
+ 
+ func
+-u64test(a,b,c uint64)
+-{
++u64test(a,b,c uint64) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("u64", a, b, c, d);
+@@ -98,8 +93,7 @@ u64test(a,b,c uint64)
+ }
+ 
+ func
+-u64run()
+-{
++u64run() {
+ 	var a, b uint64;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -126,8 +120,7 @@ u64run()
+ }
+ 
+ func
+-i32rand() int32
+-{
++i32rand() int32 {
+ 	for {
+ 		a := int32(rand.Uint32());
+ 		a >>= uint(rand.Intn(32));
+@@ -139,8 +132,7 @@ i32rand() int32
+ }
+ 
+ func
+-i32test(a,b,c int32)
+-{
++i32test(a,b,c int32) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("i32", a, b, c, d);
+@@ -148,8 +140,7 @@ i32test(a,b,c int32)
+ }
+ 
+ func
+-i32run()
+-{
++i32run() {
+ 	var a, b int32;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -193,16 +184,14 @@ i32run()
+ }
+ 
+ func
+-u32rand() uint32
+-{
++u32rand() uint32 {
+ 	a := uint32(rand.Uint32());
+ 	a >>= uint(rand.Intn(32));
+ 	return a;
+ }
+ 
+ func
+-u32test(a,b,c uint32)
+-{
++u32test(a,b,c uint32) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("u32", a, b, c, d);
+@@ -210,8 +199,7 @@ u32test(a,b,c uint32)
+ }
+ 
+ func
+-u32run()
+-{
++u32run() {
+ 	var a, b uint32;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -238,8 +226,7 @@ u32run()
+ }
+ 
+ func
+-i16rand() int16
+-{
++i16rand() int16 {
+ 	for {
+ 		a := int16(rand.Uint32());
+ 		a >>= uint(rand.Intn(16));
+@@ -251,8 +238,7 @@ i16rand() int16
+ }
+ 
+ func
+-i16test(a,b,c int16)
+-{
++i16test(a,b,c int16) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("i16", a, b, c, d);
+@@ -260,8 +246,7 @@ i16test(a,b,c int16)
+ }
+ 
+ func
+-i16run()
+-{
++i16run() {
+ 	var a, b int16;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -306,16 +291,14 @@ i16run()
+ }
+ 
+ func
+-u16rand() uint16
+-{
++u16rand() uint16 {
+ 	a := uint16(rand.Uint32());
+ 	a >>= uint(rand.Intn(16));
+ 	return a;
+ }
+ 
+ func
+-u16test(a,b,c uint16)
+-{
++u16test(a,b,c uint16) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("u16", a, b, c, d);
+@@ -323,8 +306,7 @@ u16test(a,b,c uint16)
+ }
+ 
+ func
+-u16run()
+-{
++u16run() {
+ 	var a, b uint16;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -351,8 +333,7 @@ u16run()
+ }
+ 
+ func
+-i8rand() int8
+-{
++i8rand() int8 {
+ 	for {
+ 		a := int8(rand.Uint32());
+ 		a >>= uint(rand.Intn(8));
+@@ -364,8 +345,7 @@ i8rand() int8
+ }
+ 
+ func
+-i8test(a,b,c int8)
+-{
++i8test(a,b,c int8) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("i8", a, b, c, d);
+@@ -373,8 +353,7 @@ i8test(a,b,c int8)
+ }
+ 
+ func
+-i8run()
+-{
++i8run() {
+ 	var a, b int8;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -416,16 +395,14 @@ i8run()
+ }
+ 
+ func
+-u8rand() uint8
+-{
++u8rand() uint8 {
+ 	a := uint8(rand.Uint32());
+ 	a >>= uint(rand.Intn(8));
+ 	return a;
+ }
+ 
+ func
+-u8test(a,b,c uint8)
+-{
++u8test(a,b,c uint8) {
+ 	d := a%c;
+ 	if d != b {
+ 		panicln("u8", a, b, c, d);
+@@ -433,8 +410,7 @@ u8test(a,b,c uint8)
+ }
+ 
+ func
+-u8run()
+-{
++u8run() {
+ 	var a, b uint8;
+ 
+ 	for i:=0; i<Count; i++ {
+@@ -459,8 +435,7 @@ u8run()
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	xtest();
+ 	i64run();
+ 	u64run();
+@@ -473,6 +448,5 @@ main()
+ }
+ 
+ func
+-xtest()
+-{
++xtest() {
+ }
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index 111ac61bb9..6739ba33ae 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -7,21 +7,17 @@
+ 
+ package main
+ 
+-type C struct
+-{
++type C struct {
+ 	a	int;
+ 	x	func(p *C)int;
+ }
+ 
+-func
+-(this *C) f()int
+-{
++func (this *C) f()int {
+ 	return this.a;
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var v int;
+ 	var c *C;
+ 
+@@ -39,9 +35,7 @@ main()
+ 	if v != 6 { panic(v); }
+ }
+ 
+-func
+-g(p *C)int
+-{
++func g(p *C)int {
+ 	var v int;
+ 
+ 	v = p.a;
+diff --git a/test/ken/ptrvar.go b/test/ken/ptrvar.go
+index 0e3452f0aa..e2ddde6292 100644
+--- a/test/ken/ptrvar.go
++++ b/test/ken/ptrvar.go
+@@ -12,8 +12,7 @@ var	g1	x2;
+ var	g2	struct { a,b,c int; d x2; };
+ 
+ func
+-main()
+-{
++main() {
+ 	var x int;
+ 	var s1 *x2;
+ 	var s2 *struct { a,b,c int; d x2; };
+diff --git a/test/ken/range.go b/test/ken/range.go
+index 55e168920b..8da830247c 100644
+--- a/test/ken/range.go
++++ b/test/ken/range.go
+@@ -13,14 +13,12 @@ var	p	[]byte;
+ var	m	map[int]byte;
+ 
+ func
+-f(k int) byte
+-{
++f(k int) byte {
+ 	return byte(k*10007 % size);
+ }
+ 
+ func
+-init()
+-{
++init() {
+ 	p = make([]byte, size);
+ 	m = make(map[int]byte);
+ 	for k:=0; k<size; k++ {
+@@ -32,8 +30,7 @@ init()
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var i int;
+ 
+ 	/*
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index a75878b1f5..03350662a2 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -6,40 +6,31 @@
+ 
+ package main
+ 
+-type Item interface
+-{
++type Item interface {
+ 	Print();
+ }
+ 
+-type ListItem struct
+-{
++type ListItem struct {
+ 	item    Item;
+ 	next    *ListItem;
+ }
+ 
+-type List struct
+-{
++type List struct {
+ 	head    *ListItem;
+ }
+ 
+-func (list *List)
+-Init()
+-{
++func (list *List) Init() {
+ 	list.head = nil;
+ }
+ 
+-func (list *List)
+-Insert(i Item)
+-{
++func (list *List) Insert(i Item) {
+ 	item := new(ListItem);
+ 	item.item = i;
+ 	item.next = list.head;
+ 	list.head = item;
+ }
+ 
+-func (list *List)
+-Print()
+-{
++func (list *List) Print() {
+ 	i := list.head;
+ 	for i != nil {
+ 		i.item.Print();
+@@ -48,27 +39,21 @@ Print()
+ }
+ 
+ // Something to put in a list
+-type Integer struct
+-{
++type Integer struct {
+ 	val		int;
+ }
+ 
+-func (this *Integer)
+-Init(i int) *Integer
+-{
++func (this *Integer) Init(i int) *Integer {
+ 	this.val = i;
+ 	return this;
+ }
+ 
+-func (this *Integer)
+-Print()
+-{
++func (this *Integer) Print() {
+ 	print(this.val);
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	list := new(List);
+ 	list.Init();
+ 	for i := 0; i < 10; i = i + 1 {
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 518ba29807..af63e4d9f6 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -72,8 +72,7 @@ var tokenlen int = 0;
+ 
+ const EOF int = -1;
+ 
+-func main()
+-{
++func main() {
+ 	var list *Slist;
+ 
+ 	OpenFile();
+@@ -88,8 +87,7 @@ func main()
+ 	}
+ }
+ 
+-func (slist *Slist) PrintOne(doparen bool)
+-{
++func (slist *Slist) PrintOne(doparen bool) {
+ 	if slist == nil {
+ 		return;
+ 	}
+@@ -114,14 +112,12 @@ func (slist *Slist) PrintOne(doparen bool)
+ 	}
+ }
+ 
+-func (slist *Slist) Print()
+-{
++func (slist *Slist) Print() {
+ 	slist.PrintOne(true);
+ 	print("\n");
+ }
+ 
+-func Get() int
+-{
++func Get() int {
+ 	var c int;
+ 
+ 	if peekc >= 0 {
+@@ -141,13 +137,11 @@ func Get() int
+ 	return c;
+ }
+ 
+-func WhiteSpace(c int) bool
+-{
++func WhiteSpace(c int) bool {
+ 	return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+ }
+ 
+-func NextToken()
+-{
++func NextToken() {
+ 	var i, c int;
+ 
+ 	tokenbuf[0] = nilchar;	// clear previous token
+@@ -187,8 +181,7 @@ func NextToken()
+ 	}
+ }
+ 
+-func Expect(c int)
+-{
++func Expect(c int) {
+ 	if token != c {
+ 		print("parse error: expected ", c, "\n");
+ 		panic("parse");
+@@ -197,8 +190,7 @@ func Expect(c int)
+ }
+ 
+ // Parse a non-parenthesized list up to a closing paren or EOF
+-func ParseList() *Slist
+-{
++func ParseList() *Slist {
+ 	var slist, retval *Slist;
+ 
+ 	slist = new(Slist);
+@@ -219,8 +211,7 @@ func ParseList() *Slist
+ 	return retval;
+ }
+ 
+-func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
+-{
++func atom(i int) *Slist	{ // BUG: uses tokenbuf; should take argument)
+ 	var slist *Slist;
+ 
+ 	slist = new(Slist);
+@@ -235,8 +226,7 @@ func atom(i int) *Slist	// BUG: uses tokenbuf; should take argument
+ 	return slist;
+ }
+ 
+-func atoi() int	// BUG: uses tokenbuf; should take argument
+-{
++func atoi() int	{ // BUG: uses tokenbuf; should take argument)
+ 	var v int = 0;
+ 	for i := 0; i < tokenlen && '0' <= tokenbuf[i] && tokenbuf[i] <= '9'; i = i + 1 {
+ 		v = 10 * v + int(tokenbuf[i] - '0');
+@@ -244,8 +234,7 @@ func atoi() int	// BUG: uses tokenbuf; should take argument
+ 	return v;
+ }
+ 
+-func Parse() *Slist
+-{
++func Parse() *Slist {
+ 	var slist *Slist;
+ 
+ 	if token == EOF || token == ')' {
+@@ -275,8 +264,7 @@ func Parse() *Slist
+ 	return nil;
+ }
+ 
+-func OpenFile()
+-{
++func OpenFile() {
+ 	input = "(defn foo (add 12 34))\n\x00";
+ 	inputindex = 0;
+ 	peekc = -1;		// BUG
+diff --git a/test/ken/shift.go b/test/ken/shift.go
+index 379f53fa42..157a07aec5 100644
+--- a/test/ken/shift.go
++++ b/test/ken/shift.go
+@@ -11,8 +11,7 @@ var	uans	[18]uint;
+ var	pass	string;
+ 
+ func
+-testi(i int, t1,t2,t3 int)
+-{
++testi(i int, t1,t2,t3 int) {
+ 	n := ((t1*3) + t2)*2 + t3;
+ 	if i != ians[n] {
+ 		print("itest ", t1,t2,t3,pass,
+@@ -21,14 +20,12 @@ testi(i int, t1,t2,t3 int)
+ }
+ 
+ func
+-index(t1,t2,t3 int) int
+-{
++index(t1,t2,t3 int) int {
+ 	return ((t1*3) + t2)*2 + t3;
+ }
+ 
+ func
+-testu(u uint, t1,t2,t3 int)
+-{
++testu(u uint, t1,t2,t3 int) {
+ 	n := index(t1,t2,t3);
+ 	if u != uans[n] {
+ 		print("utest ", t1,t2,t3,pass,
+@@ -37,8 +34,7 @@ testu(u uint, t1,t2,t3 int)
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var i int;
+ 	var u,c uint;
+ 
+@@ -95,8 +91,7 @@ main()
+ }
+ 
+ func
+-init()
+-{
++init() {
+ 	/*
+ 	 * set the 'correct' answer
+ 	 */
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index 90331e5e3d..1b6f245eea 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -9,8 +9,7 @@ package main
+ var b[10] float32;
+ 
+ func
+-main()
+-{
++main() {
+ 	var a[10] float32;
+ 
+ 	for i:=int16(5); i<10; i=i+1 {
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index aad111dd55..dbd9c8d8bc 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -6,15 +6,13 @@
+ 
+ package main
+ 
+-type s struct
+-{
++type s struct {
+ 	a	bool;
+ 	b	bool;
+ }
+ 
+ func
+-main()
+-{
++main() {
+ 	var a,b bool;
+ 
+ 	a = true;
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index 9785138aeb..cb443e3a19 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -10,8 +10,7 @@ type vlong int64;
+ type short int16;
+ 
+ func
+-main()
+-{
++main() {
+ 	s1 := vlong(0);
+ 	for i:=short(0); i<10; i=i+1 {
+ 		s1 = s1 + vlong(i);
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+index ee2c1a9a09..ba9ce6f7bc 100644
+--- a/test/ken/simpfun.go
++++ b/test/ken/simpfun.go
+@@ -8,8 +8,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	var x int;
+ 
+ 	x = fun(10,20,30);
+@@ -17,8 +16,7 @@ main()
+ }
+ 
+ func
+-fun(ia,ib,ic int)int
+-{
++fun(ia,ib,ic int)int {
+ 	var o int;
+ 
+ 	o = ia+ib+ic;
+diff --git a/test/ken/simpprint.go b/test/ken/simpprint.go
+index 98393a4570..6077f7eb02 100644
+--- a/test/ken/simpprint.go
++++ b/test/ken/simpprint.go
+@@ -8,7 +8,6 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	print("hello world\n");
+ }
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+index e5f39e3543..ab5dd356b3 100644
+--- a/test/ken/simpswitch.go
++++ b/test/ken/simpswitch.go
+@@ -7,8 +7,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	a := 3;
+ 	for i:=0; i<10; i=i+1 {
+ 		switch(i) {
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+index 70946bf70e..fd060b0e2e 100644
+--- a/test/ken/simpvar.go
++++ b/test/ken/simpvar.go
+@@ -10,8 +10,7 @@ package main
+ var	x,y	int;
+ 
+ func
+-main()
+-{
++main() {
+ 
+ 	x = 15;
+ 	y = 20;
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index a8f5ad928d..f24c7fc9c2 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -14,8 +14,7 @@ var	lb,hb	int
+ var	t	int
+ 
+ func
+-main()
+-{
++main() {
+ 	lb = 0; hb = 10;
+ 	by = &bx; tstb();
+ 
+@@ -82,8 +81,7 @@ main()
+ }
+ 
+ func
+-tstb()
+-{
++tstb() {
+ 	t++;
+ 	if len(by) != hb-lb {
+ 		panicln("t=", t, "lb=", lb, "hb=", hb,
+@@ -104,8 +102,7 @@ tstb()
+ }
+ 
+ func
+-tstf()
+-{
++tstf() {
+ 	t++;
+ 	if len(fy) != hb-lb {
+ 		panicln("t=", t, "lb=", lb, "hb=", hb,
+@@ -126,8 +123,7 @@ tstf()
+ }
+ 
+ func
+-init()
+-{
++init() {
+ 	for i:=0; i<len(bx); i++ {
+ 		bx[i] = byte(i+20);
+ 	}
+diff --git a/test/ken/sliceslice.go b/test/ken/sliceslice.go
+index 9c37dedbe4..7b38082bb6 100644
+--- a/test/ken/sliceslice.go
++++ b/test/ken/sliceslice.go
+@@ -14,8 +14,7 @@ var	lb,hb	int
+ var	t	int
+ 
+ func
+-main()
+-{
++main() {
+ 
+ 	// width 1 (byte)
+ 	lb = 0; hb = 10;
+@@ -77,8 +76,7 @@ main()
+ }
+ 
+ func
+-tstb()
+-{
++tstb() {
+ 	t++;
+ 	if len(by) != hb-lb {
+ 		panicln("t=", t, "lb=", lb, "hb=", hb,
+@@ -99,8 +97,7 @@ tstb()
+ }
+ 
+ func
+-tstf()
+-{
++tstf() {
+ 	t++;
+ 	if len(fy) != hb-lb {
+ 		panicln("t=", t, "lb=", lb, "hb=", hb,
+@@ -121,8 +118,7 @@ tstf()
+ }
+ 
+ func
+-init()
+-{
++init() {
+ 	bx = make([]byte, 10);
+ 	for i:=0; i<len(bx); i++ {
+ 		bx[i] = byte(i+20);
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 03e81a05d5..14617de9c7 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -8,8 +8,7 @@
+ package main
+ 
+ func
+-main()
+-{
++main() {
+ 	var c string;
+ 
+ 	a := `abc`;
+diff --git a/test/ken/strvar.go b/test/ken/strvar.go
+index 4a29217952..dfaaf12131 100644
+--- a/test/ken/strvar.go
++++ b/test/ken/strvar.go
+@@ -12,8 +12,7 @@ var	g1	x2;
+ var	g2	struct { a,b,c int; d x2; };
+ 
+ func
+-main()
+-{
++main() {
+ 	var x int;
+ 	var s1 *x2;
+ 	var s2 *struct { a,b,c int; d x2; };

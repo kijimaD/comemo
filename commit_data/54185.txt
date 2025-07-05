@@ -17,7 +17,67 @@ Date:   Wed Sep 28 19:19:44 2022 +0200
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/build.go |  4 ----
  src/cmd/dist/test.go  | 19 ++-----------------
  2 files changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 5d60ba153e..4b2e545b2e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1427,10 +1427,6 @@ func cmdbootstrap() {
+ 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
+ 	}
+ 	targets := []string{"std", "cmd"}
+-	if goos == "js" && goarch == "wasm" {
+-		// Skip the cmd tools for js/wasm. They're not usable.
+-		targets = targets[:1]
+-	}
+ 	goInstall(goBootstrap, targets...)
+ 	checkNotStale(goBootstrap, targets...)
+ 	checkNotStale(cmdGo, targets...)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 181b61dd93..d27afb9fa1 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -162,11 +162,7 @@ func (t *tester) run() {
+ 			// Instead, we can just check that it is not stale, which may be less
+ 			// expensive (and is also more likely to catch bugs in the builder
+ 			// implementation).
+-			willTest := []string{"std"}
+-			if t.shouldTestCmd() {
+-				willTest = append(willTest, "cmd")
+-			}
+-			checkNotStale("go", willTest...)
++			checkNotStale("go", "std", "cmd")
+ 		}
+ 	}
+ 
+@@ -490,10 +486,7 @@ func (t *tester) registerTests() {
+ 		if t.race {
+ 			cmd.Args = append(cmd.Args, "-tags=race")
+ 		}
+-		cmd.Args = append(cmd.Args, "std")
+-		if t.shouldTestCmd() {
+-			cmd.Args = append(cmd.Args, "cmd")
+-		}
++		cmd.Args = append(cmd.Args, "std", "cmd")
+ 		cmd.Stderr = new(bytes.Buffer)
+ 		all, err := cmd.Output()
+ 		if err != nil {
+@@ -1682,14 +1675,6 @@ func (t *tester) shouldUsePrecompiledStdTest() bool {
+ 	return err == nil
+ }
+ 
+-func (t *tester) shouldTestCmd() bool {
+-	if goos == "js" && goarch == "wasm" {
+-		// Issues 25911, 35220
+-		return false
+-	}
+-	return true
+-}
+-
+ // prebuiltGoPackageTestBinary returns the path where we'd expect
+ // the pre-built go test binary to be on disk when dist test is run with
+ // a single argument.

@@ -12,6 +12,39 @@ Date:   Mon Nov 22 01:26:48 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/363840
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
-
+---
  doc/go1.18.html | 14 ++++++++------
  1 file changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index c9c70267f1..1788e97663 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -304,9 +304,10 @@ proposal</a>.
+ 
+ <dl id="bytes"><dt><a href="/pkg/bytes/">bytes</a></dt>
+   <dd>
+-    <p><!-- CL 332771 -->
+-      <a href="/pkg/bytes#Trim"><code>bytes.Trim</code></a> and related
+-      functions, have had their most common use cases optimized.
++    <p><!-- CL 323318, CL 332771 -->
++      <a href="/pkg/bytes/#Trim"><code>Trim</code></a>, <a href="/pkg/bytes/#TrimLeft"><code>TrimLeft</code></a>,
++      and <a href="/pkg/bytes/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
++      small ASCII cutsets, up to 10 times faster.
+     </p>
+ 
+     <p><!-- CL 359485 -->
+@@ -447,9 +448,10 @@ proposal</a>.
+       the input string's memory.
+     </p>
+ 
+-    <p><!-- CL 332771 -->
+-      <a href="/pkg/bytes#Trim"><code>strings.Trim</code></a> and related functions
+-      functions, have had their most common use cases optimized.
++    <p><!-- CL 323318, CL 332771 -->
++      <a href="/pkg/strings/#Trim"><code>Trim</code></a>, <a href="/pkg/strings/#TrimLeft"><code>TrimLeft</code></a>,
++      and <a href="/pkg/strings/#TrimRight"><code>TrimRight</code></a> are now allocation free and, especially for 
++      small ASCII cutsets, up to 10 times faster.
+     </p>
+ 
+     <p><!-- CL 359485 -->

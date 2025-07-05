@@ -9,6 +9,40 @@ Date:   Wed Feb 29 09:53:20 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5707056
-
+---
  src/pkg/net/http/fs_test.go | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 0409008b67..5aa93ce583 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -152,12 +152,19 @@ func TestFileServerCleans(t *testing.T) {
+ 	}
+ }
+ 
++func mustRemoveAll(dir string) {
++	err := os.RemoveAll(dir)
++	if err != nil {
++		panic(err)
++	}
++}
++
+ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ 	tempDir, err := ioutil.TempDir("", "")
+ 	if err != nil {
+ 		t.Fatalf("TempDir: %v", err)
+ 	}
+-	defer os.RemoveAll(tempDir)
++	defer mustRemoveAll(tempDir)
+ 	if err := ioutil.WriteFile(filepath.Join(tempDir, "foo.txt"), []byte("Hello world"), 0644); err != nil {
+ 		t.Fatalf("WriteFile: %v", err)
+ 	}
+@@ -172,6 +179,7 @@ func TestFileServerImplicitLeadingSlash(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("ReadAll %s: %v", suffix, err)
+ 		}
++		res.Body.Close()
+ 		return string(b)
+ 	}
+ 	if s := get("/bar/"); !strings.Contains(s, ">foo.txt<") {

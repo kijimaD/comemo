@@ -9,6 +9,39 @@ Date:   Tue Nov 15 10:27:43 2011 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5375097
-
+---
  src/pkg/go/build/build_test.go | 16 +++++++++-------
  1 file changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/go/build/build_test.go b/src/pkg/go/build/build_test.go
+index db8bc6c8a5..e22a49aa3d 100644
+--- a/src/pkg/go/build/build_test.go
++++ b/src/pkg/go/build/build_test.go
+@@ -37,18 +37,20 @@ var buildPkgs = []struct {
+ 	{
+ 		"go/build/cmdtest",
+ 		&DirInfo{
+-			GoFiles: []string{"main.go"},
+-			Package: "main",
+-			Imports: []string{"go/build/pkgtest"},
++			GoFiles:     []string{"main.go"},
++			Package:     "main",
++			Imports:     []string{"go/build/pkgtest"},
++			TestImports: []string{},
+ 		},
+ 	},
+ 	{
+ 		"go/build/cgotest",
+ 		&DirInfo{
+-			CgoFiles: []string{"cgotest.go"},
+-			CFiles:   []string{"cgotest.c"},
+-			Imports:  []string{"C", "unsafe"},
+-			Package:  "cgotest",
++			CgoFiles:    []string{"cgotest.go"},
++			CFiles:      []string{"cgotest.c"},
++			Imports:     []string{"C", "unsafe"},
++			TestImports: []string{},
++			Package:     "cgotest",
+ 		},
+ 	},
+ }

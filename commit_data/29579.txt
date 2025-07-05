@@ -11,6 +11,20 @@ Date:   Sat Jun 4 23:26:12 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index f8b60b6d33..76f23bcf9a 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -221,7 +221,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 	// The "Trailer" header isn't included in the Transport's response,
+ 	// at least for *http.Transport. Build it up from Trailer.
+ 	if len(res.Trailer) > 0 {
+-		var trailerKeys []string
++		trailerKeys := make([]string, 0, len(res.Trailer))
+ 		for k := range res.Trailer {
+ 			trailerKeys = append(trailerKeys, k)
+ 		}

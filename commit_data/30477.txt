@@ -7,7 +7,59 @@ Date:   Mon Nov 7 15:57:04 2016 -0500
     Change-Id: Ice8f3b42194852f7ee8f00f004e80014d1ea119b
     Reviewed-on: https://go-review.googlesource.com/32875
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/sys/arch.go          | 14 +++++++-------
  src/runtime/internal/sys/arch_mips.go | 14 +++++++-------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/sys/arch.go b/src/cmd/internal/sys/arch.go
+index 487e2b73e5..22c8c321b0 100644
+--- a/src/cmd/internal/sys/arch.go
++++ b/src/cmd/internal/sys/arch.go
+@@ -109,13 +109,13 @@ var ArchMIPS = &Arch{
+ }
+ 
+ var ArchMIPSLE = &Arch{
+-        Name:      "mipsle",
+-        Family:    MIPS,
+-        ByteOrder: binary.LittleEndian,
+-        IntSize:   4,
+-        PtrSize:   4,
+-        RegSize:   4,
+-        MinLC:     4,
++	Name:      "mipsle",
++	Family:    MIPS,
++	ByteOrder: binary.LittleEndian,
++	IntSize:   4,
++	PtrSize:   4,
++	RegSize:   4,
++	MinLC:     4,
+ }
+ 
+ var ArchMIPS64 = &Arch{
+diff --git a/src/runtime/internal/sys/arch_mips.go b/src/runtime/internal/sys/arch_mips.go
+index dc6c434dac..65fc4f8a60 100644
+--- a/src/runtime/internal/sys/arch_mips.go
++++ b/src/runtime/internal/sys/arch_mips.go
+@@ -5,14 +5,14 @@
+ package sys
+ 
+ const (
+-	ArchFamily    = MIPS
+-	BigEndian     = 1
+-	CacheLineSize = 32
++	ArchFamily          = MIPS
++	BigEndian           = 1
++	CacheLineSize       = 32
+ 	DefaultPhysPageSize = 65536
+-	PCQuantum     = 4
+-	Int64Align    = 4
+-	HugePageSize  = 0
+-	MinFrameSize  = 4
++	PCQuantum           = 4
++	Int64Align          = 4
++	HugePageSize        = 0
++	MinFrameSize        = 4
+ )
+ 
+ type Uintreg uint32

@@ -16,7 +16,7 @@ Date:   Wed Aug 31 18:18:19 2022 +1000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Joel Sing <joel@sing.id.au>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/dist/build.go                       |   4 +-
  src/cmd/internal/obj/riscv/cpu.go           |  18 +-
  src/cmd/internal/obj/riscv/obj.go           |  82 +++++-
@@ -40,3 +40,1008 @@ Date:   Wed Aug 31 18:18:19 2022 +1000
  src/cmd/link/internal/x86/asm.go            |   2 +-
  src/internal/platform/supported.go          |   4 +-
  22 files changed, 572 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 0f53399648..8d023b7e0a 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -576,9 +576,7 @@ func setup() {
+ func mustLinkExternal(goos, goarch string, cgoEnabled bool) bool {
+ 	if cgoEnabled {
+ 		switch goarch {
+-		case "loong64",
+-			"mips", "mipsle", "mips64", "mips64le",
+-			"riscv64":
++		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+ 			// Internally linking cgo is incomplete on some architectures.
+ 			// https://golang.org/issue/14449
+ 			return true
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index dde1231e15..bfd5153da4 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -619,14 +619,26 @@ var unaryDst = map[obj.As]bool{
+ 
+ // Instruction encoding masks.
+ const (
+-	// JTypeImmMask is a mask including only the immediate portion of
+-	// J-type instructions.
+-	JTypeImmMask = 0xfffff000
++	// BTypeImmMask is a mask including only the immediate portion of
++	// B-type instructions.
++	BTypeImmMask = 0xfe000f80
++
++	// CBTypeImmMask is a mask including only the immediate portion of
++	// CB-type instructions.
++	CBTypeImmMask = 0x1c7c
++
++	// CJTypeImmMask is a mask including only the immediate portion of
++	// CJ-type instructions.
++	CJTypeImmMask = 0x1f7c
+ 
+ 	// ITypeImmMask is a mask including only the immediate portion of
+ 	// I-type instructions.
+ 	ITypeImmMask = 0xfff00000
+ 
++	// JTypeImmMask is a mask including only the immediate portion of
++	// J-type instructions.
++	JTypeImmMask = 0xfffff000
++
+ 	// STypeImmMask is a mask including only the immediate portion of
+ 	// S-type instructions.
+ 	STypeImmMask = 0xfe000f80
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 2e55fac812..776c3a8df6 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1181,6 +1181,12 @@ func validateRaw(ctxt *obj.Link, ins *instruction) {
+ 	}
+ }
+ 
++// extractBitAndShift extracts the specified bit from the given immediate,
++// before shifting it to the requested position and returning it.
++func extractBitAndShift(imm uint32, bit, pos int) uint32 {
++	return ((imm >> bit) & 1) << pos
++}
++
+ // encodeR encodes an R-type RISC-V instruction.
+ func encodeR(as obj.As, rs1, rs2, rd, funct3, funct7 uint32) uint32 {
+ 	enc := encode(as)
+@@ -1272,6 +1278,11 @@ func encodeSF(ins *instruction) uint32 {
+ 	return encodeS(ins.as, regI(ins.rd), regF(ins.rs1), uint32(ins.imm))
+ }
+ 
++// encodeBImmediate encodes an immediate for a B-type RISC-V instruction.
++func encodeBImmediate(imm uint32) uint32 {
++	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7
++}
++
+ // encodeB encodes a B-type RISC-V instruction.
+ func encodeB(ins *instruction) uint32 {
+ 	imm := immI(ins.as, ins.imm, 13)
+@@ -1281,7 +1292,7 @@ func encodeB(ins *instruction) uint32 {
+ 	if enc == nil {
+ 		panic("encodeB: could not encode instruction")
+ 	}
+-	return (imm>>12)<<31 | ((imm>>5)&0x3f)<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | ((imm>>1)&0xf)<<8 | ((imm>>11)&0x1)<<7 | enc.opcode
++	return encodeBImmediate(imm) | rs2<<20 | rs1<<15 | enc.funct3<<12 | enc.opcode
+ }
+ 
+ // encodeU encodes a U-type RISC-V instruction.
+@@ -1315,6 +1326,37 @@ func encodeJ(ins *instruction) uint32 {
+ 	return encodeJImmediate(imm) | rd<<7 | enc.opcode
+ }
+ 
++// encodeCBImmediate encodes an immediate for a CB-type RISC-V instruction.
++func encodeCBImmediate(imm uint32) uint32 {
++	// Bit order - [8|4:3|7:6|2:1|5]
++	bits := extractBitAndShift(imm, 8, 7)
++	bits |= extractBitAndShift(imm, 4, 6)
++	bits |= extractBitAndShift(imm, 3, 5)
++	bits |= extractBitAndShift(imm, 7, 4)
++	bits |= extractBitAndShift(imm, 6, 3)
++	bits |= extractBitAndShift(imm, 2, 2)
++	bits |= extractBitAndShift(imm, 1, 1)
++	bits |= extractBitAndShift(imm, 5, 0)
++	return (bits>>5)<<10 | (bits&0x1f)<<2
++}
++
++// encodeCJImmediate encodes an immediate for a CJ-type RISC-V instruction.
++func encodeCJImmediate(imm uint32) uint32 {
++	// Bit order - [11|4|9:8|10|6|7|3:1|5]
++	bits := extractBitAndShift(imm, 11, 10)
++	bits |= extractBitAndShift(imm, 4, 9)
++	bits |= extractBitAndShift(imm, 9, 8)
++	bits |= extractBitAndShift(imm, 8, 7)
++	bits |= extractBitAndShift(imm, 10, 6)
++	bits |= extractBitAndShift(imm, 6, 5)
++	bits |= extractBitAndShift(imm, 7, 4)
++	bits |= extractBitAndShift(imm, 3, 3)
++	bits |= extractBitAndShift(imm, 2, 2)
++	bits |= extractBitAndShift(imm, 1, 1)
++	bits |= extractBitAndShift(imm, 5, 0)
++	return bits << 2
++}
++
+ func encodeRawIns(ins *instruction) uint32 {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+ 	// Nobody wants to enter negative machine code.
+@@ -1324,14 +1366,34 @@ func encodeRawIns(ins *instruction) uint32 {
+ 	return uint32(ins.imm)
+ }
+ 
+-func EncodeJImmediate(imm int64) (int64, error) {
+-	if !immIFits(imm, 21) {
+-		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
++func EncodeBImmediate(imm int64) (int64, error) {
++	if !immIFits(imm, 13) {
++		return 0, fmt.Errorf("immediate %#x does not fit in 13 bits", imm)
+ 	}
+ 	if imm&1 != 0 {
+ 		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
+ 	}
+-	return int64(encodeJImmediate(uint32(imm))), nil
++	return int64(encodeBImmediate(uint32(imm))), nil
++}
++
++func EncodeCBImmediate(imm int64) (int64, error) {
++	if !immIFits(imm, 9) {
++		return 0, fmt.Errorf("immediate %#x does not fit in 9 bits", imm)
++	}
++	if imm&1 != 0 {
++		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
++	}
++	return int64(encodeCBImmediate(uint32(imm))), nil
++}
++
++func EncodeCJImmediate(imm int64) (int64, error) {
++	if !immIFits(imm, 12) {
++		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
++	}
++	if imm&1 != 0 {
++		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
++	}
++	return int64(encodeCJImmediate(uint32(imm))), nil
+ }
+ 
+ func EncodeIImmediate(imm int64) (int64, error) {
+@@ -1341,6 +1403,16 @@ func EncodeIImmediate(imm int64) (int64, error) {
+ 	return imm << 20, nil
+ }
+ 
++func EncodeJImmediate(imm int64) (int64, error) {
++	if !immIFits(imm, 21) {
++		return 0, fmt.Errorf("immediate %#x does not fit in 21 bits", imm)
++	}
++	if imm&1 != 0 {
++		return 0, fmt.Errorf("immediate %#x is not a multiple of two", imm)
++	}
++	return int64(encodeJImmediate(uint32(imm))), nil
++}
++
+ func EncodeSImmediate(imm int64) (int64, error) {
+ 	if !immIFits(imm, 12) {
+ 		return 0, fmt.Errorf("immediate %#x does not fit in 12 bits", imm)
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 3eaa5824e6..43106e0a25 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -285,6 +285,33 @@ const (
+ 	// LUI + I-type instruction sequence.
+ 	R_RISCV_TLS_LE
+ 
++	// R_RISCV_GOT_HI20 resolves the high 20 bits of a 32-bit PC-relative GOT
++	// address.
++	R_RISCV_GOT_HI20
++
++	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
++	// address.
++	R_RISCV_PCREL_HI20
++
++	// R_RISCV_PCREL_LO12_I resolves the low 12 bits of a 32-bit PC-relative
++	// address using an I-type instruction.
++	R_RISCV_PCREL_LO12_I
++
++	// R_RISCV_PCREL_LO12_S resolves the low 12 bits of a 32-bit PC-relative
++	// address using an S-type instruction.
++	R_RISCV_PCREL_LO12_S
++
++	// R_RISCV_BRANCH resolves a 12-bit PC-relative branch offset.
++	R_RISCV_BRANCH
++
++	// R_RISCV_RVC_BRANCH resolves an 8-bit PC-relative offset for a CB-type
++	// instruction.
++	R_RISCV_RVC_BRANCH
++
++	// R_RISCV_RVC_JUMP resolves an 11-bit PC-relative offset for a CJ-type
++	// instruction.
++	R_RISCV_RVC_JUMP
++
+ 	// R_PCRELDBL relocates s390x 2-byte aligned PC-relative addresses.
+ 	// TODO(mundaym): remove once variants can be serialized - see issue 14218.
+ 	R_PCRELDBL
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index bc8fb6b73c..b5315d1dfd 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -73,27 +73,34 @@ func _() {
+ 	_ = x[R_RISCV_PCREL_STYPE-63]
+ 	_ = x[R_RISCV_TLS_IE-64]
+ 	_ = x[R_RISCV_TLS_LE-65]
+-	_ = x[R_PCRELDBL-66]
+-	_ = x[R_ADDRLOONG64-67]
+-	_ = x[R_ADDRLOONG64U-68]
+-	_ = x[R_ADDRLOONG64TLS-69]
+-	_ = x[R_ADDRLOONG64TLSU-70]
+-	_ = x[R_CALLLOONG64-71]
+-	_ = x[R_LOONG64_TLS_IE_PCREL_HI-72]
+-	_ = x[R_LOONG64_TLS_IE_LO-73]
+-	_ = x[R_JMPLOONG64-74]
+-	_ = x[R_ADDRMIPSU-75]
+-	_ = x[R_ADDRMIPSTLS-76]
+-	_ = x[R_ADDRCUOFF-77]
+-	_ = x[R_WASMIMPORT-78]
+-	_ = x[R_XCOFFREF-79]
+-	_ = x[R_PEIMAGEOFF-80]
+-	_ = x[R_INITORDER-81]
++	_ = x[R_RISCV_GOT_HI20-66]
++	_ = x[R_RISCV_PCREL_HI20-67]
++	_ = x[R_RISCV_PCREL_LO12_I-68]
++	_ = x[R_RISCV_PCREL_LO12_S-69]
++	_ = x[R_RISCV_BRANCH-70]
++	_ = x[R_RISCV_RVC_BRANCH-71]
++	_ = x[R_RISCV_RVC_JUMP-72]
++	_ = x[R_PCRELDBL-73]
++	_ = x[R_ADDRLOONG64-74]
++	_ = x[R_ADDRLOONG64U-75]
++	_ = x[R_ADDRLOONG64TLS-76]
++	_ = x[R_ADDRLOONG64TLSU-77]
++	_ = x[R_CALLLOONG64-78]
++	_ = x[R_LOONG64_TLS_IE_PCREL_HI-79]
++	_ = x[R_LOONG64_TLS_IE_LO-80]
++	_ = x[R_JMPLOONG64-81]
++	_ = x[R_ADDRMIPSU-82]
++	_ = x[R_ADDRMIPSTLS-83]
++	_ = x[R_ADDRCUOFF-84]
++	_ = x[R_WASMIMPORT-85]
++	_ = x[R_XCOFFREF-86]
++	_ = x[R_PEIMAGEOFF-87]
++	_ = x[R_INITORDER-88]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USEGENERICIFACEMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_CALLR_RISCV_CALL_TRAMPR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_RISCV_GOT_HI20R_RISCV_PCREL_HI20R_RISCV_PCREL_LO12_IR_RISCV_PCREL_LO12_SR_RISCV_BRANCHR_RISCV_RVC_BRANCHR_RISCV_RVC_JUMPR_PCRELDBLR_ADDRLOONG64R_ADDRLOONG64UR_ADDRLOONG64TLSR_ADDRLOONG64TLSUR_CALLLOONG64R_LOONG64_TLS_IE_PCREL_HIR_LOONG64_TLS_IE_LOR_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 831, 845, 855, 868, 882, 898, 915, 928, 953, 972, 984, 995, 1008, 1019, 1031, 1041, 1053, 1064}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 233, 244, 250, 261, 271, 280, 293, 307, 321, 335, 351, 362, 375, 394, 414, 434, 454, 467, 481, 495, 509, 524, 538, 552, 563, 585, 607, 621, 636, 659, 676, 694, 715, 730, 749, 761, 779, 798, 817, 831, 845, 861, 879, 899, 919, 933, 951, 967, 977, 990, 1004, 1020, 1037, 1050, 1075, 1094, 1106, 1117, 1130, 1141, 1153, 1163, 1175, 1186}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f5a3786e2e..f86d224932 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -577,7 +577,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
+ 	return -1
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// pushq got+8(IP)
+ 		plt.AddUint8(0xff)
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index b432da89d4..0443e49197 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -304,7 +304,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// str lr, [sp, #-4]!
+ 		plt.AddUint32(ctxt.Arch, 0xe52de004)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index ee4349f422..6645795506 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -1091,7 +1091,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
+ 	return loader.ExtReloc{}, false
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// stp     x16, x30, [sp, #-16]!
+ 		// identifying information
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a9f10af5af..d3d0881b2c 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -582,19 +582,17 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 		case 1:
+ 			P[off] = byte(int8(o))
+ 		case 2:
+-			if o != int64(int16(o)) {
+-				st.err.Errorf(s, "relocation address for %s is too big: %#x", ldr.SymName(rs), o)
++			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int16(o)) {
++				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
++			} else if o != int64(int16(o)) && o != int64(uint16(o)) {
++				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
+ 			}
+ 			target.Arch.ByteOrder.PutUint16(P[off:], uint16(o))
+ 		case 4:
+-			if rt == objabi.R_PCREL || rt == objabi.R_CALL {
+-				if o != int64(int32(o)) {
+-					st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
+-				}
+-			} else {
+-				if o != int64(int32(o)) && o != int64(uint32(o)) {
+-					st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
+-				}
++			if (rt == objabi.R_PCREL || rt == objabi.R_CALL) && o != int64(int32(o)) {
++				st.err.Errorf(s, "pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), o)
++			} else if o != int64(int32(o)) && o != int64(uint32(o)) {
++				st.err.Errorf(s, "non-pc-relative relocation address for %s is too big: %#x", ldr.SymName(rs), uint64(o))
+ 			}
+ 			target.Arch.ByteOrder.PutUint32(P[off:], uint32(o))
+ 		case 8:
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index d83bef1558..0bc78b4f1e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -208,7 +208,7 @@ type ELFArch struct {
+ 
+ 	Reloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
+ 	RelocSize uint32 // size of an ELF relocation record, must match Reloc1.
+-	SetupPLT  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
++	SetupPLT  func(ctxt *Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+ 
+ 	// DynamicReadOnly can be set to true to make the .dynamic
+ 	// section read-only. By default it is writable.
+@@ -1585,7 +1585,7 @@ func (ctxt *Link) doelf() {
+ 			// S390X uses .got instead of .got.plt
+ 			gotplt = got
+ 		}
+-		thearch.ELF.SetupPLT(ctxt, plt, gotplt, dynamic.Sym())
++		thearch.ELF.SetupPLT(ctxt, ctxt.loader, plt, gotplt, dynamic.Sym())
+ 
+ 		/*
+ 		 * .dynamic table
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index aaf8ddef51..03e3981ec8 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -15,6 +15,7 @@ import (
+ 	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ const funcSize = 11 * 4 // funcSize is the size of the _func object in runtime/runtime2.go
+@@ -99,6 +100,19 @@ func makePclntab(ctxt *Link, container loader.Bitmap) (*pclntab, []*sym.Compilat
+ }
+ 
+ func emitPcln(ctxt *Link, s loader.Sym, container loader.Bitmap) bool {
++	if ctxt.Target.IsRISCV64() {
++		// Avoid adding local symbols to the pcln table - RISC-V
++		// linking generates a very large number of these, particularly
++		// for HI20 symbols (which we need to load in order to be able
++		// to resolve relocations). Unnecessarily including all of
++		// these symbols quickly blows out the size of the pcln table
++		// and overflows hash buckets.
++		symName := ctxt.loader.SymName(s)
++		if symName == "" || strings.HasPrefix(symName, ".L") {
++			return false
++		}
++	}
++
+ 	// We want to generate func table entries only for the "lowest
+ 	// level" symbols, not containers of subsymbols.
+ 	return !container.Has(s)
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 942d54c06c..dfa0ad7804 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -584,27 +584,41 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 		}
+ 		sect = &elfobj.sect[elfsym.shndx]
+ 		if sect.sym == 0 {
+-			if strings.HasPrefix(elfsym.name, ".Linfo_string") { // clang does this
+-				continue
+-			}
++			if elfsym.type_ == 0 {
++				if strings.HasPrefix(sect.name, ".debug_") && elfsym.name == "" {
++					// clang on arm and riscv64.
++					// This reportedly happens with clang 3.7 on ARM.
++					// See issue 13139.
++					continue
++				}
++				if strings.HasPrefix(elfsym.name, ".Ldebug_") || elfsym.name == ".L0 " {
++					// gcc on riscv64.
++					continue
++				}
++				if elfsym.name == ".Lline_table_start0" {
++					// clang on riscv64.
++					continue
++				}
+ 
+-			if elfsym.name == "" && elfsym.type_ == 0 && sect.name == ".debug_str" {
+-				// This reportedly happens with clang 3.7 on ARM.
+-				// See issue 13139.
+-				continue
++				if strings.HasPrefix(elfsym.name, "$d") && sect.name == ".debug_frame" {
++					// "$d" is a marker, not a real symbol.
++					// This happens with gcc on ARM64.
++					// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
++					continue
++				}
+ 			}
+ 
+-			if strings.HasPrefix(elfsym.name, "$d") && elfsym.type_ == 0 && sect.name == ".debug_frame" {
+-				// "$d" is a marker, not a real symbol.
+-				// This happens with gcc on ARM64.
+-				// See https://sourceware.org/bugzilla/show_bug.cgi?id=21809
++			if strings.HasPrefix(elfsym.name, ".Linfo_string") {
++				// clang does this
+ 				continue
+ 			}
+ 
+-			if strings.HasPrefix(elfsym.name, ".LASF") { // gcc on s390x does this
++			if strings.HasPrefix(elfsym.name, ".LASF") || strings.HasPrefix(elfsym.name, ".LLRL") || strings.HasPrefix(elfsym.name, ".LLST") {
++				// gcc on s390x and riscv64 does this.
+ 				continue
+ 			}
+-			return errorf("%v: sym#%d (%s): ignoring symbol in section %d (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, elfsym.type_)
++
++			return errorf("%v: sym#%d (%q): ignoring symbol in section %d (%q) (type %d)", elfsym.sym, i, elfsym.name, elfsym.shndx, sect.name, elfsym.type_)
+ 		}
+ 
+ 		s := elfsym.sym
+diff --git a/src/cmd/link/internal/loong64/asm.go b/src/cmd/link/internal/loong64/asm.go
+index 8f06068d78..3c58c27d82 100644
+--- a/src/cmd/link/internal/loong64/asm.go
++++ b/src/cmd/link/internal/loong64/asm.go
+@@ -83,7 +83,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	return
+ }
+ 
+diff --git a/src/cmd/link/internal/mips/asm.go b/src/cmd/link/internal/mips/asm.go
+index 5891d35888..5d7e5c7fe5 100644
+--- a/src/cmd/link/internal/mips/asm.go
++++ b/src/cmd/link/internal/mips/asm.go
+@@ -68,7 +68,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	return
+ }
+ 
+diff --git a/src/cmd/link/internal/mips64/asm.go b/src/cmd/link/internal/mips64/asm.go
+index bd0e0191bc..e82d986184 100644
+--- a/src/cmd/link/internal/mips64/asm.go
++++ b/src/cmd/link/internal/mips64/asm.go
+@@ -184,7 +184,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() != 0 {
+ 		return
+ 	}
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 14294c7763..91eef5e461 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1014,7 +1014,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// The dynamic linker stores the address of the
+ 		// dynamic resolver and the DSO identifier in the two
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index f3186398eb..654d639aa7 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -20,7 +20,139 @@ import (
+ // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
+ const fakeLabelName = ".L0 "
+ 
+-func gentext(ctxt *ld.Link, ldr *loader.Loader) {
++func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
++
++func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
++	outer := ldr.OuterSym(s)
++	if outer == 0 {
++		return nil
++	}
++	relocs := ldr.Relocs(outer)
++	start := sort.Search(relocs.Count(), func(i int) bool { return ldr.SymValue(outer)+int64(relocs.At(i).Off()) >= val })
++	for idx := start; idx < relocs.Count(); idx++ {
++		r := relocs.At(idx)
++		if ldr.SymValue(outer)+int64(r.Off()) != val {
++			break
++		}
++		if r.Type() == objabi.R_RISCV_GOT_HI20 || r.Type() == objabi.R_RISCV_PCREL_HI20 {
++			return &r
++		}
++	}
++	return nil
++}
++
++func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym, r loader.Reloc, rIdx int) bool {
++	targ := r.Sym()
++
++	var targType sym.SymKind
++	if targ != 0 {
++		targType = ldr.SymType(targ)
++	}
++
++	switch r.Type() {
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_CALL),
++		objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_CALL_PLT):
++
++		if targType == sym.SDYNIMPORT {
++			addpltsym(target, ldr, syms, targ)
++			su := ldr.MakeSymbolUpdater(s)
++			su.SetRelocSym(rIdx, syms.PLT)
++			su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymPlt(targ)))
++		}
++		if targType == 0 || targType == sym.SXREF {
++			ldr.Errorf(s, "unknown symbol %s in RISCV call", ldr.SymName(targ))
++		}
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_ITYPE)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_GOT_HI20):
++		if targType != sym.SDYNIMPORT {
++			// TODO(jsing): Could convert to non-GOT reference.
++		}
++
++		ld.AddGotSym(target, ldr, syms, targ, uint32(elf.R_RISCV_64))
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_GOT_HI20)
++		su.SetRelocSym(rIdx, syms.GOT)
++		su.SetRelocAdd(rIdx, r.Add()+int64(ldr.SymGot(targ)))
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_PCREL_HI20):
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_HI20)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_PCREL_LO12_I):
++		if r.Add() != 0 {
++			ldr.Errorf(s, "R_RISCV_PCREL_LO12_I with non-zero addend")
++		}
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_LO12_I)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_PCREL_LO12_S):
++		if r.Add() != 0 {
++			ldr.Errorf(s, "R_RISCV_PCREL_LO12_S with non-zero addend")
++		}
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_PCREL_LO12_S)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_RVC_BRANCH):
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_RVC_BRANCH)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_RVC_JUMP):
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_RVC_JUMP)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_BRANCH):
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocType(rIdx, objabi.R_RISCV_BRANCH)
++		return true
++
++	case objabi.ElfRelocOffset + objabi.RelocType(elf.R_RISCV_RELAX):
++		// Ignore relaxations, at least for now.
++		return true
++
++	default:
++		if r.Type() >= objabi.ElfRelocOffset {
++			ldr.Errorf(s, "unexpected relocation type %d (%s)", r.Type(), sym.RelocName(target.Arch, r.Type()))
++			return false
++		}
++	}
++
++	// Reread the reloc to incorporate any changes in type above.
++	relocs := ldr.Relocs(s)
++	r = relocs.At(rIdx)
++
++	switch r.Type() {
++	case objabi.R_RISCV_PCREL_ITYPE:
++		if targType != sym.SDYNIMPORT {
++			// nothing to do, the relocation will be laid out in reloc
++			return true
++		}
++		if target.IsExternal() {
++			// External linker will do this relocation.
++			return true
++		}
++		// Internal linking.
++		if r.Add() != 0 {
++			ldr.Errorf(s, "PLT reference with non-zero addend (%v)", r.Add())
++		}
++		// Build a PLT entry and change the relocation target to that entry.
++		addpltsym(target, ldr, syms, targ)
++		su := ldr.MakeSymbolUpdater(s)
++		su.SetRelocSym(rIdx, syms.PLT)
++		su.SetRelocAdd(rIdx, int64(ldr.SymPlt(targ)))
++
++		return true
++	}
++
++	return false
+ }
+ 
+ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
+@@ -117,9 +249,10 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		// corresponding R_RISCV_PCREL_LO12_I or R_RISCV_PCREL_LO12_S relocation.
+ 		// Note that the LO12 relocation must point to a target that has a valid
+ 		// HI20 PC-relative relocation text symbol, which in turn points to the
+-		// given symbol. For further details see the ELF specification for RISC-V:
++		// given symbol. For further details see section 8.4.9 of the RISC-V ABIs
++		// Specification:
+ 		//
+-		//   https://github.com/riscv-non-isa/riscv-elf-psabi-doc/blob/master/riscv-elf.adoc#pc-relative-symbol-addresses
++		//  https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/download/v1.0/riscv-abi.pdf
+ 		//
+ 		var hiRel, loRel elf.R_RISCV
+ 		switch r.Type {
+@@ -152,8 +285,106 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
+-	log.Fatalf("elfsetupplt")
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym) {
++	if plt.Size() != 0 {
++		return
++	}
++	if gotplt.Size() != 0 {
++		ctxt.Errorf(gotplt.Sym(), "got.plt is not empty")
++	}
++
++	// See section 8.4.6 of the RISC-V ABIs Specification:
++	//
++	//  https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/download/v1.0/riscv-abi.pdf
++	//
++	// 1:   auipc  t2, %pcrel_hi(.got.plt)
++	//      sub    t1, t1, t3               # shifted .got.plt offset + hdr size + 12
++	//      l[w|d] t3, %pcrel_lo(1b)(t2)    # _dl_runtime_resolve
++	//      addi   t1, t1, -(hdr size + 12) # shifted .got.plt offset
++	//      addi   t0, t2, %pcrel_lo(1b)    # &.got.plt
++	//      srli   t1, t1, log2(16/PTRSIZE) # .got.plt offset
++	//      l[w|d] t0, PTRSIZE(t0)          # link map
++	//      jr     t3
++
++	plt.AddSymRef(ctxt.Arch, gotplt.Sym(), 0, objabi.R_RISCV_PCREL_HI20, 4)
++	plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x00000397) // auipc   t2,0x0
++
++	sb := ldr.MakeSymbolBuilder(fakeLabelName)
++	sb.SetType(sym.STEXT)
++	sb.SetValue(ldr.SymValue(plt.Sym()) + plt.Size() - 4)
++	sb.SetLocal(true)
++	sb.SetReachable(true)
++	sb.SetVisibilityHidden(true)
++	plt.AddInteriorSym(sb.Sym())
++
++	plt.AddUint32(ctxt.Arch, 0x41c30333) // sub     t1,t1,t3
++
++	plt.AddSymRef(ctxt.Arch, sb.Sym(), 0, objabi.R_RISCV_PCREL_LO12_I, 4)
++	plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x0003be03) // ld      t3,0(t2)
++
++	plt.AddUint32(ctxt.Arch, 0xfd430313) // addi    t1,t1,-44
++
++	plt.AddSymRef(ctxt.Arch, sb.Sym(), 0, objabi.R_RISCV_PCREL_LO12_I, 4)
++	plt.SetUint32(ctxt.Arch, plt.Size()-4, 0x00038293) // addi    t0,t2,0
++
++	plt.AddUint32(ctxt.Arch, 0x00135313) // srli    t1,t1,0x1
++	plt.AddUint32(ctxt.Arch, 0x0082b283) // ld      t0,8(t0)
++	plt.AddUint32(ctxt.Arch, 0x00008e02) // jr      t3
++
++	gotplt.AddAddrPlus(ctxt.Arch, dynamic, 0) // got.plt[0] = _dl_runtime_resolve
++	gotplt.AddUint64(ctxt.Arch, 0)            // got.plt[1] = link map
++}
++
++func addpltsym(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loader.Sym) {
++	if ldr.SymPlt(s) >= 0 {
++		return
++	}
++
++	ld.Adddynsym(ldr, target, syms, s)
++
++	plt := ldr.MakeSymbolUpdater(syms.PLT)
++	gotplt := ldr.MakeSymbolUpdater(syms.GOTPLT)
++	rela := ldr.MakeSymbolUpdater(syms.RelaPLT)
++	if plt.Size() == 0 {
++		panic("plt is not set up")
++	}
++
++	// See section 8.4.6 of the RISC-V ABIs Specification:
++	//
++	//  https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/download/v1.0/riscv-abi.pdf
++	//
++	// 1:  auipc   t3, %pcrel_hi(function@.got.plt)
++	//     l[w|d]  t3, %pcrel_lo(1b)(t3)
++	//     jalr    t1, t3
++	//     nop
++
++	plt.AddSymRef(target.Arch, gotplt.Sym(), gotplt.Size(), objabi.R_RISCV_PCREL_HI20, 4)
++	plt.SetUint32(target.Arch, plt.Size()-4, 0x00000e17) // auipc   t3,0x0
++
++	sb := ldr.MakeSymbolBuilder(fakeLabelName)
++	sb.SetType(sym.STEXT)
++	sb.SetValue(ldr.SymValue(plt.Sym()) + plt.Size() - 4)
++	sb.SetLocal(true)
++	sb.SetReachable(true)
++	sb.SetVisibilityHidden(true)
++	plt.AddInteriorSym(sb.Sym())
++
++	plt.AddSymRef(target.Arch, sb.Sym(), 0, objabi.R_RISCV_PCREL_LO12_I, 4)
++	plt.SetUint32(target.Arch, plt.Size()-4, 0x000e3e03) // ld      t3,0(t3)
++	plt.AddUint32(target.Arch, 0x000e0367)               // jalr    t1,t3
++	plt.AddUint32(target.Arch, 0x00000001)               // nop
++
++	ldr.SetPlt(s, int32(plt.Size()-16))
++
++	// add to got.plt: pointer to plt[0]
++	gotplt.AddAddrPlus(target.Arch, plt.Sym(), 0)
++
++	// rela
++	rela.AddAddrPlus(target.Arch, gotplt.Sym(), gotplt.Size()-8)
++	sDynid := ldr.SymDynid(s)
++
++	rela.AddUint64(target.Arch, elf.R_INFO(uint32(sDynid), uint32(elf.R_RISCV_JUMP_SLOT)))
++	rela.AddUint64(target.Arch, 0)
+ }
+ 
+ func machoreloc1(*sys.Arch, *ld.OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool {
+@@ -217,15 +448,131 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 
+ 		return val, 0, true
+ 
+-	case objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
+-		// TLS relocations are not currently handled for internal linking.
+-		// For now, TLS is only used when cgo is in use and cgo currently
+-		// requires external linking. However, we need to accept these
+-		// relocations so that code containing TLS variables will link,
+-		// even when they're not being used. For now, replace these
+-		// instructions with EBREAK to detect accidental use.
+-		const ebreakIns = 0x00100073
+-		return ebreakIns<<32 | ebreakIns, 0, true
++	case objabi.R_RISCV_TLS_IE:
++		log.Fatalf("cannot handle R_RISCV_TLS_IE (sym %s) when linking internally", ldr.SymName(s))
++		return val, 0, false
++
++	case objabi.R_RISCV_TLS_LE:
++		// Generate LUI and ADDIW instruction immediates.
++		off := r.Add()
++
++		low, high, err := riscv.Split32BitImmediate(off)
++		if err != nil {
++			ldr.Errorf(s, "relocation does not fit in 32-bits: %d", off)
++		}
++
++		luiImm, err := riscv.EncodeUImmediate(high)
++		if err != nil {
++			ldr.Errorf(s, "cannot encode R_RISCV_TLS_LE LUI relocation offset for %s: %v", ldr.SymName(rs), err)
++		}
++
++		addiwImm, err := riscv.EncodeIImmediate(low)
++		if err != nil {
++			ldr.Errorf(s, "cannot encode R_RISCV_TLS_LE I-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++		}
++
++		lui := int64(uint32(val))
++		addiw := int64(uint32(val >> 32))
++
++		lui = (lui &^ riscv.UTypeImmMask) | int64(uint32(luiImm))
++		addiw = (addiw &^ riscv.ITypeImmMask) | int64(uint32(addiwImm))
++
++		return addiw<<32 | lui, 0, true
++
++	case objabi.R_RISCV_BRANCH:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		off := ldr.SymValue(rs) + r.Add() - pc
++
++		imm, err := riscv.EncodeBImmediate(off)
++		if err != nil {
++			ldr.Errorf(s, "cannot encode B-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++		}
++		ins := (int64(uint32(val)) &^ riscv.BTypeImmMask) | int64(uint32(imm))
++
++		return ins, 0, true
++
++	case objabi.R_RISCV_RVC_BRANCH, objabi.R_RISCV_RVC_JUMP:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		off := ldr.SymValue(rs) + r.Add() - pc
++
++		var err error
++		var imm, immMask int64
++		switch r.Type() {
++		case objabi.R_RISCV_RVC_BRANCH:
++			immMask = riscv.CBTypeImmMask
++			imm, err = riscv.EncodeCBImmediate(off)
++			if err != nil {
++				ldr.Errorf(s, "cannot encode CB-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++			}
++		case objabi.R_RISCV_RVC_JUMP:
++			immMask = riscv.CJTypeImmMask
++			imm, err = riscv.EncodeCJImmediate(off)
++			if err != nil {
++				ldr.Errorf(s, "cannot encode CJ-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++			}
++		default:
++			panic(fmt.Sprintf("unknown relocation type: %v", r.Type()))
++		}
++
++		ins := (int64(uint16(val)) &^ immMask) | int64(uint16(imm))
++
++		return ins, 0, true
++
++	case objabi.R_RISCV_GOT_HI20, objabi.R_RISCV_PCREL_HI20:
++		pc := ldr.SymValue(s) + int64(r.Off())
++		off := ldr.SymValue(rs) + r.Add() - pc
++
++		// Generate AUIPC immediates.
++		_, high, err := riscv.Split32BitImmediate(off)
++		if err != nil {
++			ldr.Errorf(s, "relocation does not fit in 32-bits: %d", off)
++		}
++
++		auipcImm, err := riscv.EncodeUImmediate(high)
++		if err != nil {
++			ldr.Errorf(s, "cannot encode R_RISCV_PCREL_ AUIPC relocation offset for %s: %v", ldr.SymName(rs), err)
++		}
++
++		auipc := int64(uint32(val))
++		auipc = (auipc &^ riscv.UTypeImmMask) | int64(uint32(auipcImm))
++
++		return auipc, 0, true
++
++	case objabi.R_RISCV_PCREL_LO12_I, objabi.R_RISCV_PCREL_LO12_S:
++		hi20Reloc := findHI20Reloc(ldr, rs, ldr.SymValue(rs))
++		if hi20Reloc == nil {
++			ldr.Errorf(s, "missing HI20 relocation for LO12 relocation with %s (%d)", ldr.SymName(rs), rs)
++		}
++
++		pc := ldr.SymValue(s) + int64(hi20Reloc.Off())
++		off := ldr.SymValue(hi20Reloc.Sym()) + hi20Reloc.Add() - pc
++
++		low, _, err := riscv.Split32BitImmediate(off)
++		if err != nil {
++			ldr.Errorf(s, "relocation does not fit in 32-bits: %d", off)
++		}
++
++		var imm, immMask int64
++		switch r.Type() {
++		case objabi.R_RISCV_PCREL_LO12_I:
++			immMask = riscv.ITypeImmMask
++			imm, err = riscv.EncodeIImmediate(low)
++			if err != nil {
++				ldr.Errorf(s, "cannot encode objabi.R_RISCV_PCREL_LO12_I I-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++			}
++		case objabi.R_RISCV_PCREL_LO12_S:
++			immMask = riscv.STypeImmMask
++			imm, err = riscv.EncodeSImmediate(low)
++			if err != nil {
++				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_LO12_S S-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
++			}
++		default:
++			panic(fmt.Sprintf("unknown relocation type: %v", r.Type()))
++		}
++
++		ins := int64(uint32(val))
++		ins = (ins &^ immMask) | int64(uint32(imm))
++		return ins, 0, true
+ 
+ 	case objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE:
+ 		// Generate AUIPC and second instruction immediates.
+@@ -254,7 +601,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 				ldr.Errorf(s, "cannot encode R_RISCV_PCREL_STYPE S-type instruction relocation offset for %s: %v", ldr.SymName(rs), err)
+ 			}
+ 		default:
+-			panic(fmt.Sprintf("Unknown relocation type: %v", r.Type()))
++			panic(fmt.Sprintf("unknown relocation type: %v", r.Type()))
+ 		}
+ 
+ 		auipc := int64(uint32(val))
+@@ -358,7 +705,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 
+ func genCallTramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *loader.SymbolBuilder, target loader.Sym, offset int64) {
+ 	tramp.AddUint32(arch, 0x00000f97) // AUIPC	$0, X31
+-	tramp.AddUint32(arch, 0x000f8067) // JALR		X0, (X31)
++	tramp.AddUint32(arch, 0x000f8067) // JALR	X0, (X31)
+ 
+ 	r, _ := tramp.AddRel(objabi.R_RISCV_PCREL_ITYPE)
+ 	r.SetSiz(8)
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 6230bd69af..1532d29366 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -20,6 +20,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Dwarfregsp: dwarfRegSP,
+ 		Dwarfreglr: dwarfRegLR,
+ 
++		Adddynrel:        adddynrel,
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 2d9f75011e..dee0348410 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -309,7 +309,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 	return true
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// stg     %r1,56(%r15)
+ 		plt.AddUint8(0xe3)
+diff --git a/src/cmd/link/internal/sym/reloc.go b/src/cmd/link/internal/sym/reloc.go
+index a44dcdd517..53c0329180 100644
+--- a/src/cmd/link/internal/sym/reloc.go
++++ b/src/cmd/link/internal/sym/reloc.go
+@@ -67,6 +67,8 @@ func RelocName(arch *sys.Arch, r objabi.RelocType) string {
+ 			return elf.R_PPC64(nr).String()
+ 		case sys.S390X:
+ 			return elf.R_390(nr).String()
++		case sys.RISCV64:
++			return elf.R_RISCV(nr).String()
+ 		default:
+ 			panic("unreachable")
+ 		}
+diff --git a/src/cmd/link/internal/x86/asm.go b/src/cmd/link/internal/x86/asm.go
+index fa5ad67228..876dbd984f 100644
+--- a/src/cmd/link/internal/x86/asm.go
++++ b/src/cmd/link/internal/x86/asm.go
+@@ -421,7 +421,7 @@ func archrelocvariant(*ld.Target, *loader.Loader, loader.Reloc, sym.RelocVariant
+ 	return -1
+ }
+ 
+-func elfsetupplt(ctxt *ld.Link, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
++func elfsetupplt(ctxt *ld.Link, ldr *loader.Loader, plt, got *loader.SymbolBuilder, dynamic loader.Sym) {
+ 	if plt.Size() == 0 {
+ 		// pushl got+4
+ 		plt.AddUint8(0xff)
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index c18f12602d..f20a977526 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -85,9 +85,7 @@ func FuzzInstrumented(goos, goarch string) bool {
+ func MustLinkExternal(goos, goarch string, withCgo bool) bool {
+ 	if withCgo {
+ 		switch goarch {
+-		case "loong64",
+-			"mips", "mipsle", "mips64", "mips64le",
+-			"riscv64":
++		case "loong64", "mips", "mipsle", "mips64", "mips64le":
+ 			// Internally linking cgo is incomplete on some architectures.
+ 			// https://go.dev/issue/14449
+ 			return true

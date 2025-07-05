@@ -7,6 +7,27 @@ Date:   Fri Jul 30 10:53:26 2010 +0300
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1913042
-
+---
  test/zerodivide.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index e016d0dfe9..224797fcd9 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -159,11 +159,11 @@ func main() {
+ 			}
+ 			fmt.Printf("%s: expected no error; got %q\n", t.name, err)
+ 		case t.err != "" && err != "":
+-			if !bad {
+-				bad = true
+-				fmt.Printf("BUG\n")
+-			}
+ 			if strings.Index(err, t.err) < 0 {
++				if !bad {
++					bad = true
++					fmt.Printf("BUG\n")
++				}
+ 				fmt.Printf("%s: expected %q; got %q\n", t.name, t.err, err)
+ 				continue
+ 			}

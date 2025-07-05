@@ -7,6 +7,37 @@ Date:   Tue Feb 26 08:34:47 2013 -0800
     R=seed, rminnich, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/7397059
-
+---
  src/cmd/go/env.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 1f449d86cb..6cab37b486 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -34,12 +34,10 @@ func mkEnv() []envVar {
+ 	b.init()
+ 
+ 	env := []envVar{
+-		{"CC", b.gccCmd(".")[0]},
+ 		{"GOARCH", goarch},
+ 		{"GOBIN", gobin},
+ 		{"GOCHAR", archChar},
+ 		{"GOEXE", exeSuffix},
+-		{"GOGCCFLAGS", strings.Join(b.gccCmd(".")[3:], " ")},
+ 		{"GOHOSTARCH", runtime.GOARCH},
+ 		{"GOHOSTOS", runtime.GOOS},
+ 		{"GOOS", goos},
+@@ -48,6 +46,12 @@ func mkEnv() []envVar {
+ 		{"GOTOOLDIR", toolDir},
+ 	}
+ 
++	if goos != "plan9" {
++		cmd := b.gccCmd(".")
++		env = append(env, envVar{"CC", cmd[0]})
++		env = append(env, envVar{"GOGCCFLAGS", strings.Join(cmd[3:], " ")})
++	}
++
+ 	if buildContext.CgoEnabled {
+ 		env = append(env, envVar{"CGO_ENABLED", "1"})
+ 	} else {

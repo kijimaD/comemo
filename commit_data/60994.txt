@@ -10,6 +10,28 @@ Date:   Tue Sep 17 15:02:04 2024 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/signal/signal.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index 9a4cd64fb7..b9fe16baa5 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -7,6 +7,7 @@ package signal
+ import (
+ 	"context"
+ 	"os"
++	"slices"
+ 	"sync"
+ )
+ 
+@@ -217,7 +218,7 @@ func Stop(c chan<- os.Signal) {
+ 
+ 	for i, s := range handlers.stopping {
+ 		if s.c == c {
+-			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
++			handlers.stopping = slices.Delete(handlers.stopping, i, i+1)
+ 			break
+ 		}
+ 	}

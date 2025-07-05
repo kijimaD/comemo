@@ -12,6 +12,40 @@ Date:   Mon Mar 19 12:34:35 2012 -0400
     R=golang-dev, r, ality
     CC=golang-dev
     https://golang.org/cl/5845067
-
+---
  src/pkg/crypto/tls/handshake_client.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 266eb8f578..2877f17387 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -166,8 +166,11 @@ func (c *Conn) clientHandshake() error {
+ 	}
+ 
+ 	var certToSend *Certificate
++	var certRequested bool
+ 	certReq, ok := msg.(*certificateRequestMsg)
+ 	if ok {
++		certRequested = true
++
+ 		// RFC 4346 on the certificateAuthorities field:
+ 		// A list of the distinguished names of acceptable certificate
+ 		// authorities. These distinguished names may specify a desired
+@@ -238,9 +241,14 @@ func (c *Conn) clientHandshake() error {
+ 	}
+ 	finishedHash.Write(shd.marshal())
+ 
+-	if certToSend != nil {
++	// If the server requested a certificate then we have to send a
++	// Certificate message, even if it's empty because we don't have a
++	// certificate to send.
++	if certRequested {
+ 		certMsg = new(certificateMsg)
+-		certMsg.certificates = certToSend.Certificate
++		if certToSend != nil {
++			certMsg.certificates = certToSend.Certificate
++		}
+ 		finishedHash.Write(certMsg.marshal())
+ 		c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 	}

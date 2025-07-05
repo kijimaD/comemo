@@ -29,6 +29,20 @@ Date:   Tue Sep 5 17:31:06 2023 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mheap.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index f836d91c6a..f0d34ca200 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -122,6 +122,8 @@ type mheap struct {
+ 	// credit pool.
+ 	reclaimCredit atomic.Uintptr
+ 
++	_ cpu.CacheLinePad // prevents false-sharing between arenas and preceding variables
++
+ 	// arenas is the heap arena map. It points to the metadata for
+ 	// the heap for every arena frame of the entire usable virtual
+ 	// address space.

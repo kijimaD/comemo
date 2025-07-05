@@ -14,10 +14,350 @@ Date:   Wed May 22 20:47:31 2024 +0200
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/67059.txt                               |   1 +
  doc/next/6-stdlib/99-minor/math/rand/v2/67059.md |   1 +
  src/math/rand/rand.go                            |   1 +
  src/math/rand/v2/chacha8.go                      |  66 +++++++++-
  src/math/rand/v2/chacha8_test.go                 | 161 ++++++++++++++++++++++-
  5 files changed, 228 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/67059.txt b/api/next/67059.txt
+new file mode 100644
+index 0000000000..c128585d14
+--- /dev/null
++++ b/api/next/67059.txt
+@@ -0,0 +1 @@
++pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
+diff --git a/doc/next/6-stdlib/99-minor/math/rand/v2/67059.md b/doc/next/6-stdlib/99-minor/math/rand/v2/67059.md
+new file mode 100644
+index 0000000000..c66110c7a4
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/math/rand/v2/67059.md
+@@ -0,0 +1 @@
++The new [ChaCha8.Read] method implements the [io.Reader] interface.
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index a8ed9c0cb7..61ff5c1b38 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -474,6 +474,7 @@ func Shuffle(n int, swap func(i, j int)) { globalRand().Shuffle(n, swap) }
+ // Read, unlike the [Rand.Read] method, is safe for concurrent use.
+ //
+ // Deprecated: For almost all use cases, [crypto/rand.Read] is more appropriate.
++// If a deterministic source is required, use [math/rand/v2.ChaCha8.Read].
+ func Read(p []byte) (n int, err error) { return globalRand().Read(p) }
+ 
+ // NormFloat64 returns a normally distributed float64 in the range
+diff --git a/src/math/rand/v2/chacha8.go b/src/math/rand/v2/chacha8.go
+index 6b9aa72782..f9eaacf601 100644
+--- a/src/math/rand/v2/chacha8.go
++++ b/src/math/rand/v2/chacha8.go
+@@ -4,12 +4,20 @@
+ 
+ package rand
+ 
+-import "internal/chacha8rand"
++import (
++	"errors"
++	"internal/byteorder"
++	"internal/chacha8rand"
++)
+ 
+ // A ChaCha8 is a ChaCha8-based cryptographically strong
+ // random number generator.
+ type ChaCha8 struct {
+ 	state chacha8rand.State
++
++	// The last readLen bytes of readBuf are still to be consumed by Read.
++	readBuf [8]byte
++	readLen int // 0 <= readLen <= 8
+ }
+ 
+ // NewChaCha8 returns a new ChaCha8 seeded with the given seed.
+@@ -22,6 +30,8 @@ func NewChaCha8(seed [32]byte) *ChaCha8 {
+ // Seed resets the ChaCha8 to behave the same way as NewChaCha8(seed).
+ func (c *ChaCha8) Seed(seed [32]byte) {
+ 	c.state.Init(seed)
++	c.readLen = 0
++	c.readBuf = [8]byte{}
+ }
+ 
+ // Uint64 returns a uniformly distributed random uint64 value.
+@@ -35,12 +45,66 @@ func (c *ChaCha8) Uint64() uint64 {
+ 	}
+ }
+ 
++// Read reads exactly len(p) bytes into p.
++// It always returns len(p) and a nil error.
++//
++// If calls to Read and Uint64 are interleaved, the order in which bits are
++// returned by the two is undefined, and Read may return bits generated before
++// the last call to Uint64.
++func (c *ChaCha8) Read(p []byte) (n int, err error) {
++	if c.readLen > 0 {
++		n = copy(p, c.readBuf[len(c.readBuf)-c.readLen:])
++		c.readLen -= n
++		p = p[n:]
++	}
++	for len(p) >= 8 {
++		byteorder.LePutUint64(p, c.Uint64())
++		p = p[8:]
++		n += 8
++	}
++	if len(p) > 0 {
++		byteorder.LePutUint64(c.readBuf[:], c.Uint64())
++		n += copy(p, c.readBuf[:])
++		c.readLen = 8 - len(p)
++	}
++	return
++}
++
+ // UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+ func (c *ChaCha8) UnmarshalBinary(data []byte) error {
++	data, ok := cutPrefix(data, []byte("readbuf:"))
++	if ok {
++		var buf []byte
++		buf, data, ok = readUint8LengthPrefixed(data)
++		if !ok {
++			return errors.New("invalid ChaCha8 Read buffer encoding")
++		}
++		c.readLen = copy(c.readBuf[len(c.readBuf)-len(buf):], buf)
++	}
+ 	return chacha8rand.Unmarshal(&c.state, data)
+ }
+ 
++func cutPrefix(s, prefix []byte) (after []byte, found bool) {
++	if len(s) < len(prefix) || string(s[:len(prefix)]) != string(prefix) {
++		return s, false
++	}
++	return s[len(prefix):], true
++}
++
++func readUint8LengthPrefixed(b []byte) (buf, rest []byte, ok bool) {
++	if len(b) == 0 || len(b) < int(1+b[0]) {
++		return nil, nil, false
++	}
++	return b[1 : 1+b[0]], b[1+b[0]:], true
++}
++
+ // MarshalBinary implements the encoding.BinaryMarshaler interface.
+ func (c *ChaCha8) MarshalBinary() ([]byte, error) {
++	if c.readLen > 0 {
++		out := []byte("readbuf:")
++		out = append(out, uint8(c.readLen))
++		out = append(out, c.readBuf[len(c.readBuf)-c.readLen:]...)
++		return append(out, chacha8rand.Marshal(&c.state)...), nil
++	}
+ 	return chacha8rand.Marshal(&c.state), nil
+ }
+diff --git a/src/math/rand/v2/chacha8_test.go b/src/math/rand/v2/chacha8_test.go
+index 2c55b479b2..50e83ea19a 100644
+--- a/src/math/rand/v2/chacha8_test.go
++++ b/src/math/rand/v2/chacha8_test.go
+@@ -5,8 +5,13 @@
+ package rand_test
+ 
+ import (
++	"bytes"
++	"crypto/sha256"
++	"encoding/hex"
++	"io"
+ 	. "math/rand/v2"
+ 	"testing"
++	"testing/iotest"
+ )
+ 
+ func TestChaCha8(t *testing.T) {
+@@ -25,6 +30,74 @@ func TestChaCha8(t *testing.T) {
+ 	}
+ }
+ 
++func TestChaCha8Read(t *testing.T) {
++	p := NewChaCha8(chacha8seed)
++	h := sha256.New()
++
++	buf := make([]byte, chacha8outlen)
++	if nn, err := p.Read(buf); err != nil {
++		t.Fatal(err)
++	} else if nn != len(buf) {
++		t.Errorf("Read short: got %d, expected %d", nn, len(buf))
++	}
++	h.Write(buf)
++	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
++		t.Errorf("transcript incorrect: got %x, want %x", got, chacha8hash)
++	}
++
++	p.Seed(chacha8seed)
++	h.Reset()
++
++	buf = make([]byte, chacha8outlen)
++	if _, err := io.ReadFull(iotest.OneByteReader(p), buf); err != nil {
++		t.Errorf("one byte reads: %v", err)
++	}
++	h.Write(buf)
++	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
++		t.Errorf("transcript incorrect (one byte reads): got %x, want %x", got, chacha8hash)
++	}
++
++	p.Seed(chacha8seed)
++	h.Reset()
++
++	if n, err := p.Read(make([]byte, 0)); err != nil {
++		t.Errorf("zero length read: %v", err)
++	} else if n != 0 {
++		t.Errorf("Read zero length: got %d, expected %d", n, 0)
++	}
++
++	var n int
++	for n < chacha8outlen {
++		if IntN(2) == 0 {
++			out, err := p.MarshalBinary()
++			if err != nil {
++				t.Fatal(err)
++			}
++			if IntN(2) == 0 {
++				p = NewChaCha8([32]byte{})
++			}
++			if err := p.UnmarshalBinary(out); err != nil {
++				t.Fatal(err)
++			}
++		}
++		buf := make([]byte, IntN(100))
++		if n+len(buf) > chacha8outlen {
++			buf = buf[:chacha8outlen-n]
++		}
++		n += len(buf)
++		t.Logf("reading %d bytes", len(buf))
++		if nn, err := p.Read(buf); err != nil {
++			t.Fatal(err)
++		} else if nn != len(buf) {
++			t.Errorf("Read short: got %d, expected %d", nn, len(buf))
++		}
++		h.Write(buf)
++	}
++	if got := h.Sum(nil); !bytes.Equal(got, chacha8hash) {
++		t.Errorf("transcript incorrect: got %x, want %x", got, chacha8hash)
++	}
++}
++
+ func TestChaCha8Marshal(t *testing.T) {
+ 	p := NewChaCha8(chacha8seed)
+ 	for i, x := range chacha8output {
+@@ -33,7 +106,7 @@ func TestChaCha8Marshal(t *testing.T) {
+ 			t.Fatalf("#%d: MarshalBinary: %v", i, err)
+ 		}
+ 		if string(enc) != chacha8marshal[i] {
+-			t.Fatalf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
++			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshal[i])
+ 		}
+ 		*p = ChaCha8{}
+ 		if err := p.UnmarshalBinary(enc); err != nil {
+@@ -45,6 +118,24 @@ func TestChaCha8Marshal(t *testing.T) {
+ 	}
+ }
+ 
++func TestChaCha8MarshalRead(t *testing.T) {
++	p := NewChaCha8(chacha8seed)
++	for i := range 50 {
++		enc, err := p.MarshalBinary()
++		if err != nil {
++			t.Fatalf("#%d: MarshalBinary: %v", i, err)
++		}
++		if string(enc) != chacha8marshalread[i] {
++			t.Errorf("#%d: MarshalBinary=%q, want %q", i, enc, chacha8marshalread[i])
++		}
++		*p = ChaCha8{}
++		if err := p.UnmarshalBinary(enc); err != nil {
++			t.Fatalf("#%d: UnmarshalBinary: %v", i, err)
++		}
++		p.Read(make([]byte, 1))
++	}
++}
++
+ func BenchmarkChaCha8(b *testing.B) {
+ 	p := NewChaCha8([32]byte{1, 2, 3, 4, 5})
+ 	var t uint64
+@@ -54,11 +145,26 @@ func BenchmarkChaCha8(b *testing.B) {
+ 	Sink = t
+ }
+ 
++func BenchmarkChaCha8Read(b *testing.B) {
++	p := NewChaCha8([32]byte{1, 2, 3, 4, 5})
++	buf := make([]byte, 32)
++	b.SetBytes(32)
++	var t uint8
++	for n := b.N; n > 0; n-- {
++		p.Read(buf)
++		t += buf[0]
++	}
++	Sink = uint64(t)
++}
++
+ // Golden output test to make sure algorithm never changes,
+ // so that its use in math/rand/v2 stays stable.
+ 
+ var chacha8seed = [32]byte([]byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"))
+ 
++var chacha8outlen = 2976
++var chacha8hash, _ = hex.DecodeString("bfec3d418b829afe5df2d8887d1508348409c293b73758d7efd841dd995fe021")
++
+ var chacha8output = []uint64{
+ 	0xb773b6063d4616a5, 0x1160af22a66abc3c, 0x8c2599d9418d287c, 0x7ee07e037edc5cd6,
+ 	0xcfaa9ee02d1c16ad, 0x0e090eef8febea79, 0x3c82d271128b5b3e, 0x9c5addc11252a34f,
+@@ -529,3 +635,56 @@ var chacha8marshal = []string{
+ 	"chacha8:\x00\x00\x00\x00\x00\x00\x00zK3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
+ 	"chacha8:\x00\x00\x00\x00\x00\x00\x00{K3\x9bB!,\x94\x9d\x975\xce'O_t\xee|\xb21\x87\xbb\xbb\xfd)\x8f\xe52\x01\vP\fk",
+ }
++
++var chacha8marshalread = []string{
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x00ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a\x16F=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06F=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05=\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04\x06\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03\xb6s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02s\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01\xb7chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x01ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a\xbcj\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06j\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05\xa6\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04\"\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03\xaf`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02`\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01\x11chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x02ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a(\x8dAٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06\x8dAٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05Aٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04ٙ%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03\x99%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02%\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01\x8cchacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x03ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a\\\xdc~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06\xdc~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05~\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03~\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02\xe0~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01~chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x04ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a\x16\x1c-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06\x1c-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05-\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04\xe0\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03\x9e\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02\xaa\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01\xcfchacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x05ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a\xea\xeb\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x06\xeb\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x05\x8f\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x04\xef\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x03\x0e\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x02\t\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\x01\x0echacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"chacha8:\x00\x00\x00\x00\x00\x00\x00\x06ABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++	"readbuf:\a[\x8b\x12q҂<chacha8:\x00\x00\x00\x00\x00\x00\x00\aABCDEFGHIJKLMNOPQRSTUVWXYZ123456",
++}

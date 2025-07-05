@@ -13,7 +13,7 @@ Date:   Wed Jun 14 07:13:37 2023 +0200
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s |  1 +
  src/cmd/internal/obj/s390x/a.out.go       |  1 +
  src/cmd/internal/obj/s390x/anames.go      |  1 +
@@ -21,3 +21,107 @@ Date:   Wed Jun 14 07:13:37 2023 +0200
  src/crypto/ecdsa/ecdsa_s390x.s            |  2 +-
  src/internal/cpu/cpu_s390x.s              |  2 +-
  6 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index c73aecdaa6..bb1573ae5b 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -419,6 +419,7 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	KMC	R2, R6                 // b92f0026
+ 	KLMD	R2, R8                 // b93f0028
+ 	KIMD	R0, R4                 // b93e0004
++	KDSA    R0, R8                 // b93a0008
+ 
+ 	// vector add and sub instructions
+ 	VAB	V3, V4, V4              // e743400000f3
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index 0b1aa5af16..ef02fed283 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -485,6 +485,7 @@ const (
+ 	AKMC
+ 	AKLMD
+ 	AKIMD
++	AKDSA
+ 
+ 	// vector
+ 	AVA
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index d5f5f343e3..40cc5e6b0d 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -211,6 +211,7 @@ var Anames = []string{
+ 	"KMC",
+ 	"KLMD",
+ 	"KIMD",
++	"KDSA",
+ 	"VA",
+ 	"VAB",
+ 	"VAH",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 81e7a2d62e..a744d742cf 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -344,6 +344,9 @@ var optab = []Optab{
+ 	// KM
+ 	{i: 124, as: AKM, a1: C_REG, a6: C_REG},
+ 
++	// KDSA
++	{i: 125, as: AKDSA, a1: C_REG, a6: C_REG},
++
+ 	// vector instructions
+ 
+ 	// VRX store
+@@ -2638,6 +2641,10 @@ const (
+ 	op_VUPLL  uint32 = 0xE7D4 // 	VRR-a	VECTOR UNPACK LOGICAL LOW
+ 	op_VUPL   uint32 = 0xE7D6 // 	VRR-a	VECTOR UNPACK LOW
+ 	op_VMSL   uint32 = 0xE7B8 // 	VRR-d	VECTOR MULTIPLY SUM LOGICAL
++
++	// added in z15
++	op_KDSA uint32 = 0xB93A // FORMAT_RRE        COMPUTE DIGITAL SIGNATURE AUTHENTICATION (KDSA)
++
+ )
+ 
+ func oclass(a *obj.Addr) int {
+@@ -4411,6 +4418,16 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 			opcode = op_KIMD
+ 		}
+ 		zRRE(opcode, uint32(p.From.Reg), uint32(p.To.Reg), asm)
++
++	case 125: // KDSA sign and verify
++		if p.To.Reg == REG_R0 {
++			c.ctxt.Diag("second argument must not be R0 in %v", p)
++		}
++		if p.To.Reg&1 != 0 {
++			c.ctxt.Diag("second argument must be an even register in %v", p)
++		}
++		zRRE(op_KDSA, uint32(p.From.Reg), uint32(p.To.Reg), asm)
++
+ 	}
+ }
+ 
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.s b/src/crypto/ecdsa/ecdsa_s390x.s
+index ba5b3bf9fa..ea1f4469e9 100644
+--- a/src/crypto/ecdsa/ecdsa_s390x.s
++++ b/src/crypto/ecdsa/ecdsa_s390x.s
+@@ -10,7 +10,7 @@ TEXT ·kdsa(SB), NOSPLIT|NOFRAME, $0-24
+ 	MOVD params+8(FP), R1 // address parameter block
+ 
+ loop:
+-	WORD $0xB93A0008 // compute digital signature authentication
++	KDSA R0, R4      // compute digital signature authentication
+ 	BVS  loop        // branch back if interrupted
+ 	BGT  retry       // signing unsuccessful, but retry with new CSPRN
+ 	BLT  error       // condition code of 1 indicates a failure
+diff --git a/src/internal/cpu/cpu_s390x.s b/src/internal/cpu/cpu_s390x.s
+index 9f73113870..46b3b53481 100644
+--- a/src/internal/cpu/cpu_s390x.s
++++ b/src/internal/cpu/cpu_s390x.s
+@@ -58,6 +58,6 @@ TEXT ·klmdQuery(SB), NOSPLIT|NOFRAME, $0-16
+ TEXT ·kdsaQuery(SB), NOSPLIT|NOFRAME, $0-16
+ 	MOVD $0, R0         // set function code to 0 (KLMD-Query)
+ 	MOVD $ret+0(FP), R1 // address of 16-byte return value
+-	WORD $0xB93A0008    // compute digital signature authentication
++	KDSA R0, R4      // compute digital signature authentication
+ 	RET
+ 

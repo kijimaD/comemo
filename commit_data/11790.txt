@@ -7,6 +7,20 @@ Date:   Fri Feb 10 17:26:40 2012 -0800
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5649062
-
+---
  src/pkg/image/png/reader_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/png/reader_test.go b/src/pkg/image/png/reader_test.go
+index 7eb1fc21a8..24c4ea4480 100644
+--- a/src/pkg/image/png/reader_test.go
++++ b/src/pkg/image/png/reader_test.go
+@@ -246,7 +246,7 @@ var readerErrors = []struct {
+ 	file string
+ 	err  string
+ }{
+-	{"invalid-zlib.png", "zlib checksum error"},
++	{"invalid-zlib.png", "zlib: invalid checksum"},
+ 	{"invalid-crc32.png", "invalid checksum"},
+ 	{"invalid-noend.png", "unexpected EOF"},
+ 	{"invalid-trunc.png", "unexpected EOF"},

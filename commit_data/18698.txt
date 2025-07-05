@@ -8,6 +8,72 @@ Date:   Fri Feb 28 13:27:36 2014 -0800
     R=golang-codereviews, josharian
     CC=golang-codereviews
     https://golang.org/cl/70270043
-
+---
  src/pkg/net/http/serve_test.go | 37 ++++++++++++-------------------------
  1 file changed, 12 insertions(+), 25 deletions(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 4fd6ff234d..4b8d9ce7e2 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -2276,12 +2276,8 @@ func TestServerConnState(t *testing.T) {
+ 	}))
+ 	defer ts.Close()
+ 
+-	type connIDAndState struct {
+-		connID int
+-		state  ConnState
+-	}
+ 	var mu sync.Mutex // guard stateLog and connID
+-	var stateLog []connIDAndState
++	var stateLog = map[int][]ConnState{}
+ 	var connID = map[net.Conn]int{}
+ 
+ 	ts.Config.ConnState = func(c net.Conn, state ConnState) {
+@@ -2296,7 +2292,7 @@ func TestServerConnState(t *testing.T) {
+ 			id = len(connID) + 1
+ 			connID[c] = id
+ 		}
+-		stateLog = append(stateLog, connIDAndState{id, state})
++		stateLog[id] = append(stateLog[id], state)
+ 	}
+ 	ts.Start()
+ 
+@@ -2308,27 +2304,18 @@ func TestServerConnState(t *testing.T) {
+ 
+ 	mustGet(t, ts.URL+"/hijack")
+ 
+-	want := []connIDAndState{
+-		{1, StateNew},
+-		{1, StateActive},
+-		{1, StateIdle},
+-		{1, StateActive},
+-		{1, StateClosed},
+-
+-		{2, StateNew},
+-		{2, StateActive},
+-		{2, StateIdle},
+-		{2, StateActive},
+-		{2, StateClosed},
+-
+-		{3, StateNew},
+-		{3, StateActive},
+-		{3, StateHijacked},
++	want := map[int][]ConnState{
++		1: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
++		2: []ConnState{StateNew, StateActive, StateIdle, StateActive, StateClosed},
++		3: []ConnState{StateNew, StateActive, StateHijacked},
+ 	}
+-	logString := func(l []connIDAndState) string {
++	logString := func(m map[int][]ConnState) string {
+ 		var b bytes.Buffer
+-		for _, cs := range l {
+-			fmt.Fprintf(&b, "[%d %s] ", cs.connID, cs.state)
++		for id, l := range m {
++			fmt.Fprintf(&b, "Conn %d: ", id)
++			for _, s := range l {
++				fmt.Fprintf(&b, "%s ", s)
++			}
+ 		}
+ 		return b.String()
+ 	}

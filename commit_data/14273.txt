@@ -12,6 +12,20 @@ Date:   Thu Nov 1 12:55:21 2012 -0400
     R=ken2
     CC=akumar, golang-dev
     https://golang.org/cl/6814066
-
+---
  src/cmd/gc/esc.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/esc.c b/src/cmd/gc/esc.c
+index a2bcbae8fe..6ac0ea530f 100644
+--- a/src/cmd/gc/esc.c
++++ b/src/cmd/gc/esc.c
+@@ -233,7 +233,7 @@ mktag(int mask)
+ 	if(mask < nelem(tags) && tags[mask] != nil)
+ 		return tags[mask];
+ 
+-	snprint(buf, sizeof buf, "esc:%#x", mask);
++	snprint(buf, sizeof buf, "esc:0x%x", mask);
+ 	s = strlit(buf);
+ 	if(mask < nelem(tags))
+ 		tags[mask] = s;

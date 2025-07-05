@@ -7,6 +7,20 @@ Date:   Sat Feb 18 07:44:38 2012 +1100
     R=golang-dev, r, gri
     CC=golang-dev
     https://golang.org/cl/5675081
-
+---
  src/pkg/os/error.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index 5baeba475b..e0b83b5c22 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -13,7 +13,7 @@ var (
+ 	ErrInvalid    = errors.New("invalid argument")
+ 	ErrPermission = errors.New("permission denied")
+ 	ErrExist      = errors.New("file already exists")
+-	ErrNotExist   = errors.New("file does not exit")
++	ErrNotExist   = errors.New("file does not exist")
+ )
+ 
+ // PathError records an error and the operation and file path that caused it.

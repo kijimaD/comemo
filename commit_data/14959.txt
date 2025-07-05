@@ -7,10 +7,317 @@ Date:   Tue Jan 22 17:12:45 2013 -0500
     R=minux.ma, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7064055
-
+---
  src/pkg/fmt/fmt_test.go  | 21 +++++++++++----------
  src/pkg/fmt/format.go    | 21 ++++-----------------
  src/pkg/fmt/print.go     | 14 +++++++-------
  src/pkg/fmt/scan.go      |  9 +++++----
  src/pkg/fmt/scan_test.go | 18 ++++++++++--------
  5 files changed, 37 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 867cd981ff..66d1aa11ad 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -96,7 +96,7 @@ type SI struct {
+ 	I interface{}
+ }
+ 
+-// A type with a String method with pointer receiver for testing %p
++// P is a type with a String method with pointer receiver for testing %p.
+ type P int
+ 
+ var pValue P
+@@ -674,7 +674,8 @@ func TestStructPrinter(t *testing.T) {
+ 	}
+ }
+ 
+-// Check map printing using substrings so we don't depend on the print order.
++// presentInMap checks map printing using substrings so we don't depend on the
++// print order.
+ func presentInMap(s string, a []string, t *testing.T) {
+ 	for i := 0; i < len(a); i++ {
+ 		loc := strings.Index(s, a[i])
+@@ -715,8 +716,8 @@ func TestEmptyMap(t *testing.T) {
+ 	}
+ }
+ 
+-// Check that Sprint (and hence Print, Fprint) puts spaces in the right places,
+-// that is, between arg pairs in which neither is a string.
++// TestBlank checks that Sprint (and hence Print, Fprint) puts spaces in the
++// right places, that is, between arg pairs in which neither is a string.
+ func TestBlank(t *testing.T) {
+ 	got := Sprint("<", 1, ">:", 1, 2, 3, "!")
+ 	expect := "<1>:1 2 3!"
+@@ -725,8 +726,8 @@ func TestBlank(t *testing.T) {
+ 	}
+ }
+ 
+-// Check that Sprintln (and hence Println, Fprintln) puts spaces in the right places,
+-// that is, between all arg pairs.
++// TestBlankln checks that Sprintln (and hence Println, Fprintln) puts spaces in
++// the right places, that is, between all arg pairs.
+ func TestBlankln(t *testing.T) {
+ 	got := Sprintln("<", 1, ">:", 1, 2, 3, "!")
+ 	expect := "< 1 >: 1 2 3 !\n"
+@@ -735,7 +736,7 @@ func TestBlankln(t *testing.T) {
+ 	}
+ }
+ 
+-// Check Formatter with Sprint, Sprintln, Sprintf
++// TestFormatterPrintln checks Formatter with Sprint, Sprintln, Sprintf.
+ func TestFormatterPrintln(t *testing.T) {
+ 	f := F(1)
+ 	expect := "<v=F(1)>\n"
+@@ -784,7 +785,7 @@ func TestWidthAndPrecision(t *testing.T) {
+ 	}
+ }
+ 
+-// A type that panics in String.
++// Panic is a type that panics in String.
+ type Panic struct {
+ 	message interface{}
+ }
+@@ -799,7 +800,7 @@ func (p Panic) String() string {
+ 	panic(p.message)
+ }
+ 
+-// A type that panics in Format.
++// PanicF is a type that panics in Format.
+ type PanicF struct {
+ 	message interface{}
+ }
+@@ -837,7 +838,7 @@ func TestPanics(t *testing.T) {
+ 	}
+ }
+ 
+-// Test that erroneous String routine doesn't cause fatal recursion.
++// recurCount tests that erroneous String routine doesn't cause fatal recursion.
+ var recurCount = 0
+ 
+ type Recur struct {
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index c3d7605fe8..5665db12c5 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -72,7 +72,7 @@ func (f *fmt) init(buf *buffer) {
+ 	f.clearflags()
+ }
+ 
+-// Compute left and right padding widths (only one will be non-zero).
++// computePadding computes left and right padding widths (only one will be non-zero).
+ func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth int) {
+ 	left := !f.minus
+ 	w := f.wid
+@@ -95,7 +95,7 @@ func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth i
+ 	return
+ }
+ 
+-// Generate n bytes of padding.
++// writePadding generates n bytes of padding.
+ func (f *fmt) writePadding(n int, padding []byte) {
+ 	for n > 0 {
+ 		m := n
+@@ -107,8 +107,7 @@ func (f *fmt) writePadding(n int, padding []byte) {
+ 	}
+ }
+ 
+-// Append b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus)
+-// clear flags afterwards.
++// pad appends b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus).
+ func (f *fmt) pad(b []byte) {
+ 	if !f.widPresent || f.wid == 0 {
+ 		f.buf.Write(b)
+@@ -124,8 +123,7 @@ func (f *fmt) pad(b []byte) {
+ 	}
+ }
+ 
+-// append s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+-// clear flags afterwards.
++// padString appends s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
+ func (f *fmt) padString(s string) {
+ 	if !f.widPresent || f.wid == 0 {
+ 		f.buf.WriteString(s)
+@@ -141,17 +139,6 @@ func (f *fmt) padString(s string) {
+ 	}
+ }
+ 
+-func putint(buf []byte, base, val uint64, digits string) int {
+-	i := len(buf) - 1
+-	for val >= base {
+-		buf[i] = digits[val%base]
+-		i--
+-		val /= base
+-	}
+-	buf[i] = digits[val]
+-	return i - 1
+-}
+-
+ var (
+ 	trueBytes  = []byte("true")
+ 	falseBytes = []byte("false")
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index cb06991a6f..4078f4a910 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -26,8 +26,8 @@ var (
+ 	extraBytes      = []byte("%!(EXTRA ")
+ 	irparenBytes    = []byte("i)")
+ 	bytesBytes      = []byte("[]byte{")
+-	widthBytes      = []byte("%!(BADWIDTH)")
+-	precBytes       = []byte("%!(BADPREC)")
++	badWidthBytes   = []byte("%!(BADWIDTH)")
++	badPrecBytes    = []byte("%!(BADPREC)")
+ 	noVerbBytes     = []byte("%!(NOVERB)")
+ )
+ 
+@@ -153,7 +153,7 @@ func newCache(f func() interface{}) *cache {
+ 
+ var ppFree = newCache(func() interface{} { return new(pp) })
+ 
+-// Allocate a new pp struct or grab a cached one.
++// newPrinter allocates a new pp struct or grab a cached one.
+ func newPrinter() *pp {
+ 	p := ppFree.get().(*pp)
+ 	p.panicking = false
+@@ -162,7 +162,7 @@ func newPrinter() *pp {
+ 	return p
+ }
+ 
+-// Save used pp structs in ppFree; avoids an allocation per invocation.
++// free saves used pp structs in ppFree; avoids an allocation per invocation.
+ func (p *pp) free() {
+ 	// Don't hold on to pp structs with large buffers.
+ 	if cap(p.buf) > 1024 {
+@@ -299,7 +299,7 @@ func Sprintln(a ...interface{}) string {
+ 	return s
+ }
+ 
+-// Get the i'th arg of the struct value.
++// getField gets the i'th arg of the struct value.
+ // If the arg itself is an interface, return a value for
+ // the thing inside the interface, not the interface itself.
+ func getField(v reflect.Value, i int) reflect.Value {
+@@ -1057,7 +1057,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 		if i < end && format[i] == '*' {
+ 			p.fmt.wid, p.fmt.widPresent, i, fieldnum = intFromArg(a, end, i, fieldnum)
+ 			if !p.fmt.widPresent {
+-				p.buf.Write(widthBytes)
++				p.buf.Write(badWidthBytes)
+ 			}
+ 		} else {
+ 			p.fmt.wid, p.fmt.widPresent, i = parsenum(format, i, end)
+@@ -1067,7 +1067,7 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 			if format[i+1] == '*' {
+ 				p.fmt.prec, p.fmt.precPresent, i, fieldnum = intFromArg(a, end, i+1, fieldnum)
+ 				if !p.fmt.precPresent {
+-					p.buf.Write(precBytes)
++					p.buf.Write(badPrecBytes)
+ 				}
+ 			} else {
+ 				p.fmt.prec, p.fmt.precPresent, i = parsenum(format, i+1, end)
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index 6a282c81f1..bf888c4d88 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -312,8 +312,9 @@ func notSpace(r rune) bool {
+ 	return !isSpace(r)
+ }
+ 
+-// skipSpace provides Scan() methods the ability to skip space and newline characters
+-// in keeping with the current scanning mode set by format strings and Scan()/Scanln().
++// SkipSpace provides Scan methods the ability to skip space and newline
++// characters in keeping with the current scanning mode set by format strings
++// and Scan/Scanln.
+ func (s *ss) SkipSpace() {
+ 	s.skipSpace(false)
+ }
+@@ -381,7 +382,7 @@ func (r *readRune) ReadRune() (rr rune, size int, err error) {
+ 
+ var ssFree = newCache(func() interface{} { return new(ss) })
+ 
+-// Allocate a new ss struct or grab a cached one.
++// newScanState allocates a new ss struct or grab a cached one.
+ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+ 	// If the reader is a *ss, then we've got a recursive
+ 	// call to Scan, so re-use the scan state.
+@@ -413,7 +414,7 @@ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+ 	return
+ }
+ 
+-// Save used ss structs in ssFree; avoid an allocation per invocation.
++// free saves used ss structs in ssFree; avoid an allocation per invocation.
+ func (s *ss) free(old ssave) {
+ 	// If it was used recursively, just restore the old state.
+ 	if old.validSave {
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index cc09e910aa..4e2c0feb2c 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -626,7 +626,7 @@ func TestScanlnWithMiddleNewline(t *testing.T) {
+ 	}
+ }
+ 
+-// Special Reader that counts reads at end of file.
++// eofCounter is a special Reader that counts reads at end of file.
+ type eofCounter struct {
+ 	reader   *strings.Reader
+ 	eofCount int
+@@ -640,8 +640,8 @@ func (ec *eofCounter) Read(b []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Verify that when we scan, we see at most EOF once per call to a Scan function,
+-// and then only when it's really an EOF
++// TestEOF verifies that when we scan, we see at most EOF once per call to a
++// Scan function, and then only when it's really an EOF.
+ func TestEOF(t *testing.T) {
+ 	ec := &eofCounter{strings.NewReader("123\n"), 0}
+ 	var a int
+@@ -668,7 +668,7 @@ func TestEOF(t *testing.T) {
+ 	}
+ }
+ 
+-// Verify that we see an EOF error if we run out of input.
++// TestEOFAtEndOfInput verifies that we see an EOF error if we run out of input.
+ // This was a buglet: we used to get "expected integer".
+ func TestEOFAtEndOfInput(t *testing.T) {
+ 	var i, j int
+@@ -730,7 +730,8 @@ func TestEOFAllTypes(t *testing.T) {
+ 	}
+ }
+ 
+-// Verify that, at least when using bufio, successive calls to Fscan do not lose runes.
++// TestUnreadRuneWithBufio verifies that, at least when using bufio, successive
++// calls to Fscan do not lose runes.
+ func TestUnreadRuneWithBufio(t *testing.T) {
+ 	r := bufio.NewReader(strings.NewReader("123αb"))
+ 	var i int
+@@ -753,7 +754,7 @@ func TestUnreadRuneWithBufio(t *testing.T) {
+ 
+ type TwoLines string
+ 
+-// Attempt to read two lines into the object.  Scanln should prevent this
++// Scan attempts to read two lines into the object.  Scanln should prevent this
+ // because it stops at newline; Scan and Scanf should be fine.
+ func (t *TwoLines) Scan(state ScanState, verb rune) error {
+ 	chars := make([]rune, 0, 100)
+@@ -820,7 +821,8 @@ func (s *simpleReader) Read(b []byte) (n int, err error) {
+ 	return s.sr.Read(b)
+ }
+ 
+-// Test that Fscanf does not read past newline. Issue 3481.
++// TestLineByLineFscanf tests that Fscanf does not read past newline. Issue
++// 3481.
+ func TestLineByLineFscanf(t *testing.T) {
+ 	r := &simpleReader{strings.NewReader("1\n2\n")}
+ 	var i, j int
+@@ -862,7 +864,7 @@ func (r *RecursiveInt) Scan(state ScanState, verb rune) (err error) {
+ 	return
+ }
+ 
+-// Perform the same scanning task as RecursiveInt.Scan
++// scanInts performs the same scanning task as RecursiveInt.Scan
+ // but without recurring through scanner, so we can compare
+ // performance more directly.
+ func scanInts(r *RecursiveInt, b *bytes.Buffer) (err error) {

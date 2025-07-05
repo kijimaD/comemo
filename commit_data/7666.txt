@@ -7,6 +7,21 @@ Date:   Mon Mar 7 00:14:40 2011 -0500
     R=adg
     CC=golang-dev
     https://golang.org/cl/4245065
-
+---
  src/pkg/http/server.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index a2a0e14246..5d623e696b 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -285,6 +285,9 @@ func (w *response) WriteHeader(code int) {
+ 		if !connectionHeaderSet {
+ 			w.SetHeader("Connection", "keep-alive")
+ 		}
++	} else if !w.req.ProtoAtLeast(1, 1) {
++		// Client did not ask to keep connection alive.
++		w.closeAfterReply = true
+ 	}
+ 
+ 	// Cannot use Content-Length with non-identity Transfer-Encoding.

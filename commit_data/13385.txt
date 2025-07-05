@@ -11,7 +11,48 @@ Date:   Mon Jun 25 23:01:34 2012 +1000
     R=minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6336054
-
+---
  src/pkg/runtime/asm_arm.s                      | 7 -------
  src/pkg/runtime/{memset_arm.s => memclr_arm.s} | 8 ++++----
  2 files changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 9b73f1797b..2c89139805 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -345,13 +345,6 @@ TEXT	runtime·cgocallback(SB),7,$16
+ 	// Done!
+ 	RET
+ 
+-TEXT runtime·memclr(SB),7,$0
+-	MOVW	0(FP), R0
+-	MOVW	$0, R1
+-	MOVW	R1, 0(FP)
+-	BL	runtime·memset(SB)
+-	RET
+-
+ TEXT runtime·getcallerpc(SB),7,$-4
+ 	MOVW	0(SP), R0
+ 	RET
+diff --git a/src/pkg/runtime/memset_arm.s b/src/pkg/runtime/memclr_arm.s
+similarity index 96%
+rename from src/pkg/runtime/memset_arm.s
+rename to src/pkg/runtime/memclr_arm.s
+index 8bc2004022..afc529d907 100644
+--- a/src/pkg/runtime/memset_arm.s
++++ b/src/pkg/runtime/memclr_arm.s
+@@ -28,10 +28,10 @@ TOE = 11
+ N = 12
+ TMP = 12				/* N and TMP don't overlap */
+ 
+-TEXT runtime·memset(SB), $0
+-	MOVW	R0, R(TO)
+-	MOVW	data+4(FP), R(0)
+-	MOVW	n+8(FP), R(N)
++TEXT runtime·memclr(SB),7,$0
++	MOVW	ptr+0(FP), R(TO)
++	MOVW	n+4(FP), R(N)
++	MOVW	$0, R(0)
+ 
+ 	ADD	R(N), R(TO), R(TOE)	/* to end pointer */
+ 

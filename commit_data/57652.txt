@@ -18,7 +18,7 @@ Date:   Sun Aug 20 10:05:29 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go           |  18 +--
  src/cmd/compile/internal/compare/compare.go        |   6 +-
  .../compile/internal/devirtualize/devirtualize.go  |   4 +-
@@ -56,3 +56,1864 @@ Date:   Sun Aug 20 10:05:29 2023 -0700
  src/cmd/compile/internal/walk/range.go             |   2 +-
  src/cmd/compile/internal/walk/select.go            |   4 +-
  36 files changed, 241 insertions(+), 329 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 7d3da3c66d..f8e4e8ae0d 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -173,7 +173,7 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+ 				rts = appendParamTypes(rts, t.Elem())
+ 			}
+ 		case types.TSTRUCT:
+-			for _, f := range t.FieldSlice() {
++			for _, f := range t.Fields() {
+ 				if f.Type.Size() > 0 { // embedded zero-width types receive no registers
+ 					rts = appendParamTypes(rts, f.Type)
+ 				}
+@@ -212,7 +212,7 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
+ 				offsets, at = appendParamOffsets(offsets, at, t.Elem())
+ 			}
+ 		case types.TSTRUCT:
+-			for i, f := range t.FieldSlice() {
++			for i, f := range t.Fields() {
+ 				offsets, at = appendParamOffsets(offsets, at, f.Type)
+ 				if f.Type.Size() == 0 && i == t.NumFields()-1 {
+ 					at++ // last field has zero width
+@@ -310,7 +310,7 @@ func (a *ABIConfig) NumParamRegs(t *types.Type) int {
+ 		case types.TARRAY:
+ 			n = a.NumParamRegs(t.Elem()) * int(t.NumElem())
+ 		case types.TSTRUCT:
+-			for _, f := range t.FieldSlice() {
++			for _, f := range t.Fields() {
+ 				n += a.NumParamRegs(f.Type)
+ 			}
+ 		case types.TSLICE:
+@@ -397,7 +397,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo
+ 	}
+ 
+ 	// Inputs
+-	ifsl := ft.Params().FieldSlice()
++	ifsl := ft.Params()
+ 	for _, f := range ifsl {
+ 		result.inparams = append(result.inparams,
+ 			s.assignParamOrReturn(f.Type, f.Nname, false))
+@@ -407,7 +407,7 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Type) *ABIParamResultInfo
+ 
+ 	// Outputs
+ 	s.rUsed = RegAmounts{}
+-	ofsl := ft.Results().FieldSlice()
++	ofsl := ft.Results()
+ 	for _, f := range ofsl {
+ 		result.outparams = append(result.outparams, s.assignParamOrReturn(f.Type, f.Nname, true))
+ 	}
+@@ -435,10 +435,10 @@ func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResul
+ 		config.updateOffset(result, t.Recv(), result.inparams[0], false, setNname)
+ 		k++
+ 	}
+-	for i, f := range t.Params().FieldSlice() {
++	for i, f := range t.Params() {
+ 		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
+ 	}
+-	for i, f := range t.Results().FieldSlice() {
++	for i, f := range t.Results() {
+ 		config.updateOffset(result, f, result.outparams[i], true, setNname)
+ 	}
+ 	return result
+@@ -583,7 +583,7 @@ func (state *assignState) allocateRegs(regs []RegIndex, t *types.Type) []RegInde
+ 			}
+ 			return regs
+ 		case types.TSTRUCT:
+-			for _, f := range t.FieldSlice() {
++			for _, f := range t.Fields() {
+ 				regs = state.allocateRegs(regs, f.Type)
+ 			}
+ 			return regs
+@@ -690,7 +690,7 @@ func (state *assignState) regassignArray(t *types.Type) bool {
+ // some other enclosing type) to determine if it can be register
+ // assigned. Returns TRUE if we can register allocate, FALSE otherwise.
+ func (state *assignState) regassignStruct(t *types.Type) bool {
+-	for _, field := range t.FieldSlice() {
++	for _, field := range t.Fields() {
+ 		if !state.regassign(field.Type) {
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/compare/compare.go b/src/cmd/compile/internal/compare/compare.go
+index 2f6db78b74..5dd5eec8de 100644
+--- a/src/cmd/compile/internal/compare/compare.go
++++ b/src/cmd/compile/internal/compare/compare.go
+@@ -70,7 +70,7 @@ func EqCanPanic(t *types.Type) bool {
+ 	case types.TARRAY:
+ 		return EqCanPanic(t.Elem())
+ 	case types.TSTRUCT:
+-		for _, f := range t.FieldSlice() {
++		for _, f := range t.Fields() {
+ 			if !f.Sym.IsBlank() && EqCanPanic(f.Type) {
+ 				return true
+ 			}
+@@ -87,7 +87,7 @@ func EqCanPanic(t *types.Type) bool {
+ func EqStructCost(t *types.Type) int64 {
+ 	cost := int64(0)
+ 
+-	for i, fields := 0, t.FieldSlice(); i < len(fields); {
++	for i, fields := 0, t.Fields(); i < len(fields); {
+ 		f := fields[i]
+ 
+ 		// Skip blank-named fields.
+@@ -181,7 +181,7 @@ func EqStruct(t *types.Type, np, nq ir.Node) ([]ir.Node, bool) {
+ 
+ 	// Walk the struct using memequal for runs of AMEM
+ 	// and calling specific equality tests for the others.
+-	for i, fields := 0, t.FieldSlice(); i < len(fields); {
++	for i, fields := 0, t.Fields(); i < len(fields); {
+ 		f := fields[i]
+ 
+ 		// Skip blank-named fields.
+diff --git a/src/cmd/compile/internal/devirtualize/devirtualize.go b/src/cmd/compile/internal/devirtualize/devirtualize.go
+index ae9f24d9a5..5e91104eeb 100644
+--- a/src/cmd/compile/internal/devirtualize/devirtualize.go
++++ b/src/cmd/compile/internal/devirtualize/devirtualize.go
+@@ -142,9 +142,9 @@ func staticCall(call *ir.CallExpr) {
+ 	switch ft := x.Type(); ft.NumResults() {
+ 	case 0:
+ 	case 1:
+-		call.SetType(ft.Results().Field(0).Type)
++		call.SetType(ft.Result(0).Type)
+ 	default:
+-		call.SetType(ft.Results())
++		call.SetType(ft.ResultsTuple())
+ 	}
+ 
+ 	// Desugar OCALLMETH, if we created one (#57309).
+diff --git a/src/cmd/compile/internal/devirtualize/pgo.go b/src/cmd/compile/internal/devirtualize/pgo.go
+index 2b6eb145ac..800b32f6eb 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo.go
++++ b/src/cmd/compile/internal/devirtualize/pgo.go
+@@ -301,7 +301,7 @@ func rewriteCondCall(call *ir.CallExpr, curfn, callee *ir.Func, concretetyp *typ
+ 
+ 	sig := call.X.Type()
+ 
+-	for _, ret := range sig.Results().FieldSlice() {
++	for _, ret := range sig.Results() {
+ 		retvars = append(retvars, typecheck.TempAt(base.Pos, curfn, ret.Type))
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 886250a62f..b3c97cb0c6 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -270,9 +270,8 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ func sortDeclsAndVars(fn *ir.Func, decls []*ir.Name, vars []*dwarf.Var) {
+ 	paramOrder := make(map[*ir.Name]int)
+ 	idx := 1
+-	for _, selfn := range types.RecvsParamsResults {
+-		fsl := selfn(fn.Type()).FieldSlice()
+-		for _, f := range fsl {
++	for _, selfn := range &types.RecvsParamsResults {
++		for _, f := range selfn(fn.Type()) {
+ 			if n, ok := f.Nname.(*ir.Name); ok {
+ 				paramOrder[n] = idx
+ 				idx++
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 0caec2f6b9..360094ee44 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -49,7 +49,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 		}
+ 
+ 		if ks != nil && fn != nil && e.inMutualBatch(fn) {
+-			for i, result := range fn.Type().Results().FieldSlice() {
++			for i, result := range fn.Type().Results() {
+ 				e.expr(ks[i], result.Nname.(*ir.Name))
+ 			}
+ 		}
+@@ -93,7 +93,7 @@ func (e *escape) call(ks []hole, call ir.Node) {
+ 			argumentParam(recvParam, recvArg)
+ 		}
+ 
+-		for i, param := range fntype.Params().FieldSlice() {
++		for i, param := range fntype.Params() {
+ 			argumentParam(param, args[i])
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index f38bcadb3e..b0c17ccb83 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -195,7 +195,7 @@ func (b *batch) initFunc(fn *ir.Func) {
+ 	}
+ 
+ 	// Initialize resultIndex for result parameters.
+-	for i, f := range fn.Type().Results().FieldSlice() {
++	for i, f := range fn.Type().Results() {
+ 		e.oldLoc(f.Nname.(*ir.Name)).resultIndex = 1 + i
+ 	}
+ }
+@@ -275,7 +275,7 @@ func (b *batch) finish(fns []*ir.Func) {
+ 
+ 		narg := 0
+ 		for _, fs := range &types.RecvsParams {
+-			for _, f := range fs(fn.Type()).Fields().Slice() {
++			for _, f := range fs(fn.Type()) {
+ 				narg++
+ 				f.Note = b.paramTag(fn, narg, f)
+ 			}
+@@ -485,7 +485,7 @@ func (b *batch) reportLeaks(pos src.XPos, name string, esc leaks, sig *types.Typ
+ 	}
+ 	for i := 0; i < numEscResults; i++ {
+ 		if x := esc.Result(i); x >= 0 {
+-			res := sig.Results().Field(i).Sym
++			res := sig.Result(i).Sym
+ 			base.WarnfAt(pos, "leaking param: %v to result %v level=%d", name, res, x)
+ 			warned = true
+ 		}
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index fc634e04a7..2675a16a24 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -70,7 +70,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 
+ 				// Re-flow from the closure's results, now that we're aware
+ 				// we lost track of them.
+-				for _, result := range fn.Type().Results().FieldSlice() {
++				for _, result := range fn.Type().Results() {
+ 					enqueue(b.oldLoc(result.Nname.(*ir.Name)))
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/escape/stmt.go b/src/cmd/compile/internal/escape/stmt.go
+index 8b66c14cb6..bbd5113d5d 100644
+--- a/src/cmd/compile/internal/escape/stmt.go
++++ b/src/cmd/compile/internal/escape/stmt.go
+@@ -177,7 +177,7 @@ func (e *escape) stmt(n ir.Node) {
+ 		e.reassigned(ks, n)
+ 	case ir.ORETURN:
+ 		n := n.(*ir.ReturnStmt)
+-		results := e.curfn.Type().Results().FieldSlice()
++		results := e.curfn.Type().Results()
+ 		dsts := make([]ir.Node, len(results))
+ 		for i, res := range results {
+ 			dsts[i] = res.Nname.(*ir.Name)
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 6d73c38d0b..c93f008ba2 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -39,7 +39,7 @@ func dumpasmhdr() {
+ 				break
+ 			}
+ 			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym().Name, int(t.Size()))
+-			for _, f := range t.Fields().Slice() {
++			for _, f := range t.Fields() {
+ 				if !f.Sym.IsBlank() {
+ 					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym().Name, f.Sym.Name, int(f.Offset))
+ 				}
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index cc567b6fce..bb3d872d75 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -464,7 +464,7 @@ func canDelayResults(fn *ir.Func) bool {
+ 	}
+ 
+ 	// temporaries for return values.
+-	for _, param := range fn.Type().Results().FieldSlice() {
++	for _, param := range fn.Type().Results() {
+ 		if sym := types.OrigSym(param.Sym); sym != nil && !sym.IsBlank() {
+ 			return false // found a named result parameter (case 3)
+ 		}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 63a6a3eed2..5678ce436d 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1116,7 +1116,7 @@ func IsReflectHeaderDataField(l Node) bool {
+ 
+ func ParamNames(ft *types.Type) []Node {
+ 	args := make([]Node, ft.NumParams())
+-	for i, f := range ft.Params().FieldSlice() {
++	for i, f := range ft.Params() {
+ 		args[i] = f.Nname.(*Name)
+ 	}
+ 	return args
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index b1829faf7f..d8508e0492 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -490,7 +490,7 @@ func IsMethod(n Node) bool {
+ 
+ func HasNamedResults(fn *Func) bool {
+ 	typ := fn.Type()
+-	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
++	return typ.NumResults() > 0 && types.OrigSym(typ.Result(0).Sym) != nil
+ }
+ 
+ // HasUniquePos reports whether n has a unique position that can be
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 6916a5eb17..85e988aeda 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1071,7 +1071,7 @@ func clobberWalk(b *ssa.Block, v *ir.Name, offset int64, t *types.Type) {
+ 		}
+ 
+ 	case types.TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			clobberWalk(b, v, offset+t1.Offset, t1.Type)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 0efe6b630b..71e57741a0 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -201,7 +201,7 @@ func (l *linker) relocObj(pr *pkgReader, idx pkgbits.Index) pkgbits.Index {
+ 
+ 		if obj.Op() == ir.OTYPE && !obj.Alias() {
+ 			if typ := obj.Type(); !typ.IsInterface() {
+-				for _, method := range typ.Methods().Slice() {
++				for _, method := range typ.Methods() {
+ 					l.exportBody(method.Nname.(*ir.Name), local)
+ 				}
+ 			}
+@@ -290,7 +290,7 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
+ 
+ 	// Escape analysis.
+ 	for _, fs := range &types.RecvsParams {
+-		for _, f := range fs(name.Type()).FieldSlice() {
++		for _, f := range fs(name.Type()) {
+ 			w.String(f.Note)
+ 		}
+ 	}
+@@ -315,7 +315,7 @@ func (l *linker) relocTypeExt(w *pkgbits.Encoder, name *ir.Name) {
+ 	l.lsymIdx(w, "", reflectdata.TypeLinksym(typ.PtrTo()))
+ 
+ 	if typ.Kind() != types.TINTER {
+-		for _, method := range typ.Methods().Slice() {
++		for _, method := range typ.Methods() {
+ 			l.relocFuncExt(w, method.Nname.(*ir.Name))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 008d7d5598..6ab7b272a6 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -809,7 +809,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index, implicits, explicits []*types.Typ
+ 			methods[i] = r.method(rext)
+ 		}
+ 		if len(methods) != 0 {
+-			typ.Methods().Set(methods)
++			typ.SetMethods(methods)
+ 		}
+ 
+ 		if !r.dict.shaped {
+@@ -1110,7 +1110,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
+ 
+ 		// Escape analysis.
+ 		for _, fs := range &types.RecvsParams {
+-			for _, f := range fs(name.Type()).FieldSlice() {
++			for _, f := range fs(name.Type()) {
+ 				f.Note = r.String()
+ 			}
+ 		}
+@@ -1355,8 +1355,8 @@ func (r *reader) syntheticArgs(pos src.XPos) (recvs, params ir.Nodes) {
+ 		}
+ 	}
+ 
+-	addParams(&recvs, sig.Recvs().FieldSlice())
+-	addParams(&params, sig.Params().FieldSlice())
++	addParams(&recvs, sig.Recvs())
++	addParams(&params, sig.Params())
+ 	return
+ }
+ 
+@@ -1500,11 +1500,11 @@ func (r *reader) funcargs(fn *ir.Func) {
+ 	if recv := sig.Recv(); recv != nil {
+ 		r.funcarg(recv, recv.Sym, ir.PPARAM)
+ 	}
+-	for _, param := range sig.Params().FieldSlice() {
++	for _, param := range sig.Params() {
+ 		r.funcarg(param, param.Sym, ir.PPARAM)
+ 	}
+ 
+-	for i, param := range sig.Results().FieldSlice() {
++	for i, param := range sig.Results() {
+ 		sym := types.OrigSym(param.Sym)
+ 
+ 		if sym == nil || sym.IsBlank() {
+@@ -2201,7 +2201,7 @@ func (r *reader) expr() (res ir.Node) {
+ 			// interface method values).
+ 			//
+ 			if recv.Type().HasShape() {
+-				typ := wrapperFn.Type().Params().Field(0).Type
++				typ := wrapperFn.Type().Param(0).Type
+ 				if !types.Identical(typ, recv.Type()) {
+ 					base.FatalfAt(wrapperFn.Pos(), "receiver %L does not match %L", recv, wrapperFn)
+ 				}
+@@ -2263,7 +2263,7 @@ func (r *reader) expr() (res ir.Node) {
+ 		// rather than types.Identical, because the latter can be confused
+ 		// by tricky promoted methods (e.g., typeparam/mdempsky/21.go).
+ 		if wrapperFn != nil && len(implicits) == 0 && !deref && !addr {
+-			if !types.Identical(recv, wrapperFn.Type().Params().Field(0).Type) {
++			if !types.Identical(recv, wrapperFn.Type().Param(0).Type) {
+ 				base.FatalfAt(pos, "want receiver type %v, but have method %L", recv, wrapperFn)
+ 			}
+ 			return wrapperFn
+@@ -2563,7 +2563,7 @@ func (r *reader) funcInst(pos src.XPos) (wrapperFn, baseFn, dictPtr ir.Node) {
+ 
+ 		// TODO(mdempsky): Is there a more robust way to get the
+ 		// dictionary pointer type here?
+-		dictPtrType := baseFn.Type().Params().Field(0).Type
++		dictPtrType := baseFn.Type().Param(0).Type
+ 		dictPtr = typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, dictPtrType, r.dictWord(pos, r.dict.subdictsOffset()+idx)))
+ 
+ 		return
+@@ -2788,7 +2788,7 @@ func syntheticSig(sig *types.Type) (params, results []*types.Field) {
+ 		return res
+ 	}
+ 
+-	return clone(sig.Params().FieldSlice()), clone(sig.Results().FieldSlice())
++	return clone(sig.Params()), clone(sig.Results())
+ }
+ 
+ func (r *reader) optExpr() ir.Node {
+@@ -2866,7 +2866,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
+ 
+ 		// TODO(mdempsky): Is there a more robust way to get the
+ 		// dictionary pointer type here?
+-		dictPtrType := shapedFn.Type().Params().Field(1).Type
++		dictPtrType := shapedFn.Type().Param(1).Type
+ 		dictPtr := typecheck.Expr(ir.NewConvExpr(pos, ir.OCONVNOP, dictPtrType, r.dictWord(pos, r.dict.subdictsOffset()+idx)))
+ 
+ 		return nil, shapedFn, dictPtr
+@@ -2883,7 +2883,7 @@ func (r *reader) methodExpr() (wrapperFn, baseFn, dictPtr ir.Node) {
+ 		dictPtr := typecheck.Expr(ir.NewAddrExpr(pos, dict))
+ 
+ 		// Check that dictPtr matches shapedFn's dictionary parameter.
+-		if !types.Identical(dictPtr.Type(), shapedFn.Type().Params().Field(1).Type) {
++		if !types.Identical(dictPtr.Type(), shapedFn.Type().Param(1).Type) {
+ 			base.FatalfAt(pos, "dict %L, but shaped method %L", dict, shapedFn)
+ 		}
+ 
+@@ -2911,7 +2911,7 @@ func shapedMethodExpr(pos src.XPos, obj *ir.Name, sym *types.Sym) *ir.SelectorEx
+ 	assert(typ.HasShape())
+ 
+ 	method := func() *types.Field {
+-		for _, method := range typ.Methods().Slice() {
++		for _, method := range typ.Methods() {
+ 			if method.Sym == sym {
+ 				return method
+ 			}
+@@ -3770,7 +3770,7 @@ func wrapType(typ *types.Type, target *ir.Package, seen map[string]*types.Type,
+ 	if !typ.IsInterface() {
+ 		typecheck.CalcMethods(typ)
+ 	}
+-	for _, meth := range typ.AllMethods().Slice() {
++	for _, meth := range typ.AllMethods() {
+ 		if meth.Sym.IsBlank() || !meth.IsMethod() {
+ 			base.FatalfAt(meth.Pos, "invalid method: %v", meth)
+ 		}
+@@ -3865,8 +3865,8 @@ func newWrapperFunc(pos src.XPos, sym *types.Sym, wrapper *types.Type, method *t
+ 	fn.SetDupok(true) // TODO(mdempsky): Leave unset for local, non-generic wrappers?
+ 
+ 	// TODO(mdempsky): De-duplicate with similar logic in funcargs.
+-	defParams := func(class ir.Class, params *types.Type) {
+-		for _, param := range params.FieldSlice() {
++	defParams := func(class ir.Class, params []*types.Field) {
++		for _, param := range params {
+ 			param.Nname = fn.NewLocal(param.Pos, param.Sym, class, param.Type)
+ 		}
+ 	}
+@@ -3929,8 +3929,8 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
+ 	if recvType != nil {
+ 		recv = types.NewField(sig.Recv().Pos, typecheck.Lookup(".this"), recvType)
+ 	}
+-	params := clone(sig.Params().FieldSlice())
+-	results := clone(sig.Results().FieldSlice())
++	params := clone(sig.Params())
++	results := clone(sig.Results())
+ 
+ 	return types.NewSignature(recv, params, results)
+ }
+@@ -3938,7 +3938,7 @@ func newWrapperType(recvType *types.Type, method *types.Field) *types.Type {
+ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 	sig := fn.Nname.Type()
+ 	args := make([]ir.Node, sig.NumParams())
+-	for i, param := range sig.Params().FieldSlice() {
++	for i, param := range sig.Params() {
+ 		args[i] = param.Nname.(*ir.Name)
+ 	}
+ 
+@@ -3987,16 +3987,16 @@ func shapeSig(fn *ir.Func, dict *readerDict) *types.Type {
+ 		recv = types.NewField(oldRecv.Pos, oldRecv.Sym, oldRecv.Type)
+ 	}
+ 
+-	params := make([]*types.Field, 1+sig.Params().Fields().Len())
++	params := make([]*types.Field, 1+sig.NumParams())
+ 	params[0] = types.NewField(fn.Pos(), fn.Sym().Pkg.Lookup(dictParamName), types.NewPtr(dict.varType()))
+-	for i, param := range sig.Params().Fields().Slice() {
++	for i, param := range sig.Params() {
+ 		d := types.NewField(param.Pos, param.Sym, param.Type)
+ 		d.SetIsDDD(param.IsDDD())
+ 		params[1+i] = d
+ 	}
+ 
+-	results := make([]*types.Field, sig.Results().Fields().Len())
+-	for i, result := range sig.Results().Fields().Slice() {
++	results := make([]*types.Field, sig.NumResults())
++	for i, result := range sig.Results() {
+ 		results[i] = types.NewField(result.Pos, result.Sym, result.Type)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/reflectdata/alg.go b/src/cmd/compile/internal/reflectdata/alg.go
+index 29f9c79393..32af785feb 100644
+--- a/src/cmd/compile/internal/reflectdata/alg.go
++++ b/src/cmd/compile/internal/reflectdata/alg.go
+@@ -115,7 +115,7 @@ func genhash(t *types.Type) *obj.LSym {
+ 	case types.TARRAY:
+ 		genhash(t.Elem())
+ 	case types.TSTRUCT:
+-		for _, f := range t.FieldSlice() {
++		for _, f := range t.Fields() {
+ 			genhash(f.Type)
+ 		}
+ 	}
+@@ -190,7 +190,7 @@ func hashFunc(t *types.Type) *ir.Func {
+ 	case types.TSTRUCT:
+ 		// Walk the struct using memhash for runs of AMEM
+ 		// and calling specific hash functions for the others.
+-		for i, fields := 0, t.FieldSlice(); i < len(fields); {
++		for i, fields := 0, t.Fields(); i < len(fields); {
+ 			f := fields[i]
+ 
+ 			// Skip blank fields.
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index d593a312bd..93506a8fdf 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -329,7 +329,7 @@ func methods(t *types.Type) []*typeSig {
+ 	// make list of methods for t,
+ 	// generating code if necessary.
+ 	var ms []*typeSig
+-	for _, f := range mt.AllMethods().Slice() {
++	for _, f := range mt.AllMethods() {
+ 		if f.Sym == nil {
+ 			base.Fatalf("method with no sym on %v", mt)
+ 		}
+@@ -376,7 +376,7 @@ func methods(t *types.Type) []*typeSig {
+ // imethods returns the methods of the interface type t, sorted by name.
+ func imethods(t *types.Type) []*typeSig {
+ 	var methods []*typeSig
+-	for _, f := range t.AllMethods().Slice() {
++	for _, f := range t.AllMethods() {
+ 		if f.Type.Kind() != types.TFUNC || f.Sym == nil {
+ 			continue
+ 		}
+@@ -901,7 +901,7 @@ func needkeyupdate(t *types.Type) bool {
+ 		return needkeyupdate(t.Elem())
+ 
+ 	case types.TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			if needkeyupdate(t1.Type) {
+ 				return true
+ 			}
+@@ -924,7 +924,7 @@ func hashMightPanic(t *types.Type) bool {
+ 		return hashMightPanic(t.Elem())
+ 
+ 	case types.TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			if hashMightPanic(t1.Type) {
+ 				return true
+ 			}
+@@ -1027,15 +1027,15 @@ func writeType(t *types.Type) *obj.LSym {
+ 		ot = dextratype(lsym, ot, t, 0)
+ 
+ 	case types.TFUNC:
+-		for _, t1 := range t.Recvs().Fields().Slice() {
++		for _, t1 := range t.Recvs() {
+ 			writeType(t1.Type)
+ 		}
+ 		isddd := false
+-		for _, t1 := range t.Params().Fields().Slice() {
++		for _, t1 := range t.Params() {
+ 			isddd = t1.IsDDD()
+ 			writeType(t1.Type)
+ 		}
+-		for _, t1 := range t.Results().Fields().Slice() {
++		for _, t1 := range t.Results() {
+ 			writeType(t1.Type)
+ 		}
+ 
+@@ -1055,13 +1055,13 @@ func writeType(t *types.Type) *obj.LSym {
+ 		ot = dextratype(lsym, ot, t, dataAdd)
+ 
+ 		// Array of rtype pointers follows funcType.
+-		for _, t1 := range t.Recvs().Fields().Slice() {
++		for _, t1 := range t.Recvs() {
+ 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
+ 		}
+-		for _, t1 := range t.Params().Fields().Slice() {
++		for _, t1 := range t.Params() {
+ 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
+ 		}
+-		for _, t1 := range t.Results().Fields().Slice() {
++		for _, t1 := range t.Results() {
+ 			ot = objw.SymPtr(lsym, ot, writeType(t1.Type), 0)
+ 		}
+ 
+@@ -1169,7 +1169,7 @@ func writeType(t *types.Type) *obj.LSym {
+ 	// ../../../../runtime/type.go:/structType
+ 	// for security, only the exported fields.
+ 	case types.TSTRUCT:
+-		fields := t.Fields().Slice()
++		fields := t.Fields()
+ 		for _, t1 := range fields {
+ 			writeType(t1.Type)
+ 		}
+@@ -1305,7 +1305,7 @@ func writeITab(lsym *obj.LSym, typ, iface *types.Type, allowNonImplement bool) {
+ 		base.Fatalf("writeITab(%v, %v)", typ, iface)
+ 	}
+ 
+-	sigs := iface.AllMethods().Slice()
++	sigs := iface.AllMethods()
+ 	entries := make([]*obj.LSym, 0, len(sigs))
+ 
+ 	// both sigs and methods are sorted by name,
+@@ -1403,8 +1403,8 @@ func writtenByWriteBasicTypes(typ *types.Type) bool {
+ 		// func(error) string
+ 		if typ.NumRecvs() == 0 &&
+ 			typ.NumParams() == 1 && typ.NumResults() == 1 &&
+-			typ.Params().FieldType(0) == types.ErrorType &&
+-			typ.Results().FieldType(0) == types.Types[types.TSTRING] {
++			typ.Param(0).Type == types.ErrorType &&
++			typ.Result(0).Type == types.Types[types.TSTRING] {
+ 			return true
+ 		}
+ 	}
+@@ -1510,8 +1510,8 @@ func (a typesByString) Less(i, j int) bool {
+ 	// will be equal for the above checks, but different in DWARF output.
+ 	// Sort by source position to ensure deterministic order.
+ 	// See issues 27013 and 30202.
+-	if a[i].t.Kind() == types.TINTER && a[i].t.AllMethods().Len() > 0 {
+-		return a[i].t.AllMethods().Index(0).Pos.Before(a[j].t.AllMethods().Index(0).Pos)
++	if a[i].t.Kind() == types.TINTER && len(a[i].t.AllMethods()) > 0 {
++		return a[i].t.AllMethods()[0].Pos.Before(a[j].t.AllMethods()[0].Pos)
+ 	}
+ 	return false
+ }
+@@ -1735,7 +1735,7 @@ func (p *gcProg) emit(t *types.Type, offset int64) {
+ 		p.w.Repeat(elem.Size()/int64(types.PtrSize), count-1)
+ 
+ 	case types.TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			p.emit(t1.Type, offset+t1.Offset)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index bec30c9f2c..a5f1a2db60 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -253,8 +253,8 @@ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+ 	// Reuse f's types.Sym to create a new ODCLFUNC/function.
+ 	// TODO(mdempsky): Means we can't set sym.Def in Declfunc, ugh.
+ 	fn := ir.NewFunc(pos, pos, f.Sym(), types.NewSignature(nil,
+-		typecheck.NewFuncParams(ft.Params().FieldSlice(), true),
+-		typecheck.NewFuncParams(ft.Results().FieldSlice(), false)))
++		typecheck.NewFuncParams(ft.Params(), true),
++		typecheck.NewFuncParams(ft.Results(), false)))
+ 	fn.ABI = wrapperABI
+ 	typecheck.DeclFunc(fn)
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 1ce00281b7..89e14786b0 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -411,7 +411,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	if s.hasOpenDefers {
+ 		// Similarly, skip if there are any heap-allocated result
+ 		// parameters that need to be copied back to their stack slots.
+-		for _, f := range s.curfn.Type().Results().FieldSlice() {
++		for _, f := range s.curfn.Type().Results() {
+ 			if !f.Nname.(*ir.Name).OnStack() {
+ 				s.hasOpenDefers = false
+ 				break
+@@ -619,7 +619,7 @@ func (s *state) storeParameterRegsToStack(abi *abi.ABIConfig, paramAssignment *a
+ // are always live, so we need to zero them before any allocations,
+ // even allocations to move params/results to the heap.
+ func (s *state) zeroResults() {
+-	for _, f := range s.curfn.Type().Results().FieldSlice() {
++	for _, f := range s.curfn.Type().Results() {
+ 		n := f.Nname.(*ir.Name)
+ 		if !n.OnStack() {
+ 			// The local which points to the return value is the
+@@ -642,8 +642,8 @@ func (s *state) zeroResults() {
+ // paramsToHeap produces code to allocate memory for heap-escaped parameters
+ // and to copy non-result parameters' values from the stack.
+ func (s *state) paramsToHeap() {
+-	do := func(params *types.Type) {
+-		for _, f := range params.FieldSlice() {
++	do := func(params []*types.Field) {
++		for _, f := range params {
+ 			if f.Nname == nil {
+ 				continue // anonymous or blank parameter
+ 			}
+@@ -1248,7 +1248,7 @@ func (s *state) instrumentFields(t *types.Type, addr *ssa.Value, kind instrument
+ 		s.instrument(t, addr, kind)
+ 		return
+ 	}
+-	for _, f := range t.Fields().Slice() {
++	for _, f := range t.Fields() {
+ 		if f.Sym.IsBlank() {
+ 			continue
+ 		}
+@@ -2032,7 +2032,7 @@ func (s *state) exit() *ssa.Block {
+ 	var m *ssa.Value
+ 	// Do actual return.
+ 	// These currently turn into self-copies (in many cases).
+-	resultFields := s.curfn.Type().Results().FieldSlice()
++	resultFields := s.curfn.Type().Results()
+ 	results := make([]*ssa.Value, len(resultFields)+1, len(resultFields)+1)
+ 	m = s.newValue0(ssa.OpMakeResult, s.f.OwnAux.LateExpansionResultType())
+ 	// Store SSAable and heap-escaped PPARAMOUT variables back to stack locations.
+@@ -5318,7 +5318,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		}
+ 
+ 		for i, n := range args {
+-			callArgs = append(callArgs, s.putArg(n, t.Params().Field(i).Type))
++			callArgs = append(callArgs, s.putArg(n, t.Param(i).Type))
+ 		}
+ 
+ 		callArgs = append(callArgs, s.mem())
+@@ -5388,11 +5388,11 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		s.startBlock(bNext)
+ 	}
+ 
+-	if res.NumFields() == 0 || k != callNormal {
++	if len(res) == 0 || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+ 		return nil
+ 	}
+-	fp := res.Field(0)
++	fp := res[0]
+ 	if returnResultAddr {
+ 		return s.resultAddrOfCall(call, 0, fp.Type)
+ 	}
+@@ -5621,7 +5621,7 @@ func TypeOK(t *types.Type) bool {
+ 		if t.NumFields() > ssa.MaxStruct {
+ 			return false
+ 		}
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			if !TypeOK(t1.Type) {
+ 				return false
+ 			}
+@@ -6964,7 +6964,7 @@ func EmitArgInfo(f *ir.Func, abiInfo *abi.ABIParamResultInfo) *obj.LSym {
+ 				n++ // {} counts as a component
+ 				break
+ 			}
+-			for _, field := range t.Fields().Slice() {
++			for _, field := range t.Fields() {
+ 				if !visitType(baseOffset+field.Offset, field.Type, depth) {
+ 					break
+ 				}
+@@ -7924,7 +7924,7 @@ func fieldIdx(n *ir.SelectorExpr) int {
+ 		panic("ODOT's LHS is not a struct")
+ 	}
+ 
+-	for i, f := range t.Fields().Slice() {
++	for i, f := range t.Fields() {
+ 		if f.Sym == n.Sel {
+ 			if f.Offset != n.Offset() {
+ 				panic("field offset doesn't match")
+diff --git a/src/cmd/compile/internal/typebits/typebits.go b/src/cmd/compile/internal/typebits/typebits.go
+index b533212e9e..b07f4374c2 100644
+--- a/src/cmd/compile/internal/typebits/typebits.go
++++ b/src/cmd/compile/internal/typebits/typebits.go
+@@ -86,7 +86,7 @@ func set(t *types.Type, off int64, bv bitvec.BitVec, skip bool) {
+ 		}
+ 
+ 	case types.TSTRUCT:
+-		for _, f := range t.Fields().Slice() {
++		for _, f := range t.Fields() {
+ 			set(f.Type, off+f.Offset, bv, skip)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/dcl.go b/src/cmd/compile/internal/typecheck/dcl.go
+index a78aad5abc..c25ea3448d 100644
+--- a/src/cmd/compile/internal/typecheck/dcl.go
++++ b/src/cmd/compile/internal/typecheck/dcl.go
+@@ -32,8 +32,8 @@ func DeclFunc(fn *ir.Func) (params, results []*ir.Name) {
+ 		base.FatalfAt(fn.Pos(), "unexpected receiver parameter")
+ 	}
+ 
+-	params = declareParams(fn, ir.PPARAM, typ.Params().FieldSlice())
+-	results = declareParams(fn, ir.PPARAMOUT, typ.Results().FieldSlice())
++	params = declareParams(fn, ir.PPARAM, typ.Params())
++	results = declareParams(fn, ir.PPARAMOUT, typ.Results())
+ 
+ 	funcStack = append(funcStack, ir.CurFunc)
+ 	ir.CurFunc = fn
+@@ -156,18 +156,18 @@ func NewMethodType(sig *types.Type, recv *types.Type) *types.Type {
+ 	// TODO(mdempsky): Move this function to types.
+ 	// TODO(mdempsky): Preserve positions, names, and package from sig+recv.
+ 
+-	params := make([]*types.Field, nrecvs+sig.Params().Fields().Len())
++	params := make([]*types.Field, nrecvs+sig.NumParams())
+ 	if recv != nil {
+ 		params[0] = types.NewField(base.Pos, nil, recv)
+ 	}
+-	for i, param := range sig.Params().Fields().Slice() {
++	for i, param := range sig.Params() {
+ 		d := types.NewField(base.Pos, nil, param.Type)
+ 		d.SetIsDDD(param.IsDDD())
+ 		params[nrecvs+i] = d
+ 	}
+ 
+-	results := make([]*types.Field, sig.Results().Fields().Len())
+-	for i, t := range sig.Results().Fields().Slice() {
++	results := make([]*types.Field, sig.NumResults())
++	for i, t := range sig.Results() {
+ 		results[i] = types.NewField(base.Pos, nil, t.Type)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 5400fbee0b..414dd17826 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -41,7 +41,7 @@ func FixVariadicCall(call *ir.CallExpr) {
+ 	}
+ 
+ 	vi := fntype.NumParams() - 1
+-	vt := fntype.Params().Field(vi).Type
++	vt := fntype.Param(vi).Type
+ 
+ 	args := call.Args
+ 	extra := args[vi:]
+@@ -275,7 +275,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		return n
+ 	}
+ 	if t.NumResults() == 1 {
+-		n.SetType(l.Type().Results().Field(0).Type)
++		n.SetType(l.Type().Result(0).Type)
+ 
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME {
+ 			if sym := n.X.(*ir.Name).Sym(); types.IsRuntimePkg(sym.Pkg) && sym.Name == "getg" {
+@@ -297,7 +297,7 @@ func tcCall(n *ir.CallExpr, top int) ir.Node {
+ 		return n
+ 	}
+ 
+-	n.SetType(l.Type().Results())
++	n.SetType(l.Type().ResultsTuple())
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 0583635013..d72807a778 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -158,13 +158,13 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
+ // CalcMethods calculates all the methods (including embedding) of a non-interface
+ // type t.
+ func CalcMethods(t *types.Type) {
+-	if t == nil || t.AllMethods().Len() != 0 {
++	if t == nil || len(t.AllMethods()) != 0 {
+ 		return
+ 	}
+ 
+ 	// mark top-level method symbols
+ 	// so that expand1 doesn't consider them.
+-	for _, f := range t.Methods().Slice() {
++	for _, f := range t.Methods() {
+ 		f.Sym.SetUniq(true)
+ 	}
+ 
+@@ -201,11 +201,11 @@ func CalcMethods(t *types.Type) {
+ 		ms = append(ms, f)
+ 	}
+ 
+-	for _, f := range t.Methods().Slice() {
++	for _, f := range t.Methods() {
+ 		f.Sym.SetUniq(false)
+ 	}
+ 
+-	ms = append(ms, t.Methods().Slice()...)
++	ms = append(ms, t.Methods()...)
+ 	sort.Sort(types.MethodsByName(ms))
+ 	t.SetAllMethods(ms)
+ }
+@@ -243,13 +243,13 @@ func adddot1(s *types.Sym, t *types.Type, d int, save **types.Field, ignorecase
+ 		return c, false
+ 	}
+ 
+-	var fields *types.Fields
++	var fields []*types.Field
+ 	if u.IsStruct() {
+ 		fields = u.Fields()
+ 	} else {
+ 		fields = u.AllMethods()
+ 	}
+-	for _, f := range fields.Slice() {
++	for _, f := range fields {
+ 		if f.Embedded == 0 || f.Sym == nil {
+ 			continue
+ 		}
+@@ -592,7 +592,7 @@ func expand0(t *types.Type) {
+ 	}
+ 
+ 	if u.IsInterface() {
+-		for _, f := range u.AllMethods().Slice() {
++		for _, f := range u.AllMethods() {
+ 			if f.Sym.Uniq() {
+ 				continue
+ 			}
+@@ -605,7 +605,7 @@ func expand0(t *types.Type) {
+ 
+ 	u = types.ReceiverBaseType(t)
+ 	if u != nil {
+-		for _, f := range u.Methods().Slice() {
++		for _, f := range u.Methods() {
+ 			if f.Sym.Uniq() {
+ 				continue
+ 			}
+@@ -631,13 +631,13 @@ func expand1(t *types.Type, top bool) {
+ 	}
+ 
+ 	if u.IsStruct() || u.IsInterface() {
+-		var fields *types.Fields
++		var fields []*types.Field
+ 		if u.IsStruct() {
+ 			fields = u.Fields()
+ 		} else {
+ 			fields = u.AllMethods()
+ 		}
+-		for _, f := range fields.Slice() {
++		for _, f := range fields {
+ 			if f.Embedded == 0 {
+ 				continue
+ 			}
+@@ -716,8 +716,8 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 
+ 	if t.IsInterface() {
+ 		i := 0
+-		tms := t.AllMethods().Slice()
+-		for _, im := range iface.AllMethods().Slice() {
++		tms := t.AllMethods()
++		for _, im := range iface.AllMethods() {
+ 			for i < len(tms) && tms[i].Sym != im.Sym {
+ 				i++
+ 			}
+@@ -743,10 +743,10 @@ func implements(t, iface *types.Type, m, samename **types.Field, ptr *int) bool
+ 	var tms []*types.Field
+ 	if t != nil {
+ 		CalcMethods(t)
+-		tms = t.AllMethods().Slice()
++		tms = t.AllMethods()
+ 	}
+ 	i := 0
+-	for _, im := range iface.AllMethods().Slice() {
++	for _, im := range iface.AllMethods() {
+ 		for i < len(tms) && tms[i].Sym != im.Sym {
+ 			i++
+ 		}
+@@ -811,13 +811,13 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool)
+ 
+ 	c := 0
+ 	if u.IsStruct() || u.IsInterface() {
+-		var fields *types.Fields
++		var fields []*types.Field
+ 		if u.IsStruct() {
+ 			fields = u.Fields()
+ 		} else {
+ 			fields = u.AllMethods()
+ 		}
+-		for _, f := range fields.Slice() {
++		for _, f := range fields {
+ 			if f.Sym == s || (ignorecase && f.IsMethod() && strings.EqualFold(f.Sym.Name, s.Name)) {
+ 				if save != nil {
+ 					*save = f
+@@ -834,7 +834,7 @@ func lookdot0(s *types.Sym, t *types.Type, save **types.Field, ignorecase bool)
+ 	}
+ 	u = types.ReceiverBaseType(u)
+ 	if u != nil {
+-		for _, f := range u.Methods().Slice() {
++		for _, f := range u.Methods() {
+ 			if f.Embedded == 0 && (f.Sym == s || (ignorecase && strings.EqualFold(f.Sym.Name, s.Name))) {
+ 				if save != nil {
+ 					*save = f
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index a272f2a86b..a06fa7f5cd 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -688,7 +688,7 @@ func RewriteMultiValueCall(n ir.InitNode, call ir.Node) {
+ 	}
+ 
+ 	as := ir.NewAssignListStmt(base.Pos, ir.OAS2, nil, []ir.Node{call})
+-	results := call.Type().FieldSlice()
++	results := call.Type().Fields()
+ 	list := make([]ir.Node, len(results))
+ 	for i, result := range results {
+ 		tmp := TempAt(base.Pos, ir.CurFunc, result.Type)
+@@ -814,9 +814,9 @@ func needTwoArgs(n *ir.CallExpr) (ir.Node, ir.Node, bool) {
+ // the matching field or nil. If dostrcmp is 0, it matches the symbols. If
+ // dostrcmp is 1, it matches by name exactly. If dostrcmp is 2, it matches names
+ // with case folding.
+-func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, dostrcmp int) *types.Field {
++func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs []*types.Field, dostrcmp int) *types.Field {
+ 	var r *types.Field
+-	for _, f := range fs.Slice() {
++	for _, f := range fs {
+ 		if dostrcmp != 0 && f.Sym.Name == s.Name {
+ 			return f
+ 		}
+@@ -847,7 +847,7 @@ func Lookdot1(errnode ir.Node, s *types.Sym, t *types.Type, fs *types.Fields, do
+ // expression "recv.sym".
+ func NewMethodExpr(pos src.XPos, recv *types.Type, sym *types.Sym) *ir.SelectorExpr {
+ 	// Compute the method set for recv.
+-	var ms *types.Fields
++	var ms []*types.Field
+ 	if recv.IsInterface() {
+ 		ms = recv.AllMethods()
+ 	} else {
+@@ -1011,8 +1011,9 @@ func nokeys(l ir.Nodes) bool {
+ 	return true
+ }
+ 
+-func hasddd(t *types.Type) bool {
+-	for _, tl := range t.Fields().Slice() {
++func hasddd(params []*types.Field) bool {
++	// TODO(mdempsky): Simply check the last param.
++	for _, tl := range params {
+ 		if tl.IsDDD() {
+ 			return true
+ 		}
+@@ -1022,7 +1023,7 @@ func hasddd(t *types.Type) bool {
+ }
+ 
+ // typecheck assignment: type list = expression list
+-func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl ir.Nodes, desc func() string) {
++func typecheckaste(op ir.Op, call ir.Node, isddd bool, params []*types.Field, nl ir.Nodes, desc func() string) {
+ 	var t *types.Type
+ 	var i int
+ 
+@@ -1034,9 +1035,9 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 		n = nl[0]
+ 	}
+ 
+-	n1 := tstruct.NumFields()
++	n1 := len(params)
+ 	n2 := len(nl)
+-	if !hasddd(tstruct) {
++	if !hasddd(params) {
+ 		if isddd {
+ 			goto invalidddd
+ 		}
+@@ -1062,7 +1063,7 @@ func typecheckaste(op ir.Op, call ir.Node, isddd bool, tstruct *types.Type, nl i
+ 	}
+ 
+ 	i = 0
+-	for _, tl := range tstruct.Fields().Slice() {
++	for _, tl := range params {
+ 		t = tl.Type
+ 		if tl.IsDDD() {
+ 			if isddd {
+@@ -1118,98 +1119,12 @@ invalidddd:
+ 
+ notenough:
+ 	if n == nil || n.Type() != nil {
+-		details := errorDetails(nl, tstruct, isddd)
+-		if call != nil {
+-			// call is the expression being called, not the overall call.
+-			// Method expressions have the form T.M, and the compiler has
+-			// rewritten those to ONAME nodes but left T in Left.
+-			if call.Op() == ir.OMETHEXPR {
+-				call := call.(*ir.SelectorExpr)
+-				base.Errorf("not enough arguments in call to method expression %v%s", call, details)
+-			} else {
+-				base.Errorf("not enough arguments in call to %v%s", call, details)
+-			}
+-		} else {
+-			base.Errorf("not enough arguments to %v%s", op, details)
+-		}
+-		if n != nil {
+-			base.Fatalf("invalid call")
+-		}
++		base.Fatalf("not enough arguments to %v", op)
+ 	}
+ 	return
+ 
+ toomany:
+-	details := errorDetails(nl, tstruct, isddd)
+-	if call != nil {
+-		base.Errorf("too many arguments in call to %v%s", call, details)
+-	} else {
+-		base.Errorf("too many arguments to %v%s", op, details)
+-	}
+-}
+-
+-func errorDetails(nl ir.Nodes, tstruct *types.Type, isddd bool) string {
+-	// Suppress any return message signatures if:
+-	//
+-	// (1) We don't know any type at a call site (see #19012).
+-	// (2) Any node has an unknown type.
+-	// (3) Invalid type for variadic parameter (see #46957).
+-	if tstruct == nil {
+-		return "" // case 1
+-	}
+-
+-	if isddd && !nl[len(nl)-1].Type().IsSlice() {
+-		return "" // case 3
+-	}
+-
+-	for _, n := range nl {
+-		if n.Type() == nil {
+-			return "" // case 2
+-		}
+-	}
+-	return fmt.Sprintf("\n\thave %s\n\twant %v", fmtSignature(nl, isddd), tstruct)
+-}
+-
+-// sigrepr is a type's representation to the outside world,
+-// in string representations of return signatures
+-// e.g in error messages about wrong arguments to return.
+-func sigrepr(t *types.Type, isddd bool) string {
+-	switch t {
+-	case types.UntypedString:
+-		return "string"
+-	case types.UntypedBool:
+-		return "bool"
+-	}
+-
+-	if t.Kind() == types.TIDEAL {
+-		// "untyped number" is not commonly used
+-		// outside of the compiler, so let's use "number".
+-		// TODO(mdempsky): Revisit this.
+-		return "number"
+-	}
+-
+-	// Turn []T... argument to ...T for clearer error message.
+-	if isddd {
+-		if !t.IsSlice() {
+-			base.Fatalf("bad type for ... argument: %v", t)
+-		}
+-		return "..." + t.Elem().String()
+-	}
+-	return t.String()
+-}
+-
+-// fmtSignature returns the signature of the types at the call or return.
+-func fmtSignature(nl ir.Nodes, isddd bool) string {
+-	if len(nl) < 1 {
+-		return "()"
+-	}
+-
+-	var typeStrings []string
+-	for i, n := range nl {
+-		isdddArg := isddd && i == len(nl)-1
+-		typeStrings = append(typeStrings, sigrepr(n.Type(), isdddArg))
+-	}
+-
+-	return fmt.Sprintf("(%s)", strings.Join(typeStrings, ", "))
++	base.Fatalf("too many arguments to %v", op)
+ }
+ 
+ // type check composite.
+diff --git a/src/cmd/compile/internal/types/alg.go b/src/cmd/compile/internal/types/alg.go
+index 8d56dec824..d3b446213e 100644
+--- a/src/cmd/compile/internal/types/alg.go
++++ b/src/cmd/compile/internal/types/alg.go
+@@ -103,7 +103,7 @@ func AlgType(t *Type) (AlgKind, *Type) {
+ 		return ASPECIAL, nil
+ 
+ 	case TSTRUCT:
+-		fields := t.FieldSlice()
++		fields := t.Fields()
+ 
+ 		// One-field struct is same as that one field alone.
+ 		if len(fields) == 1 && !fields[0].Sym.IsBlank() {
+@@ -147,7 +147,7 @@ func IsComparable(t *Type) bool {
+ 
+ // IncomparableField returns an incomparable Field of struct Type t, if any.
+ func IncomparableField(t *Type) *Field {
+-	for _, f := range t.FieldSlice() {
++	for _, f := range t.Fields() {
+ 		if !IsComparable(f.Type) {
+ 			return f
+ 		}
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+index 0646f43754..7489edd42e 100644
+--- a/src/cmd/compile/internal/types/fmt.go
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -452,7 +452,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			break
+ 		}
+ 		b.WriteString("interface {")
+-		for i, f := range t.AllMethods().Slice() {
++		for i, f := range t.AllMethods() {
+ 			if i != 0 {
+ 				b.WriteByte(';')
+ 			}
+@@ -472,7 +472,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			}
+ 			tconv2(b, f.Type, 'S', mode, visited)
+ 		}
+-		if t.AllMethods().Len() != 0 {
++		if len(t.AllMethods()) != 0 {
+ 			b.WriteByte(' ')
+ 		}
+ 		b.WriteByte('}')
+@@ -483,12 +483,12 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 		} else {
+ 			if t.Recv() != nil {
+ 				b.WriteString("method")
+-				tconv2(b, t.Recvs(), 0, mode, visited)
++				tconv2(b, t.recvsTuple(), 0, mode, visited)
+ 				b.WriteByte(' ')
+ 			}
+ 			b.WriteString("func")
+ 		}
+-		tconv2(b, t.Params(), 0, mode, visited)
++		tconv2(b, t.paramsTuple(), 0, mode, visited)
+ 
+ 		switch t.NumResults() {
+ 		case 0:
+@@ -496,11 +496,11 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 
+ 		case 1:
+ 			b.WriteByte(' ')
+-			tconv2(b, t.Results().Field(0).Type, 0, mode, visited) // struct->field->field's type
++			tconv2(b, t.Result(0).Type, 0, mode, visited) // struct->field->field's type
+ 
+ 		default:
+ 			b.WriteByte(' ')
+-			tconv2(b, t.Results(), 0, mode, visited)
++			tconv2(b, t.ResultsTuple(), 0, mode, visited)
+ 		}
+ 
+ 	case TSTRUCT:
+@@ -532,7 +532,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 				// no argument names on function signature, and no "noescape"/"nosplit" tags
+ 				fieldVerb = 'S'
+ 			}
+-			for i, f := range t.Fields().Slice() {
++			for i, f := range t.Fields() {
+ 				if i != 0 {
+ 					b.WriteString(", ")
+ 				}
+@@ -541,7 +541,7 @@ func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type
+ 			b.WriteByte(byte(close))
+ 		} else {
+ 			b.WriteString("struct {")
+-			for i, f := range t.Fields().Slice() {
++			for i, f := range t.Fields() {
+ 				if i != 0 {
+ 					b.WriteByte(';')
+ 				}
+diff --git a/src/cmd/compile/internal/types/identity.go b/src/cmd/compile/internal/types/identity.go
+index 6b3bc2ded1..78a644a6dd 100644
+--- a/src/cmd/compile/internal/types/identity.go
++++ b/src/cmd/compile/internal/types/identity.go
+@@ -92,11 +92,11 @@ cont:
+ 		return true
+ 
+ 	case TINTER:
+-		if t1.AllMethods().Len() != t2.AllMethods().Len() {
++		if len(t1.AllMethods()) != len(t2.AllMethods()) {
+ 			return false
+ 		}
+-		for i, f1 := range t1.AllMethods().Slice() {
+-			f2 := t2.AllMethods().Index(i)
++		for i, f1 := range t1.AllMethods() {
++			f2 := t2.AllMethods()[i]
+ 			if f1.Sym != f2.Sym || !identical(f1.Type, f2.Type, flags, assumedEqual) {
+ 				return false
+ 			}
+@@ -107,7 +107,7 @@ cont:
+ 		if t1.NumFields() != t2.NumFields() {
+ 			return false
+ 		}
+-		for i, f1 := range t1.FieldSlice() {
++		for i, f1 := range t1.Fields() {
+ 			f2 := t2.Field(i)
+ 			if f1.Sym != f2.Sym || f1.Embedded != f2.Embedded || !identical(f1.Type, f2.Type, flags, assumedEqual) {
+ 				return false
+@@ -122,9 +122,9 @@ cont:
+ 		// Check parameters and result parameters for type equality.
+ 		// We intentionally ignore receiver parameters for type
+ 		// equality, because they're never relevant.
+-		for _, f := range ParamsResults {
++		for _, f := range &ParamsResults {
+ 			// Loop over fields in structs, ignoring argument names.
+-			fs1, fs2 := f(t1).FieldSlice(), f(t2).FieldSlice()
++			fs1, fs2 := f(t1), f(t2)
+ 			if len(fs1) != len(fs2) {
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 1c20350128..d0ad2b13d5 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -91,7 +91,7 @@ func expandiface(t *Type) {
+ 	}
+ 
+ 	{
+-		methods := t.Methods().Slice()
++		methods := t.Methods()
+ 		sort.SliceStable(methods, func(i, j int) bool {
+ 			mi, mj := methods[i], methods[j]
+ 
+@@ -110,7 +110,7 @@ func expandiface(t *Type) {
+ 		})
+ 	}
+ 
+-	for _, m := range t.Methods().Slice() {
++	for _, m := range t.Methods() {
+ 		if m.Sym == nil {
+ 			continue
+ 		}
+@@ -119,7 +119,7 @@ func expandiface(t *Type) {
+ 		addMethod(m, true)
+ 	}
+ 
+-	for _, m := range t.Methods().Slice() {
++	for _, m := range t.Methods() {
+ 		if m.Sym != nil || m.Type == nil {
+ 			continue
+ 		}
+@@ -133,7 +133,7 @@ func expandiface(t *Type) {
+ 
+ 		// Embedded interface: duplicate all methods
+ 		// and add to t's method set.
+-		for _, t1 := range m.Type.AllMethods().Slice() {
++		for _, t1 := range m.Type.AllMethods() {
+ 			f := NewField(m.Pos, t1.Sym, t1.Type)
+ 			addMethod(f, false)
+ 
+@@ -173,7 +173,7 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		maxalign = 8
+ 	}
+ 	lastzero := int64(0)
+-	for _, f := range t.Fields().Slice() {
++	for _, f := range t.Fields() {
+ 		if f.Type == nil {
+ 			// broken field, just skip it so that other valid fields
+ 			// get a width.
+@@ -428,9 +428,9 @@ func CalcSize(t *Type) {
+ 	// compute their widths as side-effect.
+ 	case TFUNCARGS:
+ 		t1 := t.FuncArgs()
+-		w = calcStructOffset(t1, t1.Recvs(), 0, 0)
+-		w = calcStructOffset(t1, t1.Params(), w, RegSize)
+-		w = calcStructOffset(t1, t1.Results(), w, RegSize)
++		w = calcStructOffset(t1, t1.recvsTuple(), 0, 0)
++		w = calcStructOffset(t1, t1.paramsTuple(), w, RegSize)
++		w = calcStructOffset(t1, t1.ResultsTuple(), w, RegSize)
+ 		t1.extra.(*Func).Argwid = w
+ 		if w%int64(RegSize) != 0 {
+ 			base.Warn("bad type %v %d\n", t1, w)
+@@ -583,7 +583,7 @@ func PtrDataSize(t *Type) int64 {
+ 
+ 	case TSTRUCT:
+ 		// Find the last field that has pointers, if any.
+-		fs := t.Fields().Slice()
++		fs := t.Fields()
+ 		for i := len(fs) - 1; i >= 0; i-- {
+ 			if size := PtrDataSize(fs[i].Type); size > 0 {
+ 				return fs[i].Offset + size
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 5f7e6e131d..eafa3f3ef1 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -159,9 +159,9 @@ type Type struct {
+ 	width int64 // valid if Align > 0
+ 
+ 	// list of base methods (excluding embedding)
+-	methods Fields
++	methods fields
+ 	// list of all methods (including embedding)
+-	allMethods Fields
++	allMethods fields
+ 
+ 	// canonical OTYPE node for a named type (should be an ir.Name node with same sym)
+ 	obj Object
+@@ -316,7 +316,7 @@ func (t *Type) funcType() *Func {
+ 
+ // StructType contains Type fields specific to struct types.
+ type Struct struct {
+-	fields Fields
++	fields fields
+ 
+ 	// Maps have three associated internal structs (see struct MapType).
+ 	// Map links such structs back to their map type.
+@@ -445,39 +445,25 @@ func (f *Field) IsMethod() bool {
+ 	return f.Type.kind == TFUNC && f.Type.Recv() != nil
+ }
+ 
+-// Fields is a pointer to a slice of *Field.
++// fields is a pointer to a slice of *Field.
+ // This saves space in Types that do not have fields or methods
+ // compared to a simple slice of *Field.
+-type Fields struct {
++type fields struct {
+ 	s *[]*Field
+ }
+ 
+-// Len returns the number of entries in f.
+-func (f *Fields) Len() int {
+-	if f.s == nil {
+-		return 0
+-	}
+-	return len(*f.s)
+-}
+-
+ // Slice returns the entries in f as a slice.
+ // Changes to the slice entries will be reflected in f.
+-func (f *Fields) Slice() []*Field {
++func (f *fields) Slice() []*Field {
+ 	if f.s == nil {
+ 		return nil
+ 	}
+ 	return *f.s
+ }
+ 
+-// Index returns the i'th element of Fields.
+-// It panics if f does not have at least i+1 elements.
+-func (f *Fields) Index(i int) *Field {
+-	return (*f.s)[i]
+-}
+-
+ // Set sets f to a slice.
+ // This takes ownership of the slice.
+-func (f *Fields) Set(s []*Field) {
++func (f *fields) Set(s []*Field) {
+ 	if len(s) == 0 {
+ 		f.s = nil
+ 	} else {
+@@ -488,14 +474,6 @@ func (f *Fields) Set(s []*Field) {
+ 	}
+ }
+ 
+-// Append appends entries to f.
+-func (f *Fields) Append(s ...*Field) {
+-	if f.s == nil {
+-		f.s = new([]*Field)
+-	}
+-	*f.s = append(*f.s, s...)
+-}
+-
+ // newType returns a new Type of the specified kind.
+ func newType(et Kind) *Type {
+ 	t := &Type{
+@@ -735,10 +713,10 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 		}
+ 
+ 	case TFUNC:
+-		recvs := SubstAny(t.Recvs(), types)
+-		params := SubstAny(t.Params(), types)
+-		results := SubstAny(t.Results(), types)
+-		if recvs != t.Recvs() || params != t.Params() || results != t.Results() {
++		recvs := SubstAny(t.recvsTuple(), types)
++		params := SubstAny(t.paramsTuple(), types)
++		results := SubstAny(t.ResultsTuple(), types)
++		if recvs != t.recvsTuple() || params != t.paramsTuple() || results != t.ResultsTuple() {
+ 			t = t.copy()
+ 			t.funcType().Receiver = recvs
+ 			t.funcType().Results = results
+@@ -749,7 +727,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 		// Make a copy of all fields, including ones whose type does not change.
+ 		// This prevents aliasing across functions, which can lead to later
+ 		// fields getting their Offset incorrectly overwritten.
+-		fields := t.FieldSlice()
++		fields := t.Fields()
+ 		nfs := make([]*Field, len(fields))
+ 		for i, f := range fields {
+ 			nft := SubstAny(f.Type, types)
+@@ -757,7 +735,7 @@ func SubstAny(t *Type, types *[]*Type) *Type {
+ 			nfs[i].Type = nft
+ 		}
+ 		t = t.copy()
+-		t.SetFields(nfs)
++		t.setFields(nfs)
+ 	}
+ 
+ 	return t
+@@ -813,9 +791,22 @@ func (t *Type) wantEtype(et Kind) {
+ 	}
+ }
+ 
+-func (t *Type) Recvs() *Type   { return t.funcType().Receiver }
+-func (t *Type) Params() *Type  { return t.funcType().Params }
+-func (t *Type) Results() *Type { return t.funcType().Results }
++func (t *Type) recvsTuple() *Type  { return t.funcType().Receiver }
++func (t *Type) paramsTuple() *Type { return t.funcType().Params }
++
++// ResultTuple returns the result type of signature type t as a tuple.
++// This can be used as the type of multi-valued call expressions.
++func (t *Type) ResultsTuple() *Type { return t.funcType().Results }
++
++// Recvs returns a slice of receiver parameters of signature type t.
++// The returned slice always has length 0 or 1.
++func (t *Type) Recvs() []*Field { return t.funcType().Receiver.Fields() }
++
++// Params returns a slice of regular parameters of signature type t.
++func (t *Type) Params() []*Field { return t.funcType().Params.Fields() }
++
++// Results returns a slice of result parameters of signature type t.
++func (t *Type) Results() []*Field { return t.funcType().Results.Fields() }
+ 
+ func (t *Type) NumRecvs() int   { return t.funcType().Receiver.NumFields() }
+ func (t *Type) NumParams() int  { return t.funcType().Params.NumFields() }
+@@ -824,32 +815,38 @@ func (t *Type) NumResults() int { return t.funcType().Results.NumFields() }
+ // IsVariadic reports whether function type t is variadic.
+ func (t *Type) IsVariadic() bool {
+ 	n := t.NumParams()
+-	return n > 0 && t.Params().Field(n-1).IsDDD()
++	return n > 0 && t.Param(n-1).IsDDD()
+ }
+ 
+ // Recv returns the receiver of function type t, if any.
+ func (t *Type) Recv() *Field {
+-	s := t.Recvs()
++	s := t.recvsTuple()
+ 	if s.NumFields() == 0 {
+ 		return nil
+ 	}
+ 	return s.Field(0)
+ }
+ 
++// Param returns the i'th parameter of signature type t.
++func (t *Type) Param(i int) *Field { return t.Params()[i] }
++
++// Result returns the i'th result of signature type t.
++func (t *Type) Result(i int) *Field { return t.Results()[i] }
++
+ // RecvsParamsResults stores the accessor functions for a function Type's
+ // receiver, parameters, and result parameters, in that order.
+ // It can be used to iterate over all of a function's parameter lists.
+-var RecvsParamsResults = [3]func(*Type) *Type{
++var RecvsParamsResults = [3]func(*Type) []*Field{
+ 	(*Type).Recvs, (*Type).Params, (*Type).Results,
+ }
+ 
+ // RecvsParams is like RecvsParamsResults, but omits result parameters.
+-var RecvsParams = [2]func(*Type) *Type{
++var RecvsParams = [2]func(*Type) []*Field{
+ 	(*Type).Recvs, (*Type).Params,
+ }
+ 
+ // ParamsResults is like RecvsParamsResults, but omits receiver parameters.
+-var ParamsResults = [2]func(*Type) *Type{
++var ParamsResults = [2]func(*Type) []*Field{
+ 	(*Type).Params, (*Type).Results,
+ }
+ 
+@@ -898,49 +895,50 @@ func (t *Type) IsFuncArgStruct() bool {
+ // Methods returns a pointer to the base methods (excluding embedding) for type t.
+ // These can either be concrete methods (for non-interface types) or interface
+ // methods (for interface types).
+-func (t *Type) Methods() *Fields {
+-	return &t.methods
++func (t *Type) Methods() []*Field {
++	return t.methods.Slice()
+ }
+ 
+ // AllMethods returns a pointer to all the methods (including embedding) for type t.
+ // For an interface type, this is the set of methods that are typically iterated
+ // over. For non-interface types, AllMethods() only returns a valid result after
+ // CalcMethods() has been called at least once.
+-func (t *Type) AllMethods() *Fields {
++func (t *Type) AllMethods() []*Field {
+ 	if t.kind == TINTER {
+ 		// Calculate the full method set of an interface type on the fly
+ 		// now, if not done yet.
+ 		CalcSize(t)
+ 	}
+-	return &t.allMethods
++	return t.allMethods.Slice()
++}
++
++// SetMethods sets the direct method set for type t (i.e., *not*
++// including promoted methods from embedded types).
++func (t *Type) SetMethods(fs []*Field) {
++	t.methods.Set(fs)
+ }
+ 
+-// SetAllMethods sets the set of all methods (including embedding) for type t.
+-// Use this method instead of t.AllMethods().Set(), which might call CalcSize() on
+-// an uninitialized interface type.
++// SetAllMethods sets the set of all methods for type t (i.e.,
++// including promoted methods from embedded types).
+ func (t *Type) SetAllMethods(fs []*Field) {
+ 	t.allMethods.Set(fs)
+ }
+ 
+-// Fields returns the fields of struct type t.
+-func (t *Type) Fields() *Fields {
++// fields returns the fields of struct type t.
++func (t *Type) fields() *fields {
+ 	t.wantEtype(TSTRUCT)
+ 	return &t.extra.(*Struct).fields
+ }
+ 
+ // Field returns the i'th field of struct type t.
+-func (t *Type) Field(i int) *Field {
+-	return t.Fields().Slice()[i]
+-}
++func (t *Type) Field(i int) *Field { return t.Fields()[i] }
+ 
+-// FieldSlice returns a slice of containing all fields of
++// Fields returns a slice of containing all fields of
+ // a struct type t.
+-func (t *Type) FieldSlice() []*Field {
+-	return t.Fields().Slice()
+-}
++func (t *Type) Fields() []*Field { return t.fields().Slice() }
+ 
+-// SetFields sets struct type t's fields to fields.
+-func (t *Type) SetFields(fields []*Field) {
++// setFields sets struct type t's fields to fields.
++func (t *Type) setFields(fields []*Field) {
+ 	// If we've calculated the width of t before,
+ 	// then some other type such as a function signature
+ 	// might now have the wrong type.
+@@ -951,13 +949,13 @@ func (t *Type) SetFields(fields []*Field) {
+ 		base.Fatalf("SetFields of %v: width previously calculated", t)
+ 	}
+ 	t.wantEtype(TSTRUCT)
+-	t.Fields().Set(fields)
++	t.fields().Set(fields)
+ }
+ 
+ // SetInterface sets the base methods of an interface type t.
+ func (t *Type) SetInterface(methods []*Field) {
+ 	t.wantEtype(TINTER)
+-	t.Methods().Set(methods)
++	t.methods.Set(methods)
+ }
+ 
+ // ArgWidth returns the total aligned argument size for a function.
+@@ -1185,8 +1183,8 @@ func (t *Type) cmp(x *Type) Cmp {
+ 			return CMPgt // bucket maps are least
+ 		} // If t != t.Map.Bucket, fall through to general case
+ 
+-		tfs := t.FieldSlice()
+-		xfs := x.FieldSlice()
++		tfs := t.Fields()
++		xfs := x.Fields()
+ 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
+ 			t1, x1 := tfs[i], xfs[i]
+ 			if t1.Embedded != x1.Embedded {
+@@ -1208,8 +1206,8 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		return CMPeq
+ 
+ 	case TINTER:
+-		tfs := t.AllMethods().Slice()
+-		xfs := x.AllMethods().Slice()
++		tfs := t.AllMethods()
++		xfs := x.AllMethods()
+ 		for i := 0; i < len(tfs) && i < len(xfs); i++ {
+ 			t1, x1 := tfs[i], xfs[i]
+ 			if c := t1.Sym.cmpsym(x1.Sym); c != CMPeq {
+@@ -1225,10 +1223,10 @@ func (t *Type) cmp(x *Type) Cmp {
+ 		return CMPeq
+ 
+ 	case TFUNC:
+-		for _, f := range RecvsParamsResults {
++		for _, f := range &RecvsParamsResults {
+ 			// Loop over fields in structs, ignoring argument names.
+-			tfs := f(t).FieldSlice()
+-			xfs := f(x).FieldSlice()
++			tfs := f(t)
++			xfs := f(x)
+ 			for i := 0; i < len(tfs) && i < len(xfs); i++ {
+ 				ta := tfs[i]
+ 				tb := xfs[i]
+@@ -1397,7 +1395,7 @@ func (t *Type) IsInterface() bool {
+ 
+ // IsEmptyInterface reports whether t is an empty interface type.
+ func (t *Type) IsEmptyInterface() bool {
+-	return t.IsInterface() && t.AllMethods().Len() == 0
++	return t.IsInterface() && len(t.AllMethods()) == 0
+ }
+ 
+ // IsScalar reports whether 't' is a scalar Go type, e.g.
+@@ -1422,7 +1420,7 @@ func (t *Type) NumFields() int {
+ 	if t.kind == TRESULTS {
+ 		return len(t.extra.(*Results).Types)
+ 	}
+-	return t.Fields().Len()
++	return len(t.Fields())
+ }
+ func (t *Type) FieldType(i int) *Type {
+ 	if t.kind == TTUPLE {
+@@ -1472,7 +1470,7 @@ func (t *Type) NumComponents(countBlank componentsIncludeBlankFields) int64 {
+ 			base.Fatalf("NumComponents func arg struct")
+ 		}
+ 		var n int64
+-		for _, f := range t.FieldSlice() {
++		for _, f := range t.Fields() {
+ 			if countBlank == IgnoreBlankFields && f.Sym.IsBlank() {
+ 				continue
+ 			}
+@@ -1741,7 +1739,7 @@ func NewSignature(recv *Field, params, results []*Field) *Type {
+ // NewStruct returns a new struct with the given fields.
+ func NewStruct(fields []*Field) *Type {
+ 	t := newType(TSTRUCT)
+-	t.SetFields(fields)
++	t.setFields(fields)
+ 	if fieldsHasShape(fields) {
+ 		t.SetHasShape(true)
+ 	}
+@@ -1790,7 +1788,7 @@ func IsReflexive(t *Type) bool {
+ 		return IsReflexive(t.Elem())
+ 
+ 	case TSTRUCT:
+-		for _, t1 := range t.Fields().Slice() {
++		for _, t1 := range t.Fields() {
+ 			if !IsReflexive(t1.Type) {
+ 				return false
+ 			}
+diff --git a/src/cmd/compile/internal/walk/assign.go b/src/cmd/compile/internal/walk/assign.go
+index a7d58f11ab..a147b15e57 100644
+--- a/src/cmd/compile/internal/walk/assign.go
++++ b/src/cmd/compile/internal/walk/assign.go
+@@ -170,11 +170,11 @@ func walkAssignMapRead(init *ir.Nodes, n *ir.AssignListStmt) ir.Node {
+ 	var call *ir.CallExpr
+ 	if w := t.Elem().Size(); w <= zeroValSize {
+ 		fn := mapfn(mapaccess2[fast], t, false)
+-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
++		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key)
+ 	} else {
+ 		fn := mapfn("mapaccess2_fat", t, true)
+ 		z := reflectdata.ZeroAddr(w)
+-		call = mkcall1(fn, fn.Type().Results(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
++		call = mkcall1(fn, fn.Type().ResultsTuple(), init, reflectdata.IndexMapRType(base.Pos, r), r.X, key, z)
+ 	}
+ 
+ 	// mapaccess2* returns a typed bool, but due to spec changes,
+@@ -230,7 +230,7 @@ func walkReturn(n *ir.ReturnStmt) ir.Node {
+ 		return n
+ 	}
+ 
+-	results := fn.Type().Results().FieldSlice()
++	results := fn.Type().Results()
+ 	dsts := make([]ir.Node, len(results))
+ 	for i, v := range results {
+ 		// TODO(mdempsky): typecheck should have already checked the result variables.
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 9f3102cf30..11951179a5 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -663,7 +663,7 @@ func walkPrint(nn *ir.CallExpr, init *ir.Nodes) ir.Node {
+ 		}
+ 
+ 		r := ir.NewCallExpr(base.Pos, ir.OCALL, on, nil)
+-		if params := on.Type().Params().FieldSlice(); len(params) > 0 {
++		if params := on.Type().Params(); len(params) > 0 {
+ 			t := params[0].Type
+ 			n = typecheck.Conv(n, t)
+ 			r.Args.Append(n)
+@@ -757,7 +757,7 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 		mem := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TUINTPTR])
+ 		overflow := typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 		fn := typecheck.LookupRuntime("mulUintptr")
+-		call := mkcall1(fn, fn.Type().Results(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
++		call := mkcall1(fn, fn.Type().ResultsTuple(), init, ir.NewInt(base.Pos, sliceType.Elem().Size()), typecheck.Conv(typecheck.Conv(len, lenType), types.Types[types.TUINTPTR]))
+ 		appendWalkStmt(init, ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{mem, overflow}, []ir.Node{call}))
+ 
+ 		// if overflow || mem > -uintptr(ptr) {
+diff --git a/src/cmd/compile/internal/walk/closure.go b/src/cmd/compile/internal/walk/closure.go
+index 27eebf4144..ca8adb5943 100644
+--- a/src/cmd/compile/internal/walk/closure.go
++++ b/src/cmd/compile/internal/walk/closure.go
+@@ -67,7 +67,7 @@ func directClosureCall(n *ir.CallExpr) {
+ 
+ 	// Create new function type with parameters prepended, and
+ 	// then update type and declarations.
+-	typ = types.NewSignature(nil, append(params, typ.Params().FieldSlice()...), typ.Results().FieldSlice())
++	typ = types.NewSignature(nil, append(params, typ.Params()...), typ.Results())
+ 	f.SetType(typ)
+ 	clofn.Dcl = append(decls, clofn.Dcl...)
+ 
+@@ -80,9 +80,9 @@ func directClosureCall(n *ir.CallExpr) {
+ 	// node, but we only rewrote the ONAME node's type. Logically,
+ 	// they're the same, but the stack offsets probably changed.
+ 	if typ.NumResults() == 1 {
+-		n.SetType(typ.Results().Field(0).Type)
++		n.SetType(typ.Result(0).Type)
+ 	} else {
+-		n.SetType(typ.Results())
++		n.SetType(typ.ResultsTuple())
+ 	}
+ 
+ 	// Add to Closures for enqueueFunc. It's no longer a proper
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 5fb2e3a6f5..85a6d1fc33 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -608,7 +608,7 @@ func walkCall1(n *ir.CallExpr, init *ir.Nodes) {
+ 
+ 	for i, arg := range args {
+ 		// Validate argument and parameter types match.
+-		param := params.Field(i)
++		param := params[i]
+ 		if !types.Identical(arg.Type(), param.Type) {
+ 			base.FatalfAt(n.Pos(), "assigning %L to parameter %v (type %v)", arg, param.Sym, param.Type)
+ 		}
+@@ -977,14 +977,14 @@ func usemethod(n *ir.CallExpr) {
+ 	}
+ 
+ 	t := dot.Selection.Type
+-	if t.NumParams() != 1 || t.Params().Field(0).Type.Kind() != pKind {
++	if t.NumParams() != 1 || t.Param(0).Type.Kind() != pKind {
+ 		return
+ 	}
+ 	switch t.NumResults() {
+ 	case 1:
+ 		// ok
+ 	case 2:
+-		if t.Results().Field(1).Type.Kind() != types.TBOOL {
++		if t.Result(1).Type.Kind() != types.TBOOL {
+ 			return
+ 		}
+ 	default:
+@@ -993,7 +993,7 @@ func usemethod(n *ir.CallExpr) {
+ 
+ 	// Check that first result type is "reflect.Method". Note that we have to check sym name and sym package
+ 	// separately, as we can't check for exact string "reflect.Method" reliably (e.g., see #19028 and #38515).
+-	if s := t.Results().Field(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
++	if s := t.Result(0).Type.Sym(); s != nil && s.Name == "Method" && types.IsReflectPkg(s.Pkg) {
+ 		ir.CurFunc.SetReflectMethod(true)
+ 		// The LSym is initialized at this point. We need to set the attribute on the LSym.
+ 		ir.CurFunc.LSym.Set(obj.AttrReflectMethod, true)
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index dd2f346c5f..8bf1c5b0f9 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -327,7 +327,7 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 		// } else {
+ 		// hv2, hv1 = decoderune(ha, hv1)
+ 		fn := typecheck.LookupRuntime("decoderune")
+-		call := mkcall1(fn, fn.Type().Results(), &nif.Else, ha, hv1)
++		call := mkcall1(fn, fn.Type().ResultsTuple(), &nif.Else, ha, hv1)
+ 		a := ir.NewAssignListStmt(base.Pos, ir.OAS2, []ir.Node{hv2, hv1}, []ir.Node{call})
+ 		nif.Else.Append(a)
+ 
+diff --git a/src/cmd/compile/internal/walk/select.go b/src/cmd/compile/internal/walk/select.go
+index 009753c8ad..ca6a76ad00 100644
+--- a/src/cmd/compile/internal/walk/select.go
++++ b/src/cmd/compile/internal/walk/select.go
+@@ -128,7 +128,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 			}
+ 			cond = typecheck.TempAt(base.Pos, ir.CurFunc, types.Types[types.TBOOL])
+ 			fn := chanfn("selectnbrecv", 2, ch.Type())
+-			call := mkcall1(fn, fn.Type().Results(), r.PtrInit(), elem, ch)
++			call := mkcall1(fn, fn.Type().ResultsTuple(), r.PtrInit(), elem, ch)
+ 			as := ir.NewAssignListStmt(r.Pos(), ir.OAS2, []ir.Node{cond, n.Lhs[1]}, []ir.Node{call})
+ 			r.PtrInit().Append(typecheck.Stmt(as))
+ 		}
+@@ -227,7 +227,7 @@ func walkSelectCases(cases []*ir.CommClause) []ir.Node {
+ 	r.Lhs = []ir.Node{chosen, recvOK}
+ 	fn := typecheck.LookupRuntime("selectgo")
+ 	var fnInit ir.Nodes
+-	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().Results(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
++	r.Rhs = []ir.Node{mkcall1(fn, fn.Type().ResultsTuple(), &fnInit, bytePtrToIndex(selv, 0), bytePtrToIndex(order, 0), pc0, ir.NewInt(base.Pos, int64(nsends)), ir.NewInt(base.Pos, int64(nrecvs)), ir.NewBool(base.Pos, dflt == nil))}
+ 	init = append(init, fnInit...)
+ 	init = append(init, typecheck.Stmt(r))
+ 

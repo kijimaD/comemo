@@ -11,8 +11,87 @@ Date:   Mon Jun 29 16:44:45 2015 -0400
     Change-Id: Ifb1abae558e2e1ee2dc953a76995f3f08c60b1df
     Reviewed-on: https://go-review.googlesource.com/11715
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 13 ++++++++-----
  test/fixedbugs/issue9862.go      | 15 +++++++++++++++
  test/fixedbugs/issue9862_run.go  | 27 +++++++++++++++++++++++++++
  3 files changed, 50 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 60b0be5ceb..ab92b9430f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1122,11 +1122,14 @@ func (p *GCProg) AddSym(s *LSym) {
+ 
+ func growdatsize(datsizep *int64, s *LSym) {
+ 	datsize := *datsizep
+-	if s.Size < 0 {
+-		Diag("negative size (datsize = %d, s->size = %d)", datsize, s.Size)
+-	}
+-	if datsize+s.Size < datsize {
+-		Diag("symbol too large (datsize = %d, s->size = %d)", datsize, s.Size)
++	const cutoff int64 = 2e9 // 2 GB (or so; looks better in errors than 2^31)
++	switch {
++	case s.Size < 0:
++		Diag("%s: negative size (%d bytes)", s.Name, s.Size)
++	case s.Size > cutoff:
++		Diag("%s: symbol too large (%d bytes)", s.Name, s.Size)
++	case datsize <= cutoff && datsize+s.Size > cutoff:
++		Diag("%s: too much data (over %d bytes)", s.Name, cutoff)
+ 	}
+ 	*datsizep = datsize + s.Size
+ }
+diff --git a/test/fixedbugs/issue9862.go b/test/fixedbugs/issue9862.go
+new file mode 100644
+index 0000000000..692a60da99
+--- /dev/null
++++ b/test/fixedbugs/issue9862.go
+@@ -0,0 +1,15 @@
++// skip
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var a [1<<31 - 1024]byte
++
++func main() {
++	if a[0] != 0 {
++		panic("bad array")
++	}
++}
+diff --git a/test/fixedbugs/issue9862_run.go b/test/fixedbugs/issue9862_run.go
+new file mode 100644
+index 0000000000..be22f40580
+--- /dev/null
++++ b/test/fixedbugs/issue9862_run.go
+@@ -0,0 +1,27 @@
++// +build !nacl
++// run
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check for compile or link error.
++
++package main
++
++import (
++	"os/exec"
++	"strings"
++)
++
++func main() {
++	out, err := exec.Command("go", "run", "fixedbugs/issue9862.go").CombinedOutput()
++	outstr := string(out)
++	if err == nil {
++		println("go run issue9862.go succeeded, should have failed\n", outstr)
++		return
++	}
++	if !strings.Contains(outstr, "symbol too large") {
++		println("go run issue9862.go gave unexpected error; want symbol too large:\n", outstr)
++	}
++}

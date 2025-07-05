@@ -34,6 +34,21 @@ Date:   Fri Oct 18 15:45:52 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 1e15a67bbd..2894d8d014 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -71,7 +71,8 @@ func newProgs(fn *Node, worker int) *Progs {
+ 	pp.pos = fn.Pos
+ 	pp.settext(fn)
+ 	pp.nextLive = LivenessInvalid
+-	pp.prevLive = LivenessInvalid
++	// PCDATA tables implicitly start with index -1.
++	pp.prevLive = LivenessIndex{-1, -1}
+ 	return pp
+ }
+ 

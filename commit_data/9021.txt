@@ -9,10 +9,144 @@ Date:   Tue Jul 12 01:23:58 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4674049
-
+---
  src/pkg/runtime/chan.c     | 15 ++-------------
  src/pkg/runtime/malloc.goc | 17 +----------------
  src/pkg/runtime/proc.c     |  2 ++
  src/pkg/runtime/runtime.c  | 13 +++++++++++++
  src/pkg/runtime/runtime.h  |  2 ++
  5 files changed, 20 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index f94c3ef40a..78f67b817c 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -1221,17 +1221,6 @@ freesg(Hchan *c, SudoG *sg)
+ 	}
+ }
+ 
+-static uint32
+-fastrand1(void)
+-{
+-	static uint32 x = 0x49f6428aUL;
+-
+-	x += x;
+-	if(x & 0x80000000L)
+-		x ^= 0x88888eefUL;
+-	return x;
+-}
+-
+ static uint32
+ fastrandn(uint32 n)
+ {
+@@ -1240,12 +1229,12 @@ fastrandn(uint32 n)
+ 	if(n <= 1)
+ 		return 0;
+ 
+-	r = fastrand1();
++	r = runtime·fastrand1();
+ 	if(r < (1ULL<<31)-n)  // avoid computing max in common case
+ 		return r%n;
+ 
+ 	max = (1ULL<<31)/n * n;
+ 	while(r >= max)
+-		r = fastrand1();
++		r = runtime·fastrand1();
+ 	return r%n;
+ }
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 49ab24df86..696a998276 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -18,21 +18,6 @@ extern MStats mstats;	// defined in extern.go
+ 
+ extern volatile int32 runtime·MemProfileRate;
+ 
+-// Same algorithm from chan.c, but a different
+-// instance of the static uint32 x.
+-// Not protected by a lock - let the threads use
+-// the same random number if they like.
+-static uint32
+-fastrand1(void)
+-{
+-	static uint32 x = 0x49f6428aUL;
+-
+-	x += x;
+-	if(x & 0x80000000L)
+-		x ^= 0x88888eefUL;
+-	return x;
+-}
+-
+ // Allocate an object of at least size bytes.
+ // Small objects are allocated from the per-thread cache's free lists.
+ // Large objects (> 32 kB) are allocated straight from the heap.
+@@ -97,7 +82,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 			// pick next profile time
+ 			if(rate > 0x3fffffff)	// make 2*rate not overflow
+ 				rate = 0x3fffffff;
+-			m->mcache->next_sample = fastrand1() % (2*rate);
++			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
+ 		profile:
+ 			runtime·setblockspecial(v);
+ 			runtime·MProf_Malloc(v, size);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index a8f3a796ac..814a68e2ec 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -117,6 +117,7 @@ runtime·schedinit(void)
+ 
+ 	runtime·allm = m;
+ 	m->nomemprof++;
++	m->fastrand = 0x49f6428aUL + m->id;
+ 
+ 	runtime·mallocinit();
+ 	runtime·goargs();
+@@ -495,6 +496,7 @@ matchmg(void)
+ 			m->alllink = runtime·allm;
+ 			runtime·allm = m;
+ 			m->id = runtime·sched.mcount++;
++			m->fastrand = 0x49f6428aUL + m->id;
+ 
+ 			if(runtime·iscgo) {
+ 				CgoThreadStart ts;
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 1a3653f108..83af8dc5e2 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -588,3 +588,16 @@ runtime·FuncForPC(uintptr pc, void *retf)
+ 	retf = runtime·findfunc(pc);
+ 	FLUSH(&retf);
+ }
++
++uint32
++runtime·fastrand1(void)
++{
++	uint32 x;
++
++	x = m->fastrand;
++	x += x;
++	if(x & 0x80000000L)
++		x ^= 0x88888eefUL;
++	m->fastrand = x;
++	return x;
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index ad5da0a962..48cd482dd9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -229,6 +229,7 @@ struct	M
+ 	int32	waitnextg;
+ 	int32	dying;
+ 	int32	profilehz;
++	uint32	fastrand;
+ 	Note	havenextg;
+ 	G*	nextg;
+ 	M*	alllink;	// on allm
+@@ -454,6 +455,7 @@ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+ void	runtime·mcall(void(*)(G*));
++uint32	runtime·fastrand1(void);
+ 
+ void	runtime·exit(int32);
+ void	runtime·breakpoint(void);

@@ -17,7 +17,233 @@ Date:   Thu May 7 22:40:54 2015 -0400
     Change-Id: Id1305c7c071fd2734ab96634b0e1c745b23fa793
     Reviewed-on: https://go-review.googlesource.com/9886
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mbarrier.go | 98 +++++++------------------------------------------
  src/runtime/mbitmap.go  | 61 +++++++++++++++---------------
  2 files changed, 45 insertions(+), 114 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index eb41a60087..409c1948c6 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -106,7 +106,10 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ 		return
+ 	}
+ 	if src != 0 && (src < _PhysPageSize || src == poisonStack) {
+-		systemstack(func() { throw("bad pointer in write barrier") })
++		systemstack(func() {
++			print("runtime: writebarrierptr *", dst, " = ", hex(src), "\n")
++			throw("bad pointer in write barrier")
++		})
+ 	}
+ 	writebarrierptr_nostore1(dst, src)
+ }
+@@ -152,33 +155,11 @@ func writebarrieriface(dst *[2]uintptr, src [2]uintptr) {
+ // typedmemmove copies a value of type t to dst from src.
+ //go:nosplit
+ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+-	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 {
+-		memmove(dst, src, typ.size)
++	memmove(dst, src, typ.size)
++	if typ.kind&kindNoPointers != 0 {
+ 		return
+ 	}
+-
+-	systemstack(func() {
+-		dst := dst // make local copies
+-		src := src
+-		nptr := typ.size / ptrSize
+-		i := uintptr(0)
+-	Copy:
+-		for _, bits := range ptrBitmapForType(typ) {
+-			for j := 0; j < 8; j++ {
+-				if bits&1 != 0 {
+-					writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+-				} else {
+-					*(*uintptr)(dst) = *(*uintptr)(src)
+-				}
+-				if i++; i >= nptr {
+-					break Copy
+-				}
+-				dst = add(dst, ptrSize)
+-				src = add(src, ptrSize)
+-				bits >>= 1
+-			}
+-		}
+-	})
++	heapBitsBulkBarrier(uintptr(dst), typ.size)
+ }
+ 
+ //go:linkname reflect_typedmemmove reflect.typedmemmove
+@@ -190,45 +171,16 @@ func reflect_typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ // dst and src point off bytes into the value and only copies size bytes.
+ //go:linkname reflect_typedmemmovepartial reflect.typedmemmovepartial
+ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size uintptr) {
+-	if !writeBarrierEnabled || (typ.kind&kindNoPointers) != 0 || size < ptrSize {
+-		memmove(dst, src, size)
++	memmove(dst, src, size)
++	if !writeBarrierEnabled || typ.kind&kindNoPointers != 0 || size < ptrSize || !inheap(uintptr(dst)) {
+ 		return
+ 	}
+ 
+-	if off&(ptrSize-1) != 0 {
+-		frag := -off & (ptrSize - 1)
+-		// frag < size, because size >= ptrSize, checked above.
+-		memmove(dst, src, frag)
++	if frag := -off & (ptrSize - 1); frag != 0 {
++		dst = add(dst, frag)
+ 		size -= frag
+-		dst = add(noescape(dst), frag)
+-		src = add(noescape(src), frag)
+-		off += frag
+-	}
+-
+-	mask := ptrBitmapForType(typ)
+-	nptr := (off + size) / ptrSize
+-	i := uintptr(off / ptrSize)
+-Copy:
+-	for {
+-		bits := mask[i/8] >> (i % 8)
+-		for j := i % 8; j < 8; j++ {
+-			if bits&1 != 0 {
+-				writebarrierptr((*uintptr)(dst), *(*uintptr)(src))
+-			} else {
+-				*(*uintptr)(dst) = *(*uintptr)(src)
+-			}
+-			if i++; i >= nptr {
+-				break Copy
+-			}
+-			dst = add(dst, ptrSize)
+-			src = add(src, ptrSize)
+-			bits >>= 1
+-		}
+-	}
+-	size &= ptrSize - 1
+-	if size > 0 {
+-		memmove(dst, src, size)
+ 	}
++	heapBitsBulkBarrier(uintptr(dst), size&^(ptrSize-1))
+ }
+ 
+ // callwritebarrier is invoked at the end of reflectcall, to execute
+@@ -240,32 +192,10 @@ Copy:
+ // not to be preempted before the write barriers have been run.
+ //go:nosplit
+ func callwritebarrier(typ *_type, frame unsafe.Pointer, framesize, retoffset uintptr) {
+-	if !writeBarrierEnabled || typ == nil || (typ.kind&kindNoPointers) != 0 || framesize-retoffset < ptrSize {
++	if !writeBarrierEnabled || typ == nil || typ.kind&kindNoPointers != 0 || framesize-retoffset < ptrSize || !inheap(uintptr(frame)) {
+ 		return
+ 	}
+-
+-	systemstack(func() {
+-		mask := ptrBitmapForType(typ)
+-		// retoffset is known to be pointer-aligned (at least).
+-		// TODO(rsc): The noescape call should be unnecessary.
+-		dst := add(noescape(frame), retoffset)
+-		nptr := framesize / ptrSize
+-		i := uintptr(retoffset / ptrSize)
+-	Copy:
+-		for {
+-			bits := mask[i/8] >> (i % 8)
+-			for j := i % 8; j < 8; j++ {
+-				if bits&1 != 0 {
+-					writebarrierptr_nostore((*uintptr)(dst), *(*uintptr)(dst))
+-				}
+-				if i++; i >= nptr {
+-					break Copy
+-				}
+-				dst = add(dst, ptrSize)
+-				bits >>= 1
+-			}
+-		}
+-	})
++	heapBitsBulkBarrier(uintptr(add(frame, retoffset)), framesize)
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index f112eb899a..5472d28e02 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -124,6 +124,9 @@ type heapBits struct {
+ 
+ // heapBitsForAddr returns the heapBits for the address addr.
+ // The caller must have already checked that addr is in the range [mheap_.arena_start, mheap_.arena_used).
++//
++// nosplit because it is used during write barriers and must not be preempted.
++//go:nosplit
+ func heapBitsForAddr(addr uintptr) heapBits {
+ 	// 2 bits per work, 4 pairs per byte, and a mask is hard coded.
+ 	off := (addr - mheap_.arena_start) / ptrSize
+@@ -318,6 +321,34 @@ func (h heapBits) setCheckmarked(size uintptr) {
+ 	atomicor8(h.bitp, bitMarked<<(heapBitsShift+h.shift))
+ }
+ 
++// heapBitsBulkBarrier executes writebarrierptr_nostore
++// for every pointer slot in the memory range [p, p+size),
++// using the heap bitmap to locate those pointer slots.
++// This executes the write barriers necessary after a memmove.
++// Both p and size must be pointer-aligned.
++// The range [p, p+size) must lie within a single allocation.
++//
++// Callers should call heapBitsBulkBarrier immediately after
++// calling memmove(p, src, size). This function is marked nosplit
++// to avoid being preempted; the GC must not stop the goroutine
++// betwen the memmove and the execution of the barriers.
++//go:nosplit
++func heapBitsBulkBarrier(p, size uintptr) {
++	if (p|size)&(ptrSize-1) != 0 {
++		throw("heapBitsBulkBarrier: unaligned arguments")
++	}
++	if !writeBarrierEnabled || !inheap(p) {
++		return
++	}
++
++	for i := uintptr(0); i < size; i += ptrSize {
++		if heapBitsForAddr(p + i).isPointer() {
++			x := (*uintptr)(unsafe.Pointer(p + i))
++			writebarrierptr_nostore(x, *x)
++		}
++	}
++}
++
+ // The methods operating on spans all require that h has been returned
+ // by heapBitsForSpan and that size, n, total are the span layout description
+ // returned by the mspan's layout method.
+@@ -918,36 +949,6 @@ Phase3:
+ 	}
+ }
+ 
+-// ptrBitmapForType returns a bitmap indicating where pointers are
+-// in the memory representation of the type typ.
+-// The bit x[i/8]&(1<<(i%8)) is 1 if the i'th word in a value of type typ
+-// is a pointer.
+-func ptrBitmapForType(typ *_type) []uint8 {
+-	var ptrmask *uint8
+-	nptr := (uintptr(typ.size) + ptrSize - 1) / ptrSize
+-	if typ.kind&kindGCProg != 0 {
+-		masksize := (nptr + 7) / 8
+-		masksize++ // unroll flag in the beginning
+-		if masksize > maxGCMask && typ.gc[1] != 0 {
+-			// write barriers have not been updated to deal with this case yet.
+-			throw("maxGCMask too small for now")
+-		}
+-		ptrmask = (*uint8)(unsafe.Pointer(uintptr(typ.gc[0])))
+-		// Check whether the program is already unrolled
+-		// by checking if the unroll flag byte is set
+-		maskword := uintptr(atomicloadp(unsafe.Pointer(ptrmask)))
+-		if *(*uint8)(unsafe.Pointer(&maskword)) == 0 {
+-			systemstack(func() {
+-				unrollgcprog_m(typ)
+-			})
+-		}
+-		ptrmask = (*uint8)(add(unsafe.Pointer(ptrmask), 1)) // skip the unroll flag byte
+-	} else {
+-		ptrmask = (*uint8)(unsafe.Pointer(typ.gc[0])) // pointer to unrolled mask
+-	}
+-	return (*[1 << 30]byte)(unsafe.Pointer(ptrmask))[:(nptr+7)/8]
+-}
+-
+ // GC type info programs
+ //
+ // TODO(rsc): Clean up and enable.

@@ -16,7 +16,7 @@ Date:   Sat Oct 30 14:39:29 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  9 +++------
  test/typeparam/issue49241.dir/a.go              | 13 +++++++++++++
  test/typeparam/issue49241.dir/b.go              | 17 +++++++++++++++++
@@ -24,3 +24,136 @@ Date:   Sat Oct 30 14:39:29 2021 -0700
  test/typeparam/issue49241.dir/main.go           | 21 +++++++++++++++++++++
  test/typeparam/issue49241.go                    |  7 +++++++
  6 files changed, 78 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index ce41b8c934..d396c249e4 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -959,11 +959,6 @@ func writeType(t *types.Type) *obj.LSym {
+ 		base.Fatalf("unresolved defined type: %v", tbase)
+ 	}
+ 
+-	dupok := 0
+-	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
+-		dupok = obj.DUPOK
+-	}
+-
+ 	if !NeedEmit(tbase) {
+ 		if i := typecheck.BaseTypeIndex(t); i >= 0 {
+ 			lsym.Pkg = tbase.Sym().Pkg.Prefix
+@@ -1196,7 +1191,9 @@ func writeType(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	ot = dextratypeData(lsym, ot, t)
+-	objw.Global(lsym, int32(ot), int16(dupok|obj.RODATA))
++	objw.Global(lsym, int32(ot), int16(obj.DUPOK|obj.RODATA))
++	// Note: DUPOK is required to ensure that we don't end up with more
++	// than one type descriptor for a given type.
+ 
+ 	// The linker will leave a table of all the typelinks for
+ 	// types in the binary, so the runtime can find them.
+diff --git a/test/typeparam/issue49241.dir/a.go b/test/typeparam/issue49241.dir/a.go
+new file mode 100644
+index 0000000000..34c99657d4
+--- /dev/null
++++ b/test/typeparam/issue49241.dir/a.go
+@@ -0,0 +1,13 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type T[P any] struct {
++	x P
++}
++
++type U struct {
++	a,b int
++}
+diff --git a/test/typeparam/issue49241.dir/b.go b/test/typeparam/issue49241.dir/b.go
+new file mode 100644
+index 0000000000..45c1afbaf1
+--- /dev/null
++++ b/test/typeparam/issue49241.dir/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++//go:noinline
++func F() interface {} {
++	return a.T[int]{}
++}
++
++//go:noinline
++func G() interface{} {
++	return struct{X,Y a.U}{}
++}
+diff --git a/test/typeparam/issue49241.dir/c.go b/test/typeparam/issue49241.dir/c.go
+new file mode 100644
+index 0000000000..ea3bab2954
+--- /dev/null
++++ b/test/typeparam/issue49241.dir/c.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "a"
++
++//go:noinline
++func F() interface {} {
++	return a.T[int]{}
++}
++
++//go:noinline
++func G() interface{} {
++	return struct{X,Y a.U}{}
++}
+diff --git a/test/typeparam/issue49241.dir/main.go b/test/typeparam/issue49241.dir/main.go
+new file mode 100644
+index 0000000000..7c8a8b1acd
+--- /dev/null
++++ b/test/typeparam/issue49241.dir/main.go
+@@ -0,0 +1,21 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"b"
++	"c"
++)
++
++func main() {
++	if b.G() != c.G() {
++		println(b.G(), c.G())
++		panic("bad")
++	}
++	if b.F() != c.F() {
++		println(b.F(), c.F())
++		panic("bad")
++	}
++}
+diff --git a/test/typeparam/issue49241.go b/test/typeparam/issue49241.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/issue49241.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

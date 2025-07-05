@@ -14,8 +14,54 @@ Date:   Thu Feb 16 21:30:36 2023 +0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/ir/expr.go    | 3 +--
  src/cmd/compile/internal/ir/name.go    | 2 +-
  src/cmd/compile/internal/ssagen/ssa.go | 7 +++----
  3 files changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 95c142b93d..5d82788008 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -563,8 +563,7 @@ func (n *SelectorExpr) FuncName() *Name {
+ 	if n.Selection.Nname != nil {
+ 		// TODO(austin): Nname is nil for interface method
+ 		// expressions (I.M), so we can't attach a Func to
+-		// those here. reflectdata.methodWrapper generates the
+-		// Func.
++		// those here.
+ 		fn.Func = n.Selection.Nname.(*Name).Func
+ 	}
+ 	return fn
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 43aa582e3d..c6eff27272 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -40,7 +40,7 @@ type Name struct {
+ 	flags     bitset16
+ 	DictIndex uint16 // index of the dictionary entry describing the type of this variable declaration plus 1
+ 	sym       *types.Sym
+-	Func      *Func // TODO(austin): nil for I.M, eqFor, hashfor, and hashmem
++	Func      *Func // TODO(austin): nil for I.M
+ 	Offset_   int64
+ 	val       constant.Value
+ 	Opt       interface{} // for use by escape analysis
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 3a4c24084e..004806b029 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7950,10 +7950,9 @@ func clobberBase(n ir.Node) ir.Node {
+ // callTargetLSym returns the correct LSym to call 'callee' using its ABI.
+ func callTargetLSym(callee *ir.Name) *obj.LSym {
+ 	if callee.Func == nil {
+-		// TODO(austin): This happens in a few cases of
+-		// compiler-generated functions. These are all
+-		// ABIInternal. It would be better if callee.Func was
+-		// never nil and we didn't need this case.
++		// TODO(austin): This happens in case of interface method I.M from imported package.
++		// It's ABIInternal, and would be better if callee.Func was never nil and we didn't
++		// need this case.
+ 		return callee.Linksym()
+ 	}
+ 

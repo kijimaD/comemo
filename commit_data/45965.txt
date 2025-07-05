@@ -13,7 +13,99 @@ Date:   Sat Sep 26 09:20:16 2020 -0600
     Reviewed-on: https://go-review.googlesource.com/c/go/+/257818
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Trust: Damien Neil <dneil@google.com>
-
+---
  src/net/http/transport.go      | 13 +++++++----
  src/net/http/transport_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 60 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 79b1fc7681..8de0f3a6a0 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -2599,6 +2599,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 	var respHeaderTimer <-chan time.Time
+ 	cancelChan := req.Request.Cancel
+ 	ctxDoneChan := req.Context().Done()
++	pcClosed := pc.closech
+ 	for {
+ 		testHookWaitResLoop()
+ 		select {
+@@ -2618,11 +2619,15 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 				defer timer.Stop() // prevent leaks
+ 				respHeaderTimer = timer.C
+ 			}
+-		case <-pc.closech:
+-			if debugRoundTrip {
+-				req.logf("closech recv: %T %#v", pc.closed, pc.closed)
++		case <-pcClosed:
++			pcClosed = nil
++			// check if we are still using the connection
++			if pc.t.replaceReqCanceler(req.cancelKey, nil) {
++				if debugRoundTrip {
++					req.logf("closech recv: %T %#v", pc.closed, pc.closed)
++				}
++				return nil, pc.mapRoundTripError(req, startBytesWritten, pc.closed)
+ 			}
+-			return nil, pc.mapRoundTripError(req, startBytesWritten, pc.closed)
+ 		case <-respHeaderTimer:
+ 			if debugRoundTrip {
+ 				req.logf("timeout waiting for response headers.")
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9086507d57..f22b798035 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -6433,3 +6433,54 @@ func TestErrorWriteLoopRace(t *testing.T) {
+ 		testTransportRace(req)
+ 	}
+ }
++
++// Issue 41600
++// Test that a new request which uses the connection of an active request
++// cannot cause it to be canceled as well.
++func TestCancelRequestWhenSharingConnection(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, req *Request) {
++		w.Header().Add("Content-Length", "0")
++	}))
++	defer ts.Close()
++
++	client := ts.Client()
++	transport := client.Transport.(*Transport)
++	transport.MaxIdleConns = 1
++	transport.MaxConnsPerHost = 1
++
++	var wg sync.WaitGroup
++
++	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
++
++	for i := 0; i < 10; i++ {
++		wg.Add(1)
++		go func() {
++			defer wg.Done()
++			for ctx.Err() == nil {
++				reqctx, reqcancel := context.WithCancel(ctx)
++				go reqcancel()
++				req, _ := NewRequestWithContext(reqctx, "GET", ts.URL, nil)
++				res, err := client.Do(req)
++				if err == nil {
++					res.Body.Close()
++				}
++			}
++		}()
++	}
++
++	for ctx.Err() == nil {
++		req, _ := NewRequest("GET", ts.URL, nil)
++		if res, err := client.Do(req); err != nil {
++			t.Errorf("unexpected: %p %v", req, err)
++			break
++		} else {
++			res.Body.Close()
++		}
++	}
++
++	cancel()
++	wg.Wait()
++}

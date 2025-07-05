@@ -12,7 +12,48 @@ Date:   Tue Oct 9 12:50:06 2012 -0400
     R=golang-dev, iant, dvyukov
     CC=golang-dev
     https://golang.org/cl/6641049
-
+---
  src/cmd/ld/data.c      | 5 ++++-
  src/pkg/runtime/mgc0.c | 6 ++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 89eccd143c..4afe4b801c 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -831,7 +831,9 @@ dosymtype(void)
+ static int32
+ alignsymsize(int32 s)
+ {
+-	if(s >= PtrSize)
++	if(s >= 8)
++		s = rnd(s, 8);
++	else if(s >= PtrSize)
+ 		s = rnd(s, PtrSize);
+ 	else if(s > 2)
+ 		s = rnd(s, 4);
+@@ -1054,6 +1056,7 @@ dodata(void)
+ 		datsize += rnd(s->size, PtrSize);
+ 	}
+ 	sect->len = datsize - sect->vaddr;
++	datsize = rnd(datsize, PtrSize);
+ 
+ 	/* gcdata */
+ 	sect = addsection(&segtext, ".gcdata", 04);
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 6c2ce00953..dc3b877c4e 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -892,6 +892,12 @@ runtime·gc(int32 force)
+ 	M *m1;
+ 	uint32 i;
+ 
++	// The atomic operations are not atomic if the uint64s
++	// are not aligned on uint64 boundaries. This has been
++	// a problem in the past.
++	if((((uintptr)&work.empty) & 7) != 0)
++		runtime·throw("runtime: gc work buffer is misaligned");
++
+ 	// The gc is turned off (via enablegc) until
+ 	// the bootstrap has completed.
+ 	// Also, malloc gets called in the guts

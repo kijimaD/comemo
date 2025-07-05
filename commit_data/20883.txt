@@ -14,6 +14,20 @@ Date:   Wed Oct 22 16:39:31 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/161960044
-
+---
  src/runtime/mgc0.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index d376c1cf69..02f7eba120 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1799,7 +1799,7 @@ runtime·unrollgcprog_m(void)
+ 		}
+ 		
+ 		// atomic way to say mask[0] = 1
+-		x = typ->gc[0];
++		x = *(uintptr*)mask;
+ 		((byte*)&x)[0] = 1;
+ 		runtime·atomicstorep((void**)mask, (void*)x);
+ 	}

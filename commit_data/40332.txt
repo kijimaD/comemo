@@ -43,7 +43,7 @@ Date:   Wed Mar 27 08:40:12 2019 -0700
     Run-TryBot: Damien Neil <dneil@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/context/context.go              |  4 +++
  src/context/context_test.go         |  5 +++
  src/encoding/csv/reader.go          |  2 ++
@@ -63,3 +63,533 @@ Date:   Wed Mar 27 08:40:12 2019 -0700
  src/os/signal/internal/pty/pty.go   |  2 ++
  src/text/template/exec.go           |  4 +++
  18 files changed, 208 insertions(+), 24 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 93bf5b627d..0f36881b1e 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -49,6 +49,7 @@ package context
+ 
+ import (
+ 	"errors"
++	"internal/oserror"
+ 	"internal/reflectlite"
+ 	"sync"
+ 	"time"
+@@ -162,6 +163,9 @@ type deadlineExceededError struct{}
+ func (deadlineExceededError) Error() string   { return "context deadline exceeded" }
+ func (deadlineExceededError) Timeout() bool   { return true }
+ func (deadlineExceededError) Temporary() bool { return true }
++func (deadlineExceededError) Is(target error) bool {
++	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
++}
+ 
+ // An emptyCtx is never canceled, has no values, and has no deadline. It is not
+ // struct{}, since vars of this type must have distinct addresses.
+diff --git a/src/context/context_test.go b/src/context/context_test.go
+index 0e69e2f6fd..9991c5b09c 100644
+--- a/src/context/context_test.go
++++ b/src/context/context_test.go
+@@ -5,8 +5,10 @@
+ package context
+ 
+ import (
++	"errors"
+ 	"fmt"
+ 	"math/rand"
++	"os"
+ 	"runtime"
+ 	"strings"
+ 	"sync"
+@@ -647,4 +649,7 @@ func XTestDeadlineExceededSupportsTimeout(t testingT) {
+ 	if !i.Timeout() {
+ 		t.Fatal("wrong value for timeout")
+ 	}
++	if !errors.Is(DeadlineExceeded, os.ErrTimeout) {
++		t.Fatal("errors.Is(DeadlineExceeded, os.ErrTimeout) = false, want true")
++	}
+ }
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index a2fd4c0970..c40aa506b0 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -80,6 +80,8 @@ func (e *ParseError) Error() string {
+ 	return fmt.Sprintf("parse error on line %d, column %d: %v", e.Line, e.Column, e.Err)
+ }
+ 
++func (e *ParseError) Unwrap() error { return e.Err }
++
+ // These are the errors that can be returned in ParseError.Err.
+ var (
+ 	ErrTrailingComma = errors.New("extra delimiter at end of line") // Deprecated: No longer used.
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 383460e52b..464ee3ece4 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -270,6 +270,8 @@ func (e *MarshalerError) Error() string {
+ 	return "json: error calling MarshalJSON for type " + e.Type.String() + ": " + e.Err.Error()
+ }
+ 
++func (e *MarshalerError) Unwrap() error { return e.Err }
++
+ var hex = "0123456789abcdef"
+ 
+ // An encodeState encodes JSON into a bytes.Buffer.
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f38f13a6f2..006edb6923 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -140,6 +140,7 @@ var pkgDeps = map[string][]string{
+ 		"image/color",
+ 		"image/color/palette",
+ 		"internal/fmtsort",
++		"internal/oserror",
+ 		"reflect",
+ 	},
+ 
+@@ -166,7 +167,7 @@ var pkgDeps = map[string][]string{
+ 		"syscall/js",
+ 	},
+ 
+-	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
++	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+ 	"internal/testlog": {"L0"},
+ 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
+ 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
+@@ -249,7 +250,7 @@ var pkgDeps = map[string][]string{
+ 	"compress/gzip":                  {"L4", "compress/flate"},
+ 	"compress/lzw":                   {"L4"},
+ 	"compress/zlib":                  {"L4", "compress/flate"},
+-	"context":                        {"errors", "internal/reflectlite", "sync", "time"},
++	"context":                        {"errors", "internal/oserror", "internal/reflectlite", "sync", "time"},
+ 	"database/sql":                   {"L4", "container/list", "context", "database/sql/driver", "database/sql/internal"},
+ 	"database/sql/driver":            {"L4", "context", "time", "database/sql/internal"},
+ 	"debug/dwarf":                    {"L4"},
+diff --git a/src/internal/oserror/errors.go b/src/internal/oserror/errors.go
+index 66ed7faaba..8bd17c8b56 100644
+--- a/src/internal/oserror/errors.go
++++ b/src/internal/oserror/errors.go
+@@ -15,6 +15,50 @@ var (
+ 	ErrExist      = errors.New("file already exists")
+ 	ErrNotExist   = errors.New("file does not exist")
+ 	ErrClosed     = errors.New("file already closed")
+-	ErrTemporary  = errors.New("temporary error")
+-	ErrTimeout    = errors.New("deadline exceeded")
++	ErrTemporary  = temporaryError{}
++	ErrTimeout    = timeoutError{}
+ )
++
++type timeoutError struct{}
++
++func (timeoutError) Error() string { return "deadline exceeded" }
++func (timeoutError) Timeout() bool { return true }
++
++type temporaryError struct{}
++
++func (temporaryError) Error() string   { return "temporary error" }
++func (temporaryError) Temporary() bool { return true }
++
++// IsTimeout reports whether err indicates a timeout.
++func IsTimeout(err error) bool {
++	for err != nil {
++		if err == ErrTimeout {
++			return true
++		}
++		if x, ok := err.(interface{ Timeout() bool }); ok {
++			return x.Timeout()
++		}
++		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTimeout) {
++			return true
++		}
++		err = errors.Unwrap(err)
++	}
++	return false
++}
++
++// IsTemporary reports whether err indicates a temporary condition.
++func IsTemporary(err error) bool {
++	for err != nil {
++		if err == ErrTemporary {
++			return true
++		}
++		if x, ok := err.(interface{ Temporary() bool }); ok {
++			return x.Temporary()
++		}
++		if x, ok := err.(interface{ Is(error) bool }); ok && x.Is(ErrTemporary) {
++			return true
++		}
++		err = errors.Unwrap(err)
++	}
++	return false
++}
+diff --git a/src/internal/oserror/errors_test.go b/src/internal/oserror/errors_test.go
+new file mode 100644
+index 0000000000..6d6a56a0c7
+--- /dev/null
++++ b/src/internal/oserror/errors_test.go
+@@ -0,0 +1,63 @@
++package oserror_test
++
++import (
++	"errors"
++	"fmt"
++	"internal/oserror"
++	"os"
++	"testing"
++)
++
++type ttError struct {
++	timeout   bool
++	temporary bool
++}
++
++func (e ttError) Error() string {
++	return fmt.Sprintf("ttError{timeout:%v temporary:%v}", e.timeout, e.temporary)
++}
++func (e ttError) Timeout() bool   { return e.timeout }
++func (e ttError) Temporary() bool { return e.temporary }
++
++type isError struct {
++	err error
++}
++
++func (e isError) Error() string        { return fmt.Sprintf("isError(%v)", e.err) }
++func (e isError) Is(target error) bool { return e.err == target }
++
++func TestIsTimeout(t *testing.T) {
++	for _, test := range []struct {
++		want bool
++		err  error
++	}{
++		{true, ttError{timeout: true}},
++		{true, isError{os.ErrTimeout}},
++		{true, os.ErrTimeout},
++		{true, fmt.Errorf("wrap: %w", os.ErrTimeout)},
++		{false, ttError{timeout: false}},
++		{false, errors.New("error")},
++	} {
++		if got, want := oserror.IsTimeout(test.err), test.want; got != want {
++			t.Errorf("IsTimeout(err) = %v, want %v\n%+v", got, want, test.err)
++		}
++	}
++}
++
++func TestIsTemporary(t *testing.T) {
++	for _, test := range []struct {
++		want bool
++		err  error
++	}{
++		{true, ttError{temporary: true}},
++		{true, isError{os.ErrTemporary}},
++		{true, os.ErrTemporary},
++		{true, fmt.Errorf("wrap: %w", os.ErrTemporary)},
++		{false, ttError{temporary: false}},
++		{false, errors.New("error")},
++	} {
++		if got, want := oserror.IsTemporary(test.err), test.want; got != want {
++			t.Errorf("IsTemporary(err) = %v, want %v\n%+v", got, want, test.err)
++		}
++	}
++}
+diff --git a/src/internal/poll/fd.go b/src/internal/poll/fd.go
+index 2ab86f2314..784bea4b5a 100644
+--- a/src/internal/poll/fd.go
++++ b/src/internal/poll/fd.go
+@@ -9,7 +9,10 @@
+ // runtime scheduler.
+ package poll
+ 
+-import "errors"
++import (
++	"errors"
++	"internal/oserror"
++)
+ 
+ // ErrNetClosing is returned when a network descriptor is used after
+ // it has been closed. Keep this string consistent because of issue
+@@ -44,6 +47,10 @@ func (e *TimeoutError) Error() string   { return "i/o timeout" }
+ func (e *TimeoutError) Timeout() bool   { return true }
+ func (e *TimeoutError) Temporary() bool { return true }
+ 
++func (e *TimeoutError) Is(target error) bool {
++	return target == oserror.ErrTimeout || target == oserror.ErrTemporary
++}
++
+ // ErrNotPollable is returned when the file or socket is not suitable
+ // for event notification.
+ var ErrNotPollable = errors.New("not pollable")
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 69c99fe7db..b9a6ffaa60 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -24,6 +24,7 @@ import "C"
+ 
+ import (
+ 	"context"
++	"os"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -37,6 +38,16 @@ func (eai addrinfoErrno) Error() string   { return C.GoString(C.gai_strerror(C.i
+ func (eai addrinfoErrno) Temporary() bool { return eai == C.EAI_AGAIN }
+ func (eai addrinfoErrno) Timeout() bool   { return false }
+ 
++func (eai addrinfoErrno) Is(target error) bool {
++	switch target {
++	case os.ErrTemporary:
++		return eai.Temporary()
++	case os.ErrTimeout:
++		return eai.Timeout()
++	}
++	return false
++}
++
+ type portLookupResult struct {
+ 	port int
+ 	err  error
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 20bfe0942d..5a1ebaac4c 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -788,6 +788,8 @@ type transportReadFromServerError struct {
+ 	err error
+ }
+ 
++func (e transportReadFromServerError) Unwrap() error { return e.err }
++
+ func (e transportReadFromServerError) Error() string {
+ 	return fmt.Sprintf("net/http: Transport failed to read from server: %v", e.err)
+ }
+@@ -2155,6 +2157,16 @@ func (e *httpError) Error() string   { return e.err }
+ func (e *httpError) Timeout() bool   { return e.timeout }
+ func (e *httpError) Temporary() bool { return true }
+ 
++func (e *httpError) Is(target error) bool {
++	switch target {
++	case os.ErrTimeout:
++		return e.timeout
++	case os.ErrTemporary:
++		return true
++	}
++	return false
++}
++
+ var errTimeout error = &httpError{err: "net/http: timeout awaiting response headers", timeout: true}
+ 
+ // errRequestCanceled is set to be identical to the one from h2 to facilitate
+@@ -2489,6 +2501,10 @@ func (tlsHandshakeTimeoutError) Timeout() bool   { return true }
+ func (tlsHandshakeTimeoutError) Temporary() bool { return true }
+ func (tlsHandshakeTimeoutError) Error() string   { return "net/http: TLS handshake timeout" }
+ 
++func (tlsHandshakeTimeoutError) Is(target error) bool {
++	return target == os.ErrTimeout || target == os.ErrTemporary
++}
++
+ // fakeLocker is a sync.Locker which does nothing. It's used to guard
+ // test-only fields when not under test, to avoid runtime atomic
+ // overhead.
+diff --git a/src/net/net.go b/src/net/net.go
+index 0e078620a5..b3f9b8ba07 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -448,6 +448,8 @@ type OpError struct {
+ 	Err error
+ }
+ 
++func (e *OpError) Unwrap() error { return e.Err }
++
+ func (e *OpError) Error() string {
+ 	if e == nil {
+ 		return "<nil>"
+@@ -514,6 +516,16 @@ func (e *OpError) Temporary() bool {
+ 	return ok && t.Temporary()
+ }
+ 
++func (e *OpError) Is(target error) bool {
++	switch target {
++	case os.ErrTemporary:
++		return e.Temporary()
++	case os.ErrTimeout:
++		return e.Timeout()
++	}
++	return false
++}
++
+ // A ParseError is the error type of literal network address parsers.
+ type ParseError struct {
+ 	// Type is the type of string that was expected, such as
+@@ -563,6 +575,7 @@ type DNSConfigError struct {
+ 	Err error
+ }
+ 
++func (e *DNSConfigError) Unwrap() error   { return e.Err }
+ func (e *DNSConfigError) Error() string   { return "error reading DNS config: " + e.Err.Error() }
+ func (e *DNSConfigError) Timeout() bool   { return false }
+ func (e *DNSConfigError) Temporary() bool { return false }
+@@ -604,6 +617,16 @@ func (e *DNSError) Timeout() bool { return e.IsTimeout }
+ // error and return a DNSError for which Temporary returns false.
+ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
++func (e *DNSError) Is(target error) bool {
++	switch target {
++	case os.ErrTemporary:
++		return e.Temporary()
++	case os.ErrTimeout:
++		return e.Timeout()
++	}
++	return false
++}
++
+ type writerOnly struct {
+ 	io.Writer
+ }
+diff --git a/src/net/pipe.go b/src/net/pipe.go
+index 9177fc4036..8cc127464b 100644
+--- a/src/net/pipe.go
++++ b/src/net/pipe.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"io"
++	"os"
+ 	"sync"
+ 	"time"
+ )
+@@ -84,6 +85,10 @@ func (timeoutError) Error() string   { return "deadline exceeded" }
+ func (timeoutError) Timeout() bool   { return true }
+ func (timeoutError) Temporary() bool { return true }
+ 
++func (timeoutError) Is(target error) bool {
++	return target == os.ErrTemporary || target == os.ErrTimeout
++}
++
+ type pipeAddr struct{}
+ 
+ func (pipeAddr) Network() string { return "pipe" }
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 9599fa1d3e..4b9fe7eba9 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -7,7 +7,9 @@
+ package net
+ 
+ import (
++	"errors"
+ 	"fmt"
++	"internal/oserror"
+ 	"internal/poll"
+ 	"internal/testenv"
+ 	"io"
+@@ -88,6 +90,9 @@ func TestDialTimeout(t *testing.T) {
+ 			if nerr, ok := err.(Error); !ok || !nerr.Timeout() {
+ 				t.Fatalf("#%d: %v", i, err)
+ 			}
++			if !errors.Is(err, oserror.ErrTimeout) {
++				t.Fatalf("#%d: Dial error is not os.ErrTimeout: %v", i, err)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 5f40555bdc..9ff707b24e 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -13,6 +13,7 @@ package url
+ import (
+ 	"errors"
+ 	"fmt"
++	"internal/oserror"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -25,25 +26,10 @@ type Error struct {
+ 	Err error
+ }
+ 
+-func (e *Error) Error() string { return e.Op + " " + e.URL + ": " + e.Err.Error() }
+-
+-type timeout interface {
+-	Timeout() bool
+-}
+-
+-func (e *Error) Timeout() bool {
+-	t, ok := e.Err.(timeout)
+-	return ok && t.Timeout()
+-}
+-
+-type temporary interface {
+-	Temporary() bool
+-}
+-
+-func (e *Error) Temporary() bool {
+-	t, ok := e.Err.(temporary)
+-	return ok && t.Temporary()
+-}
++func (e *Error) Unwrap() error   { return e.Err }
++func (e *Error) Error() string   { return e.Op + " " + e.URL + ": " + e.Err.Error() }
++func (e *Error) Timeout() bool   { return oserror.IsTimeout(e.Err) }
++func (e *Error) Temporary() bool { return oserror.IsTemporary(e.Err) }
+ 
+ func ishex(c byte) bool {
+ 	switch {
+diff --git a/src/os/error.go b/src/os/error.go
+index 4cf35f2b77..0c2e6a7322 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -23,6 +23,7 @@ var (
+ 	ErrNotExist   = errNotExist()   // "file does not exist"
+ 	ErrClosed     = errClosed()     // "file already closed"
+ 	ErrTimeout    = errTimeout()    // "deadline exceeded"
++	ErrTemporary  = errTemporary()  // "temporary error"
+ 	ErrNoDeadline = errNoDeadline() // "file type does not support deadline"
+ )
+ 
+@@ -32,6 +33,7 @@ func errExist() error      { return oserror.ErrExist }
+ func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+ func errTimeout() error    { return oserror.ErrTimeout }
++func errTemporary() error  { return oserror.ErrTemporary }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+ type timeout interface {
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 9a9265b667..17ef003eca 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -47,6 +47,8 @@ func (e *Error) Error() string {
+ 	return "exec: " + strconv.Quote(e.Name) + ": " + e.Err.Error()
+ }
+ 
++func (e *Error) Unwrap() error { return e.Err }
++
+ // Cmd represents an external command being prepared or run.
+ //
+ // A Cmd cannot be reused after calling its Run, Output or CombinedOutput
+diff --git a/src/os/signal/internal/pty/pty.go b/src/os/signal/internal/pty/pty.go
+index c1c7fcffc5..fb3ee1ea7a 100644
+--- a/src/os/signal/internal/pty/pty.go
++++ b/src/os/signal/internal/pty/pty.go
+@@ -38,6 +38,8 @@ func (e *PtyError) Error() string {
+ 	return fmt.Sprintf("%s: %s", e.FuncName, e.ErrorString)
+ }
+ 
++func (e *PtyError) Unwrap() error { return e.Errno }
++
+ // Open returns a master pty and the name of the linked slave tty.
+ func Open() (master *os.File, slave string, err error) {
+ 	m, err := C.posix_openpt(C.O_RDWR)
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 62cf19d30c..0e2ab0e211 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -121,6 +121,10 @@ func (e ExecError) Error() string {
+ 	return e.Err.Error()
+ }
+ 
++func (e ExecError) Unwrap() error {
++	return e.Err
++}
++
+ // errorf records an ExecError and terminates processing.
+ func (s *state) errorf(format string, args ...interface{}) {
+ 	name := doublePercent(s.tmpl.Name())

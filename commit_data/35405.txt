@@ -26,7 +26,41 @@ Date:   Sun Dec 17 22:32:15 2017 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/exec.go      | 6 +++++-
  src/text/template/exec_test.go | 4 ++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 83c38cdf13..2ed5272349 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -691,8 +691,12 @@ func canBeNil(typ reflect.Type) bool {
+ // validateType guarantees that the value is valid and assignable to the type.
+ func (s *state) validateType(value reflect.Value, typ reflect.Type) reflect.Value {
+ 	if !value.IsValid() {
+-		if typ == nil || canBeNil(typ) {
++		if typ == nil {
+ 			// An untyped nil interface{}. Accept as a proper nil value.
++			return reflect.ValueOf(nil)
++		}
++		if canBeNil(typ) {
++			// Like above, but use the zero value of the non-nil type.
+ 			return reflect.Zero(typ)
+ 		}
+ 		s.errorf("invalid value; expected %s", typ)
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index d0cda6bd62..e33e0794dd 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -330,6 +330,10 @@ var execTests = []execTest{
+ 	{"empty with struct", "{{.Empty4}}", "{UinEmpty}", tVal, true},
+ 	{"empty with struct, field", "{{.Empty4.V}}", "UinEmpty", tVal, true},
+ 
++	// Edge cases with <no value> with an interface value
++	{"field on interface", "{{.foo}}", "<no value>", nil, true},
++	{"field on parenthesized interface", "{{(.).foo}}", "<no value>", nil, true},
++
+ 	// Method calls.
+ 	{".Method0", "-{{.Method0}}-", "-M0-", tVal, true},
+ 	{".Method1(1234)", "-{{.Method1 1234}}-", "-1234-", tVal, true},

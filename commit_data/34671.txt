@@ -13,7 +13,58 @@ Date:   Mon Nov 6 15:01:33 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/76290
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go |  4 ++--
  test/fixedbugs/issue22581.go              | 27 +++++++++++++++++++++++++++
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 8e47d8e723..7047266a70 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1766,10 +1766,10 @@ func (p *parser) header(keyword token) (init SimpleStmt, cond Expr, post SimpleS
+ 		pos src.Pos
+ 		lit string // valid if pos.IsKnown()
+ 	}
+-	if p.tok == _Semi {
++	if p.tok != _Lbrace {
+ 		semi.pos = p.pos()
+ 		semi.lit = p.lit
+-		p.next()
++		p.want(_Semi)
+ 		if keyword == _For {
+ 			if p.tok != _Semi {
+ 				if p.tok == _Lbrace {
+diff --git a/test/fixedbugs/issue22581.go b/test/fixedbugs/issue22581.go
+new file mode 100644
+index 0000000000..2b637f2ec6
+--- /dev/null
++++ b/test/fixedbugs/issue22581.go
+@@ -0,0 +1,27 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	if i := g()); i == j { // ERROR "unexpected \)"
++	}
++
++	if i == g()] { // ERROR "unexpected \]"
++	}
++
++	switch i := g()); i { // ERROR "unexpected \)"
++	}
++
++	switch g()] { // ERROR "unexpected \]"
++	}
++
++	for i := g()); i < y; { // ERROR "unexpected \)"
++	}
++
++	for g()] { // ERROR "unexpected \]"
++	}
++}

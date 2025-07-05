@@ -7,6 +7,20 @@ Date:   Wed Mar 23 14:23:05 2011 -0700
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4287074
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index a1a1228184..4cadb5c94d 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -164,7 +164,7 @@ importpath=$(gomake -s importpath)
+ 		echo 'import "./_xtest_"'
+ 	fi
+ 	echo 'import "testing"'
+-	echo 'import __os__ "os"' # rename in case tested package is called os
++	echo 'import __os__     "os"' # rename in case tested package is called os
+ 	echo 'import __regexp__ "regexp"' # rename in case tested package is called regexp
+ 	# test array
+ 	echo

@@ -9,9 +9,83 @@ Date:   Thu Apr 28 15:04:10 2016 -0700
     Change-Id: I51a44326b125ef79241459c463441f76a289cc08
     Reviewed-on: https://go-review.googlesource.com/22586
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/check.go          | 13 -------------
  src/cmd/compile/internal/ssa/gen/genericOps.go |  3 +--
  src/cmd/compile/internal/ssa/opGen.go          |  2 --
  src/cmd/compile/internal/ssa/rewrite.go        |  3 ---
  4 files changed, 1 insertion(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 4a10606d3c..af123d83d6 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -85,19 +85,6 @@ func checkFunc(f *Func) {
+ 			if b.Aux == nil {
+ 				f.Fatalf("retjmp block %s has nil Aux field", b)
+ 			}
+-		case BlockDead:
+-			if len(b.Succs) != 0 {
+-				f.Fatalf("dead block %s has successors", b)
+-			}
+-			if len(b.Preds) != 0 {
+-				f.Fatalf("dead block %s has predecessors", b)
+-			}
+-			if len(b.Values) != 0 {
+-				f.Fatalf("dead block %s has values", b)
+-			}
+-			if b.Control != nil {
+-				f.Fatalf("dead block %s has a control value", b)
+-			}
+ 		case BlockPlain:
+ 			if len(b.Succs) != 1 {
+ 				f.Fatalf("plain block %s len(Succs)==%d, want 1", b, len(b.Succs))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 88ae8b189d..8ea04c4fe5 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -438,9 +438,8 @@ var genericBlocks = []blockData{
+ 	{name: "RetJmp"}, // no successors, jumps to b.Aux.(*gc.Sym)
+ 	{name: "Exit"},   // no successors, control value generates a panic
+ 
+-	// transient block states used for dead code removal
++	// transient block state used for dead code removal
+ 	{name: "First"}, // 2 successors, always takes the first one (second is dead)
+-	{name: "Dead"},  // no successors; determined to be dead but not yet removed
+ }
+ 
+ func init() {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 9ab9be769c..2795d97333 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -47,7 +47,6 @@ const (
+ 	BlockRetJmp
+ 	BlockExit
+ 	BlockFirst
+-	BlockDead
+ )
+ 
+ var blockString = [...]string{
+@@ -88,7 +87,6 @@ var blockString = [...]string{
+ 	BlockRetJmp: "RetJmp",
+ 	BlockExit:   "Exit",
+ 	BlockFirst:  "First",
+-	BlockDead:   "Dead",
+ }
+ 
+ func (k BlockKind) String() string { return blockString[k] }
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index f8a6d27d39..c127e85e21 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -26,9 +26,6 @@ func applyRewrite(f *Func, rb func(*Block) bool, rv func(*Value, *Config) bool)
+ 	for {
+ 		change := false
+ 		for _, b := range f.Blocks {
+-			if b.Kind == BlockDead {
+-				continue
+-			}
+ 			if b.Control != nil && b.Control.Op == OpCopy {
+ 				for b.Control.Op == OpCopy {
+ 					b.SetControl(b.Control.Args[0])

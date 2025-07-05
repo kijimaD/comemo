@@ -12,6 +12,42 @@ Date:   Tue Feb 3 12:41:52 2015 -0800
     Change-Id: I58d96256d4d8ee3fda70d81077f19006064a7425
     Reviewed-on: https://go-review.googlesource.com/3813
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue9355.go | 20 +++++++++++++++-----
  1 file changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 607197fe95..bdc0dd06c6 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -21,11 +21,14 @@ func main() {
+ 		return
+ 	}
+ 	a, err := build.ArchChar(runtime.GOARCH)
+-	if err != nil {
+-		fmt.Println("BUG:", err)
+-		os.Exit(1)
+-	}
+-	out := run("go", "tool", a+"g", "-S", filepath.Join("fixedbugs", "issue9355.dir", "a.go"))
++	check(err)
++
++	err = os.Chdir(filepath.Join("fixedbugs", "issue9355.dir"))
++	check(err)
++
++	out := run("go", "tool", a+"g", "-S", "a.go")
++	os.Remove("a." + a)
++
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+ 	patterns := []string{
+ 		`rel 0\+\d t=1 \"\"\.x\+8\r?\n`,       // y = &x.b
+@@ -50,3 +53,10 @@ func run(cmd string, args ...string) []byte {
+ 	}
+ 	return out
+ }
++
++func check(err error) {
++	if err != nil {
++		fmt.Println("BUG:", err)
++		os.Exit(1)
++	}
++}

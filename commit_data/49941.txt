@@ -10,7 +10,51 @@ Date:   Tue Sep 21 14:55:23 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/internal/obj/link.go | 10 ----------
  src/cmd/internal/obj/sym.go  |  4 ++--
  2 files changed, 2 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 28626e6e03..592d2a655b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -902,16 +902,6 @@ type Link struct {
+ 	Text []*LSym
+ 	Data []*LSym
+ 
+-	// ABIAliases are text symbols that should be aliased to all
+-	// ABIs. These symbols may only be referenced and not defined
+-	// by this object, since the need for an alias may appear in a
+-	// different object than the definition. Hence, this
+-	// information can't be carried in the symbol definition.
+-	//
+-	// TODO(austin): Replace this with ABI wrappers once the ABIs
+-	// actually diverge.
+-	ABIAliases []*LSym
+-
+ 	// Constant symbols (e.g. $i64.*) are data symbols created late
+ 	// in the concurrent phase. To ensure a deterministic order, we
+ 	// add them to a separate list, sort at the end, and append it
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 9e8b4dd790..3289115439 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -330,7 +330,7 @@ const (
+ 
+ // Traverse symbols based on flag, call fn for each symbol.
+ func (ctxt *Link) traverseSyms(flag traverseFlag, fn func(*LSym)) {
+-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
++	lists := [][]*LSym{ctxt.Text, ctxt.Data}
+ 	for _, list := range lists {
+ 		for _, s := range list {
+ 			if flag&traverseDefs != 0 {
+@@ -410,7 +410,7 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 
+ // Traverse aux symbols, calling fn for each sym/aux pair.
+ func (ctxt *Link) traverseAuxSyms(flag traverseFlag, fn func(parent *LSym, aux *LSym)) {
+-	lists := [][]*LSym{ctxt.Text, ctxt.Data, ctxt.ABIAliases}
++	lists := [][]*LSym{ctxt.Text, ctxt.Data}
+ 	for _, list := range lists {
+ 		for _, s := range list {
+ 			if s.Gotype != nil {

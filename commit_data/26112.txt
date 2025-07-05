@@ -10,6 +10,37 @@ Date:   Thu Dec 17 02:34:29 2015 -0500
     Change-Id: Iecf9ebcd652c23c96477305a41082e5b63b41d83
     Reviewed-on: https://go-review.googlesource.com/17955
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/server.go | 12 ++++++++++--
  1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 30695708f2..4f7fbae600 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1695,6 +1695,14 @@ func RedirectHandler(url string, code int) Handler {
+ // the pattern "/" matches all paths not matched by other registered
+ // patterns, not just the URL with Path == "/".
+ //
++// If a subtree has been registered and a request is received naming the
++// subtree root without its trailing slash, ServeMux redirects that
++// request to the subtree root (adding the trailing slash). This behavior can
++// be overridden with a separate registration for the path without
++// the trailing slash. For example, registering "/images/" causes ServeMux
++// to redirect a request for "/images" to "/images/", unless "/images" has
++// been registered separately.
++//
+ // Patterns may optionally begin with a host name, restricting matches to
+ // URLs on that host only.  Host-specific patterns take precedence over
+ // general patterns, so that a handler might register for the two patterns
+@@ -1702,8 +1710,8 @@ func RedirectHandler(url string, code int) Handler {
+ // requests for "http://www.google.com/".
+ //
+ // ServeMux also takes care of sanitizing the URL request path,
+-// redirecting any request containing . or .. elements to an
+-// equivalent .- and ..-free URL.
++// redirecting any request containing . or .. elements or repeated slashes
++// to an equivalent, cleaner URL.
+ type ServeMux struct {
+ 	mu    sync.RWMutex
+ 	m     map[string]muxEntry

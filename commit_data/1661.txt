@@ -8,8 +8,57 @@ Date:   Tue Feb 10 16:44:04 2009 -0800
     DELTA=4  (0 added, 0 deleted, 4 changed)
     OCL=24788
     CL=24805
-
+---
  src/lib/os/dir_amd64_darwin.go | 2 +-
  src/lib/os/dir_amd64_linux.go  | 2 +-
  src/lib/os/file.go             | 4 ++--
  3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 04d3a90c6f..2821076dc6 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -18,7 +18,7 @@ const (
+ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 	// If this fd has no dirinfo, create one.
+ 	if fd.dirinfo == nil {
+-		fd.dirinfo = new(DirInfo);
++		fd.dirinfo = new(dirInfo);
+ 		// The buffer must be at least a block long.
+ 		// TODO(r): use fstatfs to find fs block size.
+ 		fd.dirinfo.buf = make([]byte, blockSize);
+diff --git a/src/lib/os/dir_amd64_linux.go b/src/lib/os/dir_amd64_linux.go
+index a5b8a7ba2e..f73febc4c7 100644
+--- a/src/lib/os/dir_amd64_linux.go
++++ b/src/lib/os/dir_amd64_linux.go
+@@ -27,7 +27,7 @@ func clen(n []byte) int {
+ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 	// If this fd has no dirinfo, create one.
+ 	if fd.dirinfo == nil {
+-		fd.dirinfo = new(DirInfo);
++		fd.dirinfo = new(dirInfo);
+ 		// The buffer must be at least a block long.
+ 		// TODO(r): use fstatfs to find fs block size.
+ 		fd.dirinfo.buf = make([]byte, blockSize);
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 2a4bc6723d..a0fc4bb679 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -8,7 +8,7 @@ import syscall "syscall"
+ import os "os"
+ 
+ // Auxiliary information if the FD describes a directory
+-type DirInfo struct {	// TODO(r): 6g bug means this can't be private
++type dirInfo struct {	// TODO(r): 6g bug means this can't be private
+ 	buf	[]byte;	// buffer for directory I/O
+ 	nbuf	int64;	// length of buf; return value from Getdirentries
+ 	bufp	int64;	// location of next record in buf.
+@@ -18,7 +18,7 @@ type DirInfo struct {	// TODO(r): 6g bug means this can't be private
+ type FD struct {
+ 	fd int64;
+ 	name	string;
+-	dirinfo	*DirInfo;	// nil unless directory being read
++	dirinfo	*dirInfo;	// nil unless directory being read
+ }
+ 
+ func (fd *FD) Fd() int64 {

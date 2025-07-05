@@ -7,6 +7,20 @@ Date:   Sat Oct 24 14:27:49 2009 -0700
     R=gri
     CC=rsc
     http://go/go-review/1014008
-
+---
  src/cmd/godoc/godoc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index be15ae5616..64e2607a90 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -111,7 +111,7 @@ var (
+ 	syncCmd				= flag.String("sync", "", "sync command; disabled if empty");
+ 	syncMin				= flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0");
+ 	syncDelay	delayTime;	// actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
+-	syncTime	RWValue;	// time of last p4 sync
++	syncTime	RWValue;	// time of last sync
+ 
+ 	// layout control
+ 	tabwidth	= flag.Int("tabwidth", 4, "tab width");

@@ -9,6 +9,39 @@ Date:   Thu Apr 5 22:46:36 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 14 ++++++--------
  1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index f2d096116f..bd837b140e 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -42,13 +42,12 @@ var (
+ )
+ 
+ type Sig struct {
+-	name   string
+-	pkg    *types.Pkg
+-	isym   *types.Sym
+-	tsym   *types.Sym
+-	type_  *types.Type
+-	mtype  *types.Type
+-	offset int32
++	name  string
++	pkg   *types.Pkg
++	isym  *types.Sym
++	tsym  *types.Sym
++	type_ *types.Type
++	mtype *types.Type
+ }
+ 
+ // siglt sorts method signatures by name with exported methods first,
+@@ -473,7 +472,6 @@ func imethods(t *types.Type) []*Sig {
+ 		}
+ 
+ 		sig.mtype = f.Type
+-		sig.offset = 0
+ 		sig.type_ = methodfunc(f.Type, nil)
+ 
+ 		if n := len(methods); n > 0 {

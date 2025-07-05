@@ -14,9 +14,87 @@ Date:   Tue Sep 21 13:54:58 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/internal/work/init.go                     | 18 ++++++++++++++++--
  src/cmd/go/testdata/script/test_fuzz_cache.txt       |  5 +++--
  src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt |  5 +++--
  src/internal/fuzz/counters_unsupported.go            |  4 +++-
  4 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 2a605e73ee..34d2e1cbe1 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -60,9 +60,23 @@ func BuildInit() {
+ 	}
+ }
+ 
++// FuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
++// on supported platforms. On unsupported platforms, FuzzInstrumentFlags returns
++// nil.
+ func FuzzInstrumentFlags() []string {
+-	if cfg.Goarch != "amd64" && cfg.Goarch != "arm64" {
+-		// Instrumentation is only supported on 64-bit architectures.
++	// TODO: expand the set of supported platforms, with testing.
++	// Nothing about the instrumentation is OS specific, but only amd64 and arm64
++	// are supported in the runtime. See src/runtime/libfuzzer*.
++	//
++	// Keep in sync with build constraints in internal/fuzz/counters_{un,}supported.go
++	switch cfg.Goos {
++	case "darwin", "freebsd", "linux", "windows":
++	default:
++		return nil
++	}
++	switch cfg.Goarch {
++	case "amd64", "arm64":
++	default:
+ 		return nil
+ 	}
+ 	return []string{"-d=libfuzzer"}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index 8bcf2be61e..a3fcca887e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -1,8 +1,9 @@
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
+-# TODO(#48504): fix and re-enable.
+-[linux] [386] skip
++# Instrumentation not supported on other archs.
++# See #14565.
++[!amd64] [!arm64] skip
+ 
+ [short] skip
+ env GOCACHE=$WORK/cache
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+index f810ad48d9..a66d0554b6 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -1,8 +1,9 @@
+ # TODO(jayconrod): support shared memory on more platforms.
+ [!darwin] [!linux] [!windows] skip
+ 
+-# TODO(#48504): fix and re-enable.
+-[linux] [386] skip
++# Instrumentation not supported on other archs.
++# See #14565.
++[!amd64] [!arm64] skip
+ 
+ [short] skip
+ env GOCACHE=$WORK/cache
+diff --git a/src/internal/fuzz/counters_unsupported.go b/src/internal/fuzz/counters_unsupported.go
+index 743ef45a66..9595cb93f7 100644
+--- a/src/internal/fuzz/counters_unsupported.go
++++ b/src/internal/fuzz/counters_unsupported.go
+@@ -7,7 +7,9 @@
+ package fuzz
+ 
+ // TODO(#48504): re-enable on platforms where instrumentation works.
+-// This was disabled due to an init failure on aix_ppc64.
++// In theory, we shouldn't need this file at all: if the binary was built
++// without coverage, then _counters and _ecounters should have the same address.
++// However, this caused an init failure on aix/ppc64, so it's disabled here.
+ 
+ // coverage returns a []byte containing unique 8-bit counters for each edge of
+ // the instrumented source code. This coverage data will only be generated if

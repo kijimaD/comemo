@@ -19,7 +19,51 @@ Date:   Sun Oct 6 00:49:52 2019 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/wasm/asm.go |  9 +++++----
  test/fixedbugs/issue34395.go      | 17 +++++++++++++++++
  2 files changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index ee0a5176ac..bf22c28311 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -296,10 +296,11 @@ func writeTableSec(ctxt *ld.Link, fns []*wasmFunc) {
+ func writeMemorySec(ctxt *ld.Link) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionMemory)
+ 
+-	const (
+-		initialSize  = 16 << 20 // 16MB, enough for runtime init without growing
+-		wasmPageSize = 64 << 10 // 64KB
+-	)
++	dataSection := ctxt.Syms.Lookup("runtime.data", 0).Sect
++	dataEnd := dataSection.Vaddr + dataSection.Length
++	var initialSize = dataEnd + 16<<20 // 16MB, enough for runtime init without growing
++
++	const wasmPageSize = 64 << 10 // 64KB
+ 
+ 	writeUleb128(ctxt.Out, 1)                        // number of memories
+ 	ctxt.Out.WriteByte(0x00)                         // no maximum memory size
+diff --git a/test/fixedbugs/issue34395.go b/test/fixedbugs/issue34395.go
+new file mode 100644
+index 0000000000..eb5a8558e1
+--- /dev/null
++++ b/test/fixedbugs/issue34395.go
+@@ -0,0 +1,17 @@
++// run
++
++// Copyright 2019 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a binary with a large data section can load. This failed on wasm.
++
++package main
++
++var test = [100 * 1024 * 1024]byte{42}
++
++func main() {
++	if test[0] != 42 {
++		panic("bad")
++	}
++}

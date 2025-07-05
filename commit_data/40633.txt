@@ -13,7 +13,7 @@ Date:   Sun Jun 2 12:40:06 2019 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../golang.org/x/tools/go/analysis/analysis.go     | 17 +++++-
@@ -22,3 +22,252 @@ Date:   Sun Jun 2 12:40:06 2019 +0100
  .../x/tools/go/analysis/passes/tests/tests.go      |  5 +-
  src/cmd/vendor/modules.txt                         |  2 +-
  7 files changed, 78 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 34daa0b77f..86e3281496 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,5 +8,5 @@ require (
+ 	golang.org/x/arch v0.0.0-20181203225421-5a4828bb7045
+ 	golang.org/x/crypto v0.0.0-20190325154230-a5d413f7728c
+ 	golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 // indirect
+-	golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0
++	golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 7357dc5a2e..9cb4e8630c 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -13,5 +13,5 @@ golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5h
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82 h1:vsphBvatvfbhlb4PO1BYSr9dzugGxJ/SQHoNufZJq1w=
+ golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
+-golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0 h1:0Bz67IMuNMofIoO/F+rX8oPltlfrAC5HU68DEyynMQg=
+-golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0/go.mod h1:RgjU9mgBXZiqYHBnxXauZ1Gv1EHHAz9KjViQ78xBX0Q=
++golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c h1:8QARbM77BTyoVvSaGaoQPCYgZlVROYX1uKApKK98b+8=
++golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c/go.mod h1:/rFqwRUd4F7ZHNgwSSTFct+R/Kf4OFW1sUzUTQQTgfc=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 8eb7316259..19e1e421a3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -161,6 +161,15 @@ func (pass *Pass) Reportf(pos token.Pos, format string, args ...interface{}) {
+ 	pass.Report(Diagnostic{Pos: pos, Message: msg})
+ }
+ 
++// reportNodef is a helper function that reports a Diagnostic using the
++// range denoted by the AST node.
++//
++// WARNING: This is an experimental API and may change in the future.
++func (pass *Pass) reportNodef(node ast.Node, format string, args ...interface{}) {
++	msg := fmt.Sprintf(format, args...)
++	pass.Report(Diagnostic{Pos: node.Pos(), End: node.End(), Message: msg})
++}
++
+ func (pass *Pass) String() string {
+ 	return fmt.Sprintf("%s@%s", pass.Analyzer.Name, pass.Pkg.Path())
+ }
+@@ -203,13 +212,17 @@ type Fact interface {
+ 	AFact() // dummy method to avoid type errors
+ }
+ 
+-// A Diagnostic is a message associated with a source location.
++// A Diagnostic is a message associated with a source location or range.
+ //
+ // An Analyzer may return a variety of diagnostics; the optional Category,
+ // which should be a constant, may be used to classify them.
+ // It is primarily intended to make it easy to look up documentation.
++//
++// If End is provided, the diagnostic is specified to apply to the range between
++// Pos and End.
+ type Diagnostic struct {
+ 	Pos      token.Pos
+-	Category string // optional
++	End      token.Pos // optional
++	Category string    // optional
+ 	Message  string
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index 062d062487..a3c2f09630 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -323,9 +323,14 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
+ 
+ 	// -c=N: show offending line plus N lines of context.
+ 	if Context >= 0 {
++		posn := fset.Position(diag.Pos)
++		end := fset.Position(diag.End)
++		if !end.IsValid() {
++			end = posn
++		}
+ 		data, _ := ioutil.ReadFile(posn.Filename)
+ 		lines := strings.Split(string(data), "\n")
+-		for i := posn.Line - Context; i <= posn.Line+Context; i++ {
++		for i := posn.Line - Context; i <= end.Line+Context; i++ {
+ 			if 1 <= i && i <= len(lines) {
+ 				fmt.Fprintf(os.Stderr, "%d\t%s\n", i, lines[i-1])
+ 			}
+@@ -353,6 +358,8 @@ func (tree JSONTree) Add(fset *token.FileSet, id, name string, diags []analysis.
+ 			Message  string `json:"message"`
+ 		}
+ 		var diagnostics []jsonDiagnostic
++		// TODO(matloob): Should the JSON diagnostics contain ranges?
++		// If so, how should they be formatted?
+ 		for _, f := range diags {
+ 			diagnostics = append(diagnostics, jsonDiagnostic{
+ 				Category: f.Category,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+index bcdb042920..acc6e6c770 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/structtag/structtag.go
+@@ -41,7 +41,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	}
+ 	inspect.Preorder(nodeFilter, func(n ast.Node) {
+ 		styp := pass.TypesInfo.Types[n.(*ast.StructType)].Type.(*types.Struct)
+-		var seen map[[2]string]token.Pos
++		var seen namesSeen
+ 		for i := 0; i < styp.NumFields(); i++ {
+ 			field := styp.Field(i)
+ 			tag := styp.Tag(i)
+@@ -51,11 +51,38 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	return nil, nil
+ }
+ 
++// namesSeen keeps track of encoding tags by their key, name, and nested level
++// from the initial struct. The level is taken into account because equal
++// encoding key names only conflict when at the same level; otherwise, the lower
++// level shadows the higher level.
++type namesSeen map[uniqueName]token.Pos
++
++type uniqueName struct {
++	key   string // "xml" or "json"
++	name  string // the encoding name
++	level int    // anonymous struct nesting level
++}
++
++func (s *namesSeen) Get(key, name string, level int) (token.Pos, bool) {
++	if *s == nil {
++		*s = make(map[uniqueName]token.Pos)
++	}
++	pos, ok := (*s)[uniqueName{key, name, level}]
++	return pos, ok
++}
++
++func (s *namesSeen) Set(key, name string, level int, pos token.Pos) {
++	if *s == nil {
++		*s = make(map[uniqueName]token.Pos)
++	}
++	(*s)[uniqueName{key, name, level}] = pos
++}
++
+ var checkTagDups = []string{"json", "xml"}
+ var checkTagSpaces = map[string]bool{"json": true, "xml": true, "asn1": true}
+ 
+ // checkCanonicalFieldTag checks a single struct field tag.
+-func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *map[[2]string]token.Pos) {
++func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, seen *namesSeen) {
+ 	switch pass.Pkg.Path() {
+ 	case "encoding/json", "encoding/xml":
+ 		// These packages know how to use their own APIs.
+@@ -64,7 +91,7 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
+ 	}
+ 
+ 	for _, key := range checkTagDups {
+-		checkTagDuplicates(pass, tag, key, field, field, seen)
++		checkTagDuplicates(pass, tag, key, field, field, seen, 1)
+ 	}
+ 
+ 	if err := validateStructTag(tag); err != nil {
+@@ -95,28 +122,29 @@ func checkCanonicalFieldTag(pass *analysis.Pass, field *types.Var, tag string, s
+ // checkTagDuplicates checks a single struct field tag to see if any tags are
+ // duplicated. nearest is the field that's closest to the field being checked,
+ // while still being part of the top-level struct type.
+-func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *types.Var, seen *map[[2]string]token.Pos) {
++func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *types.Var, seen *namesSeen, level int) {
+ 	val := reflect.StructTag(tag).Get(key)
+ 	if val == "-" {
+ 		// Ignored, even if the field is anonymous.
+ 		return
+ 	}
+ 	if val == "" || val[0] == ',' {
+-		if field.Anonymous() {
+-			typ, ok := field.Type().Underlying().(*types.Struct)
+-			if !ok {
+-				return
+-			}
+-			for i := 0; i < typ.NumFields(); i++ {
+-				field := typ.Field(i)
+-				if !field.Exported() {
+-					continue
+-				}
+-				tag := typ.Tag(i)
+-				checkTagDuplicates(pass, tag, key, nearest, field, seen)
++		if !field.Anonymous() {
++			// Ignored if the field isn't anonymous.
++			return
++		}
++		typ, ok := field.Type().Underlying().(*types.Struct)
++		if !ok {
++			return
++		}
++		for i := 0; i < typ.NumFields(); i++ {
++			field := typ.Field(i)
++			if !field.Exported() {
++				continue
+ 			}
++			tag := typ.Tag(i)
++			checkTagDuplicates(pass, tag, key, nearest, field, seen, level+1)
+ 		}
+-		// Ignored if the field isn't anonymous.
+ 		return
+ 	}
+ 	if key == "xml" && field.Name() == "XMLName" {
+@@ -139,10 +167,7 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
+ 		}
+ 		val = val[:i]
+ 	}
+-	if *seen == nil {
+-		*seen = map[[2]string]token.Pos{}
+-	}
+-	if pos, ok := (*seen)[[2]string{key, val}]; ok {
++	if pos, ok := seen.Get(key, val, level); ok {
+ 		alsoPos := pass.Fset.Position(pos)
+ 		alsoPos.Column = 0
+ 
+@@ -161,7 +186,7 @@ func checkTagDuplicates(pass *analysis.Pass, tag, key string, nearest, field *ty
+ 
+ 		pass.Reportf(nearest.Pos(), "struct field %s repeats %s tag %q also at %s", field.Name(), key, val, alsoPos)
+ 	} else {
+-		(*seen)[[2]string{key, val}] = field.Pos()
++		seen.Set(key, val, level, field.Pos())
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 5dd060800c..8232276186 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -20,7 +20,10 @@ const Doc = `check for common mistaken usages of tests and examples
+ 
+ The tests checker walks Test, Benchmark and Example functions checking
+ malformed names, wrong signatures and examples documenting non-existent
+-identifiers.`
++identifiers.
++
++Please see the documentation for package testing in golang.org/pkg/testing
++for the conventions that are enforced for Tests, Benchmarks, and Examples.`
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name: "tests",
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index ae1a960127..8889b907e2 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -26,7 +26,7 @@ golang.org/x/crypto/ssh/terminal
+ # golang.org/x/sys v0.0.0-20190502175342-a43fa875dd82
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/tools v0.0.0-20190514135123-4789ca9922f0
++# golang.org/x/tools v0.0.0-20190602112858-2de7f9bf822c
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
+ golang.org/x/tools/go/analysis/internal/facts

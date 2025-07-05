@@ -10,7 +10,7 @@ Date:   Sun Feb 15 19:35:52 2009 -0800
     DELTA=852  (834 added, 6 deleted, 12 changed)
     OCL=25046
     CL=25053
-
+---
  src/lib/Makefile                      |  10 +-
  src/lib/exec.go                       | 160 +++++++++++++++++++
  src/lib/exec_test.go                  |  51 ++++++
@@ -25,3 +25,1120 @@ Date:   Sun Feb 15 19:35:52 2009 -0800
  src/lib/syscall/types_amd64_darwin.go |  89 +++++++++++
  src/lib/syscall/types_amd64_linux.go  |  99 ++++++++++++
  13 files changed, 848 insertions(+), 16 deletions(-)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index a6b0c4782b..780aa3a431 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -7,8 +7,8 @@ all: install
+ GC=6g
+ 
+ DIRS=\
+-	container/array\
+ 	container\
++	container/array\
+ 	fmt\
+ 	hash\
+ 	http\
+@@ -26,7 +26,9 @@ DIRS=\
+ 	unicode\
+ 
+ FILES=\
++	bignum\
+ 	bufio\
++	exec\
+ 	flag\
+ 	log\
+ 	malloc\
+@@ -36,15 +38,15 @@ FILES=\
+ 	strings\
+ 	testing\
+ 	utf8\
+-	bignum\
+ 
+ TEST=\
++	bignum\
+ 	bufio\
++	exec\
+ 	once\
+ 	sort\
+ 	strings\
+ 	utf8\
+-	bignum\
+ 
+ clean.dirs: $(addsuffix .dirclean, $(DIRS))
+ install.dirs: $(addsuffix .dirinstall, $(DIRS))
+@@ -96,6 +98,7 @@ flag.6: fmt.dirinstall
+ log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+ testing.6: flag.install fmt.dirinstall
+ strings.6: utf8.install
++exec.6: os.dirinstall
+ 
+ fmt.dirinstall: io.dirinstall reflect.dirinstall strconv.dirinstall
+ hash.dirinstall: os.dirinstall
+@@ -112,4 +115,5 @@ strconv.dirinstall: math.dirinstall os.dirinstall utf8.install
+ tabwriter.dirinstall: os.dirinstall io.dirinstall container/array.dirinstall
+ time.dirinstall: once.install os.dirinstall io.dirinstall
+ sync.dirinstall:
++syscall.dirinstall: sync.dirinstall
+ 
+diff --git a/src/lib/exec.go b/src/lib/exec.go
+new file mode 100644
+index 0000000000..ec48801f77
+--- /dev/null
++++ b/src/lib/exec.go
+@@ -0,0 +1,160 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"os";
++	"syscall";
++)
++
++const (
++	DevNull = iota;
++	Passthru;
++	Pipe;
++	MergeWithStdout;
++)
++
++type Cmd struct {
++	Stdin *os.FD;
++	Stdout *os.FD;
++	Stderr *os.FD;
++	Pid int;
++}
++
++// Given mode (DevNull, etc), return fd for child
++// and fd to record in Cmd structure.
++func modeToFDs(mode, fd int) (*os.FD, *os.FD, *os.Error) {
++	switch mode {
++	case DevNull:
++		rw := os.O_WRONLY;
++		if fd == 0 {
++			rw = os.O_RDONLY;
++		}
++		f, err := os.Open("/dev/null", rw, 0);
++		return f, nil, err;
++	case Passthru:
++		switch fd {
++		case 0:
++			return os.Stdin, nil, nil;
++		case 1:
++			return os.Stdout, nil, nil;
++		case 2:
++			return os.Stderr, nil, nil;
++		}
++	case Pipe:
++		r, w, err := os.Pipe();
++		if err != nil {
++			return nil, nil, err;
++		}
++		if fd == 0 {
++			return r, w, nil;
++		}
++		return w, r, nil;
++	}
++	return nil, nil, os.EINVAL;
++}
++
++// Start command running with pipes possibly
++// connected to stdin, stdout, stderr.
++// TODO(rsc): Should the stdin,stdout,stderr args
++// be [3]int instead?
++func OpenCmd(argv0 string, argv, envv []string, stdin, stdout, stderr int)
++	(p *Cmd, err *os.Error)
++{
++	p = new(Cmd);
++	var fd [3]*os.FD;
++
++	if fd[0], p.Stdin, err = modeToFDs(stdin, 0); err != nil {
++		goto Error;
++	}
++	if fd[1], p.Stdout, err = modeToFDs(stdout, 1); err != nil {
++		goto Error;
++	}
++	if stderr == MergeWithStdout {
++		p.Stderr = p.Stdout;
++	} else if fd[2], p.Stderr, err = modeToFDs(stderr, 2); err != nil {
++		goto Error;
++	}
++
++	// Run command.
++	p.Pid, err = os.ForkExec(argv0, argv, envv, fd);
++	if err != nil {
++		goto Error;
++	}
++	if fd[0] != os.Stdin {
++		fd[0].Close();
++	}
++	if fd[1] != os.Stdout {
++		fd[1].Close();
++	}
++	if fd[2] != os.Stderr && fd[2] != fd[1] {
++		fd[2].Close();
++	}
++	return p, nil;
++
++Error:
++	if fd[0] != os.Stdin && fd[0] != nil {
++		fd[0].Close();
++	}
++	if fd[1] != os.Stdout && fd[1] != nil {
++		fd[1].Close();
++	}
++	if fd[2] != os.Stderr && fd[2] != nil && fd[2] != fd[1] {
++		fd[2].Close();
++	}
++	if p.Stdin != nil {
++		p.Stdin.Close();
++	}
++	if p.Stdout != nil {
++		p.Stdout.Close();
++	}
++	if p.Stderr != nil {
++		p.Stderr.Close();
++	}
++	return nil, err;
++}
++
++func (p *Cmd) Wait(options uint64) (*os.Waitmsg, *os.Error) {
++	if p.Pid < 0 {
++		return nil, os.EINVAL;
++	}
++	w, err := os.Wait(p.Pid, options);
++	if w != nil && (w.Exited() || w.Signaled()) {
++		p.Pid = -1;
++	}
++	return w, err;
++}
++
++func (p *Cmd) Close() *os.Error {
++	if p.Pid >= 0 {
++		// Loop on interrupt, but
++		// ignore other errors -- maybe
++		// caller has already waited for pid.
++		w, err := p.Wait(0);
++		for err == os.EINTR {
++			w, err = p.Wait(0);
++		}
++	}
++
++	// Close the FDs that are still open.
++	var err *os.Error;
++	if p.Stdin != nil && p.Stdin.Fd() >= 0 {
++		if err1 := p.Stdin.Close(); err1 != nil {
++			err = err1;
++		}
++	}
++	if p.Stdout != nil && p.Stdout.Fd() >= 0 {
++		if err1 := p.Stdout.Close(); err1 != nil && err != nil {
++			err = err1;
++		}
++	}
++	if p.Stderr != nil && p.Stderr != p.Stdout && p.Stderr.Fd() >= 0 {
++		if err1 := p.Stderr.Close(); err1 != nil && err != nil {
++			err = err1;
++		}
++	}
++	return err;
++}
++
+diff --git a/src/lib/exec_test.go b/src/lib/exec_test.go
+new file mode 100644
+index 0000000000..740dfa7654
+--- /dev/null
++++ b/src/lib/exec_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package exec
++
++import (
++	"exec";
++	"io";
++	"testing";
++)
++
++func TestOpenCmdCat(t *testing.T) {
++	cmd, err := exec.OpenCmd("/bin/cat", []string("cat"), nil,
++		exec.Pipe, exec.Pipe, exec.DevNull);
++	if err != nil {
++		t.Fatalf("opencmd /bin/cat: %v", err);
++	}
++	io.WriteString(cmd.Stdin, "hello, world\n");
++	cmd.Stdin.Close();
++	var buf [64]byte;
++	n, err1 := io.Readn(cmd.Stdout, buf);
++	if err1 != nil && err1 != io.ErrEOF {
++		t.Fatalf("reading from /bin/cat: %v", err1);
++	}
++	if string(buf[0:n]) != "hello, world\n" {
++		t.Fatalf("reading from /bin/cat: got %q", buf[0:n]);
++	}
++	if err1 = cmd.Close(); err1 != nil {
++		t.Fatalf("closing /bin/cat: %v", err1);
++	}
++}
++
++func TestOpenCmdEcho(t *testing.T) {
++	cmd, err := OpenCmd("/bin/echo", []string("echo", "hello", "world"), nil,
++		exec.DevNull, exec.Pipe, exec.DevNull);
++	if err != nil {
++		t.Fatalf("opencmd /bin/echo: %v", err);
++	}
++	var buf [64]byte;
++	n, err1 := io.Readn(cmd.Stdout, buf);
++	if err1 != nil && err1 != io.ErrEOF {
++		t.Fatalf("reading from /bin/echo: %v", err1);
++	}
++	if string(buf[0:n]) != "hello world\n" {
++		t.Fatalf("reading from /bin/echo: got %q", buf[0:n]);
++	}
++	if err1 = cmd.Close(); err1 != nil {
++		t.Fatalf("closing /bin/echo: %v", err1);
++	}
++}
+diff --git a/src/lib/net/fd.go b/src/lib/net/fd.go
+index 1ec0d8af9e..0c7770c77f 100644
+--- a/src/lib/net/fd.go
++++ b/src/lib/net/fd.go
+@@ -280,17 +280,26 @@ func (fd *netFD) Accept(sa *syscall.Sockaddr) (nfd *netFD, err *os.Error) {
+ 		return nil, os.EINVAL
+ 	}
+ 
++	// See ../syscall/exec.go for description of ForkLock.
++	// It is okay to hold the lock across syscall.Accept
++	// because we have put fd.fd into non-blocking mode.
++	syscall.ForkLock.RLock();
+ 	var s, e int64;
+ 	for {
+ 		s, e = syscall.Accept(fd.fd, sa);
+ 		if e != syscall.EAGAIN {
+ 			break;
+ 		}
++		syscall.ForkLock.RUnlock();
+ 		pollserver.WaitRead(fd);
++		syscall.ForkLock.RLock();
+ 	}
+ 	if e != 0 {
++		syscall.ForkLock.RUnlock();
+ 		return nil, os.ErrnoToError(e)
+ 	}
++	syscall.CloseOnExec(s);
++	syscall.ForkLock.RUnlock();
+ 
+ 	raddr, err1 := sockaddrToHostPort(sa);
+ 	if err1 != nil {
+diff --git a/src/lib/net/net.go b/src/lib/net/net.go
+index b81e99268a..db708191b1 100644
+--- a/src/lib/net/net.go
++++ b/src/lib/net/net.go
+@@ -143,10 +143,15 @@ func boolint(b bool) int {
+ func socket(net, laddr, raddr string, f, p, t int64, la, ra *syscall.Sockaddr)
+ 	(fd *netFD, err *os.Error)
+ {
++	// See ../syscall/exec.go for description of ForkLock.
++	syscall.ForkLock.RLock();
+ 	s, e := syscall.Socket(f, p, t);
+ 	if e != 0 {
++		syscall.ForkLock.RUnlock();
+ 		return nil, os.ErrnoToError(e)
+ 	}
++	syscall.CloseOnExec(s);
++	syscall.ForkLock.RUnlock();
+ 
+ 	// Allow reuse of recently-used addresses.
+ 	syscall.Setsockopt_int(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+diff --git a/src/lib/os/Makefile b/src/lib/os/Makefile
+index ac0d3394d8..413a8d1b1b 100644
+--- a/src/lib/os/Makefile
++++ b/src/lib/os/Makefile
+@@ -3,8 +3,8 @@
+ # license that can be found in the LICENSE file.
+ 
+ # DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m dir_amd64_linux.go env.go error.go file.go stat_amd64_linux.go\
+-#    time.go types.go >Makefile
++# gobuild -m dir_${GOARCH}_${GOOS}.go env.go error.go file.go\
++#    stat_${GOARCH}_${GOOS}.go time.go types.go exec.go >Makefile
+ O=6
+ GC=$(O)g
+ CC=$(O)c -w
+@@ -46,6 +46,7 @@ O3=\
+ 
+ O4=\
+ 	dir_$(GOARCH)_$(GOOS).$O\
++	exec.$O\
+ 
+ os.a: a1 a2 a3 a4
+ 
+@@ -62,7 +63,7 @@ a3:	$(O3)
+ 	rm -f $(O3)
+ 
+ a4:	$(O4)
+-	$(AR) grc os.a dir_$(GOARCH)_$(GOOS).$O
++	$(AR) grc os.a dir_$(GOARCH)_$(GOOS).$O exec.$O
+ 	rm -f $(O4)
+ 
+ newpkg: clean
+diff --git a/src/lib/os/exec.go b/src/lib/os/exec.go
+new file mode 100644
+index 0000000000..0ce51773c5
+--- /dev/null
++++ b/src/lib/os/exec.go
+@@ -0,0 +1,70 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"os";
++	"syscall";
++)
++
++func ForkExec(argv0 string, argv []string, envv []string, fd []*FD)
++	(pid int, err *Error)
++{
++	// Create array of integer (system) fds.
++	intfd := make([]int64, len(fd));
++	for i, f := range(fd) {
++		if f == nil {
++			intfd[i] = -1;
++		} else {
++			intfd[i] = f.Fd();
++		}
++	}
++
++	p, e := syscall.ForkExec(argv0, argv, envv, intfd);
++	return int(p), ErrnoToError(e);
++}
++
++func Exec(argv0 string, argv []string, envv []string) *Error {
++	e := syscall.Exec(argv0, argv, envv);
++	return ErrnoToError(e);
++}
++
++// TODO(rsc): Should os implement its own syscall.WaitStatus
++// wrapper with the methods, or is exposing the underlying one enough?
++//
++// TODO(rsc): Certainly need to have os.Rusage struct,
++// since syscall one might have different field types across
++// different OS.
++
++type Waitmsg struct {
++	Pid int;
++	syscall.WaitStatus;
++	Rusage *syscall.Rusage;
++}
++
++const (
++	WNOHANG = syscall.WNOHANG;
++	WSTOPPED = syscall.WSTOPPED;
++	WRUSAGE = 1<<60;
++)
++
++func Wait(pid int, options uint64) (w *Waitmsg, err *Error) {
++	var status syscall.WaitStatus;
++	var rusage *syscall.Rusage;
++	if options & WRUSAGE != 0 {
++		rusage = new(syscall.Rusage);
++		options ^= WRUSAGE;
++	}
++	pid1, e := syscall.Wait4(int64(pid), &status, int64(options), rusage);
++	if e != 0 {
++		return nil, ErrnoToError(e);
++	}
++	w = new(Waitmsg);
++	w.Pid = pid;
++	w.WaitStatus = status;
++	w.Rusage = rusage;
++	return w, nil;
++}
++
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index d4725760de..24aab1256d 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -4,8 +4,10 @@
+ 
+ package os
+ 
+-import syscall "syscall"
+-import os "os"
++import (
++	"os";
++	"syscall";
++)
+ 
+ // Auxiliary information if the FD describes a directory
+ type dirInfo struct {	// TODO(r): 6g bug means this can't be private
+@@ -57,7 +59,17 @@ const (
+ )
+ 
+ func Open(name string, mode int, flags int) (fd *FD, err *Error) {
+-	r, e := syscall.Open(name, int64(mode), int64(flags));
++	r, e := syscall.Open(name, int64(mode), int64(flags | syscall.O_CLOEXEC));
++	if e != 0 {
++		return nil, ErrnoToError(e);
++	}
++
++	// There's a race here with fork/exec, which we are
++	// content to live with.  See ../syscall/exec.go
++	if syscall.O_CLOEXEC == 0 {	// O_CLOEXEC not supported
++		syscall.CloseOnExec(r);
++	}
++
+ 	return NewFD(r, name), ErrnoToError(e)
+ }
+ 
+@@ -122,10 +134,18 @@ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 
+ func Pipe() (fd1 *FD, fd2 *FD, err *Error) {
+ 	var p [2]int64;
++
++	// See ../syscall/exec.go for description of lock.
++	syscall.ForkLock.RLock();
+ 	r, e := syscall.Pipe(&p);
+ 	if e != 0 {
++		syscall.ForkLock.RUnlock();
+ 		return nil, nil, ErrnoToError(e)
+ 	}
++	syscall.CloseOnExec(p[0]);
++	syscall.CloseOnExec(p[1]);
++	syscall.ForkLock.RUnlock();
++
+ 	return NewFD(p[0], "|0"), NewFD(p[1], "|1"), nil
+ }
+ 
+diff --git a/src/lib/sync/mutex.go b/src/lib/sync/mutex.go
+index 1269027e11..8e05cd819d 100644
+--- a/src/lib/sync/mutex.go
++++ b/src/lib/sync/mutex.go
+@@ -39,3 +39,20 @@ func (m *Mutex) Unlock() {
+ 	semrelease(&m.sema);
+ }
+ 
++// Stub implementation of r/w locks.
++// This satisfies the semantics but
++// is not terribly efficient.
++// TODO(rsc): Real r/w locks.
++
++type RWMutex struct {
++	Mutex;
++}
++
++func (m *RWMutex) RLock() {
++	m.Lock();
++}
++
++func (m *RWMutex) RUnlock() {
++	m.Unlock();
++}
++
+diff --git a/src/lib/syscall/Makefile b/src/lib/syscall/Makefile
+index a9975b5c6f..194fcca764 100644
+--- a/src/lib/syscall/Makefile
++++ b/src/lib/syscall/Makefile
+@@ -3,9 +3,10 @@
+ # license that can be found in the LICENSE file.
+ 
+ # DO NOT EDIT.  Automatically generated by gobuild.
+-# gobuild -m errstr_darwin.go file_darwin.go socket_darwin.go\
+-#    syscall_amd64_darwin.go time_amd64_darwin.go types_amd64_darwin.go\
+-#    asm_amd64_darwin.s syscall.go signal_amd64_darwin.go >Makefile
++# gobuild -m errstr_${GOOS}.go file_${GOOS}.go socket_${GOOS}.go\
++#    syscall_${GOARCH}_${GOOS}.go time_${GOARCH}_${GOOS}.go types_${GOARCH}_${GOOS}.go\
++#    asm_${GOARCH}_${GOOS}.s syscall.go signal_${GOARCH}_${GOOS}.go\
++#    exec.go >Makefile
+ O=6
+ GC=$(O)g
+ CC=$(O)c -w
+@@ -36,31 +37,46 @@ coverage: packages
+ O1=\
+ 	errstr_$(GOOS).$O\
+ 	syscall_$(GOARCH)_$(GOOS).$O\
+-	types_$(GOARCH)_$(GOOS).$O\
+ 	asm_$(GOARCH)_$(GOOS).$O\
+ 	syscall.$O\
+ 	signal_$(GOARCH)_$(GOOS).$O\
+ 
+ O2=\
++	types_$(GOARCH)_$(GOOS).$O\
++
++O3=\
+ 	file_$(GOOS).$O\
+ 	socket_$(GOOS).$O\
+ 	time_$(GOARCH)_$(GOOS).$O\
+ 
+-syscall.a: a1 a2
++O4=\
++	exec.$O\
++
++syscall.a: a1 a2 a3 a4
+ 
+ a1:	$(O1)
+-	$(AR) grc syscall.a errstr_$(GOOS).$O syscall_$(GOARCH)_$(GOOS).$O types_$(GOARCH)_$(GOOS).$O asm_$(GOARCH)_$(GOOS).$O syscall.$O signal_$(GOARCH)_$(GOOS).$O
++	$(AR) grc syscall.a errstr_$(GOOS).$O syscall_$(GOARCH)_$(GOOS).$O asm_$(GOARCH)_$(GOOS).$O syscall.$O signal_$(GOARCH)_$(GOOS).$O
+ 	rm -f $(O1)
+ 
+ a2:	$(O2)
+-	$(AR) grc syscall.a file_$(GOOS).$O socket_$(GOOS).$O time_$(GOARCH)_$(GOOS).$O
++	$(AR) grc syscall.a types_$(GOARCH)_$(GOOS).$O
+ 	rm -f $(O2)
+ 
++a3:	$(O3)
++	$(AR) grc syscall.a file_$(GOOS).$O socket_$(GOOS).$O time_$(GOARCH)_$(GOOS).$O
++	rm -f $(O3)
++
++a4:	$(O4)
++	$(AR) grc syscall.a exec.$O
++	rm -f $(O4)
++
+ newpkg: clean
+ 	$(AR) grc syscall.a
+ 
+ $(O1): newpkg
+ $(O2): a1
++$(O3): a2
++$(O4): a3
+ 
+ nuke: clean
+ 	rm -f $(GOROOT)/pkg/syscall.a
+diff --git a/src/lib/syscall/exec.go b/src/lib/syscall/exec.go
+new file mode 100644
+index 0000000000..809cd8c578
+--- /dev/null
++++ b/src/lib/syscall/exec.go
+@@ -0,0 +1,291 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Fork, exec, wait, etc.
++
++package syscall
++
++import (
++	"sync";
++	"syscall";
++	"unsafe";
++)
++
++// Lock synchronizing creation of new file descriptors with fork.
++//
++// We want the child in a fork/exec sequence to inherit only the
++// file descriptors we intend.  To do that, we mark all file
++// descriptors close-on-exec and then, in the child, explicitly
++// unmark the ones we want the exec'ed program to keep.
++// Unix doesn't make this easy: there is, in general, no way to
++// allocate a new file descriptor close-on-exec.  Instead you
++// have to allocate the descriptor and then mark it close-on-exec.
++// If a fork happens between those two events, the child's exec
++// will inherit an unwanted file descriptor.
++//
++// This lock solves that race: the create new fd/mark close-on-exec
++// operation is done holding ForkLock for reading, and the fork itself
++// is done holding ForkLock for writing.  At least, that's the idea.
++// There are some complications.
++//
++// Some system calls that create new file descriptors can block
++// for arbitrarily long times: open on a hung NFS server or named
++// pipe, accept on a socket, and so on.  We can't reasonably grab
++// the lock across those operations.
++//
++// It is worse to inherit some file descriptors than others.
++// If a non-malicious child accidentally inherits an open ordinary file,
++// that's not a big deal.  On the other hand, if a long-lived child
++// accidentally inherits the write end of a pipe, then the reader
++// of that pipe will not see EOF until that child exits, potentially
++// causing the parent program to hang.  This is a common problem
++// in threaded C programs that use popen.
++//
++// Luckily, the file descriptors that are most important not to
++// inherit are not the ones that can take an arbitrarily long time
++// to create: pipe returns instantly, and the net package uses
++// non-blocking I/O to accept on a listening socket.
++// The rules for which file descriptor-creating operations use the
++// ForkLock are as follows:
++//
++// 1) Pipe.    Does not block.  Use the ForkLock.
++// 2) Socket.  Does not block.  Use the ForkLock.
++// 3) Accept.  If using non-blocking mode, use the ForkLock.
++//             Otherwise, live with the race.
++// 4) Open.    Can block.  Use O_CLOEXEC if available (Linux).
++//             Otherwise, live with the race.
++// 5) Dup.     Does not block.  Use the ForkLock.
++//             On Linux, could use fcntl F_DUPFD_CLOEXEC
++//             instead of the ForkLock, but only for dup(fd, -1).
++
++var ForkLock sync.RWMutex
++
++func CloseOnExec(fd int64) {
++	Fcntl(fd, F_SETFD, FD_CLOEXEC);
++}
++
++// Convert array of string to array
++// of NUL-terminated byte pointer.
++func StringArrayPtr(ss []string) []*byte {
++	bb := make([]*byte, len(ss)+1);
++	for i := 0; i < len(ss); i++ {
++		bb[i] = StringBytePtr(ss[i]);
++	}
++	bb[len(ss)] = nil;
++	return bb;
++}
++
++func Wait4(pid int64, wstatus *WaitStatus, options int64, rusage *Rusage)
++	(wpid, err int64)
++{
++	var s WaitStatus;
++	r1, r2, err1 := Syscall6(SYS_WAIT4,
++		pid,
++		int64(uintptr(unsafe.Pointer(&s))),
++		options,
++		int64(uintptr(unsafe.Pointer(rusage))), 0, 0);
++	if wstatus != nil {
++		*wstatus = s;
++	}
++	return r1, err1;
++}
++
++// Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
++// If a dup or exec fails, write the errno int64 to pipe.
++// (Pipe is close-on-exec so if exec succeeds, it will be closed.)
++// In the child, this function must not acquire any locks, because
++// they might have been locked at the time of the fork.  This means
++// no rescheduling, no malloc calls, and no new stack segments.
++// The calls to RawSyscall are okay because they are assembly
++// functions that do not grow the stack.
++func forkAndExecInChild(argv0 *byte, argv []*byte, envv []*byte, fd []int64, pipe int64)
++	(pid int64, err int64)
++{
++	// Declare all variables at top in case any
++	// declarations require heap allocation (e.g., err1).
++	var r1, r2, err1 int64;
++	var nextfd int64;
++	var i int;
++
++	darwin := OS == "darwin";
++
++	// About to call fork.
++	// No more allocation or calls of non-assembly functions.
++	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0);
++	if err1 != 0 {
++		return 0, err1
++	}
++
++	// On Darwin:
++	//	r1 = child pid in both parent and child.
++	//	r2 = 0 in parent, 1 in child.
++	// Convert to normal Unix r1 = 0 in child.
++	if darwin && r2 == 1 {
++		r1 = 0;
++	}
++
++	if r1 != 0 {
++		// parent; return PID
++		return r1, 0
++	}
++
++	// Fork succeeded, now in child.
++
++	// Pass 1: look for fd[i] < i and move those up above len(fd)
++	// so that pass 2 won't stomp on an fd it needs later.
++	nextfd = int64(len(fd));
++	if pipe < nextfd {
++		r1, r2, err = RawSyscall(SYS_DUP2, pipe, nextfd, 0);
++		if err != 0 {
++			goto childerror;
++		}
++		RawSyscall(SYS_FCNTL, nextfd, F_SETFD, FD_CLOEXEC);
++		pipe = nextfd;
++		nextfd++;
++	}
++	for i = 0; i < len(fd); i++ {
++		if fd[i] >= 0 && fd[i] < int64(i) {
++			r1, r2, err = RawSyscall(SYS_DUP2, fd[i], nextfd, 0);
++			if err != 0 {
++				goto childerror;
++			}
++			RawSyscall(SYS_FCNTL, nextfd, F_SETFD, FD_CLOEXEC);
++			fd[i] = nextfd;
++			nextfd++;
++			if nextfd == pipe {	// don't stomp on pipe
++				nextfd++;
++			}
++		}
++	}
++
++	// Pass 2: dup fd[i] down onto i.
++	for i = 0; i < len(fd); i++ {
++		if fd[i] == -1 {
++			RawSyscall(SYS_CLOSE, int64(i), 0, 0);
++			continue;
++		}
++		if fd[i] == int64(i) {
++			// dup2(i, i) won't clear close-on-exec flag on Linux,
++			// probably not elsewhere either.
++			r1, r2, err = RawSyscall(SYS_FCNTL, fd[i], F_SETFD, 0);
++			if err != 0 {
++				goto childerror;
++			}
++			continue;
++		}
++		// The new fd is created NOT close-on-exec,
++		// which is exactly what we want.
++		r1, r2, err = RawSyscall(SYS_DUP2, fd[i], int64(i), 0);
++		if err != 0 {
++			goto childerror;
++		}
++	}
++
++	// By convention, we don't close-on-exec the fds we are
++	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
++	// Programs that know they inherit fds >= 3 will need
++	// to set them close-on-exec.
++	for i = len(fd); i < 3; i++ {
++		RawSyscall(SYS_CLOSE, int64(i), 0, 0);
++	}
++
++	// Time to exec.
++	r1, r2, err1 = RawSyscall(SYS_EXECVE,
++		int64(uintptr(unsafe.Pointer(argv0))),
++		int64(uintptr(unsafe.Pointer(&argv[0]))),
++		int64(uintptr(unsafe.Pointer(&envv[0]))));
++
++childerror:
++	// send error code on pipe
++	RawSyscall(SYS_WRITE, pipe, int64(uintptr(unsafe.Pointer(&err1))), 8);
++	for {
++		RawSyscall(SYS_EXIT, 253, 0, 0);
++	}
++
++	// Calling panic is not actually safe,
++	// but the for loop above won't break
++	// and this shuts up the compiler.
++	panic("unreached");
++}
++
++// Combination of fork and exec, careful to be thread safe.
++func ForkExec(argv0 string, argv []string, envv []string, fd []int64)
++	(pid int64, err int64)
++{
++	var p [2]int64;
++	var r1 int64;
++	var n, err1 int64;
++	var wstatus WaitStatus;
++
++	p[0] = -1;
++	p[1] = -1;
++
++	// Convert args to C form.
++	argv0p := StringBytePtr(argv0);
++	argvp := StringArrayPtr(argv);
++	envvp := StringArrayPtr(envv);
++
++	// Acquire the fork lock so that no other threads
++	// create new fds that are not yet close-on-exec
++	// before we fork.
++	ForkLock.Lock();
++
++	// Allocate child status pipe close on exec.
++	if r1, err = Pipe(&p); err != 0 {
++		goto error;
++	}
++	if r1, err = Fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
++		goto error;
++	}
++	if r1, err = Fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
++		goto error;
++	}
++
++	// Kick off child.
++	pid, err = forkAndExecInChild(argv0p, argvp, envvp, fd, p[1]);
++	if err != 0 {
++	error:
++		if p[0] >= 0 {
++			Close(p[0]);
++			Close(p[1]);
++		}
++		ForkLock.Unlock();
++		return 0, err
++	}
++	ForkLock.Unlock();
++
++	// Read child error status from pipe.
++	Close(p[1]);
++	n, r1, err = Syscall(SYS_READ, p[0], int64(uintptr(unsafe.Pointer(&err1))), 8);
++	Close(p[0]);
++	if err != 0 || n != 0 {
++		if n == 8 {
++			err = err1;
++		}
++		if err == 0 {
++			err = EPIPE;
++		}
++
++		// Child failed; wait for it to exit, to make sure
++		// the zombies don't accumulate.
++		pid1, err1 := Wait4(pid, &wstatus, 0, nil);
++		for err1 == EINTR {
++			pid1, err1 = Wait4(pid, &wstatus, 0, nil);
++		}
++		return 0, err
++	}
++
++	// Read got EOF, so pipe closed on exec, so exec succeeded.
++	return pid, 0
++}
++
++// Ordinary exec.
++func Exec(argv0 string, argv []string, envv []string) (err int64) {
++	r1, r2, err1 := RawSyscall(SYS_EXECVE,
++		int64(uintptr(unsafe.Pointer(StringBytePtr(argv0)))),
++		int64(uintptr(unsafe.Pointer(&StringArrayPtr(argv)[0]))),
++		int64(uintptr(unsafe.Pointer(&StringArrayPtr(envv)[0]))));
++	return err1;
++}
++
+diff --git a/src/lib/syscall/types_amd64_darwin.go b/src/lib/syscall/types_amd64_darwin.go
+index 101f223b85..36ced7ab61 100644
+--- a/src/lib/syscall/types_amd64_darwin.go
++++ b/src/lib/syscall/types_amd64_darwin.go
+@@ -7,6 +7,9 @@
+ 
+ package syscall
+ 
++import "syscall"
++
++const OS = "darwin"
+ 
+ // Time
+ 
+@@ -57,6 +60,7 @@ const (
+ 	O_NDELAY = O_NONBLOCK;
+ 	O_SYNC = 0x80;
+ 	O_TRUNC = 0x400;
++	O_CLOEXEC = 0;  // not supported
+ 
+ 	F_GETFD = 1;
+ 	F_SETFD = 2;
+@@ -239,3 +243,88 @@ type Kevent_t struct {
+ 	Udata int64;
+ }
+ 
++
++// Wait status.
++// See /usr/include/bits/waitstatus.h
++
++const (
++	WNOHANG = 1;
++	WUNTRACED = 2;
++	WEXITED = 4;
++	WSTOPPED = 8;
++	WCONTINUED = 0x10;
++	WNOWAIT = 0x20;
++)
++
++type WaitStatus uint32;
++
++// TODO(rsc): should be method on WaitStatus,
++// not *WaitStatus, but causes problems when
++// embedding in a *Waitmsg in package os.
++// Need to find the 6g bug.
++
++// Wait status is 7 bits at bottom, either 0 (exited),
++// 0x7F (stopped), or a signal number that caused an exit.
++// The 0x80 bit is whether there was a core dump.
++// An extra number (exit code, signal causing a stop)
++// is in the high bits.
++
++const (
++	mask = 0x7F;
++	core = 0x80;
++	shift = 8;
++
++	exited = 0;
++	stopped = 0x7F;
++)
++
++func (wp *WaitStatus) Exited() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask == exited;
++}
++
++func (wp *WaitStatus) ExitStatus() int {
++	w := *wp;  // TODO(rsc): no pointer
++	if w&mask != exited {
++		return -1;
++	}
++	return int(w >> shift);
++}
++
++func (wp *WaitStatus) Signaled() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask != stopped && w&mask != 0;
++}
++
++func (wp *WaitStatus) Signal() int {
++	w := *wp;  // TODO(rsc): no pointer
++	sig := int(w & mask);
++	if sig == stopped || sig == 0 {
++		return -1;
++	}
++	return sig;
++}
++
++func (wp *WaitStatus) CoreDump() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w.Signaled() && w&core != 0;
++}
++
++func (wp *WaitStatus) Stopped() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask == stopped && w>>shift != SIGSTOP;
++}
++
++func (wp *WaitStatus) Continued() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask == stopped && w>>shift == SIGSTOP;
++}
++
++func (wp *WaitStatus) StopSignal() int {
++	w := *wp;  // TODO(rsc): no pointer
++	if !w.Stopped() {
++		return -1;
++	}
++	return int(w >> shift) & 0xFF;
++}
++
+diff --git a/src/lib/syscall/types_amd64_linux.go b/src/lib/syscall/types_amd64_linux.go
+index ebfe21c866..cbb65eeab0 100644
+--- a/src/lib/syscall/types_amd64_linux.go
++++ b/src/lib/syscall/types_amd64_linux.go
+@@ -7,6 +7,9 @@
+ 
+ package syscall
+ 
++import "syscall"
++
++const OS = "linux"
+ 
+ // Time
+ 
+@@ -57,6 +60,7 @@ const (
+ 	O_NDELAY = O_NONBLOCK;
+ 	O_SYNC = 0x1000;
+ 	O_TRUNC = 0x200;
++	O_CLOEXEC = 0x80000;
+ 
+ 	F_GETFD = 1;
+ 	F_SETFD = 2;
+@@ -218,3 +222,98 @@ type EpollEvent struct {
+ 	Fd int32;
+ 	Pad int32;
+ }
++
++
++// Wait status.
++// See /usr/include/bits/waitstatus.h
++
++const (
++	WNOHANG = 1;
++	WUNTRACED = 2;
++	WSTOPPED = 2;	// same as WUNTRACED
++	WEXITED = 4;
++	WCONTINUED = 8;
++	WNOWAIT = 0x01000000;
++	WNOTHREAD = 0x20000000;
++	WALL = 0x40000000;
++	WCLONE = 0x80000000;
++)
++
++type WaitStatus uint32;
++
++// TODO(rsc): should be method on WaitStatus,
++// not *WaitStatus, but causes problems when
++// embedding in a *Waitmsg in package os.
++// Need to find the 6g bug.
++
++// Wait status is 7 bits at bottom, either 0 (exited),
++// 0x7F (stopped), or a signal number that caused an exit.
++// The 0x80 bit is whether there was a core dump.
++// An extra number (exit code, signal causing a stop)
++// is in the high bits.  At least that's the idea.
++// There are various irregularities.  For example, the
++// "continued" status is 0xFFFF, distinguishing itself
++// from stopped via the core dump bit.
++
++const (
++	mask = 0x7F;
++	core = 0x80;
++	exited = 0x00;
++	stopped = 0x7F;
++	shift = 8;
++
++	// types_amd64_darwin.go refers to SIGSTOP.
++	// do the same here so the dependencies are
++	// the same on Linux as on Darwin.
++	__unused = SIGSTOP;
++)
++
++func (wp *WaitStatus) Exited() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask == exited;
++}
++
++func (wp *WaitStatus) Signaled() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&mask != stopped && w&mask != exited;
++}
++
++func (wp *WaitStatus) Stopped() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w&0xFF == stopped;
++}
++
++func (wp *WaitStatus) Continued() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w == 0xFFFF;
++}
++
++func (wp *WaitStatus) CoreDump() bool {
++	w := *wp;  // TODO(rsc): no pointer
++	return w.Signaled() && w&core != 0;
++}
++
++func (wp *WaitStatus) ExitStatus() int {
++	w := *wp;  // TODO(rsc): no pointer
++	if !w.Exited() {
++		return -1;
++	}
++	return int(w >> shift) & 0xFF;
++}
++
++func (wp *WaitStatus) Signal() int {
++	w := *wp;  // TODO(rsc): no pointer
++	if !w.Signaled() {
++		return -1;
++	}
++	return int(w & mask);
++}
++
++func (wp *WaitStatus) StopSignal() int {
++	w := *wp;  // TODO(rsc): no pointer
++	if !w.Stopped() {
++		return -1;
++	}
++	return int(w >> shift) & 0xFF;
++}
++

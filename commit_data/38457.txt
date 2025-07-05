@@ -13,7 +13,7 @@ Date:   Tue Oct 30 16:42:55 2018 +0000
     Reviewed-by: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/internal/syscall/unix/at.go                    |  58 -----
  src/internal/syscall/unix/at_sysnum_darwin.go      |  12 --
  src/internal/syscall/unix/at_sysnum_dragonfly.go   |  14 --
@@ -31,3 +31,1043 @@ Date:   Tue Oct 30 16:42:55 2018 +0000
  src/os/removeall_noat.go                           | 110 ----------
  src/os/removeall_test.go                           | 237 ---------------------
  16 files changed, 225 insertions(+), 685 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+deleted file mode 100644
+index 1c05d2abe3..0000000000
+--- a/src/internal/syscall/unix/at.go
++++ /dev/null
+@@ -1,58 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build linux darwin freebsd openbsd netbsd dragonfly
+-
+-package unix
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-func Unlinkat(dirfd int, path string, flags int) error {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-
+-	_, _, errno := syscall.Syscall(unlinkatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags))
+-	if errno != 0 {
+-		return errno
+-	}
+-
+-	return nil
+-}
+-
+-func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return 0, err
+-	}
+-
+-	fd, _, errno := syscall.Syscall6(openatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
+-	if errno != 0 {
+-		return 0, errno
+-	}
+-
+-	return int(fd), nil
+-}
+-
+-func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
+-	var p *byte
+-	p, err := syscall.BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-
+-	_, _, errno := syscall.Syscall6(fstatatTrap, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
+-	if errno != 0 {
+-		return errno
+-	}
+-
+-	return nil
+-
+-}
+diff --git a/src/internal/syscall/unix/at_sysnum_darwin.go b/src/internal/syscall/unix/at_sysnum_darwin.go
+deleted file mode 100644
+index 6aa08b4284..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_darwin.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-const unlinkatTrap = uintptr(472)
+-const openatTrap = uintptr(463)
+-const fstatatTrap = uintptr(469)
+-
+-const AT_REMOVEDIR = 0x80
+-const AT_SYMLINK_NOFOLLOW = 0x0020
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+deleted file mode 100644
+index cec9abce6a..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+-const AT_REMOVEDIR = 0x2
+-const AT_SYMLINK_NOFOLLOW = 0x1
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+deleted file mode 100644
+index fe45e296d7..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+-const AT_REMOVEDIR = 0x800
+-const AT_SYMLINK_NOFOLLOW = 0x200
+diff --git a/src/internal/syscall/unix/at_sysnum_fstatat64_linux.go b/src/internal/syscall/unix/at_sysnum_fstatat64_linux.go
+deleted file mode 100644
+index c6ea206c12..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_fstatat64_linux.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build arm mips mipsle 386
+-
+-package unix
+-
+-import "syscall"
+-
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT64
+diff --git a/src/internal/syscall/unix/at_sysnum_fstatat_linux.go b/src/internal/syscall/unix/at_sysnum_fstatat_linux.go
+deleted file mode 100644
+index 580e7997f8..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_fstatat_linux.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build arm64
+-
+-package unix
+-
+-import "syscall"
+-
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+diff --git a/src/internal/syscall/unix/at_sysnum_linux.go b/src/internal/syscall/unix/at_sysnum_linux.go
+deleted file mode 100644
+index fa7cd75d42..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_linux.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-
+-const AT_REMOVEDIR = 0x200
+-const AT_SYMLINK_NOFOLLOW = 0x100
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+deleted file mode 100644
+index fe45e296d7..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+-const AT_REMOVEDIR = 0x800
+-const AT_SYMLINK_NOFOLLOW = 0x200
+diff --git a/src/internal/syscall/unix/at_sysnum_newfstatat_linux.go b/src/internal/syscall/unix/at_sysnum_newfstatat_linux.go
+deleted file mode 100644
+index e76c1cbdce..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_newfstatat_linux.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build amd64 mips64 mips64le ppc64 ppc64le s390x
+-
+-package unix
+-
+-import "syscall"
+-
+-const fstatatTrap uintptr = syscall.SYS_NEWFSTATAT
+diff --git a/src/internal/syscall/unix/at_sysnum_openbsd.go b/src/internal/syscall/unix/at_sysnum_openbsd.go
+deleted file mode 100644
+index c2d48b9914..0000000000
+--- a/src/internal/syscall/unix/at_sysnum_openbsd.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import "syscall"
+-
+-const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+-const openatTrap uintptr = syscall.SYS_OPENAT
+-const fstatatTrap uintptr = syscall.SYS_FSTATAT
+-
+-const AT_REMOVEDIR = 0x08
+-const AT_SYMLINK_NOFOLLOW = 0x02
+diff --git a/src/os/path.go b/src/os/path.go
+index e31f64c750..cdfbc18921 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"io"
+ 	"syscall"
+ )
+ 
+@@ -57,3 +58,101 @@ func MkdirAll(path string, perm FileMode) error {
+ 	}
+ 	return nil
+ }
++
++// RemoveAll removes path and any children it contains.
++// It removes everything it can but returns the first error
++// it encounters. If the path does not exist, RemoveAll
++// returns nil (no error).
++func RemoveAll(path string) error {
++	// Simple case: if Remove works, we're done.
++	err := Remove(path)
++	if err == nil || IsNotExist(err) {
++		return nil
++	}
++
++	// Otherwise, is this a directory we need to recurse into?
++	dir, serr := Lstat(path)
++	if serr != nil {
++		if serr, ok := serr.(*PathError); ok && (IsNotExist(serr.Err) || serr.Err == syscall.ENOTDIR) {
++			return nil
++		}
++		return serr
++	}
++	if !dir.IsDir() {
++		// Not a directory; return the error from Remove.
++		return err
++	}
++
++	// Remove contents & return first error.
++	err = nil
++	for {
++		fd, err := Open(path)
++		if err != nil {
++			if IsNotExist(err) {
++				// Already deleted by someone else.
++				return nil
++			}
++			return err
++		}
++
++		const request = 1024
++		names, err1 := fd.Readdirnames(request)
++
++		// Removing files from the directory may have caused
++		// the OS to reshuffle it. Simply calling Readdirnames
++		// again may skip some entries. The only reliable way
++		// to avoid this is to close and re-open the
++		// directory. See issue 20841.
++		fd.Close()
++
++		for _, name := range names {
++			err1 := RemoveAll(path + string(PathSeparator) + name)
++			if err == nil {
++				err = err1
++			}
++		}
++
++		if err1 == io.EOF {
++			break
++		}
++		// If Readdirnames returned an error, use it.
++		if err == nil {
++			err = err1
++		}
++		if len(names) == 0 {
++			break
++		}
++
++		// We don't want to re-open unnecessarily, so if we
++		// got fewer than request names from Readdirnames, try
++		// simply removing the directory now. If that
++		// succeeds, we are done.
++		if len(names) < request {
++			err1 := Remove(path)
++			if err1 == nil || IsNotExist(err1) {
++				return nil
++			}
++
++			if err != nil {
++				// We got some error removing the
++				// directory contents, and since we
++				// read fewer names than we requested
++				// there probably aren't more files to
++				// remove. Don't loop around to read
++				// the directory again. We'll probably
++				// just get the same error.
++				return err
++			}
++		}
++	}
++
++	// Remove directory.
++	err1 := Remove(path)
++	if err1 == nil || IsNotExist(err1) {
++		return nil
++	}
++	if err == nil {
++		err = err1
++	}
++	return err
++}
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index 6cb25bcaa7..f58c7e746d 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	. "os"
+@@ -75,6 +76,130 @@ func TestMkdirAll(t *testing.T) {
+ 	}
+ }
+ 
++func TestRemoveAll(t *testing.T) {
++	tmpDir := TempDir()
++	// Work directory.
++	path := tmpDir + "/_TestRemoveAll_"
++	fpath := path + "/file"
++	dpath := path + "/dir"
++
++	// Make directory with 1 file and remove.
++	if err := MkdirAll(path, 0777); err != nil {
++		t.Fatalf("MkdirAll %q: %s", path, err)
++	}
++	fd, err := Create(fpath)
++	if err != nil {
++		t.Fatalf("create %q: %s", fpath, err)
++	}
++	fd.Close()
++	if err = RemoveAll(path); err != nil {
++		t.Fatalf("RemoveAll %q (first): %s", path, err)
++	}
++	if _, err = Lstat(path); err == nil {
++		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", path)
++	}
++
++	// Make directory with file and subdirectory and remove.
++	if err = MkdirAll(dpath, 0777); err != nil {
++		t.Fatalf("MkdirAll %q: %s", dpath, err)
++	}
++	fd, err = Create(fpath)
++	if err != nil {
++		t.Fatalf("create %q: %s", fpath, err)
++	}
++	fd.Close()
++	fd, err = Create(dpath + "/file")
++	if err != nil {
++		t.Fatalf("create %q: %s", fpath, err)
++	}
++	fd.Close()
++	if err = RemoveAll(path); err != nil {
++		t.Fatalf("RemoveAll %q (second): %s", path, err)
++	}
++	if _, err := Lstat(path); err == nil {
++		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path)
++	}
++
++	// Determine if we should run the following test.
++	testit := true
++	if runtime.GOOS == "windows" {
++		// Chmod is not supported under windows.
++		testit = false
++	} else {
++		// Test fails as root.
++		testit = Getuid() != 0
++	}
++	if testit {
++		// Make directory with file and subdirectory and trigger error.
++		if err = MkdirAll(dpath, 0777); err != nil {
++			t.Fatalf("MkdirAll %q: %s", dpath, err)
++		}
++
++		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
++			fd, err = Create(s)
++			if err != nil {
++				t.Fatalf("create %q: %s", s, err)
++			}
++			fd.Close()
++		}
++		if err = Chmod(dpath, 0); err != nil {
++			t.Fatalf("Chmod %q 0: %s", dpath, err)
++		}
++
++		// No error checking here: either RemoveAll
++		// will or won't be able to remove dpath;
++		// either way we want to see if it removes fpath
++		// and path/zzz. Reasons why RemoveAll might
++		// succeed in removing dpath as well include:
++		//	* running as root
++		//	* running on a file system without permissions (FAT)
++		RemoveAll(path)
++		Chmod(dpath, 0777)
++
++		for _, s := range []string{fpath, path + "/zzz"} {
++			if _, err = Lstat(s); err == nil {
++				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
++			}
++		}
++	}
++	if err = RemoveAll(path); err != nil {
++		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err)
++	}
++	if _, err = Lstat(path); err == nil {
++		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
++	}
++}
++
++// Test RemoveAll on a large directory.
++func TestRemoveAllLarge(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++
++	tmpDir := TempDir()
++	// Work directory.
++	path := tmpDir + "/_TestRemoveAllLarge_"
++
++	// Make directory with 1000 files and remove.
++	if err := MkdirAll(path, 0777); err != nil {
++		t.Fatalf("MkdirAll %q: %s", path, err)
++	}
++	for i := 0; i < 1000; i++ {
++		fpath := fmt.Sprintf("%s/file%d", path, i)
++		fd, err := Create(fpath)
++		if err != nil {
++			t.Fatalf("create %q: %s", fpath, err)
++		}
++		fd.Close()
++	}
++	if err := RemoveAll(path); err != nil {
++		t.Fatalf("RemoveAll %q: %s", path, err)
++	}
++	if _, err := Lstat(path); err == nil {
++		t.Fatalf("Lstat %q succeeded after RemoveAll", path)
++	}
++}
++
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index be373a50a9..3cb0e3acc4 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -16,7 +16,7 @@ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
+ 
+-// basename removes trailing slashes and the leading directory name from path name.
++// basename removes trailing slashes and the leading directory name from path name
+ func basename(name string) string {
+ 	i := len(name) - 1
+ 	// Remove trailing slashes
+@@ -34,32 +34,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-// splitPath returns the base name and parent directory.
+-func splitPath(path string) (string, string) {
+-	// if no better parent is found, the path is relative from "here"
+-	dirname := "."
+-	// if no slashes in path, base is path
+-	basename := path
+-
+-	i := len(path) - 1
+-
+-	// Remove trailing slashes
+-	for ; i > 0 && path[i] == '/'; i-- {
+-		path = path[:i]
+-	}
+-
+-	// Remove leading directory path
+-	for i--; i >= 0; i-- {
+-		if path[i] == '/' {
+-			dirname = path[:i+1]
+-			basename = path[i+1:]
+-			break
+-		}
+-	}
+-
+-	return dirname, basename
+-}
+-
+ func fixRootDirectory(p string) string {
+ 	return p
+ }
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+deleted file mode 100644
+index ec69d40f29..0000000000
+--- a/src/os/removeall_at.go
++++ /dev/null
+@@ -1,139 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build linux darwin freebsd openbsd netbsd dragonfly
+-
+-package os
+-
+-import (
+-	"internal/syscall/unix"
+-	"io"
+-	"syscall"
+-)
+-
+-func RemoveAll(path string) error {
+-	// Not allowed in unix
+-	if path == "" || endsWithDot(path) {
+-		return syscall.EINVAL
+-	}
+-
+-	// RemoveAll recurses by deleting the path base from
+-	// its parent directory
+-	parentDir, base := splitPath(path)
+-
+-	parent, err := Open(parentDir)
+-	if IsNotExist(err) {
+-		// If parent does not exist, base cannot exist. Fail silently
+-		return nil
+-	}
+-	if err != nil {
+-		return err
+-	}
+-	defer parent.Close()
+-
+-	return removeAllFrom(parent, base)
+-}
+-
+-func removeAllFrom(parent *File, path string) error {
+-	parentFd := int(parent.Fd())
+-	// Simple case: if Unlink (aka remove) works, we're done.
+-	err := unix.Unlinkat(parentFd, path, 0)
+-	if err == nil || IsNotExist(err) {
+-		return nil
+-	}
+-
+-	// If not a "is directory" error, we have a problem
+-	if err != syscall.EISDIR && err != syscall.EPERM {
+-		return err
+-	}
+-
+-	// Is this a directory we need to recurse into?
+-	var statInfo syscall.Stat_t
+-	statErr := unix.Fstatat(parentFd, path, &statInfo, unix.AT_SYMLINK_NOFOLLOW)
+-	if statErr != nil {
+-		return statErr
+-	}
+-	if statInfo.Mode&syscall.S_IFMT != syscall.S_IFDIR {
+-		// Not a directory; return the error from the Remove
+-		return err
+-	}
+-
+-	// Remove the directory's entries
+-	var recurseErr error
+-	for {
+-		const request = 1024
+-
+-		// Open the directory to recurse into
+-		file, err := openFdAt(parentFd, path)
+-		if err != nil {
+-			if IsNotExist(err) {
+-				return nil
+-			}
+-			return err
+-		}
+-
+-		names, readErr := file.Readdirnames(request)
+-		// Errors other than EOF should stop us from continuing
+-		if readErr != nil && readErr != io.EOF {
+-			file.Close()
+-			if IsNotExist(readErr) {
+-				return nil
+-			}
+-			return readErr
+-		}
+-
+-		for _, name := range names {
+-			err := removeAllFrom(file, name)
+-			if err != nil {
+-				recurseErr = err
+-			}
+-		}
+-
+-		// Removing files from the directory may have caused
+-		// the OS to reshuffle it. Simply calling Readdirnames
+-		// again may skip some entries. The only reliable way
+-		// to avoid this is to close and re-open the
+-		// directory. See issue 20841.
+-		file.Close()
+-
+-		// Finish when the end of the directory is reached
+-		if len(names) < request {
+-			break
+-		}
+-	}
+-
+-	// Remove the directory itself
+-	unlinkError := unix.Unlinkat(parentFd, path, unix.AT_REMOVEDIR)
+-	if unlinkError == nil || IsNotExist(unlinkError) {
+-		return nil
+-	}
+-
+-	if recurseErr != nil {
+-		return recurseErr
+-	}
+-	return unlinkError
+-}
+-
+-func openFdAt(fd int, path string) (*File, error) {
+-	fd, err := unix.Openat(fd, path, O_RDONLY, 0)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	return NewFile(uintptr(fd), path), nil
+-}
+-
+-func endsWithDot(path string) bool {
+-	if path == "." || path == ".." {
+-		return true
+-	}
+-	if len(path) >= 2 && path[len(path)-2:] == "/." {
+-		return true
+-	}
+-	if len(path) >= 3 && path[len(path)-3:] == "/.." {
+-		return true
+-	}
+-
+-	return false
+-}
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+deleted file mode 100644
+index 7cfc33c025..0000000000
+--- a/src/os/removeall_noat.go
++++ /dev/null
+@@ -1,110 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !linux,!darwin,!freebsd,!openbsd,!netbsd,!dragonfly
+-
+-package os
+-
+-import (
+-	"io"
+-	"syscall"
+-)
+-
+-// RemoveAll removes path and any children it contains.
+-// It removes everything it can but returns the first error
+-// it encounters. If the path does not exist, RemoveAll
+-// returns nil (no error).
+-func RemoveAll(path string) error {
+-	// Simple case: if Remove works, we're done.
+-	err := Remove(path)
+-	if err == nil || IsNotExist(err) {
+-		return nil
+-	}
+-
+-	// Otherwise, is this a directory we need to recurse into?
+-	dir, serr := Lstat(path)
+-	if serr != nil {
+-		if serr, ok := serr.(*PathError); ok && (IsNotExist(serr.Err) || serr.Err == syscall.ENOTDIR) {
+-			return nil
+-		}
+-		return serr
+-	}
+-	if !dir.IsDir() {
+-		// Not a directory; return the error from Remove.
+-		return err
+-	}
+-
+-	// Remove contents & return first error.
+-	err = nil
+-	for {
+-		fd, err := Open(path)
+-		if err != nil {
+-			if IsNotExist(err) {
+-				// Already deleted by someone else.
+-				return nil
+-			}
+-			return err
+-		}
+-
+-		const request = 1024
+-		names, err1 := fd.Readdirnames(request)
+-
+-		// Removing files from the directory may have caused
+-		// the OS to reshuffle it. Simply calling Readdirnames
+-		// again may skip some entries. The only reliable way
+-		// to avoid this is to close and re-open the
+-		// directory. See issue 20841.
+-		fd.Close()
+-
+-		for _, name := range names {
+-			err1 := RemoveAll(path + string(PathSeparator) + name)
+-			if err == nil {
+-				err = err1
+-			}
+-		}
+-
+-		if err1 == io.EOF {
+-			break
+-		}
+-		// If Readdirnames returned an error, use it.
+-		if err == nil {
+-			err = err1
+-		}
+-		if len(names) == 0 {
+-			break
+-		}
+-
+-		// We don't want to re-open unnecessarily, so if we
+-		// got fewer than request names from Readdirnames, try
+-		// simply removing the directory now. If that
+-		// succeeds, we are done.
+-		if len(names) < request {
+-			err1 := Remove(path)
+-			if err1 == nil || IsNotExist(err1) {
+-				return nil
+-			}
+-
+-			if err != nil {
+-				// We got some error removing the
+-				// directory contents, and since we
+-				// read fewer names than we requested
+-				// there probably aren't more files to
+-				// remove. Don't loop around to read
+-				// the directory again. We'll probably
+-				// just get the same error.
+-				return err
+-			}
+-		}
+-	}
+-
+-	// Remove directory.
+-	err1 := Remove(path)
+-	if err1 == nil || IsNotExist(err1) {
+-		return nil
+-	}
+-	if err == nil {
+-		err = err1
+-	}
+-	return err
+-}
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+deleted file mode 100644
+index 0da5d772d1..0000000000
+--- a/src/os/removeall_test.go
++++ /dev/null
+@@ -1,237 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package os_test
+-
+-import (
+-	"fmt"
+-	"io/ioutil"
+-	. "os"
+-	"runtime"
+-	"strings"
+-	"testing"
+-)
+-
+-func TestRemoveAll(t *testing.T) {
+-	tmpDir := TempDir()
+-	// Work directory.
+-	file := "file"
+-	path := tmpDir + "/_TestRemoveAll_"
+-	fpath := path + "/file"
+-	dpath := path + "/dir"
+-
+-	// Make a regular file and remove
+-	fd, err := Create(file)
+-	if err != nil {
+-		t.Fatalf("create %q: %s", file, err)
+-	}
+-	fd.Close()
+-	if err = RemoveAll(file); err != nil {
+-		t.Fatalf("RemoveAll %q (first): %s", file, err)
+-	}
+-	if _, err = Lstat(file); err == nil {
+-		t.Fatalf("Lstat %q succeeded after RemoveAll (first)", file)
+-	}
+-
+-	// Make directory with 1 file and remove.
+-	if err := MkdirAll(path, 0777); err != nil {
+-		t.Fatalf("MkdirAll %q: %s", path, err)
+-	}
+-	fd, err = Create(fpath)
+-	if err != nil {
+-		t.Fatalf("create %q: %s", fpath, err)
+-	}
+-	fd.Close()
+-	if err = RemoveAll(path); err != nil {
+-		t.Fatalf("RemoveAll %q (second): %s", path, err)
+-	}
+-	if _, err = Lstat(path); err == nil {
+-		t.Fatalf("Lstat %q succeeded after RemoveAll (second)", path)
+-	}
+-
+-	// Make directory with file and subdirectory and remove.
+-	if err = MkdirAll(dpath, 0777); err != nil {
+-		t.Fatalf("MkdirAll %q: %s", dpath, err)
+-	}
+-	fd, err = Create(fpath)
+-	if err != nil {
+-		t.Fatalf("create %q: %s", fpath, err)
+-	}
+-	fd.Close()
+-	fd, err = Create(dpath + "/file")
+-	if err != nil {
+-		t.Fatalf("create %q: %s", fpath, err)
+-	}
+-	fd.Close()
+-	if err = RemoveAll(path); err != nil {
+-		t.Fatalf("RemoveAll %q (third): %s", path, err)
+-	}
+-	if _, err := Lstat(path); err == nil {
+-		t.Fatalf("Lstat %q succeeded after RemoveAll (third)", path)
+-	}
+-
+-	// Determine if we should run the following test.
+-	testit := true
+-	if runtime.GOOS == "windows" {
+-		// Chmod is not supported under windows.
+-		testit = false
+-	} else {
+-		// Test fails as root.
+-		testit = Getuid() != 0
+-	}
+-	if testit {
+-		// Make directory with file and subdirectory and trigger error.
+-		if err = MkdirAll(dpath, 0777); err != nil {
+-			t.Fatalf("MkdirAll %q: %s", dpath, err)
+-		}
+-
+-		for _, s := range []string{fpath, dpath + "/file1", path + "/zzz"} {
+-			fd, err = Create(s)
+-			if err != nil {
+-				t.Fatalf("create %q: %s", s, err)
+-			}
+-			fd.Close()
+-		}
+-		if err = Chmod(dpath, 0); err != nil {
+-			t.Fatalf("Chmod %q 0: %s", dpath, err)
+-		}
+-
+-		// No error checking here: either RemoveAll
+-		// will or won't be able to remove dpath;
+-		// either way we want to see if it removes fpath
+-		// and path/zzz. Reasons why RemoveAll might
+-		// succeed in removing dpath as well include:
+-		//	* running as root
+-		//	* running on a file system without permissions (FAT)
+-		RemoveAll(path)
+-		Chmod(dpath, 0777)
+-
+-		for _, s := range []string{fpath, path + "/zzz"} {
+-			if _, err = Lstat(s); err == nil {
+-				t.Fatalf("Lstat %q succeeded after partial RemoveAll", s)
+-			}
+-		}
+-	}
+-	if err = RemoveAll(path); err != nil {
+-		t.Fatalf("RemoveAll %q after partial RemoveAll: %s", path, err)
+-	}
+-	if _, err = Lstat(path); err == nil {
+-		t.Fatalf("Lstat %q succeeded after RemoveAll (final)", path)
+-	}
+-}
+-
+-// Test RemoveAll on a large directory.
+-func TestRemoveAllLarge(t *testing.T) {
+-	if testing.Short() {
+-		t.Skip("skipping in short mode")
+-	}
+-
+-	tmpDir := TempDir()
+-	// Work directory.
+-	path := tmpDir + "/_TestRemoveAllLarge_"
+-
+-	// Make directory with 1000 files and remove.
+-	if err := MkdirAll(path, 0777); err != nil {
+-		t.Fatalf("MkdirAll %q: %s", path, err)
+-	}
+-	for i := 0; i < 1000; i++ {
+-		fpath := fmt.Sprintf("%s/file%d", path, i)
+-		fd, err := Create(fpath)
+-		if err != nil {
+-			t.Fatalf("create %q: %s", fpath, err)
+-		}
+-		fd.Close()
+-	}
+-	if err := RemoveAll(path); err != nil {
+-		t.Fatalf("RemoveAll %q: %s", path, err)
+-	}
+-	if _, err := Lstat(path); err == nil {
+-		t.Fatalf("Lstat %q succeeded after RemoveAll", path)
+-	}
+-}
+-
+-func TestRemoveAllLongPath(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly":
+-		break
+-	default:
+-		t.Skip("skipping for not implemented platforms")
+-	}
+-
+-	prevDir, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Could not get wd: %s", err)
+-	}
+-
+-	startPath, err := ioutil.TempDir("", "TestRemoveAllLongPath-")
+-	if err != nil {
+-		t.Fatalf("Could not create TempDir: %s", err)
+-	}
+-	err = Chdir(startPath)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", startPath, err)
+-	}
+-
+-	// Removing paths with over 4096 chars commonly fails
+-	for i := 0; i < 41; i++ {
+-		name := strings.Repeat("a", 100)
+-
+-		err = Mkdir(name, 0755)
+-		if err != nil {
+-			t.Fatalf("Could not mkdir %s: %s", name, err)
+-		}
+-
+-		err = Chdir(name)
+-		if err != nil {
+-			t.Fatalf("Could not chdir %s: %s", name, err)
+-		}
+-	}
+-
+-	err = Chdir(prevDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+-	}
+-
+-	err = RemoveAll(startPath)
+-	if err != nil {
+-		t.Errorf("RemoveAll could not remove long file path %s: %s", startPath, err)
+-	}
+-}
+-
+-func TestRemoveAllDot(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "linux", "darwin", "freebsd", "openbsd", "netbsd", "dragonfly":
+-		break
+-	default:
+-		t.Skip("skipping for not implemented platforms")
+-	}
+-
+-	prevDir, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Could not get wd: %s", err)
+-	}
+-	tempDir, err := ioutil.TempDir("", "TestRemoveAllDot-")
+-	if err != nil {
+-		t.Fatalf("Could not create TempDir: %s", err)
+-	}
+-	err = Chdir(tempDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir to tempdir: %s", err)
+-	}
+-
+-	err = RemoveAll(".")
+-	if err == nil {
+-		t.Errorf("RemoveAll succeed to remove .")
+-	}
+-
+-	err = RemoveAll("..")
+-	if err == nil {
+-		t.Errorf("RemoveAll succeed to remove ..")
+-	}
+-
+-	err = Chdir(prevDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+-	}
+-}

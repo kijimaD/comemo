@@ -22,6 +22,24 @@ Date:   Fri Feb 26 10:43:09 2016 +0100
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d9c38f9cb0..16237e98ec 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2081,10 +2081,8 @@ top:
+ func dropg() {
+ 	_g_ := getg()
+ 
+-	if _g_.m.lockedg == nil {
+-		_g_.m.curg.m = nil
+-		_g_.m.curg = nil
+-	}
++	_g_.m.curg.m = nil
++	_g_.m.curg = nil
+ }
+ 
+ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {

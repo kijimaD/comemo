@@ -21,7 +21,7 @@ Date:   Mon Oct 19 11:36:07 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/16201
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go            |  4 +-
  src/cmd/compile/internal/gc/ssa.go             | 85 +++++++++++++++++---------
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 +
@@ -35,3 +35,346 @@ Date:   Mon Oct 19 11:36:07 2015 -0400
  src/runtime/stack.go                           |  2 +-
  test/nosplit.go                                |  8 ++-
  12 files changed, 105 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index a5010a31b4..b3ba2fbb46 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -414,7 +414,9 @@ func compile(fn *Node) {
+ 
+ 	// Build an SSA backend function.
+ 	// TODO: get rid of usessa.
+-	ssafn, usessa = buildssa(Curfn)
++	if Thearch.Thestring == "amd64" {
++		ssafn, usessa = buildssa(Curfn)
++	}
+ 
+ 	continpc = nil
+ 	breakpc = nil
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 64391b0fca..8939f14136 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -24,8 +24,32 @@ import (
+ // it will never return nil, and the bool can be removed.
+ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	name := fn.Func.Nname.Sym.Name
++	gossahash := os.Getenv("GOSSAHASH")
+ 	usessa = strings.HasSuffix(name, "_ssa") || strings.Contains(name, "_ssa.") || name == os.Getenv("GOSSAFUNC")
+ 
++	// Environment variable control of SSA CG
++	// 1. IF GOSSAFUNC == current function name THEN
++	//       compile this function with SSA and log output to ssa.html
++
++	// 2. IF GOSSAHASH == "y" or "Y" THEN
++	//       compile this function (and everything else) with SSA
++
++	// 3. IF GOSSAHASH == "" THEN
++	//       IF GOSSAPKG == current package name THEN
++	//          compile this function (and everything in this package) with SSA
++	//       ELSE
++	//          use the old back end for this function.
++	//       This is for compatibility with existing test harness and should go away.
++
++	// 4. IF GOSSAHASH is a suffix of the binary-rendered SHA1 hash of the function name THEN
++	//          compile this function with SSA
++	//       ELSE
++	//          compile this function with the old back end.
++
++	// Plan is for 3 to be remove, and the 2) dependence on GOSSAHASH changes
++	// from "y"/"Y" to empty -- then SSA is default, and is disabled by setting
++	// GOSSAHASH to a value that is neither 0 nor 1 (e.g., "N" or "X")
++
+ 	if usessa {
+ 		fmt.Println("generating SSA for", name)
+ 		dumplist("buildssa-enter", fn.Func.Enter)
+@@ -58,17 +82,6 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 		}
+ 	}()
+ 
+-	// If SSA support for the function is incomplete,
+-	// assume that any panics are due to violated
+-	// invariants. Swallow them silently.
+-	defer func() {
+-		if err := recover(); err != nil {
+-			if !e.unimplemented {
+-				panic(err)
+-			}
+-		}
+-	}()
+-
+ 	// We construct SSA using an algorithm similar to
+ 	// Brau, Buchwald, Hack, Leißa, Mallon, and Zwinkau
+ 	// http://pp.info.uni-karlsruhe.de/uploads/publikationen/braun13cc.pdf
+@@ -167,27 +180,17 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	// Main call to ssa package to compile function
+ 	ssa.Compile(s.f)
+ 
+-	// Calculate stats about what percentage of functions SSA handles.
+-	if false {
+-		fmt.Printf("SSA implemented: %t\n", !e.unimplemented)
+-	}
+-
+-	if e.unimplemented {
+-		return nil, false
+-	}
+-
+-	// TODO: enable codegen more broadly once the codegen stabilizes
+-	// and runtime support is in (gc maps, write barriers, etc.)
+-	if usessa {
++	if usessa || gossahash == "y" || gossahash == "Y" {
+ 		return s.f, true
+ 	}
+-	if localpkg.Name != os.Getenv("GOSSAPKG") {
+-		return s.f, false
+-	}
+-	if os.Getenv("GOSSAHASH") == "" {
++	if gossahash == "" {
++		if localpkg.Name != os.Getenv("GOSSAPKG") {
++			return s.f, false
++		}
+ 		// Use everything in the package
+ 		return s.f, true
+ 	}
++
+ 	// Check the hash of the name against a partial input hash.
+ 	// We use this feature to do a binary search within a package to
+ 	// find a function that is incorrectly compiled.
+@@ -195,10 +198,26 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	for _, b := range sha1.Sum([]byte(name)) {
+ 		hstr += fmt.Sprintf("%08b", b)
+ 	}
+-	if strings.HasSuffix(hstr, os.Getenv("GOSSAHASH")) {
++
++	if strings.HasSuffix(hstr, gossahash) {
+ 		fmt.Printf("GOSSAHASH triggered %s\n", name)
+ 		return s.f, true
+ 	}
++
++	// Iteratively try additional hashes to allow tests for multi-point
++	// failure.
++	for i := 0; true; i++ {
++		ev := fmt.Sprintf("GOSSAHASH%d", i)
++		evv := os.Getenv(ev)
++		if evv == "" {
++			break
++		}
++		if strings.HasSuffix(hstr, evv) {
++			fmt.Printf("%s triggered %s\n", ev, name)
++			return s.f, true
++		}
++	}
++
+ 	return s.f, false
+ }
+ 
+@@ -1353,6 +1372,15 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		// Assume everything will work out, so set up our return value.
+ 		// Anything interesting that happens from here is a fatal.
+ 		x := s.expr(n.Left)
++
++		// Special case for not confusing GC and liveness.
++		// We don't want pointers accidentally classified
++		// as not-pointers or vice-versa because of copy
++		// elision.
++		if to.IsPtr() != from.IsPtr() {
++			return s.newValue1(ssa.OpConvert, to, x)
++		}
++
+ 		v := s.newValue1(ssa.OpCopy, to, x) // ensure that v has the right type
+ 
+ 		// CONVNOP closure
+@@ -1364,6 +1392,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		if from.Etype == to.Etype {
+ 			return v
+ 		}
++
+ 		// unsafe.Pointer <--> *T
+ 		if to.Etype == TUNSAFEPTR && from.IsPtr() || from.Etype == TUNSAFEPTR && to.IsPtr() {
+ 			return v
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index dd50dd2d27..abe103571d 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -281,6 +281,9 @@
+ (Store [2] ptr val mem) -> (MOVWstore ptr val mem)
+ (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ 
++// We want this to stick out so the to/from ptr conversion is obvious
++(Convert <t> x) -> (LEAQ <t> x)
++
+ // checks
+ (IsNonNil p) -> (SETNE (TESTQ p p))
+ (IsInBounds idx len) -> (SETB (CMPQ idx len))
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 5881596441..8a8837c0e9 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -237,8 +237,9 @@ var genericOps = []opData{
+ 	{name: "Sqrt"}, // sqrt(arg0), float64 only
+ 
+ 	// Data movement
+-	{name: "Phi"},  // select an argument based on which predecessor block we came from
+-	{name: "Copy"}, // output = arg0
++	{name: "Phi"},     // select an argument based on which predecessor block we came from
++	{name: "Copy"},    // output = arg0
++	{name: "Convert"}, // output = arg0 -- a copy that converts to/from a pointer
+ 
+ 	// constants.  Constant values are stored in the aux field.
+ 	// booleans have a bool aux field, strings have a string aux
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d86dce354b..4c191807ba 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -455,6 +455,7 @@ const (
+ 	OpSqrt
+ 	OpPhi
+ 	OpCopy
++	OpConvert
+ 	OpConstBool
+ 	OpConstString
+ 	OpConstNil
+@@ -3866,6 +3867,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Copy",
+ 		generic: true,
+ 	},
++	{
++		name:    "Convert",
++		generic: true,
++	},
+ 	{
+ 		name:    "ConstBool",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 2fd9a08d5b..3fe272c204 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1670,6 +1670,24 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endc395c0a53eeccf597e225a07b53047d1
+ 	endc395c0a53eeccf597e225a07b53047d1:
+ 		;
++	case OpConvert:
++		// match: (Convert <t> x)
++		// cond:
++		// result: (LEAQ <t> x)
++		{
++			t := v.Type
++			x := v.Args[0]
++			v.Op = OpAMD64LEAQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.Type = t
++			v.AddArg(x)
++			return true
++		}
++		goto end1cac40a6074914d6ae3d4aa039a625ed
++	end1cac40a6074914d6ae3d4aa039a625ed:
++		;
+ 	case OpCvt32Fto32:
+ 		// match: (Cvt32Fto32 x)
+ 		// cond:
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 1da5071a2a..4fa26d2d18 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -54,8 +54,12 @@ func tighten(f *Func) {
+ 		for _, b := range f.Blocks {
+ 			for i := 0; i < len(b.Values); i++ {
+ 				v := b.Values[i]
+-				if v.Op == OpPhi || v.Op == OpGetClosurePtr {
+-					// GetClosurePtr must stay in entry block
++				if v.Op == OpPhi || v.Op == OpGetClosurePtr || v.Op == OpConvert {
++					// GetClosurePtr must stay in entry block.
++					// OpConvert must not float over call sites.
++					// TODO do we instead need a dependence edge of some sort for OpConvert?
++					// Would memory do the trick, or do we need something else that relates
++					// to safe point operations?
+ 					continue
+ 				}
+ 				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index c92109afa5..be6cdb5c0b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -278,11 +278,6 @@ func (t *tester) registerStdTest(pkg string) {
+ 
+ // TODO: Remove when SSA codegen is used by default.
+ func (t *tester) registerSSATest(pkg string) {
+-	switch pkg {
+-	// known failures
+-	case "runtime":
+-		return
+-	}
+ 	t.tests = append(t.tests, distTest{
+ 		name:    "go_test_ssa:" + pkg,
+ 		heading: "Testing packages with SSA codegen.",
+diff --git a/src/cmd/internal/obj/stack.go b/src/cmd/internal/obj/stack.go
+index 87698b3eeb..1ca673285a 100644
+--- a/src/cmd/internal/obj/stack.go
++++ b/src/cmd/internal/obj/stack.go
+@@ -41,7 +41,7 @@ const (
+ 	STACKSYSTEM = 0
+ 	StackSystem = STACKSYSTEM
+ 	StackBig    = 4096
+-	StackGuard  = 640*stackGuardMultiplier + StackSystem
++	StackGuard  = 1024*stackGuardMultiplier + StackSystem
+ 	StackSmall  = 128
+ 	StackLimit  = StackGuard - StackSystem - StackSmall
+ )
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 73d33666e2..a71d69edfc 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -385,6 +385,9 @@ func Dconv(p *Prog, a *Addr) string {
+ 		if a.Index != REG_NONE {
+ 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+ 		}
++		if p.As == ATYPE && a.Gotype != nil {
++			str += fmt.Sprintf("%s", a.Gotype.Name)
++		}
+ 
+ 	case TYPE_CONST:
+ 		if a.Reg != 0 {
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 1809a4d9ac..128278ebdc 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -86,7 +86,7 @@ const (
+ 
+ 	// The stack guard is a pointer this many bytes above the
+ 	// bottom of the stack.
+-	_StackGuard = 640*stackGuardMultiplier + _StackSystem
++	_StackGuard = 1024*stackGuardMultiplier + _StackSystem
+ 
+ 	// After a stack split check the SP is allowed to be this
+ 	// many bytes below the stack guard.  This saves an instruction
+diff --git a/test/nosplit.go b/test/nosplit.go
+index e5c2a9f30e..70e8fced86 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -9,6 +9,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/obj"
+ 	"fmt"
+ 	"io/ioutil"
+ 	"log"
+@@ -285,12 +286,13 @@ TestCases:
+ 				// Instead of rewriting the test cases above, adjust
+ 				// the first stack frame to use up the extra bytes.
+ 				if i == 0 {
+-					size += 512 - 128
++					size += (obj.StackGuard - 128) - 128
+ 					// Noopt builds have a larger stackguard.
+-					// See ../cmd/dist/buildruntime.go:stackGuardMultiplier
++					// See ../src/cmd/dist/buildruntime.go:stackGuardMultiplier
++					// This increase is included in obj.StackGuard
+ 					for _, s := range strings.Split(os.Getenv("GO_GCFLAGS"), " ") {
+ 						if s == "-N" {
+-							size += 640
++							size += obj.StackGuard
+ 						}
+ 					}
+ 				}

@@ -10,7 +10,34 @@ Date:   Mon Mar 3 07:09:28 2014 +0900
     R=golang-codereviews, dave, aram, jsing
     CC=golang-codereviews
     https://golang.org/cl/70300043
-
+---
  src/pkg/net/cgo_unix.go        | 2 +-
  src/pkg/net/netgo_unix_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index 0c670982f2..1f366ee5c6 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !netgo
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ package net
+ 
+diff --git a/src/pkg/net/netgo_unix_test.go b/src/pkg/net/netgo_unix_test.go
+index dce9ff9575..9fb2a567df 100644
+--- a/src/pkg/net/netgo_unix_test.go
++++ b/src/pkg/net/netgo_unix_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build !cgo netgo
+-// +build darwin dragonfly freebsd linux netbsd openbsd
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package net
+ 

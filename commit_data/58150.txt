@@ -14,8 +14,54 @@ Date:   Wed Oct 4 18:07:37 2023 +0200
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/syscall/unix/at_sysnum_dragonfly.go | 10 +++++++---
  src/internal/syscall/unix/eaccess_bsd.go         |  2 +-
  src/internal/syscall/unix/eaccess_other.go       |  2 +-
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index b7ed3f732b..9ac1f919f1 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -10,7 +10,11 @@ const unlinkatTrap uintptr = syscall.SYS_UNLINKAT
+ const openatTrap uintptr = syscall.SYS_OPENAT
+ const fstatatTrap uintptr = syscall.SYS_FSTATAT
+ 
+-const AT_REMOVEDIR = 0x2
+-const AT_SYMLINK_NOFOLLOW = 0x1
++const (
++	AT_EACCESS          = 0x4
++	AT_FDCWD            = 0xfffafdcd
++	AT_REMOVEDIR        = 0x2
++	AT_SYMLINK_NOFOLLOW = 0x1
+ 
+-const UTIME_OMIT = -0x1
++	UTIME_OMIT = -0x1
++)
+diff --git a/src/internal/syscall/unix/eaccess_bsd.go b/src/internal/syscall/unix/eaccess_bsd.go
+index 8f4566ef9b..3411e3ac40 100644
+--- a/src/internal/syscall/unix/eaccess_bsd.go
++++ b/src/internal/syscall/unix/eaccess_bsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd || netbsd
++//go:build dragonfly || freebsd || netbsd
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+index f0427db302..19a2be587e 100644
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ b/src/internal/syscall/unix/eaccess_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !freebsd && !linux && !netbsd
++//go:build unix && !dragonfly && !freebsd && !linux && !netbsd
+ 
+ package unix
+ 

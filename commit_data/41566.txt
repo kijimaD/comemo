@@ -17,6 +17,20 @@ Date:   Fri Oct 11 11:39:30 2019 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/os/pipe_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index 114c181c4a..2e93e3946a 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -428,7 +428,7 @@ func TestFdReadRace(t *testing.T) {
+ 	go func() {
+ 		defer wg.Done()
+ 		var buf [10]byte
+-		r.SetReadDeadline(time.Now().Add(time.Second))
++		r.SetReadDeadline(time.Now().Add(time.Minute))
+ 		c <- true
+ 		if _, err := r.Read(buf[:]); os.IsTimeout(err) {
+ 			t.Error("read timed out")

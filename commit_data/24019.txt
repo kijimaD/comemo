@@ -22,6 +22,52 @@ Date:   Fri Jun 26 13:56:58 2015 -0400
     Change-Id: Ibe46348916fc8368fac6f086e142815c970a6f4d
     Reviewed-on: https://go-review.googlesource.com/11561
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1096b25fb4..0f137856a3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -895,8 +895,7 @@ func gc(mode int) {
+ 	// reclaimed until the next GC cycle.
+ 	clearpools()
+ 
+-	work.bytesMarked = 0
+-	work.initialHeapLive = memstats.heap_live
++	gcResetMarkState()
+ 
+ 	if mode == gcBackgroundMode { // Do as much work concurrently as possible
+ 		gcController.startCycle()
+@@ -1048,6 +1047,7 @@ func gc(mode int) {
+ 			// to check that we didn't forget to mark anything during
+ 			// the concurrent mark process.
+ 			gcResetGState() // Rescan stacks
++			gcResetMarkState()
+ 			initCheckmarks()
+ 			gcMark(startTime)
+ 			clearCheckmarks()
+@@ -1063,6 +1063,7 @@ func gc(mode int) {
+ 			// they have gcscanvalid==true and gcworkdone==true.
+ 			// Reset these so that all stacks will be rescanned.
+ 			gcResetGState()
++			gcResetMarkState()
+ 			finishsweep_m()
+ 
+ 			// Still in STW but gcphase is _GCoff, reset to _GCmarktermination
+@@ -1537,6 +1538,14 @@ func gcResetGState() (numgs int) {
+ 	return
+ }
+ 
++// gcResetMarkState resets state prior to marking (concurrent or STW).
++//
++// TODO(austin): Merge with gcResetGState. See issue #11427.
++func gcResetMarkState() {
++	work.bytesMarked = 0
++	work.initialHeapLive = memstats.heap_live
++}
++
+ // Hooks for other packages
+ 
+ var poolcleanup func()

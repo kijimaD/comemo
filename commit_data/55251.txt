@@ -15,7 +15,47 @@ Date:   Mon Jan 23 15:13:20 2023 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/signal_windows_test.go     | 7 +++++--
  src/runtime/testdata/testwinlib/main.c | 9 ++++++++-
  2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/signal_windows_test.go b/src/runtime/signal_windows_test.go
+index c9b8e90118..5648185cab 100644
+--- a/src/runtime/signal_windows_test.go
++++ b/src/runtime/signal_windows_test.go
+@@ -79,8 +79,11 @@ func TestVectoredHandlerDontCrashOnLibrary(t *testing.T) {
+ 	if *flagQuick {
+ 		t.Skip("-quick")
+ 	}
+-	if runtime.GOARCH != "amd64" {
+-		t.Skip("this test can only run on windows/amd64")
++	if runtime.GOARCH == "arm" {
++		//TODO: remove this skip and update testwinlib/main.c
++		// once windows/arm supports c-shared buildmode.
++		// See go.dev/issues/43800.
++		t.Skip("this test can't run on windows/arm")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+diff --git a/src/runtime/testdata/testwinlib/main.c b/src/runtime/testdata/testwinlib/main.c
+index c3fe3cb071..55ee6571d7 100644
+--- a/src/runtime/testdata/testwinlib/main.c
++++ b/src/runtime/testdata/testwinlib/main.c
+@@ -11,8 +11,15 @@ LONG WINAPI customExceptionHandlder(struct _EXCEPTION_POINTERS *ExceptionInfo)
+         exceptionCount++;
+         // prepare context to resume execution
+         CONTEXT *c = ExceptionInfo->ContextRecord;
+-        c->Rip = *(ULONG_PTR *)c->Rsp;
++#ifdef _AMD64_
++        c->Rip = *(DWORD64 *)c->Rsp;
+         c->Rsp += 8;
++#elif defined(_X86_)
++        c->Eip = *(DWORD *)c->Esp;
++        c->Esp += 4;
++#else
++        c->Pc = c->Lr;
++#endif
+         return EXCEPTION_CONTINUE_EXECUTION;
+     }
+     return EXCEPTION_CONTINUE_SEARCH;

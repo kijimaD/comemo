@@ -12,6 +12,17 @@ Date:   Tue Jan 24 16:28:04 2023 -0500
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/go.mod | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/go.mod b/misc/go.mod
+index 712a051f45..109d892047 100644
+--- a/misc/go.mod
++++ b/misc/go.mod
+@@ -8,4 +8,4 @@
+ // directory.)
+ module misc
+ 
+-go 1.18
++go 1.21

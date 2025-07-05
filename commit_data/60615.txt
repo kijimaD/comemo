@@ -34,7 +34,7 @@ Date:   Mon Apr 1 17:13:42 2024 +0800
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/loong64/ssa.go         |  6 +++--
  src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 +++
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  3 +++
@@ -42,3 +42,148 @@ Date:   Mon Apr 1 17:13:42 2024 +0800
  src/cmd/compile/internal/ssa/rewriteLOONG64.go  |  6 +++++
  src/cmd/compile/internal/ssagen/ssa.go          |  4 ++--
  6 files changed, 47 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 10190654d7..fd5ed5f928 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -177,7 +177,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64DIVF,
+ 		ssa.OpLOONG64DIVD,
+ 		ssa.OpLOONG64MULV, ssa.OpLOONG64MULHV, ssa.OpLOONG64MULHVU,
+-		ssa.OpLOONG64DIVV, ssa.OpLOONG64REMV, ssa.OpLOONG64DIVVU, ssa.OpLOONG64REMVU:
++		ssa.OpLOONG64DIVV, ssa.OpLOONG64REMV, ssa.OpLOONG64DIVVU, ssa.OpLOONG64REMVU,
++		ssa.OpLOONG64FCOPYSGD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+@@ -420,7 +421,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64NEGF,
+ 		ssa.OpLOONG64NEGD,
+ 		ssa.OpLOONG64SQRTD,
+-		ssa.OpLOONG64SQRTF:
++		ssa.OpLOONG64SQRTF,
++		ssa.OpLOONG64ABSD:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 6beeb4e0cc..014abcbd26 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -129,8 +129,11 @@
+ 
+ (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
+ 
++// math package intrinsics
+ (Sqrt ...) => (SQRTD ...)
+ (Sqrt32 ...) => (SQRTF ...)
++(Abs ...) => (ABSD ...)
++(Copysign ...) => (FCOPYSGD ...)
+ 
+ (Min(64|32)F ...) => (FMIN(D|F) ...)
+ (Max(64|32)F ...) => (FMAX(D|F) ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index aa030f4fa0..874c0c9e09 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -201,6 +201,9 @@ func init() {
+ 		{name: "MASKEQZ", argLength: 2, reg: gp21, asm: "MASKEQZ"}, // returns 0 if arg1 == 0, otherwise returns arg0
+ 		{name: "MASKNEZ", argLength: 2, reg: gp21, asm: "MASKNEZ"}, // returns 0 if arg1 != 0, otherwise returns arg0
+ 
++		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},         // abs(arg0), float64
++		{name: "FCOPYSGD", argLength: 2, reg: fp21, asm: "FCOPYSGD"}, // float64
++
+ 		// shifts
+ 		{name: "SLLV", argLength: 2, reg: gp21, asm: "SLLV"},                      // arg0 << arg1, shift amount is mod 64
+ 		{name: "SLLVconst", argLength: 1, reg: gp11, asm: "SLLV", aux: "Int64"},   // arg0 << auxInt
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7216f2df01..ef39c6894f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1779,6 +1779,8 @@ const (
+ 	OpLOONG64FMAXD
+ 	OpLOONG64MASKEQZ
+ 	OpLOONG64MASKNEZ
++	OpLOONG64ABSD
++	OpLOONG64FCOPYSGD
+ 	OpLOONG64SLLV
+ 	OpLOONG64SLLVconst
+ 	OpLOONG64SRLV
+@@ -23970,6 +23972,33 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ABSD",
++		argLen: 1,
++		asm:    loong64.AABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "FCOPYSGD",
++		argLen: 2,
++		asm:    loong64.AFCOPYSGD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "SLLV",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 8fa31d73f6..58f33bd4c4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -6,6 +6,9 @@ import "cmd/compile/internal/types"
+ 
+ func rewriteValueLOONG64(v *Value) bool {
+ 	switch v.Op {
++	case OpAbs:
++		v.Op = OpLOONG64ABSD
++		return true
+ 	case OpAdd16:
+ 		v.Op = OpLOONG64ADDV
+ 		return true
+@@ -116,6 +119,9 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueLOONG64_OpConstNil(v)
++	case OpCopysign:
++		v.Op = OpLOONG64FCOPYSGD
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpLOONG64TRUNCFW
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c1c9910127..14e75f74f3 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4721,12 +4721,12 @@ func InitTables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpAbs, types.Types[types.TFLOAT64], args[0])
+ 		},
+-		sys.ARM64, sys.ARM, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
++		sys.ARM64, sys.ARM, sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm, sys.MIPS, sys.MIPS64)
+ 	addF("math", "Copysign",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue2(ssa.OpCopysign, types.Types[types.TFLOAT64], args[0], args[1])
+ 		},
+-		sys.PPC64, sys.RISCV64, sys.Wasm)
++		sys.Loong64, sys.PPC64, sys.RISCV64, sys.Wasm)
+ 	addF("math", "FMA",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])

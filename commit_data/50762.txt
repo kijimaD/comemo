@@ -12,6 +12,20 @@ Date:   Mon Nov 8 22:58:51 2021 +0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/typecheck/subr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 1986845f64..5b5b043715 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -160,7 +160,7 @@ func AddImplicitDots(n *ir.SelectorExpr) *ir.SelectorExpr {
+ 	case path != nil:
+ 		// rebuild elided dots
+ 		for c := len(path) - 1; c >= 0; c-- {
+-			dot := ir.NewSelectorExpr(base.Pos, ir.ODOT, n.X, path[c].field.Sym)
++			dot := ir.NewSelectorExpr(n.Pos(), ir.ODOT, n.X, path[c].field.Sym)
+ 			dot.SetImplicit(true)
+ 			dot.SetType(path[c].field.Type)
+ 			n.X = dot

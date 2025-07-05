@@ -13,7 +13,7 @@ Date:   Sun Mar 13 23:04:31 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           |  8 ++++----
  src/cmd/compile/internal/ssa/config.go       |  6 +++---
  src/cmd/compile/internal/ssa/export_test.go  |  4 ++--
@@ -23,3 +23,195 @@ Date:   Sun Mar 13 23:04:31 2016 -0500
  src/cmd/compile/internal/ssa/phiopt.go       |  4 ++--
  src/cmd/compile/internal/ssa/prove.go        | 10 +++++-----
  8 files changed, 22 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b6d15c4a7e..6a0947feac 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -317,8 +317,8 @@ func (s *state) Fatalf(msg string, args ...interface{}) { s.config.Fatalf(s.peek
+ func (s *state) Unimplementedf(msg string, args ...interface{}) {
+ 	s.config.Unimplementedf(s.peekLine(), msg, args...)
+ }
+-func (s *state) Warnl(line int, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
+-func (s *state) Debug_checknil() bool                            { return s.config.Debug_checknil() }
++func (s *state) Warnl(line int32, msg string, args ...interface{}) { s.config.Warnl(line, msg, args...) }
++func (s *state) Debug_checknil() bool                              { return s.config.Debug_checknil() }
+ 
+ var (
+ 	// dummy node for the memory variable
+@@ -5229,8 +5229,8 @@ func (e *ssaExport) Unimplementedf(line int32, msg string, args ...interface{})
+ 
+ // Warnl reports a "warning", which is usually flag-triggered
+ // logging output for the benefit of tests.
+-func (e *ssaExport) Warnl(line int, fmt_ string, args ...interface{}) {
+-	Warnl(int32(line), fmt_, args...)
++func (e *ssaExport) Warnl(line int32, fmt_ string, args ...interface{}) {
++	Warnl(line, fmt_, args...)
+ }
+ 
+ func (e *ssaExport) Debug_checknil() bool {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 5e54f4f96f..e7f4aece2a 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -75,7 +75,7 @@ type Logger interface {
+ 	Unimplementedf(line int32, msg string, args ...interface{})
+ 
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+-	Warnl(line int, fmt_ string, args ...interface{})
++	Warnl(line int32, fmt_ string, args ...interface{})
+ 
+ 	// Fowards the Debug_checknil flag from gc
+ 	Debug_checknil() bool
+@@ -162,8 +162,8 @@ func (c *Config) Fatalf(line int32, msg string, args ...interface{}) { c.fe.Fata
+ func (c *Config) Unimplementedf(line int32, msg string, args ...interface{}) {
+ 	c.fe.Unimplementedf(line, msg, args...)
+ }
+-func (c *Config) Warnl(line int, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
+-func (c *Config) Debug_checknil() bool                            { return c.fe.Debug_checknil() }
++func (c *Config) Warnl(line int32, msg string, args ...interface{}) { c.fe.Warnl(line, msg, args...) }
++func (c *Config) Debug_checknil() bool                              { return c.fe.Debug_checknil() }
+ 
+ func (c *Config) logDebugHashMatch(evname, name string) {
+ 	var file *os.File
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index dae9ed7de0..a1f7910398 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -42,8 +42,8 @@ func (d DummyFrontend) Fatalf(line int32, msg string, args ...interface{}) { d.t
+ func (d DummyFrontend) Unimplementedf(line int32, msg string, args ...interface{}) {
+ 	d.t.Fatalf(msg, args...)
+ }
+-func (d DummyFrontend) Warnl(line int, msg string, args ...interface{}) { d.t.Logf(msg, args...) }
+-func (d DummyFrontend) Debug_checknil() bool                            { return false }
++func (d DummyFrontend) Warnl(line int32, msg string, args ...interface{}) { d.t.Logf(msg, args...) }
++func (d DummyFrontend) Debug_checknil() bool                              { return false }
+ 
+ func (d DummyFrontend) TypeBool() Type    { return TypeBool }
+ func (d DummyFrontend) TypeInt8() Type    { return TypeInt8 }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index ba8a823c59..d7a48feea9 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -106,7 +106,7 @@ func (f *Func) logStat(key string, args ...interface{}) {
+ 	for _, a := range args {
+ 		value += fmt.Sprintf("\t%v", a)
+ 	}
+-	f.Config.Warnl(int(f.Entry.Line), "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
++	f.Config.Warnl(f.Entry.Line, "\t%s\t%s%s\t%s", f.pass.name, key, value, f.Name)
+ }
+ 
+ // freeValue frees a value. It must no longer be referenced.
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 93f32c72bf..4046958c7b 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -69,7 +69,7 @@ func describePredictionAgrees(b *Block, prediction BranchPrediction) string {
+ }
+ 
+ func describeBranchPrediction(f *Func, b *Block, likely, not int8, prediction BranchPrediction) {
+-	f.Config.Warnl(int(b.Line), "Branch prediction rule %s < %s%s",
++	f.Config.Warnl(b.Line, "Branch prediction rule %s < %s%s",
+ 		bllikelies[likely-blMin], bllikelies[not-blMin], describePredictionAgrees(b, prediction))
+ }
+ 
+@@ -144,7 +144,7 @@ func likelyadjust(f *Func) {
+ 						noprediction = true
+ 					}
+ 					if f.pass.debug > 0 && !noprediction {
+-						f.Config.Warnl(int(b.Line), "Branch prediction rule stay in loop%s",
++						f.Config.Warnl(b.Line, "Branch prediction rule stay in loop%s",
+ 							describePredictionAgrees(b, prediction))
+ 					}
+ 
+@@ -180,7 +180,7 @@ func likelyadjust(f *Func) {
+ 			}
+ 		}
+ 		if f.pass.debug > 2 {
+-			f.Config.Warnl(int(b.Line), "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
++			f.Config.Warnl(b.Line, "BP: Block %s, local=%s, certain=%s", b, bllikelies[local[b.ID]-blMin], bllikelies[certain[b.ID]-blMin])
+ 		}
+ 
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index ccd443197a..4e40c5b88f 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -91,8 +91,8 @@ func nilcheckelim(f *Func) {
+ 
+ 					// Logging in the style of the former compiler -- and omit line 1,
+ 					// which is usually in generated code.
+-					if f.Config.Debug_checknil() && int(node.block.Control.Line) > 1 {
+-						f.Config.Warnl(int(node.block.Control.Line), "removed nil check")
++					if f.Config.Debug_checknil() && node.block.Control.Line > 1 {
++						f.Config.Warnl(node.block.Control.Line, "removed nil check")
+ 					}
+ 
+ 					switch node.block.Kind {
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 31870a650a..132366cfc1 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -66,7 +66,7 @@ func phiopt(f *Func) {
+ 
+ 			if ok && isCopy {
+ 				if f.pass.debug > 0 {
+-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpCopy")
++					f.Config.Warnl(b.Line, "converted OpPhi to OpCopy")
+ 				}
+ 				v.reset(OpCopy)
+ 				v.AddArg(b0.Control)
+@@ -74,7 +74,7 @@ func phiopt(f *Func) {
+ 			}
+ 			if ok && !isCopy {
+ 				if f.pass.debug > 0 {
+-					f.Config.Warnl(int(b.Line), "converted OpPhi to OpNot")
++					f.Config.Warnl(b.Line, "converted OpPhi to OpNot")
+ 				}
+ 				v.reset(OpNot)
+ 				v.AddArg(b0.Control)
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 1c58826468..bb20f1d5db 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -371,13 +371,13 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 	m := ft.get(nil, b.Control, boolean)
+ 	if m == lt|gt {
+ 		if b.Func.pass.debug > 0 {
+-			b.Func.Config.Warnl(int(b.Line), "Proved boolean %s", b.Control.Op)
++			b.Func.Config.Warnl(b.Line, "Proved boolean %s", b.Control.Op)
+ 		}
+ 		return positive
+ 	}
+ 	if m == eq {
+ 		if b.Func.pass.debug > 0 {
+-			b.Func.Config.Warnl(int(b.Line), "Disproved boolean %s", b.Control.Op)
++			b.Func.Config.Warnl(b.Line, "Disproved boolean %s", b.Control.Op)
+ 		}
+ 		return negative
+ 	}
+@@ -404,13 +404,13 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 		m := ft.get(a0, a1, d)
+ 		if m != 0 && tr.r&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(int(b.Line), "Proved %s", c.Op)
++				b.Func.Config.Warnl(b.Line, "Proved %s", c.Op)
+ 			}
+ 			return positive
+ 		}
+ 		if m != 0 && ((lt|eq|gt)^tr.r)&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(int(b.Line), "Disproved %s", c.Op)
++				b.Func.Config.Warnl(b.Line, "Disproved %s", c.Op)
+ 			}
+ 			return negative
+ 		}
+@@ -425,7 +425,7 @@ func simplifyBlock(ft *factsTable, b *Block) branch {
+ 		m := ft.get(a0, a1, signed)
+ 		if m != 0 && tr.r&m == m {
+ 			if b.Func.pass.debug > 0 {
+-				b.Func.Config.Warnl(int(b.Line), "Proved non-negative bounds %s", c.Op)
++				b.Func.Config.Warnl(b.Line, "Proved non-negative bounds %s", c.Op)
+ 			}
+ 			return positive
+ 		}

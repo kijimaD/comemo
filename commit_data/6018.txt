@@ -8,7 +8,7 @@ Date:   Fri Aug 13 14:29:23 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1975043
-
+---
  src/pkg/os/Makefile                     |  1 -
  src/pkg/os/env.go                       | 87 -------------------------------
  src/pkg/os/env_unix.go                  | 83 ++++++++++++++++++++++++++++--
@@ -18,3 +18,434 @@ Date:   Fri Aug 13 14:29:23 2010 +1000
  src/pkg/syscall/zsyscall_windows_386.go | 64 +++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   |  1 +
  8 files changed, 241 insertions(+), 92 deletions(-)
+
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+index 45954bbeb8..f1ad9af070 100644
+--- a/src/pkg/os/Makefile
++++ b/src/pkg/os/Makefile
+@@ -7,7 +7,6 @@ include ../../Make.$(GOARCH)
+ TARG=os
+ GOFILES=\
+ 	dir_$(GOOS).go\
+-	env.go\
+ 	error.go\
+ 	exec.go\
+ 	file.go\
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+deleted file mode 100644
+index 3ce84b5cba..0000000000
+--- a/src/pkg/os/env.go
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Environment variables.
+-
+-package os
+-
+-import (
+-	"sync"
+-)
+-
+-// ENOENV is the Error indicating that an environment variable does not exist.
+-var ENOENV = NewError("no such environment variable")
+-
+-var env map[string]string
+-var once sync.Once
+-
+-
+-func copyenv() {
+-	env = make(map[string]string)
+-	for _, s := range Envs {
+-		for j := 0; j < len(s); j++ {
+-			if s[j] == '=' {
+-				env[s[0:j]] = s[j+1:]
+-				break
+-			}
+-		}
+-	}
+-}
+-
+-// Getenverror retrieves the value of the environment variable named by the key.
+-// It returns the value and an error, if any.
+-func Getenverror(key string) (value string, err Error) {
+-	once.Do(copyenv)
+-
+-	if len(key) == 0 {
+-		return "", EINVAL
+-	}
+-	v, ok := env[key]
+-	if !ok {
+-		return "", ENOENV
+-	}
+-	return v, nil
+-}
+-
+-// Getenv retrieves the value of the environment variable named by the key.
+-// It returns the value, which will be empty if the variable is not present.
+-func Getenv(key string) string {
+-	v, _ := Getenverror(key)
+-	return v
+-}
+-
+-// Setenv sets the value of the environment variable named by the key.
+-// It returns an Error, if any.
+-func Setenv(key, value string) Error {
+-	once.Do(copyenv)
+-
+-	if len(key) == 0 {
+-		return EINVAL
+-	}
+-	env[key] = value
+-	return nil
+-}
+-
+-// Clearenv deletes all environment variables.
+-func Clearenv() {
+-	once.Do(copyenv) // prevent copyenv in Getenv/Setenv
+-	env = make(map[string]string)
+-}
+-
+-// Environ returns an array of strings representing the environment,
+-// in the form "key=value".
+-func Environ() []string {
+-	once.Do(copyenv)
+-	a := make([]string, len(env))
+-	i := 0
+-	for k, v := range env {
+-		// check i < len(a) for safety,
+-		// in case env is changing underfoot.
+-		if i < len(a) {
+-			a[i] = k + "=" + v
+-			i++
+-		}
+-	}
+-	return a[0:i]
+-}
+diff --git a/src/pkg/os/env_unix.go b/src/pkg/os/env_unix.go
+old mode 100755
+new mode 100644
+index 0c13bda0e3..e7e1c3b90f
+--- a/src/pkg/os/env_unix.go
++++ b/src/pkg/os/env_unix.go
+@@ -6,10 +6,87 @@
+ 
+ package os
+ 
++import (
++	"sync"
++)
++
++// ENOENV is the Error indicating that an environment variable does not exist.
++var ENOENV = NewError("no such environment variable")
++
++var env map[string]string
++var once sync.Once
++
++
++func copyenv() {
++	env = make(map[string]string)
++	for _, s := range Envs {
++		for j := 0; j < len(s); j++ {
++			if s[j] == '=' {
++				env[s[0:j]] = s[j+1:]
++				break
++			}
++		}
++	}
++}
++
++// Getenverror retrieves the value of the environment variable named by the key.
++// It returns the value and an error, if any.
++func Getenverror(key string) (value string, err Error) {
++	once.Do(copyenv)
++
++	if len(key) == 0 {
++		return "", EINVAL
++	}
++	v, ok := env[key]
++	if !ok {
++		return "", ENOENV
++	}
++	return v, nil
++}
++
++// Getenv retrieves the value of the environment variable named by the key.
++// It returns the value, which will be empty if the variable is not present.
++func Getenv(key string) string {
++	v, _ := Getenverror(key)
++	return v
++}
++
++// Setenv sets the value of the environment variable named by the key.
++// It returns an Error, if any.
++func Setenv(key, value string) Error {
++	once.Do(copyenv)
++
++	if len(key) == 0 {
++		return EINVAL
++	}
++	env[key] = value
++	return nil
++}
++
++// Clearenv deletes all environment variables.
++func Clearenv() {
++	once.Do(copyenv) // prevent copyenv in Getenv/Setenv
++	env = make(map[string]string)
++}
++
++// Environ returns an array of strings representing the environment,
++// in the form "key=value".
++func Environ() []string {
++	once.Do(copyenv)
++	a := make([]string, len(env))
++	i := 0
++	for k, v := range env {
++		// check i < len(a) for safety,
++		// in case env is changing underfoot.
++		if i < len(a) {
++			a[i] = k + "=" + v
++			i++
++		}
++	}
++	return a[0:i]
++}
++
+ // TempDir returns the default directory to use for temporary files.
+-// On Unix-like systems, it uses the environment variable $TMPDIR
+-// or, if that is empty, /tmp.
+-// On Windows systems, it uses the Windows GetTempPath API.
+ func TempDir() string {
+ 	dir := Getenv("TMPDIR")
+ 	if dir == "" {
+diff --git a/src/pkg/os/env_windows.go b/src/pkg/os/env_windows.go
+old mode 100755
+new mode 100644
+index 7d5b007c93..4b224d5a0b
+--- a/src/pkg/os/env_windows.go
++++ b/src/pkg/os/env_windows.go
+@@ -9,8 +9,99 @@ package os
+ import (
+ 	"syscall"
+ 	"utf16"
++	"unsafe"
+ )
+ 
++// ENOENV is the Error indicating that an environment variable does not exist.
++var ENOENV = NewError("no such environment variable")
++
++// Getenverror retrieves the value of the environment variable named by the key.
++// It returns the value and an error, if any.
++func Getenverror(key string) (value string, err Error) {
++	b := make([]uint16, 100)
++	n, e := syscall.GetEnvironmentVariable(syscall.StringToUTF16Ptr(key), &b[0], uint32(len(b)))
++	if n == 0 && e == syscall.ERROR_ENVVAR_NOT_FOUND {
++		return "", ENOENV
++	}
++	if n > uint32(len(b)) {
++		b = make([]uint16, n)
++		n, e = syscall.GetEnvironmentVariable(syscall.StringToUTF16Ptr(key), &b[0], uint32(len(b)))
++		if n > uint32(len(b)) {
++			n = 0
++		}
++	}
++	if n == 0 {
++		return "", NewSyscallError("GetEnvironmentVariable", e)
++	}
++	return string(utf16.Decode(b[0:n])), nil
++}
++
++// Getenv retrieves the value of the environment variable named by the key.
++// It returns the value, which will be empty if the variable is not present.
++func Getenv(key string) string {
++	v, _ := Getenverror(key)
++	return v
++}
++
++// Setenv sets the value of the environment variable named by the key.
++// It returns an Error, if any.
++func Setenv(key, value string) Error {
++	var v *uint16
++	if len(value) > 0 {
++		v = syscall.StringToUTF16Ptr(value)
++	}
++	ok, e := syscall.SetEnvironmentVariable(syscall.StringToUTF16Ptr(key), v)
++	if !ok {
++		return NewSyscallError("SetEnvironmentVariable", e)
++	}
++	return nil
++}
++
++// Clearenv deletes all environment variables.
++func Clearenv() {
++	for _, s := range Environ() {
++		for j := 0; j < len(s); j++ {
++			if s[j] == '=' {
++				Setenv(s[0:j], "")
++			}
++		}
++	}
++}
++
++// Environ returns an array of strings representing the environment,
++// in the form "key=value".
++func Environ() []string {
++	s, e := syscall.GetEnvironmentStrings()
++	if e != 0 {
++		return nil
++	}
++	defer syscall.FreeEnvironmentStrings(s)
++	r := make([]string, 0, 50) // Empty with room to grow.
++	for from, i, p := 0, 0, (*[1 << 24]uint16)(unsafe.Pointer(s)); true; i++ {
++		if p[i] == 0 {
++			// empty string marks the end
++			if i <= from {
++				break
++			}
++			// skip anything that starts with '='
++			if p[from] != '=' {
++				if len(r) == cap(r) {
++					nr := make([]string, len(r), 2*len(r))
++					for k := 0; k < len(r); k++ {
++						nr[k] = r[k]
++					}
++					r = nr
++				}
++				r = r[0 : len(r)+1]
++				r[len(r)-1] = string(utf16.Decode(p[from:i]))
++			}
++			from = i + 1
++		}
++	}
++	return r
++}
++
++// TempDir returns the default directory to use for temporary files.
+ func TempDir() string {
+ 	const pathSep = '\\'
+ 	dirw := make([]uint16, syscall.MAX_PATH)
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index 9b206d0c6f..05af090dae 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -18,7 +18,7 @@ import (
+ var dot = []string{
+ 	"dir_darwin.go",
+ 	"dir_linux.go",
+-	"env.go",
++	"env_unix.go",
+ 	"error.go",
+ 	"file.go",
+ 	"os_test.go",
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 5ab4dd0758..ca00e72ac4 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -143,6 +143,10 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
+ //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
++//sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
++//sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
++//sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
++//sys	SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) = kernel32.SetEnvironmentVariableW
+ 
+ // syscall interface implementation for other packages
+ 
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 8bc1e43637..e990fcb4d4 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -53,6 +53,10 @@ var (
+ 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
+ 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
+ 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
++	procGetEnvironmentStringsW     = getSysProcAddr(modkernel32, "GetEnvironmentStringsW")
++	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
++	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
++	procSetEnvironmentVariableW    = getSysProcAddr(modkernel32, "SetEnvironmentVariableW")
+ 	procWSAStartup                 = getSysProcAddr(modwsock32, "WSAStartup")
+ 	procWSACleanup                 = getSysProcAddr(modwsock32, "WSACleanup")
+ 	procsocket                     = getSysProcAddr(modwsock32, "socket")
+@@ -674,6 +678,66 @@ func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno
+ 	return
+ }
+ 
++func GetEnvironmentStrings() (envs *uint16, errno int) {
++	r0, _, e1 := Syscall(procGetEnvironmentStringsW, 0, 0, 0)
++	envs = (*uint16)(unsafe.Pointer(r0))
++	if envs == nil {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procFreeEnvironmentStringsW, uintptr(unsafe.Pointer(envs)), 0, 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) {
++	r0, _, e1 := Syscall(procGetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(buffer)), uintptr(size))
++	n = uint32(r0)
++	if n == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func SetEnvironmentVariable(name *uint16, value *uint16) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procSetEnvironmentVariableW, uintptr(unsafe.Pointer(name)), uintptr(unsafe.Pointer(value)), 0)
++	ok = bool(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func WSAStartup(verreq uint32, data *WSAData) (sockerrno int) {
+ 	r0, _, _ := Syscall(procWSAStartup, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
+ 	sockerrno = int(r0)
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 5c7545049e..609b3801e9 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -25,6 +25,7 @@ const (
+ 	ERROR_INSUFFICIENT_BUFFER = 122
+ 	ERROR_MOD_NOT_FOUND       = 126
+ 	ERROR_PROC_NOT_FOUND      = 127
++	ERROR_ENVVAR_NOT_FOUND    = 203
+ 	ERROR_DIRECTORY           = 267
+ 	ERROR_IO_PENDING          = 997
+ 	// Go names for Windows errors.

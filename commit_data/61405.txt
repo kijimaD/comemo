@@ -20,7 +20,78 @@ Date:   Tue Nov 5 16:01:45 2024 +0100
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/dll_windows.go          |  1 +
  src/syscall/syscall_windows_test.go | 47 +++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 81134cb0bd..a7873e6ad8 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -42,6 +42,7 @@ func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a
+ // Deprecated: Use [SyscallN] instead.
+ func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
+ 
++//go:noescape
+ func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
+ func loadlibrary(filename *uint16) (handle uintptr, err Errno)
+ func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 8b5af9c501..63409daf04 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -227,6 +227,53 @@ func TestGetStartupInfo(t *testing.T) {
+ 	}
+ }
+ 
++func TestSyscallAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++
++	t.Parallel()
++
++	// Test that syscall.SyscallN arguments do not escape.
++	// The function used (in this case GetVersion) doesn't matter
++	// as long as it is always available and doesn't panic.
++	h, err := syscall.LoadLibrary("kernel32.dll")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.FreeLibrary(h)
++	proc, err := syscall.GetProcAddress(h, "GetVersion")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	testAllocs := func(t *testing.T, name string, fn func() error) {
++		t.Run(name, func(t *testing.T) {
++			n := int(testing.AllocsPerRun(10, func() {
++				if err := fn(); err != nil {
++					t.Fatalf("%s: %v", name, err)
++				}
++			}))
++			if n > 0 {
++				t.Errorf("allocs = %d, want 0", n)
++			}
++		})
++	}
++
++	testAllocs(t, "SyscallN", func() error {
++		r0, _, e1 := syscall.SyscallN(proc, 0, 0, 0)
++		if r0 == 0 {
++			return syscall.Errno(e1)
++		}
++		return nil
++	})
++	testAllocs(t, "Syscall", func() error {
++		r0, _, e1 := syscall.Syscall(proc, 3, 0, 0, 0)
++		if r0 == 0 {
++			return syscall.Errno(e1)
++		}
++		return nil
++	})
++}
++
+ func FuzzUTF16FromString(f *testing.F) {
+ 	f.Add("hi")           // ASCII
+ 	f.Add("â")            // latin1

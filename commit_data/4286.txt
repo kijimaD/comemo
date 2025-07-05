@@ -7,6 +7,29 @@ Date:   Wed Dec 2 13:46:02 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/164082
-
+---
  doc/effective_go.html | 10 +++++-----
  1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index 3ab05fc1cf..5c786b4514 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -308,12 +308,12 @@ which is a clear, concise name.
+ Moreover,
+ because imported entities are always addressed with their package name, <code>bufio.Reader</code>
+ does not conflict with <code>io.Reader</code>.
+-Similarly, the function to make new instances of <code>vector.Vector</code>&mdash;which
++Similarly, the function to make new instances of <code>ring.Ring</code>&mdash;which
+ is the definition of a <em>constructor</em> in Go&mdash;would
+-normally be called <code>NewVector</code>, but since
+-<code>Vector</code> is the only type exported by the package, and since the
+-package is called <code>vector</code>, it's called just <code>New</code>.
+-Clients of the package see that as <code>vector.New</code>.
++normally be called <code>NewRing</code>, but since
++<code>Ring</code> is the only type exported by the package, and since the
++package is called <code>ring</code>, it's called just <code>New</code>.
++Clients of the package see that as <code>ring.New</code>.
+ Use the package structure to help you choose good names.
+ </p>
+ 

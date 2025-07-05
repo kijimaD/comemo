@@ -9,6 +9,27 @@ Date:   Sun Mar 8 14:17:46 2015 +0100
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/cgo/main.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 4dbcf62709..013fed3746 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -133,6 +133,7 @@ var ptrSizeMap = map[string]int64{
+ 	"386":     4,
+ 	"amd64":   8,
+ 	"arm":     4,
++	"arm64":   8,
+ 	"ppc64":   8,
+ 	"ppc64le": 8,
+ 	"s390":    4,
+@@ -143,6 +144,7 @@ var intSizeMap = map[string]int64{
+ 	"386":     4,
+ 	"amd64":   8,
+ 	"arm":     4,
++	"arm64":   8,
+ 	"ppc64":   8,
+ 	"ppc64le": 8,
+ 	"s390":    4,

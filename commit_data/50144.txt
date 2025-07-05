@@ -14,9 +14,71 @@ Date:   Mon Oct 4 16:15:17 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Trust: Dan Scales <danscales@google.com>
-
+---
  test/typeparam/recoverimp.dir/a.go    | 16 ++++++++++++++++
  test/typeparam/recoverimp.dir/main.go | 12 ++++++++++++
  test/typeparam/recoverimp.go          |  7 +++++++
  test/typeparam/recoverimp.out         |  2 ++
  4 files changed, 37 insertions(+)
+
+diff --git a/test/typeparam/recoverimp.dir/a.go b/test/typeparam/recoverimp.dir/a.go
+new file mode 100644
+index 0000000000..a465fd1545
+--- /dev/null
++++ b/test/typeparam/recoverimp.dir/a.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import "fmt"
++
++func F[T any](a T) {
++	defer func() {
++		if x := recover(); x != nil {
++			fmt.Printf("panic: %v\n", x)
++		}
++	}()
++	panic(a)
++}
+diff --git a/test/typeparam/recoverimp.dir/main.go b/test/typeparam/recoverimp.dir/main.go
+new file mode 100644
+index 0000000000..c9d8e3cc08
+--- /dev/null
++++ b/test/typeparam/recoverimp.dir/main.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "a"
++
++func main() {
++	a.F(5.3)
++	a.F("hello")
++}
+diff --git a/test/typeparam/recoverimp.go b/test/typeparam/recoverimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/recoverimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/recoverimp.out b/test/typeparam/recoverimp.out
+new file mode 100644
+index 0000000000..3c8b38cbae
+--- /dev/null
++++ b/test/typeparam/recoverimp.out
+@@ -0,0 +1,2 @@
++panic: 5.3
++panic: hello

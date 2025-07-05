@@ -12,6 +12,20 @@ Date:   Sat Sep 29 08:35:32 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 3427ea9161..dd6d9265c4 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2007,7 +2007,7 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o2 = c.oprrr(p, p.As, int(p.Scond))
+ 		o2 |= REGTMP & 15
+ 		r := int(p.Reg)
+-		if p.As == AMOVW || p.As == AMVN {
++		if p.As == AMVN {
+ 			r = 0
+ 		} else if r == 0 {
+ 			r = int(p.To.Reg)

@@ -50,8 +50,164 @@ Date:   Fri Feb 26 10:50:54 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go    | 40 +++++++++++++++++++++++-----------------
  src/runtime/proc.go   |  2 ++
  src/runtime/select.go | 30 ++++++++++++++++++++++--------
  3 files changed, 47 insertions(+), 25 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 2b1e56a5f0..7e93740d04 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1345,15 +1345,21 @@ func gcBgMarkPrepare() {
+ }
+ 
+ func gcBgMarkWorker(_p_ *p) {
+-	type parkInfo struct {
+-		m      *m // Release this m on park.
+-		attach *p // If non-nil, attach to this p on park.
+-	}
+-	var park parkInfo
+-
+ 	gp := getg()
+-	park.m = acquirem()
+-	park.attach = _p_
++
++	type parkInfo struct {
++		m      muintptr // Release this m on park.
++		attach puintptr // If non-nil, attach to this p on park.
++	}
++	// We pass park to a gopark unlock function, so it can't be on
++	// the stack (see gopark). Prevent deadlock from recursively
++	// starting GC by disabling preemption.
++	gp.m.preemptoff = "GC worker init"
++	park := new(parkInfo)
++	gp.m.preemptoff = ""
++
++	park.m.set(acquirem())
++	park.attach.set(_p_)
+ 	// Inform gcBgMarkStartWorkers that this worker is ready.
+ 	// After this point, the background mark worker is scheduled
+ 	// cooperatively by gcController.findRunnable. Hence, it must
+@@ -1372,7 +1378,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 
+ 			// The worker G is no longer running, so it's
+ 			// now safe to allow preemption.
+-			releasem(park.m)
++			releasem(park.m.ptr())
+ 
+ 			// If the worker isn't attached to its P,
+ 			// attach now. During initialization and after
+@@ -1381,9 +1387,9 @@ func gcBgMarkWorker(_p_ *p) {
+ 			// attach, the owner P may schedule the
+ 			// worker, so this must be done after the G is
+ 			// stopped.
+-			if park.attach != nil {
+-				p := park.attach
+-				park.attach = nil
++			if park.attach != 0 {
++				p := park.attach.ptr()
++				park.attach.set(nil)
+ 				// cas the worker because we may be
+ 				// racing with a new worker starting
+ 				// on this P.
+@@ -1394,7 +1400,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 				}
+ 			}
+ 			return true
+-		}, noescape(unsafe.Pointer(&park)), "GC worker (idle)", traceEvGoBlock, 0)
++		}, unsafe.Pointer(park), "GC worker (idle)", traceEvGoBlock, 0)
+ 
+ 		// Loop until the P dies and disassociates this
+ 		// worker (the P may later be reused, in which case
+@@ -1406,7 +1412,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 		// Disable preemption so we can use the gcw. If the
+ 		// scheduler wants to preempt us, we'll stop draining,
+ 		// dispose the gcw, and then preempt.
+-		park.m = acquirem()
++		park.m.set(acquirem())
+ 
+ 		if gcBlackenEnabled == 0 {
+ 			throw("gcBgMarkWorker: blackening not enabled")
+@@ -1469,7 +1475,7 @@ func gcBgMarkWorker(_p_ *p) {
+ 			// findRunnableGCWorker doesn't try to
+ 			// schedule it.
+ 			_p_.gcBgMarkWorker.set(nil)
+-			releasem(park.m)
++			releasem(park.m.ptr())
+ 
+ 			gcMarkDone()
+ 
+@@ -1479,8 +1485,8 @@ func gcBgMarkWorker(_p_ *p) {
+ 			// We may be running on a different P at this
+ 			// point, so we can't reattach until this G is
+ 			// parked.
+-			park.m = acquirem()
+-			park.attach = _p_
++			park.m.set(acquirem())
++			park.attach.set(_p_)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index aea1f0d18c..d386797784 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -245,6 +245,8 @@ func Gosched() {
+ 
+ // Puts the current goroutine into a waiting state and calls unlockf.
+ // If unlockf returns false, the goroutine is resumed.
++// unlockf must not access this G's stack, as it may be moved between
++// the call to gopark and the call to unlockf.
+ func gopark(unlockf func(*g, unsafe.Pointer) bool, lock unsafe.Pointer, reason string, traceEv byte, traceskip int) {
+ 	mp := acquirem()
+ 	gp := mp.curg
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index 444427ccb7..c80c833b15 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -196,13 +196,27 @@ func selunlock(scases []scase, lockorder []uint16) {
+ 	}
+ }
+ 
+-func selparkcommit(gp *g, usel unsafe.Pointer) bool {
+-	sel := (*hselect)(usel)
+-	scaseslice := slice{unsafe.Pointer(&sel.scase), int(sel.ncase), int(sel.ncase)}
+-	scases := *(*[]scase)(unsafe.Pointer(&scaseslice))
+-	lockslice := slice{unsafe.Pointer(sel.lockorder), int(sel.ncase), int(sel.ncase)}
+-	lockorder := *(*[]uint16)(unsafe.Pointer(&lockslice))
+-	selunlock(scases, lockorder)
++func selparkcommit(gp *g, _ unsafe.Pointer) bool {
++	// This must not access gp's stack (see gopark). In
++	// particular, it must not access the *hselect. That's okay,
++	// because by the time this is called, gp.waiting has all
++	// channels in lock order.
++	var lastc *hchan
++	for sg := gp.waiting; sg != nil; sg = sg.waitlink {
++		if sg.c != lastc && lastc != nil {
++			// As soon as we unlock the channel, fields in
++			// any sudog with that channel may change,
++			// including c and waitlink. Since multiple
++			// sudogs may have the same channel, we unlock
++			// only after we've passed the last instance
++			// of a channel.
++			unlock(&lastc.lock)
++		}
++		lastc = sg.c
++	}
++	if lastc != nil {
++		unlock(&lastc.lock)
++	}
+ 	return true
+ }
+ 
+@@ -406,7 +420,7 @@ loop:
+ 
+ 	// wait for someone to wake us up
+ 	gp.param = nil
+-	gopark(selparkcommit, unsafe.Pointer(sel), "select", traceEvGoBlockSelect, 2)
++	gopark(selparkcommit, nil, "select", traceEvGoBlockSelect, 2)
+ 
+ 	// someone woke us up
+ 	sellock(scases, lockorder)

@@ -18,6 +18,34 @@ Date:   Thu Jun 1 12:34:20 2023 -0400
     Auto-Submit: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/runtime-gdb_test.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 1577d0995d..19069f4462 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -470,15 +470,17 @@ func TestGdbBacktrace(t *testing.T) {
+ 	got, err := cmd.CombinedOutput()
+ 	t.Logf("gdb output:\n%s", got)
+ 	if err != nil {
+-		if bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")) {
++		switch {
++		case bytes.Contains(got, []byte("internal-error: wait returned unexpected status 0x0")):
+ 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=28551
+ 			testenv.SkipFlaky(t, 43068)
+-		}
+-		if bytes.Contains(got, []byte("Couldn't get registers: No such process.")) {
++		case bytes.Contains(got, []byte("Couldn't get registers: No such process.")), bytes.Contains(got, []byte("Unable to fetch general registers.: No such process.")):
+ 			// GDB bug: https://sourceware.org/bugzilla/show_bug.cgi?id=9086
+ 			testenv.SkipFlaky(t, 50838)
+-		}
+-		if bytes.Contains(got, []byte(" exited normally]\n")) {
++		case bytes.Contains(got, []byte("waiting for new child: No child processes.")):
++			// GDB bug: Sometimes it fails to wait for a clone child.
++			testenv.SkipFlaky(t, 60553)
++		case bytes.Contains(got, []byte(" exited normally]\n")):
+ 			// GDB bug: Sometimes the inferior exits fine,
+ 			// but then GDB hangs.
+ 			testenv.SkipFlaky(t, 37405)

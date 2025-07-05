@@ -24,7 +24,7 @@ Date:   Thu Aug 25 17:20:07 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  .../internal/types2/testdata/check/builtins0.go    |  6 ++---
  .../internal/types2/testdata/check/builtins1.go    |  4 ++--
  .../internal/types2/testdata/check/decls0.go       | 10 ++++----
@@ -55,3 +55,750 @@ Date:   Thu Aug 25 17:20:07 2022 -0700
  src/go/types/testdata/check/typeparams.go          |  2 +-
  src/go/types/testdata/check/vardecl.go             | 14 ++++++++++-
  29 files changed, 112 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins0.go b/src/cmd/compile/internal/types2/testdata/check/builtins0.go
+index c9550b1f73..f4932a8309 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins0.go
+@@ -25,11 +25,11 @@ func append1() {
+ 	_ = append(s, b)
+ 	_ = append(s, x /* ERROR cannot use x */ )
+ 	_ = append(s, s /* ERROR cannot use s */ )
+-	_ = append(s /* ERROR not enough arguments */ ...)
+-	_ = append(s, b, s /* ERROR too many arguments */ ... )
++	_ = append(s...) /* ERROR not enough arguments */
++	_ = append(s, b, s /* ERROR too many arguments */ ...)
+ 	_ = append(s, 1, 2, 3)
+ 	_ = append(s, 1, 2, 3, x /* ERROR cannot use x */ , 5, 6, 6)
+-	_ = append(s, 1, 2 /* ERROR too many arguments */ , s... )
++	_ = append(s, 1, 2 /* ERROR too many arguments */, s...)
+ 	_ = append([]interface{}(nil), 1, 2, "foo", x, 3.1425, false)
+ 
+ 	type S []byte
+diff --git a/src/cmd/compile/internal/types2/testdata/check/builtins1.go b/src/cmd/compile/internal/types2/testdata/check/builtins1.go
+index 7c3f0c96ad..861597399e 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/builtins1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/builtins1.go
+@@ -63,7 +63,7 @@ func _[T ~[]byte](x, y T) {
+ 	type myByte byte
+ 	var x3 []myByte
+ 	copy(x3 /* ERROR different element types */ , y)
+-	copy(y, x3 /* ERROR different element types */ )
++	copy(y /* ERROR different element types */ , x3)
+ }
+ 
+ func _[T ~[]E, E any](x T, y []E) {
+@@ -144,7 +144,7 @@ func _[
+ 	_ = make([]int, 10)
+ 	_ = make(S0, 10)
+ 	_ = make(S1, 10)
+-	_ = make /* ERROR not enough arguments */ ()
++	_ = make() /* ERROR not enough arguments */
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1)
+ 	_ = make(S1, 10, 20)
+ 	_ = make /* ERROR expects 2 or 3 arguments */ (S1, 10, 20, 30)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls0.go b/src/cmd/compile/internal/types2/testdata/check/decls0.go
+index 927c2d353d..7ba90c0504 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls0.go
+@@ -186,11 +186,13 @@ func f1(x f1 /* ERROR "not a type" */ ) {}
+ func f2(x *f2 /* ERROR "not a type" */ ) {}
+ func f3() (x f3 /* ERROR "not a type" */ ) { return }
+ func f4() (x *f4 /* ERROR "not a type" */ ) { return }
++// TODO(#43215) this should be detected as a cycle error
++func f5([unsafe.Sizeof(f5)]int) {}
+ 
+-func (S0) m1(x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
+-func (S0) m2(x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
+-func (S0) m3() (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
+-func (S0) m4() (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
++func (S0) m1 (x S0 /* ERROR illegal cycle in method declaration */ .m1) {}
++func (S0) m2 (x *S0 /* ERROR illegal cycle in method declaration */ .m2) {}
++func (S0) m3 () (x S0 /* ERROR illegal cycle in method declaration */ .m3) { return }
++func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { return }
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls1.go b/src/cmd/compile/internal/types2/testdata/check/decls1.go
+index 1167ced366..6fe349b0b2 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls1.go
+@@ -96,6 +96,8 @@ var (
+ 	v11 = xx/yy*yy - xx
+ 	v12 = true && false
+ 	v13 = nil /* ERROR "use of untyped nil" */
++	v14 string = 257 // ERROR cannot use 257 .* as string value in variable declaration$
++	v15 int8 = 257 // ERROR cannot use 257 .* as int8 value in variable declaration .*overflows
+ )
+ 
+ // Multiple assignment expressions
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
+index 66ca6ee515..cccbf29793 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2a.go
+@@ -86,11 +86,11 @@ func (ptr /* ERROR "invalid receiver" */ ) _() {}
+ func (* /* ERROR "invalid receiver" */ ptr) _() {}
+ 
+ // Methods with zero or multiple receivers.
+-func ( /* ERROR "no receiver" */ ) _() {}
+-func (T3, * /* ERROR "multiple receivers" */ T3) _() {}
+-func (T3, T3, T3 /* ERROR "multiple receivers" */ ) _() {}
+-func (a, b /* ERROR "multiple receivers" */ T3) _() {}
+-func (a, b, c /* ERROR "multiple receivers" */ T3) _() {}
++func ( /* ERROR "method has no receiver" */ ) _() {}
++func (T3, * /* ERROR "method has multiple receivers" */ T3) _() {}
++func (T3, T3, T3 /* ERROR "method has multiple receivers" */ ) _() {}
++func (a, b /* ERROR "method has multiple receivers" */ T3) _() {}
++func (a, b, c /* ERROR "method has multiple receivers" */ T3) _() {}
+ 
+ // Methods associated with non-local or unnamed types.
+ func (int /* ERROR "cannot define new methods on non-local type int" */ ) m() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2b.go b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2b.go
+index 7b3229cadc..5c55750a10 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls2/decls2b.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls2/decls2b.go
+@@ -72,4 +72,4 @@ var (
+ 	_ = (*T7).m4
+ 	_ = (*T7).m5
+ 	_ = (*T7).m6
+-)
+\ No newline at end of file
++)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls3.go b/src/cmd/compile/internal/types2/testdata/check/decls3.go
+index d7a0c444da..01d4ffe4b5 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls3.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls3.go
+@@ -221,16 +221,16 @@ func _() {
+ 	_ = S2{}.B
+ 	_ = S2{}.C
+ 	_ = S2{}.D /* ERROR "no field or method" */
+-	_ = S3{}.S1 /* ERROR "ambiguous selector S3\{\}.S1" */
++	_ = S3{}.S1 /* ERROR "ambiguous selector S3{}.S1" */
+ 	_ = S3{}.A
+-	_ = S3{}.B /* ERROR "ambiguous selector" S3\{\}.B */
++	_ = S3{}.B /* ERROR "ambiguous selector" S3{}.B */
+ 	_ = S3{}.D
+ 	_ = S3{}.E
+ 	_ = S4{}.A
+ 	_ = S4{}.B /* ERROR "no field or method" */
+-	_ = S5{}.X /* ERROR "ambiguous selector S5\{\}.X" */
++	_ = S5{}.X /* ERROR "ambiguous selector S5{}.X" */
+ 	_ = S5{}.Y
+-	_ = S10{}.X /* ERROR "ambiguous selector S10\{\}.X" */
++	_ = S10{}.X /* ERROR "ambiguous selector S10{}.X" */
+ 	_ = S10{}.Y
+ }
+ 
+@@ -306,4 +306,4 @@ type R22 R21
+ type R23 R21
+ type R24 R21
+ 
+-var _ = R0{}.X /* ERROR "ambiguous selector R0\{\}.X" */
+\ No newline at end of file
++var _ = R0{}.X /* ERROR "ambiguous selector R0{}.X" */
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls4.go b/src/cmd/compile/internal/types2/testdata/check/decls4.go
+index 384bcd9b89..2ce180fbbb 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls4.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls4.go
+@@ -190,8 +190,8 @@ type eD struct {
+ }
+ 
+ var (
+-	_ = eD{}.xf /* ERROR ambiguous selector eD\{\}.xf */
+-	_ = eD{}.xm /* ERROR ambiguous selector eD\{\}.xm */
++	_ = eD{}.xf /* ERROR ambiguous selector eD{}.xf */
++	_ = eD{}.xm /* ERROR ambiguous selector eD{}.xm */
+ )
+ 
+ var (
+diff --git a/src/cmd/compile/internal/types2/testdata/check/errors.go b/src/cmd/compile/internal/types2/testdata/check/errors.go
+index 5f09197bde..7cdc5fb5ff 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/errors.go
++++ b/src/cmd/compile/internal/types2/testdata/check/errors.go
+@@ -33,7 +33,7 @@ func f(x int, m map[string]int) {
+ 
+ 	// values
+ 	nil // ERROR nil is not used
+-	(*int)(nil) // ERROR \(\*int\)\(nil\) \(value of type \*int\) is not used
++	( /* ERROR \(\*int\)\(nil\) \(value of type \*int\) is not used */ *int)(nil)
+ 	x /* ERROR x != x \(untyped bool value\) is not used */ != x
+ 	x /* ERROR x \+ x \(value of type int\) is not used */ + x
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr0.go b/src/cmd/compile/internal/types2/testdata/check/expr0.go
+index 821b07f007..19923777df 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/expr0.go
+@@ -184,4 +184,4 @@ var (
+ 	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ 0
+ 	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ "foo"
+ 	_ = ~ /* ERROR cannot use ~ outside of interface or type constraint */ i0
+-)
+\ No newline at end of file
++)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr1.go b/src/cmd/compile/internal/types2/testdata/check/expr1.go
+index 85ad234bbb..42b95fbb37 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/expr1.go
+@@ -111,10 +111,10 @@ type mystring string
+ func _(x, y string, z mystring) {
+ 	x = x + "foo"
+ 	x = x /* ERROR not defined */ - "foo"
+-	x = x + 1 // ERROR mismatched types string and untyped int
++	x = x /* ERROR mismatched types string and untyped int */ + 1
+ 	x = x + y
+ 	x = x /* ERROR not defined */ - y
+-	x = x * 10 // ERROR mismatched types string and untyped int
++	x = x /* ERROR mismatched types string and untyped int */* 10
+ }
+ 
+ func f() (a, b int) { return }
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr2.go b/src/cmd/compile/internal/types2/testdata/check/expr2.go
+index 88781f1189..6133dbb42b 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr2.go
++++ b/src/cmd/compile/internal/types2/testdata/check/expr2.go
+@@ -29,7 +29,7 @@ func arrays() {
+ 	_ = a == b
+ 	_ = a != b
+ 	_ = a /* ERROR < not defined */ < b
+-	_ = a == nil /* ERROR invalid operation.*mismatched types */
++	_ = a /* ERROR cannot compare.*mismatched types */ == nil
+ 
+ 	type C [10]int
+ 	var c C
+@@ -53,7 +53,7 @@ func structs() {
+ 	_ = s == t
+ 	_ = s != t
+ 	_ = s /* ERROR < not defined */ < t
+-	_ = s == nil /* ERROR invalid operation.*mismatched types */
++	_ = s /* ERROR cannot compare.*mismatched types */ == nil
+ 
+ 	type S struct {
+ 		x int
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr3.go b/src/cmd/compile/internal/types2/testdata/check/expr3.go
+index 646319e4c4..ba6c7dd314 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr3.go
++++ b/src/cmd/compile/internal/types2/testdata/check/expr3.go
+@@ -7,9 +7,8 @@ package expr3
+ import "time"
+ 
+ func indexes() {
+-	var x int
+ 	_ = 1 /* ERROR "cannot index" */ [0]
+-	_ = x /* ERROR "cannot index" */ [0]
++	_ = indexes /* ERROR "cannot index" */ [0]
+ 	_ = ( /* ERROR "cannot slice" */ 12 + 3)[1:2]
+ 
+ 	var a [10]int
+@@ -83,7 +82,7 @@ func indexes() {
+ 	_ = s[: - /* ERROR "negative" */ 1]
+ 	_ = s[0]
+ 	_ = s[1:2]
+-	_ = s[2:1] /* ERROR "invalid slice indices" */
++	_ = s[2:1 /* ERROR "invalid slice indices" */ ]
+ 	_ = s[2:]
+ 	_ = s[: 1 /* ERROR "overflows" */ <<100]
+ 	_ = s[1 /* ERROR "overflows" */ <<100 :]
+@@ -104,7 +103,7 @@ func indexes() {
+ 	var ok mybool
+ 	_, ok = m["bar"]
+ 	_ = ok
+-	_ = m[0 /* ERROR "cannot use 0" */ ] + "foo" // ERROR "mismatched types int and untyped string"
++	_ = m/* ERROR "mismatched types int and untyped string" */[0 /* ERROR "cannot use 0" */ ] + "foo"
+ 
+ 	var t string
+ 	_ = t[- /* ERROR "negative" */ 1]
+@@ -459,7 +458,7 @@ func type_asserts() {
+ 
+ 	var t I
+ 	_ = t /* ERROR "use of .* outside type switch" */ .(type)
+-	_ = t /* ERROR "method m has pointer receiver" */ .(T)
++	_ = t /* ERROR "m has pointer receiver" */ .(T)
+ 	_ = t.(*T)
+ 	_ = t /* ERROR "missing method m" */ .(T1)
+ 	_ = t /* ERROR "wrong type for method m" */ .(T2)
+@@ -494,7 +493,7 @@ func _calls() {
+ 	f1(0)
+ 	f1(x)
+ 	f1(10.0)
+-	f1 /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */ ()
++	f1() /* ERROR "not enough arguments in call to f1\n\thave \(\)\n\twant \(int\)" */
+ 	f1(x, y /* ERROR "too many arguments in call to f1\n\thave \(int, float32\)\n\twant \(int\)" */ )
+ 	f1(s /* ERROR "cannot use .* in argument" */ )
+ 	f1(x ... /* ERROR "cannot use ..." */ )
+@@ -502,15 +501,15 @@ func _calls() {
+ 	f1(g1())
+ 	f1(g2 /* ERROR "too many arguments in call to f1\n\thave \(float32, string\)\n\twant \(int\)" */ ())
+ 
+-	f2 /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */ ()
+-	f2(3.14 /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */ )
++	f2() /* ERROR "not enough arguments in call to f2\n\thave \(\)\n\twant \(float32, string\)" */
++	f2(3.14) /* ERROR "not enough arguments in call to f2\n\thave \(number\)\n\twant \(float32, string\)" */
+ 	f2(3.14, "foo")
+ 	f2(x /* ERROR "cannot use .* in argument" */ , "foo")
+ 	f2(g0 /* ERROR "used as value" */ ())
+-	f2(g1 /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */ ())
++	f2(g1()) /* ERROR "not enough arguments in call to f2\n\thave \(int\)\n\twant \(float32, string\)" */
+ 	f2(g2())
+ 
+-	fs /* ERROR "not enough arguments" */ ()
++	fs() /* ERROR "not enough arguments" */
+ 	fs(g0 /* ERROR "used as value" */ ())
+ 	fs(g1 /* ERROR "cannot use .* in argument" */ ())
+ 	fs(g2 /* ERROR "too many arguments" */ ())
+@@ -521,7 +520,7 @@ func _calls() {
+ 	fv(s /* ERROR "cannot use .* in argument" */ )
+ 	fv(s...)
+ 	fv(x /* ERROR "cannot use" */ ...)
+-	fv(1, s /* ERROR "too many arguments" */ ... )
++	fv(1, s /* ERROR "too many arguments" */ ...)
+ 	fv(gs /* ERROR "cannot use .* in argument" */ ())
+ 	fv(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -530,7 +529,7 @@ func _calls() {
+ 	t.fm(1, 2.0, x)
+ 	t.fm(s /* ERROR "cannot use .* in argument" */ )
+ 	t.fm(g1())
+-	t.fm(1, s /* ERROR "too many arguments" */ ... )
++	t.fm(1, s /* ERROR "too many arguments" */ ...)
+ 	t.fm(gs /* ERROR "cannot use .* in argument" */ ())
+ 	t.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -538,7 +537,7 @@ func _calls() {
+ 	T.fm(t, 1, 2.0, x)
+ 	T.fm(t, s /* ERROR "cannot use .* in argument" */ )
+ 	T.fm(t, g1())
+-	T.fm(t, 1, s /* ERROR "too many arguments" */ ... )
++	T.fm(t, 1, s /* ERROR "too many arguments" */ ...)
+ 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ())
+ 	T.fm(t, gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+@@ -547,7 +546,7 @@ func _calls() {
+ 	i.fm(1, 2.0, x)
+ 	i.fm(s /* ERROR "cannot use .* in argument" */ )
+ 	i.fm(g1())
+-	i.fm(1, s /* ERROR "too many arguments" */ ... )
++	i.fm(1, s /* ERROR "too many arguments" */ ...)
+ 	i.fm(gs /* ERROR "cannot use .* in argument" */ ())
+ 	i.fm(gs /* ERROR "cannot use .* in argument" */ ()...)
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/go1_8.go b/src/cmd/compile/internal/types2/testdata/check/go1_8.go
+index 15462aba14..99f2fd4eb2 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/go1_8.go
++++ b/src/cmd/compile/internal/types2/testdata/check/go1_8.go
+@@ -9,4 +9,4 @@
+ package p
+ 
+ // type alias declarations
+-type any /* ERROR type aliases requires go1.9 or later */ = interface{}
++type any = /* ERROR type aliases requires go1.9 or later */ interface{}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues0.go b/src/cmd/compile/internal/types2/testdata/check/issues0.go
+index 4ac3fc2f9d..95cfa2a910 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/issues0.go
+@@ -327,8 +327,8 @@ func issue28281c(a, b, c ... /* ERROR can only use ... with final parameter */ i
+ func issue28281d(... /* ERROR can only use ... with final parameter */ int, int)
+ func issue28281e(a, b, c  ... /* ERROR can only use ... with final parameter */ int, d int)
+ func issue28281f(... /* ERROR can only use ... with final parameter */ int, ... /* ERROR can only use ... with final parameter */ int, int)
+-func (... /* ERROR can only use ... with final parameter in list */ TT) f()
+-func issue28281g() (... /* ERROR can only use ... with final parameter in list */ TT)
++func (... /* ERROR can only use ... with final parameter */ TT) f()
++func issue28281g() (... /* ERROR can only use ... with final parameter */ TT)
+ 
+ // Issue #26234: Make various field/method lookup errors easier to read by matching cmd/compile's output
+ func issue26234a(f *syn.Prog) {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/main1.go b/src/cmd/compile/internal/types2/testdata/check/main1.go
+index 395e3bfec8..fb567a07d0 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/main1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/main1.go
+@@ -1,7 +1,7 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package main
+ 
+-func main [T /* ERROR "func main must have no type parameters" */ any]() {}
++func main[T /* ERROR "func main must have no type parameters" */ any]() {}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/map1.go b/src/cmd/compile/internal/types2/testdata/check/map1.go
+index be2c49f621..e13bf33fed 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/map1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/map1.go
+@@ -143,4 +143,4 @@ type chans_Receiver[T any] struct {
+ func (r *chans_Receiver[T]) Next() (T, bool) {
+ 	v, ok := <-r.values
+ 	return v, ok
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/shifts.go b/src/cmd/compile/internal/types2/testdata/check/shifts.go
+index 37bc84c0f6..5cd0182d52 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/shifts.go
++++ b/src/cmd/compile/internal/types2/testdata/check/shifts.go
+@@ -195,7 +195,8 @@ func shifts6() {
+ 	_ = float32(1.0 /* ERROR "must be integer" */ <<s)
+ 	_ = float32(1.1 /* ERROR "must be integer" */ <<s)
+ 
+-	// TODO(gri) port fixes from go/types
++	// TODO(gri) Re-enable these tests once types2 has the go/types fixes.
++	//           Issue #52080.
+ 	// _ = int32(0x80000000 /* ERROR "overflows int32" */ << s)
+ 	// TODO(rfindley) Eliminate the redundant error here.
+ 	// _ = int32(( /* ERROR "truncated to int32" */ 0x80000000 /* ERROR "truncated to int32" */ + 0i) << s)
+diff --git a/src/cmd/compile/internal/types2/testdata/check/stmt0.go b/src/cmd/compile/internal/types2/testdata/check/stmt0.go
+index 7aaa83e4ff..0caebcf544 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/stmt0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/stmt0.go
+@@ -49,18 +49,18 @@ func assignments1() {
+ 	b = true
+ 
+ 	i += 1
+-	i += "foo" /* ERROR "mismatched types int and untyped string" */
++	i /* ERROR "mismatched types int and untyped string" */+= "foo"
+ 
+ 	f -= 1
+ 	f /= 0
+ 	f = float32(0)/0 /* ERROR "division by zero" */
+-	f -= "foo" /* ERROR "mismatched types float64 and untyped string" */
++	f /* ERROR "mismatched types float64 and untyped string" */-= "foo"
+ 
+ 	c *= 1
+ 	c /= 0
+ 
+ 	s += "bar"
+-	s += 1 /* ERROR "mismatched types string and untyped int" */
++	s /* ERROR "mismatched types string and untyped int" */+= 1
+ 
+ 	var u64 uint64
+ 	u64 += 1<<u64
+@@ -86,11 +86,11 @@ func assignments1() {
+ 
+ 	g := func(int, bool){}
+ 	var m map[int]int
+-	g(m /* ERROR "not enough arguments" */ [0])
++	g(m[0]) /* ERROR "not enough arguments" */
+ 
+ 	// assignments to _
+ 	_ = nil /* ERROR "use of untyped nil" */
+-	_ = 1 /* ERROR overflow */ <<1000
++	_ = 1  << /* ERROR constant shift overflow */ 1000
+ 	(_) = 0
+ }
+ 
+@@ -229,7 +229,7 @@ func selects() {
+ }
+ 
+ func gos() {
+-	go 1 /* ERROR must be function call */
++	go 1; /* ERROR "must be function call" */
+ 	go int /* ERROR "go requires function call, not conversion" */ (0)
+ 	go gos()
+ 	var c chan int
+@@ -238,7 +238,7 @@ func gos() {
+ }
+ 
+ func defers() {
+-	defer 1 /* ERROR must be function call */
++	defer 1; /* ERROR "must be function call" */
+ 	defer int /* ERROR "defer requires function call, not conversion" */ (0)
+ 	defer defers()
+ 	var c chan int
+@@ -695,7 +695,7 @@ func typeswitches() {
+ 		_ = y
+ 	}
+ 
+-	switch /* ERROR "x declared but not used" */ x := i /* ERROR "not an interface" */ .(type) {}
++	switch x /* ERROR "x declared but not used" */ := i /* ERROR "not an interface" */ .(type) {}
+ 
+ 	switch t := x.(type) {
+ 	case nil:
+@@ -727,8 +727,8 @@ func typeswitches() {
+ 		switch v /* ERROR "v [(]variable of type int[)] is not an interface" */ .(type) {
+ 		case int:
+ 			println(x)
+-			println(x / /* ERROR "invalid operation: division by zero" */ 0)
+-		case /* ERROR "1 is not a type" */ 1:
++			println(x / 0 /* ERROR "invalid operation: division by zero" */)
++		case 1 /* ERROR "1 is not a type" */:
+ 		}
+ 	}
+ }
+@@ -898,7 +898,7 @@ func rangeloops1() {
+ 		ee = e
+ 		_ = ee
+ 	}
+-	for _ = range sc /* ERROR "send-only channel" */ {}
++	for _ = range sc /* ERROR "cannot range over" */ {}
+ 	for _ = range rc {}
+ 
+ 	// constant strings
+@@ -949,13 +949,13 @@ func issue6766b() {
+ // errors reported).
+ func issue10148() {
+ 	for y /* ERROR declared but not used */ := range "" {
+-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+ 	}
+ 	for range 1 /* ERROR cannot range over 1 */ {
+-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+ 	}
+ 	for y := range 1 /* ERROR cannot range over 1 */ {
+-		_ = "" /* ERROR mismatched types untyped string and untyped int*/ + 1
++		_ = "" /* ERROR mismatched types untyped string and untyped int */ + 1
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeinst1.go b/src/cmd/compile/internal/types2/testdata/check/typeinst1.go
+index eb0708fea1..e7b4539ff3 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeinst1.go
++++ b/src/cmd/compile/internal/types2/testdata/check/typeinst1.go
+@@ -163,13 +163,13 @@ type _ interface {
+ 
+ // Type sets may contain each type at most once.
+ type _ interface {
+-	~int|~int /* ERROR overlapping terms ~int */
++	~int|~ /* ERROR overlapping terms ~int */ int
+ 	~int|int /* ERROR overlapping terms int */
+ 	int|int /* ERROR overlapping terms int */
+ }
+ 
+ type _ interface {
+-	~struct{f int} | ~struct{g int} | ~struct /* ERROR overlapping terms */ {f int}
++	~struct{f int} | ~struct{g int} | ~ /* ERROR overlapping terms */ struct{f int}
+ }
+ 
+ // Interface term lists can contain any type, incl. *Named types.
+diff --git a/src/cmd/compile/internal/types2/testdata/check/typeparams.go b/src/cmd/compile/internal/types2/testdata/check/typeparams.go
+index 498d6f2d26..766500c6b9 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/typeparams.go
++++ b/src/cmd/compile/internal/types2/testdata/check/typeparams.go
+@@ -1,4 +1,4 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -134,11 +134,11 @@ func _[T interface{ ~string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3
+ type myByte1 []byte
+ type myByte2 []byte
+ func _[T interface{ []byte | myByte1 | myByte2 }] (x T, i, j, k int) { var _ T = x[i:j:k] }
+-func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j:k] }
++func _[T interface{ []byte | myByte1 | []int }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j:k] }
+ 
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j] }
+ func _[T interface{ []byte | myByte1 | myByte2 | string }] (x T, i, j, k int) { var _ T = x[i:j:k /* ERROR 3-index slice of string */ ] }
+-func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x[ /* ERROR no core type */ i:j] }
++func _[T interface{ []byte | myByte1 | []int | string }] (x T, i, j, k int) { var _ T = x /* ERROR no core type */ [i:j] }
+ 
+ // len/cap built-ins
+ 
+@@ -274,17 +274,17 @@ func _[
+ 
+ // type inference checks
+ 
+-var _ = new() /* ERROR cannot infer T */
++var _ = new /* ERROR cannot infer T */ ()
+ 
+ func f4[A, B, C any](A, B) C { panic(0) }
+ 
+-var _ = f4(1, 2) /* ERROR cannot infer C */
++var _ = f4 /* ERROR cannot infer C */ (1, 2)
+ var _ = f4[int, float32, complex128](1, 2)
+ 
+ func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
+ 
+ var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
+-var _ = f5(0, nil, struct{f []complex128}{}) // ERROR cannot infer
++var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
+ var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
+ 
+ func f6[A any](A, []A) int { panic(0) }
+@@ -293,13 +293,13 @@ var _ = f6(0, nil)
+ 
+ func f6nil[A any](A) int { panic(0) }
+ 
+-var _ = f6nil(nil) // ERROR cannot infer
++var _ = f6nil /* ERROR cannot infer */ (nil)
+ 
+ // type inference with variadic functions
+ 
+ func f7[T any](...T) T { panic(0) }
+ 
+-var _ int = f7() /* ERROR cannot infer T */
++var _ int = f7 /* ERROR cannot infer T */ ()
+ var _ int = f7(1)
+ var _ int = f7(1, 2)
+ var _ int = f7([]int{}...)
+@@ -312,7 +312,7 @@ var _ = f7(1.2, 3 /* ERROR does not match */ )
+ 
+ func f8[A, B any](A, B, ...B) int { panic(0) }
+ 
+-var _ = f8(1 /* ERROR not enough arguments */ )
++var _ = f8(1) /* ERROR not enough arguments */
+ var _ = f8(1, 2.3)
+ var _ = f8(1, 2.3, 3.4, 4.5)
+ var _ = f8(1, 2.3, 3.4, 4 /* ERROR does not match */ )
+diff --git a/src/cmd/compile/internal/types2/testdata/check/vardecl.go b/src/cmd/compile/internal/types2/testdata/check/vardecl.go
+index 19ccc98009..11591af385 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/vardecl.go
++++ b/src/cmd/compile/internal/types2/testdata/check/vardecl.go
+@@ -14,9 +14,9 @@ var m map[string]int
+ var _ int
+ var _, _ int
+ 
+-var _ /* ERROR "expected type" */
+-var _, _ /* ERROR "expected type" */
+-var _, _, _ /* ERROR "expected type" */
++var _; /* ERROR "expected type" */
++var _, _; /* ERROR "expected type" */
++var _, _, _; /* ERROR "expected type" */
+ 
+ // The initializer must be an expression.
+ var _ = int /* ERROR "not an expression" */
+@@ -156,15 +156,16 @@ func _() {
+ }
+ 
+ // Invalid variable declarations must not lead to "declared but not used errors".
+-func _() {
+-	var a x                        // ERROR undeclared name: x
+-	var b = x                      // ERROR undeclared name: x
+-	var c int = x                  // ERROR undeclared name: x
+-	var d, e, f x                  /* ERROR x */ /* ERROR x */ /* ERROR x */
+-	var g, h, i = x, x, x          /* ERROR x */ /* ERROR x */ /* ERROR x */
+-	var j, k, l float32 = x, x, x  /* ERROR x */ /* ERROR x */ /* ERROR x */
+-	// but no "declared but not used" errors
+-}
++// TODO(gri) enable these tests once go/types follows types2 logic for declared but not used variables
++// func _() {
++//	var a x                        // DISABLED_ERROR undeclared name: x
++//	var b = x                      // DISABLED_ERROR undeclared name: x
++//	var c int = x                  // DISABLED_ERROR undeclared name: x
++//	var d, e, f x                  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	var g, h, i = x, x, x          /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	var j, k, l float32 = x, x, x  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	// but no "declared but not used" errors
++// }
+ 
+ // Invalid (unused) expressions must not lead to spurious "declared but not used errors".
+ func _() {
+diff --git a/src/go/types/testdata/check/go1_12.go b/src/go/types/testdata/check/go1_12.go
+index 14c2d58c33..56c6d5a4c9 100644
+--- a/src/go/types/testdata/check/go1_12.go
++++ b/src/go/types/testdata/check/go1_12.go
+@@ -34,4 +34,3 @@ var (
+ 	_ = 1 << s // ERROR "invalid operation: signed shift count s \(variable of type int\) requires go1.13 or later"
+ 	_ = 1 >> s // ERROR "signed shift count"
+ )
+-
+diff --git a/src/go/types/testdata/check/go1_13.go b/src/go/types/testdata/check/go1_13.go
+index 5c52dfe602..cc7861d616 100644
+--- a/src/go/types/testdata/check/go1_13.go
++++ b/src/go/types/testdata/check/go1_13.go
+@@ -21,4 +21,3 @@ type _ interface {
+ 	I
+ 	I // ERROR "duplicate method m"
+ }
+-
+diff --git a/src/go/types/testdata/check/go1_8.go b/src/go/types/testdata/check/go1_8.go
+index 5d57cdc65e..99f2fd4eb2 100644
+--- a/src/go/types/testdata/check/go1_8.go
++++ b/src/go/types/testdata/check/go1_8.go
+@@ -10,4 +10,3 @@ package p
+ 
+ // type alias declarations
+ type any = /* ERROR type aliases requires go1.9 or later */ interface{}
+-
+diff --git a/src/go/types/testdata/check/shifts.go b/src/go/types/testdata/check/shifts.go
+index 16a67aee63..5cd0182d52 100644
+--- a/src/go/types/testdata/check/shifts.go
++++ b/src/go/types/testdata/check/shifts.go
+@@ -195,14 +195,16 @@ func shifts6() {
+ 	_ = float32(1.0 /* ERROR "must be integer" */ <<s)
+ 	_ = float32(1.1 /* ERROR "must be integer" */ <<s)
+ 
+-	_ = int32(0x80000000 /* ERROR "overflows int32" */ << s)
++	// TODO(gri) Re-enable these tests once types2 has the go/types fixes.
++	//           Issue #52080.
++	// _ = int32(0x80000000 /* ERROR "overflows int32" */ << s)
+ 	// TODO(rfindley) Eliminate the redundant error here.
+-	_ = int32(( /* ERROR "truncated to int32" */ 0x80000000 /* ERROR "truncated to int32" */ + 0i) << s)
++	// _ = int32(( /* ERROR "truncated to int32" */ 0x80000000 /* ERROR "truncated to int32" */ + 0i) << s)
+ 
+ 	_ = int(1+0i<<0)
+-	_ = int((1+0i)<<s)
+-	_ = int(1.0<<s)
+-	_ = int(complex(1, 0)<<s)
++	// _ = int((1+0i)<<s)
++	// _ = int(1.0<<s)
++	// _ = int(complex(1, 0)<<s)
+ 	_ = int(float32/* ERROR "must be integer" */(1.0) <<s)
+ 	_ = int(1.1 /* ERROR must be integer */ <<s)
+ 	_ = int(( /* ERROR "must be integer" */ 1+1i)  <<s)
+diff --git a/src/go/types/testdata/check/todos.go b/src/go/types/testdata/check/todos.go
+deleted file mode 100644
+index 09e9b4c48a..0000000000
+--- a/src/go/types/testdata/check/todos.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file is meant as "dumping ground" for tests
+-// of not yet implemented features. It will grow and
+-// shrink over time.
+-
+-package p
+-
+-// When using []'s instead of ()'s for type parameters
+-// we don't need extra parentheses for some composite
+-// literal types.
+-type T1[P any] struct{}
+-type T2[P, Q any] struct{}
+-
+-func _() {
+-   _ = []T1[int]{}            // ok if we use []'s
+-   _ = [](T1[int]){}
+-   _ = []T2[int, string]{}    // ok if we use []'s
+-   _ = [](T2[int, string]){}
+-}
+diff --git a/src/go/types/testdata/check/typeparams.go b/src/go/types/testdata/check/typeparams.go
+index 95bd3e46b9..766500c6b9 100644
+--- a/src/go/types/testdata/check/typeparams.go
++++ b/src/go/types/testdata/check/typeparams.go
+@@ -452,7 +452,7 @@ func (_ R2[X, Y]) m2(X) Y
+ //         switch x.(type) {
+ //         case I4:
+ //         }
+-// 
++//
+ //         // type assertions and type switches over generic types are strict
+ //         _ = p /* ERROR cannot have dynamic type I4 */.(I4)
+ //         switch p.(type) {
+diff --git a/src/go/types/testdata/check/vardecl.go b/src/go/types/testdata/check/vardecl.go
+index d4dc4a6c60..11591af385 100644
+--- a/src/go/types/testdata/check/vardecl.go
++++ b/src/go/types/testdata/check/vardecl.go
+@@ -155,7 +155,19 @@ func _() {
+ 	}
+ }
+ 
+-// Invalid (unused) expressions must not lead to spurious "declared but not used errors"
++// Invalid variable declarations must not lead to "declared but not used errors".
++// TODO(gri) enable these tests once go/types follows types2 logic for declared but not used variables
++// func _() {
++//	var a x                        // DISABLED_ERROR undeclared name: x
++//	var b = x                      // DISABLED_ERROR undeclared name: x
++//	var c int = x                  // DISABLED_ERROR undeclared name: x
++//	var d, e, f x                  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	var g, h, i = x, x, x          /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	var j, k, l float32 = x, x, x  /* DISABLED_ERROR x */ /* DISABLED_ERROR x */ /* DISABLED_ERROR x */
++//	// but no "declared but not used" errors
++// }
++
++// Invalid (unused) expressions must not lead to spurious "declared but not used errors".
+ func _() {
+ 	var a, b, c int
+ 	var x, y int

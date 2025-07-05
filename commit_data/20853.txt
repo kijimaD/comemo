@@ -6,6 +6,19 @@ Date:   Mon Oct 20 10:02:25 2014 +0200
     
     CC=golang-codereviews
     https://golang.org/cl/156430043
-
+---
  doc/go1.4.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.4.txt b/doc/go1.4.txt
+index df98de5c76..ae52562df9 100644
+--- a/doc/go1.4.txt
++++ b/doc/go1.4.txt
+@@ -21,6 +21,7 @@ cmd/go: (via go/build): a GOOS prefix acts as a tag only if preceded by an under
+ 
+ asm: make textflag.h available outside of cmd/ld (CL 128050043)
+ bufio: handling of empty tokens at EOF changed, may require scanner change (CL 145390043)
++compress/flate, compress/gzip, compress/zlib: Reset support (https://codereview.appspot.com/97140043)
+ crypto/tls: add support for ALPN (RFC 7301) (CL 108710046)
+ crypto/tls: support programmatic selection of server certificates (CL 107400043)
+ flag: it is now an error to set a flag multiple times (CL 156390043)

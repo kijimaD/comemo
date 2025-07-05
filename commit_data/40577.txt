@@ -11,7 +11,7 @@ Date:   Fri May 17 10:59:34 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              |  14 +--
  src/cmd/go/internal/modget/get.go                  | 128 +++++++--------------
  src/cmd/go/internal/modload/load.go                |  81 +------------
@@ -37,3 +37,1045 @@ Date:   Fri May 17 10:59:34 2019 -0400
  ...upgrade_patch_pkg.txt => mod_upgrade_patch.txt} |   0
  .../go/testdata/script/mod_upgrade_patch_mod.txt   |  83 -------------
  24 files changed, 117 insertions(+), 346 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 94a9dcb983..a78766e228 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -557,7 +557,7 @@
+ //
+ // Usage:
+ //
+-// 	go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]
++// 	go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]
+ //
+ // Get resolves and adds dependencies to the current development module
+ // and then builds and installs them.
+@@ -622,18 +622,6 @@
+ // require downgrading other dependencies, and 'go get' does
+ // this automatically as well.
+ //
+-// The -m flag instructs get to stop here, after resolving, upgrading,
+-// and downgrading modules and updating go.mod. When using -m,
+-// each specified package path must be a module path as well,
+-// not the import path of a package below the module root.
+-//
+-// When the -m and -u flags are used together, 'go get' will upgrade
+-// modules that provide packages depended on by the modules named on
+-// the command line. For example, 'go get -u -m A' will upgrade A and
+-// any module providing packages imported by packages in A.
+-// 'go get -u -m' will upgrade modules that provided packages needed
+-// by the main module.
+-//
+ // The -insecure flag permits fetching from repositories and resolving
+ // custom domains using insecure schemes such as HTTP. Use with caution.
+ //
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index d5ab59490c..0babfba390 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -17,7 +17,6 @@ import (
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/semver"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
+ 	"errors"
+ 	"fmt"
+@@ -29,9 +28,9 @@ import (
+ )
+ 
+ var CmdGet = &base.Command{
+-	// Note: -d -m -u are listed explicitly because they are the most common get flags.
++	// Note: -d -u are listed explicitly because they are the most common get flags.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-d] [-m] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
++	UsageLine: "go get [-d] [-t] [-u] [-v] [-insecure] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves and adds dependencies to the current development module
+@@ -97,18 +96,6 @@ this automatically. Similarly, downgrading one dependency may
+ require downgrading other dependencies, and 'go get' does
+ this automatically as well.
+ 
+-The -m flag instructs get to stop here, after resolving, upgrading,
+-and downgrading modules and updating go.mod. When using -m,
+-each specified package path must be a module path as well,
+-not the import path of a package below the module root.
+-
+-When the -m and -u flags are used together, 'go get' will upgrade
+-modules that provide packages depended on by the modules named on
+-the command line. For example, 'go get -u -m A' will upgrade A and
+-any module providing packages imported by packages in A.
+-'go get -u -m' will upgrade modules that provided packages needed
+-by the main module.
+-
+ The -insecure flag permits fetching from repositories and resolving
+ custom domains using insecure schemes such as HTTP. Use with caution.
+ 
+@@ -227,8 +214,7 @@ type querySpec struct {
+ 	// vers specifies what version of the module to get.
+ 	vers string
+ 
+-	// forceModulePath is true if path should be interpreted as a module path
+-	// even if -m is not specified.
++	// forceModulePath is true if path should be interpreted as a module path.
+ 	forceModulePath bool
+ 
+ 	// prevM is the previous version of the module. prevM is needed
+@@ -267,6 +253,9 @@ func runGet(cmd *base.Command, args []string) {
+ 	if *getFix {
+ 		fmt.Fprintf(os.Stderr, "go get: -fix flag is a no-op when using modules\n")
+ 	}
++	if *getM {
++		base.Fatalf("go get: -m flag is no longer supported")
++	}
+ 	modload.LoadTests = *getT
+ 
+ 	if cfg.BuildMod == "vendor" {
+@@ -318,12 +307,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			// contains no wildcards (...), check that it is a package in
+ 			// the main module. If the path contains wildcards but matches no
+ 			// packages, we'll warn after package loading.
+-			if len(args) > 0 && *getM {
+-				base.Errorf("go get %s: -m requires a module path, but a relative path must be a package in the main module", arg)
+-				continue
+-			}
+-
+-			if !*getM && !strings.Contains(path, "...") {
++			if !strings.Contains(path, "...") {
+ 				pkgPath := modload.DirImportPath(filepath.FromSlash(path))
+ 				if pkgs := modload.TargetPackages(pkgPath); len(pkgs) == 0 {
+ 					abs, err := filepath.Abs(path)
+@@ -341,25 +325,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			}
+ 
+ 		case strings.Contains(path, "..."):
+-			// If we're using -m, look up modules in the build list that match
+-			// the pattern. Report an error if no modules match.
+-			if *getM {
+-				match := search.MatchPattern(path)
+-				matched := false
+-				for _, m := range modload.BuildList() {
+-					if match(m.Path) || str.HasPathPrefix(path, m.Path) {
+-						queries = append(queries, &query{querySpec: querySpec{path: m.Path, vers: vers, prevM: m, forceModulePath: true}, arg: arg})
+-						matched = true
+-					}
+-				}
+-				if !matched {
+-					base.Errorf("go get %s: pattern matches no modules in build list", arg)
+-					continue
+-				}
+-				break
+-			}
+-
+-			// If we're not using -m, wait until we load packages to look up modules.
++			// Wait until we load packages to look up modules.
+ 			// We don't know yet whether any modules in the build list provide
+ 			// packages matching the pattern. For example, suppose
+ 			// golang.org/x/tools and golang.org/x/tools/playground are separate
+@@ -369,34 +335,34 @@ func runGet(cmd *base.Command, args []string) {
+ 			// upgrade golang.org/x/tools.
+ 
+ 		case path == "all":
+-			// This is the package pattern "all" not the module pattern "all",
+-			// even if *getM. We won't create any queries yet, since we're going to
+-			// need to load packages anyway.
++			// Don't query modules until we load packages. We'll automatically
++			// look up any missing modules.
+ 
+ 		case search.IsMetaPackage(path):
+ 			base.Errorf("go get %s: explicit requirement on standard-library module %s not allowed", path, path)
+ 			continue
+ 
+ 		default:
+-			// The argument is a package path or module path or both.
+-			q := &query{querySpec: querySpec{path: path, vers: vers}, arg: arg}
+-			if vers == "patch" {
+-				if *getM {
+-					for _, m := range modload.BuildList() {
+-						if m.Path == path {
+-							q.prevM = m
+-							break
+-						}
+-					}
+-					queries = append(queries, q)
+-				} else {
+-					// We need to know the module containing path before asking for
+-					// a specific version. Wait until we load packages later.
++			// The argument is a package path.
++			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
++				// The path is in the main module. Nothing to query.
++				if vers != "" && vers != "latest" && vers != "patch" {
++					base.Errorf("go get %s: can't request explicit version of path in main module", arg)
+ 				}
++				continue
++			}
++
++			if vers == "patch" {
++				// We need to know the previous version of the module to find
++				// the new version, but we don't know what module provides this
++				// package yet. Wait until we load packages later.
++				// TODO(golang.org/issue/30634): @latest should also depend on
++				// the current version to prevent downgrading from newer pseudoversions.
+ 			} else {
+ 				// The requested version of path doesn't depend on the existing version,
+-				// so don't bother resolving it.
+-				queries = append(queries, q)
++				// so query the module before loading the package. This may let us
++				// load the package only once at the correct version.
++				queries = append(queries, &query{querySpec: querySpec{path: path, vers: vers}, arg: arg})
+ 			}
+ 		}
+ 	}
+@@ -430,7 +396,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			modOnly[q.m.Path] = q
+ 			continue
+ 		}
+-		if !*getM && q.path == q.m.Path {
++		if q.path == q.m.Path {
+ 			wg.Add(1)
+ 			go func(q *query) {
+ 				if hasPkg, err := modload.ModuleHasRootPackage(q.m); err != nil {
+@@ -477,17 +443,13 @@ func runGet(cmd *base.Command, args []string) {
+ 			// Don't load packages if pkgPatterns is empty. Both
+ 			// modload.ImportPathsQuiet and ModulePackages convert an empty list
+ 			// of patterns to []string{"."}, which is not what we want.
+-			if *getM {
+-				matches = modload.ModulePackages(pkgPatterns)
+-			} else {
+-				matches = modload.ImportPathsQuiet(pkgPatterns)
+-			}
++			matches = modload.ImportPathsQuiet(pkgPatterns)
+ 			seenPkgs = make(map[string]bool)
+ 			install = make([]string, 0, len(pkgPatterns))
+ 			for i, match := range matches {
+ 				arg := pkgGets[i]
+ 
+-				if !*getM && len(match.Pkgs) == 0 {
++				if len(match.Pkgs) == 0 {
+ 					// If the pattern did not match any packages, look up a new module.
+ 					// If the pattern doesn't match anything on the last iteration,
+ 					// we'll print a warning after the outer loop.
+@@ -516,12 +478,8 @@ func runGet(cmd *base.Command, args []string) {
+ 					allStd = false
+ 					addQuery(&query{querySpec: querySpec{path: m.Path, vers: arg.vers, forceModulePath: true, prevM: m}, arg: arg.raw})
+ 				}
+-				if allStd {
+-					if *getM {
+-						base.Errorf("go get %s: cannot use pattern %q with -m", arg.raw, arg.raw)
+-					} else if arg.path != arg.raw {
+-						base.Errorf("go get %s: cannot use pattern %q with explicit version", arg.raw, arg.raw)
+-					}
++				if allStd && arg.path != arg.raw {
++					base.Errorf("go get %s: cannot use pattern %q with explicit version", arg.raw, arg.raw)
+ 				}
+ 			}
+ 		}
+@@ -552,9 +510,7 @@ func runGet(cmd *base.Command, args []string) {
+ 		}
+ 		prevBuildList = buildList
+ 	}
+-	if !*getM {
+-		search.WarnUnmatched(matches) // don't warn on every iteration
+-	}
++	search.WarnUnmatched(matches) // don't warn on every iteration
+ 
+ 	// Handle downgrades.
+ 	var down []module.Version
+@@ -645,12 +601,14 @@ func runGet(cmd *base.Command, args []string) {
+ 	modload.AllowWriteGoMod()
+ 	modload.WriteGoMod()
+ 
+-	// If -m or -d was specified, we're done after the module work. We've
+-	// already downloaded modules by loading packages above. If neither flag
+-	// we specified, we need build and install the packages.
+-	// Note that 'go get -u' without any arguments results in len(install) == 1:
+-	// search.CleanImportPaths returns "." for empty args.
+-	if *getM || *getD || len(install) == 0 {
++	// If -d was specified, we're done after the module work.
++	// We've already downloaded modules by loading packages above.
++	// Otherwise, we need to build and install the packages matched
++	// by command line arguments.
++	// Note that 'go get -u' without any arguments results in
++	// len(install) == 1 if there's a package in the current directory.
++	// search.CleanPatterns returns "." for empty args.
++	if *getD || len(install) == 0 {
+ 		return
+ 	}
+ 	work.BuildInit()
+@@ -726,7 +684,7 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		}
+ 	}
+ 
+-	if forceModulePath || *getM || !strings.Contains(path, "...") {
++	if forceModulePath || !strings.Contains(path, "...") {
+ 		if path == modload.Target.Path {
+ 			if vers != "latest" {
+ 				return module.Version{}, fmt.Errorf("can't get a specific version of the main module")
+@@ -740,7 +698,7 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		}
+ 
+ 		// If the query fails, and the path must be a real module, report the query error.
+-		if forceModulePath || *getM {
++		if forceModulePath {
+ 			return module.Version{}, err
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 0395661e0d..022b3f3a4f 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -33,8 +33,7 @@ import (
+ 
+ // buildList is the list of modules to use for building packages.
+ // It is initialized by calling ImportPaths, ImportFromFiles,
+-// ModulePackages, LoadALL, or LoadBuildList, each of which uses
+-// loaded.load.
++// LoadALL, or LoadBuildList, each of which uses loaded.load.
+ //
+ // Ideally, exactly ONE of those functions would be called,
+ // and exactly once. Most of the time, that's true.
+@@ -170,81 +169,6 @@ func ImportPathsQuiet(patterns []string) []*search.Match {
+ 		}
+ 	}
+ 
+-	return loadPatterns(patterns, true, updateMatches)
+-}
+-
+-// ModulePackages returns packages provided by each module in patterns.
+-// patterns may contain module paths, patterns matching module paths,
+-// "all" (interpreted as package pattern "all"), and "." (interpreted
+-// as the main module). Additional modules (including modules providing
+-// dependencies) may be added to the build list or upgraded.
+-func ModulePackages(patterns []string) []*search.Match {
+-	updateMatches := func(matches []*search.Match, iterating bool) {
+-		for _, m := range matches {
+-			switch {
+-			case search.IsRelativePath(m.Pattern) || filepath.IsAbs(m.Pattern):
+-				if m.Pattern != "." {
+-					base.Errorf("go: path %s is not a module", m.Pattern)
+-					continue
+-				}
+-				m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+-
+-			case strings.Contains(m.Pattern, "..."):
+-				match := search.MatchPattern(m.Pattern)
+-				var matched []module.Version
+-				for _, mod := range buildList {
+-					if match(mod.Path) || str.HasPathPrefix(m.Pattern, mod.Path) {
+-						matched = append(matched, mod)
+-					}
+-				}
+-				m.Pkgs = matchPackages(m.Pattern, loaded.tags, false, matched)
+-
+-			case m.Pattern == "all":
+-				loaded.testAll = true
+-				if iterating {
+-					// Enumerate the packages in the main module.
+-					// We'll load the dependencies as we find them.
+-					m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{Target})
+-				} else {
+-					// Starting with the packages in the main module,
+-					// enumerate the full list of "all".
+-					m.Pkgs = loaded.computePatternAll(m.Pkgs)
+-				}
+-
+-			default:
+-				found := false
+-				for _, mod := range buildList {
+-					if mod.Path == m.Pattern {
+-						found = true
+-						m.Pkgs = matchPackages("...", loaded.tags, false, []module.Version{mod})
+-						break
+-					}
+-				}
+-				if !found {
+-					base.Errorf("go %s: module not in build list", m.Pattern)
+-				}
+-			}
+-		}
+-	}
+-	return loadPatterns(patterns, false, updateMatches)
+-}
+-
+-// loadPatterns returns a set of packages matching the args (patterns),
+-// adding modules to the build list as needed to satisfy new imports.
+-//
+-// useTags indicates whether to use the default build constraints to
+-// filter source files. If useTags is false, only "ignore" and malformed
+-// build tag requirements are considered false.
+-//
+-// The interpretation of patterns is determined by updateMatches, which will be
+-// called repeatedly until the build list is finalized. updateMatches should
+-// should store a list of matching packages in each search.Match when it is
+-// called. The iterating parameter is true if the build list has not been
+-// finalized yet.
+-//
+-// If errors are encountered, loadPatterns will print them and exit.
+-// On success, loadPatterns will update the build list and write go.mod.
+-func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []*search.Match, iterating bool)) []*search.Match {
+ 	InitMod()
+ 
+ 	var matches []*search.Match
+@@ -256,9 +180,6 @@ func loadPatterns(patterns []string, useTags bool, updateMatches func(matches []
+ 	}
+ 
+ 	loaded = newLoader()
+-	if !useTags {
+-		loaded.tags = anyTags
+-	}
+ 	loaded.load(func() []string {
+ 		var roots []string
+ 		updateMatches(matches, true)
+diff --git a/src/cmd/go/testdata/script/mod_build_versioned.txt b/src/cmd/go/testdata/script/mod_build_versioned.txt
+index 1b387361a7..11ad556d44 100644
+--- a/src/cmd/go/testdata/script/mod_build_versioned.txt
++++ b/src/cmd/go/testdata/script/mod_build_versioned.txt
+@@ -1,7 +1,7 @@
+ env GO111MODULE=on
+ [short] skip
+ 
+-go get -m rsc.io/fortune/v2
++go get -d rsc.io/fortune/v2
+ 
+ # The default executable name shouldn't be v2$exe
+ go build rsc.io/fortune/v2
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index f88eb692fd..a906babbd5 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -4,21 +4,14 @@ env GOPROXY=$GOPROXY/quiet
+ 
+ # @commit should resolve
+ 
+-# golang.org/x/text/language@commit should not resolve with -m,
+-# because that's not a module path.
+-! go get -d -m golang.org/x/text/language@14c0d48
+-
+-# ... but it should work without -m.
+-# because of -d, the compiler should not run
++# golang.org/x/text/language@commit should resolve.
++# Because of -d, the compiler should not run.
+ go get -d -x golang.org/x/text/language@14c0d48
+ ! stderr 'compile|cp|gccgo .*language\.a$'
+ 
+ # go get should skip build with no Go files in root
+ go get -d golang.org/x/text@14c0d48
+ 
+-# ... and go get should skip build with -m
+-go get -m golang.org/x/text@14c0d48
+-
+ # dropping -d, we should see a build.
+ [short] skip
+ go get -x golang.org/x/text/language@14c0d48
+diff --git a/src/cmd/go/testdata/script/mod_get_local.txt b/src/cmd/go/testdata/script/mod_get_local.txt
+index 44a470ecfc..eb09da58b3 100644
+--- a/src/cmd/go/testdata/script/mod_get_local.txt
++++ b/src/cmd/go/testdata/script/mod_get_local.txt
+@@ -5,22 +5,22 @@ env GO111MODULE=on
+ go mod edit -fmt
+ cp go.mod go.mod.orig
+ 
+-# 'go get -u -m' within the main module should work, even if it has a local-only name.
++# 'go get -u' within the main module should work, even if it has a local-only name.
+ cp go.mod.orig go.mod
+-go get -u -m
++go get -d -u ./...
+ grep 'rsc.io/quote.*v1.5.2' go.mod
+ grep 'golang.org/x/text.*v0.3.0' go.mod
+ cp go.mod go.mod.implicitmod
+ 
+-# 'go get -u -m' with the name of the main module should be equivalent to
+-# 'go get -u -m' without any further arguments.
++# 'go get -u local/...' should be equivalent to 'go get -u ./...'
++# (assuming no nested modules)
+ cp go.mod.orig go.mod
+-go get -u -m local
++go get -d -u local/...
+ cmp go.mod go.mod.implicitmod
+ 
+ # For the main module, @patch should be a no-op.
+ cp go.mod.orig go.mod
+-go get -u -m local@patch
++go get -d -u local/...@patch
+ cmp go.mod go.mod.implicitmod
+ 
+ # 'go get -u -d' in the empty root of the main module should fail.
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+index 14dcffeaad..8e06220f9e 100644
+--- a/src/cmd/go/testdata/script/mod_get_main.txt
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -4,22 +4,22 @@ env GO111MODULE=on
+ # @patch and @latest within the main module refer to the current version.
+ # The main module won't be upgraded, but missing dependencies will be added.
+ cp go.mod.orig go.mod
+-go get -m rsc.io@latest
++go get -d rsc.io/x@latest
+ grep 'rsc.io/quote v1.5.2' go.mod
+ cp go.mod.orig go.mod
+-go get -m rsc.io@patch
++go get -d rsc.io/x@patch
+ grep 'rsc.io/quote v1.5.2' go.mod
+ cp go.mod.orig go.mod
+ 
+ # The main module cannot be updated to a specific version.
+-! go get -m rsc.io@v0.1.0
+-stderr '^go get rsc.io@v0.1.0: can.t get a specific version of the main module$'
++! go get rsc.io/x@v0.1.0
++stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+ ! go get -d rsc.io/x@v0.1.0
+-stderr '^go get rsc.io/x@v0.1.0: can.t query specific version for package rsc.io/x in the main module \(rsc.io\)$'
++stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+ 
+ # Upgrading a package pattern not contained in the main module should not
+ # attempt to upgrade the main module.
+-go get rsc.io/quote/...@v1.5.1
++go get -d rsc.io/quote/...@v1.5.1
+ grep 'rsc.io/quote v1.5.1' go.mod
+ 
+ -- go.mod.orig --
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index 9521c4f84a..b9931970e0 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -1,15 +1,9 @@
+ env GO111MODULE=on
+ [short] skip
+ 
+-# If a pattern doesn't match any modules in the build list,
+-# and -m is used, an error should be reported.
+-cp go.mod.orig go.mod
+-! go get -m rsc.io/quote/...
+-stderr 'pattern matches no modules in build list'
+-
+-# If a pattern doesn't match any modules in the build list,
+-# we assume the pattern matches a single module where the
+-# part of the pattern before "..." is the module path.
++# If a pattern doesn't match any packages provided by modules
++# in the build list, we assume the pattern matches a single module
++# whose path is a prefix of the part of the pattern before "...".
+ cp go.mod.orig go.mod
+ go get -d rsc.io/quote/...
+ grep 'require rsc.io/quote' go.mod
+@@ -27,7 +21,7 @@ stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@latest \(v1.5.2\) found,
+ # be upgraded, even if the module path matches the pattern.
+ cp go.mod.orig go.mod
+ go mod edit -require example.com/nest@v1.0.0
+-go get example.com/nest/sub/y...
++go get -d example.com/nest/sub/y...
+ grep 'example.com/nest/sub v1.0.0' go.mod
+ grep 'example.com/nest v1.0.0' go.mod
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo.txt b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+index 5b1ec6e96b..c0964780cb 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo.txt
+@@ -9,68 +9,68 @@ env GOSUMDB=off
+ # We can resolve the @master branch without unshallowing the local repository
+ # (even with older gits), so try that before we do anything else.
+ # (This replicates https://golang.org/issue/26713 with git 2.7.4.)
+-go get -m github.com/rsc/legacytest@master
++go get -d github.com/rsc/legacytest@master
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
+ 
+ # get should include incompatible tags in "latest" calculation.
+-go get -m github.com/rsc/legacytest@latest
++go get -d github.com/rsc/legacytest@latest
+ go list
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+ # v2.0.1-0.pseudo+incompatible
+-go get -m ...test@7303f77
++go get -d ...test@7303f77
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.1-0\.\d{14}-7303f7796364\+incompatible$'
+ 
+ # v2.0.0+incompatible by tag+incompatible
+-go get -m ...test@v2.0.0+incompatible
++go get -d ...test@v2.0.0+incompatible
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+ # v2.0.0+incompatible by tag
+-go get -m ...test@v2.0.0
++go get -d ...test@v2.0.0
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+ # v2.0.0+incompatible by hash (back on master)
+-go get -m ...test@d7ae1e4
++go get -d ...test@d7ae1e4
+ go list -m all
+ stdout '^github.com/rsc/legacytest v2\.0\.0\+incompatible$'
+ 
+ # v1.2.1-0.pseudo
+-go get -m ...test@d2d4c3e
++go get -d ...test@d2d4c3e
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.2\.1-0\.\d{14}-d2d4c3ea6623$'
+ 
+ # v1.2.0
+-go get -m ...test@9f6f860
++go get -d ...test@9f6f860
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.2\.0$'
+ 
+ # v1.1.0-pre.0.pseudo
+-go get -m ...test@fb3c628
++go get -d ...test@fb3c628
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.1\.0-pre\.0\.\d{14}-fb3c628075e3$'
+ 
+ # v1.1.0-pre (no longer on master)
+-go get -m ...test@731e3b1
++go get -d ...test@731e3b1
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.1\.0-pre$'
+ 
+ # v1.0.1-0.pseudo
+-go get -m ...test@fa4f5d6
++go get -d ...test@fa4f5d6
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.0\.1-0\.\d{14}-fa4f5d6a71c6$'
+ 
+ # v1.0.0
+-go get -m ...test@7fff7f3
++go get -d ...test@7fff7f3
+ go list -m all
+ stdout '^github.com/rsc/legacytest v1\.0\.0$'
+ 
+ # v0.0.0-pseudo
+-go get -m ...test@52853eb
++go get -d ...test@52853eb
+ go list -m all
+ stdout '^github.com/rsc/legacytest v0\.0\.0-\d{14}-52853eb7b552$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+index fcff9b1ea3..0fbd041f86 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_other_branch.txt
+@@ -17,7 +17,7 @@ env GOSUMDB=off
+ # The pseudo-version hence sorts immediately after v0.2.2 rather
+ # than v0.2.1, even though the v0.2.2 tag is not on master.
+ 
+-go get -m vcs-test.golang.org/git/tagtests.git@master
++go get -d vcs-test.golang.org/git/tagtests.git@master
+ go list -m all
+ stdout '^vcs-test.golang.org/git/tagtests.git v0.2.3-0\.'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+index 4d1a8b8632..b78e6e644f 100644
+--- a/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
++++ b/src/cmd/go/testdata/script/mod_get_pseudo_prefix.txt
+@@ -16,11 +16,11 @@ env GOSUMDB=off
+ #
+ # The pseudo-version is based on sub/v0.0.10, since v0.2.0 doesn't
+ # contain the prefix.
+-go get -m vcs-test.golang.org/git/prefixtagtests.git/sub
++go get -d vcs-test.golang.org/git/prefixtagtests.git/sub
+ go list -m all
+ stdout '^vcs-test.golang.org/git/prefixtagtests.git/sub v0.0.10$'
+ 
+-go get -u -m vcs-test.golang.org/git/prefixtagtests.git/sub@master
++go get -d -u vcs-test.golang.org/git/prefixtagtests.git/sub@master
+ go list -m all
+ stdout '^vcs-test.golang.org/git/prefixtagtests.git/sub v0.0.11-0\.'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade.txt b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+index f6ba53381b..6a14dfdc45 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade.txt
+@@ -5,8 +5,8 @@ go list -m all
+ stdout 'rsc.io/quote v1.5.1'
+ grep 'rsc.io/quote v1.5.1$' go.mod
+ 
+-# get -m -u should update all dependencies
+-go get -d -m -u
++# get -u should update dependencies of the package in the current directory
++go get -d -u
+ grep 'rsc.io/quote v1.5.2$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+@@ -17,19 +17,19 @@ grep 'rsc.io/quote v1.5.1$' go.mod
+ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # move to a pseudo-version after any tags
+-go get -d -m rsc.io/quote@dd9747d
++go get -d rsc.io/quote@dd9747d
+ grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+ 
+ # get -u should not jump off newer pseudo-version to earlier tag
+-go get -d -m -u
++go get -d -u
+ grep 'rsc.io/quote v0.0.0-20180628003336-dd9747d19b04' go.mod
+ 
+ # move to earlier pseudo-version
+-go get -d -m rsc.io/quote@e7a685a342
++go get -d rsc.io/quote@e7a685a342
+ grep 'rsc.io/quote v0.0.0-20180214005133-e7a685a342c0' go.mod
+ 
+ # get -u should jump off earlier pseudo-version to newer tag
+-go get -d -m -u
++go get -d -u
+ grep 'rsc.io/quote v1.5.2' go.mod
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+index 80b240130f..b719ded385 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+@@ -9,7 +9,7 @@ env GO111MODULE=on
+ # The latest pseudo-version is semantically higher than the latest tag.
+ # 'get -u' should not downgrade to the (lower) tagged version.
+ 
+-go get -m example.com/pseudoupgrade@b5426c8
++go get -d example.com/pseudoupgrade@b5426c8
+ go get -u
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 3dd8d1b888..7e1f6aa323 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-go get -m rsc.io/quote@v1.5.1
++go get -d rsc.io/quote@v1.5.1
+ go mod vendor
+ env GOPATH=$WORK/empty
+ env GOPROXY=file:///nonexist
+diff --git a/src/cmd/go/testdata/script/mod_import_v1suffix.txt b/src/cmd/go/testdata/script/mod_import_v1suffix.txt
+index 82bb5e2a2f..a429450466 100644
+--- a/src/cmd/go/testdata/script/mod_import_v1suffix.txt
++++ b/src/cmd/go/testdata/script/mod_import_v1suffix.txt
+@@ -1,6 +1,6 @@
+ env GO111MODULE=on
+ 
+-! go get -m example.com/invalidpath/v1
++! go get -d example.com/invalidpath/v1
+ ! go install .
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+index 143e029e52..22979648e0 100644
+--- a/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_list_upgrade_pseudo.txt
+@@ -9,7 +9,7 @@ env GO111MODULE=on
+ # The latest pseudo-version is semantically higher than the latest tag.
+ # 'list -u' should not suggest a lower version as an upgrade.
+ 
+-go get -m example.com/pseudoupgrade@b5426c8
++go get -d example.com/pseudoupgrade@b5426c8
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index 7bde83963d..bdf0faf1db 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -10,13 +10,13 @@ go mod download example.com/badchain/b@v1.1.0
+ go mod download example.com/badchain/c@v1.1.0
+ 
+ # Try to update example.com/badchain/a (and its dependencies).
+-! go get -u example.com/badchain/a
++! go get -d -u example.com/badchain/a
+ cmp stderr update-a-expected
+ cmp go.mod go.mod.orig
+ 
+ # Try to update the main module. This updates everything, including
+ # modules that aren't direct requirements, so the error stack is shorter.
+-! go get -m -u
++! go get -d -u ./...
+ cmp stderr update-main-expected
+ cmp go.mod go.mod.orig
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index c3d53e035b..4182e71dde 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -113,9 +113,9 @@ go get -u all
+ ! stdout .
+ stderr 'warning: "all" matched no packages'
+ 
+-# 'go get -m' should check the proposed module graph for consistency,
+-# even though it will not be saved anywhere.
+-! go get -m example.com/printversion@v1.0.0 example.com/version@none
++# 'go get' should check the proposed module graph for consistency,
++# even though we won't write it anywhere.
++! go get -d example.com/printversion@v1.0.0 example.com/version@none
+ stderr 'inconsistent versions'
+ 
+ # 'go get -d' should download and extract the source code needed to build the requested version.
+diff --git a/src/cmd/go/testdata/script/mod_sumdb.txt b/src/cmd/go/testdata/script/mod_sumdb.txt
+index 2a322e25e6..8e1f3d7a7b 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb.txt
+@@ -8,26 +8,26 @@ env dbname=localhost.localdev/sumdb
+ # (this also populates tiles on the sumdb server).
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+-! go get rsc.io/quote
++! go get -d rsc.io/quote
+ stderr 'verifying rsc.io/quote@v1.5.2/go.mod: checksum mismatch'
+ stderr 'downloaded: h1:LzX7'
+ stderr 'localhost.localdev/sumdb: h1:wrong'
+ stderr 'SECURITY ERROR\nThis download does NOT match the one reported by the checksum server.'
+-! go get rsc.io/sampler
+-! go get golang.org/x/text
++! go get -d rsc.io/sampler
++! go get -d golang.org/x/text
+ rm go.sum
+ 
+ # switching to truthful sumdb detects timeline inconsistency
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+-! go get -m rsc.io/fortune
++! go get -d rsc.io/fortune
+ stderr 'SECURITY ERROR\ngo.sum database server misbehavior detected!'
+ stderr 'proof of misbehavior:'
+ 
+ # removing the cached wrong tree head and cached tiles clears the bad data
+ rm $GOPATH/pkg/sumdb/$dbname/latest
+ go clean -modcache
+-go get -m rsc.io/fortune
++go get -d rsc.io/fortune
+ 
+ -- go.mod.orig --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_cache.txt b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+index 748ec640d1..a44a87499a 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_cache.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_cache.txt
+@@ -7,41 +7,41 @@ env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+ cp go.mod.orig go.mod
+ rm go.sum
+ env GOPROXY=$proxy/sumdb-503
+-! go get -m rsc.io/quote
++! go get -d rsc.io/quote
+ stderr 503
+ 
+ # fetch through working proxy is OK
+ cp go.mod.orig go.mod
+ rm go.sum
+ env GOPROXY=$proxy
+-go get -m rsc.io/quote
++go get -d rsc.io/quote
+ 
+ # repeated fetch works entirely from cache, does not consult sumdb
+ cp go.mod.orig go.mod
+ rm go.sum
+ env GOPROXY=$proxy/sumdb-503
+-go get -m rsc.io/quote
++go get -d rsc.io/quote
+ rm go.sum
+ 
+ # fetch specific module can work without proxy, using cache or go.sum
+ cp go.mod.orig go.mod
+ rm go.sum
+ env GOPROXY=off
+-go get -m rsc.io/quote@v1.5.2 # using cache
++go get -d rsc.io/quote@v1.5.2 # using cache
+ rm $GOPATH/pkg/mod/download/cache/sumdb/localhost.localdev/sumdb/lookup/rsc.io/quote@v1.5.2
+-go get -m rsc.io/quote@v1.5.2 # using go.sum
++go get -d rsc.io/quote@v1.5.2 # using go.sum
+ 
+ # fetch fails once we lose access to both cache and go.sum
+ rm go.sum
+ env GOPROXY=$proxy/sumdb-504
+-! go get -m rsc.io/quote@v1.5.2
++! go get -d rsc.io/quote@v1.5.2
+ stderr 504
+ 
+ # but -insecure bypasses the checksum lookup entirely
+-go get -m -insecure rsc.io/quote@v1.5.2
++go get -d -insecure rsc.io/quote@v1.5.2
+ 
+ # and then it is in go.sum again
+-go get -m rsc.io/quote@v1.5.2
++go get -d rsc.io/quote@v1.5.2
+ 
+ -- go.mod.orig --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index d81030c235..d81d7edba4 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -13,13 +13,13 @@ stdout '^sum.golang.org$'
+ [!net] skip
+ env GOSUMDB=sum.golang.org
+ env GOPROXY=direct
+-go get -m rsc.io/quote
++go get -d rsc.io/quote
+ 
+ # download from proxy.golang.org with go.sum entry already
+ go clean -modcache
+ env GOSUMDB=
+ env GOPROXY=
+-go get -x -m rsc.io/quote
++go get -x -d rsc.io/quote
+ ! stderr github
+ stderr proxy.golang.org/rsc.io/quote
+ ! stderr sum.golang.org/tile
+@@ -27,7 +27,7 @@ stderr proxy.golang.org/rsc.io/quote
+ 
+ # download again, using checksum database to validate new go.sum lines
+ rm go.sum
+-go get -x -m rsc.io/quote
++go get -x -d rsc.io/quote
+ ! stderr github
+ stderr proxy.golang.org/rsc.io/quote
+ stderr sum.golang.org/tile
+@@ -35,7 +35,7 @@ stderr sum.golang.org/lookup/rsc.io/quote
+ 
+ # test fallback to direct
+ env TESTGOPROXY404=1
+-go get -x -m rsc.io/quote
++go get -x -d rsc.io/quote
+ stderr 'proxy.golang.org.*404 testing'
+ stderr github.com/rsc
+ 
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+index 0702de2230..52f6a10fba 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_proxy.txt
+@@ -5,14 +5,14 @@ env GOPROXY GONOPROXY GOSUMDB GONOSUMDB
+ 
+ # basic fetch (through proxy) works
+ cp go.mod.orig go.mod
+-go get -m rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
++go get -d rsc.io/fortune@v1.0.0 # note: must use test proxy, does not exist in real world
+ rm $GOPATH/pkg/mod/download/cache/sumdb # rm sumdb cache but NOT package download cache
+ rm go.sum
+ 
+ # can fetch by explicit URL
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb' '$proxy/sumdb-direct
+-go get -m rsc.io/fortune@v1.0.0
++go get -d rsc.io/fortune@v1.0.0
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+ 
+@@ -20,7 +20,7 @@ rm go.sum
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+ env GOPROXY=direct
+-! go get -m rsc.io/fortune@v1.0.0
++! go get -d rsc.io/fortune@v1.0.0
+ stderr 'verifying.*lookup.*localhost.localdev'
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+@@ -29,7 +29,7 @@ rm go.sum
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+ env GOPROXY=$proxy/sumdb-404
+-! go get -m rsc.io/fortune@v1.0.0
++! go get -d rsc.io/fortune@v1.0.0
+ stderr 'verifying.*lookup.*localhost.localdev'
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+@@ -38,7 +38,7 @@ rm go.sum
+ cp go.mod.orig go.mod
+ env GOSUMDB=$sumdb
+ env GOPROXY=$proxy/sumdb-503
+-! go get -m rsc.io/fortune@v1.0.0
++! go get -d rsc.io/fortune@v1.0.0
+ stderr '503 Service Unavailable'
+ rm $GOPATH/pkg/mod/download/cache/sumdb
+ rm go.sum
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt b/src/cmd/go/testdata/script/mod_upgrade_patch.txt
+similarity index 100%
+rename from src/cmd/go/testdata/script/mod_upgrade_patch_pkg.txt
+rename to src/cmd/go/testdata/script/mod_upgrade_patch.txt
+diff --git a/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt b/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt
+deleted file mode 100644
+index a539000964..0000000000
+--- a/src/cmd/go/testdata/script/mod_upgrade_patch_mod.txt
++++ /dev/null
+@@ -1,83 +0,0 @@
+-env GO111MODULE=on
+-[short] skip
+-
+-# Initially, we are at v1.0.0 for all dependencies.
+-cp go.mod go.mod.orig
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.0'
+-stdout '^patch.example.com/indirect v1.0.0'
+-! stdout '^patch.example.com/depofdirectpatch'
+-
+-# get -m -u=patch, with no arguments, should patch-update all dependencies,
+-# pulling in transitive dependencies and also patching those.
+-cp go.mod.orig go.mod
+-go get -m -u=patch
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.1'
+-stdout '^patch.example.com/indirect v1.0.1'
+-stdout '^patch.example.com/depofdirectpatch v1.0.0'
+-
+-# 'get -m all@patch' should be equivalent to 'get -u=patch -m all'
+-cp go.mod.orig go.mod
+-go get -m all@patch
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.1'
+-stdout '^patch.example.com/indirect v1.0.1'
+-stdout '^patch.example.com/depofdirectpatch v1.0.0'
+-
+-# Requesting the direct dependency with -u=patch but without an explicit version
+-# should patch-update it and its dependencies.
+-cp go.mod.orig go.mod
+-go get -m -u=patch patch.example.com/direct
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.1'
+-stdout '^patch.example.com/indirect v1.0.1'
+-stdout '^patch.example.com/depofdirectpatch v1.0.1'
+-
+-# Requesting only the indirect dependency should not update the direct one.
+-cp go.mod.orig go.mod
+-go get -m -u=patch patch.example.com/indirect
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.0'
+-stdout '^patch.example.com/indirect v1.0.1'
+-! stdout '^patch.example.com/depofdirectpatch'
+-
+-# @patch should apply only to the specific module.
+-# but the result must reflect its upgraded requirements.
+-cp go.mod.orig go.mod
+-go get -m patch.example.com/direct@patch
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.1'
+-stdout '^patch.example.com/indirect v1.0.0'
+-stdout '^patch.example.com/depofdirectpatch v1.0.0'
+-
+-# An explicit @patch should override a general -u.
+-cp go.mod.orig go.mod
+-go get -m -u patch.example.com/direct@patch
+-go list -m all
+-stdout '^patch.example.com/direct v1.0.1'
+-stdout '^patch.example.com/indirect v1.1.0'
+-stdout '^patch.example.com/depofdirectpatch v1.0.1'
+-
+-# An explicit @latest should override a general -u=patch.
+-cp go.mod.orig go.mod
+-go get -m -u=patch patch.example.com/direct@latest
+-go list -m all
+-stdout '^patch.example.com/direct v1.1.0'
+-stdout '^patch.example.com/indirect v1.0.1'
+-! stdout '^patch.example.com/depofdirectpatch'
+-
+-# Standard-library modules cannot be upgraded explicitly.
+-cp go.mod.orig go.mod
+-! go get -m std@patch
+-stderr 'explicit requirement on standard-library module std not allowed'
+-
+-
+--- go.mod --
+-module x
+-
+-require patch.example.com/direct v1.0.0
+-
+--- main.go --
+-package x
+-import _ "patch.example.com/direct"

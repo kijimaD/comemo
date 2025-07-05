@@ -6,6 +6,20 @@ Date:   Tue Nov 17 09:08:54 2009 -0800
     
     R=r
     https://golang.org/cl/157041
-
+---
  lib/codereview/codereview.py | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index ffcf945be5..152798501f 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1421,6 +1421,8 @@ def MySend(request_path, payload=None,
+           f = self.opener.open(req)
+           response = f.read()
+           f.close()
++          # Translate \r\n into \n, because Rietveld doesn't.
++          response = response.replace('\r\n', '\n')
+           return response
+         except urllib2.HTTPError, e:
+           if tries > 3:

@@ -7,10 +7,130 @@ Date:   Fri Jun 5 13:14:06 2015 -0700
     Change-Id: I318c1ef75b18d4687f13499ac225dde2d053505e
     Reviewed-on: https://go-review.googlesource.com/10776
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go | 12 ++++++------
  src/cmd/go/fix.go     |  2 +-
  src/cmd/go/fmt.go     |  2 +-
  src/cmd/go/help.go    |  2 +-
  src/cmd/go/test.go    |  4 ++--
  5 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3abe5b91bd..6fe434de86 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -287,7 +287,7 @@ Usage:
+ 
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+-For more about fix, see 'godoc fix'.
++For more about fix, see 'go doc cmd/fix'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run fix with specific options, run 'go tool fix'.
+@@ -304,7 +304,7 @@ Usage:
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths.  It prints the names of the files that are modified.
+ 
+-For more about gofmt, see 'godoc gofmt'.
++For more about gofmt, see 'go doc cmd/gofmt'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ The -n flag prints commands that would be executed.
+@@ -703,7 +703,7 @@ Usage:
+ 
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+-For more about vet, see 'godoc golang.org/x/tools/cmd/vet'.
++For more about vet, see 'go doc cmd/vet'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+@@ -721,7 +721,7 @@ Calling between Go and C
+ There are two different ways to call between Go and C/C++ code.
+ 
+ The first is the cgo tool, which is part of the Go distribution.  For
+-information on how to use it see the cgo documentation (godoc cmd/cgo).
++information on how to use it see the cgo documentation (go doc cmd/cgo).
+ 
+ The second is the SWIG program, which is a general tool for
+ interfacing between languages.  For information on SWIG see
+@@ -1131,7 +1131,7 @@ control the execution of any test:
+ 	-blockprofilerate n
+ 	    Control the detail provided in goroutine blocking profiles by
+ 	    calling runtime.SetBlockProfileRate with n.
+-	    See 'godoc runtime SetBlockProfileRate'.
++	    See 'go doc runtime.SetBlockProfileRate'.
+ 	    The profiler aims to sample, on average, one blocking event every
+ 	    n nanoseconds the program spends blocked.  By default,
+ 	    if -test.blockprofile is set without this flag, all blocking events
+@@ -1181,7 +1181,7 @@ control the execution of any test:
+ 
+ 	-memprofilerate n
+ 	    Enable more precise (and expensive) memory profiles by setting
+-	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
++	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
+ 	    To profile all memory allocations, use -test.memprofilerate=1
+ 	    and pass --alloc_space flag to the pprof tool.
+ 
+diff --git a/src/cmd/go/fix.go b/src/cmd/go/fix.go
+index 858feab24b..94fd22e3c2 100644
+--- a/src/cmd/go/fix.go
++++ b/src/cmd/go/fix.go
+@@ -11,7 +11,7 @@ var cmdFix = &Command{
+ 	Long: `
+ Fix runs the Go fix command on the packages named by the import paths.
+ 
+-For more about fix, see 'godoc fix'.
++For more about fix, see 'go doc cmd/fix'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ To run fix with specific options, run 'go tool fix'.
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index 1722b9d568..57c02ad264 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -21,7 +21,7 @@ var cmdFmt = &Command{
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths.  It prints the names of the files that are modified.
+ 
+-For more about gofmt, see 'godoc gofmt'.
++For more about gofmt, see 'go doc cmd/gofmt'.
+ For more about specifying packages, see 'go help packages'.
+ 
+ The -n flag prints commands that would be executed.
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 2062f0c4ee..4d330f4e91 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -11,7 +11,7 @@ var helpC = &Command{
+ There are two different ways to call between Go and C/C++ code.
+ 
+ The first is the cgo tool, which is part of the Go distribution.  For
+-information on how to use it see the cgo documentation (godoc cmd/cgo).
++information on how to use it see the cgo documentation (go doc cmd/cgo).
+ 
+ The second is the SWIG program, which is a general tool for
+ interfacing between languages.  For information on SWIG see
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index ae9a9fa537..9746bbd3af 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -135,7 +135,7 @@ control the execution of any test:
+ 	-blockprofilerate n
+ 	    Control the detail provided in goroutine blocking profiles by
+ 	    calling runtime.SetBlockProfileRate with n.
+-	    See 'godoc runtime SetBlockProfileRate'.
++	    See 'go doc runtime.SetBlockProfileRate'.
+ 	    The profiler aims to sample, on average, one blocking event every
+ 	    n nanoseconds the program spends blocked.  By default,
+ 	    if -test.blockprofile is set without this flag, all blocking events
+@@ -185,7 +185,7 @@ control the execution of any test:
+ 
+ 	-memprofilerate n
+ 	    Enable more precise (and expensive) memory profiles by setting
+-	    runtime.MemProfileRate.  See 'godoc runtime MemProfileRate'.
++	    runtime.MemProfileRate.  See 'go doc runtime.MemProfileRate'.
+ 	    To profile all memory allocations, use -test.memprofilerate=1
+ 	    and pass --alloc_space flag to the pprof tool.
+ 

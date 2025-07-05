@@ -8,7 +8,7 @@ Date:   Fri May 8 11:52:39 2009 -0700
     DELTA=112  (0 added, 4 deleted, 108 changed)
     OCL=28537
     CL=28543
-
+---
  src/lib/bufio/bufio.go      | 102 ++++++++++++++++++++++----------------------
  src/lib/bufio/bufio_test.go |  72 +++++++++++++++----------------
  src/lib/http/request.go     |   8 ++--
@@ -18,3 +18,595 @@ Date:   Fri May 8 11:52:39 2009 -0700
  src/lib/strconv/fp_test.go  |   2 +-
  usr/gri/pretty/godoc.go     |   1 -
  8 files changed, 99 insertions(+), 102 deletions(-)
+
+diff --git a/src/lib/bufio/bufio.go b/src/lib/bufio/bufio.go
+index c3d1fc715a..4c700eef43 100644
+--- a/src/lib/bufio/bufio.go
++++ b/src/lib/bufio/bufio.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This package implements buffered I/O.  It wraps an io.Read or io.Write
+-// object, creating another object (BufRead or BufWrite) that also implements
++// This package implements buffered I/O.  It wraps an io.Reader or io.Writer
++// object, creating another object (Reader or Writer) that also implements
+ // the interface but provides buffering and some help for textual I/O.
+ package bufio
+ 
+@@ -16,11 +16,9 @@ import (
+ 
+ // TODO:
+ //	- maybe define an interface
+-//	- BufRead: ReadRune, UnreadRune ?
++//	- Reader: ReadRune, UnreadRune ?
+ //		could make ReadRune generic if we dropped UnreadRune
+ //	- buffered output
+-// 	- would like to rename to Read, Write, but breaks
+-//	  embedding of these: would lose the Read, Write methods.
+ 
+ const (
+ 	defaultBufSize = 4096
+@@ -44,8 +42,8 @@ func copySlice(dst []byte, src []byte) {
+ 
+ // Buffered input.
+ 
+-// BufRead implements buffering for an io.Read object.
+-type BufRead struct {
++// Reader implements buffering for an io.Reader object.
++type Reader struct {
+ 	buf []byte;
+ 	rd io.Reader;
+ 	r, w int;
+@@ -53,38 +51,38 @@ type BufRead struct {
+ 	lastbyte int;
+ }
+ 
+-// NewBufReadSize creates a new BufRead whose buffer has the specified size,
++// NewReaderSize creates a new Reader whose buffer has the specified size,
+ // which must be greater than zero.  If the argument io.Reader is already a
+-// BufRead with large enough size, it returns the underlying BufRead.
+-// It returns the BufRead and any error.
+-func NewBufReadSize(rd io.Reader, size int) (*BufRead, os.Error) {
++// Reader with large enough size, it returns the underlying Reader.
++// It returns the Reader and any error.
++func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	// Is it already a BufRead?
+-	b, ok := rd.(*BufRead);
++	// Is it already a Reader?
++	b, ok := rd.(*Reader);
+ 	if ok && len(b.buf) >= size {
+ 		return b, nil
+ 	}
+-	b = new(BufRead);
++	b = new(Reader);
+ 	b.buf = make([]byte, size);
+ 	b.rd = rd;
+ 	b.lastbyte = -1;
+ 	return b, nil
+ }
+ 
+-// NewBufRead returns a new BufRead whose buffer has the default size.
+-func NewBufRead(rd io.Reader) *BufRead {
+-	b, err := NewBufReadSize(rd, defaultBufSize);
++// NewReader returns a new Reader whose buffer has the default size.
++func NewReader(rd io.Reader) *Reader {
++	b, err := NewReaderSize(rd, defaultBufSize);
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is a valid size
+-		panic("bufio: NewBufRead: ", err.String());
++		panic("bufio: NewReader: ", err.String());
+ 	}
+ 	return b;
+ }
+ 
+ //.fill reads a new chunk into the buffer.
+-func (b *BufRead) fill() os.Error {
++func (b *Reader) fill() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -113,7 +111,7 @@ func (b *BufRead) fill() os.Error {
+ // If nn < len(p), also returns an error explaining
+ // why the read is short.  At EOF, the count will be
+ // zero and err will be io.ErrEOF.
+-func (b *BufRead) Read(p []byte) (nn int, err os.Error) {
++func (b *Reader) Read(p []byte) (nn int, err os.Error) {
+ 	nn = 0;
+ 	for len(p) > 0 {
+ 		n := len(p);
+@@ -157,7 +155,7 @@ func (b *BufRead) Read(p []byte) (nn int, err os.Error) {
+ 
+ // ReadByte reads and returns a single byte.
+ // If no byte is available, returns an error.
+-func (b *BufRead) ReadByte() (c byte, err os.Error) {
++func (b *Reader) ReadByte() (c byte, err os.Error) {
+ 	if b.w == b.r {
+ 		b.fill();
+ 		if b.err != nil {
+@@ -174,7 +172,7 @@ func (b *BufRead) ReadByte() (c byte, err os.Error) {
+ }
+ 
+ // UnreadByte unreads the last byte.  Only one byte may be unread at a given time.
+-func (b *BufRead) UnreadByte() os.Error {
++func (b *Reader) UnreadByte() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -195,7 +193,7 @@ func (b *BufRead) UnreadByte() os.Error {
+ 
+ // ReadRune reads a single UTF-8 encoded Unicode character and returns the
+ // rune and its size in bytes.
+-func (b *BufRead) ReadRune() (rune int, size int, err os.Error) {
++func (b *Reader) ReadRune() (rune int, size int, err os.Error) {
+ 	for b.r + utf8.UTFMax > b.w && !utf8.FullRune(b.buf[b.r:b.w]) {
+ 		n := b.w - b.r;
+ 		b.fill();
+@@ -231,7 +229,7 @@ func findByte(p []byte, c byte) int {
+ }
+ 
+ // Buffered returns the number of bytes that can be read from the current buffer.
+-func (b *BufRead) Buffered() int {
++func (b *Reader) Buffered() int {
+ 	return b.w - b.r;
+ }
+ 
+@@ -241,7 +239,7 @@ func (b *BufRead) Buffered() int {
+ // Fails if the line doesn't fit in the buffer.
+ // For internal or advanced use only; most uses should
+ // call ReadLineString or ReadLineBytes instead.
+-func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err os.Error) {
++func (b *Reader) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+@@ -288,7 +286,7 @@ func (b *BufRead) ReadLineSlice(delim byte) (line []byte, err os.Error) {
+ // If an error happens, returns the data (without a delimiter)
+ // and the error.  (It can't leave the data in the buffer because
+ // it might have read more than the buffer size.)
+-func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err os.Error) {
++func (b *Reader) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ 	if b.err != nil {
+ 		return nil, b.err
+ 	}
+@@ -364,7 +362,7 @@ func (b *BufRead) ReadLineBytes(delim byte) (line []byte, err os.Error) {
+ // ReadLineString reads until the first occurrence of delim in the input,
+ // returning a new string containing the line.
+ // If savedelim, keep delim in the result; otherwise drop it.
+-func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
++func (b *Reader) ReadLineString(delim byte, savedelim bool) (line string, err os.Error) {
+ 	bytes, e := b.ReadLineBytes(delim);
+ 	if e != nil {
+ 		return string(bytes), e
+@@ -378,45 +376,45 @@ func (b *BufRead) ReadLineString(delim byte, savedelim bool) (line string, err o
+ 
+ // buffered output
+ 
+-// BufWrite implements buffering for an io.Writer object.
+-type BufWrite struct {
++// Writer implements buffering for an io.Writer object.
++type Writer struct {
+ 	err os.Error;
+ 	buf []byte;
+ 	n int;
+ 	wr io.Writer;
+ }
+ 
+-// NewBufWriteSize creates a new BufWrite whose buffer has the specified size,
++// NewWriterSize creates a new Writer whose buffer has the specified size,
+ // which must be greater than zero. If the argument io.Writer is already a
+-// BufWrite with large enough size, it returns the underlying BufWrite.
+-// It returns the BufWrite and any error.
+-func NewBufWriteSize(wr io.Writer, size int) (*BufWrite, os.Error) {
++// Writer with large enough size, it returns the underlying Writer.
++// It returns the Writer and any error.
++func NewWriterSize(wr io.Writer, size int) (*Writer, os.Error) {
+ 	if size <= 0 {
+ 		return nil, BadBufSize
+ 	}
+-	// Is it already a BufWrite?
+-	b, ok := wr.(*BufWrite);
++	// Is it already a Writer?
++	b, ok := wr.(*Writer);
+ 	if ok && len(b.buf) >= size {
+ 		return b, nil
+ 	}
+-	b = new(BufWrite);
++	b = new(Writer);
+ 	b.buf = make([]byte, size);
+ 	b.wr = wr;
+ 	return b, nil
+ }
+ 
+-// NewBufWrite returns a new BufWrite whose buffer has the default size.
+-func NewBufWrite(wr io.Writer) *BufWrite {
+-	b, err := NewBufWriteSize(wr, defaultBufSize);
++// NewWriter returns a new Writer whose buffer has the default size.
++func NewWriter(wr io.Writer) *Writer {
++	b, err := NewWriterSize(wr, defaultBufSize);
+ 	if err != nil {
+ 		// cannot happen - defaultBufSize is valid size
+-		panic("bufio: NewBufWrite: ", err.String());
++		panic("bufio: NewWriter: ", err.String());
+ 	}
+ 	return b;
+ }
+ 
+ // Flush writes any buffered data to the underlying io.Writer.
+-func (b *BufWrite) Flush() os.Error {
++func (b *Writer) Flush() os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -441,12 +439,12 @@ func (b *BufWrite) Flush() os.Error {
+ }
+ 
+ // Available returns how many bytes are unused in the buffer.
+-func (b *BufWrite) Available() int {
++func (b *Writer) Available() int {
+ 	return len(b.buf) - b.n
+ }
+ 
+ // Buffered returns the number of bytes that have been written into the current buffer.
+-func (b *BufWrite) Buffered() int {
++func (b *Writer) Buffered() int {
+ 	return b.n
+ }
+ 
+@@ -454,7 +452,7 @@ func (b *BufWrite) Buffered() int {
+ // It returns the number of bytes written.
+ // If nn < len(p), also returns an error explaining
+ // why the write is short.
+-func (b *BufWrite) Write(p []byte) (nn int, err os.Error) {
++func (b *Writer) Write(p []byte) (nn int, err os.Error) {
+ 	if b.err != nil {
+ 		return 0, b.err
+ 	}
+@@ -490,7 +488,7 @@ func (b *BufWrite) Write(p []byte) (nn int, err os.Error) {
+ }
+ 
+ // WriteByte writes a single byte.
+-func (b *BufWrite) WriteByte(c byte) os.Error {
++func (b *Writer) WriteByte(c byte) os.Error {
+ 	if b.err != nil {
+ 		return b.err
+ 	}
+@@ -504,15 +502,15 @@ func (b *BufWrite) WriteByte(c byte) os.Error {
+ 
+ // buffered input and output
+ 
+-// BufReadWrite stores (a pointer to) a BufRead and a BufWrite.
++// ReadWriter stores (a pointer to) a Reader and a Writer.
+ // It implements io.ReadWriter.
+-type BufReadWrite struct {
+-	*BufRead;
+-	*BufWrite;
++type ReadWriter struct {
++	*Reader;
++	*Writer;
+ }
+ 
+-// NewBufReadWrite allocates a new BufReadWrite holding r and w.
+-func NewBufReadWrite(r *BufRead, w *BufWrite) *BufReadWrite {
+-	return &BufReadWrite{r, w}
++// NewReadWriter allocates a new ReadWriter holding r and w.
++func NewReadWriter(r *Reader, w *Writer) *ReadWriter {
++	return &ReadWriter{r, w}
+ }
+ 
+diff --git a/src/lib/bufio/bufio_test.go b/src/lib/bufio/bufio_test.go
+index 4b00cae3ae..240a6d0373 100644
+--- a/src/lib/bufio/bufio_test.go
++++ b/src/lib/bufio/bufio_test.go
+@@ -104,7 +104,7 @@ var readMakers = []readMaker {
+ 
+ // Call ReadLineString (which ends up calling everything else)
+ // to accumulate the text of a file.
+-func readLines(b *BufRead) string {
++func readLines(b *Reader) string {
+ 	s := "";
+ 	for {
+ 		s1, e := b.ReadLineString('\n', true);
+@@ -120,7 +120,7 @@ func readLines(b *BufRead) string {
+ }
+ 
+ // Call ReadByte to accumulate the text of a file
+-func readBytes(buf *BufRead) string {
++func readBytes(buf *Reader) string {
+ 	var b [1000]byte;
+ 	nb := 0;
+ 	for {
+@@ -139,7 +139,7 @@ func readBytes(buf *BufRead) string {
+ }
+ 
+ // Call Read to accumulate the text of a file
+-func reads(buf *BufRead, m int) string {
++func reads(buf *Reader, m int) string {
+ 	var b [1000]byte;
+ 	nb := 0;
+ 	for {
+@@ -154,15 +154,15 @@ func reads(buf *BufRead, m int) string {
+ 
+ type bufReader struct {
+ 	name string;
+-	fn func(*BufRead) string;
++	fn func(*Reader) string;
+ }
+ var bufreaders = []bufReader {
+-	bufReader{ "1", func(b *BufRead) string { return reads(b, 1) } },
+-	bufReader{ "2", func(b *BufRead) string { return reads(b, 2) } },
+-	bufReader{ "3", func(b *BufRead) string { return reads(b, 3) } },
+-	bufReader{ "4", func(b *BufRead) string { return reads(b, 4) } },
+-	bufReader{ "5", func(b *BufRead) string { return reads(b, 5) } },
+-	bufReader{ "7", func(b *BufRead) string { return reads(b, 7) } },
++	bufReader{ "1", func(b *Reader) string { return reads(b, 1) } },
++	bufReader{ "2", func(b *Reader) string { return reads(b, 2) } },
++	bufReader{ "3", func(b *Reader) string { return reads(b, 3) } },
++	bufReader{ "4", func(b *Reader) string { return reads(b, 4) } },
++	bufReader{ "5", func(b *Reader) string { return reads(b, 5) } },
++	bufReader{ "7", func(b *Reader) string { return reads(b, 7) } },
+ 	bufReader{ "bytes", readBytes },
+ 	bufReader{ "lines", readLines },
+ }
+@@ -172,19 +172,19 @@ var bufsizes = []int {
+ 	23, 32, 46, 64, 93, 128, 1024, 4096
+ }
+ 
+-func TestBufReadSimple(t *testing.T) {
+-	b := NewBufRead(newByteReader(io.StringBytes("hello world")));
++func TestReaderSimple(t *testing.T) {
++	b := NewReader(newByteReader(io.StringBytes("hello world")));
+ 	if s := readBytes(b); s != "hello world" {
+ 		t.Errorf("simple hello world test failed: got %q", s);
+ 	}
+ 
+-	b = NewBufRead(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
++	b = NewReader(newRot13Reader(newByteReader(io.StringBytes("hello world"))));
+ 	if s := readBytes(b); s != "uryyb jbeyq" {
+ 		t.Error("rot13 hello world test failed: got %q", s);
+ 	}
+ }
+ 
+-func TestBufRead(t *testing.T) {
++func TestReader(t *testing.T) {
+ 	var texts [31]string;
+ 	str := "";
+ 	all := "";
+@@ -205,7 +205,7 @@ func TestBufRead(t *testing.T) {
+ 					bufreader := bufreaders[j];
+ 					bufsize := bufsizes[k];
+ 					read := readmaker.fn(textbytes);
+-					buf, e := NewBufReadSize(read, bufsize);
++					buf, e := NewReaderSize(read, bufsize);
+ 					s := bufreader.fn(buf);
+ 					if s != text {
+ 						t.Errorf("reader=%s fn=%s bufsize=%d want=%q got=%q",
+@@ -277,7 +277,7 @@ type writeMaker struct {
+ 	name string;
+ 	fn func()writeBuffer;
+ }
+-func TestBufWrite(t *testing.T) {
++func TestWriter(t *testing.T) {
+ 	var data [8192]byte;
+ 
+ 	var writers = []writeMaker {
+@@ -299,10 +299,10 @@ func TestBufWrite(t *testing.T) {
+ 				// and that the data is correct.
+ 
+ 				write := writers[k].fn();
+-				buf, e := NewBufWriteSize(write, bs);
++				buf, e := NewWriterSize(write, bs);
+ 				context := fmt.Sprintf("write=%s nwrite=%d bufsize=%d", writers[k].name, nwrite, bs);
+ 				if e != nil {
+-					t.Errorf("%s: NewBufWriteSize %d: %v", context, bs, e);
++					t.Errorf("%s: NewWriterSize %d: %v", context, bs, e);
+ 					continue;
+ 				}
+ 				n, e1 := buf.Write(data[0:nwrite]);
+@@ -330,50 +330,50 @@ func TestBufWrite(t *testing.T) {
+ 	}
+ }
+ 
+-func TestNewBufReadSizeIdempotent(t *testing.T) {
++func TestNewReaderSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewBufReadSize(newByteReader(io.StringBytes("hello world")), BufSize);
++	b, err := NewReaderSize(newByteReader(io.StringBytes("hello world")), BufSize);
+ 	if err != nil {
+-		t.Error("NewBufReadSize create fail", err);
++		t.Error("NewReaderSize create fail", err);
+ 	}
+ 	// Does it recognize itself?
+-	b1, err2 := NewBufReadSize(b, BufSize);
++	b1, err2 := NewReaderSize(b, BufSize);
+ 	if err2 != nil {
+-		t.Error("NewBufReadSize #2 create fail", err2);
++		t.Error("NewReaderSize #2 create fail", err2);
+ 	}
+ 	if b1 != b {
+-		t.Error("NewBufReadSize did not detect underlying BufRead");
++		t.Error("NewReaderSize did not detect underlying Reader");
+ 	}
+ 	// Does it wrap if existing buffer is too small?
+-	b2, err3 := NewBufReadSize(b, 2*BufSize);
++	b2, err3 := NewReaderSize(b, 2*BufSize);
+ 	if err3 != nil {
+-		t.Error("NewBufReadSize #3 create fail", err3);
++		t.Error("NewReaderSize #3 create fail", err3);
+ 	}
+ 	if b2 == b {
+-		t.Error("NewBufReadSize did not enlarge buffer");
++		t.Error("NewReaderSize did not enlarge buffer");
+ 	}
+ }
+ 
+-func TestNewBufWriteSizeIdempotent(t *testing.T) {
++func TestNewWriterSizeIdempotent(t *testing.T) {
+ 	const BufSize = 1000;
+-	b, err := NewBufWriteSize(newByteWriter(), BufSize);
++	b, err := NewWriterSize(newByteWriter(), BufSize);
+ 	if err != nil {
+-		t.Error("NewBufWriteSize create fail", err);
++		t.Error("NewWriterSize create fail", err);
+ 	}
+ 	// Does it recognize itself?
+-	b1, err2 := NewBufWriteSize(b, BufSize);
++	b1, err2 := NewWriterSize(b, BufSize);
+ 	if err2 != nil {
+-		t.Error("NewBufWriteSize #2 create fail", err2);
++		t.Error("NewWriterSize #2 create fail", err2);
+ 	}
+ 	if b1 != b {
+-		t.Error("NewBufWriteSize did not detect underlying BufWrite");
++		t.Error("NewWriterSize did not detect underlying Writer");
+ 	}
+ 	// Does it wrap if existing buffer is too small?
+-	b2, err3 := NewBufWriteSize(b, 2*BufSize);
++	b2, err3 := NewWriterSize(b, 2*BufSize);
+ 	if err3 != nil {
+-		t.Error("NewBufWriteSize #3 create fail", err3);
++		t.Error("NewWriterSize #3 create fail", err3);
+ 	}
+ 	if b2 == b {
+-		t.Error("NewBufWriteSize did not enlarge buffer");
++		t.Error("NewWriterSize did not enlarge buffer");
+ 	}
+ }
+diff --git a/src/lib/http/request.go b/src/lib/http/request.go
+index 59592add53..3edaa4207f 100644
+--- a/src/lib/http/request.go
++++ b/src/lib/http/request.go
+@@ -100,7 +100,7 @@ func (r *Request) ProtoAtLeast(major, minor int) bool {
+ // Give up if the line exceeds maxLineLength.
+ // The returned bytes are a pointer into storage in
+ // the bufio, so they are only valid until the next bufio read.
+-func readLineBytes(b *bufio.BufRead) (p []byte, err os.Error) {
++func readLineBytes(b *bufio.Reader) (p []byte, err os.Error) {
+ 	if p, err = b.ReadLineSlice('\n'); err != nil {
+ 		return nil, err
+ 	}
+@@ -119,7 +119,7 @@ func readLineBytes(b *bufio.BufRead) (p []byte, err os.Error) {
+ }
+ 
+ // readLineBytes, but convert the bytes into a string.
+-func readLine(b *bufio.BufRead) (s string, err os.Error) {
++func readLine(b *bufio.Reader) (s string, err os.Error) {
+ 	p, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", e
+@@ -131,7 +131,7 @@ func readLine(b *bufio.BufRead) (s string, err os.Error) {
+ // A key/value has the form Key: Value\r\n
+ // and the Value can continue on multiple lines if each continuation line
+ // starts with a space.
+-func readKeyValue(b *bufio.BufRead) (key, value string, err os.Error) {
++func readKeyValue(b *bufio.Reader) (key, value string, err os.Error) {
+ 	line, e := readLineBytes(b);
+ 	if e != nil {
+ 		return "", "", e
+@@ -266,7 +266,7 @@ func CanonicalHeaderKey(s string) string {
+ }
+ 
+ // ReadRequest reads and parses a request from b.
+-func ReadRequest(b *bufio.BufRead) (req *Request, err os.Error) {
++func ReadRequest(b *bufio.Reader) (req *Request, err os.Error) {
+ 	req = new(Request);
+ 
+ 	// First line: GET /index.html HTTP/1.0
+diff --git a/src/lib/http/server.go b/src/lib/http/server.go
+index 5769ced7ee..438c0d915b 100644
+--- a/src/lib/http/server.go
++++ b/src/lib/http/server.go
+@@ -44,7 +44,7 @@ type Conn struct {
+ 	Req *Request;		// current HTTP request
+ 
+ 	rwc io.ReadWriteCloser;	// i/o connection
+-	buf *bufio.BufReadWrite;	// buffered rwc
++	buf *bufio.ReadWriter;	// buffered rwc
+ 	handler Handler;	// request handler
+ 	hijacked bool;	// connection has been hijacked by handler
+ 
+@@ -61,9 +61,9 @@ func newConn(rwc io.ReadWriteCloser, raddr string, handler Handler) (c *Conn, er
+ 	c.RemoteAddr = raddr;
+ 	c.handler = handler;
+ 	c.rwc = rwc;
+-	br := bufio.NewBufRead(rwc);
+-	bw := bufio.NewBufWrite(rwc);
+-	c.buf = bufio.NewBufReadWrite(br, bw);
++	br := bufio.NewReader(rwc);
++	bw := bufio.NewWriter(rwc);
++	c.buf = bufio.NewReadWriter(br, bw);
+ 	return c, nil
+ }
+ 
+@@ -74,7 +74,7 @@ func (c *Conn) readRequest() (req *Request, err os.Error) {
+ 	if c.hijacked {
+ 		return nil, ErrHijacked
+ 	}
+-	if req, err = ReadRequest(c.buf.BufRead); err != nil {
++	if req, err = ReadRequest(c.buf.Reader); err != nil {
+ 		return nil, err
+ 	}
+ 
+@@ -238,7 +238,7 @@ func (c *Conn) serve() {
+ // will not do anything else with the connection.
+ // It becomes the caller's responsibility to manage
+ // and close the connection.
+-func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.BufReadWrite, err os.Error) {
++func (c *Conn) Hijack() (rwc io.ReadWriteCloser, buf *bufio.ReadWriter, err os.Error) {
+ 	if c.hijacked {
+ 		return nil, nil, ErrHijacked;
+ 	}
+diff --git a/src/lib/log/log_test.go b/src/lib/log/log_test.go
+index 2d9e1ab30f..ed7d2a8f87 100644
+--- a/src/lib/log/log_test.go
++++ b/src/lib/log/log_test.go
+@@ -53,7 +53,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ 	}
+ 	defer r.Close();
+ 	defer w.Close();
+-	buf := bufio.NewBufRead(r);
++	buf := bufio.NewReader(r);
+ 	l := NewLogger(w, nil, prefix, flag);
+ 	if useLogf {
+ 		l.Logf("hello %d world", 23);
+diff --git a/src/lib/net/parse_test.go b/src/lib/net/parse_test.go
+index ddfeac1537..ce0bb4709c 100644
+--- a/src/lib/net/parse_test.go
++++ b/src/lib/net/parse_test.go
+@@ -18,7 +18,7 @@ func TestReadLine(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("open %s: %v", filename, err);
+ 	}
+-	br := bufio.NewBufRead(fd);
++	br := bufio.NewReader(fd);
+ 
+ 	var file *file;
+ 	file, err = open(filename);
+diff --git a/src/lib/strconv/fp_test.go b/src/lib/strconv/fp_test.go
+index 33491fab2a..a7a159b64a 100644
+--- a/src/lib/strconv/fp_test.go
++++ b/src/lib/strconv/fp_test.go
+@@ -100,7 +100,7 @@ func TestFp(t *testing.T) {
+ 	}
+ 	defer f.Close();
+ 
+-	b := bufio.NewBufRead(f);
++	b := bufio.NewReader(f);
+ 
+ 	lineno := 0;
+ 	for {
+diff --git a/usr/gri/pretty/godoc.go b/usr/gri/pretty/godoc.go
+index 22b1bb52ea..f79749f2b3 100644
+--- a/usr/gri/pretty/godoc.go
++++ b/usr/gri/pretty/godoc.go
+@@ -27,7 +27,6 @@
+ package main
+ 
+ import (
+-	"bufio";
+ 	"container/vector";
+ 	"flag";
+ 	"fmt";

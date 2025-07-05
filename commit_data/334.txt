@@ -5,6 +5,20 @@ Date:   Fri Jul 11 19:37:47 2008 -0700
     fix comment
     
     SVN=126931
-
+---
  src/runtime/rt2_amd64.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index 37bb850c5f..dac1c4684a 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -30,7 +30,7 @@ traceback(uint8 *pc, uint8 *sp, void* r15)
+ 	for(;;){
+ 		callpc = pc;
+ 		if((uint8*)morestack2 == pc) {
+-			// call site in _morestack(); pop to earlier stack block to get true caller
++			// call site is morestack2(); pop to earlier stack block to get true caller
+ 			stktop = (Stktop*)g.stackbase;
+ 			g.stackbase = stktop->oldbase;
+ 			g.stackguard = stktop->oldguard;

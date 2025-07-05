@@ -13,8 +13,62 @@ Date:   Wed Dec 6 03:41:13 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s      | 3 +++
  src/cmd/asm/internal/asm/testdata/arm64error.s | 1 -
  src/cmd/internal/obj/arm64/asm7.go             | 2 +-
  3 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 12b4e3255e..ecad08b37a 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1011,6 +1011,7 @@ next:
+ 	LDP	-8(R0), (R1, R2)    // 01887fa9
+ 	LDP	x(SB), (R1, R2)
+ 	LDP	x+8(SB), (R1, R2)
++	LDP	8(R1), (ZR, R2)     // 3f8840a9
+ 	LDPW	-5(R0), (R1, R2)    // 1b1400d1610b4029
+ 	LDPW	(R0), (R1, R2)      // 01084029
+ 	LDPW	4(R0), (R1, R2)     // 01884029
+@@ -1028,6 +1029,7 @@ next:
+ 	LDPW	1024(RSP), (R1, R2) // fb031091610b4029
+ 	LDPW	x(SB), (R1, R2)
+ 	LDPW	x+8(SB), (R1, R2)
++	LDPW	8(R1), (ZR, R2)     // 3f084129
+ 	LDPSW	(R0), (R1, R2)      // 01084069
+ 	LDPSW	4(R0), (R1, R2)     // 01884069
+ 	LDPSW	-4(R0), (R1, R2)    // 01887f69
+@@ -1044,6 +1046,7 @@ next:
+ 	LDPSW	1024(RSP), (R1, R2) // fb031091610b4069
+ 	LDPSW	x(SB), (R1, R2)
+ 	LDPSW	x+8(SB), (R1, R2)
++	LDPSW	8(R1), (ZR, R2)     // 3f084169
+ 	STP	(R3, R4), (R5)      // a31000a9
+ 	STP	(R3, R4), 8(R5)     // a39000a9
+ 	STP.W	(R3, R4), 8(R5)     // a39080a9
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index e1eafa2b46..3ac8788424 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -66,7 +66,6 @@ TEXT errors(SB),$0
+ 	LDP.W	8(R3), (R2, R3)                                  // ERROR "constrained unpredictable behavior"
+ 	LDP	(R1), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
+ 	LDP	(R0), (F0, F1)                                   // ERROR "invalid register pair"
+-	LDP	(R0), (R3, ZR)                                   // ERROR "invalid register pair"
+ 	LDXPW	(RSP), (R2, R2)                                  // ERROR "constrained unpredictable behavior"
+ 	LDAXPW	(R5), (R2, R2)                                   // ERROR "constrained unpredictable behavior"
+ 	MOVD.P	300(R2), R3                                      // ERROR "offset out of range [-256,255]"
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 0991ec9201..03f0fb06da 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -7741,7 +7741,7 @@ func (c *ctxt7) opldpstp(p *obj.Prog, o *Optab, vo int32, rbase, rl, rh int16, l
+ 			c.ctxt.Diag("invalid register pair %v\n", p)
+ 		}
+ 	case ALDP, ALDPW, ALDPSW:
+-		if rl < REG_R0 || REG_R30 < rl || rh < REG_R0 || REG_R30 < rh {
++		if rl < REG_R0 || REG_R31 < rl || rh < REG_R0 || REG_R31 < rh {
+ 			c.ctxt.Diag("invalid register pair %v\n", p)
+ 		}
+ 	case ASTP, ASTPW:

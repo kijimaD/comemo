@@ -18,6 +18,22 @@ Date:   Tue Oct 22 13:07:15 2019 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_ambiguous_path.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_ambiguous_path.txt b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+index 9f1aa37be8..bdb7ffb077 100644
+--- a/src/cmd/go/testdata/script/list_ambiguous_path.txt
++++ b/src/cmd/go/testdata/script/list_ambiguous_path.txt
+@@ -22,8 +22,9 @@ stderr 'package ./foo.go/b.go: cannot find package "."'
+ # Multiple patterns for Go files with a typo. This should
+ # treat the wrong pattern as if it were a non-existint file.
+ ! go list ./foo.go/a.go ./foo.go/b.go
++[plan9] stderr 'stat ./foo.go/b.go: ''./foo.go/b.go'' does not exist'
+ [windows] stderr './foo.go/b.go: The system cannot find the file specified'
+-[!windows] stderr './foo.go/b.go: no such file or directory'
++[!plan9] [!windows] stderr './foo.go/b.go: no such file or directory'
+ 
+ -- a.go --
+ package main

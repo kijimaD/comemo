@@ -9,6 +9,24 @@ Date:   Mon Jul 26 12:50:03 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1862043
-
+---
  src/pkg/net/fd_windows.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index cdf446294a..c287d71539 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -198,7 +198,11 @@ func (fd *netFD) Close() os.Error {
+ }
+ 
+ func newWSABuf(p []byte) *syscall.WSABuf {
+-	return &syscall.WSABuf{uint32(len(p)), (*byte)(unsafe.Pointer(&p[0]))}
++	var p0 *byte
++	if len(p) > 0 {
++		p0 = (*byte)(unsafe.Pointer(&p[0]))
++	}
++	return &syscall.WSABuf{uint32(len(p)), p0}
+ }
+ 
+ func (fd *netFD) Read(p []byte) (n int, err os.Error) {

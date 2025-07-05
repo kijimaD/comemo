@@ -19,7 +19,46 @@ Date:   Mon Jul 12 14:31:58 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/worker.go      | 3 +++
  src/internal/fuzz/worker_test.go | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index c3f4d74302..d8cc10d3d4 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -632,6 +632,9 @@ func (ws *workerServer) fuzz(ctx context.Context, args fuzzArgs) (resp fuzzRespo
+ 		resp.Count = mem.header().count
+ 		ws.memMu <- mem
+ 	}()
++	if args.Limit > 0 && mem.header().count >= args.Limit {
++		panic(fmt.Sprintf("mem.header().count %d already exceeds args.Limit %d", mem.header().count, args.Limit))
++	}
+ 
+ 	vals, err := unmarshalCorpusFile(mem.valueCopy())
+ 	if err != nil {
+diff --git a/src/internal/fuzz/worker_test.go b/src/internal/fuzz/worker_test.go
+index 10d61b19db..b536b3db12 100644
+--- a/src/internal/fuzz/worker_test.go
++++ b/src/internal/fuzz/worker_test.go
+@@ -25,6 +25,11 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ 	if err != nil {
+ 		b.Fatalf("failed to create temporary shared memory file: %s", err)
+ 	}
++	defer func() {
++		if err := mem.Close(); err != nil {
++			b.Error(err)
++		}
++	}()
+ 
+ 	initialVal := []interface{}{make([]byte, 32)}
+ 	encodedVals := marshalCorpusFile(initialVal...)
+@@ -36,6 +41,7 @@ func BenchmarkWorkerFuzzOverhead(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		ws.m = newMutator()
+ 		mem.setValue(encodedVals)
++		mem.header().count = 0
+ 
+ 		ws.fuzz(context.Background(), fuzzArgs{Limit: 1})
+ 	}

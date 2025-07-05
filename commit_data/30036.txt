@@ -24,7 +24,102 @@ Date:   Wed Oct 19 14:06:54 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/url/url.go      | 16 ++++++++++++++
  src/net/url/url_test.go | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 71 insertions(+)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 525dbeee33..0931296468 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -1025,3 +1025,19 @@ func portOnly(hostport string) string {
+ 	}
+ 	return hostport[colon+len(":"):]
+ }
++
++// Marshaling interface implementations.
++// Would like to implement MarshalText/UnmarshalText but that will change the JSON representation of URLs.
++
++func (u *URL) MarshalBinary() (text []byte, err error) {
++	return []byte(u.String()), nil
++}
++
++func (u *URL) UnmarshalBinary(text []byte) error {
++	u1, err := Parse(string(text))
++	if err != nil {
++		return err
++	}
++	*u = *u1
++	return nil
++}
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 344ecdcee4..eebc1112c1 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -5,6 +5,10 @@
+ package url
+ 
+ import (
++	"bytes"
++	encodingPkg "encoding"
++	"encoding/gob"
++	"encoding/json"
+ 	"fmt"
+ 	"io"
+ 	"net"
+@@ -1624,3 +1628,54 @@ func TestURLPort(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var _ encodingPkg.BinaryMarshaler = (*URL)(nil)
++var _ encodingPkg.BinaryUnmarshaler = (*URL)(nil)
++
++func TestJSON(t *testing.T) {
++	u, err := Parse("https://www.google.com/x?y=z")
++	if err != nil {
++		t.Fatal(err)
++	}
++	js, err := json.Marshal(u)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// If only we could implement TextMarshaler/TextUnmarshaler,
++	// this would work:
++	//
++	// if string(js) != strconv.Quote(u.String()) {
++	// 	t.Errorf("json encoding: %s\nwant: %s\n", js, strconv.Quote(u.String()))
++	// }
++
++	u1 := new(URL)
++	err = json.Unmarshal(js, u1)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if u1.String() != u.String() {
++		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
++	}
++}
++
++func TestGob(t *testing.T) {
++	u, err := Parse("https://www.google.com/x?y=z")
++	if err != nil {
++		t.Fatal(err)
++	}
++	var w bytes.Buffer
++	err = gob.NewEncoder(&w).Encode(u)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	u1 := new(URL)
++	err = gob.NewDecoder(&w).Decode(u1)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if u1.String() != u.String() {
++		t.Errorf("json decoded to: %s\nwant: %s\n", u1, u)
++	}
++}

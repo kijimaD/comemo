@@ -11,7 +11,141 @@ Date:   Fri Dec 13 13:45:15 2019 -0500
     Change-Id: I830a8d1b63d70d5bcbc213f2388d00e12f009a77
     Reviewed-on: https://go-review.googlesource.com/c/go/+/211305
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode2.go  | 45 ++-------------------------
  src/cmd/link/internal/ld/decodesym2.go | 57 ++++++++++++++++++++++++++++++++++
  2 files changed, 59 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 2e9f8e1169..915ad1d944 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -318,7 +318,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			a := d.decodetypeFuncInType2(ldr, arch, mtypSym, d.rtmp, i)
++			a := decodetypeFuncInType2(ldr, arch, mtypSym, d.rtmp, i)
+ 			buf.WriteString(ldr.SymName(a))
+ 		}
+ 		buf.WriteString(") (")
+@@ -327,7 +327,7 @@ func (d *deadcodePass2) decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, sym
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			a := d.decodetypeFuncOutType2(ldr, arch, mtypSym, d.rtmp, i)
++			a := decodetypeFuncOutType2(ldr, arch, mtypSym, d.rtmp, i)
+ 			buf.WriteString(ldr.SymName(a))
+ 		}
+ 		buf.WriteRune(')')
+@@ -391,47 +391,6 @@ func (d *deadcodePass2) decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, s
+ 	return d.decodeMethodSig2(ldr, arch, symIdx, symRelocs, off, sizeofMethod, mcount)
+ }
+ 
+-func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Reloc {
+-	for j := 0; j < len(symRelocs); j++ {
+-		rel := symRelocs[j]
+-		if rel.Off == off {
+-			return rel
+-		}
+-	}
+-	return loader.Reloc{}
+-}
+-
+-func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Sym {
+-	return decodeReloc2(ldr, symIdx, symRelocs, off).Sym
+-}
+-
+-// decodetypeName2 decodes the name from a reflect.name.
+-func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int) string {
+-	r := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off))
+-	if r == 0 {
+-		return ""
+-	}
+-
+-	data := ldr.Data(r)
+-	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+-	return string(data[3 : 3+namelen])
+-}
+-
+-func (d *deadcodePass2) decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
+-	uadd := commonsize(arch) + 4
+-	if arch.PtrSize == 8 {
+-		uadd += 4
+-	}
+-	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
+-		uadd += uncommonSize()
+-	}
+-	return decodeRelocSym2(ldr, symIdx, symRelocs, int32(uadd+i*arch.PtrSize))
+-}
+-
+-func (d *deadcodePass2) decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
+-	return d.decodetypeFuncInType2(ldr, arch, symIdx, symRelocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+-}
+-
+ // readRelocs reads the relocations for the specified symbol into the
+ // deadcode relocs work array. Use with care, since the work array
+ // is a singleton.
+diff --git a/src/cmd/link/internal/ld/decodesym2.go b/src/cmd/link/internal/ld/decodesym2.go
+new file mode 100644
+index 0000000000..113c09fded
+--- /dev/null
++++ b/src/cmd/link/internal/ld/decodesym2.go
+@@ -0,0 +1,57 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++import (
++	"cmd/internal/sys"
++	"cmd/link/internal/loader"
++)
++
++// This file contains utilities to decode type.* symbols, for
++// loader.Sym symbols (uses new loader interfaces).
++
++// At some point we'll want to migrate the contents of this file
++// to decodesym.go once the rouetines there have been decprecated + removed.
++
++func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Reloc {
++	for j := 0; j < len(symRelocs); j++ {
++		rel := symRelocs[j]
++		if rel.Off == off {
++			return rel
++		}
++	}
++	return loader.Reloc{}
++}
++
++func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int32) loader.Sym {
++	return decodeReloc2(ldr, symIdx, symRelocs, off).Sym
++}
++
++// decodetypeName2 decodes the name from a reflect.name.
++func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, symRelocs []loader.Reloc, off int) string {
++	r := decodeRelocSym2(ldr, symIdx, symRelocs, int32(off))
++	if r == 0 {
++		return ""
++	}
++
++	data := ldr.Data(r)
++	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
++	return string(data[3 : 3+namelen])
++}
++
++func decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
++	uadd := commonsize(arch) + 4
++	if arch.PtrSize == 8 {
++		uadd += 4
++	}
++	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
++		uadd += uncommonSize()
++	}
++	return decodeRelocSym2(ldr, symIdx, symRelocs, int32(uadd+i*arch.PtrSize))
++}
++
++func decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, symRelocs []loader.Reloc, i int) loader.Sym {
++	return decodetypeFuncInType2(ldr, arch, symIdx, symRelocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
++}

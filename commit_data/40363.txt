@@ -13,7 +13,56 @@ Date:   Mon May 6 16:26:15 2019 -0700
     Change-Id: Ifc80d9f4d35e063c378e54d5cd8d1cf4c0d2ec6a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175518
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 11 ++++++++++-
  test/fixedbugs/issue23823.go         |  8 ++------
  2 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 87a7de547a..17c549d252 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -172,7 +172,16 @@ func dowidth(t *types.Type) {
+ 	if t.Width == -2 {
+ 		if !t.Broke() {
+ 			t.SetBroke(true)
+-			yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
++			// t.Nod should not be nil here, but in some cases is appears to be
++			// (see issue #23823). For now (temporary work-around) at a minimum
++			// don't crash and provide a meaningful error message.
++			// TODO(gri) determine the correct fix during a regular devel cycle
++			// (see issue #31872).
++			if t.Nod == nil {
++				yyerror("invalid recursive type %v", t)
++			} else {
++				yyerrorl(asNode(t.Nod).Pos, "invalid recursive type %v", t)
++			}
+ 		}
+ 
+ 		t.Width = 0
+diff --git a/test/fixedbugs/issue23823.go b/test/fixedbugs/issue23823.go
+index 9297966cbd..2f802d0988 100644
+--- a/test/fixedbugs/issue23823.go
++++ b/test/fixedbugs/issue23823.go
+@@ -1,4 +1,4 @@
+-// compile
++// errorcheck
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -6,14 +6,10 @@
+ 
+ package p
+ 
+-// The compiler cannot handle this. Disabled for now.
+-// See issue #25838.
+-/*
+ type I1 = interface {
+ 	I2
+ }
+ 
+-type I2 interface {
++type I2 interface { // ERROR "invalid recursive type"
+ 	I1
+ }
+-*/

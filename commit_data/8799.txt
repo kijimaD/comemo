@@ -7,6 +7,20 @@ Date:   Mon Jun 20 14:50:00 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4644043
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index ba2bbbaad8..a222919d86 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -1845,7 +1845,7 @@ def sync_changes(ui, repo):
+ 			cl.Flush(ui, repo)
+ 		if not cl.files:
+ 			if not cl.copied_from:
+-				ui.warn("CL %s has no files; delete with hg change -d %s\n" % (cl.name, cl.name))
++				ui.warn("CL %s has no files; delete (abandon) with hg change -d %s\n" % (cl.name, cl.name))
+ 			else:
+ 				ui.warn("CL %s has no files; delete locally with hg change -D %s\n" % (cl.name, cl.name))
+ 	return

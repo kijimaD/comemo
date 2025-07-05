@@ -8,7 +8,46 @@ Date:   Sat Jun 30 12:40:07 2012 +0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6308076
-
+---
  misc/cgo/test/issue3741.go | 22 ++++++++++++++++++++++
  src/cmd/cgo/out.go         |  1 +
  2 files changed, 23 insertions(+)
+
+diff --git a/misc/cgo/test/issue3741.go b/misc/cgo/test/issue3741.go
+new file mode 100644
+index 0000000000..3d3bbf951e
+--- /dev/null
++++ b/misc/cgo/test/issue3741.go
+@@ -0,0 +1,22 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "C"
++
++//export exportSliceIn
++func exportSliceIn(s []byte) bool {
++	return len(s) == cap(s)
++}
++
++//export exportSliceOut
++func exportSliceOut() []byte {
++	return []byte{1}
++}
++
++//export exportSliceInOut
++func exportSliceInOut(s []byte) []byte {
++	return s
++}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 44f9f30680..2ab974c979 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -958,4 +958,5 @@ typedef struct { char *p; int n; } GoString;
+ typedef void *GoMap;
+ typedef void *GoChan;
+ typedef struct { void *t; void *v; } GoInterface;
++typedef struct { void *data; int len; int cap; } GoSlice;
+ `

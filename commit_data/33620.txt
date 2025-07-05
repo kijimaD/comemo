@@ -41,7 +41,7 @@ Date:   Wed Aug 23 23:44:33 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go                | 119 +++++++++++++++++++++++--------
  src/archive/tar/reader.go                |  68 +++++++++---------
  src/archive/tar/reader_test.go           |  94 ++++++++++++++++++++++--
@@ -50,3 +50,675 @@ Date:   Wed Aug 23 23:44:33 2017 -0700
  src/archive/tar/testdata/pax-records.tar | Bin 0 -> 2560 bytes
  src/archive/tar/writer_test.go           |  16 +++++
  7 files changed, 234 insertions(+), 87 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index e9a3499a64..dfea49bd89 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -66,8 +66,53 @@ const (
+ 	TypeGNUSparse     = 'S'    // sparse file
+ )
+ 
++// Keywords for PAX extended header records.
++const (
++	paxNone     = "" // Indicates that no PAX key is suitable
++	paxPath     = "path"
++	paxLinkpath = "linkpath"
++	paxSize     = "size"
++	paxUid      = "uid"
++	paxGid      = "gid"
++	paxUname    = "uname"
++	paxGname    = "gname"
++	paxMtime    = "mtime"
++	paxAtime    = "atime"
++	paxCtime    = "ctime"   // Removed from later revision of PAX spec, but was valid
++	paxCharset  = "charset" // Currently unused
++	paxComment  = "comment" // Currently unused
++
++	paxSchilyXattr = "SCHILY.xattr."
++
++	// Keywords for GNU sparse files in a PAX extended header.
++	paxGNUSparse          = "GNU.sparse."
++	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
++	paxGNUSparseOffset    = "GNU.sparse.offset"
++	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
++	paxGNUSparseMap       = "GNU.sparse.map"
++	paxGNUSparseName      = "GNU.sparse.name"
++	paxGNUSparseMajor     = "GNU.sparse.major"
++	paxGNUSparseMinor     = "GNU.sparse.minor"
++	paxGNUSparseSize      = "GNU.sparse.size"
++	paxGNUSparseRealSize  = "GNU.sparse.realsize"
++)
++
++// basicKeys is a set of the PAX keys for which we have built-in support.
++// This does not contain "charset" or "comment", which are both PAX-specific,
++// so adding them as first-class features of Header is unlikely.
++// Users can use the PAXRecords field to set it themselves.
++var basicKeys = map[string]bool{
++	paxPath: true, paxLinkpath: true, paxSize: true, paxUid: true, paxGid: true,
++	paxUname: true, paxGname: true, paxMtime: true, paxAtime: true, paxCtime: true,
++}
++
+ // A Header represents a single header in a tar archive.
+ // Some fields may not be populated.
++//
++// For forward compatibility, users that retrieve a Header from Reader.Next,
++// mutate it in some ways, and then pass it back to Writer.WriteHeader
++// should do so by creating a new Header and copying the fields
++// that they are interested in preserving.
+ type Header struct {
+ 	Name       string    // name of header file entry
+ 	Mode       int64     // permission and mode bits
+@@ -83,7 +128,6 @@ type Header struct {
+ 	Devminor   int64     // minor number of character or block device
+ 	AccessTime time.Time // access time
+ 	ChangeTime time.Time // status change time
+-	Xattrs     map[string]string
+ 
+ 	// SparseHoles represents a sequence of holes in a sparse file.
+ 	//
+@@ -99,6 +143,31 @@ type Header struct {
+ 	// not overlap with each other, and not extend past the specified Size.
+ 	SparseHoles []SparseEntry
+ 
++	// Xattrs stores extended attributes as PAX records under the
++	// "SCHILY.xattr." namespace.
++	//
++	// The following are semantically equivalent:
++	//  h.Xattrs[key] = value
++	//  h.PAXRecords["SCHILY.xattr."+key] = value
++	//
++	// When Writer.WriteHeader is called, the contents of Xattrs will take
++	// precedence over those in PAXRecords.
++	//
++	// Deprecated: Use PAXRecords instead.
++	Xattrs map[string]string
++
++	// PAXRecords is a map of PAX extended header records.
++	//
++	// User-defined records should have keys of the following form:
++	//	VENDOR.keyword
++	// Where VENDOR is some namespace in all uppercase, and keyword may
++	// not contain the '=' character (e.g., "GOLANG.pkg.version").
++	// The key and value should be non-empty UTF-8 strings.
++	//
++	// When Writer.WriteHeader is called, PAX records derived from the
++	// the other fields in Header take precedence over PAXRecords.
++	PAXRecords map[string]string
++
+ 	// Format specifies the format of the tar header.
+ 	//
+ 	// This is set by Reader.Next as a best-effort guess at the format.
+@@ -334,11 +403,22 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	// Check PAX records.
+ 	if len(h.Xattrs) > 0 {
+ 		for k, v := range h.Xattrs {
+-			paxHdrs[paxXattr+k] = v
++			paxHdrs[paxSchilyXattr+k] = v
+ 		}
+ 		whyOnlyPAX = "only PAX supports Xattrs"
+ 		format.mayOnlyBe(FormatPAX)
+ 	}
++	if len(h.PAXRecords) > 0 {
++		for k, v := range h.PAXRecords {
++			_, exists := paxHdrs[k]
++			ignore := exists || basicKeys[k] || strings.HasPrefix(k, paxGNUSparse)
++			if !ignore {
++				paxHdrs[k] = v
++			}
++		}
++		whyOnlyPAX = "only PAX supports PAXRecords"
++		format.mayOnlyBe(FormatPAX)
++	}
+ 	for k, v := range paxHdrs {
+ 		// Forbid empty values (which represent deletion) since usage of
+ 		// them are non-sensible without global PAX record support.
+@@ -497,35 +577,6 @@ const (
+ 	c_ISSOCK = 0140000 // Socket
+ )
+ 
+-// Keywords for the PAX Extended Header
+-const (
+-	paxAtime    = "atime"
+-	paxCharset  = "charset"
+-	paxComment  = "comment"
+-	paxCtime    = "ctime" // please note that ctime is not a valid pax header.
+-	paxGid      = "gid"
+-	paxGname    = "gname"
+-	paxLinkpath = "linkpath"
+-	paxMtime    = "mtime"
+-	paxPath     = "path"
+-	paxSize     = "size"
+-	paxUid      = "uid"
+-	paxUname    = "uname"
+-	paxXattr    = "SCHILY.xattr."
+-	paxNone     = ""
+-
+-	// Keywords for GNU sparse files in a PAX extended header.
+-	paxGNUSparseNumBlocks = "GNU.sparse.numblocks"
+-	paxGNUSparseOffset    = "GNU.sparse.offset"
+-	paxGNUSparseNumBytes  = "GNU.sparse.numbytes"
+-	paxGNUSparseMap       = "GNU.sparse.map"
+-	paxGNUSparseName      = "GNU.sparse.name"
+-	paxGNUSparseMajor     = "GNU.sparse.major"
+-	paxGNUSparseMinor     = "GNU.sparse.minor"
+-	paxGNUSparseSize      = "GNU.sparse.size"
+-	paxGNUSparseRealSize  = "GNU.sparse.realsize"
+-)
+-
+ // FileInfoHeader creates a partially-populated Header from fi.
+ // If fi describes a symlink, FileInfoHeader records link as the link target.
+ // If fi describes a directory, a slash is appended to the name.
+@@ -600,6 +651,12 @@ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 		if sys.SparseHoles != nil {
+ 			h.SparseHoles = append([]SparseEntry{}, sys.SparseHoles...)
+ 		}
++		if sys.PAXRecords != nil {
++			h.PAXRecords = make(map[string]string)
++			for k, v := range sys.PAXRecords {
++				h.PAXRecords[k] = v
++			}
++		}
+ 	}
+ 	if sysStat != nil {
+ 		return h, sysStat(fi, h)
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 87732eca6d..e4e694e0b8 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -4,9 +4,6 @@
+ 
+ package tar
+ 
+-// TODO(dsymonds):
+-//   - pax extensions
+-
+ import (
+ 	"bytes"
+ 	"io"
+@@ -57,7 +54,8 @@ func (tr *Reader) Next() (*Header, error) {
+ }
+ 
+ func (tr *Reader) next() (*Header, error) {
+-	var extHdrs map[string]string
++	var paxHdrs map[string]string
++	var gnuLongName, gnuLongLink string
+ 
+ 	// Externally, Next iterates through the tar archive as if it is a series of
+ 	// files. Internally, the tar format often uses fake "files" to add meta
+@@ -89,7 +87,7 @@ loop:
+ 		switch hdr.Typeflag {
+ 		case TypeXHeader:
+ 			format.mayOnlyBe(FormatPAX)
+-			extHdrs, err = parsePAX(tr)
++			paxHdrs, err = parsePAX(tr)
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -101,28 +99,27 @@ loop:
+ 				return nil, err
+ 			}
+ 
+-			// Convert GNU extensions to use PAX headers.
+-			if extHdrs == nil {
+-				extHdrs = make(map[string]string)
+-			}
+ 			var p parser
+ 			switch hdr.Typeflag {
+ 			case TypeGNULongName:
+-				extHdrs[paxPath] = p.parseString(realname)
++				gnuLongName = p.parseString(realname)
+ 			case TypeGNULongLink:
+-				extHdrs[paxLinkpath] = p.parseString(realname)
+-			}
+-			if p.err != nil {
+-				return nil, p.err
++				gnuLongLink = p.parseString(realname)
+ 			}
+ 			continue loop // This is a meta header affecting the next header
+ 		default:
+ 			// The old GNU sparse format is handled here since it is technically
+ 			// just a regular file with additional attributes.
+ 
+-			if err := mergePAX(hdr, extHdrs); err != nil {
++			if err := mergePAX(hdr, paxHdrs); err != nil {
+ 				return nil, err
+ 			}
++			if gnuLongName != "" {
++				hdr.Name = gnuLongName
++			}
++			if gnuLongLink != "" {
++				hdr.Linkname = gnuLongLink
++			}
+ 
+ 			// The extended headers may have updated the size.
+ 			// Thus, setup the regFileReader again after merging PAX headers.
+@@ -132,7 +129,7 @@ loop:
+ 
+ 			// Sparse formats rely on being able to read from the logical data
+ 			// section; there must be a preceding call to handleRegularFile.
+-			if err := tr.handleSparseFile(hdr, rawHdr, extHdrs); err != nil {
++			if err := tr.handleSparseFile(hdr, rawHdr); err != nil {
+ 				return nil, err
+ 			}
+ 
+@@ -165,13 +162,13 @@ func (tr *Reader) handleRegularFile(hdr *Header) error {
+ 
+ // handleSparseFile checks if the current file is a sparse format of any type
+ // and sets the curr reader appropriately.
+-func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[string]string) error {
++func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block) error {
+ 	var spd sparseDatas
+ 	var err error
+ 	if hdr.Typeflag == TypeGNUSparse {
+ 		spd, err = tr.readOldGNUSparseMap(hdr, rawHdr)
+ 	} else {
+-		spd, err = tr.readGNUSparsePAXHeaders(hdr, extHdrs)
++		spd, err = tr.readGNUSparsePAXHeaders(hdr)
+ 	}
+ 
+ 	// If sp is non-nil, then this is a sparse file.
+@@ -191,10 +188,10 @@ func (tr *Reader) handleSparseFile(hdr *Header, rawHdr *block, extHdrs map[strin
+ // If they are found, then this function reads the sparse map and returns it.
+ // This assumes that 0.0 headers have already been converted to 0.1 headers
+ // by the the PAX header parsing logic.
+-func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string) (sparseDatas, error) {
++func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header) (sparseDatas, error) {
+ 	// Identify the version of GNU headers.
+ 	var is1x0 bool
+-	major, minor := extHdrs[paxGNUSparseMajor], extHdrs[paxGNUSparseMinor]
++	major, minor := hdr.PAXRecords[paxGNUSparseMajor], hdr.PAXRecords[paxGNUSparseMinor]
+ 	switch {
+ 	case major == "0" && (minor == "0" || minor == "1"):
+ 		is1x0 = false
+@@ -202,7 +199,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
+ 		is1x0 = true
+ 	case major != "" || minor != "":
+ 		return nil, nil // Unknown GNU sparse PAX version
+-	case extHdrs[paxGNUSparseMap] != "":
++	case hdr.PAXRecords[paxGNUSparseMap] != "":
+ 		is1x0 = false // 0.0 and 0.1 did not have explicit version records, so guess
+ 	default:
+ 		return nil, nil // Not a PAX format GNU sparse file.
+@@ -210,12 +207,12 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
+ 	hdr.Format.mayOnlyBe(FormatPAX)
+ 
+ 	// Update hdr from GNU sparse PAX headers.
+-	if name := extHdrs[paxGNUSparseName]; name != "" {
++	if name := hdr.PAXRecords[paxGNUSparseName]; name != "" {
+ 		hdr.Name = name
+ 	}
+-	size := extHdrs[paxGNUSparseSize]
++	size := hdr.PAXRecords[paxGNUSparseSize]
+ 	if size == "" {
+-		size = extHdrs[paxGNUSparseRealSize]
++		size = hdr.PAXRecords[paxGNUSparseRealSize]
+ 	}
+ 	if size != "" {
+ 		n, err := strconv.ParseInt(size, 10, 64)
+@@ -229,7 +226,7 @@ func (tr *Reader) readGNUSparsePAXHeaders(hdr *Header, extHdrs map[string]string
+ 	if is1x0 {
+ 		return readGNUSparseMap1x0(tr.curr)
+ 	} else {
+-		return readGNUSparseMap0x1(extHdrs)
++		return readGNUSparseMap0x1(hdr.PAXRecords)
+ 	}
+ }
+ 
+@@ -265,17 +262,18 @@ func mergePAX(hdr *Header, headers map[string]string) (err error) {
+ 		case paxSize:
+ 			hdr.Size, err = strconv.ParseInt(v, 10, 64)
+ 		default:
+-			if strings.HasPrefix(k, paxXattr) {
++			if strings.HasPrefix(k, paxSchilyXattr) {
+ 				if hdr.Xattrs == nil {
+ 					hdr.Xattrs = make(map[string]string)
+ 				}
+-				hdr.Xattrs[k[len(paxXattr):]] = v
++				hdr.Xattrs[k[len(paxSchilyXattr):]] = v
+ 			}
+ 		}
+ 		if err != nil {
+ 			return ErrHeader
+ 		}
+ 	}
++	hdr.PAXRecords = headers
+ 	return nil
+ }
+ 
+@@ -293,7 +291,7 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 	// headers since 0.0 headers were not PAX compliant.
+ 	var sparseMap []string
+ 
+-	extHdrs := make(map[string]string)
++	paxHdrs := make(map[string]string)
+ 	for len(sbuf) > 0 {
+ 		key, value, residual, err := parsePAXRecord(sbuf)
+ 		if err != nil {
+@@ -314,16 +312,16 @@ func parsePAX(r io.Reader) (map[string]string, error) {
+ 			// According to PAX specification, a value is stored only if it is
+ 			// non-empty. Otherwise, the key is deleted.
+ 			if len(value) > 0 {
+-				extHdrs[key] = value
++				paxHdrs[key] = value
+ 			} else {
+-				delete(extHdrs, key)
++				delete(paxHdrs, key)
+ 			}
+ 		}
+ 	}
+ 	if len(sparseMap) > 0 {
+-		extHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
++		paxHdrs[paxGNUSparseMap] = strings.Join(sparseMap, ",")
+ 	}
+-	return extHdrs, nil
++	return paxHdrs, nil
+ }
+ 
+ // readHeader reads the next block header and assumes that the underlying reader
+@@ -570,17 +568,17 @@ func readGNUSparseMap1x0(r io.Reader) (sparseDatas, error) {
+ 
+ // readGNUSparseMap0x1 reads the sparse map as stored in GNU's PAX sparse format
+ // version 0.1. The sparse map is stored in the PAX headers.
+-func readGNUSparseMap0x1(extHdrs map[string]string) (sparseDatas, error) {
++func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
+ 	// Get number of entries.
+ 	// Use integer overflow resistant math to check this.
+-	numEntriesStr := extHdrs[paxGNUSparseNumBlocks]
++	numEntriesStr := paxHdrs[paxGNUSparseNumBlocks]
+ 	numEntries, err := strconv.ParseInt(numEntriesStr, 10, 0) // Intentionally parse as native int
+ 	if err != nil || numEntries < 0 || int(2*numEntries) < int(numEntries) {
+ 		return nil, ErrHeader
+ 	}
+ 
+ 	// There should be two numbers in sparseMap for each entry.
+-	sparseMap := strings.Split(extHdrs[paxGNUSparseMap], ",")
++	sparseMap := strings.Split(paxHdrs[paxGNUSparseMap], ",")
+ 	if len(sparseMap) == 1 && sparseMap[0] == "" {
+ 		sparseMap = sparseMap[:0]
+ 	}
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index c764baf39e..bb0b2b112a 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -118,6 +118,11 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			PAXRecords: map[string]string{
++				"GNU.sparse.size":      "200",
++				"GNU.sparse.numblocks": "95",
++				"GNU.sparse.map":       "1,1,3,1,5,1,7,1,9,1,11,1,13,1,15,1,17,1,19,1,21,1,23,1,25,1,27,1,29,1,31,1,33,1,35,1,37,1,39,1,41,1,43,1,45,1,47,1,49,1,51,1,53,1,55,1,57,1,59,1,61,1,63,1,65,1,67,1,69,1,71,1,73,1,75,1,77,1,79,1,81,1,83,1,85,1,87,1,89,1,91,1,93,1,95,1,97,1,99,1,101,1,103,1,105,1,107,1,109,1,111,1,113,1,115,1,117,1,119,1,121,1,123,1,125,1,127,1,129,1,131,1,133,1,135,1,137,1,139,1,141,1,143,1,145,1,147,1,149,1,151,1,153,1,155,1,157,1,159,1,161,1,163,1,165,1,167,1,169,1,171,1,173,1,175,1,177,1,179,1,181,1,183,1,185,1,187,1,189,1",
++			},
+ 			Format: FormatPAX,
+ 		}, {
+ 			Name:     "sparse-posix-0.1",
+@@ -149,6 +154,12 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			PAXRecords: map[string]string{
++				"GNU.sparse.size":      "200",
++				"GNU.sparse.numblocks": "95",
++				"GNU.sparse.map":       "1,1,3,1,5,1,7,1,9,1,11,1,13,1,15,1,17,1,19,1,21,1,23,1,25,1,27,1,29,1,31,1,33,1,35,1,37,1,39,1,41,1,43,1,45,1,47,1,49,1,51,1,53,1,55,1,57,1,59,1,61,1,63,1,65,1,67,1,69,1,71,1,73,1,75,1,77,1,79,1,81,1,83,1,85,1,87,1,89,1,91,1,93,1,95,1,97,1,99,1,101,1,103,1,105,1,107,1,109,1,111,1,113,1,115,1,117,1,119,1,121,1,123,1,125,1,127,1,129,1,131,1,133,1,135,1,137,1,139,1,141,1,143,1,145,1,147,1,149,1,151,1,153,1,155,1,157,1,159,1,161,1,163,1,165,1,167,1,169,1,171,1,173,1,175,1,177,1,179,1,181,1,183,1,185,1,187,1,189,1",
++				"GNU.sparse.name":      "sparse-posix-0.1",
++			},
+ 			Format: FormatPAX,
+ 		}, {
+ 			Name:     "sparse-posix-1.0",
+@@ -180,6 +191,12 @@ func TestReader(t *testing.T) {
+ 				{172, 1}, {174, 1}, {176, 1}, {178, 1}, {180, 1}, {182, 1},
+ 				{184, 1}, {186, 1}, {188, 1}, {190, 10},
+ 			},
++			PAXRecords: map[string]string{
++				"GNU.sparse.major":    "1",
++				"GNU.sparse.minor":    "0",
++				"GNU.sparse.realsize": "200",
++				"GNU.sparse.name":     "sparse-posix-1.0",
++			},
+ 			Format: FormatPAX,
+ 		}, {
+ 			Name:     "end",
+@@ -263,7 +280,13 @@ func TestReader(t *testing.T) {
+ 			ChangeTime: time.Unix(1350244992, 23960108),
+ 			AccessTime: time.Unix(1350244992, 23960108),
+ 			Typeflag:   TypeReg,
+-			Format:     FormatPAX,
++			PAXRecords: map[string]string{
++				"path":  "a/123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
++				"mtime": "1350244992.023960108",
++				"atime": "1350244992.023960108",
++				"ctime": "1350244992.023960108",
++			},
++			Format: FormatPAX,
+ 		}, {
+ 			Name:       "a/b",
+ 			Mode:       0777,
+@@ -277,7 +300,13 @@ func TestReader(t *testing.T) {
+ 			AccessTime: time.Unix(1350266320, 910238425),
+ 			Typeflag:   TypeSymlink,
+ 			Linkname:   "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
+-			Format:     FormatPAX,
++			PAXRecords: map[string]string{
++				"linkpath": "123456789101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899100",
++				"mtime":    "1350266320.910238425",
++				"atime":    "1350266320.910238425",
++				"ctime":    "1350266320.910238425",
++			},
++			Format: FormatPAX,
+ 		}},
+ 	}, {
+ 		file: "testdata/pax-bad-hdr-file.tar",
+@@ -297,11 +326,28 @@ func TestReader(t *testing.T) {
+ 			Typeflag: '0',
+ 			Uname:    "joetsai",
+ 			Gname:    "eng",
+-			Format:   FormatPAX,
++			PAXRecords: map[string]string{
++				"size": "000000000000000000000999",
++			},
++			Format: FormatPAX,
+ 		}},
+ 		chksums: []string{
+ 			"0afb597b283fe61b5d4879669a350556",
+ 		},
++	}, {
++		file: "testdata/pax-records.tar",
++		headers: []*Header{{
++			Typeflag: TypeReg,
++			Name:     "file",
++			Uname:    strings.Repeat("long", 10),
++			ModTime:  time.Unix(0, 0),
++			PAXRecords: map[string]string{
++				"GOLANG.pkg": "tar",
++				"comment":    "Hello, 世界",
++				"uname":      strings.Repeat("long", 10),
++			},
++			Format: FormatPAX,
++		}},
+ 	}, {
+ 		file: "testdata/nil-uid.tar", // golang.org/issue/5290
+ 		headers: []*Header{{
+@@ -339,6 +385,14 @@ func TestReader(t *testing.T) {
+ 				// Interestingly, selinux encodes the terminating null inside the xattr
+ 				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
+ 			},
++			PAXRecords: map[string]string{
++				"mtime":                         "1386065770.44825232",
++				"atime":                         "1389782991.41987522",
++				"ctime":                         "1389782956.794414986",
++				"SCHILY.xattr.user.key":         "value",
++				"SCHILY.xattr.user.key2":        "value2",
++				"SCHILY.xattr.security.selinux": "unconfined_u:object_r:default_t:s0\x00",
++			},
+ 			Format: FormatPAX,
+ 		}, {
+ 			Name:       "small2.txt",
+@@ -355,6 +409,12 @@ func TestReader(t *testing.T) {
+ 			Xattrs: map[string]string{
+ 				"security.selinux": "unconfined_u:object_r:default_t:s0\x00",
+ 			},
++			PAXRecords: map[string]string{
++				"mtime": "1386065770.449252304",
++				"atime": "1389782991.41987522",
++				"ctime": "1386065770.449252304",
++				"SCHILY.xattr.security.selinux": "unconfined_u:object_r:default_t:s0\x00",
++			},
+ 			Format: FormatPAX,
+ 		}},
+ 	}, {
+@@ -421,7 +481,10 @@ func TestReader(t *testing.T) {
+ 			Linkname: "PAX4/PAX4/long-linkpath-name",
+ 			ModTime:  time.Unix(0, 0),
+ 			Typeflag: '2',
+-			Format:   FormatPAX,
++			PAXRecords: map[string]string{
++				"linkpath": "PAX4/PAX4/long-linkpath-name",
++			},
++			Format: FormatPAX,
+ 		}},
+ 	}, {
+ 		// Both BSD and GNU tar truncate long names at first NUL even
+@@ -551,7 +614,14 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 1000, Length: 0}},
+-			Format:      FormatPAX,
++			PAXRecords: map[string]string{
++				"size":                "1512",
++				"GNU.sparse.major":    "1",
++				"GNU.sparse.minor":    "0",
++				"GNU.sparse.realsize": "1000",
++				"GNU.sparse.name":     "sparse.db",
++			},
++			Format: FormatPAX,
+ 		}},
+ 	}, {
+ 		// Generated by Go, works on BSD tar v3.1.2 and GNU tar v.1.27.1.
+@@ -562,7 +632,14 @@ func TestReader(t *testing.T) {
+ 			Size:        1000,
+ 			ModTime:     time.Unix(0, 0),
+ 			SparseHoles: []SparseEntry{{Offset: 0, Length: 1000}},
+-			Format:      FormatPAX,
++			PAXRecords: map[string]string{
++				"size":                "512",
++				"GNU.sparse.major":    "1",
++				"GNU.sparse.minor":    "0",
++				"GNU.sparse.realsize": "1000",
++				"GNU.sparse.name":     "sparse.db",
++			},
++			Format: FormatPAX,
+ 		}},
+ 	}}
+ 
+@@ -908,6 +985,8 @@ func TestMergePAX(t *testing.T) {
+ 	for i, v := range vectors {
+ 		got := new(Header)
+ 		err := mergePAX(got, v.in)
++		// TODO(dsnet): Test more combinations with global record support.
++		got.PAXRecords = nil
+ 		if v.ok && !reflect.DeepEqual(*got, *v.want) {
+ 			t.Errorf("test %d, mergePAX(...):\ngot  %+v\nwant %+v", i, *got, *v.want)
+ 		}
+@@ -1253,9 +1332,10 @@ func TestReadGNUSparsePAXHeaders(t *testing.T) {
+ 
+ 	for i, v := range vectors {
+ 		var hdr Header
++		hdr.PAXRecords = v.inputHdrs
+ 		r := strings.NewReader(v.inputData + "#") // Add canary byte
+ 		tr := Reader{curr: &regFileReader{r, int64(r.Len())}}
+-		got, err := tr.readGNUSparsePAXHeaders(&hdr, v.inputHdrs)
++		got, err := tr.readGNUSparsePAXHeaders(&hdr)
+ 		if !equalSparseEntries(got, v.wantMap) {
+ 			t.Errorf("test %d, readGNUSparsePAXHeaders(): got %v, want %v", i, got, v.wantMap)
+ 		}
+diff --git a/src/archive/tar/strconv_test.go b/src/archive/tar/strconv_test.go
+index 7156368ede..4cc388cb0f 100644
+--- a/src/archive/tar/strconv_test.go
++++ b/src/archive/tar/strconv_test.go
+@@ -413,7 +413,7 @@ func TestFormatPAXRecord(t *testing.T) {
+ 		{"xhello", "\x00world", "17 xhello=\x00world\n", true},
+ 		{"path", "null\x00", "", false},
+ 		{"null\x00", "value", "", false},
+-		{paxXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
++		{paxSchilyXattr + "key", "null\x00", "26 SCHILY.xattr.key=null\x00\n", true},
+ 	}
+ 
+ 	for _, v := range vectors {
+diff --git a/src/archive/tar/tar_test.go b/src/archive/tar/tar_test.go
+index abbf9615e3..93196e9126 100644
+--- a/src/archive/tar/tar_test.go
++++ b/src/archive/tar/tar_test.go
+@@ -221,16 +221,12 @@ func TestRoundTrip(t *testing.T) {
+ 	var b bytes.Buffer
+ 	tw := NewWriter(&b)
+ 	hdr := &Header{
+-		Name: "file.txt",
+-		Uid:  1 << 21, // too big for 8 octal digits
+-		Size: int64(len(data)),
+-		// AddDate to strip monotonic clock reading,
+-		// and Round to discard sub-second precision,
+-		// both of which are not included in the tar header
+-		// and would otherwise break the round-trip check
+-		// below.
+-		ModTime: time.Now().AddDate(0, 0, 0).Round(1 * time.Second),
+-		Format:  FormatPAX,
++		Name:       "file.txt",
++		Uid:        1 << 21, // Too big for 8 octal digits
++		Size:       int64(len(data)),
++		ModTime:    time.Now().Round(time.Second),
++		PAXRecords: map[string]string{"uid": "2097152"},
++		Format:     FormatPAX,
+ 	}
+ 	if err := tw.WriteHeader(hdr); err != nil {
+ 		t.Fatalf("tw.WriteHeader: %v", err)
+@@ -548,15 +544,15 @@ func TestHeaderAllowedFormats(t *testing.T) {
+ 		formats: FormatUSTAR | FormatPAX | FormatGNU,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}},
+-		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
++		paxHdrs: map[string]string{paxSchilyXattr + "foo": "bar"},
+ 		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo": "bar"}, Format: FormatGNU},
+-		paxHdrs: map[string]string{paxXattr + "foo": "bar"},
++		paxHdrs: map[string]string{paxSchilyXattr + "foo": "bar"},
+ 		formats: FormatUnknown,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"用戶名": "\x00hello"}},
+-		paxHdrs: map[string]string{paxXattr + "用戶名": "\x00hello"},
++		paxHdrs: map[string]string{paxSchilyXattr + "用戶名": "\x00hello"},
+ 		formats: FormatPAX,
+ 	}, {
+ 		header:  &Header{Xattrs: map[string]string{"foo=bar": "baz"}},
+diff --git a/src/archive/tar/testdata/pax-records.tar b/src/archive/tar/testdata/pax-records.tar
+new file mode 100644
+index 0000000000..276c211baa
+Binary files /dev/null and b/src/archive/tar/testdata/pax-records.tar differ
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 1d62055391..36308f2510 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -231,6 +231,22 @@ func TestWriter(t *testing.T) {
+ 				Name:     "null\x00.txt",
+ 			}, headerError{}},
+ 		},
++	}, {
++		file: "testdata/pax-records.tar",
++		tests: []testFnc{
++			testHeader{Header{
++				Typeflag: TypeReg,
++				Name:     "file",
++				Uname:    strings.Repeat("long", 10),
++				PAXRecords: map[string]string{
++					"path":           "FILE", // Should be ignored
++					"GNU.sparse.map": "0,0",  // Should be ignored
++					"comment":        "Hello, 世界",
++					"GOLANG.pkg":     "tar",
++				},
++			}, nil},
++			testClose{nil},
++		},
+ 	}, {
+ 		file: "testdata/gnu-utf8.tar",
+ 		tests: []testFnc{

@@ -11,7 +11,7 @@ Date:   Mon Nov 14 21:34:58 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/handshake_server_test.go |  3 ++-
  src/crypto/tls/tls_test.go              |  6 ++++--
  src/database/sql/sql_test.go            |  3 ++-
@@ -27,3 +27,431 @@ Date:   Mon Nov 14 21:34:58 2016 -0800
  src/sync/cond_test.go                   |  4 ++--
  src/sync/pool_test.go                   |  3 ++-
  14 files changed, 68 insertions(+), 40 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index fa93c8a8e0..bcd3d43ea3 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -206,7 +206,8 @@ func TestRenegotiationExtension(t *testing.T) {
+ 		buf = make([]byte, 1024)
+ 		n, err := c.Read(buf)
+ 		if err != nil {
+-			t.Fatalf("Server read returned error: %s", err)
++			t.Errorf("Server read returned error: %s", err)
++			return
+ 		}
+ 		buf = buf[:n]
+ 		c.Close()
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 1a5286c383..8933f4f201 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -295,12 +295,14 @@ func TestTLSUniqueMatches(t *testing.T) {
+ 		for i := 0; i < 2; i++ {
+ 			sconn, err := ln.Accept()
+ 			if err != nil {
+-				t.Fatal(err)
++				t.Error(err)
++				return
+ 			}
+ 			serverConfig := testConfig.Clone()
+ 			srv := Server(sconn, serverConfig)
+ 			if err := srv.Handshake(); err != nil {
+-				t.Fatal(err)
++				t.Error(err)
++				return
+ 			}
+ 			serverTLSUniques <- srv.ConnectionState().TLSUnique
+ 		}
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f8edf89608..ea86264ae6 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -2514,7 +2514,8 @@ func TestConnectionLeak(t *testing.T) {
+ 	go func() {
+ 		r, err := db.Query("SELECT|people|name|")
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Error(err)
++			return
+ 		}
+ 		r.Close()
+ 		wg.Done()
+diff --git a/src/log/syslog/syslog_test.go b/src/log/syslog/syslog_test.go
+index 5df0e47271..1263be6d78 100644
+--- a/src/log/syslog/syslog_test.go
++++ b/src/log/syslog/syslog_test.go
+@@ -369,7 +369,8 @@ func TestConcurrentReconnect(t *testing.T) {
+ 			defer wg.Done()
+ 			w, err := Dial(net, addr, LOG_USER|LOG_ERR, "tag")
+ 			if err != nil {
+-				t.Fatalf("syslog.Dial() failed: %v", err)
++				t.Errorf("syslog.Dial() failed: %v", err)
++				return
+ 			}
+ 			defer w.Close()
+ 			for i := 0; i < M; i++ {
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 8ee64d407c..7dc364de50 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -668,12 +668,14 @@ func TestIgnoreDNSForgeries(t *testing.T) {
+ 		b := make([]byte, 512)
+ 		n, err := s.Read(b)
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Error(err)
++			return
+ 		}
+ 
+ 		msg := &dnsMsg{}
+ 		if !msg.Unpack(b[:n]) {
+-			t.Fatal("invalid DNS query")
++			t.Error("invalid DNS query")
++			return
+ 		}
+ 
+ 		s.Write([]byte("garbage DNS response packet"))
+@@ -682,7 +684,8 @@ func TestIgnoreDNSForgeries(t *testing.T) {
+ 		msg.id++ // make invalid ID
+ 		b, ok := msg.Pack()
+ 		if !ok {
+-			t.Fatal("failed to pack DNS response")
++			t.Error("failed to pack DNS response")
++			return
+ 		}
+ 		s.Write(b)
+ 
+@@ -701,7 +704,8 @@ func TestIgnoreDNSForgeries(t *testing.T) {
+ 
+ 		b, ok = msg.Pack()
+ 		if !ok {
+-			t.Fatal("failed to pack DNS response")
++			t.Error("failed to pack DNS response")
++			return
+ 		}
+ 		s.Write(b)
+ 	}()
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9715003be9..767a8154bf 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2468,7 +2468,7 @@ func TestClientWriteShutdown(t *testing.T) {
+ 		defer close(donec)
+ 		bs, err := ioutil.ReadAll(conn)
+ 		if err != nil {
+-			t.Fatalf("ReadAll: %v", err)
++			t.Errorf("ReadAll: %v", err)
+ 		}
+ 		got := string(bs)
+ 		if got != "" {
+@@ -2620,7 +2620,8 @@ func TestCloseNotifier(t *testing.T) {
+ 	go func() {
+ 		_, err = fmt.Fprintf(conn, "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n")
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Error(err)
++			return
+ 		}
+ 		<-diec
+ 		conn.Close()
+@@ -2662,7 +2663,8 @@ func TestCloseNotifierPipelined(t *testing.T) {
+ 		const req = "GET / HTTP/1.1\r\nConnection: keep-alive\r\nHost: foo\r\n\r\n"
+ 		_, err = io.WriteString(conn, req+req) // two requests
+ 		if err != nil {
+-			t.Fatal(err)
++			t.Error(err)
++			return
+ 		}
+ 		<-diec
+ 		conn.Close()
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index d04271d99c..8369c9dec7 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -693,7 +693,8 @@ func benchmarkEndToEndAsync(dial func() (*Client, error), b *testing.B) {
+ 				B := call.Args.(*Args).B
+ 				C := call.Reply.(*Reply).C
+ 				if A+B != C {
+-					b.Fatalf("incorrect reply: Add: expected %d got %d", A+B, C)
++					b.Errorf("incorrect reply: Add: expected %d got %d", A+B, C)
++					return
+ 				}
+ 				<-gate
+ 				if atomic.AddInt32(&recv, -1) == 0 {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index b14343752a..67fe14faae 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -432,7 +432,7 @@ func TestExtraFilesFDShuffle(t *testing.T) {
+ 		buf := make([]byte, 512)
+ 		n, err := stderr.Read(buf)
+ 		if err != nil {
+-			t.Fatalf("Read: %s", err)
++			t.Errorf("Read: %s", err)
+ 			ch <- err.Error()
+ 		} else {
+ 			ch <- string(buf[:n])
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 8e8c47b48d..a75fa1b992 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -210,11 +210,14 @@ func TestNonblockRecvRace(t *testing.T) {
+ 			select {
+ 			case <-c:
+ 			default:
+-				t.Fatal("chan is not ready")
++				t.Error("chan is not ready")
+ 			}
+ 		}()
+ 		close(c)
+ 		<-c
++		if t.Failed() {
++			return
++		}
+ 	}
+ }
+ 
+@@ -311,14 +314,16 @@ func TestSelfSelect(t *testing.T) {
+ 						case c <- p:
+ 						case v := <-c:
+ 							if chanCap == 0 && v == p {
+-								t.Fatalf("self receive")
++								t.Errorf("self receive")
++								return
+ 							}
+ 						}
+ 					} else {
+ 						select {
+ 						case v := <-c:
+ 							if chanCap == 0 && v == p {
+-								t.Fatalf("self receive")
++								t.Errorf("self receive")
++								return
+ 							}
+ 						case c <- p:
+ 						}
+diff --git a/src/runtime/trace/trace_stack_test.go b/src/runtime/trace/trace_stack_test.go
+index b143341f59..c37b33de86 100644
+--- a/src/runtime/trace/trace_stack_test.go
++++ b/src/runtime/trace/trace_stack_test.go
+@@ -85,7 +85,8 @@ func TestTraceSymbolize(t *testing.T) {
+ 	go func() {
+ 		c, err := ln.Accept()
+ 		if err != nil {
+-			t.Fatalf("failed to accept: %v", err)
++			t.Errorf("failed to accept: %v", err)
++			return
+ 		}
+ 		c.Close()
+ 	}()
+@@ -139,14 +140,14 @@ func TestTraceSymbolize(t *testing.T) {
+ 	want := []eventDesc{
+ 		{trace.EvGCStart, []frame{
+ 			{"runtime.GC", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 106},
++			{"runtime/trace_test.TestTraceSymbolize", 107},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoStart, []frame{
+ 			{"runtime/trace_test.TestTraceSymbolize.func1", 37},
+ 		}},
+ 		{trace.EvGoSched, []frame{
+-			{"runtime/trace_test.TestTraceSymbolize", 107},
++			{"runtime/trace_test.TestTraceSymbolize", 108},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoCreate, []frame{
+@@ -171,7 +172,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		}},
+ 		{trace.EvGoUnblock, []frame{
+ 			{"runtime.chansend1", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 109},
++			{"runtime/trace_test.TestTraceSymbolize", 110},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoBlockSend, []frame{
+@@ -180,7 +181,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		}},
+ 		{trace.EvGoUnblock, []frame{
+ 			{"runtime.chanrecv1", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 110},
++			{"runtime/trace_test.TestTraceSymbolize", 111},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoBlockSelect, []frame{
+@@ -189,7 +190,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		}},
+ 		{trace.EvGoUnblock, []frame{
+ 			{"runtime.selectgo", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 111},
++			{"runtime/trace_test.TestTraceSymbolize", 112},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoBlockSync, []frame{
+@@ -198,7 +199,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		}},
+ 		{trace.EvGoUnblock, []frame{
+ 			{"sync.(*Mutex).Unlock", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 115},
++			{"runtime/trace_test.TestTraceSymbolize", 116},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoBlockSync, []frame{
+@@ -208,7 +209,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 		{trace.EvGoUnblock, []frame{
+ 			{"sync.(*WaitGroup).Add", 0},
+ 			{"sync.(*WaitGroup).Done", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 116},
++			{"runtime/trace_test.TestTraceSymbolize", 117},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoBlockCond, []frame{
+@@ -217,12 +218,12 @@ func TestTraceSymbolize(t *testing.T) {
+ 		}},
+ 		{trace.EvGoUnblock, []frame{
+ 			{"sync.(*Cond).Signal", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 117},
++			{"runtime/trace_test.TestTraceSymbolize", 118},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 		{trace.EvGoSleep, []frame{
+ 			{"time.Sleep", 0},
+-			{"runtime/trace_test.TestTraceSymbolize", 108},
++			{"runtime/trace_test.TestTraceSymbolize", 109},
+ 			{"testing.tRunner", 0},
+ 		}},
+ 	}
+@@ -240,7 +241,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 				{"syscall.Read", 0},
+ 				{"os.(*File).read", 0},
+ 				{"os.(*File).Read", 0},
+-				{"runtime/trace_test.TestTraceSymbolize.func11", 101},
++				{"runtime/trace_test.TestTraceSymbolize.func11", 102},
+ 			}},
+ 		}...)
+ 	}
+diff --git a/src/runtime/trace/trace_test.go b/src/runtime/trace/trace_test.go
+index 191bdd939a..c5f64fcf4c 100644
+--- a/src/runtime/trace/trace_test.go
++++ b/src/runtime/trace/trace_test.go
+@@ -269,7 +269,8 @@ func TestTraceStressStartStop(t *testing.T) {
+ 
+ 		rp, wp, err := os.Pipe()
+ 		if err != nil {
+-			t.Fatalf("failed to create pipe: %v", err)
++			t.Errorf("failed to create pipe: %v", err)
++			return
+ 		}
+ 		defer func() {
+ 			rp.Close()
+@@ -345,7 +346,8 @@ func TestTraceStressStartStop(t *testing.T) {
+ 		// A bit of network.
+ 		ln, err := net.Listen("tcp", "127.0.0.1:0")
+ 		if err != nil {
+-			t.Fatalf("listen failed: %v", err)
++			t.Errorf("listen failed: %v", err)
++			return
+ 		}
+ 		defer ln.Close()
+ 		go func() {
+@@ -360,7 +362,8 @@ func TestTraceStressStartStop(t *testing.T) {
+ 		}()
+ 		c, err := net.Dial("tcp", ln.Addr().String())
+ 		if err != nil {
+-			t.Fatalf("dial failed: %v", err)
++			t.Errorf("dial failed: %v", err)
++			return
+ 		}
+ 		var tmp [1]byte
+ 		c.Read(tmp[:])
+diff --git a/src/sync/atomic/atomic_test.go b/src/sync/atomic/atomic_test.go
+index a230d63329..c151f46fa9 100644
+--- a/src/sync/atomic/atomic_test.go
++++ b/src/sync/atomic/atomic_test.go
+@@ -1226,10 +1226,12 @@ func TestStoreLoadSeqCst32(t *testing.T) {
+ 				}
+ 				his := LoadInt32(&ack[he][i%3])
+ 				if (my != i && my != i-1) || (his != i && his != i-1) {
+-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
++					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
++					break
+ 				}
+ 				if my != i && his != i {
+-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++					break
+ 				}
+ 				StoreInt32(&ack[me][(i-1)%3], -1)
+ 			}
+@@ -1269,10 +1271,12 @@ func TestStoreLoadSeqCst64(t *testing.T) {
+ 				}
+ 				his := LoadInt64(&ack[he][i%3])
+ 				if (my != i && my != i-1) || (his != i && his != i-1) {
+-					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
++					t.Errorf("invalid values: %d/%d (%d)", my, his, i)
++					break
+ 				}
+ 				if my != i && his != i {
+-					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++					t.Errorf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++					break
+ 				}
+ 				StoreInt64(&ack[me][(i-1)%3], -1)
+ 			}
+@@ -1317,7 +1321,8 @@ func TestStoreLoadRelAcq32(t *testing.T) {
+ 					d1 := X.data1
+ 					d2 := X.data2
+ 					if d1 != i || d2 != float32(i) {
+-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
++						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
++						break
+ 					}
+ 				}
+ 			}
+@@ -1365,7 +1370,8 @@ func TestStoreLoadRelAcq64(t *testing.T) {
+ 					d1 := X.data1
+ 					d2 := X.data2
+ 					if d1 != i || d2 != float64(i) {
+-						t.Fatalf("incorrect data: %d/%g (%d)", d1, d2, i)
++						t.Errorf("incorrect data: %d/%g (%d)", d1, d2, i)
++						break
+ 					}
+ 				}
+ 			}
+diff --git a/src/sync/cond_test.go b/src/sync/cond_test.go
+index 7b0729571c..9019f8f102 100644
+--- a/src/sync/cond_test.go
++++ b/src/sync/cond_test.go
+@@ -137,7 +137,7 @@ func TestRace(t *testing.T) {
+ 		x = 1
+ 		c.Wait()
+ 		if x != 2 {
+-			t.Fatal("want 2")
++			t.Error("want 2")
+ 		}
+ 		x = 3
+ 		c.Signal()
+@@ -165,7 +165,7 @@ func TestRace(t *testing.T) {
+ 			if x == 2 {
+ 				c.Wait()
+ 				if x != 3 {
+-					t.Fatal("want 3")
++					t.Error("want 3")
+ 				}
+ 				break
+ 			}
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index fa1a27beac..5a38cbfcb6 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -127,7 +127,8 @@ func TestPoolStress(t *testing.T) {
+ 				p.Put(v)
+ 				v = p.Get()
+ 				if v != nil && v.(int) != 0 {
+-					t.Fatalf("expect 0, got %v", v)
++					t.Errorf("expect 0, got %v", v)
++					break
+ 				}
+ 			}
+ 			done <- true

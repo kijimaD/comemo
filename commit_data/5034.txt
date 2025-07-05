@@ -7,7 +7,34 @@ Date:   Wed Mar 10 15:41:36 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/384044
-
+---
  src/cmd/godoc/doc.go  | 2 ++
  src/cmd/godoc/main.go | 2 +-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index 701b0e177c..866cff308f 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -23,6 +23,8 @@ Usage:
+ The flags are:
+ 	-v
+ 		verbose mode
++	-src
++		print exported source in command-line mode
+ 	-tabwidth=4
+ 		width of tabs in units of spaces
+ 	-path=""
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 9f92c6cffc..5436088f74 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -48,7 +48,7 @@ var (
+ 
+ 	// layout control
+ 	html   = flag.Bool("html", false, "print HTML in command-line mode")
+-	genAST = flag.Bool("x", false, "print exported source in command-line mode")
++	genAST = flag.Bool("src", false, "print exported source in command-line mode")
+ )
+ 
+ 

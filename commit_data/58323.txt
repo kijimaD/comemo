@@ -144,7 +144,7 @@ Date:   Tue Jun 6 09:43:20 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  api/next/61716.txt               |   7 +
  src/math/rand/v2/example_test.go |  27 ++-
  src/math/rand/v2/export_test.go  |   4 -
@@ -152,3 +152,862 @@ Date:   Tue Jun 6 09:43:20 2023 -0400
  src/math/rand/v2/rand_test.go    |  16 +-
  src/math/rand/v2/regress_test.go | 355 ++++++++++++++++++++++++---------------
  6 files changed, 406 insertions(+), 215 deletions(-)
+
+diff --git a/api/next/61716.txt b/api/next/61716.txt
+index 44d40ef1f3..b84e7e1147 100644
+--- a/api/next/61716.txt
++++ b/api/next/61716.txt
+@@ -7,6 +7,7 @@ pkg math/rand/v2, func Int32N(int32) int32 #61716
+ pkg math/rand/v2, func Int64() int64 #61716
+ pkg math/rand/v2, func Int64N(int64) int64 #61716
+ pkg math/rand/v2, func IntN(int) int #61716
++pkg math/rand/v2, func N[$0 intType]($0) $0 #61716
+ pkg math/rand/v2, func New(Source) *Rand #61716
+ pkg math/rand/v2, func NewSource(int64) Source #61716
+ pkg math/rand/v2, func NewZipf(*Rand, float64, float64, uint64) *Zipf #61716
+@@ -14,7 +15,10 @@ pkg math/rand/v2, func NormFloat64() float64 #61716
+ pkg math/rand/v2, func Perm(int) []int #61716
+ pkg math/rand/v2, func Shuffle(int, func(int, int)) #61716
+ pkg math/rand/v2, func Uint32() uint32 #61716
++pkg math/rand/v2, func Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, func Uint64() uint64 #61716
++pkg math/rand/v2, func Uint64N(uint64) uint64 #61716
++pkg math/rand/v2, func UintN(uint) uint #61716
+ pkg math/rand/v2, method (*Rand) ExpFloat64() float64 #61716
+ pkg math/rand/v2, method (*Rand) Float32() float32 #61716
+ pkg math/rand/v2, method (*Rand) Float64() float64 #61716
+@@ -28,7 +32,10 @@ pkg math/rand/v2, method (*Rand) NormFloat64() float64 #61716
+ pkg math/rand/v2, method (*Rand) Perm(int) []int #61716
+ pkg math/rand/v2, method (*Rand) Shuffle(int, func(int, int)) #61716
+ pkg math/rand/v2, method (*Rand) Uint32() uint32 #61716
++pkg math/rand/v2, method (*Rand) Uint32N(uint32) uint32 #61716
+ pkg math/rand/v2, method (*Rand) Uint64() uint64 #61716
++pkg math/rand/v2, method (*Rand) Uint64N(uint64) uint64 #61716
++pkg math/rand/v2, method (*Rand) UintN(uint) uint #61716
+ pkg math/rand/v2, method (*Zipf) Uint64() uint64 #61716
+ pkg math/rand/v2, type Rand struct #61716
+ pkg math/rand/v2, type Source interface { Uint64 } #61716
+diff --git a/src/math/rand/v2/example_test.go b/src/math/rand/v2/example_test.go
+index 4bf4c50a74..7628674439 100644
+--- a/src/math/rand/v2/example_test.go
++++ b/src/math/rand/v2/example_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"strings"
+ 	"text/tabwriter"
++	"time"
+ )
+ 
+ // These tests serve as an example but also make sure we don't change
+@@ -84,15 +85,15 @@ func Example_rand() {
+ 	// Output:
+ 	// Float32     0.2635776           0.6358173           0.6718283
+ 	// Float64     0.628605430454327   0.4504798828572669  0.9562755949377957
+-	// ExpFloat64  0.3362240648200941  1.4256072328483647  0.24354758816173044
+-	// NormFloat64 0.17233959114940064 1.577014951434847   0.04259129641113857
+-	// Int32       1501292890          1486668269          182840835
+-	// Int64       3546343826724305832 5724354148158589552 5239846799706671610
+-	// Uint32      2760229429          296659907           1922395059
+-	// IntN(10)    1                   2                   5
+-	// Int32N(10)  4                   7                   8
+-	// Int64N(10)  7                   6                   3
+-	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
++	// ExpFloat64  0.10400903165715357 0.28855743344575835 0.20489656480442942
++	// NormFloat64 -0.5602299711828513 -0.9211692958208376 -1.4262061075859056
++	// Int32       1817075958          91420417            1486590581
++	// Int64       5724354148158589552 5239846799706671610 5927547564735367388
++	// Uint32      2295813601          961197529           3493134579
++	// IntN(10)    4                   5                   1
++	// Int32N(10)  8                   5                   4
++	// Int64N(10)  2                   6                   3
++	// Perm        [3 4 2 1 0]         [4 1 2 0 3]         [0 2 1 3 4]
+ }
+ 
+ func ExamplePerm() {
+@@ -105,6 +106,14 @@ func ExamplePerm() {
+ 	// 0
+ }
+ 
++func ExampleN() {
++	// Print an int64 in the half-open interval [0, 100).
++	fmt.Println(rand.N(int64(100)))
++
++	// Sleep for a random duration between 0 and 100 milliseconds.
++	time.Sleep(rand.N(100 * time.Millisecond))
++}
++
+ func ExampleShuffle() {
+ 	words := strings.Fields("ink runs from the corners of my mouth")
+ 	rand.Shuffle(len(words), func(i, j int) {
+diff --git a/src/math/rand/v2/export_test.go b/src/math/rand/v2/export_test.go
+index f77ba9d4db..16ecb20227 100644
+--- a/src/math/rand/v2/export_test.go
++++ b/src/math/rand/v2/export_test.go
+@@ -4,10 +4,6 @@
+ 
+ package rand
+ 
+-func Int32NForTest(r *Rand, n int32) int32 {
+-	return r.int31n(n)
+-}
+-
+ func GetNormalDistributionParameters() (float64, [128]uint32, [128]float32, [128]float32) {
+ 	return rn, kn, wn, fn
+ }
+diff --git a/src/math/rand/v2/rand.go b/src/math/rand/v2/rand.go
+index 337a6aa5a0..3b8d244154 100644
+--- a/src/math/rand/v2/rand.go
++++ b/src/math/rand/v2/rand.go
+@@ -18,6 +18,7 @@
+ package rand
+ 
+ import (
++	"math/bits"
+ 	_ "unsafe" // for go:linkname
+ )
+ 
+@@ -58,21 +59,16 @@ func New(src Source) *Rand {
+ func (r *Rand) Int64() int64 { return int64(r.src.Uint64() &^ (1 << 63)) }
+ 
+ // Uint32 returns a pseudo-random 32-bit value as a uint32.
+-func (r *Rand) Uint32() uint32 { return uint32(r.Int64() >> 31) }
++func (r *Rand) Uint32() uint32 { return uint32(r.src.Uint64() >> 32) }
+ 
+ // Uint64 returns a pseudo-random 64-bit value as a uint64.
+-func (r *Rand) Uint64() uint64 {
+-	return r.src.Uint64()
+-}
++func (r *Rand) Uint64() uint64 { return r.src.Uint64() }
+ 
+ // Int32 returns a non-negative pseudo-random 31-bit integer as an int32.
+-func (r *Rand) Int32() int32 { return int32(r.Int64() >> 32) }
++func (r *Rand) Int32() int32 { return int32(r.src.Uint64() >> 33) }
+ 
+ // Int returns a non-negative pseudo-random int.
+-func (r *Rand) Int() int {
+-	u := uint(r.Int64())
+-	return int(u << 1 >> 1) // clear sign bit if int == int32
+-}
++func (r *Rand) Int() int { return int(uint(r.src.Uint64()) << 1 >> 1) }
+ 
+ // Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n).
+ // It panics if n <= 0.
+@@ -80,15 +76,105 @@ func (r *Rand) Int64N(n int64) int64 {
+ 	if n <= 0 {
+ 		panic("invalid argument to Int64N")
+ 	}
++	return int64(r.uint64n(uint64(n)))
++}
++
++// Uint64N returns, as a uint64, a non-negative pseudo-random number in the half-open interval [0,n).
++// It panics if n == 0.
++func (r *Rand) Uint64N(n uint64) uint64 {
++	if n == 0 {
++		panic("invalid argument to Uint64N")
++	}
++	return r.uint64n(n)
++}
++
++// uint64n is the no-bounds-checks version of Uint64N.
++func (r *Rand) uint64n(n uint64) uint64 {
++	if is32bit && uint64(uint32(n)) == n {
++		return uint64(r.uint32n(uint32(n)))
++	}
+ 	if n&(n-1) == 0 { // n is power of two, can mask
+-		return r.Int64() & (n - 1)
++		return r.Uint64() & (n - 1)
+ 	}
+-	max := int64((1 << 63) - 1 - (1<<63)%uint64(n))
+-	v := r.Int64()
+-	for v > max {
+-		v = r.Int64()
++
++	// Suppose we have a uint64 x uniform in the range [0,2⁶⁴)
++	// and want to reduce it to the range [0,n) preserving exact uniformity.
++	// We can simulate a scaling arbitrary precision x * (n/2⁶⁴) by
++	// the high bits of a double-width multiply of x*n, meaning (x*n)/2⁶⁴.
++	// Since there are 2⁶⁴ possible inputs x and only n possible outputs,
++	// the output is necessarily biased if n does not divide 2⁶⁴.
++	// In general (x*n)/2⁶⁴ = k for x*n in [k*2⁶⁴,(k+1)*2⁶⁴).
++	// There are either floor(2⁶⁴/n) or ceil(2⁶⁴/n) possible products
++	// in that range, depending on k.
++	// But suppose we reject the sample and try again when
++	// x*n is in [k*2⁶⁴, k*2⁶⁴+(2⁶⁴%n)), meaning rejecting fewer than n possible
++	// outcomes out of the 2⁶⁴.
++	// Now there are exactly floor(2⁶⁴/n) possible ways to produce
++	// each output value k, so we've restored uniformity.
++	// To get valid uint64 math, 2⁶⁴ % n = (2⁶⁴ - n) % n = -n % n,
++	// so the direct implementation of this algorithm would be:
++	//
++	//	hi, lo := bits.Mul64(r.Uint64(), n)
++	//	thresh := -n % n
++	//	for lo < thresh {
++	//		hi, lo = bits.Mul64(r.Uint64(), n)
++	//	}
++	//
++	// That still leaves an expensive 64-bit division that we would rather avoid.
++	// We know that thresh < n, and n is usually much less than 2⁶⁴, so we can
++	// avoid the last four lines unless lo < n.
++	//
++	// See also:
++	// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
++	// https://lemire.me/blog/2016/06/30/fast-random-shuffling
++	hi, lo := bits.Mul64(r.Uint64(), n)
++	if lo < n {
++		thresh := -n % n
++		for lo < thresh {
++			hi, lo = bits.Mul64(r.Uint64(), n)
++		}
+ 	}
+-	return v % n
++	return hi
++}
++
++// uint32n is an identical computation to uint64n
++// but optimized for 32-bit systems.
++func (r *Rand) uint32n(n uint32) uint32 {
++	if n&(n-1) == 0 { // n is power of two, can mask
++		return uint32(r.Uint64()) & (n - 1)
++	}
++	// On 64-bit systems we still use the uint64 code below because
++	// the probability of a random uint64 lo being < a uint32 n is near zero,
++	// meaning the unbiasing loop almost never runs.
++	// On 32-bit systems, here we need to implement that same logic in 32-bit math,
++	// both to preserve the exact output sequence observed on 64-bit machines
++	// and to preserve the optimization that the unbiasing loop almost never runs.
++	//
++	// We want to compute
++	// 	hi, lo := bits.Mul64(r.Uint64(), n)
++	// In terms of 32-bit halves, this is:
++	// 	x1:x0 := r.Uint64()
++	// 	0:hi, lo1:lo0 := bits.Mul64(x1:x0, 0:n)
++	// Writing out the multiplication in terms of bits.Mul32 allows
++	// using direct hardware instructions and avoiding
++	// the computations involving these zeros.
++	x := r.Uint64()
++	lo1a, lo0 := bits.Mul32(uint32(x), n)
++	hi, lo1b := bits.Mul32(uint32(x>>32), n)
++	lo1, c := bits.Add32(lo1a, lo1b, 0)
++	hi += c
++	if lo1 == 0 && lo0 < uint32(n) {
++		n64 := uint64(n)
++		thresh := uint32(-n64 % n64)
++		for lo1 == 0 && lo0 < thresh {
++			x := r.Uint64()
++			lo1a, lo0 = bits.Mul32(uint32(x), n)
++			hi, lo1b = bits.Mul32(uint32(x>>32), n)
++			lo1, c = bits.Add32(lo1a, lo1b, 0)
++			hi += c
++		}
++	}
++	return hi
+ }
+ 
+ // Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
+@@ -97,51 +183,36 @@ func (r *Rand) Int32N(n int32) int32 {
+ 	if n <= 0 {
+ 		panic("invalid argument to Int32N")
+ 	}
+-	if n&(n-1) == 0 { // n is power of two, can mask
+-		return r.Int32() & (n - 1)
+-	}
+-	max := int32((1 << 31) - 1 - (1<<31)%uint32(n))
+-	v := r.Int32()
+-	for v > max {
+-		v = r.Int32()
+-	}
+-	return v % n
++	return int32(r.uint64n(uint64(n)))
+ }
+ 
+-// int31n returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n).
+-// n must be > 0, but int31n does not check this; the caller must ensure it.
+-// int31n exists because Int32N is inefficient, but Go 1 compatibility
+-// requires that the stream of values produced by math/rand/v2 remain unchanged.
+-// int31n can thus only be used internally, by newly introduced APIs.
+-//
+-// For implementation details, see:
+-// https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction
+-// https://lemire.me/blog/2016/06/30/fast-random-shuffling
+-func (r *Rand) int31n(n int32) int32 {
+-	v := r.Uint32()
+-	prod := uint64(v) * uint64(n)
+-	low := uint32(prod)
+-	if low < uint32(n) {
+-		thresh := uint32(-n) % uint32(n)
+-		for low < thresh {
+-			v = r.Uint32()
+-			prod = uint64(v) * uint64(n)
+-			low = uint32(prod)
+-		}
++// Uint32N returns, as a uint32, a non-negative pseudo-random number in the half-open interval [0,n).
++// It panics if n == 0.
++func (r *Rand) Uint32N(n uint32) uint32 {
++	if n == 0 {
++		panic("invalid argument to Uint32N")
+ 	}
+-	return int32(prod >> 32)
++	return uint32(r.uint64n(uint64(n)))
+ }
+ 
++const is32bit = ^uint(0)>>32 == 0
++
+ // IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n).
+ // It panics if n <= 0.
+ func (r *Rand) IntN(n int) int {
+ 	if n <= 0 {
+ 		panic("invalid argument to IntN")
+ 	}
+-	if n <= 1<<31-1 {
+-		return int(r.Int32N(int32(n)))
++	return int(r.uint64n(uint64(n)))
++}
++
++// UintN returns, as a uint, a non-negative pseudo-random number in the half-open interval [0,n).
++// It panics if n == 0.
++func (r *Rand) UintN(n uint) uint {
++	if n == 0 {
++		panic("invalid argument to UintN")
+ 	}
+-	return int(r.Int64N(int64(n)))
++	return uint(r.uint64n(uint64(n)))
+ }
+ 
+ // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0).
+@@ -214,13 +285,8 @@ func (r *Rand) Shuffle(n int, swap func(i, j int)) {
+ 	// there's no way that any PRNG can have a big enough internal state to
+ 	// generate even a minuscule percentage of the possible permutations.
+ 	// Nevertheless, the right API signature accepts an int n, so handle it as best we can.
+-	i := n - 1
+-	for ; i > 1<<31-1-1; i-- {
+-		j := int(r.Int64N(int64(i + 1)))
+-		swap(i, j)
+-	}
+-	for ; i > 0; i-- {
+-		j := int(r.int31n(int32(i + 1)))
++	for i := n - 1; i > 0; i-- {
++		j := int(r.uint64n(uint64(i + 1)))
+ 		swap(i, j)
+ 	}
+ }
+@@ -255,6 +321,16 @@ func Int64() int64 { return globalRand.Int64() }
+ // from the default Source.
+ func Uint32() uint32 { return globalRand.Uint32() }
+ 
++// Uint64N returns, as a uint64, a pseudo-random number in the half-open interval [0,n)
++// from the default Source.
++// It panics if n <= 0.
++func Uint64N(n uint64) uint64 { return globalRand.Uint64N(n) }
++
++// Uint32N returns, as a uint32, a pseudo-random number in the half-open interval [0,n)
++// from the default Source.
++// It panics if n <= 0.
++func Uint32N(n uint32) uint32 { return globalRand.Uint32N(n) }
++
+ // Uint64 returns a pseudo-random 64-bit value as a uint64
+ // from the default Source.
+ func Uint64() uint64 { return globalRand.Uint64() }
+@@ -266,21 +342,41 @@ func Int32() int32 { return globalRand.Int32() }
+ // Int returns a non-negative pseudo-random int from the default Source.
+ func Int() int { return globalRand.Int() }
+ 
+-// Int64N returns, as an int64, a non-negative pseudo-random number in the half-open interval [0,n)
++// Int64N returns, as an int64, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+ // It panics if n <= 0.
+ func Int64N(n int64) int64 { return globalRand.Int64N(n) }
+ 
+-// Int32N returns, as an int32, a non-negative pseudo-random number in the half-open interval [0,n)
++// Int32N returns, as an int32, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+ // It panics if n <= 0.
+ func Int32N(n int32) int32 { return globalRand.Int32N(n) }
+ 
+-// IntN returns, as an int, a non-negative pseudo-random number in the half-open interval [0,n)
++// IntN returns, as an int, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+ // It panics if n <= 0.
+ func IntN(n int) int { return globalRand.IntN(n) }
+ 
++// UintN returns, as a uint, a pseudo-random number in the half-open interval [0,n)
++// from the default Source.
++// It panics if n <= 0.
++func UintN(n uint) uint { return globalRand.UintN(n) }
++
++// N returns a pseudo-random number in the half-open interval [0,n) from the default Source.
++// The type parameter Int can be any integer type.
++// It panics if n <= 0.
++func N[Int intType](n Int) Int {
++	if n <= 0 {
++		panic("invalid argument to N")
++	}
++	return Int(globalRand.uint64n(uint64(n)))
++}
++
++type intType interface {
++	~int | ~int8 | ~int16 | ~int32 | ~int64 |
++		~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64 | ~uintptr
++}
++
+ // Float64 returns, as a float64, a pseudo-random number in the half-open interval [0.0,1.0)
+ // from the default Source.
+ func Float64() float64 { return globalRand.Float64() }
+diff --git a/src/math/rand/v2/rand_test.go b/src/math/rand/v2/rand_test.go
+index 6385497575..a9c9e1d5b9 100644
+--- a/src/math/rand/v2/rand_test.go
++++ b/src/math/rand/v2/rand_test.go
+@@ -418,7 +418,6 @@ func TestUniformFactorial(t *testing.T) {
+ 				fn   func() int
+ 			}{
+ 				{name: "Int32N", fn: func() int { return int(r.Int32N(int32(nfact))) }},
+-				{name: "int31n", fn: func() int { return int(Int32NForTest(r, int32(nfact))) }},
+ 				{name: "Perm", fn: func() int { return encodePerm(r.Perm(n)) }},
+ 				{name: "Shuffle", fn: func() int {
+ 					// Generate permutation using Shuffle.
+@@ -437,8 +436,8 @@ func TestUniformFactorial(t *testing.T) {
+ 					// See https://en.wikipedia.org/wiki/Pearson%27s_chi-squared_test and
+ 					// https://www.johndcook.com/Beautiful_Testing_ch10.pdf.
+ 					nsamples := 10 * nfact
+-					if nsamples < 200 {
+-						nsamples = 200
++					if nsamples < 500 {
++						nsamples = 500
+ 					}
+ 					samples := make([]float64, nsamples)
+ 					for i := range samples {
+@@ -497,7 +496,7 @@ func BenchmarkGlobalInt64(b *testing.B) {
+ 	Sink = uint64(t)
+ }
+ 
+-func BenchmarkGlobalInt63Parallel(b *testing.B) {
++func BenchmarkGlobalInt64Parallel(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		var t int64
+ 		for pb.Next() {
+@@ -777,3 +776,12 @@ func BenchmarkConcurrent(b *testing.B) {
+ 	}
+ 	wg.Wait()
+ }
++
++func TestN(t *testing.T) {
++	for i := 0; i < 1000; i++ {
++		v := N(10)
++		if v < 0 || v >= 10 {
++			t.Fatalf("N(10) returned %d", v)
++		}
++	}
++}
+diff --git a/src/math/rand/v2/regress_test.go b/src/math/rand/v2/regress_test.go
+index 5c080539e0..beefce8638 100644
+--- a/src/math/rand/v2/regress_test.go
++++ b/src/math/rand/v2/regress_test.go
+@@ -79,6 +79,18 @@ func TestRegress(t *testing.T) {
+ 					}
+ 					x = int(big)
+ 
++				case reflect.Uint:
++					big := uint64s[repeat%len(uint64s)]
++					if uint64(uint(big)) != big {
++						r.Uint64N(big) // what would happen on 64-bit machine, to keep stream in sync
++						if *update {
++							t.Fatalf("must run -update on 64-bit machine")
++						}
++						p++
++						continue
++					}
++					x = uint(big)
++
+ 				case reflect.Int32:
+ 					x = int32s[repeat%len(int32s)]
+ 
+@@ -213,26 +225,26 @@ func replace(t *testing.T, file string, new []byte) {
+ }
+ 
+ var regressGolden = []any{
+-	float64(0.5872982159059681),  // ExpFloat64()
+-	float64(0.5372820936538049),  // ExpFloat64()
+-	float64(1.2310533463860203),  // ExpFloat64()
+-	float64(0.6776268958872181),  // ExpFloat64()
+-	float64(0.04451836051028885), // ExpFloat64()
+-	float64(0.2228940815087735),  // ExpFloat64()
+-	float64(0.09850095778902446), // ExpFloat64()
+-	float64(0.18902358546064923), // ExpFloat64()
+-	float64(0.18227281316102673), // ExpFloat64()
+-	float64(0.31155615099079936), // ExpFloat64()
+-	float64(0.9474409467969883),  // ExpFloat64()
+-	float64(1.0451058861587306),  // ExpFloat64()
+-	float64(0.21497642445756152), // ExpFloat64()
+-	float64(1.4215752287217205),  // ExpFloat64()
+-	float64(0.755823964126038),   // ExpFloat64()
+-	float64(0.38996764757787583), // ExpFloat64()
+-	float64(0.13309377582841803), // ExpFloat64()
+-	float64(0.2115638815656507),  // ExpFloat64()
+-	float64(0.7176288428497417),  // ExpFloat64()
+-	float64(0.6120456642749681),  // ExpFloat64()
++	float64(0.1835616265352068),  // ExpFloat64()
++	float64(0.1747899228736829),  // ExpFloat64()
++	float64(2.369801563222863),   // ExpFloat64()
++	float64(1.8580757676846802),  // ExpFloat64()
++	float64(0.35731123690292155), // ExpFloat64()
++	float64(0.5998175837039783),  // ExpFloat64()
++	float64(0.466149534807967),   // ExpFloat64()
++	float64(1.333748223451787),   // ExpFloat64()
++	float64(0.05019983258513916), // ExpFloat64()
++	float64(1.4143832256421573),  // ExpFloat64()
++	float64(0.7274094466687158),  // ExpFloat64()
++	float64(0.9595398235158843),  // ExpFloat64()
++	float64(1.3010086894917756),  // ExpFloat64()
++	float64(0.8678483737499929),  // ExpFloat64()
++	float64(0.7958895614497015),  // ExpFloat64()
++	float64(0.12235329704897674), // ExpFloat64()
++	float64(1.1625413819613253),  // ExpFloat64()
++	float64(1.2603945934386542),  // ExpFloat64()
++	float64(0.22199446394172706), // ExpFloat64()
++	float64(2.248962105270165),   // ExpFloat64()
+ 
+ 	float32(0.6046603),  // Float32()
+ 	float32(0.9405091),  // Float32()
+@@ -297,45 +309,45 @@ var regressGolden = []any{
+ 	int64(6263450610539110790), // Int()
+ 	int64(2015796113853353331), // Int()
+ 
+-	int32(1298498081), // Int32()
+-	int32(2019727887), // Int32()
+-	int32(1427131847), // Int32()
+-	int32(939984059),  // Int32()
+-	int32(911902081),  // Int32()
+-	int32(1474941318), // Int32()
+-	int32(140954425),  // Int32()
+-	int32(336122540),  // Int32()
+-	int32(208240456),  // Int32()
+-	int32(646203300),  // Int32()
+-	int32(1106410694), // Int32()
+-	int32(1747278511), // Int32()
+-	int32(460128162),  // Int32()
+-	int32(817455089),  // Int32()
+-	int32(683024728),  // Int32()
+-	int32(1006933274), // Int32()
+-	int32(607811211),  // Int32()
+-	int32(629431445),  // Int32()
+-	int32(1458323237), // Int32()
+-	int32(469339106),  // Int32()
++	int32(649249040),  // Int32()
++	int32(1009863943), // Int32()
++	int32(1787307747), // Int32()
++	int32(1543733853), // Int32()
++	int32(455951040),  // Int32()
++	int32(737470659),  // Int32()
++	int32(1144219036), // Int32()
++	int32(1241803094), // Int32()
++	int32(104120228),  // Int32()
++	int32(1396843474), // Int32()
++	int32(553205347),  // Int32()
++	int32(873639255),  // Int32()
++	int32(1303805905), // Int32()
++	int32(408727544),  // Int32()
++	int32(1415254188), // Int32()
++	int32(503466637),  // Int32()
++	int32(1377647429), // Int32()
++	int32(1388457546), // Int32()
++	int32(729161618),  // Int32()
++	int32(1308411377), // Int32()
+ 
+-	int32(0),          // Int32N(1)
+-	int32(7),          // Int32N(10)
+-	int32(7),          // Int32N(32)
+-	int32(459963),     // Int32N(1048576)
+-	int32(688668),     // Int32N(1048577)
+-	int32(474941318),  // Int32N(1000000000)
+-	int32(140954425),  // Int32N(1073741824)
+-	int32(336122540),  // Int32N(2147483646)
+-	int32(208240456),  // Int32N(2147483647)
+ 	int32(0),          // Int32N(1)
+ 	int32(4),          // Int32N(10)
+-	int32(15),         // Int32N(32)
+-	int32(851874),     // Int32N(1048576)
+-	int32(613606),     // Int32N(1048577)
+-	int32(683024728),  // Int32N(1000000000)
+-	int32(1006933274), // Int32N(1073741824)
+-	int32(607811211),  // Int32N(2147483646)
+-	int32(629431445),  // Int32N(2147483647)
++	int32(29),         // Int32N(32)
++	int32(883715),     // Int32N(1048576)
++	int32(222632),     // Int32N(1048577)
++	int32(343411536),  // Int32N(1000000000)
++	int32(957743134),  // Int32N(1073741824)
++	int32(1241803092), // Int32N(2147483646)
++	int32(104120228),  // Int32N(2147483647)
++	int32(0),          // Int32N(1)
++	int32(2),          // Int32N(10)
++	int32(7),          // Int32N(32)
++	int32(96566),      // Int32N(1048576)
++	int32(199574),     // Int32N(1048577)
++	int32(659029087),  // Int32N(1000000000)
++	int32(606492121),  // Int32N(1073741824)
++	int32(1377647428), // Int32N(2147483646)
++	int32(1388457546), // Int32N(2147483647)
+ 	int32(0),          // Int32N(1)
+ 	int32(6),          // Int32N(10)
+ 
+@@ -361,109 +373,130 @@ var regressGolden = []any{
+ 	int64(2015796113853353331), // Int64()
+ 
+ 	int64(0),                   // Int64N(1)
+-	int64(1),                   // Int64N(10)
++	int64(4),                   // Int64N(10)
+ 	int64(29),                  // Int64N(32)
+ 	int64(883715),              // Int64N(1048576)
+-	int64(338103),              // Int64N(1048577)
+-	int64(549167320),           // Int64N(1000000000)
++	int64(222632),              // Int64N(1048577)
++	int64(343411536),           // Int64N(1000000000)
+ 	int64(957743134),           // Int64N(1073741824)
+-	int64(1927814468),          // Int64N(2147483646)
+-	int64(1375471152),          // Int64N(2147483647)
+-	int64(775422040480279449),  // Int64N(1000000000000000000)
++	int64(1241803092),          // Int64N(2147483646)
++	int64(104120228),           // Int64N(2147483647)
++	int64(650455930292643530),  // Int64N(1000000000000000000)
+ 	int64(140311732333010180),  // Int64N(1152921504606846976)
+-	int64(7504504064263669287), // Int64N(9223372036854775806)
+-	int64(1976235410884491574), // Int64N(9223372036854775807)
++	int64(3752252032131834642), // Int64N(9223372036854775806)
++	int64(5599803723869633690), // Int64N(9223372036854775807)
+ 	int64(0),                   // Int64N(1)
+-	int64(5),                   // Int64N(10)
++	int64(6),                   // Int64N(10)
+ 	int64(25),                  // Int64N(32)
+ 	int64(920424),              // Int64N(1048576)
+-	int64(345137),              // Int64N(1048577)
+-	int64(539110790),           // Int64N(1000000000)
++	int64(677958),              // Int64N(1048577)
++	int64(339542337),           // Int64N(1000000000)
+ 	int64(701992307),           // Int64N(1073741824)
+ 
+ 	int64(0),                   // IntN(1)
+-	int64(7),                   // IntN(10)
+-	int64(7),                   // IntN(32)
+-	int64(459963),              // IntN(1048576)
+-	int64(688668),              // IntN(1048577)
+-	int64(474941318),           // IntN(1000000000)
+-	int64(140954425),           // IntN(1073741824)
+-	int64(336122540),           // IntN(2147483646)
+-	int64(208240456),           // IntN(2147483647)
+-	int64(775422040480279449),  // IntN(1000000000000000000)
++	int64(4),                   // IntN(10)
++	int64(29),                  // IntN(32)
++	int64(883715),              // IntN(1048576)
++	int64(222632),              // IntN(1048577)
++	int64(343411536),           // IntN(1000000000)
++	int64(957743134),           // IntN(1073741824)
++	int64(1241803092),          // IntN(2147483646)
++	int64(104120228),           // IntN(2147483647)
++	int64(650455930292643530),  // IntN(1000000000000000000)
+ 	int64(140311732333010180),  // IntN(1152921504606846976)
+-	int64(7504504064263669287), // IntN(9223372036854775806)
+-	int64(1976235410884491574), // IntN(9223372036854775807)
++	int64(3752252032131834642), // IntN(9223372036854775806)
++	int64(5599803723869633690), // IntN(9223372036854775807)
+ 	int64(0),                   // IntN(1)
+-	int64(8),                   // IntN(10)
+-	int64(26),                  // IntN(32)
+-	int64(685707),              // IntN(1048576)
+-	int64(285245),              // IntN(1048577)
+-	int64(458323237),           // IntN(1000000000)
+-	int64(469339106),           // IntN(1073741824)
+-
+-	float64(-1.233758177597947),   // NormFloat64()
+-	float64(-0.12634751070237293), // NormFloat64()
+-	float64(-0.5209945711531503),  // NormFloat64()
+-	float64(2.28571911769958),     // NormFloat64()
+-	float64(0.3228052526115799),   // NormFloat64()
+-	float64(0.5900672875996937),   // NormFloat64()
+-	float64(0.15880774017643562),  // NormFloat64()
+-	float64(0.9892020842955818),   // NormFloat64()
+-	float64(-0.731283016177479),   // NormFloat64()
+-	float64(0.6863807850359727),   // NormFloat64()
+-	float64(1.585403962280623),    // NormFloat64()
+-	float64(0.8382059044208106),   // NormFloat64()
+-	float64(1.2988408475174342),   // NormFloat64()
+-	float64(0.5273583930598617),   // NormFloat64()
+-	float64(0.7324419258045132),   // NormFloat64()
+-	float64(-1.0731798210887524),  // NormFloat64()
+-	float64(0.7001209024399848),   // NormFloat64()
+-	float64(0.4315307186960532),   // NormFloat64()
+-	float64(0.9996261210112625),   // NormFloat64()
+-	float64(-1.5239676725278932),  // NormFloat64()
++	int64(6),                   // IntN(10)
++	int64(25),                  // IntN(32)
++	int64(920424),              // IntN(1048576)
++	int64(677958),              // IntN(1048577)
++	int64(339542337),           // IntN(1000000000)
++	int64(701992307),           // IntN(1073741824)
++
++	float64(0.6694336828657225),  // NormFloat64()
++	float64(0.7506128421991493),  // NormFloat64()
++	float64(-0.5466367925077582), // NormFloat64()
++	float64(-0.8240444698703802), // NormFloat64()
++	float64(0.11563765115029284), // NormFloat64()
++	float64(-1.3442355710948637), // NormFloat64()
++	float64(-1.0654999977586854), // NormFloat64()
++	float64(0.15938628997241455), // NormFloat64()
++	float64(-0.8046314635002316), // NormFloat64()
++	float64(0.8323920113630076),  // NormFloat64()
++	float64(1.0611019472659846),  // NormFloat64()
++	float64(-0.8814992544664111), // NormFloat64()
++	float64(0.9236344788106081),  // NormFloat64()
++	float64(-1.2854378982224413), // NormFloat64()
++	float64(0.4683572952232405),  // NormFloat64()
++	float64(-0.5065217527091702), // NormFloat64()
++	float64(-0.6460803205194869), // NormFloat64()
++	float64(0.7913615856789362),  // NormFloat64()
++	float64(-1.6119549224461807), // NormFloat64()
++	float64(0.16216183438701695), // NormFloat64()
+ 
+ 	[]int{},                             // Perm(0)
+ 	[]int{0},                            // Perm(1)
+-	[]int{0, 3, 2, 4, 1},                // Perm(5)
+-	[]int{3, 7, 0, 1, 6, 2, 4, 5},       // Perm(8)
+-	[]int{2, 3, 7, 6, 1, 8, 0, 5, 4},    // Perm(9)
+-	[]int{5, 2, 6, 4, 3, 7, 8, 9, 1, 0}, // Perm(10)
+-	[]int{0, 11, 2, 5, 14, 7, 3, 1, 13, 8, 9, 4, 10, 6, 12, 15}, // Perm(16)
++	[]int{0, 4, 2, 1, 3},                // Perm(5)
++	[]int{2, 4, 5, 0, 7, 1, 3, 6},       // Perm(8)
++	[]int{6, 4, 1, 5, 7, 3, 0, 8, 2},    // Perm(9)
++	[]int{8, 0, 1, 2, 3, 9, 5, 4, 7, 6}, // Perm(10)
++	[]int{0, 13, 14, 7, 1, 4, 15, 10, 11, 12, 9, 5, 3, 6, 8, 2}, // Perm(16)
+ 	[]int{},                             // Perm(0)
+ 	[]int{0},                            // Perm(1)
+-	[]int{4, 1, 0, 3, 2},                // Perm(5)
+-	[]int{6, 0, 1, 3, 2, 7, 4, 5},       // Perm(8)
+-	[]int{8, 3, 6, 7, 2, 5, 4, 0, 1},    // Perm(9)
+-	[]int{2, 5, 4, 9, 7, 0, 8, 3, 6, 1}, // Perm(10)
+-	[]int{12, 6, 8, 15, 3, 5, 9, 11, 7, 10, 1, 13, 14, 2, 0, 4}, // Perm(16)
++	[]int{3, 2, 4, 0, 1},                // Perm(5)
++	[]int{7, 1, 6, 4, 2, 3, 5, 0},       // Perm(8)
++	[]int{1, 7, 2, 6, 3, 5, 8, 4, 0},    // Perm(9)
++	[]int{1, 5, 7, 0, 3, 6, 4, 9, 2, 8}, // Perm(10)
++	[]int{6, 13, 2, 11, 14, 7, 10, 12, 4, 5, 3, 0, 15, 9, 1, 8}, // Perm(16)
+ 	[]int{},                             // Perm(0)
+ 	[]int{0},                            // Perm(1)
+-	[]int{0, 2, 4, 3, 1},                // Perm(5)
+-	[]int{4, 7, 0, 2, 6, 1, 5, 3},       // Perm(8)
+-	[]int{6, 5, 8, 0, 1, 3, 7, 2, 4},    // Perm(9)
+-	[]int{8, 1, 9, 7, 6, 5, 2, 0, 4, 3}, // Perm(10)
+-
+-	uint32(2596996162), // Uint32()
+-	uint32(4039455774), // Uint32()
+-	uint32(2854263694), // Uint32()
+-	uint32(1879968118), // Uint32()
+-	uint32(1823804162), // Uint32()
+-	uint32(2949882636), // Uint32()
+-	uint32(281908850),  // Uint32()
+-	uint32(672245080),  // Uint32()
+-	uint32(416480912),  // Uint32()
+-	uint32(1292406600), // Uint32()
+-	uint32(2212821389), // Uint32()
+-	uint32(3494557023), // Uint32()
+-	uint32(920256325),  // Uint32()
+-	uint32(1634910179), // Uint32()
+-	uint32(1366049456), // Uint32()
+-	uint32(2013866549), // Uint32()
+-	uint32(1215622422), // Uint32()
+-	uint32(1258862891), // Uint32()
+-	uint32(2916646474), // Uint32()
+-	uint32(938678213),  // Uint32()
++	[]int{0, 4, 2, 1, 3},                // Perm(5)
++	[]int{0, 7, 1, 4, 3, 6, 2, 5},       // Perm(8)
++	[]int{1, 3, 0, 4, 5, 2, 8, 7, 6},    // Perm(9)
++	[]int{5, 4, 7, 9, 6, 1, 0, 3, 8, 2}, // Perm(10)
++
++	uint32(1298498081), // Uint32()
++	uint32(2019727887), // Uint32()
++	uint32(3574615495), // Uint32()
++	uint32(3087467707), // Uint32()
++	uint32(911902081),  // Uint32()
++	uint32(1474941318), // Uint32()
++	uint32(2288438073), // Uint32()
++	uint32(2483606188), // Uint32()
++	uint32(208240456),  // Uint32()
++	uint32(2793686948), // Uint32()
++	uint32(1106410694), // Uint32()
++	uint32(1747278511), // Uint32()
++	uint32(2607611810), // Uint32()
++	uint32(817455089),  // Uint32()
++	uint32(2830508376), // Uint32()
++	uint32(1006933274), // Uint32()
++	uint32(2755294859), // Uint32()
++	uint32(2776915093), // Uint32()
++	uint32(1458323237), // Uint32()
++	uint32(2616822754), // Uint32()
++
++	uint32(0),          // Uint32N(1)
++	uint32(4),          // Uint32N(10)
++	uint32(29),         // Uint32N(32)
++	uint32(883715),     // Uint32N(1048576)
++	uint32(222632),     // Uint32N(1048577)
++	uint32(343411536),  // Uint32N(1000000000)
++	uint32(957743134),  // Uint32N(1073741824)
++	uint32(1241803092), // Uint32N(2147483646)
++	uint32(104120228),  // Uint32N(2147483647)
++	uint32(2793686946), // Uint32N(4294967294)
++	uint32(1106410694), // Uint32N(4294967295)
++	uint32(0),          // Uint32N(1)
++	uint32(6),          // Uint32N(10)
++	uint32(20),         // Uint32N(32)
++	uint32(240907),     // Uint32N(1048576)
++	uint32(245833),     // Uint32N(1048577)
++	uint32(641517075),  // Uint32N(1000000000)
++	uint32(340335899),  // Uint32N(1073741824)
++	uint32(729161617),  // Uint32N(2147483646)
++	uint32(1308411376), // Uint32N(2147483647)
+ 
+ 	uint64(5577006791947779410),  // Uint64()
+ 	uint64(8674665223082153551),  // Uint64()
+@@ -485,4 +518,46 @@ var regressGolden = []any{
+ 	uint64(11926759511765359899), // Uint64()
+ 	uint64(6263450610539110790),  // Uint64()
+ 	uint64(11239168150708129139), // Uint64()
++
++	uint64(0),                    // Uint64N(1)
++	uint64(4),                    // Uint64N(10)
++	uint64(29),                   // Uint64N(32)
++	uint64(883715),               // Uint64N(1048576)
++	uint64(222632),               // Uint64N(1048577)
++	uint64(343411536),            // Uint64N(1000000000)
++	uint64(957743134),            // Uint64N(1073741824)
++	uint64(1241803092),           // Uint64N(2147483646)
++	uint64(104120228),            // Uint64N(2147483647)
++	uint64(650455930292643530),   // Uint64N(1000000000000000000)
++	uint64(140311732333010180),   // Uint64N(1152921504606846976)
++	uint64(3752252032131834642),  // Uint64N(9223372036854775806)
++	uint64(5599803723869633690),  // Uint64N(9223372036854775807)
++	uint64(3510942875414458835),  // Uint64N(18446744073709551614)
++	uint64(12156940908066221322), // Uint64N(18446744073709551615)
++	uint64(0),                    // Uint64N(1)
++	uint64(6),                    // Uint64N(10)
++	uint64(27),                   // Uint64N(32)
++	uint64(205190),               // Uint64N(1048576)
++	uint64(638873),               // Uint64N(1048577)
++
++	uint64(0),                    // UintN(1)
++	uint64(4),                    // UintN(10)
++	uint64(29),                   // UintN(32)
++	uint64(883715),               // UintN(1048576)
++	uint64(222632),               // UintN(1048577)
++	uint64(343411536),            // UintN(1000000000)
++	uint64(957743134),            // UintN(1073741824)
++	uint64(1241803092),           // UintN(2147483646)
++	uint64(104120228),            // UintN(2147483647)
++	uint64(650455930292643530),   // UintN(1000000000000000000)
++	uint64(140311732333010180),   // UintN(1152921504606846976)
++	uint64(3752252032131834642),  // UintN(9223372036854775806)
++	uint64(5599803723869633690),  // UintN(9223372036854775807)
++	uint64(3510942875414458835),  // UintN(18446744073709551614)
++	uint64(12156940908066221322), // UintN(18446744073709551615)
++	uint64(0),                    // UintN(1)
++	uint64(6),                    // UintN(10)
++	uint64(27),                   // UintN(32)
++	uint64(205190),               // UintN(1048576)
++	uint64(638873),               // UintN(1048577)
+ }

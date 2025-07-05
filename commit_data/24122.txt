@@ -10,7 +10,7 @@ Date:   Fri Jul 10 11:25:48 2015 -0600
     Reviewed-on: https://go-review.googlesource.com/12029
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 11 ++++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  3 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  3 +-
@@ -18,3 +18,195 @@ Date:   Fri Jul 10 11:25:48 2015 -0600
  src/cmd/compile/internal/ssa/opGen.go          | 24 ++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 39 ++++++++++++++++++++++++++
  6 files changed, 82 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 90c1e0a25e..cff1ea71dc 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -496,6 +496,11 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(binOpToSSA[n.Op], a.Type, a, b)
+ 
++	// unary ops
++	case ONOT:
++		a := s.expr(n.Left)
++		return s.newValue1(ssa.OpNot, a.Type, a)
++
+ 	case OADDR:
+ 		return s.addr(n.Left)
+ 
+@@ -1185,6 +1190,12 @@ func genValue(v *ssa.Value) {
+ 		p := Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = regnum(v.Args[0])
++	case ssa.OpAMD64XORQconst:
++		p := Prog(x86.AXORQ)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v.Args[0])
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index d03da723b7..02b68b2e3c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -62,6 +62,7 @@
+ (Store ptr val mem) && is32BitInt(val.Type) -> (MOVLstore ptr val mem)
+ (Store ptr val mem) && is16BitInt(val.Type) -> (MOVWstore ptr val mem)
+ (Store ptr val mem) && is8BitInt(val.Type) -> (MOVBstore ptr val mem)
++(Store ptr val mem) && val.Type.IsBoolean() -> (MOVBstore ptr val mem)
+ 
+ // checks
+ (IsNonNil p) -> (SETNE (TESTQ <TypeFlags> p p))
+@@ -69,6 +70,8 @@
+ 
+ (Move [size] dst src mem) -> (REPMOVSB dst src (Const <TypeUInt64> [size]) mem)
+ 
++(Not x) -> (XORQconst [1] x)
++
+ (OffPtr [off] ptr) -> (ADDQconst [off] ptr)
+ 
+ (Const <t> [val]) && t.IsInteger() -> (MOVQconst [val])
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 5706b9fcef..31beb005f8 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -111,7 +111,8 @@ func init() {
+ 		{name: "SARQ", reg: gp21shift, asm: "SARQ"},  // signed arg0 >> arg1, shift amount is mod 64
+ 		{name: "SARQconst", reg: gp11, asm: "SARQ"},  // signed arg0 >> auxint, shift amount 0-63
+ 
+-		{name: "NEGQ", reg: gp11}, // -arg0
++		{name: "NEGQ", reg: gp11},                   // -arg0
++		{name: "XORQconst", reg: gp11, asm: "XORQ"}, // arg0^auxint
+ 
+ 		{name: "CMPQ", reg: gp2flags, asm: "CMPQ"},      // arg0 compare to arg1
+ 		{name: "CMPQconst", reg: gp1flags, asm: "CMPQ"}, // arg0 compare to auxint
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index c410cc4f02..9155e00859 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -22,6 +22,9 @@ var genericOps = []opData{
+ 	{name: "Greater"}, // arg0 > arg1
+ 	{name: "Geq"},     // arg0 <= arg1
+ 
++	// 1-input ops
++	{name: "Not"}, // !arg0
++
+ 	// Data movement
+ 	{name: "Phi"},  // select an argument based on which predecessor block we came from
+ 	{name: "Copy"}, // output = arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 3769cfeb86..494f4ecf40 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -66,6 +66,7 @@ const (
+ 	OpAMD64SARQ
+ 	OpAMD64SARQconst
+ 	OpAMD64NEGQ
++	OpAMD64XORQconst
+ 	OpAMD64CMPQ
+ 	OpAMD64CMPQconst
+ 	OpAMD64TESTQ
+@@ -123,6 +124,7 @@ const (
+ 	OpLeq
+ 	OpGreater
+ 	OpGeq
++	OpNot
+ 	OpPhi
+ 	OpCopy
+ 	OpConst
+@@ -358,6 +360,19 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "XORQconst",
++		asm:  x86.AXORQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			clobbers: 0,
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "CMPQ",
+ 		asm:  x86.ACMPQ,
+@@ -1019,6 +1034,15 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 		generic: true,
+ 	},
++	{
++		name: "Not",
++		reg: regInfo{
++			inputs:   []regMask{},
++			clobbers: 0,
++			outputs:  []regMask{},
++		},
++		generic: true,
++	},
+ 	{
+ 		name: "Phi",
+ 		reg: regInfo{
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index a781740b9b..95964d10bb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -1237,6 +1237,23 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto enddccbd4e7581ae8d9916b933d3501987b
+ 	enddccbd4e7581ae8d9916b933d3501987b:
+ 		;
++	case OpNot:
++		// match: (Not x)
++		// cond:
++		// result: (XORQconst [1] x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64XORQconst
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AuxInt = 1
++			v.AddArg(x)
++			return true
++		}
++		goto endaabd7f5e27417cf3182cd5e4f4360410
++	endaabd7f5e27417cf3182cd5e4f4360410:
++		;
+ 	case OpOffPtr:
+ 		// match: (OffPtr [off] ptr)
+ 		// cond:
+@@ -1626,6 +1643,28 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto ende2dee0bc82f631e3c6b0031bf8d224c1
+ 	ende2dee0bc82f631e3c6b0031bf8d224c1:
+ 		;
++		// match: (Store ptr val mem)
++		// cond: val.Type.IsBoolean()
++		// result: (MOVBstore ptr val mem)
++		{
++			ptr := v.Args[0]
++			val := v.Args[1]
++			mem := v.Args[2]
++			if !(val.Type.IsBoolean()) {
++				goto end6f343b676bf49740054e459f972b24f5
++			}
++			v.Op = OpAMD64MOVBstore
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(ptr)
++			v.AddArg(val)
++			v.AddArg(mem)
++			return true
++		}
++		goto end6f343b676bf49740054e459f972b24f5
++	end6f343b676bf49740054e459f972b24f5:
++		;
+ 	case OpSub:
+ 		// match: (Sub <t> x y)
+ 		// cond: is64BitInt(t)

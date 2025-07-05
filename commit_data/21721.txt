@@ -7,7 +7,7 @@ Date:   Mon Jan 26 15:15:25 2015 -0500
     Change-Id: I5535582660da3504663c6cba2637da132c65a400
     Reviewed-on: https://go-review.googlesource.com/3517
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/6a/a.y      |  92 +++---
  src/cmd/6a/lex.c    | 237 +++++++-------
  src/cmd/6a/y.tab.c  | 212 +++++++------
@@ -26,3 +26,5372 @@ Date:   Mon Jan 26 15:15:25 2015 -0500
  src/liblink/list6.c | 138 ++++----
  src/liblink/obj6.c  | 293 +++++++++--------
  17 files changed, 1362 insertions(+), 1325 deletions(-)
+
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index 29011c7ffb..39b075b976 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -231,7 +231,7 @@ spec5:	/* SHL/SHR */
+ 	{
+ 		$$.from = $1;
+ 		$$.to = $3;
+-		if($$.from.index != D_NONE)
++		if($$.from.index != TYPE_NONE)
+ 			yyerror("dp shift with lhs index");
+ 		$$.from.index = $5;
+ 	}
+@@ -246,7 +246,7 @@ spec6:	/* MOVW/MOVL */
+ 	{
+ 		$$.from = $1;
+ 		$$.to = $3;
+-		if($$.to.index != D_NONE)
++		if($$.to.index != TYPE_NONE)
+ 			yyerror("dp move with lhs index");
+ 		$$.to.index = $5;
+ 	}
+@@ -281,7 +281,7 @@ spec9:	/* shufl */
+ 	{
+ 		$$.from = $3;
+ 		$$.to = $5;
+-		if($1.type != D_CONST)
++		if($1.type != TYPE_CONST)
+ 			yyerror("illegal constant");
+ 		$$.to.offset = $1.offset;
+ 	}
+@@ -313,7 +313,7 @@ spec11:	/* GLOBL */
+ spec12:	/* PCDATA */
+ 	rim ',' rim
+ 	{
+-		if($1.type != D_CONST || $3.type != D_CONST)
++		if($1.type != TYPE_CONST || $3.type != TYPE_CONST)
+ 			yyerror("arguments to PCDATA must be integer constants");
+ 		$$.from = $1;
+ 		$$.to = $3;
+@@ -322,9 +322,9 @@ spec12:	/* PCDATA */
+ spec13:	/* FUNCDATA */
+ 	rim ',' rim
+ 	{
+-		if($1.type != D_CONST)
++		if($1.type != TYPE_CONST)
+ 			yyerror("index for FUNCDATA must be integer constant");
+-		if($3.type != D_EXTERN && $3.type != D_STATIC)
++		if($3.type != TYPE_MEM || ($3.name != NAME_EXTERN && $3.name != NAME_STATIC))
+ 			yyerror("value for FUNCDATA must be symbol reference");
+ 		$$.from = $1;
+ 		$$.to = $3;
+@@ -356,7 +356,7 @@ rel:
+ 	con '(' LPC ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_BRANCH;
++		$$.type = TYPE_BRANCH;
+ 		$$.offset = $1 + pc;
+ 	}
+ |	LNAME offset
+@@ -365,7 +365,7 @@ rel:
+ 		$$ = nullgen;
+ 		if(pass == 2 && $1->type != LLAB)
+ 			yyerror("undefined label: %s", $1->labelname);
+-		$$.type = D_BRANCH;
++		$$.type = TYPE_BRANCH;
+ 		$$.offset = $1->value + $2;
+ 	}
+ 
+@@ -373,43 +373,50 @@ reg:
+ 	LBREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ |	LFREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ |	LLREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ |	LMREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ |	LSP
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_SP;
++		$$.type = TYPE_REG;
++		$$.reg = REG_SP;
+ 	}
+ |	LSREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ |	LXREG
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $1;
++		$$.type = TYPE_REG;
++		$$.reg = $1;
+ 	}
+ imm2:
+ 	'$' con2
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_CONST;
++		$$.type = TYPE_CONST;
+ 		$$.offset = $2;
+ 	}
+ 
+@@ -417,14 +424,13 @@ imm:
+ 	'$' con
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_CONST;
++		$$.type = TYPE_CONST;
+ 		$$.offset = $2;
+ 	}
+ |	'$' nam
+ 	{
+ 		$$ = $2;
+-		$$.index = $2.type;
+-		$$.type = D_ADDR;
++		$$.type = TYPE_ADDR;
+ 		/*
+ 		if($2.type == D_AUTO || $2.type == D_PARAM)
+ 			yyerror("constant cannot be automatic: %s",
+@@ -434,31 +440,31 @@ imm:
+ |	'$' LSCONST
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_SCONST;
++		$$.type = TYPE_SCONST;
+ 		memcpy($$.u.sval, $2, sizeof($$.u.sval));
+ 	}
+ |	'$' LFCONST
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_FCONST;
++		$$.type = TYPE_FCONST;
+ 		$$.u.dval = $2;
+ 	}
+ |	'$' '(' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_FCONST;
++		$$.type = TYPE_FCONST;
+ 		$$.u.dval = $3;
+ 	}
+ |	'$' '(' '-' LFCONST ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_FCONST;
++		$$.type = TYPE_FCONST;
+ 		$$.u.dval = -$4;
+ 	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_FCONST;
++		$$.type = TYPE_FCONST;
+ 		$$.u.dval = -$3;
+ 	}
+ 
+@@ -470,31 +476,34 @@ omem:
+ 	con
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+D_NONE;
++		$$.type = TYPE_MEM;
+ 		$$.offset = $1;
+ 	}
+ |	con '(' LLREG ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$3;
++		$$.type = TYPE_MEM;
++		$$.reg = $3;
+ 		$$.offset = $1;
+ 	}
+ |	con '(' LSP ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+D_SP;
++		$$.type = TYPE_MEM;
++		$$.reg = REG_SP;
+ 		$$.offset = $1;
+ 	}
+ |	con '(' LSREG ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$3;
++		$$.type = TYPE_MEM;
++		$$.reg = $3;
+ 		$$.offset = $1;
+ 	}
+ |	con '(' LLREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+D_NONE;
++		$$.type = TYPE_MEM;
+ 		$$.offset = $1;
+ 		$$.index = $3;
+ 		$$.scale = $5;
+@@ -503,7 +512,8 @@ omem:
+ |	con '(' LLREG ')' '(' LLREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$3;
++		$$.type = TYPE_MEM;
++		$$.reg = $3;
+ 		$$.offset = $1;
+ 		$$.index = $6;
+ 		$$.scale = $8;
+@@ -512,7 +522,8 @@ omem:
+ |	con '(' LLREG ')' '(' LSREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$3;
++		$$.type = TYPE_MEM;
++		$$.reg = $3;
+ 		$$.offset = $1;
+ 		$$.index = $6;
+ 		$$.scale = $8;
+@@ -521,17 +532,19 @@ omem:
+ |	'(' LLREG ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$2;
++		$$.type = TYPE_MEM;
++		$$.reg = $2;
+ 	}
+ |	'(' LSP ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+D_SP;
++		$$.type = TYPE_MEM;
++		$$.reg = REG_SP;
+ 	}
+ |	'(' LLREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+D_NONE;
++		$$.type = TYPE_MEM;
+ 		$$.index = $2;
+ 		$$.scale = $4;
+ 		checkscale($$.scale);
+@@ -539,7 +552,8 @@ omem:
+ |	'(' LLREG ')' '(' LLREG '*' con ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_INDIR+$2;
++		$$.type = TYPE_MEM;
++		$$.reg = $2;
+ 		$$.index = $5;
+ 		$$.scale = $7;
+ 		checkscale($$.scale);
+@@ -562,14 +576,16 @@ nam:
+ 	LNAME offset '(' pointer ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = $4;
++		$$.type = TYPE_MEM;
++		$$.name = $4;
+ 		$$.sym = linklookup(ctxt, $1->name, 0);
+ 		$$.offset = $2;
+ 	}
+ |	LNAME '<' '>' offset '(' LSB ')'
+ 	{
+ 		$$ = nullgen;
+-		$$.type = D_STATIC;
++		$$.type = TYPE_MEM;
++		$$.name = NAME_STATIC;
+ 		$$.sym = linklookup(ctxt, $1->name, 1);
+ 		$$.offset = $4;
+ 	}
+@@ -591,7 +607,7 @@ pointer:
+ 	LSB
+ |	LSP
+ 	{
+-		$$ = D_AUTO;
++		$$ = NAME_AUTO;
+ 	}
+ |	LFP
+ 
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 0a47bfad5a..d9e1e4555e 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -204,135 +204,136 @@ struct
+ 	ushort	value;
+ } itab[] =
+ {
+-	"SP",		LSP,	D_AUTO,
+-	"SB",		LSB,	D_EXTERN,
+-	"FP",		LFP,	D_PARAM,
+-	"PC",		LPC,	D_BRANCH,
++	"SP",		LSP,	NAME_AUTO,
++	"SB",		LSB,	NAME_EXTERN,
++	"FP",		LFP,	NAME_PARAM,
+ 
+-	"AL",		LBREG,	D_AL,
+-	"CL",		LBREG,	D_CL,
+-	"DL",		LBREG,	D_DL,
+-	"BL",		LBREG,	D_BL,
+-/*	"SPB",		LBREG,	D_SPB,	*/
+-	"SIB",		LBREG,	D_SIB,
+-	"DIB",		LBREG,	D_DIB,
+-	"BPB",		LBREG,	D_BPB,
+-	"R8B",		LBREG,	D_R8B,
+-	"R9B",		LBREG,	D_R9B,
+-	"R10B",		LBREG,	D_R10B,
+-	"R11B",		LBREG,	D_R11B,
+-	"R12B",		LBREG,	D_R12B,
+-	"R13B",		LBREG,	D_R13B,
+-	"R14B",		LBREG,	D_R14B,
+-	"R15B",		LBREG,	D_R15B,
++	"PC",		LPC,	TYPE_BRANCH,
+ 
+-	"AH",		LBREG,	D_AH,
+-	"CH",		LBREG,	D_CH,
+-	"DH",		LBREG,	D_DH,
+-	"BH",		LBREG,	D_BH,
++	"AL",		LBREG,	REG_AL,
++	"CL",		LBREG,	REG_CL,
++	"DL",		LBREG,	REG_DL,
++	"BL",		LBREG,	REG_BL,
++/*	"SPB",		LBREG,	REG_SPB,	*/
++	"SIB",		LBREG,	REG_SIB,
++	"DIB",		LBREG,	REG_DIB,
++	"BPB",		LBREG,	REG_BPB,
++	"R8B",		LBREG,	REG_R8B,
++	"R9B",		LBREG,	REG_R9B,
++	"R10B",		LBREG,	REG_R10B,
++	"R11B",		LBREG,	REG_R11B,
++	"R12B",		LBREG,	REG_R12B,
++	"R13B",		LBREG,	REG_R13B,
++	"R14B",		LBREG,	REG_R14B,
++	"R15B",		LBREG,	REG_R15B,
+ 
+-	"AX",		LLREG,	D_AX,
+-	"CX",		LLREG,	D_CX,
+-	"DX",		LLREG,	D_DX,
+-	"BX",		LLREG,	D_BX,
+-/*	"SP",		LLREG,	D_SP,	*/
+-	"BP",		LLREG,	D_BP,
+-	"SI",		LLREG,	D_SI,
+-	"DI",		LLREG,	D_DI,
+-	"R8",		LLREG,	D_R8,
+-	"R9",		LLREG,	D_R9,
+-	"R10",		LLREG,	D_R10,
+-	"R11",		LLREG,	D_R11,
+-	"R12",		LLREG,	D_R12,
+-	"R13",		LLREG,	D_R13,
+-	"R14",		LLREG,	D_R14,
+-	"R15",		LLREG,	D_R15,
++	"AH",		LBREG,	REG_AH,
++	"CH",		LBREG,	REG_CH,
++	"DH",		LBREG,	REG_DH,
++	"BH",		LBREG,	REG_BH,
++
++	"AX",		LLREG,	REG_AX,
++	"CX",		LLREG,	REG_CX,
++	"DX",		LLREG,	REG_DX,
++	"BX",		LLREG,	REG_BX,
++/*	"SP",		LLREG,	REG_SP,	*/
++	"BP",		LLREG,	REG_BP,
++	"SI",		LLREG,	REG_SI,
++	"DI",		LLREG,	REG_DI,
++	"R8",		LLREG,	REG_R8,
++	"R9",		LLREG,	REG_R9,
++	"R10",		LLREG,	REG_R10,
++	"R11",		LLREG,	REG_R11,
++	"R12",		LLREG,	REG_R12,
++	"R13",		LLREG,	REG_R13,
++	"R14",		LLREG,	REG_R14,
++	"R15",		LLREG,	REG_R15,
+ 
+ 	"RARG",		LLREG,	REGARG,
+ 
+-	"F0",		LFREG,	D_F0+0,
+-	"F1",		LFREG,	D_F0+1,
+-	"F2",		LFREG,	D_F0+2,
+-	"F3",		LFREG,	D_F0+3,
+-	"F4",		LFREG,	D_F0+4,
+-	"F5",		LFREG,	D_F0+5,
+-	"F6",		LFREG,	D_F0+6,
+-	"F7",		LFREG,	D_F0+7,
++	"F0",		LFREG,	REG_F0+0,
++	"F1",		LFREG,	REG_F0+1,
++	"F2",		LFREG,	REG_F0+2,
++	"F3",		LFREG,	REG_F0+3,
++	"F4",		LFREG,	REG_F0+4,
++	"F5",		LFREG,	REG_F0+5,
++	"F6",		LFREG,	REG_F0+6,
++	"F7",		LFREG,	REG_F0+7,
+ 
+-	"M0",		LMREG,	D_M0+0,
+-	"M1",		LMREG,	D_M0+1,
+-	"M2",		LMREG,	D_M0+2,
+-	"M3",		LMREG,	D_M0+3,
+-	"M4",		LMREG,	D_M0+4,
+-	"M5",		LMREG,	D_M0+5,
+-	"M6",		LMREG,	D_M0+6,
+-	"M7",		LMREG,	D_M0+7,
++	"M0",		LMREG,	REG_M0+0,
++	"M1",		LMREG,	REG_M0+1,
++	"M2",		LMREG,	REG_M0+2,
++	"M3",		LMREG,	REG_M0+3,
++	"M4",		LMREG,	REG_M0+4,
++	"M5",		LMREG,	REG_M0+5,
++	"M6",		LMREG,	REG_M0+6,
++	"M7",		LMREG,	REG_M0+7,
+ 
+-	"X0",		LXREG,	D_X0+0,
+-	"X1",		LXREG,	D_X0+1,
+-	"X2",		LXREG,	D_X0+2,
+-	"X3",		LXREG,	D_X0+3,
+-	"X4",		LXREG,	D_X0+4,
+-	"X5",		LXREG,	D_X0+5,
+-	"X6",		LXREG,	D_X0+6,
+-	"X7",		LXREG,	D_X0+7,
+-	"X8",		LXREG,	D_X0+8,
+-	"X9",		LXREG,	D_X0+9,
+-	"X10",		LXREG,	D_X0+10,
+-	"X11",		LXREG,	D_X0+11,
+-	"X12",		LXREG,	D_X0+12,
+-	"X13",		LXREG,	D_X0+13,
+-	"X14",		LXREG,	D_X0+14,
+-	"X15",		LXREG,	D_X0+15,
++	"X0",		LXREG,	REG_X0+0,
++	"X1",		LXREG,	REG_X0+1,
++	"X2",		LXREG,	REG_X0+2,
++	"X3",		LXREG,	REG_X0+3,
++	"X4",		LXREG,	REG_X0+4,
++	"X5",		LXREG,	REG_X0+5,
++	"X6",		LXREG,	REG_X0+6,
++	"X7",		LXREG,	REG_X0+7,
++	"X8",		LXREG,	REG_X0+8,
++	"X9",		LXREG,	REG_X0+9,
++	"X10",		LXREG,	REG_X0+10,
++	"X11",		LXREG,	REG_X0+11,
++	"X12",		LXREG,	REG_X0+12,
++	"X13",		LXREG,	REG_X0+13,
++	"X14",		LXREG,	REG_X0+14,
++	"X15",		LXREG,	REG_X0+15,
+ 
+-	"CS",		LSREG,	D_CS,
+-	"SS",		LSREG,	D_SS,
+-	"DS",		LSREG,	D_DS,
+-	"ES",		LSREG,	D_ES,
+-	"FS",		LSREG,	D_FS,
+-	"GS",		LSREG,	D_GS,
++	"CS",		LSREG,	REG_CS,
++	"SS",		LSREG,	REG_SS,
++	"DS",		LSREG,	REG_DS,
++	"ES",		LSREG,	REG_ES,
++	"FS",		LSREG,	REG_FS,
++	"GS",		LSREG,	REG_GS,
+ 
+-	"GDTR",		LBREG,	D_GDTR,
+-	"IDTR",		LBREG,	D_IDTR,
+-	"LDTR",		LBREG,	D_LDTR,
+-	"MSW",		LBREG,	D_MSW,
+-	"TASK",		LBREG,	D_TASK,
++	"GDTR",		LBREG,	REG_GDTR,
++	"IDTR",		LBREG,	REG_IDTR,
++	"LDTR",		LBREG,	REG_LDTR,
++	"MSW",		LBREG,	REG_MSW,
++	"TASK",		LBREG,	REG_TASK,
+ 
+-	"CR0",		LBREG,	D_CR+0,
+-	"CR1",		LBREG,	D_CR+1,
+-	"CR2",		LBREG,	D_CR+2,
+-	"CR3",		LBREG,	D_CR+3,
+-	"CR4",		LBREG,	D_CR+4,
+-	"CR5",		LBREG,	D_CR+5,
+-	"CR6",		LBREG,	D_CR+6,
+-	"CR7",		LBREG,	D_CR+7,
+-	"CR8",		LBREG,	D_CR+8,
+-	"CR9",		LBREG,	D_CR+9,
+-	"CR10",		LBREG,	D_CR+10,
+-	"CR11",		LBREG,	D_CR+11,
+-	"CR12",		LBREG,	D_CR+12,
+-	"CR13",		LBREG,	D_CR+13,
+-	"CR14",		LBREG,	D_CR+14,
+-	"CR15",		LBREG,	D_CR+15,
++	"CR0",		LBREG,	REG_CR+0,
++	"CR1",		LBREG,	REG_CR+1,
++	"CR2",		LBREG,	REG_CR+2,
++	"CR3",		LBREG,	REG_CR+3,
++	"CR4",		LBREG,	REG_CR+4,
++	"CR5",		LBREG,	REG_CR+5,
++	"CR6",		LBREG,	REG_CR+6,
++	"CR7",		LBREG,	REG_CR+7,
++	"CR8",		LBREG,	REG_CR+8,
++	"CR9",		LBREG,	REG_CR+9,
++	"CR10",		LBREG,	REG_CR+10,
++	"CR11",		LBREG,	REG_CR+11,
++	"CR12",		LBREG,	REG_CR+12,
++	"CR13",		LBREG,	REG_CR+13,
++	"CR14",		LBREG,	REG_CR+14,
++	"CR15",		LBREG,	REG_CR+15,
+ 
+-	"DR0",		LBREG,	D_DR+0,
+-	"DR1",		LBREG,	D_DR+1,
+-	"DR2",		LBREG,	D_DR+2,
+-	"DR3",		LBREG,	D_DR+3,
+-	"DR4",		LBREG,	D_DR+4,
+-	"DR5",		LBREG,	D_DR+5,
+-	"DR6",		LBREG,	D_DR+6,
+-	"DR7",		LBREG,	D_DR+7,
++	"DR0",		LBREG,	REG_DR+0,
++	"DR1",		LBREG,	REG_DR+1,
++	"DR2",		LBREG,	REG_DR+2,
++	"DR3",		LBREG,	REG_DR+3,
++	"DR4",		LBREG,	REG_DR+4,
++	"DR5",		LBREG,	REG_DR+5,
++	"DR6",		LBREG,	REG_DR+6,
++	"DR7",		LBREG,	REG_DR+7,
+ 
+-	"TR0",		LBREG,	D_TR+0,
+-	"TR1",		LBREG,	D_TR+1,
+-	"TR2",		LBREG,	D_TR+2,
+-	"TR3",		LBREG,	D_TR+3,
+-	"TR4",		LBREG,	D_TR+4,
+-	"TR5",		LBREG,	D_TR+5,
+-	"TR6",		LBREG,	D_TR+6,
+-	"TR7",		LBREG,	D_TR+7,
+-	"TLS",		LSREG,	D_TLS,
++	"TR0",		LBREG,	REG_TR+0,
++	"TR1",		LBREG,	REG_TR+1,
++	"TR2",		LBREG,	REG_TR+2,
++	"TR3",		LBREG,	REG_TR+3,
++	"TR4",		LBREG,	REG_TR+4,
++	"TR5",		LBREG,	REG_TR+5,
++	"TR6",		LBREG,	REG_TR+6,
++	"TR7",		LBREG,	REG_TR+7,
++	"TLS",		LSREG,	REG_TLS,
+ 
+ 	"AAA",		LTYPE0,	AAAA,
+ 	"AAD",		LTYPE0,	AAAD,
+@@ -1052,8 +1053,8 @@ cinit(void)
+ 	Sym *s;
+ 	int i;
+ 
+-	nullgen.type = D_NONE;
+-	nullgen.index = D_NONE;
++	nullgen.type = TYPE_NONE;
++	nullgen.index = TYPE_NONE;
+ 
+ 	nerrors = 0;
+ 	iostack = I;
+diff --git a/src/cmd/6a/y.tab.c b/src/cmd/6a/y.tab.c
+index a698079d23..70d4e1dfe2 100644
+--- a/src/cmd/6a/y.tab.c
++++ b/src/cmd/6a/y.tab.c
+@@ -547,13 +547,13 @@ static const yytype_uint16 yyrline[] =
+      174,   179,   186,   194,   200,   209,   214,   221,   222,   225,
+      230,   240,   245,   255,   260,   265,   272,   280,   290,   294,
+      301,   306,   314,   323,   334,   335,   338,   339,   340,   344,
+-     348,   349,   352,   353,   356,   362,   373,   378,   383,   388,
+-     393,   398,   403,   409,   417,   423,   434,   440,   446,   452,
+-     458,   466,   467,   470,   476,   482,   488,   494,   503,   512,
+-     521,   526,   531,   539,   549,   553,   562,   569,   578,   581,
+-     585,   591,   592,   596,   599,   600,   604,   608,   612,   616,
+-     622,   627,   632,   637,   644,   645,   649,   653,   657,   661,
+-     665,   669,   673,   677,   681
++     348,   349,   352,   353,   356,   362,   373,   379,   385,   391,
++     397,   403,   409,   416,   424,   430,   440,   446,   452,   458,
++     464,   472,   473,   476,   482,   489,   496,   503,   512,   522,
++     532,   538,   544,   552,   563,   567,   576,   584,   594,   597,
++     601,   607,   608,   612,   615,   616,   620,   624,   628,   632,
++     638,   643,   648,   653,   660,   661,   665,   669,   673,   677,
++     681,   685,   689,   693,   697
+ };
+ #endif
+ 
+@@ -1962,7 +1962,7 @@ yyreduce:
+     {
+ 		(yyval.addr2).from = (yyvsp[(1) - (5)].addr);
+ 		(yyval.addr2).to = (yyvsp[(3) - (5)].addr);
+-		if((yyval.addr2).from.index != D_NONE)
++		if((yyval.addr2).from.index != TYPE_NONE)
+ 			yyerror("dp shift with lhs index");
+ 		(yyval.addr2).from.index = (yyvsp[(5) - (5)].lval);
+ 	}
+@@ -1981,7 +1981,7 @@ yyreduce:
+     {
+ 		(yyval.addr2).from = (yyvsp[(1) - (5)].addr);
+ 		(yyval.addr2).to = (yyvsp[(3) - (5)].addr);
+-		if((yyval.addr2).to.index != D_NONE)
++		if((yyval.addr2).to.index != TYPE_NONE)
+ 			yyerror("dp move with lhs index");
+ 		(yyval.addr2).to.index = (yyvsp[(5) - (5)].lval);
+ 	}
+@@ -2025,7 +2025,7 @@ yyreduce:
+     {
+ 		(yyval.addr2).from = (yyvsp[(3) - (5)].addr);
+ 		(yyval.addr2).to = (yyvsp[(5) - (5)].addr);
+-		if((yyvsp[(1) - (5)].addr).type != D_CONST)
++		if((yyvsp[(1) - (5)].addr).type != TYPE_CONST)
+ 			yyerror("illegal constant");
+ 		(yyval.addr2).to.offset = (yyvsp[(1) - (5)].addr).offset;
+ 	}
+@@ -2067,7 +2067,7 @@ yyreduce:
+   case 62:
+ #line 315 "a.y"
+     {
+-		if((yyvsp[(1) - (3)].addr).type != D_CONST || (yyvsp[(3) - (3)].addr).type != D_CONST)
++		if((yyvsp[(1) - (3)].addr).type != TYPE_CONST || (yyvsp[(3) - (3)].addr).type != TYPE_CONST)
+ 			yyerror("arguments to PCDATA must be integer constants");
+ 		(yyval.addr2).from = (yyvsp[(1) - (3)].addr);
+ 		(yyval.addr2).to = (yyvsp[(3) - (3)].addr);
+@@ -2077,9 +2077,9 @@ yyreduce:
+   case 63:
+ #line 324 "a.y"
+     {
+-		if((yyvsp[(1) - (3)].addr).type != D_CONST)
++		if((yyvsp[(1) - (3)].addr).type != TYPE_CONST)
+ 			yyerror("index for FUNCDATA must be integer constant");
+-		if((yyvsp[(3) - (3)].addr).type != D_EXTERN && (yyvsp[(3) - (3)].addr).type != D_STATIC)
++		if((yyvsp[(3) - (3)].addr).type != TYPE_MEM || ((yyvsp[(3) - (3)].addr).name != NAME_EXTERN && (yyvsp[(3) - (3)].addr).name != NAME_STATIC))
+ 			yyerror("value for FUNCDATA must be symbol reference");
+ 		(yyval.addr2).from = (yyvsp[(1) - (3)].addr);
+ 		(yyval.addr2).to = (yyvsp[(3) - (3)].addr);
+@@ -2104,7 +2104,7 @@ yyreduce:
+ #line 357 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_BRANCH;
++		(yyval.addr).type = TYPE_BRANCH;
+ 		(yyval.addr).offset = (yyvsp[(1) - (4)].lval) + pc;
+ 	}
+     break;
+@@ -2116,7 +2116,7 @@ yyreduce:
+ 		(yyval.addr) = nullgen;
+ 		if(pass == 2 && (yyvsp[(1) - (2)].sym)->type != LLAB)
+ 			yyerror("undefined label: %s", (yyvsp[(1) - (2)].sym)->labelname);
+-		(yyval.addr).type = D_BRANCH;
++		(yyval.addr).type = TYPE_BRANCH;
+ 		(yyval.addr).offset = (yyvsp[(1) - (2)].sym)->value + (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+@@ -2125,82 +2125,88 @@ yyreduce:
+ #line 374 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 77:
+-#line 379 "a.y"
++#line 380 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 78:
+-#line 384 "a.y"
++#line 386 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 79:
+-#line 389 "a.y"
++#line 392 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 80:
+-#line 394 "a.y"
++#line 398 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_SP;
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = REG_SP;
+ 	}
+     break;
+ 
+   case 81:
+-#line 399 "a.y"
++#line 404 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 82:
+-#line 404 "a.y"
++#line 410 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(1) - (1)].lval);
++		(yyval.addr).type = TYPE_REG;
++		(yyval.addr).reg = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 83:
+-#line 410 "a.y"
++#line 417 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_CONST;
++		(yyval.addr).type = TYPE_CONST;
+ 		(yyval.addr).offset = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 84:
+-#line 418 "a.y"
++#line 425 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_CONST;
++		(yyval.addr).type = TYPE_CONST;
+ 		(yyval.addr).offset = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 85:
+-#line 424 "a.y"
++#line 431 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(2) - (2)].addr);
+-		(yyval.addr).index = (yyvsp[(2) - (2)].addr).type;
+-		(yyval.addr).type = D_ADDR;
++		(yyval.addr).type = TYPE_ADDR;
+ 		/*
+ 		if($2.type == D_AUTO || $2.type == D_PARAM)
+ 			yyerror("constant cannot be automatic: %s",
+@@ -2210,91 +2216,94 @@ yyreduce:
+     break;
+ 
+   case 86:
+-#line 435 "a.y"
++#line 441 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_SCONST;
++		(yyval.addr).type = TYPE_SCONST;
+ 		memcpy((yyval.addr).u.sval, (yyvsp[(2) - (2)].sval), sizeof((yyval.addr).u.sval));
+ 	}
+     break;
+ 
+   case 87:
+-#line 441 "a.y"
++#line 447 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_FCONST;
++		(yyval.addr).type = TYPE_FCONST;
+ 		(yyval.addr).u.dval = (yyvsp[(2) - (2)].dval);
+ 	}
+     break;
+ 
+   case 88:
+-#line 447 "a.y"
++#line 453 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_FCONST;
++		(yyval.addr).type = TYPE_FCONST;
+ 		(yyval.addr).u.dval = (yyvsp[(3) - (4)].dval);
+ 	}
+     break;
+ 
+   case 89:
+-#line 453 "a.y"
++#line 459 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_FCONST;
++		(yyval.addr).type = TYPE_FCONST;
+ 		(yyval.addr).u.dval = -(yyvsp[(4) - (5)].dval);
+ 	}
+     break;
+ 
+   case 90:
+-#line 459 "a.y"
++#line 465 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_FCONST;
++		(yyval.addr).type = TYPE_FCONST;
+ 		(yyval.addr).u.dval = -(yyvsp[(3) - (3)].dval);
+ 	}
+     break;
+ 
+   case 93:
+-#line 471 "a.y"
++#line 477 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+D_NONE;
++		(yyval.addr).type = TYPE_MEM;
+ 		(yyval.addr).offset = (yyvsp[(1) - (1)].lval);
+ 	}
+     break;
+ 
+   case 94:
+-#line 477 "a.y"
++#line 483 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(3) - (4)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(3) - (4)].lval);
+ 		(yyval.addr).offset = (yyvsp[(1) - (4)].lval);
+ 	}
+     break;
+ 
+   case 95:
+-#line 483 "a.y"
++#line 490 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+D_SP;
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = REG_SP;
+ 		(yyval.addr).offset = (yyvsp[(1) - (4)].lval);
+ 	}
+     break;
+ 
+   case 96:
+-#line 489 "a.y"
++#line 497 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(3) - (4)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(3) - (4)].lval);
+ 		(yyval.addr).offset = (yyvsp[(1) - (4)].lval);
+ 	}
+     break;
+ 
+   case 97:
+-#line 495 "a.y"
++#line 504 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+D_NONE;
++		(yyval.addr).type = TYPE_MEM;
+ 		(yyval.addr).offset = (yyvsp[(1) - (6)].lval);
+ 		(yyval.addr).index = (yyvsp[(3) - (6)].lval);
+ 		(yyval.addr).scale = (yyvsp[(5) - (6)].lval);
+@@ -2303,10 +2312,11 @@ yyreduce:
+     break;
+ 
+   case 98:
+-#line 504 "a.y"
++#line 513 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(3) - (9)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(3) - (9)].lval);
+ 		(yyval.addr).offset = (yyvsp[(1) - (9)].lval);
+ 		(yyval.addr).index = (yyvsp[(6) - (9)].lval);
+ 		(yyval.addr).scale = (yyvsp[(8) - (9)].lval);
+@@ -2315,10 +2325,11 @@ yyreduce:
+     break;
+ 
+   case 99:
+-#line 513 "a.y"
++#line 523 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(3) - (9)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(3) - (9)].lval);
+ 		(yyval.addr).offset = (yyvsp[(1) - (9)].lval);
+ 		(yyval.addr).index = (yyvsp[(6) - (9)].lval);
+ 		(yyval.addr).scale = (yyvsp[(8) - (9)].lval);
+@@ -2327,26 +2338,28 @@ yyreduce:
+     break;
+ 
+   case 100:
+-#line 522 "a.y"
++#line 533 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(2) - (3)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(2) - (3)].lval);
+ 	}
+     break;
+ 
+   case 101:
+-#line 527 "a.y"
++#line 539 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+D_SP;
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = REG_SP;
+ 	}
+     break;
+ 
+   case 102:
+-#line 532 "a.y"
++#line 545 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+D_NONE;
++		(yyval.addr).type = TYPE_MEM;
+ 		(yyval.addr).index = (yyvsp[(2) - (5)].lval);
+ 		(yyval.addr).scale = (yyvsp[(4) - (5)].lval);
+ 		checkscale((yyval.addr).scale);
+@@ -2354,10 +2367,11 @@ yyreduce:
+     break;
+ 
+   case 103:
+-#line 540 "a.y"
++#line 553 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_INDIR+(yyvsp[(2) - (8)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).reg = (yyvsp[(2) - (8)].lval);
+ 		(yyval.addr).index = (yyvsp[(5) - (8)].lval);
+ 		(yyval.addr).scale = (yyvsp[(7) - (8)].lval);
+ 		checkscale((yyval.addr).scale);
+@@ -2365,14 +2379,14 @@ yyreduce:
+     break;
+ 
+   case 104:
+-#line 550 "a.y"
++#line 564 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (1)].addr);
+ 	}
+     break;
+ 
+   case 105:
+-#line 554 "a.y"
++#line 568 "a.y"
+     {
+ 		(yyval.addr) = (yyvsp[(1) - (6)].addr);
+ 		(yyval.addr).index = (yyvsp[(3) - (6)].lval);
+@@ -2382,90 +2396,92 @@ yyreduce:
+     break;
+ 
+   case 106:
+-#line 563 "a.y"
++#line 577 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = (yyvsp[(4) - (5)].lval);
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).name = (yyvsp[(4) - (5)].lval);
+ 		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (5)].sym)->name, 0);
+ 		(yyval.addr).offset = (yyvsp[(2) - (5)].lval);
+ 	}
+     break;
+ 
+   case 107:
+-#line 570 "a.y"
++#line 585 "a.y"
+     {
+ 		(yyval.addr) = nullgen;
+-		(yyval.addr).type = D_STATIC;
++		(yyval.addr).type = TYPE_MEM;
++		(yyval.addr).name = NAME_STATIC;
+ 		(yyval.addr).sym = linklookup(ctxt, (yyvsp[(1) - (7)].sym)->name, 1);
+ 		(yyval.addr).offset = (yyvsp[(4) - (7)].lval);
+ 	}
+     break;
+ 
+   case 108:
+-#line 578 "a.y"
++#line 594 "a.y"
+     {
+ 		(yyval.lval) = 0;
+ 	}
+     break;
+ 
+   case 109:
+-#line 582 "a.y"
++#line 598 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 110:
+-#line 586 "a.y"
++#line 602 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 112:
+-#line 593 "a.y"
++#line 609 "a.y"
+     {
+-		(yyval.lval) = D_AUTO;
++		(yyval.lval) = NAME_AUTO;
+ 	}
+     break;
+ 
+   case 115:
+-#line 601 "a.y"
++#line 617 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (1)].sym)->value;
+ 	}
+     break;
+ 
+   case 116:
+-#line 605 "a.y"
++#line 621 "a.y"
+     {
+ 		(yyval.lval) = -(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 117:
+-#line 609 "a.y"
++#line 625 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 118:
+-#line 613 "a.y"
++#line 629 "a.y"
+     {
+ 		(yyval.lval) = ~(yyvsp[(2) - (2)].lval);
+ 	}
+     break;
+ 
+   case 119:
+-#line 617 "a.y"
++#line 633 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(2) - (3)].lval);
+ 	}
+     break;
+ 
+   case 120:
+-#line 623 "a.y"
++#line 639 "a.y"
+     {
+ 		(yyval.lval) = ((yyvsp[(1) - (1)].lval) & 0xffffffffLL) +
+ 			((vlong)ArgsSizeUnknown << 32);
+@@ -2473,7 +2489,7 @@ yyreduce:
+     break;
+ 
+   case 121:
+-#line 628 "a.y"
++#line 644 "a.y"
+     {
+ 		(yyval.lval) = (-(yyvsp[(2) - (2)].lval) & 0xffffffffLL) +
+ 			((vlong)ArgsSizeUnknown << 32);
+@@ -2481,7 +2497,7 @@ yyreduce:
+     break;
+ 
+   case 122:
+-#line 633 "a.y"
++#line 649 "a.y"
+     {
+ 		(yyval.lval) = ((yyvsp[(1) - (3)].lval) & 0xffffffffLL) +
+ 			(((yyvsp[(3) - (3)].lval) & 0xffffLL) << 32);
+@@ -2489,7 +2505,7 @@ yyreduce:
+     break;
+ 
+   case 123:
+-#line 638 "a.y"
++#line 654 "a.y"
+     {
+ 		(yyval.lval) = (-(yyvsp[(2) - (4)].lval) & 0xffffffffLL) +
+ 			(((yyvsp[(4) - (4)].lval) & 0xffffLL) << 32);
+@@ -2497,70 +2513,70 @@ yyreduce:
+     break;
+ 
+   case 125:
+-#line 646 "a.y"
++#line 662 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) + (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 126:
+-#line 650 "a.y"
++#line 666 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) - (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 127:
+-#line 654 "a.y"
++#line 670 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) * (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 128:
+-#line 658 "a.y"
++#line 674 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) / (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 129:
+-#line 662 "a.y"
++#line 678 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) % (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 130:
+-#line 666 "a.y"
++#line 682 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) << (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 131:
+-#line 670 "a.y"
++#line 686 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (4)].lval) >> (yyvsp[(4) - (4)].lval);
+ 	}
+     break;
+ 
+   case 132:
+-#line 674 "a.y"
++#line 690 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) & (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 133:
+-#line 678 "a.y"
++#line 694 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) ^ (yyvsp[(3) - (3)].lval);
+ 	}
+     break;
+ 
+   case 134:
+-#line 682 "a.y"
++#line 698 "a.y"
+     {
+ 		(yyval.lval) = (yyvsp[(1) - (3)].lval) | (yyvsp[(3) - (3)].lval);
+ 	}
+@@ -2568,7 +2584,7 @@ yyreduce:
+ 
+ 
+ /* Line 1267 of yacc.c.  */
+-#line 2572 "y.tab.c"
++#line 2588 "y.tab.c"
+       default: break;
+     }
+   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index d13c98dad9..d1645cc568 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -759,9 +759,10 @@ agenr(Node *n, Node *a, Node *res)
+ 			// nothing to do
+ 		} else if(w == 1 || w == 2 || w == 4 || w == 8) {
+ 			p1 = gins(ALEAQ, &n2, &n3);
++			p1->from.type = TYPE_MEM;
+ 			p1->from.scale = w;
+-			p1->from.index = p1->from.type;
+-			p1->from.type = p1->to.type + D_INDIR;
++			p1->from.index = p1->from.reg;
++			p1->from.reg = p1->to.reg;
+ 		} else {
+ 			ginscon(optoas(OMUL, t), w, &n2);
+ 			gins(optoas(OADD, types[tptr]), &n2, &n3);
+@@ -941,7 +942,7 @@ igen(Node *n, Node *a, Node *res)
+ 	case OINDREG:
+ 		// Increase the refcount of the register so that igen's caller
+ 		// has to call regfree.
+-		if(n->val.u.reg != D_SP)
++		if(n->val.u.reg != REG_SP)
+ 			reg[n->val.u.reg]++;
+ 		*a = *n;
+ 		return;
+@@ -979,7 +980,7 @@ igen(Node *n, Node *a, Node *res)
+ 		fp = structfirst(&flist, getoutarg(n->left->type));
+ 		memset(a, 0, sizeof *a);
+ 		a->op = OINDREG;
+-		a->val.u.reg = D_SP;
++		a->val.u.reg = REG_SP;
+ 		a->addable = 1;
+ 		a->xoffset = fp->width;
+ 		a->type = n->type;
+@@ -1401,8 +1402,8 @@ sgen(Node *n, Node *ns, int64 w)
+ 		agenr(n, &nodr, N);
+ 	}
+ 	
+-	nodreg(&noddi, types[tptr], D_DI);
+-	nodreg(&nodsi, types[tptr], D_SI);
++	nodreg(&noddi, types[tptr], REG_DI);
++	nodreg(&nodsi, types[tptr], REG_SI);
+ 	gmove(&nodl, &noddi);
+ 	gmove(&nodr, &nodsi);
+ 	regfree(&nodl);
+@@ -1411,7 +1412,7 @@ sgen(Node *n, Node *ns, int64 w)
+ 	c = w % 8;	// bytes
+ 	q = w / 8;	// quads
+ 
+-	savex(D_CX, &cx, &oldcx, N, types[TINT64]);
++	savex(REG_CX, &cx, &oldcx, N, types[TINT64]);
+ 
+ 	// if we are copying forward on the stack and
+ 	// the src and dst overlap, then reverse direction
+@@ -1419,23 +1420,23 @@ sgen(Node *n, Node *ns, int64 w)
+ 		// reverse direction
+ 		gins(ASTD, N, N);		// set direction flag
+ 		if(c > 0) {
+-			gconreg(addptr, w-1, D_SI);
+-			gconreg(addptr, w-1, D_DI);
++			gconreg(addptr, w-1, REG_SI);
++			gconreg(addptr, w-1, REG_DI);
+ 
+-			gconreg(movptr, c, D_CX);
++			gconreg(movptr, c, REG_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSB, N, N);	// MOVB *(SI)-,*(DI)-
+ 		}
+ 
+ 		if(q > 0) {
+ 			if(c > 0) {
+-				gconreg(addptr, -7, D_SI);
+-				gconreg(addptr, -7, D_DI);
++				gconreg(addptr, -7, REG_SI);
++				gconreg(addptr, -7, REG_DI);
+ 			} else {
+-				gconreg(addptr, w-8, D_SI);
+-				gconreg(addptr, w-8, D_DI);
++				gconreg(addptr, w-8, REG_SI);
++				gconreg(addptr, w-8, REG_DI);
+ 			}
+-			gconreg(movptr, q, D_CX);
++			gconreg(movptr, q, REG_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)-,*(DI)-
+ 		}
+@@ -1444,12 +1445,12 @@ sgen(Node *n, Node *ns, int64 w)
+ 	} else {
+ 		// normal direction
+ 		if(q > 128 || (nacl && q >= 4)) {
+-			gconreg(movptr, q, D_CX);
++			gconreg(movptr, q, REG_CX);
+ 			gins(AREP, N, N);	// repeat
+ 			gins(AMOVSQ, N, N);	// MOVQ *(SI)+,*(DI)+
+ 		} else if (q >= 4) {
+ 			p = gins(ADUFFCOPY, N, N);
+-			p->to.type = D_ADDR;
++			p->to.type = TYPE_ADDR;
+ 			p->to.sym = linksym(pkglookup("duffcopy", runtimepkg));
+ 			// 14 and 128 = magic constants: see ../../runtime/asm_amd64.s
+ 			p->to.offset = 14*(128-q);
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index a3c97a79a6..c81cd7d0f2 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -61,8 +61,8 @@ betypeinit(void)
+ 
+ 	zprog.link = P;
+ 	zprog.as = AGOK;
+-	zprog.from.type = D_NONE;
+-	zprog.from.index = D_NONE;
++	zprog.from.type = TYPE_NONE;
++	zprog.from.index = TYPE_NONE;
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
+ 	arch.zprog = zprog;
+@@ -94,10 +94,6 @@ main(int argc, char **argv)
+ 	arch.AUNDEF = AUNDEF;
+ 	arch.AVARDEF = AVARDEF;
+ 	arch.AVARKILL = AVARKILL;
+-	arch.D_AUTO = D_AUTO;
+-	arch.D_BRANCH = D_BRANCH;
+-	arch.D_NONE = D_NONE;
+-	arch.D_PARAM = D_PARAM;
+ 	arch.MAXWIDTH = MAXWIDTH;
+ 	arch.afunclit = afunclit;
+ 	arch.anyregalloc = anyregalloc;
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 97fd8818cf..581b7a231e 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -12,7 +12,7 @@
+ #define TEXTFLAG from.scale
+ 
+ EXTERN	int32	dynloc;
+-EXTERN	uchar	reg[D_NONE];
++EXTERN	uchar	reg[MAXREG];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ EXTERN	Prog	zprog;
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index e7f7745bd2..c1eb62a29a 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -9,7 +9,7 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-static Prog *appendpp(Prog*, int, int, vlong, int, vlong);
++static Prog *appendpp(Prog*, int, int, int, vlong, int, int, vlong);
+ static Prog *zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax);
+ 
+ void
+@@ -70,45 +70,47 @@ zerorange(Prog *p, vlong frame, vlong lo, vlong hi, uint32 *ax)
+ 	if(cnt == 0)
+ 		return p;
+ 	if(*ax == 0) {
+-		p = appendpp(p, AMOVQ, D_CONST, 0, D_AX, 0);
++		p = appendpp(p, AMOVQ, TYPE_CONST, 0, 0, TYPE_REG, REG_AX, 0);
+ 		*ax = 1;
+ 	}
+ 	if(cnt % widthreg != 0) {
+ 		// should only happen with nacl
+ 		if(cnt % widthptr != 0)
+ 			fatal("zerorange count not a multiple of widthptr %d", cnt);
+-		p = appendpp(p, AMOVL, D_AX, 0, D_SP+D_INDIR, frame+lo);
++		p = appendpp(p, AMOVL, TYPE_REG, REG_AX, 0, TYPE_MEM, REG_SP, frame+lo);
+ 		lo += widthptr;
+ 		cnt -= widthptr;
+ 	}
+ 	if(cnt <= 4*widthreg) {
+ 		for(i = 0; i < cnt; i += widthreg) {
+-			p = appendpp(p, AMOVQ, D_AX, 0, D_SP+D_INDIR, frame+lo+i);
++			p = appendpp(p, AMOVQ, TYPE_REG, REG_AX, 0, TYPE_MEM, REG_SP, frame+lo+i);
+ 		}
+ 	} else if(!nacl && (cnt <= 128*widthreg)) {
+-		p = appendpp(p, leaptr, D_SP+D_INDIR, frame+lo, D_DI, 0);
+-		p = appendpp(p, ADUFFZERO, D_NONE, 0, D_ADDR, 2*(128-cnt/widthreg));
++		p = appendpp(p, leaptr, TYPE_MEM, REG_SP, frame+lo, TYPE_REG, REG_DI, 0);
++		p = appendpp(p, ADUFFZERO, TYPE_NONE, 0, 0, TYPE_ADDR, 0, 2*(128-cnt/widthreg));
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+ 	} else {
+-		p = appendpp(p, AMOVQ, D_CONST, cnt/widthreg, D_CX, 0);
+-		p = appendpp(p, leaptr, D_SP+D_INDIR, frame+lo, D_DI, 0);
+-		p = appendpp(p, AREP, D_NONE, 0, D_NONE, 0);
+-		p = appendpp(p, ASTOSQ, D_NONE, 0, D_NONE, 0);
++		p = appendpp(p, AMOVQ, TYPE_CONST, 0, cnt/widthreg, TYPE_REG, REG_CX, 0);
++		p = appendpp(p, leaptr, TYPE_MEM, REG_SP, frame+lo, TYPE_REG, REG_DI, 0);
++		p = appendpp(p, AREP, TYPE_NONE, 0, 0, TYPE_NONE, 0, 0);
++		p = appendpp(p, ASTOSQ, TYPE_NONE, 0, 0, TYPE_NONE, 0, 0);
+ 	}
+ 	return p;
+ }
+ 
+ static Prog*	
+-appendpp(Prog *p, int as, int ftype, vlong foffset, int ttype, vlong toffset)	
++appendpp(Prog *p, int as, int ftype, int freg, vlong foffset, int ttype, int treg, vlong toffset)	
+ {
+ 	Prog *q;
+ 	q = mal(sizeof(*q));	
+ 	clearp(q);	
+ 	q->as = as;	
+ 	q->lineno = p->lineno;	
+-	q->from.type = ftype;	
++	q->from.type = ftype;
++	q->from.reg = freg;
+ 	q->from.offset = foffset;	
+ 	q->to.type = ttype;	
++	q->to.reg = treg;
+ 	q->to.offset = toffset;	
+ 	q->link = p->link;	
+ 	p->link = q;	
+@@ -138,7 +140,7 @@ fixautoused(Prog *p)
+ 	Prog **lp;
+ 
+ 	for (lp=&p; (p=*lp) != P; ) {
+-		if (p->as == ATYPE && p->from.node && p->from.type == D_AUTO && !((Node*)(p->from.node))->used) {
++		if (p->as == ATYPE && p->from.node && p->from.name == NAME_AUTO && !((Node*)(p->from.node))->used) {
+ 			*lp = p->link;
+ 			continue;
+ 		}
+@@ -147,15 +149,13 @@ fixautoused(Prog *p)
+ 			// VARDEFs are interspersed with other code, and a jump might be using the
+ 			// VARDEF as a target. Replace with a no-op instead. A later pass will remove
+ 			// the no-ops.
+-			p->to.type = D_NONE;
+-			p->to.node = N;
+-			p->as = ANOP;
++			nopout(p);
+ 			continue;
+ 		}
+-		if (p->from.type == D_AUTO && p->from.node)
++		if (p->from.name == NAME_AUTO && p->from.node)
+ 			p->from.offset += ((Node*)(p->from.node))->stkdelta;
+ 
+-		if (p->to.type == D_AUTO && p->to.node)
++		if (p->to.name == NAME_AUTO && p->to.node)
+ 			p->to.offset += ((Node*)(p->to.node))->stkdelta;
+ 
+ 		lp = &p->link;
+@@ -205,7 +205,7 @@ ginscall(Node *f, int proc)
+ 				// x86 NOP 0x90 is really XCHG AX, AX; use that description
+ 				// because the NOP pseudo-instruction would be removed by
+ 				// the linker.
+-				nodreg(&reg, types[TINT], D_AX);
++				nodreg(&reg, types[TINT], REG_AX);
+ 				gins(AXCHGL, &reg, &reg);
+ 			}
+ 			p = gins(ACALL, N, f);
+@@ -214,8 +214,8 @@ ginscall(Node *f, int proc)
+ 				gins(AUNDEF, N, N);
+ 			break;
+ 		}
+-		nodreg(&reg, types[tptr], D_DX);
+-		nodreg(&r1, types[tptr], D_BX);
++		nodreg(&reg, types[tptr], REG_DX);
++		nodreg(&r1, types[tptr], REG_BX);
+ 		gmove(f, &reg);
+ 		reg.op = OINDREG;
+ 		gmove(&reg, &r1);
+@@ -231,7 +231,7 @@ ginscall(Node *f, int proc)
+ 	case 2:	// deferred call (defer)
+ 		memset(&stk, 0, sizeof(stk));
+ 		stk.op = OINDREG;
+-		stk.val.u.reg = D_SP;
++		stk.val.u.reg = REG_SP;
+ 		stk.xoffset = 0;
+ 
+ 		if(widthptr == 8) {
+@@ -240,7 +240,7 @@ ginscall(Node *f, int proc)
+ 
+ 			// FuncVal* at 8(SP)
+ 			stk.xoffset = widthptr;
+-			nodreg(&reg, types[TINT64], D_AX);
++			nodreg(&reg, types[TINT64], REG_AX);
+ 			gmove(f, &reg);
+ 			gins(AMOVQ, &reg, &stk);
+ 		} else {
+@@ -249,7 +249,7 @@ ginscall(Node *f, int proc)
+ 
+ 			// FuncVal* at 4(SP)
+ 			stk.xoffset = widthptr;
+-			nodreg(&reg, types[TINT32], D_AX);
++			nodreg(&reg, types[TINT32], REG_AX);
+ 			gmove(f, &reg);
+ 			gins(AMOVL, &reg, &stk);
+ 		}
+@@ -262,7 +262,7 @@ ginscall(Node *f, int proc)
+ 			ginscall(deferproc, 0);
+ 		}
+ 		if(proc == 2) {
+-			nodreg(&reg, types[TINT32], D_AX);
++			nodreg(&reg, types[TINT32], REG_AX);
+ 			gins(ATESTL, &reg, &reg);
+ 			p = gbranch(AJEQ, T, +1);
+ 			cgen_ret(N);
+@@ -304,8 +304,8 @@ cgen_callinter(Node *n, Node *res, int proc)
+ 	// register to hold its address.
+ 	igen(i, &nodi, res);		// REG = &inter
+ 
+-	nodindreg(&nodsp, types[tptr], D_SP);
+-        nodsp.xoffset = 0;
++	nodindreg(&nodsp, types[tptr], REG_SP);
++	nodsp.xoffset = 0;
+ 	if(proc != 0)
+ 		nodsp.xoffset += 2 * widthptr; // leave room for size & fn
+ 	nodi.type = types[tptr];
+@@ -412,7 +412,7 @@ cgen_callret(Node *n, Node *res)
+ 
+ 	memset(&nod, 0, sizeof(nod));
+ 	nod.op = OINDREG;
+-	nod.val.u.reg = D_SP;
++	nod.val.u.reg = REG_SP;
+ 	nod.addable = 1;
+ 
+ 	nod.xoffset = fp->width;
+@@ -442,7 +442,7 @@ cgen_aret(Node *n, Node *res)
+ 
+ 	memset(&nod1, 0, sizeof(nod1));
+ 	nod1.op = OINDREG;
+-	nod1.val.u.reg = D_SP;
++	nod1.val.u.reg = REG_SP;
+ 	nod1.addable = 1;
+ 
+ 	nod1.xoffset = fp->width;
+@@ -473,7 +473,8 @@ cgen_ret(Node *n)
+ 	genlist(curfn->exit);
+ 	p = gins(ARET, N, N);
+ 	if(n != N && n->op == ORETJMP) {
+-		p->to.type = D_EXTERN;
++		p->to.type = TYPE_MEM;
++		p->to.name = NAME_EXTERN;
+ 		p->to.sym = linksym(n->left->sym);
+ 	}
+ }
+@@ -676,14 +677,14 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 
+ 	regalloc(&n3, t0, N);
+ 	if(nl->ullman >= nr->ullman) {
+-		savex(D_AX, &ax, &oldax, res, t0);
++		savex(REG_AX, &ax, &oldax, res, t0);
+ 		cgen(nl, &ax);
+ 		regalloc(&ax, t0, &ax);	// mark ax live during cgen
+ 		cgen(nr, &n3);
+ 		regfree(&ax);
+ 	} else {
+ 		cgen(nr, &n3);
+-		savex(D_AX, &ax, &oldax, res, t0);
++		savex(REG_AX, &ax, &oldax, res, t0);
+ 		cgen(nl, &ax);
+ 	}
+ 	if(t != t0) {
+@@ -725,7 +726,7 @@ dodiv(int op, Node *nl, Node *nr, Node *res)
+ 		p2 = gbranch(AJMP, T, 0);
+ 		patch(p1, pc);
+ 	}
+-	savex(D_DX, &dx, &olddx, res, t);
++	savex(REG_DX, &dx, &olddx, res, t);
+ 	if(!issigned[t->etype]) {
+ 		nodconst(&n4, t, 0);
+ 		gmove(&n4, &dx);
+@@ -929,7 +930,7 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
+ 	}
+ 	cgenr(nl, &n1, res);
+ 	cgenr(nr, &n2, N);
+-	nodreg(&ax, t, D_AX);
++	nodreg(&ax, t, REG_AX);
+ 	gmove(&n1, &ax);
+ 	gins(a, &n2, N);
+ 	regfree(&n2);
+@@ -937,11 +938,11 @@ cgen_hmul(Node *nl, Node *nr, Node *res)
+ 
+ 	if(t->width == 1) {
+ 		// byte multiply behaves differently.
+-		nodreg(&ax, t, D_AH);
+-		nodreg(&dx, t, D_DX);
++		nodreg(&ax, t, REG_AH);
++		nodreg(&dx, t, REG_DX);
+ 		gmove(&ax, &dx);
+ 	}
+-	nodreg(&dx, t, D_DX);
++	nodreg(&dx, t, REG_DX);
+ 	gmove(&dx, res);
+ }
+ 
+@@ -988,8 +989,8 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 		nr = &n5;
+ 	}
+ 
+-	rcx = reg[D_CX];
+-	nodreg(&n1, types[TUINT32], D_CX);
++	rcx = reg[REG_CX];
++	nodreg(&n1, types[TUINT32], REG_CX);
+ 	
+ 	// Allow either uint32 or uint64 as shift type,
+ 	// to avoid unnecessary conversion from uint32 to uint64
+@@ -1001,7 +1002,7 @@ cgen_shift(int op, int bounded, Node *nl, Node *nr, Node *res)
+ 	regalloc(&n1, nr->type, &n1);		// to hold the shift type in CX
+ 	regalloc(&n3, tcount, &n1);	// to clear high bits of CX
+ 
+-	nodreg(&cx, types[TUINT64], D_CX);
++	nodreg(&cx, types[TUINT64], REG_CX);
+ 	memset(&oldcx, 0, sizeof oldcx);
+ 	if(rcx > 0 && !samereg(&cx, res)) {
+ 		regalloc(&oldcx, types[TUINT64], N);
+@@ -1148,19 +1149,19 @@ clearfat(Node *nl)
+ 		return;
+ 	}
+ 
+-	savex(D_DI, &n1, &oldn1, N, types[tptr]);
++	savex(REG_DI, &n1, &oldn1, N, types[tptr]);
+ 	agen(nl, &n1);
+ 
+-	savex(D_AX, &ax, &oldax, N, types[tptr]);
+-	gconreg(AMOVL, 0, D_AX);
++	savex(REG_AX, &ax, &oldax, N, types[tptr]);
++	gconreg(AMOVL, 0, REG_AX);
+ 
+ 	if(q > 128 || nacl) {
+-		gconreg(movptr, q, D_CX);
++		gconreg(movptr, q, REG_CX);
+ 		gins(AREP, N, N);	// repeat
+ 		gins(ASTOSQ, N, N);	// STOQ AL,*(DI)+
+ 	} else {
+ 		p = gins(ADUFFZERO, N, N);
+-		p->to.type = D_ADDR;
++		p->to.type = TYPE_ADDR;
+ 		p->to.sym = linksym(pkglookup("duffzero", runtimepkg));
+ 		// 2 and 128 = magic constants: see ../../runtime/asm_amd64.s
+ 		p->to.offset = 2*(128-q);
+@@ -1221,22 +1222,26 @@ expandchecks(Prog *firstp)
+ 		p1->pc = 9999;
+ 		p2->pc = 9999;
+ 		p->as = cmpptr;
+-		p->to.type = D_CONST;
++		p->to.type = TYPE_CONST;
+ 		p->to.offset = 0;
+ 		p1->as = AJNE;
+-		p1->from.type = D_CONST;
++		p1->from.type = TYPE_CONST;
+ 		p1->from.offset = 1; // likely
+-		p1->to.type = D_BRANCH;
++		p1->to.type = TYPE_BRANCH;
+ 		p1->to.u.branch = p2->link;
+ 		// crash by write to memory address 0.
+ 		// if possible, since we know arg is 0, use 0(arg),
+ 		// which will be shorter to encode than plain 0.
+ 		p2->as = AMOVL;
+-		p2->from.type = D_AX;
+-		if(regtyp(&p->from))
+-			p2->to.type = p->from.type + D_INDIR;
+-		else
+-			p2->to.type = D_INDIR+D_NONE;
++		p2->from.type = TYPE_REG;
++		p2->from.reg = REG_AX;
++		if(regtyp(&p->from)) {
++			p2->to.type = TYPE_MEM;
++			p2->to.reg = p->from.reg;
++		} else {
++			p2->to.type = TYPE_MEM;
++			p2->to.reg = REG_NONE;
++		}
+ 		p2->to.offset = 0;
+ 	}
+ }
+diff --git a/src/cmd/6g/gobj.c b/src/cmd/6g/gobj.c
+index dbb4ff62c4..02482078e9 100644
+--- a/src/cmd/6g/gobj.c
++++ b/src/cmd/6g/gobj.c
+@@ -38,14 +38,13 @@ dsname(Sym *s, int off, char *t, int n)
+ 	Prog *p;
+ 
+ 	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.offset = off;
+ 	p->from.scale = n;
+ 	p->from.sym = linksym(s);
+ 	
+-	p->to.type = D_SCONST;
+-	p->to.index = D_NONE;
++	p->to.type = TYPE_SCONST;
+ 	memmove(p->to.u.sval, t, n);
+ 	return off + n;
+ }
+@@ -60,7 +59,8 @@ datastring(char *s, int len, Addr *a)
+ 	Sym *sym;
+ 	
+ 	sym = stringsym(s, len);
+-	a->type = D_EXTERN;
++	a->type = TYPE_MEM;
++	a->name = NAME_EXTERN;
+ 	a->sym = linksym(sym);
+ 	a->node = sym->def;
+ 	a->offset = widthptr+widthint;  // skip header
+@@ -77,7 +77,8 @@ datagostring(Strlit *sval, Addr *a)
+ 	Sym *sym;
+ 
+ 	sym = stringsym(sval->s, sval->len);
+-	a->type = D_EXTERN;
++	a->type = TYPE_MEM;
++	a->name = NAME_EXTERN;
+ 	a->sym = linksym(sym);
+ 	a->node = sym->def;
+ 	a->offset = 0;  // header
+@@ -114,13 +115,13 @@ gdatacomplex(Node *nam, Mpcplx *cval)
+ 
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+-	p->to.type = D_FCONST;
++	p->to.type = TYPE_FCONST;
+ 	p->to.u.dval = mpgetflt(&cval->real);
+ 
+ 	p = gins(ADATA, nam, N);
+ 	p->from.scale = w;
+ 	p->from.offset += w;
+-	p->to.type = D_FCONST;
++	p->to.type = TYPE_FCONST;
+ 	p->to.u.dval = mpgetflt(&cval->imag);
+ }
+ 
+@@ -133,8 +134,7 @@ gdatastring(Node *nam, Strlit *sval)
+ 	p = gins(ADATA, nam, N);
+ 	datastring(sval->s, sval->len, &p->to);
+ 	p->from.scale = types[tptr]->width;
+-	p->to.index = p->to.type;
+-	p->to.type = D_ADDR;
++	p->to.type = TYPE_ADDR;
+ //print("%P\n", p);
+ 
+ 	nodconst(&nod1, types[TINT], sval->len);
+@@ -150,15 +150,14 @@ dstringptr(Sym *s, int off, char *str)
+ 
+ 	off = rnd(off, widthptr);
+ 	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.sym = linksym(s);
+ 	p->from.offset = off;
+ 	p->from.scale = widthptr;
+ 
+ 	datastring(str, strlen(str)+1, &p->to);
+-	p->to.index = p->to.type;
+-	p->to.type = D_ADDR;
++	p->to.type = TYPE_ADDR;
+ 	p->to.etype = simtype[TINT];
+ 	off += widthptr;
+ 
+@@ -175,14 +174,13 @@ dgostrlitptr(Sym *s, int off, Strlit *lit)
+ 
+ 	off = rnd(off, widthptr);
+ 	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.sym = linksym(s);
+ 	p->from.offset = off;
+ 	p->from.scale = widthptr;
+ 	datagostring(lit, &p->to);
+-	p->to.index = p->to.type;
+-	p->to.type = D_ADDR;
++	p->to.type = TYPE_ADDR;
+ 	p->to.etype = simtype[TINT];
+ 	off += widthptr;
+ 
+@@ -213,13 +211,13 @@ dsymptr(Sym *s, int off, Sym *x, int xoff)
+ 	off = rnd(off, widthptr);
+ 
+ 	p = gins(ADATA, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.sym = linksym(s);
+ 	p->from.offset = off;
+ 	p->from.scale = widthptr;
+-	p->to.type = D_ADDR;
+-	p->to.index = D_EXTERN;
++	p->to.type = TYPE_ADDR;
++	p->to.name = NAME_EXTERN;
+ 	p->to.sym = linksym(x);
+ 	p->to.offset = xoff;
+ 	off += widthptr;
+@@ -231,5 +229,7 @@ void
+ nopout(Prog *p)
+ {
+ 	p->as = ANOP;
++	p->from = zprog.from;
++	p->to = zprog.to;
+ }
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 146ead1134..ee6852d6f6 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -42,10 +42,10 @@ void
+ clearp(Prog *p)
+ {
+ 	p->as = AEND;
+-	p->from.type = D_NONE;
+-	p->from.index = D_NONE;
+-	p->to.type = D_NONE;
+-	p->to.index = D_NONE;
++	p->from.type = TYPE_NONE;
++	p->from.index = TYPE_NONE;
++	p->to.type = TYPE_NONE;
++	p->to.index = TYPE_NONE;
+ 	p->pc = pcloc;
+ 	pcloc++;
+ }
+@@ -118,10 +118,10 @@ gbranch(int as, Type *t, int likely)
+ 	USED(t);
+ 
+ 	p = prog(as);
+-	p->to.type = D_BRANCH;
++	p->to.type = TYPE_BRANCH;
+ 	p->to.u.branch = P;
+ 	if(as != AJMP && likely != 0) {
+-		p->from.type = D_CONST;
++		p->from.type = TYPE_CONST;
+ 		p->from.offset = likely > 0;
+ 	}
+ 	return p;
+@@ -133,7 +133,7 @@ gbranch(int as, Type *t, int likely)
+ void
+ patch(Prog *p, Prog *to)
+ {
+-	if(p->to.type != D_BRANCH)
++	if(p->to.type != TYPE_BRANCH)
+ 		fatal("patch: not a branch");
+ 	p->to.u.branch = to;
+ 	p->to.offset = to->pc;
+@@ -144,7 +144,7 @@ unpatch(Prog *p)
+ {
+ 	Prog *q;
+ 
+-	if(p->to.type != D_BRANCH)
++	if(p->to.type != TYPE_BRANCH)
+ 		fatal("unpatch: not a branch");
+ 	q = p->to.u.branch;
+ 	p->to.u.branch = P;
+@@ -195,7 +195,7 @@ ggloblnod(Node *nam)
+ 	p->lineno = nam->lineno;
+ 	p->from.sym->gotype = linksym(ngotype(nam));
+ 	p->to.sym = nil;
+-	p->to.type = D_CONST;
++	p->to.type = TYPE_CONST;
+ 	p->to.offset = nam->type->width;
+ 	if(nam->readonly)
+ 		p->from.scale = RODATA;
+@@ -209,8 +209,8 @@ gtrack(Sym *s)
+ 	Prog *p;
+ 	
+ 	p = gins(AUSEFIELD, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.sym = linksym(s);
+ }
+ 
+@@ -220,11 +220,10 @@ ggloblsym(Sym *s, int32 width, int8 flags)
+ 	Prog *p;
+ 
+ 	p = gins(AGLOBL, N, N);
+-	p->from.type = D_EXTERN;
+-	p->from.index = D_NONE;
++	p->from.type = TYPE_MEM;
++	p->from.name = NAME_EXTERN;
+ 	p->from.sym = linksym(s);
+-	p->to.type = D_CONST;
+-	p->to.index = D_NONE;
++	p->to.type = TYPE_CONST;
+ 	p->to.offset = width;
+ 	p->from.scale = flags;
+ }
+@@ -251,22 +250,21 @@ isfat(Type *t)
+ void
+ afunclit(Addr *a, Node *n)
+ {
+-	if(a->type == D_ADDR && a->index == D_EXTERN) {
+-		a->type = D_EXTERN;
+-		a->index = D_NONE;
++	if(a->type == TYPE_ADDR && a->name == NAME_EXTERN) {
++		a->type = TYPE_MEM;
+ 		a->sym = linksym(n->sym);
+ 	}
+ }
+ 
+ static	int	resvd[] =
+ {
+-	D_DI,	// for movstring
+-	D_SI,	// for movstring
++	REG_DI,	// for movstring
++	REG_SI,	// for movstring
+ 
+-	D_AX,	// for divide
+-	D_CX,	// for shift
+-	D_DX,	// for divide
+-	D_SP,	// for stack
++	REG_AX,	// for divide
++	REG_CX,	// for shift
++	REG_DX,	// for divide
++	REG_SP,	// for stack
+ };
+ 
+ void
+@@ -276,17 +274,17 @@ ginit(void)
+ 
+ 	for(i=0; i<nelem(reg); i++)
+ 		reg[i] = 1;
+-	for(i=D_AX; i<=D_R15; i++)
++	for(i=REG_AX; i<=REG_R15; i++)
+ 		reg[i] = 0;
+-	for(i=D_X0; i<=D_X15; i++)
++	for(i=REG_X0; i<=REG_X15; i++)
+ 		reg[i] = 0;
+ 
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]++;
+ 	
+ 	if(nacl) {
+-		reg[D_BP]++;
+-		reg[D_R15]++;
++		reg[REG_BP]++;
++		reg[REG_R15]++;
+ 	}
+ }
+ 
+@@ -298,15 +296,15 @@ gclean(void)
+ 	for(i=0; i<nelem(resvd); i++)
+ 		reg[resvd[i]]--;
+ 	if(nacl) {
+-		reg[D_BP]--;
+-		reg[D_R15]--;
++		reg[REG_BP]--;
++		reg[REG_R15]--;
+ 	}
+ 
+ 
+-	for(i=D_AX; i<=D_R15; i++)
++	for(i=REG_AX; i<=REG_R15; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated\n", i);
+-	for(i=D_X0; i<=D_X15; i++)
++	for(i=REG_X0; i<=REG_X15; i++)
+ 		if(reg[i])
+ 			yyerror("reg %R left allocated\n", i);
+ }
+@@ -316,7 +314,7 @@ anyregalloc(void)
+ {
+ 	int i, j;
+ 
+-	for(i=D_AX; i<=D_R15; i++) {
++	for(i=REG_AX; i<=REG_R15; i++) {
+ 		if(reg[i] == 0)
+ 			goto ok;
+ 		for(j=0; j<nelem(resvd); j++)
+@@ -328,7 +326,7 @@ anyregalloc(void)
+ 	return 0;
+ }
+ 
+-static	uintptr	regpc[D_R15+1 - D_AX];
++static	uintptr	regpc[REG_R15+1 - REG_AX];
+ 
+ /*
+  * allocate register of type t, leave in n.
+@@ -358,17 +356,17 @@ regalloc(Node *n, Type *t, Node *o)
+ 	case TBOOL:
+ 		if(o != N && o->op == OREGISTER) {
+ 			i = o->val.u.reg;
+-			if(i >= D_AX && i <= D_R15)
++			if(i >= REG_AX && i <= REG_R15)
+ 				goto out;
+ 		}
+-		for(i=D_AX; i<=D_R15; i++)
++		for(i=REG_AX; i<=REG_R15; i++)
+ 			if(reg[i] == 0) {
+-				regpc[i-D_AX] = (uintptr)getcallerpc(&n);
++				regpc[i-REG_AX] = (uintptr)getcallerpc(&n);
+ 				goto out;
+ 			}
+ 
+ 		flusherrors();
+-		for(i=0; i+D_AX<=D_R15; i++)
++		for(i=0; i+REG_AX<=REG_R15; i++)
+ 			print("%d %p\n", i, regpc[i]);
+ 		fatal("out of fixed registers");
+ 
+@@ -376,10 +374,10 @@ regalloc(Node *n, Type *t, Node *o)
+ 	case TFLOAT64:
+ 		if(o != N && o->op == OREGISTER) {
+ 			i = o->val.u.reg;
+-			if(i >= D_X0 && i <= D_X15)
++			if(i >= REG_X0 && i <= REG_X15)
+ 				goto out;
+ 		}
+-		for(i=D_X0; i<=D_X15; i++)
++		for(i=REG_X0; i<=REG_X15; i++)
+ 			if(reg[i] == 0)
+ 				goto out;
+ 		fatal("out of floating registers");
+@@ -407,15 +405,15 @@ regfree(Node *n)
+ 	if(n->op != OREGISTER && n->op != OINDREG)
+ 		fatal("regfree: not a register");
+ 	i = n->val.u.reg;
+-	if(i == D_SP)
++	if(i == REG_SP)
+ 		return;
+ 	if(i < 0 || i >= nelem(reg))
+ 		fatal("regfree: reg out of range");
+ 	if(reg[i] <= 0)
+ 		fatal("regfree: reg not allocated");
+ 	reg[i]--;
+-	if(reg[i] == 0 && D_AX <= i && i <= D_R15)
+-		regpc[i - D_AX] = 0;
++	if(reg[i] == 0 && REG_AX <= i && i <= REG_R15)
++		regpc[i - REG_AX] = 0;
+ }
+ 
+ /*
+@@ -499,7 +497,7 @@ fp:
+ 	switch(fp) {
+ 	case 0:		// output arg
+ 		n->op = OINDREG;
+-		n->val.u.reg = D_SP;
++		n->val.u.reg = REG_SP;
+ 		break;
+ 
+ 	case 1:		// input arg
+@@ -509,7 +507,7 @@ fp:
+ 	case 2:		// offset output arg
+ fatal("shouldn't be used");
+ 		n->op = OINDREG;
+-		n->val.u.reg = D_SP;
++		n->val.u.reg = REG_SP;
+ 		n->xoffset += types[tptr]->width;
+ 		break;
+ 	}
+@@ -1079,6 +1077,8 @@ gins(int as, Node *f, Node *t)
+ 		dump("t", t);
+ 		fatal("bad width: %P (%d, %d)\n", p, af.width, at.width);
+ 	}
++	if(p->to.type == TYPE_ADDR && w > 0)
++		fatal("bad use of addr: %P", p);
+ 
+ 	return p;
+ }
+@@ -1092,7 +1092,7 @@ fixlargeoffset(Node *n)
+ 		return;
+ 	if(n->op != OINDREG)
+ 		return;
+-	if(n->val.u.reg == D_SP) // stack offset cannot be large
++	if(n->val.u.reg == REG_SP) // stack offset cannot be large
+ 		return;
+ 	if(n->xoffset != (int32)n->xoffset) {
+ 		// offset too large, add to register instead.
+@@ -1116,8 +1116,10 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	Sym *s;
+ 
+ 	a->scale = 0;
+-	a->index = D_NONE;
+-	a->type = D_NONE;
++	a->reg = REG_NONE;
++	a->index = REG_NONE;
++	a->type = TYPE_NONE;
++	a->name = NAME_NONE;
+ 	a->gotype = nil;
+ 	a->node = N;
+ 	a->width = 0;
+@@ -1135,32 +1137,14 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		break;
+ 
+ 	case OREGISTER:
+-		a->type = n->val.u.reg;
++		a->type = TYPE_REG;
++		a->reg = n->val.u.reg;
+ 		a->sym = nil;
+ 		break;
+ 
+-//	case OINDEX:
+-//	case OIND:
+-//		naddr(n->left, a);
+-//		if(a->type >= D_AX && a->type <= D_DI)
+-//			a->type += D_INDIR;
+-//		else
+-//		if(a->type == D_CONST)
+-//			a->type = D_NONE+D_INDIR;
+-//		else
+-//		if(a->type == D_ADDR) {
+-//			a->type = a->index;
+-//			a->index = D_NONE;
+-//		} else
+-//			goto bad;
+-//		if(n->op == OINDEX) {
+-//			a->index = idx.reg;
+-//			a->scale = n->scale;
+-//		}
+-//		break;
+-
+ 	case OINDREG:
+-		a->type = n->val.u.reg+D_INDIR;
++		a->type = TYPE_MEM;
++		a->reg = n->val.u.reg;
+ 		a->sym = linksym(n->sym);
+ 		a->offset = n->xoffset;
+ 		if(a->offset != (int32)a->offset)
+@@ -1174,14 +1158,16 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 		a->width = n->left->type->width;
+ 		a->offset = n->xoffset;
+ 		a->sym = linksym(n->left->sym);
+-		a->type = D_PARAM;
++		a->type = TYPE_MEM;
++		a->name = NAME_PARAM;
+ 		a->node = n->left->orig;
+ 		break;
+ 	
+ 	case OCLOSUREVAR:
+ 		if(!curfn->needctxt)
+ 			fatal("closurevar without needctxt");
+-		a->type = D_DX+D_INDIR;
++		a->type = TYPE_MEM;
++		a->reg = REG_DX;
+ 		a->sym = nil;
+ 		a->offset = n->xoffset;
+ 		break;
+@@ -1209,22 +1195,23 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 				s = pkglookup(s->name, n->type->sym->pkg);
+ 		}
+ 
++		a->type = TYPE_MEM;
+ 		switch(n->class) {
+ 		default:
+ 			fatal("naddr: ONAME class %S %d\n", n->sym, n->class);
+ 		case PEXTERN:
+-			a->type = D_EXTERN;
++			a->name = NAME_EXTERN;
+ 			break;
+ 		case PAUTO:
+-			a->type = D_AUTO;
++			a->name = NAME_AUTO;
+ 			break;
+ 		case PPARAM:
+ 		case PPARAMOUT:
+-			a->type = D_PARAM;
++			a->name = NAME_PARAM;
+ 			break;
+ 		case PFUNC:
+-			a->index = D_EXTERN;
+-			a->type = D_ADDR;
++			a->name = NAME_EXTERN;
++			a->type = TYPE_ADDR;
+ 			a->width = widthptr;
+ 			s = funcsym(s);			
+ 			break;
+@@ -1238,13 +1225,13 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			fatal("naddr: const %lT", n->type);
+ 			break;
+ 		case CTFLT:
+-			a->type = D_FCONST;
++			a->type = TYPE_FCONST;
+ 			a->u.dval = mpgetflt(n->val.u.fval);
+ 			break;
+ 		case CTINT:
+ 		case CTRUNE:
+ 			a->sym = nil;
+-			a->type = D_CONST;
++			a->type = TYPE_CONST;
+ 			a->offset = mpgetfix(n->val.u.xval);
+ 			break;
+ 		case CTSTR:
+@@ -1252,12 +1239,12 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 			break;
+ 		case CTBOOL:
+ 			a->sym = nil;
+-			a->type = D_CONST;
++			a->type = TYPE_CONST;
+ 			a->offset = n->val.u.bval;
+ 			break;
+ 		case CTNIL:
+ 			a->sym = nil;
+-			a->type = D_CONST;
++			a->type = TYPE_CONST;
+ 			a->offset = 0;
+ 			break;
+ 		}
+@@ -1266,23 +1253,15 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OADDR:
+ 		naddr(n->left, a, canemitcode);
+ 		a->width = widthptr;
+-		if(a->type >= D_INDIR) {
+-			a->type -= D_INDIR;
+-			break;
+-		}
+-		if(a->type == D_EXTERN || a->type == D_STATIC ||
+-		   a->type == D_AUTO || a->type == D_PARAM)
+-			if(a->index == D_NONE) {
+-				a->index = a->type;
+-				a->type = D_ADDR;
+-				break;
+-			}
+-		fatal("naddr: OADDR\n");
++		if(a->type != TYPE_MEM)
++			fatal("naddr: OADDR %D", a);
++		a->type = TYPE_ADDR;
++		break;
+ 	
+ 	case OITAB:
+ 		// itable of interface value
+ 		naddr(n->left, a, canemitcode);
+-		if(a->type == D_CONST && a->offset == 0)
++		if(a->type == TYPE_CONST && a->offset == 0)
+ 			break;  // itab(nil)
+ 		a->etype = tptr;
+ 		a->width = widthptr;
+@@ -1291,7 +1270,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OSPTR:
+ 		// pointer in a string or slice
+ 		naddr(n->left, a, canemitcode);
+-		if(a->type == D_CONST && a->offset == 0)
++		if(a->type == TYPE_CONST && a->offset == 0)
+ 			break;	// ptr(nil)
+ 		a->etype = simtype[tptr];
+ 		a->offset += Array_array;
+@@ -1301,7 +1280,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OLEN:
+ 		// len of string or slice
+ 		naddr(n->left, a, canemitcode);
+-		if(a->type == D_CONST && a->offset == 0)
++		if(a->type == TYPE_CONST && a->offset == 0)
+ 			break;	// len(nil)
+ 		a->etype = simtype[TUINT];
+ 		a->offset += Array_nel;
+@@ -1311,7 +1290,7 @@ naddr(Node *n, Addr *a, int canemitcode)
+ 	case OCAP:
+ 		// cap of string or slice
+ 		naddr(n->left, a, canemitcode);
+-		if(a->type == D_CONST && a->offset == 0)
++		if(a->type == TYPE_CONST && a->offset == 0)
+ 			break;	// cap(nil)
+ 		a->etype = simtype[TUINT];
+ 		a->offset += Array_cap;
+@@ -2067,8 +2046,8 @@ odot:
+ 		n1.xoffset = -(oary[i]+1);
+ 	}
+ 
+-	a->type = D_NONE;
+-	a->index = D_NONE;
++	a->type = TYPE_NONE;
++	a->index = TYPE_NONE;
+ 	fixlargeoffset(&n1);
+ 	naddr(&n1, a, 1);
+ 	goto yes;
+@@ -2178,14 +2157,16 @@ oindex:
+ 		naddr(reg1, a, 1);
+ 		a->offset = 0;
+ 		a->scale = w;
+-		a->index = a->type;
+-		a->type = reg->val.u.reg + D_INDIR;
++		a->index = a->reg;
++		a->type = TYPE_MEM;
++		a->reg = reg->val.u.reg;
+ 	} else {
+ 		naddr(reg1, a, 1);
+ 		a->offset = 0;
+ 		a->scale = w;
+-		a->index = a->type;
+-		a->type = reg->val.u.reg + D_INDIR;
++		a->index = a->reg;
++		a->type = TYPE_MEM;
++		a->reg = reg->val.u.reg;
+ 	}
+ 
+ 	goto yes;
+@@ -2232,8 +2213,8 @@ oindex_const:
+ 		n2.op = OINDREG;
+ 		n2.xoffset = v*w;
+ 		fixlargeoffset(&n2);
+-		a->type = D_NONE;
+-		a->index = D_NONE;
++		a->type = TYPE_NONE;
++		a->index = TYPE_NONE;
+ 		naddr(&n2, a, 1);
+ 		goto yes;
+ 	}
+@@ -2245,8 +2226,8 @@ oindex_const:
+ 	}
+ 	n1.xoffset += v*w;
+ 	fixlargeoffset(&n1);
+-	a->type = D_NONE;
+-	a->index= D_NONE;
++	a->type = TYPE_NONE;
++	a->index= TYPE_NONE;
+ 	naddr(&n1, a, 1);
+ 	goto yes;
+ 
+@@ -2281,8 +2262,8 @@ oindex_const_sudo:
+ 	n2.op = OINDREG;
+ 	n2.xoffset = v*w;
+ 	fixlargeoffset(&n2);
+-	a->type = D_NONE;
+-	a->index = D_NONE;
++	a->type = TYPE_NONE;
++	a->index = TYPE_NONE;
+ 	naddr(&n2, a, 1);
+ 	goto yes;
+ 
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index fd8b5c30e5..11befb6ad1 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -32,8 +32,8 @@
+ #define	Z	N
+ #define	Adr	Addr
+ 
+-#define	D_HI	D_NONE
+-#define	D_LO	D_NONE
++#define	D_HI	TYPE_NONE
++#define	D_LO	TYPE_NONE
+ 
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+ #define	BSTORE(r)	band(bnot(r->calbehind), r->calahead)
+@@ -52,8 +52,8 @@ typedef	struct	Rgn	Rgn;
+ extern Node *Z;
+ enum
+ {
+-	D_HI = D_NONE,
+-	D_LO = D_NONE,
++	D_HI = TYPE_NONE,
++	D_LO = TYPE_NONE,
+ 	CLOAD = 5,
+ 	CREF = 5,
+ 	CINF = 1000,
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 2445081e3e..e05a06087f 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -73,7 +73,7 @@ rnops(Flow *r)
+ 	if(r != nil)
+ 	for(;;) {
+ 		p = r->prog;
+-		if(p->as != ANOP || p->from.type != D_NONE || p->to.type != D_NONE)
++		if(p->as != ANOP || p->from.type != TYPE_NONE || p->to.type != TYPE_NONE)
+ 			break;
+ 		r1 = uniqs(r);
+ 		if(r1 == nil)
+@@ -110,7 +110,7 @@ peep(Prog *firstp)
+ 		case ALEAQ:
+ 			if(regtyp(&p->to))
+ 			if(p->from.sym != nil)
+-			if(p->from.index == D_NONE || p->from.index == D_CONST)
++			if(p->from.index == REG_NONE)
+ 				conprop(r);
+ 			break;
+ 
+@@ -121,7 +121,7 @@ peep(Prog *firstp)
+ 		case AMOVSS:
+ 		case AMOVSD:
+ 			if(regtyp(&p->to))
+-			if(p->from.type == D_CONST || p->from.type == D_FCONST)
++			if(p->from.type == TYPE_CONST || p->from.type == TYPE_FCONST)
+ 				conprop(r);
+ 			break;
+ 		}
+@@ -160,7 +160,7 @@ loop1:
+ 				r1 = rnops(uniqs(r));
+ 				if(r1 != nil) {
+ 					p1 = r1->prog;
+-					if(p->as == p1->as && p->to.type == p1->from.type){
++					if(p->as == p1->as && p->to.type == p1->from.type && p->to.reg == p1->from.reg){
+ 						p1->as = AMOVL;
+ 						t++;
+ 					}
+@@ -179,7 +179,7 @@ loop1:
+ 				r1 = rnops(uniqs(r));
+ 				if(r1 != nil) {
+ 					p1 = r1->prog;
+-					if(p->as == p1->as && p->to.type == p1->from.type){
++					if(p->as == p1->as && p->to.type == p1->from.type && p->to.reg == p1->from.reg){
+ 						p1->as = AMOVQ;
+ 						t++;
+ 					}
+@@ -190,7 +190,7 @@ loop1:
+ 		case AADDL:
+ 		case AADDQ:
+ 		case AADDW:
+-			if(p->from.type != D_CONST || needc(p->link))
++			if(p->from.type != TYPE_CONST || needc(p->link))
+ 				break;
+ 			if(p->from.offset == -1){
+ 				if(p->as == AADDQ)
+@@ -218,7 +218,7 @@ loop1:
+ 		case ASUBL:
+ 		case ASUBQ:
+ 		case ASUBW:
+-			if(p->from.type != D_CONST || needc(p->link))
++			if(p->from.type != TYPE_CONST || needc(p->link))
+ 				break;
+ 			if(p->from.offset == -1) {
+ 				if(p->as == ASUBQ)
+@@ -264,8 +264,8 @@ loop1:
+ 		p = r->prog;
+ 		if(p->as == AMOVLQZX)
+ 		if(regtyp(&p->from))
+-		if(p->from.type == p->to.type)
+-		if(prevl(r, p->from.type))
++		if(p->from.type == p->to.type && p->from.reg == p->to.reg)
++		if(prevl(r, p->from.reg))
+ 			excise(r);
+ 		
+ 		if(p->as == AMOVSD)
+@@ -369,9 +369,7 @@ excise(Flow *r)
+ 	if(debug['P'] && debug['v'])
+ 		print("%P ===delete===\n", p);
+ 
+-	p->as = ANOP;
+-	p->from = zprog.from;
+-	p->to = zprog.to;
++	nopout(p);
+ 
+ 	ostats.ndelmov++;
+ }
+@@ -379,14 +377,7 @@ excise(Flow *r)
+ int
+ regtyp(Adr *a)
+ {
+-	int t;
+-
+-	t = a->type;
+-	if(t >= D_AX && t <= D_R15)
+-		return 1;
+-	if(t >= D_X0 && t <= D_X15)
+-		return 1;
+-	return 0;
++	return a->type == TYPE_REG && (REG_AX <= a->reg && a->reg <= REG_R15 || REG_X0 <= a->reg && a->reg <= REG_X15);
+ }
+ 
+ // movb elimination.
+@@ -426,7 +417,7 @@ elimshortmov(Graph *g)
+ 				p->as = ANOTQ;
+ 				break;
+ 			}
+-			if(regtyp(&p->from) || p->from.type == D_CONST) {
++			if(regtyp(&p->from) || p->from.type == TYPE_CONST) {
+ 				// move or artihmetic into partial register.
+ 				// from another register or constant can be movl.
+ 				// we don't switch to 64-bit arithmetic if it can
+@@ -471,7 +462,7 @@ elimshortmov(Graph *g)
+ 					p->as = ASHLQ;
+ 					break;
+ 				}
+-			} else if(p->from.type >= D_NONE) {
++			} else if(p->from.type != TYPE_REG) {
+ 				// explicit zero extension, but don't
+ 				// do that if source is a byte register
+ 				// (only AH can occur and it's forbidden).
+@@ -495,10 +486,10 @@ regconsttyp(Adr *a)
+ 	if(regtyp(a))
+ 		return 1;
+ 	switch(a->type) {
+-	case D_CONST:
+-	case D_FCONST:
+-	case D_SCONST:
+-	case D_ADDR:
++	case TYPE_CONST:
++	case TYPE_FCONST:
++	case TYPE_SCONST:
++	case TYPE_ADDR: // TODO(rsc): Not all TYPE_ADDRs are constants.
+ 		return 1;
+ 	}
+ 	return 0;
+@@ -514,7 +505,7 @@ prevl(Flow *r0, int reg)
+ 
+ 	for(r=uniqp(r0); r!=nil; r=uniqp(r)) {
+ 		p = r->prog;
+-		if(p->to.type == reg) {
++		if(p->to.type == TYPE_REG && p->to.reg == reg) {
+ 			proginfo(&info, p);
+ 			if(info.flags & RightWrite) {
+ 				if(info.flags & SizeL)
+@@ -588,7 +579,7 @@ subprop(Flow *r0)
+ 			return 0;
+ 		}
+ 
+-		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type)
++		if((info.flags & Move) && (info.flags & (SizeL|SizeQ|SizeF|SizeD)) && p->to.type == v1->type && p->to.reg == v1->reg)
+ 			goto gotit;
+ 
+ 		if(copyau(&p->from, v2) ||
+@@ -612,7 +603,7 @@ gotit:
+ 	copysub(&p->to, v1, v2, 1);
+ 	if(debug['P']) {
+ 		print("gotit: %D->%D\n%P", v1, v2, r->prog);
+-		if(p->from.type == v2->type)
++		if(p->from.type == v2->type && p->from.reg == v2->reg)
+ 			print(" excise");
+ 		print("\n");
+ 	}
+@@ -623,9 +614,9 @@ gotit:
+ 		if(debug['P'])
+ 			print("%P\n", r->prog);
+ 	}
+-	t = v1->type;
+-	v1->type = v2->type;
+-	v2->type = t;
++	t = v1->reg;
++	v1->reg = v2->reg;
++	v2->reg = t;
+ 	if(debug['P'])
+ 		print("%P last\n", r->prog);
+ 	return 1;
+@@ -768,11 +759,11 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ACALL:
+-		if(REGEXT && v->type <= REGEXT && v->type > exregoffset)
++		if(REGEXT && v->type == TYPE_REG && v->reg <= REGEXT && v->reg > exregoffset)
+ 			return 2;
+-		if(REGARG >= 0 && v->type == (uchar)REGARG)
++		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+ 			return 2;
+-		if(v->type == p->from.type)
++		if(v->type == p->from.type && v->reg == p->from.reg)
+ 			return 2;
+ 
+ 		if(s != nil) {
+@@ -785,7 +776,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 3;
+ 
+ 	case ATEXT:
+-		if(REGARG >= 0 && v->type == (uchar)REGARG)
++		if(REGARG >= 0 && v->type == TYPE_REG && v->reg == (uchar)REGARG)
+ 			return 3;
+ 		return 0;
+ 	}
+@@ -794,7 +785,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 	proginfo(&info, p);
+ 
+-	if((info.reguse|info.regset) & RtoB(v->type))
++	if((info.reguse|info.regset) & RtoB(v->reg))
+ 		return 2;
+ 		
+ 	if(info.flags & LeftAddr)
+@@ -838,16 +829,16 @@ copyu(Prog *p, Adr *v, Adr *s)
+ static int
+ copyas(Adr *a, Adr *v)
+ {
+-	if(D_AL <= a->type && a->type <= D_R15B)
++	if(REG_AL <= a->reg && a->reg <= REG_R15B)
+ 		fatal("use of byte register");
+-	if(D_AL <= v->type && v->type <= D_R15B)
++	if(REG_AL <= v->reg && v->reg <= REG_R15B)
+ 		fatal("use of byte register");
+ 
+-	if(a->type != v->type)
++	if(a->type != v->type || a->name != v->name || a->reg != v->reg)
+ 		return 0;
+ 	if(regtyp(v))
+ 		return 1;
+-	if(v->type == D_AUTO || v->type == D_PARAM)
++	if(v->type == TYPE_MEM && (v->name == NAME_AUTO || v->name == NAME_PARAM))
+ 		if(v->offset == a->offset)
+ 			return 1;
+ 	return 0;
+@@ -856,11 +847,11 @@ copyas(Adr *a, Adr *v)
+ int
+ sameaddr(Addr *a, Addr *v)
+ {
+-	if(a->type != v->type)
++	if(a->type != v->type || a->name != v->name || a->reg != v->reg)
+ 		return 0;
+ 	if(regtyp(v))
+ 		return 1;
+-	if(v->type == D_AUTO || v->type == D_PARAM)
++	if(v->type == TYPE_MEM && (v->name == NAME_AUTO || v->name == NAME_PARAM))
+ 		if(v->offset == a->offset)
+ 			return 1;
+ 	return 0;
+@@ -879,12 +870,12 @@ copyau(Adr *a, Adr *v)
+ 		return 1;
+ 	}
+ 	if(regtyp(v)) {
+-		if(a->type-D_INDIR == v->type) {
++		if(a->type == TYPE_MEM && a->reg == v->reg) {
+ 			if(debug['P'] && debug['v'])
+ 				print("\tcopyau: found indir use - return 1\n");
+ 			return 1;
+ 		}
+-		if(a->index == v->type) {
++		if(a->index == v->reg) {
+ 			if(debug['P'] && debug['v'])
+ 				print("\tcopyau: found index use - return 1\n");
+ 			return 1;
+@@ -900,28 +891,28 @@ copyau(Adr *a, Adr *v)
+ static int
+ copysub(Adr *a, Adr *v, Adr *s, int f)
+ {
+-	int t;
++	int reg;
+ 
+ 	if(copyas(a, v)) {
+-		t = s->type;
+-		if(t >= D_AX && t <= D_R15 || t >= D_X0 && t <= D_X0+15) {
++		reg = s->reg;
++		if(reg >= REG_AX && reg <= REG_R15 || reg >= REG_X0 && reg <= REG_X0+15) {
+ 			if(f)
+-				a->type = t;
++				a->reg = reg;
+ 		}
+ 		return 0;
+ 	}
+ 	if(regtyp(v)) {
+-		t = v->type;
+-		if(a->type == t+D_INDIR) {
+-			if((s->type == D_BP || s->type == D_R13) && a->index != D_NONE)
++		reg = v->reg;
++		if(a->type == TYPE_MEM && a->reg == reg) {
++			if((s->reg == REG_BP || s->reg == REG_R13) && a->index != REG_NONE)
+ 				return 1;	/* can't use BP-base with index */
+ 			if(f)
+-				a->type = s->type+D_INDIR;
++				a->reg = s->reg;
+ //			return 0;
+ 		}
+-		if(a->index == t) {
++		if(a->index == reg) {
+ 			if(f)
+-				a->index = s->type;
++				a->index = s->reg;
+ 			return 0;
+ 		}
+ 		return 0;
+@@ -962,10 +953,11 @@ loop:
+ 	case 3:	// set
+ 		if(p->as == p0->as)
+ 		if(p->from.type == p0->from.type)
++		if(p->from.reg == p0->from.reg)
+ 		if(p->from.node == p0->from.node)
+ 		if(p->from.offset == p0->from.offset)
+ 		if(p->from.scale == p0->from.scale)
+-		if(p->from.type == D_FCONST && p->from.u.dval == p0->from.u.dval)
++		if(p->from.type == TYPE_FCONST && p->from.u.dval == p0->from.u.dval)
+ 		if(p->from.index == p0->from.index) {
+ 			excise(r);
+ 			goto loop;
+@@ -978,13 +970,13 @@ int
+ smallindir(Addr *a, Addr *reg)
+ {
+ 	return regtyp(reg) &&
+-		a->type == D_INDIR + reg->type &&
+-		a->index == D_NONE &&
++		a->type == TYPE_MEM && a->reg == reg->reg &&
++		a->index == REG_NONE &&
+ 		0 <= a->offset && a->offset < 4096;
+ }
+ 
+ int
+ stackaddr(Addr *a)
+ {
+-	return regtyp(a) && a->type == D_SP;
++	return a->type == TYPE_REG && a->reg == REG_SP;
+ }
+diff --git a/src/cmd/6g/prog.c b/src/cmd/6g/prog.c
+index ee68399d5a..32d5256f8c 100644
+--- a/src/cmd/6g/prog.c
++++ b/src/cmd/6g/prog.c
+@@ -8,15 +8,15 @@
+ #include "opt.h"
+ 
+ // Matches real RtoB but can be used in global initializer.
+-#define RtoB(r) (1<<((r)-D_AX))
++#define RtoB(r) (1<<((r)-REG_AX))
+ 
+ enum {
+-	AX = RtoB(D_AX),
+-	BX = RtoB(D_BX),
+-	CX = RtoB(D_CX),
+-	DX = RtoB(D_DX),
+-	DI = RtoB(D_DI),
+-	SI = RtoB(D_SI),
++	AX = RtoB(REG_AX),
++	BX = RtoB(REG_BX),
++	CX = RtoB(REG_CX),
++	DX = RtoB(REG_DX),
++	DI = RtoB(REG_DI),
++	SI = RtoB(REG_SI),
+ 	
+ 	LeftRdwr = LeftRead | LeftWrite,
+ 	RightRdwr = RightRead | RightWrite,
+@@ -294,11 +294,11 @@ proginfo(ProgInfo *info, Prog *p)
+ 	if(info->flags == 0)
+ 		fatal("unknown instruction %P", p);
+ 
+-	if((info->flags & ShiftCX) && p->from.type != D_CONST)
++	if((info->flags & ShiftCX) && p->from.type != TYPE_CONST)
+ 		info->reguse |= CX;
+ 
+ 	if(info->flags & ImulAXDX) {
+-		if(p->to.type == D_NONE) {
++		if(p->to.type == TYPE_NONE) {
+ 			info->reguse |= AX;
+ 			info->regset |= AX | DX;
+ 		} else {
+@@ -307,12 +307,12 @@ proginfo(ProgInfo *info, Prog *p)
+ 	}
+ 
+ 	// Addressing makes some registers used.
+-	if(p->from.type >= D_INDIR)
+-		info->regindex |= RtoB(p->from.type-D_INDIR);
+-	if(p->from.index != D_NONE)
++	if(p->from.type == TYPE_MEM && p->from.name == NAME_NONE)
++		info->regindex |= RtoB(p->from.reg);
++	if(p->from.index != REG_NONE)
+ 		info->regindex |= RtoB(p->from.index);
+-	if(p->to.type >= D_INDIR)
+-		info->regindex |= RtoB(p->to.type-D_INDIR);
+-	if(p->to.index != D_NONE)
++	if(p->to.type == TYPE_MEM && p->to.name == NAME_NONE)
++		info->regindex |= RtoB(p->to.reg);
++	if(p->to.index != REG_NONE)
+ 		info->regindex |= RtoB(p->to.index);
+ }
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index 2a57f31fb1..2581128b58 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -134,7 +134,7 @@ regopt(Prog *firstp)
+ 
+ 	if(first) {
+ 		fmtinstall('Q', Qconv);
+-		exregoffset = D_R15;
++		exregoffset = REG_R15;
+ 		first = 0;
+ 	}
+ 
+@@ -153,7 +153,7 @@ regopt(Prog *firstp)
+ 		var[i].node = regnodes[i];
+ 	}
+ 
+-	regbits = RtoB(D_SP);
++	regbits = RtoB(REG_SP);
+ 	for(z=0; z<BITS; z++) {
+ 		externs.b[z] = 0;
+ 		params.b[z] = 0;
+@@ -185,7 +185,7 @@ regopt(Prog *firstp)
+ 		proginfo(&info, p);
+ 
+ 		// Avoid making variables for direct-called functions.
+-		if(p->as == ACALL && p->to.type == D_EXTERN)
++		if(p->as == ACALL && p->to.type == TYPE_MEM && p->to.name == NAME_EXTERN)
+ 			continue;
+ 
+ 		r->use1.b[0] |= info.reguse | info.regindex;
+@@ -440,7 +440,7 @@ brk:
+ 	for(p=firstp; p!=P; p=p->link) {
+ 		while(p->link != P && p->link->as == ANOP)
+ 			p->link = p->link->link;
+-		if(p->to.type == D_BRANCH)
++		if(p->to.type == TYPE_BRANCH)
+ 			while(p->to.u.branch != P && p->to.u.branch->as == ANOP)
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+@@ -523,7 +523,8 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	a = &p1->to;
+ 	a->offset = v->offset;
+ 	a->etype = v->etype;
+-	a->type = v->name;
++	a->type = TYPE_MEM;
++	a->name = v->name;
+ 	a->node = v->node;
+ 	a->sym = linksym(v->node->sym);
+ 
+@@ -559,11 +560,14 @@ addmove(Reg *r, int bn, int rn, int f)
+ 		break;
+ 	}
+ 
+-	p1->from.type = rn;
++	p1->from.type = TYPE_REG;
++	p1->from.reg = rn;
++	p1->from.name = NAME_NONE;
+ 	if(!f) {
+ 		p1->from = *a;
+ 		*a = zprog.from;
+-		a->type = rn;
++		a->type = TYPE_REG;
++		a->reg = rn;
+ 		if(v->etype == TUINT8)
+ 			p1->as = AMOVB;
+ 		if(v->etype == TUINT16)
+@@ -580,18 +584,16 @@ doregbits(int r)
+ 	uint32 b;
+ 
+ 	b = 0;
+-	if(r >= D_INDIR)
+-		r -= D_INDIR;
+-	if(r >= D_AX && r <= D_R15)
++	if(r >= REG_AX && r <= REG_R15)
+ 		b |= RtoB(r);
+ 	else
+-	if(r >= D_AL && r <= D_R15B)
+-		b |= RtoB(r-D_AL+D_AX);
++	if(r >= REG_AL && r <= REG_R15B)
++		b |= RtoB(r-REG_AL+REG_AX);
+ 	else
+-	if(r >= D_AH && r <= D_BH)
+-		b |= RtoB(r-D_AH+D_AX);
++	if(r >= REG_AH && r <= REG_BH)
++		b |= RtoB(r-REG_AH+REG_AX);
+ 	else
+-	if(r >= D_X0 && r <= D_X0+15)
++	if(r >= REG_X0 && r <= REG_X0+15)
+ 		b |= FtoB(r);
+ 	return b;
+ }
+@@ -614,7 +616,7 @@ Bits
+ mkvar(Reg *r, Adr *a)
+ {
+ 	Var *v;
+-	int i, t, n, et, z, flag;
++	int i, n, et, z, flag;
+ 	int64 w;
+ 	uint32 regu;
+ 	int64 o;
+@@ -624,39 +626,40 @@ mkvar(Reg *r, Adr *a)
+ 	/*
+ 	 * mark registers used
+ 	 */
+-	t = a->type;
+-	if(t == D_NONE)
++	if(a->type == TYPE_NONE)
+ 		goto none;
+ 
+ 	if(r != R)
+ 		r->use1.b[0] |= doregbits(a->index);
+ 
+-	if(t >= D_INDIR && t < 2*D_INDIR)
+-		goto none;
+-
+-	switch(t) {
++	switch(a->type) {
+ 	default:
+-		regu = doregbits(t);
++		regu = doregbits(a->reg);
+ 		if(regu == 0)
+ 			goto none;
+ 		bit = zbits;
+ 		bit.b[0] = regu;
+ 		return bit;
+ 
+-	case D_ADDR:
+-		a->type = a->index;
++	case TYPE_ADDR:
++		a->type = TYPE_MEM;
+ 		bit = mkvar(r, a);
+ 		setaddrs(bit);
+-		a->type = t;
++		a->type = TYPE_ADDR;
+ 		ostats.naddr++;
+ 		goto none;
+ 
+-	case D_EXTERN:
+-	case D_STATIC:
+-	case D_PARAM:
+-	case D_AUTO:
+-		n = t;
+-		break;
++	case TYPE_MEM:
++		switch(a->name) {
++		default:
++			goto none;
++		case NAME_EXTERN:
++		case NAME_STATIC:
++		case NAME_PARAM:
++		case NAME_AUTO:
++			n = a->name;
++			break;
++		}
+ 	}
+ 
+ 	node = a->node;
+@@ -730,10 +733,10 @@ mkvar(Reg *r, Adr *a)
+ 	node->opt = v;
+ 
+ 	bit = blsh(i);
+-	if(n == D_EXTERN || n == D_STATIC)
++	if(n == NAME_EXTERN || n == NAME_STATIC)
+ 		for(z=0; z<BITS; z++)
+ 			externs.b[z] |= bit.b[z];
+-	if(n == D_PARAM)
++	if(n == NAME_PARAM)
+ 		for(z=0; z<BITS; z++)
+ 			params.b[z] |= bit.b[z];
+ 
+@@ -1161,7 +1164,9 @@ addreg(Adr *a, int rn)
+ 	a->sym = nil;
+ 	a->node = nil;
+ 	a->offset = 0;
+-	a->type = rn;
++	a->type = TYPE_REG;
++	a->reg = rn;
++	a->name = 0;
+ 
+ 	ostats.ncvtreg++;
+ }
+@@ -1170,9 +1175,9 @@ uint32
+ RtoB(int r)
+ {
+ 
+-	if(r < D_AX || r > D_R15)
++	if(r < REG_AX || r > REG_R15)
+ 		return 0;
+-	return 1L << (r-D_AX);
++	return 1L << (r-REG_AX);
+ }
+ 
+ int
+@@ -1180,10 +1185,10 @@ BtoR(uint32 b)
+ {
+ 	b &= 0xffffL;
+ 	if(nacl)
+-		b &= ~((1<<(D_BP-D_AX)) | (1<<(D_R15-D_AX)));
++		b &= ~((1<<(REG_BP-REG_AX)) | (1<<(REG_R15-REG_AX)));
+ 	if(b == 0)
+ 		return 0;
+-	return bitno(b) + D_AX;
++	return bitno(b) + REG_AX;
+ }
+ 
+ /*
+@@ -1195,9 +1200,9 @@ BtoR(uint32 b)
+ uint32
+ FtoB(int f)
+ {
+-	if(f < D_X0 || f > D_X15)
++	if(f < REG_X0 || f > REG_X15)
+ 		return 0;
+-	return 1L << (f - D_X0 + 16);
++	return 1L << (f - REG_X0 + 16);
+ }
+ 
+ int
+@@ -1207,7 +1212,7 @@ BtoF(uint32 b)
+ 	b &= 0xFFFF0000L;
+ 	if(b == 0)
+ 		return 0;
+-	return bitno(b) - 16 + D_X0;
++	return bitno(b) - 16 + REG_X0;
+ }
+ 
+ void
+diff --git a/src/cmd/6l/6.out.h b/src/cmd/6l/6.out.h
+index c09ac28242..ccefe97ae1 100644
+--- a/src/cmd/6l/6.out.h
++++ b/src/cmd/6l/6.out.h
+@@ -772,100 +772,96 @@ enum
+ 
+ enum
+ {
++	REG_NONE	= 0,
++
++	REG_AL		= 0+16,
++	REG_CL,
++	REG_DL,
++	REG_BL,
++	REG_SPB,
++	REG_BPB,
++	REG_SIB,
++	REG_DIB,
++	REG_R8B,
++	REG_R9B,
++	REG_R10B,
++	REG_R11B,
++	REG_R12B,
++	REG_R13B,
++	REG_R14B,
++	REG_R15B,
++
++	REG_AX		= 16+16,
++	REG_CX,
++	REG_DX,
++	REG_BX,
++	REG_SP,
++	REG_BP,
++	REG_SI,
++	REG_DI,
++	REG_R8,
++	REG_R9,
++	REG_R10,
++	REG_R11,
++	REG_R12,
++	REG_R13,
++	REG_R14,
++	REG_R15,
++
++	REG_AH		= 32+16,
++	REG_CH,
++	REG_DH,
++	REG_BH,
++
++	REG_F0		= 36+16,
++
++	REG_M0		= 44+16,
++
++	REG_X0		= 52+16,
++	REG_X1,
++	REG_X2,
++	REG_X3,
++	REG_X4,
++	REG_X5,
++	REG_X6,
++	REG_X7,
++	REG_X8,
++	REG_X9,
++	REG_X10,
++	REG_X11,
++	REG_X12,
++	REG_X13,
++	REG_X14,
++	REG_X15,
++
++	REG_CS		= 68+16,
++	REG_SS,
++	REG_DS,
++	REG_ES,
++	REG_FS,
++	REG_GS,
++
++	REG_GDTR,		/* global descriptor table register */
++	REG_IDTR,		/* interrupt descriptor table register */
++	REG_LDTR,		/* local descriptor table register */
++	REG_MSW,		/* machine status word */
++	REG_TASK,		/* task register */
++
++	REG_CR		= 79+16,
++	REG_DR		= 95+16,
++	REG_TR		= 103+16,
++
++	REG_TLS		= 111+16,
++	MAXREG,
+ 
+-	D_AL		= 0,
+-	D_CL,
+-	D_DL,
+-	D_BL,
+-	D_SPB,
+-	D_BPB,
+-	D_SIB,
+-	D_DIB,
+-	D_R8B,
+-	D_R9B,
+-	D_R10B,
+-	D_R11B,
+-	D_R12B,
+-	D_R13B,
+-	D_R14B,
+-	D_R15B,
+-
+-	D_AX		= 16,
+-	D_CX,
+-	D_DX,
+-	D_BX,
+-	D_SP,
+-	D_BP,
+-	D_SI,
+-	D_DI,
+-	D_R8,
+-	D_R9,
+-	D_R10,
+-	D_R11,
+-	D_R12,
+-	D_R13,
+-	D_R14,
+-	D_R15,
+-
+-	D_AH		= 32,
+-	D_CH,
+-	D_DH,
+-	D_BH,
+-
+-	D_F0		= 36,
+-
+-	D_M0		= 44,
+-
+-	D_X0		= 52,
+-	D_X1,
+-	D_X2,
+-	D_X3,
+-	D_X4,
+-	D_X5,
+-	D_X6,
+-	D_X7,
+-	D_X8,
+-	D_X9,
+-	D_X10,
+-	D_X11,
+-	D_X12,
+-	D_X13,
+-	D_X14,
+-	D_X15,
+-
+-	D_CS		= 68,
+-	D_SS,
+-	D_DS,
+-	D_ES,
+-	D_FS,
+-	D_GS,
+-
+-	D_GDTR,		/* global descriptor table register */
+-	D_IDTR,		/* interrupt descriptor table register */
+-	D_LDTR,		/* local descriptor table register */
+-	D_MSW,		/* machine status word */
+-	D_TASK,		/* task register */
+-
+-	D_CR		= 79,
+-	D_DR		= 95,
+-	D_TR		= 103,
+-
+-	D_TLS		= 111,
+-	D_NONE		= 112,
+-
+-	D_BRANCH	= 113,
+-	D_EXTERN	= 114,
+-	D_STATIC	= 115,
+-	D_AUTO		= 116,
+-	D_PARAM		= 117,
+-	D_CONST		= 118,
+-	D_FCONST	= 119,
+-	D_SCONST	= 120,
+-	D_ADDR		= 121,
+-
+-	D_INDIR,	/* additive */
+-
+-	D_LAST,
++	REGARG		= -1,
++	REGRET		= REG_AX,
++	FREGRET		= REG_X0,
++	REGSP		= REG_SP,
++	REGTMP		= REG_DI,
++	REGEXT		= REG_R15,	/* compiler allocates external registers R15 down */
++	FREGMIN		= REG_X0+5,	/* first register variable */
++	FREGEXT		= REG_X0+15,	/* first external register */
+ 
+ 	T_TYPE		= 1<<0,
+ 	T_INDEX		= 1<<1,
+@@ -875,15 +871,6 @@ enum
+ 	T_SCONST	= 1<<5,
+ 	T_64		= 1<<6,
+ 	T_GOTYPE	= 1<<7,
+-
+-	REGARG		= -1,
+-	REGRET		= D_AX,
+-	FREGRET		= D_X0,
+-	REGSP		= D_SP,
+-	REGTMP		= D_DI,
+-	REGEXT		= D_R15,	/* compiler allocates external registers R15 down */
+-	FREGMIN		= D_X0+5,	/* first register variable */
+-	FREGEXT		= D_X0+15	/* first external register */
+ };
+ 
+ /*
+diff --git a/src/liblink/asm6.c b/src/liblink/asm6.c
+index 5107da9697..c26d958b8e 100644
+--- a/src/liblink/asm6.c
++++ b/src/liblink/asm6.c
+@@ -186,8 +186,8 @@ enum
+ };
+ 
+ static uchar ycover[Ymax*Ymax];
+-static	int	reg[D_NONE];
+-static	int	regrex[D_NONE+1];
++static	int	reg[MAXREG];
++static	int	regrex[MAXREG+1];
+ static	void	asmins(Link *ctxt, Prog *p);
+ 
+ static uchar	ynone[] =
+@@ -1615,7 +1615,7 @@ span6(Link *ctxt, LSym *s)
+ 	
+ 	for(p = ctxt->cursym->text; p != nil; p = p->link) {
+ 		n = 0;
+-		if(p->to.type == D_BRANCH)
++		if(p->to.type == TYPE_BRANCH)
+ 			if(p->pcond == nil)
+ 				p->pcond = p;
+ 		if((q = p->pcond) != nil)
+@@ -1623,7 +1623,8 @@ span6(Link *ctxt, LSym *s)
+ 				n = 1;
+ 		p->back = n;
+ 		if(p->as == AADJSP) {
+-			p->to.type = D_SP;
++			p->to.type = TYPE_REG;
++			p->to.reg = REG_SP;
+ 			v = -p->from.offset;
+ 			p->from.offset = v;
+ 			p->as = spadjop(ctxt, p, AADDL, AADDQ);
+@@ -1645,7 +1646,8 @@ span6(Link *ctxt, LSym *s)
+ 		}
+ 
+ 		if(p->as == AADJSP) {
+-			p->to.type = D_SP;
++			p->to.type = TYPE_REG;
++			p->to.reg = REG_SP;
+ 			v = -p->from.offset;
+ 			p->from.offset = v;
+ 			p->as = spadjop(ctxt, p, AADDL, AADDQ);
+@@ -1852,32 +1854,32 @@ instinit(void)
+ 	ycover[Ym*Ymax + Yxm] = 1;
+ 	ycover[Yxr*Ymax + Yxm] = 1;
+ 
+-	for(i=0; i<D_NONE; i++) {
++	for(i=0; i<MAXREG; i++) {
+ 		reg[i] = -1;
+-		if(i >= D_AL && i <= D_R15B) {
+-			reg[i] = (i-D_AL) & 7;
+-			if(i >= D_SPB && i <= D_DIB)
++		if(i >= REG_AL && i <= REG_R15B) {
++			reg[i] = (i-REG_AL) & 7;
++			if(i >= REG_SPB && i <= REG_DIB)
+ 				regrex[i] = 0x40;
+-			if(i >= D_R8B && i <= D_R15B)
++			if(i >= REG_R8B && i <= REG_R15B)
+ 				regrex[i] = Rxr | Rxx | Rxb;
+ 		}
+-		if(i >= D_AH && i<= D_BH)
+-			reg[i] = 4 + ((i-D_AH) & 7);
+-		if(i >= D_AX && i <= D_R15) {
+-			reg[i] = (i-D_AX) & 7;
+-			if(i >= D_R8)
++		if(i >= REG_AH && i<= REG_BH)
++			reg[i] = 4 + ((i-REG_AH) & 7);
++		if(i >= REG_AX && i <= REG_R15) {
++			reg[i] = (i-REG_AX) & 7;
++			if(i >= REG_R8)
+ 				regrex[i] = Rxr | Rxx | Rxb;
+ 		}
+-		if(i >= D_F0 && i <= D_F0+7)
+-			reg[i] = (i-D_F0) & 7;
+-		if(i >= D_M0 && i <= D_M0+7)
+-			reg[i] = (i-D_M0) & 7;
+-		if(i >= D_X0 && i <= D_X0+15) {
+-			reg[i] = (i-D_X0) & 7;
+-			if(i >= D_X0+8)
++		if(i >= REG_F0 && i <= REG_F0+7)
++			reg[i] = (i-REG_F0) & 7;
++		if(i >= REG_M0 && i <= REG_M0+7)
++			reg[i] = (i-REG_M0) & 7;
++		if(i >= REG_X0 && i <= REG_X0+15) {
++			reg[i] = (i-REG_X0) & 7;
++			if(i >= REG_X0+8)
+ 				regrex[i] = Rxr | Rxx | Rxb;
+ 		}
+-		if(i >= D_CR+8 && i <= D_CR+15)
++		if(i >= REG_CR+8 && i <= REG_CR+15)
+ 			regrex[i] = Rxr;
+ 	}
+ }
+@@ -1885,48 +1887,50 @@ instinit(void)
+ static int
+ prefixof(Link *ctxt, Addr *a)
+ {
+-	switch(a->type) {
+-	case D_INDIR+D_CS:
+-		return 0x2e;
+-	case D_INDIR+D_DS:
+-		return 0x3e;
+-	case D_INDIR+D_ES:
+-		return 0x26;
+-	case D_INDIR+D_FS:
+-		return 0x64;
+-	case D_INDIR+D_GS:
+-		return 0x65;
+-	case D_INDIR+D_TLS:
+-		// NOTE: Systems listed here should be only systems that
+-		// support direct TLS references like 8(TLS) implemented as
+-		// direct references from FS or GS. Systems that require
+-		// the initial-exec model, where you load the TLS base into
+-		// a register and then index from that register, do not reach
+-		// this code and should not be listed.
+-		switch(ctxt->headtype) {
+-		default:
+-			sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
+-		case Hdragonfly:
+-		case Hfreebsd:
+-		case Hlinux:
+-		case Hnetbsd:
+-		case Hopenbsd:
+-		case Hsolaris:
+-			return 0x64; // FS
+-		case Hdarwin:
+-			return 0x65; // GS
++	if(a->type == TYPE_MEM && a->name == NAME_NONE) {
++		switch(a->reg) {
++		case REG_CS:
++			return 0x2e;
++		case REG_DS:
++			return 0x3e;
++		case REG_ES:
++			return 0x26;
++		case REG_FS:
++			return 0x64;
++		case REG_GS:
++			return 0x65;
++		case REG_TLS:
++			// NOTE: Systems listed here should be only systems that
++			// support direct TLS references like 8(TLS) implemented as
++			// direct references from FS or GS. Systems that require
++			// the initial-exec model, where you load the TLS base into
++			// a register and then index from that register, do not reach
++			// this code and should not be listed.
++			switch(ctxt->headtype) {
++			default:
++				sysfatal("unknown TLS base register for %s", headstr(ctxt->headtype));
++			case Hdragonfly:
++			case Hfreebsd:
++			case Hlinux:
++			case Hnetbsd:
++			case Hopenbsd:
++			case Hsolaris:
++				return 0x64; // FS
++			case Hdarwin:
++				return 0x65; // GS
++			}
+ 		}
+ 	}
+ 	switch(a->index) {
+-	case D_CS:
++	case REG_CS:
+ 		return 0x2e;
+-	case D_DS:
++	case REG_DS:
+ 		return 0x3e;
+-	case D_ES:
++	case REG_ES:
+ 		return 0x26;
+-	case D_FS:
++	case REG_FS:
+ 		return 0x64;
+-	case D_GS:
++	case REG_GS:
+ 		return 0x65;
+ 	}
+ 	return 0;
+@@ -1937,196 +1941,209 @@ oclass(Link *ctxt, Addr *a)
+ {
+ 	vlong v;
+ 	int32 l;
++	
++	// TODO(rsc): This special case is for SHRQ $3, AX:DX,
++	// which encodes as SHRQ $32(DX*0), AX.
++	// Similarly SHRQ CX, AX:DX is really SHRQ CX(DX*0), AX.
++	// Change encoding and remove.
++	if((a->type == TYPE_CONST || a->type == TYPE_REG) && a->index != REG_NONE && a->scale == 0)
++		return Ycol;
+ 
+-	if(a->type >= D_INDIR || a->index != D_NONE) {
+-		if(a->index != D_NONE && a->scale == 0) {
+-			if(a->type == D_ADDR) {
+-				switch(a->index) {
+-				case D_EXTERN:
+-				case D_STATIC:
+-					if(a->sym != nil && isextern(a->sym))
+-						return Yi32;
+-					return Yiauto; // use pc-relative addressing
+-				case D_AUTO:
+-				case D_PARAM:
+-					return Yiauto;
+-				}
+-				return Yxxx;
+-			}
+-			return Ycol;
+-		}
++	switch(a->type) {
++	case TYPE_NONE:
++		return Ynone;
++
++	case TYPE_BRANCH:
++		return Ybr;
++
++	case TYPE_MEM:
+ 		return Ym;
++
++	case TYPE_ADDR:
++		switch(a->name) {
++		case NAME_EXTERN:
++		case NAME_STATIC:
++			if(a->sym != nil && isextern(a->sym))
++				return Yi32;
++			return Yiauto; // use pc-relative addressing
++		case NAME_AUTO:
++		case NAME_PARAM:
++			return Yiauto;
++		}
++
++		// TODO(rsc): DUFFZERO/DUFFCOPY encoding forgot to set a->index
++		// and got Yi32 in an earlier version of this code.
++		// Keep doing that until we fix yduff etc.
++		if(a->sym != nil && strncmp(a->sym->name, "runtime.duff", 12) == 0)
++			return Yi32;
++		
++		if(a->sym != nil || a->name != NAME_NONE)
++			ctxt->diag("unexpected addr: %D", a);
++		// fall through
++
++	case TYPE_CONST:
++		if(a->sym != nil)
++			ctxt->diag("TYPE_CONST with symbol: %D", a);
++
++		v = a->offset;
++		if(v == 0)
++			return Yi0;
++		if(v == 1)
++			return Yi1;
++		if(v >= -128 && v <= 127)
++			return Yi8;
++		l = v;
++		if((vlong)l == v)
++			return Ys32;	/* can sign extend */
++		if((v>>32) == 0)
++			return Yi32;	/* unsigned */
++		return Yi64;
++	}
++	
++	if(a->type != TYPE_REG) {
++		ctxt->diag("unexpected addr1: type=%d %D", a->type, a);
++		return Yxxx;
+ 	}
+-	switch(a->type)
+-	{
+-	case D_AL:
++
++	switch(a->reg) {
++	case REG_AL:
+ 		return Yal;
+ 
+-	case D_AX:
++	case REG_AX:
+ 		return Yax;
+ 
+ /*
+-	case D_SPB:
++	case REG_SPB:
+ */
+-	case D_BPB:
+-	case D_SIB:
+-	case D_DIB:
+-	case D_R8B:
+-	case D_R9B:
+-	case D_R10B:
+-	case D_R11B:
+-	case D_R12B:
+-	case D_R13B:
+-	case D_R14B:
+-	case D_R15B:
++	case REG_BPB:
++	case REG_SIB:
++	case REG_DIB:
++	case REG_R8B:
++	case REG_R9B:
++	case REG_R10B:
++	case REG_R11B:
++	case REG_R12B:
++	case REG_R13B:
++	case REG_R14B:
++	case REG_R15B:
+ 		if(ctxt->asmode != 64)
+ 			return Yxxx;
+-	case D_DL:
+-	case D_BL:
+-	case D_AH:
+-	case D_CH:
+-	case D_DH:
+-	case D_BH:
++	case REG_DL:
++	case REG_BL:
++	case REG_AH:
++	case REG_CH:
++	case REG_DH:
++	case REG_BH:
+ 		return Yrb;
+ 
+-	case D_CL:
++	case REG_CL:
+ 		return Ycl;
+ 
+-	case D_CX:
++	case REG_CX:
+ 		return Ycx;
+ 
+-	case D_DX:
+-	case D_BX:
++	case REG_DX:
++	case REG_BX:
+ 		return Yrx;
+ 
+-	case D_R8:	/* not really Yrl */
+-	case D_R9:
+-	case D_R10:
+-	case D_R11:
+-	case D_R12:
+-	case D_R13:
+-	case D_R14:
+-	case D_R15:
++	case REG_R8:	/* not really Yrl */
++	case REG_R9:
++	case REG_R10:
++	case REG_R11:
++	case REG_R12:
++	case REG_R13:
++	case REG_R14:
++	case REG_R15:
+ 		if(ctxt->asmode != 64)
+ 			return Yxxx;
+-	case D_SP:
+-	case D_BP:
+-	case D_SI:
+-	case D_DI:
++	case REG_SP:
++	case REG_BP:
++	case REG_SI:
++	case REG_DI:
+ 		return Yrl;
+ 
+-	case D_F0+0:
++	case REG_F0+0:
+ 		return	Yf0;
+ 
+-	case D_F0+1:
+-	case D_F0+2:
+-	case D_F0+3:
+-	case D_F0+4:
+-	case D_F0+5:
+-	case D_F0+6:
+-	case D_F0+7:
++	case REG_F0+1:
++	case REG_F0+2:
++	case REG_F0+3:
++	case REG_F0+4:
++	case REG_F0+5:
++	case REG_F0+6:
++	case REG_F0+7:
+ 		return	Yrf;
+ 
+-	case D_M0+0:
+-	case D_M0+1:
+-	case D_M0+2:
+-	case D_M0+3:
+-	case D_M0+4:
+-	case D_M0+5:
+-	case D_M0+6:
+-	case D_M0+7:
++	case REG_M0+0:
++	case REG_M0+1:
++	case REG_M0+2:
++	case REG_M0+3:
++	case REG_M0+4:
++	case REG_M0+5:
++	case REG_M0+6:
++	case REG_M0+7:
+ 		return	Ymr;
+ 
+-	case D_X0+0:
+-	case D_X0+1:
+-	case D_X0+2:
+-	case D_X0+3:
+-	case D_X0+4:
+-	case D_X0+5:
+-	case D_X0+6:
+-	case D_X0+7:
+-	case D_X0+8:
+-	case D_X0+9:
+-	case D_X0+10:
+-	case D_X0+11:
+-	case D_X0+12:
+-	case D_X0+13:
+-	case D_X0+14:
+-	case D_X0+15:
++	case REG_X0+0:
++	case REG_X0+1:
++	case REG_X0+2:
++	case REG_X0+3:
++	case REG_X0+4:
++	case REG_X0+5:
++	case REG_X0+6:
++	case REG_X0+7:
++	case REG_X0+8:
++	case REG_X0+9:
++	case REG_X0+10:
++	case REG_X0+11:
++	case REG_X0+12:
++	case REG_X0+13:
++	case REG_X0+14:
++	case REG_X0+15:
+ 		return	Yxr;
+ 
+-	case D_NONE:
+-		return Ynone;
+-
+-	case D_CS:	return	Ycs;
+-	case D_SS:	return	Yss;
+-	case D_DS:	return	Yds;
+-	case D_ES:	return	Yes;
+-	case D_FS:	return	Yfs;
+-	case D_GS:	return	Ygs;
+-	case D_TLS:	return	Ytls;
+-
+-	case D_GDTR:	return	Ygdtr;
+-	case D_IDTR:	return	Yidtr;
+-	case D_LDTR:	return	Yldtr;
+-	case D_MSW:	return	Ymsw;
+-	case D_TASK:	return	Ytask;
+-
+-	case D_CR+0:	return	Ycr0;
+-	case D_CR+1:	return	Ycr1;
+-	case D_CR+2:	return	Ycr2;
+-	case D_CR+3:	return	Ycr3;
+-	case D_CR+4:	return	Ycr4;
+-	case D_CR+5:	return	Ycr5;
+-	case D_CR+6:	return	Ycr6;
+-	case D_CR+7:	return	Ycr7;
+-	case D_CR+8:	return	Ycr8;
+-
+-	case D_DR+0:	return	Ydr0;
+-	case D_DR+1:	return	Ydr1;
+-	case D_DR+2:	return	Ydr2;
+-	case D_DR+3:	return	Ydr3;
+-	case D_DR+4:	return	Ydr4;
+-	case D_DR+5:	return	Ydr5;
+-	case D_DR+6:	return	Ydr6;
+-	case D_DR+7:	return	Ydr7;
+-
+-	case D_TR+0:	return	Ytr0;
+-	case D_TR+1:	return	Ytr1;
+-	case D_TR+2:	return	Ytr2;
+-	case D_TR+3:	return	Ytr3;
+-	case D_TR+4:	return	Ytr4;
+-	case D_TR+5:	return	Ytr5;
+-	case D_TR+6:	return	Ytr6;
+-	case D_TR+7:	return	Ytr7;
+-
+-	case D_EXTERN:
+-	case D_STATIC:
+-	case D_AUTO:
+-	case D_PARAM:
+-		return Ym;
+-
+-	case D_CONST:
+-	case D_ADDR:
+-		if(a->sym == nil) {
+-			v = a->offset;
+-			if(v == 0)
+-				return Yi0;
+-			if(v == 1)
+-				return Yi1;
+-			if(v >= -128 && v <= 127)
+-				return Yi8;
+-			l = v;
+-			if((vlong)l == v)
+-				return Ys32;	/* can sign extend */
+-			if((v>>32) == 0)
+-				return Yi32;	/* unsigned */
+-			return Yi64;
+-		}
+-		return Yi32;
++	case REG_CS:	return	Ycs;
++	case REG_SS:	return	Yss;
++	case REG_DS:	return	Yds;
++	case REG_ES:	return	Yes;
++	case REG_FS:	return	Yfs;
++	case REG_GS:	return	Ygs;
++	case REG_TLS:	return	Ytls;
++
++	case REG_GDTR:	return	Ygdtr;
++	case REG_IDTR:	return	Yidtr;
++	case REG_LDTR:	return	Yldtr;
++	case REG_MSW:	return	Ymsw;
++	case REG_TASK:	return	Ytask;
++
++	case REG_CR+0:	return	Ycr0;
++	case REG_CR+1:	return	Ycr1;
++	case REG_CR+2:	return	Ycr2;
++	case REG_CR+3:	return	Ycr3;
++	case REG_CR+4:	return	Ycr4;
++	case REG_CR+5:	return	Ycr5;
++	case REG_CR+6:	return	Ycr6;
++	case REG_CR+7:	return	Ycr7;
++	case REG_CR+8:	return	Ycr8;
++
++	case REG_DR+0:	return	Ydr0;
++	case REG_DR+1:	return	Ydr1;
++	case REG_DR+2:	return	Ydr2;
++	case REG_DR+3:	return	Ydr3;
++	case REG_DR+4:	return	Ydr4;
++	case REG_DR+5:	return	Ydr5;
++	case REG_DR+6:	return	Ydr6;
++	case REG_DR+7:	return	Ydr7;
++
++	case REG_TR+0:	return	Ytr0;
++	case REG_TR+1:	return	Ytr1;
++	case REG_TR+2:	return	Ytr2;
++	case REG_TR+3:	return	Ytr3;
++	case REG_TR+4:	return	Ytr4;
++	case REG_TR+5:	return	Ytr5;
++	case REG_TR+6:	return	Ytr6;
++	case REG_TR+7:	return	Ytr7;
+ 
+-	case D_BRANCH:
+-		return Ybr;
+ 	}
+ 	return Yxxx;
+ }
+@@ -2140,27 +2157,27 @@ asmidx(Link *ctxt, int scale, int index, int base)
+ 	default:
+ 		goto bad;
+ 
+-	case D_NONE:
++	case REG_NONE:
+ 		i = 4 << 3;
+ 		goto bas;
+ 
+-	case D_R8:
+-	case D_R9:
+-	case D_R10:
+-	case D_R11:
+-	case D_R12:
+-	case D_R13:
+-	case D_R14:
+-	case D_R15:
++	case REG_R8:
++	case REG_R9:
++	case REG_R10:
++	case REG_R11:
++	case REG_R12:
++	case REG_R13:
++	case REG_R14:
++	case REG_R15:
+ 		if(ctxt->asmode != 64)
+ 			goto bad;
+-	case D_AX:
+-	case D_CX:
+-	case D_DX:
+-	case D_BX:
+-	case D_BP:
+-	case D_SI:
+-	case D_DI:
++	case REG_AX:
++	case REG_CX:
++	case REG_DX:
++	case REG_BX:
++	case REG_BP:
++	case REG_SI:
++	case REG_DI:
+ 		i = reg[index] << 3;
+ 		break;
+ 	}
+@@ -2183,27 +2200,27 @@ bas:
+ 	switch(base) {
+ 	default:
+ 		goto bad;
+-	case D_NONE:	/* must be mod=00 */
++	case REG_NONE:	/* must be mod=00 */
+ 		i |= 5;
+ 		break;
+-	case D_R8:
+-	case D_R9:
+-	case D_R10:
+-	case D_R11:
+-	case D_R12:
+-	case D_R13:
+-	case D_R14:
+-	case D_R15:
++	case REG_R8:
++	case REG_R9:
++	case REG_R10:
++	case REG_R11:
++	case REG_R12:
++	case REG_R13:
++	case REG_R14:
++	case REG_R15:
+ 		if(ctxt->asmode != 64)
+ 			goto bad;
+-	case D_AX:
+-	case D_CX:
+-	case D_DX:
+-	case D_BX:
+-	case D_SP:
+-	case D_BP:
+-	case D_SI:
+-	case D_DI:
++	case REG_AX:
++	case REG_CX:
++	case REG_DX:
++	case REG_BX:
++	case REG_SP:
++	case REG_BP:
++	case REG_SI:
++	case REG_DI:
+ 		i |= reg[base];
+ 		break;
+ 	}
+@@ -2277,8 +2294,6 @@ relput8(Prog *p, Addr *a)
+ static vlong
+ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
+ {
+-	int t;
+-	vlong v;
+ 	LSym *s;
+ 	
+ 	USED(p);
+@@ -2286,13 +2301,9 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
+ 	if(r != nil)
+ 		memset(r, 0, sizeof *r);
+ 
+-	t = a->type;
+-	v = a->offset;
+-	if(t == D_ADDR)
+-		t = a->index;
+-	switch(t) {
+-	case D_STATIC:
+-	case D_EXTERN:
++	switch(a->name) {
++	case NAME_STATIC:
++	case NAME_EXTERN:
+ 		s = a->sym;
+ 		if(r == nil) {
+ 			ctxt->diag("need reloc for %D", a);
+@@ -2307,16 +2318,16 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
+ 		}
+ 		r->off = -1;	// caller must fill in
+ 		r->sym = s;
+-		r->add = v;
+-		v = 0;
++		r->add = a->offset;
+ 		if(s->type == STLSBSS) {
+ 			r->xadd = r->add - r->siz;
+ 			r->type = R_TLS;
+ 			r->xsym = s;
+ 		}
+-		break;
++		return 0;
++	}
+ 	
+-	case D_INDIR+D_TLS:
++	if((a->type == TYPE_MEM || a->type == TYPE_ADDR) && a->reg == REG_TLS) {
+ 		if(r == nil) {
+ 			ctxt->diag("need reloc for %D", a);
+ 			sysfatal("reloc");
+@@ -2324,18 +2335,18 @@ vaddr(Link *ctxt, Prog *p, Addr *a, Reloc *r)
+ 		r->type = R_TLS_LE;
+ 		r->siz = 4;
+ 		r->off = -1;	// caller must fill in
+-		r->add = v;
+-		v = 0;
+-		break;
++		r->add = a->offset;
++		return 0;
+ 	}
+-	return v;
++
++	return a->offset;
+ }
+ 
+ static void
+ asmandsz(Link *ctxt, Prog *p, Addr *a, int r, int rex, int m64)
+ {
+ 	int32 v;
+-	int t, scale;
++	int base;
+ 	Reloc rel;
+ 
+ 	USED(m64);
+@@ -2343,80 +2354,88 @@ asmandsz(Link *ctxt, Prog *p, Addr *a, int r, int rex, int m64)
+ 
+ 	rex &= (0x40 | Rxr);
+ 	v = a->offset;
+-	t = a->type;
+ 	rel.siz = 0;
+-	if(a->index != D_NONE && a->index != D_TLS) {
+-		if(t < D_INDIR) { 
+-			switch(t) {
+-			default:
++
++	switch(a->type) {
++	case TYPE_ADDR:
++		if(a->name == NAME_NONE)
++			ctxt->diag("unexpected TYPE_ADDR with NAME_NONE");
++		if(a->index == REG_TLS)
++			ctxt->diag("unexpected TYPE_ADDR with index==REG_TLS");
++		goto bad;
++	
++	case TYPE_REG:
++		if(a->reg < REG_AL || REG_X0+15 < a->reg)
++			goto bad;
++		if(v)
++			goto bad;
++		*ctxt->andptr++ = (3 << 6) | (reg[a->reg] << 0) | (r << 3);
++		ctxt->rexflag |= (regrex[a->reg] & (0x40 | Rxb)) | rex;
++		return;
++	}
++
++	if(a->type != TYPE_MEM)
++		goto bad;
++
++	if(a->index != REG_NONE && a->index != REG_TLS) {
++		base = a->reg;
++		switch(a->name) {
++		case NAME_EXTERN:
++		case NAME_STATIC:
++			if(!isextern(a->sym))
+ 				goto bad;
+-			case D_EXTERN:
+-			case D_STATIC:
+-				if(!isextern(a->sym))
+-					goto bad;
+-				t = D_NONE;
+-				v = vaddr(ctxt, p, a, &rel);
+-				break;
+-			case D_AUTO:
+-			case D_PARAM:
+-				t = D_SP;
+-				break;
+-			}
+-		} else
+-			t -= D_INDIR;
+-		ctxt->rexflag |= (regrex[(int)a->index] & Rxx) | (regrex[t] & Rxb) | rex;
+-		if(t == D_NONE) {
++			base = REG_NONE;
++			v = vaddr(ctxt, p, a, &rel);
++			break;
++		case NAME_AUTO:
++		case NAME_PARAM:
++			base = REG_SP;
++			break;
++		}
++		
++		ctxt->rexflag |= (regrex[(int)a->index] & Rxx) | (regrex[base] & Rxb) | rex;
++		if(base == REG_NONE) {
+ 			*ctxt->andptr++ = (0 << 6) | (4 << 0) | (r << 3);
+-			asmidx(ctxt, a->scale, a->index, t);
++			asmidx(ctxt, a->scale, a->index, base);
+ 			goto putrelv;
+ 		}
+-		if(v == 0 && rel.siz == 0 && t != D_BP && t != D_R13) {
++		if(v == 0 && rel.siz == 0 && base != REG_BP && base != REG_R13) {
+ 			*ctxt->andptr++ = (0 << 6) | (4 << 0) | (r << 3);
+-			asmidx(ctxt, a->scale, a->index, t);
++			asmidx(ctxt, a->scale, a->index, base);
+ 			return;
+ 		}
+ 		if(v >= -128 && v < 128 && rel.siz == 0) {
+ 			*ctxt->andptr++ = (1 << 6) | (4 << 0) | (r << 3);
+-			asmidx(ctxt, a->scale, a->index, t);
++			asmidx(ctxt, a->scale, a->index, base);
+ 			*ctxt->andptr++ = v;
+ 			return;
+ 		}
+ 		*ctxt->andptr++ = (2 << 6) | (4 << 0) | (r << 3);
+-		asmidx(ctxt, a->scale, a->index, t);
++		asmidx(ctxt, a->scale, a->index, base);
+ 		goto putrelv;
+ 	}
+-	if(t >= D_AL && t <= D_X0+15) {
+-		if(v)
+-			goto bad;
+-		*ctxt->andptr++ = (3 << 6) | (reg[t] << 0) | (r << 3);
+-		ctxt->rexflag |= (regrex[t] & (0x40 | Rxb)) | rex;
+-		return;
+-	}
+-	
+-	scale = a->scale;
+-	if(t < D_INDIR) {
+-		switch(a->type) {
+-		default:
+-			goto bad;
+-		case D_STATIC:
+-		case D_EXTERN:
+-			t = D_NONE;
+-			v = vaddr(ctxt, p, a, &rel);
+-			break;
+-		case D_AUTO:
+-		case D_PARAM:
+-			t = D_SP;
+-			break;
+-		}
+-		scale = 1;
+-	} else
+-		t -= D_INDIR;
+-	if(t == D_TLS)
++
++	base = a->reg;
++	switch(a->name) {
++	case NAME_STATIC:
++	case NAME_EXTERN:
++		if(a->sym == nil)
++			ctxt->diag("bad addr: %P", p);
++		base = REG_NONE;
+ 		v = vaddr(ctxt, p, a, &rel);
++		break;
++	case NAME_AUTO:
++	case NAME_PARAM:
++		base = REG_SP;
++		break;
++	}
+ 
+-	ctxt->rexflag |= (regrex[t] & Rxb) | rex;
+-	if(t == D_NONE || (D_CS <= t && t <= D_GS) || t == D_TLS) {
+-		if((a->sym == nil || !isextern(a->sym)) && t == D_NONE && (a->type == D_STATIC || a->type == D_EXTERN) || ctxt->asmode != 64) {
++	if(base == REG_TLS)
++		v = vaddr(ctxt, p, a, &rel);
++	
++	ctxt->rexflag |= (regrex[base] & Rxb) | rex;
++	if(base == REG_NONE || (REG_CS <= base && base <= REG_GS) || base == REG_TLS) {
++		if((a->sym == nil || !isextern(a->sym)) && base == REG_NONE && (a->name == NAME_STATIC || a->name == NAME_EXTERN) || ctxt->asmode != 64) {
+ 			*ctxt->andptr++ = (0 << 6) | (5 << 0) | (r << 3);
+ 			goto putrelv;
+ 		}
+@@ -2425,24 +2444,26 @@ asmandsz(Link *ctxt, Prog *p, Addr *a, int r, int rex, int m64)
+ 		*ctxt->andptr++ = (0 << 6) | (4 << 3) | (5 << 0);	/* DS:d32 */
+ 		goto putrelv;
+ 	}
+-	if(t == D_SP || t == D_R12) {
++
++	if(base == REG_SP || base == REG_R12) {
+ 		if(v == 0) {
+-			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
+-			asmidx(ctxt, scale, D_NONE, t);
++			*ctxt->andptr++ = (0 << 6) | (reg[base] << 0) | (r << 3);
++			asmidx(ctxt, a->scale, REG_NONE, base);
+ 			return;
+ 		}
+ 		if(v >= -128 && v < 128) {
+-			*ctxt->andptr++ = (1 << 6) | (reg[t] << 0) | (r << 3);
+-			asmidx(ctxt, scale, D_NONE, t);
++			*ctxt->andptr++ = (1 << 6) | (reg[base] << 0) | (r << 3);
++			asmidx(ctxt, a->scale, REG_NONE, base);
+ 			*ctxt->andptr++ = v;
+ 			return;
+ 		}
+-		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
+-		asmidx(ctxt, scale, D_NONE, t);
++		*ctxt->andptr++ = (2 << 6) | (reg[base] << 0) | (r << 3);
++		asmidx(ctxt, a->scale, REG_NONE, base);
+ 		goto putrelv;
+ 	}
+-	if(t >= D_AX && t <= D_R15) {
+-		if(a->index == D_TLS) {
++
++	if(REG_AX <= base && base <= REG_R15) {
++		if(a->index == REG_TLS) {
+ 			memset(&rel, 0, sizeof rel);
+ 			rel.type = R_TLS_IE;
+ 			rel.siz = 4;
+@@ -2450,19 +2471,20 @@ asmandsz(Link *ctxt, Prog *p, Addr *a, int r, int rex, int m64)
+ 			rel.add = v;
+ 			v = 0;
+ 		}
+-		if(v == 0 && rel.siz == 0 && t != D_BP && t != D_R13) {
+-			*ctxt->andptr++ = (0 << 6) | (reg[t] << 0) | (r << 3);
++		if(v == 0 && rel.siz == 0 && base != REG_BP && base != REG_R13) {
++			*ctxt->andptr++ = (0 << 6) | (reg[base] << 0) | (r << 3);
+ 			return;
+ 		}
+ 		if(v >= -128 && v < 128 && rel.siz == 0) {
+-			ctxt->andptr[0] = (1 << 6) | (reg[t] << 0) | (r << 3);
++			ctxt->andptr[0] = (1 << 6) | (reg[base] << 0) | (r << 3);
+ 			ctxt->andptr[1] = v;
+ 			ctxt->andptr += 2;
+ 			return;
+ 		}
+-		*ctxt->andptr++ = (2 << 6) | (reg[t] << 0) | (r << 3);
++		*ctxt->andptr++ = (2 << 6) | (reg[base] << 0) | (r << 3);
+ 		goto putrelv;
+ 	}
++
+ 	goto bad;
+ 	
+ putrelv:
+@@ -2489,7 +2511,7 @@ bad:
+ static void
+ asmand(Link *ctxt, Prog *p, Addr *a, Addr *ra)
+ {
+-	asmandsz(ctxt, p, a, reg[ra->type], regrex[ra->type], 0);
++	asmandsz(ctxt, p, a, reg[ra->reg], regrex[ra->reg], 0);
+ }
+ 
+ static void
+@@ -2501,8 +2523,8 @@ asmando(Link *ctxt, Prog *p, Addr *a, int o)
+ static void
+ bytereg(Addr *a, uint8 *t)
+ {
+-	if(a->index == D_NONE && (a->type >= D_AX && a->type <= D_R15)) {
+-		a->type = D_AL + (a->type-D_AX);
++	if(a->type == TYPE_REG && a->index == REG_NONE && (REG_AX <= a->reg && a->reg <= REG_R15)) {
++		a->reg += REG_AL - REG_AX;
+ 		*t = 0;
+ 	}
+ }
+@@ -2647,15 +2669,13 @@ static Movtab	ymovtab[] =
+ static int
+ isax(Addr *a)
+ {
+-
+-	switch(a->type) {
+-	case D_AX:
+-	case D_AL:
+-	case D_AH:
+-	case D_INDIR+D_AX:
++	switch(a->reg) {
++	case REG_AX:
++	case REG_AL:
++	case REG_AH:
+ 		return 1;
+ 	}
+-	if(a->index == D_AX)
++	if(a->index == REG_AX)
+ 		return 1;
+ 	return 0;
+ }
+@@ -2663,27 +2683,28 @@ isax(Addr *a)
+ static void
+ subreg(Prog *p, int from, int to)
+ {
+-
+-	if(0 /*debug['Q']*/)
++	if(0 /* debug['Q'] */)
+ 		print("\n%P	s/%R/%R/\n", p, from, to);
+ 
+-	if(p->from.type == from)
+-		p->from.type = to;
+-	if(p->to.type == from)
+-		p->to.type = to;
++	if(p->from.reg == from) {
++		p->from.reg = to;
++		p->ft = 0;
++	}
++	if(p->to.reg == from) {
++		p->to.reg = to;
++		p->tt = 0;
++	}
+ 
+-	if(p->from.index == from)
++	if(p->from.index == from) {
+ 		p->from.index = to;
+-	if(p->to.index == from)
++		p->ft = 0;
++	}
++	if(p->to.index == from) {
+ 		p->to.index = to;
++		p->tt = 0;
++	}
+ 
+-	from += D_INDIR;
+-	if(p->from.type == from)
+-		p->from.type = to+D_INDIR;
+-	if(p->to.type == from)
+-		p->to.type = to+D_INDIR;
+-
+-	if(0 /*debug['Q']*/)
++	if(0 /* debug['Q'] */)
+ 		print("%P\n", p);
+ }
+ 
+@@ -2730,7 +2751,7 @@ doasm(Link *ctxt, Prog *p)
+ 		ctxt->diag("asmins: missing op %P", p);
+ 		return;
+ 	}
+-	
++
+ 	pre = prefixof(ctxt, &p->from);
+ 	if(pre)
+ 		*ctxt->andptr++ = pre;
+@@ -2878,13 +2899,11 @@ found:
+ 
+ 	case Zaut_r:
+ 		*ctxt->andptr++ = 0x8d;	/* leal */
+-		if(p->from.type != D_ADDR)
++		if(p->from.type != TYPE_ADDR)
+ 			ctxt->diag("asmins: Zaut sb type ADDR");
+-		p->from.type = p->from.index;
+-		p->from.index = D_NONE;
++		p->from.type = TYPE_MEM;
+ 		asmand(ctxt, p, &p->from, &p->to);
+-		p->from.index = p->from.type;
+-		p->from.type = D_ADDR;
++		p->from.type = TYPE_ADDR;
+ 		break;
+ 
+ 	case Zm_o:
+@@ -2959,14 +2978,14 @@ found:
+ 		break;
+ 
+ 	case Zib_rp:
+-		ctxt->rexflag |= regrex[p->to.type] & (Rxb|0x40);
+-		*ctxt->andptr++ = op + reg[p->to.type];
++		ctxt->rexflag |= regrex[p->to.reg] & (Rxb|0x40);
++		*ctxt->andptr++ = op + reg[p->to.reg];
+ 		*ctxt->andptr++ = vaddr(ctxt, p, &p->from, nil);
+ 		break;
+ 
+ 	case Zil_rp:
+-		ctxt->rexflag |= regrex[p->to.type] & Rxb;
+-		*ctxt->andptr++ = op + reg[p->to.type];
++		ctxt->rexflag |= regrex[p->to.reg] & Rxb;
++		*ctxt->andptr++ = op + reg[p->to.reg];
+ 		if(o->prefix == Pe) {
+ 			v = vaddr(ctxt, p, &p->from, nil);
+ 			*ctxt->andptr++ = v;
+@@ -2978,7 +2997,7 @@ found:
+ 
+ 	case Zo_iw:
+ 		*ctxt->andptr++ = op;
+-		if(p->from.type != D_NONE){
++		if(p->from.type != TYPE_NONE){
+ 			v = vaddr(ctxt, p, &p->from, nil);
+ 			*ctxt->andptr++ = v;
+ 			*ctxt->andptr++ = v>>8;
+@@ -2992,8 +3011,8 @@ found:
+ 			//p->mark |= 0100;
+ 			//print("zero: %llux %P\n", v, p);
+ 			ctxt->rexflag &= ~(0x40|Rxw);
+-			ctxt->rexflag |= regrex[p->to.type] & Rxb;
+-			*ctxt->andptr++ = 0xb8 + reg[p->to.type];
++			ctxt->rexflag |= regrex[p->to.reg] & Rxb;
++			*ctxt->andptr++ = 0xb8 + reg[p->to.reg];
+ 			if(rel.type != 0) {
+ 				r = addrel(ctxt->cursym);
+ 				*r = rel;
+@@ -3008,8 +3027,8 @@ found:
+ 			put4(ctxt, v);
+ 		}else{	/* need all 8 */
+ 			//print("all: %llux %P\n", v, p);
+-			ctxt->rexflag |= regrex[p->to.type] & Rxb;
+-			*ctxt->andptr++ = op + reg[p->to.type];
++			ctxt->rexflag |= regrex[p->to.reg] & Rxb;
++			*ctxt->andptr++ = op + reg[p->to.reg];
+ 			if(rel.type != 0) {
+ 				r = addrel(ctxt->cursym);
+ 				*r = rel;
+@@ -3073,13 +3092,13 @@ found:
+ 		break;
+ 
+ 	case Z_rp:
+-		ctxt->rexflag |= regrex[p->to.type] & (Rxb|0x40);
+-		*ctxt->andptr++ = op + reg[p->to.type];
++		ctxt->rexflag |= regrex[p->to.reg] & (Rxb|0x40);
++		*ctxt->andptr++ = op + reg[p->to.reg];
+ 		break;
+ 
+ 	case Zrp_:
+-		ctxt->rexflag |= regrex[p->from.type] & (Rxb|0x40);
+-		*ctxt->andptr++ = op + reg[p->from.type];
++		ctxt->rexflag |= regrex[p->from.reg] & (Rxb|0x40);
++		*ctxt->andptr++ = op + reg[p->from.reg];
+ 		break;
+ 
+ 	case Zclr:
+@@ -3239,44 +3258,44 @@ bad:
+ 		 * instruction with the operands renamed.
+ 		 */
+ 		pp = *p;
+-		z = p->from.type;
+-		if(z >= D_BP && z <= D_DI) {
+-			if(isax(&p->to) || p->to.type == D_NONE) {
++		z = p->from.reg;
++		if(p->from.type == TYPE_REG && z >= REG_BP && z <= REG_DI) {
++			if(isax(&p->to) || p->to.type == TYPE_NONE) {
+ 				// We certainly don't want to exchange
+ 				// with AX if the op is MUL or DIV.
+ 				*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
+-				asmando(ctxt, p, &p->from, reg[D_BX]);
+-				subreg(&pp, z, D_BX);
++				asmando(ctxt, p, &p->from, reg[REG_BX]);
++				subreg(&pp, z, REG_BX);
+ 				doasm(ctxt, &pp);
+ 				*ctxt->andptr++ = 0x87;			/* xchg lhs,bx */
+-				asmando(ctxt, p, &p->from, reg[D_BX]);
++				asmando(ctxt, p, &p->from, reg[REG_BX]);
+ 			} else {
+ 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
+-				subreg(&pp, z, D_AX);
++				subreg(&pp, z, REG_AX);
+ 				doasm(ctxt, &pp);
+ 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg lsh,ax */
+ 			}
+ 			return;
+ 		}
+-		z = p->to.type;
+-		if(z >= D_BP && z <= D_DI) {
++		z = p->to.reg;
++		if(p->to.type == TYPE_REG && z >= REG_BP && z <= REG_DI) {
+ 			if(isax(&p->from)) {
+ 				*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
+-				asmando(ctxt, p, &p->to, reg[D_BX]);
+-				subreg(&pp, z, D_BX);
++				asmando(ctxt, p, &p->to, reg[REG_BX]);
++				subreg(&pp, z, REG_BX);
+ 				doasm(ctxt, &pp);
+ 				*ctxt->andptr++ = 0x87;			/* xchg rhs,bx */
+-				asmando(ctxt, p, &p->to, reg[D_BX]);
++				asmando(ctxt, p, &p->to, reg[REG_BX]);
+ 			} else {
+ 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
+-				subreg(&pp, z, D_AX);
++				subreg(&pp, z, REG_AX);
+ 				doasm(ctxt, &pp);
+ 				*ctxt->andptr++ = 0x90 + reg[z];		/* xchg rsh,ax */
+ 			}
+ 			return;
+ 		}
+ 	}
+-	ctxt->diag("doasm: notfound from=%ux to=%ux %P", p->from.type, p->to.type, p);
++	ctxt->diag("doasm: notfound ft=%d tt=%d %P %d %d", p->ft, p->tt, p, oclass(ctxt, &p->from), oclass(ctxt, &p->to));
+ 	return;
+ 
+ mfound:
+@@ -3304,14 +3323,14 @@ mfound:
+ 		*ctxt->andptr++ = t[0];
+ 		*ctxt->andptr++ = t[1];
+ 		asmando(ctxt, p, &p->to, t[2]);
+-		ctxt->rexflag |= regrex[p->from.type] & (Rxr|0x40);
++		ctxt->rexflag |= regrex[p->from.reg] & (Rxr|0x40);
+ 		break;
+ 
+ 	case 4:	/* m,r - 2op */
+ 		*ctxt->andptr++ = t[0];
+ 		*ctxt->andptr++ = t[1];
+ 		asmando(ctxt, p, &p->from, t[2]);
+-		ctxt->rexflag |= regrex[p->to.type] & (Rxr|0x40);
++		ctxt->rexflag |= regrex[p->to.reg] & (Rxr|0x40);
+ 		break;
+ 
+ 	case 5:	/* load full pointer, trash heap */
+@@ -3320,21 +3339,21 @@ mfound:
+ 		switch(p->to.index) {
+ 		default:
+ 			goto bad;
+-		case D_DS:
++		case REG_DS:
+ 			*ctxt->andptr++ = 0xc5;
+ 			break;
+-		case D_SS:
++		case REG_SS:
+ 			*ctxt->andptr++ = 0x0f;
+ 			*ctxt->andptr++ = 0xb2;
+ 			break;
+-		case D_ES:
++		case REG_ES:
+ 			*ctxt->andptr++ = 0xc4;
+ 			break;
+-		case D_FS:
++		case REG_FS:
+ 			*ctxt->andptr++ = 0x0f;
+ 			*ctxt->andptr++ = 0xb4;
+ 			break;
+-		case D_GS:
++		case REG_GS:
+ 			*ctxt->andptr++ = 0x0f;
+ 			*ctxt->andptr++ = 0xb5;
+ 			break;
+@@ -3352,22 +3371,26 @@ mfound:
+ 			*ctxt->andptr++ = Pe;
+ 			t++;
+ 		}
+-		z = p->from.type;
+-		switch(z) {
++		switch(p->from.type) {
+ 		default:
+ 			goto bad;
+-		case D_CONST:
++		case TYPE_CONST:
+ 			*ctxt->andptr++ = 0x0f;
+ 			*ctxt->andptr++ = t[0];
+ 			asmandsz(ctxt, p, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
+ 			*ctxt->andptr++ = p->from.offset;
+ 			break;
+-		case D_CL:
+-		case D_CX:
+-			*ctxt->andptr++ = 0x0f;
+-			*ctxt->andptr++ = t[1];
+-			asmandsz(ctxt, p, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
+-			break;
++		case TYPE_REG:
++			switch(p->from.reg) {
++			default:
++				goto bad;
++			case REG_CL:
++			case REG_CX:
++				*ctxt->andptr++ = 0x0f;
++				*ctxt->andptr++ = t[1];
++				asmandsz(ctxt, p, &p->to, reg[(int)p->from.index], regrex[(int)p->from.index], 0);
++				break;
++			}
+ 		}
+ 		break;
+ 	
+@@ -3384,10 +3407,11 @@ mfound:
+ 			if(ctxt->plan9privates == nil)
+ 				ctxt->plan9privates = linklookup(ctxt, "_privates", 0);
+ 			memset(&pp.from, 0, sizeof pp.from);
+-			pp.from.type = D_EXTERN;
++			pp.from.type = TYPE_MEM;
++			pp.from.name = NAME_EXTERN;
+ 			pp.from.sym = ctxt->plan9privates;
+ 			pp.from.offset = 0;
+-			pp.from.index = D_NONE;
++			pp.from.index = REG_NONE;
+ 			ctxt->rexflag |= Pw;
+ 			*ctxt->andptr++ = 0x8B;
+ 			asmand(ctxt, p, &pp.from, &p->to);
+@@ -3396,9 +3420,11 @@ mfound:
+ 		case Hsolaris: // TODO(rsc): Delete Hsolaris from list. Should not use this code. See progedit in obj6.c.
+ 			// TLS base is 0(FS).
+ 			pp.from = p->from;
+-			pp.from.type = D_INDIR+D_NONE;
++			pp.from.type = TYPE_MEM;
++			pp.from.name = NAME_NONE;
++			pp.from.reg = REG_NONE;
+ 			pp.from.offset = 0;
+-			pp.from.index = D_NONE;
++			pp.from.index = REG_NONE;
+ 			pp.from.scale = 0;
+ 			ctxt->rexflag |= Pw;
+ 			*ctxt->andptr++ = 0x64; // FS
+@@ -3409,9 +3435,11 @@ mfound:
+ 		case Hwindows:
+ 			// Windows TLS base is always 0x28(GS).
+ 			pp.from = p->from;
+-			pp.from.type = D_INDIR+D_GS;
++			pp.from.type = TYPE_MEM;
++			pp.from.name = NAME_NONE;
++			pp.from.reg = REG_GS;
+ 			pp.from.offset = 0x28;
+-			pp.from.index = D_NONE;
++			pp.from.index = REG_NONE;
+ 			pp.from.scale = 0;
+ 			ctxt->rexflag |= Pw;
+ 			*ctxt->andptr++ = 0x65; // GS
+@@ -3454,9 +3482,9 @@ static uchar naclstos[] = {
+ static void
+ nacltrunc(Link *ctxt, int reg)
+ {	
+-	if(reg >= D_R8)
++	if(reg >= REG_R8)
+ 		*ctxt->andptr++ = 0x45;
+-	reg = (reg - D_AX) & 7;
++	reg = (reg - REG_AX) & 7;
+ 	*ctxt->andptr++ = 0x89;
+ 	*ctxt->andptr++ = (3<<6) | (reg<<3) | reg;
+ }
+@@ -3494,9 +3522,9 @@ asmins(Link *ctxt, Prog *p)
+ 			return;
+ 		}
+ 		if(p->as != ALEAQ && p->as != ALEAL) {
+-			if(p->from.index != D_NONE && p->from.scale > 0)
++			if(p->from.index != TYPE_NONE && p->from.scale > 0)
+ 				nacltrunc(ctxt, p->from.index);
+-			if(p->to.index != D_NONE && p->to.scale > 0)
++			if(p->to.index != TYPE_NONE && p->to.scale > 0)
+ 				nacltrunc(ctxt, p->to.index);
+ 		}
+ 		switch(p->as) {
+@@ -3506,26 +3534,26 @@ asmins(Link *ctxt, Prog *p)
+ 			return;
+ 		case ACALL:
+ 		case AJMP:
+-			if(D_AX <= p->to.type && p->to.type <= D_DI) {
++			if(p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_DI) {
+ 				// ANDL $~31, reg
+ 				*ctxt->andptr++ = 0x83;
+-				*ctxt->andptr++ = 0xe0 | (p->to.type - D_AX);
++				*ctxt->andptr++ = 0xe0 | (p->to.reg - REG_AX);
+ 				*ctxt->andptr++ = 0xe0;
+ 				// ADDQ R15, reg
+ 				*ctxt->andptr++ = 0x4c;
+ 				*ctxt->andptr++ = 0x01;
+-				*ctxt->andptr++ = 0xf8 | (p->to.type - D_AX);
++				*ctxt->andptr++ = 0xf8 | (p->to.reg - REG_AX);
+ 			}
+-			if(D_R8 <= p->to.type && p->to.type <= D_R15) {
++			if(p->to.type == TYPE_REG && REG_R8 <= p->to.reg && p->to.reg <= REG_R15) {
+ 				// ANDL $~31, reg
+ 				*ctxt->andptr++ = 0x41;
+ 				*ctxt->andptr++ = 0x83;
+-				*ctxt->andptr++ = 0xe0 | (p->to.type - D_R8);
++				*ctxt->andptr++ = 0xe0 | (p->to.reg - REG_R8);
+ 				*ctxt->andptr++ = 0xe0;
+ 				// ADDQ R15, reg
+ 				*ctxt->andptr++ = 0x4d;
+ 				*ctxt->andptr++ = 0x01;
+-				*ctxt->andptr++ = 0xf8 | (p->to.type - D_R8);
++				*ctxt->andptr++ = 0xf8 | (p->to.reg - REG_R8);
+ 			}
+ 			break;
+ 		case AINT:
+@@ -3599,13 +3627,13 @@ asmins(Link *ctxt, Prog *p)
+ 			r->add -= p->pc + n - (r->off + r->siz);
+ 	}
+ 
+-	if(ctxt->headtype == Hnacl && p->as != ACMPL && p->as != ACMPQ) {
+-		switch(p->to.type) {
+-		case D_SP:
++	if(ctxt->headtype == Hnacl && p->as != ACMPL && p->as != ACMPQ && p->to.type == TYPE_REG) {
++		switch(p->to.reg) {
++		case REG_SP:
+ 			memmove(ctxt->andptr, naclspfix, sizeof naclspfix);
+ 			ctxt->andptr += sizeof naclspfix;
+ 			break;
+-		case D_BP:
++		case REG_BP:
+ 			memmove(ctxt->andptr, naclbpfix, sizeof naclbpfix);
+ 			ctxt->andptr += sizeof naclbpfix;
+ 			break;
+diff --git a/src/liblink/list6.c b/src/liblink/list6.c
+index dc685158d2..3dbb880caa 100644
+--- a/src/liblink/list6.c
++++ b/src/liblink/list6.c
+@@ -122,41 +122,31 @@ Dconv(Fmt *fp)
+ {
+ 	char str[STRINGSZ], s[STRINGSZ];
+ 	Addr *a;
+-	int i;
+ 
+ 	a = va_arg(fp->args, Addr*);
+-	i = a->type;
+-
+-	if(fp->flags & FmtLong) {
+-		if(i == D_CONST)
+-			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
+-		else {
+-			// ATEXT dst is not constant
+-			sprint(str, "!!%D", a);
+-		}
+-		goto brk;
+-	}
+ 
+-	if(i >= D_INDIR) {
+-		if(a->offset)
+-			sprint(str, "%lld(%R)", a->offset, i-D_INDIR);
+-		else
+-			sprint(str, "(%R)", i-D_INDIR);
+-		goto brk;
+-	}
+-	switch(i) {
++	switch(a->type) {
+ 	default:
+-		if(a->offset)
+-			sprint(str, "$%lld,%R", a->offset, i);
+-		else
+-			sprint(str, "%R", i);
++		sprint(str, "type=%d", a->type);
+ 		break;
+ 
+-	case D_NONE:
++	case TYPE_NONE:
+ 		str[0] = 0;
+ 		break;
++	
++	case TYPE_REG:
++		// TODO(rsc): This special case is for instructions like
++		//	PINSRQ	CX,$1,X6
++		// where the $1 is included in the p->to Addr.
++		// Move into a new field.
++		if(a->offset != 0) {
++			sprint(str, "$%lld,%R", a->offset, a->reg);
++			break;
++		}
++		sprint(str, "%R", a->reg);
++		break;
+ 
+-	case D_BRANCH:
++	case TYPE_BRANCH:
+ 		if(a->sym != nil)
+ 			sprint(str, "%s(SB)", a->sym->name);
+ 		else if(bigP != nil && bigP->pcond != nil)
+@@ -167,54 +157,71 @@ Dconv(Fmt *fp)
+ 			sprint(str, "%lld(PC)", a->offset);
+ 		break;
+ 
+-	case D_EXTERN:
+-		sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
+-		break;
+-
+-	case D_STATIC:
+-		sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
+-		break;
+-
+-	case D_AUTO:
+-		if(a->sym)
+-			sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
+-		else
+-			sprint(str, "%lld(SP)", a->offset);
+-		break;
+-
+-	case D_PARAM:
+-		if(a->sym)
+-			sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
+-		else
+-			sprint(str, "%lld(FP)", a->offset);
++	case TYPE_MEM:
++		switch(a->name) {
++		default:
++			sprint(str, "name=%d", a->name);
++			break;
++		case NAME_NONE:
++			if(a->offset)
++				sprint(str, "%lld(%R)", a->offset, a->reg);
++			else
++				sprint(str, "(%R)", a->reg);
++			break;
++		case NAME_EXTERN:
++			sprint(str, "%s+%lld(SB)", a->sym->name, a->offset);
++			break;
++		case NAME_STATIC:
++			sprint(str, "%s<>+%lld(SB)", a->sym->name, a->offset);
++			break;
++		case NAME_AUTO:
++			if(a->sym)
++				sprint(str, "%s+%lld(SP)", a->sym->name, a->offset);
++			else
++				sprint(str, "%lld(SP)", a->offset);
++			break;
++		case NAME_PARAM:
++			if(a->sym)
++				sprint(str, "%s+%lld(FP)", a->sym->name, a->offset);
++			else
++				sprint(str, "%lld(FP)", a->offset);
++			break;
++		}
++		if(a->index != REG_NONE) {
++			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
++			strcat(str, s);
++		}
+ 		break;
+ 
+-	case D_CONST:
++	case TYPE_CONST:
++		if(fp->flags & FmtLong) {
++			sprint(str, "$%lld-%lld", a->offset&0xffffffffLL, a->offset>>32);
++			break;
++		}
+ 		sprint(str, "$%lld", a->offset);
++		// TODO(rsc): This special case is for SHRQ $32, AX:DX, which encodes as
++		//	SHRQ $32(DX*0), AX
++		// Remove.
++		if(a->index != REG_NONE) {
++			sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
++			strcat(str, s);
++		}
+ 		break;
+ 
+-	case D_FCONST:
++	case TYPE_FCONST:
+ 		sprint(str, "$(%.17g)", a->u.dval);
+ 		break;
+ 
+-	case D_SCONST:
++	case TYPE_SCONST:
+ 		sprint(str, "$\"%$\"", a->u.sval);
+ 		break;
+ 
+-	case D_ADDR:
+-		a->type = a->index;
+-		a->index = D_NONE;
++	case TYPE_ADDR:
++		a->type = TYPE_MEM;
+ 		sprint(str, "$%D", a);
+-		a->index = a->type;
+-		a->type = D_ADDR;
+-		goto conv;
+-	}
+-brk:
+-	if(a->index != D_NONE) {
+-		sprint(s, "(%R*%d)", (int)a->index, (int)a->scale);
+-		strcat(str, s);
++		a->type = TYPE_ADDR;
++		break;
+ 	}
+-conv:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -343,7 +350,7 @@ static char*	regstr[] =
+ 	"TR7",
+ 
+ 	"TLS",	/* [D_TLS] */
+-	"NONE",	/* [D_NONE] */
++	"MAXREG",	/* [MAXREG] */
+ };
+ 
+ static int
+@@ -353,8 +360,11 @@ Rconv(Fmt *fp)
+ 	int r;
+ 
+ 	r = va_arg(fp->args, int);
+-	if(r >= D_AL && r <= D_NONE)
+-		sprint(str, "%s", regstr[r-D_AL]);
++	if(r == REG_NONE)
++		return fmtstrcpy(fp, "NONE");
++
++	if(REG_AL <= r && r-REG_AL < nelem(regstr))
++		sprint(str, "%s", regstr[r-REG_AL]);
+ 	else
+ 		sprint(str, "gok(%d)", r);
+ 
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 700800978c..696026300c 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -39,12 +39,12 @@ static Prog zprg = {
+ 	.back = 2,
+ 	.as = AGOK,
+ 	.from = {
+-		.type = D_NONE,
+-		.index = D_NONE,
++		.type = TYPE_NONE,
++		.index = TYPE_NONE,
+ 	},
+ 	.to = {
+-		.type = D_NONE,
+-		.index = D_NONE,
++		.type = TYPE_NONE,
++		.index = TYPE_NONE,
+ 	},
+ };
+ 
+@@ -52,19 +52,12 @@ static void
+ nopout(Prog *p)
+ {
+ 	p->as = ANOP;
+-	p->from.type = D_NONE;
+-	p->to.type = D_NONE;
+-}
+-
+-static int
+-symtype(Addr *a)
+-{
+-	int t;
+-
+-	t = a->type;
+-	if(t == D_ADDR)
+-		t = a->index;
+-	return t;
++	p->from.type = TYPE_NONE;
++	p->from.reg = 0;
++	p->from.name = 0;
++	p->to.type = TYPE_NONE;
++	p->to.reg = 0;
++	p->to.name = 0;
+ }
+ 
+ static int
+@@ -162,17 +155,17 @@ progedit(Link *ctxt, Prog *p)
+ 		// TODO(rsc): Remove the Hsolaris special case. It exists only to
+ 		// guarantee we are producing byte-identical binaries as before this code.
+ 		// But it should be unnecessary.
+-		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_TLS && D_AX <= p->to.type && p->to.type <= D_R15 && ctxt->headtype != Hsolaris)
++		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == TYPE_REG && p->from.reg == REG_TLS && p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_R15 && ctxt->headtype != Hsolaris)
+ 			nopout(p);
+-		if(p->from.index == D_TLS && D_INDIR+D_AX <= p->from.type && p->from.type <= D_INDIR+D_R15) {
+-			p->from.type = D_INDIR+D_TLS;
++		if(p->from.type == TYPE_MEM && p->from.index == REG_TLS && REG_AX <= p->from.reg && p->from.reg <= REG_R15) {
++			p->from.reg = REG_TLS;
+ 			p->from.scale = 0;
+-			p->from.index = D_NONE;
++			p->from.index = REG_NONE;
+ 		}
+-		if(p->to.index == D_TLS && D_INDIR+D_AX <= p->to.type && p->to.type <= D_INDIR+D_R15) {
+-			p->to.type = D_INDIR+D_TLS;
++		if(p->to.type == TYPE_MEM && p->to.index == REG_TLS && REG_AX <= p->to.reg && p->to.reg <= REG_R15) {
++			p->to.reg = REG_TLS;
+ 			p->to.scale = 0;
+-			p->to.index = D_NONE;
++			p->to.index = REG_NONE;
+ 		}
+ 	} else {
+ 		// As a courtesy to the C compilers, rewrite TLS local exec load as TLS initial exec load.
+@@ -182,25 +175,27 @@ progedit(Link *ctxt, Prog *p)
+ 		//	MOVQ TLS, BX
+ 		//	MOVQ off(BX)(TLS*1), BX
+ 		// This allows the C compilers to emit references to m and g using the direct off(TLS) form.
+-		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == D_INDIR+D_TLS && D_AX <= p->to.type && p->to.type <= D_R15) {
++		if((p->as == AMOVQ || p->as == AMOVL) && p->from.type == TYPE_MEM && p->from.reg == REG_TLS && p->to.type == TYPE_REG && REG_AX <= p->to.reg && p->to.reg <= REG_R15) {
+ 			q = appendp(ctxt, p);
+ 			q->as = p->as;
+ 			q->from = p->from;
+-			q->from.type = D_INDIR + p->to.type;
+-			q->from.index = D_TLS;
++			q->from.type = TYPE_MEM;
++			q->from.reg = p->to.reg;
++			q->from.index = REG_TLS;
+ 			q->from.scale = 2; // TODO: use 1
+ 			q->to = p->to;
+-			p->from.type = D_TLS;
+-			p->from.index = D_NONE;
++			p->from.type = TYPE_REG;
++			p->from.reg = REG_TLS;
++			p->from.index = REG_NONE;
+ 			p->from.offset = 0;
+ 		}
+ 	}
+ 
+ 	// TODO: Remove.
+ 	if(ctxt->headtype == Hwindows || ctxt->headtype == Hplan9) {
+-		if(p->from.scale == 1 && p->from.index == D_TLS)
++		if(p->from.scale == 1 && p->from.index == REG_TLS)
+ 			p->from.scale = 2;
+-		if(p->to.scale == 1 && p->to.index == D_TLS)
++		if(p->to.scale == 1 && p->to.index == REG_TLS)
+ 			p->to.scale = 2;
+ 	}
+ 
+@@ -216,7 +211,7 @@ progedit(Link *ctxt, Prog *p)
+ 	
+ 	switch(p->as) {
+ 	case AMODE:
+-		if(p->from.type == D_CONST || p->from.type == D_INDIR+D_NONE) {
++		if(p->from.type == TYPE_CONST || (p->from.type == TYPE_MEM && p->from.reg == REG_NONE)) {
+ 			switch((int)p->from.offset) {
+ 			case 16:
+ 			case 32:
+@@ -229,13 +224,13 @@ progedit(Link *ctxt, Prog *p)
+ 		break;
+ 	}
+ 	
+-	// Rewrite CALL/JMP/RET to symbol as D_BRANCH.
++	// Rewrite CALL/JMP/RET to symbol as TYPE_BRANCH.
+ 	switch(p->as) {
+ 	case ACALL:
+ 	case AJMP:
+ 	case ARET:
+-		if((p->to.type == D_EXTERN || p->to.type == D_STATIC) && p->to.sym != nil)
+-			p->to.type = D_BRANCH;
++		if(p->to.type == TYPE_MEM && (p->to.name == NAME_EXTERN || p->to.name == NAME_STATIC) && p->to.sym != nil)
++			p->to.type = TYPE_BRANCH;
+ 		break;
+ 	}
+ 
+@@ -243,13 +238,11 @@ progedit(Link *ctxt, Prog *p)
+ 	switch(p->as) {
+ 	case AMOVSS:
+ 		// Convert AMOVSS $(0), Xx to AXORPS Xx, Xx
+-		if(p->from.type == D_FCONST)
++		if(p->from.type == TYPE_FCONST)
+ 		if(p->from.u.dval == 0)
+-		if(p->to.type >= D_X0)
+-		if(p->to.type <= D_X15) {
++		if(p->to.type == TYPE_REG && REG_X0 <= p->to.reg && p->to.reg <= REG_X15) {
+ 			p->as = AXORPS;
+-			p->from.type = p->to.type;
+-			p->from.index = p->to.index;
++			p->from = p->to;
+ 			break;
+ 		}
+ 		// fallthrough
+@@ -269,7 +262,7 @@ progedit(Link *ctxt, Prog *p)
+ 	case ADIVSS:
+ 	case ACOMISS:
+ 	case AUCOMISS:
+-		if(p->from.type == D_FCONST) {
++		if(p->from.type == TYPE_FCONST) {
+ 			uint32 i32;
+ 			float32 f32;
+ 			f32 = p->from.u.dval;
+@@ -281,7 +274,8 @@ progedit(Link *ctxt, Prog *p)
+ 				adduint32(ctxt, s, i32);
+ 				s->reachable = 0;
+ 			}
+-			p->from.type = D_EXTERN;
++			p->from.type = TYPE_MEM;
++			p->from.name = NAME_EXTERN;
+ 			p->from.sym = s;
+ 			p->from.offset = 0;
+ 		}
+@@ -289,13 +283,11 @@ progedit(Link *ctxt, Prog *p)
+ 
+ 	case AMOVSD:
+ 		// Convert AMOVSD $(0), Xx to AXORPS Xx, Xx
+-		if(p->from.type == D_FCONST)
++		if(p->from.type == TYPE_FCONST)
+ 		if(p->from.u.dval == 0)
+-		if(p->to.type >= D_X0)
+-		if(p->to.type <= D_X15) {
++		if(p->to.type == TYPE_REG && REG_X0 <= p->to.reg && p->to.reg <= REG_X15) {
+ 			p->as = AXORPS;
+-			p->from.type = p->to.type;
+-			p->from.index = p->to.index;
++			p->from = p->to;
+ 			break;
+ 		}
+ 		// fallthrough
+@@ -315,7 +307,7 @@ progedit(Link *ctxt, Prog *p)
+ 	case ADIVSD:
+ 	case ACOMISD:
+ 	case AUCOMISD:
+-		if(p->from.type == D_FCONST) {
++		if(p->from.type == TYPE_FCONST) {
+ 			uint64 i64;
+ 			memmove(&i64, &p->from.u.dval, 8);
+ 			sprint(literal, "$f64.%016llux", i64);
+@@ -325,7 +317,8 @@ progedit(Link *ctxt, Prog *p)
+ 				adduint64(ctxt, s, i64);
+ 				s->reachable = 0;
+ 			}
+-			p->from.type = D_EXTERN;
++			p->from.type = TYPE_MEM;
++			p->from.name = NAME_EXTERN;
+ 			p->from.sym = s;
+ 			p->from.offset = 0;
+ 		}
+@@ -339,28 +332,26 @@ nacladdr(Link *ctxt, Prog *p, Addr *a)
+ 	if(p->as == ALEAL || p->as == ALEAQ)
+ 		return;
+ 	
+-	if(a->type == D_BP || a->type == D_INDIR+D_BP) {
++	if(a->reg == REG_BP) {
+ 		ctxt->diag("invalid address: %P", p);
+ 		return;
+ 	}
+-	if(a->type == D_INDIR+D_TLS)
+-		a->type = D_INDIR+D_BP;
+-	else if(a->type == D_TLS)
+-		a->type = D_BP;
+-	if(D_INDIR <= a->type && a->type <= D_INDIR+D_INDIR) {
+-		switch(a->type) {
+-		case D_INDIR+D_BP:
+-		case D_INDIR+D_SP:
+-		case D_INDIR+D_R15:
++	if(a->reg == REG_TLS)
++		a->reg = REG_BP;
++	if(a->type == TYPE_MEM && a->name == NAME_NONE) {
++		switch(a->reg) {
++		case REG_BP:
++		case REG_SP:
++		case REG_R15:
+ 			// all ok
+ 			break;
+ 		default:
+-			if(a->index != D_NONE)
++			if(a->index != REG_NONE)
+ 				ctxt->diag("invalid address %P", p);
+-			a->index = a->type - D_INDIR;
+-			if(a->index != D_NONE)
++			a->index = a->reg;
++			if(a->index != REG_NONE)
+ 				a->scale = 1;
+-			a->type = D_INDIR+D_R15;
++			a->reg = REG_R15;
+ 			break;
+ 		}
+ 	}
+@@ -384,7 +375,7 @@ parsetextconst(vlong arg, vlong *textstksiz, vlong *textarg)
+ }
+ 
+ static void
+-addstacksplit(Link *ctxt, LSym *cursym)
++preprocess(Link *ctxt, LSym *cursym)
+ {
+ 	Prog *p, *q, *p1, *p2;
+ 	int32 autoffset, deltasp;
+@@ -439,7 +430,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 			ctxt->diag("unaligned stack size %d", autoffset);
+ 		p = appendp(ctxt, p);
+ 		p->as = AADJSP;
+-		p->from.type = D_CONST;
++		p->from.type = TYPE_CONST;
+ 		p->from.offset = autoffset;
+ 		p->spadj = autoffset;
+ 	} else {
+@@ -475,63 +466,76 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_INDIR+D_CX;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_CX;
+ 		p->from.offset = 4*ctxt->arch->ptrsize; // G.panic
+-		p->to.type = D_BX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_BX;
+ 		if(ctxt->headtype == Hnacl) {
+ 			p->as = AMOVL;
+-			p->from.type = D_INDIR+D_R15;
++			p->from.type = TYPE_MEM;
++			p->from.reg = REG_R15;
+ 			p->from.scale = 1;
+-			p->from.index = D_CX;
++			p->from.index = REG_CX;
+ 		}
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ATESTQ;
+-		p->from.type = D_BX;
+-		p->to.type = D_BX;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_BX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_BX;
+ 		if(ctxt->headtype == Hnacl)
+ 			p->as = ATESTL;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AJEQ;
+-		p->to.type = D_BRANCH;
++		p->to.type = TYPE_BRANCH;
+ 		p1 = p;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ALEAQ;
+-		p->from.type = D_INDIR+D_SP;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_SP;
+ 		p->from.offset = autoffset+8;
+-		p->to.type = D_DI;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_DI;
+ 		if(ctxt->headtype == Hnacl)
+ 			p->as = ALEAL;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = ACMPQ;
+-		p->from.type = D_INDIR+D_BX;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_BX;
+ 		p->from.offset = 0; // Panic.argp
+-		p->to.type = D_DI;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_DI;
+ 		if(ctxt->headtype == Hnacl) {
+ 			p->as = ACMPL;
+-			p->from.type = D_INDIR+D_R15;
++			p->from.type = TYPE_MEM;
++			p->from.reg = REG_R15;
+ 			p->from.scale = 1;
+-			p->from.index = D_BX;
++			p->from.index = REG_BX;
+ 		}
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AJNE;
+-		p->to.type = D_BRANCH;
++		p->to.type = TYPE_BRANCH;
+ 		p2 = p;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_SP;
+-		p->to.type = D_INDIR+D_BX;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_SP;
++		p->to.type = TYPE_MEM;
++		p->to.reg = REG_BX;
+ 		p->to.offset = 0; // Panic.argp
+ 		if(ctxt->headtype == Hnacl) {
+ 			p->as = AMOVL;
+-			p->to.type = D_INDIR+D_R15;
++			p->to.type = TYPE_MEM;
++			p->to.reg = REG_R15;
+ 			p->to.scale = 1;
+-			p->to.index = D_BX;
++			p->to.index = REG_BX;
+ 		}
+ 
+ 		p = appendp(ctxt, p);
+@@ -546,20 +550,24 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 		// false positives in garbage collection.
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_SP;
+-		p->to.type = D_DI;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_SP;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_DI;
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_CONST;
++		p->from.type = TYPE_CONST;
+ 		p->from.offset = autoffset/8;
+-		p->to.type = D_CX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_CX;
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = AMOVQ;
+-		p->from.type = D_CONST;
++		p->from.type = TYPE_CONST;
+ 		p->from.offset = 0;
+-		p->to.type = D_AX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_AX;
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = AREP;
+@@ -570,15 +578,15 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 	
+ 	for(; p != nil; p = p->link) {
+ 		pcsize = p->mode/8;
+-		a = p->from.type;
+-		if(a == D_AUTO)
++		a = p->from.name;
++		if(a == NAME_AUTO)
+ 			p->from.offset += deltasp;
+-		if(a == D_PARAM)
++		if(a == NAME_PARAM)
+ 			p->from.offset += deltasp + pcsize;
+-		a = p->to.type;
+-		if(a == D_AUTO)
++		a = p->to.name;
++		if(a == NAME_AUTO)
+ 			p->to.offset += deltasp;
+-		if(a == D_PARAM)
++		if(a == NAME_PARAM)
+ 			p->to.offset += deltasp + pcsize;
+ 
+ 		switch(p->as) {
+@@ -623,7 +631,7 @@ addstacksplit(Link *ctxt, LSym *cursym)
+ 
+ 		if(autoffset) {
+ 			p->as = AADJSP;
+-			p->from.type = D_CONST;
++			p->from.type = TYPE_CONST;
+ 			p->from.offset = -autoffset;
+ 			p->spadj = -autoffset;
+ 			p = appendp(ctxt, p);
+@@ -643,13 +651,15 @@ static void
+ indir_cx(Link *ctxt, Addr *a)
+ {
+ 	if(ctxt->headtype == Hnacl) {
+-		a->type = D_INDIR + D_R15;
+-		a->index = D_CX;
++		a->type = TYPE_MEM;
++		a->reg = REG_R15;
++		a->index = REG_CX;
+ 		a->scale = 1;
+ 		return;
+ 	}
+ 
+-	a->type = D_INDIR+D_CX;
++	a->type = TYPE_MEM;
++	a->reg = REG_CX;
+ }
+ 
+ // Append code to p to load g into cx.
+@@ -665,16 +675,18 @@ load_g_cx(Link *ctxt, Prog *p)
+ 	p->as = AMOVQ;
+ 	if(ctxt->arch->ptrsize == 4)
+ 		p->as = AMOVL;
+-	p->from.type = D_INDIR+D_TLS;
++	p->from.type = TYPE_MEM;
++	p->from.reg = REG_TLS;
+ 	p->from.offset = 0;
+-	p->to.type = D_CX;
++	p->to.type = TYPE_REG;
++	p->to.reg = REG_CX;
+ 	
+ 	next = p->link;
+ 	progedit(ctxt, p);
+ 	while(p->link != next)
+ 		p = p->link;
+ 	
+-	if(p->from.index == D_TLS)
++	if(p->from.index == REG_TLS)
+ 		p->from.scale = 2;
+ 
+ 	return p;
+@@ -711,7 +723,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		//	CMPQ SP, stackguard
+ 		p = appendp(ctxt, p);
+ 		p->as = cmp;
+-		p->from.type = D_SP;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_SP;
+ 		indir_cx(ctxt, &p->to);
+ 		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+ 		if(ctxt->cursym->cfunc)
+@@ -722,13 +735,16 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		//	CMPQ AX, stackguard
+ 		p = appendp(ctxt, p);
+ 		p->as = lea;
+-		p->from.type = D_INDIR+D_SP;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_SP;
+ 		p->from.offset = -(framesize-StackSmall);
+-		p->to.type = D_AX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_AX;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = cmp;
+-		p->from.type = D_AX;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_AX;
+ 		indir_cx(ctxt, &p->to);
+ 		p->to.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+ 		if(ctxt->cursym->cfunc)
+@@ -755,46 +771,53 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->from.offset = 2*ctxt->arch->ptrsize;	// G.stackguard0
+ 		if(ctxt->cursym->cfunc)
+ 			p->from.offset = 3*ctxt->arch->ptrsize;	// G.stackguard1
+-		p->to.type = D_SI;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_SI;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = cmp;
+-		p->from.type = D_SI;
+-		p->to.type = D_CONST;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_SI;
++		p->to.type = TYPE_CONST;
+ 		p->to.offset = StackPreempt;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = AJEQ;
+-		p->to.type = D_BRANCH;
++		p->to.type = TYPE_BRANCH;
+ 		q1 = p;
+ 
+ 		p = appendp(ctxt, p);
+ 		p->as = lea;
+-		p->from.type = D_INDIR+D_SP;
++		p->from.type = TYPE_MEM;
++		p->from.reg = REG_SP;
+ 		p->from.offset = StackGuard;
+-		p->to.type = D_AX;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_AX;
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = sub;
+-		p->from.type = D_SI;
+-		p->to.type = D_AX;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_SI;
++		p->to.type = TYPE_REG;
++		p->to.reg = REG_AX;
+ 		
+ 		p = appendp(ctxt, p);
+ 		p->as = cmp;
+-		p->from.type = D_AX;
+-		p->to.type = D_CONST;
++		p->from.type = TYPE_REG;
++		p->from.reg = REG_AX;
++		p->to.type = TYPE_CONST;
+ 		p->to.offset = framesize+(StackGuard-StackSmall);
+ 	}					
+ 
+ 	// common
+ 	p = appendp(ctxt, p);
+ 	p->as = AJHI;
+-	p->to.type = D_BRANCH;
++	p->to.type = TYPE_BRANCH;
+ 	q = p;
+ 
+ 	p = appendp(ctxt, p);
+ 	p->as = ACALL;
+-	p->to.type = D_BRANCH;
++	p->to.type = TYPE_BRANCH;
+ 	if(ctxt->cursym->cfunc)
+ 		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
+ 	else
+@@ -802,7 +825,7 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 	
+ 	p = appendp(ctxt, p);
+ 	p->as = AJMP;
+-	p->to.type = D_BRANCH;
++	p->to.type = TYPE_BRANCH;
+ 	p->pcond = ctxt->cursym->text->link;
+ 	
+ 	if(q != nil)
+@@ -960,7 +983,7 @@ loop:
+ 		q = ctxt->arch->prg();
+ 		q->as = AJMP;
+ 		q->lineno = p->lineno;
+-		q->to.type = D_BRANCH;
++		q->to.type = TYPE_BRANCH;
+ 		q->to.offset = p->pc;
+ 		q->pcond = p;
+ 		p = q;
+@@ -985,7 +1008,7 @@ loop:
+ 			p->pcond = q;
+ 		if((q = brchain(ctxt, p->link)) != nil)
+ 			p->link = q;
+-		if(p->from.type == D_CONST) {
++		if(p->from.type == TYPE_CONST) {
+ 			if(p->from.offset == 1) {
+ 				/*
+ 				 * expect conditional jump to be taken.
+@@ -1030,7 +1053,7 @@ LinkArch linkamd64 = {
+ 	.thechar = '6',
+ 	.endian = LittleEndian,
+ 
+-	.addstacksplit = addstacksplit,
++	.preprocess = preprocess,
+ 	.assemble = span6,
+ 	.datasize = datasize,
+ 	.follow = follow,
+@@ -1039,24 +1062,12 @@ LinkArch linkamd64 = {
+ 	.prg = prg,
+ 	.progedit = progedit,
+ 	.settextflag = settextflag,
+-	.symtype = symtype,
+ 	.textflag = textflag,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 8,
+ 	.regsize = 8,
+ 
+-	.D_ADDR = D_ADDR,
+-	.D_AUTO = D_AUTO,
+-	.D_BRANCH = D_BRANCH,
+-	.D_CONST = D_CONST,
+-	.D_EXTERN = D_EXTERN,
+-	.D_FCONST = D_FCONST,
+-	.D_NONE = D_NONE,
+-	.D_PARAM = D_PARAM,
+-	.D_SCONST = D_SCONST,
+-	.D_STATIC = D_STATIC,
+-
+ 	.ACALL = ACALL,
+ 	.ADATA = ADATA,
+ 	.AEND = AEND,
+@@ -1076,7 +1087,7 @@ LinkArch linkamd64p32 = {
+ 	.thechar = '6',
+ 	.endian = LittleEndian,
+ 
+-	.addstacksplit = addstacksplit,
++	.preprocess = preprocess,
+ 	.assemble = span6,
+ 	.datasize = datasize,
+ 	.follow = follow,
+@@ -1085,24 +1096,12 @@ LinkArch linkamd64p32 = {
+ 	.prg = prg,
+ 	.progedit = progedit,
+ 	.settextflag = settextflag,
+-	.symtype = symtype,
+ 	.textflag = textflag,
+ 
+ 	.minlc = 1,
+ 	.ptrsize = 4,
+ 	.regsize = 8,
+ 
+-	.D_ADDR = D_ADDR,
+-	.D_AUTO = D_AUTO,
+-	.D_BRANCH = D_BRANCH,
+-	.D_CONST = D_CONST,
+-	.D_EXTERN = D_EXTERN,
+-	.D_FCONST = D_FCONST,
+-	.D_NONE = D_NONE,
+-	.D_PARAM = D_PARAM,
+-	.D_SCONST = D_SCONST,
+-	.D_STATIC = D_STATIC,
+-
+ 	.ACALL = ACALL,
+ 	.ADATA = ADATA,
+ 	.AEND = AEND,

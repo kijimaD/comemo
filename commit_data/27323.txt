@@ -9,7 +9,7 @@ Date:   Mon Mar 21 18:27:21 2016 +1100
     Change-Id: I8353100ed01cb0e8fc19225157f5709bae388612
     Reviewed-on: https://go-review.googlesource.com/20975
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/internal/syscall/unix/getrandom_linux_386.go     | 2 ++
  src/internal/syscall/unix/getrandom_linux_amd64.go   | 2 ++
  src/internal/syscall/unix/getrandom_linux_arm.go     | 2 ++
@@ -17,3 +17,75 @@ Date:   Mon Mar 21 18:27:21 2016 +1100
  src/internal/syscall/unix/getrandom_linux_mips64x.go | 2 ++
  src/internal/syscall/unix/getrandom_linux_ppc64x.go  | 2 ++
  6 files changed, 17 insertions(+)
+
+diff --git a/src/internal/syscall/unix/getrandom_linux_386.go b/src/internal/syscall/unix/getrandom_linux_386.go
+index 6e41c1c61d..a583896e68 100644
+--- a/src/internal/syscall/unix/getrandom_linux_386.go
++++ b/src/internal/syscall/unix/getrandom_linux_386.go
+@@ -4,4 +4,6 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
+ const randomTrap uintptr = 355
+diff --git a/src/internal/syscall/unix/getrandom_linux_amd64.go b/src/internal/syscall/unix/getrandom_linux_amd64.go
+index 94e98d220b..cff0eb6f05 100644
+--- a/src/internal/syscall/unix/getrandom_linux_amd64.go
++++ b/src/internal/syscall/unix/getrandom_linux_amd64.go
+@@ -4,4 +4,6 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
+ const randomTrap uintptr = 318
+diff --git a/src/internal/syscall/unix/getrandom_linux_arm.go b/src/internal/syscall/unix/getrandom_linux_arm.go
+index b632709e8e..92e2492cd0 100644
+--- a/src/internal/syscall/unix/getrandom_linux_arm.go
++++ b/src/internal/syscall/unix/getrandom_linux_arm.go
+@@ -4,4 +4,6 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
+ const randomTrap uintptr = 384
+diff --git a/src/internal/syscall/unix/getrandom_linux_generic.go b/src/internal/syscall/unix/getrandom_linux_generic.go
+index ab3f47e13e..8425800b6d 100644
+--- a/src/internal/syscall/unix/getrandom_linux_generic.go
++++ b/src/internal/syscall/unix/getrandom_linux_generic.go
+@@ -6,4 +6,11 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
++//
++// This file is named "generic" because at a certain point Linux
++// started standardizing on system call numbers across
++// architectures. So far this means only arm64 uses the standard
++// numbers.
+ const randomTrap uintptr = 278
+diff --git a/src/internal/syscall/unix/getrandom_linux_mips64x.go b/src/internal/syscall/unix/getrandom_linux_mips64x.go
+index 58e1d816e7..b328b8f1f0 100644
+--- a/src/internal/syscall/unix/getrandom_linux_mips64x.go
++++ b/src/internal/syscall/unix/getrandom_linux_mips64x.go
+@@ -6,4 +6,6 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
+ const randomTrap uintptr = 5313
+diff --git a/src/internal/syscall/unix/getrandom_linux_ppc64x.go b/src/internal/syscall/unix/getrandom_linux_ppc64x.go
+index 0e4b47392b..9b6e9722be 100644
+--- a/src/internal/syscall/unix/getrandom_linux_ppc64x.go
++++ b/src/internal/syscall/unix/getrandom_linux_ppc64x.go
+@@ -6,4 +6,6 @@
+ 
+ package unix
+ 
++// Linux getrandom system call number.
++// See GetRandom in getrandom_linux.go.
+ const randomTrap uintptr = 359

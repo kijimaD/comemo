@@ -11,7 +11,7 @@ Date:   Mon Jul 30 21:12:05 2012 +0200
     R=rsc
     CC=golang-dev, remy
     https://golang.org/cl/6440048
-
+---
  test/fixedbugs/bug088.go |  2 +-
  test/fixedbugs/bug106.go |  2 +-
  test/fixedbugs/bug282.go |  2 +-
@@ -23,3 +23,150 @@ Date:   Mon Jul 30 21:12:05 2012 +0200
  test/run.go              | 23 ++++++++++++++++++++++-
  test/testlib             |  7 +++++++
  10 files changed, 37 insertions(+), 9 deletions(-)
+
+diff --git a/test/fixedbugs/bug088.go b/test/fixedbugs/bug088.go
+index 9715a703cb..3b99da84d4 100644
+--- a/test/fixedbugs/bug088.go
++++ b/test/fixedbugs/bug088.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/bug0.go && $G $D/$F.dir/bug1.go || echo BUG: fails incorrectly
++// compiledir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug106.go b/test/fixedbugs/bug106.go
+index 1874b20449..3b99da84d4 100644
+--- a/test/fixedbugs/bug106.go
++++ b/test/fixedbugs/bug106.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/bug0.go && $G $D/$F.dir/bug1.go || echo BUG: failed to compile
++// compiledir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug282.go b/test/fixedbugs/bug282.go
+index 463f21e941..3b99da84d4 100644
+--- a/test/fixedbugs/bug282.go
++++ b/test/fixedbugs/bug282.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/p1.go && $G $D/$F.dir/p2.go
++// compiledir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug306.go b/test/fixedbugs/bug306.go
+index a0a43507dc..e8967c25dd 100644
+--- a/test/fixedbugs/bug306.go
++++ b/test/fixedbugs/bug306.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/p1.go && $G $D/$F.dir/p2.go
++// compiledir
+ 
+ // Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug377.go b/test/fixedbugs/bug377.go
+index e905e34d68..22df005b2a 100644
+--- a/test/fixedbugs/bug377.go
++++ b/test/fixedbugs/bug377.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++// compiledir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug396.go b/test/fixedbugs/bug396.go
+index 50af6006fb..48b79e01b8 100644
+--- a/test/fixedbugs/bug396.go
++++ b/test/fixedbugs/bug396.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++// compiledir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug404.go b/test/fixedbugs/bug404.go
+index ac9e575bb5..481acda328 100644
+--- a/test/fixedbugs/bug404.go
++++ b/test/fixedbugs/bug404.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++// compiledir
+ 
+ // Copyright 2012 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug407.go b/test/fixedbugs/bug407.go
+index 50af6006fb..48b79e01b8 100644
+--- a/test/fixedbugs/bug407.go
++++ b/test/fixedbugs/bug407.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/one.go && $G $D/$F.dir/two.go
++// compiledir
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run.go b/test/run.go
+index 198863eab8..e1d97e9eef 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -216,6 +216,10 @@ func (t *test) goFileName() string {
+ 	return filepath.Join(t.dir, t.gofile)
+ }
+ 
++func (t *test) goDirName() string {
++	return filepath.Join(t.dir, strings.Replace(t.gofile, ".go", ".dir", -1))
++}
++
+ // run runs a test.
+ func (t *test) run() {
+ 	defer close(t.donec)
+@@ -251,7 +255,7 @@ func (t *test) run() {
+ 	case "cmpout":
+ 		action = "run" // the run case already looks for <dir>/<test>.out files
+ 		fallthrough
+-	case "compile", "build", "run", "errorcheck", "runoutput":
++	case "compile", "compiledir", "build", "run", "errorcheck", "runoutput":
+ 		t.action = action
+ 	case "skip":
+ 		t.action = "skip"
+@@ -301,6 +305,23 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("%s\n%s", err, out)
+ 		}
+ 
++	case "compiledir":
++		// Compile all files in the directory in lexicographic order.
++		longdir := filepath.Join(cwd, t.goDirName())
++		files, dirErr := ioutil.ReadDir(longdir)
++		if dirErr != nil {
++			t.err = dirErr
++			return
++		}
++		for _, gofile := range files {
++			afile := strings.Replace(gofile.Name(), ".go", "."+letter, -1)
++			out, err := runcmd("go", "tool", gc, "-e", "-o", afile, filepath.Join(longdir, gofile.Name()))
++			if err != nil {
++				t.err = fmt.Errorf("%s\n%s", err, out)
++				break
++			}
++		}
++
+ 	case "build":
+ 		out, err := runcmd("go", "build", "-o", "a.exe", long)
+ 		if err != nil {
+diff --git a/test/testlib b/test/testlib
+index 9e0911526a..84cda7b371 100644
+--- a/test/testlib
++++ b/test/testlib
+@@ -9,6 +9,13 @@ compile() {
+ 	$G $D/$F.go
+ }
+ 
++compiledir() {
++	for gofile in $D/$F.dir/*.go
++	do
++		$G ${gofile} || return 1
++	done
++}
++
+ build() {
+ 	$G $D/$F.go && $L $F.$A
+ }

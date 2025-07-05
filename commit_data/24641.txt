@@ -15,7 +15,76 @@ Date:   Mon Aug 17 20:47:29 2015 -0400
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/note_test.go | 17 +++++++++++++++++
  src/cmd/go/pkg.go       |  8 ++++----
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index fb25f94ec3..cbb3db8a17 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -6,6 +6,7 @@ package main_test
+ 
+ import (
+ 	"cmd/go"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -22,4 +23,20 @@ func TestNoteReading(t *testing.T) {
+ 	if id != buildID {
+ 		t.Fatalf("buildID in hello binary = %q, want %q", id, buildID)
+ 	}
++
++	switch runtime.GOOS {
++	case "plan9":
++		// no external linking
++		t.Logf("no external linking - skipping linkmode=external test")
++
++	default:
++		tg.run("build", "-ldflags", "-buildid="+buildID+" -linkmode=external", "-o", tg.path("hello.exe"), tg.path("hello.go"))
++		id, err := main.ReadBuildIDFromBinary(tg.path("hello.exe"))
++		if err != nil {
++			t.Fatalf("reading build ID from hello binary (linkmode=external): %v", err)
++		}
++		if id != buildID {
++			t.Fatalf("buildID in hello binary = %q, want %q (linkmode=external)", id, buildID)
++		}
++	}
+ }
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 0317536bce..5dd2352606 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -1796,10 +1796,10 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
+ 		return "", &os.PathError{Op: "parse", Path: filename, Err: errBuildIDUnknown}
+ 	}
+ 
+-	// Read the first 8 kB of the binary file.
++	// Read the first 16 kB of the binary file.
+ 	// That should be enough to find the build ID.
+ 	// In ELF files, the build ID is in the leading headers,
+-	// which are typically less than 4 kB, not to mention 8 kB.
++	// which are typically less than 4 kB, not to mention 16 kB.
+ 	// On other systems, we're trying to read enough that
+ 	// we get the beginning of the text segment in the read.
+ 	// The offset where the text segment begins in a hello
+@@ -1807,7 +1807,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
+ 	//
+ 	//	Plan 9: 0x20
+ 	//	Windows: 0x600
+-	//	Mach-O: 0x1000
++	//	Mach-O: 0x2000
+ 	//
+ 	f, err := os.Open(filename)
+ 	if err != nil {
+@@ -1815,7 +1815,7 @@ func ReadBuildIDFromBinary(filename string) (id string, err error) {
+ 	}
+ 	defer f.Close()
+ 
+-	data := make([]byte, 8192)
++	data := make([]byte, 16*1024)
+ 	_, err = io.ReadFull(f, data)
+ 	if err == io.ErrUnexpectedEOF {
+ 		err = nil

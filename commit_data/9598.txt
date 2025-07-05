@@ -7,6 +7,20 @@ Date:   Mon Sep 5 13:05:57 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4950064
-
+---
  src/pkg/runtime/openbsd/386/sys.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/openbsd/386/sys.s b/src/pkg/runtime/openbsd/386/sys.s
+index d508ce1d49..3a78679bc4 100644
+--- a/src/pkg/runtime/openbsd/386/sys.s
++++ b/src/pkg/runtime/openbsd/386/sys.s
+@@ -29,7 +29,7 @@ TEXT runtime·write(SB),7,$-4
+ 
+ TEXT runtime·raisesigpipe(SB),7,$12
+ 	MOVL	$299, AX		// sys_getthrid
+-	INT	$80
++	INT	$0x80
+ 	MOVL	$0, 0(SP)
+ 	MOVL	AX, 4(SP)		// arg 1 - pid
+ 	MOVL	$13, 8(SP)		// arg 2 - signum == SIGPIPE

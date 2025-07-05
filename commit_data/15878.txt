@@ -10,7 +10,91 @@ Date:   Thu Mar 21 17:01:39 2013 -0400
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7686049
-
+---
  doc/go1.1.html            | 22 ----------------------
  src/pkg/debug/elf/file.go | 16 ++++++++++++++--
  2 files changed, 14 insertions(+), 24 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index df495ee81e..31d6d9b020 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -258,28 +258,6 @@ TODO introduction
+ TODO
+ </p>
+ 
+-<h3 id="debug_elf">debug/elf</h3>
+-
+-<p>
+-TODO: Decide whether to keep this change. See CL 6848044.
+-</p>
+-
+-<p>
+-Previous versions of the <a href="/debug/elf/"><code>debug/elf</code></a> package
+-intentionally skipped over the first
+-symbol in the ELF symbol table, since it is always an empty symbol.
+-This symbol
+-is no longer skipped since indexes into the symbol table returned by <code>debug/elf</code>
+-will be different from indexes into the original ELF symbol table.
+-Any code that calls the methods
+-<a href="/pkg/debug/elf/#File.Symbols"><code>Symbols</code></a>
+-or
+-<a href="/pkg/debug/elf/#File.ImportedSymbols"><code>ImportedSymbols</code></a>
+-of the
+-<a href="/pkg/debug/elf/#File"><code>elf.File</code></a>
+-type may need to be adjusted to account for the additional symbol and the change in symbol offsets.
+-</p>
+-
+ <h3 id="net">net</h3>
+ 
+ <p>
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index acb9817af0..0d022ab910 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -422,6 +422,10 @@ func (f *File) getSymbols32(typ SectionType) ([]Symbol, []byte, error) {
+ 		return nil, nil, errors.New("cannot load string table section")
+ 	}
+ 
++	// The first entry is all zeros.
++	var skip [Sym32Size]byte
++	symtab.Read(skip[:])
++
+ 	symbols := make([]Symbol, symtab.Len()/Sym32Size)
+ 
+ 	i := 0
+@@ -461,6 +465,10 @@ func (f *File) getSymbols64(typ SectionType) ([]Symbol, []byte, error) {
+ 		return nil, nil, errors.New("cannot load string table section")
+ 	}
+ 
++	// The first entry is all zeros.
++	var skip [Sym64Size]byte
++	symtab.Read(skip[:])
++
+ 	symbols := make([]Symbol, symtab.Len()/Sym64Size)
+ 
+ 	i := 0
+@@ -533,10 +541,10 @@ func (f *File) applyRelocationsAMD64(dst []byte, rels []byte) error {
+ 		symNo := rela.Info >> 32
+ 		t := R_X86_64(rela.Info & 0xffff)
+ 
+-		if symNo >= uint64(len(symbols)) {
++		if symNo == 0 || symNo > uint64(len(symbols)) {
+ 			continue
+ 		}
+-		sym := &symbols[symNo]
++		sym := &symbols[symNo-1]
+ 		if SymType(sym.Info&0xf) != STT_SECTION {
+ 			// We don't handle non-section relocations for now.
+ 			continue
+@@ -597,6 +605,10 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ }
+ 
+ // Symbols returns the symbol table for f.
++//
++// For compatibility with Go 1.0, Symbols omits the null symbol at index 0.
++// After retrieving the symbols as symtab, an externally supplied index x
++// corresponds to symtab[x-1], not symtab[x].
+ func (f *File) Symbols() ([]Symbol, error) {
+ 	sym, _, err := f.getSymbols(SHT_SYMTAB)
+ 	return sym, err

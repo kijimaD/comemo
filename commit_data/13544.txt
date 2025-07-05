@@ -9,6 +9,32 @@ Date:   Tue Jul 31 20:59:06 2012 +0900
     R=iant, rsc
     CC=golang-dev
     https://golang.org/cl/6455057
-
+---
  misc/cgo/test/basic.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 70ec5e43ac..3716a4062e 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -20,9 +20,9 @@ enum E {
+ 	Enum2 = 2,
+ };
+ 
+-typedef unsigned char uuid_t[20];
++typedef unsigned char cgo_uuid_t[20];
+ 
+-void uuid_generate(uuid_t x) {
++void uuid_generate(cgo_uuid_t x) {
+ 	x[0] = 0;
+ }
+ 
+@@ -65,7 +65,7 @@ const EINVAL = C.EINVAL /* test #define */
+ var KILO = C.KILO
+ 
+ func uuidgen() {
+-	var uuid C.uuid_t
++	var uuid C.cgo_uuid_t
+ 	C.uuid_generate(&uuid[0])
+ }
+ 

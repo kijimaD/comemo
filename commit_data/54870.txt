@@ -14,7 +14,7 @@ Date:   Thu Nov 17 14:25:50 2022 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go       |  6 +-----
  src/cmd/compile/internal/types2/object.go     | 12 ++++++------
  src/cmd/compile/internal/types2/typestring.go |  4 +---
@@ -22,3 +22,174 @@ Date:   Thu Nov 17 14:25:50 2022 -0800
  src/go/types/object.go                        | 12 ++++++------
  src/go/types/typestring.go                    |  4 +---
  6 files changed, 16 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 8985aa9b61..530a8f5b69 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -5,7 +5,6 @@
+ package types2
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/constant"
+@@ -311,10 +310,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	// may refer to imported types. See issue #50788.
+ 	// TODO(gri) This functionality is used elsewhere. Factor it out.
+ 	name := func(obj Object) string {
+-		var buf bytes.Buffer
+-		writePackage(&buf, obj.Pkg(), check.qualifier)
+-		buf.WriteString(obj.Name())
+-		return buf.String()
++		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+ 	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index f373561809..5c0ea8ca16 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -512,7 +512,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 
+ 	// For package-level objects, qualify the name.
+ 	if obj.Pkg() != nil && obj.Pkg().scope.Lookup(obj.Name()) == obj {
+-		writePackage(buf, obj.Pkg(), qf)
++		buf.WriteString(packagePrefix(obj.Pkg(), qf))
+ 	}
+ 	buf.WriteString(obj.Name())
+ 
+@@ -553,9 +553,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	WriteType(buf, typ, qf)
+ }
+ 
+-func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
++func packagePrefix(pkg *Package, qf Qualifier) string {
+ 	if pkg == nil {
+-		return
++		return ""
+ 	}
+ 	var s string
+ 	if qf != nil {
+@@ -564,9 +564,9 @@ func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
+ 		s = pkg.Path()
+ 	}
+ 	if s != "" {
+-		buf.WriteString(s)
+-		buf.WriteByte('.')
++		s += "."
+ 	}
++	return s
+ }
+ 
+ // ObjectString returns the string form of obj.
+@@ -604,7 +604,7 @@ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
+ 			buf.WriteByte(')')
+ 			buf.WriteByte('.')
+ 		} else if f.pkg != nil {
+-			writePackage(buf, f.pkg, qf)
++			buf.WriteString(packagePrefix(f.pkg, qf))
+ 		}
+ 	}
+ 	buf.WriteString(f.name)
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 19f253c41e..94b8ba4ac6 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -388,9 +388,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
+ }
+ 
+ func (w *typeWriter) typeName(obj *TypeName) {
+-	if obj.pkg != nil {
+-		writePackage(w.buf, obj.pkg, w.qf)
+-	}
++	w.string(packagePrefix(obj.pkg, w.qf))
+ 	w.string(obj.name)
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 5f86cd675c..adc485c400 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -5,7 +5,6 @@
+ package types
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/constant"
+@@ -309,10 +308,7 @@ func (check *Checker) cycleError(cycle []Object) {
+ 	// may refer to imported types. See issue #50788.
+ 	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
+ 	name := func(obj Object) string {
+-		var buf bytes.Buffer
+-		writePackage(&buf, obj.Pkg(), check.qualifier)
+-		buf.WriteString(obj.Name())
+-		return buf.String()
++		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+ 	// TODO(gri) Should we start with the last (rather than the first) object in the cycle
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index f203b0113d..6e63948680 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -469,7 +469,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 
+ 	// For package-level objects, qualify the name.
+ 	if obj.Pkg() != nil && obj.Pkg().scope.Lookup(obj.Name()) == obj {
+-		writePackage(buf, obj.Pkg(), qf)
++		buf.WriteString(packagePrefix(obj.Pkg(), qf))
+ 	}
+ 	buf.WriteString(obj.Name())
+ 
+@@ -510,9 +510,9 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	WriteType(buf, typ, qf)
+ }
+ 
+-func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
++func packagePrefix(pkg *Package, qf Qualifier) string {
+ 	if pkg == nil {
+-		return
++		return ""
+ 	}
+ 	var s string
+ 	if qf != nil {
+@@ -521,9 +521,9 @@ func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
+ 		s = pkg.Path()
+ 	}
+ 	if s != "" {
+-		buf.WriteString(s)
+-		buf.WriteByte('.')
++		s += "."
+ 	}
++	return s
+ }
+ 
+ // ObjectString returns the string form of obj.
+@@ -561,7 +561,7 @@ func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
+ 			buf.WriteByte(')')
+ 			buf.WriteByte('.')
+ 		} else if f.pkg != nil {
+-			writePackage(buf, f.pkg, qf)
++			buf.WriteString(packagePrefix(f.pkg, qf))
+ 		}
+ 	}
+ 	buf.WriteString(f.name)
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 8fdafc2d4a..bf541fc263 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -389,9 +389,7 @@ func (w *typeWriter) tParamList(list []*TypeParam) {
+ }
+ 
+ func (w *typeWriter) typeName(obj *TypeName) {
+-	if obj.pkg != nil {
+-		writePackage(w.buf, obj.pkg, w.qf)
+-	}
++	w.string(packagePrefix(obj.pkg, w.qf))
+ 	w.string(obj.name)
+ }
+ 

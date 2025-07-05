@@ -18,8 +18,88 @@ Date:   Mon Mar 29 16:15:50 2021 -0500
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/internal/obj/ppc64/a.out.go |  1 -
  src/cmd/internal/obj/ppc64/asm9.go  | 18 +++---------------
  src/cmd/internal/obj/ppc64/list9.go |  5 +----
  3 files changed, 4 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index b5696f7993..3a1e2d3c9a 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -231,7 +231,6 @@ const (
+ 	REG_SPECIAL = REG_CR0
+ 
+ 	REG_SPR0 = obj.RBasePPC64 + 1024 // first of 1024 registers
+-	REG_DCR0 = obj.RBasePPC64 + 2048 // first of 1024 registers
+ 
+ 	REG_XER = REG_SPR0 + 1
+ 	REG_LR  = REG_SPR0 + 8
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 1d92c4866f..ff94fa72c7 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -828,10 +828,6 @@ func (c *ctxt9) aclass(a *obj.Addr) int {
+ 
+ 			return C_SPR
+ 		}
+-
+-		if REG_DCR0 <= a.Reg && a.Reg <= REG_DCR0+1023 {
+-			return C_SPR
+-		}
+ 		if a.Reg == REG_FPSCR {
+ 			return C_FPSCR
+ 		}
+@@ -3341,25 +3337,17 @@ func (c *ctxt9) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 = OP_MTFSFI | (uint32(p.To.Reg)&15)<<23 | (uint32(c.regoff(&p.From))&31)<<12
+ 
+-	case 66: /* mov spr,r1; mov r1,spr, also dcr */
++	case 66: /* mov spr,r1; mov r1,spr */
+ 		var r int
+ 		var v int32
+ 		if REG_R0 <= p.From.Reg && p.From.Reg <= REG_R31 {
+ 			r = int(p.From.Reg)
+ 			v = int32(p.To.Reg)
+-			if REG_DCR0 <= v && v <= REG_DCR0+1023 {
+-				o1 = OPVCC(31, 451, 0, 0) /* mtdcr */
+-			} else {
+-				o1 = OPVCC(31, 467, 0, 0) /* mtspr */
+-			}
++			o1 = OPVCC(31, 467, 0, 0) /* mtspr */
+ 		} else {
+ 			r = int(p.To.Reg)
+ 			v = int32(p.From.Reg)
+-			if REG_DCR0 <= v && v <= REG_DCR0+1023 {
+-				o1 = OPVCC(31, 323, 0, 0) /* mfdcr */
+-			} else {
+-				o1 = OPVCC(31, 339, 0, 0) /* mfspr */
+-			}
++			o1 = OPVCC(31, 339, 0, 0) /* mfspr */
+ 		}
+ 
+ 		o1 = AOP_RRR(o1, uint32(r), 0, 0) | (uint32(v)&0x1f)<<16 | ((uint32(v)>>5)&0x1f)<<11
+diff --git a/src/cmd/internal/obj/ppc64/list9.go b/src/cmd/internal/obj/ppc64/list9.go
+index 461950dc60..8b0b36f375 100644
+--- a/src/cmd/internal/obj/ppc64/list9.go
++++ b/src/cmd/internal/obj/ppc64/list9.go
+@@ -35,7 +35,7 @@ import (
+ )
+ 
+ func init() {
+-	obj.RegisterRegister(obj.RBasePPC64, REG_DCR0+1024, rconv)
++	obj.RegisterRegister(obj.RBasePPC64, REG_SPR0+1024, rconv)
+ 	obj.RegisterOpcode(obj.ABasePPC64, Anames)
+ }
+ 
+@@ -80,9 +80,6 @@ func rconv(r int) string {
+ 		return fmt.Sprintf("SPR(%d)", r-REG_SPR0)
+ 	}
+ 
+-	if REG_DCR0 <= r && r <= REG_DCR0+1023 {
+-		return fmt.Sprintf("DCR(%d)", r-REG_DCR0)
+-	}
+ 	if r == REG_FPSCR {
+ 		return "FPSCR"
+ 	}

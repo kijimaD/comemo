@@ -12,6 +12,21 @@ Date:   Mon Oct 17 10:54:44 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/31188
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/net/net_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 640bcac808..4e12a3f23f 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -457,6 +457,9 @@ func withTCPConnPair(t *testing.T, peer1, peer2 func(c *TCPConn) error) {
+ // See golang.org/cl/30164 which documented this. The net/http package
+ // depends on this.
+ func TestReadTimeoutUnblocksRead(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skipf("not supported on %s; see golang.org/issue/17477", runtime.GOOS)
++	}
+ 	serverDone := make(chan struct{})
+ 	server := func(cs *TCPConn) error {
+ 		defer close(serverDone)

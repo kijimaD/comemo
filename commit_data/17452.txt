@@ -9,6 +9,67 @@ Date:   Sat Aug 31 16:29:50 2013 +0900
     R=golang-dev, alex.brainman
     CC=golang-dev
     https://golang.org/cl/13373046
-
+---
  src/pkg/net/lookup.go | 28 +++++++++++++---------------
  1 file changed, 13 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/net/lookup.go b/src/pkg/net/lookup.go
+index 0a10de239f..20f20578cd 100644
+--- a/src/pkg/net/lookup.go
++++ b/src/pkg/net/lookup.go
+@@ -4,9 +4,7 @@
+ 
+ package net
+ 
+-import (
+-	"time"
+-)
++import "time"
+ 
+ // protocols contains minimal mappings between internet protocol
+ // names and numbers for platforms that don't have a complete list of
+@@ -21,6 +19,18 @@ var protocols = map[string]int{
+ 	"ipv6-icmp": 58, "IPV6-ICMP": 58, "IPv6-ICMP": 58,
+ }
+ 
++// LookupHost looks up the given host using the local resolver.
++// It returns an array of that host's addresses.
++func LookupHost(host string) (addrs []string, err error) {
++	return lookupHost(host)
++}
++
++// LookupIP looks up host using the local resolver.
++// It returns an array of that host's IPv4 and IPv6 addresses.
++func LookupIP(host string) (addrs []IP, err error) {
++	return lookupIPMerge(host)
++}
++
+ var lookupGroup singleflight
+ 
+ // lookupIPMerge wraps lookupIP, but makes sure that for any given
+@@ -42,12 +52,6 @@ func lookupIPMerge(host string) (addrs []IP, err error) {
+ 	return addrs, nil
+ }
+ 
+-// LookupHost looks up the given host using the local resolver.
+-// It returns an array of that host's addresses.
+-func LookupHost(host string) (addrs []string, err error) {
+-	return lookupHost(host)
+-}
+-
+ func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
+ 	if deadline.IsZero() {
+ 		return lookupIPMerge(host)
+@@ -85,12 +89,6 @@ func lookupIPDeadline(host string, deadline time.Time) (addrs []IP, err error) {
+ 	return
+ }
+ 
+-// LookupIP looks up host using the local resolver.
+-// It returns an array of that host's IPv4 and IPv6 addresses.
+-func LookupIP(host string) (addrs []IP, err error) {
+-	return lookupIPMerge(host)
+-}
+-
+ // LookupPort looks up the port for the given network and service.
+ func LookupPort(network, service string) (port int, err error) {
+ 	return lookupPort(network, service)

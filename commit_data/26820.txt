@@ -22,8 +22,190 @@ Date:   Sat Feb 20 01:51:32 2016 +0100
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/fmt_test.go | 12 +++++++
  src/fmt/format.go   | 99 +++++++++++++++++++++++------------------------------
  src/fmt/print.go    |  6 ++++
  3 files changed, 60 insertions(+), 57 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 1d9d015f4a..14d3aaf544 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -674,6 +674,10 @@ var fmtTests = []struct {
+ 	// Make sure we can handle very large widths.
+ 	{"%0100f", -1.0, zeroFill("-", 99, "1.000000")},
+ 
++	// Use spaces instead of zero if padding to the right.
++	{"%0-5s", "abc", "abc  "},
++	{"%-05.1f", 1.0, "1.0  "},
++
+ 	// Complex fmt used to leave the plus flag set for future entries in the array
+ 	// causing +2+0i and +3+0i instead of 2+0i and 3+0i.
+ 	{"%v", []complex64{1, 2, 3}, "[(1+0i) (2+0i) (3+0i)]"},
+@@ -884,6 +888,14 @@ func TestReorder(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkSprintfPadding(b *testing.B) {
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Sprintf("%16f", 1.0)
++		}
++	})
++}
++
+ func BenchmarkSprintfEmpty(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {
+diff --git a/src/fmt/format.go b/src/fmt/format.go
+index c811cc6a3d..a4aa897229 100644
+--- a/src/fmt/format.go
++++ b/src/fmt/format.go
+@@ -23,16 +23,6 @@ const (
+ 	unsigned = false
+ )
+ 
+-var padZeroBytes = make([]byte, nByte)
+-var padSpaceBytes = make([]byte, nByte)
+-
+-func init() {
+-	for i := 0; i < nByte; i++ {
+-		padZeroBytes[i] = '0'
+-		padSpaceBytes[i] = ' '
+-	}
+-}
+-
+ // flags placed in a separate struct for easy clearing.
+ type fmtFlags struct {
+ 	widPresent  bool
+@@ -72,70 +62,65 @@ func (f *fmt) init(buf *buffer) {
+ 	f.clearflags()
+ }
+ 
+-// computePadding computes left and right padding widths (only one will be non-zero).
+-func (f *fmt) computePadding(width int) (padding []byte, leftWidth, rightWidth int) {
+-	left := !f.minus
+-	w := f.wid
+-	if w < 0 {
+-		left = false
+-		w = -w
+-	}
+-	w -= width
+-	if w > 0 {
+-		if left && f.zero {
+-			return padZeroBytes, w, 0
+-		}
+-		if left {
+-			return padSpaceBytes, w, 0
+-		} else {
+-			// can't be zero padding on the right
+-			return padSpaceBytes, 0, w
+-		}
+-	}
+-	return
+-}
+-
+ // writePadding generates n bytes of padding.
+-func (f *fmt) writePadding(n int, padding []byte) {
+-	for n > 0 {
+-		m := n
+-		if m > nByte {
+-			m = nByte
+-		}
+-		f.buf.Write(padding[0:m])
+-		n -= m
++func (f *fmt) writePadding(n int) {
++	if n <= 0 { // No padding bytes needed.
++		return
+ 	}
++	buf := *f.buf
++	oldLen := len(buf)
++	newLen := oldLen + n
++	// Make enough room for padding.
++	if newLen > cap(buf) {
++		buf = make(buffer, cap(buf)*2+n)
++		copy(buf, *f.buf)
++	}
++	// Decide which byte the padding should be filled with.
++	padByte := byte(' ')
++	if f.zero {
++		padByte = byte('0')
++	}
++	// Fill padding with padByte.
++	padding := buf[oldLen:newLen]
++	for i := range padding {
++		padding[i] = padByte
++	}
++	*f.buf = buf[:newLen]
+ }
+ 
+-// pad appends b to f.buf, padded on left (w > 0) or right (w < 0 or f.minus).
++// pad appends b to f.buf, padded on left (!f.minus) or right (f.minus).
+ func (f *fmt) pad(b []byte) {
+ 	if !f.widPresent || f.wid == 0 {
+ 		f.buf.Write(b)
+ 		return
+ 	}
+-	padding, left, right := f.computePadding(utf8.RuneCount(b))
+-	if left > 0 {
+-		f.writePadding(left, padding)
+-	}
+-	f.buf.Write(b)
+-	if right > 0 {
+-		f.writePadding(right, padding)
++	width := f.wid - utf8.RuneCount(b)
++	if !f.minus {
++		// left padding
++		f.writePadding(width)
++		f.buf.Write(b)
++	} else {
++		// right padding
++		f.buf.Write(b)
++		f.writePadding(width)
+ 	}
+ }
+ 
+-// padString appends s to buf, padded on left (w > 0) or right (w < 0 or f.minus).
++// padString appends s to f.buf, padded on left (!f.minus) or right (f.minus).
+ func (f *fmt) padString(s string) {
+ 	if !f.widPresent || f.wid == 0 {
+ 		f.buf.WriteString(s)
+ 		return
+ 	}
+-	padding, left, right := f.computePadding(utf8.RuneCountInString(s))
+-	if left > 0 {
+-		f.writePadding(left, padding)
+-	}
+-	f.buf.WriteString(s)
+-	if right > 0 {
+-		f.writePadding(right, padding)
++	width := f.wid - utf8.RuneCountInString(s)
++	if !f.minus {
++		// left padding
++		f.writePadding(width)
++		f.buf.WriteString(s)
++	} else {
++		// right padding
++		f.buf.WriteString(s)
++		f.writePadding(width)
+ 	}
+ }
+ 
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index ebfa13e4d3..0354d6e616 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -1235,6 +1235,12 @@ func (p *pp) doPrintf(format string, a []interface{}) {
+ 				p.fmt.plusV = true
+ 			}
+ 		}
++
++		// Use space padding instead of zero padding to the right.
++		if p.fmt.minus {
++			p.fmt.zero = false
++		}
++
+ 		p.printArg(arg, c, 0)
+ 	}
+ 

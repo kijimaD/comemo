@@ -11,6 +11,41 @@ Date:   Wed Apr 8 12:55:34 2015 -0700
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/macho.go | 11 ++++++++++-
  1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index a6cd02b930..7371c0d9d1 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -13,6 +13,8 @@ import (
+ 	"sort"
+ )
+ 
++const stabTypeMask = 0xe0
++
+ type machoFile struct {
+ 	macho *macho.File
+ }
+@@ -34,12 +36,19 @@ func (f *machoFile) symbols() ([]Sym, error) {
+ 	// We infer the size of a symbol by looking at where the next symbol begins.
+ 	var addrs []uint64
+ 	for _, s := range f.macho.Symtab.Syms {
+-		addrs = append(addrs, s.Value)
++		// Skip stab debug info.
++		if s.Type&stabTypeMask == 0 {
++			addrs = append(addrs, s.Value)
++		}
+ 	}
+ 	sort.Sort(uint64s(addrs))
+ 
+ 	var syms []Sym
+ 	for _, s := range f.macho.Symtab.Syms {
++		if s.Type&stabTypeMask != 0 {
++			// Skip stab debug info.
++			continue
++		}
+ 		sym := Sym{Name: s.Name, Addr: s.Value, Code: '?'}
+ 		i := sort.Search(len(addrs), func(x int) bool { return addrs[x] > s.Value })
+ 		if i < len(addrs) {

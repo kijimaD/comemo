@@ -13,10 +13,93 @@ Date:   Sat Sep 3 14:35:41 2022 +0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/strings/builder.go      |  2 +-
  src/strings/clone.go        |  2 +-
  src/strings/clone_test.go   | 10 +++-------
  src/strings/compare_test.go |  2 +-
  src/strings/strings_test.go |  3 +--
  5 files changed, 7 insertions(+), 12 deletions(-)
+
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index 096e9c765e..7710464a0d 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -45,7 +45,7 @@ func (b *Builder) copyCheck() {
+ 
+ // String returns the accumulated string.
+ func (b *Builder) String() string {
+-	return *(*string)(unsafe.Pointer(&b.buf))
++	return unsafe.String(unsafe.SliceData(b.buf), len(b.buf))
+ }
+ 
+ // Len returns the number of accumulated bytes; b.Len() == len(b.String()).
+diff --git a/src/strings/clone.go b/src/strings/clone.go
+index edd1497d9e..d14df11d49 100644
+--- a/src/strings/clone.go
++++ b/src/strings/clone.go
+@@ -24,5 +24,5 @@ func Clone(s string) string {
+ 	}
+ 	b := make([]byte, len(s))
+ 	copy(b, s)
+-	return *(*string)(unsafe.Pointer(&b))
++	return unsafe.String(&b[0], len(b))
+ }
+diff --git a/src/strings/clone_test.go b/src/strings/clone_test.go
+index a9ba8add23..77479cfacf 100644
+--- a/src/strings/clone_test.go
++++ b/src/strings/clone_test.go
+@@ -5,7 +5,6 @@
+ package strings_test
+ 
+ import (
+-	"reflect"
+ 	"strings"
+ 	"testing"
+ 	"unsafe"
+@@ -27,15 +26,12 @@ func TestClone(t *testing.T) {
+ 			t.Errorf("Clone(%q) = %q; want %q", input, clone, input)
+ 		}
+ 
+-		inputHeader := (*reflect.StringHeader)(unsafe.Pointer(&input))
+-		cloneHeader := (*reflect.StringHeader)(unsafe.Pointer(&clone))
+-		if len(input) != 0 && cloneHeader.Data == inputHeader.Data {
++		if len(input) != 0 && unsafe.StringData(clone) == unsafe.StringData(input) {
+ 			t.Errorf("Clone(%q) return value should not reference inputs backing memory.", input)
+ 		}
+ 
+-		emptyHeader := (*reflect.StringHeader)(unsafe.Pointer(&emptyString))
+-		if len(input) == 0 && cloneHeader.Data != emptyHeader.Data {
+-			t.Errorf("Clone(%#v) return value should be equal to empty string.", inputHeader)
++		if len(input) == 0 && unsafe.StringData(clone) != unsafe.StringData(emptyString) {
++			t.Errorf("Clone(%#v) return value should be equal to empty string.", unsafe.StringData(input))
+ 		}
+ 	}
+ }
+diff --git a/src/strings/compare_test.go b/src/strings/compare_test.go
+index 94554e0af7..a43578423d 100644
+--- a/src/strings/compare_test.go
++++ b/src/strings/compare_test.go
+@@ -57,7 +57,7 @@ func TestCompareStrings(t *testing.T) {
+ 	// unsafeString converts a []byte to a string with no allocation.
+ 	// The caller must not modify b while the result string is in use.
+ 	unsafeString := func(b []byte) string {
+-		return *(*string)(unsafe.Pointer(&b))
++		return unsafe.String(unsafe.SliceData(b), len(b))
+ 	}
+ 
+ 	lengths := make([]int, 0) // lengths to test in ascending order
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 6d394f47be..8af81a556b 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -660,8 +660,7 @@ func TestMap(t *testing.T) {
+ 	}
+ 	orig := "Input string that we expect not to be copied."
+ 	m = Map(identity, orig)
+-	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
+-		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
++	if unsafe.StringData(orig) != unsafe.StringData(m) {
+ 		t.Error("unexpected copy during identity map")
+ 	}
+ 

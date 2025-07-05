@@ -17,7 +17,7 @@ Date:   Wed Apr 12 01:10:01 2017 +1000
     Change-Id: I42e75ef9feb5dcd4696add5233497e3cbc48ad52
     Reviewed-on: https://go-review.googlesource.com/40331
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go      |   6 +-
  src/cmd/link/internal/ld/elf.go       |  40 ++++------
  src/cmd/link/internal/ld/lib.go       |   2 +-
@@ -27,3 +27,579 @@ Date:   Wed Apr 12 01:10:01 2017 +1000
  src/runtime/cgo/gcc_openbsd_amd64.c   | 133 +---------------------------------
  src/runtime/cgo/openbsd.go            |  15 +---
  8 files changed, 25 insertions(+), 380 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 094df86dce..099a5361ac 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -449,7 +449,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		case obj.R_TLS_LE:
+ 			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+ 
+-			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
++			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
+ 				r.Done = 0
+ 				if r.Sym == nil {
+ 					r.Sym = ctxt.Tlsg
+@@ -483,7 +483,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 		case obj.R_TLS_IE:
+ 			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+ 
+-			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
++			if Linkmode == LinkExternal && Iself && !isAndroidX86 {
+ 				r.Done = 0
+ 				if r.Sym == nil {
+ 					r.Sym = ctxt.Tlsg
+@@ -1570,7 +1570,7 @@ func (ctxt *Link) dodata() {
+ 
+ 	if len(data[obj.STLSBSS]) > 0 {
+ 		var sect *Section
+-		if Iself && (Linkmode == LinkExternal || !*FlagD) && Headtype != obj.Hopenbsd {
++		if Iself && (Linkmode == LinkExternal || !*FlagD) {
+ 			sect = addsection(&Segdata, ".tbss", 06)
+ 			sect.Align = int32(SysArch.PtrSize)
+ 			sect.Vaddr = 0
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 1d8a5dd35e..978c166d4d 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1894,14 +1894,11 @@ func (ctxt *Link) doelf() {
+ 	Addstring(shstrtab, ".bss")
+ 	Addstring(shstrtab, ".noptrbss")
+ 
+-	// generate .tbss section (except for OpenBSD where it's not supported)
+-	// for dynamic internal linker or external linking, so that various
+-	// binutils could correctly calculate PT_TLS size.
+-	// see https://golang.org/issue/5200.
+-	if Headtype != obj.Hopenbsd {
+-		if !*FlagD || Linkmode == LinkExternal {
+-			Addstring(shstrtab, ".tbss")
+-		}
++	// generate .tbss section for dynamic internal linker or external
++	// linking, so that various binutils could correctly calculate
++	// PT_TLS size. See https://golang.org/issue/5200.
++	if !*FlagD || Linkmode == LinkExternal {
++		Addstring(shstrtab, ".tbss")
+ 	}
+ 	if Headtype == obj.Hnetbsd {
+ 		Addstring(shstrtab, ".note.netbsd.ident")
+@@ -2525,24 +2522,19 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		/*
+ 		 * Thread-local storage segment (really just size).
+ 		 */
+-		// Do not emit PT_TLS for OpenBSD since ld.so(1) does
+-		// not currently support it. This is handled
+-		// appropriately in runtime/cgo.
+-		if Headtype != obj.Hopenbsd {
+-			tlssize := uint64(0)
+-			for sect := Segdata.Sect; sect != nil; sect = sect.Next {
+-				if sect.Name == ".tbss" {
+-					tlssize = sect.Length
+-				}
+-			}
+-			if tlssize != 0 {
+-				ph := newElfPhdr()
+-				ph.type_ = PT_TLS
+-				ph.flags = PF_R
+-				ph.memsz = tlssize
+-				ph.align = uint64(SysArch.RegSize)
++		tlssize := uint64(0)
++		for sect := Segdata.Sect; sect != nil; sect = sect.Next {
++			if sect.Name == ".tbss" {
++				tlssize = sect.Length
+ 			}
+ 		}
++		if tlssize != 0 {
++			ph := newElfPhdr()
++			ph.type_ = PT_TLS
++			ph.flags = PF_R
++			ph.memsz = tlssize
++			ph.align = uint64(SysArch.RegSize)
++		}
+ 	}
+ 
+ 	if Headtype == obj.Hlinux {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index d13c93b9a1..0319a3edfd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1971,7 +1971,7 @@ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, SymbolType, int64, *
+ 			put(ctxt, s, s.Extname, UndefinedSym, 0, nil)
+ 
+ 		case obj.STLSBSS:
+-			if Linkmode == LinkExternal && Headtype != obj.Hopenbsd {
++			if Linkmode == LinkExternal {
+ 				put(ctxt, s, s.Name, TLSSym, Symaddr(s), s.Gotype)
+ 			}
+ 		}
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index f6fbaa3f01..31594addce 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build cgo
+-// +build darwin dragonfly freebsd linux netbsd solaris
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ #include <pthread.h>
+ #include <errno.h>
+diff --git a/src/runtime/cgo/gcc_libinit_openbsd.c b/src/runtime/cgo/gcc_libinit_openbsd.c
+index c8308e54c3..e69de29bb2 100644
+--- a/src/runtime/cgo/gcc_libinit_openbsd.c
++++ b/src/runtime/cgo/gcc_libinit_openbsd.c
+@@ -1,74 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include <sys/types.h>
+-#include <errno.h>
+-#include <pthread.h>
+-#include <stdio.h>
+-#include <stdlib.h>
+-#include "libcgo.h"
+-
+-// The context function, used when tracing back C calls into Go.
+-static void (*cgo_context_function)(struct context_arg*);
+-
+-void
+-x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+-	fprintf(stderr, "x_cgo_sys_thread_create not implemented");
+-	abort();
+-}
+-
+-uintptr_t
+-_cgo_wait_runtime_init_done() {
+-	void (*pfn)(struct context_arg*);
+-
+-	// TODO(spetrovic): implement this method.
+-
+-	pfn = _cgo_get_context_function();
+-	if (pfn != nil) {
+-		struct context_arg arg;
+-
+-		arg.Context = 0;
+-		(*pfn)(&arg);
+-		return arg.Context;
+-	}
+-	return 0;
+-}
+-
+-void
+-x_cgo_notify_runtime_init_done(void* dummy) {
+-	// TODO(spetrovic): implement this method.
+-}
+-
+-// Sets the context function to call to record the traceback context
+-// when calling a Go function from C code. Called from runtime.SetCgoTraceback.
+-void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
+-	// TODO(iant): Needs synchronization.
+-	cgo_context_function = context;
+-}
+-
+-// Gets the context function.
+-void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+-	return cgo_context_function;
+-}
+-
+-// _cgo_try_pthread_create retries sys_pthread_create if it fails with
+-// EAGAIN.
+-int
+-_cgo_openbsd_try_pthread_create(int (*sys_pthread_create)(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*),
+-	pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
+-	int tries;
+-	int err;
+-	struct timespec ts;
+-
+-	for (tries = 0; tries < 100; tries++) {
+-		err = sys_pthread_create(thread, attr, pfn, arg);
+-		if (err != EAGAIN) {
+-			return err;
+-		}
+-		ts.tv_sec = 0;
+-		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
+-		nanosleep(&ts, nil);
+-	}
+-	return EAGAIN;
+-}
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index 0cac047ad3..cfc09e504c 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <sys/types.h>
+-#include <dlfcn.h>
+-#include <errno.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <string.h>
+@@ -14,125 +12,6 @@
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+ 
+-// TCB_SIZE is sizeof(struct thread_control_block), as defined in
+-// /usr/src/lib/librthread/tcb.h on OpenBSD 5.9 and earlier.
+-#define TCB_SIZE (4 * sizeof(void *))
+-
+-// TIB_SIZE is sizeof(struct tib), as defined in
+-// /usr/include/tib.h on OpenBSD 6.0 and later.
+-#define TIB_SIZE (4 * sizeof(void *) + 6 * sizeof(int))
+-
+-// TLS_SIZE is the size of TLS needed for Go.
+-#define TLS_SIZE (2 * sizeof(void *))
+-
+-void *__get_tcb(void);
+-void __set_tcb(void *);
+-
+-static int (*sys_pthread_create)(pthread_t *thread, const pthread_attr_t *attr,
+-	void *(*start_routine)(void *), void *arg);
+-
+-struct thread_args {
+-	void *(*func)(void *);
+-	void *arg;
+-};
+-
+-static int has_tib = 0;
+-
+-static void
+-tcb_fixup(int mainthread)
+-{
+-	void *tls, *newtcb, *oldtcb;
+-	size_t tls_size, tcb_size;
+-
+-	// TODO(jsing): Remove once OpenBSD 6.1 is released and OpenBSD 5.9 is
+-	// no longer supported.
+-
+-	// The OpenBSD ld.so(1) does not currently support PT_TLS. As a result,
+-	// we need to allocate our own TLS space while preserving the existing
+-	// TCB or TIB that has been setup via librthread.
+-
+-	tcb_size = has_tib ? TIB_SIZE : TCB_SIZE;
+-	tls_size = TLS_SIZE + tcb_size;
+-	tls = malloc(tls_size);
+-	if(tls == NULL)
+-		abort();
+-
+-	// The signal trampoline expects the TLS slots to be zeroed.
+-	bzero(tls, TLS_SIZE);
+-
+-	oldtcb = __get_tcb();
+-	newtcb = tls + TLS_SIZE;
+-	bcopy(oldtcb, newtcb, tcb_size);
+-	if(has_tib) {
+-		 // Fix up self pointer.
+-		*(uintptr_t *)(newtcb) = (uintptr_t)newtcb;
+-	}
+-	__set_tcb(newtcb);
+-
+-	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
+-	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
+-	// has proper support for PT_TLS.
+-}
+-
+-static void *
+-thread_start_wrapper(void *arg)
+-{
+-	struct thread_args args = *(struct thread_args *)arg;
+-
+-	free(arg);
+-	tcb_fixup(0);
+-
+-	return args.func(args.arg);
+-}
+-
+-static void init_pthread_wrapper(void) {
+-	void *handle;
+-
+-	// Locate symbol for the system pthread_create function.
+-	handle = dlopen("libpthread.so", RTLD_LAZY);
+-	if(handle == NULL) {
+-		fprintf(stderr, "runtime/cgo: dlopen failed to load libpthread: %s\n", dlerror());
+-		abort();
+-	}
+-	sys_pthread_create = dlsym(handle, "pthread_create");
+-	if(sys_pthread_create == NULL) {
+-		fprintf(stderr, "runtime/cgo: dlsym failed to find pthread_create: %s\n", dlerror());
+-		abort();
+-	}
+-	// _rthread_init is hidden in OpenBSD librthread that has TIB.
+-	if(dlsym(handle, "_rthread_init") == NULL) {
+-		has_tib = 1;
+-	}
+-	dlclose(handle);
+-}
+-
+-static pthread_once_t init_pthread_wrapper_once = PTHREAD_ONCE_INIT;
+-
+-int
+-pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+-	void *(*start_routine)(void *), void *arg)
+-{
+-	struct thread_args *p;
+-
+-	// we must initialize our wrapper in pthread_create, because it is valid to call
+-	// pthread_create in a static constructor, and in fact, our test for issue 9456
+-	// does just that.
+-	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+-		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+-		abort();
+-	}
+-
+-	p = malloc(sizeof(*p));
+-	if(p == NULL) {
+-		errno = ENOMEM;
+-		return -1;
+-	}
+-	p->func = start_routine;
+-	p->arg = arg;
+-
+-	return sys_pthread_create(thread, attr, thread_start_wrapper, p);
+-}
+-
+ void
+ x_cgo_init(G *g, void (*setg)(void*))
+ {
+@@ -144,16 +23,8 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	g->stacklo = (uintptr)&attr - size + 4096;
+ 	pthread_attr_destroy(&attr);
+-
+-	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+-		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+-		abort();
+-	}
+-
+-	tcb_fixup(1);
+ }
+ 
+-
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+@@ -171,7 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = _cgo_openbsd_try_pthread_create(sys_pthread_create, &p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+@@ -186,8 +57,6 @@ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+ 
+-	tcb_fixup(0);
+-
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index 86a9185a37..ce626c4e37 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -3,8 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include <sys/types.h>
+-#include <dlfcn.h>
+-#include <errno.h>
+ #include <pthread.h>
+ #include <signal.h>
+ #include <string.h>
+@@ -14,125 +12,6 @@
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+ 
+-// TCB_SIZE is sizeof(struct thread_control_block), as defined in
+-// /usr/src/lib/librthread/tcb.h on OpenBSD 5.9 and earlier.
+-#define TCB_SIZE (4 * sizeof(void *))
+-
+-// TIB_SIZE is sizeof(struct tib), as defined in
+-// /usr/include/tib.h on OpenBSD 6.0 and later.
+-#define TIB_SIZE (4 * sizeof(void *) + 6 * sizeof(int))
+-
+-// TLS_SIZE is the size of TLS needed for Go.
+-#define TLS_SIZE (2 * sizeof(void *))
+-
+-void *__get_tcb(void);
+-void __set_tcb(void *);
+-
+-static int (*sys_pthread_create)(pthread_t *thread, const pthread_attr_t *attr,
+-	void *(*start_routine)(void *), void *arg);
+-
+-struct thread_args {
+-	void *(*func)(void *);
+-	void *arg;
+-};
+-
+-static int has_tib = 0;
+-
+-static void
+-tcb_fixup(int mainthread)
+-{
+-	void *tls, *newtcb, *oldtcb;
+-	size_t tls_size, tcb_size;
+-
+-	// TODO(jsing): Remove once OpenBSD 6.1 is released and OpenBSD 5.9 is
+-	// no longer supported.
+-
+-	// The OpenBSD ld.so(1) does not currently support PT_TLS. As a result,
+-	// we need to allocate our own TLS space while preserving the existing
+-	// TCB or TIB that has been setup via librthread.
+-
+-	tcb_size = has_tib ? TIB_SIZE : TCB_SIZE;
+-	tls_size = TLS_SIZE + tcb_size;
+-	tls = malloc(tls_size);
+-	if(tls == NULL)
+-		abort();
+-
+-	// The signal trampoline expects the TLS slots to be zeroed.
+-	bzero(tls, TLS_SIZE);
+-
+-	oldtcb = __get_tcb();
+-	newtcb = tls + TLS_SIZE;
+-	bcopy(oldtcb, newtcb, tcb_size);
+-	if(has_tib) {
+-		 // Fix up self pointer.
+-		*(uintptr_t *)(newtcb) = (uintptr_t)newtcb;
+-	}
+-	__set_tcb(newtcb);
+-
+-	// NOTE(jsing, minux): we can't free oldtcb without causing double-free
+-	// problem. so newtcb will be memory leaks. Get rid of this when OpenBSD
+-	// has proper support for PT_TLS.
+-}
+-
+-static void *
+-thread_start_wrapper(void *arg)
+-{
+-	struct thread_args args = *(struct thread_args *)arg;
+-
+-	free(arg);
+-	tcb_fixup(0);
+-
+-	return args.func(args.arg);
+-}
+-
+-static void init_pthread_wrapper(void) {
+-	void *handle;
+-
+-	// Locate symbol for the system pthread_create function.
+-	handle = dlopen("libpthread.so", RTLD_LAZY);
+-	if(handle == NULL) {
+-		fprintf(stderr, "runtime/cgo: dlopen failed to load libpthread: %s\n", dlerror());
+-		abort();
+-	}
+-	sys_pthread_create = dlsym(handle, "pthread_create");
+-	if(sys_pthread_create == NULL) {
+-		fprintf(stderr, "runtime/cgo: dlsym failed to find pthread_create: %s\n", dlerror());
+-		abort();
+-	}
+-	// _rthread_init is hidden in OpenBSD librthread that has TIB.
+-	if(dlsym(handle, "_rthread_init") == NULL) {
+-		has_tib = 1;
+-	}
+-	dlclose(handle);
+-}
+-
+-static pthread_once_t init_pthread_wrapper_once = PTHREAD_ONCE_INIT;
+-
+-int
+-pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+-	void *(*start_routine)(void *), void *arg)
+-{
+-	struct thread_args *p;
+-
+-	// we must initialize our wrapper in pthread_create, because it is valid to call
+-	// pthread_create in a static constructor, and in fact, our test for issue 9456
+-	// does just that.
+-	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+-		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+-		abort();
+-	}
+-
+-	p = malloc(sizeof(*p));
+-	if(p == NULL) {
+-		errno = ENOMEM;
+-		return -1;
+-	}
+-	p->func = start_routine;
+-	p->arg = arg;
+-
+-	return sys_pthread_create(thread, attr, thread_start_wrapper, p);
+-}
+-
+ void
+ x_cgo_init(G *g, void (*setg)(void*))
+ {
+@@ -144,16 +23,8 @@ x_cgo_init(G *g, void (*setg)(void*))
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	g->stacklo = (uintptr)&attr - size + 4096;
+ 	pthread_attr_destroy(&attr);
+-
+-	if(pthread_once(&init_pthread_wrapper_once, init_pthread_wrapper) != 0) {
+-		fprintf(stderr, "runtime/cgo: failed to initialize pthread_create wrapper\n");
+-		abort();
+-	}
+-
+-	tcb_fixup(1);
+ }
+ 
+-
+ void
+ _cgo_sys_thread_start(ThreadStart *ts)
+ {
+@@ -171,7 +42,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = _cgo_openbsd_try_pthread_create(sys_pthread_create, &p, &attr, threadentry, ts);
++	err = _cgo_try_pthread_create(&p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+@@ -186,8 +57,6 @@ threadentry(void *v)
+ {
+ 	ThreadStart ts;
+ 
+-	tcb_fixup(0);
+-
+ 	ts = *(ThreadStart*)v;
+ 	free(v);
+ 
+diff --git a/src/runtime/cgo/openbsd.go b/src/runtime/cgo/openbsd.go
+index 5c70dbd268..81c73bf399 100644
+--- a/src/runtime/cgo/openbsd.go
++++ b/src/runtime/cgo/openbsd.go
+@@ -8,24 +8,13 @@ package cgo
+ 
+ import _ "unsafe" // for go:linkname
+ 
+-// Supply environ, __progname and __guard_local, because
+-// we don't link against the standard OpenBSD crt0.o and
+-// the libc dynamic library needs them.
++// Supply __guard_local because we don't link against the standard
++// OpenBSD crt0.o and the libc dynamic library needs it.
+ 
+-//go:linkname _environ environ
+-//go:linkname _progname __progname
+ //go:linkname _guard_local __guard_local
+ 
+-var _environ uintptr
+-var _progname uintptr
+ var _guard_local uintptr
+ 
+-//go:cgo_export_dynamic environ environ
+-//go:cgo_export_dynamic __progname __progname
+-
+ // This is normally marked as hidden and placed in the
+ // .openbsd.randomdata section.
+ //go:cgo_export_dynamic __guard_local __guard_local
+-
+-// We override pthread_create to support PT_TLS.
+-//go:cgo_export_dynamic pthread_create pthread_create

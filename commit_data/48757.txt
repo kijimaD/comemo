@@ -14,6 +14,21 @@ Date:   Mon Jun 14 12:35:21 2021 -0400
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Tobias Kohlbau <tobias@kohlbau.de>
-
+---
  doc/go1.17.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 35d0f97450..e0856ff83a 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -406,7 +406,8 @@ func Foo() bool {
+   by commas. Aggregate-typed (struct, array, string, slice, interface, and complex)
+   arguments are delimited by curly braces. A caveat is that the value of an
+   argument that only lives in a register and is not stored to memory may be
+-  inaccurate. Results (which were usually inaccurate) are no longer printed.
++  inaccurate. Function return values (which were usually inaccurate) are no longer
++  printed.
+ </p>
+ 
+ <p><!-- CL 283112, golang.org/issue/28727 -->

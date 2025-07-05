@@ -19,6 +19,19 @@ Date:   Mon Sep 18 15:36:38 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Commit-Queue: Tobias Klauser <tobias.klauser@gmail.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/syscall/mkall.sh | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/mkall.sh b/src/syscall/mkall.sh
+index 936a46606a..78056aabda 100755
+--- a/src/syscall/mkall.sh
++++ b/src/syscall/mkall.sh
+@@ -190,6 +190,7 @@ linux_amd64)
+ 	mktypes="GOARCH=$GOARCH go tool cgo -godefs"
+ 	;;
+ linux_arm)
++	GOOSARCH_in="syscall_linux_arm.go syscall_linux_accept.go"
+ 	mkerrors="$mkerrors"
+ 	mksyscall="./mksyscall.pl -l32 -arm"
+ 	mksysnum="curl -s 'http://git.kernel.org/cgit/linux/kernel/git/torvalds/linux.git/plain/arch/arm/include/uapi/asm/unistd.h' | ./mksysnum_linux.pl -"

@@ -21,7 +21,37 @@ Date:   Mon Feb 17 11:45:23 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
-
+---
  src/crypto/tls/bogo_config.json          | 2 --
  src/crypto/tls/handshake_client_tls13.go | 5 +++++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 6472512158..f4772a00b2 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -38,8 +38,6 @@
+         "PostQuantumNotEnabledByDefaultInClients": "We do enable it by default!",
+         "*-Kyber-TLS13": "We don't support Kyber, only ML-KEM (BoGo bug ignoring AllCurves?)",
+ 
+-        "SendEmptySessionTicket-TLS13": "https://github.com/golang/go/issues/70513",
+-
+         "*-SignDefault-*": "TODO, partially it encodes BoringSSL defaults, partially we might be missing some implicit behavior of a missing flag",
+ 
+         "V2ClientHello-*": "We don't support SSLv2",
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index c0396e7579..fadca22e60 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -870,6 +870,11 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
+ 		return errors.New("tls: received a session ticket with invalid lifetime")
+ 	}
+ 
++	if len(msg.label) == 0 {
++		c.sendAlert(alertDecodeError)
++		return errors.New("tls: received a session ticket with empty opaque ticket label")
++	}
++
+ 	// RFC 9001, Section 4.6.1
+ 	if c.quic != nil && msg.maxEarlyData != 0 && msg.maxEarlyData != 0xffffffff {
+ 		c.sendAlert(alertIllegalParameter)

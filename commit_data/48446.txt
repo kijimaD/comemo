@@ -67,7 +67,7 @@ Date:   Tue Apr 13 15:37:36 2021 -0700
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go           |  12 +-
  src/cmd/compile/internal/importer/iimport.go    |  85 +++++++++++
  src/cmd/compile/internal/noder/decl.go          |  14 +-
@@ -108,3 +108,1823 @@ Date:   Tue Apr 13 15:37:36 2021 -0700
  test/typeparam/valimp.dir/main.go               |  56 +++++++
  test/typeparam/valimp.go                        |   7 +
  39 files changed, 816 insertions(+), 158 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 2137f1d196..e19d52fa95 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -25,11 +25,6 @@ func exportf(bout *bio.Writer, format string, args ...interface{}) {
+ func dumpexport(bout *bio.Writer) {
+ 	p := &exporter{marked: make(map[*types.Type]bool)}
+ 	for _, n := range typecheck.Target.Exports {
+-		// Must catch it here rather than Export(), because the type can be
+-		// not fully set (still TFORW) when Export() is called.
+-		if n.Type() != nil && n.Type().HasTParam() {
+-			base.Fatalf("Cannot (yet) export a generic type: %v", n)
+-		}
+ 		p.markObject(n)
+ 	}
+ 
+@@ -103,6 +98,11 @@ func (p *exporter) markType(t *types.Type) {
+ 		return
+ 	}
+ 	p.marked[t] = true
++	if t.HasTParam() {
++		// Don't deal with any generic types or their methods, since we
++		// will only be inlining actual instantiations, not generic methods.
++		return
++	}
+ 
+ 	// If this is a named type, mark all of its associated
+ 	// methods. Skip interface types because t.Methods contains
+@@ -152,6 +152,8 @@ func (p *exporter) markType(t *types.Type) {
+ 		}
+ 
+ 	case types.TINTER:
++		// TODO(danscales) - will have to deal with the types in interface
++		// elements here when implemented in types2 and represented in types1.
+ 		for _, f := range t.AllMethods().Slice() {
+ 			if types.IsExported(f.Sym.Name) {
+ 				p.markType(f.Type)
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index b91b209d35..a4637ec34f 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -57,6 +57,8 @@ const (
+ 	signatureType
+ 	structType
+ 	interfaceType
++	typeParamType
++	instType
+ )
+ 
+ const io_SeekCurrent = 1 // io.SeekCurrent (not defined in Go 1.4)
+@@ -292,15 +294,20 @@ func (r *importReader) obj(name string) {
+ 		r.declare(types2.NewConst(pos, r.currPkg, name, typ, val))
+ 
+ 	case 'F':
++		tparams := r.tparamList()
+ 		sig := r.signature(nil)
++		sig.SetTParams(tparams)
+ 
+ 		r.declare(types2.NewFunc(pos, r.currPkg, name, sig))
+ 
+ 	case 'T':
++		tparams := r.tparamList()
++
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		obj := types2.NewTypeName(pos, r.currPkg, name, nil)
+ 		named := types2.NewNamed(obj, nil, nil)
++		named.SetTParams(tparams)
+ 		r.declare(obj)
+ 
+ 		underlying := r.p.typAt(r.uint64(), named).Underlying()
+@@ -313,6 +320,18 @@ func (r *importReader) obj(name string) {
+ 				recv := r.param()
+ 				msig := r.signature(recv)
+ 
++				// If the receiver has any targs, set those as the
++				// rparams of the method (since those are the
++				// typeparams being used in the method sig/body).
++				targs := baseType(msig.Recv().Type()).TArgs()
++				if len(targs) > 0 {
++					rparams := make([]*types2.TypeName, len(targs))
++					for i, targ := range targs {
++						rparams[i] = types2.AsTypeParam(targ).Obj()
++					}
++					msig.SetRParams(rparams)
++				}
++
+ 				named.AddMethod(types2.NewFunc(mpos, r.currPkg, mname, msig))
+ 			}
+ 		}
+@@ -571,6 +590,49 @@ func (r *importReader) doType(base *types2.Named) types2.Type {
+ 		typ := types2.NewInterfaceType(methods, embeddeds)
+ 		r.p.interfaceList = append(r.p.interfaceList, typ)
+ 		return typ
++
++	case typeParamType:
++		r.currPkg = r.pkg()
++		pos := r.pos()
++		name := r.string()
++
++		// Extract the subscript value from the type param name. We export
++		// and import the subscript value, so that all type params have
++		// unique names.
++		sub := uint64(0)
++		startsub := -1
++		for i, r := range name {
++			if '₀' <= r && r < '₀'+10 {
++				if startsub == -1 {
++					startsub = i
++				}
++				sub = sub*10 + uint64(r-'₀')
++			}
++		}
++		if startsub >= 0 {
++			name = name[:startsub]
++		}
++		index := int(r.int64())
++		bound := r.typ()
++		tn := types2.NewTypeName(pos, r.currPkg, name, nil)
++		t := (*types2.Checker)(nil).NewTypeParam(tn, index, bound)
++		if sub >= 0 {
++			t.SetId(sub)
++		}
++		return t
++
++	case instType:
++		pos := r.pos()
++		len := r.uint64()
++		targs := make([]types2.Type, len)
++		for i := range targs {
++			targs[i] = r.typ()
++		}
++		baseType := r.typ()
++		// The imported instantiated type doesn't include any methods, so
++		// we must always use the methods of the base (orig) type.
++		t := types2.Instantiate(pos, baseType, targs)
++		return t
+ 	}
+ }
+ 
+@@ -585,6 +647,19 @@ func (r *importReader) signature(recv *types2.Var) *types2.Signature {
+ 	return types2.NewSignature(recv, params, results, variadic)
+ }
+ 
++func (r *importReader) tparamList() []*types2.TypeName {
++	n := r.uint64()
++	if n == 0 {
++		return nil
++	}
++	xs := make([]*types2.TypeName, n)
++	for i := range xs {
++		typ := r.typ()
++		xs[i] = types2.AsTypeParam(typ).Obj()
++	}
++	return xs
++}
++
+ func (r *importReader) paramList() *types2.Tuple {
+ 	xs := make([]*types2.Var, r.uint64())
+ 	for i := range xs {
+@@ -627,3 +702,13 @@ func (r *importReader) byte() byte {
+ 	}
+ 	return x
+ }
++
++func baseType(typ types2.Type) *types2.Named {
++	// pointer receivers are never types2.Named types
++	if p, _ := typ.(*types2.Pointer); p != nil {
++		typ = p.Elem()
++	}
++	// receiver base types are always (possibly generic) types2.Named types
++	n, _ := typ.(*types2.Named)
++	return n
++}
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 3e55437afa..40cbe50aff 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -148,11 +148,15 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 	// [mdempsky: Subtleties like these are why I always vehemently
+ 	// object to new type pragmas.]
+ 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
+-	if len(decl.TParamList) > 0 {
+-		// Set HasTParam if there are any tparams, even if no tparams are
+-		// used in the type itself (e.g., if it is an empty struct, or no
+-		// fields in the struct use the tparam).
+-		ntyp.SetHasTParam(true)
++
++	tparams := otyp.(*types2.Named).TParams()
++	if len(tparams) > 0 {
++		rparams := make([]*types.Type, len(tparams))
++		for i := range rparams {
++			rparams[i] = g.typ(tparams[i].Type())
++		}
++		// This will set hasTParam flag if any rparams are not concrete types.
++		ntyp.SetRParams(rparams)
+ 	}
+ 	types.ResumeCheckSize()
+ 
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index b7f7a34953..f96144f8d7 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -264,8 +264,12 @@ func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.Selecto
+ 				// instantiated for this method call.
+ 				// selinfo.Recv() is the instantiated type
+ 				recvType2 = recvType2Base
+-				// method is the generic method associated with the gen type
+-				method := g.obj(types2.AsNamed(recvType2).Method(last))
++				recvTypeSym := g.pkg(method2.Pkg()).Lookup(recvType2.(*types2.Named).Obj().Name())
++				recvType := recvTypeSym.Def.(*ir.Name).Type()
++				// method is the generic method associated with
++				// the base generic type. The instantiated type may not
++				// have method bodies filled in, if it was imported.
++				method := recvType.Methods().Index(last).Nname.(*ir.Name)
+ 				n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, typecheck.Lookup(expr.Sel.Value))
+ 				n.(*ir.SelectorExpr).Selection = types.NewField(pos, method.Sym(), method.Type())
+ 				n.(*ir.SelectorExpr).Selection.Nname = method
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 2a9f0e99d8..f02246111f 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -185,9 +185,9 @@ Outer:
+ 	// Create any needed stencils of generic functions
+ 	g.stencil()
+ 
+-	// For now, remove all generic functions from g.target.Decl, since they
+-	// have been used for stenciling, but don't compile. TODO: We will
+-	// eventually export any exportable generic functions.
++	// Remove all generic functions from g.target.Decl, since they have been
++	// used for stenciling, but don't compile. Generic functions will already
++	// have been marked for export as appropriate.
+ 	j := 0
+ 	for i, decl := range g.target.Decls {
+ 		if decl.Op() != ir.ODCLFUNC || !decl.Type().HasTParam() {
+diff --git a/src/cmd/compile/internal/noder/object.go b/src/cmd/compile/internal/noder/object.go
+index 7af2fe6715..a1a10e4eaa 100644
+--- a/src/cmd/compile/internal/noder/object.go
++++ b/src/cmd/compile/internal/noder/object.go
+@@ -49,6 +49,11 @@ func (g *irgen) obj(obj types2.Object) *ir.Name {
+ 	// For imported objects, we use iimport directly instead of mapping
+ 	// the types2 representation.
+ 	if obj.Pkg() != g.self {
++		if sig, ok := obj.Type().(*types2.Signature); ok && sig.Recv() != nil {
++			// We can't import a method by name - must import the type
++			// and access the method from it.
++			base.FatalfAt(g.pos(obj), "tried to import a method directly")
++		}
+ 		sym := g.sym(obj)
+ 		if sym.Def != nil {
+ 			return sym.Def.(*ir.Name)
+@@ -165,9 +170,8 @@ func (g *irgen) objFinish(name *ir.Name, class ir.Class, typ *types.Type) {
+ 			break // methods are exported with their receiver type
+ 		}
+ 		if types.IsExported(sym.Name) {
+-			if name.Class == ir.PFUNC && name.Type().NumTParams() > 0 {
+-				base.FatalfAt(name.Pos(), "Cannot export a generic function (yet): %v", name)
+-			}
++			// Generic functions can be marked for export here, even
++			// though they will not be compiled until instantiated.
+ 			typecheck.Export(name)
+ 		}
+ 		if base.Flag.AsmHdr != "" && !name.Sym().Asm() {
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index f9cf6d8a1a..7a7c05280d 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -8,12 +8,10 @@
+ package noder
+ 
+ import (
+-	"bytes"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/src"
+ 	"fmt"
+ 	"strings"
+ )
+@@ -160,9 +158,14 @@ func (g *irgen) stencil() {
+ func (g *irgen) instantiateMethods() {
+ 	for i := 0; i < len(g.instTypeList); i++ {
+ 		typ := g.instTypeList[i]
+-		// Get the base generic type by looking up the symbol of the
+-		// generic (uninstantiated) name.
+-		baseSym := typ.Sym().Pkg.Lookup(genericTypeName(typ.Sym()))
++		// Mark runtime type as needed, since this ensures that the
++		// compiler puts out the needed DWARF symbols, when this
++		// instantiated type has a different package from the local
++		// package.
++		typecheck.NeedRuntimeType(typ)
++		// Lookup the method on the base generic type, since methods may
++		// not be set on imported instantiated types.
++		baseSym := typ.OrigSym
+ 		baseType := baseSym.Def.(*ir.Name).Type()
+ 		for j, m := range typ.Methods().Slice() {
+ 			name := m.Nname.(*ir.Name)
+@@ -199,12 +202,24 @@ func (g *irgen) getInstantiationForNode(inst *ir.InstExpr) *ir.Func {
+ // with the type arguments targs. If the instantiated function is not already
+ // cached, then it calls genericSubst to create the new instantiation.
+ func (g *irgen) getInstantiation(nameNode *ir.Name, targs []*types.Type, isMeth bool) *ir.Func {
++	if nameNode.Func.Body == nil && nameNode.Func.Inl != nil {
++		// If there is no body yet but Func.Inl exists, then we can can
++		// import the whole generic body.
++		assert(nameNode.Func.Inl.Cost == 1 && nameNode.Sym().Pkg != types.LocalPkg)
++		typecheck.ImportBody(nameNode.Func)
++		assert(nameNode.Func.Inl.Body != nil)
++		nameNode.Func.Body = nameNode.Func.Inl.Body
++		nameNode.Func.Dcl = nameNode.Func.Inl.Dcl
++	}
+ 	sym := typecheck.MakeInstName(nameNode.Sym(), targs, isMeth)
+ 	st := g.target.Stencils[sym]
+ 	if st == nil {
+ 		// If instantiation doesn't exist yet, create it and add
+ 		// to the list of decls.
+ 		st = g.genericSubst(sym, nameNode, targs, isMeth)
++		// This ensures that the linker drops duplicates of this instantiation.
++		// All just works!
++		st.SetDupok(true)
+ 		g.target.Stencils[sym] = st
+ 		g.target.Decls = append(g.target.Decls, st)
+ 		if base.Flag.W > 1 {
+@@ -626,21 +641,6 @@ func (subst *subster) tinter(t *types.Type) *types.Type {
+ 	return t
+ }
+ 
+-// instTypeName creates a name for an instantiated type, based on the name of the
+-// generic type and the type args
+-func instTypeName(name string, targs []*types.Type) string {
+-	b := bytes.NewBufferString(name)
+-	b.WriteByte('[')
+-	for i, targ := range targs {
+-		if i > 0 {
+-			b.WriteByte(',')
+-		}
+-		b.WriteString(targ.String())
+-	}
+-	b.WriteByte(']')
+-	return b.String()
+-}
+-
+ // typ computes the type obtained by substituting any type parameter in t with the
+ // corresponding type argument in subst. If t contains no type parameters, the
+ // result is t; otherwise the result is a new type. It deals with recursive types
+@@ -696,7 +696,7 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ 		// already seen this type during this substitution or other
+ 		// definitions/substitutions.
+ 		genName := genericTypeName(t.Sym())
+-		newsym = t.Sym().Pkg.Lookup(instTypeName(genName, neededTargs))
++		newsym = t.Sym().Pkg.Lookup(typecheck.InstTypeName(genName, neededTargs))
+ 		if newsym.Def != nil {
+ 			// We've already created this instantiated defined type.
+ 			return newsym.Def.Type()
+@@ -705,9 +705,13 @@ func (subst *subster) typ(t *types.Type) *types.Type {
+ 		// In order to deal with recursive generic types, create a TFORW
+ 		// type initially and set the Def field of its sym, so it can be
+ 		// found if this type appears recursively within the type.
+-		forw = newIncompleteNamedType(t.Pos(), newsym)
++		forw = typecheck.NewIncompleteNamedType(t.Pos(), newsym)
+ 		//println("Creating new type by sub", newsym.Name, forw.HasTParam())
+ 		forw.SetRParams(neededTargs)
++		// Copy the OrigSym from the re-instantiated type (which is the sym of
++		// the base generic type).
++		assert(t.OrigSym != nil)
++		forw.OrigSym = t.OrigSym
+ 	}
+ 
+ 	var newt *types.Type
+@@ -865,11 +869,14 @@ func (subst *subster) fields(class ir.Class, oldfields []*types.Field, dcl []*ir
+ 	for j := range oldfields {
+ 		newfields[j] = oldfields[j].Copy()
+ 		newfields[j].Type = subst.typ(oldfields[j].Type)
+-		// A param field will be missing from dcl if its name is
++		// A PPARAM field will be missing from dcl if its name is
+ 		// unspecified or specified as "_". So, we compare the dcl sym
+-		// with the field sym. If they don't match, this dcl (if there is
+-		// one left) must apply to a later field.
+-		if i < len(dcl) && dcl[i].Sym() == oldfields[j].Sym {
++		// with the field sym (or sym of the field's Nname node). (Unnamed
++		// results still have a name like ~r2 in their Nname node.) If
++		// they don't match, this dcl (if there is one left) must apply to
++		// a later field.
++		if i < len(dcl) && (dcl[i].Sym() == oldfields[j].Sym ||
++			(oldfields[j].Nname != nil && dcl[i].Sym() == oldfields[j].Nname.Sym())) {
+ 			newfields[j].Nname = dcl[i]
+ 			i++
+ 		}
+@@ -884,13 +891,3 @@ func deref(t *types.Type) *types.Type {
+ 	}
+ 	return t
+ }
+-
+-// newIncompleteNamedType returns a TFORW type t with name specified by sym, such
+-// that t.nod and sym.Def are set correctly.
+-func newIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
+-	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
+-	forw := types.NewNamed(name)
+-	name.SetType(forw)
+-	sym.Def = name
+-	return forw
+-}
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index 35ba1cd238..7fdad29e16 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -68,8 +68,10 @@ func instTypeName2(name string, targs []types2.Type) string {
+ 		if i > 0 {
+ 			b.WriteByte(',')
+ 		}
++		// Include package names for all types, including typeparams, to
++		// make sure type arguments are uniquely specified.
+ 		tname := types2.TypeString(targ,
+-			func(*types2.Package) string { return "" })
++			func(pkg *types2.Package) string { return pkg.Name() })
+ 		if strings.Index(tname, ", ") >= 0 {
+ 			// types2.TypeString puts spaces after a comma in a type
+ 			// list, but we don't want spaces in our actual type names
+@@ -120,7 +122,7 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 			// which may set HasTParam) before translating the
+ 			// underlying type itself, so we handle recursion
+ 			// correctly, including via method signatures.
+-			ntyp := newIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
++			ntyp := typecheck.NewIncompleteNamedType(g.pos(typ.Obj().Pos()), s)
+ 			g.typs[typ] = ntyp
+ 
+ 			// If ntyp still has type params, then we must be
+@@ -143,6 +145,8 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 
+ 			ntyp.SetUnderlying(g.typ1(typ.Underlying()))
+ 			g.fillinMethods(typ, ntyp)
++			// Save the symbol for the base generic type.
++			ntyp.OrigSym = g.pkg(typ.Obj().Pkg()).Lookup(typ.Obj().Name())
+ 			return ntyp
+ 		}
+ 		obj := g.obj(typ.Obj())
+@@ -206,8 +210,19 @@ func (g *irgen) typ0(typ types2.Type) *types.Type {
+ 	case *types2.TypeParam:
+ 		// Save the name of the type parameter in the sym of the type.
+ 		// Include the types2 subscript in the sym name
+-		sym := g.pkg(typ.Obj().Pkg()).Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
++		pkg := g.tpkg(typ)
++		sym := pkg.Lookup(types2.TypeString(typ, func(*types2.Package) string { return "" }))
++		if sym.Def != nil {
++			// Make sure we use the same type param type for the same
++			// name, whether it is created during types1-import or
++			// this types2-to-types1 translation.
++			return sym.Def.Type()
++		}
+ 		tp := types.NewTypeParam(sym, typ.Index())
++		nname := ir.NewDeclNameAt(g.pos(typ.Obj().Pos()), ir.OTYPE, sym)
++		sym.Def = nname
++		nname.SetType(tp)
++		tp.SetNod(nname)
+ 		// Set g.typs[typ] in case the bound methods reference typ.
+ 		g.typs[typ] = tp
+ 
+@@ -248,12 +263,20 @@ func (g *irgen) fillinMethods(typ *types2.Named, ntyp *types.Type) {
+ 		methods := make([]*types.Field, typ.NumMethods())
+ 		for i := range methods {
+ 			m := typ.Method(i)
+-			meth := g.obj(m)
+ 			recvType := types2.AsSignature(m.Type()).Recv().Type()
+ 			ptr := types2.AsPointer(recvType)
+ 			if ptr != nil {
+ 				recvType = ptr.Elem()
+ 			}
++			var meth *ir.Name
++			if m.Pkg() != g.self {
++				// Imported methods cannot be loaded by name (what
++				// g.obj() does) - they must be loaded via their
++				// type.
++				meth = g.obj(recvType.(*types2.Named).Obj()).Type().Methods().Index(i).Nname.(*ir.Name)
++			} else {
++				meth = g.obj(m)
++			}
+ 			if recvType != types2.Type(typ) {
+ 				// Unfortunately, meth is the type of the method of the
+ 				// generic type, so we have to do a substitution to get
+@@ -343,7 +366,7 @@ func (g *irgen) selector(obj types2.Object) *types.Sym {
+ 	return pkg.Lookup(name)
+ }
+ 
+-// tpkg returns the package that a function, interface, or struct type
++// tpkg returns the package that a function, interface, struct, or typeparam type
+ // expression appeared in.
+ //
+ // Caveat: For the degenerate types "func()", "interface{}", and
+@@ -373,6 +396,8 @@ func (g *irgen) tpkg(typ types2.Type) *types.Pkg {
+ 			if typ.NumExplicitMethods() > 0 {
+ 				return typ.ExplicitMethod(0)
+ 			}
++		case *types2.TypeParam:
++			return typ.Obj()
+ 		}
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 8c0e33f6df..f65841b33c 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -951,8 +951,12 @@ func writeType(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
+-		// named types from other files are defined only by those files
+-		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
++		// Named types from other files are defined only by those files.
++		// However, as an exception, we can write out instantiated types
++		// in the local package, even if they may be marked as part of
++		// another package (the package of their base generic type).
++		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg &&
++			len(tbase.RParams()) == 0 {
+ 			if i := typecheck.BaseTypeIndex(t); i >= 0 {
+ 				lsym.Pkg = tbase.Sym().Pkg.Prefix
+ 				lsym.SymIdx = int32(i)
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 3538c4d5a6..11b9755148 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -173,6 +173,8 @@
+ //     }
+ //
+ //
++//  TODO(danscales): fill in doc for 'type TypeParamType' and 'type InstType'
++//
+ //     type Signature struct {
+ //         Params   []Param
+ //         Results  []Param
+@@ -244,6 +246,8 @@ const (
+ 	signatureType
+ 	structType
+ 	interfaceType
++	typeParamType
++	instType
+ )
+ 
+ const (
+@@ -459,6 +463,13 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// Function.
+ 			w.tag('F')
+ 			w.pos(n.Pos())
++			// The tparam list of the function type is the
++			// declaration of the type params. So, write out the type
++			// params right now. Then those type params will be
++			// referenced via their type offset (via typOff) in all
++			// other places in the signature and function that they
++			// are used.
++			w.tparamList(n.Type().TParams().FieldSlice())
+ 			w.signature(n.Type())
+ 			w.funcExt(n)
+ 
+@@ -491,6 +502,8 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 		w.tag('T')
+ 		w.pos(n.Pos())
+ 
++		// Export any new typeparams needed for this type
++		w.typeList(n.Type().RParams())
+ 		underlying := n.Type().Underlying()
+ 		if underlying == types.ErrorType.Underlying() {
+ 			// For "type T error", use error as the
+@@ -803,8 +816,49 @@ func (w *exportWriter) startType(k itag) {
+ }
+ 
+ func (w *exportWriter) doTyp(t *types.Type) {
+-	if t.Sym() != nil {
+-		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == ir.Pkgs.Unsafe {
++	if t.Kind() == types.TTYPEPARAM {
++		// A typeparam has a name, but doesn't have an underlying type.
++		// Just write out the details of the type param here. All other
++		// uses of this typeparam type will be written out as its unique
++		// type offset.
++		w.startType(typeParamType)
++		s := t.Sym()
++		w.setPkg(s.Pkg, true)
++		w.pos(t.Pos())
++
++		// We are writing out the name with the subscript, so that the
++		// typeparam name is unique.
++		w.string(s.Name)
++		w.int64(int64(t.Index()))
++
++		w.typ(t.Bound())
++		return
++	}
++
++	s := t.Sym()
++	if s != nil && t.OrigSym != nil {
++		// This is an instantiated type - could be a re-instantiation like
++		// Value[T2] or a full instantiation like Value[int].
++		if strings.Index(s.Name, "[") < 0 {
++			base.Fatalf("incorrect name for instantiated type")
++		}
++		w.startType(instType)
++		w.pos(t.Pos())
++		// Export the type arguments for the instantiated type. The
++		// instantiated type could be in a method header (e.g. "func (v
++		// *Value[T2]) set (...) { ... }"), so the type args are "new"
++		// typeparams. Or the instantiated type could be in a
++		// function/method body, so the type args are either concrete
++		// types or existing typeparams from the function/method header.
++		w.typeList(t.RParams())
++		// Export a reference to the base type.
++		baseType := t.OrigSym.Def.(*ir.Name).Type()
++		w.typ(baseType)
++		return
++	}
++
++	if s != nil {
++		if s.Pkg == types.BuiltinPkg || s.Pkg == ir.Pkgs.Unsafe {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+ 
+@@ -906,6 +960,23 @@ func (w *exportWriter) signature(t *types.Type) {
+ 	}
+ }
+ 
++func (w *exportWriter) typeList(ts []*types.Type) {
++	w.uint64(uint64(len(ts)))
++	for _, rparam := range ts {
++		w.typ(rparam)
++	}
++}
++
++func (w *exportWriter) tparamList(fs []*types.Field) {
++	w.uint64(uint64(len(fs)))
++	for _, f := range fs {
++		if f.Type.Kind() != types.TTYPEPARAM {
++			base.Fatalf("unexpected non-typeparam")
++		}
++		w.typ(f.Type)
++	}
++}
++
+ func (w *exportWriter) paramList(fs []*types.Field) {
+ 	w.uint64(uint64(len(fs)))
+ 	for _, f := range fs {
+@@ -1186,9 +1257,21 @@ func (w *exportWriter) funcExt(n *ir.Name) {
+ 	}
+ 
+ 	// Inline body.
++	if n.Type().HasTParam() {
++		if n.Func.Inl != nil {
++			base.FatalfAt(n.Pos(), "generic function is marked inlineable")
++		}
++		// Populate n.Func.Inl, so body of exported generic function will
++		// be written out.
++		n.Func.Inl = &ir.Inline{
++			Cost: 1,
++			Dcl:  n.Func.Dcl,
++			Body: n.Func.Body,
++		}
++	}
+ 	if n.Func.Inl != nil {
+ 		w.uint64(1 + uint64(n.Func.Inl.Cost))
+-		if n.Func.ExportInline() {
++		if n.Func.ExportInline() || n.Type().HasTParam() {
+ 			w.p.doInline(n)
+ 		}
+ 
+@@ -1588,9 +1671,8 @@ func (w *exportWriter) expr(n ir.Node) {
+ 	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+ 		n := n.(*ir.SelectorExpr)
+ 		if go117ExportTypes {
+-			if n.Op() == ir.OXDOT {
+-				base.Fatalf("shouldn't encounter XDOT  in new exporter")
+-			}
++			// For go117ExportTypes, we usually see all ops except
++			// OXDOT, but we can see OXDOT for generic functions.
+ 			w.op(n.Op())
+ 		} else {
+ 			w.op(ir.OXDOT)
+@@ -1604,7 +1686,8 @@ func (w *exportWriter) expr(n ir.Node) {
+ 				w.exoticField(n.Selection)
+ 			}
+ 			// n.Selection is not required for OMETHEXPR, ODOTMETH, and OCALLPART. It will
+-			// be reconstructed during import.
++			// be reconstructed during import.  n.Selection is computed during
++			// transformDot() for OXDOT.
+ 		}
+ 
+ 	case ir.ODOTTYPE, ir.ODOTTYPE2:
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index a5ddbb5a74..b6f227bb00 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -8,6 +8,7 @@
+ package typecheck
+ 
+ import (
++	"bytes"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+@@ -313,13 +314,16 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		return n
+ 
+ 	case 'F':
+-		typ := r.signature(nil)
++		tparams := r.tparamList()
++		typ := r.signature(nil, tparams)
+ 
+ 		n := importfunc(r.p.ipkg, pos, sym, typ)
+ 		r.funcExt(n)
+ 		return n
+ 
+ 	case 'T':
++		rparams := r.typeList()
++
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		n := importtype(r.p.ipkg, pos, sym)
+@@ -332,6 +336,10 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		t.SetUnderlying(underlying)
+ 		types.ResumeCheckSize()
+ 
++		if rparams != nil {
++			t.SetRParams(rparams)
++		}
++
+ 		if underlying.IsInterface() {
+ 			r.typeExt(t)
+ 			return n
+@@ -342,7 +350,7 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 			mpos := r.pos()
+ 			msym := r.selector()
+ 			recv := r.param()
+-			mtyp := r.signature(recv)
++			mtyp := r.signature(recv, nil)
+ 
+ 			// MethodSym already marked m.Sym as a function.
+ 			m := ir.NewNameAt(mpos, ir.MethodSym(recv.Type, msym))
+@@ -680,7 +688,7 @@ func (r *importReader) typ1() *types.Type {
+ 
+ 	case signatureType:
+ 		r.setPkg()
+-		return r.signature(nil)
++		return r.signature(nil, nil)
+ 
+ 	case structType:
+ 		r.setPkg()
+@@ -718,7 +726,7 @@ func (r *importReader) typ1() *types.Type {
+ 		for i := range methods {
+ 			pos := r.pos()
+ 			sym := r.selector()
+-			typ := r.signature(fakeRecvField())
++			typ := r.signature(fakeRecvField(), nil)
+ 
+ 			methods[i] = types.NewField(pos, sym, typ)
+ 		}
+@@ -728,6 +736,40 @@ func (r *importReader) typ1() *types.Type {
+ 		// Ensure we expand the interface in the frontend (#25055).
+ 		types.CheckSize(t)
+ 		return t
++
++	case typeParamType:
++		r.setPkg()
++		pos := r.pos()
++		name := r.string()
++		sym := r.currPkg.Lookup(name)
++		index := int(r.int64())
++		bound := r.typ()
++		if sym.Def != nil {
++			// Make sure we use the same type param type for the same
++			// name, whether it is created during types1-import or
++			// this types2-to-types1 translation.
++			return sym.Def.Type()
++		}
++		t := types.NewTypeParam(sym, index)
++		// Nname needed to save the pos.
++		nname := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
++		sym.Def = nname
++		nname.SetType(t)
++		t.SetNod(nname)
++
++		t.SetBound(bound)
++		return t
++
++	case instType:
++		pos := r.pos()
++		len := r.uint64()
++		targs := make([]*types.Type, len)
++		for i := range targs {
++			targs[i] = r.typ()
++		}
++		baseType := r.typ()
++		t := Instantiate(pos, baseType, targs)
++		return t
+ 	}
+ }
+ 
+@@ -735,13 +777,38 @@ func (r *importReader) kind() itag {
+ 	return itag(r.uint64())
+ }
+ 
+-func (r *importReader) signature(recv *types.Field) *types.Type {
++func (r *importReader) signature(recv *types.Field, tparams []*types.Field) *types.Type {
+ 	params := r.paramList()
+ 	results := r.paramList()
+ 	if n := len(params); n > 0 {
+ 		params[n-1].SetIsDDD(r.bool())
+ 	}
+-	return types.NewSignature(r.currPkg, recv, nil, params, results)
++	return types.NewSignature(r.currPkg, recv, tparams, params, results)
++}
++
++func (r *importReader) typeList() []*types.Type {
++	n := r.uint64()
++	if n == 0 {
++		return nil
++	}
++	ts := make([]*types.Type, n)
++	for i := range ts {
++		ts[i] = r.typ()
++	}
++	return ts
++}
++
++func (r *importReader) tparamList() []*types.Field {
++	n := r.uint64()
++	if n == 0 {
++		return nil
++	}
++	fs := make([]*types.Field, n)
++	for i := range fs {
++		typ := r.typ()
++		fs[i] = types.NewField(typ.Pos(), typ.Sym(), typ)
++	}
++	return fs
+ }
+ 
+ func (r *importReader) paramList() []*types.Field {
+@@ -809,7 +876,9 @@ func (r *importReader) funcExt(n *ir.Name) {
+ 
+ 	n.Func.ABI = obj.ABI(r.uint64())
+ 
+-	n.SetPragma(ir.PragmaFlag(r.uint64()))
++	// Make sure //go:noinline pragma is imported (so stenciled functions have
++	// same noinline status as the corresponding generic function.)
++	n.Func.Pragma = ir.PragmaFlag(r.uint64())
+ 
+ 	// Escape analysis.
+ 	for _, fs := range &types.RecvsParams {
+@@ -1117,7 +1186,7 @@ func (r *importReader) node() ir.Node {
+ 	case ir.OCLOSURE:
+ 		//println("Importing CLOSURE")
+ 		pos := r.pos()
+-		typ := r.signature(nil)
++		typ := r.signature(nil, nil)
+ 
+ 		// All the remaining code below is similar to (*noder).funcLit(), but
+ 		// with Dcls and ClosureVars lists already set up
+@@ -1202,35 +1271,32 @@ func (r *importReader) node() ir.Node {
+ 	// case OSTRUCTKEY:
+ 	//	unreachable - handled in case OSTRUCTLIT by elemList
+ 
+-	case ir.OXDOT:
+-		// see parser.new_dotname
+-		if go117ExportTypes {
+-			base.Fatalf("shouldn't encounter XDOT in new importer")
+-		}
+-		return ir.NewSelectorExpr(r.pos(), ir.OXDOT, r.expr(), r.exoticSelector())
+-
+-	case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+-		if !go117ExportTypes {
+-			// unreachable - mapped to case OXDOT by exporter
++	case ir.OXDOT, ir.ODOT, ir.ODOTPTR, ir.ODOTINTER, ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
++		// For !go117ExportTypes,  we should only see OXDOT.
++		// For go117ExportTypes, we usually see all the other ops, but can see
++		// OXDOT for generic functions.
++		if op != ir.OXDOT && !go117ExportTypes {
+ 			goto error
+ 		}
+ 		pos := r.pos()
+ 		expr := r.expr()
+ 		sel := r.exoticSelector()
+ 		n := ir.NewSelectorExpr(pos, op, expr, sel)
+-		n.SetType(r.exoticType())
+-		switch op {
+-		case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
+-			n.Selection = r.exoticField()
+-		case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
+-			// These require a Lookup to link to the correct declaration.
+-			rcvrType := expr.Type()
+-			typ := n.Type()
+-			n.Selection = Lookdot(n, rcvrType, 1)
+-			if op == ir.OCALLPART || op == ir.OMETHEXPR {
+-				// Lookdot clobbers the opcode and type, undo that.
+-				n.SetOp(op)
+-				n.SetType(typ)
++		if go117ExportTypes {
++			n.SetType(r.exoticType())
++			switch op {
++			case ir.ODOT, ir.ODOTPTR, ir.ODOTINTER:
++				n.Selection = r.exoticField()
++			case ir.ODOTMETH, ir.OCALLPART, ir.OMETHEXPR:
++				// These require a Lookup to link to the correct declaration.
++				rcvrType := expr.Type()
++				typ := n.Type()
++				n.Selection = Lookdot(n, rcvrType, 1)
++				if op == ir.OCALLPART || op == ir.OMETHEXPR {
++					// Lookdot clobbers the opcode and type, undo that.
++					n.SetOp(op)
++					n.SetType(typ)
++				}
+ 			}
+ 		}
+ 		return n
+@@ -1544,3 +1610,63 @@ func builtinCall(pos src.XPos, op ir.Op) *ir.CallExpr {
+ 	}
+ 	return ir.NewCallExpr(pos, ir.OCALL, ir.NewIdent(base.Pos, types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }
++
++// InstTypeName creates a name for an instantiated type, based on the name of the
++// generic type and the type args.
++func InstTypeName(name string, targs []*types.Type) string {
++	b := bytes.NewBufferString(name)
++	b.WriteByte('[')
++	for i, targ := range targs {
++		if i > 0 {
++			b.WriteByte(',')
++		}
++		// WriteString() does not include the package name for the local
++		// package, but we want it to make sure type arguments (including
++		// type params) are uniquely specified.
++		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
++			b.WriteString(targ.Sym().Pkg.Name)
++			b.WriteByte('.')
++		}
++		b.WriteString(targ.String())
++	}
++	b.WriteByte(']')
++	return b.String()
++}
++
++// NewIncompleteNamedType returns a TFORW type t with name specified by sym, such
++// that t.nod and sym.Def are set correctly.
++func NewIncompleteNamedType(pos src.XPos, sym *types.Sym) *types.Type {
++	name := ir.NewDeclNameAt(pos, ir.OTYPE, sym)
++	forw := types.NewNamed(name)
++	name.SetType(forw)
++	sym.Def = name
++	return forw
++}
++
++// Instantiate creates a new named type which is the instantiation of the base
++// named generic type, with the specified type args.
++func Instantiate(pos src.XPos, baseType *types.Type, targs []*types.Type) *types.Type {
++	baseSym := baseType.Sym()
++	if strings.Index(baseSym.Name, "[") >= 0 {
++		base.Fatalf("arg to Instantiate is not a base generic type")
++	}
++	name := InstTypeName(baseSym.Name, targs)
++	instSym := baseSym.Pkg.Lookup(name)
++	if instSym.Def != nil {
++		return instSym.Def.Type()
++	}
++
++	t := NewIncompleteNamedType(baseType.Pos(), instSym)
++	t.SetRParams(targs)
++	// baseType may not yet be complete (since we are in the middle of
++	// importing it), but its underlying type will be updated when baseType's
++	// underlying type is finished.
++	t.SetUnderlying(baseType.Underlying())
++
++	// As with types2, the methods are the generic method signatures (without
++	// substitution).
++	t.Methods().Set(baseType.Methods().Slice())
++	t.OrigSym = baseSym
++
++	return t
++}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 97fb145132..9eac802dab 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -887,7 +887,7 @@ func TypesOf(x []ir.Node) []*types.Type {
+ }
+ 
+ // MakeInstName makes the unique name for a stenciled generic function or method,
+-// based on the name of the function fy=nsym and the targs. It replaces any
++// based on the name of the function fnsym and the targs. It replaces any
+ // existing bracket type list in the name. makeInstName asserts that fnsym has
+ // brackets in its name if and only if hasBrackets is true.
+ // TODO(danscales): remove the assertions and the hasBrackets argument later.
+@@ -914,6 +914,12 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
+ 		if i > 0 {
+ 			b.WriteString(",")
+ 		}
++		// WriteString() does not include the package name for the local
++		// package, but we want it for uniqueness.
++		if targ.Sym() != nil && targ.Sym().Pkg == types.LocalPkg {
++			b.WriteString(targ.Sym().Pkg.Name)
++			b.WriteByte('.')
++		}
+ 		b.WriteString(targ.String())
+ 	}
+ 	b.WriteString("]")
+@@ -922,7 +928,7 @@ func MakeInstName(fnsym *types.Sym, targs []*types.Type, hasBrackets bool) *type
+ 		assert(i2 >= 0)
+ 		b.WriteString(name[i+i2+1:])
+ 	}
+-	return Lookup(b.String())
++	return fnsym.Pkg.Lookup(b.String())
+ }
+ 
+ // For catching problems as we add more features
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index 7028938742..7349e52a73 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -21,7 +21,7 @@ func TestSizeof(t *testing.T) {
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+ 		{Sym{}, 44, 72},
+-		{Type{}, 60, 104},
++		{Type{}, 64, 112},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+ 		{Func{}, 28, 48},
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index d3c02fc56d..3b0a9706f6 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -182,12 +182,19 @@ type Type struct {
+ 	flags bitset8
+ 
+ 	// For defined (named) generic types, a pointer to the list of type params
+-	// (in order) of this type that need to be instantiated. For
+-	// fully-instantiated generic types, this is the targs used to instantiate
+-	// them (which are used when generating the corresponding instantiated
+-	// methods). rparams is only set for named types that are generic or are
+-	// fully-instantiated from a generic type, and is otherwise set to nil.
++	// (in order) of this type that need to be instantiated. For instantiated
++	// generic types, this is the targs used to instantiate them. These targs
++	// may be typeparams (for re-instantiated types such as Value[T2]) or
++	// concrete types (for fully instantiated types such as Value[int]).
++	// rparams is only set for named types that are generic or are fully
++	// instantiated from a generic type, and is otherwise set to nil.
++	// TODO(danscales): choose a better name.
+ 	rparams *[]*Type
++
++	// For an instantiated generic type, the symbol for the base generic type.
++	// This backpointer is useful, because the base type is the type that has
++	// the method bodies.
++	OrigSym *Sym
+ }
+ 
+ func (*Type) CanBeAnSSAAux() {}
+@@ -213,7 +220,9 @@ func (t *Type) SetBroke(b bool)      { t.flags.set(typeBroke, b) }
+ func (t *Type) SetNoalg(b bool)      { t.flags.set(typeNoalg, b) }
+ func (t *Type) SetDeferwidth(b bool) { t.flags.set(typeDeferwidth, b) }
+ func (t *Type) SetRecur(b bool)      { t.flags.set(typeRecur, b) }
+-func (t *Type) SetHasTParam(b bool)  { t.flags.set(typeHasTParam, b) }
++
++// Generic types should never have alg functions.
++func (t *Type) SetHasTParam(b bool) { t.flags.set(typeHasTParam, b); t.flags.set(typeNoalg, b) }
+ 
+ // Kind returns the kind of type t.
+ func (t *Type) Kind() Kind { return t.kind }
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index e1020a1219..d82d29cad8 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -329,23 +329,23 @@ func TestTypesInfo(t *testing.T) {
+ 		{brokenPkg + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string]invalid type`},
+ 
+ 		// parameterized functions
+-		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[T₁ interface{}](T₁)`},
++		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
+ 		{genericPkg + `p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
+-		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[T₁ interface{}](T₁)`},
++		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
+ 		{genericPkg + `p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+-		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[P₁ interface{}]`},
+-		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[P₁ interface{}]`},
+-		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[P₁, Q₂ interface{}]`},
+-		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[P₁, Q₂ interface{m()}]`},
++		{genericPkg + `t1; type t[P any] int; var _ t[int]`, `t`, `generic_t1.t[generic_t1.P₁ interface{}]`},
++		{genericPkg + `t2; type t[P interface{}] int; var _ t[int]`, `t`, `generic_t2.t[generic_t2.P₁ interface{}]`},
++		{genericPkg + `t3; type t[P, Q interface{}] int; var _ t[int, int]`, `t`, `generic_t3.t[generic_t3.P₁, generic_t3.Q₂ interface{}]`},
++		{brokenPkg + `t4; type t[P, Q interface{ m() }] int; var _ t[int, int]`, `t`, `broken_t4.t[broken_t4.P₁, broken_t4.Q₂ interface{m()}]`},
+ 
+ 		// instantiated types must be sanitized
+ 		{genericPkg + `g0; type t[P any] int; var x struct{ f t[int] }; var _ = x.f`, `x.f`, `generic_g0.t[int]`},
+ 
+ 		// issue 45096
+-		{genericPkg + `issue45096; func _[T interface{ type int8, int16, int32  }](x T) { _ = x < 0 }`, `0`, `T₁`},
++		{genericPkg + `issue45096; func _[T interface{ type int8, int16, int32  }](x T) { _ = x < 0 }`, `0`, `generic_issue45096.T₁`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/type.go b/src/cmd/compile/internal/types2/type.go
+index cf119a1b23..55c2f336ce 100644
+--- a/src/cmd/compile/internal/types2/type.go
++++ b/src/cmd/compile/internal/types2/type.go
+@@ -250,6 +250,9 @@ func (s *Signature) RParams() []*TypeName { return s.rparams }
+ // SetTParams sets the type parameters of signature s.
+ func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
+ 
++// SetRParams sets the receiver type params of signature s.
++func (s *Signature) SetRParams(rparams []*TypeName) { s.rparams = rparams }
++
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+ 
+@@ -771,6 +774,12 @@ func (t *TypeParam) Index() int {
+ 	return t.index
+ }
+ 
++// SetId sets the unique id of a type param. Should only be used for type params
++// in imported generic types.
++func (t *TypeParam) SetId(id uint64) {
++	t.id = id
++}
++
+ func (t *TypeParam) Bound() *Interface {
+ 	iface := asInterface(t.bound)
+ 	// use the type bound position if we have one
+@@ -1002,3 +1011,4 @@ func AsPointer(t Type) *Pointer     { return asPointer(t) }
+ func AsNamed(t Type) *Named         { return asNamed(t) }
+ func AsSignature(t Type) *Signature { return asSignature(t) }
+ func AsInterface(t Type) *Interface { return asInterface(t) }
++func AsTypeParam(t Type) *TypeParam { return asTypeParam(t) }
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index e85cc8ed35..c534b04130 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -281,6 +281,13 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	case *TypeParam:
+ 		s := "?"
+ 		if t.obj != nil {
++			// Optionally write out package for typeparams (like Named).
++			// TODO(danscales): this is required for import/export, so
++			// we maybe need a separate function that won't be changed
++			// for debugging purposes.
++			if t.obj.pkg != nil {
++				writePackage(buf, t.obj.pkg, qf)
++			}
+ 			s = t.obj.name
+ 		}
+ 		buf.WriteString(s + subscript(t.id))
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 3c76aafde3..c010dc506e 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -138,7 +138,8 @@ func TestVersionHandling(t *testing.T) {
+ 	skipSpecialPlatforms(t)
+ 
+ 	// This package only handles gc export data.
+-	if runtime.Compiler != "gc" {
++	// Disable test until we put in the new export version.
++	if true || runtime.Compiler != "gc" {
+ 		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
+ 	}
+ 
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index a3184e7641..4416f5b2b9 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -55,6 +55,8 @@ const (
+ 	signatureType
+ 	structType
+ 	interfaceType
++	typeParamType
++	instType
+ )
+ 
+ // iImportData imports a package from the serialized package data
+@@ -271,11 +273,21 @@ func (r *importReader) obj(name string) {
+ 		r.declare(types.NewConst(pos, r.currPkg, name, typ, val))
+ 
+ 	case 'F':
++		numTparams := r.uint64()
++		if numTparams > 0 {
++			errorf("unexpected tparam")
++			return
++		}
+ 		sig := r.signature(nil)
+ 
+ 		r.declare(types.NewFunc(pos, r.currPkg, name, sig))
+ 
+ 	case 'T':
++		numTparams := r.uint64()
++		if numTparams > 0 {
++			errorf("unexpected tparam")
++		}
++
+ 		// Types can be recursive. We need to setup a stub
+ 		// declaration before recursing.
+ 		obj := types.NewTypeName(pos, r.currPkg, name, nil)
+@@ -548,6 +560,14 @@ func (r *importReader) doType(base *types.Named) types.Type {
+ 		typ := types.NewInterfaceType(methods, embeddeds)
+ 		r.p.interfaceList = append(r.p.interfaceList, typ)
+ 		return typ
++
++	case typeParamType:
++		errorf("do not handle tparams yet")
++		return nil
++
++	case instType:
++		errorf("do not handle instantiated types yet")
++		return nil
+ 	}
+ }
+ 
+diff --git a/test/typeparam/adder.go b/test/typeparam/adder.go
+index 0c25ad4ef2..eb564b5bd5 100644
+--- a/test/typeparam/adder.go
++++ b/test/typeparam/adder.go
+@@ -14,16 +14,16 @@ type AddType interface {
+ 	type int, int64, string
+ }
+ 
+-// _Add can add numbers or strings
+-func _Add[T AddType](a, b T) T {
++// Add can add numbers or strings
++func Add[T AddType](a, b T) T {
+ 	return a + b
+ }
+ 
+ func main() {
+-	if got, want := _Add(5, 3), 8; got != want {
++	if got, want := Add(5, 3), 8; got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+-	if got, want := _Add("ab", "cd"), "abcd"; got != want {
++	if got, want := Add("ab", "cd"), "abcd"; got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/min.go b/test/typeparam/min.go
+index a3e4464a30..6e28c062a8 100644
+--- a/test/typeparam/min.go
++++ b/test/typeparam/min.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ type Ordered interface {
+-	type int, int64, float64
++	type int, int64, float64, string
+ }
+ 
+ func min[T Ordered](x, y T) T {
+@@ -38,4 +38,13 @@ func main() {
+ 	if got := min(3.5, 2.0); got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
++
++	const want2 = "ay"
++	if got := min[string]("bb", "ay"); got != want2 {
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++
++	if got := min("bb", "ay"); got != want2 {
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
+ }
+diff --git a/test/typeparam/minimp.dir/a.go b/test/typeparam/minimp.dir/a.go
+new file mode 100644
+index 0000000000..16c1b035f4
+--- /dev/null
++++ b/test/typeparam/minimp.dir/a.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Ordered interface {
++        type int, int64, float64, string
++}
++
++func Min[T Ordered](x, y T) T {
++        if x < y {
++                return x
++        }
++        return y
++}
+diff --git a/test/typeparam/minimp.dir/main.go b/test/typeparam/minimp.dir/main.go
+new file mode 100644
+index 0000000000..509f5aaed2
+--- /dev/null
++++ b/test/typeparam/minimp.dir/main.go
+@@ -0,0 +1,38 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++	const want = 2
++	if got := a.Min[int](2, 3); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Min(2, 3); got != want {
++		panic(fmt.Sprintf("want %d, got %d", want, got))
++	}
++
++	if got := a.Min[float64](3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	if got := a.Min(3.5, 2.0); got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++
++	const want2 = "ay"
++	if got := a.Min[string]("bb", "ay"); got != want2 {
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++
++	if got := a.Min("bb", "ay"); got != want2 {
++		panic(fmt.Sprintf("got %d, want %d", got, want2))
++	}
++}
+diff --git a/test/typeparam/minimp.go b/test/typeparam/minimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/minimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/pair.go b/test/typeparam/pair.go
+index 7faf083c89..57742022b1 100644
+--- a/test/typeparam/pair.go
++++ b/test/typeparam/pair.go
+@@ -24,6 +24,7 @@ func main() {
+ 	if got, want := unsafe.Sizeof(p.f2), uintptr(8); got != want {
+ 		panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
+ 	}
++
+ 	type mypair struct { f1 int32; f2 int64 }
+ 	mp := mypair(p)
+ 	if mp.f1 != 1 || mp.f2 != 2 {
+diff --git a/test/typeparam/pairimp.dir/a.go b/test/typeparam/pairimp.dir/a.go
+new file mode 100644
+index 0000000000..27b2412961
+--- /dev/null
++++ b/test/typeparam/pairimp.dir/a.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Pair[F1, F2 any] struct {
++        Field1 F1
++        Field2 F2
++}
+diff --git a/test/typeparam/pairimp.dir/main.go b/test/typeparam/pairimp.dir/main.go
+new file mode 100644
+index 0000000000..fc2face81d
+--- /dev/null
++++ b/test/typeparam/pairimp.dir/main.go
+@@ -0,0 +1,27 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++	"unsafe"
++)
++
++func main() {
++        p := a.Pair[int32, int64]{1, 2}
++        if got, want := unsafe.Sizeof(p.Field1), uintptr(4); got != want {
++                panic(fmt.Sprintf("unexpected f1 size == %d, want %d", got, want))
++        }
++        if got, want := unsafe.Sizeof(p.Field2), uintptr(8); got != want {
++                panic(fmt.Sprintf("unexpected f2 size == %d, want %d", got, want))
++        }
++
++        type mypair struct { Field1 int32; Field2 int64 }
++        mp := mypair(p)
++        if mp.Field1 != 1 || mp.Field2 != 2 {
++                panic(fmt.Sprintf("mp == %#v, want %#v", mp, mypair{1, 2}))
++        }
++}
+diff --git a/test/typeparam/pairimp.go b/test/typeparam/pairimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/pairimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/settable.go b/test/typeparam/settable.go
+index 588166da85..d0b831b533 100644
+--- a/test/typeparam/settable.go
++++ b/test/typeparam/settable.go
+@@ -13,13 +13,13 @@ import (
+ 
+ // Various implementations of fromStrings().
+ 
+-type _Setter[B any] interface {
++type Setter[B any] interface {
+ 	Set(string)
+ 	type *B
+ }
+ 
+ // Takes two type parameters where PT = *T
+-func fromStrings1[T any, PT _Setter[T]](s []string) []T {
++func fromStrings1[T any, PT Setter[T]](s []string) []T {
+ 	result := make([]T, len(s))
+ 	for i, v := range s {
+ 		// The type of &result[i] is *T which is in the type list
+@@ -31,7 +31,7 @@ func fromStrings1[T any, PT _Setter[T]](s []string) []T {
+ 	return result
+ }
+ 
+-func fromStrings1a[T any, PT _Setter[T]](s []string) []PT {
++func fromStrings1a[T any, PT Setter[T]](s []string) []PT {
+ 	result := make([]PT, len(s))
+ 	for i, v := range s {
+ 		// The type new(T) is *T which is in the type list
+@@ -54,12 +54,12 @@ func fromStrings2[T any](s []string, set func(*T, string)) []T {
+ 	return results
+ }
+ 
+-type _Setter2 interface {
++type Setter2 interface {
+ 	Set(string)
+ }
+ 
+ // Takes only one type parameter, but causes a panic (see below)
+-func fromStrings3[T _Setter2](s []string) []T {
++func fromStrings3[T Setter2](s []string) []T {
+ 	results := make([]T, len(s))
+ 	for i, v := range s {
+ 		// Panics if T is a pointer type because receiver is T(nil).
+diff --git a/test/typeparam/smallest.go b/test/typeparam/smallest.go
+index 63dd9ddb70..d851536049 100644
+--- a/test/typeparam/smallest.go
++++ b/test/typeparam/smallest.go
+@@ -17,7 +17,7 @@ type Ordered interface {
+ 		string
+ }
+ 
+-func smallest[T Ordered](s []T) T {
++func Smallest[T Ordered](s []T) T {
+ 	r := s[0] // panics if slice is empty
+ 	for _, v := range s[1:] {
+ 		if v < r {
+@@ -32,11 +32,11 @@ func main() {
+ 	vec2 := []string{"abc", "def", "aaa"}
+ 
+ 	want1 := 1.2
+-	if got := smallest(vec1); got != want1 {
++	if got := Smallest(vec1); got != want1 {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want1))
+ 	}
+ 	want2 := "aaa"
+-	if got := smallest(vec2); got != want2 {
++	if got := Smallest(vec2); got != want2 {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want2))
+ 	}
+ }
+diff --git a/test/typeparam/stringable.go b/test/typeparam/stringable.go
+index 9340a3b10a..20da012cb8 100644
+--- a/test/typeparam/stringable.go
++++ b/test/typeparam/stringable.go
+@@ -16,11 +16,11 @@ type Stringer interface {
+ 	String() string
+ }
+ 
+-// stringableList is a slice of some type, where the type
++// StringableList is a slice of some type, where the type
+ // must have a String method.
+-type stringableList[T Stringer] []T
++type StringableList[T Stringer] []T
+ 
+-func (s stringableList[T]) String() string {
++func (s StringableList[T]) String() string {
+ 	var sb strings.Builder
+ 	for i, v := range s {
+ 		if i > 0 {
+@@ -38,7 +38,7 @@ func (a myint) String() string {
+ }
+ 
+ func main() {
+-	v := stringableList[myint]{ myint(1), myint(2) }
++	v := StringableList[myint]{ myint(1), myint(2) }
+ 
+ 	if got, want := v.String(), "1, 2"; got != want {
+                 panic(fmt.Sprintf("got %s, want %s", got, want))
+diff --git a/test/typeparam/stringerimp.dir/a.go b/test/typeparam/stringerimp.dir/a.go
+new file mode 100644
+index 0000000000..3f70937ff5
+--- /dev/null
++++ b/test/typeparam/stringerimp.dir/a.go
+@@ -0,0 +1,16 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Stringer interface {
++	String() string
++}
++
++func Stringify[T Stringer](s []T) (ret []string) {
++	for _, v := range s {
++		ret = append(ret, v.String())
++	}
++	return ret
++}
+diff --git a/test/typeparam/stringerimp.dir/main.go b/test/typeparam/stringerimp.dir/main.go
+new file mode 100644
+index 0000000000..e30bdf1abe
+--- /dev/null
++++ b/test/typeparam/stringerimp.dir/main.go
+@@ -0,0 +1,38 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++	"reflect"
++	"strconv"
++)
++
++type myint int
++
++func (i myint) String() string {
++	return strconv.Itoa(int(i))
++}
++
++func main() {
++	x := []myint{myint(1), myint(2), myint(3)}
++
++	got := a.Stringify(x)
++	want := []string{"1", "2", "3"}
++	if !reflect.DeepEqual(got, want) {
++		panic(fmt.Sprintf("got %s, want %s", got, want))
++	}
++
++	m1 := myint(1)
++	m2 := myint(2)
++	m3 := myint(3)
++	y := []*myint{&m1, &m2, &m3}
++	got2 := a.Stringify(y)
++	want2 := []string{"1", "2", "3"}
++	if !reflect.DeepEqual(got2, want2) {
++		panic(fmt.Sprintf("got %s, want %s", got2, want2))
++	}
++}
+diff --git a/test/typeparam/stringerimp.go b/test/typeparam/stringerimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/stringerimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/typeparam/struct.go b/test/typeparam/struct.go
+index 98f0fcd888..093f6935e6 100644
+--- a/test/typeparam/struct.go
++++ b/test/typeparam/struct.go
+@@ -10,40 +10,40 @@ import (
+ 	"fmt"
+ )
+ 
+-type _E[T any] struct {
++type E[T any] struct {
+ 	v T
+ }
+ 
+-type _S1 struct {
+-	_E[int]
++type S1 struct {
++	E[int]
+ 	v string
+ }
+ 
+-type _Eint = _E[int]
+-type _Ebool = _E[bool]
++type Eint = E[int]
++type Ebool = E[bool]
+ 
+-type _S2 struct {
+-	_Eint
+-	_Ebool
++type S2 struct {
++	Eint
++	Ebool
+ 	v string
+ }
+ 
+-type _S3 struct {
+-	*_E[int]
++type S3 struct {
++	*E[int]
+ }
+ 
+ func main() {
+-	s1 := _S1{_Eint{2}, "foo"}
+-	if got, want := s1._E.v, 2; got != want {
++	s1 := S1{Eint{2}, "foo"}
++	if got, want := s1.E.v, 2; got != want {
+                 panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+-	s2 := _S2{_Eint{3}, _Ebool{true}, "foo"}
+-	if got, want := s2._Eint.v, 3; got != want {
++	s2 := S2{Eint{3}, Ebool{true}, "foo"}
++	if got, want := s2.Eint.v, 3; got != want {
+                 panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+-	var s3 _S3
+-	s3._E = &_Eint{4}
+-	if got, want := s3._E.v, 4; got != want {
++	var s3 S3
++	s3.E = &Eint{4}
++	if got, want := s3.E.v, 4; got != want {
+                 panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ }
+diff --git a/test/typeparam/sum.go b/test/typeparam/sum.go
+index f0f5e6aa07..c82d8e4c61 100644
+--- a/test/typeparam/sum.go
++++ b/test/typeparam/sum.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ )
+ 
+-func sum[T interface{ type int, float64 }](vec []T) T {
++func Sum[T interface{ type int, float64 }](vec []T) T {
+ 	var sum T
+ 	for _, elt := range vec {
+ 		sum = sum + elt
+@@ -18,7 +18,7 @@ func sum[T interface{ type int, float64 }](vec []T) T {
+ 	return sum
+ }
+ 
+-func abs(f float64) float64 {
++func Abs(f float64) float64 {
+ 	if f < 0.0 {
+ 		return -f
+ 	}
+@@ -28,23 +28,23 @@ func abs(f float64) float64 {
+ func main() {
+ 	vec1 := []int{3, 4}
+ 	vec2 := []float64{5.8, 9.6}
+-	got := sum[int](vec1)
++	got := Sum[int](vec1)
+ 	want := vec1[0] + vec1[1]
+ 	if got != want {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+-	got = sum(vec1)
++	got = Sum(vec1)
+ 	if want != got {
+ 		panic(fmt.Sprintf("got %d, want %d", got, want))
+ 	}
+ 
+ 	fwant := vec2[0] + vec2[1]
+-	fgot := sum[float64](vec2)
+-	if abs(fgot - fwant) > 1e-10 {
++	fgot := Sum[float64](vec2)
++	if Abs(fgot - fwant) > 1e-10 {
+ 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+-	fgot = sum(vec2)
+-	if abs(fgot - fwant) > 1e-10 {
++	fgot = Sum(vec2)
++	if Abs(fgot - fwant) > 1e-10 {
+ 		panic(fmt.Sprintf("got %f, want %f", fgot, fwant))
+ 	}
+ }
+diff --git a/test/typeparam/valimp.dir/a.go b/test/typeparam/valimp.dir/a.go
+new file mode 100644
+index 0000000000..5aa5ebfa97
+--- /dev/null
++++ b/test/typeparam/valimp.dir/a.go
+@@ -0,0 +1,32 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type Value[T any] struct {
++        val T
++}
++
++// The noinline directive should survive across import, and prevent instantiations
++// of these functions from being inlined.
++
++//go:noinline
++func Get[T any](v *Value[T]) T {
++        return v.val
++}
++
++//go:noinline
++func Set[T any](v *Value[T], val T) {
++        v.val = val
++}
++
++//go:noinline
++func (v *Value[T]) Set(val T) {
++        v.val = val
++}
++
++//go:noinline
++func (v *Value[T]) Get() T {
++        return v.val
++}
+diff --git a/test/typeparam/valimp.dir/main.go b/test/typeparam/valimp.dir/main.go
+new file mode 100644
+index 0000000000..925fb1e699
+--- /dev/null
++++ b/test/typeparam/valimp.dir/main.go
+@@ -0,0 +1,56 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"a"
++	"fmt"
++)
++
++func main() {
++        var v1 a.Value[int]
++
++        a.Set(&v1, 1)
++        if got, want := a.Get(&v1), 1; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++        v1.Set(2)
++        if got, want := v1.Get(), 2; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++        v1p := new(a.Value[int])
++        a.Set(v1p, 3)
++        if got, want := a.Get(v1p), 3; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++
++        v1p.Set(4)
++        if got, want := v1p.Get(), 4; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++
++        var v2 a.Value[string]
++        a.Set(&v2, "a")
++        if got, want := a.Get(&v2), "a"; got != want {
++                panic(fmt.Sprintf("Get() == %q, want %q", got, want))
++        }
++
++        v2.Set("b")
++        if got, want := a.Get(&v2), "b"; got != want {
++                panic(fmt.Sprintf("Get() == %q, want %q", got, want))
++        }
++
++        v2p := new(a.Value[string])
++        a.Set(v2p, "c")
++        if got, want := a.Get(v2p), "c"; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++
++        v2p.Set("d")
++        if got, want := v2p.Get(), "d"; got != want {
++                panic(fmt.Sprintf("Get() == %d, want %d", got, want))
++        }
++}
++
+diff --git a/test/typeparam/valimp.go b/test/typeparam/valimp.go
+new file mode 100644
+index 0000000000..76930e5e4f
+--- /dev/null
++++ b/test/typeparam/valimp.go
+@@ -0,0 +1,7 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

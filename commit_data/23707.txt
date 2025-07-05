@@ -7,6 +7,53 @@ Date:   Fri Jun 5 10:34:17 2015 -0400
     Change-Id: I09257b8f5482cba10b5f4d3813c778d6e9e74d40
     Reviewed-on: https://go-review.googlesource.com/10752
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 18 +++++++++++++++++-
  1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 0027a1f329..6c954638ab 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -24,10 +25,16 @@ const (
+ // 	rm testvet
+ //
+ func TestVet(t *testing.T) {
+-	// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+ 	switch runtime.GOOS {
+ 	case "plan9", "windows":
++		// Plan 9 and Windows systems can't be guaranteed to have Perl and so can't run errchk.
+ 		t.Skip("skipping test; no Perl on %q", runtime.GOOS)
++	case "nacl":
++		t.Skip("skipping test; no command execution on nacl")
++	case "darwin":
++		if strings.HasPrefix(runtime.GOARCH, "arm") {
++			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
++		}
+ 	}
+ 
+ 	// go build
+@@ -75,6 +82,15 @@ func run(c *exec.Cmd, t *testing.T) bool {
+ 
+ // TestTags verifies that the -tags argument controls which files to check.
+ func TestTags(t *testing.T) {
++	switch runtime.GOOS {
++	case "nacl":
++		t.Skip("skipping test; no command execution on nacl")
++	case "darwin":
++		if strings.HasPrefix(runtime.GOARCH, "arm") {
++			t.Skip("skipping test; no command execution on darwin/%s", runtime.GOARCH)
++		}
++	}
++
+ 	// go build
+ 	cmd := exec.Command("go", "build", "-o", binary)
+ 	run(cmd, t)

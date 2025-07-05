@@ -13,10 +13,80 @@ Date:   Mon May 22 20:55:07 2023 +0200
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/defs1_solaris_amd64.go | 2 --
  src/runtime/defs_openbsd_386.go    | 3 ---
  src/runtime/defs_openbsd_amd64.go  | 3 ---
  src/runtime/defs_openbsd_arm.go    | 3 ---
  src/runtime/defs_openbsd_arm64.go  | 3 ---
  5 files changed, 14 deletions(-)
+
+diff --git a/src/runtime/defs1_solaris_amd64.go b/src/runtime/defs1_solaris_amd64.go
+index 4e541a913b..9ebe5bb03e 100644
+--- a/src/runtime/defs1_solaris_amd64.go
++++ b/src/runtime/defs1_solaris_amd64.go
+@@ -96,8 +96,6 @@ const (
+ 	_O_TRUNC    = 0x200
+ 	_O_CREAT    = 0x100
+ 	_O_CLOEXEC  = 0x800000
+-	_F_GETFL    = 0x3
+-	_F_SETFL    = 0x4
+ 
+ 	_POLLIN  = 0x1
+ 	_POLLOUT = 0x4
+diff --git a/src/runtime/defs_openbsd_386.go b/src/runtime/defs_openbsd_386.go
+index d38a632577..fde8af530f 100644
+--- a/src/runtime/defs_openbsd_386.go
++++ b/src/runtime/defs_openbsd_386.go
+@@ -35,9 +35,6 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_GETFL = 0x3
+-	_F_SETFL = 0x4
+-
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+diff --git a/src/runtime/defs_openbsd_amd64.go b/src/runtime/defs_openbsd_amd64.go
+index ed3c067989..0f29d0c2eb 100644
+--- a/src/runtime/defs_openbsd_amd64.go
++++ b/src/runtime/defs_openbsd_amd64.go
+@@ -35,9 +35,6 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_GETFL = 0x3
+-	_F_SETFL = 0x4
+-
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index 00b265e538..b56f3b4e34 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -35,9 +35,6 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_GETFL = 0x3
+-	_F_SETFL = 0x4
+-
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3
+diff --git a/src/runtime/defs_openbsd_arm64.go b/src/runtime/defs_openbsd_arm64.go
+index 894fd39b75..0a9acc0494 100644
+--- a/src/runtime/defs_openbsd_arm64.go
++++ b/src/runtime/defs_openbsd_arm64.go
+@@ -36,9 +36,6 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x1
+ 
+-	_F_GETFL = 0x3
+-	_F_SETFL = 0x4
+-
+ 	_SIGHUP    = 0x1
+ 	_SIGINT    = 0x2
+ 	_SIGQUIT   = 0x3

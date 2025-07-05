@@ -20,8 +20,75 @@ Date:   Sat Sep 25 01:13:27 2021 +0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go   |  4 ++++
  src/cmd/compile/internal/noder/transform.go |  6 ++++++
  test/typeparam/issue48598.go                | 28 ++++++++++++++++++++++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 23f53bac04..d5fb9f338c 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1097,6 +1097,10 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 				// A call with an OFUNCINST will get transformed
+ 				// in stencil() once we have created & attached the
+ 				// instantiation to be called.
++				// We must transform the arguments of the call now, though,
++				// so that any needed CONVIFACE nodes are exposed,
++				// so the dictionary format is correct
++				transformEarlyCall(call)
+ 
+ 			case ir.OXDOT, ir.ODOTTYPE, ir.ODOTTYPE2:
+ 			default:
+diff --git a/src/cmd/compile/internal/noder/transform.go b/src/cmd/compile/internal/noder/transform.go
+index 953036eb42..f7115904fe 100644
+--- a/src/cmd/compile/internal/noder/transform.go
++++ b/src/cmd/compile/internal/noder/transform.go
+@@ -177,6 +177,12 @@ func transformCall(n *ir.CallExpr) {
+ 	}
+ }
+ 
++// transformEarlyCall transforms the arguments of a call with an OFUNCINST node.
++func transformEarlyCall(n *ir.CallExpr) {
++	transformArgs(n)
++	typecheckaste(ir.OCALL, n.X, n.IsDDD, n.X.Type().Params(), n.Args)
++}
++
+ // transformCompare transforms a compare operation (currently just equals/not
+ // equals). Corresponds to the "comparison operators" case in
+ // typecheck.typecheck1, including tcArith.
+diff --git a/test/typeparam/issue48598.go b/test/typeparam/issue48598.go
+new file mode 100644
+index 0000000000..ea360f2135
+--- /dev/null
++++ b/test/typeparam/issue48598.go
+@@ -0,0 +1,28 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Iterator[T any] interface {
++	Iterate()
++}
++
++type IteratorFunc[T any] func(fn func(T) bool)
++
++func (f IteratorFunc[T]) Iterate() {
++}
++
++func FromIterator[T any](it Iterator[T]) {
++	it.Iterate()
++}
++
++func Foo[T, R any]() {
++	FromIterator[R](IteratorFunc[R](nil))
++}
++
++func main() {
++	Foo[int, int]()
++}

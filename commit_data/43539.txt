@@ -13,6 +13,20 @@ Date:   Sat Apr 11 03:33:21 2020 +0000
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/logopt/logopt_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index fb08393bdb..800ac61903 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -62,7 +62,7 @@ func TestLogOpt(t *testing.T) {
+ 
+ 	dir, err := ioutil.TempDir("", "TestLogOpt")
+ 	if err != nil {
+-		t.Skipf("Could not create work directory, assuming not allowed on this platform.  Error was '%v'", err)
++		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 

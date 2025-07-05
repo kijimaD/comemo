@@ -7,6 +7,37 @@ Date:   Mon Aug 9 11:30:33 2010 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/1917048
-
+---
  src/pkg/runtime/windows/thread.c | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/windows/thread.c b/src/pkg/runtime/windows/thread.c
+index f18d960a7e..38e0c9ddb8 100644
+--- a/src/pkg/runtime/windows/thread.c
++++ b/src/pkg/runtime/windows/thread.c
+@@ -85,7 +85,7 @@ windows_goargs(void)
+ 	extern Slice os·Args;
+ 	extern Slice os·Envs;
+ 
+-	void *gcl, *clta, *ges;
++	void *gcl, *clta, *ges, *fes;
+ 	uint16 *cmd, *env, **argv;
+ 	String *gargv;
+ 	String *genvv;
+@@ -95,6 +95,7 @@ windows_goargs(void)
+ 	gcl = get_proc_addr("kernel32.dll", "GetCommandLineW");
+ 	clta = get_proc_addr("shell32.dll", "CommandLineToArgvW");
+ 	ges = get_proc_addr("kernel32.dll", "GetEnvironmentStringsW");
++	fes = get_proc_addr("kernel32.dll", "FreeEnvironmentStringsW");
+ 
+ 	cmd = stdcall(gcl, 0);
+ 	env = stdcall(ges, 0);
+@@ -121,6 +122,8 @@ windows_goargs(void)
+ 	os·Envs.array = (byte*)genvv;
+ 	os·Envs.len = envc;
+ 	os·Envs.cap = envc;
++
++	stdcall(fes, 1, env);
+ }
+ 
+ void

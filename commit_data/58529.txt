@@ -16,8 +16,73 @@ Date:   Thu Nov 16 22:19:37 2023 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inlheur/analyze.go | 4 ++--
  src/cmd/compile/internal/noder/linker.go           | 3 +--
  src/cmd/compile/internal/noder/reader.go           | 3 +--
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 45782e64ed..6c3db92afe 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"encoding/json"
+ 	"fmt"
+-	"internal/goexperiment"
++	"internal/buildcfg"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+@@ -213,7 +213,7 @@ func fnFileLine(fn *ir.Func) (string, uint) {
+ }
+ 
+ func Enabled() bool {
+-	return goexperiment.NewInliner || UnitTesting()
++	return buildcfg.Experiment.NewInliner || UnitTesting()
+ }
+ 
+ func UnitTesting() bool {
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 3bc5c32e1b..f5667f57ab 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -6,7 +6,6 @@ package noder
+ 
+ import (
+ 	"internal/buildcfg"
+-	"internal/goexperiment"
+ 	"internal/pkgbits"
+ 	"io"
+ 
+@@ -297,7 +296,7 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
+ 	if inl := name.Func.Inl; w.Bool(inl != nil) {
+ 		w.Len(int(inl.Cost))
+ 		w.Bool(inl.CanDelayResults)
+-		if goexperiment.NewInliner {
++		if buildcfg.Experiment.NewInliner {
+ 			w.String(inl.Properties)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index b4c2801e53..c1145f980e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"internal/buildcfg"
+-	"internal/goexperiment"
+ 	"internal/pkgbits"
+ 	"path/filepath"
+ 	"strings"
+@@ -1103,7 +1102,7 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
+ 				Cost:            int32(r.Len()),
+ 				CanDelayResults: r.Bool(),
+ 			}
+-			if goexperiment.NewInliner {
++			if buildcfg.Experiment.NewInliner {
+ 				fn.Inl.Properties = r.String()
+ 			}
+ 		}

@@ -23,7 +23,172 @@ Date:   Tue May 26 16:11:22 2020 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file_windows.go    |  14 +++++-
  src/os/os_windows_test.go | 119 +++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 130 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 0d8c0fd20d..cc695fd94c 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -330,8 +330,18 @@ func Symlink(oldname, newname string) error {
+ 
+ 	// need the exact location of the oldname when it's relative to determine if it's a directory
+ 	destpath := oldname
+-	if !isAbs(oldname) {
+-		destpath = dirname(newname) + `\` + oldname
++	if v := volumeName(oldname); v == "" {
++		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
++			// oldname is relative to the volume containing newname.
++			if v = volumeName(newname); v != "" {
++				// Prepend the volume explicitly, because it may be different from the
++				// volume of the current working directory.
++				destpath = v + oldname
++			}
++		} else {
++			// oldname is relative to newname.
++			destpath = dirname(newname) + `\` + oldname
++		}
+ 	}
+ 
+ 	fi, err := Stat(destpath)
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 8c14103143..f03ec750d0 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -965,9 +965,10 @@ func TestWindowsDevNullFile(t *testing.T) {
+ // works on Windows when developer mode is active.
+ // This is supported starting Windows 10 (1703, v10.0.14972).
+ func TestSymlinkCreation(t *testing.T) {
+-	if !isWindowsDeveloperModeActive() {
++	if !testenv.HasSymlink() && !isWindowsDeveloperModeActive() {
+ 		t.Skip("Windows developer mode is not active")
+ 	}
++	t.Parallel()
+ 
+ 	temp, err := ioutil.TempDir("", "TestSymlinkCreation")
+ 	if err != nil {
+@@ -1005,6 +1006,122 @@ func isWindowsDeveloperModeActive() bool {
+ 	return val != 0
+ }
+ 
++// TestRootRelativeDirSymlink verifies that symlinks to paths relative to the
++// drive root (beginning with "\" but no volume name) are created with the
++// correct symlink type.
++// (See https://golang.org/issue/39183#issuecomment-632175728.)
++func TestRootRelativeDirSymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++	t.Parallel()
++
++	temp := t.TempDir()
++	dir := filepath.Join(temp, "dir")
++	if err := os.Mkdir(dir, 0755); err != nil {
++		t.Fatal(err)
++	}
++
++	volumeRelDir := strings.TrimPrefix(dir, filepath.VolumeName(dir)) // leaves leading backslash
++
++	link := filepath.Join(temp, "link")
++	err := os.Symlink(volumeRelDir, link)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Symlink(%#q, %#q)", volumeRelDir, link)
++
++	f, err := os.Open(link)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	if fi, err := f.Stat(); err != nil {
++		t.Fatal(err)
++	} else if !fi.IsDir() {
++		t.Errorf("Open(%#q).Stat().IsDir() = false; want true", f.Name())
++	}
++}
++
++// TestWorkingDirectoryRelativeSymlink verifies that symlinks to paths relative
++// to the current working directory for the drive, such as "C:File.txt", are
++// correctly converted to absolute links of the correct symlink type (per
++// https://docs.microsoft.com/en-us/windows/win32/fileio/creating-symbolic-links).
++func TestWorkingDirectoryRelativeSymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	// Construct a directory to be symlinked.
++	temp := t.TempDir()
++	if v := filepath.VolumeName(temp); len(v) < 2 || v[1] != ':' {
++		t.Skipf("Can't test relative symlinks: t.TempDir() (%#q) does not begin with a drive letter.", temp)
++	}
++
++	absDir := filepath.Join(temp, `dir\sub`)
++	if err := os.MkdirAll(absDir, 0755); err != nil {
++		t.Fatal(err)
++	}
++
++	// Change to the temporary directory and construct a
++	// working-directory-relative symlink.
++	oldwd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer func() {
++		if err := os.Chdir(oldwd); err != nil {
++			t.Fatal(err)
++		}
++	}()
++	if err := os.Chdir(temp); err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Chdir(%#q)", temp)
++
++	wdRelDir := filepath.VolumeName(temp) + `dir\sub` // no backslash after volume.
++	absLink := filepath.Join(temp, "link")
++	err = os.Symlink(wdRelDir, absLink)
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Symlink(%#q, %#q)", wdRelDir, absLink)
++
++	// Now change back to the original working directory and verify that the
++	// symlink still refers to its original path and is correctly marked as a
++	// directory.
++	if err := os.Chdir(oldwd); err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("Chdir(%#q)", oldwd)
++
++	resolved, err := os.Readlink(absLink)
++	if err != nil {
++		t.Errorf("Readlink(%#q): %v", absLink, err)
++	} else if resolved != absDir {
++		t.Errorf("Readlink(%#q) = %#q; want %#q", absLink, resolved, absDir)
++	}
++
++	linkFile, err := os.Open(absLink)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer linkFile.Close()
++
++	linkInfo, err := linkFile.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !linkInfo.IsDir() {
++		t.Errorf("Open(%#q).Stat().IsDir() = false; want true", absLink)
++	}
++
++	absInfo, err := os.Stat(absDir)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if !os.SameFile(absInfo, linkInfo) {
++		t.Errorf("SameFile(Stat(%#q), Open(%#q).Stat()) = false; want true", absDir, absLink)
++	}
++}
++
+ // TestStatOfInvalidName is regression test for issue #24999.
+ func TestStatOfInvalidName(t *testing.T) {
+ 	_, err := os.Stat("*.go")

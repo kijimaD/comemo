@@ -8,7 +8,36 @@ Date:   Fri May 13 11:05:03 2011 -0400
     R=rsc, amdragon
     CC=golang-dev
     https://golang.org/cl/4523065
-
+---
  misc/emacs/go-mode-load.el | 2 +-
  misc/emacs/go-mode.el      | 4 +++-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/misc/emacs/go-mode-load.el b/misc/emacs/go-mode-load.el
+index 0ace46dfa9..d453166a45 100644
+--- a/misc/emacs/go-mode-load.el
++++ b/misc/emacs/go-mode-load.el
+@@ -19,7 +19,7 @@
+ 
+ 
+ ;;;### (autoloads (gofmt-before-save gofmt go-mode) "go-mode" "go-mode.el"
+-;;;;;;  (19847 61431))
++;;;;;;  (19917 17808))
+ ;;; Generated autoloads from go-mode.el
+ 
+ (autoload 'go-mode "go-mode" "\
+diff --git a/misc/emacs/go-mode.el b/misc/emacs/go-mode.el
+index 692cabfe58..532f464ed9 100644
+--- a/misc/emacs/go-mode.el
++++ b/misc/emacs/go-mode.el
+@@ -507,7 +507,9 @@ Replace the current buffer on success; display errors on failure."
+  (let ((srcbuf (current-buffer)))
+    (with-temp-buffer
+      (let ((outbuf (current-buffer))
+-           (errbuf (get-buffer-create "*Gofmt Errors*")))
++           (errbuf (get-buffer-create "*Gofmt Errors*"))
++           (coding-system-for-read 'utf-8)    ;; use utf-8 with subprocesses
++           (coding-system-for-write 'utf-8))
+        (with-current-buffer errbuf (erase-buffer))
+        (with-current-buffer srcbuf
+          (save-restriction

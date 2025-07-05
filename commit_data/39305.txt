@@ -11,7 +11,34 @@ Date:   Thu Feb 21 09:20:42 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/android/cleaner.go         | 2 ++
  misc/android/go_android_exec.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/misc/android/cleaner.go b/misc/android/cleaner.go
+index dafb162697..edbbdcd0ef 100644
+--- a/misc/android/cleaner.go
++++ b/misc/android/cleaner.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Cleaner removes anything from /data/local/tmp/goroot not on a builtin list.
+ // Used by androidtest.bash.
+ package main
+diff --git a/misc/android/go_android_exec.go b/misc/android/go_android_exec.go
+index c6270872c7..2376e29796 100644
+--- a/misc/android/go_android_exec.go
++++ b/misc/android/go_android_exec.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // This program can be used as go_android_GOARCH_exec by the Go tool.
+ // It executes binaries on an android device using adb.
+ package main

@@ -25,7 +25,61 @@ Date:   Wed Jun 1 10:58:30 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 28 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/typecheck.go |  3 +++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 882daec460..4b4cffdc06 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -61,6 +61,34 @@ func (v Val) Ctype() Ctype {
+ 	}
+ }
+ 
++func eqval(a, b Val) bool {
++	if a.Ctype() != b.Ctype() {
++		return false
++	}
++	switch x := a.U.(type) {
++	default:
++		Fatalf("unexpected Ctype for %T", a.U)
++		panic("not reached")
++	case *NilVal:
++		return true
++	case bool:
++		y := b.U.(bool)
++		return x == y
++	case *Mpint:
++		y := b.U.(*Mpint)
++		return x.Cmp(y) == 0
++	case *Mpflt:
++		y := b.U.(*Mpflt)
++		return x.Cmp(y) == 0
++	case *Mpcplx:
++		y := b.U.(*Mpcplx)
++		return x.Real.Cmp(&y.Real) == 0 && x.Imag.Cmp(&y.Imag) == 0
++	case string:
++		y := b.U.(string)
++		return x == y
++	}
++}
++
+ type NilVal struct{}
+ 
+ // IntLiteral returns the Node's literal value as an integer.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index c8ee9417e6..066e2a19c8 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3185,6 +3185,9 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 
+ 	case OINDEX:
+ 		return samesafeexpr(l.Left, r.Left) && samesafeexpr(l.Right, r.Right)
++
++	case OLITERAL:
++		return eqval(l.Val(), r.Val())
+ 	}
+ 
+ 	return false

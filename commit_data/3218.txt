@@ -11,7 +11,7 @@ Date:   Thu Sep 3 17:14:49 2009 -0700
     DELTA=299  (8 added, 19 deleted, 272 changed)
     OCL=34353
     CL=34353
-
+---
  usr/austin/eval/eval_test.go |   8 +-
  usr/austin/eval/expr.go      |  12 +-
  usr/austin/eval/expr1.go     | 121 +++++++++----------
@@ -19,3 +19,1071 @@ Date:   Thu Sep 3 17:14:49 2009 -0700
  usr/austin/eval/stmt.go      |   8 +-
  usr/austin/eval/value.go     | 270 +++++++++++++++++++++----------------------
  6 files changed, 210 insertions(+), 221 deletions(-)
+
+diff --git a/usr/austin/eval/eval_test.go b/usr/austin/eval/eval_test.go
+index cd47a76e0f..b3e7510bc1 100644
+--- a/usr/austin/eval/eval_test.go
++++ b/usr/austin/eval/eval_test.go
+@@ -213,11 +213,11 @@ func (*testFunc) NewFrame() *Frame {
+ }
+ 
+ func (*testFunc) Call(t *Thread) {
+-	n := t.f.Vars[0].(IntValue).Get();
++	n := t.f.Vars[0].(IntValue).Get(t);
+ 
+ 	res := n + 1;
+ 
+-	t.f.Vars[1].(IntValue).Set(res);
++	t.f.Vars[1].(IntValue).Set(t, res);
+ }
+ 
+ type oneTwoFunc struct {};
+@@ -227,8 +227,8 @@ func (*oneTwoFunc) NewFrame() *Frame {
+ }
+ 
+ func (*oneTwoFunc) Call(t *Thread) {
+-	t.f.Vars[0].(IntValue).Set(1);
+-	t.f.Vars[1].(IntValue).Set(2);
++	t.f.Vars[0].(IntValue).Set(t, 1);
++	t.f.Vars[1].(IntValue).Set(t, 2);
+ }
+ 
+ type voidFunc struct {};
+diff --git a/usr/austin/eval/expr.go b/usr/austin/eval/expr.go
+index f24887bc21..472db83c18 100644
+--- a/usr/austin/eval/expr.go
++++ b/usr/austin/eval/expr.go
+@@ -346,7 +346,7 @@ func (a *assignCompiler) compile(b *block, lt Type) (func(Value, *Thread)) {
+ 			vt := a.rmt.Elems[0];
+ 			effect = func(t *Thread) {
+ 				m, k := rf(t);
+-				v := m.Elem(k);
++				v := m.Elem(t, k);
+ 				found := boolV(true);
+ 				if v == nil {
+ 					found = boolV(false);
+@@ -902,7 +902,7 @@ func (a *exprInfo) compileSelectorExpr(v *expr, name string) *expr {
+ 					expr := a.newExpr(ft, "selector expression");
+ 					pf := parent.asStruct();
+ 					evalAddr := func(t *Thread) Value {
+-						return pf(t).Field(index);
++						return pf(t).Field(t, index);
+ 					};
+ 					expr.genValue(evalAddr);
+ 					return sub(expr);
+@@ -990,7 +990,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 			if r < 0 || r >= bound {
+ 				t.Abort(IndexError{r, bound});
+ 			}
+-			return l.Elem(r);
++			return l.Elem(t, r);
+ 		});
+ 
+ 	case *SliceType:
+@@ -1004,7 +1004,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 			if r < 0 || r >= l.Len {
+ 				t.Abort(IndexError{r, l.Len});
+ 			}
+-			return l.Base.Elem(r);
++			return l.Base.Elem(t, r);
+ 		});
+ 
+ 	case *stringType:
+@@ -1029,7 +1029,7 @@ func (a *exprInfo) compileIndexExpr(l, r *expr) *expr {
+ 			if m == nil {
+ 				t.Abort(NilPointerError{});
+ 			}
+-			e := m.Elem(k);
++			e := m.Elem(t, k);
+ 			if e == nil {
+ 				t.Abort(KeyError{k});
+ 			}
+@@ -1197,7 +1197,7 @@ func (a *exprInfo) compileBuiltinCallExpr(b *block, ft *FuncType, as []*expr) *e
+ 				if m == nil {
+ 					return 0;
+ 				}
+-				return m.Len();
++				return m.Len(t);
+ 			};
+ 
+ 		//case *ChanType:
+diff --git a/usr/austin/eval/expr1.go b/usr/austin/eval/expr1.go
+index e07ce86f39..9e297e4697 100644
+--- a/usr/austin/eval/expr1.go
++++ b/usr/austin/eval/expr1.go
+@@ -97,44 +97,33 @@ func (a *expr) asInterface() (func(*Thread) interface{}) {
+ func (a *expr) genConstant(v Value) {
+ 	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+-		val := v.(BoolValue).Get();
+-		a.eval = func(t *Thread) bool { return val }
++		a.eval = func(t *Thread) bool { return v.(BoolValue).Get(t) }
+ 	case *uintType:
+-		val := v.(UintValue).Get();
+-		a.eval = func(t *Thread) uint64 { return val }
++		a.eval = func(t *Thread) uint64 { return v.(UintValue).Get(t) }
+ 	case *intType:
+-		val := v.(IntValue).Get();
+-		a.eval = func(t *Thread) int64 { return val }
++		a.eval = func(t *Thread) int64 { return v.(IntValue).Get(t) }
+ 	case *idealIntType:
+ 		val := v.(IdealIntValue).Get();
+ 		a.eval = func() *bignum.Integer { return val }
+ 	case *floatType:
+-		val := v.(FloatValue).Get();
+-		a.eval = func(t *Thread) float64 { return val }
++		a.eval = func(t *Thread) float64 { return v.(FloatValue).Get(t) }
+ 	case *idealFloatType:
+ 		val := v.(IdealFloatValue).Get();
+ 		a.eval = func() *bignum.Rational { return val }
+ 	case *stringType:
+-		val := v.(StringValue).Get();
+-		a.eval = func(t *Thread) string { return val }
++		a.eval = func(t *Thread) string { return v.(StringValue).Get(t) }
+ 	case *ArrayType:
+-		val := v.(ArrayValue).Get();
+-		a.eval = func(t *Thread) ArrayValue { return val }
++		a.eval = func(t *Thread) ArrayValue { return v.(ArrayValue).Get(t) }
+ 	case *StructType:
+-		val := v.(StructValue).Get();
+-		a.eval = func(t *Thread) StructValue { return val }
++		a.eval = func(t *Thread) StructValue { return v.(StructValue).Get(t) }
+ 	case *PtrType:
+-		val := v.(PtrValue).Get();
+-		a.eval = func(t *Thread) Value { return val }
++		a.eval = func(t *Thread) Value { return v.(PtrValue).Get(t) }
+ 	case *FuncType:
+-		val := v.(FuncValue).Get();
+-		a.eval = func(t *Thread) Func { return val }
++		a.eval = func(t *Thread) Func { return v.(FuncValue).Get(t) }
+ 	case *SliceType:
+-		val := v.(SliceValue).Get();
+-		a.eval = func(t *Thread) Slice { return val }
++		a.eval = func(t *Thread) Slice { return v.(SliceValue).Get(t) }
+ 	case *MapType:
+-		val := v.(MapValue).Get();
+-		a.eval = func(t *Thread) Map { return val }
++		a.eval = func(t *Thread) Map { return v.(MapValue).Get(t) }
+ 	default:
+ 		log.Crashf("unexpected constant type %v at %v", a.t, a.pos);
+ 	}
+@@ -144,27 +133,27 @@ func (a *expr) genIdentOp(level, index int) {
+ 	a.evalAddr = func(t *Thread) Value { return t.f.Get(level, index) };
+ 	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+-		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get() }
++		a.eval = func(t *Thread) bool { return t.f.Get(level, index).(BoolValue).Get(t) }
+ 	case *uintType:
+-		a.eval = func(t *Thread) uint64 { return t.f.Get(level, index).(UintValue).Get() }
++		a.eval = func(t *Thread) uint64 { return t.f.Get(level, index).(UintValue).Get(t) }
+ 	case *intType:
+-		a.eval = func(t *Thread) int64 { return t.f.Get(level, index).(IntValue).Get() }
++		a.eval = func(t *Thread) int64 { return t.f.Get(level, index).(IntValue).Get(t) }
+ 	case *floatType:
+-		a.eval = func(t *Thread) float64 { return t.f.Get(level, index).(FloatValue).Get() }
++		a.eval = func(t *Thread) float64 { return t.f.Get(level, index).(FloatValue).Get(t) }
+ 	case *stringType:
+-		a.eval = func(t *Thread) string { return t.f.Get(level, index).(StringValue).Get() }
++		a.eval = func(t *Thread) string { return t.f.Get(level, index).(StringValue).Get(t) }
+ 	case *ArrayType:
+-		a.eval = func(t *Thread) ArrayValue { return t.f.Get(level, index).(ArrayValue).Get() }
++		a.eval = func(t *Thread) ArrayValue { return t.f.Get(level, index).(ArrayValue).Get(t) }
+ 	case *StructType:
+-		a.eval = func(t *Thread) StructValue { return t.f.Get(level, index).(StructValue).Get() }
++		a.eval = func(t *Thread) StructValue { return t.f.Get(level, index).(StructValue).Get(t) }
+ 	case *PtrType:
+-		a.eval = func(t *Thread) Value { return t.f.Get(level, index).(PtrValue).Get() }
++		a.eval = func(t *Thread) Value { return t.f.Get(level, index).(PtrValue).Get(t) }
+ 	case *FuncType:
+-		a.eval = func(t *Thread) Func { return t.f.Get(level, index).(FuncValue).Get() }
++		a.eval = func(t *Thread) Func { return t.f.Get(level, index).(FuncValue).Get(t) }
+ 	case *SliceType:
+-		a.eval = func(t *Thread) Slice { return t.f.Get(level, index).(SliceValue).Get() }
++		a.eval = func(t *Thread) Slice { return t.f.Get(level, index).(SliceValue).Get(t) }
+ 	case *MapType:
+-		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get() }
++		a.eval = func(t *Thread) Map { return t.f.Get(level, index).(MapValue).Get(t) }
+ 	default:
+ 		log.Crashf("unexpected identifier type %v at %v", a.t, a.pos);
+ 	}
+@@ -174,27 +163,27 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
+ 	a.exec = func(t *Thread) { call(t)};
+ 	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+-		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get() }
++		a.eval = func(t *Thread) bool { return call(t)[0].(BoolValue).Get(t) }
+ 	case *uintType:
+-		a.eval = func(t *Thread) uint64 { return call(t)[0].(UintValue).Get() }
++		a.eval = func(t *Thread) uint64 { return call(t)[0].(UintValue).Get(t) }
+ 	case *intType:
+-		a.eval = func(t *Thread) int64 { return call(t)[0].(IntValue).Get() }
++		a.eval = func(t *Thread) int64 { return call(t)[0].(IntValue).Get(t) }
+ 	case *floatType:
+-		a.eval = func(t *Thread) float64 { return call(t)[0].(FloatValue).Get() }
++		a.eval = func(t *Thread) float64 { return call(t)[0].(FloatValue).Get(t) }
+ 	case *stringType:
+-		a.eval = func(t *Thread) string { return call(t)[0].(StringValue).Get() }
++		a.eval = func(t *Thread) string { return call(t)[0].(StringValue).Get(t) }
+ 	case *ArrayType:
+-		a.eval = func(t *Thread) ArrayValue { return call(t)[0].(ArrayValue).Get() }
++		a.eval = func(t *Thread) ArrayValue { return call(t)[0].(ArrayValue).Get(t) }
+ 	case *StructType:
+-		a.eval = func(t *Thread) StructValue { return call(t)[0].(StructValue).Get() }
++		a.eval = func(t *Thread) StructValue { return call(t)[0].(StructValue).Get(t) }
+ 	case *PtrType:
+-		a.eval = func(t *Thread) Value { return call(t)[0].(PtrValue).Get() }
++		a.eval = func(t *Thread) Value { return call(t)[0].(PtrValue).Get(t) }
+ 	case *FuncType:
+-		a.eval = func(t *Thread) Func { return call(t)[0].(FuncValue).Get() }
++		a.eval = func(t *Thread) Func { return call(t)[0].(FuncValue).Get(t) }
+ 	case *SliceType:
+-		a.eval = func(t *Thread) Slice { return call(t)[0].(SliceValue).Get() }
++		a.eval = func(t *Thread) Slice { return call(t)[0].(SliceValue).Get(t) }
+ 	case *MapType:
+-		a.eval = func(t *Thread) Map { return call(t)[0].(MapValue).Get() }
++		a.eval = func(t *Thread) Map { return call(t)[0].(MapValue).Get(t) }
+ 	case *MultiType:
+ 		a.eval = func(t *Thread) []Value { return call(t) }
+ 	default:
+@@ -206,27 +195,27 @@ func (a *expr) genValue(vf func(*Thread) Value) {
+ 	a.evalAddr = vf;
+ 	switch _ := a.t.lit().(type) {
+ 	case *boolType:
+-		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get() }
++		a.eval = func(t *Thread) bool { return vf(t).(BoolValue).Get(t) }
+ 	case *uintType:
+-		a.eval = func(t *Thread) uint64 { return vf(t).(UintValue).Get() }
++		a.eval = func(t *Thread) uint64 { return vf(t).(UintValue).Get(t) }
+ 	case *intType:
+-		a.eval = func(t *Thread) int64 { return vf(t).(IntValue).Get() }
++		a.eval = func(t *Thread) int64 { return vf(t).(IntValue).Get(t) }
+ 	case *floatType:
+-		a.eval = func(t *Thread) float64 { return vf(t).(FloatValue).Get() }
++		a.eval = func(t *Thread) float64 { return vf(t).(FloatValue).Get(t) }
+ 	case *stringType:
+-		a.eval = func(t *Thread) string { return vf(t).(StringValue).Get() }
++		a.eval = func(t *Thread) string { return vf(t).(StringValue).Get(t) }
+ 	case *ArrayType:
+-		a.eval = func(t *Thread) ArrayValue { return vf(t).(ArrayValue).Get() }
++		a.eval = func(t *Thread) ArrayValue { return vf(t).(ArrayValue).Get(t) }
+ 	case *StructType:
+-		a.eval = func(t *Thread) StructValue { return vf(t).(StructValue).Get() }
++		a.eval = func(t *Thread) StructValue { return vf(t).(StructValue).Get(t) }
+ 	case *PtrType:
+-		a.eval = func(t *Thread) Value { return vf(t).(PtrValue).Get() }
++		a.eval = func(t *Thread) Value { return vf(t).(PtrValue).Get(t) }
+ 	case *FuncType:
+-		a.eval = func(t *Thread) Func { return vf(t).(FuncValue).Get() }
++		a.eval = func(t *Thread) Func { return vf(t).(FuncValue).Get(t) }
+ 	case *SliceType:
+-		a.eval = func(t *Thread) Slice { return vf(t).(SliceValue).Get() }
++		a.eval = func(t *Thread) Slice { return vf(t).(SliceValue).Get(t) }
+ 	case *MapType:
+-		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get() }
++		a.eval = func(t *Thread) Map { return vf(t).(MapValue).Get(t) }
+ 	default:
+ 		log.Crashf("unexpected result type %v at %v", a.t, a.pos);
+ 	}
+@@ -767,37 +756,37 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
+ 	switch _ := lt.lit().(type) {
+ 	case *boolType:
+ 		rf := r.asBool();
+-		return func(lv Value, t *Thread) { lv.(BoolValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(BoolValue).Set(t, rf(t)) }
+ 	case *uintType:
+ 		rf := r.asUint();
+-		return func(lv Value, t *Thread) { lv.(UintValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(UintValue).Set(t, rf(t)) }
+ 	case *intType:
+ 		rf := r.asInt();
+-		return func(lv Value, t *Thread) { lv.(IntValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(IntValue).Set(t, rf(t)) }
+ 	case *floatType:
+ 		rf := r.asFloat();
+-		return func(lv Value, t *Thread) { lv.(FloatValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(FloatValue).Set(t, rf(t)) }
+ 	case *stringType:
+ 		rf := r.asString();
+-		return func(lv Value, t *Thread) { lv.(StringValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(StringValue).Set(t, rf(t)) }
+ 	case *ArrayType:
+ 		rf := r.asArray();
+-		return func(lv Value, t *Thread) { lv.Assign(rf(t)) }
++		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
+ 	case *StructType:
+ 		rf := r.asStruct();
+-		return func(lv Value, t *Thread) { lv.Assign(rf(t)) }
++		return func(lv Value, t *Thread) { lv.Assign(t, rf(t)) }
+ 	case *PtrType:
+ 		rf := r.asPtr();
+-		return func(lv Value, t *Thread) { lv.(PtrValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(PtrValue).Set(t, rf(t)) }
+ 	case *FuncType:
+ 		rf := r.asFunc();
+-		return func(lv Value, t *Thread) { lv.(FuncValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(FuncValue).Set(t, rf(t)) }
+ 	case *SliceType:
+ 		rf := r.asSlice();
+-		return func(lv Value, t *Thread) { lv.(SliceValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(SliceValue).Set(t, rf(t)) }
+ 	case *MapType:
+ 		rf := r.asMap();
+-		return func(lv Value, t *Thread) { lv.(MapValue).Set(rf(t)) }
++		return func(lv Value, t *Thread) { lv.(MapValue).Set(t, rf(t)) }
+ 	default:
+ 		log.Crashf("unexpected left operand type %v at %v", lt, r.pos);
+ 	}
+diff --git a/usr/austin/eval/gen.go b/usr/austin/eval/gen.go
+index a09ecfa70a..cbb8fd27b3 100644
+--- a/usr/austin/eval/gen.go
++++ b/usr/austin/eval/gen.go
+@@ -184,11 +184,11 @@ func (a *expr) genConstant(v Value) {
+ 	switch _ := a.t.lit().(type) {
+ «.repeated section Types»
+ 	case «Repr»:
+-		val := v.(«Value»).Get();
+ «.section IsIdeal»
++		val := v.(«Value»).Get();
+ 		a.eval = func() «Native» { return val }
+ «.or»
+-		a.eval = func(t *Thread) «Native» { return val }
++		a.eval = func(t *Thread) «Native» { return v.(«Value»).Get(t) }
+ «.end»
+ «.end»
+ 	default:
+@@ -203,7 +203,7 @@ func (a *expr) genIdentOp(level, index int) {
+ «.section IsIdeal»
+ «.or»
+ 	case «Repr»:
+-		a.eval = func(t *Thread) «Native» { return t.f.Get(level, index).(«Value»).Get() }
++		a.eval = func(t *Thread) «Native» { return t.f.Get(level, index).(«Value»).Get(t) }
+ «.end»
+ «.end»
+ 	default:
+@@ -218,7 +218,7 @@ func (a *expr) genFuncCall(call func(t *Thread) []Value) {
+ «.section IsIdeal»
+ «.or»
+ 	case «Repr»:
+-		a.eval = func(t *Thread) «Native» { return call(t)[0].(«Value»).Get() }
++		a.eval = func(t *Thread) «Native» { return call(t)[0].(«Value»).Get(t) }
+ «.end»
+ «.end»
+ 	case *MultiType:
+@@ -235,7 +235,7 @@ func (a *expr) genValue(vf func(*Thread) Value) {
+ «.section IsIdeal»
+ «.or»
+ 	case «Repr»:
+-		a.eval = func(t *Thread) «Native» { return vf(t).(«Value»).Get() }
++		a.eval = func(t *Thread) «Native» { return vf(t).(«Value»).Get(t) }
+ «.end»
+ «.end»
+ 	default:
+@@ -296,7 +296,7 @@ func genAssign(lt Type, r *expr) (func(lv Value, t *Thread)) {
+ «.or»
+ 	case «Repr»:
+ 		rf := r.«As»();
+-		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(rf(t))«.or»lv.(«Value»).Set(rf(t))«.end» }
++		return func(lv Value, t *Thread) { «.section HasAssign»lv.Assign(t, rf(t))«.or»lv.(«Value»).Set(t, rf(t))«.end» }
+ «.end»
+ «.end»
+ 	default:
+diff --git a/usr/austin/eval/stmt.go b/usr/austin/eval/stmt.go
+index 9788bb09c0..00087fd546 100644
+--- a/usr/austin/eval/stmt.go
++++ b/usr/austin/eval/stmt.go
+@@ -402,7 +402,7 @@ func (a *stmtCompiler) compileDecl(decl ast.Decl) {
+ 			return;
+ 		}
+ 		var zeroThread Thread;
+-		c.Value.(FuncValue).Set(fn(&zeroThread));
++		c.Value.(FuncValue).Set(nil, fn(&zeroThread));
+ 
+ 	case *ast.GenDecl:
+ 		switch d.Tok {
+@@ -649,10 +649,10 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 			et := sub.t;
+ 			ls[i].evalAddr = func(t *Thread) Value {
+ 				m, k := mvf(t);
+-				e := m.Elem(k);
++				e := m.Elem(t, k);
+ 				if e == nil {
+ 					e = et.Zero();
+-					m.SetElem(k, e);
++					m.SetElem(t, k, e);
+ 				}
+ 				return e;
+ 			};
+@@ -736,7 +736,7 @@ func (a *stmtCompiler) doAssign(lhs []ast.Expr, rhs []ast.Expr, tok token.Token,
+ 			for i := 0; i < n; i ++ {
+ 				// TODO(austin) Need to evaluate LHS
+ 				// before RHS
+-				lfs[i](t).Assign(temp[i]);
++				lfs[i](t).Assign(t, temp[i]);
+ 			}
+ 		});
+ 	}
+diff --git a/usr/austin/eval/value.go b/usr/austin/eval/value.go
+index abb2ab0d5e..1a64a6d965 100644
+--- a/usr/austin/eval/value.go
++++ b/usr/austin/eval/value.go
+@@ -15,25 +15,25 @@ type Value interface {
+ 	// assume that the other value satisfies the same specific
+ 	// value interface (BoolValue, etc.), but must not assume
+ 	// anything about its specific type.
+-	Assign(o Value);
++	Assign(t *Thread, o Value);
+ }
+ 
+ type BoolValue interface {
+ 	Value;
+-	Get() bool;
+-	Set(bool);
++	Get(*Thread) bool;
++	Set(*Thread, bool);
+ }
+ 
+ type UintValue interface {
+ 	Value;
+-	Get() uint64;
+-	Set(uint64);
++	Get(*Thread) uint64;
++	Set(*Thread, uint64);
+ }
+ 
+ type IntValue interface {
+ 	Value;
+-	Get() int64;
+-	Set(int64);
++	Get(*Thread) int64;
++	Set(*Thread, int64);
+ }
+ 
+ // TODO(austin) IdealIntValue and IdealFloatValue should not exist
+@@ -45,8 +45,8 @@ type IdealIntValue interface {
+ 
+ type FloatValue interface {
+ 	Value;
+-	Get() float64;
+-	Set(float64);
++	Get(*Thread) float64;
++	Set(*Thread, float64);
+ }
+ 
+ type IdealFloatValue interface {
+@@ -56,8 +56,8 @@ type IdealFloatValue interface {
+ 
+ type StringValue interface {
+ 	Value;
+-	Get() string;
+-	Set(string);
++	Get(*Thread) string;
++	Set(*Thread, string);
+ }
+ 
+ type ArrayValue interface {
+@@ -65,24 +65,24 @@ type ArrayValue interface {
+ 	// TODO(austin) Get() is here for uniformity, but is
+ 	// completely useless.  If a lot of other types have similarly
+ 	// useless Get methods, just special-case these uses.
+-	Get() ArrayValue;
+-	Elem(i int64) Value;
+-	// From returns an ArrayValue backed by the same array that
+-	// starts from element i.
+-	From(i int64) ArrayValue;
++	Get(*Thread) ArrayValue;
++	Elem(*Thread, int64) Value;
++	// Sub returns an ArrayValue backed by the same array that
++	// starts from element i and has length len.
++	Sub(i int64, len int64) ArrayValue;
+ }
+ 
+ type StructValue interface {
+ 	Value;
+ 	// TODO(austin) This is another useless Get()
+-	Get() StructValue;
+-	Field(i int) Value;
++	Get(*Thread) StructValue;
++	Field(*Thread, int) Value;
+ }
+ 
+ type PtrValue interface {
+ 	Value;
+-	Get() Value;
+-	Set(Value);
++	Get(*Thread) Value;
++	Set(*Thread, Value);
+ }
+ 
+ type Func interface {
+@@ -92,8 +92,8 @@ type Func interface {
+ 
+ type FuncValue interface {
+ 	Value;
+-	Get() Func;
+-	Set(Func);
++	Get(*Thread) Func;
++	Set(*Thread, Func);
+ }
+ 
+ type Slice struct {
+@@ -103,25 +103,25 @@ type Slice struct {
+ 
+ type SliceValue interface {
+ 	Value;
+-	Get() Slice;
+-	Set(Slice);
++	Get(*Thread) Slice;
++	Set(*Thread, Slice);
+ }
+ 
+ type Map interface {
+-	Len() int64;
++	Len(*Thread) int64;
+ 	// Retrieve an element from the map, returning nil if it does
+ 	// not exist.
+-	Elem(key interface{}) Value;
++	Elem(t *Thread, key interface{}) Value;
+ 	// Set an entry in the map.  If val is nil, delete the entry.
+-	SetElem(key interface{}, val Value);
++	SetElem(t *Thread, key interface{}, val Value);
+ 	// TODO(austin)  Perhaps there should be an iterator interface instead.
+ 	Iter(func(key interface{}, val Value) bool);
+ }
+ 
+ type MapValue interface {
+ 	Value;
+-	Get() Map;
+-	Set(Map);
++	Get(*Thread) Map;
++	Set(*Thread, Map);
+ }
+ 
+ /*
+@@ -134,15 +134,15 @@ func (v *boolV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *boolV) Assign(o Value) {
+-	*v = boolV(o.(BoolValue).Get());
++func (v *boolV) Assign(t *Thread, o Value) {
++	*v = boolV(o.(BoolValue).Get(t));
+ }
+ 
+-func (v *boolV) Get() bool {
++func (v *boolV) Get(*Thread) bool {
+ 	return bool(*v);
+ }
+ 
+-func (v *boolV) Set(x bool) {
++func (v *boolV) Set(t *Thread, x bool) {
+ 	*v = boolV(x);
+ }
+ 
+@@ -156,15 +156,15 @@ func (v *uint8V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uint8V) Assign(o Value) {
+-	*v = uint8V(o.(UintValue).Get());
++func (v *uint8V) Assign(t *Thread, o Value) {
++	*v = uint8V(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uint8V) Get() uint64 {
++func (v *uint8V) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uint8V) Set(x uint64) {
++func (v *uint8V) Set(t *Thread, x uint64) {
+ 	*v = uint8V(x);
+ }
+ 
+@@ -174,15 +174,15 @@ func (v *uint16V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uint16V) Assign(o Value) {
+-	*v = uint16V(o.(UintValue).Get());
++func (v *uint16V) Assign(t *Thread, o Value) {
++	*v = uint16V(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uint16V) Get() uint64 {
++func (v *uint16V) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uint16V) Set(x uint64) {
++func (v *uint16V) Set(t *Thread, x uint64) {
+ 	*v = uint16V(x);
+ }
+ 
+@@ -192,15 +192,15 @@ func (v *uint32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uint32V) Assign(o Value) {
+-	*v = uint32V(o.(UintValue).Get());
++func (v *uint32V) Assign(t *Thread, o Value) {
++	*v = uint32V(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uint32V) Get() uint64 {
++func (v *uint32V) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uint32V) Set(x uint64) {
++func (v *uint32V) Set(t *Thread, x uint64) {
+ 	*v = uint32V(x);
+ }
+ 
+@@ -210,15 +210,15 @@ func (v *uint64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uint64V) Assign(o Value) {
+-	*v = uint64V(o.(UintValue).Get());
++func (v *uint64V) Assign(t *Thread, o Value) {
++	*v = uint64V(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uint64V) Get() uint64 {
++func (v *uint64V) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uint64V) Set(x uint64) {
++func (v *uint64V) Set(t *Thread, x uint64) {
+ 	*v = uint64V(x);
+ }
+ 
+@@ -228,15 +228,15 @@ func (v *uintV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uintV) Assign(o Value) {
+-	*v = uintV(o.(UintValue).Get());
++func (v *uintV) Assign(t *Thread, o Value) {
++	*v = uintV(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uintV) Get() uint64 {
++func (v *uintV) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uintV) Set(x uint64) {
++func (v *uintV) Set(t *Thread, x uint64) {
+ 	*v = uintV(x);
+ }
+ 
+@@ -246,15 +246,15 @@ func (v *uintptrV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *uintptrV) Assign(o Value) {
+-	*v = uintptrV(o.(UintValue).Get());
++func (v *uintptrV) Assign(t *Thread, o Value) {
++	*v = uintptrV(o.(UintValue).Get(t));
+ }
+ 
+-func (v *uintptrV) Get() uint64 {
++func (v *uintptrV) Get(*Thread) uint64 {
+ 	return uint64(*v);
+ }
+ 
+-func (v *uintptrV) Set(x uint64) {
++func (v *uintptrV) Set(t *Thread, x uint64) {
+ 	*v = uintptrV(x);
+ }
+ 
+@@ -268,15 +268,15 @@ func (v *int8V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *int8V) Assign(o Value) {
+-	*v = int8V(o.(IntValue).Get());
++func (v *int8V) Assign(t *Thread, o Value) {
++	*v = int8V(o.(IntValue).Get(t));
+ }
+ 
+-func (v *int8V) Get() int64 {
++func (v *int8V) Get(*Thread) int64 {
+ 	return int64(*v);
+ }
+ 
+-func (v *int8V) Set(x int64) {
++func (v *int8V) Set(t *Thread, x int64) {
+ 	*v = int8V(x);
+ }
+ 
+@@ -286,15 +286,15 @@ func (v *int16V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *int16V) Assign(o Value) {
+-	*v = int16V(o.(IntValue).Get());
++func (v *int16V) Assign(t *Thread, o Value) {
++	*v = int16V(o.(IntValue).Get(t));
+ }
+ 
+-func (v *int16V) Get() int64 {
++func (v *int16V) Get(*Thread) int64 {
+ 	return int64(*v);
+ }
+ 
+-func (v *int16V) Set(x int64) {
++func (v *int16V) Set(t *Thread, x int64) {
+ 	*v = int16V(x);
+ }
+ 
+@@ -304,15 +304,15 @@ func (v *int32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *int32V) Assign(o Value) {
+-	*v = int32V(o.(IntValue).Get());
++func (v *int32V) Assign(t *Thread, o Value) {
++	*v = int32V(o.(IntValue).Get(t));
+ }
+ 
+-func (v *int32V) Get() int64 {
++func (v *int32V) Get(*Thread) int64 {
+ 	return int64(*v);
+ }
+ 
+-func (v *int32V) Set(x int64) {
++func (v *int32V) Set(t *Thread, x int64) {
+ 	*v = int32V(x);
+ }
+ 
+@@ -322,15 +322,15 @@ func (v *int64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *int64V) Assign(o Value) {
+-	*v = int64V(o.(IntValue).Get());
++func (v *int64V) Assign(t *Thread, o Value) {
++	*v = int64V(o.(IntValue).Get(t));
+ }
+ 
+-func (v *int64V) Get() int64 {
++func (v *int64V) Get(*Thread) int64 {
+ 	return int64(*v);
+ }
+ 
+-func (v *int64V) Set(x int64) {
++func (v *int64V) Set(t *Thread, x int64) {
+ 	*v = int64V(x);
+ }
+ 
+@@ -340,15 +340,15 @@ func (v *intV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *intV) Assign(o Value) {
+-	*v = intV(o.(IntValue).Get());
++func (v *intV) Assign(t *Thread, o Value) {
++	*v = intV(o.(IntValue).Get(t));
+ }
+ 
+-func (v *intV) Get() int64 {
++func (v *intV) Get(*Thread) int64 {
+ 	return int64(*v);
+ }
+ 
+-func (v *intV) Set(x int64) {
++func (v *intV) Set(t *Thread, x int64) {
+ 	*v = intV(x);
+ }
+ 
+@@ -364,7 +364,7 @@ func (v *idealIntV) String() string {
+ 	return v.V.String();
+ }
+ 
+-func (v *idealIntV) Assign(o Value) {
++func (v *idealIntV) Assign(t *Thread, o Value) {
+ 	v.V = o.(IdealIntValue).Get();
+ }
+ 
+@@ -382,15 +382,15 @@ func (v *float32V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *float32V) Assign(o Value) {
+-	*v = float32V(o.(FloatValue).Get());
++func (v *float32V) Assign(t *Thread, o Value) {
++	*v = float32V(o.(FloatValue).Get(t));
+ }
+ 
+-func (v *float32V) Get() float64 {
++func (v *float32V) Get(*Thread) float64 {
+ 	return float64(*v);
+ }
+ 
+-func (v *float32V) Set(x float64) {
++func (v *float32V) Set(t *Thread, x float64) {
+ 	*v = float32V(x);
+ }
+ 
+@@ -400,15 +400,15 @@ func (v *float64V) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *float64V) Assign(o Value) {
+-	*v = float64V(o.(FloatValue).Get());
++func (v *float64V) Assign(t *Thread, o Value) {
++	*v = float64V(o.(FloatValue).Get(t));
+ }
+ 
+-func (v *float64V) Get() float64 {
++func (v *float64V) Get(*Thread) float64 {
+ 	return float64(*v);
+ }
+ 
+-func (v *float64V) Set(x float64) {
++func (v *float64V) Set(t *Thread, x float64) {
+ 	*v = float64V(x);
+ }
+ 
+@@ -418,15 +418,15 @@ func (v *floatV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *floatV) Assign(o Value) {
+-	*v = floatV(o.(FloatValue).Get());
++func (v *floatV) Assign(t *Thread, o Value) {
++	*v = floatV(o.(FloatValue).Get(t));
+ }
+ 
+-func (v *floatV) Get() float64 {
++func (v *floatV) Get(*Thread) float64 {
+ 	return float64(*v);
+ }
+ 
+-func (v *floatV) Set(x float64) {
++func (v *floatV) Set(t *Thread, x float64) {
+ 	*v = floatV(x);
+ }
+ 
+@@ -442,7 +442,7 @@ func (v *idealFloatV) String() string {
+ 	return ratToString(v.V);
+ }
+ 
+-func (v *idealFloatV) Assign(o Value) {
++func (v *idealFloatV) Assign(t *Thread, o Value) {
+ 	v.V = o.(IdealFloatValue).Get();
+ }
+ 
+@@ -460,15 +460,15 @@ func (v *stringV) String() string {
+ 	return fmt.Sprint(*v);
+ }
+ 
+-func (v *stringV) Assign(o Value) {
+-	*v = stringV(o.(StringValue).Get());
++func (v *stringV) Assign(t *Thread, o Value) {
++	*v = stringV(o.(StringValue).Get(t));
+ }
+ 
+-func (v *stringV) Get() string {
++func (v *stringV) Get(*Thread) string {
+ 	return string(*v);
+ }
+ 
+-func (v *stringV) Set(x string) {
++func (v *stringV) Set(t *Thread, x string) {
+ 	*v = stringV(x);
+ }
+ 
+@@ -479,27 +479,34 @@ func (v *stringV) Set(x string) {
+ type arrayV []Value
+ 
+ func (v *arrayV) String() string {
+-	return fmt.Sprint(*v);
++	res := "{";
++	for i, e := range *v {
++		if i > 0 {
++			res += ", ";
++		}
++		res += e.String();
++	}
++	return res + "}";
+ }
+ 
+-func (v *arrayV) Assign(o Value) {
++func (v *arrayV) Assign(t *Thread, o Value) {
+ 	oa := o.(ArrayValue);
+ 	l := int64(len(*v));
+ 	for i := int64(0); i < l; i++ {
+-		(*v)[i].Assign(oa.Elem(i));
++		(*v)[i].Assign(t, oa.Elem(t, i));
+ 	}
+ }
+ 
+-func (v *arrayV) Get() ArrayValue {
++func (v *arrayV) Get(*Thread) ArrayValue {
+ 	return v;
+ }
+ 
+-func (v *arrayV) Elem(i int64) Value {
++func (v *arrayV) Elem(t *Thread, i int64) Value {
+ 	return (*v)[i];
+ }
+ 
+-func (v *arrayV) From(i int64) ArrayValue {
+-	res := (*v)[i:len(*v)];
++func (v *arrayV) Sub(i int64, len int64) ArrayValue {
++	res := (*v)[i:i+len];
+ 	return &res;
+ }
+ 
+@@ -522,19 +529,19 @@ func (v *structV) String() string {
+ 	return res + "}";
+ }
+ 
+-func (v *structV) Assign(o Value) {
++func (v *structV) Assign(t *Thread, o Value) {
+ 	oa := o.(StructValue);
+ 	l := len(*v);
+ 	for i := 0; i < l; i++ {
+-		(*v)[i].Assign(oa.Field(i));
++		(*v)[i].Assign(t, oa.Field(t, i));
+ 	}
+ }
+ 
+-func (v *structV) Get() StructValue {
++func (v *structV) Get(*Thread) StructValue {
+ 	return v;
+ }
+ 
+-func (v *structV) Field(i int) Value {
++func (v *structV) Field(t *Thread, i int) Value {
+ 	return (*v)[i];
+ }
+ 
+@@ -554,15 +561,15 @@ func (v *ptrV) String() string {
+ 	return "&" + v.target.String();
+ }
+ 
+-func (v *ptrV) Assign(o Value) {
+-	v.target = o.(PtrValue).Get();
++func (v *ptrV) Assign(t *Thread, o Value) {
++	v.target = o.(PtrValue).Get(t);
+ }
+ 
+-func (v *ptrV) Get() Value {
++func (v *ptrV) Get(*Thread) Value {
+ 	return v.target;
+ }
+ 
+-func (v *ptrV) Set(x Value) {
++func (v *ptrV) Set(t *Thread, x Value) {
+ 	v.target = x;
+ }
+ 
+@@ -579,15 +586,15 @@ func (v *funcV) String() string {
+ 	return "func {...}";
+ }
+ 
+-func (v *funcV) Assign(o Value) {
+-	v.target = o.(FuncValue).Get();
++func (v *funcV) Assign(t *Thread, o Value) {
++	v.target = o.(FuncValue).Get(t);
+ }
+ 
+-func (v *funcV) Get() Func {
++func (v *funcV) Get(*Thread) Func {
+ 	return v.target;
+ }
+ 
+-func (v *funcV) Set(x Func) {
++func (v *funcV) Set(t *Thread, x Func) {
+ 	v.target = x;
+ }
+ 
+@@ -603,25 +610,18 @@ func (v *sliceV) String() string {
+ 	if v.Base == nil {
+ 		return "<nil>";
+ 	}
+-	res := "{";
+-	for i := int64(0); i < v.Len; i++ {
+-		if i > 0 {
+-			res += ", ";
+-		}
+-		res += v.Base.Elem(i).String();
+-	}
+-	return res + "}";
++	return v.Base.Sub(0, v.Len).String();
+ }
+ 
+-func (v *sliceV) Assign(o Value) {
+-	v.Slice = o.(SliceValue).Get();
++func (v *sliceV) Assign(t *Thread, o Value) {
++	v.Slice = o.(SliceValue).Get(t);
+ }
+ 
+-func (v *sliceV) Get() Slice {
++func (v *sliceV) Get(*Thread) Slice {
+ 	return v.Slice;
+ }
+ 
+-func (v *sliceV) Set(x Slice) {
++func (v *sliceV) Set(t *Thread, x Slice) {
+ 	v.Slice = x;
+ }
+ 
+@@ -650,32 +650,32 @@ func (v *mapV) String() string {
+ 	return res + "]";
+ }
+ 
+-func (v *mapV) Assign(o Value) {
+-	v.target = o.(MapValue).Get();
++func (v *mapV) Assign(t *Thread, o Value) {
++	v.target = o.(MapValue).Get(t);
+ }
+ 
+-func (v *mapV) Get() Map {
++func (v *mapV) Get(*Thread) Map {
+ 	return v.target;
+ }
+ 
+-func (v *mapV) Set(x Map) {
++func (v *mapV) Set(t *Thread, x Map) {
+ 	v.target = x;
+ }
+ 
+ type evalMap map[interface{}] Value
+ 
+-func (m evalMap) Len() int64 {
++func (m evalMap) Len(t *Thread) int64 {
+ 	return int64(len(m));
+ }
+ 
+-func (m evalMap) Elem(key interface{}) Value {
++func (m evalMap) Elem(t *Thread, key interface{}) Value {
+ 	if v, ok := m[key]; ok {
+ 		return v;
+ 	}
+ 	return nil;
+ }
+ 
+-func (m evalMap) SetElem(key interface{}, val Value) {
++func (m evalMap) SetElem(t *Thread, key interface{}, val Value) {
+ 	if val == nil {
+ 		m[key] = nil, false;
+ 	} else {
+@@ -708,10 +708,10 @@ func (v multiV) String() string {
+ 	return res + ")";
+ }
+ 
+-func (v multiV) Assign(o Value) {
++func (v multiV) Assign(t *Thread, o Value) {
+ 	omv := o.(multiV);
+ 	for i := range v {
+-		v[i].Assign(omv[i]);
++		v[i].Assign(t, omv[i]);
+ 	}
+ }
+ 

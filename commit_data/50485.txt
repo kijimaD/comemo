@@ -16,6 +16,33 @@ Date:   Wed Oct 27 16:07:40 2021 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 0ccfe8580a..8485b6a1a5 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -625,10 +625,18 @@ func TestSegv(t *testing.T) {
+ 			if !strings.Contains(got, want) {
+ 				t.Errorf("did not see %q in output", want)
+ 			}
++
+ 			// No runtime errors like "runtime: unknown pc".
+-			nowant := "runtime: "
+-			if strings.Contains(got, nowant) {
+-				t.Errorf("unexpectedly saw %q in output", want)
++			switch runtime.GOOS {
++			case "darwin", "illumos", "solaris":
++				// TODO(golang.org/issue/49182): Skip, runtime
++				// throws while attempting to generate
++				// traceback.
++			default:
++				nowant := "runtime: "
++				if strings.Contains(got, nowant) {
++					t.Errorf("unexpectedly saw %q in output", nowant)
++				}
+ 			}
+ 		})
+ 	}

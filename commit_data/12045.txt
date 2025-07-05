@@ -7,7 +7,7 @@ Date:   Sun Feb 19 14:28:53 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5656103
-
+---
  test/ddd.go        | 2 ++
  test/ddd1.go       | 3 +++
  test/ddd2.go       | 2 ++
@@ -42,3 +42,468 @@ Date:   Sun Feb 19 14:28:53 2012 +1100
  test/goprint.go    | 2 ++
  test/goto.go       | 3 +++
  33 files changed, 76 insertions(+), 12 deletions(-)
+
+diff --git a/test/ddd.go b/test/ddd.go
+index aa799be271..f35836331b 100644
+--- a/test/ddd.go
++++ b/test/ddd.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test variadic functions and calls (dot-dot-dot).
++
+ package main
+ 
+ func sum(args ...int) int {
+diff --git a/test/ddd1.go b/test/ddd1.go
+index 3eab78a567..1e070093c3 100644
+--- a/test/ddd1.go
++++ b/test/ddd1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal uses of ... are detected.
++// Does not compile.
++
+ package main
+ 
+ import "unsafe"
+diff --git a/test/ddd2.go b/test/ddd2.go
+index a06af0c065..2edae36b1e 100644
+--- a/test/ddd2.go
++++ b/test/ddd2.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This file is compiled and then imported by ddd3.go.
++
+ package ddd
+ 
+ func Sum(args ...int) int {
+diff --git a/test/ddd3.go b/test/ddd3.go
+index 5d5ebdf0fa..82fce31499 100644
+--- a/test/ddd3.go
++++ b/test/ddd3.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that variadic functions work across package boundaries.
++
+ package main
+ 
+ import "./ddd2"
+diff --git a/test/decl.go b/test/decl.go
+index 4a7d86794d..6f84245f15 100644
+--- a/test/decl.go
++++ b/test/decl.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Correct short declarations and redeclarations.
++// Test correct short declarations and redeclarations.
+ 
+ package main
+ 
+diff --git a/test/declbad.go b/test/declbad.go
+index 962a61c0f9..32d68e7ea2 100644
+--- a/test/declbad.go
++++ b/test/declbad.go
+@@ -4,7 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Incorrect short declarations and redeclarations.
++// Test that incorrect short declarations and redeclarations are detected.
++// Does not compile.
+ 
+ package main
+ 
+diff --git a/test/defer.go b/test/defer.go
+index 30276649b3..2f67d35609 100644
+--- a/test/defer.go
++++ b/test/defer.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test defer.
++
+ package main
+ 
+ import "fmt"
+diff --git a/test/deferprint.go b/test/deferprint.go
+index 0e0c618216..eab7ed4655 100644
+--- a/test/deferprint.go
++++ b/test/deferprint.go
+@@ -4,11 +4,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that we can defer the predeclared functions print and println.
++
+ package main
+ 
+ func main() {
+ 	defer println(42, true, false, true, 1.5, "world", (chan int)(nil), []int(nil), (map[string]int)(nil), (func())(nil), byte(255))
+ 	defer println(1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20)
+-//	defer panic("dead")
++	// Disabled so the test doesn't crash but left here for reference.
++	// defer panic("dead")
+ 	defer print("printing: ")
+ }
+diff --git a/test/divide.go b/test/divide.go
+index 75597f5150..c91a33e9db 100644
+--- a/test/divide.go
++++ b/test/divide.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// divide corner cases
++// Test divide corner cases.
+ 
+ package main
+ 
+diff --git a/test/empty.go b/test/empty.go
+index 7f2bf1a047..92a79a4e0d 100644
+--- a/test/empty.go
++++ b/test/empty.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that top-level parenthesized declarations can be empty.
++// Compiles but does not run.
++
+ package P
+ 
+ import ( )
+diff --git a/test/env.go b/test/env.go
+index 721df55c0a..4dcf4443a7 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that the Go environment variables are present and accessible through
++// package os and package runtime.
++
+ package main
+ 
+ import (
+diff --git a/test/eof.go b/test/eof.go
+index 71a9f85158..06c779046b 100644
+--- a/test/eof.go
++++ b/test/eof.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test a source file does not need a final newline.
++// Compiles but does not run.
++
+ // No newline at the end of this file.
+ 
+ package main
+\ No newline at end of file
+diff --git a/test/eof1.go b/test/eof1.go
+index af6b4c52f1..2105b89080 100644
+--- a/test/eof1.go
++++ b/test/eof1.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that a comment ending a source file does not need a final newline.
++// Compiles but does not run.
++
+ package eof1
+ 
+ // No newline at the end of this comment.
+\ No newline at end of file
+diff --git a/test/escape.go b/test/escape.go
+index 6c0cdc4632..e487bb8956 100644
+--- a/test/escape.go
++++ b/test/escape.go
+@@ -6,8 +6,8 @@
+ 
+ package main
+ 
+-// check for correct heap-moving of escaped variables.
+-// it is hard to check for the allocations, but it is easy
++// Test for correct heap-moving of escaped variables.
++// It is hard to check for the allocations, but it is easy
+ // to check that if you call the function twice at the
+ // same stack level, the pointers returned should be
+ // different.
+diff --git a/test/escape2.go b/test/escape2.go
+index 73b2a7e589..dde96bcc1e 100644
+--- a/test/escape2.go
++++ b/test/escape2.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test, using compiler diagnostic flags, that the escape analysis is working.
++// Compiles but does not run.
++
+ package foo
+ 
+ import (
+diff --git a/test/escape3.go b/test/escape3.go
+index 0612ae2dd9..4c19891514 100644
+--- a/test/escape3.go
++++ b/test/escape3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test run-time behavior of escape analysis-related optimizations.
++// Test the run-time behavior of escape analysis-related optimizations.
+ 
+ package main
+ 
+diff --git a/test/float_lit.go b/test/float_lit.go
+index 3189cac223..2912c3749c 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test floating-point literal syntax.
++
+ package main
+ 
+ var bad bool
+diff --git a/test/floatcmp.go b/test/floatcmp.go
+index 2a5bd75df2..f9f59a937f 100644
+--- a/test/floatcmp.go
++++ b/test/floatcmp.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test floating-point comparison involving NaN.
++
+ package main
+ 
+ import "math"
+diff --git a/test/for.go b/test/for.go
+index a21213ff3f..8a50090657 100644
+--- a/test/for.go
++++ b/test/for.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test for loops.
++
+ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+diff --git a/test/func.go b/test/func.go
+index 15839c05fa..246cb56fd9 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -4,6 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple functions.
+ 
+ package main
+ 
+diff --git a/test/func1.go b/test/func1.go
+index d5adea71ec..c89f7ff2ea 100644
+--- a/test/func1.go
++++ b/test/func1.go
+@@ -4,11 +4,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// does not compile and should not compile
++// Test that result parameters are in the same scope as regular parameters.
++// Does not compile.
+ 
+ package main
+ 
+-func f1(a int) (int, float32) { // BUG (not caught by compiler): multiple return values must have names
++func f1(a int) (int, float32) {
+ 	return 7, 7.0
+ }
+ 
+diff --git a/test/func2.go b/test/func2.go
+index 87e78194ef..b5966a91f6 100644
+--- a/test/func2.go
++++ b/test/func2.go
+@@ -1,9 +1,12 @@
+-// $G $F.go || echo BUG: should compile
++// compile
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test function signatures.
++// Compiled but not run.
++
+ package main
+ 
+ type t1 int
+diff --git a/test/func3.go b/test/func3.go
+index 587b7c4a14..6be3bf0184 100644
+--- a/test/func3.go
++++ b/test/func3.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that illegal function signatures are detected.
++// Does not compile.
++
+ package main
+ 
+ type t1 int
+diff --git a/test/func4.go b/test/func4.go
+index c53e7a23ac..85f1e4b81e 100644
+--- a/test/func4.go
++++ b/test/func4.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify that it is illegal to take the address of a function.
++// Does not compile.
++
+ package main
+ 
+ var notmain func()
+diff --git a/test/func5.go b/test/func5.go
+index 68ab7a54b9..2e058be7e6 100644
+--- a/test/func5.go
++++ b/test/func5.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test functions and goroutines.
++
+ package main
+ 
+ func caller(f func(int, int) int, a, b int, c chan int) {
+diff --git a/test/func6.go b/test/func6.go
+index 39c15329ef..456cb49f09 100644
+--- a/test/func6.go
++++ b/test/func6.go
+@@ -1,9 +1,11 @@
+-// compile
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test closures in if conditions.
++
+ package main
+ 
+ func main() {
+diff --git a/test/func7.go b/test/func7.go
+index 015b881fb0..6f6766f29f 100644
+--- a/test/func7.go
++++ b/test/func7.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test evaluation order in if condition.
++
+ package main
+ 
+ var calledf = false
+diff --git a/test/func8.go b/test/func8.go
+index a1ea9b7e4c..7defe265b5 100644
+--- a/test/func8.go
++++ b/test/func8.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test evaluation order.
++
+ package main
+ 
+ var calledf int
+diff --git a/test/gc.go b/test/gc.go
+index e610d2bde8..6688f9fbdd 100644
+--- a/test/gc.go
++++ b/test/gc.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Simple test of the garbage collector.
++
+ package main
+ 
+ import "runtime"
+diff --git a/test/gc1.go b/test/gc1.go
+index 190b29b005..6049ea14e9 100644
+--- a/test/gc1.go
++++ b/test/gc1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// A simple test of the garbage collector.
++
+ package main
+ 
+ func main() {
+diff --git a/test/gc2.go b/test/gc2.go
+index 739183e598..de52a4fbf2 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Check that buffered channels are garbage collected properly.
++// Test that buffered channels are garbage collected properly.
+ // An interesting case because they have finalizers and used to
+ // have self loops that kept them from being collected.
+ // (Cyclic data with finalizers is never finalized, nor collected.)
+diff --git a/test/goprint.go b/test/goprint.go
+index 53ed055a07..3fe08f3077 100644
+--- a/test/goprint.go
++++ b/test/goprint.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that println can be the target of a go statement.
++
+ package main
+ 
+ import "time"
+diff --git a/test/goto.go b/test/goto.go
+index 11417f86b7..ca477b3d0c 100644
+--- a/test/goto.go
++++ b/test/goto.go
+@@ -4,6 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Verify goto semantics.
++// Does not compile.
++//
+ // Each test is in a separate function just so that if the
+ // compiler stops processing after one error, we don't
+ // lose other ones.

@@ -23,6 +23,23 @@ Date:   Fri May 12 15:19:23 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/internal/testcarchive/carchive_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index 7830edf774..51a73ee77f 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -2,6 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This test uses various syscall.SIG* constants that are defined on Unix
++// platforms and Windows.
++
++//go:build unix || windows
++
+ package carchive_test
+ 
+ import (

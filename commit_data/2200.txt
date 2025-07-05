@@ -11,9 +11,276 @@ Date:   Wed May 13 15:18:05 2009 -0700
     DELTA=71  (0 added, 43 deleted, 28 changed)
     OCL=28768
     CL=28768
-
+---
  src/lib/go/ast/ast.go        | 26 +++++---------------------
  src/lib/go/parser/parser.go  | 26 ++++++++------------------
  usr/gri/pretty/ast.txt       | 18 ++++++------------
  usr/gri/pretty/astprinter.go | 25 +++++++------------------
  4 files changed, 26 insertions(+), 69 deletions(-)
+
+diff --git a/src/lib/go/ast/ast.go b/src/lib/go/ast/ast.go
+index e6c3d850fa..6cac8ea1ac 100644
+--- a/src/lib/go/ast/ast.go
++++ b/src/lib/go/ast/ast.go
+@@ -204,16 +204,11 @@ type (
+ 		Sel *Ident;  // field selector
+ 	};
+ 
+-	// An IndexExpr node represents an expression followed by an index.
++	// An IndexExpr node represents an expression followed by an index or slice.
+ 	IndexExpr struct {
+ 		X Expr;  // expression
+-		Index Expr;  // index expression
+-	};
+-
+-	// A SliceExpr node represents an expression followed by a slice.
+-	SliceExpr struct {
+-		X Expr;  // expression
+-		Begin, End Expr;  // slice range
++		Index Expr;  // index expression or beginning of slice range
++		End Expr;  // end of slice range; or nil
+ 	};
+ 
+ 	// A TypeAssertExpr node represents an expression followed by a
+@@ -283,16 +278,10 @@ const (
+ // nodes.
+ //
+ type (
+-	// An ArrayType node represents an array type.
++	// An ArrayType node represents an array or slice type.
+ 	ArrayType struct {
+ 		token.Position;  // position of "["
+-		Len Expr;  // possibly an Ellipsis node for [...]T array types
+-		Elt Expr;  // element type
+-	};
+-
+-	// A SliceType node represents a slice type.
+-	SliceType struct {
+-		token.Position;  // position of "["
++		Len Expr;  // Ellipsis node for [...]T array types, nil for slice types
+ 		Elt Expr;  // element type
+ 	};
+ 
+@@ -345,7 +334,6 @@ func (x *FuncLit) Pos() token.Position  { return x.Type.Pos(); }
+ func (x *CompositeLit) Pos() token.Position  { return x.Type.Pos(); }
+ func (x *SelectorExpr) Pos() token.Position  { return x.X.Pos(); }
+ func (x *IndexExpr) Pos() token.Position  { return x.X.Pos(); }
+-func (x *SliceExpr) Pos() token.Position  { return x.X.Pos(); }
+ func (x *TypeAssertExpr) Pos() token.Position  { return x.X.Pos(); }
+ func (x *CallExpr) Pos() token.Position  { return x.Fun.Pos(); }
+ func (x *BinaryExpr) Pos() token.Position  { return x.X.Pos(); }
+@@ -371,7 +359,6 @@ type ExprVisitor interface {
+ 	DoParenExpr(x *ParenExpr);
+ 	DoSelectorExpr(x *SelectorExpr);
+ 	DoIndexExpr(x *IndexExpr);
+-	DoSliceExpr(x *SliceExpr);
+ 	DoTypeAssertExpr(x *TypeAssertExpr);
+ 	DoCallExpr(x *CallExpr);
+ 	DoStarExpr(x *StarExpr);
+@@ -382,7 +369,6 @@ type ExprVisitor interface {
+ 	// Type expressions
+ 	DoEllipsis(x *Ellipsis);
+ 	DoArrayType(x *ArrayType);
+-	DoSliceType(x *SliceType);
+ 	DoStructType(x *StructType);
+ 	DoFuncType(x *FuncType);
+ 	DoInterfaceType(x *InterfaceType);
+@@ -406,7 +392,6 @@ func (x *CompositeLit) Visit(v ExprVisitor) { v.DoCompositeLit(x); }
+ func (x *ParenExpr) Visit(v ExprVisitor) { v.DoParenExpr(x); }
+ func (x *SelectorExpr) Visit(v ExprVisitor) { v.DoSelectorExpr(x); }
+ func (x *IndexExpr) Visit(v ExprVisitor) { v.DoIndexExpr(x); }
+-func (x *SliceExpr) Visit(v ExprVisitor) { v.DoSliceExpr(x); }
+ func (x *TypeAssertExpr) Visit(v ExprVisitor) { v.DoTypeAssertExpr(x); }
+ func (x *CallExpr) Visit(v ExprVisitor) { v.DoCallExpr(x); }
+ func (x *StarExpr) Visit(v ExprVisitor) { v.DoStarExpr(x); }
+@@ -415,7 +400,6 @@ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+ func (x *KeyValueExpr) Visit(v ExprVisitor) { v.DoKeyValueExpr(x); }
+ 
+ func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
+-func (x *SliceType) Visit(v ExprVisitor) { v.DoSliceType(x); }
+ func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
+ func (x *FuncType) Visit(v ExprVisitor) { v.DoFuncType(x); }
+ func (x *InterfaceType) Visit(v ExprVisitor) { v.DoInterfaceType(x); }
+diff --git a/src/lib/go/parser/parser.go b/src/lib/go/parser/parser.go
+index 7d18605e4d..4b733d7b19 100644
+--- a/src/lib/go/parser/parser.go
++++ b/src/lib/go/parser/parser.go
+@@ -330,9 +330,9 @@ func (p *parser) parseTypeName() ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseArrayOrSliceType(ellipsis_ok bool) ast.Expr {
++func (p *parser) parseArrayType(ellipsis_ok bool) ast.Expr {
+ 	if p.trace {
+-		defer un(trace(p, "ArrayOrSliceType"));
++		defer un(trace(p, "ArrayType"));
+ 	}
+ 
+ 	lbrack := p.expect(token.LBRACK);
+@@ -346,11 +346,7 @@ func (p *parser) parseArrayOrSliceType(ellipsis_ok bool) ast.Expr {
+ 	p.expect(token.RBRACK);
+ 	elt := p.parseType();
+ 
+-	if len != nil {
+-		return &ast.ArrayType{lbrack, len, elt};
+-	}
+-
+-	return &ast.SliceType{lbrack, elt};
++	return &ast.ArrayType{lbrack, len, elt};
+ }
+ 
+ 
+@@ -713,7 +709,7 @@ func (p *parser) parseChanType() *ast.ChanType {
+ func (p *parser) tryRawType(ellipsis_ok bool) ast.Expr {
+ 	switch p.tok {
+ 	case token.IDENT: return p.parseTypeName();
+-	case token.LBRACK: return p.parseArrayOrSliceType(ellipsis_ok);
++	case token.LBRACK: return p.parseArrayType(ellipsis_ok);
+ 	case token.STRUCT: return p.parseStructType();
+ 	case token.MUL: return p.parsePointerType();
+ 	case token.FUNC: return p.parseFuncType();
+@@ -921,9 +917,9 @@ func (p *parser) parseSelectorOrTypeAssertion(x ast.Expr) ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
++func (p *parser) parseIndex(x ast.Expr) ast.Expr {
+ 	if p.trace {
+-		defer un(trace(p, "IndexOrSlice"));
++		defer un(trace(p, "Index"));
+ 	}
+ 
+ 	p.expect(token.LBRACK);
+@@ -937,11 +933,7 @@ func (p *parser) parseIndexOrSlice(x ast.Expr) ast.Expr {
+ 	p.expr_lev--;
+ 	p.expect(token.RBRACK);
+ 
+-	if end != nil {
+-		return &ast.SliceExpr{x, begin, end};
+-	}
+-
+-	return &ast.IndexExpr{x, begin};
++	return &ast.IndexExpr{x, begin, end};
+ }
+ 
+ 
+@@ -1059,7 +1051,6 @@ func (p *parser) checkExpr(x ast.Expr) ast.Expr {
+ 	case *ast.ParenExpr:
+ 	case *ast.SelectorExpr:
+ 	case *ast.IndexExpr:
+-	case *ast.SliceExpr:
+ 	case *ast.TypeAssertExpr:
+ 	case *ast.CallExpr:
+ 	case *ast.StarExpr:
+@@ -1105,7 +1096,6 @@ func (p *parser) checkCompositeLitType(x ast.Expr) ast.Expr {
+ 	case *ast.ParenExpr: p.checkCompositeLitType(t.X);
+ 	case *ast.SelectorExpr: p.checkTypeName(t.X);
+ 	case *ast.ArrayType: return x;
+-	case *ast.SliceType: return x;
+ 	case *ast.StructType: return x;
+ 	case *ast.MapType: return x;
+ 	default:
+@@ -1150,7 +1140,7 @@ func (p *parser) parsePrimaryExpr() ast.Expr {
+ 	for {
+ 		switch p.tok {
+ 		case token.PERIOD: x = p.parseSelectorOrTypeAssertion(p.checkExpr(x));
+-		case token.LBRACK: x = p.parseIndexOrSlice(p.checkExpr(x));
++		case token.LBRACK: x = p.parseIndex(p.checkExpr(x));
+ 		case token.LPAREN: x = p.parseCallOrConversion(p.checkExprOrType(x));
+ 		case token.LBRACE:
+ 			if p.expr_lev >= 0 {
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+index fcad4fe437..7bf8d7131e 100644
+--- a/usr/gri/pretty/ast.txt
++++ b/usr/gri/pretty/ast.txt
+@@ -5,7 +5,7 @@
+ // Format file for printing AST nodes (package "ast").
+ 
+ // ----------------------------------------------------------------------------
+-// Debugging
++// Elementary types
+ 
+ token.Token =
+ 	^:string;
+@@ -25,11 +25,11 @@ char =
+ bytes =
+ 	{*};
+ 
+-nil =
+-	;  // TODO we see a lot of nil's - why?
++empty =
++	;
+ 
+ exists =
+-	*:nil;
++	*:empty;
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -98,10 +98,7 @@ ast.SelectorExpr =
+ 	X "." Sel;
+ 
+ ast.IndexExpr =
+-	X "[" Index "]";
+-
+-ast.SliceExpr =
+-	X "[" Begin ":" End "]";
++	X "[" Index [":" End] "]";
+ 
+ ast.TypeAssertExpr =
+ 	X ".(" Type ")";
+@@ -122,10 +119,7 @@ ast.KeyValueExpr =
+ 	Key ": " Value;
+ 
+ ast.ArrayType =
+-	"[" Len "]" Elt;
+-
+-ast.SliceType =
+-	"[]" Elt;
++	"[" [Len] "]" Elt;
+ 
+ ast.StructType =
+ 	"struct"
+diff --git a/usr/gri/pretty/astprinter.go b/usr/gri/pretty/astprinter.go
+index c45508868f..9c1fe74394 100644
+--- a/usr/gri/pretty/astprinter.go
++++ b/usr/gri/pretty/astprinter.go
+@@ -735,16 +735,10 @@ func (P *Printer) DoIndexExpr(x *ast.IndexExpr) {
+ 	P.Expr1(x.X, token.HighestPrec);
+ 	P.Token(noPos, token.LBRACK);
+ 	P.Expr(x.Index);
+-	P.Token(noPos, token.RBRACK);
+-}
+-
+-
+-func (P *Printer) DoSliceExpr(x *ast.SliceExpr) {
+-	P.Expr1(x.X, token.HighestPrec);
+-	P.Token(noPos, token.LBRACK);
+-	P.Expr(x.Begin);
+-	P.Token(noPos, token.COLON);
+-	P.Expr(x.End);
++	if x.End != nil {
++		P.Token(noPos, token.COLON);
++		P.Expr(x.End);
++	}
+ 	P.Token(noPos, token.RBRACK);
+ }
+ 
+@@ -772,14 +766,9 @@ func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
+ 
+ func (P *Printer) DoArrayType(x *ast.ArrayType) {
+ 	P.Token(x.Pos(), token.LBRACK);
+-	P.Expr(x.Len);
+-	P.Token(noPos, token.RBRACK);
+-	P.Expr(x.Elt);
+-}
+-
+-
+-func (P *Printer) DoSliceType(x *ast.SliceType) {
+-	P.Token(x.Pos(), token.LBRACK);
++	if x.Len != nil {
++		P.Expr(x.Len);
++	}
+ 	P.Token(noPos, token.RBRACK);
+ 	P.Expr(x.Elt);
+ }

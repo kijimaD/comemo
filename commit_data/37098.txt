@@ -18,7 +18,144 @@ Date:   Wed Jun 27 14:18:31 2018 -0700
     Change-Id: I01f5c76d9a07f44e1b04861bfe9f9916a04e65ca
     Reviewed-on: https://go-review.googlesource.com/121316
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/all_test.go | 88 ++++++++++++++++++++++++++++++++++++++++++++++++-
  src/reflect/type.go     |  6 ++++
  2 files changed, 93 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 63d068cd78..cf7fe3cf7a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4817,13 +4817,29 @@ func (i StructI) Get() int { return int(i) }
+ 
+ type StructIPtr int
+ 
+-func (i *StructIPtr) Get() int { return int(*i) }
++func (i *StructIPtr) Get() int  { return int(*i) }
++func (i *StructIPtr) Set(v int) { *(*int)(i) = v }
++
++type SettableStruct struct {
++	SettableField int
++}
++
++func (p *SettableStruct) Set(v int) { p.SettableField = v }
++
++type SettablePointer struct {
++	SettableField *int
++}
++
++func (p *SettablePointer) Set(v int) { *p.SettableField = v }
+ 
+ func TestStructOfWithInterface(t *testing.T) {
+ 	const want = 42
+ 	type Iface interface {
+ 		Get() int
+ 	}
++	type IfaceSet interface {
++		Set(int)
++	}
+ 	tests := []struct {
+ 		name string
+ 		typ  Type
+@@ -4931,6 +4947,76 @@ func TestStructOfWithInterface(t *testing.T) {
+ 			}
+ 		}
+ 	}
++
++	// Test an embedded nil pointer with pointer methods.
++	fields := []StructField{{
++		Name:      "StructIPtr",
++		Anonymous: true,
++		Type:      PtrTo(TypeOf(StructIPtr(want))),
++	}}
++	rt := StructOf(fields)
++	rv := New(rt).Elem()
++	// This should panic since the pointer is nil.
++	shouldPanic(func() {
++		rv.Interface().(IfaceSet).Set(want)
++	})
++
++	// Test an embedded nil pointer to a struct with pointer methods.
++
++	fields = []StructField{{
++		Name:      "SettableStruct",
++		Anonymous: true,
++		Type:      PtrTo(TypeOf(SettableStruct{})),
++	}}
++	rt = StructOf(fields)
++	rv = New(rt).Elem()
++	// This should panic since the pointer is nil.
++	shouldPanic(func() {
++		rv.Interface().(IfaceSet).Set(want)
++	})
++
++	// The behavior is different if there is a second field,
++	// since now an interface value holds a pointer to the struct
++	// rather than just holding a copy of the struct.
++	fields = []StructField{
++		{
++			Name:      "SettableStruct",
++			Anonymous: true,
++			Type:      PtrTo(TypeOf(SettableStruct{})),
++		},
++		{
++			Name:      "EmptyStruct",
++			Anonymous: true,
++			Type:      StructOf(nil),
++		},
++	}
++	// With the current implementation this is expected to panic.
++	// Ideally it should work and we should be able to see a panic
++	// if we call the Set method.
++	shouldPanic(func() {
++		StructOf(fields)
++	})
++
++	// Embed a field that can be stored directly in an interface,
++	// with a second field.
++	fields = []StructField{
++		{
++			Name:      "SettablePointer",
++			Anonymous: true,
++			Type:      TypeOf(SettablePointer{}),
++		},
++		{
++			Name:      "EmptyStruct",
++			Anonymous: true,
++			Type:      StructOf(nil),
++		},
++	}
++	// With the current implementation this is expected to panic.
++	// Ideally it should work and we should be able to call the
++	// Set and Get methods.
++	shouldPanic(func() {
++		StructOf(fields)
++	})
+ }
+ 
+ func TestChanOf(t *testing.T) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1f3b665ce4..a7d660fbef 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2467,6 +2467,9 @@ func StructOf(fields []StructField) Type {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
++					if len(fields) > 1 {
++						panic("reflect: embedded type with methods not implemented if there is more than one field")
++					}
+ 					for _, m := range unt.methods() {
+ 						mname := ptr.nameOff(m.name)
+ 						if mname.pkgPath() != "" {
+@@ -2504,6 +2507,9 @@ func StructOf(fields []StructField) Type {
+ 						// Issue 15924.
+ 						panic("reflect: embedded type with methods not implemented if type is not first field")
+ 					}
++					if len(fields) > 1 && ft.kind&kindDirectIface != 0 {
++						panic("reflect: embedded type with methods not implemented for non-pointer type")
++					}
+ 					for _, m := range unt.methods() {
+ 						mname := ft.nameOff(m.name)
+ 						if mname.pkgPath() != "" {

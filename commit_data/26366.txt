@@ -13,6 +13,31 @@ Date:   Wed Jan 13 13:09:46 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18621
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/asm_386.s | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index c5f0c51566..4181859724 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1439,7 +1439,8 @@ TEXT strings·IndexByte(SB),NOSPLIT,$0-16
+ TEXT runtime·cmpbody(SB),NOSPLIT,$0-0
+ 	MOVL	DX, BP
+ 	SUBL	BX, DX // DX = blen-alen
+-	CMOVLGT	BX, BP // BP = min(alen, blen)
++	JLE	2(PC)
++	MOVL	BX, BP // BP = min(alen, blen)
+ 	CMPL	SI, DI
+ 	JEQ	allsame
+ 	CMPL	BP, $4
+@@ -1558,7 +1559,8 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	ADDL	DX, DX
+ 	MOVL	DX, BX
+ 	XORL	$0x88888eef, DX
+-	CMOVLMI	BX, DX
++	JPL	2(PC)
++	MOVL	BX, DX
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET

@@ -8,7 +8,54 @@ Date:   Mon Aug 16 18:06:18 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/342690
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go                |  2 +-
  .../internal/types2/testdata/examples/types.go2        | 18 +++++++++++++++++-
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 6d8b423714..d108093dac 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1214,7 +1214,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			goto Error
+ 		}
+ 
+-		switch utyp := under(base).(type) {
++		switch utyp := optype(base).(type) {
+ 		case *Struct:
+ 			if len(e.ElemList) == 0 {
+ 				break
+diff --git a/src/cmd/compile/internal/types2/testdata/examples/types.go2 b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+index d662444ead..9ee014452c 100644
+--- a/src/cmd/compile/internal/types2/testdata/examples/types.go2
++++ b/src/cmd/compile/internal/types2/testdata/examples/types.go2
+@@ -185,7 +185,7 @@ type _ struct {
+ // }
+ 
+ // It is not permitted to declare a local type whose underlying
+-// type is a type parameters not declared by that type declaration.
++// type is a type parameter not declared by that type declaration.
+ func _[T any]() {
+ 	type _ T         // ERROR cannot use function type parameter T as RHS in type declaration
+ 	type _ [_ any] T // ERROR cannot use function type parameter T as RHS in type declaration
+@@ -287,3 +287,19 @@ func _[T interface{~int|~float64}]() {
+ 	var _ T = 1
+ 	_ = T(0)
+ }
++
++// It is possible to create composite literals of type parameter
++// type as long as it's possible to create a composite literal
++// of the structural type of the type parameter's constraint.
++func _[P interface{ ~[]int }]() P {
++	return P{}
++	return P{1, 2, 3}
++}
++
++func _[P interface{ ~[]E }, E interface{ map[string]P } ]() P {
++	x := P{}
++	return P{{}}
++	return P{E{}}
++	return P{E{"foo": x}}
++	return P{{"foo": x}, {}}
++}

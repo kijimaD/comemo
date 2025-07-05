@@ -7,6 +7,19 @@ Date:   Tue Jun 25 08:06:34 2013 +0200
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/10483045
-
+---
  test/shift2.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/test/shift2.go b/test/shift2.go
+index 88ef3c40f5..80e6bbc190 100644
+--- a/test/shift2.go
++++ b/test/shift2.go
+@@ -20,6 +20,7 @@ var (
+ 	i       = 1 << s         // 1 has type int
+ 	j int32 = 1 << s         // 1 has type int32; j == 0
+ 	k       = uint64(1 << s) // 1 has type uint64; k == 1<<33
++	l       = g(1 << s)      // 1 has type int
+ 	m int   = 1.0 << s       // legal: 1.0 has type int
+ 	w int64 = 1.0 << 33      // legal: 1.0<<33 is a constant shift expression
+ )

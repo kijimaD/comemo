@@ -7,6 +7,19 @@ Date:   Tue Mar 23 17:52:16 2010 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/645044
-
+---
  src/pkg/syscall/types_darwin.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/syscall/types_darwin.c b/src/pkg/syscall/types_darwin.c
+index 14deed681b..d7f7a74607 100644
+--- a/src/pkg/syscall/types_darwin.c
++++ b/src/pkg/syscall/types_darwin.c
+@@ -28,7 +28,6 @@ Input to godefs.  See also mkerrors.sh and mkall.sh
+ #include <sys/stat.h>
+ #include <sys/time.h>
+ #include <sys/types.h>
+-#include <sys/types.h>
+ #include <sys/un.h>
+ #include <sys/wait.h>
+ #include <unistd.h>

@@ -8,7 +8,33 @@ Date:   Tue Mar 13 03:31:11 2012 +0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5797061
-
+---
  .hgignore           | 1 +
  src/cmd/gc/Makefile | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/.hgignore b/.hgignore
+index 741d7c61b2..b140555fd9 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -33,6 +33,7 @@ misc/goplay/goplay
+ misc/osx/*.pkg
+ misc/osx/*.dmg
+ src/cmd/6a/6a
++src/cmd/?a/y.output
+ src/cmd/?l/enam.c
+ src/cmd/cc/y.output
+ src/cmd/dist/dist.dSYM
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index df34c05b27..58e25faaf9 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -6,7 +6,7 @@ include ../../Make.dist
+ 
+ install: y.tab.h builtin.c
+ 
+-y.tab.h: go.y
++y.tab.h: go.y go.errors bisonerrors
+ 	bison -v -y -d go.y
+ 	# make yystate global, yytname mutable
+ 	cat y.tab.c | sed '/ int yystate;/d; s/int yychar;/int yychar, yystate;/; s/static const char \*const yytname/const char *yytname/; s/char const \*yymsgp/char *yymsgp/' >y1.tab.c

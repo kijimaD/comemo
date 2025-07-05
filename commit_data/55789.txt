@@ -30,7 +30,7 @@ Date:   Fri Mar 10 10:29:38 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/exec.go                   |  48 +++++++
  src/cmd/go/internal/work/security.go               |  51 +++++--
  src/cmd/go/internal/work/security_test.go          |  33 +++++
@@ -40,3 +40,433 @@ Date:   Fri Mar 10 10:29:38 2023 -0500
  src/cmd/link/internal/ld/config.go                 |   6 +-
  src/cmd/link/internal/ld/lib.go                    |  13 ++
  8 files changed, 294 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e3cd9972ee..55cd30bbd1 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -3146,6 +3146,36 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 		}
+ 	}
+ 
++	// Scrutinize CFLAGS and related for flags that might cause
++	// problems if we are using internal linking (for example, use of
++	// plugins, LTO, etc) by calling a helper routine that builds on
++	// the existing CGO flags allow-lists. If we see anything
++	// suspicious, emit a special token file "preferlinkext" (known to
++	// the linker) in the object file to signal the that it should not
++	// try to link internally and should revert to external linking.
++	// The token we pass is a suggestion, not a mandate; if a user is
++	// explicitly asking for a specific linkmode via the "-linkmode"
++	// flag, the token will be ignored. NB: in theory we could ditch
++	// the token approach and just pass a flag to the linker when we
++	// eventually invoke it, and the linker flag could then be
++	// documented (although coming up with a simple explanation of the
++	// flag might be challenging). For more context see issues #58619,
++	// #58620, and #58848.
++	flagSources := []string{"CGO_CFLAGS", "CGO_CXXFLAGS", "CGO_FFLAGS"}
++	flagLists := [][]string{cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS}
++	if flagsNotCompatibleWithInternalLinking(flagSources, flagLists) {
++		tokenFile := objdir + "preferlinkext"
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd("", "echo > %s", tokenFile)
++		}
++		if !cfg.BuildN {
++			if err := os.WriteFile(tokenFile, nil, 0666); err != nil {
++				return nil, nil, err
++			}
++		}
++		outObj = append(outObj, tokenFile)
++	}
++
+ 	if cfg.BuildMSan {
+ 		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)
+ 		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
+@@ -3395,6 +3425,24 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	return outGo, outObj, nil
+ }
+ 
++// flagsNotCompatibleWithInternalLinking scans the list of cgo
++// compiler flags (C/C++/Fortran) looking for flags that might cause
++// problems if the build in question uses internal linking. The
++// primary culprits are use of plugins or use of LTO, but we err on
++// the side of caution, supporting only those flags that are on the
++// allow-list for safe flags from security perspective. Return is TRUE
++// if a sensitive flag is found, FALSE otherwise.
++func flagsNotCompatibleWithInternalLinking(sourceList []string, flagListList [][]string) bool {
++	for i := range sourceList {
++		sn := sourceList[i]
++		fll := flagListList[i]
++		if err := checkCompilerFlagsForInternalLink(sn, sn, fll); err != nil {
++			return true
++		}
++	}
++	return false
++}
++
+ // dynimport creates a Go source file named importGo containing
+ // //go:cgo_import_dynamic directives for each symbol or library
+ // dynamically imported by the object files outObj.
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 0bf8763543..f4f1880c84 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -230,32 +230,55 @@ var validLinkerFlagsWithNextArg = []string{
+ }
+ 
+ func checkCompilerFlags(name, source string, list []string) error {
+-	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg)
++	checkOverrides := true
++	return checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides)
+ }
+ 
+ func checkLinkerFlags(name, source string, list []string) error {
+-	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg)
++	checkOverrides := true
++	return checkFlags(name, source, list, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+ }
+ 
+-func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string) error {
++// checkCompilerFlagsForInternalLink returns an error if 'list'
++// contains a flag or flags that may not be fully supported by
++// internal linking (meaning that we should punt the link to the
++// external linker).
++func checkCompilerFlagsForInternalLink(name, source string, list []string) error {
++	checkOverrides := false
++	if err := checkFlags(name, source, list, validCompilerFlags, validCompilerFlagsWithNextArg, checkOverrides); err != nil {
++		return err
++	}
++	// Currently the only flag on the allow list that causes problems
++	// for the linker is "-flto"; check for it manually here.
++	for _, fl := range list {
++		if strings.HasPrefix(fl, "-flto") {
++			return fmt.Errorf("flag %q triggers external linking", fl)
++		}
++	}
++	return nil
++}
++
++func checkFlags(name, source string, list []string, valid []*lazyregexp.Regexp, validNext []string, checkOverrides bool) error {
+ 	// Let users override rules with $CGO_CFLAGS_ALLOW, $CGO_CFLAGS_DISALLOW, etc.
+ 	var (
+ 		allow    *regexp.Regexp
+ 		disallow *regexp.Regexp
+ 	)
+-	if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
+-		r, err := regexp.Compile(env)
+-		if err != nil {
+-			return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
++	if checkOverrides {
++		if env := cfg.Getenv("CGO_" + name + "_ALLOW"); env != "" {
++			r, err := regexp.Compile(env)
++			if err != nil {
++				return fmt.Errorf("parsing $CGO_%s_ALLOW: %v", name, err)
++			}
++			allow = r
+ 		}
+-		allow = r
+-	}
+-	if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
+-		r, err := regexp.Compile(env)
+-		if err != nil {
+-			return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
++		if env := cfg.Getenv("CGO_" + name + "_DISALLOW"); env != "" {
++			r, err := regexp.Compile(env)
++			if err != nil {
++				return fmt.Errorf("parsing $CGO_%s_DISALLOW: %v", name, err)
++			}
++			disallow = r
+ 		}
+-		disallow = r
+ 	}
+ 
+ Args:
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index d2aeb54e0c..8cecc74eae 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -6,6 +6,7 @@ package work
+ 
+ import (
+ 	"os"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -28,6 +29,7 @@ var goodCompilerFlags = [][]string{
+ 	{"-Wp,-Ufoo"},
+ 	{"-Wp,-Dfoo1"},
+ 	{"-Wp,-Ufoo1"},
++	{"-flto"},
+ 	{"-fobjc-arc"},
+ 	{"-fno-objc-arc"},
+ 	{"-fomit-frame-pointer"},
+@@ -278,3 +280,34 @@ func TestCheckFlagAllowDisallow(t *testing.T) {
+ 		t.Fatalf("missing error for -fplugin=lint.so: %v", err)
+ 	}
+ }
++
++func TestCheckCompilerFlagsForInternalLink(t *testing.T) {
++	// Any "bad" compiler flag should trigger external linking.
++	for _, f := range badCompilerFlags {
++		if err := checkCompilerFlagsForInternalLink("test", "test", f); err == nil {
++			t.Errorf("missing error for %q", f)
++		}
++	}
++
++	// All "good" compiler flags should not trigger external linking,
++	// except for anything that begins with "-flto".
++	for _, f := range goodCompilerFlags {
++		foundLTO := false
++		for _, s := range f {
++			if strings.Contains(s, "-flto") {
++				foundLTO = true
++			}
++		}
++		if err := checkCompilerFlagsForInternalLink("test", "test", f); err != nil {
++			// expect error for -flto
++			if !foundLTO {
++				t.Errorf("unexpected error for %q: %v", f, err)
++			}
++		} else {
++			// expect no error for everything else
++			if foundLTO {
++				t.Errorf("missing error for %q: %v", f, err)
++			}
++		}
++	}
++}
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 5536be4753..c57d55a3d1 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -49,6 +49,7 @@ func scriptConditions() map[string]script.Cond {
+ 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+ 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
+ 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
++	add("cgolinkext", script.BoolCondition("platform requires external linking for cgo", platform.MustLinkExternal(cfg.Goos, cfg.Goarch, true)))
+ 	add("net", lazyBool("testenv.HasExternalNetwork()", testenv.HasExternalNetwork))
+ 	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
+ 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 7b747994c6..349ba972fb 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -382,6 +382,8 @@ The available conditions are:
+ 	$WORK filesystem is case-sensitive
+ [cgo]
+ 	host CGO_ENABLED
++[cgolinkext]
++	platform requires external linking for cgo
+ [compiler:*]
+ 	runtime.Compiler == <suffix>
+ [cross]
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+new file mode 100644
+index 0000000000..fbe8236f9d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -0,0 +1,155 @@
++# Test case to verify that when we have a package that uses CGO in
++# combination with selected "unusual" flags (involving plugins, LTO)
++# that we force external linking.  See related
++# issues 58619,  58620, and 58848.
++
++[compiler:gccgo] skip # only external linking for gccgo
++
++# This test requires external linking, so use cgo as a proxy
++[!cgo] skip
++
++# Here we build three program: one with explicit CGO use, one with no
++# CGO use, and one that uses a stdlib package ("runtime/cgo") that has
++# CGO in it. It used to be that only the explicit use of CGO would
++# trigger external linking, and that the program that only used
++# "runtime/cgo" would always be handled with internal linking. This caused
++# issues when users included odd/unusual flags (ex: -fplugin, -flto)
++# in CGO_CFLAGS, causing the Go linker to have to read and interpret
++# non-standard host objects.
++#
++# As of 1.21 we continue to use internal linking for programs whose
++# CGO use comes ony from stdlib packages in the absence of any flag
++# funny business, however if the Go command sees flags that may be suspicious,
++# it signals the Go linker to invoke the external linker.
++
++# The next few tests run builds passing "-n" to the Go command, then
++# checking the output to see if the Go command is trying to pass a
++# "preferlinkext" token to the linker to request external linking.
++
++#-----------------------
++
++# Use a fresh GOCACHE for these next steps, so as to have the real
++# actions for the runtime/cgo package appear in the "-n -x" output.
++env GOCACHE=$WORK/gocache
++mkdir $GOCACHE
++
++# First build: there is no CGO in use, so no token should be present regardless
++# of weird CGO flags.
++go build -x -n -o dummy.exe ./noUseOfCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-flto
++go build -x -n -o dummy.exe ./noUseOfCgo
++! stderr preferlinkext
++env CGO_CFLAGS=
++
++# Second build uses CGO, so we expect to see the token present in the
++# -n output only when strange flags are used.
++go build -x -n -o dummy.exe ./usesInternalCgo
++! stderr preferlinkext
++env CGO_CFLAGS=-flto
++go build -x -n -o dummy.exe ./usesInternalCgo
++stderr preferlinkext
++env CGO_CFLAGS=-fplugin
++go build -x -n -o dummy.exe ./usesInternalCgo
++stderr preferlinkext
++env CGO_CFLAGS=-fprofile-instr-generate
++go build -x -n -o dummy.exe ./usesInternalCgo
++stderr preferlinkext
++env CGO_CFLAGS=
++
++[short] skip
++
++# In the remaining tests below we do actual builds (without -n) to
++# verify that the Go linker is going the right thing in addition to the
++# Go command. Here the idea is to pass "-tmpdir" to the linker, then
++# check after the link is done for the presence of the file
++# <tmpdir>/go.o, which the Go linker creates prior to kicking off the
++# external linker.
++
++mkdir tmp1
++mkdir tmp2
++mkdir tmp3
++mkdir tmp4
++mkdir tmp5
++
++# First build: no external linking expected
++go build -ldflags=-tmpdir=tmp1 -o $devnull ./noUseOfCgo &
++
++# Second build: using only "runtime/cgo", expect internal linking.
++go build -ldflags=-tmpdir=tmp2 -o $devnull ./usesInternalCgo &
++
++# Third build: program uses only "runtime/cgo", so we would normally
++# expect internal linking, except that cflags contain suspicious entries
++# (in this case, a flag that does not appear on the allow list).
++env CGO_CFLAGS=-fmerge-all-constants
++env CGO_LDFLAGS=-fmerge-all-constants
++go build -ldflags=-tmpdir=tmp3 -o $devnull ./usesInternalCgo &
++env CGO_CFLAGS=
++env CGO_LDFLAGS=
++
++# Fourth build: explicit CGO, expect external linking.
++go build -ldflags=-tmpdir=tmp4 -o $devnull ./usesExplicitCgo &
++
++# Fifth build: explicit CGO, but we specifically asked for internal linking
++# via a flag, so using internal linking it is.
++[cgolinkext] go list ./usesInternalCgo
++[!cgolinkext] go build '-ldflags=-tmpdir=tmp5 -linkmode=internal' -o $devnull ./usesInternalCgo &
++
++wait
++
++# Check first build: no external linking expected
++! exists tmp1/go.o
++
++# Check second build: using only "runtime/cgo", expect internal linking.
++[!cgolinkext] ! exists tmp2/go.o
++[cgolinkext] exists tmp2/go.o
++
++# Check third build: has suspicious flag.
++exists tmp3/go.o
++
++# Fourth build: explicit CGO, expect external linking.
++exists tmp4/go.o
++
++# Fifth build: explicit CGO, -linkmode=internal.
++! exists tmp5/go.o
++
++-- go.mod --
++
++module cgo.example
++
++go 1.20
++
++-- noUseOfCgo/main.go --
++
++package main
++
++func main() {
++	println("clean as a whistle")
++}
++
++-- usesInternalCgo/main.go --
++
++package main
++
++import (
++	"runtime/cgo"
++)
++
++func main() {
++	q := "hello"
++	h := cgo.NewHandle(q)
++	h.Delete()
++}
++
++-- usesExplicitCgo/main.go --
++
++package main
++
++/*
++int meaningOfLife() { return 42; }
++*/
++import "C"
++
++func main() {
++     println(C.meaningOfLife())
++}
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 7cce28dac5..c0484d6c39 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -198,7 +198,11 @@ func determineLinkMode(ctxt *Link) {
+ 			ctxt.LinkMode = LinkExternal
+ 			via = "via GO_EXTLINK_ENABLED "
+ 		default:
+-			if extNeeded || (iscgo && externalobj) {
++			preferExternal := len(preferlinkext) != 0
++			if preferExternal && ctxt.Debugvlog > 0 {
++				ctxt.Logf("external linking prefer list is %v\n", preferlinkext)
++			}
++			if extNeeded || (iscgo && (externalobj || preferExternal)) {
+ 				ctxt.LinkMode = LinkExternal
+ 			} else {
+ 				ctxt.LinkMode = LinkInternal
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index b64176e35d..02c6908407 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -341,6 +341,12 @@ var (
+ 	// any of these objects, we must link externally. Issue 52863.
+ 	dynimportfail []string
+ 
++	// preferlinkext is a list of packages for which the Go command
++	// noticed use of peculiar C flags. If we see any of these,
++	// default to linking externally unless overridden by the
++	// user. See issues #58619, #58620, and #58848.
++	preferlinkext []string
++
+ 	// unknownObjFormat is set to true if we see an object whose
+ 	// format we don't recognize.
+ 	unknownObjFormat = false
+@@ -1086,6 +1092,13 @@ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 		if arhdr.name == "dynimportfail" {
+ 			dynimportfail = append(dynimportfail, lib.Pkg)
+ 		}
++		if arhdr.name == "preferlinkext" {
++			// Ignore this directive if -linkmode has been
++			// set explicitly.
++			if ctxt.LinkMode == LinkAuto {
++				preferlinkext = append(preferlinkext, lib.Pkg)
++			}
++		}
+ 
+ 		// Skip other special (non-object-file) sections that
+ 		// build tools may have added. Such sections must have

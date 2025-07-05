@@ -14,6 +14,20 @@ Date:   Tue May 28 17:23:15 2024 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/file_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 37bfaa1a72..73069faa56 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -306,7 +306,7 @@ func openDirNolog(name string) (*File, error) {
+ 		e error
+ 	)
+ 	ignoringEINTR(func() error {
+-		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC, 0)
++		r, s, e = open(name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY, 0)
+ 		return e
+ 	})
+ 	if e != nil {

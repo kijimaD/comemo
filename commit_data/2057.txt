@@ -10,7 +10,96 @@ Date:   Sun Apr 19 23:52:29 2009 -0700
     DELTA=34  (30 added, 1 deleted, 3 changed)
     OCL=27623
     CL=27623
-
+---
  src/lib/container/iterable.go      | 27 +++++++++++++++++++++++----
  src/lib/container/iterable_test.go | 10 ++++++++++
  2 files changed, 33 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/container/iterable.go b/src/lib/container/iterable.go
+index 08fae90da5..61c744c01a 100644
+--- a/src/lib/container/iterable.go
++++ b/src/lib/container/iterable.go
+@@ -16,7 +16,7 @@ type Iterable interface {
+ }
+ 
+ func not(f func(interface {}) bool) (func(interface {}) bool) {
+-  return func(e interface {}) bool { return !f(e) }
++	return func(e interface {}) bool { return !f(e) }
+ }
+ 
+ // All tests whether f is true for every element of iter.
+@@ -79,6 +79,26 @@ func Find(iter Iterable, f func(interface {}) bool) interface {} {
+ 	return nil
+ }
+ 
++// An injector function takes two arguments, an accumulated value and an
++// element, and returns the next accumulated value. See the Inject function.
++type Injector func(interface {}, interface {}) interface{};
++
++// Inject combines the elements of iter by repeatedly calling f with an
++// accumulated value and each element in order. The starting accumulated value
++// is initial, and after each call the accumulated value is set to the return
++// value of f. For instance, to compute a sum:
++//   var arr IntArray = []int{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
++//   sum := iterable.Inject(arr, 0,
++//                          func(ax interface {}, x interface {}) interface {} {
++//                            return ax.(int) + x.(int) }).(int)
++func Inject(iter Iterable, initial interface {}, f Injector) interface {} {
++	acc := initial;
++	for e := range iter.Iter() {
++		acc = f(acc, e)
++	}
++	return acc
++}
++
+ // mappedIterable is a helper struct that implements Iterable, returned by Map.
+ type mappedIterable struct {
+ 	it Iterable;
+@@ -95,7 +115,7 @@ func (m *mappedIterable) iterate(out chan<- interface {}) {
+ func (m *mappedIterable) Iter() <-chan interface {} {
+ 	ch := make(chan interface {});
+ 	go m.iterate(ch);
+-	return ch;
++	return ch
+ }
+ 
+ // Map returns an Iterable that returns the result of applying f to each
+@@ -106,9 +126,8 @@ func Map(iter Iterable, f func(interface {}) interface {}) Iterable {
+ 
+ // Partition(iter, f) returns Filter(iter, f) and Filter(iter, !f).
+ func Partition(iter Iterable, f func(interface {}) bool) (Iterable, Iterable)  {
+-  return Filter(iter, f), Filter(iter, not(f))
++	return Filter(iter, f), Filter(iter, not(f))
+ }
+ 
+ // TODO:
+-// - Inject
+ // - Zip
+diff --git a/src/lib/container/iterable_test.go b/src/lib/container/iterable_test.go
+index f266a955ba..ceb1de6e4e 100644
+--- a/src/lib/container/iterable_test.go
++++ b/src/lib/container/iterable_test.go
+@@ -42,6 +42,9 @@ func doubler(n interface {}) interface {} {
+ func addOne(n interface {}) interface {} {
+ 	return n.(int) + 1
+ }
++func adder(acc interface {}, n interface {}) interface {} {
++	return acc.(int) + n.(int)
++}
+ 
+ // A stream of the natural numbers: 0, 1, 2, 3, ...
+ type integerStream struct {}
+@@ -107,6 +110,13 @@ func TestFind(t *testing.T) {
+ 	}
+ }
+ 
++func TestInject(t *testing.T) {
++	res := Inject(oneToFive, 0, adder);
++	if res.(int) != 15 {
++		t.Errorf("Inject(oneToFive, 0, adder) = %v, want 15", res)
++	}
++}
++
+ func TestMap(t *testing.T) {
+ 	res := Data(Map(Map(oneToFive, doubler), addOne));
+ 	assertArraysAreEqual(t, res, []int{ 3, 5, 7, 9, 11 })

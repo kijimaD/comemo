@@ -12,6 +12,27 @@ Date:   Fri Jan 13 10:54:28 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/internal/cpu/cpu_arm64_hwcap.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/internal/cpu/cpu_arm64_hwcap.go b/src/internal/cpu/cpu_arm64_hwcap.go
+index 0fb5fb505a..88cb8b9064 100644
+--- a/src/internal/cpu/cpu_arm64_hwcap.go
++++ b/src/internal/cpu/cpu_arm64_hwcap.go
+@@ -19,6 +19,7 @@ const (
+ 	hwcap_CRC32   = 1 << 7
+ 	hwcap_ATOMICS = 1 << 8
+ 	hwcap_CPUID   = 1 << 11
++	hwcap_SHA512  = 1 << 21
+ )
+ 
+ func hwcapInit(os string) {
+@@ -31,6 +32,7 @@ func hwcapInit(os string) {
+ 	ARM64.HasSHA2 = isSet(HWCap, hwcap_SHA2)
+ 	ARM64.HasCRC32 = isSet(HWCap, hwcap_CRC32)
+ 	ARM64.HasCPUID = isSet(HWCap, hwcap_CPUID)
++	ARM64.HasSHA512 = isSet(HWCap, hwcap_SHA512)
+ 
+ 	// The Samsung S9+ kernel reports support for atomics, but not all cores
+ 	// actually support them, resulting in SIGILL. See issue #28431.

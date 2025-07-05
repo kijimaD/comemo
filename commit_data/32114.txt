@@ -15,8 +15,122 @@ Date:   Thu Apr 6 09:36:23 2017 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      | 16 +++++++++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  7 +++--
  src/cmd/compile/internal/ssa/rewriteARM64.go | 42 +++++++++++++++++++++-------
  3 files changed, 53 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index dd96bec282..6c56b8d8e5 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -1327,6 +1327,22 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tCLZ\t"},
+ 	},
++	{
++		`
++		func f34(a uint64) uint64 {
++			return a & ((1<<63)-1)
++		}
++		`,
++		[]string{"\tAND\t"},
++	},
++	{
++		`
++		func f35(a uint64) uint64 {
++			return a & (1<<63)
++		}
++		`,
++		[]string{"\tAND\t"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 8f7680a347..189e739434 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1148,8 +1148,11 @@
+ ( ORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+ (XORshiftRL <t> [c] (SLLconst x [32-c]) (MOVWUreg x)) && c < 32 && t.Size() == 4 -> (RORWconst [   c] x)
+ 
+-// Replace SRL-of-SLL with ROR-of-SLL to avoid hardware bug.
+-(SRLconst [c] y:(SLLconst [c] _)) && c <= 8 -> (RORconst [c] y)
++// Generic rules rewrite certain AND to a pair of shifts.
++// However, on ARM64 the bitmask can fit into an instruction.
++// Rewrite it back to AND.
++(SRLconst [c] (SLLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [1<<uint(64-c)-1] x) // mask out high bits
++(SLLconst [c] (SRLconst [c] x)) && 0 < c && c < 64 -> (ANDconst [^(1<<uint(c)-1)] x) // mask out low bits
+ 
+ // do combined loads
+ // little endian loads
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index c32bdf7a9e..16f3d06b27 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -8583,6 +8583,27 @@ func rewriteValueARM64_OpARM64SLLconst(v *Value) bool {
+ 		v.AuxInt = int64(d) << uint64(c)
+ 		return true
+ 	}
++	// match: (SLLconst [c] (SRLconst [c] x))
++	// cond: 0 < c && c < 64
++	// result: (ANDconst [^(1<<uint(c)-1)] x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64SRLconst {
++			break
++		}
++		if v_0.AuxInt != c {
++			break
++		}
++		x := v_0.Args[0]
++		if !(0 < c && c < 64) {
++			break
++		}
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = ^(1<<uint(c) - 1)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64SRA(v *Value) bool {
+@@ -8653,24 +8674,25 @@ func rewriteValueARM64_OpARM64SRLconst(v *Value) bool {
+ 		v.AuxInt = int64(uint64(d) >> uint64(c))
+ 		return true
+ 	}
+-	// match: (SRLconst [c] y:(SLLconst [c] _))
+-	// cond: c <= 8
+-	// result: (RORconst [c] y)
++	// match: (SRLconst [c] (SLLconst [c] x))
++	// cond: 0 < c && c < 64
++	// result: (ANDconst [1<<uint(64-c)-1] x)
+ 	for {
+ 		c := v.AuxInt
+-		y := v.Args[0]
+-		if y.Op != OpARM64SLLconst {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARM64SLLconst {
+ 			break
+ 		}
+-		if y.AuxInt != c {
++		if v_0.AuxInt != c {
+ 			break
+ 		}
+-		if !(c <= 8) {
++		x := v_0.Args[0]
++		if !(0 < c && c < 64) {
+ 			break
+ 		}
+-		v.reset(OpARM64RORconst)
+-		v.AuxInt = c
+-		v.AddArg(y)
++		v.reset(OpARM64ANDconst)
++		v.AuxInt = 1<<uint(64-c) - 1
++		v.AddArg(x)
+ 		return true
+ 	}
+ 	return false

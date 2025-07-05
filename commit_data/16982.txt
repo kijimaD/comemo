@@ -13,9 +13,121 @@ Date:   Thu Aug 1 19:28:38 2013 +0400
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/12248043
-
+---
  src/pkg/runtime/proc.c          |  5 +++--
  src/pkg/runtime/runtime.h       |  1 +
  src/pkg/runtime/traceback_arm.c | 13 +++++++------
  src/pkg/runtime/traceback_x86.c | 15 ++++++++-------
  4 files changed, 19 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index c3af1efaf3..79568503b7 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -267,9 +267,10 @@ runtime·tracebackothers(G *me)
+ 			continue;
+ 		runtime·printf("\n");
+ 		runtime·goroutineheader(gp);
+-		if(gp->status == Grunning)
++		if(gp->status == Grunning) {
+ 			runtime·printf("\tgoroutine running on other thread; stack unavailable\n");
+-		else
++			runtime·printcreatedby(gp);
++		} else
+ 			runtime·traceback(gp->sched.pc, gp->sched.sp, gp->sched.lr, gp);
+ 	}
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1935a9a2f5..cfb4793af5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -1039,6 +1039,7 @@ Hchan*	runtime·makechan_c(ChanType*, int64);
+ void	runtime·chansend(ChanType*, Hchan*, byte*, bool*, void*);
+ void	runtime·chanrecv(ChanType*, Hchan*, byte*, bool*, bool*);
+ bool	runtime·showframe(Func*, G*);
++void	runtime·printcreatedby(G*);
+ 
+ void	runtime·ifaceE2I(InterfaceType*, Eface, Iface*);
+ 
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 0c80ec64b5..78ec5482db 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -193,20 +193,21 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	return n;		
+ }
+ 
+-static void
+-printcreatedby(G *gp)
++void
++runtime·printcreatedby(G *gp)
+ {
+ 	int32 line;
+ 	uintptr pc, tracepc;
+ 	Func *f;
+ 	String file;
+ 
+-	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil
+-		&& runtime·showframe(f, gp) && gp->goid != 1) {
++	// Show what created goroutine, except main goroutine (goid 1).
++	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil &&
++		runtime·showframe(f, gp) && gp->goid != 1) {
+ 		runtime·printf("created by %s\n", runtime·funcname(f));
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(pc > f->entry)
+-			tracepc -= sizeof(uintptr);
++			tracepc -= PCQuantum;
+ 		line = runtime·funcline(f, tracepc, &file);
+ 		runtime·printf("\t%S:%d", file, line);
+ 		if(pc > f->entry)
+@@ -229,7 +230,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+ 	if(runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, false) == 0)
+ 		runtime·gentraceback(pc, sp, lr, gp, 0, nil, 100, nil, nil, true);
+-	printcreatedby(gp);
++	runtime·printcreatedby(gp);
+ }
+ 
+ // func caller(n int) (pc uintptr, file string, line int, ok bool)
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index df52051ad2..7f89b78fde 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -199,21 +199,22 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 	return n;
+ }
+ 
+-static void
+-printcreatedby(G *gp)
++void
++runtime·printcreatedby(G *gp)
+ {
+ 	int32 line;
+-	String file;
+ 	uintptr pc, tracepc;
+ 	Func *f;
++	String file;
+ 
+ 	// Show what created goroutine, except main goroutine (goid 1).
+-	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil && gp->goid != 1) {
++	if((pc = gp->gopc) != 0 && (f = runtime·findfunc(pc)) != nil &&
++		runtime·showframe(f, gp) && gp->goid != 1) {
+ 		runtime·printf("created by %s\n", runtime·funcname(f));
+ 		tracepc = pc;	// back up to CALL instruction for funcline.
+ 		if(pc > f->entry)
+-			tracepc--;
+-		line =  runtime·funcline(f, tracepc, &file);
++			tracepc -= PCQuantum;
++		line = runtime·funcline(f, tracepc, &file);
+ 		runtime·printf("\t%S:%d", file, line);
+ 		if(pc > f->entry)
+ 			runtime·printf(" +%p", (uintptr)(pc - f->entry));
+@@ -236,7 +237,7 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 	// If that means we print nothing at all, repeat forcing all frames printed.
+ 	if(runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, false) == 0)
+ 		runtime·gentraceback(pc, sp, 0, gp, 0, nil, 100, nil, nil, true);
+-	printcreatedby(gp);
++	runtime·printcreatedby(gp);
+ }
+ 
+ int32

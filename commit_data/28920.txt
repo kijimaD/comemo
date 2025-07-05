@@ -23,7 +23,7 @@ Date:   Mon Jun 6 12:38:19 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/26659
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go      | 12 ++++++++++--
  src/cmd/compile/internal/gc/gsubr.go     | 18 ++++++++++++++++--
  src/cmd/compile/internal/gc/opnames.go   |  1 +
@@ -35,3 +35,274 @@ Date:   Mon Jun 6 12:38:19 2016 -0700
  src/cmd/compile/internal/gc/walk.go      | 30 ++++++++++++++++++++++++------
  test/interface/assertinline.go           | 16 +++++++++++++++-
  10 files changed, 97 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 74fe463dae..9343babdd3 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -184,7 +184,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			n.Addable = n.Left.Addable
+ 		}
+ 
+-	case OITAB:
++	case OITAB, OIDATA:
+ 		n.Addable = n.Left.Addable
+ 	}
+ 
+@@ -525,12 +525,20 @@ func cgen_wb(n, res *Node, wb bool) {
+ 		Thearch.Gmove(&n1, res)
+ 		Regfree(&n1)
+ 
+-		// interface table is first word of interface value
+ 	case OITAB:
++		// interface table is first word of interface value
+ 		var n1 Node
+ 		Igen(nl, &n1, res)
++		n1.Type = n.Type
++		Thearch.Gmove(&n1, res)
++		Regfree(&n1)
+ 
++	case OIDATA:
++		// interface data is second word of interface value
++		var n1 Node
++		Igen(nl, &n1, res)
+ 		n1.Type = n.Type
++		n1.Xoffset += int64(Widthptr)
+ 		Thearch.Gmove(&n1, res)
+ 		Regfree(&n1)
+ 
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 4943d9ddde..98cd03f656 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -48,6 +48,7 @@ var (
+ func Ismem(n *Node) bool {
+ 	switch n.Op {
+ 	case OITAB,
++		OIDATA,
+ 		OSPTR,
+ 		OLEN,
+ 		OCAP,
+@@ -456,16 +457,29 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		a.Type = obj.TYPE_ADDR
+ 
+-		// itable of interface value
+ 	case OITAB:
++		// itable of interface value
+ 		Naddr(a, n.Left)
+-
+ 		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
+ 			break // itab(nil)
+ 		}
+ 		a.Etype = uint8(Tptr)
+ 		a.Width = int64(Widthptr)
+ 
++	case OIDATA:
++		// idata of interface value
++		Naddr(a, n.Left)
++		if a.Type == obj.TYPE_CONST && a.Offset == 0 {
++			break // idata(nil)
++		}
++		if isdirectiface(n.Type) {
++			a.Etype = uint8(Simtype[n.Type.Etype])
++		} else {
++			a.Etype = uint8(Tptr)
++		}
++		a.Offset += int64(Widthptr)
++		a.Width = int64(Widthptr)
++
+ 		// pointer in a string or slice
+ 	case OSPTR:
+ 		Naddr(a, n.Left)
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index bcdae6c762..095471ba60 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -143,6 +143,7 @@ var opnames = []string{
+ 	OINLCALL:         "INLCALL",
+ 	OEFACE:           "EFACE",
+ 	OITAB:            "ITAB",
++	OIDATA:           "IDATA",
+ 	OSPTR:            "SPTR",
+ 	OCLOSUREVAR:      "CLOSUREVAR",
+ 	OCFUNC:           "CFUNC",
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index ad2bba9714..80282eb8cc 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -329,7 +329,7 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 
+ 		goto ret
+ 
+-	case OITAB:
++	case OITAB, OIDATA:
+ 		instrumentnode(&n.Left, init, 0, 0)
+ 		goto ret
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7ced255967..07df68a7af 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2026,6 +2026,10 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(ssa.OpITab, n.Type, a)
+ 
++	case OIDATA:
++		a := s.expr(n.Left)
++		return s.newValue1(ssa.OpIData, n.Type, a)
++
+ 	case OEFACE:
+ 		tab := s.expr(n.Left)
+ 		data := s.expr(n.Right)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 8c82c22f97..a11d39b9b0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2327,6 +2327,25 @@ func itabType(itab *Node) *Node {
+ 	return typ
+ }
+ 
++// ifaceData loads the data field from an interface.
++// The concrete type must be known to have type t.
++// It follows the pointer if !isdirectiface(t).
++func ifaceData(n *Node, t *Type) *Node {
++	ptr := NodSym(OIDATA, n, nil)
++	if isdirectiface(t) {
++		ptr.Type = t
++		ptr.Typecheck = 1
++		return ptr
++	}
++	ptr.Type = Ptrto(t)
++	ptr.Bounded = true
++	ptr.Typecheck = 1
++	ind := Nod(OIND, ptr, nil)
++	ind.Type = t
++	ind.Typecheck = 1
++	return ind
++}
++
+ // iet returns 'T' if t is a concrete type,
+ // 'I' if t is an interface type, and 'E' if t is an empty interface type.
+ // It is used to build calls to the conv* and assert* runtime routines.
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 58f95e82c9..b02c70eb94 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -383,7 +383,7 @@ const (
+ 	OINDEX     // Left[Right] (index of array or slice)
+ 	OINDEXMAP  // Left[Right] (index of map)
+ 	OKEY       // Left:Right (key:value in struct/array/map literal, or slice index pair)
+-	_          // was OPARAM, but cannot remove without breaking binary blob in builtin.go
++	OIDATA     // data word of an interface value in Left; TODO: move next to OITAB once it is easier to regenerate the binary blob in builtin.go (issues 15835, 15839)
+ 	OLEN       // len(Left)
+ 	OMAKE      // make(List) (before type checking converts to one of the following)
+ 	OMAKECHAN  // make(Type, Left) (type is chan)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 066e2a19c8..c3af650a6b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1912,6 +1912,12 @@ OpSwitch:
+ 		n.Type = Ptrto(Types[TUINTPTR])
+ 		break OpSwitch
+ 
++	case OIDATA:
++		// Whoever creates the OIDATA node must know a priori the concrete type at that moment,
++		// usually by just having checked the OITAB.
++		Fatalf("cannot typecheck interface data %v", n)
++		break OpSwitch
++
+ 	case OSPTR:
+ 		ok |= Erv
+ 		n.Left = typecheck(n.Left, Erv)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 601e3c3885..237a5519ec 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -555,7 +555,7 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+-	case OSPTR, OITAB:
++	case OSPTR, OITAB, OIDATA:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+ 	case OLEN, OCAP:
+@@ -961,11 +961,13 @@ opswitch:
+ 		toKind := t.iet()
+ 
+ 		res := n.List.First()
++		scalar := !haspointers(res.Type)
+ 
+ 		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
+ 		// This is faster and shorter and allows the corresponding assertX2X2
+ 		// routines to skip nil checks on their last argument.
+-		if isblank(res) {
++		// Also avoid runtime calls for converting interfaces to scalar concrete types.
++		if isblank(res) || (scalar && toKind == 'T') {
+ 			var fast *Node
+ 			switch toKind {
+ 			case 'T':
+@@ -985,11 +987,27 @@ opswitch:
+ 				fast = Nod(ONE, nodnil(), tab)
+ 			}
+ 			if fast != nil {
+-				if Debug_typeassert > 0 {
+-					Warn("type assertion (ok only) inlined")
++				if isblank(res) {
++					if Debug_typeassert > 0 {
++						Warn("type assertion (ok only) inlined")
++					}
++					n = Nod(OAS, ok, fast)
++					n = typecheck(n, Etop)
++				} else {
++					if Debug_typeassert > 0 {
++						Warn("type assertion (scalar result) inlined")
++					}
++					n = Nod(OIF, ok, nil)
++					n.Likely = 1
++					if isblank(ok) {
++						n.Left = fast
++					} else {
++						n.Ninit.Set1(Nod(OAS, ok, fast))
++					}
++					n.Nbody.Set1(Nod(OAS, res, ifaceData(from, res.Type)))
++					n.Rlist.Set1(Nod(OAS, res, nil))
++					n = typecheck(n, Etop)
+ 				}
+-				n = Nod(OAS, ok, fast)
+-				n = typecheck(n, Etop)
+ 				break
+ 			}
+ 		}
+diff --git a/test/interface/assertinline.go b/test/interface/assertinline.go
+index 227fe70d87..c3f3624570 100644
+--- a/test/interface/assertinline.go
++++ b/test/interface/assertinline.go
+@@ -43,7 +43,7 @@ func assertbig(x interface{}) complex128 {
+ }
+ 
+ func assertbig2(x interface{}) (complex128, bool) {
+-	z, ok := x.(complex128) // ERROR "type assertion not inlined"
++	z, ok := x.(complex128) // ERROR "type assertion .scalar result. inlined"
+ 	return z, ok
+ }
+ 
+@@ -51,3 +51,17 @@ func assertbig2ok(x interface{}) (complex128, bool) {
+ 	_, ok := x.(complex128) // ERROR "type assertion [(]ok only[)] inlined"
+ 	return 0, ok
+ }
++
++func assertslice(x interface{}) []int {
++	return x.([]int) // ERROR "type assertion not inlined"
++}
++
++func assertslice2(x interface{}) ([]int, bool) {
++	z, ok := x.([]int) // ERROR "type assertion not inlined"
++	return z, ok
++}
++
++func assertslice2ok(x interface{}) ([]int, bool) {
++	_, ok := x.([]int) // ERROR "type assertion [(]ok only[)] inlined"
++	return nil, ok
++}

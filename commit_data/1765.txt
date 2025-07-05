@@ -8,8 +8,157 @@ Date:   Thu Mar 5 18:44:21 2009 -0800
     R=r
     OCL=25808
     CL=25808
-
+---
  usr/gri/pretty/printer.go    | 65 +++++++++++++++++++++++++++++++++++++++++++-
  usr/gri/pretty/selftest2.go  |  7 +++--
  usr/gri/pretty/template.html |  6 ++++
  3 files changed, 74 insertions(+), 4 deletions(-)
+
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 0bf281176e..cc1d5ae1e1 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -11,6 +11,7 @@ import (
+ 	"tabwriter";
+ 	"flag";
+ 	"fmt";
++	"strings";
+ 	Utils "utils";
+ 	"token";
+ 	"ast";
+@@ -388,8 +389,64 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ // ----------------------------------------------------------------------------
+ // HTML support
+ 
++const template_name = "template.html"
++var html_template string  // TODO should probably be []byte
++
++// tags for substitution in html_template
++const body_tag = "<!--BODY-->";
++
++// indexes of various tags in html_template
++var body_index int;
++
++func init() {
++	fd, err0 := os.Open(template_name, os.O_RDONLY, 0);
++	defer fd.Close();
++	if err0 != nil {
++		panic("cannot open html template");
++	}
++
++	// TODO not sure why this didn't work
++	/*
++	var buf io.ByteBuffer;
++	len, err1 := io.Copy(fd, buf);
++	if err1 == io.ErrEOF {
++		err1 = nil;
++	}
++	if err1 != nil {
++		panic("cannot read html template");
++	}
++	if len == 0 {
++		panic("html template empty");
++	}
++	html_template = string(buf.AllData());
++	*/
++
++	var buf [8*1024]byte;
++	len, err1 := io.Readn(fd, buf);
++	if err1 == io.ErrEOF {
++		err1 = nil;
++	}
++	if err1 != nil {
++		panic("cannot read html template");
++	}
++	if len == 0 {
++		panic("html template empty");
++	}
++	html_template = string(buf[0 : len]);
++
++	body_index = strings.Index(html_template, body_tag);
++	if body_index < 0 {
++		panic("html_template has no BODY tag");
++	}
++}
++
++
+ func (P *Printer) HtmlPrologue(title string) {
+ 	if P.html {
++		P.Printf("%s\n", html_template[0 : body_index]);
++		P.Printf("<h1>%s</h1>\n", "package " + title);
++		P.Printf("<pre>\n");
++		/*
+ 		P.TaggedString(0,
+ 			"<html>\n"
+ 			"<head>\n"
+@@ -402,18 +459,24 @@ func (P *Printer) HtmlPrologue(title string) {
+ 			"<pre>\n",
+ 			"", ""
+ 		)
++		*/
+ 	}
+ }
+ 
+ 
+ func (P *Printer) HtmlEpilogue() {
+ 	if P.html {
++		P.String(0, "");  // flush
++		P.Printf("</pre>\n");
++		P.Printf("%s", html_template[body_index : len(html_template)]);
++		/*
+ 		P.TaggedString(0,
+ 			"</pre>\n"
+ 			"</body>\n"
+ 			"<html>\n",
+ 			"", ""
+ 		)
++		*/
+ 	}
+ }
+ 
+@@ -1130,7 +1193,7 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 	P.Init(text, html, prog.Comments);
+ 
+ 	// TODO would be better to make the name of the src file be the title
+-	P.HtmlPrologue("package " + prog.Ident.Str);
++	P.HtmlPrologue(prog.Ident.Str);
+ 	P.Program(prog);
+ 	P.HtmlEpilogue();
+ 
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 48fe33cf97..a3de38b1b1 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -130,8 +130,9 @@ func f3(a *[]int, m map[string] int) {
+ 
+ type I interface {}
+ 
+-func f3(x I) int {
+-	switch tmp := tmp.(type) {
++/*
++func f4(x I) int {
++	switch tmp := x.(type) {
+ 	case S: return 1;
+ 	}
+ 	switch {
+@@ -139,7 +140,7 @@ func f3(x I) int {
+ 	}
+ 	return 0;
+ }
+-
++*/
+ 
+ func main() {
+ // the prologue
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+new file mode 100644
+index 0000000000..8efbdfa7f3
+--- /dev/null
++++ b/usr/gri/pretty/template.html
+@@ -0,0 +1,6 @@
++
++<!--BODY-->
++
++</div>  <!-- content -->
++</body>
++</html>

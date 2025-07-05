@@ -23,8 +23,157 @@ Date:   Fri Aug 9 16:48:12 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12689046
-
+---
  src/cmd/cc/pgen.c      |  8 ++++++--
  src/cmd/gc/pgen.c      | 18 +++++++++++-------
  src/pkg/runtime/mgc0.c | 10 +++++++---
  3 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 4c6859a733..66075572b6 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -31,6 +31,8 @@
+ #include "gc.h"
+ #include "../../pkg/runtime/funcdata.h"
+ 
++enum { BitsPerPointer = 2 };
++
+ static void dumpgcargs(Type *fn, Sym *sym);
+ 
+ int
+@@ -674,7 +676,7 @@ walktype1(Type *t, int32 offset, Bvec *bv)
+ 		// pointer types
+ 		if((offset + t->offset) % ewidth[TIND] != 0)
+ 			yyerror("unaligned pointer");
+-		bvset(bv, (offset + t->offset) / ewidth[TIND]);
++		bvset(bv, ((offset + t->offset) / ewidth[TIND])*BitsPerPointer);
+ 		break;
+ 
+ 	case TSTRUCT:
+@@ -701,6 +703,7 @@ dumpgcargs(Type *fn, Sym *sym)
+ 	Bvec *bv;
+ 	Type *t;
+ 	int32 i;
++	int32 argbytes;
+ 	int32 symoffset, argoffset;
+ 
+ 	if(hasdotdotdot()) {
+@@ -709,7 +712,8 @@ dumpgcargs(Type *fn, Sym *sym)
+ 		gextern(sym, nodconst(0), 0, 4); // nptrs=0
+ 		symoffset = 4;
+ 	} else {
+-		bv = bvalloc((argsize() + ewidth[TIND] - 1) / ewidth[TIND]);
++		argbytes = (argsize() + ewidth[TIND] - 1);
++		bv = bvalloc((argbytes  / ewidth[TIND]) * BitsPerPointer);
+ 		argoffset = align(0, fn->link, Aarg0, nil);
+ 		if(argoffset > 0) {
+ 			// The C calling convention returns structs by
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 64b03b341f..6595abce42 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -8,6 +8,8 @@
+ #include	"opt.h"
+ #include	"../../pkg/runtime/funcdata.h"
+ 
++enum { BitsPerPointer = 2 };
++
+ static void allocauto(Prog* p);
+ static void dumpgcargs(Node*, Sym*);
+ static void dumpgclocals(Node*, Sym*);
+@@ -227,7 +229,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 	case TMAP:
+ 		if(*xoffset % widthptr != 0)
+ 			fatal("walktype1: invalid alignment, %T", t);
+-		bvset(bv, *xoffset / widthptr);
++		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -235,7 +237,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 		// struct { byte *str; intgo len; }
+ 		if(*xoffset % widthptr != 0)
+ 			fatal("walktype1: invalid alignment, %T", t);
+-		bvset(bv, *xoffset / widthptr);
++		bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -245,8 +247,10 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 		// struct { Type* type; union { void* ptr, uintptr val } data; }
+ 		if(*xoffset % widthptr != 0)
+ 			fatal("walktype1: invalid alignment, %T", t);
+-		bvset(bv, *xoffset / widthptr);
+-		bvset(bv, (*xoffset + widthptr) / widthptr);
++		bvset(bv, ((*xoffset / widthptr) * BitsPerPointer) + 1);
++		if(isnilinter(t))
++			bvset(bv, ((*xoffset / widthptr) * BitsPerPointer));
++		bvset(bv, ((*xoffset + widthptr) / widthptr) * BitsPerPointer);
+ 		*xoffset += t->width;
+ 		break;
+ 
+@@ -259,7 +263,7 @@ walktype1(Type *t, vlong *xoffset, Bvec *bv)
+ 			// struct { byte* array; uintgo len; uintgo cap; }
+ 			if(*xoffset % widthptr != 0)
+ 				fatal("walktype1: invalid TARRAY alignment, %T", t);
+-			bvset(bv, *xoffset / widthptr);
++			bvset(bv, (*xoffset / widthptr) * BitsPerPointer);
+ 			*xoffset += t->width;
+ 		} else if(!haspointers(t->type))
+ 				*xoffset += t->width;
+@@ -309,7 +313,7 @@ dumpgcargs(Node *fn, Sym *sym)
+ 	thistype = getthisx(fn->type);
+ 	inargtype = getinargx(fn->type);
+ 	outargtype = getoutargx(fn->type);
+-	bv = bvalloc(fn->type->argwid / widthptr);
++	bv = bvalloc((fn->type->argwid / widthptr) * BitsPerPointer);
+ 	if(thistype != nil)
+ 		walktype(thistype, bv);
+ 	if(inargtype != nil)
+@@ -336,7 +340,7 @@ dumpgclocals(Node* fn, Sym *sym)
+ 	int32 i;
+ 	int off;
+ 
+-	bv = bvalloc(stkptrsize / widthptr);
++	bv = bvalloc((stkptrsize / widthptr) * BitsPerPointer);
+ 	for(ll = fn->dcl; ll != nil; ll = ll->next) {
+ 		node = ll->n;
+ 		if(node->class == PAUTO && node->op == ONAME) {
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 3c7df99475..5c91388867 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -33,6 +33,9 @@ enum {
+ 	PRECISE = 1,
+ 	LOOP = 2,
+ 	PC_BITS = PRECISE | LOOP,
++
++	// Pointer map
++	BitsPerPointer = 2,
+ };
+ 
+ // Bits in per-word bitmap.
+@@ -1409,10 +1412,11 @@ scanbitvector(byte *scanp, BitVector *bv)
+ 			i = remptrs;
+ 		else
+ 			i = 32;
++		i /= BitsPerPointer;
+ 		for(; i > 0; i--) {
+-			if(w & 1)
++			if(w & 3)
+ 				addroot((Obj){scanp, PtrSize, 0});
+-			w >>= 1;
++			w >>= BitsPerPointer;
+ 			scanp += PtrSize;
+ 		}
+ 	}
+@@ -1444,7 +1448,7 @@ addframeroots(Stkframe *frame, void*)
+ 		} else if(locals->n > 0) {
+ 			// Locals bitmap information, scan just the
+ 			// pointers in locals.
+-			size = locals->n*PtrSize;
++			size = (locals->n*PtrSize) / BitsPerPointer;
+ 			scanbitvector(frame->varp - size, locals);
+ 		}
+ 	}

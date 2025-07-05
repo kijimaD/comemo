@@ -10,6 +10,21 @@ Date:   Mon Feb 24 17:10:50 2020 -0500
     Change-Id: Ib8d53689209a3b003d62f84c7c6047d8ec5df859
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220719
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 45cc87287c..c2c0838900 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -409,9 +409,6 @@ func (ctxt *Link) loadlib() {
+ 	}
+ 
+ 	// load internal packages, if not already
+-	if ctxt.Arch.Family == sys.ARM {
+-		loadinternal(ctxt, "math")
+-	}
+ 	if *flagRace {
+ 		loadinternal(ctxt, "runtime/race")
+ 	}

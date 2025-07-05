@@ -7,6 +7,20 @@ Date:   Sat Oct 3 15:02:11 2009 -0700
     TBR=r
     OCL=35308
     CL=35308
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 99ba599cf0..07f2774a15 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -52,7 +52,7 @@ time make test
+ 
+ (xcd ../misc/cgo/stdio
+ make clean
+-test.bash
++./test.bash
+ ) || exit $?
+ 
+ (xcd ../usr/austin/ogle

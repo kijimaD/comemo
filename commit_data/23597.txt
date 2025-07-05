@@ -9,7 +9,7 @@ Date:   Fri May 29 10:00:45 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm64/asm7.go |  2 +-
  src/cmd/internal/obj/go.go         |  4 +++-
  src/cmd/internal/obj/link.go       |  8 ++++++++
@@ -17,3 +17,124 @@ Date:   Fri May 29 10:00:45 2015 -0700
  src/cmd/internal/obj/ppc64/asm9.go |  2 +-
  src/cmd/internal/obj/x86/obj6.go   | 10 +++++-----
  6 files changed, 19 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 53f08a3d5e..9537fcecf9 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -2101,7 +2101,7 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			}
+ 		} else {
+ 			/* CSET */
+-			if p.From3.Type != obj.TYPE_NONE {
++			if p.From3Type() != obj.TYPE_NONE {
+ 				ctxt.Diag("invalid combination\n%v", p)
+ 			}
+ 			rf = REGZERO
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 9c0264e22f..3e6cd21636 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -63,7 +63,9 @@ func Nopout(p *Prog) {
+ func Nocache(p *Prog) {
+ 	p.Optab = 0
+ 	p.From.Class = 0
+-	p.From3.Class = 0
++	if p.From3 != nil {
++		p.From3.Class = 0
++	}
+ 	p.To.Class = 0
+ }
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index f7728bf080..f96a2951b6 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -239,6 +239,14 @@ func (p *Prog) From3Type() int16 {
+ 	return p.From3.Type
+ }
+ 
++// From3Offset returns From3.Offset, or 0 when From3 is nil.
++func (p *Prog) From3Offset() int64 {
++	if p.From3 == nil {
++		return 0
++	}
++	return p.From3.Offset
++}
++
+ // ProgInfo holds information about the instruction for use
+ // by clients such as the compiler. The exact meaning of this
+ // data is up to the client and is not interpreted by the cmd/internal/obj/... packages.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 35a9ef626f..c5f4820362 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -226,7 +226,7 @@ func Writeobjdirect(ctxt *Link, b *Biobuf) {
+ 					etext.Next = s
+ 				}
+ 				etext = s
+-				flag = int(p.From3.Offset)
++				flag = int(p.From3Offset())
+ 				if flag&DUPOK != 0 {
+ 					s.Dupok = 1
+ 				}
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 16574d2407..b9f5ad378f 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -724,7 +724,7 @@ func oplook(ctxt *obj.Link, p *obj.Prog) *Optab {
+ 	}
+ 
+ 	a1--
+-	a3 := C_NONE
++	a3 := C_NONE + 1
+ 	if p.From3 != nil {
+ 		a3 = int(p.From3.Class)
+ 		if a3 == 0 {
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 4a4785eb4b..99168d13c1 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -478,7 +478,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	}
+ 
+ 	// TODO(rsc): Remove 'p.Mode == 64 &&'.
+-	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3.Offset&obj.NOSPLIT == 0 {
++	if p.Mode == 64 && autoffset < obj.StackSmall && p.From3Offset()&obj.NOSPLIT == 0 {
+ 		for q := p; q != nil; q = q.Link {
+ 			if q.As == obj.ACALL {
+ 				goto noleaf
+@@ -492,13 +492,13 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 	noleaf:
+ 	}
+ 
+-	if p.From3.Offset&obj.NOSPLIT == 0 || (p.From3.Offset&obj.WRAPPER != 0) {
++	if p.From3Offset()&obj.NOSPLIT == 0 || p.From3Offset()&obj.WRAPPER != 0 {
+ 		p = obj.Appendp(ctxt, p)
+ 		p = load_g_cx(ctxt, p) // load g into CX
+ 	}
+ 
+ 	var q *obj.Prog
+-	if cursym.Text.From3.Offset&obj.NOSPLIT == 0 {
++	if cursym.Text.From3Offset()&obj.NOSPLIT == 0 {
+ 		p = stacksplit(ctxt, p, autoffset, int32(textarg), &q) // emit split check
+ 	}
+ 
+@@ -553,7 +553,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 		p.To.Reg = REG_BP
+ 	}
+ 
+-	if cursym.Text.From3.Offset&obj.WRAPPER != 0 {
++	if cursym.Text.From3Offset()&obj.WRAPPER != 0 {
+ 		// if(g->panic != nil && g->panic->argp == FP) g->panic->argp = bottom-of-frame
+ 		//
+ 		//	MOVQ g_panic(CX), BX
+@@ -984,7 +984,7 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, framesize int32, textarg int32, jmp
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	if ctxt.Cursym.Cfunc != 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestackc", 0)
+-	} else if ctxt.Cursym.Text.From3.Offset&obj.NEEDCTXT == 0 {
++	} else if ctxt.Cursym.Text.From3Offset()&obj.NEEDCTXT == 0 {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack_noctxt", 0)
+ 	} else {
+ 		p.To.Sym = obj.Linklookup(ctxt, "runtime.morestack", 0)

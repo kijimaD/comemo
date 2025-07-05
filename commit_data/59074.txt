@@ -14,8 +14,119 @@ Date:   Wed Feb 7 10:23:53 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             | 41 +++++++++-------------
  .../internal/inline/interleaved/interleaved.go     | 25 ++++---------
  test/fixedbugs/issue52193.go                       |  2 +-
  3 files changed, 24 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 3e4c39ed9c..8d2de22473 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -141,38 +141,29 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgo.Profile) {
+ 		PGOInlinePrologue(profile)
+ 	}
+ 
+-	ir.VisitFuncsBottomUp(funcs, func(list []*ir.Func, recursive bool) {
+-		CanInlineSCC(list, recursive, profile)
+-	})
+-}
+-
+-// CanInlineSCC computes the inlinability of functions within an SCC
+-// (strongly connected component).
+-//
+-// CanInlineSCC is designed to be used by ir.VisitFuncsBottomUp
+-// callbacks.
+-func CanInlineSCC(funcs []*ir.Func, recursive bool, profile *pgo.Profile) {
+ 	if base.Flag.LowerL == 0 {
+ 		return
+ 	}
+ 
+-	numfns := numNonClosures(funcs)
++	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
++		numfns := numNonClosures(funcs)
+ 
+-	for _, fn := range funcs {
+-		if !recursive || numfns > 1 {
+-			// We allow inlining if there is no
+-			// recursion, or the recursion cycle is
+-			// across more than one function.
+-			CanInline(fn, profile)
+-		} else {
+-			if base.Flag.LowerM > 1 && fn.OClosure == nil {
+-				fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
++		for _, fn := range funcs {
++			if !recursive || numfns > 1 {
++				// We allow inlining if there is no
++				// recursion, or the recursion cycle is
++				// across more than one function.
++				CanInline(fn, profile)
++			} else {
++				if base.Flag.LowerM > 1 && fn.OClosure == nil {
++					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
++				}
++			}
++			if inlheur.Enabled() {
++				analyzeFuncProps(fn, profile)
+ 			}
+ 		}
+-		if inlheur.Enabled() {
+-			analyzeFuncProps(fn, profile)
+-		}
+-	}
++	})
+ }
+ 
+ // GarbageCollectUnreferencedHiddenClosures makes a pass over all the
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index 8956080240..c5334d0300 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -38,26 +38,15 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgo.Profile) {
+ 	if base.Debug.PGOInline != 0 {
+ 		inlProfile = profile
+ 	}
+-	if inlProfile != nil {
+-		inline.PGOInlinePrologue(inlProfile)
+-	}
+-
+-	ir.VisitFuncsBottomUp(pkg.Funcs, func(funcs []*ir.Func, recursive bool) {
+-		// We visit functions within an SCC in fairly arbitrary order,
+-		// so by computing inlinability for all functions in the SCC
+-		// before performing any inlining, the results are less
+-		// sensitive to the order within the SCC (see #58905 for an
+-		// example).
+ 
+-		// First compute inlinability for all functions in the SCC ...
+-		inline.CanInlineSCC(funcs, recursive, inlProfile)
++	// First compute inlinability of all functions in the package.
++	inline.CanInlineFuncs(pkg.Funcs, inlProfile)
+ 
+-		// ... then make a second pass to do devirtualization and inlining
+-		// of calls.
+-		for _, fn := range funcs {
+-			DevirtualizeAndInlineFunc(fn, inlProfile)
+-		}
+-	})
++	// Now we make a second pass to do devirtualization and inlining of
++	// calls. Order here should not matter.
++	for _, fn := range pkg.Funcs {
++		DevirtualizeAndInlineFunc(fn, inlProfile)
++	}
+ 
+ 	if base.Flag.LowerL != 0 {
+ 		// Perform a garbage collection of hidden closures functions that
+diff --git a/test/fixedbugs/issue52193.go b/test/fixedbugs/issue52193.go
+index 40e6dcb33b..32375d114f 100644
+--- a/test/fixedbugs/issue52193.go
++++ b/test/fixedbugs/issue52193.go
+@@ -32,7 +32,7 @@ func F(peerShare []byte) ([]byte, error) { // ERROR "leaking param: peerShare"
+ 
+ func f() { // ERROR "can inline f"
+ 	var i interface{ m() } = T(0) // ERROR "T\(0\) does not escape"
+-	i.m()                         // ERROR "devirtualizing i.m"
++	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m"
+ }
+ 
+ type T int

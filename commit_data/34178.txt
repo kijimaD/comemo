@@ -13,6 +13,20 @@ Date:   Sun Oct 8 10:45:48 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Marvin Stenger <marvin.stenger94@gmail.com>
-
+---
  src/cmd/link/internal/loadmacho/ldmacho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index 1c43c1b040..bcea6c731a 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -627,7 +627,7 @@ func Load(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length i
+ 		sect := &c.seg.sect[machsym.sectnum-1]
+ 		outer := sect.sym
+ 		if outer == nil {
+-			return errorf("reference to invalid section %s/%s", sect.segname, sect.name)
++			continue // ignore reference to invalid section
+ 		}
+ 
+ 		if s.Outer != nil {

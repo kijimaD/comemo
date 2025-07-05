@@ -17,6 +17,29 @@ Date:   Sat Mar 25 21:09:16 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3fc998e295..f048957663 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -3029,7 +3029,7 @@ putrelv:
+ 
+ 		r := obj.Addrel(ctxt.Cursym)
+ 		*r = rel
+-		r.Off = int32(ctxt.Curp.Pc + int64(asmbuf.Len()))
++		r.Off = int32(p.Pc + int64(asmbuf.Len()))
+ 	}
+ 
+ 	asmbuf.PutInt32(v)
+@@ -3322,8 +3322,6 @@ func (asmbuf *AsmBuf) asmvex(ctxt *obj.Link, rm, v, r *obj.Addr, vex, opcode uin
+ }
+ 
+ func (asmbuf *AsmBuf) doasm(ctxt *obj.Link, p *obj.Prog) {
+-	ctxt.Curp = p // TODO
+-
+ 	o := opindex[p.As&obj.AMask]
+ 
+ 	if o == nil {

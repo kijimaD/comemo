@@ -12,7 +12,63 @@ Date:   Fri Oct 8 11:30:33 2021 -0400
     Trust: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  misc/boring/README.md    |  8 ++++----
  misc/boring/build.docker | 12 +++++++-----
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/misc/boring/README.md b/misc/boring/README.md
+index bd8deff1cc..4153345dd6 100644
+--- a/misc/boring/README.md
++++ b/misc/boring/README.md
+@@ -24,8 +24,8 @@ at `gs://go-boringcrypto/`, making it available for download at
+ The script records each published release in the `RELEASES` file in this directory.
+ 
+ The `build.docker` script, which must be run after `build.release`, prepares a Docker image
+-and publishes it on hub.docker.com in the goboring organization.
+-`go1.8.3b1` is published as `goboring/golang:1.8.3b1`.
++and publishes it on Google Artifact Registry.
++`go1.17.2b7` is published as `us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:1.17.2b7`.
+ 
+ ## Release process
+ 
+@@ -56,8 +56,8 @@ To issue new BoringCrypto releases based on Go 1.X:
+ 
+ ## Building from Docker
+ 
+-A Dockerfile that starts with `FROM golang:1.8.3` can switch
+-to `FROM goboring/golang:1.8.3b2` (see [goboring/golang on Docker Hub](https://hub.docker.com/r/goboring/golang/))
++A Dockerfile that starts with `FROM golang:1.17.2` can switch
++to `FROM us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:1.17.2b7`
+ and should need no other modifications.
+ 
+ ## Building from Bazel
+diff --git a/misc/boring/build.docker b/misc/boring/build.docker
+index 97d253e4c6..877d034655 100755
+--- a/misc/boring/build.docker
++++ b/misc/boring/build.docker
+@@ -39,9 +39,11 @@ fi
+ dversion=$(echo "$version" | sed 's/^go//')
+ sed "s!UUU!$url!; s/SSS/$sha256/; s/VVV/$dversion/" dockerfile.in >$dir/Dockerfile
+ 
+-docker build --pull -t us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion $dir
+-docker run goboring/golang:$dversion go version
+-docker run goboring/golang:$dversion go tool nm /usr/local/go/bin/go >$dir/nm
++dpkg=us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion
++
++docker build --pull -t $dpkg  $dir
++docker run $dpkg go version
++docker run $dpkg go tool nm /usr/local/go/bin/go >$dir/nm
+ if ! grep crypto/internal/boring/sig.BoringCrypto $dir/nm >/dev/null; then
+ 	echo 'built docker image but did NOT find sig.BoringCrypto in go command!' >&2
+ 	exit 2
+@@ -50,7 +52,7 @@ if egrep 'crypto/sha256\.\(\*digest\)' $dir/nm >/dev/null; then
+ 	echo 'built docker image but DID find sha256.(*digest) in go command unexpectedly!' >&2
+ 	exit 2
+ fi
+-docker push us-docker.pkg.dev/google.com/api-project-999119582588/go-boringcrypto/golang:$dversion
++docker push $dpkg
+ 
+ echo
+-echo published as goboring/golang:$dversion
++echo published as $dpkg

@@ -9,6 +9,37 @@ Date:   Tue Sep 5 20:21:41 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/time/example_test.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 5aca97f08f..8d019a0f21 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -127,6 +127,25 @@ func ExampleDate() {
+ 	// Output: Go launched at 2009-11-10 15:00:00 -0800 PST
+ }
+ 
++func ExampleNewTicker() {
++	ticker := time.NewTicker(time.Second)
++	defer ticker.Stop()
++	done := make(chan bool)
++	go func() {
++		time.Sleep(10 * time.Second)
++		done <- true
++	}()
++	for {
++		select {
++		case <-done:
++			fmt.Println("Done!")
++			return
++		case t := <-ticker.C:
++			fmt.Println("Current time: ", t)
++		}
++	}
++}
++
+ func ExampleTime_Format() {
+ 	// Parse a time value from a string in the standard Unix format.
+ 	t, err := time.Parse(time.UnixDate, "Sat Mar  7 11:06:39 PST 2015")

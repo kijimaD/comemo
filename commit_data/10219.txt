@@ -7,6 +7,20 @@ Date:   Thu Nov 3 14:34:35 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5303095
-
+---
  src/pkg/http/sniff.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/sniff.go b/src/pkg/http/sniff.go
+index d608687507..690b1ac9fb 100644
+--- a/src/pkg/http/sniff.go
++++ b/src/pkg/http/sniff.go
+@@ -11,7 +11,7 @@ import (
+ 
+ // Content-type sniffing algorithm.
+ // References in this file refer to this draft specification:
+-//   http://tools.ietf.org/html/draft-ietf-websec-mime-sniff-03
++//   http://mimesniff.spec.whatwg.org/
+ 
+ // The algorithm prefers to use sniffLen bytes to make its decision.
+ const sniffLen = 512

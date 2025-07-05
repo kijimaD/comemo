@@ -17,6 +17,19 @@ Date:   Sat Apr 22 13:41:50 2017 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/syscall/errors_plan9.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/syscall/errors_plan9.go b/src/syscall/errors_plan9.go
+index 6952562c69..74a5659606 100644
+--- a/src/syscall/errors_plan9.go
++++ b/src/syscall/errors_plan9.go
+@@ -45,6 +45,7 @@ var (
+ 	// what package os and others expect.
+ 	EACCES       = NewError("access permission denied")
+ 	EAFNOSUPPORT = NewError("address family not supported by protocol")
++	ESPIPE       = NewError("illegal seek")
+ )
+ 
+ // Notes

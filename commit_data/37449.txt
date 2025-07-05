@@ -31,7 +31,7 @@ Date:   Sun Jul 29 01:38:25 2018 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                    |  2 +-
  src/cmd/go/internal/modfetch/proxy.go             | 13 +++--
  src/cmd/go/internal/modfetch/repo.go              | 13 +++--
@@ -49,3 +49,577 @@ Date:   Sun Jul 29 01:38:25 2018 -0400
  src/cmd/go/testdata/script/mod_readonly.txt       | 39 +++++++++++++
  src/cmd/go/testdata/script/mod_vendor.txt         | 14 ++---
  16 files changed, 178 insertions(+), 91 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index c7746b6912..8dc4d1fbd2 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -21,7 +21,7 @@ var (
+ 	BuildA                 bool   // -a flag
+ 	BuildBuildmode         string // -buildmode flag
+ 	BuildContext           = defaultContext()
+-	BuildGetmode           string             // -getmode flag
++	BuildMod               string             // -mod flag
+ 	BuildI                 bool               // -i flag
+ 	BuildLinkshared        bool               // -linkshared flag
+ 	BuildMSan              bool               // -msan flag
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index dc667032ac..ce17ed2311 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -25,11 +25,14 @@ var HelpGoproxy = &base.Command{
+ 	Short:     "module proxy protocol",
+ 	Long: `
+ The go command by default downloads modules from version control systems
+-directly, just as 'go get' always has. If the GOPROXY environment variable
+-is set to the URL of a module proxy, the go command will instead fetch
+-all modules from that proxy. No matter the source of the modules, downloaded
+-modules must match existing entries in go.sum (see 'go help modules' for
+-discussion of verification).
++directly, just as 'go get' always has. The GOPROXY environment variable allows
++further control over the download source. If GOPROXY is unset, is the empty string,
++or is the string "direct", downloads use the default direct connection to version
++control systems. Setting GOPROXY to "off" disallows downloading modules from
++any source. Otherwise, GOPROXY is expected to be the URL of a module proxy,
++in which case the go command will fetch all modules from that proxy.
++No matter the source of the modules, downloaded modules must match existing
++entries in go.sum (see 'go help modules' for discussion of verification).
+ 
+ A Go module proxy is any web server that can respond to GET requests for
+ URLs of a specified form. The requests have no query parameters, so even
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 905b16b80e..f6f47bb998 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -203,10 +203,13 @@ func Lookup(path string) (Repo, error) {
+ 
+ // lookup returns the module with the given module path.
+ func lookup(path string) (r Repo, err error) {
+-	if cfg.BuildGetmode != "" {
+-		return nil, fmt.Errorf("module lookup disabled by -getmode=%s", cfg.BuildGetmode)
++	if cfg.BuildMod == "vendor" {
++		return nil, fmt.Errorf("module lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+-	if proxyURL != "" {
++	if proxyURL == "off" {
++		return nil, fmt.Errorf("module lookup disabled by GOPROXY=%s", proxyURL)
++	}
++	if proxyURL != "" && proxyURL != "direct" {
+ 		return lookupProxy(path)
+ 	}
+ 
+@@ -241,8 +244,8 @@ func lookupCodeRepo(rr *get.RepoRoot) (codehost.Repo, error) {
+ // the original "go get" would have used, at the specific repository revision
+ // (typically a commit hash, but possibly also a source control tag).
+ func ImportRepoRev(path, rev string) (Repo, *RevInfo, error) {
+-	if cfg.BuildGetmode != "" {
+-		return nil, nil, fmt.Errorf("repo version lookup disabled by -getmode=%s", cfg.BuildGetmode)
++	if cfg.BuildMod == "vendor" || cfg.BuildMod == "readonly" {
++		return nil, nil, fmt.Errorf("repo version lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 
+ 	// Note: Because we are converting a code reference from a legacy
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ae383b693f..e8b08573d7 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -35,7 +35,7 @@ var CmdGet = &base.Command{
+ Get resolves and adds dependencies to the current development module
+ and then builds and installs them.
+ 
+-The first step is to resolve which dependencies to add. 
++The first step is to resolve which dependencies to add.
+ 
+ For each named package or package pattern, get must decide which version of
+ the corresponding module to use. By default, get chooses the latest tagged
+@@ -189,6 +189,11 @@ type task struct {
+ }
+ 
+ func runGet(cmd *base.Command, args []string) {
++	// -mod=readonly has no effect on "go get".
++	if cfg.BuildMod == "readonly" {
++		cfg.BuildMod = ""
++	}
++
+ 	switch getU {
+ 	case "", "patch", "true":
+ 		// ok
+@@ -205,8 +210,8 @@ func runGet(cmd *base.Command, args []string) {
+ 		fmt.Fprintf(os.Stderr, "go get: -t flag is a no-op when using modules\n")
+ 	}
+ 
+-	if cfg.BuildGetmode == "vendor" {
+-		base.Fatalf("go get: disabled by -getmode=vendor")
++	if cfg.BuildMod == "vendor" {
++		base.Fatalf("go get: disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 
+ 	modload.LoadBuildList()
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index f63555101a..b989af28da 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -108,7 +108,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 		info.GoVersion = loaded.goVersion[m.Path]
+ 	}
+ 
+-	if cfg.BuildGetmode == "vendor" {
++	if cfg.BuildMod == "vendor" {
+ 		info.Dir = filepath.Join(ModRoot, "vendor", m.Path)
+ 		return info
+ 	}
+@@ -137,7 +137,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 				}
+ 			}
+ 		}
+-		if cfg.BuildGetmode == "vendor" {
++		if cfg.BuildMod == "vendor" {
+ 			m.Dir = filepath.Join(ModRoot, "vendor", m.Path)
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/modload/help.go b/src/cmd/go/internal/modload/help.go
+index fbc7374c7c..e924ec6486 100644
+--- a/src/cmd/go/internal/modload/help.go
++++ b/src/cmd/go/internal/modload/help.go
+@@ -20,12 +20,12 @@ including recording and resolving dependencies on other modules.
+ Modules replace the old GOPATH-based approach to specifying
+ which source files are used in a given build.
+ 
+-Experimental module support
++Preliminary module support
+ 
+-Go 1.11 includes experimental support for Go modules,
++Go 1.11 includes preliminary support for Go modules,
+ including a new module-aware 'go get' command.
+ We intend to keep revising this support, while preserving compatibility,
+-until it can be declared official (no longer experimental),
++until it can be declared official (no longer preliminary),
+ and then at a later point we may remove support for work
+ in GOPATH and the old 'go get' command.
+ 
+@@ -173,6 +173,19 @@ automatically make any implied upgrades and update go.mod to reflect them.
+ The 'go mod' command provides other functionality for use in maintaining
+ and understanding modules and go.mod files. See 'go help mod'.
+ 
++The -mod build flag provides additional control over updating and use of go.mod.
++
++If invoked with -mod=readonly, the go command is disallowed from the implicit
++automatic updating of go.mod described above. Instead, it fails when any changes
++to go.mod are needed. This setting is most useful to check that go.mod does
++not need updates, such as in a continuous integration and testing system.
++The "go get" command remains permitted to update go.mod even with -mod=readonly,
++and the "go mod" commands do not take the -mod flag (or any other build flags).
++
++If invoked with -mod=vendor, the go command assumes that the vendor
++directory holds the correct copies of dependencies and ignores
++the dependency descriptions in go.mod.
++
+ Pseudo-versions
+ 
+ The go.mod file and the go command more generally use semantic versions as
+@@ -363,7 +376,7 @@ tests of packages in the main module.
+ 
+ To build using the main module's top-level vendor directory to satisfy
+ dependencies (disabling use of the usual network sources and local
+-caches), use 'go build -getmode=vendor'. Note that only the main module's
++caches), use 'go build -mod=vendor'. Note that only the main module's
+ top-level vendor directory is used; vendor directories in other locations
+ are still ignored.
+ 	`,
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index e9dff9fb54..f0e7d86607 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -66,9 +66,9 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		}
+ 	}
+ 
+-	// -getmode=vendor is special.
++	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+-	if cfg.BuildGetmode == "vendor" {
++	if cfg.BuildMod == "vendor" {
+ 		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot, true)
+ 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot, "vendor"), false)
+ 		if mainOK && vendorOK {
+@@ -146,8 +146,8 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 
+ 	// Look up module containing the package, for addition to the build list.
+ 	// Goal is to determine the module, download it to dir, and return m, dir, ErrMissing.
+-	if cfg.BuildGetmode == "local" {
+-		return module.Version{}, "", fmt.Errorf("import lookup disabled by -getmode=local")
++	if cfg.BuildMod == "readonly" {
++		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 
+ 	for p := path; p != "."; p = pathpkg.Dir(p) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index c69b698a53..a553854e0e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -525,8 +525,6 @@ func WriteGoMod() {
+ 		return
+ 	}
+ 
+-	modfetch.WriteGoSum()
+-
+ 	if loaded != nil {
+ 		reqs := MinReqs()
+ 		min, err := reqs.Required(Target)
+@@ -550,12 +548,15 @@ func WriteGoMod() {
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+-	if bytes.Equal(old, new) {
+-		return
+-	}
+-	if err := ioutil.WriteFile(file, new, 0666); err != nil {
+-		base.Fatalf("go: %v", err)
++	if !bytes.Equal(old, new) {
++		if cfg.BuildMod == "readonly" {
++			base.Fatalf("go: updates to go.mod needed, disabled by -mod=readonly")
++		}
++		if err := ioutil.WriteFile(file, new, 0666); err != nil {
++			base.Fatalf("go: %v", err)
++		}
+ 	}
++	modfetch.WriteGoSum()
+ }
+ 
+ func fixVersion(path, vers string) (string, error) {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 7e07922c36..b7dbc39b05 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -651,6 +651,7 @@ func Replacement(mod module.Version) module.Version {
+ 		// Happens during testing.
+ 		return module.Version{}
+ 	}
++
+ 	var found *modfile.Replace
+ 	for _, r := range modFile.Replace {
+ 		if r.Old.Path == mod.Path && (r.Old.Version == "" || r.Old.Version == mod.Version) {
+@@ -761,7 +762,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 		return append(list, r.buildList[1:]...), nil
+ 	}
+ 
+-	if cfg.BuildGetmode == "vendor" {
++	if cfg.BuildMod == "vendor" {
+ 		// For every module other than the target,
+ 		// return the full list of modules from modules.txt.
+ 		readVendorList()
+diff --git a/src/cmd/go/internal/vet/vetflag.go b/src/cmd/go/internal/vet/vetflag.go
+index 6cf2a8ca67..50eac425ec 100644
+--- a/src/cmd/go/internal/vet/vetflag.go
++++ b/src/cmd/go/internal/vet/vetflag.go
+@@ -27,33 +27,33 @@ var vetFlagDefn = []*cmdflag.Defn{
+ 	// to vet. We handle them in vetFlags.
+ 
+ 	// local.
+-	{Name: "all", BoolVar: new(bool)},
+-	{Name: "asmdecl", BoolVar: new(bool)},
+-	{Name: "assign", BoolVar: new(bool)},
+-	{Name: "atomic", BoolVar: new(bool)},
+-	{Name: "bool", BoolVar: new(bool)},
+-	{Name: "buildtags", BoolVar: new(bool)},
+-	{Name: "cgocall", BoolVar: new(bool)},
+-	{Name: "composites", BoolVar: new(bool)},
+-	{Name: "copylocks", BoolVar: new(bool)},
+-	{Name: "httpresponse", BoolVar: new(bool)},
+-	{Name: "lostcancel", BoolVar: new(bool)},
+-	{Name: "methods", BoolVar: new(bool)},
+-	{Name: "nilfunc", BoolVar: new(bool)},
+-	{Name: "printf", BoolVar: new(bool)},
+-	{Name: "printfuncs"},
+-	{Name: "rangeloops", BoolVar: new(bool)},
+-	{Name: "shadow", BoolVar: new(bool)},
+-	{Name: "shadowstrict", BoolVar: new(bool)},
+-	{Name: "shift", BoolVar: new(bool)},
+-	{Name: "source", BoolVar: new(bool)},
+-	{Name: "structtags", BoolVar: new(bool)},
+-	{Name: "tests", BoolVar: new(bool)},
+-	{Name: "unreachable", BoolVar: new(bool)},
+-	{Name: "unsafeptr", BoolVar: new(bool)},
+-	{Name: "unusedfuncs"},
+-	{Name: "unusedresult", BoolVar: new(bool)},
+-	{Name: "unusedstringmethods"},
++	{Name: "all", BoolVar: new(bool), PassToTest: true},
++	{Name: "asmdecl", BoolVar: new(bool), PassToTest: true},
++	{Name: "assign", BoolVar: new(bool), PassToTest: true},
++	{Name: "atomic", BoolVar: new(bool), PassToTest: true},
++	{Name: "bool", BoolVar: new(bool), PassToTest: true},
++	{Name: "buildtags", BoolVar: new(bool), PassToTest: true},
++	{Name: "cgocall", BoolVar: new(bool), PassToTest: true},
++	{Name: "composites", BoolVar: new(bool), PassToTest: true},
++	{Name: "copylocks", BoolVar: new(bool), PassToTest: true},
++	{Name: "httpresponse", BoolVar: new(bool), PassToTest: true},
++	{Name: "lostcancel", BoolVar: new(bool), PassToTest: true},
++	{Name: "methods", BoolVar: new(bool), PassToTest: true},
++	{Name: "nilfunc", BoolVar: new(bool), PassToTest: true},
++	{Name: "printf", BoolVar: new(bool), PassToTest: true},
++	{Name: "printfuncs", PassToTest: true},
++	{Name: "rangeloops", BoolVar: new(bool), PassToTest: true},
++	{Name: "shadow", BoolVar: new(bool), PassToTest: true},
++	{Name: "shadowstrict", BoolVar: new(bool), PassToTest: true},
++	{Name: "shift", BoolVar: new(bool), PassToTest: true},
++	{Name: "source", BoolVar: new(bool), PassToTest: true},
++	{Name: "structtags", BoolVar: new(bool), PassToTest: true},
++	{Name: "tests", BoolVar: new(bool), PassToTest: true},
++	{Name: "unreachable", BoolVar: new(bool), PassToTest: true},
++	{Name: "unsafeptr", BoolVar: new(bool), PassToTest: true},
++	{Name: "unusedfuncs", PassToTest: true},
++	{Name: "unusedresult", BoolVar: new(bool), PassToTest: true},
++	{Name: "unusedstringmethods", PassToTest: true},
+ }
+ 
+ var vetTool string
+@@ -91,9 +91,17 @@ func vetFlags(args []string) (passToVet, packageNames []string) {
+ 			if err := f.Value.Set(value); err != nil {
+ 				base.Fatalf("invalid flag argument for -%s: %v", f.Name, err)
+ 			}
+-			switch f.Name {
+-			// Flags known to the build but not to vet, so must be dropped.
+-			case "a", "x", "n", "vettool", "compiler":
++			keep := f.PassToTest
++			if !keep {
++				// A build flag, probably one we don't want to pass to vet.
++				// Can whitelist.
++				switch f.Name {
++				case "tags", "v":
++					keep = true
++				}
++			}
++			if !keep {
++				// Flags known to the build but not to vet, so must be dropped.
+ 				if extraWord {
+ 					args = append(args[:i], args[i+2:]...)
+ 					extraWord = false
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 2e69277f51..891f81e116 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -86,8 +86,6 @@ and test commands:
+ 		arguments to pass on each gccgo compiler/linker invocation.
+ 	-gcflags '[pattern=]arg list'
+ 		arguments to pass on each go tool compile invocation.
+-	-getmode mode
+-		module download mode to use. See 'go help modules' for more.
+ 	-installsuffix suffix
+ 		a suffix to use in the name of the package installation directory,
+ 		in order to keep output separate from default builds.
+@@ -100,6 +98,9 @@ and test commands:
+ 	-linkshared
+ 		link against shared libraries previously created with
+ 		-buildmode=shared.
++	-mod mode
++		module download mode to use: readonly, release, or vendor.
++		See 'go help modules' for more.
+ 	-pkgdir dir
+ 		install and load all packages from dir instead of the usual locations.
+ 		For example, when building with a non-standard configuration,
+@@ -220,7 +221,7 @@ func AddBuildFlags(cmd *base.Command) {
+ 	cmd.Flag.StringVar(&cfg.BuildBuildmode, "buildmode", "default", "")
+ 	cmd.Flag.Var(&load.BuildGcflags, "gcflags", "")
+ 	cmd.Flag.Var(&load.BuildGccgoflags, "gccgoflags", "")
+-	cmd.Flag.StringVar(&cfg.BuildGetmode, "getmode", "", "")
++	cmd.Flag.StringVar(&cfg.BuildMod, "mod", "", "")
+ 	cmd.Flag.StringVar(&cfg.BuildContext.InstallSuffix, "installsuffix", "", "")
+ 	cmd.Flag.Var(&load.BuildLdflags, "ldflags", "")
+ 	cmd.Flag.BoolVar(&cfg.BuildLinkshared, "linkshared", false, "")
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 4b8c95c125..eb99815338 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -14,6 +14,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"strings"
+ )
+ 
+ func BuildInit() {
+@@ -227,15 +228,30 @@ func buildModeInit() {
+ 		}
+ 	}
+ 
+-	switch cfg.BuildGetmode {
++	switch cfg.BuildMod {
+ 	case "":
+ 		// ok
+-	case "local", "vendor":
+-		// ok but check for modules
+-		if load.ModLookup == nil {
+-			base.Fatalf("build flag -getmode=%s only valid when using modules", cfg.BuildGetmode)
++	case "readonly", "vendor":
++		if load.ModLookup == nil && !inGOFLAGS("-mod") {
++			base.Fatalf("build flag -mod=%s only valid when using modules", cfg.BuildMod)
+ 		}
+ 	default:
+-		base.Fatalf("-getmode=%s not supported (can be '', 'local', or 'vendor')", cfg.BuildGetmode)
++		base.Fatalf("-mod=%s not supported (can be '', 'readonly', or 'vendor')", cfg.BuildMod)
+ 	}
+ }
++
++func inGOFLAGS(flag string) bool {
++	for _, goflag := range base.GOFLAGS() {
++		name := goflag
++		if strings.HasPrefix(name, "--") {
++			name = name[1:]
++		}
++		if i := strings.Index(name, "="); i >= 0 {
++			name = name[:i]
++		}
++		if name == flag {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/go/testdata/script/mod_file_proxy.txt b/src/cmd/go/testdata/script/mod_file_proxy.txt
+index 144d06a2e0..65b96f1a6e 100644
+--- a/src/cmd/go/testdata/script/mod_file_proxy.txt
++++ b/src/cmd/go/testdata/script/mod_file_proxy.txt
+@@ -1,22 +1,19 @@
+-# Use download cache for -getmode=local.
++# Allow (cached) downloads for -mod=readonly.
+ env GO111MODULE=on
+ env GOPATH=$WORK/gopath1
+ cd $WORK/x
+-! go list -getmode=local
+-go list
+-go list -getmode=local
++go mod edit -fmt
++go list -mod=readonly
+ env GOPROXY=file:///nonexist
+-go list -getmode=local
++go list
+ grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+ 
+ # Use download cache as file:/// proxy.
+ [windows] stop # TODO: file://$WORK puts backslashes in the URL
+ env GOPATH=$WORK/gopath2
+ env GOPROXY=file:///nonexist
+-! go list -getmode=local
+ ! go list
+ env GOPROXY=file://$WORK/gopath1/src/mod/cache/download
+-! go list -getmode=local
+ go list
+ grep v1.5.1 $GOPATH/src/mod/cache/download/rsc.io/quote/@v/list
+ 
+diff --git a/src/cmd/go/testdata/script/mod_getmode_vendor.txt b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+index 352e469a7e..3dd8d1b888 100644
+--- a/src/cmd/go/testdata/script/mod_getmode_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_getmode_vendor.txt
+@@ -5,15 +5,15 @@ go mod vendor
+ env GOPATH=$WORK/empty
+ env GOPROXY=file:///nonexist
+ 
+-go list -getmode=vendor
+-go list -getmode=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
++go list -mod=vendor
++go list -mod=vendor -m -f '{{.Path}} {{.Version}} {{.Dir}}' all
+ stdout '^rsc.io/quote v1.5.1 .*vendor[\\/]rsc.io[\\/]quote$'
+ stdout '^golang.org/x/text v0.0.0.* .*vendor[\\/]golang.org[\\/]x[\\/]text$'
+ 
+-! go list -getmode=vendor -m rsc.io/quote@latest
+-stderr 'module lookup disabled by -getmode=vendor'
+-! go get -getmode=vendor -u
+-stderr 'go get: disabled by -getmode=vendor'
++! go list -mod=vendor -m rsc.io/quote@latest
++stderr 'module lookup disabled by -mod=vendor'
++! go get -mod=vendor -u
++stderr 'go get: disabled by -mod=vendor'
+ 
+ -- go.mod --
+ module x
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+new file mode 100644
+index 0000000000..5ae74a4348
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -0,0 +1,39 @@
++env GO111MODULE=on
++
++# -mod=readonly must not resolve missing modules nor update go.mod
++env GOFLAGS=-mod=readonly
++go mod edit -fmt
++cp go.mod go.mod.empty
++! go list
++stderr 'import lookup disabled by -mod=readonly'
++cmp go.mod go.mod.empty
++
++# update go.mod - go get allowed
++go get rsc.io/quote
++grep rsc.io/quote go.mod
++
++# update go.mod - go mod tidy allowed
++cp go.mod.empty go.mod
++go mod tidy
++
++# -mod=readonly must succeed once go.mod is up-to-date...
++go list
++
++# ... even if it needs downloads
++go clean -modcache
++go list
++
++# -mod=readonly should reject inconsistent go.mod files
++# (ones that would be rewritten).
++go mod edit -require rsc.io/sampler@v1.2.0
++cp go.mod go.mod.inconsistent
++! go list
++stderr 'go: updates to go.mod needed, disabled by -mod=readonly'
++cmp go.mod go.mod.inconsistent
++
++-- go.mod --
++module m
++
++-- x.go --
++package x
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_vendor.txt b/src/cmd/go/testdata/script/mod_vendor.txt
+index 9d9dbf37d2..8915d1597d 100644
+--- a/src/cmd/go/testdata/script/mod_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_vendor.txt
+@@ -5,7 +5,7 @@ stdout '^x v1.0.0 => ./x'
+ stdout '^w'
+ 
+ [!short] go build
+-[!short] ! go build -getmode=vendor
++[!short] ! go build -mod=vendor
+ 
+ go list -f {{.Dir}} x
+ stdout 'src[\\/]x'
+@@ -25,16 +25,16 @@ stdout 'src[\\/]x'
+ go list -f {{.Dir}} -m x
+ stdout 'src[\\/]x'
+ 
+-go list -getmode=vendor -f {{.Dir}} x
++go list -mod=vendor -f {{.Dir}} x
+ stdout 'src[\\/]vendor[\\/]x'
+ 
+-go list -getmode=vendor -f {{.Dir}} -m x
++go list -mod=vendor -f {{.Dir}} -m x
+ stdout 'src[\\/]vendor[\\/]x'
+ 
+ go list -f {{.Dir}} -m w
+ stdout 'src[\\/]w'
+ 
+-! go list -getmode=vendor -f {{.Dir}} w
++! go list -mod=vendor -f {{.Dir}} w
+ stderr 'src[\\/]vendor[\\/]w'
+ 
+ ! exists vendor/x/testdata
+@@ -58,9 +58,9 @@ exists vendor/mysite/myname/mypkg/LICENSE.txt
+ [short] stop
+ 
+ go build
+-go build -getmode=vendor
+-go test -getmode=vendor . ./subdir
+-go test -getmode=vendor ./...
++go build -mod=vendor
++go test -mod=vendor . ./subdir
++go test -mod=vendor ./...
+ 
+ -- go.mod --
+ module m

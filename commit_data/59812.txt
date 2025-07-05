@@ -19,6 +19,22 @@ Date:   Wed Apr 24 09:36:22 2024 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/asm_amd64.s | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 1071d270c1..cb21629a84 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -456,6 +456,10 @@ goodm:
+ 	PUSHQ	AX	// open up space for fn's arg spill slot
+ 	MOVQ	0(DX), R12
+ 	CALL	R12		// fn(g)
++	// The Windows native stack unwinder incorrectly classifies the next instruction
++	// as part of the function epilogue, producing a wrong call stack.
++	// Add a NOP to work around this issue. See go.dev/issue/67007.
++	BYTE	$0x90
+ 	POPQ	AX
+ 	JMP	runtime·badmcall2(SB)
+ 	RET

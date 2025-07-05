@@ -7,7 +7,7 @@ Date:   Fri Sep 30 13:13:39 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5157045
-
+---
  src/cmd/gofix/Makefile              |  1 +
  src/cmd/gofix/iocopyn.go            | 40 +++++++++++++++++++++++++++++++++++++
  src/cmd/gofix/iocopyn_test.go       | 37 ++++++++++++++++++++++++++++++++++
@@ -19,3 +19,299 @@ Date:   Fri Sep 30 13:13:39 2011 -0700
  src/pkg/mime/multipart/formdata.go  |  4 ++--
  src/pkg/mime/multipart/multipart.go |  2 +-
  10 files changed, 107 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/gofix/Makefile b/src/cmd/gofix/Makefile
+index 8b0a2a7743..7a2b7241f1 100644
+--- a/src/cmd/gofix/Makefile
++++ b/src/cmd/gofix/Makefile
+@@ -13,6 +13,7 @@ GOFILES=\
+ 	httpheaders.go\
+ 	httpserver.go\
+ 	imagenew.go\
++	iocopyn.go\
+ 	main.go\
+ 	math.go\
+ 	netdial.go\
+diff --git a/src/cmd/gofix/iocopyn.go b/src/cmd/gofix/iocopyn.go
+new file mode 100644
+index 0000000000..f4044605a7
+--- /dev/null
++++ b/src/cmd/gofix/iocopyn.go
+@@ -0,0 +1,40 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++)
++
++var ioCopyNFix = fix{
++	"iocopyn",
++	ioCopyN,
++	`Rename io.Copyn to io.CopyN.
++
++http://codereview.appspot.com/5157045
++`,
++}
++
++func init() {
++	register(ioCopyNFix)
++}
++
++func ioCopyN(f *ast.File) bool {
++	if !imports(f, "io") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		if expr, ok := n.(ast.Expr); ok {
++			if isPkgDot(expr, "io", "Copyn") {
++				expr.(*ast.SelectorExpr).Sel.Name = "CopyN"
++				fixed = true
++				return
++			}
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/gofix/iocopyn_test.go b/src/cmd/gofix/iocopyn_test.go
+new file mode 100644
+index 0000000000..27347766d9
+--- /dev/null
++++ b/src/cmd/gofix/iocopyn_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(ioCopyNTests)
++}
++
++var ioCopyNTests = []testCase{
++	{
++		Name: "io.CopyN.0",
++		In: `package main
++
++import (
++	"io"
++)
++
++func f() {
++	io.Copyn(dst, src)
++	foo.Copyn(dst, src)
++}
++`,
++		Out: `package main
++
++import (
++	"io"
++)
++
++func f() {
++	io.CopyN(dst, src)
++	foo.Copyn(dst, src)
++}
++`,
++	},
++}
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 45d95c3df2..12de2ada08 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -94,7 +94,7 @@ func (tr *Reader) skipUnread() {
+ 			return
+ 		}
+ 	}
+-	_, tr.err = io.Copyn(ioutil.Discard, tr.r, nr)
++	_, tr.err = io.CopyN(ioutil.Discard, tr.r, nr)
+ }
+ 
+ func (tr *Reader) verifyChecksum(header []byte) bool {
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 2c7c636fda..6d716654a2 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -219,7 +219,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	w.WriteHeader(code)
+ 
+ 	if r.Method != "HEAD" {
+-		io.Copyn(w, f, size)
++		io.CopyN(w, f, size)
+ 	}
+ }
+ 
+diff --git a/src/pkg/http/transport_test.go b/src/pkg/http/transport_test.go
+index eafde7f899..b9ae7a3685 100644
+--- a/src/pkg/http/transport_test.go
++++ b/src/pkg/http/transport_test.go
+@@ -474,7 +474,7 @@ func TestTransportGzip(t *testing.T) {
+ 		gz, _ := gzip.NewWriter(w)
+ 		gz.Write([]byte(testString))
+ 		if req.FormValue("body") == "large" {
+-			io.Copyn(gz, rand.Reader, nRandBytes)
++			io.CopyN(gz, rand.Reader, nRandBytes)
+ 		}
+ 		gz.Close()
+ 	}))
+diff --git a/src/pkg/io/io.go b/src/pkg/io/io.go
+index 1fdf347063..55206348e4 100644
+--- a/src/pkg/io/io.go
++++ b/src/pkg/io/io.go
+@@ -256,15 +256,15 @@ func ReadFull(r Reader, buf []byte) (n int, err os.Error) {
+ 	return ReadAtLeast(r, buf, len(buf))
+ }
+ 
+-// Copyn copies n bytes (or until an error) from src to dst.
++// CopyN copies n bytes (or until an error) from src to dst.
+ // It returns the number of bytes copied and the earliest
+ // error encountered while copying.  Because Read can
+ // return the full amount requested as well as an error
+-// (including os.EOF), so can Copyn.
++// (including os.EOF), so can CopyN.
+ //
+ // If dst implements the ReaderFrom interface,
+ // the copy is implemented by calling dst.ReadFrom(src).
+-func Copyn(dst Writer, src Reader, n int64) (written int64, err os.Error) {
++func CopyN(dst Writer, src Reader, n int64) (written int64, err os.Error) {
+ 	// If the writer has a ReadFrom method, use it to do the copy.
+ 	// Avoids a buffer allocation and a copy.
+ 	if rt, ok := dst.(ReaderFrom); ok {
+diff --git a/src/pkg/io/io_test.go b/src/pkg/io/io_test.go
+index 7449dcf896..f1b23e9461 100644
+--- a/src/pkg/io/io_test.go
++++ b/src/pkg/io/io_test.go
+@@ -19,7 +19,7 @@ type Buffer struct {
+ 	WriterTo   // conflicts with and hides bytes.Buffer's WriterTo.
+ }
+ 
+-// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and Copyn.
++// Simple tests, primarily to verify the ReadFrom and WriteTo callouts inside Copy and CopyN.
+ 
+ func TestCopy(t *testing.T) {
+ 	rb := new(Buffer)
+@@ -51,33 +51,33 @@ func TestCopyWriteTo(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCopyn(t *testing.T) {
++func TestCopyN(t *testing.T) {
+ 	rb := new(Buffer)
+ 	wb := new(Buffer)
+ 	rb.WriteString("hello, world.")
+-	Copyn(wb, rb, 5)
++	CopyN(wb, rb, 5)
+ 	if wb.String() != "hello" {
+-		t.Errorf("Copyn did not work properly")
++		t.Errorf("CopyN did not work properly")
+ 	}
+ }
+ 
+-func TestCopynReadFrom(t *testing.T) {
++func TestCopyNReadFrom(t *testing.T) {
+ 	rb := new(Buffer)
+ 	wb := new(bytes.Buffer) // implements ReadFrom.
+ 	rb.WriteString("hello")
+-	Copyn(wb, rb, 5)
++	CopyN(wb, rb, 5)
+ 	if wb.String() != "hello" {
+-		t.Errorf("Copyn did not work properly")
++		t.Errorf("CopyN did not work properly")
+ 	}
+ }
+ 
+-func TestCopynWriteTo(t *testing.T) {
++func TestCopyNWriteTo(t *testing.T) {
+ 	rb := new(bytes.Buffer) // implements WriteTo.
+ 	wb := new(Buffer)
+ 	rb.WriteString("hello, world.")
+-	Copyn(wb, rb, 5)
++	CopyN(wb, rb, 5)
+ 	if wb.String() != "hello" {
+-		t.Errorf("Copyn did not work properly")
++		t.Errorf("CopyN did not work properly")
+ 	}
+ }
+ 
+@@ -89,30 +89,30 @@ func (w *noReadFrom) Write(p []byte) (n int, err os.Error) {
+ 	return w.w.Write(p)
+ }
+ 
+-func TestCopynEOF(t *testing.T) {
++func TestCopyNEOF(t *testing.T) {
+ 	// Test that EOF behavior is the same regardless of whether
+-	// argument to Copyn has ReadFrom.
++	// argument to CopyN has ReadFrom.
+ 
+ 	b := new(bytes.Buffer)
+ 
+-	n, err := Copyn(&noReadFrom{b}, strings.NewReader("foo"), 3)
++	n, err := CopyN(&noReadFrom{b}, strings.NewReader("foo"), 3)
+ 	if n != 3 || err != nil {
+-		t.Errorf("Copyn(noReadFrom, foo, 3) = %d, %v; want 3, nil", n, err)
++		t.Errorf("CopyN(noReadFrom, foo, 3) = %d, %v; want 3, nil", n, err)
+ 	}
+ 
+-	n, err = Copyn(&noReadFrom{b}, strings.NewReader("foo"), 4)
++	n, err = CopyN(&noReadFrom{b}, strings.NewReader("foo"), 4)
+ 	if n != 3 || err != os.EOF {
+-		t.Errorf("Copyn(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
++		t.Errorf("CopyN(noReadFrom, foo, 4) = %d, %v; want 3, EOF", n, err)
+ 	}
+ 
+-	n, err = Copyn(b, strings.NewReader("foo"), 3) // b has read from
++	n, err = CopyN(b, strings.NewReader("foo"), 3) // b has read from
+ 	if n != 3 || err != nil {
+-		t.Errorf("Copyn(bytes.Buffer, foo, 3) = %d, %v; want 3, nil", n, err)
++		t.Errorf("CopyN(bytes.Buffer, foo, 3) = %d, %v; want 3, nil", n, err)
+ 	}
+ 
+-	n, err = Copyn(b, strings.NewReader("foo"), 4) // b has read from
++	n, err = CopyN(b, strings.NewReader("foo"), 4) // b has read from
+ 	if n != 3 || err != os.EOF {
+-		t.Errorf("Copyn(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
++		t.Errorf("CopyN(bytes.Buffer, foo, 4) = %d, %v; want 3, EOF", n, err)
+ 	}
+ }
+ 
+diff --git a/src/pkg/mime/multipart/formdata.go b/src/pkg/mime/multipart/formdata.go
+index 91404d6f41..d114bfa9b4 100644
+--- a/src/pkg/mime/multipart/formdata.go
++++ b/src/pkg/mime/multipart/formdata.go
+@@ -47,7 +47,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
+ 
+ 		if filename == "" {
+ 			// value, store as string in memory
+-			n, err := io.Copyn(&b, p, maxValueBytes)
++			n, err := io.CopyN(&b, p, maxValueBytes)
+ 			if err != nil && err != os.EOF {
+ 				return nil, err
+ 			}
+@@ -64,7 +64,7 @@ func (r *Reader) ReadForm(maxMemory int64) (f *Form, err os.Error) {
+ 			Filename: filename,
+ 			Header:   p.Header,
+ 		}
+-		n, err := io.Copyn(&b, p, maxMemory+1)
++		n, err := io.CopyN(&b, p, maxMemory+1)
+ 		if err != nil && err != os.EOF {
+ 			return nil, err
+ 		}
+diff --git a/src/pkg/mime/multipart/multipart.go b/src/pkg/mime/multipart/multipart.go
+index f2b507220c..d36e9e91b8 100644
+--- a/src/pkg/mime/multipart/multipart.go
++++ b/src/pkg/mime/multipart/multipart.go
+@@ -146,7 +146,7 @@ func (bp *Part) Read(p []byte) (n int, err os.Error) {
+ 		return 0, io.ErrUnexpectedEOF
+ 	}
+ 	if nCopy > 0 {
+-		if _, err := io.Copyn(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
++		if _, err := io.CopyN(bp.buffer, bp.mr.bufReader, int64(nCopy)); err != nil {
+ 			return 0, err
+ 		}
+ 	}

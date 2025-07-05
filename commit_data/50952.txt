@@ -19,7 +19,101 @@ Date:   Thu Nov 18 11:40:48 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/internal/fuzz/mutators_byteslice.go      | 14 +++++++++++++-
  src/internal/fuzz/mutators_byteslice_test.go | 19 +++++++++++++------
  2 files changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/fuzz/mutators_byteslice.go b/src/internal/fuzz/mutators_byteslice.go
+index 7c96b5920e..d9dab1df9f 100644
+--- a/src/internal/fuzz/mutators_byteslice.go
++++ b/src/internal/fuzz/mutators_byteslice.go
+@@ -284,7 +284,19 @@ func byteSliceSwapBytes(m *mutator, b []byte) []byte {
+ 	for dst == src {
+ 		dst = m.rand(len(b))
+ 	}
+-	n := m.chooseLen(len(b) - src - 1)
++	// Choose the random length as len(b) - max(src, dst)
++	// so that we don't attempt to swap a chunk that extends
++	// beyond the end of the slice
++	max := dst
++	if src > max {
++		max = src
++	}
++	n := m.chooseLen(len(b) - max - 1)
++	// Check that neither chunk intersect, so that we don't end up
++	// duplicating parts of the input, rather than swapping them
++	if src > dst && dst+n >= src || dst > src && src+n >= dst {
++		return nil
++	}
+ 	// Use the end of the slice as scratch space to avoid doing an
+ 	// allocation. If the slice is too small abort and try something
+ 	// else.
+diff --git a/src/internal/fuzz/mutators_byteslice_test.go b/src/internal/fuzz/mutators_byteslice_test.go
+index 50a39a9a5b..7886967881 100644
+--- a/src/internal/fuzz/mutators_byteslice_test.go
++++ b/src/internal/fuzz/mutators_byteslice_test.go
+@@ -10,30 +10,31 @@ import (
+ )
+ 
+ type mockRand struct {
++	values  []int
+ 	counter int
+ 	b       bool
+ }
+ 
+ func (mr *mockRand) uint32() uint32 {
+-	c := mr.counter
++	c := mr.values[mr.counter]
+ 	mr.counter++
+ 	return uint32(c)
+ }
+ 
+ func (mr *mockRand) intn(n int) int {
+-	c := mr.counter
++	c := mr.values[mr.counter]
+ 	mr.counter++
+ 	return c % n
+ }
+ 
+ func (mr *mockRand) uint32n(n uint32) uint32 {
+-	c := mr.counter
++	c := mr.values[mr.counter]
+ 	mr.counter++
+ 	return uint32(c) % n
+ }
+ 
+ func (mr *mockRand) exp2() int {
+-	c := mr.counter
++	c := mr.values[mr.counter]
+ 	mr.counter++
+ 	return c
+ }
+@@ -56,6 +57,7 @@ func TestByteSliceMutators(t *testing.T) {
+ 	for _, tc := range []struct {
+ 		name     string
+ 		mutator  func(*mutator, []byte) []byte
++		randVals []int
+ 		input    []byte
+ 		expected []byte
+ 	}{
+@@ -164,12 +166,17 @@ func TestByteSliceMutators(t *testing.T) {
+ 		{
+ 			name:     "byteSliceSwapBytes",
+ 			mutator:  byteSliceSwapBytes,
++			randVals: []int{0, 2, 0, 2},
+ 			input:    append(make([]byte, 0, 9), []byte{1, 2, 3, 4}...),
+-			expected: []byte{2, 1, 3, 4},
++			expected: []byte{3, 2, 1, 4},
+ 		},
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
+-			m := &mutator{r: &mockRand{}}
++			r := &mockRand{values: []int{0, 1, 2, 3, 4, 5}}
++			if tc.randVals != nil {
++				r.values = tc.randVals
++			}
++			m := &mutator{r: r}
+ 			b := tc.mutator(m, tc.input)
+ 			if !bytes.Equal(b, tc.expected) {
+ 				t.Errorf("got %x, want %x", b, tc.expected)

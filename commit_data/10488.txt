@@ -7,10 +7,102 @@ Date:   Tue Nov 22 15:27:10 2011 -0800
     R=r
     CC=golang-dev
     https://golang.org/cl/5436052
-
+---
  src/cmd/gofix/main.go                  |  4 ++--
  src/cmd/gofmt/gofmt.go                 |  2 +-
  src/pkg/go/printer/performance_test.go |  2 +-
  src/pkg/go/printer/printer.go          | 11 ++++-------
  src/pkg/go/printer/printer_test.go     |  2 +-
  5 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/gofix/main.go b/src/cmd/gofix/main.go
+index a1509b9262..c8096b3976 100644
+--- a/src/cmd/gofix/main.go
++++ b/src/cmd/gofix/main.go
+@@ -109,7 +109,7 @@ func gofmtFile(f *ast.File) ([]byte, error) {
+ 	var buf bytes.Buffer
+ 
+ 	ast.SortImports(fset, f)
+-	_, err := printConfig.Fprint(&buf, fset, f)
++	err := printConfig.Fprint(&buf, fset, f)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -203,7 +203,7 @@ var gofmtBuf bytes.Buffer
+ 
+ func gofmt(n interface{}) string {
+ 	gofmtBuf.Reset()
+-	_, err := printConfig.Fprint(&gofmtBuf, fset, n)
++	err := printConfig.Fprint(&gofmtBuf, fset, n)
+ 	if err != nil {
+ 		return "<" + err.Error() + ">"
+ 	}
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 9562d7965c..2c52250c2e 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -121,7 +121,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	_, err = (&printer.Config{printerMode, *tabWidth}).Fprint(&buf, fset, file)
++	err = (&printer.Config{printerMode, *tabWidth}).Fprint(&buf, fset, file)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/pkg/go/printer/performance_test.go b/src/pkg/go/printer/performance_test.go
+index 84fb2808eb..dbd942292b 100644
+--- a/src/pkg/go/printer/performance_test.go
++++ b/src/pkg/go/printer/performance_test.go
+@@ -20,7 +20,7 @@ import (
+ var testfile *ast.File
+ 
+ func testprint(out io.Writer, file *ast.File) {
+-	if _, err := (&Config{TabIndent | UseSpaces, 8}).Fprint(out, fset, file); err != nil {
++	if err := (&Config{TabIndent | UseSpaces, 8}).Fprint(out, fset, file); err != nil {
+ 		log.Fatalf("print error: %s", err)
+ 	}
+ }
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index bf5f7bf8c5..676d1bcc09 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -1000,21 +1000,18 @@ func (cfg *Config) fprint(output io.Writer, fset *token.FileSet, node interface{
+ 	return
+ }
+ 
+-// Fprint "pretty-prints" an AST node to output and returns the number
+-// of bytes written and an error (if any) for a given configuration cfg.
++// Fprint "pretty-prints" an AST node to output for a given configuration cfg.
+ // Position information is interpreted relative to the file set fset.
+ // The node type must be *ast.File, or assignment-compatible to ast.Expr,
+ // ast.Decl, ast.Spec, or ast.Stmt.
+-// Note: The number of bytes written is always 0 and should be ignored.
+ //
+-func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) (int, error) {
+-	return 0, cfg.fprint(output, fset, node, make(map[ast.Node]int))
++func (cfg *Config) Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
++	return cfg.fprint(output, fset, node, make(map[ast.Node]int))
+ }
+ 
+ // Fprint "pretty-prints" an AST node to output.
+ // It calls Config.Fprint with default settings.
+ //
+ func Fprint(output io.Writer, fset *token.FileSet, node interface{}) error {
+-	_, err := (&Config{Tabwidth: 8}).Fprint(output, fset, node)
+-	return err
++	return (&Config{Tabwidth: 8}).Fprint(output, fset, node)
+ }
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index a644aa383a..924d4dfdb2 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -62,7 +62,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 
+ 	// format source
+ 	var buf bytes.Buffer
+-	if _, err := cfg.Fprint(&buf, fset, prog); err != nil {
++	if err := cfg.Fprint(&buf, fset, prog); err != nil {
+ 		t.Error(err)
+ 	}
+ 	res := buf.Bytes()

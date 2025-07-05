@@ -32,7 +32,7 @@ Date:   Mon May 22 13:25:15 2023 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go |  2 +-
  src/cmd/compile/internal/ir/func.go    | 18 ++++++++++++++---
  src/cmd/internal/obj/inl.go            | 32 +++++++++++++++++++-----------
@@ -40,3 +40,267 @@ Date:   Mon May 22 13:25:15 2023 -0700
  test/codegen/issue60324.go             | 36 ++++++++++++++++++++++++++++++++++
  test/inline_unified.go                 |  4 ++--
  6 files changed, 89 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 96a6f3028a..c61d6d2234 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -1094,7 +1094,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, bigCaller bool, inlCalls *[]*ir.Inli
+ 
+ 	typecheck.AssertFixedCall(n)
+ 
+-	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym)
++	inlIndex := base.Ctxt.InlTree.Add(parent, n.Pos(), sym, ir.FuncName(fn))
+ 
+ 	closureInitLSym := func(n *ir.CallExpr, fn *ir.Func) {
+ 		// The linker needs FuncInfo metadata for all inlined
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index b36b1fa494..5c41893fc6 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -11,6 +11,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"strings"
+ )
+ 
+ // A Func corresponds to a single function in a Go program
+@@ -359,8 +360,8 @@ func IsTrivialClosure(clo *ClosureExpr) bool {
+ // globClosgen is like Func.Closgen, but for the global scope.
+ var globClosgen int32
+ 
+-// closureName generates a new unique name for a closure within outerfn.
+-func closureName(outerfn *Func) *types.Sym {
++// closureName generates a new unique name for a closure within outerfn at pos.
++func closureName(outerfn *Func, pos src.XPos) *types.Sym {
+ 	pkg := types.LocalPkg
+ 	outer := "glob."
+ 	prefix := "func"
+@@ -382,6 +383,17 @@ func closureName(outerfn *Func) *types.Sym {
+ 		}
+ 	}
+ 
++	// If this closure was created due to inlining, then incorporate any
++	// inlined functions' names into the closure's linker symbol name
++	// too (#60324).
++	if inlIndex := base.Ctxt.InnermostPos(pos).Base().InliningIndex(); inlIndex >= 0 {
++		names := []string{outer}
++		base.Ctxt.InlTree.AllParents(inlIndex, func(call obj.InlinedCall) {
++			names = append(names, call.Name)
++		})
++		outer = strings.Join(names, ".")
++	}
++
+ 	*gen++
+ 	return pkg.Lookup(fmt.Sprintf("%s.%s%d", outer, prefix, *gen))
+ }
+@@ -418,7 +430,7 @@ func NameClosure(clo *ClosureExpr, outerfn *Func) {
+ 		base.FatalfAt(clo.Pos(), "closure already named: %v", name)
+ 	}
+ 
+-	name.SetSym(closureName(outerfn))
++	name.SetSym(closureName(outerfn, clo.Pos()))
+ 	MarkFunc(name)
+ }
+ 
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index 7a22eb1efd..6874471891 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -50,21 +50,37 @@ type InlinedCall struct {
+ 	Parent   int      // index of the parent in the InlTree or < 0 if outermost call
+ 	Pos      src.XPos // position of the inlined call
+ 	Func     *LSym    // function that was inlined
++	Name     string   // bare name of the function (w/o package prefix)
+ 	ParentPC int32    // PC of instruction just before inlined body. Only valid in local trees.
+ }
+ 
+ // Add adds a new call to the tree, returning its index.
+-func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
++func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym, name string) int {
+ 	r := len(tree.nodes)
+ 	call := InlinedCall{
+ 		Parent: parent,
+ 		Pos:    pos,
+ 		Func:   func_,
++		Name:   name,
+ 	}
+ 	tree.nodes = append(tree.nodes, call)
+ 	return r
+ }
+ 
++// AllParents invokes do on each InlinedCall in the inlining call
++// stack, from outermost to innermost.
++//
++// That is, if inlIndex corresponds to f inlining g inlining h,
++// AllParents invokes do with the call for inlining g into f, and then
++// inlining h into g.
++func (tree *InlTree) AllParents(inlIndex int, do func(InlinedCall)) {
++	if inlIndex >= 0 {
++		call := tree.nodes[inlIndex]
++		tree.AllParents(call.Parent, do)
++		do(call)
++	}
++}
++
+ func (tree *InlTree) Parent(inlIndex int) int {
+ 	return tree.nodes[inlIndex].Parent
+ }
+@@ -113,16 +129,10 @@ func (ctxt *Link) InnermostPos(xpos src.XPos) src.Pos {
+ // AllPos invokes do with the position in f, then the position in g, then the position in h.
+ func (ctxt *Link) AllPos(xpos src.XPos, do func(src.Pos)) {
+ 	pos := ctxt.InnermostPos(xpos)
+-	ctxt.forAllPos(pos.Base().InliningIndex(), do)
+-	do(ctxt.PosTable.Pos(xpos))
+-}
+-
+-func (ctxt *Link) forAllPos(ix int, do func(src.Pos)) {
+-	if ix >= 0 {
+-		call := ctxt.InlTree.nodes[ix]
+-		ctxt.forAllPos(call.Parent, do)
+-		do(ctxt.PosTable.Pos(call.Pos))
+-	}
++	ctxt.InlTree.AllParents(pos.Base().InliningIndex(), func(call InlinedCall) {
++		do(ctxt.InnermostPos(call.Pos))
++	})
++	do(pos)
+ }
+ 
+ func dumpInlTree(ctxt *Link, tree InlTree) {
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 04a669206e..07629bfec0 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -188,17 +188,17 @@ func main() {
+ 	{
+ 		x := 42
+ 		if z := func(y int) int { // ERROR "can inline main.func22"
+-			return func() int { // ERROR "can inline main.func22.1" "can inline main.func30"
++			return func() int { // ERROR "can inline main.func22.1" "can inline main.main.func22.func30"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func22.1"
+-		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.func30"
++		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.main.func22.func30"
+ 			ppanic("z != 43")
+ 		}
+ 		if z := func(y int) int { // ERROR "func literal does not escape" "can inline main.func23"
+-			return func() int { // ERROR "can inline main.func23.1" "can inline main.func31"
++			return func() int { // ERROR "can inline main.func23.1" "can inline main.main.func23.func31"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func23.1"
+-		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.func31"
++		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.main.func23.func31"
+ 			ppanic("z(1) != 43")
+ 		}
+ 	}
+@@ -206,10 +206,10 @@ func main() {
+ 	{
+ 		a := 1
+ 		func() { // ERROR "can inline main.func24"
+-			func() { // ERROR "can inline main.func24" "can inline main.func32"
++			func() { // ERROR "can inline main.func24" "can inline main.main.func24.func32"
+ 				a = 2
+ 			}() // ERROR "inlining call to main.func24"
+-		}() // ERROR "inlining call to main.func24" "inlining call to main.func32"
++		}() // ERROR "inlining call to main.func24" "inlining call to main.main.func24.func32"
+ 		if a != 2 {
+ 			ppanic("a != 2")
+ 		}
+@@ -254,13 +254,13 @@ func main() {
+ 		// revisit those. E.g., func34 and func36 are constructed by the inliner.
+ 		if r := func(x int) int { // ERROR "can inline main.func27"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.func34"
++			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func34"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.func27.(func)?2" "can inline main.func34.1" "can inline main.func36"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func34.1" "can inline main.func27.main.func27.1.func2" "can inline main.main.func27.main.main.func27.func34.func36"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+-			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.(func)?2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.func34" "inlining call to main.func36"
++			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.main.func27.1.func2"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func34" "inlining call to main.main.func27.main.main.func27.func34.func36"
+ 			ppanic("r != 2350")
+ 		}
+ 	}
+@@ -269,16 +269,16 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "can inline main.func28"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.func35"
++			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func35"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.(func)?2" "can inline main.func35.1" "can inline main.func37"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.func2" "can inline main.main.func28.func35.1" "can inline main.main.func28.main.main.func28.func35.func37"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+-			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.(func)?2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.func35" "inlining call to main.func37"
++			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.main.func28.1.func2"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func35" "inlining call to main.main.func28.main.main.func28.func35.func37"
+ 			ppanic("r != 2350")
+ 		}
+ 		if a != 2000 {
+diff --git a/test/codegen/issue60324.go b/test/codegen/issue60324.go
+new file mode 100644
+index 0000000000..d106e7ecf8
+--- /dev/null
++++ b/test/codegen/issue60324.go
+@@ -0,0 +1,36 @@
++// asmcheck
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func main() {
++	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.f\\.g\\.h\\.func3"
++	f(1)()
++
++	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.g\\.h\\.func2"
++	g(2)()
++
++	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.h\\.func1"
++	h(3)()
++
++	// amd64:"LEAQ\tcommand-line-arguments\\.main\\.f\\.g\\.h\\.func4"
++	f(4)()
++}
++
++func f(x int) func() {
++	// amd64:"LEAQ\tcommand-line-arguments\\.f\\.g\\.h\\.func1"
++	return g(x)
++}
++
++func g(x int) func() {
++	// amd64:"LEAQ\tcommand-line-arguments\\.g\\.h\\.func1"
++	return h(x)
++}
++
++func h(x int) func() {
++	// amd64:"LEAQ\tcommand-line-arguments\\.h\\.func1"
++	return func() { recover() }
++}
+diff --git a/test/inline_unified.go b/test/inline_unified.go
+index dad11827d7..c1b248e091 100644
+--- a/test/inline_unified.go
++++ b/test/inline_unified.go
+@@ -11,9 +11,9 @@ func r(z int) int {
+ 		return x + z
+ 	}
+ 	bar := func(x int) int { // ERROR "func literal does not escape" "can inline r.func2"
+-		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.func3"
++		return x + func(y int) int { // ERROR "can inline r.func2.1" "can inline r.r.func2.func3"
+ 			return 2*y + x*z
+ 		}(x) // ERROR "inlining call to r.func2.1"
+ 	}
+-	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.func3"
++	return foo(42) + bar(42) // ERROR "inlining call to r.func1" "inlining call to r.func2" "inlining call to r.r.func2.func3"
+ }

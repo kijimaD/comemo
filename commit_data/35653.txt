@@ -14,7 +14,45 @@ Date:   Mon Feb 26 14:45:58 2018 -0600
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go            |  4 ++--
  src/cmd/compile/internal/ssa/zeroextension_test.go | 10 +++++-----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index d2a0e86a6a..c55685f91f 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -804,9 +804,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
+ 		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
+ 		return true
+-	case OpArg, OpSelect0, OpSelect1:
++	case OpArg:
+ 		return x.Type.Width == 4
+-	case OpPhi:
++	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+ 		if depth <= 0 {
+diff --git a/src/cmd/compile/internal/ssa/zeroextension_test.go b/src/cmd/compile/internal/ssa/zeroextension_test.go
+index 692685eaa4..2e31621411 100644
+--- a/src/cmd/compile/internal/ssa/zeroextension_test.go
++++ b/src/cmd/compile/internal/ssa/zeroextension_test.go
+@@ -17,11 +17,11 @@ type extTest struct {
+ var extTests = [...]extTest{
+ 	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 / op2)) }, arg1: 0x1, arg2: 0xfffffffeffffffff, res: 0xffffffff, name: "div"},
+ 	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 * op2)) }, arg1: 0x1, arg2: 0x100000001, res: 0x1, name: "mul"},
+-	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 + op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0x0, name: "add"},
+-	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 - op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0x2, name: "sub"},
+-	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 | op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0xffffffff, name: "or"},
+-	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 ^ op2)) }, arg1: 0x1, arg2: 0xfffffffffffffff, res: 0xfffffffe, name: "xor"},
+-	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 & op2)) }, arg1: 0x1, arg2: 0x100000000000001, res: 0x1, name: "and"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 + op2)) }, arg1: 0x1, arg2: 0xeeeeeeeeffffffff, res: 0x0, name: "add"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 - op2)) }, arg1: 0x1, arg2: 0xeeeeeeeeffffffff, res: 0x2, name: "sub"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 | op2)) }, arg1: 0x100000000000001, arg2: 0xfffffffffffffff, res: 0xffffffff, name: "or"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 ^ op2)) }, arg1: 0x100000000000001, arg2: 0xfffffffffffffff, res: 0xfffffffe, name: "xor"},
++	{f: func(a, b uint64) uint64 { op1 := int32(a); op2 := int32(b); return uint64(uint32(op1 & op2)) }, arg1: 0x100000000000001, arg2: 0x100000000000001, res: 0x1, name: "and"},
+ }
+ 
+ func TestZeroExtension(t *testing.T) {

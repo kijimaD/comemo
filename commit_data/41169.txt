@@ -12,7 +12,34 @@ Date:   Sat Sep 7 12:07:08 2019 +0300
     Change-Id: Ib3d359eeb3a82bf733b9ed17c777fc4c143bc29c
     Reviewed-on: https://go-review.googlesource.com/c/go/+/193841
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/reflectlite/value.go | 2 +-
  src/reflect/value.go              | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index 308cf98fc8..6a493938f5 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -305,7 +305,7 @@ func (v Value) IsNil() bool {
+ // IsValid reports whether v represents a value.
+ // It returns false if v is the zero Value.
+ // If IsValid returns false, all other methods except String panic.
+-// Most functions and methods never return an invalid value.
++// Most functions and methods never return an invalid Value.
+ // If one does, its documentation states the conditions explicitly.
+ func (v Value) IsValid() bool {
+ 	return v.flag != 0
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 2e80bfe77f..7fec09962c 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1076,7 +1076,7 @@ func (v Value) IsNil() bool {
+ // IsValid reports whether v represents a value.
+ // It returns false if v is the zero Value.
+ // If IsValid returns false, all other methods except String panic.
+-// Most functions and methods never return an invalid value.
++// Most functions and methods never return an invalid Value.
+ // If one does, its documentation states the conditions explicitly.
+ func (v Value) IsValid() bool {
+ 	return v.flag != 0

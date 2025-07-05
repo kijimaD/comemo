@@ -21,7 +21,58 @@ Date:   Thu Jul 6 20:30:26 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/base32/base32.go      |  9 ++++++---
  src/encoding/base32/base32_test.go | 10 +++++-----
  2 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 0270e8f4d4..bf341b54f3 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -341,7 +341,11 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 		case 2:
+ 			dst[0] = dbuf[0]<<3 | dbuf[1]>>2
+ 		}
+-		dst = dst[5:]
++
++		if !end {
++			dst = dst[5:]
++		}
++
+ 		switch dlen {
+ 		case 2:
+ 			n += 1
+@@ -495,8 +499,7 @@ func NewDecoder(enc *Encoding, r io.Reader) io.Reader {
+ // corresponding to n bytes of base32-encoded data.
+ func (enc *Encoding) DecodedLen(n int) int {
+ 	if enc.padChar == NoPadding {
+-		// +6 represents the missing padding
+-		return (n + 6) / 8 * 5
++		return n * 5 / 8
+ 	}
+ 
+ 	return n / 8 * 5
+diff --git a/src/encoding/base32/base32_test.go b/src/encoding/base32/base32_test.go
+index 6fe292b476..56b229d15a 100644
+--- a/src/encoding/base32/base32_test.go
++++ b/src/encoding/base32/base32_test.go
+@@ -551,13 +551,13 @@ func TestEncodedDecodedLen(t *testing.T) {
+ 		}},
+ 		{"NoPadding", StdEncoding.WithPadding(NoPadding), []test{
+ 			{0, 0, 0},
+-			{1, 2, 5},
+-			{2, 4, 5},
++			{1, 2, 1},
++			{2, 4, 2},
+ 			{5, 8, 5},
+-			{6, 10, 10},
+-			{7, 12, 10},
++			{6, 10, 6},
++			{7, 12, 7},
+ 			{10, 16, 10},
+-			{11, 18, 15},
++			{11, 18, 11},
+ 		}},
+ 	} {
+ 		t.Run(test.name, func(t *testing.T) {

@@ -9,6 +9,16 @@ Date:   Mon Aug 1 18:52:52 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  VERSION | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+index e95a35a167..11a343977d 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1 +1 @@
+-go1.7rc3
+\ No newline at end of file
++go1.7rc4
+\ No newline at end of file

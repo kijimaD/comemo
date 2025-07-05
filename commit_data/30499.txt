@@ -13,6 +13,20 @@ Date:   Sun Nov 6 11:58:49 2016 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/ast.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 1d6354ad9d..8ce824196d 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -297,7 +297,7 @@ func (f *File) walk(x interface{}, context string, visit func(*File, interface{}
+ 
+ 	// everything else just recurs
+ 	default:
+-		error_(token.NoPos, "unexpected type %T in walk", x, visit)
++		error_(token.NoPos, "unexpected type %T in walk", x)
+ 		panic("unexpected type")
+ 
+ 	case nil:

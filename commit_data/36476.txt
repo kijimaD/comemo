@@ -15,9 +15,165 @@ Date:   Tue May 1 01:21:02 2018 +0200
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/os_darwin.go       |  7 ++++++-
  src/runtime/sys_darwin.go      | 24 ++++++++++++++++++++++++
  src/runtime/sys_darwin_386.s   | 38 +++++++++++++++++++++++++++++++++-----
  src/runtime/sys_darwin_amd64.s | 27 ++++++++++++++++++++++-----
  4 files changed, 85 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 067b7debfa..613725115d 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -540,7 +540,12 @@ func sigtramp(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Point
+ //go:noescape
+ func setitimer(mode int32, new, old *itimerval)
+ 
+-func raise(sig uint32)
++//go:nosplit
++func raise(sig uint32) {
++	tid := pthread_self()
++	pthread_kill(tid, int(sig))
++}
++
+ func raiseproc(sig uint32)
+ 
+ //extern SigTabTT runtime·sigtab[];
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index afb2afccca..35a9bd6f30 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -53,6 +53,28 @@ func pthread_create(attr *pthreadattr, start uintptr, arg unsafe.Pointer) (t pth
+ //go:noescape
+ func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg unsafe.Pointer) int32
+ 
++//go:nowritebarrier
++func pthread_kill(thread pthread, sig int) (errno int32) {
++	systemstack(func() {
++		errno = pthread_kill_trampoline(thread, sig)
++	})
++	return
++}
++
++//go:noescape
++func pthread_kill_trampoline(thread pthread, sig int) int32
++
++//go:nowritebarrier
++func pthread_self() (t pthread) {
++	systemstack(func() {
++		t = pthread_self_trampoline()
++	})
++	return
++}
++
++//go:noescape
++func pthread_self_trampoline() pthread
++
+ // Tell the linker that the libc_* functions are to be found
+ // in a system library, with the libc_ prefix missing.
+ 
+@@ -61,6 +83,8 @@ func pthread_create_trampoline(t *pthread, attr *pthreadattr, start uintptr, arg
+ //go:cgo_import_dynamic libc_pthread_attr_setdetachstate pthread_attr_setdetachstate "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_create pthread_create "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_exit exit "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+ 
+ // Magic incantation to get libSystem actually dynamically linked.
+ // TODO: Why does the code require this?  See cmd/compile/internal/ld/go.go:210
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 319bcfc43c..07844a7eb1 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -61,11 +61,6 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$0
+-	// Ideally we'd send the signal to the current thread,
+-	// not the whole process, but that's too hard on OS X.
+-	JMP	runtime·raiseproc(SB)
+-
+ TEXT runtime·raiseproc(SB),NOSPLIT,$16
+ 	MOVL	$20, AX // getpid
+ 	INT	$0x80
+@@ -575,3 +570,36 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-20
+ 
+ 	MOVL	AX, ret+16(FP)
+ 	RET
++
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-4
++	PUSHL   BP
++	MOVL    SP, BP
++
++	ANDL	$~15, SP
++
++	CALL    libc_pthread_self(SB)
++
++	MOVL    BP, SP
++	POPL    BP
++
++	MOVL    AX, ret+0(FP)
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-12
++	MOVL    thread+0(FP), AX
++	MOVL    sig+4(FP), CX
++	PUSHL   BP
++	MOVL    SP, BP
++
++	SUBL	$8, SP
++	ANDL	$~15, SP
++
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	CALL    libc_pthread_kill(SB)
++
++	MOVL    BP, SP
++	POPL    BP
++
++	MOVL    AX, ret+8(FP)
++	RET
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index e17de9e035..039a5a613e 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -74,11 +74,6 @@ TEXT runtime·write(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·raise(SB),NOSPLIT,$0
+-	// Ideally we'd send the signal to the current thread,
+-	// not the whole process, but that's too hard on OS X.
+-	JMP	runtime·raiseproc(SB)
+-
+ TEXT runtime·raiseproc(SB),NOSPLIT,$24
+ 	MOVL	$(0x2000000+20), AX // getpid
+ 	SYSCALL
+@@ -607,3 +602,25 @@ TEXT runtime·pthread_create_trampoline(SB),NOSPLIT,$0-36
+ 	POPQ	BP
+ 	MOVL	AX, ret+32(FP)
+ 	RET
++
++TEXT runtime·pthread_self_trampoline(SB),NOSPLIT,$0-8
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_pthread_self(SB)
++	MOVQ	BP, SP
++	POPQ	BP
++	MOVQ	AX, ret+0(FP)
++	RET
++
++TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0-20
++	MOVQ	thread+0(FP), DI
++	MOVQ	sig+8(FP), SI
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP
++	CALL	libc_pthread_kill(SB)
++	MOVQ	BP, SP
++	POPQ	BP
++	MOVL	AX, ret+16(FP)
++	RET

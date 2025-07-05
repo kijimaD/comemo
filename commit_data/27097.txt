@@ -11,6 +11,22 @@ Date:   Thu Mar 10 14:33:33 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  doc/go1.6.html | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/doc/go1.6.html b/doc/go1.6.html
+index 17c3536aeb..8dea862ca4 100644
+--- a/doc/go1.6.html
++++ b/doc/go1.6.html
+@@ -168,9 +168,7 @@ Go 1.7 will remove support for the old syntax.
+ <p>
+ The release schedules for the GCC and Go projects do not coincide.
+ GCC release 5 contains the Go 1.4 version of gccgo.
+-The next release, GCC 6, will have the Go 1.5 version of gccgo.
+-Due to release scheduling, it is likely that
+-Go 1.6 will not be in a GCC release until GCC 7.
++The next release, GCC 6, will have the Go 1.6 version of gccgo.
+ </p>
+ 
+ <h3 id="go_command">Go command</h3>

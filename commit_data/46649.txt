@@ -18,7 +18,57 @@ Date:   Thu Jan 14 13:04:17 2021 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/embed/embed.go                         |  6 ++++++
  src/embed/internal/embedtest/embed_test.go | 17 +++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 29e0adf1a6..cc6855e6a5 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -244,6 +244,9 @@ func (f FS) lookup(name string) *file {
+ 	if name == "." {
+ 		return dotFile
+ 	}
++	if f.files == nil {
++		return nil
++	}
+ 
+ 	// Binary search to find where name would be in the list,
+ 	// and then check if name is at that position.
+@@ -261,6 +264,9 @@ func (f FS) lookup(name string) *file {
+ 
+ // readDir returns the list of files corresponding to the directory dir.
+ func (f FS) readDir(dir string) []file {
++	if f.files == nil {
++		return nil
++	}
+ 	// Binary search to find where dir starts and ends in the list
+ 	// and then return that slice of the list.
+ 	files := *f.files
+diff --git a/src/embed/internal/embedtest/embed_test.go b/src/embed/internal/embedtest/embed_test.go
+index 40f65ffc3f..43ae5c7e05 100644
+--- a/src/embed/internal/embedtest/embed_test.go
++++ b/src/embed/internal/embedtest/embed_test.go
+@@ -112,3 +112,20 @@ func TestHidden(t *testing.T) {
+ 	testDir(t, star, "testdata/.hidden",
+ 		"fortune.txt", "more/") // but not .more or _more
+ }
++
++func TestUninitialized(t *testing.T) {
++	var uninitialized embed.FS
++	testDir(t, uninitialized, ".")
++	f, err := uninitialized.Open(".")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++	fi, err := f.Stat()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !fi.IsDir() {
++		t.Errorf("in uninitialized embed.FS, . is not a directory")
++	}
++}

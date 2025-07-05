@@ -17,9 +17,105 @@ Date:   Mon Aug 13 16:08:03 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/heapdump.go  |  2 +-
  src/runtime/mprof.go     |  2 +-
  src/runtime/proc.go      |  6 +++---
  src/runtime/traceback.go | 13 +++++++++++--
  4 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index e2c6f18714..eadbcaeee1 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -346,7 +346,7 @@ func dumpgoroutine(gp *g) {
+ 	dumpint(uint64(gp.goid))
+ 	dumpint(uint64(gp.gopc))
+ 	dumpint(uint64(readgstatus(gp)))
+-	dumpbool(isSystemGoroutine(gp))
++	dumpbool(isSystemGoroutine(gp, false))
+ 	dumpbool(false) // isbackground
+ 	dumpint(uint64(gp.waitsince))
+ 	dumpstr(gp.waitreason.String())
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 43e4810d97..2bd41b650f 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -723,7 +723,7 @@ func GoroutineProfile(p []StackRecord) (n int, ok bool) {
+ 	isOK := func(gp1 *g) bool {
+ 		// Checking isSystemGoroutine here makes GoroutineProfile
+ 		// consistent with both NumGoroutine and Stack.
+-		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1)
++		return gp1 != gp && readgstatus(gp1) != _Gdead && !isSystemGoroutine(gp1, false)
+ 	}
+ 
+ 	stopTheWorld("profile")
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ec73b4d918..c477910c9e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2730,7 +2730,7 @@ func goexit0(gp *g) {
+ 	_g_ := getg()
+ 
+ 	casgstatus(gp, _Grunning, _Gdead)
+-	if isSystemGoroutine(gp) {
++	if isSystemGoroutine(gp, false) {
+ 		atomic.Xadd(&sched.ngsys, -1)
+ 	}
+ 	gp.m = nil
+@@ -3381,7 +3381,7 @@ func newproc1(fn *funcval, argp *uint8, narg int32, callergp *g, callerpc uintpt
+ 	if _g_.m.curg != nil {
+ 		newg.labels = _g_.m.curg.labels
+ 	}
+-	if isSystemGoroutine(newg) {
++	if isSystemGoroutine(newg, false) {
+ 		atomic.Xadd(&sched.ngsys, +1)
+ 	}
+ 	newg.gcscanvalid = false
+@@ -4244,7 +4244,7 @@ func checkdead() {
+ 	lock(&allglock)
+ 	for i := 0; i < len(allgs); i++ {
+ 		gp := allgs[i]
+-		if isSystemGoroutine(gp) {
++		if isSystemGoroutine(gp, false) {
+ 			continue
+ 		}
+ 		s := readgstatus(gp)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8e104ae89e..69d5764c8f 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -945,7 +945,7 @@ func tracebackothers(me *g) {
+ 
+ 	lock(&allglock)
+ 	for _, gp := range allgs {
+-		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp) && level < 2 {
++		if gp == me || gp == g.m.curg || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
+ 			continue
+ 		}
+ 		print("\n")
+@@ -1031,7 +1031,11 @@ func topofstack(f funcInfo, g0 bool) bool {
+ // in stack dumps and deadlock detector. This is any goroutine that
+ // starts at a runtime.* entry point, except for runtime.main and
+ // sometimes runtime.runfinq.
+-func isSystemGoroutine(gp *g) bool {
++//
++// If fixed is true, any goroutine that can vary between user and
++// system (that is, the finalizer goroutine) is considered a user
++// goroutine.
++func isSystemGoroutine(gp *g, fixed bool) bool {
+ 	// Keep this in sync with cmd/trace/trace.go:isSystemGoroutine.
+ 	f := findfunc(gp.startpc)
+ 	if !f.valid() {
+@@ -1043,6 +1047,11 @@ func isSystemGoroutine(gp *g) bool {
+ 	if f.funcID == funcID_runfinq {
+ 		// We include the finalizer goroutine if it's calling
+ 		// back into user code.
++		if fixed {
++			// This goroutine can vary. In fixed mode,
++			// always consider it a user goroutine.
++			return false
++		}
+ 		return !fingRunning
+ 	}
+ 	return hasPrefix(funcname(f), "runtime.")

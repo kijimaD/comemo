@@ -20,7 +20,7 @@ Date:   Thu Aug 1 11:16:27 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/call.go            |  6 +++--
  src/cmd/compile/internal/types2/predicates.go      | 12 +++++++++
  .../internal/types2/testdata/local/issue68183.go   | 29 ++++++++++++++++++++++
@@ -29,3 +29,165 @@ Date:   Thu Aug 1 11:16:27 2024 -0700
  src/go/types/predicates.go                         | 12 +++++++++
  src/go/types/typexpr.go                            |  2 +-
  7 files changed, 63 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 7df4e8250e..33bea5e9ff 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -706,14 +706,16 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 					}
+ 				}
+ 				if exp == nil {
+-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
++					if isValidName(sel) {
++						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e)) // cast to syntax.Expr to silence vet
++					}
+ 					goto Error
+ 				}
+ 				check.objDecl(exp, nil)
+ 			} else {
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+-					if !pkg.fake {
++					if !pkg.fake && isValidName(sel) {
+ 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
+ 					}
+ 					goto Error
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 155a70fb19..d40939e2b5 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -6,6 +6,8 @@
+ 
+ package types2
+ 
++import "unicode"
++
+ // isValid reports whether t is a valid type.
+ func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
+ 
+@@ -567,3 +569,13 @@ func clone[P *T, T any](p P) P {
+ 	c := *p
+ 	return &c
+ }
++
++// isValidName reports whether s is a valid Go identifier.
++func isValidName(s string) bool {
++	for i, ch := range s {
++		if !(unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch)) {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/local/issue68183.go b/src/cmd/compile/internal/types2/testdata/local/issue68183.go
+new file mode 100644
+index 0000000000..fcf16696a0
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/local/issue68183.go
+@@ -0,0 +1,29 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that invalid identifiers reported by the parser
++// don't lead to additional errors during typechecking.
++
++package p
++
++import "fmt"
++
++var (
++	☹x /* ERROR "invalid character" */ int
++	_ = ☹x // ERROR "invalid character"
++	_ = fmt.☹x // ERROR "invalid character"
++	_ = ☹fmt /* ERROR "invalid character" */ .Println
++	_ = _世界 // ERROR "undefined: _世界"
++	_ = ☹_世界 // ERROR "invalid character"
++)
++
++func ☹m /* ERROR "invalid character" */ () {}
++
++type T struct{}
++func (T) ☹m /* ERROR "invalid character" */ () {}
++
++func _() {
++	var x T
++	x.☹m /* ERROR "invalid character" */ ()
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 3966a21693..b917a86c10 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -29,7 +29,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 	case nil:
+ 		if e.Value == "_" {
+ 			check.error(e, InvalidBlank, "cannot use _ as value or type")
+-		} else {
++		} else if isValidName(e.Value) {
+ 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
+ 		}
+ 		return
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 8f02ffc397..d1324d425a 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -709,14 +709,16 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 					}
+ 				}
+ 				if exp == nil {
+-					check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
++					if isValidName(sel) {
++						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e)) // cast to ast.Expr to silence vet
++					}
+ 					goto Error
+ 				}
+ 				check.objDecl(exp, nil)
+ 			} else {
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+-					if !pkg.fake {
++					if !pkg.fake && isValidName(sel) {
+ 						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e))
+ 					}
+ 					goto Error
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 4bfbdccc6f..5261aaf158 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -9,6 +9,8 @@
+ 
+ package types
+ 
++import "unicode"
++
+ // isValid reports whether t is a valid type.
+ func isValid(t Type) bool { return Unalias(t) != Typ[Invalid] }
+ 
+@@ -570,3 +572,13 @@ func clone[P *T, T any](p P) P {
+ 	c := *p
+ 	return &c
+ }
++
++// isValidName reports whether s is a valid Go identifier.
++func isValidName(s string) bool {
++	for i, ch := range s {
++		if !(unicode.IsLetter(ch) || ch == '_' || i > 0 && unicode.IsDigit(ch)) {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 62d75885a6..926013b16c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -30,7 +30,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 	case nil:
+ 		if e.Name == "_" {
+ 			check.error(e, InvalidBlank, "cannot use _ as value or type")
+-		} else {
++		} else if isValidName(e.Name) {
+ 			check.errorf(e, UndeclaredName, "undefined: %s", e.Name)
+ 		}
+ 		return

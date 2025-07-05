@@ -13,7 +13,7 @@ Date:   Tue Feb 27 16:26:41 2024 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/decl.go      | 13 ++----------
  src/cmd/compile/internal/types2/errors.go    | 13 ++++++++++++
  src/cmd/compile/internal/types2/labels.go    |  2 +-
@@ -28,3 +28,380 @@ Date:   Tue Feb 27 16:26:41 2024 -0800
  src/go/types/stmt.go                         | 18 ++++++++++------
  src/go/types/struct.go                       |  6 ++++--
  13 files changed, 85 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index fc9e6e37cb..c07a6b4dee 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -11,15 +11,6 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
+-func (err *error_) recordAltDecl(obj Object) {
+-	if pos := obj.Pos(); pos.IsKnown() {
+-		// We use "other" rather than "previous" here because
+-		// the first declaration seen may not be textually
+-		// earlier in the source.
+-		err.addf(pos, "other declaration of %s", obj.Name())
+-	}
+-}
+-
+ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syntax.Pos) {
+ 	// spec: "The blank identifier, represented by the underscore
+ 	// character _, may be used in a declaration like any other
+@@ -29,7 +20,7 @@ func (check *Checker) declare(scope *Scope, id *syntax.Name, obj Object, pos syn
+ 		if alt := scope.Insert(obj); alt != nil {
+ 			err := check.newError(DuplicateDecl)
+ 			err.addf(obj, "%s redeclared in this block", obj.Name())
+-			err.recordAltDecl(alt)
++			err.addAltDecl(alt)
+ 			err.report()
+ 			return
+ 		}
+@@ -743,7 +734,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 					// method, and the alt decl on the field.
+ 					err := check.newError(DuplicateFieldAndMethod)
+ 					err.addf(alt, "field and method with the same name %s", fld.name)
+-					err.recordAltDecl(fld)
++					err.addAltDecl(fld)
+ 					err.report()
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index ea4a69b300..44f2adc7b7 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -60,6 +60,16 @@ func (err *error_) addf(at poser, format string, args ...interface{}) {
+ 	err.desc = append(err.desc, errorDesc{atPos(at), err.check.sprintf(format, args...)})
+ }
+ 
++// addAltDecl is a specialized form of addf reporting another declaration of obj.
++func (err *error_) addAltDecl(obj Object) {
++	if pos := obj.Pos(); pos.IsKnown() {
++		// We use "other" rather than "previous" here because
++		// the first declaration seen may not be textually
++		// earlier in the source.
++		err.addf(obj, "other declaration of %s", obj.Name())
++	}
++}
++
+ func (err *error_) empty() bool {
+ 	return err.desc == nil
+ }
+@@ -136,6 +146,9 @@ func (err *error_) report() {
+ 	} else {
+ 		check.handleError(0, err.pos(), err.code, err.msg(), err.soft)
+ 	}
++
++	// make sure the error is not reported twice
++	err.desc = nil
+ }
+ 
+ // handleError should only be called by error_.report.
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 37d10d4a51..8ea58ad0aa 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -136,7 +136,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 					err := check.newError(DuplicateLabel)
+ 					err.soft = true
+ 					err.addf(lbl.pos, "label %s already declared", name)
+-					err.recordAltDecl(alt)
++					err.addAltDecl(alt)
+ 					err.report()
+ 					// ok to continue
+ 				} else {
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 7a412b2954..f57234806e 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -316,7 +316,7 @@ func (check *Checker) collectObjects() {
+ 							if alt := fileScope.Lookup(name); alt != nil {
+ 								err := check.newError(DuplicateDecl)
+ 								err.addf(s.LocalPkgName, "%s redeclared in this block", alt.Name())
+-								err.recordAltDecl(alt)
++								err.addAltDecl(alt)
+ 								err.report()
+ 							} else {
+ 								fileScope.insert(name, obj)
+@@ -474,11 +474,11 @@ func (check *Checker) collectObjects() {
+ 				err := check.newError(DuplicateDecl)
+ 				if pkg, ok := obj.(*PkgName); ok {
+ 					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+-					err.recordAltDecl(pkg)
++					err.addAltDecl(pkg)
+ 				} else {
+ 					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+-					// TODO(gri) dot-imported objects don't have a position; recordAltDecl won't print anything
+-					err.recordAltDecl(obj)
++					// TODO(gri) dot-imported objects don't have a position; addAltDecl won't print anything
++					err.addAltDecl(obj)
+ 				}
+ 				err.report()
+ 			}
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 4482de51e8..bb4d32b016 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -188,7 +188,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 	scope.Squash(func(obj, alt Object) {
+ 		err := check.newError(DuplicateDecl)
+ 		err.addf(obj, "%s redeclared in this block", obj.Name())
+-		err.recordAltDecl(alt)
++		err.addAltDecl(alt)
+ 		err.report()
+ 	})
+ 
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 7f6213e772..f5cdc472f7 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -202,7 +202,7 @@ func (check *Checker) declareInSet(oset *objset, pos syntax.Pos, obj Object) boo
+ 	if alt := oset.insert(obj); alt != nil {
+ 		err := check.newError(DuplicateDecl)
+ 		err.addf(pos, "%s redeclared", obj.Name())
+-		err.recordAltDecl(alt)
++		err.addAltDecl(alt)
+ 		err.report()
+ 		return false
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4b3eeb8485..19472382af 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -12,15 +12,6 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
+-func (check *Checker) reportAltDecl(obj Object) {
+-	if pos := obj.Pos(); pos.IsValid() {
+-		// We use "other" rather than "previous" here because
+-		// the first declaration seen may not be textually
+-		// earlier in the source.
+-		check.errorf(obj, DuplicateDecl, "\tother declaration of %s", obj.Name()) // secondary error, \t indented
+-	}
+-}
+-
+ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token.Pos) {
+ 	// spec: "The blank identifier, represented by the underscore
+ 	// character _, may be used in a declaration like any other
+@@ -28,8 +19,10 @@ func (check *Checker) declare(scope *Scope, id *ast.Ident, obj Object, pos token
+ 	// binding."
+ 	if obj.Name() != "_" {
+ 		if alt := scope.Insert(obj); alt != nil {
+-			check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
+-			check.reportAltDecl(alt)
++			err := check.newError(DuplicateDecl)
++			err.addf(obj, "%s redeclared in this block", obj.Name())
++			err.addAltDecl(alt)
++			err.report()
+ 			return
+ 		}
+ 		obj.setScopePos(pos)
+@@ -336,14 +329,15 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 		return
+ 	}
+ 
++	err := check.newError(InvalidDeclCycle)
+ 	if tname != nil {
+-		check.errorf(obj, InvalidDeclCycle, "invalid recursive type %s", objName)
++		err.addf(obj, "invalid recursive type %s", objName)
+ 	} else {
+-		check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration of %s", objName)
++		err.addf(obj, "invalid cycle in declaration of %s", objName)
+ 	}
+ 	i := start
+ 	for range cycle {
+-		check.errorf(obj, InvalidDeclCycle, "\t%s refers to", objName) // secondary error, \t indented
++		err.addf(obj, "%s refers to", objName)
+ 		i++
+ 		if i >= len(cycle) {
+ 			i = 0
+@@ -351,7 +345,8 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 		obj = cycle[i]
+ 		objName = name(obj)
+ 	}
+-	check.errorf(obj, InvalidDeclCycle, "\t%s", objName)
++	err.addf(obj, "%s", objName)
++	err.report()
+ }
+ 
+ // firstInSrc reports the index of the object with the "smallest"
+@@ -829,8 +824,10 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 
+ 					// For historical consistency, we report the primary error on the
+ 					// method, and the alt decl on the field.
+-					check.errorf(alt, DuplicateFieldAndMethod, "field and method with the same name %s", fld.name)
+-					check.reportAltDecl(fld)
++					err := check.newError(DuplicateFieldAndMethod)
++					err.addf(alt, "field and method with the same name %s", fld.name)
++					err.addAltDecl(fld)
++					err.report()
+ 				}
+ 			}
+ 		}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 878a81cd1a..be1ec5d5f7 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -61,6 +61,16 @@ func (err *error_) addf(at positioner, format string, args ...interface{}) {
+ 	err.desc = append(err.desc, errorDesc{at, err.check.sprintf(format, args...)})
+ }
+ 
++// addAltDecl is a specialized form of addf reporting another declaration of obj.
++func (err *error_) addAltDecl(obj Object) {
++	if pos := obj.Pos(); pos.IsValid() {
++		// We use "other" rather than "previous" here because
++		// the first declaration seen may not be textually
++		// earlier in the source.
++		err.addf(obj, "other declaration of %s", obj.Name())
++	}
++}
++
+ func (err *error_) empty() bool {
+ 	return err.desc == nil
+ }
+@@ -137,6 +147,9 @@ func (err *error_) report() {
+ 	} else {
+ 		check.handleError(0, err.posn(), err.code, err.msg(), err.soft)
+ 	}
++
++	// make sure the error is not reported twice
++	err.desc = nil
+ }
+ 
+ // handleError should only be called by error_.report.
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index 5ee941e369..04e84083b5 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -138,8 +138,11 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 			if name := s.Label.Name; name != "_" {
+ 				lbl := NewLabel(s.Label.Pos(), check.pkg, name)
+ 				if alt := all.Insert(lbl); alt != nil {
+-					check.softErrorf(lbl, DuplicateLabel, "label %s already declared", name)
+-					check.reportAltDecl(alt)
++					err := check.newError(DuplicateLabel)
++					err.soft = true
++					err.addf(lbl, "label %s already declared", name)
++					err.addAltDecl(alt)
++					err.report()
+ 					// ok to continue
+ 				} else {
+ 					b.insert(s)
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index b3d7f7da13..1f6847d103 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -327,8 +327,10 @@ func (check *Checker) collectObjects() {
+ 							// the object may be imported into more than one file scope
+ 							// concurrently. See go.dev/issue/32154.)
+ 							if alt := fileScope.Lookup(name); alt != nil {
+-								check.errorf(d.spec.Name, DuplicateDecl, "%s redeclared in this block", alt.Name())
+-								check.reportAltDecl(alt)
++								err := check.newError(DuplicateDecl)
++								err.addf(d.spec.Name, "%s redeclared in this block", alt.Name())
++								err.addAltDecl(alt)
++								err.report()
+ 							} else {
+ 								fileScope.insert(name, obj)
+ 								check.dotImportMap[dotImportKey{fileScope, name}] = pkgName
+@@ -458,14 +460,16 @@ func (check *Checker) collectObjects() {
+ 		for name, obj := range scope.elems {
+ 			if alt := pkg.scope.Lookup(name); alt != nil {
+ 				obj = resolve(name, obj)
++				err := check.newError(DuplicateDecl)
+ 				if pkg, ok := obj.(*PkgName); ok {
+-					check.errorf(alt, DuplicateDecl, "%s already declared through import of %s", alt.Name(), pkg.Imported())
+-					check.reportAltDecl(pkg)
++					err.addf(alt, "%s already declared through import of %s", alt.Name(), pkg.Imported())
++					err.addAltDecl(pkg)
+ 				} else {
+-					check.errorf(alt, DuplicateDecl, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
+-					// TODO(gri) dot-imported objects don't have a position; reportAltDecl won't print anything
+-					check.reportAltDecl(obj)
++					err.addf(alt, "%s already declared through dot-import of %s", alt.Name(), obj.Pkg())
++					// TODO(gri) dot-imported objects don't have a position; addAltDecl won't print anything
++					err.addAltDecl(obj)
+ 				}
++				err.report()
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 8d26a8776d..770edc2b21 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -193,8 +193,10 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	params, variadic := check.collectParams(scope, ftyp.Params, true, scopePos)
+ 	results, _ := check.collectParams(scope, ftyp.Results, false, scopePos)
+ 	scope.squash(func(obj, alt Object) {
+-		check.errorf(obj, DuplicateDecl, "%s redeclared in this block", obj.Name())
+-		check.reportAltDecl(alt)
++		err := check.newError(DuplicateDecl)
++		err.addf(obj, "%s redeclared in this block", obj.Name())
++		err.addAltDecl(alt)
++		err.report()
+ 	})
+ 
+ 	if recvPar != nil {
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 25acf1ab43..9788fc8142 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -257,8 +257,10 @@ L:
+ 			// (quadratic algorithm, but these lists tend to be very short)
+ 			for _, vt := range seen[val] {
+ 				if Identical(v.typ, vt.typ) {
+-					check.errorf(&v, DuplicateCase, "duplicate case %s in expression switch", &v)
+-					check.error(atPos(vt.pos), DuplicateCase, "\tprevious case") // secondary error, \t indented
++					err := check.newError(DuplicateCase)
++					err.addf(&v, "duplicate case %s in expression switch", &v)
++					err.addf(atPos(vt.pos), "previous case")
++					err.report()
+ 					continue L
+ 				}
+ 			}
+@@ -301,8 +303,10 @@ L:
+ 				if T != nil {
+ 					Ts = TypeString(T, check.qualifier)
+ 				}
+-				check.errorf(e, DuplicateCase, "duplicate case %s in type switch", Ts)
+-				check.error(other, DuplicateCase, "\tprevious case") // secondary error, \t indented
++				err := check.newError(DuplicateCase)
++				err.addf(e, "duplicate case %s in type switch", Ts)
++				err.addf(other, "previous case")
++				err.report()
+ 				continue L
+ 			}
+ 		}
+@@ -510,8 +514,10 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			// with the same name as a result parameter is in scope at the place of the return."
+ 			for _, obj := range res.vars {
+ 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+-					check.errorf(s, OutOfScopeResult, "result parameter %s not in scope at return", obj.name)
+-					check.errorf(alt, OutOfScopeResult, "\tinner declaration of %s", obj)
++					err := check.newError(OutOfScopeResult)
++					err.addf(s, "result parameter %s not in scope at return", obj.name)
++					err.addf(alt, "inner declaration of %s", obj)
++					err.report()
+ 					// ok to continue
+ 				}
+ 			}
+diff --git a/src/go/types/struct.go b/src/go/types/struct.go
+index 0c86654315..a6970832c7 100644
+--- a/src/go/types/struct.go
++++ b/src/go/types/struct.go
+@@ -199,8 +199,10 @@ func embeddedFieldIdent(e ast.Expr) *ast.Ident {
+ 
+ func (check *Checker) declareInSet(oset *objset, pos token.Pos, obj Object) bool {
+ 	if alt := oset.insert(obj); alt != nil {
+-		check.errorf(atPos(pos), DuplicateDecl, "%s redeclared", obj.Name())
+-		check.reportAltDecl(alt)
++		err := check.newError(DuplicateDecl)
++		err.addf(atPos(pos), "%s redeclared", obj.Name())
++		err.addAltDecl(alt)
++		err.report()
+ 		return false
+ 	}
+ 	return true

@@ -27,7 +27,63 @@ Date:   Mon Nov 16 09:40:45 2020 -0500
     Reviewed-by: Paul Murphy <murp@ibm.com>
     Reviewed-by: Carlos Eduardo Seo <carlos.seo@linaro.org>
     Trust: Lynn Boger <laboger@linux.vnet.ibm.com>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go |  7 ++++---
  test/codegen/issue42610.go              | 30 ++++++++++++++++++++++++++++++
  2 files changed, 34 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 39aa63d947..24efd38fb7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1427,10 +1427,11 @@ func DecodePPC64RotateMask(sauxint int64) (rotate, mb, me int64, mask uint64) {
+ 	return
+ }
+ 
+-// This verifies that the mask occupies the
+-// rightmost bits.
++// This verifies that the mask is a set of
++// consecutive bits including the least
++// significant bit.
+ func isPPC64ValidShiftMask(v int64) bool {
+-	if ((v + 1) & v) == 0 {
++	if (v != 0) && ((v+1)&v) == 0 {
+ 		return true
+ 	}
+ 	return false
+diff --git a/test/codegen/issue42610.go b/test/codegen/issue42610.go
+new file mode 100644
+index 0000000000..c7eeddc53c
+--- /dev/null
++++ b/test/codegen/issue42610.go
+@@ -0,0 +1,30 @@
++// asmcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Don't allow 0 masks in shift lowering rules on ppc64x.
++// See issue 42610.
++
++package codegen
++
++func f32(a []int32, i uint32) {
++        g := func(p int32) int32 {
++                i = uint32(p) * (uint32(p) & (i & 1))
++                return 1
++        }
++        // ppc64le: -"RLWNIM"
++        // ppc64: -"RLWNIM"
++        a[0] = g(8) >> 1
++}
++
++func f(a []int, i uint) {
++	g := func(p int) int {
++		i = uint(p) * (uint(p) & (i & 1))
++		return 1
++	}
++	// ppc64le: -"RLDIC"
++	// ppc64: -"RLDIC"
++	a[0] = g(8) >> 1
++}

@@ -8,6 +8,17 @@ Date:   Wed Mar 26 10:24:57 2014 +1100
     R=r
     CC=golang-codereviews
     https://golang.org/cl/79890046
-
+---
  doc/gopher/README | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/gopher/README b/doc/gopher/README
+new file mode 100644
+index 0000000000..17681ebd40
+--- /dev/null
++++ b/doc/gopher/README
+@@ -0,0 +1,4 @@
++The Go gopher was designed by Renee French. (http://reneefrench.blogspot.com/)
++The design is licsensed under the Creative Commons 3.0 Attributions license.
++Read this article for more details: http://blog.golang.org/gopher
++

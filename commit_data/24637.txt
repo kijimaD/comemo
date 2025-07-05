@@ -10,6 +10,24 @@ Date:   Mon Aug 17 00:29:56 2015 -0700
     Change-Id: If59fc669125dd1caa335dacfbf0f8dbd7b074312
     Reviewed-on: https://go-review.googlesource.com/13639
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/html.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index 581331a215..848e016129 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -389,6 +389,12 @@ func (b *Block) LongHTML() string {
+ 			s += " " + c.HTML()
+ 		}
+ 	}
++	switch b.Likely {
++	case BranchUnlikely:
++		s += " (unlikely)"
++	case BranchLikely:
++		s += " (likely)"
++	}
+ 	return s
+ }
+ 

@@ -11,10 +11,329 @@ Date:   Wed Mar 11 16:06:17 2009 -0700
     R=ken
     OCL=26141
     CL=26141
-
+---
  src/cmd/gc/subr.c        | 17 ++++++++++++++---
  test/golden.out          |  4 ----
  test/interface4.go       |  6 +++---
  test/interface6.go       | 32 ++++++++++++++++----------------
  usr/gri/pretty/parser.go | 42 +++++++++++++++++++++---------------------
  5 files changed, 54 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 0cf586eab8..bfc090a2c2 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2805,12 +2805,23 @@ ifacelookdot(Sym *s, Type *t)
+ // check whether non-interface type t
+ // satisifes inteface type iface.
+ int
+-ifaceokT2I(Type *t, Type *iface, Type **m)
++ifaceokT2I(Type *t0, Type *iface, Type **m)
+ {
+-	Type *im, *tm;
++	Type *t, *im, *tm;
+ 	int imhash;
+ 
+-	t = methtype(t);
++	t = methtype(t0);
++
++	// stopgap: check for
++	// non-pointer type in T2I, methods want pointers.
++	// supposed to do something better eventually
++	// but this will catch errors while we decide the
++	// details of the "better" solution.
++	if(t == t0 && t->methptr == 2) {
++		yyerror("probably wanted *%T not %T", t, t);
++		*m = iface->type;
++		return 0;
++	}
+ 
+ 	// if this is too slow,
+ 	// could sort these first
+diff --git a/test/golden.out b/test/golden.out
+index 5dfe1953aa..181da52297 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -64,10 +64,6 @@ Faulting address: 0x0
+ pc: xxx
+ 
+ 
+-=========== ./interface6.go
+-failure in f4 i
+-BUG interface6
+-
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+diff --git a/test/interface4.go b/test/interface4.go
+index a55936df84..68c5efafb3 100644
+--- a/test/interface4.go
++++ b/test/interface4.go
+@@ -35,11 +35,11 @@ func ptrs() {
+ 	var smallptr SmallPtr = SmallPtr{ 12345 };
+ 	var intptr IntPtr = 12345;
+ 
+-	test("bigptr", bigptr);
++//	test("bigptr", bigptr);
+ 	test("&bigptr", &bigptr);
+-	test("smallptr", smallptr);
++//	test("smallptr", smallptr);
+ 	test("&smallptr", &smallptr);
+-	test("intptr", intptr);
++//	test("intptr", intptr);
+ 	test("&intptr", &intptr);
+ }
+ 
+diff --git a/test/interface6.go b/test/interface6.go
+index 6053e51d64..8bfcdf0fc0 100644
+--- a/test/interface6.go
++++ b/test/interface6.go
+@@ -49,13 +49,13 @@ type S2 struct { i int }
+ func (p *S2) Get() int { return p.i }
+ func (p *S2) Put(i int) { p.i = i }
+ 
+-func f4() {
+-  s := S2{1};
+-  var i I1 = s;
+-  i.Put(2);
+-  check(i.Get() == 2, "f4 i");
+-  check(s.i == 1, "f4 s");
+-}
++// func f4() {
++//   s := S2{1};
++//   var i I1 = s;
++//   i.Put(2);
++//   check(i.Get() == 2, "f4 i");
++//   check(s.i == 1, "f4 s");
++// }
+ 
+ func f5() {
+   s := S2{1};
+@@ -107,13 +107,13 @@ type S4 struct { i, j, k, l int64 }
+ func (p *S4) Get() int64 { return p.l }
+ func (p *S4) Put(i int64) { p.l = i }
+ 
+-func f10() {
+-  s := S4{1, 2, 3, 4};
+-  var i I2 = s;
+-  i.Put(5);
+-  check(i.Get() == 5, "f10 i");
+-  check(s.l == 4, "f10 s");
+-}
++// func f10() {
++//   s := S4{1, 2, 3, 4};
++//   var i I2 = s;
++//   i.Put(5);
++//   check(i.Get() == 5, "f10 i");
++//   check(s.l == 4, "f10 s");
++// }
+ 
+ func f11() {
+   s := S4{1, 2, 3, 4};
+@@ -135,13 +135,13 @@ func main() {
+   f1();
+   f2();
+   f3();
+-  f4();
++//  f4();
+   f5();
+   f6();
+   f7();
+   f8();
+   f9();
+-  f10();
++//  f10();
+   f11();
+   f12();
+   if fail > 0 {
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index e80fb7e7be..21075beae5 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -363,7 +363,7 @@ func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr)
+ 
+ 	// if we had a list of identifiers, it must be followed by a type
+ 	typ := P.tryParameterType();
+-	
++
+ 	return list, typ;
+ }
+ 
+@@ -383,7 +383,7 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+ 		}
+ 		list.Init(0);
+ 		list.Push(&ast.Field{idents, typ, nil});
+-		
++
+ 		for P.tok == token.COMMA {
+ 			P.next();
+ 			idents := P.parseIdentList2(nil);
+@@ -473,7 +473,7 @@ func (P *Parser) parseFunctionType() *ast.FunctionType {
+ 	loc := P.loc;
+ 	P.expect(token.FUNC);
+ 	sig := P.parseSignature();
+-	
++
+ 	return &ast.FunctionType{loc, sig};
+ }
+ 
+@@ -494,7 +494,7 @@ func (P *Parser) parseMethodSpec() *ast.Field {
+ 		// embedded interface
+ 		typ = x;
+ 	}
+-	
++
+ 	return &ast.Field{idents, typ, nil};
+ }
+ 
+@@ -523,7 +523,7 @@ func (P *Parser) parseInterfaceType() *ast.InterfaceType {
+ 		end = P.loc;
+ 		P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+-		
++
+ 		// convert vector
+ 		methods = make([]*ast.Field, list.Len());
+ 		for i := list.Len() - 1; i >= 0; i-- {
+@@ -600,7 +600,7 @@ func (P *Parser) parseFieldDecl() *ast.Field {
+ 			P.error(P.loc, "anonymous field expected");
+ 		}
+ 	}
+-	
++
+ 	return &ast.Field{idents, typ, tag};
+ }
+ 
+@@ -613,7 +613,7 @@ func (P *Parser) parseStructType() ast.Expr {
+ 	loc := P.loc;
+ 	var end scanner.Location;
+ 	var fields []*ast.Field;
+-	
++
+ 	P.expect(token.STRUCT);
+ 	if P.tok == token.LBRACE {
+ 		P.next();
+@@ -642,7 +642,7 @@ func (P *Parser) parseStructType() ast.Expr {
+ 		}
+ 	}
+ 
+-	return ast.StructType{loc, fields, end};
++	return &ast.StructType{loc, fields, end};
+ }
+ 
+ 
+@@ -722,7 +722,7 @@ func (P *Parser) parseBlock(tok int) *ast.Block {
+ 	P.expect(tok);
+ 
+ 	P.parseStatementList(b.List);
+-	
++
+ 	if tok == token.LBRACE {
+ 		b.End = P.loc;
+ 		P.expect(token.RBRACE);
+@@ -781,7 +781,7 @@ func (P *Parser) parseStringLit() ast.Expr {
+ 
+ 	var x ast.Expr = &ast.BasicLit{P.loc, P.tok, P.val};
+ 	P.expect(token.STRING);  // always satisfied
+-	
++
+ 	for P.tok == token.STRING {
+ 		y := &ast.BasicLit{P.loc, P.tok, P.val};
+ 		P.next();
+@@ -805,7 +805,7 @@ func (P *Parser) parseOperand() ast.Expr {
+ 		x := &ast.BasicLit{P.loc, P.tok, P.val};
+ 		P.next();
+ 		return x;
+-		
++
+ 	case token.STRING:
+ 		return P.parseStringLit();
+ 
+@@ -1150,7 +1150,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Exp
+ 
+ 	if P.tok != token.LBRACE {
+ 		prev_lev := P.expr_lev;
+-		P.expr_lev = -1;	
++		P.expr_lev = -1;
+ 		if P.tok != token.SEMICOLON {
+ 			init = P.parseSimpleStat(isForStat);
+ 			// TODO check for range clause and exit if found
+@@ -1372,7 +1372,7 @@ func (P *Parser) parseImportSpec(loc scanner.Location) *ast.ImportDecl {
+ 	} else {
+ 		P.expect(token.STRING);  // use expect() error handling
+ 	}
+-	
++
+ 	return &ast.ImportDecl{loc, ident, path};
+ }
+ 
+@@ -1389,7 +1389,7 @@ func (P *Parser) parseConstSpec(loc scanner.Location) *ast.ConstDecl {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+ 	}
+-	
++
+ 	return &ast.ConstDecl{loc, idents, typ, vals};
+ }
+ 
+@@ -1401,7 +1401,7 @@ func (P *Parser) parseTypeSpec(loc scanner.Location) *ast.TypeDecl {
+ 
+ 	ident := P.parseIdent();
+ 	typ := P.parseType();
+-	
++
+ 	return &ast.TypeDecl{loc, ident, typ};
+ }
+ 
+@@ -1424,7 +1424,7 @@ func (P *Parser) parseVarSpec(loc scanner.Location) *ast.VarDecl {
+ 			vals = P.parseExpressionList();
+ 		}
+ 	}
+-	
++
+ 	return &ast.VarDecl{loc, idents, typ, vals};
+ }
+ 
+@@ -1436,7 +1436,7 @@ func (P *Parser) parseSpec(loc scanner.Location, keyword int) ast.Decl {
+ 	case token.TYPE: return P.parseTypeSpec(loc);
+ 	case token.VAR: return P.parseVarSpec(loc);
+ 	}
+-	
++
+ 	unreachable();
+ 	return nil;
+ }
+@@ -1463,13 +1463,13 @@ func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 		end := P.loc;
+ 		P.expect(token.RPAREN);
+ 		P.opt_semi = true;
+-		
++
+ 		// convert vector
+ 		decls := make([]ast.Decl, list.Len());
+ 		for i := 0; i < list.Len(); i++ {
+ 			decls[i] = list.At(i).(ast.Decl);
+ 		}
+-		
++
+ 		return &ast.DeclList{loc, keyword, decls, end};
+ 	}
+ 
+@@ -1528,7 +1528,7 @@ func (P *Parser) parseDeclaration() ast.Decl {
+ 	case token.FUNC:
+ 		return P.parseFunctionDecl();
+ 	}
+-	
++
+ 	loc := P.loc;
+ 	P.error(loc, "declaration expected");
+ 	P.next();  // make progress
+@@ -1588,7 +1588,7 @@ func (P *Parser) ParseImportDecls() []ast.Decl {
+ 	for i := 0; i < list.Len(); i++ {
+ 		imports[i] = list.At(i).(ast.Decl);
+ 	}
+-	
++
+ 	return imports;
+ }
+ 

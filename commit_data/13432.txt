@@ -7,6 +7,20 @@ Date:   Mon Jul 2 20:10:31 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6348062
-
+---
  src/pkg/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 661fb43b97..b6e8b6cf73 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -1270,7 +1270,7 @@ func BenchmarkClientServer(b *testing.B) {
+ //
+ // For use like:
+ //   $ go test -c
+-//   $ ./http.test -test.run=XX -test.bench=Benchmarktime=15 -test.cpuprofile=http.prof
++//   $ ./http.test -test.run=XX -test.bench=BenchmarkServer -test.benchtime=15 -test.cpuprofile=http.prof
+ //   $ go tool pprof http.test http.prof
+ //   (pprof) web
+ func BenchmarkServer(b *testing.B) {

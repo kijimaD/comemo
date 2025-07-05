@@ -35,7 +35,111 @@ Date:   Mon Jul 9 22:37:59 2018 -0400
     Change-Id: Ideec9dfc29b0b8107f34fc634247081d0031777d
     Reviewed-on: https://go-review.googlesource.com/122875
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/strings/strings.go      | 42 +++++++++++++++---------------------------
  src/strings/strings_test.go | 13 +++++++++++++
  2 files changed, 28 insertions(+), 27 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 9e7d4f0455..e54f0c2bfa 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -466,9 +466,7 @@ func Map(mapping func(rune) rune, s string) string {
+ 
+ 	// The output buffer b is initialized on demand, the first
+ 	// time a character differs.
+-	var b []byte
+-	// nbytes is the number of bytes encoded in b.
+-	var nbytes int
++	var b Builder
+ 
+ 	for i, c := range s {
+ 		r := mapping(c)
+@@ -476,15 +474,10 @@ func Map(mapping func(rune) rune, s string) string {
+ 			continue
+ 		}
+ 
+-		b = make([]byte, len(s)+utf8.UTFMax)
+-		nbytes = copy(b, s[:i])
++		b.Grow(len(s) + utf8.UTFMax)
++		b.WriteString(s[:i])
+ 		if r >= 0 {
+-			if r < utf8.RuneSelf {
+-				b[nbytes] = byte(r)
+-				nbytes++
+-			} else {
+-				nbytes += utf8.EncodeRune(b[nbytes:], r)
+-			}
++			b.WriteRune(r)
+ 		}
+ 
+ 		if c == utf8.RuneError {
+@@ -501,33 +494,28 @@ func Map(mapping func(rune) rune, s string) string {
+ 		break
+ 	}
+ 
+-	if b == nil {
++	// Fast path for unchanged input
++	if b.Cap() == 0 { // didn't call b.Grow above
+ 		return s
+ 	}
+ 
+ 	for _, c := range s {
+ 		r := mapping(c)
+ 
+-		// common case
+-		if (0 <= r && r < utf8.RuneSelf) && nbytes < len(b) {
+-			b[nbytes] = byte(r)
+-			nbytes++
+-			continue
+-		}
+-
+-		// b is not big enough or r is not a ASCII rune.
+ 		if r >= 0 {
+-			if nbytes+utf8.UTFMax >= len(b) {
+-				// Grow the buffer.
+-				nb := make([]byte, 2*len(b))
+-				copy(nb, b[:nbytes])
+-				b = nb
++			// common case
++			// Due to inlining, it is more performant to determine if WriteByte should be
++			// invoked rather than always call WriteRune
++			if r < utf8.RuneSelf {
++				b.WriteByte(byte(r))
++			} else {
++				// r is not a ASCII rune.
++				b.WriteRune(r)
+ 			}
+-			nbytes += utf8.EncodeRune(b[nbytes:], r)
+ 		}
+ 	}
+ 
+-	return string(b[:nbytes])
++	return b.String()
+ }
+ 
+ // Repeat returns a new string consisting of count copies of the string s.
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 78bc573e5f..bb46e136f2 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -673,6 +673,19 @@ func TestMap(t *testing.T) {
+ 	if m != s {
+ 		t.Errorf("encoding not handled correctly: expected %q got %q", s, m)
+ 	}
++
++	// 9. Check mapping occurs in the front, middle and back
++	trimSpaces := func(r rune) rune {
++		if unicode.IsSpace(r) {
++			return -1
++		}
++		return r
++	}
++	m = Map(trimSpaces, "   abc    123   ")
++	expect = "abc123"
++	if m != expect {
++		t.Errorf("trimSpaces: expected %q got %q", expect, m)
++	}
+ }
+ 
+ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }

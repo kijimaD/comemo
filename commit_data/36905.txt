@@ -15,7 +15,59 @@ Date:   Thu Jun 7 17:25:28 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  8 ++++----
  src/cmd/compile/internal/ssa/opGen.go        | 14 ++++++++------
  2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 2f0364fb00..28694e435e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -349,10 +349,10 @@ func init() {
+ 		// result is undefined if the input is zero.
+ 		// flags are set to "equal" if the input is zero, "not equal" otherwise.
+ 		// BS{F,R}L returns only the result.
+-		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"}, // # of low-order zeroes in 64-bit arg
+-		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32"},              // # of low-order zeroes in 32-bit arg
+-		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)"}, // # of high-order zeroes in 64-bit arg
+-		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32"},              // # of high-order zeroes in 32-bit arg
++		{name: "BSFQ", argLength: 1, reg: gp11flags, asm: "BSFQ", typ: "(UInt64,Flags)"},        // # of low-order zeroes in 64-bit arg
++		{name: "BSFL", argLength: 1, reg: gp11, asm: "BSFL", typ: "UInt32", clobberFlags: true}, // # of low-order zeroes in 32-bit arg
++		{name: "BSRQ", argLength: 1, reg: gp11flags, asm: "BSRQ", typ: "(UInt64,Flags)"},        // # of high-order zeroes in 64-bit arg
++		{name: "BSRL", argLength: 1, reg: gp11, asm: "BSRL", typ: "UInt32", clobberFlags: true}, // # of high-order zeroes in 32-bit arg
+ 
+ 		// CMOV instructions: 64, 32 and 16-bit sizes.
+ 		// if arg2 encodes a true result, return arg1, else arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index e85a988d14..4e12132aa5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -7393,9 +7393,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "BSFL",
+-		argLen: 1,
+-		asm:    x86.ABSFL,
++		name:         "BSFL",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.ABSFL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -7420,9 +7421,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "BSRL",
+-		argLen: 1,
+-		asm:    x86.ABSRL,
++		name:         "BSRL",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          x86.ABSRL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15

@@ -16,8 +16,134 @@ Date:   Fri Aug 5 15:44:15 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/alldocs.go                    |  9 ++++++++-
  src/cmd/go/internal/generate/generate.go | 29 ++++++++++++++++++++++++-----
  src/cmd/go/testdata/script/generate.txt  | 10 +++++++++-
  3 files changed, 41 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a3c1fecb91..ce152171fd 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -594,7 +594,7 @@
+ //
+ // The generator is run in the package's source directory.
+ //
+-// Go generate accepts one specific flag:
++// Go generate accepts two specific flags:
+ //
+ //	-run=""
+ //		if non-empty, specifies a regular expression to select
+@@ -602,6 +602,13 @@
+ //		any trailing spaces and final newline) matches the
+ //		expression.
+ //
++//	-skip=""
++//		if non-empty, specifies a regular expression to suppress
++//		directives whose full original source text (excluding
++//		any trailing spaces and final newline) matches the
++//		expression. If a directive matches both the -run and
++//		the -skip arguments, it is skipped.
++//
+ // It also accepts the standard build flags including -v, -n, and -x.
+ // The -v flag prints the names of packages and files as they are
+ // processed.
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 65e7148aa8..3eda6c7145 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -133,7 +133,7 @@ all further processing for that package.
+ 
+ The generator is run in the package's source directory.
+ 
+-Go generate accepts one specific flag:
++Go generate accepts two specific flags:
+ 
+ 	-run=""
+ 		if non-empty, specifies a regular expression to select
+@@ -141,6 +141,13 @@ Go generate accepts one specific flag:
+ 		any trailing spaces and final newline) matches the
+ 		expression.
+ 
++	-skip=""
++		if non-empty, specifies a regular expression to suppress
++		directives whose full original source text (excluding
++		any trailing spaces and final newline) matches the
++		expression. If a directive matches both the -run and
++		the -skip arguments, it is skipped.
++
+ It also accepts the standard build flags including -v, -n, and -x.
+ The -v flag prints the names of packages and files as they are
+ processed.
+@@ -156,11 +163,15 @@ For more about specifying packages, see 'go help packages'.
+ var (
+ 	generateRunFlag string         // generate -run flag
+ 	generateRunRE   *regexp.Regexp // compiled expression for -run
++
++	generateSkipFlag string         // generate -skip flag
++	generateSkipRE   *regexp.Regexp // compiled expression for -skip
+ )
+ 
+ func init() {
+ 	work.AddBuildFlags(CmdGenerate, work.DefaultBuildFlags)
+ 	CmdGenerate.Flag.StringVar(&generateRunFlag, "run", "", "")
++	CmdGenerate.Flag.StringVar(&generateSkipFlag, "skip", "", "")
+ }
+ 
+ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+@@ -171,6 +182,13 @@ func runGenerate(ctx context.Context, cmd *base.Command, args []string) {
+ 			log.Fatalf("generate: %s", err)
+ 		}
+ 	}
++	if generateSkipFlag != "" {
++		var err error
++		generateSkipRE, err = regexp.Compile(generateSkipFlag)
++		if err != nil {
++			log.Fatalf("generate: %s", err)
++		}
++	}
+ 
+ 	cfg.BuildContext.BuildTags = append(cfg.BuildContext.BuildTags, "generate")
+ 
+@@ -291,10 +309,11 @@ func (g *Generator) run() (ok bool) {
+ 		if !isGoGenerate(buf) {
+ 			continue
+ 		}
+-		if generateRunFlag != "" {
+-			if !generateRunRE.Match(bytes.TrimSpace(buf)) {
+-				continue
+-			}
++		if generateRunFlag != "" && !generateRunRE.Match(bytes.TrimSpace(buf)) {
++			continue
++		}
++		if generateSkipFlag != "" && generateSkipRE.Match(bytes.TrimSpace(buf)) {
++			continue
+ 		}
+ 
+ 		g.setEnv()
+diff --git a/src/cmd/go/testdata/script/generate.txt b/src/cmd/go/testdata/script/generate.txt
+index 73f5bbd57a..58777c5865 100644
+--- a/src/cmd/go/testdata/script/generate.txt
++++ b/src/cmd/go/testdata/script/generate.txt
+@@ -17,11 +17,19 @@ stdout 'Now is the time for all good men'
+ go generate './generate/substitution.go'
+ stdout $GOARCH' substitution.go:7 pabc xyzp/substitution.go/123'
+ 
+-# Test go generate's run flag
++# Test go generate's run and skip flags
+ go generate -run y.s './generate/flag.go'
+ stdout 'yes' # flag.go should select yes
+ ! stdout 'no' # flag.go should not select no
+ 
++go generate -skip th..sand './generate/flag.go'
++stdout 'yes' # flag.go should select yes
++! stdout 'no' # flag.go should not select no
++
++go generate -run . -skip th..sand './generate/flag.go'
++stdout 'yes' # flag.go should select yes
++! stdout 'no' # flag.go should not select no
++
+ # Test go generate provides the right "$GOPACKAGE" name in an x_test
+ go generate './generate/env_test.go'
+ stdout 'main_test'

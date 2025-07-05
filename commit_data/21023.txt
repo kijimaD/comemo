@@ -12,6 +12,20 @@ Date:   Fri Nov 7 10:43:55 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/172850043
-
+---
  src/cmd/5g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index 5b25adaf45..712841329e 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -393,7 +393,7 @@ loop2:
+ 		for(z=0; z<BITS; z++)
+ 			bit.b[z] = (r->refahead.b[z] | r->calahead.b[z]) &
+ 			  ~(externs.b[z] | params.b[z] | addrs.b[z] | consts.b[z]);
+-		if(bany(&bit) & !r->f.refset) {
++		if(bany(&bit) && !r->f.refset) {
+ 			// should never happen - all variables are preset
+ 			if(debug['w'])
+ 				print("%L: used and not set: %Q\n", r->f.prog->lineno, bit);

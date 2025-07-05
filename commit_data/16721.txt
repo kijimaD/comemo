@@ -7,7 +7,142 @@ Date:   Wed Jul 10 13:29:52 2013 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/11080043
-
+---
  src/pkg/net/http/fs.go      | 39 +++++++++++++++++++++++++++------------
  src/pkg/net/http/fs_test.go | 31 +++++++++++++++++++++++++------
  2 files changed, 52 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index b6bea0dfaa..19b493c375 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -105,23 +105,31 @@ func dirList(w ResponseWriter, f File) {
+ //
+ // Note that *os.File implements the io.ReadSeeker interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+-	size, err := content.Seek(0, os.SEEK_END)
+-	if err != nil {
+-		Error(w, "seeker can't seek", StatusInternalServerError)
+-		return
+-	}
+-	_, err = content.Seek(0, os.SEEK_SET)
+-	if err != nil {
+-		Error(w, "seeker can't seek", StatusInternalServerError)
+-		return
++	sizeFunc := func() (int64, error) {
++		size, err := content.Seek(0, os.SEEK_END)
++		if err != nil {
++			return 0, errSeeker
++		}
++		_, err = content.Seek(0, os.SEEK_SET)
++		if err != nil {
++			return 0, errSeeker
++		}
++		return size, nil
+ 	}
+-	serveContent(w, req, name, modtime, size, content)
++	serveContent(w, req, name, modtime, sizeFunc, content)
+ }
+ 
++// errSeeker is returned by ServeContent's sizeFunc when the content
++// doesn't seek properly. The underlying Seeker's error text isn't
++// included in the sizeFunc reply so it's not sent over HTTP to end
++// users.
++var errSeeker = errors.New("seeker can't seek")
++
+ // if name is empty, filename is unknown. (used for mime type, before sniffing)
+ // if modtime.IsZero(), modtime is unknown.
+ // content must be seeked to the beginning of the file.
+-func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, size int64, content io.ReadSeeker) {
++// The sizeFunc is called at most once. Its error, if any, is sent in the HTTP response.
++func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time, sizeFunc func() (int64, error), content io.ReadSeeker) {
+ 	if checkLastModified(w, r, modtime) {
+ 		return
+ 	}
+@@ -151,6 +159,12 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 		w.Header().Set("Content-Type", ctype)
+ 	}
+ 
++	size, err := sizeFunc()
++	if err != nil {
++		Error(w, err.Error(), StatusInternalServerError)
++		return
++	}
++
+ 	// handle Content-Range header.
+ 	sendSize := size
+ 	var sendContent io.Reader = content
+@@ -378,7 +392,8 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	}
+ 
+ 	// serverContent will check modification time
+-	serveContent(w, r, d.Name(), d.ModTime(), d.Size(), f)
++	sizeFunc := func() (int64, error) { return d.Size(), nil }
++	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
+ }
+ 
+ // localRedirect gives a Moved Permanently response.
+diff --git a/src/pkg/net/http/fs_test.go b/src/pkg/net/http/fs_test.go
+index 2c3737653b..559b2c09b9 100644
+--- a/src/pkg/net/http/fs_test.go
++++ b/src/pkg/net/http/fs_test.go
+@@ -567,7 +567,10 @@ func TestServeContent(t *testing.T) {
+ 	defer ts.Close()
+ 
+ 	type testCase struct {
+-		file             string
++		// One of file or content must be set:
++		file    string
++		content io.ReadSeeker
++
+ 		modtime          time.Time
+ 		serveETag        string // optional
+ 		serveContentType string // optional
+@@ -615,6 +618,14 @@ func TestServeContent(t *testing.T) {
+ 			},
+ 			wantStatus: 304,
+ 		},
++		"not_modified_etag_no_seek": {
++			content:   panicOnSeek{nil}, // should never be called
++			serveETag: `"foo"`,
++			reqHeader: map[string]string{
++				"If-None-Match": `"foo"`,
++			},
++			wantStatus: 304,
++		},
+ 		"range_good": {
+ 			file:      "testdata/style.css",
+ 			serveETag: `"A"`,
+@@ -638,15 +649,21 @@ func TestServeContent(t *testing.T) {
+ 		},
+ 	}
+ 	for testName, tt := range tests {
+-		f, err := os.Open(tt.file)
+-		if err != nil {
+-			t.Fatalf("test %q: %v", testName, err)
++		var content io.ReadSeeker
++		if tt.file != "" {
++			f, err := os.Open(tt.file)
++			if err != nil {
++				t.Fatalf("test %q: %v", testName, err)
++			}
++			defer f.Close()
++			content = f
++		} else {
++			content = tt.content
+ 		}
+-		defer f.Close()
+ 
+ 		servec <- serveParam{
+ 			name:        filepath.Base(tt.file),
+-			content:     f,
++			content:     content,
+ 			modtime:     tt.modtime,
+ 			etag:        tt.serveETag,
+ 			contentType: tt.serveContentType,
+@@ -763,3 +780,5 @@ func TestLinuxSendfileChild(*testing.T) {
+ 		panic(err)
+ 	}
+ }
++
++type panicOnSeek struct{ io.ReadSeeker }

@@ -25,10 +25,210 @@ Date:   Fri Oct 14 09:51:52 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  misc/cgo/fortran/fortran_test.go                   | 76 ++++++++++++++++++++--
  misc/cgo/fortran/test.bash                         | 44 -------------
  .../cgo/fortran/{ => testdata/testprog}/answer.f90 |  0
  .../cgo/fortran/{ => testdata/testprog}/fortran.go | 11 +++-
  src/cmd/dist/test.go                               | 15 +----
  5 files changed, 84 insertions(+), 62 deletions(-)
+
+diff --git a/misc/cgo/fortran/fortran_test.go b/misc/cgo/fortran/fortran_test.go
+index d0cb9f2246..4604a4dce3 100644
+--- a/misc/cgo/fortran/fortran_test.go
++++ b/misc/cgo/fortran/fortran_test.go
+@@ -1,13 +1,81 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package fortran
+ 
+-import "testing"
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"strings"
++	"testing"
++)
+ 
+ func TestFortran(t *testing.T) {
+-	if a := TheAnswer(); a != 42 {
+-		t.Errorf("Unexpected result for The Answer. Got: %d Want: 42", a)
++	// Find the FORTRAN compiler.
++	fc := os.Getenv("FC")
++	if fc == "" {
++		fc, _ = exec.LookPath("gfortran")
++	}
++	if fc == "" {
++		t.Skip("fortran compiler not found (try setting $FC)")
++	}
++
++	var fcExtra []string
++	if strings.Contains(fc, "gfortran") {
++		// TODO: This duplicates but also diverges from logic from cmd/go
++		// itself. For example, cmd/go merely adds -lgfortran without the extra
++		// library path work. If this is what's necessary to run gfortran, we
++		// should reconcile the logic here and in cmd/go.. Maybe this should
++		// become a cmd/go script test to share that logic.
++
++		// Add -m32 if we're targeting 386, in case this is a cross-compile.
++		if runtime.GOARCH == "386" {
++			fcExtra = append(fcExtra, "-m32")
++		}
++
++		// Find libgfortran. If the FORTRAN compiler isn't bundled
++		// with the C linker, this may be in a path the C linker can't
++		// find on its own. (See #14544)
++		libExt := "so"
++		switch runtime.GOOS {
++		case "darwin":
++			libExt = "dylib"
++		case "aix":
++			libExt = "a"
++		}
++		libPath, err := exec.Command(fc, append([]string{"-print-file-name=libgfortran." + libExt}, fcExtra...)...).CombinedOutput()
++		if err != nil {
++			t.Errorf("error invoking %s: %s", fc, err)
++		}
++		libDir := filepath.Dir(string(libPath))
++		cgoLDFlags := os.Getenv("CGO_LDFLAGS")
++		cgoLDFlags += " -L " + libDir
++		if runtime.GOOS != "aix" {
++			cgoLDFlags += " -Wl,-rpath," + libDir
++		}
++		t.Logf("CGO_LDFLAGS=%s", cgoLDFlags)
++		os.Setenv("CGO_LDFLAGS", cgoLDFlags)
++
++	}
++
++	// Do a test build that doesn't involve Go FORTRAN support.
++	fcArgs := append([]string{"helloworld/helloworld.f90", "-o", "/dev/null"}, fcExtra...)
++	t.Logf("%s %s", fc, fcArgs)
++	if err := exec.Command(fc, fcArgs...).Run(); err != nil {
++		t.Skipf("skipping Fortran test: could not build helloworld.f90 with %s: %s", fc, err)
++	}
++
++	// Finally, run the actual test.
++	t.Log("go", "run", "./testdata/testprog")
++	out, err := exec.Command("go", "run", "./testdata/testprog").CombinedOutput()
++	if err == nil && string(out) != "ok\n" {
++		err = fmt.Errorf("expected ok")
++	}
++	if err != nil {
++		t.Errorf("%s\nOutput:\n%s", err, string(out))
+ 	}
+ }
+diff --git a/misc/cgo/fortran/test.bash b/misc/cgo/fortran/test.bash
+deleted file mode 100755
+index 2b61730815..0000000000
+--- a/misc/cgo/fortran/test.bash
++++ /dev/null
+@@ -1,44 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2016 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This directory is intended to test the use of Fortran with cgo.
+-
+-set -e
+-
+-FC=$1
+-
+-goos=$(go env GOOS)
+-
+-libext="so"
+-if [ "$goos" = "darwin" ]; then
+-	libext="dylib"
+-elif [ "$goos" = "aix" ]; then
+-	libtext="a"
+-fi
+-
+-case "$FC" in
+-*gfortran*)
+-  libpath=$(dirname $($FC -print-file-name=libgfortran.$libext))
+-  if [ "$goos" != "aix" ]; then
+-	  RPATH_FLAG="-Wl,-rpath,$libpath"
+-  fi
+-  export CGO_LDFLAGS="$CGO_LDFLAGS $RPATH_FLAG -L $libpath"
+-  ;;
+-esac
+-
+-if ! $FC helloworld/helloworld.f90 -o /dev/null >& /dev/null; then
+-  echo "skipping Fortran test: could not build helloworld.f90 with $FC"
+-  exit 0
+-fi
+-rm -f main.exe
+-
+-status=0
+-
+-if ! go test; then
+-  echo "FAIL: go test"
+-  status=1
+-fi
+-
+-exit $status
+diff --git a/misc/cgo/fortran/answer.f90 b/misc/cgo/fortran/testdata/testprog/answer.f90
+similarity index 100%
+rename from misc/cgo/fortran/answer.f90
+rename to misc/cgo/fortran/testdata/testprog/answer.f90
+diff --git a/misc/cgo/fortran/fortran.go b/misc/cgo/fortran/testdata/testprog/fortran.go
+similarity index 58%
+rename from misc/cgo/fortran/fortran.go
+rename to misc/cgo/fortran/testdata/testprog/fortran.go
+index 0079b535d9..d8004ceb6d 100644
+--- a/misc/cgo/fortran/fortran.go
++++ b/misc/cgo/fortran/testdata/testprog/fortran.go
+@@ -2,11 +2,20 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package fortran
++package main
+ 
+ // int the_answer();
+ import "C"
++import "os"
+ 
+ func TheAnswer() int {
+ 	return int(C.the_answer())
+ }
++
++func main() {
++	if a := TheAnswer(); a != 42 {
++		println("Unexpected result for The Answer. Got:", a, " Want: 42")
++		os.Exit(1)
++	}
++	println("ok")
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index fa79e7e8ae..1663ff8c94 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -746,19 +746,8 @@ func (t *tester) registerTests() {
+ 		// Disabled on iOS. golang.org/issue/15919
+ 		t.registerHostTest("cgo_stdio", "../misc/cgo/stdio", "misc/cgo/stdio", ".")
+ 		t.registerHostTest("cgo_life", "../misc/cgo/life", "misc/cgo/life", ".")
+-		fortran := os.Getenv("FC")
+-		if fortran == "" {
+-			fortran, _ = exec.LookPath("gfortran")
+-		}
+-		if t.hasBash() && goos != "android" && fortran != "" {
+-			t.tests = append(t.tests, distTest{
+-				name:    "cgo_fortran",
+-				heading: "../misc/cgo/fortran",
+-				fn: func(dt *distTest) error {
+-					t.addCmd(dt, "misc/cgo/fortran", "./test.bash", fortran)
+-					return nil
+-				},
+-			})
++		if goos != "android" {
++			t.registerHostTest("cgo_fortran", "../misc/cgo/fortran", "misc/cgo/fortran", ".")
+ 		}
+ 		if t.hasSwig() && goos != "android" {
+ 			t.tests = append(t.tests, distTest{

@@ -15,7 +15,7 @@ Date:   Tue May 16 13:47:46 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Run-TryBot: Jonathan Amsterdam <jba@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  src/cmd/go/internal/test/flagdefs.go               |   1 +
@@ -31,3 +31,745 @@ Date:   Tue May 16 13:47:46 2023 -0400
  src/cmd/vet/vet_test.go                            |   1 +
  src/log/slog/logger_test.go                        |   4 +-
  14 files changed, 449 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 746d4428f9..36eafbe586 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/sync v0.2.0
+ 	golang.org/x/sys v0.8.0
+ 	golang.org/x/term v0.5.0
+-	golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429
++	golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index db69eb0300..592c35efbe 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,5 +12,5 @@ golang.org/x/sys v0.8.0 h1:EBmGv8NaZBZTWvrbjNoL6HVt+IVy3QDQpJs7VRIw3tU=
+ golang.org/x/sys v0.8.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.5.0 h1:n2a8QNdAb0sZNpU9R1ALUXBbY+w51fCQDN+7EdxNBsY=
+ golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
+-golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429 h1:nDRvPgHpNZhyxqe+K2j4+cOW3t5INqBY6UhqnrOp92Y=
+-golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=
++golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f h1:EbCQ6q1oiCDTdXb+iqfNKm2eGCxAXj1nOGVbzcPKZ9g=
++golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f/go.mod h1:owI94Op576fPu3cIGQeHs3joujW/2Oc6MtlxbF5dfNc=
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index aa2207693c..947c27ef05 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -63,6 +63,7 @@ var passAnalyzersToVet = map[string]bool{
+ 	"rangeloops":       true,
+ 	"shift":            true,
+ 	"sigchanyzer":      true,
++	"slog":             true,
+ 	"stdmethods":       true,
+ 	"stringintconv":    true,
+ 	"structtag":        true,
+diff --git a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go
+index 1fc2b0283e..6a3745c058 100644
+--- a/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go
++++ b/src/cmd/vendor/golang.org/x/tools/cmd/bisect/main.go
+@@ -16,7 +16,7 @@
+ // code zero). With all the changes enabled, the target is known to fail
+ // (exit any other way). Bisect repeats the target with different sets of
+ // changes enabled, using binary search to find (non-overlapping) minimal
+-// change sets that preserve the failure.
++// change sets that provoke the failure.
+ //
+ // The target must cooperate with bisect by accepting a change pattern
+ // and then enabling and reporting the changes that match that pattern.
+@@ -29,25 +29,36 @@
+ // targets implement this protocol. We plan to publish that package
+ // in a non-internal location after finalizing its API.
+ //
++// Bisect starts by running the target with no changes enabled and then
++// with all changes enabled. It expects the former to succeed and the latter to fail,
++// and then it will search for the minimal set of changes that must be enabled
++// to provoke the failure. If the situation is reversed – the target fails with no
++// changes enabled and succeeds with all changes enabled – then bisect
++// automatically runs in reverse as well, searching for the minimal set of changes
++// that must be disabled to provoke the failure.
++//
++// Bisect prints tracing logs to standard error and the minimal change sets
++// to standard output.
++//
+ // # Command Line Flags
+ //
+ // Bisect supports the following command-line flags:
+ //
+-//	-max M
++//	-max=M
+ //
+ // Stop after finding M minimal change sets. The default is no maximum, meaning to run until
+ // all changes that provoke a failure have been identified.
+ //
+-//	-maxset S
++//	-maxset=S
+ //
+ // Disallow change sets larger than S elements. The default is no maximum.
+ //
+-//	-timeout D
++//	-timeout=D
+ //
+ // If the target runs for longer than duration D, stop the target and interpret that as a failure.
+ // The default is no timeout.
+ //
+-//	-count N
++//	-count=N
+ //
+ // Run each trial N times (default 2), checking for consistency.
+ //
+@@ -55,19 +66,47 @@
+ //
+ // Print verbose output, showing each run and its match lines.
+ //
++// In addition to these general flags,
++// bisect supports a few “shortcut” flags that make it more convenient
++// to use with specific targets.
++//
++//	-compile=<rewrite>
++//
++// This flag is equivalent to adding an environment variable
++// “GOCOMPILEDEBUG=<rewrite>hash=PATTERN”,
++// which, as discussed in more detail in the example below,
++// allows bisect to identify the specific source locations where the
++// compiler rewrite causes the target to fail.
++//
++//	-godebug=<name>=<value>
++//
++// This flag is equivalent to adding an environment variable
++// “GODEBUG=<name>=<value>#PATTERN”,
++// which allows bisect to identify the specific call stacks where
++// the changed [GODEBUG setting] value causes the target to fail.
++//
+ // # Example
+ //
+-// For example, the Go compiler can be used as a bisect target to
+-// determine the source locations that cause a test failure when compiled with
+-// a new optimization:
++// The Go compiler provides support for enabling or disabling certain rewrites
++// and optimizations to allow bisect to identify specific source locations where
++// the rewrite causes the program to fail. For example, to bisect a failure caused
++// by the new loop variable semantics:
+ //
+ //	bisect go test -gcflags=all=-d=loopvarhash=PATTERN
+ //
+ // The -gcflags=all= instructs the go command to pass the -d=... to the Go compiler
+-// when compiling all packages. Bisect replaces the literal text “PATTERN” with a specific pattern
+-// on each invocation, varying the patterns to determine the minimal set of changes
++// when compiling all packages. Bisect varies PATTERN to determine the minimal set of changes
+ // needed to reproduce the failure.
+ //
++// The go command also checks the GOCOMPILEDEBUG environment variable for flags
++// to pass to the compiler, so the above command is equivalent to:
++//
++//	bisect GOCOMPILEDEBUG=loopvarhash=PATTERN go test
++//
++// Finally, as mentioned earlier, the -compile flag allows shortening this command further:
++//
++//	bisect -compile=loopvar go test
++//
+ // # Defeating Build Caches
+ //
+ // Build systems cache build results, to avoid repeating the same compilations
+@@ -87,6 +126,8 @@
+ // previous example using Bazel, the invocation is:
+ //
+ //	bazel test --define=gc_goopts=-d=loopvarhash=PATTERN,unused=RANDOM //path/to:test
++//
++// [GODEBUG setting]: https://tip.golang.org/doc/godebug
+ package main
+ 
+ import (
+@@ -95,9 +136,11 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"log"
++	"math/bits"
+ 	"math/rand"
+ 	"os"
+ 	"os/exec"
++	"sort"
+ 	"strconv"
+ 	"strings"
+ 	"time"
+@@ -127,6 +170,25 @@ func main() {
+ 	flag.IntVar(&b.Count, "count", 2, "run target `n` times for each trial")
+ 	flag.BoolVar(&b.Verbose, "v", false, "enable verbose output")
+ 
++	env := ""
++	envFlag := ""
++	flag.Func("compile", "bisect source locations affected by Go compiler `rewrite` (fma, loopvar, ...)", func(value string) error {
++		if envFlag != "" {
++			return fmt.Errorf("cannot use -%s and -compile", envFlag)
++		}
++		envFlag = "compile"
++		env = "GOCOMPILEDEBUG=" + value + "hash=PATTERN"
++		return nil
++	})
++	flag.Func("godebug", "bisect call stacks affected by GODEBUG setting `name=value`", func(value string) error {
++		if envFlag != "" {
++			return fmt.Errorf("cannot use -%s and -godebug", envFlag)
++		}
++		envFlag = "godebug"
++		env = "GODEBUG=" + value + "#PATTERN"
++		return nil
++	})
++
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	args := flag.Args()
+@@ -140,6 +202,26 @@ func main() {
+ 		usage()
+ 	}
+ 	b.Env, b.Cmd, b.Args = args[:i], args[i], args[i+1:]
++	if env != "" {
++		b.Env = append([]string{env}, b.Env...)
++	}
++
++	// Check that PATTERN is available for us to vary.
++	found := false
++	for _, e := range b.Env {
++		if _, v, _ := strings.Cut(e, "="); strings.Contains(v, "PATTERN") {
++			found = true
++		}
++	}
++	for _, a := range b.Args {
++		if strings.Contains(a, "PATTERN") {
++			found = true
++		}
++	}
++	if !found {
++		log.Fatalf("no PATTERN in target environment or args")
++	}
++
+ 	if !b.Search() {
+ 		os.Exit(1)
+ 	}
+@@ -180,6 +262,18 @@ type Bisect struct {
+ 	// each pattern starts with a !.
+ 	Disable bool
+ 
++	// SkipDigits is the number of hex digits to use in skip messages.
++	// If the set of available changes is the same in each run, as it should be,
++	// then this doesn't matter: we'll only exclude suffixes that uniquely identify
++	// a given change. But for some programs, especially bisecting runtime
++	// behaviors, sometimes enabling one change unlocks questions about other
++	// changes. Strictly speaking this is a misuse of bisect, but just to make
++	// bisect more robust, we use the y and n runs to create an estimate of the
++	// number of bits needed for a unique suffix, and then we round it up to
++	// a number of hex digits, with one extra digit for good measure, and then
++	// we always use that many hex digits for skips.
++	SkipHexDigits int
++
+ 	// Add is a list of suffixes to add to every trial, because they
+ 	// contain changes that are necessary for a group we are assembling.
+ 	Add []string
+@@ -257,6 +351,10 @@ func (b *Bisect) Search() bool {
+ 		b.Fatalf("target fails with no changes and all changes")
+ 	}
+ 
++	// Compute minimum number of bits needed to distinguish
++	// all the changes we saw during N and all the changes we saw during Y.
++	b.SkipHexDigits = skipHexDigits(runN.MatchIDs, runY.MatchIDs)
++
+ 	// Loop finding and printing change sets, until none remain.
+ 	found := 0
+ 	for {
+@@ -337,6 +435,35 @@ func (b *Bisect) Logf(format string, args ...any) {
+ 	b.Stderr.Write([]byte(s))
+ }
+ 
++func skipHexDigits(idY, idN []uint64) int {
++	var all []uint64
++	seen := make(map[uint64]bool)
++	for _, x := range idY {
++		seen[x] = true
++		all = append(all, x)
++	}
++	for _, x := range idN {
++		if !seen[x] {
++			seen[x] = true
++			all = append(all, x)
++		}
++	}
++	sort.Slice(all, func(i, j int) bool { return bits.Reverse64(all[i]) < bits.Reverse64(all[j]) })
++	digits := sort.Search(64/4, func(digits int) bool {
++		mask := uint64(1)<<(4*digits) - 1
++		for i := 0; i+1 < len(all); i++ {
++			if all[i]&mask == all[i+1]&mask {
++				return false
++			}
++		}
++		return true
++	})
++	if digits < 64/4 {
++		digits++
++	}
++	return digits
++}
++
+ // search searches for a single locally minimal change set.
+ //
+ // Invariant: r describes the result of r.Suffix + b.Add, which failed.
+@@ -356,10 +483,7 @@ func (b *Bisect) search(r *Result) []string {
+ 
+ 	// If there's one matching change, that's the one we're looking for.
+ 	if len(r.MatchIDs) == 1 {
+-		if r.Suffix == "" {
+-			return []string{"y"}
+-		}
+-		return []string{r.Suffix}
++		return []string{fmt.Sprintf("x%0*x", b.SkipHexDigits, r.MatchIDs[0]&(1<<(4*b.SkipHexDigits)-1))}
+ 	}
+ 
+ 	// If the suffix we were tracking in the trial is already 64 bits,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/doc.go
+new file mode 100644
+index 0000000000..ecb10e0948
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/doc.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package slog defines an Analyzer that checks for
++// mismatched key-value pairs in log/slog calls.
++//
++// # Analyzer slog
++//
++// slog: check for invalid structured logging calls
++//
++// The slog checker looks for calls to functions from the log/slog
++// package that take alternating key-value pairs. It reports calls
++// where an argument in a key position is neither a string nor a
++// slog.Attr, and where a final key is missing its value.
++// For example,it would report
++//
++//	slog.Warn("message", 11, "k") // slog.Warn arg "11" should be a string or a slog.Attr
++//
++// and
++//
++//	slog.Info("message", "k1", v1, "k2") // call to slog.Info missing a final value
++package slog
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go
+new file mode 100644
+index 0000000000..8429eab935
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/slog/slog.go
+@@ -0,0 +1,234 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// TODO(jba) deduce which functions wrap the log/slog functions, and use the
++// fact mechanism to propagate this information, so we can provide diagnostics
++// for user-supplied wrappers.
++
++package slog
++
++import (
++	_ "embed"
++	"fmt"
++	"go/ast"
++	"go/token"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/go/types/typeutil"
++)
++
++//go:embed doc.go
++var doc string
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "slog",
++	Doc:      analysisutil.MustExtractDoc(doc, "slog"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/slog",
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++var stringType = types.Universe.Lookup("string").Type()
++
++// A position describes what is expected to appear in an argument position.
++type position int
++
++const (
++	// key is an argument position that should hold a string key or an Attr.
++	key position = iota
++	// value is an argument position that should hold a value.
++	value
++	// unknown represents that we do not know if position should hold a key or a value.
++	unknown
++)
++
++func run(pass *analysis.Pass) (any, error) {
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++	nodeFilter := []ast.Node{
++		(*ast.CallExpr)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(node ast.Node) {
++		call := node.(*ast.CallExpr)
++		fn := typeutil.StaticCallee(pass.TypesInfo, call)
++		if fn == nil {
++			return // not a static call
++		}
++		if call.Ellipsis != token.NoPos {
++			return // skip calls with "..." args
++		}
++		skipArgs, ok := kvFuncSkipArgs(fn)
++		if !ok {
++			// Not a slog function that takes key-value pairs.
++			return
++		}
++		if isMethodExpr(pass.TypesInfo, call) {
++			// Call is to a method value. Skip the first argument.
++			skipArgs++
++		}
++		if len(call.Args) <= skipArgs {
++			// Too few args; perhaps there are no k-v pairs.
++			return
++		}
++
++		// Check this call.
++		// The first position should hold a key or Attr.
++		pos := key
++		var unknownArg ast.Expr // nil or the last unknown argument
++		for _, arg := range call.Args[skipArgs:] {
++			t := pass.TypesInfo.Types[arg].Type
++			switch pos {
++			case key:
++				// Expect a string or Attr.
++				switch {
++				case t == stringType:
++					pos = value
++				case isAttr(t):
++					pos = key
++				case types.IsInterface(t):
++					// As we do not do dataflow, we do not know what the dynamic type is.
++					// It could be a string or an Attr so we don't know what to expect next.
++					pos = unknown
++				default:
++					if unknownArg == nil {
++						pass.ReportRangef(arg, "%s arg %q should be a string or a slog.Attr (possible missing key or value)",
++							shortName(fn), analysisutil.Format(pass.Fset, arg))
++					} else {
++						pass.ReportRangef(arg, "%s arg %q should probably be a string or a slog.Attr (previous arg %q cannot be a key)",
++							shortName(fn), analysisutil.Format(pass.Fset, arg), analysisutil.Format(pass.Fset, unknownArg))
++					}
++					// Stop here so we report at most one missing key per call.
++					return
++				}
++
++			case value:
++				// Anything can appear in this position.
++				// The next position should be a key.
++				pos = key
++
++			case unknown:
++				// Once we encounter an unknown position, we can never be
++				// sure if a problem later or at the end of the call is due to a
++				// missing final value, or a non-key in key position.
++				// In both cases, unknownArg != nil.
++				unknownArg = arg
++
++				// We don't know what is expected about this position, but all hope is not lost.
++				if t != stringType && !isAttr(t) && !types.IsInterface(t) {
++					// This argument is definitely not a key.
++					//
++					// unknownArg cannot have been a key, in which case this is the
++					// corresponding value, and the next position should hold another key.
++					pos = key
++				}
++			}
++		}
++		if pos == value {
++			if unknownArg == nil {
++				pass.ReportRangef(call, "call to %s missing a final value", shortName(fn))
++			} else {
++				pass.ReportRangef(call, "call to %s has a missing or misplaced value", shortName(fn))
++			}
++		}
++	})
++	return nil, nil
++}
++
++func isAttr(t types.Type) bool {
++	return analysisutil.IsNamed(t, "log/slog", "Attr")
++}
++
++// shortName returns a name for the function that is shorter than FullName.
++// Examples:
++//
++//	"slog.Info" (instead of "log/slog.Info")
++//	"slog.Logger.With" (instead of "(*log/slog.Logger).With")
++func shortName(fn *types.Func) string {
++	var r string
++	if recv := fn.Type().(*types.Signature).Recv(); recv != nil {
++		t := recv.Type()
++		if pt, ok := t.(*types.Pointer); ok {
++			t = pt.Elem()
++		}
++		if nt, ok := t.(*types.Named); ok {
++			r = nt.Obj().Name()
++		} else {
++			r = recv.Type().String()
++		}
++		r += "."
++	}
++	return fmt.Sprintf("%s.%s%s", fn.Pkg().Name(), r, fn.Name())
++}
++
++// If fn is a slog function that has a ...any parameter for key-value pairs,
++// kvFuncSkipArgs returns the number of arguments to skip over to reach the
++// corresponding arguments, and true.
++// Otherwise it returns (0, false).
++func kvFuncSkipArgs(fn *types.Func) (int, bool) {
++	if pkg := fn.Pkg(); pkg == nil || pkg.Path() != "log/slog" {
++		return 0, false
++	}
++	var recvName string // by default a slog package function
++	recv := fn.Type().(*types.Signature).Recv()
++	if recv != nil {
++		t := recv.Type()
++		if pt, ok := t.(*types.Pointer); ok {
++			t = pt.Elem()
++		}
++		if nt, ok := t.(*types.Named); !ok {
++			return 0, false
++		} else {
++			recvName = nt.Obj().Name()
++		}
++	}
++	skip, ok := kvFuncs[recvName][fn.Name()]
++	return skip, ok
++}
++
++// The names of functions and methods in log/slog that take
++// ...any for key-value pairs, mapped to the number of initial args to skip in
++// order to get to the ones that match the ...any parameter.
++// The first key is the dereferenced receiver type name, or "" for a function.
++var kvFuncs = map[string]map[string]int{
++	"": map[string]int{
++		"Debug":    1,
++		"Info":     1,
++		"Warn":     1,
++		"Error":    1,
++		"DebugCtx": 2,
++		"InfoCtx":  2,
++		"WarnCtx":  2,
++		"ErrorCtx": 2,
++		"Log":      3,
++		"Group":    1,
++	},
++	"Logger": map[string]int{
++		"Debug":    1,
++		"Info":     1,
++		"Warn":     1,
++		"Error":    1,
++		"DebugCtx": 2,
++		"InfoCtx":  2,
++		"WarnCtx":  2,
++		"ErrorCtx": 2,
++		"Log":      3,
++		"With":     0,
++	},
++	"Record": map[string]int{
++		"Add": 0,
++	},
++}
++
++// isMethodExpr reports whether a call is to a MethodExpr.
++func isMethodExpr(info *types.Info, c *ast.CallExpr) bool {
++	s, ok := c.Fun.(*ast.SelectorExpr)
++	if !ok {
++		return false
++	}
++	sel := info.Selections[s]
++	return sel != nil && sel.Kind() == types.MethodExpr
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index e064a1a292..aa7dfaccf5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -418,7 +418,13 @@ func (enc *Encoder) concreteMethod(meth *types.Func) (Path, bool) {
+ 		}
+ 	}
+ 
+-	panic(fmt.Sprintf("couldn't find method %s on type %s", meth, named))
++	// Due to golang/go#59944, go/types fails to associate the receiver with
++	// certain methods on cgo types.
++	//
++	// TODO(rfindley): replace this panic once golang/go#59944 is fixed in all Go
++	// versions gopls supports.
++	return "", false
++	// panic(fmt.Sprintf("couldn't find method %s on type %s; methods: %#v", meth, named, enc.namedMethods(named)))
+ }
+ 
+ // find finds obj within type T, returning the path to it, or nil if not found.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+index 870af6c132..50cf53b4b4 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/bisect/bisect.go
+@@ -191,17 +191,35 @@ func New(pattern string) (*Matcher, error) {
+ 	result := true
+ 	bits := uint64(0)
+ 	start := 0
++	wid := 1 // 1-bit (binary); sometimes 4-bit (hex)
+ 	for i := 0; i <= len(p); i++ {
+ 		// Imagine a trailing - at the end of the pattern to flush final suffix
+ 		c := byte('-')
+ 		if i < len(p) {
+ 			c = p[i]
+ 		}
++		if i == start && wid == 1 && c == 'x' { // leading x for hex
++			start = i + 1
++			wid = 4
++			continue
++		}
+ 		switch c {
+ 		default:
+ 			return nil, &parseError{"invalid pattern syntax: " + pattern}
++		case '2', '3', '4', '5', '6', '7', '8', '9':
++			if wid != 4 {
++				return nil, &parseError{"invalid pattern syntax: " + pattern}
++			}
++			fallthrough
+ 		case '0', '1':
+-			bits = bits<<1 | uint64(c-'0')
++			bits <<= wid
++			bits |= uint64(c - '0')
++		case 'a', 'b', 'c', 'd', 'e', 'f', 'A', 'B', 'C', 'D', 'E', 'F':
++			if wid != 4 {
++				return nil, &parseError{"invalid pattern syntax: " + pattern}
++			}
++			bits <<= 4
++			bits |= uint64(c&^0x20 - 'A' + 10)
+ 		case 'y':
+ 			if i+1 < len(p) && (p[i+1] == '0' || p[i+1] == '1') {
+ 				return nil, &parseError{"invalid pattern syntax: " + pattern}
+@@ -213,7 +231,7 @@ func New(pattern string) (*Matcher, error) {
+ 				return nil, &parseError{"invalid pattern syntax (+ after -): " + pattern}
+ 			}
+ 			if i > 0 {
+-				n := i - start
++				n := (i - start) * wid
+ 				if n > 64 {
+ 					return nil, &parseError{"pattern bits too long: " + pattern}
+ 				}
+@@ -232,6 +250,7 @@ func New(pattern string) (*Matcher, error) {
+ 			bits = 0
+ 			result = c == '+'
+ 			start = i + 1
++			wid = 1
+ 		}
+ 	}
+ 	return m, nil
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 40e45bba5f..9a3b431470 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.5.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.8.1-0.20230508195130-8f7fb01dd429
++# golang.org/x/tools v0.9.2-0.20230517205458-8b4b27bce44f
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -74,6 +74,7 @@ golang.org/x/tools/go/analysis/passes/nilfunc
+ golang.org/x/tools/go/analysis/passes/printf
+ golang.org/x/tools/go/analysis/passes/shift
+ golang.org/x/tools/go/analysis/passes/sigchanyzer
++golang.org/x/tools/go/analysis/passes/slog
+ golang.org/x/tools/go/analysis/passes/stdmethods
+ golang.org/x/tools/go/analysis/passes/stringintconv
+ golang.org/x/tools/go/analysis/passes/structtag
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index e230d3be06..ba5b5ed967 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -41,6 +41,7 @@ To list the available checks, run "go tool vet help":
+ 	nilfunc      check for useless comparisons between functions and nil
+ 	printf       check consistency of Printf format strings and arguments
+ 	shift        check for shifts that equal or exceed the width of the integer
++	slog         check for incorrect arguments to log/slog functions
+ 	stdmethods   check signature of methods of well-known interfaces
+ 	structtag    check that struct field tags conform to reflect.StructTag.Get
+ 	tests        check for common mistaken usages of tests and examples
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 0bcee78b97..a90758f823 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -28,6 +28,7 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/printf"
+ 	"golang.org/x/tools/go/analysis/passes/shift"
+ 	"golang.org/x/tools/go/analysis/passes/sigchanyzer"
++	"golang.org/x/tools/go/analysis/passes/slog"
+ 	"golang.org/x/tools/go/analysis/passes/stdmethods"
+ 	"golang.org/x/tools/go/analysis/passes/stringintconv"
+ 	"golang.org/x/tools/go/analysis/passes/structtag"
+@@ -63,6 +64,7 @@ func main() {
+ 		printf.Analyzer,
+ 		shift.Analyzer,
+ 		sigchanyzer.Analyzer,
++		slog.Analyzer,
+ 		stdmethods.Analyzer,
+ 		stringintconv.Analyzer,
+ 		structtag.Analyzer,
+diff --git a/src/cmd/vet/testdata/slog/slog.go b/src/cmd/vet/testdata/slog/slog.go
+new file mode 100644
+index 0000000000..accb04361b
+--- /dev/null
++++ b/src/cmd/vet/testdata/slog/slog.go
+@@ -0,0 +1,13 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the slog checker.
++
++package slog
++
++import "log/slog"
++
++func SlogTest() {
++	slog.Info("msg", "a") // ERROR "call to slog.Info missing a final value"
++}
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index fca9cac8c2..8b29907e81 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -79,6 +79,7 @@ func TestVet(t *testing.T) {
+ 		"print",
+ 		"rangeloop",
+ 		"shift",
++		"slog",
+ 		"structtag",
+ 		"testingpkg",
+ 		// "testtag" has its own test
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index f7bf7a81fe..510d038614 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -356,7 +356,9 @@ func TestLoggerError(t *testing.T) {
+ 	l.Error("msg", "err", io.EOF, "a", 1)
+ 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF a=1`)
+ 	buf.Reset()
+-	l.Error("msg", "err", io.EOF, "a")
++	// use local var 'args' to defeat vet check
++	args := []any{"err", io.EOF, "a"}
++	l.Error("msg", args...)
+ 	checkLogOutput(t, buf.String(), `level=ERROR msg=msg err=EOF !BADKEY=a`)
+ }
+ 

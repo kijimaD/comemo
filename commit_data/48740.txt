@@ -16,6 +16,29 @@ Date:   Fri Jun 11 17:36:50 2021 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/syscall/syscall_windows_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index ea8fa191dc..3243952ded 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"syscall"
+ 	"testing"
+@@ -79,6 +80,9 @@ func TestTOKEN_ALL_ACCESS(t *testing.T) {
+ func TestStdioAreInheritable(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveExecPath(t, "gcc")
++	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
++		t.Skip("Powershell is not native on ARM; see golang.org/issues/46701")
++	}
+ 
+ 	tmpdir := t.TempDir()
+ 

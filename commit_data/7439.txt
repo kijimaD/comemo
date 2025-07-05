@@ -9,7 +9,7 @@ Date:   Fri Feb 11 13:39:05 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3993044
-
+---
  src/cmd/8l/obj.c                 |  1 +
  src/cmd/8l/pass.c                | 29 +++++++++++++++++++++++++----
  src/pkg/runtime/mkasmh.sh        |  6 +++---
@@ -17,3 +17,197 @@ Date:   Fri Feb 11 13:39:05 2011 -0500
  src/pkg/runtime/plan9/386/sys.s  |  5 +++--
  src/pkg/runtime/plan9/mem.c      | 29 ++++++++++++++++++-----------
  6 files changed, 51 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index fefb6d8b0d..9c687f2fc2 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -188,6 +188,7 @@ main(int argc, char *argv[])
+ 			INITRND = 0;
+ 		break;
+ 	case 2:	/* plan 9 */
++		tlsoffset = -8;
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+32;
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index 878a73dac9..67acfa167b 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -250,6 +250,7 @@ patch(void)
+ 	Prog *p, *q;
+ 	Sym *s;
+ 	int32 vexit;
++	Sym *plan9_tos;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f mkfwd\n", cputime());
+@@ -260,6 +261,10 @@ patch(void)
+ 	Bflush(&bso);
+ 	s = lookup("exit", 0);
+ 	vexit = s->value;
++	
++	if(HEADTYPE == 2)
++		plan9_tos = lookup("_tos", 0);
++	
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+ 			if(HEADTYPE == 10) {	// Windows
+@@ -303,9 +308,15 @@ patch(void)
+ 			if(HEADTYPE == 2) {	// Plan 9
+ 				if(p->from.type == D_INDIR+D_GS
+ 				&& p->to.type >= D_AX && p->to.type <= D_DI) {
++					q = appendp(p);
++					q->from = p->from;
++					q->from.type = D_INDIR + p->to.type;
++					q->to = p->to;
++					q->as = p->as;
+ 					p->as = AMOVL;
+-					p->from.type = D_ADDR+D_STATIC;
+-					p->from.offset += 0xdfffefc0;
++					p->from.type = D_EXTERN;
++					p->from.sym = plan9_tos;
++					p->from.offset = 0;
+ 				}
+ 			}
+ 			if(p->as == ACALL || (p->as == AJMP && p->to.type != D_BRANCH)) {
+@@ -389,6 +400,7 @@ dostkoff(void)
+ 	int a;
+ 	Prog *pmorestack;
+ 	Sym *symmorestack;
++	Sym *plan9_tos;
+ 
+ 	pmorestack = P;
+ 	symmorestack = lookup("runtime.morestack", 0);
+@@ -399,6 +411,9 @@ dostkoff(void)
+ 		pmorestack = symmorestack->text;
+ 		symmorestack->text->from.scale |= NOSPLIT;
+ 	}
++	
++	if(HEADTYPE == 2)	
++		plan9_tos = lookup("_tos", 0);
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		if(cursym->text == nil || cursym->text->link == nil)
+@@ -443,9 +458,15 @@ dostkoff(void)
+ 			
+ 			case 2:	// Plan 9
+ 				p->as = AMOVL;
+-				p->from.type = D_ADDR+D_STATIC;
+-				p->from.offset = 0xdfffefc0;
++				p->from.type = D_EXTERN;
++				p->from.sym = plan9_tos;
+ 				p->to.type = D_CX;
++				
++				p = appendp(p);
++				p->as = AMOVL;
++				p->from.type = D_INDIR+D_CX;
++				p->from.offset = tlsoffset + 0;
++				p->to.type = D_CX;				
+ 				break;
+ 			
+ 			default:
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index d6c8d64e09..91d1bbe5d8 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -25,9 +25,9 @@ case "$GOARCH" in
+ 		echo '#define	m(r)	4(r)'
+ 		;;
+ 	plan9)
+-		echo '#define	get_tls(r)'
+-		echo '#define	g(r)	0xdfffefc0'
+-		echo '#define	m(r)	0xdfffefc4'
++		echo '#define	get_tls(r)	MOVL _tos(SB), r '
++		echo '#define	g(r)	-8(r)'
++		echo '#define	m(r)	-4(r)'
+ 		;;
+ 	linux)
+ 		# On Linux systems, what we call 0(GS) and 4(GS) for g and m
+diff --git a/src/pkg/runtime/plan9/386/defs.h b/src/pkg/runtime/plan9/386/defs.h
+index 5df7576133..58fd9d94de 100644
+--- a/src/pkg/runtime/plan9/386/defs.h
++++ b/src/pkg/runtime/plan9/386/defs.h
+@@ -1 +1,2 @@
+ // nothing to see here
++#define tos_pid 48
+diff --git a/src/pkg/runtime/plan9/386/sys.s b/src/pkg/runtime/plan9/386/sys.s
+index 867b8940f2..f760b782fe 100644
+--- a/src/pkg/runtime/plan9/386/sys.s
++++ b/src/pkg/runtime/plan9/386/sys.s
+@@ -58,9 +58,10 @@ TEXT runtime·rfork(SB),7,$0
+ 	MOVL	BX, m(AX)
+ 
+ 	// Initialize AX from _tos->pid
+-	MOVL	0xdfffeff8, AX
++	MOVL	_tos(SB), AX
++	MOVL	tos_pid(AX), AX
+ 	MOVL	AX, m_procid(BX)	// save pid as m->procid
+-
++	
+ 	CALL	runtime·stackcheck(SB)	// smashes AX, CX
+ 	
+ 	MOVL	0(DX), DX	// paranoia; check they are not nil
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/plan9/mem.c
+index 651e6728ed..b840de9846 100644
+--- a/src/pkg/runtime/plan9/mem.c
++++ b/src/pkg/runtime/plan9/mem.c
+@@ -10,40 +10,47 @@ static byte *bloc = { end };
+ 
+ enum
+ {
+-	Round = 7
++	Round = 4095
+ };
+ 
+ void*
+-runtime·SysAlloc(uintptr ask)
++runtime·SysAlloc(uintptr nbytes)
+ {
+ 	uintptr bl;
+ 	
+ 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
+ 	bl = ((uintptr)bloc + Round) & ~Round;
+-	if(runtime·brk_((void*)(bl + ask)) < 0)
++	if(runtime·brk_((void*)(bl + nbytes)) < 0)
+ 		return (void*)-1;
+-	bloc = (byte*)bl + ask;
++	bloc = (byte*)bl + nbytes;
+ 	return (void*)bl;
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr nbytes)
+ {
+ 	// from tiny/mem.c
+ 	// Push pointer back if this is a free
+ 	// of the most recent SysAlloc.
+-	n += (n + Round) & ~Round;
+-	if(bloc == (byte*)v+n)
+-		bloc -= n;	
++	nbytes += (nbytes + Round) & ~Round;
++	if(bloc == (byte*)v+nbytes)
++		bloc -= nbytes;	
+ }
+ 
+ void
+-runtime·SysUnused(void *v, uintptr n)
++runtime·SysUnused(void *v, uintptr nbytes)
+ {
+-	USED(v, n);
++	USED(v, nbytes);
+ }
+ 
+ void
+-runtime·SysMemInit(void)
++runtime·SysMap(void *v, uintptr nbytes)
+ {
++	USED(v, nbytes);
++}
++
++void*
++runtime·SysReserve(void *v, uintptr nbytes)
++{
++	return runtime·SysAlloc(nbytes);
+ }

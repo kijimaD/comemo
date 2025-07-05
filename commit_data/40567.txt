@@ -19,7 +19,7 @@ Date:   Thu Mar 28 14:35:49 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/init.go      |   2 +-
  src/cmd/compile/internal/gc/initorder.go | 355 +++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/sinit.go     | 266 +++--------------------
@@ -27,3 +27,757 @@ Date:   Thu Mar 28 14:35:49 2019 -0700
  test/fixedbugs/issue22326.go             |  25 +++
  test/fixedbugs/issue22326.out            |   1 +
  6 files changed, 439 insertions(+), 238 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index 8157292216..26fd71d70c 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -31,7 +31,7 @@ func renameinit() *types.Sym {
+ //   2) Initialize all the variables that have initializers.
+ //   3) Run any init functions.
+ func fninit(n []*Node) {
+-	nf := initfix(n)
++	nf := initOrder(n)
+ 
+ 	var deps []*obj.LSym // initTask records for packages the current package depends on
+ 	var fns []*obj.LSym  // functions to call for package initialization
+diff --git a/src/cmd/compile/internal/gc/initorder.go b/src/cmd/compile/internal/gc/initorder.go
+new file mode 100644
+index 0000000000..be1e671d17
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/initorder.go
+@@ -0,0 +1,355 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"bytes"
++	"container/heap"
++	"fmt"
++)
++
++// Package initialization
++//
++// Here we implement the algorithm for ordering package-level variable
++// initialization. The spec is written in terms of variable
++// initialization, but multiple variables initialized by a single
++// assignment are handled together, so here we instead focus on
++// ordering initialization assignments. Conveniently, this maps well
++// to how we represent package-level initializations using the Node
++// AST.
++//
++// Assignments are in one of three phases: NotStarted, Pending, or
++// Done. For assignments in the Pending phase, we use Xoffset to
++// record the number of unique variable dependencies whose
++// initialization assignment is not yet Done. We also maintain a
++// "blocking" map that maps assignments back to all of the assignments
++// that depend on it.
++//
++// For example, for an initialization like:
++//
++//     var x = f(a, b, b)
++//     var a, b = g()
++//
++// the "x = f(a, b, b)" assignment depends on two variables (a and b),
++// so its Xoffset will be 2. Correspondingly, the "a, b = g()"
++// assignment's "blocking" entry will have two entries back to x's
++// assignment.
++//
++// Logically, initialization works by (1) taking all NotStarted
++// assignments, calculating their dependencies, and marking them
++// Pending; (2) adding all Pending assignments with Xoffset==0 to a
++// "ready" priority queue (ordered by variable declaration position);
++// and (3) iteratively processing the next Pending assignment from the
++// queue, decreasing the Xoffset of assignments it's blocking, and
++// adding them to the queue if decremented to 0.
++//
++// As an optimization, we actually apply each of these three steps for
++// each assignment. This yields the same order, but keeps queue size
++// down and thus also heap operation costs.
++
++// Static initialization phase.
++// These values are stored in two bits in Node.flags.
++const (
++	InitNotStarted = iota
++	InitDone
++	InitPending
++)
++
++type InitOrder struct {
++	// blocking maps initialization assignments to the assignments
++	// that depend on it.
++	blocking map[*Node][]*Node
++
++	// ready is the queue of Pending initialization assignments
++	// that are ready for initialization.
++	ready declOrder
++}
++
++// initOrder computes initialization order for a list l of
++// package-level declarations (in declaration order) and outputs the
++// corresponding list of statements to include in the init() function
++// body.
++func initOrder(l []*Node) []*Node {
++	s := InitSchedule{
++		initplans: make(map[*Node]*InitPlan),
++		inittemps: make(map[*Node]*Node),
++	}
++	o := InitOrder{
++		blocking: make(map[*Node][]*Node),
++	}
++
++	// Process all package-level assignment in declaration order.
++	for _, n := range l {
++		switch n.Op {
++		case OAS, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++			o.processAssign(n)
++			o.flushReady(s.staticInit)
++		case ODCLCONST, ODCLFUNC, ODCLTYPE:
++			// nop
++		default:
++			Fatalf("unexpected package-level statement: %v", n)
++		}
++	}
++
++	// Check that all assignments are now Done; if not, there must
++	// have been a dependency cycle.
++	for _, n := range l {
++		switch n.Op {
++		case OAS, OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++			if n.Initorder() != InitDone {
++				// If there have already been errors
++				// printed, those errors may have
++				// confused us and there might not be
++				// a loop. Let the user fix those
++				// first.
++				if nerrors > 0 {
++					errorexit()
++				}
++
++				findInitLoopAndExit(firstLHS(n), new([]*Node))
++				Fatalf("initialization unfinished, but failed to identify loop")
++			}
++		}
++	}
++
++	// Invariant consistency check. If this is non-zero, then we
++	// should have found a cycle above.
++	if len(o.blocking) != 0 {
++		Fatalf("expected empty map: %v", o.blocking)
++	}
++
++	return s.out
++}
++
++func (o *InitOrder) processAssign(n *Node) {
++	if n.Initorder() != InitNotStarted || n.Xoffset != BADWIDTH {
++		Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
++	}
++
++	n.SetInitorder(InitPending)
++	n.Xoffset = 0
++
++	// Compute number of variable dependencies and build the
++	// inverse dependency ("blocking") graph.
++	for dep := range collectDeps(n, true) {
++		defn := dep.Name.Defn
++		// Skip dependencies on functions (PFUNC) and
++		// variables already initialized (InitDone).
++		if dep.Class() != PEXTERN || defn.Initorder() == InitDone {
++			continue
++		}
++		n.Xoffset++
++		o.blocking[defn] = append(o.blocking[defn], n)
++	}
++
++	if n.Xoffset == 0 {
++		heap.Push(&o.ready, n)
++	}
++}
++
++// flushReady repeatedly applies initialize to the earliest (in
++// declaration order) assignment ready for initialization and updates
++// the inverse dependency ("blocking") graph.
++func (o *InitOrder) flushReady(initialize func(*Node)) {
++	for o.ready.Len() != 0 {
++		n := heap.Pop(&o.ready).(*Node)
++		if n.Initorder() != InitPending || n.Xoffset != 0 {
++			Fatalf("unexpected state: %v, %v, %v", n, n.Initorder(), n.Xoffset)
++		}
++
++		initialize(n)
++		n.SetInitorder(InitDone)
++		n.Xoffset = BADWIDTH
++
++		blocked := o.blocking[n]
++		delete(o.blocking, n)
++
++		for _, m := range blocked {
++			m.Xoffset--
++			if m.Xoffset == 0 {
++				heap.Push(&o.ready, m)
++			}
++		}
++	}
++}
++
++// findInitLoopAndExit searches for an initialization loop involving variable
++// or function n. If one is found, it reports the loop as an error and exits.
++//
++// path points to a slice used for tracking the sequence of
++// variables/functions visited. Using a pointer to a slice allows the
++// slice capacity to grow and limit reallocations.
++func findInitLoopAndExit(n *Node, path *[]*Node) {
++	// We implement a simple DFS loop-finding algorithm. This
++	// could be faster, but initialization cycles are rare.
++
++	for i, x := range *path {
++		if x == n {
++			reportInitLoopAndExit((*path)[i:])
++			return
++		}
++	}
++
++	// There might be multiple loops involving n; by sorting
++	// references, we deterministically pick the one reported.
++	refers := collectDeps(n.Name.Defn, false).Sorted(func(ni, nj *Node) bool {
++		return ni.Pos.Before(nj.Pos)
++	})
++
++	*path = append(*path, n)
++	for _, ref := range refers {
++		// Short-circuit variables that were initialized.
++		if ref.Class() == PEXTERN && ref.Name.Defn.Initorder() == InitDone {
++			continue
++		}
++
++		findInitLoopAndExit(ref, path)
++	}
++	*path = (*path)[:len(*path)-1]
++}
++
++// reportInitLoopAndExit reports and initialization loop as an error
++// and exits. However, if l is not actually an initialization loop, it
++// simply returns instead.
++func reportInitLoopAndExit(l []*Node) {
++	// Rotate loop so that the earliest variable declaration is at
++	// the start.
++	i := -1
++	for j, n := range l {
++		if n.Class() == PEXTERN && (i == -1 || n.Pos.Before(l[i].Pos)) {
++			i = j
++		}
++	}
++	if i == -1 {
++		// False positive: loop only involves recursive
++		// functions. Return so that findInitLoop can continue
++		// searching.
++		return
++	}
++	l = append(l[i:], l[:i]...)
++
++	// TODO(mdempsky): Method values are printed as "T.m-fm"
++	// rather than "T.m". Figure out how to avoid that.
++
++	var msg bytes.Buffer
++	fmt.Fprintf(&msg, "initialization loop:\n")
++	for _, n := range l {
++		fmt.Fprintf(&msg, "\t%v: %v refers to\n", n.Line(), n)
++	}
++	fmt.Fprintf(&msg, "\t%v: %v", l[0].Line(), l[0])
++
++	yyerrorl(l[0].Pos, msg.String())
++	errorexit()
++}
++
++// collectDeps returns all of the package-level functions and
++// variables that declaration n depends on. If transitive is true,
++// then it also includes the transitive dependencies of any depended
++// upon functions (but not variables).
++func collectDeps(n *Node, transitive bool) NodeSet {
++	d := initDeps{transitive: transitive}
++	switch n.Op {
++	case OAS:
++		d.inspect(n.Right)
++	case OAS2DOTTYPE, OAS2FUNC, OAS2MAPR, OAS2RECV:
++		d.inspect(n.Rlist.First())
++	case ODCLFUNC:
++		d.inspectList(n.Nbody)
++	default:
++		Fatalf("unexpected Op: %v", n.Op)
++	}
++	return d.seen
++}
++
++type initDeps struct {
++	transitive bool
++	seen       NodeSet
++}
++
++func (d *initDeps) inspect(n *Node)     { inspect(n, d.visit) }
++func (d *initDeps) inspectList(l Nodes) { inspectList(l, d.visit) }
++
++// visit calls foundDep on any package-level functions or variables
++// referenced by n, if any.
++func (d *initDeps) visit(n *Node) bool {
++	switch n.Op {
++	case ONAME:
++		if n.isMethodExpression() {
++			d.foundDep(asNode(n.Type.FuncType().Nname))
++			return false
++		}
++
++		switch n.Class() {
++		case PEXTERN, PFUNC:
++			d.foundDep(n)
++		}
++
++	case OCLOSURE:
++		d.inspectList(n.Func.Closure.Nbody)
++
++	case ODOTMETH, OCALLPART:
++		d.foundDep(asNode(n.Type.FuncType().Nname))
++	}
++
++	return true
++}
++
++// foundDep records that we've found a dependency on n by adding it to
++// seen.
++func (d *initDeps) foundDep(n *Node) {
++	// Can happen with method expressions involving interface
++	// types; e.g., fixedbugs/issue4495.go.
++	if n == nil {
++		return
++	}
++
++	// Names without definitions aren't interesting as far as
++	// initialization ordering goes.
++	if n.Name.Defn == nil {
++		return
++	}
++
++	if d.seen.Has(n) {
++		return
++	}
++	d.seen.Add(n)
++	if d.transitive && n.Class() == PFUNC {
++		d.inspectList(n.Name.Defn.Nbody)
++	}
++}
++
++// declOrder implements heap.Interface, ordering assignment statements
++// by the position of their first LHS expression.
++//
++// N.B., the Pos of the first LHS expression is used because because
++// an OAS node's Pos may not be unique. For example, given the
++// declaration "var a, b = f(), g()", "a" must be ordered before "b",
++// but both OAS nodes use the "=" token's position as their Pos.
++type declOrder []*Node
++
++func (s declOrder) Len() int           { return len(s) }
++func (s declOrder) Less(i, j int) bool { return firstLHS(s[i]).Pos.Before(firstLHS(s[j]).Pos) }
++func (s declOrder) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++
++func (s *declOrder) Push(x interface{}) { *s = append(*s, x.(*Node)) }
++func (s *declOrder) Pop() interface{} {
++	n := (*s)[len(*s)-1]
++	*s = (*s)[:len(*s)-1]
++	return n
++}
++
++// firstLHS returns the first expression on the left-hand side of
++// assignment n.
++func firstLHS(n *Node) *Node {
++	switch n.Op {
++	case OAS:
++		return n.Left
++	case OAS2DOTTYPE, OAS2FUNC, OAS2RECV, OAS2MAPR:
++		return n.List.First()
++	}
++
++	Fatalf("unexpected Op: %v", n.Op)
++	return nil
++}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index eaccde99c1..a506bfe31f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -9,14 +9,6 @@ import (
+ 	"fmt"
+ )
+ 
+-// Static initialization ordering state.
+-// These values are stored in two bits in Node.flags.
+-const (
+-	InitNotStarted = iota
+-	InitDone
+-	InitPending
+-)
+-
+ type InitEntry struct {
+ 	Xoffset int64 // struct, array only
+ 	Expr    *Node // bytes of run-time computed expressions
+@@ -26,9 +18,15 @@ type InitPlan struct {
+ 	E []InitEntry
+ }
+ 
++// An InitSchedule is used to decompose assignment statements into
++// static and dynamic initialization parts. Static initializations are
++// handled by populating variables' linker symbol data, while dynamic
++// initializations are accumulated to be executed in order.
+ type InitSchedule struct {
+-	out       []*Node
+-	initlist  []*Node
++	// out is the ordered list of dynamic initialization
++	// statements.
++	out []*Node
++
+ 	initplans map[*Node]*InitPlan
+ 	inittemps map[*Node]*Node
+ }
+@@ -37,239 +35,33 @@ func (s *InitSchedule) append(n *Node) {
+ 	s.out = append(s.out, n)
+ }
+ 
+-// init1 walks the AST starting at n, and accumulates in out
+-// the list of definitions needing init code in dependency order.
+-func (s *InitSchedule) init1(n *Node) {
+-	if n == nil {
+-		return
+-	}
+-	s.init1(n.Left)
+-	s.init1(n.Right)
+-	for _, n1 := range n.List.Slice() {
+-		s.init1(n1)
+-	}
+-
+-	if n.isMethodExpression() {
+-		// Methods called as Type.Method(receiver, ...).
+-		// Definitions for method expressions are stored in type->nname.
+-		s.init1(asNode(n.Type.FuncType().Nname))
+-	}
+-
+-	if n.Op != ONAME {
+-		return
+-	}
+-	switch n.Class() {
+-	case PEXTERN, PFUNC:
+-	default:
+-		if n.isBlank() && n.Name.Curfn == nil && n.Name.Defn != nil && n.Name.Defn.Initorder() == InitNotStarted {
+-			// blank names initialization is part of init() but not
+-			// when they are inside a function.
+-			break
++// staticInit adds an initialization statement n to the schedule.
++func (s *InitSchedule) staticInit(n *Node) {
++	if !s.tryStaticInit(n) {
++		if Debug['%'] != 0 {
++			Dump("nonstatic", n)
+ 		}
+-		return
+-	}
+-
+-	if n.Initorder() == InitDone {
+-		return
+-	}
+-	if n.Initorder() == InitPending {
+-		// Since mutually recursive sets of functions are allowed,
+-		// we don't necessarily raise an error if n depends on a node
+-		// which is already waiting for its dependencies to be visited.
+-		//
+-		// initlist contains a cycle of identifiers referring to each other.
+-		// If this cycle contains a variable, then this variable refers to itself.
+-		// Conversely, if there exists an initialization cycle involving
+-		// a variable in the program, the tree walk will reach a cycle
+-		// involving that variable.
+-		if n.Class() != PFUNC {
+-			s.foundinitloop(n, n)
+-		}
+-
+-		for i := len(s.initlist) - 1; i >= 0; i-- {
+-			x := s.initlist[i]
+-			if x == n {
+-				break
+-			}
+-			if x.Class() != PFUNC {
+-				s.foundinitloop(n, x)
+-			}
+-		}
+-
+-		// The loop involves only functions, ok.
+-		return
+-	}
+-
+-	// reached a new unvisited node.
+-	n.SetInitorder(InitPending)
+-	s.initlist = append(s.initlist, n)
+-
+-	// make sure that everything n depends on is initialized.
+-	// n->defn is an assignment to n
+-	if defn := n.Name.Defn; defn != nil {
+-		switch defn.Op {
+-		default:
+-			Dump("defn", defn)
+-			Fatalf("init1: bad defn")
+-
+-		case ODCLFUNC:
+-			s.init2list(defn.Nbody)
+-
+-		case OAS:
+-			if defn.Left != n {
+-				Dump("defn", defn)
+-				Fatalf("init1: bad defn")
+-			}
+-			if defn.Left.isBlank() && candiscard(defn.Right) {
+-				defn.Op = OEMPTY
+-				defn.Left = nil
+-				defn.Right = nil
+-				break
+-			}
+-
+-			s.init2(defn.Right)
+-			if Debug['j'] != 0 {
+-				fmt.Printf("%v\n", n.Sym)
+-			}
+-			if n.isBlank() || !s.staticinit(n) {
+-				if Debug['%'] != 0 {
+-					Dump("nonstatic", defn)
+-				}
+-				s.append(defn)
+-			}
+-
+-		case OAS2FUNC, OAS2MAPR, OAS2DOTTYPE, OAS2RECV:
+-			if defn.Initorder() == InitDone {
+-				break
+-			}
+-			defn.SetInitorder(InitPending)
+-			for _, n2 := range defn.Rlist.Slice() {
+-				s.init1(n2)
+-			}
+-			if Debug['%'] != 0 {
+-				Dump("nonstatic", defn)
+-			}
+-			s.append(defn)
+-			defn.SetInitorder(InitDone)
+-		}
+-	}
+-
+-	last := len(s.initlist) - 1
+-	if s.initlist[last] != n {
+-		Fatalf("bad initlist %v", s.initlist)
+-	}
+-	s.initlist[last] = nil // allow GC
+-	s.initlist = s.initlist[:last]
+-
+-	n.SetInitorder(InitDone)
+-}
+-
+-// foundinitloop prints an init loop error and exits.
+-func (s *InitSchedule) foundinitloop(node, visited *Node) {
+-	// If there have already been errors printed,
+-	// those errors probably confused us and
+-	// there might not be a loop. Let the user
+-	// fix those first.
+-	flusherrors()
+-	if nerrors > 0 {
+-		errorexit()
+-	}
+-
+-	// Find the index of node and visited in the initlist.
+-	var nodeindex, visitedindex int
+-	for ; s.initlist[nodeindex] != node; nodeindex++ {
+-	}
+-	for ; s.initlist[visitedindex] != visited; visitedindex++ {
+-	}
+-
+-	// There is a loop involving visited. We know about node and
+-	// initlist = n1 <- ... <- visited <- ... <- node <- ...
+-	fmt.Printf("%v: initialization loop:\n", visited.Line())
+-
+-	// Print visited -> ... -> n1 -> node.
+-	for _, n := range s.initlist[visitedindex:] {
+-		fmt.Printf("\t%v %v refers to\n", n.Line(), n.Sym)
+-	}
+-
+-	// Print node -> ... -> visited.
+-	for _, n := range s.initlist[nodeindex:visitedindex] {
+-		fmt.Printf("\t%v %v refers to\n", n.Line(), n.Sym)
+-	}
+-
+-	fmt.Printf("\t%v %v\n", visited.Line(), visited.Sym)
+-	errorexit()
+-}
+-
+-// recurse over n, doing init1 everywhere.
+-func (s *InitSchedule) init2(n *Node) {
+-	if n == nil || n.Initorder() == InitDone {
+-		return
+-	}
+-
+-	if n.Op == ONAME && n.Ninit.Len() != 0 {
+-		Fatalf("name %v with ninit: %+v\n", n.Sym, n)
+-	}
+-
+-	s.init1(n)
+-	s.init2(n.Left)
+-	s.init2(n.Right)
+-	s.init2list(n.Ninit)
+-	s.init2list(n.List)
+-	s.init2list(n.Rlist)
+-	s.init2list(n.Nbody)
+-
+-	switch n.Op {
+-	case OCLOSURE:
+-		s.init2list(n.Func.Closure.Nbody)
+-	case ODOTMETH, OCALLPART:
+-		s.init2(asNode(n.Type.FuncType().Nname))
++		s.append(n)
+ 	}
+ }
+ 
+-func (s *InitSchedule) init2list(l Nodes) {
+-	for _, n := range l.Slice() {
+-		s.init2(n)
+-	}
+-}
+-
+-func (s *InitSchedule) initreorder(l []*Node) {
+-	for _, n := range l {
+-		switch n.Op {
+-		case ODCLFUNC, ODCLCONST, ODCLTYPE:
+-			continue
+-		}
+-
+-		s.initreorder(n.Ninit.Slice())
+-		n.Ninit.Set(nil)
+-		s.init1(n)
+-	}
+-}
+-
+-// initfix computes initialization order for a list l of top-level
+-// declarations and outputs the corresponding list of statements
+-// to include in the init() function body.
+-func initfix(l []*Node) []*Node {
+-	s := InitSchedule{
+-		initplans: make(map[*Node]*InitPlan),
+-		inittemps: make(map[*Node]*Node),
++// tryStaticInit attempts to statically execute an initialization
++// statement and reports whether it succeeded.
++func (s *InitSchedule) tryStaticInit(n *Node) bool {
++	// Only worry about simple "l = r" assignments. Multiple
++	// variable/expression OAS2 assignments have already been
++	// replaced by multiple simple OAS assignments, and the other
++	// OAS2* assignments mostly necessitate dynamic execution
++	// anyway.
++	if n.Op != OAS {
++		return false
+ 	}
+-	lno := lineno
+-	s.initreorder(l)
+-	lineno = lno
+-	return s.out
+-}
+-
+-// compilation of top-level (static) assignments
+-// into DATA statements if at all possible.
+-func (s *InitSchedule) staticinit(n *Node) bool {
+-	if n.Op != ONAME || n.Class() != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+-		Fatalf("staticinit")
++	if n.Left.isBlank() && candiscard(n.Right) {
++		return true
+ 	}
+-
+-	lineno = n.Pos
+-	l := n.Name.Defn.Left
+-	r := n.Name.Defn.Right
+-	return s.staticassign(l, r)
++	lno := setlineno(n)
++	defer func() { lineno = lno }()
++	return s.staticassign(n.Left, n.Right)
+ }
+ 
+ // like staticassign but we are copying an already
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 9f6646af44..e932f93a15 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"sort"
+ )
+ 
+ // A Node is a single node in the syntax tree.
+@@ -970,3 +971,30 @@ func (q *nodeQueue) popLeft() *Node {
+ 	q.head++
+ 	return n
+ }
++
++// NodeSet is a set of Nodes.
++type NodeSet map[*Node]struct{}
++
++// Has reports whether s contains n.
++func (s NodeSet) Has(n *Node) bool {
++	_, isPresent := s[n]
++	return isPresent
++}
++
++// Add adds n to s.
++func (s *NodeSet) Add(n *Node) {
++	if *s == nil {
++		*s = make(map[*Node]struct{})
++	}
++	(*s)[n] = struct{}{}
++}
++
++// Sorted returns s sorted according to less.
++func (s NodeSet) Sorted(less func(*Node, *Node) bool) []*Node {
++	var res []*Node
++	for n := range s {
++		res = append(res, n)
++	}
++	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
++	return res
++}
+diff --git a/test/fixedbugs/issue22326.go b/test/fixedbugs/issue22326.go
+new file mode 100644
+index 0000000000..a675655b23
+--- /dev/null
++++ b/test/fixedbugs/issue22326.go
+@@ -0,0 +1,25 @@
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var (
++	_ = d
++	_ = f("_", c, b)
++	a = f("a")
++	b = f("b")
++	c = f("c")
++	d = f("d")
++)
++
++func f(s string, rest ...int) int {
++	print(s)
++	return 0
++}
++
++func main() {
++	println()
++}
+diff --git a/test/fixedbugs/issue22326.out b/test/fixedbugs/issue22326.out
+new file mode 100644
+index 0000000000..f02043893c
+--- /dev/null
++++ b/test/fixedbugs/issue22326.out
+@@ -0,0 +1 @@
++abc_d

@@ -8,6 +8,26 @@ Date:   Fri Jan 22 20:21:22 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285680
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.16.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index d7714888f2..9c8919e5c2 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -461,10 +461,10 @@ func TestFoo(t *testing.T) {
+ 
+ <p>
+   The new <a href="/pkg/io/fs/"><code>io/fs</code></a> package
+-  defines an abstraction for read-only trees of files,
+-  the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
+-  and the standard library packages have
+-  been adapted to make use of the interface as appropriate.
++  defines the <a href="/pkg/io/fs/#FS"><code>fs.FS</code></a> interface,
++  an abstraction for read-only trees of files.
++  The standard library packages have been adapted to make use
++  of the interface as appropriate.
+ </p>
+ 
+ <p>

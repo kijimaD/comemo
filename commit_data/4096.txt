@@ -16,6 +16,62 @@ Date:   Tue Nov 17 11:29:02 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/154159
-
+---
  src/pkg/rpc/server_test.go | 19 +++++++++++++++++--
  1 file changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/rpc/server_test.go b/src/pkg/rpc/server_test.go
+index 701827b306..63a241c85a 100644
+--- a/src/pkg/rpc/server_test.go
++++ b/src/pkg/rpc/server_test.go
+@@ -86,6 +86,9 @@ func TestRPC(t *testing.T) {
+ 	args := &Args{7, 8};
+ 	reply := new(Reply);
+ 	err = client.Call("Arith.Add", args, reply);
++	if err != nil {
++		t.Errorf("Add: expected no error but got string %q", err.String())
++	}
+ 	if reply.C != args.A+args.B {
+ 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 	}
+@@ -93,6 +96,9 @@ func TestRPC(t *testing.T) {
+ 	args = &Args{7, 8};
+ 	reply = new(Reply);
+ 	err = client.Call("Arith.Mul", args, reply);
++	if err != nil {
++		t.Errorf("Mul: expected no error but got string %q", err.String())
++	}
+ 	if reply.C != args.A*args.B {
+ 		t.Errorf("Mul: expected %d got %d", reply.C, args.A*args.B)
+ 	}
+@@ -104,12 +110,18 @@ func TestRPC(t *testing.T) {
+ 	addReply := new(Reply);
+ 	addCall := client.Go("Arith.Add", args, addReply, nil);
+ 
+-	<-addCall.Done;
++	addCall = <-addCall.Done;
++	if addCall.Error != nil {
++		t.Errorf("Add: expected no error but got string %q", addCall.Error.String())
++	}
+ 	if addReply.C != args.A+args.B {
+ 		t.Errorf("Add: expected %d got %d", addReply.C, args.A+args.B)
+ 	}
+ 
+-	<-mulCall.Done;
++	mulCall = <-mulCall.Done;
++	if mulCall.Error != nil {
++		t.Errorf("Mul: expected no error but got string %q", mulCall.Error.String())
++	}
+ 	if mulReply.C != args.A*args.B {
+ 		t.Errorf("Mul: expected %d got %d", mulReply.C, args.A*args.B)
+ 	}
+@@ -138,6 +150,9 @@ func TestHTTPRPC(t *testing.T) {
+ 	args := &Args{7, 8};
+ 	reply := new(Reply);
+ 	err = client.Call("Arith.Add", args, reply);
++	if err != nil {
++		t.Errorf("Add: expected no error but got string %q", err.String())
++	}
+ 	if reply.C != args.A+args.B {
+ 		t.Errorf("Add: expected %d got %d", reply.C, args.A+args.B)
+ 	}

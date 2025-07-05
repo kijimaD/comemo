@@ -15,7 +15,7 @@ Date:   Fri Jan 13 16:12:47 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 14 +++-
  src/cmd/dist/buildtool.go                       |  2 +
  src/cmd/link/internal/ld/dwarf.go               |  7 +-
@@ -30,3 +30,528 @@ Date:   Fri Jan 13 16:12:47 2023 -0500
  src/runtime/runtime-gdb_test.go                 | 10 ++-
  test/codegen/maps.go                            | 91 +++++++++++++++++++------
  13 files changed, 195 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 9dcc0a0e04..088a879175 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -7,6 +7,7 @@ package reflectdata
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/abi"
+ 	"os"
+ 	"sort"
+ 	"strings"
+@@ -65,10 +66,17 @@ type typeSig struct {
+ // we include only enough information to generate a correct GC
+ // program for it.
+ // Make sure this stays in sync with runtime/map.go.
++//
++//	A "bucket" is a "struct" {
++//	      tophash [BUCKETSIZE]uint8
++//	      keys [BUCKETSIZE]keyType
++//	      elems [BUCKETSIZE]elemType
++//	      overflow *bucket
++//	    }
+ const (
+-	BUCKETSIZE  = 8
+-	MAXKEYSIZE  = 128
+-	MAXELEMSIZE = 128
++	BUCKETSIZE  = abi.MapBucketCount
++	MAXKEYSIZE  = abi.MapMaxKeyBytes
++	MAXELEMSIZE = abi.MapMaxElemBytes
+ )
+ 
+ func structfieldSize() int { return 3 * types.PtrSize }       // Sizeof(runtime.structfield{})
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index c4e366024c..1eeb32afd3 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -60,8 +60,10 @@ var bootstrapDirs = []string{
+ 	"debug/macho",
+ 	"debug/pe",
+ 	"go/constant",
++	"internal/abi",
+ 	"internal/coverage",
+ 	"internal/buildcfg",
++	"internal/goarch",
+ 	"internal/goexperiment",
+ 	"internal/goroot",
+ 	"internal/goversion",
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index feea8640d6..a402c9ea92 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/buildcfg"
+ 	"log"
+ 	"path"
+@@ -855,9 +856,9 @@ func mkinternaltypename(base string, arg1 string, arg2 string) string {
+ 
+ // synthesizemaptypes is way too closely married to runtime/hashmap.c
+ const (
+-	MaxKeySize = 128
+-	MaxValSize = 128
+-	BucketSize = 8
++	MaxKeySize = abi.MapMaxKeyBytes
++	MaxValSize = abi.MapMaxElemBytes
++	BucketSize = abi.MapBucketCount
+ )
+ 
+ func (d *dwctxt) mkinternaltype(ctxt *Link, abbrev int, typename, keyname, valname string, f func(*dwarf.DWDie)) loader.Sym {
+diff --git a/src/internal/abi/abi.go b/src/internal/abi/abi.go
+index 11acac346f..e1c8adccc7 100644
+--- a/src/internal/abi/abi.go
++++ b/src/internal/abi/abi.go
+@@ -100,27 +100,3 @@ func (b *IntArgRegBitmap) Set(i int) {
+ func (b *IntArgRegBitmap) Get(i int) bool {
+ 	return b[i/8]&(uint8(1)<<(i%8)) != 0
+ }
+-
+-// FuncPC* intrinsics.
+-//
+-// CAREFUL: In programs with plugins, FuncPC* can return different values
+-// for the same function (because there are actually multiple copies of
+-// the same function in the address space). To be safe, don't use the
+-// results of this function in any == expression. It is only safe to
+-// use the result as an address at which to start executing code.
+-
+-// FuncPCABI0 returns the entry PC of the function f, which must be a
+-// direct reference of a function defined as ABI0. Otherwise it is a
+-// compile-time error.
+-//
+-// Implemented as a compile intrinsic.
+-func FuncPCABI0(f any) uintptr
+-
+-// FuncPCABIInternal returns the entry PC of the function f. If f is a
+-// direct reference of a function, it must be defined as ABIInternal.
+-// Otherwise it is a compile-time error. If f is not a direct reference
+-// of a defined function, it assumes that f is a func value. Otherwise
+-// the behavior is undefined.
+-//
+-// Implemented as a compile intrinsic.
+-func FuncPCABIInternal(f any) uintptr
+diff --git a/src/internal/abi/funcpc.go b/src/internal/abi/funcpc.go
+new file mode 100644
+index 0000000000..f617e2d757
+--- /dev/null
++++ b/src/internal/abi/funcpc.go
+@@ -0,0 +1,35 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !compiler_bootstrap
++// +build !compiler_bootstrap
++
++package abi
++
++// The bootstrapping compiler doesn't understand "any" in the function signatures,
++// and also does not implement these intrinsics.
++
++// FuncPC* intrinsics.
++//
++// CAREFUL: In programs with plugins, FuncPC* can return different values
++// for the same function (because there are actually multiple copies of
++// the same function in the address space). To be safe, don't use the
++// results of this function in any == expression. It is only safe to
++// use the result as an address at which to start executing code.
++
++// FuncPCABI0 returns the entry PC of the function f, which must be a
++// direct reference of a function defined as ABI0. Otherwise it is a
++// compile-time error.
++//
++// Implemented as a compile intrinsic.
++func FuncPCABI0(f any) uintptr
++
++// FuncPCABIInternal returns the entry PC of the function f. If f is a
++// direct reference of a function, it must be defined as ABIInternal.
++// Otherwise it is a compile-time error. If f is not a direct reference
++// of a defined function, it assumes that f is a func value. Otherwise
++// the behavior is undefined.
++//
++// Implemented as a compile intrinsic.
++func FuncPCABIInternal(f any) uintptr
+diff --git a/src/internal/abi/map.go b/src/internal/abi/map.go
+new file mode 100644
+index 0000000000..e5b0a0bb6f
+--- /dev/null
++++ b/src/internal/abi/map.go
+@@ -0,0 +1,14 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++// Map constants common to several packages
++// runtime/runtime-gdb.py:MapTypePrinter contains its own copy
++const (
++	MapBucketCountBits = 3 // log2 of number of elements in a bucket.
++	MapBucketCount     = 1 << MapBucketCountBits
++	MapMaxKeyBytes     = 128 // Must fit in a uint8.
++	MapMaxElemBytes    = 128 // Must fit in a uint8.
++)
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 28a7640323..e9c0935b9e 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/token"
++	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/testenv"
+ 	"io"
+@@ -31,6 +32,8 @@ import (
+ 	"unsafe"
+ )
+ 
++const bucketCount = abi.MapBucketCount
++
+ var sink any
+ 
+ func TestBool(t *testing.T) {
+@@ -7162,7 +7165,7 @@ func TestGCBits(t *testing.T) {
+ 	verifyGCBits(t, TypeOf(([][10000]Xscalar)(nil)), lit(1))
+ 	verifyGCBits(t, SliceOf(ArrayOf(10000, Tscalar)), lit(1))
+ 
+-	hdr := make([]byte, 8/goarch.PtrSize)
++	hdr := make([]byte, bucketCount/goarch.PtrSize)
+ 
+ 	verifyMapBucket := func(t *testing.T, k, e Type, m any, want []byte) {
+ 		verifyGCBits(t, MapBucketOf(k, e), want)
+@@ -7171,14 +7174,14 @@ func TestGCBits(t *testing.T) {
+ 	verifyMapBucket(t,
+ 		Tscalar, Tptr,
+ 		map[Xscalar]Xptr(nil),
+-		join(hdr, rep(8, lit(0)), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(bucketCount, lit(0)), rep(bucketCount, lit(1)), lit(1)))
+ 	verifyMapBucket(t,
+ 		Tscalarptr, Tptr,
+ 		map[Xscalarptr]Xptr(nil),
+-		join(hdr, rep(8, lit(0, 1)), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(bucketCount, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+ 	verifyMapBucket(t, Tint64, Tptr,
+ 		map[int64]Xptr(nil),
+-		join(hdr, rep(8, rep(8/goarch.PtrSize, lit(0))), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(bucketCount, rep(8/goarch.PtrSize, lit(0))), rep(bucketCount, lit(1)), lit(1)))
+ 	verifyMapBucket(t,
+ 		Tscalar, Tscalar,
+ 		map[Xscalar]Xscalar(nil),
+@@ -7186,23 +7189,23 @@ func TestGCBits(t *testing.T) {
+ 	verifyMapBucket(t,
+ 		ArrayOf(2, Tscalarptr), ArrayOf(3, Tptrscalar),
+ 		map[[2]Xscalarptr][3]Xptrscalar(nil),
+-		join(hdr, rep(8*2, lit(0, 1)), rep(8*3, lit(1, 0)), lit(1)))
++		join(hdr, rep(bucketCount*2, lit(0, 1)), rep(bucketCount*3, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+ 		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+ 		map[[64 / goarch.PtrSize]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+-		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
++		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+ 		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize, Tptrscalar),
+ 		map[[64/goarch.PtrSize + 1]Xscalarptr][64 / goarch.PtrSize]Xptrscalar(nil),
+-		join(hdr, rep(8, lit(1)), rep(8*64/goarch.PtrSize, lit(1, 0)), lit(1)))
++		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount*64/goarch.PtrSize, lit(1, 0)), lit(1)))
+ 	verifyMapBucket(t,
+ 		ArrayOf(64/goarch.PtrSize, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+ 		map[[64 / goarch.PtrSize]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+-		join(hdr, rep(8*64/goarch.PtrSize, lit(0, 1)), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(bucketCount*64/goarch.PtrSize, lit(0, 1)), rep(bucketCount, lit(1)), lit(1)))
+ 	verifyMapBucket(t,
+ 		ArrayOf(64/goarch.PtrSize+1, Tscalarptr), ArrayOf(64/goarch.PtrSize+1, Tptrscalar),
+ 		map[[64/goarch.PtrSize + 1]Xscalarptr][64/goarch.PtrSize + 1]Xptrscalar(nil),
+-		join(hdr, rep(8, lit(1)), rep(8, lit(1)), lit(1)))
++		join(hdr, rep(bucketCount, lit(1)), rep(bucketCount, lit(1)), lit(1)))
+ }
+ 
+ func rep(n int, b []byte) []byte { return bytes.Repeat(b, n) }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 01d14567c3..fdc9d364c1 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -16,6 +16,7 @@
+ package reflect
+ 
+ import (
++	"internal/abi"
+ 	"internal/goarch"
+ 	"strconv"
+ 	"sync"
+@@ -2226,9 +2227,9 @@ func hashMightPanic(t *rtype) bool {
+ // Currently, that's just size and the GC program. We also fill in string
+ // for possible debugging use.
+ const (
+-	bucketSize uintptr = 8
+-	maxKeySize uintptr = 128
+-	maxValSize uintptr = 128
++	bucketSize uintptr = abi.MapBucketCount
++	maxKeySize uintptr = abi.MapMaxKeyBytes
++	maxValSize uintptr = abi.MapMaxElemBytes
+ )
+ 
+ func bucketOf(ktyp, etyp *rtype) *rtype {
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index f546ce8609..6179c1e371 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -63,20 +63,21 @@ import (
+ 
+ const (
+ 	// Maximum number of key/elem pairs a bucket can hold.
+-	bucketCntBits = 3
+-	bucketCnt     = 1 << bucketCntBits
++	bucketCntBits = abi.MapBucketCountBits
++	bucketCnt     = abi.MapBucketCount
+ 
+-	// Maximum average load of a bucket that triggers growth is 6.5.
++	// Maximum average load of a bucket that triggers growth is bucketCnt*13/16 (about 80% full)
++	// Because of minimum alignment rules, bucketCnt is known to be at least 8.
+ 	// Represent as loadFactorNum/loadFactorDen, to allow integer math.
+-	loadFactorNum = 13
+ 	loadFactorDen = 2
++	loadFactorNum = (bucketCnt * 13 / 16) * loadFactorDen
+ 
+ 	// Maximum key or elem size to keep inline (instead of mallocing per element).
+ 	// Must fit in a uint8.
+ 	// Fast versions cannot handle big elems - the cutoff size for
+ 	// fast versions in cmd/compile/internal/gc/walk.go must be at most this elem.
+-	maxKeySize  = 128
+-	maxElemSize = 128
++	maxKeySize  = abi.MapMaxKeyBytes
++	maxElemSize = abi.MapMaxElemBytes
+ 
+ 	// data offset should be the size of the bmap struct, but needs to be
+ 	// aligned correctly. For amd64p32 this means 64-bit alignment
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 4afbae6bc4..3675106d9c 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"internal/abi"
+ 	"internal/goarch"
+ 	"math"
+ 	"reflect"
+@@ -506,7 +507,12 @@ func TestMapNanGrowIterator(t *testing.T) {
+ }
+ 
+ func TestMapIterOrder(t *testing.T) {
+-	for _, n := range [...]int{3, 7, 9, 15} {
++	sizes := []int{3, 7, 9, 15}
++	if abi.MapBucketCountBits >= 5 {
++		// it gets flaky (often only one iteration order) at size 3 when abi.MapBucketCountBits >=5.
++		t.Fatalf("This test becomes flaky if abi.MapBucketCountBits(=%d) is 5 or larger", abi.MapBucketCountBits)
++	}
++	for _, n := range sizes {
+ 		for i := 0; i < 1000; i++ {
+ 			// Make m be {0: true, 1: true, ..., n-1: true}.
+ 			m := make(map[int]bool)
+@@ -673,6 +679,17 @@ func TestIgnoreBogusMapHint(t *testing.T) {
+ 	}
+ }
+ 
++const bs = abi.MapBucketCount
++
++// belowOverflow should be a pretty-full pair of buckets;
++// atOverflow is 1/8 bs larger = 13/8 buckets or two buckets
++// that are 13/16 full each, which is the overflow boundary.
++// Adding one to that should ensure overflow to the next higher size.
++const (
++	belowOverflow = bs * 3 / 2           // 1.5 bs = 2 buckets @ 75%
++	atOverflow    = belowOverflow + bs/8 // 2 buckets at 13/16 fill.
++)
++
+ var mapBucketTests = [...]struct {
+ 	n        int // n is the number of map elements
+ 	noescape int // number of expected buckets for non-escaping map
+@@ -682,11 +699,16 @@ var mapBucketTests = [...]struct {
+ 	{-1, 1, 1},
+ 	{0, 1, 1},
+ 	{1, 1, 1},
+-	{8, 1, 1},
+-	{9, 2, 2},
+-	{13, 2, 2},
+-	{14, 4, 4},
+-	{26, 4, 4},
++	{bs, 1, 1},
++	{bs + 1, 2, 2},
++	{belowOverflow, 2, 2},  // 1.5 bs = 2 buckets @ 75%
++	{atOverflow + 1, 4, 4}, // 13/8 bs + 1 == overflow to 4
++
++	{2 * belowOverflow, 4, 4}, // 3 bs = 4 buckets @75%
++	{2*atOverflow + 1, 8, 8},  // 13/4 bs + 1 = overflow to 8
++
++	{4 * belowOverflow, 8, 8},  // 6 bs = 8 buckets @ 75%
++	{4*atOverflow + 1, 16, 16}, // 13/2 bs + 1 = overflow to 16
+ }
+ 
+ func TestMapBuckets(t *testing.T) {
+diff --git a/src/runtime/runtime-gdb.py b/src/runtime/runtime-gdb.py
+index c4462de851..62859a5659 100644
+--- a/src/runtime/runtime-gdb.py
++++ b/src/runtime/runtime-gdb.py
+@@ -160,6 +160,7 @@ class MapTypePrinter:
+ 		return str(self.val.type)
+ 
+ 	def children(self):
++		MapBucketCount = 8 # see internal/abi.go:MapBucketCount
+ 		B = self.val['B']
+ 		buckets = self.val['buckets']
+ 		oldbuckets = self.val['oldbuckets']
+@@ -178,7 +179,7 @@ class MapTypePrinter:
+ 					bp = oldbp
+ 			while bp:
+ 				b = bp.dereference()
+-				for i in xrange(8):
++				for i in xrange(MapBucketCount):
+ 					if b['tophash'][i] != 0:
+ 						k = b['keys'][i]
+ 						v = b['values'][i]
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 4e7c22762a..a45654d085 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/abi"
+ 	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+@@ -114,13 +115,16 @@ func checkCleanBacktrace(t *testing.T, backtrace string) {
+ 	// TODO(mundaym): check for unknown frames (e.g. "??").
+ }
+ 
+-const helloSource = `
++// NOTE: the maps below are allocated larger than abi.MapBucketCount
++// to ensure that they are not "optimized out".
++
++var helloSource = `
+ import "fmt"
+ import "runtime"
+ var gslice []string
+ func main() {
+-	mapvar := make(map[string]string, 13)
+-	slicemap := make(map[string][]string,11)
++	mapvar := make(map[string]string, ` + strconv.FormatInt(abi.MapBucketCount+9, 10) + `)
++	slicemap := make(map[string][]string,` + strconv.FormatInt(abi.MapBucketCount+3, 10) + `)
+     chanint := make(chan int, 10)
+     chanstr := make(chan string, 10)
+     chanint <- 99
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+index ea3a70d1f0..25505799e9 100644
+--- a/test/codegen/maps.go
++++ b/test/codegen/maps.go
+@@ -124,31 +124,78 @@ func MapClearSideEffect(m map[int]int) int {
+ }
+ 
+ func MapLiteralSizing(x int) (map[int]int, map[int]int) {
+-	// amd64:"MOVL\t[$]10,"
++	// This is tested for internal/abi/maps.go:MapBucketCountBits={3,4,5}
++	// amd64:"MOVL\t[$]33,"
+ 	m := map[int]int{
+-		0: 0,
+-		1: 1,
+-		2: 2,
+-		3: 3,
+-		4: 4,
+-		5: 5,
+-		6: 6,
+-		7: 7,
+-		8: 8,
+-		9: 9,
++		0:  0,
++		1:  1,
++		2:  2,
++		3:  3,
++		4:  4,
++		5:  5,
++		6:  6,
++		7:  7,
++		8:  8,
++		9:  9,
++		10: 10,
++		11: 11,
++		12: 12,
++		13: 13,
++		14: 14,
++		15: 15,
++		16: 16,
++		17: 17,
++		18: 18,
++		19: 19,
++		20: 20,
++		21: 21,
++		22: 22,
++		23: 23,
++		24: 24,
++		25: 25,
++		26: 26,
++		27: 27,
++		28: 28,
++		29: 29,
++		30: 30,
++		31: 32,
++		32: 32,
+ 	}
+-	// amd64:"MOVL\t[$]10,"
++	// amd64:"MOVL\t[$]33,"
+ 	n := map[int]int{
+-		0: x,
+-		1: x,
+-		2: x,
+-		3: x,
+-		4: x,
+-		5: x,
+-		6: x,
+-		7: x,
+-		8: x,
+-		9: x,
++		0:  0,
++		1:  1,
++		2:  2,
++		3:  3,
++		4:  4,
++		5:  5,
++		6:  6,
++		7:  7,
++		8:  8,
++		9:  9,
++		10: 10,
++		11: 11,
++		12: 12,
++		13: 13,
++		14: 14,
++		15: 15,
++		16: 16,
++		17: 17,
++		18: 18,
++		19: 19,
++		20: 20,
++		21: 21,
++		22: 22,
++		23: 23,
++		24: 24,
++		25: 25,
++		26: 26,
++		27: 27,
++		28: 28,
++		29: 29,
++		30: 30,
++		31: 32,
++		32: 32,
+ 	}
+ 	return m, n
+ }

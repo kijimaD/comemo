@@ -8,9 +8,89 @@ Date:   Fri Jan 30 10:18:58 2009 -0800
     DELTA=15  (1 added, 0 deleted, 14 changed)
     OCL=23889
     CL=23889
-
+---
  doc/go_tutorial.txt  |  2 +-
  doc/progs/run        |  3 ++-
  doc/progs/server.go  | 18 +++++++++---------
  doc/progs/server1.go |  6 +++---
  4 files changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/doc/go_tutorial.txt b/doc/go_tutorial.txt
+index e79a5f598d..074259c4af 100644
+--- a/doc/go_tutorial.txt
++++ b/doc/go_tutorial.txt
+@@ -755,7 +755,7 @@ With channels, it's possible to serve multiple independent client goroutines wit
+ writing an actual multiplexer.  The trick is to send the server a channel in the message,
+ which it will then use to reply to the original sender.
+ A realistic client-server program is a lot of code, so here is a very simple substitute
+-to illustrate the idea.  It starts by defining a "Request" type, which embeds a channel
++to illustrate the idea.  It starts by defining a "request" type, which embeds a channel
+ that will be used for the reply.
+ 
+ --PROG progs/server.go /type.request/ /^}/
+diff --git a/doc/progs/run b/doc/progs/run
+index ece3fcaf1c..f93bb65a6a 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -68,7 +68,8 @@ testit print_string "" "77 Sunset Strip"
+ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ 
+-# server hangs; don't run it
++# server hangs; don't run it, just compile it
++6g server.go
+ testit server1 "" ""
+ 
+ rm -f 6.out *.6
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index 32d40f9ab3..ab860891af 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -11,21 +11,21 @@ type request struct {
+ 
+ type binOp (a, b int) int;
+ 
+-func run(op *BinOp, request *Request) {
+-	result := op(request.a, request.b);
+-	request.replyc <- result;
++func run(op *binOp, req *request) {
++	result := op(req.a, req.b);
++	req.replyc <- result;
+ }
+ 
+-func server(op *BinOp, service chan *Request) {
++func server(op *binOp, service chan *request) {
+ 	for {
+-		request := <-service;
+-		go run(op, request);  // don't wait for it
++		req := <-service;
++		go run(op, req);  // don't wait for it
+ 	}
+ }
+ 
+-func startServer(op *BinOp) chan *Request {
+-	req := make(chan *Request);
+-	go Server(op, req);
++func startServer(op *binOp) chan *request {
++	req := make(chan *request);
++	go server(op, req);
+ 	return req;
+ }
+ 
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index a547f6af00..fe04eb4137 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -11,9 +11,9 @@ type request struct {
+ 
+ type binOp (a, b int) int;
+ 
+-func run(op *binOp, request *request) {
+-	result := op(request.a, request.b);
+-	request.replyc <- result;
++func run(op *binOp, req *request) {
++	result := op(req.a, req.b);
++	req.replyc <- result;
+ }
+ 
+ func server(op *binOp, service chan *request, quit chan bool) {

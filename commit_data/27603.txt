@@ -7,6 +7,19 @@ Date:   Tue Apr 5 15:19:27 2016 +1000
     Change-Id: If4e740f3dbef4053355542eebdd899b3099d872c
     Reviewed-on: https://go-review.googlesource.com/21525
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/expvar/expvar.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index d675a0230c..1ec85006b4 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -38,6 +38,7 @@ import (
+ 
+ // Var is an abstract type for all exported variables.
+ type Var interface {
++	// String returns a valid JSON value for the variable.
+ 	String() string
+ }
+ 

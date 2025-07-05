@@ -28,6 +28,25 @@ Date:   Tue Jun 6 22:17:50 2017 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/builtin/builtin.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index dc166837ae..1c7c041d68 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -85,11 +85,11 @@ type uintptr uintptr
+ // byte is an alias for uint8 and is equivalent to uint8 in all ways. It is
+ // used, by convention, to distinguish byte values from 8-bit unsigned
+ // integer values.
+-type byte byte
++type byte = uint8
+ 
+ // rune is an alias for int32 and is equivalent to int32 in all ways. It is
+ // used, by convention, to distinguish character values from integer values.
+-type rune rune
++type rune = int32
+ 
+ // iota is a predeclared identifier representing the untyped integer ordinal
+ // number of the current const specification in a (usually parenthesized)

@@ -9,8 +9,46 @@ Date:   Thu Mar 14 14:35:47 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7486053
-
+---
  src/cmd/5l/obj.c | 1 +
  src/cmd/6l/obj.c | 1 +
  src/cmd/8l/obj.c | 2 +-
  3 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index d25fefebba..f70cb6c336 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -428,6 +428,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+ 	src[0] = 0;
++	pn = estrdup(pn); // we keep it in Sym* references
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 6ea88de273..91569794bf 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -423,6 +423,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+ 	src[0] = 0;
++	pn = estrdup(pn); // we keep it in Sym* references
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index ad453064cc..14c6b6aa97 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -444,7 +444,7 @@ ldobj1(Biobuf *f, char *pkg, int64 len, char *pn)
+ 	ntext = 0;
+ 	eof = Boffset(f) + len;
+ 	src[0] = 0;
+-
++	pn = estrdup(pn); // we keep it in Sym* references
+ 
+ newloop:
+ 	memset(h, 0, sizeof(h));

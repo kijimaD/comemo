@@ -13,6 +13,31 @@ Date:   Thu Jul 18 12:26:47 2013 -0400
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/11522043
-
+---
  src/pkg/runtime/panic.c | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 120f7706e7..5692c537a0 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -175,10 +175,19 @@ runtime·deferreturn(uintptr arg0, ...)
+ 	argp = (byte*)&arg0;
+ 	if(d->argp != argp)
+ 		return;
++
++	// Moving arguments around.
++	// Do not allow preemption here, because the garbage collector
++	// won't know the form of the arguments until the jmpdefer can
++	// flip the PC over to fn.
++	m->locks++;
+ 	runtime·memmove(argp, d->args, d->siz);
+ 	fn = d->fn;
+ 	popdefer();
+ 	freedefer(d);
++	m->locks--;
++	if(m->locks == 0 && g->preempt)
++		g->stackguard0 = StackPreempt;
+ 	runtime·jmpdefer(fn, argp);
+ }
+ 

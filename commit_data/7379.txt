@@ -7,9 +7,315 @@ Date:   Sat Feb 5 12:06:42 2011 -0500
     R=bradfitzgo, r
     CC=golang-dev
     https://golang.org/cl/4124054
-
+---
  src/pkg/crypto/openpgp/packet/compressed.go       |  39 +++++
  src/pkg/crypto/openpgp/packet/compressed_test.go  |  41 ++++++
  src/pkg/crypto/openpgp/packet/private_key.go      | 164 ++++++++++++++++++++++
  src/pkg/crypto/openpgp/packet/private_key_test.go |  37 +++++
  4 files changed, 281 insertions(+)
+
+diff --git a/src/pkg/crypto/openpgp/packet/compressed.go b/src/pkg/crypto/openpgp/packet/compressed.go
+new file mode 100644
+index 0000000000..1c15c24c4b
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/compressed.go
+@@ -0,0 +1,39 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"compress/flate"
++	"compress/zlib"
++	"crypto/openpgp/error"
++	"io"
++	"os"
++	"strconv"
++)
++
++// Compressed represents a compressed OpenPGP packet. The decompressed contents
++// will contain more OpenPGP packets. See RFC 4880, section 5.6.
++type Compressed struct {
++	Body io.Reader
++}
++
++func (c *Compressed) parse(r io.Reader) os.Error {
++	var buf [1]byte
++	_, err := readFull(r, buf[:])
++	if err != nil {
++		return err
++	}
++
++	switch buf[0] {
++	case 1:
++		c.Body = flate.NewReader(r)
++	case 2:
++		c.Body, err = zlib.NewReader(r)
++	default:
++		err = error.UnsupportedError("unknown compression algorithm: " + strconv.Itoa(int(buf[0])))
++	}
++
++	return err
++}
+diff --git a/src/pkg/crypto/openpgp/packet/compressed_test.go b/src/pkg/crypto/openpgp/packet/compressed_test.go
+new file mode 100644
+index 0000000000..24fe501edb
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/compressed_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"bytes"
++	"encoding/hex"
++	"os"
++	"io/ioutil"
++	"testing"
++)
++
++func TestCompressed(t *testing.T) {
++	packet, err := Read(readerFromHex(compressedHex))
++	if err != nil {
++		t.Errorf("failed to read Compressed: %s", err)
++		return
++	}
++
++	c, ok := packet.(*Compressed)
++	if !ok {
++		t.Error("didn't find Compressed packet")
++		return
++	}
++
++	contents, err := ioutil.ReadAll(c.Body)
++	if err != nil && err != os.EOF {
++		t.Error(err)
++		return
++	}
++
++	expected, _ := hex.DecodeString(compressedExpectedHex)
++	if !bytes.Equal(expected, contents) {
++		t.Errorf("got:%x want:%x", contents, expected)
++	}
++}
++
++const compressedHex = "a3013b2d90c4e02b72e25f727e5e496a5e49b11e1700"
++const compressedExpectedHex = "cb1062004d14c8fe636f6e74656e74732e0a"
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+new file mode 100644
+index 0000000000..b22891755e
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -0,0 +1,164 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"big"
++	"bytes"
++	"crypto/cipher"
++	"crypto/openpgp/error"
++	"crypto/openpgp/s2k"
++	"crypto/rsa"
++	"crypto/sha1"
++	"io"
++	"io/ioutil"
++	"os"
++	"strconv"
++)
++
++// PrivateKey represents a possibly encrypted private key. See RFC 4880,
++// section 5.5.3.
++type PrivateKey struct {
++	PublicKey
++	Encrypted     bool // if true then the private key is unavailable until Decrypt has been called.
++	encryptedData []byte
++	cipher        CipherFunction
++	s2k           func(out, in []byte)
++	PrivateKey    interface{} // An *rsa.PrivateKey.
++	sha1Checksum  bool
++	iv            []byte
++}
++
++func (pk *PrivateKey) parse(r io.Reader) (err os.Error) {
++	err = (&pk.PublicKey).parse(r)
++	if err != nil {
++		return
++	}
++	var buf [1]byte
++	_, err = readFull(r, buf[:])
++	if err != nil {
++		return
++	}
++
++	s2kType := buf[0]
++
++	switch s2kType {
++	case 0:
++		pk.s2k = nil
++		pk.Encrypted = false
++	case 254, 255:
++		_, err = readFull(r, buf[:])
++		if err != nil {
++			return
++		}
++		pk.cipher = CipherFunction(buf[0])
++		pk.Encrypted = true
++		pk.s2k, err = s2k.Parse(r)
++		if err != nil {
++			return
++		}
++		if s2kType == 254 {
++			pk.sha1Checksum = true
++		}
++	default:
++		return error.UnsupportedError("deprecated s2k function in private key")
++	}
++
++	if pk.Encrypted {
++		blockSize := pk.cipher.blockSize()
++		if blockSize == 0 {
++			return error.UnsupportedError("unsupported cipher in private key: " + strconv.Itoa(int(pk.cipher)))
++		}
++		pk.iv = make([]byte, blockSize)
++		_, err = readFull(r, pk.iv)
++		if err != nil {
++			return
++		}
++	}
++
++	pk.encryptedData, err = ioutil.ReadAll(r)
++	if err != nil {
++		return
++	}
++
++	if !pk.Encrypted {
++		return pk.parsePrivateKey(pk.encryptedData)
++	}
++
++	return
++}
++
++// Decrypt decrypts an encrypted private key using a passphrase.
++func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
++	if !pk.Encrypted {
++		return nil
++	}
++
++	key := make([]byte, pk.cipher.keySize())
++	pk.s2k(key, passphrase)
++	block := pk.cipher.new(key)
++	cfb := cipher.NewCFBDecrypter(block, pk.iv)
++
++	data := pk.encryptedData
++	cfb.XORKeyStream(data, data)
++
++	if pk.sha1Checksum {
++		if len(data) < sha1.Size {
++			return error.StructuralError("truncated private key data")
++		}
++		h := sha1.New()
++		h.Write(data[:len(data)-sha1.Size])
++		sum := h.Sum()
++		if !bytes.Equal(sum, data[len(data)-sha1.Size:]) {
++			return error.StructuralError("private key checksum failure")
++		}
++		data = data[:len(data)-sha1.Size]
++	} else {
++		if len(data) < 2 {
++			return error.StructuralError("truncated private key data")
++		}
++		var sum uint16
++		for i := 0; i < len(data)-2; i++ {
++			sum += uint16(data[i])
++		}
++		if data[len(data)-2] != uint8(sum>>8) ||
++			data[len(data)-1] != uint8(sum) {
++			return error.StructuralError("private key checksum failure")
++		}
++		data = data[:len(data)-2]
++	}
++
++	return pk.parsePrivateKey(data)
++}
++
++func (pk *PrivateKey) parsePrivateKey(data []byte) (err os.Error) {
++	// TODO(agl): support DSA and ECDSA private keys.
++	rsaPub := pk.PublicKey.PublicKey.(*rsa.PublicKey)
++	rsaPriv := new(rsa.PrivateKey)
++	rsaPriv.PublicKey = *rsaPub
++
++	buf := bytes.NewBuffer(data)
++	d, _, err := readMPI(buf)
++	if err != nil {
++		return
++	}
++	p, _, err := readMPI(buf)
++	if err != nil {
++		return
++	}
++	q, _, err := readMPI(buf)
++	if err != nil {
++		return
++	}
++
++	rsaPriv.D = new(big.Int).SetBytes(d)
++	rsaPriv.P = new(big.Int).SetBytes(p)
++	rsaPriv.Q = new(big.Int).SetBytes(q)
++	pk.PrivateKey = rsaPriv
++	pk.Encrypted = false
++	pk.encryptedData = nil
++
++	return nil
++}
+diff --git a/src/pkg/crypto/openpgp/packet/private_key_test.go b/src/pkg/crypto/openpgp/packet/private_key_test.go
+new file mode 100644
+index 0000000000..e941cc735c
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/private_key_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"testing"
++)
++
++func TestPrivateKeyRead(t *testing.T) {
++	packet, err := Read(readerFromHex(privKeyHex))
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	privKey := packet.(*PrivateKey)
++
++	if !privKey.Encrypted {
++		t.Error("private key isn't encrypted")
++		return
++	}
++
++	err = privKey.Decrypt([]byte("testing"))
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	if privKey.CreationTime != 0x4cc349a8 || privKey.Encrypted {
++		t.Errorf("failed to parse, got: %#v", privKey)
++	}
++}
++
++// Generated with `gpg --export-secret-keys "Test Key 2"`
++const privKeyHex = "9501fe044cc349a8010400b70ca0010e98c090008d45d1ee8f9113bd5861fd57b88bacb7c68658747663f1e1a3b5a98f32fda6472373c024b97359cd2efc88ff60f77751adfbf6af5e615e6a1408cfad8bf0cea30b0d5f53aa27ad59089ba9b15b7ebc2777a25d7b436144027e3bcd203909f147d0e332b240cf63d3395f5dfe0df0a6c04e8655af7eacdf0011010001fe0303024a252e7d475fd445607de39a265472aa74a9320ba2dac395faa687e9e0336aeb7e9a7397e511b5afd9dc84557c80ac0f3d4d7bfec5ae16f20d41c8c84a04552a33870b930420e230e179564f6d19bb153145e76c33ae993886c388832b0fa042ddda7f133924f3854481533e0ede31d51278c0519b29abc3bf53da673e13e3e1214b52413d179d7f66deee35cac8eacb060f78379d70ef4af8607e68131ff529439668fc39c9ce6dfef8a5ac234d234802cbfb749a26107db26406213ae5c06d4673253a3cbee1fcbae58d6ab77e38d6e2c0e7c6317c48e054edadb5a40d0d48acb44643d998139a8a66bb820be1f3f80185bc777d14b5954b60effe2448a036d565c6bc0b915fcea518acdd20ab07bc1529f561c58cd044f723109b93f6fd99f876ff891d64306b5d08f48bab59f38695e9109c4dec34013ba3153488ce070268381ba923ee1eb77125b36afcb4347ec3478c8f2735b06ef17351d872e577fa95d0c397c88c71b59629a36aec"

@@ -6,6 +6,44 @@ Date:   Fri Dec 4 09:56:31 2009 -0800
     
     R=r
     https://golang.org/cl/166060
-
+---
  src/pkg/testing/benchmark.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index b6e100686d..b552a13201 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -26,6 +26,7 @@ type B struct {
+ 	N		int;
+ 	benchmark	Benchmark;
+ 	ns		int64;
++	bytes		int64;
+ 	start		int64;
+ }
+ 
+@@ -50,6 +51,10 @@ func (b *B) ResetTimer() {
+ 	b.ns = 0;
+ }
+ 
++// SetBytes records the number of bytes processed in a single operation.
++// If this is called, the benchmark will report ns/op and MB/s.
++func (b *B) SetBytes(n int64)	{ b.bytes = n }
++
+ func (b *B) nsPerOp() int64 {
+ 	if b.N <= 0 {
+ 		return 0
+@@ -125,7 +130,12 @@ func (b *B) run() {
+ 		n = roundUp(n);
+ 		b.runN(n);
+ 	}
+-	fmt.Printf("%s\t%d\t%10d ns/op\n", b.benchmark.Name, b.N, b.nsPerOp());
++	ns := b.nsPerOp();
++	mb := "";
++	if ns > 0 && b.bytes > 0 {
++		mb = fmt.Sprintf("\t%7.2f MB/s", (float64(b.bytes)/1e6)/(float64(ns)/1e9))
++	}
++	fmt.Printf("%s\t%8d\t%10d ns/op%s\n", b.benchmark.Name, b.N, b.nsPerOp(), mb);
+ }
+ 
+ // An internal function but exported because it is cross-package; part of the implementation

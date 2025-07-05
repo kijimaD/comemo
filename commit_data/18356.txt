@@ -15,7 +15,7 @@ Date:   Mon Jan 27 10:18:22 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/56300043
-
+---
  src/pkg/debug/dwarf/const.go              |  31 ++++--
  src/pkg/debug/dwarf/entry.go              |  12 +++
  src/pkg/debug/dwarf/open.go               |  10 ++
@@ -26,3 +26,578 @@ Date:   Mon Jan 27 10:18:22 2014 -0800
  src/pkg/debug/dwarf/unit.go               |   2 +-
  src/pkg/debug/elf/file.go                 |  39 ++++++-
  9 files changed, 300 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/debug/dwarf/const.go b/src/pkg/debug/dwarf/const.go
+index 9d32a0af2a..987812b152 100644
+--- a/src/pkg/debug/dwarf/const.go
++++ b/src/pkg/debug/dwarf/const.go
+@@ -207,6 +207,7 @@ const (
+ 	formRef8        format = 0x14
+ 	formRefUdata    format = 0x15
+ 	formIndirect    format = 0x16
++	// The following are new in DWARF 4.
+ 	formSecOffset   format = 0x17
+ 	formExprloc     format = 0x18
+ 	formFlagPresent format = 0x19
+@@ -264,15 +265,22 @@ const (
+ 	TagVariantPart            Tag = 0x33
+ 	TagVariable               Tag = 0x34
+ 	TagVolatileType           Tag = 0x35
+-	TagDwarfProcedure         Tag = 0x36
+-	TagRestrictType           Tag = 0x37
+-	TagInterfaceType          Tag = 0x38
+-	TagNamespace              Tag = 0x39
+-	TagImportedModule         Tag = 0x3A
+-	TagUnspecifiedType        Tag = 0x3B
+-	TagPartialUnit            Tag = 0x3C
+-	TagImportedUnit           Tag = 0x3D
+-	TagMutableType            Tag = 0x3E
++	// The following are new in DWARF 3.
++	TagDwarfProcedure  Tag = 0x36
++	TagRestrictType    Tag = 0x37
++	TagInterfaceType   Tag = 0x38
++	TagNamespace       Tag = 0x39
++	TagImportedModule  Tag = 0x3A
++	TagUnspecifiedType Tag = 0x3B
++	TagPartialUnit     Tag = 0x3C
++	TagImportedUnit    Tag = 0x3D
++	TagMutableType     Tag = 0x3E // Later removed from DWARF.
++	TagCondition       Tag = 0x3F
++	TagSharedType      Tag = 0x40
++	// The following are new in DWARF 4.
++	TagTypeUnit            Tag = 0x41
++	TagRvalueReferenceType Tag = 0x42
++	TagTemplateAlias       Tag = 0x43
+ )
+ 
+ var tagNames = [...]string{
+@@ -332,6 +340,11 @@ var tagNames = [...]string{
+ 	TagPartialUnit:            "PartialUnit",
+ 	TagImportedUnit:           "ImportedUnit",
+ 	TagMutableType:            "MutableType",
++	TagCondition:              "Condition",
++	TagSharedType:             "SharedType",
++	TagTypeUnit:               "TypeUnit",
++	TagRvalueReferenceType:    "RvalueReferenceType",
++	TagTemplateAlias:          "TemplateAlias",
+ }
+ 
+ func (t Tag) String() string {
+diff --git a/src/pkg/debug/dwarf/entry.go b/src/pkg/debug/dwarf/entry.go
+index c0c2889923..934416e6c1 100644
+--- a/src/pkg/debug/dwarf/entry.go
++++ b/src/pkg/debug/dwarf/entry.go
+@@ -387,3 +387,15 @@ func (r *Reader) SkipChildren() {
+ 		}
+ 	}
+ }
++
++// clone returns a copy of the reader.  This is used by the typeReader
++// interface.
++func (r *Reader) clone() typeReader {
++	return r.d.Reader()
++}
++
++// offset returns the current buffer offset.  This is used by the
++// typeReader interface.
++func (r *Reader) offset() Offset {
++	return r.b.off
++}
+diff --git a/src/pkg/debug/dwarf/open.go b/src/pkg/debug/dwarf/open.go
+index 7579892529..c1b3f37aca 100644
+--- a/src/pkg/debug/dwarf/open.go
++++ b/src/pkg/debug/dwarf/open.go
+@@ -26,6 +26,7 @@ type Data struct {
+ 	abbrevCache map[uint32]abbrevTable
+ 	order       binary.ByteOrder
+ 	typeCache   map[Offset]Type
++	typeSigs    map[uint64]*typeUnit
+ 	unit        []unit
+ }
+ 
+@@ -49,6 +50,7 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ 		str:         str,
+ 		abbrevCache: make(map[uint32]abbrevTable),
+ 		typeCache:   make(map[Offset]Type),
++		typeSigs:    make(map[uint64]*typeUnit),
+ 	}
+ 
+ 	// Sniff .debug_info to figure out byte order.
+@@ -75,3 +77,11 @@ func New(abbrev, aranges, frame, info, line, pubnames, ranges, str []byte) (*Dat
+ 	d.unit = u
+ 	return d, nil
+ }
++
++// AddTypes will add one .debug_types section to the DWARF data.  A
++// typical object with DWARF version 4 debug info will have multiple
++// .debug_types sections.  The name is used for error reporting only,
++// and serves to distinguish one .debug_types section from another.
++func (d *Data) AddTypes(name string, types []byte) error {
++	return d.parseTypes(name, types)
++}
+diff --git a/src/pkg/debug/dwarf/testdata/typedef.elf4 b/src/pkg/debug/dwarf/testdata/typedef.elf4
+new file mode 100644
+index 0000000000..3d5a5a1b16
+Binary files /dev/null and b/src/pkg/debug/dwarf/testdata/typedef.elf4 differ
+diff --git a/src/pkg/debug/dwarf/type.go b/src/pkg/debug/dwarf/type.go
+index 1fbae6c144..68866d0b7b 100644
+--- a/src/pkg/debug/dwarf/type.go
++++ b/src/pkg/debug/dwarf/type.go
+@@ -251,23 +251,37 @@ func (t *TypedefType) String() string { return t.Name }
+ 
+ func (t *TypedefType) Size() int64 { return t.Type.Size() }
+ 
++// typeReader is used to read from either the info section or the
++// types section.
++type typeReader interface {
++	Seek(Offset)
++	Next() (*Entry, error)
++	clone() typeReader
++	offset() Offset
++}
++
++// Type reads the type at off in the DWARF ``info'' section.
+ func (d *Data) Type(off Offset) (Type, error) {
+-	if t, ok := d.typeCache[off]; ok {
++	return d.readType("info", d.Reader(), off, d.typeCache)
++}
++
++// readType reads a type from r at off of name using and updating a
++// type cache.
++func (d *Data) readType(name string, r typeReader, off Offset, typeCache map[Offset]Type) (Type, error) {
++	if t, ok := typeCache[off]; ok {
+ 		return t, nil
+ 	}
+-
+-	r := d.Reader()
+ 	r.Seek(off)
+ 	e, err := r.Next()
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	if e == nil || e.Offset != off {
+-		return nil, DecodeError{"info", off, "no type at offset"}
++		return nil, DecodeError{name, off, "no type at offset"}
+ 	}
+ 
+ 	// Parse type from Entry.
+-	// Must always set d.typeCache[off] before calling
++	// Must always set typeCache[off] before calling
+ 	// d.Type recursively, to handle circular types correctly.
+ 	var typ Type
+ 
+@@ -290,7 +304,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 				return nil
+ 			}
+ 			if kid == nil {
+-				err = DecodeError{"info", r.b.off, "unexpected end of DWARF entries"}
++				err = DecodeError{name, r.offset(), "unexpected end of DWARF entries"}
+ 				return nil
+ 			}
+ 			if kid.Tag == 0 {
+@@ -313,15 +327,21 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 	// Get Type referred to by Entry's AttrType field.
+ 	// Set err if error happens.  Not having a type is an error.
+ 	typeOf := func(e *Entry) Type {
+-		toff, ok := e.Val(AttrType).(Offset)
+-		if !ok {
++		tval := e.Val(AttrType)
++		var t Type
++		switch toff := tval.(type) {
++		case Offset:
++			if t, err = d.readType(name, r.clone(), toff, typeCache); err != nil {
++				return nil
++			}
++		case uint64:
++			if t, err = d.sigToType(toff); err != nil {
++				return nil
++			}
++		default:
+ 			// It appears that no Type means "void".
+ 			return new(VoidType)
+ 		}
+-		var t Type
+-		if t, err = d.Type(toff); err != nil {
+-			return nil
+-		}
+ 		return t
+ 	}
+ 
+@@ -337,7 +357,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//	dimensions are in left to right order.
+ 		t := new(ArrayType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		if t.Type = typeOf(e); err != nil {
+ 			goto Error
+ 		}
+@@ -363,7 +383,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 				}
+ 				ndim++
+ 			case TagEnumerationType:
+-				err = DecodeError{"info", kid.Offset, "cannot handle enumeration type as array bound"}
++				err = DecodeError{name, kid.Offset, "cannot handle enumeration type as array bound"}
+ 				goto Error
+ 			}
+ 		}
+@@ -383,12 +403,12 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		name, _ := e.Val(AttrName).(string)
+ 		enc, ok := e.Val(AttrEncoding).(int64)
+ 		if !ok {
+-			err = DecodeError{"info", e.Offset, "missing encoding attribute for " + name}
++			err = DecodeError{name, e.Offset, "missing encoding attribute for " + name}
+ 			goto Error
+ 		}
+ 		switch enc {
+ 		default:
+-			err = DecodeError{"info", e.Offset, "unrecognized encoding attribute value"}
++			err = DecodeError{name, e.Offset, "unrecognized encoding attribute value"}
+ 			goto Error
+ 
+ 		case encAddress:
+@@ -408,7 +428,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		case encUnsignedChar:
+ 			typ = new(UcharType)
+ 		}
+-		d.typeCache[off] = typ
++		typeCache[off] = typ
+ 		t := typ.(interface {
+ 			Basic() *BasicType
+ 		}).Basic()
+@@ -433,7 +453,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		// There is much more to handle C++, all ignored for now.
+ 		t := new(StructType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		switch e.Tag {
+ 		case TagClassType:
+ 			t.Kind = "class"
+@@ -453,12 +473,13 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 				if f.Type = typeOf(kid); err != nil {
+ 					goto Error
+ 				}
+-				if loc, ok := kid.Val(AttrDataMemberLoc).([]byte); ok {
++				switch loc := kid.Val(AttrDataMemberLoc).(type) {
++				case []byte:
+ 					// TODO: Should have original compilation
+ 					// unit here, not unknownFormat.
+ 					b := makeBuf(d, unknownFormat{}, "location", 0, loc)
+ 					if b.uint8() != opPlusUconst {
+-						err = DecodeError{"info", kid.Offset, "unexpected opcode"}
++						err = DecodeError{name, kid.Offset, "unexpected opcode"}
+ 						goto Error
+ 					}
+ 					f.ByteOffset = int64(b.uint())
+@@ -466,6 +487,8 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 						err = b.err
+ 						goto Error
+ 					}
++				case int64:
++					f.ByteOffset = loc
+ 				}
+ 
+ 				haveBitOffset := false
+@@ -502,7 +525,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//	AttrType: subtype
+ 		t := new(QualType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		if t.Type = typeOf(e); err != nil {
+ 			goto Error
+ 		}
+@@ -526,7 +549,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//		AttrConstValue: value of constant
+ 		t := new(EnumType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		t.EnumName, _ = e.Val(AttrName).(string)
+ 		t.Val = make([]*EnumValue, 0, 8)
+ 		for kid := next(); kid != nil; kid = next() {
+@@ -552,7 +575,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//	AttrAddrClass: address class [ignored]
+ 		t := new(PtrType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		if e.Val(AttrType) == nil {
+ 			t.Type = &VoidType{}
+ 			break
+@@ -571,7 +594,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//	TagUnspecifiedParameter: final ...
+ 		t := new(FuncType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		if t.ReturnType = typeOf(e); err != nil {
+ 			goto Error
+ 		}
+@@ -598,7 +621,7 @@ func (d *Data) Type(off Offset) (Type, error) {
+ 		//	AttrType: type definition [required]
+ 		t := new(TypedefType)
+ 		typ = t
+-		d.typeCache[off] = t
++		typeCache[off] = t
+ 		t.Name, _ = e.Val(AttrName).(string)
+ 		t.Type = typeOf(e)
+ 	}
+@@ -620,7 +643,7 @@ Error:
+ 	// If the parse fails, take the type out of the cache
+ 	// so that the next call with this offset doesn't hit
+ 	// the cache and return success.
+-	delete(d.typeCache, off)
++	delete(typeCache, off)
+ 	return nil, err
+ }
+ 
+diff --git a/src/pkg/debug/dwarf/type_test.go b/src/pkg/debug/dwarf/type_test.go
+index b5b255f6f4..2cb85e74bb 100644
+--- a/src/pkg/debug/dwarf/type_test.go
++++ b/src/pkg/debug/dwarf/type_test.go
+@@ -73,6 +73,8 @@ func TestTypedefsMachO(t *testing.T) {
+ 	testTypedefs(t, machoData(t, "testdata/typedef.macho"), "macho")
+ }
+ 
++func TestTypedefsELFDwarf4(t *testing.T) { testTypedefs(t, elfData(t, "testdata/typedef.elf4"), "elf") }
++
+ func testTypedefs(t *testing.T, d *Data, kind string) {
+ 	r := d.Reader()
+ 	seen := make(map[string]bool)
+diff --git a/src/pkg/debug/dwarf/typeunit.go b/src/pkg/debug/dwarf/typeunit.go
+new file mode 100644
+index 0000000000..3fd1c9973e
+--- /dev/null
++++ b/src/pkg/debug/dwarf/typeunit.go
+@@ -0,0 +1,166 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package dwarf
++
++import (
++	"fmt"
++	"strconv"
++)
++
++// Parse the type units stored in a DWARF4 .debug_types section.  Each
++// type unit defines a single primary type and an 8-byte signature.
++// Other sections may then use formRefSig8 to refer to the type.
++
++// The typeUnit format is a single type with a signature.  It holds
++// the same data as a compilation unit.
++type typeUnit struct {
++	unit
++	toff  Offset // Offset to signature type within data.
++	name  string // Name of .debug_type section.
++	cache Type   // Cache the type, nil to start.
++}
++
++// Parse a .debug_types section.
++func (d *Data) parseTypes(name string, types []byte) error {
++	b := makeBuf(d, unknownFormat{}, name, 0, types)
++	for len(b.data) > 0 {
++		base := b.off
++		dwarf64 := false
++		n := b.uint32()
++		if n == 0xffffffff {
++			n64 := b.uint64()
++			if n64 != uint64(uint32(n64)) {
++				b.error("type unit length overflow")
++				return b.err
++			}
++			n = uint32(n64)
++			dwarf64 = true
++		}
++		hdroff := b.off
++		vers := b.uint16()
++		if vers != 4 {
++			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
++			return b.err
++		}
++		var ao uint32
++		if !dwarf64 {
++			ao = b.uint32()
++		} else {
++			ao64 := b.uint64()
++			if ao64 != uint64(uint32(ao64)) {
++				b.error("type unit abbrev offset overflow")
++				return b.err
++			}
++			ao = uint32(ao64)
++		}
++		atable, err := d.parseAbbrev(ao)
++		if err != nil {
++			return err
++		}
++		asize := b.uint8()
++		sig := b.uint64()
++
++		var toff uint32
++		if !dwarf64 {
++			toff = b.uint32()
++		} else {
++			to64 := b.uint64()
++			if to64 != uint64(uint32(to64)) {
++				b.error("type unit type offset overflow")
++				return b.err
++			}
++			toff = uint32(to64)
++		}
++
++		boff := b.off
++		d.typeSigs[sig] = &typeUnit{
++			unit: unit{
++				base:   base,
++				off:    boff,
++				data:   b.bytes(int(Offset(n) - (b.off - hdroff))),
++				atable: atable,
++				asize:  int(asize),
++				vers:   int(vers),
++				is64:   dwarf64,
++			},
++			toff: Offset(toff),
++			name: name,
++		}
++		if b.err != nil {
++			return b.err
++		}
++	}
++	return nil
++}
++
++// Return the type for a type signature.
++func (d *Data) sigToType(sig uint64) (Type, error) {
++	tu := d.typeSigs[sig]
++	if tu == nil {
++		return nil, fmt.Errorf("no type unit with signature %v", sig)
++	}
++	if tu.cache != nil {
++		return tu.cache, nil
++	}
++
++	b := makeBuf(d, tu, tu.name, tu.off, tu.data)
++	r := &typeUnitReader{d: d, tu: tu, b: b}
++	t, err := d.readType(tu.name, r, Offset(tu.toff), make(map[Offset]Type))
++	if err != nil {
++		return nil, err
++	}
++
++	tu.cache = t
++	return t, nil
++}
++
++// typeUnitReader is a typeReader for a tagTypeUnit.
++type typeUnitReader struct {
++	d   *Data
++	tu  *typeUnit
++	b   buf
++	err error
++}
++
++// Seek to a new position in the type unit.
++func (tur *typeUnitReader) Seek(off Offset) {
++	tur.err = nil
++	doff := off - tur.tu.off
++	if doff < 0 || doff >= Offset(len(tur.tu.data)) {
++		tur.err = fmt.Errorf("%s: offset %d out of range; max %d", tur.tu.name, doff, len(tur.tu.data))
++		return
++	}
++	tur.b = makeBuf(tur.d, tur.tu, tur.tu.name, off, tur.tu.data[doff:])
++}
++
++// Next reads the next Entry from the type unit.
++func (tur *typeUnitReader) Next() (*Entry, error) {
++	if tur.err != nil {
++		return nil, tur.err
++	}
++	if len(tur.tu.data) == 0 {
++		return nil, nil
++	}
++	e := tur.b.entry(tur.tu.atable, tur.tu.base)
++	if tur.b.err != nil {
++		tur.err = tur.b.err
++		return nil, tur.err
++	}
++	return e, nil
++}
++
++// clone returns a new reader for the type unit.
++func (tur *typeUnitReader) clone() typeReader {
++	return &typeUnitReader{
++		d:  tur.d,
++		tu: tur.tu,
++		b:  makeBuf(tur.d, tur.tu, tur.tu.name, tur.tu.off, tur.tu.data),
++	}
++}
++
++// offset returns the current offset.
++func (tur *typeUnitReader) offset() Offset {
++	return tur.b.off
++}
+diff --git a/src/pkg/debug/dwarf/unit.go b/src/pkg/debug/dwarf/unit.go
+index 270cd2e331..0fbc8e0825 100644
+--- a/src/pkg/debug/dwarf/unit.go
++++ b/src/pkg/debug/dwarf/unit.go
+@@ -66,7 +66,7 @@ func (d *Data) parseUnits() ([]unit, error) {
+ 			n = uint32(b.uint64())
+ 		}
+ 		vers := b.uint16()
+-		if vers != 2 && vers != 3 {
++		if vers != 2 && vers != 3 && vers != 4 {
+ 			b.error("unsupported DWARF version " + strconv.Itoa(int(vers)))
+ 			break
+ 		}
+diff --git a/src/pkg/debug/elf/file.go b/src/pkg/debug/elf/file.go
+index a55c37ea99..07661aa166 100644
+--- a/src/pkg/debug/elf/file.go
++++ b/src/pkg/debug/elf/file.go
+@@ -601,7 +601,44 @@ func (f *File) DWARF() (*dwarf.Data, error) {
+ 	}
+ 
+ 	abbrev, info, str := dat[0], dat[1], dat[2]
+-	return dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
++	d, err := dwarf.New(abbrev, nil, nil, info, nil, nil, nil, str)
++	if err != nil {
++		return nil, err
++	}
++
++	// Look for DWARF4 .debug_types sections.
++	for i, s := range f.Sections {
++		if s.Name == ".debug_types" {
++			b, err := s.Data()
++			if err != nil && uint64(len(b)) < s.Size {
++				return nil, err
++			}
++
++			for _, r := range f.Sections {
++				if r.Type != SHT_RELA && r.Type != SHT_REL {
++					continue
++				}
++				if int(r.Info) != i {
++					continue
++				}
++				rd, err := r.Data()
++				if err != nil {
++					return nil, err
++				}
++				err = f.applyRelocations(b, rd)
++				if err != nil {
++					return nil, err
++				}
++			}
++
++			err = d.AddTypes(fmt.Sprintf("types-%d", i), b)
++			if err != nil {
++				return nil, err
++			}
++		}
++	}
++
++	return d, nil
+ }
+ 
+ // Symbols returns the symbol table for f.

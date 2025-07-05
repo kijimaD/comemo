@@ -9,6 +9,59 @@ Date:   Tue Jun 9 16:16:42 2015 +1000
     Change-Id: I3ddd26607813ca629e3ab62abf87dc5ab453e36f
     Reviewed-on: https://go-review.googlesource.com/10835
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/pe.go | 31 ++++++++++++++++---------------
  1 file changed, 16 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index cb82c053d8..d5f7e62989 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -545,10 +545,6 @@ func initdynimport() *Dll {
+ 				r.Off = 0
+ 				r.Siz = uint8(Thearch.Ptrsize)
+ 				r.Type = obj.R_ADDR
+-
+-				// pre-allocate symtab entries for those symbols
+-				dynSym.Dynid = int32(ncoffsym)
+-				ncoffsym++
+ 			}
+ 		}
+ 	} else {
+@@ -988,20 +984,25 @@ func addpesym(s *LSym, name string, type_ int, addr int64, size int64, ver int,
+ 	ncoffsym++
+ }
+ 
++func pegenasmsym(put func(*LSym, string, int, int64, int64, int, *LSym)) {
++	if Linkmode == LinkExternal {
++		for d := dr; d != nil; d = d.next {
++			for m := d.ms; m != nil; m = m.next {
++				s := m.s.R[0].Xsym
++				put(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
++			}
++		}
++	}
++	genasmsym(put)
++}
++
+ func addpesymtable() {
+-	if Debug['s'] == 0 {
+-		genasmsym(addpesym)
++	if Debug['s'] == 0 || Linkmode == LinkExternal {
++		ncoffsym = 0
++		pegenasmsym(addpesym)
+ 		coffsym = make([]COFFSym, ncoffsym)
+ 		ncoffsym = 0
+-		if Linkmode == LinkExternal {
+-			for d := dr; d != nil; d = d.next {
+-				for m := d.ms; m != nil; m = m.next {
+-					s := m.s.R[0].Xsym
+-					addpesym(s, s.Name, 'U', 0, int64(Thearch.Ptrsize), 0, nil)
+-				}
+-			}
+-		}
+-		genasmsym(addpesym)
++		pegenasmsym(addpesym)
+ 	}
+ 	size := len(strtbl) + 4 + 18*ncoffsym
+ 

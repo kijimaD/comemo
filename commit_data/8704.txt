@@ -7,9 +7,276 @@ Date:   Mon Jun 13 13:04:59 2011 -0400
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4572059
-
+---
  src/pkg/crypto/openpgp/keys.go                     |   2 +-
  .../crypto/openpgp/packet/one_pass_signature.go    |  27 +++++-
  src/pkg/crypto/openpgp/write.go                    | 104 +++++++++++++++++++--
  src/pkg/crypto/openpgp/write_test.go               |  36 ++++++-
  4 files changed, 158 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index f467cc0117..d12d07d7e0 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -305,7 +305,7 @@ EachPacket:
+ 					return nil, error.StructuralError("user ID packet not followed by self-signature")
+ 				}
+ 
+-				if sig.SigType == packet.SigTypePositiveCert && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
++				if (sig.SigType == packet.SigTypePositiveCert || sig.SigType == packet.SigTypeGenericCert) && sig.IssuerKeyId != nil && *sig.IssuerKeyId == e.PrimaryKey.KeyId {
+ 					if err = e.PrimaryKey.VerifyUserIdSignature(pkt.Id, sig); err != nil {
+ 						return nil, error.StructuralError("user ID self-signature invalid: " + err.String())
+ 					}
+diff --git a/src/pkg/crypto/openpgp/packet/one_pass_signature.go b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+index acbf58bbef..ca826e4f4d 100644
+--- a/src/pkg/crypto/openpgp/packet/one_pass_signature.go
++++ b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+@@ -24,6 +24,8 @@ type OnePassSignature struct {
+ 	IsLast     bool
+ }
+ 
++const onePassSignatureVersion = 3
++
+ func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
+ 	var buf [13]byte
+ 
+@@ -31,7 +33,7 @@ func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
+ 	if err != nil {
+ 		return
+ 	}
+-	if buf[0] != 3 {
++	if buf[0] != onePassSignatureVersion {
+ 		err = error.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
+ 	}
+ 
+@@ -47,3 +49,26 @@ func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
+ 	ops.IsLast = buf[12] != 0
+ 	return
+ }
++
++// Serialize marshals the given OnePassSignature to w.
++func (ops *OnePassSignature) Serialize(w io.Writer) os.Error {
++	var buf [13]byte
++	buf[0] = onePassSignatureVersion
++	buf[1] = uint8(ops.SigType)
++	var ok bool
++	buf[2], ok = s2k.HashToHashId(ops.Hash)
++	if !ok {
++		return error.UnsupportedError("hash type: " + strconv.Itoa(int(ops.Hash)))
++	}
++	buf[3] = uint8(ops.PubKeyAlgo)
++	binary.BigEndian.PutUint64(buf[4:12], ops.KeyId)
++	if ops.IsLast {
++		buf[12] = 1
++	}
++
++	if err := serializeHeader(w, packetTypeOnePassSignature, len(buf)); err != nil {
++		return err
++	}
++	_, err := w.Write(buf[:])
++	return err
++}
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index a7e9332c13..9884472ce7 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/openpgp/s2k"
+ 	"crypto/rand"
+ 	_ "crypto/sha256"
++	"hash"
+ 	"io"
+ 	"os"
+ 	"strconv"
+@@ -144,11 +145,18 @@ func hashToHashId(h crypto.Hash) uint8 {
+ }
+ 
+ // Encrypt encrypts a message to a number of recipients and, optionally, signs
+-// it. (Note: signing is not yet implemented.) hints contains optional
+-// information, that is also encrypted, that aids the recipients in processing
+-// the message. The resulting WriteCloser must be closed after the contents of
+-// the file have been written.
++// it. hints contains optional information, that is also encrypted, that aids
++// the recipients in processing the message. The resulting WriteCloser must
++// be closed after the contents of the file have been written.
+ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHints) (plaintext io.WriteCloser, err os.Error) {
++	var signer *packet.PrivateKey
++	if signed != nil {
++		signer = signed.signingKey().PrivateKey
++		if signer == nil || signer.Encrypted {
++			return nil, error.InvalidArgumentError("signing key must be decrypted")
++		}
++	}
++
+ 	// These are the possible ciphers that we'll use for the message.
+ 	candidateCiphers := []uint8{
+ 		uint8(packet.CipherAES128),
+@@ -194,7 +202,7 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 	}
+ 
+ 	cipher := packet.CipherFunction(candidateCiphers[0])
+-	// hash := s2k.HashIdToHash(candidateHashes[0])
++	hash, _ := s2k.HashIdToHash(candidateHashes[0])
+ 	symKey := make([]byte, cipher.KeySize())
+ 	if _, err := io.ReadFull(rand.Reader, symKey); err != nil {
+ 		return nil, err
+@@ -206,13 +214,95 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 		}
+ 	}
+ 
+-	w, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
++	encryptedData, err := packet.SerializeSymmetricallyEncrypted(ciphertext, cipher, symKey)
+ 	if err != nil {
+ 		return
+ 	}
+ 
++	if signer != nil {
++		ops := &packet.OnePassSignature{
++			SigType:    packet.SigTypeBinary,
++			Hash:       hash,
++			PubKeyAlgo: signer.PubKeyAlgo,
++			KeyId:      signer.KeyId,
++			IsLast:     true,
++		}
++		if err := ops.Serialize(encryptedData); err != nil {
++			return nil, err
++		}
++	}
++
+ 	if hints == nil {
+ 		hints = &FileHints{}
+ 	}
+-	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++
++	w := encryptedData
++	if signer != nil {
++		// If we need to write a signature packet after the literal
++		// data then we need to stop literalData from closing
++		// encryptedData.
++		w = noOpCloser{encryptedData}
++
++	}
++	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++	if err != nil {
++		return nil, err
++	}
++
++	if signer != nil {
++		return signatureWriter{encryptedData, literalData, hash, hash.New(), signer}, nil
++	}
++	return literalData, nil
++}
++
++// signatureWriter hashes the contents of a message while passing it along to
++// literalData. When closed, it closes literalData, writes a signature packet
++// to encryptedData and then also closes encryptedData.
++type signatureWriter struct {
++	encryptedData io.WriteCloser
++	literalData   io.WriteCloser
++	hashType      crypto.Hash
++	h             hash.Hash
++	signer        *packet.PrivateKey
++}
++
++func (s signatureWriter) Write(data []byte) (int, os.Error) {
++	s.h.Write(data)
++	return s.literalData.Write(data)
++}
++
++func (s signatureWriter) Close() os.Error {
++	sig := &packet.Signature{
++		SigType:      packet.SigTypeBinary,
++		PubKeyAlgo:   s.signer.PubKeyAlgo,
++		Hash:         s.hashType,
++		CreationTime: uint32(time.Seconds()),
++		IssuerKeyId:  &s.signer.KeyId,
++	}
++
++	if err := sig.Sign(s.h, s.signer); err != nil {
++		return err
++	}
++	if err := s.literalData.Close(); err != nil {
++		return err
++	}
++	if err := sig.Serialize(s.encryptedData); err != nil {
++		return err
++	}
++	return s.encryptedData.Close()
++}
++
++// noOpCloser is like an ioutil.NopCloser, but for an io.Writer.
++// TODO: we have two of these in OpenPGP packages alone. This probably needs
++// to be promoted somewhere more common.
++type noOpCloser struct {
++	w io.Writer
++}
++
++func (c noOpCloser) Write(data []byte) (n int, err os.Error) {
++	return c.w.Write(data)
++}
++
++func (c noOpCloser) Close() os.Error {
++	return nil
+ }
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index cfa1314184..028a5e087d 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -122,11 +122,16 @@ func TestSymmetricEncryption(t *testing.T) {
+ 	}
+ }
+ 
+-func TestEncryption(t *testing.T) {
++func testEncryption(t *testing.T, isSigned bool) {
+ 	kring, _ := ReadKeyRing(readerFromHex(testKeys1And2PrivateHex))
+ 
++	var signed *Entity
++	if isSigned {
++		signed = kring[0]
++	}
++
+ 	buf := new(bytes.Buffer)
+-	w, err := Encrypt(buf, kring[:1], nil, /* not signed */ nil /* no hints */ )
++	w, err := Encrypt(buf, kring[:1], signed, nil /* no hints */ )
+ 	if err != nil {
+ 		t.Errorf("error in Encrypt: %s", err)
+ 		return
+@@ -150,6 +155,16 @@ func TestEncryption(t *testing.T) {
+ 		return
+ 	}
+ 
++	if isSigned {
++		expectedKeyId := kring[0].signingKey().PublicKey.KeyId
++		if md.SignedByKeyId != expectedKeyId {
++			t.Errorf("message signed by wrong key id, got: %d, want: %d", *md.SignedBy, expectedKeyId)
++		}
++		if md.SignedBy == nil {
++			t.Errorf("failed to find the signing Entity")
++		}
++	}
++
+ 	plaintext, err := ioutil.ReadAll(md.UnverifiedBody)
+ 	if err != nil {
+ 		t.Errorf("error reading encrypted contents: %s", err)
+@@ -164,4 +179,21 @@ func TestEncryption(t *testing.T) {
+ 	if string(plaintext) != message {
+ 		t.Errorf("got: %s, want: %s", string(plaintext), message)
+ 	}
++
++	if isSigned {
++		if md.SignatureError != nil {
++			t.Errorf("signature error: %s", err)
++		}
++		if md.Signature == nil {
++			t.Error("signature missing")
++		}
++	}
++}
++
++func TestEncryption(t *testing.T) {
++	testEncryption(t, false /* not signed */ )
++}
++
++func TestEncryptAndSign(t *testing.T) {
++	testEncryption(t, true /* signed */ )
+ }

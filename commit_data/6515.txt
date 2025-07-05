@@ -7,9 +7,151 @@ Date:   Wed Oct 13 13:24:14 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2475042
-
+---
  src/cmd/5l/asm.c          | 12 +++++++-----
  src/pkg/runtime/arm/asm.s | 13 +++++++------
  src/pkg/runtime/proc.c    | 10 ++++++----
  src/pkg/runtime/runtime.h |  2 +-
  4 files changed, 21 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 8262d2c396..a033898c00 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -1864,7 +1864,7 @@ if(debug['G']) print("%ux: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym-
+ 		if(p->to.sym->thumb)
+ 			v |= 1;	// T bit
+ 		o1 = olr(8, REGPC, REGTMP, p->scond&C_SCOND);	// mov 8(PC), Rtmp
+-		o2 = 	oprrr(AADD, p->scond) | immrot(8) | (REGPC<<16) | (REGLINK<<12);	// add 8,PC, LR
++		o2 = oprrr(AADD, p->scond) | immrot(8) | (REGPC<<16) | (REGLINK<<12);	// add 8,PC, LR
+ 		o3 = ((p->scond&C_SCOND)<<28) | (0x12fff<<8) | (1<<4) | REGTMP;		// bx Rtmp
+ 		o4 = opbra(AB, 14);	// B over o6
+ 		o5 = v;
+@@ -2087,12 +2087,13 @@ olr(int32 v, int b, int r, int sc)
+ 		o |= 1 << 23;
+ 	if(sc & C_WBIT)
+ 		o |= 1 << 21;
+-	o |= (0x1<<26) | (1<<20);
++	o |= (1<<26) | (1<<20);
+ 	if(v < 0) {
++		if(sc & C_UBIT) diag(".U on neg offset");
+ 		v = -v;
+ 		o ^= 1 << 23;
+ 	}
+-	if(v >= (1<<12))
++	if(v >= (1<<12) || v < 0)
+ 		diag("literal span too large: %d (R%d)\n%P", v, b, PP);
+ 	o |= v;
+ 	o |= b << 16;
+@@ -2117,7 +2118,7 @@ olhr(int32 v, int b, int r, int sc)
+ 		v = -v;
+ 		o ^= 1 << 23;
+ 	}
+-	if(v >= (1<<8))
++	if(v >= (1<<8) || v < 0)
+ 		diag("literal span too large: %d (R%d)\n%P", v, b, PP);
+ 	o |= (v&0xf)|((v>>4)<<8)|(1<<22);
+ 	o |= b << 16;
+@@ -2191,7 +2192,8 @@ ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
+ 	}
+ 	if(v & 3)
+ 		diag("odd offset for floating point op: %d\n%P", v, p);
+-	else if(v >= (1<<10))
++	else
++	if(v >= (1<<10) || v < 0)
+ 		diag("literal span too large: %d\n%P", v, p);
+ 	o |= (v>>2) & 0xFF;
+ 	o |= b << 16;
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 68d5f721c0..6c01e95207 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -123,7 +123,6 @@ TEXT gogocall(SB), 7, $-4
+ 	MOVW	0(g), R3		// make sure g != nil
+ 	MOVW	gobuf_sp(R0), SP	// restore SP
+ 	MOVW	gobuf_pc(R0), LR
+-	SUB	R2, SP
+ 	MOVW	R1, PC
+ 
+ /*
+@@ -141,8 +140,7 @@ TEXT ·morestack(SB),7,$-4
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVW	m_g0(m), R4
+ 	CMP	g, R4
+-	BNE	2(PC)
+-	BL	abort(SB)
++	BL.EQ	abort(SB)
+ 
+ 	// Save in m.
+ 	MOVW	R1, m_moreframe(m)
+@@ -150,9 +148,9 @@ TEXT ·morestack(SB),7,$-4
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+-	MOVW	R3, (m_morebuf+gobuf_pc)(m) // f's caller's PC
+-	MOVW	SP, (m_morebuf+gobuf_sp)(m) // f's caller's SP
+-	MOVW	SP, m_morefp(m) // f's caller's SP
++	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
++	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// f's caller's SP
++	MOVW	SP, m_morefp(m)			// f's caller's SP
+ 	MOVW	g, (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set m->morepc to f's PC.
+@@ -185,6 +183,9 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	8(SP), R1			// arg frame
+ 	MOVW	12(SP), R2			// arg size
+ 
++	SUB	$4,R1				// add the saved LR to the frame
++	ADD	$4,R2
++
+ 	MOVW	R0, m_morepc(m)			// f's PC
+ 	MOVW	R1, m_morefp(m)			// argument frame pointer
+ 	MOVW	R2, m_moreargs(m)		// f's argument size
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 24c6af06de..794e767498 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -527,8 +527,9 @@ scheduler(void)
+ 	gp->status = Grunning;
+ 	m->curg = gp;
+ 	gp->m = m;
+-	if(gp->sched.pc == (byte*)goexit)	// kickoff
+-		gogocall(&gp->sched, (void(*)(void))gp->entry, 0);
++	if(gp->sched.pc == (byte*)goexit) {	// kickoff
++		gogocall(&gp->sched, (void(*)(void))gp->entry);
++	}
+ 	gogo(&gp->sched, 1);
+ }
+ 
+@@ -770,7 +771,8 @@ newstack(void)
+ 		free = true;
+ 	}
+ 
+-//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n", frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
++//printf("newstack frame=%d args=%d morepc=%p morefp=%p gobuf=%p, %p newstk=%p\n",
++//frame, args, m->morepc, m->morefp, g->sched.pc, g->sched.sp, stk);
+ 
+ 	top->stackbase = g1->stackbase;
+ 	top->stackguard = g1->stackguard;
+@@ -797,7 +799,7 @@ newstack(void)
+ 	label.sp = sp;
+ 	label.pc = (byte*)·lessstack;
+ 	label.g = m->curg;
+-	gogocall(&label, m->morepc, 0);
++	gogocall(&label, m->morepc);
+ 
+ 	*(int32*)345 = 123;	// never return
+ }
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 15e846bd1b..88f53e2a2e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -377,7 +377,7 @@ int32	charntorune(int32*, uint8*, int32);
+  * very low level c-called
+  */
+ void	gogo(Gobuf*, uintptr);
+-void	gogocall(Gobuf*, void(*)(void), int64);
++void	gogocall(Gobuf*, void(*)(void));
+ uintptr	gosave(Gobuf*);
+ void	·lessstack(void);
+ void	goargs(void);

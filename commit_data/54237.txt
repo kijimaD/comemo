@@ -11,6 +11,24 @@ Date:   Thu Sep 29 20:32:25 2022 +0800
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/cover/cover.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 7b9d79eb38..1be5ce5276 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -1026,10 +1026,10 @@ func (d *sliceWriteSeeker) Write(p []byte) (n int, err error) {
+ }
+ 
+ func (d *sliceWriteSeeker) Seek(offset int64, whence int) (int64, error) {
+-	if whence == os.SEEK_SET {
++	if whence == io.SeekStart {
+ 		d.off = offset
+ 		return offset, nil
+-	} else if whence == os.SEEK_CUR {
++	} else if whence == io.SeekCurrent {
+ 		d.off += offset
+ 		return d.off, nil
+ 	}

@@ -7,6 +7,23 @@ Date:   Thu Dec 27 11:33:15 2018 +0900
     Change-Id: Iaf67fcbb145277327e24150b29ff38f6c65f6a03
     Reviewed-on: https://go-review.googlesource.com/c/155781
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.12.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 2591218eda..3eab22a930 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -299,6 +299,11 @@ for {
+   as the <code>godoc</code> command line used to do.
+ </p>
+ 
++<p><!-- CL 140959 -->
++  <code>go</code> <code>doc</code> also now includes the <code>-src</code> flag,
++  which will show the target's original source code.
++</p>
++
+ <h3 id="trace">Trace</h3>
+ 
+ <p><!-- CL 60790 -->

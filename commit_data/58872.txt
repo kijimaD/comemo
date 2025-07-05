@@ -11,7 +11,7 @@ Date:   Mon Nov 6 22:58:32 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/dial.go                          |  28 ++++----
  src/net/http/cgi/child.go                |   6 +-
  src/net/http/client.go                   |  84 +++++++++++------------
@@ -68,3 +68,3944 @@ Date:   Mon Nov 6 22:58:32 2023 +0800
  src/net/unixsock.go                      |  30 ++++----
  src/net/url/url.go                       |  44 ++++++------
  55 files changed, 528 insertions(+), 528 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 7ca9b4a468..a6565c3ce5 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -65,7 +65,7 @@ func (m *mptcpStatus) set(use bool) {
+ //
+ // The zero value for each field is equivalent to dialing
+ // without that option. Dialing with the zero value of Dialer
+-// is therefore equivalent to just calling the Dial function.
++// is therefore equivalent to just calling the [Dial] function.
+ //
+ // It is safe to call Dialer's methods concurrently.
+ type Dialer struct {
+@@ -338,7 +338,7 @@ func (d *Dialer) MultipathTCP() bool {
+ 	return d.mptcpStatus.get()
+ }
+ 
+-// SetMultipathTCP directs the Dial methods to use, or not use, MPTCP,
++// SetMultipathTCP directs the [Dial] methods to use, or not use, MPTCP,
+ // if supported by the operating system. This method overrides the
+ // system default and the GODEBUG=multipathtcp=... setting if any.
+ //
+@@ -363,7 +363,7 @@ func (d *Dialer) SetMultipathTCP(use bool) {
+ // brackets, as in "[2001:db8::1]:80" or "[fe80::1%zone]:80".
+ // The zone specifies the scope of the literal IPv6 address as defined
+ // in RFC 4007.
+-// The functions JoinHostPort and SplitHostPort manipulate a pair of
++// The functions [JoinHostPort] and [SplitHostPort] manipulate a pair of
+ // host and port in this form.
+ // When using TCP, and the host resolves to multiple IP addresses,
+ // Dial will try each IP address in order until one succeeds.
+@@ -401,7 +401,7 @@ func Dial(network, address string) (Conn, error) {
+ 	return d.Dial(network, address)
+ }
+ 
+-// DialTimeout acts like Dial but takes a timeout.
++// DialTimeout acts like [Dial] but takes a timeout.
+ //
+ // The timeout includes name resolution, if required.
+ // When using TCP, and the host in the address parameter resolves to
+@@ -428,8 +428,8 @@ type sysDialer struct {
+ // See func Dial for a description of the network and address
+ // parameters.
+ //
+-// Dial uses context.Background internally; to specify the context, use
+-// DialContext.
++// Dial uses [context.Background] internally; to specify the context, use
++// [Dialer.DialContext].
+ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ 	return d.DialContext(context.Background(), network, address)
+ }
+@@ -450,7 +450,7 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ // the connect to each single address will be given 15 seconds to complete
+ // before trying the next one.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn, error) {
+ 	if ctx == nil {
+@@ -700,7 +700,7 @@ func (lc *ListenConfig) MultipathTCP() bool {
+ 	return lc.mptcpStatus.get()
+ }
+ 
+-// SetMultipathTCP directs the Listen method to use, or not use, MPTCP,
++// SetMultipathTCP directs the [Listen] method to use, or not use, MPTCP,
+ // if supported by the operating system. This method overrides the
+ // system default and the GODEBUG=multipathtcp=... setting if any.
+ //
+@@ -795,14 +795,14 @@ type sysListener struct {
+ // addresses.
+ // If the port in the address parameter is empty or "0", as in
+ // "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
+-// The Addr method of Listener can be used to discover the chosen
++// The [Addr] method of [Listener] can be used to discover the chosen
+ // port.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ //
+ // Listen uses context.Background internally; to specify the context, use
+-// ListenConfig.Listen.
++// [ListenConfig.Listen].
+ func Listen(network, address string) (Listener, error) {
+ 	var lc ListenConfig
+ 	return lc.Listen(context.Background(), network, address)
+@@ -825,14 +825,14 @@ func Listen(network, address string) (Listener, error) {
+ // addresses.
+ // If the port in the address parameter is empty or "0", as in
+ // "127.0.0.1:" or "[::1]:0", a port number is automatically chosen.
+-// The LocalAddr method of PacketConn can be used to discover the
++// The LocalAddr method of [PacketConn] can be used to discover the
+ // chosen port.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ //
+ // ListenPacket uses context.Background internally; to specify the context, use
+-// ListenConfig.ListenPacket.
++// [ListenConfig.ListenPacket].
+ func ListenPacket(network, address string) (PacketConn, error) {
+ 	var lc ListenConfig
+ 	return lc.ListenPacket(context.Background(), network, address)
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index 1411f0b8e8..e29fe20d7d 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -46,7 +46,7 @@ func envMap(env []string) map[string]string {
+ 	return m
+ }
+ 
+-// RequestFromMap creates an http.Request from CGI variables.
++// RequestFromMap creates an [http.Request] from CGI variables.
+ // The returned Request's Body field is not populated.
+ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	r := new(http.Request)
+@@ -138,10 +138,10 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 	return r, nil
+ }
+ 
+-// Serve executes the provided Handler on the currently active CGI
++// Serve executes the provided [Handler] on the currently active CGI
+ // request, if any. If there's no current CGI environment
+ // an error is returned. The provided handler may be nil to use
+-// http.DefaultServeMux.
++// [http.DefaultServeMux].
+ func Serve(handler http.Handler) error {
+ 	req, err := Request()
+ 	if err != nil {
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 5fd86a1ec8..ee6de24fc1 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -27,19 +27,19 @@ import (
+ 	"time"
+ )
+ 
+-// A Client is an HTTP client. Its zero value (DefaultClient) is a
+-// usable client that uses DefaultTransport.
++// A Client is an HTTP client. Its zero value ([DefaultClient]) is a
++// usable client that uses [DefaultTransport].
+ //
+-// The Client's Transport typically has internal state (cached TCP
++// The [Client.Transport] typically has internal state (cached TCP
+ // connections), so Clients should be reused instead of created as
+ // needed. Clients are safe for concurrent use by multiple goroutines.
+ //
+-// A Client is higher-level than a RoundTripper (such as Transport)
++// A Client is higher-level than a [RoundTripper] (such as [Transport])
+ // and additionally handles HTTP details such as cookies and
+ // redirects.
+ //
+ // When following redirects, the Client will forward all headers set on the
+-// initial Request except:
++// initial [Request] except:
+ //
+ //   - when forwarding sensitive headers like "Authorization",
+ //     "WWW-Authenticate", and "Cookie" to untrusted targets.
+@@ -105,11 +105,11 @@ type Client struct {
+ 	Timeout time.Duration
+ }
+ 
+-// DefaultClient is the default Client and is used by Get, Head, and Post.
++// DefaultClient is the default [Client] and is used by [Get], [Head], and [Post].
+ var DefaultClient = &Client{}
+ 
+ // RoundTripper is an interface representing the ability to execute a
+-// single HTTP transaction, obtaining the Response for a given Request.
++// single HTTP transaction, obtaining the [Response] for a given [Request].
+ //
+ // A RoundTripper must be safe for concurrent use by multiple
+ // goroutines.
+@@ -439,7 +439,7 @@ func basicAuth(username, password string) string {
+ //
+ // An error is returned if there were too many redirects or if there
+ // was an HTTP protocol error. A non-2xx response doesn't cause an
+-// error. Any returned error will be of type *url.Error. The url.Error
++// error. Any returned error will be of type [*url.Error]. The url.Error
+ // value's Timeout method will report true if the request timed out.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+@@ -447,10 +447,10 @@ func basicAuth(username, password string) string {
+ //
+ // Get is a wrapper around DefaultClient.Get.
+ //
+-// To make a request with custom headers, use NewRequest and
++// To make a request with custom headers, use [NewRequest] and
+ // DefaultClient.Do.
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified context.Context, use [NewRequestWithContext]
+ // and DefaultClient.Do.
+ func Get(url string) (resp *Response, err error) {
+ 	return DefaultClient.Get(url)
+@@ -458,7 +458,7 @@ func Get(url string) (resp *Response, err error) {
+ 
+ // Get issues a GET to the specified URL. If the response is one of the
+ // following redirect codes, Get follows the redirect after calling the
+-// Client's CheckRedirect function:
++// [Client.CheckRedirect] function:
+ //
+ //	301 (Moved Permanently)
+ //	302 (Found)
+@@ -466,18 +466,18 @@ func Get(url string) (resp *Response, err error) {
+ //	307 (Temporary Redirect)
+ //	308 (Permanent Redirect)
+ //
+-// An error is returned if the Client's CheckRedirect function fails
++// An error is returned if the [Client.CheckRedirect] function fails
+ // or if there was an HTTP protocol error. A non-2xx response doesn't
+-// cause an error. Any returned error will be of type *url.Error. The
++// cause an error. Any returned error will be of type [*url.Error]. The
+ // url.Error value's Timeout method will report true if the request
+ // timed out.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+ //
+-// To make a request with custom headers, use NewRequest and Client.Do.
++// To make a request with custom headers, use [NewRequest] and [Client.Do].
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified context.Context, use [NewRequestWithContext]
+ // and Client.Do.
+ func (c *Client) Get(url string) (resp *Response, err error) {
+ 	req, err := NewRequest("GET", url, nil)
+@@ -558,10 +558,10 @@ func urlErrorOp(method string) string {
+ // connectivity problem). A non-2xx status code doesn't cause an
+ // error.
+ //
+-// If the returned error is nil, the Response will contain a non-nil
++// If the returned error is nil, the [Response] will contain a non-nil
+ // Body which the user is expected to close. If the Body is not both
+-// read to EOF and closed, the Client's underlying RoundTripper
+-// (typically Transport) may not be able to re-use a persistent TCP
++// read to EOF and closed, the [Client]'s underlying [RoundTripper]
++// (typically [Transport]) may not be able to re-use a persistent TCP
+ // connection to the server for a subsequent "keep-alive" request.
+ //
+ // The request Body, if non-nil, will be closed by the underlying
+@@ -570,9 +570,9 @@ func urlErrorOp(method string) string {
+ //
+ // On error, any Response can be ignored. A non-nil Response with a
+ // non-nil error only occurs when CheckRedirect fails, and even then
+-// the returned Response.Body is already closed.
++// the returned [Response.Body] is already closed.
+ //
+-// Generally Get, Post, or PostForm will be used instead of Do.
++// Generally [Get], [Post], or [PostForm] will be used instead of Do.
+ //
+ // If the server replies with a redirect, the Client first uses the
+ // CheckRedirect function to determine whether the redirect should be
+@@ -580,11 +580,11 @@ func urlErrorOp(method string) string {
+ // subsequent requests to use HTTP method GET
+ // (or HEAD if the original request was HEAD), with no body.
+ // A 307 or 308 redirect preserves the original HTTP method and body,
+-// provided that the Request.GetBody function is defined.
+-// The NewRequest function automatically sets GetBody for common
++// provided that the [Request.GetBody] function is defined.
++// The [NewRequest] function automatically sets GetBody for common
+ // standard library body types.
+ //
+-// Any returned error will be of type *url.Error. The url.Error
++// Any returned error will be of type [*url.Error]. The url.Error
+ // value's Timeout method will report true if the request timed out.
+ func (c *Client) Do(req *Request) (*Response, error) {
+ 	return c.do(req)
+@@ -818,17 +818,17 @@ func defaultCheckRedirect(req *Request, via []*Request) error {
+ //
+ // Caller should close resp.Body when done reading from it.
+ //
+-// If the provided body is an io.Closer, it is closed after the
++// If the provided body is an [io.Closer], it is closed after the
+ // request.
+ //
+ // Post is a wrapper around DefaultClient.Post.
+ //
+-// To set custom headers, use NewRequest and DefaultClient.Do.
++// To set custom headers, use [NewRequest] and DefaultClient.Do.
+ //
+-// See the Client.Do method documentation for details on how redirects
++// See the [Client.Do] method documentation for details on how redirects
+ // are handled.
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified context.Context, use [NewRequestWithContext]
+ // and DefaultClient.Do.
+ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ 	return DefaultClient.Post(url, contentType, body)
+@@ -838,13 +838,13 @@ func Post(url, contentType string, body io.Reader) (resp *Response, err error) {
+ //
+ // Caller should close resp.Body when done reading from it.
+ //
+-// If the provided body is an io.Closer, it is closed after the
++// If the provided body is an [io.Closer], it is closed after the
+ // request.
+ //
+-// To set custom headers, use NewRequest and Client.Do.
++// To set custom headers, use [NewRequest] and [Client.Do].
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
+-// and Client.Do.
++// To make a request with a specified context.Context, use [NewRequestWithContext]
++// and [Client.Do].
+ //
+ // See the Client.Do method documentation for details on how redirects
+ // are handled.
+@@ -861,17 +861,17 @@ func (c *Client) Post(url, contentType string, body io.Reader) (resp *Response,
+ // values URL-encoded as the request body.
+ //
+ // The Content-Type header is set to application/x-www-form-urlencoded.
+-// To set other headers, use NewRequest and DefaultClient.Do.
++// To set other headers, use [NewRequest] and DefaultClient.Do.
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+ //
+ // PostForm is a wrapper around DefaultClient.PostForm.
+ //
+-// See the Client.Do method documentation for details on how redirects
++// See the [Client.Do] method documentation for details on how redirects
+ // are handled.
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified [context.Context], use [NewRequestWithContext]
+ // and DefaultClient.Do.
+ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ 	return DefaultClient.PostForm(url, data)
+@@ -881,7 +881,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ // with data's keys and values URL-encoded as the request body.
+ //
+ // The Content-Type header is set to application/x-www-form-urlencoded.
+-// To set other headers, use NewRequest and Client.Do.
++// To set other headers, use [NewRequest] and [Client.Do].
+ //
+ // When err is nil, resp always contains a non-nil resp.Body.
+ // Caller should close resp.Body when done reading from it.
+@@ -889,7 +889,7 @@ func PostForm(url string, data url.Values) (resp *Response, err error) {
+ // See the Client.Do method documentation for details on how redirects
+ // are handled.
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified context.Context, use [NewRequestWithContext]
+ // and Client.Do.
+ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err error) {
+ 	return c.Post(url, "application/x-www-form-urlencoded", strings.NewReader(data.Encode()))
+@@ -907,7 +907,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
+ //
+ // Head is a wrapper around DefaultClient.Head.
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
++// To make a request with a specified [context.Context], use [NewRequestWithContext]
+ // and DefaultClient.Do.
+ func Head(url string) (resp *Response, err error) {
+ 	return DefaultClient.Head(url)
+@@ -915,7 +915,7 @@ func Head(url string) (resp *Response, err error) {
+ 
+ // Head issues a HEAD to the specified URL. If the response is one of the
+ // following redirect codes, Head follows the redirect after calling the
+-// Client's CheckRedirect function:
++// [Client.CheckRedirect] function:
+ //
+ //	301 (Moved Permanently)
+ //	302 (Found)
+@@ -923,8 +923,8 @@ func Head(url string) (resp *Response, err error) {
+ //	307 (Temporary Redirect)
+ //	308 (Permanent Redirect)
+ //
+-// To make a request with a specified context.Context, use NewRequestWithContext
+-// and Client.Do.
++// To make a request with a specified [context.Context], use [NewRequestWithContext]
++// and [Client.Do].
+ func (c *Client) Head(url string) (resp *Response, err error) {
+ 	req, err := NewRequest("HEAD", url, nil)
+ 	if err != nil {
+@@ -933,12 +933,12 @@ func (c *Client) Head(url string) (resp *Response, err error) {
+ 	return c.Do(req)
+ }
+ 
+-// CloseIdleConnections closes any connections on its Transport which
++// CloseIdleConnections closes any connections on its [Transport] which
+ // were previously connected from previous requests but are now
+ // sitting idle in a "keep-alive" state. It does not interrupt any
+ // connections currently in use.
+ //
+-// If the Client's Transport does not have a CloseIdleConnections method
++// If [Client.Transport] does not have a [Client.CloseIdleConnections] method
+ // then this method does nothing.
+ func (c *Client) CloseIdleConnections() {
+ 	type closeIdler interface {
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 912fde6b95..c22897f3f9 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -163,7 +163,7 @@ func readSetCookies(h Header) []*Cookie {
+ 	return cookies
+ }
+ 
+-// SetCookie adds a Set-Cookie header to the provided ResponseWriter's headers.
++// SetCookie adds a Set-Cookie header to the provided [ResponseWriter]'s headers.
+ // The provided cookie must have a valid Name. Invalid cookies may be
+ // silently dropped.
+ func SetCookie(w ResponseWriter, cookie *Cookie) {
+@@ -172,7 +172,7 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
+ 	}
+ }
+ 
+-// String returns the serialization of the cookie for use in a Cookie
++// String returns the serialization of the cookie for use in a [Cookie]
+ // header (if only Name and Value are set) or a Set-Cookie response
+ // header (if other fields are set).
+ // If c is nil or c.Name is invalid, the empty string is returned.
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 46d1193951..59cde82cb3 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -73,7 +73,7 @@ type Jar struct {
+ 	nextSeqNum uint64
+ }
+ 
+-// New returns a new cookie jar. A nil *Options is equivalent to a zero
++// New returns a new cookie jar. A nil [*Options] is equivalent to a zero
+ // Options.
+ func New(o *Options) (*Jar, error) {
+ 	jar := &Jar{
+@@ -151,7 +151,7 @@ func hasDotSuffix(s, suffix string) bool {
+ 	return len(s) > len(suffix) && s[len(s)-len(suffix)-1] == '.' && s[len(s)-len(suffix):] == suffix
+ }
+ 
+-// Cookies implements the Cookies method of the http.CookieJar interface.
++// Cookies implements the Cookies method of the [http.CookieJar] interface.
+ //
+ // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
+ func (j *Jar) Cookies(u *url.URL) (cookies []*http.Cookie) {
+@@ -226,7 +226,7 @@ func (j *Jar) cookies(u *url.URL, now time.Time) (cookies []*http.Cookie) {
+ 	return cookies
+ }
+ 
+-// SetCookies implements the SetCookies method of the http.CookieJar interface.
++// SetCookies implements the SetCookies method of the [http.CookieJar] interface.
+ //
+ // It does nothing if the URL's scheme is not HTTP or HTTPS.
+ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+diff --git a/src/net/http/doc.go b/src/net/http/doc.go
+index d9e6aafb4e..f7ad3ae762 100644
+--- a/src/net/http/doc.go
++++ b/src/net/http/doc.go
+@@ -5,7 +5,7 @@
+ /*
+ Package http provides HTTP client and server implementations.
+ 
+-Get, Head, Post, and PostForm make HTTP (or HTTPS) requests:
++[Get], [Head], [Post], and [PostForm] make HTTP (or HTTPS) requests:
+ 
+ 	resp, err := http.Get("http://example.com/")
+ 	...
+@@ -27,7 +27,7 @@ The caller must close the response body when finished with it:
+ # Clients and Transports
+ 
+ For control over HTTP client headers, redirect policy, and other
+-settings, create a Client:
++settings, create a [Client]:
+ 
+ 	client := &http.Client{
+ 		CheckRedirect: redirectPolicyFunc,
+@@ -43,7 +43,7 @@ settings, create a Client:
+ 	// ...
+ 
+ For control over proxies, TLS configuration, keep-alives,
+-compression, and other settings, create a Transport:
++compression, and other settings, create a [Transport]:
+ 
+ 	tr := &http.Transport{
+ 		MaxIdleConns:       10,
+@@ -59,8 +59,8 @@ goroutines and for efficiency should only be created once and re-used.
+ # Servers
+ 
+ ListenAndServe starts an HTTP server with a given address and handler.
+-The handler is usually nil, which means to use DefaultServeMux.
+-Handle and HandleFunc add handlers to DefaultServeMux:
++The handler is usually nil, which means to use [DefaultServeMux].
++[Handle] and [HandleFunc] add handlers to [DefaultServeMux]:
+ 
+ 	http.Handle("/foo", fooHandler)
+ 
+@@ -86,8 +86,8 @@ custom Server:
+ 
+ Starting with Go 1.6, the http package has transparent support for the
+ HTTP/2 protocol when using HTTPS. Programs that must disable HTTP/2
+-can do so by setting Transport.TLSNextProto (for clients) or
+-Server.TLSNextProto (for servers) to a non-nil, empty
++can do so by setting [Transport.TLSNextProto] (for clients) or
++[Server.TLSNextProto] (for servers) to a non-nil, empty
+ map. Alternatively, the following GODEBUG settings are
+ currently supported:
+ 
+@@ -98,7 +98,7 @@ currently supported:
+ 
+ Please report any issues before disabling HTTP/2 support: https://golang.org/s/http2bug
+ 
+-The http package's Transport and Server both automatically enable
++The http package's [Transport] and [Server] both automatically enable
+ HTTP/2 support for simple configurations. To enable HTTP/2 for more
+ complex configurations, to use lower-level HTTP/2 features, or to use
+ a newer version of Go's http2 package, import "golang.org/x/net/http2"
+diff --git a/src/net/http/fcgi/child.go b/src/net/http/fcgi/child.go
+index dc82bf7c3a..7665e7d252 100644
+--- a/src/net/http/fcgi/child.go
++++ b/src/net/http/fcgi/child.go
+@@ -335,7 +335,7 @@ func (c *child) cleanUp() {
+ // goroutine for each. The goroutine reads requests and then calls handler
+ // to reply to them.
+ // If l is nil, Serve accepts connections from os.Stdin.
+-// If handler is nil, http.DefaultServeMux is used.
++// If handler is nil, [http.DefaultServeMux] is used.
+ func Serve(l net.Listener, handler http.Handler) error {
+ 	if l == nil {
+ 		var err error
+diff --git a/src/net/http/filetransport.go b/src/net/http/filetransport.go
+index 2a9e9b02ba..7384b22fbe 100644
+--- a/src/net/http/filetransport.go
++++ b/src/net/http/filetransport.go
+@@ -15,13 +15,13 @@ type fileTransport struct {
+ 	fh fileHandler
+ }
+ 
+-// NewFileTransport returns a new RoundTripper, serving the provided
+-// FileSystem. The returned RoundTripper ignores the URL host in its
++// NewFileTransport returns a new [RoundTripper], serving the provided
++// [FileSystem]. The returned RoundTripper ignores the URL host in its
+ // incoming requests, as well as most other properties of the
+ // request.
+ //
+ // The typical use case for NewFileTransport is to register the "file"
+-// protocol with a Transport, as in:
++// protocol with a [Transport], as in:
+ //
+ //	t := &http.Transport{}
+ //	t.RegisterProtocol("file", http.NewFileTransport(http.Dir("/")))
+@@ -32,13 +32,13 @@ func NewFileTransport(fs FileSystem) RoundTripper {
+ 	return fileTransport{fileHandler{fs}}
+ }
+ 
+-// NewFileTransportFS returns a new RoundTripper, serving the provided
++// NewFileTransportFS returns a new [RoundTripper], serving the provided
+ // file system fsys. The returned RoundTripper ignores the URL host in its
+ // incoming requests, as well as most other properties of the
+ // request.
+ //
+ // The typical use case for NewFileTransportFS is to register the "file"
+-// protocol with a Transport, as in:
++// protocol with a [Transport], as in:
+ //
+ //	fsys := os.DirFS("/")
+ //	t := &http.Transport{}
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index ace74a7b80..af7511a7a4 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -25,12 +25,12 @@ import (
+ 	"time"
+ )
+ 
+-// A Dir implements FileSystem using the native file system restricted to a
++// A Dir implements [FileSystem] using the native file system restricted to a
+ // specific directory tree.
+ //
+-// While the FileSystem.Open method takes '/'-separated paths, a Dir's string
++// While the [FileSystem.Open] method takes '/'-separated paths, a Dir's string
+ // value is a filename on the native file system, not a URL, so it is separated
+-// by filepath.Separator, which isn't necessarily '/'.
++// by [filepath.Separator], which isn't necessarily '/'.
+ //
+ // Note that Dir could expose sensitive files and directories. Dir will follow
+ // symlinks pointing out of the directory tree, which can be especially dangerous
+@@ -67,7 +67,7 @@ func mapOpenError(originalErr error, name string, sep rune, stat func(string) (f
+ 	return originalErr
+ }
+ 
+-// Open implements FileSystem using os.Open, opening files for reading rooted
++// Open implements [FileSystem] using [os.Open], opening files for reading rooted
+ // and relative to the directory d.
+ func (d Dir) Open(name string) (File, error) {
+ 	path, err := safefilepath.FromFS(path.Clean("/" + name))
+@@ -89,18 +89,18 @@ func (d Dir) Open(name string) (File, error) {
+ // A FileSystem implements access to a collection of named files.
+ // The elements in a file path are separated by slash ('/', U+002F)
+ // characters, regardless of host operating system convention.
+-// See the FileServer function to convert a FileSystem to a Handler.
++// See the [FileServer] function to convert a FileSystem to a [Handler].
+ //
+-// This interface predates the fs.FS interface, which can be used instead:
+-// the FS adapter function converts an fs.FS to a FileSystem.
++// This interface predates the [fs.FS] interface, which can be used instead:
++// the [FS] adapter function converts an fs.FS to a FileSystem.
+ type FileSystem interface {
+ 	Open(name string) (File, error)
+ }
+ 
+-// A File is returned by a FileSystem's Open method and can be
+-// served by the FileServer implementation.
++// A File is returned by a [FileSystem]'s Open method and can be
++// served by the [FileServer] implementation.
+ //
+-// The methods should behave the same as those on an *os.File.
++// The methods should behave the same as those on an [*os.File].
+ type File interface {
+ 	io.Closer
+ 	io.Reader
+@@ -167,7 +167,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ }
+ 
+ // ServeContent replies to the request using the content in the
+-// provided ReadSeeker. The main benefit of ServeContent over io.Copy
++// provided ReadSeeker. The main benefit of ServeContent over [io.Copy]
+ // is that it handles Range requests properly, sets the MIME type, and
+ // handles If-Match, If-Unmodified-Since, If-None-Match, If-Modified-Since,
+ // and If-Range requests.
+@@ -175,7 +175,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ // If the response's Content-Type header is not set, ServeContent
+ // first tries to deduce the type from name's file extension and,
+ // if that fails, falls back to reading the first block of the content
+-// and passing it to DetectContentType.
++// and passing it to [DetectContentType].
+ // The name is otherwise unused; in particular it can be empty and is
+ // never sent in the response.
+ //
+@@ -190,7 +190,7 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ // If the caller has set w's ETag header formatted per RFC 7232, section 2.3,
+ // ServeContent uses it to handle requests using If-Match, If-None-Match, or If-Range.
+ //
+-// Note that *os.File implements the io.ReadSeeker interface.
++// Note that [*os.File] implements the [io.ReadSeeker] interface.
+ func ServeContent(w ResponseWriter, req *Request, name string, modtime time.Time, content io.ReadSeeker) {
+ 	sizeFunc := func() (int64, error) {
+ 		size, err := content.Seek(0, io.SeekEnd)
+@@ -741,13 +741,13 @@ func localRedirect(w ResponseWriter, r *Request, newPath string) {
+ //
+ // As a precaution, ServeFile will reject requests where r.URL.Path
+ // contains a ".." path element; this protects against callers who
+-// might unsafely use filepath.Join on r.URL.Path without sanitizing
++// might unsafely use [filepath.Join] on r.URL.Path without sanitizing
+ // it and then use that filepath.Join result as the name argument.
+ //
+ // As another special case, ServeFile redirects any request where r.URL.Path
+ // ends in "/index.html" to the same path, without the final
+ // "index.html". To avoid such redirects either modify the path or
+-// use ServeContent.
++// use [ServeContent].
+ //
+ // Outside of those two special cases, ServeFile does not use
+ // r.URL.Path for selecting the file or directory to serve; only the
+@@ -772,11 +772,11 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
+ // If the provided file or directory name is a relative path, it is
+ // interpreted relative to the current directory and may ascend to
+ // parent directories. If the provided name is constructed from user
+-// input, it should be sanitized before calling ServeFile.
++// input, it should be sanitized before calling [ServeFile].
+ //
+ // As a precaution, ServeFile will reject requests where r.URL.Path
+ // contains a ".." path element; this protects against callers who
+-// might unsafely use filepath.Join on r.URL.Path without sanitizing
++// might unsafely use [filepath.Join] on r.URL.Path without sanitizing
+ // it and then use that filepath.Join result as the name argument.
+ //
+ // As another special case, ServeFile redirects any request where r.URL.Path
+@@ -890,9 +890,9 @@ func (f ioFile) Readdir(count int) ([]fs.FileInfo, error) {
+ 	return list, nil
+ }
+ 
+-// FS converts fsys to a FileSystem implementation,
+-// for use with FileServer and NewFileTransport.
+-// The files provided by fsys must implement io.Seeker.
++// FS converts fsys to a [FileSystem] implementation,
++// for use with [FileServer] and [NewFileTransport].
++// The files provided by fsys must implement [io.Seeker].
+ func FS(fsys fs.FS) FileSystem {
+ 	return ioFS{fsys}
+ }
+@@ -905,11 +905,11 @@ func FS(fsys fs.FS) FileSystem {
+ // "index.html".
+ //
+ // To use the operating system's file system implementation,
+-// use http.Dir:
++// use [http.Dir]:
+ //
+ //	http.Handle("/", http.FileServer(http.Dir("/tmp")))
+ //
+-// To use an fs.FS implementation, use http.FileServerFS instead.
++// To use an [fs.FS] implementation, use [http.FileServerFS] instead.
+ func FileServer(root FileSystem) Handler {
+ 	return &fileHandler{root}
+ }
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index e0b342c63c..9d0f3a125d 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -20,13 +20,13 @@ import (
+ // A Header represents the key-value pairs in an HTTP header.
+ //
+ // The keys should be in canonical form, as returned by
+-// CanonicalHeaderKey.
++// [CanonicalHeaderKey].
+ type Header map[string][]string
+ 
+ // Add adds the key, value pair to the header.
+ // It appends to any existing values associated with key.
+ // The key is case insensitive; it is canonicalized by
+-// CanonicalHeaderKey.
++// [CanonicalHeaderKey].
+ func (h Header) Add(key, value string) {
+ 	textproto.MIMEHeader(h).Add(key, value)
+ }
+@@ -34,7 +34,7 @@ func (h Header) Add(key, value string) {
+ // Set sets the header entries associated with key to the
+ // single element value. It replaces any existing values
+ // associated with key. The key is case insensitive; it is
+-// canonicalized by textproto.CanonicalMIMEHeaderKey.
++// canonicalized by [textproto.CanonicalMIMEHeaderKey].
+ // To use non-canonical keys, assign to the map directly.
+ func (h Header) Set(key, value string) {
+ 	textproto.MIMEHeader(h).Set(key, value)
+@@ -42,7 +42,7 @@ func (h Header) Set(key, value string) {
+ 
+ // Get gets the first value associated with the given key. If
+ // there are no values associated with the key, Get returns "".
+-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
++// It is case insensitive; [textproto.CanonicalMIMEHeaderKey] is
+ // used to canonicalize the provided key. Get assumes that all
+ // keys are stored in canonical form. To use non-canonical keys,
+ // access the map directly.
+@@ -51,7 +51,7 @@ func (h Header) Get(key string) string {
+ }
+ 
+ // Values returns all values associated with the given key.
+-// It is case insensitive; textproto.CanonicalMIMEHeaderKey is
++// It is case insensitive; [textproto.CanonicalMIMEHeaderKey] is
+ // used to canonicalize the provided key. To use non-canonical
+ // keys, access the map directly.
+ // The returned slice is not a copy.
+@@ -76,7 +76,7 @@ func (h Header) has(key string) bool {
+ 
+ // Del deletes the values associated with key.
+ // The key is case insensitive; it is canonicalized by
+-// CanonicalHeaderKey.
++// [CanonicalHeaderKey].
+ func (h Header) Del(key string) {
+ 	textproto.MIMEHeader(h).Del(key)
+ }
+@@ -125,7 +125,7 @@ var timeFormats = []string{
+ 
+ // ParseTime parses a time header (such as the Date: header),
+ // trying each of the three formats allowed by HTTP/1.1:
+-// TimeFormat, time.RFC850, and time.ANSIC.
++// [TimeFormat], [time.RFC850], and [time.ANSIC].
+ func ParseTime(text string) (t time.Time, err error) {
+ 	for _, layout := range timeFormats {
+ 		t, err = time.Parse(layout, text)
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 9b81654fcc..6e2259adbf 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -103,10 +103,10 @@ func hexEscapeNonASCII(s string) string {
+ 	return string(b)
+ }
+ 
+-// NoBody is an io.ReadCloser with no bytes. Read always returns EOF
++// NoBody is an [io.ReadCloser] with no bytes. Read always returns EOF
+ // and Close always returns nil. It can be used in an outgoing client
+ // request to explicitly signal that a request has zero bytes.
+-// An alternative, however, is to simply set Request.Body to nil.
++// An alternative, however, is to simply set [Request.Body] to nil.
+ var NoBody = noBody{}
+ 
+ type noBody struct{}
+@@ -121,7 +121,7 @@ var (
+ 	_ io.ReadCloser = NoBody
+ )
+ 
+-// PushOptions describes options for Pusher.Push.
++// PushOptions describes options for [Pusher.Push].
+ type PushOptions struct {
+ 	// Method specifies the HTTP method for the promised request.
+ 	// If set, it must be "GET" or "HEAD". Empty means "GET".
+diff --git a/src/net/http/httptest/httptest.go b/src/net/http/httptest/httptest.go
+index 9bedefd2bc..f0ca64362d 100644
+--- a/src/net/http/httptest/httptest.go
++++ b/src/net/http/httptest/httptest.go
+@@ -15,7 +15,7 @@ import (
+ )
+ 
+ // NewRequest returns a new incoming server Request, suitable
+-// for passing to an http.Handler for testing.
++// for passing to an [http.Handler] for testing.
+ //
+ // The target is the RFC 7230 "request-target": it may be either a
+ // path or an absolute URL. If target is an absolute URL, the host name
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 1c1d880155..dd51901b0d 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -16,7 +16,7 @@ import (
+ 	"golang.org/x/net/http/httpguts"
+ )
+ 
+-// ResponseRecorder is an implementation of http.ResponseWriter that
++// ResponseRecorder is an implementation of [http.ResponseWriter] that
+ // records its mutations for later inspection in tests.
+ type ResponseRecorder struct {
+ 	// Code is the HTTP response code set by WriteHeader.
+@@ -47,7 +47,7 @@ type ResponseRecorder struct {
+ 	wroteHeader bool
+ }
+ 
+-// NewRecorder returns an initialized ResponseRecorder.
++// NewRecorder returns an initialized [ResponseRecorder].
+ func NewRecorder() *ResponseRecorder {
+ 	return &ResponseRecorder{
+ 		HeaderMap: make(http.Header),
+@@ -57,12 +57,12 @@ func NewRecorder() *ResponseRecorder {
+ }
+ 
+ // DefaultRemoteAddr is the default remote address to return in RemoteAddr if
+-// an explicit DefaultRemoteAddr isn't set on ResponseRecorder.
++// an explicit DefaultRemoteAddr isn't set on [ResponseRecorder].
+ const DefaultRemoteAddr = "1.2.3.4"
+ 
+-// Header implements http.ResponseWriter. It returns the response
++// Header implements [http.ResponseWriter]. It returns the response
+ // headers to mutate within a handler. To test the headers that were
+-// written after a handler completes, use the Result method and see
++// written after a handler completes, use the [ResponseRecorder.Result] method and see
+ // the returned Response value's Header.
+ func (rw *ResponseRecorder) Header() http.Header {
+ 	m := rw.HeaderMap
+@@ -112,7 +112,7 @@ func (rw *ResponseRecorder) Write(buf []byte) (int, error) {
+ 	return len(buf), nil
+ }
+ 
+-// WriteString implements io.StringWriter. The data in str is written
++// WriteString implements [io.StringWriter]. The data in str is written
+ // to rw.Body, if not nil.
+ func (rw *ResponseRecorder) WriteString(str string) (int, error) {
+ 	rw.writeHeader(nil, str)
+@@ -139,7 +139,7 @@ func checkWriteHeaderCode(code int) {
+ 	}
+ }
+ 
+-// WriteHeader implements http.ResponseWriter.
++// WriteHeader implements [http.ResponseWriter].
+ func (rw *ResponseRecorder) WriteHeader(code int) {
+ 	if rw.wroteHeader {
+ 		return
+@@ -154,7 +154,7 @@ func (rw *ResponseRecorder) WriteHeader(code int) {
+ 	rw.snapHeader = rw.HeaderMap.Clone()
+ }
+ 
+-// Flush implements http.Flusher. To test whether Flush was
++// Flush implements [http.Flusher]. To test whether Flush was
+ // called, see rw.Flushed.
+ func (rw *ResponseRecorder) Flush() {
+ 	if !rw.wroteHeader {
+@@ -175,7 +175,7 @@ func (rw *ResponseRecorder) Flush() {
+ // did a write.
+ //
+ // The Response.Body is guaranteed to be non-nil and Body.Read call is
+-// guaranteed to not return any error other than io.EOF.
++// guaranteed to not return any error other than [io.EOF].
+ //
+ // Result must only be called after the handler has finished running.
+ func (rw *ResponseRecorder) Result() *http.Response {
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index c962749e85..5095b438ec 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -100,7 +100,7 @@ func strSliceContainsPrefix(v []string, pre string) bool {
+ 	return false
+ }
+ 
+-// NewServer starts and returns a new Server.
++// NewServer starts and returns a new [Server].
+ // The caller should call Close when finished, to shut it down.
+ func NewServer(handler http.Handler) *Server {
+ 	ts := NewUnstartedServer(handler)
+@@ -108,7 +108,7 @@ func NewServer(handler http.Handler) *Server {
+ 	return ts
+ }
+ 
+-// NewUnstartedServer returns a new Server but doesn't start it.
++// NewUnstartedServer returns a new [Server] but doesn't start it.
+ //
+ // After changing its configuration, the caller should call Start or
+ // StartTLS.
+@@ -185,7 +185,7 @@ func (s *Server) StartTLS() {
+ 	s.goServe()
+ }
+ 
+-// NewTLSServer starts and returns a new Server using TLS.
++// NewTLSServer starts and returns a new [Server] using TLS.
+ // The caller should call Close when finished, to shut it down.
+ func NewTLSServer(handler http.Handler) *Server {
+ 	ts := NewUnstartedServer(handler)
+@@ -298,7 +298,7 @@ func (s *Server) Certificate() *x509.Certificate {
+ 
+ // Client returns an HTTP client configured for making requests to the server.
+ // It is configured to trust the server's TLS test certificate and will
+-// close its idle connections on Server.Close.
++// close its idle connections on [Server.Close].
+ func (s *Server) Client() *http.Client {
+ 	return s.client
+ }
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 6af30f78d1..706a432957 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -19,7 +19,7 @@ import (
+ // unique type to prevent assignment.
+ type clientEventContextKey struct{}
+ 
+-// ContextClientTrace returns the ClientTrace associated with the
++// ContextClientTrace returns the [ClientTrace] associated with the
+ // provided context. If none, it returns nil.
+ func ContextClientTrace(ctx context.Context) *ClientTrace {
+ 	trace, _ := ctx.Value(clientEventContextKey{}).(*ClientTrace)
+@@ -233,7 +233,7 @@ func (t *ClientTrace) hasNetHooks() bool {
+ 	return t.DNSStart != nil || t.DNSDone != nil || t.ConnectStart != nil || t.ConnectDone != nil
+ }
+ 
+-// GotConnInfo is the argument to the ClientTrace.GotConn function and
++// GotConnInfo is the argument to the [ClientTrace.GotConn] function and
+ // contains information about the obtained connection.
+ type GotConnInfo struct {
+ 	// Conn is the connection that was obtained. It is owned by
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 7affe5e61a..2edb9bc98d 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -71,8 +71,8 @@ func outgoingLength(req *http.Request) int64 {
+ 	return -1
+ }
+ 
+-// DumpRequestOut is like DumpRequest but for outgoing client requests. It
+-// includes any headers that the standard http.Transport adds, such as
++// DumpRequestOut is like [DumpRequest] but for outgoing client requests. It
++// includes any headers that the standard [http.Transport] adds, such as
+ // User-Agent.
+ func DumpRequestOut(req *http.Request, body bool) ([]byte, error) {
+ 	save := req.Body
+@@ -203,17 +203,17 @@ var reqWriteExcludeHeaderDump = map[string]bool{
+ // representation. It should only be used by servers to debug client
+ // requests. The returned representation is an approximation only;
+ // some details of the initial request are lost while parsing it into
+-// an http.Request. In particular, the order and case of header field
++// an [http.Request]. In particular, the order and case of header field
+ // names are lost. The order of values in multi-valued headers is kept
+ // intact. HTTP/2 requests are dumped in HTTP/1.x form, not in their
+ // original binary representations.
+ //
+ // If body is true, DumpRequest also returns the body. To do so, it
+-// consumes req.Body and then replaces it with a new io.ReadCloser
++// consumes req.Body and then replaces it with a new [io.ReadCloser]
+ // that yields the same bytes. If DumpRequest returns an error,
+ // the state of req is undefined.
+ //
+-// The documentation for http.Request.Write details which fields
++// The documentation for [http.Request.Write] details which fields
+ // of req are included in the dump.
+ func DumpRequest(req *http.Request, body bool) ([]byte, error) {
+ 	var err error
+diff --git a/src/net/http/httputil/httputil.go b/src/net/http/httputil/httputil.go
+index 09ea74d6d1..431930ea65 100644
+--- a/src/net/http/httputil/httputil.go
++++ b/src/net/http/httputil/httputil.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // NewChunkedReader returns a new chunkedReader that translates the data read from r
+ // out of HTTP "chunked" format before returning it.
+-// The chunkedReader returns io.EOF when the final 0-length chunk is read.
++// The chunkedReader returns [io.EOF] when the final 0-length chunk is read.
+ //
+ // NewChunkedReader is not needed by normal applications. The http package
+ // automatically decodes chunking when reading response bodies.
+diff --git a/src/net/http/httputil/persist.go b/src/net/http/httputil/persist.go
+index 84b116df8c..0cbe3ebf10 100644
+--- a/src/net/http/httputil/persist.go
++++ b/src/net/http/httputil/persist.go
+@@ -33,7 +33,7 @@ var errClosed = errors.New("i/o operation on closed connection")
+ // It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: Use the Server in package net/http instead.
++// Deprecated: Use the Server in package [net/http] instead.
+ type ServerConn struct {
+ 	mu              sync.Mutex // read-write protects the following fields
+ 	c               net.Conn
+@@ -50,7 +50,7 @@ type ServerConn struct {
+ // It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: Use the Server in package net/http instead.
++// Deprecated: Use the Server in package [net/http] instead.
+ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
+ 	if r == nil {
+ 		r = bufio.NewReader(c)
+@@ -58,10 +58,10 @@ func NewServerConn(c net.Conn, r *bufio.Reader) *ServerConn {
+ 	return &ServerConn{c: c, r: r, pipereq: make(map[*http.Request]uint)}
+ }
+ 
+-// Hijack detaches the ServerConn and returns the underlying connection as well
++// Hijack detaches the [ServerConn] and returns the underlying connection as well
+ // as the read-side bufio which may have some left over data. Hijack may be
+ // called before Read has signaled the end of the keep-alive logic. The user
+-// should not call Hijack while Read or Write is in progress.
++// should not call Hijack while [ServerConn.Read] or [ServerConn.Write] is in progress.
+ func (sc *ServerConn) Hijack() (net.Conn, *bufio.Reader) {
+ 	sc.mu.Lock()
+ 	defer sc.mu.Unlock()
+@@ -72,7 +72,7 @@ func (sc *ServerConn) Hijack() (net.Conn, *bufio.Reader) {
+ 	return c, r
+ }
+ 
+-// Close calls Hijack and then also closes the underlying connection.
++// Close calls [ServerConn.Hijack] and then also closes the underlying connection.
+ func (sc *ServerConn) Close() error {
+ 	c, _ := sc.Hijack()
+ 	if c != nil {
+@@ -81,7 +81,7 @@ func (sc *ServerConn) Close() error {
+ 	return nil
+ }
+ 
+-// Read returns the next request on the wire. An ErrPersistEOF is returned if
++// Read returns the next request on the wire. An [ErrPersistEOF] is returned if
+ // it is gracefully determined that there are no more requests (e.g. after the
+ // first request on an HTTP/1.0 connection, or after a Connection:close on a
+ // HTTP/1.1 connection).
+@@ -171,7 +171,7 @@ func (sc *ServerConn) Pending() int {
+ 
+ // Write writes resp in response to req. To close the connection gracefully, set the
+ // Response.Close field to true. Write should be considered operational until
+-// it returns an error, regardless of any errors returned on the Read side.
++// it returns an error, regardless of any errors returned on the [ServerConn.Read] side.
+ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+ 
+ 	// Retrieve the pipeline ID of this request/response pair
+@@ -226,7 +226,7 @@ func (sc *ServerConn) Write(req *http.Request, resp *http.Response) error {
+ // It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: Use Client or Transport in package net/http instead.
++// Deprecated: Use Client or Transport in package [net/http] instead.
+ type ClientConn struct {
+ 	mu              sync.Mutex // read-write protects the following fields
+ 	c               net.Conn
+@@ -244,7 +244,7 @@ type ClientConn struct {
+ // It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: Use the Client or Transport in package net/http instead.
++// Deprecated: Use the Client or Transport in package [net/http] instead.
+ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ 	if r == nil {
+ 		r = bufio.NewReader(c)
+@@ -261,17 +261,17 @@ func NewClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ // It is low-level, old, and unused by Go's current HTTP stack.
+ // We should have deleted it before Go 1.
+ //
+-// Deprecated: Use the Client or Transport in package net/http instead.
++// Deprecated: Use the Client or Transport in package [net/http] instead.
+ func NewProxyClientConn(c net.Conn, r *bufio.Reader) *ClientConn {
+ 	cc := NewClientConn(c, r)
+ 	cc.writeReq = (*http.Request).WriteProxy
+ 	return cc
+ }
+ 
+-// Hijack detaches the ClientConn and returns the underlying connection as well
++// Hijack detaches the [ClientConn] and returns the underlying connection as well
+ // as the read-side bufio which may have some left over data. Hijack may be
+ // called before the user or Read have signaled the end of the keep-alive
+-// logic. The user should not call Hijack while Read or Write is in progress.
++// logic. The user should not call Hijack while [ClientConn.Read] or ClientConn.Write is in progress.
+ func (cc *ClientConn) Hijack() (c net.Conn, r *bufio.Reader) {
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
+@@ -282,7 +282,7 @@ func (cc *ClientConn) Hijack() (c net.Conn, r *bufio.Reader) {
+ 	return
+ }
+ 
+-// Close calls Hijack and then also closes the underlying connection.
++// Close calls [ClientConn.Hijack] and then also closes the underlying connection.
+ func (cc *ClientConn) Close() error {
+ 	c, _ := cc.Hijack()
+ 	if c != nil {
+@@ -291,7 +291,7 @@ func (cc *ClientConn) Close() error {
+ 	return nil
+ }
+ 
+-// Write writes a request. An ErrPersistEOF error is returned if the connection
++// Write writes a request. An [ErrPersistEOF] error is returned if the connection
+ // has been closed in an HTTP keep-alive sense. If req.Close equals true, the
+ // keep-alive connection is logically closed after this request and the opposing
+ // server is informed. An ErrUnexpectedEOF indicates the remote closed the
+@@ -357,9 +357,9 @@ func (cc *ClientConn) Pending() int {
+ }
+ 
+ // Read reads the next response from the wire. A valid response might be
+-// returned together with an ErrPersistEOF, which means that the remote
++// returned together with an [ErrPersistEOF], which means that the remote
+ // requested that this be the last request serviced. Read can be called
+-// concurrently with Write, but not with another Read.
++// concurrently with [ClientConn.Write], but not with another Read.
+ func (cc *ClientConn) Read(req *http.Request) (resp *http.Response, err error) {
+ 	// Retrieve the pipeline ID of this request/response pair
+ 	cc.mu.Lock()
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 719ab62d1a..5c70f0d27b 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -26,7 +26,7 @@ import (
+ 	"golang.org/x/net/http/httpguts"
+ )
+ 
+-// A ProxyRequest contains a request to be rewritten by a ReverseProxy.
++// A ProxyRequest contains a request to be rewritten by a [ReverseProxy].
+ type ProxyRequest struct {
+ 	// In is the request received by the proxy.
+ 	// The Rewrite function must not modify In.
+@@ -45,7 +45,7 @@ type ProxyRequest struct {
+ //
+ // SetURL rewrites the outbound Host header to match the target's host.
+ // To preserve the inbound request's Host header (the default behavior
+-// of NewSingleHostReverseProxy):
++// of [NewSingleHostReverseProxy]):
+ //
+ //	rewriteFunc := func(r *httputil.ProxyRequest) {
+ //		r.SetURL(url)
+@@ -68,7 +68,7 @@ func (r *ProxyRequest) SetURL(target *url.URL) {
+ // If the outbound request contains an existing X-Forwarded-For header,
+ // SetXForwarded appends the client IP address to it. To append to the
+ // inbound request's X-Forwarded-For header (the default behavior of
+-// ReverseProxy when using a Director function), copy the header
++// [ReverseProxy] when using a Director function), copy the header
+ // from the inbound request before calling SetXForwarded:
+ //
+ //	rewriteFunc := func(r *httputil.ProxyRequest) {
+@@ -200,7 +200,7 @@ type ReverseProxy struct {
+ }
+ 
+ // A BufferPool is an interface for getting and returning temporary
+-// byte slices for use by io.CopyBuffer.
++// byte slices for use by [io.CopyBuffer].
+ type BufferPool interface {
+ 	Get() []byte
+ 	Put([]byte)
+@@ -239,7 +239,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
+ 	return a.Path + b.Path, apath + bpath
+ }
+ 
+-// NewSingleHostReverseProxy returns a new ReverseProxy that routes
++// NewSingleHostReverseProxy returns a new [ReverseProxy] that routes
+ // URLs to the scheme, host, and base path provided in target. If the
+ // target's path is "/base" and the incoming request was for "/dir",
+ // the target request will be for /base/dir.
+diff --git a/src/net/http/internal/ascii/print.go b/src/net/http/internal/ascii/print.go
+index 585e5baba4..98dbf4e3d2 100644
+--- a/src/net/http/internal/ascii/print.go
++++ b/src/net/http/internal/ascii/print.go
+@@ -9,7 +9,7 @@ import (
+ 	"unicode"
+ )
+ 
+-// EqualFold is strings.EqualFold, ASCII only. It reports whether s and t
++// EqualFold is [strings.EqualFold], ASCII only. It reports whether s and t
+ // are equal, ASCII-case-insensitively.
+ func EqualFold(s, t string) bool {
+ 	if len(s) != len(t) {
+diff --git a/src/net/http/internal/chunked.go b/src/net/http/internal/chunked.go
+index c0fa4ccac7..196b5d8925 100644
+--- a/src/net/http/internal/chunked.go
++++ b/src/net/http/internal/chunked.go
+@@ -22,7 +22,7 @@ var ErrLineTooLong = errors.New("header line too long")
+ 
+ // NewChunkedReader returns a new chunkedReader that translates the data read from r
+ // out of HTTP "chunked" format before returning it.
+-// The chunkedReader returns io.EOF when the final 0-length chunk is read.
++// The chunkedReader returns [io.EOF] when the final 0-length chunk is read.
+ //
+ // NewChunkedReader is not needed by normal applications. The http package
+ // automatically decodes chunking when reading response bodies.
+@@ -221,7 +221,7 @@ type chunkedWriter struct {
+ 
+ // Write the contents of data as one chunk to Wire.
+ // NOTE: Note that the corresponding chunk-writing procedure in Conn.Write has
+-// a bug since it does not check for success of io.WriteString
++// a bug since it does not check for success of [io.WriteString]
+ func (cw *chunkedWriter) Write(data []byte) (n int, err error) {
+ 
+ 	// Don't send 0-length data. It looks like EOF for chunked encoding.
+@@ -253,9 +253,9 @@ func (cw *chunkedWriter) Close() error {
+ 	return err
+ }
+ 
+-// FlushAfterChunkWriter signals from the caller of NewChunkedWriter
++// FlushAfterChunkWriter signals from the caller of [NewChunkedWriter]
+ // that each chunk should be followed by a flush. It is used by the
+-// http.Transport code to keep the buffering behavior for headers and
++// [net/http.Transport] code to keep the buffering behavior for headers and
+ // trailers, but flush out chunks aggressively in the middle for
+ // request bodies which may be generated slowly. See Issue 6574.
+ type FlushAfterChunkWriter struct {
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index bc3225daca..bc48f11834 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -47,12 +47,12 @@
+ //	go tool pprof http://localhost:6060/debug/pprof/profile?seconds=30
+ //
+ // Or to look at the goroutine blocking profile, after calling
+-// runtime.SetBlockProfileRate in your program:
++// [runtime.SetBlockProfileRate] in your program:
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/block
+ //
+ // Or to look at the holders of contended mutexes, after calling
+-// runtime.SetMutexProfileFraction in your program:
++// [runtime.SetMutexProfileFraction] in your program:
+ //
+ //	go tool pprof http://localhost:6060/debug/pprof/mutex
+ //
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 730f51287a..99fdebcf9b 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -107,7 +107,7 @@ var reqWriteExcludeHeader = map[string]bool{
+ //
+ // The field semantics differ slightly between client and server
+ // usage. In addition to the notes on the fields below, see the
+-// documentation for Request.Write and RoundTripper.
++// documentation for [Request.Write] and [RoundTripper].
+ type Request struct {
+ 	// Method specifies the HTTP method (GET, POST, PUT, etc.).
+ 	// For client requests, an empty string means GET.
+@@ -333,7 +333,7 @@ type Request struct {
+ }
+ 
+ // Context returns the request's context. To change the context, use
+-// Clone or WithContext.
++// [Request.Clone] or [Request.WithContext].
+ //
+ // The returned context is always non-nil; it defaults to the
+ // background context.
+@@ -357,8 +357,8 @@ func (r *Request) Context() context.Context {
+ // lifetime of a request and its response: obtaining a connection,
+ // sending the request, and reading the response headers and body.
+ //
+-// To create a new request with a context, use NewRequestWithContext.
+-// To make a deep copy of a request with a new context, use Request.Clone.
++// To create a new request with a context, use [NewRequestWithContext].
++// To make a deep copy of a request with a new context, use [Request.Clone].
+ func (r *Request) WithContext(ctx context.Context) *Request {
+ 	if ctx == nil {
+ 		panic("nil context")
+@@ -435,7 +435,7 @@ func (r *Request) Cookies() []*Cookie {
+ var ErrNoCookie = errors.New("http: named cookie not present")
+ 
+ // Cookie returns the named cookie provided in the request or
+-// ErrNoCookie if not found.
++// [ErrNoCookie] if not found.
+ // If multiple cookies match the given name, only one cookie will
+ // be returned.
+ func (r *Request) Cookie(name string) (*Cookie, error) {
+@@ -449,7 +449,7 @@ func (r *Request) Cookie(name string) (*Cookie, error) {
+ }
+ 
+ // AddCookie adds a cookie to the request. Per RFC 6265 section 5.4,
+-// AddCookie does not attach more than one Cookie header field. That
++// AddCookie does not attach more than one [Cookie] header field. That
+ // means all cookies, if any, are written into the same line,
+ // separated by semicolon.
+ // AddCookie only sanitizes c's name and value, and does not sanitize
+@@ -467,7 +467,7 @@ func (r *Request) AddCookie(c *Cookie) {
+ //
+ // Referer is misspelled as in the request itself, a mistake from the
+ // earliest days of HTTP.  This value can also be fetched from the
+-// Header map as Header["Referer"]; the benefit of making it available
++// [Header] map as Header["Referer"]; the benefit of making it available
+ // as a method is that the compiler can diagnose programs that use the
+ // alternate (correct English) spelling req.Referrer() but cannot
+ // diagnose programs that use Header["Referrer"].
+@@ -485,7 +485,7 @@ var multipartByReader = &multipart.Form{
+ 
+ // MultipartReader returns a MIME multipart reader if this is a
+ // multipart/form-data or a multipart/mixed POST request, else returns nil and an error.
+-// Use this function instead of ParseMultipartForm to
++// Use this function instead of [Request.ParseMultipartForm] to
+ // process the request body as a stream.
+ func (r *Request) MultipartReader() (*multipart.Reader, error) {
+ 	if r.MultipartForm == multipartByReader {
+@@ -548,15 +548,15 @@ const defaultUserAgent = "Go-http-client/1.1"
+ //	TransferEncoding
+ //	Body
+ //
+-// If Body is present, Content-Length is <= 0 and TransferEncoding
++// If Body is present, Content-Length is <= 0 and [Request.TransferEncoding]
+ // hasn't been set to "identity", Write adds "Transfer-Encoding:
+ // chunked" to the header. Body is closed after it is sent.
+ func (r *Request) Write(w io.Writer) error {
+ 	return r.write(w, false, nil, nil)
+ }
+ 
+-// WriteProxy is like Write but writes the request in the form
+-// expected by an HTTP proxy. In particular, WriteProxy writes the
++// WriteProxy is like [Request.Write] but writes the request in the form
++// expected by an HTTP proxy. In particular, [Request.WriteProxy] writes the
+ // initial Request-URI line of the request with an absolute URI, per
+ // section 5.3 of RFC 7230, including the scheme and host.
+ // In either case, WriteProxy also writes a Host header, using
+@@ -851,33 +851,33 @@ func validMethod(method string) bool {
+ 	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
+ }
+ 
+-// NewRequest wraps NewRequestWithContext using context.Background.
++// NewRequest wraps [NewRequestWithContext] using [context.Background].
+ func NewRequest(method, url string, body io.Reader) (*Request, error) {
+ 	return NewRequestWithContext(context.Background(), method, url, body)
+ }
+ 
+-// NewRequestWithContext returns a new Request given a method, URL, and
++// NewRequestWithContext returns a new [Request] given a method, URL, and
+ // optional body.
+ //
+-// If the provided body is also an io.Closer, the returned
+-// Request.Body is set to body and will be closed (possibly
++// If the provided body is also an [io.Closer], the returned
++// [Request.Body] is set to body and will be closed (possibly
+ // asynchronously) by the Client methods Do, Post, and PostForm,
+-// and Transport.RoundTrip.
++// and [Transport.RoundTrip].
+ //
+ // NewRequestWithContext returns a Request suitable for use with
+-// Client.Do or Transport.RoundTrip. To create a request for use with
+-// testing a Server Handler, either use the NewRequest function in the
+-// net/http/httptest package, use ReadRequest, or manually update the
++// [Client.Do] or [Transport.RoundTrip]. To create a request for use with
++// testing a Server Handler, either use the [NewRequest] function in the
++// net/http/httptest package, use [ReadRequest], or manually update the
+ // Request fields. For an outgoing client request, the context
+ // controls the entire lifetime of a request and its response:
+ // obtaining a connection, sending the request, and reading the
+ // response headers and body. See the Request type's documentation for
+ // the difference between inbound and outbound request fields.
+ //
+-// If body is of type *bytes.Buffer, *bytes.Reader, or
+-// *strings.Reader, the returned request's ContentLength is set to its
++// If body is of type [*bytes.Buffer], [*bytes.Reader], or
++// [*strings.Reader], the returned request's ContentLength is set to its
+ // exact value (instead of -1), GetBody is populated (so 307 and 308
+-// redirects can replay the body), and Body is set to NoBody if the
++// redirects can replay the body), and Body is set to [NoBody] if the
+ // ContentLength is 0.
+ func NewRequestWithContext(ctx context.Context, method, url string, body io.Reader) (*Request, error) {
+ 	if method == "" {
+@@ -1001,7 +1001,7 @@ func parseBasicAuth(auth string) (username, password string, ok bool) {
+ // The username may not contain a colon. Some protocols may impose
+ // additional requirements on pre-escaping the username and
+ // password. For instance, when used with OAuth2, both arguments must
+-// be URL encoded first with url.QueryEscape.
++// be URL encoded first with [url.QueryEscape].
+ func (r *Request) SetBasicAuth(username, password string) {
+ 	r.Header.Set("Authorization", "Basic "+basicAuth(username, password))
+ }
+@@ -1035,8 +1035,8 @@ func putTextprotoReader(r *textproto.Reader) {
+ // ReadRequest reads and parses an incoming request from b.
+ //
+ // ReadRequest is a low-level function and should only be used for
+-// specialized applications; most code should use the Server to read
+-// requests and handle them via the Handler interface. ReadRequest
++// specialized applications; most code should use the [Server] to read
++// requests and handle them via the [Handler] interface. ReadRequest
+ // only supports HTTP/1.x requests. For HTTP/2, use golang.org/x/net/http2.
+ func ReadRequest(b *bufio.Reader) (*Request, error) {
+ 	req, err := readRequest(b)
+@@ -1145,15 +1145,15 @@ func readRequest(b *bufio.Reader) (req *Request, err error) {
+ 	return req, nil
+ }
+ 
+-// MaxBytesReader is similar to io.LimitReader but is intended for
++// MaxBytesReader is similar to [io.LimitReader] but is intended for
+ // limiting the size of incoming request bodies. In contrast to
+ // io.LimitReader, MaxBytesReader's result is a ReadCloser, returns a
+-// non-nil error of type *MaxBytesError for a Read beyond the limit,
++// non-nil error of type [*MaxBytesError] for a Read beyond the limit,
+ // and closes the underlying reader when its Close method is called.
+ //
+ // MaxBytesReader prevents clients from accidentally or maliciously
+ // sending a large request and wasting server resources. If possible,
+-// it tells the ResponseWriter to close the connection after the limit
++// it tells the [ResponseWriter] to close the connection after the limit
+ // has been reached.
+ func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+ 	if n < 0 { // Treat negative limits as equivalent to 0.
+@@ -1162,7 +1162,7 @@ func MaxBytesReader(w ResponseWriter, r io.ReadCloser, n int64) io.ReadCloser {
+ 	return &maxBytesReader{w: w, r: r, i: n, n: n}
+ }
+ 
+-// MaxBytesError is returned by MaxBytesReader when its read limit is exceeded.
++// MaxBytesError is returned by [MaxBytesReader] when its read limit is exceeded.
+ type MaxBytesError struct {
+ 	Limit int64
+ }
+@@ -1287,14 +1287,14 @@ func parsePostForm(r *Request) (vs url.Values, err error) {
+ // as a form and puts the results into both r.PostForm and r.Form. Request body
+ // parameters take precedence over URL query string values in r.Form.
+ //
+-// If the request Body's size has not already been limited by MaxBytesReader,
++// If the request Body's size has not already been limited by [MaxBytesReader],
+ // the size is capped at 10MB.
+ //
+ // For other HTTP methods, or when the Content-Type is not
+ // application/x-www-form-urlencoded, the request Body is not read, and
+ // r.PostForm is initialized to a non-nil, empty value.
+ //
+-// ParseMultipartForm calls ParseForm automatically.
++// [Request.ParseMultipartForm] calls ParseForm automatically.
+ // ParseForm is idempotent.
+ func (r *Request) ParseForm() error {
+ 	var err error
+@@ -1335,7 +1335,7 @@ func (r *Request) ParseForm() error {
+ // The whole request body is parsed and up to a total of maxMemory bytes of
+ // its file parts are stored in memory, with the remainder stored on
+ // disk in temporary files.
+-// ParseMultipartForm calls ParseForm if necessary.
++// ParseMultipartForm calls [Request.ParseForm] if necessary.
+ // If ParseForm returns an error, ParseMultipartForm returns it but also
+ // continues parsing the request body.
+ // After one call to ParseMultipartForm, subsequent calls have no effect.
+@@ -1383,11 +1383,11 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
+ //  2. query parameters (always)
+ //  3. multipart/form-data form body (always)
+ //
+-// FormValue calls ParseMultipartForm and ParseForm if necessary and ignores
+-// any errors returned by these functions.
++// FormValue calls [Request.ParseMultipartForm] and [Request.ParseForm]
++// if necessary and ignores any errors returned by these functions.
+ // If key is not present, FormValue returns the empty string.
+ // To access multiple values of the same key, call ParseForm and
+-// then inspect Request.Form directly.
++// then inspect [Request.Form] directly.
+ func (r *Request) FormValue(key string) string {
+ 	if r.Form == nil {
+ 		r.ParseMultipartForm(defaultMaxMemory)
+@@ -1400,7 +1400,7 @@ func (r *Request) FormValue(key string) string {
+ 
+ // PostFormValue returns the first value for the named component of the POST,
+ // PUT, or PATCH request body. URL query parameters are ignored.
+-// PostFormValue calls ParseMultipartForm and ParseForm if necessary and ignores
++// PostFormValue calls [Request.ParseMultipartForm] and [Request.ParseForm] if necessary and ignores
+ // any errors returned by these functions.
+ // If key is not present, PostFormValue returns the empty string.
+ func (r *Request) PostFormValue(key string) string {
+@@ -1414,7 +1414,7 @@ func (r *Request) PostFormValue(key string) string {
+ }
+ 
+ // FormFile returns the first file for the provided form key.
+-// FormFile calls ParseMultipartForm and ParseForm if necessary.
++// FormFile calls [Request.ParseMultipartForm] and [Request.ParseForm] if necessary.
+ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, error) {
+ 	if r.MultipartForm == multipartByReader {
+ 		return nil, nil, errors.New("http: multipart handled by MultipartReader")
+@@ -1434,7 +1434,7 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
+ 	return nil, nil, ErrMissingFile
+ }
+ 
+-// PathValue returns the value for the named path wildcard in the ServeMux pattern
++// PathValue returns the value for the named path wildcard in the [ServeMux] pattern
+ // that matched the request.
+ // It returns the empty string if the request was not matched against a pattern
+ // or there is no such wildcard in the pattern.
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 755c696557..0c3d7f6d85 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -29,7 +29,7 @@ var respExcludeHeader = map[string]bool{
+ 
+ // Response represents the response from an HTTP request.
+ //
+-// The Client and Transport return Responses from servers once
++// The [Client] and [Transport] return Responses from servers once
+ // the response headers have been received. The response body
+ // is streamed on demand as the Body field is read.
+ type Response struct {
+@@ -126,13 +126,13 @@ func (r *Response) Cookies() []*Cookie {
+ 	return readSetCookies(r.Header)
+ }
+ 
+-// ErrNoLocation is returned by Response's Location method
++// ErrNoLocation is returned by the [Response.Location] method
+ // when no Location header is present.
+ var ErrNoLocation = errors.New("http: no Location header in response")
+ 
+ // Location returns the URL of the response's "Location" header,
+ // if present. Relative redirects are resolved relative to
+-// the Response's Request. ErrNoLocation is returned if no
++// [Response.Request]. [ErrNoLocation] is returned if no
+ // Location header is present.
+ func (r *Response) Location() (*url.URL, error) {
+ 	lv := r.Header.Get("Location")
+@@ -146,8 +146,8 @@ func (r *Response) Location() (*url.URL, error) {
+ }
+ 
+ // ReadResponse reads and returns an HTTP response from r.
+-// The req parameter optionally specifies the Request that corresponds
+-// to this Response. If nil, a GET request is assumed.
++// The req parameter optionally specifies the [Request] that corresponds
++// to this [Response]. If nil, a GET request is assumed.
+ // Clients must call resp.Body.Close when finished reading resp.Body.
+ // After that call, clients can inspect resp.Trailer to find key/value
+ // pairs included in the response trailer.
+diff --git a/src/net/http/responsecontroller.go b/src/net/http/responsecontroller.go
+index 92276ffaf2..f3f24c1273 100644
+--- a/src/net/http/responsecontroller.go
++++ b/src/net/http/responsecontroller.go
+@@ -13,14 +13,14 @@ import (
+ 
+ // A ResponseController is used by an HTTP handler to control the response.
+ //
+-// A ResponseController may not be used after the Handler.ServeHTTP method has returned.
++// A ResponseController may not be used after the [Handler.ServeHTTP] method has returned.
+ type ResponseController struct {
+ 	rw ResponseWriter
+ }
+ 
+-// NewResponseController creates a ResponseController for a request.
++// NewResponseController creates a [ResponseController] for a request.
+ //
+-// The ResponseWriter should be the original value passed to the Handler.ServeHTTP method,
++// The ResponseWriter should be the original value passed to the [Handler.ServeHTTP] method,
+ // or have an Unwrap method returning the original ResponseWriter.
+ //
+ // If the ResponseWriter implements any of the following methods, the ResponseController
+@@ -34,7 +34,7 @@ type ResponseController struct {
+ //	EnableFullDuplex() error
+ //
+ // If the ResponseWriter does not support a method, ResponseController returns
+-// an error matching ErrNotSupported.
++// an error matching [ErrNotSupported].
+ func NewResponseController(rw ResponseWriter) *ResponseController {
+ 	return &ResponseController{rw}
+ }
+@@ -116,8 +116,8 @@ func (c *ResponseController) SetWriteDeadline(deadline time.Time) error {
+ 	}
+ }
+ 
+-// EnableFullDuplex indicates that the request handler will interleave reads from Request.Body
+-// with writes to the ResponseWriter.
++// EnableFullDuplex indicates that the request handler will interleave reads from [Request.Body]
++// with writes to the [ResponseWriter].
+ //
+ // For HTTP/1 requests, the Go HTTP server by default consumes any unread portion of
+ // the request body before beginning to write the response, preventing handlers from
+diff --git a/src/net/http/roundtrip.go b/src/net/http/roundtrip.go
+index 49ea1a71ed..08c270179a 100644
+--- a/src/net/http/roundtrip.go
++++ b/src/net/http/roundtrip.go
+@@ -6,10 +6,10 @@
+ 
+ package http
+ 
+-// RoundTrip implements the RoundTripper interface.
++// RoundTrip implements the [RoundTripper] interface.
+ //
+ // For higher-level HTTP client support (such as handling of cookies
+-// and redirects), see Get, Post, and the Client type.
++// and redirects), see [Get], [Post], and the [Client] type.
+ //
+ // Like the RoundTripper interface, the error types returned
+ // by RoundTrip are unspecified.
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index cbf978af18..04c241eb4c 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -56,7 +56,7 @@ var jsFetchMissing = js.Global().Get("fetch").IsUndefined()
+ var jsFetchDisabled = js.Global().Get("process").Type() == js.TypeObject &&
+ 	strings.HasPrefix(js.Global().Get("process").Get("argv0").String(), "node")
+ 
+-// RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
++// RoundTrip implements the [RoundTripper] interface using the WHATWG Fetch API.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	// The Transport has a documented contract that states that if the DialContext or
+ 	// DialTLSContext functions are set, they will be used to set up the connections.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 9245778590..acac78bcd0 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -61,7 +61,7 @@ var (
+ 
+ // A Handler responds to an HTTP request.
+ //
+-// ServeHTTP should write reply headers and data to the [ResponseWriter]
++// [Handler.ServeHTTP] should write reply headers and data to the [ResponseWriter]
+ // and then return. Returning signals that the request is finished; it
+ // is not valid to use the [ResponseWriter] or read from the
+ // [Request.Body] after or concurrently with the completion of the
+@@ -161,8 +161,8 @@ type ResponseWriter interface {
+ // The Flusher interface is implemented by ResponseWriters that allow
+ // an HTTP handler to flush buffered data to the client.
+ //
+-// The default HTTP/1.x and HTTP/2 ResponseWriter implementations
+-// support Flusher, but ResponseWriter wrappers may not. Handlers
++// The default HTTP/1.x and HTTP/2 [ResponseWriter] implementations
++// support [Flusher], but ResponseWriter wrappers may not. Handlers
+ // should always test for this ability at runtime.
+ //
+ // Note that even for ResponseWriters that support Flush,
+@@ -177,7 +177,7 @@ type Flusher interface {
+ // The Hijacker interface is implemented by ResponseWriters that allow
+ // an HTTP handler to take over the connection.
+ //
+-// The default ResponseWriter for HTTP/1.x connections supports
++// The default [ResponseWriter] for HTTP/1.x connections supports
+ // Hijacker, but HTTP/2 connections intentionally do not.
+ // ResponseWriter wrappers may also not support Hijacker. Handlers
+ // should always test for this ability at runtime.
+@@ -211,7 +211,7 @@ type Hijacker interface {
+ // if the client has disconnected before the response is ready.
+ //
+ // Deprecated: the CloseNotifier interface predates Go's context package.
+-// New code should use Request.Context instead.
++// New code should use [Request.Context] instead.
+ type CloseNotifier interface {
+ 	// CloseNotify returns a channel that receives at most a
+ 	// single value (true) when the client connection has gone
+@@ -505,7 +505,7 @@ func (c *response) EnableFullDuplex() error {
+ 	return nil
+ }
+ 
+-// TrailerPrefix is a magic prefix for ResponseWriter.Header map keys
++// TrailerPrefix is a magic prefix for [ResponseWriter.Header] map keys
+ // that, if present, signals that the map entry is actually for
+ // the response trailers, and not the response headers. The prefix
+ // is stripped after the ServeHTTP call finishes and the values are
+@@ -571,8 +571,8 @@ type writerOnly struct {
+ 	io.Writer
+ }
+ 
+-// ReadFrom is here to optimize copying from an *os.File regular file
+-// to a *net.TCPConn with sendfile, or from a supported src type such
++// ReadFrom is here to optimize copying from an [*os.File] regular file
++// to a [*net.TCPConn] with sendfile, or from a supported src type such
+ // as a *net.TCPConn on Linux with splice.
+ func (w *response) ReadFrom(src io.Reader) (n int64, err error) {
+ 	buf := getCopyBuf()
+@@ -867,7 +867,7 @@ func putBufioWriter(bw *bufio.Writer) {
+ 
+ // DefaultMaxHeaderBytes is the maximum permitted size of the headers
+ // in an HTTP request.
+-// This can be overridden by setting Server.MaxHeaderBytes.
++// This can be overridden by setting [Server.MaxHeaderBytes].
+ const DefaultMaxHeaderBytes = 1 << 20 // 1 MB
+ 
+ func (srv *Server) maxHeaderBytes() int {
+@@ -940,11 +940,11 @@ func (ecr *expectContinueReader) Close() error {
+ }
+ 
+ // TimeFormat is the time format to use when generating times in HTTP
+-// headers. It is like time.RFC1123 but hard-codes GMT as the time
++// headers. It is like [time.RFC1123] but hard-codes GMT as the time
+ // zone. The time being formatted must be in UTC for Format to
+ // generate the correct format.
+ //
+-// For parsing this time format, see ParseTime.
++// For parsing this time format, see [ParseTime].
+ const TimeFormat = "Mon, 02 Jan 2006 15:04:05 GMT"
+ 
+ // appendTime is a non-allocating version of []byte(t.UTC().Format(TimeFormat))
+@@ -1590,13 +1590,13 @@ func (w *response) bodyAllowed() bool {
+ // The Writers are wired together like:
+ //
+ //  1. *response (the ResponseWriter) ->
+-//  2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes ->
++//  2. (*response).w, a [*bufio.Writer] of bufferBeforeChunkingSize bytes ->
+ //  3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
+ //     and which writes the chunk headers, if needed ->
+ //  4. conn.bufw, a *bufio.Writer of default (4kB) bytes, writing to ->
+ //  5. checkConnErrorWriter{c}, which notes any non-nil error on Write
+ //     and populates c.werr with it if so, but otherwise writes to ->
+-//  6. the rwc, the net.Conn.
++//  6. the rwc, the [net.Conn].
+ //
+ // TODO(bradfitz): short-circuit some of the buffering when the
+ // initial header contains both a Content-Type and Content-Length.
+@@ -2097,8 +2097,8 @@ func (w *response) sendExpectationFailed() {
+ 	w.finishRequest()
+ }
+ 
+-// Hijack implements the Hijacker.Hijack method. Our response is both a ResponseWriter
+-// and a Hijacker.
++// Hijack implements the [Hijacker.Hijack] method. Our response is both a [ResponseWriter]
++// and a [Hijacker].
+ func (w *response) Hijack() (rwc net.Conn, buf *bufio.ReadWriter, err error) {
+ 	if w.handlerDone.Load() {
+ 		panic("net/http: Hijack called after ServeHTTP finished")
+@@ -2158,7 +2158,7 @@ func requestBodyRemains(rc io.ReadCloser) bool {
+ // The HandlerFunc type is an adapter to allow the use of
+ // ordinary functions as HTTP handlers. If f is a function
+ // with the appropriate signature, HandlerFunc(f) is a
+-// Handler that calls f.
++// [Handler] that calls f.
+ type HandlerFunc func(ResponseWriter, *Request)
+ 
+ // ServeHTTP calls f(w, r).
+@@ -2217,9 +2217,9 @@ func StripPrefix(prefix string, h Handler) Handler {
+ // which may be a path relative to the request path.
+ //
+ // The provided code should be in the 3xx range and is usually
+-// StatusMovedPermanently, StatusFound or StatusSeeOther.
++// [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].
+ //
+-// If the Content-Type header has not been set, Redirect sets it
++// If the Content-Type header has not been set, [Redirect] sets it
+ // to "text/html; charset=utf-8" and writes a small HTML body.
+ // Setting the Content-Type header to any value, including nil,
+ // disables that behavior.
+@@ -2307,7 +2307,7 @@ func (rh *redirectHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ // status code.
+ //
+ // The provided code should be in the 3xx range and is usually
+-// StatusMovedPermanently, StatusFound or StatusSeeOther.
++// [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].
+ func RedirectHandler(url string, code int) Handler {
+ 	return &redirectHandler{url, code}
+ }
+@@ -2394,7 +2394,7 @@ func RedirectHandler(url string, code int) Handler {
+ //
+ // # Trailing-slash redirection
+ //
+-// Consider a ServeMux with a handler for a subtree, registered using a trailing slash or "..." wildcard.
++// Consider a [ServeMux] with a handler for a subtree, registered using a trailing slash or "..." wildcard.
+ // If the ServeMux receives a request for the subtree root without a trailing slash,
+ // it redirects the request by adding the trailing slash.
+ // This behavior can be overridden with a separate registration for the path without
+@@ -2437,12 +2437,12 @@ type ServeMux struct {
+ 	mux121   serveMux121 // used only when GODEBUG=httpmuxgo121=1
+ }
+ 
+-// NewServeMux allocates and returns a new ServeMux.
++// NewServeMux allocates and returns a new [ServeMux].
+ func NewServeMux() *ServeMux {
+ 	return &ServeMux{}
+ }
+ 
+-// DefaultServeMux is the default ServeMux used by Serve.
++// DefaultServeMux is the default [ServeMux] used by [Serve].
+ var DefaultServeMux = &defaultServeMux
+ 
+ var defaultServeMux ServeMux
+@@ -2784,7 +2784,7 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
+ //
+ // The handler is typically nil, in which case [DefaultServeMux] is used.
+ //
+-// HTTP/2 support is only enabled if the Listener returns *tls.Conn
++// HTTP/2 support is only enabled if the Listener returns [*tls.Conn]
+ // connections and they were configured with "h2" in the TLS
+ // Config.NextProtos.
+ //
+@@ -2924,13 +2924,13 @@ type Server struct {
+ }
+ 
+ // Close immediately closes all active net.Listeners and any
+-// connections in state StateNew, StateActive, or StateIdle. For a
+-// graceful shutdown, use Shutdown.
++// connections in state [StateNew], [StateActive], or [StateIdle]. For a
++// graceful shutdown, use [Server.Shutdown].
+ //
+ // Close does not attempt to close (and does not even know about)
+ // any hijacked connections, such as WebSockets.
+ //
+-// Close returns any error returned from closing the Server's
++// Close returns any error returned from closing the [Server]'s
+ // underlying Listener(s).
+ func (srv *Server) Close() error {
+ 	srv.inShutdown.Store(true)
+@@ -2968,16 +2968,16 @@ const shutdownPollIntervalMax = 500 * time.Millisecond
+ // indefinitely for connections to return to idle and then shut down.
+ // If the provided context expires before the shutdown is complete,
+ // Shutdown returns the context's error, otherwise it returns any
+-// error returned from closing the Server's underlying Listener(s).
++// error returned from closing the [Server]'s underlying Listener(s).
+ //
+-// When Shutdown is called, Serve, ListenAndServe, and
+-// ListenAndServeTLS immediately return ErrServerClosed. Make sure the
++// When Shutdown is called, [Serve], [ListenAndServe], and
++// [ListenAndServeTLS] immediately return [ErrServerClosed]. Make sure the
+ // program doesn't exit and waits instead for Shutdown to return.
+ //
+ // Shutdown does not attempt to close nor wait for hijacked
+ // connections such as WebSockets. The caller of Shutdown should
+ // separately notify such long-lived connections of shutdown and wait
+-// for them to close, if desired. See RegisterOnShutdown for a way to
++// for them to close, if desired. See [Server.RegisterOnShutdown] for a way to
+ // register shutdown notification functions.
+ //
+ // Once Shutdown has been called on a server, it may not be reused;
+@@ -3020,7 +3020,7 @@ func (srv *Server) Shutdown(ctx context.Context) error {
+ 	}
+ }
+ 
+-// RegisterOnShutdown registers a function to call on Shutdown.
++// RegisterOnShutdown registers a function to call on [Server.Shutdown].
+ // This can be used to gracefully shutdown connections that have
+ // undergone ALPN protocol upgrade or that have been hijacked.
+ // This function should start protocol-specific graceful shutdown,
+@@ -3068,7 +3068,7 @@ func (s *Server) closeListenersLocked() error {
+ }
+ 
+ // A ConnState represents the state of a client connection to a server.
+-// It's used by the optional Server.ConnState hook.
++// It's used by the optional [Server.ConnState] hook.
+ type ConnState int
+ 
+ const (
+@@ -3145,7 +3145,7 @@ func (sh serverHandler) ServeHTTP(rw ResponseWriter, req *Request) {
+ // behavior doesn't match that of many proxies, and the mismatch can lead to
+ // security issues.
+ //
+-// AllowQuerySemicolons should be invoked before Request.ParseForm is called.
++// AllowQuerySemicolons should be invoked before [Request.ParseForm] is called.
+ func AllowQuerySemicolons(h Handler) Handler {
+ 	return HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		if strings.Contains(r.URL.RawQuery, ";") {
+@@ -3162,13 +3162,13 @@ func AllowQuerySemicolons(h Handler) Handler {
+ }
+ 
+ // ListenAndServe listens on the TCP network address srv.Addr and then
+-// calls Serve to handle requests on incoming connections.
++// calls [Serve] to handle requests on incoming connections.
+ // Accepted connections are configured to enable TCP keep-alives.
+ //
+ // If srv.Addr is blank, ":http" is used.
+ //
+-// ListenAndServe always returns a non-nil error. After Shutdown or Close,
+-// the returned error is ErrServerClosed.
++// ListenAndServe always returns a non-nil error. After [Server.Shutdown] or [Server.Close],
++// the returned error is [ErrServerClosed].
+ func (srv *Server) ListenAndServe() error {
+ 	if srv.shuttingDown() {
+ 		return ErrServerClosed
+@@ -3208,20 +3208,20 @@ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+ 	return strSliceContains(srv.TLSConfig.NextProtos, http2NextProtoTLS)
+ }
+ 
+-// ErrServerClosed is returned by the Server's Serve, ServeTLS, ListenAndServe,
+-// and ListenAndServeTLS methods after a call to Shutdown or Close.
++// ErrServerClosed is returned by the [Server.Serve], [ServeTLS], [ListenAndServe],
++// and [ListenAndServeTLS] methods after a call to [Server.Shutdown] or [Server.Close].
+ var ErrServerClosed = errors.New("http: Server closed")
+ 
+ // Serve accepts incoming connections on the Listener l, creating a
+ // new service goroutine for each. The service goroutines read requests and
+ // then call srv.Handler to reply to them.
+ //
+-// HTTP/2 support is only enabled if the Listener returns *tls.Conn
++// HTTP/2 support is only enabled if the Listener returns [*tls.Conn]
+ // connections and they were configured with "h2" in the TLS
+ // Config.NextProtos.
+ //
+ // Serve always returns a non-nil error and closes l.
+-// After Shutdown or Close, the returned error is ErrServerClosed.
++// After [Server.Shutdown] or [Server.Close], the returned error is [ErrServerClosed].
+ func (srv *Server) Serve(l net.Listener) error {
+ 	if fn := testHookServerServe; fn != nil {
+ 		fn(srv, l) // call hook with unwrapped listener
+@@ -3291,14 +3291,14 @@ func (srv *Server) Serve(l net.Listener) error {
+ // setup and then read requests, calling srv.Handler to reply to them.
+ //
+ // Files containing a certificate and matching private key for the
+-// server must be provided if neither the Server's
++// server must be provided if neither the [Server]'s
+ // TLSConfig.Certificates nor TLSConfig.GetCertificate are populated.
+ // If the certificate is signed by a certificate authority, the
+ // certFile should be the concatenation of the server's certificate,
+ // any intermediates, and the CA's certificate.
+ //
+-// ServeTLS always returns a non-nil error. After Shutdown or Close, the
+-// returned error is ErrServerClosed.
++// ServeTLS always returns a non-nil error. After [Server.Shutdown] or [Server.Close], the
++// returned error is [ErrServerClosed].
+ func (srv *Server) ServeTLS(l net.Listener, certFile, keyFile string) error {
+ 	// Setup HTTP/2 before srv.Serve, to initialize srv.TLSConfig
+ 	// before we clone it and create the TLS Listener.
+@@ -3427,7 +3427,7 @@ func logf(r *Request, format string, args ...any) {
+ }
+ 
+ // ListenAndServe listens on the TCP network address addr and then calls
+-// Serve with handler to handle requests on incoming connections.
++// [Serve] with handler to handle requests on incoming connections.
+ // Accepted connections are configured to enable TCP keep-alives.
+ //
+ // The handler is typically nil, in which case [DefaultServeMux] is used.
+@@ -3449,11 +3449,11 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
+ }
+ 
+ // ListenAndServeTLS listens on the TCP network address srv.Addr and
+-// then calls ServeTLS to handle requests on incoming TLS connections.
++// then calls [ServeTLS] to handle requests on incoming TLS connections.
+ // Accepted connections are configured to enable TCP keep-alives.
+ //
+ // Filenames containing a certificate and matching private key for the
+-// server must be provided if neither the Server's TLSConfig.Certificates
++// server must be provided if neither the [Server]'s TLSConfig.Certificates
+ // nor TLSConfig.GetCertificate are populated. If the certificate is
+ // signed by a certificate authority, the certFile should be the
+ // concatenation of the server's certificate, any intermediates, and
+@@ -3461,8 +3461,8 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
+ //
+ // If srv.Addr is blank, ":https" is used.
+ //
+-// ListenAndServeTLS always returns a non-nil error. After Shutdown or
+-// Close, the returned error is ErrServerClosed.
++// ListenAndServeTLS always returns a non-nil error. After [Server.Shutdown] or
++// [Server.Close], the returned error is [ErrServerClosed].
+ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	if srv.shuttingDown() {
+ 		return ErrServerClosed
+@@ -3532,17 +3532,17 @@ func (srv *Server) onceSetNextProtoDefaults() {
+ 	}
+ }
+ 
+-// TimeoutHandler returns a Handler that runs h with the given time limit.
++// TimeoutHandler returns a [Handler] that runs h with the given time limit.
+ //
+ // The new Handler calls h.ServeHTTP to handle each request, but if a
+ // call runs for longer than its time limit, the handler responds with
+ // a 503 Service Unavailable error and the given message in its body.
+ // (If msg is empty, a suitable default message will be sent.)
+-// After such a timeout, writes by h to its ResponseWriter will return
+-// ErrHandlerTimeout.
++// After such a timeout, writes by h to its [ResponseWriter] will return
++// [ErrHandlerTimeout].
+ //
+-// TimeoutHandler supports the Pusher interface but does not support
+-// the Hijacker or Flusher interfaces.
++// TimeoutHandler supports the [Pusher] interface but does not support
++// the [Hijacker] or [Flusher] interfaces.
+ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
+ 	return &timeoutHandler{
+ 		handler: h,
+@@ -3551,7 +3551,7 @@ func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
+ 	}
+ }
+ 
+-// ErrHandlerTimeout is returned on ResponseWriter Write calls
++// ErrHandlerTimeout is returned on [ResponseWriter] Write calls
+ // in handlers which have timed out.
+ var ErrHandlerTimeout = errors.New("http: Handler timeout")
+ 
+@@ -3640,7 +3640,7 @@ type timeoutWriter struct {
+ 
+ var _ Pusher = (*timeoutWriter)(nil)
+ 
+-// Push implements the Pusher interface.
++// Push implements the [Pusher] interface.
+ func (tw *timeoutWriter) Push(target string, opts *PushOptions) error {
+ 	if pusher, ok := tw.w.(Pusher); ok {
+ 		return pusher.Push(target, opts)
+@@ -3725,7 +3725,7 @@ type initALPNRequest struct {
+ 	h   serverHandler
+ }
+ 
+-// BaseContext is an exported but unadvertised http.Handler method
++// BaseContext is an exported but unadvertised [http.Handler] method
+ // recognized by x/net/http2 to pass down a context; the TLSNextProto
+ // API predates context support so we shoehorn through the only
+ // interface we have available.
+@@ -3833,7 +3833,7 @@ func tlsRecordHeaderLooksLikeHTTP(hdr [5]byte) bool {
+ 	return false
+ }
+ 
+-// MaxBytesHandler returns a Handler that runs h with its ResponseWriter and Request.Body wrapped by a MaxBytesReader.
++// MaxBytesHandler returns a [Handler] that runs h with its [ResponseWriter] and [Request.Body] wrapped by a MaxBytesReader.
+ func MaxBytesHandler(h Handler, n int64) Handler {
+ 	return HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		r2 := *r
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index d787258487..315c6e2723 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -817,10 +817,10 @@ type body struct {
+ 	onHitEOF   func() // if non-nil, func to call when EOF is Read
+ }
+ 
+-// ErrBodyReadAfterClose is returned when reading a Request or Response
++// ErrBodyReadAfterClose is returned when reading a [Request] or [Response]
+ // Body after the body has been closed. This typically happens when the body is
+-// read after an HTTP Handler calls WriteHeader or Write on its
+-// ResponseWriter.
++// read after an HTTP [Handler] calls WriteHeader or Write on its
++// [ResponseWriter].
+ var ErrBodyReadAfterClose = errors.New("http: invalid Read on closed Body")
+ 
+ func (b *body) Read(p []byte) (n int, err error) {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 170ba86cc4..57c70e72f9 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -35,8 +35,8 @@ import (
+ 	"golang.org/x/net/http/httpproxy"
+ )
+ 
+-// DefaultTransport is the default implementation of Transport and is
+-// used by DefaultClient. It establishes network connections as needed
++// DefaultTransport is the default implementation of [Transport] and is
++// used by [DefaultClient]. It establishes network connections as needed
+ // and caches them for reuse by subsequent calls. It uses HTTP proxies
+ // as directed by the environment variables HTTP_PROXY, HTTPS_PROXY
+ // and NO_PROXY (or the lowercase versions thereof).
+@@ -53,42 +53,42 @@ var DefaultTransport RoundTripper = &Transport{
+ 	ExpectContinueTimeout: 1 * time.Second,
+ }
+ 
+-// DefaultMaxIdleConnsPerHost is the default value of Transport's
++// DefaultMaxIdleConnsPerHost is the default value of [Transport]'s
+ // MaxIdleConnsPerHost.
+ const DefaultMaxIdleConnsPerHost = 2
+ 
+-// Transport is an implementation of RoundTripper that supports HTTP,
++// Transport is an implementation of [RoundTripper] that supports HTTP,
+ // HTTPS, and HTTP proxies (for either HTTP or HTTPS with CONNECT).
+ //
+ // By default, Transport caches connections for future re-use.
+ // This may leave many open connections when accessing many hosts.
+-// This behavior can be managed using Transport's CloseIdleConnections method
+-// and the MaxIdleConnsPerHost and DisableKeepAlives fields.
++// This behavior can be managed using [Transport.CloseIdleConnections] method
++// and the [Transport.MaxIdleConnsPerHost] and [Transport.DisableKeepAlives] fields.
+ //
+ // Transports should be reused instead of created as needed.
+ // Transports are safe for concurrent use by multiple goroutines.
+ //
+ // A Transport is a low-level primitive for making HTTP and HTTPS requests.
+-// For high-level functionality, such as cookies and redirects, see Client.
++// For high-level functionality, such as cookies and redirects, see [Client].
+ //
+ // Transport uses HTTP/1.1 for HTTP URLs and either HTTP/1.1 or HTTP/2
+ // for HTTPS URLs, depending on whether the server supports HTTP/2,
+-// and how the Transport is configured. The DefaultTransport supports HTTP/2.
++// and how the Transport is configured. The [DefaultTransport] supports HTTP/2.
+ // To explicitly enable HTTP/2 on a transport, use golang.org/x/net/http2
+ // and call ConfigureTransport. See the package docs for more about HTTP/2.
+ //
+ // Responses with status codes in the 1xx range are either handled
+ // automatically (100 expect-continue) or ignored. The one
+ // exception is HTTP status code 101 (Switching Protocols), which is
+-// considered a terminal status and returned by RoundTrip. To see the
++// considered a terminal status and returned by [Transport.RoundTrip]. To see the
+ // ignored 1xx responses, use the httptrace trace package's
+ // ClientTrace.Got1xxResponse.
+ //
+ // Transport only retries a request upon encountering a network error
+ // if the connection has been already been used successfully and if the
+-// request is idempotent and either has no body or has its Request.GetBody
++// request is idempotent and either has no body or has its [Request.GetBody]
+ // defined. HTTP requests are considered idempotent if they have HTTP methods
+-// GET, HEAD, OPTIONS, or TRACE; or if their Header map contains an
++// GET, HEAD, OPTIONS, or TRACE; or if their [Header] map contains an
+ // "Idempotency-Key" or "X-Idempotency-Key" entry. If the idempotency key
+ // value is a zero-length slice, the request is treated as idempotent but the
+ // header is not sent on the wire.
+@@ -453,7 +453,7 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+ 	return envProxyFunc()(req.URL)
+ }
+ 
+-// ProxyURL returns a proxy function (for use in a Transport)
++// ProxyURL returns a proxy function (for use in a [Transport])
+ // that always returns the same URL.
+ func ProxyURL(fixedURL *url.URL) func(*Request) (*url.URL, error) {
+ 	return func(*Request) (*url.URL, error) {
+@@ -752,14 +752,14 @@ func (pc *persistConn) shouldRetryRequest(req *Request, err error) bool {
+ var ErrSkipAltProtocol = errors.New("net/http: skip alternate protocol")
+ 
+ // RegisterProtocol registers a new protocol with scheme.
+-// The Transport will pass requests using the given scheme to rt.
++// The [Transport] will pass requests using the given scheme to rt.
+ // It is rt's responsibility to simulate HTTP request semantics.
+ //
+ // RegisterProtocol can be used by other packages to provide
+ // implementations of protocol schemes like "ftp" or "file".
+ //
+-// If rt.RoundTrip returns ErrSkipAltProtocol, the Transport will
+-// handle the RoundTrip itself for that one request, as if the
++// If rt.RoundTrip returns [ErrSkipAltProtocol], the Transport will
++// handle the [Transport.RoundTrip] itself for that one request, as if the
+ // protocol were not registered.
+ func (t *Transport) RegisterProtocol(scheme string, rt RoundTripper) {
+ 	t.altMu.Lock()
+@@ -799,9 +799,9 @@ func (t *Transport) CloseIdleConnections() {
+ }
+ 
+ // CancelRequest cancels an in-flight request by closing its connection.
+-// CancelRequest should only be called after RoundTrip has returned.
++// CancelRequest should only be called after [Transport.RoundTrip] has returned.
+ //
+-// Deprecated: Use Request.WithContext to create a request with a
++// Deprecated: Use [Request.WithContext] to create a request with a
+ // cancelable context instead. CancelRequest cannot cancel HTTP/2
+ // requests.
+ func (t *Transport) CancelRequest(req *Request) {
+diff --git a/src/net/http/triv.go b/src/net/http/triv.go
+index f614922c24..c1696425cd 100644
+--- a/src/net/http/triv.go
++++ b/src/net/http/triv.go
+@@ -34,7 +34,7 @@ type Counter struct {
+ 	n  int
+ }
+ 
+-// This makes Counter satisfy the expvar.Var interface, so we can export
++// This makes Counter satisfy the [expvar.Var] interface, so we can export
+ // it directly.
+ func (ctr *Counter) String() string {
+ 	ctr.mu.Lock()
+diff --git a/src/net/interface.go b/src/net/interface.go
+index e1c9a2e2ff..20ac07d31a 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -114,7 +114,7 @@ func Interfaces() ([]Interface, error) {
+ // addresses.
+ //
+ // The returned list does not identify the associated interface; use
+-// Interfaces and Interface.Addrs for more detail.
++// Interfaces and [Interface.Addrs] for more detail.
+ func InterfaceAddrs() ([]Addr, error) {
+ 	ifat, err := interfaceAddrTable(nil)
+ 	if err != nil {
+@@ -127,7 +127,7 @@ func InterfaceAddrs() ([]Addr, error) {
+ //
+ // On Solaris, it returns one of the logical network interfaces
+ // sharing the logical data link; for more precision use
+-// InterfaceByName.
++// [InterfaceByName].
+ func InterfaceByIndex(index int) (*Interface, error) {
+ 	if index <= 0 {
+ 		return nil, &OpError{Op: "route", Net: "ip+net", Source: nil, Addr: nil, Err: errInvalidInterfaceIndex}
+diff --git a/src/net/internal/socktest/switch.go b/src/net/internal/socktest/switch.go
+index 3c37b6ff80..dea6d9288c 100644
+--- a/src/net/internal/socktest/switch.go
++++ b/src/net/internal/socktest/switch.go
+@@ -133,7 +133,7 @@ const (
+ // If the filter returns a non-nil error, the execution of system call
+ // will be canceled and the system call function returns the non-nil
+ // error.
+-// It can return a non-nil AfterFilter for filtering after the
++// It can return a non-nil [AfterFilter] for filtering after the
+ // execution of the system call.
+ type Filter func(*Status) (AfterFilter, error)
+ 
+diff --git a/src/net/internal/socktest/sys_unix.go b/src/net/internal/socktest/sys_unix.go
+index 712462abf4..3eef26c70b 100644
+--- a/src/net/internal/socktest/sys_unix.go
++++ b/src/net/internal/socktest/sys_unix.go
+@@ -8,7 +8,7 @@ package socktest
+ 
+ import "syscall"
+ 
+-// Socket wraps syscall.Socket.
++// Socket wraps [syscall.Socket].
+ func (sw *Switch) Socket(family, sotype, proto int) (s int, err error) {
+ 	sw.once.Do(sw.init)
+ 
+diff --git a/src/net/internal/socktest/sys_windows.go b/src/net/internal/socktest/sys_windows.go
+index 1c42e5c7f3..2f02446075 100644
+--- a/src/net/internal/socktest/sys_windows.go
++++ b/src/net/internal/socktest/sys_windows.go
+@@ -9,7 +9,7 @@ import (
+ 	"syscall"
+ )
+ 
+-// WSASocket wraps syscall.WSASocket.
++// WSASocket wraps [syscall.WSASocket].
+ func (sw *Switch) WSASocket(family, sotype, proto int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (s syscall.Handle, err error) {
+ 	sw.once.Do(sw.init)
+ 
+@@ -41,7 +41,7 @@ func (sw *Switch) WSASocket(family, sotype, proto int32, protinfo *syscall.WSAPr
+ 	return s, nil
+ }
+ 
+-// Closesocket wraps syscall.Closesocket.
++// Closesocket wraps [syscall.Closesocket].
+ func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+@@ -71,7 +71,7 @@ func (sw *Switch) Closesocket(s syscall.Handle) (err error) {
+ 	return nil
+ }
+ 
+-// Connect wraps syscall.Connect.
++// Connect wraps [syscall.Connect].
+ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+@@ -100,7 +100,7 @@ func (sw *Switch) Connect(s syscall.Handle, sa syscall.Sockaddr) (err error) {
+ 	return nil
+ }
+ 
+-// ConnectEx wraps syscall.ConnectEx.
++// ConnectEx wraps [syscall.ConnectEx].
+ func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n uint32, nwr *uint32, o *syscall.Overlapped) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+@@ -129,7 +129,7 @@ func (sw *Switch) ConnectEx(s syscall.Handle, sa syscall.Sockaddr, b *byte, n ui
+ 	return nil
+ }
+ 
+-// Listen wraps syscall.Listen.
++// Listen wraps [syscall.Listen].
+ func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
+ 	so := sw.sockso(s)
+ 	if so == nil {
+@@ -158,7 +158,7 @@ func (sw *Switch) Listen(s syscall.Handle, backlog int) (err error) {
+ 	return nil
+ }
+ 
+-// AcceptEx wraps syscall.AcceptEx.
++// AcceptEx wraps [syscall.AcceptEx].
+ func (sw *Switch) AcceptEx(ls syscall.Handle, as syscall.Handle, b *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, rcvd *uint32, overlapped *syscall.Overlapped) error {
+ 	so := sw.sockso(ls)
+ 	if so == nil {
+diff --git a/src/net/ip.go b/src/net/ip.go
+index d51ba10eec..6083dd8bf9 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -38,7 +38,7 @@ type IP []byte
+ // An IPMask is a bitmask that can be used to manipulate
+ // IP addresses for IP addressing and routing.
+ //
+-// See type IPNet and func ParseCIDR for details.
++// See type [IPNet] and func [ParseCIDR] for details.
+ type IPMask []byte
+ 
+ // An IPNet represents an IP network.
+@@ -72,9 +72,9 @@ func IPv4Mask(a, b, c, d byte) IPMask {
+ 	return p
+ }
+ 
+-// CIDRMask returns an IPMask consisting of 'ones' 1 bits
++// CIDRMask returns an [IPMask] consisting of 'ones' 1 bits
+ // followed by 0s up to a total length of 'bits' bits.
+-// For a mask of this form, CIDRMask is the inverse of IPMask.Size.
++// For a mask of this form, CIDRMask is the inverse of [IPMask.Size].
+ func CIDRMask(ones, bits int) IPMask {
+ 	if bits != 8*IPv4len && bits != 8*IPv6len {
+ 		return nil
+@@ -324,8 +324,8 @@ func ipEmptyString(ip IP) string {
+ 	return ip.String()
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface.
+-// The encoding is the same as returned by String, with one exception:
++// MarshalText implements the [encoding.TextMarshaler] interface.
++// The encoding is the same as returned by [IP.String], with one exception:
+ // When len(ip) is zero, it returns an empty slice.
+ func (ip IP) MarshalText() ([]byte, error) {
+ 	if len(ip) == 0 {
+@@ -337,8 +337,8 @@ func (ip IP) MarshalText() ([]byte, error) {
+ 	return []byte(ip.String()), nil
+ }
+ 
+-// UnmarshalText implements the encoding.TextUnmarshaler interface.
+-// The IP address is expected in a form accepted by ParseIP.
++// UnmarshalText implements the [encoding.TextUnmarshaler] interface.
++// The IP address is expected in a form accepted by [ParseIP].
+ func (ip *IP) UnmarshalText(text []byte) error {
+ 	if len(text) == 0 {
+ 		*ip = nil
+diff --git a/src/net/iprawsock.go b/src/net/iprawsock.go
+index c3fd6deac5..4c06b1b5ac 100644
+--- a/src/net/iprawsock.go
++++ b/src/net/iprawsock.go
+@@ -72,7 +72,7 @@ func (a *IPAddr) opAddr() Addr {
+ // recommended, because it will return at most one of the host name's
+ // IP addresses.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ func ResolveIPAddr(network, address string) (*IPAddr, error) {
+ 	if network == "" { // a hint wildcard for Go 1.0 undocumented behavior
+@@ -94,14 +94,14 @@ func ResolveIPAddr(network, address string) (*IPAddr, error) {
+ 	return addrs.forResolve(network, address).(*IPAddr), nil
+ }
+ 
+-// IPConn is the implementation of the Conn and PacketConn interfaces
++// IPConn is the implementation of the [Conn] and [PacketConn] interfaces
+ // for IP network connections.
+ type IPConn struct {
+ 	conn
+ }
+ 
+ // SyscallConn returns a raw network connection.
+-// This implements the syscall.Conn interface.
++// This implements the [syscall.Conn] interface.
+ func (c *IPConn) SyscallConn() (syscall.RawConn, error) {
+ 	if !c.ok() {
+ 		return nil, syscall.EINVAL
+@@ -121,7 +121,7 @@ func (c *IPConn) ReadFromIP(b []byte) (int, *IPAddr, error) {
+ 	return n, addr, err
+ }
+ 
+-// ReadFrom implements the PacketConn ReadFrom method.
++// ReadFrom implements the [PacketConn] ReadFrom method.
+ func (c *IPConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+@@ -154,7 +154,7 @@ func (c *IPConn) ReadMsgIP(b, oob []byte) (n, oobn, flags int, addr *IPAddr, err
+ 	return
+ }
+ 
+-// WriteToIP acts like WriteTo but takes an IPAddr.
++// WriteToIP acts like [IPConn.WriteTo] but takes an [IPAddr].
+ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -166,7 +166,7 @@ func (c *IPConn) WriteToIP(b []byte, addr *IPAddr) (int, error) {
+ 	return n, err
+ }
+ 
+-// WriteTo implements the PacketConn WriteTo method.
++// WriteTo implements the [PacketConn] WriteTo method.
+ func (c *IPConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -201,7 +201,7 @@ func (c *IPConn) WriteMsgIP(b, oob []byte, addr *IPAddr) (n, oobn int, err error
+ 
+ func newIPConn(fd *netFD) *IPConn { return &IPConn{conn{fd}} }
+ 
+-// DialIP acts like Dial for IP networks.
++// DialIP acts like [Dial] for IP networks.
+ //
+ // The network must be an IP network name; see func Dial for details.
+ //
+@@ -220,7 +220,7 @@ func DialIP(network string, laddr, raddr *IPAddr) (*IPConn, error) {
+ 	return c, nil
+ }
+ 
+-// ListenIP acts like ListenPacket for IP networks.
++// ListenIP acts like [ListenPacket] for IP networks.
+ //
+ // The network must be an IP network name; see func Dial for details.
+ //
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index 15165970b6..3ec2660786 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -181,8 +181,8 @@ func (r *Resolver) getLookupGroup() *singleflight.Group {
+ // LookupHost looks up the given host using the local resolver.
+ // It returns a slice of that host's addresses.
+ //
+-// LookupHost uses context.Background internally; to specify the context, use
+-// Resolver.LookupHost.
++// LookupHost uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupHost].
+ func LookupHost(host string) (addrs []string, err error) {
+ 	return DefaultResolver.LookupHost(context.Background(), host)
+ }
+@@ -417,8 +417,8 @@ func ipAddrsEface(addrs []IPAddr) []any {
+ 
+ // LookupPort looks up the port for the given network and service.
+ //
+-// LookupPort uses context.Background internally; to specify the context, use
+-// Resolver.LookupPort.
++// LookupPort uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupPort].
+ func LookupPort(network, service string) (port int, err error) {
+ 	return DefaultResolver.LookupPort(context.Background(), network, service)
+ }
+@@ -449,7 +449,7 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
+ 
+ // LookupCNAME returns the canonical name for the given host.
+ // Callers that do not care about the canonical name can call
+-// LookupHost or LookupIP directly; both take care of resolving
++// [LookupHost] or [LookupIP] directly; both take care of resolving
+ // the canonical name as part of the lookup.
+ //
+ // A canonical name is the final name after following zero
+@@ -461,15 +461,15 @@ func (r *Resolver) LookupPort(ctx context.Context, network, service string) (por
+ // The returned canonical name is validated to be a properly
+ // formatted presentation-format domain name.
+ //
+-// LookupCNAME uses context.Background internally; to specify the context, use
+-// Resolver.LookupCNAME.
++// LookupCNAME uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupCNAME].
+ func LookupCNAME(host string) (cname string, err error) {
+ 	return DefaultResolver.LookupCNAME(context.Background(), host)
+ }
+ 
+ // LookupCNAME returns the canonical name for the given host.
+ // Callers that do not care about the canonical name can call
+-// LookupHost or LookupIP directly; both take care of resolving
++// [LookupHost] or [LookupIP] directly; both take care of resolving
+ // the canonical name as part of the lookup.
+ //
+ // A canonical name is the final name after following zero
+@@ -491,7 +491,7 @@ func (r *Resolver) LookupCNAME(ctx context.Context, host string) (string, error)
+ 	return cname, nil
+ }
+ 
+-// LookupSRV tries to resolve an SRV query of the given service,
++// LookupSRV tries to resolve an [SRV] query of the given service,
+ // protocol, and domain name. The proto is "tcp" or "udp".
+ // The returned records are sorted by priority and randomized
+ // by weight within a priority.
+@@ -509,7 +509,7 @@ func LookupSRV(service, proto, name string) (cname string, addrs []*SRV, err err
+ 	return DefaultResolver.LookupSRV(context.Background(), service, proto, name)
+ }
+ 
+-// LookupSRV tries to resolve an SRV query of the given service,
++// LookupSRV tries to resolve an [SRV] query of the given service,
+ // protocol, and domain name. The proto is "tcp" or "udp".
+ // The returned records are sorted by priority and randomized
+ // by weight within a priority.
+@@ -554,8 +554,8 @@ func (r *Resolver) LookupSRV(ctx context.Context, service, proto, name string) (
+ // invalid names, those records are filtered out and an error
+ // will be returned alongside the remaining results, if any.
+ //
+-// LookupMX uses context.Background internally; to specify the context, use
+-// Resolver.LookupMX.
++// LookupMX uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupMX].
+ func LookupMX(name string) ([]*MX, error) {
+ 	return DefaultResolver.LookupMX(context.Background(), name)
+ }
+@@ -594,8 +594,8 @@ func (r *Resolver) LookupMX(ctx context.Context, name string) ([]*MX, error) {
+ // invalid names, those records are filtered out and an error
+ // will be returned alongside the remaining results, if any.
+ //
+-// LookupNS uses context.Background internally; to specify the context, use
+-// Resolver.LookupNS.
++// LookupNS uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupNS].
+ func LookupNS(name string) ([]*NS, error) {
+ 	return DefaultResolver.LookupNS(context.Background(), name)
+ }
+@@ -629,8 +629,8 @@ func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ //
+-// LookupTXT uses context.Background internally; to specify the context, use
+-// Resolver.LookupTXT.
++// LookupTXT uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupTXT].
+ func LookupTXT(name string) ([]string, error) {
+ 	return DefaultResolver.lookupTXT(context.Background(), name)
+ }
+@@ -648,10 +648,10 @@ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error)
+ // out and an error will be returned alongside the remaining results, if any.
+ //
+ // When using the host C library resolver, at most one result will be
+-// returned. To bypass the host resolver, use a custom Resolver.
++// returned. To bypass the host resolver, use a custom [Resolver].
+ //
+-// LookupAddr uses context.Background internally; to specify the context, use
+-// Resolver.LookupAddr.
++// LookupAddr uses [context.Background] internally; to specify the context, use
++// [Resolver.LookupAddr].
+ func LookupAddr(addr string) (names []string, err error) {
+ 	return DefaultResolver.LookupAddr(context.Background(), addr)
+ }
+diff --git a/src/net/net.go b/src/net/net.go
+index 02c2ceda32..c434c96bf8 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -8,8 +8,8 @@ TCP/IP, UDP, domain name resolution, and Unix domain sockets.
+ 
+ Although the package provides access to low-level networking
+ primitives, most clients will need only the basic interface provided
+-by the Dial, Listen, and Accept functions and the associated
+-Conn and Listener interfaces. The crypto/tls package uses
++by the [Dial], [Listen], and Accept functions and the associated
++[Conn] and [Listener] interfaces. The crypto/tls package uses
+ the same interfaces and similar Dial and Listen functions.
+ 
+ The Dial function connects to a server:
+@@ -39,7 +39,7 @@ The Listen function creates servers:
+ # Name Resolution
+ 
+ The method for resolving domain names, whether indirectly with functions like Dial
+-or directly with functions like LookupHost and LookupAddr, varies by operating system.
++or directly with functions like [LookupHost] and [LookupAddr], varies by operating system.
+ 
+ On Unix systems, the resolver has two options for resolving names.
+ It can use a pure Go resolver that sends DNS requests directly to the servers
+@@ -95,8 +95,8 @@ import (
+ 
+ // Addr represents a network end point address.
+ //
+-// The two methods Network and String conventionally return strings
+-// that can be passed as the arguments to Dial, but the exact form
++// The two methods [Addr.Network] and [Addr.String] conventionally return strings
++// that can be passed as the arguments to [Dial], but the exact form
+ // and meaning of the strings is up to the implementation.
+ type Addr interface {
+ 	Network() string // name of the network (for example, "tcp", "udp")
+@@ -284,7 +284,7 @@ func (c *conn) SetWriteBuffer(bytes int) error {
+ 	return nil
+ }
+ 
+-// File returns a copy of the underlying os.File.
++// File returns a copy of the underlying [os.File].
+ // It is the caller's responsibility to close f when finished.
+ // Closing c does not affect f, and closing f does not affect c.
+ //
+@@ -645,12 +645,12 @@ func (e *DNSError) Error() string {
+ 
+ // Timeout reports whether the DNS lookup is known to have timed out.
+ // This is not always known; a DNS lookup may fail due to a timeout
+-// and return a DNSError for which Timeout returns false.
++// and return a [DNSError] for which Timeout returns false.
+ func (e *DNSError) Timeout() bool { return e.IsTimeout }
+ 
+ // Temporary reports whether the DNS error is known to be temporary.
+ // This is not always known; a DNS lookup may fail due to a temporary
+-// error and return a DNSError for which Temporary returns false.
++// error and return a [DNSError] for which Temporary returns false.
+ func (e *DNSError) Temporary() bool { return e.IsTimeout || e.IsTemporary }
+ 
+ // errClosed exists just so that the docs for ErrClosed don't mention
+@@ -756,7 +756,7 @@ var (
+ 
+ // WriteTo writes contents of the buffers to w.
+ //
+-// WriteTo implements io.WriterTo for Buffers.
++// WriteTo implements [io.WriterTo] for [Buffers].
+ //
+ // WriteTo modifies the slice v as well as v[i] for 0 <= i < len(v),
+ // but does not modify v[i][j] for any i, j.
+@@ -778,7 +778,7 @@ func (v *Buffers) WriteTo(w io.Writer) (n int64, err error) {
+ 
+ // Read from the buffers.
+ //
+-// Read implements io.Reader for Buffers.
++// Read implements [io.Reader] for [Buffers].
+ //
+ // Read modifies the slice v as well as v[i] for 0 <= i < len(v),
+ // but does not modify v[i][j] for any i, j.
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 9acc48a6e0..7a189e8e16 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -128,7 +128,7 @@ func ParseAddr(s string) (Addr, error) {
+ 	return Addr{}, parseAddrError{in: s, msg: "unable to parse IP"}
+ }
+ 
+-// MustParseAddr calls ParseAddr(s) and panics on error.
++// MustParseAddr calls [ParseAddr](s) and panics on error.
+ // It is intended for use in tests with hard-coded strings.
+ func MustParseAddr(s string) Addr {
+ 	ip, err := ParseAddr(s)
+@@ -335,8 +335,8 @@ func parseIPv6(in string) (Addr, error) {
+ }
+ 
+ // AddrFromSlice parses the 4- or 16-byte byte slice as an IPv4 or IPv6 address.
+-// Note that a net.IP can be passed directly as the []byte argument.
+-// If slice's length is not 4 or 16, AddrFromSlice returns Addr{}, false.
++// Note that a [net.IP] can be passed directly as the []byte argument.
++// If slice's length is not 4 or 16, AddrFromSlice returns [Addr]{}, false.
+ func AddrFromSlice(slice []byte) (ip Addr, ok bool) {
+ 	switch len(slice) {
+ 	case 4:
+@@ -376,13 +376,13 @@ func (ip Addr) isZero() bool {
+ 	return ip.z == z0
+ }
+ 
+-// IsValid reports whether the Addr is an initialized address (not the zero Addr).
++// IsValid reports whether the [Addr] is an initialized address (not the zero Addr).
+ //
+ // Note that "0.0.0.0" and "::" are both valid values.
+ func (ip Addr) IsValid() bool { return ip.z != z0 }
+ 
+ // BitLen returns the number of bits in the IP address:
+-// 128 for IPv6, 32 for IPv4, and 0 for the zero Addr.
++// 128 for IPv6, 32 for IPv4, and 0 for the zero [Addr].
+ //
+ // Note that IPv4-mapped IPv6 addresses are considered IPv6 addresses
+ // and therefore have bit length 128.
+@@ -407,7 +407,7 @@ func (ip Addr) Zone() string {
+ 
+ // Compare returns an integer comparing two IPs.
+ // The result will be 0 if ip == ip2, -1 if ip < ip2, and +1 if ip > ip2.
+-// The definition of "less than" is the same as the Less method.
++// The definition of "less than" is the same as the [Addr.Less] method.
+ func (ip Addr) Compare(ip2 Addr) int {
+ 	f1, f2 := ip.BitLen(), ip2.BitLen()
+ 	if f1 < f2 {
+@@ -449,7 +449,7 @@ func (ip Addr) Less(ip2 Addr) bool { return ip.Compare(ip2) == -1 }
+ 
+ // Is4 reports whether ip is an IPv4 address.
+ //
+-// It returns false for IPv4-mapped IPv6 addresses. See Addr.Unmap.
++// It returns false for IPv4-mapped IPv6 addresses. See [Addr.Unmap].
+ func (ip Addr) Is4() bool {
+ 	return ip.z == z4
+ }
+@@ -583,7 +583,7 @@ func (ip Addr) IsLinkLocalMulticast() bool {
+ // IANA-allocated 2000::/3 global unicast space, with the exception of the
+ // link-local address space. It also returns true even if ip is in the IPv4
+ // private address space or IPv6 unique local address space.
+-// It returns false for the zero Addr.
++// It returns false for the zero [Addr].
+ //
+ // For reference, see RFC 1122, RFC 4291, and RFC 4632.
+ func (ip Addr) IsGlobalUnicast() bool {
+@@ -607,7 +607,7 @@ func (ip Addr) IsGlobalUnicast() bool {
+ // IsPrivate reports whether ip is a private address, according to RFC 1918
+ // (IPv4 addresses) and RFC 4193 (IPv6 addresses). That is, it reports whether
+ // ip is in 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, or fc00::/7. This is the
+-// same as net.IP.IsPrivate.
++// same as [net.IP.IsPrivate].
+ func (ip Addr) IsPrivate() bool {
+ 	// Match the stdlib's IsPrivate logic.
+ 	if ip.Is4() {
+@@ -630,14 +630,14 @@ func (ip Addr) IsPrivate() bool {
+ // IsUnspecified reports whether ip is an unspecified address, either the IPv4
+ // address "0.0.0.0" or the IPv6 address "::".
+ //
+-// Note that the zero Addr is not an unspecified address.
++// Note that the zero [Addr] is not an unspecified address.
+ func (ip Addr) IsUnspecified() bool {
+ 	return ip == IPv4Unspecified() || ip == IPv6Unspecified()
+ }
+ 
+ // Prefix keeps only the top b bits of IP, producing a Prefix
+ // of the specified length.
+-// If ip is a zero Addr, Prefix always returns a zero Prefix and a nil error.
++// If ip is a zero [Addr], Prefix always returns a zero Prefix and a nil error.
+ // Otherwise, if bits is less than zero or greater than ip.BitLen(),
+ // Prefix returns an error.
+ func (ip Addr) Prefix(b int) (Prefix, error) {
+@@ -665,7 +665,7 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
+ // As16 returns the IP address in its 16-byte representation.
+ // IPv4 addresses are returned as IPv4-mapped IPv6 addresses.
+ // IPv6 addresses with zones are returned without their zone (use the
+-// Zone method to get it).
++// [Addr.Zone] method to get it).
+ // The ip zero value returns all zeroes.
+ func (ip Addr) As16() (a16 [16]byte) {
+ 	bePutUint64(a16[:8], ip.addr.hi)
+@@ -674,7 +674,7 @@ func (ip Addr) As16() (a16 [16]byte) {
+ }
+ 
+ // As4 returns an IPv4 or IPv4-in-IPv6 address in its 4-byte representation.
+-// If ip is the zero Addr or an IPv6 address, As4 panics.
++// If ip is the zero [Addr] or an IPv6 address, As4 panics.
+ // Note that 0.0.0.0 is not the zero Addr.
+ func (ip Addr) As4() (a4 [4]byte) {
+ 	if ip.z == z4 || ip.Is4In6() {
+@@ -705,7 +705,7 @@ func (ip Addr) AsSlice() []byte {
+ }
+ 
+ // Next returns the address following ip.
+-// If there is none, it returns the zero Addr.
++// If there is none, it returns the zero [Addr].
+ func (ip Addr) Next() Addr {
+ 	ip.addr = ip.addr.addOne()
+ 	if ip.Is4() {
+@@ -739,10 +739,10 @@ func (ip Addr) Prev() Addr {
+ // String returns the string form of the IP address ip.
+ // It returns one of 5 forms:
+ //
+-//   - "invalid IP", if ip is the zero Addr
++//   - "invalid IP", if ip is the zero [Addr]
+ //   - IPv4 dotted decimal ("192.0.2.1")
+ //   - IPv6 ("2001:db8::1")
+-//   - "::ffff:1.2.3.4" (if Is4In6)
++//   - "::ffff:1.2.3.4" (if [Addr.Is4In6])
+ //   - IPv6 with zone ("fe80:db8::1%eth0")
+ //
+ // Note that unlike package net's IP.String method,
+@@ -767,7 +767,7 @@ func (ip Addr) String() string {
+ }
+ 
+ // AppendTo appends a text encoding of ip,
+-// as generated by MarshalText,
++// as generated by [Addr.MarshalText],
+ // to b and returns the extended buffer.
+ func (ip Addr) AppendTo(b []byte) []byte {
+ 	switch ip.z {
+@@ -899,7 +899,7 @@ func (ip Addr) appendTo6(ret []byte) []byte {
+ 	return ret
+ }
+ 
+-// StringExpanded is like String but IPv6 addresses are expanded with leading
++// StringExpanded is like [Addr.String] but IPv6 addresses are expanded with leading
+ // zeroes and no "::" compression. For example, "2001:db8::1" becomes
+ // "2001:0db8:0000:0000:0000:0000:0000:0001".
+ func (ip Addr) StringExpanded() string {
+@@ -927,9 +927,9 @@ func (ip Addr) StringExpanded() string {
+ 	return string(ret)
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface,
+-// The encoding is the same as returned by String, with one exception:
+-// If ip is the zero Addr, the encoding is the empty string.
++// MarshalText implements the [encoding.TextMarshaler] interface,
++// The encoding is the same as returned by [Addr.String], with one exception:
++// If ip is the zero [Addr], the encoding is the empty string.
+ func (ip Addr) MarshalText() ([]byte, error) {
+ 	switch ip.z {
+ 	case z0:
+@@ -956,9 +956,9 @@ func (ip Addr) MarshalText() ([]byte, error) {
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+-// The IP address is expected in a form accepted by ParseAddr.
++// The IP address is expected in a form accepted by [ParseAddr].
+ //
+-// If text is empty, UnmarshalText sets *ip to the zero Addr and
++// If text is empty, UnmarshalText sets *ip to the zero [Addr] and
+ // returns no error.
+ func (ip *Addr) UnmarshalText(text []byte) error {
+ 	if len(text) == 0 {
+@@ -988,15 +988,15 @@ func (ip Addr) marshalBinaryWithTrailingBytes(trailingBytes int) []byte {
+ 	return b
+ }
+ 
+-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+-// It returns a zero-length slice for the zero Addr,
++// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
++// It returns a zero-length slice for the zero [Addr],
+ // the 4-byte form for an IPv4 address,
+ // and the 16-byte form with zone appended for an IPv6 address.
+ func (ip Addr) MarshalBinary() ([]byte, error) {
+ 	return ip.marshalBinaryWithTrailingBytes(0), nil
+ }
+ 
+-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
++// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
+ // It expects data in the form generated by MarshalBinary.
+ func (ip *Addr) UnmarshalBinary(b []byte) error {
+ 	n := len(b)
+@@ -1023,7 +1023,7 @@ type AddrPort struct {
+ 	port uint16
+ }
+ 
+-// AddrPortFrom returns an AddrPort with the provided IP and port.
++// AddrPortFrom returns an [AddrPort] with the provided IP and port.
+ // It does not allocate.
+ func AddrPortFrom(ip Addr, port uint16) AddrPort { return AddrPort{ip: ip, port: port} }
+ 
+@@ -1062,7 +1062,7 @@ func splitAddrPort(s string) (ip, port string, v6 bool, err error) {
+ 	return ip, port, v6, nil
+ }
+ 
+-// ParseAddrPort parses s as an AddrPort.
++// ParseAddrPort parses s as an [AddrPort].
+ //
+ // It doesn't do any name resolution: both the address and the port
+ // must be numeric.
+@@ -1089,7 +1089,7 @@ func ParseAddrPort(s string) (AddrPort, error) {
+ 	return ipp, nil
+ }
+ 
+-// MustParseAddrPort calls ParseAddrPort(s) and panics on error.
++// MustParseAddrPort calls [ParseAddrPort](s) and panics on error.
+ // It is intended for use in tests with hard-coded strings.
+ func MustParseAddrPort(s string) AddrPort {
+ 	ip, err := ParseAddrPort(s)
+@@ -1131,7 +1131,7 @@ func (p AddrPort) String() string {
+ }
+ 
+ // AppendTo appends a text encoding of p,
+-// as generated by MarshalText,
++// as generated by [AddrPort.MarshalText],
+ // to b and returns the extended buffer.
+ func (p AddrPort) AppendTo(b []byte) []byte {
+ 	switch p.ip.z {
+@@ -1158,9 +1158,9 @@ func (p AddrPort) AppendTo(b []byte) []byte {
+ 	return b
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface. The
+-// encoding is the same as returned by String, with one exception: if
+-// p.Addr() is the zero Addr, the encoding is the empty string.
++// MarshalText implements the [encoding.TextMarshaler] interface. The
++// encoding is the same as returned by [AddrPort.String], with one exception: if
++// p.Addr() is the zero [Addr], the encoding is the empty string.
+ func (p AddrPort) MarshalText() ([]byte, error) {
+ 	var max int
+ 	switch p.ip.z {
+@@ -1176,8 +1176,8 @@ func (p AddrPort) MarshalText() ([]byte, error) {
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler
+-// interface. The AddrPort is expected in a form
+-// generated by MarshalText or accepted by ParseAddrPort.
++// interface. The [AddrPort] is expected in a form
++// generated by [AddrPort.MarshalText] or accepted by [ParseAddrPort].
+ func (p *AddrPort) UnmarshalText(text []byte) error {
+ 	if len(text) == 0 {
+ 		*p = AddrPort{}
+@@ -1188,8 +1188,8 @@ func (p *AddrPort) UnmarshalText(text []byte) error {
+ 	return err
+ }
+ 
+-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+-// It returns Addr.MarshalBinary with an additional two bytes appended
++// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
++// It returns [Addr.MarshalBinary] with an additional two bytes appended
+ // containing the port in little-endian.
+ func (p AddrPort) MarshalBinary() ([]byte, error) {
+ 	b := p.Addr().marshalBinaryWithTrailingBytes(2)
+@@ -1197,8 +1197,8 @@ func (p AddrPort) MarshalBinary() ([]byte, error) {
+ 	return b, nil
+ }
+ 
+-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+-// It expects data in the form generated by MarshalBinary.
++// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
++// It expects data in the form generated by [AddrPort.MarshalBinary].
+ func (p *AddrPort) UnmarshalBinary(b []byte) error {
+ 	if len(b) < 2 {
+ 		return errors.New("unexpected slice size")
+@@ -1214,7 +1214,7 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
+ 
+ // Prefix is an IP address prefix (CIDR) representing an IP network.
+ //
+-// The first Bits() of Addr() are specified. The remaining bits match any address.
++// The first [Prefix.Bits]() of [Addr]() are specified. The remaining bits match any address.
+ // The range of Bits() is [0,32] for IPv4 or [0,128] for IPv6.
+ type Prefix struct {
+ 	ip Addr
+@@ -1224,13 +1224,13 @@ type Prefix struct {
+ 	bitsPlusOne uint8
+ }
+ 
+-// PrefixFrom returns a Prefix with the provided IP address and bit
++// PrefixFrom returns a [Prefix] with the provided IP address and bit
+ // prefix length.
+ //
+-// It does not allocate. Unlike Addr.Prefix, PrefixFrom does not mask
++// It does not allocate. Unlike [Addr.Prefix], [PrefixFrom] does not mask
+ // off the host bits of ip.
+ //
+-// If bits is less than zero or greater than ip.BitLen, Prefix.Bits
++// If bits is less than zero or greater than ip.BitLen, [Prefix.Bits]
+ // will return an invalid value -1.
+ func PrefixFrom(ip Addr, bits int) Prefix {
+ 	var bitsPlusOne uint8
+@@ -1252,8 +1252,8 @@ func (p Prefix) Addr() Addr { return p.ip }
+ func (p Prefix) Bits() int { return int(p.bitsPlusOne) - 1 }
+ 
+ // IsValid reports whether p.Bits() has a valid range for p.Addr().
+-// If p.Addr() is the zero Addr, IsValid returns false.
+-// Note that if p is the zero Prefix, then p.IsValid() == false.
++// If p.Addr() is the zero [Addr], IsValid returns false.
++// Note that if p is the zero [Prefix], then p.IsValid() == false.
+ func (p Prefix) IsValid() bool { return p.bitsPlusOne > 0 }
+ 
+ func (p Prefix) isZero() bool { return p == Prefix{} }
+@@ -1321,7 +1321,7 @@ func ParsePrefix(s string) (Prefix, error) {
+ 	return PrefixFrom(ip, bits), nil
+ }
+ 
+-// MustParsePrefix calls ParsePrefix(s) and panics on error.
++// MustParsePrefix calls [ParsePrefix](s) and panics on error.
+ // It is intended for use in tests with hard-coded strings.
+ func MustParsePrefix(s string) Prefix {
+ 	ip, err := ParsePrefix(s)
+@@ -1334,7 +1334,7 @@ func MustParsePrefix(s string) Prefix {
+ // Masked returns p in its canonical form, with all but the high
+ // p.Bits() bits of p.Addr() masked off.
+ //
+-// If p is zero or otherwise invalid, Masked returns the zero Prefix.
++// If p is zero or otherwise invalid, Masked returns the zero [Prefix].
+ func (p Prefix) Masked() Prefix {
+ 	m, _ := p.ip.Prefix(p.Bits())
+ 	return m
+@@ -1411,7 +1411,7 @@ func (p Prefix) Overlaps(o Prefix) bool {
+ }
+ 
+ // AppendTo appends a text encoding of p,
+-// as generated by MarshalText,
++// as generated by [Prefix.MarshalText],
+ // to b and returns the extended buffer.
+ func (p Prefix) AppendTo(b []byte) []byte {
+ 	if p.isZero() {
+@@ -1438,8 +1438,8 @@ func (p Prefix) AppendTo(b []byte) []byte {
+ 	return b
+ }
+ 
+-// MarshalText implements the encoding.TextMarshaler interface,
+-// The encoding is the same as returned by String, with one exception:
++// MarshalText implements the [encoding.TextMarshaler] interface,
++// The encoding is the same as returned by [Prefix.String], with one exception:
+ // If p is the zero value, the encoding is the empty string.
+ func (p Prefix) MarshalText() ([]byte, error) {
+ 	var max int
+@@ -1456,8 +1456,8 @@ func (p Prefix) MarshalText() ([]byte, error) {
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+-// The IP address is expected in a form accepted by ParsePrefix
+-// or generated by MarshalText.
++// The IP address is expected in a form accepted by [ParsePrefix]
++// or generated by [Prefix.MarshalText].
+ func (p *Prefix) UnmarshalText(text []byte) error {
+ 	if len(text) == 0 {
+ 		*p = Prefix{}
+@@ -1468,8 +1468,8 @@ func (p *Prefix) UnmarshalText(text []byte) error {
+ 	return err
+ }
+ 
+-// MarshalBinary implements the encoding.BinaryMarshaler interface.
+-// It returns Addr.MarshalBinary with an additional byte appended
++// MarshalBinary implements the [encoding.BinaryMarshaler] interface.
++// It returns [Addr.MarshalBinary] with an additional byte appended
+ // containing the prefix bits.
+ func (p Prefix) MarshalBinary() ([]byte, error) {
+ 	b := p.Addr().withoutZone().marshalBinaryWithTrailingBytes(1)
+@@ -1477,8 +1477,8 @@ func (p Prefix) MarshalBinary() ([]byte, error) {
+ 	return b, nil
+ }
+ 
+-// UnmarshalBinary implements the encoding.BinaryUnmarshaler interface.
+-// It expects data in the form generated by MarshalBinary.
++// UnmarshalBinary implements the [encoding.BinaryUnmarshaler] interface.
++// It expects data in the form generated by [Prefix.MarshalBinary].
+ func (p *Prefix) UnmarshalBinary(b []byte) error {
+ 	if len(b) < 1 {
+ 		return errors.New("unexpected slice size")
+diff --git a/src/net/pipe.go b/src/net/pipe.go
+index f1741938b0..69955e4617 100644
+--- a/src/net/pipe.go
++++ b/src/net/pipe.go
+@@ -106,7 +106,7 @@ type pipe struct {
+ }
+ 
+ // Pipe creates a synchronous, in-memory, full duplex
+-// network connection; both ends implement the Conn interface.
++// network connection; both ends implement the [Conn] interface.
+ // Reads on one end are matched with writes on the other,
+ // copying data directly between the two; there is no internal
+ // buffering.
+diff --git a/src/net/rawconn.go b/src/net/rawconn.go
+index 7a69fe5c25..19228e94ed 100644
+--- a/src/net/rawconn.go
++++ b/src/net/rawconn.go
+@@ -63,7 +63,7 @@ func (c *rawConn) Write(f func(uintptr) bool) error {
+ 
+ // PollFD returns the poll.FD of the underlying connection.
+ //
+-// Other packages in std that also import internal/poll (such as os)
++// Other packages in std that also import [internal/poll] (such as os)
+ // can use a type assertion to access this extension method so that
+ // they can pass the *poll.FD to functions like poll.Splice.
+ //
+diff --git a/src/net/rpc/client.go b/src/net/rpc/client.go
+index 42d13519b1..ffdc435965 100644
+--- a/src/net/rpc/client.go
++++ b/src/net/rpc/client.go
+@@ -53,13 +53,13 @@ type Client struct {
+ 
+ // A ClientCodec implements writing of RPC requests and
+ // reading of RPC responses for the client side of an RPC session.
+-// The client calls WriteRequest to write a request to the connection
+-// and calls ReadResponseHeader and ReadResponseBody in pairs
+-// to read responses. The client calls Close when finished with the
++// The client calls [ClientCodec.WriteRequest] to write a request to the connection
++// and calls [ClientCodec.ReadResponseHeader] and [ClientCodec.ReadResponseBody] in pairs
++// to read responses. The client calls [ClientCodec.Close] when finished with the
+ // connection. ReadResponseBody may be called with a nil
+ // argument to force the body of the response to be read and then
+ // discarded.
+-// See NewClient's comment for information about concurrent access.
++// See [NewClient]'s comment for information about concurrent access.
+ type ClientCodec interface {
+ 	WriteRequest(*Request, any) error
+ 	ReadResponseHeader(*Response) error
+@@ -181,7 +181,7 @@ func (call *Call) done() {
+ 	}
+ }
+ 
+-// NewClient returns a new Client to handle requests to the
++// NewClient returns a new [Client] to handle requests to the
+ // set of services at the other end of the connection.
+ // It adds a buffer to the write side of the connection so
+ // the header and payload are sent as a unit.
+@@ -196,7 +196,7 @@ func NewClient(conn io.ReadWriteCloser) *Client {
+ 	return NewClientWithCodec(client)
+ }
+ 
+-// NewClientWithCodec is like NewClient but uses the specified
++// NewClientWithCodec is like [NewClient] but uses the specified
+ // codec to encode requests and decode responses.
+ func NewClientWithCodec(codec ClientCodec) *Client {
+ 	client := &Client{
+@@ -279,7 +279,7 @@ func Dial(network, address string) (*Client, error) {
+ }
+ 
+ // Close calls the underlying codec's Close method. If the connection is already
+-// shutting down, ErrShutdown is returned.
++// shutting down, [ErrShutdown] is returned.
+ func (client *Client) Close() error {
+ 	client.mutex.Lock()
+ 	if client.closing {
+@@ -291,7 +291,7 @@ func (client *Client) Close() error {
+ 	return client.codec.Close()
+ }
+ 
+-// Go invokes the function asynchronously. It returns the Call structure representing
++// Go invokes the function asynchronously. It returns the [Call] structure representing
+ // the invocation. The done channel will signal when the call is complete by returning
+ // the same Call object. If done is nil, Go will allocate a new channel.
+ // If non-nil, done must be buffered or Go will deliberately crash.
+diff --git a/src/net/rpc/jsonrpc/client.go b/src/net/rpc/jsonrpc/client.go
+index c473017d26..1beba0f364 100644
+--- a/src/net/rpc/jsonrpc/client.go
++++ b/src/net/rpc/jsonrpc/client.go
+@@ -33,7 +33,7 @@ type clientCodec struct {
+ 	pending map[uint64]string // map request id to method name
+ }
+ 
+-// NewClientCodec returns a new rpc.ClientCodec using JSON-RPC on conn.
++// NewClientCodec returns a new [rpc.ClientCodec] using JSON-RPC on conn.
+ func NewClientCodec(conn io.ReadWriteCloser) rpc.ClientCodec {
+ 	return &clientCodec{
+ 		dec:     json.NewDecoder(conn),
+@@ -108,7 +108,7 @@ func (c *clientCodec) Close() error {
+ 	return c.c.Close()
+ }
+ 
+-// NewClient returns a new rpc.Client to handle requests to the
++// NewClient returns a new [rpc.Client] to handle requests to the
+ // set of services at the other end of the connection.
+ func NewClient(conn io.ReadWriteCloser) *rpc.Client {
+ 	return rpc.NewClientWithCodec(NewClientCodec(conn))
+diff --git a/src/net/rpc/jsonrpc/server.go b/src/net/rpc/jsonrpc/server.go
+index 3ee4ddfef2..57a4de1d0f 100644
+--- a/src/net/rpc/jsonrpc/server.go
++++ b/src/net/rpc/jsonrpc/server.go
+@@ -33,7 +33,7 @@ type serverCodec struct {
+ 	pending map[uint64]*json.RawMessage
+ }
+ 
+-// NewServerCodec returns a new rpc.ServerCodec using JSON-RPC on conn.
++// NewServerCodec returns a new [rpc.ServerCodec] using JSON-RPC on conn.
+ func NewServerCodec(conn io.ReadWriteCloser) rpc.ServerCodec {
+ 	return &serverCodec{
+ 		dec:     json.NewDecoder(conn),
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index fc3ec484ad..1771726a93 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -30,17 +30,17 @@ These requirements apply even if a different codec is used.
+ The method's first argument represents the arguments provided by the caller; the
+ second argument represents the result parameters to be returned to the caller.
+ The method's return value, if non-nil, is passed back as a string that the client
+-sees as if created by errors.New.  If an error is returned, the reply parameter
++sees as if created by [errors.New].  If an error is returned, the reply parameter
+ will not be sent back to the client.
+ 
+-The server may handle requests on a single connection by calling ServeConn.  More
+-typically it will create a network listener and call Accept or, for an HTTP
+-listener, HandleHTTP and http.Serve.
++The server may handle requests on a single connection by calling [ServeConn].  More
++typically it will create a network listener and call [Accept] or, for an HTTP
++listener, [HandleHTTP] and [http.Serve].
+ 
+ A client wishing to use the service establishes a connection and then invokes
+-NewClient on the connection.  The convenience function Dial (DialHTTP) performs
++[NewClient] on the connection.  The convenience function [Dial] ([DialHTTP]) performs
+ both steps for a raw network connection (an HTTP connection).  The resulting
+-Client object has two methods, Call and Go, that specify the service and method to
++[Client] object has two methods, [Call] and Go, that specify the service and method to
+ call, a pointer containing the arguments, and a pointer to receive the result
+ parameters.
+ 
+@@ -48,7 +48,7 @@ The Call method waits for the remote call to complete while the Go method
+ launches the call asynchronously and signals completion using the Call
+ structure's Done channel.
+ 
+-Unless an explicit codec is set up, package encoding/gob is used to
++Unless an explicit codec is set up, package [encoding/gob] is used to
+ transport the data.
+ 
+ Here is a simple example.  A server wishes to export an object of type Arith:
+@@ -192,12 +192,12 @@ type Server struct {
+ 	freeResp   *Response
+ }
+ 
+-// NewServer returns a new Server.
++// NewServer returns a new [Server].
+ func NewServer() *Server {
+ 	return &Server{}
+ }
+ 
+-// DefaultServer is the default instance of *Server.
++// DefaultServer is the default instance of [*Server].
+ var DefaultServer = NewServer()
+ 
+ // Is this type exported or a builtin?
+@@ -225,7 +225,7 @@ func (server *Server) Register(rcvr any) error {
+ 	return server.register(rcvr, "", false)
+ }
+ 
+-// RegisterName is like Register but uses the provided name for the type
++// RegisterName is like [Register] but uses the provided name for the type
+ // instead of the receiver's concrete type.
+ func (server *Server) RegisterName(name string, rcvr any) error {
+ 	return server.register(rcvr, name, true)
+@@ -440,8 +440,8 @@ func (c *gobServerCodec) Close() error {
+ // ServeConn blocks, serving the connection until the client hangs up.
+ // The caller typically invokes ServeConn in a go statement.
+ // ServeConn uses the gob wire format (see package gob) on the
+-// connection. To use an alternate codec, use ServeCodec.
+-// See NewClient's comment for information about concurrent access.
++// connection. To use an alternate codec, use [ServeCodec].
++// See [NewClient]'s comment for information about concurrent access.
+ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
+ 	buf := bufio.NewWriter(conn)
+ 	srv := &gobServerCodec{
+@@ -453,7 +453,7 @@ func (server *Server) ServeConn(conn io.ReadWriteCloser) {
+ 	server.ServeCodec(srv)
+ }
+ 
+-// ServeCodec is like ServeConn but uses the specified codec to
++// ServeCodec is like [ServeConn] but uses the specified codec to
+ // decode requests and encode responses.
+ func (server *Server) ServeCodec(codec ServerCodec) {
+ 	sending := new(sync.Mutex)
+@@ -483,7 +483,7 @@ func (server *Server) ServeCodec(codec ServerCodec) {
+ 	codec.Close()
+ }
+ 
+-// ServeRequest is like ServeCodec but synchronously serves a single request.
++// ServeRequest is like [ServeCodec] but synchronously serves a single request.
+ // It does not close the codec upon completion.
+ func (server *Server) ServeRequest(codec ServerCodec) error {
+ 	sending := new(sync.Mutex)
+@@ -635,10 +635,10 @@ func (server *Server) Accept(lis net.Listener) {
+ 	}
+ }
+ 
+-// Register publishes the receiver's methods in the DefaultServer.
++// Register publishes the receiver's methods in the [DefaultServer].
+ func Register(rcvr any) error { return DefaultServer.Register(rcvr) }
+ 
+-// RegisterName is like Register but uses the provided name for the type
++// RegisterName is like [Register] but uses the provided name for the type
+ // instead of the receiver's concrete type.
+ func RegisterName(name string, rcvr any) error {
+ 	return DefaultServer.RegisterName(name, rcvr)
+@@ -646,12 +646,12 @@ func RegisterName(name string, rcvr any) error {
+ 
+ // A ServerCodec implements reading of RPC requests and writing of
+ // RPC responses for the server side of an RPC session.
+-// The server calls ReadRequestHeader and ReadRequestBody in pairs
+-// to read requests from the connection, and it calls WriteResponse to
+-// write a response back. The server calls Close when finished with the
++// The server calls [ServerCodec.ReadRequestHeader] and [ServerCodec.ReadRequestBody] in pairs
++// to read requests from the connection, and it calls [ServerCodec.WriteResponse] to
++// write a response back. The server calls [ServerCodec.Close] when finished with the
+ // connection. ReadRequestBody may be called with a nil
+ // argument to force the body of the request to be read and discarded.
+-// See NewClient's comment for information about concurrent access.
++// See [NewClient]'s comment for information about concurrent access.
+ type ServerCodec interface {
+ 	ReadRequestHeader(*Request) error
+ 	ReadRequestBody(any) error
+@@ -661,37 +661,37 @@ type ServerCodec interface {
+ 	Close() error
+ }
+ 
+-// ServeConn runs the DefaultServer on a single connection.
++// ServeConn runs the [DefaultServer] on a single connection.
+ // ServeConn blocks, serving the connection until the client hangs up.
+ // The caller typically invokes ServeConn in a go statement.
+ // ServeConn uses the gob wire format (see package gob) on the
+-// connection. To use an alternate codec, use ServeCodec.
+-// See NewClient's comment for information about concurrent access.
++// connection. To use an alternate codec, use [ServeCodec].
++// See [NewClient]'s comment for information about concurrent access.
+ func ServeConn(conn io.ReadWriteCloser) {
+ 	DefaultServer.ServeConn(conn)
+ }
+ 
+-// ServeCodec is like ServeConn but uses the specified codec to
++// ServeCodec is like [ServeConn] but uses the specified codec to
+ // decode requests and encode responses.
+ func ServeCodec(codec ServerCodec) {
+ 	DefaultServer.ServeCodec(codec)
+ }
+ 
+-// ServeRequest is like ServeCodec but synchronously serves a single request.
++// ServeRequest is like [ServeCodec] but synchronously serves a single request.
+ // It does not close the codec upon completion.
+ func ServeRequest(codec ServerCodec) error {
+ 	return DefaultServer.ServeRequest(codec)
+ }
+ 
+ // Accept accepts connections on the listener and serves requests
+-// to DefaultServer for each incoming connection.
++// to [DefaultServer] for each incoming connection.
+ // Accept blocks; the caller typically invokes it in a go statement.
+ func Accept(lis net.Listener) { DefaultServer.Accept(lis) }
+ 
+ // Can connect to RPC service using HTTP CONNECT to rpcPath.
+ var connected = "200 Connected to Go RPC"
+ 
+-// ServeHTTP implements an http.Handler that answers RPC requests.
++// ServeHTTP implements an [http.Handler] that answers RPC requests.
+ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	if req.Method != "CONNECT" {
+ 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+@@ -710,15 +710,15 @@ func (server *Server) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 
+ // HandleHTTP registers an HTTP handler for RPC messages on rpcPath,
+ // and a debugging handler on debugPath.
+-// It is still necessary to invoke http.Serve(), typically in a go statement.
++// It is still necessary to invoke [http.Serve](), typically in a go statement.
+ func (server *Server) HandleHTTP(rpcPath, debugPath string) {
+ 	http.Handle(rpcPath, server)
+ 	http.Handle(debugPath, debugHTTP{server})
+ }
+ 
+-// HandleHTTP registers an HTTP handler for RPC messages to DefaultServer
+-// on DefaultRPCPath and a debugging handler on DefaultDebugPath.
+-// It is still necessary to invoke http.Serve(), typically in a go statement.
++// HandleHTTP registers an HTTP handler for RPC messages to [DefaultServer]
++// on [DefaultRPCPath] and a debugging handler on [DefaultDebugPath].
++// It is still necessary to invoke [http.Serve](), typically in a go statement.
+ func HandleHTTP() {
+ 	DefaultServer.HandleHTTP(DefaultRPCPath, DefaultDebugPath)
+ }
+diff --git a/src/net/smtp/auth.go b/src/net/smtp/auth.go
+index 72eb16671f..6d461acc48 100644
+--- a/src/net/smtp/auth.go
++++ b/src/net/smtp/auth.go
+@@ -42,7 +42,7 @@ type plainAuth struct {
+ 	host                         string
+ }
+ 
+-// PlainAuth returns an Auth that implements the PLAIN authentication
++// PlainAuth returns an [Auth] that implements the PLAIN authentication
+ // mechanism as defined in RFC 4616. The returned Auth uses the given
+ // username and password to authenticate to host and act as identity.
+ // Usually identity should be the empty string, to act as username.
+@@ -86,7 +86,7 @@ type cramMD5Auth struct {
+ 	username, secret string
+ }
+ 
+-// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
++// CRAMMD5Auth returns an [Auth] that implements the CRAM-MD5 authentication
+ // mechanism as defined in RFC 2195.
+ // The returned Auth uses the given username and secret to authenticate
+ // to the server using the challenge-response mechanism.
+diff --git a/src/net/smtp/smtp.go b/src/net/smtp/smtp.go
+index b5a025ef2a..b7877936da 100644
+--- a/src/net/smtp/smtp.go
++++ b/src/net/smtp/smtp.go
+@@ -48,7 +48,7 @@ type Client struct {
+ 	helloError error  // the error from the hello
+ }
+ 
+-// Dial returns a new Client connected to an SMTP server at addr.
++// Dial returns a new [Client] connected to an SMTP server at addr.
+ // The addr must include a port, as in "mail.example.com:smtp".
+ func Dial(addr string) (*Client, error) {
+ 	conn, err := net.Dial("tcp", addr)
+@@ -59,7 +59,7 @@ func Dial(addr string) (*Client, error) {
+ 	return NewClient(conn, host)
+ }
+ 
+-// NewClient returns a new Client using an existing connection and host as a
++// NewClient returns a new [Client] using an existing connection and host as a
+ // server name to be used when authenticating.
+ func NewClient(conn net.Conn, host string) (*Client, error) {
+ 	text := textproto.NewConn(conn)
+@@ -166,7 +166,7 @@ func (c *Client) StartTLS(config *tls.Config) error {
+ }
+ 
+ // TLSConnectionState returns the client's TLS connection state.
+-// The return values are their zero values if StartTLS did
++// The return values are their zero values if [Client.StartTLS] did
+ // not succeed.
+ func (c *Client) TLSConnectionState() (state tls.ConnectionState, ok bool) {
+ 	tc, ok := c.conn.(*tls.Conn)
+@@ -241,7 +241,7 @@ func (c *Client) Auth(a Auth) error {
+ // If the server supports the 8BITMIME extension, Mail adds the BODY=8BITMIME
+ // parameter. If the server supports the SMTPUTF8 extension, Mail adds the
+ // SMTPUTF8 parameter.
+-// This initiates a mail transaction and is followed by one or more Rcpt calls.
++// This initiates a mail transaction and is followed by one or more [Client.Rcpt] calls.
+ func (c *Client) Mail(from string) error {
+ 	if err := validateLine(from); err != nil {
+ 		return err
+@@ -263,8 +263,8 @@ func (c *Client) Mail(from string) error {
+ }
+ 
+ // Rcpt issues a RCPT command to the server using the provided email address.
+-// A call to Rcpt must be preceded by a call to Mail and may be followed by
+-// a Data call or another Rcpt call.
++// A call to Rcpt must be preceded by a call to [Client.Mail] and may be followed by
++// a [Client.Data] call or another Rcpt call.
+ func (c *Client) Rcpt(to string) error {
+ 	if err := validateLine(to); err != nil {
+ 		return err
+@@ -287,7 +287,7 @@ func (d *dataCloser) Close() error {
+ // Data issues a DATA command to the server and returns a writer that
+ // can be used to write the mail headers and body. The caller should
+ // close the writer before calling any more methods on c. A call to
+-// Data must be preceded by one or more calls to Rcpt.
++// Data must be preceded by one or more calls to [Client.Rcpt].
+ func (c *Client) Data() (io.WriteCloser, error) {
+ 	_, _, err := c.cmd(354, "DATA")
+ 	if err != nil {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 6257f2515b..590516bff1 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -24,7 +24,7 @@ type TCPAddr struct {
+ 	Zone string // IPv6 scoped addressing zone
+ }
+ 
+-// AddrPort returns the TCPAddr a as a netip.AddrPort.
++// AddrPort returns the [TCPAddr] a as a [netip.AddrPort].
+ //
+ // If a.Port does not fit in a uint16, it's silently truncated.
+ //
+@@ -79,7 +79,7 @@ func (a *TCPAddr) opAddr() Addr {
+ // recommended, because it will return at most one of the host name's
+ // IP addresses.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+ 	switch network {
+@@ -96,7 +96,7 @@ func ResolveTCPAddr(network, address string) (*TCPAddr, error) {
+ 	return addrs.forResolve(network, address).(*TCPAddr), nil
+ }
+ 
+-// TCPAddrFromAddrPort returns addr as a TCPAddr. If addr.IsValid() is false,
++// TCPAddrFromAddrPort returns addr as a [TCPAddr]. If addr.IsValid() is false,
+ // then the returned TCPAddr will contain a nil IP field, indicating an
+ // address family-agnostic unspecified address.
+ func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
+@@ -107,14 +107,14 @@ func TCPAddrFromAddrPort(addr netip.AddrPort) *TCPAddr {
+ 	}
+ }
+ 
+-// TCPConn is an implementation of the Conn interface for TCP network
++// TCPConn is an implementation of the [Conn] interface for TCP network
+ // connections.
+ type TCPConn struct {
+ 	conn
+ }
+ 
+ // SyscallConn returns a raw network connection.
+-// This implements the syscall.Conn interface.
++// This implements the [syscall.Conn] interface.
+ func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
+ 	if !c.ok() {
+ 		return nil, syscall.EINVAL
+@@ -122,7 +122,7 @@ func (c *TCPConn) SyscallConn() (syscall.RawConn, error) {
+ 	return newRawConn(c.fd), nil
+ }
+ 
+-// ReadFrom implements the io.ReaderFrom ReadFrom method.
++// ReadFrom implements the [io.ReaderFrom] ReadFrom method.
+ func (c *TCPConn) ReadFrom(r io.Reader) (int64, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -262,7 +262,7 @@ func newTCPConn(fd *netFD, keepAlive time.Duration, keepAliveHook func(time.Dura
+ 	return &TCPConn{conn{fd}}
+ }
+ 
+-// DialTCP acts like Dial for TCP networks.
++// DialTCP acts like [Dial] for TCP networks.
+ //
+ // The network must be a TCP network name; see func Dial for details.
+ //
+@@ -287,14 +287,14 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ }
+ 
+ // TCPListener is a TCP network listener. Clients should typically
+-// use variables of type Listener instead of assuming TCP.
++// use variables of type [Listener] instead of assuming TCP.
+ type TCPListener struct {
+ 	fd *netFD
+ 	lc ListenConfig
+ }
+ 
+ // SyscallConn returns a raw network connection.
+-// This implements the syscall.Conn interface.
++// This implements the [syscall.Conn] interface.
+ //
+ // The returned RawConn only supports calling Control. Read and
+ // Write return an error.
+@@ -318,8 +318,8 @@ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+ 	return c, nil
+ }
+ 
+-// Accept implements the Accept method in the Listener interface; it
+-// waits for the next call and returns a generic Conn.
++// Accept implements the Accept method in the [Listener] interface; it
++// waits for the next call and returns a generic [Conn].
+ func (l *TCPListener) Accept() (Conn, error) {
+ 	if !l.ok() {
+ 		return nil, syscall.EINVAL
+@@ -343,7 +343,7 @@ func (l *TCPListener) Close() error {
+ 	return nil
+ }
+ 
+-// Addr returns the listener's network address, a *TCPAddr.
++// Addr returns the listener's network address, a [*TCPAddr].
+ // The Addr returned is shared by all invocations of Addr, so
+ // do not modify it.
+ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+@@ -357,7 +357,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ 	return l.fd.SetDeadline(t)
+ }
+ 
+-// File returns a copy of the underlying os.File.
++// File returns a copy of the underlying [os.File].
+ // It is the caller's responsibility to close f when finished.
+ // Closing l does not affect f, and closing f does not affect l.
+ //
+@@ -375,7 +375,7 @@ func (l *TCPListener) File() (f *os.File, err error) {
+ 	return
+ }
+ 
+-// ListenTCP acts like Listen for TCP networks.
++// ListenTCP acts like [Listen] for TCP networks.
+ //
+ // The network must be a TCP network name; see func Dial for details.
+ //
+diff --git a/src/net/textproto/header.go b/src/net/textproto/header.go
+index a58df7aebc..689a6827b9 100644
+--- a/src/net/textproto/header.go
++++ b/src/net/textproto/header.go
+@@ -23,7 +23,7 @@ func (h MIMEHeader) Set(key, value string) {
+ }
+ 
+ // Get gets the first value associated with the given key.
+-// It is case insensitive; CanonicalMIMEHeaderKey is used
++// It is case insensitive; [CanonicalMIMEHeaderKey] is used
+ // to canonicalize the provided key.
+ // If there are no values associated with the key, Get returns "".
+ // To use non-canonical keys, access the map directly.
+@@ -39,7 +39,7 @@ func (h MIMEHeader) Get(key string) string {
+ }
+ 
+ // Values returns all values associated with the given key.
+-// It is case insensitive; CanonicalMIMEHeaderKey is
++// It is case insensitive; [CanonicalMIMEHeaderKey] is
+ // used to canonicalize the provided key. To use non-canonical
+ // keys, access the map directly.
+ // The returned slice is not a copy.
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index fc2590b1cd..a603564fb8 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -24,10 +24,10 @@ type Reader struct {
+ 	buf []byte // a re-usable buffer for readContinuedLineSlice
+ }
+ 
+-// NewReader returns a new Reader reading from r.
++// NewReader returns a new [Reader] reading from r.
+ //
+-// To avoid denial of service attacks, the provided bufio.Reader
+-// should be reading from an io.LimitReader or similar Reader to bound
++// To avoid denial of service attacks, the provided [bufio.Reader]
++// should be reading from an [io.LimitReader] or similar Reader to bound
+ // the size of responses.
+ func NewReader(r *bufio.Reader) *Reader {
+ 	return &Reader{R: r}
+@@ -40,7 +40,7 @@ func (r *Reader) ReadLine() (string, error) {
+ 	return string(line), err
+ }
+ 
+-// ReadLineBytes is like ReadLine but returns a []byte instead of a string.
++// ReadLineBytes is like [Reader.ReadLine] but returns a []byte instead of a string.
+ func (r *Reader) ReadLineBytes() ([]byte, error) {
+ 	line, err := r.readLineSlice()
+ 	if line != nil {
+@@ -106,7 +106,7 @@ func trim(s []byte) []byte {
+ 	return s[i:n]
+ }
+ 
+-// ReadContinuedLineBytes is like ReadContinuedLine but
++// ReadContinuedLineBytes is like [Reader.ReadContinuedLine] but
+ // returns a []byte instead of a string.
+ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
+ 	line, err := r.readContinuedLineSlice(noValidation)
+@@ -289,7 +289,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
+ 	return
+ }
+ 
+-// DotReader returns a new Reader that satisfies Reads using the
++// DotReader returns a new [Reader] that satisfies Reads using the
+ // decoded text of a dot-encoded block read from r.
+ // The returned Reader is only valid until the next call
+ // to a method on r.
+@@ -303,7 +303,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
+ //
+ // The decoded form returned by the Reader's Read method
+ // rewrites the "\r\n" line endings into the simpler "\n",
+-// removes leading dot escapes if present, and stops with error io.EOF
++// removes leading dot escapes if present, and stops with error [io.EOF]
+ // after consuming (and discarding) the end-of-sequence line.
+ func (r *Reader) DotReader() io.Reader {
+ 	r.closeDot()
+@@ -420,7 +420,7 @@ func (r *Reader) closeDot() {
+ 
+ // ReadDotBytes reads a dot-encoding and returns the decoded data.
+ //
+-// See the documentation for the DotReader method for details about dot-encoding.
++// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
+ func (r *Reader) ReadDotBytes() ([]byte, error) {
+ 	return io.ReadAll(r.DotReader())
+ }
+@@ -428,7 +428,7 @@ func (r *Reader) ReadDotBytes() ([]byte, error) {
+ // ReadDotLines reads a dot-encoding and returns a slice
+ // containing the decoded lines, with the final \r\n or \n elided from each.
+ //
+-// See the documentation for the DotReader method for details about dot-encoding.
++// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
+ func (r *Reader) ReadDotLines() ([]string, error) {
+ 	// We could use ReadDotBytes and then Split it,
+ 	// but reading a line at a time avoids needing a
+@@ -462,7 +462,7 @@ var colon = []byte(":")
+ // ReadMIMEHeader reads a MIME-style header from r.
+ // The header is a sequence of possibly continued Key: Value lines
+ // ending in a blank line.
+-// The returned map m maps CanonicalMIMEHeaderKey(key) to a
++// The returned map m maps [CanonicalMIMEHeaderKey](key) to a
+ // sequence of values in the same order encountered in the input.
+ //
+ // For example, consider this input:
+diff --git a/src/net/textproto/textproto.go b/src/net/textproto/textproto.go
+index 70038d5888..4ae3ecff74 100644
+--- a/src/net/textproto/textproto.go
++++ b/src/net/textproto/textproto.go
+@@ -7,20 +7,20 @@
+ //
+ // The package provides:
+ //
+-// Error, which represents a numeric error response from
++// [Error], which represents a numeric error response from
+ // a server.
+ //
+-// Pipeline, to manage pipelined requests and responses
++// [Pipeline], to manage pipelined requests and responses
+ // in a client.
+ //
+-// Reader, to read numeric response code lines,
++// [Reader], to read numeric response code lines,
+ // key: value headers, lines wrapped with leading spaces
+ // on continuation lines, and whole text blocks ending
+ // with a dot on a line by itself.
+ //
+-// Writer, to write dot-encoded text blocks.
++// [Writer], to write dot-encoded text blocks.
+ //
+-// Conn, a convenient packaging of Reader, Writer, and Pipeline for use
++// [Conn], a convenient packaging of [Reader], [Writer], and [Pipeline] for use
+ // with a single network connection.
+ package textproto
+ 
+@@ -50,8 +50,8 @@ func (p ProtocolError) Error() string {
+ }
+ 
+ // A Conn represents a textual network protocol connection.
+-// It consists of a Reader and Writer to manage I/O
+-// and a Pipeline to sequence concurrent requests on the connection.
++// It consists of a [Reader] and [Writer] to manage I/O
++// and a [Pipeline] to sequence concurrent requests on the connection.
+ // These embedded types carry methods with them;
+ // see the documentation of those types for details.
+ type Conn struct {
+@@ -61,7 +61,7 @@ type Conn struct {
+ 	conn io.ReadWriteCloser
+ }
+ 
+-// NewConn returns a new Conn using conn for I/O.
++// NewConn returns a new [Conn] using conn for I/O.
+ func NewConn(conn io.ReadWriteCloser) *Conn {
+ 	return &Conn{
+ 		Reader: Reader{R: bufio.NewReader(conn)},
+@@ -75,8 +75,8 @@ func (c *Conn) Close() error {
+ 	return c.conn.Close()
+ }
+ 
+-// Dial connects to the given address on the given network using net.Dial
+-// and then returns a new Conn for the connection.
++// Dial connects to the given address on the given network using [net.Dial]
++// and then returns a new [Conn] for the connection.
+ func Dial(network, addr string) (*Conn, error) {
+ 	c, err := net.Dial(network, addr)
+ 	if err != nil {
+diff --git a/src/net/textproto/writer.go b/src/net/textproto/writer.go
+index 2ece3f511b..662515fb2c 100644
+--- a/src/net/textproto/writer.go
++++ b/src/net/textproto/writer.go
+@@ -17,7 +17,7 @@ type Writer struct {
+ 	dot *dotWriter
+ }
+ 
+-// NewWriter returns a new Writer writing to w.
++// NewWriter returns a new [Writer] writing to w.
+ func NewWriter(w *bufio.Writer) *Writer {
+ 	return &Writer{W: w}
+ }
+@@ -39,7 +39,7 @@ func (w *Writer) PrintfLine(format string, args ...any) error {
+ // when the DotWriter is closed. The caller should close the
+ // DotWriter before the next call to a method on w.
+ //
+-// See the documentation for Reader's DotReader method for details about dot-encoding.
++// See the documentation for the [Reader.DotReader] method for details about dot-encoding.
+ func (w *Writer) DotWriter() io.WriteCloser {
+ 	w.closeDot()
+ 	w.dot = &dotWriter{w: w}
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 7e5ffa036a..821be7bf74 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -52,7 +52,7 @@ func (a *UnixAddr) opAddr() Addr {
+ //
+ // The network must be a Unix network name.
+ //
+-// See func Dial for a description of the network and address
++// See func [Dial] for a description of the network and address
+ // parameters.
+ func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
+ 	switch network {
+@@ -63,14 +63,14 @@ func ResolveUnixAddr(network, address string) (*UnixAddr, error) {
+ 	}
+ }
+ 
+-// UnixConn is an implementation of the Conn interface for connections
++// UnixConn is an implementation of the [Conn] interface for connections
+ // to Unix domain sockets.
+ type UnixConn struct {
+ 	conn
+ }
+ 
+ // SyscallConn returns a raw network connection.
+-// This implements the syscall.Conn interface.
++// This implements the [syscall.Conn] interface.
+ func (c *UnixConn) SyscallConn() (syscall.RawConn, error) {
+ 	if !c.ok() {
+ 		return nil, syscall.EINVAL
+@@ -102,7 +102,7 @@ func (c *UnixConn) CloseWrite() error {
+ 	return nil
+ }
+ 
+-// ReadFromUnix acts like ReadFrom but returns a UnixAddr.
++// ReadFromUnix acts like [UnixConn.ReadFrom] but returns a [UnixAddr].
+ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+@@ -114,7 +114,7 @@ func (c *UnixConn) ReadFromUnix(b []byte) (int, *UnixAddr, error) {
+ 	return n, addr, err
+ }
+ 
+-// ReadFrom implements the PacketConn ReadFrom method.
++// ReadFrom implements the [PacketConn] ReadFrom method.
+ func (c *UnixConn) ReadFrom(b []byte) (int, Addr, error) {
+ 	if !c.ok() {
+ 		return 0, nil, syscall.EINVAL
+@@ -147,7 +147,7 @@ func (c *UnixConn) ReadMsgUnix(b, oob []byte) (n, oobn, flags int, addr *UnixAdd
+ 	return
+ }
+ 
+-// WriteToUnix acts like WriteTo but takes a UnixAddr.
++// WriteToUnix acts like [UnixConn.WriteTo] but takes a [UnixAddr].
+ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -159,7 +159,7 @@ func (c *UnixConn) WriteToUnix(b []byte, addr *UnixAddr) (int, error) {
+ 	return n, err
+ }
+ 
+-// WriteTo implements the PacketConn WriteTo method.
++// WriteTo implements the [PacketConn] WriteTo method.
+ func (c *UnixConn) WriteTo(b []byte, addr Addr) (int, error) {
+ 	if !c.ok() {
+ 		return 0, syscall.EINVAL
+@@ -194,7 +194,7 @@ func (c *UnixConn) WriteMsgUnix(b, oob []byte, addr *UnixAddr) (n, oobn int, err
+ 
+ func newUnixConn(fd *netFD) *UnixConn { return &UnixConn{conn{fd}} }
+ 
+-// DialUnix acts like Dial for Unix networks.
++// DialUnix acts like [Dial] for Unix networks.
+ //
+ // The network must be a Unix network name; see func Dial for details.
+ //
+@@ -215,7 +215,7 @@ func DialUnix(network string, laddr, raddr *UnixAddr) (*UnixConn, error) {
+ }
+ 
+ // UnixListener is a Unix domain socket listener. Clients should
+-// typically use variables of type Listener instead of assuming Unix
++// typically use variables of type [Listener] instead of assuming Unix
+ // domain sockets.
+ type UnixListener struct {
+ 	fd         *netFD
+@@ -227,7 +227,7 @@ type UnixListener struct {
+ func (ln *UnixListener) ok() bool { return ln != nil && ln.fd != nil }
+ 
+ // SyscallConn returns a raw network connection.
+-// This implements the syscall.Conn interface.
++// This implements the [syscall.Conn] interface.
+ //
+ // The returned RawConn only supports calling Control. Read and
+ // Write return an error.
+@@ -251,8 +251,8 @@ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	return c, nil
+ }
+ 
+-// Accept implements the Accept method in the Listener interface.
+-// Returned connections will be of type *UnixConn.
++// Accept implements the Accept method in the [Listener] interface.
++// Returned connections will be of type [*UnixConn].
+ func (l *UnixListener) Accept() (Conn, error) {
+ 	if !l.ok() {
+ 		return nil, syscall.EINVAL
+@@ -290,7 +290,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
+ 	return l.fd.SetDeadline(t)
+ }
+ 
+-// File returns a copy of the underlying os.File.
++// File returns a copy of the underlying [os.File].
+ // It is the caller's responsibility to close f when finished.
+ // Closing l does not affect f, and closing f does not affect l.
+ //
+@@ -308,7 +308,7 @@ func (l *UnixListener) File() (f *os.File, err error) {
+ 	return
+ }
+ 
+-// ListenUnix acts like Listen for Unix networks.
++// ListenUnix acts like [Listen] for Unix networks.
+ //
+ // The network must be "unix" or "unixpacket".
+ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+@@ -328,7 +328,7 @@ func ListenUnix(network string, laddr *UnixAddr) (*UnixListener, error) {
+ 	return ln, nil
+ }
+ 
+-// ListenUnixgram acts like ListenPacket for Unix networks.
++// ListenUnixgram acts like [ListenPacket] for Unix networks.
+ //
+ // The network must be "unixgram".
+ func ListenUnixgram(network string, laddr *UnixAddr) (*UnixConn, error) {
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 902310c244..f362958edd 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -175,7 +175,7 @@ func shouldEscape(c byte, mode encoding) bool {
+ 	return true
+ }
+ 
+-// QueryUnescape does the inverse transformation of QueryEscape,
++// QueryUnescape does the inverse transformation of [QueryEscape],
+ // converting each 3-byte encoded substring of the form "%AB" into the
+ // hex-decoded byte 0xAB.
+ // It returns an error if any % is not followed by two hexadecimal
+@@ -184,12 +184,12 @@ func QueryUnescape(s string) (string, error) {
+ 	return unescape(s, encodeQueryComponent)
+ }
+ 
+-// PathUnescape does the inverse transformation of PathEscape,
++// PathUnescape does the inverse transformation of [PathEscape],
+ // converting each 3-byte encoded substring of the form "%AB" into the
+ // hex-decoded byte 0xAB. It returns an error if any % is not followed
+ // by two hexadecimal digits.
+ //
+-// PathUnescape is identical to QueryUnescape except that it does not
++// PathUnescape is identical to [QueryUnescape] except that it does not
+ // unescape '+' to ' ' (space).
+ func PathUnescape(s string) (string, error) {
+ 	return unescape(s, encodePathSegment)
+@@ -271,12 +271,12 @@ func unescape(s string, mode encoding) (string, error) {
+ }
+ 
+ // QueryEscape escapes the string so it can be safely placed
+-// inside a URL query.
++// inside a [URL] query.
+ func QueryEscape(s string) string {
+ 	return escape(s, encodeQueryComponent)
+ }
+ 
+-// PathEscape escapes the string so it can be safely placed inside a URL path segment,
++// PathEscape escapes the string so it can be safely placed inside a [URL] path segment,
+ // replacing special characters (including /) with %XX sequences as needed.
+ func PathEscape(s string) string {
+ 	return escape(s, encodePathSegment)
+@@ -358,7 +358,7 @@ func escape(s string, mode encoding) string {
+ // Note that the Path field is stored in decoded form: /%47%6f%2f becomes /Go/.
+ // A consequence is that it is impossible to tell which slashes in the Path were
+ // slashes in the raw URL and which were %2f. This distinction is rarely important,
+-// but when it is, the code should use the EscapedPath method, which preserves
++// but when it is, the code should use the [URL.EscapedPath] method, which preserves
+ // the original encoding of Path.
+ //
+ // The RawPath field is an optional field which is only set when the default
+@@ -380,13 +380,13 @@ type URL struct {
+ 	RawFragment string    // encoded fragment hint (see EscapedFragment method)
+ }
+ 
+-// User returns a Userinfo containing the provided username
++// User returns a [Userinfo] containing the provided username
+ // and no password set.
+ func User(username string) *Userinfo {
+ 	return &Userinfo{username, "", false}
+ }
+ 
+-// UserPassword returns a Userinfo containing the provided username
++// UserPassword returns a [Userinfo] containing the provided username
+ // and password.
+ //
+ // This functionality should only be used with legacy web sites.
+@@ -399,7 +399,7 @@ func UserPassword(username, password string) *Userinfo {
+ }
+ 
+ // The Userinfo type is an immutable encapsulation of username and
+-// password details for a URL. An existing Userinfo value is guaranteed
++// password details for a [URL]. An existing Userinfo value is guaranteed
+ // to have a username set (potentially empty, as allowed by RFC 2396),
+ // and optionally a password.
+ type Userinfo struct {
+@@ -464,7 +464,7 @@ func getScheme(rawURL string) (scheme, path string, err error) {
+ 	return "", rawURL, nil
+ }
+ 
+-// Parse parses a raw url into a URL structure.
++// Parse parses a raw url into a [URL] structure.
+ //
+ // The url may be relative (a path, without a host) or absolute
+ // (starting with a scheme). Trying to parse a hostname and path
+@@ -486,7 +486,7 @@ func Parse(rawURL string) (*URL, error) {
+ 	return url, nil
+ }
+ 
+-// ParseRequestURI parses a raw url into a URL structure. It assumes that
++// ParseRequestURI parses a raw url into a [URL] structure. It assumes that
+ // url was received in an HTTP request, so the url is interpreted
+ // only as an absolute URI or an absolute path.
+ // The string url is assumed not to have a #fragment suffix.
+@@ -697,7 +697,7 @@ func (u *URL) setPath(p string) error {
+ // EscapedPath returns u.RawPath when it is a valid escaping of u.Path.
+ // Otherwise EscapedPath ignores u.RawPath and computes an escaped
+ // form on its own.
+-// The String and RequestURI methods use EscapedPath to construct
++// The [URL.String] and [URL.RequestURI] methods use EscapedPath to construct
+ // their results.
+ // In general, code should call EscapedPath instead of
+ // reading u.RawPath directly.
+@@ -761,7 +761,7 @@ func (u *URL) setFragment(f string) error {
+ // EscapedFragment returns u.RawFragment when it is a valid escaping of u.Fragment.
+ // Otherwise EscapedFragment ignores u.RawFragment and computes an escaped
+ // form on its own.
+-// The String method uses EscapedFragment to construct its result.
++// The [URL.String] method uses EscapedFragment to construct its result.
+ // In general, code should call EscapedFragment instead of
+ // reading u.RawFragment directly.
+ func (u *URL) EscapedFragment() string {
+@@ -791,7 +791,7 @@ func validOptionalPort(port string) bool {
+ 	return true
+ }
+ 
+-// String reassembles the URL into a valid URL string.
++// String reassembles the [URL] into a valid URL string.
+ // The general form of the result is one of:
+ //
+ //	scheme:opaque?query#fragment
+@@ -865,7 +865,7 @@ func (u *URL) String() string {
+ 	return buf.String()
+ }
+ 
+-// Redacted is like String but replaces any password with "xxxxx".
++// Redacted is like [URL.String] but replaces any password with "xxxxx".
+ // Only the password in u.User is redacted.
+ func (u *URL) Redacted() string {
+ 	if u == nil {
+@@ -1060,15 +1060,15 @@ func resolvePath(base, ref string) string {
+ 	return r
+ }
+ 
+-// IsAbs reports whether the URL is absolute.
++// IsAbs reports whether the [URL] is absolute.
+ // Absolute means that it has a non-empty scheme.
+ func (u *URL) IsAbs() bool {
+ 	return u.Scheme != ""
+ }
+ 
+-// Parse parses a URL in the context of the receiver. The provided URL
++// Parse parses a [URL] in the context of the receiver. The provided URL
+ // may be relative or absolute. Parse returns nil, err on parse
+-// failure, otherwise its return value is the same as ResolveReference.
++// failure, otherwise its return value is the same as [URL.ResolveReference].
+ func (u *URL) Parse(ref string) (*URL, error) {
+ 	refURL, err := Parse(ref)
+ 	if err != nil {
+@@ -1080,7 +1080,7 @@ func (u *URL) Parse(ref string) (*URL, error) {
+ // ResolveReference resolves a URI reference to an absolute URI from
+ // an absolute base URI u, per RFC 3986 Section 5.2. The URI reference
+ // may be relative or absolute. ResolveReference always returns a new
+-// URL instance, even if the returned URL is identical to either the
++// [URL] instance, even if the returned URL is identical to either the
+ // base or reference. If ref is an absolute URL, then ResolveReference
+ // ignores base and returns a copy of ref.
+ func (u *URL) ResolveReference(ref *URL) *URL {
+@@ -1117,7 +1117,7 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 
+ // Query parses RawQuery and returns the corresponding values.
+ // It silently discards malformed value pairs.
+-// To check errors use ParseQuery.
++// To check errors use [ParseQuery].
+ func (u *URL) Query() Values {
+ 	v, _ := ParseQuery(u.RawQuery)
+ 	return v
+@@ -1194,7 +1194,7 @@ func (u *URL) UnmarshalBinary(text []byte) error {
+ 	return nil
+ }
+ 
+-// JoinPath returns a new URL with the provided path elements joined to
++// JoinPath returns a new [URL] with the provided path elements joined to
+ // any existing path and the resulting path cleaned of any ./ or ../ elements.
+ // Any sequences of multiple / characters will be reduced to a single /.
+ func (u *URL) JoinPath(elem ...string) *URL {
+@@ -1260,7 +1260,7 @@ func stringContainsCTLByte(s string) bool {
+ 	return false
+ }
+ 
+-// JoinPath returns a URL string with the provided path elements joined to
++// JoinPath returns a [URL] string with the provided path elements joined to
+ // the existing path of base and the resulting path cleaned of any ./ or ../ elements.
+ func JoinPath(base string, elem ...string) (result string, err error) {
+ 	url, err := Parse(base)

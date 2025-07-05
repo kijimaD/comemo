@@ -10,10 +10,166 @@ Date:   Mon Nov 10 13:42:34 2014 -0500
     R=rsc
     CC=golang-codereviews, rlh
     https://golang.org/cl/172190043
-
+---
  src/runtime/malloc.go | 21 +++++++++++----------
  src/runtime/mgc0.c    | 39 ++++++++++++++++++++++++++++++++++-----
  src/runtime/mgc0.go   | 19 ++++++++++++++++++-
  src/runtime/runtime.h |  1 +
  src/runtime/stubs.go  |  2 ++
  5 files changed, 66 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 274bae9a36..a18e77421e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -486,16 +486,17 @@ func gogc(force int32) {
+ 
+ 	onM(stoptheworld)
+ 	onM(finishsweep_m) // finish sweep before we start concurrent scan.
+-	onM(starttheworld)
+-
+-	// Do a concurrent heap scan before we stop the world.
+-	onM(gcscan_m)
+-	onM(gcinstallmarkwb_m)
+-	onM(stoptheworld)
+-	//	onM(starttheworld)
+-	// mark from roots scanned in gcscan_m. startthework when write barrier works
+-	onM(gcmark_m)
+-	//	onM(stoptheworld)
++	if false {         // To turn on concurrent scan and mark set to true...
++		onM(starttheworld)
++		// Do a concurrent heap scan before we stop the world.
++		onM(gcscan_m)
++		onM(stoptheworld)
++		onM(gcinstallmarkwb_m)
++		onM(starttheworld)
++		onM(gcmark_m)
++		onM(stoptheworld)
++		onM(gcinstalloffwb_m)
++	}
+ 	if mp != acquirem() {
+ 		gothrow("gogc: rescheduled")
+ 	}
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index 3ebaf005f5..5300f554bf 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -1061,13 +1061,34 @@ shade(byte *b)
+ //
+ // Shade indicates that it has seen a white pointer by adding the referent
+ // to wbuf.
++// slot is the destination (dst) in go code
++// ptr is the value that goes into the slot (src) in the go code
+ void
+-runtime·markwb(void **slot, void *ptr)
++runtime·gcmarkwb_m()
+ {
+-	// initial nil check avoids some needlesss loads
+-	if(ptr != nil && inheap(ptr) && shaded((void*)slot))
+-		shade(ptr);
++	byte **slot, *ptr;
++	slot = (byte**)g->m->scalararg[0];
++	ptr = (byte*)g->m->scalararg[1];
++
+ 	*slot = ptr;
++	switch(runtime·gcphase) {
++	default:
++		runtime·throw("gcphasework in bad gcphase");
++	case GCoff:
++	case GCquiesce:
++	case GCstw:
++	case GCsweep:
++	case GCscan:
++		break;
++	case GCmark:
++		if(ptr != nil && inheap(ptr) && shaded((byte*)slot))
++			shade(ptr);
++		break;
++	case GCmarktermination:
++		if(ptr != nil && inheap(ptr) && shaded((byte*)slot))
++			shade(ptr);
++		break;
++	}
+ }
+ 
+ // The gp has been moved to a GC safepoint. GC phase specific
+@@ -1945,7 +1966,7 @@ runtime·gcmark_m(void)
+ 	scanblock(nil, 0, nil);
+ }
+ 
+-// For now this must be followed by a stoptheworld and a starttheworld to ensure
++// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
+ // all go routines see the new barrier.
+ void
+ runtime·gcinstallmarkwb_m(void)
+@@ -1953,6 +1974,14 @@ runtime·gcinstallmarkwb_m(void)
+ 	runtime·gcphase = GCmark;
+ }
+ 
++// For now this must be bracketed with a stoptheworld and a starttheworld to ensure
++// all go routines see the new barrier.
++void
++runtime·gcinstalloffwb_m(void)
++{
++	runtime·gcphase = GCoff;
++}
++
+ static void
+ gc(struct gc_args *args)
+ {
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 22e88494a0..ce5c290efa 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -95,7 +95,24 @@ func writebarrierptr(dst *uintptr, src uintptr) {
+ 	if src != 0 && (src < _PageSize || src == _PoisonGC || src == _PoisonStack) {
+ 		onM(func() { gothrow("bad pointer in write barrier") })
+ 	}
+-	*dst = src
++
++	mp := acquirem()
++	if mp.inwb {
++		*dst = src
++		releasem(mp)
++		return
++	}
++	mp.inwb = true
++	oldscalar0 := mp.scalararg[0]
++	oldscalar1 := mp.scalararg[1]
++	mp.scalararg[0] = uintptr(unsafe.Pointer(dst))
++	mp.scalararg[1] = src
++	onM_signalok(gcmarkwb_m)
++	mp.scalararg[0] = oldscalar0
++	mp.scalararg[1] = oldscalar1
++	mp.inwb = false
++	releasem(mp)
++	//	*dst = src is done inside of the write barrier.
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index ee86f2d176..a0f1acc05f 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -345,6 +345,7 @@ struct	M
+ 	int32	helpgc;
+ 	bool	spinning;	// M is out of work and is actively looking for work
+ 	bool	blocked;	// M is blocked on a Note
++	bool    inwb;           // M is executing a write barrier
+ 	int8	printlock;
+ 	uint32	fastrand;
+ 	uint64	ncgocall;	// number of cgo calls in total
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 68f464f571..852f4ddbb6 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -112,7 +112,9 @@ func gccheckmark_m()
+ func gccheckmarkenable_m()
+ func gccheckmarkdisable_m()
+ func gcinstallmarkwb_m()
++func gcinstalloffwb_m()
+ func gcmarknewobject_m()
++func gcmarkwb_m()
+ func finishsweep_m()
+ func scavenge_m()
+ func setFinalizer_m()

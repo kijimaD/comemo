@@ -7,8 +7,47 @@ Date:   Fri Apr 8 10:43:25 2011 +1000
     R=golang-dev, rsc1
     CC=golang-dev
     https://golang.org/cl/4366043
-
+---
  src/run.bash                     | 1 -
  test/bench/regex-dna-parallel.go | 2 +-
  test/bench/regex-dna.go          | 2 +-
  3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 8ad11e2ae2..91cd3cc997 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -113,7 +113,6 @@ do
+ done
+ 
+ [ "$GOARCH" == arm ] ||
+-[ "$GOHOSTOS" == windows ] ||
+ (xcd ../test/bench
+ ./timing.sh -test
+ ) || exit $?
+diff --git a/test/bench/regex-dna-parallel.go b/test/bench/regex-dna-parallel.go
+index e8e62b806d..1335e4d34f 100644
+--- a/test/bench/regex-dna-parallel.go
++++ b/test/bench/regex-dna-parallel.go
+@@ -89,7 +89,7 @@ func countMatches(pat string, bytes []byte) int {
+ 
+ func main() {
+ 	runtime.GOMAXPROCS(4)
+-	bytes, err := ioutil.ReadFile("/dev/stdin")
++	bytes, err := ioutil.ReadAll(os.Stdin)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err)
+ 		os.Exit(2)
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index dc31db7685..042d7f2836 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -87,7 +87,7 @@ func countMatches(pat string, bytes []byte) int {
+ }
+ 
+ func main() {
+-	bytes, err := ioutil.ReadFile("/dev/stdin")
++	bytes, err := ioutil.ReadAll(os.Stdin)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "can't read input: %s\n", err)
+ 		os.Exit(2)

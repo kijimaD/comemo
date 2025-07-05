@@ -9,6 +9,23 @@ Date:   Sat May 4 10:58:42 2019 -0700
     Change-Id: I9ba5483010180015555ecbed87c1ac82903fd9dc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/175277
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/pseudo.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/pseudo.go b/src/cmd/go/internal/modfetch/pseudo.go
+index 0d3be10491..e13607ac2b 100644
+--- a/src/cmd/go/internal/modfetch/pseudo.go
++++ b/src/cmd/go/internal/modfetch/pseudo.go
+@@ -62,9 +62,8 @@ func PseudoVersion(major, older string, t time.Time, rev string) string {
+ 
+ 	// Form (2), (3).
+ 	// Extract patch from vMAJOR.MINOR.PATCH
+-	v := older[:]
+-	i := strings.LastIndex(v, ".") + 1
+-	v, patch := v[:i], v[i:]
++	i := strings.LastIndex(older, ".") + 1
++	v, patch := older[:i], older[i:]
+ 
+ 	// Increment PATCH by adding 1 to decimal:
+ 	// scan right to left turning 9s to 0s until you find a digit to increment.

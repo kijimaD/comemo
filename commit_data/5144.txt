@@ -8,10 +8,225 @@ Date:   Fri Mar 26 13:05:04 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/781041
-
+---
  src/pkg/bytes/bytes.go          | 15 +++++++++
  src/pkg/bytes/bytes_test.go     | 70 +++++++++++++++++++++++++++++++----------
  src/pkg/go/doc/doc.go           | 11 ++-----
  src/pkg/strings/strings.go      | 15 +++++++++
  src/pkg/strings/strings_test.go | 19 +++++++++--
  5 files changed, 102 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index d69af0136a..199f630422 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -125,6 +125,21 @@ func LastIndex(s, sep []byte) int {
+ 	return -1
+ }
+ 
++// IndexAny returns the index of the first instance of any byte
++// from bytes in s, or -1 if no byte from bytes is present in s.
++func IndexAny(s, bytes []byte) int {
++	if len(bytes) > 0 {
++		for i, b := range s {
++			for _, m := range bytes {
++				if b == m {
++					return i
++				}
++			}
++		}
++	}
++	return -1
++}
++
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep []byte, sepSave, n int) [][]byte {
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 51bed4e508..efec1eb8b9 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -72,16 +72,19 @@ func TestCompare(t *testing.T) {
+ 	}
+ }
+ 
+-var indextests = []BinOpTest{
++var indexTests = []BinOpTest{
+ 	BinOpTest{"", "", 0},
+-	BinOpTest{"a", "", 0},
+ 	BinOpTest{"", "a", -1},
+-	BinOpTest{"abc", "abc", 0},
+-	BinOpTest{"ab", "abc", -1},
+-	BinOpTest{"abc", "bc", 1},
+-	BinOpTest{"x", "ab", -1},
+-	// one-byte tests for IndexByte
+-	BinOpTest{"ab", "x", -1},
++	BinOpTest{"", "foo", -1},
++	BinOpTest{"fo", "foo", -1},
++	BinOpTest{"foo", "foo", 0},
++	BinOpTest{"oofofoofooo", "f", 2},
++	BinOpTest{"oofofoofooo", "foo", 4},
++	BinOpTest{"barfoobarfoo", "foo", 3},
++	BinOpTest{"foo", "", 0},
++	BinOpTest{"foo", "o", 1},
++	BinOpTest{"abcABCabc", "A", 3},
++	// cases with one byte strings - test IndexByte and special case in Index()
+ 	BinOpTest{"", "a", -1},
+ 	BinOpTest{"x", "a", -1},
+ 	BinOpTest{"x", "x", 0},
+@@ -91,19 +94,54 @@ var indextests = []BinOpTest{
+ 	BinOpTest{"abc", "x", -1},
+ }
+ 
+-func TestIndex(t *testing.T) {
+-	for _, tt := range indextests {
+-		a := []byte(tt.a)
+-		b := []byte(tt.b)
+-		pos := Index(a, b)
+-		if pos != tt.i {
+-			t.Errorf(`Index(%q, %q) = %v`, tt.a, tt.b, pos)
++var lastIndexTests = []BinOpTest{
++	BinOpTest{"", "", 0},
++	BinOpTest{"", "a", -1},
++	BinOpTest{"", "foo", -1},
++	BinOpTest{"fo", "foo", -1},
++	BinOpTest{"foo", "foo", 0},
++	BinOpTest{"foo", "f", 0},
++	BinOpTest{"oofofoofooo", "f", 7},
++	BinOpTest{"oofofoofooo", "foo", 7},
++	BinOpTest{"barfoobarfoo", "foo", 9},
++	BinOpTest{"foo", "", 3},
++	BinOpTest{"foo", "o", 2},
++	BinOpTest{"abcABCabc", "A", 3},
++	BinOpTest{"abcABCabc", "a", 6},
++}
++
++var indexAnyTests = []BinOpTest{
++	BinOpTest{"", "", -1},
++	BinOpTest{"", "a", -1},
++	BinOpTest{"", "abc", -1},
++	BinOpTest{"a", "", -1},
++	BinOpTest{"a", "a", 0},
++	BinOpTest{"aaa", "a", 0},
++	BinOpTest{"abc", "xyz", -1},
++	BinOpTest{"abc", "xcz", 2},
++	BinOpTest{"aRegExp*", ".(|)*+?^$[]", 7},
++	BinOpTest{dots + dots + dots, " ", -1},
++}
++
++// Execute f on each test case.  funcName should be the name of f; it's used
++// in failure reports.
++func runIndexTests(t *testing.T, f func(s, sep []byte) int, funcName string, testCases []BinOpTest) {
++	for _, test := range testCases {
++		a := []byte(test.a)
++		b := []byte(test.b)
++		actual := f(a, b)
++		if actual != test.i {
++			t.Errorf("%s(%q,%q) = %v; want %v", funcName, a, b, actual, test.i)
+ 		}
+ 	}
+ }
+ 
++func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
++func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
++func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
++
+ func TestIndexByte(t *testing.T) {
+-	for _, tt := range indextests {
++	for _, tt := range indexTests {
+ 		if len(tt.b) != 1 {
+ 			continue
+ 		}
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index 5ff3eafa6d..d7e404f14d 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -10,6 +10,7 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"regexp"
++	"strings"
+ 	"sort"
+ )
+ 
+@@ -564,15 +565,7 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc
+ 
+ // Does s look like a regular expression?
+ func isRegexp(s string) bool {
+-	metachars := ".(|)*+?^$[]"
+-	for _, c := range s {
+-		for _, m := range metachars {
+-			if c == m {
+-				return true
+-			}
+-		}
+-	}
+-	return false
++	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
+ }
+ 
+ 
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index a8f3150c3e..1ceaeefbd4 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -106,6 +106,21 @@ func LastIndex(s, sep string) int {
+ 	return -1
+ }
+ 
++// IndexAny returns the index of the first instance of any Unicode code point
++// from chars in s, or -1 if no Unicode code point from chars is present in s.
++func IndexAny(s, chars string) int {
++	if len(chars) > 0 {
++		for i, c := range s {
++			for _, m := range chars {
++				if c == m {
++					return i
++				}
++			}
++		}
++	}
++	return -1
++}
++
+ // Generic split: splits after each instance of sep,
+ // including sepSave bytes of sep in the subarrays.
+ func genSplit(s, sep string, sepSave, n int) []string {
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index a88f6aae4d..fdf192db63 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -72,6 +72,20 @@ var lastIndexTests = []IndexTest{
+ 	IndexTest{"abcABCabc", "a", 6},
+ }
+ 
++var indexAnyTests = []IndexTest{
++	IndexTest{"", "", -1},
++	IndexTest{"", "a", -1},
++	IndexTest{"", "abc", -1},
++	IndexTest{"a", "", -1},
++	IndexTest{"a", "a", 0},
++	IndexTest{"aaa", "a", 0},
++	IndexTest{"abc", "xyz", -1},
++	IndexTest{"abc", "xcz", 2},
++	IndexTest{"a☺b☻c☹d", "uvw☻xyz", 2 + len("☺")},
++	IndexTest{"aRegExp*", ".(|)*+?^$[]", 7},
++	IndexTest{dots + dots + dots, " ", -1},
++}
++
+ // Execute f on each test case.  funcName should be the name of f; it's used
+ // in failure reports.
+ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
+@@ -83,10 +97,9 @@ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, tes
+ 	}
+ }
+ 
+-func TestIndex(t *testing.T) { runIndexTests(t, Index, "Index", indexTests) }
+-
++func TestIndex(t *testing.T)     { runIndexTests(t, Index, "Index", indexTests) }
+ func TestLastIndex(t *testing.T) { runIndexTests(t, LastIndex, "LastIndex", lastIndexTests) }
+-
++func TestIndexAny(t *testing.T)  { runIndexTests(t, IndexAny, "IndexAny", indexAnyTests) }
+ 
+ type ExplodeTest struct {
+ 	s string

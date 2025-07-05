@@ -11,6 +11,20 @@ Date:   Tue Nov 10 01:52:52 2015 +0530
     Change-Id: I0f3c8dc3880c1ce5a8a833ff3109eb96853184af
     Reviewed-on: https://go-review.googlesource.com/16752
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/testsanitizers/test.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testsanitizers/test.bash b/misc/cgo/testsanitizers/test.bash
+index 19407b8cb2..e200bcb80b 100755
+--- a/misc/cgo/testsanitizers/test.bash
++++ b/misc/cgo/testsanitizers/test.bash
+@@ -10,7 +10,7 @@ set -e
+ 
+ # The sanitizers were originally developed with clang, so prefer it.
+ CC=cc
+-if test "$(type -p clang)" != ""; then
++if test -x "$(type -p clang)"; then
+   CC=clang
+ fi
+ export CC

@@ -16,6 +16,20 @@ Date:   Mon Jan 18 17:41:36 2021 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/io/ioutil/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/ioutil/example_test.go b/src/io/ioutil/example_test.go
+index bc2b6fba73..78b0730c65 100644
+--- a/src/io/ioutil/example_test.go
++++ b/src/io/ioutil/example_test.go
+@@ -125,7 +125,7 @@ func ExampleReadFile() {
+ 
+ func ExampleWriteFile() {
+ 	message := []byte("Hello, Gophers!")
+-	err := ioutil.WriteFile("testdata/hello", message, 0644)
++	err := ioutil.WriteFile("hello", message, 0644)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

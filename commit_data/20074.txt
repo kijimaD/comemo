@@ -8,7 +8,80 @@ Date:   Wed Aug 13 18:14:13 2014 -0400
     R=golang-codereviews, minux
     CC=golang-codereviews
     https://golang.org/cl/122540043
-
+---
  src/liblink/asm9.c | 15 +++++++++------
  src/liblink/obj9.c |  9 ---------
  2 files changed, 9 insertions(+), 15 deletions(-)
+
+diff --git a/src/liblink/asm9.c b/src/liblink/asm9.c
+index 886edf347d..f1889a92c2 100644
+--- a/src/liblink/asm9.c
++++ b/src/liblink/asm9.c
+@@ -488,12 +488,12 @@ span9(Link *ctxt, LSym *cursym)
+ 	p = cursym->text;
+ 	if(p == nil || p->link == nil) // handle external functions and ELF section symbols
+ 		return;
+- 
++	ctxt->cursym = cursym;
++	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
++
+ 	if(oprange[AANDN].start == nil)
+  		buildop(ctxt);
+ 
+- 	ctxt->cursym = cursym;
+-
+ 	bflag = 0;
+ 	c = 0;	
+ 	p->pc = c;
+@@ -571,12 +571,10 @@ span9(Link *ctxt, LSym *cursym)
+ 	if(ctxt->tlsg == nil)
+ 		ctxt->tlsg = linklookup(ctxt, "runtime.tlsg", 0);
+ 
+-	p = cursym->text;
+-	ctxt->autosize = (int32)(p->to.offset & 0xffffffffll) + 8;
+ 	symgrow(ctxt, cursym, cursym->size);
+ 
+ 	bp = cursym->p;
+-	for(p = p->link; p != nil; p = p->link) {
++	for(p = cursym->text->link; p != nil; p = p->link) {
+ 		ctxt->pc = p->pc;
+ 		ctxt->curp = p;
+ 		o = oplook(ctxt, p);
+@@ -1464,12 +1462,17 @@ asmout(Link *ctxt, Prog *p, Optab *o, int32 *out)
+ 			ctxt->diag("literal operation on R0\n%P", p);
+ 		a = OP_ADDI;
+ 		if(o->a1 == C_UCON) {
++			if((d&0xffff) != 0)
++				sysfatal("invalid handling of %P", p);
+ 			v >>= 16;
+ 			if(r == REGZERO && isuint32(d)){
+ 				o1 = LOP_IRR(OP_ORIS, p->to.reg, REGZERO, v);
+ 				break;
+ 			}
+ 			a = OP_ADDIS;
++		} else {
++			if((int16)d != d)
++				sysfatal("invalid handling of %P", p);
+ 		}
+ 		o1 = AOP_IRR(a, p->to.reg, r, v);
+ 		break;
+diff --git a/src/liblink/obj9.c b/src/liblink/obj9.c
+index 960083bf9b..3405fce477 100644
+--- a/src/liblink/obj9.c
++++ b/src/liblink/obj9.c
+@@ -179,15 +179,6 @@ progedit(Link *ctxt, Prog *p)
+ 		}
+ 		break;
+ 	}
+-
+-	if(p->from.type == D_CONST && p->from.reg != NREG) {
+-		if(p->as == AMOVD && p->to.type == D_REG) {
+-			p->as = AADD;
+-			p->reg = p->from.reg;
+-			p->from.reg = NREG;
+-		} else
+-			ctxt->diag("invalid instruction: %P", p);
+-	}
+ }
+ 
+ static Prog*	stacksplit(Link*, Prog*, int32, int);

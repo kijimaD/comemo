@@ -9,6 +9,25 @@ Date:   Sat Sep 16 16:58:10 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bytes/example_test.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/bytes/example_test.go b/src/bytes/example_test.go
+index a112c9a373..252be8c473 100644
+--- a/src/bytes/example_test.go
++++ b/src/bytes/example_test.go
+@@ -412,3 +412,13 @@ func ExampleToLower() {
+ 	fmt.Printf("%s", bytes.ToLower([]byte("Gopher")))
+ 	// Output: gopher
+ }
++
++func ExampleReader_Len() {
++	fmt.Println(bytes.NewReader([]byte("")).Len())
++	fmt.Println(bytes.NewReader([]byte("Hi!")).Len())
++	fmt.Println(bytes.NewReader([]byte("Hello Gopher!")).Len())
++	// Output:
++	// 0
++	// 3
++	// 13
++}

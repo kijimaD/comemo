@@ -31,8 +31,84 @@ Date:   Tue Mar 19 14:54:40 2019 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/internal/bytealg/count_arm.s      | 43 +++++++++++++++++++++++++++++++++++
  src/internal/bytealg/count_generic.go |  2 +-
  src/internal/bytealg/count_native.go  |  2 +-
  3 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/bytealg/count_arm.s b/src/internal/bytealg/count_arm.s
+new file mode 100644
+index 0000000000..f704ea0c69
+--- /dev/null
++++ b/src/internal/bytealg/count_arm.s
+@@ -0,0 +1,43 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Count(SB),NOSPLIT,$0-20
++	MOVW	b_base+0(FP), R0
++	MOVW	b_len+4(FP), R1
++	MOVBU	c+12(FP), R2
++	MOVW	$ret+16(FP), R7
++	B	countbytebody<>(SB)
++
++TEXT ·CountString(SB),NOSPLIT,$0-16
++	MOVW	s_base+0(FP), R0
++	MOVW	s_len+4(FP), R1
++	MOVBU	c+8(FP), R2
++	MOVW	$ret+12(FP), R7
++	B	countbytebody<>(SB)
++
++// Input:
++// R0: data
++// R1: data length
++// R2: byte to find
++// R7: address to put result
++//
++// On exit:
++// R4 and R8 are clobbered
++TEXT countbytebody<>(SB),NOSPLIT,$0
++	MOVW	$0, R8	// R8 = count of byte to search
++	CMP	$0, R1
++	B.EQ	done	// short path to handle 0-byte case
++	ADD	R0, R1	// R1 is the end of the range
++byte_loop:
++	MOVBU.P	1(R0), R4
++	CMP	R4, R2
++	ADD.EQ	$1, R8
++	CMP	R0, R1
++	B.NE	byte_loop
++done:
++	MOVW	R8, (R7)
++	RET
+diff --git a/src/internal/bytealg/count_generic.go b/src/internal/bytealg/count_generic.go
+index e24b2b7fa0..13759ad496 100644
+--- a/src/internal/bytealg/count_generic.go
++++ b/src/internal/bytealg/count_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !amd64,!arm64,!ppc64le,!ppc64
++// +build !amd64,!arm,!arm64,!ppc64le,!ppc64
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/count_native.go b/src/internal/bytealg/count_native.go
+index e6a91b3c0e..52b2a461a4 100644
+--- a/src/internal/bytealg/count_native.go
++++ b/src/internal/bytealg/count_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build amd64 arm64 ppc64le ppc64
++// +build amd64 arm arm64 ppc64le ppc64
+ 
+ package bytealg
+ 

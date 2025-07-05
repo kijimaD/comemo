@@ -21,7 +21,7 @@ Date:   Tue Aug 4 20:25:10 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_386.s     | 38 +++++++++++++++++++++++++---
  src/runtime/sys_linux_amd64.s   | 56 ++++++++++++++++++++++++++++-------------
  src/runtime/sys_linux_arm.s     | 36 +++++++++++++++++++++++---
@@ -29,3 +29,528 @@ Date:   Tue Aug 4 20:25:10 2020 -0400
  src/runtime/sys_linux_mips64x.s | 38 +++++++++++++++++++++++++---
  src/runtime/sys_linux_ppc64x.s  | 40 ++++++++++++++++++++++++++---
  6 files changed, 206 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index 1b28098ad9..5b9b638ad7 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -222,7 +222,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-16
+ 	RET
+ 
+ // func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB), NOSPLIT, $0-12
++TEXT runtime·walltime1(SB), NOSPLIT, $8-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 
+@@ -233,6 +233,13 @@ TEXT runtime·walltime1(SB), NOSPLIT, $0-12
+ 	MOVL	g_m(AX), SI // SI unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVL	m_vdsoPC(SI), CX
++	MOVL	m_vdsoSP(SI), DX
++	MOVL	CX, 0(SP)
++	MOVL	DX, 4(SP)
++
+ 	LEAL	sec+0(FP), DX
+ 	MOVL	-4(DX), CX
+ 	MOVL	CX, m_vdsoPC(SI)
+@@ -276,7 +283,15 @@ finish:
+ 	MOVL	12(SP), BX	// nsec
+ 
+ 	MOVL	BP, SP		// Restore real SP
+-	MOVL	$0, m_vdsoSP(SI)
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVL	4(SP), CX
++	MOVL	CX, m_vdsoSP(SI)
++	MOVL	0(SP), CX
++	MOVL	CX, m_vdsoPC(SI)
+ 
+ 	// sec is in AX, nsec in BX
+ 	MOVL	AX, sec_lo+0(FP)
+@@ -286,7 +301,7 @@ finish:
+ 
+ // int64 nanotime(void) so really
+ // void nanotime(int64 *nsec)
+-TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
++TEXT runtime·nanotime1(SB), NOSPLIT, $8-8
+ 	// Switch to g0 stack. See comment above in runtime·walltime.
+ 
+ 	MOVL	SP, BP	// Save old SP; BP unchanged by C code.
+@@ -296,6 +311,13 @@ TEXT runtime·nanotime1(SB), NOSPLIT, $0-8
+ 	MOVL	g_m(AX), SI // SI unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVL	m_vdsoPC(SI), CX
++	MOVL	m_vdsoSP(SI), DX
++	MOVL	CX, 0(SP)
++	MOVL	DX, 4(SP)
++
+ 	LEAL	ret+0(FP), DX
+ 	MOVL	-4(DX), CX
+ 	MOVL	CX, m_vdsoPC(SI)
+@@ -332,7 +354,15 @@ finish:
+ 	MOVL	12(SP), BX	// nsec
+ 
+ 	MOVL	BP, SP		// Restore real SP
+-	MOVL	$0, m_vdsoSP(SI)
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVL	4(SP), CX
++	MOVL	CX, m_vdsoSP(SI)
++	MOVL	0(SP), CX
++	MOVL	CX, m_vdsoPC(SI)
+ 
+ 	// sec is in AX, nsec in BX
+ 	// convert to DX:AX nsec
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index 58d3bc54b4..fe9c6bce85 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -206,7 +206,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0-28
+ 
+ // func walltime1() (sec int64, nsec int32)
+ // non-zero frame-size means bp is saved and restored
+-TEXT runtime·walltime1(SB),NOSPLIT,$8-12
++TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 	// In particular, a kernel configured with CONFIG_OPTIMIZE_INLINING=n
+@@ -221,6 +221,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVQ	m_vdsoPC(BX), CX
++	MOVQ	m_vdsoSP(BX), DX
++	MOVQ	CX, 0(SP)
++	MOVQ	DX, 8(SP)
++
+ 	LEAQ	sec+0(FP), DX
+ 	MOVQ	-8(DX), CX
+ 	MOVQ	CX, m_vdsoPC(BX)
+@@ -244,8 +251,17 @@ noswitch:
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
++ret:
+ 	MOVQ	BP, SP		// Restore real SP
+-	MOVQ	$0, m_vdsoSP(BX)
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVQ	8(SP), CX
++	MOVQ	CX, m_vdsoSP(BX)
++	MOVQ	0(SP), CX
++	MOVQ	CX, m_vdsoPC(BX)
+ 	MOVQ	AX, sec+0(FP)
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+@@ -257,15 +273,10 @@ fallback:
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVL	8(SP), DX	// usec
+ 	IMULQ	$1000, DX
+-	MOVQ	BP, SP		// Restore real SP
+-	MOVQ	$0, m_vdsoSP(BX)
+-	MOVQ	AX, sec+0(FP)
+-	MOVL	DX, nsec+8(FP)
+-	RET
++	JMP ret
+ 
+ // func nanotime1() int64
+-// non-zero frame-size means bp is saved and restored
+-TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
++TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	// Switch to g0 stack. See comment above in runtime·walltime.
+ 
+ 	MOVQ	SP, BP	// Save old SP; BP unchanged by C code.
+@@ -275,6 +286,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
+ 	MOVQ	g_m(AX), BX // BX unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVQ	m_vdsoPC(BX), CX
++	MOVQ	m_vdsoSP(BX), DX
++	MOVQ	CX, 0(SP)
++	MOVQ	DX, 8(SP)
++
+ 	LEAQ	ret+0(FP), DX
+ 	MOVQ	-8(DX), CX
+ 	MOVQ	CX, m_vdsoPC(BX)
+@@ -298,8 +316,17 @@ noswitch:
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVQ	8(SP), DX	// nsec
++ret:
+ 	MOVQ	BP, SP		// Restore real SP
+-	MOVQ	$0, m_vdsoSP(BX)
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVQ	8(SP), CX
++	MOVQ	CX, m_vdsoSP(BX)
++	MOVQ	0(SP), CX
++	MOVQ	CX, m_vdsoPC(BX)
+ 	// sec is in AX, nsec in DX
+ 	// return nsec in AX
+ 	IMULQ	$1000000000, AX
+@@ -313,15 +340,8 @@ fallback:
+ 	CALL	AX
+ 	MOVQ	0(SP), AX	// sec
+ 	MOVL	8(SP), DX	// usec
+-	MOVQ	BP, SP		// Restore real SP
+-	MOVQ	$0, m_vdsoSP(BX)
+ 	IMULQ	$1000, DX
+-	// sec is in AX, nsec in DX
+-	// return nsec in AX
+-	IMULQ	$1000000000, AX
+-	ADDQ	DX, AX
+-	MOVQ	AX, ret+0(FP)
+-	RET
++	JMP	ret
+ 
+ TEXT runtime·rtsigprocmask(SB),NOSPLIT,$0-28
+ 	MOVL	how+0(FP), DI
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index e103da56dc..475f52344c 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -242,7 +242,7 @@ TEXT runtime·mincore(SB),NOSPLIT,$0
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·walltime1(SB),NOSPLIT,$0-12
++TEXT runtime·walltime1(SB),NOSPLIT,$8-12
+ 	// We don't know how much stack space the VDSO code will need,
+ 	// so switch to g0.
+ 
+@@ -252,6 +252,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$0-12
+ 	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVW	m_vdsoPC(R5), R1
++	MOVW	m_vdsoSP(R5), R2
++	MOVW	R1, 4(R13)
++	MOVW	R2, 8(R13)
++
+ 	MOVW	LR, m_vdsoPC(R5)
+ 	MOVW	R13, m_vdsoSP(R5)
+ 
+@@ -312,8 +319,15 @@ finish:
+ 	MOVW	12(R13), R2  // nsec
+ 
+ 	MOVW	R4, R13		// Restore real SP
+-	MOVW	$0, R1
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVW	8(R13), R1
+ 	MOVW	R1, m_vdsoSP(R5)
++	MOVW	4(R13), R1
++	MOVW	R1, m_vdsoPC(R5)
+ 
+ 	MOVW	R0, sec_lo+0(FP)
+ 	MOVW	R1, sec_hi+4(FP)
+@@ -321,7 +335,7 @@ finish:
+ 	RET
+ 
+ // int64 nanotime1(void)
+-TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
++TEXT runtime·nanotime1(SB),NOSPLIT,$8-8
+ 	// Switch to g0 stack. See comment above in runtime·walltime.
+ 
+ 	// Save old SP. Use R13 instead of SP to avoid linker rewriting the offsets.
+@@ -330,6 +344,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$0-8
+ 	MOVW	g_m(g), R5 // R5 is unchanged by C code.
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVW	m_vdsoPC(R5), R1
++	MOVW	m_vdsoSP(R5), R2
++	MOVW	R1, 4(R13)
++	MOVW	R2, 8(R13)
++
+ 	MOVW	LR, m_vdsoPC(R5)
+ 	MOVW	R13, m_vdsoSP(R5)
+ 
+@@ -390,8 +411,15 @@ finish:
+ 	MOVW	12(R13), R2	// nsec
+ 
+ 	MOVW	R4, R13		// Restore real SP
+-	MOVW	$0, R4
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVW	8(R13), R4
+ 	MOVW	R4, m_vdsoSP(R5)
++	MOVW	4(R13), R4
++	MOVW	R4, m_vdsoPC(R5)
+ 
+ 	MOVW	$1000000000, R3
+ 	MULLU	R0, R3, (R1, R0)
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index b23e3b9a11..198a5bacef 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -214,6 +214,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$24-12
+ 	MOVD	g_m(g), R21	// R21 = m
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVD	m_vdsoPC(R21), R2
++	MOVD	m_vdsoSP(R21), R3
++	MOVD	R2, 8(RSP)
++	MOVD	R3, 16(RSP)
++
+ 	MOVD	LR, m_vdsoPC(R21)
+ 	MOVD	R20, m_vdsoSP(R21)
+ 
+@@ -269,7 +276,15 @@ finish:
+ 	MOVD	8(RSP), R5	// nsec
+ 
+ 	MOVD	R20, RSP	// restore SP
+-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVD	16(RSP), R1
++	MOVD	R1, m_vdsoSP(R21)
++	MOVD	8(RSP), R1
++	MOVD	R1, m_vdsoPC(R21)
+ 
+ 	MOVD	R3, sec+0(FP)
+ 	MOVW	R5, nsec+8(FP)
+@@ -282,6 +297,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$24-8
+ 	MOVD	g_m(g), R21	// R21 = m
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVD	m_vdsoPC(R21), R2
++	MOVD	m_vdsoSP(R21), R3
++	MOVD	R2, 8(RSP)
++	MOVD	R3, 16(RSP)
++
+ 	MOVD	LR, m_vdsoPC(R21)
+ 	MOVD	R20, m_vdsoSP(R21)
+ 
+@@ -337,7 +359,15 @@ finish:
+ 	MOVD	8(RSP), R5	// nsec
+ 
+ 	MOVD	R20, RSP	// restore SP
+-	MOVD	$0, m_vdsoSP(R21)	// clear vdsoSP
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVD	16(RSP), R1
++	MOVD	R1, m_vdsoSP(R21)
++	MOVD	8(RSP), R1
++	MOVD	R1, m_vdsoPC(R21)
+ 
+ 	// sec is in R3, nsec in R5
+ 	// return nsec in R3
+diff --git a/src/runtime/sys_linux_mips64x.s b/src/runtime/sys_linux_mips64x.s
+index 6668a0fd86..afad056d06 100644
+--- a/src/runtime/sys_linux_mips64x.s
++++ b/src/runtime/sys_linux_mips64x.s
+@@ -214,13 +214,20 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	RET
+ 
+ // func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$16
++TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	MOVV	R29, R16	// R16 is unchanged by C code
+ 	MOVV	R29, R1
+ 
+ 	MOVV	g_m(g), R17	// R17 = m
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVV	m_vdsoPC(R17), R2
++	MOVV	m_vdsoSP(R17), R3
++	MOVV	R2, 8(R29)
++	MOVV	R3, 16(R29)
++
+ 	MOVV	R31, m_vdsoPC(R17)
+ 	MOVV	R29, m_vdsoSP(R17)
+ 
+@@ -249,7 +256,15 @@ finish:
+ 	MOVV	8(R29), R5	// nsec
+ 
+ 	MOVV	R16, R29	// restore SP
+-	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVV	16(R29), R1
++	MOVV	R1, m_vdsoSP(R17)
++	MOVV	8(R29), R1
++	MOVV	R1, m_vdsoPC(R17)
+ 
+ 	MOVV	R3, sec+0(FP)
+ 	MOVW	R5, nsec+8(FP)
+@@ -260,13 +275,20 @@ fallback:
+ 	SYSCALL
+ 	JMP finish
+ 
+-TEXT runtime·nanotime1(SB),NOSPLIT,$16
++TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVV	R29, R16	// R16 is unchanged by C code
+ 	MOVV	R29, R1
+ 
+ 	MOVV	g_m(g), R17	// R17 = m
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVV	m_vdsoPC(R17), R2
++	MOVV	m_vdsoSP(R17), R3
++	MOVV	R2, 8(R29)
++	MOVV	R3, 16(R29)
++
+ 	MOVV	R31, m_vdsoPC(R17)
+ 	MOVV	R29, m_vdsoSP(R17)
+ 
+@@ -295,7 +317,15 @@ finish:
+ 	MOVV	8(R29), R5	// nsec
+ 
+ 	MOVV	R16, R29	// restore SP
+-	MOVV	R0, m_vdsoSP(R17)	// clear vdsoSP
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVV	16(R29), R1
++	MOVV	R1, m_vdsoSP(R17)
++	MOVV	8(R29), R1
++	MOVV	R1, m_vdsoPC(R17)
+ 
+ 	// sec is in R3, nsec in R5
+ 	// return nsec in R3
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 8629fe3233..fd69ee70a5 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -185,7 +185,7 @@ TEXT runtime·mincore(SB),NOSPLIT|NOFRAME,$0-28
+ 	RET
+ 
+ // func walltime1() (sec int64, nsec int32)
+-TEXT runtime·walltime1(SB),NOSPLIT,$16
++TEXT runtime·walltime1(SB),NOSPLIT,$16-12
+ 	MOVD	R1, R15		// R15 is unchanged by C code
+ 	MOVD	g_m(g), R21	// R21 = m
+ 
+@@ -196,6 +196,13 @@ TEXT runtime·walltime1(SB),NOSPLIT,$16
+ 	BEQ	fallback
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVD	m_vdsoPC(R21), R4
++	MOVD	m_vdsoSP(R21), R5
++	MOVD	R4, 32(R1)
++	MOVD	R5, 40(R1)
++
+ 	MOVD	LR, R14
+ 	MOVD	R14, m_vdsoPC(R21)
+ 	MOVD	R15, m_vdsoSP(R21)
+@@ -214,11 +221,20 @@ noswitch:
+ 	MOVD	R1, R4
+ 	BL	(CTR)			// Call from VDSO
+ 	MOVD	$0, R0			// Restore R0
+-	MOVD	R0, m_vdsoSP(R21)	// Clear vdsoSP
+ 	MOVD	0(R1), R3		// sec
+ 	MOVD	8(R1), R5		// nsec
+ 	MOVD	R15, R1			// Restore SP
+ 
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVD	40(R1), R6
++	MOVD	R6, m_vdsoSP(R21)
++	MOVD	32(R1), R6
++	MOVD	R6, m_vdsoPC(R21)
++
+ finish:
+ 	MOVD	R3, sec+0(FP)
+ 	MOVW	R5, nsec+8(FP)
+@@ -232,7 +248,7 @@ fallback:
+ 	MOVD	40(R1), R5
+ 	JMP	finish
+ 
+-TEXT runtime·nanotime1(SB),NOSPLIT,$16
++TEXT runtime·nanotime1(SB),NOSPLIT,$16-8
+ 	MOVD	$1, R3		// CLOCK_MONOTONIC
+ 
+ 	MOVD	R1, R15		// R15 is unchanged by C code
+@@ -243,6 +259,13 @@ TEXT runtime·nanotime1(SB),NOSPLIT,$16
+ 	BEQ	fallback
+ 
+ 	// Set vdsoPC and vdsoSP for SIGPROF traceback.
++	// Save the old values on stack and restore them on exit,
++	// so this function is reentrant.
++	MOVD	m_vdsoPC(R21), R4
++	MOVD	m_vdsoSP(R21), R5
++	MOVD	R4, 32(R1)
++	MOVD	R5, 40(R1)
++
+ 	MOVD	LR, R14		// R14 is unchanged by C code
+ 	MOVD	R14, m_vdsoPC(R21)
+ 	MOVD	R15, m_vdsoSP(R21)
+@@ -261,11 +284,20 @@ noswitch:
+ 	MOVD	R1, R4
+ 	BL	(CTR)			// Call from VDSO
+ 	MOVD	$0, R0			// Restore R0
+-	MOVD	$0, m_vdsoSP(R21)	// Clear vdsoSP
+ 	MOVD	0(R1), R3		// sec
+ 	MOVD	8(R1), R5		// nsec
+ 	MOVD	R15, R1			// Restore SP
+ 
++	// Restore vdsoPC, vdsoSP
++	// We don't worry about being signaled between the two stores.
++	// If we are not in a signal handler, we'll restore vdsoSP to 0,
++	// and no one will care about vdsoPC. If we are in a signal handler,
++	// we cannot receive another signal.
++	MOVD	40(R1), R6
++	MOVD	R6, m_vdsoSP(R21)
++	MOVD	32(R1), R6
++	MOVD	R6, m_vdsoPC(R21)
++
+ finish:
+ 	// sec is in R3, nsec in R5
+ 	// return nsec in R3

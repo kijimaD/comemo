@@ -11,6 +11,24 @@ Date:   Mon Apr 6 11:03:24 2015 -0700
     Change-Id: I5b9d31c9f04f3106b93f94fa68c848b2518b128e
     Reviewed-on: https://go-review.googlesource.com/8495
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/asm/internal/arch/ppc64.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index db2adffab5..5916e2413c 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This file encapsulates some of the odd characteristics of the ARM
+-// instruction set, to minimize its interaction with the core of the
+-// assembler.
++// This file encapsulates some of the odd characteristics of the
++// 64-bit PowerPC (PPC64) instruction set, to minimize its interaction
++// with the core of the assembler.
+ 
+ package arch
+ 

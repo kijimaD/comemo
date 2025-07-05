@@ -17,7 +17,67 @@ Date:   Fri Aug 16 08:04:57 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Damien Neil <dneil@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/dir.go     |  7 ++++---
  src/os/os_test.go | 16 ++++++++++++++++
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/dir.go b/src/os/dir.go
+index dab75b5d43..04392193aa 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -136,8 +136,9 @@ func ReadDir(name string) ([]DirEntry, error) {
+ // from the source, and directories are created with mode 0o777
+ // (before umask).
+ //
+-// CopyFS will not overwrite existing files, and returns an error
+-// if a file name in fsys already exists in the destination.
++// CopyFS will not overwrite existing files. If a file name in fsys
++// already exists in the destination, CopyFS will return an error
++// such that errors.Is(err, fs.ErrExist) will be true.
+ //
+ // Symbolic links in fsys are not supported. A *PathError with Err set
+ // to ErrInvalid is returned when copying from a symbolic link.
+@@ -176,7 +177,7 @@ func CopyFS(dir string, fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		w, err := OpenFile(newPath, O_CREATE|O_TRUNC|O_WRONLY, 0666|info.Mode()&0777)
++		w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 9832e595ae..538a75f912 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3407,6 +3407,14 @@ func TestCopyFS(t *testing.T) {
+ 		t.Fatal("comparing two directories:", err)
+ 	}
+ 
++	// Test whether CopyFS disallows copying for disk filesystem when there is any
++	// existing file in the destination directory.
++	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
++		t.Errorf("CopyFS should have failed and returned error when there is"+
++			"any existing file in the destination directory (in disk filesystem), "+
++			"got: %v, expected any error that indicates <file exists>", err)
++	}
++
+ 	// Test with memory filesystem.
+ 	fsys = fstest.MapFS{
+ 		"william":    {Data: []byte("Shakespeare\n")},
+@@ -3444,6 +3452,14 @@ func TestCopyFS(t *testing.T) {
+ 	}); err != nil {
+ 		t.Fatal("comparing two directories:", err)
+ 	}
++
++	// Test whether CopyFS disallows copying for memory filesystem when there is any
++	// existing file in the destination directory.
++	if err := CopyFS(tmpDir, fsys); !errors.Is(err, fs.ErrExist) {
++		t.Errorf("CopyFS should have failed and returned error when there is"+
++			"any existing file in the destination directory (in memory filesystem), "+
++			"got: %v, expected any error that indicates <file exists>", err)
++	}
+ }
+ 
+ func TestCopyFSWithSymlinks(t *testing.T) {

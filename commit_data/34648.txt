@@ -32,7 +32,81 @@ Date:   Mon Nov 6 07:35:42 2017 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/path.go      |  6 ++++++
  src/os/path_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index 146d7b6954..17c49c8687 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -97,6 +98,11 @@ func RemoveAll(path string) error {
+ 	// Remove contents & return first error.
+ 	err = nil
+ 	for {
++		if err == nil && (runtime.GOOS == "plan9" || runtime.GOOS == "nacl") {
++			// Reset read offset after removing directory entries.
++			// See golang.org/issue/22572.
++			fd.Seek(0, 0)
++		}
+ 		names, err1 := fd.Readdirnames(100)
+ 		for _, name := range names {
+ 			err1 := RemoveAll(path + string(PathSeparator) + name)
+diff --git a/src/os/path_test.go b/src/os/path_test.go
+index 6f5bfa54f8..f58c7e746d 100644
+--- a/src/os/path_test.go
++++ b/src/os/path_test.go
+@@ -5,6 +5,7 @@
+ package os_test
+ 
+ import (
++	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	. "os"
+@@ -169,6 +170,36 @@ func TestRemoveAll(t *testing.T) {
+ 	}
+ }
+ 
++// Test RemoveAll on a large directory.
++func TestRemoveAllLarge(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++
++	tmpDir := TempDir()
++	// Work directory.
++	path := tmpDir + "/_TestRemoveAllLarge_"
++
++	// Make directory with 1000 files and remove.
++	if err := MkdirAll(path, 0777); err != nil {
++		t.Fatalf("MkdirAll %q: %s", path, err)
++	}
++	for i := 0; i < 1000; i++ {
++		fpath := fmt.Sprintf("%s/file%d", path, i)
++		fd, err := Create(fpath)
++		if err != nil {
++			t.Fatalf("create %q: %s", fpath, err)
++		}
++		fd.Close()
++	}
++	if err := RemoveAll(path); err != nil {
++		t.Fatalf("RemoveAll %q: %s", path, err)
++	}
++	if _, err := Lstat(path); err == nil {
++		t.Fatalf("Lstat %q succeeded after RemoveAll", path)
++	}
++}
++
+ func TestMkdirAllWithSymlink(t *testing.T) {
+ 	testenv.MustHaveSymlink(t)
+ 

@@ -35,6 +35,27 @@ Date:   Mon Nov 1 19:39:18 2021 +0000
     Trust: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_unix_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index 55f5f7025a..b7ae77552b 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -13,7 +13,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"os/signal"
+-	"runtime"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+@@ -327,7 +326,6 @@ func TestExecHelper(t *testing.T) {
+ 	// We don't have to worry about restoring these values.
+ 	// We are in a child process that only runs this test,
+ 	// and we are going to call syscall.Exec anyhow.
+-	runtime.GOMAXPROCS(50)
+ 	os.Setenv("GO_WANT_HELPER_PROCESS", "3")
+ 
+ 	stop := time.Now().Add(time.Second)

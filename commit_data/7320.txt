@@ -7,6 +7,20 @@ Date:   Tue Feb 1 15:02:07 2011 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4001051
-
+---
  src/cmd/5g/reg.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/5g/reg.c b/src/cmd/5g/reg.c
+index cd6adeaec7..eaf02b237e 100644
+--- a/src/cmd/5g/reg.c
++++ b/src/cmd/5g/reg.c
+@@ -491,7 +491,7 @@ brk:
+ 	 * peep-hole on basic block
+ 	 */
+ 	if(!debug['R'] || debug['P']) {
+-		peep();
++//		peep();
+ 	}
+ 
+ 	/*

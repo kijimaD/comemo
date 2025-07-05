@@ -16,9 +16,280 @@ Date:   Thu Aug 6 20:36:49 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go    |  24 +++++++
  src/runtime/histogram.go      | 148 ++++++++++++++++++++++++++++++++++++++++++
  src/runtime/histogram_test.go |  58 +++++++++++++++++
  src/runtime/metrics.go        |   2 +
  4 files changed, 232 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index d043fe3ee5..4ca0420d2a 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1141,3 +1141,27 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
+ 	s.gcmarkBits = nil
+ 	return result
+ }
++
++const (
++	TimeHistSubBucketBits   = timeHistSubBucketBits
++	TimeHistNumSubBuckets   = timeHistNumSubBuckets
++	TimeHistNumSuperBuckets = timeHistNumSuperBuckets
++)
++
++type TimeHistogram timeHistogram
++
++// Counts returns the counts for the given bucket, subBucket indices.
++// Returns true if the bucket was valid, otherwise returns the counts
++// for the overflow bucket and false.
++func (th *TimeHistogram) Count(bucket, subBucket uint) (uint64, bool) {
++	t := (*timeHistogram)(th)
++	i := bucket*TimeHistNumSubBuckets + subBucket
++	if i >= uint(len(t.counts)) {
++		return t.overflow, false
++	}
++	return t.counts[i], true
++}
++
++func (th *TimeHistogram) Record(duration int64) {
++	(*timeHistogram)(th).record(duration)
++}
+diff --git a/src/runtime/histogram.go b/src/runtime/histogram.go
+new file mode 100644
+index 0000000000..4020969eb9
+--- /dev/null
++++ b/src/runtime/histogram.go
+@@ -0,0 +1,148 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/atomic"
++	"runtime/internal/sys"
++)
++
++const (
++	// For the time histogram type, we use an HDR histogram.
++	// Values are placed in super-buckets based solely on the most
++	// significant set bit. Thus, super-buckets are power-of-2 sized.
++	// Values are then placed into sub-buckets based on the value of
++	// the next timeHistSubBucketBits most significant bits. Thus,
++	// sub-buckets are linear within a super-bucket.
++	//
++	// Therefore, the number of sub-buckets (timeHistNumSubBuckets)
++	// defines the error. This error may be computed as
++	// 1/timeHistNumSubBuckets*100%. For example, for 16 sub-buckets
++	// per super-bucket the error is approximately 6%.
++	//
++	// The number of super-buckets (timeHistNumSuperBuckets), on the
++	// other hand, defines the range. To reserve room for sub-buckets,
++	// bit timeHistSubBucketBits is the first bit considered for
++	// super-buckets, so super-bucket indicies are adjusted accordingly.
++	//
++	// As an example, consider 45 super-buckets with 16 sub-buckets.
++	//
++	//    00110
++	//    ^----
++	//    │  ^
++	//    │  └---- Lowest 4 bits -> sub-bucket 6
++	//    └------- Bit 4 unset -> super-bucket 0
++	//
++	//    10110
++	//    ^----
++	//    │  ^
++	//    │  └---- Next 4 bits -> sub-bucket 6
++	//    └------- Bit 4 set -> super-bucket 1
++	//    100010
++	//    ^----^
++	//    │  ^ └-- Lower bits ignored
++	//    │  └---- Next 4 bits -> sub-bucket 1
++	//    └------- Bit 5 set -> super-bucket 2
++	//
++	// Following this pattern, bucket 45 will have the bit 48 set. We don't
++	// have any buckets for higher values, so the highest sub-bucket will
++	// contain values of 2^48-1 nanoseconds or approx. 3 days. This range is
++	// more than enough to handle durations produced by the runtime.
++	timeHistSubBucketBits   = 4
++	timeHistNumSubBuckets   = 1 << timeHistSubBucketBits
++	timeHistNumSuperBuckets = 45
++	timeHistTotalBuckets    = timeHistNumSuperBuckets*timeHistNumSubBuckets + 1
++)
++
++// timeHistogram represents a distribution of durations in
++// nanoseconds.
++//
++// The accuracy and range of the histogram is defined by the
++// timeHistSubBucketBits and timeHistNumSuperBuckets constants.
++//
++// It is an HDR histogram with exponentially-distributed
++// buckets and linearly distributed sub-buckets.
++//
++// Counts in the histogram are updated atomically, so it is safe
++// for concurrent use. It is also safe to read all the values
++// atomically.
++type timeHistogram struct {
++	counts   [timeHistNumSuperBuckets * timeHistNumSubBuckets]uint64
++	overflow uint64
++}
++
++// record adds the given duration to the distribution.
++//
++// Although the duration is an int64 to facilitate ease-of-use
++// with e.g. nanotime, the duration must be non-negative.
++func (h *timeHistogram) record(duration int64) {
++	if duration < 0 {
++		throw("timeHistogram encountered negative duration")
++	}
++	// The index of the exponential bucket is just the index
++	// of the highest set bit adjusted for how many bits we
++	// use for the subbucket. Note that it's timeHistSubBucketsBits-1
++	// because we use the 0th bucket to hold values < timeHistNumSubBuckets.
++	var superBucket, subBucket uint
++	if duration >= timeHistNumSubBuckets {
++		// At this point, we know the duration value will always be
++		// at least timeHistSubBucketsBits long.
++		superBucket = uint(sys.Len64(uint64(duration))) - timeHistSubBucketBits
++		if superBucket*timeHistNumSubBuckets >= uint(len(h.counts)) {
++			// The bucket index we got is larger than what we support, so
++			// add into the special overflow bucket.
++			atomic.Xadd64(&h.overflow, 1)
++			return
++		}
++		// The linear subbucket index is just the timeHistSubBucketsBits
++		// bits after the top bit. To extract that value, shift down
++		// the duration such that we leave the top bit and the next bits
++		// intact, then extract the index.
++		subBucket = uint((duration >> (superBucket - 1)) % timeHistNumSubBuckets)
++	} else {
++		subBucket = uint(duration)
++	}
++	atomic.Xadd64(&h.counts[superBucket*timeHistNumSubBuckets+subBucket], 1)
++}
++
++// timeHistogramMetricsBuckets generates a slice of boundaries for
++// the timeHistogram. These boundaries are represented in seconds,
++// not nanoseconds like the timeHistogram represents durations.
++func timeHistogramMetricsBuckets() []float64 {
++	b := make([]float64, timeHistTotalBuckets-1)
++	for i := 0; i < timeHistNumSuperBuckets; i++ {
++		superBucketMin := uint64(0)
++		// The (inclusive) minimum for the first bucket is 0.
++		if i > 0 {
++			// The minimum for the second bucket will be
++			// 1 << timeHistSubBucketBits, indicating that all
++			// sub-buckets are represented by the next timeHistSubBucketBits
++			// bits.
++			// Thereafter, we shift up by 1 each time, so we can represent
++			// this pattern as (i-1)+timeHistSubBucketBits.
++			superBucketMin = uint64(1) << uint(i-1+timeHistSubBucketBits)
++		}
++		// subBucketShift is the amount that we need to shift the sub-bucket
++		// index to combine it with the bucketMin.
++		subBucketShift := uint(0)
++		if i > 1 {
++			// The first two buckets are exact with respect to integers,
++			// so we'll never have to shift the sub-bucket index. Thereafter,
++			// we shift up by 1 with each subsequent bucket.
++			subBucketShift = uint(i - 2)
++		}
++		for j := 0; j < timeHistNumSubBuckets; j++ {
++			// j is the sub-bucket index. By shifting the index into position to
++			// combine with the bucket minimum, we obtain the minimum value for that
++			// sub-bucket.
++			subBucketMin := superBucketMin + (uint64(j) << subBucketShift)
++
++			// Convert the subBucketMin which is in nanoseconds to a float64 seconds value.
++			// These values will all be exactly representable by a float64.
++			b[i*timeHistNumSubBuckets+j] = float64(subBucketMin) / 1e9
++		}
++	}
++	return b
++}
+diff --git a/src/runtime/histogram_test.go b/src/runtime/histogram_test.go
+new file mode 100644
+index 0000000000..5f5b28f784
+--- /dev/null
++++ b/src/runtime/histogram_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"testing"
++)
++
++var dummyTimeHistogram TimeHistogram
++
++func TestTimeHistogram(t *testing.T) {
++	// We need to use a global dummy because this
++	// could get stack-allocated with a non-8-byte alignment.
++	// The result of this bad alignment is a segfault on
++	// 32-bit platforms when calling Record.
++	h := &dummyTimeHistogram
++
++	// Record exactly one sample in each bucket.
++	for i := 0; i < TimeHistNumSuperBuckets; i++ {
++		var base int64
++		if i > 0 {
++			base = int64(1) << (i + TimeHistSubBucketBits - 1)
++		}
++		for j := 0; j < TimeHistNumSubBuckets; j++ {
++			v := int64(j)
++			if i > 0 {
++				v <<= i - 1
++			}
++			h.Record(base + v)
++		}
++	}
++	// Hit the overflow bucket.
++	h.Record(int64(^uint64(0) >> 1))
++
++	// Check to make sure there's exactly one count in each
++	// bucket.
++	for i := uint(0); i < TimeHistNumSuperBuckets; i++ {
++		for j := uint(0); j < TimeHistNumSubBuckets; j++ {
++			c, ok := h.Count(i, j)
++			if !ok {
++				t.Errorf("hit overflow bucket unexpectedly: (%d, %d)", i, j)
++			} else if c != 1 {
++				t.Errorf("bucket (%d, %d) has count that is not 1: %d", i, j, c)
++			}
++		}
++	}
++	c, ok := h.Count(TimeHistNumSuperBuckets, 0)
++	if ok {
++		t.Errorf("expected to hit overflow bucket: (%d, %d)", TimeHistNumSuperBuckets, 0)
++	}
++	if c != 1 {
++		t.Errorf("overflow bucket has count that is not 1: %d", c)
++	}
++	dummyTimeHistogram = TimeHistogram{}
++}
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index 32d8ab461c..2be38ccaaa 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -20,6 +20,7 @@ var (
+ 	metrics     map[string]metricData
+ 
+ 	sizeClassBuckets []float64
++	timeHistBuckets  []float64
+ )
+ 
+ type metricData struct {
+@@ -44,6 +45,7 @@ func initMetrics() {
+ 	for i := range sizeClassBuckets {
+ 		sizeClassBuckets[i] = float64(class_to_size[i])
+ 	}
++	timeHistBuckets = timeHistogramMetricsBuckets()
+ 	metrics = map[string]metricData{
+ 		"/gc/cycles/automatic:gc-cycles": {
+ 			deps: makeStatDepSet(sysStatsDep),

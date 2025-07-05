@@ -8,6 +8,23 @@ Date:   Thu Sep 9 15:14:38 2010 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2122049
-
+---
  src/Make.inc | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.inc b/src/Make.inc
+index 9797dc9421..533f3b039b 100644
+--- a/src/Make.inc
++++ b/src/Make.inc
+@@ -22,9 +22,10 @@ ifeq ($(GOOS),darwin)
+ else ifeq ($(GOOS),freebsd)
+ else ifeq ($(GOOS),linux)
+ else ifeq ($(GOOS),nacl)
++else ifeq ($(GOOS),tiny)
+ else ifeq ($(GOOS),windows)
+ else
+-$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, or windows)
++$(error Invalid $$GOOS '$(GOOS)'; must be darwin, freebsd, linux, nacl, tiny, or windows)
+ endif
+ 
+ ifeq ($(GOARCH),)

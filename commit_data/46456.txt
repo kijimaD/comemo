@@ -21,7 +21,101 @@ Date:   Thu Dec 31 21:32:52 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/typecheck/typecheck.go | 34 +++++++++++++++++++++++++
  src/cmd/compile/internal/walk/walk.go           | 30 ----------------------
  2 files changed, 34 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index 519d8ddfd9..4b5c3198ca 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -171,6 +171,7 @@ func FuncBody(n *ir.Func) {
+ 	decldepth = 1
+ 	errorsBefore := base.Errors()
+ 	Stmts(n.Body)
++	CheckUnused(n)
+ 	CheckReturn(n)
+ 	if base.Errors() > errorsBefore {
+ 		n.Body.Set(nil) // type errors; do not compile
+@@ -2203,6 +2204,39 @@ func isTermNode(n ir.Node) bool {
+ 	return false
+ }
+ 
++// CheckUnused checks for any declared variables that weren't used.
++func CheckUnused(fn *ir.Func) {
++	// Only report unused variables if we haven't seen any type-checking
++	// errors yet.
++	if base.Errors() != 0 {
++		return
++	}
++
++	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
++	for _, ln := range fn.Dcl {
++		if ln.Op() == ir.ONAME && ln.Class_ == ir.PAUTO && ln.Used() {
++			if guard, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
++				guard.Used = true
++			}
++		}
++	}
++
++	for _, ln := range fn.Dcl {
++		if ln.Op() != ir.ONAME || ln.Class_ != ir.PAUTO || ln.Used() {
++			continue
++		}
++		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
++			if defn.Used {
++				continue
++			}
++			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
++			defn.Used = true // suppress repeats
++		} else {
++			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
++		}
++	}
++}
++
+ // CheckReturn makes sure that fn terminates appropriately.
+ func CheckReturn(fn *ir.Func) {
+ 	if fn.Type().NumResults() != 0 && len(fn.Body) != 0 {
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index b6be949689..25f53a8e7c 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -37,36 +37,6 @@ func Walk(fn *ir.Func) {
+ 
+ 	lno := base.Pos
+ 
+-	// Final typecheck for any unused variables.
+-	for i, ln := range fn.Dcl {
+-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PAUTO || ln.Class_ == ir.PAUTOHEAP) {
+-			ln = typecheck.AssignExpr(ln).(*ir.Name)
+-			fn.Dcl[i] = ln
+-		}
+-	}
+-
+-	// Propagate the used flag for typeswitch variables up to the NONAME in its definition.
+-	for _, ln := range fn.Dcl {
+-		if ln.Op() == ir.ONAME && (ln.Class_ == ir.PAUTO || ln.Class_ == ir.PAUTOHEAP) && ln.Defn != nil && ln.Defn.Op() == ir.OTYPESW && ln.Used() {
+-			ln.Defn.(*ir.TypeSwitchGuard).Used = true
+-		}
+-	}
+-
+-	for _, ln := range fn.Dcl {
+-		if ln.Op() != ir.ONAME || (ln.Class_ != ir.PAUTO && ln.Class_ != ir.PAUTOHEAP) || ln.Sym().Name[0] == '&' || ln.Used() {
+-			continue
+-		}
+-		if defn, ok := ln.Defn.(*ir.TypeSwitchGuard); ok {
+-			if defn.Used {
+-				continue
+-			}
+-			base.ErrorfAt(defn.Tag.Pos(), "%v declared but not used", ln.Sym())
+-			defn.Used = true // suppress repeats
+-		} else {
+-			base.ErrorfAt(ln.Pos(), "%v declared but not used", ln.Sym())
+-		}
+-	}
+-
+ 	base.Pos = lno
+ 	if base.Errors() > errorsBefore {
+ 		return

@@ -15,7 +15,34 @@ Date:   Thu Aug 18 11:02:38 2022 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/bytes/bytes.go     | 2 +-
  src/strings/strings.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index c0cd704180..5cf5b477eb 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -1329,7 +1329,7 @@ func CutPrefix(s, prefix []byte) (after []byte, found bool) {
+ // If suffix is the empty byte slice, CutSuffix returns s, true.
+ //
+ // CutSuffix returns slices of the original slice s, not copies.
+-func CutSuffix(s, suffix []byte) (after []byte, found bool) {
++func CutSuffix(s, suffix []byte) (before []byte, found bool) {
+ 	if !HasSuffix(s, suffix) {
+ 		return s, false
+ 	}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 7921a20e8a..1e8de2bc34 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1223,7 +1223,7 @@ func CutPrefix(s, prefix string) (after string, found bool) {
+ // and reports whether it found the suffix.
+ // If s doesn't end with suffix, CutSuffix returns s, false.
+ // If suffix is the empty string, CutSuffix returns s, true.
+-func CutSuffix(s, suffix string) (after string, found bool) {
++func CutSuffix(s, suffix string) (before string, found bool) {
+ 	if !HasSuffix(s, suffix) {
+ 		return s, false
+ 	}

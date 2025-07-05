@@ -18,7 +18,7 @@ Date:   Fri Aug 16 14:01:15 2024 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  doc/next/5-toolchain.md                   |  5 +++++
  src/cmd/dist/README                       | 10 +++++-----
  src/cmd/dist/{notgo120.go => notgo122.go} |  8 ++++----
@@ -26,3 +26,125 @@ Date:   Fri Aug 16 14:01:15 2024 -0400
  src/make.bat                              |  2 +-
  src/make.rc                               |  2 +-
  6 files changed, 20 insertions(+), 15 deletions(-)
+
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+index 0f4a816479..04403eb550 100644
+--- a/doc/next/5-toolchain.md
++++ b/doc/next/5-toolchain.md
+@@ -4,4 +4,9 @@
+ 
+ ## Linker {#linker}
+ 
++## Bootstrap {#bootstrap}
+ 
++<!-- go.dev/issue/64751 -->
++As mentioned in the [Go 1.22 release notes](/doc/go1.22#bootstrap), Go 1.24 now requires
++Go 1.22.6 or later for bootstrap.
++We expect that Go 1.26 will require a point release of Go 1.24 or later for bootstrap.
+diff --git a/src/cmd/dist/README b/src/cmd/dist/README
+index 0f99284e66..78a6d42d0a 100644
+--- a/src/cmd/dist/README
++++ b/src/cmd/dist/README
+@@ -4,16 +4,16 @@ As of Go 1.5, dist and other parts of the compiler toolchain are written
+ in Go, making bootstrapping a little more involved than in the past.
+ The approach is to build the current release of Go with an earlier one.
+ 
+-The process to install Go 1.x, for x ≥ 22, is:
++The process to install Go 1.x, for x ≥ 24, is:
+ 
+-1. Build cmd/dist with Go 1.20.6.
+-2. Using dist, build Go 1.x compiler toolchain with Go 1.20.6.
++1. Build cmd/dist with Go 1.22.6.
++2. Using dist, build Go 1.x compiler toolchain with Go 1.22.6.
+ 3. Using dist, rebuild Go 1.x compiler toolchain with itself.
+ 4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
+ 5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
+ 
+-Because of backward compatibility, although the steps above say Go 1.20.6,
+-in practice any release ≥ Go 1.20.6 but < Go 1.x will work as the bootstrap base.
++Because of backward compatibility, although the steps above say Go 1.22.6,
++in practice any release ≥ Go 1.22.6 but < Go 1.x will work as the bootstrap base.
+ Releases ≥ Go 1.x are very likely to work as well.
+ 
+ See https://go.dev/s/go15bootstrap for more details about the original bootstrap
+diff --git a/src/cmd/dist/notgo120.go b/src/cmd/dist/notgo122.go
+similarity index 76%
+rename from src/cmd/dist/notgo120.go
+rename to src/cmd/dist/notgo122.go
+index 0b89ab3c02..229a26e757 100644
+--- a/src/cmd/dist/notgo120.go
++++ b/src/cmd/dist/notgo122.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Go 1.22 and later requires Go 1.20 as the bootstrap toolchain.
++// Go 1.24 and later requires Go 1.22.6 as the bootstrap toolchain.
+ // If cmd/dist is built using an earlier Go version, this file will be
+ // included in the build and cause an error like:
+ //
+ // % GOROOT_BOOTSTRAP=$HOME/sdk/go1.16 ./make.bash
+ // Building Go cmd/dist using /Users/rsc/sdk/go1.16. (go1.16 darwin/amd64)
+-// found packages main (build.go) and building_Go_requires_Go_1_20_6_or_later (notgo120.go) in /Users/rsc/go/src/cmd/dist
++// found packages main (build.go) and building_Go_requires_Go_1_22_6_or_later (notgo122.go) in /Users/rsc/go/src/cmd/dist
+ // %
+ //
+ // which is the best we can do under the circumstances.
+@@ -16,6 +16,6 @@
+ // See go.dev/issue/44505 for more background on
+ // why Go moved on from Go 1.4 for bootstrap.
+ 
+-//go:build !go1.20
++//go:build !go1.22
+ 
+-package building_Go_requires_Go_1_20_6_or_later
++package building_Go_requires_Go_1_22_6_or_later
+diff --git a/src/make.bash b/src/make.bash
+index 10e263b3d0..b67ae1529f 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -64,14 +64,14 @@
+ # timing information to this file. Useful for profiling where the
+ # time goes when these scripts run.
+ #
+-# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.20.6 for bootstrap.
++# GOROOT_BOOTSTRAP: A working Go tree >= Go 1.22.6 for bootstrap.
+ # If $GOROOT_BOOTSTRAP/bin/go is missing, $(go env GOROOT) is
+-# tried for all "go" in $PATH. By default, one of $HOME/go1.20.6,
+-# $HOME/sdk/go1.20.6, or $HOME/go1.4, whichever exists, in that order.
++# tried for all "go" in $PATH. By default, one of $HOME/go1.22.6,
++# $HOME/sdk/go1.22.6, or $HOME/go1.4, whichever exists, in that order.
+ # We still check $HOME/go1.4 to allow for build scripts that still hard-code
+ # that name even though they put newer Go toolchains there.
+ 
+-bootgo=1.20.6
++bootgo=1.22.6
+ 
+ set -e
+ 
+diff --git a/src/make.bat b/src/make.bat
+index 53122cbaef..3b5a4663dc 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -85,7 +85,7 @@ for /f "tokens=*" %%g in ('where go 2^>nul') do (
+ 	)
+ )
+ 
+-set bootgo=1.20.6
++set bootgo=1.22.6
+ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\go%bootgo%
+ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%
+ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+diff --git a/src/make.rc b/src/make.rc
+index 54250011dc..cfb9fa0aeb 100755
+--- a/src/make.rc
++++ b/src/make.rc
+@@ -48,7 +48,7 @@ fn bootstrapenv {
+ 	GOROOT=$GOROOT_BOOTSTRAP GO111MODULE=off GOENV=off GOOS=() GOARCH=() GOEXPERIMENT=() GOFLAGS=() $*
+ }
+ 
+-bootgo = 1.20.6
++bootgo = 1.22.6
+ GOROOT = `{cd .. && pwd}
+ goroot_bootstrap_set = 'true'
+ if(! ~ $#GOROOT_BOOTSTRAP 1){

@@ -13,6 +13,23 @@ Date:   Fri Feb 16 10:24:55 2024 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/crypto/subtle/xor.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/crypto/subtle/xor.go b/src/crypto/subtle/xor.go
+index a8805ac61d..158dbcede9 100644
+--- a/src/crypto/subtle/xor.go
++++ b/src/crypto/subtle/xor.go
+@@ -9,10 +9,7 @@ package subtle
+ // If dst does not have length at least n,
+ // XORBytes panics without writing anything to dst.
+ func XORBytes(dst, x, y []byte) int {
+-	n := len(x)
+-	if len(y) < n {
+-		n = len(y)
+-	}
++	n := min(len(x), len(y))
+ 	if n == 0 {
+ 		return 0
+ 	}

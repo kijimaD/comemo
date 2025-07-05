@@ -9,6 +9,20 @@ Date:   Wed Jan 18 10:55:03 2012 +1100
     R=r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5555043
-
+---
  src/pkg/image/geom.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/image/geom.go b/src/pkg/image/geom.go
+index 667aee6259..e123483314 100644
+--- a/src/pkg/image/geom.go
++++ b/src/pkg/image/geom.go
+@@ -112,7 +112,7 @@ func (r Rectangle) Add(p Point) Rectangle {
+ 	}
+ }
+ 
+-// Add returns the rectangle r translated by -p.
++// Sub returns the rectangle r translated by -p.
+ func (r Rectangle) Sub(p Point) Rectangle {
+ 	return Rectangle{
+ 		Point{r.Min.X - p.X, r.Min.Y - p.Y},

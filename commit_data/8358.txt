@@ -9,8 +9,49 @@ Date:   Wed May 11 22:53:42 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4535051
-
+---
  src/Make.ccmd | 3 +++
  src/Make.clib | 2 ++
  src/Make.cmd  | 2 +-
  3 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index cb2b255123..88f647152c 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -18,6 +18,9 @@ CLEANFILES+=y.tab.[ch]
+ clean:
+ 	rm -f *.$(HOST_O) $(TARG) $(CLEANFILES)
+ 
++nuke: clean
++	rm -f "$(GOBIN)/$(TARG)"
++
+ ifneq ($(NOINSTALL),1)
+ install: $(QUOTED_GOBIN)/$(TARG)
+ endif
+diff --git a/src/Make.clib b/src/Make.clib
+index ebe4f84b96..25fe88463c 100644
+--- a/src/Make.clib
++++ b/src/Make.clib
+@@ -26,6 +26,8 @@ CLEANFILES+=y.tab.[ch] y.output a.out $(LIB)
+ clean:
+ 	rm -f *.$(HOST_O) $(CLEANFILES)
+ 
++nuke: clean
++	rm -f "$(GOROOT)/lib/$(LIB)"
+ 
+ y.tab.h: $(YFILES)
+ 	LANG=C LANGUAGE="en_US.UTF8" bison -v -y $(HOST_YFLAGS) $(YFILES)
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 26c3ca2fc4..27c6a2e134 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -27,7 +27,7 @@ install: $(TARGDIR)/$(TARG)
+ $(TARGDIR)/$(TARG): $(TARG)
+ 	mkdir -p $(TARGDIR) && cp -f $(TARG) $(TARGDIR)
+ 
+-CLEANFILES+=$(TARG) _test _testmain.go
++CLEANFILES+=$(TARG) _test _testmain.go test.out build.out
+ 
+ nuke: clean
+ 	rm -f $(TARGDIR)/$(TARG)

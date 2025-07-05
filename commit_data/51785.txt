@@ -14,7 +14,7 @@ Date:   Mon Mar 14 11:03:23 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/README           | 16 ++++++++++---
  api/next.txt         |  9 -------
  api/next/45754.txt   |  2 ++
@@ -24,3 +24,304 @@ Date:   Mon Mar 14 11:03:23 2022 -0400
  src/cmd/api/goapi.go | 58 ++++++++++++++++++++++++++++++++-------------
  src/cmd/api/run.go   | 66 ++++++++++++++++++++++++++++++++--------------------
  8 files changed, 107 insertions(+), 53 deletions(-)
+
+diff --git a/api/README b/api/README
+index ce24efcd31..1e52f7a843 100644
+--- a/api/README
++++ b/api/README
+@@ -8,6 +8,16 @@ shipped. Each file adds new lines but does not remove any.
+ except.txt lists features that may disappear without breaking true
+ compatibility.
+ 
+-next.txt is the only file intended to be mutated. It's a list of
+-features that may be added to the next version. It only affects
+-warning output from the go api tool.
++Starting with go1.19.txt, each API feature line must end in "#nnnnn"
++giving the GitHub issue number of the proposal issue that accepted
++the new API. This helps with our end-of-cycle audit of new APIs.
++The same requirement applies to next/* (described below), which will
++become a go1.XX.txt for XX >= 19.
++
++The next/ directory contains the only files intended to be mutated.
++Each file in that directory contains a list of features that may be added
++to the next release of Go. The files in this directory only affect the
++warning output from the go api tool. Each file should be named
++nnnnn.txt, after the issue number for the accepted proposal.
++(The #nnnnn suffix must also appear at the end of each line in the file;
++that will be preserved when next/*.txt is concatenated into go1.XX.txt.)
+diff --git a/api/next.txt b/api/next.txt
+deleted file mode 100644
+index a0f2bed8d1..0000000000
+--- a/api/next.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-pkg encoding/binary, type AppendByteOrder interface { AppendUint16, AppendUint32, AppendUint64, String }
+-pkg encoding/binary, type AppendByteOrder interface, AppendUint16([]uint8, uint16) []uint8
+-pkg encoding/binary, type AppendByteOrder interface, AppendUint32([]uint8, uint32) []uint8
+-pkg encoding/binary, type AppendByteOrder interface, AppendUint64([]uint8, uint64) []uint8
+-pkg encoding/binary, type AppendByteOrder interface, String() string
+-pkg flag, func TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string)
+-pkg flag, method (*FlagSet) TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string)
+-pkg net/url, func JoinPath(string, ...string) (string, error)
+-pkg net/url, method (*URL) JoinPath(...string) *URL
+diff --git a/api/next/45754.txt b/api/next/45754.txt
+new file mode 100644
+index 0000000000..e980342c04
+--- /dev/null
++++ b/api/next/45754.txt
+@@ -0,0 +1,2 @@
++pkg flag, func TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string) #45754
++pkg flag, method (*FlagSet) TextVar(encoding.TextUnmarshaler, string, encoding.TextMarshaler, string) #45754
+diff --git a/api/next/46059.txt b/api/next/46059.txt
+new file mode 100644
+index 0000000000..3cc44966a2
+--- /dev/null
++++ b/api/next/46059.txt
+@@ -0,0 +1,2 @@
++pkg net/url, type URL struct, OmitHost bool #46059
++
+diff --git a/api/next/47005.txt b/api/next/47005.txt
+new file mode 100644
+index 0000000000..0d7695e45c
+--- /dev/null
++++ b/api/next/47005.txt
+@@ -0,0 +1,2 @@
++pkg net/url, func JoinPath(string, ...string) (string, error) #47005
++pkg net/url, method (*URL) JoinPath(...string) *URL #47005
+diff --git a/api/next/50601.txt b/api/next/50601.txt
+new file mode 100644
+index 0000000000..261dce375d
+--- /dev/null
++++ b/api/next/50601.txt
+@@ -0,0 +1,5 @@
++pkg encoding/binary, type AppendByteOrder interface { AppendUint16, AppendUint32, AppendUint64, String } #50601
++pkg encoding/binary, type AppendByteOrder interface, AppendUint16([]uint8, uint16) []uint8 #50601
++pkg encoding/binary, type AppendByteOrder interface, AppendUint32([]uint8, uint32) []uint8 #50601
++pkg encoding/binary, type AppendByteOrder interface, AppendUint64([]uint8, uint64) []uint8 #50601
++pkg encoding/binary, type AppendByteOrder interface, String() string #50601
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 5ae059e4ce..2a0e109575 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Binary api computes the exported API of a set of Go packages.
++// Api computes the exported API of a set of Go packages.
+ package main
+ 
+ import (
+@@ -24,6 +24,7 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ )
+@@ -42,12 +43,13 @@ func goCmd() string {
+ 
+ // Flags
+ var (
+-	checkFile  = flag.String("c", "", "optional comma-separated filename(s) to check API against")
+-	allowNew   = flag.Bool("allow_new", true, "allow API additions")
+-	exceptFile = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
+-	nextFile   = flag.String("next", "", "optional filename of tentative upcoming API features for the next release. This file can be lazily maintained. It only affects the delta warnings from the -c file printed on success.")
+-	verbose    = flag.Bool("v", false, "verbose debugging")
+-	forceCtx   = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
++	checkFiles      = flag.String("c", "", "optional comma-separated filename(s) to check API against")
++	requireApproval = flag.String("approval", "", "require approvals in comma-separated list of `files`")
++	allowNew        = flag.Bool("allow_new", true, "allow API additions")
++	exceptFile      = flag.String("except", "", "optional filename of packages that are allowed to change without triggering a failure in the tool")
++	nextFiles       = flag.String("next", "", "comma-separated list of `files` for upcoming API features for the next release. These files can be lazily maintained. They only affects the delta warnings from the -c file printed on success.")
++	verbose         = flag.Bool("v", false, "verbose debugging")
++	forceCtx        = flag.String("contexts", "", "optional comma-separated list of <goos>-<goarch>[-cgo] to override default contexts.")
+ )
+ 
+ // contexts are the default contexts which are scanned, unless
+@@ -126,9 +128,9 @@ func main() {
+ 	flag.Parse()
+ 
+ 	if !strings.Contains(runtime.Version(), "weekly") && !strings.Contains(runtime.Version(), "devel") {
+-		if *nextFile != "" {
+-			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
+-			*nextFile = ""
++		if *nextFiles != "" {
++			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFiles)
++			*nextFiles = ""
+ 		}
+ 	}
+ 
+@@ -201,7 +203,7 @@ func main() {
+ 	bw := bufio.NewWriter(os.Stdout)
+ 	defer bw.Flush()
+ 
+-	if *checkFile == "" {
++	if *checkFiles == "" {
+ 		sort.Strings(features)
+ 		for _, f := range features {
+ 			fmt.Fprintln(bw, f)
+@@ -210,10 +212,15 @@ func main() {
+ 	}
+ 
+ 	var required []string
+-	for _, file := range strings.Split(*checkFile, ",") {
++	for _, file := range strings.Split(*checkFiles, ",") {
+ 		required = append(required, fileFeatures(file)...)
+ 	}
+-	optional := fileFeatures(*nextFile)
++	var optional []string
++	if *nextFiles != "" {
++		for _, file := range strings.Split(*nextFiles, ",") {
++			optional = append(optional, fileFeatures(file)...)
++		}
++	}
+ 	exception := fileFeatures(*exceptFile)
+ 	fail = !compareAPI(bw, features, required, optional, exception, *allowNew)
+ }
+@@ -340,6 +347,13 @@ func fileFeatures(filename string) []string {
+ 	if filename == "" {
+ 		return nil
+ 	}
++	needApproval := false
++	for _, name := range strings.Split(*requireApproval, ",") {
++		if filename == name {
++			needApproval = true
++			break
++		}
++	}
+ 	bs, err := os.ReadFile(filename)
+ 	if err != nil {
+ 		log.Fatalf("Error reading file %s: %v", filename, err)
+@@ -348,11 +362,23 @@ func fileFeatures(filename string) []string {
+ 	s = aliasReplacer.Replace(s)
+ 	lines := strings.Split(s, "\n")
+ 	var nonblank []string
+-	for _, line := range lines {
++	for i, line := range lines {
+ 		line = strings.TrimSpace(line)
+-		if line != "" && !strings.HasPrefix(line, "#") {
+-			nonblank = append(nonblank, line)
++		if line == "" || strings.HasPrefix(line, "#") {
++			continue
++		}
++		if needApproval {
++			feature, approval, ok := strings.Cut(line, "#")
++			if !ok {
++				log.Fatalf("%s:%d: missing proposal approval\n", filename, i+1)
++			}
++			_, err := strconv.Atoi(approval)
++			if err != nil {
++				log.Fatalf("%s:%d: malformed proposal approval #%s\n", filename, i+1, approval)
++			}
++			line = strings.TrimSpace(feature)
+ 		}
++		nonblank = append(nonblank, line)
+ 	}
+ 	return nonblank
+ }
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 1b94a1b883..130166e7b9 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -18,6 +18,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ )
+ 
+@@ -41,51 +42,66 @@ func main() {
+ 	if goroot == "" {
+ 		log.Fatal("No $GOROOT set.")
+ 	}
+-
+-	apiDir := filepath.Join(goroot, "api")
+-	out, err := exec.Command(goCmd(), "tool", "api",
+-		"-c", findAPIDirFiles(apiDir),
+-		allowNew(apiDir),
+-		"-next", filepath.Join(apiDir, "next.txt"),
+-		"-except", filepath.Join(apiDir, "except.txt")).CombinedOutput()
+-	if err != nil {
+-		log.Fatalf("Error running API checker: %v\n%s", err, out)
++	if err := os.Chdir(filepath.Join(goroot, "api")); err != nil {
++		log.Fatal(err)
+ 	}
+-	fmt.Print(string(out))
+-}
+ 
+-// findAPIDirFiles returns a comma-separated list of Go API files
+-// (go1.txt, go1.1.txt, etc.) located in apiDir.
+-func findAPIDirFiles(apiDir string) string {
+-	dir, err := os.Open(apiDir)
++	files, err := filepath.Glob("go1*.txt")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	defer dir.Close()
+-	fs, err := dir.Readdirnames(-1)
++	next, err := filepath.Glob(filepath.Join("next", "*.txt"))
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	var apiFiles []string
+-	for _, fn := range fs {
+-		if strings.HasPrefix(fn, "go1") {
+-			apiFiles = append(apiFiles, filepath.Join(apiDir, fn))
++	cmd := exec.Command(goCmd(), "tool", "api",
++		"-c", strings.Join(files, ","),
++		"-approval", strings.Join(append(approvalNeeded(files), next...), ","),
++		allowNew(),
++		"-next", strings.Join(next, ","),
++		"-except", "except.txt",
++	)
++	fmt.Println(cmd.Args)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		log.Fatalf("Error running API checker: %v\n%s", err, out)
++	}
++	fmt.Print(string(out))
++}
++
++func approvalNeeded(files []string) []string {
++	var out []string
++	for _, f := range files {
++		name := filepath.Base(f)
++		if name == "go1.txt" {
++			continue
++		}
++		minor := strings.TrimSuffix(strings.TrimPrefix(name, "go1."), ".txt")
++		n, err := strconv.Atoi(minor)
++		if err != nil {
++			log.Fatalf("unexpected api file: %v", f)
++		}
++		if n >= 19 { // approvals started being tracked in Go 1.19
++			out = append(out, f)
+ 		}
+ 	}
+-	return strings.Join(apiFiles, ",")
++	return out
+ }
+ 
+ // allowNew returns the -allow_new flag to use for the 'go tool api' invocation.
+-func allowNew(apiDir string) string {
++func allowNew() string {
++	// Experiment for Go 1.19: always require api file updates.
++	return "-allow_new=false"
++
+ 	// Verify that the api/go1.n.txt for previous Go version exists.
+ 	// It definitely should, otherwise it's a signal that the logic below may be outdated.
+-	if _, err := os.Stat(filepath.Join(apiDir, fmt.Sprintf("go1.%d.txt", goversion.Version-1))); err != nil {
++	if _, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version-1)); err != nil {
+ 		log.Fatalln("Problem with api file for previous release:", err)
+ 	}
+ 
+ 	// See whether the api/go1.n.txt for this Go version has been created.
+ 	// (As of April 2021, it gets created during the release of the first Beta.)
+-	_, err := os.Stat(filepath.Join(apiDir, fmt.Sprintf("go1.%d.txt", goversion.Version)))
++	_, err := os.Stat(fmt.Sprintf("go1.%d.txt", goversion.Version))
+ 	if errors.Is(err, fs.ErrNotExist) {
+ 		// It doesn't exist, so we're in development or before Beta 1.
+ 		// At this stage, unmentioned API additions are deemed okay.

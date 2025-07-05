@@ -11,7 +11,7 @@ Date:   Fri Feb 20 13:54:45 2015 -0500
     Change-Id: Ib314bb9ac14a726ceb83e2ecf4d1ad2d0b331c38
     Reviewed-on: https://go-review.googlesource.com/5471
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/gc/closure.go     | 72 ++++++++++++++++++++++++++++++++------
  src/cmd/internal/gc/fmt.go         |  4 +--
  src/cmd/internal/gc/go.go          |  2 ++
@@ -21,3 +21,256 @@ Date:   Fri Feb 20 13:54:45 2015 -0500
  src/cmd/internal/obj/ppc64/obj9.go |  1 +
  src/cmd/new6g/gsubr.go             |  2 +-
  8 files changed, 75 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 4c9b0af6f8..c2c802eb2d 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -21,6 +21,7 @@ func closurehdr(ntype *Node) {
+ 	n = Nod(OCLOSURE, nil, nil)
+ 	n.Ntype = ntype
+ 	n.Funcdepth = Funcdepth
++	n.Outerfunc = Curfn
+ 
+ 	funchdr(n)
+ 
+@@ -133,7 +134,62 @@ func typecheckclosure(func_ *Node, top int) {
+ 	xtop = list(xtop, makeclosure(func_))
+ }
+ 
+-var makeclosure_closgen int
++// closurename returns name for OCLOSURE n.
++// It is not as simple as it ought to be, because we typecheck nested closures
++// starting from the innermost one. So when we check the inner closure,
++// we don't yet have name for the outer closure. This function uses recursion
++// to generate names all the way up if necessary.
++
++var closurename_closgen int
++
++func closurename(n *Node) *Sym {
++	var outer string
++	var prefix string
++	var gen int
++
++	if n.Sym != nil {
++		return n.Sym
++	}
++	gen = 0
++	outer = ""
++	prefix = ""
++	if n.Outerfunc == nil {
++		// Global closure.
++		outer = "glob"
++
++		prefix = "func"
++		closurename_closgen++
++		gen = closurename_closgen
++	} else if n.Outerfunc.Op == ODCLFUNC {
++		// The outermost closure inside of a named function.
++		outer = n.Outerfunc.Nname.Sym.Name
++
++		prefix = "func"
++
++		// Yes, functions can be named _.
++		// Can't use function closgen in such case,
++		// because it would lead to name clashes.
++		if !isblank(n.Outerfunc.Nname) {
++			n.Outerfunc.Closgen++
++			gen = n.Outerfunc.Closgen
++		} else {
++			closurename_closgen++
++			gen = closurename_closgen
++		}
++	} else if n.Outerfunc.Op == OCLOSURE {
++		// Nested closure, recurse.
++		outer = closurename(n.Outerfunc).Name
++
++		prefix = ""
++		n.Outerfunc.Closgen++
++		gen = n.Outerfunc.Closgen
++	} else {
++		Fatal("closurename called for %v", Nconv(n, obj.FmtShort))
++	}
++	namebuf = fmt.Sprintf("%s.%s%d", outer, prefix, gen)
++	n.Sym = Lookup(namebuf)
++	return n.Sym
++}
+ 
+ func makeclosure(func_ *Node) *Node {
+ 	var xtype *Node
+@@ -151,9 +207,7 @@ func makeclosure(func_ *Node) *Node {
+ 	// create the function
+ 	xfunc = Nod(ODCLFUNC, nil, nil)
+ 
+-	makeclosure_closgen++
+-	namebuf = fmt.Sprintf("func·%.3d", makeclosure_closgen)
+-	xfunc.Nname = newname(Lookup(namebuf))
++	xfunc.Nname = newname(closurename(func_))
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+ 	xfunc.Nname.Ntype = xtype
+ 	xfunc.Nname.Defn = xfunc
+@@ -412,7 +466,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 	// and has one float64 argument and no results,
+ 	// the generated code looks like:
+ 	//
+-	//	clos = &struct{F uintptr; A0 *int; A1 *string}{func·001, &i, &s}
++	//	clos = &struct{.F uintptr; i *int; s *string}{func.1, &i, &s}
+ 	//
+ 	// The use of the struct provides type information to the garbage
+ 	// collector so that it can walk the closure. We could use (in this case)
+@@ -423,7 +477,7 @@ func walkclosure(func_ *Node, init **NodeList) *Node {
+ 
+ 	typ = Nod(OTSTRUCT, nil, nil)
+ 
+-	typ.List = list1(Nod(ODCLFIELD, newname(Lookup("F")), typenod(Types[TUINTPTR])))
++	typ.List = list1(Nod(ODCLFIELD, newname(Lookup(".F")), typenod(Types[TUINTPTR])))
+ 	for l = func_.Cvars; l != nil; l = l.Next {
+ 		v = l.N
+ 		if v.Op == OXXX {
+@@ -508,13 +562,11 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	var i int
+ 	var ddd int
+ 
+-	// TODO: names are not right
+ 	rcvrtype = fn.Left.Type
+-
+ 	if exportname(meth.Sym.Name) {
+-		p = fmt.Sprintf("%v.%s·fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
++		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), meth.Sym.Name)
+ 	} else {
+-		p = fmt.Sprintf("%v.(%v)·fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
++		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, obj.FmtLeft|obj.FmtShort), Sconv(meth.Sym, obj.FmtLeft))
+ 	}
+ 	basetype = rcvrtype
+ 	if Isptr[rcvrtype.Etype] != 0 {
+diff --git a/src/cmd/internal/gc/fmt.go b/src/cmd/internal/gc/fmt.go
+index 3df4bc32ec..43e5d55137 100644
+--- a/src/cmd/internal/gc/fmt.go
++++ b/src/cmd/internal/gc/fmt.go
+@@ -1177,8 +1177,8 @@ var opprec = []int{
+ 	OSEND:         3,
+ 	OANDAND:       2,
+ 	OOROR:         1,
+-	OAS:// Statements handled by stmtfmt
+-	-1,
++	// Statements handled by stmtfmt
++	OAS:         -1,
+ 	OAS2:        -1,
+ 	OAS2DOTTYPE: -1,
+ 	OAS2FUNC:    -1,
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 16cc4495f7..a1ddb6250d 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -203,6 +203,8 @@ type Node struct {
+ 	Dcl            *NodeList
+ 	Inl            *NodeList
+ 	Inldcl         *NodeList
++	Closgen        int
++	Outerfunc      *Node
+ 	Val            Val
+ 	Ntype          *Node
+ 	Defn           *Node
+diff --git a/src/cmd/internal/gc/init.go b/src/cmd/internal/gc/init.go
+index 2805f3930b..9202ac5c75 100644
+--- a/src/cmd/internal/gc/init.go
++++ b/src/cmd/internal/gc/init.go
+@@ -24,14 +24,14 @@ import "fmt"
+  * it is called by the initialization before
+  * main is run. to make it unique within a
+  * package and also uncallable, the name,
+- * normally "pkg.init", is altered to "pkg.init·1".
++ * normally "pkg.init", is altered to "pkg.init.1".
+  */
+ 
+ var renameinit_initgen int
+ 
+ func renameinit() *Sym {
+ 	renameinit_initgen++
+-	namebuf = fmt.Sprintf("init·%d", renameinit_initgen)
++	namebuf = fmt.Sprintf("init.%d", renameinit_initgen)
+ 	return Lookup(namebuf)
+ }
+ 
+@@ -48,7 +48,7 @@ func renameinit() *Sym {
+  *		// over all matching imported symbols
+  *			<pkg>.init()			(7)
+  *		{ <init stmts> }			(8)
+- *		init·<n>() // if any			(9)
++ *		init.<n>() // if any			(9)
+  *		initdone· = 2;				(10)
+  *		return					(11)
+  *	}
+@@ -85,9 +85,8 @@ func anyinit(n *NodeList) bool {
+ 	}
+ 
+ 	// is there an explicit init function
+-	namebuf = fmt.Sprintf("init·1")
++	s = Lookup("init.1")
+ 
+-	s = Lookup(namebuf)
+ 	if s.Def != nil {
+ 		return true
+ 	}
+@@ -201,7 +200,7 @@ func fninit(n *NodeList) {
+ 	// (9)
+ 	// could check that it is fn of no args/returns
+ 	for i = 1; ; i++ {
+-		namebuf = fmt.Sprintf("init·%d", i)
++		namebuf = fmt.Sprintf("init.%d", i)
+ 		s = Lookup(namebuf)
+ 		if s.Def == nil {
+ 			break
+diff --git a/src/cmd/internal/gc/pgen.go b/src/cmd/internal/gc/pgen.go
+index 5d93ee6c05..c4c0dd4936 100644
+--- a/src/cmd/internal/gc/pgen.go
++++ b/src/cmd/internal/gc/pgen.go
+@@ -409,7 +409,7 @@ func compile(fn *Node) {
+ 	dowidth(Curfn.Type)
+ 
+ 	if fn.Nbody == nil {
+-		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init·") {
++		if pure_go != 0 || strings.HasPrefix(fn.Nname.Sym.Name, "init.") {
+ 			Yyerror("missing function body", fn)
+ 			goto ret
+ 		}
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index ba9b75d4d5..ee080404b3 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -188,7 +188,7 @@ func mapbucket(t *Type) *Type {
+ 	}
+ 
+ 	// See comment on hmap.overflow in ../../runtime/hashmap.go.
+-	if !haspointers(t.Type) && !haspointers(t.Down) {
++	if !haspointers(t.Type) && !haspointers(t.Down) && t.Type.Width <= MAXKEYSIZE && t.Down.Width <= MAXVALSIZE {
+ 		bucket.Haspointers = 1 // no pointers
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 7524674dd8..a2c33f54bb 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -550,6 +550,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			if false {
+ 				// Debug bad returns
+ 				q = ctxt.NewProg()
++
+ 				q.As = AMOVD
+ 				q.Lineno = p.Lineno
+ 				q.From.Type = obj.TYPE_MEM
+diff --git a/src/cmd/new6g/gsubr.go b/src/cmd/new6g/gsubr.go
+index 0f50723f96..c440f8c5f7 100644
+--- a/src/cmd/new6g/gsubr.go
++++ b/src/cmd/new6g/gsubr.go
+@@ -719,9 +719,9 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	var w int32
+ 	var p *obj.Prog
+-	var af obj.Addr
+ 	//	Node nod;
+ 
++	var af obj.Addr
+ 	var at obj.Addr
+ 
+ 	//	if(f != N && f->op == OINDEX) {

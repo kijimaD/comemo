@@ -14,6 +14,22 @@ Date:   Fri Nov 10 17:25:58 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/v2/trace_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 7823b01e93..4984f211a4 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -524,6 +524,10 @@ func TestTraceManyStartStop(t *testing.T) {
+ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
+ 	testenv.MustHaveGoRun(t)
+ 
++	if runtime.GOOS == "windows" {
++		t.Skip("temporarily disabled on Windows for #64061")
++	}
++
+ 	// Check if we're on a builder.
+ 	onBuilder := testenv.Builder() != ""
+ 

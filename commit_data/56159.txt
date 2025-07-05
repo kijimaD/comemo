@@ -11,6 +11,20 @@ Date:   Sat Apr 8 17:11:37 2023 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
-
+---
  src/go/doc/comment/print.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/go/doc/comment/print.go b/src/go/doc/comment/print.go
+index 4e9da3d1e8..e1c070d5a5 100644
+--- a/src/go/doc/comment/print.go
++++ b/src/go/doc/comment/print.go
+@@ -148,8 +148,6 @@ func (h *Heading) DefaultID() string {
+ 
+ type commentPrinter struct {
+ 	*Printer
+-	headingPrefix string
+-	needDoc       map[string]bool
+ }
+ 
+ // Comment returns the standard Go formatting of the Doc,

@@ -17,7 +17,7 @@ Date:   Wed Sep 15 04:30:49 2021 +0000
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/dist/build.go               | 11 +++++++++++
  src/cmd/dist/buildruntime.go        |  1 +
  src/cmd/go/alldocs.go               |  4 ++++
@@ -29,3 +29,216 @@ Date:   Wed Sep 15 04:30:49 2021 +0000
  src/internal/cfg/cfg.go             |  1 +
  test/run.go                         |  2 +-
  10 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 33a329e48b..39f016e315 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -32,6 +32,7 @@ var (
+ 	goos             string
+ 	goarm            string
+ 	go386            string
++	goamd64          string
+ 	gomips           string
+ 	gomips64         string
+ 	goppc64          string
+@@ -145,6 +146,12 @@ func xinit() {
+ 	}
+ 	go386 = b
+ 
++	b = os.Getenv("GOAMD64")
++	if b == "" {
++		b = "v1"
++	}
++	goamd64 = b
++
+ 	b = os.Getenv("GOMIPS")
+ 	if b == "" {
+ 		b = "hardfloat"
+@@ -217,6 +224,7 @@ func xinit() {
+ 
+ 	// For tools being invoked but also for os.ExpandEnv.
+ 	os.Setenv("GO386", go386)
++	os.Setenv("GOAMD64", goamd64)
+ 	os.Setenv("GOARCH", goarch)
+ 	os.Setenv("GOARM", goarm)
+ 	os.Setenv("GOHOSTARCH", gohostarch)
+@@ -1181,6 +1189,9 @@ func cmdenv() {
+ 	if goarch == "386" {
+ 		xprintf(format, "GO386", go386)
+ 	}
++	if goarch == "amd64" {
++		xprintf(format, "GOAMD64", goamd64)
++	}
+ 	if goarch == "mips" || goarch == "mipsle" {
+ 		xprintf(format, "GOMIPS", gomips)
+ 	}
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 54e935ad3b..fdc1d25774 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -60,6 +60,7 @@ func mkbuildcfg(file string) {
+ 	fmt.Fprintf(&buf, "import \"runtime\"\n")
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "const defaultGO386 = `%s`\n", go386)
++	fmt.Fprintf(&buf, "const defaultGOAMD64 = `%s`\n", goamd64)
+ 	fmt.Fprintf(&buf, "const defaultGOARM = `%s`\n", goarm)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS = `%s`\n", gomips)
+ 	fmt.Fprintf(&buf, "const defaultGOMIPS64 = `%s`\n", gomips64)
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b7e8212795..35c60744b8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1987,6 +1987,10 @@
+ // 	GO386
+ // 		For GOARCH=386, how to implement floating point instructions.
+ // 		Valid values are sse2 (default), softfloat.
++// 	GOAMD64
++// 		For GOARCH=GOAMD64, the microarchitecture level for which to compile.
++// 		Valid values are v1 (default), v2, v3, v4.
++// 		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+ // 	GOMIPS
+ // 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ // 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index da616ee1dd..5f4465e06b 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -263,6 +263,7 @@ var (
+ 	// Used in envcmd.MkEnv and build ID computations.
+ 	GOARM    = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+ 	GO386    = envOr("GO386", buildcfg.GO386)
++	GOAMD64  = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
+ 	GOMIPS   = envOr("GOMIPS", buildcfg.GOMIPS)
+ 	GOMIPS64 = envOr("GOMIPS64", buildcfg.GOMIPS64)
+ 	GOPPC64  = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+@@ -289,6 +290,8 @@ func GetArchEnv() (key, val string) {
+ 		return "GOARM", GOARM
+ 	case "386":
+ 		return "GO386", GO386
++	case "amd64":
++		return "GOAMD64", GOAMD64
+ 	case "mips", "mipsle":
+ 		return "GOMIPS", GOMIPS
+ 	case "mips64", "mips64le":
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 490ff1fb7c..91876cefe0 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -592,6 +592,10 @@ Architecture-specific environment variables:
+ 	GO386
+ 		For GOARCH=386, how to implement floating point instructions.
+ 		Valid values are sse2 (default), softfloat.
++	GOAMD64
++		For GOARCH=GOAMD64, the microarchitecture level for which to compile.
++		Valid values are v1 (default), v2, v3, v4.
++		See https://en.wikipedia.org/wiki/X86-64#Microarchitecture_levels.
+ 	GOMIPS
+ 		For GOARCH=mips{,le}, whether to use floating point instructions.
+ 		Valid values are hardfloat (default), softfloat.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 1cce5d4dd5..800800f788 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -379,6 +379,11 @@ func asmArgs(a *Action, p *load.Package) []interface{} {
+ 		args = append(args, "-D", "GO386_"+cfg.GO386)
+ 	}
+ 
++	if cfg.Goarch == "amd64" {
++		// Define GOAMD64_value from cfg.GOAMD64.
++		args = append(args, "-D", "GOAMD64_"+cfg.GOAMD64)
++	}
++
+ 	if cfg.Goarch == "mips" || cfg.Goarch == "mipsle" {
+ 		// Define GOMIPS_value from cfg.GOMIPS.
+ 		args = append(args, "-D", "GOMIPS_"+cfg.GOMIPS)
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index 9fe7f211fb..68c10a2824 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -25,6 +25,7 @@ var (
+ 	GOARCH   = envOr("GOARCH", defaultGOARCH)
+ 	GOOS     = envOr("GOOS", defaultGOOS)
+ 	GO386    = envOr("GO386", defaultGO386)
++	GOAMD64  = goamd64()
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+ 	GOMIPS64 = gomips64()
+@@ -52,6 +53,21 @@ func envOr(key, value string) string {
+ 	return value
+ }
+ 
++func goamd64() int {
++	switch v := envOr("GOAMD64", defaultGOAMD64); v {
++	case "v1":
++		return 1
++	case "v2":
++		return 2
++	case "v3":
++		return 3
++	case "v4":
++		return 4
++	}
++	Error = fmt.Errorf("invalid GOAMD64: must be v1, v2, v3, v4")
++	return int(defaultGOAMD64[len("v")] - '0')
++}
++
+ func goarm() int {
+ 	def := defaultGOARM
+ 	if GOOS == "android" && GOARCH == "arm" {
+diff --git a/src/internal/buildcfg/cfg_test.go b/src/internal/buildcfg/cfg_test.go
+new file mode 100644
+index 0000000000..9180441c28
+--- /dev/null
++++ b/src/internal/buildcfg/cfg_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package buildcfg
++
++import (
++	"os"
++	"testing"
++)
++
++func TestConfigFlags(t *testing.T) {
++	os.Setenv("GOAMD64", "v1")
++	if goamd64() != 1 {
++		t.Errorf("Wrong parsing of GOAMD64=v1")
++	}
++	os.Setenv("GOAMD64", "v4")
++	if goamd64() != 4 {
++		t.Errorf("Wrong parsing of GOAMD64=v4")
++	}
++	os.Setenv("GOAMD64", "1")
++	if goamd64() != 1 {
++		t.Errorf("Wrong parsing of GOAMD64=1")
++	}
++}
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 815994b679..4cb3fbd4f3 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -33,6 +33,7 @@ const KnownEnv = `
+ 	GCCGO
+ 	GO111MODULE
+ 	GO386
++	GOAMD64
+ 	GOARCH
+ 	GOARM
+ 	GOBIN
+diff --git a/test/run.go b/test/run.go
+index 3fb87af397..7317e8019e 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1753,7 +1753,7 @@ var (
+ 	// are the supported variants.
+ 	archVariants = map[string][]string{
+ 		"386":     {"GO386", "sse2", "softfloat"},
+-		"amd64":   {},
++		"amd64":   {"GOAMD64", "v1", "v2", "v3", "v4"},
+ 		"arm":     {"GOARM", "5", "6", "7"},
+ 		"arm64":   {},
+ 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},

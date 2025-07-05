@@ -16,7 +16,70 @@ Date:   Thu Jun 30 06:36:31 2016 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 35 +++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/ssa.go      |  8 ++++++++
  2 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index b44bf77c5d..21b5910ecc 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -122,3 +122,38 @@ NextVar:
+ 	}
+ 	return out
+ }
++
++// TestLineNumber checks to make sure the generated assembly has line numbers
++// see issue #16214
++func TestLineNumber(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	dir, err := ioutil.TempDir("", "TestLineNumber")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	src := filepath.Join(dir, "x.go")
++	err = ioutil.WriteFile(src, []byte(issue16214src), 0644)
++	if err != nil {
++		t.Fatalf("could not write file: %v", err)
++	}
++
++	cmd := exec.Command("go", "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("fail to run go tool compile: %v", err)
++	}
++
++	if strings.Contains(string(out), "unknown line number") {
++		t.Errorf("line number missing in assembly:\n%s", out)
++	}
++}
++
++var issue16214src = `
++package main
++
++func Mod32(x uint32) uint32 {
++	return x % 3 // frontend rewrites it as HMUL with 2863311531, the LITERAL node has Lineno 0
++}
++`
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7f55da621c..62ea44f776 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -384,6 +384,14 @@ func (s *state) endBlock() *ssa.Block {
+ 
+ // pushLine pushes a line number on the line number stack.
+ func (s *state) pushLine(line int32) {
++	if line == 0 {
++		// the frontend may emit node with line number missing,
++		// use the parent line number in this case.
++		line = s.peekLine()
++		if Debug['K'] != 0 {
++			Warn("buildssa: line 0")
++		}
++	}
+ 	s.line = append(s.line, line)
+ }
+ 

@@ -13,7 +13,94 @@ Date:   Mon Mar 28 09:41:57 2011 -0700
     R=r, rog, eh, rsc
     CC=golang-dev
     https://golang.org/cl/4306056
-
+---
  src/pkg/strings/strings.go      | 17 +++++++++++++++--
  src/pkg/strings/strings_test.go | 22 ++++++++++++++++++++++
  2 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strings/strings.go b/src/pkg/strings/strings.go
+index 5f009e5485..44dcf99b65 100644
+--- a/src/pkg/strings/strings.go
++++ b/src/pkg/strings/strings.go
+@@ -312,9 +312,19 @@ func Map(mapping func(rune int) int, s string) string {
+ 	// fine.  It could also shrink but that falls out naturally.
+ 	maxbytes := len(s) // length of b
+ 	nbytes := 0        // number of bytes encoded in b
+-	b := make([]byte, maxbytes)
+-	for _, c := range s {
++	// The output buffer b is initialized on demand, the first
++	// time a character differs.
++	var b []byte
++
++	for i, c := range s {
+ 		rune := mapping(c)
++		if b == nil {
++			if rune == c {
++				continue
++			}
++			b = make([]byte, maxbytes)
++			nbytes = copy(b, s[:i])
++		}
+ 		if rune >= 0 {
+ 			wid := 1
+ 			if rune >= utf8.RuneSelf {
+@@ -330,6 +340,9 @@ func Map(mapping func(rune int) int, s string) string {
+ 			nbytes += utf8.EncodeRune(b[nbytes:maxbytes], rune)
+ 		}
+ 	}
++	if b == nil {
++		return s
++	}
+ 	return string(b[0:nbytes])
+ }
+ 
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index d75f1ad9c6..c45b1485d8 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -6,10 +6,12 @@ package strings_test
+ 
+ import (
+ 	"os"
++	"reflect"
+ 	"strconv"
+ 	. "strings"
+ 	"testing"
+ 	"unicode"
++	"unsafe"
+ 	"utf8"
+ )
+ 
+@@ -429,12 +431,32 @@ func TestMap(t *testing.T) {
+ 	if m != expect {
+ 		t.Errorf("drop: expected %q got %q", expect, m)
+ 	}
++
++	// 6. Identity
++	identity := func(rune int) int {
++		return rune
++	}
++	orig := "Input string that we expect not to be copied."
++	m = Map(identity, orig)
++	if (*reflect.StringHeader)(unsafe.Pointer(&orig)).Data !=
++		(*reflect.StringHeader)(unsafe.Pointer(&m)).Data {
++		t.Error("unexpected copy during identity map")
++	}
+ }
+ 
+ func TestToUpper(t *testing.T) { runStringTests(t, ToUpper, "ToUpper", upperTests) }
+ 
+ func TestToLower(t *testing.T) { runStringTests(t, ToLower, "ToLower", lowerTests) }
+ 
++func BenchmarkMapNoChanges(b *testing.B) {
++	identity := func(rune int) int {
++		return rune
++	}
++	for i := 0; i < b.N; i++ {
++		Map(identity, "Some string that won't be modified.")
++	}
++}
++
+ func TestSpecialCase(t *testing.T) {
+ 	lower := "abcçdefgğhıijklmnoöprsştuüvyz"
+ 	upper := "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"

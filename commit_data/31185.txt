@@ -22,7 +22,7 @@ Date:   Fri Feb 3 04:55:34 2017 -0500
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/s390x/ssa.go        |   7 +-
  src/cmd/compile/internal/ssa/gen/S390X.rules | 109 ++++-----
  src/cmd/compile/internal/ssa/gen/S390XOps.go |   3 +
@@ -30,3 +30,1184 @@ Date:   Fri Feb 3 04:55:34 2017 -0500
  src/cmd/compile/internal/ssa/rewriteS390X.go | 316 ++++++++++++++-------------
  test/fixedbugs/issue18906.go                 |  36 +++
  6 files changed, 297 insertions(+), 202 deletions(-)
+
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 1adf399c34..b45f591949 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -424,7 +424,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux2(&p.To, v, sc.Off())
+-	case ssa.OpCopy, ssa.OpS390XMOVDconvert:
++	case ssa.OpCopy, ssa.OpS390XMOVDconvert, ssa.OpS390XMOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+@@ -433,6 +433,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if x != y {
+ 			opregreg(moveByType(v.Type), y, x)
+ 		}
++	case ssa.OpS390XMOVDnop:
++		if v.Reg() != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
++		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+ 			v.Fatalf("load flags not implemented: %v", v.LongString())
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index ef5cf6e190..d0a0be911b 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -309,9 +309,12 @@
+ 
+ // Lowering loads
+ (Load <t> ptr mem) && (is64BitInt(t) || isPtr(t)) -> (MOVDload ptr mem)
+-(Load <t> ptr mem) && is32BitInt(t) -> (MOVWZload ptr mem)
+-(Load <t> ptr mem) && is16BitInt(t) -> (MOVHZload ptr mem)
+-(Load <t> ptr mem) && (t.IsBoolean() || is8BitInt(t)) -> (MOVBZload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && isSigned(t) -> (MOVWload ptr mem)
++(Load <t> ptr mem) && is32BitInt(t) && !isSigned(t) -> (MOVWZload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && isSigned(t) -> (MOVHload ptr mem)
++(Load <t> ptr mem) && is16BitInt(t) && !isSigned(t) -> (MOVHZload ptr mem)
++(Load <t> ptr mem) && is8BitInt(t) && isSigned(t) -> (MOVBload ptr mem)
++(Load <t> ptr mem) && (t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) -> (MOVBZload ptr mem)
+ (Load <t> ptr mem) && is32BitFloat(t) -> (FMOVSload ptr mem)
+ (Load <t> ptr mem) && is64BitFloat(t) -> (FMOVDload ptr mem)
+ 
+@@ -442,16 +445,20 @@
+ // ***************************
+ // TODO: Should the optimizations be a separate pass?
+ 
++// if a register move has only 1 use, just use the same register without emitting instruction
++// MOVDnop doesn't emit instruction, only for ensuring the type.
++(MOVDreg x) && x.Uses == 1 -> (MOVDnop x)
++
+ // Fold sign extensions into conditional moves of constants.
+ // Designed to remove the MOVBZreg inserted by the If lowering.
+-(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
+-(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> x
++(MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
++(MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _)) && int64(uint8(c)) == c && int64(uint8(d)) == d -> (MOVDreg x)
+ 
+ // Fold boolean tests into blocks.
+ (NE (CMPWconst [0] (MOVDLT (MOVDconst [0]) (MOVDconst [1]) cmp)) yes no) -> (LT cmp yes no)
+@@ -584,46 +591,46 @@
+ (MOVDNE x y (InvertFlags cmp)) -> (MOVDNE x y cmp)
+ 
+ // don't extend after proper load
+-(MOVBreg x:(MOVBload _ _)) -> x
+-(MOVBZreg x:(MOVBZload _ _)) -> x
+-(MOVHreg x:(MOVBload _ _)) -> x
+-(MOVHreg x:(MOVBZload _ _)) -> x
+-(MOVHreg x:(MOVHload _ _)) -> x
+-(MOVHZreg x:(MOVBZload _ _)) -> x
+-(MOVHZreg x:(MOVHZload _ _)) -> x
+-(MOVWreg x:(MOVBload _ _)) -> x
+-(MOVWreg x:(MOVBZload _ _)) -> x
+-(MOVWreg x:(MOVHload _ _)) -> x
+-(MOVWreg x:(MOVHZload _ _)) -> x
+-(MOVWreg x:(MOVWload _ _)) -> x
+-(MOVWZreg x:(MOVBZload _ _)) -> x
+-(MOVWZreg x:(MOVHZload _ _)) -> x
+-(MOVWZreg x:(MOVWZload _ _)) -> x
++(MOVBreg x:(MOVBload _ _)) -> (MOVDreg x)
++(MOVBZreg x:(MOVBZload _ _)) -> (MOVDreg x)
++(MOVHreg x:(MOVBload _ _)) -> (MOVDreg x)
++(MOVHreg x:(MOVBZload _ _)) -> (MOVDreg x)
++(MOVHreg x:(MOVHload _ _)) -> (MOVDreg x)
++(MOVHZreg x:(MOVBZload _ _)) -> (MOVDreg x)
++(MOVHZreg x:(MOVHZload _ _)) -> (MOVDreg x)
++(MOVWreg x:(MOVBload _ _)) -> (MOVDreg x)
++(MOVWreg x:(MOVBZload _ _)) -> (MOVDreg x)
++(MOVWreg x:(MOVHload _ _)) -> (MOVDreg x)
++(MOVWreg x:(MOVHZload _ _)) -> (MOVDreg x)
++(MOVWreg x:(MOVWload _ _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVBZload _ _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVHZload _ _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVWZload _ _)) -> (MOVDreg x)
+ 
+ // don't extend if argument is already extended
+-(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> x
+-(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) -> x
+-(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) -> x
+-(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) -> x
+-(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) -> x
+-(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) -> x
++(MOVBreg x:(Arg <t>)) && is8BitInt(t) && isSigned(t) -> (MOVDreg x)
++(MOVBZreg x:(Arg <t>)) && is8BitInt(t) && !isSigned(t) -> (MOVDreg x)
++(MOVHreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && isSigned(t) -> (MOVDreg x)
++(MOVHZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t)) && !isSigned(t) -> (MOVDreg x)
++(MOVWreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t) -> (MOVDreg x)
++(MOVWZreg x:(Arg <t>)) && (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t) -> (MOVDreg x)
+ 
+ // fold double extensions
+-(MOVBreg x:(MOVBreg _)) -> x
+-(MOVBZreg x:(MOVBZreg _)) -> x
+-(MOVHreg x:(MOVBreg _)) -> x
+-(MOVHreg x:(MOVBZreg _)) -> x
+-(MOVHreg x:(MOVHreg _)) -> x
+-(MOVHZreg x:(MOVBZreg _)) -> x
+-(MOVHZreg x:(MOVHZreg _)) -> x
+-(MOVWreg x:(MOVBreg _)) -> x
+-(MOVWreg x:(MOVBZreg _)) -> x
+-(MOVWreg x:(MOVHreg _)) -> x
+-(MOVWreg x:(MOVHreg _)) -> x
+-(MOVWreg x:(MOVWreg _)) -> x
+-(MOVWZreg x:(MOVBZreg _)) -> x
+-(MOVWZreg x:(MOVHZreg _)) -> x
+-(MOVWZreg x:(MOVWZreg _)) -> x
++(MOVBreg x:(MOVBreg _)) -> (MOVDreg x)
++(MOVBZreg x:(MOVBZreg _)) -> (MOVDreg x)
++(MOVHreg x:(MOVBreg _)) -> (MOVDreg x)
++(MOVHreg x:(MOVBZreg _)) -> (MOVDreg x)
++(MOVHreg x:(MOVHreg _)) -> (MOVDreg x)
++(MOVHZreg x:(MOVBZreg _)) -> (MOVDreg x)
++(MOVHZreg x:(MOVHZreg _)) -> (MOVDreg x)
++(MOVWreg x:(MOVBreg _)) -> (MOVDreg x)
++(MOVWreg x:(MOVBZreg _)) -> (MOVDreg x)
++(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
++(MOVWreg x:(MOVHreg _)) -> (MOVDreg x)
++(MOVWreg x:(MOVWreg _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVBZreg _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVHZreg _)) -> (MOVDreg x)
++(MOVWZreg x:(MOVWZreg _)) -> (MOVDreg x)
+ 
+ // fold extensions into constants
+ (MOVBreg (MOVDconst [c])) -> (MOVDconst [int64(int8(c))])
+@@ -653,10 +660,10 @@
+ (MOVWZreg x:(MOVWZloadidx [off] {sym} ptr idx mem)) && x.Uses == 1 && clobber(x) -> @x.Block (MOVWZloadidx <v.Type> [off] {sym} ptr idx mem)
+ 
+ // replace load from same location as preceding store with copy
+-(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
+-(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> x
++(MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
++(MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
++(MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
++(MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _)) && sym == sym2 && off == off2 && isSamePtr(ptr, ptr2) -> (MOVDreg x)
+ 
+ // Don't extend before storing
+ (MOVWstore [off] {sym} ptr (MOVWreg x) mem) -> (MOVWstore [off] {sym} ptr x mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 99c3a4da4a..4c5f070908 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -311,6 +311,9 @@ func init() {
+ 		{name: "MOVHZreg", argLength: 1, reg: gp11sp, asm: "MOVHZ", typ: "UInt64"}, // zero extend arg0 from int16 to int64
+ 		{name: "MOVWreg", argLength: 1, reg: gp11sp, asm: "MOVW", typ: "Int64"},    // sign extend arg0 from int32 to int64
+ 		{name: "MOVWZreg", argLength: 1, reg: gp11sp, asm: "MOVWZ", typ: "UInt64"}, // zero extend arg0 from int32 to int64
++		{name: "MOVDreg", argLength: 1, reg: gp11sp, asm: "MOVD"},                  // move from arg0
++
++		{name: "MOVDnop", argLength: 1, reg: gp11, resultInArg0: true}, // nop, return arg0 in same register
+ 
+ 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f4cc1c0b81..d8407df09c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1473,6 +1473,8 @@ const (
+ 	OpS390XMOVHZreg
+ 	OpS390XMOVWreg
+ 	OpS390XMOVWZreg
++	OpS390XMOVDreg
++	OpS390XMOVDnop
+ 	OpS390XMOVDconst
+ 	OpS390XCFDBRA
+ 	OpS390XCGDBRA
+@@ -18578,6 +18580,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "MOVDreg",
++		argLen: 1,
++		asm:    s390x.AMOVD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
++	{
++		name:         "MOVDnop",
++		argLen:       1,
++		resultInArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++			outputs: []outputInfo{
++				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
++			},
++		},
++	},
+ 	{
+ 		name:              "MOVDconst",
+ 		auxType:           auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 04e1fe8ec9..af6b662193 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -520,6 +520,8 @@ func rewriteValueS390X(v *Value, config *Config) bool {
+ 		return rewriteValueS390X_OpS390XMOVDload(v, config)
+ 	case OpS390XMOVDloadidx:
+ 		return rewriteValueS390X_OpS390XMOVDloadidx(v, config)
++	case OpS390XMOVDreg:
++		return rewriteValueS390X_OpS390XMOVDreg(v, config)
+ 	case OpS390XMOVDstore:
+ 		return rewriteValueS390X_OpS390XMOVDstore(v, config)
+ 	case OpS390XMOVDstoreconst:
+@@ -3232,13 +3234,28 @@ func rewriteValueS390X_OpLoad(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is32BitInt(t)
++	// cond: is32BitInt(t) && isSigned(t)
++	// result: (MOVWload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is32BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpS390XMOVWload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is32BitInt(t) && !isSigned(t)
+ 	// result: (MOVWZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(is32BitInt(t)) {
++		if !(is32BitInt(t) && !isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVWZload)
+@@ -3247,13 +3264,28 @@ func rewriteValueS390X_OpLoad(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: is16BitInt(t)
++	// cond: is16BitInt(t) && isSigned(t)
++	// result: (MOVHload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is16BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpS390XMOVHload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is16BitInt(t) && !isSigned(t)
+ 	// result: (MOVHZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(is16BitInt(t)) {
++		if !(is16BitInt(t) && !isSigned(t)) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVHZload)
+@@ -3262,13 +3294,28 @@ func rewriteValueS390X_OpLoad(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ 	// match: (Load <t> ptr mem)
+-	// cond: (t.IsBoolean() || is8BitInt(t))
++	// cond: is8BitInt(t) && isSigned(t)
++	// result: (MOVBload ptr mem)
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is8BitInt(t) && isSigned(t)) {
++			break
++		}
++		v.reset(OpS390XMOVBload)
++		v.AddArg(ptr)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: (t.IsBoolean() || (is8BitInt(t) && !isSigned(t)))
+ 	// result: (MOVBZload ptr mem)
+ 	for {
+ 		t := v.Type
+ 		ptr := v.Args[0]
+ 		mem := v.Args[1]
+-		if !(t.IsBoolean() || is8BitInt(t)) {
++		if !(t.IsBoolean() || (is8BitInt(t) && !isSigned(t))) {
+ 			break
+ 		}
+ 		v.reset(OpS390XMOVBZload)
+@@ -7864,7 +7911,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVBZload [off] {sym} ptr (MOVBstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -7880,8 +7927,7 @@ func rewriteValueS390X_OpS390XMOVBZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -8038,7 +8084,7 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVBZreg x:(MOVDLT (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDLT {
+@@ -8057,14 +8103,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDLE (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDLE {
+@@ -8083,14 +8128,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDGT (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDGT {
+@@ -8109,14 +8153,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDGE (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDGE {
+@@ -8135,14 +8178,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDEQ (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDEQ {
+@@ -8161,14 +8203,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDNE (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDNE {
+@@ -8187,14 +8228,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDGTnoinv (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDGTnoinv {
+@@ -8213,14 +8253,13 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVDGEnoinv (MOVDconst [c]) (MOVDconst [d]) _))
+ 	// cond: int64(uint8(c)) == c && int64(uint8(d)) == d
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVDGEnoinv {
+@@ -8239,27 +8278,25 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(int64(uint8(c)) == c && int64(uint8(d)) == d) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVBZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(Arg <t>))
+ 	// cond: is8BitInt(t) && !isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -8269,21 +8306,19 @@ func rewriteValueS390X_OpS390XMOVBZreg(v *Value, config *Config) bool {
+ 		if !(is8BitInt(t) && !isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBZreg x:(MOVBZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -8411,20 +8446,19 @@ func rewriteValueS390X_OpS390XMOVBreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVBreg x:(MOVBload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBreg x:(Arg <t>))
+ 	// cond: is8BitInt(t) && isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -8434,21 +8468,19 @@ func rewriteValueS390X_OpS390XMOVBreg(v *Value, config *Config) bool {
+ 		if !(is8BitInt(t) && isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVBreg x:(MOVBreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -10057,7 +10089,7 @@ func rewriteValueS390X_OpS390XMOVDload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVDload [off] {sym} ptr (MOVDstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -10073,8 +10105,7 @@ func rewriteValueS390X_OpS390XMOVDload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -10226,6 +10257,23 @@ func rewriteValueS390X_OpS390XMOVDloadidx(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueS390X_OpS390XMOVDreg(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (MOVDreg x)
++	// cond: x.Uses == 1
++	// result: (MOVDnop x)
++	for {
++		x := v.Args[0]
++		if !(x.Uses == 1) {
++			break
++		}
++		v.reset(OpS390XMOVDnop)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueS390X_OpS390XMOVDstore(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -10974,7 +11022,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVHZload [off] {sym} ptr (MOVHstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -10990,8 +11038,7 @@ func rewriteValueS390X_OpS390XMOVHZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -11148,33 +11195,31 @@ func rewriteValueS390X_OpS390XMOVHZreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVHZreg x:(MOVBZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHZreg x:(MOVHZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHZreg x:(Arg <t>))
+ 	// cond: (is8BitInt(t) || is16BitInt(t)) && !isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -11184,34 +11229,31 @@ func rewriteValueS390X_OpS390XMOVHZreg(v *Value, config *Config) bool {
+ 		if !((is8BitInt(t) || is16BitInt(t)) && !isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHZreg x:(MOVBZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHZreg x:(MOVHZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -11339,46 +11381,43 @@ func rewriteValueS390X_OpS390XMOVHreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVHreg x:(MOVBload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVBZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVHload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(Arg <t>))
+ 	// cond: (is8BitInt(t) || is16BitInt(t)) && isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -11388,47 +11427,43 @@ func rewriteValueS390X_OpS390XMOVHreg(v *Value, config *Config) bool {
+ 		if !((is8BitInt(t) || is16BitInt(t)) && isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVBreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVBZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVHreg x:(MOVHreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -12372,7 +12407,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVWZload [off] {sym} ptr (MOVWstore [off2] {sym2} ptr2 x _))
+ 	// cond: sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		off := v.AuxInt
+ 		sym := v.Aux
+@@ -12388,8 +12423,7 @@ func rewriteValueS390X_OpS390XMOVWZload(v *Value, config *Config) bool {
+ 		if !(sym == sym2 && off == off2 && isSamePtr(ptr, ptr2)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -12546,46 +12580,43 @@ func rewriteValueS390X_OpS390XMOVWZreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVWZreg x:(MOVBZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(MOVHZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(MOVWZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVWZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(Arg <t>))
+ 	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -12595,47 +12626,43 @@ func rewriteValueS390X_OpS390XMOVWZreg(v *Value, config *Config) bool {
+ 		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && !isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(MOVBZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(MOVHZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWZreg x:(MOVWZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVWZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+@@ -12763,72 +12790,67 @@ func rewriteValueS390X_OpS390XMOVWreg(v *Value, config *Config) bool {
+ 	_ = b
+ 	// match: (MOVWreg x:(MOVBload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVBZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVHload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVHZload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHZload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVWload _ _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVWload {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(Arg <t>))
+ 	// cond: (is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpArg {
+@@ -12838,73 +12860,67 @@ func rewriteValueS390X_OpS390XMOVWreg(v *Value, config *Config) bool {
+ 		if !((is8BitInt(t) || is16BitInt(t) || is32BitInt(t)) && isSigned(t)) {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVBreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVBZreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVBZreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVHreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVHreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVHreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+ 	// match: (MOVWreg x:(MOVWreg _))
+ 	// cond:
+-	// result: x
++	// result: (MOVDreg x)
+ 	for {
+ 		x := v.Args[0]
+ 		if x.Op != OpS390XMOVWreg {
+ 			break
+ 		}
+-		v.reset(OpCopy)
+-		v.Type = x.Type
++		v.reset(OpS390XMOVDreg)
+ 		v.AddArg(x)
+ 		return true
+ 	}
+diff --git a/test/fixedbugs/issue18906.go b/test/fixedbugs/issue18906.go
+new file mode 100644
+index 0000000000..544400be25
+--- /dev/null
++++ b/test/fixedbugs/issue18906.go
+@@ -0,0 +1,36 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++//go:noinline
++func f(x int) {
++}
++
++//go:noinline
++func val() int8 {
++	return -1
++}
++
++var (
++	array = [257]int{}
++	slice = array[1:]
++)
++
++func init() {
++	for i := range array {
++		array[i] = i - 1
++	}
++}
++
++func main() {
++	x := val()
++	y := int(uint8(x))
++	f(y) // try and force y to be calculated and spilled
++	if slice[y] != 255 {
++		panic("incorrect value")
++	}
++}

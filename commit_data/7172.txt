@@ -9,7 +9,7 @@ Date:   Wed Jan 19 15:30:26 2011 -0500
     R=rsc, r2
     CC=golang-dev
     https://golang.org/cl/2732042
-
+---
  src/cmd/5a/a.h     |  1 -
  src/cmd/5l/l.h     |  1 -
  src/cmd/6a/a.h     |  1 -
@@ -20,3 +20,166 @@ Date:   Wed Jan 19 15:30:26 2011 -0500
  src/cmd/cc/dpchk.c |  1 +
  src/cmd/cc/lexbody | 43 ++++++++++++++-----------------------------
  9 files changed, 15 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index bc4f433e13..550b61dcf3 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -54,7 +54,6 @@ typedef	struct	Hist	Hist;
+ #define	NSYMB		8192
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 4e7ccea887..ceffac86d6 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -276,7 +276,6 @@ enum
+ 
+ 	STRINGSZ	= 200,
+ 	NHASH		= 10007,
+-	NHUNK		= 100000,
+ 	MINSIZ		= 64,
+ 	NENT		= 100,
+ 	MAXIO		= 8192,
+diff --git a/src/cmd/6a/a.h b/src/cmd/6a/a.h
+index 9030081ca0..2d42726465 100644
+--- a/src/cmd/6a/a.h
++++ b/src/cmd/6a/a.h
+@@ -57,7 +57,6 @@ typedef	struct	Gen2	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 1c52ea89d2..d3639d0f2b 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -196,7 +196,6 @@ enum
+ 	SSUB	= 1<<8,
+ 
+ 	NHASH		= 10007,
+-	NHUNK		= 100000,
+ 	MINSIZ		= 8,
+ 	STRINGSZ	= 200,
+ 	MINLC		= 1,
+diff --git a/src/cmd/8a/a.h b/src/cmd/8a/a.h
+index fe6b172802..3cb30f4c27 100644
+--- a/src/cmd/8a/a.h
++++ b/src/cmd/8a/a.h
+@@ -57,7 +57,6 @@ typedef	struct	Gen2	Gen2;
+ #define	NSYMB		500
+ #define	BUFSIZ		8192
+ #define	HISTSZ		20
+-#define	NHUNK		10000
+ #define	EOF		(-1)
+ #define	IGN		(-2)
+ #define	GETC()		((--fi.c < 0)? filbuf(): *fi.p++ & 0xff)
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index daede88790..d85453bc31 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -190,7 +190,6 @@ enum
+ 	SSUB = 1<<8,	/* sub-symbol, linked from parent via ->sub list */
+ 
+ 	NHASH		= 10007,
+-	NHUNK		= 100000,
+ 	MINSIZ		= 4,
+ 	STRINGSZ	= 200,
+ 	MINLC		= 1,
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 3649bf5f6a..bdb2269214 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -59,7 +59,6 @@ typedef	struct	Bits	Bits;
+ typedef	struct	Dynimp	Dynimp;
+ typedef	struct	Dynexp	Dynexp;
+ 
+-#define	NHUNK		50000L
+ #define	BUFSIZ		8192
+ #define	NSYMB		500
+ #define	NHASH		1024
+diff --git a/src/cmd/cc/dpchk.c b/src/cmd/cc/dpchk.c
+index 6eb5fb409c..d78a72a2b7 100644
+--- a/src/cmd/cc/dpchk.c
++++ b/src/cmd/cc/dpchk.c
+@@ -399,6 +399,7 @@ dpcheck(Node *n)
+ 		return;
+ 
+ 	i = l->param;
++	a = nil;
+ 	b = n->right;
+ 	a = Z;
+ 	while(i > 0) {
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index 0bccc17335..24f9bdc855 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -88,47 +88,32 @@ pragincomplete(void)
+ 		;
+ }
+ 
+-void
+-gethunk(void)
+-{
+-	hunk = malloc(NHUNK);
+-	memset(hunk, 0, NHUNK);
+-	nhunk = NHUNK;
+-}
+-
+ void*
+ alloc(int32 n)
+ {
+ 	void *p;
+ 
+-	while((uintptr)hunk & MAXALIGN) {
+-		hunk++;
+-		nhunk--;
++	p = malloc(n);
++	if(p == nil) {
++		print("alloc out of mem\n");
++		exit(1);
+ 	}
+-	while(nhunk < n)
+-		gethunk();
+-	p = hunk;
+-	nhunk -= n;
+-	hunk += n;
++	memset(p, 0, n);
+ 	return p;
+ }
+ 
+ void*
+-allocn(void *p, int32 on, int32 n)
++allocn(void *p, int32 n, int32 d)
+ {
+-	void *q;
+-
+-	q = (uchar*)p + on;
+-	if(q != hunk || nhunk < n) {
+-		while(nhunk < on+n)
+-			gethunk();
+-		memmove(hunk, p, on);
+-		p = hunk;
+-		hunk += on;
+-		nhunk -= on;
++	if(p == nil)
++		return alloc(n+d);
++	p = realloc(p, n+d);
++	if(p == nil) {
++		print("allocn out of mem\n");
++		exit(1);
+ 	}
+-	hunk += n;
+-	nhunk -= n;
++	if(d > 0)
++		memset((char*)p+n, 0, d);
+ 	return p;
+ }
+ 

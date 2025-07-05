@@ -15,9 +15,88 @@ Date:   Fri Aug 25 15:08:05 2023 +0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/cgo/internal/testshared/shared_test.go          |  6 ++++++
  .../testshared/testdata/issue62277/issue62277_test.go   | 16 ++++++++++++++++
  .../cgo/internal/testshared/testdata/issue62277/p/p.go  | 17 +++++++++++++++++
  src/cmd/compile/internal/noder/reader.go                |  5 +++++
  4 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 2eab33f919..814b9994f8 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -1159,6 +1159,12 @@ func TestIssue47873(t *testing.T) {
+ 	goCmd(t, "run", "-linkshared", "./issue47837/main")
+ }
+ 
++func TestIssue62277(t *testing.T) {
++	globalSkip(t)
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue62277/p")
++	goCmd(t, "test", "-linkshared", "./issue62277")
++}
++
+ // Test that we can build std in shared mode.
+ func TestStd(t *testing.T) {
+ 	if testing.Short() {
+diff --git a/src/cmd/cgo/internal/testshared/testdata/issue62277/issue62277_test.go b/src/cmd/cgo/internal/testshared/testdata/issue62277/issue62277_test.go
+new file mode 100644
+index 0000000000..89a0601c9b
+--- /dev/null
++++ b/src/cmd/cgo/internal/testshared/testdata/issue62277/issue62277_test.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue62277_test
++
++import (
++	"testing"
++
++	"testshared/issue62277/p"
++)
++
++func TestIssue62277(t *testing.T) {
++	t.Log(p.S)
++	t.Log(p.T)
++}
+diff --git a/src/cmd/cgo/internal/testshared/testdata/issue62277/p/p.go b/src/cmd/cgo/internal/testshared/testdata/issue62277/p/p.go
+new file mode 100644
+index 0000000000..97bde0c10f
+--- /dev/null
++++ b/src/cmd/cgo/internal/testshared/testdata/issue62277/p/p.go
+@@ -0,0 +1,17 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++var S = func() []string {
++	return []string{"LD_LIBRARY_PATH"}
++}()
++
++var T []string
++
++func init() {
++	T = func() []string {
++		return []string{"LD_LIBRARY_PATH"}
++	}()
++}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 01f001f199..374d9225b9 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3109,6 +3109,11 @@ func (r *reader) funcLit() ir.Node {
+ 
+ 	r.addBody(fn, nil)
+ 
++	// un-hide closures belong to init function.
++	if (r.curfn.IsPackageInit() || strings.HasPrefix(r.curfn.Sym().Name, "init.")) && ir.IsTrivialClosure(fn.OClosure) {
++		fn.SetIsHiddenClosure(false)
++	}
++
+ 	return fn.OClosure
+ }
+ 

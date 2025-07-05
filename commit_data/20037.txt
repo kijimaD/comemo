@@ -12,8 +12,60 @@ Date:   Tue Aug 12 19:53:11 2014 -0400
     R=golang-codereviews, rminnich, iant
     CC=golang-codereviews
     https://golang.org/cl/128070045
-
+---
  src/cmd/6c/sgen.c  | 5 +----
  src/cmd/6g/cgen.c  | 7 +------
  src/cmd/6g/gsubr.c | 5 +----
  3 files changed, 3 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/6c/sgen.c b/src/cmd/6c/sgen.c
+index ba1c1f652d..c048e784d4 100644
+--- a/src/cmd/6c/sgen.c
++++ b/src/cmd/6c/sgen.c
+@@ -124,10 +124,7 @@ xcom(Node *n)
+ 		break;
+ 
+ 	case ONAME:
+-		if(flag_largemodel)
+-			n->addable = 9;
+-		else
+-			n->addable = 10;
++		n->addable = 9;
+ 		if(n->class == CPARAM || n->class == CAUTO)
+ 			n->addable = 11;
+ 		break;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 4dd505b086..bff2350621 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -752,12 +752,7 @@ agenr(Node *n, Node *a, Node *res)
+ 			regalloc(&n3, types[tptr], res);
+ 			p1 = gins(ALEAQ, N, &n3);
+ 			datastring(nl->val.u.sval->s, nl->val.u.sval->len, &p1->from);
+-			if(flag_largemodel) {
+-				gins(AADDQ, &n2, &n3);
+-			} else {
+-				p1->from.scale = 1;
+-				p1->from.index = n2.val.u.reg;
+-			}
++			gins(AADDQ, &n2, &n3);
+ 			goto indexdone;
+ 		}
+ 
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index f3464b7e1c..4ac2e92079 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -598,11 +598,8 @@ ismem(Node *n)
+ 	case ONAME:
+ 	case OPARAM:
+ 	case OCLOSUREVAR:
+-		return 1;
+ 	case OADDR:
+-		if(flag_largemodel)
+-			return 1;
+-		break;
++		return 1;
+ 	}
+ 	return 0;
+ }

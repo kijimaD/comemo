@@ -9,7 +9,145 @@ Date:   Thu Aug 25 08:44:12 2011 +1000
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/4927043
-
+---
  src/pkg/bufio/bufio.go      | 24 ++++++++++++----
  src/pkg/bufio/bufio_test.go | 70 ++++++++++++++++++++++++++++++++++++++++++++-
  2 files changed, 87 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/bufio/bufio.go b/src/pkg/bufio/bufio.go
+index 727ebfdbbe..2ea7af3e25 100644
+--- a/src/pkg/bufio/bufio.go
++++ b/src/pkg/bufio/bufio.go
+@@ -54,11 +54,11 @@ type Reader struct {
+ }
+ 
+ // NewReaderSize creates a new Reader whose buffer has the specified size,
+-// which must be greater than zero.  If the argument io.Reader is already a
++// which must be greater than one.  If the argument io.Reader is already a
+ // Reader with large enough size, it returns the underlying Reader.
+ // It returns the Reader and any error.
+ func NewReaderSize(rd io.Reader, size int) (*Reader, os.Error) {
+-	if size <= 0 {
++	if size <= 1 {
+ 		return nil, BufSizeError(size)
+ 	}
+ 	// Is it already a Reader?
+@@ -298,6 +298,17 @@ func (b *Reader) ReadSlice(delim byte) (line []byte, err os.Error) {
+ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
+ 	line, err = b.ReadSlice('\n')
+ 	if err == ErrBufferFull {
++		// Handle the case where "\r\n" straddles the buffer.
++		if len(line) > 0 && line[len(line)-1] == '\r' {
++			// Put the '\r' back on buf and drop it from line.
++			// Let the next call to ReadLine check for "\r\n".
++			if b.r == 0 {
++				// should be unreachable
++				panic("bufio: tried to rewind past start of buffer")
++			}
++			b.r--
++			line = line[:len(line)-1]
++		}
+ 		return line, true, nil
+ 	}
+ 
+@@ -307,10 +318,11 @@ func (b *Reader) ReadLine() (line []byte, isPrefix bool, err os.Error) {
+ 	err = nil
+ 
+ 	if line[len(line)-1] == '\n' {
+-		line = line[:len(line)-1]
+-	}
+-	if len(line) > 0 && line[len(line)-1] == '\r' {
+-		line = line[:len(line)-1]
++		drop := 1
++		if len(line) > 1 && line[len(line)-2] == '\r' {
++			drop = 2
++		}
++		line = line[:len(line)-drop]
+ 	}
+ 	return
+ }
+diff --git a/src/pkg/bufio/bufio_test.go b/src/pkg/bufio/bufio_test.go
+index 82c73d36a9..38213ffe78 100644
+--- a/src/pkg/bufio/bufio_test.go
++++ b/src/pkg/bufio/bufio_test.go
+@@ -137,7 +137,7 @@ var bufreaders = []bufReader{
+ }
+ 
+ var bufsizes = []int{
+-	1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
++	2, 3, 4, 5, 6, 7, 8, 9, 10,
+ 	23, 32, 46, 64, 93, 128, 1024, 4096,
+ }
+ 
+@@ -697,3 +697,71 @@ func TestLinesAfterRead(t *testing.T) {
+ 		t.Errorf("expected EOF from ReadLine, got '%s' %t %s", line, isPrefix, err)
+ 	}
+ }
++
++type readLineResult struct {
++	line     []byte
++	isPrefix bool
++	err      os.Error
++}
++
++var readLineNewlinesTests = []struct {
++	input   string
++	bufSize int
++	expect  []readLineResult
++}{
++	{"h\r\nb\r\n", 2, []readLineResult{
++		{[]byte("h"), true, nil},
++		{nil, false, nil},
++		{[]byte("b"), true, nil},
++		{nil, false, nil},
++		{nil, false, os.EOF},
++	}},
++	{"hello\r\nworld\r\n", 6, []readLineResult{
++		{[]byte("hello"), true, nil},
++		{nil, false, nil},
++		{[]byte("world"), true, nil},
++		{nil, false, nil},
++		{nil, false, os.EOF},
++	}},
++	{"hello\rworld\r", 6, []readLineResult{
++		{[]byte("hello"), true, nil},
++		{[]byte("\rworld"), true, nil},
++		{[]byte("\r"), false, nil},
++		{nil, false, os.EOF},
++	}},
++	{"h\ri\r\n\r", 2, []readLineResult{
++		{[]byte("h"), true, nil},
++		{[]byte("\ri"), true, nil},
++		{nil, false, nil},
++		{[]byte("\r"), false, nil},
++		{nil, false, os.EOF},
++	}},
++}
++
++func TestReadLineNewlines(t *testing.T) {
++	for _, e := range readLineNewlinesTests {
++		testReadLineNewlines(t, e.input, e.bufSize, e.expect)
++	}
++}
++
++func testReadLineNewlines(t *testing.T, input string, bufSize int, expect []readLineResult) {
++	b, err := NewReaderSize(strings.NewReader(input), bufSize)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for i, e := range expect {
++		line, isPrefix, err := b.ReadLine()
++		if bytes.Compare(line, e.line) != 0 {
++			t.Errorf("%q call %d, line == %q, want %q", input, i, line, e.line)
++			return
++		}
++		if isPrefix != e.isPrefix {
++			t.Errorf("%q call %d, isPrefix == %v, want %v", input, i, isPrefix, e.isPrefix)
++			return
++		}
++		if err != e.err {
++			t.Errorf("%q call %d, err == %v, want %v", input, i, err, e.err)
++			return
++		}
++	}
++}

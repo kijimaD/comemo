@@ -20,6 +20,35 @@ Date:   Tue Oct 27 17:48:18 2015 -0400
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/mgc.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index abebe10660..a3326e344e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1229,6 +1229,10 @@ func gcMarkTermination() {
+ 	memstats.numgc++
+ 
+ 	systemstack(startTheWorldWithSema)
++
++	// Free stack spans. This must be done between GC cycles.
++	systemstack(freeStackSpans)
++
+ 	semrelease(&worldsema)
+ 
+ 	releasem(mp)
+@@ -1540,12 +1544,6 @@ func gcMark(start_time int64) {
+ 		traceGCScanDone()
+ 	}
+ 
+-	// TODO(austin): This doesn't have to be done during STW, as
+-	// long as we block the next GC cycle until this is done. Move
+-	// it after we start the world, but before dropping worldsema.
+-	// (See issue #11465.)
+-	freeStackSpans()
+-
+ 	cachestats()
+ 
+ 	// Compute the reachable heap size at the beginning of the

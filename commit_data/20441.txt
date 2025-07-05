@@ -32,7 +32,7 @@ Date:   Mon Sep 8 14:05:23 2014 -0400
     R=golang-codereviews, khr, iant
     CC=golang-codereviews, r
     https://golang.org/cl/133700043
-
+---
  src/liblink/obj5.c           |   7 ++-
  src/liblink/obj6.c           |  11 ++++
  src/liblink/obj8.c           |  11 +++-
@@ -70,3 +70,1912 @@ Date:   Mon Sep 8 14:05:23 2014 -0400
  src/runtime/thunk.s          |  13 ++++-
  src/runtime/traceback.go     |  16 ------
  36 files changed, 605 insertions(+), 631 deletions(-)
+
+diff --git a/src/liblink/obj5.c b/src/liblink/obj5.c
+index 6630a59231..d9f980aca8 100644
+--- a/src/liblink/obj5.c
++++ b/src/liblink/obj5.c
+@@ -769,6 +769,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p->as = AMOVW;
+ 	p->from.type = D_OREG;
+ 	p->from.reg = REGG;
++	if(ctxt->cursym->cfunc)
++		p->from.offset = 3*ctxt->arch->ptrsize;
+ 	p->to.type = D_REG;
+ 	p->to.reg = 1;
+ 	
+@@ -884,7 +886,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt)
+ 	p->as = ABL;
+ 	p->scond = C_SCOND_LS;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 	
+ 	// BLS	start
+ 	p = appendp(ctxt, p);
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 6a7ff48b0a..572219b5b7 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -783,6 +783,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->as = cmp;
+ 		p->from.type = D_SP;
+ 		indir_cx(ctxt, &p->to);
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;
+ 	} else if(framesize <= StackBig) {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAQ -xxx(SP), AX
+@@ -797,6 +799,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->as = cmp;
+ 		p->from.type = D_AX;
+ 		indir_cx(ctxt, &p->to);
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;
+ 	} else {
+ 		// Such a large stack we need to protect against wraparound.
+ 		// If SP is close to zero:
+@@ -817,6 +821,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 		p->as = mov;
+ 		indir_cx(ctxt, &p->from);
+ 		p->from.offset = 0;
++		if(ctxt->cursym->cfunc)
++			p->from.offset = 3*ctxt->arch->ptrsize;
+ 		p->to.type = D_SI;
+ 
+ 		p = appendp(ctxt, p);
+@@ -873,6 +879,11 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int32 textarg, int noctxt, Prog
+ 	// 4 varieties varieties (const1==0 cross const2==0)
+ 	// and 6 subvarieties of (const1==0 and const2!=0)
+ 	p = appendp(ctxt, p);
++	if(ctxt->cursym->cfunc) {
++		p->as = ACALL;
++		p->to.type = D_BRANCH;
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	} else
+ 	if(moreconst1 == 0 && moreconst2 == 0) {
+ 		p->as = ACALL;
+ 		p->to.type = D_BRANCH;
+diff --git a/src/liblink/obj8.c b/src/liblink/obj8.c
+index 03f12462e8..d8a93fb576 100644
+--- a/src/liblink/obj8.c
++++ b/src/liblink/obj8.c
+@@ -539,6 +539,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = ACMPL;
+ 		p->from.type = D_SP;
+ 		p->to.type = D_INDIR+D_CX;
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;
+ 	} else if(framesize <= StackBig) {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAL -(framesize-StackSmall)(SP), AX
+@@ -553,6 +555,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = ACMPL;
+ 		p->from.type = D_AX;
+ 		p->to.type = D_INDIR+D_CX;
++		if(ctxt->cursym->cfunc)
++			p->to.offset = 3*ctxt->arch->ptrsize;
+ 	} else {
+ 		// Such a large stack we need to protect against wraparound
+ 		// if SP is close to zero.
+@@ -572,6 +576,8 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 		p->as = AMOVL;
+ 		p->from.type = D_INDIR+D_CX;
+ 		p->from.offset = 0;
++		if(ctxt->cursym->cfunc)
++			p->from.offset = 3*ctxt->arch->ptrsize;
+ 		p->to.type = D_SI;
+ 
+ 		p = appendp(ctxt, p);
+@@ -641,7 +647,10 @@ stacksplit(Link *ctxt, Prog *p, int32 framesize, int noctxt, Prog **jmpok)
+ 	p = appendp(ctxt, p);
+ 	p->as = ACALL;
+ 	p->to.type = D_BRANCH;
+-	p->to.sym = ctxt->symmorestack[noctxt];
++	if(ctxt->cursym->cfunc)
++		p->to.sym = linklookup(ctxt, "runtime.morestackc", 0);
++	else
++		p->to.sym = ctxt->symmorestack[noctxt];
+ 
+ 	p = appendp(ctxt, p);
+ 	p->as = AJMP;
+diff --git a/src/runtime/cgo/callbacks.c b/src/runtime/cgo/callbacks.c
+index f074237d5f..16614d03db 100644
+--- a/src/runtime/cgo/callbacks.c
++++ b/src/runtime/cgo/callbacks.c
+@@ -33,18 +33,7 @@
+ //   crosscall2(_cgo_allocate, &a, sizeof a);
+ //   /* Here a.ret is a pointer to the allocated memory.  */
+ 
+-static void
+-_cgo_allocate_internal(uintptr len, byte *ret)
+-{
+-	CgoMal *c;
+-
+-	ret = runtime·mallocgc(len, nil, 0);
+-	c = runtime·mallocgc(sizeof(*c), nil, 0);
+-	c->next = g->m->cgomal;
+-	c->alloc = ret;
+-	g->m->cgomal = c;
+-	FLUSH(&ret);
+-}
++void runtime·_cgo_allocate_internal(void);
+ 
+ #pragma cgo_export_static _cgo_allocate
+ #pragma cgo_export_dynamic _cgo_allocate
+@@ -52,7 +41,7 @@ _cgo_allocate_internal(uintptr len, byte *ret)
+ void
+ _cgo_allocate(void *a, int32 n)
+ {
+-	runtime·cgocallback((void(*)(void))_cgo_allocate_internal, a, n);
++	runtime·cgocallback((void(*)(void))runtime·_cgo_allocate_internal, a, n);
+ }
+ 
+ // Panic.  The argument is converted into a Go string.
+@@ -63,18 +52,7 @@ _cgo_allocate(void *a, int32 n)
+ //   crosscall2(_cgo_panic, &a, sizeof a);
+ //   /* The function call will not return.  */
+ 
+-extern void ·cgoStringToEface(String, Eface*);
+-
+-static void
+-_cgo_panic_internal(byte *p)
+-{
+-	String s;
+-	Eface err;
+-
+-	s = runtime·gostring(p);
+-	·cgoStringToEface(s, &err);
+-	runtime·gopanic(err);
+-}
++void runtime·_cgo_panic_internal(void);
+ 
+ #pragma cgo_export_static _cgo_panic
+ #pragma cgo_export_dynamic _cgo_panic
+@@ -82,7 +60,7 @@ _cgo_panic_internal(byte *p)
+ void
+ _cgo_panic(void *a, int32 n)
+ {
+-	runtime·cgocallback((void(*)(void))_cgo_panic_internal, a, n);
++	runtime·cgocallback((void(*)(void))runtime·_cgo_panic_internal, a, n);
+ }
+ 
+ #pragma cgo_import_static x_cgo_init
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index 786ae515c8..8528692f7b 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -24,10 +24,3 @@ package cgo
+ 
+ */
+ import "C"
+-
+-// Supports _cgo_panic by converting a string constant to an empty
+-// interface.
+-
+-func cgoStringToEface(s string, ret *interface{}) {
+-	*ret = s
+-}
+diff --git a/src/runtime/cgocallback.go b/src/runtime/cgocallback.go
+new file mode 100644
+index 0000000000..844a095c22
+--- /dev/null
++++ b/src/runtime/cgocallback.go
+@@ -0,0 +1,37 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// These functions are called from C code via cgo/callbacks.c.
++
++// Allocate memory.  This allocates the requested number of bytes in
++// memory controlled by the Go runtime.  The allocated memory will be
++// zeroed.  You are responsible for ensuring that the Go garbage
++// collector can see a pointer to the allocated memory for as long as
++// it is valid, e.g., by storing a pointer in a local variable in your
++// C function, or in memory allocated by the Go runtime.  If the only
++// pointers are in a C global variable or in memory allocated via
++// malloc, then the Go garbage collector may collect the memory.
++//
++// TODO(rsc,iant): This memory is untyped.
++// Either we need to add types or we need to stop using it.
++
++func _cgo_allocate_internal(len uintptr) unsafe.Pointer {
++	ret := gomallocgc(len, nil, 0)
++	c := new(cgomal)
++	c.alloc = ret
++	gp := getg()
++	c.next = gp.m.cgomal
++	gp.m.cgomal = c
++	return ret
++}
++
++// Panic.
++
++func _cgo_panic_internal(p *byte) {
++	panic(gostringnocopy(p))
++}
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index d07fdb29bc..435e0b2dae 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -711,7 +711,7 @@ dumpmemprof(void)
+ }
+ 
+ static void
+-mdump(G *gp)
++mdump(void)
+ {
+ 	byte *hdr;
+ 	uintptr i;
+@@ -737,18 +737,32 @@ mdump(G *gp)
+ 	dumpmemprof();
+ 	dumpint(TagEOF);
+ 	flush();
+-
+-	gp->param = nil;
+-	runtime·casgstatus(gp, Gwaiting, Grunning);
+-	runtime·gogo(&gp->sched);
+ }
+ 
++static void writeheapdump_m(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime∕debug·WriteHeapDump(uintptr fd)
+ {
+-	void (*fn)(G*);
++	void (*fn)(void);
++	
++	g->m->scalararg[0] = fd;
++	fn = writeheapdump_m;
++	runtime·onM(&fn);
++}
++
++static void
++writeheapdump_m(void)
++{
++	uintptr fd;
++	
++	fd = g->m->scalararg[0];
++	g->m->scalararg[0] = 0;
+ 
+ 	// Stop the world.
++	runtime·casgstatus(g->m->curg, Grunning, Gwaiting);
++	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+ 	runtime·semacquire(&runtime·worldsema, false);
+ 	g->m->gcing = 1;
+ 	runtime·stoptheworld();
+@@ -761,11 +775,8 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 	// Set dump file.
+ 	dumpfd = fd;
+ 
+-	// Call dump routine on M stack.
+-	runtime·casgstatus(g, Grunning, Gwaiting);
+-	g->waitreason = runtime·gostringnocopy((byte*)"dumping heap");
+-	fn = mdump;
+-	runtime·mcall(&fn);
++	// Call dump routine.
++	mdump();
+ 
+ 	// Reset dump file.
+ 	dumpfd = 0;
+@@ -780,6 +791,7 @@ runtime∕debug·WriteHeapDump(uintptr fd)
+ 	g->m->locks++;
+ 	runtime·semrelease(&runtime·worldsema);
+ 	runtime·starttheworld();
++	runtime·casgstatus(g->m->curg, Gwaiting, Grunning);
+ 	g->m->locks--;
+ }
+ 
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index d4c414736b..1505cedcc0 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -124,9 +124,8 @@ static FinBlock	*allfin;	// list of all blocks
+ BitVector	runtime·gcdatamask;
+ BitVector	runtime·gcbssmask;
+ 
+-static Mutex	gclock;
++extern	Mutex	runtime·gclock;
+ 
+-static void	bgsweep(void);
+ static Workbuf* getempty(Workbuf*);
+ static Workbuf* getfull(Workbuf*);
+ static void	putempty(Workbuf*);
+@@ -137,7 +136,8 @@ static bool	scanframe(Stkframe *frame, void *unused);
+ static void	scanstack(G *gp);
+ static BitVector	unrollglobgcprog(byte *prog, uintptr size);
+ 
+-static FuncVal bgsweepv = {bgsweep};
++void runtime·bgsweep(void);
++static FuncVal bgsweepv = {runtime·bgsweep};
+ 
+ static struct {
+ 	uint64	full;  // lock-free list of full blocks
+@@ -1041,9 +1041,10 @@ runtime·MSpan_Sweep(MSpan *s, bool preserve)
+ 	return res;
+ }
+ 
+-// State of background sweep.
+-// Pretected by gclock.
+-static struct
++// State of background runtime·sweep.
++// Pretected by runtime·gclock.
++// Must match mgc0.go.
++struct
+ {
+ 	G*	g;
+ 	bool	parked;
+@@ -1052,29 +1053,7 @@ static struct
+ 
+ 	uint32	nbgsweep;
+ 	uint32	npausesweep;
+-} sweep;
+-
+-// background sweeping goroutine
+-static void
+-bgsweep(void)
+-{
+-	g->issystem = true;
+-	for(;;) {
+-		while(runtime·sweepone() != -1) {
+-			sweep.nbgsweep++;
+-			runtime·gosched();
+-		}
+-		runtime·lock(&gclock);
+-		if(!runtime·mheap.sweepdone) {
+-			// It's possible if GC has happened between sweepone has
+-			// returned -1 and gclock lock.
+-			runtime·unlock(&gclock);
+-			continue;
+-		}
+-		sweep.parked = true;
+-		runtime·parkunlock(&gclock, runtime·gostringnocopy((byte*)"GC sweep wait"));
+-	}
+-}
++} runtime·sweep;
+ 
+ // sweeps one span
+ // returns number of pages returned to heap, or -1 if there is nothing to sweep
+@@ -1090,7 +1069,7 @@ runtime·sweepone(void)
+ 	g->m->locks++;
+ 	sg = runtime·mheap.sweepgen;
+ 	for(;;) {
+-		idx = runtime·xadd(&sweep.spanidx, 1) - 1;
++		idx = runtime·xadd(&runtime·sweep.spanidx, 1) - 1;
+ 		if(idx >= work.nspan) {
+ 			runtime·mheap.sweepdone = true;
+ 			g->m->locks--;
+@@ -1111,6 +1090,30 @@ runtime·sweepone(void)
+ 	}
+ }
+ 
++static void
++sweepone_m(void)
++{
++	g->m->scalararg[0] = runtime·sweepone();
++}
++
++#pragma textflag NOSPLIT
++uintptr
++runtime·gosweepone(void)
++{
++	void (*fn)(void);
++	
++	fn = sweepone_m;
++	runtime·onM(&fn);
++	return g->m->scalararg[0];
++}
++
++#pragma textflag NOSPLIT
++bool
++runtime·gosweepdone(void)
++{
++	return runtime·mheap.sweepdone;
++}
++
+ void
+ runtime·gchelper(void)
+ {
+@@ -1328,7 +1331,7 @@ gc(struct gc_args *args)
+ 
+ 	// Sweep what is not sweeped by bgsweep.
+ 	while(runtime·sweepone() != -1)
+-		sweep.npausesweep++;
++		runtime·sweep.npausesweep++;
+ 
+ 	// Cache runtime.mheap.allspans in work.spans to avoid conflicts with
+ 	// resizing/freeing allspans.
+@@ -1407,11 +1410,11 @@ gc(struct gc_args *args)
+ 			mstats.numgc, work.nproc, (t1-t0)/1000, (t2-t1)/1000, (t3-t2)/1000, (t4-t3)/1000,
+ 			heap0>>20, heap1>>20, obj,
+ 			mstats.nmalloc, mstats.nfree,
+-			work.nspan, sweep.nbgsweep, sweep.npausesweep,
++			work.nspan, runtime·sweep.nbgsweep, runtime·sweep.npausesweep,
+ 			stats.nhandoff, stats.nhandoffcnt,
+ 			work.markfor->nsteal, work.markfor->nstealcnt,
+ 			stats.nprocyield, stats.nosyield, stats.nsleep);
+-		sweep.nbgsweep = sweep.npausesweep = 0;
++		runtime·sweep.nbgsweep = runtime·sweep.npausesweep = 0;
+ 	}
+ 
+ 	// See the comment in the beginning of this function as to why we need the following.
+@@ -1426,23 +1429,23 @@ gc(struct gc_args *args)
+ 	runtime·mheap.sweepdone = false;
+ 	work.spans = runtime·mheap.allspans;
+ 	work.nspan = runtime·mheap.nspan;
+-	sweep.spanidx = 0;
++	runtime·sweep.spanidx = 0;
+ 	runtime·unlock(&runtime·mheap.lock);
+ 
+ 	// Temporary disable concurrent sweep, because we see failures on builders.
+ 	if(ConcurrentSweep && !args->eagersweep) {
+-		runtime·lock(&gclock);
+-		if(sweep.g == nil)
+-			sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
+-		else if(sweep.parked) {
+-			sweep.parked = false;
+-			runtime·ready(sweep.g);
++		runtime·lock(&runtime·gclock);
++		if(runtime·sweep.g == nil)
++			runtime·sweep.g = runtime·newproc1(&bgsweepv, nil, 0, 0, gc);
++		else if(runtime·sweep.parked) {
++			runtime·sweep.parked = false;
++			runtime·ready(runtime·sweep.g);
+ 		}
+-		runtime·unlock(&gclock);
++		runtime·unlock(&runtime·gclock);
+ 	} else {
+ 		// Sweep all spans eagerly.
+ 		while(runtime·sweepone() != -1)
+-			sweep.npausesweep++;
++			runtime·sweep.npausesweep++;
+ 	}
+ 
+ 	runtime·mProf_GC();
+@@ -1451,9 +1454,27 @@ gc(struct gc_args *args)
+ 
+ extern uintptr runtime·sizeof_C_MStats;
+ 
++static void readmemstats_m(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime·ReadMemStats(MStats *stats)
+ {
++	void (*fn)(void);
++	
++	g->m->ptrarg[0] = stats;
++	fn = readmemstats_m;
++	runtime·onM(&fn);
++}
++
++static void
++readmemstats_m(void)
++{
++	MStats *stats;
++	
++	stats = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
++
+ 	// Have to acquire worldsema to stop the world,
+ 	// because stoptheworld can only be used by
+ 	// one goroutine at a time, and there might be
+@@ -1478,11 +1499,28 @@ runtime·ReadMemStats(MStats *stats)
+ 	g->m->locks--;
+ }
+ 
++static void readgcstats_m(void);
++
++#pragma textflag NOSPLIT
+ void
+ runtime∕debug·readGCStats(Slice *pauses)
+ {
++	void (*fn)(void);
++	
++	g->m->ptrarg[0] = pauses;
++	fn = readgcstats_m;
++	runtime·onM(&fn);
++}
++
++static void
++readgcstats_m(void)
++{
++	Slice *pauses;	
+ 	uint64 *p;
+ 	uint32 i, n;
++	
++	pauses = g->m->ptrarg[0];
++	g->m->ptrarg[0] = nil;
+ 
+ 	// Calling code in runtime/debug should make the slice large enough.
+ 	if(pauses->cap < nelem(mstats.pause_ns)+3)
+@@ -1510,7 +1548,8 @@ runtime∕debug·readGCStats(Slice *pauses)
+ }
+ 
+ void
+-runtime·setgcpercent_m(void) {
++runtime·setgcpercent_m(void)
++{
+ 	int32 in;
+ 	int32 out;
+ 
+@@ -1901,7 +1940,8 @@ runtime·getgcmask(byte *p, Type *t, byte **mask, uintptr *len)
+ 
+ void runtime·gc_unixnanotime(int64 *now);
+ 
+-int64 runtime·unixnanotime(void)
++int64
++runtime·unixnanotime(void)
+ {
+ 	int64 now;
+ 
+diff --git a/src/runtime/mgc0.go b/src/runtime/mgc0.go
+index 2d9d76a474..0984fc58d6 100644
+--- a/src/runtime/mgc0.go
++++ b/src/runtime/mgc0.go
+@@ -68,3 +68,38 @@ func clearpools() {
+ 		}
+ 	}
+ }
++
++// State of background sweep.
++// Protected by gclock.
++// Must match mgc0.c.
++var sweep struct {
++	g           *g
++	parked      bool
++	spanidx     uint32 // background sweeper position
++	nbgsweep    uint32
++	npausesweep uint32
++}
++
++var gclock mutex // also in mgc0.c
++func gosweepone() uintptr
++func gosweepdone() bool
++
++func bgsweep() {
++	getg().issystem = true
++	for {
++		for gosweepone() != ^uintptr(0) {
++			sweep.nbgsweep++
++			gosched()
++		}
++		lock(&gclock)
++		if !gosweepdone() {
++			// This can happen if a GC runs between
++			// gosweepone returning ^0 above
++			// and the lock being acquired.
++			unlock(&gclock)
++			continue
++		}
++		sweep.parked = true
++		goparkunlock(&gclock, "GC sweep wait")
++	}
++}
+diff --git a/src/runtime/os_darwin.c b/src/runtime/os_darwin.c
+index 536f688cf1..2de0cd949e 100644
+--- a/src/runtime/os_darwin.c
++++ b/src/runtime/os_darwin.c
+@@ -498,41 +498,6 @@ runtime·mach_semrelease(uint32 sem)
+ 	}
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ #pragma textflag NOSPLIT
+ void
+ runtime·osyield(void)
+@@ -593,3 +558,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_dragonfly.c b/src/runtime/os_dragonfly.c
+index d470f7c78c..208252d9f3 100644
+--- a/src/runtime/os_dragonfly.c
++++ b/src/runtime/os_dragonfly.c
+@@ -215,41 +215,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -338,3 +303,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·sigprocmask(&sigset_none, nil);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_freebsd.c b/src/runtime/os_freebsd.c
+index aae944ea11..476def557f 100644
+--- a/src/runtime/os_freebsd.c
++++ b/src/runtime/os_freebsd.c
+@@ -223,41 +223,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -346,3 +311,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·sigprocmask(&sigset_none, nil);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_linux.c b/src/runtime/os_linux.c
+index 66e7bcec05..3a8c1a7579 100644
+--- a/src/runtime/os_linux.c
++++ b/src/runtime/os_linux.c
+@@ -237,41 +237,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -368,3 +333,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·rtsigprocmask(SIG_SETMASK, &sigset_none, nil, sizeof sigset_none);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_nacl.c b/src/runtime/os_nacl.c
+index 37a1fcca0d..aecd61740c 100644
+--- a/src/runtime/os_nacl.c
++++ b/src/runtime/os_nacl.c
+@@ -291,19 +291,6 @@ runtime·closeonexec(int32)
+ {
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	// Native Client only invokes the exception handler for memory faults.
+-	g->sig = SIGSEGV;
+-	if(g->sigpc == 0)
+-		runtime·panicstring("call of nil func value");
+-	runtime·panicstring("invalid memory address or nil pointer dereference");
+-}
+-
+ uint32 runtime·writelock; // test-and-set spin lock for runtime.write
+ 
+ /*
+diff --git a/src/runtime/os_nacl.go b/src/runtime/os_nacl.go
+index 12a15aea0d..a6c409c091 100644
+--- a/src/runtime/os_nacl.go
++++ b/src/runtime/os_nacl.go
+@@ -28,3 +28,14 @@ const stackSystem = 0
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		gothrow("unexpected signal during runtime execution")
++	}
++
++	// Native Client only invokes the exception handler for memory faults.
++	g.sig = _SIGSEGV
++	panicmem()
++}
+diff --git a/src/runtime/os_netbsd.c b/src/runtime/os_netbsd.c
+index d6c3bc8261..db64b01c8d 100644
+--- a/src/runtime/os_netbsd.c
++++ b/src/runtime/os_netbsd.c
+@@ -293,41 +293,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -394,3 +359,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·sigprocmask(SIG_SETMASK, &sigset_none, nil);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_openbsd.c b/src/runtime/os_openbsd.c
+index 59abc97b7c..045c3a9462 100644
+--- a/src/runtime/os_openbsd.c
++++ b/src/runtime/os_openbsd.c
+@@ -248,41 +248,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -346,3 +311,10 @@ runtime·unblocksignals(void)
+ {
+ 	runtime·sigprocmask(SIG_SETMASK, sigset_none);
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_plan9.c b/src/runtime/os_plan9.c
+index 853f3ef7a1..ab4a51e884 100644
+--- a/src/runtime/os_plan9.c
++++ b/src/runtime/os_plan9.c
+@@ -326,84 +326,6 @@ runtime·semawakeup(M *mp)
+ 	runtime·plan9_semrelease(&mp->waitsemacount, 1);
+ }
+ 
+-static int64
+-atolwhex(byte *p)
+-{
+-	int64 n;
+-	int32 f;
+-
+-	n = 0;
+-	f = 0;
+-	while(*p == ' ' || *p == '\t')
+-		p++;
+-	if(*p == '-' || *p == '+') {
+-		if(*p++ == '-')
+-			f = 1;
+-		while(*p == ' ' || *p == '\t')
+-			p++;
+-	}
+-	if(p[0] == '0' && p[1]) {
+-		if(p[1] == 'x' || p[1] == 'X') {
+-			p += 2;
+-			for(;;) {
+-				if('0' <= *p && *p <= '9')
+-					n = n*16 + *p++ - '0';
+-				else if('a' <= *p && *p <= 'f')
+-					n = n*16 + *p++ - 'a' + 10;
+-				else if('A' <= *p && *p <= 'F')
+-					n = n*16 + *p++ - 'A' + 10;
+-				else
+-					break;
+-			}
+-		} else
+-			while('0' <= *p && *p <= '7')
+-				n = n*8 + *p++ - '0';
+-	} else
+-		while('0' <= *p && *p <= '9')
+-			n = n*10 + *p++ - '0';
+-	if(f)
+-		n = -n;
+-	return n;
+-}
+-
+-void
+-runtime·sigpanic(void)
+-{
+-	byte *p;
+-
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGRFAULT:
+-	case SIGWFAULT:
+-		p = runtime·strstr((byte*)g->m->notesig, (byte*)"addr=")+5;
+-		g->sigcode1 = atolwhex(p);
+-		if(g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-		break;
+-	case SIGTRAP:
+-		if(g->paniconfault)
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		runtime·throw(g->m->notesig);
+-		break;
+-	case SIGINTDIV:
+-		runtime·panicstring("integer divide by zero");
+-		break;
+-	case SIGFLOAT:
+-		runtime·panicstring("floating point error");
+-		break;
+-	default:
+-		runtime·panicstring(g->m->notesig);
+-		break;
+-	}
+-}
+-
+ #pragma textflag NOSPLIT
+ int32
+ runtime·read(int32 fd, void *buf, int32 nbytes)
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index c45d22551f..09cb3d93ff 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -32,3 +32,75 @@ type _Plink uintptr
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		gothrow("unexpected signal during runtime execution")
++	}
++
++	note := gostringnocopy((*byte)(unsafe.Pointer(g.m.notesig)))
++	switch g.sig {
++	case _SIGRFAULT, _SIGWFAULT:
++		addr := note[index(note, "addr=")+5:]
++		g.sigcode1 = uintptr(atolwhex(addr))
++		if g.sigcode1 < 0x1000 || g.paniconfault {
++			panicmem()
++		}
++		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		gothrow("fault")
++	case _SIGTRAP:
++		if g.paniconfault {
++			panicmem()
++		}
++		gothrow(note)
++	case _SIGINTDIV:
++		panicdivide()
++	case _SIGFLOAT:
++		panicfloat()
++	default:
++		panic(errorString(note))
++	}
++}
++
++func atolwhex(p string) int64 {
++	for hasprefix(p, " ") || hasprefix(p, "\t") {
++		p = p[1:]
++	}
++	neg := false
++	if hasprefix(p, "-") || hasprefix(p, "+") {
++		neg = p[0] == '-'
++		p = p[1:]
++		for hasprefix(p, " ") || hasprefix(p, "\t") {
++			p = p[1:]
++		}
++	}
++	var n int64
++	switch {
++	case hasprefix(p, "0x"), hasprefix(p, "0X"):
++		p = p[2:]
++		for ; len(p) > 0; p = p[1:] {
++			if '0' <= p[0] && p[0] <= '9' {
++				n = n*16 + int64(p[0]-'0')
++			} else if 'a' <= p[0] && p[0] <= 'f' {
++				n = n*16 + int64(p[0]-'a'+10)
++			} else if 'A' <= p[0] && p[0] <= 'F' {
++				n = n*16 + int64(p[0]-'A'+10)
++			} else {
++				break
++			}
++		}
++	case hasprefix(p, "0"):
++		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
++			n = n*8 + int64(p[0]-'0')
++		}
++	default:
++		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '9'; p = p[1:] {
++			n = n*10 + int64(p[0]-'0')
++		}
++	}
++	if neg {
++		n = -n
++	}
++	return n
++}
+diff --git a/src/runtime/os_solaris.c b/src/runtime/os_solaris.c
+index e35d2b9971..97afdf40c1 100644
+--- a/src/runtime/os_solaris.c
++++ b/src/runtime/os_solaris.c
+@@ -194,41 +194,6 @@ runtime·unminit(void)
+ 	runtime·signalstack(nil, 0);
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case SIGBUS:
+-		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGSEGV:
+-		if((g->sigcode0 == 0 || g->sigcode0 == SEGV_MAPERR || g->sigcode0 == SEGV_ACCERR) && g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case SIGFPE:
+-		switch(g->sigcode0) {
+-		case FPE_INTDIV:
+-			runtime·panicstring("integer divide by zero");
+-		case FPE_INTOVF:
+-			runtime·panicstring("integer overflow");
+-		}
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·panicstring(runtime·sigtab[g->sig].name);
+-}
+-
+ uintptr
+ runtime·memlimit(void)
+ {
+@@ -580,3 +545,10 @@ runtime·osyield(void)
+ 	}
+ 	runtime·osyield1();
+ }
++
++#pragma textflag NOSPLIT
++int8*
++runtime·signame(int32 sig)
++{
++	return runtime·sigtab[sig].name;
++}
+diff --git a/src/runtime/os_windows.c b/src/runtime/os_windows.c
+index a4d77f6b75..4e7c50b7fd 100644
+--- a/src/runtime/os_windows.c
++++ b/src/runtime/os_windows.c
+@@ -453,35 +453,6 @@ runtime·issigpanic(uint32 code)
+ 	return 0;
+ }
+ 
+-void
+-runtime·sigpanic(void)
+-{
+-	if(!runtime·canpanic(g))
+-		runtime·throw("unexpected signal during runtime execution");
+-
+-	switch(g->sig) {
+-	case EXCEPTION_ACCESS_VIOLATION:
+-		if(g->sigcode1 < 0x1000 || g->paniconfault) {
+-			if(g->sigpc == 0)
+-				runtime·panicstring("call of nil func value");
+-			runtime·panicstring("invalid memory address or nil pointer dereference");
+-		}
+-		runtime·printf("unexpected fault address %p\n", g->sigcode1);
+-		runtime·throw("fault");
+-	case EXCEPTION_INT_DIVIDE_BY_ZERO:
+-		runtime·panicstring("integer divide by zero");
+-	case EXCEPTION_INT_OVERFLOW:
+-		runtime·panicstring("integer overflow");
+-	case EXCEPTION_FLT_DENORMAL_OPERAND:
+-	case EXCEPTION_FLT_DIVIDE_BY_ZERO:
+-	case EXCEPTION_FLT_INEXACT_RESULT:
+-	case EXCEPTION_FLT_OVERFLOW:
+-	case EXCEPTION_FLT_UNDERFLOW:
+-		runtime·panicstring("floating point error");
+-	}
+-	runtime·throw("fault");
+-}
+-
+ void
+ runtime·initsig(void)
+ {
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 6a3bfca41f..da4c736add 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -31,3 +31,30 @@ const stackSystem = 512 * ptrSize
+ func os_sigpipe() {
+ 	gothrow("too many writes on closed pipe")
+ }
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		gothrow("unexpected signal during runtime execution")
++	}
++
++	switch uint32(g.sig) {
++	case _EXCEPTION_ACCESS_VIOLATION:
++		if g.sigcode1 < 0x1000 || g.paniconfault {
++			panicmem()
++		}
++		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		gothrow("fault")
++	case _EXCEPTION_INT_DIVIDE_BY_ZERO:
++		panicdivide()
++	case _EXCEPTION_INT_OVERFLOW:
++		panicoverflow()
++	case _EXCEPTION_FLT_DENORMAL_OPERAND,
++		_EXCEPTION_FLT_DIVIDE_BY_ZERO,
++		_EXCEPTION_FLT_INEXACT_RESULT,
++		_EXCEPTION_FLT_OVERFLOW,
++		_EXCEPTION_FLT_UNDERFLOW:
++		panicfloat()
++	}
++	gothrow("fault")
++}
+diff --git a/src/runtime/panic.c b/src/runtime/panic.c
+index e38ce740bc..4b21975b16 100644
+--- a/src/runtime/panic.c
++++ b/src/runtime/panic.c
+@@ -190,6 +190,7 @@ runtime·dopanic_m(void)
+ 	runtime·exit(2);
+ }
+ 
++#pragma textflag NOSPLIT
+ bool
+ runtime·canpanic(G *gp)
+ {
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 1e35561d15..a425e83b51 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -24,6 +24,24 @@ func panicdivide() {
+ 	panic(divideError)
+ }
+ 
++var overflowError = error(errorString("integer overflow"))
++
++func panicoverflow() {
++	panic(overflowError)
++}
++
++var floatError = error(errorString("floating point error"))
++
++func panicfloat() {
++	panic(floatError)
++}
++
++var memoryError = error(errorString("invalid memory address or nil pointer dereference"))
++
++func panicmem() {
++	panic(memoryError)
++}
++
+ func throwreturn() {
+ 	gothrow("no return at end of a typed function - compiler is broken")
+ }
+@@ -214,3 +232,5 @@ func Goexit() {
+ 	}
+ 	goexit()
+ }
++
++func canpanic(*g) bool
+diff --git a/src/runtime/print1.go b/src/runtime/print1.go
+index 93f83ed26f..0fa1fb63c4 100644
+--- a/src/runtime/print1.go
++++ b/src/runtime/print1.go
+@@ -10,9 +10,6 @@ import "unsafe"
+ // should use printhex instead of printuint (decimal).
+ type hex uint64
+ 
+-//go:noescape
+-func gostring(*byte) string
+-
+ func bytes(s string) (ret []byte) {
+ 	rp := (*slice)(unsafe.Pointer(&ret))
+ 	sp := (*_string)(noescape(unsafe.Pointer(&s)))
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 698be9ffae..c462ae2b5e 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -212,84 +212,10 @@ runtime·schedinit(void)
+ 	runtime·cgoFree = _cgo_free;
+ }
+ 
+-extern void main·init(void);
+-extern void runtime·init(void);
+-extern void main·main(void);
+-
+-static FuncVal initDone = { runtime·unlockOSThread };
+-
+-// The main goroutine.
+-// Note: C frames in general are not copyable during stack growth, for two reasons:
+-//   1) We don't know where in a frame to find pointers to other stack locations.
+-//   2) There's no guarantee that globals or heap values do not point into the frame.
+-//
+-// The C frame for runtime.main is copyable, because:
+-//   1) There are no pointers to other stack locations in the frame
+-//      (d.fn points at a global, d.link is nil, d.argp is -1).
+-//   2) The only pointer into this frame is from the defer chain,
+-//      which is explicitly handled during stack copying.
+ void
+-runtime·main(void)
++runtime·newsysmon(void)
+ {
+-	Defer d;
+-
+-	// Racectx of m0->g0 is used only as the parent of the main goroutine.
+-	// It must not be used for anything else.
+-	g->m->g0->racectx = 0;
+-
+-	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
+-	// Using decimal instead of binary GB and MB because
+-	// they look nicer in the stack overflow failure message.
+-	if(sizeof(void*) == 8)
+-		runtime·maxstacksize = 1000000000;
+-	else
+-		runtime·maxstacksize = 250000000;
+-
+ 	newm(sysmon, nil);
+-
+-	// Lock the main goroutine onto this, the main OS thread,
+-	// during initialization.  Most programs won't care, but a few
+-	// do require certain calls to be made by the main thread.
+-	// Those can arrange for main.main to run in the main thread
+-	// by calling runtime.LockOSThread during initialization
+-	// to preserve the lock.
+-	runtime·lockOSThread();
+-	
+-	// Defer unlock so that runtime.Goexit during init does the unlock too.
+-	d.fn = &initDone;
+-	d.siz = 0;
+-	d.link = g->defer;
+-	d.argp = NoArgs;
+-	d.special = true;
+-	g->defer = &d;
+-
+-	if(g->m != &runtime·m0)
+-		runtime·throw("runtime·main not on m0");
+-
+-	runtime·init();
+-	mstats.enablegc = 1; // now that runtime is initialized, GC is okay
+-
+-	main·init();
+-
+-	if(g->defer != &d || d.fn != &initDone)
+-		runtime·throw("runtime: bad defer entry after init");
+-	g->defer = d.link;
+-	runtime·unlockOSThread();
+-
+-	main·main();
+-	if(raceenabled)
+-		runtime·racefini();
+-
+-	// Make racy client program work: if panicking on
+-	// another goroutine at the same time as main returns,
+-	// let the other goroutine finish printing the panic trace.
+-	// Once it does, it will exit. See issue 3934.
+-	if(runtime·panicking)
+-		runtime·park(nil, nil, runtime·gostringnocopy((byte*)"panicwait"));
+-
+-	runtime·exit(0);
+-	for(;;)
+-		*(int32*)runtime·main = 0;
+ }
+ 
+ static void
+@@ -322,6 +248,8 @@ mcommoninit(M *mp)
+ 	mp->id = runtime·sched.mcount++;
+ 	checkmcount();
+ 	runtime·mpreinit(mp);
++	if(mp->gsignal)
++		mp->gsignal->stackguard1 = mp->gsignal->stackguard;
+ 
+ 	// Add to runtime·allm so garbage collector doesn't free g->m
+ 	// when it is just in a register or thread-local storage.
+@@ -977,6 +905,7 @@ runtime·allocm(P *p)
+ 	else
+ 		mp->g0 = runtime·malg(8192);
+ 	mp->g0->m = mp;
++	mp->g0->stackguard1 = mp->g0->stackguard;
+ 
+ 	if(p == g->m->p)
+ 		releasep();
+@@ -1733,6 +1662,7 @@ runtime·park_m(G *gp)
+ }
+ 
+ // Scheduler yield.
++#pragma textflag NOSPLIT
+ void
+ runtime·gosched(void)
+ {
+@@ -2210,6 +2140,7 @@ runtime·malg(int32 stacksize)
+ 		newg->stack0 = (uintptr)stk;
+ 		newg->stackguard = (uintptr)stk + StackGuard;
+ 		newg->stackguard0 = newg->stackguard;
++		newg->stackguard1 = ~(uintptr)0;
+ 		newg->stackbase = (uintptr)stk + stacksize - sizeof(Stktop);
+ 	}
+ 	return newg;
+@@ -2261,6 +2192,8 @@ runtime·newproc(int32 siz, FuncVal* fn, ...)
+ 	g->m->locks--;
+ }
+ 
++void runtime·main(void);
++
+ // Create a new g running fn with narg bytes of arguments starting
+ // at argp and returning nret bytes of results.  callerpc is the
+ // address of the go statement that created this.  The new g is put
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 48b8cbe394..27e84230a1 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6,6 +6,79 @@ package runtime
+ 
+ import "unsafe"
+ 
++func newsysmon()
++
++func runtime_init()
++func main_init()
++func main_main()
++
++// The main goroutine.
++func main() {
++	g := getg()
++
++	// Racectx of m0->g0 is used only as the parent of the main goroutine.
++	// It must not be used for anything else.
++	g.m.g0.racectx = 0
++
++	// Max stack size is 1 GB on 64-bit, 250 MB on 32-bit.
++	// Using decimal instead of binary GB and MB because
++	// they look nicer in the stack overflow failure message.
++	if ptrSize == 8 {
++		maxstacksize = 1000000000
++	} else {
++		maxstacksize = 250000000
++	}
++
++	onM(newsysmon)
++
++	// Lock the main goroutine onto this, the main OS thread,
++	// during initialization.  Most programs won't care, but a few
++	// do require certain calls to be made by the main thread.
++	// Those can arrange for main.main to run in the main thread
++	// by calling runtime.LockOSThread during initialization
++	// to preserve the lock.
++	lockOSThread()
++
++	// Defer unlock so that runtime.Goexit during init does the unlock too.
++	needUnlock := true
++	defer func() {
++		if needUnlock {
++			unlockOSThread()
++		}
++	}()
++
++	if g.m != &m0 {
++		gothrow("runtime.main not on m0")
++	}
++
++	runtime_init()
++	memstats.enablegc = true // now that runtime is initialized, GC is okay
++
++	main_init()
++
++	needUnlock = false
++	unlockOSThread()
++
++	main_main()
++	if raceenabled {
++		racefini()
++	}
++
++	// Make racy client program work: if panicking on
++	// another goroutine at the same time as main returns,
++	// let the other goroutine finish printing the panic trace.
++	// Once it does, it will exit. See issue 3934.
++	if panicking != 0 {
++		gopark(nil, nil, "panicwait")
++	}
++
++	exit(0)
++	for {
++		var x *int32
++		*x = 0
++	}
++}
++
+ var parkunlock_c byte
+ 
+ // start forcegc helper goroutine
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index c7573517dc..bb0ee6df65 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -12,6 +12,8 @@ import (
+ 	"unsafe"
+ )
+ 
++func racefini()
++
+ // RaceDisable disables handling of race events in the current goroutine.
+ func RaceDisable()
+ 
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 02563fd36c..e6db8cb836 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -271,6 +271,8 @@ struct	G
+ 	uintptr	stackguard0;	// cannot move - also known to liblink, libmach, runtime/cgo
+ 	uintptr	stackbase;	// cannot move - also known to libmach, runtime/cgo
+ 	Panic*	panic;	// cannot move - also known to liblink
++	// stackguard1 is checked by C code; it is set to ~0 in ordinary (non-g0, non-gsignal) goroutines
++	uintptr	stackguard1;	// cannot move - also known to liblink
+ 	Defer*	defer;
+ 	Gobuf	sched;
+ 	uintptr	syscallstack;	// if status==Gsyscall, syscallstack = stackbase to use during gc
+diff --git a/src/runtime/sigpanic_unix.go b/src/runtime/sigpanic_unix.go
+new file mode 100644
+index 0000000000..68079859b0
+--- /dev/null
++++ b/src/runtime/sigpanic_unix.go
+@@ -0,0 +1,40 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package runtime
++
++func signame(int32) *byte
++
++func sigpanic() {
++	g := getg()
++	if !canpanic(g) {
++		gothrow("unexpected signal during runtime execution")
++	}
++
++	switch g.sig {
++	case _SIGBUS:
++		if g.sigcode0 == _BUS_ADRERR && g.sigcode1 < 0x1000 || g.paniconfault {
++			panicmem()
++		}
++		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		gothrow("fault")
++	case _SIGSEGV:
++		if (g.sigcode0 == 0 || g.sigcode0 == _SEGV_MAPERR || g.sigcode0 == _SEGV_ACCERR) && g.sigcode1 < 0x1000 || g.paniconfault {
++			panicmem()
++		}
++		print("unexpected fault address ", hex(g.sigcode1), "\n")
++		gothrow("fault")
++	case _SIGFPE:
++		switch g.sigcode0 {
++		case _FPE_INTDIV:
++			panicdivide()
++		case _FPE_INTOVF:
++			panicoverflow()
++		}
++		panicfloat()
++	}
++	panic(errorString(gostringnocopy(signame(g.sig))))
++}
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index 18b3f40648..bb8c7ac11b 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -428,13 +428,6 @@ checkframecopy(Stkframe *frame, void *arg)
+ 			runtime·printf("    <next segment>\n");
+ 		return false; // stop traceback
+ 	}
+-	if(f->entry == (uintptr)runtime·main) {
+-		// A special routine at the TOS of the main routine.
+-		// We will allow it to be copied even though we don't
+-		// have full GC info for it (because it is written in C).
+-		cinfo->frames++;
+-		return false; // stop traceback
+-	}
+ 	if(f->entry == (uintptr)runtime·switchtoM) {
+ 		// A special routine at the bottom of stack of a goroutine that does onM call.
+ 		// We will allow it to be copied even though we don't
+@@ -657,8 +650,7 @@ adjustframe(Stkframe *frame, void *arg)
+ 	f = frame->fn;
+ 	if(StackDebug >= 2)
+ 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
+-	if(f->entry == (uintptr)runtime·main ||
+-		f->entry == (uintptr)runtime·switchtoM)
++	if(f->entry == (uintptr)runtime·switchtoM)
+ 		return true;
+ 	targetpc = frame->continpc;
+ 	if(targetpc == 0) {
+@@ -1126,3 +1118,21 @@ runtime·shrinkstack(G *gp)
+ 		return;
+ 	copystack(gp, nframes, newsize);
+ }
++
++static void badc(void);
++
++#pragma textflag NOSPLIT
++void
++runtime·morestackc(void)
++{
++	void (*fn)(void);
++	
++	fn = badc;
++	runtime·onM(&fn);
++}
++
++static void
++badc(void)
++{
++	runtime·throw("attempt to execute C code on Go stack");
++}
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 4f25adf8e3..811a289060 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -37,59 +37,6 @@ runtime·findnullw(uint16 *s)
+ 
+ uintptr runtime·maxstring = 256; // a hint for print
+ 
+-static String
+-gostringsize(intgo l)
+-{
+-	String s;
+-	uintptr ms;
+-
+-	if(l == 0)
+-		return runtime·emptystring;
+-	s.str = runtime·mallocgc(l, 0, FlagNoScan|FlagNoZero);
+-	s.len = l;
+-	for(;;) {
+-		ms = runtime·maxstring;
+-		if((uintptr)l <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)l))
+-			break;
+-	}
+-	return s;
+-}
+-
+-String
+-runtime·gostring(byte *str)
+-{
+-	intgo l;
+-	String s;
+-
+-	l = runtime·findnull(str);
+-	s = gostringsize(l);
+-	runtime·memmove(s.str, str, l);
+-	return s;
+-}
+-
+-String
+-runtime·gostringn(byte *str, intgo l)
+-{
+-	String s;
+-
+-	s = gostringsize(l);
+-	runtime·memmove(s.str, str, l);
+-	return s;
+-}
+-
+-// used by cmd/cgo
+-Slice
+-runtime·gobytes(byte *p, intgo n)
+-{
+-	Slice sl;
+-
+-	sl.array = runtime·mallocgc(n, 0, FlagNoScan|FlagNoZero);
+-	sl.len = n;
+-	sl.cap = n;
+-	runtime·memmove(sl.array, p, n);
+-	return sl;
+-}
+-
+ #pragma textflag NOSPLIT
+ String
+ runtime·gostringnocopy(byte *str)
+@@ -189,6 +136,8 @@ runetochar(byte *str, int32 rune)  /* note: in original, arg2 was pointer */
+ 	return 4;
+ }
+ 
++String runtime·gostringsize(intgo);
++
+ String
+ runtime·gostringw(uint16 *str)
+ {
+@@ -199,7 +148,7 @@ runtime·gostringw(uint16 *str)
+ 	n1 = 0;
+ 	for(i=0; str[i]; i++)
+ 		n1 += runetochar(buf, str[i]);
+-	s = gostringsize(n1+4);
++	s = runtime·gostringsize(n1+4);
+ 	n2 = 0;
+ 	for(i=0; str[i]; i++) {
+ 		// check for race
+@@ -212,22 +161,6 @@ runtime·gostringw(uint16 *str)
+ 	return s;
+ }
+ 
+-String
+-runtime·catstring(String s1, String s2)
+-{
+-	String s3;
+-
+-	if(s1.len == 0)
+-		return s2;
+-	if(s2.len == 0)
+-		return s1;
+-
+-	s3 = gostringsize(s1.len + s2.len);
+-	runtime·memmove(s3.str, s1.str, s1.len);
+-	runtime·memmove(s3.str+s1.len, s2.str, s2.len);
+-	return s3;
+-}
+-
+ int32
+ runtime·strcmp(byte *s1, byte *s2)
+ {
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index da3160449f..99cce1326a 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -239,3 +239,60 @@ func rawruneslice(size int) (b []rune) {
+ 	(*slice)(unsafe.Pointer(&b)).cap = uint(mem / 4)
+ 	return
+ }
++
++// used by cmd/cgo
++func gobytes(p *byte, n int) []byte {
++	if n == 0 {
++		return make([]byte, 0)
++	}
++	x := make([]byte, n)
++	memmove(unsafe.Pointer(&x[0]), unsafe.Pointer(p), uintptr(n))
++	return x
++}
++
++func gostringsize(n int) string {
++	s, _ := rawstring(n)
++	return s
++}
++
++//go:noescape
++func findnull(*byte) int
++
++func gostring(p *byte) string {
++	l := findnull(p)
++	if l == 0 {
++		return ""
++	}
++	s, b := rawstring(l)
++	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
++	return s
++}
++
++func gostringn(p *byte, l int) string {
++	if l == 0 {
++		return ""
++	}
++	s, b := rawstring(l)
++	memmove(unsafe.Pointer(&b[0]), unsafe.Pointer(p), uintptr(l))
++	return s
++}
++
++func index(s, t string) int {
++	if len(t) == 0 {
++		return 0
++	}
++	for i := 0; i < len(s); i++ {
++		if s[i] == t[0] && hasprefix(s[i:], t) {
++			return i
++		}
++	}
++	return -1
++}
++
++func contains(s, t string) bool {
++	return index(s, t) >= 0
++}
++
++func hasprefix(s, t string) bool {
++	return len(s) >= len(t) && s[:len(t)] == t
++}
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index bf6c33a41e..f8ea1092e9 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -223,7 +223,6 @@ func lessstack()
+ func morestack()
+ func mstart()
+ func rt0_go()
+-func sigpanic()
+ 
+ // return0 is a stub used to return 0 from deferproc.
+ // It is called at the very end of deferproc to signal
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index 7bdf7b950d..35b250f8c5 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -143,8 +143,17 @@ TEXT reflect·unsafe_NewArray(SB),NOSPLIT,$0-0
+ TEXT reflect·makechan(SB),NOSPLIT,$0-0
+ 	JMP	runtime·makechan(SB)
+ 
+-TEXT reflect·rselect(SB), NOSPLIT, $0-0
++TEXT reflect·rselect(SB),NOSPLIT,$0-0
+ 	JMP	runtime·reflect_rselect(SB)
+ 
+-TEXT os·sigpipe(SB), NOSPLIT, $0-0
++TEXT os·sigpipe(SB),NOSPLIT,$0-0
+ 	JMP	runtime·os_sigpipe(SB)
++
++TEXT runtime·runtime_init(SB),NOSPLIT,$0-0
++	JMP	runtime·init(SB)
++
++TEXT runtime·main_init(SB),NOSPLIT,$0-0
++	JMP	main·init(SB)
++
++TEXT runtime·main_main(SB),NOSPLIT,$0-0
++	JMP	main·main(SB)
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index ec7be28dc0..c1a019296f 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -526,22 +526,6 @@ func showframe(f *_func, gp *g) bool {
+ 	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
+ }
+ 
+-func contains(s, t string) bool {
+-	if len(t) == 0 {
+-		return true
+-	}
+-	for i := 0; i < len(s); i++ {
+-		if s[i] == t[0] && hasprefix(s[i:], t) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-func hasprefix(s, t string) bool {
+-	return len(s) >= len(t) && s[:len(t)] == t
+-}
+-
+ var gStatusStrings = [...]string{
+ 	_Gidle:      "idle",
+ 	_Grunnable:  "runnable",

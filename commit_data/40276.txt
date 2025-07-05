@@ -18,9 +18,208 @@ Date:   Mon Mar 11 15:52:20 2019 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go    | 56 +++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go        | 34 ++++++++++++++++++--------
  src/net/http/transfer.go      | 18 +++++++++++++-
  src/net/http/transfer_test.go | 32 +++++++++++++++++++++++++
  4 files changed, 129 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f10a4272ab..32ddd3dde9 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -6071,6 +6071,62 @@ func TestServerContexts(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 30710: ensure that as per the spec, a server responds
++// with 501 Not Implemented for unsupported transfer-encodings.
++func TestUnsupportedTransferEncodingsReturn501(t *testing.T) {
++	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Write([]byte("Hello, World!"))
++	}))
++	defer cst.Close()
++
++	serverURL, err := url.Parse(cst.URL)
++	if err != nil {
++		t.Fatalf("Failed to parse server URL: %v", err)
++	}
++
++	unsupportedTEs := []string{
++		"fugazi",
++		"foo-bar",
++		"unknown",
++	}
++
++	for _, badTE := range unsupportedTEs {
++		http1ReqBody := fmt.Sprintf(""+
++			"POST / HTTP/1.1\r\nConnection: close\r\n"+
++			"Host: localhost\r\nTransfer-Encoding: %s\r\n\r\n", badTE)
++
++		gotBody, err := fetchWireResponse(serverURL.Host, []byte(http1ReqBody))
++		if err != nil {
++			t.Errorf("%q. unexpected error: %v", badTE, err)
++			continue
++		}
++
++		wantBody := fmt.Sprintf("" +
++			"HTTP/1.1 501 Not Implemented\r\nContent-Type: text/plain; charset=utf-8\r\n" +
++			"Connection: close\r\n\r\nUnsupported transfer encoding")
++
++		if string(gotBody) != wantBody {
++			t.Errorf("%q. body\ngot\n%q\nwant\n%q", badTE, gotBody, wantBody)
++		}
++	}
++}
++
++// fetchWireResponse is a helper for dialing to host,
++// sending http1ReqBody as the payload and retrieving
++// the response as it was sent on the wire.
++func fetchWireResponse(host string, http1ReqBody []byte) ([]byte, error) {
++	conn, err := net.Dial("tcp", host)
++	if err != nil {
++		return nil, err
++	}
++	defer conn.Close()
++
++	if _, err := conn.Write(http1ReqBody); err != nil {
++		return nil, err
++	}
++	return ioutil.ReadAll(conn)
++}
++
+ func BenchmarkResponseStatusLine(b *testing.B) {
+ 	b.ReportAllocs()
+ 	b.RunParallel(func(pb *testing.PB) {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 722b709e85..30bc9680f4 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1822,7 +1822,8 @@ func (c *conn) serve(ctx context.Context) {
+ 		if err != nil {
+ 			const errorHeaders = "\r\nContent-Type: text/plain; charset=utf-8\r\nConnection: close\r\n\r\n"
+ 
+-			if err == errTooLarge {
++			switch {
++			case err == errTooLarge:
+ 				// Their HTTP client may or may not be
+ 				// able to read this if we're
+ 				// responding to them and hanging up
+@@ -1832,18 +1833,31 @@ func (c *conn) serve(ctx context.Context) {
+ 				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+ 				c.closeWriteAndWait()
+ 				return
+-			}
+-			if isCommonNetReadError(err) {
++
++			case isUnsupportedTEError(err):
++				// Respond as per RFC 7230 Section 3.3.1 which says,
++				//      A server that receives a request message with a
++				//      transfer coding it does not understand SHOULD
++				//      respond with 501 (Unimplemented).
++				code := StatusNotImplemented
++
++				// We purposefully aren't echoing back the transfer-encoding's value,
++				// so as to mitigate the risk of cross side scripting by an attacker.
++				fmt.Fprintf(c.rwc, "HTTP/1.1 %d %s%sUnsupported transfer encoding", code, StatusText(code), errorHeaders)
++				return
++
++			case isCommonNetReadError(err):
+ 				return // don't reply
+-			}
+ 
+-			publicErr := "400 Bad Request"
+-			if v, ok := err.(badRequestError); ok {
+-				publicErr = publicErr + ": " + string(v)
+-			}
++			default:
++				publicErr := "400 Bad Request"
++				if v, ok := err.(badRequestError); ok {
++					publicErr = publicErr + ": " + string(v)
++				}
+ 
+-			fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
+-			return
++				fmt.Fprintf(c.rwc, "HTTP/1.1 "+publicErr+errorHeaders+publicErr)
++				return
++			}
+ 		}
+ 
+ 		// Expect 100 Continue support
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 43c800bca5..2e01a07f84 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -589,6 +589,22 @@ func chunked(te []string) bool { return len(te) > 0 && te[0] == "chunked" }
+ // Checks whether the encoding is explicitly "identity".
+ func isIdentity(te []string) bool { return len(te) == 1 && te[0] == "identity" }
+ 
++// unsupportedTEError reports unsupported transfer-encodings.
++type unsupportedTEError struct {
++	err string
++}
++
++func (uste *unsupportedTEError) Error() string {
++	return uste.err
++}
++
++// isUnsupportedTEError checks if the error is of type
++// unsupportedTEError. It is usually invoked with a non-nil err.
++func isUnsupportedTEError(err error) bool {
++	_, ok := err.(*unsupportedTEError)
++	return ok
++}
++
+ // fixTransferEncoding sanitizes t.TransferEncoding, if needed.
+ func (t *transferReader) fixTransferEncoding() error {
+ 	raw, present := t.Header["Transfer-Encoding"]
+@@ -615,7 +631,7 @@ func (t *transferReader) fixTransferEncoding() error {
+ 			break
+ 		}
+ 		if encoding != "chunked" {
+-			return &badStringError{"unsupported transfer encoding", encoding}
++			return &unsupportedTEError{fmt.Sprintf("unsupported transfer encoding: %q", encoding)}
+ 		}
+ 		te = te[0 : len(te)+1]
+ 		te[len(te)-1] = encoding
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index aa465d0600..65009ee8bf 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -278,3 +278,35 @@ func TestTransferWriterWriteBodyReaderTypes(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestFixTransferEncoding(t *testing.T) {
++	tests := []struct {
++		hdr     Header
++		wantErr error
++	}{
++		{
++			hdr:     Header{"Transfer-Encoding": {"fugazi"}},
++			wantErr: &unsupportedTEError{`unsupported transfer encoding: "fugazi"`},
++		},
++		{
++			hdr:     Header{"Transfer-Encoding": {"chunked, chunked", "identity", "chunked"}},
++			wantErr: &badStringError{"too many transfer encodings", "chunked,chunked"},
++		},
++		{
++			hdr:     Header{"Transfer-Encoding": {"chunked"}},
++			wantErr: nil,
++		},
++	}
++
++	for i, tt := range tests {
++		tr := &transferReader{
++			Header:     tt.hdr,
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++		}
++		gotErr := tr.fixTransferEncoding()
++		if !reflect.DeepEqual(gotErr, tt.wantErr) {
++			t.Errorf("%d.\ngot error:\n%v\nwant error:\n%v\n\n", i, gotErr, tt.wantErr)
++		}
++	}
++}

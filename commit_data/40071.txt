@@ -12,6 +12,25 @@ Date:   Tue Apr 16 15:08:32 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172199
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Sameer Ajmani <sameer@golang.org>
-
+---
  src/context/context.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/context/context.go b/src/context/context.go
+index 77298f6531..ad67d2301d 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -497,10 +497,10 @@ type valueCtx struct {
+ // want context depending on the unicode tables. This is only used by
+ // *valueCtx.String().
+ func stringify(v interface{}) string {
+-	if s, ok := v.(stringer); ok {
++	switch s := v.(type) {
++	case stringer:
+ 		return s.String()
+-	}
+-	if s, ok := v.(string); ok {
++	case string:
+ 		return s
+ 	}
+ 	return "<not Stringer>"

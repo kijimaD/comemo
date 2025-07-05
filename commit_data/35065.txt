@@ -15,6 +15,28 @@ Date:   Fri Dec 8 16:05:22 2017 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/testdata/testprogcgo/sigstack.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/sigstack.go b/src/runtime/testdata/testprogcgo/sigstack.go
+index e30a5592dc..492dfeff7f 100644
+--- a/src/runtime/testdata/testprogcgo/sigstack.go
++++ b/src/runtime/testdata/testprogcgo/sigstack.go
+@@ -17,15 +17,11 @@ package main
+ #include <stdlib.h>
+ #include <sys/mman.h>
+ 
+-#ifndef MAP_STACK
+-#define MAP_STACK 0
+-#endif
+-
+ extern void SigStackCallback();
+ 
+ static void* WithSigStack(void* arg __attribute__((unused))) {
+ 	// Set up an alternate system stack.
+-	void* base = mmap(0, SIGSTKSZ, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON|MAP_STACK, -1, 0);
++	void* base = mmap(0, SIGSTKSZ, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANON, -1, 0);
+ 	if (base == MAP_FAILED) {
+ 		perror("mmap failed");
+ 		abort();

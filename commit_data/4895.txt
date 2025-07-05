@@ -7,6 +7,19 @@ Date:   Thu Feb 18 23:33:57 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/217044
-
+---
  src/cmd/gc/subr.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 8af57bdf75..f6ca359e89 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -969,7 +969,6 @@ etnames[] =
+ 	[TFORW]		= "FORW",
+ 	[TFIELD]	= "FIELD",
+ 	[TSTRING]	= "STRING",
+-	[TCHAN]		= "CHAN",
+ 	[TANY]		= "ANY",
+ };
+ 

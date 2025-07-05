@@ -13,7 +13,7 @@ Date:   Mon Dec 30 13:28:43 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/212877
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                              | 12 -----------
  .../go/testdata/script/gopath_vendor_dup_err.txt   | 24 ++++++++++++++++++++++
  src/cmd/go/testdata/src/dupload/dupload.go         |  8 --------
@@ -21,3 +21,94 @@ Date:   Mon Dec 30 13:28:43 2019 -0500
  src/cmd/go/testdata/src/dupload/p2/p2.go           |  3 ---
  src/cmd/go/testdata/src/dupload/vendor/p/p.go      |  1 -
  6 files changed, 24 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 6a47c09bde..f8771ddff7 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3504,18 +3504,6 @@ func TestGoGetUpdateAllDoesNotTryToLoadDuplicates(t *testing.T) {
+ 	tg.grepStderrNot("duplicate loads of", "did not remove old packages from cache")
+ }
+ 
+-// Issue 17119 more duplicate load errors
+-func TestIssue17119(t *testing.T) {
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
+-	tg.runFail("build", "dupload")
+-	tg.grepBothNot("duplicate load|internal error", "internal error")
+-}
+-
+ func TestBinaryOnlyPackages(t *testing.T) {
+ 	tooSlow(t)
+ 
+diff --git a/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt b/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt
+new file mode 100644
+index 0000000000..5096195c70
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gopath_vendor_dup_err.txt
+@@ -0,0 +1,24 @@
++[!net] skip
++
++# Issue 17119: Test more duplicate load errors.
++! go build dupload
++! stderr 'duplicate load|internal error'
++stderr 'dupload/vendor/p must be imported as p'
++
++-- dupload/dupload.go --
++package main
++
++import (
++	_ "dupload/p2"
++	_ "p"
++)
++
++func main() {}
++-- dupload/p/p.go --
++package p
++-- dupload/p2/p2.go --
++package p2
++
++import _ "dupload/vendor/p"
++-- dupload/vendor/p/p.go --
++package p
+diff --git a/src/cmd/go/testdata/src/dupload/dupload.go b/src/cmd/go/testdata/src/dupload/dupload.go
+deleted file mode 100644
+index 2f078525b9..0000000000
+--- a/src/cmd/go/testdata/src/dupload/dupload.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-package main
+-
+-import (
+-	_ "dupload/p2"
+-	_ "p"
+-)
+-
+-func main() {}
+diff --git a/src/cmd/go/testdata/src/dupload/p/p.go b/src/cmd/go/testdata/src/dupload/p/p.go
+deleted file mode 100644
+index c89cd18d0f..0000000000
+--- a/src/cmd/go/testdata/src/dupload/p/p.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p
+diff --git a/src/cmd/go/testdata/src/dupload/p2/p2.go b/src/cmd/go/testdata/src/dupload/p2/p2.go
+deleted file mode 100644
+index 8a80979b4e..0000000000
+--- a/src/cmd/go/testdata/src/dupload/p2/p2.go
++++ /dev/null
+@@ -1,3 +0,0 @@
+-package p2
+-
+-import _ "dupload/vendor/p"
+diff --git a/src/cmd/go/testdata/src/dupload/vendor/p/p.go b/src/cmd/go/testdata/src/dupload/vendor/p/p.go
+deleted file mode 100644
+index c89cd18d0f..0000000000
+--- a/src/cmd/go/testdata/src/dupload/vendor/p/p.go
++++ /dev/null
+@@ -1 +0,0 @@
+-package p

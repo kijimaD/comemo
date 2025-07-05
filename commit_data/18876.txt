@@ -8,6 +8,20 @@ Date:   Sat Mar 15 11:18:11 2014 -0700
     R=golang-codereviews, minux.ma
     CC=golang-codereviews
     https://golang.org/cl/76270043
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index bc44145c7b..3a584c2542 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -80,7 +80,7 @@ setexp(void)
+ 
+ 	precisestack_enabled = 1; // on by default
+ 
+-	// The makefile #defines GOEXPERIMENT for us.
++	// cmd/dist #defines GOEXPERIMENT for us.
+ 	nf = getfields(GOEXPERIMENT, f, nelem(f), 1, ",");
+ 	for(i=0; i<nf; i++)
+ 		addexp(f[i]);

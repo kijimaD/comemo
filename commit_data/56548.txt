@@ -16,6 +16,20 @@ Date:   Mon May 8 11:52:48 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/cgo/internal/test/cgo_thread_lock.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/test/cgo_thread_lock.go b/src/cmd/cgo/internal/test/cgo_thread_lock.go
+index 1c983375d9..981830b6b9 100644
+--- a/src/cmd/cgo/internal/test/cgo_thread_lock.go
++++ b/src/cmd/cgo/internal/test/cgo_thread_lock.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && freebsd && openbsd
++//go:build linux
+ 
+ package cgotest
+ 

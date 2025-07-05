@@ -15,6 +15,22 @@ Date:   Thu Nov 11 07:06:24 2021 -0500
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/net/udpsock_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/udpsock_test.go b/src/net/udpsock_test.go
+index 01b8d39216..8ccdb365ab 100644
+--- a/src/net/udpsock_test.go
++++ b/src/net/udpsock_test.go
+@@ -605,6 +605,10 @@ func BenchmarkWriteToReadFromUDPAddrPort(b *testing.B) {
+ }
+ 
+ func TestUDPIPVersionReadMsg(t *testing.T) {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("skipping on %v", runtime.GOOS)
++	}
+ 	conn, err := ListenUDP("udp4", &UDPAddr{IP: IPv4(127, 0, 0, 1)})
+ 	if err != nil {
+ 		t.Fatal(err)

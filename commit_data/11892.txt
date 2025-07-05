@@ -9,9 +9,126 @@ Date:   Tue Feb 14 17:19:59 2012 +1100
     R=r, gri, rsc
     CC=golang-dev
     https://golang.org/cl/5657048
-
+---
  src/cmd/go/test.go         |  4 ++++
  src/cmd/godoc/godoc.go     |  9 ++++++---
  src/pkg/go/doc/example.go  | 32 ++++++++++++++++++++++++++------
  src/pkg/testing/testing.go |  3 +++
  4 files changed, 39 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 1633244556..e2bf44ed9d 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -187,6 +187,10 @@ Here is an example of an example:
+ 		Println("The output of this example function.")
+ 	}
+ 
++The entire test file is presented as the example when it contains a single
++example function, at least one other function, type, variable, or constant
++declaration, and no test or benchmark functions.
++
+ See the documentation of the testing package for more information.
+ 		`,
+ }
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 3945039299..e7c2f2135d 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -516,10 +516,13 @@ func example_htmlFunc(funcName string, examples []*doc.Example, fset *token.File
+ 			continue
+ 		}
+ 
+-		// print code, unindent and remove surrounding braces
++		// print code
+ 		code := node_htmlFunc(eg.Body, fset)
+-		code = strings.Replace(code, "\n    ", "\n", -1)
+-		code = code[2 : len(code)-2]
++		if len(code) > 0 && code[0] == '{' {
++			// unindent and remove surrounding braces
++			code = strings.Replace(code, "\n    ", "\n", -1)
++			code = code[2 : len(code)-2]
++		}
+ 
+ 		err := exampleHTML.Execute(&buf, struct {
+ 			Name, Code, Output string
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index d5b58d2664..1c23b0d95c 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -9,6 +9,7 @@ package doc
+ import (
+ 	"go/ast"
+ 	"go/printer"
++	"go/token"
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -21,28 +22,47 @@ type Example struct {
+ }
+ 
+ func Examples(pkg *ast.Package) []*Example {
+-	var examples []*Example
+-	for _, src := range pkg.Files {
+-		for _, decl := range src.Decls {
++	var list []*Example
++	for _, file := range pkg.Files {
++		hasTests := false // file contains tests or benchmarks
++		numDecl := 0      // number of non-import declarations in the file
++		var flist []*Example
++		for _, decl := range file.Decls {
++			if g, ok := decl.(*ast.GenDecl); ok && g.Tok != token.IMPORT {
++				numDecl++
++				continue
++			}
+ 			f, ok := decl.(*ast.FuncDecl)
+ 			if !ok {
+ 				continue
+ 			}
++			numDecl++
+ 			name := f.Name.Name
++			if isTest(name, "Test") || isTest(name, "Benchmark") {
++				hasTests = true
++				continue
++			}
+ 			if !isTest(name, "Example") {
+ 				continue
+ 			}
+-			examples = append(examples, &Example{
++			flist = append(flist, &Example{
+ 				Name: name[len("Example"):],
+ 				Body: &printer.CommentedNode{
+ 					Node:     f.Body,
+-					Comments: src.Comments,
++					Comments: file.Comments,
+ 				},
+ 				Output: f.Doc.Text(),
+ 			})
+ 		}
++		if !hasTests && numDecl > 1 && len(flist) == 1 {
++			// If this file only has one example function, some
++			// other top-level declarations, and no tests or
++			// benchmarks, use the whole file as the example.
++			flist[0].Body.Node = file
++		}
++		list = append(list, flist...)
+ 	}
+-	return examples
++	return list
+ }
+ 
+ // isTest tells whether name looks like a test, example, or benchmark.
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index bbacf8ba50..d5d60eae4c 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -64,6 +64,9 @@
+ //     func ExampleT_suffix() { ... }
+ //     func ExampleT_M_suffix() { ... }
+ //
++// The entire test file is presented as the example when it contains a single
++// example function, at least one other function, type, variable, or constant
++// declaration, and no test or benchmark functions.
+ package testing
+ 
+ import (

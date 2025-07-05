@@ -10,6 +10,63 @@ Date:   Tue Sep 21 18:05:28 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351334
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/sym/symkind.go | 38 +++++++++++++++++++-----------------
  1 file changed, 20 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 20b504e505..0a0741f84b 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -30,6 +30,8 @@
+ 
+ package sym
+ 
++import "cmd/internal/objabi"
++
+ // A SymKind describes the kind of memory represented by a symbol.
+ type SymKind uint8
+ 
+@@ -123,24 +125,24 @@ const (
+ // AbiSymKindToSymKind maps values read from object files (which are
+ // of type cmd/internal/objabi.SymKind) to values of type SymKind.
+ var AbiSymKindToSymKind = [...]SymKind{
+-	Sxxx,
+-	STEXT,
+-	SRODATA,
+-	SNOPTRDATA,
+-	SDATA,
+-	SBSS,
+-	SNOPTRBSS,
+-	STLSBSS,
+-	SDWARFCUINFO,
+-	SDWARFCONST,
+-	SDWARFFCN,
+-	SDWARFABSFCN,
+-	SDWARFTYPE,
+-	SDWARFVAR,
+-	SDWARFRANGE,
+-	SDWARFLOC,
+-	SDWARFLINES,
+-	SLIBFUZZER_EXTRA_COUNTER,
++	objabi.Sxxx:                     Sxxx,
++	objabi.STEXT:                    STEXT,
++	objabi.SRODATA:                  SRODATA,
++	objabi.SNOPTRDATA:               SNOPTRDATA,
++	objabi.SDATA:                    SDATA,
++	objabi.SBSS:                     SBSS,
++	objabi.SNOPTRBSS:                SNOPTRBSS,
++	objabi.STLSBSS:                  STLSBSS,
++	objabi.SDWARFCUINFO:             SDWARFCUINFO,
++	objabi.SDWARFCONST:              SDWARFCONST,
++	objabi.SDWARFFCN:                SDWARFFCN,
++	objabi.SDWARFABSFCN:             SDWARFABSFCN,
++	objabi.SDWARFTYPE:               SDWARFTYPE,
++	objabi.SDWARFVAR:                SDWARFVAR,
++	objabi.SDWARFRANGE:              SDWARFRANGE,
++	objabi.SDWARFLOC:                SDWARFLOC,
++	objabi.SDWARFLINES:              SDWARFLINES,
++	objabi.SLIBFUZZER_EXTRA_COUNTER: SLIBFUZZER_EXTRA_COUNTER,
+ }
+ 
+ // ReadOnly are the symbol kinds that form read-only sections. In some

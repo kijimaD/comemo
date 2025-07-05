@@ -24,7 +24,39 @@ Date:   Mon Jun 17 12:57:40 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.13.html      | 4 ++--
  src/reflect/value.go | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 5723fee1b3..1f83c0d9a0 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -292,11 +292,11 @@ TODO
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+     <p><!-- CL 171337 -->
+-      The new <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a> method reports whether a <code>Value</code> is a zero value for its type.
++      The new <a href="/pkg/reflect/#Value.IsZero"><code>Value.IsZero</code></a> method reports whether a <code>Value</code> is the zero value for its type.
+     </p>
+ 
+     <p><!-- CL 174531 -->
+-      The <a href="/pkg/reflect/#MakeFunc"><code>MakeFunc</code></a> function now allows assignment conversions on returned values, instead of requiring exact type match. This is particularly useful when the type being returned is an interface type, but the value actually returned  is a concrete value implementing that type.
++      The <a href="/pkg/reflect/#MakeFunc"><code>MakeFunc</code></a> function now allows assignment conversions on returned values, instead of requiring exact type match. This is particularly useful when the type being returned is an interface type, but the value actually returned is a concrete value implementing that type.
+     </p>
+ 
+ </dl><!-- reflect -->
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index c58b2d2567..218b4d25cc 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1076,7 +1076,7 @@ func (v Value) IsValid() bool {
+ 	return v.flag != 0
+ }
+ 
+-// IsZero reports whether v is a zero value for its type.
++// IsZero reports whether v is the zero value for its type.
+ // It panics if the argument is invalid.
+ func (v Value) IsZero() bool {
+ 	switch v.kind() {

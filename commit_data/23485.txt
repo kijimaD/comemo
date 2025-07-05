@@ -15,8 +15,52 @@ Date:   Fri May 15 16:10:00 2015 -0400
     Change-Id: I8a93658abd0c72276c9bafa3d2c7848a65b4691a
     Reviewed-on: https://go-review.googlesource.com/10155
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/heapdump.go | 2 --
  src/runtime/mstats.go   | 2 --
  src/runtime/proc1.go    | 2 +-
  3 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 196cb3fcb5..c0fff3f1ce 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -21,9 +21,7 @@ func runtime_debug_WriteHeapDump(fd uintptr) {
+ 		writeheapdump_m(fd)
+ 	})
+ 
+-	getg().m.locks++ // TODO: Is this necessary?
+ 	startTheWorld()
+-	getg().m.locks--
+ }
+ 
+ const (
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index bd6ac1a4d5..3eff7f6b3e 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -159,9 +159,7 @@ func ReadMemStats(m *MemStats) {
+ 		readmemstats_m(m)
+ 	})
+ 
+-	getg().m.locks++ // TODO: Is this necessary?
+ 	startTheWorld()
+-	getg().m.locks--
+ }
+ 
+ func readmemstats_m(stats *MemStats) {
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 3d86d40654..ab0566b470 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -550,9 +550,9 @@ func stopTheWorld(reason string) {
+ 
+ // startTheWorld undoes the effects of stopTheWorld.
+ func startTheWorld() {
+-	getg().m.preemptoff = ""
+ 	semrelease(&worldsema)
+ 	systemstack(startTheWorldWithSema)
++	getg().m.preemptoff = ""
+ }
+ 
+ // Holding worldsema grants an M the right to try to stop the world.

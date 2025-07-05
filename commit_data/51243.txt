@@ -15,6 +15,20 @@ Date:   Mon Dec 20 19:08:14 2021 -0500
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/callback.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/callback.go b/src/runtime/testdata/testprogcgo/callback.go
+index a2d8a492a4..25f07159b8 100644
+--- a/src/runtime/testdata/testprogcgo/callback.go
++++ b/src/runtime/testdata/testprogcgo/callback.go
+@@ -66,7 +66,7 @@ func grow1(x, sum *int) int {
+ 
+ func CgoCallbackGC() {
+ 	P := 100
+-	if os.Getenv("RUNTIME_TESTING_SHORT") != "" {
++	if os.Getenv("RUNTIME_TEST_SHORT") != "" {
+ 		P = 10
+ 	}
+ 	done := make(chan bool)

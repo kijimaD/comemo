@@ -13,6 +13,27 @@ Date:   Sat Jan 25 02:55:01 2020 +1100
     Change-Id: I0e1f7c0eeca4e85ae588f427eff818bb7946a851
     Reviewed-on: https://go-review.googlesource.com/c/go/+/216262
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index 5c93a4f703..e6bfe71539 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -87,6 +87,7 @@ var (
+ 	asmArchMips64LE = asmArch{name: "mips64le", bigEndian: false, stack: "R29", lr: true}
+ 	asmArchPpc64    = asmArch{name: "ppc64", bigEndian: true, stack: "R1", lr: true}
+ 	asmArchPpc64LE  = asmArch{name: "ppc64le", bigEndian: false, stack: "R1", lr: true}
++	asmArchRISCV64  = asmArch{name: "riscv64", bigEndian: false, stack: "SP", lr: true}
+ 	asmArchS390X    = asmArch{name: "s390x", bigEndian: true, stack: "R15", lr: true}
+ 	asmArchWasm     = asmArch{name: "wasm", bigEndian: false, stack: "SP", lr: false}
+ 
+@@ -101,6 +102,7 @@ var (
+ 		&asmArchMips64LE,
+ 		&asmArchPpc64,
+ 		&asmArchPpc64LE,
++		&asmArchRISCV64,
+ 		&asmArchS390X,
+ 		&asmArchWasm,
+ 	}

@@ -9,6 +9,43 @@ Date:   Tue Nov 14 21:32:00 2017 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/pem/example_test.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/src/encoding/pem/example_test.go b/src/encoding/pem/example_test.go
+index 900b31c8ba..806e7bbbf7 100644
+--- a/src/encoding/pem/example_test.go
++++ b/src/encoding/pem/example_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/pem"
+ 	"fmt"
+ 	"log"
++	"os"
+ )
+ 
+ func ExampleDecode() {
+@@ -42,3 +43,23 @@ and some more`)
+ 	fmt.Printf("Got a %T, with remaining data: %q", pub, rest)
+ 	// Output: Got a *rsa.PublicKey, with remaining data: "and some more"
+ }
++
++func ExampleEncode() {
++	block := &pem.Block{
++		Type: "MESSAGE",
++		Headers: map[string]string{
++			"Animal": "Gopher",
++		},
++		Bytes: []byte("test"),
++	}
++
++	if err := pem.Encode(os.Stdout, block); err != nil {
++		log.Fatal(err)
++	}
++	// Output:
++	// -----BEGIN MESSAGE-----
++	// Animal: Gopher
++	//
++	// dGVzdA==
++	// -----END MESSAGE-----
++}

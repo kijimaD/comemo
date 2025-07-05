@@ -7,8 +7,76 @@ Date:   Thu Oct 27 19:41:39 2011 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5328051
-
+---
  test/fixedbugs/bug365.go | 4 ++--
  test/import.go           | 7 +++----
  test/zerodivide.go       | 7 ++-----
  3 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/test/fixedbugs/bug365.go b/test/fixedbugs/bug365.go
+index ce69505044..bc8c2c5e62 100644
+--- a/test/fixedbugs/bug365.go
++++ b/test/fixedbugs/bug365.go
+@@ -12,11 +12,11 @@
+ package main
+ 
+ type S struct {
+-	err os.Error  // ERROR "undefined|expected package"
++	err foo.Bar // ERROR "undefined|expected package"
+ 	Num int
+ }
+ 
+ func main() {
+ 	s := S{}
+-	_ = s.Num  // no error here please
++	_ = s.Num // no error here please
+ }
+diff --git a/test/import.go b/test/import.go
+index 96330340df..bd83dc3bdd 100644
+--- a/test/import.go
++++ b/test/import.go
+@@ -13,13 +13,12 @@ import _os_ "os"
+ import "os"
+ import . "os"
+ 
+-func f(e os.Error)
++func f(e *os.File)
+ 
+ func main() {
+-	var _e_ _os_.Error
+-	var dot Error
++	var _e_ *_os_.File
++	var dot *File
+ 
+ 	f(_e_)
+ 	f(dot)
+ }
+-
+diff --git a/test/zerodivide.go b/test/zerodivide.go
+index 1948528d24..3a1ff15051 100644
+--- a/test/zerodivide.go
++++ b/test/zerodivide.go
+@@ -9,13 +9,10 @@ package main
+ import (
+ 	"fmt"
+ 	"math"
++	"runtime"
+ 	"strings"
+ )
+ 
+-type Error interface {
+-	String() string
+-}
+-
+ type ErrorTest struct {
+ 	name string
+ 	fn   func()
+@@ -164,7 +161,7 @@ var errorTests = []ErrorTest{
+ func error(fn func()) (error string) {
+ 	defer func() {
+ 		if e := recover(); e != nil {
+-			error = e.(Error).String()
++			error = e.(runtime.Error).String()
+ 		}
+ 	}()
+ 	fn()

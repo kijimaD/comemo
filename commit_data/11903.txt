@@ -14,8 +14,94 @@ Date:   Tue Feb 14 22:13:19 2012 +0100
     R=golang-dev, r
     CC=golang-dev, remy
     https://golang.org/cl/5673045
-
+---
  src/pkg/runtime/gc_test.go |  6 +++++-
  src/pkg/time/sleep_test.go | 16 +++++++++-------
  src/pkg/time/tick_test.go  | 15 ++++++++++-----
  3 files changed, 24 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 739ebcba2f..65894a6fd0 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -15,7 +15,11 @@ func TestGcSys(t *testing.T) {
+ 	runtime.ReadMemStats(memstats)
+ 	sys := memstats.Sys
+ 
+-	for i := 0; i < 1000000; i++ {
++	itercount := 1000000
++	if testing.Short() {
++		itercount = 100000
++	}
++	for i := 0; i < itercount; i++ {
+ 		workthegc()
+ 	}
+ 
+diff --git a/src/pkg/time/sleep_test.go b/src/pkg/time/sleep_test.go
+index b12a5a1681..9b0b7f7e06 100644
+--- a/src/pkg/time/sleep_test.go
++++ b/src/pkg/time/sleep_test.go
+@@ -108,10 +108,11 @@ func TestAfter(t *testing.T) {
+ }
+ 
+ func TestAfterTick(t *testing.T) {
+-	const (
+-		Delta = 100 * Millisecond
+-		Count = 10
+-	)
++	const Count = 10
++	Delta := 100 * Millisecond
++	if testing.Short() {
++		Delta = 10 * Millisecond
++	}
+ 	t0 := Now()
+ 	for i := 0; i < Count; i++ {
+ 		<-After(Delta)
+@@ -176,9 +177,10 @@ func await(slot int, result chan<- afterResult, ac <-chan Time) {
+ }
+ 
+ func testAfterQueuing(t *testing.T) error {
+-	const (
+-		Delta = 100 * Millisecond
+-	)
++	Delta := 100 * Millisecond
++	if testing.Short() {
++		Delta = 20 * Millisecond
++	}
+ 	// make the result channel buffered because we don't want
+ 	// to depend on channel queueing semantics that might
+ 	// possibly change in the future.
+diff --git a/src/pkg/time/tick_test.go b/src/pkg/time/tick_test.go
+index 36349349ce..0c1c4d67ab 100644
+--- a/src/pkg/time/tick_test.go
++++ b/src/pkg/time/tick_test.go
+@@ -10,10 +10,11 @@ import (
+ )
+ 
+ func TestTicker(t *testing.T) {
+-	const (
+-		Delta = 100 * Millisecond
+-		Count = 10
+-	)
++	const Count = 10
++	Delta := 100 * Millisecond
++	if testing.Short() {
++		Delta = 10 * Millisecond
++	}
+ 	ticker := NewTicker(Delta)
+ 	t0 := Now()
+ 	for i := 0; i < Count; i++ {
+@@ -39,8 +40,12 @@ func TestTicker(t *testing.T) {
+ 
+ // Test that a bug tearing down a ticker has been fixed.  This routine should not deadlock.
+ func TestTeardown(t *testing.T) {
++	Delta := 100 * Millisecond
++	if testing.Short() {
++		Delta = 20 * Millisecond
++	}
+ 	for i := 0; i < 3; i++ {
+-		ticker := NewTicker(1e8)
++		ticker := NewTicker(Delta)
+ 		<-ticker.C
+ 		ticker.Stop()
+ 	}

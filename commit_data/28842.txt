@@ -21,9 +21,107 @@ Date:   Tue Aug 9 13:58:06 2016 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/cmd/compile/internal/ssa/gen/386.rules |  3 ++-
  src/cmd/compile/internal/ssa/gen/386Ops.go |  3 ++-
  src/cmd/compile/internal/ssa/opGen.go      |  2 +-
  src/cmd/internal/obj/x86/obj6.go           | 21 ++++++++++++++-------
  4 files changed, 19 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 921eb06265..b360189e43 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -669,7 +669,8 @@
+ 
+ // We need to fold LEAQ into the MOVx ops so that the live variable analysis knows
+ // what variables are being read/written by the ops.
+-// Note: we turn off this merging for operations on globals when building position-independent code.
++// Note: we turn off this merging for operations on globals when building
++// position-independent code (when Flag_shared is set).
+ // PIC needs a spare register to load the PC into. For loads from globals into integer registers we use
+ // the target register, but for other loads and all stores, we need a free register. Having the LEAL be
+ // a separate instruction gives us that register.
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index 83db157d4f..88948e0033 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -362,7 +362,8 @@ func init() {
+ 			argLength: 3,
+ 			reg: regInfo{
+ 				inputs:   []regMask{buildReg("DI"), buildReg("AX")},
+-				clobbers: buildReg("DI"),
++				clobbers: buildReg("DI CX"),
++				// Note: CX is only clobbered when dynamic linking.
+ 			},
+ 		},
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 17e5c28004..b8d3b7eac5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3511,7 +3511,7 @@ var opcodeTable = [...]opInfo{
+ 				{0, 128}, // DI
+ 				{1, 1},   // AX
+ 			},
+-			clobbers: 128, // DI
++			clobbers: 130, // CX DI
+ 		},
+ 	},
+ 	{
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 9a47ae16ed..7b868bafdb 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -334,6 +334,16 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 		lea = ALEAL
+ 		mov = AMOVL
+ 		reg = REG_CX
++		if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
++			switch p.As {
++			case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
++				// Special case: clobber the destination register with
++				// the PC so we don't have to clobber CX.
++				// The SSA backend depends on CX not being clobbered across these instructions.
++				// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
++				reg = p.To.Reg
++			}
++		}
+ 	}
+ 
+ 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+@@ -392,7 +402,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 			dest = p.To
+ 			p.As = mov
+ 			p.To.Type = obj.TYPE_REG
+-			p.To.Reg = REG_CX
++			p.To.Reg = reg
+ 			p.To.Sym = nil
+ 			p.To.Name = obj.NAME_NONE
+ 		}
+@@ -413,7 +423,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
+ 			q.As = pAs
+ 			q.To = dest
+ 			q.From.Type = obj.TYPE_REG
+-			q.From.Reg = REG_CX
++			q.From.Reg = reg
+ 		}
+ 	}
+ 	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
+@@ -544,14 +554,11 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog) {
+ 		return
+ 	}
+ 	var dst int16 = REG_CX
+-	if isName(&p.From) && p.To.Type == obj.TYPE_REG {
++	if p.To.Type == obj.TYPE_REG && p.To.Reg != p.From.Reg && p.To.Reg != p.From.Index {
+ 		switch p.As {
+ 		case ALEAL, AMOVL, AMOVWLZX, AMOVBLZX, AMOVWLSX, AMOVBLSX:
+ 			dst = p.To.Reg
+-			// Special case: clobber the destination register with
+-			// the PC so we don't have to clobber CX.
+-			// The SSA backend depends on CX not being clobbered across these instructions.
+-			// See cmd/compile/internal/ssa/gen/386.rules (search for Flag_shared).
++			// Why?  See the comment near the top of rewriteToUseGot above.
+ 		}
+ 	}
+ 	q := obj.Appendp(ctxt, p)

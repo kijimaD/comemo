@@ -10,7 +10,55 @@ Date:   Wed Jan 6 19:19:39 2016 +0000
     Change-Id: I9c220e58be44b7726f75d776f714212c570cf8bb
     Reviewed-on: https://go-review.googlesource.com/18286
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/main_test.go      | 9 +++++++++
  src/net/http/transport_test.go | 2 +-
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 1163874ac2..299cd7b2d2 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -5,6 +5,7 @@
+ package http_test
+ 
+ import (
++	"flag"
+ 	"fmt"
+ 	"net/http"
+ 	"os"
+@@ -15,6 +16,8 @@ import (
+ 	"time"
+ )
+ 
++var flaky = flag.Bool("flaky", false, "run known-flaky tests too")
++
+ func TestMain(m *testing.M) {
+ 	v := m.Run()
+ 	if v == 0 && goroutineLeaked() {
+@@ -88,6 +91,12 @@ func setParallel(t *testing.T) {
+ 	}
+ }
+ 
++func setFlaky(t *testing.T, issue int) {
++	if !*flaky {
++		t.Skipf("skipping known flaky test; see golang.org/issue/%d", issue)
++	}
++}
++
+ func afterTest(t testing.TB) {
+ 	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+ 	if testing.Short() {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index faac72085d..9b4802f2aa 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -1649,7 +1649,7 @@ func TestCancelRequestWithChannelBeforeDo(t *testing.T) {
+ 
+ // Issue 11020. The returned error message should be errRequestCanceled
+ func TestTransportCancelBeforeResponseHeaders(t *testing.T) {
+-	t.Skip("Skipping flaky test; see Issue 11894")
++	setFlaky(t, 11894)
+ 	defer afterTest(t)
+ 
+ 	serverConnCh := make(chan net.Conn, 1)

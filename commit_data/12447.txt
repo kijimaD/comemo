@@ -9,7 +9,7 @@ Date:   Tue Mar 6 23:27:30 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5731048
-
+---
  misc/cgo/gmp/Makefile      | 38 --------------------------------------
  misc/cgo/gmp/fib.go        |  4 +++-
  misc/cgo/gmp/pi.go         |  4 +++-
@@ -31,3 +31,488 @@ Date:   Tue Mar 6 23:27:30 2012 -0500
  src/pkg/go/build/build.go  |  1 +
  src/run.bash               | 10 ++--------
  20 files changed, 79 insertions(+), 121 deletions(-)
+
+diff --git a/misc/cgo/gmp/Makefile b/misc/cgo/gmp/Makefile
+deleted file mode 100644
+index d9390c146b..0000000000
+--- a/misc/cgo/gmp/Makefile
++++ /dev/null
+@@ -1,38 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=gmp
+-
+-# Can have plain GOFILES too, but this example doesn't.
+-
+-CGOFILES=\
+-	gmp.go
+-
+-CGO_LDFLAGS=-lgmp
+-
+-# To add flags necessary for locating the library or its include files,
+-# set CGO_CFLAGS or CGO_LDFLAGS.  For example, to use an
+-# alternate installation of the library:
+-#	CGO_CFLAGS=-I/home/rsc/gmp32/include
+-#	CGO_LDFLAGS+=-L/home/rsc/gmp32/lib
+-# Note the += on the second line.
+-
+-CLEANFILES+=pi fib
+-
+-include ../../../src/Make.pkg
+-
+-# Simple test programs
+-
+-# Computes 1000 digits of pi; single-threaded.
+-pi: install pi.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) pi.go
+-	$(LD) -o $@ pi.$O
+-
+-# Computes 200 Fibonacci numbers; multi-threaded.
+-fib: install fib.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) fib.go
+-	$(LD) -o $@ fib.$O
+-
+diff --git a/misc/cgo/gmp/fib.go b/misc/cgo/gmp/fib.go
+index 3eda39e178..18434beaf3 100644
+--- a/misc/cgo/gmp/fib.go
++++ b/misc/cgo/gmp/fib.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Compute Fibonacci numbers with two goroutines
+ // that pass integers back and forth.  No actual
+ // concurrency, just threads and synchronization
+@@ -10,7 +12,7 @@
+ package main
+ 
+ import (
+-	big "gmp"
++	big "."
+ 	"runtime"
+ )
+ 
+diff --git a/misc/cgo/gmp/pi.go b/misc/cgo/gmp/pi.go
+index 3e40624cfa..019861e592 100644
+--- a/misc/cgo/gmp/pi.go
++++ b/misc/cgo/gmp/pi.go
+@@ -1,3 +1,5 @@
++// +build ignore
++
+ /*
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+@@ -38,8 +40,8 @@ POSSIBILITY OF SUCH DAMAGE.
+ package main
+ 
+ import (
++	big "."
+ 	"fmt"
+-	big "gmp"
+ 	"runtime"
+ )
+ 
+diff --git a/misc/cgo/life/Makefile b/misc/cgo/life/Makefile
+deleted file mode 100644
+index 1568a67f6d..0000000000
+--- a/misc/cgo/life/Makefile
++++ /dev/null
+@@ -1,35 +0,0 @@
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=life
+-
+-CGOFILES=\
+-	life.go\
+-
+-CGO_OFILES=\
+-	c-life.o\
+-
+-ifeq ($(GOOS),windows)
+-ifeq ($(GOARCH),amd64)
+-CGO_OFILES+=\
+-	lib64_libmingwex_a-wassert.o\
+-	lib64_libmingw32_a-mingw_helpers.o\
+-
+-lib64_libmingwex_a-wassert.o:
+-	ar -x /mingw/x86_64-w64-mingw32/lib/libmingwex.a lib64_libmingwex_a-wassert.o
+-
+-lib64_libmingw32_a-mingw_helpers.o:
+-	ar -x /mingw/x86_64-w64-mingw32/lib/libmingw32.a  lib64_libmingw32_a-mingw_helpers.o
+-endif
+-endif
+-
+-CLEANFILES+=life
+-
+-include ../../../src/Make.pkg
+-
+-life: install main.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
+-	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/life/main.go b/misc/cgo/life/main.go
+index 9cfed434be..47ae0e18c5 100644
+--- a/misc/cgo/life/main.go
++++ b/misc/cgo/life/main.go
+@@ -2,14 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Run the game of life in C using Go for parallelization.
+ 
+ package main
+ 
+ import (
++	"."
+ 	"flag"
+ 	"fmt"
+-	"life"
+ )
+ 
+ const MAXDIM = 100
+diff --git a/misc/cgo/life/test.bash b/misc/cgo/life/test.bash
+index 5c5fba1a97..bb483522c1 100755
+--- a/misc/cgo/life/test.bash
++++ b/misc/cgo/life/test.bash
+@@ -4,8 +4,11 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-gomake life
++go build -o life main.go
++
+ echo '*' life >run.out
+ ./life >>run.out
+ diff run.out golden.out
+-gomake clean
++
++rm -f life
++
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+deleted file mode 100644
+index 586132b3cf..0000000000
+--- a/misc/cgo/stdio/Makefile
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../src/Make.inc
+-
+-TARG=stdio
+-CGOFILES=\
+-	file.go\
+-
+-CLEANFILES+=hello fib chain run.out
+-
+-include ../../../src/Make.pkg
+-
+-%: install %.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) $*.go
+-	$(LD) -o $@ $*.$O
+diff --git a/misc/cgo/stdio/chain.go b/misc/cgo/stdio/chain.go
+index c188b2dd92..1cf0b1fe5f 100644
+--- a/misc/cgo/stdio/chain.go
++++ b/misc/cgo/stdio/chain.go
+@@ -2,13 +2,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Pass numbers along a chain of threads.
+ 
+ package main
+ 
+ import (
++	"../stdio"
+ 	"runtime"
+-	"stdio"
+ 	"strconv"
+ )
+ 
+diff --git a/misc/cgo/stdio/fib.go b/misc/cgo/stdio/fib.go
+index 431d9cefee..6d3ccfd527 100644
+--- a/misc/cgo/stdio/fib.go
++++ b/misc/cgo/stdio/fib.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Compute Fibonacci numbers with two goroutines
+ // that pass integers back and forth.  No actual
+ // concurrency, just threads and synchronization
+@@ -10,8 +12,8 @@
+ package main
+ 
+ import (
++	"../stdio"
+ 	"runtime"
+-	"stdio"
+ 	"strconv"
+ )
+ 
+diff --git a/misc/cgo/stdio/file.go b/misc/cgo/stdio/file.go
+index ab1e88436c..6e7d479ad9 100644
+--- a/misc/cgo/stdio/file.go
++++ b/misc/cgo/stdio/file.go
+@@ -28,7 +28,7 @@ var Stderr = (*File)(C.stderr)
+ 
+ // Test reference to library symbol.
+ // Stdout and stderr are too special to be a reliable test.
+-var myerr = C.sys_errlist
++//var  = C.environ
+ 
+ func (f *File) WriteString(s string) {
+ 	p := C.CString(s)
+diff --git a/misc/cgo/stdio/hello.go b/misc/cgo/stdio/hello.go
+index 58fc6d574b..4ab3c7447f 100644
+--- a/misc/cgo/stdio/hello.go
++++ b/misc/cgo/stdio/hello.go
+@@ -2,9 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+-import "stdio"
++import "../stdio"
+ 
+ func main() {
+ 	stdio.Stdout.WriteString(stdio.Greeting + "\n")
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+index 82e3f7b45b..21829fa31f 100755
+--- a/misc/cgo/stdio/test.bash
++++ b/misc/cgo/stdio/test.bash
+@@ -4,7 +4,10 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-gomake hello fib chain
++go build hello.go
++go build fib.go
++go build chain.go
++
+ echo '*' hello >run.out
+ ./hello >>run.out
+ echo '*' fib >>run.out
+@@ -12,4 +15,6 @@ echo '*' fib >>run.out
+ echo '*' chain >>run.out
+ ./chain >>run.out
+ diff run.out golden.out
+-gomake clean
++
++rm -f hello fib chain
++
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index cd6d881686..70ec5e43ac 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -55,7 +55,7 @@ int add(int x, int y) {
+ */
+ import "C"
+ import (
+-	"os"
++	"syscall"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -110,7 +110,7 @@ func testErrno(t *testing.T) {
+ 		C.fclose(f)
+ 		t.Fatalf("C.fopen: should fail")
+ 	}
+-	if err != os.ENOENT {
++	if err != syscall.ENOENT {
+ 		t.Fatalf("C.fopen: unexpected error: %v", err)
+ 	}
+ }
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index ef852561b7..e6a1462b3e 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -6,14 +6,12 @@ package cgotest
+ 
+ /*
+ void callback(void *f);
+-void callGoFoo(void) {
+-	extern void goFoo(void);
+-	goFoo();
+-}
++void callGoFoo(void);
+ */
+ import "C"
+ 
+ import (
++	"./backdoor"
+ 	"runtime"
+ 	"testing"
+ 	"unsafe"
+@@ -43,7 +41,7 @@ func testCallbackGC(t *testing.T) {
+ 	nestedCall(runtime.GC)
+ }
+ 
+-func lockedOSThread() bool // in runtime.c
++var lockedOSThread = backdoor.LockedOSThread
+ 
+ func testCallbackPanic(t *testing.T) {
+ 	// Make sure panic during callback unwinds properly.
+diff --git a/misc/cgo/test/callback_c.c b/misc/cgo/test/callback_c.c
+index c296d70e05..47f07301bf 100644
+--- a/misc/cgo/test/callback_c.c
++++ b/misc/cgo/test/callback_c.c
+@@ -15,3 +15,23 @@ callback(void *f)
+ 	goCallback(f);
+         data[sizeof(data)-1] = 0;
+ }
++
++void
++callGoFoo(void)
++{
++	extern void goFoo(void);
++	goFoo();
++}
++
++void
++IntoC(void)
++{
++	BackIntoGo();
++}
++
++void
++twoSleep(int n)
++{
++	BackgroundSleep(n);
++	sleep(n);
++}
+diff --git a/misc/cgo/test/issue1328.go b/misc/cgo/test/issue1328.go
+index e01207dd9b..e1796d6f72 100644
+--- a/misc/cgo/test/issue1328.go
++++ b/misc/cgo/test/issue1328.go
+@@ -7,7 +7,7 @@ package cgotest
+ import "testing"
+ 
+ // extern void BackIntoGo(void);
+-// void IntoC() { BackIntoGo(); }
++// void IntoC(void);
+ import "C"
+ 
+ //export BackIntoGo
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index 833b14ae62..3faa966e70 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -10,10 +10,7 @@ package cgotest
+ unsigned int sleep(unsigned int seconds);
+ 
+ extern void BackgroundSleep(int);
+-void twoSleep(int n) {
+-	BackgroundSleep(n);
+-	sleep(n);
+-}
++void twoSleep(int);
+ */
+ import "C"
+ 
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index acd7347aa8..6bcc0f5327 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -52,6 +52,19 @@ static char *okgoos[] = {
+ 	"windows",
+ };
+ 
++// The known cgo-enabled combinations.
++// This list is also known to ../../pkg/go/build/build.go.
++static char *okcgo[] = {
++	"darwin/386",
++	"darwin/amd64",
++	"linux/386",
++	"linux/amd64",
++	"freebsd/386",
++	"freebsd/amd64",
++	"windows/386",
++	"windows/amd64",
++};
++
+ static void rmworkdir(void);
+ 
+ // find reports the first index of p in l[0:n], or else -1.
+@@ -1308,6 +1321,11 @@ cmdenv(int argc, char **argv)
+ 	xprintf(format, "GOTOOLDIR", tooldir);
+ 	xprintf(format, "GOCHAR", gochar);
+ 
++	if(find(bprintf(&b, "%s/%s", goos, goarch), okcgo, nelem(okcgo)))
++		xprintf(format, "CGO_ENABLED", "1");
++	else
++		xprintf(format, "CGO_ENABLED", "0");
++
+ 	if(pflag) {
+ 		sep = ":";
+ 		if(streq(gohostos, "windows"))
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index d986f8039f..7f7bd18547 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -210,6 +210,7 @@ func (ctxt *Context) SrcDirs() []string {
+ // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
+ var Default Context = defaultContext()
+ 
++// This list is also known to ../../../cmd/dist/build.c.
+ var cgoEnabled = map[string]bool{
+ 	"darwin/386":    true,
+ 	"darwin/amd64":  true,
+diff --git a/src/run.bash b/src/run.bash
+index 7b1854865e..b5ffaa9974 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -35,32 +35,26 @@ go test sync -short -timeout=120s -cpu=10
+ 
+ xcd() {
+ 	echo
+-	echo --- cd $1
++	echo '#' $1
+ 	builtin cd "$GOROOT"/src/$1
+ }
+ 
+ BROKEN=true
+ 
+-$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio
+-"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 
+-$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/life
+-"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 
+-$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
+-"$GOMAKE" clean
+-gotest
++go test
+ ) || exit $?
+ 
+ $BROKEN ||

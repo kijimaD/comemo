@@ -18,8 +18,103 @@ Date:   Mon Mar 30 16:13:39 2015 +1100
     Change-Id: Icf7deb43f8e80b424757f1673e6bca7a0aa2a1ac
     Reviewed-on: https://go-review.googlesource.com/8250
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 40 ++++++++++++++++++++++------------------
  src/cmd/go/pkg.go   |  1 +
  src/cmd/go/test.go  |  9 +++++----
  3 files changed, 28 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 32a9f73ed5..61453c7e2b 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1968,35 +1968,39 @@ func (gccgoToolchain) pack(b *builder, p *Package, objDir, afile string, ofiles
+ func (tools gccgoToolchain) ld(b *builder, p *Package, out string, allactions []*action, mainpkg string, ofiles []string) error {
+ 	// gccgo needs explicit linking with all package dependencies,
+ 	// and all LDFLAGS from cgo dependencies.
++	apackagesSeen := make(map[*Package]bool)
+ 	afiles := []string{}
++	xfiles := []string{}
+ 	ldflags := b.gccArchArgs()
+ 	cgoldflags := []string{}
+ 	usesCgo := false
+ 	cxx := len(p.CXXFiles) > 0 || len(p.SwigCXXFiles) > 0
+ 	objc := len(p.MFiles) > 0
+ 
+-	// For a given package import path:
+-	//   1) prefer a test package (created by (*builder).test) to a non-test package
+-	//   2) prefer the output of an install action to the output of a build action
+-	//      because the install action will delete the output of the build
+-	//      action
+-	// Iterating over the list backwards (reverse dependency order) ensures that we
+-	// always see an install before a build.
+-	importPathsSeen := make(map[string]bool)
++	// Prefer the output of an install action to the output of a build action,
++	// because the install action will delete the output of the build action.
++	// Iterate over the list backward (reverse dependency order) so that we
++	// always see the install before the build.
+ 	for i := len(allactions) - 1; i >= 0; i-- {
+ 		a := allactions[i]
+-		if a.p.fake && !importPathsSeen[a.p.ImportPath] {
+-			importPathsSeen[a.p.ImportPath] = true
+-			afiles = append(afiles, a.target)
+-		}
+-	}
+-	for i := len(allactions) - 1; i >= 0; i-- {
+-		a := allactions[i]
+-		if !a.p.Standard && !importPathsSeen[a.p.ImportPath] {
+-			importPathsSeen[a.p.ImportPath] = true
+-			afiles = append(afiles, a.target)
++		if !a.p.Standard {
++			if a.p != nil && !apackagesSeen[a.p] {
++				apackagesSeen[a.p] = true
++				if a.p.fake && a.p.external {
++					// external _tests, if present must come before
++					// internal _tests. Store these on a seperate list
++					// and place them at the head after this loop.
++					xfiles = append(xfiles, a.target)
++				} else if a.p.fake {
++					// move _test files to the top of the link order
++					afiles = append([]string{a.target}, afiles...)
++				} else {
++					afiles = append(afiles, a.target)
++				}
++			}
+ 		}
+ 	}
++	afiles = append(xfiles, afiles...)
+ 
+ 	for _, a := range allactions {
+ 		cgoldflags = append(cgoldflags, a.p.CgoLDFLAGS...)
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 6c157932fb..8bf0f568f7 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -83,6 +83,7 @@ type Package struct {
+ 	allgofiles   []string             // gofiles + IgnoredGoFiles, absolute paths
+ 	target       string               // installed file for this package (may be executable)
+ 	fake         bool                 // synthesized package
++	external     bool                 // synthesized external test package
+ 	forceBuild   bool                 // this package must be rebuilt
+ 	forceLibrary bool                 // this package is a library (even if named "main")
+ 	cmdline      bool                 // defined by files listed on command line
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index c44a2199dc..e96ed22361 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -687,10 +687,11 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 			build: &build.Package{
+ 				ImportPos: p.build.XTestImportPos,
+ 			},
+-			imports: ximports,
+-			pkgdir:  testDir,
+-			fake:    true,
+-			Stale:   true,
++			imports:  ximports,
++			pkgdir:   testDir,
++			fake:     true,
++			external: true,
++			Stale:    true,
+ 		}
+ 		if pxtestNeedsPtest {
+ 			pxtest.imports = append(pxtest.imports, ptest)

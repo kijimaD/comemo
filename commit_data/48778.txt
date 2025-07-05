@@ -13,8 +13,84 @@ Date:   Wed Jun 16 10:29:21 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 15 +++++++++++----
  src/cmd/compile/internal/noder/sync.go   |  1 +
  src/cmd/compile/internal/noder/writer.go | 11 +++++++++--
  3 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 18ecbff3cc..803acaa88d 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -789,18 +789,25 @@ var bodyReader = map[*ir.Func]pkgReaderIndex{}
+ // constructed.
+ var todoBodies []*ir.Func
+ 
+-func (r *reader) addBody(fn *ir.Func) {
+-	r.sync(syncAddBody)
++// Keep in sync with writer.implicitTypes
++// Also see comment there for why r.implicits and r.explicits should
++// never both be non-empty.
++func (r *reader) implicitTypes() []*types.Type {
++	r.sync(syncImplicitTypes)
+ 
+-	// See commont in writer.addBody for why r.implicits and r.explicits
+-	// should never both be non-empty.
+ 	implicits := r.implicits
+ 	if len(implicits) == 0 {
+ 		implicits = r.explicits
+ 	} else {
+ 		assert(len(r.explicits) == 0)
+ 	}
++	return implicits
++}
++
++func (r *reader) addBody(fn *ir.Func) {
++	r.sync(syncAddBody)
+ 
++	implicits := r.implicitTypes()
+ 	pri := pkgReaderIndex{r.p, r.reloc(relocBody), implicits}
+ 	bodyReader[fn] = pri
+ 
+diff --git a/src/cmd/compile/internal/noder/sync.go b/src/cmd/compile/internal/noder/sync.go
+index d77a784479..7326a6edbe 100644
+--- a/src/cmd/compile/internal/noder/sync.go
++++ b/src/cmd/compile/internal/noder/sync.go
+@@ -151,4 +151,5 @@ const (
+ 	syncLocalIdent
+ 	syncTypeParamNames
+ 	syncTypeParamBounds
++	syncImplicitTypes
+ )
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index b39dd8651b..1475540d84 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -665,7 +665,9 @@ func (w *writer) pragmaFlag(p ir.PragmaFlag) {
+ 
+ // @@@ Function bodies
+ 
+-func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
++func (w *writer) implicitTypes() map[*types2.TypeParam]int {
++	w.sync(syncImplicitTypes)
++
+ 	// TODO(mdempsky): Theoretically, I think at this point we want to
+ 	// extend the implicit type parameters list with any new explicit
+ 	// type parameters.
+@@ -684,9 +686,14 @@ func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsI
+ 	} else {
+ 		assert(len(w.explicitIdx) == 0)
+ 	}
++	return implicitIdx
++}
+ 
++func (w *writer) addBody(sig *types2.Signature, block *syntax.BlockStmt, localsIdx map[types2.Object]int) {
+ 	w.sync(syncAddBody)
+-	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicitIdx, localsIdx))
++
++	implicits := w.implicitTypes()
++	w.reloc(relocBody, w.p.bodyIdx(w.p.curpkg, sig, block, implicits, localsIdx))
+ }
+ 
+ func (pw *pkgWriter) bodyIdx(pkg *types2.Package, sig *types2.Signature, block *syntax.BlockStmt, implicitIdx map[*types2.TypeParam]int, localsIdx map[types2.Object]int) int {

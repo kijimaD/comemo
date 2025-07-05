@@ -7,7 +7,7 @@ Date:   Wed Feb 1 18:25:40 2012 -0500
     R=golang-dev, adg, bradfitz
     CC=golang-dev
     https://golang.org/cl/5615046
-
+---
  src/lib9/Makefile               |  2 +-
  src/lib9/await.c                |  2 ++
  src/lib9/fmt/errfmt.c           | 30 ---------------------------
@@ -18,3 +18,159 @@ Date:   Wed Feb 1 18:25:40 2012 -0500
  src/lib9/rfork.c                |  2 ++
  src/lib9/{win32.c => windows.c} |  0
  9 files changed, 11 insertions(+), 77 deletions(-)
+
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index bf1bf41a15..8667c8f359 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -85,7 +85,7 @@ LIB9OFILES=\
+ 
+ ifeq ($(GOHOSTOS),windows)
+ LIB9OFILES+=\
+-	win32.$O\
++	windows.$O\
+ 
+ else
+ LIB9OFILES+=\
+diff --git a/src/lib9/await.c b/src/lib9/await.c
+index 90be598a1f..0f00a94bd1 100644
+--- a/src/lib9/await.c
++++ b/src/lib9/await.c
+@@ -1,3 +1,5 @@
++// +build !windows
++
+ /*
+ Plan 9 from User Space src/lib9/await.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/await.c
+diff --git a/src/lib9/fmt/errfmt.c b/src/lib9/fmt/errfmt.c
+deleted file mode 100644
+index 66c9600f0d..0000000000
+--- a/src/lib9/fmt/errfmt.c
++++ /dev/null
+@@ -1,30 +0,0 @@
+-/*
+- * The authors of this software are Rob Pike and Ken Thompson,
+- * with contributions from Mike Burrows and Sean Dorward.
+- *
+- *     Copyright (c) 2002-2006 by Lucent Technologies.
+- *     Portions Copyright (c) 2004 Google Inc.
+- * 
+- * Permission to use, copy, modify, and distribute this software for any
+- * purpose without fee is hereby granted, provided that this entire notice
+- * is included in all copies of any software which is or includes a copy
+- * or modification of this software and in all copies of the supporting
+- * documentation for such software.
+- * THIS SOFTWARE IS BEING PROVIDED "AS IS", WITHOUT ANY EXPRESS OR IMPLIED
+- * WARRANTY.  IN PARTICULAR, NEITHER THE AUTHORS NOR LUCENT TECHNOLOGIES 
+- * NOR GOOGLE INC MAKE ANY REPRESENTATION OR WARRANTY OF ANY KIND CONCERNING 
+- * THE MERCHANTABILITY OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
+- */
+-
+-#include <u.h>
+-#include <libc.h>
+-#include "fmtdef.h"
+-
+-int
+-__errfmt(Fmt *f)
+-{
+-	char *s;
+-
+-	s = strerror(errno);
+-	return fmtstrcpy(f, s);
+-}
+diff --git a/src/lib9/fork.c b/src/lib9/fork.c
+deleted file mode 100644
+index 0dd79dfb8a..0000000000
+--- a/src/lib9/fork.c
++++ /dev/null
+@@ -1,46 +0,0 @@
+-/*
+-Plan 9 from User Space src/lib9/fork.c
+-http://code.swtch.com/plan9port/src/tip/src/lib9/fork.c
+-
+-Copyright 2001-2007 Russ Cox.  All Rights Reserved.
+-
+-Permission is hereby granted, free of charge, to any person obtaining a copy
+-of this software and associated documentation files (the "Software"), to deal
+-in the Software without restriction, including without limitation the rights
+-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+-copies of the Software, and to permit persons to whom the Software is
+-furnished to do so, subject to the following conditions:
+-
+-The above copyright notice and this permission notice shall be included in
+-all copies or substantial portions of the Software.
+-
+-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+-THE SOFTWARE.
+-*/
+-#include <u.h>
+-#include <signal.h>
+-#include <libc.h>
+-#include "9proc.h"
+-#undef fork
+-
+-int
+-p9fork(void)
+-{
+-	int pid;
+-	sigset_t all, old;
+-
+-	sigfillset(&all);
+-	sigprocmask(SIG_SETMASK, &all, &old);
+-	pid = fork();
+-	if(pid == 0){
+-		_clearuproc();
+-		_p9uproc(0);
+-	}
+-	sigprocmask(SIG_SETMASK, &old, nil);
+-	return pid;
+-}
+diff --git a/src/lib9/getuser.c b/src/lib9/getuser.c
+index f70b35c871..d611f44671 100644
+--- a/src/lib9/getuser.c
++++ b/src/lib9/getuser.c
+@@ -1,3 +1,5 @@
++// +build !windows
++
+ /*
+ Plan 9 from User Space src/lib9/getuser.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/getuser.c
+diff --git a/src/lib9/jmp.c b/src/lib9/jmp.c
+index a606fb07b6..c44e040d21 100644
+--- a/src/lib9/jmp.c
++++ b/src/lib9/jmp.c
+@@ -1,3 +1,5 @@
++// +build !windows
++
+ /*
+ Plan 9 from User Space src/lib9/jmp.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/jmp.c
+diff --git a/src/lib9/notify.c b/src/lib9/notify.c
+index 84999b8870..c424aed54a 100644
+--- a/src/lib9/notify.c
++++ b/src/lib9/notify.c
+@@ -1,3 +1,5 @@
++// +build !windows
++
+ /*
+ Plan 9 from User Space src/lib9/notify.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/notify.c
+diff --git a/src/lib9/rfork.c b/src/lib9/rfork.c
+index c9d632189d..5a6eaeb94c 100644
+--- a/src/lib9/rfork.c
++++ b/src/lib9/rfork.c
+@@ -1,3 +1,5 @@
++// +build !windows
++
+ /*
+ Plan 9 from User Space src/lib9/rfork.c
+ http://code.swtch.com/plan9port/src/tip/src/lib9/rfork.c
+diff --git a/src/lib9/win32.c b/src/lib9/windows.c
+similarity index 100%
+rename from src/lib9/win32.c
+rename to src/lib9/windows.c

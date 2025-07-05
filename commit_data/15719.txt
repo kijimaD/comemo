@@ -23,10 +23,328 @@ Date:   Tue Mar 12 11:46:12 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7227056
-
+---
  src/pkg/encoding/xml/marshal.go   |  15 +++
  src/pkg/encoding/xml/read.go      |   4 +-
  src/pkg/encoding/xml/read_test.go | 208 ++++++++++++++++++++++++++++++++++++++
  src/pkg/encoding/xml/typeinfo.go  |   3 +
  src/pkg/encoding/xml/xml.go       |   7 ++
  5 files changed, 235 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/xml/marshal.go b/src/pkg/encoding/xml/marshal.go
+index ea58ce2542..3db8af00c6 100644
+--- a/src/pkg/encoding/xml/marshal.go
++++ b/src/pkg/encoding/xml/marshal.go
+@@ -120,6 +120,7 @@ func (enc *Encoder) Encode(v interface{}) error {
+ 
+ type printer struct {
+ 	*bufio.Writer
++	seq        int
+ 	indent     string
+ 	prefix     string
+ 	depth      int
+@@ -210,6 +211,20 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo) error {
+ 			continue
+ 		}
+ 		p.WriteByte(' ')
++		if finfo.xmlns != "" {
++			p.WriteString("xmlns:")
++			p.seq++
++			id := "_" + strconv.Itoa(p.seq)
++			p.WriteString(id)
++			p.WriteString(`="`)
++			// TODO: EscapeString, to avoid the allocation.
++			if err := EscapeText(p, []byte(finfo.xmlns)); err != nil {
++				return err
++			}
++			p.WriteString(`" `)
++			p.WriteString(id)
++			p.WriteByte(':')
++		}
+ 		p.WriteString(finfo.name)
+ 		p.WriteString(`="`)
+ 		if err := p.marshalSimple(fv.Type(), fv); err != nil {
+diff --git a/src/pkg/encoding/xml/read.go b/src/pkg/encoding/xml/read.go
+index 1581705efb..a7a2a9655b 100644
+--- a/src/pkg/encoding/xml/read.go
++++ b/src/pkg/encoding/xml/read.go
+@@ -263,7 +263,7 @@ func (p *Decoder) unmarshal(val reflect.Value, start *StartElement) error {
+ 				strv := finfo.value(sv)
+ 				// Look for attribute.
+ 				for _, a := range start.Attr {
+-					if a.Name.Local == finfo.name {
++					if a.Name.Local == finfo.name && (finfo.xmlns == "" || finfo.xmlns == a.Name.Space) {
+ 						copyValue(strv, []byte(a.Value))
+ 						break
+ 					}
+@@ -441,7 +441,7 @@ func (p *Decoder) unmarshalPath(tinfo *typeInfo, sv reflect.Value, parents []str
+ Loop:
+ 	for i := range tinfo.fields {
+ 		finfo := &tinfo.fields[i]
+-		if finfo.flags&fElement == 0 || len(finfo.parents) < len(parents) {
++		if finfo.flags&fElement == 0 || len(finfo.parents) < len(parents) || finfo.xmlns != "" && finfo.xmlns != start.Name.Space {
+ 			continue
+ 		}
+ 		for j := range parents {
+diff --git a/src/pkg/encoding/xml/read_test.go b/src/pkg/encoding/xml/read_test.go
+index b45e2f0e61..c0b1b215ac 100644
+--- a/src/pkg/encoding/xml/read_test.go
++++ b/src/pkg/encoding/xml/read_test.go
+@@ -6,6 +6,7 @@ package xml
+ 
+ import (
+ 	"reflect"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -399,3 +400,210 @@ func TestUnmarshalAttr(t *testing.T) {
+ 		t.Fatalf("Unmarshal with %s failed:\nhave %#v,\n want %#v", x, p3.Int, 1)
+ 	}
+ }
++
++type Tables struct {
++	HTable string `xml:"http://www.w3.org/TR/html4/ table"`
++	FTable string `xml:"http://www.w3schools.com/furniture table"`
++}
++
++var tables = []struct {
++	xml string
++	tab Tables
++	ns  string
++}{
++	{
++		xml: `<Tables>` +
++			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
++			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
++			`</Tables>`,
++		tab: Tables{"hello", "world"},
++	},
++	{
++		xml: `<Tables>` +
++			`<table xmlns="http://www.w3schools.com/furniture">world</table>` +
++			`<table xmlns="http://www.w3.org/TR/html4/">hello</table>` +
++			`</Tables>`,
++		tab: Tables{"hello", "world"},
++	},
++	{
++		xml: `<Tables xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/">` +
++			`<f:table>world</f:table>` +
++			`<h:table>hello</h:table>` +
++			`</Tables>`,
++		tab: Tables{"hello", "world"},
++	},
++	{
++		xml: `<Tables>` +
++			`<table>bogus</table>` +
++			`</Tables>`,
++		tab: Tables{},
++	},
++	{
++		xml: `<Tables>` +
++			`<table>only</table>` +
++			`</Tables>`,
++		tab: Tables{HTable: "only"},
++		ns:  "http://www.w3.org/TR/html4/",
++	},
++	{
++		xml: `<Tables>` +
++			`<table>only</table>` +
++			`</Tables>`,
++		tab: Tables{FTable: "only"},
++		ns:  "http://www.w3schools.com/furniture",
++	},
++	{
++		xml: `<Tables>` +
++			`<table>only</table>` +
++			`</Tables>`,
++		tab: Tables{},
++		ns:  "something else entirely",
++	},
++}
++
++func TestUnmarshalNS(t *testing.T) {
++	for i, tt := range tables {
++		var dst Tables
++		var err error
++		if tt.ns != "" {
++			d := NewDecoder(strings.NewReader(tt.xml))
++			d.DefaultSpace = tt.ns
++			err = d.Decode(&dst)
++		} else {
++			err = Unmarshal([]byte(tt.xml), &dst)
++		}
++		if err != nil {
++			t.Errorf("#%d: Unmarshal: %v", i, err)
++			continue
++		}
++		want := tt.tab
++		if dst != want {
++			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
++		}
++	}
++}
++
++func TestMarshalNS(t *testing.T) {
++	dst := Tables{"hello", "world"}
++	data, err := Marshal(&dst)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	want := `<Tables><table xmlns="http://www.w3.org/TR/html4/">hello</table><table xmlns="http://www.w3schools.com/furniture">world</table></Tables>`
++	str := string(data)
++	if str != want {
++		t.Errorf("have: %q\nwant: %q\n", str, want)
++	}
++}
++
++type TableAttrs struct {
++	TAttr TAttr
++}
++
++type TAttr struct {
++	HTable string `xml:"http://www.w3.org/TR/html4/ table,attr"`
++	FTable string `xml:"http://www.w3schools.com/furniture table,attr"`
++}
++
++var tableAttrs = []struct {
++	xml string
++	tab TableAttrs
++	ns  string
++}{
++	{
++		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
++			`h:table="hello" f:table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"hello", "world"}},
++	},
++	{
++		xml: `<TableAttrs><TAttr xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
++			`h:table="hello" f:table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"hello", "world"}},
++	},
++	{
++		xml: `<TableAttrs><TAttr ` +
++			`h:table="hello" f:table="world" xmlns:f="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"hello", "world"}},
++	},
++	{
++		// Default space does not apply to attribute names.
++		xml: `<TableAttrs xmlns="http://www.w3schools.com/furniture" xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
++			`h:table="hello" table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"hello", ""}},
++	},
++	{
++		// Default space does not apply to attribute names.
++		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr xmlns="http://www.w3.org/TR/html4/" ` +
++			`table="hello" f:table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"", "world"}},
++	},
++	{
++		xml: `<TableAttrs><TAttr ` +
++			`table="bogus" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{},
++	},
++	{
++		// Default space does not apply to attribute names.
++		xml: `<TableAttrs xmlns:h="http://www.w3.org/TR/html4/"><TAttr ` +
++			`h:table="hello" table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"hello", ""}},
++		ns:  "http://www.w3schools.com/furniture",
++	},
++	{
++		// Default space does not apply to attribute names.
++		xml: `<TableAttrs xmlns:f="http://www.w3schools.com/furniture"><TAttr ` +
++			`table="hello" f:table="world" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{TAttr{"", "world"}},
++		ns:  "http://www.w3.org/TR/html4/",
++	},
++	{
++		xml: `<TableAttrs><TAttr ` +
++			`table="bogus" ` +
++			`/></TableAttrs>`,
++		tab: TableAttrs{},
++		ns:  "something else entirely",
++	},
++}
++
++func TestUnmarshalNSAttr(t *testing.T) {
++	for i, tt := range tableAttrs {
++		var dst TableAttrs
++		var err error
++		if tt.ns != "" {
++			d := NewDecoder(strings.NewReader(tt.xml))
++			d.DefaultSpace = tt.ns
++			err = d.Decode(&dst)
++		} else {
++			err = Unmarshal([]byte(tt.xml), &dst)
++		}
++		if err != nil {
++			t.Errorf("#%d: Unmarshal: %v", i, err)
++			continue
++		}
++		want := tt.tab
++		if dst != want {
++			t.Errorf("#%d: dst=%+v, want %+v", i, dst, want)
++		}
++	}
++}
++
++func TestMarshalNSAttr(t *testing.T) {
++	dst := TableAttrs{TAttr{"hello", "world"}}
++	data, err := Marshal(&dst)
++	if err != nil {
++		t.Fatalf("Marshal: %v", err)
++	}
++	want := `<TableAttrs><TAttr xmlns:_1="http://www.w3.org/TR/html4/" _1:table="hello" xmlns:_2="http://www.w3schools.com/furniture" _2:table="world"></TAttr></TableAttrs>`
++	str := string(data)
++	if str != want {
++		t.Errorf("have: %q\nwant: %q\n", str, want)
++	}
++}
+diff --git a/src/pkg/encoding/xml/typeinfo.go b/src/pkg/encoding/xml/typeinfo.go
+index f9c559c04d..e0c7d7bfb2 100644
+--- a/src/pkg/encoding/xml/typeinfo.go
++++ b/src/pkg/encoding/xml/typeinfo.go
+@@ -267,6 +267,9 @@ Loop:
+ 		if oldf.flags&fMode != newf.flags&fMode {
+ 			continue
+ 		}
++		if oldf.xmlns != "" && newf.xmlns != "" && oldf.xmlns != newf.xmlns {
++			continue
++		}
+ 		minl := min(len(newf.parents), len(oldf.parents))
+ 		for p := 0; p < minl; p++ {
+ 			if oldf.parents[p] != newf.parents[p] {
+diff --git a/src/pkg/encoding/xml/xml.go b/src/pkg/encoding/xml/xml.go
+index 1f900b623c..e8417cc639 100644
+--- a/src/pkg/encoding/xml/xml.go
++++ b/src/pkg/encoding/xml/xml.go
+@@ -169,6 +169,11 @@ type Decoder struct {
+ 	// the CharsetReader's result values must be non-nil.
+ 	CharsetReader func(charset string, input io.Reader) (io.Reader, error)
+ 
++	// DefaultSpace sets the default name space used for unadorned tags,
++	// as if the entire XML stream were wrapped in an element containing
++	// the attribute xmlns="DefaultSpace".
++	DefaultSpace string
++
+ 	r         io.ByteReader
+ 	buf       bytes.Buffer
+ 	saved     *bytes.Buffer
+@@ -282,6 +287,8 @@ func (d *Decoder) translate(n *Name, isElementName bool) {
+ 	}
+ 	if v, ok := d.ns[n.Space]; ok {
+ 		n.Space = v
++	} else if n.Space == "" {
++		n.Space = d.DefaultSpace
+ 	}
+ }
+ 

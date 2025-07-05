@@ -14,10 +14,289 @@ Date:   Tue May 16 13:06:22 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/covdata/dump.go                   |  2 +-
  src/internal/coverage/cformat/fmt_test.go | 89 ++++++++++++++++++++++++++-----
  src/internal/coverage/cformat/format.go   | 40 +++++++++-----
  src/runtime/coverage/testsupport.go       |  2 +-
  src/runtime/coverage/ts_test.go           |  9 ++--
  5 files changed, 107 insertions(+), 35 deletions(-)
+
+diff --git a/src/cmd/covdata/dump.go b/src/cmd/covdata/dump.go
+index 4b4671e971..a51762f0d1 100644
+--- a/src/cmd/covdata/dump.go
++++ b/src/cmd/covdata/dump.go
+@@ -325,7 +325,7 @@ func (d *dstate) Finish() {
+ 	// d.format maybe nil here if the specified input dir was empty.
+ 	if d.format != nil {
+ 		if d.cmd == percentMode {
+-			d.format.EmitPercent(os.Stdout, "", false)
++			d.format.EmitPercent(os.Stdout, "", false, false)
+ 		}
+ 		if d.cmd == funcMode {
+ 			d.format.EmitFuncs(os.Stdout)
+diff --git a/src/internal/coverage/cformat/fmt_test.go b/src/internal/coverage/cformat/fmt_test.go
+index 576ed2c18c..f5ed01b3b0 100644
+--- a/src/internal/coverage/cformat/fmt_test.go
++++ b/src/internal/coverage/cformat/fmt_test.go
+@@ -7,13 +7,13 @@ package cformat_test
+ import (
+ 	"internal/coverage"
+ 	"internal/coverage/cformat"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestBasics(t *testing.T) {
+ 	fm := cformat.NewFormatter(coverage.CtrModeAtomic)
+-	fm.SetPackage("my/pack")
+ 
+ 	mku := func(stl, enl, nx uint32) coverage.CoverableUnit {
+ 		return coverage.CoverableUnit{
+@@ -34,6 +34,7 @@ func TestBasics(t *testing.T) {
+ 	fn3units := []coverage.CoverableUnit{
+ 		mku(99, 100, 1),
+ 	}
++	fm.SetPackage("my/pack1")
+ 	for k, u := range fn1units {
+ 		fm.AddUnit("p.go", "f1", false, u, uint32(k))
+ 	}
+@@ -41,52 +42,114 @@ func TestBasics(t *testing.T) {
+ 		fm.AddUnit("q.go", "f2", false, u, 0)
+ 		fm.AddUnit("q.go", "f2", false, u, uint32(k))
+ 	}
++	fm.SetPackage("my/pack2")
+ 	for _, u := range fn3units {
+ 		fm.AddUnit("lit.go", "f3", true, u, 0)
+ 	}
+ 
+-	var b1, b2, b3 strings.Builder
++	var b1, b2, b3, b4 strings.Builder
+ 	if err := fm.EmitTextual(&b1); err != nil {
+ 		t.Fatalf("EmitTextual returned %v", err)
+ 	}
+ 	wantText := strings.TrimSpace(`
+ mode: atomic
+-lit.go:99.0,100.0 1 0
+ p.go:10.0,11.0 2 0
+ p.go:15.0,11.0 1 1
+ q.go:20.0,25.0 3 0
+ q.go:30.0,31.0 2 1
+-q.go:33.0,40.0 7 2`)
++q.go:33.0,40.0 7 2
++lit.go:99.0,100.0 1 0`)
+ 	gotText := strings.TrimSpace(b1.String())
+ 	if wantText != gotText {
+ 		t.Errorf("emit text: got:\n%s\nwant:\n%s\n", gotText, wantText)
+ 	}
+ 
+-	if err := fm.EmitPercent(&b2, "", false); err != nil {
++	// Percent output with no aggregation.
++	noCoverPkg := ""
++	if err := fm.EmitPercent(&b2, noCoverPkg, false, false); err != nil {
+ 		t.Fatalf("EmitPercent returned %v", err)
+ 	}
+-	wantPercent := strings.TrimSpace(`
+-my/pack		coverage: 62.5% of statements
++	wantPercent := strings.Fields(`
++       	my/pack1		coverage: 66.7% of statements
++        my/pack2		coverage: 0.0% of statements
+ `)
+-	gotPercent := strings.TrimSpace(b2.String())
+-	if wantPercent != gotPercent {
+-		t.Errorf("emit percent: got:\n%s\nwant:\n%s\n", gotPercent, wantPercent)
++	gotPercent := strings.Fields(b2.String())
++	if !slices.Equal(wantPercent, gotPercent) {
++		t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
++			gotPercent, wantPercent)
+ 	}
+ 
+-	if err := fm.EmitFuncs(&b3); err != nil {
++	// Percent mode with aggregation.
++	withCoverPkg := " in ./..."
++	if err := fm.EmitPercent(&b3, withCoverPkg, false, true); err != nil {
++		t.Fatalf("EmitPercent returned %v", err)
++	}
++	wantPercent = strings.Fields(`
++		coverage: 62.5% of statements in ./...
++`)
++	gotPercent = strings.Fields(b3.String())
++	if !slices.Equal(wantPercent, gotPercent) {
++		t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
++			gotPercent, wantPercent)
++	}
++
++	if err := fm.EmitFuncs(&b4); err != nil {
+ 		t.Fatalf("EmitFuncs returned %v", err)
+ 	}
+ 	wantFuncs := strings.TrimSpace(`
+ p.go:10:	f1		33.3%
+ q.go:20:	f2		75.0%
+ total		(statements)	62.5%`)
+-	gotFuncs := strings.TrimSpace(b3.String())
++	gotFuncs := strings.TrimSpace(b4.String())
+ 	if wantFuncs != gotFuncs {
+ 		t.Errorf("emit funcs: got:\n%s\nwant:\n%s\n", gotFuncs, wantFuncs)
+ 	}
+ 	if false {
+ 		t.Logf("text is %s\n", b1.String())
+ 		t.Logf("perc is %s\n", b2.String())
+-		t.Logf("funcs is %s\n", b3.String())
++		t.Logf("perc2 is %s\n", b3.String())
++		t.Logf("funcs is %s\n", b4.String())
++	}
++}
++
++func TestEmptyPackages(t *testing.T) {
++
++	fm := cformat.NewFormatter(coverage.CtrModeAtomic)
++	fm.SetPackage("my/pack1")
++	fm.SetPackage("my/pack2")
++
++	// No aggregation.
++	{
++		var b strings.Builder
++		noCoverPkg := ""
++		if err := fm.EmitPercent(&b, noCoverPkg, true, false); err != nil {
++			t.Fatalf("EmitPercent returned %v", err)
++		}
++		wantPercent := strings.Fields(`
++       	my/pack1 coverage:	[no statements]
++        my/pack2 coverage:	[no statements]
++`)
++		gotPercent := strings.Fields(b.String())
++		if !slices.Equal(wantPercent, gotPercent) {
++			t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
++				gotPercent, wantPercent)
++		}
++	}
++
++	// With aggregation.
++	{
++		var b strings.Builder
++		noCoverPkg := ""
++		if err := fm.EmitPercent(&b, noCoverPkg, true, true); err != nil {
++			t.Fatalf("EmitPercent returned %v", err)
++		}
++		wantPercent := strings.Fields(`
++       	coverage:	[no statements]
++`)
++		gotPercent := strings.Fields(b.String())
++		if !slices.Equal(wantPercent, gotPercent) {
++			t.Errorf("emit percent: got:\n%+v\nwant:\n%+v\n",
++				gotPercent, wantPercent)
++		}
+ 	}
+ }
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index 0e1d8caf99..7e7a2778c7 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -23,7 +23,7 @@ package cformat
+ //				}
+ //			}
+ //		}
+-//		myformatter.EmitPercent(os.Stdout, "")
++//		myformatter.EmitPercent(os.Stdout, "", true, true)
+ //		myformatter.EmitTextual(somefile)
+ //
+ // These apis are linked into tests that are built with "-cover", and
+@@ -200,17 +200,33 @@ func (fm *Formatter) EmitTextual(w io.Writer) error {
+ }
+ 
+ // EmitPercent writes out a "percentage covered" string to the writer 'w'.
+-func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) error {
++func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool, aggregate bool) error {
+ 	pkgs := make([]string, 0, len(fm.pm))
+ 	for importpath := range fm.pm {
+ 		pkgs = append(pkgs, importpath)
+ 	}
++
++	rep := func(cov, tot uint64) error {
++		if tot != 0 {
++			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n",
++				100.0*float64(cov)/float64(tot), covpkgs); err != nil {
++				return err
++			}
++		} else if noteEmpty {
++			if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
++				return err
++			}
++		}
++		return nil
++	}
++
+ 	sort.Strings(pkgs)
+-	seenPkg := false
++	var totalStmts, coveredStmts uint64
+ 	for _, importpath := range pkgs {
+-		seenPkg = true
+ 		p := fm.pm[importpath]
+-		var totalStmts, coveredStmts uint64
++		if !aggregate {
++			totalStmts, coveredStmts = 0, 0
++		}
+ 		for unit, count := range p.unitTable {
+ 			nx := uint64(unit.NxStmts)
+ 			totalStmts += nx
+@@ -218,21 +234,17 @@ func (fm *Formatter) EmitPercent(w io.Writer, covpkgs string, noteEmpty bool) er
+ 				coveredStmts += nx
+ 			}
+ 		}
+-		if _, err := fmt.Fprintf(w, "\t%s\t\t", importpath); err != nil {
+-			return err
+-		}
+-		if totalStmts == 0 {
+-			if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
++		if !aggregate {
++			if _, err := fmt.Fprintf(w, "\t%s\t\t", importpath); err != nil {
+ 				return err
+ 			}
+-		} else {
+-			if _, err := fmt.Fprintf(w, "coverage: %.1f%% of statements%s\n", 100*float64(coveredStmts)/float64(totalStmts), covpkgs); err != nil {
++			if err := rep(coveredStmts, totalStmts); err != nil {
+ 				return err
+ 			}
+ 		}
+ 	}
+-	if noteEmpty && !seenPkg {
+-		if _, err := fmt.Fprintf(w, "coverage: [no statements]\n"); err != nil {
++	if aggregate {
++		if err := rep(coveredStmts, totalStmts); err != nil {
+ 			return err
+ 		}
+ 	}
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index a481bbbd9d..2b9e58b5f6 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -96,7 +96,7 @@ func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg strin
+ 	}
+ 
+ 	// Emit percent.
+-	if err := ts.cf.EmitPercent(w, cpkg, true); err != nil {
++	if err := ts.cf.EmitPercent(w, cpkg, true, true); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/runtime/coverage/ts_test.go b/src/runtime/coverage/ts_test.go
+index b826058a54..a95d405a3e 100644
+--- a/src/runtime/coverage/ts_test.go
++++ b/src/runtime/coverage/ts_test.go
+@@ -47,12 +47,9 @@ func TestTestSupport(t *testing.T) {
+ 
+ 	// Check for percent output with expected tokens.
+ 	strout := sb.String()
+-	want1 := "runtime/coverage"
+-	want2 := "of statements"
+-	if !strings.Contains(strout, want1) ||
+-		!strings.Contains(strout, want2) {
++	want := "of statements"
++	if !strings.Contains(strout, want) {
+ 		t.Logf("output from run: %s\n", strout)
+-		t.Fatalf("percent output missing key tokens: %q and %q",
+-			want1, want2)
++		t.Fatalf("percent output missing token: %q", want)
+ 	}
+ }

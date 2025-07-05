@@ -26,8 +26,59 @@ Date:   Mon Nov 15 20:53:47 2021 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/internal/cpu/cpu_loong64.go       | 11 +++++++++++
  src/internal/goarch/goarch.go         |  1 +
  src/internal/goarch/goarch_loong64.go | 15 +++++++++++++++
  3 files changed, 27 insertions(+)
+
+diff --git a/src/internal/cpu/cpu_loong64.go b/src/internal/cpu/cpu_loong64.go
+new file mode 100644
+index 0000000000..d8403d731a
+--- /dev/null
++++ b/src/internal/cpu/cpu_loong64.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build loong64
++
++package cpu
++
++const CacheLinePadSize = 32
++
++func doinit() {}
+diff --git a/src/internal/goarch/goarch.go b/src/internal/goarch/goarch.go
+index e8de67b01b..3dda62fadc 100644
+--- a/src/internal/goarch/goarch.go
++++ b/src/internal/goarch/goarch.go
+@@ -19,6 +19,7 @@ const (
+ 	ARM
+ 	ARM64
+ 	I386
++	LOONG64
+ 	MIPS
+ 	MIPS64
+ 	PPC64
+diff --git a/src/internal/goarch/goarch_loong64.go b/src/internal/goarch/goarch_loong64.go
+new file mode 100644
+index 0000000000..dae1f4da31
+--- /dev/null
++++ b/src/internal/goarch/goarch_loong64.go
+@@ -0,0 +1,15 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build loong64
++
++package goarch
++
++const (
++	_ArchFamily          = LOONG64
++	_DefaultPhysPageSize = 16384
++	_PCQuantum           = 4
++	_MinFrameSize        = 8
++	_StackAlign          = PtrSize
++)

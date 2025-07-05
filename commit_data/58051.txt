@@ -18,7 +18,7 @@ Date:   Thu Sep 21 11:00:01 2023 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Tim King <taking@google.com>
-
+---
  src/cmd/go.mod                                     |   4 +-
  src/cmd/go.sum                                     |   8 +-
  .../vendor/golang.org/x/sys/unix/syscall_unix.go   |   3 +
@@ -39,3 +39,503 @@ Date:   Thu Sep 21 11:00:01 2023 -0700
  src/vendor/golang.org/x/sys/cpu/cpu_x86.go         |   7 ++
  src/vendor/modules.txt                             |   2 +-
  19 files changed, 117 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 1eaad916ff..7ede9960b9 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,9 +7,9 @@ require (
+ 	golang.org/x/arch v0.4.0
+ 	golang.org/x/mod v0.12.0
+ 	golang.org/x/sync v0.3.0
+-	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
++	golang.org/x/sys v0.12.0
+ 	golang.org/x/term v0.11.0
+-	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
++	golang.org/x/tools v0.13.1-0.20230920233436-f9b8da7b22be
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 05bcd8860f..7ffc644cce 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,9 +8,9 @@ golang.org/x/mod v0.12.0 h1:rmsUpXtvNzj340zd98LZ4KntptpfRHwpFOHG188oHXc=
+ golang.org/x/mod v0.12.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.3.0 h1:ftCYgMx6zT/asHUrPw8BLLscYtGznsLAnjq5RH9P66E=
+ golang.org/x/sync v0.3.0/go.mod h1:FU7BRWz2tNW+3quACPkgCx/L+uEAv1htQ0V83Z9Rj+Y=
+-golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c h1:2aG9DV1z3tUfHVJRevogC4OmVcZiaiysJgsnG4ZKD6s=
+-golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
++golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.11.0 h1:F9tnn/DA/Im8nCwm+fX+1/eBwi4qFjRT++MhtVC4ZX0=
+ golang.org/x/term v0.11.0/go.mod h1:zC9APTIj3jG3FdV/Ons+XE1riIZXG4aZ4GTHiPZJPIU=
+-golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 h1:Vve/L0v7CXXuxUmaMGIEK/dEeq7uiqb5qBgQrZzIE7E=
+-golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846/go.mod h1:Sc0INKfu04TlqNoRA1hgpFZbhYXHPr4V5DzpSBTPqQM=
++golang.org/x/tools v0.13.1-0.20230920233436-f9b8da7b22be h1:pQ7OzPwwqEo+kv+G51MKwvanbWTNL8gLxowlKZ4+/4s=
++golang.org/x/tools v0.13.1-0.20230920233436-f9b8da7b22be/go.mod h1:UT0HyK+PbVxjduiWXEYi1mODDynTaoTRHJox7q8FIKk=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index 8bb30e7ce3..f6eda27050 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -549,6 +549,9 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
+ 	if err != nil {
+ 		return err
+ 	}
++	if (flag&O_NONBLOCK != 0) == nonblocking {
++		return nil
++	}
+ 	if nonblocking {
+ 		flag |= O_NONBLOCK
+ 	} else {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 88e60c8763..67bad0926a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -216,7 +216,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	shGetKnownFolderPath(id *KNOWNFOLDERID, flags uint32, token Token, path **uint16) (ret error) = shell32.SHGetKnownFolderPath
+ //sys	TerminateProcess(handle Handle, exitcode uint32) (err error)
+ //sys	GetExitCodeProcess(handle Handle, exitcode *uint32) (err error)
+-//sys	GetStartupInfo(startupInfo *StartupInfo) (err error) = GetStartupInfoW
++//sys	getStartupInfo(startupInfo *StartupInfo) = GetStartupInfoW
+ //sys	GetProcessTimes(handle Handle, creationTime *Filetime, exitTime *Filetime, kernelTime *Filetime, userTime *Filetime) (err error)
+ //sys	DuplicateHandle(hSourceProcessHandle Handle, hSourceHandle Handle, hTargetProcessHandle Handle, lpTargetHandle *Handle, dwDesiredAccess uint32, bInheritHandle bool, dwOptions uint32) (err error)
+ //sys	WaitForSingleObject(handle Handle, waitMilliseconds uint32) (event uint32, err error) [failretval==0xffffffff]
+@@ -1628,6 +1628,11 @@ func SetConsoleCursorPosition(console Handle, position Coord) error {
+ 	return setConsoleCursorPosition(console, *((*uint32)(unsafe.Pointer(&position))))
+ }
+ 
++func GetStartupInfo(startupInfo *StartupInfo) error {
++	getStartupInfo(startupInfo)
++	return nil
++}
++
+ func (s NTStatus) Errno() syscall.Errno {
+ 	return rtlNtStatusToDosErrorNoTeb(s)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 1c31758eac..5c385580f6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -2370,11 +2370,8 @@ func GetShortPathName(longpath *uint16, shortpath *uint16, buflen uint32) (n uin
+ 	return
+ }
+ 
+-func GetStartupInfo(startupInfo *StartupInfo) (err error) {
+-	r1, _, e1 := syscall.Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+-	if r1 == 0 {
+-		err = errnoErr(e1)
+-	}
++func getStartupInfo(startupInfo *StartupInfo) {
++	syscall.Syscall(procGetStartupInfoW.Addr(), 1, uintptr(unsafe.Pointer(startupInfo)), 0, 0)
+ 	return
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index c5429c9e23..44867d599e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -191,7 +191,7 @@ and buildtag, inspect the raw text of Go source files or even non-Go
+ files such as assembly. To report a diagnostic against a line of a
+ raw text file, use the following sequence:
+ 
+-	content, err := ioutil.ReadFile(filename)
++	content, err := os.ReadFile(filename)
+ 	if err != nil { ... }
+ 	tf := fset.AddFile(filename, -1, len(content))
+ 	tf.SetLinesForContent(content)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index e127a42b97..9e3fde72bb 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -14,7 +14,6 @@ import (
+ 	"fmt"
+ 	"go/token"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"strconv"
+@@ -331,7 +330,7 @@ func PrintPlain(fset *token.FileSet, diag analysis.Diagnostic) {
+ 		if !end.IsValid() {
+ 			end = posn
+ 		}
+-		data, _ := ioutil.ReadFile(posn.Filename)
++		data, _ := os.ReadFile(posn.Filename)
+ 		lines := strings.Split(string(data), "\n")
+ 		for i := posn.Line - Context; i <= end.Line+Context; i++ {
+ 			if 1 <= i && i <= len(lines) {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index ac37e4784e..a8d84034df 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -12,7 +12,7 @@ import (
+ 	"go/printer"
+ 	"go/token"
+ 	"go/types"
+-	"io/ioutil"
++	"os"
+ )
+ 
+ // Format returns a string representation of the expression.
+@@ -69,7 +69,7 @@ func Unparen(e ast.Expr) ast.Expr {
+ // ReadFile reads a file and adds it to the FileSet
+ // so that we can report errors against it using lineStart.
+ func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
+-	content, err := ioutil.ReadFile(filename)
++	content, err := os.ReadFile(filename)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 88527d7a8e..53c3f4a806 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -38,7 +38,6 @@ import (
+ 	"go/token"
+ 	"go/types"
+ 	"io"
+-	"io/ioutil"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -59,19 +58,19 @@ import (
+ // whose name ends with ".cfg".
+ type Config struct {
+ 	ID                        string // e.g. "fmt [fmt.test]"
+-	Compiler                  string
+-	Dir                       string
+-	ImportPath                string
++	Compiler                  string // gc or gccgo, provided to MakeImporter
++	Dir                       string // (unused)
++	ImportPath                string // package path
+ 	GoVersion                 string // minimum required Go version, such as "go1.21.0"
+ 	GoFiles                   []string
+ 	NonGoFiles                []string
+ 	IgnoredFiles              []string
+-	ImportMap                 map[string]string
+-	PackageFile               map[string]string
+-	Standard                  map[string]bool
+-	PackageVetx               map[string]string
+-	VetxOnly                  bool
+-	VetxOutput                string
++	ImportMap                 map[string]string // maps import path to package path
++	PackageFile               map[string]string // maps package path to file of type information
++	Standard                  map[string]bool   // package belongs to standard library
++	PackageVetx               map[string]string // maps package path to file of fact information
++	VetxOnly                  bool              // run analysis only for facts, not diagnostics
++	VetxOutput                string            // where to write file of fact information
+ 	SucceedOnTypecheckFailure bool
+ }
+ 
+@@ -167,7 +166,7 @@ func Run(configFile string, analyzers []*analysis.Analyzer) {
+ }
+ 
+ func readConfig(filename string) (*Config, error) {
+-	data, err := ioutil.ReadFile(filename)
++	data, err := os.ReadFile(filename)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -184,6 +183,56 @@ func readConfig(filename string) (*Config, error) {
+ 	return cfg, nil
+ }
+ 
++type factImporter = func(pkgPath string) ([]byte, error)
++
++// These four hook variables are a proof of concept of a future
++// parameterization of a unitchecker API that allows the client to
++// determine how and where facts and types are produced and consumed.
++// (Note that the eventual API will likely be quite different.)
++//
++// The defaults honor a Config in a manner compatible with 'go vet'.
++var (
++	makeTypesImporter = func(cfg *Config, fset *token.FileSet) types.Importer {
++		compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
++			// path is a resolved package path, not an import path.
++			file, ok := cfg.PackageFile[path]
++			if !ok {
++				if cfg.Compiler == "gccgo" && cfg.Standard[path] {
++					return nil, nil // fall back to default gccgo lookup
++				}
++				return nil, fmt.Errorf("no package file for %q", path)
++			}
++			return os.Open(file)
++		})
++		return importerFunc(func(importPath string) (*types.Package, error) {
++			path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
++			if !ok {
++				return nil, fmt.Errorf("can't resolve import %q", path)
++			}
++			return compilerImporter.Import(path)
++		})
++	}
++
++	exportTypes = func(*Config, *token.FileSet, *types.Package) error {
++		// By default this is a no-op, because "go vet"
++		// makes the compiler produce type information.
++		return nil
++	}
++
++	makeFactImporter = func(cfg *Config) factImporter {
++		return func(pkgPath string) ([]byte, error) {
++			if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
++				return os.ReadFile(vetx)
++			}
++			return nil, nil // no .vetx file, no facts
++		}
++	}
++
++	exportFacts = func(cfg *Config, data []byte) error {
++		return os.WriteFile(cfg.VetxOutput, data, 0666)
++	}
++)
++
+ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]result, error) {
+ 	// Load, parse, typecheck.
+ 	var files []*ast.File
+@@ -199,27 +248,9 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		}
+ 		files = append(files, f)
+ 	}
+-	compilerImporter := importer.ForCompiler(fset, cfg.Compiler, func(path string) (io.ReadCloser, error) {
+-		// path is a resolved package path, not an import path.
+-		file, ok := cfg.PackageFile[path]
+-		if !ok {
+-			if cfg.Compiler == "gccgo" && cfg.Standard[path] {
+-				return nil, nil // fall back to default gccgo lookup
+-			}
+-			return nil, fmt.Errorf("no package file for %q", path)
+-		}
+-		return os.Open(file)
+-	})
+-	importer := importerFunc(func(importPath string) (*types.Package, error) {
+-		path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
+-		if !ok {
+-			return nil, fmt.Errorf("can't resolve import %q", path)
+-		}
+-		return compilerImporter.Import(path)
+-	})
+ 	tc := &types.Config{
+-		Importer:  importer,
+-		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
++		Importer:  makeTypesImporter(cfg, fset),
++		Sizes:     types.SizesFor("gc", build.Default.GOARCH), // TODO(adonovan): use cfg.Compiler
+ 		GoVersion: cfg.GoVersion,
+ 	}
+ 	info := &types.Info{
+@@ -288,13 +319,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 	analyzers = filtered
+ 
+ 	// Read facts from imported packages.
+-	read := func(pkgPath string) ([]byte, error) {
+-		if vetx, ok := cfg.PackageVetx[pkgPath]; ok {
+-			return ioutil.ReadFile(vetx)
+-		}
+-		return nil, nil // no .vetx file, no facts
+-	}
+-	facts, err := facts.NewDecoder(pkg).Decode(false, read)
++	facts, err := facts.NewDecoder(pkg).Decode(false, makeFactImporter(cfg))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -394,8 +419,11 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 	}
+ 
+ 	data := facts.Encode(false)
+-	if err := ioutil.WriteFile(cfg.VetxOutput, data, 0666); err != nil {
+-		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
++	if err := exportFacts(cfg, data); err != nil {
++		return nil, fmt.Errorf("failed to export analysis facts: %v", err)
++	}
++	if err := exportTypes(cfg, fset, pkg); err != nil {
++		return nil, fmt.Errorf("failed to export type information: %v", err)
+ 	}
+ 
+ 	return results, nil
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+index ec11d5e0af..8480ea062f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+@@ -40,7 +40,7 @@ import (
+ 	"encoding/gob"
+ 	"fmt"
+ 	"go/types"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"reflect"
+ 	"sort"
+@@ -356,7 +356,7 @@ func (s *Set) Encode(skipMethodSorting bool) []byte {
+ 		if err := gob.NewEncoder(&buf).Encode(gobFacts); err != nil {
+ 			// Fact encoding should never fail. Identify the culprit.
+ 			for _, gf := range gobFacts {
+-				if err := gob.NewEncoder(ioutil.Discard).Encode(gf); err != nil {
++				if err := gob.NewEncoder(io.Discard).Encode(gf); err != nil {
+ 					fact := gf.Fact
+ 					pkgpath := reflect.TypeOf(fact).Elem().PkgPath()
+ 					log.Panicf("internal error: gob encoding of analysis fact %s failed: %v; please report a bug against fact %T in package %q",
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+index 993135ec90..71248209ee 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/coretype.go
+@@ -81,13 +81,13 @@ func CoreType(T types.Type) types.Type {
+ // restrictions may be arbitrarily complex. For example, consider the
+ // following:
+ //
+-//  type A interface{ ~string|~[]byte }
++//	type A interface{ ~string|~[]byte }
+ //
+-//  type B interface{ int|string }
++//	type B interface{ int|string }
+ //
+-//  type C interface { ~string|~int }
++//	type C interface { ~string|~int }
+ //
+-//  type T[P interface{ A|B; C }] int
++//	type T[P interface{ A|B; C }] int
+ //
+ // In this example, the structural type restriction of P is ~string|int: A|B
+ // expands to ~string|~[]byte|int|string, which reduces to ~string|~[]byte|int,
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+index 933106a23d..cbd12f8013 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+@@ -30,7 +30,7 @@ func (xl termlist) String() string {
+ 	var buf bytes.Buffer
+ 	for i, x := range xl {
+ 		if i > 0 {
+-			buf.WriteString(" ∪ ")
++			buf.WriteString(" | ")
+ 		}
+ 		buf.WriteString(x.String())
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+index 7ddee28d98..7350bb702a 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+@@ -10,11 +10,10 @@ import "go/types"
+ 
+ // A term describes elementary type sets:
+ //
+-//   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
+-//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
+-//   T:  &term{false, T}  == {T}                    // set of type T
+-//  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+-//
++//	 ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
++//	 𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
++//	 T:  &term{false, T}  == {T}                    // set of type T
++//	~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
+ type term struct {
+ 	tilde bool // valid if typ != nil
+ 	typ   types.Type
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 3cf8cc25b6..380a05bf63 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -37,7 +37,7 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.3.0
+ ## explicit; go 1.17
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
++# golang.org/x/sys v0.12.0
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+@@ -46,7 +46,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.11.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846
++# golang.org/x/tools v0.13.1-0.20230920233436-f9b8da7b22be
+ ## explicit; go 1.18
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index beb4d13d8b..021d00b3f6 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c // indirect
++	golang.org/x/sys v0.12.0 // indirect
+ 	golang.org/x/text v0.12.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 81b83159f7..cae131c06e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.12.0 h1:tFM/ta59kqch6LlvYnPa0yx5a83cL2nHflFhYKvv9Yk=
+ golang.org/x/crypto v0.12.0/go.mod h1:NF0Gs7EO5K4qLn+Ylc+fih8BSTeIjAP05siRnAh98yw=
+ golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9 h1:eQR0jFW5dN2q8lFzSF7rjkRCOOnBf0llczNvITm6ICs=
+ golang.org/x/net v0.14.1-0.20230809150940-1e23797619c9/go.mod h1:PpSgVXXLK0OxS0F31C1/tv6XNguvCrnXIDrFMspZIUI=
+-golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c h1:2aG9DV1z3tUfHVJRevogC4OmVcZiaiysJgsnG4ZKD6s=
+-golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/sys v0.12.0 h1:CM0HF96J0hcLAwsHPJZjfdNzs0gftsLfgKt57wWHJ0o=
++golang.org/x/sys v0.12.0/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.12.0 h1:k+n5B8goJNdU7hSvEtMUz3d1Q6D/XW4COJSJR6fN0mc=
+ golang.org/x/text v0.12.0/go.mod h1:TvPlkZtksWOMsz7fbANvkp4WM8x/WCo/om8BMLbz+aE=
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu.go b/src/vendor/golang.org/x/sys/cpu/cpu.go
+index 83f112c4c8..4756ad5f79 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -38,7 +38,7 @@ var X86 struct {
+ 	HasAVX512F          bool // Advanced vector extension 512 Foundation Instructions
+ 	HasAVX512CD         bool // Advanced vector extension 512 Conflict Detection Instructions
+ 	HasAVX512ER         bool // Advanced vector extension 512 Exponential and Reciprocal Instructions
+-	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions Instructions
++	HasAVX512PF         bool // Advanced vector extension 512 Prefetch Instructions
+ 	HasAVX512VL         bool // Advanced vector extension 512 Vector Length Extensions
+ 	HasAVX512BW         bool // Advanced vector extension 512 Byte and Word Instructions
+ 	HasAVX512DQ         bool // Advanced vector extension 512 Doubleword and Quadword Instructions
+@@ -54,6 +54,9 @@ var X86 struct {
+ 	HasAVX512VBMI2      bool // Advanced vector extension 512 Vector Byte Manipulation Instructions 2
+ 	HasAVX512BITALG     bool // Advanced vector extension 512 Bit Algorithms
+ 	HasAVX512BF16       bool // Advanced vector extension 512 BFloat16 Instructions
++	HasAMXTile          bool // Advanced Matrix Extension Tile instructions
++	HasAMXInt8          bool // Advanced Matrix Extension Int8 instructions
++	HasAMXBF16          bool // Advanced Matrix Extension BFloat16 instructions
+ 	HasBMI1             bool // Bit manipulation instruction set 1
+ 	HasBMI2             bool // Bit manipulation instruction set 2
+ 	HasCX16             bool // Compare and exchange 16 Bytes
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_x86.go b/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
+index f5aacfc825..2dcde8285d 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_x86.go
+@@ -37,6 +37,9 @@ func initOptions() {
+ 		{Name: "avx512vbmi2", Feature: &X86.HasAVX512VBMI2},
+ 		{Name: "avx512bitalg", Feature: &X86.HasAVX512BITALG},
+ 		{Name: "avx512bf16", Feature: &X86.HasAVX512BF16},
++		{Name: "amxtile", Feature: &X86.HasAMXTile},
++		{Name: "amxint8", Feature: &X86.HasAMXInt8},
++		{Name: "amxbf16", Feature: &X86.HasAMXBF16},
+ 		{Name: "bmi1", Feature: &X86.HasBMI1},
+ 		{Name: "bmi2", Feature: &X86.HasBMI2},
+ 		{Name: "cx16", Feature: &X86.HasCX16},
+@@ -138,6 +141,10 @@ func archInit() {
+ 		eax71, _, _, _ := cpuid(7, 1)
+ 		X86.HasAVX512BF16 = isSet(5, eax71)
+ 	}
++
++	X86.HasAMXTile = isSet(24, edx7)
++	X86.HasAMXInt8 = isSet(25, edx7)
++	X86.HasAMXBF16 = isSet(22, edx7)
+ }
+ 
+ func isSet(bitpos uint, value uint32) bool {
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index abd3f0b519..34d406c99b 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -17,7 +17,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.11.1-0.20230809150802-ee578879d89c
++# golang.org/x/sys v0.12.0
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.12.0

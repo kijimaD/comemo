@@ -17,10 +17,91 @@ Date:   Mon Apr 11 17:19:09 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/go/ast/ast.go                       | 4 +++-
  src/go/ast/ast_test.go                  | 3 +++
  src/go/printer/comment.go               | 4 +++-
  src/go/printer/testdata/comments.golden | 6 ++++++
  src/go/printer/testdata/comments.input  | 6 ++++++
  5 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 3ae5a60a10..1e089b9e70 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -161,8 +161,10 @@ func (g *CommentGroup) Text() string {
+ // This code is also in go/printer.
+ func isDirective(c string) bool {
+ 	// "//line " is a line directive.
++	// "//extern " is for gccgo.
++	// "//export " is for cgo.
+ 	// (The // has been removed.)
+-	if strings.HasPrefix(c, "line ") {
++	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
+ 		return true
+ 	}
+ 
+diff --git a/src/go/ast/ast_test.go b/src/go/ast/ast_test.go
+index 71b2d6ca4b..66ae884867 100644
+--- a/src/go/ast/ast_test.go
++++ b/src/go/ast/ast_test.go
+@@ -68,6 +68,9 @@ var isDirectiveTests = []struct {
+ 	{"go:", false},
+ 	{"go:*", false},
+ 	{"go:x*", true},
++	{"export foo", true},
++	{"extern foo", true},
++	{"expert foo", false},
+ }
+ 
+ func TestIsDirective(t *testing.T) {
+diff --git a/src/go/printer/comment.go b/src/go/printer/comment.go
+index 9749146739..76dd31efc7 100644
+--- a/src/go/printer/comment.go
++++ b/src/go/printer/comment.go
+@@ -111,8 +111,10 @@ func formatDocComment(list []*ast.Comment) []*ast.Comment {
+ // This code is also in go/ast.
+ func isDirective(c string) bool {
+ 	// "//line " is a line directive.
++	// "//extern " is for gccgo.
++	// "//export " is for cgo.
+ 	// (The // has been removed.)
+-	if strings.HasPrefix(c, "line ") {
++	if strings.HasPrefix(c, "line ") || strings.HasPrefix(c, "extern ") || strings.HasPrefix(c, "export ") {
+ 		return true
+ 	}
+ 
+diff --git a/src/go/printer/testdata/comments.golden b/src/go/printer/testdata/comments.golden
+index d03da3b65a..62f37ea091 100644
+--- a/src/go/printer/testdata/comments.golden
++++ b/src/go/printer/testdata/comments.golden
+@@ -692,6 +692,12 @@ func _() {
+ 	}
+ }
+ 
++//extern foo
++func foo()	{}
++
++//export bar
++func bar()	{}
++
+ // Print line directives correctly.
+ 
+ // The following is a legal line directive.
+diff --git a/src/go/printer/testdata/comments.input b/src/go/printer/testdata/comments.input
+index 2a15fa44a5..4bdafc3781 100644
+--- a/src/go/printer/testdata/comments.input
++++ b/src/go/printer/testdata/comments.input
+@@ -691,6 +691,12 @@ func _() {
+ 	}
+ }
+ 
++//extern foo
++func foo() {}
++
++//export bar
++func bar() {}
++
+ // Print line directives correctly.
+ 
+ // The following is a legal line directive.

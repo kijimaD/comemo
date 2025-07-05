@@ -18,7 +18,7 @@ Date:   Fri Mar 24 22:44:01 2023 -0700
     Run-TryBot: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/dist/build.go                |  2 ++
  src/cmd/go/internal/imports/build.go |  1 +
  src/cmd/internal/objabi/head.go      |  5 +++++
@@ -41,3 +41,286 @@ Date:   Fri Mar 24 22:44:01 2023 -0700
  src/internal/goos/zgoos_windows.go   |  1 +
  src/internal/goos/zgoos_zos.go       |  1 +
  21 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 448cf0e592..c184ffca99 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -86,6 +86,7 @@ var okgoos = []string{
+ 	"illumos",
+ 	"ios",
+ 	"js",
++	"wasip1",
+ 	"linux",
+ 	"android",
+ 	"solaris",
+@@ -1703,6 +1704,7 @@ var cgoEnabled = map[string]bool{
+ 	"ios/arm64":       true,
+ 	"ios/amd64":       true,
+ 	"js/wasm":         false,
++	"wasip1/wasm":     false,
+ 	"netbsd/386":      true,
+ 	"netbsd/amd64":    true,
+ 	"netbsd/arm":      true,
+diff --git a/src/cmd/go/internal/imports/build.go b/src/cmd/go/internal/imports/build.go
+index be308ceeec..3a4a66b869 100644
+--- a/src/cmd/go/internal/imports/build.go
++++ b/src/cmd/go/internal/imports/build.go
+@@ -323,6 +323,7 @@ var KnownOS = map[string]bool{
+ 	"openbsd":   true,
+ 	"plan9":     true,
+ 	"solaris":   true,
++	"wasip1":    true,
+ 	"windows":   true,
+ 	"zos":       true,
+ }
+diff --git a/src/cmd/internal/objabi/head.go b/src/cmd/internal/objabi/head.go
+index 763910fbd6..3109b5cb23 100644
+--- a/src/cmd/internal/objabi/head.go
++++ b/src/cmd/internal/objabi/head.go
+@@ -46,6 +46,7 @@ const (
+ 	Hopenbsd
+ 	Hplan9
+ 	Hsolaris
++	Hwasip1
+ 	Hwindows
+ 	Haix
+ )
+@@ -72,6 +73,8 @@ func (h *HeadType) Set(s string) error {
+ 		*h = Hplan9
+ 	case "illumos", "solaris":
+ 		*h = Hsolaris
++	case "wasip1":
++		*h = Hwasip1
+ 	case "windows":
+ 		*h = Hwindows
+ 	default:
+@@ -102,6 +105,8 @@ func (h HeadType) String() string {
+ 		return "plan9"
+ 	case Hsolaris:
+ 		return "solaris"
++	case Hwasip1:
++		return "wasip1"
+ 	case Hwindows:
+ 		return "windows"
+ 	}
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 78ca565ce2..783bbe697a 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -27,6 +27,7 @@ var knownOS = map[string]bool{
+ 	"openbsd":   true,
+ 	"plan9":     true,
+ 	"solaris":   true,
++	"wasip1":    true,
+ 	"windows":   true,
+ 	"zos":       true,
+ }
+diff --git a/src/internal/goos/zgoos_aix.go b/src/internal/goos/zgoos_aix.go
+index ff861550c4..24e05c933e 100644
+--- a/src/internal/goos/zgoos_aix.go
++++ b/src/internal/goos/zgoos_aix.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_android.go b/src/internal/goos/zgoos_android.go
+index e8aaa12428..3c4a318590 100644
+--- a/src/internal/goos/zgoos_android.go
++++ b/src/internal/goos/zgoos_android.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_darwin.go b/src/internal/goos/zgoos_darwin.go
+index decdd49642..10b1499895 100644
+--- a/src/internal/goos/zgoos_darwin.go
++++ b/src/internal/goos/zgoos_darwin.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_dragonfly.go b/src/internal/goos/zgoos_dragonfly.go
+index 2224baa230..b92d1269f1 100644
+--- a/src/internal/goos/zgoos_dragonfly.go
++++ b/src/internal/goos/zgoos_dragonfly.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_freebsd.go b/src/internal/goos/zgoos_freebsd.go
+index 3ee5bf998e..f547591ab1 100644
+--- a/src/internal/goos/zgoos_freebsd.go
++++ b/src/internal/goos/zgoos_freebsd.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_hurd.go b/src/internal/goos/zgoos_hurd.go
+index 8a3d34304d..1189d65d74 100644
+--- a/src/internal/goos/zgoos_hurd.go
++++ b/src/internal/goos/zgoos_hurd.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_illumos.go b/src/internal/goos/zgoos_illumos.go
+index fc1b9a9e22..4f0254081c 100644
+--- a/src/internal/goos/zgoos_illumos.go
++++ b/src/internal/goos/zgoos_illumos.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_ios.go b/src/internal/goos/zgoos_ios.go
+index 746e769ef7..02f3586fa4 100644
+--- a/src/internal/goos/zgoos_ios.go
++++ b/src/internal/goos/zgoos_ios.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_js.go b/src/internal/goos/zgoos_js.go
+index 6cf2a5d9e2..4818741891 100644
+--- a/src/internal/goos/zgoos_js.go
++++ b/src/internal/goos/zgoos_js.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_linux.go b/src/internal/goos/zgoos_linux.go
+index cb9d6e8afa..6f4d4e0753 100644
+--- a/src/internal/goos/zgoos_linux.go
++++ b/src/internal/goos/zgoos_linux.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_netbsd.go b/src/internal/goos/zgoos_netbsd.go
+index 8285928d35..948603df0d 100644
+--- a/src/internal/goos/zgoos_netbsd.go
++++ b/src/internal/goos/zgoos_netbsd.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 1
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_openbsd.go b/src/internal/goos/zgoos_openbsd.go
+index 3f739a4a2f..f4b201457b 100644
+--- a/src/internal/goos/zgoos_openbsd.go
++++ b/src/internal/goos/zgoos_openbsd.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 1
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_plan9.go b/src/internal/goos/zgoos_plan9.go
+index d4c1c651f7..95572dff37 100644
+--- a/src/internal/goos/zgoos_plan9.go
++++ b/src/internal/goos/zgoos_plan9.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 1
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_solaris.go b/src/internal/goos/zgoos_solaris.go
+index 69e3285ab6..c7058260f8 100644
+--- a/src/internal/goos/zgoos_solaris.go
++++ b/src/internal/goos/zgoos_solaris.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 1
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_wasip1.go b/src/internal/goos/zgoos_wasip1.go
+new file mode 100644
+index 0000000000..ae35eebac6
+--- /dev/null
++++ b/src/internal/goos/zgoos_wasip1.go
+@@ -0,0 +1,26 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++//go:build wasip1
++
++package goos
++
++const GOOS = `wasip1`
++
++const IsAix = 0
++const IsAndroid = 0
++const IsDarwin = 0
++const IsDragonfly = 0
++const IsFreebsd = 0
++const IsHurd = 0
++const IsIllumos = 0
++const IsIos = 0
++const IsJs = 0
++const IsLinux = 0
++const IsNacl = 0
++const IsNetbsd = 0
++const IsOpenbsd = 0
++const IsPlan9 = 0
++const IsSolaris = 0
++const IsWasip1 = 1
++const IsWindows = 0
++const IsZos = 0
+diff --git a/src/internal/goos/zgoos_windows.go b/src/internal/goos/zgoos_windows.go
+index 16158be78b..f89f4cf829 100644
+--- a/src/internal/goos/zgoos_windows.go
++++ b/src/internal/goos/zgoos_windows.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 1
+ const IsZos = 0
+diff --git a/src/internal/goos/zgoos_zos.go b/src/internal/goos/zgoos_zos.go
+index fb6165c7a1..29fb0f8bab 100644
+--- a/src/internal/goos/zgoos_zos.go
++++ b/src/internal/goos/zgoos_zos.go
+@@ -21,5 +21,6 @@ const IsNetbsd = 0
+ const IsOpenbsd = 0
+ const IsPlan9 = 0
+ const IsSolaris = 0
++const IsWasip1 = 0
+ const IsWindows = 0
+ const IsZos = 1

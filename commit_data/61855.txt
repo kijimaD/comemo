@@ -17,6 +17,21 @@ Date:   Tue Dec 3 16:23:18 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@golang.org>
-
+---
  src/cmd/go/testdata/script/build_trimpath_cgo.txt | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/build_trimpath_cgo.txt b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+index 528982442d..b0cc401ad6 100644
+--- a/src/cmd/go/testdata/script/build_trimpath_cgo.txt
++++ b/src/cmd/go/testdata/script/build_trimpath_cgo.txt
+@@ -121,6 +121,9 @@ func run(exePath string) ([]string, error) {
+ 				}
+ 				return nil, err
+ 			}
++			if le.EndSequence {
++			    continue
++			}
+ 			files[le.File.Name] = true
+ 		}
+ 	}

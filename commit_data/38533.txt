@@ -10,8 +10,47 @@ Date:   Fri Nov 2 22:21:23 2018 -0700
     Change-Id: Icc96da3a22b0af1d7e60bc5841c744916c53341e
     Reviewed-on: https://go-review.googlesource.com/c/147285
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/cmd/compile/internal/gc/go.go       | 1 -
  src/cmd/compile/internal/gc/reflect.go  | 2 +-
  src/cmd/compile/internal/gc/universe.go | 2 --
  3 files changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index cfd695097f..471746ed7d 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -147,7 +147,6 @@ var asmhdr string
+ var simtype [NTYPE]types.EType
+ 
+ var (
+-	isforw    [NTYPE]bool
+ 	isInt     [NTYPE]bool
+ 	isFloat   [NTYPE]bool
+ 	isComplex [NTYPE]bool
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index e4008bd7e7..415d3cd594 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -1137,7 +1137,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 			return lsym
+ 		}
+ 		// TODO(mdempsky): Investigate whether this can happen.
+-		if isforw[tbase.Etype] {
++		if tbase.Etype == TFORW {
+ 			return lsym
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 96980ad500..760a8e40b0 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -200,8 +200,6 @@ func typeinit() {
+ 	isComplex[TCOMPLEX64] = true
+ 	isComplex[TCOMPLEX128] = true
+ 
+-	isforw[TFORW] = true
+-
+ 	// initialize okfor
+ 	for et := types.EType(0); et < NTYPE; et++ {
+ 		if isInt[et] || et == TIDEAL {

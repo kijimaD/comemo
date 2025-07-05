@@ -17,7 +17,98 @@ Date:   Fri Nov 22 15:27:01 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/208479
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go |  8 +++++++-
  src/cmd/link/internal/loader/loader.go | 33 ++++++++++++++++++++++++++++++---
  2 files changed, 37 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index 072eaf00c8..60bebab818 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -454,9 +454,12 @@ func parseArmAttributes(e binary.ByteOrder, data []byte) (found bool, ehdrFlags
+ 
+ func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+ 	newSym := func(name string, version int) *sym.Symbol {
++		return l.Create(name, syms)
++	}
++	lookup := func(name string, version int) *sym.Symbol {
+ 		return l.LookupOrCreate(name, version, syms)
+ 	}
+-	return load(arch, syms.IncVersion(), newSym, newSym, f, pkg, length, pn, flags)
++	return load(arch, syms.IncVersion(), newSym, lookup, f, pkg, length, pn, flags)
+ }
+ 
+ func LoadOld(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string, flags uint32) ([]*sym.Symbol, uint32, error) {
+@@ -1101,6 +1104,9 @@ func readelfsym(newSym, lookup lookupFunc, arch *sys.Arch, elfobj *ElfObj, i int
+ 				// local names and hidden global names are unique
+ 				// and should only be referenced by their index, not name, so we
+ 				// don't bother to add them into the hash table
++				// FIXME: pass empty string here for name? This would
++				// reduce mem use, but also (possibly) make it harder
++				// to debug problems.
+ 				s = newSym(elfsym.name, localSymVersion)
+ 
+ 				s.Attr |= sym.AttrVisibilityHidden
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index c0fa5fa7ce..4e0dfb1e64 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -130,6 +130,9 @@ const (
+ 	FlagStrictDups = 1 << iota
+ )
+ 
++// anonVersion is used to tag symbols created by loader.Create.
++const anonVersion = -1
++
+ func NewLoader(flags uint32) *Loader {
+ 	nbuiltin := goobj2.NBuiltin()
+ 	return &Loader{
+@@ -842,13 +845,15 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		l.Syms[oldI] = nil
+ 	}
+ 
+-	// For now, add all symbols to ctxt.Syms.
++	// Add symbols to the ctxt.Syms lookup table. This explicitly
++	// skips things created via loader.Create (marked with
++	// anonVersion), since if we tried to add these we'd wind up with
++	// collisions.
+ 	for _, s := range l.Syms {
+-		if s != nil && s.Name != "" {
++		if s != nil && s.Name != "" && s.Version != anonVersion {
+ 			syms.Add(s)
+ 		}
+ 	}
+-
+ }
+ 
+ // addNewSym adds a new sym.Symbol to the i-th index in the list of symbols.
+@@ -980,6 +985,28 @@ func (l *Loader) LookupOrCreate(name string, version int, syms *sym.Symbols) *sy
+ 	return s
+ }
+ 
++// Create creates a symbol with the specified name, but does not
++// insert it into any lookup table (hence it is possible to create a
++// symbol name with name X when there is already an existing symbol
++// named X entered into the loader). This method is intended for
++// static/hidden symbols discovered while loading host objects.
++func (l *Loader) Create(name string, syms *sym.Symbols) *sym.Symbol {
++	i := l.max + 1
++	l.max++
++	if l.extStart == 0 {
++		l.extStart = i
++	}
++
++	// Note the use of anonVersion -- this is to mark the symbol so that
++	// it can be skipped when ExtractSymbols is adding ext syms to the
++	// sym.Symbols hash.
++	l.extSyms = append(l.extSyms, nameVer{name, anonVersion})
++	l.growSyms(int(i))
++	s := syms.Newsym(name, -1)
++	l.Syms[i] = s
++	return s
++}
++
+ func loadObjFull(l *Loader, r *oReader) {
+ 	lib := r.unit.Lib
+ 	istart := l.startIndex(r)

@@ -15,6 +15,27 @@ Date:   Thu Nov 3 13:09:31 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/x509/x509_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 44441d45d4..0ba6d3e9fa 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -3553,13 +3553,12 @@ func TestDisableSHA1ForCertOnly(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("failed to generate test CRL: %s", err)
+ 	}
+-	// TODO(rolandshoemaker): this should be ParseRevocationList once it lands
+-	crl, err := ParseCRL(crlDER)
++	crl, err := ParseRevocationList(crlDER)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse test CRL: %s", err)
+ 	}
+ 
+-	if err = cert.CheckCRLSignature(crl); err != nil {
++	if err = crl.CheckSignatureFrom(cert); err != nil {
+ 		t.Errorf("unexpected error: %s", err)
+ 	}
+ 

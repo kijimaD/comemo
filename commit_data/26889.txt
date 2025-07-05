@@ -14,7 +14,54 @@ Date:   Wed Mar 2 00:46:36 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/url/url.go      |  2 +-
  src/net/url/url_test.go | 15 +++++++++++++--
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index d2ec333310..d9c8c49e94 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -461,7 +461,7 @@ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+ 	}
+ 	url.Scheme = strings.ToLower(url.Scheme)
+ 
+-	if strings.HasSuffix(rest, "?") {
++	if strings.HasSuffix(rest, "?") && strings.Count(rest, "?") == 1 {
+ 		url.ForceQuery = true
+ 		rest = rest[:len(rest)-1]
+ 	} else {
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index a3088ec0a3..896a5da341 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -83,6 +83,17 @@ var urltests = []URLTest{
+ 		},
+ 		"",
+ 	},
++	// query ending in question mark (Issue 14573)
++	{
++		"http://www.google.com/?foo=bar?",
++		&URL{
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "foo=bar?",
++		},
++		"",
++	},
+ 	// query
+ 	{
+ 		"http://www.google.com/?q=go+language",
+@@ -564,8 +575,8 @@ func ufmt(u *URL) string {
+ 			pass = p
+ 		}
+ 	}
+-	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q",
+-		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment)
++	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawpath=%q, rawq=%q, frag=%q, forcequery=%v",
++		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawPath, u.RawQuery, u.Fragment, u.ForceQuery)
+ }
+ 
+ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {

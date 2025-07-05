@@ -18,7 +18,7 @@ Date:   Mon Dec 4 10:43:11 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc_test.go |  2 +-
  src/runtime/mbitmap.go     |  7 +++---
  src/runtime/mcache.go      |  1 -
@@ -27,3 +27,243 @@ Date:   Mon Dec 4 10:43:11 2017 -0500
  src/runtime/mstats.go      |  4 +---
  src/runtime/race.go        |  6 +++---
  7 files changed, 13 insertions(+), 106 deletions(-)
+
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 93aa56dbd5..a56d9e6925 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -48,7 +48,7 @@ func TestMemStats(t *testing.T) {
+ 	// PauseTotalNs can be 0 if timer resolution is poor.
+ 	fields := map[string][]func(interface{}) error{
+ 		"Alloc": {nz, le(1e10)}, "TotalAlloc": {nz, le(1e11)}, "Sys": {nz, le(1e10)},
+-		"Lookups": {nz, le(1e10)}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
++		"Lookups": {eq(uint64(0))}, "Mallocs": {nz, le(1e10)}, "Frees": {nz, le(1e10)},
+ 		"HeapAlloc": {nz, le(1e10)}, "HeapSys": {nz, le(1e10)}, "HeapIdle": {le(1e10)},
+ 		"HeapInuse": {nz, le(1e10)}, "HeapReleased": {le(1e10)}, "HeapObjects": {nz, le(1e10)},
+ 		"StackInuse": {nz, le(1e10)}, "StackSys": {nz, le(1e10)},
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 8e03505124..5e3a0011d9 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1852,12 +1852,10 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 	}
+ 
+ 	// heap
+-	var n uintptr
+-	var base uintptr
+-	if mlookup(uintptr(p), &base, &n, nil) != 0 {
++	if base, hbits, s, _ := heapBitsForObject(uintptr(p), 0, 0); base != 0 {
++		n := s.elemsize
+ 		mask = make([]byte, n/sys.PtrSize)
+ 		for i := uintptr(0); i < n; i += sys.PtrSize {
+-			hbits := heapBitsForAddr(base + i)
+ 			if hbits.isPointer() {
+ 				mask[i/sys.PtrSize] = 1
+ 			}
+@@ -1865,6 +1863,7 @@ func getgcmask(ep interface{}) (mask []byte) {
+ 				mask = mask[:i/sys.PtrSize]
+ 				break
+ 			}
++			hbits = hbits.next()
+ 		}
+ 		return
+ 	}
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 6c24650dac..d0b007f915 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -39,7 +39,6 @@ type mcache struct {
+ 	stackcache [_NumStackOrders]stackfreelist
+ 
+ 	// Local allocator stats, flushed during GC.
+-	local_nlookup    uintptr                  // number of pointer lookups
+ 	local_largefree  uintptr                  // bytes freed for large objects (>maxsmallsize)
+ 	local_nlargefree uintptr                  // number of frees for large objects (>maxsmallsize)
+ 	local_nsmallfree [_NumSizeClasses]uintptr // number of frees for small objects (<=maxsmallsize)
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index c11a6f15a4..e7ca5d669f 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -326,9 +326,9 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 	}
+ 
+ 	// find the containing object
+-	_, base, _ := findObject(e.data)
++	base, _, _, _ := heapBitsForObject(uintptr(e.data), 0, 0)
+ 
+-	if base == nil {
++	if base == 0 {
+ 		// 0-length objects are okay.
+ 		if e.data == unsafe.Pointer(&zerobase) {
+ 			return
+@@ -353,7 +353,7 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
+-	if e.data != base {
++	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).
+ 		if ot.elem == nil || ot.elem.kind&kindNoPointers == 0 || ot.elem.size >= maxTinySize {
+@@ -421,46 +421,6 @@ okarg:
+ 	})
+ }
+ 
+-// Look up pointer v in heap. Return the span containing the object,
+-// the start of the object, and the size of the object. If the object
+-// does not exist, return nil, nil, 0.
+-func findObject(v unsafe.Pointer) (s *mspan, x unsafe.Pointer, n uintptr) {
+-	c := gomcache()
+-	c.local_nlookup++
+-	if sys.PtrSize == 4 && c.local_nlookup >= 1<<30 {
+-		// purge cache stats to prevent overflow
+-		lock(&mheap_.lock)
+-		purgecachedstats(c)
+-		unlock(&mheap_.lock)
+-	}
+-
+-	// find span
+-	arena_start := mheap_.arena_start
+-	arena_used := mheap_.arena_used
+-	if uintptr(v) < arena_start || uintptr(v) >= arena_used {
+-		return
+-	}
+-	p := uintptr(v) >> pageShift
+-	q := p - arena_start>>pageShift
+-	s = mheap_.spans[q]
+-	if s == nil {
+-		return
+-	}
+-	x = unsafe.Pointer(s.base())
+-
+-	if uintptr(v) < uintptr(x) || uintptr(v) >= uintptr(unsafe.Pointer(s.limit)) || s.state != mSpanInUse {
+-		s = nil
+-		x = nil
+-		return
+-	}
+-
+-	n = s.elemsize
+-	if s.spanclass.sizeclass() != 0 {
+-		x = add(x, (uintptr(v)-uintptr(x))/n*n)
+-	}
+-	return
+-}
+-
+ // Mark KeepAlive as noinline so that it is easily detectable as an intrinsic.
+ //go:noinline
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 12cf29a01d..46f57d272e 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -442,55 +442,6 @@ func spanOfUnchecked(p uintptr) *mspan {
+ 	return mheap_.spans[(p-mheap_.arena_start)>>_PageShift]
+ }
+ 
+-func mlookup(v uintptr, base *uintptr, size *uintptr, sp **mspan) int32 {
+-	_g_ := getg()
+-
+-	_g_.m.mcache.local_nlookup++
+-	if sys.PtrSize == 4 && _g_.m.mcache.local_nlookup >= 1<<30 {
+-		// purge cache stats to prevent overflow
+-		lock(&mheap_.lock)
+-		purgecachedstats(_g_.m.mcache)
+-		unlock(&mheap_.lock)
+-	}
+-
+-	s := mheap_.lookupMaybe(unsafe.Pointer(v))
+-	if sp != nil {
+-		*sp = s
+-	}
+-	if s == nil {
+-		if base != nil {
+-			*base = 0
+-		}
+-		if size != nil {
+-			*size = 0
+-		}
+-		return 0
+-	}
+-
+-	p := s.base()
+-	if s.spanclass.sizeclass() == 0 {
+-		// Large object.
+-		if base != nil {
+-			*base = p
+-		}
+-		if size != nil {
+-			*size = s.npages << _PageShift
+-		}
+-		return 1
+-	}
+-
+-	n := s.elemsize
+-	if base != nil {
+-		i := (v - p) / n
+-		*base = p + i*n
+-	}
+-	if size != nil {
+-		*size = n
+-	}
+-
+-	return 1
+-}
+-
+ // Initialize the heap.
+ func (h *mheap) init(spansStart, spansBytes uintptr) {
+ 	h.treapalloc.init(unsafe.Sizeof(treapNode{}), nil, nil, &memstats.other_sys)
+@@ -1459,12 +1410,12 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 		// situation where it's possible that markrootSpans
+ 		// has already run but mark termination hasn't yet.
+ 		if gcphase != _GCoff {
+-			_, base, _ := findObject(p)
++			base, _, _, _ := heapBitsForObject(uintptr(p), 0, 0)
+ 			mp := acquirem()
+ 			gcw := &mp.p.ptr().gcw
+ 			// Mark everything reachable from the object
+ 			// so it's retained for the finalizer.
+-			scanobject(uintptr(base), gcw)
++			scanobject(base, gcw)
+ 			// Mark the finalizer itself, since the
+ 			// special isn't part of the GC'd heap.
+ 			scanblock(uintptr(unsafe.Pointer(&s.fn)), sys.PtrSize, &oneptrmask[0], gcw)
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index e6f2f0026b..c75ca747d0 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -26,7 +26,7 @@ type mstats struct {
+ 	alloc       uint64 // bytes allocated and not yet freed
+ 	total_alloc uint64 // bytes allocated (even if freed)
+ 	sys         uint64 // bytes obtained from system (should be sum of xxx_sys below, no locking, approximate)
+-	nlookup     uint64 // number of pointer lookups
++	nlookup     uint64 // number of pointer lookups (unused)
+ 	nmalloc     uint64 // number of mallocs
+ 	nfree       uint64 // number of frees
+ 
+@@ -638,8 +638,6 @@ func purgecachedstats(c *mcache) {
+ 	c.local_scan = 0
+ 	memstats.tinyallocs += uint64(c.local_tinyallocs)
+ 	c.local_tinyallocs = 0
+-	memstats.nlookup += uint64(c.local_nlookup)
+-	c.local_nlookup = 0
+ 	h.largefree += uint64(c.local_largefree)
+ 	c.local_largefree = 0
+ 	h.nlargefree += uint64(c.local_nlargefree)
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 2f5713d30e..1d35d2b641 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -187,10 +187,10 @@ type symbolizeDataContext struct {
+ }
+ 
+ func raceSymbolizeData(ctx *symbolizeDataContext) {
+-	if _, x, n := findObject(unsafe.Pointer(ctx.addr)); x != nil {
++	if base, _, span, _ := heapBitsForObject(ctx.addr, 0, 0); base != 0 {
+ 		ctx.heap = 1
+-		ctx.start = uintptr(x)
+-		ctx.size = n
++		ctx.start = base
++		ctx.size = span.elemsize
+ 		ctx.res = 1
+ 	}
+ }

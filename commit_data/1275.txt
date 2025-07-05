@@ -10,10 +10,156 @@ Date:   Thu Dec 4 08:30:54 2008 -0800
     DELTA=53  (44 added, 0 deleted, 9 changed)
     OCL=20404
     CL=20433
-
+---
  src/runtime/Makefile    |  1 +
  src/runtime/proc.c      | 37 ++++++++++++++++++++++++++++++-------
  src/runtime/rt0_amd64.s |  6 +++---
  src/runtime/runtime.h   |  2 ++
  src/runtime/stack.c     | 19 +++++++++++++++++++
  5 files changed, 55 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/Makefile b/src/runtime/Makefile
+index cd1cf28212..da12c2ccb9 100644
+--- a/src/runtime/Makefile
++++ b/src/runtime/Makefile
+@@ -25,6 +25,7 @@ LIBOFILES=\
+ 	print.$O\
+ 	rune.$O\
+ 	proc.$O\
++	stack.$O\
+ 	string.$O\
+ 	symtab.$O\
+ 	sys_file.$O\
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 4a61358dc4..fa30c1eabb 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -567,6 +567,7 @@ oldstack(void)
+ 	Stktop *top;
+ 	uint32 siz2;
+ 	byte *sp;
++	uint64 oldsp, oldpc, oldbase, oldguard;
+ 
+ // printf("oldstack m->cret=%p\n", m->cret);
+ 
+@@ -581,15 +582,36 @@ oldstack(void)
+ 		mcpy(top->oldsp+16, sp, siz2);
+ 	}
+ 
+-	// call  no more functions after this point - stackguard disagrees with SP
+-	m->curg->stackbase = top->oldbase;
+-	m->curg->stackguard = top->oldguard;
+-	m->morestack.SP = top->oldsp+8;
+-	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
+-
++	oldsp = (uint64)top->oldsp + 8;
++	oldpc = *(uint64*)(top->oldsp + 8);
++	oldbase = (uint64)top->oldbase;
++	oldguard = (uint64)top->oldguard;
++
++	stackfree((byte*)m->curg->stackguard - 512 - 160);
++
++	m->curg->stackbase = (byte*)oldbase;
++	m->curg->stackguard = (byte*)oldguard;
++	m->morestack.SP = (byte*)oldsp;
++	m->morestack.PC = (byte*)oldpc;
++
++	// These two lines must happen in sequence;
++	// once g has been changed, must switch to g's stack
++	// before calling any non-assembly functions.
++	// TODO(rsc): Perhaps make the new g a parameter
++	// to gogoret and setspgoto, so that g is never
++	// explicitly assigned to without also setting
++	// the stack pointer.
++	g = m->curg;
+ 	gogoret(&m->morestack, m->cret);
+ }
+ 
++void
++lessstack(void)
++{
++	g = m->g0;
++	setspgoto(m->sched.SP, oldstack, nil);
++}
++
+ void
+ newstack(void)
+ {
+@@ -611,7 +633,7 @@ newstack(void)
+ 
+ 	if(siz1 < 4096)
+ 		siz1 = 4096;
+-	stk = mal(siz1 + 1024);
++	stk = stackalloc(siz1 + 1024);
+ 	stk += 512;
+ 
+ 	top = (Stktop*)(stk+siz1-sizeof(*top));
+@@ -658,3 +680,4 @@ sys·morestack(uint64 u)
+ 
+ 	*(int32*)234 = 123;	// never return
+ }
++
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index ad86c56a59..73e9251210 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -42,7 +42,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	sys·newproc(SB)
+ 	POPQ	AX
+ 	POPQ	AX
+-	
++
+ 	// start this M
+ 	CALL	mstart(SB)
+ 
+@@ -89,10 +89,10 @@ TEXT gosave(SB), 7, $0
+  * support for morestack
+  */
+ 
+-// return point when leaving new stack.  save AX, jmp to oldstack to switch back
++// return point when leaving new stack.  save AX, jmp to lessstack to switch back
+ TEXT retfromnewstack(SB), 7, $0
+ 	MOVQ	AX, 16(R14)	// save AX in m->cret
+-	MOVQ	$oldstack(SB), AX
++	MOVQ	$lessstack(SB), AX
+ 	JMP	AX
+ 
+ // gogo, returning 2nd arg instead of 1
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index e37786e4fb..a0cbac359d 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -277,6 +277,8 @@ G*	malg(int32);
+ void	minit(void);
+ Func*	findfunc(uint64);
+ int32	funcline(Func*, uint64);
++void*	stackalloc(uint32);
++void	stackfree(void*);
+ 
+ /*
+  * mutual exclusion locks.  in the uncontended case,
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+new file mode 100644
+index 0000000000..a4eeedc453
+--- /dev/null
++++ b/src/runtime/stack.c
+@@ -0,0 +1,19 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++
++// Stubs for stack management.
++// In a separate file so they can be overridden during testing of gc.
++
++void*
++stackalloc(uint32 n)
++{
++	return mal(n);
++}
++
++void
++stackfree(void*)
++{
++}

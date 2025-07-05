@@ -7,7 +7,59 @@ Date:   Sun Apr 11 12:42:19 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/901042
-
+---
  src/pkg/exp/eval/Makefile | 6 ++++++
  src/pkg/exp/eval/main.go  | 8 ++++----
  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/exp/eval/Makefile b/src/pkg/exp/eval/Makefile
+index 46445876b0..eac844f1ed 100644
+--- a/src/pkg/exp/eval/Makefile
++++ b/src/pkg/exp/eval/Makefile
+@@ -21,3 +21,9 @@ GOFILES=\
+ 	world.go\
+ 
+ include ../../../Make.pkg
++
++main.$O: main.go $(pkgdir)/$(TARG).a
++	$(QUOTED_GOBIN)/$(GC) $<
++
++eval: main.$O
++	$(QUOTED_GOBIN)/$(LD) -o $@ $<
+diff --git a/src/pkg/exp/eval/main.go b/src/pkg/exp/eval/main.go
+index e7c58ef5b6..6033088a39 100644
+--- a/src/pkg/exp/eval/main.go
++++ b/src/pkg/exp/eval/main.go
+@@ -5,12 +5,12 @@
+ package main
+ 
+ import (
+-	"./_obj/eval"
+ 	"bufio"
++	"exp/eval"
+ 	"flag"
+ 	"go/parser"
+ 	"go/scanner"
+-	"io"
++	"io/ioutil"
+ 	"os"
+ )
+ 
+@@ -25,7 +25,7 @@ func main() {
+ 			println(err.String())
+ 			os.Exit(1)
+ 		}
+-		file, err := parser.ParseFile(*filename, data, 0)
++		file, err := parser.ParseFile(*filename, data, nil, 0)
+ 		if err != nil {
+ 			println(err.String())
+ 			os.Exit(1)
+@@ -41,7 +41,7 @@ func main() {
+ 			}
+ 			os.Exit(1)
+ 		}
+-		_, err := code.Run()
++		_, err = code.Run()
+ 		if err != nil {
+ 			println(err.String())
+ 			os.Exit(1)

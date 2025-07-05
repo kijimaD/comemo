@@ -13,7 +13,43 @@ Date:   Wed Aug 18 14:36:45 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/decl.go | 11 +++++++++++
  test/run.go                            |  2 --
  2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index 429c8a14c8..cec31d87b7 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -97,6 +97,17 @@ func (g *irgen) funcDecl(out *ir.Nodes, decl *syntax.FuncDecl) {
+ 	if fn.Pragma&ir.Systemstack != 0 && fn.Pragma&ir.Nosplit != 0 {
+ 		base.ErrorfAt(fn.Pos(), "go:nosplit and go:systemstack cannot be combined")
+ 	}
++	if fn.Pragma&ir.Nointerface != 0 {
++		// Propagate //go:nointerface from Func.Pragma to Field.Nointerface.
++		// This is a bit roundabout, but this is the earliest point where we've
++		// processed the function's pragma flags, and we've also already created
++		// the Fields to represent the receiver's method set.
++		if recv := fn.Type().Recv(); recv != nil {
++			typ := types.ReceiverBaseType(recv.Type)
++			meth := typecheck.Lookdot1(fn, typecheck.Lookup(decl.Name.Value), typ, typ.Methods(), 0)
++			meth.SetNointerface(true)
++		}
++	}
+ 
+ 	if decl.Name.Value == "init" && decl.Recv == nil {
+ 		g.target.Inits = append(g.target.Inits, fn)
+diff --git a/test/run.go b/test/run.go
+index 5d5adc3623..f5971d2d15 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2180,8 +2180,6 @@ var types2Failures32Bit = setOf(
+ var g3Failures = setOf(
+ 	"writebarrier.go", // correct diagnostics, but different lines (probably irgen's fault)
+ 
+-	"fixedbugs/issue30862.go", // -G=3 doesn't handle //go:nointerface
+-
+ 	"typeparam/nested.go", // -G=3 doesn't support function-local types with generics
+ 
+ 	"typeparam/mdempsky/4.go",  // -G=3 can't export functions with labeled breaks in loops

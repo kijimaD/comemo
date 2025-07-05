@@ -7,6 +7,20 @@ Date:   Thu Sep 30 14:58:29 2010 -0400
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/2329042
-
+---
  src/libcgo/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/libcgo/Makefile b/src/libcgo/Makefile
+index 62f4befaae..0c0f484115 100755
+--- a/src/libcgo/Makefile
++++ b/src/libcgo/Makefile
+@@ -10,7 +10,7 @@ all clean install:
+ 
+ else ifeq ($(GOARCH),arm)
+ 
+-# Nothing for NaCl
++# Nothing for ARM - usually cross compiling anyway
+ all clean install:
+ 	@true
+ 

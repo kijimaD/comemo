@@ -14,6 +14,23 @@ Date:   Wed Mar 17 12:42:19 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/parser/parser.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index ed1867b3b3..b86d6bad46 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -181,7 +181,10 @@ func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
+ 	if ident == nil {
+ 		return
+ 	}
+-	assert(ident.Obj == nil, fmt.Sprintf("identifier %s already declared or resolved", ident.Name))
++	// Don't use assert here, to avoid needless formatting of the message below.
++	if ident.Obj != nil {
++		panic(fmt.Sprintf("identifier %s already declared or resolved", ident.Name))
++	}
+ 	if ident.Name == "_" {
+ 		return
+ 	}

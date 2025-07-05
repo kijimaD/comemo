@@ -10,8 +10,122 @@ Date:   Mon Sep 19 14:55:09 2022 -0400
     Change-Id: Ic28bf884a4e0d2c0a6d8fd04fc29c0c949227f21
     Reviewed-on: https://go-review.googlesource.com/c/go/+/432315
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/coverage/testsupport.go |  9 +++++-
  src/runtime/coverage/ts_test.go     | 58 +++++++++++++++++++++++++++++++++++++
  src/testing/newcover.go             |  7 +++++
  3 files changed, 73 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index 0d0605c0f2..462d06c878 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -13,6 +13,7 @@ import (
+ 	"internal/coverage/decodecounter"
+ 	"internal/coverage/decodemeta"
+ 	"internal/coverage/pods"
++	"io"
+ 	"os"
+ )
+ 
+@@ -21,6 +22,12 @@ import (
+ // intended to be used other than internally by the Go command's
+ // generated code.
+ func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error {
++	return processCoverTestDirInternal(dir, cfile, cm, cpkg, os.Stdout)
++}
++
++// processCoverTestDirInternal is an io.Writer version of processCoverTestDir,
++// exposed for unit testing.
++func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
+ 	cmode := coverage.ParseCounterMode(cm)
+ 	if cmode == coverage.CtrModeInvalid {
+ 		return fmt.Errorf("invalid counter mode %q", cm)
+@@ -80,7 +87,7 @@ func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error
+ 	}
+ 
+ 	// Emit percent.
+-	if err := ts.cf.EmitPercent(os.Stdout, cpkg, true); err != nil {
++	if err := ts.cf.EmitPercent(w, cpkg, true); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/runtime/coverage/ts_test.go b/src/runtime/coverage/ts_test.go
+new file mode 100644
+index 0000000000..b826058a54
+--- /dev/null
++++ b/src/runtime/coverage/ts_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++import (
++	"internal/goexperiment"
++	"os"
++	"path/filepath"
++	"strings"
++	"testing"
++	_ "unsafe"
++)
++
++//go:linkname testing_testGoCoverDir testing.testGoCoverDir
++func testing_testGoCoverDir() string
++
++// TestTestSupport does a basic verification of the functionality in
++// runtime/coverage.processCoverTestDir (doing this here as opposed to
++// relying on other test paths will provide a better signal when
++// running "go test -cover" for this package).
++func TestTestSupport(t *testing.T) {
++	if !goexperiment.CoverageRedesign {
++		return
++	}
++	if testing.CoverMode() == "" {
++		return
++	}
++	t.Logf("testing.testGoCoverDir() returns %s mode=%s\n",
++		testing_testGoCoverDir(), testing.CoverMode())
++
++	textfile := filepath.Join(t.TempDir(), "file.txt")
++	var sb strings.Builder
++	err := processCoverTestDirInternal(testing_testGoCoverDir(), textfile,
++		testing.CoverMode(), "", &sb)
++	if err != nil {
++		t.Fatalf("bad: %v", err)
++	}
++
++	// Check for existence of text file.
++	if inf, err := os.Open(textfile); err != nil {
++		t.Fatalf("problems opening text file %s: %v", textfile, err)
++	} else {
++		inf.Close()
++	}
++
++	// Check for percent output with expected tokens.
++	strout := sb.String()
++	want1 := "runtime/coverage"
++	want2 := "of statements"
++	if !strings.Contains(strout, want1) ||
++		!strings.Contains(strout, want2) {
++		t.Logf("output from run: %s\n", strout)
++		t.Fatalf("percent output missing key tokens: %q and %q",
++			want1, want2)
++	}
++}
+diff --git a/src/testing/newcover.go b/src/testing/newcover.go
+index e90b9c9805..1805f791e6 100644
+--- a/src/testing/newcover.go
++++ b/src/testing/newcover.go
+@@ -39,3 +39,10 @@ func coverReport2() {
+ 		os.Exit(2)
+ 	}
+ }
++
++// testGoCoverDir returns the value passed to the -test.gocoverdir
++// flag by the Go command, if goexperiment.CoverageRedesign is
++// in effect.
++func testGoCoverDir() string {
++	return *gocoverdir
++}

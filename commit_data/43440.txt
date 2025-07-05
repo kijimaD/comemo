@@ -19,6 +19,30 @@ Date:   Fri Apr 3 18:57:46 2020 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/flag/flag_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index a7450f3f48..a01a5e4cea 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
++	"runtime"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -599,6 +600,10 @@ func TestExitCode(t *testing.T) {
+ 		)
+ 		cmd.Run()
+ 		got := cmd.ProcessState.ExitCode()
++		// ExitCode is either 0 or 1 on Plan 9.
++		if runtime.GOOS == "plan9" && test.expectExit != 0 {
++			test.expectExit = 1
++		}
+ 		if got != test.expectExit {
+ 			t.Errorf("unexpected exit code for test case %+v \n: got %d, expect %d",
+ 				test, got, test.expectExit)

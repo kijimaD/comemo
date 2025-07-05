@@ -12,6 +12,21 @@ Date:   Wed Aug 12 10:21:41 2015 -0700
     Change-Id: I58daaba755f3d34a0396005046b89411a02ada7e
     Reviewed-on: https://go-review.googlesource.com/13584
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/opnames.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index 9134bd4332..d5183234b9 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -159,5 +159,9 @@ var opnames = []string{
+ 	OLROT:            "LROT",
+ 	ORROTC:           "RROTC",
+ 	ORETJMP:          "RETJMP",
++	OPS:              "OPS",
++	OPC:              "OPC",
++	OSQRT:            "OSQRT",
++	OGETG:            "OGETG",
+ 	OEND:             "END",
+ }

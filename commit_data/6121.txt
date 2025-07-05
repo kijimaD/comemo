@@ -7,7 +7,32 @@ Date:   Sat Aug 28 07:52:22 2010 +1000
     R=gri
     CC=James Fysh, golang-dev
     https://golang.org/cl/2043042
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 1560f76d16..a95f6829ff 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -46,6 +46,7 @@ Gustavo Niemeyer <gustavo@niemeyer.net>
+ Hector Chu <hectorchu@gmail.com>
+ Icarus Sparry <golang@icarus.freeuk.com>
+ Isaac Wagner <ibw@isaacwagner.me>
++James Fysh <james.fysh@gmail.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 901fb8f84e..043696f8bb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -83,6 +83,7 @@ Isaac Wagner <ibw@isaacwagner.me>
+ Ivan Krasin <krasin@golang.org>
+ Jacob Baskin <jbaskin@google.com>
+ James Aguilar <jaguilar@google.com>
++James Fysh <james.fysh@gmail.com>
+ James Meneghello <rawrz0r@gmail.com>
+ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>

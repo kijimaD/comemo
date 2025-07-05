@@ -23,7 +23,7 @@ Date:   Wed Apr 21 10:55:42 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go       |   7 --
  src/cmd/compile/internal/ssa/copyelim.go     |   2 +-
  src/cmd/compile/internal/ssa/deadcode.go     |   8 +-
@@ -37,3 +37,885 @@ Date:   Wed Apr 21 10:55:42 2021 -0400
  src/cmd/compile/internal/ssa/stackalloc.go   |  11 ++-
  src/cmd/compile/internal/ssagen/ssa.go       |  80 +--------------
  12 files changed, 238 insertions(+), 220 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 4ffa047096..a8393a1999 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -147,13 +147,6 @@ type Frontend interface {
+ 
+ 	// Given the name for a compound type, returns the name we should use
+ 	// for the parts of that compound type.
+-	SplitString(LocalSlot) (LocalSlot, LocalSlot)
+-	SplitInterface(LocalSlot) (LocalSlot, LocalSlot)
+-	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
+-	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
+-	SplitStruct(LocalSlot, int) LocalSlot
+-	SplitArray(LocalSlot) LocalSlot              // array must be length 1
+-	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+ 	SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot
+ 
+ 	// DerefItab dereferences an itab function
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 5954d3bec8..17f65127ee 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -26,7 +26,7 @@ func copyelim(f *Func) {
+ 
+ 	// Update named values.
+ 	for _, name := range f.Names {
+-		values := f.NamedValues[name]
++		values := f.NamedValues[*name]
+ 		for i, v := range values {
+ 			if v.Op == OpCopy {
+ 				values[i] = v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index 96b552ecf3..5d10dfe025 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -223,7 +223,7 @@ func deadcode(f *Func) {
+ 	for _, name := range f.Names {
+ 		j := 0
+ 		s.clear()
+-		values := f.NamedValues[name]
++		values := f.NamedValues[*name]
+ 		for _, v := range values {
+ 			if live[v.ID] && !s.contains(v.ID) {
+ 				values[j] = v
+@@ -232,19 +232,19 @@ func deadcode(f *Func) {
+ 			}
+ 		}
+ 		if j == 0 {
+-			delete(f.NamedValues, name)
++			delete(f.NamedValues, *name)
+ 		} else {
+ 			f.Names[i] = name
+ 			i++
+ 			for k := len(values) - 1; k >= j; k-- {
+ 				values[k] = nil
+ 			}
+-			f.NamedValues[name] = values[:j]
++			f.NamedValues[*name] = values[:j]
+ 		}
+ 	}
+ 	clearNames := f.Names[i:]
+ 	for j := range clearNames {
+-		clearNames[j] = LocalSlot{}
++		clearNames[j] = nil
+ 	}
+ 	f.Names = f.Names[:i]
+ 
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 0ca435e515..a2c2a2d98e 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -367,12 +367,12 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 	state.slots = state.slots[:0]
+ 	state.vars = state.vars[:0]
+ 	for i, slot := range f.Names {
+-		state.slots = append(state.slots, slot)
++		state.slots = append(state.slots, *slot)
+ 		if ir.IsSynthetic(slot.N) {
+ 			continue
+ 		}
+ 
+-		topSlot := &slot
++		topSlot := slot
+ 		for topSlot.SplitOf != nil {
+ 			topSlot = topSlot.SplitOf
+ 		}
+@@ -436,7 +436,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingEnabled bool, stackOffset fu
+ 		if ir.IsSynthetic(slot.N) {
+ 			continue
+ 		}
+-		for _, value := range f.NamedValues[slot] {
++		for _, value := range f.NamedValues[*slot] {
+ 			state.valueNames[value.ID] = append(state.valueNames[value.ID], SlotID(i))
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index ba48b6b3b9..753d69cebc 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -36,64 +36,65 @@ func decomposeBuiltIn(f *Func) {
+ 	// accumulate new LocalSlots in newNames for addition after the iteration.  This decomposition is for
+ 	// builtin types with leaf components, and thus there is no need to reprocess the newly create LocalSlots.
+ 	var toDelete []namedVal
+-	var newNames []LocalSlot
++	var newNames []*LocalSlot
+ 	for i, name := range f.Names {
+ 		t := name.Type
+ 		switch {
+ 		case t.IsInteger() && t.Size() > f.Config.RegSize:
+-			hiName, loName := f.fe.SplitInt64(name)
+-			newNames = append(newNames, hiName, loName)
+-			for j, v := range f.NamedValues[name] {
++			hiName, loName := f.SplitInt64(name)
++			newNames = maybeAppend2(f, newNames, hiName, loName)
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op != OpInt64Make {
+ 					continue
+ 				}
+-				f.NamedValues[hiName] = append(f.NamedValues[hiName], v.Args[0])
+-				f.NamedValues[loName] = append(f.NamedValues[loName], v.Args[1])
++				f.NamedValues[*hiName] = append(f.NamedValues[*hiName], v.Args[0])
++				f.NamedValues[*loName] = append(f.NamedValues[*loName], v.Args[1])
+ 				toDelete = append(toDelete, namedVal{i, j})
+ 			}
+ 		case t.IsComplex():
+-			rName, iName := f.fe.SplitComplex(name)
+-			newNames = append(newNames, rName, iName)
+-			for j, v := range f.NamedValues[name] {
++			rName, iName := f.SplitComplex(name)
++			newNames = maybeAppend2(f, newNames, rName, iName)
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op != OpComplexMake {
+ 					continue
+ 				}
+-				f.NamedValues[rName] = append(f.NamedValues[rName], v.Args[0])
+-				f.NamedValues[iName] = append(f.NamedValues[iName], v.Args[1])
++				f.NamedValues[*rName] = append(f.NamedValues[*rName], v.Args[0])
++				f.NamedValues[*iName] = append(f.NamedValues[*iName], v.Args[1])
+ 				toDelete = append(toDelete, namedVal{i, j})
+ 			}
+ 		case t.IsString():
+-			ptrName, lenName := f.fe.SplitString(name)
+-			newNames = append(newNames, ptrName, lenName)
+-			for j, v := range f.NamedValues[name] {
++			ptrName, lenName := f.SplitString(name)
++			newNames = maybeAppend2(f, newNames, ptrName, lenName)
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op != OpStringMake {
+ 					continue
+ 				}
+-				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], v.Args[0])
+-				f.NamedValues[lenName] = append(f.NamedValues[lenName], v.Args[1])
++				f.NamedValues[*ptrName] = append(f.NamedValues[*ptrName], v.Args[0])
++				f.NamedValues[*lenName] = append(f.NamedValues[*lenName], v.Args[1])
+ 				toDelete = append(toDelete, namedVal{i, j})
+ 			}
+ 		case t.IsSlice():
+-			ptrName, lenName, capName := f.fe.SplitSlice(name)
+-			newNames = append(newNames, ptrName, lenName, capName)
+-			for j, v := range f.NamedValues[name] {
++			ptrName, lenName, capName := f.SplitSlice(name)
++			newNames = maybeAppend2(f, newNames, ptrName, lenName)
++			newNames = maybeAppend(f, newNames, capName)
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op != OpSliceMake {
+ 					continue
+ 				}
+-				f.NamedValues[ptrName] = append(f.NamedValues[ptrName], v.Args[0])
+-				f.NamedValues[lenName] = append(f.NamedValues[lenName], v.Args[1])
+-				f.NamedValues[capName] = append(f.NamedValues[capName], v.Args[2])
++				f.NamedValues[*ptrName] = append(f.NamedValues[*ptrName], v.Args[0])
++				f.NamedValues[*lenName] = append(f.NamedValues[*lenName], v.Args[1])
++				f.NamedValues[*capName] = append(f.NamedValues[*capName], v.Args[2])
+ 				toDelete = append(toDelete, namedVal{i, j})
+ 			}
+ 		case t.IsInterface():
+-			typeName, dataName := f.fe.SplitInterface(name)
+-			newNames = append(newNames, typeName, dataName)
+-			for j, v := range f.NamedValues[name] {
++			typeName, dataName := f.SplitInterface(name)
++			newNames = maybeAppend2(f, newNames, typeName, dataName)
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op != OpIMake {
+ 					continue
+ 				}
+-				f.NamedValues[typeName] = append(f.NamedValues[typeName], v.Args[0])
+-				f.NamedValues[dataName] = append(f.NamedValues[dataName], v.Args[1])
++				f.NamedValues[*typeName] = append(f.NamedValues[*typeName], v.Args[0])
++				f.NamedValues[*dataName] = append(f.NamedValues[*dataName], v.Args[1])
+ 				toDelete = append(toDelete, namedVal{i, j})
+ 			}
+ 		case t.IsFloat():
+@@ -107,6 +108,18 @@ func decomposeBuiltIn(f *Func) {
+ 	f.Names = append(f.Names, newNames...)
+ }
+ 
++func maybeAppend(f *Func, ss []*LocalSlot, s *LocalSlot) []*LocalSlot {
++	if _, ok := f.NamedValues[*s]; !ok {
++		f.NamedValues[*s] = nil
++		return append(ss, s)
++	}
++	return ss
++}
++
++func maybeAppend2(f *Func, ss []*LocalSlot, s1, s2 *LocalSlot) []*LocalSlot {
++	return maybeAppend(f, maybeAppend(f, ss, s1), s2)
++}
++
+ func decomposeBuiltInPhi(v *Value) {
+ 	switch {
+ 	case v.Type.IsInteger() && v.Type.Size() > v.Block.Func.Config.RegSize:
+@@ -230,7 +243,7 @@ func decomposeUser(f *Func) {
+ 	}
+ 	// Split up named values into their components.
+ 	i := 0
+-	var newNames []LocalSlot
++	var newNames []*LocalSlot
+ 	for _, name := range f.Names {
+ 		t := name.Type
+ 		switch {
+@@ -250,7 +263,7 @@ func decomposeUser(f *Func) {
+ // decomposeUserArrayInto creates names for the element(s) of arrays referenced
+ // by name where possible, and appends those new names to slots, which is then
+ // returned.
+-func decomposeUserArrayInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalSlot {
++func decomposeUserArrayInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*LocalSlot {
+ 	t := name.Type
+ 	if t.NumElem() == 0 {
+ 		// TODO(khr): Not sure what to do here.  Probably nothing.
+@@ -261,20 +274,20 @@ func decomposeUserArrayInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalS
+ 		// shouldn't get here due to CanSSA
+ 		f.Fatalf("array not of size 1")
+ 	}
+-	elemName := f.fe.SplitArray(name)
++	elemName := f.SplitArray(name)
+ 	var keep []*Value
+-	for _, v := range f.NamedValues[name] {
++	for _, v := range f.NamedValues[*name] {
+ 		if v.Op != OpArrayMake1 {
+ 			keep = append(keep, v)
+ 			continue
+ 		}
+-		f.NamedValues[elemName] = append(f.NamedValues[elemName], v.Args[0])
++		f.NamedValues[*elemName] = append(f.NamedValues[*elemName], v.Args[0])
+ 	}
+ 	if len(keep) == 0 {
+ 		// delete the name for the array as a whole
+-		delete(f.NamedValues, name)
++		delete(f.NamedValues, *name)
+ 	} else {
+-		f.NamedValues[name] = keep
++		f.NamedValues[*name] = keep
+ 	}
+ 
+ 	if t.Elem().IsArray() {
+@@ -289,38 +302,38 @@ func decomposeUserArrayInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalS
+ // decomposeUserStructInto creates names for the fields(s) of structs referenced
+ // by name where possible, and appends those new names to slots, which is then
+ // returned.
+-func decomposeUserStructInto(f *Func, name LocalSlot, slots []LocalSlot) []LocalSlot {
+-	fnames := []LocalSlot{} // slots for struct in name
++func decomposeUserStructInto(f *Func, name *LocalSlot, slots []*LocalSlot) []*LocalSlot {
++	fnames := []*LocalSlot{} // slots for struct in name
+ 	t := name.Type
+ 	n := t.NumFields()
+ 
+ 	for i := 0; i < n; i++ {
+-		fs := f.fe.SplitStruct(name, i)
++		fs := f.SplitStruct(name, i)
+ 		fnames = append(fnames, fs)
+ 		// arrays and structs will be decomposed further, so
+ 		// there's no need to record a name
+ 		if !fs.Type.IsArray() && !fs.Type.IsStruct() {
+-			slots = append(slots, fs)
++			slots = maybeAppend(f, slots, fs)
+ 		}
+ 	}
+ 
+ 	makeOp := StructMakeOp(n)
+ 	var keep []*Value
+ 	// create named values for each struct field
+-	for _, v := range f.NamedValues[name] {
++	for _, v := range f.NamedValues[*name] {
+ 		if v.Op != makeOp {
+ 			keep = append(keep, v)
+ 			continue
+ 		}
+ 		for i := 0; i < len(fnames); i++ {
+-			f.NamedValues[fnames[i]] = append(f.NamedValues[fnames[i]], v.Args[i])
++			f.NamedValues[*fnames[i]] = append(f.NamedValues[*fnames[i]], v.Args[i])
+ 		}
+ 	}
+ 	if len(keep) == 0 {
+ 		// delete the name for the struct as a whole
+-		delete(f.NamedValues, name)
++		delete(f.NamedValues, *name)
+ 	} else {
+-		f.NamedValues[name] = keep
++		f.NamedValues[*name] = keep
+ 	}
+ 
+ 	// now that this f.NamedValues contains values for the struct
+@@ -328,10 +341,10 @@ func decomposeUserStructInto(f *Func, name LocalSlot, slots []LocalSlot) []Local
+ 	for i := 0; i < n; i++ {
+ 		if name.Type.FieldType(i).IsStruct() {
+ 			slots = decomposeUserStructInto(f, fnames[i], slots)
+-			delete(f.NamedValues, fnames[i])
++			delete(f.NamedValues, *fnames[i])
+ 		} else if name.Type.FieldType(i).IsArray() {
+ 			slots = decomposeUserArrayInto(f, fnames[i], slots)
+-			delete(f.NamedValues, fnames[i])
++			delete(f.NamedValues, *fnames[i])
+ 		}
+ 	}
+ 	return slots
+@@ -416,9 +429,10 @@ type namedVal struct {
+ 	locIndex, valIndex int // f.NamedValues[f.Names[locIndex]][valIndex] = key
+ }
+ 
+-// deleteNamedVals removes particular values with debugger names from f's naming data structures
++// deleteNamedVals removes particular values with debugger names from f's naming data structures,
++// removes all values with OpInvalid, and re-sorts the list of Names.
+ func deleteNamedVals(f *Func, toDelete []namedVal) {
+-	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalid pending indices.
++	// Arrange to delete from larger indices to smaller, to ensure swap-with-end deletion does not invalidate pending indices.
+ 	sort.Slice(toDelete, func(i, j int) bool {
+ 		if toDelete[i].locIndex != toDelete[j].locIndex {
+ 			return toDelete[i].locIndex > toDelete[j].locIndex
+@@ -430,16 +444,36 @@ func deleteNamedVals(f *Func, toDelete []namedVal) {
+ 	// Get rid of obsolete names
+ 	for _, d := range toDelete {
+ 		loc := f.Names[d.locIndex]
+-		vals := f.NamedValues[loc]
++		vals := f.NamedValues[*loc]
+ 		l := len(vals) - 1
+ 		if l > 0 {
+ 			vals[d.valIndex] = vals[l]
+-			f.NamedValues[loc] = vals[:l]
+-		} else {
+-			delete(f.NamedValues, loc)
+-			l = len(f.Names) - 1
+-			f.Names[d.locIndex] = f.Names[l]
+-			f.Names = f.Names[:l]
++		}
++		vals[l] = nil
++		f.NamedValues[*loc] = vals[:l]
++	}
++	// Delete locations with no values attached.
++	end := len(f.Names)
++	for i := len(f.Names) - 1; i >= 0; i-- {
++		loc := f.Names[i]
++		vals := f.NamedValues[*loc]
++		last := len(vals)
++		for j := len(vals) - 1; j >= 0; j-- {
++			if vals[j].Op == OpInvalid {
++				last--
++				vals[j] = vals[last]
++				vals[last] = nil
++			}
++		}
++		if last < len(vals) {
++			f.NamedValues[*loc] = vals[:last]
++		}
++		if len(vals) == 0 {
++			delete(f.NamedValues, *loc)
++			end--
++			f.Names[i] = f.Names[end]
++			f.Names[end] = nil
+ 		}
+ 	}
++	f.Names = f.Names[:end]
+ }
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 2852753bee..d37d06f8e7 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -243,10 +243,10 @@ func (x *expandState) offsetFrom(b *Block, from *Value, offset int64, pt *types.
+ }
+ 
+ // splitSlots splits one "field" (specified by sfx, offset, and ty) out of the LocalSlots in ls and returns the new LocalSlots this generates.
+-func (x *expandState) splitSlots(ls []LocalSlot, sfx string, offset int64, ty *types.Type) []LocalSlot {
+-	var locs []LocalSlot
++func (x *expandState) splitSlots(ls []*LocalSlot, sfx string, offset int64, ty *types.Type) []*LocalSlot {
++	var locs []*LocalSlot
+ 	for i := range ls {
+-		locs = append(locs, x.f.fe.SplitSlot(&ls[i], sfx, offset, ty))
++		locs = append(locs, x.f.SplitSlot(ls[i], sfx, offset, ty))
+ 	}
+ 	return locs
+ }
+@@ -301,13 +301,13 @@ func (x *expandState) Printf(format string, a ...interface{}) (n int, err error)
+ // It emits the code necessary to implement the leaf select operation that leads to the root.
+ //
+ // TODO when registers really arrive, must also decompose anything split across two registers or registers and memory.
+-func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []LocalSlot {
++func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64, regOffset Abi1RO) []*LocalSlot {
+ 	if x.debug {
+ 		x.indent(3)
+ 		defer x.indent(-3)
+ 		x.Printf("rewriteSelect(%s; %s; memOff=%d; regOff=%d)\n", leaf.LongString(), selector.LongString(), offset, regOffset)
+ 	}
+-	var locs []LocalSlot
++	var locs []*LocalSlot
+ 	leafType := leaf.Type
+ 	if len(selector.Args) > 0 {
+ 		w := selector.Args[0]
+@@ -477,7 +477,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 
+ 	case OpStructSelect:
+ 		w := selector.Args[0]
+-		var ls []LocalSlot
++		var ls []*LocalSlot
+ 		if w.Type.Kind() != types.TSTRUCT { // IData artifact
+ 			ls = x.rewriteSelect(leaf, w, offset, regOffset)
+ 		} else {
+@@ -485,7 +485,7 @@ func (x *expandState) rewriteSelect(leaf *Value, selector *Value, offset int64,
+ 			ls = x.rewriteSelect(leaf, w, offset+w.Type.FieldOff(fldi), regOffset+x.regOffset(w.Type, fldi))
+ 			if w.Op != OpIData {
+ 				for _, l := range ls {
+-					locs = append(locs, x.f.fe.SplitStruct(l, int(selector.AuxInt)))
++					locs = append(locs, x.f.SplitStruct(l, int(selector.AuxInt)))
+ 				}
+ 			}
+ 		}
+@@ -662,7 +662,7 @@ outer:
+ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t *types.Type, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+ 
+ 	pa := x.prAssignForArg(source)
+-	var locs []LocalSlot
++	var locs []*LocalSlot
+ 	for _, s := range x.namedSelects[source] {
+ 		locs = append(locs, x.f.Names[s.locIndex])
+ 	}
+@@ -756,12 +756,15 @@ func (x *expandState) decomposeArg(pos src.XPos, b *Block, source, mem *Value, t
+ 	return nil
+ }
+ 
+-func (x *expandState) splitSlotsIntoNames(locs []LocalSlot, suffix string, off int64, rt *types.Type, w *Value) {
++func (x *expandState) splitSlotsIntoNames(locs []*LocalSlot, suffix string, off int64, rt *types.Type, w *Value) {
+ 	wlocs := x.splitSlots(locs, suffix, off, rt)
+ 	for _, l := range wlocs {
+-		x.f.NamedValues[l] = append(x.f.NamedValues[l], w)
++		old, ok := x.f.NamedValues[*l]
++		x.f.NamedValues[*l] = append(old, w)
++		if !ok {
++			x.f.Names = append(x.f.Names, l)
++		}
+ 	}
+-	x.f.Names = append(x.f.Names, wlocs...)
+ }
+ 
+ // decomposeLoad is a helper for storeArgOrLoad.
+@@ -826,7 +829,7 @@ func (x *expandState) decomposeLoad(pos src.XPos, b *Block, source, mem *Value,
+ // storeOneArg creates a decomposed (one step) arg that is then stored.
+ // pos and b locate the store instruction, source is the "base" of the value input,
+ // mem is the input mem, t is the type in question, and offArg and offStore are the offsets from the respective bases.
+-func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []LocalSlot, suffix string, source, mem *Value, t *types.Type, argOffset, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
++func storeOneArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suffix string, source, mem *Value, t *types.Type, argOffset, storeOffset int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+ 	if x.debug {
+ 		x.indent(3)
+ 		defer x.indent(-3)
+@@ -848,7 +851,7 @@ func storeOneLoad(x *expandState, pos src.XPos, b *Block, source, mem *Value, t
+ 	return x.storeArgOrLoad(pos, b, w, mem, t, offStore, loadRegOffset, storeRc)
+ }
+ 
+-func storeTwoArg(x *expandState, pos src.XPos, b *Block, locs []LocalSlot, suffix1 string, suffix2 string, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
++func storeTwoArg(x *expandState, pos src.XPos, b *Block, locs []*LocalSlot, suffix1 string, suffix2 string, source, mem *Value, t1, t2 *types.Type, offArg, offStore int64, loadRegOffset Abi1RO, storeRc registerCursor) *Value {
+ 	mem = storeOneArg(x, pos, b, locs, suffix1, source, mem, t1, offArg, offStore, loadRegOffset, storeRc.next(t1))
+ 	pos = pos.WithNotStmt()
+ 	t1Size := t1.Size()
+@@ -1168,7 +1171,7 @@ func expandCalls(f *Func) {
+ 	for i, name := range f.Names {
+ 		t := name.Type
+ 		if x.isAlreadyExpandedAggregateType(t) {
+-			for j, v := range f.NamedValues[name] {
++			for j, v := range f.NamedValues[*name] {
+ 				if v.Op == OpSelectN || v.Op == OpArg && x.isAlreadyExpandedAggregateType(v.Type) {
+ 					ns := x.namedSelects[v]
+ 					x.namedSelects[v] = append(ns, namedVal{locIndex: i, valIndex: j})
+@@ -1477,10 +1480,10 @@ func expandCalls(f *Func) {
+ 		// Leaf types may have debug locations
+ 		if !x.isAlreadyExpandedAggregateType(v.Type) {
+ 			for _, l := range locs {
+-				if _, ok := f.NamedValues[l]; !ok {
++				if _, ok := f.NamedValues[*l]; !ok {
+ 					f.Names = append(f.Names, l)
+ 				}
+-				f.NamedValues[l] = append(f.NamedValues[l], v)
++				f.NamedValues[*l] = append(f.NamedValues[*l], v)
+ 			}
+ 			continue
+ 		}
+@@ -1553,7 +1556,7 @@ func expandCalls(f *Func) {
+ 	// Step 6: elide any copies introduced.
+ 	// Update named values.
+ 	for _, name := range f.Names {
+-		values := f.NamedValues[name]
++		values := f.NamedValues[*name]
+ 		for i, v := range values {
+ 			if v.Op == OpCopy {
+ 				a := v.Args[0]
+@@ -1725,7 +1728,8 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 		loc := LocalSlot{N: aux.Name, Type: t, Off: 0}
+ 		values, ok := x.f.NamedValues[loc]
+ 		if !ok {
+-			x.f.Names = append(x.f.Names, loc)
++			ploc := x.f.localSlotAddr(loc)
++			x.f.Names = append(x.f.Names, ploc)
+ 		}
+ 		x.f.NamedValues[loc] = append(values, w)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 32e6d09d1b..8ed8a0c4a6 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -73,36 +73,6 @@ func (TestFrontend) Auto(pos src.XPos, t *types.Type) *ir.Name {
+ 	n.Class = ir.PAUTO
+ 	return n
+ }
+-func (d TestFrontend) SplitString(s LocalSlot) (LocalSlot, LocalSlot) {
+-	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8}
+-}
+-func (d TestFrontend) SplitInterface(s LocalSlot) (LocalSlot, LocalSlot) {
+-	return LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.BytePtr, Off: s.Off + 8}
+-}
+-func (d TestFrontend) SplitSlice(s LocalSlot) (LocalSlot, LocalSlot, LocalSlot) {
+-	return LocalSlot{N: s.N, Type: s.Type.Elem().PtrTo(), Off: s.Off},
+-		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 8},
+-		LocalSlot{N: s.N, Type: testTypes.Int, Off: s.Off + 16}
+-}
+-func (d TestFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
+-	if s.Type.Size() == 16 {
+-		return LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float64, Off: s.Off + 8}
+-	}
+-	return LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off}, LocalSlot{N: s.N, Type: testTypes.Float32, Off: s.Off + 4}
+-}
+-func (d TestFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
+-	if s.Type.IsSigned() {
+-		return LocalSlot{N: s.N, Type: testTypes.Int32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
+-	}
+-	return LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off + 4}, LocalSlot{N: s.N, Type: testTypes.UInt32, Off: s.Off}
+-}
+-func (d TestFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+-	return LocalSlot{N: s.N, Type: s.Type.FieldType(i), Off: s.Off + s.Type.FieldOff(i)}
+-}
+-func (d TestFrontend) SplitArray(s LocalSlot) LocalSlot {
+-	return LocalSlot{N: s.N, Type: s.Type.Elem(), Off: s.Off}
+-}
+-
+ func (d TestFrontend) SplitSlot(parent *LocalSlot, suffix string, offset int64, t *types.Type) LocalSlot {
+ 	return LocalSlot{N: parent.N, Type: t, Off: offset}
+ }
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 378a73a95a..fac876c23e 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/abi"
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ 	"crypto/sha1"
+@@ -61,7 +62,11 @@ type Func struct {
+ 	NamedValues map[LocalSlot][]*Value
+ 	// Names is a copy of NamedValues.Keys. We keep a separate list
+ 	// of keys to make iteration order deterministic.
+-	Names []LocalSlot
++	Names []*LocalSlot
++	// Canonicalize root/top-level local slots, and canonicalize their pieces.
++	// Because LocalSlot pieces refer to their parents with a pointer, this ensures that equivalent slots really are equal.
++	CanonicalLocalSlots  map[LocalSlot]*LocalSlot
++	CanonicalLocalSplits map[LocalSlotSplitKey]*LocalSlot
+ 
+ 	// RegArgs is a slice of register-memory pairs that must be spilled and unspilled in the uncommon path of function entry.
+ 	RegArgs []Spill
+@@ -87,10 +92,16 @@ type Func struct {
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+ 
++type LocalSlotSplitKey struct {
++	parent *LocalSlot
++	Off    int64       // offset of slot in N
++	Type   *types.Type // type of slot
++}
++
+ // NewFunc returns a new, empty function object.
+ // Caller must set f.Config and f.Cache before using f.
+ func NewFunc(fe Frontend) *Func {
+-	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value)}
++	return &Func{fe: fe, NamedValues: make(map[LocalSlot][]*Value), CanonicalLocalSlots: make(map[LocalSlot]*LocalSlot), CanonicalLocalSplits: make(map[LocalSlotSplitKey]*LocalSlot)}
+ }
+ 
+ // NumBlocks returns an integer larger than the id of any Block in the Func.
+@@ -193,6 +204,101 @@ func (f *Func) retDeadcodeLiveOrderStmts(liveOrderStmts []*Value) {
+ 	f.Cache.deadcode.liveOrderStmts = liveOrderStmts
+ }
+ 
++func (f *Func) localSlotAddr(slot LocalSlot) *LocalSlot {
++	a, ok := f.CanonicalLocalSlots[slot]
++	if !ok {
++		a = new(LocalSlot)
++		*a = slot // don't escape slot
++		f.CanonicalLocalSlots[slot] = a
++	}
++	return a
++}
++
++func (f *Func) SplitString(name *LocalSlot) (*LocalSlot, *LocalSlot) {
++	ptrType := types.NewPtr(types.Types[types.TUINT8])
++	lenType := types.Types[types.TINT]
++	// Split this string up into two separate variables.
++	p := f.SplitSlot(name, ".ptr", 0, ptrType)
++	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
++	return p, l
++}
++
++func (f *Func) SplitInterface(name *LocalSlot) (*LocalSlot, *LocalSlot) {
++	n := name.N
++	u := types.Types[types.TUINTPTR]
++	t := types.NewPtr(types.Types[types.TUINT8])
++	// Split this interface up into two separate variables.
++	sfx := ".itab"
++	if n.Type().IsEmptyInterface() {
++		sfx = ".type"
++	}
++	c := f.SplitSlot(name, sfx, 0, u) // see comment in typebits.Set
++	d := f.SplitSlot(name, ".data", u.Size(), t)
++	return c, d
++}
++
++func (f *Func) SplitSlice(name *LocalSlot) (*LocalSlot, *LocalSlot, *LocalSlot) {
++	ptrType := types.NewPtr(name.Type.Elem())
++	lenType := types.Types[types.TINT]
++	p := f.SplitSlot(name, ".ptr", 0, ptrType)
++	l := f.SplitSlot(name, ".len", ptrType.Size(), lenType)
++	c := f.SplitSlot(name, ".cap", ptrType.Size()+lenType.Size(), lenType)
++	return p, l, c
++}
++
++func (f *Func) SplitComplex(name *LocalSlot) (*LocalSlot, *LocalSlot) {
++	s := name.Type.Size() / 2
++	var t *types.Type
++	if s == 8 {
++		t = types.Types[types.TFLOAT64]
++	} else {
++		t = types.Types[types.TFLOAT32]
++	}
++	r := f.SplitSlot(name, ".real", 0, t)
++	i := f.SplitSlot(name, ".imag", t.Size(), t)
++	return r, i
++}
++
++func (f *Func) SplitInt64(name *LocalSlot) (*LocalSlot, *LocalSlot) {
++	var t *types.Type
++	if name.Type.IsSigned() {
++		t = types.Types[types.TINT32]
++	} else {
++		t = types.Types[types.TUINT32]
++	}
++	if f.Config.BigEndian {
++		return f.SplitSlot(name, ".hi", 0, t), f.SplitSlot(name, ".lo", t.Size(), types.Types[types.TUINT32])
++	}
++	return f.SplitSlot(name, ".hi", t.Size(), t), f.SplitSlot(name, ".lo", 0, types.Types[types.TUINT32])
++}
++
++func (f *Func) SplitStruct(name *LocalSlot, i int) *LocalSlot {
++	st := name.Type
++	return f.SplitSlot(name, st.FieldName(i), st.FieldOff(i), st.FieldType(i))
++}
++func (f *Func) SplitArray(name *LocalSlot) *LocalSlot {
++	n := name.N
++	at := name.Type
++	if at.NumElem() != 1 {
++		base.FatalfAt(n.Pos(), "bad array size")
++	}
++	et := at.Elem()
++	return f.SplitSlot(name, "[0]", 0, et)
++}
++
++func (f *Func) SplitSlot(name *LocalSlot, sfx string, offset int64, t *types.Type) *LocalSlot {
++	lssk := LocalSlotSplitKey{name, offset, t}
++	if als, ok := f.CanonicalLocalSplits[lssk]; ok {
++		return als
++	}
++	// Note: the _ field may appear several times.  But
++	// have no fear, identically-named but distinct Autos are
++	// ok, albeit maybe confusing for a debugger.
++	ls := f.fe.SplitSlot(name, sfx, offset, t)
++	f.CanonicalLocalSplits[lssk] = &ls
++	return &ls
++}
++
+ // newValue allocates a new Value with the given fields and places it at the end of b.Values.
+ func (f *Func) newValue(op Op, t *types.Type, b *Block, pos src.XPos) *Value {
+ 	var v *Value
+diff --git a/src/cmd/compile/internal/ssa/layout.go b/src/cmd/compile/internal/ssa/layout.go
+index a7fd73aead..6abdb0d0c9 100644
+--- a/src/cmd/compile/internal/ssa/layout.go
++++ b/src/cmd/compile/internal/ssa/layout.go
+@@ -12,26 +12,10 @@ func layout(f *Func) {
+ }
+ 
+ // Register allocation may use a different order which has constraints
+-// imposed by the linear-scan algorithm. Note that f.pass here is
+-// regalloc, so the switch is conditional on -d=ssa/regalloc/test=N
++// imposed by the linear-scan algorithm.
+ func layoutRegallocOrder(f *Func) []*Block {
+-
+-	switch f.pass.test {
+-	case 0: // layout order
+-		return layoutOrder(f)
+-	case 1: // existing block order
+-		return f.Blocks
+-	case 2: // reverse of postorder; legal, but usually not good.
+-		po := f.postorder()
+-		visitOrder := make([]*Block, len(po))
+-		for i, b := range po {
+-			j := len(po) - i - 1
+-			visitOrder[j] = b
+-		}
+-		return visitOrder
+-	}
+-
+-	return nil
++	// remnant of an experiment; perhaps there will be another.
++	return layoutOrder(f)
+ }
+ 
+ func layoutOrder(f *Func) []*Block {
+diff --git a/src/cmd/compile/internal/ssa/print.go b/src/cmd/compile/internal/ssa/print.go
+index 36f09c3ad9..d917183c70 100644
+--- a/src/cmd/compile/internal/ssa/print.go
++++ b/src/cmd/compile/internal/ssa/print.go
+@@ -154,6 +154,6 @@ func fprintFunc(p funcPrinter, f *Func) {
+ 		p.endBlock(b)
+ 	}
+ 	for _, name := range f.Names {
+-		p.named(name, f.NamedValues[name])
++		p.named(*name, f.NamedValues[*name])
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index d962579122..d41f3996af 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -141,10 +141,11 @@ func (s *stackAllocState) stackalloc() {
+ 		s.names = make([]LocalSlot, n)
+ 	}
+ 	names := s.names
++	empty := LocalSlot{}
+ 	for _, name := range f.Names {
+ 		// Note: not "range f.NamedValues" above, because
+ 		// that would be nondeterministic.
+-		for _, v := range f.NamedValues[name] {
++		for _, v := range f.NamedValues[*name] {
+ 			if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
+ 				aux := v.Aux.(*AuxNameOffset)
+ 				// Never let an arg be bound to a differently named thing.
+@@ -162,10 +163,12 @@ func (s *stackAllocState) stackalloc() {
+ 				continue
+ 			}
+ 
+-			if f.pass.debug > stackDebug {
+-				fmt.Printf("stackalloc value %s to name %s\n", v, name)
++			if names[v.ID] == empty {
++				if f.pass.debug > stackDebug {
++					fmt.Printf("stackalloc value %s to name %s\n", v, *name)
++				}
++				names[v.ID] = *name
+ 			}
+-			names[v.ID] = name
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 2abd70169e..004e084f72 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -8,7 +8,6 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"cmd/compile/internal/abi"
+-	"encoding/binary"
+ 	"fmt"
+ 	"go/constant"
+ 	"html"
+@@ -6463,7 +6462,8 @@ func (s *state) addNamedValue(n *ir.Name, v *ssa.Value) {
+ 	loc := ssa.LocalSlot{N: n, Type: n.Type(), Off: 0}
+ 	values, ok := s.f.NamedValues[loc]
+ 	if !ok {
+-		s.f.Names = append(s.f.Names, loc)
++		s.f.Names = append(s.f.Names, &loc)
++		s.f.CanonicalLocalSlots[loc] = &loc
+ 	}
+ 	s.f.NamedValues[loc] = append(values, v)
+ }
+@@ -7552,82 +7552,6 @@ func (e *ssafn) Auto(pos src.XPos, t *types.Type) *ir.Name {
+ 	return typecheck.TempAt(pos, e.curfn, t) // Note: adds new auto to e.curfn.Func.Dcl list
+ }
+ 
+-func (e *ssafn) SplitString(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+-	ptrType := types.NewPtr(types.Types[types.TUINT8])
+-	lenType := types.Types[types.TINT]
+-	// Split this string up into two separate variables.
+-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+-	return p, l
+-}
+-
+-func (e *ssafn) SplitInterface(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+-	n := name.N
+-	u := types.Types[types.TUINTPTR]
+-	t := types.NewPtr(types.Types[types.TUINT8])
+-	// Split this interface up into two separate variables.
+-	f := ".itab"
+-	if n.Type().IsEmptyInterface() {
+-		f = ".type"
+-	}
+-	c := e.SplitSlot(&name, f, 0, u) // see comment in typebits.Set
+-	d := e.SplitSlot(&name, ".data", u.Size(), t)
+-	return c, d
+-}
+-
+-func (e *ssafn) SplitSlice(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot, ssa.LocalSlot) {
+-	ptrType := types.NewPtr(name.Type.Elem())
+-	lenType := types.Types[types.TINT]
+-	p := e.SplitSlot(&name, ".ptr", 0, ptrType)
+-	l := e.SplitSlot(&name, ".len", ptrType.Size(), lenType)
+-	c := e.SplitSlot(&name, ".cap", ptrType.Size()+lenType.Size(), lenType)
+-	return p, l, c
+-}
+-
+-func (e *ssafn) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+-	s := name.Type.Size() / 2
+-	var t *types.Type
+-	if s == 8 {
+-		t = types.Types[types.TFLOAT64]
+-	} else {
+-		t = types.Types[types.TFLOAT32]
+-	}
+-	r := e.SplitSlot(&name, ".real", 0, t)
+-	i := e.SplitSlot(&name, ".imag", t.Size(), t)
+-	return r, i
+-}
+-
+-func (e *ssafn) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
+-	var t *types.Type
+-	if name.Type.IsSigned() {
+-		t = types.Types[types.TINT32]
+-	} else {
+-		t = types.Types[types.TUINT32]
+-	}
+-	if Arch.LinkArch.ByteOrder == binary.BigEndian {
+-		return e.SplitSlot(&name, ".hi", 0, t), e.SplitSlot(&name, ".lo", t.Size(), types.Types[types.TUINT32])
+-	}
+-	return e.SplitSlot(&name, ".hi", t.Size(), t), e.SplitSlot(&name, ".lo", 0, types.Types[types.TUINT32])
+-}
+-
+-func (e *ssafn) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+-	st := name.Type
+-	// Note: the _ field may appear several times.  But
+-	// have no fear, identically-named but distinct Autos are
+-	// ok, albeit maybe confusing for a debugger.
+-	return e.SplitSlot(&name, "."+st.FieldName(i), st.FieldOff(i), st.FieldType(i))
+-}
+-
+-func (e *ssafn) SplitArray(name ssa.LocalSlot) ssa.LocalSlot {
+-	n := name.N
+-	at := name.Type
+-	if at.NumElem() != 1 {
+-		e.Fatalf(n.Pos(), "bad array size")
+-	}
+-	et := at.Elem()
+-	return e.SplitSlot(&name, "[0]", 0, et)
+-}
+-
+ func (e *ssafn) DerefItab(it *obj.LSym, offset int64) *obj.LSym {
+ 	return reflectdata.ITabSym(it, offset)
+ }

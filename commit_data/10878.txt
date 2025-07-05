@@ -11,7 +11,7 @@ Date:   Mon Dec 19 13:23:27 2011 -0800
     R=golang-dev, rsc, r, adg
     CC=golang-dev
     https://golang.org/cl/5489053
-
+---
  doc/GoCourseDay1.pdf | Bin 287552 -> 0 bytes
  doc/GoCourseDay2.pdf | Bin 268707 -> 0 bytes
  doc/GoCourseDay3.pdf | Bin 178003 -> 0 bytes
@@ -19,3 +19,74 @@ Date:   Mon Dec 19 13:23:27 2011 -0800
  doc/go_tutorial.html |   7 ++-----
  doc/go_tutorial.tmpl |   7 ++-----
  6 files changed, 4 insertions(+), 21 deletions(-)
+
+diff --git a/doc/GoCourseDay1.pdf b/doc/GoCourseDay1.pdf
+deleted file mode 100644
+index 5a7749c18e..0000000000
+Binary files a/doc/GoCourseDay1.pdf and /dev/null differ
+diff --git a/doc/GoCourseDay2.pdf b/doc/GoCourseDay2.pdf
+deleted file mode 100644
+index 0d82ba4d32..0000000000
+Binary files a/doc/GoCourseDay2.pdf and /dev/null differ
+diff --git a/doc/GoCourseDay3.pdf b/doc/GoCourseDay3.pdf
+deleted file mode 100644
+index 5a5463ba2b..0000000000
+Binary files a/doc/GoCourseDay3.pdf and /dev/null differ
+diff --git a/doc/docs.html b/doc/docs.html
+index d0e470bf2e..4a1cf049b1 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -33,17 +33,6 @@ concepts: syntax, types, allocation, constants, I/O, sorting, printing,
+ goroutines, and channels.
+ </p>
+ 
+-<h3 id="course_notes">Course Notes</h3>
+-<p>
+-Slides from a 3-day course about the Go programming language.
+-A more thorough introduction than the tutorial.
+-</p>
+-<ul>
+-<li><a href="GoCourseDay1.pdf">Day 1: Basics</a> <small>[270KB PDF]</small></li>
+-<li><a href="GoCourseDay2.pdf">Day 2: Types, Methods, Interfaces</a> <small>[270KB PDF]</small></li>
+-<li><a href="GoCourseDay3.pdf">Day 3: Concurrency and Communication</a> <small>[180KB PDF]</small></li>
+-</ul>
+-
+ <h3 id="effective_go"><a href="effective_go.html">Effective Go</a></h3>
+ <p>
+ A document that gives tips for writing clear, idiomatic Go code.
+diff --git a/doc/go_tutorial.html b/doc/go_tutorial.html
+index f7e4e7b821..d97ebe8ba4 100644
+--- a/doc/go_tutorial.html
++++ b/doc/go_tutorial.html
+@@ -15,11 +15,8 @@ After you've read this tutorial, you should look at
+ <a href='/doc/effective_go.html'>Effective Go</a>,
+ which digs deeper into how the language is used and
+ talks about the style and idioms of programming in Go.
+-Also, slides from a 3-day course about Go are available.
+-They provide some background and a lot of examples:
+-<a href='/doc/GoCourseDay1.pdf'>Day 1</a>,
+-<a href='/doc/GoCourseDay2.pdf'>Day 2</a>,
+-<a href='/doc/GoCourseDay3.pdf'>Day 3</a>.
++An interactive introduction to Go is available, called
++<a href='http://tour.golang.org/'>A Tour of Go</a>.
+ <p>
+ The presentation here proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are
+diff --git a/doc/go_tutorial.tmpl b/doc/go_tutorial.tmpl
+index b07a198404..ff3057b6ef 100644
+--- a/doc/go_tutorial.tmpl
++++ b/doc/go_tutorial.tmpl
+@@ -11,11 +11,8 @@ After you've read this tutorial, you should look at
+ <a href='/doc/effective_go.html'>Effective Go</a>,
+ which digs deeper into how the language is used and
+ talks about the style and idioms of programming in Go.
+-Also, slides from a 3-day course about Go are available.
+-They provide some background and a lot of examples:
+-<a href='/doc/GoCourseDay1.pdf'>Day 1</a>,
+-<a href='/doc/GoCourseDay2.pdf'>Day 2</a>,
+-<a href='/doc/GoCourseDay3.pdf'>Day 3</a>.
++An interactive introduction to Go is available, called
++<a href='http://tour.golang.org/'>A Tour of Go</a>.
+ <p>
+ The presentation here proceeds through a series of modest programs to illustrate
+ key features of the language.  All the programs work (at time of writing) and are

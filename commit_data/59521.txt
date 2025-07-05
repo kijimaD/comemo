@@ -16,6 +16,20 @@ Date:   Wed Mar 20 13:27:30 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/time/sleep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 669660f90e..73fdf2a782 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -128,7 +128,7 @@ func (t *Timer) Stop() bool {
+ // The Stop method is no longer necessary to help the garbage collector.
+ // (Code may of course still want to call Stop to stop the timer for other reasons.)
+ //
+-// Before Go 1.23, the channel assocated with a Timer was
++// Before Go 1.23, the channel associated with a Timer was
+ // asynchronous (buffered, capacity 1), which meant that
+ // stale time values could be received even after [Timer.Stop]
+ // or [Timer.Reset] returned.

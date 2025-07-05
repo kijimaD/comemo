@@ -23,10 +23,376 @@ Date:   Wed Oct 19 08:03:30 2011 +1100
     R=andybalholm
     CC=golang-dev
     https://golang.org/cl/5301042
-
+---
  src/pkg/html/parse.go      | 34 ++++++++++++++++++--
  src/pkg/html/parse_test.go |  8 ++---
  src/pkg/html/render.go     | 38 ++++++++++++++--------
  src/pkg/html/token.go      | 79 +++++++++++++++++++++++++++++++++++++++++++++-
  src/pkg/html/token_test.go | 71 +++++++++++++++++++++++++++++++++++++++++
  5 files changed, 209 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index d476f4ac21..582437f767 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -29,6 +29,9 @@ type parser struct {
+ 	head, form *Node
+ 	// Other parsing state flags (section 11.2.3.5).
+ 	scripting, framesetOK bool
++	// originalIM is the insertion mode to go back to after completing a text
++	// or inTableText insertion mode.
++	originalIM insertionMode
+ }
+ 
+ func (p *parser) top() *Node {
+@@ -214,12 +217,23 @@ type insertionMode func(*parser) (insertionMode, bool)
+ // Section 11.2.3.1, "using the rules for".
+ func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, bool) {
+ 	im, consumed := delegate(p)
++	// TODO: do we need to update p.originalMode if it equals delegate?
+ 	if im != delegate {
+ 		return im, consumed
+ 	}
+ 	return actual, consumed
+ }
+ 
++// setOriginalIM sets the insertion mode to return to after completing a text or
++// inTableText insertion mode.
++// Section 11.2.3.1, "using the rules for".
++func (p *parser) setOriginalIM(im insertionMode) {
++	if p.originalIM != nil {
++		panic("html: bad parser state: originalIM was set twice")
++	}
++	p.originalIM = im
++}
++
+ // Section 11.2.5.4.1.
+ func initialIM(p *parser) (insertionMode, bool) {
+ 	if p.tok.Type == DoctypeToken {
+@@ -318,8 +332,10 @@ func inHeadIM(p *parser) (insertionMode, bool) {
+ 		switch p.tok.Data {
+ 		case "meta":
+ 			// TODO.
+-		case "script":
+-			// TODO.
++		case "script", "title":
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.setOriginalIM(inHeadIM)
++			return textIM, true
+ 		default:
+ 			implied = true
+ 		}
+@@ -574,6 +590,20 @@ func (p *parser) inBodyEndTagFormatting(tag string) {
+ 	}
+ }
+ 
++// Section 11.2.5.4.8.
++func textIM(p *parser) (insertionMode, bool) {
++	switch p.tok.Type {
++	case TextToken:
++		p.addText(p.tok.Data)
++		return textIM, true
++	case EndTagToken:
++		p.oe.pop()
++	}
++	o := p.originalIM
++	p.originalIM = nil
++	return o, p.tok.Type == EndTagToken
++}
++
+ // Section 11.2.5.4.9.
+ func inTableIM(p *parser) (insertionMode, bool) {
+ 	var (
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index c6fd37a10e..564580c78b 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -80,13 +80,13 @@ func dumpLevel(w io.Writer, n *Node, level int) os.Error {
+ 	case DocumentNode:
+ 		return os.NewError("unexpected DocumentNode")
+ 	case ElementNode:
+-		fmt.Fprintf(w, "<%s>", EscapeString(n.Data))
++		fmt.Fprintf(w, "<%s>", n.Data)
+ 	case TextNode:
+-		fmt.Fprintf(w, "%q", EscapeString(n.Data))
++		fmt.Fprintf(w, "%q", n.Data)
+ 	case CommentNode:
+ 		return os.NewError("COMMENT")
+ 	case DoctypeNode:
+-		fmt.Fprintf(w, "<!DOCTYPE %s>", EscapeString(n.Data))
++		fmt.Fprintf(w, "<!DOCTYPE %s>", n.Data)
+ 	case scopeMarkerNode:
+ 		return os.NewError("unexpected scopeMarkerNode")
+ 	default:
+@@ -123,7 +123,7 @@ func TestParser(t *testing.T) {
+ 		rc := make(chan io.Reader)
+ 		go readDat(filename, rc)
+ 		// TODO(nigeltao): Process all test cases, not just a subset.
+-		for i := 0; i < 26; i++ {
++		for i := 0; i < 27; i++ {
+ 			// Parse the #data section.
+ 			b, err := ioutil.ReadAll(<-rc)
+ 			if err != nil {
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index bf7b5995a1..e1ec66ff1a 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -74,17 +74,6 @@ func render(w writer, n *Node) os.Error {
+ 		return os.NewError("html: unknown node type")
+ 	}
+ 
+-	// TODO: figure out what to do with <script>, <style>, <noembed>,
+-	// <noframes> and <noscript> elements. A tentative plan:
+-	// 1. render the <xxx> opening tag as normal.
+-	// 2. maybe error out if any child is not a text node.
+-	// 3. render the text nodes (without escaping??).
+-	// 4. maybe error out if `</xxx` is a case-insensitive substring of the
+-	// concatenation of the children's data.
+-	// 5. maybe error out if the concatenation of the children's data contains an
+-	// unbalanced escaping text span start ("<!--") not followed by an end ("-->").
+-	// 6. render the closing tag as normal.
+-
+ 	// Render the <xxx> opening tag.
+ 	if err := w.WriteByte('<'); err != nil {
+ 		return err
+@@ -121,9 +110,30 @@ func render(w writer, n *Node) os.Error {
+ 	}
+ 
+ 	// Render any child nodes.
+-	for _, c := range n.Child {
+-		if err := render(w, c); err != nil {
+-			return err
++	switch n.Data {
++	case "noembed", "noframes", "noscript", "script", "style":
++		for _, c := range n.Child {
++			if c.Type != TextNode {
++				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
++			}
++			if _, err := w.WriteString(c.Data); err != nil {
++				return err
++			}
++		}
++	case "textarea", "title":
++		for _, c := range n.Child {
++			if c.Type != TextNode {
++				return fmt.Errorf("html: RCDATA element <%s> has non-text child node", n.Data)
++			}
++			if err := render(w, c); err != nil {
++				return err
++			}
++		}
++	default:
++		for _, c := range n.Child {
++			if err := render(w, c); err != nil {
++				return err
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index e1d3107acd..2826f95f17 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"strconv"
++	"strings"
+ )
+ 
+ // A TokenType is the type of a Token.
+@@ -144,6 +145,13 @@ type Tokenizer struct {
+ 	pendingAttr   [2]span
+ 	attr          [][2]span
+ 	nAttrReturned int
++	// rawTag is the "script" in "</script>" that closes the next token. If
++	// non-empty, the subsequent call to Next will return a raw or RCDATA text
++	// token: one that treats "<p>" as text instead of an element.
++	// rawTag's contents are lower-cased.
++	rawTag string
++	// textIsRaw is whether the current text token's data is not escaped.
++	textIsRaw bool
+ }
+ 
+ // Error returns the error associated with the most recent ErrorToken token.
+@@ -225,6 +233,54 @@ func (z *Tokenizer) skipWhiteSpace() {
+ 	}
+ }
+ 
++// readRawOrRCDATA reads until the next "</foo>", where "foo" is z.rawTag and
++// is typically something like "script" or "textarea".
++func (z *Tokenizer) readRawOrRCDATA() {
++loop:
++	for {
++		c := z.readByte()
++		if z.err != nil {
++			break loop
++		}
++		if c != '<' {
++			continue loop
++		}
++		c = z.readByte()
++		if z.err != nil {
++			break loop
++		}
++		if c != '/' {
++			continue loop
++		}
++		for i := 0; i < len(z.rawTag); i++ {
++			c = z.readByte()
++			if z.err != nil {
++				break loop
++			}
++			if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
++				continue loop
++			}
++		}
++		c = z.readByte()
++		if z.err != nil {
++			break loop
++		}
++		switch c {
++		case ' ', '\n', '\r', '\t', '\f', '/', '>':
++			// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
++			z.raw.end -= 3 + len(z.rawTag)
++			break loop
++		case '<':
++			// Step back one, to catch "</foo</foo>".
++			z.raw.end--
++		}
++	}
++	z.data.end = z.raw.end
++	// A textarea's or title's RCDATA can contain escaped entities.
++	z.textIsRaw = z.rawTag != "textarea" && z.rawTag != "title"
++	z.rawTag = ""
++}
++
+ // readComment reads the next comment token starting with "<!--". The opening
+ // "<!--" has already been consumed.
+ func (z *Tokenizer) readComment() {
+@@ -350,6 +406,19 @@ func (z *Tokenizer) readStartTag() TokenType {
+ 			break
+ 		}
+ 	}
++	// Any "<noembed>", "<noframes>", "<noscript>", "<script>", "<style>",
++	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
++	// The tag name lengths of these special cases ranges in [5, 8].
++	if x := z.data.end - z.data.start; 5 <= x && x <= 8 {
++		switch z.buf[z.data.start] {
++		case 'n', 's', 't', 'N', 'S', 'T':
++			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
++			case "noembed", "noframes", "noscript", "script", "style", "textarea", "title":
++				z.rawTag = s
++			}
++		}
++	}
++	// Look for a self-closing token like "<br/>".
+ 	if z.err == nil && z.buf[z.raw.end-2] == '/' {
+ 		return SelfClosingTagToken
+ 	}
+@@ -485,6 +554,11 @@ func (z *Tokenizer) next() TokenType {
+ 	z.raw.start = z.raw.end
+ 	z.data.start = z.raw.end
+ 	z.data.end = z.raw.end
++	if z.rawTag != "" {
++		z.readRawOrRCDATA()
++		return TextToken
++	}
++	z.textIsRaw = false
+ 
+ loop:
+ 	for {
+@@ -591,7 +665,10 @@ func (z *Tokenizer) Text() []byte {
+ 		s := z.buf[z.data.start:z.data.end]
+ 		z.data.start = z.raw.end
+ 		z.data.end = z.raw.end
+-		return unescape(s)
++		if !z.textIsRaw {
++			s = unescape(s)
++		}
++		return s
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/html/token_test.go b/src/pkg/html/token_test.go
+index 2bd87e9129..310cd97d67 100644
+--- a/src/pkg/html/token_test.go
++++ b/src/pkg/html/token_test.go
+@@ -174,6 +174,77 @@ var tokenTests = []tokenTest{
+ 		`<p id="0"</p>`,
+ 		`<p id="0" <="" p="">`,
+ 	},
++	// Raw text and RCDATA.
++	{
++		"basic raw text",
++		"<script><a></b></script>",
++		"<script>$&lt;a&gt;&lt;/b&gt;$</script>",
++	},
++	{
++		"unfinished script end tag",
++		"<SCRIPT>a</SCR",
++		"<script>$a&lt;/SCR",
++	},
++	{
++		"broken script end tag",
++		"<SCRIPT>a</SCR ipt>",
++		"<script>$a&lt;/SCR ipt&gt;",
++	},
++	{
++		"EOF in script end tag",
++		"<SCRIPT>a</SCRipt",
++		"<script>$a&lt;/SCRipt",
++	},
++	{
++		"scriptx end tag",
++		"<SCRIPT>a</SCRiptx",
++		"<script>$a&lt;/SCRiptx",
++	},
++	{
++		"' ' completes script end tag",
++		"<SCRIPT>a</SCRipt ",
++		"<script>$a$</script>",
++	},
++	{
++		"'>' completes script end tag",
++		"<SCRIPT>a</SCRipt>",
++		"<script>$a$</script>",
++	},
++	{
++		"self-closing script end tag",
++		"<SCRIPT>a</SCRipt/>",
++		"<script>$a$</script>",
++	},
++	{
++		"nested script tag",
++		"<SCRIPT>a</SCRipt<script>",
++		"<script>$a&lt;/SCRipt&lt;script&gt;",
++	},
++	{
++		"script end tag after unfinished",
++		"<SCRIPT>a</SCRipt</script>",
++		"<script>$a&lt;/SCRipt$</script>",
++	},
++	{
++		"script/style mismatched tags",
++		"<script>a</style>",
++		"<script>$a&lt;/style&gt;",
++	},
++	{
++		"style element with entity",
++		"<style>&apos;",
++		"<style>$&amp;apos;",
++	},
++	{
++		"textarea with tag",
++		"<textarea><div></textarea>",
++		"<textarea>$&lt;div&gt;$</textarea>",
++	},
++	{
++		"title with tag and entity",
++		"<title><b>K&amp;R C</b></title>",
++		"<title>$&lt;b&gt;K&amp;R C&lt;/b&gt;$</title>",
++	},
+ 	// DOCTYPE tests.
+ 	{
+ 		"Proper DOCTYPE",

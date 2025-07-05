@@ -7,6 +7,20 @@ Date:   Sat Jun 9 18:30:44 2012 -0700
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6300078
-
+---
  src/pkg/encoding/gob/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/gob/doc.go b/src/pkg/encoding/gob/doc.go
+index 96885f8ded..821d9a3fe8 100644
+--- a/src/pkg/encoding/gob/doc.go
++++ b/src/pkg/encoding/gob/doc.go
+@@ -116,7 +116,7 @@ uninterpreted bytes of the value.
+ All other slices and arrays are sent as an unsigned count followed by that many
+ elements using the standard gob encoding for their type, recursively.
+ 
+-Maps are sent as an unsigned count followed by that man key, element
++Maps are sent as an unsigned count followed by that many key, element
+ pairs. Empty but non-nil maps are sent, so if the sender has allocated
+ a map, the receiver will allocate a map even no elements are
+ transmitted.

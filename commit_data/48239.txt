@@ -25,8 +25,164 @@ Date:   Fri Apr 23 21:49:08 2021 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go |  6 ++-
  src/cmd/compile/internal/ssa/stackalloc.go   | 39 ++++++++++++++++
  test/fixedbugs/issue45851.go                 | 68 ++++++++++++++++++++++++++++
  3 files changed, 112 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 4d5376b344..133959204a 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -6,6 +6,7 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/abi"
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+@@ -1601,7 +1602,10 @@ func (x *expandState) newArgToMemOrRegs(baseArg, toReplace *Value, offset int64,
+ 			x.f.OwnAux.abiInfo.String())
+ 		panic(fmt.Errorf("Op/Type mismatch, op=%s, type=%s", op.String(), t.String()))
+ 	}
+-	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), baseArg.AuxInt + offset}
++	if baseArg.AuxInt != 0 {
++		base.Fatalf("BaseArg %s bound to registers has non-zero AuxInt", baseArg.LongString())
++	}
++	aux := &AuxNameOffset{baseArg.Aux.(*ir.Name), offset}
+ 	if toReplace != nil && toReplace.Block == baseArg.Block {
+ 		toReplace.reset(op)
+ 		toReplace.Aux = aux
+diff --git a/src/cmd/compile/internal/ssa/stackalloc.go b/src/cmd/compile/internal/ssa/stackalloc.go
+index 8fe18e5f02..d962579122 100644
+--- a/src/cmd/compile/internal/ssa/stackalloc.go
++++ b/src/cmd/compile/internal/ssa/stackalloc.go
+@@ -145,6 +145,26 @@ func (s *stackAllocState) stackalloc() {
+ 		// Note: not "range f.NamedValues" above, because
+ 		// that would be nondeterministic.
+ 		for _, v := range f.NamedValues[name] {
++			if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
++				aux := v.Aux.(*AuxNameOffset)
++				// Never let an arg be bound to a differently named thing.
++				if name.N != aux.Name || name.Off != aux.Offset {
++					if f.pass.debug > stackDebug {
++						fmt.Printf("stackalloc register arg %s skipping name %s\n", v, name)
++					}
++					continue
++				}
++			} else if name.N.Class == ir.PPARAM && v.Op != OpArg {
++				// PPARAM's only bind to OpArg
++				if f.pass.debug > stackDebug {
++					fmt.Printf("stackalloc PPARAM name %s skipping non-Arg %s\n", name, v)
++				}
++				continue
++			}
++
++			if f.pass.debug > stackDebug {
++				fmt.Printf("stackalloc value %s to name %s\n", v, name)
++			}
+ 			names[v.ID] = name
+ 		}
+ 	}
+@@ -165,6 +185,25 @@ func (s *stackAllocState) stackalloc() {
+ 			f.setHome(v, loc)
+ 			continue
+ 		}
++		// You might think this below would be the right idea, but you would be wrong.
++		// It almost works; as of 105a6e9518 - 2021-04-23,
++		// GOSSAHASH=11011011001011111 == cmd/compile/internal/noder.(*noder).embedded
++		// is compiled incorrectly.  I believe the cause is one of those SSA-to-registers
++		// puzzles that the register allocator untangles; in the event that a register
++		// parameter does not end up bound to a name, "fixing" it is a bad idea.
++		//
++		//if f.DebugTest {
++		//	if v.Op == OpArgIntReg || v.Op == OpArgFloatReg {
++		//		aux := v.Aux.(*AuxNameOffset)
++		//		loc := LocalSlot{N: aux.Name, Type: v.Type, Off: aux.Offset}
++		//		if f.pass.debug > stackDebug {
++		//			fmt.Printf("stackalloc Op%s %s to %s\n", v.Op, v, loc)
++		//		}
++		//		names[v.ID] = loc
++		//		continue
++		//	}
++		//}
++
+ 	}
+ 
+ 	// For each type, we keep track of all the stack slots we
+diff --git a/test/fixedbugs/issue45851.go b/test/fixedbugs/issue45851.go
+new file mode 100644
+index 0000000000..b137071e4f
+--- /dev/null
++++ b/test/fixedbugs/issue45851.go
+@@ -0,0 +1,68 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This tickles a stack-allocation bug when the register ABI is enabled.
++// The original report was from cue, internal/core/adt/equality.go,
++// function equalVertex.
++
++// In the failing case, something bad gets passed to equalTerminal.
++
++package main
++
++import "fmt"
++
++type Kind uint16
++type Flag uint16
++
++const (
++	allKinds Kind = 1
++	TopKind  Kind = (allKinds - 1)
++)
++type Value interface {
++	Kind() Kind
++}
++type Vertex struct {
++	BaseValue Value
++	name string
++}
++func (v *Vertex) Kind() Kind {
++	return TopKind
++}
++
++func main() {
++	vA := &Vertex{name:"vA",}
++	vB := &Vertex{name:"vB",}
++	vX := &Vertex{name:"vX",}
++	vA.BaseValue = vX
++	vB.BaseValue = vX
++	_ = equalVertex(vA, vB, Flag(1))
++}
++
++var foo string
++
++//go:noinline
++func (v *Vertex) IsClosedStruct() bool {
++	return true
++}
++
++func equalVertex(x *Vertex, v Value, flags Flag) bool {
++	y, ok := v.(*Vertex)
++	if !ok {
++		return false
++	}
++	v, ok1 := x.BaseValue.(Value)
++	w, ok2 := y.BaseValue.(Value)
++	if !ok1 && !ok2 {
++		return true // both are struct or list.
++	}
++	return equalTerminal(v, w, flags)
++}
++
++//go:noinline
++func equalTerminal(x Value, y Value, flags Flag) bool {
++	foo = fmt.Sprintf("EQclosed %s %s %d\n", x.(*Vertex).name, y.(*Vertex).name, flags)
++	return true
++}

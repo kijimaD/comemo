@@ -8,10 +8,209 @@ Date:   Thu Aug 13 14:41:10 2009 -0700
     DELTA=67  (17 added, 29 deleted, 21 changed)
     OCL=33215
     CL=33219
-
+---
  src/Make.386             |  1 +
  src/Make.amd64           |  1 +
  src/Make.arm             |  1 +
  src/Make.pkg             |  8 +++--
  src/pkg/runtime/Makefile | 77 ++++++++++++++++++------------------------------
  5 files changed, 38 insertions(+), 50 deletions(-)
+
+diff --git a/src/Make.386 b/src/Make.386
+index 6471f065a8..9560cd0fd4 100644
+--- a/src/Make.386
++++ b/src/Make.386
+@@ -8,3 +8,4 @@ CC=${O}c
+ GC=${O}g
+ LD=${O}l
+ OS=568vq
++CFLAGS=-FVw
+diff --git a/src/Make.amd64 b/src/Make.amd64
+index c8f97dc0ca..20585c4a8e 100644
+--- a/src/Make.amd64
++++ b/src/Make.amd64
+@@ -8,3 +8,4 @@ CC=${O}c
+ GC=${O}g
+ LD=${O}l
+ OS=568vq
++CFLAGS=-FVw
+diff --git a/src/Make.arm b/src/Make.arm
+index 748cce27e5..9acef07554 100644
+--- a/src/Make.arm
++++ b/src/Make.arm
+@@ -8,3 +8,4 @@ CC=${O}c
+ GC=${O}g
+ LD=${O}l
+ OS=568vq
++CFLAGS=-FVw
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 2098e2ed9c..204f07d352 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -2,11 +2,12 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
+ elem=$(lastword $(subst /, ,$(TARG)))
+-dir=$(patsubst %/$(elem),%,$(TARG))
++dir=$(patsubst %/$(elem),%,./$(TARG))
+ 
+ pkgdir=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
+@@ -39,7 +40,7 @@ _gotest_.$O: $(GOFILES) $(GOTESTFILES)
+ 	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ %.$O: %.c
+-	$(CC) $*.c
++	$(CC) $(CFLAGS) $*.c
+ 
+ %.$O: %.s
+ 	$(AS) $*.s
+@@ -59,3 +60,6 @@ _test/$(TARG).a: _gotest_.$O $(OFILES)
+ importpath:
+ 	@echo $(TARG)
+ 
++dir:
++	@echo $(dir)
++
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 662c9407b3..30f5e85cdf 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -2,6 +2,10 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=runtime
++
+ # Set SIZE to 32 or 64.
+ SIZE_386=32
+ SIZE_amd64=64
+@@ -15,19 +19,9 @@ CFLAGS_64=-D_64BIT
+ CFLAGS_arm=-N
+ CFLAGS=-I$(GOOS) -I$(GOOS)/$(GOARCH) -wF $(CFLAGS_$(SIZE)) $(CFLAGS_$(GOARCH))
+ 
+-# Set O to right letter.
+-O_386=8
+-O_amd64=6
+-O_arm=5
+-O=$(O_$(GOARCH))
+-
+-# Tools
+-CC=$(O)c
+-GC=$(O)g
+-AS=$(O)a
+-AR=gopack
+-
+-LIB=runtime.a
++GOFILES=\
++	extern.go\
++	type.go\
+ 
+ # 386-specific object files
+ OFILES_386=\
+@@ -45,7 +39,6 @@ OFILES=\
+ 	asm.$O\
+ 	chan.$O\
+ 	closure.$O\
+-	extern.$O\
+ 	float.$O\
+ 	hashmap.$O\
+ 	iface.$O\
+@@ -71,7 +64,6 @@ OFILES=\
+ 	sys.$O\
+ 	thread.$O\
+ 	traceback.$O\
+-	type.$O\
+ 	$(OFILES_$(GOARCH))\
+ 
+ HFILES=\
+@@ -82,33 +74,23 @@ HFILES=\
+ 	$(GOOS)/os.h\
+ 	$(GOOS)/$(GOARCH)/defs.h\
+ 
+-all: $(LIB) runtime.acid
+-
+-TARG=$(GOROOT)/pkg/$(GOOS)_$(GOARCH)/$(LIB)
+-
+-install: $(TARG)
+-
+-$(TARG): $(LIB) runtime.acid
+-	test -d $(GOROOT)/pkg && mkdir -p $(GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-	cp $(LIB) $(TARG)
+-	cp runtime.acid $(GOROOT)/acid/runtime.acid
++include $(GOROOT)/src/Make.pkg
+ 
+-$(LIB): $(OFILES)
+-	$(AR) grc $(LIB) $(OFILES)
++clean: clean-local
+ 
+-$(OFILES): $(HFILES)
++clean-local:
++	rm -f runtime.acid cgo2c */asm.h
+ 
+-nuke:
+-	rm -f *.[568] *.a $(TARG)
+-
+-clean:
+-	rm -f *.[568] *.a runtime.acid cgo2c */asm.h
++$(GOARCH)/asm.h: runtime.acid mkasmh
++	./mkasmh >$@.x
++	mv -f $@.x $@
+ 
+-%.$O:	%.go
+-	$(GC) $<
++cgo2c: cgo2c.c
++	quietgcc -o $@ $<
+ 
+-%.$O:	%.c
+-	$(CC) $(CFLAGS) $<
++%.c:	%.cgo cgo2c
++	./cgo2c $< > $@.tmp
++	mv -f $@.tmp $@
+ 
+ %.$O:	$(GOARCH)/%.c
+ 	$(CC) $(CFLAGS) $<
+@@ -119,18 +101,21 @@ clean:
+ %.$O:	$(GOOS)/$(GOARCH)/%.c
+ 	$(CC) $(CFLAGS) $<
+ 
+-%.$O:	$(GOARCH)/%.s
++%.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
+ 	$(AS) $<
+ 
+-%.$O:	$(GOOS)/$(GOARCH)/%.s
++%.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
+ 	$(AS) $<
+ 
+-cgo2c: cgo2c.c
+-	quietgcc -o $@ $<
+ 
+-%.c:	%.cgo cgo2c
+-	./cgo2c $< > $@.tmp
+-	mv -f $@.tmp $@
++# acid support files
++
++all: runtime.acid
++
++install: $(GOROOT)/acid/runtime.acid
++
++$(GOROOT)/acid/runtime.acid: runtime.acid
++	cp runtime.acid $@
+ 
+ runtime.acid: runtime.h proc.c
+ 	$(CC) -a proc.c >runtime.acid
+@@ -138,7 +123,3 @@ runtime.acid: runtime.h proc.c
+ chan.acid: runtime.h chan.c
+ 	$(CC) -a chan.c >chan.acid
+ 
+-$(GOARCH)/asm.h: runtime.acid mkasmh.sh
+-	./mkasmh.sh >$@.x
+-	mv -f $@.x $@
+-

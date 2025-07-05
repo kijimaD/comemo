@@ -12,8 +12,39 @@ Date:   Wed Jan 8 23:34:11 2014 +0100
     R=golang-codereviews, bradfitz
     CC=golang-codereviews, rsc
     https://golang.org/cl/49260043
-
+---
  include/plan9/ureg_amd64.h | 2 +-
  include/plan9/ureg_arm.h   | 2 +-
  include/plan9/ureg_x86.h   | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/include/plan9/ureg_amd64.h b/include/plan9/ureg_amd64.h
+index 8aaa83f526..a7d6ed1fc6 100644
+--- a/include/plan9/ureg_amd64.h
++++ b/include/plan9/ureg_amd64.h
+@@ -2,4 +2,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "/amd64/include/ureg.h"
++#include "../ureg_amd64.h"
+diff --git a/include/plan9/ureg_arm.h b/include/plan9/ureg_arm.h
+index f83c19a2f3..fdb0d27ea3 100644
+--- a/include/plan9/ureg_arm.h
++++ b/include/plan9/ureg_arm.h
+@@ -2,4 +2,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "/arm/include/ureg.h"
++#include "../ureg_arm.h"
+diff --git a/include/plan9/ureg_x86.h b/include/plan9/ureg_x86.h
+index 7d73a48653..6fc4819324 100644
+--- a/include/plan9/ureg_x86.h
++++ b/include/plan9/ureg_x86.h
+@@ -2,4 +2,4 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "/386/include/ureg.h"
++#include "../ureg_x86.h"

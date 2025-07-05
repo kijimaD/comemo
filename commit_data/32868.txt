@@ -14,9 +14,84 @@ Date:   Thu Jun 8 22:38:15 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/base/path.go  | 22 ++++++++++++++++++++++
  src/cmd/go/internal/fix/fix.go    |  3 ++-
  src/cmd/go/internal/fmtcmd/fmt.go |  3 ++-
  src/cmd/go/internal/get/get.go    |  3 ++-
  4 files changed, 28 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 7a51181c97..4f12fa8c28 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -44,6 +44,28 @@ func RelPaths(paths []string) []string {
+ 	return out
+ }
+ 
++// FilterDotUnderscoreFiles returns a slice containing all elements
++// of path whose base name doesn't begin with "." or "_".
++func FilterDotUnderscoreFiles(path []string) []string {
++	var out []string // lazily initialized
++	for i, p := range path {
++		base := filepath.Base(p)
++		if strings.HasPrefix(base, ".") || strings.HasPrefix(base, "_") {
++			if out == nil {
++				out = append(make([]string, 0, len(path)), path[:i]...)
++			}
++			continue
++		}
++		if out != nil {
++			out = append(out, p)
++		}
++	}
++	if out == nil {
++		return path
++	}
++	return out
++}
++
+ // IsTestFile reports whether the source file is a set of tests and should therefore
+ // be excluded from coverage analysis.
+ func IsTestFile(file string) bool {
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 377cd037fa..788d49bcb6 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -33,6 +33,7 @@ func runFix(cmd *base.Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), base.RelPaths(pkg.Internal.AllGoFiles)))
++		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
++		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), files))
+ 	}
+ }
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index a4bf79e265..5b54bdc257 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -45,7 +45,8 @@ func runFmt(cmd *base.Command, args []string) {
+ 		// Use pkg.gofiles instead of pkg.Dir so that
+ 		// the command only applies to this package,
+ 		// not to packages in subdirectories.
+-		base.Run(str.StringList(gofmt, "-l", "-w", base.RelPaths(pkg.Internal.AllGoFiles)))
++		files := base.FilterDotUnderscoreFiles(base.RelPaths(pkg.Internal.AllGoFiles))
++		base.Run(str.StringList(gofmt, "-l", "-w", files))
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 1df7888d7d..45891bd341 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -298,7 +298,8 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 	// due to wildcard expansion.
+ 	for _, p := range pkgs {
+ 		if *getFix {
+-			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), base.RelPaths(p.Internal.AllGoFiles)))
++			files := base.FilterDotUnderscoreFiles(base.RelPaths(p.Internal.AllGoFiles))
++			base.Run(cfg.BuildToolexec, str.StringList(base.Tool("fix"), files))
+ 
+ 			// The imports might have changed, so reload again.
+ 			p = load.ReloadPackage(arg, stk)

@@ -30,7 +30,7 @@ Date:   Thu Sep 6 12:06:45 2018 -0600
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go     |   4 +-
  src/go/build/deps_test.go |   2 +-
  src/math/all_test.go      | 120 ++++++++++++++++++++++++++++++++++++++++++++++
@@ -44,3 +44,636 @@ Date:   Thu Sep 6 12:06:45 2018 -0600
  src/math/tan_386.s        |  21 +-------
  src/math/trig_reduce.go   |  94 ++++++++++++++++++++++++++++++++++++
  12 files changed, 291 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d16ab3d76d..e2ddc58a5d 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1771,11 +1771,11 @@ func TestGoListDeps(t *testing.T) {
+ 	if runtime.Compiler != "gccgo" {
+ 		// Check the list is in dependency order.
+ 		tg.run("list", "-deps", "math")
+-		want := "internal/cpu\nunsafe\nmath\n"
++		want := "internal/cpu\nunsafe\nmath/bits\nmath\n"
+ 		out := tg.stdout.String()
+ 		if !strings.Contains(out, "internal/cpu") {
+ 			// Some systems don't use internal/cpu.
+-			want = "unsafe\nmath\n"
++			want = "unsafe\nmath/bits\nmath\n"
+ 		}
+ 		if tg.stdout.String() != want {
+ 			t.Fatalf("list -deps math: wrong order\nhave %q\nwant %q", tg.stdout.String(), want)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3a70991639..2c29a3e601 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -61,7 +61,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	// L1 adds simple functions and strings processing,
+ 	// but not Unicode tables.
+-	"math":          {"internal/cpu", "unsafe"},
++	"math":          {"internal/cpu", "unsafe", "math/bits"},
+ 	"math/bits":     {"unsafe"},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 6a6d8bf6d0..5716048454 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -175,6 +175,48 @@ var cosLarge = []float64{
+ 	-2.51772931436786954751e-01,
+ 	-7.3924135157173099849e-01,
+ }
++
++// Inputs to test trig_reduce
++var trigHuge = []float64{
++	1 << 120,
++	1 << 240,
++	1 << 480,
++	1234567891234567 << 180,
++	1234567891234567 << 300,
++	MaxFloat64,
++}
++
++// Results for trigHuge[i] calculated with https://github.com/robpike/ivy
++// using 4096 bits of working precision.   Values requiring less than
++// 102 decimal digits (1 << 120, 1 << 240, 1 << 480, 1234567891234567 << 180)
++// were confirmed via https://keisan.casio.com/
++var cosHuge = []float64{
++	-0.92587902285483787,
++	0.93601042593353793,
++	-0.28282777640193788,
++	-0.14616431394103619,
++	-0.79456058210671406,
++	-0.99998768942655994,
++}
++
++var sinHuge = []float64{
++	0.37782010936075202,
++	-0.35197227524865778,
++	0.95917070894368716,
++	0.98926032637023618,
++	-0.60718488235646949,
++	0.00496195478918406,
++}
++
++var tanHuge = []float64{
++	-0.40806638884180424,
++	-0.37603456702698076,
++	-3.39135965054779932,
++	-6.76813854009065030,
++	0.76417695016604922,
++	-0.00496201587444489,
++}
++
+ var cosh = []float64{
+ 	7.2668796942212842775517446e+01,
+ 	1.1479413465659254502011135e+03,
+@@ -3026,6 +3068,84 @@ func TestLargeTan(t *testing.T) {
+ 	}
+ }
+ 
++// Check that trigReduce matches the standard reduction results for input values
++// below reduceThreshold.
++func TestTrigReduce(t *testing.T) {
++	inputs := make([]float64, len(vf))
++	// all of the standard inputs
++	copy(inputs, vf)
++	// all of the large inputs
++	large := float64(100000 * Pi)
++	for _, v := range vf {
++		inputs = append(inputs, v+large)
++	}
++	// Also test some special inputs, Pi and right below the reduceThreshold
++	inputs = append(inputs, Pi, Nextafter(ReduceThreshold, 0))
++	for _, x := range inputs {
++		// reduce the value to compare
++		j, z := TrigReduce(x)
++		xred := float64(j)*(Pi/4) + z
++
++		if f, fred := Sin(x), Sin(xred); !close(f, fred) {
++			t.Errorf("Sin(trigReduce(%g)) != Sin(%g), got %g, want %g", x, x, fred, f)
++		}
++		if f, fred := Cos(x), Cos(xred); !close(f, fred) {
++			t.Errorf("Cos(trigReduce(%g)) != Cos(%g), got %g, want %g", x, x, fred, f)
++		}
++		if f, fred := Tan(x), Tan(xred); !close(f, fred) {
++			t.Errorf(" Tan(trigReduce(%g)) != Tan(%g), got %g, want %g", x, x, fred, f)
++		}
++		f, g := Sincos(x)
++		fred, gred := Sincos(xred)
++		if !close(f, fred) || !close(g, gred) {
++			t.Errorf(" Sincos(trigReduce(%g)) != Sincos(%g), got %g, %g, want %g, %g", x, x, fred, gred, f, g)
++		}
++	}
++}
++
++// Check that trig values of huge angles return accurate results.
++// This confirms that argument reduction works for very large values
++// up to MaxFloat64.
++func TestHugeCos(t *testing.T) {
++	for i := 0; i < len(trigHuge); i++ {
++		f1 := cosHuge[i]
++		f2 := Cos(trigHuge[i])
++		if !close(f1, f2) {
++			t.Errorf("Cos(%g) = %g, want %g", trigHuge[i], f2, f1)
++		}
++	}
++}
++
++func TestHugeSin(t *testing.T) {
++	for i := 0; i < len(trigHuge); i++ {
++		f1 := sinHuge[i]
++		f2 := Sin(trigHuge[i])
++		if !close(f1, f2) {
++			t.Errorf("Sin(%g) = %g, want %g", trigHuge[i], f2, f1)
++		}
++	}
++}
++
++func TestHugeSinCos(t *testing.T) {
++	for i := 0; i < len(trigHuge); i++ {
++		f1, g1 := sinHuge[i], cosHuge[i]
++		f2, g2 := Sincos(trigHuge[i])
++		if !close(f1, f2) || !close(g1, g2) {
++			t.Errorf("Sincos(%g) = %g, %g, want %g, %g", trigHuge[i], f2, g2, f1, g1)
++		}
++	}
++}
++
++func TestHugeTan(t *testing.T) {
++	for i := 0; i < len(trigHuge); i++ {
++		f1 := tanHuge[i]
++		f2 := Tan(trigHuge[i])
++		if !close(f1, f2) {
++			t.Errorf("Tan(%g) = %g, want %g", trigHuge[i], f2, f1)
++		}
++	}
++}
++
+ // Check that math constants are accepted by compiler
+ // and have right value (assumes strconv.ParseFloat works).
+ // https://golang.org/issue/201
+diff --git a/src/math/export_test.go b/src/math/export_test.go
+index 368308e1e5..5f15bdb025 100644
+--- a/src/math/export_test.go
++++ b/src/math/export_test.go
+@@ -9,3 +9,5 @@ var ExpGo = exp
+ var Exp2Go = exp2
+ var HypotGo = hypot
+ var SqrtGo = sqrt
++var ReduceThreshold = reduceThreshold
++var TrigReduce = trigReduce
+diff --git a/src/math/sin.go b/src/math/sin.go
+index 929cac34ec..cc8b1366ad 100644
+--- a/src/math/sin.go
++++ b/src/math/sin.go
+@@ -118,10 +118,9 @@ func Cos(x float64) float64
+ 
+ func cos(x float64) float64 {
+ 	const (
+-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
++		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
++		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
++		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
+ 	)
+ 	// special cases
+ 	switch {
+@@ -133,15 +132,23 @@ func cos(x float64) float64 {
+ 	sign := false
+ 	x = Abs(x)
+ 
+-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
+-	y := float64(j)      // integer part of x/(Pi/4), as float
+-
+-	// map zeros to origin
+-	if j&1 == 1 {
+-		j++
+-		y++
++	var j uint64
++	var y, z float64
++	if x >= reduceThreshold {
++		j, z = trigReduce(x)
++	} else {
++		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
++		y = float64(j)           // integer part of x/(Pi/4), as float
++
++		// map zeros to origin
++		if j&1 == 1 {
++			j++
++			y++
++		}
++		j &= 7                               // octant modulo 2Pi radians (360 degrees)
++		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	}
+-	j &= 7 // octant modulo 2Pi radians (360 degrees)
++
+ 	if j > 3 {
+ 		j -= 4
+ 		sign = !sign
+@@ -150,7 +157,6 @@ func cos(x float64) float64 {
+ 		sign = !sign
+ 	}
+ 
+-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	zz := z * z
+ 	if j == 1 || j == 2 {
+ 		y = z + z*zz*((((((_sin[0]*zz)+_sin[1])*zz+_sin[2])*zz+_sin[3])*zz+_sin[4])*zz+_sin[5])
+@@ -173,10 +179,9 @@ func Sin(x float64) float64
+ 
+ func sin(x float64) float64 {
+ 	const (
+-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
++		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
++		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
++		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
+ 	)
+ 	// special cases
+ 	switch {
+@@ -193,22 +198,27 @@ func sin(x float64) float64 {
+ 		sign = true
+ 	}
+ 
+-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
+-	y := float64(j)      // integer part of x/(Pi/4), as float
+-
+-	// map zeros to origin
+-	if j&1 == 1 {
+-		j++
+-		y++
++	var j uint64
++	var y, z float64
++	if x >= reduceThreshold {
++		j, z = trigReduce(x)
++	} else {
++		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
++		y = float64(j)           // integer part of x/(Pi/4), as float
++
++		// map zeros to origin
++		if j&1 == 1 {
++			j++
++			y++
++		}
++		j &= 7                               // octant modulo 2Pi radians (360 degrees)
++		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	}
+-	j &= 7 // octant modulo 2Pi radians (360 degrees)
+ 	// reflect in x axis
+ 	if j > 3 {
+ 		sign = !sign
+ 		j -= 4
+ 	}
+-
+-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	zz := z * z
+ 	if j == 1 || j == 2 {
+ 		y = 1.0 - 0.5*zz + zz*zz*((((((_cos[0]*zz)+_cos[1])*zz+_cos[2])*zz+_cos[3])*zz+_cos[4])*zz+_cos[5])
+diff --git a/src/math/sin_386.s b/src/math/sin_386.s
+index 45d12e00c8..cf7679d188 100644
+--- a/src/math/sin_386.s
++++ b/src/math/sin_386.s
+@@ -6,42 +6,8 @@
+ 
+ // func Cos(x float64) float64
+ TEXT ·Cos(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FCOS                 // F0=cos(x) if -2**63 < x < 2**63
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     3(PC)        // jump if x outside range
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-	FLDPI                // F0=Pi, F1=x
+-	FADDD   F0, F0       // F0=2*Pi, F1=x
+-	FXCHD   F0, F1       // F0=x, F1=2*Pi
+-	FPREM1               // F0=reduced_x, F1=2*Pi
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=reduced_x
+-	FCOS                 // F0=cos(reduced_x)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
++	JMP ·cos(SB)
+ 
+ // func Sin(x float64) float64
+ TEXT ·Sin(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FSIN                 // F0=sin(x) if -2**63 < x < 2**63
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     3(PC)        // jump if x outside range
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-	FLDPI                // F0=Pi, F1=x
+-	FADDD   F0, F0       // F0=2*Pi, F1=x
+-	FXCHD   F0, F1       // F0=x, F1=2*Pi
+-	FPREM1               // F0=reduced_x, F1=2*Pi
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=reduced_x
+-	FSIN                 // F0=sin(reduced_x)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
++	JMP ·sin(SB)
+diff --git a/src/math/sincos.go b/src/math/sincos.go
+index 3ae193a3b2..c002db6b3c 100644
+--- a/src/math/sincos.go
++++ b/src/math/sincos.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386
+-
+ package math
+ 
+ // Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
+@@ -16,10 +14,9 @@ package math
+ //	Sincos(NaN) = NaN, NaN
+ func Sincos(x float64) (sin, cos float64) {
+ 	const (
+-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
++		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
++		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
++		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
+ 	)
+ 	// special cases
+ 	switch {
+@@ -36,14 +33,21 @@ func Sincos(x float64) (sin, cos float64) {
+ 		sinSign = true
+ 	}
+ 
+-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
+-	y := float64(j)      // integer part of x/(Pi/4), as float
++	var j uint64
++	var y, z float64
++	if x >= reduceThreshold {
++		j, z = trigReduce(x)
++	} else {
++		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
++		y = float64(j)           // integer part of x/(Pi/4), as float
+ 
+-	if j&1 == 1 { // map zeros to origin
+-		j++
+-		y++
++		if j&1 == 1 { // map zeros to origin
++			j++
++			y++
++		}
++		j &= 7                               // octant modulo 2Pi radians (360 degrees)
++		z = ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	}
+-	j &= 7     // octant modulo 2Pi radians (360 degrees)
+ 	if j > 3 { // reflect in x axis
+ 		j -= 4
+ 		sinSign, cosSign = !sinSign, !cosSign
+@@ -52,7 +56,6 @@ func Sincos(x float64) (sin, cos float64) {
+ 		cosSign = !cosSign
+ 	}
+ 
+-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C // Extended precision modular arithmetic
+ 	zz := z * z
+ 	cos = 1.0 - 0.5*zz + zz*zz*((((((_cos[0]*zz)+_cos[1])*zz+_cos[2])*zz+_cos[3])*zz+_cos[4])*zz+_cos[5])
+ 	sin = z + z*zz*((((((_sin[0]*zz)+_sin[1])*zz+_sin[2])*zz+_sin[3])*zz+_sin[4])*zz+_sin[5])
+diff --git a/src/math/sincos_386.go b/src/math/sincos_386.go
+deleted file mode 100644
+index 38bb050572..0000000000
+--- a/src/math/sincos_386.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package math
+-
+-// Sincos returns Sin(x), Cos(x).
+-//
+-// Special cases are:
+-//	Sincos(±0) = ±0, 1
+-//	Sincos(±Inf) = NaN, NaN
+-//	Sincos(NaN) = NaN, NaN
+-func Sincos(x float64) (sin, cos float64)
+diff --git a/src/math/sincos_386.s b/src/math/sincos_386.s
+deleted file mode 100644
+index f700a4f9bf..0000000000
+--- a/src/math/sincos_386.s
++++ /dev/null
+@@ -1,28 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// func Sincos(x float64) (sin, cos float64)
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FSINCOS              // F0=cos(x), F1=sin(x) if -2**63 < x < 2**63
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     4(PC)        // jump if x outside range
+-	FMOVDP  F0, cos+16(FP) // F0=sin(x)
+-	FMOVDP  F0, sin+8(FP)
+-	RET
+-	FLDPI                // F0=Pi, F1=x
+-	FADDD   F0, F0       // F0=2*Pi, F1=x
+-	FXCHD   F0, F1       // F0=x, F1=2*Pi
+-	FPREM1               // F0=reduced_x, F1=2*Pi
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=reduced_x
+-	FSINCOS              // F0=cos(reduced_x), F1=sin(reduced_x)
+-	FMOVDP  F0, cos+16(FP) // F0=sin(reduced_x)
+-	FMOVDP  F0, sin+8(FP)
+-	RET
+diff --git a/src/math/tan.go b/src/math/tan.go
+index aa2fb37e81..0d5394cf26 100644
+--- a/src/math/tan.go
++++ b/src/math/tan.go
+@@ -83,10 +83,9 @@ func Tan(x float64) float64
+ 
+ func tan(x float64) float64 {
+ 	const (
+-		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+-		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+-		PI4C = 2.69515142907905952645E-15                            // 0x3ce8469898cc5170,
+-		M4PI = 1.273239544735162542821171882678754627704620361328125 // 4/pi
++		PI4A = 7.85398125648498535156E-1  // 0x3fe921fb40000000, Pi/4 split into three parts
++		PI4B = 3.77489470793079817668E-8  // 0x3e64442d00000000,
++		PI4C = 2.69515142907905952645E-15 // 0x3ce8469898cc5170,
+ 	)
+ 	// special cases
+ 	switch {
+@@ -102,17 +101,22 @@ func tan(x float64) float64 {
+ 		x = -x
+ 		sign = true
+ 	}
++	var j uint64
++	var y, z float64
++	if x >= reduceThreshold {
++		j, z = trigReduce(x)
++	} else {
++		j = uint64(x * (4 / Pi)) // integer part of x/(Pi/4), as integer for tests on the phase angle
++		y = float64(j)           // integer part of x/(Pi/4), as float
+ 
+-	j := int64(x * M4PI) // integer part of x/(Pi/4), as integer for tests on the phase angle
+-	y := float64(j)      // integer part of x/(Pi/4), as float
++		/* map zeros and singularities to origin */
++		if j&1 == 1 {
++			j++
++			y++
++		}
+ 
+-	/* map zeros and singularities to origin */
+-	if j&1 == 1 {
+-		j++
+-		y++
++		z = ((x - y*PI4A) - y*PI4B) - y*PI4C
+ 	}
+-
+-	z := ((x - y*PI4A) - y*PI4B) - y*PI4C
+ 	zz := z * z
+ 
+ 	if zz > 1e-14 {
+diff --git a/src/math/tan_386.s b/src/math/tan_386.s
+index cb65a3f703..4e44c2692d 100644
+--- a/src/math/tan_386.s
++++ b/src/math/tan_386.s
+@@ -6,23 +6,4 @@
+ 
+ // func Tan(x float64) float64
+ TEXT ·Tan(SB),NOSPLIT,$0
+-	FMOVD   x+0(FP), F0  // F0=x
+-	FPTAN                // F0=1, F1=tan(x) if -2**63 < x < 2**63
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     4(PC)        // jump if x outside range
+-	FMOVDP  F0, F0       // F0=tan(x)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
+-	FLDPI                // F0=Pi, F1=x
+-	FADDD   F0, F0       // F0=2*Pi, F1=x
+-	FXCHD   F0, F1       // F0=x, F1=2*Pi
+-	FPREM1               // F0=reduced_x, F1=2*Pi
+-	FSTSW   AX           // AX=status word
+-	ANDW    $0x0400, AX
+-	JNE     -3(PC)       // jump if reduction incomplete
+-	FMOVDP  F0, F1       // F0=reduced_x
+-	FPTAN                // F0=1, F1=tan(reduced_x)
+-	FMOVDP  F0, F0       // F0=tan(reduced_x)
+-	FMOVDP  F0, ret+8(FP)
+-	RET
++	JMP     ·tan(SB)
+diff --git a/src/math/trig_reduce.go b/src/math/trig_reduce.go
+new file mode 100644
+index 0000000000..7bc72e986d
+--- /dev/null
++++ b/src/math/trig_reduce.go
+@@ -0,0 +1,94 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++import (
++	"math/bits"
++)
++
++// reduceThreshold is the maximum value where the reduction using Pi/4
++// in 3 float64 parts still gives accurate results.  Above this
++// threshold Payne-Hanek range reduction must be used.
++const reduceThreshold = (1 << 52) / (4 / Pi)
++
++// trigReduce implements Payne-Hanek range reduction by Pi/4
++// for x > 0.  It returns the integer part mod 8 (j) and
++// the fractional part (z) of x / (Pi/4).
++// The implementation is based on:
++// "ARGUMENT REDUCTION FOR HUGE ARGUMENTS: Good to the Last Bit"
++// K. C. Ng et al, March 24, 1992
++// The simulated multi-precision calculation of x*B uses 64-bit integer arithmetic.
++func trigReduce(x float64) (j uint64, z float64) {
++	const PI4 = Pi / 4
++	if x < PI4 {
++		return 0, x
++	}
++	// Extract out the integer and exponent such that,
++	// x = ix * 2 ** exp.
++	ix := Float64bits(x)
++	exp := int(ix>>shift&mask) - bias - shift
++	ix &^= mask << shift
++	ix |= 1 << shift
++	// Use the exponent to extract the 3 appropriate uint64 digits from mPi4,
++	// B ~ (z0, z1, z2), such that the product leading digit has the exponent -61.
++	// Note, exp >= -53 since x >= PI4 and exp < 971 for maximum float64.
++	digit, bitshift := uint(exp+61)/64, uint(exp+61)%64
++	z0 := (mPi4[digit] << bitshift) | (mPi4[digit+1] >> (64 - bitshift))
++	z1 := (mPi4[digit+1] << bitshift) | (mPi4[digit+2] >> (64 - bitshift))
++	z2 := (mPi4[digit+2] << bitshift) | (mPi4[digit+3] >> (64 - bitshift))
++	// Multiply mantissa by the digits and extract the upper two digits (hi, lo).
++	z2hi, _ := bits.Mul64(z2, ix)
++	z1hi, z1lo := bits.Mul64(z1, ix)
++	z0lo := z0 * ix
++	lo, c := bits.Add64(z1lo, z2hi, 0)
++	hi, _ := bits.Add64(z0lo, z1hi, c)
++	// The top 3 bits are j.
++	j = hi >> 61
++	// Extract the fraction and find its magnitude.
++	hi = hi<<3 | lo>>61
++	lz := uint(bits.LeadingZeros64(hi))
++	e := uint64(bias - (lz + 1))
++	// Clear implicit mantissa bit and shift into place.
++	hi = (hi << (lz + 1)) | (lo >> (64 - (lz + 1)))
++	hi >>= 64 - shift
++	// Include the exponent and convert to a float.
++	hi |= e << shift
++	z = Float64frombits(hi)
++	// Map zeros to origin.
++	if j&1 == 1 {
++		j++
++		j &= 7
++		z--
++	}
++	// Multiply the fractional part by pi/4.
++	return j, z * PI4
++}
++
++// mPi4 is the binary digits of 4/pi as a uint64 array,
++// that is, 4/pi = Sum mPi4[i]*2^(-64*i)
++// 19 64-bit digits gives 1153 bits of precision to handle
++// the largest possible float64 exponent.
++var mPi4 = [...]uint64{
++	0x0000000000000001,
++	0x45f306dc9c882a53,
++	0xf84eafa3ea69bb81,
++	0xb6c52b3278872083,
++	0xfca2c757bd778ac3,
++	0x6e48dc74849ba5c0,
++	0x0c925dd413a32439,
++	0xfc3bd63962534e7d,
++	0xd1046bea5d768909,
++	0xd338e04d68befc82,
++	0x7323ac7306a673e9,
++	0x3908bf177bf25076,
++	0x3ff12fffbc0b301f,
++	0xde5e2316b414da3e,
++	0xda6cfd9e4f96136e,
++	0x9e8c7ecd3cbfd45a,
++	0xea4f758fd7cbe2f6,
++	0x7a0e73ef14a525d4,
++	0xd7f6bf623f1aba10,
++	0xac06608df8f6d757,
++}

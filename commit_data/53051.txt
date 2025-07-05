@@ -13,8 +13,252 @@ Date:   Fri Jun 24 14:19:06 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go |  29 +++++---
  src/cmd/compile/internal/noder/writer.go | 124 +++++++++++++++----------------
  src/internal/pkgbits/sync.go             |   2 +
  3 files changed, 79 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index c8ed8552cd..ea1465693c 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1240,7 +1240,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 		pos := r.pos()
+ 
+ 		names, lhs := r.assignList()
+-		rhs := r.exprList()
++		rhs := r.multiExpr()
+ 
+ 		if len(rhs) == 0 {
+ 			for _, name := range names {
+@@ -1308,7 +1308,7 @@ func (r *reader) stmt1(tag codeStmt, out *ir.Nodes) ir.Node {
+ 
+ 	case stmtReturn:
+ 		pos := r.pos()
+-		results := r.exprList()
++		results := r.multiExpr()
+ 		return ir.NewReturnStmt(pos, results)
+ 
+ 	case stmtSelect:
+@@ -1734,15 +1734,8 @@ func (r *reader) expr() (res ir.Node) {
+ 			fun = typecheck.Callee(ir.NewSelectorExpr(pos, ir.OXDOT, fun, sym))
+ 		}
+ 		pos := r.pos()
+-		var args ir.Nodes
+-		var dots bool
+-		if r.Bool() { // f(g())
+-			call := r.expr()
+-			args = []ir.Node{call}
+-		} else {
+-			args = r.exprs()
+-			dots = r.Bool()
+-		}
++		args := r.multiExpr()
++		dots := r.Bool()
+ 		n := typecheck.Call(pos, fun, args, dots)
+ 		switch n.Op() {
+ 		case ir.OAPPEND:
+@@ -1814,6 +1807,20 @@ func (r *reader) optExpr() ir.Node {
+ 	return nil
+ }
+ 
++func (r *reader) multiExpr() []ir.Node {
++	r.Sync(pkgbits.SyncMultiExpr)
++
++	exprs := make([]ir.Node, r.Len())
++	if len(exprs) == 0 {
++		return nil
++	}
++
++	for i := range exprs {
++		exprs[i] = r.expr()
++	}
++	return exprs
++}
++
+ func (r *reader) compLit() ir.Node {
+ 	r.Sync(pkgbits.SyncCompLit)
+ 	pos := r.pos()
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ff026ba5ca..7020a02616 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1136,24 +1136,11 @@ func (w *writer) stmt1(stmt syntax.Stmt) {
+ 		w.Code(stmtReturn)
+ 		w.pos(stmt)
+ 
+-		// As if w.exprList(stmt.Results), but with implicit conversions to result types.
+-		w.Sync(pkgbits.SyncExprList)
+-		exprs := unpackListExpr(stmt.Results)
+-		w.Sync(pkgbits.SyncExprs)
+-		w.Len(len(exprs))
+-
+ 		resultTypes := w.sig.Results()
+-		if len(exprs) == resultTypes.Len() {
+-			for i, expr := range exprs {
+-				w.implicitConvExpr(stmt, resultTypes.At(i).Type(), expr)
+-			}
+-		} else if len(exprs) == 0 {
+-			// ok: bare "return" with named result parameters
+-		} else {
+-			// TODO(mdempsky): Implicit conversions for "return g()", where g() is multi-valued.
+-			assert(len(exprs) == 1)
+-			w.expr(exprs[0])
++		dstType := func(i int) types2.Type {
++			return resultTypes.At(i).Type()
+ 		}
++		w.multiExpr(stmt, dstType, unpackListExpr(stmt.Results))
+ 
+ 	case *syntax.SelectStmt:
+ 		w.Code(stmtSelect)
+@@ -1236,40 +1223,28 @@ func (w *writer) assignStmt(pos poser, lhs0, rhs0 syntax.Expr) {
+ 		w.assign(expr)
+ 	}
+ 
+-	// As if w.exprList(rhs0), but with implicit conversions.
+-	w.Sync(pkgbits.SyncExprList)
+-	w.Sync(pkgbits.SyncExprs)
+-	w.Len(len(rhs))
+-	if len(lhs) == len(rhs) {
+-		for i, expr := range rhs {
+-			dst := lhs[i]
+-
+-			// Finding dstType is somewhat involved, because for VarDecl
+-			// statements, the Names are only added to the info.{Defs,Uses}
+-			// maps, not to info.Types.
+-			var dstType types2.Type
+-			if name, ok := unparen(dst).(*syntax.Name); ok {
+-				if name.Value == "_" {
+-					// ok: no implicit conversion
+-				} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
+-					dstType = def.Type()
+-				} else if use, ok := w.p.info.Uses[name].(*types2.Var); ok {
+-					dstType = use.Type()
+-				} else {
+-					w.p.fatalf(dst, "cannot find type of destination object: %v", dst)
+-				}
++	dstType := func(i int) types2.Type {
++		dst := lhs[i]
++
++		// Finding dstType is somewhat involved, because for VarDecl
++		// statements, the Names are only added to the info.{Defs,Uses}
++		// maps, not to info.Types.
++		if name, ok := unparen(dst).(*syntax.Name); ok {
++			if name.Value == "_" {
++				return nil // ok: no implicit conversion
++			} else if def, ok := w.p.info.Defs[name].(*types2.Var); ok {
++				return def.Type()
++			} else if use, ok := w.p.info.Uses[name].(*types2.Var); ok {
++				return use.Type()
+ 			} else {
+-				dstType = w.p.typeOf(dst)
++				w.p.fatalf(dst, "cannot find type of destination object: %v", dst)
+ 			}
+-
+-			w.implicitConvExpr(pos, dstType, expr)
+ 		}
+-	} else if len(rhs) == 0 {
+-		// ok: variable declaration without values
+-	} else {
+-		assert(len(rhs) == 1)
+-		w.expr(rhs[0]) // TODO(mdempsky): Implicit conversions to lhs types.
++
++		return w.p.typeOf(dst)
+ 	}
++
++	w.multiExpr(pos, dstType, rhs)
+ }
+ 
+ func (w *writer) blockStmt(stmt *syntax.BlockStmt) {
+@@ -1590,27 +1565,16 @@ func (w *writer) expr(expr syntax.Expr) {
+ 		w.Code(exprCall)
+ 		writeFunExpr()
+ 		w.pos(expr)
+-		if w.Bool(len(expr.ArgList) == 1 && isMultiValueExpr(w.p.info, expr.ArgList[0])) {
+-			// f(g()) call
+-			assert(!expr.HasDots)
+-			w.expr(expr.ArgList[0]) // TODO(mdempsky): Implicit conversions to parameter types.
+-		} else {
+-			// Like w.exprs(expr.ArgList), but with implicit conversions to parameter types.
+-			args := expr.ArgList
+-			w.Sync(pkgbits.SyncExprs)
+-			w.Len(len(args))
+-			for i, arg := range args {
+-				var paramType types2.Type
+-				if sigType.Variadic() && !expr.HasDots && i+1 >= paramTypes.Len() {
+-					paramType = paramTypes.At(paramTypes.Len() - 1).Type().(*types2.Slice).Elem()
+-				} else {
+-					paramType = paramTypes.At(i).Type()
+-				}
+-				w.implicitConvExpr(expr, paramType, arg)
+-			}
+ 
+-			w.Bool(expr.HasDots)
++		paramType := func(i int) types2.Type {
++			if sigType.Variadic() && !expr.HasDots && i >= paramTypes.Len()-1 {
++				return paramTypes.At(paramTypes.Len() - 1).Type().(*types2.Slice).Elem()
++			}
++			return paramTypes.At(i).Type()
+ 		}
++
++		w.multiExpr(expr, paramType, expr.ArgList)
++		w.Bool(expr.HasDots)
+ 	}
+ }
+ 
+@@ -1620,6 +1584,30 @@ func (w *writer) optExpr(expr syntax.Expr) {
+ 	}
+ }
+ 
++// multiExpr writes a sequence of expressions, where the i'th value is
++// implicitly converted to dstType(i). It also handles when exprs is a
++// single, multi-valued expression (e.g., the multi-valued argument in
++// an f(g()) call, or the RHS operand in a comma-ok assignment).
++func (w *writer) multiExpr(pos poser, dstType func(int) types2.Type, exprs []syntax.Expr) {
++	w.Sync(pkgbits.SyncMultiExpr)
++	w.Len(len(exprs))
++
++	if len(exprs) == 1 {
++		expr := exprs[0]
++		if tuple, ok := w.p.typeOf(expr).(*types2.Tuple); ok {
++			// N:1 assignment
++			assert(tuple.Len() > 1)
++			w.expr(expr) // TODO(mdempsky): Implicit conversions to dstTypes.
++			return
++		}
++	}
++
++	// N:N assignment
++	for i, expr := range exprs {
++		w.implicitConvExpr(pos, dstType(i), expr)
++	}
++}
++
+ // implicitConvExpr is like expr, but if dst is non-nil and different from
+ // expr's type, then an implicit conversion operation is inserted at
+ // pos.
+@@ -2032,6 +2020,12 @@ func (w *writer) pkgDecl(decl syntax.Decl) {
+ 		w.Code(declVar)
+ 		w.pos(decl)
+ 		w.pkgObjs(decl.NameList...)
++
++		// TODO(mdempsky): It would make sense to use multiExpr here, but
++		// that results in IR that confuses pkginit/initorder.go. So we
++		// continue using exprList, and let typecheck handle inserting any
++		// implicit conversions. That's okay though, because package-scope
++		// assignments never require dictionaries.
+ 		w.exprList(decl.Values)
+ 
+ 		var embeds []pragmaEmbed
+diff --git a/src/internal/pkgbits/sync.go b/src/internal/pkgbits/sync.go
+index 77178af6ce..90301c32b7 100644
+--- a/src/internal/pkgbits/sync.go
++++ b/src/internal/pkgbits/sync.go
+@@ -121,4 +121,6 @@ const (
+ 	SyncStmtsEnd
+ 	SyncLabel
+ 	SyncOptLabel
++
++	SyncMultiExpr
+ )

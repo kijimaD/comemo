@@ -12,6 +12,24 @@ Date:   Mon Oct 20 17:10:03 2008 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=17506
     CL=17509
-
+---
  test/convlit1.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/convlit1.go b/test/convlit1.go
+index c15bfcb4bc..063a1e504d 100644
+--- a/test/convlit1.go
++++ b/test/convlit1.go
+@@ -6,10 +6,10 @@
+ 
+ package main
+ 
+-var a = []int { "a" };	// ERROR "conver"
++var a = []int { "a" };	// ERROR "conver|incompatible"
+ var b = int { 1 };	// ERROR "compos"
+ 
+ 
+ func main() {
+-	if sys.argc < 1 { }	// ERROR "conver"
++	if sys.argc < 1 { }	// ERROR "conver|incompatible"
+ }

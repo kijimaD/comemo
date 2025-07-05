@@ -23,7 +23,7 @@ Date:   Wed Apr 28 10:35:53 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/types2/api_test.go    |  1 +
  src/cmd/compile/internal/types2/assignments.go | 20 +++---
  src/go/types/api_test.go                       |  1 +
@@ -32,3 +32,278 @@ Date:   Wed Apr 28 10:35:53 2021 -0400
  src/go/types/fixedbugs/issue43087.src          | 43 +++++++++++
  src/go/types/testdata/stmt0.src                |  6 +-
  7 files changed, 127 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index c90f2e7510..873390c1e9 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -555,6 +555,7 @@ func TestDefsInfo(t *testing.T) {
+ 		{`package p2; var x int`, `x`, `var p2.x int`},
+ 		{`package p3; type x int`, `x`, `type p3.x int`},
+ 		{`package p4; func f()`, `f`, `func p4.f()`},
++		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
+ 
+ 		// generic types must be sanitized
+ 		// (need to use sufficiently nested types to provoke unexpanded types)
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index ec9fdbba62..583118c8b2 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -344,16 +344,14 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		}
+ 
+ 		name := ident.Value
+-		if name == "_" {
+-			continue
+-		}
+-
+-		if seen[name] {
+-			check.errorf(lhs, "%s repeated on left side of :=", lhs)
+-			hasErr = true
+-			continue
++		if name != "_" {
++			if seen[name] {
++				check.errorf(lhs, "%s repeated on left side of :=", lhs)
++				hasErr = true
++				continue
++			}
++			seen[name] = true
+ 		}
+-		seen[name] = true
+ 
+ 		// Use the correct obj if the ident is redeclared. The
+ 		// variable's scope starts after the declaration; so we
+@@ -374,7 +372,9 @@ func (check *Checker) shortVarDecl(pos syntax.Pos, lhs, rhs []syntax.Expr) {
+ 		// declare new variable
+ 		obj := NewVar(ident.Pos(), check.pkg, name, nil)
+ 		lhsVars[i] = obj
+-		newVars = append(newVars, obj)
++		if name != "_" {
++			newVars = append(newVars, obj)
++		}
+ 		check.recordDef(ident, obj)
+ 	}
+ 
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 5ac91bedd2..f37b91d5a4 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -401,6 +401,7 @@ func TestDefsInfo(t *testing.T) {
+ 		{`package p2; var x int`, `x`, `var p2.x int`},
+ 		{`package p3; type x int`, `x`, `type p3.x int`},
+ 		{`package p4; func f()`, `f`, `func p4.f()`},
++		{`package p5; func f() int { x, _ := 1, 2; return x }`, `_`, `var _ int`},
+ 
+ 		// generic types must be sanitized
+ 		// (need to use sufficiently nested types to provoke unexpanded types)
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 3aa06e8939..18eae62184 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -308,40 +308,60 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	scope := check.scope
+ 
+ 	// collect lhs variables
+-	var newVars []*Var
+-	var lhsVars = make([]*Var, len(lhs))
++	seen := make(map[string]bool, len(lhs))
++	lhsVars := make([]*Var, len(lhs))
++	newVars := make([]*Var, 0, len(lhs))
++	hasErr := false
+ 	for i, lhs := range lhs {
+-		var obj *Var
+-		if ident, _ := lhs.(*ast.Ident); ident != nil {
+-			// Use the correct obj if the ident is redeclared. The
+-			// variable's scope starts after the declaration; so we
+-			// must use Scope.Lookup here and call Scope.Insert
+-			// (via check.declare) later.
+-			name := ident.Name
+-			if alt := scope.Lookup(name); alt != nil {
+-				// redeclared object must be a variable
+-				if alt, _ := alt.(*Var); alt != nil {
+-					obj = alt
+-				} else {
+-					check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
+-				}
+-				check.recordUse(ident, alt)
++		ident, _ := lhs.(*ast.Ident)
++		if ident == nil {
++			check.useLHS(lhs)
++			// TODO(rFindley) this is redundant with a parser error. Consider omitting?
++			check.errorf(lhs, _BadDecl, "non-name %s on left side of :=", lhs)
++			hasErr = true
++			continue
++		}
++
++		name := ident.Name
++		if name != "_" {
++			if seen[name] {
++				check.errorf(lhs, _RepeatedDecl, "%s repeated on left side of :=", lhs)
++				hasErr = true
++				continue
++			}
++			seen[name] = true
++		}
++
++		// Use the correct obj if the ident is redeclared. The
++		// variable's scope starts after the declaration; so we
++		// must use Scope.Lookup here and call Scope.Insert
++		// (via check.declare) later.
++		if alt := scope.Lookup(name); alt != nil {
++			check.recordUse(ident, alt)
++			// redeclared object must be a variable
++			if obj, _ := alt.(*Var); obj != nil {
++				lhsVars[i] = obj
+ 			} else {
+-				// declare new variable, possibly a blank (_) variable
+-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
+-				if name != "_" {
+-					newVars = append(newVars, obj)
+-				}
+-				check.recordDef(ident, obj)
++				check.errorf(lhs, _UnassignableOperand, "cannot assign to %s", lhs)
++				hasErr = true
+ 			}
+-		} else {
+-			check.useLHS(lhs)
+-			check.invalidAST(lhs, "cannot declare %s", lhs)
++			continue
++		}
++
++		// declare new variable
++		obj := NewVar(ident.Pos(), check.pkg, name, nil)
++		lhsVars[i] = obj
++		if name != "_" {
++			newVars = append(newVars, obj)
+ 		}
++		check.recordDef(ident, obj)
++	}
++
++	// create dummy variables where the lhs is invalid
++	for i, obj := range lhsVars {
+ 		if obj == nil {
+-			obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
++			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
+ 		}
+-		lhsVars[i] = obj
+ 	}
+ 
+ 	check.initVars(lhsVars, rhs, token.NoPos)
+@@ -349,17 +369,18 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	// process function literals in rhs expressions before scope changes
+ 	check.processDelayed(top)
+ 
+-	// declare new variables
+-	if len(newVars) > 0 {
+-		// spec: "The scope of a constant or variable identifier declared inside
+-		// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
+-		// for short variable declarations) and ends at the end of the innermost
+-		// containing block."
+-		scopePos := rhs[len(rhs)-1].End()
+-		for _, obj := range newVars {
+-			check.declare(scope, nil, obj, scopePos) // recordObject already called
+-		}
+-	} else {
++	if len(newVars) == 0 && !hasErr {
+ 		check.softErrorf(pos, _NoNewVar, "no new variables on left side of :=")
++		return
++	}
++
++	// declare new variables
++	// spec: "The scope of a constant or variable identifier declared inside
++	// a function begins at the end of the ConstSpec or VarSpec (ShortVarDecl
++	// for short variable declarations) and ends at the end of the innermost
++	// containing block."
++	scopePos := rhs[len(rhs)-1].End()
++	for _, obj := range newVars {
++		check.declare(scope, nil, obj, scopePos) // id = nil: recordDef already called
+ 	}
+ }
+diff --git a/src/go/types/errorcodes.go b/src/go/types/errorcodes.go
+index 1106cd986f..a33a4e7dce 100644
+--- a/src/go/types/errorcodes.go
++++ b/src/go/types/errorcodes.go
+@@ -1357,6 +1357,15 @@ const (
+ 	// _BadDecl occurs when a declaration has invalid syntax.
+ 	_BadDecl
+ 
++	// _RepeatedDecl occurs when an identifier occurs more than once on the left
++	// hand side of a short variable declaration.
++	//
++	// Example:
++	//  func _() {
++	//  	x, y, y := 1, 2, 3
++	//  }
++	_RepeatedDecl
++
+ 	// _Todo is a placeholder for error codes that have not been decided.
+ 	// TODO(rFindley) remove this error code after deciding on errors for generics code.
+ 	_Todo
+diff --git a/src/go/types/fixedbugs/issue43087.src b/src/go/types/fixedbugs/issue43087.src
+new file mode 100644
+index 0000000000..ef37b4aa29
+--- /dev/null
++++ b/src/go/types/fixedbugs/issue43087.src
+@@ -0,0 +1,43 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
++	_ = a
++	_ = b
++}
++
++func _() {
++	a, _, _ := 1, 2, 3 // multiple _'s ok
++	_ = a
++}
++
++func _() {
++	var b int
++	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
++	_ = a
++	_ = b
++}
++
++func _() {
++	var a []int
++	a /* ERROR expected identifier */ /* ERROR non-name .* on left side of := */ [0], b := 1, 2
++	_ = a
++	_ = b
++}
++
++func _() {
++	var a int
++	a, a /* ERROR a repeated on left side of := */ := 1, 2
++	_ = a
++}
++
++func _() {
++	var a, b int
++	a, b := /* ERROR no new variables on left side of := */ 1, 2
++	_ = a
++	_ = b
++}
+diff --git a/src/go/types/testdata/stmt0.src b/src/go/types/testdata/stmt0.src
+index 2602d7dacf..76b6e70d63 100644
+--- a/src/go/types/testdata/stmt0.src
++++ b/src/go/types/testdata/stmt0.src
+@@ -143,11 +143,11 @@ func issue6487() {
+ }
+ 
+ func issue6766a() {
+-	a, a /* ERROR redeclared */ := 1, 2
++	a, a /* ERROR a repeated on left side of := */ := 1, 2
+ 	_ = a
+-	a, b, b /* ERROR redeclared */ := 1, 2, 3
++	a, b, b /* ERROR b repeated on left side of := */ := 1, 2, 3
+ 	_ = b
+-	c, c /* ERROR redeclared */, b := 1, 2, 3
++	c, c /* ERROR c repeated on left side of := */, b := 1, 2, 3
+ 	_ = c
+ 	a, b := /* ERROR no new variables */ 1, 2
+ }

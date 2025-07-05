@@ -24,7 +24,72 @@ Date:   Mon May 22 21:39:38 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/38056
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/log/log.go      | 18 +++++++++++++-----
  src/log/log_test.go | 10 ++++++++++
  2 files changed, 23 insertions(+), 5 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 58b8788be4..0ea4b89658 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -72,7 +72,7 @@ func (l *Logger) SetOutput(w io.Writer) {
+ 
+ var std = New(os.Stderr, "", LstdFlags)
+ 
+-// Cheap integer to fixed-width decimal ASCII.  Give a negative width to avoid zero-padding.
++// Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
+ func itoa(buf *[]byte, i int, wid int) {
+ 	// Assemble decimal in reverse order.
+ 	var b [20]byte
+@@ -89,12 +89,16 @@ func itoa(buf *[]byte, i int, wid int) {
+ 	*buf = append(*buf, b[bp:]...)
+ }
+ 
++// formatHeader writes log header to buf in following order:
++//   * l.prefix (if it's not blank),
++//   * date and/or time (if corresponding flags are provided),
++//   * file and line number (if corresponding flags are provided).
+ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+ 	*buf = append(*buf, l.prefix...)
+-	if l.flag&LUTC != 0 {
+-		t = t.UTC()
+-	}
+ 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
++		if l.flag&LUTC != 0 {
++			t = t.UTC()
++		}
+ 		if l.flag&Ldate != 0 {
+ 			year, month, day := t.Date()
+ 			itoa(buf, year, 4)
+@@ -143,7 +147,11 @@ func (l *Logger) formatHeader(buf *[]byte, t time.Time, file string, line int) {
+ // provided for generality, although at the moment on all pre-defined
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
+-	now := time.Now() // get this early.
++	// Get time early if we need it.
++	var now time.Time
++	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
++		now = time.Now()
++	}
+ 	var file string
+ 	var line int
+ 	l.mu.Lock()
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index dd16c9d3e1..966fdf306b 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -182,3 +182,13 @@ func BenchmarkPrintln(b *testing.B) {
+ 		l.Println(testString)
+ 	}
+ }
++
++func BenchmarkPrintlnNoFlags(b *testing.B) {
++	const testString = "test"
++	var buf bytes.Buffer
++	l := New(&buf, "", 0)
++	for i := 0; i < b.N; i++ {
++		buf.Reset()
++		l.Println(testString)
++	}
++}

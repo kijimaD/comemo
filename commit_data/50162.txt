@@ -26,8 +26,111 @@ Date:   Tue Sep 28 11:52:45 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    |  9 ++--
  src/cmd/go/internal/work/gc.go                     |  5 ++-
  .../script/mod_build_trimpath_issue48557.txt       | 52 ++++++++++++++++++++++
  3 files changed, 61 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8a5a1a5fe2..a3a8de81c9 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1678,9 +1678,10 @@ func (p *Package) DefaultExecName() string {
+ func (p *Package) load(ctx context.Context, opts PackageOpts, path string, stk *ImportStack, importPos []token.Position, bp *build.Package, err error) {
+ 	p.copyBuild(opts, bp)
+ 
+-	// The localPrefix is the path we interpret ./ imports relative to.
++	// The localPrefix is the path we interpret ./ imports relative to,
++	// if we support them at all (not in module mode!).
+ 	// Synthesized main packages sometimes override this.
+-	if p.Internal.Local {
++	if p.Internal.Local && !cfg.ModulesEnabled {
+ 		p.Internal.LocalPrefix = dirToImportPath(p.Dir)
+ 	}
+ 
+@@ -2703,7 +2704,9 @@ func GoFilesPackage(ctx context.Context, opts PackageOpts, gofiles []string) *Pa
+ 	pkg.Internal.Local = true
+ 	pkg.Internal.CmdlineFiles = true
+ 	pkg.load(ctx, opts, "command-line-arguments", &stk, nil, bp, err)
+-	pkg.Internal.LocalPrefix = dirToImportPath(dir)
++	if !cfg.ModulesEnabled {
++		pkg.Internal.LocalPrefix = dirToImportPath(dir)
++	}
+ 	pkg.ImportPath = "command-line-arguments"
+ 	pkg.Target = ""
+ 	pkg.Match = gofiles
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 85f661bf31..3eb9b35f40 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -165,8 +165,9 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	}
+ 
+ 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+-	if p.Internal.LocalPrefix != "" {
+-		// Workaround #43883.
++	if p.Internal.LocalPrefix == "" {
++		args = append(args, "-nolocalimports")
++	} else {
+ 		args = append(args, "-D", p.Internal.LocalPrefix)
+ 	}
+ 	if importcfg != nil {
+diff --git a/src/cmd/go/testdata/script/mod_build_trimpath_issue48557.txt b/src/cmd/go/testdata/script/mod_build_trimpath_issue48557.txt
+new file mode 100644
+index 0000000000..859eafcf84
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_build_trimpath_issue48557.txt
+@@ -0,0 +1,52 @@
++# Regression test for issue #48557.
++# Since builds in module mode do not support relative imports at all, the build
++# ID for (and other contents of) a binary built with -trimpath in module mode
++# should not depend on its working directory, even if the binary is specified as
++# a list of relative source files.
++
++[short] skip  # links and runs binaries
++
++env GOFLAGS=-trimpath
++env GOCACHE=$WORK/gocache
++
++
++# When we build a binary in module mode with -trimpath, the -D flag (for the
++# "local import prefix") should not be passed to it.
++
++cd $WORK/tmp/foo
++go build -x -o a.exe main.go
++stderr ${/}compile$GOEXE.*' -nolocalimports'
++! stderr ${/}compile$GOEXE.*' -D[ =]'
++
++go tool buildid a.exe
++cp stdout ../foo-buildid.txt
++go version a.exe
++cp stdout ../foo-version.txt
++cd ..
++
++
++# On the second build — in a different directory but with -trimpath — the
++# compiler should not be invoked, since the cache key should be identical.
++# Only the linker and buildid tool should be needed.
++
++mkdir bar
++cp foo/main.go bar/main.go
++cd bar
++go build -x -o a.exe main.go
++! stderr ${/}compile$GOEXE
++
++go tool buildid a.exe
++cp stdout ../bar-buildid.txt
++go version a.exe
++cp stdout ../bar-version.txt
++cd ..
++
++cmp bar-buildid.txt foo-buildid.txt
++cmp bar-version.txt foo-version.txt
++cmp bar/a.exe foo/a.exe
++
++
++-- $WORK/tmp/foo/main.go --
++package main
++
++func main() {}

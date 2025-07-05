@@ -11,6 +11,41 @@ Date:   Fri Jan 8 17:56:50 2016 -0800
     Change-Id: I74496c3cdf82a5dbd6a5bd189bb3cd0ca103fd52
     Reviewed-on: https://go-review.googlesource.com/18460
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/internal/gcimporter/gcimporter.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/internal/gcimporter/gcimporter.go b/src/go/internal/gcimporter/gcimporter.go
+index 1402aa223e..46006c5c20 100644
+--- a/src/go/internal/gcimporter/gcimporter.go
++++ b/src/go/internal/gcimporter/gcimporter.go
+@@ -39,7 +39,6 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		return
+ 	}
+ 
+-	id = path
+ 	var noext string
+ 	switch {
+ 	default:
+@@ -50,6 +49,7 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 			return
+ 		}
+ 		noext = strings.TrimSuffix(bp.PkgObj, ".a")
++		id = bp.ImportPath
+ 
+ 	case build.IsLocalImport(path):
+ 		// "./x" -> "/this/directory/x.ext", "/this/directory/x"
+@@ -61,6 +61,13 @@ func FindPkg(path, srcDir string) (filename, id string) {
+ 		// does not support absolute imports
+ 		// "/x" -> "/x.ext", "/x"
+ 		noext = path
++		id = path
++	}
++
++	if false { // for debugging
++		if path != id {
++			fmt.Printf("%s -> %s\n", path, id)
++		}
+ 	}
+ 
+ 	// try extensions

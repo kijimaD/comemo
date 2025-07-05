@@ -8,10 +8,243 @@ Date:   Thu Aug 15 14:32:10 2013 +0400
     R=golang-dev, khr
     CC=golang-dev
     https://golang.org/cl/12934043
-
+---
  src/pkg/runtime/chan.c     | 11 -----------
  src/pkg/runtime/hashmap.c  |  8 --------
  src/pkg/runtime/malloc.goc |  2 --
  src/pkg/runtime/proc.c     | 28 ++++++++++++++--------------
  src/pkg/runtime/runtime.h  |  1 -
  5 files changed, 14 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 1cb3d99aa7..48cc41e208 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -169,9 +169,6 @@ runtime·chansend(ChanType *t, Hchan *c, byte *ep, bool *pres, void *pc)
+ 		return;  // not reached
+ 	}
+ 
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+-
+ 	if(debug) {
+ 		runtime·printf("chansend: chan=%p; elem=", c);
+ 		c->elemalg->print(c->elemsize, ep);
+@@ -295,9 +292,6 @@ runtime·chanrecv(ChanType *t, Hchan* c, byte *ep, bool *selected, bool *receive
+ 	G *gp;
+ 	int64 t0;
+ 
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+-
+ 	if(debug)
+ 		runtime·printf("chanrecv: chan=%p\n", c);
+ 
+@@ -860,8 +854,6 @@ selectgo(Select **selp)
+ 	void *pc;
+ 
+ 	sel = *selp;
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+ 
+ 	if(debug)
+ 		runtime·printf("select: sel=%p\n", sel);
+@@ -1260,9 +1252,6 @@ closechan(Hchan *c, void *pc)
+ 	if(c == nil)
+ 		runtime·panicstring("close of nil channel");
+ 
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+-
+ 	runtime·lock(c);
+ 	if(c->closed) {
+ 		runtime·unlock(c);
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 6b89082931..a721d4a535 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -1167,9 +1167,6 @@ runtime·mapaccess(MapType *t, Hmap *h, byte *ak, byte *av, bool *pres)
+ 		return;
+ 	}
+ 
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+-
+ 	res = hash_lookup(t, h, &ak);
+ 
+ 	if(res != nil) {
+@@ -1277,9 +1274,6 @@ runtime·mapassign(MapType *t, Hmap *h, byte *ak, byte *av)
+ 	if(h == nil)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+-
+ 	if(av == nil) {
+ 		hash_remove(t, h, ak);
+ 	} else {
+@@ -1424,8 +1418,6 @@ runtime·mapiternext(struct hash_iter *it)
+ {
+ 	if(raceenabled)
+ 		runtime·racereadpc(it->h, runtime·getcallerpc(&it), runtime·mapiternext);
+-	if(runtime·gcwaiting)
+-		runtime·gosched();
+ 
+ 	hash_next(it);
+ 	if(debug) {
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 179a0682a1..d03d391822 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -41,8 +41,6 @@ runtime·mallocgc(uintptr size, uintptr typ, uint32 flag)
+ 	MSpan *s;
+ 	MLink *v;
+ 
+-	if(runtime·gcwaiting && g != m->g0 && m->locks == 0 && !(flag & FlagNoInvokeGC))
+-		runtime·gosched();
+ 	if(size == 0) {
+ 		// All 0-length allocations use this pointer.
+ 		// The language does not require the allocations to
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 43114e9e0e..c8d9ae4f92 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -46,6 +46,7 @@ struct Sched {
+ 	Lock	gflock;
+ 	G*	gfree;
+ 
++	uint32	gcwaiting;	// gc is waiting to run
+ 	int32	stopwait;
+ 	Note	stopnote;
+ 	uint32	sysmonwait;
+@@ -63,7 +64,6 @@ Sched	runtime·sched;
+ int32	runtime·gomaxprocs;
+ uint32	runtime·needextram;
+ bool	runtime·iscgo;
+-uint32	runtime·gcwaiting;
+ M	runtime·m0;
+ G	runtime·g0;	 // idle goroutine for m0
+ G*	runtime·allg;
+@@ -391,7 +391,7 @@ runtime·freezetheworld(void)
+ 	for(i = 0; i < 5; i++) {
+ 		// this should tell the scheduler to not start any new goroutines
+ 		runtime·sched.stopwait = 0x7fffffff;
+-		runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
++		runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
+ 		// this should stop running goroutines
+ 		if(!preemptall())
+ 			break;  // no running goroutines
+@@ -413,7 +413,7 @@ runtime·stoptheworld(void)
+ 
+ 	runtime·lock(&runtime·sched);
+ 	runtime·sched.stopwait = runtime·gomaxprocs;
+-	runtime·atomicstore((uint32*)&runtime·gcwaiting, 1);
++	runtime·atomicstore((uint32*)&runtime·sched.gcwaiting, 1);
+ 	preemptall();
+ 	// stop current P
+ 	m->p->status = Pgcstop;
+@@ -477,7 +477,7 @@ runtime·starttheworld(void)
+ 		newprocs = 0;
+ 	} else
+ 		procresize(runtime·gomaxprocs);
+-	runtime·gcwaiting = 0;
++	runtime·sched.gcwaiting = 0;
+ 
+ 	p1 = nil;
+ 	while(p = pidleget()) {
+@@ -971,7 +971,7 @@ handoffp(P *p)
+ 		return;
+ 	}
+ 	runtime·lock(&runtime·sched);
+-	if(runtime·gcwaiting) {
++	if(runtime·sched.gcwaiting) {
+ 		p->status = Pgcstop;
+ 		if(--runtime·sched.stopwait == 0)
+ 			runtime·notewakeup(&runtime·sched.stopnote);
+@@ -1056,7 +1056,7 @@ gcstopm(void)
+ {
+ 	P *p;
+ 
+-	if(!runtime·gcwaiting)
++	if(!runtime·sched.gcwaiting)
+ 		runtime·throw("gcstopm: not waiting for gc");
+ 	if(m->spinning) {
+ 		m->spinning = false;
+@@ -1107,7 +1107,7 @@ findrunnable(void)
+ 	int32 i;
+ 
+ top:
+-	if(runtime·gcwaiting) {
++	if(runtime·sched.gcwaiting) {
+ 		gcstopm();
+ 		goto top;
+ 	}
+@@ -1141,7 +1141,7 @@ top:
+ 	}
+ 	// random steal from other P's
+ 	for(i = 0; i < 2*runtime·gomaxprocs; i++) {
+-		if(runtime·gcwaiting)
++		if(runtime·sched.gcwaiting)
+ 			goto top;
+ 		p = runtime·allp[runtime·fastrand1()%runtime·gomaxprocs];
+ 		if(p == m->p)
+@@ -1154,7 +1154,7 @@ top:
+ stop:
+ 	// return P and block
+ 	runtime·lock(&runtime·sched);
+-	if(runtime·gcwaiting) {
++	if(runtime·sched.gcwaiting) {
+ 		runtime·unlock(&runtime·sched);
+ 		goto top;
+ 	}
+@@ -1263,7 +1263,7 @@ schedule(void)
+ 		runtime·throw("schedule: holding locks");
+ 
+ top:
+-	if(runtime·gcwaiting) {
++	if(runtime·sched.gcwaiting) {
+ 		gcstopm();
+ 		goto top;
+ 	}
+@@ -1442,7 +1442,7 @@ void
+ 	m->mcache = nil;
+ 	m->p->m = nil;
+ 	runtime·atomicstore(&m->p->status, Psyscall);
+-	if(runtime·gcwaiting) {
++	if(runtime·sched.gcwaiting) {
+ 		runtime·lock(&runtime·sched);
+ 		if (runtime·sched.stopwait > 0 && runtime·cas(&m->p->status, Psyscall, Pgcstop)) {
+ 			if(--runtime·sched.stopwait == 0)
+@@ -2251,9 +2251,9 @@ sysmon(void)
+ 			delay = 10*1000;
+ 		runtime·usleep(delay);
+ 		if(runtime·debug.schedtrace <= 0 &&
+-			(runtime·gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
++			(runtime·sched.gcwaiting || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs)) {  // TODO: fast atomic
+ 			runtime·lock(&runtime·sched);
+-			if(runtime·atomicload(&runtime·gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
++			if(runtime·atomicload(&runtime·sched.gcwaiting) || runtime·atomicload(&runtime·sched.npidle) == runtime·gomaxprocs) {
+ 				runtime·atomicstore(&runtime·sched.sysmonwait, 1);
+ 				runtime·unlock(&runtime·sched);
+ 				runtime·notesleep(&runtime·sched.sysmonnote);
+@@ -2427,7 +2427,7 @@ runtime·schedtrace(bool detailed)
+ 		runtime·sched.nmidle, runtime·sched.runqsize);
+ 	if(detailed) {
+ 		runtime·printf(" gcwaiting=%d nmidlelocked=%d nmspinning=%d stopwait=%d sysmonwait=%d\n",
+-			runtime·gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
++			runtime·sched.gcwaiting, runtime·sched.nmidlelocked, runtime·sched.nmspinning,
+ 			runtime·sched.stopwait, runtime·sched.sysmonwait);
+ 	}
+ 	// We must be careful while reading data from P's, M's and G's.
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index cc7ccd4b9f..b80e2ad41a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -704,7 +704,6 @@ extern	P**	runtime·allp;
+ extern	int32	runtime·gomaxprocs;
+ extern	uint32	runtime·needextram;
+ extern	uint32	runtime·panicking;
+-extern	uint32	runtime·gcwaiting;		// gc is waiting to run
+ extern	int8*	runtime·goos;
+ extern	int32	runtime·ncpu;
+ extern	bool	runtime·iscgo;

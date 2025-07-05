@@ -15,6 +15,17 @@ Date:   Mon Mar 4 13:48:41 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/99-minor/database/sql/64707.md | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/database/sql/64707.md b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+new file mode 100644
+index 0000000000..70aad889ff
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/database/sql/64707.md
+@@ -0,0 +1,4 @@
++Errors returned by [`driver.Valuer`](/database/sql/driver#Driver)
++implementations are now wrapped for improved error handling during
++operations like [`Query`](/database/sql#DB.Query), [`Exec`](/database/sql#DB.Exec),
++and [`QueryRow`](/database/sql#DB.QueryRow).

@@ -10,6 +10,19 @@ Date:   Sat Dec 22 13:41:01 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6962049
-
+---
  src/pkg/testing/example.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index dc97255965..34d4b2bda9 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -50,6 +50,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 		go func() {
+ 			buf := new(bytes.Buffer)
+ 			_, err := io.Copy(buf, r)
++			r.Close()
+ 			if err != nil {
+ 				fmt.Fprintf(os.Stderr, "testing: copying pipe: %v\n", err)
+ 				os.Exit(1)

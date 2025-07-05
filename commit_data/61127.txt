@@ -10,6 +10,25 @@ Date:   Fri Oct 4 14:30:06 2024 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/traceback.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 95a57bd2b7..3c2092ed99 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1149,11 +1149,10 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ // It is only for runtime functions, so ASCII A-Z is fine.
+ func isExportedRuntime(name string) bool {
+ 	// Check and remove package qualifier.
+-	n := len("runtime.")
+-	if len(name) <= n || name[:n] != "runtime." {
++	name, found := stringslite.CutPrefix(name, "runtime.")
++	if !found {
+ 		return false
+ 	}
+-	name = name[n:]
+ 	rcvr := ""
+ 
+ 	// Extract receiver type, if any.

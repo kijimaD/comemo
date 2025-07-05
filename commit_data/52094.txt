@@ -17,6 +17,20 @@ Date:   Mon Apr 4 18:07:01 2022 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/398075
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 9da1f6ad99..b496e9e48f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1880,7 +1880,7 @@ A4, func(int, float64) *[]string, and A5
+ B0 and C0
+ D0[int, string] and E0
+ []int and []int
+-struct{ a, b *T5 } and struct{ a, b *T5 }
++struct{ a, b *B5 } and struct{ a, b *B5 }
+ func(x int, y float64) *[]string, func(int, float64) (result *[]string), and A5
+ </pre>
+ 

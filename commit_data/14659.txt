@@ -9,7 +9,118 @@ Date:   Sun Dec 16 19:31:59 2012 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6931046
-
+---
  src/cmd/fix/printerconfig.go      | 61 +++++++++++++++++++++++++++++++++++++++
  src/cmd/fix/printerconfig_test.go | 37 ++++++++++++++++++++++++
  2 files changed, 98 insertions(+)
+
+diff --git a/src/cmd/fix/printerconfig.go b/src/cmd/fix/printerconfig.go
+new file mode 100644
+index 0000000000..432e18bb26
+--- /dev/null
++++ b/src/cmd/fix/printerconfig.go
+@@ -0,0 +1,61 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "go/ast"
++
++func init() {
++	register(printerconfigFix)
++}
++
++var printerconfigFix = fix{
++	"printerconfig",
++	"2012-12-11",
++	printerconfig,
++	`Add element keys to Config composite literals.`,
++}
++
++func printerconfig(f *ast.File) bool {
++	if !imports(f, "go/printer") {
++		return false
++	}
++
++	fixed := false
++	walk(f, func(n interface{}) {
++		cl, ok := n.(*ast.CompositeLit)
++		if !ok {
++			return
++		}
++		se, ok := cl.Type.(*ast.SelectorExpr)
++		if !ok {
++			return
++		}
++		if !isTopName(se.X, "printer") || se.Sel == nil {
++			return
++		}
++
++		if ss := se.Sel.String(); ss == "Config" {
++			for i, e := range cl.Elts {
++				if _, ok := e.(*ast.KeyValueExpr); ok {
++					break
++				}
++				switch i {
++				case 0:
++					cl.Elts[i] = &ast.KeyValueExpr{
++						Key:   ast.NewIdent("Mode"),
++						Value: e,
++					}
++				case 1:
++					cl.Elts[i] = &ast.KeyValueExpr{
++						Key:   ast.NewIdent("Tabwidth"),
++						Value: e,
++					}
++				}
++				fixed = true
++			}
++		}
++	})
++	return fixed
++}
+diff --git a/src/cmd/fix/printerconfig_test.go b/src/cmd/fix/printerconfig_test.go
+new file mode 100644
+index 0000000000..72e2bdcacb
+--- /dev/null
++++ b/src/cmd/fix/printerconfig_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func init() {
++	addTestCases(printerconfigTests, printerconfig)
++}
++
++var printerconfigTests = []testCase{
++	{
++		Name: "printerconfig.0",
++		In: `package main
++
++import "go/printer"
++
++func f() printer.Config {
++	b := printer.Config{0, 8}
++	c := &printer.Config{0}
++	d := &printer.Config{Tabwidth: 8, Mode: 0}
++	return printer.Config{0, 8}
++}
++`,
++		Out: `package main
++
++import "go/printer"
++
++func f() printer.Config {
++	b := printer.Config{Mode: 0, Tabwidth: 8}
++	c := &printer.Config{Mode: 0}
++	d := &printer.Config{Tabwidth: 8, Mode: 0}
++	return printer.Config{Mode: 0, Tabwidth: 8}
++}
++`,
++	},
++}

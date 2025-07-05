@@ -7,7 +7,58 @@ Date:   Thu Oct 6 07:22:48 2011 +0100
     R=rsc, jp, hectorchu
     CC=golang-dev
     https://golang.org/cl/4962051
-
+---
  src/cmd/ld/ldpe.c           | 18 ++++++++++--------
  src/pkg/runtime/cgo/amd64.S |  2 +-
  2 files changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/ld/ldpe.c b/src/cmd/ld/ldpe.c
+index 6805570756..c112cb5394 100644
+--- a/src/cmd/ld/ldpe.c
++++ b/src/cmd/ld/ldpe.c
+@@ -408,13 +408,15 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 	sym = &obj->pesym[i];
+ 	*y = sym;
+ 	
+-	name = sym->name;
+-	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0) // section
++	if(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0 && sym->type == 0) // section
+ 		name = obj->sect[sym->sectnum-1].sym->name;
+-	if(strncmp(sym->name, "__imp__", 7) == 0)
+-		name = &sym->name[7]; // __imp__Name => Name
+-	else if(sym->name[0] == '_') 
+-		name = &sym->name[1]; // _Name => Name
++	else {
++		name = sym->name;
++		if(strncmp(name, "__imp_", 6) == 0)
++			name = &name[6]; // __imp_Name => Name
++		if(thechar == '8' && name[0] == '_')
++			name = &name[1]; // _Name => Name
++	}
+ 	// remove last @XXX
+ 	p = strchr(name, '@');
+ 	if(p)
+@@ -443,8 +445,8 @@ readsym(PeObj *obj, int i, PeSym **y)
+ 
+ 	if(s != nil && s->type == 0 && !(sym->sclass == IMAGE_SYM_CLASS_STATIC && sym->value == 0))
+ 		s->type = SXREF;
+-	if(strncmp(sym->name, "__imp__", 7) == 0)
+-		s->got = -2; // flag for __imp__
++	if(strncmp(sym->name, "__imp_", 6) == 0)
++		s->got = -2; // flag for __imp_
+ 	sym->sym = s;
+ 
+ 	return 0;
+diff --git a/src/pkg/runtime/cgo/amd64.S b/src/pkg/runtime/cgo/amd64.S
+index 6c1a4c8e92..8e6d506f38 100644
+--- a/src/pkg/runtime/cgo/amd64.S
++++ b/src/pkg/runtime/cgo/amd64.S
+@@ -5,7 +5,7 @@
+ /*
+  * Apple still insists on underscore prefixes for C function names.
+  */
+-#if defined(__APPLE__) || defined(_WIN32)
++#if defined(__APPLE__)
+ #define EXT(s) _##s
+ #else
+ #define EXT(s) s

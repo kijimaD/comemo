@@ -12,7 +12,70 @@ Date:   Tue Nov 21 23:25:51 2023 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/cipher_suites.go |  9 ++++-----
  src/crypto/tls/tls_test.go      | 21 +++++++++++++--------
  2 files changed, 17 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index af7c64c4d5..6f5bc37197 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -52,11 +52,6 @@ var (
+ // and might not match those returned by this function.
+ func CipherSuites() []*CipherSuite {
+ 	return []*CipherSuite{
+-		{TLS_RSA_WITH_AES_128_CBC_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, false},
+-		{TLS_RSA_WITH_AES_256_CBC_SHA, "TLS_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, false},
+-		{TLS_RSA_WITH_AES_128_GCM_SHA256, "TLS_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, false},
+-		{TLS_RSA_WITH_AES_256_GCM_SHA384, "TLS_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, false},
+-
+ 		{TLS_AES_128_GCM_SHA256, "TLS_AES_128_GCM_SHA256", supportedOnlyTLS13, false},
+ 		{TLS_AES_256_GCM_SHA384, "TLS_AES_256_GCM_SHA384", supportedOnlyTLS13, false},
+ 		{TLS_CHACHA20_POLY1305_SHA256, "TLS_CHACHA20_POLY1305_SHA256", supportedOnlyTLS13, false},
+@@ -85,7 +80,11 @@ func InsecureCipherSuites() []*CipherSuite {
+ 	return []*CipherSuite{
+ 		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
+ 		{TLS_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
++		{TLS_RSA_WITH_AES_128_CBC_SHA, "TLS_RSA_WITH_AES_128_CBC_SHA", supportedUpToTLS12, true},
++		{TLS_RSA_WITH_AES_256_CBC_SHA, "TLS_RSA_WITH_AES_256_CBC_SHA", supportedUpToTLS12, true},
+ 		{TLS_RSA_WITH_AES_128_CBC_SHA256, "TLS_RSA_WITH_AES_128_CBC_SHA256", supportedOnlyTLS12, true},
++		{TLS_RSA_WITH_AES_128_GCM_SHA256, "TLS_RSA_WITH_AES_128_GCM_SHA256", supportedOnlyTLS12, true},
++		{TLS_RSA_WITH_AES_256_GCM_SHA384, "TLS_RSA_WITH_AES_256_GCM_SHA384", supportedOnlyTLS12, true},
+ 		{TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, "TLS_ECDHE_ECDSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
+ 		{TLS_ECDHE_RSA_WITH_RC4_128_SHA, "TLS_ECDHE_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
+ 		{TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 58369adda7..42a0272f00 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1490,16 +1490,21 @@ func TestCipherSuites(t *testing.T) {
+ 	if len(cipherSuitesPreferenceOrderNoAES) != len(cipherSuitesPreferenceOrder) {
+ 		t.Errorf("cipherSuitesPreferenceOrderNoAES is not the same size as cipherSuitesPreferenceOrder")
+ 	}
++	if len(defaultCipherSuites) >= len(defaultCipherSuitesWithRSAKex) {
++		t.Errorf("defaultCipherSuitesWithRSAKex should be longer than defaultCipherSuites")
++	}
+ 
+ 	// Check that disabled suites are marked insecure.
+-	for id := range disabledCipherSuites {
+-		c := CipherSuiteByID(id)
+-		if c == nil {
+-			t.Errorf("%#04x: no CipherSuite entry", id)
+-			continue
+-		}
+-		if !c.Insecure {
+-			t.Errorf("%#04x: disabled by default but not marked insecure", id)
++	for _, badSuites := range []map[uint16]bool{disabledCipherSuites, rsaKexCiphers} {
++		for id := range badSuites {
++			c := CipherSuiteByID(id)
++			if c == nil {
++				t.Errorf("%#04x: no CipherSuite entry", id)
++				continue
++			}
++			if !c.Insecure {
++				t.Errorf("%#04x: disabled by default but not marked insecure", id)
++			}
+ 		}
+ 	}
+ 

@@ -17,7 +17,48 @@ Date:   Mon Nov 8 13:08:58 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go |  1 +
  test/typeparam/issue49432.go              | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 74281bc479..4ebd607c16 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -2085,6 +2085,7 @@ func startClosure(pos src.XPos, outer *ir.Func, typ *types.Type) (*ir.Func, []*t
+ 		fn.Dcl = append(fn.Dcl, arg)
+ 		f := types.NewField(pos, arg.Sym(), t)
+ 		f.Nname = arg
++		f.SetIsDDD(typ.Params().Field(i).IsDDD())
+ 		formalParams = append(formalParams, f)
+ 	}
+ 	for i := 0; i < typ.NumResults(); i++ {
+diff --git a/test/typeparam/issue49432.go b/test/typeparam/issue49432.go
+new file mode 100644
+index 0000000000..21d6ec4b70
+--- /dev/null
++++ b/test/typeparam/issue49432.go
+@@ -0,0 +1,22 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Handler func(in ...interface{})
++
++type Foo[T any] struct{}
++
++func (b *Foo[T]) Bar(in ...interface{}) {}
++
++func (b *Foo[T]) Init() {
++	_ = Handler(b.Bar)
++}
++
++func main() {
++	c := &Foo[int]{}
++	c.Init()
++}

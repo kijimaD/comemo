@@ -11,6 +11,21 @@ Date:   Mon Apr 11 10:26:38 2016 +1000
     Change-Id: Ie7d42ce0a235394e4bcabf09e155726a35cd2d3d
     Reviewed-on: https://go-review.googlesource.com/21822
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/vet/internal/whitelist/whitelist.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/internal/whitelist/whitelist.go b/src/cmd/vet/internal/whitelist/whitelist.go
+index b6c85850f3..696f7a533d 100644
+--- a/src/cmd/vet/internal/whitelist/whitelist.go
++++ b/src/cmd/vet/internal/whitelist/whitelist.go
+@@ -11,7 +11,8 @@ package whitelist
+ // library's exported slice types.
+ var UnkeyedLiteral = map[string]bool{
+ 	/*
+-		find $GOROOT/src -type f | grep -v _test.go | xargs grep '^type.*\[\]' | \
++		find $GOROOT/src -type f | grep -v _test.go | grep -v /internal/ | grep -v /testdata/ | \
++			xargs grep '^type.*\[\]' | grep -v ' func(' | \
+ 			grep -v ' map\[' | sed 's,/[^/]*go.type,,' | sed 's,.*src/,,' | \
+ 			sed 's, ,.,' |  sed 's, .*,,' | grep -v '\.[a-z]' | \
+ 			sort | awk '{ print "\"" $0 "\": true," }'

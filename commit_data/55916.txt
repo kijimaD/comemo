@@ -15,6 +15,19 @@ Date:   Fri Mar 24 13:15:31 2023 -0400
     TryBot-Bypass: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/asm_arm.s | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 88e518b0c4..01906dff4a 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -633,6 +633,7 @@ TEXT	·cgocallback(SB),NOSPLIT,$12-12
+ 	// Skip cgocallbackg, just dropm when fn is nil, and frame is the saved g.
+ 	// It is used to dropm while thread is exiting.
+ 	MOVW	fn+0(FP), R1
++	CMP	$0, R1
+ 	B.NE	loadg
+ 	// Restore the g from frame.
+ 	MOVW	frame+4(FP), g

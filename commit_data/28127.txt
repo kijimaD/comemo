@@ -22,7 +22,7 @@ Date:   Mon Apr 25 21:46:02 2016 -0400
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go    |  3 ++
  src/crypto/aes/asm_s390x.s   | 31 +++++++++++++--
  src/crypto/aes/cbc_s390x.go  | 59 ++++++++++++++++++++++++++++
@@ -30,3 +30,320 @@ Date:   Mon Apr 25 21:46:02 2016 -0400
  src/crypto/aes/modes_test.go | 91 ++++++++++++++++++++++++++++++++++++++++++++
  src/crypto/cipher/cbc.go     | 22 +++++++++++
  6 files changed, 233 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index b55714d57a..a894a68293 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -48,6 +48,9 @@ type aesCipherGCM struct {
+ 	aesCipherAsm
+ }
+ 
++// Assert that aesCipherGCM implements the gcmAble interface.
++var _ gcmAble = (*aesCipherGCM)(nil)
++
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+ // called by crypto/cipher.NewGCM via the gcmAble interface.
+ func (c *aesCipherGCM) NewGCM(nonceSize int) (cipher.AEAD, error) {
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/aes/asm_s390x.s
+index 4a0720ca17..da9a559ed6 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/aes/asm_s390x.s
+@@ -8,13 +8,20 @@
+ TEXT ·hasAsm(SB),NOSPLIT,$16-1
+ 	XOR	R0, R0          // set function code to 0 (query)
+ 	LA	mask-16(SP), R1 // 16-byte stack variable for mask
+-	WORD	$0xB92E0024     // cipher message (KM)
++	MOVD	$(0x38<<40), R3 // mask for bits 18-20 (big endian)
+ 
+-	// check if bits 18-20 (big endian) are set
++	// check for KM AES functions
++	WORD	$0xB92E0024 // cipher message (KM)
++	MOVD	mask-16(SP), R2
++	AND	R3, R2
++	CMPBNE	R2, R3, notfound
++
++	// check for KMC AES functions
++	WORD	$0xB92F0024 // cipher message with chaining (KMC)
+ 	MOVD	mask-16(SP), R2
+-	MOVD	$(0x38<<40), R3
+ 	AND	R3, R2
+ 	CMPBNE	R2, R3, notfound
++
+ 	MOVB	$1, ret+0(FP)
+ 	RET
+ notfound:
+@@ -33,3 +40,21 @@ loop:
+ 	BVS	loop        // branch back if interrupted
+ 	XOR	R0, R0
+ 	RET
++
++// func cryptBlocksChain(function code, iv, key, dst, src *byte, length int)
++TEXT ·cryptBlocksChain(SB),NOSPLIT,$48-48
++	LA	params-48(SP), R1
++	MOVD	iv+8(FP), R8
++	MOVD	key+16(FP), R9
++	MVC	$16, 0(R8), 0(R1)  // move iv into params
++	MVC	$32, 0(R9), 16(R1) // move key into params
++	MOVD	dst+24(FP), R2
++	MOVD	src+32(FP), R4
++	MOVD	length+40(FP), R5
++	MOVD	function+0(FP), R0
++loop:
++	WORD	$0xB92F0024       // cipher message with chaining (KMC)
++	BVS	loop              // branch back if interrupted
++	XOR	R0, R0
++	MVC	$16, 0(R1), 0(R8) // update iv
++	RET
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+new file mode 100644
+index 0000000000..427b30b2a7
+--- /dev/null
++++ b/src/crypto/aes/cbc_s390x.go
+@@ -0,0 +1,59 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/cipher"
++)
++
++// Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
++var _ cbcEncAble = (*aesCipherAsm)(nil)
++var _ cbcDecAble = (*aesCipherAsm)(nil)
++
++type cbc struct {
++	b  *aesCipherAsm
++	c  code
++	iv [BlockSize]byte
++}
++
++func (b *aesCipherAsm) NewCBCEncrypter(iv []byte) cipher.BlockMode {
++	var c cbc
++	c.b = b
++	c.c = b.function
++	copy(c.iv[:], iv)
++	return &c
++}
++
++func (b *aesCipherAsm) NewCBCDecrypter(iv []byte) cipher.BlockMode {
++	var c cbc
++	c.b = b
++	c.c = b.function + 128 // decrypt function code is encrypt + 128
++	copy(c.iv[:], iv)
++	return &c
++}
++
++func (x *cbc) BlockSize() int { return BlockSize }
++
++// cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
++// with the given function code. The length must be a multiple of BlockSize (16).
++//go:noescape
++func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
++
++func (x *cbc) CryptBlocks(dst, src []byte) {
++	if len(src)%BlockSize != 0 {
++		panic("crypto/cipher: input not full blocks")
++	}
++	if len(dst) < len(src) {
++		panic("crypto/cipher: output smaller than input")
++	}
++	cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
++}
++
++func (x *cbc) SetIV(iv []byte) {
++	if len(iv) != BlockSize {
++		panic("cipher: incorrect length IV")
++	}
++	copy(x.iv[:], iv)
++}
+diff --git a/src/crypto/aes/modes.go b/src/crypto/aes/modes.go
+new file mode 100644
+index 0000000000..f65ec045a1
+--- /dev/null
++++ b/src/crypto/aes/modes.go
+@@ -0,0 +1,30 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/cipher"
++)
++
++// gcmAble is implemented by cipher.Blocks that can provide an optimized
++// implementation of GCM through the AEAD interface.
++// See crypto/cipher/gcm.go.
++type gcmAble interface {
++	NewGCM(size int) (cipher.AEAD, error)
++}
++
++// cbcEncAble is implemented by cipher.Blocks that can provide an optimized
++// implementation of CBC encryption through the cipher.BlockMode interface.
++// See crypto/cipher/cbc.go.
++type cbcEncAble interface {
++	NewCBCEncrypter(iv []byte) cipher.BlockMode
++}
++
++// cbcDecAble is implemented by cipher.Blocks that can provide an optimized
++// implementation of CBC decryption through the cipher.BlockMode interface.
++// See crypto/cipher/cbc.go.
++type cbcDecAble interface {
++	NewCBCDecrypter(iv []byte) cipher.BlockMode
++}
+diff --git a/src/crypto/aes/modes_test.go b/src/crypto/aes/modes_test.go
+new file mode 100644
+index 0000000000..f2486717af
+--- /dev/null
++++ b/src/crypto/aes/modes_test.go
+@@ -0,0 +1,91 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/cipher"
++	"testing"
++)
++
++// Check that the optimized implementations of cipher modes will
++// be picked up correctly.
++
++// testInterface can be asserted to check that a type originates
++// from this test group.
++type testInterface interface {
++	InAESPackage() bool
++}
++
++// testBlock implements the cipher.Block interface and any *Able
++// interfaces that need to be tested.
++type testBlock struct{}
++
++func (*testBlock) BlockSize() int      { return 0 }
++func (*testBlock) Encrypt(a, b []byte) {}
++func (*testBlock) Decrypt(a, b []byte) {}
++func (*testBlock) NewGCM(int) (cipher.AEAD, error) {
++	return &testAEAD{}, nil
++}
++func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {
++	return &testBlockMode{}
++}
++func (*testBlock) NewCBCDecrypter([]byte) cipher.BlockMode {
++	return &testBlockMode{}
++}
++
++// testAEAD implements the cipher.AEAD interface.
++type testAEAD struct{}
++
++func (*testAEAD) NonceSize() int                         { return 0 }
++func (*testAEAD) Overhead() int                          { return 0 }
++func (*testAEAD) Seal(a, b, c, d []byte) []byte          { return []byte{} }
++func (*testAEAD) Open(a, b, c, d []byte) ([]byte, error) { return []byte{}, nil }
++func (*testAEAD) InAESPackage() bool                     { return true }
++
++// Test the gcmAble interface is detected correctly by the cipher package.
++func TestGCMAble(t *testing.T) {
++	b := cipher.Block(&testBlock{})
++	if _, ok := b.(gcmAble); !ok {
++		t.Fatalf("testBlock does not implement the gcmAble interface")
++	}
++	aead, err := cipher.NewGCM(b)
++	if err != nil {
++		t.Fatalf("%v", err)
++	}
++	if _, ok := aead.(testInterface); !ok {
++		t.Fatalf("cipher.NewGCM did not use gcmAble interface")
++	}
++}
++
++// testBlockMode implements the cipher.BlockMode interface.
++type testBlockMode struct{}
++
++func (*testBlockMode) BlockSize() int          { return 0 }
++func (*testBlockMode) CryptBlocks(a, b []byte) {}
++func (*testBlockMode) InAESPackage() bool      { return true }
++
++// Test the cbcEncAble interface is detected correctly by the cipher package.
++func TestCBCEncAble(t *testing.T) {
++	b := cipher.Block(&testBlock{})
++	if _, ok := b.(cbcEncAble); !ok {
++		t.Fatalf("testBlock does not implement the cbcEncAble interface")
++	}
++	bm := cipher.NewCBCEncrypter(b, []byte{})
++	if _, ok := bm.(testInterface); !ok {
++		t.Fatalf("cipher.NewCBCEncrypter did not use cbcEncAble interface")
++	}
++}
++
++// Test the cbcDecAble interface is detected correctly by the cipher package.
++func TestCBCDecAble(t *testing.T) {
++	b := cipher.Block(&testBlock{})
++	if _, ok := b.(cbcDecAble); !ok {
++		t.Fatalf("testBlock does not implement the cbcDecAble interface")
++	}
++	bm := cipher.NewCBCDecrypter(b, []byte{})
++	if _, ok := bm.(testInterface); !ok {
++		t.Fatalf("cipher.NewCBCDecrypter did not use cbcDecAble interface")
++	}
++}
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index 241e122ee8..0367d5971a 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -29,6 +29,14 @@ func newCBC(b Block, iv []byte) *cbc {
+ 
+ type cbcEncrypter cbc
+ 
++// cbcEncAble is an interface implemented by ciphers that have a specific
++// optimized implementation of CBC encryption, like crypto/aes.
++// NewCBCEncrypter will check for this interface and return the specific
++// BlockMode if found.
++type cbcEncAble interface {
++	NewCBCEncrypter(iv []byte) BlockMode
++}
++
+ // NewCBCEncrypter returns a BlockMode which encrypts in cipher block chaining
+ // mode, using the given Block. The length of iv must be the same as the
+ // Block's block size.
+@@ -36,6 +44,9 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
+ 	if len(iv) != b.BlockSize() {
+ 		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+ 	}
++	if cbc, ok := b.(cbcEncAble); ok {
++		return cbc.NewCBCEncrypter(iv)
++	}
+ 	return (*cbcEncrypter)(newCBC(b, iv))
+ }
+ 
+@@ -75,6 +86,14 @@ func (x *cbcEncrypter) SetIV(iv []byte) {
+ 
+ type cbcDecrypter cbc
+ 
++// cbcDecAble is an interface implemented by ciphers that have a specific
++// optimized implementation of CBC decryption, like crypto/aes.
++// NewCBCDecrypter will check for this interface and return the specific
++// BlockMode if found.
++type cbcDecAble interface {
++	NewCBCDecrypter(iv []byte) BlockMode
++}
++
+ // NewCBCDecrypter returns a BlockMode which decrypts in cipher block chaining
+ // mode, using the given Block. The length of iv must be the same as the
+ // Block's block size and must match the iv used to encrypt the data.
+@@ -82,6 +101,9 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+ 	if len(iv) != b.BlockSize() {
+ 		panic("cipher.NewCBCDecrypter: IV length must equal block size")
+ 	}
++	if cbc, ok := b.(cbcDecAble); ok {
++		return cbc.NewCBCDecrypter(iv)
++	}
+ 	return (*cbcDecrypter)(newCBC(b, iv))
+ }
+ 

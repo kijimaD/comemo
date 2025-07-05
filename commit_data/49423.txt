@@ -20,6 +20,28 @@ Date:   Tue Aug 17 17:21:03 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/elf.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index ffc27d66b7..93f974c5e0 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -16,6 +16,7 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strings"
+ )
+@@ -1745,7 +1746,7 @@ func asmbElf(ctxt *Link) {
+ 		sh.Flags = uint64(elf.SHF_ALLOC)
+ 		sh.Addralign = 1
+ 
+-		if interpreter == "" && buildcfg.GO_LDSO != "" {
++		if interpreter == "" && buildcfg.GOOS == runtime.GOOS && buildcfg.GOARCH == runtime.GOARCH && buildcfg.GO_LDSO != "" {
+ 			interpreter = buildcfg.GO_LDSO
+ 		}
+ 

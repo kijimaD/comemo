@@ -11,7 +11,63 @@ Date:   Thu May 25 08:57:03 2017 +0900
     Reviewed-by: Adam Langley <agl@golang.org>
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/asn1/marshal.go      |  8 +++++++-
  src/encoding/asn1/marshal_test.go | 25 +++++++++++++++++++++++++
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/asn1/marshal.go b/src/encoding/asn1/marshal.go
+index 0f4e869d30..3f46e03d35 100644
+--- a/src/encoding/asn1/marshal.go
++++ b/src/encoding/asn1/marshal.go
+@@ -658,7 +658,13 @@ func makeField(v reflect.Value, params fieldParameters) (e encoder, err error) {
+ //	utc:         causes time.Time to be marshaled as ASN.1, UTCTime values
+ //	generalized: causes time.Time to be marshaled as ASN.1, GeneralizedTime values
+ func Marshal(val interface{}) ([]byte, error) {
+-	e, err := makeField(reflect.ValueOf(val), fieldParameters{})
++	return MarshalWithParams(val, "")
++}
++
++// MarshalWithParams allows field parameters to be specified for the
++// top-level element. The form of the params is the same as the field tags.
++func MarshalWithParams(val interface{}, params string) ([]byte, error) {
++	e, err := makeField(reflect.ValueOf(val), parseFieldParameters(params))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index 389bb6ea94..75adc303b0 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -180,6 +180,31 @@ func TestMarshal(t *testing.T) {
+ 	}
+ }
+ 
++type marshalWithParamsTest struct {
++	in     interface{}
++	params string
++	out    string // hex encoded
++}
++
++var marshalWithParamsTests = []marshalWithParamsTest{
++	{intStruct{10}, "set", "310302010a"},
++	{intStruct{10}, "application", "600302010a"},
++}
++
++func TestMarshalWithParams(t *testing.T) {
++	for i, test := range marshalWithParamsTests {
++		data, err := MarshalWithParams(test.in, test.params)
++		if err != nil {
++			t.Errorf("#%d failed: %s", i, err)
++		}
++		out, _ := hex.DecodeString(test.out)
++		if !bytes.Equal(out, data) {
++			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
++
++		}
++	}
++}
++
+ type marshalErrTest struct {
+ 	in  interface{}
+ 	err string

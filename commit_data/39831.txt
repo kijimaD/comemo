@@ -15,9 +15,131 @@ Date:   Fri Mar 22 14:57:32 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  test/fixedbugs/issue30908.dir/a.go | 32 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue30908.dir/b.go | 35 +++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue30908.dir/m.go | 21 +++++++++++++++++++++
  test/fixedbugs/issue30908.go       |  9 +++++++++
  4 files changed, 97 insertions(+)
+
+diff --git a/test/fixedbugs/issue30908.dir/a.go b/test/fixedbugs/issue30908.dir/a.go
+new file mode 100644
+index 0000000000..2f0abc3780
+--- /dev/null
++++ b/test/fixedbugs/issue30908.dir/a.go
+@@ -0,0 +1,32 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"errors"
++	"strings"
++)
++
++var G interface{}
++
++func Unmarshal(data []byte, o interface{}) error {
++	G = o
++	v, ok := o.(*map[string]interface{})
++	if !ok {
++		return errors.New("eek")
++	}
++	vals := make(map[string]interface{})
++	s := string(data)
++	items := strings.Split(s, " ")
++	var err error
++	for _, item := range items {
++		vals[item] = s
++		if item == "error" {
++			err = errors.New("ouch")
++		}
++	}
++	*v = vals
++	return err
++}
+diff --git a/test/fixedbugs/issue30908.dir/b.go b/test/fixedbugs/issue30908.dir/b.go
+new file mode 100644
+index 0000000000..2f543985b4
+--- /dev/null
++++ b/test/fixedbugs/issue30908.dir/b.go
+@@ -0,0 +1,35 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import (
++	"io/ioutil"
++
++	"./a"
++)
++
++var G int
++
++// An inlinable function. To trigger the bug in question this needs
++// to be inlined here within the package and also inlined into some
++// other package that imports it.
++func ReadValues(data []byte) (vals map[string]interface{}, err error) {
++	err = a.Unmarshal(data, &vals)
++	if len(vals) == 0 {
++		vals = map[string]interface{}{}
++	}
++	return
++}
++
++// A local call to the function above, which triggers the "move to heap"
++// of the output param.
++func CallReadValues(filename string) (map[string]interface{}, error) {
++	defer func() { G++ }()
++	data, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return map[string]interface{}{}, err
++	}
++	return ReadValues(data)
++}
+diff --git a/test/fixedbugs/issue30908.dir/m.go b/test/fixedbugs/issue30908.dir/m.go
+new file mode 100644
+index 0000000000..a170a6eed6
+--- /dev/null
++++ b/test/fixedbugs/issue30908.dir/m.go
+@@ -0,0 +1,21 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"os"
++
++	"./b"
++)
++
++func main() {
++	seed := "some things are better"
++	bsl := []byte(seed)
++	b.CallReadValues("/dev/null")
++	vals, err := b.ReadValues(bsl)
++	if vals["better"] != seed || err != nil {
++		os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/issue30908.go b/test/fixedbugs/issue30908.go
+new file mode 100644
+index 0000000000..8863b396aa
+--- /dev/null
++++ b/test/fixedbugs/issue30908.go
+@@ -0,0 +1,9 @@
++// rundir -P -l=4 -ldflags -strictdups=2
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !nacl,!js
++
++package ignored

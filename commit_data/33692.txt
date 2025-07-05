@@ -16,7 +16,7 @@ Date:   Mon Aug 21 22:23:14 2017 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/cipher/io.go        |  6 ++----
  src/encoding/gob/decoder.go    |  6 ++----
  src/net/http/fs.go             |  6 ++----
@@ -27,3 +27,174 @@ Date:   Mon Aug 21 22:23:14 2017 +0200
  src/sync/waitgroup.go          | 12 +++++-------
  src/text/template/parse/lex.go |  7 +++----
  9 files changed, 27 insertions(+), 44 deletions(-)
+
+diff --git a/src/crypto/cipher/io.go b/src/crypto/cipher/io.go
+index 3938c0a4c8..0974ac748e 100644
+--- a/src/crypto/cipher/io.go
++++ b/src/crypto/cipher/io.go
+@@ -37,10 +37,8 @@ func (w StreamWriter) Write(src []byte) (n int, err error) {
+ 	c := make([]byte, len(src))
+ 	w.S.XORKeyStream(c, src)
+ 	n, err = w.W.Write(c)
+-	if n != len(src) {
+-		if err == nil { // should never happen
+-			err = io.ErrShortWrite
+-		}
++	if n != len(src) && err == nil { // should never happen
++		err = io.ErrShortWrite
+ 	}
+ 	return
+ }
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 9398b8f243..5ef0388862 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -99,10 +99,8 @@ func (dec *Decoder) readMessage(nbytes int) {
+ 	// Read the data
+ 	dec.buf.Size(nbytes)
+ 	_, dec.err = io.ReadFull(dec.r, dec.buf.Bytes())
+-	if dec.err != nil {
+-		if dec.err == io.EOF {
+-			dec.err = io.ErrUnexpectedEOF
+-		}
++	if dec.err == io.EOF {
++		dec.err = io.ErrUnexpectedEOF
+ 	}
+ }
+ 
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index aba08510dc..ecad14ac1e 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -530,10 +530,8 @@ func checkPreconditions(w ResponseWriter, r *Request, modtime time.Time) (done b
+ 	}
+ 
+ 	rangeHeader = r.Header.get("Range")
+-	if rangeHeader != "" {
+-		if checkIfRange(w, r, modtime) == condFalse {
+-			rangeHeader = ""
+-		}
++	if rangeHeader != "" && checkIfRange(w, r, modtime) == condFalse {
++		rangeHeader = ""
+ 	}
+ 	return false, rangeHeader
+ }
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index 2ac2472569..00e0df17ba 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -953,12 +953,10 @@ func (u *URL) ResolveReference(ref *URL) *URL {
+ 		url.Path = ""
+ 		return &url
+ 	}
+-	if ref.Path == "" {
+-		if ref.RawQuery == "" {
+-			url.RawQuery = u.RawQuery
+-			if ref.Fragment == "" {
+-				url.Fragment = u.Fragment
+-			}
++	if ref.Path == "" && ref.RawQuery == "" {
++		url.RawQuery = u.RawQuery
++		if ref.Fragment == "" {
++			url.Fragment = u.Fragment
+ 		}
+ 	}
+ 	// The "abs_path" or "rel_path" cases.
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 755269ebd2..ce4d707e06 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -580,10 +580,8 @@ func cgoCheckUnknownPointer(p unsafe.Pointer, msg string) (base, i uintptr) {
+ 				// No more possible pointers.
+ 				break
+ 			}
+-			if hbits.isPointer() {
+-				if cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
+-					panic(errorString(msg))
+-				}
++			if hbits.isPointer() && cgoIsGoPointer(*(*unsafe.Pointer)(unsafe.Pointer(base + i))) {
++				panic(errorString(msg))
+ 			}
+ 			hbits = hbits.next()
+ 		}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cf2537c812..06abdf2a9b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3568,13 +3568,11 @@ func procresize(nprocs int32) *p {
+ 	// free unused P's
+ 	for i := nprocs; i < old; i++ {
+ 		p := allp[i]
+-		if trace.enabled {
+-			if p == getg().m.p.ptr() {
+-				// moving to p[0], pretend that we were descheduled
+-				// and then scheduled again to keep the trace sane.
+-				traceGoSched()
+-				traceProcStop(p)
+-			}
++		if trace.enabled && p == getg().m.p.ptr() {
++			// moving to p[0], pretend that we were descheduled
++			// and then scheduled again to keep the trace sane.
++			traceGoSched()
++			traceProcStop(p)
+ 		}
+ 		// move all runnable goroutines to the global queue
+ 		for p.runqhead != p.runqtail {
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index bf3a550ea4..a623735865 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -457,10 +457,8 @@ loop:
+ 		print("wait-return: sel=", sel, " c=", c, " cas=", cas, " kind=", cas.kind, "\n")
+ 	}
+ 
+-	if cas.kind == caseRecv {
+-		if cas.receivedp != nil {
+-			*cas.receivedp = true
+-		}
++	if cas.kind == caseRecv && cas.receivedp != nil {
++		*cas.receivedp = true
+ 	}
+ 
+ 	if raceenabled {
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index f266f7c2b9..2fa7c3e07e 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -63,13 +63,11 @@ func (wg *WaitGroup) Add(delta int) {
+ 	state := atomic.AddUint64(statep, uint64(delta)<<32)
+ 	v := int32(state >> 32)
+ 	w := uint32(state)
+-	if race.Enabled {
+-		if delta > 0 && v == int32(delta) {
+-			// The first increment must be synchronized with Wait.
+-			// Need to model this as a read, because there can be
+-			// several concurrent wg.counter transitions from 0.
+-			race.Read(unsafe.Pointer(&wg.sema))
+-		}
++	if race.Enabled && delta > 0 && v == int32(delta) {
++		// The first increment must be synchronized with Wait.
++		// Need to model this as a read, because there can be
++		// several concurrent wg.counter transitions from 0.
++		race.Read(unsafe.Pointer(&wg.sema))
+ 	}
+ 	if v < 0 {
+ 		panic("sync: negative WaitGroup counter")
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 6fbf36d7a4..cdecd412ee 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -281,10 +281,9 @@ func (l *lexer) atRightDelim() (delim, trimSpaces bool) {
+ 		return true, false
+ 	}
+ 	// The right delim might have the marker before.
+-	if strings.HasPrefix(l.input[l.pos:], rightTrimMarker) {
+-		if strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) {
+-			return true, true
+-		}
++	if strings.HasPrefix(l.input[l.pos:], rightTrimMarker) &&
++		strings.HasPrefix(l.input[l.pos+trimMarkerLen:], l.rightDelim) {
++		return true, true
+ 	}
+ 	return false, false
+ }

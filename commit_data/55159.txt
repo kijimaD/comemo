@@ -11,7 +11,7 @@ Date:   Thu Jan 12 10:15:08 2023 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/api.go        | 4 ++--
  src/go/types/call.go       | 2 +-
  src/go/types/check.go      | 6 +++---
@@ -27,3 +27,254 @@ Date:   Thu Jan 12 10:15:08 2023 -0800
  src/go/types/typeset.go    | 2 +-
  src/go/types/typexpr.go    | 4 ++--
  14 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index d9d561c25d..11e5dfbd04 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -143,8 +143,8 @@ type Config struct {
+ 	// It is an error to set both FakeImportC and go115UsesCgo.
+ 	go115UsesCgo bool
+ 
+-	// If trace is set, a debug trace is printed to stdout.
+-	trace bool
++	// If _Trace is set, a debug trace is printed to stdout.
++	_Trace bool
+ 
+ 	// If Error != nil, it is called with each error found
+ 	// during type checking; err has dynamic type Error.
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 53c5a64fb0..e44c025eac 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -65,7 +65,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, typ *Signature, targs
+ 	assert(check != nil)
+ 	assert(len(targs) == typ.TypeParams().Len())
+ 
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(pos, "-- instantiating signature %s with %s", typ, targs)
+ 		check.indent++
+ 		defer func() {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 60d3e1ac4b..b862ba57b8 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -313,7 +313,7 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	defer check.handleBailout(&err)
+ 
+ 	print := func(msg string) {
+-		if check.conf.trace {
++		if check.conf._Trace {
+ 			fmt.Println()
+ 			fmt.Println(msg)
+ 		}
+@@ -377,7 +377,7 @@ func (check *Checker) processDelayed(top int) {
+ 	// this is a sufficiently bounded process.
+ 	for i := top; i < len(check.delayed); i++ {
+ 		a := &check.delayed[i]
+-		if check.conf.trace {
++		if check.conf._Trace {
+ 			if a.desc != nil {
+ 				check.trace(a.desc.pos.Pos(), "-- "+a.desc.format, a.desc.args...)
+ 			} else {
+@@ -385,7 +385,7 @@ func (check *Checker) processDelayed(top int) {
+ 			}
+ 		}
+ 		a.f() // may append to check.delayed
+-		if check.conf.trace {
++		if check.conf._Trace {
+ 			fmt.Println()
+ 		}
+ 	}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 1107f9592a..3ba26bfb5a 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -166,7 +166,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	}
+ 
+ 	// typecheck and collect typechecker errors
+-	*boolFieldAddr(&conf, "trace") = manual && testing.Verbose()
++	*boolFieldAddr(&conf, "_Trace") = manual && testing.Verbose()
+ 	if imp == nil {
+ 		imp = importer.Default()
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 9d84cf4da6..2493103b9f 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -54,7 +54,7 @@ func pathString(path []Object) string {
+ // objDecl type-checks the declaration of obj in its respective (file) environment.
+ // For the meaning of def, see Checker.definedType, in typexpr.go.
+ func (check *Checker) objDecl(obj Object, def *Named) {
+-	if check.conf.trace && obj.Type() == nil {
++	if check.conf._Trace && obj.Type() == nil {
+ 		if check.indent == 0 {
+ 			fmt.Println() // empty line between top-level objects for readability
+ 		}
+@@ -264,7 +264,7 @@ loop:
+ 		}
+ 	}
+ 
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(obj.Pos(), "## cycle detected: objPath = %s->%s (len = %d)", pathString(cycle), obj.Name(), len(cycle))
+ 		if tparCycle {
+ 			check.trace(obj.Pos(), "## cycle contains: generic type in a type parameter list")
+@@ -707,7 +707,7 @@ func (check *Checker) declareTypeParams(tparams []*TypeParam, names []*ast.Ident
+ 		tparams = append(tparams, tpar)
+ 	}
+ 
+-	if check.conf.trace && len(names) > 0 {
++	if check.conf._Trace && len(names) > 0 {
+ 		check.trace(names[0].Pos(), "type params = %v", tparams[len(tparams)-len(names):])
+ 	}
+ 
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 95ee51e2ca..7f1cb2057c 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -266,7 +266,7 @@ func (check *Checker) report(errp *error_) {
+ 		check.firstErr = err
+ 	}
+ 
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		pos := e.Pos
+ 		msg := e.Msg
+ 		check.trace(pos, "ERROR: %s", msg)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index adf3d21fce..bbbc5cc5a6 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1224,7 +1224,7 @@ const (
+ // If allowGeneric is set, the operand type may be an uninstantiated
+ // parameterized type or function value.
+ func (check *Checker) rawExpr(x *operand, e ast.Expr, hint Type, allowGeneric bool) exprKind {
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(e.Pos(), "-- expr %s", e)
+ 		check.indent++
+ 		defer func() {
+diff --git a/src/go/types/generator.go b/src/go/types/generator.go
+index a053072f6b..2c6ef66c4a 100644
+--- a/src/go/types/generator.go
++++ b/src/go/types/generator.go
+@@ -105,7 +105,7 @@ var filemap = map[string]action{
+ 		renameIdent(f, "InsertLazy", "_InsertLazy")
+ 	},
+ 	"selection.go":     nil,
+-	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "isSyncAtomicAlign64") },
++	"sizes.go":         func(f *ast.File) { renameIdent(f, "IsSyncAtomicAlign64", "_IsSyncAtomicAlign64") },
+ 	"slice.go":         nil,
+ 	"subst.go":         func(f *ast.File) { fixTokenPos(f); fixTraceSel(f) },
+ 	"termlist.go":      nil,
+@@ -187,9 +187,9 @@ func fixTraceSel(f *ast.File) {
+ 	ast.Inspect(f, func(n ast.Node) bool {
+ 		switch n := n.(type) {
+ 		case *ast.SelectorExpr:
+-			// rewrite x.Trace to x.trace (for Config.Trace)
++			// rewrite x.Trace to x._Trace (for Config.Trace)
+ 			if n.Sel.Name == "Trace" {
+-				n.Sel.Name = "trace"
++				n.Sel.Name = "_Trace"
+ 				return false
+ 			}
+ 		}
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index f55b55e08a..586f1af880 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -583,7 +583,7 @@ func (check *Checker) context() *Context {
+ // returning the result. Returns Typ[Invalid] if there was an error.
+ func (n *Named) expandUnderlying() Type {
+ 	check := n.check
+-	if check != nil && check.conf.trace {
++	if check != nil && check.conf._Trace {
+ 		check.trace(n.obj.pos, "-- Named.expandUnderlying %s", n)
+ 		check.indent++
+ 		defer func() {
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 235718481c..fb7a16699a 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -55,7 +55,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+ 		return s.Alignof(t.elem)
+ 	case *Struct:
+-		if len(t.fields) == 0 && isSyncAtomicAlign64(T) {
++		if len(t.fields) == 0 && _IsSyncAtomicAlign64(T) {
+ 			// Special case: sync/atomic.align64 is an
+ 			// empty struct we recognize as a signal that
+ 			// the struct it contains must be
+@@ -106,7 +106,7 @@ func (s *StdSizes) Alignof(T Type) int64 {
+ 	return a
+ }
+ 
+-func isSyncAtomicAlign64(T Type) bool {
++func _IsSyncAtomicAlign64(T Type) bool {
+ 	named, ok := T.(*Named)
+ 	if !ok {
+ 		return false
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 5c08a74c32..2a8cf6757f 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -19,7 +19,7 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ 		panic("function body not ignored")
+ 	}
+ 
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(body.Pos(), "-- %s: %s", name, sig)
+ 	}
+ 
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 9f0eb975b0..3be5c02be2 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -206,7 +206,7 @@ func (subst *subster) typ(typ Type) Type {
+ 	case *Named:
+ 		// dump is for debugging
+ 		dump := func(string, ...interface{}) {}
+-		if subst.check != nil && subst.check.conf.trace {
++		if subst.check != nil && subst.check.conf._Trace {
+ 			subst.check.indent++
+ 			defer func() {
+ 				subst.check.indent--
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 64b9734dcd..f86e73849d 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -170,7 +170,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 		return &topTypeSet
+ 	}
+ 
+-	if check != nil && check.conf.trace {
++	if check != nil && check.conf._Trace {
+ 		// Types don't generally have position information.
+ 		// If we don't have a valid pos provided, try to use
+ 		// one close enough.
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 6a92dcb9b7..57ac3b6d48 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -214,7 +214,7 @@ func goTypeName(typ Type) string {
+ // typInternal drives type checking of types.
+ // Must only be called by definedType or genericType.
+ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(e0.Pos(), "-- type %s", e0)
+ 		check.indent++
+ 		defer func() {
+@@ -395,7 +395,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ }
+ 
+ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *Named) (res Type) {
+-	if check.conf.trace {
++	if check.conf._Trace {
+ 		check.trace(ix.Pos(), "-- instantiating type %s with %s", ix.X, ix.Indices)
+ 		check.indent++
+ 		defer func() {

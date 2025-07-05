@@ -9,8 +9,60 @@ Date:   Mon Jan 18 16:26:40 2010 -0800
     R=ken2
     CC=golang-dev
     https://golang.org/cl/186212
-
+---
  src/cmd/gc/dcl.c  | 11 ++++++++---
  src/cmd/gc/lex.c  |  6 +++---
  src/cmd/gc/subr.c |  1 +
  3 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c9fcb1204a..adf8da9bc0 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -149,9 +149,14 @@ testdclstack(void)
+ void
+ redeclare(Sym *s, char *where)
+ {
+-	yyerror("%S redeclared %s\n"
+-		"\tprevious declaration at %L",
+-		s, where, s->lastlineno);
++	if(s->lastlineno == 0)
++		yyerror("%S redeclared %s\n"
++			"\tprevious declaration during import",
++			s, where);
++	else
++		yyerror("%S redeclared %s\n"
++			"\tprevious declaration at %L",
++			s, where, s->lastlineno);
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d74cb096ad..c433c1ec9e 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1470,9 +1470,9 @@ mkpackage(char* pkg)
+ 				if(s->def->op == OPACK) {
+ 					// throw away top-level package name leftover
+ 					// from previous file.
+-					// TODO(rsc): remember that there was a package
+-					// name, so that the name cannot be redeclared
+-					// as a non-package in other files.
++					// leave s->block set to cause redeclaration
++					// errors if a conflicting top-level name is
++					// introduced by a different file.
+ 					if(!s->def->used && !nsyntaxerrors)
+ 						yyerrorl(s->def->lineno, "imported and not used: %s", s->def->sym->name);
+ 					s->def = N;
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index f38992b740..f7abc0357e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -353,6 +353,7 @@ importdot(Sym *opkg, Node *pack)
+ 				continue;
+ 			}
+ 			s1->def = s->def;
++			s1->block = s->block;
+ 			s1->def->pack = pack;
+ 			n++;
+ 		}

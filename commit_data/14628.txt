@@ -9,7 +9,109 @@ Date:   Wed Dec 12 11:36:44 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6922054
-
+---
  src/pkg/net/http/client.go      |  2 --
  src/pkg/net/http/client_test.go | 63 +++++++++++++++++++++++++++++++++++++++--
  2 files changed, 61 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 2b28b77d1b..d0e50f6082 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -231,8 +231,6 @@ func (c *Client) Get(url string) (resp *Response, err error) {
+ }
+ 
+ func (c *Client) doFollowingRedirects(ireq *Request, shouldRedirect func(int) bool) (resp *Response, err error) {
+-	// TODO: if/when we add cookie support, the redirected request shouldn't
+-	// necessarily supply the same cookies as the original.
+ 	var base *url.URL
+ 	redirectChecker := c.CheckRedirect
+ 	if redirectChecker == nil {
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index 4bb336f1a9..c2a836c948 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -351,6 +351,9 @@ type TestJar struct {
+ func (j *TestJar) SetCookies(u *url.URL, cookies []*Cookie) {
+ 	j.m.Lock()
+ 	defer j.m.Unlock()
++	if j.perURL == nil {
++		j.perURL = make(map[string][]*Cookie)
++	}
+ 	j.perURL[u.Host] = cookies
+ }
+ 
+@@ -381,8 +384,9 @@ func TestRedirectCookiesJar(t *testing.T) {
+ 	var ts *httptest.Server
+ 	ts = httptest.NewServer(echoCookiesRedirectHandler)
+ 	defer ts.Close()
+-	c := &Client{}
+-	c.Jar = &TestJar{perURL: make(map[string][]*Cookie)}
++	c := &Client{
++		Jar: new(TestJar),
++	}
+ 	u, _ := url.Parse(ts.URL)
+ 	c.Jar.SetCookies(u, []*Cookie{expectedCookies[0]})
+ 	resp, err := c.Get(ts.URL)
+@@ -411,6 +415,61 @@ func matchReturnedCookies(t *testing.T, expected, given []*Cookie) {
+ 	}
+ }
+ 
++func TestJarCalls(t *testing.T) {
++	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		pathSuffix := r.RequestURI[1:]
++		SetCookie(w, &Cookie{Name: "name" + pathSuffix, Value: "val" + pathSuffix})
++		if r.RequestURI == "/" {
++			Redirect(w, r, "http://secondhost.fake/secondpath", 302)
++		}
++	}))
++	defer ts.Close()
++	jar := new(RecordingJar)
++	c := &Client{
++		Jar: jar,
++		Transport: &Transport{
++			Dial: func(_ string, _ string) (net.Conn, error) {
++				return net.Dial("tcp", ts.Listener.Addr().String())
++			},
++		},
++	}
++	_, err := c.Get("http://firsthost.fake/")
++	if err != nil {
++		t.Fatal(err)
++	}
++	got := jar.log.String()
++	want := `Cookies("http://firsthost.fake/")
++SetCookie("http://firsthost.fake/", [name=val])
++Cookies("http://secondhost.fake/secondpath")
++SetCookie("http://secondhost.fake/secondpath", [namesecondpath=valsecondpath])
++`
++	if got != want {
++		t.Errorf("Got Jar calls:\n%s\nWant:\n%s", got, want)
++	}
++}
++
++// RecordingJar keeps a log of calls made to it, without
++// tracking any cookies.
++type RecordingJar struct {
++	mu  sync.Mutex
++	log bytes.Buffer
++}
++
++func (j *RecordingJar) SetCookies(u *url.URL, cookies []*Cookie) {
++	j.logf("SetCookie(%q, %v)\n", u, cookies)
++}
++
++func (j *RecordingJar) Cookies(u *url.URL) []*Cookie {
++	j.logf("Cookies(%q)\n", u)
++	return nil
++}
++
++func (j *RecordingJar) logf(format string, args ...interface{}) {
++	j.mu.Lock()
++	defer j.mu.Unlock()
++	fmt.Fprintf(&j.log, format, args...)
++}
++
+ func TestStreamingGet(t *testing.T) {
+ 	say := make(chan string)
+ 	ts := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {

@@ -21,10 +21,156 @@ Date:   Mon Mar 11 10:52:00 2019 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/signal/signal.go                          | 15 ++++++
  src/os/signal/signal_plan9.go                    |  3 +-
  src/os/signal/signal_unix.go                     |  3 +-
  src/runtime/testdata/testprogcgo/numgoroutine.go |  7 ---
  test/fixedbugs/issue21576.go                     | 60 ++++++++++++++++++++++++
  5 files changed, 79 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index a0eba0d50f..136dd9cc97 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -92,6 +92,15 @@ func Ignored(sig os.Signal) bool {
+ 	return sn >= 0 && signalIgnored(sn)
+ }
+ 
++var (
++	// watchSignalLoopOnce guards calling the conditionally
++	// initialized watchSignalLoop. If watchSignalLoop is non-nil,
++	// it will be run in a goroutine lazily once Notify is invoked.
++	// See Issue 21576.
++	watchSignalLoopOnce sync.Once
++	watchSignalLoop     func()
++)
++
+ // Notify causes package signal to relay incoming signals to c.
+ // If no signals are provided, all incoming signals will be relayed to c.
+ // Otherwise, just the provided signals will.
+@@ -113,6 +122,12 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 		panic("os/signal: Notify using nil channel")
+ 	}
+ 
++	watchSignalLoopOnce.Do(func() {
++		if watchSignalLoop != nil {
++			go watchSignalLoop()
++		}
++	})
++
+ 	handlers.Lock()
+ 	defer handlers.Unlock()
+ 
+diff --git a/src/os/signal/signal_plan9.go b/src/os/signal/signal_plan9.go
+index a1eb68855e..8408607c7f 100644
+--- a/src/os/signal/signal_plan9.go
++++ b/src/os/signal/signal_plan9.go
+@@ -20,7 +20,8 @@ func signal_recv() string
+ 
+ func init() {
+ 	signal_enable(0) // first call - initialize
+-	go loop()
++
++	watchSignalLoop = loop
+ }
+ 
+ func loop() {
+diff --git a/src/os/signal/signal_unix.go b/src/os/signal/signal_unix.go
+index 7fa634f15a..0bbf41bfde 100644
+--- a/src/os/signal/signal_unix.go
++++ b/src/os/signal/signal_unix.go
+@@ -26,7 +26,8 @@ func loop() {
+ 
+ func init() {
+ 	signal_enable(0) // first call - initialize
+-	go loop()
++
++	watchSignalLoop = loop
+ }
+ 
+ const (
+diff --git a/src/runtime/testdata/testprogcgo/numgoroutine.go b/src/runtime/testdata/testprogcgo/numgoroutine.go
+index 12fda49a13..5bdfe52ed4 100644
+--- a/src/runtime/testdata/testprogcgo/numgoroutine.go
++++ b/src/runtime/testdata/testprogcgo/numgoroutine.go
+@@ -41,13 +41,6 @@ func NumGoroutine() {
+ 	// Test that there are just the expected number of goroutines
+ 	// running. Specifically, test that the spare M's goroutine
+ 	// doesn't show up.
+-	//
+-	// On non-Windows platforms there's a signal handling thread
+-	// started by os/signal.init in addition to the main
+-	// goroutine.
+-	if runtime.GOOS != "windows" {
+-		baseGoroutines = 1
+-	}
+ 	if _, ok := checkNumGoroutine("first", 1+baseGoroutines); !ok {
+ 		return
+ 	}
+diff --git a/test/fixedbugs/issue21576.go b/test/fixedbugs/issue21576.go
+new file mode 100644
+index 0000000000..79baec94e8
+--- /dev/null
++++ b/test/fixedbugs/issue21576.go
+@@ -0,0 +1,60 @@
++// +build !nacl,!js
++// run
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++//
++// Ensure that deadlock detection can still
++// run even with an import of "_ os/signal".
++
++package main
++
++import (
++	"bytes"
++	"context"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"time"
++)
++
++const prog = `
++package main
++
++import _ "os/signal"
++
++func main() {
++  c := make(chan int)
++  c <- 1
++}
++`
++
++func main() {
++	dir, err := ioutil.TempDir("", "21576")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer os.RemoveAll(dir)
++
++	file := filepath.Join(dir, "main.go")
++	if err := ioutil.WriteFile(file, []byte(prog), 0655); err != nil {
++		log.Fatalf("Write error %v", err)
++	}
++
++	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
++	defer cancel()
++
++	cmd := exec.CommandContext(ctx, "go", "run", file)
++	output, err := cmd.CombinedOutput()
++	if err == nil {
++		log.Fatalf("Passed, expected an error")
++	}
++
++	want := []byte("fatal error: all goroutines are asleep - deadlock!")
++	if !bytes.Contains(output, want) {
++		log.Fatalf("Unmatched error message %q:\nin\n%s", want, output)
++	}
++}

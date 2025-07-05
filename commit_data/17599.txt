@@ -9,8 +9,75 @@ Date:   Sun Sep 15 10:45:36 2013 +1000
     R=golang-dev, dominik.honnef, rsc
     CC=golang-dev
     https://golang.org/cl/13715043
-
+---
  src/pkg/fmt/fmt_test.go | 4 ++++
  src/pkg/fmt/format.go   | 4 ++++
  src/pkg/fmt/print.go    | 4 ++--
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index 199f337ec2..f32c05dc06 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -227,6 +227,8 @@ var fmtTests = []struct {
+ 	{"%+.3g", -1.0, "-1"},
+ 	{"% .3g", -1.0, "-1"},
+ 	{"% .3g", 1.0, " 1"},
++	{"%b", float32(1.0), "8388608p-23"},
++	{"%b", 1.0, "4503599627370496p-52"},
+ 
+ 	// complex values
+ 	{"%+.3e", 0i, "(+0.000e+00+0.000e+00i)"},
+@@ -247,6 +249,8 @@ var fmtTests = []struct {
+ 	{"% .3E", -1 - 2i, "(-1.000E+00-2.000E+00i)"},
+ 	{"%+.3g", complex64(1 + 2i), "(+1+2i)"},
+ 	{"%+.3g", complex128(1 + 2i), "(+1+2i)"},
++	{"%b", complex64(1 + 2i), "(8388608p-23+8388608p-22i)"},
++	{"%b", 1 + 2i, "(4503599627370496p-52+4503599627370496p-51i)"},
+ 
+ 	// erroneous formats
+ 	{"", 2, "%!(EXTRA int=2)"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index 736e2bd715..2e2b0716ed 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -429,6 +429,8 @@ func (f *fmt) fmt_c64(v complex64, verb rune) {
+ 	oldPlus := f.plus
+ 	for i := 0; ; i++ {
+ 		switch verb {
++		case 'b':
++			f.fmt_fb32(r)
+ 		case 'e':
+ 			f.fmt_e32(r)
+ 		case 'E':
+@@ -457,6 +459,8 @@ func (f *fmt) fmt_c128(v complex128, verb rune) {
+ 	oldPlus := f.plus
+ 	for i := 0; ; i++ {
+ 		switch verb {
++		case 'b':
++			f.fmt_fb64(r)
+ 		case 'e':
+ 			f.fmt_e64(r)
+ 		case 'E':
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 99b2d5cb03..14cda03b9e 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -511,7 +511,7 @@ func (p *pp) fmtFloat64(v float64, verb rune) {
+ 
+ func (p *pp) fmtComplex64(v complex64, verb rune) {
+ 	switch verb {
+-	case 'e', 'E', 'f', 'F', 'g', 'G':
++	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
+ 		p.fmt.fmt_c64(v, verb)
+ 	case 'v':
+ 		p.fmt.fmt_c64(v, 'g')
+@@ -522,7 +522,7 @@ func (p *pp) fmtComplex64(v complex64, verb rune) {
+ 
+ func (p *pp) fmtComplex128(v complex128, verb rune) {
+ 	switch verb {
+-	case 'e', 'E', 'f', 'F', 'g', 'G':
++	case 'b', 'e', 'E', 'f', 'F', 'g', 'G':
+ 		p.fmt.fmt_c128(v, verb)
+ 	case 'v':
+ 		p.fmt.fmt_c128(v, 'g')

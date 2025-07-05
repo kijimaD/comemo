@@ -17,7 +17,199 @@ Date:   Thu Dec 8 11:26:11 2022 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/check_test.go | 39 +++++++++++-----------
  src/go/types/check_test.go                    | 48 ++++++++++++---------------
  2 files changed, 41 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 0f97fe9680..611466ba01 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -31,7 +31,6 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ 
+@@ -68,8 +67,8 @@ func unpackError(err error) (syntax.Pos, string) {
+ 	}
+ }
+ 
+-// delta returns the absolute difference between x and y.
+-func delta(x, y uint) uint {
++// absDiff returns the absolute difference between x and y.
++func absDiff(x, y uint) uint {
+ 	if x < y {
+ 		return y - x
+ 	}
+@@ -165,13 +164,6 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 		return
+ 	}
+ 
+-	// sort errlist in source order
+-	sort.Slice(errlist, func(i, j int) bool {
+-		pi, _ := unpackError(errlist[i])
+-		pj, _ := unpackError(errlist[j])
+-		return pi.Cmp(pj) < 0
+-	})
+-
+ 	// collect expected errors
+ 	errmap := make(map[string]map[uint][]syntax.Error)
+ 	for _, filename := range filenames {
+@@ -187,6 +179,7 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 	}
+ 
+ 	// match against found errors
++	var indices []int // list indices of matching errors, reused for each error
+ 	for _, err := range errlist {
+ 		gotPos, gotMsg := unpackError(err)
+ 
+@@ -199,8 +192,8 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 			errList = filemap[line]
+ 		}
+ 
+-		// one of errors in errList should match the current error
+-		index := -1 // errList index of matching message, if any
++		// At least one of the errors in errList should match the current error.
++		indices = indices[:0]
+ 		for i, want := range errList {
+ 			pattern := strings.TrimSpace(want.Msg[len(" ERROR "):])
+ 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
+@@ -212,19 +205,27 @@ func testFiles(t *testing.T, filenames []string, colDelta uint, manual bool) {
+ 				continue
+ 			}
+ 			if rx.MatchString(gotMsg) {
+-				index = i
+-				break
++				indices = append(indices, i)
+ 			}
+ 		}
+-		if index < 0 {
++		if len(indices) == 0 {
+ 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
+ 			continue
+ 		}
++		// len(indices) > 0
++
++		// If there are multiple matching errors, select the one with the closest column position.
++		index := -1 // index of matching error
++		var delta uint
++		for _, i := range indices {
++			if d := absDiff(gotPos.Col(), errList[i].Pos.Col()); index < 0 || d < delta {
++				index, delta = i, d
++			}
++		}
+ 
+-		// column position must be within expected colDelta
+-		want := errList[index]
+-		if delta(gotPos.Col(), want.Pos.Col()) > colDelta {
+-			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Col(), want.Pos.Col())
++		// The closest column position must be within expected colDelta.
++		if delta > colDelta {
++			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Col(), errList[index].Pos.Col())
+ 		}
+ 
+ 		// eliminate from errList
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 81736f6623..4d27f3629a 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -36,7 +36,6 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"regexp"
+-	"sort"
+ 	"strings"
+ 	"testing"
+ 
+@@ -82,8 +81,8 @@ func unpackError(fset *token.FileSet, err error) (token.Position, string) {
+ 	panic("unreachable")
+ }
+ 
+-// delta returns the absolute difference between x and y.
+-func delta(x, y int) int {
++// absDiff returns the absolute difference between x and y.
++func absDiff(x, y int) int {
+ 	if x < y {
+ 		return y - x
+ 	}
+@@ -183,20 +182,6 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		return
+ 	}
+ 
+-	// sort errlist in source order
+-	sort.Slice(errlist, func(i, j int) bool {
+-		// TODO(gri) This is not correct as scanner.Errors
+-		// don't have a correctly set Offset. But we only
+-		// care about sorting when multiple equal errors
+-		// appear on the same line, which happens with some
+-		// type checker errors.
+-		// For now this works. Will remove need for sorting
+-		// in a subsequent CL.
+-		pi, _ := unpackError(fset, errlist[i])
+-		pj, _ := unpackError(fset, errlist[j])
+-		return pi.Offset < pj.Offset
+-	})
+-
+ 	// collect expected errors
+ 	errmap := make(map[string]map[int][]comment)
+ 	for i, filename := range filenames {
+@@ -206,6 +191,7 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 	}
+ 
+ 	// match against found errors
++	var indices []int // list indices of matching errors, reused for each error
+ 	for _, err := range errlist {
+ 		gotPos, gotMsg := unpackError(fset, err)
+ 
+@@ -218,8 +204,8 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 			errList = filemap[line]
+ 		}
+ 
+-		// one of errors in errList should match the current error
+-		index := -1 // errList index of matching message, if any
++		// At least one of the errors in errList should match the current error.
++		indices = indices[:0]
+ 		for i, want := range errList {
+ 			pattern := strings.TrimSpace(want.text[len(" ERROR "):])
+ 			if n := len(pattern); n >= 2 && pattern[0] == '"' && pattern[n-1] == '"' {
+@@ -231,20 +217,28 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 				continue
+ 			}
+ 			if rx.MatchString(gotMsg) {
+-				index = i
+-				break
++				indices = append(indices, i)
+ 			}
+ 		}
+-		if index < 0 {
++		if len(indices) == 0 {
+ 			t.Errorf("%s: no error expected: %q", gotPos, gotMsg)
+ 			continue
+ 		}
++		// len(indices) > 0
++
++		// If there are multiple matching errors, select the one with the closest column position.
++		index := -1 // index of matching error
++		var delta int
++		for _, i := range indices {
++			if d := absDiff(gotPos.Column, errList[i].col); index < 0 || d < delta {
++				index, delta = i, d
++			}
++		}
+ 
+-		// column position must be within expected colDelta
+-		const colDelta = 0
+-		want := errList[index]
+-		if delta(gotPos.Column, want.col) > colDelta {
+-			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Column, want.col)
++		// The closest column position must be within expected colDelta.
++		const colDelta = 0 // go/types errors are positioned correctly
++		if delta > colDelta {
++			t.Errorf("%s: got col = %d; want %d", gotPos, gotPos.Column, errList[index].col)
+ 		}
+ 
+ 		// eliminate from errList

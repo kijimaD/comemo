@@ -24,9 +24,190 @@ Date:   Wed Sep 21 09:44:40 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/cmd/compile/internal/gc/walk.go          |  6 +--
  src/runtime/crash_cgo_test.go                | 28 ++++++++++
  src/runtime/mprof.go                         | 12 +++++
  src/runtime/testdata/testprogcgo/raceprof.go | 77 ++++++++++++++++++++++++++++
  4 files changed, 120 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 6373b5d08e..db167507df 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1482,7 +1482,7 @@ opswitch:
+ 		Fatalf("append outside assignment")
+ 
+ 	case OCOPY:
+-		n = copyany(n, init, instrumenting)
++		n = copyany(n, init, instrumenting && !compiling_runtime)
+ 
+ 		// cannot use chanfn - closechan takes any, not chan any
+ 	case OCLOSE:
+@@ -2957,7 +2957,7 @@ func appendslice(n *Node, init *Nodes) *Node {
+ 		ln.Set(l)
+ 		nt := mkcall1(fn, Types[TINT], &ln, typename(l1.Type.Elem()), nptr1, nptr2)
+ 		l = append(ln.Slice(), nt)
+-	} else if instrumenting {
++	} else if instrumenting && !compiling_runtime {
+ 		// rely on runtime to instrument copy.
+ 		// copy(s[len(l1):], l2)
+ 		nptr1 := nod(OSLICE, s, nil)
+@@ -3050,7 +3050,7 @@ func walkappend(n *Node, init *Nodes, dst *Node) *Node {
+ 
+ 	// General case, with no function calls left as arguments.
+ 	// Leave for gen, except that instrumentation requires old form.
+-	if !instrumenting {
++	if !instrumenting || compiling_runtime {
+ 		return n
+ 	}
+ 
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 3de07280de..1e509c113a 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -291,3 +291,31 @@ func TestCgoPprofPIE(t *testing.T) {
+ func TestCgoPprofThread(t *testing.T) {
+ 	testCgoPprof(t, "", "CgoPprofThread")
+ }
++
++func TestRaceProf(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skipf("not yet supported on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++
++	testenv.MustHaveGoRun(t)
++
++	// This test requires building various packages with -race, so
++	// it's somewhat slow.
++	if testing.Short() {
++		t.Skip("skipping test in -short mode")
++	}
++
++	exe, err := buildTestProg(t, "testprogcgo", "-race")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	got, err := testEnv(exec.Command(exe, "CgoRaceprof")).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := "OK\n"
++	if string(got) != want {
++		t.Errorf("expected %q got %s", want, got)
++	}
++}
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 37b5e1be4a..2611382575 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -438,6 +438,12 @@ func record(r *MemProfileRecord, b *bucket) {
+ 	r.FreeBytes = int64(mp.free_bytes)
+ 	r.AllocObjects = int64(mp.allocs)
+ 	r.FreeObjects = int64(mp.frees)
++	if raceenabled {
++		racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&r)), funcPC(MemProfile))
++	}
++	if msanenabled {
++		msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
++	}
+ 	copy(r.Stack0[:], b.stk())
+ 	for i := int(b.nstk); i < len(r.Stack0); i++ {
+ 		r.Stack0[i] = 0
+@@ -480,6 +486,12 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 			r := &p[0]
+ 			r.Count = bp.count
+ 			r.Cycles = bp.cycles
++			if raceenabled {
++				racewriterangepc(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0), getcallerpc(unsafe.Pointer(&p)), funcPC(BlockProfile))
++			}
++			if msanenabled {
++				msanwrite(unsafe.Pointer(&r.Stack0[0]), unsafe.Sizeof(r.Stack0))
++			}
+ 			i := copy(r.Stack0[:], b.stk())
+ 			for ; i < len(r.Stack0); i++ {
+ 				r.Stack0[i] = 0
+diff --git a/src/runtime/testdata/testprogcgo/raceprof.go b/src/runtime/testdata/testprogcgo/raceprof.go
+new file mode 100644
+index 0000000000..8f50a8a425
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/raceprof.go
+@@ -0,0 +1,77 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux,amd64
++
++package main
++
++// Test that we can collect a lot of colliding profiling signals from
++// an external C thread. This used to fail when built with the race
++// detector, because a call of the predeclared function copy was
++// turned into a call to runtime.slicecopy, which is not marked nosplit.
++
++/*
++#include <signal.h>
++#include <stdint.h>
++#include <pthread.h>
++
++struct cgoTracebackArg {
++	uintptr_t  context;
++	uintptr_t  sigContext;
++	uintptr_t* buf;
++	uintptr_t  max;
++};
++
++static int raceprofCount;
++
++// We want a bunch of different profile stacks that collide in the
++// hash table maintained in runtime/cpuprof.go. This code knows the
++// size of the hash table (1 << 10) and knows that the hash function
++// is simply multiplicative.
++void raceprofTraceback(void* parg) {
++	struct cgoTracebackArg* arg = (struct cgoTracebackArg*)(parg);
++	raceprofCount++;
++	arg->buf[0] = raceprofCount * (1 << 10);
++	arg->buf[1] = 0;
++}
++
++static void* raceprofThread(void* p) {
++	int i;
++
++	for (i = 0; i < 100; i++) {
++		pthread_kill(pthread_self(), SIGPROF);
++		pthread_yield();
++	}
++	return 0;
++}
++
++void runRaceprofThread() {
++	pthread_t tid;
++	pthread_create(&tid, 0, raceprofThread, 0);
++	pthread_join(tid, 0);
++}
++*/
++import "C"
++
++import (
++	"bytes"
++	"fmt"
++	"runtime"
++	"runtime/pprof"
++	"unsafe"
++)
++
++func init() {
++	register("CgoRaceprof", CgoRaceprof)
++}
++
++func CgoRaceprof() {
++	runtime.SetCgoTraceback(0, unsafe.Pointer(C.raceprofTraceback), nil, nil)
++
++	var buf bytes.Buffer
++	pprof.StartCPUProfile(&buf)
++
++	C.runRaceprofThread()
++	fmt.Println("OK")
++}

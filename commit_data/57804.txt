@@ -19,7 +19,7 @@ Date:   Fri Apr 21 11:08:09 2023 +0800
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/loong64/ggen.go        |  23 ++-
  src/cmd/compile/internal/loong64/ssa.go         |  11 +-
  src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   4 +-
@@ -27,3 +27,539 @@ Date:   Fri Apr 21 11:08:09 2023 +0800
  src/runtime/duff_loong64.s                      | 256 ++++++++++++------------
  src/runtime/mkduff.go                           |   4 +-
  6 files changed, 151 insertions(+), 149 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ggen.go b/src/cmd/compile/internal/loong64/ggen.go
+index 8a24d2f295..27d318a8bb 100644
+--- a/src/cmd/compile/internal/loong64/ggen.go
++++ b/src/cmd/compile/internal/loong64/ggen.go
+@@ -5,6 +5,7 @@
+ package loong64
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/types"
+@@ -16,34 +17,38 @@ func zerorange(pp *objw.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog
+ 	if cnt == 0 {
+ 		return p
+ 	}
++
++	// Adjust the frame to account for LR.
++	off += base.Ctxt.Arch.FixedFrameSize
++
+ 	if cnt < int64(4*types.PtrSize) {
+ 		for i := int64(0); i < cnt; i += int64(types.PtrSize) {
+-			p = pp.Append(p, loong64.AMOVV, obj.TYPE_REG, loong64.REGZERO, 0, obj.TYPE_MEM, loong64.REGSP, 8+off+i)
++			p = pp.Append(p, loong64.AMOVV, obj.TYPE_REG, loong64.REGZERO, 0, obj.TYPE_MEM, loong64.REGSP, off+i)
+ 		}
+ 	} else if cnt <= int64(128*types.PtrSize) {
+-		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, loong64.REGRT1, 0)
++		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, off, obj.TYPE_REG, loong64.REGRT1, 0)
+ 		p.Reg = loong64.REGSP
+ 		p = pp.Append(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 8 * (128 - cnt/int64(types.PtrSize))
+ 	} else {
+-		//	ADDV	$(8+frame+lo-8), SP, r1
++		//	ADDV	$(off), SP, r1
+ 		//	ADDV	$cnt, r1, r2
+ 		// loop:
+-		//	MOVV	R0, (Widthptr)r1
++		//	MOVV	R0, (r1)
+ 		//	ADDV	$Widthptr, r1
+-		//	BNE		r1, r2, loop
+-		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, 8+off-8, obj.TYPE_REG, loong64.REGRT1, 0)
++		//	BNE	r1, r2, loop
++		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, off, obj.TYPE_REG, loong64.REGRT1, 0)
+ 		p.Reg = loong64.REGSP
+ 		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, cnt, obj.TYPE_REG, loong64.REGRT2, 0)
+ 		p.Reg = loong64.REGRT1
+-		p = pp.Append(p, loong64.AMOVV, obj.TYPE_REG, loong64.REGZERO, 0, obj.TYPE_MEM, loong64.REGRT1, int64(types.PtrSize))
+-		p1 := p
++		p = pp.Append(p, loong64.AMOVV, obj.TYPE_REG, loong64.REGZERO, 0, obj.TYPE_MEM, loong64.REGRT1, 0)
++		loop := p
+ 		p = pp.Append(p, loong64.AADDV, obj.TYPE_CONST, 0, int64(types.PtrSize), obj.TYPE_REG, loong64.REGRT1, 0)
+ 		p = pp.Append(p, loong64.ABNE, obj.TYPE_REG, loong64.REGRT1, 0, obj.TYPE_BRANCH, 0, 0)
+ 		p.Reg = loong64.REGRT2
+-		p.To.SetTarget(p1)
++		p.To.SetTarget(loop)
+ 	}
+ 
+ 	return p
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 8193b4e321..d60751562b 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -340,18 +340,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpLOONG64DUFFZERO:
+-		// runtime.duffzero expects start address - 8 in R19
+-		p := s.Prog(loong64.ASUBVU)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 8
+-		p.Reg = v.Args[0].Reg()
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = loong64.REG_R19
+-		p = s.Prog(obj.ADUFFZERO)
++		// runtime.duffzero expects start address in R19
++		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
++
+ 	case ssa.OpLOONG64LoweredZero:
+ 		// SUBV	$8, R19
+ 		// MOVV	R0, 8(R19)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 23f20fddeb..ee887e7ede 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -289,9 +289,10 @@ func init() {
+ 			aux:       "Int64",
+ 			argLength: 2,
+ 			reg: regInfo{
+-				inputs:   []regMask{gp},
++				inputs:   []regMask{buildReg("R19")},
+ 				clobbers: buildReg("R19 R1"),
+ 			},
++			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 		},
+ 
+@@ -309,6 +310,7 @@ func init() {
+ 				inputs:   []regMask{buildReg("R20"), buildReg("R19")},
+ 				clobbers: buildReg("R19 R20 R1"),
+ 			},
++			typ:            "Mem",
+ 			faultOnNilArg0: true,
+ 			faultOnNilArg1: true,
+ 		},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 11a6138357..db0f9cf291 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -24540,7 +24540,7 @@ var opcodeTable = [...]opInfo{
+ 		faultOnNilArg0: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{0, 1070596088}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 262144}, // R19
+ 			},
+ 			clobbers: 262146, // R1 R19
+ 		},
+diff --git a/src/runtime/duff_loong64.s b/src/runtime/duff_loong64.s
+index 7f78e4fa9f..63fa3bcca1 100644
+--- a/src/runtime/duff_loong64.s
++++ b/src/runtime/duff_loong64.s
+@@ -5,261 +5,261 @@
+ #include "textflag.h"
+ 
+ TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+-	MOVV	R0, 8(R19)
++	MOVV	R0, (R19)
+ 	ADDV	$8, R19
+ 	RET
+ 
+diff --git a/src/runtime/mkduff.go b/src/runtime/mkduff.go
+index cc58558a56..e8d4fcc93e 100644
+--- a/src/runtime/mkduff.go
++++ b/src/runtime/mkduff.go
+@@ -179,11 +179,11 @@ func copyARM64(w io.Writer) {
+ 
+ func zeroLOONG64(w io.Writer) {
+ 	// R0: always zero
+-	// R19 (aka REGRT1): ptr to memory to be zeroed - 8
++	// R19 (aka REGRT1): ptr to memory to be zeroed
+ 	// On return, R19 points to the last zeroed dword.
+ 	fmt.Fprintln(w, "TEXT runtime·duffzero(SB), NOSPLIT|NOFRAME, $0-0")
+ 	for i := 0; i < 128; i++ {
+-		fmt.Fprintln(w, "\tMOVV\tR0, 8(R19)")
++		fmt.Fprintln(w, "\tMOVV\tR0, (R19)")
+ 		fmt.Fprintln(w, "\tADDV\t$8, R19")
+ 	}
+ 	fmt.Fprintln(w, "\tRET")

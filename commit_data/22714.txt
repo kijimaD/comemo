@@ -22,8 +22,64 @@ Date:   Wed Apr 1 18:59:51 2015 +0300
     Change-Id: I79d4f0a3cff53b9419d82c8122964761e9e38566
     Reviewed-on: https://go-review.googlesource.com/8342
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/bytes/buffer.go      |  4 ++++
  src/bytes/buffer_test.go | 17 +++++++++++++++++
  src/bytes/export_test.go |  4 ----
  3 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 46ca1d5ad3..7f9139bca8 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -56,6 +56,10 @@ func (b *Buffer) String() string {
+ // b.Len() == len(b.Bytes()).
+ func (b *Buffer) Len() int { return len(b.buf) - b.off }
+ 
++// Cap returns the capacity of the buffer's underlying byte slice, that is, the
++// total space allocated for the the buffer's data.
++func (b *Buffer) Cap() int { return cap(b.buf) }
++
+ // Truncate discards all but the first n unread bytes from the buffer.
+ // It panics if n is negative or greater than the length of the buffer.
+ func (b *Buffer) Truncate(n int) {
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 75145b05e9..7de17ae47e 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -231,6 +231,23 @@ func TestMixedReadsAndWrites(t *testing.T) {
+ 	empty(t, "TestMixedReadsAndWrites (2)", &buf, s, make([]byte, buf.Len()))
+ }
+ 
++func TestCapWithPreallocatedSlice(t *testing.T) {
++	buf := NewBuffer(make([]byte, 10))
++	n := buf.Cap()
++	if n != 10 {
++		t.Errorf("expected 10, got %d", n)
++	}
++}
++
++func TestCapWithSliceAndWrittenData(t *testing.T) {
++	buf := NewBuffer(make([]byte, 0, 10))
++	buf.Write([]byte("test"))
++	n := buf.Cap()
++	if n != 10 {
++		t.Errorf("expected 10, got %d", n)
++	}
++}
++
+ func TestNil(t *testing.T) {
+ 	var b *Buffer
+ 	if b.String() != "<nil>" {
+diff --git a/src/bytes/export_test.go b/src/bytes/export_test.go
+index 3b915d5ead..f61523e60b 100644
+--- a/src/bytes/export_test.go
++++ b/src/bytes/export_test.go
+@@ -7,7 +7,3 @@ package bytes
+ // Export func for testing
+ var IndexBytePortable = indexBytePortable
+ var EqualPortable = equalPortable
+-
+-func (b *Buffer) Cap() int {
+-	return cap(b.buf)
+-}

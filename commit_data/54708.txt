@@ -16,6 +16,32 @@ Date:   Wed Nov 9 16:41:05 2022 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/compile/internal/importer/gcimporter.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index e4d8a86f9a..e479bd12d3 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -20,9 +20,6 @@ import (
+ 	"cmd/compile/internal/types2"
+ )
+ 
+-// debugging/development support
+-const debug = false
+-
+ func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+ 	pkgpath = filepath.ToSlash(pkgpath)
+ 	m, err := goroot.PkgfileMap()
+@@ -37,7 +34,9 @@ func lookupGorootExport(pkgpath, srcRoot, srcDir string) (string, bool) {
+ 		vendorPrefix = path.Join("cmd", vendorPrefix)
+ 	}
+ 	pkgpath = path.Join(vendorPrefix, pkgpath)
+-	fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
++	if false { // for debugging
++		fmt.Fprintln(os.Stderr, "looking up ", pkgpath)
++	}
+ 	export, ok := m[pkgpath]
+ 	return export, ok
+ }

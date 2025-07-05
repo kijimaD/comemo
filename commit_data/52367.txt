@@ -14,8 +14,81 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/internal/boring/boring.go               |  26 +++++++++++++++------
  src/crypto/internal/boring/goboringcrypto.h        |   2 ++
  .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 10864336 -> 10864368 bytes
  3 files changed, 21 insertions(+), 7 deletions(-)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index 29e0baa131..7c6a730e0b 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -18,6 +18,8 @@ import (
+ 	"crypto/internal/boring/sig"
+ 	_ "crypto/internal/boring/syso"
+ 	"math/big"
++	"math/bits"
++	"unsafe"
+ )
+ 
+ const available = true
+@@ -58,15 +60,26 @@ type fail string
+ 
+ func (e fail) Error() string { return "boringcrypto: " + string(e) + " failed" }
+ 
++func wbase(b []big.Word) *C.uint8_t {
++	if len(b) == 0 {
++		return nil
++	}
++	return (*C.uint8_t)(unsafe.Pointer(&b[0]))
++}
++
++const wordBytes = bits.UintSize / 8
++
+ func bigToBN(x *big.Int) *C.GO_BIGNUM {
+-	raw := x.Bytes()
+-	return C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
++	raw := x.Bits()
++	return C._goboringcrypto_BN_le2bn(wbase(raw), C.size_t(len(raw)*wordBytes), nil)
+ }
+ 
+ func bnToBig(bn *C.GO_BIGNUM) *big.Int {
+-	raw := make([]byte, C._goboringcrypto_BN_num_bytes(bn))
+-	n := C._goboringcrypto_BN_bn2bin(bn, base(raw))
+-	return new(big.Int).SetBytes(raw[:n])
++	raw := make([]big.Word, (C._goboringcrypto_BN_num_bytes(bn)+wordBytes-1)/wordBytes)
++	if C._goboringcrypto_BN_bn2le_padded(wbase(raw), C.size_t(len(raw)*wordBytes), bn) == 0 {
++		panic("boringcrypto: bignum conversion failed")
++	}
++	return new(big.Int).SetBits(raw)
+ }
+ 
+ func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
+@@ -77,8 +90,7 @@ func bigToBn(bnp **C.GO_BIGNUM, b *big.Int) bool {
+ 	if b == nil {
+ 		return true
+ 	}
+-	raw := b.Bytes()
+-	bn := C._goboringcrypto_BN_bin2bn(base(raw), C.size_t(len(raw)), nil)
++	bn := bigToBN(b)
+ 	if bn == nil {
+ 		return false
+ 	}
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index 37b7917c04..d6d99b1dcd 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -141,7 +141,9 @@ unsigned _goboringcrypto_BN_num_bits(const GO_BIGNUM*);
+ unsigned _goboringcrypto_BN_num_bytes(const GO_BIGNUM*);
+ int _goboringcrypto_BN_is_negative(const GO_BIGNUM*);
+ GO_BIGNUM* _goboringcrypto_BN_bin2bn(const uint8_t*, size_t, GO_BIGNUM*);
++GO_BIGNUM* _goboringcrypto_BN_le2bn(const uint8_t*, size_t, GO_BIGNUM*);
+ size_t _goboringcrypto_BN_bn2bin(const GO_BIGNUM*, uint8_t*);
++int _goboringcrypto_BN_bn2le_padded(uint8_t*, size_t, const GO_BIGNUM*);
+ 
+ // #include <openssl/ec.h>
+ /*unchecked (opaque)*/ typedef struct GO_EC_GROUP { char data[1]; } GO_EC_GROUP;
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+index 2459dd7804..72e6c1783e 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso differ

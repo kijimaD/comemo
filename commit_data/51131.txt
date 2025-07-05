@@ -10,6 +10,22 @@ Date:   Tue Dec 7 14:37:37 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/369980
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  doc/go1.18.html | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 4a09cb6773..8131afffdb 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -25,10 +25,6 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <h2 id="language">Changes to the language</h2>
+ 
+-<p>
+-  TODO: complete this section
+-</p>
+-
+ <h3 id="generics">Generics</h3>
+ 
+ <p><!-- https://golang.org/issue/43651, https://golang.org/issue/45346 -->

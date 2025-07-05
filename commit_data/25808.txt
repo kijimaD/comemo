@@ -14,6 +14,46 @@ Date:   Tue Nov 24 09:15:36 2015 +1300
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/runtime2.go | 17 ++++++++++++++---
  1 file changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index eb7b30a344..05300106f6 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -122,20 +122,31 @@ func efaceOf(ep *interface{}) *eface {
+ // alternate arena. Using guintptr doesn't make that problem any worse.
+ type guintptr uintptr
+ 
+-func (gp guintptr) ptr() *g   { return (*g)(unsafe.Pointer(gp)) }
++//go:nosplit
++func (gp guintptr) ptr() *g { return (*g)(unsafe.Pointer(gp)) }
++
++//go:nosplit
+ func (gp *guintptr) set(g *g) { *gp = guintptr(unsafe.Pointer(g)) }
++
++//go:nosplit
+ func (gp *guintptr) cas(old, new guintptr) bool {
+ 	return atomic.Casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
+ }
+ 
+ type puintptr uintptr
+ 
+-func (pp puintptr) ptr() *p   { return (*p)(unsafe.Pointer(pp)) }
++//go:nosplit
++func (pp puintptr) ptr() *p { return (*p)(unsafe.Pointer(pp)) }
++
++//go:nosplit
+ func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
+ 
+ type muintptr uintptr
+ 
+-func (mp muintptr) ptr() *m   { return (*m)(unsafe.Pointer(mp)) }
++//go:nosplit
++func (mp muintptr) ptr() *m { return (*m)(unsafe.Pointer(mp)) }
++
++//go:nosplit
+ func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
+ 
+ type gobuf struct {

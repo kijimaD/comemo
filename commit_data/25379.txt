@@ -11,7 +11,50 @@ Date:   Wed Oct 21 20:35:22 2015 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/all_test.go | 4 +++-
  src/math/sqrt.go     | 2 +-
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 53e84765cb..4838ffc5e1 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1363,7 +1363,7 @@ var vfmodfSC = []float64{
+ var modfSC = [][2]float64{
+ 	{Inf(-1), NaN()}, // [2]float64{Copysign(0, -1), Inf(-1)},
+ 	{Copysign(0, -1), Copysign(0, -1)},
+-	{Inf(1), NaN()},  // [2]float64{0, Inf(1)},
++	{Inf(1), NaN()}, // [2]float64{0, Inf(1)},
+ 	{NaN(), NaN()},
+ }
+ 
+@@ -1611,6 +1611,7 @@ var vfsqrtSC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	Float64frombits(2), // subnormal; see https://golang.org/issue/13013
+ }
+ var sqrtSC = []float64{
+ 	NaN(),
+@@ -1619,6 +1620,7 @@ var sqrtSC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	3.1434555694052576e-162,
+ }
+ 
+ var vftanhSC = []float64{
+diff --git a/src/math/sqrt.go b/src/math/sqrt.go
+index 23cf2996c2..96af6e2687 100644
+--- a/src/math/sqrt.go
++++ b/src/math/sqrt.go
+@@ -108,7 +108,7 @@ func sqrt(x float64) float64 {
+ 	// normalize x
+ 	exp := int((ix >> shift) & mask)
+ 	if exp == 0 { // subnormal x
+-		for ix&1<<shift == 0 {
++		for ix&(1<<shift) == 0 {
+ 			ix <<= 1
+ 			exp--
+ 		}

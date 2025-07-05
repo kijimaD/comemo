@@ -27,7 +27,174 @@ Date:   Wed Oct 13 03:50:06 2021 -0500
     Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/internal/bytealg/count_ppc64x.s | 24 ++++++++++++++++++++---
  src/internal/bytealg/index_ppc64x.s | 39 +++++++++++++++++++++++++++++++++++--
  2 files changed, 58 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/bytealg/count_ppc64x.s b/src/internal/bytealg/count_ppc64x.s
+index 94163cbd8a..dbafd06edc 100644
+--- a/src/internal/bytealg/count_ppc64x.s
++++ b/src/internal/bytealg/count_ppc64x.s
+@@ -8,24 +8,37 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-TEXT ·Count(SB), NOSPLIT|NOFRAME, $0-40
++TEXT ·Count<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
++#ifdef GOEXPERIMENT_regabiargs
++// R3 = byte array pointer 
++// R4 = length
++        MOVBZ R6,R5               // R5 = byte
++#else
++
+ 	MOVD  b_base+0(FP), R3    // R3 = byte array pointer
+ 	MOVD  b_len+8(FP), R4     // R4 = length
+ 	MOVBZ c+24(FP), R5        // R5 = byte
+ 	MOVD  $ret+32(FP), R14    // R14 = &ret
++#endif
+ 	BR    countbytebody<>(SB)
+ 
+-TEXT ·CountString(SB), NOSPLIT|NOFRAME, $0-32
++TEXT ·CountString<ABIInternal>(SB), NOSPLIT|NOFRAME, $0-32
++#ifdef GOEXPERIMENT_regabiargs
++// R3 = byte array pointer
++// R4 = length
++        MOVBZ R5,R5               // R5 = byte
++#else
+ 	MOVD  s_base+0(FP), R3    // R3 = string
+ 	MOVD  s_len+8(FP), R4     // R4 = length
+ 	MOVBZ c+16(FP), R5        // R5 = byte
+ 	MOVD  $ret+24(FP), R14    // R14 = &ret
++#endif
+ 	BR    countbytebody<>(SB)
+ 
+ // R3: addr of string
+ // R4: len of string
+ // R5: byte to count
+-// R14: addr for return value
++// R14: addr for return value when not regabi
+ // endianness shouldn't matter since we are just counting and order
+ // is irrelevant
+ TEXT countbytebody<>(SB), NOSPLIT|NOFRAME, $0-0
+@@ -94,5 +107,10 @@ next2:
+ 	BR  small
+ 
+ done:
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD R18, R3    // return count
++#else
+ 	MOVD R18, (R14) // return count
++#endif
++
+ 	RET
+diff --git a/src/internal/bytealg/index_ppc64x.s b/src/internal/bytealg/index_ppc64x.s
+index 3ed9442125..f587a8ae25 100644
+--- a/src/internal/bytealg/index_ppc64x.s
++++ b/src/internal/bytealg/index_ppc64x.s
+@@ -46,12 +46,20 @@ DATA byteswap<>+8(SB)/8, $0x0f0e0d0c0b0a0908
+ 
+ GLOBL byteswap<>+0(SB), RODATA, $16
+ 
+-TEXT ·Index(SB), NOSPLIT|NOFRAME, $0-56
++TEXT ·Index<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
++#ifdef GOEXPERIMENT_regabiargs 
++// R3 = byte array pointer 
++// R4 = length 
++        MOVD R6,R5             // R5 = separator pointer
++        MOVD R7,R6             // R6 = separator length 
++#else
+ 	MOVD a_base+0(FP), R3  // R3 = byte array pointer
+ 	MOVD a_len+8(FP), R4   // R4 = length
+ 	MOVD b_base+24(FP), R5 // R5 = separator pointer
+ 	MOVD b_len+32(FP), R6  // R6 = separator length
+ 	MOVD $ret+48(FP), R14  // R14 = &ret
++#endif
++
+ 
+ #ifdef GOARCH_ppc64le
+ 	MOVBZ internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R7
+@@ -63,12 +71,15 @@ TEXT ·Index(SB), NOSPLIT|NOFRAME, $0-56
+ power8:
+ 	BR indexbody<>(SB)
+ 
+-TEXT ·IndexString(SB), NOSPLIT|NOFRAME, $0-40
++TEXT ·IndexString<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVD a_base+0(FP), R3  // R3 = string
+ 	MOVD a_len+8(FP), R4   // R4 = length
+ 	MOVD b_base+16(FP), R5 // R5 = separator pointer
+ 	MOVD b_len+24(FP), R6  // R6 = separator length
+ 	MOVD $ret+32(FP), R14  // R14 = &ret
++#endif
++
+ 
+ #ifdef GOARCH_ppc64le
+ 	MOVBZ internal∕cpu·PPC64+const_offsetPPC64HasPOWER9(SB), R7
+@@ -420,8 +431,12 @@ next17:
+ 	BR         index17to32loop // Continue
+ 
+ notfound:
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD $-1, R3   // Return -1 if not found
++#else
+ 	MOVD $-1, R8   // Return -1 if not found
+ 	MOVD R8, (R14)
++#endif
+ 	RET
+ 
+ index33plus:
+@@ -432,12 +447,20 @@ foundR25:
+ 	SRD  $3, R25   // Convert from bits to bytes
+ 	ADD  R25, R7   // Add to current string address
+ 	SUB  R3, R7    // Subtract from start of string
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD R7, R3    // Return byte where found
++#else
+ 	MOVD R7, (R14) // Return byte where found
++#endif
+ 	RET
+ 
+ found:
+ 	SUB  R3, R7    // Return byte where found
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD R7, R3
++#else
+ 	MOVD R7, (R14)
++#endif
+ 	RET
+ 
+ TEXT indexbodyp9<>(SB), NOSPLIT|NOFRAME, $0
+@@ -746,8 +769,12 @@ next17:
+ 	BR         index17to32loop // Continue
+ 
+ notfound:
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD $-1, R3   // Return -1 if not found
++#else
+ 	MOVD $-1, R8   // Return -1 if not found
+ 	MOVD R8, (R14)
++#endif
+ 	RET
+ 
+ index33plus:
+@@ -758,11 +785,19 @@ foundR25:
+ 	SRD  $3, R25   // Convert from bits to bytes
+ 	ADD  R25, R7   // Add to current string address
+ 	SUB  R3, R7    // Subtract from start of string
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD R7, R3    // Return byte where found
++#else
+ 	MOVD R7, (R14) // Return byte where found
++#endif
+ 	RET
+ 
+ found:
+ 	SUB  R3, R7    // Return byte where found
++#ifdef GOEXPERIMENT_regabiargs
++        MOVD R7, R3
++#else
+ 	MOVD R7, (R14)
++#endif
+ 	RET
+ 

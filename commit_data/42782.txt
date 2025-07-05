@@ -11,6 +11,20 @@ Date:   Wed Feb 19 16:28:26 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220157
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/get_domain_root.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/get_domain_root.txt b/src/cmd/go/testdata/script/get_domain_root.txt
+index 580d1ca916..c2e9db35ec 100644
+--- a/src/cmd/go/testdata/script/get_domain_root.txt
++++ b/src/cmd/go/testdata/script/get_domain_root.txt
+@@ -2,7 +2,7 @@
+ # go get foo.io (not foo.io/subdir) was not working consistently.
+ 
+ [!net] skip
+-[!exec:git] skup
++[!exec:git] skip
+ 
+ # go-get-issue-9357.appspot.com is running
+ # the code at github.com/rsc/go-get-issue-9357,

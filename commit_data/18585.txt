@@ -60,6 +60,51 @@ Date:   Thu Feb 20 09:06:32 2014 -0800
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/66290043
-
+---
  src/cmd/ld/dwarf.c | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index dd8a3d7606..4f1847ecb3 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1590,29 +1590,30 @@ writelines(void)
+ 
+ 		pciterinit(&pcfile, &s->pcln->pcfile);
+ 		pciterinit(&pcline, &s->pcln->pcline);
++		epc = pc;
+ 		while(!pcfile.done && !pcline.done) {
+-			if(pc - s->value >= pcfile.nextpc) {
++			if(epc - s->value >= pcfile.nextpc) {
+ 				pciternext(&pcfile);
+ 				continue;
+ 			}
+-			if(pc - s->value >= pcline.nextpc) {
++			if(epc - s->value >= pcline.nextpc) {
+ 				pciternext(&pcline);
+ 				continue;
+ 			}
+ 
+-			if(pcfile.nextpc < pcline.nextpc)
+-				epc = pcfile.nextpc;
+-			else
+-				epc = pcline.nextpc;
+-			epc += s->value;
+-
+ 			if(file != pcfile.value) {
+ 				cput(DW_LNS_set_file);
+ 				uleb128put(pcfile.value);
+ 				file = pcfile.value;
+ 			}
+-			putpclcdelta(epc - pc, pcline.value - line);
++			putpclcdelta(s->value + pcline.pc - pc, pcline.value - line);
++
+ 			pc = epc;
++			if(pcfile.nextpc < pcline.nextpc)
++				epc = pcfile.nextpc;
++			else
++				epc = pcline.nextpc;
++			epc += s->value;
+ 			line = pcline.value;
+ 		}
+ 

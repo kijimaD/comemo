@@ -8,7 +8,7 @@ Date:   Wed Sep 3 08:49:43 2014 -0700
     R=golang-codereviews, rsc, khr
     CC=golang-codereviews
     https://golang.org/cl/139900043
-
+---
  src/cmd/api/goapi.go           |   3 +-
  src/pkg/runtime/asm_386.s      |   4 +
  src/pkg/runtime/asm_amd64.s    |   4 +
@@ -23,3 +23,715 @@ Date:   Wed Sep 3 08:49:43 2014 -0700
  src/pkg/runtime/traceback.go   |   4 +-
  src/pkg/runtime/vlrt.go        |   2 -
  13 files changed, 259 insertions(+), 217 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 7f7b389be3..ce806fc95d 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -379,7 +379,9 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 	if w.context != nil && file == fmt.Sprintf("zruntime_defs_%s_%s.go", w.context.GOOS, w.context.GOARCH) {
+ 		// Just enough to keep the api checker happy.
+ 		src := "package runtime; type (" +
++			" _defer struct{};" +
+ 			" _func struct{};" +
++			" _select struct{}; " +
+ 			" _type struct{};" +
+ 			" alg struct{};" +
+ 			" chantype struct{};" +
+@@ -403,7 +405,6 @@ func (w *Walker) parseFile(dir, file string) (*ast.File, error) {
+ 			" sudog struct{};" +
+ 			" waitq struct{};" +
+ 			" wincallbackcontext struct{};" +
+-			" _select struct{}; " +
+ 			"); " +
+ 			"const (" +
+ 			" cb_max = 2000;" +
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index 8a5fd3fb08..2477726f51 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -2310,3 +2310,7 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
++
++TEXT runtime·return0(SB), NOSPLIT, $0
++	MOVL	$0, AX
++	RET
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index 0846966f12..d7e30de7b4 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -2362,3 +2362,7 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
++
++TEXT runtime·return0(SB), NOSPLIT, $0
++	MOVL	$0, AX
++	RET
+diff --git a/src/pkg/runtime/asm_amd64p32.s b/src/pkg/runtime/asm_amd64p32.s
+index 7886861eb2..5ff89cf068 100644
+--- a/src/pkg/runtime/asm_amd64p32.s
++++ b/src/pkg/runtime/asm_amd64p32.s
+@@ -1232,3 +1232,7 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $0-4
+ 	MOVL	DX, m_fastrand(AX)
+ 	MOVL	DX, ret+0(FP)
+ 	RET
++
++TEXT runtime·return0(SB), NOSPLIT, $0
++	MOVL	$0, AX
++	RET
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 67763e1b2e..26b58cfb17 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -1286,3 +1286,6 @@ TEXT runtime·fastrand1(SB), NOSPLIT, $-4-4
+ TEXT runtime·gocputicks(SB), NOSPLIT, $0
+ 	B runtime·cputicks(SB)
+ 
++TEXT runtime·return0(SB), NOSPLIT, $0
++	MOVW	$0, R0
++	RET
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index d75d2b4e54..2ca22d923b 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -77,15 +77,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Goexit terminates the goroutine that calls it.  No other goroutine is affected.
+-// Goexit runs all deferred calls before terminating the goroutine.
+-//
+-// Calling Goexit from the main goroutine terminates that goroutine
+-// without func main returning. Since func main has not returned,
+-// the program continues execution of other goroutines.
+-// If all other goroutines exit, the program crashes.
+-func Goexit()
+-
+ // sigpanic is the C function sigpanic.
+ // That is, unsafe.Pointer(&sigpanic) is the C function pointer for sigpanic.
+ var sigpanic struct{}
+diff --git a/src/pkg/runtime/malloc.c b/src/pkg/runtime/malloc.c
+index 8210081553..311cc442c2 100644
+--- a/src/pkg/runtime/malloc.c
++++ b/src/pkg/runtime/malloc.c
+@@ -21,7 +21,7 @@ MHeap runtime·mheap;
+ #pragma dataflag NOPTR
+ MStats runtime·memstats;
+ 
+-static Type* notype;
++Type* runtime·conservative;
+ 
+ void runtime·cmallocgc(uintptr size, Type *typ, uint32 flag, void **ret);
+ void runtime·gc_notype_ptr(Eface*);
+@@ -35,7 +35,7 @@ runtime·mallocgc(uintptr size, Type *typ, uint32 flag)
+ 	// TODO: maybe someday we can get rid of this.  It is
+ 	// probably the only location where we run Go code on the M stack.
+ 	if((flag&FlagNoScan) == 0 && typ == nil)
+-		typ = notype;
++		typ = runtime·conservative;
+ 	runtime·cmallocgc(size, typ, flag, &ret);
+ 	return ret;
+ }
+@@ -259,7 +259,7 @@ runtime·mallocinit(void)
+ 	g->m->mcache = runtime·allocmcache();
+ 
+ 	runtime·gc_notype_ptr(&notype_eface);
+-	notype = notype_eface.type;
++	runtime·conservative = notype_eface.type;
+ }
+ 
+ void*
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index f328feb172..d9a2bf84ba 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -528,6 +528,7 @@ void*	runtime·cnewarray(Type*, intgo);
+ void	runtime·tracealloc(void*, uintptr, Type*);
+ void	runtime·tracefree(void*, uintptr);
+ void	runtime·tracegc(void);
++extern Type*	runtime·conservative;
+ 
+ int32	runtime·gcpercent;
+ int32	runtime·readgogc(void);
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 4b6829e011..72078f4343 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -10,182 +10,32 @@
+ 
+ // Code related to defer, panic and recover.
+ 
++// TODO: remove once code is moved to Go
++extern Defer* runtime·newdefer(int32 siz);
++extern runtime·freedefer(Defer *d);
++
+ uint32 runtime·panicking;
+ static Mutex paniclk;
+ 
+-// Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
+-// Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
+-// This maps exactly to malloc size classes.
+-
+-// defer size class for arg size sz
+-#define DEFERCLASS(sz) (((sz)+7)>>4)
+-// total size of memory block for defer with arg size sz
+-#define TOTALSIZE(sz) (sizeof(Defer) - sizeof(((Defer*)nil)->args) + ROUND(sz, sizeof(uintptr)))
+-
+-// Allocate a Defer, usually using per-P pool.
+-// Each defer must be released with freedefer.
+-static Defer*
+-newdefer(int32 siz)
+-{
+-	int32 total, sc;
+-	Defer *d;
+-	P *p;
+-
+-	d = nil;
+-	sc = DEFERCLASS(siz);
+-	if(sc < nelem(p->deferpool)) {
+-		p = g->m->p;
+-		d = p->deferpool[sc];
+-		if(d)
+-			p->deferpool[sc] = d->link;
+-	}
+-	if(d == nil) {
+-		// deferpool is empty or just a big defer
+-		total = runtime·roundupsize(TOTALSIZE(siz));
+-		d = runtime·mallocgc(total, nil, 0);
+-	}
+-	d->siz = siz;
+-	d->special = 0;
+-	d->link = g->defer;
+-	g->defer = d;
+-	return d;
+-}
+-
+-// Free the given defer.
+-// The defer cannot be used after this call.
+-static void
+-freedefer(Defer *d)
+-{
+-	int32 sc;
+-	P *p;
+-
+-	if(d->special)
+-		return;
+-	sc = DEFERCLASS(d->siz);
+-	if(sc < nelem(p->deferpool)) {
+-		p = g->m->p;
+-		d->link = p->deferpool[sc];
+-		p->deferpool[sc] = d;
+-		// No need to wipe out pointers in argp/pc/fn/args,
+-		// because we empty the pool before GC.
+-	}
+-}
+-
+-// Create a new deferred function fn with siz bytes of arguments.
+-// The compiler turns a defer statement into a call to this.
+-// Cannot split the stack because it assumes that the arguments
+-// are available sequentially after &fn; they would not be
+-// copied if a stack split occurred.  It's OK for this to call
+-// functions that split the stack.
+-#pragma textflag NOSPLIT
+-uintptr
+-runtime·deferproc(int32 siz, FuncVal *fn, ...)
+-{
+-	Defer *d;
+-
+-	d = newdefer(siz);
+-	d->fn = fn;
+-	d->pc = (uintptr)runtime·getcallerpc(&siz);
+-	if(thechar == '5')
+-		d->argp = (uintptr)(&fn+2);  // skip caller's saved link register
+-	else
+-		d->argp = (uintptr)(&fn+1);
+-	runtime·memmove(d->args, (byte*)d->argp, d->siz);
+-
+-	// deferproc returns 0 normally.
+-	// a deferred func that stops a panic
+-	// makes the deferproc return 1.
+-	// the code the compiler generates always
+-	// checks the return value and jumps to the
+-	// end of the function if deferproc returns != 0.
+-	return 0;
+-}
+-
+-// Run a deferred function if there is one.
+-// The compiler inserts a call to this at the end of any
+-// function which calls defer.
+-// If there is a deferred function, this will call runtime·jmpdefer,
+-// which will jump to the deferred function such that it appears
+-// to have been called by the caller of deferreturn at the point
+-// just before deferreturn was called.  The effect is that deferreturn
+-// is called again and again until there are no more deferred functions.
+-// Cannot split the stack because we reuse the caller's frame to
+-// call the deferred function.
+-
+-// The single argument isn't actually used - it just has its address
+-// taken so it can be matched against pending defers.
+-#pragma textflag NOSPLIT
+ void
+-runtime·deferreturn(uintptr arg0)
+-{
+-	Defer *d;
+-	uintptr argp;
++runtime·deferproc_m(void) {
++	int32 siz;
+ 	FuncVal *fn;
+-
+-	d = g->defer;
+-	if(d == nil)
+-		return;
+-	argp = (uintptr)&arg0;
+-	if(d->argp != argp)
+-		return;
+-
+-	// Moving arguments around.
+-	// Do not allow preemption here, because the garbage collector
+-	// won't know the form of the arguments until the jmpdefer can
+-	// flip the PC over to fn.
+-	g->m->locks++;
+-	runtime·memmove((byte*)argp, d->args, d->siz);
+-	fn = d->fn;
+-	g->defer = d->link;
+-	freedefer(d);
+-	g->m->locks--;
+-	if(g->m->locks == 0 && g->preempt)
+-		g->stackguard0 = StackPreempt;
+-	runtime·jmpdefer(fn, argp);
+-}
+-
+-// Ensure that defer arg sizes that map to the same defer size class
+-// also map to the same malloc size class.
+-void
+-runtime·testdefersizes(void)
+-{
+-	P *p;
+-	int32 i, siz, defersc, mallocsc;
+-	int32 map[nelem(p->deferpool)];
+-
+-	for(i=0; i<nelem(p->deferpool); i++)
+-		map[i] = -1;
+-	for(i=0;; i++) {
+-		defersc = DEFERCLASS(i);
+-		if(defersc >= nelem(p->deferpool))
+-			break;
+-		siz = TOTALSIZE(i);
+-		mallocsc = runtime·SizeToClass(siz);
+-		siz = runtime·class_to_size[mallocsc];
+-		// runtime·printf("defer class %d: arg size %d, block size %d(%d)\n", defersc, i, siz, mallocsc);
+-		if(map[defersc] < 0) {
+-			map[defersc] = mallocsc;
+-			continue;
+-		}
+-		if(map[defersc] != mallocsc) {
+-			runtime·printf("bad defer size class: i=%d siz=%d mallocsc=%d/%d\n",
+-				i, siz, map[defersc], mallocsc);
+-			runtime·throw("bad defer size class");
+-		}
+-	}
+-}
+-
+-// Run all deferred functions for the current goroutine.
+-static void
+-rundefer(void)
+-{
++	uintptr argp;
++	uintptr callerpc;
+ 	Defer *d;
+ 
+-	while((d = g->defer) != nil) {
+-		g->defer = d->link;
+-		reflect·call(d->fn, (byte*)d->args, d->siz, d->siz);
+-		freedefer(d);
+-	}
++	siz = g->m->scalararg[0];
++	fn = g->m->ptrarg[0];
++	argp = g->m->scalararg[1];
++	callerpc = g->m->scalararg[2];
++	g->m->ptrarg[0] = nil;
++
++	d = runtime·newdefer(siz);
++	d->fn = fn;
++	d->pc = callerpc;
++	d->argp = argp;
++	runtime·memmove(d->args, (void*)argp, siz);
+ }
+ 
+ // Print all currently active panics.  Used when crashing.
+@@ -252,14 +102,14 @@ runtime·panic(Eface e)
+ 			runtime·throw("bad defer entry in panic");
+ 		g->defer = dabort.link;
+ 
+-		freedefer(d);
++		runtime·freedefer(d);
+ 		if(p.recovered) {
+ 			g->panic = p.link;
+ 			// Aborted panics are marked but remain on the g->panic list.
+ 			// Recovery will unwind the stack frames containing their Panic structs.
+ 			// Remove them from the list and free the associated defers.
+ 			while(g->panic && g->panic->aborted) {
+-				freedefer(g->panic->defer);
++				runtime·freedefer(g->panic->defer);
+ 				g->panic = g->panic->link;
+ 			}
+ 			if(g->panic == nil)	// must be done with signal
+@@ -464,20 +314,6 @@ runtime·dopanic(int32 unused)
+ 	runtime·exit(2);
+ }
+ 
+-void
+-runtime·throwreturn(void)
+-{
+-	// can only happen if compiler is broken
+-	runtime·throw("no return at end of a typed function - compiler is broken");
+-}
+-
+-void
+-runtime·throwinit(void)
+-{
+-	// can only happen with linker skew
+-	runtime·throw("recursive call during initialization - linker skew");
+-}
+-
+ bool
+ runtime·canpanic(G *gp)
+ {
+@@ -560,16 +396,3 @@ runtime·panicstring(int8 *s)
+ 	runtime·newErrorCString(s, &err);
+ 	runtime·panic(err);
+ }
+-
+-void
+-runtime·Goexit(void)
+-{
+-	rundefer();
+-	runtime·goexit();
+-}
+-
+-void
+-runtime·panicdivide(void)
+-{
+-	runtime·panicstring("integer divide by zero");
+-}
+diff --git a/src/pkg/runtime/panic.go b/src/pkg/runtime/panic.go
+index 9b95f49673..1e35561d15 100644
+--- a/src/pkg/runtime/panic.go
++++ b/src/pkg/runtime/panic.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ var indexError = error(errorString("index out of range"))
+ 
+ func panicindex() {
+@@ -15,3 +17,200 @@ var sliceError = error(errorString("slice bounds out of range"))
+ func panicslice() {
+ 	panic(sliceError)
+ }
++
++var divideError = error(errorString("integer divide by zero"))
++
++func panicdivide() {
++	panic(divideError)
++}
++
++func throwreturn() {
++	gothrow("no return at end of a typed function - compiler is broken")
++}
++
++func throwinit() {
++	gothrow("recursive call during initialization - linker skew")
++}
++
++// Create a new deferred function fn with siz bytes of arguments.
++// The compiler turns a defer statement into a call to this.
++//go:nosplit
++func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
++	// the arguments of fn are in a perilous state.  The stack map
++	// for deferproc does not describe them.  So we can't let garbage
++	// collection or stack copying trigger until we've copied them out
++	// to somewhere safe.  deferproc_m does that.  Until deferproc_m,
++	// we can only call nosplit routines.
++	argp := uintptr(unsafe.Pointer(&fn))
++	argp += unsafe.Sizeof(fn)
++	if GOARCH == "arm" {
++		argp += ptrSize // skip caller's saved link register
++	}
++	mp := acquirem()
++	mp.scalararg[0] = uintptr(siz)
++	mp.ptrarg[0] = unsafe.Pointer(fn)
++	mp.scalararg[1] = argp
++	mp.scalararg[2] = getcallerpc(unsafe.Pointer(&siz))
++
++	if mp.curg != getg() {
++		// go code on the m stack can't defer
++		gothrow("defer on m")
++	}
++
++	onM(deferproc_m)
++
++	releasem(mp)
++
++	// deferproc returns 0 normally.
++	// a deferred func that stops a panic
++	// makes the deferproc return 1.
++	// the code the compiler generates always
++	// checks the return value and jumps to the
++	// end of the function if deferproc returns != 0.
++	return0()
++	// No code can go here - the C return register has
++	// been set and must not be clobbered.
++}
++
++// Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
++// Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
++// This maps exactly to malloc size classes.
++
++// defer size class for arg size sz
++func deferclass(siz uintptr) uintptr {
++	return (siz + 7) >> 4
++}
++
++// total size of memory block for defer with arg size sz
++func totaldefersize(siz uintptr) uintptr {
++	return (unsafe.Sizeof(_defer{}) - unsafe.Sizeof(_defer{}.args)) + round(siz, ptrSize)
++}
++
++// Ensure that defer arg sizes that map to the same defer size class
++// also map to the same malloc size class.
++func testdefersizes() {
++	var m [len(p{}.deferpool)]int32
++
++	for i := range m {
++		m[i] = -1
++	}
++	for i := uintptr(0); ; i++ {
++		defersc := deferclass(i)
++		if defersc >= uintptr(len(m)) {
++			break
++		}
++		siz := goroundupsize(totaldefersize(i))
++		if m[defersc] < 0 {
++			m[defersc] = int32(siz)
++			continue
++		}
++		if m[defersc] != int32(siz) {
++			print("bad defer size class: i=", i, " siz=", siz, " defersc=", defersc, "\n")
++			gothrow("bad defer size class")
++		}
++	}
++}
++
++// Allocate a Defer, usually using per-P pool.
++// Each defer must be released with freedefer.
++// Note: runs on M stack
++func newdefer(siz int32) *_defer {
++	var d *_defer
++	sc := deferclass(uintptr(siz))
++	mp := acquirem()
++	if sc < uintptr(len(p{}.deferpool)) {
++		pp := mp.p
++		d = pp.deferpool[sc]
++		if d != nil {
++			pp.deferpool[sc] = d.link
++		}
++	}
++	if d == nil {
++		// deferpool is empty or just a big defer
++		total := goroundupsize(totaldefersize(uintptr(siz)))
++		d = (*_defer)(gomallocgc(total, conservative, 0))
++	}
++	d.siz = siz
++	d.special = false
++	gp := mp.curg
++	d.link = gp._defer
++	gp._defer = d
++	releasem(mp)
++	return d
++}
++
++// Free the given defer.
++// The defer cannot be used after this call.
++func freedefer(d *_defer) {
++	if d.special {
++		return
++	}
++	sc := deferclass(uintptr(d.siz))
++	if sc < uintptr(len(p{}.deferpool)) {
++		mp := acquirem()
++		pp := mp.p
++		d.link = pp.deferpool[sc]
++		pp.deferpool[sc] = d
++		releasem(mp)
++		// No need to wipe out pointers in argp/pc/fn/args,
++		// because we empty the pool before GC.
++	}
++}
++
++// Run a deferred function if there is one.
++// The compiler inserts a call to this at the end of any
++// function which calls defer.
++// If there is a deferred function, this will call runtime·jmpdefer,
++// which will jump to the deferred function such that it appears
++// to have been called by the caller of deferreturn at the point
++// just before deferreturn was called.  The effect is that deferreturn
++// is called again and again until there are no more deferred functions.
++// Cannot split the stack because we reuse the caller's frame to
++// call the deferred function.
++
++// The single argument isn't actually used - it just has its address
++// taken so it can be matched against pending defers.
++//go:nosplit
++func deferreturn(arg0 uintptr) {
++	gp := getg()
++	d := gp._defer
++	if d == nil {
++		return
++	}
++	argp := uintptr(unsafe.Pointer(&arg0))
++	if d.argp != argp {
++		return
++	}
++
++	// Moving arguments around.
++	// Do not allow preemption here, because the garbage collector
++	// won't know the form of the arguments until the jmpdefer can
++	// flip the PC over to fn.
++	mp := acquirem()
++	memmove(unsafe.Pointer(argp), unsafe.Pointer(&d.args), uintptr(d.siz))
++	fn := d.fn
++	gp._defer = d.link
++	freedefer(d)
++	releasem(mp)
++	jmpdefer(fn, argp)
++}
++
++// Goexit terminates the goroutine that calls it.  No other goroutine is affected.
++// Goexit runs all deferred calls before terminating the goroutine.
++//
++// Calling Goexit from the main goroutine terminates that goroutine
++// without func main returning. Since func main has not returned,
++// the program continues execution of other goroutines.
++// If all other goroutines exit, the program crashes.
++func Goexit() {
++	// Run all deferred functions for the current goroutine.
++	gp := getg()
++	for gp._defer != nil {
++		d := gp._defer
++		gp._defer = d.link
++		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
++		freedefer(d)
++		// Note: we ignore recovers here because Goexit isn't a panic
++	}
++	goexit()
++}
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index b002da98b4..bf83500b5a 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -41,6 +41,7 @@ func racereleaseg(gp *g, addr unsafe.Pointer)
+ func racefingo()
+ 
+ // Should be a built-in for unsafe.Pointer?
++//go:nosplit
+ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(p) + x)
+ }
+@@ -85,6 +86,8 @@ func unrollgcproginplace_m()
+ func setgcpercent_m()
+ func setmaxthreads_m()
+ func ready_m()
++func deferproc_m()
++func goexit_m()
+ 
+ // memclr clears n bytes starting at ptr.
+ // in memclr_*.s
+@@ -126,6 +129,7 @@ func gothrow(s string)
+ // output depends on the input.  noescape is inlined and currently
+ // compiles down to a single xor instruction.
+ // USE CAREFULLY!
++//go:nosplit
+ func noescape(p unsafe.Pointer) unsafe.Pointer {
+ 	x := uintptr(p)
+ 	return unsafe.Pointer(x ^ 0)
+@@ -141,7 +145,9 @@ func gosave(buf *gobuf)
+ func read(fd int32, p unsafe.Pointer, n int32) int32
+ func close(fd int32) int32
+ func mincore(addr unsafe.Pointer, n uintptr, dst *byte) int32
+-func jmpdefer(fv *funcval, argp unsafe.Pointer)
++
++//go:noescape
++func jmpdefer(fv *funcval, argp uintptr)
+ func exit1(code int32)
+ func asminit()
+ func setg(gg *g)
+@@ -162,6 +168,7 @@ func persistentalloc(size, align uintptr, stat *uint64) unsafe.Pointer
+ func readgogc() int32
+ func purgecachedstats(c *mcache)
+ func gostringnocopy(b *byte) string
++func goexit()
+ 
+ //go:noescape
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32
+@@ -249,8 +256,15 @@ func gofuncname(f *_func) string {
+ 
+ const _NoArgs = ^uintptr(0)
+ 
+-var newproc, deferproc, lessstack struct{} // C/assembly functions
++var newproc, lessstack struct{} // C/assembly functions
+ 
+ func funcspdelta(*_func, uintptr) int32 // symtab.c
+ func funcarglen(*_func, uintptr) int32  // symtab.c
+ const _ArgsSizeUnknown = -0x80000000    // funcdata.h
++
++// return0 is a stub used to return 0 from deferproc.
++// It is called at the very end of deferproc to signal
++// the calling Go function that it should not jump
++// to deferreturn.
++// in asm_*.s
++func return0()
+diff --git a/src/pkg/runtime/traceback.go b/src/pkg/runtime/traceback.go
+index 26d0f5fc92..6286c9dac1 100644
+--- a/src/pkg/runtime/traceback.go
++++ b/src/pkg/runtime/traceback.go
+@@ -33,6 +33,7 @@ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+ // jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
+ // The traceback needs to recognize it on link register architectures.
+ var jmpdeferPC = funcPC(jmpdefer)
++var deferprocPC = funcPC(deferproc)
+ 
+ // System-specific hook. See traceback_windows.go
+ var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
+@@ -342,7 +343,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 
+ 	skipped:
+ 		waspanic = f.entry == uintptr(unsafe.Pointer(&sigpanic))
+-		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == uintptr(unsafe.Pointer(&deferproc))
++		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == deferprocPC
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if flr == nil {
+@@ -582,7 +583,6 @@ func tracebackothers(me *g) {
+ 	unlock(&allglock)
+ }
+ 
+-func goexit()
+ func mstart()
+ func morestack()
+ func rt0_go()
+diff --git a/src/pkg/runtime/vlrt.go b/src/pkg/runtime/vlrt.go
+index 50097edde7..6370732ca0 100644
+--- a/src/pkg/runtime/vlrt.go
++++ b/src/pkg/runtime/vlrt.go
+@@ -256,5 +256,3 @@ func slowdodiv(n, d uint64) (q, r uint64) {
+ 	}
+ 	return q, n
+ }
+-
+-func panicdivide()

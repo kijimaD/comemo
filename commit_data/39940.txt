@@ -9,6 +9,21 @@ Date:   Wed Mar 27 10:13:38 2019 +0100
     Change-Id: I8b63feba4b18bc07a09f6fbfaa33c1b3326b40e6
     Reviewed-on: https://go-review.googlesource.com/c/go/+/169597
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/reflect/type.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 83e59014ed..7aafc505bd 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -54,6 +54,9 @@ type Type interface {
+ 	//
+ 	// For an interface type, the returned Method's Type field gives the
+ 	// method signature, without a receiver, and the Func field is nil.
++	//
++	// Only exported methods are accessible and they are sorted in
++	// lexicographic order.
+ 	Method(int) Method
+ 
+ 	// MethodByName returns the method with that name in the type's

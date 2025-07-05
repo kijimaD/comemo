@@ -8,7 +8,77 @@ Date:   Mon Feb 2 18:59:20 2009 -0800
     DELTA=9  (2 added, 5 deleted, 2 changed)
     OCL=24107
     CL=24152
-
+---
  src/runtime/iface.c  | 17 ++++++-----------
  src/runtime/string.c |  2 ++
  2 files changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 7d312d22cc..c0d3f75aab 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -155,7 +155,7 @@ itype(Sigi *si, Sigt *st, int32 canfail)
+ 			}
+ 		}
+ 	}
+-	
++
+ 	ni = si[0].perm;	// first entry has size
+ 	m = mal(sizeof(*m) + ni*sizeof(m->fun[0]));
+ 	m->sigi = si;
+@@ -178,13 +178,8 @@ throw:
+ 			sname = st[nt].name;
+ 			if(sname == nil) {
+ 				if(!canfail) {
+-					prints("cannot convert type ");
+-					prints((int8*)st[0].name);
+-					prints(" to interface ");
+-					prints((int8*)si[0].name);
+-					prints(": missing method ");
+-					prints((int8*)iname);
+-					prints("\n");
++					printf("cannot convert type %s to interface %s: missing method %s\n",
++						st[0].name, si[0].name, iname);
+ 					if(iface_debug) {
+ 						prints("interface");
+ 						printsigi(si);
+@@ -429,7 +424,7 @@ uint64
+ ifacehash(Iface a)
+ {
+ 	int32 alg, wid;
+-	
++
+ 	if(a.type == nil)
+ 		return 0;
+ 	alg = a.type->sigt->hash & 0xFF;
+@@ -591,7 +586,7 @@ fakesigt(string type, bool indir)
+ 		h = h*37 + type->str[i];
+ 	h += indir;
+ 	h %= nelem(fake);
+-	
++
+ 	for(locked=0; locked<2; locked++) {
+ 		if(locked)
+ 			lock(&ifacelock);
+@@ -647,7 +642,7 @@ static Sigt*
+ findtype(string type, bool indir)
+ {
+ 	int32 i, lo, hi, m;
+-	
++
+ 	lo = 0;
+ 	hi = ngotypesigs;
+ 	while(lo < hi) {
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index e708d0203d..001050beb4 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -12,6 +12,8 @@ findnull(byte *s)
+ {
+ 	int32 l;
+ 
++	if(s == nil)
++		return 0;
+ 	for(l=0; s[l]!=0; l++)
+ 		;
+ 	return l;

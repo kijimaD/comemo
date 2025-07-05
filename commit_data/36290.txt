@@ -14,9 +14,111 @@ Date:   Sun Apr 15 15:20:33 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/asm/internal/asm/testdata/386enc.s         |  6 ++++
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s |  3 ++
  src/cmd/asm/internal/asm/testdata/amd64error.s     | 11 ++++++++
  src/cmd/internal/obj/x86/asm6.go                   | 32 ++++++++++++----------
  4 files changed, 38 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/386enc.s b/src/cmd/asm/internal/asm/testdata/386enc.s
+index 94a06de69c..8fe20511d1 100644
+--- a/src/cmd/asm/internal/asm/testdata/386enc.s
++++ b/src/cmd/asm/internal/asm/testdata/386enc.s
+@@ -12,5 +12,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	MOVQ 8(SP), M0 // 0f6f442408
+ 	MOVQ M0, (AX)  // 0f7f00
+ 	MOVQ M0, (BX)  // 0f7f03
++	// On non-64bit arch, Go asm allowed uint32 offsets instead of int32.
++	// These tests check that property for backwards-compatibility.
++	MOVL 2147483648(AX), AX  // 8b8000000080
++	MOVL -2147483648(AX), AX // 8b8000000080
++	ADDL 2147483648(AX), AX  // 038000000080
++	ADDL -2147483648(AX), AX // 038000000080
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index ab2c7efe0b..d5aad5fe28 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -296,5 +296,8 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	// Test VPERMQ with both uint8 and int8 immediate args
+ 	VPERMQ $-40, Y8, Y8 // c4407800c0d8
+ 	VPERMQ $216, Y8, Y8 // c443fd00c0d8
++	// Check that LEAL is permitted to use overflowing offset.
++	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
++	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
+ 	// End of tests.
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64error.s b/src/cmd/asm/internal/asm/testdata/amd64error.s
+index 32512fc229..da325c9d98 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64error.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64error.s
+@@ -34,4 +34,15 @@ TEXT errors(SB),$0
+ 	VPGATHERDQ X7, 664(X2*8), X2    // ERROR "mask, index, and destination registers should be distinct"
+ 	// Non-X0 for Yxr0 should produce an error
+ 	BLENDVPD X1, (BX), X2           // ERROR "invalid instruction"
++	// Check offset overflow. Must fit in int32.
++	MOVQ 2147483647+1(AX), AX       // ERROR "offset too large"
++	MOVQ 3395469782(R10), R8        // ERROR "offset too large"
++	LEAQ 3395469782(AX), AX         // ERROR "offset too large"
++	ADDQ 3395469782(AX), AX         // ERROR "offset too large"
++	ADDL 3395469782(AX), AX         // ERROR "offset too large"
++	ADDW 3395469782(AX), AX         // ERROR "offset too large"
++	LEAQ 433954697820(AX), AX       // ERROR "offset too large"
++	ADDQ 433954697820(AX), AX       // ERROR "offset too large"
++	ADDL 433954697820(AX), AX       // ERROR "offset too large"
++	ADDW 433954697820(AX), AX       // ERROR "offset too large"
+ 	RET
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 132576f320..72c6ca54d7 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2619,13 +2619,6 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 			return Yyvm
+ 		}
+ 		if ctxt.Arch.Family == sys.AMD64 {
+-			// Offset must fit in a 32-bit signed field (or fit in a 32-bit unsigned field
+-			// where the sign extension doesn't matter).
+-			// Note: The latter happens only in assembly, for example crypto/sha1/sha1block_amd64.s.
+-			if !(a.Offset == int64(int32(a.Offset)) ||
+-				a.Offset == int64(uint32(a.Offset)) && p.As == ALEAL) {
+-				return Yxxx
+-			}
+ 			switch a.Name {
+ 			case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+ 				// Global variables can't use index registers and their
+@@ -3242,15 +3235,26 @@ func (ab *AsmBuf) asmandsz(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, a *obj
+ 	var rel obj.Reloc
+ 
+ 	rex &= 0x40 | Rxr
+-	switch {
+-	case int64(int32(a.Offset)) == a.Offset:
+-		// Offset fits in sign-extended 32 bits.
+-	case int64(uint32(a.Offset)) == a.Offset && ab.rexflag&Rxw == 0:
+-		// Offset fits in zero-extended 32 bits in a 32-bit instruction.
++	if a.Offset != int64(int32(a.Offset)) {
++		// The rules are slightly different for 386 and AMD64,
++		// mostly for historical reasons. We may unify them later,
++		// but it must be discussed beforehand.
++		//
++		// For 64bit mode only LEAL is allowed to overflow.
++		// It's how https://golang.org/cl/59630 made it.
++		// crypto/sha1/sha1block_amd64.s depends on this feature.
++		//
++		// For 32bit mode rules are more permissive.
++		// If offset fits uint32, it's permitted.
+ 		// This is allowed for assembly that wants to use 32-bit hex
+ 		// constants, e.g. LEAL 0x99999999(AX), AX.
+-	default:
+-		ctxt.Diag("offset too large in %s", p)
++		overflowOK := (ctxt.Arch.Family == sys.AMD64 && p.As == ALEAL) ||
++			(ctxt.Arch.Family != sys.AMD64 &&
++				int64(uint32(a.Offset)) == a.Offset &&
++				ab.rexflag&Rxw == 0)
++		if !overflowOK {
++			ctxt.Diag("offset too large in %s", p)
++		}
+ 	}
+ 	v := int32(a.Offset)
+ 	rel.Siz = 0

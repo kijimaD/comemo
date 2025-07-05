@@ -9,7 +9,7 @@ Date:   Mon Aug 11 22:07:49 2008 -0700
     R=gri
     OCL=14106
     CL=14106
-
+---
  test/args.go                       |  6 +--
  test/bugs/bug027.go                |  6 +--
  test/bugs/bug054.go                |  2 +-
@@ -74,3 +74,1740 @@ Date:   Mon Aug 11 22:07:49 2008 -0700
  test/turing.go                     |  2 +-
  test/utf.go                        | 10 ++---
  63 files changed, 310 insertions(+), 314 deletions(-)
+
+diff --git a/test/args.go b/test/args.go
+index 684cc46009..0e9b9a315a 100644
+--- a/test/args.go
++++ b/test/args.go
+@@ -8,12 +8,12 @@ package main
+ 
+ func main() {
+ 	if sys.argc() != 3 {
+-		panic "argc"
++		panic("argc")
+ 	}
+ 	if sys.argv(1) != "arg1" {
+-		panic "arg1"
++		panic("arg1")
+ 	}
+ 	if sys.argv(2) != "arg2" {
+-		panic "arg2"
++		panic("arg2")
+ 	}
+ }
+diff --git a/test/bugs/bug027.go b/test/bugs/bug027.go
+index e260e2d48a..33005a2406 100644
+--- a/test/bugs/bug027.go
++++ b/test/bugs/bug027.go
+@@ -39,7 +39,7 @@ func main() {
+ 	i3 := new(I); i3.val = 3333;
+ 	i4 := new(I); i4.val = 44444;
+ 	v := New();
+-	print "hi\n";
++	print("hi\n");
+ 	v.Insert(i4);
+ 	v.Insert(i3);
+ 	v.Insert(i2);
+@@ -48,10 +48,10 @@ func main() {
+ 	for i := 0; i < v.nelem; i++ {
+ 		var x *I;
+ 		x = v.At(i);
+-		print i, " ", x.val, "\n";  // prints correct list
++		print(i, " ", x.val, "\n");  // prints correct list
+ 	}
+ 	for i := 0; i < v.nelem; i++ {
+-		print i, " ", I(v.At(i)).val, "\n"; // always prints 5 - bad code - should be *I()
++		print(i, " ", I(v.At(i)).val, "\n"); // always prints 5 - bad code - should be *I()
+ 	}
+ }
+ /*
+diff --git a/test/bugs/bug054.go b/test/bugs/bug054.go
+index 8179cf0f41..a91773e224 100644
+--- a/test/bugs/bug054.go
++++ b/test/bugs/bug054.go
+@@ -39,6 +39,6 @@ func main() {
+ 	s.name = "foo";
+ 	s.fields = v;
+ 	if s.field(0).name != "hi" {
+-		panic "bad name"
++		panic("bad name")
+ 	}
+ }
+diff --git a/test/bugs/bug060.go b/test/bugs/bug060.go
+index 5afdb488fd..dddd23b29f 100644
+--- a/test/bugs/bug060.go
++++ b/test/bugs/bug060.go
+@@ -11,7 +11,7 @@ func main() {
+ 	m[0] = 0;
+ 	m[0]++;
+ 	if m[0] != 1 {
+-		print "map does not increment";
++		print("map does not increment");
+ 		sys.exit(1)
+ 	}
+ }
+diff --git a/test/bugs/bug064.go b/test/bugs/bug064.go
+index 41c130d8dd..38c2188dd2 100644
+--- a/test/bugs/bug064.go
++++ b/test/bugs/bug064.go
+@@ -18,6 +18,6 @@ main()
+ 	b := 2;
+ 	a, b = swap(swap(a, b));
+ 	if a != 2 || b != 1 {
+-		panic "bad swap";
++		panic("bad swap");
+ 	}
+ }
+diff --git a/test/bugs/bug070.go b/test/bugs/bug070.go
+index 6cf55386b3..cdd5fc3748 100644
+--- a/test/bugs/bug070.go
++++ b/test/bugs/bug070.go
+@@ -10,16 +10,16 @@ func main() {
+ 	var i, j, k int;
+ 	outer:
+ 	for k=0; k<2; k++ {
+-		print "outer loop top k ", k, "\n";
+-		if k != 0 { panic "k not zero" }  // inner loop breaks this one every time
++		print("outer loop top k ", k, "\n");
++		if k != 0 { panic("k not zero") }  // inner loop breaks this one every time
+ 		for i=0; i<2; i++ {
+-			if i != 0 { panic "i not zero" }  // loop breaks every time
+-			print "inner loop top i ", i, "\n";
++			if i != 0 { panic("i not zero") }  // loop breaks every time
++			print("inner loop top i ", i, "\n");
+ 			if true {
+-				print "do break\n";
++				print("do break\n");
+ 				break outer;
+ 			}
+ 		}
+ 	}
+-	print "broke\n";
++	print("broke\n");
+ }
+diff --git a/test/bugs/bug074.go b/test/bugs/bug074.go
+index 947001cd42..87008f084d 100644
+--- a/test/bugs/bug074.go
++++ b/test/bugs/bug074.go
+@@ -8,5 +8,5 @@ package main
+ 
+ func main() {
+ 	x := string('a', 'b', '\n');
+-	print x;
++	print(x);
+ }
+diff --git a/test/bugs/bug085.go b/test/bugs/bug085.go
+index e803a50a2a..c1133fe928 100644
+--- a/test/bugs/bug085.go
++++ b/test/bugs/bug085.go
+@@ -9,7 +9,7 @@ package P
+ var x int
+ 
+ func foo() {
+-	print P.x;  // P should be defined between the outermost "universe" scope and the global scope
++	print(P.x);  // P should be defined between the outermost "universe" scope and the global scope
+ }
+ 
+ /*
+diff --git a/test/bugs/bug086.go b/test/bugs/bug086.go
+index 8b03a3b9e7..ef50c0c594 100644
+--- a/test/bugs/bug086.go
++++ b/test/bugs/bug086.go
+@@ -14,7 +14,7 @@ func f() int {
+ }
+ 
+ func main() {
+-	print f(), "\n";
++	print(f(), "\n");
+ }
+ 
+ /*
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index d6d6d704a2..01fc016cfb 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -17,7 +17,7 @@ func AsynchFifo() {
+ 	}
+ 	for i := 0; i < N; i++ {
+ 		if <-ch != i {
+-			print "bad receive\n";
++			print("bad receive\n");
+ 			sys.exit(1);
+ 		}
+ 	}
+@@ -26,7 +26,7 @@ func AsynchFifo() {
+ func Chain(ch *chan<- int, val int, in *chan<- int, out *chan-< int) {
+ 	<-in;
+ 	if <-ch != val {
+-		panic val
++		panic(val)
+ 	}
+ 	out -< 1
+ }
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index 89ec306af4..61dd06a043 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -14,7 +14,7 @@ func pause() {
+ }
+ 
+ func i32receiver(c *chan int32) {
+-	if <-c != 123 { panic "i32 value" }
++	if <-c != 123 { panic("i32 value") }
+ }
+ 
+ func i32sender(c *chan int32) {
+@@ -22,7 +22,7 @@ func i32sender(c *chan int32) {
+ }
+ 
+ func i64receiver(c *chan int64) {
+-	if <-c != 123456 { panic "i64 value" }
++	if <-c != 123456 { panic("i64 value") }
+ }
+ 
+ func i64sender(c *chan int64) {
+@@ -30,7 +30,7 @@ func i64sender(c *chan int64) {
+ }
+ 
+ func breceiver(c *chan bool) {
+-	if ! <-c { panic "b value" }
++	if ! <-c { panic("b value") }
+ }
+ 
+ func bsender(c *chan bool) {
+@@ -38,7 +38,7 @@ func bsender(c *chan bool) {
+ }
+ 
+ func sreceiver(c *chan string) {
+-	if <-c != "hello" { panic "s value" }
++	if <-c != "hello" { panic("s value") }
+ }
+ 
+ func ssender(c *chan string) {
+@@ -58,55 +58,55 @@ func main() {
+ 	cs := new(chan string);
+ 
+ 	i32, ok = <-c32;
+-	if ok { panic "blocked i32sender" }
++	if ok { panic("blocked i32sender") }
+ 
+ 	i64, ok = <-c64;
+-	if ok { panic "blocked i64sender" }
++	if ok { panic("blocked i64sender") }
+ 
+ 	b, ok = <-cb;
+-	if ok { panic "blocked bsender" }
++	if ok { panic("blocked bsender") }
+ 
+ 	s, ok = <-cs;
+-	if ok { panic "blocked ssender" }
++	if ok { panic("blocked ssender") }
+ 
+ 	go i32receiver(c32);
+ 	pause();
+ 	ok = c32 -< 123;
+-	if !ok { panic "i32receiver" }
++	if !ok { panic("i32receiver") }
+ 	go i32sender(c32);
+ 	pause();
+ 	i32, ok = <-c32;
+-	if !ok { panic "i32sender" }
+-	if i32 != 234 { panic "i32sender value" }
++	if !ok { panic("i32sender") }
++	if i32 != 234 { panic("i32sender value") }
+ 
+ 	go i64receiver(c64);
+ 	pause();
+ 	ok = c64 -< 123456;
+-	if !ok { panic "i64receiver" }
++	if !ok { panic("i64receiver") }
+ 	go i64sender(c64);
+ 	pause();
+ 	i64, ok = <-c64;
+-	if !ok { panic "i64sender" }
+-	if i64 != 234567 { panic "i64sender value" }
++	if !ok { panic("i64sender") }
++	if i64 != 234567 { panic("i64sender value") }
+ 
+ 	go breceiver(cb);
+ 	pause();
+ 	ok = cb -< true;
+-	if !ok { panic "breceiver" }
++	if !ok { panic("breceiver") }
+ 	go bsender(cb);
+ 	pause();
+ 	b, ok = <-cb;
+-	if !ok { panic "bsender" }
+-	if !b{ panic "bsender value" }
++	if !ok { panic("bsender") }
++	if !b{ panic("bsender value") }
+ 
+ 	go sreceiver(cs);
+ 	pause();
+ 	ok = cs -< "hello";
+-	if !ok { panic "sreceiver" }
++	if !ok { panic("sreceiver") }
+ 	go ssender(cs);
+ 	pause();
+ 	s, ok = <-cs;
+-	if !ok { panic "ssender" }
+-	if s != "hello again" { panic "ssender value" }
+-	print "PASS\n"
++	if !ok { panic("ssender") }
++	if s != "hello again" { panic("ssender value") }
++	print("PASS\n")
+ }
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 5358458dea..3bf70fff7a 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -18,8 +18,8 @@ type rat struct  {
+ }
+ 
+ func (u *rat) pr(){
+-	if u.den==1 { print u.num }
+-	else { print u.num, "/", u.den }
++	if u.den==1 { print(u.num) }
++	else { print(u.num, "/", u.den) }
+ 	print(" ")
+ }
+ 
+@@ -126,7 +126,7 @@ func get(in *dch) item{
+ 
+ func getn(in *[]*dch, n int) *[]item {
+ 	// BUG n:=len(in);
+-	if n != 2 { panic "bad n in getn" };
++	if n != 2 { panic("bad n in getn") };
+ 	req := new([2] *chan int);
+ 	dat := new([2] *chan item);
+ 	out := new([2] item);
+@@ -264,7 +264,7 @@ func sub(u, v *rat) *rat{
+ }
+ 
+ func inv(u *rat) *rat{	// invert a rat
+-	if u.num == 0 { panic "zero divide in inv" }
++	if u.num == 0 { panic("zero divide in inv") }
+ 	return i2tor(u.den, u.num);
+ }
+ 
+@@ -283,7 +283,7 @@ Evaln(c *rat, U PS, n int)
+ 		val = val + x * float64(u.num)/float64(u.den);
+ 		xn = xn*x;
+ 	}
+-	print val, "\n";
++	print(val, "\n");
+ }
+ 
+ // Print n terms of a power series
+@@ -294,7 +294,7 @@ func Printn(U PS, n int){
+ 		if end(u) != 0 { done = true }
+ 		else { u.pr() }
+ 	}
+-	print ("\n");
++	print(("\n"));
+ }
+ 
+ func Print(U PS){
+@@ -614,12 +614,12 @@ func check(U PS, c *rat, count int, str string) {
+ 	for i := 0; i < count; i++ {
+ 		r := get(U)
+ 		if !r.eq(c) {
+-			print "got: ";
++			print("got: ");
+ 			r.pr();
+-			print "should get ";
++			print("should get ");
+ 			c.pr();
+-			print "\n";
+-			panic str
++			print("\n");
++			panic(str)
+ 		}
+ 	}
+ }
+@@ -634,17 +634,17 @@ func checka(U PS, a *[]*rat, str string) {
+ func main() {
+ 	Init();
+ 	if sys.argc() > 1 {  // print
+-		print "Ones: "; Printn(Ones, 10);
+-		print "Twos: "; Printn(Twos, 10);
+-		print "Add: "; Printn(Add(Ones, Twos), 10);
+-		print "Diff: "; Printn(Diff(Ones), 10);
+-		print "Integ: "; Printn(Integ(zero, Ones), 10);
+-		print "CMul: "; Printn(Cmul(neg(one), Ones), 10);
+-		print "Sub: "; Printn(Sub(Ones, Twos), 10);
+-		print "Mul: "; Printn(Mul(Ones, Ones), 10);
+-		print "Exp: "; Printn(Exp(Ones), 15);
+-		print "MonSubst: "; Printn(MonSubst(Ones, neg(one), 2), 10);
+-		print "ATan: "; Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
++		print("Ones: "); Printn(Ones, 10);
++		print("Twos: "); Printn(Twos, 10);
++		print("Add: "); Printn(Add(Ones, Twos), 10);
++		print("Diff: "); Printn(Diff(Ones), 10);
++		print("Integ: "); Printn(Integ(zero, Ones), 10);
++		print("CMul: "); Printn(Cmul(neg(one), Ones), 10);
++		print("Sub: "); Printn(Sub(Ones, Twos), 10);
++		print("Mul: "); Printn(Mul(Ones, Ones), 10);
++		print("Exp: "); Printn(Exp(Ones), 15);
++		print("MonSubst: "); Printn(MonSubst(Ones, neg(one), 2), 10);
++		print("ATan: "); Printn(Integ(zero, MonSubst(Ones, neg(one), 2)), 10);
+ 	} else {  // test
+ 		check(Ones, one, 5, "Ones");
+ 		check(Add(Ones, Ones), itor(2), 0, "Add Ones Ones");  // 1 1 1 1 1
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index 6fd28e5130..2d55a2a992 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -43,30 +43,30 @@ func Sieve(primes *chan-< int) {
+ func main() {
+ 	primes := new(chan int);
+ 	go Sieve(primes);
+-	if <-primes != 2 { panic 2 }
+-	if <-primes != 3 { panic 3 }
+-	if <-primes != 5 { panic 5 }
+-	if <-primes != 7 { panic 7 }
+-	if <-primes != 11 { panic 11 }
+-	if <-primes != 13 { panic 13 }
+-	if <-primes != 17 { panic 17 }
+-	if <-primes != 19 { panic 19 }
+-	if <-primes != 23 { panic 23 }
+-	if <-primes != 29 { panic 29 }
+-	if <-primes != 31 { panic 31 }
+-	if <-primes != 37 { panic 37 }
+-	if <-primes != 41 { panic 41 }
+-	if <-primes != 43 { panic 43 }
+-	if <-primes != 47 { panic 47 }
+-	if <-primes != 53 { panic 53 }
+-	if <-primes != 59 { panic 59 }
+-	if <-primes != 61 { panic 61 }
+-	if <-primes != 67 { panic 67 }
+-	if <-primes != 71 { panic 71 }
+-	if <-primes != 73 { panic 73 }
+-	if <-primes != 79 { panic 79 }
+-	if <-primes != 83 { panic 83 }
+-	if <-primes != 89 { panic 89 }
+-	if <-primes != 97 { panic 97 }
++	if <-primes != 2 { panic(2) }
++	if <-primes != 3 { panic(3) }
++	if <-primes != 5 { panic(5) }
++	if <-primes != 7 { panic(7) }
++	if <-primes != 11 { panic(11) }
++	if <-primes != 13 { panic(13) }
++	if <-primes != 17 { panic(17) }
++	if <-primes != 19 { panic(19) }
++	if <-primes != 23 { panic(23) }
++	if <-primes != 29 { panic(29) }
++	if <-primes != 31 { panic(31) }
++	if <-primes != 37 { panic(37) }
++	if <-primes != 41 { panic(41) }
++	if <-primes != 43 { panic(43) }
++	if <-primes != 47 { panic(47) }
++	if <-primes != 53 { panic(53) }
++	if <-primes != 59 { panic(59) }
++	if <-primes != 61 { panic(61) }
++	if <-primes != 67 { panic(67) }
++	if <-primes != 71 { panic(71) }
++	if <-primes != 73 { panic(73) }
++	if <-primes != 79 { panic(79) }
++	if <-primes != 83 { panic(83) }
++	if <-primes != 89 { panic(89) }
++	if <-primes != 97 { panic(97) }
+ 	sys.exit(0);
+ }
+diff --git a/test/char_lit.go b/test/char_lit.go
+index 55ab67d3dc..de967883b0 100644
+--- a/test/char_lit.go
++++ b/test/char_lit.go
+@@ -32,11 +32,11 @@ func main() {
+     '\Ucafebabe'
+   ;
+   if '\Ucafebabe' != 0xcafebabe {
+-  	print "cafebabe wrong\n";
++  	print("cafebabe wrong\n");
+   	sys.exit(1)
+   }
+   if i != 0xcc238de1 {
+-  	print "number is ", i, " should be ", 0xcc238de1, "\n";
++  	print("number is ", i, " should be ", 0xcc238de1, "\n");
+   	sys.exit(1)
+   }
+ }
+diff --git a/test/fixedbugs/bug006.go b/test/fixedbugs/bug006.go
+index dc40abf0a8..938a216e2b 100644
+--- a/test/fixedbugs/bug006.go
++++ b/test/fixedbugs/bug006.go
+@@ -12,6 +12,6 @@ const (
+ );
+ 
+ func main() {
+-	if g == 0.0 { print "zero\n";}
+-	if g != 4.5 { print " fail\n"; sys.exit(1); }
++	if g == 0.0 { print("zero\n");}
++	if g != 4.5 { print(" fail\n"); sys.exit(1); }
+ }
+diff --git a/test/fixedbugs/bug012.go b/test/fixedbugs/bug012.go
+index e51819ebb6..41d1bf627b 100644
+--- a/test/fixedbugs/bug012.go
++++ b/test/fixedbugs/bug012.go
+@@ -12,10 +12,10 @@ func main() {
+ 	var u31 uint64 = 1;
+ 	var u32 uint64 = 18446744073709551615;
+ 	var u33 uint64 = +18446744073709551615;
+-	if u32 != (1<<64)-1 { panic "u32\n"; }
+-	if u33 != (1<<64)-1 { panic "u33\n"; }
++	if u32 != (1<<64)-1 { panic("u32\n"); }
++	if u33 != (1<<64)-1 { panic("u33\n"); }
+ 	var i34 int64 = ^0;  // note: 2's complement means ^0 == -1
+-	if i34 != -1 { panic "i34" }
++	if i34 != -1 { panic("i34") }
+ }
+ /*
+ bug12.go:5: overflow converting constant to <uint64>UINT64
+diff --git a/test/fixedbugs/bug028.go b/test/fixedbugs/bug028.go
+index 57f36e31dd..7ec016c454 100644
+--- a/test/fixedbugs/bug028.go
++++ b/test/fixedbugs/bug028.go
+@@ -20,7 +20,7 @@ func Alloc(i int) int {
+ 
+ func main() {
+ 	s := Alloc(7);
+-	if s != 5 { panic "bad" }
++	if s != 5 { panic("bad") }
+ }
+ 
+ /*
+diff --git a/test/bugs/bug053.go b/test/fixedbugs/bug053.go
+similarity index 100%
+rename from test/bugs/bug053.go
+rename to test/fixedbugs/bug053.go
+diff --git a/test/fixedbugs/bug067.go b/test/fixedbugs/bug067.go
+index e66b48c6d0..a7efbcf164 100644
+--- a/test/fixedbugs/bug067.go
++++ b/test/fixedbugs/bug067.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	go func() { print "ok\n" } ();
++	go func() { print("ok\n") } ();
+ }
+diff --git a/test/fixedbugs/bug082.go b/test/fixedbugs/bug082.go
+index 26c4f1f648..12a2da0617 100644
+--- a/test/fixedbugs/bug082.go
++++ b/test/fixedbugs/bug082.go
+@@ -9,7 +9,7 @@ package main
+ func main() {
+ 	x := 0;
+ 	x = ^x;  // unary ^ not yet implemented
+-	if x != ^0 { panic x, " ", ^0 }
++	if x != ^0 { panic(x, " ", ^0) }
+ }
+ 
+ /*
+diff --git a/test/fixedbugs/bug084.go b/test/fixedbugs/bug084.go
+index e25083f573..a5ccdb37c5 100644
+--- a/test/fixedbugs/bug084.go
++++ b/test/fixedbugs/bug084.go
+@@ -11,7 +11,7 @@ type Service struct {
+ }
+ 
+ func (s *Service) Serve(a int64) {
+-	if a != 1234 { panic a, " not 1234\n" }
++	if a != 1234 { panic(a, " not 1234\n") }
+ }
+ 
+ var arith Service
+diff --git a/test/float_lit.go b/test/float_lit.go
+index e5e95e68eb..49a7945288 100644
+--- a/test/float_lit.go
++++ b/test/float_lit.go
+@@ -42,63 +42,63 @@ func
+ main()
+ {
+ 
+-	if !close(0., 0, 1, 0) { print "0. is ", 0., "\n"; }
+-	if !close(+10., 10, 1, 0) { print "+10. is ", +10., "\n"; }
+-	if !close(-210., -210, 1, 0) { print "-210. is ", -210., "\n"; }
++	if !close(0., 0, 1, 0) { print("0. is ", 0., "\n"); }
++	if !close(+10., 10, 1, 0) { print("+10. is ", +10., "\n"); }
++	if !close(-210., -210, 1, 0) { print("-210. is ", -210., "\n"); }
+ 
+-	if !close(.0, 0, 1, 0) { print ".0 is ", .0, "\n"; }
+-	if !close(+.01, 1, 100, 0) { print "+.01 is ", +.01, "\n"; }
+-	if !close(-.012, -12, 1000, 0) { print "-.012 is ", -.012, "\n"; }
++	if !close(.0, 0, 1, 0) { print(".0 is ", .0, "\n"); }
++	if !close(+.01, 1, 100, 0) { print("+.01 is ", +.01, "\n"); }
++	if !close(-.012, -12, 1000, 0) { print("-.012 is ", -.012, "\n"); }
+ 
+-	if !close(0.0, 0, 1, 0) { print "0.0 is ", 0.0, "\n"; }
+-	if !close(+10.01, 1001, 100, 0) { print "+10.01 is ", +10.01, "\n"; }
+-	if !close(-210.012, -210012, 1000, 0) { print "-210.012 is ", -210.012, "\n"; }
++	if !close(0.0, 0, 1, 0) { print("0.0 is ", 0.0, "\n"); }
++	if !close(+10.01, 1001, 100, 0) { print("+10.01 is ", +10.01, "\n"); }
++	if !close(-210.012, -210012, 1000, 0) { print("-210.012 is ", -210.012, "\n"); }
+ 
+-	if !close(0E+1, 0, 1, 0) { print "0E+1 is ", 0E+1, "\n"; }
+-	if !close(+10e2, 10, 1, 2) { print "+10e2 is ", +10e2, "\n"; }
+-	if !close(-210e3, -210, 1, 3) { print "-210e3 is ", -210e3, "\n"; }
++	if !close(0E+1, 0, 1, 0) { print("0E+1 is ", 0E+1, "\n"); }
++	if !close(+10e2, 10, 1, 2) { print("+10e2 is ", +10e2, "\n"); }
++	if !close(-210e3, -210, 1, 3) { print("-210e3 is ", -210e3, "\n"); }
+ 
+-	if !close(0E-1, 0, 1, 0) { print "0E-1 is ", 0E-1, "\n"; }
+-	if !close(+0e23, 0, 1, 23) { print "+0e23 is ", +0e23, "\n"; }
+-	if !close(-0e345, 0, 1, 345) { print "-0e345 is ", -0e345, "\n"; }
++	if !close(0E-1, 0, 1, 0) { print("0E-1 is ", 0E-1, "\n"); }
++	if !close(+0e23, 0, 1, 23) { print("+0e23 is ", +0e23, "\n"); }
++	if !close(-0e345, 0, 1, 345) { print("-0e345 is ", -0e345, "\n"); }
+ 
+-	if !close(0E1, 0, 1, 1) { print "0E1 is ", 0E1, "\n"; }
+-	if !close(+10e23, 10, 1, 23) { print "+10e23 is ", +10e23, "\n"; }
+-	if !close(-210e34, -210, 1, 34) { print "-210e34 is ", -210e34, "\n"; }
++	if !close(0E1, 0, 1, 1) { print("0E1 is ", 0E1, "\n"); }
++	if !close(+10e23, 10, 1, 23) { print("+10e23 is ", +10e23, "\n"); }
++	if !close(-210e34, -210, 1, 34) { print("-210e34 is ", -210e34, "\n"); }
+ 
+-	if !close(0.E1, 0, 1, 1) { print "0.E1 is ", 0.E1, "\n"; }
+-	if !close(+10.e+2, 10, 1, 2) { print "+10.e+2 is ", +10.e+2, "\n"; }
+-	if !close(-210.e-3, -210, 1, -3) { print "-210.e-3 is ", -210.e-3, "\n"; }
++	if !close(0.E1, 0, 1, 1) { print("0.E1 is ", 0.E1, "\n"); }
++	if !close(+10.e+2, 10, 1, 2) { print("+10.e+2 is ", +10.e+2, "\n"); }
++	if !close(-210.e-3, -210, 1, -3) { print("-210.e-3 is ", -210.e-3, "\n"); }
+ 
+-	if !close(.0E1, 0, 1, 1) { print ".0E1 is ", .0E1, "\n"; }
+-	if !close(+.01e2, 1, 100, 2) { print "+.01e2 is ", +.01e2, "\n"; }
+-	if !close(-.012e3, -12, 1000, 3) { print "-.012e3 is ", -.012e3, "\n"; }
++	if !close(.0E1, 0, 1, 1) { print(".0E1 is ", .0E1, "\n"); }
++	if !close(+.01e2, 1, 100, 2) { print("+.01e2 is ", +.01e2, "\n"); }
++	if !close(-.012e3, -12, 1000, 3) { print("-.012e3 is ", -.012e3, "\n"); }
+ 
+-	if !close(0.0E1, 0, 1, 0) { print "0.0E1 is ", 0.0E1, "\n"; }
+-	if !close(+10.01e2, 1001, 100, 2) { print "+10.01e2 is ", +10.01e2, "\n"; }
+-	if !close(-210.012e3, -210012, 1000, 3) { print "-210.012e3 is ", -210.012e3, "\n"; }
++	if !close(0.0E1, 0, 1, 0) { print("0.0E1 is ", 0.0E1, "\n"); }
++	if !close(+10.01e2, 1001, 100, 2) { print("+10.01e2 is ", +10.01e2, "\n"); }
++	if !close(-210.012e3, -210012, 1000, 3) { print("-210.012e3 is ", -210.012e3, "\n"); }
+ 
+-	if !close(0.E+12, 0, 1, 0) { print "0.E+12 is ", 0.E+12, "\n"; }
+-	if !close(+10.e23, 10, 1, 23) { print "+10.e23 is ", +10.e23, "\n"; }
+-	if !close(-210.e33, -210, 1, 33) { print "-210.e33 is ", -210.e33, "\n"; }
++	if !close(0.E+12, 0, 1, 0) { print("0.E+12 is ", 0.E+12, "\n"); }
++	if !close(+10.e23, 10, 1, 23) { print("+10.e23 is ", +10.e23, "\n"); }
++	if !close(-210.e33, -210, 1, 33) { print("-210.e33 is ", -210.e33, "\n"); }
+ 
+-	if !close(.0E-12, 0, 1, 0) { print ".0E-12 is ", .0E-12, "\n"; }
+-	if !close(+.01e23, 1, 100, 23) { print "+.01e23 is ", +.01e23, "\n"; }
+-	if !close(-.012e34, -12, 1000, 34) { print "-.012e34 is ", -.012e34, "\n"; }
++	if !close(.0E-12, 0, 1, 0) { print(".0E-12 is ", .0E-12, "\n"); }
++	if !close(+.01e23, 1, 100, 23) { print("+.01e23 is ", +.01e23, "\n"); }
++	if !close(-.012e34, -12, 1000, 34) { print("-.012e34 is ", -.012e34, "\n"); }
+ 
+-	if !close(0.0E12, 0, 1, 12) { print "0.0E12 is ", 0.0E12, "\n"; }
+-	if !close(+10.01e23, 1001, 100, 23) { print "+10.01e23 is ", +10.01e23, "\n"; }
+-	if !close(-210.012e33, -210012, 1000, 33) { print "-210.012e33 is ", -210.012e33, "\n"; }
++	if !close(0.0E12, 0, 1, 12) { print("0.0E12 is ", 0.0E12, "\n"); }
++	if !close(+10.01e23, 1001, 100, 23) { print("+10.01e23 is ", +10.01e23, "\n"); }
++	if !close(-210.012e33, -210012, 1000, 33) { print("-210.012e33 is ", -210.012e33, "\n"); }
+ 
+-	if !close(0.E123, 0, 1, 123) { print "0.E123 is ", 0.E123, "\n"; }
+-	if !close(+10.e+23, 10, 1, 23) { print "+10.e+234 is ", +10.e+234, "\n"; }
+-	if !close(-210.e-35, -210, 1, -35) { print "-210.e-35 is ", -210.e-35, "\n"; }
++	if !close(0.E123, 0, 1, 123) { print("0.E123 is ", 0.E123, "\n"); }
++	if !close(+10.e+23, 10, 1, 23) { print("+10.e+234 is ", +10.e+234, "\n"); }
++	if !close(-210.e-35, -210, 1, -35) { print("-210.e-35 is ", -210.e-35, "\n"); }
+ 
+-	if !close(.0E123, 0, 1, 123) { print ".0E123 is ", .0E123, "\n"; }
+-	if !close(+.01e29, 1, 100, 29) { print "+.01e29 is ", +.01e29, "\n"; }
+-	if !close(-.012e29, -12, 1000, 29) { print "-.012e29 is ", -.012e29, "\n"; }
++	if !close(.0E123, 0, 1, 123) { print(".0E123 is ", .0E123, "\n"); }
++	if !close(+.01e29, 1, 100, 29) { print("+.01e29 is ", +.01e29, "\n"); }
++	if !close(-.012e29, -12, 1000, 29) { print("-.012e29 is ", -.012e29, "\n"); }
+ 
+-	if !close(0.0E123, 0, 1, 123) { print "0.0E123 is ", 0.0E123, "\n"; }
+-	if !close(+10.01e31, 1001, 100, 31) { print "+10.01e31 is ", +10.01e31, "\n"; }
+-	if !close(-210.012e19, -210012, 1000, 19) { print "-210.012e19 is ", -210.012e19, "\n"; }
++	if !close(0.0E123, 0, 1, 123) { print("0.0E123 is ", 0.0E123, "\n"); }
++	if !close(+10.01e31, 1001, 100, 31) { print("+10.01e31 is ", +10.01e31, "\n"); }
++	if !close(-210.012e19, -210012, 1000, 19) { print("-210.012e19 is ", -210.012e19, "\n"); }
+ }
+diff --git a/test/fmt.go b/test/fmt.go
+index 4030138608..bbec4e71a0 100644
+--- a/test/fmt.go
++++ b/test/fmt.go
+@@ -11,15 +11,15 @@ import fmt "fmt"  // BUG: shouldn't need the first 'fmt'.
+ func E(f *fmt.Fmt, e string) {
+ 	g := f.str();
+ 	if sys.argc() > 1 {
+-		print g, "\n";
++		print(g, "\n");
+ 		if g != e {
+-			print "expected <", e, ">\n";
++			print("expected <", e, ">\n");
+ 		}
+ 		return;
+ 	}
+ 	if g != e {
+-		print "expected <", e, ">\n";
+-		print "got      <", g, ">\n"
++		print("expected <", e, ">\n");
++		print("got      <", g, ">\n");
+ 	}
+ }
+ 
+diff --git a/test/for.go b/test/for.go
+index dbdb433239..05260ff888 100644
+--- a/test/for.go
++++ b/test/for.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail", msg, "\n";
+-		panic 1;
++		print("assertion fail", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/func.go b/test/func.go
+index 56d392b0cf..ee9414ddc4 100644
+--- a/test/func.go
++++ b/test/func.go
+@@ -9,8 +9,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail", msg, "\n";
+-		panic 1;
++		print("assertion fail", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/golden.out b/test/golden.out
+index c3f018fa81..d3f691102d 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -87,10 +87,6 @@ bugs/bug048.go:7: illegal types for operand: CONV
+ 	(MAP[<int32>INT32]<int32>INT32)
+ BUG: known to fail incorrectly
+ 
+-=========== bugs/bug053.go
+-bugs/bug053.go:6: syntax error
+-BUG: len should not be a keyword
+-
+ =========== bugs/bug054.go
+ bugs/bug054.go:25: fatal error: agen_inter i2s
+ BUG: known to fail incorrectly
+diff --git a/test/helloworld.go b/test/helloworld.go
+index 83d6b85513..7234be35cb 100644
+--- a/test/helloworld.go
++++ b/test/helloworld.go
+@@ -7,5 +7,5 @@
+ package main
+ 
+ func main() {
+-	print "hello, world\n";
++	print("hello, world\n");
+ }
+diff --git a/test/if.go b/test/if.go
+index beb7d6b0fb..a2c840eb1a 100644
+--- a/test/if.go
++++ b/test/if.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail", msg, "\n";
+-		panic 1;
++		print("assertion fail", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/if1.go b/test/if1.go
+index b2ebd6f02c..81b0414753 100644
+--- a/test/if1.go
++++ b/test/if1.go
+@@ -12,7 +12,7 @@ func main() {
+ 		count = count + one	
+ 	}
+ 	if count != 8 {
+-		print count, " should be 8\n";
++		print(count, " should be 8\n");
+ 		sys.exit(1)
+ 	}
+ }
+diff --git a/test/int_lit.go b/test/int_lit.go
+index 80c7f3a5e8..f7311dd25d 100644
+--- a/test/int_lit.go
++++ b/test/int_lit.go
+@@ -17,7 +17,7 @@ func main() {
+     0X0 +
+     0X123;
+   if s != 788 {
+-    print "s is ", s, "; should be 788\n";
++    print("s is ", s, "; should be 788\n");
+     sys.exit(1);
+   }
+ }
+diff --git a/test/iota.go b/test/iota.go
+index 12682d6899..7173d9a0e8 100644
+--- a/test/iota.go
++++ b/test/iota.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print "assertion fail: ", msg, "\n";
+-		panic 1;
++		print("assertion fail: ", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/ken/for.go b/test/ken/for.go
+index 52ccbff088..74434b2678 100644
+--- a/test/ken/for.go
++++ b/test/ken/for.go
+@@ -15,5 +15,5 @@ main()
+ 	for i=0; i<100; i=i+1 {
+ 		t = t+i;
+ 	}
+-	if t != 50*99  { panic t; }
++	if t != 50*99  { panic(t); }
+ }
+diff --git a/test/ken/interfun.go b/test/ken/interfun.go
+index 8142b9bd28..97db893168 100644
+--- a/test/ken/interfun.go
++++ b/test/ken/interfun.go
+@@ -45,20 +45,20 @@ main()
+ 	s.b = 6;
+ 
+ 	// call structure
+-	if s.f() != 5 { panic 11; }
+-	if s.g() != 6 { panic 12; }
++	if s.f() != 5 { panic(11); }
++	if s.g() != 6 { panic(12); }
+ 
+ 	i1 = s;		// convert S to I1
+ 	i2 = i1;	// convert I1 to I2
+ 
+ 	// call interface
+-	if i1.f() != 5 { panic 21; }
+-	if i2.f() != 5 { panic 22; }
+-	if i2.g() != 6 { panic 23; }
++	if i1.f() != 5 { panic(21); }
++	if i2.f() != 5 { panic(22); }
++	if i2.g() != 6 { panic(23); }
+ 
+ 	g = i1;		// convert I1 to S
+-	if g != s { panic 31; }
++	if g != s { panic(31); }
+ 
+ 	g = i2;		// convert I2 to S
+-	if g != s { panic 32; }
++	if g != s { panic(32); }
+ }
+diff --git a/test/ken/intervar.go b/test/ken/intervar.go
+index 1c0aefde66..baf03c5aab 100644
+--- a/test/ken/intervar.go
++++ b/test/ken/intervar.go
+@@ -22,7 +22,7 @@ type	Print	struct
+ func (p *Print)
+ dop()
+ {
+-	print " print ", p.whoami;
++	print(" print ", p.whoami);
+ 	p.put.puts("abc");
+ }
+ 
+@@ -37,7 +37,7 @@ type	Bio	struct
+ func (b *Bio)
+ puts(s string)
+ {
+-	print " bio ", b.whoami;
++	print(" bio ", b.whoami);
+ 	b.put.puts(s);
+ }
+ 
+@@ -52,7 +52,7 @@ type	File	struct
+ func (f *File)
+ puts(s string)
+ {
+-	print " file ", f.whoami, " -- ", s;
++	print(" file ", f.whoami, " -- ", s);
+ }
+ 
+ func
+@@ -71,5 +71,5 @@ main()
+ 	f.whoami = 3;
+ 
+ 	p.dop();
+-	print "\n";
++	print("\n");
+ }
+diff --git a/test/ken/label.go b/test/ken/label.go
+index 17c69cdad9..17294ef865 100644
+--- a/test/ken/label.go
++++ b/test/ken/label.go
+@@ -28,8 +28,8 @@ loop:
+ 	if i < 100 {
+ 		goto loop;
+ 	}
+-	print i;
+-	print "\n";
++	print(i);
++	print("\n");
+ 	return;
+ 
+ gogoloop:
+diff --git a/test/ken/litfun.go b/test/ken/litfun.go
+index 83c1916cde..85b4b0a6a3 100644
+--- a/test/ken/litfun.go
++++ b/test/ken/litfun.go
+@@ -19,5 +19,5 @@ main()
+ 		};
+ 		return x(a)+11;
+ 	};
+-	if x(3) != 3+5+7+11 { panic x(3); }
++	if x(3) != 3+5+7+11 { panic(x(3)); }
+ }
+diff --git a/test/ken/mfunc.go b/test/ken/mfunc.go
+index 032f75679e..ab579e9324 100644
+--- a/test/ken/mfunc.go
++++ b/test/ken/mfunc.go
+@@ -14,7 +14,7 @@ main()
+ 	var x,y int;
+ 
+ 	x,y = simple(10,20,30);
+-	if x+y != 65 { panic x+y; }
++	if x+y != 65 { panic(x+y); }
+ }
+ 
+ func
+diff --git a/test/ken/ptrfun.go b/test/ken/ptrfun.go
+index 70f45dfc7c..bfec64ff9f 100644
+--- a/test/ken/ptrfun.go
++++ b/test/ken/ptrfun.go
+@@ -32,13 +32,13 @@ main()
+ 	c.x = &g;
+ 
+ 	v = g(c);
+-	if v != 6 { panic v; }
++	if v != 6 { panic(v); }
+ 
+ 	v = c.x(c);
+-	if v != 6 { panic v; }
++	if v != 6 { panic(v); }
+ 
+ 	v = c.f();
+-	if v != 6 { panic v; }
++	if v != 6 { panic(v); }
+ }
+ 
+ func
+@@ -47,6 +47,6 @@ g(p *C)int
+ 	var v int;
+ 
+ 	v = p.a;
+-	if v != 6 { panic v; }
++	if v != 6 { panic(v); }
+ 	return p.a;
+ }
+diff --git a/test/ken/ptrvar.go b/test/ken/ptrvar.go
+index c2e2d611d1..0e3452f0aa 100644
+--- a/test/ken/ptrvar.go
++++ b/test/ken/ptrvar.go
+@@ -34,8 +34,8 @@ main()
+ 	s2.d.c = 23;
+ 	s2.d.d = 20;
+ 
+-	if(s2.d.c != 23) { panic 1; }
+-	if(g2.d.c != 23) { panic 2; }
++	if(s2.d.c != 23) { panic(1); }
++	if(g2.d.c != 23) { panic(2); }
+ 
+ 	x =	s1.a +
+ 		s1.b +
+@@ -50,5 +50,5 @@ main()
+ 		s2.d.c +
+ 		s2.d.d;
+ 
+-	if(x != 121) { panic x; }
++	if(x != 121) { panic(x); }
+ }
+diff --git a/test/ken/rob1.go b/test/ken/rob1.go
+index ae56962a31..a75878b1f5 100644
+--- a/test/ken/rob1.go
++++ b/test/ken/rob1.go
+@@ -63,7 +63,7 @@ Init(i int) *Integer
+ func (this *Integer)
+ Print()
+ {
+-	print this.val;
++	print(this.val);
+ }
+ 
+ func
+@@ -78,5 +78,5 @@ main()
+ 	}
+ 
+ 	list.Print();
+-	print "\n";
++	print("\n");
+ }
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 1b708400ac..b18435dfca 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -100,21 +100,21 @@ func (slist *Slist) PrintOne(doparen bool)
+ 	}
+ 	if slist.isatom {
+ 		if slist.isstring {
+-			print slist.String();
++			print(slist.String());
+ 		} else {
+-			print slist.Integer();
++			print(slist.Integer());
+ 		}
+ 	} else {
+ 		if doparen {
+-			print "(" ;
++			print("(" );
+ 		}
+ 		slist.Car().PrintOne(true);
+ 		if slist.Cdr() != nil {
+-			print " ";
++			print(" ");
+ 			slist.Cdr().PrintOne(false);
+ 		}
+ 		if doparen {
+-			print ")";
++			print(")");
+ 		}
+ 	}
+ }
+@@ -122,7 +122,7 @@ func (slist *Slist) PrintOne(doparen bool)
+ func (slist *Slist) Print()
+ {
+ 	slist.PrintOne(true);
+-	print "\n";
++	print("\n");
+ }
+ 
+ func Get() int
+@@ -182,7 +182,7 @@ func NextToken()
+ 				}
+ 			}
+ 			if i >= 100 - 1 {	// sizeof tokenbuf - 1
+-				panic "atom too long\n";
++				panic("atom too long\n");
+ 			}
+ 			tokenlen = i;
+ 			tokenbuf[i] = nilchar;
+@@ -197,8 +197,8 @@ func NextToken()
+ func Expect(c int)
+ {
+ 	if token != c {
+-		print "parse error: expected ", c, "\n";
+-		panic "parse";
++		print("parse error: expected ", c, "\n");
++		panic("parse");
+ 	}
+ 	NextToken();
+ }
+@@ -276,7 +276,7 @@ func Parse() *Slist
+ 				slist = atom(0);
+ 			default:
+ 				slist = nil;
+-				print "unknown token"; //, token, tokenbuf;
++				print("unknown token"); // token, tokenbuf);
+ 		}
+ 		NextToken();
+ 		return slist;
+diff --git a/test/ken/robfor.go b/test/ken/robfor.go
+index 60e3f1fddf..05188a4723 100644
+--- a/test/ken/robfor.go
++++ b/test/ken/robfor.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail" + msg + "\n";
+-		panic 1;
++		print("assertion fail" + msg + "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/ken/robfunc.go b/test/ken/robfunc.go
+index 703e65e2df..12b4b6d7b6 100644
+--- a/test/ken/robfunc.go
++++ b/test/ken/robfunc.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail" + msg + "\n";
+-		panic 1;
++		print("assertion fail" + msg + "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/ken/robif.go b/test/ken/robif.go
+index 7a099769d4..41d164cd5f 100644
+--- a/test/ken/robif.go
++++ b/test/ken/robif.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assertequal(is, shouldbe int, msg string) {
+ 	if is != shouldbe {
+-		print "assertion fail" + msg + "\n";
+-		panic 1;
++		print("assertion fail" + msg + "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/ken/robiota.go b/test/ken/robiota.go
+index 685d1290e2..af97fa2a32 100644
+--- a/test/ken/robiota.go
++++ b/test/ken/robiota.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print "assertion fail: " + msg + "\n";
+-		panic 1;
++		print("assertion fail: " + msg + "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/ken/simparray.go b/test/ken/simparray.go
+index 1cbde1bd47..a670986bda 100644
+--- a/test/ken/simparray.go
++++ b/test/ken/simparray.go
+@@ -22,7 +22,7 @@ main()
+ 		s1 = s1 + a[i];
+ 	}
+ 
+-	if s1 != 35 { panic s1; }
++	if s1 != 35 { panic(s1); }
+ 
+ 	for i:=short(5); i<10; i=i+1 {
+ 		b[i] = float(i);
+@@ -33,7 +33,7 @@ main()
+ 		s2 = s2 + b[i];
+ 	}
+ 
+-	if s2 != 35 { panic s2; }
++	if s2 != 35 { panic(s2); }
+ 
+ 	b := new([100]int);
+ 	for i:=0; i<100; i=i+1 {
+@@ -45,5 +45,5 @@ main()
+ 		s3 = s3+b[i];
+ 	}
+ 
+-	if s3 != 4950 { panic s3; }
++	if s3 != 4950 { panic(s3); }
+ }
+diff --git a/test/ken/simpbool.go b/test/ken/simpbool.go
+index 6a223e8523..aad111dd55 100644
+--- a/test/ken/simpbool.go
++++ b/test/ken/simpbool.go
+@@ -20,88 +20,88 @@ main()
+ 	a = true;
+ 	b = false;
+ 
+-	if !a { panic 1; }
+-	if b { panic 2; }
+-	if !!!a { panic 3; }
+-	if !!b { panic 4; }
++	if !a { panic(1); }
++	if b { panic(2); }
++	if !!!a { panic(3); }
++	if !!b { panic(4); }
+ 
+ 	a = !b;
+-	if !a { panic 5; }
+-	if !!!a { panic 6; }
++	if !a { panic(5); }
++	if !!!a { panic(6); }
+ 
+ 	var x *s;
+ 	x = new(s);
+ 	x.a = true;
+ 	x.b = false;
+ 
+-	if !x.a { panic 7; }
+-	if x.b { panic 8; }
+-	if !!!x.a { panic 9; }
+-	if !!x.b { panic 10; }
++	if !x.a { panic(7); }
++	if x.b { panic(8); }
++	if !!!x.a { panic(9); }
++	if !!x.b { panic(10); }
+ 
+ 	x.a = !x.b;
+-	if !x.a { panic 11; }
+-	if !!!x.a { panic 12; }
++	if !x.a { panic(11); }
++	if !!!x.a { panic(12); }
+ 
+ 	/*
+ 	 * test &&
+ 	 */
+ 	a = true;
+ 	b = true;
+-	if !(a && b) { panic 21; }
+-	if a && !b { panic 22; }
+-	if !a && b { panic 23; }
+-	if !a && !b { panic 24; }
++	if !(a && b) { panic(21); }
++	if a && !b { panic(22); }
++	if !a && b { panic(23); }
++	if !a && !b { panic(24); }
+ 
+ 	a = false;
+ 	b = true;
+-	if !(!a && b) { panic 31; }
+-	if !a && !b { panic 32; }
+-	if a && b { panic 33; }
+-	if a && !b { panic 34; }
++	if !(!a && b) { panic(31); }
++	if !a && !b { panic(32); }
++	if a && b { panic(33); }
++	if a && !b { panic(34); }
+ 
+ 	a = true;
+ 	b = false;
+-	if !(a && !b) { panic 41; }
+-	if a && b { panic 41; }
+-	if !a && !b { panic 41; }
+-	if !a && b { panic 44; }
++	if !(a && !b) { panic(41); }
++	if a && b { panic(41); }
++	if !a && !b { panic(41); }
++	if !a && b { panic(44); }
+ 
+ 	a = false;
+ 	b = false;
+-	if !(!a && !b) { panic 51; }
+-	if !a && b { panic 52; }
+-	if a && !b { panic 53; }
+-	if a && b { panic 54; }
++	if !(!a && !b) { panic(51); }
++	if !a && b { panic(52); }
++	if a && !b { panic(53); }
++	if a && b { panic(54); }
+ 
+ 	/*
+ 	 * test ||
+ 	 */
+ 	a = true;
+ 	b = true;
+-	if !(a || b) { panic 61; }
+-	if !(a || !b) { panic 62; }
+-	if !(!a || b) { panic 63; }
+-	if !a || !b { panic 64; }
++	if !(a || b) { panic(61); }
++	if !(a || !b) { panic(62); }
++	if !(!a || b) { panic(63); }
++	if !a || !b { panic(64); }
+ 
+ 	a = false;
+ 	b = true;
+-	if !(!a || b) { panic 71; }
+-	if !(!a || !b) { panic 72; }
+-	if !(a || b) { panic 73; }
+-	if a || !b { panic 74; }
++	if !(!a || b) { panic(71); }
++	if !(!a || !b) { panic(72); }
++	if !(a || b) { panic(73); }
++	if a || !b { panic(74); }
+ 
+ 	a = true;
+ 	b = false;
+-	if !(a || !b) { panic 81; }
+-	if !(a || b) { panic 82; }
+-	if !(!a || !b) { panic 83; }
+-	if !a || b { panic 84; }
++	if !(a || !b) { panic(81); }
++	if !(a || b) { panic(82); }
++	if !(!a || !b) { panic(83); }
++	if !a || b { panic(84); }
+ 
+ 	a = false;
+ 	b = false;
+-	if !(!a || !b) { panic 91; }
+-	if !(!a || b) { panic 92; }
+-	if !(a || !b) { panic 93; }
+-	if a || b { panic 94; }
++	if !(!a || !b) { panic(91); }
++	if !(!a || b) { panic(92); }
++	if !(a || !b) { panic(93); }
++	if a || b { panic(94); }
+ }
+diff --git a/test/ken/simpconv.go b/test/ken/simpconv.go
+index 401ae763d4..7bb3896b25 100644
+--- a/test/ken/simpconv.go
++++ b/test/ken/simpconv.go
+@@ -15,11 +15,11 @@ main()
+ 	for i:=short(0); i<10; i=i+1 {
+ 		s1 = s1 + vlong(i);
+ 	}
+-	if s1 != 45 { panic s1; }
++	if s1 != 45 { panic(s1); }
+ 
+ 	s2 := float(0);
+ 	for i:=0; i<10; i=i+1 {
+ 		s2 = s2 + float(i);
+ 	}
+-	if s2 != 45 { panic s2; }
++	if s2 != 45 { panic(s2); }
+ }
+diff --git a/test/ken/simpfun.go b/test/ken/simpfun.go
+index 3605fa2862..1e063bf0f6 100644
+--- a/test/ken/simpfun.go
++++ b/test/ken/simpfun.go
+@@ -15,7 +15,7 @@ main()
+ 	var x int;
+ 
+ 	x = fun(10,20,30);
+-	if x != 60 { panic x; }
++	if x != 60 { panic(x); }
+ }
+ 
+ func
+@@ -24,6 +24,6 @@ fun(ia,ib,ic int)int
+ 	var o int;
+ 
+ 	o = ia+ib+ic;
+-	if o != 60 { panic o; }
++	if o != 60 { panic(o); }
+ 	return o;
+ }
+diff --git a/test/ken/simpprint.go b/test/ken/simpprint.go
+index 37ca084253..98393a4570 100644
+--- a/test/ken/simpprint.go
++++ b/test/ken/simpprint.go
+@@ -10,5 +10,5 @@ package main
+ func
+ main()
+ {
+-	print "hello world\n";
++	print("hello world\n");
+ }
+diff --git a/test/ken/simpswitch.go b/test/ken/simpswitch.go
+index 88c2a99813..e5f39e3543 100644
+--- a/test/ken/simpswitch.go
++++ b/test/ken/simpswitch.go
+@@ -13,13 +13,13 @@ main()
+ 	for i:=0; i<10; i=i+1 {
+ 		switch(i) {
+ 		case 5:
+-			print "five";
++			print("five");
+ 		case a,7:
+-			print "a";
++			print("a");
+ 		default:
+-			print i;
++			print(i);
+ 		}
+-		print "out", i;
++		print("out", i);
+ 	}
+-	print "\n";
++	print("\n");
+ }
+diff --git a/test/ken/simpvar.go b/test/ken/simpvar.go
+index 2dd4e73acd..396ea7b4c9 100644
+--- a/test/ken/simpvar.go
++++ b/test/ken/simpvar.go
+@@ -21,5 +21,5 @@ main()
+ 		y = 25;
+ 	}
+ 	x = x+y;
+-	if(x != 40) { panic x; }
++	if(x != 40) { panic(x); }
+ }
+diff --git a/test/ken/string.go b/test/ken/string.go
+index 51da6a2301..3a15beeffa 100644
+--- a/test/ken/string.go
++++ b/test/ken/string.go
+@@ -16,69 +16,69 @@ main()
+ 	b := `xyz`;
+ 
+ 	/* print a literal */
+-	print `abc`;
++	print(`abc`);
+ 
+ 	/* print a variable */
+-	print b, "-";
++	print(b, "-");
+ 
+ 	/* catenate literals */
+-	print `abc` + `xyz`, "-";
++	print(`abc` + `xyz`, "-");
+ 
+ 	/* catenate variables */
+-	print a+b, "-";
++	print(a+b, "-");
+ 
+ 	/* compare literals */
+ 	if `abc` == `xyz` || `abc` != "abc" || `abc` > `xyz` {
+-		panic "compare literals";
++		panic("compare literals");
+ 	}
+ 
+ 	/* compare variables */
+ 	if a == b || a != a || a > b {
+-		panic "compare variables";
++		panic("compare variables");
+ 	}
+ 
+ 	/* cat */
+ 	c = a+b;
+-	print c, "-";
++	print(c, "-");
+ 
+ 	/* catequal */
+ 	c = a;
+ 	c += b;
+-	print c, "-";
++	print(c, "-");
+ 
+ 	/* clumsy evaluation */
+ 	c = b;
+ 	c = a + c;
+-	print c, "-";
++	print(c, "-");
+ 
+ 	/* len */
+ 	if len(c) != 6 {
+-		panic "len ", len(c);
++		panic("len ", len(c));
+ 	}
+ 
+ 	/* index strings */
+ 	for i:=0; i<len(c); i=i+1 {
+ 		if c[i] != (a+b)[i] {
+-			panic "index ", i, " ", c[i], " ", (a+b)[i];
++			panic("index ", i, " ", c[i], " ", (a+b)[i]);
+ 		}
+ 	}
+ 
+ 	/* slice strings */
+-	print c[0:3], c[3:6];
++	print(c[0:3], c[3:6]);
+ 
+-	print "\n";
++	print("\n");
+ 
+ 	/* create string with integer constant */
+ 	c = string('x');
+ 	if c != "x" {
+-		panic "create int ", c;
++		panic("create int ", c);
+ 	}
+ 
+ 	/* create string with integer variable */
+ 	v := 'x';
+ 	c = string(v);
+ 	if c != "x" {
+-		panic "create int ", c;
++		panic("create int ", c);
+ 	}
+ 
+ 	/* create string with byte array */
+@@ -88,7 +88,7 @@ main()
+ 	z1[2] = 'c';
+ 	c = string(z1);
+ 	if c != "abc" {
+-		panic "create array ", c;
++		panic("create array ", c);
+ 	}
+ 
+ 	/* create string with byte array pointer */
+@@ -98,6 +98,6 @@ main()
+ 	z2[2] = 'c';
+ 	c = string(z2);
+ 	if c != "abc" {
+-		panic "create array pointer ", c;
++		panic("create array pointer ", c);
+ 	}
+ }
+diff --git a/test/ken/strvar.go b/test/ken/strvar.go
+index cf5b35d8d3..4a29217952 100644
+--- a/test/ken/strvar.go
++++ b/test/ken/strvar.go
+@@ -27,8 +27,8 @@ main()
+ 	s1.c = 3;
+ 	s1.d = 5;
+ 
+-	if(s1.c != 3) { panic s1.c; }
+-	if(g1.c != 3) { panic g1.c; }
++	if(s1.c != 3) { panic(s1.c); }
++	if(g1.c != 3) { panic(g1.c); }
+ 
+ 	s2.a = 7;
+ 	s2.b = 11;
+@@ -38,8 +38,8 @@ main()
+ 	s2.d.c = 23;
+ 	s2.d.d = 29;
+ 
+-	if(s2.d.c != 23) { panic s2.d.c; }
+-	if(g2.d.c != 23) { panic g2.d.c; }
++	if(s2.d.c != 23) { panic(s2.d.c); }
++	if(g2.d.c != 23) { panic(g2.d.c); }
+ 
+ 	x =	s1.a +
+ 		s1.b +
+@@ -54,7 +54,7 @@ main()
+ 		s2.d.c +
+ 		s2.d.d;
+ 
+-	if(x != 130) { panic x; }
++	if(x != 130) { panic(x); }
+ 
+ 	// test an automatic struct
+ 	s3.a = 7;
+@@ -65,7 +65,7 @@ main()
+ 	s3.d.c = 23;
+ 	s3.d.d = 29;
+ 
+-	if(s3.d.c != 23) { panic s3.d.c; }
++	if(s3.d.c != 23) { panic(s3.d.c); }
+ 
+ 	x =	s3.a +
+ 		s3.b +
+@@ -75,5 +75,5 @@ main()
+ 		s3.d.c +
+ 		s3.d.d;
+ 
+-	if(x != 119) { panic x; }
++	if(x != 119) { panic(x); }
+ }
+diff --git a/test/literal.go b/test/literal.go
+index 6681243bd9..673a53c7df 100644
+--- a/test/literal.go
++++ b/test/literal.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print "assertion fail: ", msg, "\n";
+-		panic 1;
++		print("assertion fail: ", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/peano.go b/test/peano.go
+index bc52c0612c..4c1b837b2f 100644
+--- a/test/peano.go
++++ b/test/peano.go
+@@ -87,7 +87,7 @@ func count(x *Number) int {
+ func check(x *Number, expected int) {
+ 	var c = count(x);
+ 	if c != expected {
+-		panic "error: found ", c, "; expected ", expected, "\n";
++		panic("error: found ", c, "; expected ", expected, "\n");
+ 	}
+ }
+ 
+@@ -125,7 +125,7 @@ func main() {
+ 	
+ 	verify();
+ 	for i := 0; i <= 10; i++ {
+-		print i, "! = ", count(fact(gen(i))), "\n";
++		print(i, "! = ", count(fact(gen(i))), "\n");
+ 	}
+ }
+ 
+diff --git a/test/readfile.go b/test/readfile.go
+index 65a8cb87b0..c9cf11a2dd 100644
+--- a/test/readfile.go
++++ b/test/readfile.go
+@@ -13,7 +13,7 @@ func main() {
+ 
+ 	s, ok = sys.readfile("readfile.go");
+ 	if !ok {
+-		print "couldn't readfile\n";
++		print("couldn't readfile\n");
+ 		sys.exit(1)
+ 	}
+ 	start_of_file :=
+@@ -22,7 +22,7 @@ func main() {
+ 		"\n" +
+ 		"package main\n";
+ 	if s[0:102] != start_of_file {
+-		print "wrong data\n";
++		print("wrong data\n");
+ 		sys.exit(1)
+ 	}
+ }
+diff --git a/test/sieve.go b/test/sieve.go
+index c55477caf3..98af979f16 100644
+--- a/test/sieve.go
++++ b/test/sieve.go
+@@ -30,7 +30,7 @@ func Sieve() {
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
+ 		prime := <-ch;
+-		print prime, "\n";
++		print(prime, "\n");
+ 		ch1 := new(chan int);
+ 		go Filter(ch, ch1, prime);
+ 		ch = ch1
+diff --git a/test/simassign.go b/test/simassign.go
+index 5b8c3f39fa..1e7d307aaf 100644
+--- a/test/simassign.go
++++ b/test/simassign.go
+@@ -11,16 +11,16 @@ var	a,b,c,d,e,f,g,h,i int;
+ func
+ printit()
+ {
+-	print a,b,c,d,e,f,g,h,i,"\n";
++	print(a,b,c,d,e,f,g,h,i,"\n");
+ }
+ 
+ func
+ testit() bool
+ {
+ 	if a+b+c+d+e+f+g+h+i != 45 {
+-		print "sum does not add to 45\n";
++		print("sum does not add to 45\n");
+ 		printit();
+-		panic;
++		panic();
+ 	}
+ 	return	a == 1 &&
+ 		b == 2 &&
+@@ -51,7 +51,7 @@ main()
+ 	h = 8;
+ 	i = 9;
+ 
+-	if !testit() { panic "init val\n"; }
++	if !testit() { panic("init val\n"); }
+ 
+ 	for z:=0; z<100; z++ {
+ 		a,b,c,d, e,f,g,h,i = b,c,d,a, i,e,f,g,h;
+@@ -60,24 +60,24 @@ main()
+ 			if z == 19 {
+ 				break;
+ 			}
+-			print "on ", z, "th iteration\n";
++			print("on ", z, "th iteration\n");
+ 			printit();
+-			panic;
++			panic();
+ 		}
+ 	}
+ 
+ 	if !testit() {
+-		print "final val\n";
++		print("final val\n");
+ 		printit();
+-		panic;
++		panic();
+ 	}
+ 
+ 	a, b = swap(1, 2);
+ 	if a != 2 || b != 1 {
+-		panic "bad swap";
++		panic("bad swap");
+ 	}
+ //BUG	a, b = swap(swap(a, b));
+ //	if a != 2 || b != 1 {
+-//		panic "bad swap";
++//		panic("bad swap");
+ //	}
+ }
+diff --git a/test/string_lit.go b/test/string_lit.go
+index 9ef8f931d3..2196214845 100644
+--- a/test/string_lit.go
++++ b/test/string_lit.go
+@@ -11,7 +11,7 @@ var ecode int;
+ func assert(a, b, c string) {
+ 	if a != b {
+ 		ecode = 1;
+-		print "FAIL: ", c, ": ", a, "!=", b, "\n";
++		print("FAIL: ", c, ": ", a, "!=", b, "\n");
+ 		var max int = len(a);
+ 		if len(b) > max {
+ 			max = len(b);
+@@ -26,7 +26,7 @@ func assert(a, b, c string) {
+ 				bc = int(b[i]);
+ 			}
+ 			if ac != bc {
+-				print "\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n";
++				print("\ta[", i, "] = ", ac, "; b[", i, "] =", bc, "\n");
+ 			}
+ 		}
+ 	}
+diff --git a/test/switch.go b/test/switch.go
+index af1dc8fb9d..f68542053f 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -8,8 +8,8 @@ package main
+ 
+ func assert(cond bool, msg string) {
+ 	if !cond {
+-		print "assertion fail: ", msg, "\n";
+-		panic 1;
++		print("assertion fail: ", msg, "\n");
++		panic(1);
+ 	}
+ }
+ 
+diff --git a/test/turing.go b/test/turing.go
+index c622bfb741..462bb91684 100644
+--- a/test/turing.go
++++ b/test/turing.go
+@@ -24,7 +24,7 @@ func main() {
+ 			case '-':
+ 					a[p]--;
+ 			case '.':
+-					print string(a[p]);
++					print(string(a[p]));
+ 			case '[':
+ 				if a[p] == 0 {
+ 					for nest := 1; nest > 0; pc++ {
+diff --git a/test/utf.go b/test/utf.go
+index cf0c746ab9..206f67c731 100644
+--- a/test/utf.go
++++ b/test/utf.go
+@@ -22,13 +22,13 @@ func main() {
+ 	for w, i, j := 0,0,0; i < l; i += w {
+ 		var r int32;
+ 		r, w = sys.stringtorune(s, i, l);
+-		if w == 0 { panic "zero width in string" }
+-		if r != chars[j] { panic "wrong value from string" }
++		if w == 0 { panic("zero width in string") }
++		if r != chars[j] { panic("wrong value from string") }
+ 		j++;
+ 	}
+ 	// encoded as bytes:  'a' 'b' 'c' e6 97 a5 e6 9c ac e8 aa 9e
+ 	const L = 12;
+-	if L != l { panic "wrong length constructing array" }
++	if L != l { panic("wrong length constructing array") }
+ 	a := new([L]byte);
+ 	a[0] = 'a';
+ 	a[1] = 'b';
+@@ -45,8 +45,8 @@ func main() {
+ 	for w, i, j := 0,0,0; i < L; i += w {
+ 		var r int32;
+ 		r, w = sys.bytestorune(&a[0], i, L);
+-		if w == 0 { panic "zero width in bytes" }
+-		if r != chars[j] { panic "wrong value from bytes" }
++		if w == 0 { panic("zero width in bytes") }
++		if r != chars[j] { panic("wrong value from bytes") }
+ 		j++;
+ 	}
+ }

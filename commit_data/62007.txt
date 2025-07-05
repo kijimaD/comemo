@@ -20,7 +20,7 @@ Date:   Tue Jan 7 15:06:05 2025 -0800
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Tim King <taking@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go             |  9 +++++++--
  src/cmd/compile/internal/types2/universe.go         |  2 ++
  src/go/types/stmt.go                                |  9 +++++++--
@@ -28,3 +28,118 @@ Date:   Tue Jan 7 15:06:05 2025 -0800
  src/internal/types/testdata/fixedbugs/issue71131.go | 15 +++++++++++++++
  src/internal/types/testdata/spec/range.go           |  2 +-
  6 files changed, 34 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 2174aedf7f..c46ea7a091 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -1057,8 +1057,13 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
+ 			return bad("func must be func(yield func(...) bool): argument is not func")
+ 		case cb.Params().Len() > 2:
+ 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
+-		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
+-			return bad("func must be func(yield func(...) bool): yield func does not return bool")
++		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):
++			// see go.dev/issues/71131, go.dev/issues/71164
++			if cb.Results().Len() == 1 && isBoolean(cb.Results().At(0).Type()) {
++				return bad("func must be func(yield func(...) bool): yield func returns user-defined boolean, not bool")
++			} else {
++				return bad("func must be func(yield func(...) bool): yield func does not return bool")
++			}
+ 		}
+ 		assert(cb.Recv() == nil)
+ 		// determine key and value types, if any
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 9c76ac2373..7664a53579 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -21,6 +21,7 @@ var Unsafe *Package
+ 
+ var (
+ 	universeIota       Object
++	universeBool       Type
+ 	universeByte       Type // uint8 alias, but has name "byte"
+ 	universeRune       Type // int32 alias, but has name "rune"
+ 	universeAnyNoAlias *TypeName
+@@ -275,6 +276,7 @@ func init() {
+ 	defPredeclaredFuncs()
+ 
+ 	universeIota = Universe.Lookup("iota")
++	universeBool = Universe.Lookup("bool").Type()
+ 	universeByte = Universe.Lookup("byte").Type()
+ 	universeRune = Universe.Lookup("rune").Type()
+ 	universeError = Universe.Lookup("error").Type()
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index d3223f3b92..de3d01e8dd 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -1075,8 +1075,13 @@ func rangeKeyVal(typ Type, allowVersion func(goVersion) bool) (key, val Type, ca
+ 			return bad("func must be func(yield func(...) bool): argument is not func")
+ 		case cb.Params().Len() > 2:
+ 			return bad("func must be func(yield func(...) bool): yield func has too many parameters")
+-		case cb.Results().Len() != 1 || !isBoolean(cb.Results().At(0).Type()):
+-			return bad("func must be func(yield func(...) bool): yield func does not return bool")
++		case cb.Results().Len() != 1 || !Identical(cb.Results().At(0).Type(), universeBool):
++			// see go.dev/issues/71131, go.dev/issues/71164
++			if cb.Results().Len() == 1 && isBoolean(cb.Results().At(0).Type()) {
++				return bad("func must be func(yield func(...) bool): yield func returns user-defined boolean, not bool")
++			} else {
++				return bad("func must be func(yield func(...) bool): yield func does not return bool")
++			}
+ 		}
+ 		assert(cb.Recv() == nil)
+ 		// determine key and value types, if any
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 09b882ce05..750a368278 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -24,6 +24,7 @@ var Unsafe *Package
+ 
+ var (
+ 	universeIota       Object
++	universeBool       Type
+ 	universeByte       Type // uint8 alias, but has name "byte"
+ 	universeRune       Type // int32 alias, but has name "rune"
+ 	universeAnyNoAlias *TypeName
+@@ -278,6 +279,7 @@ func init() {
+ 	defPredeclaredFuncs()
+ 
+ 	universeIota = Universe.Lookup("iota")
++	universeBool = Universe.Lookup("bool").Type()
+ 	universeByte = Universe.Lookup("byte").Type()
+ 	universeRune = Universe.Lookup("rune").Type()
+ 	universeError = Universe.Lookup("error").Type()
+diff --git a/src/internal/types/testdata/fixedbugs/issue71131.go b/src/internal/types/testdata/fixedbugs/issue71131.go
+new file mode 100644
+index 0000000000..8e7575b028
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue71131.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	type Bool bool
++	for range func /* ERROR "yield func returns user-defined boolean, not bool" */ (func() Bool) {} {
++	}
++	for range func /* ERROR "yield func returns user-defined boolean, not bool" */ (func(int) Bool) {} {
++	}
++	for range func /* ERROR "yield func returns user-defined boolean, not bool" */ (func(int, string) Bool) {} {
++	}
++}
+diff --git a/src/internal/types/testdata/spec/range.go b/src/internal/types/testdata/spec/range.go
+index 52d1e70382..c0f579479f 100644
+--- a/src/internal/types/testdata/spec/range.go
++++ b/src/internal/types/testdata/spec/range.go
+@@ -5,7 +5,7 @@
+ package p
+ 
+ type MyInt int32
+-type MyBool bool
++type MyBool = bool // TODO(gri) remove alias declaration - see go.dev/issues/71131, go.dev/issues/71164
+ type MyString string
+ type MyFunc1 func(func(int) bool)
+ type MyFunc2 func(int) bool

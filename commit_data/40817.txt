@@ -17,10 +17,221 @@ Date:   Tue May 28 23:07:56 2019 +0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                     | 55 +------------------
  .../go/testdata/script/test_go111module_cache.txt  | 15 ++++++
  src/go/build/deps_test.go                          |  3 +-
  src/internal/cfg/cfg.go                            | 62 ++++++++++++++++++++++
  src/internal/testenv/testenv.go                    |  7 +++
  5 files changed, 88 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index a0b51a72c3..a3277a6c3f 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"go/build"
++	"internal/cfg"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -221,61 +222,9 @@ func Getenv(key string) string {
+ 
+ // CanGetenv reports whether key is a valid go/env configuration key.
+ func CanGetenv(key string) bool {
+-	return strings.Contains(knownEnv, "\t"+key+"\n")
++	return strings.Contains(cfg.KnownEnv, "\t"+key+"\n")
+ }
+ 
+-var knownEnv = `
+-	AR
+-	CC
+-	CGO_CFLAGS
+-	CGO_CFLAGS_ALLOW
+-	CGO_CFLAGS_DISALLOW
+-	CGO_CPPFLAGS
+-	CGO_CPPFLAGS_ALLOW
+-	CGO_CPPFLAGS_DISALLOW
+-	CGO_CXXFLAGS
+-	CGO_CXXFLAGS_ALLOW
+-	CGO_CXXFLAGS_DISALLOW
+-	CGO_ENABLED
+-	CGO_FFLAGS
+-	CGO_FFLAGS_ALLOW
+-	CGO_FFLAGS_DISALLOW
+-	CGO_LDFLAGS
+-	CGO_LDFLAGS_ALLOW
+-	CGO_LDFLAGS_DISALLOW
+-	CXX
+-	FC
+-	GCCGO
+-	GO111MODULE
+-	GO386
+-	GOARCH
+-	GOARM
+-	GOBIN
+-	GOCACHE
+-	GOENV
+-	GOEXE
+-	GOFLAGS
+-	GOGCCFLAGS
+-	GOHOSTARCH
+-	GOHOSTOS
+-	GOMIPS
+-	GOMIPS64
+-	GONOPROXY
+-	GONOSUMDB
+-	GOOS
+-	GOPATH
+-	GOPPC64
+-	GOPRIVATE
+-	GOPROXY
+-	GOROOT
+-	GOSUMDB
+-	GOTMPDIR
+-	GOTOOLDIR
+-	GOWASM
+-	GO_EXTLINK_ENABLED
+-	PKG_CONFIG
+-`
+-
+ var (
+ 	GOROOT       = BuildContext.GOROOT
+ 	GOBIN        = Getenv("GOBIN")
+diff --git a/src/cmd/go/testdata/script/test_go111module_cache.txt b/src/cmd/go/testdata/script/test_go111module_cache.txt
+new file mode 100644
+index 0000000000..ca1de43a2b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_go111module_cache.txt
+@@ -0,0 +1,15 @@
++env GO111MODULE=on
++go mod init foo
++go test
++stdout ^ok\s+foo
++env GO111MODULE=off
++go test
++stdout ^ok\s+
++! stdout ^ok\s+(cache)$
++
++-- main_test.go --
++package main
++
++import "testing"
++
++func TestF(t *testing.T) {}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 709c43a52a..bd866ee738 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -166,6 +166,7 @@ var pkgDeps = map[string][]string{
+ 		"syscall/js",
+ 	},
+ 
++	"internal/cfg":     {"L0"},
+ 	"internal/poll":    {"L0", "internal/oserror", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+ 	"internal/testlog": {"L0"},
+ 	"os":               {"L1", "os", "syscall", "time", "internal/oserror", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
+@@ -199,7 +200,7 @@ var pkgDeps = map[string][]string{
+ 	"testing":               {"L2", "flag", "fmt", "internal/race", "os", "runtime/debug", "runtime/pprof", "runtime/trace", "time"},
+ 	"testing/iotest":        {"L2", "log"},
+ 	"testing/quick":         {"L2", "flag", "fmt", "reflect", "time"},
+-	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall"},
++	"internal/testenv":      {"L2", "OS", "flag", "testing", "syscall", "internal/cfg"},
+ 	"internal/lazyregexp":   {"L2", "OS", "regexp"},
+ 	"internal/lazytemplate": {"L2", "OS", "text/template"},
+ 
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+new file mode 100644
+index 0000000000..4c2cf8ee8b
+--- /dev/null
++++ b/src/internal/cfg/cfg.go
+@@ -0,0 +1,62 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package cfg holds configuration shared by the Go command and internal/testenv.
++// Definitions that don't need to be exposed outside of cmd/go should be in
++// cmd/go/internal/cfg instead of this package.
++package cfg
++
++// KnownEnv is a list of environment variables that affect the operation
++// of the Go command.
++const KnownEnv = `
++	AR
++	CC
++	CGO_CFLAGS
++	CGO_CFLAGS_ALLOW
++	CGO_CFLAGS_DISALLOW
++	CGO_CPPFLAGS
++	CGO_CPPFLAGS_ALLOW
++	CGO_CPPFLAGS_DISALLOW
++	CGO_CXXFLAGS
++	CGO_CXXFLAGS_ALLOW
++	CGO_CXXFLAGS_DISALLOW
++	CGO_ENABLED
++	CGO_FFLAGS
++	CGO_FFLAGS_ALLOW
++	CGO_FFLAGS_DISALLOW
++	CGO_LDFLAGS
++	CGO_LDFLAGS_ALLOW
++	CGO_LDFLAGS_DISALLOW
++	CXX
++	FC
++	GCCGO
++	GO111MODULE
++	GO386
++	GOARCH
++	GOARM
++	GOBIN
++	GOCACHE
++	GOENV
++	GOEXE
++	GOFLAGS
++	GOGCCFLAGS
++	GOHOSTARCH
++	GOHOSTOS
++	GOMIPS
++	GOMIPS64
++	GONOPROXY
++	GONOSUMDB
++	GOOS
++	GOPATH
++	GOPPC64
++	GOPRIVATE
++	GOPROXY
++	GOROOT
++	GOSUMDB
++	GOTMPDIR
++	GOTOOLDIR
++	GOWASM
++	GO_EXTLINK_ENABLED
++	PKG_CONFIG
++`
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index c27fcfa208..f7a9730ca6 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -13,6 +13,7 @@ package testenv
+ import (
+ 	"errors"
+ 	"flag"
++	"internal/cfg"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -88,6 +89,12 @@ func GoToolPath(t testing.TB) string {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	// Add all environment variables that affect the Go command to test metadata.
++	// Cached test results will be invalidate when these variables change.
++	// See golang.org/issue/32285.
++	for _, envVar := range strings.Fields(cfg.KnownEnv) {
++		os.Getenv(envVar)
++	}
+ 	return path
+ }
+ 

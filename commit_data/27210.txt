@@ -11,8 +11,453 @@ Date:   Tue Mar 15 19:26:21 2016 -0500
     Run-TryBot: Todd Neal <todd@tneal.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/testdata/arith_ssa.go |  79 +++++++
  src/cmd/compile/internal/ssa/gen/generic.rules    |  12 +
  src/cmd/compile/internal/ssa/rewritegeneric.go    | 264 ++++++++++++++++++++++
  3 files changed, 355 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 6e67caa585..622f8aed7c 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -14,6 +14,84 @@ const (
+ 	y = 0x0fffFFFF
+ )
+ 
++//go:noinline
++func lshNop1(x uint64) uint64 {
++	// two outer shifts should be removed
++	return (((x << 5) >> 2) << 2)
++}
++
++//go:noinline
++func lshNop2(x uint64) uint64 {
++	return (((x << 5) >> 2) << 3)
++}
++
++//go:noinline
++func lshNop3(x uint64) uint64 {
++	return (((x << 5) >> 2) << 6)
++}
++
++//go:noinline
++func lshNotNop(x uint64) uint64 {
++	// outer shift can't be removed
++	return (((x << 5) >> 2) << 1)
++}
++
++//go:noinline
++func rshNop1(x uint64) uint64 {
++	return (((x >> 5) << 2) >> 2)
++}
++
++//go:noinline
++func rshNop2(x uint64) uint64 {
++	return (((x >> 5) << 2) >> 3)
++}
++
++//go:noinline
++func rshNop3(x uint64) uint64 {
++	return (((x >> 5) << 2) >> 6)
++}
++
++//go:noinline
++func rshNotNop(x uint64) uint64 {
++	return (((x >> 5) << 2) >> 1)
++}
++
++func testShiftRemoval() {
++	allSet := ^uint64(0)
++	if want, got := uint64(0x7ffffffffffffff), rshNop1(allSet); want != got {
++		println("testShiftRemoval rshNop1 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0x3ffffffffffffff), rshNop2(allSet); want != got {
++		println("testShiftRemoval rshNop2 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0x7fffffffffffff), rshNop3(allSet); want != got {
++		println("testShiftRemoval rshNop3 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0xffffffffffffffe), rshNotNop(allSet); want != got {
++		println("testShiftRemoval rshNotNop failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0xffffffffffffffe0), lshNop1(allSet); want != got {
++		println("testShiftRemoval lshNop1 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0xffffffffffffffc0), lshNop2(allSet); want != got {
++		println("testShiftRemoval lshNop2 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0xfffffffffffffe00), lshNop3(allSet); want != got {
++		println("testShiftRemoval lshNop3 failed, wanted", want, "got", got)
++		failed = true
++	}
++	if want, got := uint64(0x7ffffffffffffff0), lshNotNop(allSet); want != got {
++		println("testShiftRemoval lshNotNop failed, wanted", want, "got", got)
++		failed = true
++	}
++}
++
+ //go:noinline
+ func parseLE64(b []byte) uint64 {
+ 	// skip the first two bytes, and parse the remaining 8 as a uint64
+@@ -494,6 +572,7 @@ func main() {
+ 	testLargeConst()
+ 	testLoadCombine()
+ 	testLoadSymCombine()
++	testShiftRemoval()
+ 
+ 	if failed {
+ 		panic("failed")
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 47aa6de52e..cbb8fc625c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -91,6 +91,18 @@
+ (Rsh8x64   (Const8  [0]) _) -> (Const8  [0])
+ (Rsh8Ux64  (Const8  [0]) _) -> (Const8  [0])
+ 
++// ((x >> c1) << c2) >> c3 
++(Rsh64Ux64 (Lsh64x64 (Rsh64Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh64Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
++(Rsh32Ux32 (Lsh32x32 (Rsh32Ux32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh32Ux32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
++(Rsh16Ux16 (Lsh16x16 (Rsh16Ux16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh16Ux16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
++(Rsh8Ux8 (Lsh8x8 (Rsh8Ux8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && c1 >= c2 && c3 >= c2 ->  (Rsh8Ux8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
++
++// ((x << c1) >> c2) << c3
++(Lsh64x64 (Rsh64Ux64 (Lsh64x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh64x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
++(Lsh32x32 (Rsh32Ux32 (Lsh32x32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh32x32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
++(Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
++(Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3])) && c1 >= c2 && c3 >= c2 ->  (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
++
+ (IsInBounds x x) -> (ConstBool [0])
+ (IsInBounds (And32 (Const32 [c]) _) (Const32 [d])) && inBounds32(c, d) -> (ConstBool [1])
+ (IsInBounds (And64 (Const64 [c]) _) (Const64 [d])) && inBounds64(c, d) -> (ConstBool [1])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 815468d94f..4ed4cbfc26 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -3420,6 +3420,39 @@ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpLsh16x16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Lsh16x16 (Rsh16Ux16 (Lsh16x16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Lsh16x16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpRsh16Ux16 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpLsh16x16 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst16 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst16 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst16 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpLsh16x16)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst16, config.fe.TypeUInt16())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Lsh16x16  <t> x (Const16 [c]))
+ 	// cond:
+ 	// result: (Lsh16x64  x (Const64 <t> [int64(uint16(c))]))
+@@ -3601,6 +3634,39 @@ func rewriteValuegeneric_OpLsh32x16(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpLsh32x32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Lsh32x32 (Rsh32Ux32 (Lsh32x32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Lsh32x32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpRsh32Ux32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpLsh32x32 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst32 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst32 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst32 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpLsh32x32)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Lsh32x32  <t> x (Const32 [c]))
+ 	// cond:
+ 	// result: (Lsh32x64  x (Const64 <t> [int64(uint32(c))]))
+@@ -3840,6 +3906,39 @@ func rewriteValuegeneric_OpLsh64x64(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (Lsh64x64 (Rsh64Ux64 (Lsh64x64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Lsh64x64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpRsh64Ux64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpLsh64x64 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst64 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst64 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpLsh64x64)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst64, config.fe.TypeUInt64())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Lsh64x64  x (Const64 [0]))
+ 	// cond:
+ 	// result: x
+@@ -4090,6 +4189,39 @@ func rewriteValuegeneric_OpLsh8x64(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpLsh8x8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Lsh8x8 (Rsh8Ux8 (Lsh8x8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Lsh8x8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpRsh8Ux8 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpLsh8x8 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst8 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst8 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst8 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpLsh8x8)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst8, config.fe.TypeUInt8())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Lsh8x8   <t> x (Const8 [c]))
+ 	// cond:
+ 	// result: (Lsh8x64  x (Const64 <t> [int64(uint8(c))]))
+@@ -5524,6 +5656,39 @@ func rewriteValuegeneric_OpPtrIndex(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpRsh16Ux16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Rsh16Ux16 (Lsh16x16 (Rsh16Ux16 x (Const16 [c1])) (Const16 [c2])) (Const16 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Rsh16Ux16 x (Const16 <config.fe.TypeUInt16()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpLsh16x16 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpRsh16Ux16 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst16 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst16 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst16 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpRsh16Ux16)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst16, config.fe.TypeUInt16())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Rsh16Ux16 <t> x (Const16 [c]))
+ 	// cond:
+ 	// result: (Rsh16Ux64 x (Const64 <t> [int64(uint16(c))]))
+@@ -5849,6 +6014,39 @@ func rewriteValuegeneric_OpRsh32Ux16(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpRsh32Ux32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Rsh32Ux32 (Lsh32x32 (Rsh32Ux32 x (Const32 [c1])) (Const32 [c2])) (Const32 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Rsh32Ux32 x (Const32 <config.fe.TypeUInt32()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpLsh32x32 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpRsh32Ux32 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst32 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst32 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst32 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpRsh32Ux32)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Rsh32Ux32 <t> x (Const32 [c]))
+ 	// cond:
+ 	// result: (Rsh32Ux64 x (Const64 <t> [int64(uint32(c))]))
+@@ -6232,6 +6430,39 @@ func rewriteValuegeneric_OpRsh64Ux64(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (Rsh64Ux64 (Lsh64x64 (Rsh64Ux64 x (Const64 [c1])) (Const64 [c2])) (Const64 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Rsh64Ux64 x (Const64 <config.fe.TypeUInt64()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpLsh64x64 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpRsh64Ux64 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst64 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst64 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst64 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst64, config.fe.TypeUInt64())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Rsh64Ux64 x (Const64 [0]))
+ 	// cond:
+ 	// result: x
+@@ -6682,6 +6913,39 @@ func rewriteValuegeneric_OpRsh8Ux64(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpRsh8Ux8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Rsh8Ux8 (Lsh8x8 (Rsh8Ux8 x (Const8 [c1])) (Const8 [c2])) (Const8 [c3]))
++	// cond: c1 >= c2 && c3 >= c2
++	// result: (Rsh8Ux8 x (Const8 <config.fe.TypeUInt8()> [c1-c2+c3]))
++	for {
++		if v.Args[0].Op != OpLsh8x8 {
++			break
++		}
++		if v.Args[0].Args[0].Op != OpRsh8Ux8 {
++			break
++		}
++		x := v.Args[0].Args[0].Args[0]
++		if v.Args[0].Args[0].Args[1].Op != OpConst8 {
++			break
++		}
++		c1 := v.Args[0].Args[0].Args[1].AuxInt
++		if v.Args[0].Args[1].Op != OpConst8 {
++			break
++		}
++		c2 := v.Args[0].Args[1].AuxInt
++		if v.Args[1].Op != OpConst8 {
++			break
++		}
++		c3 := v.Args[1].AuxInt
++		if !(c1 >= c2 && c3 >= c2) {
++			break
++		}
++		v.reset(OpRsh8Ux8)
++		v.AddArg(x)
++		v0 := b.NewValue0(v.Line, OpConst8, config.fe.TypeUInt8())
++		v0.AuxInt = c1 - c2 + c3
++		v.AddArg(v0)
++		return true
++	}
+ 	// match: (Rsh8Ux8  <t> x (Const8 [c]))
+ 	// cond:
+ 	// result: (Rsh8Ux64 x (Const64 <t> [int64(uint8(c))]))

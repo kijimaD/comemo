@@ -7,7 +7,7 @@ Date:   Thu Jun 2 18:48:17 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4528116
-
+---
  src/cmd/5g/Makefile |  13 +++---
  src/cmd/5g/ggen.c   | 110 ++----------------------------------------------
  src/cmd/6g/Makefile |  11 ++---
@@ -22,3 +22,797 @@ Date:   Thu Jun 2 18:48:17 2011 +0200
  src/cmd/gc/subr.c   |   3 ++
  src/cmd/gc/walk.c   |   7 +++-
  13 files changed, 177 insertions(+), 345 deletions(-)
+
+diff --git a/src/cmd/5g/Makefile b/src/cmd/5g/Makefile
+index 6873fbc680..b47014a4e3 100644
+--- a/src/cmd/5g/Makefile
++++ b/src/cmd/5g/Makefile
+@@ -15,16 +15,17 @@ HFILES=\
+ 
+ OFILES=\
+ 	../5l/enam.$O\
+-	list.$O\
+-	galign.$O\
+-	gobj.$O\
+-	ggen.$O\
+-	gsubr.$O\
+ 	cgen.$O\
+ 	cgen64.$O\
+ 	cplx.$O\
+-	reg.$O\
++	galign.$O\
++	ggen.$O\
++	gobj.$O\
++	gsubr.$O\
++	list.$O\
+ 	peep.$O\
++	pgen.$O\
++	reg.$O\
+ 
+ LIB=\
+ 	../gc/gc.a\
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 7197709d4d..0bc1b38fc4 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -7,107 +7,9 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-static Prog *pret;
+-
+ void
+-compile(Node *fn)
++defframe(Prog *ptxt)
+ {
+-	Plist *pl;
+-	Node nod1;
+-	Prog *ptxt;
+-	int32 lno;
+-	Type *t;
+-	Iter save;
+-
+-	if(newproc == N) {
+-		newproc = sysfunc("newproc");
+-		deferproc = sysfunc("deferproc");
+-		deferreturn = sysfunc("deferreturn");
+-		panicindex = sysfunc("panicindex");
+-		panicslice = sysfunc("panicslice");
+-		throwreturn = sysfunc("throwreturn");
+-	}
+-
+-	if(fn->nbody == nil)
+-		return;
+-
+-	// set up domain for labels
+-	clearlabels();
+-
+-	lno = setlineno(fn);
+-
+-	curfn = fn;
+-	dowidth(curfn->type);
+-
+-	if(curfn->type->outnamed) {
+-		// add clearing of the output parameters
+-		t = structfirst(&save, getoutarg(curfn->type));
+-		while(t != T) {
+-			if(t->nname != N)
+-				curfn->nbody = concat(list1(nod(OAS, t->nname, N)), curfn->nbody);
+-			t = structnext(&save);
+-		}
+-	}
+-
+-	hasdefer = 0;
+-	walk(curfn);
+-	if(nerrors != 0 || isblank(curfn->nname))
+-		goto ret;
+-
+-	allocparams();
+-
+-	continpc = P;
+-	breakpc = P;
+-
+-	pl = newplist();
+-	pl->name = curfn->nname;
+-	
+-	setlineno(curfn);
+-
+-	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = gins(ATEXT, curfn->nname, &nod1);
+-	afunclit(&ptxt->from);
+-
+-	ginit();
+-	genlist(curfn->enter);
+-	
+-	pret = nil;
+-	if(hasdefer || curfn->exit) {
+-		Prog *p1;
+-
+-		p1 = gjmp(nil);
+-		pret = gjmp(nil);
+-		patch(p1, pc);
+-	}
+-
+-	genlist(curfn->nbody);
+-	gclean();
+-	checklabels();
+-	if(nerrors != 0)
+-		goto ret;
+-
+-	if(curfn->type->outtuple != 0)
+-		ginscall(throwreturn, 0);
+-
+-	if(pret)
+-		patch(pret, pc);
+-	ginit();
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+-	if(curfn->exit)
+-		genlist(curfn->exit);
+-	gclean();
+-	if(nerrors != 0)
+-		goto ret;
+-	if(curfn->endlineno)
+-		lineno = curfn->endlineno;
+-	pc->as = ARET;	// overwrite AEND
+-	pc->lineno = lineno;
+-
+-	if(!debug['N'] || debug['R'] || debug['P']) {
+-		regopt(ptxt);
+-	}
+-
+ 	// fill in argument size
+ 	ptxt->to.type = D_CONST2;
+ 	ptxt->reg = 0; // flags
+@@ -118,12 +20,6 @@ compile(Node *fn)
+ 		maxstksize = stksize;
+ 	ptxt->to.offset = rnd(maxstksize+maxarg, widthptr);
+ 	maxstksize = 0;
+-
+-	if(debug['f'])
+-		frame(0);
+-
+-ret:
+-	lineno = lno;
+ }
+ 
+ /*
+@@ -197,7 +93,7 @@ ginscall(Node *f, int proc)
+ 			nodconst(&con, types[TINT32], 0);
+ 			p = gins(ACMP, &con, N);
+ 			p->reg = 0;
+-			patch(gbranch(ABNE, T), pret);
++			patch(gbranch(ABNE, T), retpc);
+ 		}
+ 		break;
+ 	}
+@@ -401,7 +297,7 @@ cgen_ret(Node *n)
+ {
+ 	genlist(n->list);		// copy out args
+ 	if(hasdefer || curfn->exit)
+-		gjmp(pret);
++		gjmp(retpc);
+ 	else
+ 		gins(ARET, N, N);
+ }
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+index 023f5d111b..64fa153990 100644
+--- a/src/cmd/6g/Makefile
++++ b/src/cmd/6g/Makefile
+@@ -14,16 +14,17 @@ HFILES=\
+ 	opt.h\
+ 
+ OFILES=\
+-	list.$O\
+-	gobj.$O\
+-	galign.$O\
+-	ggen.$O\
++	../6l/enam.$O\
+ 	cgen.$O\
+ 	cplx.$O\
++	galign.$O\
++	ggen.$O\
++	gobj.$O\
+ 	gsubr.$O\
++	list.$O\
+ 	peep.$O\
++	pgen.$O\
+ 	reg.$O\
+-	../6l/enam.$O\
+ 
+ LIB=\
+ 	../gc/gc.a\
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index ce66b43f06..5260335df7 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -7,121 +7,18 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-static Prog *pret;
+-
+ void
+-compile(Node *fn)
++defframe(Prog *ptxt)
+ {
+-	Plist *pl;
+-	Node nod1;
+-	Prog *ptxt;
+-	int32 lno;
+-	Type *t;
+-	Iter save;
+-
+-	if(newproc == N) {
+-		newproc = sysfunc("newproc");
+-		deferproc = sysfunc("deferproc");
+-		deferreturn = sysfunc("deferreturn");
+-		panicindex = sysfunc("panicindex");
+-		panicslice = sysfunc("panicslice");
+-		throwreturn = sysfunc("throwreturn");
+-	}
+-
+-	if(fn->nbody == nil)
+-		return;
+-
+-	// set up domain for labels
+-	clearlabels();
+-
+-	lno = setlineno(fn);
+-
+-	curfn = fn;
+-	dowidth(curfn->type);
+-
+-	if(curfn->type->outnamed) {
+-		// add clearing of the output parameters
+-		t = structfirst(&save, getoutarg(curfn->type));
+-		while(t != T) {
+-			if(t->nname != N)
+-				curfn->nbody = concat(list1(nod(OAS, t->nname, N)), curfn->nbody);
+-			t = structnext(&save);
+-		}
+-	}
+-
+-	hasdefer = 0;
+-	walk(curfn);
+-	if(nerrors != 0 || isblank(curfn->nname))
+-		goto ret;
+-
+-	allocparams();
+-
+-	continpc = P;
+-	breakpc = P;
+-
+-	pl = newplist();
+-	pl->name = curfn->nname;
+-
+-	setlineno(curfn);
+-
+-	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = gins(ATEXT, curfn->nname, &nod1);
+-	afunclit(&ptxt->from);
+-
+-	ginit();
+-	genlist(curfn->enter);
+-
+-	pret = nil;
+-	if(hasdefer || curfn->exit) {
+-		Prog *p1;
+-
+-		p1 = gjmp(nil);
+-		pret = gjmp(nil);
+-		patch(p1, pc);
+-	}
+-
+-	genlist(curfn->nbody);
+-	gclean();
+-	checklabels();
+-	if(nerrors != 0)
+-		goto ret;
+-	if(curfn->endlineno)
+-		lineno = curfn->endlineno;
+-
+-	if(curfn->type->outtuple != 0)
+-		ginscall(throwreturn, 0);
+-
+-	if(pret)
+-		patch(pret, pc);
+-	ginit();
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+-	if(curfn->exit)
+-		genlist(curfn->exit);
+-	gclean();
+-	if(nerrors != 0)
+-		goto ret;
+-	pc->as = ARET;	// overwrite AEND
+-	pc->lineno = lineno;
+-
+-	if(!debug['N'] || debug['R'] || debug['P']) {
+-		regopt(ptxt);
+-	}
+-
+ 	// fill in argument size
+ 	ptxt->to.offset = rnd(curfn->type->argwid, widthptr);
+ 
+ 	// fill in final stack size
+ 	ptxt->to.offset <<= 32;
+ 	ptxt->to.offset |= rnd(stksize+maxarg, widthptr);
+-
+-	if(debug['f'])
+-		frame(0);
+-
+-ret:
+-	lineno = lno;
+ }
+ 
++
+ /*
+  * generate:
+  *	call f
+@@ -163,7 +60,7 @@ ginscall(Node *f, int proc)
+ 		if(proc == 2) {
+ 			nodreg(&reg, types[TINT64], D_AX);
+ 			gins(ATESTQ, &reg, &reg);
+-			patch(gbranch(AJNE, T), pret);
++			patch(gbranch(AJNE, T), retpc);
+ 		}
+ 		break;
+ 	}
+@@ -355,7 +252,7 @@ cgen_ret(Node *n)
+ {
+ 	genlist(n->list);		// copy out args
+ 	if(hasdefer || curfn->exit)
+-		gjmp(pret);
++		gjmp(retpc);
+ 	else
+ 		gins(ARET, N, N);
+ }
+diff --git a/src/cmd/8g/Makefile b/src/cmd/8g/Makefile
+index 09cf8d4e30..b459782a38 100644
+--- a/src/cmd/8g/Makefile
++++ b/src/cmd/8g/Makefile
+@@ -15,15 +15,16 @@ HFILES=\
+ 
+ OFILES=\
+ 	../8l/enam.$O\
+-	list.$O\
+-	galign.$O\
+-	gobj.$O\
+-	ggen.$O\
+-	gsubr.$O\
+ 	cgen.$O\
+ 	cgen64.$O\
+ 	cplx.$O\
++	galign.$O\
++	ggen.$O\
++	gobj.$O\
++	gsubr.$O\
++	list.$O\
+ 	peep.$O\
++	pgen.$O\
+ 	reg.$O\
+ 
+ LIB=\
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 2231525364..25adb38c0c 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -7,106 +7,9 @@
+ #include "gg.h"
+ #include "opt.h"
+ 
+-static Prog *pret;
+-
+ void
+-compile(Node *fn)
++defframe(Prog *ptxt)
+ {
+-	Plist *pl;
+-	Node nod1;
+-	Prog *ptxt;
+-	int32 lno;
+-	Type *t;
+-	Iter save;
+-
+-	if(newproc == N) {
+-		newproc = sysfunc("newproc");
+-		deferproc = sysfunc("deferproc");
+-		deferreturn = sysfunc("deferreturn");
+-		panicindex = sysfunc("panicindex");
+-		panicslice = sysfunc("panicslice");
+-		throwreturn = sysfunc("throwreturn");
+-	}
+-
+-	if(fn->nbody == nil)
+-		return;
+-
+-	// set up domain for labels
+-	clearlabels();
+-
+-	lno = setlineno(fn);
+-
+-	curfn = fn;
+-	dowidth(curfn->type);
+-
+-	if(curfn->type->outnamed) {
+-		// add clearing of the output parameters
+-		t = structfirst(&save, getoutarg(curfn->type));
+-		while(t != T) {
+-			if(t->nname != N)
+-				curfn->nbody = concat(list1(nod(OAS, t->nname, N)), curfn->nbody);
+-			t = structnext(&save);
+-		}
+-	}
+-
+-	hasdefer = 0;
+-	walk(curfn);
+-	if(nerrors != 0 || isblank(curfn->nname))
+-		goto ret;
+-
+-	allocparams();
+-
+-	continpc = P;
+-	breakpc = P;
+-
+-	pl = newplist();
+-	pl->name = curfn->nname;
+-
+-	setlineno(curfn);
+-
+-	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = gins(ATEXT, curfn->nname, &nod1);
+-	afunclit(&ptxt->from);
+-
+-	ginit();
+-	genlist(curfn->enter);
+-
+-	pret = nil;
+-	if(hasdefer || curfn->exit) {
+-		Prog *p1;
+-
+-		p1 = gjmp(nil);
+-		pret = gjmp(nil);
+-		patch(p1, pc);
+-	}
+-
+-	genlist(curfn->nbody);
+-	gclean();
+-	checklabels();
+-	if(nerrors != 0)
+-		goto ret;
+-	if(curfn->endlineno)
+-		lineno = curfn->endlineno;
+-
+-	if(curfn->type->outtuple != 0)
+-		ginscall(throwreturn, 0);
+-
+-	if(pret)
+-		patch(pret, pc);
+-	ginit();
+-	if(hasdefer)
+-		ginscall(deferreturn, 0);
+-	if(curfn->exit)
+-		genlist(curfn->exit);
+-	gclean();
+-	if(nerrors != 0)
+-		goto ret;
+-	pc->as = ARET;	// overwrite AEND
+-	pc->lineno = lineno;
+-
+-	if(!debug['N'] || debug['R'] || debug['P']) {
+-		regopt(ptxt);
+-	}
+ 	// fill in argument size
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+ 
+@@ -115,12 +18,6 @@ compile(Node *fn)
+ 		maxstksize = stksize;
+ 	ptxt->to.offset = rnd(maxstksize+maxarg, widthptr);
+ 	maxstksize = 0;
+-
+-	if(debug['f'])
+-		frame(0);
+-
+-ret:
+-	lineno = lno;
+ }
+ 
+ void
+@@ -200,7 +97,7 @@ ginscall(Node *f, int proc)
+ 		if(proc == 2) {
+ 			nodreg(&reg, types[TINT64], D_AX);
+ 			gins(ATESTL, &reg, &reg);
+-			patch(gbranch(AJNE, T), pret);
++			patch(gbranch(AJNE, T), retpc);
+ 		}
+ 		break;
+ 	}
+@@ -391,8 +288,8 @@ void
+ cgen_ret(Node *n)
+ {
+ 	genlist(n->list);		// copy out args
+-	if(pret)
+-		gjmp(pret);
++	if(retpc)
++		gjmp(retpc);
+ 	else
+ 		gins(ARET, N, N);
+ }
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 95013586b8..78c676346f 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -1251,9 +1251,6 @@ funccompile(Node *n, int isclosure)
+ 
+ 	if(curfn)
+ 		fatal("funccompile %S inside %S", n->nname->sym, curfn->nname->sym);
+-	curfn = n;
+-	typechecklist(n->nbody, Etop);
+-	curfn = nil;
+ 
+ 	stksize = 0;
+ 	dclcontext = PAUTO;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f355e53c53..f5c0443f84 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1213,6 +1213,7 @@ EXTERN	Prog*	continpc;
+ EXTERN	Prog*	breakpc;
+ EXTERN	Prog*	pc;
+ EXTERN	Prog*	firstpc;
++EXTERN	Prog*	retpc;
+ 
+ EXTERN	Node*	nodfp;
+ 
+@@ -1226,6 +1227,7 @@ void	cgen_callinter(Node *n, Node *res, int proc);
+ void	cgen_ret(Node *n);
+ void	clearfat(Node *n);
+ void	compile(Node*);
++void	defframe(Prog*);
+ int	dgostringptr(Sym*, int off, char *str);
+ int	dgostrlitptr(Sym*, int off, Strlit*);
+ int	dstringptr(Sym *s, int off, char *str);
+diff --git a/src/cmd/gc/init.c b/src/cmd/gc/init.c
+index af4eb03360..8818db08c7 100644
+--- a/src/cmd/gc/init.c
++++ b/src/cmd/gc/init.c
+@@ -182,11 +182,14 @@ fninit(NodeList *n)
+ 	// (11)
+ 	a = nod(ORETURN, N, N);
+ 	r = list(r, a);
+-
+ 	exportsym(fn->nname);
+ 
+ 	fn->nbody = r;
+ 	funcbody(fn);
++
++	curfn = fn;
+ 	typecheck(&fn, Etop);
++	typechecklist(r, Etop);
++	curfn = nil;
+ 	funccompile(fn, 0);
+ }
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 04dd0d5b95..5e2f73fc5a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -235,13 +235,14 @@ main(int argc, char *argv[])
+ 	if(debug['f'])
+ 		frame(1);
+ 
+-	// Process top-level declarations in three phases.
++	// Process top-level declarations in four phases.
+ 	// Phase 1: const, type, and names and types of funcs.
+ 	//   This will gather all the information about types
+ 	//   and methods but doesn't depend on any of it.
+ 	// Phase 2: Variable assignments.
+ 	//   To check interface assignments, depends on phase 1.
+-	// Phase 3: Function bodies.
++	// Phase 3: Type check function bodies.
++	// Phase 4: Compile function bodies.
+ 	defercheckwidth();
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op != ODCL && l->n->op != OAS)
+@@ -251,17 +252,28 @@ main(int argc, char *argv[])
+ 			typecheck(&l->n, Etop);
+ 	resumetypecopy();
+ 	resumecheckwidth();
++
++	for(l=xtop; l; l=l->next)
++		if(l->n->op == ODCLFUNC) {
++			curfn = l->n;
++			typechecklist(l->n->nbody, Etop);
++		}
++	curfn = nil;
++
+ 	for(l=xtop; l; l=l->next)
+ 		if(l->n->op == ODCLFUNC)
+ 			funccompile(l->n, 0);
++
+ 	if(nerrors == 0)
+ 		fninit(xtop);
++
+ 	while(closures) {
+ 		l = closures;
+ 		closures = nil;
+ 		for(; l; l=l->next)
+ 			funccompile(l->n, 1);
+ 	}
++
+ 	dclchecks();
+ 
+ 	if(nerrors)
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+new file mode 100644
+index 0000000000..9bd845dde4
+--- /dev/null
++++ b/src/cmd/gc/pgen.c
+@@ -0,0 +1,119 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#undef	EXTERN
++#define	EXTERN
++#include "gg.h"
++#include "opt.h"
++
++void
++compile(Node *fn)
++{
++	Plist *pl;
++	Node nod1, *n;
++	Prog *ptxt;
++	int32 lno;
++	Type *t;
++	Iter save;
++
++	if(newproc == N) {
++		newproc = sysfunc("newproc");
++		deferproc = sysfunc("deferproc");
++		deferreturn = sysfunc("deferreturn");
++		panicindex = sysfunc("panicindex");
++		panicslice = sysfunc("panicslice");
++		throwreturn = sysfunc("throwreturn");
++	}
++
++	if(fn->nbody == nil)
++		return;
++
++	// set up domain for labels
++	clearlabels();
++
++	lno = setlineno(fn);
++
++	curfn = fn;
++	dowidth(curfn->type);
++
++	if(curfn->type->outnamed) {
++		// add clearing of the output parameters
++		t = structfirst(&save, getoutarg(curfn->type));
++		while(t != T) {
++			if(t->nname != N) {
++				n = nod(OAS, t->nname, N);
++				typecheck(&n, Etop);
++				curfn->nbody = concat(list1(n), curfn->nbody);
++			}
++			t = structnext(&save);
++		}
++	}
++
++	hasdefer = 0;
++	walk(curfn);
++	if(nerrors != 0 || isblank(curfn->nname))
++		goto ret;
++
++	allocparams();
++
++	continpc = P;
++	breakpc = P;
++
++	pl = newplist();
++	pl->name = curfn->nname;
++
++	setlineno(curfn);
++
++	nodconst(&nod1, types[TINT32], 0);
++	ptxt = gins(ATEXT, curfn->nname, &nod1);
++	afunclit(&ptxt->from);
++
++	ginit();
++	genlist(curfn->enter);
++
++	retpc = nil;
++	if(hasdefer || curfn->exit) {
++		Prog *p1;
++
++		p1 = gjmp(nil);
++		retpc = gjmp(nil);
++		patch(p1, pc);
++	}
++
++	genlist(curfn->nbody);
++	gclean();
++	checklabels();
++	if(nerrors != 0)
++		goto ret;
++	if(curfn->endlineno)
++		lineno = curfn->endlineno;
++
++	if(curfn->type->outtuple != 0)
++		ginscall(throwreturn, 0);
++
++	if(retpc)
++		patch(retpc, pc);
++	ginit();
++	if(hasdefer)
++		ginscall(deferreturn, 0);
++	if(curfn->exit)
++		genlist(curfn->exit);
++	gclean();
++	if(nerrors != 0)
++		goto ret;
++	pc->as = ARET;	// overwrite AEND
++	pc->lineno = lineno;
++
++	if(!debug['N'] || debug['R'] || debug['P']) {
++		regopt(ptxt);
++	}
++
++	defframe(ptxt);
++
++	if(debug['f'])
++		frame(0);
++
++ret:
++	lineno = lno;
++}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 326a5ba74a..4c0819cd86 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3170,7 +3170,10 @@ genwrapper(Type *rcvr, Type *method, Sym *newnam, int iface)
+ 		dumplist("genwrapper body", fn->nbody);
+ 
+ 	funcbody(fn);
++	curfn = fn;
+ 	typecheck(&fn, Etop);
++	typechecklist(fn->nbody, Etop);
++	curfn = nil;
+ 	funccompile(fn, 0);
+ }
+ 
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 70dc407593..ccc65ff215 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -66,6 +66,7 @@ walk(Node *fn)
+ 	int lno;
+ 
+ 	curfn = fn;
++
+ 	if(debug['W']) {
+ 		snprint(s, sizeof(s), "\nbefore %S", curfn->nname->sym);
+ 		dumplist(s, curfn->nbody);
+@@ -73,7 +74,7 @@ walk(Node *fn)
+ 	if(curfn->type->outtuple)
+ 		if(walkret(curfn->nbody))
+ 			yyerror("function ends without a return statement");
+-	typechecklist(curfn->nbody, Etop);
++
+ 	lno = lineno;
+ 	for(l=fn->dcl; l; l=l->next) {
+ 		n = l->n;
+@@ -468,8 +469,10 @@ walkstmt(Node **np)
+ 	case OPANIC:
+ 	case OEMPTY:
+ 	case ORECOVER:
+-		if(n->typecheck == 0)
++		if(n->typecheck == 0) {
++			dump("missing typecheck:", n);
+ 			fatal("missing typecheck");
++		}
+ 		init = n->ninit;
+ 		n->ninit = nil;
+ 		walkexpr(&n, &init);

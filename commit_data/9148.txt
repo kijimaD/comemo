@@ -7,6 +7,19 @@ Date:   Wed Jul 20 13:30:46 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4818041
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 010b81829c..2f1ea356ed 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -165,6 +165,7 @@ Michael Hoisie <hoisie@gmail.com>
+ Michael T. Jones <mtj@google.com> <michael.jones@gmail.com>
+ Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikael Tillenius <mikti42@gmail.com>
++Mike Solomon <msolo@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>

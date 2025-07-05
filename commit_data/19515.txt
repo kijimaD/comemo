@@ -16,8 +16,51 @@ Date:   Wed Jun 11 11:22:08 2014 -0700
     R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/91770051
-
+---
  src/pkg/encoding/base32/base32.go      | 2 +-
  src/pkg/encoding/base64/base64.go      | 2 +-
  src/pkg/encoding/base64/base64_test.go | 8 ++++++++
  3 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/encoding/base32/base32.go b/src/pkg/encoding/base32/base32.go
+index d770de3915..7613de24d2 100644
+--- a/src/pkg/encoding/base32/base32.go
++++ b/src/pkg/encoding/base32/base32.go
+@@ -330,7 +330,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	s = strings.Map(removeNewlinesMapper, s)
+ 	dbuf := make([]byte, enc.DecodedLen(len(s)))
+-	n, err := enc.Decode(dbuf, []byte(s))
++	n, _, err := enc.decode(dbuf, []byte(s))
+ 	return dbuf[:n], err
+ }
+ 
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index e38c26d0ec..4f1fcad917 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -295,7 +295,7 @@ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+ func (enc *Encoding) DecodeString(s string) ([]byte, error) {
+ 	s = strings.Map(removeNewlinesMapper, s)
+ 	dbuf := make([]byte, enc.DecodedLen(len(s)))
+-	n, err := enc.Decode(dbuf, []byte(s))
++	n, _, err := enc.decode(dbuf, []byte(s))
+ 	return dbuf[:n], err
+ }
+ 
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index a075194e03..691edb755b 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -342,3 +342,11 @@ func TestDecoderIssue7733(t *testing.T) {
+ 		t.Errorf("DecodeString = %q; want abcd", s)
+ 	}
+ }
++
++func BenchmarkDecodeString(b *testing.B) {
++	data := StdEncoding.EncodeToString(make([]byte, 8192))
++	b.SetBytes(int64(len(data)))
++	for i := 0; i < b.N; i++ {
++		StdEncoding.DecodeString(data)
++	}
++}

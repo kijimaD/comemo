@@ -11,6 +11,26 @@ Date:   Thu Apr 30 14:18:06 2020 +0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/math/example_test.go b/src/math/example_test.go
+index ce9c383256..9fc1967967 100644
+--- a/src/math/example_test.go
++++ b/src/math/example_test.go
+@@ -227,3 +227,14 @@ func ExampleCbrt() {
+ 	// 2.00
+ 	// 3.00
+ }
++
++func ExampleModf() {
++	int, frac := math.Modf(3.14)
++	fmt.Printf("%.2f, %.2f\n", int, frac)
++
++	int, frac = math.Modf(-2.71)
++	fmt.Printf("%.2f, %.2f\n", int, frac)
++	// Output:
++	// 3.00, 0.14
++	// -2.00, -0.71
++}

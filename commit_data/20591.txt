@@ -34,6 +34,23 @@ Date:   Sat Sep 20 23:31:11 2014 -0700
     R=golang-codereviews, dvyukov
     CC=golang-codereviews
     https://golang.org/cl/146880043
-
+---
  src/runtime/runtime_test.go | 5 ++---
  1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 3c4075842b..1688364a8e 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -206,9 +206,8 @@ func testSetPanicOnFault(t *testing.T, addr uintptr, nfault *int) {
+ 	// addresses that have had C or kernel pages mapped there
+ 	// readable by user code. So just log the content.
+ 	// If no addresses fault, we'll fail the test.
+-	var p *int
+-	p = (*int)(unsafe.Pointer(addr))
+-	t.Logf("addr %#x: %#x\n", addr, *p)
++	v := *(*byte)(unsafe.Pointer(addr))
++	t.Logf("addr %#x: %#x\n", addr, v)
+ }
+ 
+ func eqstring_generic(s1, s2 string) bool {

@@ -12,7 +12,81 @@ Date:   Thu Sep 17 21:01:29 2015 +0200
     Run-TryBot: Dave Cheney <dave@cheney.net>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go | 17 +++++++++--------
  src/cmd/compile/internal/gc/walk.go  |  2 +-
  2 files changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index a6428ac427..e7559c206e 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -986,37 +986,37 @@ func evconst(n *Node) {
+ 		goto setfalse
+ 
+ 	case OEQ<<16 | CTSTR:
+-		if cmpslit(nl, nr) == 0 {
++		if strlit(nl) == strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case ONE<<16 | CTSTR:
+-		if cmpslit(nl, nr) != 0 {
++		if strlit(nl) != strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLT<<16 | CTSTR:
+-		if cmpslit(nl, nr) < 0 {
++		if strlit(nl) < strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OLE<<16 | CTSTR:
+-		if cmpslit(nl, nr) <= 0 {
++		if strlit(nl) <= strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGE<<16 | CTSTR:
+-		if cmpslit(nl, nr) >= 0 {
++		if strlit(nl) >= strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+ 
+ 	case OGT<<16 | CTSTR:
+-		if cmpslit(nl, nr) > 0 {
++		if strlit(nl) > strlit(nr) {
+ 			goto settrue
+ 		}
+ 		goto setfalse
+@@ -1341,8 +1341,9 @@ func defaultlit2(lp **Node, rp **Node, force int) {
+ 	Convlit(rp, Types[TINT])
+ }
+ 
+-func cmpslit(l, r *Node) int {
+-	return stringsCompare(l.Val().U.(string), r.Val().U.(string))
++// strlit returns the value of a literal string Node as a string.
++func strlit(n *Node) string {
++	return n.Val().U.(string)
+ }
+ 
+ func Smallintconst(n *Node) bool {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 4ce1db6241..2afa05c66a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1356,7 +1356,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		}
+ 
+ 		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && cmpslit(n.Right, n.Left.List.Next.N) == 0 {
++		if (n.Etype == OEQ || n.Etype == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && count(n.Left.List) == 2 && Isconst(n.Left.List.Next.N, CTSTR) && strlit(n.Right) == strlit(n.Left.List.Next.N) {
+ 			r := Nod(int(n.Etype), Nod(OLEN, n.Left.List.N, nil), Nodintconst(0))
+ 			typecheck(&r, Erv)
+ 			walkexpr(&r, init)

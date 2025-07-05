@@ -7,6 +7,19 @@ Date:   Mon Nov 1 16:15:03 2010 -0400
     R=rsc, adg
     CC=golang-dev
     https://golang.org/cl/2723041
-
+---
  src/pkg/http/server.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 44ad8f1df9..23c36c10c7 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -225,6 +225,7 @@ func (w *response) WriteHeader(code int) {
+ 		// Must not have body.
+ 		w.header["Content-Type"] = "", false
+ 		w.header["Transfer-Encoding"] = "", false
++		w.chunking = false
+ 	}
+ 	if !w.req.ProtoAtLeast(1, 0) {
+ 		return

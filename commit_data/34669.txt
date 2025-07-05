@@ -34,7 +34,7 @@ Date:   Thu Nov 2 13:53:16 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/75592
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/zip/reader.go                 |  18 +++++++++
  src/archive/zip/reader_test.go            |  65 +++++++++++++++++++++++++++++-
  src/archive/zip/struct.go                 |  20 +++++++--
@@ -46,3 +46,252 @@ Date:   Thu Nov 2 13:53:16 2017 -0700
  src/archive/zip/writer.go                 |  21 ++++++----
  src/archive/zip/writer_test.go            |   8 ++++
  10 files changed, 119 insertions(+), 13 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index ae01786386..7417b8f36a 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -281,6 +281,24 @@ func readDirectoryHeader(f *File, r io.Reader) error {
+ 	f.Extra = d[filenameLen : filenameLen+extraLen]
+ 	f.Comment = string(d[filenameLen+extraLen:])
+ 
++	// Determine the character encoding.
++	utf8Valid1, utf8Require1 := detectUTF8(f.Name)
++	utf8Valid2, utf8Require2 := detectUTF8(f.Comment)
++	switch {
++	case !utf8Valid1 || !utf8Valid2:
++		// Name and Comment definitely not UTF-8.
++		f.NonUTF8 = true
++	case !utf8Require1 && !utf8Require2:
++		// Name and Comment use only single-byte runes that overlap with UTF-8.
++		f.NonUTF8 = false
++	default:
++		// Might be UTF-8, might be some other encoding; preserve existing flag.
++		// Some ZIP writers use UTF-8 encoding without setting the UTF-8 flag.
++		// Since it is impossible to always distinguish valid UTF-8 from some
++		// other encoding (e.g., GBK or Shift-JIS), we trust the flag.
++		f.NonUTF8 = f.Flags&0x800 == 0
++	}
++
+ 	needUSize := f.UncompressedSize == ^uint32(0)
+ 	needCSize := f.CompressedSize == ^uint32(0)
+ 	needHeaderOffset := f.headerOffset == int64(^uint32(0))
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index d2d051b223..5fa2c80afa 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -29,7 +29,8 @@ type ZipTest struct {
+ type ZipTestFile struct {
+ 	Name    string
+ 	Mode    os.FileMode
+-	ModTime time.Time // optional, modified time in format "mm-dd-yy hh:mm:ss"
++	NonUTF8 bool
++	ModTime time.Time
+ 
+ 	// Information describing expected zip file content.
+ 	// First, reading the entire content should produce the error ContentErr.
+@@ -319,6 +320,68 @@ var tests = []ZipTest{
+ 			},
+ 		},
+ 	},
++	{
++		Name: "utf8-7zip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "世界",
++				Content: []byte{},
++				Mode:    0666,
++				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
++			},
++		},
++	},
++	{
++		Name: "utf8-infozip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "世界",
++				Content: []byte{},
++				Mode:    0644,
++				// Name is valid UTF-8, but format does not have UTF-8 flag set.
++				// We don't do UTF-8 detection for multi-byte runes due to
++				// false-positives with other encodings (e.g., Shift-JIS).
++				// Format says encoding is not UTF-8, so we trust it.
++				NonUTF8: true,
++				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
++			},
++		},
++	},
++	{
++		Name: "utf8-osx.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "世界",
++				Content: []byte{},
++				Mode:    0644,
++				// Name is valid UTF-8, but format does not have UTF-8 set.
++				NonUTF8: true,
++				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 0, timeZone(-8*time.Hour)),
++			},
++		},
++	},
++	{
++		Name: "utf8-winrar.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "世界",
++				Content: []byte{},
++				Mode:    0666,
++				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867862500, timeZone(-8*time.Hour)),
++			},
++		},
++	},
++	{
++		Name: "utf8-winzip.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "世界",
++				Content: []byte{},
++				Mode:    0666,
++				ModTime: time.Date(2017, 11, 6, 13, 9, 27, 867000000, timeZone(-8*time.Hour)),
++			},
++		},
++	},
+ 	{
+ 		Name: "time-7zip.zip",
+ 		File: []ZipTestFile{
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 668d018fdf..f2bc7be6a5 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -81,11 +81,24 @@ const (
+ // See the zip spec for details.
+ type FileHeader struct {
+ 	// Name is the name of the file.
+-	// It must be a relative path: it must not start with a drive
+-	// letter (e.g. C:) or leading slash, and only forward slashes
+-	// are allowed.
++	// It must be a relative path, not start with a drive letter (e.g. C:),
++	// and must use forward slashes instead of back slashes.
+ 	Name string
+ 
++	// Comment is any arbitrary user-defined string shorter than 64KiB.
++	Comment string
++
++	// NonUTF8 indicates that Name and Comment are not encoded in UTF-8.
++	//
++	// By specification, the only other encoding permitted should be CP-437,
++	// but historically many ZIP readers interpret Name and Comment as whatever
++	// the system's local character encoding happens to be.
++	//
++	// This flag should only be set if the user intends to encode a non-portable
++	// ZIP file for a specific localized region. Otherwise, the Writer
++	// automatically sets the ZIP format's UTF-8 flag for valid UTF-8 strings.
++	NonUTF8 bool
++
+ 	CreatorVersion uint16
+ 	ReaderVersion  uint16
+ 	Flags          uint16
+@@ -111,7 +124,6 @@ type FileHeader struct {
+ 	UncompressedSize64 uint64
+ 	Extra              []byte
+ 	ExternalAttrs      uint32 // Meaning depends on CreatorVersion
+-	Comment            string
+ }
+ 
+ // FileInfo returns an os.FileInfo for the FileHeader.
+diff --git a/src/archive/zip/testdata/utf8-7zip.zip b/src/archive/zip/testdata/utf8-7zip.zip
+new file mode 100644
+index 0000000000..0e97884559
+Binary files /dev/null and b/src/archive/zip/testdata/utf8-7zip.zip differ
+diff --git a/src/archive/zip/testdata/utf8-infozip.zip b/src/archive/zip/testdata/utf8-infozip.zip
+new file mode 100644
+index 0000000000..25a892646c
+Binary files /dev/null and b/src/archive/zip/testdata/utf8-infozip.zip differ
+diff --git a/src/archive/zip/testdata/utf8-osx.zip b/src/archive/zip/testdata/utf8-osx.zip
+new file mode 100644
+index 0000000000..9b0c058b5b
+Binary files /dev/null and b/src/archive/zip/testdata/utf8-osx.zip differ
+diff --git a/src/archive/zip/testdata/utf8-winrar.zip b/src/archive/zip/testdata/utf8-winrar.zip
+new file mode 100644
+index 0000000000..4bad6c3a5e
+Binary files /dev/null and b/src/archive/zip/testdata/utf8-winrar.zip differ
+diff --git a/src/archive/zip/testdata/utf8-winzip.zip b/src/archive/zip/testdata/utf8-winzip.zip
+new file mode 100644
+index 0000000000..909d52ed2d
+Binary files /dev/null and b/src/archive/zip/testdata/utf8-winzip.zip differ
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 9fb9cee1ae..7b33968618 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -216,12 +216,17 @@ func (w *Writer) Create(name string) (io.Writer, error) {
+ }
+ 
+ // detectUTF8 reports whether s is a valid UTF-8 string, and whether the string
+-// must be considered UTF-8 encoding (i.e., not compatible with CP-437).
++// must be considered UTF-8 encoding (i.e., not compatible with CP-437, ASCII,
++// or any other common encoding).
+ func detectUTF8(s string) (valid, require bool) {
+ 	for _, r := range s {
+-		// By default, ZIP uses CP-437,
+-		// which is only identical to ASCII for the printable characters.
+-		if r < 0x20 || r >= 0x7f {
++		// Officially, ZIP uses CP-437, but many readers use the system's
++		// local character encoding. Most encoding are compatible with a large
++		// subset of CP-437, which itself is ASCII-like.
++		//
++		// Forbid 0x7e and 0x5c since EUC-KR and Shift-JIS replace those
++		// characters with localized currency and overline characters.
++		if r < 0x20 || r > 0x7d || r == 0x5c {
+ 			if !utf8.ValidRune(r) || r == utf8.RuneError {
+ 				return false, false
+ 			}
+@@ -267,12 +272,12 @@ func (w *Writer) CreateHeader(fh *FileHeader) (io.Writer, error) {
+ 	//
+ 	// For the case, where the user explicitly wants to specify the encoding
+ 	// as UTF-8, they will need to set the flag bit themselves.
+-	// TODO: For the case, where the user explicitly wants to specify that the
+-	// encoding is *not* UTF-8, that is currently not possible.
+-	// See golang.org/issue/10741.
+ 	utf8Valid1, utf8Require1 := detectUTF8(fh.Name)
+ 	utf8Valid2, utf8Require2 := detectUTF8(fh.Comment)
+-	if (utf8Require1 || utf8Require2) && utf8Valid1 && utf8Valid2 {
++	switch {
++	case fh.NonUTF8:
++		fh.Flags &^= 0x800
++	case (utf8Require1 || utf8Require2) && (utf8Valid1 && utf8Valid2):
+ 		fh.Flags |= 0x800
+ 	}
+ 
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index acca97e9b6..ee5c866310 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -137,6 +137,7 @@ func TestWriterUTF8(t *testing.T) {
+ 		name    string
+ 		comment string
+ 		expect  uint16
++		nonUTF8 bool
+ 	}{
+ 		{
+ 			name:    "hi, hello",
+@@ -148,6 +149,12 @@ func TestWriterUTF8(t *testing.T) {
+ 			comment: "in the world",
+ 			expect:  0x808,
+ 		},
++		{
++			name:    "hi, こんにちわ",
++			comment: "in the world",
++			nonUTF8: true,
++			expect:  0x8,
++		},
+ 		{
+ 			name:    "hi, hello",
+ 			comment: "in the 世界",
+@@ -174,6 +181,7 @@ func TestWriterUTF8(t *testing.T) {
+ 		h := &FileHeader{
+ 			Name:    test.name,
+ 			Comment: test.comment,
++			NonUTF8: test.nonUTF8,
+ 			Method:  Deflate,
+ 		}
+ 		w, err := w.CreateHeader(h)

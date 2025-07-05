@@ -7,7 +7,7 @@ Date:   Sun Oct 7 16:36:14 2012 -0400
     R=ken
     CC=golang-dev
     https://golang.org/cl/6610065
-
+---
  src/cmd/8l/8.out.h | 137 +++++++++++++++++++++++++++++++++++++----
  src/cmd/8l/l.h     |   8 +++
  src/cmd/8l/list.c  |   9 +++
@@ -15,3 +15,588 @@ Date:   Sun Oct 7 16:36:14 2012 -0400
  src/cmd/8l/optab.c | 178 +++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/8l/span.c  |  78 ++++++++++++++++++++++-
  6 files changed, 411 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 49e046207b..27040be8bf 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -461,6 +461,112 @@ enum	as
+ 	
+ 	AUNDEF,
+ 
++	// SSE2
++	AADDPD,
++	AADDPS,
++	AADDSD,
++	AADDSS,
++	AANDNPD,
++	AANDNPS,
++	AANDPD,
++	AANDPS,
++	ACMPPD,
++	ACMPPS,
++	ACMPSD,
++	ACMPSS,
++	ACOMISD,
++	ACOMISS,
++	ACVTPL2PD,
++	ACVTPL2PS,
++	ACVTPD2PL,
++	ACVTPD2PS,
++	ACVTPS2PL,
++	ACVTPS2PD,
++	ACVTSD2SL,
++	ACVTSD2SS,
++	ACVTSL2SD,
++	ACVTSL2SS,
++	ACVTSS2SD,
++	ACVTSS2SL,
++	ACVTTPD2PL,
++	ACVTTPS2PL,
++	ACVTTSD2SL,
++	ACVTTSS2SL,
++	ADIVPD,
++	ADIVPS,
++	ADIVSD,
++	ADIVSS,
++	AMASKMOVOU,
++	AMAXPD,
++	AMAXPS,
++	AMAXSD,
++	AMAXSS,
++	AMINPD,
++	AMINPS,
++	AMINSD,
++	AMINSS,
++	AMOVAPD,
++	AMOVAPS,
++	AMOVO,
++	AMOVOU,
++	AMOVHLPS,
++	AMOVHPD,
++	AMOVHPS,
++	AMOVLHPS,
++	AMOVLPD,
++	AMOVLPS,
++	AMOVMSKPD,
++	AMOVMSKPS,
++	AMOVNTO,
++	AMOVNTPD,
++	AMOVNTPS,
++	AMOVSD,
++	AMOVSS,
++	AMOVUPD,
++	AMOVUPS,
++	AMULPD,
++	AMULPS,
++	AMULSD,
++	AMULSS,
++	AORPD,
++	AORPS,
++	APADDQ,
++	APMAXSW,
++	APMAXUB,
++	APMINSW,
++	APMINUB,
++	APSADBW,
++	APSUBB,
++	APSUBL,
++	APSUBQ,
++	APSUBSB,
++	APSUBSW,
++	APSUBUSB,
++	APSUBUSW,
++	APSUBW,
++	APUNPCKHQDQ,
++	APUNPCKLQDQ,
++	ARCPPS,
++	ARCPSS,
++	ARSQRTPS,
++	ARSQRTSS,
++	ASQRTPD,
++	ASQRTPS,
++	ASQRTSD,
++	ASQRTSS,
++	ASUBPD,
++	ASUBPS,
++	ASUBSD,
++	ASUBSS,
++	AUCOMISD,
++	AUCOMISS,
++	AUNPCKHPD,
++	AUNPCKHPS,
++	AUNPCKLPD,
++	AUNPCKLPS,
++	AXORPD,
++	AXORPS,
++
+ 	ALAST
+ };
+ 
+@@ -505,17 +611,26 @@ enum
+ 	D_DR		= 43,
+ 	D_TR		= 51,
+ 
+-	D_NONE		= 59,
+-
+-	D_BRANCH	= 60,
+-	D_EXTERN	= 61,
+-	D_STATIC	= 62,
+-	D_AUTO		= 63,
+-	D_PARAM		= 64,
+-	D_CONST		= 65,
+-	D_FCONST	= 66,
+-	D_SCONST	= 67,
+-	D_ADDR		= 68,
++	D_X0		= 59,
++	D_X1,
++	D_X2,
++	D_X3,
++	D_X4,
++	D_X5,
++	D_X6,
++	D_X7,
++
++	D_NONE		= 67,
++
++	D_BRANCH	= 68,
++	D_EXTERN	= 69,
++	D_STATIC	= 70,
++	D_AUTO		= 71,
++	D_PARAM		= 72,
++	D_CONST		= 73,
++	D_FCONST	= 74,
++	D_SCONST	= 75,
++	D_ADDR		= 76,
+ 
+ 	D_FILE,
+ 	D_FILE1,
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 87b93c58fa..8cf0fde3ac 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -203,6 +203,8 @@ enum
+ 	Ycr0,	Ycr1,	Ycr2,	Ycr3,	Ycr4,	Ycr5,	Ycr6,	Ycr7,
+ 	Ydr0,	Ydr1,	Ydr2,	Ydr3,	Ydr4,	Ydr5,	Ydr6,	Ydr7,
+ 	Ytr0,	Ytr1,	Ytr2,	Ytr3,	Ytr4,	Ytr5,	Ytr6,	Ytr7,
++	Ymr, Ymm,
++	Yxr, Yxm,
+ 	Ymax,
+ 
+ 	Zxxx		= 0,
+@@ -224,10 +226,14 @@ enum
+ 	Zloop,
+ 	Zm_o,
+ 	Zm_r,
++	Zm_r_xm,
++	Zm_r_i_xm,
+ 	Zaut_r,
+ 	Zo_m,
+ 	Zpseudo,
+ 	Zr_m,
++	Zr_m_xm,
++	Zr_m_i_xm,
+ 	Zrp_,
+ 	Z_ib,
+ 	Z_il,
+@@ -245,6 +251,8 @@ enum
+ 	Pm		= 0x0f,	/* 2byte opcode escape */
+ 	Pq		= 0xff,	/* both escape */
+ 	Pb		= 0xfe,	/* byte operands */
++	Pf2		= 0xf2,	/* xmm escape 1 */
++	Pf3		= 0xf3,	/* xmm escape 2 */
+ };
+ 
+ #pragma	varargck	type	"A"	int
+diff --git a/src/cmd/8l/list.c b/src/cmd/8l/list.c
+index 31ae023468..0b544fbce0 100644
+--- a/src/cmd/8l/list.c
++++ b/src/cmd/8l/list.c
+@@ -254,6 +254,15 @@ char*	regstr[] =
+ 	"TR5",
+ 	"TR6",
+ 	"TR7",
++	
++	"X0",
++	"X1",
++	"X2",
++	"X3",
++	"X4",
++	"X5",
++	"X6",
++	"X7",
+ 
+ 	"NONE",		/* [D_NONE] */
+ };
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index 5e4bb1bfb6..648fef1ab0 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -657,6 +657,13 @@ loop:
+ 	case AFDIVRF:
+ 	case AFCOMF:
+ 	case AFCOMFP:
++	case AMOVSS:
++	case AADDSS:
++	case ASUBSS:
++	case AMULSS:
++	case ADIVSS:
++	case ACOMISS:
++	case AUCOMISS:
+ 		if(skip)
+ 			goto casdef;
+ 		if(p->from.type == D_FCONST) {
+@@ -683,6 +690,13 @@ loop:
+ 	case AFDIVRD:
+ 	case AFCOMD:
+ 	case AFCOMDP:
++	case AMOVSD:
++	case AADDSD:
++	case ASUBSD:
++	case AMULSD:
++	case ADIVSD:
++	case ACOMISD:
++	case AUCOMISD:
+ 		if(skip)
+ 			goto casdef;
+ 		if(p->from.type == D_FCONST) {
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index 7a588fca49..de87e22ecc 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -356,6 +356,79 @@ uchar	ysvrs[] =
+ 	Ym,	Ynone,	Zm_o,	2,
+ 	0
+ };
++uchar	yxm[] = 
++{
++	Yxm,	Yxr,	Zm_r_xm,	1,
++	0
++};
++uchar	yxcvm1[] = 
++{
++	Yxm,	Yxr,	Zm_r_xm,	2,
++	Yxm,	Ymr,	Zm_r_xm,	2,
++	0
++};
++uchar	yxcvm2[] =
++{
++	Yxm,	Yxr,	Zm_r_xm,	2,
++	Ymm,	Yxr,	Zm_r_xm,	2,
++	0
++};
++uchar	yxmq[] = 
++{
++	Yxm,	Yxr,	Zm_r_xm,	2,
++	0
++};
++uchar	yxr[] = 
++{
++	Yxr,	Yxr,	Zm_r_xm,	1,
++	0
++};
++uchar	yxr_ml[] =
++{
++	Yxr,	Yml,	Zr_m_xm,	1,
++	0
++};
++uchar	yxcmp[] =
++{
++	Yxm,	Yxr, Zm_r_xm,	1,
++	0
++};
++uchar	yxcmpi[] =
++{
++	Yxm,	Yxr, Zm_r_i_xm,	2,
++	0
++};
++uchar	yxmov[] =
++{
++	Yxm,	Yxr,	Zm_r_xm,	1,
++	Yxr,	Yxm,	Zr_m_xm,	1,
++	0
++};
++uchar	yxcvfl[] = 
++{
++	Yxm,	Yrl,	Zm_r_xm,	1,
++	0
++};
++uchar	yxcvlf[] =
++{
++	Yml,	Yxr,	Zm_r_xm,	1,
++	0
++};
++uchar	yxcvfq[] = 
++{
++	Yxm,	Yrl,	Zm_r_xm,	2,
++	0
++};
++uchar	yxcvqf[] =
++{
++	Yml,	Yxr,	Zm_r_xm,	2,
++	0
++};
++uchar	yxrrl[] =
++{
++	Yxr,	Yrl,	Zm_r,	1,
++	0
++};
+ uchar	yprefetch[] =
+ {
+ 	Ym,	Ynone,	Zm_o,	2,
+@@ -782,5 +855,110 @@ Optab optab[] =
+ 	
+ 	{ AUNDEF,		ynone,	Px,	0x0f, 0x0b },
+ 
++	{ AADDPD,	yxm,	Pq, 0x58 },
++	{ AADDPS,	yxm,	Pm, 0x58 },
++	{ AADDSD,	yxm,	Pf2, 0x58 },
++	{ AADDSS,	yxm,	Pf3, 0x58 },
++	{ AANDNPD,	yxm,	Pq, 0x55 },
++	{ AANDNPS,	yxm,	Pm, 0x55 },
++	{ AANDPD,	yxm,	Pq, 0x54 },
++	{ AANDPS,	yxm,	Pq, 0x54 },
++	{ ACMPPD,	yxcmpi,	Px, Pe,0xc2 },
++	{ ACMPPS,	yxcmpi,	Pm, 0xc2,0 },
++	{ ACMPSD,	yxcmpi,	Px, Pf2,0xc2 },
++	{ ACMPSS,	yxcmpi,	Px, Pf3,0xc2 },
++	{ ACOMISD,	yxcmp,	Pe, 0x2f },
++	{ ACOMISS,	yxcmp,	Pm, 0x2f },
++	{ ACVTPL2PD,	yxcvm2,	Px, Pf3,0xe6,Pe,0x2a },
++	{ ACVTPL2PS,	yxcvm2,	Pm, 0x5b,0,0x2a,0, },
++	{ ACVTPD2PL,	yxcvm1,	Px, Pf2,0xe6,Pe,0x2d },
++	{ ACVTPD2PS,	yxm,	Pe, 0x5a },
++	{ ACVTPS2PL,	yxcvm1, Px, Pe,0x5b,Pm,0x2d },
++	{ ACVTPS2PD,	yxm,	Pm, 0x5a },
++	{ ACVTSD2SL,	yxcvfl, Pf2, 0x2d },
++ 	{ ACVTSD2SS,	yxm,	Pf2, 0x5a },
++	{ ACVTSL2SD,	yxcvlf, Pf2, 0x2a },
++	{ ACVTSL2SS,	yxcvlf, Pf3, 0x2a },
++	{ ACVTSS2SD,	yxm,	Pf3, 0x5a },
++	{ ACVTSS2SL,	yxcvfl, Pf3, 0x2d },
++	{ ACVTTPD2PL,	yxcvm1,	Px, Pe,0xe6,Pe,0x2c },
++	{ ACVTTPS2PL,	yxcvm1,	Px, Pf3,0x5b,Pm,0x2c },
++	{ ACVTTSD2SL,	yxcvfl, Pf2, 0x2c },
++	{ ACVTTSS2SL,	yxcvfl,	Pf3, 0x2c },
++	{ ADIVPD,	yxm,	Pe, 0x5e },
++	{ ADIVPS,	yxm,	Pm, 0x5e },
++	{ ADIVSD,	yxm,	Pf2, 0x5e },
++	{ ADIVSS,	yxm,	Pf3, 0x5e },
++	{ AMASKMOVOU,	yxr,	Pe, 0xf7 },
++	{ AMAXPD,	yxm,	Pe, 0x5f },
++	{ AMAXPS,	yxm,	Pm, 0x5f },
++	{ AMAXSD,	yxm,	Pf2, 0x5f },
++	{ AMAXSS,	yxm,	Pf3, 0x5f },
++	{ AMINPD,	yxm,	Pe, 0x5d },
++	{ AMINPS,	yxm,	Pm, 0x5d },
++	{ AMINSD,	yxm,	Pf2, 0x5d },
++	{ AMINSS,	yxm,	Pf3, 0x5d },
++	{ AMOVAPD,	yxmov,	Pe, 0x28,0x29 },
++	{ AMOVAPS,	yxmov,	Pm, 0x28,0x29 },
++	{ AMOVO,	yxmov,	Pe, 0x6f,0x7f },
++	{ AMOVOU,	yxmov,	Pf3, 0x6f,0x7f },
++	{ AMOVHLPS,	yxr,	Pm, 0x12 },
++	{ AMOVHPD,	yxmov,	Pe, 0x16,0x17 },
++	{ AMOVHPS,	yxmov,	Pm, 0x16,0x17 },
++	{ AMOVLHPS,	yxr,	Pm, 0x16 },
++	{ AMOVLPD,	yxmov,	Pe, 0x12,0x13 },
++	{ AMOVLPS,	yxmov,	Pm, 0x12,0x13 },
++	{ AMOVMSKPD,	yxrrl,	Pq, 0x50 },
++	{ AMOVMSKPS,	yxrrl,	Pm, 0x50 },
++	{ AMOVNTO,	yxr_ml,	Pe, 0xe7 },
++	{ AMOVNTPD,	yxr_ml,	Pe, 0x2b },
++	{ AMOVNTPS,	yxr_ml,	Pm, 0x2b },
++	{ AMOVSD,	yxmov,	Pf2, 0x10,0x11 },
++	{ AMOVSS,	yxmov,	Pf3, 0x10,0x11 },
++	{ AMOVUPD,	yxmov,	Pe, 0x10,0x11 },
++	{ AMOVUPS,	yxmov,	Pm, 0x10,0x11 },
++	{ AMULPD,	yxm,	Pe, 0x59 },
++	{ AMULPS,	yxm,	Ym, 0x59 },
++	{ AMULSD,	yxm,	Pf2, 0x59 },
++	{ AMULSS,	yxm,	Pf3, 0x59 },
++	{ AORPD,	yxm,	Pq, 0x56 },
++	{ AORPS,	yxm,	Pm, 0x56 },
++	{ APADDQ,	yxm,	Pe, 0xd4 },
++	{ APMAXSW,	yxm,	Pe, 0xee },
++	{ APMAXUB,	yxm,	Pe, 0xde },
++	{ APMINSW,	yxm,	Pe, 0xea },
++	{ APMINUB,	yxm,	Pe, 0xda },
++	{ APSADBW,	yxm,	Pq, 0xf6 },
++	{ APSUBB,	yxm,	Pe, 0xf8 },
++	{ APSUBL,	yxm,	Pe, 0xfa },
++	{ APSUBQ,	yxm,	Pe, 0xfb },
++	{ APSUBSB,	yxm,	Pe, 0xe8 },
++	{ APSUBSW,	yxm,	Pe, 0xe9 },
++	{ APSUBUSB,	yxm,	Pe, 0xd8 },
++	{ APSUBUSW,	yxm,	Pe, 0xd9 },
++	{ APSUBW,	yxm,	Pe, 0xf9 },
++	{ APUNPCKHQDQ,	yxm,	Pe, 0x6d },
++	{ APUNPCKLQDQ,	yxm,	Pe, 0x6c },
++	{ ARCPPS,	yxm,	Pm, 0x53 },
++	{ ARCPSS,	yxm,	Pf3, 0x53 },
++	{ ARSQRTPS,	yxm,	Pm, 0x52 },
++	{ ARSQRTSS,	yxm,	Pf3, 0x52 },
++	{ ASQRTPD,	yxm,	Pe, 0x51 },
++	{ ASQRTPS,	yxm,	Pm, 0x51 },
++	{ ASQRTSD,	yxm,	Pf2, 0x51 },
++	{ ASQRTSS,	yxm,	Pf3, 0x51 },
++	{ ASUBPD,	yxm,	Pe, 0x5c },
++	{ ASUBPS,	yxm,	Pm, 0x5c },
++	{ ASUBSD,	yxm,	Pf2, 0x5c },
++	{ ASUBSS,	yxm,	Pf3, 0x5c },
++	{ AUCOMISD,	yxcmp,	Pe, 0x2e },
++	{ AUCOMISS,	yxcmp,	Pm, 0x2e },
++	{ AUNPCKHPD,	yxm,	Pe, 0x15 },
++	{ AUNPCKHPS,	yxm,	Pm, 0x15 },
++	{ AUNPCKLPD,	yxm,	Pe, 0x14 },
++	{ AUNPCKLPS,	yxm,	Pm, 0x14 },
++	{ AXORPD,	yxm,	Pe, 0x57 },
++	{ AXORPS,	yxm,	Pm, 0x57 },
++
+ 	0
+ };
+diff --git a/src/cmd/8l/span.c b/src/cmd/8l/span.c
+index 81c1d37ebb..d90ddc2233 100644
+--- a/src/cmd/8l/span.c
++++ b/src/cmd/8l/span.c
+@@ -194,7 +194,7 @@ instinit(void)
+ 
+ 	for(i=1; optab[i].as; i++)
+ 		if(i != optab[i].as) {
+-			diag("phase error in optab: %d", i);
++			diag("phase error in optab: at %A found %A", i, optab[i].as);
+ 			errorexit();
+ 		}
+ 	maxop = i;
+@@ -238,6 +238,16 @@ instinit(void)
+ 	ycover[Yrl*Ymax + Yml] = 1;
+ 	ycover[Ym*Ymax + Yml] = 1;
+ 
++	ycover[Yax*Ymax + Ymm] = 1;
++	ycover[Ycx*Ymax + Ymm] = 1;
++	ycover[Yrx*Ymax + Ymm] = 1;
++	ycover[Yrl*Ymax + Ymm] = 1;
++	ycover[Ym*Ymax + Ymm] = 1;
++	ycover[Ymr*Ymax + Ymm] = 1;
++
++	ycover[Ym*Ymax + Yxm] = 1;
++	ycover[Yxr*Ymax + Yxm] = 1;
++
+ 	for(i=0; i<D_NONE; i++) {
+ 		reg[i] = -1;
+ 		if(i >= D_AL && i <= D_BH)
+@@ -246,6 +256,8 @@ instinit(void)
+ 			reg[i] = (i-D_AX) & 7;
+ 		if(i >= D_F0 && i <= D_F0+7)
+ 			reg[i] = (i-D_F0) & 7;
++		if(i >= D_X0 && i <= D_X0+7)
++			reg[i] = (i-D_X0) & 7;
+ 	}
+ }
+ 
+@@ -333,6 +345,16 @@ oclass(Adr *a)
+ 	case D_F0+7:
+ 		return	Yrf;
+ 
++	case D_X0+0:
++	case D_X0+1:
++	case D_X0+2:
++	case D_X0+3:
++	case D_X0+4:
++	case D_X0+5:
++	case D_X0+6:
++	case D_X0+7:
++		return	Yxr;
++
+ 	case D_NONE:
+ 		return Ynone;
+ 
+@@ -585,7 +607,7 @@ asmand(Adr *a, int r)
+ 		asmidx(a->scale, a->index, t);
+ 		goto putrelv;
+ 	}
+-	if(t >= D_AL && t <= D_F0+7) {
++	if(t >= D_AL && t <= D_F7 || t >= D_X0 && t <= D_X7) {
+ 		if(v)
+ 			goto bad;
+ 		*andptr++ = (3 << 6) | (reg[t] << 0) | (r << 3);
+@@ -827,6 +849,30 @@ subreg(Prog *p, int from, int to)
+ 		print("%P\n", p);
+ }
+ 
++static int
++mediaop(Optab *o, int op, int osize, int z)
++{
++	switch(op){
++	case Pm:
++	case Pe:
++	case Pf2:
++	case Pf3:
++		if(osize != 1){
++			if(op != Pm)
++				*andptr++ = op;
++			*andptr++ = Pm;
++			op = o->op[++z];
++			break;
++		}
++	default:
++		if(andptr == and || andptr[-1] != Pm)
++			*andptr++ = Pm;
++		break;
++	}
++	*andptr++ = op;
++	return z;
++}
++
+ void
+ doasm(Prog *p)
+ {
+@@ -873,6 +919,12 @@ found:
+ 		*andptr++ = Pm;
+ 		break;
+ 
++	case Pf2:	/* xmm opcode escape */
++	case Pf3:
++		*andptr++ = o->prefix;
++		*andptr++ = Pm;
++		break;
++
+ 	case Pm:	/* opcode escape */
+ 		*andptr++ = Pm;
+ 		break;
+@@ -904,6 +956,17 @@ found:
+ 		asmand(&p->from, reg[p->to.type]);
+ 		break;
+ 
++	case Zm_r_xm:
++		mediaop(o, op, t[3], z);
++		asmand(&p->from, reg[p->to.type]);
++		break;
++
++	case Zm_r_i_xm:
++		mediaop(o, op, t[3], z);
++		asmand(&p->from, reg[p->to.type]);
++		*andptr++ = p->to.offset;
++		break;
++
+ 	case Zaut_r:
+ 		*andptr++ = 0x8d;	/* leal */
+ 		if(p->from.type != D_ADDR)
+@@ -927,6 +990,17 @@ found:
+ 		asmand(&p->to, reg[p->from.type]);
+ 		break;
+ 
++	case Zr_m_xm:
++		mediaop(o, op, t[3], z);
++		asmand(&p->to, reg[p->from.type]);
++		break;
++
++	case Zr_m_i_xm:
++		mediaop(o, op, t[3], z);
++		asmand(&p->to, reg[p->from.type]);
++		*andptr++ = p->from.offset;
++		break;
++
+ 	case Zo_m:
+ 		*andptr++ = op;
+ 		asmand(&p->to, o->op[z+1]);

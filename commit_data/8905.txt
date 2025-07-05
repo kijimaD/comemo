@@ -9,6 +9,20 @@ Date:   Thu Jun 30 09:44:16 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4636075
-
+---
  src/run.bash | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index bb3d06c45c..d125fd4540 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -34,7 +34,7 @@ if $rebuild; then
+ 	(xcd pkg
+ 		gomake clean
+ 		time gomake install
+-	) || exit $i
++	) || exit $?
+ fi
+ 
+ (xcd pkg

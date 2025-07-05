@@ -11,7 +11,50 @@ Date:   Wed Aug 1 13:22:02 2018 -0400
     Change-Id: Iebcaeab89eb19959f0a9aeda836f179962953313
     Reviewed-on: https://go-review.googlesource.com/127215
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go           |  6 ++++--
  src/cmd/go/testdata/script/mod_get_none.txt | 12 ++++++++++++
  2 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index e8b08573d7..cf0c1acbca 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -374,7 +374,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	// Now we know the specific version of each path@vers.
+ 	// The final build list will be the union of three build lists:
+ 	//	1. the original build list
+-	//	2. the modules named on the command line
++	//	2. the modules named on the command line (other than @none)
+ 	//	3. the upgraded requirements of those modules (if upgrading)
+ 	// Start building those lists.
+ 	// This loop collects (2).
+@@ -395,7 +395,9 @@ func runGet(cmd *base.Command, args []string) {
+ 			continue // already added
+ 		}
+ 		byPath[t.m.Path] = t
+-		named = append(named, t.m)
++		if t.m.Version != "none" {
++			named = append(named, t.m)
++		}
+ 	}
+ 	base.ExitIfErrors()
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_none.txt b/src/cmd/go/testdata/script/mod_get_none.txt
+new file mode 100644
+index 0000000000..5aec209f59
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_none.txt
+@@ -0,0 +1,12 @@
++env GO111MODULE=on
++
++go mod init example.com/foo
++
++# 'go get bar@none' should be a no-op if module bar is not active.
++go get example.com/bar@none
++go list -m all
++! stdout example.com/bar
++
++go get example.com/bar@none
++go list -m all
++! stdout example.com/bar

@@ -7,6 +7,19 @@ Date:   Wed Sep 26 08:49:36 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6570054
-
+---
  doc/go1.1.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index f5380a73ad..6eacc1f325 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "Go 1.1 Release Notes",
+-	"Path":  "/doc/go1.1"
++	"Path":  "/doc/go1.1",
+ 	"Template": true
+ }-->
+ 

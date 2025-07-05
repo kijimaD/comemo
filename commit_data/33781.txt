@@ -13,7 +13,53 @@ Date:   Tue Jul 25 14:04:50 2017 +0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go      | 4 ++--
  src/time/format_test.go | 3 +++
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index c960df0197..05f734eae7 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -289,7 +289,6 @@ var shortDayNames = []string{
+ }
+ 
+ var shortMonthNames = []string{
+-	"---",
+ 	"Jan",
+ 	"Feb",
+ 	"Mar",
+@@ -305,7 +304,6 @@ var shortMonthNames = []string{
+ }
+ 
+ var longMonthNames = []string{
+-	"---",
+ 	"January",
+ 	"February",
+ 	"March",
+@@ -841,8 +839,10 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			year, err = atoi(p)
+ 		case stdMonth:
+ 			month, value, err = lookup(shortMonthNames, value)
++			month++
+ 		case stdLongMonth:
+ 			month, value, err = lookup(longMonthNames, value)
++			month++
+ 		case stdNumMonth, stdZeroMonth:
+ 			month, value, err = getnum(value, std == stdZeroMonth)
+ 			if month <= 0 || 12 < month {
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index 710de594a0..6d27f468c7 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -465,6 +465,9 @@ var parseErrorTests = []ParseErrorTest{
+ 	{RFC3339, "2006-01-02T15:04:05Z_abc", `parsing time "2006-01-02T15:04:05Z_abc": extra text: _abc`},
+ 	// invalid second followed by optional fractional seconds
+ 	{RFC3339, "2010-02-04T21:00:67.012345678-08:00", "second out of range"},
++	// issue 21113
++	{"_2 Jan 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
++	{"_2 January 06 15:04 MST", "4 --- 00 00:00 GMT", "cannot parse"},
+ }
+ 
+ func TestParseErrors(t *testing.T) {

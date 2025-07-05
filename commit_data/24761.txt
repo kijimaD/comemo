@@ -7,7 +7,479 @@ Date:   Wed Aug 26 14:25:40 2015 -0400
     Change-Id: I8dee400aef07165f911750de2615b8757f826000
     Reviewed-on: https://go-review.googlesource.com/13945
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 140 ++++++++++++-
  src/cmd/compile/internal/gc/testdata/fp_ssa.go | 260 ++++++++++++++++++++++++-
  2 files changed, 395 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0194a52c2b..5614a6c3b9 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1253,7 +1253,6 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.newValue1(op, n.Type, x)
+ 		}
+ 
+-		var op1, op2 ssa.Op
+ 		if ft.IsInteger() && tt.IsFloat() {
+ 			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
+ 			signedSize := ft.Size()
+@@ -1261,6 +1260,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			if !ft.IsSigned() {
+ 				signedSize += 5
+ 			}
++			var op1, op2 ssa.Op
+ 			switch signedSize {
+ 			case 1:
+ 				op1 = ssa.OpSignExt8to32
+@@ -1315,6 +1315,72 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
+ 		}
++
++		if tt.IsInteger() && ft.IsFloat() {
++			// signed 1, 2, 4, 8, unsigned 6, 7, 9, 13
++			signedSize := tt.Size()
++			it := TINT32 // intermediate type in conversion, int32 or int64
++			if !tt.IsSigned() {
++				signedSize += 5
++			}
++			var op1, op2 ssa.Op
++			switch signedSize {
++			case 1:
++				op2 = ssa.OpTrunc32to8
++			case 2:
++				op2 = ssa.OpTrunc32to16
++			case 4:
++				op2 = ssa.OpCopy
++			case 8:
++				op2 = ssa.OpCopy
++				it = TINT64
++			case 6:
++				op2 = ssa.OpTrunc32to8
++			case 7:
++				op2 = ssa.OpTrunc32to16
++			case 9:
++				// Go wide to dodge the unsignedness correction
++				op2 = ssa.OpTrunc64to32
++				it = TINT64
++			case 13:
++				// unsigned 64, branchy correction code is needed
++				// because there is only FP to signed-integer
++				// conversion in the (AMD64) instructions set.
++				// Branchy correction code *may* be amenable to
++				// optimization, and it can be cleanly expressed
++				// in generic SSA, so do it here.
++				if ft.Size() == 4 {
++					return s.float32ToUint64(n, x, ft, tt)
++				}
++				if ft.Size() == 8 {
++					return s.float64ToUint64(n, x, ft, tt)
++				}
++				// unrecognized size is also "weird", hence fatal.
++				fallthrough
++
++			default:
++				s.Fatalf("weird float to integer conversion %s -> %s", ft, tt)
++
++			}
++			if ft.Size() == 4 {
++				if it == TINT64 {
++					op1 = ssa.OpCvt32Fto64
++				} else {
++					op1 = ssa.OpCvt32Fto32
++				}
++			} else {
++				if it == TINT64 {
++					op1 = ssa.OpCvt64Fto64
++				} else {
++					op1 = ssa.OpCvt64Fto32
++				}
++			}
++			if op2 == ssa.OpCopy {
++				return s.newValue1(op1, n.Type, x)
++			}
++			return s.newValue1(op2, n.Type, s.newValue1(op1, Types[it], x))
++		}
++
+ 		if ft.IsFloat() && tt.IsFloat() {
+ 			var op ssa.Op
+ 			if ft.Size() == tt.Size() {
+@@ -1328,7 +1394,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			}
+ 			return s.newValue1(op, n.Type, x)
+ 		}
+-		// TODO: Still lack float-to-int
++		// TODO: Still lack complex conversions.
+ 
+ 		s.Unimplementedf("unhandled OCONV %s -> %s", Econv(int(n.Left.Type.Etype), 0), Econv(int(n.Type.Etype), 0))
+ 		return nil
+@@ -1981,8 +2047,8 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	// 	  z = uintX(x) ; z = z >> 1
+ 	// 	  z = z >> 1
+ 	// 	  z = z | y
+-	// 	  result = (floatY) z
+-	// 	  z = z + z
++	// 	  result = floatY(z)
++	// 	  result = result + result
+ 	// }
+ 	//
+ 	// Code borrowed from old code generator.
+@@ -2068,6 +2134,72 @@ func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
+ 	return s.variable(n, lenType)
+ }
+ 
++type f2uCvtTab struct {
++	ltf, cvt2U, subf ssa.Op
++	value            func(*state, ssa.Type, float64) *ssa.Value
++}
++
++var f32_u64 f2uCvtTab = f2uCvtTab{
++	ltf:   ssa.OpLess32F,
++	cvt2U: ssa.OpCvt32Fto64,
++	subf:  ssa.OpSub32F,
++	value: (*state).constFloat32,
++}
++
++var f64_u64 f2uCvtTab = f2uCvtTab{
++	ltf:   ssa.OpLess64F,
++	cvt2U: ssa.OpCvt64Fto64,
++	subf:  ssa.OpSub64F,
++	value: (*state).constFloat64,
++}
++
++func (s *state) float32ToUint64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	return s.floatToUint(&f32_u64, n, x, ft, tt)
++}
++func (s *state) float64ToUint64(n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	return s.floatToUint(&f64_u64, n, x, ft, tt)
++}
++
++func (s *state) floatToUint(cvttab *f2uCvtTab, n *Node, x *ssa.Value, ft, tt *Type) *ssa.Value {
++	// if x < 9223372036854775808.0 {
++	// 	result = uintY(x)
++	// } else {
++	// 	y = x - 9223372036854775808.0
++	// 	z = uintY(y)
++	// 	result = z | -9223372036854775808
++	// }
++	twoToThe63 := cvttab.value(s, ft, 9223372036854775808.0)
++	cmp := s.newValue2(cvttab.ltf, Types[TBOOL], x, twoToThe63)
++	b := s.endBlock()
++	b.Kind = ssa.BlockIf
++	b.Control = cmp
++	b.Likely = ssa.BranchLikely
++
++	bThen := s.f.NewBlock(ssa.BlockPlain)
++	bElse := s.f.NewBlock(ssa.BlockPlain)
++	bAfter := s.f.NewBlock(ssa.BlockPlain)
++
++	addEdge(b, bThen)
++	s.startBlock(bThen)
++	a0 := s.newValue1(cvttab.cvt2U, tt, x)
++	s.vars[n] = a0
++	s.endBlock()
++	addEdge(bThen, bAfter)
++
++	addEdge(b, bElse)
++	s.startBlock(bElse)
++	y := s.newValue2(cvttab.subf, ft, x, twoToThe63)
++	y = s.newValue1(cvttab.cvt2U, tt, y)
++	z := s.constInt64(tt, -9223372036854775808)
++	a1 := s.newValue2(ssa.OpOr64, tt, y, z)
++	s.vars[n] = a1
++	s.endBlock()
++	addEdge(bElse, bAfter)
++
++	s.startBlock(bAfter)
++	return s.variable(n, n.Type)
++}
++
+ // checkgoto checks that a goto from from to to does not
+ // jump into a block or jump over variable declarations.
+ // It is a copy of checkgoto in the pre-SSA backend,
+diff --git a/src/cmd/compile/internal/gc/testdata/fp_ssa.go b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+index 5eb65035d4..c9eb23d371 100644
+--- a/src/cmd/compile/internal/gc/testdata/fp_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/fp_ssa.go
+@@ -1052,6 +1052,222 @@ func gtbr32_ssa(x, y float32) float32 {
+ 	return 42
+ }
+ 
++func F32toU8_ssa(x float32) uint8 {
++	switch {
++	}
++	return uint8(x)
++}
++
++func F32toI8_ssa(x float32) int8 {
++	switch {
++	}
++	return int8(x)
++}
++
++func F32toU16_ssa(x float32) uint16 {
++	switch {
++	}
++	return uint16(x)
++}
++
++func F32toI16_ssa(x float32) int16 {
++	switch {
++	}
++	return int16(x)
++}
++
++func F32toU32_ssa(x float32) uint32 {
++	switch {
++	}
++	return uint32(x)
++}
++
++func F32toI32_ssa(x float32) int32 {
++	switch {
++	}
++	return int32(x)
++}
++
++func F32toU64_ssa(x float32) uint64 {
++	switch {
++	}
++	return uint64(x)
++}
++
++func F32toI64_ssa(x float32) int64 {
++	switch {
++	}
++	return int64(x)
++}
++
++func F64toU8_ssa(x float64) uint8 {
++	switch {
++	}
++	return uint8(x)
++}
++
++func F64toI8_ssa(x float64) int8 {
++	switch {
++	}
++	return int8(x)
++}
++
++func F64toU16_ssa(x float64) uint16 {
++	switch {
++	}
++	return uint16(x)
++}
++
++func F64toI16_ssa(x float64) int16 {
++	switch {
++	}
++	return int16(x)
++}
++
++func F64toU32_ssa(x float64) uint32 {
++	switch {
++	}
++	return uint32(x)
++}
++
++func F64toI32_ssa(x float64) int32 {
++	switch {
++	}
++	return int32(x)
++}
++
++func F64toU64_ssa(x float64) uint64 {
++	switch {
++	}
++	return uint64(x)
++}
++
++func F64toI64_ssa(x float64) int64 {
++	switch {
++	}
++	return int64(x)
++}
++
++func floatsToInts(x float64, expected int64) int {
++	y := float32(x)
++	fails := 0
++	fails += expectInt64("F64toI8", int64(F64toI8_ssa(x)), expected)
++	fails += expectInt64("F64toI16", int64(F64toI16_ssa(x)), expected)
++	fails += expectInt64("F64toI32", int64(F64toI32_ssa(x)), expected)
++	fails += expectInt64("F64toI64", int64(F64toI64_ssa(x)), expected)
++	fails += expectInt64("F32toI8", int64(F32toI8_ssa(y)), expected)
++	fails += expectInt64("F32toI16", int64(F32toI16_ssa(y)), expected)
++	fails += expectInt64("F32toI32", int64(F32toI32_ssa(y)), expected)
++	fails += expectInt64("F32toI64", int64(F32toI64_ssa(y)), expected)
++	return fails
++}
++
++func floatsToUints(x float64, expected uint64) int {
++	y := float32(x)
++	fails := 0
++	fails += expectUint64("F64toU8", uint64(F64toU8_ssa(x)), expected)
++	fails += expectUint64("F64toU16", uint64(F64toU16_ssa(x)), expected)
++	fails += expectUint64("F64toU32", uint64(F64toU32_ssa(x)), expected)
++	fails += expectUint64("F64toU64", uint64(F64toU64_ssa(x)), expected)
++	fails += expectUint64("F32toU8", uint64(F32toU8_ssa(y)), expected)
++	fails += expectUint64("F32toU16", uint64(F32toU16_ssa(y)), expected)
++	fails += expectUint64("F32toU32", uint64(F32toU32_ssa(y)), expected)
++	fails += expectUint64("F32toU64", uint64(F32toU64_ssa(y)), expected)
++	return fails
++}
++
++func floatingToIntegerConversionsTest() int {
++	fails := 0
++	fails += floatsToInts(0.0, 0)
++	fails += floatsToInts(1.0, 1)
++	fails += floatsToInts(127.0, 127)
++	fails += floatsToInts(-1.0, -1)
++	fails += floatsToInts(-128.0, -128)
++
++	fails += floatsToUints(0.0, 0)
++	fails += floatsToUints(1.0, 1)
++	fails += floatsToUints(255.0, 255)
++
++	for j := uint(0); j < 24; j++ {
++		// Avoid hard cases in the construction
++		// of the test inputs.
++		v := int64(1<<62) | int64(1<<(62-j))
++		w := uint64(v)
++		f := float32(v)
++		d := float64(v)
++		fails += expectUint64("2**62...", F32toU64_ssa(f), w)
++		fails += expectUint64("2**62...", F64toU64_ssa(d), w)
++		fails += expectInt64("2**62...", F32toI64_ssa(f), v)
++		fails += expectInt64("2**62...", F64toI64_ssa(d), v)
++		fails += expectInt64("2**62...", F32toI64_ssa(-f), -v)
++		fails += expectInt64("2**62...", F64toI64_ssa(-d), -v)
++		w += w
++		f += f
++		d += d
++		fails += expectUint64("2**63...", F32toU64_ssa(f), w)
++		fails += expectUint64("2**63...", F64toU64_ssa(d), w)
++	}
++
++	for j := uint(0); j < 16; j++ {
++		// Avoid hard cases in the construction
++		// of the test inputs.
++		v := int32(1<<30) | int32(1<<(30-j))
++		w := uint32(v)
++		f := float32(v)
++		d := float64(v)
++		fails += expectUint32("2**30...", F32toU32_ssa(f), w)
++		fails += expectUint32("2**30...", F64toU32_ssa(d), w)
++		fails += expectInt32("2**30...", F32toI32_ssa(f), v)
++		fails += expectInt32("2**30...", F64toI32_ssa(d), v)
++		fails += expectInt32("2**30...", F32toI32_ssa(-f), -v)
++		fails += expectInt32("2**30...", F64toI32_ssa(-d), -v)
++		w += w
++		f += f
++		d += d
++		fails += expectUint32("2**31...", F32toU32_ssa(f), w)
++		fails += expectUint32("2**31...", F64toU32_ssa(d), w)
++	}
++
++	for j := uint(0); j < 15; j++ {
++		// Avoid hard cases in the construction
++		// of the test inputs.
++		v := int16(1<<14) | int16(1<<(14-j))
++		w := uint16(v)
++		f := float32(v)
++		d := float64(v)
++		fails += expectUint16("2**14...", F32toU16_ssa(f), w)
++		fails += expectUint16("2**14...", F64toU16_ssa(d), w)
++		fails += expectInt16("2**14...", F32toI16_ssa(f), v)
++		fails += expectInt16("2**14...", F64toI16_ssa(d), v)
++		fails += expectInt16("2**14...", F32toI16_ssa(-f), -v)
++		fails += expectInt16("2**14...", F64toI16_ssa(-d), -v)
++		w += w
++		f += f
++		d += d
++		fails += expectUint16("2**15...", F32toU16_ssa(f), w)
++		fails += expectUint16("2**15...", F64toU16_ssa(d), w)
++	}
++
++	fails += expectInt32("-2147483648", F32toI32_ssa(-2147483648), -2147483648)
++
++	fails += expectInt32("-2147483648", F64toI32_ssa(-2147483648), -2147483648)
++	fails += expectInt32("-2147483647", F64toI32_ssa(-2147483647), -2147483647)
++	fails += expectUint32("4294967295", F64toU32_ssa(4294967295), 4294967295)
++
++	fails += expectInt16("-32768", F64toI16_ssa(-32768), -32768)
++	fails += expectInt16("-32768", F32toI16_ssa(-32768), -32768)
++
++	// NB more of a pain to do these for 32-bit because of lost bits in Float32 mantissa
++	fails += expectInt16("32767", F64toI16_ssa(32767), 32767)
++	fails += expectInt16("32767", F32toI16_ssa(32767), 32767)
++	fails += expectUint16("32767", F64toU16_ssa(32767), 32767)
++	fails += expectUint16("32767", F32toU16_ssa(32767), 32767)
++	fails += expectUint16("65535", F64toU16_ssa(65535), 65535)
++	fails += expectUint16("65535", F32toU16_ssa(65535), 65535)
++
++	return fails
++}
++
+ func fail64(s string, f func(a, b float64) float64, a, b, e float64) int {
+ 	d := f(a, b)
+ 	if d != e {
+@@ -1106,7 +1322,47 @@ func expect32(s string, x, expected float32) int {
+ 
+ func expectUint64(s string, x, expected uint64) int {
+ 	if x != expected {
+-		fmt.Printf("Expected 0x%016x for %s, got 0x%016x\n", expected, s, x)
++		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
++		return 1
++	}
++	return 0
++}
++
++func expectInt64(s string, x, expected int64) int {
++	if x != expected {
++		fmt.Printf("%s: Expected 0x%016x, got 0x%016x\n", s, expected, x)
++		return 1
++	}
++	return 0
++}
++
++func expectUint32(s string, x, expected uint32) int {
++	if x != expected {
++		fmt.Printf("U32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
++		return 1
++	}
++	return 0
++}
++
++func expectInt32(s string, x, expected int32) int {
++	if x != expected {
++		fmt.Printf("I32 %s: Expected 0x%08x, got 0x%08x\n", s, expected, x)
++		return 1
++	}
++	return 0
++}
++
++func expectUint16(s string, x, expected uint16) int {
++	if x != expected {
++		fmt.Printf("U16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
++		return 1
++	}
++	return 0
++}
++
++func expectInt16(s string, x, expected int16) int {
++	if x != expected {
++		fmt.Printf("I16 %s: Expected 0x%04x, got 0x%04x\n", s, expected, x)
+ 		return 1
+ 	}
+ 	return 0
+@@ -1266,6 +1522,8 @@ func main() {
+ 		fails += expectUint64("gt", gt, 0x0000100011000000)
+ 	}
+ 
++	fails += floatingToIntegerConversionsTest()
++
+ 	if fails > 0 {
+ 		fmt.Printf("Saw %v failures\n", fails)
+ 		panic("Failed.")

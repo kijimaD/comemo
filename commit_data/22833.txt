@@ -15,6 +15,60 @@ Date:   Thu Dec 18 17:18:06 2014 +1300
     Change-Id: I4e6255bee1cf3914a6cc8d9d2a881cfeb273c08e
     Reviewed-on: https://go-review.googlesource.com/1760
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/time/format.go | 27 +++++++++++++++++----------
  1 file changed, 17 insertions(+), 10 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index e6d5ac6dfb..b15101e160 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -410,6 +410,22 @@ func (t Time) String() string {
+ // about the formats and the definition of the reference time, see the
+ // documentation for ANSIC and the other constants defined by this package.
+ func (t Time) Format(layout string) string {
++	const bufSize = 64
++	var b []byte
++	max := len(layout) + 10
++	if max < bufSize {
++		var buf [bufSize]byte
++		b = buf[:0]
++	} else {
++		b = make([]byte, 0, max)
++	}
++	b = t.AppendFormat(b, layout)
++	return string(b)
++}
++
++// AppendFormat is like Format but appends the textual
++// representation to b and returns the extended buffer.
++func (t Time) AppendFormat(b []byte, layout string) []byte {
+ 	var (
+ 		name, offset, abs = t.locabs()
+ 
+@@ -419,16 +435,7 @@ func (t Time) Format(layout string) string {
+ 		hour  int = -1
+ 		min   int
+ 		sec   int
+-
+-		b   []byte
+-		buf [64]byte
+ 	)
+-	max := len(layout) + 10
+-	if max <= len(buf) {
+-		b = buf[:0]
+-	} else {
+-		b = make([]byte, 0, max)
+-	}
+ 	// Each iteration generates one std value.
+ 	for layout != "" {
+ 		prefix, std, suffix := nextStdChunk(layout)
+@@ -568,7 +575,7 @@ func (t Time) Format(layout string) string {
+ 			b = formatNano(b, uint(t.Nanosecond()), std>>stdArgShift, std&stdMask == stdFracSecond9)
+ 		}
+ 	}
+-	return string(b)
++	return b
+ }
+ 
+ var errBad = errors.New("bad value for field") // placeholder not passed to user

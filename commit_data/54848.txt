@@ -26,6 +26,33 @@ Date:   Wed Nov 16 20:58:38 2022 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Austin Clements <austin@google.com>
-
+---
  src/cmd/dist/test.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 899d34dd3d..293d95e35b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -660,6 +660,10 @@ func (t *tester) registerTests() {
+ 		}
+ 	}
+ 
++	if t.race {
++		return
++	}
++
+ 	// Test the os/user package in the pure-Go mode too.
+ 	if !t.compileOnly {
+ 		t.registerTest("osusergo", "os/user with tag osusergo",
+@@ -681,10 +685,6 @@ func (t *tester) registerTests() {
+ 			})
+ 	}
+ 
+-	if t.race {
+-		return
+-	}
+-
+ 	// Runtime CPU tests.
+ 	if !t.compileOnly && goos != "js" { // js can't handle -cpu != 1
+ 		t.registerTest("runtime:cpu124", "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",

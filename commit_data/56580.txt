@@ -65,7 +65,7 @@ Date:   Fri Nov 18 17:35:45 2022 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  |   23 +-
  src/cmd/go/internal/modload/buildlist.go           |  110 +-
  src/cmd/go/internal/modload/edit.go                | 1148 +++++++++++---------
@@ -80,3 +80,1991 @@ Date:   Fri Nov 18 17:35:45 2022 -0500
  .../go/testdata/script/mod_install_pkg_version.txt |    2 +-
  src/cmd/go/testdata/script/mod_load_badchain.txt   |   19 +-
  13 files changed, 1100 insertions(+), 537 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 836aa5f7a5..d25873ae71 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -36,6 +36,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+@@ -1748,6 +1749,16 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 			return false
+ 		}
+ 
++		if cfg.BuildV {
++			// Log complete paths for the conflicts before we summarize them.
++			for _, c := range constraint.Conflicts {
++				fmt.Fprintf(os.Stderr, "go: %v\n", c.String())
++			}
++		}
++
++		// modload.EditBuildList reports constraint errors at
++		// the module level, but 'go get' operates on packages.
++		// Rewrite the errors to explain them in terms of packages.
+ 		reason := func(m module.Version) string {
+ 			rv, ok := r.resolvedVersion[m.Path]
+ 			if !ok {
+@@ -1756,7 +1767,17 @@ func (r *resolver) updateBuildList(ctx context.Context, additions []module.Versi
+ 			return rv.reason.ResolvedString(module.Version{Path: m.Path, Version: rv.version})
+ 		}
+ 		for _, c := range constraint.Conflicts {
+-			base.Errorf("go: %v requires %v, not %v", reason(c.Source), c.Dep, reason(c.Constraint))
++			adverb := ""
++			if len(c.Path) > 2 {
++				adverb = "indirectly "
++			}
++			firstReason := reason(c.Path[0])
++			last := c.Path[len(c.Path)-1]
++			if c.Err != nil {
++				base.Errorf("go: %v %srequires %v: %v", firstReason, adverb, last, c.UnwrapModuleError())
++			} else {
++				base.Errorf("go: %v %srequires %v, not %v", firstReason, adverb, last, reason(c.Constraint))
++			}
+ 		}
+ 		return false
+ 	}
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 1b4d6b99d0..def9c489e9 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -145,6 +145,11 @@ func newRequirements(pruning modPruning, rootModules []module.Version, direct ma
+ 	return rs
+ }
+ 
++// String returns a string describing the Requirements for debugging.
++func (rs *Requirements) String() string {
++	return fmt.Sprintf("{%v %v}", rs.pruning, rs.rootModules)
++}
++
+ // initVendor initializes rs.graph from the given list of vendored module
+ // dependencies, overriding the graph that would normally be loaded from module
+ // requirements.
+@@ -235,7 +240,7 @@ func (rs *Requirements) hasRedundantRoot() bool {
+ // returns a non-nil error of type *mvs.BuildListError.
+ func (rs *Requirements) Graph(ctx context.Context) (*ModuleGraph, error) {
+ 	rs.graphOnce.Do(func() {
+-		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules)
++		mg, mgErr := readModGraph(ctx, rs.pruning, rs.rootModules, nil)
+ 		rs.graph.Store(&cachedGraph{mg, mgErr})
+ 	})
+ 	cached := rs.graph.Load()
+@@ -266,9 +271,12 @@ var readModGraphDebugOnce sync.Once
+ // readModGraph reads and returns the module dependency graph starting at the
+ // given roots.
+ //
++// The requirements of the module versions found in the unprune map are included
++// in the graph even if they would normally be pruned out.
++//
+ // Unlike LoadModGraph, readModGraph does not attempt to diagnose or update
+ // inconsistent roots.
+-func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version) (*ModuleGraph, error) {
++func readModGraph(ctx context.Context, pruning modPruning, roots []module.Version, unprune map[module.Version]bool) (*ModuleGraph, error) {
+ 	if pruning == pruned {
+ 		// Enable diagnostics for lazy module loading
+ 		// (https://golang.org/ref/mod#lazy-loading) only if the module graph is
+@@ -355,13 +363,14 @@ func readModGraph(ctx context.Context, pruning modPruning, roots []module.Versio
+ 			// cannot assume that the explicit requirements of m (added by loadOne)
+ 			// are sufficient to build the packages it contains. We must load its full
+ 			// transitive dependency graph to be sure that we see all relevant
+-			// dependencies.
+-			if pruning != pruned || summary.pruning == unpruned {
+-				nextPruning := summary.pruning
+-				if pruning == unpruned {
+-					nextPruning = unpruned
+-				}
+-				for _, r := range summary.require {
++			// dependencies. In addition, we must load the requirements of any module
++			// that is explicitly marked as unpruned.
++			nextPruning := summary.pruning
++			if pruning == unpruned {
++				nextPruning = unpruned
++			}
++			for _, r := range summary.require {
++				if pruning != pruned || summary.pruning == unpruned || unprune[r] {
+ 					enqueue(r, nextPruning)
+ 				}
+ 			}
+@@ -607,17 +616,90 @@ func (e *ConstraintError) Error() string {
+ 	b := new(strings.Builder)
+ 	b.WriteString("version constraints conflict:")
+ 	for _, c := range e.Conflicts {
+-		fmt.Fprintf(b, "\n\t%v requires %v, but %v is requested", c.Source, c.Dep, c.Constraint)
++		fmt.Fprintf(b, "\n\t%s", c.Summary())
+ 	}
+ 	return b.String()
+ }
+ 
+-// A Conflict documents that Source requires Dep, which conflicts with Constraint.
+-// (That is, Dep has the same module path as Constraint but a higher version.)
++// A Conflict is a path of requirements starting at a root or proposed root in
++// the requirement graph, explaining why that root either causes a module passed
++// in the mustSelect list to EditBuildList to be unattainable, or introduces an
++// unresolvable error in loading the requirement graph.
+ type Conflict struct {
+-	Source     module.Version
+-	Dep        module.Version
++	// Path is a path of requirements starting at some module version passed in
++	// the mustSelect argument and ending at a module whose requirements make that
++	// version unacceptable. (Path always has len ≥ 1.)
++	Path []module.Version
++
++	// If Err is nil, Constraint is a module version passed in the mustSelect
++	// argument that has the same module path as, and a lower version than,
++	// the last element of the Path slice.
+ 	Constraint module.Version
++
++	// If Constraint is unset, Err is an error encountered when loading the
++	// requirements of the last element in Path.
++	Err error
++}
++
++// UnwrapModuleError returns c.Err, but unwraps it if it is a module.ModuleError
++// with a version and path matching the last entry in the Path slice.
++func (c Conflict) UnwrapModuleError() error {
++	me, ok := c.Err.(*module.ModuleError)
++	if ok && len(c.Path) > 0 {
++		last := c.Path[len(c.Path)-1]
++		if me.Path == last.Path && me.Version == last.Version {
++			return me.Err
++		}
++	}
++	return c.Err
++}
++
++// Summary returns a string that describes only the first and last modules in
++// the conflict path.
++func (c Conflict) Summary() string {
++	if len(c.Path) == 0 {
++		return "(internal error: invalid Conflict struct)"
++	}
++	first := c.Path[0]
++	last := c.Path[len(c.Path)-1]
++	if len(c.Path) == 1 {
++		if c.Err != nil {
++			return fmt.Sprintf("%s: %v", first, c.UnwrapModuleError())
++		}
++		return fmt.Sprintf("%s is above %s", first, c.Constraint.Version)
++	}
++
++	adverb := ""
++	if len(c.Path) > 2 {
++		adverb = "indirectly "
++	}
++	if c.Err != nil {
++		return fmt.Sprintf("%s %srequires %s: %v", first, adverb, last, c.UnwrapModuleError())
++	}
++	return fmt.Sprintf("%s %srequires %s, but %s is requested", first, adverb, last, c.Constraint.Version)
++}
++
++// String returns a string that describes the full conflict path.
++func (c Conflict) String() string {
++	if len(c.Path) == 0 {
++		return "(internal error: invalid Conflict struct)"
++	}
++	b := new(strings.Builder)
++	fmt.Fprintf(b, "%v", c.Path[0])
++	if len(c.Path) == 1 {
++		fmt.Fprintf(b, " found")
++	} else {
++		for _, r := range c.Path[1:] {
++			fmt.Fprintf(b, " requires\n\t%v", r)
++		}
++	}
++	if c.Constraint != (module.Version{}) {
++		fmt.Fprintf(b, ", but %v is requested", c.Constraint.Version)
++	}
++	if c.Err != nil {
++		fmt.Fprintf(b, ": %v", c.UnwrapModuleError())
++	}
++	return b.String()
+ }
+ 
+ // tidyRoots trims the root dependencies to the minimal requirements needed to
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index f6937a48b4..8e81dd18a2 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -5,13 +5,16 @@
+ package modload
+ 
+ import (
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/mvs"
++	"cmd/go/internal/par"
+ 	"context"
+-	"reflect"
+-	"sort"
++	"fmt"
++	"maps"
++	"os"
++	"slices"
+ 
+ 	"golang.org/x/mod/module"
+-	"golang.org/x/mod/semver"
+ )
+ 
+ // editRequirements returns an edited version of rs such that:
+@@ -20,436 +23,603 @@ import (
+ //
+ //  2. Each module version in tryUpgrade is upgraded toward the indicated
+ //     version as far as can be done without violating (1).
++//     (Other upgrades are also allowed if they are caused by
++//     transitive requirements of versions in mustSelect or
++//     tryUpgrade.)
+ //
+ //  3. Each module version in rs.rootModules (or rs.graph, if rs is unpruned)
+-//     is downgraded from its original version only to the extent needed to
+-//     satisfy (1), or upgraded only to the extent needed to satisfy (1) and
+-//     (2).
+-//
+-//  4. No module is upgraded above the maximum version of its path found in the
+-//     dependency graph of rs, the combined dependency graph of the versions in
+-//     mustSelect, or the dependencies of each individual module version in
+-//     tryUpgrade.
++//     is downgraded or upgraded from its original version only to the extent
++//     needed to satisfy (1) and (2).
+ //
+ // Generally, the module versions in mustSelect are due to the module or a
+ // package within the module matching an explicit command line argument to 'go
+ // get', and the versions in tryUpgrade are transitive dependencies that are
+ // either being upgraded by 'go get -u' or being added to satisfy some
+ // otherwise-missing package import.
++//
++// If pruning is enabled, the roots of the edited requirements include an
++// explicit entry for each module path in tryUpgrade, mustSelect, and the roots
++// of rs, unless the selected version for the module path is "none".
+ func editRequirements(ctx context.Context, rs *Requirements, tryUpgrade, mustSelect []module.Version) (edited *Requirements, changed bool, err error) {
+-	limiter, err := limiterForEdit(ctx, rs, tryUpgrade, mustSelect)
+-	if err != nil {
+-		return rs, false, err
++	if rs.pruning == workspace {
++		panic("editRequirements cannot edit workspace requirements")
+ 	}
+ 
+-	var conflicts []Conflict
+-	for _, m := range mustSelect {
+-		conflict, err := limiter.Select(m)
++	// selectedRoot records the edited version (possibly "none") for each module
++	// path that would be a root in the edited requirements.
++	var selectedRoot map[string]string // module path → edited version
++	if rs.pruning == pruned {
++		selectedRoot = maps.Clone(rs.maxRootVersion)
++	} else {
++		// In a module without graph pruning, modules that provide packages imported
++		// by the main module may either be explicit roots or implicit transitive
++		// dependencies. To the extent possible, we want to preserve those implicit
++		// dependencies, so we need to treat everything in the build list as
++		// potentially relevant — that is, as what would be a “root” in a module
++		// with graph pruning enabled.
++		mg, err := rs.Graph(ctx)
+ 		if err != nil {
++			// If we couldn't load the graph, we don't know what its requirements were
++			// to begin with, so we can't edit those requirements in a coherent way.
+ 			return rs, false, err
+ 		}
+-		if conflict.Path != "" {
+-			conflicts = append(conflicts, Conflict{
+-				Source: m,
+-				Dep:    conflict,
+-				Constraint: module.Version{
+-					Path:    conflict.Path,
+-					Version: limiter.max[conflict.Path],
+-				},
+-			})
++		bl := mg.BuildList()[MainModules.Len():]
++		selectedRoot = make(map[string]string, len(bl))
++		for _, m := range bl {
++			selectedRoot[m.Path] = m.Version
+ 		}
+ 	}
+-	if len(conflicts) > 0 {
+-		return rs, false, &ConstraintError{Conflicts: conflicts}
+-	}
+-
+-	mods, changed, err := selectPotentiallyImportedModules(ctx, limiter, rs, tryUpgrade)
+-	if err != nil {
+-		return rs, false, err
+-	}
+ 
+-	var roots []module.Version
+-	if rs.pruning == unpruned {
+-		// In a module without graph pruning, modules that provide packages imported
+-		// by the main module may either be explicit roots or implicit transitive
+-		// dependencies. We promote the modules in mustSelect to be explicit
+-		// requirements.
+-		var rootPaths []string
+-		for _, m := range mustSelect {
+-			if m.Version != "none" && !MainModules.Contains(m.Path) {
+-				rootPaths = append(rootPaths, m.Path)
+-			}
++	for _, r := range tryUpgrade {
++		if v, ok := selectedRoot[r.Path]; ok && cmpVersion(v, r.Version) >= 0 {
++			continue
+ 		}
+-		if !changed && len(rootPaths) == 0 {
+-			// The build list hasn't changed and we have no new roots to add.
+-			// We don't need to recompute the minimal roots for the module.
+-			return rs, false, nil
++		if cfg.BuildV {
++			fmt.Fprintf(os.Stderr, "go: trying upgrade to %v\n", r)
+ 		}
++		selectedRoot[r.Path] = r.Version
++	}
+ 
+-		for _, m := range mods {
+-			if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
+-				// m.Path was formerly a root, and either its version hasn't changed or
+-				// we believe that it provides a package directly imported by a package
+-				// or test in the main module. For now we'll assume that it is still
+-				// relevant enough to remain a root. If we actually load all of the
+-				// packages and tests in the main module (which we are not doing here),
+-				// we can revise the explicit roots at that point.
+-				rootPaths = append(rootPaths, m.Path)
++	// conflicts is a list of conflicts that we cannot resolve without violating
++	// some version in mustSelect. It may be incomplete, but we want to report
++	// as many conflicts as we can so that the user can solve more of them at once.
++	var conflicts []Conflict
++
++	// mustSelectVersion is an index of the versions in mustSelect.
++	mustSelectVersion := make(map[string]string, len(mustSelect))
++	for _, r := range mustSelect {
++		if v, ok := mustSelectVersion[r.Path]; ok && v != r.Version {
++			prev := module.Version{Path: r.Path, Version: v}
++			if cmpVersion(v, r.Version) > 0 {
++				conflicts = append(conflicts, Conflict{Path: []module.Version{prev}, Constraint: r})
++			} else {
++				conflicts = append(conflicts, Conflict{Path: []module.Version{r}, Constraint: prev})
+ 			}
++			continue
+ 		}
+ 
+-		roots, err = mvs.Req(MainModules.mustGetSingleMainModule(), rootPaths, &mvsReqs{roots: mods})
+-		if err != nil {
+-			return nil, false, err
+-		}
+-	} else {
+-		// In a module with a pruned graph, every module that provides a package
+-		// imported by the main module must be retained as a root.
+-		roots = mods
+-		if !changed {
+-			// Because the roots we just computed are unchanged, the entire graph must
+-			// be the same as it was before. Save the original rs, since we have
+-			// probably already loaded its requirement graph.
+-			return rs, false, nil
+-		}
++		mustSelectVersion[r.Path] = r.Version
++		selectedRoot[r.Path] = r.Version
+ 	}
+ 
+-	// A module that is not even in the build list necessarily cannot provide
+-	// any imported packages. Mark as direct only the direct modules that are
+-	// still in the build list.
++	// We've indexed all of the data we need and we've computed the initial
++	// versions of the roots. Now we need to load the actual module graph and
++	// restore the invariant that every root is the selected version of its path.
+ 	//
+-	// TODO(bcmills): Would it make more sense to leave the direct map as-is
+-	// but allow it to refer to modules that are no longer in the build list?
+-	// That might complicate updateRoots, but it may be cleaner in other ways.
+-	direct := make(map[string]bool, len(rs.direct))
+-	for _, m := range roots {
+-		if rs.direct[m.Path] {
+-			direct[m.Path] = true
+-		}
+-	}
+-	return newRequirements(rs.pruning, roots, direct), changed, nil
+-}
++	// For 'go mod tidy' we would do that using expandGraph, which upgrades the
++	// roots until their requirements are internally consistent and then drops out
++	// the old roots. However, here we need to do more: we also need to make sure
++	// the modules in mustSelect don't get upgraded above their intended versions.
++	// To do that, we repeatedly walk the module graph, identify paths of
++	// requirements that result in versions that are too high, and downgrade the
++	// roots that lead to those paths. When no conflicts remain, we're done.
++	//
++	// Since we want to report accurate paths to each conflict, we don't drop out
++	// older-than-selected roots until the process completes. That might mean that
++	// we do some extra downgrades when they could be skipped, but for the benefit
++	// of being able to explain the reason for every downgrade that seems
++	// worthwhile.
++	//
++	// Graph pruning adds an extra wrinkle: a given node in the module graph
++	// may be reached from a root whose dependencies are pruned, and from a root
++	// whose dependencies are not pruned. It may be the case that the path from
++	// the unpruned root leads to a conflict, while the path from the pruned root
++	// prunes out the requirements that would lead to that conflict.
++	// So we need to track the two kinds of paths independently.
++	// They join back together at the roots of the graph: if a root r1 with pruned
++	// requirements depends on a root r2 with unpruned requirements, then
++	// selecting r1 would cause r2 to become a root and pull in all of its
++	// unpruned dependencies.
++	//
++	// The dqTracker type implements the logic for propagating conflict paths
++	// through the pruned and unpruned parts of the module graph.
++	//
++	// We make a best effort to fix incompatibilities, subject to two properties:
++	//
++	// 	1. If the user runs 'go get' with a set of mutually-compatible module
++	// 	versions, we should accept those versions.
++	//
++	// 	2. If we end up upgrading or downgrading a module, it should be
++	// 	clear why we did so.
++	//
++	// We don't try to find an optimal SAT solution,
++	// especially given the complex interactions with graph pruning.
+ 
+-// limiterForEdit returns a versionLimiter with its max versions set such that
+-// the max version for every module path in mustSelect is the version listed
+-// there, and the max version for every other module path is the maximum version
+-// of its path found in the dependency graph of rs, the combined dependency
+-// graph of the versions in mustSelect, or the dependencies of each individual
+-// module version in tryUpgrade.
+-func limiterForEdit(ctx context.Context, rs *Requirements, tryUpgrade, mustSelect []module.Version) (*versionLimiter, error) {
+-	mg, err := rs.Graph(ctx)
+-	if err != nil {
+-		return nil, err
+-	}
++	var (
++		roots      []module.Version // the current versions in selectedRoot, in sorted order
++		rootsDirty = true           // true if roots does not match selectedRoot
++	)
+ 
+-	maxVersion := map[string]string{} // module path → version
+-	restrictTo := func(m module.Version) {
+-		v, ok := maxVersion[m.Path]
+-		if !ok || cmpVersion(v, m.Version) > 0 {
+-			maxVersion[m.Path] = m.Version
++	// rejectedRoot records the set of module versions that have been disqualified
++	// as roots of the module graph. When downgrading due to a conflict or error,
++	// we skip any version that has already been rejected.
++	//
++	// NOTE(bcmills): I am not sure that the rejectedRoot map is really necessary,
++	// since we normally only downgrade roots or accept indirect upgrades to
++	// known-good versions. However, I am having trouble proving that accepting an
++	// indirect upgrade never introduces a conflict that leads to further
++	// downgrades. I really want to be able to prove that editRequirements
++	// terminates, and the easiest way to prove it is to add this map.
++	//
++	// Then the proof of termination is this:
++	// On every iteration where we mark the roots as dirty, we add some new module
++	// version to the map. The universe of module versions is finite, so we must
++	// eventually reach a state in which we do not add any version to the map.
++	// In that state, we either report a conflict or succeed in the edit.
++	rejectedRoot := map[module.Version]bool{}
++
++	for rootsDirty && len(conflicts) == 0 {
++		roots = roots[:0]
++		for p, v := range selectedRoot {
++			if v != "none" {
++				roots = append(roots, module.Version{Path: p, Version: v})
++			}
+ 		}
+-	}
++		module.Sort(roots)
+ 
+-	if rs.pruning == unpruned {
+-		// go.mod files that do not support graph pruning don't indicate which
+-		// transitive dependencies are actually relevant to the main module, so we
+-		// have to assume that any module that could have provided any package —
+-		// that is, any module whose selected version was not "none" — may be
+-		// relevant.
+-		for _, m := range mg.BuildList() {
+-			restrictTo(m)
++		// First, we extend the graph so that it includes the selected version
++		// of every root. The upgraded roots are in addition to the original
++		// roots, so we will have enough information to trace a path to each
++		// conflict we discover from one or more of the original roots.
++		mg, upgradedRoots, err := extendGraph(ctx, rs, roots, selectedRoot)
++		if err != nil {
++			if mg == nil {
++				return rs, false, err
++			}
++			// We're about to walk the entire extended module graph, so we will find
++			// any error then — and we will either try to resolve it by downgrading
++			// something or report it as a conflict with more detail.
++		}
++
++		// extendedRootPruning is an index of the pruning used to load each root in
++		// the extended module graph.
++		extendedRootPruning := make(map[module.Version]modPruning, len(roots)+len(upgradedRoots))
++		findPruning := func(m module.Version) modPruning {
++			if rs.pruning == pruned {
++				summary, _ := mg.loadCache.Get(m)
++				if summary != nil && summary.pruning == unpruned {
++					return unpruned
++				}
++			}
++			return rs.pruning
+ 		}
+-	} else {
+-		// The go.mod file explicitly records every module that provides a package
+-		// imported by the main module.
+-		//
+-		// If we need to downgrade an existing root or a new root found in
+-		// tryUpgrade, we don't want to allow that downgrade to incidentally upgrade
+-		// a module imported by the main module to some arbitrary version.
+-		// However, we don't particularly care about arbitrary upgrades to modules
+-		// that are (at best) only providing packages imported by tests of
+-		// dependencies outside the main module.
+-		for _, m := range rs.rootModules {
+-			restrictTo(module.Version{
+-				Path:    m.Path,
+-				Version: mg.Selected(m.Path),
+-			})
++		for _, m := range roots {
++			extendedRootPruning[m] = findPruning(m)
++		}
++		for m := range upgradedRoots {
++			extendedRootPruning[m] = findPruning(m)
+ 		}
+-	}
+-
+-	if err := raiseLimitsForUpgrades(ctx, maxVersion, rs.pruning, tryUpgrade, mustSelect); err != nil {
+-		return nil, err
+-	}
+ 
+-	// The versions in mustSelect override whatever we would naively select —
+-	// we will downgrade other modules as needed in order to meet them.
+-	for _, m := range mustSelect {
+-		restrictTo(m)
+-	}
++		// Now check the resulting extended graph for errors and incompatibilities.
++		t := dqTracker{extendedRootPruning: extendedRootPruning}
++		mg.g.WalkBreadthFirst(func(m module.Version) {
++			if max, ok := mustSelectVersion[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
++				// m itself violates mustSelect, so it cannot appear in the module graph
++				// even if its transitive dependencies would be pruned out.
++				t.disqualify(m, pruned, dqState{dep: m})
++				return
++			}
+ 
+-	return newVersionLimiter(rs.pruning, maxVersion), nil
+-}
++			summary, err := mg.loadCache.Get(m)
++			if err != nil && err != par.ErrCacheEntryNotFound {
++				// We can't determine the requirements of m, so we don't know whether
++				// they would be allowed. This may be a transient error reaching the
++				// repository, rather than a permanent error with the retrieved version.
++				//
++				// TODO(golang.org/issue/31730, golang.org/issue/30134):
++				// decide what to do based on the actual error.
++				t.disqualify(m, pruned, dqState{err: err})
++				return
++			}
+ 
+-// raiseLimitsForUpgrades increases the module versions in maxVersions to the
+-// versions that would be needed to allow each of the modules in tryUpgrade
+-// (individually or in any combination) and all of the modules in mustSelect
+-// (simultaneously) to be added as roots.
+-//
+-// Versions not present in maxVersion are unrestricted, and it is assumed that
+-// they will not be promoted to root requirements (and thus will not contribute
+-// their own dependencies if the main module supports graph pruning).
+-//
+-// These limits provide an upper bound on how far a module may be upgraded as
+-// part of an incidental downgrade, if downgrades are needed in order to select
+-// the versions in mustSelect.
+-func raiseLimitsForUpgrades(ctx context.Context, maxVersion map[string]string, pruning modPruning, tryUpgrade []module.Version, mustSelect []module.Version) error {
+-	// allow raises the limit for m.Path to at least m.Version.
+-	// If m.Path was already unrestricted, it remains unrestricted.
+-	allow := func(m module.Version) {
+-		v, ok := maxVersion[m.Path]
+-		if !ok {
+-			return // m.Path is unrestricted.
+-		}
+-		if cmpVersion(v, m.Version) < 0 {
+-			maxVersion[m.Path] = m.Version
+-		}
+-	}
++			reqs, ok := mg.RequiredBy(m)
++			if !ok {
++				// The dependencies of m do not appear in the module graph, so they
++				// can't be causing any problems this time.
++				return
++			}
+ 
+-	var (
+-		unprunedUpgrades []module.Version
+-		isPrunedRootPath map[string]bool
+-	)
+-	if pruning == unpruned {
+-		unprunedUpgrades = tryUpgrade
+-	} else {
+-		isPrunedRootPath = make(map[string]bool, len(maxVersion))
+-		for p := range maxVersion {
+-			isPrunedRootPath[p] = true
+-		}
+-		for _, m := range tryUpgrade {
+-			isPrunedRootPath[m.Path] = true
+-		}
+-		for _, m := range mustSelect {
+-			isPrunedRootPath[m.Path] = true
+-		}
++			if summary == nil {
++				if m.Version != "" {
++					panic(fmt.Sprintf("internal error: %d reqs present for %v, but summary is nil", len(reqs), m))
++				}
++				// m is the main module: we are editing its dependencies, so it cannot
++				// become disqualified.
++				return
++			}
+ 
+-		allowedRoot := map[module.Version]bool{}
++			// Before we check for problems due to transitive dependencies, first
++			// check m's direct requirements. A requirement on a version r that
++			// violates mustSelect disqualifies m, even if the requirements of r are
++			// themselves pruned out.
++			for _, r := range reqs {
++				if max, ok := mustSelectVersion[r.Path]; ok && cmpVersion(r.Version, max) > 0 {
++					t.disqualify(m, pruned, dqState{dep: r})
++					return
++				}
++			}
++			for _, r := range reqs {
++				if !t.require(m, r) {
++					break
++				}
++			}
++		})
+ 
+-		var allowRoot func(m module.Version) error
+-		allowRoot = func(m module.Version) error {
+-			if allowedRoot[m] {
+-				return nil
++		// We have now marked all of the versions in the graph that have conflicts,
++		// with a path to each conflict from one or more roots that introduce it.
++		// Now we need to identify those roots and change their versions
++		// (if possible) in order to resolve the conflicts.
++		rootsDirty = false
++		for _, m := range roots {
++			path, err := t.path(m, extendedRootPruning[m])
++			if len(path) == 0 && err == nil {
++				continue // Nothing wrong with m; we can keep it.
+ 			}
+-			allowedRoot[m] = true
+ 
+-			if MainModules.Contains(m.Path) {
+-				// The main module versions are already considered to be higher than any
+-				// possible m, so m cannot be selected as a root and there is no point
+-				// scanning its dependencies.
+-				return nil
++			// path leads to a module with a problem: either it violates a constraint,
++			// or some error prevents us from determining whether it violates a
++			// constraint. We might end up logging or returning the conflict
++			// information, so go ahead and fill in the details about it.
++			conflict := Conflict{
++				Path: path,
++				Err:  err,
++			}
++			if err == nil {
++				var last module.Version = path[len(path)-1]
++				mustV, ok := mustSelectVersion[last.Path]
++				if !ok {
++					fmt.Fprintf(os.Stderr, "go: %v\n", conflict)
++					panic("internal error: found a version conflict, but no constraint it violates")
++				}
++				conflict.Constraint = module.Version{
++					Path:    last.Path,
++					Version: mustV,
++				}
+ 			}
+ 
+-			allow(m)
++			if v, ok := mustSelectVersion[m.Path]; ok && v == m.Version {
++				// m is in mustSelect, but is marked as disqualified due to a transitive
++				// dependency.
++				//
++				// In theory we could try removing module paths that don't appear in
++				// mustSelect (added by tryUpgrade or already present in rs) in order to
++				// get graph pruning to take effect, but (a) it is likely that 'go mod
++				// tidy' would re-add those roots and reintroduce unwanted upgrades,
++				// causing confusion, and (b) deciding which roots to try to eliminate
++				// would add a lot of complexity.
++				//
++				// Instead, we report the path to the conflict as an error.
++				// If users want to explicitly prune out nodes from the dependency
++				// graph, they can always add an explicit 'exclude' directive.
++				conflicts = append(conflicts, conflict)
++				continue
++			}
+ 
+-			summary, err := goModSummary(m)
+-			if err != nil {
+-				return err
++			// If m is not the selected version of its path, we have two options: we
++			// can either upgrade to the version that actually is selected (dropping m
++			// itself out of the bottom of the module graph), or we can try
++			// downgrading it.
++			//
++			// If the version we would be upgrading to is ok to use, we will just plan
++			// to do that and avoid the overhead of trying to find some lower version
++			// to downgrade to.
++			//
++			// However, it is possible that m depends on something that leads to its
++			// own upgrade, so if the upgrade isn't viable we should go ahead and try
++			// to downgrade (like with any other root).
++			if v := mg.Selected(m.Path); v != m.Version {
++				u := module.Version{Path: m.Path, Version: v}
++				uPruning, ok := t.extendedRootPruning[m]
++				if !ok {
++					fmt.Fprintf(os.Stderr, "go: %v\n", conflict)
++					panic(fmt.Sprintf("internal error: selected version of root %v is %v, but it was not expanded as a new root", m, u))
++				}
++				if !t.check(u, uPruning).isDisqualified() && !rejectedRoot[u] {
++					// Applying the upgrade from m to u will resolve the conflict,
++					// so plan to do that if there are no other conflicts to resolve.
++					continue
++				}
+ 			}
+-			if summary.pruning == unpruned {
+-				// For efficiency, we'll load all of the unpruned upgrades as one big
+-				// graph, rather than loading the (potentially-overlapping) subgraph for
+-				// each upgrade individually.
+-				unprunedUpgrades = append(unprunedUpgrades, m)
+-				return nil
++
++			// Figure out what version of m's path was present before we started
++			// the edit. We want to make sure we consider keeping it as-is,
++			// even if it wouldn't normally be included. (For example, it might
++			// be a pseudo-version or pre-release.)
++			origMG, _ := rs.Graph(ctx)
++			origV := origMG.Selected(m.Path)
++
++			if conflict.Err != nil && origV == m.Version {
++				// This version of m.Path was already in the module graph before we
++				// started editing, and the problem with it is that we can't load its
++				// (transitive) requirements.
++				//
++				// If this conflict was just one step in a longer chain of downgrades,
++				// then we would want to keep going past it until we find a version
++				// that doesn't have that problem. However, we only want to downgrade
++				// away from an *existing* requirement if we can confirm that it actually
++				// conflicts with mustSelect. (For example, we don't want
++				// 'go get -u ./...' to incidentally downgrade some dependency whose
++				// go.mod file is unavailable or has a bad checksum.)
++				conflicts = append(conflicts, conflict)
++				continue
+ 			}
+-			for _, r := range summary.require {
+-				if isPrunedRootPath[r.Path] {
+-					// r could become a root as the result of an upgrade or downgrade,
+-					// in which case its dependencies will not be pruned out.
+-					// We need to allow those dependencies to be upgraded too.
+-					if err := allowRoot(r); err != nil {
+-						return err
++
++			// We need to downgrade m's path to some lower version to try to resolve
++			// the conflict. Find the next-lowest candidate and apply it.
++			rejectedRoot[m] = true
++			prev := m
++			for {
++				prev, err = previousVersion(ctx, prev)
++				if cmpVersion(m.Version, origV) > 0 && (cmpVersion(prev.Version, origV) < 0 || err != nil) {
++					// previousVersion skipped over origV. Insert it into the order.
++					prev.Version = origV
++				} else if err != nil {
++					// We don't know the next downgrade to try. Give up.
++					return rs, false, err
++				}
++				if rejectedRoot[prev] {
++					// We already rejected prev in a previous round.
++					// To ensure that this algorithm terminates, don't try it again.
++					continue
++				}
++				pruning := rs.pruning
++				if pruning == pruned {
++					if summary, err := mg.loadCache.Get(m); err == nil {
++						pruning = summary.pruning
+ 					}
++				}
++				if t.check(prev, pruning).isDisqualified() {
++					// We found a problem with prev this round that would also disqualify
++					// it as a root. Don't bother trying it next round.
++					rejectedRoot[prev] = true
++					continue
++				}
++				break
++			}
++			selectedRoot[m.Path] = prev.Version
++			rootsDirty = true
++
++			// If this downgrade is potentially interesting, log the reason for it.
++			if conflict.Err != nil || cfg.BuildV {
++				var action string
++				if prev.Version == "none" {
++					action = fmt.Sprintf("removing %s", m)
++				} else if prev.Version == origV {
++					action = fmt.Sprintf("restoring %s", prev)
+ 				} else {
+-					// r will not become a root, so its dependencies don't matter.
+-					// Allow only r itself.
+-					allow(r)
++					action = fmt.Sprintf("trying %s", prev)
+ 				}
++				fmt.Fprintf(os.Stderr, "go: %s\n\t%s\n", conflict.Summary(), action)
+ 			}
+-			return nil
+ 		}
+-
+-		for _, m := range tryUpgrade {
+-			allowRoot(m)
++		if rootsDirty {
++			continue
+ 		}
+-	}
+ 
+-	if len(unprunedUpgrades) > 0 {
+-		// Compute the max versions for unpruned upgrades all together.
+-		// Since these modules are unpruned, we'll end up scanning all of their
+-		// transitive dependencies no matter which versions end up selected,
+-		// and since we have a large dependency graph to scan we might get
+-		// a significant benefit from not revisiting dependencies that are at
+-		// common versions among multiple upgrades.
+-		upgradeGraph, err := readModGraph(ctx, unpruned, unprunedUpgrades)
+-		if err != nil {
+-			// Compute the requirement path from a module path in tryUpgrade to the
+-			// error, and the requirement path (if any) from rs.rootModules to the
+-			// tryUpgrade module path. Return a *mvs.BuildListError showing the
+-			// concatenation of the paths (with an upgrade in the middle).
+-			return err
++		// We didn't resolve any issues by downgrading, but we may still need to
++		// resolve some conflicts by locking in upgrades. Do that now.
++		//
++		// We don't do these upgrades until we're done downgrading because the
++		// downgrade process might reveal or remove conflicts (by changing which
++		// requirement edges are pruned out).
++		var upgradedFrom []module.Version // for logging only
++		for p, v := range selectedRoot {
++			if _, ok := mustSelectVersion[p]; !ok {
++				if actual := mg.Selected(p); actual != v {
++					if cfg.BuildV {
++						upgradedFrom = append(upgradedFrom, module.Version{Path: p, Version: v})
++					}
++					selectedRoot[p] = actual
++					// Accepting the upgrade to m.Path might cause the selected versions
++					// of other modules to fall, because they were being increased by
++					// dependencies of m that are no longer present in the graph.
++					//
++					// TODO(bcmills): Can removing m as a root also cause the selected
++					// versions of other modules to rise? I think not: we're strictly
++					// removing non-root nodes from the module graph, which can't cause
++					// any root to decrease (because they're roots), and the dependencies
++					// of non-roots don't matter because they're either always unpruned or
++					// always pruned out.
++					//
++					// At any rate, it shouldn't cost much to reload the module graph one
++					// last time and confirm that it is stable.
++					rootsDirty = true
++				}
++			}
+ 		}
+-
+-		for _, r := range upgradeGraph.BuildList() {
+-			// Upgrading to m would upgrade to r, and the caller requested that we
+-			// try to upgrade to m, so it's ok to upgrade to r.
+-			allow(r)
++		if rootsDirty {
++			if cfg.BuildV {
++				module.Sort(upgradedFrom) // Make logging deterministic.
++				for _, m := range upgradedFrom {
++					fmt.Fprintf(os.Stderr, "go: accepting indirect upgrade from %v to %s\n", m, selectedRoot[m.Path])
++				}
++			}
++			continue
+ 		}
++		break
++	}
++	if len(conflicts) > 0 {
++		return rs, false, &ConstraintError{Conflicts: conflicts}
+ 	}
+ 
+-	// Explicitly allow any (transitive) upgrades implied by mustSelect.
+-	nextRoots := append([]module.Version(nil), mustSelect...)
+-	for nextRoots != nil {
+-		module.Sort(nextRoots)
+-		rs := newRequirements(pruning, nextRoots, nil)
+-		nextRoots = nil
+-
+-		rs, mustGraph, err := expandGraph(ctx, rs)
+-		if err != nil {
+-			return err
+-		}
+-
+-		for _, r := range mustGraph.BuildList() {
+-			// Some module in mustSelect requires r, so we must allow at least
+-			// r.Version (unless it conflicts with another entry in mustSelect, in
+-			// which case we will error out either way).
+-			allow(r)
+-
+-			if isPrunedRootPath[r.Path] {
+-				if v, ok := rs.rootSelected(r.Path); ok && r.Version == v {
+-					// r is already a root, so its requirements are already included in
+-					// the build list.
+-					continue
+-				}
++	if rs.pruning == unpruned {
++		// An unpruned go.mod file lists only a subset of the requirements needed
++		// for building packages. Figure out which requirements need to be explicit.
++		var rootPaths []string
+ 
+-				// The dependencies in mustSelect may upgrade (or downgrade) an existing
+-				// root to match r, which will remain as a root. However, since r is not
+-				// a root of rs, its dependencies have been pruned out of this build
+-				// list. We need to add it back explicitly so that we allow any
+-				// transitive upgrades that r will pull in.
+-				if nextRoots == nil {
+-					nextRoots = rs.rootModules // already capped
+-				}
+-				nextRoots = append(nextRoots, r)
++		// The modules in mustSelect are always promoted to be explicit.
++		for _, m := range mustSelect {
++			if m.Version != "none" && !MainModules.Contains(m.Path) {
++				rootPaths = append(rootPaths, m.Path)
+ 			}
+ 		}
+-	}
+-
+-	return nil
+-}
+ 
+-// selectPotentiallyImportedModules increases the limiter-selected version of
+-// every module in rs that potentially provides a package imported (directly or
+-// indirectly) by the main module, and every module in tryUpgrade, toward the
+-// highest version seen in rs or tryUpgrade, but not above the maximums enforced
+-// by the limiter.
+-//
+-// It returns the list of module versions selected by the limiter, sorted by
+-// path, along with a boolean indicating whether that list is different from the
+-// list of modules read from rs.
+-func selectPotentiallyImportedModules(ctx context.Context, limiter *versionLimiter, rs *Requirements, tryUpgrade []module.Version) (mods []module.Version, changed bool, err error) {
+-	for _, m := range tryUpgrade {
+-		if err := limiter.UpgradeToward(ctx, m); err != nil {
+-			return nil, false, err
++		for _, m := range roots {
++			if v, ok := rs.rootSelected(m.Path); ok && (v == m.Version || rs.direct[m.Path]) {
++				// m.Path was formerly a root, and either its version hasn't changed or
++				// we believe that it provides a package directly imported by a package
++				// or test in the main module. For now we'll assume that it is still
++				// relevant enough to remain a root. If we actually load all of the
++				// packages and tests in the main module (which we are not doing here),
++				// we can revise the explicit roots at that point.
++				rootPaths = append(rootPaths, m.Path)
++			}
+ 		}
+-	}
+ 
+-	var initial []module.Version
+-	if rs.pruning == unpruned {
+-		mg, err := rs.Graph(ctx)
++		roots, err = mvs.Req(MainModules.mustGetSingleMainModule(), rootPaths, &mvsReqs{roots: roots})
+ 		if err != nil {
+ 			return nil, false, err
+ 		}
+-		initial = mg.BuildList()[MainModules.Len():]
+-	} else {
+-		initial = rs.rootModules
+ 	}
+-	for _, m := range initial {
+-		if err := limiter.UpgradeToward(ctx, m); err != nil {
+-			return nil, false, err
+-		}
++
++	changed = !slices.Equal(roots, rs.rootModules)
++	if !changed {
++		// Because the roots we just computed are unchanged, the entire graph must
++		// be the same as it was before. Save the original rs, since we have
++		// probably already loaded its requirement graph.
++		return rs, false, nil
+ 	}
+ 
+-	mods = make([]module.Version, 0, len(limiter.selected))
+-	for path, v := range limiter.selected {
+-		if v != "none" && !MainModules.Contains(path) {
+-			mods = append(mods, module.Version{Path: path, Version: v})
++	// A module that is not even in the build list necessarily cannot provide
++	// any imported packages. Mark as direct only the direct modules that are
++	// still in the build list. (We assume that any module path that provided a
++	// direct import before the edit continues to do so after. There are a few
++	// edge cases where that can change, such as if a package moves into or out of
++	// a nested module or disappears entirely. If that happens, the user can run
++	// 'go mod tidy' to clean up the direct/indirect annotations.)
++	//
++	// TODO(bcmills): Would it make more sense to leave the direct map as-is
++	// but allow it to refer to modules that are no longer in the build list?
++	// That might complicate updateRoots, but it may be cleaner in other ways.
++	direct := make(map[string]bool, len(rs.direct))
++	for _, m := range roots {
++		if rs.direct[m.Path] {
++			direct[m.Path] = true
+ 		}
+ 	}
++	return newRequirements(rs.pruning, roots, direct), changed, nil
++}
+ 
+-	// We've identified acceptable versions for each of the modules, but those
+-	// versions are not necessarily consistent with each other: one upgraded or
+-	// downgraded module may require a higher (but still allowed) version of
+-	// another. The lower version may require extraneous dependencies that aren't
+-	// actually relevant, so we need to compute the actual selected versions.
+-	mg, err := readModGraph(ctx, rs.pruning, mods)
+-	if err != nil {
+-		return nil, false, err
+-	}
+-	mods = make([]module.Version, 0, len(limiter.selected))
+-	for path, _ := range limiter.selected {
+-		if !MainModules.Contains(path) {
+-			if v := mg.Selected(path); v != "none" {
+-				mods = append(mods, module.Version{Path: path, Version: v})
++// extendGraph loads the module graph from roots, and iteratively extends it by
++// unpruning the selected version of each module path that is a root in rs or in
++// the roots slice until the graph reaches a fixed point.
++//
++// The graph is guaranteed to converge to a fixed point because unpruning a
++// module version can only increase (never decrease) the selected versions,
++// and the set of versions for each module is finite.
++//
++// The extended graph is useful for diagnosing version conflicts: for each
++// selected module version, it can provide a complete path of requirements from
++// some root to that version.
++func extendGraph(ctx context.Context, rs *Requirements, roots []module.Version, selectedRoot map[string]string) (mg *ModuleGraph, upgradedRoot map[module.Version]bool, err error) {
++	for {
++		mg, err = readModGraph(ctx, rs.pruning, roots, upgradedRoot)
++		// We keep on going even if err is non-nil until we reach a steady state.
++		// (Note that readModGraph returns a non-nil *ModuleGraph even in case of
++		// errors.) The caller may be able to fix the errors by adjusting versions,
++		// so we really want to return as complete a result as we can.
++
++		if rs.pruning == unpruned {
++			// Everything is already unpruned, so there isn't anything we can do to
++			// extend it further.
++			break
++		}
++
++		nPrevRoots := len(upgradedRoot)
++		for p := range selectedRoot {
++			// Since p is a root path, when we fix up the module graph to be
++			// consistent with the selected versions, p will be promoted to a root,
++			// which will pull in its dependencies. Ensure that its dependencies are
++			// included in the module graph.
++			v := mg.g.Selected(p)
++			if v == "none" {
++				// Version “none” always has no requirements, so it doesn't need
++				// an explicit node in the module graph.
++				continue
++			}
++			m := module.Version{Path: p, Version: v}
++			if _, ok := mg.g.RequiredBy(m); !ok && !upgradedRoot[m] {
++				// The dependencies of the selected version of p were not loaded.
++				// Mark it as an upgrade so that we will load its dependencies
++				// in the next iteration.
++				//
++				// Note that we don't remove any of the existing roots, even if they are
++				// no longer the selected version: with graph pruning in effect this may
++				// leave some spurious dependencies in the graph, but it at least
++				// preserves enough of the graph to explain why each upgrade occurred:
++				// this way, we can report a complete path from the passed-in roots
++				// to every node in the module graph.
++				//
++				// This process is guaranteed to reach a fixed point: since we are only
++				// adding roots (never removing them), the selected version of each module
++				// can only increase, never decrease, and the set of module versions in the
++				// universe is finite.
++				if upgradedRoot == nil {
++					upgradedRoot = make(map[module.Version]bool)
++				}
++				upgradedRoot[m] = true
+ 			}
+ 		}
++		if len(upgradedRoot) == nPrevRoots {
++			break
++		}
+ 	}
+-	module.Sort(mods)
+ 
+-	changed = !reflect.DeepEqual(mods, initial)
++	return mg, upgradedRoot, err
++}
+ 
+-	return mods, changed, err
++type perPruning[T any] struct {
++	pruned   T
++	unpruned T
+ }
+ 
+-// A versionLimiter tracks the versions that may be selected for each module
+-// subject to constraints on the maximum versions of transitive dependencies.
+-type versionLimiter struct {
+-	// pruning is the pruning at which the dependencies of the modules passed to
+-	// Select and UpgradeToward are loaded.
+-	pruning modPruning
++func (pp perPruning[T]) from(p modPruning) T {
++	if p == unpruned {
++		return pp.unpruned
++	}
++	return pp.pruned
++}
+ 
+-	// max maps each module path to the maximum version that may be selected for
+-	// that path.
+-	//
+-	// Paths with no entry are unrestricted, and we assume that they will not be
+-	// promoted to root dependencies (so will not contribute dependencies if the
+-	// main module supports graph pruning).
+-	max map[string]string
+-
+-	// selected maps each module path to a version of that path (if known) whose
+-	// transitive dependencies do not violate any max version. The version kept
+-	// is the highest one found during any call to UpgradeToward for the given
+-	// module path.
+-	//
+-	// If a higher acceptable version is found during a call to UpgradeToward for
+-	// some *other* module path, that does not update the selected version.
+-	// Ignoring those versions keeps the downgrades computed for two modules
+-	// together close to the individual downgrades that would be computed for each
+-	// module in isolation. (The only way one module can affect another is if the
+-	// final downgraded version of the one module explicitly requires a higher
+-	// version of the other.)
+-	//
+-	// Version "none" of every module is always known not to violate any max
+-	// version, so paths at version "none" are omitted.
+-	selected map[string]string
++// A dqTracker tracks and propagates the reason that each module version
++// cannot be included in the module graph.
++type dqTracker struct {
++	// extendedRootPruning is the modPruning given the go.mod file for each root
++	// in the extended module graph.
++	extendedRootPruning map[module.Version]modPruning
+ 
+ 	// dqReason records whether and why each each encountered version is
+-	// disqualified.
+-	dqReason map[module.Version]dqState
++	// disqualified in a pruned or unpruned context.
++	dqReason map[module.Version]perPruning[dqState]
+ 
+ 	// requiring maps each not-yet-disqualified module version to the versions
+-	// that directly require it. If that version becomes disqualified, the
+-	// disqualification will be propagated to all of the versions in the list.
++	// that would cause that module's requirements to be included in a pruned or
++	// unpruned context. If that version becomes disqualified, the
++	// disqualification will be propagated to all of the versions in the
++	// corresponding list.
++	//
++	// This map is similar to the module requirement graph, but includes more
++	// detail about whether a given dependency edge appears in a pruned or
++	// unpruned context. (Other commands do not need this level of detail.)
+ 	requiring map[module.Version][]module.Version
+ }
+ 
+@@ -460,178 +630,152 @@ type versionLimiter struct {
+ // disqualified, either because it is ok or because we are currently traversing
+ // a cycle that includes it.
+ type dqState struct {
+-	err      error          // if non-nil, disqualified because the requirements of the module could not be read
+-	conflict module.Version // disqualified because the module (transitively) requires dep, which exceeds the maximum version constraint for its path
++	err error          // if non-nil, disqualified because the requirements of the module could not be read
++	dep module.Version // disqualified because the module is or requires dep
+ }
+ 
+ func (dq dqState) isDisqualified() bool {
+ 	return dq != dqState{}
+ }
+ 
+-// newVersionLimiter returns a versionLimiter that restricts the module paths
+-// that appear as keys in max.
+-//
+-// max maps each module path to its maximum version; paths that are not present
+-// in the map are unrestricted. The limiter assumes that unrestricted paths will
+-// not be promoted to root dependencies.
+-//
+-// If module graph pruning is in effect, then if a module passed to
+-// UpgradeToward or Select supports pruning, its unrestricted dependencies are
+-// skipped when scanning requirements.
+-func newVersionLimiter(pruning modPruning, max map[string]string) *versionLimiter {
+-	selected := make(map[string]string)
+-	for _, m := range MainModules.Versions() {
+-		selected[m.Path] = m.Version
++func (dq dqState) String() string {
++	if dq.err != nil {
++		return dq.err.Error()
+ 	}
+-	return &versionLimiter{
+-		pruning:   pruning,
+-		max:       max,
+-		selected:  selected,
+-		dqReason:  map[module.Version]dqState{},
+-		requiring: map[module.Version][]module.Version{},
++	if dq.dep != (module.Version{}) {
++		return dq.dep.String()
+ 	}
++	return "(no conflict)"
+ }
+ 
+-// UpgradeToward attempts to upgrade the selected version of m.Path as close as
+-// possible to m.Version without violating l's maximum version limits.
++// require records that m directly requires r, in case r becomes disqualified.
++// (These edges are in the opposite direction from the edges in an mvs.Graph.)
+ //
+-// If module graph pruning is in effect and m itself supports pruning, the
+-// dependencies of unrestricted dependencies of m will not be followed.
+-func (l *versionLimiter) UpgradeToward(ctx context.Context, m module.Version) error {
+-	selected, ok := l.selected[m.Path]
+-	if ok {
+-		if cmpVersion(selected, m.Version) >= 0 {
+-			// The selected version is already at least m, so no upgrade is needed.
+-			return nil
+-		}
+-	} else {
+-		selected = "none"
+-	}
+-
+-	if l.check(m, l.pruning).isDisqualified() {
+-		candidates, _, err := versions(ctx, m.Path, CheckAllowed)
+-		if err != nil {
+-			// This is likely a transient error reaching the repository,
+-			// rather than a permanent error with the retrieved version.
+-			//
+-			// TODO(golang.org/issue/31730, golang.org/issue/30134):
+-			// decode what to do based on the actual error.
+-			return err
+-		}
++// If r is already disqualified, require propagates the disqualification to m
++// and returns the reason for the disqualification.
++func (t *dqTracker) require(m, r module.Version) (ok bool) {
++	rdq := t.dqReason[r]
++	rootPruning, isRoot := t.extendedRootPruning[r]
++	if isRoot && rdq.from(rootPruning).isDisqualified() {
++		// When we pull in m's dependencies, we will have an edge from m to r, and r
++		// is disqualified (it is a root, which causes its problematic dependencies
++		// to always be included). So we cannot pull in m's dependencies at all:
++		// m is completely disqualified.
++		t.disqualify(m, pruned, dqState{dep: r})
++		return false
++	}
++
++	if dq := rdq.from(unpruned); dq.isDisqualified() {
++		t.disqualify(m, unpruned, dqState{dep: r})
++		if _, ok := t.extendedRootPruning[m]; !ok {
++			// Since m is not a root, its dependencies can't be included in the pruned
++			// part of the module graph, and will never be disqualified from a pruned
++			// reason. We've already disqualified everything that matters.
++			return false
++		}
++	}
++
++	// Record that m is a dependant of r, so that if r is later disqualified
++	// m will be disqualified as well.
++	if t.requiring == nil {
++		t.requiring = make(map[module.Version][]module.Version)
++	}
++	t.requiring[r] = append(t.requiring[r], m)
++	return true
++}
+ 
+-		// Skip to candidates < m.Version.
+-		i := sort.Search(len(candidates), func(i int) bool {
+-			return semver.Compare(candidates[i], m.Version) >= 0
+-		})
+-		candidates = candidates[:i]
+-
+-		for l.check(m, l.pruning).isDisqualified() {
+-			n := len(candidates)
+-			if n == 0 || cmpVersion(selected, candidates[n-1]) >= 0 {
+-				// We couldn't find a suitable candidate above the already-selected version.
+-				// Retain that version unmodified.
+-				return nil
+-			}
+-			m.Version, candidates = candidates[n-1], candidates[:n-1]
++// disqualify records why the dependencies of m cannot be included in the module
++// graph if reached from a part of the graph with the given pruning.
++//
++// Since the pruned graph is a subgraph of the unpruned graph, disqualifying a
++// module from a pruned part of the graph also disqualifies it in the unpruned
++// parts.
++func (t *dqTracker) disqualify(m module.Version, fromPruning modPruning, reason dqState) {
++	if !reason.isDisqualified() {
++		panic("internal error: disqualify called with a non-disqualifying dqState")
++	}
++
++	dq := t.dqReason[m]
++	if dq.from(fromPruning).isDisqualified() {
++		return // Already disqualified for some other reason; don't overwrite it.
++	}
++	rootPruning, isRoot := t.extendedRootPruning[m]
++	if fromPruning == pruned {
++		dq.pruned = reason
++		if !dq.unpruned.isDisqualified() {
++			// Since the pruned graph of m is a subgraph of the unpruned graph, if it
++			// is disqualified due to something in the pruned graph, it is certainly
++			// disqualified in the unpruned graph from the same reason.
++			dq.unpruned = reason
+ 		}
++	} else {
++		dq.unpruned = reason
++		if dq.pruned.isDisqualified() {
++			panic(fmt.Sprintf("internal error: %v is marked as disqualified when pruned, but not when unpruned", m))
++		}
++		if isRoot && rootPruning == unpruned {
++			// Since m is a root that is always unpruned, any other roots — even
++			// pruned ones! — that cause it to be selected would also cause the reason
++			// for is disqualification to be included in the module graph.
++			dq.pruned = reason
++		}
++	}
++	if t.dqReason == nil {
++		t.dqReason = make(map[module.Version]perPruning[dqState])
++	}
++	t.dqReason[m] = dq
++
++	if isRoot && (fromPruning == pruned || rootPruning == unpruned) {
++		// Either m is disqualified even when its dependencies are pruned,
++		// or m's go.mod file causes its dependencies to *always* be unpruned.
++		// Everything that depends on it must be disqualified.
++		for _, p := range t.requiring[m] {
++			t.disqualify(p, pruned, dqState{dep: m})
++			// Note that since the pruned graph is a subset of the unpruned graph,
++			// disqualifying p in the pruned graph also disqualifies it in the
++			// unpruned graph.
++		}
++		// Everything in t.requiring[m] is now fully disqualified.
++		// We won't need to use it again.
++		delete(t.requiring, m)
++		return
++	}
++
++	// Either m is not a root, or it is a pruned root but only being disqualified
++	// when reached from the unpruned parts of the module graph.
++	// Either way, the reason for this disqualification is only visible to the
++	// unpruned parts of the module graph.
++	for _, p := range t.requiring[m] {
++		t.disqualify(p, unpruned, dqState{dep: m})
++	}
++	if !isRoot {
++		// Since m is not a root, its dependencies can't be included in the pruned
++		// part of the module graph, and will never be disqualified from a pruned
++		// reason. We've already disqualified everything that matters.
++		delete(t.requiring, m)
+ 	}
+-
+-	l.selected[m.Path] = m.Version
+-	return nil
+ }
+ 
+-// Select attempts to set the selected version of m.Path to exactly m.Version.
+-func (l *versionLimiter) Select(m module.Version) (conflict module.Version, err error) {
+-	dq := l.check(m, l.pruning)
+-	if !dq.isDisqualified() {
+-		l.selected[m.Path] = m.Version
+-	}
+-	return dq.conflict, dq.err
++// check reports whether m is disqualified in the given pruning context.
++func (t *dqTracker) check(m module.Version, pruning modPruning) dqState {
++	return t.dqReason[m].from(pruning)
+ }
+ 
+-// check determines whether m (or its transitive dependencies) would violate l's
+-// maximum version limits if added to the module requirement graph.
++// path returns the path from m to the reason it is disqualified, which may be
++// either a module that violates constraints or an error in loading
++// requirements.
+ //
+-// If pruning is in effect and m itself supports graph pruning, the dependencies
+-// of unrestricted dependencies of m will not be followed. If the graph-pruning
+-// invariants hold for the main module up to this point, the packages in those
+-// modules are at best only imported by tests of dependencies that are
+-// themselves loaded from outside modules. Although we would like to keep
+-// 'go test all' as reproducible as is feasible, we don't want to retain test
+-// dependencies that are only marginally relevant at best.
+-func (l *versionLimiter) check(m module.Version, pruning modPruning) dqState {
+-	if m.Version == "none" || m == MainModules.mustGetSingleMainModule() {
+-		// version "none" has no requirements, and the dependencies of Target are
+-		// tautological.
+-		return dqState{}
+-	}
+-
+-	if dq, seen := l.dqReason[m]; seen {
+-		return dq
+-	}
+-	l.dqReason[m] = dqState{}
+-
+-	if max, ok := l.max[m.Path]; ok && cmpVersion(m.Version, max) > 0 {
+-		return l.disqualify(m, dqState{conflict: m})
+-	}
+-
+-	summary, err := goModSummary(m)
+-	if err != nil {
+-		// If we can't load the requirements, we couldn't load the go.mod file.
+-		// There are a number of reasons this can happen, but this usually
+-		// means an older version of the module had a missing or invalid
+-		// go.mod file. For example, if example.com/mod released v2.0.0 before
+-		// migrating to modules (v2.0.0+incompatible), then added a valid go.mod
+-		// in v2.0.1, downgrading from v2.0.1 would cause this error.
+-		//
+-		// TODO(golang.org/issue/31730, golang.org/issue/30134): if the error
+-		// is transient (we couldn't download go.mod), return the error from
+-		// Downgrade. Currently, we can't tell what kind of error it is.
+-		return l.disqualify(m, dqState{err: err})
+-	}
+-
+-	if summary.pruning == unpruned {
+-		pruning = unpruned
+-	}
+-	for _, r := range summary.require {
+-		if pruning == pruned {
+-			if _, restricted := l.max[r.Path]; !restricted {
+-				// r.Path is unrestricted, so we don't care at what version it is
+-				// selected. We assume that r.Path will not become a root dependency, so
+-				// since m supports pruning, r's dependencies won't be followed.
+-				continue
+-			}
++// If m is not disqualified, path returns (nil, nil).
++func (t *dqTracker) path(m module.Version, pruning modPruning) (path []module.Version, err error) {
++	for {
++		dq := t.dqReason[m].from(pruning)
++		if !dq.isDisqualified() {
++			return path, nil
+ 		}
+-
+-		if dq := l.check(r, pruning); dq.isDisqualified() {
+-			return l.disqualify(m, dq)
++		path = append(path, m)
++		if dq.err != nil || dq.dep == m {
++			return path, dq.err // m itself is the conflict.
+ 		}
+-
+-		// r and its dependencies are (perhaps provisionally) ok.
+-		//
+-		// However, if there are cycles in the requirement graph, we may have only
+-		// checked a portion of the requirement graph so far, and r (and thus m) may
+-		// yet be disqualified by some path we have not yet visited. Remember this edge
+-		// so that we can disqualify m and its dependents if that occurs.
+-		l.requiring[r] = append(l.requiring[r], m)
+-	}
+-
+-	return dqState{}
+-}
+-
+-// disqualify records that m (or one of its transitive dependencies)
+-// violates l's maximum version limits.
+-func (l *versionLimiter) disqualify(m module.Version, dq dqState) dqState {
+-	if dq := l.dqReason[m]; dq.isDisqualified() {
+-		return dq
+-	}
+-	l.dqReason[m] = dq
+-
+-	for _, p := range l.requiring[m] {
+-		l.disqualify(p, dqState{conflict: m})
++		m = dq.dep
+ 	}
+-	// Now that we have disqualified the modules that depend on m, we can forget
+-	// about them — we won't need to disqualify them again.
+-	delete(l.requiring, m)
+-	return dq
+ }
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 79ec530caa..8e8622982d 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -130,6 +130,19 @@ const (
+ 	workspace                   // pruned to the union of modules in the workspace
+ )
+ 
++func (p modPruning) String() string {
++	switch p {
++	case pruned:
++		return "pruned"
++	case unpruned:
++		return "unpruned"
++	case workspace:
++		return "workspace"
++	default:
++		return fmt.Sprintf("%T(%d)", p, p)
++	}
++}
++
+ func pruningForGoVersion(goVersion string) modPruning {
+ 	if semver.Compare("v"+goVersion, ExplicitIndirectVersionV) < 0 {
+ 		// The go.mod file does not duplicate relevant information about transitive
+@@ -661,7 +674,6 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ // its dependencies.
+ //
+ // rawGoModSummary cannot be used on the Target module.
+-
+ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	if m.Path == "" && MainModules.Contains(m.Path) {
+ 		panic("internal error: rawGoModSummary called on the Target module")
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index ea1c21b4f1..b4d0cf23a6 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -111,14 +111,12 @@ func versions(ctx context.Context, path string, allowed AllowedFunc) (versions [
+ //
+ // Since the version of a main module is not found in the version list,
+ // it has no previous version.
+-func previousVersion(m module.Version) (module.Version, error) {
+-	// TODO(golang.org/issue/38714): thread tracing context through MVS.
+-
++func previousVersion(ctx context.Context, m module.Version) (module.Version, error) {
+ 	if m.Version == "" && MainModules.Contains(m.Path) {
+ 		return module.Version{Path: m.Path, Version: "none"}, nil
+ 	}
+ 
+-	list, _, err := versions(context.TODO(), m.Path, CheckAllowed)
++	list, _, err := versions(ctx, m.Path, CheckAllowed)
+ 	if err != nil {
+ 		if errors.Is(err, os.ErrNotExist) {
+ 			return module.Version{Path: m.Path, Version: "none"}, nil
+@@ -133,5 +131,6 @@ func previousVersion(m module.Version) (module.Version, error) {
+ }
+ 
+ func (*mvsReqs) Previous(m module.Version) (module.Version, error) {
+-	return previousVersion(m)
++	// TODO(golang.org/issue/38714): thread tracing context through MVS.
++	return previousVersion(context.TODO(), m)
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_boost.txt b/src/cmd/go/testdata/script/mod_get_boost.txt
+new file mode 100644
+index 0000000000..105dc2e2b3
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_boost.txt
+@@ -0,0 +1,96 @@
++# If 'go get -u' finds an upgrade candidate that isn't viable,
++# but some other upgraded module's requirement moves past it
++# (for example, to a higher prerelease), then we should accept
++# the transitive upgrade instead of trying lower roots.
++
++go get -v -u . example.net/b@v0.1.0
++cmp go.mod go.mod.want
++
++-- go.mod --
++module example
++
++go 1.17
++
++require (
++	example.net/a v0.1.0
++	example.net/b v0.1.0
++	example.net/c v0.1.0
++)
++
++replace (
++	example.net/a v0.1.0 => ./a1
++	example.net/a v0.2.0-pre => ./a2p
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c1
++	example.net/c v0.2.0 => ./c2
++)
++-- go.mod.want --
++module example
++
++go 1.17
++
++require (
++	example.net/a v0.2.0-pre
++	example.net/b v0.1.0
++	example.net/c v0.2.0
++)
++
++replace (
++	example.net/a v0.1.0 => ./a1
++	example.net/a v0.2.0-pre => ./a2p
++	example.net/b v0.1.0 => ./b
++	example.net/b v0.2.0 => ./b
++	example.net/c v0.1.0 => ./c1
++	example.net/c v0.2.0 => ./c2
++)
++-- example.go --
++package example
++
++import (
++	_ "example.net/a"
++	_ "example.net/b"
++	_ "example.net/c"
++)
++-- a1/go.mod --
++module example.net/a
++
++go 1.17
++
++require example.net/b v0.2.0
++-- a1/a.go --
++package a
++
++import _ "example.net/b"
++-- a2p/go.mod --
++module example.net/a
++
++go 1.17
++-- a2p/a.go --
++package a
++-- b/go.mod --
++module example.net/b
++
++go 1.17
++-- b/b.go --
++package b
++-- c1/go.mod --
++module example.net/c
++
++go 1.17
++
++require example.net/a v0.1.0
++-- c1/c.go --
++package c
++
++import _ "example.net/a"
++-- c2/go.mod --
++module example.net/c
++
++go 1.17
++
++require example.net/a v0.2.0-pre
++-- c2/c.go --
++package c
++
++import _ "example.net/c"
+diff --git a/src/cmd/go/testdata/script/mod_get_downup_indirect.txt b/src/cmd/go/testdata/script/mod_get_downup_indirect.txt
+index 3a46a774ce..432e626003 100644
+--- a/src/cmd/go/testdata/script/mod_get_downup_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_downup_indirect.txt
+@@ -19,17 +19,31 @@
+ #
+ # If we downgrade module d to version 1, we must downgrade b as well.
+ # If that downgrade selects b version 1, we will upgrade module c to version 2.
+-# So 'go get d@1' should instead downgrade both b and c to "none".
+ 
+ cp go.mod go.mod.orig
+ go mod tidy
+ cmp go.mod.orig go.mod
+ 
++# Downgrading d to version 1 downgrades b, which upgrades c.
+ go get example.com/d@v0.1.0
+ go list -m all
+-! stdout '^example.com/b '
+-! stdout '^example.com/c '
++stdout '^example.com/b v0.1.0 '
++stdout '^example.com/c v0.2.0 '
+ stdout '^example.com/d v0.1.0 '
++cmp go.mod go.mod.down1
++
++# Restoring c to version 1 upgrades d to meet c's requirements.
++go get example.com/c@v0.1.0
++go list -m all
++! stdout '^example.com/b '
++stdout '^example.com/c v0.1.0 '
++stdout '^example.com/d v0.2.0 '
++cmp go.mod go.mod.down2
++
++# If a user explicitly requests the incompatible versions together,
++# 'go get' should explain why they are not compatible.
++! go get example.com/c@v0.1.0 example.com/d@v0.1.0
++stderr '^go: example\.com/c@v0\.1\.0 requires example\.com/d@v0\.2\.0, not example\.com/d@v0\.1\.0'
+ 
+ -- go.mod --
+ module example.com/a
+@@ -41,6 +55,40 @@ require (
+ 	example.com/c v0.1.0
+ )
+ 
++replace (
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++	example.com/d v0.1.0 => ./d
++	example.com/d v0.2.0 => ./d
++)
++-- go.mod.down1 --
++module example.com/a
++
++go 1.15
++
++require (
++	example.com/b v0.1.0
++	example.com/c v0.2.0
++	example.com/d v0.1.0 // indirect
++)
++
++replace (
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++	example.com/d v0.1.0 => ./d
++	example.com/d v0.2.0 => ./d
++)
++-- go.mod.down2 --
++module example.com/a
++
++go 1.15
++
++require example.com/c v0.1.0
++
+ replace (
+ 	example.com/b v0.1.0 => ./b1
+ 	example.com/b v0.2.0 => ./b2
+diff --git a/src/cmd/go/testdata/script/mod_get_downup_indirect_pruned.txt b/src/cmd/go/testdata/script/mod_get_downup_indirect_pruned.txt
+new file mode 100644
+index 0000000000..cac6b96790
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_downup_indirect_pruned.txt
+@@ -0,0 +1,154 @@
++# This test illustrates a case where downgrading one module may upgrade another.
++# This is the same as mod_get_downup_indirect, but using modules
++# with graph pruning enabled (go ≥ 1.17).
++# Compare to the downcross1 test case in cmd/go/internal/mvs/mvs_test.go.
++
++# The package import graph used in this test looks like:
++#
++# a ---- b
++#   \     \
++#    \     \
++#     ----- c ---- d
++#
++# The module dependency graph originally looks like:
++#
++# a ---- b.2
++#   \      \
++#    \      \
++#     ----- c.1 ---- d.2
++#
++# b.1 ---- c.2
++#
++# If we downgrade module d to version 1, we must downgrade b as well.
++# If that downgrade selects b version 1, we will upgrade module c to version 2.
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod.orig go.mod
++
++# Downgrading d to version 1 downgrades b, which upgrades c.
++go get -v example.com/d@v0.1.0
++go list -m all
++stdout '^example.com/b v0.1.0 '
++stdout '^example.com/c v0.2.0 '
++stdout '^example.com/d v0.1.0 '
++cmp go.mod go.mod.down1
++
++# Restoring c to version 1 upgrades d to meet c's requirements.
++go get example.com/c@v0.1.0
++go list -m all
++! stdout '^example.com/b '
++stdout '^example.com/c v0.1.0 '
++stdout '^example.com/d v0.2.0 '
++cmp go.mod go.mod.down2
++
++# If a user explicitly requests the incompatible versions together,
++# 'go get' should explain why they are not compatible.
++! go get example.com/c@v0.1.0 example.com/d@v0.1.0
++stderr '^go: example\.com/c@v0\.1\.0 requires example\.com/d@v0\.2\.0, not example\.com/d@v0\.1\.0'
++
++-- go.mod --
++module example.com/a
++
++go 1.17
++
++require (
++	example.com/b v0.2.0
++	example.com/c v0.1.0
++)
++
++replace (
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++	example.com/d v0.1.0 => ./d
++	example.com/d v0.2.0 => ./d
++)
++-- go.mod.down1 --
++module example.com/a
++
++go 1.17
++
++require (
++	example.com/b v0.1.0
++	example.com/c v0.2.0
++)
++
++require example.com/d v0.1.0 // indirect
++
++replace (
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++	example.com/d v0.1.0 => ./d
++	example.com/d v0.2.0 => ./d
++)
++-- go.mod.down2 --
++module example.com/a
++
++go 1.17
++
++require example.com/c v0.1.0
++
++require example.com/d v0.2.0 // indirect
++
++replace (
++	example.com/b v0.1.0 => ./b1
++	example.com/b v0.2.0 => ./b2
++	example.com/c v0.1.0 => ./c1
++	example.com/c v0.2.0 => ./c2
++	example.com/d v0.1.0 => ./d
++	example.com/d v0.2.0 => ./d
++)
++-- a.go --
++package a
++
++import (
++	_ "example.com/b"
++	_ "example.com/c"
++)
++
++-- b1/go.mod --
++module example.com/b
++
++go 1.17
++
++require example.com/c v0.2.0
++-- b1/b.go --
++package b
++
++import _ "example.com/c"
++
++-- b2/go.mod --
++module example.com/b
++
++go 1.17
++
++require example.com/c v0.1.0
++-- b2/b.go --
++package b
++
++import _ "example.com/c"
++
++-- c1/go.mod --
++module example.com/c
++
++go 1.17
++
++require example.com/d v0.2.0
++-- c1/c.go --
++package c
++
++-- c2/go.mod --
++module example.com/c
++
++go 1.17
++-- c2/c.go --
++package c
++
++-- d/go.mod --
++module example.com/d
++
++go 1.17
+diff --git a/src/cmd/go/testdata/script/mod_get_issue56494.txt b/src/cmd/go/testdata/script/mod_get_issue56494.txt
+index dabe23b9a7..3e4d4af834 100644
+--- a/src/cmd/go/testdata/script/mod_get_issue56494.txt
++++ b/src/cmd/go/testdata/script/mod_get_issue56494.txt
+@@ -35,9 +35,7 @@
+ # so 'go get' should prune it out too, and c should remain at c1
+ # without error.
+ 
+-	# TODO(#56494): This should succeed, not error out.
+-! go get a@v0.3.0
+-stderr 'INTERNAL ERROR'
++go get a@v0.3.0
+ 
+ go list -m c
+ stdout '^c v0.1.0 '
+diff --git a/src/cmd/go/testdata/script/mod_get_newcycle.txt b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+index 18dc650361..4f5229e57e 100644
+--- a/src/cmd/go/testdata/script/mod_get_newcycle.txt
++++ b/src/cmd/go/testdata/script/mod_get_newcycle.txt
+@@ -11,4 +11,4 @@ go mod init m
+ cmp stderr stderr-expected
+ 
+ -- stderr-expected --
+-go: example.com/newcycle/a@v1.0.0 requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0
++go: example.com/newcycle/a@v1.0.0 indirectly requires example.com/newcycle/a@v1.0.1, not example.com/newcycle/a@v1.0.0
+diff --git a/src/cmd/go/testdata/script/mod_get_patchcycle.txt b/src/cmd/go/testdata/script/mod_get_patchcycle.txt
+index 6600109d2d..9f180d6b95 100644
+--- a/src/cmd/go/testdata/script/mod_get_patchcycle.txt
++++ b/src/cmd/go/testdata/script/mod_get_patchcycle.txt
+@@ -6,7 +6,7 @@
+ # (It used to print v0.1.1 but then silently upgrade to v0.2.0.)
+ 
+ ! go get example.net/a@patch
+-stderr '^go: example.net/a@patch \(v0.1.1\) requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
++stderr '^go: example.net/a@patch \(v0.1.1\) indirectly requires example.net/a@v0.2.0, not example.net/a@patch \(v0.1.1\)$'  # TODO: A mention of b v0.1.0 would be nice.
+ 
+ -- go.mod --
+ module example
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 53c3e4134b..712375a6f8 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -160,7 +160,7 @@ cmp stderr exclude-err
+ # 'go install pkg@version' should report an error if the module requires a
+ # higher version of itself.
+ ! go install example.com/cmd/a@v1.0.0-newerself
+-stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
++stderr '^go: example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but v1.0.0-newerself is requested$'
+ 
+ 
+ # 'go install pkg@version' will only match a retracted version if it's
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index be2a4bc1db..500a954f5b 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -16,11 +16,12 @@ cmp go.mod go.mod.orig
+ 
+ # Try to update the main module. This updates everything, including
+ # modules that aren't direct requirements, so the error stack is shorter.
+-! go get -u ./...
++go get -u ./...
+ cmp stderr update-main-expected
+-cmp go.mod go.mod.orig
++cmp go.mod go.mod.withc
+ 
+ # Update manually. Listing modules should produce an error.
++cp go.mod.orig go.mod
+ go mod edit -require=example.com/badchain/a@v1.1.0
+ ! go list -m all
+ cmp stderr list-expected
+@@ -40,6 +41,15 @@ module m
+ go 1.13
+ 
+ require example.com/badchain/a v1.0.0
++-- go.mod.withc --
++module m
++
++go 1.13
++
++require (
++	example.com/badchain/a v1.0.0
++	example.com/badchain/c v1.0.0
++)
+ -- go.sum --
+ example.com/badchain/a v1.0.0 h1:iJDLiHLmpQgr9Zrv+44UqywAE2IG6WkHnH4uG08vf+s=
+ example.com/badchain/a v1.0.0/go.mod h1:6/gnCYHdVrs6mUgatUYUSbuHxEY+/yWedmTggLz23EI=
+@@ -72,10 +82,9 @@ func Test(t *testing.T) {}
+ go: example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
++	restoring example.com/badchain/c@v1.0.0
+ -- update-a-expected --
+-go: example.com/badchain/a@v1.1.0 requires
+-	example.com/badchain/b@v1.1.0 requires
+-	example.com/badchain/c@v1.1.0: parsing go.mod:
++go: example.com/badchain/a@upgrade (v1.1.0) indirectly requires example.com/badchain/c@v1.1.0: parsing go.mod:
+ 	module declares its path as: badchain.example.com/c
+ 	        but was required as: example.com/badchain/c
+ -- list-expected --

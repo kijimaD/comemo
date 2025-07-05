@@ -25,8 +25,243 @@ Date:   Tue Mar 12 10:36:15 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/text/template/exec.go      | 14 +++++--
  src/text/template/exec_test.go | 84 +++++++++++++++++++++++++++++++++++++++---
  src/text/template/funcs.go     | 40 ++++++++++++--------
  3 files changed, 114 insertions(+), 24 deletions(-)
+
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 1a8f2fa0df..5b35b3e5a8 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -734,9 +734,8 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ 	} else if numIn != typ.NumIn() {
+ 		s.errorf("wrong number of args for %s: want %d got %d", name, typ.NumIn(), numIn)
+ 	}
+-	if !goodFunc(typ) {
+-		// TODO: This could still be a confusing error; maybe goodFunc should provide info.
+-		s.errorf("can't call method/function %q with %d results", name, typ.NumOut())
++	if err := goodFunc(name, typ); err != nil {
++		s.errorf("%v", err)
+ 	}
+ 
+ 	unwrap := func(v reflect.Value) reflect.Value {
+@@ -800,6 +799,15 @@ func (s *state) evalCall(dot, fun reflect.Value, isBuiltin bool, node parse.Node
+ 		}
+ 		argv[i] = s.validateType(final, t)
+ 	}
++
++	// Special case for the "call" builtin.
++	// Insert the name of the callee function as the first argument.
++	if isBuiltin && name == "call" {
++		calleeName := args[0].String()
++		argv = append([]reflect.Value{reflect.ValueOf(calleeName)}, argv...)
++		fun = reflect.ValueOf(call)
++	}
++
+ 	v, err := safeCall(fun, argv)
+ 	// If we have an error that is not nil, stop execution and return that
+ 	// error to the caller.
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 8fdd9280f2..4ec213d8cf 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -75,12 +75,14 @@ type T struct {
+ 	PSI *[]int
+ 	NIL *int
+ 	// Function (not method)
+-	BinaryFunc      func(string, string) string
+-	VariadicFunc    func(...string) string
+-	VariadicFuncInt func(int, ...string) string
+-	NilOKFunc       func(*int) bool
+-	ErrFunc         func() (string, error)
+-	PanicFunc       func() string
++	BinaryFunc             func(string, string) string
++	VariadicFunc           func(...string) string
++	VariadicFuncInt        func(int, ...string) string
++	NilOKFunc              func(*int) bool
++	ErrFunc                func() (string, error)
++	PanicFunc              func() string
++	InvalidReturnCountFunc func() (string, error, int)
++	InvalidReturnTypeFunc  func() (string, bool)
+ 	// Template to test evaluation of templates.
+ 	Tmpl *Template
+ 	// Unexported field; cannot be accessed by template.
+@@ -168,6 +170,8 @@ var tVal = &T{
+ 	NilOKFunc:                 func(s *int) bool { return s == nil },
+ 	ErrFunc:                   func() (string, error) { return "bla", nil },
+ 	PanicFunc:                 func() string { panic("test panic") },
++	InvalidReturnCountFunc:    func() (string, error, int) { return "", nil, 0 },
++	InvalidReturnTypeFunc:     func() (string, bool) { return "", false },
+ 	Tmpl:                      Must(New("x").Parse("test template")), // "x" is the value of .X
+ }
+ 
+@@ -1711,6 +1715,74 @@ func TestExecutePanicDuringCall(t *testing.T) {
+ 	}
+ }
+ 
++func TestFunctionCheckDuringCall(t *testing.T) {
++	tests := []struct {
++		name    string
++		input   string
++		data    any
++		wantErr string
++	}{{
++		name:    "call nothing",
++		input:   `{{call}}`,
++		data:    tVal,
++		wantErr: "wrong number of args for call: want at least 1 got 0",
++	},
++		{
++			name:    "call non-function",
++			input:   "{{call .True}}",
++			data:    tVal,
++			wantErr: "error calling call: non-function .True of type bool",
++		},
++		{
++			name:    "call func with wrong argument",
++			input:   "{{call .BinaryFunc 1}}",
++			data:    tVal,
++			wantErr: "error calling call: wrong number of args for .BinaryFunc: got 1 want 2",
++		},
++		{
++			name:    "call variadic func with wrong argument",
++			input:   `{{call .VariadicFuncInt}}`,
++			data:    tVal,
++			wantErr: "error calling call: wrong number of args for .VariadicFuncInt: got 0 want at least 1",
++		},
++		{
++			name:    "call invalid return number func",
++			input:   `{{call .InvalidReturnCountFunc}}`,
++			data:    tVal,
++			wantErr: "error calling call: too many return values for .InvalidReturnCountFunc",
++		},
++		{
++			name:    "call invalid return type func",
++			input:   `{{call .InvalidReturnTypeFunc}}`,
++			data:    tVal,
++			wantErr: "error calling call: invalid function signature for .InvalidReturnTypeFunc: second argument should be error; is bool",
++		},
++		{
++			name:    "call pipeline",
++			input:   `{{call (len "test")}}`,
++			data:    nil,
++			wantErr: "error calling call: non-function len \"test\" of type int",
++		},
++	}
++
++	for _, tc := range tests {
++		b := new(bytes.Buffer)
++		tmpl, err := New("t").Parse(tc.input)
++		if err != nil {
++			t.Fatalf("parse error: %s", err)
++		}
++		err = tmpl.Execute(b, tc.data)
++		if err == nil {
++			t.Errorf("%s: expected error; got none", tc.name)
++		} else if tc.wantErr == "" || !strings.Contains(err.Error(), tc.wantErr) {
++			if *debug {
++				fmt.Printf("%s: test execute error: %s\n", tc.name, err)
++			}
++			t.Errorf("%s: expected error:\n%s\ngot:\n%s", tc.name, tc.wantErr, err)
++		}
++	}
++}
++
+ // Issue 31810. Check that a parenthesized first argument behaves properly.
+ func TestIssue31810(t *testing.T) {
+ 	// A simple value with no arguments is fine.
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index c9d5835bed..6832ae3682 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -39,7 +39,7 @@ type FuncMap map[string]any
+ func builtins() FuncMap {
+ 	return FuncMap{
+ 		"and":      and,
+-		"call":     call,
++		"call":     emptyCall,
+ 		"html":     HTMLEscaper,
+ 		"index":    index,
+ 		"slice":    slice,
+@@ -93,8 +93,8 @@ func addValueFuncs(out map[string]reflect.Value, in FuncMap) {
+ 		if v.Kind() != reflect.Func {
+ 			panic("value for " + name + " not a function")
+ 		}
+-		if !goodFunc(v.Type()) {
+-			panic(fmt.Errorf("can't install method/function %q with %d results", name, v.Type().NumOut()))
++		if err := goodFunc(name, v.Type()); err != nil {
++			panic(err)
+ 		}
+ 		out[name] = v
+ 	}
+@@ -109,15 +109,20 @@ func addFuncs(out, in FuncMap) {
+ }
+ 
+ // goodFunc reports whether the function or method has the right result signature.
+-func goodFunc(typ reflect.Type) bool {
++func goodFunc(name string, typ reflect.Type) error {
++	numOut := typ.NumOut()
++
+ 	// We allow functions with 1 result or 2 results where the second is an error.
+ 	switch {
+-	case typ.NumOut() == 1:
+-		return true
+-	case typ.NumOut() == 2 && typ.Out(1) == errorType:
+-		return true
++	case numOut == 1:
++		return nil
++	case numOut == 2 && typ.Out(1) == errorType:
++		return nil
++	case numOut == 2:
++		return fmt.Errorf("invalid function signature for %s: second argument should be error; is %s", name, typ.Out(1))
++	default:
++		return fmt.Errorf("too many return values for %s", name)
+ 	}
+-	return false
+ }
+ 
+ // goodName reports whether the function name is a valid identifier.
+@@ -309,30 +314,35 @@ func length(item reflect.Value) (int, error) {
+ 
+ // Function invocation
+ 
++func emptyCall(fn reflect.Value, args ...reflect.Value) reflect.Value {
++	panic("unreachable") // implemented as a special case in evalCall
++}
++
+ // call returns the result of evaluating the first argument as a function.
+ // The function must return 1 result, or 2 results, the second of which is an error.
+-func call(fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
++func call(name string, fn reflect.Value, args ...reflect.Value) (reflect.Value, error) {
+ 	fn = indirectInterface(fn)
+ 	if !fn.IsValid() {
+ 		return reflect.Value{}, fmt.Errorf("call of nil")
+ 	}
+ 	typ := fn.Type()
+ 	if typ.Kind() != reflect.Func {
+-		return reflect.Value{}, fmt.Errorf("non-function of type %s", typ)
++		return reflect.Value{}, fmt.Errorf("non-function %s of type %s", name, typ)
+ 	}
+-	if !goodFunc(typ) {
+-		return reflect.Value{}, fmt.Errorf("function called with %d args; should be 1 or 2", typ.NumOut())
++
++	if err := goodFunc(name, typ); err != nil {
++		return reflect.Value{}, err
+ 	}
+ 	numIn := typ.NumIn()
+ 	var dddType reflect.Type
+ 	if typ.IsVariadic() {
+ 		if len(args) < numIn-1 {
+-			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want at least %d", len(args), numIn-1)
++			return reflect.Value{}, fmt.Errorf("wrong number of args for %s: got %d want at least %d", name, len(args), numIn-1)
+ 		}
+ 		dddType = typ.In(numIn - 1).Elem()
+ 	} else {
+ 		if len(args) != numIn {
+-			return reflect.Value{}, fmt.Errorf("wrong number of args: got %d want %d", len(args), numIn)
++			return reflect.Value{}, fmt.Errorf("wrong number of args for %s: got %d want %d", name, len(args), numIn)
+ 		}
+ 	}
+ 	argv := make([]reflect.Value, len(args))

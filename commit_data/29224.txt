@@ -19,7 +19,72 @@ Date:   Thu Sep 1 08:31:37 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/28301
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
  test/fixedbugs/issue16949.go             | 30 ++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index d08f52e5c5..df527a5036 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3754,6 +3754,11 @@ ret:
+ }
+ 
+ func checkmake(t *Type, arg string, n *Node) bool {
++	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
++		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
++		return false
++	}
++
+ 	if n.Op == OLITERAL {
+ 		switch n.Val().Ctype() {
+ 		case CTINT, CTRUNE, CTFLT, CTCPLX:
+@@ -3779,11 +3784,6 @@ func checkmake(t *Type, arg string, n *Node) bool {
+ 		}
+ 	}
+ 
+-	if !n.Type.IsInteger() && n.Type.Etype != TIDEAL {
+-		Yyerror("non-integer %s argument in make(%v) - %v", arg, t, n.Type)
+-		return false
+-	}
+-
+ 	// Defaultlit still necessary for non-constant: n might be 1<<k.
+ 	n = defaultlit(n, Types[TINT])
+ 
+diff --git a/test/fixedbugs/issue16949.go b/test/fixedbugs/issue16949.go
+new file mode 100644
+index 0000000000..9ee3387e96
+--- /dev/null
++++ b/test/fixedbugs/issue16949.go
+@@ -0,0 +1,30 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Ensure that typed non-integer len and cap make arguments are not accepted.
++
++package main
++
++var sink []byte
++
++func main() {
++	sink = make([]byte, 1.0)
++	sink = make([]byte, float32(1.0)) // ERROR "non-integer.*len"
++	sink = make([]byte, float64(1.0)) // ERROR "non-integer.*len"
++
++	sink = make([]byte, 0, 1.0)
++	sink = make([]byte, 0, float32(1.0)) // ERROR "non-integer.*cap"
++	sink = make([]byte, 0, float64(1.0)) // ERROR "non-integer.*cap"
++
++	sink = make([]byte, 1+0i)
++	sink = make([]byte, complex64(1+0i))  // ERROR "non-integer.*len"
++	sink = make([]byte, complex128(1+0i)) // ERROR "non-integer.*len"
++
++	sink = make([]byte, 0, 1+0i)
++	sink = make([]byte, 0, complex64(1+0i))  // ERROR "non-integer.*cap"
++	sink = make([]byte, 0, complex128(1+0i)) // ERROR "non-integer.*cap"
++
++}

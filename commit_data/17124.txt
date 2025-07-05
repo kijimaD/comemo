@@ -9,6 +9,26 @@ Date:   Fri Aug 9 08:43:19 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12697043
-
+---
  test/fixedbugs/bug086.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/fixedbugs/bug086.go b/test/fixedbugs/bug086.go
+index f03982b303..40d2362066 100644
+--- a/test/fixedbugs/bug086.go
++++ b/test/fixedbugs/bug086.go
+@@ -6,12 +6,12 @@
+ 
+ package main
+ 
+-func f() int {	// GCCGO_ERROR "control"
++func f() int {
+ 	if false {
+ 		return 0;
+ 	}
+ 	// we should not be able to return successfully w/o a return statement
+-} // GC_ERROR "return"
++} // ERROR "return"
+ 
+ func main() {
+ 	print(f(), "\n");

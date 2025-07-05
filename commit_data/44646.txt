@@ -14,6 +14,20 @@ Date:   Thu Jun 25 09:10:23 2020 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index dd6d79f8ec..6a11c91fb9 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -616,7 +616,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 		print("signal arrived during cgo execution\n")
+ 		gp = _g_.m.lockedg.ptr()
+ 	}
+-	if sig == _SIGILL {
++	if sig == _SIGILL || sig == _SIGFPE {
+ 		// It would be nice to know how long the instruction is.
+ 		// Unfortunately, that's complicated to do in general (mostly for x86
+ 		// and s930x, but other archs have non-standard instruction lengths also).

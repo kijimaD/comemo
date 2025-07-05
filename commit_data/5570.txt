@@ -14,7 +14,52 @@ Date:   Sun May 30 22:22:47 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1399041
-
+---
  src/cmd/cgo/out.go |  2 +-
  src/libcgo/util.c  | 13 ++++++++++++-
  2 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 2fae48fe47..e58923ab2a 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -568,7 +568,7 @@ const cProlog = `
+ #pragma dynimport libcgo_thread_start libcgo_thread_start "%s/libcgo.so"
+ #pragma dynimport libcgo_set_scheduler libcgo_set_scheduler "%s/libcgo.so"
+ #pragma dynimport _cgo_malloc _cgo_malloc "%s/libcgo.so"
+-#pragma dynimport _cgo_free free "%s/libcgo.so"
++#pragma dynimport _cgo_free _cgo_free "%s/libcgo.so"
+ 
+ void
+ ·_C_GoString(int8 *p, String s)
+diff --git a/src/libcgo/util.c b/src/libcgo/util.c
+index a814e018b3..c296b493da 100644
+--- a/src/libcgo/util.c
++++ b/src/libcgo/util.c
+@@ -4,7 +4,7 @@
+ 
+ #include "libcgo.h"
+ 
+-/* Stub for calling malloc from the other world */
++/* Stub for calling malloc from Go */
+ void
+ _cgo_malloc(void *p)
+ {
+@@ -16,6 +16,17 @@ _cgo_malloc(void *p)
+ 	a->ret = malloc(a->n);
+ }
+ 
++/* Stub for calling from Go */
++void
++_cgo_free(void *p)
++{
++	struct a {
++		void *arg;
++	} *a = p;
++
++	free(a->arg);
++}
++
+ /* Stub for creating a new thread */
+ void
+ libcgo_thread_start(ThreadStart *arg)

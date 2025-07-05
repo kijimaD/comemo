@@ -18,7 +18,7 @@ Date:   Wed May 20 23:20:43 2015 +0900
     Change-Id: I48443611cbabed0d69667cc73911ba3de396fd44
     Reviewed-on: https://go-review.googlesource.com/10306
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/hook.go                                    |   1 +
  src/net/hosts.go                                   |  35 ++++--
  src/net/hosts_test.go                              | 138 +++++++++++++++------
@@ -26,3 +26,298 @@ Date:   Wed May 20 23:20:43 2015 +0900
  src/net/testdata/ipv6-hosts                        |  11 ++
  .../{hosts_singleline => singleline-hosts}         |   0
  6 files changed, 148 insertions(+), 49 deletions(-)
+
+diff --git a/src/net/hook.go b/src/net/hook.go
+index 32ba15e15a..f8de28b8bc 100644
+--- a/src/net/hook.go
++++ b/src/net/hook.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ var (
++	testHookHostsPath    = "/etc/hosts"
+ 	testHookLookupIP     = func(fn func(string) ([]IPAddr, error), host string) ([]IPAddr, error) { return fn(host) }
+ 	testHookSetKeepAlive = func() {}
+ )
+diff --git a/src/net/hosts.go b/src/net/hosts.go
+index 9400503e41..27958c7cc5 100644
+--- a/src/net/hosts.go
++++ b/src/net/hosts.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Read static host/IP entries from /etc/hosts.
+-
+ package net
+ 
+ import (
+@@ -13,8 +11,21 @@ import (
+ 
+ const cacheMaxAge = 5 * time.Minute
+ 
+-// hostsPath points to the file with static IP/address entries.
+-var hostsPath = "/etc/hosts"
++func parseLiteralIP(addr string) string {
++	var ip IP
++	var zone string
++	ip = parseIPv4(addr)
++	if ip == nil {
++		ip, zone = parseIPv6(addr, true)
++	}
++	if ip == nil {
++		return ""
++	}
++	if zone == "" {
++		return ip.String()
++	}
++	return ip.String() + "%" + zone
++}
+ 
+ // Simple cache.
+ var hosts struct {
+@@ -27,7 +38,7 @@ var hosts struct {
+ 
+ func readHosts() {
+ 	now := time.Now()
+-	hp := hostsPath
++	hp := testHookHostsPath
+ 	if len(hosts.byName) == 0 || now.After(hosts.expire) || hosts.path != hp {
+ 		hs := make(map[string][]string)
+ 		is := make(map[string][]string)
+@@ -41,13 +52,17 @@ func readHosts() {
+ 				line = line[0:i]
+ 			}
+ 			f := getFields(line)
+-			if len(f) < 2 || ParseIP(f[0]) == nil {
++			if len(f) < 2 {
++				continue
++			}
++			addr := parseLiteralIP(f[0])
++			if addr == "" {
+ 				continue
+ 			}
+ 			for i := 1; i < len(f); i++ {
+ 				h := f[i]
+-				hs[h] = append(hs[h], f[0])
+-				is[f[0]] = append(is[f[0]], h)
++				hs[h] = append(hs[h], addr)
++				is[addr] = append(is[addr], h)
+ 			}
+ 		}
+ 		// Update the data cache.
+@@ -77,6 +92,10 @@ func lookupStaticAddr(addr string) []string {
+ 	hosts.Lock()
+ 	defer hosts.Unlock()
+ 	readHosts()
++	addr = parseLiteralIP(addr)
++	if addr == "" {
++		return nil
++	}
+ 	if len(hosts.byAddr) != 0 {
+ 		if hosts, ok := hosts.byAddr[addr]; ok {
+ 			return hosts
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 352ecb95d0..4c6f203707 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -5,63 +5,119 @@
+ package net
+ 
+ import (
++	"reflect"
+ 	"sort"
+ 	"testing"
+ )
+ 
+-type hostTest struct {
+-	host string
+-	ips  []IP
++type staticHostEntry struct {
++	in  string
++	out []string
+ }
+ 
+-var hosttests = []hostTest{
+-	{"odin", []IP{
+-		IPv4(127, 0, 0, 2),
+-		IPv4(127, 0, 0, 3),
+-		ParseIP("::2"),
+-	}},
+-	{"thor", []IP{
+-		IPv4(127, 1, 1, 1),
+-	}},
+-	{"loki", []IP{}},
+-	{"ullr", []IP{
+-		IPv4(127, 1, 1, 2),
+-	}},
+-	{"ullrhost", []IP{
+-		IPv4(127, 1, 1, 2),
+-	}},
++var lookupStaticHostTests = []struct {
++	name string
++	ents []staticHostEntry
++}{
++	{
++		"testdata/hosts",
++		[]staticHostEntry{
++			{"odin", []string{"127.0.0.2", "127.0.0.3", "::2"}},
++			{"thor", []string{"127.1.1.1"}},
++			{"ullr", []string{"127.1.1.2"}},
++			{"ullrhost", []string{"127.1.1.2"}},
++			{"localhost", []string{"fe80::1%lo0"}},
++		},
++	},
++	{
++		"testdata/singleline-hosts", // see golang.org/issue/6646
++		[]staticHostEntry{
++			{"odin", []string{"127.0.0.2"}},
++		},
++	},
++	{
++		"testdata/ipv4-hosts", // see golang.org/issue/8996
++		[]staticHostEntry{
++			{"localhost", []string{"127.0.0.1", "127.0.0.2", "127.0.0.3"}},
++			{"localhost.localdomain", []string{"127.0.0.3"}},
++		},
++	},
++	{
++		"testdata/ipv6-hosts", // see golang.org/issue/8996
++		[]staticHostEntry{
++			{"localhost", []string{"::1", "fe80::1", "fe80::2%lo0", "fe80::3%lo0"}},
++			{"localhost.localdomain", []string{"fe80::3%lo0"}},
++		},
++	},
+ }
+ 
+ func TestLookupStaticHost(t *testing.T) {
+-	p := hostsPath
+-	hostsPath = "testdata/hosts"
+-	for i := 0; i < len(hosttests); i++ {
+-		tt := hosttests[i]
+-		ips := lookupStaticHost(tt.host)
+-		if len(ips) != len(tt.ips) {
+-			t.Errorf("# of hosts = %v; want %v", len(ips), len(tt.ips))
+-			continue
+-		}
+-		for k, v := range ips {
+-			if tt.ips[k].String() != v {
+-				t.Errorf("lookupStaticHost(%q) = %v; want %v", tt.host, v, tt.ips[k])
++	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
++
++	for _, tt := range lookupStaticHostTests {
++		testHookHostsPath = tt.name
++		for _, ent := range tt.ents {
++			addrs := lookupStaticHost(ent.in)
++			if !reflect.DeepEqual(addrs, ent.out) {
++				t.Errorf("%s, lookupStaticHost(%s) = %v; want %v", tt.name, ent.in, addrs, ent.out)
+ 			}
+ 		}
+ 	}
+-	hostsPath = p
+ }
+ 
+-// https://golang.org/issue/6646
+-func TestSingleLineHostsFile(t *testing.T) {
+-	p := hostsPath
+-	hostsPath = "testdata/hosts_singleline"
++var lookupStaticAddrTests = []struct {
++	name string
++	ents []staticHostEntry
++}{
++	{
++		"testdata/hosts",
++		[]staticHostEntry{
++			{"255.255.255.255", []string{"broadcasthost"}},
++			{"127.0.0.2", []string{"odin"}},
++			{"127.0.0.3", []string{"odin"}},
++			{"::2", []string{"odin"}},
++			{"127.1.1.1", []string{"thor"}},
++			{"127.1.1.2", []string{"ullr", "ullrhost"}},
++			{"fe80::1%lo0", []string{"localhost"}},
++		},
++	},
++	{
++		"testdata/singleline-hosts", // see golang.org/issue/6646
++		[]staticHostEntry{
++			{"127.0.0.2", []string{"odin"}},
++		},
++	},
++	{
++		"testdata/ipv4-hosts", // see golang.org/issue/8996
++		[]staticHostEntry{
++			{"127.0.0.1", []string{"localhost"}},
++			{"127.0.0.2", []string{"localhost"}},
++			{"127.0.0.3", []string{"localhost", "localhost.localdomain"}},
++		},
++	},
++	{
++		"testdata/ipv6-hosts", // see golang.org/issue/8996
++		[]staticHostEntry{
++			{"::1", []string{"localhost"}},
++			{"fe80::1", []string{"localhost"}},
++			{"fe80::2%lo0", []string{"localhost"}},
++			{"fe80::3%lo0", []string{"localhost", "localhost.localdomain"}},
++		},
++	},
++}
+ 
+-	ips := lookupStaticHost("odin")
+-	if len(ips) != 1 || ips[0] != "127.0.0.2" {
+-		t.Errorf("lookupStaticHost = %v, want %v", ips, []string{"127.0.0.2"})
+-	}
++func TestLookupStaticAddr(t *testing.T) {
++	defer func(orig string) { testHookHostsPath = orig }(testHookHostsPath)
+ 
+-	hostsPath = p
++	for _, tt := range lookupStaticAddrTests {
++		testHookHostsPath = tt.name
++		for _, ent := range tt.ents {
++			hosts := lookupStaticAddr(ent.in)
++			if !reflect.DeepEqual(hosts, ent.out) {
++				t.Errorf("%s, lookupStaticAddr(%s) = %v; want %v", tt.name, ent.in, hosts, ent.out)
++			}
++		}
++	}
+ }
+ 
+ func TestLookupHost(t *testing.T) {
+diff --git a/src/net/testdata/ipv4-hosts b/src/net/testdata/ipv4-hosts
+new file mode 100644
+index 0000000000..5208bb44ac
+--- /dev/null
++++ b/src/net/testdata/ipv4-hosts
+@@ -0,0 +1,12 @@
++# See https://tools.ietf.org/html/rfc1123.
++#
++# The literal IPv4 address parser in the net package is a relaxed
++# one. It may accept a literal IPv4 address in dotted-decimal notation
++# with leading zeros such as "001.2.003.4".
++
++# internet address and host name
++127.0.0.1	localhost	# inline comment separated by tab
++127.000.000.002	localhost       # inline comment separated by space
++
++# internet address, host name and aliases
++127.000.000.003	localhost	localhost.localdomain
+diff --git a/src/net/testdata/ipv6-hosts b/src/net/testdata/ipv6-hosts
+new file mode 100644
+index 0000000000..f78b7fcf19
+--- /dev/null
++++ b/src/net/testdata/ipv6-hosts
+@@ -0,0 +1,11 @@
++# See https://tools.ietf.org/html/rfc5952, https://tools.ietf.org/html/rfc4007.
++
++# internet address and host name
++::1						localhost	# inline comment separated by tab
++fe80:0000:0000:0000:0000:0000:0000:0001		localhost       # inline comment separated by space
++
++# internet address with zone identifier and host name
++fe80:0000:0000:0000:0000:0000:0000:0002%lo0	localhost
++
++# internet address, host name and aliases
++fe80::3%lo0					localhost	localhost.localdomain
+diff --git a/src/net/testdata/hosts_singleline b/src/net/testdata/singleline-hosts
+similarity index 100%
+rename from src/net/testdata/hosts_singleline
+rename to src/net/testdata/singleline-hosts

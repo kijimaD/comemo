@@ -13,7 +13,148 @@ Date:   Wed Mar 9 10:01:47 2011 -0800
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4243055
-
+---
  src/pkg/fmt/scan.go      | 39 ++++++++++++++++++++++++++++-----------
  src/pkg/fmt/scan_test.go | 13 ++++++++-----
  2 files changed, 36 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index c0f2bacb69..61aba00f3a 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -35,10 +35,15 @@ type ScanState interface {
+ 	ReadRune() (rune int, size int, err os.Error)
+ 	// UnreadRune causes the next call to ReadRune to return the same rune.
+ 	UnreadRune() os.Error
+-	// Token returns the next space-delimited token from the input. If
+-	// a width has been specified, the returned token will be no longer
+-	// than the width.
+-	Token() (token string, err os.Error)
++	// Token skips space in the input if skipSpace is true, then returns the
++	// run of Unicode code points c satisfying f(c).  If f is nil,
++	// !unicode.IsSpace(c) is used; that is, the token will hold non-space
++	// characters.  Newlines are treated as space unless the scan operation
++	// is Scanln, Fscanln or Sscanln, in which case a newline is treated as
++	// EOF.  The returned slice points to shared data that may be overwritten
++	// by the next call to Token, a call to a Scan function using the ScanState
++	// as input, or when the calling Scan method returns.
++	Token(skipSpace bool, f func(int) bool) (token []byte, err os.Error)
+ 	// Width returns the value of the width option and whether it has been set.
+ 	// The unit is Unicode code points.
+ 	Width() (wid int, ok bool)
+@@ -238,7 +243,7 @@ func (s *ss) errorString(err string) {
+ 	panic(scanError{os.ErrorString(err)})
+ }
+ 
+-func (s *ss) Token() (tok string, err os.Error) {
++func (s *ss) Token(skipSpace bool, f func(int) bool) (tok []byte, err os.Error) {
+ 	defer func() {
+ 		if e := recover(); e != nil {
+ 			if se, ok := e.(scanError); ok {
+@@ -248,10 +253,19 @@ func (s *ss) Token() (tok string, err os.Error) {
+ 			}
+ 		}
+ 	}()
+-	tok = s.token()
++	if f == nil {
++		f = notSpace
++	}
++	s.buf.Reset()
++	tok = s.token(skipSpace, f)
+ 	return
+ }
+ 
++// notSpace is the default scanning function used in Token.
++func notSpace(r int) bool {
++	return !unicode.IsSpace(r)
++}
++
+ // readRune is a structure to enable reading UTF-8 encoded code points
+ // from an io.Reader.  It is used if the Reader given to the scanner does
+ // not already implement io.RuneReader.
+@@ -384,24 +398,27 @@ func (s *ss) skipSpace(stopAtNewline bool) {
+ 	}
+ }
+ 
++
+ // token returns the next space-delimited string from the input.  It
+ // skips white space.  For Scanln, it stops at newlines.  For Scan,
+ // newlines are treated as spaces.
+-func (s *ss) token() string {
+-	s.skipSpace(false)
++func (s *ss) token(skipSpace bool, f func(int) bool) []byte {
++	if skipSpace {
++		s.skipSpace(false)
++	}
+ 	// read until white space or newline
+ 	for {
+ 		rune := s.getRune()
+ 		if rune == EOF {
+ 			break
+ 		}
+-		if unicode.IsSpace(rune) {
++		if !f(rune) {
+ 			s.UnreadRune()
+ 			break
+ 		}
+ 		s.buf.WriteRune(rune)
+ 	}
+-	return s.buf.String()
++	return s.buf.Bytes()
+ }
+ 
+ // typeError indicates that the type of the operand did not match the format
+@@ -729,7 +746,7 @@ func (s *ss) convertString(verb int) (str string) {
+ 	case 'x':
+ 		str = s.hexString()
+ 	default:
+-		str = s.token() // %s and %v just return the next word
++		str = string(s.token(true, notSpace)) // %s and %v just return the next word
+ 	}
+ 	// Empty strings other than with %q are not OK.
+ 	if len(str) == 0 && verb != 'q' && s.maxWid > 0 {
+diff --git a/src/pkg/fmt/scan_test.go b/src/pkg/fmt/scan_test.go
+index be16fe847a..8d2e6f5c64 100644
+--- a/src/pkg/fmt/scan_test.go
++++ b/src/pkg/fmt/scan_test.go
+@@ -88,14 +88,15 @@ type FloatTest struct {
+ type Xs string
+ 
+ func (x *Xs) Scan(state ScanState, verb int) os.Error {
+-	tok, err := state.Token()
++	tok, err := state.Token(true, func(r int) bool { return r == verb })
+ 	if err != nil {
+ 		return err
+ 	}
+-	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(tok) {
++	s := string(tok)
++	if !regexp.MustCompile("^" + string(verb) + "+$").MatchString(s) {
+ 		return os.ErrorString("syntax error for xs")
+ 	}
+-	*x = Xs(tok)
++	*x = Xs(s)
+ 	return nil
+ }
+ 
+@@ -113,9 +114,11 @@ func (s *IntString) Scan(state ScanState, verb int) os.Error {
+ 		return err
+ 	}
+ 
+-	if _, err := Fscan(state, &s.s); err != nil {
++	tok, err := state.Token(true, nil)
++	if err != nil {
+ 		return err
+ 	}
++	s.s = string(tok)
+ 	return nil
+ }
+ 
+@@ -331,7 +334,7 @@ var multiTests = []ScanfMultiTest{
+ 	{"%c%c%c", "2\u50c2X", args(&i, &j, &k), args('2', '\u50c2', 'X'), ""},
+ 
+ 	// Custom scanners.
+-	{"%2e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
++	{"%e%f", "eefffff", args(&x, &y), args(Xs("ee"), Xs("fffff")), ""},
+ 	{"%4v%s", "12abcd", args(&z, &s), args(IntString{12, "ab"}, "cd"), ""},
+ 
+ 	// Errors

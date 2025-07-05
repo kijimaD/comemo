@@ -9,6 +9,45 @@ Date:   Sun Sep 22 08:01:17 2013 +0100
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/13500046
-
+---
  src/cmd/api/run.go | 13 +++----------
  1 file changed, 3 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/api/run.go b/src/cmd/api/run.go
+index 9ecd03a607..f7c590bbe1 100644
+--- a/src/cmd/api/run.go
++++ b/src/cmd/api/run.go
+@@ -21,7 +21,6 @@ import (
+ 	"os/exec"
+ 	"os/user"
+ 	"path/filepath"
+-	"strconv"
+ 	"strings"
+ )
+ 
+@@ -38,9 +37,9 @@ func main() {
+ 	if goroot == "" {
+ 		log.Fatal("No $GOROOT set.")
+ 	}
+-	isGoDeveloper := exec.Command("hg", "pq").Run() == nil
+-	if !isGoDeveloper && !forceAPICheck() {
+-		fmt.Println("Skipping cmd/api checks; hg codereview extension not available and GO_FORCE_API_CHECK not set")
++	_, err := exec.LookPath("hg")
++	if err != nil {
++		fmt.Println("Skipping cmd/api checks; hg not available")
+ 		return
+ 	}
+ 
+@@ -88,12 +87,6 @@ func file(s ...string) string {
+ 	return filepath.Join(goroot, "api", s[0]+".txt")
+ }
+ 
+-// GO_FORCE_API_CHECK is set by builders.
+-func forceAPICheck() bool {
+-	v, _ := strconv.ParseBool(os.Getenv("GO_FORCE_API_CHECK"))
+-	return v
+-}
+-
+ // prepGoPath returns a GOPATH for the "go" tool to compile the API tool with.
+ // It tries to re-use a go.tools checkout from a previous run if possible,
+ // else it hg clones it.

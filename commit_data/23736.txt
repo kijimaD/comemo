@@ -7,6 +7,29 @@ Date:   Tue Jun 9 12:10:10 2015 +0900
     Change-Id: Ia7914156e4369113dea7c17b3aa51096e25f1901
     Reviewed-on: https://go-review.googlesource.com/10834
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/listen_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/listen_test.go b/src/net/listen_test.go
+index 89d4d7e0de..d5627f2556 100644
+--- a/src/net/listen_test.go
++++ b/src/net/listen_test.go
+@@ -218,7 +218,7 @@ var dualStackTCPListenerTests = []struct {
+ // listening address and same port.
+ func TestDualStackTCPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "dragonfly", "nacl", "plan9": // re-enable on dragonfly once the new IP control block management has landed
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 {
+@@ -305,7 +305,7 @@ var dualStackUDPListenerTests = []struct {
+ // listening address and same port.
+ func TestDualStackUDPListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "plan9":
++	case "dragonfly", "nacl", "plan9": // re-enable on dragonfly once the new IP control block management has landed
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if !supportsIPv4 || !supportsIPv6 {

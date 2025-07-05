@@ -21,7 +21,126 @@ Date:   Mon Mar 8 23:38:42 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go   | 21 ---------------------
  src/go/types/typexpr.go | 12 ++++++------
  2 files changed, 6 insertions(+), 27 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 69e9466a8b..b28481d7bd 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -104,7 +104,6 @@ type Checker struct {
+ 	methods  map[*TypeName][]*Func // maps package scope type names to associated non-blank (non-interface) methods
+ 	untyped  map[ast.Expr]exprInfo // map of expressions without final type
+ 	delayed  []func()              // stack of delayed action segments; segments are processed in FIFO order
+-	finals   []func()              // list of final actions; processed at the end of type-checking the current set of files
+ 	objPath  []Object              // path of object dependencies during type inference (for cycle reporting)
+ 
+ 	// context within which the current object is type-checked
+@@ -144,14 +143,6 @@ func (check *Checker) later(f func()) {
+ 	check.delayed = append(check.delayed, f)
+ }
+ 
+-// atEnd adds f to the list of actions processed at the end
+-// of type-checking, before initialization order computation.
+-// Actions added by atEnd are processed after any actions
+-// added by later.
+-func (check *Checker) atEnd(f func()) {
+-	check.finals = append(check.finals, f)
+-}
+-
+ // push pushes obj onto the object path and returns its index in the path.
+ func (check *Checker) push(obj Object) int {
+ 	check.objPath = append(check.objPath, obj)
+@@ -212,7 +203,6 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	check.methods = nil
+ 	check.untyped = nil
+ 	check.delayed = nil
+-	check.finals = nil
+ 
+ 	// determine package name and collect valid files
+ 	pkg := check.pkg
+@@ -269,7 +259,6 @@ func (check *Checker) checkFiles(files []*ast.File) (err error) {
+ 	check.packageObjects()
+ 
+ 	check.processDelayed(0) // incl. all functions
+-	check.processFinals()
+ 
+ 	check.initOrder()
+ 
+@@ -308,16 +297,6 @@ func (check *Checker) processDelayed(top int) {
+ 	check.delayed = check.delayed[:top]
+ }
+ 
+-func (check *Checker) processFinals() {
+-	n := len(check.finals)
+-	for _, f := range check.finals {
+-		f() // must not append to check.finals
+-	}
+-	if len(check.finals) != n {
+-		panic("internal error: final action list grew")
+-	}
+-}
+-
+ func (check *Checker) recordUntyped() {
+ 	if !debug && check.Types == nil {
+ 		return // nothing to do
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index e6846545c6..5185c33fcb 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -140,7 +140,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
+ 	// while we are in the middle of type-checking parameter declarations that
+ 	// might belong to interface methods. Delay this check to the end of
+ 	// type-checking.
+-	check.atEnd(func() {
++	check.later(func() {
+ 		if t := asInterface(typ); t != nil {
+ 			check.completeInterface(pos.Pos(), t) // TODO(gri) is this the correct position?
+ 			if t.allTypes != nil {
+@@ -531,7 +531,7 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 		//
+ 		// Delay this check because it requires fully setup types;
+ 		// it is safe to continue in any case (was issue 6667).
+-		check.atEnd(func() {
++		check.later(func() {
+ 			if !Comparable(typ.key) {
+ 				var why string
+ 				if asTypeParam(typ.key) != nil {
+@@ -635,7 +635,7 @@ func (check *Checker) instantiatedType(x ast.Expr, targs []ast.Expr, def *Named)
+ 
+ 	// make sure we check instantiation works at least once
+ 	// and that the resulting type is valid
+-	check.atEnd(func() {
++	check.later(func() {
+ 		t := typ.expand()
+ 		check.validType(t, nil)
+ 	})
+@@ -905,7 +905,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 			// If we're pre-go1.14 (overlapping embeddings are not permitted), report that
+ 			// error here as well (even though we could do it eagerly) because it's the same
+ 			// error message.
+-			check.atEnd(func() {
++			check.later(func() {
+ 				if !check.allowVersion(m.pkg, 1, 14) || !check.identical(m.typ, other.Type()) {
+ 					check.errorf(atPos(pos), _DuplicateDecl, "duplicate method %s", m.name)
+ 					check.errorf(atPos(mpos[other.(*Func)]), _DuplicateDecl, "\tother declaration of %s", m.name) // secondary error, \t indented
+@@ -1119,7 +1119,7 @@ func (check *Checker) structType(styp *Struct, e *ast.StructType) {
+ 			embeddedTyp := typ
+ 			embeddedPos := f.Type
+ 
+-			check.atEnd(func() {
++			check.later(func() {
+ 				t, isPtr := deref(embeddedTyp)
+ 				switch t := optype(t).(type) {
+ 				case *Basic:
+@@ -1177,7 +1177,7 @@ func (check *Checker) collectTypeConstraints(pos token.Pos, types []ast.Expr) []
+ 	// interfaces, which may not be complete yet. It's ok to do this check at the
+ 	// end because it's not a requirement for correctness of the code.
+ 	// Note: This is a quadratic algorithm, but type lists tend to be short.
+-	check.atEnd(func() {
++	check.later(func() {
+ 		for i, t := range list {
+ 			if t := asInterface(t); t != nil {
+ 				check.completeInterface(types[i].Pos(), t)

@@ -9,8 +9,539 @@ Date:   Wed Oct 22 13:02:43 2008 -0700
     DELTA=133  (53 added, 8 deleted, 72 changed)
     OCL=17637
     CL=17639
-
+---
  usr/r/reflect/main.go     |   4 +-
  usr/r/reflect/tostring.go |   3 +
  usr/r/reflect/type.go     | 170 +++++++++++++++++++++++++++++-----------------
  3 files changed, 111 insertions(+), 66 deletions(-)
+
+diff --git a/usr/r/reflect/main.go b/usr/r/reflect/main.go
+index f0a2c021d4..d21b3933c5 100644
+--- a/usr/r/reflect/main.go
++++ b/usr/r/reflect/main.go
+@@ -9,12 +9,12 @@ import (
+ )
+ 
+ func typedump(s string) {
+-	t := reflect.ParseTypeString(s);
++	t := reflect.ParseTypeString("", s);
+ 	print(reflect.TypeToString(t),"; size = ", t.Size(), "\n");
+ }
+ 
+ func valuedump(s string) {
+-	t := reflect.ParseTypeString(s);
++	t := reflect.ParseTypeString("", s);
+ 	v := reflect.NewInitValue(t);
+ 	switch v.Kind() {
+ 	case reflect.Int8Kind:
+diff --git a/usr/r/reflect/tostring.go b/usr/r/reflect/tostring.go
+index 17a0a79fc6..f60013c002 100644
+--- a/usr/r/reflect/tostring.go
++++ b/usr/r/reflect/tostring.go
+@@ -35,6 +35,9 @@ func TypeFieldsToString(t HasFields, sep string) string {
+ 
+ func TypeToString(typ Type) string {
+ 	var str string;
++	if name := typ.Name(); name != "" {
++		return name
++	}
+ 	switch(typ.Kind()) {
+ 	case MissingKind:
+ 		return "$missing$";
+diff --git a/usr/r/reflect/type.go b/usr/r/reflect/type.go
+index 39a3c3ae34..c69a3394eb 100644
+--- a/usr/r/reflect/type.go
++++ b/usr/r/reflect/type.go
+@@ -43,14 +43,15 @@ var MissingString = "$missing$"	// syntactic name for undefined type names
+ 
+ export type Type interface {
+ 	Kind()	int;
++	Name()	string;
+ 	Size()	uint64;
+ }
+ 
+ // -- Basic
+ 
+ type BasicType struct{
+-	name	string;
+ 	kind	int;
++	name	string;
+ 	size	uint64;
+ }
+ 
+@@ -106,18 +107,13 @@ func (t *StubType) Get() Type {
+ 	return t.typ
+ }
+ 
+-func NewStubType(t Type) *StubType {
++func NewStubType(name string, t Type) *StubType {
+ 	s := new(StubType);
++	s.name = name;
+ 	s.typ = t;
+ 	return s;
+ }
+ 
+-func NewNamedStubType(n string) *StubType {
+-	s := new(StubType);
+-	s.name = n;
+-	return s;
+-}
+-
+ // -- Pointer
+ 
+ export type PtrType interface {
+@@ -125,13 +121,18 @@ export type PtrType interface {
+ }
+ 
+ type PtrTypeStruct struct {
+-	sub	*StubType
++	name	string;
++	sub	*StubType;
+ }
+ 
+ func (t *PtrTypeStruct) Kind() int {
+ 	return PtrKind
+ }
+ 
++func (t *PtrTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *PtrTypeStruct) Size() uint64 {
+ 	return ptrsize
+ }
+@@ -140,8 +141,9 @@ func (t *PtrTypeStruct) Sub() Type {
+ 	return t.sub.Get()
+ }
+ 
+-func NewPtrTypeStruct(sub *StubType) *PtrTypeStruct {
++func NewPtrTypeStruct(name string, sub *StubType) *PtrTypeStruct {
+ 	t := new(PtrTypeStruct);
++	t.name = name;
+ 	t.sub = sub;
+ 	return t;
+ }
+@@ -155,6 +157,7 @@ export type ArrayType interface {
+ }
+ 
+ type ArrayTypeStruct struct {
++	name	string;
+ 	elem	*StubType;
+ 	open	bool;	// otherwise fixed size
+ 	len	uint64;
+@@ -164,6 +167,10 @@ func (t *ArrayTypeStruct) Kind() int {
+ 	return ArrayKind
+ }
+ 
++func (t *ArrayTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *ArrayTypeStruct) Size() uint64 {
+ 	if t.open {
+ 		return ptrsize	// open arrays are pointers to structures
+@@ -184,8 +191,9 @@ func (t *ArrayTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewArrayTypeStruct(open bool, len uint64, elem *StubType) *ArrayTypeStruct {
++func NewArrayTypeStruct(name string, open bool, len uint64, elem *StubType) *ArrayTypeStruct {
+ 	t := new(ArrayTypeStruct);
++	t.name = name;
+ 	t.open = open;
+ 	t.len = len;
+ 	t.elem = elem;
+@@ -200,6 +208,7 @@ export type MapType interface {
+ }
+ 
+ type MapTypeStruct struct {
++	name	string;
+ 	key	*StubType;
+ 	elem	*StubType;
+ }
+@@ -208,6 +217,10 @@ func (t *MapTypeStruct) Kind() int {
+ 	return MapKind
+ }
+ 
++func (t *MapTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *MapTypeStruct) Size() uint64 {
+ 	panic("reflect.type: map.Size(): cannot happen");
+ 	return 0
+@@ -221,8 +234,9 @@ func (t *MapTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewMapTypeStruct(key, elem *StubType) *MapTypeStruct {
++func NewMapTypeStruct(name string, key, elem *StubType) *MapTypeStruct {
+ 	t := new(MapTypeStruct);
++	t.name = name;
+ 	t.key = key;
+ 	t.elem = elem;
+ 	return t;
+@@ -242,6 +256,7 @@ export const (	// channel direction
+ )
+ 
+ type ChanTypeStruct struct {
++	name	string;
+ 	elem	*StubType;
+ 	dir	int;
+ }
+@@ -250,6 +265,10 @@ func (t *ChanTypeStruct) Kind() int {
+ 	return ChanKind
+ }
+ 
++func (t *ChanTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *ChanTypeStruct) Size() uint64 {
+ 	panic("reflect.type: chan.Size(): cannot happen");
+ 	return 0
+@@ -264,8 +283,9 @@ func (t *ChanTypeStruct) Elem() Type {
+ 	return t.elem.Get()
+ }
+ 
+-func NewChanTypeStruct(dir int, elem *StubType) *ChanTypeStruct {
++func NewChanTypeStruct(name string, dir int, elem *StubType) *ChanTypeStruct {
+ 	t := new(ChanTypeStruct);
++	t.name = name;
+ 	t.dir = dir;
+ 	t.elem = elem;
+ 	return t;
+@@ -286,6 +306,7 @@ type Field struct {
+ }
+ 
+ type StructTypeStruct struct {
++	name	string;
+ 	field	*[]Field;
+ }
+ 
+@@ -293,6 +314,10 @@ func (t *StructTypeStruct) Kind() int {
+ 	return StructKind
+ }
+ 
++func (t *StructTypeStruct) Name() string {
++	return t.name
++}
++
+ // TODO: not portable; depends on 6g
+ func (t *StructTypeStruct) Size() uint64 {
+ 	size := uint64(0);
+@@ -324,8 +349,9 @@ func (t *StructTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-func NewStructTypeStruct(field *[]Field) *StructTypeStruct {
++func NewStructTypeStruct(name string, field *[]Field) *StructTypeStruct {
+ 	t := new(StructTypeStruct);
++	t.name = name;
+ 	t.field = field;
+ 	return t;
+ }
+@@ -338,6 +364,7 @@ export type InterfaceType interface {
+ }
+ 
+ type InterfaceTypeStruct struct {
++	name	string;
+ 	field	*[]Field;
+ }
+ 
+@@ -349,8 +376,9 @@ func (t *InterfaceTypeStruct) Len() int {
+ 	return len(t.field)
+ }
+ 
+-func NewInterfaceTypeStruct(field *[]Field) *InterfaceTypeStruct {
++func NewInterfaceTypeStruct(name string, field *[]Field) *InterfaceTypeStruct {
+ 	t := new(InterfaceTypeStruct);
++	t.name = name;
+ 	t.field = field;
+ 	return t;
+ }
+@@ -359,6 +387,10 @@ func (t *InterfaceTypeStruct) Kind() int {
+ 	return InterfaceKind
+ }
+ 
++func (t *InterfaceTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *InterfaceTypeStruct) Size() uint64 {
+ 	return interfacesize
+ }
+@@ -371,6 +403,7 @@ export type FuncType interface {
+ }
+ 
+ type FuncTypeStruct struct {
++	name	string;
+ 	in	*StructTypeStruct;
+ 	out	*StructTypeStruct;
+ }
+@@ -379,6 +412,10 @@ func (t *FuncTypeStruct) Kind() int {
+ 	return FuncKind
+ }
+ 
++func (t *FuncTypeStruct) Name() string {
++	return t.name
++}
++
+ func (t *FuncTypeStruct) Size() uint64 {
+ 	panic("reflect.type: func.Size(): cannot happen");
+ 	return 0
+@@ -395,8 +432,9 @@ func (t *FuncTypeStruct) Out() StructType {
+ 	return t.out
+ }
+ 
+-func NewFuncTypeStruct(in, out *StructTypeStruct) *FuncTypeStruct {
++func NewFuncTypeStruct(name string, in, out *StructTypeStruct) *FuncTypeStruct {
+ 	t := new(FuncTypeStruct);
++	t.name = name;
+ 	t.in = in;
+ 	t.out = out;
+ 	return t;
+@@ -452,20 +490,20 @@ func init() {
+ 	types["string"] = &String;
+ 
+ 	// Basics get prebuilt stubs
+-	MissingStub = NewStubType(Missing);
++	MissingStub = NewStubType(MissingString, Missing);
+ 	basicstub[MissingString] = MissingStub;
+-	basicstub["int8"] = NewStubType(Int8);
+-	basicstub["int16"] = NewStubType(Int16);
+-	basicstub["int32"] = NewStubType(Int32);
+-	basicstub["int64"] = NewStubType(Int64);
+-	basicstub["uint8"] = NewStubType(Uint8);
+-	basicstub["uint16"] = NewStubType(Uint16);
+-	basicstub["uint32"] = NewStubType(Uint32);
+-	basicstub["uint64"] = NewStubType(Uint64);
+-	basicstub["float32"] = NewStubType(Float32);
+-	basicstub["float64"] = NewStubType(Float64);
+-	basicstub["float80"] = NewStubType(Float80);
+-	basicstub["string"] = NewStubType(String);
++	basicstub["int8"] = NewStubType("int8", Int8);
++	basicstub["int16"] = NewStubType("int16", Int16);
++	basicstub["int32"] = NewStubType("int32", Int32);
++	basicstub["int64"] = NewStubType("int64", Int64);
++	basicstub["uint8"] = NewStubType("uint8", Uint8);
++	basicstub["uint16"] = NewStubType("uint16", Uint16);
++	basicstub["uint32"] = NewStubType("uint32", Uint32);
++	basicstub["uint64"] = NewStubType("uint64", Uint64);
++	basicstub["float32"] = NewStubType("float32", Float32);
++	basicstub["float64"] = NewStubType("float64", Float64);
++	basicstub["float80"] = NewStubType("float80", Float80);
++	basicstub["string"] = NewStubType("string", String);
+ 
+ 	Unlock();
+ }
+@@ -571,9 +609,9 @@ func (p *Parser) Next() {
+ 	p.token = p.str[start : p.index];
+ }
+ 
+-func (p *Parser) Type() *StubType
++func (p *Parser) Type(name string) *StubType
+ 
+-func (p *Parser) Array() *StubType {
++func (p *Parser) Array(name string) *StubType {
+ 	size := uint64(0);
+ 	open := true;
+ 	if p.token != "]" {
+@@ -592,25 +630,25 @@ func (p *Parser) Array() *StubType {
+ 		return MissingStub
+ 	}
+ 	p.Next();
+-	elemtype := p.Type();
+-	return NewStubType(NewArrayTypeStruct(open, size, elemtype));
++	elemtype := p.Type("");
++	return NewStubType(name, NewArrayTypeStruct(name, open, size, elemtype));
+ }
+ 
+-func (p *Parser) Map() *StubType {
++func (p *Parser) Map(name string) *StubType {
+ 	if p.token != "[" {
+ 		return MissingStub
+ 	}
+ 	p.Next();
+-	keytype := p.Type();
++	keytype := p.Type("");
+ 	if p.token != "]" {
+ 		return MissingStub
+ 	}
+ 	p.Next();
+-	elemtype := p.Type();
+-	return NewStubType(NewMapTypeStruct(keytype, elemtype));
++	elemtype := p.Type("");
++	return NewStubType(name, NewMapTypeStruct(name, keytype, elemtype));
+ }
+ 
+-func (p *Parser) Chan(dir int) *StubType {
++func (p *Parser) Chan(name string, dir int) *StubType {
+ 	if p.token == "<-" {
+ 		if dir != BothDir {
+ 			return MissingStub
+@@ -618,8 +656,8 @@ func (p *Parser) Chan(dir int) *StubType {
+ 		p.Next();
+ 		dir = SendDir;
+ 	}
+-	elemtype := p.Type();
+-	return NewStubType(NewChanTypeStruct(dir, elemtype));
++	elemtype := p.Type("");
++	return NewStubType(name, NewChanTypeStruct(name, dir, elemtype));
+ }
+ 
+ // Parse array of fields for struct, interface, and func arguments
+@@ -636,7 +674,7 @@ func (p *Parser) Fields(sep string) *[]Field {
+ 		}
+ 		a[nf].name = p.token;
+ 		p.Next();
+-		a[nf].typ = p.Type();
++		a[nf].typ = p.Type("");
+ 		nf++;
+ 		if p.token != sep {
+ 			break;
+@@ -646,59 +684,59 @@ func (p *Parser) Fields(sep string) *[]Field {
+ 	return a[0:nf];
+ }
+ 
+-func (p *Parser) Struct() *StubType {
++func (p *Parser) Struct(name string) *StubType {
+ 	f := p.Fields(";");
+ 	if p.token != "}" {
+ 		return MissingStub;
+ 	}
+ 	p.Next();
+-	return NewStubType(NewStructTypeStruct(f));
++	return NewStubType(name, NewStructTypeStruct(name, f));
+ }
+ 
+-func (p *Parser) Interface() *StubType {
++func (p *Parser) Interface(name string) *StubType {
+ 	f := p.Fields(";");
+ 	if p.token != "}" {
+ 		return MissingStub;
+ 	}
+ 	p.Next();
+-	return NewStubType(NewInterfaceTypeStruct(f));
++	return NewStubType(name, NewInterfaceTypeStruct(name, f));
+ }
+ 
+-func (p *Parser) Func() *StubType {
++func (p *Parser) Func(name string) *StubType {
+ 	// may be 1 or 2 parenthesized lists
+-	f1 := NewStructTypeStruct(p.Fields(","));
++	f1 := NewStructTypeStruct("", p.Fields(","));
+ 	if p.token != ")" {
+ 		return MissingStub;
+ 	}
+ 	p.Next();
+ 	if p.token != "(" {
+ 		// 1 list: the in parameters only
+-		return NewStubType(NewFuncTypeStruct(f1, nil));
++		return NewStubType(name, NewFuncTypeStruct(name, f1, nil));
+ 	}
+ 	p.Next();
+-	f2 := NewStructTypeStruct(p.Fields(","));
++	f2 := NewStructTypeStruct("", p.Fields(","));
+ 	if p.token != ")" {
+ 		return MissingStub;
+ 	}
+ 	p.Next();
+ 	// 2 lists: the in and out parameters are present
+-	return NewStubType(NewFuncTypeStruct(f1, f2));
++	return NewStubType(name, NewFuncTypeStruct(name, f1, f2));
+ }
+ 
+-func (p *Parser) Type() *StubType {
++func (p *Parser) Type(name string) *StubType {
+ 	dir := BothDir;
+ 	switch {
+ 	case p.token == "":
+ 		return nil;
+ 	case p.token == "*":
+ 		p.Next();
+-		return NewStubType(NewPtrTypeStruct(p.Type()));
++		return NewStubType(name, NewPtrTypeStruct(name, p.Type("")));
+ 	case p.token == "[":
+ 		p.Next();
+-		return p.Array();
++		return p.Array(name);
+ 	case p.token == "map":
+ 		p.Next();
+-		return p.Map();
++		return p.Map(name);
+ 	case p.token == "<-":
+ 		p.Next();
+ 		dir = RecvDir;
+@@ -708,24 +746,24 @@ func (p *Parser) Type() *StubType {
+ 		fallthrough;
+ 	case p.token == "chan":
+ 		p.Next();
+-		return p.Chan(dir);
++		return p.Chan(name, dir);
+ 	case p.token == "struct":
+ 		p.Next();
+ 		if p.token != "{" {
+ 			return MissingStub
+ 		}
+ 		p.Next();
+-		return p.Struct();
++		return p.Struct(name);
+ 	case p.token == "interface":
+ 		p.Next();
+ 		if p.token != "{" {
+ 			return MissingStub
+ 		}
+ 		p.Next();
+-		return p.Interface();
++		return p.Interface(name);
+ 	case p.token == "(":
+ 		p.Next();
+-		return p.Func();
++		return p.Func(name);
+ 	case isdigit(p.token[0]):
+ 		p.Next();
+ 		return MissingStub;
+@@ -736,6 +774,11 @@ func (p *Parser) Type() *StubType {
+ 	// must be an identifier. is it basic? if so, we have a stub
+ 	if s, ok := basicstub[p.token]; ok {
+ 		p.Next();
++		if name != "" {
++			// Need to make a copy because we are renaming a basic type
++			b := s.Get();
++			s = NewStubType(name, NewBasicType(name, b.Kind(), b.Size()));
++		}
+ 		return s
+ 	}
+ 	// not a basic - must be of the form "P.T"
+@@ -749,17 +792,16 @@ func (p *Parser) Type() *StubType {
+ 		p.Next();
+ 		return MissingStub;
+ 	}
+-	s := new(StubType);
+-	s.name = p.token;
++	s := NewStubType(p.token, nil);
+ 	p.Next();
+ 	return s;
+ }
+ 
+-export func ParseTypeString(str string) Type {
++export func ParseTypeString(name, typestring string) Type {
+ 	p := new(Parser);
+-	p.str = str;
++	p.str = typestring;
+ 	p.Next();
+-	return p.Type().Get();
++	return p.Type(name).Get();
+ }
+ 
+ // Create typestring map from reflect.typestrings() data.  Lock is held.
+@@ -819,7 +861,7 @@ func ExpandType(name string) Type {
+ 		return *t
+ 	}
+ 	types[name] = &Missing;	// prevent recursion; will overwrite
+-	t1 := ParseTypeString(TypeNameToTypeString(name));
++	t1 := ParseTypeString(name, TypeNameToTypeString(name));
+ 	p := new(Type);
+ 	*p = t1;
+ 	types[name] = p;

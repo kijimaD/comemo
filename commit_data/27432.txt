@@ -9,7 +9,120 @@ Date:   Fri Mar 25 21:11:33 2016 -0700
     Change-Id: Iea68c9deca9429bde465c9ae05639209fe0ccf72
     Reviewed-on: https://go-review.googlesource.com/21175
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/order.go | 43 ++++++++++++++++++------------------
  src/runtime/string_test.go           |  8 +++++--
  2 files changed, 28 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index f5c630d9b1..4c2056c6a7 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -705,28 +705,31 @@ func orderstmt(n *Node, order *Order) {
+ 		order.out = append(order.out, n)
+ 		cleantemp(t, order)
+ 
+-		// n->right is the expression being ranged over.
+-	// order it, and then make a copy if we need one.
+-	// We almost always do, to ensure that we don't
+-	// see any value changes made during the loop.
+-	// Usually the copy is cheap (e.g., array pointer, chan, slice, string are all tiny).
+-	// The exception is ranging over an array value (not a slice, not a pointer to array),
+-	// which must make a copy to avoid seeing updates made during
+-	// the range body. Ranging over an array value is uncommon though.
+ 	case ORANGE:
+-		t := marktemp(order)
++		// n.Right is the expression being ranged over.
++		// order it, and then make a copy if we need one.
++		// We almost always do, to ensure that we don't
++		// see any value changes made during the loop.
++		// Usually the copy is cheap (e.g., array pointer,
++		// chan, slice, string are all tiny).
++		// The exception is ranging over an array value
++		// (not a slice, not a pointer to array),
++		// which must make a copy to avoid seeing updates made during
++		// the range body. Ranging over an array value is uncommon though.
++
++		// Mark []byte(str) range expression to reuse string backing storage.
++		// It is safe because the storage cannot be mutated.
++		if n.Right.Op == OSTRARRAYBYTE {
++			n.Right.Op = OSTRARRAYBYTETMP
++		}
+ 
++		t := marktemp(order)
+ 		n.Right = orderexpr(n.Right, order, nil)
+ 		switch n.Type.Etype {
+ 		default:
+ 			Fatalf("orderstmt range %v", n.Type)
+ 
+-			// Mark []byte(str) range expression to reuse string backing storage.
+-		// It is safe because the storage cannot be mutated.
+ 		case TARRAY:
+-			if n.Right.Op == OSTRARRAYBYTE {
+-				n.Right.Op = OSTRARRAYBYTETMP
+-			}
+ 			if n.List.Len() < 2 || isblank(n.List.Second()) {
+ 				// for i := range x will only use x once, to compute len(x).
+ 				// No need to copy it.
+@@ -734,10 +737,9 @@ func orderstmt(n *Node, order *Order) {
+ 			}
+ 			fallthrough
+ 
+-			// chan, string, slice, array ranges use value multiple times.
+-		// make copy.
+-		// fall through
+ 		case TCHAN, TSTRING:
++			// chan, string, slice, array ranges use value multiple times.
++			// make copy.
+ 			r := n.Right
+ 
+ 			if r.Type.Etype == TSTRING && r.Type != Types[TSTRING] {
+@@ -748,12 +750,11 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 			n.Right = ordercopyexpr(r, r.Type, order, 0)
+ 
+-			// copy the map value in case it is a map literal.
+-		// TODO(rsc): Make tmp = literal expressions reuse tmp.
+-		// For maps tmp is just one word so it hardly matters.
+ 		case TMAP:
++			// copy the map value in case it is a map literal.
++			// TODO(rsc): Make tmp = literal expressions reuse tmp.
++			// For maps tmp is just one word so it hardly matters.
+ 			r := n.Right
+-
+ 			n.Right = ordercopyexpr(r, r.Type, order, 0)
+ 
+ 			// n->alloc is the temp for the iterator.
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index 292d5595e3..ee9709e87d 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -10,6 +10,10 @@ import (
+ 	"testing"
+ )
+ 
++// Strings and slices that don't escape and fit into tmpBuf are stack allocated,
++// which defeats using AllocsPerRun to test other optimizations.
++const sizeNoStack = 100
++
+ func BenchmarkCompareStringEqual(b *testing.B) {
+ 	bytes := []byte("Hello Gophers!")
+ 	s1, s2 := string(bytes), string(bytes)
+@@ -158,7 +162,7 @@ func TestGostringnocopy(t *testing.T) {
+ }
+ 
+ func TestCompareTempString(t *testing.T) {
+-	s := "foo"
++	s := strings.Repeat("x", sizeNoStack)
+ 	b := []byte(s)
+ 	n := testing.AllocsPerRun(1000, func() {
+ 		if string(b) != s {
+@@ -221,7 +225,7 @@ func TestIntStringAllocs(t *testing.T) {
+ }
+ 
+ func TestRangeStringCast(t *testing.T) {
+-	s := "abc"
++	s := strings.Repeat("x", sizeNoStack)
+ 	n := testing.AllocsPerRun(1000, func() {
+ 		for i, c := range []byte(s) {
+ 			if c != s[i] {

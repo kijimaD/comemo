@@ -21,9 +21,170 @@ Date:   Thu Oct 26 02:28:28 2023 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/hash/adler32/adler32.go | 15 +++++++++------
  src/hash/crc32/crc32.go     | 15 +++++++++------
  src/hash/crc64/crc64.go     | 23 +++++++++++++----------
  src/hash/fnv/fnv.go         | 38 ++++++++++++++++++++++----------------
  4 files changed, 53 insertions(+), 38 deletions(-)
+
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 415af81dff..07695e947a 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -74,16 +74,19 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func appendUint32(b []byte, x uint32) []byte {
+-	a := [4]byte{
+-		byte(x >> 24),
+-		byte(x >> 16),
+-		byte(x >> 8),
++	return append(b,
++		byte(x>>24),
++		byte(x>>16),
++		byte(x>>8),
+ 		byte(x),
+-	}
+-	return append(b, a[:]...)
++	)
+ }
+ 
++// readUint32 is semantically the same as [binary.BigEndian.Uint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func readUint32(b []byte) uint32 {
+ 	_ = b[3]
+ 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 6d2421afab..170f05cf8a 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -191,16 +191,19 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func appendUint32(b []byte, x uint32) []byte {
+-	a := [4]byte{
+-		byte(x >> 24),
+-		byte(x >> 16),
+-		byte(x >> 8),
++	return append(b,
++		byte(x>>24),
++		byte(x>>16),
++		byte(x>>8),
+ 		byte(x),
+-	}
+-	return append(b, a[:]...)
++	)
+ }
+ 
++// readUint32 is semantically the same as [binary.BigEndian.Uint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func readUint32(b []byte) uint32 {
+ 	_ = b[3]
+ 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 1915ac6123..17ee8eb04e 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -132,20 +132,23 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
++// We copied this function because we can not import "encoding/binary" here.
+ func appendUint64(b []byte, x uint64) []byte {
+-	a := [8]byte{
+-		byte(x >> 56),
+-		byte(x >> 48),
+-		byte(x >> 40),
+-		byte(x >> 32),
+-		byte(x >> 24),
+-		byte(x >> 16),
+-		byte(x >> 8),
++	return append(b,
++		byte(x>>56),
++		byte(x>>48),
++		byte(x>>40),
++		byte(x>>32),
++		byte(x>>24),
++		byte(x>>16),
++		byte(x>>8),
+ 		byte(x),
+-	}
+-	return append(b, a[:]...)
++	)
+ }
+ 
++// readUint64 is semantically the same as [binary.BigEndian.Uint64]
++// We copied this function because we can not import "encoding/binary" here.
+ func readUint64(b []byte) uint64 {
+ 	_ = b[7]
+ 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index e770f871d9..a3a944a05e 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -335,35 +335,41 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
+ 	return nil
+ }
+ 
++// readUint32 is semantically the same as [binary.BigEndian.Uint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func readUint32(b []byte) uint32 {
+ 	_ = b[3]
+ 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+ }
+ 
++// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
++// We copied this function because we can not import "encoding/binary" here.
+ func appendUint32(b []byte, x uint32) []byte {
+-	a := [4]byte{
+-		byte(x >> 24),
+-		byte(x >> 16),
+-		byte(x >> 8),
++	return append(b,
++		byte(x>>24),
++		byte(x>>16),
++		byte(x>>8),
+ 		byte(x),
+-	}
+-	return append(b, a[:]...)
++	)
+ }
+ 
++// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
++// We copied this function because we can not import "encoding/binary" here.
+ func appendUint64(b []byte, x uint64) []byte {
+-	a := [8]byte{
+-		byte(x >> 56),
+-		byte(x >> 48),
+-		byte(x >> 40),
+-		byte(x >> 32),
+-		byte(x >> 24),
+-		byte(x >> 16),
+-		byte(x >> 8),
++	return append(b,
++		byte(x>>56),
++		byte(x>>48),
++		byte(x>>40),
++		byte(x>>32),
++		byte(x>>24),
++		byte(x>>16),
++		byte(x>>8),
+ 		byte(x),
+-	}
+-	return append(b, a[:]...)
++	)
+ }
+ 
++// readUint64 is semantically the same as [binary.BigEndian.Uint64]
++// We copied this function because we can not import "encoding/binary" here.
+ func readUint64(b []byte) uint64 {
+ 	_ = b[7]
+ 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |

@@ -20,7 +20,73 @@ Date:   Fri Feb 10 21:09:21 2017 -0600
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/fs.go      |  3 +++
  src/net/http/fs_test.go | 37 ++++++++++++++++++++++++-------------
  2 files changed, 27 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 773e74d536..2858319450 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -43,6 +43,9 @@ func mapDirOpenError(originalErr error, name string) error {
+ 
+ 	parts := strings.Split(name, string(filepath.Separator))
+ 	for i := range parts {
++		if parts[i] == "" {
++			continue
++		}
+ 		fi, err := os.Stat(strings.Join(parts[:i+1], string(filepath.Separator)))
+ 		if err != nil {
+ 			return originalErr
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 8ff2faf9b9..1de1cd53d0 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -1176,22 +1176,33 @@ func TestFileServerNotDirError(t *testing.T) {
+ 		t.Errorf("StatusCode = %v; want 404", res.StatusCode)
+ 	}
+ 
+-	dir := Dir("testdata")
+-	_, err = dir.Open("/index.html/not-a-file")
+-	if err == nil {
+-		t.Fatal("err == nil; want != nil")
+-	}
+-	if !os.IsNotExist(err) {
+-		t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
+-	}
++	test := func(name string, dir Dir) {
++		t.Run(name, func(t *testing.T) {
++			_, err = dir.Open("/index.html/not-a-file")
++			if err == nil {
++				t.Fatal("err == nil; want != nil")
++			}
++			if !os.IsNotExist(err) {
++				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
++			}
+ 
+-	_, err = dir.Open("/index.html/not-a-dir/not-a-file")
+-	if err == nil {
+-		t.Fatal("err == nil; want != nil")
++			_, err = dir.Open("/index.html/not-a-dir/not-a-file")
++			if err == nil {
++				t.Fatal("err == nil; want != nil")
++			}
++			if !os.IsNotExist(err) {
++				t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
++			}
++		})
+ 	}
+-	if !os.IsNotExist(err) {
+-		t.Errorf("err = %v; os.IsNotExist(err) = %v; want true", err, os.IsNotExist(err))
++
++	absPath, err := filepath.Abs("testdata")
++	if err != nil {
++		t.Fatal("get abs path:", err)
+ 	}
++
++	test("RelativePath", Dir("testdata"))
++	test("AbsolutePath", Dir(absPath))
+ }
+ 
+ func TestFileServerCleanPath(t *testing.T) {

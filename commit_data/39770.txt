@@ -29,7 +29,46 @@ Date:   Tue Mar 19 16:16:50 2019 +0700
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/sniff.go      | 10 ++++++++--
  src/net/http/sniff_test.go |  6 ++++--
  2 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/sniff.go b/src/net/http/sniff.go
+index 114a88ccba..67a7151b0c 100644
+--- a/src/net/http/sniff.go
++++ b/src/net/http/sniff.go
+@@ -185,8 +185,14 @@ var sniffSignatures = []sniffSig{
+ 	// Archive types
+ 	&exactSig{[]byte("\x1F\x8B\x08"), "application/x-gzip"},
+ 	&exactSig{[]byte("PK\x03\x04"), "application/zip"},
+-	&exactSig{[]byte("Rar \x1A\x07\x00"), "application/x-rar-compressed"},     // RAR v1.5-v4.0
+-	&exactSig{[]byte("Rar \x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
++	// RAR's signatures are incorrectly defined by the MIME spec as per
++	//    https://github.com/whatwg/mimesniff/issues/63
++	// However, RAR Labs correctly defines it at:
++	//    https://www.rarlab.com/technote.htm#rarsign
++	// so we use the definition from RAR Labs.
++	// TODO: do whatever the spec ends up doing.
++	&exactSig{[]byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},     // RAR v1.5-v4.0
++	&exactSig{[]byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"}, // RAR v5+
+ 
+ 	&exactSig{[]byte("\x00\x61\x73\x6D"), "application/wasm"},
+ 
+diff --git a/src/net/http/sniff_test.go b/src/net/http/sniff_test.go
+index 08ae79c285..a1157a0823 100644
+--- a/src/net/http/sniff_test.go
++++ b/src/net/http/sniff_test.go
+@@ -74,8 +74,10 @@ var sniffTests = []struct {
+ 	{"wasm sample", []byte("\x00\x61\x73\x6d\x01\x00"), "application/wasm"},
+ 
+ 	// Archive types
+-	{"RAR v1.5-v4.0", []byte("Rar \x1A\x07\x00"), "application/x-rar-compressed"},
+-	{"RAR v5+", []byte("Rar \x1A\x07\x01\x00"), "application/x-rar-compressed"},
++	{"RAR v1.5-v4.0", []byte("Rar!\x1A\x07\x00"), "application/x-rar-compressed"},
++	{"RAR v5+", []byte("Rar!\x1A\x07\x01\x00"), "application/x-rar-compressed"},
++	{"Incorrect RAR v1.5-v4.0", []byte("Rar \x1A\x07\x00"), "application/octet-stream"},
++	{"Incorrect RAR v5+", []byte("Rar \x1A\x07\x01\x00"), "application/octet-stream"},
+ }
+ 
+ func TestDetectContentType(t *testing.T) {

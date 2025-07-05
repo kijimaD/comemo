@@ -15,7 +15,7 @@ Date:   Mon Aug 16 12:07:27 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/api_test.go                       | 32 ++++++++++----------
  src/go/types/decl.go                           |  4 +++
  src/go/types/testdata/check/issues.go2         | 12 ++------
@@ -37,3 +37,727 @@ Date:   Mon Aug 16 12:07:27 2021 -0400
  src/go/types/testdata/fixedbugs/issue47127.go2 | 10 +++---
  src/go/types/testdata/fixedbugs/issue47411.go2 |  4 +--
  20 files changed, 106 insertions(+), 104 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 8e1565b95e..cbb265d9c3 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -343,10 +343,10 @@ func TestTypesInfo(t *testing.T) {
+ 		{broken + `x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+ 
+ 		// parameterized functions
+-		{genericPkg + `p0; func f[T any](T); var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
+-		{genericPkg + `p1; func f[T any](T); var _ = f[int]`, `f[int]`, `func(int)`},
+-		{genericPkg + `p2; func f[T any](T); func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
+-		{genericPkg + `p3; func f[T any](T); func _() { f(42) }`, `f(42)`, `()`},
++		{genericPkg + `p0; func f[T any](T) {}; var _ = f[int]`, `f`, `func[generic_p0.T₁ interface{}](generic_p0.T₁)`},
++		{genericPkg + `p1; func f[T any](T) {}; var _ = f[int]`, `f[int]`, `func(int)`},
++		{genericPkg + `p2; func f[T any](T) {}; func _() { f(42) }`, `f`, `func[generic_p2.T₁ interface{}](generic_p2.T₁)`},
++		{genericPkg + `p3; func f[T any](T) {}; func _() { f(42) }`, `f(42)`, `()`},
+ 
+ 		// type parameters
+ 		{genericPkg + `t0; type t[] int; var _ t`, `t`, `generic_t0.t`}, // t[] is a syntax error that is ignored in this test in favor of t
+@@ -405,64 +405,64 @@ func TestInferredInfo(t *testing.T) {
+ 		targs []string
+ 		sig   string
+ 	}{
+-		{genericPkg + `p0; func f[T any](T); func _() { f(42) }`,
++		{genericPkg + `p0; func f[T any](T) {}; func _() { f(42) }`,
+ 			`f`,
+ 			[]string{`int`},
+ 			`func(int)`,
+ 		},
+-		{genericPkg + `p1; func f[T any](T) T; func _() { f('@') }`,
++		{genericPkg + `p1; func f[T any](T) T { panic(0) }; func _() { f('@') }`,
+ 			`f`,
+ 			[]string{`rune`},
+ 			`func(rune) rune`,
+ 		},
+-		{genericPkg + `p2; func f[T any](...T) T; func _() { f(0i) }`,
++		{genericPkg + `p2; func f[T any](...T) T { panic(0) }; func _() { f(0i) }`,
+ 			`f`,
+ 			[]string{`complex128`},
+ 			`func(...complex128) complex128`,
+ 		},
+-		{genericPkg + `p3; func f[A, B, C any](A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`,
++		{genericPkg + `p3; func f[A, B, C any](A, *B, []C) {}; func _() { f(1.2, new(string), []byte{}) }`,
+ 			`f`,
+ 			[]string{`float64`, `string`, `byte`},
+ 			`func(float64, *string, []byte)`,
+ 		},
+-		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B); func _() { f(1.2, new(byte)) }`,
++		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B) {}; func _() { f(1.2, new(byte)) }`,
+ 			`f`,
+ 			[]string{`float64`, `byte`},
+ 			`func(float64, *byte, ...[]byte)`,
+ 		},
+ 
+-		{genericPkg + `s1; func f[T any, P interface{~*T}](x T); func _(x string) { f(x) }`,
++		{genericPkg + `s1; func f[T any, P interface{~*T}](x T) {}; func _(x string) { f(x) }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func(x string)`,
+ 		},
+-		{genericPkg + `s2; func f[T any, P interface{~*T}](x []T); func _(x []int) { f(x) }`,
++		{genericPkg + `s2; func f[T any, P interface{~*T}](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `*int`},
+ 			`func(x []int)`,
+ 		},
+-		{genericPkg + `s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
++		{genericPkg + `s3; type C[T any] interface{~chan<- T}; func f[T any, P C[T]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`},
+ 			`func(x []int)`,
+ 		},
+-		{genericPkg + `s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
++		{genericPkg + `s4; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T) {}; func _(x []int) { f(x) }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func(x []int)`,
+ 		},
+ 
+-		{genericPkg + `t1; func f[T any, P interface{~*T}]() T; func _() { _ = f[string] }`,
++		{genericPkg + `t1; func f[T any, P interface{~*T}]() T { panic(0) }; func _() { _ = f[string] }`,
+ 			`f`,
+ 			[]string{`string`, `*string`},
+ 			`func() string`,
+ 		},
+-		{genericPkg + `t2; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
++		{genericPkg + `t2; type C[T any] interface{~chan<- T}; func f[T any, P C[T]]() []T { return nil }; func _() { _ = f[int] }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`},
+ 			`func() []int`,
+ 		},
+-		{genericPkg + `t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
++		{genericPkg + `t3; type C[T any] interface{~chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T { return nil }; func _() { _ = f[int] }`,
+ 			`f`,
+ 			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+ 			`func() []int`,
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 6c305caff5..c9865b0f47 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -774,6 +774,10 @@ func (check *Checker) funcDecl(obj *Func, decl *declInfo) {
+ 	check.funcType(sig, fdecl.Recv, fdecl.Type)
+ 	obj.color_ = saved
+ 
++	if fdecl.Type.TParams.NumFields() > 0 && fdecl.Body == nil {
++		check.softErrorf(fdecl.Name, _Todo, "parameterized function is missing function body")
++	}
++
+ 	// function body must be type-checked after global declarations
+ 	// (functions implemented elsewhere have no body)
+ 	if !check.conf.IgnoreFuncBodies && fdecl.Body != nil {
+diff --git a/src/go/types/testdata/check/issues.go2 b/src/go/types/testdata/check/issues.go2
+index 6a1a10ad49..a994d73f66 100644
+--- a/src/go/types/testdata/check/issues.go2
++++ b/src/go/types/testdata/check/issues.go2
+@@ -40,13 +40,7 @@ func _[T interface{ m() }](x *T) {
+ 	x.m  /* ERROR x\.m undefined */ ()
+ }
+ 
+-// In a generic function body all method calls will be pointer method calls.
+-// If necessary, the function body will insert temporary variables, not seen
+-// by the user, in order to get an addressable variable to use to call the method.
+-// Thus, assume an argument type for a generic function to be the type of addressable
+-// values in the generic function when checking if the argument type satisfies the
+-// generic function's type bound.
+-func f2[_ interface{ m1(); m2() }]()
++func f2[_ interface{ m1(); m2() }]() {}
+ 
+ type T struct{}
+ func (T) m1()
+@@ -239,7 +233,7 @@ func _[T interface{ ~func() }](f T) {
+ 
+ type sliceOf[E any] interface{ ~[]E }
+ 
+-func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S
++func append[T interface{}, S sliceOf[T], T2 interface{}](s S, t ...T2) S { panic(0) }
+ 
+ var f           func()
+ var cancelSlice []context.CancelFunc
+@@ -247,7 +241,7 @@ var _ = append[context.CancelFunc, []context.CancelFunc, context.CancelFunc](can
+ 
+ // A generic function must be instantiated with a type, not a value.
+ 
+-func g[T any](T) T
++func g[T any](T) T { panic(0) }
+ 
+ var _ = g[int]
+ var _ = g[nil /* ERROR is not a type */ ]
+diff --git a/src/go/types/testdata/check/map2.go2 b/src/go/types/testdata/check/map2.go2
+index 2833445662..e13bf33fed 100644
+--- a/src/go/types/testdata/check/map2.go2
++++ b/src/go/types/testdata/check/map2.go2
+@@ -114,7 +114,7 @@ func (it *Iterator[K, V]) Next() (K, V, bool) {
+ 
+ // chans
+ 
+-func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T])
++func chans_Ranger[T any]() (*chans_Sender[T], *chans_Receiver[T]) { panic(0) }
+ 
+ // A sender is used to send values to a Receiver.
+ type chans_Sender[T any] struct {
+@@ -143,4 +143,4 @@ type chans_Receiver[T any] struct {
+ func (r *chans_Receiver[T]) Next() (T, bool) {
+ 	v, ok := <-r.values
+ 	return v, ok
+-}
+\ No newline at end of file
++}
+diff --git a/src/go/types/testdata/check/tinference.go2 b/src/go/types/testdata/check/tinference.go2
+index aa9a054682..5bd2ba74e7 100644
+--- a/src/go/types/testdata/check/tinference.go2
++++ b/src/go/types/testdata/check/tinference.go2
+@@ -26,7 +26,7 @@ type any interface{}
+ // 	f1(int(0), int(0))
+ // }
+ 
+-func f2[A any, B interface{~[]A}](A, B)
++func f2[A any, B interface{~[]A}](A, B) {}
+ func _() {
+ 	f := f2[byte]
+ 	f(byte(0), []byte{})
+@@ -42,7 +42,7 @@ func _() {
+ // 	f3(x, &x, &x)
+ // }
+ 
+-func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C)
++func f4[A any, B interface{~[]C}, C interface{~*A}](A, B, C) {}
+ func _() {
+ 	f := f4[int]
+ 	var x int
+@@ -50,14 +50,14 @@ func _() {
+ 	f4(x, []*int{}, &x)
+ }
+ 
+-func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A
++func f5[A interface{~struct{b B; c C}}, B any, C interface{~*B}](x B) A { panic(0) }
+ func _() {
+ 	x := f5(1.2)
+ 	var _ float64 = x.b
+ 	var _ float64 = *x.c
+ }
+ 
+-func f6[A any, B interface{~struct{f []A}}](B) A
++func f6[A any, B interface{~struct{f []A}}](B) A { panic(0) }
+ func _() {
+ 	x := f6(struct{f []string}{})
+ 	var _ string = x
+diff --git a/src/go/types/testdata/check/typeinst2.go2 b/src/go/types/testdata/check/typeinst2.go2
+index f8369c31dd..95c249d529 100644
+--- a/src/go/types/testdata/check/typeinst2.go2
++++ b/src/go/types/testdata/check/typeinst2.go2
+@@ -85,7 +85,7 @@ type NumericAbs[T any] interface {
+ 	Abs() T
+ }
+ 
+-func AbsDifference[T NumericAbs[T]](x T)
++func AbsDifference[T NumericAbs[T]](x T) { panic(0) }
+ 
+ type OrderedAbs[T any] T
+ 
+@@ -97,7 +97,7 @@ func OrderedAbsDifference[T any](x T) {
+ 
+ // same code, reduced to essence
+ 
+-func g[P interface{ m() P }](x P)
++func g[P interface{ m() P }](x P) { panic(0) }
+ 
+ type T4[P any] P
+ 
+@@ -205,7 +205,7 @@ type I0 interface {
+ 	E0
+ }
+ 
+-func f0[T I0]()
++func f0[T I0]() {}
+ var _ = f0[int]
+ var _ = f0[bool]
+ var _ = f0[string]
+@@ -216,7 +216,7 @@ type I01 interface {
+ 	E1
+ }
+ 
+-func f01[T I01]()
++func f01[T I01]() {}
+ var _ = f01[int]
+ var _ = f01[bool /* ERROR does not satisfy I0 */ ]
+ var _ = f01[string]
+@@ -228,7 +228,7 @@ type I012 interface {
+ 	E2
+ }
+ 
+-func f012[T I012]()
++func f012[T I012]() {}
+ var _ = f012[int /* ERROR does not satisfy I012 */ ]
+ var _ = f012[bool /* ERROR does not satisfy I012 */ ]
+ var _ = f012[string /* ERROR does not satisfy I012 */ ]
+@@ -239,7 +239,7 @@ type I12 interface {
+ 	E2
+ }
+ 
+-func f12[T I12]()
++func f12[T I12]() {}
+ var _ = f12[int /* ERROR does not satisfy I12 */ ]
+ var _ = f12[bool /* ERROR does not satisfy I12 */ ]
+ var _ = f12[string /* ERROR does not satisfy I12 */ ]
+@@ -250,7 +250,7 @@ type I0_ interface {
+ 	~int
+ }
+ 
+-func f0_[T I0_]()
++func f0_[T I0_]() {}
+ var _ = f0_[int]
+ var _ = f0_[bool /* ERROR does not satisfy I0_ */ ]
+ var _ = f0_[string /* ERROR does not satisfy I0_ */ ]
+diff --git a/src/go/types/testdata/check/typeparams.go2 b/src/go/types/testdata/check/typeparams.go2
+index 5cd4730078..bd89d1ecad 100644
+--- a/src/go/types/testdata/check/typeparams.go2
++++ b/src/go/types/testdata/check/typeparams.go2
+@@ -15,9 +15,9 @@ func _[_ any /* ok here */ , _ interface{any /* ERROR constraint */ }](any /* ER
+ 
+ func identity[T any](x T) T { return x }
+ 
+-func _[_ any](x int) int
+-func _[T any](T /* ERROR redeclared */ T)()
+-func _[T, T /* ERROR redeclared */ any]()
++func _[_ any](x int) int { panic(0) }
++func _[T any](T /* ERROR redeclared */ T)() {}
++func _[T, T /* ERROR redeclared */ any]() {}
+ 
+ // Constraints (incl. any) may be parenthesized.
+ func _[_ (any)]() {}
+@@ -77,18 +77,18 @@ func new[T any]() *T {
+ var _ = new /* ERROR cannot use generic function new */
+ var _ *int = new[int]()
+ 
+-func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) // w/o constraint we don't know if T is comparable
++func _[T any](map[T /* ERROR incomparable map key type T \(missing comparable constraint\) */]int) {} // w/o constraint we don't know if T is comparable
+ 
+-func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int
++func f1[T1 any](struct{T1 /* ERROR cannot be a .* type parameter */ }) int { panic(0) }
+ var _ = f1[int](struct{T1}{})
+ type T1 = int
+ 
+-func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int
++func f2[t1 any](struct{t1 /* ERROR cannot be a .* type parameter */ ; x float32}) int { panic(0) }
+ var _ = f2[t1](struct{t1; x float32}{})
+ type t1 = int
+ 
+ 
+-func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int
++func f3[A, B, C any](A, struct{x B}, func(A, struct{x B}, *C)) int { panic(0) }
+ 
+ var _ = f3[int, rune, bool](1, struct{x rune}{}, nil)
+ 
+@@ -257,28 +257,28 @@ func _[
+ 
+ var _ = new /* ERROR cannot infer T */ ()
+ 
+-func f4[A, B, C any](A, B) C
++func f4[A, B, C any](A, B) C { panic(0) }
+ 
+ var _ = f4 /* ERROR cannot infer C */ (1, 2)
+ var _ = f4[int, float32, complex128](1, 2)
+ 
+-func f5[A, B, C any](A, []*B, struct{f []C}) int
++func f5[A, B, C any](A, []*B, struct{f []C}) int { panic(0) }
+ 
+ var _ = f5[int, float32, complex128](0, nil, struct{f []complex128}{})
+ var _ = f5 /* ERROR cannot infer */ (0, nil, struct{f []complex128}{})
+ var _ = f5(0, []*float32{new[float32]()}, struct{f []complex128}{})
+ 
+-func f6[A any](A, []A) int
++func f6[A any](A, []A) int { panic(0) }
+ 
+ var _ = f6(0, nil)
+ 
+-func f6nil[A any](A) int
++func f6nil[A any](A) int { panic(0) }
+ 
+ var _ = f6nil /* ERROR cannot infer */ (nil)
+ 
+ // type inference with variadic functions
+ 
+-func f7[T any](...T) T
++func f7[T any](...T) T { panic(0) }
+ 
+ var _ int = f7 /* ERROR cannot infer T */ ()
+ var _ int = f7(1)
+@@ -291,7 +291,7 @@ var _ = f7(float64(1), 2.3)
+ var _ = f7(1, 2.3 /* ERROR does not match */ )
+ var _ = f7(1.2, 3 /* ERROR does not match */ )
+ 
+-func f8[A, B any](A, B, ...B) int
++func f8[A, B any](A, B, ...B) int { panic(0) }
+ 
+ var _ = f8(1) /* ERROR not enough arguments */
+ var _ = f8(1, 2.3)
+@@ -317,7 +317,7 @@ func (T) m3[ /* ERROR methods cannot have type parameters */ P any]() {}
+ 
+ type S1[P any] struct { f P }
+ 
+-func f9[P any](x S1[P])
++func f9[P any](x S1[P]) {}
+ 
+ func _() {
+         f9[int](S1[int]{42})
+@@ -326,7 +326,7 @@ func _() {
+ 
+ type S2[A, B, C any] struct{}
+ 
+-func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool])
++func f10[X, Y, Z any](a S2[X, int, Z], b S2[X, Y, bool]) {}
+ 
+ func _[P any]() {
+         f10[int, float32, string](S2[int, int, string]{}, S2[int, float32, bool]{})
+@@ -337,7 +337,7 @@ func _[P any]() {
+ // corner case for type inference
+ // (was bug: after instanting f11, the type-checker didn't mark f11 as non-generic)
+ 
+-func f11[T any]()
++func f11[T any]() {}
+ 
+ func _() {
+ 	f11[int]()
+@@ -345,7 +345,7 @@ func _() {
+ 
+ // the previous example was extracted from
+ 
+-func f12[T interface{m() T}]()
++func f12[T interface{m() T}]() {}
+ 
+ type A[T any] T
+ 
+@@ -373,15 +373,15 @@ func _[T any] (x T) {
+ 
+ type R0 struct{}
+ 
+-func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T)
+-func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() // scope of type parameters starts at "func"
++func (R0) _[ /* ERROR methods cannot have type parameters */ T any](x T) {}
++func (R0 /* ERROR invalid receiver */ ) _[ /* ERROR methods cannot have type parameters */ R0 any]() {} // scope of type parameters starts at "func"
+ 
+ type R1[A, B any] struct{}
+ 
+ func (_ R1[A, B]) m0(A, B)
+-func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T
++func (_ R1[A, B]) m1[ /* ERROR methods cannot have type parameters */ T any](A, B, T) T  { panic(0) }
+ func (_ R1 /* ERROR not a generic type */ [R1, _]) _()
+-func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B)
++func (_ R1[A, B]) _[ /* ERROR methods cannot have type parameters */ A /* ERROR redeclared */ any](B) {}
+ 
+ func _() {
+         var r R1[int, string]
+diff --git a/src/go/types/testdata/examples/functions.go2 b/src/go/types/testdata/examples/functions.go2
+index 81b9d3456c..0af77267c5 100644
+--- a/src/go/types/testdata/examples/functions.go2
++++ b/src/go/types/testdata/examples/functions.go2
+@@ -66,7 +66,7 @@ var _ float64 = foo(42, []float64{1.0}, &s)
+ 
+ // Type inference works in a straight-forward manner even
+ // for variadic functions.
+-func variadic[A, B any](A, B, ...B) int
++func variadic[A, B any](A, B, ...B) int { panic(0) }
+ 
+ // var _ = variadic(1) // ERROR not enough arguments
+ var _ = variadic(1, 2.3)
+@@ -118,9 +118,9 @@ func max[T interface{ ~int }](x ...T) T {
+ // Thus even if a type can be inferred successfully, the function
+ // call may not be valid.
+ 
+-func fboth[T any](chan T)
+-func frecv[T any](<-chan T)
+-func fsend[T any](chan<- T)
++func fboth[T any](chan T) {}
++func frecv[T any](<-chan T) {}
++func fsend[T any](chan<- T) {}
+ 
+ func _() {
+ 	var both chan int
+@@ -140,9 +140,9 @@ func _() {
+ 	fsend(send)
+ }
+ 
+-func ffboth[T any](func(chan T))
+-func ffrecv[T any](func(<-chan T))
+-func ffsend[T any](func(chan<- T))
++func ffboth[T any](func(chan T)) {}
++func ffrecv[T any](func(<-chan T)) {}
++func ffsend[T any](func(chan<- T)) {}
+ 
+ func _() {
+ 	var both func(chan int)
+@@ -169,9 +169,9 @@ func _() {
+ // assignment is permitted, parameter passing is permitted as well,
+ // so type inference should be able to handle these cases well.
+ 
+-func g1[T any]([]T)
+-func g2[T any]([]T, T)
+-func g3[T any](*T, ...T)
++func g1[T any]([]T) {}
++func g2[T any]([]T, T) {}
++func g3[T any](*T, ...T) {}
+ 
+ func _() {
+ 	type intSlize []int
+@@ -194,7 +194,7 @@ func _() {
+ 
+ // Here's a realistic example.
+ 
+-func append[T any](s []T, t ...T) []T
++func append[T any](s []T, t ...T) []T { panic(0) }
+ 
+ func _() {
+ 	var f func()
+@@ -207,8 +207,12 @@ func _() {
+ // (that would indicate a slice type). Thus, generic functions cannot
+ // have empty type parameter lists, either. This is a syntax error.
+ 
+-func h[] /* ERROR empty type parameter list */ ()
++func h[] /* ERROR empty type parameter list */ () {}
+ 
+ func _() {
+ 	h /* ERROR cannot index */ [] /* ERROR operand */ ()
+ }
++
++// Parameterized functions must have a function body.
++
++func _ /* ERROR missing function body */ [P any]()
+diff --git a/src/go/types/testdata/examples/inference.go2 b/src/go/types/testdata/examples/inference.go2
+index 1142e569b4..9a2dcc47f2 100644
+--- a/src/go/types/testdata/examples/inference.go2
++++ b/src/go/types/testdata/examples/inference.go2
+@@ -10,7 +10,7 @@ type Ordered interface {
+ 	~int|~float64|~string
+ }
+ 
+-func min[T Ordered](x, y T) T
++func min[T Ordered](x, y T) T { panic(0) }
+ 
+ func _() {
+ 	// min can be called with explicit instantiation.
+@@ -37,7 +37,7 @@ func _() {
+ 	_ = min("foo", "bar")
+ }
+ 
+-func mixed[T1, T2, T3 any](T1, T2, T3)
++func mixed[T1, T2, T3 any](T1, T2, T3) {}
+ 
+ func _() {
+ 	// mixed can be called with explicit instantiation.
+@@ -54,7 +54,7 @@ func _() {
+ 	mixed[int, string](1.1 /* ERROR cannot use 1.1 */ , "", false)
+ }
+ 
+-func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem)
++func related1[Slice interface{~[]Elem}, Elem any](s Slice, e Elem) {}
+ 
+ func _() {
+ 	// related1 can be called with explicit instantiation.
+@@ -78,7 +78,7 @@ func _() {
+ 	related1(si, "foo" /* ERROR cannot use "foo" */ )
+ }
+ 
+-func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice)
++func related2[Elem any, Slice interface{~[]Elem}](e Elem, s Slice) {}
+ 
+ func _() {
+ 	// related2 can be called with explicit instantiation.
+diff --git a/src/go/types/testdata/examples/types.go2 b/src/go/types/testdata/examples/types.go2
+index a7544f79ea..82f17a3263 100644
+--- a/src/go/types/testdata/examples/types.go2
++++ b/src/go/types/testdata/examples/types.go2
+@@ -222,15 +222,15 @@ type B0 interface {}
+ type B1[_ any] interface{}
+ type B2[_, _ any] interface{}
+ 
+-func _[T1 B0]()
+-func _[T1 B1[T1]]()
+-func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
++func _[T1 B0]() {}
++func _[T1 B1[T1]]() {}
++func _[T1 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
+ 
+-func _[T1, T2 B0]()
+-func _[T1 B1[T1], T2 B1[T2]]()
+-func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]()
++func _[T1, T2 B0]() {}
++func _[T1 B1[T1], T2 B1[T2]]() {}
++func _[T1, T2 B2 /* ERROR cannot use generic type .* without instantiation */ ]() {}
+ 
+-func _[T1 B0, T2 B1[T2]]() // here B1 applies to T2
++func _[T1 B0, T2 B1[T2]]() {} // here B1 applies to T2
+ 
+ // When the type argument is left away, the type bound is
+ // instantiated for each type parameter with that type
+diff --git a/src/go/types/testdata/fixedbugs/issue39634.go2 b/src/go/types/testdata/fixedbugs/issue39634.go2
+index aec404e294..f307ee9c9e 100644
+--- a/src/go/types/testdata/fixedbugs/issue39634.go2
++++ b/src/go/types/testdata/fixedbugs/issue39634.go2
+@@ -50,7 +50,7 @@ func (G15 /* ERROR generic type .* without instantiation */ ) p()
+ 
+ // crash 16
+ type Foo16[T any] r16 /* ERROR not a type */
+-func r16[T any]() Foo16[Foo16[T]]
++func r16[T any]() Foo16[Foo16[T]] { panic(0) }
+ 
+ // crash 17
+ type Y17 interface{ c() }
+@@ -58,7 +58,7 @@ type Z17 interface {
+ 	c() Y17
+ 	Y17 /* ERROR duplicate method */
+ }
+-func F17[T Z17](T)
++func F17[T Z17](T) {}
+ 
+ // crash 18
+ type o18[T any] []func(_ o18[[]_ /* ERROR cannot use _ */ ])
+@@ -88,5 +88,5 @@ type T26 = interface{ F26[ /* ERROR methods cannot have type parameters */ Z any
+ func F26[Z any]() T26 { return F26[] /* ERROR operand */ }
+ 
+ // crash 27
+-func e27[T any]() interface{ x27 /* ERROR not a type */ }
++func e27[T any]() interface{ x27 /* ERROR not a type */ } { panic(0) }
+ func x27() { e27 /* ERROR cannot infer T */ () }
+diff --git a/src/go/types/testdata/fixedbugs/issue39723.go2 b/src/go/types/testdata/fixedbugs/issue39723.go2
+index 367b3f1360..d5311ed3e7 100644
+--- a/src/go/types/testdata/fixedbugs/issue39723.go2
++++ b/src/go/types/testdata/fixedbugs/issue39723.go2
+@@ -6,4 +6,4 @@ package p
+ 
+ // A constraint must be an interface; it cannot
+ // be a type parameter, for instance.
+-func _[A interface{ ~int }, B A /* ERROR not an interface */ ]()
++func _[A interface{ ~int }, B A /* ERROR not an interface */ ]() {}
+diff --git a/src/go/types/testdata/fixedbugs/issue39725.go2 b/src/go/types/testdata/fixedbugs/issue39725.go2
+index e19b6770bf..62dc45a596 100644
+--- a/src/go/types/testdata/fixedbugs/issue39725.go2
++++ b/src/go/types/testdata/fixedbugs/issue39725.go2
+@@ -4,13 +4,13 @@
+ 
+ package p
+ 
+-func f1[T1, T2 any](T1, T2, struct{a T1; b T2})
++func f1[T1, T2 any](T1, T2, struct{a T1; b T2}) {}
+ func _() {
+ 	f1(42, string("foo"), struct /* ERROR does not match inferred type struct\{a int; b string\} */ {a, b int}{})
+ }
+ 
+ // simplified test case from issue
+-func f2[T any](_ []T, _ func(T))
++func f2[T any](_ []T, _ func(T)) {}
+ func _() {
+ 	f2([]string{}, func /* ERROR does not match inferred type func\(string\) */ (f []byte) {})
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue39976.go2 b/src/go/types/testdata/fixedbugs/issue39976.go2
+index 3db4eae012..d703da90a2 100644
+--- a/src/go/types/testdata/fixedbugs/issue39976.go2
++++ b/src/go/types/testdata/fixedbugs/issue39976.go2
+@@ -7,7 +7,7 @@ package p
+ type policy[K, V any] interface{}
+ type LRU[K, V any] struct{}
+ 
+-func NewCache[K, V any](p policy[K, V])
++func NewCache[K, V any](p policy[K, V]) {}
+ 
+ func _() {
+ 	var lru LRU[int, string]
+diff --git a/src/go/types/testdata/fixedbugs/issue40038.go2 b/src/go/types/testdata/fixedbugs/issue40038.go2
+index 8948d61caa..5f81fcbfaa 100644
+--- a/src/go/types/testdata/fixedbugs/issue40038.go2
++++ b/src/go/types/testdata/fixedbugs/issue40038.go2
+@@ -8,8 +8,8 @@ type A[T any] int
+ 
+ func (A[T]) m(A[T])
+ 
+-func f[P interface{m(P)}]()
++func f[P interface{m(P)}]() {}
+ 
+ func _() {
+ 	_ = f[A[int]]
+-}
+\ No newline at end of file
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue40056.go2 b/src/go/types/testdata/fixedbugs/issue40056.go2
+index f587691e3d..66130c0a55 100644
+--- a/src/go/types/testdata/fixedbugs/issue40056.go2
++++ b/src/go/types/testdata/fixedbugs/issue40056.go2
+@@ -10,6 +10,6 @@ func _() {
+ 
+ type S struct {}
+ 
+-func NewS[T any]() *S
++func NewS[T any]() *S { panic(0) }
+ 
+ func (_ *S /* ERROR S is not a generic type */ [T]) M()
+diff --git a/src/go/types/testdata/fixedbugs/issue40684.go2 b/src/go/types/testdata/fixedbugs/issue40684.go2
+index 0269c3a62c..63a058d039 100644
+--- a/src/go/types/testdata/fixedbugs/issue40684.go2
++++ b/src/go/types/testdata/fixedbugs/issue40684.go2
+@@ -6,10 +6,10 @@ package p
+ 
+ type T[_ any] int
+ 
+-func f[_ any]()
+-func g[_, _ any]()
++func f[_ any]() {}
++func g[_, _ any]() {}
+ 
+ func _() {
+ 	_ = f[T /* ERROR without instantiation */ ]
+ 	_ = g[T /* ERROR without instantiation */ , T /* ERROR without instantiation */ ]
+-}
+\ No newline at end of file
++}
+diff --git a/src/go/types/testdata/fixedbugs/issue41124.go2 b/src/go/types/testdata/fixedbugs/issue41124.go2
+index 60650432a4..4642ab60fc 100644
+--- a/src/go/types/testdata/fixedbugs/issue41124.go2
++++ b/src/go/types/testdata/fixedbugs/issue41124.go2
+@@ -79,9 +79,9 @@ type T3[_, _, _ any] struct{}
+ var _ T1[I2 /* ERROR interface contains type constraints */ ]
+ var _ T3[int, I2 /* ERROR interface contains type constraints */ , float32]
+ 
+-func f1[_ any]() int
++func f1[_ any]() int { panic(0) }
+ var _ = f1[I2 /* ERROR interface contains type constraints */ ]()
+-func f3[_, _, _ any]() int
++func f3[_, _, _ any]() int { panic(0) }
+ var _ = f3[int, I2 /* ERROR interface contains type constraints */ , float32]()
+ 
+ func _(x interface{}) {
+diff --git a/src/go/types/testdata/fixedbugs/issue47127.go2 b/src/go/types/testdata/fixedbugs/issue47127.go2
+index 387c946957..108d600a38 100644
+--- a/src/go/types/testdata/fixedbugs/issue47127.go2
++++ b/src/go/types/testdata/fixedbugs/issue47127.go2
+@@ -30,8 +30,8 @@ func _[P any]() {
+         )
+ }
+ 
+-func _[P any, Q interface{ *P | []P | chan P | map[string]P }]()
+-func _[P any, Q interface{ P /* ERROR "cannot embed a type parameter" */ }]()
+-func _[P any, Q interface{ ~P /* ERROR "cannot embed a type parameter" */ }]()
+-func _[P any, Q interface{ int | P /* ERROR "cannot embed a type parameter" */ }]()
+-func _[P any, Q interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }]()
++func _[P any, Q interface{ *P | []P | chan P | map[string]P }]() {}
++func _[P any, Q interface{ P /* ERROR "cannot embed a type parameter" */ }]() {}
++func _[P any, Q interface{ ~P /* ERROR "cannot embed a type parameter" */ }]() {}
++func _[P any, Q interface{ int | P /* ERROR "cannot embed a type parameter" */ }]() {}
++func _[P any, Q interface{ int | ~P /* ERROR "cannot embed a type parameter" */ }]() {}
+diff --git a/src/go/types/testdata/fixedbugs/issue47411.go2 b/src/go/types/testdata/fixedbugs/issue47411.go2
+index 7326205863..2fc26d9e85 100644
+--- a/src/go/types/testdata/fixedbugs/issue47411.go2
++++ b/src/go/types/testdata/fixedbugs/issue47411.go2
+@@ -4,8 +4,8 @@
+ 
+ package p
+ 
+-func f[_ comparable]()
+-func g[_ interface{interface{comparable; ~int|~string}}]()
++func f[_ comparable]() {}
++func g[_ interface{interface{comparable; ~int|~string}}]() {}
+ 
+ func _[P comparable,
+         Q interface{ comparable; ~int|~string },

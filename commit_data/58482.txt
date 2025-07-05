@@ -21,6 +21,20 @@ Date:   Mon Nov 13 15:12:30 2023 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/api/main_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index 610ea6331c..94e159e7d8 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -106,7 +106,7 @@ func Check(t *testing.T) {
+ 	}
+ 
+ 	var nextFiles []string
+-	if strings.Contains(runtime.Version(), "devel") {
++	if v := runtime.Version(); strings.Contains(v, "devel") || strings.Contains(v, "beta") {
+ 		next, err := filepath.Glob(filepath.Join(testenv.GOROOT(t), "api/next/*.txt"))
+ 		if err != nil {
+ 			t.Fatal(err)

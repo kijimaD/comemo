@@ -15,7 +15,59 @@ Date:   Thu Oct 24 15:51:19 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/16880043
-
+---
  src/pkg/strings/replace.go      |  5 +++--
  src/pkg/strings/replace_test.go | 11 +++++++++++
  2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/strings/replace.go b/src/pkg/strings/replace.go
+index f63b1792c5..54c9323e04 100644
+--- a/src/pkg/strings/replace.go
++++ b/src/pkg/strings/replace.go
+@@ -364,17 +364,18 @@ func makeSingleStringReplacer(pattern string, value string) *singleStringReplace
+ 
+ func (r *singleStringReplacer) Replace(s string) string {
+ 	var buf []byte
+-	i := 0
++	i, matched := 0, false
+ 	for {
+ 		match := r.finder.next(s[i:])
+ 		if match == -1 {
+ 			break
+ 		}
++		matched = true
+ 		buf = append(buf, s[i:i+match]...)
+ 		buf = append(buf, r.value...)
+ 		i += match + len(r.finder.pattern)
+ 	}
+-	if buf == nil {
++	if !matched {
+ 		return s
+ 	}
+ 	buf = append(buf, s[i:]...)
+diff --git a/src/pkg/strings/replace_test.go b/src/pkg/strings/replace_test.go
+index d33dea95b0..82e4b6ef08 100644
+--- a/src/pkg/strings/replace_test.go
++++ b/src/pkg/strings/replace_test.go
+@@ -261,10 +261,21 @@ func TestReplacer(t *testing.T) {
+ 	testCases = append(testCases,
+ 		testCase{abcMatcher, "", ""},
+ 		testCase{abcMatcher, "ab", "ab"},
++		testCase{abcMatcher, "abc", "[match]"},
+ 		testCase{abcMatcher, "abcd", "[match]d"},
+ 		testCase{abcMatcher, "cabcabcdabca", "c[match][match]d[match]a"},
+ 	)
+ 
++	// Issue 6659 cases (more single string replacer)
++
++	noHello := NewReplacer("Hello", "")
++	testCases = append(testCases,
++		testCase{noHello, "Hello", ""},
++		testCase{noHello, "Hellox", "x"},
++		testCase{noHello, "xHello", "x"},
++		testCase{noHello, "xHellox", "xx"},
++	)
++
+ 	// No-arg test cases.
+ 
+ 	nop := NewReplacer()

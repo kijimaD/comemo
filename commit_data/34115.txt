@@ -24,9 +24,106 @@ Date:   Thu Sep 21 18:48:12 2017 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/math/big/int.go      | 11 ++++++++---
  src/math/big/intmarsh.go |  8 +++++---
  src/math/big/ratconv.go  |  7 ++++++-
  src/math/big/ratmarsh.go |  6 ++++--
  4 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 63a750cb96..000eab50b7 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -390,15 +390,20 @@ func (x *Int) IsUint64() bool {
+ // ``0b'' or ``0B'' prefix selects base 2. Otherwise the selected base is 10.
+ //
+ func (z *Int) SetString(s string, base int) (*Int, bool) {
+-	r := strings.NewReader(s)
++	return z.setFromScanner(strings.NewReader(s), base)
++}
++
++// setFromScanner implements SetString given an io.BytesScanner.
++// For documentation see comments of SetString.
++func (z *Int) setFromScanner(r io.ByteScanner, base int) (*Int, bool) {
+ 	if _, _, err := z.scan(r, base); err != nil {
+ 		return nil, false
+ 	}
+-	// entire string must have been consumed
++	// entire content must have been consumed
+ 	if _, err := r.ReadByte(); err != io.EOF {
+ 		return nil, false
+ 	}
+-	return z, true // err == io.EOF => scan consumed all of s
++	return z, true // err == io.EOF => scan consumed all content of r
+ }
+ 
+ // SetBytes interprets buf as the bytes of a big-endian unsigned
+diff --git a/src/math/big/intmarsh.go b/src/math/big/intmarsh.go
+index ee1e4143ed..c1422e2710 100644
+--- a/src/math/big/intmarsh.go
++++ b/src/math/big/intmarsh.go
+@@ -6,7 +6,10 @@
+ 
+ package big
+ 
+-import "fmt"
++import (
++	"bytes"
++	"fmt"
++)
+ 
+ // Gob codec version. Permits backward-compatible changes to the encoding.
+ const intGobVersion byte = 1
+@@ -52,8 +55,7 @@ func (x *Int) MarshalText() (text []byte, err error) {
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.
+ func (z *Int) UnmarshalText(text []byte) error {
+-	// TODO(gri): get rid of the []byte/string conversion
+-	if _, ok := z.SetString(string(text), 0); !ok {
++	if _, ok := z.setFromScanner(bytes.NewReader(text), 0); !ok {
+ 		return fmt.Errorf("math/big: cannot unmarshal %q into a *big.Int", text)
+ 	}
+ 	return nil
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 3b43b19f0e..7aed289218 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -202,6 +202,11 @@ func scanExponent(r io.ByteScanner, binExpOk bool) (exp int64, base int, err err
+ 
+ // String returns a string representation of x in the form "a/b" (even if b == 1).
+ func (x *Rat) String() string {
++	return string(x.marshal())
++}
++
++// marshal implements String returning a slice of bytes
++func (x *Rat) marshal() []byte {
+ 	var buf []byte
+ 	buf = x.a.Append(buf, 10)
+ 	buf = append(buf, '/')
+@@ -210,7 +215,7 @@ func (x *Rat) String() string {
+ 	} else {
+ 		buf = append(buf, '1')
+ 	}
+-	return string(buf)
++	return buf
+ }
+ 
+ // RatString returns a string representation of x in the form "a/b" if b != 1,
+diff --git a/src/math/big/ratmarsh.go b/src/math/big/ratmarsh.go
+index b82e8d4ae8..fbc7b6002d 100644
+--- a/src/math/big/ratmarsh.go
++++ b/src/math/big/ratmarsh.go
+@@ -59,8 +59,10 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 
+ // MarshalText implements the encoding.TextMarshaler interface.
+ func (x *Rat) MarshalText() (text []byte, err error) {
+-	// TODO(gri): get rid of the []byte/string conversion
+-	return []byte(x.RatString()), nil
++	if x.IsInt() {
++		return x.a.MarshalText()
++	}
++	return x.marshal(), nil
+ }
+ 
+ // UnmarshalText implements the encoding.TextUnmarshaler interface.

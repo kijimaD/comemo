@@ -7,7 +7,7 @@ Date:   Thu Mar 8 10:48:51 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5781058
-
+---
  misc/cgo/test/backdoor/backdoor.go          |  2 +-
  misc/dashboard/app/build/init.go            |  2 +-
  misc/dashboard/app/build/test.go            |  2 +-
@@ -18,3 +18,206 @@ Date:   Thu Mar 8 10:48:51 2012 -0800
  src/pkg/net/http/client_test.go             |  6 ++--
  src/pkg/path/filepath/path_test.go          |  4 +--
  9 files changed, 37 insertions(+), 37 deletions(-)
+
+diff --git a/misc/cgo/test/backdoor/backdoor.go b/misc/cgo/test/backdoor/backdoor.go
+index 3428e9e43f..efe4f01f48 100644
+--- a/misc/cgo/test/backdoor/backdoor.go
++++ b/misc/cgo/test/backdoor/backdoor.go
+@@ -4,4 +4,4 @@
+ 
+ package backdoor
+ 
+-func LockedOSThread() bool  // in runtime.c
++func LockedOSThread() bool // in runtime.c
+diff --git a/misc/dashboard/app/build/init.go b/misc/dashboard/app/build/init.go
+index 494585b0ea..5311688b77 100644
+--- a/misc/dashboard/app/build/init.go
++++ b/misc/dashboard/app/build/init.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // defaultPackages specifies the Package records to be created by initHandler.
+ var defaultPackages = []*Package{
+-	&Package{Name: "Go", Kind: "go"},
++	{Name: "Go", Kind: "go"},
+ }
+ 
+ // subRepos specifies the Go project sub-repositories.
+diff --git a/misc/dashboard/app/build/test.go b/misc/dashboard/app/build/test.go
+index 4114c25c52..d8470fec12 100644
+--- a/misc/dashboard/app/build/test.go
++++ b/misc/dashboard/app/build/test.go
+@@ -37,7 +37,7 @@ const testPkg = "code.google.com/p/go.test"
+ var testPackage = &Package{Name: "Test", Kind: "subrepo", Path: testPkg}
+ 
+ var testPackages = []*Package{
+-	&Package{Name: "Go", Path: ""},
++	{Name: "Go", Path: ""},
+ 	testPackage,
+ }
+ 
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index bd31d31ae1..08a0ccb098 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -143,7 +143,7 @@ func testServerScript(t *testing.T, name string, serverScript [][]byte, config *
+ 	if peers != nil {
+ 		gotpeers := <-pchan
+ 		if len(peers) == len(gotpeers) {
+-			for i, _ := range peers {
++			for i := range peers {
+ 				if !peers[i].Equal(gotpeers[i]) {
+ 					t.Fatalf("%s: mismatch on peer cert %d", name, i)
+ 				}
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index e6b92a941b..02ab20cd7c 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -463,48 +463,48 @@ type nullTestSpec struct {
+ 
+ func TestNullStringParam(t *testing.T) {
+ 	spec := nullTestSpec{"nullstring", "string", [6]nullTestRow{
+-		nullTestRow{NullString{"aqua", true}, "", NullString{"aqua", true}},
+-		nullTestRow{NullString{"brown", false}, "", NullString{"", false}},
+-		nullTestRow{"chartreuse", "", NullString{"chartreuse", true}},
+-		nullTestRow{NullString{"darkred", true}, "", NullString{"darkred", true}},
+-		nullTestRow{NullString{"eel", false}, "", NullString{"", false}},
+-		nullTestRow{"foo", NullString{"black", false}, nil},
++		{NullString{"aqua", true}, "", NullString{"aqua", true}},
++		{NullString{"brown", false}, "", NullString{"", false}},
++		{"chartreuse", "", NullString{"chartreuse", true}},
++		{NullString{"darkred", true}, "", NullString{"darkred", true}},
++		{NullString{"eel", false}, "", NullString{"", false}},
++		{"foo", NullString{"black", false}, nil},
+ 	}}
+ 	nullTestRun(t, spec)
+ }
+ 
+ func TestNullInt64Param(t *testing.T) {
+ 	spec := nullTestSpec{"nullint64", "int64", [6]nullTestRow{
+-		nullTestRow{NullInt64{31, true}, 1, NullInt64{31, true}},
+-		nullTestRow{NullInt64{-22, false}, 1, NullInt64{0, false}},
+-		nullTestRow{22, 1, NullInt64{22, true}},
+-		nullTestRow{NullInt64{33, true}, 1, NullInt64{33, true}},
+-		nullTestRow{NullInt64{222, false}, 1, NullInt64{0, false}},
+-		nullTestRow{0, NullInt64{31, false}, nil},
++		{NullInt64{31, true}, 1, NullInt64{31, true}},
++		{NullInt64{-22, false}, 1, NullInt64{0, false}},
++		{22, 1, NullInt64{22, true}},
++		{NullInt64{33, true}, 1, NullInt64{33, true}},
++		{NullInt64{222, false}, 1, NullInt64{0, false}},
++		{0, NullInt64{31, false}, nil},
+ 	}}
+ 	nullTestRun(t, spec)
+ }
+ 
+ func TestNullFloat64Param(t *testing.T) {
+ 	spec := nullTestSpec{"nullfloat64", "float64", [6]nullTestRow{
+-		nullTestRow{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
+-		nullTestRow{NullFloat64{13.1, false}, 1, NullFloat64{0, false}},
+-		nullTestRow{-22.9, 1, NullFloat64{-22.9, true}},
+-		nullTestRow{NullFloat64{33.81, true}, 1, NullFloat64{33.81, true}},
+-		nullTestRow{NullFloat64{222, false}, 1, NullFloat64{0, false}},
+-		nullTestRow{10, NullFloat64{31.2, false}, nil},
++		{NullFloat64{31.2, true}, 1, NullFloat64{31.2, true}},
++		{NullFloat64{13.1, false}, 1, NullFloat64{0, false}},
++		{-22.9, 1, NullFloat64{-22.9, true}},
++		{NullFloat64{33.81, true}, 1, NullFloat64{33.81, true}},
++		{NullFloat64{222, false}, 1, NullFloat64{0, false}},
++		{10, NullFloat64{31.2, false}, nil},
+ 	}}
+ 	nullTestRun(t, spec)
+ }
+ 
+ func TestNullBoolParam(t *testing.T) {
+ 	spec := nullTestSpec{"nullbool", "bool", [6]nullTestRow{
+-		nullTestRow{NullBool{false, true}, true, NullBool{false, true}},
+-		nullTestRow{NullBool{true, false}, false, NullBool{false, false}},
+-		nullTestRow{true, true, NullBool{true, true}},
+-		nullTestRow{NullBool{true, true}, false, NullBool{true, true}},
+-		nullTestRow{NullBool{true, false}, true, NullBool{false, false}},
+-		nullTestRow{true, NullBool{true, false}, nil},
++		{NullBool{false, true}, true, NullBool{false, true}},
++		{NullBool{true, false}, false, NullBool{false, false}},
++		{true, true, NullBool{true, true}},
++		{NullBool{true, true}, false, NullBool{true, true}},
++		{NullBool{true, false}, true, NullBool{false, false}},
++		{true, NullBool{true, false}, nil},
+ 	}}
+ 	nullTestRun(t, spec)
+ }
+diff --git a/src/pkg/encoding/gob/encoder_test.go b/src/pkg/encoding/gob/encoder_test.go
+index 050786dfd1..c4947cbb8d 100644
+--- a/src/pkg/encoding/gob/encoder_test.go
++++ b/src/pkg/encoding/gob/encoder_test.go
+@@ -694,8 +694,8 @@ type Bug3 struct {
+ 
+ func TestGobPtrSlices(t *testing.T) {
+ 	in := []*Bug3{
+-		&Bug3{1, nil},
+-		&Bug3{2, nil},
++		{1, nil},
++		{2, nil},
+ 	}
+ 	b := new(bytes.Buffer)
+ 	err := NewEncoder(b).Encode(&in)
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index bb21bb5810..1deedc949c 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -577,7 +577,7 @@ type decompSet [4]map[string]bool
+ 
+ func makeDecompSet() decompSet {
+ 	m := decompSet{}
+-	for i, _ := range m {
++	for i := range m {
+ 		m[i] = make(map[string]bool)
+ 	}
+ 	return m
+@@ -646,7 +646,7 @@ func printCharInfoTables() int {
+ 	fmt.Println("const (")
+ 	for i, m := range decompSet {
+ 		sa := []string{}
+-		for s, _ := range m {
++		for s := range m {
+ 			sa = append(sa, s)
+ 		}
+ 		sort.Strings(sa)
+diff --git a/src/pkg/net/http/client_test.go b/src/pkg/net/http/client_test.go
+index aa0bf4be67..e00b62e590 100644
+--- a/src/pkg/net/http/client_test.go
++++ b/src/pkg/net/http/client_test.go
+@@ -238,9 +238,9 @@ func TestRedirects(t *testing.T) {
+ }
+ 
+ var expectedCookies = []*Cookie{
+-	&Cookie{Name: "ChocolateChip", Value: "tasty"},
+-	&Cookie{Name: "First", Value: "Hit"},
+-	&Cookie{Name: "Second", Value: "Hit"},
++	{Name: "ChocolateChip", Value: "tasty"},
++	{Name: "First", Value: "Hit"},
++	{Name: "Second", Value: "Hit"},
+ }
+ 
+ var echoCookiesRedirectHandler = HandlerFunc(func(w ResponseWriter, r *Request) {
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 71969cdf95..87cb5e5530 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -440,7 +440,7 @@ func TestBase(t *testing.T) {
+ 	tests := basetests
+ 	if runtime.GOOS == "windows" {
+ 		// make unix tests work on windows
+-		for i, _ := range tests {
++		for i := range tests {
+ 			tests[i].result = filepath.Clean(tests[i].result)
+ 		}
+ 		// add windows specific tests
+@@ -483,7 +483,7 @@ func TestDir(t *testing.T) {
+ 	tests := dirtests
+ 	if runtime.GOOS == "windows" {
+ 		// make unix tests work on windows
+-		for i, _ := range tests {
++		for i := range tests {
+ 			tests[i].result = filepath.Clean(tests[i].result)
+ 		}
+ 		// add windows specific tests

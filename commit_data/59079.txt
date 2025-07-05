@@ -20,6 +20,32 @@ Date:   Fri Feb 9 14:06:39 2024 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/internal/trace/v2/trace_test.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 7cc7508fe9..aff57d809f 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"fmt"
++	"internal/race"
+ 	"internal/testenv"
+ 	"internal/trace/v2"
+ 	"internal/trace/v2/testtrace"
+@@ -541,7 +542,11 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 	testName := progName
+ 	runTest := func(t *testing.T, stress bool) {
+ 		// Run the program and capture the trace, which is always written to stdout.
+-		cmd := testenv.Command(t, testenv.GoToolPath(t), "run", testPath)
++		cmd := testenv.Command(t, testenv.GoToolPath(t), "run")
++		if race.Enabled {
++			cmd.Args = append(cmd.Args, "-race")
++		}
++		cmd.Args = append(cmd.Args, testPath)
+ 		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2")
+ 		if stress {
+ 			// Advance a generation constantly.

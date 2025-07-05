@@ -16,7 +16,61 @@ Date:   Sat Jul 8 08:46:37 2023 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go |  7 +++++--
  test/fixedbugs/issue61187.go                 | 22 ++++++++++++++++++++++
  2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 5df65bfaa3..bd9e0b8268 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -53,7 +53,10 @@ func mightContainHeapPointer(ptr *Value, size int64, mem *Value, zeroes map[ID]Z
+ 	}
+ 
+ 	ptrSize := ptr.Block.Func.Config.PtrSize
+-	if off%ptrSize != 0 || size%ptrSize != 0 {
++	if off%ptrSize != 0 {
++		return true // see issue 61187
++	}
++	if size%ptrSize != 0 {
+ 		ptr.Fatalf("unaligned pointer write")
+ 	}
+ 	if off < 0 || off+size > 64*ptrSize {
+@@ -130,7 +133,7 @@ func needWBdst(ptr, mem *Value, zeroes map[ID]ZeroRegion) bool {
+ 	}
+ 	ptrSize := ptr.Block.Func.Config.PtrSize
+ 	if off%ptrSize != 0 {
+-		ptr.Fatalf("unaligned pointer write")
++		return true // see issue 61187
+ 	}
+ 	if off < 0 || off >= 64*ptrSize {
+ 		// write goes off end of tracked offsets
+diff --git a/test/fixedbugs/issue61187.go b/test/fixedbugs/issue61187.go
+new file mode 100644
+index 0000000000..5e1762808d
+--- /dev/null
++++ b/test/fixedbugs/issue61187.go
+@@ -0,0 +1,22 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"reflect"
++	"unsafe"
++)
++
++var slice = []byte{'H', 'e', 'l', 'l', 'o', ','}
++
++func main() {
++	ptr := uintptr(unsafe.Pointer(&slice)) + 100
++	header := (*reflect.SliceHeader)(unsafe.Pointer(ptr))
++	header.Data += 1
++	fmt.Printf("%d %d\n", cap(slice), header.Cap)
++}

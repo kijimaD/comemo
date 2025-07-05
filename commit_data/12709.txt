@@ -9,6 +9,26 @@ Date:   Wed Mar 21 10:38:58 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5868047
-
+---
  src/cmd/cgo/out.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 933d7e6cab..814250c2ec 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -284,8 +284,13 @@ func (p *Package) writeDefsFunc(fc, fgo2 *os.File, n *Name) {
+ 			}
+ 			conf.Fprint(fgo2, fset, d)
+ 			fmt.Fprintf(fgo2, "{\n")
++			fmt.Fprintf(fgo2, "\tsyscall.SetErrno(0)\n")
+ 			fmt.Fprintf(fgo2, "\tr := %s(%s)\n", cname, strings.Join(paramnames, ", "))
+-			fmt.Fprintf(fgo2, "\treturn r, syscall.GetErrno()\n")
++			fmt.Fprintf(fgo2, "\te := syscall.GetErrno()\n")
++			fmt.Fprintf(fgo2, "\tif e != 0 {\n")
++			fmt.Fprintf(fgo2, "\t\treturn r, e\n")
++			fmt.Fprintf(fgo2, "\t}\n")
++			fmt.Fprintf(fgo2, "\treturn r, nil\n")
+ 			fmt.Fprintf(fgo2, "}\n")
+ 			// declare the C function.
+ 			fmt.Fprintf(fgo2, "//extern %s\n", n.C)

@@ -11,8 +11,67 @@ Date:   Sun Jul 3 13:40:03 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/24719
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go |  7 ++-----
  src/cmd/compile/internal/arm/ssa.go   |  8 ++------
  src/cmd/compile/internal/gc/ssa.go    | 10 ++++++++++
  3 files changed, 14 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index acb4c2b26f..94c7c47afe 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -720,11 +720,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpArg:
+ 		// input args need no code
+ 	case ssa.OpAMD64LoweredGetClosurePtr:
+-		// Output is hardwired to DX only,
+-		// and DX contains the closure pointer on
+-		// closure entry, and this "instruction"
+-		// is scheduled to the very beginning
+-		// of the entry block.
++		// Closure pointer is DX.
++		gc.CheckLoweredGetClosurePtr(v)
+ 	case ssa.OpAMD64LoweredGetG:
+ 		r := gc.SSARegNum(v)
+ 		// See the comments in cmd/internal/obj/x86/obj6.go
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 0bdeba9203..bb7f6c5957 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -708,12 +708,8 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		ssa.OpARMLoweredSelect1:
+ 		// nothing to do
+ 	case ssa.OpARMLoweredGetClosurePtr:
+-		// Output is hardwired to R7 (arm.REGCTXT) only,
+-		// and R7 contains the closure pointer on
+-		// closure entry, and this "instruction"
+-		// is scheduled to the very beginning
+-		// of the entry block.
+-		// nothing to do here.
++		// Closure pointer is R7 (arm.REGCTXT).
++		gc.CheckLoweredGetClosurePtr(v)
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b384136fab..90f48dcab4 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4281,6 +4281,16 @@ func CheckLoweredPhi(v *ssa.Value) {
+ 	}
+ }
+ 
++// CheckLoweredGetClosurePtr checks that v is the first instruction in the function's entry block.
++// The output of LoweredGetClosurePtr is generally hardwired to the correct register.
++// That register contains the closure pointer on closure entry.
++func CheckLoweredGetClosurePtr(v *ssa.Value) {
++	entry := v.Block.Func.Entry
++	if entry != v.Block || entry.Values[0] != v {
++		Fatalf("badly placed LoweredGetClosurePtr: %v %v", v.Block, v)
++	}
++}
++
+ // AutoVar returns a *Node and int64 representing the auto variable and offset within it
+ // where v should be spilled.
+ func AutoVar(v *ssa.Value) (*Node, int64) {

@@ -8,6 +8,20 @@ Date:   Wed Aug 22 21:30:18 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6475050
-
+---
  src/pkg/time/time.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/time.go b/src/pkg/time/time.go
+index 1eb17858a8..011a1e31e3 100644
+--- a/src/pkg/time/time.go
++++ b/src/pkg/time/time.go
+@@ -412,7 +412,7 @@ func (t Time) Nanosecond() int {
+ 	return int(t.nsec)
+ }
+ 
+-// YearDay returns the day of the year specified by t, in the range [1, 365] for non-leap years,
++// YearDay returns the day of the year specified by t, in the range [1,365] for non-leap years,
+ // and [1,366] in leap years.
+ func (t Time) YearDay() int {
+ 	_, _, _, yday := t.date(false)

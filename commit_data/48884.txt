@@ -30,6 +30,30 @@ Date:   Wed Jun 23 00:49:03 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/escape/call.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/cmd/compile/internal/escape/call.go b/src/cmd/compile/internal/escape/call.go
+index 850b9cbde2..b8e28cd46a 100644
+--- a/src/cmd/compile/internal/escape/call.go
++++ b/src/cmd/compile/internal/escape/call.go
+@@ -293,6 +293,18 @@ func (e *escape) rewriteArgument(argp *ir.Node, init *ir.Nodes, call ir.Node, fn
+ 	}
+ 
+ 	visit := func(pos src.XPos, argp *ir.Node) {
++		// Optimize a few common constant expressions. By leaving these
++		// untouched in the call expression, we let the wrapper handle
++		// evaluating them, rather than taking up closure context space.
++		switch arg := *argp; arg.Op() {
++		case ir.OLITERAL, ir.ONIL, ir.OMETHEXPR:
++			return
++		case ir.ONAME:
++			if arg.(*ir.Name).Class == ir.PFUNC {
++				return
++			}
++		}
++
+ 		if unsafeUintptr(*argp) {
+ 			return
+ 		}

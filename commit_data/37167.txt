@@ -15,6 +15,32 @@ Date:   Fri Jul 6 10:46:37 2018 +0200
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/modfetch/gitrepo/fetch_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go b/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
+index 622249e67d..cc86cd9cba 100644
+--- a/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
++++ b/src/cmd/go/internal/modfetch/gitrepo/fetch_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"reflect"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -42,6 +43,12 @@ func testMain(m *testing.M) int {
+ 		return 0
+ 	}
+ 
++	if runtime.GOOS == "plan9" {
++		fmt.Fprintln(os.Stderr, "skipping on plan9")
++		fmt.Println("PASS")
++		return 0
++	}
++
+ 	dir, err := ioutil.TempDir("", "gitrepo-test-")
+ 	if err != nil {
+ 		log.Fatal(err)

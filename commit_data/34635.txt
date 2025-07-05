@@ -9,6 +9,18 @@ Date:   Sat Nov 4 12:06:23 2017 +1100
     Change-Id: I1f848768934b7024d2ef01db13b9003e9ca608a0
     Reviewed-on: https://go-review.googlesource.com/76030
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 434dd58ac3..a4f4dd606d 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -468,5 +468,6 @@ func TestWindowsStackMemoryCgo(t *testing.T) {
+ 	if runtime.GOOS != "windows" {
+ 		t.Skip("skipping windows specific test")
+ 	}
++	testenv.SkipFlaky(t, 22575)
+ 	testWindowsStackMemory(t, runTestProg(t, "testprogcgo", "StackMemory"))
+ }

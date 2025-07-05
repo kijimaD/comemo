@@ -18,6 +18,22 @@ Date:   Tue May 4 17:43:26 2021 +0100
     Trust: David du Colombier <0intro@gmail.com>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/executable_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index 9ff6327149..719d6a61c3 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -90,8 +90,8 @@ func init() {
+ func TestExecutableDeleted(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 	switch runtime.GOOS {
+-	case "windows":
+-		t.Skip("windows does not support deleting running binary")
++	case "windows", "plan9":
++		t.Skipf("%v does not support deleting running binary", runtime.GOOS)
+ 	case "openbsd", "freebsd", "aix":
+ 		t.Skipf("%v does not support reading deleted binary name", runtime.GOOS)
+ 	}

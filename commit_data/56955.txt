@@ -17,9 +17,74 @@ Date:   Thu Jun 1 18:29:57 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Alan Donovan <adonovan@google.com>
-
+---
  api/go1.21.txt           | 2 +-
  doc/go1.21.html          | 2 +-
  src/math/big/int.go      | 4 ++--
  src/math/big/int_test.go | 4 ++--
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/api/go1.21.txt b/api/go1.21.txt
+index b7967cd700..ec11adf4b7 100644
+--- a/api/go1.21.txt
++++ b/api/go1.21.txt
+@@ -345,7 +345,7 @@ pkg maps, func Equal[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$3 }, $2
+ pkg maps, func EqualFunc[$0 interface{ ~map[$2]$3 }, $1 interface{ ~map[$2]$4 }, $2 comparable, $3 interface{}, $4 interface{}]($0, $1, func($3, $4) bool) bool #57436
+ pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$1 #57436
+ pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) []$2 #57436
+-pkg math/big, method (*Int) ToFloat64() (float64, Accuracy) #56984
++pkg math/big, method (*Int) Float64() (float64, Accuracy) #56984
+ pkg net/http, method (*ProtocolError) Is(error) bool #41198
+ pkg net/http, method (*ResponseController) EnableFullDuplex() error #57786
+ pkg net/http, var ErrSchemeMismatch error #44855
+diff --git a/doc/go1.21.html b/doc/go1.21.html
+index d15cff65d4..8e9b170882 100644
+--- a/doc/go1.21.html
++++ b/doc/go1.21.html
+@@ -662,7 +662,7 @@ Do not send CLs removing the interior tags from such phrases.
+ <dl id="math/big"><dt><a href="/pkg/math/big/">math/big</a></dt>
+   <dd>
+     <p><!-- https://go.dev/issue/56984, CL 453115 -->
+-      The new <a href="/pkg/math/big/#Int.ToFloat64"><code>Int.ToFloat64</code></a>
++      The new <a href="/pkg/math/big/#Int.Float64"><code>Int.Float64</code></a>
+       method returns the nearest floating-point value to a
+       multi-precision integer, along with an indication of any
+       rounding that occurred.
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index c9788beebd..2cc3d7b441 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -450,9 +450,9 @@ func (x *Int) IsUint64() bool {
+ 	return !x.neg && len(x.abs) <= 64/_W
+ }
+ 
+-// ToFloat64 returns the float64 value nearest x,
++// Float64 returns the float64 value nearest x,
+ // and an indication of any rounding that occurred.
+-func (x *Int) ToFloat64() (float64, Accuracy) {
++func (x *Int) Float64() (float64, Accuracy) {
+ 	n := x.abs.bitLen() // NB: still uses slow crypto impl!
+ 	if n == 0 {
+ 		return 0.0, Exact
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index dfbc17242d..cb964a43cd 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1952,7 +1952,7 @@ func TestNewIntAllocs(t *testing.T) {
+ 	}
+ }
+ 
+-func TestToFloat64(t *testing.T) {
++func TestFloat64(t *testing.T) {
+ 	for _, test := range []struct {
+ 		istr string
+ 		f    float64
+@@ -1988,7 +1988,7 @@ func TestToFloat64(t *testing.T) {
+ 		}
+ 
+ 		// Test against expectation.
+-		f, acc := i.ToFloat64()
++		f, acc := i.Float64()
+ 		if f != test.f || acc != test.acc {
+ 			t.Errorf("%s: got %f (%s); want %f (%s)", test.istr, f, acc, test.f, test.acc)
+ 		}

@@ -16,7 +16,38 @@ Date:   Thu May 17 18:20:53 2018 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Ilya Tocar <ilya.tocar@intel.com>
-
+---
  src/cmd/asm/internal/asm/testdata/amd64enc_extra.s | 5 ++++-
  src/cmd/internal/obj/x86/asm6.go                   | 2 +-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+index 8839704ae0..7fd481abf3 100644
+--- a/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
++++ b/src/cmd/asm/internal/asm/testdata/amd64enc_extra.s
+@@ -294,8 +294,11 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	SHA256MSG2 X2, X11       // 440f38cdda
+ 	SHA256MSG2 X11, X11      // 450f38cddb
+ 	// Test VPERMQ with both uint8 and int8 immediate args
+-	VPERMQ $-40, Y8, Y8 // c4407800c0d8
++	VPERMQ $-40, Y8, Y8 // c443fd00c0d8
+ 	VPERMQ $216, Y8, Y8 // c443fd00c0d8
++	// Test that VPERMPD that shares ytab list with VPERMQ continues to work too.
++	VPERMPD $-40, Y7, Y7 // c4e3fd01ffd8
++	VPERMPD $216, Y7, Y7 // c4e3fd01ffd8
+ 	// Check that LEAL is permitted to use overflowing offset.
+ 	LEAL 2400959708(BP)(R10*1), BP // 428dac15dcbc1b8f
+ 	LEAL 3395469782(AX)(R10*1), AX // 428d8410d6c162ca
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 8da842340f..3a7689e28d 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -931,7 +931,7 @@ var yvex_xi3 = []ytab{
+ }
+ 
+ var yvex_vpermpd = []ytab{
+-	{Zvex_i_rm_r, 2, argList{Yu8, Yym, Yyr}},
++	{Zvex_i_rm_r, 0, argList{Yu8, Yym, Yyr}},
+ 	// Allow int8 for backwards compatibility with negative values
+ 	// like $-1.
+ 	{Zvex_i_rm_r, 2, argList{Yi8, Yym, Yyr}},

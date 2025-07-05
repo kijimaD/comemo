@@ -11,6 +11,24 @@ Date:   Wed May 24 14:59:22 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/testcarchive/carchive_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/testcarchive/carchive_test.go b/misc/cgo/testcarchive/carchive_test.go
+index dbde92d744..74897c7f6f 100644
+--- a/misc/cgo/testcarchive/carchive_test.go
++++ b/misc/cgo/testcarchive/carchive_test.go
+@@ -115,8 +115,10 @@ func init() {
+ func goEnv(key string) string {
+ 	out, err := exec.Command("go", "env", key).Output()
+ 	if err != nil {
+-		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s", key, err)
+-		fmt.Fprintf(os.Stderr, "%s", err.(*exec.ExitError).Stderr)
++		fmt.Fprintf(os.Stderr, "go env %s failed:\n%s\n", key, err)
++		if ee, ok := err.(*exec.ExitError); ok {
++			fmt.Fprintf(os.Stderr, "%s", ee.Stderr)
++		}
+ 		os.Exit(2)
+ 	}
+ 	return strings.TrimSpace(string(out))

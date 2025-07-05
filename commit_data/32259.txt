@@ -38,7 +38,51 @@ Date:   Sun Apr 16 05:53:06 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/40857
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go   | 2 ++
  src/cmd/compile/internal/gc/main.go | 5 ++++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 72127b052f..b3edb0ed22 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -201,6 +201,8 @@ var flag_race bool
+ 
+ var flag_msan bool
+ 
++var flagDWARF bool
++
+ // Whether we are adding any sort of code instrumentation, such as
+ // when the race detector is enabled.
+ var instrumenting bool
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 36ec651245..79e95958ef 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -118,7 +118,6 @@ func Main(archInit func(*Arch)) {
+ 	archInit(&thearch)
+ 
+ 	Ctxt = obj.Linknew(thearch.LinkArch)
+-	Ctxt.DebugInfo = debuginfo
+ 	Ctxt.DiagFunc = yyerror
+ 	Ctxt.Bso = bufio.NewWriter(os.Stdout)
+ 
+@@ -181,6 +180,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&buildid, "buildid", "", "record `id` as the build id in the export metadata")
+ 	flag.BoolVar(&pure_go, "complete", false, "compiling complete package (no C or assembly)")
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`")
++	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
+ 	obj.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	obj.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	obj.Flagcount("h", "halt on error", &Debug['h'])
+@@ -227,6 +227,9 @@ func Main(archInit func(*Arch)) {
+ 
+ 	Ctxt.Debugasm = Debug_asm
+ 	Ctxt.Debugvlog = Debug_vlog
++	if flagDWARF {
++		Ctxt.DebugInfo = debuginfo
++	}
+ 
+ 	if flag.NArg() < 1 {
+ 		usage()

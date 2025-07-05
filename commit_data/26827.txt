@@ -7,6 +7,19 @@ Date:   Sun Feb 28 14:55:29 2016 +1030
     Change-Id: If03185a21e088c9b383a82c14d649805f00c8042
     Reviewed-on: https://go-review.googlesource.com/20000
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  misc/cgo/fortran/test.bash | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/cgo/fortran/test.bash b/misc/cgo/fortran/test.bash
+index 9350dbe2d6..d397dcb682 100755
+--- a/misc/cgo/fortran/test.bash
++++ b/misc/cgo/fortran/test.bash
+@@ -13,6 +13,7 @@ if ! $FC helloworld/helloworld.f90 -o main.exe >& /dev/null; then
+   echo "skipping Fortran test: could not build helloworld.f90 with $FC"
+   exit 0
+ fi
++rm -f main.exe
+ 
+ if ! go test; then
+   echo "FAIL: go test"

@@ -9,7 +9,41 @@ Date:   Tue Sep 8 14:29:41 2009 -0700
     DELTA=3  (2 added, 0 deleted, 1 changed)
     OCL=34454
     CL=34456
-
+---
  src/pkg/container/vector/vector.go      | 1 +
  src/pkg/container/vector/vector_test.go | 3 ++-
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/container/vector/vector.go b/src/pkg/container/vector/vector.go
+index ba5e881d16..483928c69b 100644
+--- a/src/pkg/container/vector/vector.go
++++ b/src/pkg/container/vector/vector.go
+@@ -12,6 +12,7 @@ type Element interface {}
+ 
+ 
+ // Vector is the container itself.
++// The zero value for Vector is an empty vector ready to use.
+ type Vector struct {
+ 	a []Element
+ }
+diff --git a/src/pkg/container/vector/vector_test.go b/src/pkg/container/vector/vector_test.go
+index 51acb74746..c0d67957d9 100644
+--- a/src/pkg/container/vector/vector_test.go
++++ b/src/pkg/container/vector/vector_test.go
+@@ -52,7 +52,7 @@ func TestAccess(t *testing.T) {
+ 
+ func TestInsertDeleteClear(t *testing.T) {
+ 	const n = 100;
+-	a := New(0);
++	var a Vector;
+ 
+ 	for i := 0; i < n; i++ {
+ 		if a.Len() != i { t.Errorf("A) wrong len %d (expected %d)", a.Len(), i) }
+@@ -189,6 +189,7 @@ func TestDo(t *testing.T) {
+ 	}
+ }
+ 
++
+ func TestIter(t *testing.T) {
+ 	const Len = 100;
+ 	x := New(Len);

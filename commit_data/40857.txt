@@ -13,6 +13,20 @@ Date:   Tue Jul 30 14:51:26 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/cache/cache.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 168ad32b0e..a05a08f75f 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -173,7 +173,7 @@ func (c *Cache) get(id ActionID) (Entry, error) {
+ 		i++
+ 	}
+ 	tm, err := strconv.ParseInt(string(etime[i:]), 10, 64)
+-	if err != nil || size < 0 {
++	if err != nil || tm < 0 {
+ 		return missing()
+ 	}
+ 

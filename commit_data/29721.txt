@@ -12,6 +12,20 @@ Date:   Wed Oct 5 11:24:07 2016 -0400
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/testdata/testprogcgo/racesig.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/racesig.go b/src/runtime/testdata/testprogcgo/racesig.go
+index e126b8becb..d0c1c3ce54 100644
+--- a/src/runtime/testdata/testprogcgo/racesig.go
++++ b/src/runtime/testdata/testprogcgo/racesig.go
+@@ -31,7 +31,7 @@ static void* signalThread(void* p) {
+ 	for (i = 0; i < 100; i++) {
+ 		for (j = 0; j < ALLOCERS; j++) {
+ 			if (pthread_kill(pt[j], SIGCHLD) < 0) {
+-				return;
++				return NULL;
+ 			}
+ 		}
+ 		usleep(1);

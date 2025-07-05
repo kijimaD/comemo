@@ -13,6 +13,34 @@ Date:   Tue Aug 23 22:39:39 2011 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/4936047
-
+---
  misc/dashboard/builder/main.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 989965bc41..a5479846db 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -479,7 +479,7 @@ func commitPoll(key string) {
+ 		return
+ 	}
+ 
+-	const N = 20 // how many revisions to grab
++	const N = 50 // how many revisions to grab
+ 
+ 	data, _, err := runLog(nil, "", goroot, "hg", "log",
+ 		"--encoding=utf-8",
+@@ -507,12 +507,12 @@ func commitPoll(key string) {
+ 	// Non-empty parent has form 1234:hashhashhash; we want full hash.
+ 	for i := range logs {
+ 		l := &logs[i]
+-		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
+ 		if l.Parent == "" && i+1 < len(logs) {
+ 			l.Parent = logs[i+1].Hash
+ 		} else if l.Parent != "" {
+ 			l.Parent, _ = fullHash(l.Parent)
+ 		}
++		log.Printf("hg log: %s < %s\n", l.Hash, l.Parent)
+ 		if l.Parent == "" {
+ 			// Can't create node without parent.
+ 			continue

@@ -25,7 +25,7 @@ Date:   Mon Oct 6 16:44:17 2008 -0700
     DELTA=452  (259 added, 115 deleted, 78 changed)
     OCL=16580
     CL=16584
-
+---
  src/cmd/6g/align.c                 |  13 +-
  src/cmd/6g/cgen.c                  |   7 +-
  src/cmd/6g/gen.c                   |   5 +-
@@ -38,3 +38,860 @@ Date:   Mon Oct 6 16:44:17 2008 -0700
  test/{bugs => fixedbugs}/bug094.go |   0
  test/golden.out                    |  10 +-
  11 files changed, 292 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/6g/align.c b/src/cmd/6g/align.c
+index 1a1f2c88b8..208796c2be 100644
+--- a/src/cmd/6g/align.c
++++ b/src/cmd/6g/align.c
+@@ -105,6 +105,14 @@ dowidth(Type *t)
+ 	if(t == T)
+ 		return;
+ 
++	if(t->width == -2) {
++		yyerror("invalid recursive type %T", t);
++		t->width = 0;
++		return;
++	}
++
++	t->width = -2;
++
+ 	w = 0;
+ 	switch(t->etype) {
+ 	default:
+@@ -136,6 +144,7 @@ dowidth(Type *t)
+ 		w = 10;
+ 		break;
+ 	case TINTER:		// implemented as 2 pointers
++	case TFORWINTER:
+ 		offmod(t);
+ 		w = 2*wptr;
+ 		break;
+@@ -148,7 +157,9 @@ dowidth(Type *t)
+ 		dowidth(t->type);
+ 		w = wptr;
+ 		break;
+-	case TFORW:		// implemented as pointer
++	case TFORW:		// should have been filled in
++	case TFORWSTRUCT:
++		yyerror("incomplete type %T", t);
+ 		w = wptr;
+ 		break;
+ 	case TANY:		// implemented as pointer
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index c47c016e75..e1b970b323 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -453,7 +453,7 @@ agen(Node *n, Node *res)
+ 	case OIND:
+ 		cgen(nl, res);
+ 		break;
+-		
++
+ 	case ODOT:
+ 		t = nl->type;
+ 		agen(nl, res);
+@@ -632,7 +632,7 @@ bgen(Node *n, int true, Prog *to)
+ 			tempname(&tmp, nr->type);
+ 			gmove(&n1, &tmp);
+ 			regfree(&n1);
+-			
++
+ 			regalloc(&n1, nl->type, N);
+ 			cgen(nl, &n1);
+ 
+@@ -711,6 +711,9 @@ sgen(Node *n, Node *ns, int32 w)
+ 		fatal("sgen UINF");
+ 	}
+ 
++	if(w < 0)
++		fatal("sgen copy %d", w);
++
+ 	// offset on the stack
+ 	osrc = stkof(n);
+ 	odst = stkof(ns);
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 8a4e78a68a..6a60c74f03 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -672,7 +672,7 @@ cgen_proc(Node *n)
+ 		cgen_call(n->left, 1);
+ 		break;
+ 	}
+-		
++
+ }
+ 
+ void
+@@ -802,7 +802,10 @@ cgen_as(Node *nl, Node *nr, int op)
+ 			if(debug['g'])
+ 				dump("\nclearfat", nl);
+ 
++			if(nl->type->width < 0)
++				fatal("clearfat %T %lld", nl->type, nl->type->width);
+ 			w = nl->type->width;
++
+ 			if(w > 0)
+ 				gconreg(AMOVQ, 0, D_AX);
+ 
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 6b04553f5f..a0fb824fe3 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -20,88 +20,108 @@ dflag(void)
+ void
+ dodclvar(Node *n, Type *t)
+ {
+-
+-loop:
+ 	if(n == N)
+ 		return;
+ 
+-	if(n->op == OLIST) {
++	for(; n->op == OLIST; n = n->right)
+ 		dodclvar(n->left, t);
+-		n = n->right;
+-		goto loop;
+-	}
+ 
++	dowidth(t);
++	addvar(n, t, dclcontext);
+ 	if(exportadj)
+ 		exportsym(n->sym);
+-	addvar(n, t, dclcontext);
+ }
+ 
+ void
+-dodcltype(Type *n, Type *t)
++dodclconst(Node *n, Node *e)
+ {
+-	Type *nt;
+-
+-	if(n == T)
++	if(n == N)
+ 		return;
+-	if(t->sym != S) {
+-		// botch -- should be a complete deep copy
+-		nt = typ(Txxx);
+-		*nt = *t;
+-		t = nt;
+-		t->sym = S;
+-	}
+-	n->sym->local = 1;
+-	addtyp(n, t, dclcontext);
++
++	for(; n->op == OLIST; n=n->right)
++		dodclconst(n, e);
++
++	addconst(n, e, dclcontext);
+ 	if(exportadj)
+ 		exportsym(n->sym);
+ }
+ 
+-void
+-dodclconst(Node *n, Node *e)
++/*
++ * introduce a type named n
++ * but it is an unknown type for now
++ */
++Type*
++dodcltype(Type *n)
+ {
+ 	Sym *s;
+-	Dcl *r, *d;
+ 
+-loop:
+-	if(n == N)
+-		return;
+-	if(n->op == OLIST) {
+-		dodclconst(n->left, e);
+-		n = n->right;
+-		goto loop;
++	// if n has been forward declared,
++	// use the Type* created then
++	s = n->sym;
++	if(s->tblock == block) {
++		switch(s->otype->etype) {
++		case TFORWSTRUCT:
++		case TFORWINTER:
++			return s->otype;
++		}
+ 	}
+ 
+-	if(n->op != ONAME)
+-		fatal("dodclconst: not a name");
++	// otherwise declare a new type
++	addtyp(n, dclcontext);
++	n->sym->local = 1;
++	if(exportadj)
++		exportsym(n->sym);
++	return n;
++}
++
++/*
++ * now we know what n is: it's t
++ */
++void
++updatetype(Type *n, Type *t)
++{
++	Sym *s;
+ 
+-	if(e->op != OLITERAL) {
+-		yyerror("expression must be a constant");
+-		return;
+-	}
+ 	s = n->sym;
++	if(s == S || s->otype != n)
++		fatal("updatetype %T = %T", n, t);
+ 
+-	s->oconst = e;
+-	s->lexical = LACONST;
++	switch(n->etype) {
++	case TFORW:
++		break;
+ 
+-	if(exportadj)
+-		exportsym(n->sym);
++	case TFORWSTRUCT:
++		if(t->etype != TSTRUCT) {
++			yyerror("%T forward declared as struct", n);
++			return;
++		}
++		break;
+ 
+-	r = autodcl;
+-	if(dclcontext == PEXTERN)
+-		r = externdcl;
++	case TFORWINTER:
++		if(t->etype != TINTER) {
++			yyerror("%T forward declared as interface", n);
++			return;
++		}
++		break;
+ 
+-	d = dcl();
+-	d->dsym = s;
+-	d->dnode = e;
+-	d->op = OCONST;
++	default:
++		fatal("updatetype %T / %T", n, t);
++	}
+ 
+-	r->back->forw = d;
+-	r->back = d;
++	*n = *t;
++	n->sym = s;
+ 
+-	if(dflag())
+-		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
++	// catch declaration of incomplete type
++	switch(n->etype) {
++	case TFORWSTRUCT:
++	case TFORWINTER:
++		break;
++	default:
++		checkwidth(n);
++	}
+ }
+ 
++
+ /*
+  * return nelem of list
+  */
+@@ -139,7 +159,7 @@ functype(Node *this, Node *in, Node *out)
+ 	t->outtuple = listcount(out);
+ 	t->intuple = listcount(in);
+ 
+-	dowidth(t);
++	checkwidth(t);
+ 	return t;
+ }
+ 
+@@ -201,6 +221,9 @@ addmethod(Node *n, Type *t, int local)
+ 	Type *f, *d, *pa;
+ 	Sym *st, *sf;
+ 
++	pa = nil;
++	sf = nil;
++
+ 	// get field sym
+ 	if(n == N)
+ 		goto bad;
+@@ -465,7 +488,7 @@ dostruct(Node *n, int et)
+ 
+ 	t = typ(et);
+ 	stotype(n, &t->type);
+-	dowidth(t);
++	checkwidth(t);
+ 	return t;
+ }
+ 
+@@ -484,12 +507,13 @@ dcopy(Sym *a, Sym *b)
+ 	a->oconst = b->oconst;
+ 	a->package = b->package;
+ 	a->opackage = b->opackage;
+-	a->forwtype = b->forwtype;
+ 	a->lexical = b->lexical;
+ 	a->undef = b->undef;
+ 	a->vargen = b->vargen;
+ 	a->vblock = b->vblock;
+ 	a->tblock = b->tblock;
++	a->local = b->local;
++	a->offset = b->offset;
+ }
+ 
+ Sym*
+@@ -639,14 +663,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 		fatal("addvar: n=%N t=%T nil", n, t);
+ 
+ 	s = n->sym;
+-	vargen++;
+-	gen = vargen;
+-
+-	r = autodcl;
+-	if(ctxt == PEXTERN) {
+-		r = externdcl;
+-		gen = 0;
+-	}
+ 
+ 	if(s->vblock == block) {
+ 		if(s->oname != N) {
+@@ -657,8 +673,16 @@ addvar(Node *n, Type *t, int ctxt)
+ 			yyerror("var %S redeclared in this block", s);
+ 	}
+ 
+-	if(ctxt != PEXTERN)
++	if(ctxt == PEXTERN) {
++		r = externdcl;
++		gen = 0;
++vargen++;	// just for diffing output against old compiler
++	} else {
++		r = autodcl;
++		vargen++;
++		gen = vargen;
+ 		pushdcl(s);
++	}
+ 
+ 	s->vargen = gen;
+ 	s->oname = n;
+@@ -687,65 +711,34 @@ addvar(Node *n, Type *t, int ctxt)
+ }
+ 
+ void
+-addtyp(Type *n, Type *t, int ctxt)
++addtyp(Type *n, int ctxt)
+ {
+ 	Dcl *r, *d;
+ 	Sym *s;
+-	Type *f, *ot;
+ 
+-	if(n==T || n->sym == S || t == T)
+-		fatal("addtyp: n=%T t=%T nil", n, t);
++	if(n==T || n->sym == S)
++		fatal("addtyp: n=%T t=%T nil", n);
+ 
+ 	s = n->sym;
+ 
+-	r = autodcl;
+-	if(ctxt == PEXTERN) {
+-		ot = s->otype;
+-		if(ot != T) {
+-			// allow nil interface to be
+-			// redeclared as an interface
+-			if(ot->etype == TINTER && ot->type == T && t->etype == TINTER) {
+-				if(dflag())
+-					print("forew  typ-dcl %S G%ld %T\n", s, s->vargen, t);
+-				s->otype = t;
+-				return;
+-			}
+-		}
++	if(ctxt == PEXTERN)
+ 		r = externdcl;
++	else {
++		r = autodcl;
++		pushdcl(s);
+ 	}
++vargen++;	// just for diffing output against old compiler
+ 
+ 	if(s->tblock == block)
+ 		yyerror("type %S redeclared in this block %d", s, block);
+ 
+-	if(ctxt != PEXTERN)
+-		pushdcl(s);
+-
+-	if(t->sym != S)
+-		warn("addtyp: renaming type %S/%lT to %S/%lT",
+-			t->sym, t->sym->otype, s, n);
+-
+-	vargen++;
+-	s->vargen = vargen;
+-	s->otype = t;
++	s->otype = n;
+ 	s->lexical = LATYPE;
+ 	s->tblock = block;
+ 
+-	t->sym = s;
+-	t->vargen = vargen;
+-
+-	if(s->forwtype != T) {
+-		dowidth(t);
+-		for(f=s->forwtype; f!=T; f=f->nforw) {
+-			if(!isptr[f->etype])
+-				fatal("addtyp: forward");
+-			f->type = t;
+-		}
+-		s->forwtype = T;
+-	}
+-
+ 	d = dcl();
+ 	d->dsym = s;
+-	d->dtype = t;
++	d->dtype = n;
+ 	d->op = OTYPE;
+ 
+ 	r->back->forw = d;
+@@ -753,12 +746,50 @@ addtyp(Type *n, Type *t, int ctxt)
+ 
+ 	if(dflag()) {
+ 		if(ctxt == PEXTERN)
+-			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, t);
++			print("extern typ-dcl %S G%ld %T\n", s, s->vargen, n);
+ 		else
+-			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, t);
++			print("auto   typ-dcl %S G%ld %T\n", s, s->vargen, n);
+ 	}
+ }
+ 
++void
++addconst(Node *n, Node *e, int ctxt)
++{
++	Sym *s;
++	Dcl *r, *d;
++
++	if(n->op != ONAME)
++		fatal("addconst: not a name");
++
++	if(e->op != OLITERAL) {
++		yyerror("expression must be a constant");
++		return;
++	}
++
++	s = n->sym;
++
++	if(ctxt == PEXTERN)
++		r = externdcl;
++	else {
++		r = autodcl;
++		pushdcl(s);
++	}
++
++	s->oconst = e;
++	s->lexical = LACONST;
++
++	d = dcl();
++	d->dsym = s;
++	d->dnode = e;
++	d->op = OCONST;
++
++	r->back->forw = d;
++	r->back = d;
++
++	if(dflag())
++		print("const-dcl %S %N\n", n->sym, n->sym->oconst);
++}
++
+ Node*
+ fakethis(void)
+ {
+@@ -850,9 +881,6 @@ forwdcl(Sym *s)
+ 
+ 	t = typ(TFORW);
+ 	t = ptrto(t);
+-
+-	t->nforw = s->forwtype;
+-	s->forwtype = t;
+ 	return t;
+ }
+ 
+@@ -1038,3 +1066,75 @@ fninit(Node *n)
+ 	popdcl();
+ 	compile(fn);
+ }
++
++
++/*
++ * when a type's width should be known, we call checkwidth
++ * to compute it.  during a declaration like
++ *
++ *	type T *struct { next T }
++ *
++ * it is necessary to defer the calculation of the struct width
++ * until after T has been initialized to be a pointer to that struct.
++ * similarly, during import processing structs may be used
++ * before their definition.  in those situations, calling
++ * defercheckwidth() stops width calculations until
++ * resumecheckwidth() is called, at which point all the
++ * checkwidths that were deferred are executed.
++ * sometimes it is okay to
++ */
++typedef struct TypeList TypeList;
++struct TypeList {
++	Type *t;
++	TypeList *next;
++};
++
++static TypeList *tlfree;
++static TypeList *tlq;
++static int defercalc;
++
++void
++checkwidth(Type *t)
++{
++	TypeList *l;
++
++	if(!defercalc) {
++		dowidth(t);
++		return;
++	}
++
++	l = tlfree;
++	if(l != nil)
++		tlfree = l->next;
++	else
++		l = mal(sizeof *l);
++
++	l->t = t;
++	l->next = tlq;
++	tlq = l;
++}
++
++void
++defercheckwidth(void)
++{
++	if(defercalc)
++		fatal("defercheckwidth");
++	defercalc = 1;
++}
++
++void
++resumecheckwidth(void)
++{
++	TypeList *l, *next;
++
++	if(!defercalc)
++		fatal("restartcheckwidth");
++	defercalc = 0;
++
++	for(l = tlq; l != nil; l = tlq) {
++		dowidth(l->t);
++		tlq = l->next;
++		l->next = tlfree;
++		tlfree = l;
++	}
++}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index b3d3556de5..8a6d779be4 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -300,6 +300,7 @@ importvar(int export, Node *ss, Type *t)
+ 		warn("redeclare import var %S from %T to %T",
+ 			s, s->oname->type, t);
+ 	}
++	checkwidth(t);
+ 	addvar(newname(s), t, PEXTERN);
+ 
+ 	if(debug['e'])
+@@ -325,6 +326,7 @@ importtype(int export, Node *ss, Type *t)
+ 		s->otype = typ(0);
+ 	*s->otype = *t;
+ 	s->otype->sym = s;
++	checkwidth(s->otype);
+ 
+ 	if(debug['e'])
+ 		print("import type %S %lT\n", s, t);
+@@ -333,7 +335,7 @@ importtype(int export, Node *ss, Type *t)
+ void
+ importmethod(Sym *s, Type *t)
+ {
+-	dowidth(t);
++	checkwidth(t);
+ 	addmethod(newname(s), t, 0);
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 2a0aa7f25c..5916b11ebf 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -146,9 +146,6 @@ struct	Type
+ 	// TFIELD
+ 	Type*	down;		// also used in TMAP
+ 
+-	// TPTR
+-	Type*	nforw;
+-
+ 	// TARRAY
+ 	int32	bound;		// negative is dynamic array
+ };
+@@ -215,7 +212,6 @@ struct	Sym
+ 	Node*	oname;		// ONAME node if a var
+ 	Type*	otype;		// TYPE node if a type
+ 	Node*	oconst;		// OLITERAL node if a const
+-	Type*	forwtype;	// TPTR iff forward declared
+ 	vlong	offset;		// stack location if automatic
+ 	int32	lexical;
+ 	int32	vargen;		// unique variable number
+@@ -322,8 +318,10 @@ enum
+ 	TFIELD,
+ 	TANY,
+ 	TSTRING,
++	TFORWSTRUCT,
++	TFORWINTER,
+ 
+-	NTYPE,			// 26
++	NTYPE,			// 28
+ };
+ enum
+ {
+@@ -624,7 +622,8 @@ int	Zconv(Fmt*);
+  *	dcl.c
+  */
+ void	dodclvar(Node*, Type*);
+-void	dodcltype(Type*, Type*);
++Type*	dodcltype(Type*);
++void	updatetype(Type*, Type*);
+ void	dodclconst(Node*, Node*);
+ void	defaultlit(Node*);
+ int	listcount(Node*);
+@@ -648,18 +647,21 @@ void	markdclstack(void);
+ void	testdclstack(void);
+ Sym*	pushdcl(Sym*);
+ void	addvar(Node*, Type*, int);
+-void	addtyp(Type*, Type*, int);
++void	addtyp(Type*, int);
++void	addconst(Node*, Node*, int);
+ Node*	fakethis(void);
+ Node*	newname(Sym*);
+ Node*	oldname(Sym*);
+ Type*	newtype(Sym*);
+ Type*	oldtype(Sym*);
+-Type*	forwdcl(Sym*);
+ void	fninit(Node*);
+ Node*	nametoanondcl(Node*);
+ Node*	nametodcl(Node*, Type*);
+ Node*	anondcl(Type*);
+ void	checkarglist(Node*);
++void	checkwidth(Type*);
++void	defercheckwidth(void);
++void	resumecheckwidth(void);
+ 
+ /*
+  *	export.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 923107cc55..84bd1a7d44 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -48,6 +48,7 @@
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		keyexpr_list keyval_list_r keyval
+ %type	<node>		typedcl Atypedcl Btypedcl
++%type	<type>		typedclname
+ 
+ %type	<type>		fntype fnlitdcl Afntype Bfntype fullAtype
+ %type	<type>		non_name_Atype non_name_type
+@@ -137,16 +138,25 @@ import_package:
+ 	}
+ 
+ import_there:
+-	hidden_import_list_r '$' '$'
++	hidden_import_list '$' '$'
+ 	{
+ 		checkimports();
+ 		unimportfile();
+ 	}
+-|	LIMPORT '$' '$' hidden_import_list_r '$' '$'
++|	LIMPORT '$' '$' hidden_import_list '$' '$'
+ 	{
+ 		checkimports();
+ 	}
+ 
++hidden_import_list:
++	{
++		defercheckwidth();
++	}
++	hidden_import_list_r
++	{
++		resumecheckwidth();
++	}
++
+ /*
+  * declarations
+  */
+@@ -317,16 +327,37 @@ typedcl:
+ 	Atypedcl
+ |	Btypedcl
+ 
++typedclname:
++	new_type
++	{
++		$$ = dodcltype($1);
++		defercheckwidth();
++	}
++
+ Atypedcl:
+-	new_type fullAtype
++	typedclname fullAtype
++	{
++		updatetype($1, $2);
++		resumecheckwidth();
++	}
++|	typedclname LSTRUCT
+ 	{
+-		dodcltype($1, $2);
++		updatetype($1, typ(TFORWSTRUCT));
++		resumecheckwidth();
+ 	}
++/*
++|	typedclname LINTERFACE
++	{
++		updatetype($1, typ(TFORWINTER));
++		resumecheckwidth();
++	}
++*/
+ 
+ Btypedcl:
+-	new_type fullBtype
++	typedclname fullBtype
+ 	{
+-		dodcltype($1, $2);
++		updatetype($1, $2);
++		resumecheckwidth();
+ 	}
+ 
+ else_stmt1:
+@@ -991,7 +1022,6 @@ non_name_Atype:
+ |	interfacetype
+ |	'*' fullAtype
+ 	{
+-		dowidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ 
+@@ -1033,15 +1063,15 @@ Btype:
+ 	}
+ |	'*' fullBtype
+ 	{
+-		dowidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ |	'*' lname
+ 	{
+-		// dont know if this is an error or not
+-		if(dclcontext != PEXTERN)
+-			yyerror("forward type in function body %s", $2->name);
+-		$$ = forwdcl($2);
++		Type *t;
++
++		t = dodcltype(newtype($2));
++		updatetype(t, typ(TFORWSTRUCT));
++		$$ = ptrto(t);
+ 	}
+ 
+ Bchantype:
+@@ -1721,7 +1751,7 @@ hidden_type1:
+ 	}
+ |	'*' hidden_type
+ 	{
+-		dowidth($2);
++		checkwidth($2);
+ 		$$ = ptrto($2);
+ 	}
+ |	LCOMM LCHAN hidden_type
+@@ -1823,7 +1853,7 @@ hidden_importsym:
+  * to check whether the rest of the grammar is free of
+  * reduce/reduce conflicts, comment this section out by
+  * removing the slash on the next line.
+- *
++ */
+ lpack:
+ 	LATYPE
+ 	{
+@@ -1867,6 +1897,5 @@ latype:
+ 		yyerror("no type %s.%s", context, $3->name);
+ 		YYERROR;
+ 	}
+-
+ /**/
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 01a2d62177..c15039e36f 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1543,7 +1543,7 @@ eqtype(Type *t1, Type *t2, int d)
+ 		t1 = t1->type;
+ 		t2 = t2->type;
+ 		for(;;) {
+-			if(!eqtype(t1, t2, 0))
++			if(!eqtype(t1, t2, d+1))
+ 				return 0;
+ 			if(t1 == T)
+ 				return 1;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a8f3a7782f..4f9ccd34a7 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -253,7 +253,7 @@ loop:
+ 		if(n->type == T) {
+ 			s = n->sym;
+ 			if(s->undef == 0) {
+-				yyerror("walktype: %N undeclared", n);
++				yyerror("walktype: %S undeclared", s);
+ 				s->undef = 1;
+ 			}
+ 		}
+@@ -334,7 +334,6 @@ loop:
+ 		if(t == T)
+ 			goto ret;
+ 
+-		dowidth(t);
+ 		if(n->left->op == ODOTMETH)
+ 			n->op = OCALLMETH;
+ 		if(n->left->op == ODOTINTER)
+@@ -348,6 +347,7 @@ loop:
+ 			goto ret;
+ 		}
+ 
++		dowidth(t);
+ 		n->type = *getoutarg(t);
+ 		switch(t->outtuple) {
+ 		case 0:
+diff --git a/test/bugs/bug094.go b/test/fixedbugs/bug094.go
+similarity index 100%
+rename from test/bugs/bug094.go
+rename to test/fixedbugs/bug094.go
+diff --git a/test/golden.out b/test/golden.out
+index 2676fec631..9e8cbcf2ed 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -97,13 +97,6 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug093.go
+ M
+ 
+-=========== bugs/bug094.go
+-bugs/bug094.go:11: left side of := must be a name
+-bad top
+-.   LITERAL-I0 l(81)
+-bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
+-BUG: fails incorrectly
+-
+ =========== bugs/bug095.go
+ found 2, expected 1
+ 
+@@ -232,7 +225,8 @@ fixedbugs/bug081.go:5: syntax error near x
+ fixedbugs/bug086.go:5: function ends without a return statement
+ 
+ =========== fixedbugs/bug091.go
+-fixedbugs/bug091.go:14: label exit not defined
++fixedbugs/bug091.go:15: c: undefined
++fixedbugs/bug091.go:15: fatal error: addvar: n=NAME-i G0 a(1) l(85) t=<T> nil
+ 
+ =========== fixedbugs/bug103.go
+ fixedbugs/bug103.go:8: function requires a return type

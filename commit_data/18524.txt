@@ -9,6 +9,40 @@ Date:   Fri Feb 14 00:38:55 2014 -0500
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/63690043
-
+---
  src/cmd/go/env.go | 22 ++++++++++------------
  1 file changed, 10 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/go/env.go b/src/cmd/go/env.go
+index 2db821797b..05774c2cf5 100644
+--- a/src/cmd/go/env.go
++++ b/src/cmd/go/env.go
+@@ -85,18 +85,16 @@ func runEnv(cmd *Command, args []string) {
+ 		return
+ 	}
+ 
+-	switch runtime.GOOS {
+-	default:
+-		for _, e := range env {
+-			fmt.Printf("%s=\"%s\"\n", e.name, e.value)
+-		}
+-	case "plan9":
+-		for _, e := range env {
+-			fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
+-		}
+-	case "windows":
+-		for _, e := range env {
+-			fmt.Printf("set %s=%s\n", e.name, e.value)
++	for _, e := range env {
++		if e.name != "TERM" {
++			switch runtime.GOOS {
++			default:
++				fmt.Printf("%s=\"%s\"\n", e.name, e.value)
++			case "plan9":
++				fmt.Printf("%s='%s'\n", e.name, strings.Replace(e.value, "'", "''", -1))
++			case "windows":
++				fmt.Printf("set %s=%s\n", e.name, e.value)
++			}
+ 		}
+ 	}
+ }

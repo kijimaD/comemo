@@ -8,7 +8,7 @@ Date:   Mon Sep 14 17:20:29 2009 -0700
     DELTA=112  (6 added, 57 deleted, 49 changed)
     OCL=34610
     CL=34610
-
+---
  doc/progs/run                       |  2 +-
  doc/progs/sortmain.go               |  2 +-
  src/pkg/archive/tar/reader.go       | 10 ++++------
@@ -45,3 +45,611 @@ Date:   Mon Sep 14 17:20:29 2009 -0700
  test/bench/k-nucleotide.go          |  1 -
  test/bench/regex-dna.go             |  1 -
  35 files changed, 35 insertions(+), 73 deletions(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 3b07db4cce..486ef2680c 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -63,7 +63,7 @@ echo $alphabet | testit cat "" $alphabet
+ echo $alphabet | testit cat_rot13 "--rot13" $rot13
+ echo $rot13 | testit cat_rot13 "--rot13" $alphabet
+ 
+-testit sortmain "" "Sunday Monday Tuesday Thursday Friday"
++testit sortmain "" "Sunday Monday Tuesday Wednesday Thursday Friday Saturday"
+ 
+ testit print "" "18446744073709551615 -1 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4] 18446744073709551615 {77 Sunset Strip} [1 2 3 4]"
+ testit print_string "" "77 Sunset Strip"
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 035ca54427..3dca963440 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -49,7 +49,7 @@ func days() {
+ 	Thursday :=  day{ 4, "THU", "Thursday" };
+ 	Friday :=    day{ 5, "FRI", "Friday" };
+ 	Saturday :=  day{ 6, "SAT", "Saturday" };
+-	data := []*day{&Tuesday, &Thursday, &Sunday, &Monday, &Friday};
++	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday};
+ 	a := dayArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index 479d093e04..1c3df6bfd1 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -95,11 +95,10 @@ func (ignoreWriter) Write(b []byte) (n int, err os.Error) {
+ func (tr *Reader) skipUnread() {
+ 	nr := tr.nb + tr.pad;	// number of bytes to skip
+ 
+-	var n int64;
+ 	if sr, ok := tr.r.(io.Seeker); ok {
+-		n, tr.err = sr.Seek(nr, 1);
++		_, tr.err = sr.Seek(nr, 1);
+ 	} else {
+-		n, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
++		_, tr.err = io.Copyn(tr.r, ignoreWriter{}, nr);
+ 	}
+ 	tr.nb, tr.pad = 0, 0;
+ }
+@@ -116,14 +115,13 @@ func (tr *Reader) verifyChecksum(header []byte) bool {
+ 
+ func (tr *Reader) readHeader() *Header {
+ 	header := make([]byte, blockSize);
+-	var n int;
+-	if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
++	if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 		return nil
+ 	}
+ 
+ 	// Two blocks of zero bytes marks the end of the archive.
+ 	if bytes.Equal(header, zeroBlock[0:blockSize]) {
+-		if n, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
++		if _, tr.err = io.ReadFull(tr.r, header); tr.err != nil {
+ 			return nil
+ 		}
+ 		if !bytes.Equal(header, zeroBlock[0:blockSize]) {
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index b3ce6b5c12..42e628f5cc 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -109,7 +109,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 	s := slicer(header);
+ 
+ 	// TODO(dsymonds): handle names longer than 100 chars
+-	nr := bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
++	bytes.Copy(s.next(100), strings.Bytes(hdr.Name));
+ 
+ 	tw.octal(s.next(8), hdr.Mode);	// 100:108
+ 	tw.octal(s.next(8), hdr.Uid);	// 108:116
+@@ -136,8 +136,7 @@ func (tw *Writer) WriteHeader(hdr *Header) os.Error {
+ 		return tw.err
+ 	}
+ 
+-	var n int;
+-	n, tw.err = tw.w.Write(header);
++	_, tw.err = tw.w.Write(header);
+ 
+ 	return tw.err
+ }
+@@ -169,8 +168,7 @@ func (tw *Writer) Close() os.Error {
+ 
+ 	// trailer: two zero blocks
+ 	for i := 0; i < 2; i++ {
+-		var n int;
+-		n, tw.err = tw.w.Write(zeroBlock);
++		_, tw.err = tw.w.Write(zeroBlock);
+ 		if tw.err != nil {
+ 			break
+ 		}
+diff --git a/src/pkg/base64/base64_test.go b/src/pkg/base64/base64_test.go
+index 255f85c69a..039c99737b 100644
+--- a/src/pkg/base64/base64_test.go
++++ b/src/pkg/base64/base64_test.go
+@@ -80,7 +80,6 @@ func TestEncoder(t *testing.T) {
+ func TestEncoderBuffering(t *testing.T) {
+ 	input := strings.Bytes(bigtest.decoded);
+ 	for bs := 1; bs <= 12; bs++ {
+-		buf := make([]byte, bs);
+ 		bb := &bytes.Buffer{};
+ 		encoder := NewEncoder(StdEncoding, bb);
+ 		for pos := 0; pos < len(input); pos += bs {
+diff --git a/src/pkg/bytes/bytes.go b/src/pkg/bytes/bytes.go
+index 52aa8cdf40..d4eb4c7d99 100644
+--- a/src/pkg/bytes/bytes.go
++++ b/src/pkg/bytes/bytes.go
+@@ -65,7 +65,7 @@ func explode(s []byte, n int) [][]byte {
+ 		n = len(s);
+ 	}
+ 	a := make([][]byte, n);
+-	var size, rune int;
++	var size int;
+ 	na := 0;
+ 	for len(s) > 0 {
+ 		if na+1 >= n {
+@@ -73,7 +73,7 @@ func explode(s []byte, n int) [][]byte {
+ 			na++;
+ 			break
+ 		}
+-		rune, size = utf8.DecodeRune(s);
++		_, size = utf8.DecodeRune(s);
+ 		a[na] = s[0:size];
+ 		s = s[size:len(s)];
+ 		na++;
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 9a27d0d9b2..88147dacb8 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -138,8 +138,7 @@ func (z *Inflater) readHeader(save bool) os.Error {
+ 			return err;
+ 		}
+ 		data := make([]byte, n);
+-		var nn int;
+-		if nn, err = io.ReadFull(z.r, data); err != nil {
++		if _, err = io.ReadFull(z.r, data); err != nil {
+ 			return err;
+ 		}
+ 		if save {
+diff --git a/src/pkg/container/ring/ring_test.go b/src/pkg/container/ring/ring_test.go
+index 4f81d55aa7..ee9ce27a67 100644
+--- a/src/pkg/container/ring/ring_test.go
++++ b/src/pkg/container/ring/ring_test.go
+@@ -211,7 +211,6 @@ func TestUnlink(t *testing.T) {
+ 	s10 := r10.Move(6);
+ 
+ 	sum10 := sumN(10);
+-	sum6 := sumN(6);
+ 
+ 	verify(t, r10, 10, sum10);
+ 	verify(t, s10, 10, sum10);
+diff --git a/src/pkg/datafmt/parser.go b/src/pkg/datafmt/parser.go
+index 3e86e0f2dc..245689a0c3 100644
+--- a/src/pkg/datafmt/parser.go
++++ b/src/pkg/datafmt/parser.go
+@@ -124,8 +124,7 @@ func (p *parser) parseRuleName() (string, bool) {
+ func (p *parser) parseString() string {
+ 	s := "";
+ 	if p.tok == token.STRING {
+-		var err os.Error;
+-		s, err = strconv.Unquote(string(p.lit));
++		s, _ = strconv.Unquote(string(p.lit));
+ 		// Unquote may fail with an error, but only if the scanner found
+ 		// an illegal string in the first place. In this case the error
+ 		// has already been reported.
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index d32b1b926a..03cc4a7566 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -72,8 +72,7 @@ func (p *parser) parseToken() *Token {
+ 	pos := p.pos;
+ 	value := "";
+ 	if p.tok == token.STRING {
+-		var err os.Error;
+-		value, err = strconv.Unquote(string(p.lit));
++		value, _ = strconv.Unquote(string(p.lit));
+ 		// Unquote may fail with an error, but only if the scanner found
+ 		// an illegal string in the first place. In this case the error
+ 		// has already been reported.
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 2b3c946292..52a483c521 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -351,7 +351,6 @@ func TestStdErrorHander(t *testing.T) {
+ 		"@ @ @"  // original file, line 1 again
+ 	;
+ 
+-	var s Scanner;
+ 	v := NewErrorVector();
+ 	nerrors := Tokenize("File1", strings.Bytes(src), v, 0,
+ 		func (pos token.Position, tok token.Token, litb []byte) bool {
+diff --git a/src/pkg/gob/codec_test.go b/src/pkg/gob/codec_test.go
+index c81bd3609e..9564d8c344 100644
+--- a/src/pkg/gob/codec_test.go
++++ b/src/pkg/gob/codec_test.go
+@@ -93,7 +93,6 @@ func verifyInt(i int64, t *testing.T) {
+ 
+ // Test basic encode/decode routines for signed integers
+ func TestIntCodec(t *testing.T) {
+-	var b = new(bytes.Buffer);
+ 	for u := uint64(0); ; u = (u+1) * 7 {
+ 		// Do positive and negative values
+ 		i := int64(u);
+@@ -191,9 +190,6 @@ func TestScalarEncInstructions(t *testing.T) {
+ 	// int16
+ 	{
+ 		b.Reset();
+-		v := int16(17);
+-		pv := &v;
+-		ppv := &pv;
+ 		data := struct { a int16 } { 17 };
+ 		instr := &encInstr{ encInt16, 6, 0, 0 };
+ 		state := newencoderState(b);
+diff --git a/src/pkg/gob/decoder.go b/src/pkg/gob/decoder.go
+index 9e8aa9c352..3442f80536 100644
+--- a/src/pkg/gob/decoder.go
++++ b/src/pkg/gob/decoder.go
+@@ -75,8 +75,7 @@ func (dec *Decoder) Decode(e interface{}) os.Error {
+ 		dec.state.b = bytes.NewBuffer(dec.buf[0:nbytes]);
+ 
+ 		// Read the data
+-		var n int;
+-		n, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
++		_, dec.state.err = io.ReadFull(dec.r, dec.buf[0:nbytes]);
+ 		if dec.state.err != nil {
+ 			if dec.state.err ==  os.EOF {
+ 				dec.state.err = io.ErrUnexpectedEOF;
+diff --git a/src/pkg/gob/type_test.go b/src/pkg/gob/type_test.go
+index 7c9a9ba38e..ed33487ca6 100644
+--- a/src/pkg/gob/type_test.go
++++ b/src/pkg/gob/type_test.go
+@@ -64,7 +64,6 @@ func TestReregistration(t *testing.T) {
+ func TestArrayType(t *testing.T) {
+ 	var a3 [3]int;
+ 	a3int := getTypeUnlocked("foo", reflect.Typeof(a3));
+-	var newa3 [3]int;
+ 	newa3int := getTypeUnlocked("bar", reflect.Typeof(a3));
+ 	if a3int != newa3int {
+ 		t.Errorf("second registration of [3]int creates new type");
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index e276deeffc..2467222bbc 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -431,8 +431,7 @@ func (cr *chunkedReader) Read(b []uint8) (n int, err os.Error) {
+ 	if cr.n == 0 && cr.err == nil {
+ 		// end of chunk (CRLF)
+ 		b := make([]byte, 2);
+-		var nb int;
+-		if nb, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
++		if _, cr.err = io.ReadFull(cr.r, b); cr.err == nil {
+ 			if b[0] != '\r' || b[1] != '\n' {
+ 				cr.err = os.NewError("malformed chunked encoding");
+ 			}
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index 86ec0efac0..4c3cbf8a5c 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -62,9 +62,8 @@ func TestParseForm(t *testing.T) {
+ }
+ 
+ func TestQuery(t *testing.T) {
+-	var err os.Error;
+ 	req := &Request{ Method: "GET" };
+-	req.Url, err = ParseURL("http://www.google.com/search?q=foo&q=bar");
++	req.Url, _ = ParseURL("http://www.google.com/search?q=foo&q=bar");
+ 	if q := req.FormValue("q"); q != "foo" {
+ 		t.Errorf(`req.FormValue("q") = %q, want "foo"`, q);
+ 	}
+diff --git a/src/pkg/json/generic.go b/src/pkg/json/generic.go
+index 302b0c9e4d..9fa1ae5505 100644
+--- a/src/pkg/json/generic.go
++++ b/src/pkg/json/generic.go
+@@ -316,11 +316,10 @@ func (b *_JsonBuilder) Key(k string) Builder {
+ // If StringToJson encounters a syntax error, it returns with
+ // ok set to false and errtok set to a fragment of the offending syntax.
+ func StringToJson(s string) (json Json, ok bool, errtok string) {
+-	var errindx int;
+ 	var j Json;
+ 	b := new(_JsonBuilder);
+ 	b.ptr = &j;
+-	ok, errindx, errtok = Parse(s, b);
++	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+ 		return nil, false, errtok
+ 	}
+diff --git a/src/pkg/json/struct.go b/src/pkg/json/struct.go
+index e5b2188f54..680a5af4be 100644
+--- a/src/pkg/json/struct.go
++++ b/src/pkg/json/struct.go
+@@ -248,10 +248,8 @@ func (b *_StructBuilder) Key(k string) Builder {
+ // On a syntax error, it returns with ok set to false and errtok
+ // set to the offending token.
+ func Unmarshal(s string, val interface{}) (ok bool, errtok string) {
+-	var errindx int;
+-	var val1 interface{};
+ 	b := &_StructBuilder{ reflect.NewValue(val) };
+-	ok, errindx, errtok = Parse(s, b);
++	ok, _, errtok = Parse(s, b);
+ 	if !ok {
+ 		return false, errtok
+ 	}
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index 859bef33a4..4eade10462 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -247,7 +247,6 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 			rname += ".";
+ 		}
+ 		// Can try as ordinary name.
+-		var dnserr *DNSError;
+ 		addrs, err = tryOneName(cfg, rname);
+ 		if err == nil {
+ 			cname = rname;
+@@ -264,7 +263,6 @@ func LookupHost(name string) (cname string, addrs []string, err os.Error) {
+ 		if rname[len(rname)-1] != '.' {
+ 			rname += "."
+ 		}
+-		var dnserr *DNSError;
+ 		addrs, err = tryOneName(cfg, rname);
+ 		if err == nil {
+ 			cname = rname;
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index c8d533206e..c2c835af11 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -326,7 +326,6 @@ func socket(net, laddr, raddr string, f, p, t int, la, ra syscall.Sockaddr) (fd
+ 	// Allow reuse of recently-used addresses.
+ 	syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_REUSEADDR, 1);
+ 
+-	var r int64;
+ 	if la != nil {
+ 		e = syscall.Bind(s, la);
+ 		if e != 0 {
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 5aeeaa0c3a..081f5e46a7 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -49,7 +49,6 @@ func Getwd() (string, Error) {
+ 	// General algorithm: find name in parent
+ 	// and then find name of parent.  Each iteration
+ 	// adds /name to the beginning of pwd.
+-	elem := make([]string, 0, 16);
+ 	pwd = "";
+ 	for parent := "..";; parent = "../" + parent {
+ 		if len(parent) >= 1024 {	// Sanity check
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index ffc6c6920b..49ea25db67 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -125,7 +125,6 @@ func Join(dir, file string) string {
+ // in the final slash-separated element of path;
+ // it is empty if there is no dot.
+ func Ext(path string) string {
+-	dot := -1;
+ 	for i := len(path)-1; i >= 0 && path[i] != '/'; i-- {
+ 		if path[i] == '.' {
+ 			return path[i:len(path)];
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index e2f7dbf75f..eeac5a028c 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -84,7 +84,6 @@ func valueToString(val Value) string {
+ 		return str;
+ 	case *MapValue:
+ 		t := typ.(*MapType);
+-		v := val;
+ 		str = t.String();
+ 		str += "{";
+ 		str += "<can't iterate on maps>";
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 4ba1c2eec1..727a9c1b80 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -16,7 +16,6 @@ type addr unsafe.Pointer
+ // TODO: This will have to go away when
+ // the new gc goes in.
+ func memmove(adst, asrc addr, n uintptr) {
+-	var p uintptr;	// dummy for sizeof
+ 	dst := uintptr(adst);
+ 	src := uintptr(asrc);
+ 	switch {
+@@ -680,7 +679,6 @@ func (v *ChanValue) recv(b *bool) Value {
+ 		panic("recv on send-only channel");
+ 	}
+ 	ch := *(**byte)(v.addr);
+-	newval := MakeZero(t.Elem());
+ 	x := MakeZero(t.Elem());
+ 	chanrecv(ch, (*byte)(x.getAddr()), b);
+ 	return x;
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 55c8a6325f..b378a669cf 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -972,11 +972,11 @@ func (re *Regexp) allMatches(s string, b []byte, n int, deliver func(int, int))
+ 				// after a previous match, so ignore it.
+ 				accept = false;
+ 			}
+-			var rune, width int;
++			var width int;
+ 			if b == nil {
+-				rune, width = utf8.DecodeRuneInString(s[pos:end]);
++				_, width = utf8.DecodeRuneInString(s[pos:end]);
+ 			} else {
+-				rune, width = utf8.DecodeRune(b[pos:end]);
++				_, width = utf8.DecodeRune(b[pos:end]);
+ 			}
+ 			if width > 0 {
+ 				pos += width;
+diff --git a/src/pkg/rpc/client.go b/src/pkg/rpc/client.go
+index 5846d6b335..8663ad4425 100644
+--- a/src/pkg/rpc/client.go
++++ b/src/pkg/rpc/client.go
+@@ -46,7 +46,7 @@ func (client *Client) send(c *Call) {
+ 	if client.shutdown != nil {
+ 		c.Error = client.shutdown;
+ 		client.mutex.Unlock();
+-		doNotBlock := c.Done <- c;
++		_ = c.Done <- c;	// do not block
+ 		return;
+ 	}
+ 	c.seq = client.seq;
+@@ -87,14 +87,14 @@ func (client *Client) input() {
+ 		c.Error = os.ErrorString(response.Error);
+ 		// We don't want to block here.  It is the caller's responsibility to make
+ 		// sure the channel has enough buffer space. See comment in Go().
+-		doNotBlock := c.Done <- c;
++		_ = c.Done <- c;	// do not block
+ 	}
+ 	// Terminate pending calls.
+ 	client.mutex.Lock();
+ 	client.shutdown = err;
+ 	for seq, call := range client.pending {
+ 		call.Error = err;
+-		doNotBlock := call.Done <- call;
++		_ = call.Done <- call;	// do not block
+ 	}
+ 	client.mutex.Unlock();
+ 	log.Stderr("client protocol error:", err);
+@@ -161,7 +161,7 @@ func (client *Client) Go(serviceMethod string, args interface{}, reply interface
+ 	c.Done = done;
+ 	if client.shutdown != nil {
+ 		c.Error = client.shutdown;
+-		doNotBlock := c.Done <- c;
++		_ = c.Done <- c;	// do not block
+ 		return c;
+ 	}
+ 	client.send(c);
+diff --git a/src/pkg/rpc/server.go b/src/pkg/rpc/server.go
+index 37afa77480..c7335a687e 100644
+--- a/src/pkg/rpc/server.go
++++ b/src/pkg/rpc/server.go
+@@ -338,7 +338,6 @@ func (server *serverType) input(conn io.ReadWriteCloser) {
+ 			sendResponse(sending, req, invalidRequest, enc, s);
+ 			continue;
+ 		}
+-		method := mtype.method;
+ 		// Decode the argument value.
+ 		argv := _new(mtype.argType);
+ 		replyv := _new(mtype.replyType);
+diff --git a/src/pkg/strconv/decimal_test.go b/src/pkg/strconv/decimal_test.go
+index 1498deaec8..35fc795ae1 100644
+--- a/src/pkg/strconv/decimal_test.go
++++ b/src/pkg/strconv/decimal_test.go
+@@ -30,7 +30,6 @@ var shifttests = []shiftTest {
+ }
+ 
+ func TestDecimalShift(t *testing.T) {
+-	ok := true;
+ 	for i := 0; i < len(shifttests); i++ {
+ 		test := &shifttests[i];
+ 		s := NewDecimal(test.i).Shift(test.shift).String();
+diff --git a/src/pkg/syscall/exec.go b/src/pkg/syscall/exec.go
+index 91d8a3f8cc..1ba2f93bc9 100644
+--- a/src/pkg/syscall/exec.go
++++ b/src/pkg/syscall/exec.go
+@@ -228,7 +228,6 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 	(pid int, err int)
+ {
+ 	var p [2]int;
+-	var r1 int;
+ 	var n int;
+ 	var err1 uintptr;
+ 	var wstatus WaitStatus;
+@@ -254,11 +253,10 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 	if err = Pipe(&p); err != 0 {
+ 		goto error;
+ 	}
+-	var val int;
+-	if val, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
++	if _, err = fcntl(p[0], F_SETFD, FD_CLOEXEC); err != 0 {
+ 		goto error;
+ 	}
+-	if val, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
++	if _, err = fcntl(p[1], F_SETFD, FD_CLOEXEC); err != 0 {
+ 		goto error;
+ 	}
+ 
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 617efa4abf..435d7af4b5 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -116,7 +116,6 @@ func tRunner(t *T, test *Test) {
+ // of gotest.
+ func Main(tests []Test) {
+ 	flag.Parse();
+-	args := flag.Args();
+ 	ok := true;
+ 	if len(tests) == 0 {
+ 		println("testing: warning: no tests to run");
+diff --git a/src/pkg/time/tick.go b/src/pkg/time/tick.go
+index 81c3852203..47ee84fc7e 100644
+--- a/src/pkg/time/tick.go
++++ b/src/pkg/time/tick.go
+@@ -25,7 +25,6 @@ import (
+ //		}
+ 
+ func ticker(ns int64, c chan int64) {
+-	var tv syscall.Timeval;
+ 	now := Nanoseconds();
+ 	when := now;
+ 	for {
+@@ -44,6 +43,9 @@ func ticker(ns int64, c chan int64) {
+ 		Sleep(when - now);
+ 		now = Nanoseconds();
+ 		c <- now;
++		if closed(c) {
++			return;
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index a4717c445c..cd2cef4bdb 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -94,7 +94,6 @@ func parseinfo(bytes []byte) (zt []zonetime, ok bool) {
+ 	if p = d.read(16); len(p) != 16 || p[0] != 0 && p[0] != '2' {
+ 		return nil, false
+ 	}
+-	vers := p[0];
+ 
+ 	// six big-endian 32-bit integers:
+ 	//	number of UTC/local indicators
+@@ -213,12 +212,11 @@ func setupZone() {
+ 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
+ 
+ 	tz, err := os.Getenverror("TZ");
+-	var ok bool;
+ 	switch {
+ 	case err == os.ENOENV:
+-		zones, ok = readinfofile("/etc/localtime");
++		zones, _ = readinfofile("/etc/localtime");
+ 	case len(tz) > 0:
+-		zones, ok = readinfofile(zoneDir + tz);
++		zones, _ = readinfofile(zoneDir + tz);
+ 	case len(tz) == 0:
+ 		// do nothing: use UTC
+ 	}
+diff --git a/src/pkg/utf8/utf8.go b/src/pkg/utf8/utf8.go
+index 2604c55419..735bd8749d 100644
+--- a/src/pkg/utf8/utf8.go
++++ b/src/pkg/utf8/utf8.go
+@@ -199,15 +199,13 @@ func FullRuneInString(s string) bool {
+ 
+ // DecodeRune unpacks the first UTF-8 encoding in p and returns the rune and its width in bytes.
+ func DecodeRune(p []byte) (rune, size int) {
+-	var short bool;
+-	rune, size, short = decodeRuneInternal(p);
++	rune, size, _ = decodeRuneInternal(p);
+ 	return;
+ }
+ 
+ // DecodeRuneInString is like DecodeRune but its input is a string.
+ func DecodeRuneInString(s string) (rune, size int) {
+-	var short bool;
+-	rune, size, short = decodeRuneInStringInternal(s);
++	rune, size, _ = decodeRuneInStringInternal(s);
+ 	return;
+ }
+ 
+diff --git a/test/bench/k-nucleotide.go b/test/bench/k-nucleotide.go
+index 3206774296..c6ec3427f7 100644
+--- a/test/bench/k-nucleotide.go
++++ b/test/bench/k-nucleotide.go
+@@ -111,7 +111,6 @@ func print(m map[string] int) {
+ 
+ func main() {
+ 	in = bufio.NewReader(os.Stdin);
+-	buf := new(bytes.Buffer);
+ 	three := strings.Bytes(">THREE ");
+ 	for {
+ 		line, err := in.ReadSlice('\n');
+diff --git a/test/bench/regex-dna.go b/test/bench/regex-dna.go
+index ee4ddfd500..637cb14542 100644
+--- a/test/bench/regex-dna.go
++++ b/test/bench/regex-dna.go
+@@ -85,7 +85,6 @@ var substs = [] Subst {
+ func countMatches(pat string, bytes []byte) int {
+ 	re := compile(pat);
+ 	n := 0;
+-	pos := 0;
+ 	for {
+ 		e := re.Execute(bytes);
+ 		if len(e) == 0 {

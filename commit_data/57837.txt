@@ -14,7 +14,7 @@ Date:   Fri Jun 30 13:41:59 2023 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/511559
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/inline/inl.go             |   7 +-
  src/cmd/compile/internal/inline/inlheur/analyze.go |  20 +-
  .../inline/inlheur/analyze_func_returns.go         | 260 ++++++++++++++++
@@ -24,3 +24,955 @@ Date:   Fri Jun 30 13:41:59 2023 -0400
  .../compile/internal/inline/inlheur/trace_off.go   |   3 +
  .../compile/internal/inline/inlheur/trace_on.go    |  23 ++
  8 files changed, 659 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 9fae23ec59..4b7a141666 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -169,7 +169,7 @@ func InlinePackage(p *pgo.Profile) {
+ 	garbageCollectUnreferencedHiddenClosures()
+ 
+ 	if base.Debug.DumpInlFuncProps != "" {
+-		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
++		inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps, nil)
+ 	}
+ }
+ 
+@@ -293,7 +293,10 @@ func CanInline(fn *ir.Func, profile *pgo.Profile) {
+ 	}
+ 
+ 	if base.Debug.DumpInlFuncProps != "" {
+-		defer inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
++		inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps,
++			func(fn *ir.Func) {
++				CanInline(fn, profile)
++			})
+ 	}
+ 
+ 	var reason string // reason, if any, that the function was not inlined
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze.go b/src/cmd/compile/internal/inline/inlheur/analyze.go
+index 9ff94123af..2424858e48 100644
+--- a/src/cmd/compile/internal/inline/inlheur/analyze.go
++++ b/src/cmd/compile/internal/inline/inlheur/analyze.go
+@@ -19,6 +19,7 @@ import (
+ const (
+ 	debugTraceFuncs = 1 << iota
+ 	debugTraceFuncFlags
++	debugTraceResults
+ )
+ 
+ // propAnalyzer interface is used for defining one or more analyzer
+@@ -48,18 +49,21 @@ type fnInlHeur struct {
+ // computeFuncProps examines the Go function 'fn' and computes for it
+ // a function "properties" object, to be used to drive inlining
+ // heuristics. See comments on the FuncProps type for more info.
+-func computeFuncProps(fn *ir.Func) *FuncProps {
++func computeFuncProps(fn *ir.Func, canInline func(*ir.Func)) *FuncProps {
++	enableDebugTraceIfEnv()
+ 	if debugTrace&debugTraceFuncs != 0 {
+ 		fmt.Fprintf(os.Stderr, "=-= starting analysis of func %v:\n%+v\n",
+ 			fn.Sym().Name, fn)
+ 	}
++	ra := makeResultsAnalyzer(fn, canInline)
+ 	ffa := makeFuncFlagsAnalyzer(fn)
+-	analyzers := []propAnalyzer{ffa}
++	analyzers := []propAnalyzer{ffa, ra}
+ 	fp := new(FuncProps)
+ 	runAnalyzersOnFunction(fn, analyzers)
+ 	for _, a := range analyzers {
+ 		a.setResults(fp)
+ 	}
++	disableDebugTrace()
+ 	return fp
+ }
+ 
+@@ -83,13 +87,17 @@ func fnFileLine(fn *ir.Func) (string, uint) {
+ 	return filepath.Base(p.Filename()), p.Line()
+ }
+ 
++func UnitTesting() bool {
++	return base.Debug.DumpInlFuncProps != ""
++}
++
+ // DumpFuncProps computes and caches function properties for the func
+ // 'fn', or if fn is nil, writes out the cached set of properties to
+ // the file given in 'dumpfile'. Used for the "-d=dumpinlfuncprops=..."
+ // command line flag, intended for use primarily in unit testing.
+-func DumpFuncProps(fn *ir.Func, dumpfile string) {
++func DumpFuncProps(fn *ir.Func, dumpfile string, canInline func(*ir.Func)) {
+ 	if fn != nil {
+-		captureFuncDumpEntry(fn)
++		captureFuncDumpEntry(fn, canInline)
+ 	} else {
+ 		emitDumpToFile(dumpfile)
+ 	}
+@@ -132,7 +140,7 @@ func emitDumpToFile(dumpfile string) {
+ 
+ // captureFuncDumpEntry analyzes function 'fn' and adds a entry
+ // for it to 'dumpBuffer'. Used for unit testing.
+-func captureFuncDumpEntry(fn *ir.Func) {
++func captureFuncDumpEntry(fn *ir.Func, canInline func(*ir.Func)) {
+ 	// avoid capturing compiler-generated equality funcs.
+ 	if strings.HasPrefix(fn.Sym().Name, ".eq.") {
+ 		return
+@@ -145,7 +153,7 @@ func captureFuncDumpEntry(fn *ir.Func) {
+ 		// so don't add them more than once.
+ 		return
+ 	}
+-	fp := computeFuncProps(fn)
++	fp := computeFuncProps(fn, canInline)
+ 	file, line := fnFileLine(fn)
+ 	entry := fnInlHeur{
+ 		fname: fn.Sym().Name,
+diff --git a/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+new file mode 100644
+index 0000000000..ca91b2784e
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/analyze_func_returns.go
+@@ -0,0 +1,260 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package inlheur
++
++import (
++	"cmd/compile/internal/ir"
++	"fmt"
++	"go/constant"
++	"go/token"
++	"os"
++)
++
++// returnsAnalyzer stores state information for the process of
++// computing flags/properties for the return values of a specific Go
++// function, as part of inline heuristics synthesis.
++type returnsAnalyzer struct {
++	fname     string
++	props     []ResultPropBits
++	values    []resultVal
++	canInline func(*ir.Func)
++}
++
++// resultVal captures information about a specific result returned from
++// the function we're analyzing; we are interested in cases where
++// the func always returns the same constant, or always returns
++// the same function, etc. This container stores info on a the specific
++// scenarios we're looking for.
++type resultVal struct {
++	lit   constant.Value
++	fn    *ir.Name
++	fnClo bool
++	top   bool
++}
++
++func makeResultsAnalyzer(fn *ir.Func, canInline func(*ir.Func)) *returnsAnalyzer {
++	results := fn.Type().Results()
++	props := make([]ResultPropBits, len(results))
++	vals := make([]resultVal, len(results))
++	for i := range results {
++		rt := results[i].Type
++		if !rt.IsScalar() && !rt.HasNil() {
++			// existing properties not applicable here (for things
++			// like structs, arrays, slices, etc).
++			props[i] = ResultNoInfo
++			continue
++		}
++		// set the "top" flag (as in "top element of data flow lattice")
++		// meaning "we have no info yet, but we might later on".
++		vals[i].top = true
++	}
++	return &returnsAnalyzer{
++		props:     props,
++		values:    vals,
++		canInline: canInline,
++	}
++}
++
++// setResults transfers the calculated result properties for this
++// function to 'fp'.
++func (ra *returnsAnalyzer) setResults(fp *FuncProps) {
++	// Promote ResultAlwaysSameFunc to ResultAlwaysSameInlinableFunc
++	for i := range ra.values {
++		if ra.props[i] == ResultAlwaysSameFunc {
++			f := ra.values[i].fn.Func
++			// If the function being returns is a closure that hasn't
++			// yet been checked by CanInline, invoke it now. NB: this
++			// is hacky, it would be better if things were structured
++			// so that all closures were visited ahead of time.
++			if ra.values[i].fnClo {
++				if f != nil && !f.InlinabilityChecked() {
++					ra.canInline(f)
++				}
++			}
++			if f.Inl != nil {
++				ra.props[i] = ResultAlwaysSameInlinableFunc
++			}
++		}
++	}
++	fp.ResultFlags = ra.props
++}
++
++func (ra *returnsAnalyzer) pessimize() {
++	for i := range ra.props {
++		ra.props[i] = ResultNoInfo
++	}
++}
++
++func (ra *returnsAnalyzer) nodeVisitPre(n ir.Node) {
++}
++
++func (ra *returnsAnalyzer) nodeVisitPost(n ir.Node) {
++	if len(ra.values) == 0 {
++		return
++	}
++	if n.Op() != ir.ORETURN {
++		return
++	}
++	if debugTrace&debugTraceResults != 0 {
++		fmt.Fprintf(os.Stderr, "=+= returns nodevis %v %s\n",
++			ir.Line(n), n.Op().String())
++	}
++
++	// No support currently for named results, so if we see an empty
++	// "return" stmt, be conservative.
++	rs := n.(*ir.ReturnStmt)
++	if len(rs.Results) != len(ra.values) {
++		ra.pessimize()
++		return
++	}
++	for i, r := range rs.Results {
++		ra.analyzeResult(i, r)
++	}
++}
++
++// isFuncName returns the *ir.Name for the func or method
++// corresponding to node 'n', along with a boolean indicating success,
++// and another boolean indicating whether the func is closure.
++func isFuncName(n ir.Node) (*ir.Name, bool, bool) {
++	sv := ir.StaticValue(n)
++	if sv.Op() == ir.ONAME {
++		name := sv.(*ir.Name)
++		if name.Sym() != nil && name.Class == ir.PFUNC {
++			return name, true, false
++		}
++	}
++	if sv.Op() == ir.OCLOSURE {
++		cloex := sv.(*ir.ClosureExpr)
++		return cloex.Func.Nname, true, true
++	}
++	if sv.Op() == ir.OMETHEXPR {
++		if mn := ir.MethodExprName(sv); mn != nil {
++			return mn, true, false
++		}
++	}
++	return nil, false, false
++}
++
++// analyzeResult examines the expression 'n' being returned as the
++// 'ii'th argument in some return statement to see whether has
++// interesting characteristics (for example, returns a constant), then
++// applies a dataflow "meet" operation to combine this result with any
++// previous result (for the given return slot) that we've already
++// processed.
++func (ra *returnsAnalyzer) analyzeResult(ii int, n ir.Node) {
++	isAllocMem := isAllocatedMem(n)
++	isConcConvItf := isConcreteConvIface(n)
++	lit, isConst := isLiteral(n)
++	rfunc, isFunc, isClo := isFuncName(n)
++	curp := ra.props[ii]
++	newp := ResultNoInfo
++	var newlit constant.Value
++	var newfunc *ir.Name
++
++	if debugTrace&debugTraceResults != 0 {
++		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult n=%s ismem=%v isconcconv=%v isconst=%v isfunc=%v isclo=%v\n", ir.Line(n), n.Op().String(), isAllocMem, isConcConvItf, isConst, isFunc, isClo)
++	}
++
++	if ra.values[ii].top {
++		ra.values[ii].top = false
++		// this is the first return we've seen; record
++		// whatever properties it has.
++		switch {
++		case isAllocMem:
++			newp = ResultIsAllocatedMem
++		case isConcConvItf:
++			newp = ResultIsConcreteTypeConvertedToInterface
++		case isFunc:
++			newp = ResultAlwaysSameFunc
++			newfunc = rfunc
++		case isConst:
++			newp = ResultAlwaysSameConstant
++			newlit = lit
++		}
++	} else {
++		// this is not the first return we've seen; apply
++		// what amounts of a "meet" operator to combine
++		// the properties we see here with what we saw on
++		// the previous returns.
++		switch curp {
++		case ResultIsAllocatedMem:
++			if isAllocatedMem(n) {
++				newp = ResultIsAllocatedMem
++			}
++		case ResultIsConcreteTypeConvertedToInterface:
++			if isConcreteConvIface(n) {
++				newp = ResultIsConcreteTypeConvertedToInterface
++			}
++		case ResultAlwaysSameConstant:
++			if isConst && isSameLiteral(lit, ra.values[ii].lit) {
++				newp = ResultAlwaysSameConstant
++				newlit = lit
++			}
++		case ResultAlwaysSameFunc:
++			if isFunc && isSameFuncName(rfunc, ra.values[ii].fn) {
++				newp = ResultAlwaysSameFunc
++				newfunc = rfunc
++			}
++		}
++	}
++	ra.values[ii].fn = newfunc
++	ra.values[ii].fnClo = isClo
++	ra.values[ii].lit = newlit
++	ra.props[ii] = newp
++
++	if debugTrace&debugTraceResults != 0 {
++		fmt.Fprintf(os.Stderr, "=-= %v: analyzeResult newp=%s\n",
++			ir.Line(n), newp)
++	}
++
++}
++
++func isAllocatedMem(n ir.Node) bool {
++	sv := ir.StaticValue(n)
++	switch sv.Op() {
++	case ir.OMAKESLICE, ir.ONEW, ir.OPTRLIT, ir.OSLICELIT:
++		return true
++	}
++	return false
++}
++
++func isLiteral(n ir.Node) (constant.Value, bool) {
++	sv := ir.StaticValue(n)
++	if sv.Op() == ir.ONIL {
++		return nil, true
++	}
++	if sv.Op() != ir.OLITERAL {
++		return nil, false
++	}
++	ce := sv.(*ir.ConstExpr)
++	return ce.Val(), true
++}
++
++// isSameLiteral checks to see if 'v1' and 'v2' correspond to the same
++// literal value, or if they are both nil.
++func isSameLiteral(v1, v2 constant.Value) bool {
++	if v1 == nil && v2 == nil {
++		return true
++	}
++	if v1 == nil || v2 == nil {
++		return false
++	}
++	return constant.Compare(v1, token.EQL, v2)
++}
++
++func isConcreteConvIface(n ir.Node) bool {
++	sv := ir.StaticValue(n)
++	if sv.Op() != ir.OCONVIFACE {
++		return false
++	}
++	return !sv.(*ir.ConvExpr).X.Type().IsInterface()
++}
++
++func isSameFuncName(v1, v2 *ir.Name) bool {
++	// NB: there are a few corner cases where pointer equality
++	// doesn't work here, but this should be good enough for
++	// our purposes here.
++	return v1 == v2
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+index 4f19053d76..9bcd744af5 100644
+--- a/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/funcprops_test.go
+@@ -35,7 +35,7 @@ func TestFuncProperties(t *testing.T) {
+ 	// to building a fresh compiler on the fly, or using some other
+ 	// scheme.
+ 
+-	testcases := []string{"funcflags"}
++	testcases := []string{"funcflags", "returns"}
+ 
+ 	for _, tc := range testcases {
+ 		dumpfile, err := gatherPropsDumpForFile(t, tc, td)
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+index 947c9a1835..b64532f7bc 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/funcflags.go
+@@ -14,7 +14,7 @@ import "os"
+ // funcflags.go T_simple 19 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_simple() {
+ 	panic("bad")
+@@ -23,7 +23,7 @@ func T_simple() {
+ // funcflags.go T_nested 28 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_nested(x int) {
+ 	if x < 10 {
+@@ -36,7 +36,7 @@ func T_nested(x int) {
+ // funcflags.go T_block1 41 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_block1(x int) {
+ 	panic("bad")
+@@ -47,7 +47,7 @@ func T_block1(x int) {
+ 
+ // funcflags.go T_block2 52 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_block2(x int) {
+ 	if x < 10 {
+@@ -59,7 +59,7 @@ func T_block2(x int) {
+ // funcflags.go T_switches1 64 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_switches1(x int) {
+ 	switch x {
+@@ -73,7 +73,7 @@ func T_switches1(x int) {
+ 
+ // funcflags.go T_switches1a 78 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_switches1a(x int) {
+ 	switch x {
+@@ -84,7 +84,7 @@ func T_switches1a(x int) {
+ 
+ // funcflags.go T_switches2 89 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_switches2(x int) {
+ 	switch x {
+@@ -100,7 +100,7 @@ func T_switches2(x int) {
+ 
+ // funcflags.go T_switches3 105 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_switches3(x interface{}) {
+ 	switch x.(type) {
+@@ -114,7 +114,7 @@ func T_switches3(x interface{}) {
+ // funcflags.go T_switches4 119 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_switches4(x int) {
+ 	switch x {
+@@ -132,7 +132,7 @@ func T_switches4(x int) {
+ 
+ // funcflags.go T_recov 137 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_recov(x int) {
+ 	if x := recover(); x != nil {
+@@ -143,7 +143,7 @@ func T_recov(x int) {
+ // funcflags.go T_forloops1 148 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_forloops1(x int) {
+ 	for {
+@@ -153,7 +153,7 @@ func T_forloops1(x int) {
+ 
+ // funcflags.go T_forloops2 158 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_forloops2(x int) {
+ 	for {
+@@ -167,7 +167,7 @@ func T_forloops2(x int) {
+ 
+ // funcflags.go T_forloops3 172 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_forloops3(x int) {
+ 	for i := 0; i < 101; i++ {
+@@ -186,7 +186,7 @@ func T_forloops3(x int) {
+ 
+ // funcflags.go T_hasgotos 191 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_hasgotos(x int, y int) {
+ 	{
+@@ -213,7 +213,7 @@ func T_hasgotos(x int, y int) {
+ 
+ // funcflags.go T_break_with_label 218 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_break_with_label(x int, y int) {
+ 	// presence of break with label should pessimize this func
+@@ -232,7 +232,7 @@ lab1:
+ // funcflags.go T_callsexit 237 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_callsexit(x int) {
+ 	if x < 0 {
+@@ -243,7 +243,7 @@ func T_callsexit(x int) {
+ 
+ // funcflags.go T_exitinexpr 248 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_exitinexpr(x int) {
+ 	// This function does indeed unconditionally call exit, since the
+@@ -255,10 +255,10 @@ func T_exitinexpr(x int) {
+ 	}
+ }
+ 
+-// funcflags.go T_select_noreturn 263 0 1
++// funcflags.go T_select_noreturn 264 0 1
+ // Flags FuncPropNeverReturns
+ // <endpropsdump>
+-// {"Flags":1,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":1,"ParamFlags":null,"ResultFlags":[]}
+ // <endfuncpreamble>
+ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
+ 	rv := 0
+@@ -272,9 +272,9 @@ func T_select_noreturn(chi chan int, chf chan float32, p *int) {
+ 	panic("bad")
+ }
+ 
+-// funcflags.go T_select_mayreturn 279 0 1
++// funcflags.go T_select_mayreturn 281 0 1
+ // <endpropsdump>
+-// {"Flags":0,"ParamFlags":null,"ResultFlags":null}
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
+ // <endfuncpreamble>
+ func T_select_mayreturn(chi chan int, chf chan float32, p *int) int {
+ 	rv := 0
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+new file mode 100644
+index 0000000000..e8890385fd
+--- /dev/null
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/returns.go
+@@ -0,0 +1,332 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// DO NOT EDIT (use 'go test -v -update-expected' instead.)
++// See cmd/compile/internal/inline/inlheur/testdata/props/README.txt
++// for more information on the format of this file.
++// <endfilepreamble>
++
++package returns1
++
++import "unsafe"
++
++// returns.go T_simple_allocmem 20 0 1
++// ResultFlags
++//   0 ResultIsAllocatedMem
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[2]}
++// <endfuncpreamble>
++func T_simple_allocmem() *Bar {
++	return &Bar{}
++}
++
++// returns.go T_allocmem_two_returns 30 0 1
++// ResultFlags
++//   0 ResultIsAllocatedMem
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[2]}
++// <endfuncpreamble>
++func T_allocmem_two_returns(x int) *Bar {
++	// multiple returns
++	if x < 0 {
++		return new(Bar)
++	} else {
++		return &Bar{x: 2}
++	}
++}
++
++// returns.go T_allocmem_three_returns 45 0 1
++// ResultFlags
++//   0 ResultIsAllocatedMem
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[2]}
++// <endfuncpreamble>
++func T_allocmem_three_returns(x int) []*Bar {
++	// more multiple returns
++	switch x {
++	case 10, 11, 12:
++		return make([]*Bar, 10)
++	case 13:
++		fallthrough
++	case 15:
++		return []*Bar{&Bar{x: 15}}
++	}
++	return make([]*Bar, 0, 10)
++}
++
++// returns.go T_return_nil 64 0 1
++// ResultFlags
++//   0 ResultAlwaysSameConstant
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[8]}
++// <endfuncpreamble>
++func T_return_nil() *Bar {
++	// simple case: no alloc
++	return nil
++}
++
++// returns.go T_multi_return_nil 75 0 1
++// ResultFlags
++//   0 ResultAlwaysSameConstant
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[8]}
++// <endfuncpreamble>
++func T_multi_return_nil(x, y bool) *Bar {
++	if x && y {
++		return nil
++	}
++	return nil
++}
++
++// returns.go T_multi_return_nil_anomoly 88 0 1
++// ResultFlags
++//   0 ResultIsConcreteTypeConvertedToInterface
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[4]}
++// <endfuncpreamble>
++func T_multi_return_nil_anomoly(x, y bool) Itf {
++	if x && y {
++		var qnil *Q
++		return qnil
++	}
++	var barnil *Bar
++	return barnil
++}
++
++// returns.go T_multi_return_some_nil 101 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_multi_return_some_nil(x, y bool) *Bar {
++	if x && y {
++		return nil
++	} else {
++		return &GB
++	}
++}
++
++// returns.go T_mixed_returns 113 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_mixed_returns(x int) *Bar {
++	// mix of alloc and non-alloc
++	if x < 0 {
++		return new(Bar)
++	} else {
++		return &GB
++	}
++}
++
++// returns.go T_mixed_returns_slice 126 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_mixed_returns_slice(x int) []*Bar {
++	// mix of alloc and non-alloc
++	switch x {
++	case 10, 11, 12:
++		return make([]*Bar, 10)
++	case 13:
++		fallthrough
++	case 15:
++		return []*Bar{&Bar{x: 15}}
++	}
++	ba := [...]*Bar{&GB, &GB}
++	return ba[:]
++}
++
++// returns.go T_maps_and_channels 149 0 1
++// ResultFlags
++//   0 ResultNoInfo
++//   1 ResultNoInfo
++//   2 ResultNoInfo
++//   3 ResultAlwaysSameConstant
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0,0,0,8]}
++// <endfuncpreamble>
++func T_maps_and_channels(x int, b bool) (bool, map[int]int, chan bool, unsafe.Pointer) {
++	// maps and channels
++	return b, make(map[int]int), make(chan bool), nil
++}
++
++// returns.go T_assignment_to_named_returns 158 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0,0]}
++// <endfuncpreamble>
++func T_assignment_to_named_returns(x int) (r1 *uint64, r2 *uint64) {
++	// assignments to named returns and then "return" not supported
++	r1 = new(uint64)
++	if x < 1 {
++		*r1 = 2
++	}
++	r2 = new(uint64)
++	return
++}
++
++// returns.go T_named_returns_but_return_explicit_values 175 0 1
++// ResultFlags
++//   0 ResultIsAllocatedMem
++//   1 ResultIsAllocatedMem
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[2,2]}
++// <endfuncpreamble>
++func T_named_returns_but_return_explicit_values(x int) (r1 *uint64, r2 *uint64) {
++	// named returns ok if all returns are non-empty
++	rx1 := new(uint64)
++	if x < 1 {
++		*rx1 = 2
++	}
++	rx2 := new(uint64)
++	return rx1, rx2
++}
++
++// returns.go T_return_concrete_type_to_itf 191 0 1
++// ResultFlags
++//   0 ResultIsConcreteTypeConvertedToInterface
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[4]}
++// <endfuncpreamble>
++func T_return_concrete_type_to_itf(x, y int) Itf {
++	return &Bar{}
++}
++
++// returns.go T_return_concrete_type_to_itfwith_copy 201 0 1
++// ResultFlags
++//   0 ResultIsConcreteTypeConvertedToInterface
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[4]}
++// <endfuncpreamble>
++func T_return_concrete_type_to_itfwith_copy(x, y int) Itf {
++	b := &Bar{}
++	println("whee")
++	return b
++}
++
++// returns.go T_return_concrete_type_to_itf_mixed 211 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_return_concrete_type_to_itf_mixed(x, y int) Itf {
++	if x < y {
++		b := &Bar{}
++		return b
++	}
++	return nil
++}
++
++// returns.go T_return_same_func 225 0 1
++// ResultFlags
++//   0 ResultAlwaysSameInlinableFunc
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[32]}
++// <endfuncpreamble>
++func T_return_same_func() func(int) int {
++	if G < 10 {
++		return foo
++	} else {
++		return foo
++	}
++}
++
++// returns.go T_return_different_funcs 237 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_return_different_funcs() func(int) int {
++	if G != 10 {
++		return foo
++	} else {
++		return bar
++	}
++}
++
++// returns.go T_return_same_closure 255 0 1
++// ResultFlags
++//   0 ResultAlwaysSameInlinableFunc
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[32]}
++// <endfuncpreamble>
++// returns.go T_return_same_closure.func1 256 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++func T_return_same_closure() func(int) int {
++	p := func(q int) int { return q }
++	if G < 10 {
++		return p
++	} else {
++		return p
++	}
++}
++
++// returns.go T_return_different_closures 278 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++// returns.go T_return_different_closures.func1 279 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++// returns.go T_return_different_closures.func2 283 0 1
++// ResultFlags
++//   0 ResultAlwaysSameConstant
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[8]}
++// <endfuncpreamble>
++func T_return_different_closures() func(int) int {
++	p := func(q int) int { return q }
++	if G < 10 {
++		return p
++	} else {
++		return func(q int) int { return 101 }
++	}
++}
++
++// returns.go T_return_noninlinable 301 0 1
++// ResultFlags
++//   0 ResultAlwaysSameFunc
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[16]}
++// <endfuncpreamble>
++// returns.go T_return_noninlinable.func1 302 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[0]}
++// <endfuncpreamble>
++// returns.go T_return_noninlinable.func1.1 303 0 1
++// <endpropsdump>
++// {"Flags":0,"ParamFlags":null,"ResultFlags":[]}
++// <endfuncpreamble>
++func T_return_noninlinable(x int) func(int) int {
++	noti := func(q int) int {
++		defer func() {
++			println(q + x)
++		}()
++		return q
++	}
++	return noti
++}
++
++type Bar struct {
++	x int
++	y string
++}
++
++func (b *Bar) Plark() {
++}
++
++type Q int
++
++func (q *Q) Plark() {
++}
++
++func foo(x int) int { return x }
++func bar(x int) int { return -x }
++
++var G int
++var GB Bar
++
++type Itf interface {
++	Plark()
++}
+diff --git a/src/cmd/compile/internal/inline/inlheur/trace_off.go b/src/cmd/compile/internal/inline/inlheur/trace_off.go
+index 1e03770e01..9eea7fa369 100644
+--- a/src/cmd/compile/internal/inline/inlheur/trace_off.go
++++ b/src/cmd/compile/internal/inline/inlheur/trace_off.go
+@@ -11,5 +11,8 @@ const debugTrace = 0
+ func enableDebugTrace(x int) {
+ }
+ 
++func enableDebugTraceIfEnv() {
++}
++
+ func disableDebugTrace() {
+ }
+diff --git a/src/cmd/compile/internal/inline/inlheur/trace_on.go b/src/cmd/compile/internal/inline/inlheur/trace_on.go
+index 7164b60a10..160842905f 100644
+--- a/src/cmd/compile/internal/inline/inlheur/trace_on.go
++++ b/src/cmd/compile/internal/inline/inlheur/trace_on.go
+@@ -6,12 +6,35 @@
+ 
+ package inlheur
+ 
++import (
++	"os"
++	"strconv"
++)
++
+ var debugTrace = 0
+ 
+ func enableDebugTrace(x int) {
+ 	debugTrace = x
+ }
+ 
++func enableDebugTraceIfEnv() {
++	v := os.Getenv("DEBUG_TRACE_INLHEUR")
++	if v == "" {
++		return
++	}
++	if v[0] == '*' {
++		if !UnitTesting() {
++			return
++		}
++		v = v[1:]
++	}
++	i, err := strconv.Atoi(v)
++	if err != nil {
++		return
++	}
++	debugTrace = i
++}
++
+ func disableDebugTrace() {
+ 	debugTrace = 0
+ }

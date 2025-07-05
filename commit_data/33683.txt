@@ -11,9 +11,238 @@ Date:   Mon Aug 28 13:02:58 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 32 ++++++++++++++++----------------
  src/cmd/compile/internal/gc/dcl.go     | 14 ++++++++++++--
  src/cmd/compile/internal/gc/export.go  | 13 +++++++------
  src/cmd/compile/internal/gc/main.go    |  2 +-
  4 files changed, 36 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index c066dea960..661d34112b 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -326,29 +326,29 @@ func idealType(typ *types.Type) *types.Type {
+ func (p *importer) obj(tag int) {
+ 	switch tag {
+ 	case constTag:
+-		p.pos()
++		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+ 		val := p.value(typ)
+-		importconst(p.imp, sym, idealType(typ), nodlit(val))
++		importconst(p.imp, sym, idealType(typ), npos(pos, nodlit(val)))
+ 
+ 	case aliasTag:
+-		p.pos()
++		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importalias(p.imp, sym, typ)
++		importalias(pos, p.imp, sym, typ)
+ 
+ 	case typeTag:
+ 		p.typ()
+ 
+ 	case varTag:
+-		p.pos()
++		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		typ := p.typ()
+-		importvar(p.imp, sym, typ)
++		importvar(pos, p.imp, sym, typ)
+ 
+ 	case funcTag:
+-		p.pos()
++		pos := p.pos()
+ 		sym := p.qualifiedName()
+ 		params := p.paramList()
+ 		result := p.paramList()
+@@ -364,7 +364,7 @@ func (p *importer) obj(tag int) {
+ 			break
+ 		}
+ 
+-		n := newfuncname(sym)
++		n := newfuncnamel(pos, sym)
+ 		n.Type = sig
+ 		declare(n, PFUNC)
+ 		p.funcList = append(p.funcList, n)
+@@ -479,10 +479,10 @@ func (p *importer) typ() *types.Type {
+ 	var t *types.Type
+ 	switch i {
+ 	case namedTag:
+-		p.pos()
++		pos := p.pos()
+ 		tsym := p.qualifiedName()
+ 
+-		t = pkgtype(p.imp, tsym)
++		t = pkgtype(pos, p.imp, tsym)
+ 		p.typList = append(p.typList, t)
+ 		dup := !t.IsKind(types.TFORW) // type already imported
+ 
+@@ -502,7 +502,7 @@ func (p *importer) typ() *types.Type {
+ 
+ 		// read associated methods
+ 		for i := p.int(); i > 0; i-- {
+-			p.pos()
++			mpos := p.pos()
+ 			sym := p.fieldSym()
+ 
+ 			// during import unexported method names should be in the type's package
+@@ -525,7 +525,7 @@ func (p *importer) typ() *types.Type {
+ 				continue
+ 			}
+ 
+-			n := newfuncname(methodname(sym, recv[0].Type))
++			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
+ 			n.Type = mt
+ 			checkwidth(n.Type)
+ 			p.funcList = append(p.funcList, n)
+@@ -626,7 +626,7 @@ func (p *importer) fieldList() (fields []*types.Field) {
+ }
+ 
+ func (p *importer) field() *types.Field {
+-	p.pos()
++	pos := p.pos()
+ 	sym, alias := p.fieldName()
+ 	typ := p.typ()
+ 	note := p.string()
+@@ -646,7 +646,7 @@ func (p *importer) field() *types.Field {
+ 	}
+ 
+ 	f.Sym = sym
+-	f.Nname = asTypesNode(newname(sym))
++	f.Nname = asTypesNode(newnamel(pos, sym))
+ 	f.Type = typ
+ 	f.Note = note
+ 
+@@ -670,14 +670,14 @@ func (p *importer) methodList() (methods []*types.Field) {
+ }
+ 
+ func (p *importer) method() *types.Field {
+-	p.pos()
++	pos := p.pos()
+ 	sym := p.methodName()
+ 	params := p.paramList()
+ 	result := p.paramList()
+ 
+ 	f := types.NewField()
+ 	f.Sym = sym
+-	f.Nname = asTypesNode(newname(sym))
++	f.Nname = asTypesNode(newnamel(pos, sym))
+ 	f.Type = functypefield(fakeRecvField(), params, result)
+ 	return f
+ }
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 3da38e7edd..6ffc3475d2 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -212,7 +212,13 @@ func newnoname(s *types.Sym) *Node {
+ // newfuncname generates a new name node for a function or method.
+ // TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
+ func newfuncname(s *types.Sym) *Node {
+-	n := newname(s)
++	return newfuncnamel(lineno, s)
++}
++
++// newfuncnamel generates a new name node for a function or method.
++// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
++func newfuncnamel(pos src.XPos, s *types.Sym) *Node {
++	n := newnamel(pos, s)
+ 	n.Func = new(Func)
+ 	n.Func.SetIsHiddenClosure(Curfn != nil)
+ 	return n
+@@ -227,11 +233,15 @@ func dclname(s *types.Sym) *Node {
+ }
+ 
+ func typenod(t *types.Type) *Node {
++	return typenodl(lineno, t)
++}
++
++func typenodl(pos src.XPos, t *types.Type) *Node {
+ 	// if we copied another type with *t = *u
+ 	// then t->nod might be out of date, so
+ 	// check t->nod->type too
+ 	if asNode(t.Nod) == nil || asNode(t.Nod).Type != t {
+-		t.Nod = asTypesNode(nod(OTYPE, nil, nil))
++		t.Nod = asTypesNode(nodl(pos, OTYPE, nil, nil))
+ 		asNode(t.Nod).Type = t
+ 		asNode(t.Nod).Sym = t.Sym
+ 	}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index a92a41c5ce..7ca79ba9c7 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/bio"
++	"cmd/internal/src"
+ 	"fmt"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -280,12 +281,12 @@ func importsym(pkg *types.Pkg, s *types.Sym, op Op) {
+ // pkgtype returns the named type declared by symbol s.
+ // If no such type has been declared yet, a forward declaration is returned.
+ // pkg is the package being imported
+-func pkgtype(pkg *types.Pkg, s *types.Sym) *types.Type {
++func pkgtype(pos src.XPos, pkg *types.Pkg, s *types.Sym) *types.Type {
+ 	importsym(pkg, s, OTYPE)
+ 	if asNode(s.Def) == nil || asNode(s.Def).Op != OTYPE {
+ 		t := types.New(TFORW)
+ 		t.Sym = s
+-		s.Def = asTypesNode(typenod(t))
++		s.Def = asTypesNode(typenodl(pos, t))
+ 		asNode(s.Def).Name = new(Name)
+ 	}
+ 
+@@ -326,7 +327,7 @@ func importconst(pkg *types.Pkg, s *types.Sym, t *types.Type, n *Node) {
+ 
+ // importvar declares symbol s as an imported variable with type t.
+ // pkg is the package being imported
+-func importvar(pkg *types.Pkg, s *types.Sym, t *types.Type) {
++func importvar(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ 	importsym(pkg, s, ONAME)
+ 	if asNode(s.Def) != nil && asNode(s.Def).Op == ONAME {
+ 		if eqtype(t, asNode(s.Def).Type) {
+@@ -335,7 +336,7 @@ func importvar(pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ 		yyerror("inconsistent definition for var %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
+ 	}
+ 
+-	n := newname(s)
++	n := newnamel(pos, s)
+ 	s.Importdef = pkg
+ 	n.Type = t
+ 	declare(n, PEXTERN)
+@@ -347,7 +348,7 @@ func importvar(pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ 
+ // importalias declares symbol s as an imported type alias with type t.
+ // pkg is the package being imported
+-func importalias(pkg *types.Pkg, s *types.Sym, t *types.Type) {
++func importalias(pos src.XPos, pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ 	importsym(pkg, s, OTYPE)
+ 	if asNode(s.Def) != nil && asNode(s.Def).Op == OTYPE {
+ 		if eqtype(t, asNode(s.Def).Type) {
+@@ -356,7 +357,7 @@ func importalias(pkg *types.Pkg, s *types.Sym, t *types.Type) {
+ 		yyerror("inconsistent definition for type alias %v during import\n\t%v (in %q)\n\t%v (in %q)", s, asNode(s.Def).Type, s.Importdef.Path, t, pkg.Path)
+ 	}
+ 
+-	n := newname(s)
++	n := newnamel(pos, s)
+ 	n.Op = OTYPE
+ 	s.Importdef = pkg
+ 	n.Type = t
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 6d5c15bd85..6b23d7b076 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -874,7 +874,7 @@ func loadsys() {
+ 			n.Type = typ
+ 			declare(n, PFUNC)
+ 		case varTag:
+-			importvar(Runtimepkg, sym, typ)
++			importvar(lineno, Runtimepkg, sym, typ)
+ 		default:
+ 			Fatalf("unhandled declaration tag %v", d.tag)
+ 		}

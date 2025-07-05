@@ -15,6 +15,24 @@ Date:   Tue May 25 19:19:08 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 07d8b6e532..7d680304c9 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -228,10 +228,8 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config
+ 		c.registers = registersARM64[:]
+ 		c.gpRegMask = gpRegMaskARM64
+ 		c.fpRegMask = fpRegMaskARM64
+-		// XXX commented out for now. Uncomment it will enable register args for
+-		// go:registerparams functions, which isn't fully working, so tests fail.
+-		//c.intParamRegs = paramIntRegARM64
+-		//c.floatParamRegs = paramFloatRegARM64
++		c.intParamRegs = paramIntRegARM64
++		c.floatParamRegs = paramFloatRegARM64
+ 		c.FPReg = framepointerRegARM64
+ 		c.LinkReg = linkRegARM64
+ 		c.hasGReg = true

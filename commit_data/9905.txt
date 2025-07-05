@@ -9,7 +9,53 @@ Date:   Fri Oct 7 12:45:19 2011 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/5236042
-
+---
  src/cmd/godoc/godoc.go | 6 +++---
  src/cmd/godoc/main.go  | 3 +++
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index e348a0d45b..8238dbb304 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -811,7 +811,7 @@ const fakePkgName = "documentation"
+ 
+ // Fake relative package path for built-ins. Documentation for all globals
+ // (not just exported ones) will be shown for packages in this directory.
+-const builtinPkgPath = "builtin/"
++const builtinPkgPath = "builtin"
+ 
+ type PageInfoMode uint
+ 
+@@ -1094,7 +1094,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	relpath := r.URL.Path[len(h.pattern):]
++	relpath := path.Clean(r.URL.Path[len(h.pattern):])
+ 	abspath := absolutePath(relpath, h.fsRoot)
+ 	mode := getPageInfoMode(r)
+ 	if relpath == builtinPkgPath {
+@@ -1123,7 +1123,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 			title = "Package " + info.PDoc.PackageName
+ 		case info.PDoc.PackageName == fakePkgName:
+ 			// assume that the directory name is the command name
+-			_, pkgname := path.Split(path.Clean(relpath))
++			_, pkgname := path.Split(relpath)
+ 			title = "Command " + pkgname
+ 		default:
+ 			title = "Command " + info.PDoc.PackageName
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 77f4946da9..d05e03e0b3 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -387,6 +387,9 @@ func main() {
+ 	}
+ 
+ 	var mode PageInfoMode
++	if relpath == builtinPkgPath {
++		mode = noFiltering
++	}
+ 	if *srcMode {
+ 		// only filter exports if we don't have explicit command-line filter arguments
+ 		if flag.NArg() > 1 {

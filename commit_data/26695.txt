@@ -12,8 +12,76 @@ Date:   Sat Feb 13 17:37:19 2016 -0600
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  5 +++++
  src/cmd/compile/internal/ssa/rewrite.go        |  9 +++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 20 ++++++++++++++++++++
  3 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index f83634c394..4d43105557 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -388,6 +388,11 @@
+ (EqSlice x y)  -> (EqPtr  (SlicePtr x) (SlicePtr y))
+ (NeqSlice x y) -> (NeqPtr (SlicePtr x) (SlicePtr y))
+ 
++
++// Load of store of same address, with compatibly typed value and same size
++(Load <t1> p1 (Store [w] p2 x _)) && isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size() -> x
++
++
+ // indexing operations
+ // Note: bounds check has already been done
+ (ArrayIndex (Load ptr mem) idx) && b == v.Args[0].Block -> (Load (PtrIndex <v.Type.PtrTo()> ptr idx) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index a580945702..4197b0da88 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -202,6 +202,15 @@ func uaddOvf(a, b int64) bool {
+ 	return uint64(a)+uint64(b) < uint64(a)
+ }
+ 
++// isSamePtr reports whether p1 and p2 point to the same address.
++func isSamePtr(p1, p2 *Value) bool {
++	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
++	// Addr, but this still works as the values will be null/0
++	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
++		p1.Aux == p2.Aux && p1.AuxInt == p2.AuxInt &&
++		p1.Args[0] == p2.Args[0]
++}
++
+ // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,
+ // See runtime/mkduff.go.
+ const (
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index ae36112a50..7916c6d8f4 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2901,6 +2901,26 @@ func rewriteValuegeneric_OpLess8U(v *Value, config *Config) bool {
+ func rewriteValuegeneric_OpLoad(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
++	// match: (Load <t1> p1 (Store [w] p2 x _))
++	// cond: isSamePtr(p1,p2) && t1.Compare(x.Type)==CMPeq && w == t1.Size()
++	// result: x
++	for {
++		t1 := v.Type
++		p1 := v.Args[0]
++		if v.Args[1].Op != OpStore {
++			break
++		}
++		w := v.Args[1].AuxInt
++		p2 := v.Args[1].Args[0]
++		x := v.Args[1].Args[1]
++		if !(isSamePtr(p1, p2) && t1.Compare(x.Type) == CMPeq && w == t1.Size()) {
++			break
++		}
++		v.reset(OpCopy)
++		v.Type = x.Type
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (Load <t> _ _)
+ 	// cond: t.IsStruct() && t.NumFields() == 0 && config.fe.CanSSA(t)
+ 	// result: (StructMake0)

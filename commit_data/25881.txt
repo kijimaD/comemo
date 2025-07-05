@@ -15,7 +15,173 @@ Date:   Tue Nov 17 23:24:36 2015 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/asn1/asn1.go      | 38 ++++++++++++++++++++++++++++++-----
  src/encoding/asn1/asn1_test.go | 45 +++++++++++++++++++++++++++---------------
  2 files changed, 62 insertions(+), 21 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index f836963fb7..98b137f40b 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -71,9 +71,28 @@ func parseBool(bytes []byte) (ret bool, err error) {
+ 
+ // INTEGER
+ 
++// checkInteger returns nil if the given bytes are a valid DER-encoded
++// INTEGER and an error otherwise.
++func checkInteger(bytes []byte) error {
++	if len(bytes) == 0 {
++		return StructuralError{"empty integer"}
++	}
++	if len(bytes) == 1 {
++		return nil
++	}
++	if (bytes[0] == 0 && bytes[1]&0x80 == 0) || (bytes[0] == 0xff && bytes[1]&0x80 == 0x80) {
++		return StructuralError{"integer not minimally-encoded"}
++	}
++	return nil
++}
++
+ // parseInt64 treats the given bytes as a big-endian, signed integer and
+ // returns the result.
+ func parseInt64(bytes []byte) (ret int64, err error) {
++	err = checkInteger(bytes)
++	if err != nil {
++		return
++	}
+ 	if len(bytes) > 8 {
+ 		// We'll overflow an int64 in this case.
+ 		err = StructuralError{"integer too large"}
+@@ -93,6 +112,9 @@ func parseInt64(bytes []byte) (ret int64, err error) {
+ // parseInt treats the given bytes as a big-endian, signed integer and returns
+ // the result.
+ func parseInt32(bytes []byte) (int32, error) {
++	if err := checkInteger(bytes); err != nil {
++		return 0, err
++	}
+ 	ret64, err := parseInt64(bytes)
+ 	if err != nil {
+ 		return 0, err
+@@ -107,7 +129,10 @@ var bigOne = big.NewInt(1)
+ 
+ // parseBigInt treats the given bytes as a big-endian, signed integer and returns
+ // the result.
+-func parseBigInt(bytes []byte) *big.Int {
++func parseBigInt(bytes []byte) (*big.Int, error) {
++	if err := checkInteger(bytes); err != nil {
++		return nil, err
++	}
+ 	ret := new(big.Int)
+ 	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 {
+ 		// This is a negative number.
+@@ -118,10 +143,10 @@ func parseBigInt(bytes []byte) *big.Int {
+ 		ret.SetBytes(notBytes)
+ 		ret.Add(ret, bigOne)
+ 		ret.Neg(ret)
+-		return ret
++		return ret, nil
+ 	}
+ 	ret.SetBytes(bytes)
+-	return ret
++	return ret, nil
+ }
+ 
+ // BIT STRING
+@@ -777,8 +802,11 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		v.SetBool(true)
+ 		return
+ 	case bigIntType:
+-		parsedInt := parseBigInt(innerBytes)
+-		v.Set(reflect.ValueOf(parsedInt))
++		parsedInt, err1 := parseBigInt(innerBytes)
++		if err1 == nil {
++			v.Set(reflect.ValueOf(parsedInt))
++		}
++		err = err1
+ 		return
+ 	}
+ 	switch val := v; val.Kind() {
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 0c53442492..7ba968dbac 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -53,10 +53,12 @@ var int64TestData = []int64Test{
+ 	{[]byte{0x01, 0x00}, true, 256},
+ 	{[]byte{0x80}, true, -128},
+ 	{[]byte{0xff, 0x7f}, true, -129},
+-	{[]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, true, -1},
+ 	{[]byte{0xff}, true, -1},
+ 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, true, -9223372036854775808},
+ 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, false, 0},
++	{[]byte{}, false, 0},
++	{[]byte{0x00, 0x7f}, false, 0},
++	{[]byte{0xff, 0xf0}, false, 0},
+ }
+ 
+ func TestParseInt64(t *testing.T) {
+@@ -84,10 +86,12 @@ var int32TestData = []int32Test{
+ 	{[]byte{0x01, 0x00}, true, 256},
+ 	{[]byte{0x80}, true, -128},
+ 	{[]byte{0xff, 0x7f}, true, -129},
+-	{[]byte{0xff, 0xff, 0xff, 0xff}, true, -1},
+ 	{[]byte{0xff}, true, -1},
+ 	{[]byte{0x80, 0x00, 0x00, 0x00}, true, -2147483648},
+ 	{[]byte{0x80, 0x00, 0x00, 0x00, 0x00}, false, 0},
++	{[]byte{}, false, 0},
++	{[]byte{0x00, 0x7f}, false, 0},
++	{[]byte{0xff, 0xf0}, false, 0},
+ }
+ 
+ func TestParseInt32(t *testing.T) {
+@@ -104,27 +108,36 @@ func TestParseInt32(t *testing.T) {
+ 
+ var bigIntTests = []struct {
+ 	in     []byte
++	ok     bool
+ 	base10 string
+ }{
+-	{[]byte{0xff}, "-1"},
+-	{[]byte{0x00}, "0"},
+-	{[]byte{0x01}, "1"},
+-	{[]byte{0x00, 0xff}, "255"},
+-	{[]byte{0xff, 0x00}, "-256"},
+-	{[]byte{0x01, 0x00}, "256"},
++	{[]byte{0xff}, true, "-1"},
++	{[]byte{0x00}, true, "0"},
++	{[]byte{0x01}, true, "1"},
++	{[]byte{0x00, 0xff}, true, "255"},
++	{[]byte{0xff, 0x00}, true, "-256"},
++	{[]byte{0x01, 0x00}, true, "256"},
++	{[]byte{}, false, ""},
++	{[]byte{0x00, 0x7f}, false, ""},
++	{[]byte{0xff, 0xf0}, false, ""},
+ }
+ 
+ func TestParseBigInt(t *testing.T) {
+ 	for i, test := range bigIntTests {
+-		ret := parseBigInt(test.in)
+-		if ret.String() != test.base10 {
+-			t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
++		ret, err := parseBigInt(test.in)
++		if (err == nil) != test.ok {
++			t.Errorf("#%d: Incorrect error result (did fail? %v, expected: %v)", i, err == nil, test.ok)
+ 		}
+-		fw := newForkableWriter()
+-		marshalBigInt(fw, ret)
+-		result := fw.Bytes()
+-		if !bytes.Equal(result, test.in) {
+-			t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
++		if test.ok {
++			if ret.String() != test.base10 {
++				t.Errorf("#%d: bad result from %x, got %s want %s", i, test.in, ret.String(), test.base10)
++			}
++			fw := newForkableWriter()
++			marshalBigInt(fw, ret)
++			result := fw.Bytes()
++			if !bytes.Equal(result, test.in) {
++				t.Errorf("#%d: got %x from marshaling %s, want %x", i, result, ret, test.in)
++			}
+ 		}
+ 	}
+ }

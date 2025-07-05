@@ -20,7 +20,7 @@ Date:   Mon Aug 16 21:37:10 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1943045
-
+---
  src/pkg/go/printer/printer.go                  | 109 +++++++++++++------------
  src/pkg/go/printer/testdata/expressions.golden |   2 +
  src/pkg/go/printer/testdata/expressions.input  |   2 +
@@ -28,3 +28,424 @@ Date:   Mon Aug 16 21:37:10 2010 -0700
  src/pkg/tabwriter/tabwriter.go                 |  42 ++++++----
  src/pkg/tabwriter/tabwriter_test.go            |  59 +++++++++----
  6 files changed, 134 insertions(+), 82 deletions(-)
+
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index c6138a11e6..f1873d92dd 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -395,7 +395,6 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, isFirst, isKeywor
+ 
+ func (p *printer) writeCommentLine(comment *ast.Comment, pos token.Position, line []byte) {
+ 	// line must pass through unchanged, bracket it with tabwriter.Escape
+-	esc := []byte{tabwriter.Escape}
+ 	line = bytes.Join([][]byte{esc, line, esc}, nil)
+ 
+ 	// apply styler, if any
+@@ -859,14 +858,25 @@ func (p *printer) flush(next token.Position, tok token.Token) (droppedFF bool) {
+ // A trimmer is an io.Writer filter for stripping tabwriter.Escape
+ // characters, trailing blanks and tabs, and for converting formfeed
+ // and vtab characters into newlines and htabs (in case no tabwriter
+-// is used).
++// is used). Text bracketed by tabwriter.Escape characters is passed
++// through unchanged.
+ //
+ type trimmer struct {
+ 	output io.Writer
+-	buf    bytes.Buffer
++	space  bytes.Buffer
++	state  int
+ }
+ 
+ 
++// trimmer is implemented as a state machine.
++// It can be in one of the following states:
++const (
++	inSpace = iota
++	inEscape
++	inText
++)
++
++
+ // Design note: It is tempting to eliminate extra blanks occuring in
+ //              whitespace in this function as it could simplify some
+ //              of the blanks logic in the node printing functions.
+@@ -874,66 +884,59 @@ type trimmer struct {
+ //              the tabwriter.
+ 
+ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+-	// m < 0: no unwritten data except for whitespace
+-	// m >= 0: data[m:n] unwritten and no whitespace
+-	m := 0
+-	if p.buf.Len() > 0 {
+-		m = -1
+-	}
+-
++	m := 0 // if p.state != inSpace, data[m:n] is unwritten
+ 	var b byte
+ 	for n, b = range data {
+-		switch b {
+-		default:
+-			// write any pending whitespace
+-			if m < 0 {
+-				if _, err = p.output.Write(p.buf.Bytes()); err != nil {
+-					return
+-				}
+-				p.buf.Reset()
+-				m = n
+-			}
+-
+-		case '\v':
++		if b == '\v' {
+ 			b = '\t' // convert to htab
+-			fallthrough
+-
+-		case '\t', ' ', tabwriter.Escape:
+-			// write any pending (non-whitespace) data
+-			if m >= 0 {
+-				if _, err = p.output.Write(data[m:n]); err != nil {
+-					return
+-				}
+-				m = -1
+-			}
+-			// collect whitespace but discard tabwriter.Escapes.
+-			if b != tabwriter.Escape {
+-				p.buf.WriteByte(b) // WriteByte returns no errors
++		}
++		switch p.state {
++		case inSpace:
++			switch b {
++			case '\t', ' ':
++				p.space.WriteByte(b) // WriteByte returns no errors
++			case '\f', '\n':
++				p.space.Reset()                        // discard trailing space
++				_, err = p.output.Write(newlines[0:1]) // write newline
++			case tabwriter.Escape:
++				_, err = p.output.Write(p.space.Bytes())
++				p.space.Reset()
++				p.state = inEscape
++				m = n + 1 // drop tabwriter.Escape
++			default:
++				_, err = p.output.Write(p.space.Bytes())
++				p.space.Reset()
++				p.state = inText
++				m = n
+ 			}
+-
+-		case '\f', '\n':
+-			// discard whitespace
+-			p.buf.Reset()
+-			// write any pending (non-whitespace) data
+-			if m >= 0 {
+-				if _, err = p.output.Write(data[m:n]); err != nil {
+-					return
+-				}
+-				m = -1
++		case inEscape:
++			if b == tabwriter.Escape {
++				_, err = p.output.Write(data[m:n])
++				p.state = inSpace
+ 			}
+-			// convert formfeed into newline
+-			if _, err = p.output.Write(newlines[0:1]); err != nil {
+-				return
++		case inText:
++			switch b {
++			case '\t', ' ':
++				_, err = p.output.Write(data[m:n])
++				p.state = inSpace
++				p.space.WriteByte(b) // WriteByte returns no errors
++			case '\f':
++				data[n] = '\n' // convert to newline
++			case tabwriter.Escape:
++				_, err = p.output.Write(data[m:n])
++				p.state = inEscape
++				m = n + 1 // drop tabwriter.Escape
+ 			}
+ 		}
++		if err != nil {
++			return
++		}
+ 	}
+ 	n = len(data)
+ 
+-	// write any pending non-whitespace
+-	if m >= 0 {
+-		if _, err = p.output.Write(data[m:n]); err != nil {
+-			return
+-		}
++	if p.state != inSpace {
++		_, err = p.output.Write(data[m:n])
++		p.state = inSpace
+ 	}
+ 
+ 	return
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index 3315f9b0e1..44f3a63ff4 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -199,6 +199,8 @@ func _() {
+ `
+ 	_ = `foo
+ 		bar`
++	_ = `three spaces before the end of the line starting here:   
++they must not be removed`
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index e4f12af4cd..5aec976e13 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -195,6 +195,8 @@ func _() {
+ `
+ _ = `foo
+ 		bar`
++	_ = `three spaces before the end of the line starting here:   
++they must not be removed`
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 07b649aff7..7580701b68 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -199,6 +199,8 @@ func _() {
+ `
+ 	_ = `foo
+ 		bar`
++	_ = `three spaces before the end of the line starting here:   
++they must not be removed`
+ }
+ 
+ 
+diff --git a/src/pkg/tabwriter/tabwriter.go b/src/pkg/tabwriter/tabwriter.go
+index de774c7d13..7c17d33990 100644
+--- a/src/pkg/tabwriter/tabwriter.go
++++ b/src/pkg/tabwriter/tabwriter.go
+@@ -34,9 +34,8 @@ type cell struct {
+ }
+ 
+ 
+-// A Writer is a filter that inserts padding around
+-// tab-delimited columns in its input to align them
+-// in the output.
++// A Writer is a filter that inserts padding around tab-delimited
++// columns in its input to align them in the output.
+ //
+ // The Writer treats incoming bytes as UTF-8 encoded text consisting
+ // of cells terminated by (horizontal or vertical) tabs or line
+@@ -48,24 +47,27 @@ type cell struct {
+ // Note that cells are tab-terminated, not tab-separated: trailing
+ // non-tab text at the end of a line does not form a column cell.
+ //
++// The Writer assumes that all Unicode code points have the same width;
++// this may not be true in some fonts.
++//
+ // If DiscardEmptyColumns is set, empty columns that are terminated
+ // entirely by vertical (or "soft") tabs are discarded. Columns
+ // terminated by horizontal (or "hard") tabs are not affected by
+ // this flag.
+ //
+-// A segment of text may be escaped by bracketing it with Escape
+-// characters. The tabwriter strips the Escape characters but otherwise
+-// passes escaped text segments through unchanged. In particular, it
+-// does not interpret any tabs or line breaks within the segment.
+-//
+-// The Writer assumes that all characters have the same width;
+-// this may not be true in some fonts, especially with certain
+-// UTF-8 characters.
+-//
+ // If a Writer is configured to filter HTML, HTML tags and entities
+ // are simply passed through. The widths of tags and entities are
+ // assumed to be zero (tags) and one (entities) for formatting purposes.
+ //
++// A segment of text may be escaped by bracketing it with Escape
++// characters. The tabwriter passes escaped text segments through
++// unchanged. In particular, it does not interpret any tabs or line
++// breaks within the segment. If the StripEscape flag is set, the
++// Escape characters are stripped from the output; otherwise they
++// are passed through as well. For the purpose of formatting, the
++// width of the escaped text is always computed excluding the Escape
++// characters.
++//
+ // The formfeed character ('\f') acts like a newline but it also
+ // terminates all columns in the current line (effectively calling
+ // Flush). Cells in the next line start new columns. Unless found
+@@ -143,6 +145,10 @@ const (
+ 	// and ending in ';') as single characters (width = 1).
+ 	FilterHTML uint = 1 << iota
+ 
++	// Strip Escape characters bracketing escaped text segments
++	// instead of passing them through unchanged with the text.
++	StripEscape
++
+ 	// Force right-alignment of cell content.
+ 	// Default is left-alignment.
+ 	AlignRight
+@@ -441,6 +447,9 @@ func (b *Writer) endEscape() {
+ 	switch b.endChar {
+ 	case Escape:
+ 		b.updateWidth()
++		if b.flags&StripEscape == 0 {
++			b.cell.width -= 2 // don't count the Escape chars
++		}
+ 	case '>': // tag of zero width
+ 	case ';':
+ 		b.cell.width++ // entity, count as one rune
+@@ -538,7 +547,10 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 				// start of escaped sequence
+ 				b.append(buf[n:i])
+ 				b.updateWidth()
+-				n = i + 1 // exclude Escape
++				n = i
++				if b.flags&StripEscape != 0 {
++					n++ // strip Escape
++				}
+ 				b.startEscape(Escape)
+ 
+ 			case '<', '&':
+@@ -557,8 +569,8 @@ func (b *Writer) Write(buf []byte) (n int, err os.Error) {
+ 			if ch == b.endChar {
+ 				// end of tag/entity
+ 				j := i + 1
+-				if ch == Escape {
+-					j = i // exclude Escape
++				if ch == Escape && b.flags&StripEscape != 0 {
++					j = i // strip Escape
+ 				}
+ 				b.append(buf[n:j])
+ 				n = i + 1 // ch consumed
+diff --git a/src/pkg/tabwriter/tabwriter_test.go b/src/pkg/tabwriter/tabwriter_test.go
+index 1cad625303..b842bd0451 100644
+--- a/src/pkg/tabwriter/tabwriter_test.go
++++ b/src/pkg/tabwriter/tabwriter_test.go
+@@ -43,10 +43,10 @@ func (b *buffer) String() string { return string(b.a) }
+ func write(t *testing.T, testname string, w *Writer, src string) {
+ 	written, err := io.WriteString(w, src)
+ 	if err != nil {
+-		t.Errorf("--- test: %s\n--- src:\n%s\n--- write error: %v\n", testname, src, err)
++		t.Errorf("--- test: %s\n--- src:\n%q\n--- write error: %v\n", testname, src, err)
+ 	}
+ 	if written != len(src) {
+-		t.Errorf("--- test: %s\n--- src:\n%s\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
++		t.Errorf("--- test: %s\n--- src:\n%q\n--- written = %d, len(src) = %d\n", testname, src, written, len(src))
+ 	}
+ }
+ 
+@@ -54,12 +54,12 @@ func write(t *testing.T, testname string, w *Writer, src string) {
+ func verify(t *testing.T, testname string, w *Writer, b *buffer, src, expected string) {
+ 	err := w.Flush()
+ 	if err != nil {
+-		t.Errorf("--- test: %s\n--- src:\n%s\n--- flush error: %v\n", testname, src, err)
++		t.Errorf("--- test: %s\n--- src:\n%q\n--- flush error: %v\n", testname, src, err)
+ 	}
+ 
+ 	res := b.String()
+ 	if res != expected {
+-		t.Errorf("--- test: %s\n--- src:\n%s\n--- found:\n%s\n--- expected:\n%s\n", testname, src, res, expected)
++		t.Errorf("--- test: %s\n--- src:\n%q\n--- found:\n%q\n--- expected:\n%q\n", testname, src, res, expected)
+ 	}
+ }
+ 
+@@ -72,27 +72,30 @@ func check(t *testing.T, testname string, minwidth, tabwidth, padding int, padch
+ 	w.Init(&b, minwidth, tabwidth, padding, padchar, flags)
+ 
+ 	// write all at once
++	title := testname + " (written all at once)"
+ 	b.clear()
+-	write(t, testname, &w, src)
+-	verify(t, testname, &w, &b, src, expected)
++	write(t, title, &w, src)
++	verify(t, title, &w, &b, src, expected)
+ 
+ 	// write byte-by-byte
++	title = testname + " (written byte-by-byte)"
+ 	b.clear()
+ 	for i := 0; i < len(src); i++ {
+-		write(t, testname, &w, src[i:i+1])
++		write(t, title, &w, src[i:i+1])
+ 	}
+-	verify(t, testname, &w, &b, src, expected)
++	verify(t, title, &w, &b, src, expected)
+ 
+ 	// write using Fibonacci slice sizes
++	title = testname + " (written in fibonacci slices)"
+ 	b.clear()
+ 	for i, d := 0, 0; i < len(src); {
+-		write(t, testname, &w, src[i:i+d])
++		write(t, title, &w, src[i:i+d])
+ 		i, d = i+d, d+1
+ 		if i+d > len(src) {
+ 			d = len(src) - i
+ 		}
+ 	}
+-	verify(t, testname, &w, &b, src, expected)
++	verify(t, title, &w, &b, src, expected)
+ }
+ 
+ 
+@@ -120,32 +123,60 @@ var tests = []entry{
+ 		"",
+ 	},
+ 
++	entry{
++		"1b esc stripped",
++		8, 0, 1, '.', StripEscape,
++		"\xff\xff",
++		"",
++	},
++
+ 	entry{
+ 		"1b esc",
+ 		8, 0, 1, '.', 0,
+ 		"\xff\xff",
+-		"",
++		"\xff\xff",
++	},
++
++	entry{
++		"1c esc stripped",
++		8, 0, 1, '.', StripEscape,
++		"\xff\t\xff",
++		"\t",
+ 	},
+ 
+ 	entry{
+ 		"1c esc",
+ 		8, 0, 1, '.', 0,
+ 		"\xff\t\xff",
+-		"\t",
++		"\xff\t\xff",
++	},
++
++	entry{
++		"1d esc stripped",
++		8, 0, 1, '.', StripEscape,
++		"\xff\"foo\t\n\tbar\"\xff",
++		"\"foo\t\n\tbar\"",
+ 	},
+ 
+ 	entry{
+ 		"1d esc",
+ 		8, 0, 1, '.', 0,
+ 		"\xff\"foo\t\n\tbar\"\xff",
+-		"\"foo\t\n\tbar\"",
++		"\xff\"foo\t\n\tbar\"\xff",
++	},
++
++	entry{
++		"1e esc stripped",
++		8, 0, 1, '.', StripEscape,
++		"abc\xff\tdef", // unterminated escape
++		"abc\tdef",
+ 	},
+ 
+ 	entry{
+ 		"1e esc",
+ 		8, 0, 1, '.', 0,
+ 		"abc\xff\tdef", // unterminated escape
+-		"abc\tdef",
++		"abc\xff\tdef",
+ 	},
+ 
+ 	entry{

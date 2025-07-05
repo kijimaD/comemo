@@ -8,7 +8,7 @@ Date:   Tue Dec 15 21:24:17 2009 -0800
     
     R=rsc
     https://golang.org/cl/166059
-
+---
  AUTHORS             |  1 +
  CONTRIBUTORS        |  1 +
  src/cmd/cgo/ast.go  | 10 ++++---
@@ -16,3 +16,211 @@ Date:   Tue Dec 15 21:24:17 2009 -0800
  src/cmd/cgo/main.go |  9 ++++++
  src/cmd/cgo/out.go  |  5 ++++
  6 files changed, 77 insertions(+), 29 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 421683155b..7b17b2dd9c 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -35,6 +35,7 @@ Kei Son <hey.calmdown@gmail.com>
+ Kevin Ballard <kevin@sb.org>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+ Roger Peppe <rogpeppe@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 24950031e4..71dd22e180 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -69,6 +69,7 @@ Larry Hosken <lahosken@golang.org>
+ Maxim Ushakov <ushakov@google.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nigel Tao <nigeltao@golang.org>
+ Peter Froehlich <peter.hans.froehlich@gmail.com>
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index b309c33d46..301516c43a 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -35,16 +35,18 @@ type Prog struct {
+ 	Typedef     map[string]ast.Expr
+ 	Vardef      map[string]*Type
+ 	Funcdef     map[string]*FuncType
++	Enumdef     map[string]int64
+ 	PtrSize     int64
+ 	GccOptions  []string
+ }
+ 
+ // A Type collects information about a type in both the C and Go worlds.
+ type Type struct {
+-	Size  int64
+-	Align int64
+-	C     string
+-	Go    ast.Expr
++	Size       int64
++	Align      int64
++	C          string
++	Go         ast.Expr
++	EnumValues map[string]int64
+ }
+ 
+ // A FuncType collects information about a function type in both the C and Go worlds.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c42cb73003..07bfa8ab65 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -120,6 +120,7 @@ func (p *Prog) loadDebugInfo() {
+ 
+ 	// Scan DWARF info for top-level TagVariable entries with AttrName __cgo__i.
+ 	types := make([]dwarf.Type, len(names))
++	enums := make([]dwarf.Offset, len(names))
+ 	r := d.Reader()
+ 	for {
+ 		e, err := r.Next()
+@@ -129,32 +130,56 @@ func (p *Prog) loadDebugInfo() {
+ 		if e == nil {
+ 			break
+ 		}
+-		if e.Tag != dwarf.TagVariable {
+-			goto Continue
+-		}
+-		name, _ := e.Val(dwarf.AttrName).(string)
+-		typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
+-		if name == "" || typOff == 0 {
+-			fatal("malformed DWARF TagVariable entry")
+-		}
+-		if !strings.HasPrefix(name, "__cgo__") {
+-			goto Continue
+-		}
+-		typ, err := d.Type(typOff)
+-		if err != nil {
+-			fatal("loading DWARF type: %s", err)
+-		}
+-		t, ok := typ.(*dwarf.PtrType)
+-		if !ok || t == nil {
+-			fatal("internal error: %s has non-pointer type", name)
+-		}
+-		i, err := strconv.Atoi(name[7:])
+-		if err != nil {
+-			fatal("malformed __cgo__ name: %s", name)
++		switch e.Tag {
++		case dwarf.TagEnumerationType:
++			offset := e.Offset
++			for {
++				e, err := r.Next()
++				if err != nil {
++					fatal("reading DWARF entry: %s", err)
++				}
++				if e.Tag == 0 {
++					break
++				}
++				if e.Tag == dwarf.TagEnumerator {
++					entryName := e.Val(dwarf.AttrName).(string)
++					i, ok := m[entryName]
++					if ok {
++						enums[i] = offset
++					}
++				}
++			}
++		case dwarf.TagVariable:
++			name, _ := e.Val(dwarf.AttrName).(string)
++			typOff, _ := e.Val(dwarf.AttrType).(dwarf.Offset)
++			if name == "" || typOff == 0 {
++				fatal("malformed DWARF TagVariable entry")
++			}
++			if !strings.HasPrefix(name, "__cgo__") {
++				break
++			}
++			typ, err := d.Type(typOff)
++			if err != nil {
++				fatal("loading DWARF type: %s", err)
++			}
++			t, ok := typ.(*dwarf.PtrType)
++			if !ok || t == nil {
++				fatal("internal error: %s has non-pointer type", name)
++			}
++			i, err := strconv.Atoi(name[7:])
++			if err != nil {
++				fatal("malformed __cgo__ name: %s", name)
++			}
++			if enums[i] != 0 {
++				t, err := d.Type(enums[i])
++				if err != nil {
++					fatal("loading DWARF type: %s", err)
++				}
++				types[i] = t
++			} else {
++				types[i] = t.Type
++			}
+ 		}
+-		types[i] = t.Type
+-
+-	Continue:
+ 		if e.Tag != dwarf.TagCompileUnit {
+ 			r.SkipChildren()
+ 		}
+@@ -315,6 +340,7 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 	t.Size = dtype.Size()
+ 	t.Align = -1
+ 	t.C = dtype.Common().Name
++	t.EnumValues = nil
+ 	c.m[dtype] = t
+ 	if t.Size < 0 {
+ 		// Unsized types are [0]byte
+@@ -376,6 +402,10 @@ func (c *typeConv) Type(dtype dwarf.Type) *Type {
+ 			t.Align = c.ptrSize
+ 		}
+ 		t.C = "enum " + dt.EnumName
++		t.EnumValues = make(map[string]int64)
++		for _, ev := range dt.Val {
++			t.EnumValues[ev.Name] = ev.Val
++		}
+ 
+ 	case *dwarf.FloatType:
+ 		switch t.Size {
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 373df3ba25..5aa17397bd 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -71,6 +71,7 @@ func main() {
+ 	p.loadDebugInfo()
+ 	p.Vardef = make(map[string]*Type)
+ 	p.Funcdef = make(map[string]*FuncType)
++	p.Enumdef = make(map[string]int64)
+ 
+ 	for _, cref := range p.Crefs {
+ 		switch cref.Context {
+@@ -86,6 +87,14 @@ func main() {
+ 			if cref.TypeName {
+ 				error((*cref.Expr).Pos(), "type C.%s used as expression", cref.Name)
+ 			}
++			// If the expression refers to an enumerated value, then
++			// place the identifier for the value and add it to Enumdef so
++			// it will be declared as a constant in the later stage.
++			if cref.Type.EnumValues != nil {
++				*cref.Expr = &ast.Ident{Value: cref.Name}
++				p.Enumdef[cref.Name] = cref.Type.EnumValues[cref.Name]
++				break
++			}
+ 			// Reference to C variable.
+ 			// We declare a pointer and arrange to have it filled in.
+ 			*cref.Expr = &ast.StarExpr{X: &ast.Ident{Value: "_C_" + cref.Name}}
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 9c85bc5985..2b42edbe09 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -69,6 +69,11 @@ func (p *Prog) writeOutput(srcfile string) {
+ 	}
+ 	fmt.Fprintf(fc, "\n")
+ 
++	for name, value := range p.Enumdef {
++		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
++	}
++	fmt.Fprintf(fgo2, "\n")
++
+ 	for name, def := range p.Funcdef {
+ 		// Go func declaration.
+ 		d := &ast.FuncDecl{

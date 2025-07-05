@@ -7,6 +7,36 @@ Date:   Wed Aug 5 16:06:39 2015 -0700
     Change-Id: I2667b0923e17df7cbf08e34ebec1b69a0f2f02b2
     Reviewed-on: https://go-review.googlesource.com/13265
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b63b662126..5c56b370bd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2398,8 +2398,14 @@ func regMoveAMD64(width int64) int {
+ // regnum returns the register (in cmd/internal/obj numbering) to
+ // which v has been allocated.  Panics if v is not assigned to a
+ // register.
++// TODO: Make this panic again once it stops happening routinely.
+ func regnum(v *ssa.Value) int16 {
+-	return ssaRegToReg[v.Block.Func.RegAlloc[v.ID].(*ssa.Register).Num]
++	reg := v.Block.Func.RegAlloc[v.ID]
++	if reg == nil {
++		v.Unimplementedf("nil regnum for value: %s\n%s\n", v.LongString(), v.Block.Func)
++		return 0
++	}
++	return ssaRegToReg[reg.(*ssa.Register).Num]
+ }
+ 
+ // localOffset returns the offset below the frame pointer where
+@@ -2410,7 +2416,7 @@ func localOffset(v *ssa.Value) int64 {
+ 	reg := v.Block.Func.RegAlloc[v.ID]
+ 	slot, ok := reg.(*ssa.LocalSlot)
+ 	if !ok {
+-		v.Unimplementedf("localOffset of non-LocalSlot value: %s", v.LongString())
++		v.Unimplementedf("localOffset of non-LocalSlot value: %s\n%s\n", v.LongString(), v.Block.Func)
+ 		return 0
+ 	}
+ 	return slot.Idx

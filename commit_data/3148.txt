@@ -8,7 +8,82 @@ Date:   Mon Aug 31 10:55:24 2009 -0700
     DELTA=12  (2 added, 0 deleted, 10 changed)
     OCL=34098
     CL=34120
-
+---
  src/pkg/runtime/386/traceback.c   | 11 ++++++-----
  src/pkg/runtime/amd64/traceback.c | 11 ++++++-----
  2 files changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/runtime/386/traceback.c b/src/pkg/runtime/386/traceback.c
+index c143ede3dc..2f5c5e80be 100644
+--- a/src/pkg/runtime/386/traceback.c
++++ b/src/pkg/runtime/386/traceback.c
+@@ -11,7 +11,7 @@ void
+ traceback(byte *pc0, byte *sp, G *g)
+ {
+ 	Stktop *stk;
+-	uintptr pc;
++	uintptr pc, tracepc;
+ 	int32 i, n;
+ 	Func *f;
+ 	byte *p;
+@@ -34,10 +34,11 @@ traceback(byte *pc0, byte *sp, G *g)
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+ 		}
+-                p = (byte*)pc;
++		p = (byte*)pc;
++		tracepc = pc;
+ 		if(n > 0 && pc != (uint64)goexit)
+-			pc--;	// get to CALL instruction
+-		f = findfunc(pc);
++			tracepc--;	// get to CALL instruction
++		f = findfunc(tracepc);
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+ 			// ADDL $xxx, SP; RET
+@@ -62,7 +63,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		printf(" %S:%d\n", f->src, funcline(f, pc));
++		printf(" %S:%d\n", f->src, funcline(f, tracepc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index f8820c523f..40e84f5cbf 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -8,7 +8,7 @@ void
+ traceback(byte *pc0, byte *sp, G *g)
+ {
+ 	Stktop *stk;
+-	uint64 pc;
++	uint64 pc, tracepc;
+ 	int32 i, n;
+ 	Func *f;
+ 	byte *p;
+@@ -31,10 +31,11 @@ traceback(byte *pc0, byte *sp, G *g)
+ 			sp = stk->gobuf.sp;
+ 			stk = (Stktop*)stk->stackbase;
+ 		}
+-                p = (byte*)pc;
++		p = (byte*)pc;
++		tracepc = pc;	// used for line number, function
+ 		if(n > 0 && pc != (uint64)goexit)
+-			pc--;	// get to CALL instruction
+-		f = findfunc(pc);
++			tracepc--;	// get to CALL instruction
++		f = findfunc(tracepc);
+ 		if(f == nil) {
+ 			// dangerous, but poke around to see if it is a closure
+ 			// ADDQ $xxx, SP; RET
+@@ -59,7 +60,7 @@ traceback(byte *pc0, byte *sp, G *g)
+ 		printf("%S", f->name);
+ 		if(pc > f->entry)
+ 			printf("+%p", (uintptr)(pc - f->entry));
+-		printf(" %S:%d\n", f->src, funcline(f, pc));
++		printf(" %S:%d\n", f->src, funcline(f, tracepc));
+ 		printf("\t%S(", f->name);
+ 		for(i = 0; i < f->args; i++) {
+ 			if(i != 0)

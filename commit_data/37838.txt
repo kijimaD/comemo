@@ -9,6 +9,44 @@ Date:   Fri Aug 31 10:11:22 2018 -0700
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Reviewed-by: Kevin Burke <kev@inburke.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/fmt/example_test.go | 19 +++++++++++++++++++
  1 file changed, 19 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index 1d2cc0d757..9b72d7a383 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -7,6 +7,7 @@ package fmt_test
+ import (
+ 	"fmt"
+ 	"os"
++	"strings"
+ )
+ 
+ // The Errorf function lets us use formatting features
+@@ -18,6 +19,24 @@ func ExampleErrorf() {
+ 	// Output: user "bueller" (id 17) not found
+ }
+ 
++func ExampleFscanf() {
++	var (
++		i int
++		b bool
++		s string
++	)
++	r := strings.NewReader("5 true gophers")
++	n, err := fmt.Fscanf(r, "%d %t %s", &i, &b, &s)
++	if err != nil {
++		panic(err)
++	}
++	fmt.Println(i, b, s)
++	fmt.Println(n)
++	// Output:
++	// 5 true gophers
++	// 3
++}
++
+ func ExampleSprintf() {
+ 	i := 30
+ 	s := "Aug"

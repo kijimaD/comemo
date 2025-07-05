@@ -11,7 +11,94 @@ Date:   Wed Dec 12 15:46:20 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/fmt/fmt_test.go | 14 +++++++-------
  src/fmt/print.go    | 12 +++++++-----
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 1907268c74..068c2620a8 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1683,18 +1683,18 @@ var panictests = []struct {
+ }{
+ 	// String
+ 	{"%s", (*PanicS)(nil), "<nil>"}, // nil pointer special case
+-	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+-	{"%s", PanicS{3}, "%!s(PANIC=3)"},
++	{"%s", PanicS{io.ErrUnexpectedEOF}, "%!s(PANIC=String method: unexpected EOF)"},
++	{"%s", PanicS{3}, "%!s(PANIC=String method: 3)"},
+ 	// GoString
+ 	{"%#v", (*PanicGo)(nil), "<nil>"}, // nil pointer special case
+-	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=unexpected EOF)"},
+-	{"%#v", PanicGo{3}, "%!v(PANIC=3)"},
++	{"%#v", PanicGo{io.ErrUnexpectedEOF}, "%!v(PANIC=GoString method: unexpected EOF)"},
++	{"%#v", PanicGo{3}, "%!v(PANIC=GoString method: 3)"},
+ 	// Issue 18282. catchPanic should not clear fmtFlags permanently.
+-	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=3), %!v(PANIC=3)}"},
++	{"%#v", []interface{}{PanicGo{3}, PanicGo{3}}, "[]interface {}{%!v(PANIC=GoString method: 3), %!v(PANIC=GoString method: 3)}"},
+ 	// Format
+ 	{"%s", (*PanicF)(nil), "<nil>"}, // nil pointer special case
+-	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=unexpected EOF)"},
+-	{"%s", PanicF{3}, "%!s(PANIC=3)"},
++	{"%s", PanicF{io.ErrUnexpectedEOF}, "%!s(PANIC=Format method: unexpected EOF)"},
++	{"%s", PanicF{3}, "%!s(PANIC=Format method: 3)"},
+ }
+ 
+ func TestPanics(t *testing.T) {
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 5df34a25e5..42fcd8b979 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -538,7 +538,7 @@ func (p *pp) fmtPointer(value reflect.Value, verb rune) {
+ 	}
+ }
+ 
+-func (p *pp) catchPanic(arg interface{}, verb rune) {
++func (p *pp) catchPanic(arg interface{}, verb rune, method string) {
+ 	if err := recover(); err != nil {
+ 		// If it's a nil pointer, just say "<nil>". The likeliest causes are a
+ 		// Stringer that fails to guard against nil or a nil pointer for a
+@@ -561,6 +561,8 @@ func (p *pp) catchPanic(arg interface{}, verb rune) {
+ 		p.buf.WriteString(percentBangString)
+ 		p.buf.WriteRune(verb)
+ 		p.buf.WriteString(panicString)
++		p.buf.WriteString(method)
++		p.buf.WriteString(" method: ")
+ 		p.panicking = true
+ 		p.printArg(err, 'v')
+ 		p.panicking = false
+@@ -577,7 +579,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 	// Is it a Formatter?
+ 	if formatter, ok := p.arg.(Formatter); ok {
+ 		handled = true
+-		defer p.catchPanic(p.arg, verb)
++		defer p.catchPanic(p.arg, verb, "Format")
+ 		formatter.Format(p, verb)
+ 		return
+ 	}
+@@ -586,7 +588,7 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 	if p.fmt.sharpV {
+ 		if stringer, ok := p.arg.(GoStringer); ok {
+ 			handled = true
+-			defer p.catchPanic(p.arg, verb)
++			defer p.catchPanic(p.arg, verb, "GoString")
+ 			// Print the result of GoString unadorned.
+ 			p.fmt.fmtS(stringer.GoString())
+ 			return
+@@ -604,13 +606,13 @@ func (p *pp) handleMethods(verb rune) (handled bool) {
+ 			switch v := p.arg.(type) {
+ 			case error:
+ 				handled = true
+-				defer p.catchPanic(p.arg, verb)
++				defer p.catchPanic(p.arg, verb, "Error")
+ 				p.fmtString(v.Error(), verb)
+ 				return
+ 
+ 			case Stringer:
+ 				handled = true
+-				defer p.catchPanic(p.arg, verb)
++				defer p.catchPanic(p.arg, verb, "String")
+ 				p.fmtString(v.String(), verb)
+ 				return
+ 			}

@@ -7,7 +7,88 @@ Date:   Wed Nov 2 09:42:25 2011 +1100
     R=andybalholm
     CC=golang-dev, mikesamuel
     https://golang.org/cl/5331056
-
+---
  src/pkg/html/parse_test.go | 20 ++++++++++++++------
  src/pkg/html/render.go     | 31 +++++++++++++++++++++----------
  2 files changed, 35 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index caf3c92bc7..067eb26d04 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -160,14 +160,10 @@ func TestParser(t *testing.T) {
+ 				t.Errorf("%s test #%d %q, got vs want:\n----\n%s----\n%s----", filename, i, text, got, want)
+ 				continue
+ 			}
+-			// Check that rendering and re-parsing results in an identical tree.
+-			if filename == "tests1.dat" && (i == 30 || i == 77) {
+-				// Some tests in tests1.dat have such messed-up markup that a correct parse
+-				// results in a non-conforming tree (one <a> element nested inside another).
+-				// Therefore when it is rendered and re-parsed, it isn't the same.
+-				// So we skip rendering on that test.
++			if renderTestBlacklist[text] {
+ 				continue
+ 			}
++			// Check that rendering and re-parsing results in an identical tree.
+ 			pr, pw := io.Pipe()
+ 			go func() {
+ 				pw.CloseWithError(Render(pw, doc))
+@@ -187,3 +183,15 @@ func TestParser(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// Some test input result in parse trees are not 'well-formed' despite
++// following the HTML5 recovery algorithms. Rendering and re-parsing such a
++// tree will not result in an exact clone of that tree. We blacklist such
++// inputs from the render test.
++var renderTestBlacklist = map[string]bool{
++	// The second <a> will be reparented to the first <table>'s parent. This
++	// results in an <a> whose parent is an <a>, which is not 'well-formed'.
++	`<a><table><td><a><table></table><a></tr><a></table><b>X</b>C<a>Y`: true,
++	// The second <a> will be reparented, similar to the case above.
++	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
++}
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index d5dc448433..0522b6ef92 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -19,17 +19,28 @@ type writer interface {
+ 
+ // Render renders the parse tree n to the given writer.
+ //
+-// For 'well-formed' parse trees, calling Parse on the output of Render will
+-// result in a clone of the original tree.
++// Rendering is done on a 'best effort' basis: calling Parse on the output of
++// Render will always result in something similar to the original tree, but it
++// is not necessarily an exact clone unless the original tree was 'well-formed'.
++// 'Well-formed' is not easily specified; the HTML5 specification is
++// complicated.
+ //
+-// 'Well-formed' is not formally specified, but calling Parse on arbitrary
+-// input results in a 'well-formed' parse tree if Parse does not return an
+-// error. Programmatically constructed trees are typically also 'well-formed',
+-// but it is possible to construct a tree that, when rendered and re-parsed,
+-// results in a different tree. A simple example is that a solitary text node
+-// would become a tree containing <html>, <head> and <body> elements. Another
+-// example is that the programmatic equivalent of "a<head>b</head>c" becomes
+-// "<html><head><head/><body>abc</body></html>".
++// Calling Parse on arbitrary input typically results in a 'well-formed' parse
++// tree. However, it is possible for Parse to yield a 'badly-formed' parse tree.
++// For example, in a 'well-formed' parse tree, no <a> element is a child of
++// another <a> element: parsing "<a><a>" results in two sibling elements.
++// Similarly, in a 'well-formed' parse tree, no <a> element is a child of a
++// <table> element: parsing "<p><table><a>" results in a <p> with two sibling
++// children; the <a> is reparented to the <table>'s parent. However, calling
++// Parse on "<a><table><a>" does not return an error, but the result has an <a>
++// element with an <a> child, and is therefore not 'well-formed'.
++// 
++// Programmatically constructed trees are typically also 'well-formed', but it
++// is possible to construct a tree that looks innocuous but, when rendered and
++// re-parsed, results in a different tree. A simple example is that a solitary
++// text node would become a tree containing <html>, <head> and <body> elements.
++// Another example is that the programmatic equivalent of "a<head>b</head>c"
++// becomes "<html><head><head/><body>abc</body></html>".
+ func Render(w io.Writer, n *Node) os.Error {
+ 	if x, ok := w.(writer); ok {
+ 		return render(x, n)

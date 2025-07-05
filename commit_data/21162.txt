@@ -11,7 +11,7 @@ Date:   Fri Nov 21 19:39:01 2014 +0100
     R=rsc, lucio.dere, aram, ality
     CC=golang-codereviews, mischief
     https://golang.org/cl/175370043
-
+---
  src/runtime/defs_plan9_386.go                    |   2 +
  src/runtime/defs_plan9_amd64.go                  |   2 +
  src/runtime/env_plan9.go                         |   3 +
@@ -31,3 +31,1869 @@ Date:   Fri Nov 21 19:39:01 2014 +0100
  src/runtime/stubs2.go                            |   1 +
  src/runtime/stubs3.go                            |  12 +
  18 files changed, 756 insertions(+), 923 deletions(-)
+
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+index 170506b230..212ecdf14a 100644
+--- a/src/runtime/defs_plan9_386.go
++++ b/src/runtime/defs_plan9_386.go
+@@ -1,5 +1,7 @@
+ package runtime
+ 
++const _PAGESIZE = 0x1000
++
+ type ureg struct {
+ 	di    uint32 /* general registers */
+ 	si    uint32 /* ... */
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+index 17becfb66f..510da0e994 100644
+--- a/src/runtime/defs_plan9_amd64.go
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -1,5 +1,7 @@
+ package runtime
+ 
++const _PAGESIZE = 0x1000
++
+ type ureg struct {
+ 	ax  uint64
+ 	bx  uint64
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index e442c34835..ec50cac484 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -54,3 +54,6 @@ func gogetenv(key string) string {
+ 	sp.len = int(r)
+ 	return s
+ }
++
++var _cgo_setenv unsafe.Pointer   // pointer to C function
++var _cgo_unsetenv unsafe.Pointer // pointer to C function
+diff --git a/src/runtime/mem_plan9.c b/src/runtime/mem_plan9.c
+deleted file mode 100644
+index d673d6f830..0000000000
+--- a/src/runtime/mem_plan9.c
++++ /dev/null
+@@ -1,121 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "os_GOOS.h"
+-#include "textflag.h"
+-
+-extern byte runtime·end[];
+-#pragma dataflag NOPTR
+-static byte *bloc = { runtime·end };
+-static Mutex memlock;
+-
+-enum
+-{
+-	Round = PAGESIZE-1
+-};
+-
+-static void*
+-brk(uintptr nbytes)
+-{
+-	uintptr bl;
+-
+-	runtime·lock(&memlock);
+-	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
+-	bl = ((uintptr)bloc + Round) & ~Round;
+-	if(runtime·brk_((void*)(bl + nbytes)) < 0) {
+-		runtime·unlock(&memlock);
+-		return nil;
+-	}
+-	bloc = (byte*)bl + nbytes;
+-	runtime·unlock(&memlock);
+-	return (void*)bl;	
+-}
+-
+-static void
+-sysalloc(void)
+-{
+-	uintptr nbytes;
+-	uint64 *stat;
+-	void *p;
+-
+-	nbytes = g->m->scalararg[0];
+-	stat = g->m->ptrarg[0];
+-	g->m->scalararg[0] = 0;
+-	g->m->ptrarg[0] = nil;
+-
+-	p = brk(nbytes);
+-	if(p != nil)
+-		runtime·xadd64(stat, nbytes);
+-
+-	g->m->ptrarg[0] = p;
+-}
+-
+-#pragma textflag NOSPLIT
+-void*
+-runtime·sysAlloc(uintptr nbytes, uint64 *stat)
+-{
+-	void (*fn)(void);
+-	void *p;
+-
+-	g->m->scalararg[0] = nbytes;
+-	g->m->ptrarg[0] = stat;
+-	fn = sysalloc;
+-	runtime·onM(&fn);
+-	p = g->m->ptrarg[0];
+-	g->m->ptrarg[0] = nil;
+-	return p;
+-}
+-
+-void
+-runtime·SysFree(void *v, uintptr nbytes, uint64 *stat)
+-{
+-	runtime·xadd64(stat, -(uint64)nbytes);
+-	runtime·lock(&memlock);
+-	// from tiny/mem.c
+-	// Push pointer back if this is a free
+-	// of the most recent sysAlloc.
+-	nbytes += (nbytes + Round) & ~Round;
+-	if(bloc == (byte*)v+nbytes)
+-		bloc -= nbytes;
+-	runtime·unlock(&memlock);
+-}
+-
+-void
+-runtime·SysUnused(void *v, uintptr nbytes)
+-{
+-	USED(v, nbytes);
+-}
+-
+-void
+-runtime·SysUsed(void *v, uintptr nbytes)
+-{
+-	USED(v, nbytes);
+-}
+-
+-void
+-runtime·SysMap(void *v, uintptr nbytes, bool reserved, uint64 *stat)
+-{
+-	// SysReserve has already allocated all heap memory,
+-	// but has not adjusted stats.
+-	USED(v, reserved);
+-	runtime·xadd64(stat, nbytes);
+-}
+-
+-void
+-runtime·SysFault(void *v, uintptr nbytes)
+-{
+-	USED(v, nbytes);
+-}
+-
+-void*
+-runtime·SysReserve(void *v, uintptr nbytes, bool *reserved)
+-{
+-	USED(v);
+-	*reserved = true;
+-	return brk(nbytes);
+-}
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+new file mode 100644
+index 0000000000..a5d7c1a4cf
+--- /dev/null
++++ b/src/runtime/mem_plan9.go
+@@ -0,0 +1,70 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++var bloc uintptr
++var memlock mutex
++
++const memRound = _PAGESIZE - 1
++
++func initBloc() {
++	bloc = uintptr(unsafe.Pointer(&end))
++}
++
++func sbrk(n uintptr) unsafe.Pointer {
++	lock(&memlock)
++	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
++	bl := (bloc + memRound) &^ memRound
++	if brk_(unsafe.Pointer(bl+n)) < 0 {
++		unlock(&memlock)
++		return nil
++	}
++	bloc = bl + n
++	unlock(&memlock)
++	return unsafe.Pointer(bl)
++}
++
++func sysAlloc(n uintptr, stat *uint64) unsafe.Pointer {
++	p := sbrk(n)
++	if p != nil {
++		xadd64(stat, int64(n))
++	}
++	return p
++}
++
++func sysFree(v unsafe.Pointer, n uintptr, stat *uint64) {
++	xadd64(stat, -int64(n))
++	lock(&memlock)
++	// from tiny/mem.c
++	// Push pointer back if this is a free
++	// of the most recent sysAlloc.
++	n += (n + memRound) &^ memRound
++	if bloc == uintptr(v)+n {
++		bloc -= n
++	}
++	unlock(&memlock)
++}
++
++func sysUnused(v unsafe.Pointer, n uintptr) {
++}
++
++func sysUsed(v unsafe.Pointer, n uintptr) {
++}
++
++func sysMap(v unsafe.Pointer, n uintptr, reserved bool, stat *uint64) {
++	// sysReserve has already allocated all heap memory,
++	// but has not adjusted stats.
++	xadd64(stat, int64(n))
++}
++
++func sysFault(v unsafe.Pointer, n uintptr) {
++}
++
++func sysReserve(v unsafe.Pointer, n uintptr, reserved *bool) unsafe.Pointer {
++	*reserved = true
++	return sbrk(n)
++}
+diff --git a/src/runtime/netpoll_stub.c b/src/runtime/netpoll_stub.go
+similarity index 81%
+rename from src/runtime/netpoll_stub.c
+rename to src/runtime/netpoll_stub.go
+index b7a8f2944c..6c7e79ea37 100644
+--- a/src/runtime/netpoll_stub.c
++++ b/src/runtime/netpoll_stub.go
+@@ -4,15 +4,12 @@
+ 
+ // +build plan9
+ 
+-#include "runtime.h"
++package runtime
+ 
+ // Polls for ready network connections.
+ // Returns list of goroutines that become runnable.
+-G*
+-runtime·netpoll(bool block)
+-{
++func netpoll(block bool) (gp *g) {
+ 	// Implementation for platforms that do not support
+ 	// integrated network poller.
+-	USED(block);
+-	return nil;
++	return
+ }
+diff --git a/src/runtime/os1_plan9.go b/src/runtime/os1_plan9.go
+new file mode 100644
+index 0000000000..0f8da03f2b
+--- /dev/null
++++ b/src/runtime/os1_plan9.go
+@@ -0,0 +1,270 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
++func mpreinit(mp *m) {
++	// Initialize stack and goroutine for note handling.
++	mp.gsignal = malg(32 * 1024)
++	mp.gsignal.m = mp
++	mp.notesig = (*int8)(mallocgc(_ERRMAX, nil, _FlagNoScan))
++	// Initialize stack for handling strings from the
++	// errstr system call, as used in package syscall.
++	mp.errstr = (*byte)(mallocgc(_ERRMAX, nil, _FlagNoScan))
++}
++
++// Called to initialize a new m (including the bootstrap m).
++// Called on the new thread, can not allocate memory.
++func minit() {
++	// Mask all SSE floating-point exceptions
++	// when running on the 64-bit kernel.
++	setfpmasks()
++}
++
++// Called from dropm to undo the effect of an minit.
++func unminit() {
++}
++
++var sysstat = []byte("/dev/sysstat\x00")
++
++func getproccount() int32 {
++	var buf [2048]byte
++	fd := open(&sysstat[0], _OREAD, 0)
++	if fd < 0 {
++		return 1
++	}
++	ncpu := int32(0)
++	for {
++		n := read(fd, unsafe.Pointer(&buf), int32(len(buf)))
++		if n <= 0 {
++			break
++		}
++		for i := int32(0); i < n; i++ {
++			if buf[i] == '\n' {
++				ncpu++
++			}
++		}
++	}
++	close(fd)
++	if ncpu == 0 {
++		ncpu = 1
++	}
++	return ncpu
++}
++
++var pid = []byte("#c/pid\x00")
++
++func getpid() uint64 {
++	var b [20]byte
++	fd := open(&pid[0], 0, 0)
++	if fd >= 0 {
++		read(fd, unsafe.Pointer(&b), int32(len(b)))
++		close(fd)
++	}
++	c := b[:]
++	for c[0] == ' ' || c[0] == '\t' {
++		c = c[1:]
++	}
++	return uint64(atoi(c))
++}
++
++func osinit() {
++	initBloc()
++	ncpu = getproccount()
++	getg().m.procid = getpid()
++	notify(unsafe.Pointer(funcPC(sigtramp)))
++}
++
++func crash() {
++	notify(nil)
++	*(*int)(nil) = 0
++}
++
++var random_data [_HashRandomBytes]byte
++var random_dev = []byte("/dev/random\x00")
++
++//go:nosplit
++func get_random_data(rnd *unsafe.Pointer, rnd_len *int32) {
++	fd := open(&random_dev[0], 0 /* O_RDONLY */, 0)
++	if read(fd, unsafe.Pointer(&random_data), _HashRandomBytes) == _HashRandomBytes {
++		*rnd = unsafe.Pointer(&random_data[0])
++		*rnd_len = _HashRandomBytes
++	} else {
++		*rnd = nil
++		*rnd_len = 0
++	}
++	close(fd)
++}
++
++func goenvs() {
++}
++
++func initsig() {
++}
++
++//go:nosplit
++func osyield() {
++	sleep(0)
++}
++
++//go:nosplit
++func usleep(µs uint32) {
++	ms := int32(µs / 1000)
++	if ms == 0 {
++		ms = 1
++	}
++	sleep(ms)
++}
++
++//go:nosplit
++func nanotime() int64 {
++	var scratch int64
++	ns := nsec(&scratch)
++	// TODO(aram): remove hack after I fix _nsec in the pc64 kernel.
++	if ns == 0 {
++		return scratch
++	}
++	return ns
++}
++
++//go:nosplit
++func itoa(buf []byte, val uint64) []byte {
++	i := len(buf) - 1
++	for val >= 10 {
++		buf[i] = byte(val%10 + '0')
++		i--
++		val /= 10
++	}
++	buf[i] = byte(val + '0')
++	return buf[i:]
++}
++
++var goexits = []byte("go: exit ")
++
++func goexitsall(status *byte) {
++	var buf [_ERRMAX]byte
++	n := copy(buf[:], goexits)
++	n = copy(buf[n:], gostringnocopy(status))
++	pid := getpid()
++	for mp := (*m)(atomicloadp(unsafe.Pointer(&allm))); mp != nil; mp = mp.alllink {
++		if mp.procid != pid {
++			postnote(mp.procid, buf[:])
++		}
++	}
++}
++
++var procdir = []byte("/proc/")
++var notefile = []byte("/note\x00")
++
++func postnote(pid uint64, msg []byte) int {
++	var buf [128]byte
++	var tmp [32]byte
++	n := copy(buf[:], procdir)
++	n += copy(buf[n:], itoa(tmp[:], pid))
++	copy(buf[n:], notefile)
++	fd := open(&buf[0], _OWRITE, 0)
++	if fd < 0 {
++		return -1
++	}
++	len := findnull(&msg[0])
++	if write(uintptr(fd), (unsafe.Pointer)(&msg[0]), int32(len)) != int64(len) {
++		close(fd)
++		return -1
++	}
++	close(fd)
++	return 0
++}
++
++//go:nosplit
++func exit(e int) {
++	var status []byte
++	if e == 0 {
++		status = []byte("\x00")
++	} else {
++		// build error string
++		var tmp [32]byte
++		status = []byte(gostringnocopy(&itoa(tmp[:], uint64(e))[0]) + "\x00")
++	}
++	goexitsall(&status[0])
++	exits(&status[0])
++}
++
++func newosproc(mp *m, stk unsafe.Pointer) {
++	if false {
++		print("newosproc mp=", mp, " ostk=", &mp, "\n")
++	}
++	pid := rfork(_RFPROC | _RFMEM | _RFNOWAIT)
++	if pid < 0 {
++		gothrow("newosproc: rfork failed")
++	}
++	if pid == 0 {
++		tstart_plan9(mp)
++	}
++}
++
++//go:nosplit
++func semacreate() uintptr {
++	return 1
++}
++
++//go:nosplit
++func semasleep(ns int64) int {
++	_g_ := getg()
++	if ns >= 0 {
++		ms := timediv(ns, 1000000, nil)
++		if ms == 0 {
++			ms = 1
++		}
++		ret := plan9_tsemacquire(&_g_.m.waitsemacount, ms)
++		if ret == 1 {
++			return 0 // success
++		}
++		return -1 // timeout or interrupted
++	}
++	for plan9_semacquire(&_g_.m.waitsemacount, 1) < 0 {
++		// interrupted; try again (c.f. lock_sema.go)
++	}
++	return 0 // success
++}
++
++//go:nosplit
++func semawakeup(mp *m) {
++	plan9_semrelease(&mp.waitsemacount, 1)
++}
++
++//go:nosplit
++func read(fd int32, buf unsafe.Pointer, n int32) int32 {
++	return pread(fd, buf, n, -1)
++}
++
++//go:nosplit
++func write(fd uintptr, buf unsafe.Pointer, n int32) int64 {
++	return int64(pwrite(int32(fd), buf, n, -1))
++}
++
++func memlimit() uint64 {
++	return 0
++}
++
++var _badsignal = []byte("runtime: signal received on thread not created by Go.\n")
++
++// This runs on a foreign stack, without an m or a g.  No stack split.
++//go:nosplit
++func badsignal2() {
++	pwrite(2, unsafe.Pointer(&_badsignal[0]), int32(len(_badsignal)), -1)
++	exits(&_badsignal[0])
++}
++
++func atoi(b []byte) int {
++	n := 0
++	for len(b) > 0 && '0' <= b[0] && b[0] <= '9' {
++		n = n*10 + int(b[0]) - '0'
++		b = b[1:]
++	}
++	return n
++}
+diff --git a/src/runtime/os2_plan9.go b/src/runtime/os2_plan9.go
+new file mode 100644
+index 0000000000..f64f4c8dab
+--- /dev/null
++++ b/src/runtime/os2_plan9.go
+@@ -0,0 +1,72 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Plan 9-specific system calls
++
++package runtime
++
++// open
++const (
++	_OREAD   = 0
++	_OWRITE  = 1
++	_ORDWR   = 2
++	_OEXEC   = 3
++	_OTRUNC  = 16
++	_OCEXEC  = 32
++	_ORCLOSE = 64
++	_OEXCL   = 0x1000
++)
++
++// rfork
++const (
++	_RFNAMEG  = 1 << 0
++	_RFENVG   = 1 << 1
++	_RFFDG    = 1 << 2
++	_RFNOTEG  = 1 << 3
++	_RFPROC   = 1 << 4
++	_RFMEM    = 1 << 5
++	_RFNOWAIT = 1 << 6
++	_RFCNAMEG = 1 << 10
++	_RFCENVG  = 1 << 11
++	_RFCFDG   = 1 << 12
++	_RFREND   = 1 << 13
++	_RFNOMNT  = 1 << 14
++)
++
++// notify
++const (
++	_NCONT = 0
++	_NDFLT = 1
++)
++
++type uinptr _Plink
++
++type tos struct {
++	prof struct { // Per process profiling
++		pp    *_Plink // known to be 0(ptr)
++		next  *_Plink // known to be 4(ptr)
++		last  *_Plink
++		first *_Plink
++		pid   uint32
++		what  uint32
++	}
++	cyclefreq uint64 // cycle clock frequency if there is one, 0 otherwise
++	kcycles   int64  // cycles spent in kernel
++	pcycles   int64  // cycles spent in process (kernel + user)
++	pid       uint32 // might as well put the pid here
++	clock     uint32
++	// top of stack is here
++}
++
++const (
++	_NSIG   = 14  // number of signals in sigtable array
++	_ERRMAX = 128 // max length of note string
++
++	// Notes in runtime·sigtab that are handled by runtime·sigpanic.
++	_SIGRFAULT = 2
++	_SIGWFAULT = 3
++	_SIGINTDIV = 4
++	_SIGFLOAT  = 5
++	_SIGTRAP   = 6
++)
+diff --git a/src/runtime/os_plan9.c b/src/runtime/os_plan9.c
+deleted file mode 100644
+index f8c543f6f6..0000000000
+--- a/src/runtime/os_plan9.c
++++ /dev/null
+@@ -1,362 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "runtime.h"
+-#include "os_GOOS.h"
+-#include "arch_GOARCH.h"
+-#include "textflag.h"
+-#include "malloc.h"
+-
+-int8 *goos = "plan9";
+-extern SigTab runtime·sigtab[];
+-
+-int32 runtime·postnote(int32, int8*);
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the parent thread (main thread in case of bootstrap), can allocate memory.
+-void
+-runtime·mpreinit(M *mp)
+-{
+-	// Initialize stack and goroutine for note handling.
+-	mp->gsignal = runtime·malg(32*1024);
+-	mp->gsignal->m = mp;
+-	mp->notesig = (int8*)runtime·mallocgc(ERRMAX*sizeof(int8), nil, FlagNoScan);
+-
+-	// Initialize stack for handling strings from the
+-	// errstr system call, as used in package syscall.
+-	mp->errstr = (byte*)runtime·mallocgc(ERRMAX*sizeof(byte), nil, FlagNoScan);
+-}
+-
+-// Called to initialize a new m (including the bootstrap m).
+-// Called on the new thread, can not allocate memory.
+-void
+-runtime·minit(void)
+-{
+-	// Mask all SSE floating-point exceptions
+-	// when running on the 64-bit kernel.
+-	runtime·setfpmasks();
+-}
+-
+-// Called from dropm to undo the effect of an minit.
+-void
+-runtime·unminit(void)
+-{
+-}
+-
+-
+-static int32
+-getproccount(void)
+-{
+-	int32 fd, i, n, ncpu;
+-	byte buf[2048];
+-
+-	fd = runtime·open("/dev/sysstat", OREAD, 0);
+-	if(fd < 0)
+-		return 1;
+-	ncpu = 0;
+-	for(;;) {
+-		n = runtime·read(fd, buf, sizeof buf);
+-		if(n <= 0)
+-			break;
+-		for(i = 0; i < n; i++) {
+-			if(buf[i] == '\n')
+-				ncpu++;
+-		}
+-	}
+-	runtime·close(fd);
+-	return ncpu > 0 ? ncpu : 1;
+-}
+-
+-static int32
+-getpid(void)
+-{
+-	byte b[20], *c;
+-	int32 fd;
+-
+-	runtime·memclr(b, sizeof(b));
+-	fd = runtime·open("#c/pid", 0, 0);
+-	if(fd >= 0) {
+-		runtime·read(fd, b, sizeof(b));
+-		runtime·close(fd);
+-	}
+-	c = b;
+-	while(*c == ' ' || *c == '\t')
+-		c++;
+-	return runtime·atoi(c);
+-}
+-
+-void
+-runtime·osinit(void)
+-{
+-	runtime·ncpu = getproccount();
+-	g->m->procid = getpid();
+-	runtime·notify(runtime·sigtramp);
+-}
+-
+-void
+-runtime·crash(void)
+-{
+-	runtime·notify(nil);
+-	*(int32*)0 = 0;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·get_random_data(byte **rnd, int32 *rnd_len)
+-{
+-	static byte random_data[HashRandomBytes];
+-	int32 fd;
+-
+-	fd = runtime·open("/dev/random", 0 /* O_RDONLY */, 0);
+-	if(runtime·read(fd, random_data, HashRandomBytes) == HashRandomBytes) {
+-		*rnd = random_data;
+-		*rnd_len = HashRandomBytes;
+-	} else {
+-		*rnd = nil;
+-		*rnd_len = 0;
+-	}
+-	runtime·close(fd);
+-}
+-
+-void
+-runtime·goenvs(void)
+-{
+-}
+-
+-void
+-runtime·initsig(void)
+-{
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·osyield(void)
+-{
+-	runtime·sleep(0);
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·usleep(uint32 µs)
+-{
+-	uint32 ms;
+-
+-	ms = µs/1000;
+-	if(ms == 0)
+-		ms = 1;
+-	runtime·sleep(ms);
+-}
+-
+-#pragma textflag NOSPLIT
+-int64
+-runtime·nanotime(void)
+-{
+-	int64 ns, scratch;
+-
+-	ns = runtime·nsec(&scratch);
+-	// TODO(aram): remove hack after I fix _nsec in the pc64 kernel.
+-	if(ns == 0)
+-		return scratch;
+-	return ns;
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·itoa(int32 n, byte *p, uint32 len)
+-{
+-	byte *q, c;
+-	uint32 i;
+-
+-	if(len <= 1)
+-		return;
+-
+-	runtime·memclr(p, len);
+-	q = p;
+-
+-	if(n==0) {
+-		*q++ = '0';
+-		USED(q);
+-		return;
+-	}
+-	if(n < 0) {
+-		*q++ = '-';
+-		p++;
+-		n = -n;
+-	}
+-	for(i=0; n > 0 && i < len; i++) {
+-		*q++ = '0' + (n%10);
+-		n = n/10;
+-	}
+-	for(q--; q >= p; ) {
+-		c = *p;
+-		*p++ = *q;
+-		*q-- = c;
+-	}
+-}
+-
+-void
+-runtime·goexitsall(int8 *status)
+-{
+-	int8 buf[ERRMAX];
+-	M *mp;
+-	int32 pid;
+-
+-	runtime·snprintf((byte*)buf, sizeof buf, "go: exit %s", status);
+-	pid = getpid();
+-	for(mp=runtime·atomicloadp(&runtime·allm); mp; mp=mp->alllink)
+-		if(mp->procid != pid)
+-			runtime·postnote(mp->procid, buf);
+-}
+-
+-int32
+-runtime·postnote(int32 pid, int8* msg)
+-{
+-	int32 fd;
+-	intgo len;
+-	uint8 buf[128];
+-	uint8 tmp[16];
+-	uint8 *p, *q;
+-
+-	runtime·memclr(buf, sizeof buf);
+-
+-	/* build path string /proc/pid/note */
+-	q = tmp;
+-	p = buf;
+-	runtime·itoa(pid, tmp, sizeof tmp);
+-	runtime·memmove((void*)p, (void*)"/proc/", 6);
+-	for(p += 6; *p++ = *q++; );
+-	p--;
+-	runtime·memmove((void*)p, (void*)"/note", 5);
+-
+-	fd = runtime·open((int8*)buf, OWRITE, 0);
+-	if(fd < 0)
+-		return -1;
+-
+-	len = runtime·findnull((byte*)msg);
+-	if(runtime·write(fd, msg, len) != len) {
+-		runtime·close(fd);
+-		return -1;
+-	}
+-	runtime·close(fd);
+-	return 0;
+-}
+-
+-static void exit(void);
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·exit(int32 e)
+-{
+-	void (*fn)(void);
+-
+-	g->m->scalararg[0] = e;
+-	fn = exit;
+-	runtime·onM(&fn);
+-}
+-
+-static void
+-exit(void)
+-{
+-	int32 e;
+-	byte tmp[16];
+-	int8 *status;
+- 
+- 	e = g->m->scalararg[0];
+- 	g->m->scalararg[0] = 0;
+-
+-	if(e == 0)
+-		status = "";
+-	else {
+-		/* build error string */
+-		runtime·itoa(e, tmp, sizeof tmp);
+-		status = (int8*)tmp;
+-	}
+-
+-	runtime·goexitsall(status);
+-	runtime·exits(status);
+-}
+-
+-void
+-runtime·newosproc(M *mp, void *stk)
+-{
+-	int32 pid;
+-
+-	if(0)
+-		runtime·printf("newosproc mp=%p ostk=%p\n", mp, &mp);
+-
+-	USED(stk);
+-	if((pid = runtime·rfork(RFPROC|RFMEM|RFNOWAIT)) < 0)
+-		runtime·throw("newosproc: rfork failed\n");
+-	if(pid == 0)
+-		runtime·tstart_plan9(mp);
+-}
+-
+-#pragma textflag NOSPLIT
+-uintptr
+-runtime·semacreate(void)
+-{
+-	return 1;
+-}
+-
+-#pragma textflag NOSPLIT
+-int32
+-runtime·semasleep(int64 ns)
+-{
+-	int32 ret;
+-	int32 ms;
+-
+-	if(ns >= 0) {
+-		ms = runtime·timediv(ns, 1000000, nil);
+-		if(ms == 0)
+-			ms = 1;
+-		ret = runtime·plan9_tsemacquire(&g->m->waitsemacount, ms);
+-		if(ret == 1)
+-			return 0;  // success
+-		return -1;  // timeout or interrupted
+-	}
+-
+-	while(runtime·plan9_semacquire(&g->m->waitsemacount, 1) < 0) {
+-		/* interrupted; try again (c.f. lock_sema.c) */
+-	}
+-	return 0;  // success
+-}
+-
+-#pragma textflag NOSPLIT
+-void
+-runtime·semawakeup(M *mp)
+-{
+-	runtime·plan9_semrelease(&mp->waitsemacount, 1);
+-}
+-
+-#pragma textflag NOSPLIT
+-int32
+-runtime·read(int32 fd, void *buf, int32 nbytes)
+-{
+-	return runtime·pread(fd, buf, nbytes, -1LL);
+-}
+-
+-#pragma textflag NOSPLIT
+-int32
+-runtime·write(uintptr fd, void *buf, int32 nbytes)
+-{
+-	return runtime·pwrite((int32)fd, buf, nbytes, -1LL);
+-}
+-
+-uintptr
+-runtime·memlimit(void)
+-{
+-	return 0;
+-}
+-
+-#pragma dataflag NOPTR
+-static int8 badsignal[] = "runtime: signal received on thread not created by Go.\n";
+-
+-// This runs on a foreign stack, without an m or a g.  No stack split.
+-#pragma textflag NOSPLIT
+-void
+-runtime·badsignal2(void)
+-{
+-	runtime·pwrite(2, badsignal, sizeof badsignal - 1, -1LL);
+-	runtime·exits(badsignal);
+-}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 20e47bf42e..2dcdfc009a 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,22 +6,49 @@ package runtime
+ 
+ import "unsafe"
+ 
++//go:noescape
+ func pread(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++
++//go:noescape
+ func pwrite(fd int32, buf unsafe.Pointer, nbytes int32, offset int64) int32
++
+ func seek(fd int32, offset int64, whence int32) int64
++
++//go:noescape
+ func exits(msg *byte)
++
++//go:noescape
+ func brk_(addr unsafe.Pointer) uintptr
++
+ func sleep(ms int32) int32
++
+ func rfork(flags int32) int32
++
++//go:noescape
+ func plan9_semacquire(addr *uint32, block int32) int32
++
++//go:noescape
+ func plan9_tsemacquire(addr *uint32, ms int32) int32
++
++//go:noescape
+ func plan9_semrelease(addr *uint32, count int32) int32
++
++//go:noescape
+ func notify(fn unsafe.Pointer) int32
++
+ func noted(mode int32) int32
++
++//go:noescape
+ func nsec(*int64) int64
++
++//go:noescape
+ func sigtramp(ureg, msg unsafe.Pointer)
++
+ func setfpmasks()
++
++//go:noescape
+ func tstart_plan9(newm *m)
++
+ func errstr() string
+ 
+ type _Plink uintptr
+diff --git a/src/runtime/os_plan9.h b/src/runtime/os_plan9.h
+deleted file mode 100644
+index 6d18024834..0000000000
+--- a/src/runtime/os_plan9.h
++++ /dev/null
+@@ -1,93 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Plan 9-specific system calls
+-int32	runtime·pread(int32 fd, void *buf, int32 nbytes, int64 offset);
+-int32	runtime·pwrite(int32 fd, void *buf, int32 nbytes, int64 offset);
+-int64	runtime·seek(int32 fd, int64 offset, int32 whence);
+-void	runtime·exits(int8* msg);
+-intptr	runtime·brk_(void*);
+-int32	runtime·sleep(int32 ms);
+-int32	runtime·rfork(int32 flags);
+-int32	runtime·plan9_semacquire(uint32 *addr, int32 block);
+-int32	runtime·plan9_tsemacquire(uint32 *addr, int32 ms);
+-int32 	runtime·plan9_semrelease(uint32 *addr, int32 count);
+-int32	runtime·notify(void (*fn)(void*, int8*));
+-int32	runtime·noted(int32);
+-int64	runtime·nsec(int64*);
+-void	runtime·sigtramp(void*, int8*);
+-void	runtime·sigpanic(void);
+-void	runtime·goexitsall(int8*);
+-void	runtime·setfpmasks(void);
+-void	runtime·tstart_plan9(M *newm);
+-
+-/* open */
+-enum
+-{
+-	OREAD	= 0,
+-	OWRITE	= 1,
+-	ORDWR	= 2,
+-	OEXEC	= 3,
+-	OTRUNC	= 16,
+-	OCEXEC	= 32,
+-	ORCLOSE	= 64,
+-	OEXCL	= 0x1000
+-};
+-
+-/* rfork */
+-enum
+-{
+-	RFNAMEG         = (1<<0),
+-	RFENVG          = (1<<1),
+-	RFFDG           = (1<<2),
+-	RFNOTEG         = (1<<3),
+-	RFPROC          = (1<<4),
+-	RFMEM           = (1<<5),
+-	RFNOWAIT        = (1<<6),
+-	RFCNAMEG        = (1<<10),
+-	RFCENVG         = (1<<11),
+-	RFCFDG          = (1<<12),
+-	RFREND          = (1<<13),
+-	RFNOMNT         = (1<<14)
+-};
+-
+-/* notify */
+-enum
+-{
+-	NCONT	= 0,
+-	NDFLT	= 1
+-};
+-
+-typedef struct Tos Tos;
+-typedef intptr _Plink;
+-
+-struct Tos {
+-	struct TosProf			/* Per process profiling */
+-	{
+-		_Plink	*pp;	/* known to be 0(ptr) */
+-		_Plink	*next;	/* known to be 4(ptr) */
+-		_Plink	*last;
+-		_Plink	*first;
+-		uint32	pid;
+-		uint32	what;
+-	} prof;
+-	uint64	cyclefreq;	/* cycle clock frequency if there is one, 0 otherwise */
+-	int64	kcycles;	/* cycles spent in kernel */
+-	int64	pcycles;	/* cycles spent in process (kernel + user) */
+-	uint32	pid;		/* might as well put the pid here */
+-	uint32	clock;
+-	/* top of stack is here */
+-};
+-
+-enum {
+-	NSIG = 14, /* number of signals in runtime·SigTab array */
+-	ERRMAX = 128, /* max length of note string */
+-
+-	/* Notes in runtime·sigtab that are handled by runtime·sigpanic. */
+-	SIGRFAULT = 2,
+-	SIGWFAULT = 3,
+-	SIGINTDIV = 4,
+-	SIGFLOAT = 5,
+-	SIGTRAP = 6,
+-};
+diff --git a/src/runtime/os_plan9_386.c b/src/runtime/os_plan9_386.c
+deleted file mode 100644
+index 42c6d161c7..0000000000
+--- a/src/runtime/os_plan9_386.c
++++ /dev/null
+@@ -1,150 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file. 
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Ureg *u)
+-{
+-	runtime·printf("ax	%x\n", u->ax);
+-	runtime·printf("bx	%x\n", u->bx);
+-	runtime·printf("cx	%x\n", u->cx);
+-	runtime·printf("dx	%x\n", u->dx);
+-	runtime·printf("di	%x\n", u->di);
+-	runtime·printf("si	%x\n", u->si);
+-	runtime·printf("bp	%x\n", u->bp);
+-	runtime·printf("sp	%x\n", u->sp);
+-	runtime·printf("pc	%x\n", u->pc);
+-	runtime·printf("flags	%x\n", u->flags);
+-	runtime·printf("cs	%x\n", u->cs);
+-	runtime·printf("fs	%x\n", u->fs);
+-	runtime·printf("gs	%x\n", u->gs);
+-}
+-
+-int32
+-runtime·sighandler(void *v, int8 *note, G *gp)
+-{
+-	uintptr *sp;
+-	SigTab *t;
+-	bool crash;
+-	Ureg *ureg;
+-	intgo len, n;
+-	int32 sig, flags;
+-
+-	ureg = (Ureg*)v;
+-
+-	// The kernel will never pass us a nil note or ureg so we probably
+-	// made a mistake somewhere in runtime·sigtramp.
+-	if(ureg == nil || note == nil) {
+-		runtime·printf("sighandler: ureg %p note %p\n", ureg, note);
+-		goto Throw;
+-	}
+-
+-	// Check that the note is no more than ERRMAX bytes (including
+-	// the trailing NUL). We should never receive a longer note.
+-	len = runtime·findnull((byte*)note);
+-	if(len > ERRMAX-1) {
+-		runtime·printf("sighandler: note is longer than ERRMAX\n");
+-		goto Throw;
+-	}
+-
+-	// See if the note matches one of the patterns in runtime·sigtab.
+-	// Notes that do not match any pattern can be handled at a higher
+-	// level by the program but will otherwise be ignored.
+-	flags = SigNotify;
+-	for(sig = 0; sig < nelem(runtime·sigtab); sig++) {
+-		t = &runtime·sigtab[sig];
+-		n = runtime·findnull((byte*)t->name);
+-		if(len < n)
+-			continue;
+-		if(runtime·strncmp((byte*)note, (byte*)t->name, n) == 0) {
+-			flags = t->flags;
+-			break;
+-		}
+-	}
+-
+-	if(flags & SigGoExit)
+-		runtime·exits(note+9); // Strip "go: exit " prefix.
+-
+-	if(flags & SigPanic) {
+-		// Copy the error string from sigtramp's stack into m->notesig so
+-		// we can reliably access it from the panic routines.
+-		runtime·memmove(g->m->notesig, note, len+1);
+-
+-		gp->sig = sig;
+-		gp->sigpc = ureg->pc;
+-
+-		// Only push runtime·sigpanic if PC != 0.
+-		//
+-		// If PC == 0, probably panicked because of a call to a nil func.
+-		// Not pushing that onto SP will make the trace look like a call
+-		// to runtime·sigpanic instead. (Otherwise the trace will end at
+-		// runtime·sigpanic and we won't get to see who faulted).
+-		if(ureg->pc != 0) {
+-			sp = (uintptr*)ureg->sp;
+-			*--sp = ureg->pc;
+-			ureg->sp = (uint32)sp;
+-		}
+-		ureg->pc = (uintptr)runtime·sigpanic;
+-		return NCONT;
+-	}
+-
+-	if(flags & SigNotify) {
+-		// TODO(ality): See if os/signal wants it.
+-		//if(runtime·sigsend(...))
+-		//	return NCONT;
+-	}
+-	if(flags & SigKill)
+-		goto Exit;
+-	if(!(flags & SigThrow))
+-		return NCONT;
+-
+-Throw:
+-	g->m->throwing = 1;
+-	g->m->caughtsig = gp;
+-	runtime·startpanic();
+-
+-	runtime·printf("%s\n", note);
+-	runtime·printf("PC=%x\n", ureg->pc);
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback(&crash)) {
+-		runtime·goroutineheader(gp);
+-		runtime·tracebacktrap(ureg->pc, ureg->sp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(ureg);
+-	}
+-	
+-	if(crash)
+-		runtime·crash();
+-
+-Exit:
+-	runtime·goexitsall(note);
+-	runtime·exits(note);
+-	return NDFLT; // not reached
+-}
+-
+-void
+-runtime·sigenable(uint32 sig)
+-{
+-	USED(sig);
+-}
+-
+-void
+-runtime·sigdisable(uint32 sig)
+-{
+-	USED(sig);
+-}
+-
+-void
+-runtime·resetcpuprofiler(int32 hz)
+-{
+-	// TODO: Enable profiling interrupts.
+-	
+-	g->m->profilehz = hz;
+-}
+diff --git a/src/runtime/os_plan9_386.go b/src/runtime/os_plan9_386.go
+new file mode 100644
+index 0000000000..7dda13931e
+--- /dev/null
++++ b/src/runtime/os_plan9_386.go
+@@ -0,0 +1,131 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(u *ureg) {
++	print("ax    ", hex(u.ax), "\n")
++	print("bx    ", hex(u.bx), "\n")
++	print("cx    ", hex(u.cx), "\n")
++	print("dx    ", hex(u.dx), "\n")
++	print("di    ", hex(u.di), "\n")
++	print("si    ", hex(u.si), "\n")
++	print("bp    ", hex(u.bp), "\n")
++	print("sp    ", hex(u.sp), "\n")
++	print("pc    ", hex(u.pc), "\n")
++	print("flags ", hex(u.flags), "\n")
++	print("cs    ", hex(u.cs), "\n")
++	print("fs    ", hex(u.fs), "\n")
++	print("gs    ", hex(u.gs), "\n")
++}
++
++func sighandler(_ureg *ureg, note *byte, gp *g) int {
++	_g_ := getg()
++	var t sigTabT
++	var docrash bool
++	var length int
++	var sig int
++	var flags int
++
++	// The kernel will never pass us a nil note or ureg so we probably
++	// made a mistake somewhere in sigtramp.
++	if _ureg == nil || note == nil {
++		print("sighandler: ureg ", _ureg, " note ", note, "\n")
++		goto Throw
++	}
++	// Check that the note is no more than ERRMAX bytes (including
++	// the trailing NUL). We should never receive a longer note.
++	length = findnull(note)
++	if length > _ERRMAX-1 {
++		print("sighandler: note is longer than ERRMAX\n")
++		goto Throw
++	}
++	// See if the note matches one of the patterns in sigtab.
++	// Notes that do not match any pattern can be handled at a higher
++	// level by the program but will otherwise be ignored.
++	flags = _SigNotify
++	for sig, t = range sigtable {
++		n := len(t.name)
++		if length < n {
++			continue
++		}
++		if strncmp(note, &t.name[0], uintptr(n)) == 0 {
++			flags = t.flags
++			break
++		}
++	}
++	if flags&_SigGoExit != 0 {
++		exits((*byte)(add(unsafe.Pointer(note), 9))) // Strip "go: exit " prefix.
++	}
++	if flags&_SigPanic != 0 {
++		// Copy the error string from sigtramp's stack into m->notesig so
++		// we can reliably access it from the panic routines.
++		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(length+1))
++		gp.sig = uint32(sig)
++		gp.sigpc = uintptr(_ureg.pc)
++		// Only push sigpanic if PC != 0.
++		//
++		// If PC == 0, probably panicked because of a call to a nil func.
++		// Not pushing that onto SP will make the trace look like a call
++		// to sigpanic instead. (Otherwise the trace will end at
++		// sigpanic and we won't get to see who faulted).
++		if _ureg.pc != 0 {
++			sp := _ureg.sp
++			if regSize > ptrSize {
++				sp -= ptrSize
++				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++			}
++			sp -= ptrSize
++			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(_ureg.pc)
++			_ureg.sp = sp
++		}
++		_ureg.pc = uint32(funcPC(sigpanic))
++		return _NCONT
++	}
++	if flags&_SigNotify != 0 {
++		// TODO(ality): See if os/signal wants it.
++		//if(sigsend(...))
++		//	return _NCONT;
++	}
++	if flags&_SigKill != 0 {
++		goto Exit
++	}
++	if flags&_SigThrow == 0 {
++		return _NCONT
++	}
++Throw:
++	_g_.m.throwing = 1
++	_g_.m.caughtsig = gp
++	startpanic()
++	print(gostringnocopy(note), "\n")
++	print("PC=", hex(_ureg.pc), "\n")
++	print("\n")
++	if gotraceback(&docrash) > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(_ureg.pc), uintptr(_ureg.sp), 0, gp)
++		tracebackothers(gp)
++		print("\n")
++		dumpregs(_ureg)
++	}
++	if docrash {
++		crash()
++	}
++Exit:
++	goexitsall(note)
++	exits(note)
++	return _NDFLT // not reached
++}
++
++func sigenable(sig uint32) {
++}
++
++func sigdisable(sig uint32) {
++}
++
++func resetcpuprofiler(hz int32) {
++	// TODO: Enable profiling interrupts.
++	getg().m.profilehz = hz
++}
+diff --git a/src/runtime/os_plan9_amd64.c b/src/runtime/os_plan9_amd64.c
+deleted file mode 100644
+index a9dc0eb966..0000000000
+--- a/src/runtime/os_plan9_amd64.c
++++ /dev/null
+@@ -1,158 +0,0 @@
+-// Copyright 2010 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file. 
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "signals_GOOS.h"
+-
+-void
+-runtime·dumpregs(Ureg *u)
+-{
+-	runtime·printf("ax	%X\n", u->ax);
+-	runtime·printf("bx	%X\n", u->bx);
+-	runtime·printf("cx	%X\n", u->cx);
+-	runtime·printf("dx	%X\n", u->dx);
+-	runtime·printf("di	%X\n", u->di);
+-	runtime·printf("si	%X\n", u->si);
+-	runtime·printf("bp	%X\n", u->bp);
+-	runtime·printf("sp	%X\n", u->sp);
+-	runtime·printf("r8	%X\n", u->r8);
+-	runtime·printf("r9	%X\n", u->r9);
+-	runtime·printf("r10	%X\n", u->r10);
+-	runtime·printf("r11	%X\n", u->r11);
+-	runtime·printf("r12	%X\n", u->r12);
+-	runtime·printf("r13	%X\n", u->r13);
+-	runtime·printf("r14	%X\n", u->r14);
+-	runtime·printf("r15	%X\n", u->r15);
+-	runtime·printf("ip	%X\n", u->ip);
+-	runtime·printf("flags	%X\n", u->flags);
+-	runtime·printf("cs	%X\n", (uint64)u->cs);
+-	runtime·printf("fs	%X\n", (uint64)u->fs);
+-	runtime·printf("gs	%X\n", (uint64)u->gs);
+-}
+-
+-int32
+-runtime·sighandler(void *v, int8 *note, G *gp)
+-{
+-	uintptr *sp;
+-	SigTab *t;
+-	bool crash;
+-	Ureg *ureg;
+-	intgo len, n;
+-	int32 sig, flags;
+-
+-	ureg = (Ureg*)v;
+-
+-	// The kernel will never pass us a nil note or ureg so we probably
+-	// made a mistake somewhere in runtime·sigtramp.
+-	if(ureg == nil || note == nil) {
+-		runtime·printf("sighandler: ureg %p note %p\n", ureg, note);
+-		goto Throw;
+-	}
+-
+-	// Check that the note is no more than ERRMAX bytes (including
+-	// the trailing NUL). We should never receive a longer note.
+-	len = runtime·findnull((byte*)note);
+-	if(len > ERRMAX-1) {
+-		runtime·printf("sighandler: note is longer than ERRMAX\n");
+-		goto Throw;
+-	}
+-
+-	// See if the note matches one of the patterns in runtime·sigtab.
+-	// Notes that do not match any pattern can be handled at a higher
+-	// level by the program but will otherwise be ignored.
+-	flags = SigNotify;
+-	for(sig = 0; sig < nelem(runtime·sigtab); sig++) {
+-		t = &runtime·sigtab[sig];
+-		n = runtime·findnull((byte*)t->name);
+-		if(len < n)
+-			continue;
+-		if(runtime·strncmp((byte*)note, (byte*)t->name, n) == 0) {
+-			flags = t->flags;
+-			break;
+-		}
+-	}
+-
+-	if(flags & SigGoExit)
+-		runtime·exits(note+9); // Strip "go: exit " prefix.
+-
+-	if(flags & SigPanic) {
+-		// Copy the error string from sigtramp's stack into m->notesig so
+-		// we can reliably access it from the panic routines.
+-		runtime·memmove(g->m->notesig, note, len+1);
+-
+-		gp->sig = sig;
+-		gp->sigpc = ureg->ip;
+-
+-		// Only push runtime·sigpanic if PC != 0.
+-		//
+-		// If PC == 0, probably panicked because of a call to a nil func.
+-		// Not pushing that onto SP will make the trace look like a call
+-		// to runtime·sigpanic instead. (Otherwise the trace will end at
+-		// runtime·sigpanic and we won't get to see who faulted).
+-		if(ureg->ip != 0) {
+-			sp = (uintptr*)ureg->sp;
+-			*--sp = ureg->ip;
+-			ureg->sp = (uint64)sp;
+-		}
+-		ureg->ip = (uintptr)runtime·sigpanic;
+-		return NCONT;
+-	}
+-
+-	if(flags & SigNotify) {
+-		// TODO(ality): See if os/signal wants it.
+-		//if(runtime·sigsend(...))
+-		//	return NCONT;
+-	}
+-	if(flags & SigKill)
+-		goto Exit;
+-	if(!(flags & SigThrow))
+-		return NCONT;
+-
+-Throw:
+-	g->m->throwing = 1;
+-	g->m->caughtsig = gp;
+-	runtime·startpanic();
+-
+-	runtime·printf("%s\n", note);
+-	runtime·printf("PC=%X\n", ureg->ip);
+-	runtime·printf("\n");
+-
+-	if(runtime·gotraceback(&crash)) {
+-		runtime·goroutineheader(gp);
+-		runtime·tracebacktrap(ureg->ip, ureg->sp, 0, gp);
+-		runtime·tracebackothers(gp);
+-		runtime·printf("\n");
+-		runtime·dumpregs(ureg);
+-	}
+-	
+-	if(crash)
+-		runtime·crash();
+-
+-Exit:
+-	runtime·goexitsall(note);
+-	runtime·exits(note);
+-	return NDFLT; // not reached
+-}
+-
+-void
+-runtime·sigenable(uint32 sig)
+-{
+-	USED(sig);
+-}
+-
+-void
+-runtime·sigdisable(uint32 sig)
+-{
+-	USED(sig);
+-}
+-
+-void
+-runtime·resetcpuprofiler(int32 hz)
+-{
+-	// TODO: Enable profiling interrupts.
+-	
+-	g->m->profilehz = hz;
+-}
+diff --git a/src/runtime/os_plan9_amd64.go b/src/runtime/os_plan9_amd64.go
+new file mode 100644
+index 0000000000..8727dcc20f
+--- /dev/null
++++ b/src/runtime/os_plan9_amd64.go
+@@ -0,0 +1,139 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import "unsafe"
++
++func dumpregs(u *ureg) {
++	print("ax    ", hex(u.ax), "\n")
++	print("bx    ", hex(u.bx), "\n")
++	print("cx    ", hex(u.cx), "\n")
++	print("dx    ", hex(u.dx), "\n")
++	print("di    ", hex(u.di), "\n")
++	print("si    ", hex(u.si), "\n")
++	print("bp    ", hex(u.bp), "\n")
++	print("sp    ", hex(u.sp), "\n")
++	print("r8    ", hex(u.r8), "\n")
++	print("r9    ", hex(u.r9), "\n")
++	print("r10   ", hex(u.r10), "\n")
++	print("r11   ", hex(u.r11), "\n")
++	print("r12   ", hex(u.r12), "\n")
++	print("r13   ", hex(u.r13), "\n")
++	print("r14   ", hex(u.r14), "\n")
++	print("r15   ", hex(u.r15), "\n")
++	print("ip    ", hex(u.ip), "\n")
++	print("flags ", hex(u.flags), "\n")
++	print("cs    ", hex(uint64(u.cs)), "\n")
++	print("fs    ", hex(uint64(u.fs)), "\n")
++	print("gs    ", hex(uint64(u.gs)), "\n")
++}
++
++func sighandler(_ureg *ureg, note *byte, gp *g) int {
++	_g_ := getg()
++	var t sigTabT
++	var docrash bool
++	var length int
++	var sig int
++	var flags int
++
++	// The kernel will never pass us a nil note or ureg so we probably
++	// made a mistake somewhere in sigtramp.
++	if _ureg == nil || note == nil {
++		print("sighandler: ureg ", _ureg, " note ", note, "\n")
++		goto Throw
++	}
++	// Check that the note is no more than ERRMAX bytes (including
++	// the trailing NUL). We should never receive a longer note.
++	length = findnull(note)
++	if length > _ERRMAX-1 {
++		print("sighandler: note is longer than ERRMAX\n")
++		goto Throw
++	}
++	// See if the note matches one of the patterns in sigtab.
++	// Notes that do not match any pattern can be handled at a higher
++	// level by the program but will otherwise be ignored.
++	flags = _SigNotify
++	for sig, t = range sigtable {
++		n := len(t.name)
++		if length < n {
++			continue
++		}
++		if strncmp(note, &t.name[0], uintptr(n)) == 0 {
++			flags = t.flags
++			break
++		}
++	}
++	if flags&_SigGoExit != 0 {
++		exits((*byte)(add(unsafe.Pointer(note), 9))) // Strip "go: exit " prefix.
++	}
++	if flags&_SigPanic != 0 {
++		// Copy the error string from sigtramp's stack into m->notesig so
++		// we can reliably access it from the panic routines.
++		memmove(unsafe.Pointer(_g_.m.notesig), unsafe.Pointer(note), uintptr(length+1))
++		gp.sig = uint32(sig)
++		gp.sigpc = uintptr(_ureg.ip)
++		// Only push sigpanic if PC != 0.
++		//
++		// If PC == 0, probably panicked because of a call to a nil func.
++		// Not pushing that onto SP will make the trace look like a call
++		// to sigpanic instead. (Otherwise the trace will end at
++		// sigpanic and we won't get to see who faulted).
++		if _ureg.ip != 0 {
++			sp := _ureg.sp
++			if regSize > ptrSize {
++				sp -= ptrSize
++				*(*uintptr)(unsafe.Pointer(uintptr(sp))) = 0
++			}
++			sp -= ptrSize
++			*(*uintptr)(unsafe.Pointer(uintptr(sp))) = uintptr(_ureg.ip)
++			_ureg.sp = sp
++		}
++		_ureg.ip = uint64(funcPC(sigpanic))
++		return _NCONT
++	}
++	if flags&_SigNotify != 0 {
++		// TODO(ality): See if os/signal wants it.
++		//if(sigsend(...))
++		//	return _NCONT;
++	}
++	if flags&_SigKill != 0 {
++		goto Exit
++	}
++	if flags&_SigThrow == 0 {
++		return _NCONT
++	}
++Throw:
++	_g_.m.throwing = 1
++	_g_.m.caughtsig = gp
++	startpanic()
++	print(gostringnocopy(note), "\n")
++	print("PC=", hex(_ureg.ip), "\n")
++	print("\n")
++	if gotraceback(&docrash) > 0 {
++		goroutineheader(gp)
++		tracebacktrap(uintptr(_ureg.ip), uintptr(_ureg.sp), 0, gp)
++		tracebackothers(gp)
++		print("\n")
++		dumpregs(_ureg)
++	}
++	if docrash {
++		crash()
++	}
++Exit:
++	goexitsall(note)
++	exits(note)
++	return _NDFLT // not reached
++}
++
++func sigenable(sig uint32) {
++}
++
++func sigdisable(sig uint32) {
++}
++
++func resetcpuprofiler(hz int32) {
++	// TODO: Enable profiling interrupts.
++	getg().m.profilehz = hz
++}
+diff --git a/src/runtime/signals_plan9.h b/src/runtime/signal_plan9.go
+similarity index 54%
+rename from src/runtime/signals_plan9.h
+rename to src/runtime/signal_plan9.go
+index 4ee8e542c9..37d24359bf 100644
+--- a/src/runtime/signals_plan9.h
++++ b/src/runtime/signal_plan9.go
+@@ -2,62 +2,53 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "textflag.h"
++package runtime
+ 
+-#define N SigNotify
+-#define K SigKill
+-#define T SigThrow
+-#define P SigPanic
+-#define E SigGoExit
++type sigTabT struct {
++	flags int
++	name  []byte
++}
+ 
+ // Incoming notes are compared against this table using strncmp, so the
+ // order matters: longer patterns must appear before their prefixes.
+-// There are #defined SIG constants in os_plan9.h for the table index of
+-// some of these.
++// There are _SIG constants in os2_plan9.go for the table index of some
++// of these.
+ //
+ // If you add entries to this table, you must respect the prefix ordering
+-// and also update the constant values is os_plan9.h.
+-
+-#pragma dataflag NOPTR
+-SigTab runtime·sigtab[] = {
++// and also update the constant values is os2_plan9.go.
++var sigtable = [...]sigTabT{
+ 	// Traps that we cannot be recovered.
+-	T,	"sys: trap: debug exception",
+-	T,	"sys: trap: invalid opcode",
++	{_SigThrow, []byte("sys: trap: debug exception")},
++	{_SigThrow, []byte("sys: trap: invalid opcode")},
+ 
+ 	// We can recover from some memory errors in runtime·sigpanic.
+-	P,	"sys: trap: fault read addr",	// SIGRFAULT
+-	P,	"sys: trap: fault write addr",	// SIGWFAULT
++	{_SigPanic, []byte("sys: trap: fault read addr")},  // SIGRFAULT
++	{_SigPanic, []byte("sys: trap: fault write addr")}, // SIGWFAULT
+ 
+ 	// We can also recover from math errors.
+-	P,	"sys: trap: divide error",	// SIGINTDIV
+-	P,	"sys: fp:",	// SIGFLOAT
++	{_SigPanic, []byte("sys: trap: divide error")}, // SIGINTDIV
++	{_SigPanic, []byte("sys: fp:")},                // SIGFLOAT
+ 
+ 	// All other traps are normally handled as if they were marked SigThrow.
+ 	// We mark them SigPanic here so that debug.SetPanicOnFault will work.
+-	P,	"sys: trap:",	// SIGTRAP
++	{_SigPanic, []byte("sys: trap:")}, // SIGTRAP
+ 
+ 	// Writes to a closed pipe can be handled if desired, otherwise they're ignored.
+-	N,	"sys: write on closed pipe",
++	{_SigNotify, []byte("sys: write on closed pipe")},
+ 
+ 	// Other system notes are more serious and cannot be recovered.
+-	T,	"sys:",
++	{_SigThrow, []byte("sys:")},
+ 
+ 	// Issued to all other procs when calling runtime·exit.
+-	E,	"go: exit ",
++	{_SigGoExit, []byte("go: exit ")},
+ 
+ 	// Kill is sent by external programs to cause an exit.
+-	K,	"kill",
++	{_SigKill, []byte("kill")},
+ 
+ 	// Interrupts can be handled if desired, otherwise they cause an exit.
+-	N+K,	"interrupt",
+-	N+K,	"hangup",
++	{_SigNotify + _SigKill, []byte("interrupt")},
++	{_SigNotify + _SigKill, []byte("hangup")},
+ 
+ 	// Alarms can be handled if desired, otherwise they're ignored.
+-	N,	"alarm",
+-};
+-
+-#undef N
+-#undef K
+-#undef T
+-#undef P
+-#undef E
++	{_SigNotify, []byte("alarm")},
++}
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 74cc5c6a7c..60751dd343 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !plan9
+ // +build !solaris
+ // +build !windows
+ // +build !nacl
+diff --git a/src/runtime/stubs3.go b/src/runtime/stubs3.go
+new file mode 100644
+index 0000000000..ffaa28775d
+--- /dev/null
++++ b/src/runtime/stubs3.go
+@@ -0,0 +1,12 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build plan9
++
++package runtime
++
++func close(fd int32) int32
++
++//go:noescape
++func open(name *byte, mode, perm int32) int32

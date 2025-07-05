@@ -9,6 +9,35 @@ Date:   Tue May 3 23:33:32 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ross Light <light@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/vet/vet_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 372ac2846b..2dd8ae4053 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -34,6 +34,9 @@ func MustHavePerl(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("skipping test: perl not available on %s", runtime.GOOS)
+ 	}
++	if _, err := exec.LookPath("perl"); err != nil {
++		t.Skipf("skipping test: perl not found in path")
++	}
+ }
+ 
+ var (
+@@ -42,11 +45,11 @@ var (
+ )
+ 
+ func Build(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	MustHavePerl(t)
+ 	if built {
+ 		return
+ 	}
+-	testenv.MustHaveGoBuild(t)
+-	MustHavePerl(t)
+ 	if failed {
+ 		t.Skip("cannot run on this environment")
+ 	}

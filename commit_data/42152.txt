@@ -15,7 +15,56 @@ Date:   Mon Nov 11 14:24:00 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modcmd/download.go                   |  8 ++++----
  src/cmd/go/testdata/script/mod_download_replace_file.txt | 16 ++++++++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modcmd/download.go b/src/cmd/go/internal/modcmd/download.go
+index 6ea18ea872..768ce94f39 100644
+--- a/src/cmd/go/internal/modcmd/download.go
++++ b/src/cmd/go/internal/modcmd/download.go
+@@ -89,7 +89,7 @@ func runDownload(cmd *base.Command, args []string) {
+ 		for _, arg := range args {
+ 			switch arg {
+ 			case modload.Target.Path, targetAtLatest, targetAtUpgrade, targetAtPatch:
+-				os.Stderr.WriteString("go mod download: skipping argument "+ arg + " that resolves to the main module\n")
++				os.Stderr.WriteString("go mod download: skipping argument " + arg + " that resolves to the main module\n")
+ 			}
+ 		}
+ 	}
+@@ -102,9 +102,9 @@ func runDownload(cmd *base.Command, args []string) {
+ 		if info.Replace != nil {
+ 			info = info.Replace
+ 		}
+-		if (module.Version{Path: info.Path, Version: info.Version} == modload.Target) {
+-			// skipping main module.
+-			// go mod download without dependencies is silent.
++		if info.Version == "" && info.Error == nil {
++			// main module or module replaced with file path.
++			// Nothing to download.
+ 			continue
+ 		}
+ 		m := &moduleJSON{
+diff --git a/src/cmd/go/testdata/script/mod_download_replace_file.txt b/src/cmd/go/testdata/script/mod_download_replace_file.txt
+new file mode 100644
+index 0000000000..f6ab4fe91f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_replace_file.txt
+@@ -0,0 +1,16 @@
++# This test checks that 'go mod download' produces no output for
++# the main module (when specified implicitly) and for a module replaced
++# with a file path.
++# Verifies golang.org/issue/35505.
++go mod download -json all
++cmp stdout no-output
++
++-- go.mod --
++module example.com/a
++
++require example.com/b v1.0.0
++
++replace example.com/b => ./local/b
++-- local/b/go.mod --
++module example.com/b
++-- no-output --

@@ -10,6 +10,32 @@ Date:   Mon Jul 13 20:33:59 2009 -0700
     DELTA=3  (1 added, 2 deleted, 0 changed)
     OCL=31575
     CL=31575
-
+---
  src/cmd/cc/pgen.c | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/pgen.c b/src/cmd/cc/pgen.c
+index 0b9dc8e163..9a7a3e7e18 100644
+--- a/src/cmd/cc/pgen.c
++++ b/src/cmd/cc/pgen.c
+@@ -79,6 +79,7 @@ codgen(Node *n, Node *nn)
+ 	nearln = nn->lineno;
+ 
+ 	p = gtext(n1->sym, stkoff);
++	sp = p;
+ 
+ 	/*
+ 	 * isolate first argument
+@@ -100,7 +101,6 @@ codgen(Node *n, Node *nn)
+ 		}
+ 	}
+ 
+-	sp = p;
+ 	retok = 0;
+ 
+ 	canreach = 1;
+@@ -588,4 +588,3 @@ bcomplex(Node *n, Node *c)
+ 	boolgen(n, 1, Z);
+ 	return 0;
+ }
+-

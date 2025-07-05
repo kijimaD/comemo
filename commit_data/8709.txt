@@ -7,6 +7,20 @@ Date:   Tue Jun 14 11:49:33 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4602058
-
+---
  src/pkg/os/file.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index dff8fa862c..0e97e0bd93 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -4,6 +4,8 @@
+ 
+ // Package os provides a platform-independent interface to operating system
+ // functionality.  The design is Unix-like.
++// The os interface is intended to be uniform across all operating systems.
++// Features not generally available appear in the system-specific package syscall.
+ package os
+ 
+ import (

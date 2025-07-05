@@ -34,7 +34,7 @@ Date:   Sat Jan 29 19:07:27 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/abi/abiutils.go           |  12 +-
  src/cmd/compile/internal/ir/expr.go                |  10 +-
  src/cmd/compile/internal/noder/unified.go          |  28 +--
@@ -99,3 +99,2350 @@ Date:   Sat Jan 29 19:07:27 2022 -0500
  src/syscall/exec_windows.go                        |  10 +-
  src/time/zoneinfo.go                               |  16 +-
  63 files changed, 619 insertions(+), 606 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 529150a390..07ece87c41 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -788,12 +788,12 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
+ // field. For things that are not structs (or structs without padding)
+ // it returns a list of zeros. Example:
+ //
+-// type small struct {
+-//   x uint16
+-//   y uint8
+-//   z int32
+-//   w int32
+-// }
++//	type small struct {
++//		x uint16
++//		y uint8
++//		z int32
++//		w int32
++//	}
+ //
+ // For this struct we would return a list [0, 1, 0, 0], meaning that
+ // we have one byte of padding after the second field, and no bytes of
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 82132005f9..b5c0983d6a 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -951,11 +951,11 @@ var IsIntrinsicCall = func(*CallExpr) bool { return false }
+ // instead of computing both. SameSafeExpr assumes that l and r are
+ // used in the same statement or expression. In order for it to be
+ // safe to reuse l or r, they must:
+-// * be the same expression
+-// * not have side-effects (no function calls, no channel ops);
+-//   however, panics are ok
+-// * not cause inappropriate aliasing; e.g. two string to []byte
+-//   conversions, must result in two distinct slices
++//  * be the same expression
++//  * not have side-effects (no function calls, no channel ops);
++//    however, panics are ok
++//  * not cause inappropriate aliasing; e.g. two string to []byte
++//    conversions, must result in two distinct slices
+ //
+ // The handling of OINDEXMAP is subtle. OINDEXMAP can occur both
+ // as an lvalue (map assignment) and an rvalue (map access). This is
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ca01c0da95..f45c4a7ea8 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -34,38 +34,38 @@ var localPkgReader *pkgReader
+ //
+ // The pipeline contains 2 steps:
+ //
+-// (1) Generate package export data "stub".
++//  1) Generate package export data "stub".
+ //
+-// (2) Generate package IR from package export data.
++//  2) Generate package IR from package export data.
+ //
+ // The package data "stub" at step (1) contains everything from the local package,
+ // but nothing that have been imported. When we're actually writing out export data
+ // to the output files (see writeNewExport function), we run the "linker", which does
+ // a few things:
+ //
+-// + Updates compiler extensions data (e.g., inlining cost, escape analysis results).
++//  + Updates compiler extensions data (e.g., inlining cost, escape analysis results).
+ //
+-// + Handles re-exporting any transitive dependencies.
++//  + Handles re-exporting any transitive dependencies.
+ //
+-// + Prunes out any unnecessary details (e.g., non-inlineable functions, because any
+-//   downstream importers only care about inlinable functions).
++//  + Prunes out any unnecessary details (e.g., non-inlineable functions, because any
++//    downstream importers only care about inlinable functions).
+ //
+ // The source files are typechecked twice, once before writing export data
+ // using types2 checker, once after read export data using gc/typecheck.
+ // This duplication of work will go away once we always use types2 checker,
+ // we can remove the gc/typecheck pass. The reason it is still here:
+ //
+-// + It reduces engineering costs in maintaining a fork of typecheck
+-//   (e.g., no need to backport fixes like CL 327651).
++//  + It reduces engineering costs in maintaining a fork of typecheck
++//    (e.g., no need to backport fixes like CL 327651).
+ //
+-// + It makes it easier to pass toolstash -cmp.
++//  + It makes it easier to pass toolstash -cmp.
+ //
+-// + Historically, we would always re-run the typechecker after import, even though
+-//   we know the imported data is valid. It's not ideal, but also not causing any
+-//   problem either.
++//  + Historically, we would always re-run the typechecker after import, even though
++//    we know the imported data is valid. It's not ideal, but also not causing any
++//    problem either.
+ //
+-// + There's still transformation that being done during gc/typecheck, like rewriting
+-//   multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
++//  + There's still transformation that being done during gc/typecheck, like rewriting
++//    multi-valued function call, or transform ir.OINDEX -> ir.OINDEXMAP.
+ //
+ // Using syntax+types2 tree, which already has a complete representation of generics,
+ // the unified IR has the full typed AST for doing introspection during step (1).
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index c49444179e..908f81865e 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -667,10 +667,10 @@ var kinds = []int{
+ // tflag is documented in reflect/type.go.
+ //
+ // tflag values must be kept in sync with copies in:
+-//	cmd/compile/internal/reflectdata/reflect.go
+-//	cmd/link/internal/ld/decodesym.go
+-//	reflect/type.go
+-//	runtime/type.go
++//	- cmd/compile/internal/reflectdata/reflect.go
++//	- cmd/link/internal/ld/decodesym.go
++//	- reflect/type.go
++//	- runtime/type.go
+ const (
+ 	tflagUncommon      = 1 << 0
+ 	tflagExtraStar     = 1 << 1
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 6ff3188f9b..4d21ade3e3 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -76,10 +76,10 @@ type Block struct {
+ //   d.Preds = [?, {b,1}, ?]
+ // These indexes allow us to edit the CFG in constant time.
+ // In addition, it informs phi ops in degenerate cases like:
+-// b:
+-//    if k then c else c
+-// c:
+-//    v = Phi(x, y)
++//  b:
++//     if k then c else c
++//  c:
++//     v = Phi(x, y)
+ // Then the indexes tell you whether x is chosen from
+ // the if or else branch from b.
+ //   b.Succs = [{c,0},{c,1}]
+@@ -105,6 +105,7 @@ func (e Edge) String() string {
+ 	return fmt.Sprintf("{%v,%d}", e.b, e.i)
+ }
+ 
++// BlockKind is the kind of SSA block.
+ //     kind          controls        successors
+ //   ------------------------------------------
+ //     Exit      [return mem]                []
+diff --git a/src/cmd/compile/internal/ssa/branchelim.go b/src/cmd/compile/internal/ssa/branchelim.go
+index be5f9e0a8b..59773ef31b 100644
+--- a/src/cmd/compile/internal/ssa/branchelim.go
++++ b/src/cmd/compile/internal/ssa/branchelim.go
+@@ -11,11 +11,11 @@ import "cmd/internal/src"
+ //
+ // Search for basic blocks that look like
+ //
+-// bb0            bb0
+-//  | \          /   \
+-//  | bb1  or  bb1   bb2    <- trivial if/else blocks
+-//  | /          \   /
+-// bb2            bb3
++//  bb0            bb0
++//   | \          /   \
++//   | bb1  or  bb1   bb2    <- trivial if/else blocks
++//   | /          \   /
++//  bb2            bb3
+ //
+ // where the intermediate blocks are mostly empty (with no side-effects);
+ // rewrite Phis in the postdominator as CondSelects.
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index f87ea5b893..d006bf9a3b 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -24,10 +24,10 @@ import (
+ 
+ // Compile is the main entry point for this package.
+ // Compile modifies f so that on return:
+-//   · all Values in f map to 0 or 1 assembly instructions of the target architecture
+-//   · the order of f.Blocks is the order to emit the Blocks
+-//   · the order of b.Values is the order to emit the Values in each Block
+-//   · f has a non-nil regAlloc field
++//   - all Values in f map to 0 or 1 assembly instructions of the target architecture
++//   - the order of f.Blocks is the order to emit the Blocks
++//   - the order of b.Values is the order to emit the Values in each Block
++//   - f has a non-nil regAlloc field
+ func Compile(f *Func) {
+ 	// TODO: debugging - set flags to control verbosity of compiler,
+ 	// which phases to dump IR before/after, etc.
+@@ -250,8 +250,8 @@ var GenssaDump map[string]bool = make(map[string]bool) // names of functions to
+ // version is used as a regular expression to match the phase name(s).
+ //
+ // Special cases that have turned out to be useful:
+-//  ssa/check/on enables checking after each phase
+-//  ssa/all/time enables time reporting for all phases
++//  - ssa/check/on enables checking after each phase
++//  - ssa/all/time enables time reporting for all phases
+ //
+ // See gc/lex.go for dissection of the option string.
+ // Example uses:
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 7728a395e0..0b5392f0f0 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -820,12 +820,12 @@ func (f *Func) invalidateCFG() {
+ }
+ 
+ // DebugHashMatch reports whether environment variable evname
+-// 1) is empty (this is a special more-quickly implemented case of 3)
+-// 2) is "y" or "Y"
+-// 3) is a suffix of the sha1 hash of name
+-// 4) is a suffix of the environment variable
+-//    fmt.Sprintf("%s%d", evname, n)
+-//    provided that all such variables are nonempty for 0 <= i <= n
++//  1) is empty (this is a special more-quickly implemented case of 3)
++//  2) is "y" or "Y"
++//  3) is a suffix of the sha1 hash of name
++//  4) is a suffix of the environment variable
++//     fmt.Sprintf("%s%d", evname, n)
++//     provided that all such variables are nonempty for 0 <= i <= n
+ // Otherwise it returns false.
+ // When true is returned the message
+ //  "%s triggered %s\n", evname, name
+diff --git a/src/cmd/compile/internal/ssa/fuse_branchredirect.go b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+index 751dca7468..27449db55a 100644
+--- a/src/cmd/compile/internal/ssa/fuse_branchredirect.go
++++ b/src/cmd/compile/internal/ssa/fuse_branchredirect.go
+@@ -8,21 +8,21 @@ package ssa
+ // of an If block can be derived from its predecessor If block, in
+ // some such cases, we can redirect the predecessor If block to the
+ // corresponding successor block directly. For example:
+-// p:
+-//   v11 = Less64 <bool> v10 v8
+-//   If v11 goto b else u
+-// b: <- p ...
+-//   v17 = Leq64 <bool> v10 v8
+-//   If v17 goto s else o
++//  p:
++//    v11 = Less64 <bool> v10 v8
++//    If v11 goto b else u
++//  b: <- p ...
++//    v17 = Leq64 <bool> v10 v8
++//    If v17 goto s else o
+ // We can redirect p to s directly.
+ //
+ // The implementation here borrows the framework of the prove pass.
+-// 1, Traverse all blocks of function f to find If blocks.
+-// 2,   For any If block b, traverse all its predecessors to find If blocks.
+-// 3,     For any If block predecessor p, update relationship p->b.
+-// 4,     Traverse all successors of b.
+-// 5,       For any successor s of b, try to update relationship b->s, if a
+-//          contradiction is found then redirect p to another successor of b.
++//  1, Traverse all blocks of function f to find If blocks.
++//  2,   For any If block b, traverse all its predecessors to find If blocks.
++//  3,     For any If block predecessor p, update relationship p->b.
++//  4,     Traverse all successors of b.
++//  5,       For any successor s of b, try to update relationship b->s, if a
++//           contradiction is found then redirect p to another successor of b.
+ func fuseBranchRedirect(f *Func) bool {
+ 	ft := newFactsTable(f)
+ 	ft.checkpoint()
+diff --git a/src/cmd/compile/internal/ssa/location.go b/src/cmd/compile/internal/ssa/location.go
+index b575febd72..d69db404ed 100644
+--- a/src/cmd/compile/internal/ssa/location.go
++++ b/src/cmd/compile/internal/ssa/location.go
+@@ -46,19 +46,19 @@ func (r *Register) GCNum() int16 {
+ // variable that has been decomposed into multiple stack slots.
+ // As an example, a string could have the following configurations:
+ //
+-//           stack layout              LocalSlots
++//            stack layout              LocalSlots
+ //
+-// Optimizations are disabled. s is on the stack and represented in its entirety.
+-// [ ------- s string ---- ] { N: s, Type: string, Off: 0 }
++//  Optimizations are disabled. s is on the stack and represented in its entirety.
++//  [ ------- s string ---- ] { N: s, Type: string, Off: 0 }
+ //
+-// s was not decomposed, but the SSA operates on its parts individually, so
+-// there is a LocalSlot for each of its fields that points into the single stack slot.
+-// [ ------- s string ---- ] { N: s, Type: *uint8, Off: 0 }, {N: s, Type: int, Off: 8}
++//  s was not decomposed, but the SSA operates on its parts individually, so
++//  there is a LocalSlot for each of its fields that points into the single stack slot.
++//  [ ------- s string ---- ] { N: s, Type: *uint8, Off: 0 }, {N: s, Type: int, Off: 8}
+ //
+-// s was decomposed. Each of its fields is in its own stack slot and has its own LocalSLot.
+-// [ ptr *uint8 ] [ len int] { N: ptr, Type: *uint8, Off: 0, SplitOf: parent, SplitOffset: 0},
+-//                           { N: len, Type: int, Off: 0, SplitOf: parent, SplitOffset: 8}
+-//                           parent = &{N: s, Type: string}
++//  s was decomposed. Each of its fields is in its own stack slot and has its own LocalSLot.
++//  [ ptr *uint8 ] [ len int] { N: ptr, Type: *uint8, Off: 0, SplitOf: parent, SplitOffset: 0},
++//                            { N: len, Type: int, Off: 0, SplitOf: parent, SplitOffset: 8}
++//                            parent = &{N: s, Type: string}
+ type LocalSlot struct {
+ 	N    *ir.Name    // an ONAME *ir.Name representing a stack location.
+ 	Type *types.Type // type of slot
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index 5a4bc1d60a..206aab2c5e 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -66,18 +66,18 @@ func parseIndVar(ind *Value) (min, inc, nxt *Value) {
+ //
+ // Look for variables and blocks that satisfy the following
+ //
+-// loop:
+-//   ind = (Phi min nxt),
+-//   if ind < max
+-//     then goto enter_loop
+-//     else goto exit_loop
++//  loop:
++//    ind = (Phi min nxt),
++//    if ind < max
++//      then goto enter_loop
++//      else goto exit_loop
+ //
+-//   enter_loop:
+-//	do something
+-//      nxt = inc + ind
+-//	goto loop
++//    enter_loop:
++// 	do something
++//       nxt = inc + ind
++// 	goto loop
+ //
+-// exit_loop:
++//  exit_loop:
+ //
+ //
+ // TODO: handle 32 bit operations
+diff --git a/src/cmd/compile/internal/ssa/phiopt.go b/src/cmd/compile/internal/ssa/phiopt.go
+index 745c61cb86..0357442ae9 100644
+--- a/src/cmd/compile/internal/ssa/phiopt.go
++++ b/src/cmd/compile/internal/ssa/phiopt.go
+@@ -15,12 +15,12 @@ package ssa
+ //
+ // In SSA code this appears as
+ //
+-// b0
+-//   If b -> b1 b2
+-// b1
+-//   Plain -> b2
+-// b2
+-//   x = (OpPhi (ConstBool [true]) (ConstBool [false]))
++//  b0
++//    If b -> b1 b2
++//  b1
++//    Plain -> b2
++//  b2
++//    x = (OpPhi (ConstBool [true]) (ConstBool [false]))
+ //
+ // In this case we can replace x with a copy of b.
+ func phiopt(f *Func) {
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 98af586cab..d0c9a190ad 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -27,17 +27,17 @@ const (
+ //
+ // E.g.
+ //
+-// r := relation(...)
++//  r := relation(...)
+ //
+-// if v < w {
+-//   newR := r & lt
+-// }
+-// if v >= w {
+-//   newR := r & (eq|gt)
+-// }
+-// if v != w {
+-//   newR := r & (lt|gt)
+-// }
++//  if v < w {
++//    newR := r & lt
++//  }
++//  if v >= w {
++//    newR := r & (eq|gt)
++//  }
++//  if v != w {
++//    newR := r & (lt|gt)
++//  }
+ type relation uint
+ 
+ const (
+diff --git a/src/cmd/compile/internal/ssa/sparsetree.go b/src/cmd/compile/internal/ssa/sparsetree.go
+index be914c8644..732bb8e321 100644
+--- a/src/cmd/compile/internal/ssa/sparsetree.go
++++ b/src/cmd/compile/internal/ssa/sparsetree.go
+@@ -207,8 +207,8 @@ func (t SparseTree) isAncestor(x, y *Block) bool {
+ // domorder returns a value for dominator-oriented sorting.
+ // Block domination does not provide a total ordering,
+ // but domorder two has useful properties.
+-// (1) If domorder(x) > domorder(y) then x does not dominate y.
+-// (2) If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
++//  1. If domorder(x) > domorder(y) then x does not dominate y.
++//  2. If domorder(x) < domorder(y) and domorder(y) < domorder(z) and x does not dominate y,
+ //     then x does not dominate z.
+ // Property (1) means that blocks sorted by domorder always have a maximal dominant block first.
+ // Property (2) allows searches for dominated blocks to exit early.
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 5120cd1086..21eee12c85 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -80,11 +80,11 @@ func needwb(v *Value, zeroes map[ID]ZeroRegion) bool {
+ // when necessary (the condition above). It rewrites store ops to branches
+ // and runtime calls, like
+ //
+-// if writeBarrier.enabled {
+-//   gcWriteBarrier(ptr, val)	// Not a regular Go call
+-// } else {
+-//   *ptr = val
+-// }
++//	if writeBarrier.enabled {
++//		gcWriteBarrier(ptr, val)	// Not a regular Go call
++//	} else {
++//		*ptr = val
++//	}
+ //
+ // A sequence of WB stores for many pointer fields of a single type will
+ // be emitted together, with a single branch.
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 39ea0cc224..6574b01371 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1022,22 +1022,24 @@ func (p *parser) operand(keep_parens bool) Expr {
+ 	// as well (operand is only called from pexpr).
+ }
+ 
+-// PrimaryExpr =
+-// 	Operand |
+-// 	Conversion |
+-// 	PrimaryExpr Selector |
+-// 	PrimaryExpr Index |
+-// 	PrimaryExpr Slice |
+-// 	PrimaryExpr TypeAssertion |
+-// 	PrimaryExpr Arguments .
++// pexpr parses a PrimaryExpr.
+ //
+-// Selector       = "." identifier .
+-// Index          = "[" Expression "]" .
+-// Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
+-//                      ( [ Expression ] ":" Expression ":" Expression )
+-//                  "]" .
+-// TypeAssertion  = "." "(" Type ")" .
+-// Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
++//	PrimaryExpr =
++//		Operand |
++//		Conversion |
++//		PrimaryExpr Selector |
++//		PrimaryExpr Index |
++//		PrimaryExpr Slice |
++//		PrimaryExpr TypeAssertion |
++//		PrimaryExpr Arguments .
++//
++//	Selector       = "." identifier .
++//	Index          = "[" Expression "]" .
++//	Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
++//	                     ( [ Expression ] ":" Expression ":" Expression )
++//	                 "]" .
++//	TypeAssertion  = "." "(" Type ")" .
++//	Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+ func (p *parser) pexpr(x Expr, keep_parens bool) Expr {
+ 	if trace {
+ 		defer p.trace("pexpr")()
+@@ -1283,10 +1285,10 @@ func newIndirect(pos Pos, typ Expr) Expr {
+ // typeOrNil is like type_ but it returns nil if there was no type
+ // instead of reporting an error.
+ //
+-// Type     = TypeName | TypeLit | "(" Type ")" .
+-// TypeName = identifier | QualifiedIdent .
+-// TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
+-// 	      SliceType | MapType | Channel_Type .
++//	Type     = TypeName | TypeLit | "(" Type ")" .
++//	TypeName = identifier | QualifiedIdent .
++//	TypeLit  = ArrayType | StructType | PointerType | FunctionType | InterfaceType |
++//		      SliceType | MapType | Channel_Type .
+ func (p *parser) typeOrNil() Expr {
+ 	if trace {
+ 		defer p.trace("typeOrNil")()
+@@ -2519,11 +2521,13 @@ func (p *parser) commClause() *CommClause {
+ 	return c
+ }
+ 
+-// Statement =
+-// 	Declaration | LabeledStmt | SimpleStmt |
+-// 	GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
+-// 	FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
+-// 	DeferStmt .
++// stmtOrNil parses a statement if one is present, or else returns nil.
++//
++//	Statement =
++//		Declaration | LabeledStmt | SimpleStmt |
++//		GoStmt | ReturnStmt | BreakStmt | ContinueStmt | GotoStmt |
++//		FallthroughStmt | Block | IfStmt | SwitchStmt | SelectStmt | ForStmt |
++//		DeferStmt .
+ func (p *parser) stmtOrNil() Stmt {
+ 	if trace {
+ 		defer p.trace("stmt " + p.tok.String())()
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index e9690a5551..d4ec52adf9 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1476,14 +1476,14 @@ func getShapes(t *types.Type, listp *[]*types.Type) {
+ // For now, we only consider two types to have the same shape, if they have exactly
+ // the same underlying type or they are both pointer types.
+ //
+-//  tparam is the associated typeparam - it must be TTYPEPARAM type. If there is a
+-//  structural type for the associated type param (not common), then a pointer type t
+-//  is mapped to its underlying type, rather than being merged with other pointers.
++// tparam is the associated typeparam - it must be TTYPEPARAM type. If there is a
++// structural type for the associated type param (not common), then a pointer type t
++// is mapped to its underlying type, rather than being merged with other pointers.
+ //
+-//  Shape types are also distinguished by the index of the type in a type param/arg
+-//  list. We need to do this so we can distinguish and substitute properly for two
+-//  type params in the same function that have the same shape for a particular
+-//  instantiation.
++// Shape types are also distinguished by the index of the type in a type param/arg
++// list. We need to do this so we can distinguish and substitute properly for two
++// type params in the same function that have the same shape for a particular
++// instantiation.
+ func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
+ 	assert(!t.IsShape())
+ 	if t.HasShape() {
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index fc9907b85f..9fa3e49e34 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -17,18 +17,18 @@ var RegSize int
+ 
+ // Slices in the runtime are represented by three components:
+ //
+-// type slice struct {
+-// 	ptr unsafe.Pointer
+-// 	len int
+-// 	cap int
+-// }
++//	type slice struct {
++//		ptr unsafe.Pointer
++//		len int
++//		cap int
++//	}
+ //
+ // Strings in the runtime are represented by two components:
+ //
+-// type string struct {
+-// 	ptr unsafe.Pointer
+-// 	len int
+-// }
++//	type string struct {
++//		ptr unsafe.Pointer
++//		len int
++//	}
+ //
+ // These variables are the offsets of fields and sizes of these structs.
+ var (
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index c8d11b5bb9..147194c369 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1121,9 +1121,9 @@ func (t *Type) SimpleString() string {
+ }
+ 
+ // Cmp is a comparison between values a and b.
+-// -1 if a < b
+-//  0 if a == b
+-//  1 if a > b
++//  -1 if a < b
++//   0 if a == b
++//   1 if a > b
+ type Cmp int8
+ 
+ const (
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 78fc35b72a..9f7e593eeb 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -21,9 +21,8 @@ const useConstraintTypeInference = true
+ // If successful, infer returns the complete list of type arguments, one for each type parameter.
+ // Otherwise the result is nil and appropriate errors will be reported.
+ //
+-// Inference proceeds as follows:
++// Inference proceeds as follows. Starting with given type arguments:
+ //
+-//   Starting with given type arguments
+ //   1) apply FTI (function type inference) with typed arguments,
+ //   2) apply CTI (constraint type inference),
+ //   3) apply FTI with untyped function arguments,
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 08d37cb256..ee7c8a8488 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -343,7 +343,7 @@ func NewParam(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+-/// under which the field is accessible.
++// under which the field is accessible.
+ func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+ 	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
+ }
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index b25627bd22..8fe231161a 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -125,12 +125,12 @@ func walkClose(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 
+ // Lower copy(a, b) to a memmove call or a runtime call.
+ //
+-// init {
+-//   n := len(a)
+-//   if n > len(b) { n = len(b) }
+-//   if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
+-// }
+-// n;
++//	init {
++//	  n := len(a)
++//	  if n > len(b) { n = len(b) }
++//	  if a.ptr != b.ptr { memmove(a.ptr, b.ptr, n*sizeof(elem(a))) }
++//	}
++//	n;
+ //
+ // Also works if b is a string.
+ //
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index aa8c548963..dcf7a786e7 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -316,9 +316,9 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ // isMapClear checks if n is of the form:
+ //
+-// for k := range m {
+-//   delete(m, k)
+-// }
++//	for k := range m {
++//		delete(m, k)
++//	}
+ //
+ // where == for keys of map m is reflexive.
+ func isMapClear(n *ir.RangeStmt) bool {
+@@ -374,9 +374,9 @@ func mapClear(m ir.Node) ir.Node {
+ // fast zeroing of slices and arrays (issue 5373).
+ // Look for instances of
+ //
+-// for i := range a {
+-// 	a[i] = zero
+-// }
++//	for i := range a {
++//		a[i] = zero
++//	}
+ //
+ // in which the evaluation of a is side-effect-free.
+ //
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index caafc13da8..520dde7050 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -97,7 +97,7 @@ func mkzosarch(dir, file string) {
+ // mkzcgo writes zcgo.go for the go/build package:
+ //
+ //	package build
+-//  var cgoEnabled = map[string]bool{}
++//	var cgoEnabled = map[string]bool{}
+ //
+ // It is invoked to write go/build/zcgo.go.
+ func mkzcgo(dir, file string) {
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index bffbe32220..76a2b85f96 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -1373,7 +1373,9 @@ type command struct {
+ // parse parses a single line as a list of space-separated arguments
+ // subject to environment variable expansion (but not resplitting).
+ // Single quotes around text disable splitting and expansion.
+-// To embed a single quote, double it: 'Don''t communicate by sharing memory.'
++// To embed a single quote, double it:
++//
++//	'Don''t communicate by sharing memory.'
+ func (ts *testScript) parse(line string) command {
+ 	ts.line = line
+ 
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index ff225bedd7..af2a0df338 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -264,15 +264,15 @@ func (p *ImportedPkg) Write(w *Writer) {
+ // Symbol definition.
+ //
+ // Serialized format:
+-// Sym struct {
+-//    Name  string
+-//    ABI   uint16
+-//    Type  uint8
+-//    Flag  uint8
+-//    Flag2 uint8
+-//    Siz   uint32
+-//    Align uint32
+-// }
++//   Sym struct {
++//      Name  string
++//      ABI   uint16
++//      Type  uint8
++//      Flag  uint8
++//      Flag2 uint8
++//      Siz   uint32
++//      Align uint32
++//   }
+ type Sym [SymSize]byte
+ 
+ const SymSize = stringRefSize + 2 + 1 + 1 + 1 + 4 + 4
+@@ -371,13 +371,13 @@ const HashSize = sha1.Size
+ // Relocation.
+ //
+ // Serialized format:
+-// Reloc struct {
+-//    Off  int32
+-//    Siz  uint8
+-//    Type uint16
+-//    Add  int64
+-//    Sym  SymRef
+-// }
++//   Reloc struct {
++//      Off  int32
++//      Siz  uint8
++//      Type uint16
++//      Add  int64
++//      Sym  SymRef
++//   }
+ type Reloc [RelocSize]byte
+ 
+ const RelocSize = 4 + 1 + 2 + 8 + 8
+@@ -415,10 +415,10 @@ func (r *Reloc) fromBytes(b []byte) { copy(r[:], b) }
+ // Aux symbol info.
+ //
+ // Serialized format:
+-// Aux struct {
+-//    Type uint8
+-//    Sym  SymRef
+-// }
++//   Aux struct {
++//      Type uint8
++//      Sym  SymRef
++//   }
+ type Aux [AuxSize]byte
+ 
+ const AuxSize = 1 + 8
+@@ -458,11 +458,11 @@ func (a *Aux) fromBytes(b []byte) { copy(a[:], b) }
+ // Referenced symbol flags.
+ //
+ // Serialized format:
+-// RefFlags struct {
+-//    Sym   symRef
+-//    Flag  uint8
+-//    Flag2 uint8
+-// }
++//   RefFlags struct {
++//      Sym   symRef
++//      Flag  uint8
++//      Flag2 uint8
++//   }
+ type RefFlags [RefFlagsSize]byte
+ 
+ const RefFlagsSize = 8 + 1 + 1
+@@ -490,10 +490,10 @@ const huge = (1<<31 - 1) / RelocSize
+ // Referenced symbol name.
+ //
+ // Serialized format:
+-// RefName struct {
+-//    Sym  symRef
+-//    Name string
+-// }
++//   RefName struct {
++//      Sym  symRef
++//      Name string
++//   }
+ type RefName [RefNameSize]byte
+ 
+ const RefNameSize = 8 + stringRefSize
+diff --git a/src/cmd/internal/obj/arm64/doc.go b/src/cmd/internal/obj/arm64/doc.go
+index 1234a3e818..2763cf4139 100644
+--- a/src/cmd/internal/obj/arm64/doc.go
++++ b/src/cmd/internal/obj/arm64/doc.go
+@@ -11,7 +11,7 @@ Instructions mnemonics mapping rules
+ 1. Most instructions use width suffixes of instruction names to indicate operand width rather than
+ using different register names.
+ 
+-  Examples:
++Examples:
+     ADC R24, R14, R12          <=>     adc x12, x24
+     ADDW R26->24, R21, R15     <=>     add w15, w21, w26, asr #24
+     FCMPS F2, F3               <=>     fcmp s3, s2
+@@ -20,7 +20,7 @@ using different register names.
+ 
+ 2. Go uses .P and .W suffixes to indicate post-increment and pre-increment.
+ 
+-  Examples:
++Examples:
+     MOVD.P -8(R10), R8         <=>      ldr x8, [x10],#-8
+     MOVB.W 16(R16), R10        <=>      ldrsb x10, [x16,#16]!
+     MOVBU.W 16(R16), R10       <=>      ldrb x10, [x16,#16]!
+@@ -39,7 +39,7 @@ ldrsh, sturh, strh =>  MOVH.
+ 5. Go adds a V prefix for most floating-point and SIMD instructions, except cryptographic extension
+ instructions and floating-point(scalar) instructions.
+ 
+-  Examples:
++Examples:
+     VADD V5.H8, V18.H8, V9.H8         <=>      add v9.8h, v18.8h, v5.8h
+     VLD1.P (R6)(R11), [V31.D1]        <=>      ld1 {v31.1d}, [x6], x11
+     VFMLA V29.S2, V20.S2, V14.S2      <=>      fmla v14.2s, v20.2s, v29.2s
+@@ -52,7 +52,7 @@ Go asm supports the PCALIGN directive, which indicates that the next instruction
+ to a specified boundary by padding with NOOP instruction. The alignment value supported on arm64
+ must be a power of 2 and in the range of [8, 2048].
+ 
+-  Examples:
++Examples:
+     PCALIGN $16
+     MOVD $2, R0          // This instruction is aligned with 16 bytes.
+     PCALIGN $1024
+@@ -63,7 +63,8 @@ its address will be aligned to the same or coarser boundary, which is the maximu
+ alignment values.
+ 
+ In the following example, the function Add is aligned with 128 bytes.
+-  Examples:
++
++Examples:
+     TEXT ·Add(SB),$40-16
+     MOVD $2, R0
+     PCALIGN $32
+@@ -79,7 +80,7 @@ have the same alignment as the first hand-written instruction.
+ 
+ In the following example, PCALIGN at the entry of the function Add will align its address to 2048 bytes.
+ 
+-  Examples:
++Examples:
+     TEXT ·Add(SB),NOSPLIT|NOFRAME,$0
+       PCALIGN $2048
+       MOVD $1, R0
+@@ -91,7 +92,7 @@ In the following example, PCALIGN at the entry of the function Add will align it
+ Go asm uses VMOVQ/VMOVD/VMOVS to move 128-bit, 64-bit and 32-bit constants into vector registers, respectively.
+ And for a 128-bit interger, it take two 64-bit operands, for the low and high parts separately.
+ 
+-  Examples:
++Examples:
+     VMOVS $0x11223344, V0
+     VMOVD $0x1122334455667788, V1
+     VMOVQ $0x1122334455667788, $0x99aabbccddeeff00, V2   // V2=0x99aabbccddeeff001122334455667788
+@@ -104,7 +105,7 @@ is the 16-bit unsigned immediate, in the range 0 to 65535; For the 32-bit varian
+ 
+ The current Go assembler does not accept zero shifts, such as "op $0, Rd" and "op $(0<<(16|32|48)), Rd" instructions.
+ 
+-  Examples:
++Examples:
+     MOVK $(10<<32), R20     <=>      movk x20, #10, lsl #32
+     MOVZW $(20<<16), R8     <=>      movz w8, #20, lsl #16
+     MOVK $(0<<16), R10 will be reported as an error by the assembler.
+@@ -121,7 +122,7 @@ Special Cases.
+ related to real ARM64 instruction. NOOP serves for the hardware nop instruction. NOOP is an alias of
+ HINT $0.
+ 
+-  Examples:
++Examples:
+     VMOV V13.B[1], R20      <=>      mov x20, v13.b[1]
+     VMOV V13.H[1], R20      <=>      mov w20, v13.h[1]
+     JMP (R3)                <=>      br x3
+@@ -146,7 +147,7 @@ Argument mapping rules
+ 
+ Go reverses the arguments of most instructions.
+ 
+-    Examples:
++Examples:
+       ADD R11.SXTB<<1, RSP, R25      <=>      add x25, sp, w11, sxtb #1
+       VADD V16, V19, V14             <=>      add d14, d19, d16
+ 
+@@ -155,32 +156,32 @@ Special Cases.
+ (1) Argument order is the same as in the GNU ARM64 syntax: cbz, cbnz and some store instructions,
+ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
+ 
+-  Examples:
++Examples:
+     MOVD R29, 384(R19)    <=>    str x29, [x19,#384]
+     MOVB.P R30, 30(R4)    <=>    strb w30, [x4],#30
+     STLRH R21, (R19)      <=>    stlrh w21, [x19]
+ 
+ (2) MADD, MADDW, MSUB, MSUBW, SMADDL, SMSUBL, UMADDL, UMSUBL <Rm>, <Ra>, <Rn>, <Rd>
+ 
+-  Examples:
++Examples:
+     MADD R2, R30, R22, R6       <=>    madd x6, x22, x2, x30
+     SMSUBL R10, R3, R17, R27    <=>    smsubl x27, w17, w10, x3
+ 
+ (3) FMADDD, FMADDS, FMSUBD, FMSUBS, FNMADDD, FNMADDS, FNMSUBD, FNMSUBS <Fm>, <Fa>, <Fn>, <Fd>
+ 
+-  Examples:
++Examples:
+     FMADDD F30, F20, F3, F29    <=>    fmadd d29, d3, d30, d20
+     FNMSUBS F7, F25, F7, F22    <=>    fnmsub s22, s7, s7, s25
+ 
+ (4) BFI, BFXIL, SBFIZ, SBFX, UBFIZ, UBFX $<lsb>, <Rn>, $<width>, <Rd>
+ 
+-  Examples:
++Examples:
+     BFIW $16, R20, $6, R0      <=>    bfi w0, w20, #16, #6
+     UBFIZ $34, R26, $5, R20    <=>    ubfiz x20, x26, #34, #5
+ 
+ (5) FCCMPD, FCCMPS, FCCMPED, FCCMPES <cond>, Fm. Fn, $<nzcv>
+ 
+-  Examples:
++Examples:
+     FCCMPD AL, F8, F26, $0     <=>    fccmp d26, d8, #0x0, al
+     FCCMPS VS, F29, F4, $4     <=>    fccmp s4, s29, #0x4, vs
+     FCCMPED LE, F20, F5, $13   <=>    fccmpe d5, d20, #0xd, le
+@@ -188,20 +189,20 @@ such as str, stur, strb, sturb, strh, sturh stlr, stlrb. stlrh, st1.
+ 
+ (6) CCMN, CCMNW, CCMP, CCMPW <cond>, <Rn>, $<imm>, $<nzcv>
+ 
+-  Examples:
++Examples:
+     CCMP MI, R22, $12, $13     <=>    ccmp x22, #0xc, #0xd, mi
+     CCMNW AL, R1, $11, $8      <=>    ccmn w1, #0xb, #0x8, al
+ 
+ (7) CCMN, CCMNW, CCMP, CCMPW <cond>, <Rn>, <Rm>, $<nzcv>
+ 
+-  Examples:
++Examples:
+     CCMN VS, R13, R22, $10     <=>    ccmn x13, x22, #0xa, vs
+     CCMPW HS, R19, R14, $11    <=>    ccmp w19, w14, #0xb, cs
+ 
+ (9) CSEL, CSELW, CSNEG, CSNEGW, CSINC, CSINCW <cond>, <Rn>, <Rm>, <Rd> ;
+ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
+ 
+-  Examples:
++Examples:
+     CSEL GT, R0, R19, R1        <=>    csel x1, x0, x19, gt
+     CSNEGW GT, R7, R17, R8      <=>    csneg w8, w7, w17, gt
+     FCSELD EQ, F15, F18, F16    <=>    fcsel d16, d15, d18, eq
+@@ -211,13 +212,13 @@ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
+ 
+ (11) STLXR, STLXRW, STXR, STXRW, STLXRB, STLXRH, STXRB, STXRH  <Rf>, (<Rn|RSP>), <Rs>
+ 
+-  Examples:
++Examples:
+     STLXR ZR, (R15), R16    <=>    stlxr w16, xzr, [x15]
+     STXRB R9, (R21), R19    <=>    stxrb w19, w9, [x21]
+ 
+ (12) STLXP, STLXPW, STXP, STXPW (<Rf1>, <Rf2>), (<Rn|RSP>), <Rs>
+ 
+-  Examples:
++Examples:
+     STLXP (R17, R19), (R4), R5      <=>    stlxp w5, x17, x19, [x4]
+     STXPW (R30, R25), (R22), R13    <=>    stxp w13, w30, w25, [x22]
+ 
+@@ -227,28 +228,28 @@ FCSELD, FCSELS <cond>, <Fn>, <Fm>, <Fd>
+ 
+ Optionally-shifted immediate.
+ 
+-  Examples:
++Examples:
+     ADD $(3151<<12), R14, R20     <=>    add x20, x14, #0xc4f, lsl #12
+     ADDW $1864, R25, R6           <=>    add w6, w25, #0x748
+ 
+ Optionally-shifted registers are written as <Rm>{<shift><amount>}.
+ The <shift> can be <<(lsl), >>(lsr), ->(asr), @>(ror).
+ 
+-  Examples:
++Examples:
+     ADD R19>>30, R10, R24     <=>    add x24, x10, x19, lsr #30
+     ADDW R26->24, R21, R15    <=>    add w15, w21, w26, asr #24
+ 
+ Extended registers are written as <Rm>{.<extend>{<<<amount>}}.
+ <extend> can be UXTB, UXTH, UXTW, UXTX, SXTB, SXTH, SXTW or SXTX.
+ 
+-  Examples:
++Examples:
+     ADDS R19.UXTB<<4, R9, R26     <=>    adds x26, x9, w19, uxtb #4
+     ADDSW R14.SXTX, R14, R6       <=>    adds w6, w14, w14, sxtx
+ 
+ Memory references: [<Xn|SP>{,#0}] is written as (Rn|RSP), a base register and an immediate
+ offset is written as imm(Rn|RSP), a base register and an offset register is written as (Rn|RSP)(Rm).
+ 
+-  Examples:
++Examples:
+     LDAR (R22), R9                  <=>    ldar x9, [x22]
+     LDP 28(R17), (R15, R23)         <=>    ldp x15, x23, [x17,#28]
+     MOVWU (R4)(R12<<2), R8          <=>    ldr w8, [x4, x12, lsl #2]
+@@ -257,12 +258,12 @@ offset is written as imm(Rn|RSP), a base register and an offset register is writ
+ 
+ Register pairs are written as (Rt1, Rt2).
+ 
+-  Examples:
++Examples:
+     LDP.P -240(R11), (R12, R26)    <=>    ldp x12, x26, [x11],#-240
+ 
+ Register with arrangement and register with arrangement and index.
+ 
+-  Examples:
++Examples:
+     VADD V5.H8, V18.H8, V9.H8                     <=>    add v9.8h, v18.8h, v5.8h
+     VLD1 (R2), [V21.B16]                          <=>    ld1 {v21.16b}, [x2]
+     VST1.P V9.S[1], (R16)(R21)                    <=>    st1 {v9.s}[1], [x16], x28
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index 1b1d13a679..d65a7357a6 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -13,19 +13,19 @@ import "cmd/internal/src"
+ // every time a function is inlined. For example, suppose f() calls g()
+ // and g has two calls to h(), and that f, g, and h are inlineable:
+ //
+-//  1 func main() {
+-//  2     f()
+-//  3 }
+-//  4 func f() {
+-//  5     g()
+-//  6 }
+-//  7 func g() {
+-//  8     h()
+-//  9     h()
+-// 10 }
+-// 11 func h() {
+-// 12     println("H")
+-// 13 }
++//   1 func main() {
++//   2     f()
++//   3 }
++//   4 func f() {
++//   5     g()
++//   6 }
++//   7 func g() {
++//   8     h()
++//   9     h()
++//  10 }
++//  11 func h() {
++//  12     println("H")
++//  13 }
+ //
+ // Assuming the global tree starts empty, inlining will produce the
+ // following tree:
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 7bae31f343..e9302ee642 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -448,14 +448,14 @@ func contentHash64(s *LSym) goobj.Hash64Type {
+ // Depending on the category of the referenced symbol, we choose
+ // different hash algorithms such that the hash is globally
+ // consistent.
+-// - For referenced content-addressable symbol, its content hash
+-//   is globally consistent.
+-// - For package symbol and builtin symbol, its local index is
+-//   globally consistent.
+-// - For non-package symbol, its fully-expanded name is globally
+-//   consistent. For now, we require we know the current package
+-//   path so we can always expand symbol names. (Otherwise,
+-//   symbols with relocations are not considered hashable.)
++//  - For referenced content-addressable symbol, its content hash
++//    is globally consistent.
++//  - For package symbol and builtin symbol, its local index is
++//    globally consistent.
++//  - For non-package symbol, its fully-expanded name is globally
++//    consistent. For now, we require we know the current package
++//    path so we can always expand symbol names. (Otherwise,
++//    symbols with relocations are not considered hashable.)
+ //
+ // For now, we assume there is no circular dependencies among
+ // hashed symbols.
+diff --git a/src/cmd/internal/obj/ppc64/doc.go b/src/cmd/internal/obj/ppc64/doc.go
+index a9d89c93b4..bdaeaf69e1 100644
+--- a/src/cmd/internal/obj/ppc64/doc.go
++++ b/src/cmd/internal/obj/ppc64/doc.go
+@@ -23,207 +23,212 @@ In the examples below, the Go assembly is on the left, PPC64 assembly on the rig
+ 
+ 1. Operand ordering
+ 
+-  In Go asm, the last operand (right) is the target operand, but with PPC64 asm,
+-  the first operand (left) is the target. The order of the remaining operands is
+-  not consistent: in general opcodes with 3 operands that perform math or logical
+-  operations have their operands in reverse order. Opcodes for vector instructions
+-  and those with more than 3 operands usually have operands in the same order except
+-  for the target operand, which is first in PPC64 asm and last in Go asm.
++In Go asm, the last operand (right) is the target operand, but with PPC64 asm,
++the first operand (left) is the target. The order of the remaining operands is
++not consistent: in general opcodes with 3 operands that perform math or logical
++operations have their operands in reverse order. Opcodes for vector instructions
++and those with more than 3 operands usually have operands in the same order except
++for the target operand, which is first in PPC64 asm and last in Go asm.
+ 
+-  Example:
+-    ADD R3, R4, R5		<=>	add r5, r4, r3
++Example:
++
++  ADD R3, R4, R5		<=>	add r5, r4, r3
+ 
+ 2. Constant operands
+ 
+-  In Go asm, an operand that starts with '$' indicates a constant value. If the
+-  instruction using the constant has an immediate version of the opcode, then an
+-  immediate value is used with the opcode if possible.
++In Go asm, an operand that starts with '$' indicates a constant value. If the
++instruction using the constant has an immediate version of the opcode, then an
++immediate value is used with the opcode if possible.
++
++Example:
+ 
+-  Example:
+-    ADD $1, R3, R4		<=> 	addi r4, r3, 1
++  ADD $1, R3, R4		<=> 	addi r4, r3, 1
+ 
+ 3. Opcodes setting condition codes
+ 
+-  In PPC64 asm, some instructions other than compares have variations that can set
+-  the condition code where meaningful. This is indicated by adding '.' to the end
+-  of the PPC64 instruction. In Go asm, these instructions have 'CC' at the end of
+-  the opcode. The possible settings of the condition code depend on the instruction.
+-  CR0 is the default for fixed-point instructions; CR1 for floating point; CR6 for
+-  vector instructions.
++In PPC64 asm, some instructions other than compares have variations that can set
++the condition code where meaningful. This is indicated by adding '.' to the end
++of the PPC64 instruction. In Go asm, these instructions have 'CC' at the end of
++the opcode. The possible settings of the condition code depend on the instruction.
++CR0 is the default for fixed-point instructions; CR1 for floating point; CR6 for
++vector instructions.
++
++Example:
+ 
+-  Example:
+-    ANDCC R3, R4, R5		<=>	and. r5, r3, r4 (set CR0)
++  ANDCC R3, R4, R5		<=>	and. r5, r3, r4 (set CR0)
+ 
+ 4. Loads and stores from memory
+ 
+-  In Go asm, opcodes starting with 'MOV' indicate a load or store. When the target
+-  is a memory reference, then it is a store; when the target is a register and the
+-  source is a memory reference, then it is a load.
++In Go asm, opcodes starting with 'MOV' indicate a load or store. When the target
++is a memory reference, then it is a store; when the target is a register and the
++source is a memory reference, then it is a load.
+ 
+-  MOV{B,H,W,D} variations identify the size as byte, halfword, word, doubleword.
++MOV{B,H,W,D} variations identify the size as byte, halfword, word, doubleword.
+ 
+-  Adding 'Z' to the opcode for a load indicates zero extend; if omitted it is sign extend.
+-  Adding 'U' to a load or store indicates an update of the base register with the offset.
+-  Adding 'BR' to an opcode indicates byte-reversed load or store, or the order opposite
+-  of the expected endian order. If 'BR' is used then zero extend is assumed.
++Adding 'Z' to the opcode for a load indicates zero extend; if omitted it is sign extend.
++Adding 'U' to a load or store indicates an update of the base register with the offset.
++Adding 'BR' to an opcode indicates byte-reversed load or store, or the order opposite
++of the expected endian order. If 'BR' is used then zero extend is assumed.
+ 
+-  Memory references n(Ra) indicate the address in Ra + n. When used with an update form
+-  of an opcode, the value in Ra is incremented by n.
++Memory references n(Ra) indicate the address in Ra + n. When used with an update form
++of an opcode, the value in Ra is incremented by n.
+ 
+-  Memory references (Ra+Rb) or (Ra)(Rb) indicate the address Ra + Rb, used by indexed
+-  loads or stores. Both forms are accepted. When used with an update then the base register
+-  is updated by the value in the index register.
++Memory references (Ra+Rb) or (Ra)(Rb) indicate the address Ra + Rb, used by indexed
++loads or stores. Both forms are accepted. When used with an update then the base register
++is updated by the value in the index register.
+ 
+-  Examples:
+-    MOVD (R3), R4		<=>	ld r4,0(r3)
+-    MOVW (R3), R4		<=>	lwa r4,0(r3)
+-    MOVWZU 4(R3), R4		<=>	lwzu r4,4(r3)
+-    MOVWZ (R3+R5), R4		<=>	lwzx r4,r3,r5
+-    MOVHZ  (R3), R4		<=>	lhz r4,0(r3)
+-    MOVHU 2(R3), R4		<=>	lhau r4,2(r3)
+-    MOVBZ (R3), R4		<=>	lbz r4,0(r3)
++Examples:
+ 
+-    MOVD R4,(R3)		<=>	std r4,0(r3)
+-    MOVW R4,(R3)		<=>	stw r4,0(r3)
+-    MOVW R4,(R3+R5)		<=>	stwx r4,r3,r5
+-    MOVWU R4,4(R3)		<=>	stwu r4,4(r3)
+-    MOVH R4,2(R3)		<=>	sth r4,2(r3)
+-    MOVBU R4,(R3)(R5)		<=>	stbux r4,r3,r5
++  MOVD (R3), R4		<=>	ld r4,0(r3)
++  MOVW (R3), R4		<=>	lwa r4,0(r3)
++  MOVWZU 4(R3), R4		<=>	lwzu r4,4(r3)
++  MOVWZ (R3+R5), R4		<=>	lwzx r4,r3,r5
++  MOVHZ  (R3), R4		<=>	lhz r4,0(r3)
++  MOVHU 2(R3), R4		<=>	lhau r4,2(r3)
++  MOVBZ (R3), R4		<=>	lbz r4,0(r3)
++
++  MOVD R4,(R3)		<=>	std r4,0(r3)
++  MOVW R4,(R3)		<=>	stw r4,0(r3)
++  MOVW R4,(R3+R5)		<=>	stwx r4,r3,r5
++  MOVWU R4,4(R3)		<=>	stwu r4,4(r3)
++  MOVH R4,2(R3)		<=>	sth r4,2(r3)
++  MOVBU R4,(R3)(R5)		<=>	stbux r4,r3,r5
+ 
+ 4. Compares
+ 
+-  When an instruction does a compare or other operation that might
+-  result in a condition code, then the resulting condition is set
+-  in a field of the condition register. The condition register consists
+-  of 8 4-bit fields named CR0 - CR7. When a compare instruction
+-  identifies a CR then the resulting condition is set in that field
+-  to be read by a later branch or isel instruction. Within these fields,
+-  bits are set to indicate less than, greater than, or equal conditions.
++When an instruction does a compare or other operation that might
++result in a condition code, then the resulting condition is set
++in a field of the condition register. The condition register consists
++of 8 4-bit fields named CR0 - CR7. When a compare instruction
++identifies a CR then the resulting condition is set in that field
++to be read by a later branch or isel instruction. Within these fields,
++bits are set to indicate less than, greater than, or equal conditions.
++
++Once an instruction sets a condition, then a subsequent branch, isel or
++other instruction can read the condition field and operate based on the
++bit settings.
+ 
+-  Once an instruction sets a condition, then a subsequent branch, isel or
+-  other instruction can read the condition field and operate based on the
+-  bit settings.
++Examples:
+ 
+-  Examples:
+-    CMP R3, R4			<=>	cmp r3, r4	(CR0 assumed)
+-    CMP R3, R4, CR1		<=>	cmp cr1, r3, r4
++  CMP R3, R4			<=>	cmp r3, r4	(CR0 assumed)
++  CMP R3, R4, CR1		<=>	cmp cr1, r3, r4
+ 
+-  Note that the condition register is the target operand of compare opcodes, so
+-  the remaining operands are in the same order for Go asm and PPC64 asm.
+-  When CR0 is used then it is implicit and does not need to be specified.
++Note that the condition register is the target operand of compare opcodes, so
++the remaining operands are in the same order for Go asm and PPC64 asm.
++When CR0 is used then it is implicit and does not need to be specified.
+ 
+ 5. Branches
+ 
+-  Many branches are represented as a form of the BC instruction. There are
+-  other extended opcodes to make it easier to see what type of branch is being
+-  used.
++Many branches are represented as a form of the BC instruction. There are
++other extended opcodes to make it easier to see what type of branch is being
++used.
+ 
+-  The following is a brief description of the BC instruction and its commonly
+-  used operands.
++The following is a brief description of the BC instruction and its commonly
++used operands.
+ 
+-  BC op1, op2, op3
++BC op1, op2, op3
+ 
+-    op1: type of branch
+-        16 -> bctr (branch on ctr)
+-        12 -> bcr  (branch if cr bit is set)
+-        8  -> bcr+bctr (branch on ctr and cr values)
++  op1: type of branch
++      16 -> bctr (branch on ctr)
++      12 -> bcr  (branch if cr bit is set)
++      8  -> bcr+bctr (branch on ctr and cr values)
+ 	4  -> bcr != 0 (branch if specified cr bit is not set)
+ 
+ 	There are more combinations but these are the most common.
+ 
+-    op2: condition register field and condition bit
++  op2: condition register field and condition bit
+ 
+ 	This contains an immediate value indicating which condition field
+ 	to read and what bits to test. Each field is 4 bits long with CR0
+-        at bit 0, CR1 at bit 4, etc. The value is computed as 4*CR+condition
+-        with these condition values:
++      at bit 0, CR1 at bit 4, etc. The value is computed as 4*CR+condition
++      with these condition values:
+ 
+-        0 -> LT
+-        1 -> GT
+-        2 -> EQ
+-        3 -> OVG
++      0 -> LT
++      1 -> GT
++      2 -> EQ
++      3 -> OVG
+ 
+ 	Thus 0 means test CR0 for LT, 5 means CR1 for GT, 30 means CR7 for EQ.
+ 
+-    op3: branch target
++  op3: branch target
+ 
+-  Examples:
++Examples:
+ 
+-    BC 12, 0, target		<=>	blt cr0, target
+-    BC 12, 2, target		<=>	beq cr0, target
+-    BC 12, 5, target		<=>	bgt cr1, target
+-    BC 12, 30, target		<=>	beq cr7, target
+-    BC 4, 6, target		<=>	bne cr1, target
+-    BC 4, 1, target		<=>	ble cr1, target
++  BC 12, 0, target		<=>	blt cr0, target
++  BC 12, 2, target		<=>	beq cr0, target
++  BC 12, 5, target		<=>	bgt cr1, target
++  BC 12, 30, target		<=>	beq cr7, target
++  BC 4, 6, target		<=>	bne cr1, target
++  BC 4, 1, target		<=>	ble cr1, target
+ 
+-    The following extended opcodes are available for ease of use and readability:
++  The following extended opcodes are available for ease of use and readability:
+ 
+-    BNE CR2, target		<=>	bne cr2, target
+-    BEQ CR4, target		<=>	beq cr4, target
+-    BLT target			<=>	blt target (cr0 default)
+-    BGE CR7, target		<=>	bge cr7, target
++  BNE CR2, target		<=>	bne cr2, target
++  BEQ CR4, target		<=>	beq cr4, target
++  BLT target			<=>	blt target (cr0 default)
++  BGE CR7, target		<=>	bge cr7, target
+ 
+-  Refer to the ISA for more information on additional values for the BC instruction,
+-  how to handle OVG information, and much more.
++Refer to the ISA for more information on additional values for the BC instruction,
++how to handle OVG information, and much more.
+ 
+ 5. Align directive
+ 
+-  Starting with Go 1.12, Go asm supports the PCALIGN directive, which indicates
+-  that the next instruction should be aligned to the specified value. Currently
+-  8 and 16 are the only supported values, and a maximum of 2 NOPs will be added
+-  to align the code. That means in the case where the code is aligned to 4 but
+-  PCALIGN $16 is at that location, the code will only be aligned to 8 to avoid
+-  adding 3 NOPs.
++Starting with Go 1.12, Go asm supports the PCALIGN directive, which indicates
++that the next instruction should be aligned to the specified value. Currently
++8 and 16 are the only supported values, and a maximum of 2 NOPs will be added
++to align the code. That means in the case where the code is aligned to 4 but
++PCALIGN $16 is at that location, the code will only be aligned to 8 to avoid
++adding 3 NOPs.
+ 
+-  The purpose of this directive is to improve performance for cases like loops
+-  where better alignment (8 or 16 instead of 4) might be helpful. This directive
+-  exists in PPC64 assembler and is frequently used by PPC64 assembler writers.
++The purpose of this directive is to improve performance for cases like loops
++where better alignment (8 or 16 instead of 4) might be helpful. This directive
++exists in PPC64 assembler and is frequently used by PPC64 assembler writers.
+ 
+-  PCALIGN $16
+-  PCALIGN $8
++PCALIGN $16
++PCALIGN $8
+ 
+-  Functions in Go are aligned to 16 bytes, as is the case in all other compilers
+-  for PPC64.
++Functions in Go are aligned to 16 bytes, as is the case in all other compilers
++for PPC64.
+ 
+ 6. Shift instructions
+ 
+-  The simple scalar shifts on PPC64 expect a shift count that fits in 5 bits for
+-  32-bit values or 6 bit for 64-bit values. If the shift count is a constant value
+-  greater than the max then the assembler sets it to the max for that size (31 for
+-  32 bit values, 63 for 64 bit values). If the shift count is in a register, then
+-  only the low 5 or 6 bits of the register will be used as the shift count. The
+-  Go compiler will add appropriate code to compare the shift value to achieve the
+-  the correct result, and the assembler does not add extra checking.
++The simple scalar shifts on PPC64 expect a shift count that fits in 5 bits for
++32-bit values or 6 bit for 64-bit values. If the shift count is a constant value
++greater than the max then the assembler sets it to the max for that size (31 for
++32 bit values, 63 for 64 bit values). If the shift count is in a register, then
++only the low 5 or 6 bits of the register will be used as the shift count. The
++Go compiler will add appropriate code to compare the shift value to achieve the
++the correct result, and the assembler does not add extra checking.
+ 
+-  Examples:
++Examples:
+ 
+-    SRAD $8,R3,R4		=>	sradi r4,r3,8
+-    SRD $8,R3,R4		=>	rldicl r4,r3,56,8
+-    SLD $8,R3,R4		=>	rldicr r4,r3,8,55
+-    SRAW $16,R4,R5		=>	srawi r5,r4,16
+-    SRW $40,R4,R5		=>	rlwinm r5,r4,0,0,31
+-    SLW $12,R4,R5		=>	rlwinm r5,r4,12,0,19
++  SRAD $8,R3,R4		=>	sradi r4,r3,8
++  SRD $8,R3,R4		=>	rldicl r4,r3,56,8
++  SLD $8,R3,R4		=>	rldicr r4,r3,8,55
++  SRAW $16,R4,R5		=>	srawi r5,r4,16
++  SRW $40,R4,R5		=>	rlwinm r5,r4,0,0,31
++  SLW $12,R4,R5		=>	rlwinm r5,r4,12,0,19
+ 
+-  Some non-simple shifts have operands in the Go assembly which don't map directly
+-  onto operands in the PPC64 assembly. When an operand in a shift instruction in the
+-  Go assembly is a bit mask, that mask is represented as a start and end bit in the
+-  PPC64 assembly instead of a mask. See the ISA for more detail on these types of shifts.
+-  Here are a few examples:
++Some non-simple shifts have operands in the Go assembly which don't map directly
++onto operands in the PPC64 assembly. When an operand in a shift instruction in the
++Go assembly is a bit mask, that mask is represented as a start and end bit in the
++PPC64 assembly instead of a mask. See the ISA for more detail on these types of shifts.
++Here are a few examples:
+ 
+-    RLWMI $7,R3,$65535,R6 	=>	rlwimi r6,r3,7,16,31
+-    RLDMI $0,R4,$7,R6 		=>	rldimi r6,r4,0,61
++  RLWMI $7,R3,$65535,R6 	=>	rlwimi r6,r3,7,16,31
++  RLDMI $0,R4,$7,R6 		=>	rldimi r6,r4,0,61
+ 
+-  More recently, Go opcodes were added which map directly onto the PPC64 opcodes. It is
+-  recommended to use the newer opcodes to avoid confusion.
++More recently, Go opcodes were added which map directly onto the PPC64 opcodes. It is
++recommended to use the newer opcodes to avoid confusion.
+ 
+-    RLDICL $0,R4,$15,R6		=>	rldicl r6,r4,0,15
+-    RLDICR $0,R4,$15,R6		=>	rldicr r6.r4,0,15
++  RLDICL $0,R4,$15,R6		=>	rldicl r6,r4,0,15
++  RLDICR $0,R4,$15,R6		=>	rldicr r6.r4,0,15
+ 
+ Register naming
+ 
+ 1. Special register usage in Go asm
+ 
+-  The following registers should not be modified by user Go assembler code.
++The following registers should not be modified by user Go assembler code.
+ 
+   R0: Go code expects this register to contain the value 0.
+   R1: Stack pointer
+@@ -231,7 +236,7 @@ Register naming
+   R13: TLS pointer
+   R30: g (goroutine)
+ 
+-  Register names:
++Register names:
+ 
+   Rn is used for general purpose registers. (0-31)
+   Fn is used for floating point registers. (0-31)
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 8c2daf6e5b..594f8ea3fc 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -276,15 +276,11 @@ const (
+ )
+ 
+ // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
+-// from:
+-//
+-//    https://github.com/riscv/riscv-opcodes
++// at https://github.com/riscv/riscv-opcodes.
+ //
+ // As well as some pseudo-mnemonics (e.g. MOV) used only in the assembler.
+ //
+-// See also "The RISC-V Instruction Set Manual" at:
+-//
+-//    https://riscv.org/specifications/
++// See also "The RISC-V Instruction Set Manual" at https://riscv.org/specifications/.
+ //
+ // If you modify this table, you MUST run 'go generate' to regenerate anames.go!
+ const (
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 61044b0531..2c00c87aa2 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -323,9 +323,7 @@ func setPCs(p *obj.Prog, pc int64) int64 {
+ // FixedFrameSize makes other packages aware of the space allocated for RA.
+ //
+ // A nicer version of this diagram can be found on slide 21 of the presentation
+-// attached to:
+-//
+-//   https://golang.org/issue/16922#issuecomment-243748180
++// attached to https://golang.org/issue/16922#issuecomment-243748180.
+ //
+ func stackOffset(a *obj.Addr, stacksize int64) {
+ 	switch a.Name {
+diff --git a/src/cmd/link/internal/benchmark/bench.go b/src/cmd/link/internal/benchmark/bench.go
+index 6c163c801e..39179515cd 100644
+--- a/src/cmd/link/internal/benchmark/bench.go
++++ b/src/cmd/link/internal/benchmark/bench.go
+@@ -44,16 +44,16 @@ type mark struct {
+ //
+ // Typical usage should look like:
+ //
+-// func main() {
+-//   filename := "" // Set to enable per-phase pprof file output.
+-//   bench := benchmark.New(benchmark.GC, filename)
+-//   defer bench.Report(os.Stdout)
+-//   // etc
+-//   bench.Start("foo")
+-//   foo()
+-//   bench.Start("bar")
+-//   bar()
+-// }
++//  func main() {
++//    filename := "" // Set to enable per-phase pprof file output.
++//    bench := benchmark.New(benchmark.GC, filename)
++//    defer bench.Report(os.Stdout)
++//    // etc
++//    bench.Start("foo")
++//    foo()
++//    bench.Start("bar")
++//    bar()
++//  }
+ //
+ // Note that a nil Metrics object won't cause any errors, so one could write
+ // code like:
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 08de21cab6..733f4ec00b 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -549,30 +549,31 @@ func elfMipsAbiFlags(sh *ElfShdr, startva uint64, resoff uint64) int {
+ 	return n
+ }
+ 
+-//typedef struct
+-//{
+-//  /* Version of flags structure.  */
+-//  uint16_t version;
+-//  /* The level of the ISA: 1-5, 32, 64.  */
+-//  uint8_t isa_level;
+-//  /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
+-//  uint8_t isa_rev;
+-//  /* The size of general purpose registers.  */
+-//  uint8_t gpr_size;
+-//  /* The size of co-processor 1 registers.  */
+-//  uint8_t cpr1_size;
+-//  /* The size of co-processor 2 registers.  */
+-//  uint8_t cpr2_size;
+-//  /* The floating-point ABI.  */
+-//  uint8_t fp_abi;
+-//  /* Processor-specific extension.  */
+-//  uint32_t isa_ext;
+-//  /* Mask of ASEs used.  */
+-//  uint32_t ases;
+-//  /* Mask of general flags.  */
+-//  uint32_t flags1;
+-//  uint32_t flags2;
+-//} Elf_Internal_ABIFlags_v0;
++// Layout is given by this C definition:
++//  typedef struct
++//  {
++//    /* Version of flags structure.  */
++//    uint16_t version;
++//    /* The level of the ISA: 1-5, 32, 64.  */
++//    uint8_t isa_level;
++//    /* The revision of ISA: 0 for MIPS V and below, 1-n otherwise.  */
++//    uint8_t isa_rev;
++//    /* The size of general purpose registers.  */
++//    uint8_t gpr_size;
++//    /* The size of co-processor 1 registers.  */
++//    uint8_t cpr1_size;
++//    /* The size of co-processor 2 registers.  */
++//    uint8_t cpr2_size;
++//    /* The floating-point ABI.  */
++//    uint8_t fp_abi;
++//    /* Processor-specific extension.  */
++//    uint32_t isa_ext;
++//    /* Mask of ASEs used.  */
++//    uint32_t ases;
++//    /* Mask of general flags.  */
++//    uint32_t flags1;
++//    uint32_t flags2;
++//  } Elf_Internal_ABIFlags_v0;
+ func elfWriteMipsAbiFlags(ctxt *Link) int {
+ 	sh := elfshname(".MIPS.abiflags")
+ 	ctxt.Out.SeekSet(int64(sh.Off))
+diff --git a/src/cmd/link/internal/ld/outbuf.go b/src/cmd/link/internal/ld/outbuf.go
+index 1d21dce9c5..1d1751ccdc 100644
+--- a/src/cmd/link/internal/ld/outbuf.go
++++ b/src/cmd/link/internal/ld/outbuf.go
+@@ -30,12 +30,12 @@ const outbufMode = 0775
+ // any system calls to read the value.
+ //
+ // Third, it also mmaps the output file (if available). The intended usage is:
+-// - Mmap the output file
+-// - Write the content
+-// - possibly apply any edits in the output buffer
+-// - possibly write more content to the file. These writes take place in a heap
+-//   backed buffer that will get synced to disk.
+-// - Munmap the output file
++//  - Mmap the output file
++//  - Write the content
++//  - possibly apply any edits in the output buffer
++//  - possibly write more content to the file. These writes take place in a heap
++//    backed buffer that will get synced to disk.
++//  - Munmap the output file
+ //
+ // And finally, it provides a mechanism by which you can multithread the
+ // writing of output files. This mechanism is accomplished by copying a OutBuf,
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index d46aa41181..d102bb35ce 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -166,21 +166,21 @@ type symAndSize struct {
+ //
+ // Notes on the layout of global symbol index space:
+ //
+-// - Go object files are read before host object files; each Go object
+-//   read adds its defined package symbols to the global index space.
+-//   Nonpackage symbols are not yet added.
++//  - Go object files are read before host object files; each Go object
++//    read adds its defined package symbols to the global index space.
++//    Nonpackage symbols are not yet added.
+ //
+-// - In loader.LoadNonpkgSyms, add non-package defined symbols and
+-//   references in all object files to the global index space.
++//  - In loader.LoadNonpkgSyms, add non-package defined symbols and
++//    references in all object files to the global index space.
+ //
+-// - Host object file loading happens; the host object loader does a
+-//   name/version lookup for each symbol it finds; this can wind up
+-//   extending the external symbol index space range. The host object
+-//   loader stores symbol payloads in loader.payloads using SymbolBuilder.
++//  - Host object file loading happens; the host object loader does a
++//    name/version lookup for each symbol it finds; this can wind up
++//    extending the external symbol index space range. The host object
++//    loader stores symbol payloads in loader.payloads using SymbolBuilder.
+ //
+-// - Each symbol gets a unique global index. For duplicated and
+-//   overwriting/overwritten symbols, the second (or later) appearance
+-//   of the symbol gets the same global index as the first appearance.
++//  - Each symbol gets a unique global index. For duplicated and
++//    overwriting/overwritten symbols, the second (or later) appearance
++//    of the symbol gets the same global index as the first appearance.
+ type Loader struct {
+ 	start       map[*oReader]Sym // map from object file to its start index
+ 	objs        []objIdx         // sorted by start index (i.e. objIdx.i)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 1952971dcb..f26b3f3cf2 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -43,10 +43,10 @@ import (
+ // moduledata linked list at initialization time. This is only done if the runtime
+ // is in a different module.
+ //
+-// <go.link.addmoduledata>:
+-// 	larl  %r2, <local.moduledata>
+-// 	jg    <runtime.addmoduledata@plt>
+-//	undef
++//	<go.link.addmoduledata>:
++//		larl  %r2, <local.moduledata>
++//		jg    <runtime.addmoduledata@plt>
++//		undef
+ //
+ // The job of appending the moduledata is delegated to runtime.addmoduledata.
+ func gentext(ctxt *ld.Link, ldr *loader.Loader) {
+diff --git a/src/compress/flate/huffman_code.go b/src/compress/flate/huffman_code.go
+index 891537ed5e..07b7827e1a 100644
+--- a/src/compress/flate/huffman_code.go
++++ b/src/compress/flate/huffman_code.go
+@@ -118,19 +118,20 @@ func (h *huffmanEncoder) bitLength(freq []int32) int {
+ 
+ const maxBitsLimit = 16
+ 
+-// Return the number of literals assigned to each bit size in the Huffman encoding
+-//
+-// This method is only called when list.length >= 3
++// bitCounts computes the number of literals assigned to each bit size in the Huffman encoding.
++// It is only called when list.length >= 3.
+ // The cases of 0, 1, and 2 literals are handled by special case code.
+ //
+-// list  An array of the literals with non-zero frequencies
+-//             and their associated frequencies. The array is in order of increasing
+-//             frequency, and has as its last element a special element with frequency
+-//             MaxInt32
+-// maxBits     The maximum number of bits that should be used to encode any literal.
+-//             Must be less than 16.
+-// return      An integer array in which array[i] indicates the number of literals
+-//             that should be encoded in i bits.
++// list is an array of the literals with non-zero frequencies
++// and their associated frequencies. The array is in order of increasing
++// frequency and has as its last element a special element with frequency
++// MaxInt32.
++//
++// maxBits is the maximum number of bits that should be used to encode any literal.
++// It must be less than 16.
++//
++// bitCounts retruns an integer slice in which slice[i] indicates the number of literals
++// that should be encoded in i bits.
+ func (h *huffmanEncoder) bitCounts(list []literalNode, maxBits int32) []int32 {
+ 	if maxBits >= maxBitsLimit {
+ 		panic("flate: maxBits too large")
+@@ -269,7 +270,7 @@ func (h *huffmanEncoder) assignEncodingAndSize(bitCount []int32, list []literalN
+ 
+ // Update this Huffman Code object to be the minimum code for the specified frequency count.
+ //
+-// freq  An array of frequencies, in which frequency[i] gives the frequency of literal i.
++// freq is an array of frequencies, in which freq[i] gives the frequency of literal i.
+ // maxBits  The maximum number of bits to use for any literal.
+ func (h *huffmanEncoder) generate(freq []int32, maxBits int32) {
+ 	if h.freqcache == nil {
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index ba0af84a9d..47078ce594 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -13,7 +13,7 @@ import (
+ 
+ // AEAD is a cipher mode providing authenticated encryption with associated
+ // data. For a description of the methodology, see
+-//	https://en.wikipedia.org/wiki/Authenticated_encryption
++// https://en.wikipedia.org/wiki/Authenticated_encryption.
+ type AEAD interface {
+ 	// NonceSize returns the size of the nonce that must be passed to Seal
+ 	// and Open.
+diff --git a/src/crypto/elliptic/p256.go b/src/crypto/elliptic/p256.go
+index 99c39ea9d5..fcff1d3d39 100644
+--- a/src/crypto/elliptic/p256.go
++++ b/src/crypto/elliptic/p256.go
+@@ -282,7 +282,8 @@ var p256Zero31 = [p256Limbs]uint32{two31m3, two30m2, two31m2, two30p13m2, two31m
+ // p256Diff sets out = in-in2.
+ //
+ // On entry: in[0,2,...] < 2**30, in[1,3,...] < 2**29 and
+-//           in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
++// in2[0,2,...] < 2**30, in2[1,3,...] < 2**29.
++//
+ // On exit: out[0,2,...] < 2**30, out[1,3,...] < 2**29.
+ func p256Diff(out, in, in2 *[p256Limbs]uint32) {
+ 	var carry uint32
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 837c42a3db..584456c343 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -244,59 +244,56 @@ func (algo PublicKeyAlgorithm) String() string {
+ 
+ // OIDs for signature algorithms
+ //
+-// pkcs-1 OBJECT IDENTIFIER ::= {
+-//    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1 }
++//	pkcs-1 OBJECT IDENTIFIER ::= {
++//		iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1 }
+ //
+ //
+ // RFC 3279 2.2.1 RSA Signature Algorithms
+ //
+-// md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
++//	md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
+ //
+-// md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
++//	md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
+ //
+-// sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
++//	sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
+ //
+-// dsaWithSha1 OBJECT IDENTIFIER ::= {
+-//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 }
++//	dsaWithSha1 OBJECT IDENTIFIER ::= {
++//		iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 }
+ //
+ // RFC 3279 2.2.3 ECDSA Signature Algorithm
+ //
+-// ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
+-// 	  iso(1) member-body(2) us(840) ansi-x962(10045)
+-//    signatures(4) ecdsa-with-SHA1(1)}
+-//
++//	ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
++//		iso(1) member-body(2) us(840) ansi-x962(10045)
++//		signatures(4) ecdsa-with-SHA1(1)}
+ //
+ // RFC 4055 5 PKCS #1 Version 1.5
+ //
+-// sha256WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 11 }
++//	sha256WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 11 }
+ //
+-// sha384WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 12 }
++//	sha384WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 12 }
+ //
+-// sha512WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 13 }
++//	sha512WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 13 }
+ //
+ //
+ // RFC 5758 3.1 DSA Signature Algorithms
+ //
+-// dsaWithSha256 OBJECT IDENTIFIER ::= {
+-//    joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
+-//    csor(3) algorithms(4) id-dsa-with-sha2(3) 2}
++//	dsaWithSha256 OBJECT IDENTIFIER ::= {
++//		joint-iso-ccitt(2) country(16) us(840) organization(1) gov(101)
++//		csor(3) algorithms(4) id-dsa-with-sha2(3) 2}
+ //
+ // RFC 5758 3.2 ECDSA Signature Algorithm
+ //
+-// ecdsa-with-SHA256 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+-//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 2 }
+-//
+-// ecdsa-with-SHA384 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+-//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 3 }
++//	ecdsa-with-SHA256 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
++//		us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 2 }
+ //
+-// ecdsa-with-SHA512 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
+-//    us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 4 }
++//	ecdsa-with-SHA384 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
++//		us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 3 }
+ //
++//	ecdsa-with-SHA512 OBJECT IDENTIFIER ::= { iso(1) member-body(2)
++//		us(840) ansi-X9-62(10045) signatures(4) ecdsa-with-SHA2(3) 4 }
+ //
+ // RFC 8410 3 Curve25519 and Curve448 Algorithm Identifiers
+ //
+-// id-Ed25519   OBJECT IDENTIFIER ::= { 1 3 101 112 }
+-
++//	id-Ed25519   OBJECT IDENTIFIER ::= { 1 3 101 112 }
+ var (
+ 	oidSignatureMD2WithRSA      = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 2}
+ 	oidSignatureMD5WithRSA      = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 4}
+@@ -434,18 +431,18 @@ func getSignatureAlgorithmFromAI(ai pkix.AlgorithmIdentifier) SignatureAlgorithm
+ 
+ // RFC 3279, 2.3 Public Key Algorithms
+ //
+-// pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+-//    rsadsi(113549) pkcs(1) 1 }
++//	pkcs-1 OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++//		rsadsi(113549) pkcs(1) 1 }
+ //
+ // rsaEncryption OBJECT IDENTIFIER ::== { pkcs1-1 1 }
+ //
+-// id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
+-//    x9-57(10040) x9cm(4) 1 }
++//	id-dsa OBJECT IDENTIFIER ::== { iso(1) member-body(2) us(840)
++//		x9-57(10040) x9cm(4) 1 }
+ //
+ // RFC 5480, 2.1.1 Unrestricted Algorithm Identifier and Parameters
+ //
+-// id-ecPublicKey OBJECT IDENTIFIER ::= {
+-//       iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
++//	id-ecPublicKey OBJECT IDENTIFIER ::= {
++//		iso(1) member-body(2) us(840) ansi-X9-62(10045) keyType(2) 1 }
+ var (
+ 	oidPublicKeyRSA     = asn1.ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
+ 	oidPublicKeyDSA     = asn1.ObjectIdentifier{1, 2, 840, 10040, 4, 1}
+@@ -469,18 +466,18 @@ func getPublicKeyAlgorithmFromOID(oid asn1.ObjectIdentifier) PublicKeyAlgorithm
+ 
+ // RFC 5480, 2.1.1.1. Named Curve
+ //
+-// secp224r1 OBJECT IDENTIFIER ::= {
+-//   iso(1) identified-organization(3) certicom(132) curve(0) 33 }
++//  secp224r1 OBJECT IDENTIFIER ::= {
++//    iso(1) identified-organization(3) certicom(132) curve(0) 33 }
+ //
+-// secp256r1 OBJECT IDENTIFIER ::= {
+-//   iso(1) member-body(2) us(840) ansi-X9-62(10045) curves(3)
+-//   prime(1) 7 }
++//  secp256r1 OBJECT IDENTIFIER ::= {
++//    iso(1) member-body(2) us(840) ansi-X9-62(10045) curves(3)
++//    prime(1) 7 }
+ //
+-// secp384r1 OBJECT IDENTIFIER ::= {
+-//   iso(1) identified-organization(3) certicom(132) curve(0) 34 }
++//  secp384r1 OBJECT IDENTIFIER ::= {
++//    iso(1) identified-organization(3) certicom(132) curve(0) 34 }
+ //
+-// secp521r1 OBJECT IDENTIFIER ::= {
+-//   iso(1) identified-organization(3) certicom(132) curve(0) 35 }
++//  secp521r1 OBJECT IDENTIFIER ::= {
++//    iso(1) identified-organization(3) certicom(132) curve(0) 35 }
+ //
+ // NB: secp256r1 is equivalent to prime256v1
+ var (
+@@ -537,16 +534,16 @@ const (
+ 
+ // RFC 5280, 4.2.1.12  Extended Key Usage
+ //
+-// anyExtendedKeyUsage OBJECT IDENTIFIER ::= { id-ce-extKeyUsage 0 }
++//	anyExtendedKeyUsage OBJECT IDENTIFIER ::= { id-ce-extKeyUsage 0 }
+ //
+-// id-kp OBJECT IDENTIFIER ::= { id-pkix 3 }
++//	id-kp OBJECT IDENTIFIER ::= { id-pkix 3 }
+ //
+-// id-kp-serverAuth             OBJECT IDENTIFIER ::= { id-kp 1 }
+-// id-kp-clientAuth             OBJECT IDENTIFIER ::= { id-kp 2 }
+-// id-kp-codeSigning            OBJECT IDENTIFIER ::= { id-kp 3 }
+-// id-kp-emailProtection        OBJECT IDENTIFIER ::= { id-kp 4 }
+-// id-kp-timeStamping           OBJECT IDENTIFIER ::= { id-kp 8 }
+-// id-kp-OCSPSigning            OBJECT IDENTIFIER ::= { id-kp 9 }
++//	id-kp-serverAuth             OBJECT IDENTIFIER ::= { id-kp 1 }
++//	id-kp-clientAuth             OBJECT IDENTIFIER ::= { id-kp 2 }
++//	id-kp-codeSigning            OBJECT IDENTIFIER ::= { id-kp 3 }
++//	id-kp-emailProtection        OBJECT IDENTIFIER ::= { id-kp 4 }
++//	id-kp-timeStamping           OBJECT IDENTIFIER ::= { id-kp 8 }
++//	id-kp-OCSPSigning            OBJECT IDENTIFIER ::= { id-kp 9 }
+ var (
+ 	oidExtKeyUsageAny                            = asn1.ObjectIdentifier{2, 5, 29, 37, 0}
+ 	oidExtKeyUsageServerAuth                     = asn1.ObjectIdentifier{1, 3, 6, 1, 5, 5, 7, 3, 1}
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index d1edcb8c48..c3b9d1ce46 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -510,7 +510,7 @@ func errf(msg string, args ...any) error {
+ 
+ // parts are table|selectCol1,selectCol2|whereCol=?,whereCol2=?
+ // (note that where columns must always contain ? marks,
+-//  just a limitation for fakedb)
++// just a limitation for fakedb)
+ func (c *fakeConn) prepareSelect(stmt *fakeStmt, parts []string) (*fakeStmt, error) {
+ 	if len(parts) != 3 {
+ 		stmt.Close()
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index d690a1e3f2..04b5fcc283 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -271,13 +271,12 @@ func TestPCLine(t *testing.T) {
+ // read115Executable returns a hello world executable compiled by Go 1.15.
+ //
+ // The file was compiled in /tmp/hello.go:
+-// [BEGIN]
+-// package main
+ //
+-// func main() {
+-//    println("hello")
+-// }
+-// [END]
++//	package main
++//
++//	func main() {
++//		println("hello")
++//	}
+ func read115Executable(tb testing.TB) []byte {
+ 	zippedDat, err := os.ReadFile("testdata/pcln115.gz")
+ 	if err != nil {
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 6b49deda87..4151b39ea6 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -115,10 +115,11 @@ with %q, invalid Unicode code points are changed to the Unicode replacement
+ character, U+FFFD, as in strconv.QuoteRune.
+ 
+ Other flags:
+-	+	always print a sign for numeric values;
++
++	'+'	always print a sign for numeric values;
+ 		guarantee ASCII-only output for %q (%+q)
+-	-	pad with spaces on the right rather than the left (left-justify the field)
+-	#	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
++	'-'	pad with spaces on the right rather than the left (left-justify the field)
++	'#'	alternate format: add leading 0b for binary (%#b), 0 for octal (%#o),
+ 		0x or 0X for hex (%#x or %#X); suppress 0x for %p (%#p);
+ 		for %q, print a raw (backquoted) string if strconv.CanBackquote
+ 		returns true;
+@@ -127,7 +128,7 @@ Other flags:
+ 		write e.g. U+0078 'x' if the character is printable for %U (%#U).
+ 	' '	(space) leave a space for elided sign in numbers (% d);
+ 		put spaces between bytes printing strings or slices in hex (% x, % X)
+-	0	pad with leading zeros rather than spaces;
++	'0'	pad with leading zeros rather than spaces;
+ 		for numbers, this moves the padding after the sign;
+ 		ignored for strings, byte slices and byte arrays
+ 
+diff --git a/src/go/doc/comment.go b/src/go/doc/comment.go
+index a93c05fbb7..f1aa69d974 100644
+--- a/src/go/doc/comment.go
++++ b/src/go/doc/comment.go
+@@ -28,8 +28,11 @@ var (
+ 	unicodeQuoteReplacer = strings.NewReplacer("``", ulquo, "''", urquo)
+ )
+ 
+-// Escape comment text for HTML. If nice is set,
+-// also turn `` into &ldquo; and '' into &rdquo;.
++// Escape comment text for HTML. If nice is set, also replace:
++//
++//	`` -> &ldquo;
++//	'' -> &rdquo;
++//
+ func commentEscape(w io.Writer, text string, nice bool) {
+ 	if nice {
+ 		// In the first pass, we convert `` and '' into their unicode equivalents.
+@@ -93,8 +96,10 @@ var (
+ // into a link). Go identifiers that appear in the words map are italicized; if
+ // the corresponding map value is not the empty string, it is considered a URL
+ // and the word is converted into a link. If nice is set, the remaining text's
+-// appearance is improved where it makes sense (e.g., `` is turned into &ldquo;
+-// and '' into &rdquo;).
++// appearance is improved where it makes sense, such as replacing:
++//
++//	`` -> &ldquo;
++//	'' -> &rdquo;
+ func emphasize(w io.Writer, line string, words map[string]string, nice bool) {
+ 	for {
+ 		m := matchRx.FindStringSubmatchIndex(line)
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index fb377002aa..8975fc93dc 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -297,7 +297,7 @@ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+-/// under which the field is accessible.
++// under which the field is accessible.
+ func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+ 	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), token.NoPos}, embedded: embedded, isField: true}
+ }
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 512b2c229f..31e1ad8fcf 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -363,10 +363,11 @@ func karatsuba(z, x, y nat) {
+ }
+ 
+ // alias reports whether x and y share the same base array.
++//
+ // Note: alias assumes that the capacity of underlying arrays
+-//       is never changed for nat values; i.e. that there are
+-//       no 3-operand slice expressions in this code (or worse,
+-//       reflect-based operations to the same effect).
++// is never changed for nat values; i.e. that there are
++// no 3-operand slice expressions in this code (or worse,
++// reflect-based operations to the same effect).
+ func alias(x, y nat) bool {
+ 	return cap(x) > 0 && cap(y) > 0 && &x[0:cap(x)][cap(x)-1] == &y[0:cap(y)][cap(y)-1]
+ }
+diff --git a/src/net/cgo_unix.go b/src/net/cgo_unix.go
+index 18e1ba1ce9..b156b198ee 100644
+--- a/src/net/cgo_unix.go
++++ b/src/net/cgo_unix.go
+@@ -250,12 +250,12 @@ func cgoLookupCNAME(ctx context.Context, name string) (cname string, err error,
+ 
+ // These are roughly enough for the following:
+ //
+-// Source		Encoding			Maximum length of single name entry
+-// Unicast DNS		ASCII or			<=253 + a NUL terminator
+-//			Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
+-// Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
+-//			the same as unicast DNS ASCII	<=253 + a NUL terminator
+-// Local database	various				depends on implementation
++//  Source		Encoding			Maximum length of single name entry
++//  Unicast DNS		ASCII or			<=253 + a NUL terminator
++// 			Unicode in RFC 5892		252 * total number of labels + delimiters + a NUL terminator
++//  Multicast DNS	UTF-8 in RFC 5198 or		<=253 + a NUL terminator
++// 			the same as unicast DNS ASCII	<=253 + a NUL terminator
++//  Local database	various				depends on implementation
+ const (
+ 	nameinfoLen    = 64
+ 	maxNameinfoLen = 4096
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 5fd184bcb1..465ee0b723 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -942,9 +942,9 @@ func (c *Client) CloseIdleConnections() {
+ }
+ 
+ // cancelTimerBody is an io.ReadCloser that wraps rc with two features:
+-// 1) On Read error or close, the stop func is called.
+-// 2) On Read failure, if reqDidTimeout is true, the error is wrapped and
+-//    marked as net.Error that hit its timeout.
++//  1) On Read error or close, the stop func is called.
++//  2) On Read failure, if reqDidTimeout is true, the error is wrapped and
++//     marked as net.Error that hit its timeout.
+ type cancelTimerBody struct {
+ 	stop          func() // stops the time.Timer waiting to cancel the request
+ 	rc            io.ReadCloser
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index cb37f2351f..6e1035330b 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -387,11 +387,11 @@ func sanitizeCookieName(n string) string {
+ 
+ // sanitizeCookieValue produces a suitable cookie-value from v.
+ // https://tools.ietf.org/html/rfc6265#section-4.1.1
+-// cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
+-// cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
+-//           ; US-ASCII characters excluding CTLs,
+-//           ; whitespace DQUOTE, comma, semicolon,
+-//           ; and backslash
++//  cookie-value      = *cookie-octet / ( DQUOTE *cookie-octet DQUOTE )
++//  cookie-octet      = %x21 / %x23-2B / %x2D-3A / %x3C-5B / %x5D-7E
++//            ; US-ASCII characters excluding CTLs,
++//            ; whitespace DQUOTE, comma, semicolon,
++//            ; and backslash
+ // We loosen this as spaces and commas are common in cookie values
+ // but we produce a quoted cookie-value if and only if v contains
+ // commas or spaces.
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index ffb742ba4a..b91069f9a1 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1551,14 +1551,14 @@ func (w *response) bodyAllowed() bool {
+ //
+ // The Writers are wired together like:
+ //
+-// 1. *response (the ResponseWriter) ->
+-// 2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes ->
+-// 3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
+-//    and which writes the chunk headers, if needed ->
+-// 4. conn.bufw, a *bufio.Writer of default (4kB) bytes, writing to ->
+-// 5. checkConnErrorWriter{c}, which notes any non-nil error on Write
+-//    and populates c.werr with it if so, but otherwise writes to ->
+-// 6. the rwc, the net.Conn.
++//  1. *response (the ResponseWriter) ->
++//  2. (*response).w, a *bufio.Writer of bufferBeforeChunkingSize bytes ->
++//  3. chunkWriter.Writer (whose writeHeader finalizes Content-Length/Type)
++//     and which writes the chunk headers, if needed ->
++//  4. conn.bufw, a *bufio.Writer of default (4kB) bytes, writing to ->
++//  5. checkConnErrorWriter{c}, which notes any non-nil error on Write
++//     and populates c.werr with it if so, but otherwise writes to ->
++//  6. the rwc, the net.Conn.
+ //
+ // TODO(bradfitz): short-circuit some of the buffering when the
+ // initial header contains both a Content-Type and Content-Length.
+diff --git a/src/net/smtp/smtp_test.go b/src/net/smtp/smtp_test.go
+index 0f758f4a33..f23fd79234 100644
+--- a/src/net/smtp/smtp_test.go
++++ b/src/net/smtp/smtp_test.go
+@@ -1104,8 +1104,9 @@ func sendMail(hostPort string) error {
+ }
+ 
+ // localhostCert is a PEM-encoded TLS cert generated from src/crypto/tls:
+-// go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
+-// 		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
++//
++//	go run generate_cert.go --rsa-bits 1024 --host 127.0.0.1,::1,example.com \
++//		--ca --start-date "Jan 1 00:00:00 1970" --duration=1000000h
+ var localhostCert = []byte(`
+ -----BEGIN CERTIFICATE-----
+ MIICFDCCAX2gAwIBAgIRAK0xjnaPuNDSreeXb+z+0u4wDQYJKoZIhvcNAQELBQAw
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 378e2b1c7d..75b4707eaf 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -401,7 +401,7 @@ func openSymlink(path string) (syscall.Handle, error) {
+ // normaliseLinkPath converts absolute paths returned by
+ // DeviceIoControl(h, FSCTL_GET_REPARSE_POINT, ...)
+ // into paths acceptable by all Windows APIs.
+-// For example, it coverts
++// For example, it converts
+ //  \??\C:\foo\bar into C:\foo\bar
+ //  \??\UNC\foo\bar into \\foo\bar
+ //  \??\Volume{abc}\ into C:\
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 3cdb5dce11..16fec26aeb 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -594,10 +594,10 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 
+ // recv processes a receive operation on a full channel c.
+ // There are 2 parts:
+-// 1) The value sent by the sender sg is put into the channel
+-//    and the sender is woken up to go on its merry way.
+-// 2) The value received by the receiver (the current G) is
+-//    written to ep.
++//  1) The value sent by the sender sg is put into the channel
++//     and the sender is woken up to go on its merry way.
++//  2) The value received by the receiver (the current G) is
++//     written to ep.
+ // For synchronous channels, both values are the same.
+ // For asynchronous channels, the receiver gets its data from
+ // the channel buffer and the sender's data is put in the
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index ecbd0a3a49..d2a63d0938 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -319,16 +319,16 @@ type arenaHint struct {
+ // mSpanManual, or mSpanFree. Transitions between these states are
+ // constrained as follows:
+ //
+-// * A span may transition from free to in-use or manual during any GC
+-//   phase.
++//  * A span may transition from free to in-use or manual during any GC
++//    phase.
+ //
+-// * During sweeping (gcphase == _GCoff), a span may transition from
+-//   in-use to free (as a result of sweeping) or manual to free (as a
+-//   result of stacks being freed).
++//  * During sweeping (gcphase == _GCoff), a span may transition from
++//    in-use to free (as a result of sweeping) or manual to free (as a
++//    result of stacks being freed).
+ //
+-// * During GC (gcphase != _GCoff), a span *must not* transition from
+-//   manual or in-use to free. Because concurrent GC may read a pointer
+-//   and then look up its span, the span state must be monotonic.
++//  * During GC (gcphase != _GCoff), a span *must not* transition from
++//    manual or in-use to free. Because concurrent GC may read a pointer
++//    and then look up its span, the span state must be monotonic.
+ //
+ // Setting mspan.state to mSpanInUse or mSpanManual must be done
+ // atomically and only after all other span fields are valid.
+@@ -1706,7 +1706,7 @@ func spanHasNoSpecials(s *mspan) {
+ // offset & next, which this routine will fill in.
+ // Returns true if the special was successfully added, false otherwise.
+ // (The add will fail only if a record with the same p and s->kind
+-//  already exists.)
++// already exists.)
+ func addspecial(p unsafe.Pointer, s *special) bool {
+ 	span := spanOfHeap(uintptr(p))
+ 	if span == nil {
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index c6acc2328a..864148b715 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -47,16 +47,16 @@ const (
+ 
+ // pollDesc contains 2 binary semaphores, rg and wg, to park reader and writer
+ // goroutines respectively. The semaphore can be in the following states:
+-// pdReady - io readiness notification is pending;
+-//           a goroutine consumes the notification by changing the state to nil.
+-// pdWait - a goroutine prepares to park on the semaphore, but not yet parked;
+-//          the goroutine commits to park by changing the state to G pointer,
+-//          or, alternatively, concurrent io notification changes the state to pdReady,
+-//          or, alternatively, concurrent timeout/close changes the state to nil.
+-// G pointer - the goroutine is blocked on the semaphore;
+-//             io notification or timeout/close changes the state to pdReady or nil respectively
+-//             and unparks the goroutine.
+-// nil - none of the above.
++//  pdReady - io readiness notification is pending;
++//            a goroutine consumes the notification by changing the state to nil.
++//  pdWait - a goroutine prepares to park on the semaphore, but not yet parked;
++//           the goroutine commits to park by changing the state to G pointer,
++//           or, alternatively, concurrent io notification changes the state to pdReady,
++//           or, alternatively, concurrent timeout/close changes the state to nil.
++//  G pointer - the goroutine is blocked on the semaphore;
++//              io notification or timeout/close changes the state to pdReady or nil respectively
++//              and unparks the goroutine.
++//  nil - none of the above.
+ const (
+ 	pdReady uintptr = 1
+ 	pdWait  uintptr = 2
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index df16e0f9b6..f9f82f3867 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5575,11 +5575,11 @@ func (p pMask) clear(id int32) {
+ //
+ // Thus, we get the following effects on timer-stealing in findrunnable:
+ //
+-// * Idle Ps with no timers when they go idle are never checked in findrunnable
+-//   (for work- or timer-stealing; this is the ideal case).
+-// * Running Ps must always be checked.
+-// * Idle Ps whose timers are stolen must continue to be checked until they run
+-//   again, even after timer expiration.
++//  * Idle Ps with no timers when they go idle are never checked in findrunnable
++//    (for work- or timer-stealing; this is the ideal case).
++//  * Running Ps must always be checked.
++//  * Idle Ps whose timers are stolen must continue to be checked until they run
++//    again, even after timer expiration.
+ //
+ // When the P starts running again, the mask should be set, as a timer may be
+ // added at any time.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 1fb9e195e5..dc18bf927e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -291,10 +291,10 @@ func (pp *puintptr) set(p *p) { *pp = puintptr(unsafe.Pointer(p)) }
+ // Because we do free Ms, there are some additional constrains on
+ // muintptrs:
+ //
+-// 1. Never hold an muintptr locally across a safe point.
++//  1. Never hold an muintptr locally across a safe point.
+ //
+-// 2. Any muintptr in the heap must be owned by the M itself so it can
+-//    ensure it is not in use when the last true *m is released.
++//  2. Any muintptr in the heap must be owned by the M itself so it can
++//     ensure it is not in use when the last true *m is released.
+ type muintptr uintptr
+ 
+ //go:nosplit
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 980a9866e6..eec29075b9 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -147,10 +147,10 @@ func rawstringtmp(buf *tmpBuf, l int) (s string, b []byte) {
+ // and otherwise intrinsified by the compiler.
+ //
+ // Some internal compiler optimizations use this function.
+-// - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
+-//   where k is []byte, T1 to Tn is a nesting of struct and array literals.
+-// - Used for "<"+string(b)+">" concatenation where b is []byte.
+-// - Used for string(b)=="foo" comparison where b is []byte.
++//  - Used for m[T1{... Tn{..., string(k), ...} ...}] and m[string(k)]
++//    where k is []byte, T1 to Tn is a nesting of struct and array literals.
++//  - Used for "<"+string(b)+">" concatenation where b is []byte.
++//  - Used for string(b)=="foo" comparison where b is []byte.
+ func slicebytetostringtmp(ptr *byte, n int) (str string) {
+ 	if raceenabled && n > 0 {
+ 		racereadrangepc(unsafe.Pointer(ptr),
+diff --git a/src/runtime/symtab_test.go b/src/runtime/symtab_test.go
+index 99ff0d4420..a83afc3385 100644
+--- a/src/runtime/symtab_test.go
++++ b/src/runtime/symtab_test.go
+@@ -205,15 +205,15 @@ func tracebackFunc(t *testing.T) uintptr {
+ // Go obviously doesn't easily expose the problematic PCs to running programs,
+ // so this test is a bit fragile. Some details:
+ //
+-// * tracebackFunc is our target function. We want to get a PC in the
+-//   alignment region following this function. This function also has other
+-//   functions inlined into it to ensure it has an InlTree (this was the source
+-//   of the bug in issue 44971).
++//  * tracebackFunc is our target function. We want to get a PC in the
++//    alignment region following this function. This function also has other
++//    functions inlined into it to ensure it has an InlTree (this was the source
++//    of the bug in issue 44971).
+ //
+-// * We acquire a PC in tracebackFunc, walking forwards until FuncForPC says
+-//   we're in a new function. The last PC of the function according to FuncForPC
+-//   should be in the alignment region (assuming the function isn't already
+-//   perfectly aligned).
++//  * We acquire a PC in tracebackFunc, walking forwards until FuncForPC says
++//    we're in a new function. The last PC of the function according to FuncForPC
++//    should be in the alignment region (assuming the function isn't already
++//    perfectly aligned).
+ //
+ // This is a regression test for issue 44971.
+ func TestFunctionAlignmentTraceback(t *testing.T) {
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index da47147897..a00394f3b3 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -17,7 +17,7 @@ import (
+ //	cmd/compile/internal/reflectdata/reflect.go
+ //	cmd/link/internal/ld/decodesym.go
+ //	reflect/type.go
+-//      internal/reflectlite/type.go
++//	internal/reflectlite/type.go
+ type tflag uint8
+ 
+ const (
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 9d10d6a512..41e58d4355 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -19,11 +19,11 @@ var ForkLock sync.RWMutex
+ // in https://msdn.microsoft.com/en-us/library/ms880421.
+ // This function returns "" (2 double quotes) if s is empty.
+ // Alternatively, these transformations are done:
+-// - every back slash (\) is doubled, but only if immediately
+-//   followed by double quote (");
+-// - every double quote (") is escaped by back slash (\);
+-// - finally, s is wrapped with double quotes (arg -> "arg"),
+-//   but only if there is space or tab inside s.
++//  - every back slash (\) is doubled, but only if immediately
++//    followed by double quote (");
++//  - every double quote (") is escaped by back slash (\);
++//  - finally, s is wrapped with double quotes (arg -> "arg"),
++//    but only if there is space or tab inside s.
+ func EscapeArg(s string) string {
+ 	if len(s) == 0 {
+ 		return `""`
+diff --git a/src/time/zoneinfo.go b/src/time/zoneinfo.go
+index b460b9e6c5..9bcb183d77 100644
+--- a/src/time/zoneinfo.go
++++ b/src/time/zoneinfo.go
+@@ -197,14 +197,14 @@ func (l *Location) lookup(sec int64) (name string, offset int, start, end int64,
+ // The reference implementation in localtime.c from
+ // https://www.iana.org/time-zones/repository/releases/tzcode2013g.tar.gz
+ // implements the following algorithm for these cases:
+-// 1) If the first zone is unused by the transitions, use it.
+-// 2) Otherwise, if there are transition times, and the first
+-//    transition is to a zone in daylight time, find the first
+-//    non-daylight-time zone before and closest to the first transition
+-//    zone.
+-// 3) Otherwise, use the first zone that is not daylight time, if
+-//    there is one.
+-// 4) Otherwise, use the first zone.
++//  1) If the first zone is unused by the transitions, use it.
++//  2) Otherwise, if there are transition times, and the first
++//     transition is to a zone in daylight time, find the first
++//     non-daylight-time zone before and closest to the first transition
++//     zone.
++//  3) Otherwise, use the first zone that is not daylight time, if
++//     there is one.
++//  4) Otherwise, use the first zone.
+ func (l *Location) lookupFirstZone() int {
+ 	// Case 1.
+ 	if !l.firstZoneUsed() {

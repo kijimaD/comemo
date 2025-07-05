@@ -9,6 +9,42 @@ Date:   Mon Aug 25 11:56:25 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews, khr, rsc
     https://golang.org/cl/128670043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 9ab211c2da..45db6c59a7 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -314,6 +314,12 @@ func TestBlockProfile(t *testing.T) {
+ #	0x[0-9,a-f]+	sync\.\(\*Mutex\)\.Lock\+0x[0-9,a-f]+	.*/src/pkg/sync/mutex\.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.blockMutex\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++`},
++		{"cond", blockCond, `
++[0-9]+ [0-9]+ @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
++#	0x[0-9,a-f]+	sync\.\(\*Cond\)\.Wait\+0x[0-9,a-f]+	.*/src/pkg/sync/cond\.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.blockCond\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestBlockProfile\+0x[0-9,a-f]+	.*/src/pkg/runtime/pprof/pprof_test.go:[0-9]+
+ `},
+ 	}
+ 
+@@ -401,3 +407,17 @@ func blockMutex() {
+ 	}()
+ 	mu.Lock()
+ }
++
++func blockCond() {
++	var mu sync.Mutex
++	c := sync.NewCond(&mu)
++	mu.Lock()
++	go func() {
++		time.Sleep(blockDelay)
++		mu.Lock()
++		c.Signal()
++		mu.Unlock()
++	}()
++	c.Wait()
++	mu.Unlock()
++}

@@ -18,7 +18,7 @@ Date:   Wed Jul 20 13:52:03 2016 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/race/README                  |   2 +-
  src/runtime/race/race_darwin_amd64.syso  | Bin 341304 -> 326172 bytes
  src/runtime/race/race_freebsd_amd64.syso | Bin 399904 -> 404216 bytes
@@ -26,3 +26,52 @@ Date:   Wed Jul 20 13:52:03 2016 +0200
  src/runtime/race/race_test.go            |  18 ++++++++++++++++++
  src/runtime/race/race_windows_amd64.syso | Bin 363595 -> 367717 bytes
  6 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 3a506b0c08..95e241c072 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -4,4 +4,4 @@ the LLVM project (http://llvm.org/git/compiler-rt.git).
+ 
+ To update the .syso files use golang.org/x/build/cmd/racebuild.
+ 
+-Current runtime is built on rev 9d79ea3416bfbe3acac50e47802ee9621bf53254.
++Current runtime is built on rev e35e7c00b5c7e7ee5e24d537b80cb0d34cebb038.
+diff --git a/src/runtime/race/race_darwin_amd64.syso b/src/runtime/race/race_darwin_amd64.syso
+index 1822486e08..c19740fb8f 100644
+Binary files a/src/runtime/race/race_darwin_amd64.syso and b/src/runtime/race/race_darwin_amd64.syso differ
+diff --git a/src/runtime/race/race_freebsd_amd64.syso b/src/runtime/race/race_freebsd_amd64.syso
+index 75d94952c3..df1bc26861 100644
+Binary files a/src/runtime/race/race_freebsd_amd64.syso and b/src/runtime/race/race_freebsd_amd64.syso differ
+diff --git a/src/runtime/race/race_linux_amd64.syso b/src/runtime/race/race_linux_amd64.syso
+index 8f571afa9a..174033041e 100644
+Binary files a/src/runtime/race/race_linux_amd64.syso and b/src/runtime/race/race_linux_amd64.syso differ
+diff --git a/src/runtime/race/race_test.go b/src/runtime/race/race_test.go
+index 81e51cc5b2..53ec74c085 100644
+--- a/src/runtime/race/race_test.go
++++ b/src/runtime/race/race_test.go
+@@ -221,3 +221,21 @@ func BenchmarkSyncLeak(b *testing.B) {
+ 	}
+ 	wg.Wait()
+ }
++
++func BenchmarkStackLeak(b *testing.B) {
++	done := make(chan bool, 1)
++	for i := 0; i < b.N; i++ {
++		go func() {
++			growStack(rand.Intn(100))
++			done <- true
++		}()
++		<-done
++	}
++}
++
++func growStack(i int) {
++	if i == 0 {
++		return
++	}
++	growStack(i - 1)
++}
+diff --git a/src/runtime/race/race_windows_amd64.syso b/src/runtime/race/race_windows_amd64.syso
+index 64c54b6e2f..fd93959af5 100644
+Binary files a/src/runtime/race/race_windows_amd64.syso and b/src/runtime/race/race_windows_amd64.syso differ

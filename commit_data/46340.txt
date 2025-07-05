@@ -98,7 +98,7 @@ Date:   Wed Dec 23 00:10:25 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |   3 +-
  src/cmd/compile/internal/amd64/ssa.go    |   5 +-
  src/cmd/compile/internal/arm/ggen.go     |   3 +-
@@ -129,3 +129,1294 @@ Date:   Wed Dec 23 00:10:25 2020 -0500
  src/cmd/compile/internal/x86/ggen.go     |   3 +-
  src/cmd/compile/internal/x86/ssa.go      |   5 +-
  29 files changed, 255 insertions(+), 231 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index ec98b8cca1..0bb0627f92 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -7,6 +7,7 @@ package amd64
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+@@ -102,7 +103,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, state *uint32) *obj.Pr
+ 		}
+ 		p = pp.Appendpp(p, leaptr, obj.TYPE_MEM, x86.REG_SP, off+dzDI(cnt), obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, dzOff(cnt))
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 
+ 		if cnt%16 != 0 {
+ 			p = pp.Appendpp(p, x86.AMOVUPS, obj.TYPE_REG, x86.REG_X0, 0, obj.TYPE_MEM, x86.REG_DI, -int64(8))
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5e3b962076..055d1894d4 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+@@ -912,7 +913,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		}
+ 		p = s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = off
+ 	case ssa.OpAMD64MOVOconst:
+ 		if v.AuxInt != 0 {
+@@ -923,7 +924,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpAMD64DUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		if v.AuxInt%16 != 0 {
+ 			v.Fatalf("bad DUFFCOPY AuxInt %v", v.AuxInt)
+ 		}
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index bd8d7ff40b..2e4de9893b 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -6,6 +6,7 @@ package arm
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm"
+ )
+@@ -28,7 +29,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, r0 *uint32) *obj.Prog
+ 		p.Reg = arm.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = pp.Appendpp(p, arm.AADD, obj.TYPE_CONST, 0, 4+off, obj.TYPE_REG, arm.REG_R1, 0)
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 8b155712aa..ab7ec6176b 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -702,7 +702,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Udiv
++		p.To.Sym = ir.Syms.Udiv
+ 	case ssa.OpARMLoweredWB:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+@@ -724,13 +724,13 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMDUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMLoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index f3fec03854..6c280267b6 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -6,6 +6,7 @@ package arm64
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
+ 	"cmd/internal/objabi"
+@@ -41,7 +42,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = arm64.REG_R20
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 4 * (64 - cnt/(2*int64(gc.Widthptr)))
+ 	} else {
+ 		// Not using REGTMP, so this is async preemptible (async preemption clobbers REGTMP).
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 3eb0ae6557..bb634cc38c 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -961,7 +961,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredZero:
+ 		// STP.P	(ZR,ZR), 16(R16)
+@@ -987,7 +987,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpARM64LoweredMove:
+ 		// MOVD.P	8(R16), Rtmp
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 08237d4055..bcf992ba4b 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -265,19 +265,19 @@ func hashfor(t *types.Type) ir.Node {
+ 	case types.AMEM:
+ 		base.Fatalf("hashfor with AMEM type")
+ 	case types.AINTER:
+-		sym = Runtimepkg.Lookup("interhash")
++		sym = ir.Pkgs.Runtime.Lookup("interhash")
+ 	case types.ANILINTER:
+-		sym = Runtimepkg.Lookup("nilinterhash")
++		sym = ir.Pkgs.Runtime.Lookup("nilinterhash")
+ 	case types.ASTRING:
+-		sym = Runtimepkg.Lookup("strhash")
++		sym = ir.Pkgs.Runtime.Lookup("strhash")
+ 	case types.AFLOAT32:
+-		sym = Runtimepkg.Lookup("f32hash")
++		sym = ir.Pkgs.Runtime.Lookup("f32hash")
+ 	case types.AFLOAT64:
+-		sym = Runtimepkg.Lookup("f64hash")
++		sym = ir.Pkgs.Runtime.Lookup("f64hash")
+ 	case types.ACPLX64:
+-		sym = Runtimepkg.Lookup("c64hash")
++		sym = ir.Pkgs.Runtime.Lookup("c64hash")
+ 	case types.ACPLX128:
+-		sym = Runtimepkg.Lookup("c128hash")
++		sym = ir.Pkgs.Runtime.Lookup("c128hash")
+ 	default:
+ 		// Note: the caller of hashfor ensured that this symbol
+ 		// exists and has a body by calling genhash for t.
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 5a5f670a08..c084565f3d 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -626,7 +626,7 @@ func methodSymSuffix(recv *types.Type, msym *types.Sym, suffix string) *types.Sy
+ 	// Find the package the receiver type appeared in. For
+ 	// anonymous receiver types (i.e., anonymous structs with
+ 	// embedded fields), use the "go" pseudo-package instead.
+-	rpkg := gopkg
++	rpkg := ir.Pkgs.Go
+ 	if rsym != nil {
+ 		rpkg = rsym.Pkg
+ 	}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index f83c636472..bcd58fd2c5 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -16,7 +16,7 @@ import (
+ // sysfunc looks up Go function name in package runtime. This function
+ // must follow the internal calling convention.
+ func sysfunc(name string) *obj.LSym {
+-	s := Runtimepkg.Lookup(name)
++	s := ir.Pkgs.Runtime.Lookup(name)
+ 	s.SetFunc(true)
+ 	return s.Linksym()
+ }
+@@ -25,7 +25,7 @@ func sysfunc(name string) *obj.LSym {
+ // runtime. If this is a function, it may have a special calling
+ // convention.
+ func sysvar(name string) *obj.LSym {
+-	return Runtimepkg.Lookup(name).Linksym()
++	return ir.Pkgs.Runtime.Lookup(name).Linksym()
+ }
+ 
+ // isParamStackCopy reports whether this is the on-stack copy of a
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 7ec59852ee..4b6ffe58d1 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -64,24 +64,6 @@ var decldepth int32
+ 
+ var inimport bool // set during import
+ 
+-var itabpkg *types.Pkg // fake pkg for itab entries
+-
+-var itablinkpkg *types.Pkg // fake package for runtime itab entries
+-
+-var Runtimepkg *types.Pkg // fake package runtime
+-
+-var racepkg *types.Pkg // package runtime/race
+-
+-var msanpkg *types.Pkg // package runtime/msan
+-
+-var unsafepkg *types.Pkg // package unsafe
+-
+-var trackpkg *types.Pkg // fake package for field tracking
+-
+-var mappkg *types.Pkg // fake package for map zero value
+-
+-var gopkg *types.Pkg // pseudo-package for method symbols on anonymous receiver types
+-
+ var zerosize int64
+ 
+ var (
+@@ -149,57 +131,8 @@ type Arch struct {
+ var thearch Arch
+ 
+ var (
+-	staticuint64s *ir.Name
+-	zerobase      *ir.Name
+-
+-	assertE2I,
+-	assertE2I2,
+-	assertI2I,
+-	assertI2I2,
+-	deferproc,
+-	deferprocStack,
+-	Deferreturn,
+-	Duffcopy,
+-	Duffzero,
+-	gcWriteBarrier,
+-	goschedguarded,
+-	growslice,
+-	msanread,
+-	msanwrite,
+-	msanmove,
+-	newobject,
+-	newproc,
+-	panicdivide,
+-	panicshift,
+-	panicdottypeE,
+-	panicdottypeI,
+-	panicnildottype,
+-	panicoverflow,
+-	raceread,
+-	racereadrange,
+-	racewrite,
+-	racewriterange,
+-	x86HasPOPCNT,
+-	x86HasSSE41,
+-	x86HasFMA,
+-	armHasVFPv4,
+-	arm64HasATOMICS,
+-	typedmemclr,
+-	typedmemmove,
+-	Udiv,
+-	writeBarrier,
+-	zerobaseSym *obj.LSym
+-
+ 	BoundsCheckFunc [ssa.BoundsKindCount]*obj.LSym
+ 	ExtendCheckFunc [ssa.BoundsKindCount]*obj.LSym
+-
+-	// Wasm
+-	WasmMove,
+-	WasmZero,
+-	WasmDiv,
+-	WasmTruncS,
+-	WasmTruncU,
+-	SigPanic *obj.LSym
+ )
+ 
+ // GCWriteBarrierReg maps from registers to gcWriteBarrier implementation LSyms.
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 87db08e0d1..56d2e81df1 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -400,7 +400,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
+ 	}
+ 
+ 	// Don't export predeclared declarations.
+-	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == unsafepkg {
++	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == ir.Pkgs.Unsafe {
+ 		return
+ 	}
+ 
+@@ -647,7 +647,7 @@ func (w *exportWriter) startType(k itag) {
+ 
+ func (w *exportWriter) doTyp(t *types.Type) {
+ 	if t.Sym() != nil {
+-		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == unsafepkg {
++		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == ir.Pkgs.Unsafe {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 15646ff8c7..1c52426802 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -86,32 +86,32 @@ func Main(archInit func(*Arch)) {
+ 	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+-	unsafepkg = types.NewPkg("unsafe", "unsafe")
++	ir.Pkgs.Unsafe = types.NewPkg("unsafe", "unsafe")
+ 
+ 	// Pseudo-package that contains the compiler's builtin
+ 	// declarations for package runtime. These are declared in a
+ 	// separate package to avoid conflicts with package runtime's
+ 	// actual declarations, which may differ intentionally but
+ 	// insignificantly.
+-	Runtimepkg = types.NewPkg("go.runtime", "runtime")
+-	Runtimepkg.Prefix = "runtime"
++	ir.Pkgs.Runtime = types.NewPkg("go.runtime", "runtime")
++	ir.Pkgs.Runtime.Prefix = "runtime"
+ 
+ 	// pseudo-packages used in symbol tables
+-	itabpkg = types.NewPkg("go.itab", "go.itab")
+-	itabpkg.Prefix = "go.itab" // not go%2eitab
++	ir.Pkgs.Itab = types.NewPkg("go.itab", "go.itab")
++	ir.Pkgs.Itab.Prefix = "go.itab" // not go%2eitab
+ 
+-	itablinkpkg = types.NewPkg("go.itablink", "go.itablink")
+-	itablinkpkg.Prefix = "go.itablink" // not go%2eitablink
++	ir.Pkgs.Itablink = types.NewPkg("go.itablink", "go.itablink")
++	ir.Pkgs.Itablink.Prefix = "go.itablink" // not go%2eitablink
+ 
+-	trackpkg = types.NewPkg("go.track", "go.track")
+-	trackpkg.Prefix = "go.track" // not go%2etrack
++	ir.Pkgs.Track = types.NewPkg("go.track", "go.track")
++	ir.Pkgs.Track.Prefix = "go.track" // not go%2etrack
+ 
+ 	// pseudo-package used for map zero values
+-	mappkg = types.NewPkg("go.map", "go.map")
+-	mappkg.Prefix = "go.map"
++	ir.Pkgs.Map = types.NewPkg("go.map", "go.map")
++	ir.Pkgs.Map.Prefix = "go.map"
+ 
+ 	// pseudo-package used for methods with anonymous receivers
+-	gopkg = types.NewPkg("go", "")
++	ir.Pkgs.Go = types.NewPkg("go", "")
+ 
+ 	base.DebugSSA = ssa.PhaseOption
+ 	base.ParseFlags()
+@@ -165,10 +165,10 @@ func Main(archInit func(*Arch)) {
+ 	thearch.LinkArch.Init(base.Ctxt)
+ 	startProfile()
+ 	if base.Flag.Race {
+-		racepkg = types.NewPkg("runtime/race", "")
++		ir.Pkgs.Race = types.NewPkg("runtime/race", "")
+ 	}
+ 	if base.Flag.MSan {
+-		msanpkg = types.NewPkg("runtime/msan", "")
++		ir.Pkgs.Msan = types.NewPkg("runtime/msan", "")
+ 	}
+ 	if base.Flag.Race || base.Flag.MSan {
+ 		base.Flag.Cfg.Instrumenting = true
+@@ -592,13 +592,13 @@ func loadsys() {
+ 
+ 	typs := runtimeTypes()
+ 	for _, d := range &runtimeDecls {
+-		sym := Runtimepkg.Lookup(d.name)
++		sym := ir.Pkgs.Runtime.Lookup(d.name)
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+ 		case funcTag:
+-			importfunc(Runtimepkg, src.NoXPos, sym, typ)
++			importfunc(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
+ 		case varTag:
+-			importvar(Runtimepkg, src.NoXPos, sym, typ)
++			importvar(ir.Pkgs.Runtime, src.NoXPos, sym, typ)
+ 		default:
+ 			base.Fatalf("unhandled declaration tag %v", d.tag)
+ 		}
+@@ -647,7 +647,7 @@ func importfile(f constant.Value) *types.Pkg {
+ 	}
+ 
+ 	if path_ == "unsafe" {
+-		return unsafepkg
++		return ir.Pkgs.Unsafe
+ 	}
+ 
+ 	if islocalname(path_) {
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 77a45f0023..799887d6b8 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -334,7 +334,7 @@ func (p *noder) importDecl(imp *syntax.ImportDecl) {
+ 		return
+ 	}
+ 
+-	if ipkg == unsafepkg {
++	if ipkg == ir.Pkgs.Unsafe {
+ 		p.importedUnsafe = true
+ 	}
+ 	if ipkg.Path == "embed" {
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 883033e0c2..897bcce36f 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -158,7 +158,7 @@ func dumpdata() {
+ 	dumpglobls(Target.Externs[numExterns:])
+ 
+ 	if zerosize > 0 {
+-		zero := mappkg.Lookup("zero")
++		zero := ir.Pkgs.Map.Lookup("zero")
+ 		ggloblsym(zero.Linksym(), int32(zerosize), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 0b796ae7fa..f13889efda 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -571,7 +571,7 @@ func (lv *Liveness) markUnsafePoints() {
+ 		var load *ssa.Value
+ 		v := wbBlock.Controls[0]
+ 		for {
+-			if sym, ok := v.Aux.(*obj.LSym); ok && sym == writeBarrier {
++			if sym, ok := v.Aux.(*obj.LSym); ok && sym == ir.Syms.WriteBarrier {
+ 				load = v
+ 				break
+ 			}
+@@ -690,7 +690,7 @@ func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+ 	// typedmemclr and typedmemmove are write barriers and
+ 	// deeply non-preemptible. They are unsafe points and
+ 	// hence should not have liveness maps.
+-	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
++	if sym, ok := v.Aux.(*ssa.AuxCall); ok && (sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 12fc6b7fa7..41c9f93bf0 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -489,7 +489,7 @@ func dimportpath(p *types.Pkg) {
+ 	// If we are compiling the runtime package, there are two runtime packages around
+ 	// -- localpkg and Runtimepkg. We don't want to produce import path symbols for
+ 	// both of them, so just produce one for localpkg.
+-	if base.Ctxt.Pkgpath == "runtime" && p == Runtimepkg {
++	if base.Ctxt.Pkgpath == "runtime" && p == ir.Pkgs.Runtime {
+ 		return
+ 	}
+ 
+@@ -926,7 +926,7 @@ func dcommontype(lsym *obj.LSym, t *types.Type) int {
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+ func tracksym(t *types.Type, f *types.Field) *types.Sym {
+-	return trackpkg.Lookup(t.ShortString() + "." + f.Sym.Name)
++	return ir.Pkgs.Track.Lookup(t.ShortString() + "." + f.Sym.Name)
+ }
+ 
+ func typesymprefix(prefix string, t *types.Type) *types.Sym {
+@@ -975,7 +975,7 @@ func itabname(t, itype *types.Type) *ir.AddrExpr {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+ 		base.Fatalf("itabname(%v, %v)", t, itype)
+ 	}
+-	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
++	s := ir.Pkgs.Itab.Lookup(t.ShortString() + "," + itype.ShortString())
+ 	if s.Def == nil {
+ 		n := NewName(s)
+ 		n.SetType(types.Types[types.TUINT8])
+@@ -1544,13 +1544,13 @@ func dumpbasictypes() {
+ 		dtypesym(functype(nil, []*ir.Field{anonfield(types.ErrorType)}, []*ir.Field{anonfield(types.Types[types.TSTRING])}))
+ 
+ 		// add paths for runtime and main, which 6l imports implicitly.
+-		dimportpath(Runtimepkg)
++		dimportpath(ir.Pkgs.Runtime)
+ 
+ 		if base.Flag.Race {
+-			dimportpath(racepkg)
++			dimportpath(ir.Pkgs.Race)
+ 		}
+ 		if base.Flag.MSan {
+-			dimportpath(msanpkg)
++			dimportpath(ir.Pkgs.Msan)
+ 		}
+ 		dimportpath(types.NewPkg("main", ""))
+ 	}
+@@ -1642,7 +1642,7 @@ func dgcptrmask(t *types.Type) *obj.LSym {
+ 	fillptrmask(t, ptrmask)
+ 	p := fmt.Sprintf("gcbits.%x", ptrmask)
+ 
+-	sym := Runtimepkg.Lookup(p)
++	sym := ir.Pkgs.Runtime.Lookup(p)
+ 	lsym := sym.Linksym()
+ 	if !sym.Uniq() {
+ 		sym.SetUniq(true)
+@@ -1791,7 +1791,7 @@ func zeroaddr(size int64) ir.Node {
+ 	if zerosize < size {
+ 		zerosize = size
+ 	}
+-	s := mappkg.Lookup("zero")
++	s := ir.Pkgs.Map.Lookup("zero")
+ 	if s.Def == nil {
+ 		x := NewName(s)
+ 		x.SetType(types.Types[types.TUINT8])
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 722a3257da..22cc868f36 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -91,43 +91,43 @@ func initssaconfig() {
+ 	ssaCaches = make([]ssa.Cache, base.Flag.LowerC)
+ 
+ 	// Set up some runtime functions we'll need to call.
+-	assertE2I = sysfunc("assertE2I")
+-	assertE2I2 = sysfunc("assertE2I2")
+-	assertI2I = sysfunc("assertI2I")
+-	assertI2I2 = sysfunc("assertI2I2")
+-	deferproc = sysfunc("deferproc")
+-	deferprocStack = sysfunc("deferprocStack")
+-	Deferreturn = sysfunc("deferreturn")
+-	Duffcopy = sysfunc("duffcopy")
+-	Duffzero = sysfunc("duffzero")
+-	gcWriteBarrier = sysfunc("gcWriteBarrier")
+-	goschedguarded = sysfunc("goschedguarded")
+-	growslice = sysfunc("growslice")
+-	msanread = sysfunc("msanread")
+-	msanwrite = sysfunc("msanwrite")
+-	msanmove = sysfunc("msanmove")
+-	newobject = sysfunc("newobject")
+-	newproc = sysfunc("newproc")
+-	panicdivide = sysfunc("panicdivide")
+-	panicdottypeE = sysfunc("panicdottypeE")
+-	panicdottypeI = sysfunc("panicdottypeI")
+-	panicnildottype = sysfunc("panicnildottype")
+-	panicoverflow = sysfunc("panicoverflow")
+-	panicshift = sysfunc("panicshift")
+-	raceread = sysfunc("raceread")
+-	racereadrange = sysfunc("racereadrange")
+-	racewrite = sysfunc("racewrite")
+-	racewriterange = sysfunc("racewriterange")
+-	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
+-	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
+-	x86HasFMA = sysvar("x86HasFMA")             // bool
+-	armHasVFPv4 = sysvar("armHasVFPv4")         // bool
+-	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
+-	typedmemclr = sysfunc("typedmemclr")
+-	typedmemmove = sysfunc("typedmemmove")
+-	Udiv = sysvar("udiv")                 // asm func with special ABI
+-	writeBarrier = sysvar("writeBarrier") // struct { bool; ... }
+-	zerobaseSym = sysvar("zerobase")
++	ir.Syms.AssertE2I = sysfunc("assertE2I")
++	ir.Syms.AssertE2I2 = sysfunc("assertE2I2")
++	ir.Syms.AssertI2I = sysfunc("assertI2I")
++	ir.Syms.AssertI2I2 = sysfunc("assertI2I2")
++	ir.Syms.Deferproc = sysfunc("deferproc")
++	ir.Syms.DeferprocStack = sysfunc("deferprocStack")
++	ir.Syms.Deferreturn = sysfunc("deferreturn")
++	ir.Syms.Duffcopy = sysfunc("duffcopy")
++	ir.Syms.Duffzero = sysfunc("duffzero")
++	ir.Syms.GCWriteBarrier = sysfunc("gcWriteBarrier")
++	ir.Syms.Goschedguarded = sysfunc("goschedguarded")
++	ir.Syms.Growslice = sysfunc("growslice")
++	ir.Syms.Msanread = sysfunc("msanread")
++	ir.Syms.Msanwrite = sysfunc("msanwrite")
++	ir.Syms.Msanmove = sysfunc("msanmove")
++	ir.Syms.Newobject = sysfunc("newobject")
++	ir.Syms.Newproc = sysfunc("newproc")
++	ir.Syms.Panicdivide = sysfunc("panicdivide")
++	ir.Syms.PanicdottypeE = sysfunc("panicdottypeE")
++	ir.Syms.PanicdottypeI = sysfunc("panicdottypeI")
++	ir.Syms.Panicnildottype = sysfunc("panicnildottype")
++	ir.Syms.Panicoverflow = sysfunc("panicoverflow")
++	ir.Syms.Panicshift = sysfunc("panicshift")
++	ir.Syms.Raceread = sysfunc("raceread")
++	ir.Syms.Racereadrange = sysfunc("racereadrange")
++	ir.Syms.Racewrite = sysfunc("racewrite")
++	ir.Syms.Racewriterange = sysfunc("racewriterange")
++	ir.Syms.X86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
++	ir.Syms.X86HasSSE41 = sysvar("x86HasSSE41")         // bool
++	ir.Syms.X86HasFMA = sysvar("x86HasFMA")             // bool
++	ir.Syms.ARMHasVFPv4 = sysvar("armHasVFPv4")         // bool
++	ir.Syms.ARM64HasATOMICS = sysvar("arm64HasATOMICS") // bool
++	ir.Syms.Typedmemclr = sysfunc("typedmemclr")
++	ir.Syms.Typedmemmove = sysfunc("typedmemmove")
++	ir.Syms.Udiv = sysvar("udiv")                 // asm func with special ABI
++	ir.Syms.WriteBarrier = sysvar("writeBarrier") // struct { bool; ... }
++	ir.Syms.Zerobase = sysvar("zerobase")
+ 
+ 	// asm funcs with special ABI
+ 	if thearch.LinkArch.Name == "amd64" {
+@@ -198,12 +198,12 @@ func initssaconfig() {
+ 	}
+ 
+ 	// Wasm (all asm funcs with special ABIs)
+-	WasmMove = sysvar("wasmMove")
+-	WasmZero = sysvar("wasmZero")
+-	WasmDiv = sysvar("wasmDiv")
+-	WasmTruncS = sysvar("wasmTruncS")
+-	WasmTruncU = sysvar("wasmTruncU")
+-	SigPanic = sysfunc("sigpanic")
++	ir.Syms.WasmMove = sysvar("wasmMove")
++	ir.Syms.WasmZero = sysvar("wasmZero")
++	ir.Syms.WasmDiv = sysvar("wasmDiv")
++	ir.Syms.WasmTruncS = sysvar("wasmTruncS")
++	ir.Syms.WasmTruncU = sysvar("wasmTruncU")
++	ir.Syms.SigPanic = sysfunc("sigpanic")
+ }
+ 
+ // getParam returns the Field of ith param of node n (which is a
+@@ -1051,11 +1051,11 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
+ 	if base.Flag.MSan {
+ 		switch kind {
+ 		case instrumentRead:
+-			fn = msanread
++			fn = ir.Syms.Msanread
+ 		case instrumentWrite:
+-			fn = msanwrite
++			fn = ir.Syms.Msanwrite
+ 		case instrumentMove:
+-			fn = msanmove
++			fn = ir.Syms.Msanmove
+ 		default:
+ 			panic("unreachable")
+ 		}
+@@ -1066,9 +1066,9 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
+ 		// composites with only one element don't have subobjects, though.
+ 		switch kind {
+ 		case instrumentRead:
+-			fn = racereadrange
++			fn = ir.Syms.Racereadrange
+ 		case instrumentWrite:
+-			fn = racewriterange
++			fn = ir.Syms.Racewriterange
+ 		default:
+ 			panic("unreachable")
+ 		}
+@@ -1078,9 +1078,9 @@ func (s *state) instrument2(t *types.Type, addr, addr2 *ssa.Value, kind instrume
+ 		// address, as any write must write the first byte.
+ 		switch kind {
+ 		case instrumentRead:
+-			fn = raceread
++			fn = ir.Syms.Raceread
+ 		case instrumentWrite:
+-			fn = racewrite
++			fn = ir.Syms.Racewrite
+ 		default:
+ 			panic("unreachable")
+ 		}
+@@ -1170,7 +1170,7 @@ func (s *state) stmt(n ir.Node) {
+ 		s.callResult(n, callNormal)
+ 		if n.Op() == ir.OCALLFUNC && n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PFUNC {
+ 			if fn := n.X.Sym().Name; base.Flag.CompilingRuntime && fn == "throw" ||
+-				n.X.Sym().Pkg == Runtimepkg && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
++				n.X.Sym().Pkg == ir.Pkgs.Runtime && (fn == "throwinit" || fn == "gopanic" || fn == "panicwrap" || fn == "block" || fn == "panicmakeslicelen" || fn == "panicmakeslicecap") {
+ 				m := s.mem()
+ 				b := s.endBlock()
+ 				b.Kind = ssa.BlockExit
+@@ -1677,7 +1677,7 @@ func (s *state) exit() *ssa.Block {
+ 			}
+ 			s.openDeferExit()
+ 		} else {
+-			s.rtcall(Deferreturn, true, nil)
++			s.rtcall(ir.Syms.Deferreturn, true, nil)
+ 		}
+ 	}
+ 
+@@ -2612,7 +2612,7 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 		bt := b.Type
+ 		if bt.IsSigned() {
+ 			cmp := s.newValue2(s.ssaOp(ir.OLE, bt), types.Types[types.TBOOL], s.zeroVal(bt), b)
+-			s.check(cmp, panicshift)
++			s.check(cmp, ir.Syms.Panicshift)
+ 			bt = bt.ToUnsigned()
+ 		}
+ 		return s.newValue2(s.ssaShiftOp(n.Op(), n.Type(), bt), a.Type, a, b)
+@@ -2909,10 +2909,10 @@ func (s *state) expr(n ir.Node) *ssa.Value {
+ 	case ir.ONEWOBJ:
+ 		n := n.(*ir.UnaryExpr)
+ 		if n.Type().Elem().Size() == 0 {
+-			return s.newValue1A(ssa.OpAddr, n.Type(), zerobaseSym, s.sb)
++			return s.newValue1A(ssa.OpAddr, n.Type(), ir.Syms.Zerobase, s.sb)
+ 		}
+ 		typ := s.expr(n.X)
+-		vv := s.rtcall(newobject, true, []*types.Type{n.Type()}, typ)
++		vv := s.rtcall(ir.Syms.Newobject, true, []*types.Type{n.Type()}, typ)
+ 		return vv[0]
+ 
+ 	default:
+@@ -3006,7 +3006,7 @@ func (s *state) append(n *ir.CallExpr, inplace bool) *ssa.Value {
+ 	// Call growslice
+ 	s.startBlock(grow)
+ 	taddr := s.expr(n.X)
+-	r := s.rtcall(growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
++	r := s.rtcall(ir.Syms.Growslice, true, []*types.Type{pt, types.Types[types.TINT], types.Types[types.TINT]}, taddr, p, l, c, nl)
+ 
+ 	if inplace {
+ 		if sn.Op() == ir.ONAME {
+@@ -3635,7 +3635,7 @@ func initSSATables() {
+ 
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			// Target Atomic feature is identified by dynamic detection
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), arm64HasATOMICS, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
+ 			v := s.load(types.Types[types.TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -3860,7 +3860,7 @@ func initSSATables() {
+ 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+ 				return s.variable(n, types.Types[types.TFLOAT64])
+ 			}
+-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasFMA)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasFMA)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+@@ -3892,7 +3892,7 @@ func initSSATables() {
+ 				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+ 				return s.variable(n, types.Types[types.TFLOAT64])
+ 			}
+-			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), armHasVFPv4, s.sb)
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
+ 			v := s.load(types.Types[types.TBOOL], addr)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+@@ -3922,7 +3922,7 @@ func initSSATables() {
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasSSE41)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasSSE41)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+@@ -4128,7 +4128,7 @@ func initSSATables() {
+ 
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], x86HasPOPCNT)
++			v := s.entryNewValue0A(ssa.OpHasCPUFeature, types.Types[types.TBOOL], ir.Syms.X86HasPOPCNT)
+ 			b := s.endBlock()
+ 			b.Kind = ssa.BlockIf
+ 			b.SetControl(v)
+@@ -4212,9 +4212,9 @@ func initSSATables() {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			// check for divide-by-zero/overflow and panic with appropriate message
+ 			cmpZero := s.newValue2(s.ssaOp(ir.ONE, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[2], s.zeroVal(types.Types[types.TUINT64]))
+-			s.check(cmpZero, panicdivide)
++			s.check(cmpZero, ir.Syms.Panicdivide)
+ 			cmpOverflow := s.newValue2(s.ssaOp(ir.OLT, types.Types[types.TUINT64]), types.Types[types.TBOOL], args[0], args[2])
+-			s.check(cmpOverflow, panicoverflow)
++			s.check(cmpOverflow, ir.Syms.Panicoverflow)
+ 			return s.newValue3(ssa.OpDiv128u, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+ 		},
+ 		sys.AMD64)
+@@ -4768,7 +4768,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 
+ 		// Call runtime.deferprocStack with pointer to _defer record.
+ 		ACArgs = append(ACArgs, ssa.Param{Type: types.Types[types.TUINTPTR], Offset: int32(base.Ctxt.FixedFrameSize())})
+-		aux := ssa.StaticAuxCall(deferprocStack, ACArgs, ACResults)
++		aux := ssa.StaticAuxCall(ir.Syms.DeferprocStack, ACArgs, ACResults)
+ 		if testLateExpansion {
+ 			callArgs = append(callArgs, addr, s.mem())
+ 			call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+@@ -4844,7 +4844,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		// call target
+ 		switch {
+ 		case k == callDefer:
+-			aux := ssa.StaticAuxCall(deferproc, ACArgs, ACResults)
++			aux := ssa.StaticAuxCall(ir.Syms.Deferproc, ACArgs, ACResults)
+ 			if testLateExpansion {
+ 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 				call.AddArgs(callArgs...)
+@@ -4852,7 +4852,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 				call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, aux, s.mem())
+ 			}
+ 		case k == callGo:
+-			aux := ssa.StaticAuxCall(newproc, ACArgs, ACResults)
++			aux := ssa.StaticAuxCall(ir.Syms.Newproc, ACArgs, ACResults)
+ 			if testLateExpansion {
+ 				call = s.newValue0A(ssa.OpStaticLECall, aux.LateExpansionResultType(), aux)
+ 				call.AddArgs(callArgs...)
+@@ -5359,7 +5359,7 @@ func (s *state) intDivide(n ir.Node, a, b *ssa.Value) *ssa.Value {
+ 	if needcheck {
+ 		// do a size-appropriate check for zero
+ 		cmp := s.newValue2(s.ssaOp(ir.ONE, n.Type()), types.Types[types.TBOOL], b, s.zeroVal(n.Type()))
+-		s.check(cmp, panicdivide)
++		s.check(cmp, ir.Syms.Panicdivide)
+ 	}
+ 	return s.newValue2(s.ssaOp(n.Op(), n.Type()), a.Type, a, b)
+ }
+@@ -6063,7 +6063,7 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 			if !commaok {
+ 				// On failure, panic by calling panicnildottype.
+ 				s.startBlock(bFail)
+-				s.rtcall(panicnildottype, false, nil, target)
++				s.rtcall(ir.Syms.Panicnildottype, false, nil, target)
+ 
+ 				// On success, return (perhaps modified) input interface.
+ 				s.startBlock(bOk)
+@@ -6108,16 +6108,16 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 		}
+ 		if n.X.Type().IsEmptyInterface() {
+ 			if commaok {
+-				call := s.rtcall(assertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
++				call := s.rtcall(ir.Syms.AssertE2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+ 				return call[0], call[1]
+ 			}
+-			return s.rtcall(assertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
++			return s.rtcall(ir.Syms.AssertE2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+ 		}
+ 		if commaok {
+-			call := s.rtcall(assertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
++			call := s.rtcall(ir.Syms.AssertI2I2, true, []*types.Type{n.Type(), types.Types[types.TBOOL]}, target, iface)
+ 			return call[0], call[1]
+ 		}
+-		return s.rtcall(assertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
++		return s.rtcall(ir.Syms.AssertI2I, true, []*types.Type{n.Type()}, target, iface)[0], nil
+ 	}
+ 
+ 	if base.Debug.TypeAssert > 0 {
+@@ -6165,9 +6165,9 @@ func (s *state) dottype(n *ir.TypeAssertExpr, commaok bool) (res, resok *ssa.Val
+ 		s.startBlock(bFail)
+ 		taddr := s.expr(n.Ntype.(*ir.AddrExpr).Alloc)
+ 		if n.X.Type().IsEmptyInterface() {
+-			s.rtcall(panicdottypeE, false, nil, itab, target, taddr)
++			s.rtcall(ir.Syms.PanicdottypeE, false, nil, itab, target, taddr)
+ 		} else {
+-			s.rtcall(panicdottypeI, false, nil, itab, target, taddr)
++			s.rtcall(ir.Syms.PanicdottypeI, false, nil, itab, target, taddr)
+ 		}
+ 
+ 		// on success, return data from interface
+@@ -6623,7 +6623,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 		// deferreturn and a return. This will be used to during panic
+ 		// recovery to unwind the stack and return back to the runtime.
+ 		s.pp.nextLive = s.livenessMap.deferreturn
+-		gencallret(pp, Deferreturn)
++		gencallret(pp, ir.Syms.Deferreturn)
+ 	}
+ 
+ 	if inlMarks != nil {
+@@ -7082,14 +7082,14 @@ func (s *SSAGenState) PrepareCall(v *ssa.Value) {
+ 	idx := s.livenessMap.Get(v)
+ 	if !idx.StackMapValid() {
+ 		// See Liveness.hasStackMap.
+-		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == typedmemclr || sym.Fn == typedmemmove) {
++		if sym, ok := v.Aux.(*ssa.AuxCall); !ok || !(sym.Fn == ir.Syms.Typedmemclr || sym.Fn == ir.Syms.Typedmemmove) {
+ 			base.Fatalf("missing stack map index for %v", v.LongString())
+ 		}
+ 	}
+ 
+ 	call, ok := v.Aux.(*ssa.AuxCall)
+ 
+-	if ok && call.Fn == Deferreturn {
++	if ok && call.Fn == ir.Syms.Deferreturn {
+ 		// Deferred calls will appear to be returning to
+ 		// the CALL deferreturn(SB) that we are about to emit.
+ 		// However, the stack trace code will show the line
+@@ -7321,15 +7321,15 @@ func (e *ssafn) UseWriteBarrier() bool {
+ func (e *ssafn) Syslook(name string) *obj.LSym {
+ 	switch name {
+ 	case "goschedguarded":
+-		return goschedguarded
++		return ir.Syms.Goschedguarded
+ 	case "writeBarrier":
+-		return writeBarrier
++		return ir.Syms.WriteBarrier
+ 	case "gcWriteBarrier":
+-		return gcWriteBarrier
++		return ir.Syms.GCWriteBarrier
+ 	case "typedmemmove":
+-		return typedmemmove
++		return ir.Syms.Typedmemmove
+ 	case "typedmemclr":
+-		return typedmemclr
++		return ir.Syms.Typedmemclr
+ 	}
+ 	e.Fatalf(src.NoXPos, "unknown Syslook func %v", name)
+ 	return nil
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index d8956633b2..a845abeb3a 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -523,7 +523,7 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+ }
+ 
+ func syslook(name string) *ir.Name {
+-	s := Runtimepkg.Lookup(name)
++	s := ir.Pkgs.Runtime.Lookup(name)
+ 	if s == nil || s.Def == nil {
+ 		base.Fatalf("syslook: can't find runtime.%s", name)
+ 	}
+@@ -1247,7 +1247,7 @@ func paramNnames(ft *types.Type) []ir.Node {
+ }
+ 
+ func hashmem(t *types.Type) ir.Node {
+-	sym := Runtimepkg.Lookup("memhash")
++	sym := ir.Pkgs.Runtime.Lookup("memhash")
+ 
+ 	n := NewName(sym)
+ 	setNodeNameFunc(n)
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index f2c719db38..c9cce4b488 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -141,7 +141,7 @@ func initUniverse() {
+ 	s.Def = n
+ 	dowidth(types.ErrorType)
+ 
+-	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, unsafepkg, "Pointer")
++	types.Types[types.TUNSAFEPTR] = defBasic(types.TUNSAFEPTR, ir.Pkgs.Unsafe, "Pointer")
+ 
+ 	// simple aliases
+ 	types.SimType[types.TMAP] = types.TPTR
+@@ -157,7 +157,7 @@ func initUniverse() {
+ 	}
+ 
+ 	for _, s := range &unsafeFuncs {
+-		s2 := unsafepkg.Lookup(s.name)
++		s2 := ir.Pkgs.Unsafe.Lookup(s.name)
+ 		def := NewName(s2)
+ 		def.BuiltinOp = s.op
+ 		s2.Def = def
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7f68efeed1..5d812064b6 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -946,15 +946,15 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 			return l
+ 		}
+ 
+-		if staticuint64s == nil {
+-			staticuint64s = NewName(Runtimepkg.Lookup("staticuint64s"))
+-			staticuint64s.Class_ = ir.PEXTERN
++		if ir.Names.Staticuint64s == nil {
++			ir.Names.Staticuint64s = NewName(ir.Pkgs.Runtime.Lookup("staticuint64s"))
++			ir.Names.Staticuint64s.Class_ = ir.PEXTERN
+ 			// The actual type is [256]uint64, but we use [256*8]uint8 so we can address
+ 			// individual bytes.
+-			staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
+-			zerobase = NewName(Runtimepkg.Lookup("zerobase"))
+-			zerobase.Class_ = ir.PEXTERN
+-			zerobase.SetType(types.Types[types.TUINTPTR])
++			ir.Names.Staticuint64s.SetType(types.NewArray(types.Types[types.TUINT8], 256*8))
++			ir.Names.Zerobase = NewName(ir.Pkgs.Runtime.Lookup("zerobase"))
++			ir.Names.Zerobase.Class_ = ir.PEXTERN
++			ir.Names.Zerobase.SetType(types.Types[types.TUINTPTR])
+ 		}
+ 
+ 		// Optimize convT2{E,I} for many cases in which T is not pointer-shaped,
+@@ -965,7 +965,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		case fromType.Size() == 0:
+ 			// n.Left is zero-sized. Use zerobase.
+ 			cheapexpr(n.X, init) // Evaluate n.Left for side-effects. See issue 19246.
+-			value = zerobase
++			value = ir.Names.Zerobase
+ 		case fromType.IsBoolean() || (fromType.Size() == 1 && fromType.IsInteger()):
+ 			// n.Left is a bool/byte. Use staticuint64s[n.Left * 8] on little-endian
+ 			// and staticuint64s[n.Left * 8 + 7] on big-endian.
+@@ -975,7 +975,7 @@ func walkexpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 			if thearch.LinkArch.ByteOrder == binary.BigEndian {
+ 				index = ir.NewBinaryExpr(base.Pos, ir.OADD, index, nodintconst(7))
+ 			}
+-			xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
++			xe := ir.NewIndexExpr(base.Pos, ir.Names.Staticuint64s, index)
+ 			xe.SetBounded(true)
+ 			value = xe
+ 		case n.X.Op() == ir.ONAME && n.X.(*ir.Name).Class_ == ir.PEXTERN && n.X.(*ir.Name).Readonly():
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+new file mode 100644
+index 0000000000..df694f6c84
+--- /dev/null
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -0,0 +1,82 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ir
++
++import (
++	"cmd/compile/internal/types"
++	"cmd/internal/obj"
++)
++
++// Names holds known names.
++var Names struct {
++	Staticuint64s *Name
++	Zerobase      *Name
++}
++
++// Syms holds known symbols.
++var Syms struct {
++	AssertE2I       *obj.LSym
++	AssertE2I2      *obj.LSym
++	AssertI2I       *obj.LSym
++	AssertI2I2      *obj.LSym
++	Deferproc       *obj.LSym
++	DeferprocStack  *obj.LSym
++	Deferreturn     *obj.LSym
++	Duffcopy        *obj.LSym
++	Duffzero        *obj.LSym
++	GCWriteBarrier  *obj.LSym
++	Goschedguarded  *obj.LSym
++	Growslice       *obj.LSym
++	Msanread        *obj.LSym
++	Msanwrite       *obj.LSym
++	Msanmove        *obj.LSym
++	Newobject       *obj.LSym
++	Newproc         *obj.LSym
++	Panicdivide     *obj.LSym
++	Panicshift      *obj.LSym
++	PanicdottypeE   *obj.LSym
++	PanicdottypeI   *obj.LSym
++	Panicnildottype *obj.LSym
++	Panicoverflow   *obj.LSym
++	Raceread        *obj.LSym
++	Racereadrange   *obj.LSym
++	Racewrite       *obj.LSym
++	Racewriterange  *obj.LSym
++	// Wasm
++	SigPanic        *obj.LSym
++	Typedmemclr     *obj.LSym
++	Typedmemmove    *obj.LSym
++	Udiv            *obj.LSym
++	WriteBarrier    *obj.LSym
++	Zerobase        *obj.LSym
++	ARM64HasATOMICS *obj.LSym
++	ARMHasVFPv4     *obj.LSym
++	X86HasFMA       *obj.LSym
++	X86HasPOPCNT    *obj.LSym
++	X86HasSSE41     *obj.LSym
++	// Wasm
++	WasmDiv *obj.LSym
++	// Wasm
++	WasmMove *obj.LSym
++	// Wasm
++	WasmZero *obj.LSym
++	// Wasm
++	WasmTruncS *obj.LSym
++	// Wasm
++	WasmTruncU *obj.LSym
++}
++
++// Pkgs holds known packages.
++var Pkgs struct {
++	Go       *types.Pkg
++	Itab     *types.Pkg
++	Itablink *types.Pkg
++	Map      *types.Pkg
++	Msan     *types.Pkg
++	Race     *types.Pkg
++	Runtime  *types.Pkg
++	Track    *types.Pkg
++	Unsafe   *types.Pkg
++}
+diff --git a/src/cmd/compile/internal/mips64/ggen.go b/src/cmd/compile/internal/mips64/ggen.go
+index 04e7a66e41..4be5bc6f6e 100644
+--- a/src/cmd/compile/internal/mips64/ggen.go
++++ b/src/cmd/compile/internal/mips64/ggen.go
+@@ -6,6 +6,7 @@ package mips64
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/mips"
+ )
+@@ -23,7 +24,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = mips.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		//	ADDV	$(8+frame+lo-8), SP, r1
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 9aaf8715de..0da5eebe8d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -383,7 +383,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p = s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpMIPS64LoweredZero:
+ 		// SUBV	$8, R1
+@@ -433,7 +433,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.OpMIPS64LoweredMove:
+ 		// SUBV	$8, R1
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 8f5caf5f99..29376badf9 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -7,6 +7,7 @@ package ppc64
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/ppc64"
+ )
+@@ -24,7 +25,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = ppc64.REGSP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 4 * (128 - cnt/int64(gc.Widthptr))
+ 	} else {
+ 		p = pp.Appendpp(p, ppc64.AMOVD, obj.TYPE_CONST, 0, base.Ctxt.FixedFrameSize()+off-8, obj.TYPE_REG, ppc64.REGTMP, 0)
+diff --git a/src/cmd/compile/internal/riscv64/ggen.go b/src/cmd/compile/internal/riscv64/ggen.go
+index 18905a4aea..c77640765f 100644
+--- a/src/cmd/compile/internal/riscv64/ggen.go
++++ b/src/cmd/compile/internal/riscv64/ggen.go
+@@ -7,6 +7,7 @@ package riscv64
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/riscv"
+ )
+@@ -31,7 +32,7 @@ func zeroRange(pp *gc.Progs, p *obj.Prog, off, cnt int64, _ *uint32) *obj.Prog {
+ 		p.Reg = riscv.REG_SP
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_MEM, 0, 0)
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = 8 * (128 - cnt/int64(gc.Widthptr))
+ 		return p
+ 	}
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index d382304d72..616b76e5f6 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -614,14 +614,14 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpRISCV64DUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+ 	default:
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index c9a52a5f73..4e5aa433d9 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -124,7 +124,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+ 	case ssa.OpWasmLoweredStaticCall, ssa.OpWasmLoweredClosureCall, ssa.OpWasmLoweredInterCall:
+ 		s.PrepareCall(v)
+-		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == gc.Deferreturn {
++		if call, ok := v.Aux.(*ssa.AuxCall); ok && call.Fn == ir.Syms.Deferreturn {
+ 			// add a resume point before call to deferreturn so it can be called again via jmpdefer
+ 			s.Prog(wasm.ARESUMEPOINT)
+ 		}
+@@ -149,20 +149,20 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		getValue32(s, v.Args[1])
+ 		i32Const(s, int32(v.AuxInt))
+ 		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmMove}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmMove}
+ 
+ 	case ssa.OpWasmLoweredZero:
+ 		getValue32(s, v.Args[0])
+ 		i32Const(s, int32(v.AuxInt))
+ 		p := s.Prog(wasm.ACall)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmZero}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmZero}
+ 
+ 	case ssa.OpWasmLoweredNilCheck:
+ 		getValue64(s, v.Args[0])
+ 		s.Prog(wasm.AI64Eqz)
+ 		s.Prog(wasm.AIf)
+ 		p := s.Prog(wasm.ACALLNORESUME)
+-		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.SigPanic}
++		p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.SigPanic}
+ 		s.Prog(wasm.AEnd)
+ 		if logopt.Enabled() {
+ 			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
+@@ -314,7 +314,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 		if v.Type.Size() == 8 {
+ 			// Division of int64 needs helper function wasmDiv to handle the MinInt64 / -1 case.
+ 			p := s.Prog(wasm.ACall)
+-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmDiv}
++			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmDiv}
+ 			break
+ 		}
+ 		s.Prog(wasm.AI64DivS)
+@@ -328,7 +328,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 				s.Prog(wasm.AF64PromoteF32)
+ 			}
+ 			p := s.Prog(wasm.ACall)
+-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncS}
++			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmTruncS}
+ 		}
+ 
+ 	case ssa.OpWasmI64TruncSatF32U, ssa.OpWasmI64TruncSatF64U:
+@@ -340,7 +340,7 @@ func ssaGenValueOnStack(s *gc.SSAGenState, v *ssa.Value, extend bool) {
+ 				s.Prog(wasm.AF64PromoteF32)
+ 			}
+ 			p := s.Prog(wasm.ACall)
+-			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: gc.WasmTruncU}
++			p.To = obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: ir.Syms.WasmTruncU}
+ 		}
+ 
+ 	case ssa.OpWasmF32DemoteF64:
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index a33ddc81e3..f5d08a68ed 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -6,6 +6,7 @@ package x86
+ 
+ import (
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ )
+@@ -26,7 +27,7 @@ func zerorange(pp *gc.Progs, p *obj.Prog, off, cnt int64, ax *uint32) *obj.Prog
+ 	} else if cnt <= int64(128*gc.Widthreg) {
+ 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+ 		p = pp.Appendpp(p, obj.ADUFFZERO, obj.TYPE_NONE, 0, 0, obj.TYPE_ADDR, 0, 1*(128-cnt/int64(gc.Widthreg)))
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 	} else {
+ 		p = pp.Appendpp(p, x86.AMOVL, obj.TYPE_CONST, 0, cnt/int64(gc.Widthreg), obj.TYPE_REG, x86.REG_CX, 0)
+ 		p = pp.Appendpp(p, x86.ALEAL, obj.TYPE_MEM, x86.REG_SP, off, obj.TYPE_REG, x86.REG_DI, 0)
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index a3aaf03c95..d3d60591cc 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -10,6 +10,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/gc"
++	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+@@ -671,12 +672,12 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.Op386DUFFZERO:
+ 		p := s.Prog(obj.ADUFFZERO)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Duffzero
++		p.To.Sym = ir.Syms.Duffzero
+ 		p.To.Offset = v.AuxInt
+ 	case ssa.Op386DUFFCOPY:
+ 		p := s.Prog(obj.ADUFFCOPY)
+ 		p.To.Type = obj.TYPE_ADDR
+-		p.To.Sym = gc.Duffcopy
++		p.To.Sym = ir.Syms.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+ 	case ssa.OpCopy: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?

@@ -10,7 +10,7 @@ Date:   Thu Feb 21 12:14:33 2013 -0500
     R=gri
     CC=golang-dev, iant
     https://golang.org/cl/7403043
-
+---
  src/pkg/exp/ssa/builder.go       | 30 ++++++++++++------------------
  src/pkg/exp/ssa/emit.go          | 12 ------------
  src/pkg/exp/ssa/interp/interp.go |  5 ++++-
@@ -19,3 +19,260 @@ Date:   Thu Feb 21 12:14:33 2013 -0500
  src/pkg/exp/ssa/sanity.go        |  8 +++++++-
  src/pkg/exp/ssa/ssa.go           | 23 ++++++++++++++++++++++-
  7 files changed, 54 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/exp/ssa/builder.go b/src/pkg/exp/ssa/builder.go
+index c8d56486e8..d8c17be500 100644
+--- a/src/pkg/exp/ssa/builder.go
++++ b/src/pkg/exp/ssa/builder.go
+@@ -62,6 +62,7 @@ var (
+ 	tInvalid    = types.Typ[types.Invalid]
+ 	tUntypedNil = types.Typ[types.UntypedNil]
+ 	tRangeIter  = &types.Basic{Name: "iter"} // the type of all "range" iterators
++	tEface      = new(types.Interface)
+ 
+ 	// The result type of a "select".
+ 	tSelect = &types.Result{Values: []*types.Var{
+@@ -512,6 +513,11 @@ func (b *Builder) builtin(fn *Function, name string, args []ast.Expr, typ types.
+ 			return intLiteral(at.Len)
+ 		}
+ 		// Otherwise treat as normal.
++
++	case "panic":
++		fn.emit(&Panic{X: emitConv(fn, b.expr(fn, args[0]), tEface)})
++		fn.currentBlock = fn.newBasicBlock("unreachable")
++		return vFalse // any non-nil Value will do
+ 	}
+ 	return nil // treat all others as a regular function call
+ }
+@@ -774,32 +780,20 @@ func (b *Builder) expr(fn *Function, e ast.Expr) Value {
+ 			// Type conversion, e.g. string(x) or big.Int(x)
+ 			return emitConv(fn, b.expr(fn, e.Args[0]), typ)
+ 		}
+-		// Call to "intrinsic" built-ins, e.g. new, make.
+-		wasPanic := false
++		// Call to "intrinsic" built-ins, e.g. new, make, panic.
+ 		if id, ok := e.Fun.(*ast.Ident); ok {
+ 			obj := b.obj(id)
+ 			if _, ok := fn.Prog.Builtins[obj]; ok {
+ 				if v := b.builtin(fn, id.Name, e.Args, typ); v != nil {
+ 					return v
+ 				}
+-				wasPanic = id.Name == "panic"
+ 			}
+ 		}
+ 		// Regular function call.
+ 		var v Call
+ 		b.setCall(fn, e, &v.CallCommon)
+ 		v.setType(typ)
+-		fn.emit(&v)
+-
+-		// Compile panic as if followed by for{} so that its
+-		// successor is unreachable.
+-		// TODO(adonovan): consider a dedicated Panic instruction
+-		// (in which case, don't forget Go and Defer).
+-		if wasPanic {
+-			emitSelfLoop(fn)
+-			fn.currentBlock = fn.newBasicBlock("unreachable")
+-		}
+-		return &v
++		return fn.emit(&v)
+ 
+ 	case *ast.UnaryExpr:
+ 		switch e.Op {
+@@ -1161,7 +1155,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 			bptypes = append(bptypes, nil) // map
+ 			bptypes = append(bptypes, nil) // key
+ 		case "print", "println": // print{,ln}(any, ...any)
+-			vt = new(types.Interface) // variadic
++			vt = tEface // variadic
+ 			if !c.HasEllipsis {
+ 				args, varargs = args[:1], args[1:]
+ 			}
+@@ -1188,7 +1182,7 @@ func (b *Builder) setCall(fn *Function, e *ast.CallExpr, c *CallCommon) {
+ 			}
+ 			bptypes = append(bptypes, argType, argType)
+ 		case "panic":
+-			bptypes = append(bptypes, new(types.Interface))
++			bptypes = append(bptypes, tEface)
+ 		case "recover":
+ 			// no-op
+ 		default:
+@@ -2257,14 +2251,14 @@ start:
+ 
+ 	case *ast.GoStmt:
+ 		// The "intrinsics" new/make/len/cap are forbidden here.
+-		// panic() is not forbidden, but is not (yet) an intrinsic.
++		// panic is treated like an ordinary function call.
+ 		var v Go
+ 		b.setCall(fn, s.Call, &v.CallCommon)
+ 		fn.emit(&v)
+ 
+ 	case *ast.DeferStmt:
+ 		// The "intrinsics" new/make/len/cap are forbidden here.
+-		// panic() is not forbidden, but is not (yet) an intrinsic.
++		// panic is treated like an ordinary function call.
+ 		var v Defer
+ 		b.setCall(fn, s.Call, &v.CallCommon)
+ 		fn.emit(&v)
+diff --git a/src/pkg/exp/ssa/emit.go b/src/pkg/exp/ssa/emit.go
+index 9a176b4f50..d361463d98 100644
+--- a/src/pkg/exp/ssa/emit.go
++++ b/src/pkg/exp/ssa/emit.go
+@@ -247,15 +247,3 @@ func emitTailCall(f *Function, call *Call) {
+ 	f.emit(&ret)
+ 	f.currentBlock = nil
+ }
+-
+-// emitSelfLoop emits to f a self-loop.
+-// This is a defensive measure to ensure control-flow integrity.
+-// It should never be reachable.
+-// Postcondition: f.currentBlock is nil.
+-//
+-func emitSelfLoop(f *Function) {
+-	loop := f.newBasicBlock("selfloop")
+-	emitJump(f, loop)
+-	f.currentBlock = loop
+-	emitJump(f, loop)
+-}
+diff --git a/src/pkg/exp/ssa/interp/interp.go b/src/pkg/exp/ssa/interp/interp.go
+index d2c54d91d6..a022996def 100644
+--- a/src/pkg/exp/ssa/interp/interp.go
++++ b/src/pkg/exp/ssa/interp/interp.go
+@@ -171,6 +171,9 @@ func visitInstr(fr *frame, instr ssa.Instruction) continuation {
+ 		}
+ 		return kReturn
+ 
++	case *ssa.Panic:
++		panic(targetPanic{fr.get(instr.X)})
++
+ 	case *ssa.Send:
+ 		fr.get(instr.Chan).(chan value) <- copyVal(fr.get(instr.X))
+ 
+@@ -475,7 +478,7 @@ func callSSA(i *interpreter, caller *frame, callpos token.Pos, fn *ssa.Function,
+ 
+ 	for {
+ 		if i.mode&EnableTracing != 0 {
+-			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block.Name)
++			fmt.Fprintf(os.Stderr, ".%s:\n", fr.block)
+ 		}
+ 	block:
+ 		for _, instr = range fr.block.Instrs {
+diff --git a/src/pkg/exp/ssa/interp/ops.go b/src/pkg/exp/ssa/interp/ops.go
+index 783476c9b0..55cbf35732 100644
+--- a/src/pkg/exp/ssa/interp/ops.go
++++ b/src/pkg/exp/ssa/interp/ops.go
+@@ -16,6 +16,9 @@ type targetPanic struct {
+ 	v value
+ }
+ 
++// If the target program calls exit, the interpreter panics with this type.
++type exitPanic int
++
+ // literalValue returns the value of the literal with the
+ // dynamic type tag appropriate for l.Type().
+ func literalValue(l *ssa.Literal) value {
+@@ -974,6 +977,8 @@ func callBuiltin(caller *frame, callpos token.Pos, fn *ssa.Builtin, args []value
+ 		}
+ 
+ 	case "panic":
++		// ssa.Panic handles most cases; this is only for "go
++		// panic" or "defer panic".
+ 		panic(targetPanic{args[0]})
+ 
+ 	case "recover":
+diff --git a/src/pkg/exp/ssa/print.go b/src/pkg/exp/ssa/print.go
+index 69292ec22e..21303c168e 100644
+--- a/src/pkg/exp/ssa/print.go
++++ b/src/pkg/exp/ssa/print.go
+@@ -282,6 +282,10 @@ func (s *Go) String() string {
+ 	return printCall(&s.CallCommon, "go ", s)
+ }
+ 
++func (s *Panic) String() string {
++	return "panic " + relName(s.X, s)
++}
++
+ func (s *Ret) String() string {
+ 	var b bytes.Buffer
+ 	b.WriteString("ret")
+diff --git a/src/pkg/exp/ssa/sanity.go b/src/pkg/exp/ssa/sanity.go
+index 8994f8e6bb..9f8ba9f7a7 100644
+--- a/src/pkg/exp/ssa/sanity.go
++++ b/src/pkg/exp/ssa/sanity.go
+@@ -96,7 +96,7 @@ func findDuplicate(blocks []*BasicBlock) *BasicBlock {
+ 
+ func (s *sanity) checkInstr(idx int, instr Instruction) {
+ 	switch instr := instr.(type) {
+-	case *If, *Jump, *Ret:
++	case *If, *Jump, *Ret, *Panic:
+ 		s.errorf("control flow instruction not at end of block")
+ 	case *Phi:
+ 		if idx == 0 {
+@@ -192,6 +192,12 @@ func (s *sanity) checkFinalInstr(idx int, instr Instruction) {
+ 		}
+ 		// TODO(adonovan): check number and types of results
+ 
++	case *Panic:
++		if nsuccs := len(s.block.Succs); nsuccs != 0 {
++			s.errorf("Panic-terminated block has %d successors; expected none", nsuccs)
++			return
++		}
++
+ 	default:
+ 		s.errorf("non-control flow instruction at end of block")
+ 	}
+diff --git a/src/pkg/exp/ssa/ssa.go b/src/pkg/exp/ssa/ssa.go
+index 401c956b27..3bf047eee8 100644
+--- a/src/pkg/exp/ssa/ssa.go
++++ b/src/pkg/exp/ssa/ssa.go
+@@ -248,7 +248,7 @@ type Function struct {
+ // An SSA basic block.
+ //
+ // The final element of Instrs is always an explicit transfer of
+-// control (If, Jump or Ret).
++// control (If, Jump, Ret or Panic).
+ //
+ // A block may contain no Instructions only if it is unreachable,
+ // i.e. Preds is nil.  Empty blocks are typically pruned.
+@@ -842,6 +842,22 @@ type Ret struct {
+ 	Results []Value
+ }
+ 
++// Panic initiates a panic with value X.
++//
++// A Panic instruction must be the last instruction of its containing
++// BasicBlock, which must have no successors.
++//
++// NB: 'go panic(x)' and 'defer panic(x)' do not use this instruction;
++// they are treated as calls to a built-in function.
++//
++// Example printed form:
++// 	panic t0
++//
++type Panic struct {
++	anInstruction
++	X Value // an interface{}
++}
++
+ // Go creates a new goroutine and calls the specified function
+ // within it.
+ //
+@@ -1125,6 +1141,7 @@ func (*MakeMap) ImplementsInstruction()         {}
+ func (*MakeSlice) ImplementsInstruction()       {}
+ func (*MapUpdate) ImplementsInstruction()       {}
+ func (*Next) ImplementsInstruction()            {}
++func (*Panic) ImplementsInstruction()           {}
+ func (*Phi) ImplementsInstruction()             {}
+ func (*Range) ImplementsInstruction()           {}
+ func (*Ret) ImplementsInstruction()             {}
+@@ -1227,6 +1244,10 @@ func (v *Next) Operands(rands []*Value) []*Value {
+ 	return append(rands, &v.Iter)
+ }
+ 
++func (s *Panic) Operands(rands []*Value) []*Value {
++	return append(rands, &s.X)
++}
++
+ func (v *Phi) Operands(rands []*Value) []*Value {
+ 	for i := range v.Edges {
+ 		rands = append(rands, &v.Edges[i])

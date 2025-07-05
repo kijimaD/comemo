@@ -7,7 +7,34 @@ Date:   Mon Sep 17 11:32:04 2018 -0700
     Change-Id: If0e8fbb05c09ee7c64e1aa6b0aa2ade35a70df8a
     Reviewed-on: https://go-review.googlesource.com/135696
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/decl.go    | 2 +-
  src/go/types/typexpr.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index d37a460a4e..e248aab4f5 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -65,7 +65,7 @@ func objPathString(path []Object) string {
+ }
+ 
+ // objDecl type-checks the declaration of obj in its respective (file) context.
+-// See check.typ for the details on def and path.
++// For the meaning of def, see Checker.definedType, in typexpr.go.
+ func (check *Checker) objDecl(obj Object, def *Named) {
+ 	if trace {
+ 		check.trace(obj.Pos(), "-- checking %s %s (objPath = %s)", obj.color(), obj, objPathString(check.objPath))
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 83848099c2..dab02bc13c 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // ident type-checks identifier e and initializes x with the value or type of e.
+ // If an error occurred, x.mode is set to invalid.
+-// For the meaning of def, see check.typExpr, below.
++// For the meaning of def, see Checker.definedType, below.
+ //
+ func (check *Checker) ident(x *operand, e *ast.Ident, def *Named) {
+ 	x.mode = invalid

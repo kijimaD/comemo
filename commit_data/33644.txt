@@ -13,7 +13,63 @@ Date:   Wed Aug 9 13:43:34 2017 -0500
     Run-TryBot: Ilya Tocar <ilya.tocar@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  4 ++--
  src/cmd/compile/internal/ssa/opGen.go        | 22 ++++++++++++----------
  2 files changed, 14 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 7a70819a39..c5a81fcb40 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -189,8 +189,8 @@ func init() {
+ 		// binary ops
+ 		{name: "ADDQ", argLength: 2, reg: gp21sp, asm: "ADDQ", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
+ 		{name: "ADDL", argLength: 2, reg: gp21sp, asm: "ADDL", commutative: true, clobberFlags: true},                                                           // arg0 + arg1
+-		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int64", typ: "UInt64", clobberFlags: true},                                            // arg0 + auxint
+-		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true},                                                           // arg0 + auxint
++		{name: "ADDQconst", argLength: 1, reg: gp11sp, asm: "ADDQ", aux: "Int64", typ: "UInt64", clobberFlags: true, rematerializeable: true},                   // arg0 + auxint
++		{name: "ADDLconst", argLength: 1, reg: gp11sp, asm: "ADDL", aux: "Int32", clobberFlags: true, rematerializeable: true},                                  // arg0 + auxint
+ 		{name: "ADDQconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDQ", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 		{name: "ADDLconstmem", argLength: 2, reg: gpstoreconst, asm: "ADDL", aux: "SymValAndOff", clobberFlags: true, faultOnNilArg0: true, symEffect: "Write"}, // add ValAndOff(AuxInt).Val() to arg0+ValAndOff(AuxInt).Off()+aux, arg1=mem
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index bf6149591d..a4dc4b6118 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -4849,11 +4849,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ADDQconst",
+-		auxType:      auxInt64,
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.AADDQ,
++		name:              "ADDQconst",
++		auxType:           auxInt64,
++		argLen:            1,
++		rematerializeable: true,
++		clobberFlags:      true,
++		asm:               x86.AADDQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+@@ -4864,11 +4865,12 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:         "ADDLconst",
+-		auxType:      auxInt32,
+-		argLen:       1,
+-		clobberFlags: true,
+-		asm:          x86.AADDL,
++		name:              "ADDLconst",
++		auxType:           auxInt32,
++		argLen:            1,
++		rematerializeable: true,
++		clobberFlags:      true,
++		asm:               x86.AADDL,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 65535}, // AX CX DX BX SP BP SI DI R8 R9 R10 R11 R12 R13 R14 R15

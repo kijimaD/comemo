@@ -7,6 +7,40 @@ Date:   Wed Nov 14 09:42:48 2012 -0800
     R=gri
     CC=gobot, golang-dev
     https://golang.org/cl/6855048
-
+---
  src/pkg/strconv/extfloat.go | 20 ++++++--------------
  1 file changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 438017e5f6..b7eaaa61bf 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -152,22 +152,14 @@ func (f *extFloat) floatBits(flt *floatInfo) (bits uint64, overflow bool) {
+ 
+ 	// Infinities.
+ 	if exp-flt.bias >= 1<<flt.expbits-1 {
+-		goto overflow
+-	}
+-
+-	// Denormalized?
+-	if mant&(1<<flt.mantbits) == 0 {
++		// ±Inf
++		mant = 0
++		exp = 1<<flt.expbits - 1 + flt.bias
++		overflow = true
++	} else if mant&(1<<flt.mantbits) == 0 {
++		// Denormalized?
+ 		exp = flt.bias
+ 	}
+-	goto out
+-
+-overflow:
+-	// ±Inf
+-	mant = 0
+-	exp = 1<<flt.expbits - 1 + flt.bias
+-	overflow = true
+-
+-out:
+ 	// Assemble bits.
+ 	bits = mant & (uint64(1)<<flt.mantbits - 1)
+ 	bits |= uint64((exp-flt.bias)&(1<<flt.expbits-1)) << flt.mantbits

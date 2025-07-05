@@ -18,7 +18,7 @@ Date:   Sat Mar 28 16:46:47 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj2/objfile.go            |  20 ++--
  src/cmd/link/internal/ld/data.go              |  13 +--
  src/cmd/link/internal/ld/dwarf.go             |  36 +++-----
@@ -26,3 +26,473 @@ Date:   Sat Mar 28 16:46:47 2020 -0400
  src/cmd/link/internal/loader/loader_test.go   |  26 +++---
  src/cmd/link/internal/loader/symbolbuilder.go |  43 +++++----
  6 files changed, 104 insertions(+), 161 deletions(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 2f275f3258..c0d47b4dab 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -321,13 +321,21 @@ func (r *Reloc2) Sym() SymRef {
+ 	return SymRef{binary.LittleEndian.Uint32(r[14:]), binary.LittleEndian.Uint32(r[18:])}
+ }
+ 
++func (r *Reloc2) SetOff(x int32)  { binary.LittleEndian.PutUint32(r[:], uint32(x)) }
++func (r *Reloc2) SetSiz(x uint8)  { r[4] = x }
++func (r *Reloc2) SetType(x uint8) { r[5] = x }
++func (r *Reloc2) SetAdd(x int64)  { binary.LittleEndian.PutUint64(r[6:], uint64(x)) }
++func (r *Reloc2) SetSym(x SymRef) {
++	binary.LittleEndian.PutUint32(r[14:], x.PkgIdx)
++	binary.LittleEndian.PutUint32(r[18:], x.SymIdx)
++}
++
+ func (r *Reloc2) Set(off int32, size uint8, typ uint8, add int64, sym SymRef) {
+-	binary.LittleEndian.PutUint32(r[:], uint32(off))
+-	r[4] = size
+-	r[5] = typ
+-	binary.LittleEndian.PutUint64(r[6:], uint64(add))
+-	binary.LittleEndian.PutUint32(r[14:], sym.PkgIdx)
+-	binary.LittleEndian.PutUint32(r[18:], sym.SymIdx)
++	r.SetOff(off)
++	r.SetSiz(size)
++	r.SetType(typ)
++	r.SetAdd(add)
++	r.SetSym(sym)
+ }
+ 
+ // Aux symbol info.
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f7d8d13863..8ab67effa6 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -602,7 +602,6 @@ func (ctxt *Link) reloc() {
+ 
+ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 	var su *loader.SymbolBuilder
+-	var rslice []loader.Reloc
+ 	relocs := ctxt.loader.Relocs(s)
+ 	for ri := 0; ri < relocs.Count; ri++ {
+ 		r := relocs.At2(ri)
+@@ -627,11 +626,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 
+ 			if su == nil {
+ 				su = ctxt.loader.MakeSymbolUpdater(s)
+-				rslice = su.Relocs()
+ 			}
+-			r := &rslice[ri]
+-			r.Sym = rel.Sym()
+-			r.Add = int64(tplt)
++			r.SetSym(rel.Sym())
++			r.SetAdd(int64(tplt))
+ 
+ 			// jmp *addr
+ 			switch ctxt.Arch.Family {
+@@ -654,11 +651,9 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) {
+ 		} else if tplt >= 0 {
+ 			if su == nil {
+ 				su = ctxt.loader.MakeSymbolUpdater(s)
+-				rslice = su.Relocs()
+ 			}
+-			r := &rslice[ri]
+-			r.Sym = rel.Sym()
+-			r.Add = int64(tplt)
++			r.SetSym(rel.Sym())
++			r.SetAdd(int64(tplt))
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 9f67a15c72..41dfa4f660 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -132,16 +132,9 @@ func (c dwctxt2) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int6
+ 	switch size {
+ 	default:
+ 		c.linkctxt.Errorf(ds, "invalid size %d in adddwarfref\n", size)
+-		fallthrough
+-	case c.arch.PtrSize:
+-		dsu.AddAddrPlus(c.arch, tds, 0)
+-	case 4:
+-		dsu.AddAddrPlus4(c.arch, tds, 0)
++	case c.arch.PtrSize, 4:
+ 	}
+-	rsl := dsu.Relocs()
+-	r := &rsl[len(rsl)-1]
+-	r.Type = objabi.R_ADDROFF
+-	r.Add = ofs
++	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_ADDROFF, size)
+ }
+ 
+ func (c dwctxt2) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64) {
+@@ -149,14 +142,15 @@ func (c dwctxt2) AddDWARFAddrSectionOffset(s dwarf.Sym, t interface{}, ofs int64
+ 	if isDwarf64(c.linkctxt) {
+ 		size = 8
+ 	}
+-
+-	c.AddSectionOffset(s, size, t, ofs)
+-
+ 	ds := loader.Sym(s.(dwSym))
+ 	dsu := c.ldr.MakeSymbolUpdater(ds)
+-	rsl := dsu.Relocs()
+-	r := &rsl[len(rsl)-1]
+-	r.Type = objabi.R_DWARFSECREF
++	tds := loader.Sym(t.(dwSym))
++	switch size {
++	default:
++		c.linkctxt.Errorf(ds, "invalid size %d in adddwarfref\n", size)
++	case c.arch.PtrSize, 4:
++	}
++	dsu.AddSymRef(c.arch, tds, ofs, objabi.R_DWARFSECREF, size)
+ }
+ 
+ func (c dwctxt2) Logf(format string, args ...interface{}) {
+@@ -345,15 +339,9 @@ func (d *dwctxt2) adddwarfref(sb *loader.SymbolBuilder, t loader.Sym, size int)
+ 	switch size {
+ 	default:
+ 		d.linkctxt.Errorf(sb.Sym(), "invalid size %d in adddwarfref\n", size)
+-		fallthrough
+-	case d.arch.PtrSize:
+-		result = sb.AddAddrPlus(d.arch, t, 0)
+-	case 4:
+-		result = sb.AddAddrPlus4(d.arch, t, 0)
+-	}
+-	rsl := sb.Relocs()
+-	r := &rsl[len(rsl)-1]
+-	r.Type = objabi.R_DWARFSECREF
++	case d.arch.PtrSize, 4:
++	}
++	result = sb.AddSymRef(d.arch, t, 0, objabi.R_DWARFSECREF, size)
+ 	return result
+ }
+ 
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f01264839b..9b71db6d7a 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -68,6 +68,14 @@ type Reloc2 struct {
+ 
+ func (rel Reloc2) Type() objabi.RelocType { return objabi.RelocType(rel.Reloc2.Type()) + rel.typ }
+ func (rel Reloc2) Sym() Sym               { return rel.l.resolve(rel.r, rel.Reloc2.Sym()) }
++func (rel Reloc2) SetSym(s Sym)           { rel.Reloc2.SetSym(goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(s)}) }
++
++func (rel Reloc2) SetType(t objabi.RelocType) {
++	if t != objabi.RelocType(uint8(t)) {
++		panic("SetType: type doesn't fit into Reloc2")
++	}
++	rel.Reloc2.SetType(uint8(t))
++}
+ 
+ // Aux2 holds a "handle" to access an aux symbol record from an
+ // object file.
+@@ -269,14 +277,15 @@ type elfsetstringFunc func(s *sym.Symbol, str string, off int)
+ // extSymPayload holds the payload (data + relocations) for linker-synthesized
+ // external symbols (note that symbol value is stored in a separate slice).
+ type extSymPayload struct {
+-	name   string // TODO: would this be better as offset into str table?
+-	size   int64
+-	ver    int
+-	kind   sym.SymKind
+-	objidx uint32 // index of original object if sym made by cloneToExternal
+-	gotype Sym    // Gotype (0 if not present)
+-	relocs []Reloc
+-	data   []byte
++	name     string // TODO: would this be better as offset into str table?
++	size     int64
++	ver      int
++	kind     sym.SymKind
++	objidx   uint32 // index of original object if sym made by cloneToExternal
++	gotype   Sym    // Gotype (0 if not present)
++	relocs   []goobj2.Reloc2
++	reltypes []objabi.RelocType // relocation types
++	data     []byte
+ }
+ 
+ const (
+@@ -1468,91 +1477,15 @@ func (l *Loader) growExtAttrBitmaps() {
+ 	}
+ }
+ 
+-// At method returns the j-th reloc for a global symbol.
+-func (relocs *Relocs) At(j int) Reloc {
+-	if relocs.l.isExtReader(relocs.r) {
+-		pp := relocs.l.payloads[relocs.li]
+-		return pp.relocs[j]
+-	}
+-	rel := goobj2.Reloc{}
+-	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
+-	target := relocs.l.resolve(relocs.r, rel.Sym)
+-	return Reloc{
+-		Off:  rel.Off,
+-		Size: rel.Siz,
+-		Type: objabi.RelocType(rel.Type),
+-		Add:  rel.Add,
+-		Sym:  target,
+-	}
+-}
+-
++// At2 returns the j-th reloc for a global symbol.
+ func (relocs *Relocs) At2(j int) Reloc2 {
+ 	if relocs.l.isExtReader(relocs.r) {
+ 		pp := relocs.l.payloads[relocs.li]
+-		r := pp.relocs[j]
+-		// XXX populate a goobj2.Reloc from external reloc record.
+-		// Ugly. Maybe we just want to use this format to store the
+-		// reloc record in the first place?
+-		// Also there is more speedup if we could remove the
+-		// conditional here.
+-		var b goobj2.Reloc2
+-		b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
+-		return Reloc2{&b, relocs.r, relocs.l, r.Type}
++		return Reloc2{&relocs.rs[j], relocs.r, relocs.l, pp.reltypes[j]}
+ 	}
+ 	return Reloc2{&relocs.rs[j], relocs.r, relocs.l, 0}
+ }
+ 
+-// ReadAll method reads all relocations for a symbol into the
+-// specified slice. If the slice capacity is not large enough, a new
+-// larger slice will be allocated. Final slice is returned.
+-func (relocs *Relocs) ReadAll(dst []Reloc) []Reloc {
+-	return relocs.readAll(dst, false)
+-}
+-
+-// ReadSyms method reads all relocation target symbols and reloc types
+-// for a symbol into the specified slice. It is like ReadAll but only
+-// fill in the Sym and Type fields.
+-func (relocs *Relocs) ReadSyms(dst []Reloc) []Reloc {
+-	return relocs.readAll(dst, true)
+-}
+-
+-func (relocs *Relocs) readAll(dst []Reloc, onlySymType bool) []Reloc {
+-	if relocs.Count == 0 {
+-		return dst[:0]
+-	}
+-
+-	if cap(dst) < relocs.Count {
+-		dst = make([]Reloc, relocs.Count)
+-	}
+-	dst = dst[:0]
+-
+-	if relocs.l.isExtReader(relocs.r) {
+-		pp := relocs.l.payloads[relocs.li]
+-		dst = append(dst, pp.relocs...)
+-		return dst
+-	}
+-
+-	off := relocs.r.RelocOff(relocs.li, 0)
+-	rel := goobj2.Reloc{}
+-	for i := 0; i < relocs.Count; i++ {
+-		if onlySymType {
+-			rel.ReadSymType(relocs.r.Reader, off)
+-		} else {
+-			rel.Read(relocs.r.Reader, off)
+-		}
+-		off += uint32(rel.Size())
+-		target := relocs.l.resolve(relocs.r, rel.Sym)
+-		dst = append(dst, Reloc{
+-			Off:  rel.Off,
+-			Size: rel.Siz,
+-			Type: objabi.RelocType(rel.Type),
+-			Add:  rel.Add,
+-			Sym:  target,
+-		})
+-	}
+-	return dst
+-}
+-
+ // Relocs returns a Relocs object for the given global sym.
+ func (l *Loader) Relocs(i Sym) Relocs {
+ 	r, li := l.toLocal(i)
+@@ -1569,6 +1502,7 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
+ 	if l.isExtReader(r) {
+ 		pp := l.payloads[li]
+ 		n = len(pp.relocs)
++		rs = pp.relocs
+ 	} else {
+ 		rs = r.Relocs2(li)
+ 		n = len(rs)
+@@ -2237,7 +2171,15 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 
+ 		// Copy relocations
+ 		relocs := l.Relocs(symIdx)
+-		pp.relocs = relocs.ReadAll(nil)
++		pp.relocs = make([]goobj2.Reloc2, relocs.Count)
++		pp.reltypes = make([]objabi.RelocType, relocs.Count)
++		for i := range pp.relocs {
++			// Copy the relocs slice.
++			// Convert local reference to global reference.
++			rel := relocs.At2(i)
++			pp.relocs[i].Set(rel.Off(), rel.Siz(), 0, rel.Add(), goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(rel.Sym())})
++			pp.reltypes[i] = rel.Type()
++		}
+ 
+ 		// Copy data
+ 		pp.data = r.Data(li)
+@@ -2634,7 +2576,7 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
+ 		}
+ 		if rs != 0 && l.Syms[rs] != nil && l.Syms[rs].Type == sym.SABIALIAS {
+ 			rsrelocs := l.Relocs(rs)
+-			rs = rsrelocs.At(0).Sym
++			rs = rsrelocs.At2(0).Sym()
+ 		}
+ 		if strict && rs != 0 && l.Syms[rs] == nil && rt != objabi.R_USETYPE {
+ 			panic("nil reloc target in convertRelocations")
+@@ -2659,14 +2601,13 @@ func (l *Loader) convertRelocations(src *Relocs, dst *sym.Symbol, strict bool) {
+ // results returned; if "limit" is -1, then all undefs are returned.
+ func (l *Loader) UndefinedRelocTargets(limit int) []Sym {
+ 	result := []Sym{}
+-	rslice := []Reloc{}
+ 	for si := Sym(1); si < Sym(len(l.objSyms)); si++ {
+ 		relocs := l.Relocs(si)
+-		rslice = relocs.ReadSyms(rslice)
+ 		for ri := 0; ri < relocs.Count; ri++ {
+-			r := &rslice[ri]
+-			if r.Sym != 0 && l.SymType(r.Sym) == sym.SXREF && l.RawSymName(r.Sym) != ".got" {
+-				result = append(result, r.Sym)
++			r := relocs.At2(ri)
++			rs := r.Sym()
++			if rs != 0 && l.SymType(rs) == sym.SXREF && l.RawSymName(rs) != ".got" {
++				result = append(result, rs)
+ 				if limit != -1 && len(result) >= limit {
+ 					break
+ 				}
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index b384c752f4..8c9f7cfffb 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -173,14 +173,9 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	for k, sb := range []*SymbolBuilder{sb1, sb2} {
+ 		rsl := sb.Relocs()
+ 		exp := expRel[k]
+-		if !sameRelocSlice(rsl, exp) {
++		if !sameRelocSlice(&rsl, exp) {
+ 			t.Errorf("expected relocs %v, got %v", exp, rsl)
+ 		}
+-		relocs := ldr.Relocs(sb.Sym())
+-		r0 := relocs.At(0)
+-		if r0 != exp[0] {
+-			t.Errorf("expected reloc %v, got %v", exp[0], r0)
+-		}
+ 	}
+ 
+ 	// ... then data.
+@@ -213,12 +208,18 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	}
+ }
+ 
+-func sameRelocSlice(s1 []Reloc, s2 []Reloc) bool {
+-	if len(s1) != len(s2) {
++func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
++	if s1.Count != len(s2) {
+ 		return false
+ 	}
+-	for i := 0; i < len(s1); i++ {
+-		if s1[i] != s2[i] {
++	for i := 0; i < s1.Count; i++ {
++		r1 := s1.At2(i)
++		r2 := &s2[i]
++		if r1.Sym() != r2.Sym ||
++			r1.Type() != r2.Type ||
++			r1.Off() != r2.Off ||
++			r1.Add() != r2.Add ||
++			r1.Siz() != r2.Size {
+ 			return false
+ 		}
+ 	}
+@@ -342,10 +343,9 @@ func TestAddDataMethods(t *testing.T) {
+ 			t.Fatalf("testing Loader.%s: sym updated should be reachable", tp.which)
+ 		}
+ 		relocs := ldr.Relocs(mi)
+-		rsl := relocs.ReadAll(nil)
+-		if !sameRelocSlice(rsl, tp.expRel) {
++		if !sameRelocSlice(&relocs, tp.expRel) {
+ 			t.Fatalf("testing Loader.%s: got relocslice %+v wanted %+v",
+-				tp.which, rsl, tp.expRel)
++				tp.which, relocs, tp.expRel)
+ 		}
+ 		pmi = mi
+ 	}
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index c26646cbdb..0ce5c6bde8 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -5,6 +5,7 @@
+ package loader
+ 
+ import (
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+@@ -121,23 +122,37 @@ func (sb *SymbolBuilder) AddBytes(data []byte) {
+ 	sb.size = int64(len(sb.data))
+ }
+ 
+-func (sb *SymbolBuilder) Relocs() []Reloc {
+-	return sb.relocs
++func (sb *SymbolBuilder) Relocs() Relocs {
++	return sb.l.Relocs(sb.symIdx)
+ }
+ 
+ func (sb *SymbolBuilder) SetRelocs(rslice []Reloc) {
+-	sb.relocs = rslice
+-}
+-
+-func (sb *SymbolBuilder) WriteRelocs(rslice []Reloc) {
+-	if len(sb.relocs) != len(rslice) {
+-		panic("src/dest length mismatch")
++	n := len(rslice)
++	if cap(sb.relocs) < n {
++		sb.relocs = make([]goobj2.Reloc2, n)
++		sb.reltypes = make([]objabi.RelocType, n)
++	} else {
++		sb.relocs = sb.relocs[:n]
++		sb.reltypes = sb.reltypes[:n]
++	}
++	for i := range rslice {
++		sb.SetReloc(i, rslice[i])
+ 	}
+-	copy(sb.relocs, rslice)
+ }
+ 
+ func (sb *SymbolBuilder) AddReloc(r Reloc) {
+-	sb.relocs = append(sb.relocs, r)
++	// Populate a goobj2.Reloc from external reloc record.
++	var b goobj2.Reloc2
++	b.Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
++	sb.relocs = append(sb.relocs, b)
++	sb.reltypes = append(sb.reltypes, r.Type)
++}
++
++// Update the j-th relocation in place.
++func (sb *SymbolBuilder) SetReloc(j int, r Reloc) {
++	// Populate a goobj2.Reloc from external reloc record.
++	sb.relocs[j].Set(r.Off, r.Size, 0, r.Add, goobj2.SymRef{PkgIdx: 0, SymIdx: uint32(r.Sym)})
++	sb.reltypes[j] = r.Type
+ }
+ 
+ func (sb *SymbolBuilder) Reachable() bool {
+@@ -277,11 +292,6 @@ func (sb *SymbolBuilder) Addstring(str string) int64 {
+ 	return r
+ }
+ 
+-func (sb *SymbolBuilder) addRel() *Reloc {
+-	sb.relocs = append(sb.relocs, Reloc{})
+-	return &sb.relocs[len(sb.relocs)-1]
+-}
+-
+ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
+ 	if sb.kind == 0 {
+ 		sb.kind = sym.SDATA
+@@ -291,12 +301,13 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
+ 	sb.size += int64(rsize)
+ 	sb.Grow(sb.size)
+ 
+-	r := sb.addRel()
++	var r Reloc
+ 	r.Sym = tgt
+ 	r.Off = int32(i)
+ 	r.Size = uint8(rsize)
+ 	r.Type = typ
+ 	r.Add = add
++	sb.AddReloc(r)
+ 
+ 	return i + int64(r.Size)
+ }

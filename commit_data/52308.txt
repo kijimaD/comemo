@@ -24,7 +24,7 @@ Date:   Tue Mar 22 07:04:35 2022 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Eric Fang <eric.fang@arm.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/asm_arm64.s                         | 198 ++++++++++++++++++++++++
  src/runtime/debug_test.go                       |   2 +-
  src/runtime/debugcall.go                        |   2 +-
@@ -37,3 +37,767 @@ Date:   Tue Mar 22 07:04:35 2022 +0000
  src/runtime/signal_arm64.go                     |   5 +-
  src/runtime/traceback.go                        |   2 +-
  11 files changed, 492 insertions(+), 119 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 9ef7346e00..956910f6ce 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -96,6 +96,10 @@ nocgo:
+ 	// start this M
+ 	BL	runtime·mstart(SB)
+ 
++	// Prevent dead-code elimination of debugCallV2, which is
++	// intended to be called by debuggers.
++	MOVD	$runtime·debugCallV2<ABIInternal>(SB), R0
++
+ 	MOVD	$0, R0
+ 	MOVD	R0, (R0)	// boom
+ 	UNDEF
+@@ -1240,6 +1244,200 @@ flush:
+ 	LDP	21*8(RSP), (R25, R26)
+ 	JMP	ret
+ 
++DATA	debugCallFrameTooLarge<>+0x00(SB)/20, $"call frame too large"
++GLOBL	debugCallFrameTooLarge<>(SB), RODATA, $20	// Size duplicated below
++
++// debugCallV2 is the entry point for debugger-injected function
++// calls on running goroutines. It informs the runtime that a
++// debug call has been injected and creates a call frame for the
++// debugger to fill in.
++//
++// To inject a function call, a debugger should:
++// 1. Check that the goroutine is in state _Grunning and that
++//    there are at least 288 bytes free on the stack.
++// 2. Set SP as SP-16.
++// 3. Store the current LR in (SP) (using the SP after step 2).
++// 4. Store the current PC in the LR register.
++// 5. Write the desired argument frame size at SP-16
++// 6. Save all machine registers (including flags and fpsimd reigsters)
++//    so they can be restored later by the debugger.
++// 7. Set the PC to debugCallV2 and resume execution.
++//
++// If the goroutine is in state _Grunnable, then it's not generally
++// safe to inject a call because it may return out via other runtime
++// operations. Instead, the debugger should unwind the stack to find
++// the return to non-runtime code, add a temporary breakpoint there,
++// and inject the call once that breakpoint is hit.
++//
++// If the goroutine is in any other state, it's not safe to inject a call.
++//
++// This function communicates back to the debugger by setting R20 and
++// invoking BRK to raise a breakpoint signal. See the comments in the
++// implementation for the protocol the debugger is expected to
++// follow. InjectDebugCall in the runtime tests demonstrates this protocol.
++//
++// The debugger must ensure that any pointers passed to the function
++// obey escape analysis requirements. Specifically, it must not pass
++// a stack pointer to an escaping argument. debugCallV2 cannot check
++// this invariant.
++//
++// This is ABIInternal because Go code injects its PC directly into new
++// goroutine stacks.
++TEXT runtime·debugCallV2<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-0
++	STP	(R29, R30), -280(RSP)
++	SUB	$272, RSP, RSP
++	SUB	$8, RSP, R29
++	// Save all registers that may contain pointers so they can be
++	// conservatively scanned.
++	//
++	// We can't do anything that might clobber any of these
++	// registers before this.
++	STP	(R27, g), (30*8)(RSP)
++	STP	(R25, R26), (28*8)(RSP)
++	STP	(R23, R24), (26*8)(RSP)
++	STP	(R21, R22), (24*8)(RSP)
++	STP	(R19, R20), (22*8)(RSP)
++	STP	(R16, R17), (20*8)(RSP)
++	STP	(R14, R15), (18*8)(RSP)
++	STP	(R12, R13), (16*8)(RSP)
++	STP	(R10, R11), (14*8)(RSP)
++	STP	(R8, R9), (12*8)(RSP)
++	STP	(R6, R7), (10*8)(RSP)
++	STP	(R4, R5), (8*8)(RSP)
++	STP	(R2, R3), (6*8)(RSP)
++	STP	(R0, R1), (4*8)(RSP)
++
++	// Perform a safe-point check.
++	MOVD	R30, 8(RSP) // Caller's PC
++	CALL	runtime·debugCallCheck(SB)
++	MOVD	16(RSP), R0
++	CBZ	R0, good
++
++	// The safety check failed. Put the reason string at the top
++	// of the stack.
++	MOVD	R0, 8(RSP)
++	MOVD	24(RSP), R0
++	MOVD	R0, 16(RSP)
++
++	// Set R20 to 8 and invoke BRK. The debugger should get the
++	// reason a call can't be injected from SP+8 and resume execution.
++	MOVD	$8, R20
++	BRK
++	JMP	restore
++
++good:
++	// Registers are saved and it's safe to make a call.
++	// Open up a call frame, moving the stack if necessary.
++	//
++	// Once the frame is allocated, this will set R20 to 0 and
++	// invoke BRK. The debugger should write the argument
++	// frame for the call at SP+8, set up argument registers,
++	// set the lr as the signal PC + 4, set the PC to the function
++	// to call, set R26 to point to the closure (if a closure call),
++	// and resume execution.
++	//
++	// If the function returns, this will set R20 to 1 and invoke
++	// BRK. The debugger can then inspect any return value saved
++	// on the stack at SP+8 and in registers and resume execution again.
++	//
++	// If the function panics, this will set R20 to 2 and invoke BRK.
++	// The interface{} value of the panic will be at SP+8. The debugger
++	// can inspect the panic value and resume execution again.
++#define DEBUG_CALL_DISPATCH(NAME,MAXSIZE)	\
++	CMP	$MAXSIZE, R0;			\
++	BGT	5(PC);				\
++	MOVD	$NAME(SB), R0;			\
++	MOVD	R0, 8(RSP);			\
++	CALL	runtime·debugCallWrap(SB);	\
++	JMP	restore
++
++	MOVD	256(RSP), R0 // the argument frame size
++	DEBUG_CALL_DISPATCH(debugCall32<>, 32)
++	DEBUG_CALL_DISPATCH(debugCall64<>, 64)
++	DEBUG_CALL_DISPATCH(debugCall128<>, 128)
++	DEBUG_CALL_DISPATCH(debugCall256<>, 256)
++	DEBUG_CALL_DISPATCH(debugCall512<>, 512)
++	DEBUG_CALL_DISPATCH(debugCall1024<>, 1024)
++	DEBUG_CALL_DISPATCH(debugCall2048<>, 2048)
++	DEBUG_CALL_DISPATCH(debugCall4096<>, 4096)
++	DEBUG_CALL_DISPATCH(debugCall8192<>, 8192)
++	DEBUG_CALL_DISPATCH(debugCall16384<>, 16384)
++	DEBUG_CALL_DISPATCH(debugCall32768<>, 32768)
++	DEBUG_CALL_DISPATCH(debugCall65536<>, 65536)
++	// The frame size is too large. Report the error.
++	MOVD	$debugCallFrameTooLarge<>(SB), R0
++	MOVD	R0, 8(RSP)
++	MOVD	$20, R0
++	MOVD	R0, 16(RSP) // length of debugCallFrameTooLarge string
++	MOVD	$8, R20
++	BRK
++	JMP	restore
++
++restore:
++	// Calls and failures resume here.
++	//
++	// Set R20 to 16 and invoke BRK. The debugger should restore
++	// all registers except for PC and RSP and resume execution.
++	MOVD	$16, R20
++	BRK
++	// We must not modify flags after this point.
++
++	// Restore pointer-containing registers, which may have been
++	// modified from the debugger's copy by stack copying.
++	LDP	(30*8)(RSP), (R27, g)
++	LDP	(28*8)(RSP), (R25, R26)
++	LDP	(26*8)(RSP), (R23, R24)
++	LDP	(24*8)(RSP), (R21, R22)
++	LDP	(22*8)(RSP), (R19, R20)
++	LDP	(20*8)(RSP), (R16, R17)
++	LDP	(18*8)(RSP), (R14, R15)
++	LDP	(16*8)(RSP), (R12, R13)
++	LDP	(14*8)(RSP), (R10, R11)
++	LDP	(12*8)(RSP), (R8, R9)
++	LDP	(10*8)(RSP), (R6, R7)
++	LDP	(8*8)(RSP), (R4, R5)
++	LDP	(6*8)(RSP), (R2, R3)
++	LDP	(4*8)(RSP), (R0, R1)
++
++	LDP	-8(RSP), (R29, R27)
++	ADD	$288, RSP, RSP // Add 16 more bytes, see saveSigContext
++	MOVD	-16(RSP), R30 // restore old lr
++	JMP	(R27)
++
++// runtime.debugCallCheck assumes that functions defined with the
++// DEBUG_CALL_FN macro are safe points to inject calls.
++#define DEBUG_CALL_FN(NAME,MAXSIZE)		\
++TEXT NAME(SB),WRAPPER,$MAXSIZE-0;		\
++	NO_LOCAL_POINTERS;		\
++	MOVD	$0, R20;		\
++	BRK;		\
++	MOVD	$1, R20;		\
++	BRK;		\
++	RET
++DEBUG_CALL_FN(debugCall32<>, 32)
++DEBUG_CALL_FN(debugCall64<>, 64)
++DEBUG_CALL_FN(debugCall128<>, 128)
++DEBUG_CALL_FN(debugCall256<>, 256)
++DEBUG_CALL_FN(debugCall512<>, 512)
++DEBUG_CALL_FN(debugCall1024<>, 1024)
++DEBUG_CALL_FN(debugCall2048<>, 2048)
++DEBUG_CALL_FN(debugCall4096<>, 4096)
++DEBUG_CALL_FN(debugCall8192<>, 8192)
++DEBUG_CALL_FN(debugCall16384<>, 16384)
++DEBUG_CALL_FN(debugCall32768<>, 32768)
++DEBUG_CALL_FN(debugCall65536<>, 65536)
++
++// func debugCallPanicked(val interface{})
++TEXT runtime·debugCallPanicked(SB),NOSPLIT,$16-16
++	// Copy the panic value to the top of stack at SP+8.
++	MOVD	val_type+0(FP), R0
++	MOVD	R0, 8(RSP)
++	MOVD	val_data+8(FP), R0
++	MOVD	R0, 16(RSP)
++	MOVD	$2, R20
++	BRK
++	RET
++
+ // Note: these functions use a special calling convention to save generated code space.
+ // Arguments are passed in registers, but the space for those arguments are allocated
+ // in the caller's stack frame. These stubs write the args into that stack space and
+diff --git a/src/runtime/debug_test.go b/src/runtime/debug_test.go
+index 7698eacb59..75fe07ec2a 100644
+--- a/src/runtime/debug_test.go
++++ b/src/runtime/debug_test.go
+@@ -9,7 +9,7 @@
+ // spends all of its time in the race runtime, which isn't a safe
+ // point.
+ 
+-//go:build amd64 && linux && !race
++//go:build (amd64 || arm64) && linux && !race
+ 
+ package runtime_test
+ 
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 205971c428..2f164e7fd7 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64
++//go:build amd64 || arm64
+ 
+ package runtime
+ 
+diff --git a/src/runtime/export_debug_amd64_test.go b/src/runtime/export_debug_amd64_test.go
+new file mode 100644
+index 0000000000..f9908cd494
+--- /dev/null
++++ b/src/runtime/export_debug_amd64_test.go
+@@ -0,0 +1,132 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && linux
++
++package runtime
++
++import (
++	"internal/abi"
++	"internal/goarch"
++	"unsafe"
++)
++
++type sigContext struct {
++	savedRegs sigcontext
++	// sigcontext.fpstate is a pointer, so we need to save
++	// the its value with a fpstate1 structure.
++	savedFP fpstate1
++}
++
++func sigctxtSetContextRegister(ctxt *sigctxt, x uint64) {
++	ctxt.regs().rdx = x
++}
++
++func sigctxtAtTrapInstruction(ctxt *sigctxt) bool {
++	return *(*byte)(unsafe.Pointer(uintptr(ctxt.rip() - 1))) == 0xcc // INT 3
++}
++
++func sigctxtStatus(ctxt *sigctxt) uint64 {
++	return ctxt.r12()
++}
++
++func (h *debugCallHandler) saveSigContext(ctxt *sigctxt) {
++	// Push current PC on the stack.
++	rsp := ctxt.rsp() - goarch.PtrSize
++	*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
++	ctxt.set_rsp(rsp)
++	// Write the argument frame size.
++	*(*uintptr)(unsafe.Pointer(uintptr(rsp - 16))) = h.argSize
++	// Save current registers.
++	h.sigCtxt.savedRegs = *ctxt.regs()
++	h.sigCtxt.savedFP = *h.sigCtxt.savedRegs.fpstate
++	h.sigCtxt.savedRegs.fpstate = nil
++}
++
++// case 0
++func (h *debugCallHandler) debugCallRun(ctxt *sigctxt) {
++	rsp := ctxt.rsp()
++	memmove(unsafe.Pointer(uintptr(rsp)), h.argp, h.argSize)
++	if h.regArgs != nil {
++		storeRegArgs(ctxt.regs(), h.regArgs)
++	}
++	// Push return PC.
++	rsp -= goarch.PtrSize
++	ctxt.set_rsp(rsp)
++	// The signal PC is the next PC of the trap instruction.
++	*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
++	// Set PC to call and context register.
++	ctxt.set_rip(uint64(h.fv.fn))
++	sigctxtSetContextRegister(ctxt, uint64(uintptr(unsafe.Pointer(h.fv))))
++}
++
++// case 1
++func (h *debugCallHandler) debugCallReturn(ctxt *sigctxt) {
++	rsp := ctxt.rsp()
++	memmove(h.argp, unsafe.Pointer(uintptr(rsp)), h.argSize)
++	if h.regArgs != nil {
++		loadRegArgs(h.regArgs, ctxt.regs())
++	}
++}
++
++// case 2
++func (h *debugCallHandler) debugCallPanicOut(ctxt *sigctxt) {
++	rsp := ctxt.rsp()
++	memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(rsp)), 2*goarch.PtrSize)
++}
++
++// case 8
++func (h *debugCallHandler) debugCallUnsafe(ctxt *sigctxt) {
++	rsp := ctxt.rsp()
++	reason := *(*string)(unsafe.Pointer(uintptr(rsp)))
++	h.err = plainError(reason)
++}
++
++// case 16
++func (h *debugCallHandler) restoreSigContext(ctxt *sigctxt) {
++	// Restore all registers except RIP and RSP.
++	rip, rsp := ctxt.rip(), ctxt.rsp()
++	fp := ctxt.regs().fpstate
++	*ctxt.regs() = h.sigCtxt.savedRegs
++	ctxt.regs().fpstate = fp
++	*fp = h.sigCtxt.savedFP
++	ctxt.set_rip(rip)
++	ctxt.set_rsp(rsp)
++}
++
++// storeRegArgs sets up argument registers in the signal
++// context state from an abi.RegArgs.
++//
++// Both src and dst must be non-nil.
++func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++	dst.rax = uint64(src.Ints[0])
++	dst.rbx = uint64(src.Ints[1])
++	dst.rcx = uint64(src.Ints[2])
++	dst.rdi = uint64(src.Ints[3])
++	dst.rsi = uint64(src.Ints[4])
++	dst.r8 = uint64(src.Ints[5])
++	dst.r9 = uint64(src.Ints[6])
++	dst.r10 = uint64(src.Ints[7])
++	dst.r11 = uint64(src.Ints[8])
++	for i := range src.Floats {
++		dst.fpstate._xmm[i].element[0] = uint32(src.Floats[i] >> 0)
++		dst.fpstate._xmm[i].element[1] = uint32(src.Floats[i] >> 32)
++	}
++}
++
++func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++	dst.Ints[0] = uintptr(src.rax)
++	dst.Ints[1] = uintptr(src.rbx)
++	dst.Ints[2] = uintptr(src.rcx)
++	dst.Ints[3] = uintptr(src.rdi)
++	dst.Ints[4] = uintptr(src.rsi)
++	dst.Ints[5] = uintptr(src.r8)
++	dst.Ints[6] = uintptr(src.r9)
++	dst.Ints[7] = uintptr(src.r10)
++	dst.Ints[8] = uintptr(src.r11)
++	for i := range dst.Floats {
++		dst.Floats[i] = uint64(src.fpstate._xmm[i].element[0]) << 0
++		dst.Floats[i] |= uint64(src.fpstate._xmm[i].element[1]) << 32
++	}
++}
+diff --git a/src/runtime/export_debug_arm64_test.go b/src/runtime/export_debug_arm64_test.go
+new file mode 100644
+index 0000000000..ee902414af
+--- /dev/null
++++ b/src/runtime/export_debug_arm64_test.go
+@@ -0,0 +1,135 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build arm64 && linux
++
++package runtime
++
++import (
++	"internal/abi"
++	"internal/goarch"
++	"unsafe"
++)
++
++type sigContext struct {
++	savedRegs sigcontext
++}
++
++func sigctxtSetContextRegister(ctxt *sigctxt, x uint64) {
++	ctxt.regs().regs[26] = x
++}
++
++func sigctxtAtTrapInstruction(ctxt *sigctxt) bool {
++	return *(*uint32)(unsafe.Pointer(ctxt.sigpc())) == 0xd4200000 // BRK 0
++}
++
++func sigctxtStatus(ctxt *sigctxt) uint64 {
++	return ctxt.r20()
++}
++
++func (h *debugCallHandler) saveSigContext(ctxt *sigctxt) {
++	sp := ctxt.sp()
++	sp -= 2 * goarch.PtrSize
++	ctxt.set_sp(sp)
++	*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.lr() // save the current lr
++	ctxt.set_lr(ctxt.pc())                              // set new lr to the current pc
++	// Write the argument frame size.
++	*(*uintptr)(unsafe.Pointer(uintptr(sp - 16))) = h.argSize
++	// Save current registers.
++	h.sigCtxt.savedRegs = *ctxt.regs()
++}
++
++// case 0
++func (h *debugCallHandler) debugCallRun(ctxt *sigctxt) {
++	sp := ctxt.sp()
++	memmove(unsafe.Pointer(uintptr(sp)+8), h.argp, h.argSize)
++	if h.regArgs != nil {
++		storeRegArgs(ctxt.regs(), h.regArgs)
++	}
++	// Push return PC, which should be the signal PC+4, because
++	// the signal PC is the PC of the trap instruction itself.
++	ctxt.set_lr(ctxt.pc() + 4)
++	// Set PC to call and context register.
++	ctxt.set_pc(uint64(h.fv.fn))
++	sigctxtSetContextRegister(ctxt, uint64(uintptr(unsafe.Pointer(h.fv))))
++}
++
++// case 1
++func (h *debugCallHandler) debugCallReturn(ctxt *sigctxt) {
++	sp := ctxt.sp()
++	memmove(h.argp, unsafe.Pointer(uintptr(sp)+8), h.argSize)
++	if h.regArgs != nil {
++		loadRegArgs(h.regArgs, ctxt.regs())
++	}
++	// Restore the old lr from *sp
++	olr := *(*uint64)(unsafe.Pointer(uintptr(sp)))
++	ctxt.set_lr(olr)
++	pc := ctxt.pc()
++	ctxt.set_pc(pc + 4) // step to next instruction
++}
++
++// case 2
++func (h *debugCallHandler) debugCallPanicOut(ctxt *sigctxt) {
++	sp := ctxt.sp()
++	memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)+8), 2*goarch.PtrSize)
++	ctxt.set_pc(ctxt.pc() + 4)
++}
++
++// case 8
++func (h *debugCallHandler) debugCallUnsafe(ctxt *sigctxt) {
++	sp := ctxt.sp()
++	reason := *(*string)(unsafe.Pointer(uintptr(sp) + 8))
++	h.err = plainError(reason)
++	ctxt.set_pc(ctxt.pc() + 4)
++}
++
++// case 16
++func (h *debugCallHandler) restoreSigContext(ctxt *sigctxt) {
++	// Restore all registers except for pc and sp
++	pc, sp := ctxt.pc(), ctxt.sp()
++	*ctxt.regs() = h.sigCtxt.savedRegs
++	ctxt.set_pc(pc + 4)
++	ctxt.set_sp(sp)
++}
++
++// storeRegArgs sets up argument registers in the signal
++// context state from an abi.RegArgs.
++//
++// Both src and dst must be non-nil.
++func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
++	for i, r := range src.Ints {
++		dst.regs[i] = uint64(r)
++	}
++	for i, r := range src.Floats {
++		*(fpRegAddr(dst, i)) = r
++	}
++}
++
++func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
++	for i := range dst.Ints {
++		dst.Ints[i] = uintptr(src.regs[i])
++	}
++	for i := range dst.Floats {
++		dst.Floats[i] = *(fpRegAddr(src, i))
++	}
++}
++
++// fpRegAddr returns the address of the ith fp-simd register in sigcontext.
++func fpRegAddr(dst *sigcontext, i int) *uint64 {
++	/* FP-SIMD registers are saved in sigcontext.__reserved, which is orgnized in
++	the following C structs:
++	struct fpsimd_context {
++		struct _aarch64_ctx head;
++		__u32 fpsr;
++		__u32 fpcr;
++		__uint128_t vregs[32];
++	};
++	struct _aarch64_ctx {
++		__u32 magic;
++		__u32 size;
++	};
++	So the offset of the ith FP_SIMD register is 16+i*128.
++	*/
++	return (*uint64)(unsafe.Pointer(&dst.__reserved[16+i*128]))
++}
+diff --git a/src/runtime/export_debug_regabiargs_off_test.go b/src/runtime/export_debug_regabiargs_off_test.go
+deleted file mode 100644
+index 81f73925d5..0000000000
+--- a/src/runtime/export_debug_regabiargs_off_test.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 && linux && !goexperiment.regabiargs
+-
+-package runtime
+-
+-import "internal/abi"
+-
+-func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
+-}
+-
+-func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
+-}
+diff --git a/src/runtime/export_debug_regabiargs_on_test.go b/src/runtime/export_debug_regabiargs_on_test.go
+deleted file mode 100644
+index 7d1ab6888e..0000000000
+--- a/src/runtime/export_debug_regabiargs_on_test.go
++++ /dev/null
+@@ -1,45 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 && linux && goexperiment.regabiargs
+-
+-package runtime
+-
+-import "internal/abi"
+-
+-// storeRegArgs sets up argument registers in the signal
+-// context state from an abi.RegArgs.
+-//
+-// Both src and dst must be non-nil.
+-func storeRegArgs(dst *sigcontext, src *abi.RegArgs) {
+-	dst.rax = uint64(src.Ints[0])
+-	dst.rbx = uint64(src.Ints[1])
+-	dst.rcx = uint64(src.Ints[2])
+-	dst.rdi = uint64(src.Ints[3])
+-	dst.rsi = uint64(src.Ints[4])
+-	dst.r8 = uint64(src.Ints[5])
+-	dst.r9 = uint64(src.Ints[6])
+-	dst.r10 = uint64(src.Ints[7])
+-	dst.r11 = uint64(src.Ints[8])
+-	for i := range src.Floats {
+-		dst.fpstate._xmm[i].element[0] = uint32(src.Floats[i] >> 0)
+-		dst.fpstate._xmm[i].element[1] = uint32(src.Floats[i] >> 32)
+-	}
+-}
+-
+-func loadRegArgs(dst *abi.RegArgs, src *sigcontext) {
+-	dst.Ints[0] = uintptr(src.rax)
+-	dst.Ints[1] = uintptr(src.rbx)
+-	dst.Ints[2] = uintptr(src.rcx)
+-	dst.Ints[3] = uintptr(src.rdi)
+-	dst.Ints[4] = uintptr(src.rsi)
+-	dst.Ints[5] = uintptr(src.r8)
+-	dst.Ints[6] = uintptr(src.r9)
+-	dst.Ints[7] = uintptr(src.r10)
+-	dst.Ints[8] = uintptr(src.r11)
+-	for i := range dst.Floats {
+-		dst.Floats[i] = uint64(src.fpstate._xmm[i].element[0]) << 0
+-		dst.Floats[i] |= uint64(src.fpstate._xmm[i].element[1]) << 32
+-	}
+-}
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 19a9ec135f..09e9779696 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -2,13 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 && linux
++//go:build (amd64 || arm64) && linux
+ 
+ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"internal/goarch"
+ 	"unsafe"
+ )
+ 
+@@ -100,10 +99,9 @@ type debugCallHandler struct {
+ 
+ 	handleF func(info *siginfo, ctxt *sigctxt, gp2 *g) bool
+ 
+-	err       plainError
+-	done      note
+-	savedRegs sigcontext
+-	savedFP   fpstate1
++	err     plainError
++	done    note
++	sigCtxt sigContext
+ }
+ 
+ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+@@ -117,18 +115,10 @@ func (h *debugCallHandler) inject(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 			println("trap on wrong M", getg().m, h.mp)
+ 			return false
+ 		}
+-		// Push current PC on the stack.
+-		rsp := ctxt.rsp() - goarch.PtrSize
+-		*(*uint64)(unsafe.Pointer(uintptr(rsp))) = ctxt.rip()
+-		ctxt.set_rsp(rsp)
+-		// Write the argument frame size.
+-		*(*uintptr)(unsafe.Pointer(uintptr(rsp - 16))) = h.argSize
+-		// Save current registers.
+-		h.savedRegs = *ctxt.regs()
+-		h.savedFP = *h.savedRegs.fpstate
+-		h.savedRegs.fpstate = nil
++		// Save the signal context
++		h.saveSigContext(ctxt)
+ 		// Set PC to debugCallV2.
+-		ctxt.set_rip(uint64(abi.FuncPCABIInternal(debugCallV2)))
++		ctxt.setsigpc(uint64(abi.FuncPCABIInternal(debugCallV2)))
+ 		// Call injected. Switch to the debugCall protocol.
+ 		testSigtrap = h.handleF
+ 	case _Grunnable:
+@@ -154,57 +144,33 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		println("trap on wrong M", getg().m, h.mp)
+ 		return false
+ 	}
+-	f := findfunc(uintptr(ctxt.rip()))
++	f := findfunc(ctxt.sigpc())
+ 	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
+ 		println("trap in unknown function", funcname(f))
+ 		return false
+ 	}
+-	if *(*byte)(unsafe.Pointer(uintptr(ctxt.rip() - 1))) != 0xcc {
+-		println("trap at non-INT3 instruction pc =", hex(ctxt.rip()))
++	if !sigctxtAtTrapInstruction(ctxt) {
++		println("trap at non-INT3 instruction pc =", hex(ctxt.sigpc()))
+ 		return false
+ 	}
+ 
+-	switch status := ctxt.r12(); status {
++	switch status := sigctxtStatus(ctxt); status {
+ 	case 0:
+ 		// Frame is ready. Copy the arguments to the frame and to registers.
+-		sp := ctxt.rsp()
+-		memmove(unsafe.Pointer(uintptr(sp)), h.argp, h.argSize)
+-		if h.regArgs != nil {
+-			storeRegArgs(ctxt.regs(), h.regArgs)
+-		}
+-		// Push return PC.
+-		sp -= goarch.PtrSize
+-		ctxt.set_rsp(sp)
+-		*(*uint64)(unsafe.Pointer(uintptr(sp))) = ctxt.rip()
+-		// Set PC to call and context register.
+-		ctxt.set_rip(uint64(h.fv.fn))
+-		ctxt.regs().rdx = uint64(uintptr(unsafe.Pointer(h.fv)))
++		// Call the debug function.
++		h.debugCallRun(ctxt)
+ 	case 1:
+ 		// Function returned. Copy frame and result registers back out.
+-		sp := ctxt.rsp()
+-		memmove(h.argp, unsafe.Pointer(uintptr(sp)), h.argSize)
+-		if h.regArgs != nil {
+-			loadRegArgs(h.regArgs, ctxt.regs())
+-		}
++		h.debugCallReturn(ctxt)
+ 	case 2:
+ 		// Function panicked. Copy panic out.
+-		sp := ctxt.rsp()
+-		memmove(unsafe.Pointer(&h.panic), unsafe.Pointer(uintptr(sp)), 2*goarch.PtrSize)
++		h.debugCallPanicOut(ctxt)
+ 	case 8:
+ 		// Call isn't safe. Get the reason.
+-		sp := ctxt.rsp()
+-		reason := *(*string)(unsafe.Pointer(uintptr(sp)))
+-		h.err = plainError(reason)
++		h.debugCallUnsafe(ctxt)
+ 		// Don't wake h.done. We need to transition to status 16 first.
+ 	case 16:
+-		// Restore all registers except RIP and RSP.
+-		rip, rsp := ctxt.rip(), ctxt.rsp()
+-		fp := ctxt.regs().fpstate
+-		*ctxt.regs() = h.savedRegs
+-		ctxt.regs().fpstate = fp
+-		*fp = h.savedFP
+-		ctxt.set_rip(rip)
+-		ctxt.set_rsp(rsp)
++		h.restoreSigContext(ctxt)
+ 		// Done
+ 		notewakeup(&h.done)
+ 	default:
+diff --git a/src/runtime/signal_amd64.go b/src/runtime/signal_amd64.go
+index 67a21950d7..8ade208836 100644
+--- a/src/runtime/signal_amd64.go
++++ b/src/runtime/signal_amd64.go
+@@ -40,9 +40,10 @@ func dumpregs(c *sigctxt) {
+ //go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.rip()) }
+ 
+-func (c *sigctxt) sigsp() uintptr { return uintptr(c.rsp()) }
+-func (c *sigctxt) siglr() uintptr { return 0 }
+-func (c *sigctxt) fault() uintptr { return uintptr(c.sigaddr()) }
++func (c *sigctxt) setsigpc(x uint64) { c.set_rip(x) }
++func (c *sigctxt) sigsp() uintptr    { return uintptr(c.rsp()) }
++func (c *sigctxt) siglr() uintptr    { return 0 }
++func (c *sigctxt) fault() uintptr    { return uintptr(c.sigaddr()) }
+ 
+ // preparePanic sets up the stack to look like a call to sigpanic.
+ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 771585a8f9..c8b87817b4 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -53,8 +53,9 @@ func dumpregs(c *sigctxt) {
+ //go:nowritebarrierrec
+ func (c *sigctxt) sigpc() uintptr { return uintptr(c.pc()) }
+ 
+-func (c *sigctxt) sigsp() uintptr { return uintptr(c.sp()) }
+-func (c *sigctxt) siglr() uintptr { return uintptr(c.lr()) }
++func (c *sigctxt) setsigpc(x uint64) { c.set_pc(x) }
++func (c *sigctxt) sigsp() uintptr    { return uintptr(c.sp()) }
++func (c *sigctxt) siglr() uintptr    { return uintptr(c.lr()) }
+ 
+ // preparePanic sets up the stack to look like a call to sigpanic.
+ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 23bce2bf34..9187d1ff13 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -470,7 +470,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		}
+ 
+ 		waspanic = f.funcID == funcID_sigpanic
+-		injectedCall := waspanic || f.funcID == funcID_asyncPreempt
++		injectedCall := waspanic || f.funcID == funcID_asyncPreempt || f.funcID == funcID_debugCallV2
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if !flr.valid() {

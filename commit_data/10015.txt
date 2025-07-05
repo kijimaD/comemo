@@ -7,7 +7,16 @@ Date:   Mon Oct 17 16:47:52 2011 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5273045
-
+---
  misc/swig/callback/run | Bin 1179384 -> 0 bytes
  misc/swig/stdio/hello  | Bin 231270 -> 0 bytes
  2 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/misc/swig/callback/run b/misc/swig/callback/run
+deleted file mode 100755
+index de150ed05f..0000000000
+Binary files a/misc/swig/callback/run and /dev/null differ
+diff --git a/misc/swig/stdio/hello b/misc/swig/stdio/hello
+deleted file mode 100755
+index 10c55631f8..0000000000
+Binary files a/misc/swig/stdio/hello and /dev/null differ

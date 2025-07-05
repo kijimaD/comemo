@@ -14,6 +14,20 @@ Date:   Mon Oct 12 14:35:24 2020 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/swt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 138b0acc53..bf0410900f 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -440,7 +440,7 @@ func (c *exprClause) test(exprname *Node) *Node {
+ 
+ 	// Optimize "switch true { ...}" and "switch false { ... }".
+ 	if Isconst(exprname, CTBOOL) && !c.lo.Type.IsInterface() {
+-		if exprname.Val().U.(bool) {
++		if exprname.Bool() {
+ 			return c.lo
+ 		} else {
+ 			return nodl(c.pos, ONOT, c.lo, nil)

@@ -17,8 +17,72 @@ Date:   Thu Sep 16 11:33:17 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
  src/cmd/compile/internal/walk/order.go       | 8 ++++++++
  src/internal/fuzz/worker.go                  | 8 +++++---
  3 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 52f060b601..5120cd1086 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -650,7 +650,7 @@ func IsSanitizerSafeAddr(v *Value) bool {
+ 		// read-only once initialized.
+ 		return true
+ 	case OpAddr:
+-		return v.Aux.(*obj.LSym).Type == objabi.SRODATA
++		return v.Aux.(*obj.LSym).Type == objabi.SRODATA || v.Aux.(*obj.LSym).Type == objabi.SLIBFUZZER_EXTRA_COUNTER
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 7ac1f75c8f..861c122456 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -443,6 +444,13 @@ func (o *orderState) edge() {
+ 	// __libfuzzer_extra_counters.
+ 	counter := staticinit.StaticName(types.Types[types.TUINT8])
+ 	counter.SetLibfuzzerExtraCounter(true)
++	// As well as setting SetLibfuzzerExtraCounter, we preemptively set the
++	// symbol type to SLIBFUZZER_EXTRA_COUNTER so that the race detector
++	// instrumentation pass (which does not have access to the flags set by
++	// SetLibfuzzerExtraCounter) knows to ignore them. This information is
++	// lost by the time it reaches the compile step, so SetLibfuzzerExtraCounter
++	// is still necessary.
++	counter.Linksym().Type = objabi.SLIBFUZZER_EXTRA_COUNTER
+ 
+ 	// counter += 1
+ 	incr := ir.NewAssignOpStmt(base.Pos, ir.OADD, counter, ir.NewInt(1))
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index 36a7c629e5..5b24e575c0 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -1142,14 +1142,16 @@ type contextReader struct {
+ 	r   io.Reader
+ }
+ 
+-func (cr *contextReader) Read(b []byte) (n int, err error) {
+-	if err := cr.ctx.Err(); err != nil {
+-		return 0, err
++func (cr *contextReader) Read(b []byte) (int, error) {
++	if ctxErr := cr.ctx.Err(); ctxErr != nil {
++		return 0, ctxErr
+ 	}
+ 	done := make(chan struct{})
+ 
+ 	// This goroutine may stay blocked after Read returns because the underlying
+ 	// read is blocked.
++	var n int
++	var err error
+ 	go func() {
+ 		n, err = cr.r.Read(b)
+ 		close(done)

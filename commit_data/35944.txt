@@ -11,7 +11,7 @@ Date:   Fri Mar 23 15:00:34 2018 +0000
     Change-Id: I66abff0dd14ec6e1f8d8d982ccfb0438633b639d
     Reviewed-on: https://go-review.googlesource.com/102316
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  .../google/pprof/internal/binutils/addr2liner.go   |  25 ++++++-----------
  .../google/pprof/internal/binutils/binutils.go     |  11 ++------
  .../pprof/internal/binutils/binutils_test.go       |   4 ++-
@@ -29,3 +29,297 @@ Date:   Fri Mar 23 15:00:34 2018 +0000
  .../google/pprof/third_party/svgpan/svgpan.go      |   2 +-
  src/cmd/vendor/vendor.json                         |   4 +--
  16 files changed, 23 insertions(+), 110 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+index c0661bf4aa..71e471b5d6 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/addr2liner.go
+@@ -41,11 +41,9 @@ type addr2Liner struct {
+ 	rw   lineReaderWriter
+ 	base uint64
+ 
+-	// nm holds an addr2Liner using nm tool. Certain versions of addr2line
+-	// produce incomplete names due to
+-	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. As a workaround,
+-	// the names from nm are used when they look more complete. See addrInfo()
+-	// code below for the exact heuristic.
++	// nm holds an NM based addr2Liner which can provide
++	// better full names compared to addr2line, which often drops
++	// namespaces etc. from the names it returns.
+ 	nm *addr2LinerNM
+ }
+ 
+@@ -217,22 +215,17 @@ func (d *addr2Liner) addrInfo(addr uint64) ([]plugin.Frame, error) {
+ 		return nil, err
+ 	}
+ 
+-	// Certain versions of addr2line produce incomplete names due to
+-	// https://sourceware.org/bugzilla/show_bug.cgi?id=17541. Attempt to replace
+-	// the name with a better one from nm.
++	// Get better name from nm if possible.
+ 	if len(stack) > 0 && d.nm != nil {
+ 		nm, err := d.nm.addrInfo(addr)
+ 		if err == nil && len(nm) > 0 {
+-			// Last entry in frame list should match since it is non-inlined. As a
+-			// simple heuristic, we only switch to the nm-based name if it is longer
+-			// by 2 or more characters. We consider nm names that are longer by 1
+-			// character insignificant to avoid replacing foo with _foo on MacOS (for
+-			// unknown reasons read2line produces the former and nm produces the
+-			// latter on MacOS even though both tools are asked to produce mangled
+-			// names).
++			// Last entry in frame list should match since
++			// it is non-inlined. As a simple heuristic,
++			// we only switch to the nm-based name if it
++			// is longer.
+ 			nmName := nm[len(nm)-1].Func
+ 			a2lName := stack[len(stack)-1].Func
+-			if len(nmName) > len(a2lName)+1 {
++			if len(nmName) > len(a2lName) {
+ 				stack[len(stack)-1].Func = nmName
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+index 94edd0711a..390f952feb 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils.go
+@@ -111,11 +111,6 @@ func initTools(b *binrep, config string) {
+ 	defaultPath := paths[""]
+ 	b.llvmSymbolizer, b.llvmSymbolizerFound = findExe("llvm-symbolizer", append(paths["llvm-symbolizer"], defaultPath...))
+ 	b.addr2line, b.addr2lineFound = findExe("addr2line", append(paths["addr2line"], defaultPath...))
+-	if !b.addr2lineFound {
+-		// On MacOS, brew installs addr2line under gaddr2line name, so search for
+-		// that if the tool is not found by its default name.
+-		b.addr2line, b.addr2lineFound = findExe("gaddr2line", append(paths["addr2line"], defaultPath...))
+-	}
+ 	b.nm, b.nmFound = findExe("nm", append(paths["nm"], defaultPath...))
+ 	b.objdump, b.objdumpFound = findExe("objdump", append(paths["objdump"], defaultPath...))
+ }
+@@ -311,9 +306,9 @@ func (f *fileNM) SourceLine(addr uint64) ([]plugin.Frame, error) {
+ }
+ 
+ // fileAddr2Line implements the binutils.ObjFile interface, using
+-// llvm-symbolizer, if that's available, or addr2line to map addresses to
+-// symbols (with file/line number information). It can be slow for large
+-// binaries with debug information.
++// 'addr2line' to map addresses to symbols (with file/line number
++// information). It can be slow for large binaries with debug
++// information.
+ type fileAddr2Line struct {
+ 	once sync.Once
+ 	file
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+index 9f11719694..0317cf5126 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/binutils/binutils_test.go
+@@ -265,6 +265,8 @@ func TestObjFile(t *testing.T) {
+ func TestMachoFiles(t *testing.T) {
+ 	skipUnlessDarwinAmd64(t)
+ 
++	t.Skip("Disabled because of issues with addr2line (see https://github.com/google/pprof/pull/313#issuecomment-364073010)")
++
+ 	// Load `file`, pretending it was mapped at `start`. Then get the symbol
+ 	// table. Check that it contains the symbol `sym` and that the address
+ 	// `addr` gives the `expected` stack trace.
+@@ -289,7 +291,7 @@ func TestMachoFiles(t *testing.T) {
+ 		{"lib normal mapping", "lib_mac_64", 0, math.MaxUint64, 0,
+ 			0xfa0, "_bar",
+ 			[]plugin.Frame{
+-				{Func: "bar", File: "/tmp/lib.c", Line: 5},
++				{Func: "bar", File: "/tmp/lib.c", Line: 6},
+ 			}},
+ 	} {
+ 		t.Run(tc.desc, func(t *testing.T) {
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh
+deleted file mode 100755
+index 5ec98f39b5..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/build_mac.sh
++++ /dev/null
+@@ -1,31 +0,0 @@
+-#!/bin/bash -x
+-
+-# This is a script that generates the test MacOS executables in this directory.
+-# It should be needed very rarely to run this script. It is mostly provided
+-# as a future reference on how the original binary set was created.
+-
+-set -o errexit
+-
+-cat <<EOF >/tmp/hello.cc
+-#include <stdio.h>
+-
+-int main() {
+-  printf("Hello, world!\n");
+-  return 0;
+-}
+-EOF
+-
+-cat <<EOF >/tmp/lib.c
+-int foo() {
+-  return 1;
+-}
+-
+-int bar() {
+-  return 2;
+-}
+-EOF
+-
+-cd $(dirname $0)
+-rm -rf exe_mac_64* lib_mac_64*
+-clang -g -o exe_mac_64 /tmp/hello.c
+-clang -g -o lib_mac_64 -dynamiclib /tmp/lib.c
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64
+deleted file mode 100755
+index dba1ae1581..0000000000
+Binary files a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64 and /dev/null differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist
+deleted file mode 100644
+index b6f8ea3fb7..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Info.plist
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+-<plist version="1.0">
+-	<dict>
+-		<key>CFBundleDevelopmentRegion</key>
+-		<string>English</string>
+-		<key>CFBundleIdentifier</key>
+-		<string>com.apple.xcode.dsym.exe_mac_64</string>
+-		<key>CFBundleInfoDictionaryVersion</key>
+-		<string>6.0</string>
+-		<key>CFBundlePackageType</key>
+-		<string>dSYM</string>
+-		<key>CFBundleSignature</key>
+-		<string>????</string>
+-		<key>CFBundleShortVersionString</key>
+-		<string>1.0</string>
+-		<key>CFBundleVersion</key>
+-		<string>1</string>
+-	</dict>
+-</plist>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64
+deleted file mode 100644
+index 2cb0e3bf31..0000000000
+Binary files a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/exe_mac_64.dSYM/Contents/Resources/DWARF/exe_mac_64 and /dev/null differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64
+deleted file mode 100755
+index 933a3f6931..0000000000
+Binary files a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64 and /dev/null differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist
+deleted file mode 100644
+index ad5e020468..0000000000
+--- a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Info.plist
++++ /dev/null
+@@ -1,20 +0,0 @@
+-<?xml version="1.0" encoding="UTF-8"?>
+-<!DOCTYPE plist PUBLIC "-//Apple Computer//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+-<plist version="1.0">
+-	<dict>
+-		<key>CFBundleDevelopmentRegion</key>
+-		<string>English</string>
+-		<key>CFBundleIdentifier</key>
+-		<string>com.apple.xcode.dsym.lib_mac_64</string>
+-		<key>CFBundleInfoDictionaryVersion</key>
+-		<string>6.0</string>
+-		<key>CFBundlePackageType</key>
+-		<string>dSYM</string>
+-		<key>CFBundleSignature</key>
+-		<string>????</string>
+-		<key>CFBundleShortVersionString</key>
+-		<string>1.0</string>
+-		<key>CFBundleVersion</key>
+-		<string>1</string>
+-	</dict>
+-</plist>
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64 b/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64
+deleted file mode 100644
+index e466c1342e..0000000000
+Binary files a/src/cmd/vendor/github.com/google/pprof/internal/binutils/testdata/lib_mac_64.dSYM/Contents/Resources/DWARF/lib_mac_64 and /dev/null differ
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+index f4248fd8c7..c2b1cd082b 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/driver.go
+@@ -138,7 +138,7 @@ func generateReport(p *profile.Profile, cmd []string, vars variables, o *plugin.
+ 
+ 	// Output to specified file.
+ 	o.UI.PrintErr("Generating report in ", output)
+-	out, err := o.Writer.Open(output)
++	out, err := os.Create(output)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+index ec2745f363..2b1d90dafd 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/fetch.go
+@@ -534,8 +534,7 @@ func convertPerfData(perfPath string, ui plugin.UI) (*os.File, error) {
+ 		return nil, err
+ 	}
+ 	deferDeleteTempFile(profile.Name())
+-	cmd := exec.Command("perf_to_profile", "-i", perfPath, "-o", profile.Name(), "-f")
+-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
++	cmd := exec.Command("perf_to_profile", perfPath, profile.Name())
+ 	if err := cmd.Run(); err != nil {
+ 		profile.Close()
+ 		return nil, fmt.Errorf("failed to convert perf.data file. Try github.com/google/perf_data_converter: %v", err)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+index bebfbbec1e..b893697b62 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/interactive.go
+@@ -149,14 +149,9 @@ func greetings(p *profile.Profile, ui plugin.UI) {
+ 	numLabelUnits := identifyNumLabelUnits(p, ui)
+ 	ropt, err := reportOptions(p, numLabelUnits, pprofVariables)
+ 	if err == nil {
+-		rpt := report.New(p, ropt)
+-		ui.Print(strings.Join(report.ProfileLabels(rpt), "\n"))
+-		if rpt.Total() == 0 && len(p.SampleType) > 1 {
+-			ui.Print(`No samples were found with the default sample value type.`)
+-			ui.Print(`Try "sample_index" command to analyze different sample values.`, "\n")
+-		}
++		ui.Print(strings.Join(report.ProfileLabels(report.New(p, ropt)), "\n"))
+ 	}
+-	ui.Print(`Entering interactive mode (type "help" for commands, "o" for options)`)
++	ui.Print("Entering interactive mode (type \"help\" for commands, \"o\" for options)")
+ }
+ 
+ // shortcuts represents composite commands that expand into a sequence
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+index 297bb24b1c..7e42c88d14 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/elfexec/elfexec.go
+@@ -218,7 +218,7 @@ func GetBase(fh *elf.FileHeader, loadSegment *elf.ProgHeader, stextOffset *uint6
+ 			// So the base should be:
+ 			if stextOffset != nil && (start%pageSize) == (*stextOffset%pageSize) {
+ 				// perf uses the address of _stext as start. Some tools may
+-				// adjust for this before calling GetBase, in which case the page
++				// adjust for this before calling GetBase, in which case the the page
+ 				// alignment should be different from that of stextOffset.
+ 				return start - *stextOffset, nil
+ 			}
+diff --git a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+index 6ca08adedb..e7639a388e 100644
+--- a/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
++++ b/src/cmd/vendor/github.com/google/pprof/third_party/svgpan/svgpan.go
+@@ -12,7 +12,7 @@ const JSSource = `
+  * ======================
+  *
+  * Given an unique existing element with id "viewport" (or when missing, the
+- * first g-element), including the library into any SVG adds the following
++ * first g-element), including the the library into any SVG adds the following
+  * capabilities:
+  *
+  *  - Mouse panning
+diff --git a/src/cmd/vendor/vendor.json b/src/cmd/vendor/vendor.json
+index 1f823fc648..2f75ee7158 100644
+--- a/src/cmd/vendor/vendor.json
++++ b/src/cmd/vendor/vendor.json
+@@ -9,8 +9,8 @@
+ 		{
+ 			"canonical": "github.com/google/pprof",
+ 			"local": "github.com/google/pprof",
+-			"revision": "a74ae6fb3cd7047c79272e3ea0814b08154a2d3c",
+-			"revisionTime": "2018-03-20T17:03:05Z"
++			"revision": "9e20b5b106e946f4cd1df94c1f6fe3f88456628d",
++			"revisionTime": "2017-11-08T17:47:23Z"
+ 		},
+ 		{
+ 			"canonical": "golang.org/x/arch/x86/x86asm",

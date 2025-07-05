@@ -12,6 +12,33 @@ Date:   Tue Feb 23 17:16:21 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 63769e801c..635e271d5d 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -162,19 +162,19 @@ func TestCgoCheckBytes(t *testing.T) {
+ 	}
+ 
+ 	cmd := testEnv(exec.Command(exe, "CgoCheckBytes"))
++	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
+ 
+ 	start := time.Now()
+ 	cmd.Run()
+ 	d1 := time.Since(start)
+ 
+ 	cmd = testEnv(exec.Command(exe, "CgoCheckBytes"))
+-	cmd.Env = append(cmd.Env, "GODEBUG=cgocheck=0")
+ 
+ 	start = time.Now()
+ 	cmd.Run()
+ 	d2 := time.Since(start)
+ 
+-	if d2*10 < d1 {
++	if d1*20 < d2 {
+ 		t.Errorf("cgo check too slow: got %v, expected at most %v", d1, d2*10)
+ 	}
+ }

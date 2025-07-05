@@ -12,7 +12,7 @@ Date:   Fri May 22 01:16:52 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10520
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/esc.go       |  6 ------
  src/cmd/compile/internal/gc/export.go    |  2 --
  src/cmd/compile/internal/gc/fmt.go       | 20 +++++---------------
@@ -30,3 +30,595 @@ Date:   Fri May 22 01:16:52 2015 -0400
  src/cmd/compile/internal/gc/walk.go      |  6 +++---
  src/cmd/compile/internal/gc/y.go         |  4 ++--
  16 files changed, 54 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 2c134933c4..879bbf01b6 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -135,9 +135,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 	min = v.visitcode(n.Right, min)
+ 	min = v.visitcodelist(n.List, min)
+ 	min = v.visitcode(n.Ntest, min)
+-	min = v.visitcode(n.Nincr, min)
+ 	min = v.visitcodelist(n.Nbody, min)
+-	min = v.visitcodelist(n.Nelse, min)
+ 	min = v.visitcodelist(n.Rlist, min)
+ 
+ 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+@@ -546,9 +544,7 @@ func escloopdepth(e *EscState, n *Node) {
+ 	escloopdepth(e, n.Right)
+ 	escloopdepthlist(e, n.List)
+ 	escloopdepth(e, n.Ntest)
+-	escloopdepth(e, n.Nincr)
+ 	escloopdepthlist(e, n.Nbody)
+-	escloopdepthlist(e, n.Nelse)
+ 	escloopdepthlist(e, n.Rlist)
+ }
+ 
+@@ -602,9 +598,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	esc(e, n.Left, n)
+ 	esc(e, n.Right, n)
+ 	esc(e, n.Ntest, n)
+-	esc(e, n.Nincr, n)
+ 	esclist(e, n.Nbody, n)
+-	esclist(e, n.Nelse, n)
+ 	esclist(e, n.List, n)
+ 	esclist(e, n.Rlist, n)
+ 
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 5117490ac8..b5a9518bde 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -203,9 +203,7 @@ func reexportdep(n *Node) {
+ 	reexportdeplist(n.Rlist)
+ 	reexportdeplist(n.Ninit)
+ 	reexportdep(n.Ntest)
+-	reexportdep(n.Nincr)
+ 	reexportdeplist(n.Nbody)
+-	reexportdeplist(n.Nelse)
+ }
+ 
+ func dumpexportconst(s *Sym) {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 4b93363c73..f4be881957 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -867,8 +867,8 @@ func stmtfmt(n *Node) string {
+ 		} else {
+ 			f += fmt.Sprintf("if %v { %v }", n.Ntest, n.Nbody)
+ 		}
+-		if n.Nelse != nil {
+-			f += fmt.Sprintf(" else { %v }", n.Nelse)
++		if n.Rlist != nil {
++			f += fmt.Sprintf(" else { %v }", n.Rlist)
+ 		}
+ 
+ 	case OFOR:
+@@ -880,7 +880,7 @@ func stmtfmt(n *Node) string {
+ 		f += "for"
+ 		if simpleinit {
+ 			f += fmt.Sprintf(" %v;", n.Ninit.N)
+-		} else if n.Nincr != nil {
++		} else if n.Right != nil {
+ 			f += " ;"
+ 		}
+ 
+@@ -888,8 +888,8 @@ func stmtfmt(n *Node) string {
+ 			f += fmt.Sprintf(" %v", n.Ntest)
+ 		}
+ 
+-		if n.Nincr != nil {
+-			f += fmt.Sprintf("; %v", n.Nincr)
++		if n.Right != nil {
++			f += fmt.Sprintf("; %v", n.Right)
+ 		} else if simpleinit {
+ 			f += ";"
+ 		}
+@@ -1571,16 +1571,6 @@ func nodedump(n *Node, flag int) string {
+ 			indent(&buf)
+ 			fmt.Fprintf(&buf, "%v-body%v", Oconv(int(n.Op), 0), n.Nbody)
+ 		}
+-
+-		if n.Nelse != nil {
+-			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-else%v", Oconv(int(n.Op), 0), n.Nelse)
+-		}
+-
+-		if n.Nincr != nil {
+-			indent(&buf)
+-			fmt.Fprintf(&buf, "%v-incr%v", Oconv(int(n.Op), 0), n.Nincr)
+-		}
+ 	}
+ 
+ 	return buf.String()
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index c0dd9964ea..ac436f0469 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -788,7 +788,7 @@ func gen(n *Node) {
+ 			lab.Continpc = continpc
+ 		}
+ 
+-		gen(n.Nincr)                      // contin:	incr
++		gen(n.Right)                      // contin:	incr
+ 		Patch(p1, Pc)                     // test:
+ 		Bgen(n.Ntest, false, -1, breakpc) //		if(!test) goto break
+ 		Genlist(n.Nbody)                  //		body
+@@ -809,7 +809,7 @@ func gen(n *Node) {
+ 		Genlist(n.Nbody)                         //		then
+ 		p3 := gjmp(nil)                          //		goto done
+ 		Patch(p2, Pc)                            // else:
+-		Genlist(n.Nelse)                         //		else
++		Genlist(n.Rlist)                         //		else
+ 		Patch(p3, Pc)                            // done:
+ 
+ 	case OSWITCH:
+diff --git a/src/cmd/compile/internal/gc/go.y b/src/cmd/compile/internal/gc/go.y
+index ae2e7613ab..d0bc638309 100644
+--- a/src/cmd/compile/internal/gc/go.y
++++ b/src/cmd/compile/internal/gc/go.y
+@@ -701,7 +701,7 @@ for_header:
+ 			$$.Ninit = list1($1);
+ 		}
+ 		$$.Ntest = $3;
+-		$$.Nincr = $5;
++		$$.Right = $5;
+ 	}
+ |	osimple_stmt
+ 	{
+@@ -774,7 +774,7 @@ if_stmt:
+ 			if nn.N.Op == OIF {
+ 				popdcl();
+ 			}
+-			n.Nelse = list1(nn.N);
++			n.Rlist = list1(nn.N);
+ 			n = nn.N;
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 22a5d3d9fe..3c5f086700 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -231,7 +231,7 @@ func ishairy(n *Node, budget *int) bool {
+ 
+ 	(*budget)--
+ 
+-	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairy(n.Nincr, budget) || ishairylist(n.Nbody, budget) || ishairylist(n.Nelse, budget)
++	return *budget < 0 || ishairy(n.Left, budget) || ishairy(n.Right, budget) || ishairylist(n.List, budget) || ishairylist(n.Rlist, budget) || ishairylist(n.Ninit, budget) || ishairy(n.Ntest, budget) || ishairylist(n.Nbody, budget)
+ }
+ 
+ // Inlcopy and inlcopylist recursively copy the body of a function.
+@@ -266,9 +266,7 @@ func inlcopy(n *Node) *Node {
+ 	m.Rlist = inlcopylist(n.Rlist)
+ 	m.Ninit = inlcopylist(n.Ninit)
+ 	m.Ntest = inlcopy(n.Ntest)
+-	m.Nincr = inlcopy(n.Nincr)
+ 	m.Nbody = inlcopylist(n.Nbody)
+-	m.Nelse = inlcopylist(n.Nelse)
+ 
+ 	return m
+ }
+@@ -374,7 +372,11 @@ func inlnode(np **Node) {
+ 
+ 	inlnode(&n.Right)
+ 	if n.Right != nil && n.Right.Op == OINLCALL {
+-		inlconv2expr(&n.Right)
++		if n.Op == OFOR {
++			inlconv2stmt(n.Right)
++		} else {
++			inlconv2expr(&n.Right)
++		}
+ 	}
+ 
+ 	inlnodelist(n.List)
+@@ -423,7 +425,11 @@ func inlnode(np **Node) {
+ 	default:
+ 		for l := n.Rlist; l != nil; l = l.Next {
+ 			if l.N.Op == OINLCALL {
+-				inlconv2expr(&l.N)
++				if n.Op == OIF {
++					inlconv2stmt(l.N)
++				} else {
++					inlconv2expr(&l.N)
++				}
+ 			}
+ 		}
+ 	}
+@@ -433,11 +439,6 @@ func inlnode(np **Node) {
+ 		inlconv2expr(&n.Ntest)
+ 	}
+ 
+-	inlnode(&n.Nincr)
+-	if n.Nincr != nil && n.Nincr.Op == OINLCALL {
+-		inlconv2stmt(n.Nincr)
+-	}
+-
+ 	inlnodelist(n.Nbody)
+ 	for l := n.Nbody; l != nil; l = l.Next {
+ 		if l.N.Op == OINLCALL {
+@@ -445,13 +446,6 @@ func inlnode(np **Node) {
+ 		}
+ 	}
+ 
+-	inlnodelist(n.Nelse)
+-	for l := n.Nelse; l != nil; l = l.Next {
+-		if l.N.Op == OINLCALL {
+-			inlconv2stmt(l.N)
+-		}
+-	}
+-
+ 	// with all the branches out of the way, it is now time to
+ 	// transmogrify this node itself unless inhibited by the
+ 	// switch at the top of this function.
+@@ -972,9 +966,7 @@ func inlsubst(n *Node) *Node {
+ 	m.Rlist = inlsubstlist(n.Rlist)
+ 	m.Ninit = concat(m.Ninit, inlsubstlist(n.Ninit))
+ 	m.Ntest = inlsubst(n.Ntest)
+-	m.Nincr = inlsubst(n.Nincr)
+ 	m.Nbody = inlsubstlist(n.Nbody)
+-	m.Nelse = inlsubstlist(n.Nelse)
+ 
+ 	return m
+ }
+@@ -1002,7 +994,5 @@ func setlno(n *Node, lno int) {
+ 	setlnolist(n.Rlist, lno)
+ 	setlnolist(n.Ninit, lno)
+ 	setlno(n.Ntest, lno)
+-	setlno(n.Nincr, lno)
+ 	setlnolist(n.Nbody, lno)
+-	setlnolist(n.Nelse, lno)
+ }
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index ee0ec52e7b..7a4a84d9de 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -651,7 +651,7 @@ func orderstmt(n *Node, order *Order) {
+ 		cleantempnopop(t, order, &l)
+ 		n.Nbody = concat(l, n.Nbody)
+ 		orderblock(&n.Nbody)
+-		orderstmtinplace(&n.Nincr)
++		orderstmtinplace(&n.Right)
+ 		order.out = list(order.out, n)
+ 		cleantemp(t, order)
+ 
+@@ -666,10 +666,10 @@ func orderstmt(n *Node, order *Order) {
+ 		n.Nbody = concat(l, n.Nbody)
+ 		l = nil
+ 		cleantempnopop(t, order, &l)
+-		n.Nelse = concat(l, n.Nelse)
++		n.Rlist = concat(l, n.Rlist)
+ 		poptemp(t, order)
+ 		orderblock(&n.Nbody)
+-		orderblock(&n.Nelse)
++		orderblock(&n.Rlist)
+ 		order.out = list(order.out, n)
+ 
+ 		// Special: argument will be converted to interface using convT2E
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 05a902e8c1..e35054c7b3 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -372,8 +372,13 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 		goto ret
+ 
+ 		// just do generic traversal
+-	case OFOR,
+-		OIF,
++	case OFOR:
++		if n.Right != nil {
++			racewalknode(&n.Right, &n.Right.Ninit, 0, 0)
++		}
++		goto ret
++
++	case OIF,
+ 		OCALLMETH,
+ 		ORETURN,
+ 		ORETJMP,
+@@ -413,11 +418,7 @@ ret:
+ 	if n.Ntest != nil {
+ 		racewalknode(&n.Ntest, &n.Ntest.Ninit, 0, 0)
+ 	}
+-	if n.Nincr != nil {
+-		racewalknode(&n.Nincr, &n.Nincr.Ninit, 0, 0)
+-	}
+ 	racewalklist(n.Nbody, nil)
+-	racewalklist(n.Nelse, nil)
+ 	racewalklist(n.Rlist, nil)
+ 	*np = n
+ }
+@@ -577,9 +578,7 @@ func foreach(n *Node, f func(*Node, interface{}), c interface{}) {
+ 	foreachnode(n.Right, f, c)
+ 	foreachlist(n.List, f, c)
+ 	foreachnode(n.Ntest, f, c)
+-	foreachnode(n.Nincr, f, c)
+ 	foreachlist(n.Nbody, f, c)
+-	foreachlist(n.Nelse, f, c)
+ 	foreachlist(n.Rlist, f, c)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 03beb1c673..1036cf99c4 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -146,6 +146,7 @@ func walkrange(n *Node) {
+ 
+ 	a := n.Right
+ 	lno := int(setlineno(a))
++	n.Right = nil
+ 
+ 	var v1 *Node
+ 	if n.List != nil {
+@@ -201,7 +202,6 @@ func walkrange(n *Node) {
+ 
+ 															n.Nbody = nil
+ 															n.Ntest = Nod(ONE, Nod(OLEN, a, nil), Nodintconst(0))
+-															n.Nincr = nil
+ 
+ 															// hp = &a[0]
+ 															hp := temp(Ptrto(Types[TUINT8]))
+@@ -267,7 +267,7 @@ func walkrange(n *Node) {
+ 		}
+ 
+ 		n.Ntest = Nod(OLT, hv1, hn)
+-		n.Nincr = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
++		n.Right = Nod(OAS, hv1, Nod(OADD, hv1, Nodintconst(1)))
+ 		if v1 == nil {
+ 			body = nil
+ 		} else if v2 == nil {
+@@ -294,7 +294,7 @@ func walkrange(n *Node) {
+ 			tmp.Right.Typecheck = 1
+ 			a = Nod(OAS, hp, tmp)
+ 			typecheck(&a, Etop)
+-			n.Nincr.Ninit = list1(a)
++			n.Right.Ninit = list1(a)
+ 		}
+ 
+ 		// orderstmt allocated the iterator for us.
+@@ -317,7 +317,7 @@ func walkrange(n *Node) {
+ 
+ 		fn = syslook("mapiternext", 1)
+ 		substArgTypes(fn, th)
+-		n.Nincr = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
++		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
+ 
+ 		key := Nod(ODOT, hit, keyname)
+ 		key = Nod(OIND, key, nil)
+@@ -397,7 +397,7 @@ func walkrange(n *Node) {
+ 	n.Ninit = concat(n.Ninit, init)
+ 	typechecklist(n.Ntest.Ninit, Etop)
+ 	typecheck(&n.Ntest, Erv)
+-	typecheck(&n.Nincr, Etop)
++	typecheck(&n.Right, Etop)
+ 	typechecklist(body, Etop)
+ 	n.Nbody = concat(body, n.Nbody)
+ 	walkstmt(&n)
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 3a28ea3c77..f5911c4504 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -247,7 +247,7 @@ func walkselect(sel *Node) {
+ 
+ 		typecheck(&r.Ntest, Erv)
+ 		r.Nbody = cas.Nbody
+-		r.Nelse = concat(dflt.Ninit, dflt.Nbody)
++		r.Rlist = concat(dflt.Ninit, dflt.Nbody)
+ 		sel.Nbody = list1(r)
+ 		goto out
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index b5427a338c..55359dfced 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -19,6 +19,7 @@ const (
+ )
+ 
+ var initlist *NodeList
++var initplans = make(map[*Node]*InitPlan)
+ 
+ // init1 walks the AST starting at n, and accumulates in out
+ // the list of definitions needing init code in dependency order.
+@@ -218,7 +219,6 @@ func init2(n *Node, out **NodeList) {
+ 	init2list(n.List, out)
+ 	init2list(n.Rlist, out)
+ 	init2list(n.Nbody, out)
+-	init2list(n.Nelse, out)
+ 
+ 	if n.Op == OCLOSURE {
+ 		init2list(n.Param.Closure.Nbody, out)
+@@ -351,7 +351,7 @@ func staticcopy(l *Node, r *Node, out **NodeList) bool {
+ 
+ 		// fall through
+ 	case OSTRUCTLIT:
+-		p := r.Initplan
++		p := initplans[r]
+ 
+ 		n1 := *l
+ 		var e *InitEntry
+@@ -469,7 +469,7 @@ func staticassign(l *Node, r *Node, out **NodeList) bool {
+ 	case OSTRUCTLIT:
+ 		initplan(r)
+ 
+-		p := r.Initplan
++		p := initplans[r]
+ 		n1 = *l
+ 		var e *InitEntry
+ 		var a *Node
+@@ -997,7 +997,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 		a.Ninit = list1(Nod(OAS, index, Nodintconst(0)))
+ 		a.Ntest = Nod(OLT, index, Nodintconst(t.Bound))
+-		a.Nincr = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
++		a.Right = Nod(OAS, index, Nod(OADD, index, Nodintconst(1)))
+ 
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+@@ -1274,11 +1274,11 @@ func stataddr(nam *Node, n *Node) bool {
+ }
+ 
+ func initplan(n *Node) {
+-	if n.Initplan != nil {
++	if initplans[n] != nil {
+ 		return
+ 	}
+ 	p := new(InitPlan)
+-	n.Initplan = p
++	initplans[n] = p
+ 	switch n.Op {
+ 	default:
+ 		Fatal("initplan")
+@@ -1325,7 +1325,7 @@ func addvalue(p *InitPlan, xoffset int64, key *Node, n *Node) {
+ 	// special case: inline struct and array (not slice) literals
+ 	if isvaluelit(n) {
+ 		initplan(n)
+-		q := n.Initplan
++		q := initplans[n]
+ 		var e *InitEntry
+ 		for i := 0; i < len(q.E); i++ {
+ 			e = entry(p)
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 221b1f43eb..2f6833afe4 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -326,7 +326,7 @@ func (s *exprSwitch) walkCases(cc []*caseClause) *Node {
+ 	}
+ 	typecheck(&a.Ntest, Erv)
+ 	a.Nbody = list1(s.walkCases(cc[:half]))
+-	a.Nelse = list1(s.walkCases(cc[half:]))
++	a.Rlist = list1(s.walkCases(cc[half:]))
+ 	return a
+ }
+ 
+@@ -688,7 +688,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 	a.Ntest = Nod(OLE, s.hashname, Nodintconst(int64(cc[half-1].hash)))
+ 	typecheck(&a.Ntest, Erv)
+ 	a.Nbody = list1(s.walkCases(cc[:half]))
+-	a.Nelse = list1(s.walkCases(cc[half:]))
++	a.Rlist = list1(s.walkCases(cc[half:]))
+ 	return a
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index be4307690d..21f43c0598 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -16,10 +16,8 @@ type Node struct {
+ 	Left  *Node
+ 	Right *Node
+ 	Ntest *Node
+-	Nincr *Node
+ 	Ninit *NodeList
+ 	Nbody *NodeList
+-	Nelse *NodeList
+ 	List  *NodeList
+ 	Rlist *NodeList
+ 
+@@ -44,7 +42,6 @@ type Node struct {
+ 	Pkg *Pkg
+ 
+ 	// OARRAYLIT, OMAPLIT, OSTRUCTLIT.
+-	Initplan *InitPlan
+ 
+ 	// Escape analysis.
+ 	Escflowsrc *NodeList // flow(this, src)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 2900da8be7..2d3ef0762e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -237,7 +237,7 @@ func callrecv(n *Node) bool {
+ 		return true
+ 	}
+ 
+-	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecv(n.Nincr) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.Nelse) || callrecvlist(n.List) || callrecvlist(n.Rlist)
++	return callrecv(n.Left) || callrecv(n.Right) || callrecv(n.Ntest) || callrecvlist(n.Ninit) || callrecvlist(n.Nbody) || callrecvlist(n.List) || callrecvlist(n.Rlist)
+ }
+ 
+ func callrecvlist(l *NodeList) bool {
+@@ -2104,7 +2104,7 @@ OpSwitch:
+ 				Yyerror("non-bool %v used as for condition", Nconv(n.Ntest, obj.FmtLong))
+ 			}
+ 		}
+-		typecheck(&n.Nincr, Etop)
++		typecheck(&n.Right, Etop)
+ 		typechecklist(n.Nbody, Etop)
+ 		decldepth--
+ 		break OpSwitch
+@@ -2120,7 +2120,7 @@ OpSwitch:
+ 			}
+ 		}
+ 		typechecklist(n.Nbody, Etop)
+-		typechecklist(n.Nelse, Etop)
++		typechecklist(n.Rlist, Etop)
+ 		break OpSwitch
+ 
+ 	case ORETURN:
+@@ -3953,10 +3953,8 @@ func markbreak(n *Node, implicit *Node) {
+ 
+ 		markbreak(n.Right, implicit)
+ 		markbreak(n.Ntest, implicit)
+-		markbreak(n.Nincr, implicit)
+ 		markbreaklist(n.Ninit, implicit)
+ 		markbreaklist(n.Nbody, implicit)
+-		markbreaklist(n.Nelse, implicit)
+ 		markbreaklist(n.List, implicit)
+ 		markbreaklist(n.Rlist, implicit)
+ 	}
+@@ -4035,7 +4033,7 @@ func isterminating(l *NodeList, top int) bool {
+ 		return true
+ 
+ 	case OIF:
+-		return isterminating(n.Nbody, 0) && isterminating(n.Nelse, 0)
++		return isterminating(n.Nbody, 0) && isterminating(n.Rlist, 0)
+ 
+ 	case OSWITCH, OTYPESW, OSELECT:
+ 		if n.Hasbreak {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d5eb44c0bb..5b3d5850d9 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -255,13 +255,13 @@ func walkstmt(np **Node) {
+ 			addinit(&n.Ntest, init)
+ 		}
+ 
+-		walkstmt(&n.Nincr)
++		walkstmt(&n.Right)
+ 		walkstmtlist(n.Nbody)
+ 
+ 	case OIF:
+ 		walkexpr(&n.Ntest, &n.Ninit)
+ 		walkstmtlist(n.Nbody)
+-		walkstmtlist(n.Nelse)
++		walkstmtlist(n.Rlist)
+ 
+ 	case OPROC:
+ 		switch n.Left.Op {
+@@ -3982,7 +3982,7 @@ func candiscard(n *Node) bool {
+ 		return false
+ 	}
+ 
+-	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscard(n.Nincr) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.Nelse) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
++	if !candiscard(n.Left) || !candiscard(n.Right) || !candiscard(n.Ntest) || !candiscardlist(n.Ninit) || !candiscardlist(n.Nbody) || !candiscardlist(n.List) || !candiscardlist(n.Rlist) {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 56b9d04ecb..c412d11051 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1789,7 +1789,7 @@ yydefault:
+ 				yyVAL.node.Ninit = list1(yyDollar[1].node)
+ 			}
+ 			yyVAL.node.Ntest = yyDollar[3].node
+-			yyVAL.node.Nincr = yyDollar[5].node
++			yyVAL.node.Right = yyDollar[5].node
+ 		}
+ 	case 71:
+ 		yyDollar = yyS[yypt-1 : yypt+1]
+@@ -1872,7 +1872,7 @@ yydefault:
+ 				if nn.N.Op == OIF {
+ 					popdcl()
+ 				}
+-				n.Nelse = list1(nn.N)
++				n.Rlist = list1(nn.N)
+ 				n = nn.N
+ 			}
+ 		}

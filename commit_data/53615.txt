@@ -12,9 +12,150 @@ Date:   Tue Aug 23 18:00:34 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go |  4 +++-
  src/cmd/go/internal/modfetch/codehost/git.go      | 13 +++++++++++--
  src/cmd/go/internal/modload/build.go              | 22 +++++++++++++---------
  src/cmd/go/internal/modload/query.go              | 21 ++++++++++++++++-----
  4 files changed, 43 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 747022759e..3a6e55e9a3 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -37,7 +37,9 @@ const (
+ // A Repo represents a code hosting source.
+ // Typical implementations include local version control repositories,
+ // remote version control servers, and code hosting sites.
+-// A Repo must be safe for simultaneous use by multiple goroutines.
++//
++// A Repo must be safe for simultaneous use by multiple goroutines,
++// and callers must not modify returned values, which may be cached and shared.
+ type Repo interface {
+ 	// CheckReuse checks whether the old origin information
+ 	// remains up to date. If so, whatever cached object it was
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 35f77e870e..ac2dc2348e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -348,12 +348,21 @@ func (r *gitRepo) Latest() (*RevInfo, error) {
+ 	if refs["HEAD"] == "" {
+ 		return nil, ErrNoCommits
+ 	}
+-	info, err := r.Stat(refs["HEAD"])
++	statInfo, err := r.Stat(refs["HEAD"])
+ 	if err != nil {
+ 		return nil, err
+ 	}
++
++	// Stat may return cached info, so make a copy to modify here.
++	info := new(RevInfo)
++	*info = *statInfo
++	info.Origin = new(Origin)
++	if statInfo.Origin != nil {
++		*info.Origin = *statInfo.Origin
++	}
+ 	info.Origin.Ref = "HEAD"
+ 	info.Origin.Hash = refs["HEAD"]
++
+ 	return info, nil
+ }
+ 
+@@ -560,7 +569,7 @@ func (r *gitRepo) fetchRefsLocked() error {
+ 	return nil
+ }
+ 
+-// statLocal returns a RevInfo describing rev in the local git repository.
++// statLocal returns a new RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(version, rev string) (*RevInfo, error) {
+ 	out, err := Run(r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 555d4b3c63..bbece3f849 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -182,23 +182,27 @@ func mergeOrigin(m1, m2 *codehost.Origin) *codehost.Origin {
+ 	if !m2.Checkable() {
+ 		return m2
+ 	}
++
++	merged := new(codehost.Origin)
++	*merged = *m1 // Clone to avoid overwriting fields in cached results.
++
+ 	if m2.TagSum != "" {
+ 		if m1.TagSum != "" && (m1.TagSum != m2.TagSum || m1.TagPrefix != m2.TagPrefix) {
+-			m1.ClearCheckable()
+-			return m1
++			merged.ClearCheckable()
++			return merged
+ 		}
+-		m1.TagSum = m2.TagSum
+-		m1.TagPrefix = m2.TagPrefix
++		merged.TagSum = m2.TagSum
++		merged.TagPrefix = m2.TagPrefix
+ 	}
+ 	if m2.Hash != "" {
+ 		if m1.Hash != "" && (m1.Hash != m2.Hash || m1.Ref != m2.Ref) {
+-			m1.ClearCheckable()
+-			return m1
++			merged.ClearCheckable()
++			return merged
+ 		}
+-		m1.Hash = m2.Hash
+-		m1.Ref = m2.Ref
++		merged.Hash = m2.Hash
++		merged.Ref = m2.Ref
+ 	}
+-	return m1
++	return merged
+ }
+ 
+ // addVersions fills in m.Versions with the list of known versions.
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 01df14fca4..9f9674c26b 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -220,6 +220,17 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		return revErr, err
+ 	}
+ 
++	mergeRevOrigin := func(rev *modfetch.RevInfo, origin *codehost.Origin) *modfetch.RevInfo {
++		merged := mergeOrigin(rev.Origin, origin)
++		if merged == rev.Origin {
++			return rev
++		}
++		clone := new(modfetch.RevInfo)
++		*clone = *rev
++		clone.Origin = merged
++		return clone
++	}
++
+ 	lookup := func(v string) (*modfetch.RevInfo, error) {
+ 		rev, err := repo.Stat(v)
+ 		// Stat can return a non-nil rev and a non-nil err,
+@@ -227,7 +238,7 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 		if rev == nil && err != nil {
+ 			return revErr, err
+ 		}
+-		rev.Origin = mergeOrigin(rev.Origin, versions.Origin)
++		rev = mergeRevOrigin(rev, versions.Origin)
+ 		if err != nil {
+ 			return rev, err
+ 		}
+@@ -256,12 +267,12 @@ func queryProxy(ctx context.Context, proxy, path, query, current string, allowed
+ 				if err := allowed(ctx, module.Version{Path: path, Version: current}); errors.Is(err, ErrDisallowed) {
+ 					return revErr, err
+ 				}
+-				info, err := repo.Stat(current)
+-				if info == nil && err != nil {
++				rev, err = repo.Stat(current)
++				if rev == nil && err != nil {
+ 					return revErr, err
+ 				}
+-				info.Origin = mergeOrigin(info.Origin, versions.Origin)
+-				return info, err
++				rev = mergeRevOrigin(rev, versions.Origin)
++				return rev, err
+ 			}
+ 		}
+ 

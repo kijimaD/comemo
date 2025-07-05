@@ -7,7 +7,68 @@ Date:   Tue Jan 17 03:22:34 2012 +1100
     R=golang-dev, jsing
     CC=golang-dev
     https://golang.org/cl/5528106
-
+---
  src/pkg/runtime/sys_freebsd_386.s   | 20 ++++++++++++++++++--
  src/pkg/runtime/sys_freebsd_amd64.s | 18 ++++++++++++++++--
  2 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 25c28d3f80..6e26f4c8b3 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -199,8 +199,24 @@ TEXT runtime·sigaltstack(SB),7,$0
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
+-// TODO: Implement usleep
+-TEXT runtime·usleep(SB),7,$0
++TEXT runtime·usleep(SB),7,$20
++	MOVL	$0, DX
++	MOVL	usec+0(FP), AX
++	MOVL	$1000000, CX
++	DIVL	CX
++	MOVL	AX, 12(SP)		// tv_sec
++	MOVL	$1000, AX
++	MULL	DX
++	MOVL	AX, 16(SP)		// tv_nsec
++
++	MOVL	$0, 0(SP)
++	LEAL	12(SP), AX
++	MOVL	AX, 4(SP)		// arg 1 - rqtp
++	MOVL	$0, 8(SP)		// arg 2 - rmtp
++	MOVL	$240, AX		// sys_nanosleep
++	INT	$0x80
++	JAE	2(PC)
++	CALL	runtime·notok(SB)
+ 	RET
+ 
+ /*
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index d5bb5f0c16..dcd55855a9 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -184,8 +184,22 @@ TEXT runtime·sigaltstack(SB),7,$-8
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
+-// TODO: Implement usleep
+-TEXT runtime·usleep(SB),7,$0
++TEXT runtime·usleep(SB),7,$16
++	MOVL	$0, DX
++	MOVL	usec+0(FP), AX
++	MOVL	$1000000, CX
++	DIVL	CX
++	MOVQ	AX, 0(SP)		// tv_sec
++	MOVL	$1000, AX
++	MULL	DX
++	MOVQ	AX, 8(SP)		// tv_nsec
++
++	MOVQ	SP, DI			// arg 1 - rqtp
++	MOVQ	$0, SI			// arg 2 - rmtp
++	MOVL	$240, AX		// sys_nanosleep
++	SYSCALL
++	JCC	2(PC)
++	CALL	runtime·notok(SB)
+ 	RET
+ 
+ // set tls base to DI

@@ -7,6 +7,25 @@ Date:   Tue Oct 26 08:34:40 2010 -0700
     R=adg, r, r2
     CC=golang-dev
     https://golang.org/cl/2749041
-
+---
  doc/install.html | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 90689c82af..be1131d4aa 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -45,8 +45,11 @@ architectures.
+ </dt>
+ <dd>
+ 	Incomplete.
+-	It only supports Linux binaries, floating point is weak,
+-	it has code generation bugs, and the optimizer is not enabled.
++	It only supports Linux binaries, the optimizer is not enabled,
++	and floating point is performed entirely in software.
++	However, all tests pass.
++	Work on the optimizer and use of the VFP hardware
++	floating point unit is underway.
+ 	Tested against a Nexus One.
+ </dd>
+ </dl>

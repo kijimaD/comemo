@@ -39,7 +39,7 @@ Date:   Wed Feb 24 10:31:11 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/gofmt/gofmt.go          |  25 ++++---
  src/cmd/gofmt/gofmt_go1.18.go   |  12 ++++
  src/cmd/gofmt/gofmt_test.go     |   3 +-
@@ -72,3 +72,1595 @@ Date:   Wed Feb 24 10:31:11 2021 -0500
  src/go/types/typexpr.go         |  14 ++--
  src/go/types/unify.go           |   8 +--
  31 files changed, 370 insertions(+), 304 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index b82aa7e7a9..95f537d91e 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -26,13 +26,16 @@ import (
+ 
+ var (
+ 	// main operation modes
+-	list            = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+-	write           = flag.Bool("w", false, "write result to (source) file instead of stdout")
+-	rewriteRule     = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
+-	simplifyAST     = flag.Bool("s", false, "simplify code")
+-	doDiff          = flag.Bool("d", false, "display diffs instead of rewriting files")
+-	allErrors       = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
+-	allowTypeParams = flag.Bool("G", false, "allow generic code")
++	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
++	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
++	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
++	simplifyAST = flag.Bool("s", false, "simplify code")
++	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
++	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
++
++	// allowTypeParams controls whether type parameters are allowed in the code
++	// being formatted. It is enabled for go1.18 in gofmt_go1.18.go.
++	allowTypeParams = false
+ 
+ 	// debugging
+ 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+@@ -48,6 +51,10 @@ const (
+ 	//
+ 	// This value is defined in go/printer specifically for go/format and cmd/gofmt.
+ 	printerNormalizeNumbers = 1 << 30
++
++	// parseTypeParams tells go/parser to parse type parameters. Must be kept in
++	// sync with go/parser/interface.go.
++	parseTypeParams parser.Mode = 1 << 30
+ )
+ 
+ var (
+@@ -72,8 +79,8 @@ func initParserMode() {
+ 	if *allErrors {
+ 		parserMode |= parser.AllErrors
+ 	}
+-	if *allowTypeParams {
+-		parserMode |= parser.ParseTypeParams
++	if allowTypeParams {
++		parserMode |= parseTypeParams
+ 	}
+ }
+ 
+diff --git a/src/cmd/gofmt/gofmt_go1.18.go b/src/cmd/gofmt/gofmt_go1.18.go
+new file mode 100644
+index 0000000000..be7b46b5ed
+--- /dev/null
++++ b/src/cmd/gofmt/gofmt_go1.18.go
+@@ -0,0 +1,12 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.18
++// +build go1.18
++
++package main
++
++func init() {
++	allowTypeParams = true
++}
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index 60e4f2e03d..9e2239a692 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -78,7 +78,8 @@ func runTest(t *testing.T, in, out string) {
+ 			// fake flag - pretend input is from stdin
+ 			stdin = true
+ 		case "-G":
+-			*allowTypeParams = true
++			// fake flag - allow parsing type parameters
++			allowTypeParams = true
+ 		default:
+ 			t.Errorf("unrecognized flag name: %s", name)
+ 		}
+diff --git a/src/go/parser/error_test.go b/src/go/parser/error_test.go
+index 8e20b7b468..3caa3571e6 100644
+--- a/src/go/parser/error_test.go
++++ b/src/go/parser/error_test.go
+@@ -188,7 +188,7 @@ func TestErrors(t *testing.T) {
+ 		if !d.IsDir() && !strings.HasPrefix(name, ".") && (strings.HasSuffix(name, ".src") || strings.HasSuffix(name, ".go2")) {
+ 			mode := DeclarationErrors | AllErrors
+ 			if strings.HasSuffix(name, ".go2") {
+-				mode |= ParseTypeParams
++				mode |= parseTypeParams
+ 			}
+ 			checkErrors(t, filepath.Join(testdata, name), nil, mode, true)
+ 		}
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index b8b312463f..123faaee77 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -55,8 +55,14 @@ const (
+ 	Trace                                          // print a trace of parsed productions
+ 	DeclarationErrors                              // report declaration errors
+ 	SpuriousErrors                                 // same as AllErrors, for backward-compatibility
+-	ParseTypeParams                                // Placeholder. Will control the parsing of type parameters.
+ 	AllErrors         = SpuriousErrors             // report all errors (not just the first 10 on different lines)
++
++	// parseTypeParams controls the parsing of type parameters. Must be
++	// kept in sync with:
++	//  go/printer/printer_test.go
++	//  go/types/check_test.go
++	//  cmd/gofmt/gofmt.go
++	parseTypeParams = 1 << 30
+ )
+ 
+ // ParseFile parses the source code of a single Go source file and returns
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 5c4cea8638..ed1867b3b3 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -651,7 +651,7 @@ func (p *parser) parseQualifiedIdent(ident *ast.Ident) ast.Expr {
+ 	}
+ 
+ 	typ := p.parseTypeName(ident)
+-	if p.tok == token.LBRACK && p.mode&ParseTypeParams != 0 {
++	if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+ 		typ = p.parseTypeInstance(typ)
+ 	}
+ 
+@@ -712,7 +712,7 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
+ 	// TODO(rfindley): consider changing parseRhsOrType so that this function variable
+ 	// is not needed.
+ 	argparser := p.parseRhsOrType
+-	if p.mode&ParseTypeParams == 0 {
++	if p.mode&parseTypeParams == 0 {
+ 		argparser = p.parseRhs
+ 	}
+ 	if p.tok != token.RBRACK {
+@@ -742,13 +742,13 @@ func (p *parser) parseArrayFieldOrTypeInstance(x *ast.Ident) (*ast.Ident, ast.Ex
+ 			// x [P]E
+ 			return x, &ast.ArrayType{Lbrack: lbrack, Len: args[0], Elt: elt}
+ 		}
+-		if p.mode&ParseTypeParams == 0 {
++		if p.mode&parseTypeParams == 0 {
+ 			p.error(rbrack, "missing element type in array type expression")
+ 			return nil, &ast.BadExpr{From: args[0].Pos(), To: args[0].End()}
+ 		}
+ 	}
+ 
+-	if p.mode&ParseTypeParams == 0 {
++	if p.mode&parseTypeParams == 0 {
+ 		p.error(firstComma, "expected ']', found ','")
+ 		return x, &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
+ 	}
+@@ -1045,7 +1045,7 @@ func (p *parser) parseParameters(scope *ast.Scope, acceptTParams bool) (tparams,
+ 		defer un(trace(p, "Parameters"))
+ 	}
+ 
+-	if p.mode&ParseTypeParams != 0 && acceptTParams && p.tok == token.LBRACK {
++	if p.mode&parseTypeParams != 0 && acceptTParams && p.tok == token.LBRACK {
+ 		opening := p.pos
+ 		p.next()
+ 		// [T any](params) syntax
+@@ -1119,7 +1119,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
+ 	x := p.parseTypeName(nil)
+ 	if ident, _ := x.(*ast.Ident); ident != nil {
+ 		switch {
+-		case p.tok == token.LBRACK && p.mode&ParseTypeParams != 0:
++		case p.tok == token.LBRACK && p.mode&parseTypeParams != 0:
+ 			// generic method or embedded instantiated type
+ 			lbrack := p.pos
+ 			p.next()
+@@ -1171,7 +1171,7 @@ func (p *parser) parseMethodSpec(scope *ast.Scope) *ast.Field {
+ 	} else {
+ 		// embedded, possibly instantiated type
+ 		typ = x
+-		if p.tok == token.LBRACK && p.mode&ParseTypeParams != 0 {
++		if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+ 			// embedded instantiated interface
+ 			typ = p.parseTypeInstance(typ)
+ 		}
+@@ -1193,7 +1193,7 @@ func (p *parser) parseInterfaceType() *ast.InterfaceType {
+ 	lbrace := p.expect(token.LBRACE)
+ 	scope := ast.NewScope(nil) // interface scope
+ 	var list []*ast.Field
+-	for p.tok == token.IDENT || p.mode&ParseTypeParams != 0 && p.tok == token.TYPE {
++	for p.tok == token.IDENT || p.mode&parseTypeParams != 0 && p.tok == token.TYPE {
+ 		if p.tok == token.IDENT {
+ 			list = append(list, p.parseMethodSpec(scope))
+ 		} else {
+@@ -1289,7 +1289,7 @@ func (p *parser) tryIdentOrType() ast.Expr {
+ 	switch p.tok {
+ 	case token.IDENT:
+ 		typ := p.parseTypeName(nil)
+-		if p.tok == token.LBRACK && p.mode&ParseTypeParams != 0 {
++		if p.tok == token.LBRACK && p.mode&parseTypeParams != 0 {
+ 			typ = p.parseTypeInstance(typ)
+ 		}
+ 		return typ
+@@ -1552,7 +1552,7 @@ func (p *parser) parseIndexOrSliceOrInstance(x ast.Expr) ast.Expr {
+ 		return &ast.IndexExpr{X: x, Lbrack: lbrack, Index: index[0], Rbrack: rbrack}
+ 	}
+ 
+-	if p.mode&ParseTypeParams == 0 {
++	if p.mode&parseTypeParams == 0 {
+ 		p.error(firstComma, "expected ']' or ':', found ','")
+ 		return &ast.BadExpr{From: args[0].Pos(), To: args[len(args)-1].End()}
+ 	}
+@@ -2696,7 +2696,7 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Pos, _ token.Token
+ 			p.exprLev++
+ 			x := p.parseExpr(true) // we don't know yet if we're a lhs or rhs expr
+ 			p.exprLev--
+-			if name0, _ := x.(*ast.Ident); p.mode&ParseTypeParams != 0 && name0 != nil && p.tok != token.RBRACK {
++			if name0, _ := x.(*ast.Ident); p.mode&parseTypeParams != 0 && name0 != nil && p.tok != token.RBRACK {
+ 				// generic type [T any];
+ 				p.parseGenericType(spec, lbrack, name0, token.RBRACK)
+ 			} else {
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index 3676c27559..b21dd0aa60 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -64,8 +64,8 @@ var valids = []string{
+ }
+ 
+ // validWithTParamsOnly holds source code examples that are valid if
+-// ParseTypeParams is set, but invalid if not. When checking with the
+-// ParseTypeParams set, errors are ignored.
++// parseTypeParams is set, but invalid if not. When checking with the
++// parseTypeParams set, errors are ignored.
+ var validWithTParamsOnly = []string{
+ 	`package p; type _ []T[ /* ERROR "expected ';', found '\['" */ int]`,
+ 	`package p; type T[P any /* ERROR "expected ']', found any" */ ] struct { P }`,
+@@ -131,10 +131,10 @@ func TestValid(t *testing.T) {
+ 	})
+ 	t.Run("tparams", func(t *testing.T) {
+ 		for _, src := range valids {
+-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, false)
++			checkErrors(t, src, src, DeclarationErrors|AllErrors|parseTypeParams, false)
+ 		}
+ 		for _, src := range validWithTParamsOnly {
+-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, false)
++			checkErrors(t, src, src, DeclarationErrors|AllErrors|parseTypeParams, false)
+ 		}
+ 	})
+ }
+@@ -142,7 +142,7 @@ func TestValid(t *testing.T) {
+ // TestSingle is useful to track down a problem with a single short test program.
+ func TestSingle(t *testing.T) {
+ 	const src = `package p; var _ = T[P]{}`
+-	checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
++	checkErrors(t, src, src, DeclarationErrors|AllErrors|parseTypeParams, true)
+ }
+ 
+ var invalids = []string{
+@@ -261,10 +261,10 @@ func TestInvalid(t *testing.T) {
+ 	})
+ 	t.Run("tparams", func(t *testing.T) {
+ 		for _, src := range invalids {
+-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
++			checkErrors(t, src, src, DeclarationErrors|AllErrors|parseTypeParams, true)
+ 		}
+ 		for _, src := range invalidTParamErrs {
+-			checkErrors(t, src, src, DeclarationErrors|AllErrors|ParseTypeParams, true)
++			checkErrors(t, src, src, DeclarationErrors|AllErrors|parseTypeParams, true)
+ 		}
+ 	})
+ }
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 03c4badb04..e03c2df063 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -19,6 +19,10 @@ import (
+ 	"time"
+ )
+ 
++// parseTypeParams tells go/parser to parse type parameters. Must be kept in
++// sync with go/parser/interface.go.
++const parseTypeParams parser.Mode = 1 << 30
++
+ const (
+ 	dataDir  = "testdata"
+ 	tabwidth = 8
+@@ -35,6 +39,7 @@ const (
+ 	rawFormat
+ 	normNumber
+ 	idempotent
++	allowTypeParams
+ )
+ 
+ // format parses src, prints the corresponding AST, verifies the resulting
+@@ -42,7 +47,11 @@ const (
+ // if any.
+ func format(src []byte, mode checkMode) ([]byte, error) {
+ 	// parse src
+-	f, err := parser.ParseFile(fset, "", src, parser.ParseComments|parser.ParseTypeParams)
++	parseMode := parser.ParseComments
++	if mode&allowTypeParams != 0 {
++		parseMode |= parseTypeParams
++	}
++	f, err := parser.ParseFile(fset, "", src, parseMode)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("parse: %s\n%s", err, src)
+ 	}
+@@ -70,7 +79,7 @@ func format(src []byte, mode checkMode) ([]byte, error) {
+ 
+ 	// make sure formatted output is syntactically correct
+ 	res := buf.Bytes()
+-	if _, err := parser.ParseFile(fset, "", res, parser.ParseTypeParams); err != nil {
++	if _, err := parser.ParseFile(fset, "", res, parseTypeParams); err != nil {
+ 		return nil, fmt.Errorf("re-parse: %s\n%s", err, buf.Bytes())
+ 	}
+ 
+@@ -201,13 +210,13 @@ var data = []entry{
+ 	{"linebreaks.input", "linebreaks.golden", idempotent},
+ 	{"expressions.input", "expressions.golden", idempotent},
+ 	{"expressions.input", "expressions.raw", rawFormat | idempotent},
+-	{"declarations.input", "declarations.golden", 0},
++	{"declarations.input", "declarations.golden", allowTypeParams},
+ 	{"statements.input", "statements.golden", 0},
+ 	{"slow.input", "slow.golden", idempotent},
+ 	{"complit.input", "complit.x", export},
+ 	{"go2numbers.input", "go2numbers.golden", idempotent},
+ 	{"go2numbers.input", "go2numbers.norm", normNumber | idempotent},
+-	{"generics.input", "generics.golden", idempotent},
++	{"generics.input", "generics.golden", idempotent | allowTypeParams},
+ 	{"gobuild1.input", "gobuild1.golden", idempotent},
+ 	{"gobuild2.input", "gobuild2.golden", idempotent},
+ 	{"gobuild3.input", "gobuild3.golden", idempotent},
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 09ac65b81f..436c23099b 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -184,11 +184,11 @@ type Info struct {
+ 	// qualified identifiers are collected in the Uses map.
+ 	Types map[ast.Expr]TypeAndValue
+ 
+-	// Inferred maps calls of parameterized functions that use
+-	// type inference to the inferred type arguments and signature
++	// _Inferred maps calls of parameterized functions that use
++	// type inference to the _Inferred type arguments and signature
+ 	// of the function called. The recorded "call" expression may be
+ 	// an *ast.CallExpr (as in f(x)), or an *ast.IndexExpr (s in f[T]).
+-	Inferred map[ast.Expr]Inferred
++	_Inferred map[ast.Expr]_Inferred
+ 
+ 	// Defs maps identifiers to the objects they define (including
+ 	// package names, dots "." of dot-imports, and blank "_" identifiers).
+@@ -346,9 +346,9 @@ func (tv TypeAndValue) HasOk() bool {
+ 	return tv.mode == commaok || tv.mode == mapindex
+ }
+ 
+-// Inferred reports the inferred type arguments and signature
++// _Inferred reports the _Inferred type arguments and signature
+ // for a parameterized function call that uses type inference.
+-type Inferred struct {
++type _Inferred struct {
+ 	Targs []Type
+ 	Sig   *Signature
+ }
+diff --git a/src/go/types/api_go1.18.go b/src/go/types/api_go1.18.go
+new file mode 100644
+index 0000000000..d98f4ef0dc
+--- /dev/null
++++ b/src/go/types/api_go1.18.go
+@@ -0,0 +1,22 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.18
++// +build go1.18
++
++package types
++
++import (
++	"go/ast"
++)
++
++type Inferred = _Inferred
++
++func GetInferred(info *Info) map[ast.Expr]Inferred {
++	return info._Inferred
++}
++
++func SetInferred(info *Info, inferred map[ast.Expr]Inferred) {
++	info._Inferred = inferred
++}
+diff --git a/src/go/types/api_go1.18_test.go b/src/go/types/api_go1.18_test.go
+new file mode 100644
+index 0000000000..bbbf70581d
+--- /dev/null
++++ b/src/go/types/api_go1.18_test.go
+@@ -0,0 +1,138 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.18
++
++package types_test
++
++import (
++	"fmt"
++	"go/ast"
++	"testing"
++
++	. "go/types"
++)
++
++func TestInferredInfo(t *testing.T) {
++	var tests = []struct {
++		src   string
++		fun   string
++		targs []string
++		sig   string
++	}{
++		{genericPkg + `p0; func f[T any](T); func _() { f(42) }`,
++			`f`,
++			[]string{`int`},
++			`func(int)`,
++		},
++		{genericPkg + `p1; func f[T any](T) T; func _() { f('@') }`,
++			`f`,
++			[]string{`rune`},
++			`func(rune) rune`,
++		},
++		{genericPkg + `p2; func f[T any](...T) T; func _() { f(0i) }`,
++			`f`,
++			[]string{`complex128`},
++			`func(...complex128) complex128`,
++		},
++		{genericPkg + `p3; func f[A, B, C any](A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`,
++			`f`,
++			[]string{`float64`, `string`, `byte`},
++			`func(float64, *string, []byte)`,
++		},
++		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B); func _() { f(1.2, new(byte)) }`,
++			`f`,
++			[]string{`float64`, `byte`},
++			`func(float64, *byte, ...[]byte)`,
++		},
++
++		{genericPkg + `s1; func f[T any, P interface{type *T}](x T); func _(x string) { f(x) }`,
++			`f`,
++			[]string{`string`, `*string`},
++			`func(x string)`,
++		},
++		{genericPkg + `s2; func f[T any, P interface{type *T}](x []T); func _(x []int) { f(x) }`,
++			`f`,
++			[]string{`int`, `*int`},
++			`func(x []int)`,
++		},
++		{genericPkg + `s3; type C[T any] interface{type chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
++			`f`,
++			[]string{`int`, `chan<- int`},
++			`func(x []int)`,
++		},
++		{genericPkg + `s4; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
++			`f`,
++			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
++			`func(x []int)`,
++		},
++
++		{genericPkg + `t1; func f[T any, P interface{type *T}]() T; func _() { _ = f[string] }`,
++			`f`,
++			[]string{`string`, `*string`},
++			`func() string`,
++		},
++		{genericPkg + `t2; type C[T any] interface{type chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
++			`f`,
++			[]string{`int`, `chan<- int`},
++			`func() []int`,
++		},
++		{genericPkg + `t3; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
++			`f`,
++			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
++			`func() []int`,
++		},
++	}
++
++	for _, test := range tests {
++		info := Info{}
++		SetInferred(&info, make(map[ast.Expr]Inferred))
++		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
++		if err != nil {
++			t.Errorf("package %s: %v", name, err)
++			continue
++		}
++
++		// look for inferred type arguments and signature
++		var targs []Type
++		var sig *Signature
++		for call, inf := range GetInferred(&info) {
++			var fun ast.Expr
++			switch x := call.(type) {
++			case *ast.CallExpr:
++				fun = x.Fun
++			case *ast.IndexExpr:
++				fun = x.X
++			default:
++				panic(fmt.Sprintf("unexpected call expression type %T", call))
++			}
++			if ExprString(fun) == test.fun {
++				targs = inf.Targs
++				sig = inf.Sig
++				break
++			}
++		}
++		if targs == nil {
++			t.Errorf("package %s: no inferred information found for %s", name, test.fun)
++			continue
++		}
++
++		// check that type arguments are correct
++		if len(targs) != len(test.targs) {
++			t.Errorf("package %s: got %d type arguments; want %d", name, len(targs), len(test.targs))
++			continue
++		}
++		for i, targ := range targs {
++			if got := targ.String(); got != test.targs[i] {
++				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
++				continue
++			}
++		}
++
++		// check that signature is correct
++		if got := sig.String(); got != test.sig {
++			t.Errorf("package %s: got %s; want %s", name, got, test.sig)
++		}
++	}
++}
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 20648f1cf6..0226a857bd 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -49,7 +49,7 @@ const genericPkg = "package generic_"
+ 
+ func modeForSource(src string) parser.Mode {
+ 	if strings.HasPrefix(src, genericPkg) {
+-		return parser.ParseTypeParams
++		return parseTypeParams
+ 	}
+ 	return 0
+ }
+@@ -377,128 +377,6 @@ func TestTypesInfo(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInferredInfo(t *testing.T) {
+-	var tests = []struct {
+-		src   string
+-		fun   string
+-		targs []string
+-		sig   string
+-	}{
+-		{genericPkg + `p0; func f[T any](T); func _() { f(42) }`,
+-			`f`,
+-			[]string{`int`},
+-			`func(int)`,
+-		},
+-		{genericPkg + `p1; func f[T any](T) T; func _() { f('@') }`,
+-			`f`,
+-			[]string{`rune`},
+-			`func(rune) rune`,
+-		},
+-		{genericPkg + `p2; func f[T any](...T) T; func _() { f(0i) }`,
+-			`f`,
+-			[]string{`complex128`},
+-			`func(...complex128) complex128`,
+-		},
+-		{genericPkg + `p3; func f[A, B, C any](A, *B, []C); func _() { f(1.2, new(string), []byte{}) }`,
+-			`f`,
+-			[]string{`float64`, `string`, `byte`},
+-			`func(float64, *string, []byte)`,
+-		},
+-		{genericPkg + `p4; func f[A, B any](A, *B, ...[]B); func _() { f(1.2, new(byte)) }`,
+-			`f`,
+-			[]string{`float64`, `byte`},
+-			`func(float64, *byte, ...[]byte)`,
+-		},
+-
+-		{genericPkg + `s1; func f[T any, P interface{type *T}](x T); func _(x string) { f(x) }`,
+-			`f`,
+-			[]string{`string`, `*string`},
+-			`func(x string)`,
+-		},
+-		{genericPkg + `s2; func f[T any, P interface{type *T}](x []T); func _(x []int) { f(x) }`,
+-			`f`,
+-			[]string{`int`, `*int`},
+-			`func(x []int)`,
+-		},
+-		{genericPkg + `s3; type C[T any] interface{type chan<- T}; func f[T any, P C[T]](x []T); func _(x []int) { f(x) }`,
+-			`f`,
+-			[]string{`int`, `chan<- int`},
+-			`func(x []int)`,
+-		},
+-		{genericPkg + `s4; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]](x []T); func _(x []int) { f(x) }`,
+-			`f`,
+-			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+-			`func(x []int)`,
+-		},
+-
+-		{genericPkg + `t1; func f[T any, P interface{type *T}]() T; func _() { _ = f[string] }`,
+-			`f`,
+-			[]string{`string`, `*string`},
+-			`func() string`,
+-		},
+-		{genericPkg + `t2; type C[T any] interface{type chan<- T}; func f[T any, P C[T]]() []T; func _() { _ = f[int] }`,
+-			`f`,
+-			[]string{`int`, `chan<- int`},
+-			`func() []int`,
+-		},
+-		{genericPkg + `t3; type C[T any] interface{type chan<- T}; func f[T any, P C[T], Q C[[]*P]]() []T; func _() { _ = f[int] }`,
+-			`f`,
+-			[]string{`int`, `chan<- int`, `chan<- []*chan<- int`},
+-			`func() []int`,
+-		},
+-	}
+-
+-	for _, test := range tests {
+-		info := Info{Inferred: make(map[ast.Expr]Inferred)}
+-		name, err := mayTypecheck(t, "InferredInfo", test.src, &info)
+-		if err != nil {
+-			t.Errorf("package %s: %v", name, err)
+-			continue
+-		}
+-
+-		// look for inferred type arguments and signature
+-		var targs []Type
+-		var sig *Signature
+-		for call, inf := range info.Inferred {
+-			var fun ast.Expr
+-			switch x := call.(type) {
+-			case *ast.CallExpr:
+-				fun = x.Fun
+-			case *ast.IndexExpr:
+-				fun = x.X
+-			default:
+-				panic(fmt.Sprintf("unexpected call expression type %T", call))
+-			}
+-			if ExprString(fun) == test.fun {
+-				targs = inf.Targs
+-				sig = inf.Sig
+-				break
+-			}
+-		}
+-		if targs == nil {
+-			t.Errorf("package %s: no inferred information found for %s", name, test.fun)
+-			continue
+-		}
+-
+-		// check that type arguments are correct
+-		if len(targs) != len(test.targs) {
+-			t.Errorf("package %s: got %d type arguments; want %d", name, len(targs), len(test.targs))
+-			continue
+-		}
+-		for i, targ := range targs {
+-			if got := targ.String(); got != test.targs[i] {
+-				t.Errorf("package %s, %d. type argument: got %s; want %s", name, i, got, test.targs[i])
+-				continue
+-			}
+-		}
+-
+-		// check that signature is correct
+-		if got := sig.String(); got != test.sig {
+-			t.Errorf("package %s: got %s; want %s", name, got, test.sig)
+-		}
+-	}
+-}
+-
+ func TestDefsInfo(t *testing.T) {
+ 	var tests = []struct {
+ 		src  string
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index d45cd9b278..3df82fffda 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -179,7 +179,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				mode = value
+ 			}
+ 
+-		case *Sum:
++		case *_Sum:
+ 			if t.is(func(t Type) bool {
+ 				switch t := under(t).(type) {
+ 				case *Basic:
+@@ -469,7 +469,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				m = 2
+ 			case *Map, *Chan:
+ 				m = 1
+-			case *Sum:
++			case *_Sum:
+ 				return t.is(valid)
+ 			default:
+ 				return false
+@@ -732,8 +732,8 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 
+ 		// construct a suitable new type parameter
+ 		tpar := NewTypeName(token.NoPos, nil /* = Universe pkg */, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
+-		tsum := NewSum(rtypes)
++		ptyp := check.newTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
++		tsum := _NewSum(rtypes)
+ 		ptyp.bound = &Interface{types: tsum, allMethods: markComplete, allTypes: tsum}
+ 
+ 		return ptyp
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index e56f741370..bd10f6fbc3 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -128,7 +128,7 @@ func (check *Checker) call(x *operand, call *ast.CallExpr) exprKind {
+ 				}
+ 				if t := asInterface(T); t != nil {
+ 					check.completeInterface(token.NoPos, t)
+-					if t.IsConstraint() {
++					if t._IsConstraint() {
+ 						check.errorf(call, _Todo, "cannot use interface %s in conversion (contains type list or is comparable)", T)
+ 						break
+ 					}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 4cc3024de9..69e9466a8b 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -396,8 +396,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a [2]Type) {
+ func (check *Checker) recordInferred(call ast.Expr, targs []Type, sig *Signature) {
+ 	assert(call != nil)
+ 	assert(sig != nil)
+-	if m := check.Inferred; m != nil {
+-		m[call] = Inferred{targs, sig}
++	if m := check._Inferred; m != nil {
++		m[call] = _Inferred{targs, sig}
+ 	}
+ }
+ 
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index c92855b3d8..9812b3808b 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -44,6 +44,10 @@ import (
+ 	. "go/types"
+ )
+ 
++// parseTypeParams tells go/parser to parse type parameters. Must be kept in
++// sync with go/parser/interface.go.
++const parseTypeParams parser.Mode = 1 << 30
++
+ var (
+ 	haltOnError = flag.Bool("halt", false, "halt on error")
+ 	listErrors  = flag.Bool("errlist", false, "list errors")
+@@ -210,7 +214,7 @@ func checkFiles(t *testing.T, goVersion string, filenames []string, srcs [][]byt
+ 
+ 	mode := parser.AllErrors
+ 	if strings.HasSuffix(filenames[0], ".go2") {
+-		mode |= parser.ParseTypeParams
++		mode |= parseTypeParams
+ 	}
+ 
+ 	// parse files and collect parser errors
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 1134607e92..2eb2c39745 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -713,7 +713,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
+ 
+ 	setBoundAt := func(at int, bound Type) {
+ 		assert(IsInterface(bound))
+-		tparams[at].typ.(*TypeParam).bound = bound
++		tparams[at].typ.(*_TypeParam).bound = bound
+ 	}
+ 
+ 	index := 0
+@@ -756,7 +756,7 @@ func (check *Checker) collectTypeParams(list *ast.FieldList) (tparams []*TypeNam
+ func (check *Checker) declareTypeParams(tparams []*TypeName, names []*ast.Ident) []*TypeName {
+ 	for _, name := range names {
+ 		tpar := NewTypeName(name.Pos(), check.pkg, name.Name, nil)
+-		check.NewTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
++		check.newTypeParam(tpar, len(tparams), &emptyInterface) // assigns type to tpar as a side-effect
+ 		check.declare(check.scope, name, tpar, check.scope.pos) // TODO(gri) check scope position
+ 		tparams = append(tparams, tpar)
+ 	}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 9b51ce94b7..e1b484c410 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -660,7 +660,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		default:
+ 			return nil, nil, _InvalidUntypedConversion
+ 		}
+-	case *Sum:
++	case *_Sum:
+ 		ok := t.is(func(t Type) bool {
+ 			target, _, _ := check.implicitTypeAndValue(x, t)
+ 			return target != nil
+@@ -1517,7 +1517,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			x.expr = e
+ 			return expression
+ 
+-		case *Sum:
++		case *_Sum:
+ 			// A sum type can be indexed if all of the sum's types
+ 			// support indexing and have the same index and element
+ 			// type. Special rules apply for maps in the sum type.
+@@ -1549,7 +1549,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 					tkey = t.key
+ 					e = t.elem
+ 					nmaps++
+-				case *TypeParam:
++				case *_TypeParam:
+ 					check.errorf(x, 0, "type of %s contains a type parameter - cannot index (implementation restriction)", x)
+ 				case *instance:
+ 					panic("unimplemented")
+@@ -1661,7 +1661,7 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			valid = true
+ 			// x.typ doesn't change
+ 
+-		case *Sum, *TypeParam:
++		case *_Sum, *_TypeParam:
+ 			check.errorf(x, 0, "generic slice expressions not yet implemented")
+ 			goto Error
+ 		}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 95bd3cb378..4b20836f88 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -98,7 +98,7 @@ func (check *Checker) infer(tparams []*TypeName, params *Tuple, args []*operand)
+ 		// only parameter type it can possibly match against is a *TypeParam.
+ 		// Thus, only keep the indices of generic parameters that are not of
+ 		// composite types and which don't have a type inferred yet.
+-		if tpar, _ := par.typ.(*TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
++		if tpar, _ := par.typ.(*_TypeParam); tpar != nil && u.x.at(tpar.index) == nil {
+ 			indices[j] = i
+ 			j++
+ 		}
+@@ -201,7 +201,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 			}
+ 		}
+ 
+-	case *Sum:
++	case *_Sum:
+ 		return w.isParameterizedList(t.types)
+ 
+ 	case *Signature:
+@@ -243,7 +243,7 @@ func (w *tpWalker) isParameterized(typ Type) (res bool) {
+ 	case *Named:
+ 		return w.isParameterizedList(t.targs)
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		// t must be one of w.tparams
+ 		return t.index < len(w.tparams) && w.tparams[t.index].typ == t
+ 
+@@ -291,7 +291,7 @@ func (check *Checker) inferB(tparams []*TypeName, targs []Type) (types []Type, i
+ 
+ 	// Unify type parameters with their structural constraints, if any.
+ 	for _, tpar := range tparams {
+-		typ := tpar.typ.(*TypeParam)
++		typ := tpar.typ.(*_TypeParam)
+ 		sbound := check.structuralType(typ.bound)
+ 		if sbound != nil {
+ 			if !u.unify(typ, sbound) {
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index a0e7f3cc0d..3691b1ecaa 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -107,7 +107,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 		var next []embeddedType // embedded types found at current depth
+ 
+ 		// look for (pkg, name) in all types at current depth
+-		var tpar *TypeParam // set if obj receiver is a type parameter
++		var tpar *_TypeParam // set if obj receiver is a type parameter
+ 		for _, e := range current {
+ 			typ := e.typ
+ 
+@@ -195,7 +195,7 @@ func (check *Checker) rawLookupFieldOrMethod(T Type, addressable bool, pkg *Pack
+ 					indirect = e.indirect
+ 				}
+ 
+-			case *TypeParam:
++			case *_TypeParam:
+ 				// only consider explicit methods in the type parameter bound, not
+ 				// methods that may be common to all types in the type list.
+ 				if i, m := lookupMethod(t.Bound().allMethods, pkg, name); m != nil {
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 8f9c9d09bf..8344c059c4 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -242,7 +242,7 @@ func (x *operand) assignableTo(check *Checker, T Type, reason *string) (bool, er
+ 
+ 	// x is an untyped value representable by a value of type T.
+ 	if isUntyped(Vu) {
+-		if t, ok := Tu.(*Sum); ok {
++		if t, ok := Tu.(*_Sum); ok {
+ 			return t.is(func(t Type) bool {
+ 				// TODO(gri) this could probably be more efficient
+ 				ok, _ := x.assignableTo(check, t, reason)
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 0ff8fcbbf7..7bb026414f 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -14,7 +14,7 @@ import (
+ // isNamed may be called with types that are not fully set up.
+ func isNamed(typ Type) bool {
+ 	switch typ.(type) {
+-	case *Basic, *Named, *TypeParam, *instance:
++	case *Basic, *Named, *_TypeParam, *instance:
+ 		return true
+ 	}
+ 	return false
+@@ -32,7 +32,7 @@ func is(typ Type, what BasicInfo) bool {
+ 	switch t := optype(typ).(type) {
+ 	case *Basic:
+ 		return t.info&what != 0
+-	case *Sum:
++	case *_Sum:
+ 		return t.is(func(typ Type) bool { return is(typ, what) })
+ 	}
+ 	return false
+@@ -109,7 +109,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	//
+ 	// is not comparable because []byte is not comparable.
+ 	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+-		return t.Bound().IsComparable()
++		return t.Bound()._IsComparable()
+ 	}
+ 
+ 	switch t := optype(T).(type) {
+@@ -128,13 +128,13 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+-	case *Sum:
++	case *_Sum:
+ 		pred := func(t Type) bool {
+ 			return comparable(t, seen)
+ 		}
+ 		return t.is(pred)
+-	case *TypeParam:
+-		return t.Bound().IsComparable()
++	case *_TypeParam:
++		return t.Bound()._IsComparable()
+ 	}
+ 	return false
+ }
+@@ -146,7 +146,7 @@ func hasNil(typ Type) bool {
+ 		return t.kind == UnsafePointer
+ 	case *Slice, *Pointer, *Signature, *Interface, *Map, *Chan:
+ 		return true
+-	case *Sum:
++	case *_Sum:
+ 		return t.is(hasNil)
+ 	}
+ 	return false
+@@ -265,14 +265,14 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 				check.identical0(x.results, y.results, cmpTags, p)
+ 		}
+ 
+-	case *Sum:
++	case *_Sum:
+ 		// Two sum types are identical if they contain the same types.
+ 		// (Sum types always consist of at least two types. Also, the
+ 		// the set (list) of types in a sum type consists of unique
+ 		// types - each type appears exactly once. Thus, two sum types
+ 		// must contain the same number of types to have chance of
+ 		// being equal.
+-		if y, ok := y.(*Sum); ok && len(x.types) == len(y.types) {
++		if y, ok := y.(*_Sum); ok && len(x.types) == len(y.types) {
+ 			// Every type in x.types must be in y.types.
+ 			// Quadratic algorithm, but probably good enough for now.
+ 			// TODO(gri) we need a fast quick type ID/hash for all types.
+@@ -370,7 +370,7 @@ func (check *Checker) identical0(x, y Type, cmpTags bool, p *ifacePair) bool {
+ 			return x.obj == y.obj
+ 		}
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		// nothing to do (x and y being equal is caught in the very beginning of this function)
+ 
+ 	// case *instance:
+@@ -397,7 +397,7 @@ func (check *Checker) identicalTParams(x, y []*TypeName, cmpTags bool, p *ifaceP
+ 	}
+ 	for i, x := range x {
+ 		y := y[i]
+-		if !check.identical0(x.typ.(*TypeParam).bound, y.typ.(*TypeParam).bound, cmpTags, p) {
++		if !check.identical0(x.typ.(*_TypeParam).bound, y.typ.(*_TypeParam).bound, cmpTags, p) {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/go/types/sanitize.go b/src/go/types/sanitize.go
+index 3a6896c5c2..3429867321 100644
+--- a/src/go/types/sanitize.go
++++ b/src/go/types/sanitize.go
+@@ -24,7 +24,7 @@ func sanitizeInfo(info *Info) {
+ 		}
+ 	}
+ 
+-	for e, inf := range info.Inferred {
++	for e, inf := range info._Inferred {
+ 		changed := false
+ 		for i, targ := range inf.Targs {
+ 			if typ := s.typ(targ); typ != targ {
+@@ -37,7 +37,7 @@ func sanitizeInfo(info *Info) {
+ 			changed = true
+ 		}
+ 		if changed {
+-			info.Inferred[e] = inf
++			info._Inferred[e] = inf
+ 		}
+ 	}
+ 
+@@ -102,7 +102,7 @@ func (s sanitizer) typ(typ Type) Type {
+ 		s.tuple(t.params)
+ 		s.tuple(t.results)
+ 
+-	case *Sum:
++	case *_Sum:
+ 		s.typeList(t.types)
+ 
+ 	case *Interface:
+@@ -135,7 +135,7 @@ func (s sanitizer) typ(typ Type) Type {
+ 		s.typeList(t.targs)
+ 		s.funcList(t.methods)
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		if bound := s.typ(t.bound); bound != t.bound {
+ 			t.bound = bound
+ 		}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 157b1b7066..26c28d1c4e 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -108,13 +108,13 @@ func (s *Scope) Insert(obj Object) Object {
+ 	return nil
+ }
+ 
+-// Squash merges s with its parent scope p by adding all
++// squash merges s with its parent scope p by adding all
+ // objects of s to p, adding all children of s to the
+ // children of p, and removing s from p's children.
+ // The function f is called for each object obj in s which
+ // has an object alt in p. s should be discarded after
+ // having been squashed.
+-func (s *Scope) Squash(err func(obj, alt Object)) {
++func (s *Scope) squash(err func(obj, alt Object)) {
+ 	p := s.parent
+ 	assert(p != nil)
+ 	for _, obj := range s.elems {
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index e8377a4f92..67052bb816 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -148,7 +148,7 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		}
+ 		offsets := s.Offsetsof(t.fields)
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
+-	case *Sum:
++	case *_Sum:
+ 		panic("Sizeof unimplemented for type sum")
+ 	case *Interface:
+ 		return s.WordSize * 2
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 82c21c2a7a..27da198a85 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -907,7 +907,7 @@ func rangeKeyVal(typ Type, wantKey, wantVal bool) (Type, Type, string) {
+ 			msg = "send-only channel"
+ 		}
+ 		return typ.elem, Typ[Invalid], msg
+-	case *Sum:
++	case *_Sum:
+ 		first := true
+ 		var key, val Type
+ 		var msg string
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index ed27488503..931375f1f2 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -22,21 +22,21 @@ type substMap struct {
+ 	// TODO(gri) rewrite that code, get rid of this field, and make this
+ 	//           struct just the map (proj)
+ 	targs []Type
+-	proj  map[*TypeParam]Type
++	proj  map[*_TypeParam]Type
+ }
+ 
+ // makeSubstMap creates a new substitution map mapping tpars[i] to targs[i].
+ // If targs[i] is nil, tpars[i] is not substituted.
+ func makeSubstMap(tpars []*TypeName, targs []Type) *substMap {
+ 	assert(len(tpars) == len(targs))
+-	proj := make(map[*TypeParam]Type, len(tpars))
++	proj := make(map[*_TypeParam]Type, len(tpars))
+ 	for i, tpar := range tpars {
+ 		// We must expand type arguments otherwise *instance
+ 		// types end up as components in composite types.
+ 		// TODO(gri) explain why this causes problems, if it does
+ 		targ := expand(targs[i]) // possibly nil
+ 		targs[i] = targ
+-		proj[tpar.typ.(*TypeParam)] = targ
++		proj[tpar.typ.(*_TypeParam)] = targ
+ 	}
+ 	return &substMap{targs, proj}
+ }
+@@ -49,7 +49,7 @@ func (m *substMap) empty() bool {
+ 	return len(m.proj) == 0
+ }
+ 
+-func (m *substMap) lookup(tpar *TypeParam) Type {
++func (m *substMap) lookup(tpar *_TypeParam) Type {
+ 	if t := m.proj[tpar]; t != nil {
+ 		return t
+ 	}
+@@ -121,7 +121,7 @@ func (check *Checker) instantiate(pos token.Pos, typ Type, targs []Type, poslist
+ 
+ 	// check bounds
+ 	for i, tname := range tparams {
+-		tpar := tname.typ.(*TypeParam)
++		tpar := tname.typ.(*_TypeParam)
+ 		iface := tpar.Bound()
+ 		if iface.Empty() {
+ 			continue // no type bound
+@@ -222,7 +222,7 @@ func (check *Checker) subst(pos token.Pos, typ Type, smap *substMap) Type {
+ 	switch t := typ.(type) {
+ 	case *Basic:
+ 		return typ // nothing to do
+-	case *TypeParam:
++	case *_TypeParam:
+ 		return smap.lookup(t)
+ 	}
+ 
+@@ -293,13 +293,13 @@ func (subst *subster) typ(typ Type) Type {
+ 			}
+ 		}
+ 
+-	case *Sum:
++	case *_Sum:
+ 		types, copied := subst.typeList(t.types)
+ 		if copied {
+ 			// Don't do it manually, with a Sum literal: the new
+ 			// types list may not be unique and NewSum may remove
+ 			// duplicates.
+-			return NewSum(types)
++			return _NewSum(types)
+ 		}
+ 
+ 	case *Interface:
+@@ -389,7 +389,7 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ 		// create a new named type and populate caches to avoid endless recursion
+ 		tname := NewTypeName(subst.pos, t.obj.pkg, t.obj.name, nil)
+-		named := subst.check.NewNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
++		named := subst.check.newNamed(tname, t.underlying, t.methods) // method signatures are updated lazily
+ 		named.tparams = t.tparams                                     // new type is still parameterized
+ 		named.targs = newTargs
+ 		subst.check.typMap[h] = named
+@@ -402,7 +402,7 @@ func (subst *subster) typ(typ Type) Type {
+ 
+ 		return named
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		return subst.smap.lookup(t)
+ 
+ 	case *instance:
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 21892c9270..201da95a58 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -240,11 +240,11 @@ func NewSignature(recv *Var, params, results *Tuple, variadic bool) *Signature {
+ // contain methods whose receiver type is a different interface.
+ func (s *Signature) Recv() *Var { return s.recv }
+ 
+-// TParams returns the type parameters of signature s, or nil.
+-func (s *Signature) TParams() []*TypeName { return s.tparams }
++// _TParams returns the type parameters of signature s, or nil.
++func (s *Signature) _TParams() []*TypeName { return s.tparams }
+ 
+-// SetTParams sets the type parameters of signature s.
+-func (s *Signature) SetTParams(tparams []*TypeName) { s.tparams = tparams }
++// _SetTParams sets the type parameters of signature s.
++func (s *Signature) _SetTParams(tparams []*TypeName) { s.tparams = tparams }
+ 
+ // Params returns the parameters of signature s, or nil.
+ func (s *Signature) Params() *Tuple { return s.params }
+@@ -255,19 +255,19 @@ func (s *Signature) Results() *Tuple { return s.results }
+ // Variadic reports whether the signature s is variadic.
+ func (s *Signature) Variadic() bool { return s.variadic }
+ 
+-// A Sum represents a set of possible types.
++// A _Sum represents a set of possible types.
+ // Sums are currently used to represent type lists of interfaces
+ // and thus the underlying types of type parameters; they are not
+ // first class types of Go.
+-type Sum struct {
++type _Sum struct {
+ 	types []Type // types are unique
+ }
+ 
+-// NewSum returns a new Sum type consisting of the provided
++// _NewSum returns a new Sum type consisting of the provided
+ // types if there are more than one. If there is exactly one
+ // type, it returns that type. If the list of types is empty
+ // the result is nil.
+-func NewSum(types []Type) Type {
++func _NewSum(types []Type) Type {
+ 	if len(types) == 0 {
+ 		return nil
+ 	}
+@@ -278,7 +278,7 @@ func NewSum(types []Type) Type {
+ 	// current use case of type lists.
+ 	// TODO(gri) Come up with the rules for sum types.
+ 	for _, t := range types {
+-		if _, ok := t.(*Sum); ok {
++		if _, ok := t.(*_Sum); ok {
+ 			panic("sum type contains sum type - unimplemented")
+ 		}
+ 	}
+@@ -286,11 +286,11 @@ func NewSum(types []Type) Type {
+ 	if len(types) == 1 {
+ 		return types[0]
+ 	}
+-	return &Sum{types: types}
++	return &_Sum{types: types}
+ }
+ 
+ // is reports whether all types in t satisfy pred.
+-func (s *Sum) is(pred func(Type) bool) bool {
++func (s *_Sum) is(pred func(Type) bool) bool {
+ 	if s == nil {
+ 		return false
+ 	}
+@@ -446,8 +446,8 @@ func (t *Interface) Empty() bool {
+ 	}, nil)
+ }
+ 
+-// HasTypeList reports whether interface t has a type list, possibly from an embedded type.
+-func (t *Interface) HasTypeList() bool {
++// _HasTypeList reports whether interface t has a type list, possibly from an embedded type.
++func (t *Interface) _HasTypeList() bool {
+ 	if t.allMethods != nil {
+ 		// interface is complete - quick test
+ 		return t.allTypes != nil
+@@ -458,8 +458,8 @@ func (t *Interface) HasTypeList() bool {
+ 	}, nil)
+ }
+ 
+-// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
+-func (t *Interface) IsComparable() bool {
++// _IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
++func (t *Interface) _IsComparable() bool {
+ 	if t.allMethods != nil {
+ 		// interface is complete - quick test
+ 		_, m := lookupMethod(t.allMethods, nil, "==")
+@@ -472,8 +472,8 @@ func (t *Interface) IsComparable() bool {
+ 	}, nil)
+ }
+ 
+-// IsConstraint reports t.HasTypeList() || t.IsComparable().
+-func (t *Interface) IsConstraint() bool {
++// _IsConstraint reports t.HasTypeList() || t.IsComparable().
++func (t *Interface) _IsConstraint() bool {
+ 	if t.allMethods != nil {
+ 		// interface is complete - quick test
+ 		if t.allTypes != nil {
+@@ -667,7 +667,7 @@ func NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	return typ
+ }
+ 
+-func (check *Checker) NewNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
++func (check *Checker) newNamed(obj *TypeName, underlying Type, methods []*Func) *Named {
+ 	typ := &Named{check: check, obj: obj, orig: underlying, underlying: underlying, methods: methods}
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+@@ -681,15 +681,15 @@ func (t *Named) Obj() *TypeName { return t.obj }
+ // TODO(gri) Come up with a better representation and API to distinguish
+ //           between parameterized instantiated and non-instantiated types.
+ 
+-// TParams returns the type parameters of the named type t, or nil.
++// _TParams returns the type parameters of the named type t, or nil.
+ // The result is non-nil for an (originally) parameterized type even if it is instantiated.
+-func (t *Named) TParams() []*TypeName { return t.tparams }
++func (t *Named) _TParams() []*TypeName { return t.tparams }
+ 
+-// TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
+-func (t *Named) TArgs() []Type { return t.targs }
++// _TArgs returns the type arguments after instantiation of the named type t, or nil if not instantiated.
++func (t *Named) _TArgs() []Type { return t.targs }
+ 
+-// SetTArgs sets the type arguments of Named.
+-func (t *Named) SetTArgs(args []Type) { t.targs = args }
++// _SetTArgs sets the type arguments of Named.
++func (t *Named) _SetTArgs(args []Type) { t.targs = args }
+ 
+ // NumMethods returns the number of explicit methods whose receiver is named type t.
+ func (t *Named) NumMethods() int { return len(t.methods) }
+@@ -715,8 +715,8 @@ func (t *Named) AddMethod(m *Func) {
+ 	}
+ }
+ 
+-// A TypeParam represents a type parameter type.
+-type TypeParam struct {
++// A _TypeParam represents a type parameter type.
++type _TypeParam struct {
+ 	check *Checker  // for lazy type bound completion
+ 	id    uint64    // unique id
+ 	obj   *TypeName // corresponding type name
+@@ -724,10 +724,10 @@ type TypeParam struct {
+ 	bound Type      // *Named or *Interface; underlying type is always *Interface
+ }
+ 
+-// NewTypeParam returns a new TypeParam.
+-func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypeParam {
++// newTypeParam returns a new TypeParam.
++func (check *Checker) newTypeParam(obj *TypeName, index int, bound Type) *_TypeParam {
+ 	assert(bound != nil)
+-	typ := &TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
++	typ := &_TypeParam{check: check, id: check.nextId, obj: obj, index: index, bound: bound}
+ 	check.nextId++
+ 	if obj.typ == nil {
+ 		obj.typ = typ
+@@ -735,7 +735,7 @@ func (check *Checker) NewTypeParam(obj *TypeName, index int, bound Type) *TypePa
+ 	return typ
+ }
+ 
+-func (t *TypeParam) Bound() *Interface {
++func (t *_TypeParam) Bound() *Interface {
+ 	iface := asInterface(t.bound)
+ 	// use the type bound position if we have one
+ 	pos := token.NoPos
+@@ -839,40 +839,40 @@ type top struct{}
+ var theTop = &top{}
+ 
+ // Type-specific implementations of Underlying.
+-func (t *Basic) Underlying() Type     { return t }
+-func (t *Array) Underlying() Type     { return t }
+-func (t *Slice) Underlying() Type     { return t }
+-func (t *Struct) Underlying() Type    { return t }
+-func (t *Pointer) Underlying() Type   { return t }
+-func (t *Tuple) Underlying() Type     { return t }
+-func (t *Signature) Underlying() Type { return t }
+-func (t *Sum) Underlying() Type       { return t }
+-func (t *Interface) Underlying() Type { return t }
+-func (t *Map) Underlying() Type       { return t }
+-func (t *Chan) Underlying() Type      { return t }
+-func (t *Named) Underlying() Type     { return t.underlying }
+-func (t *TypeParam) Underlying() Type { return t }
+-func (t *instance) Underlying() Type  { return t }
+-func (t *bottom) Underlying() Type    { return t }
+-func (t *top) Underlying() Type       { return t }
++func (t *Basic) Underlying() Type      { return t }
++func (t *Array) Underlying() Type      { return t }
++func (t *Slice) Underlying() Type      { return t }
++func (t *Struct) Underlying() Type     { return t }
++func (t *Pointer) Underlying() Type    { return t }
++func (t *Tuple) Underlying() Type      { return t }
++func (t *Signature) Underlying() Type  { return t }
++func (t *_Sum) Underlying() Type       { return t }
++func (t *Interface) Underlying() Type  { return t }
++func (t *Map) Underlying() Type        { return t }
++func (t *Chan) Underlying() Type       { return t }
++func (t *Named) Underlying() Type      { return t.underlying }
++func (t *_TypeParam) Underlying() Type { return t }
++func (t *instance) Underlying() Type   { return t }
++func (t *bottom) Underlying() Type     { return t }
++func (t *top) Underlying() Type        { return t }
+ 
+ // Type-specific implementations of String.
+-func (t *Basic) String() string     { return TypeString(t, nil) }
+-func (t *Array) String() string     { return TypeString(t, nil) }
+-func (t *Slice) String() string     { return TypeString(t, nil) }
+-func (t *Struct) String() string    { return TypeString(t, nil) }
+-func (t *Pointer) String() string   { return TypeString(t, nil) }
+-func (t *Tuple) String() string     { return TypeString(t, nil) }
+-func (t *Signature) String() string { return TypeString(t, nil) }
+-func (t *Sum) String() string       { return TypeString(t, nil) }
+-func (t *Interface) String() string { return TypeString(t, nil) }
+-func (t *Map) String() string       { return TypeString(t, nil) }
+-func (t *Chan) String() string      { return TypeString(t, nil) }
+-func (t *Named) String() string     { return TypeString(t, nil) }
+-func (t *TypeParam) String() string { return TypeString(t, nil) }
+-func (t *instance) String() string  { return TypeString(t, nil) }
+-func (t *bottom) String() string    { return TypeString(t, nil) }
+-func (t *top) String() string       { return TypeString(t, nil) }
++func (t *Basic) String() string      { return TypeString(t, nil) }
++func (t *Array) String() string      { return TypeString(t, nil) }
++func (t *Slice) String() string      { return TypeString(t, nil) }
++func (t *Struct) String() string     { return TypeString(t, nil) }
++func (t *Pointer) String() string    { return TypeString(t, nil) }
++func (t *Tuple) String() string      { return TypeString(t, nil) }
++func (t *Signature) String() string  { return TypeString(t, nil) }
++func (t *_Sum) String() string       { return TypeString(t, nil) }
++func (t *Interface) String() string  { return TypeString(t, nil) }
++func (t *Map) String() string        { return TypeString(t, nil) }
++func (t *Chan) String() string       { return TypeString(t, nil) }
++func (t *Named) String() string      { return TypeString(t, nil) }
++func (t *_TypeParam) String() string { return TypeString(t, nil) }
++func (t *instance) String() string   { return TypeString(t, nil) }
++func (t *bottom) String() string     { return TypeString(t, nil) }
++func (t *top) String() string        { return TypeString(t, nil) }
+ 
+ // under returns the true expanded underlying type.
+ // If it doesn't exist, the result is Typ[Invalid].
+@@ -909,22 +909,11 @@ func asSlice(t Type) *Slice {
+ 	return op
+ }
+ 
+-// TODO (rFindley) delete this on the dev.typeparams branch. This is only
+-// exported in the prototype for legacy compatibility.
+-func AsStruct(t Type) *Struct {
+-	return asStruct(t)
+-}
+-
+ func asStruct(t Type) *Struct {
+ 	op, _ := optype(t).(*Struct)
+ 	return op
+ }
+ 
+-// TODO(rFindley) delete this on the dev.typeparams branch (see ToStruct).
+-func AsPointer(t Type) *Pointer {
+-	return asPointer(t)
+-}
+-
+ func asPointer(t Type) *Pointer {
+ 	op, _ := optype(t).(*Pointer)
+ 	return op
+@@ -940,8 +929,8 @@ func asSignature(t Type) *Signature {
+ 	return op
+ }
+ 
+-func asSum(t Type) *Sum {
+-	op, _ := optype(t).(*Sum)
++func asSum(t Type) *_Sum {
++	op, _ := optype(t).(*_Sum)
+ 	return op
+ }
+ 
+@@ -969,7 +958,7 @@ func asNamed(t Type) *Named {
+ 	return e
+ }
+ 
+-func asTypeParam(t Type) *TypeParam {
+-	u, _ := under(t).(*TypeParam)
++func asTypeParam(t Type) *_TypeParam {
++	u, _ := under(t).(*_TypeParam)
+ 	return u
+ }
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index a0caded160..fe27f0f276 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -158,7 +158,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 		buf.WriteString("func")
+ 		writeSignature(buf, t, qf, visited)
+ 
+-	case *Sum:
++	case *_Sum:
+ 		for i, t := range t.types {
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+@@ -279,7 +279,7 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 			writeTParamList(buf, t.tparams, qf, visited)
+ 		}
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		s := "?"
+ 		if t.obj != nil {
+ 			s = t.obj.name
+@@ -321,7 +321,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited
+ 	for i, p := range list {
+ 		// TODO(rFindley) support 'any' sugar here.
+ 		var b Type = &emptyInterface
+-		if t, _ := p.typ.(*TypeParam); t != nil && t.bound != nil {
++		if t, _ := p.typ.(*_TypeParam); t != nil && t.bound != nil {
+ 			b = t.bound
+ 		}
+ 		if i > 0 {
+@@ -334,7 +334,7 @@ func writeTParamList(buf *bytes.Buffer, list []*TypeName, qf Qualifier, visited
+ 		}
+ 		prev = b
+ 
+-		if t, _ := p.typ.(*TypeParam); t != nil {
++		if t, _ := p.typ.(*_TypeParam); t != nil {
+ 			writeType(buf, t, qf, visited)
+ 		} else {
+ 			buf.WriteString(p.name)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 53c87f20d5..8f30a67a2f 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -146,7 +146,7 @@ func (check *Checker) ordinaryType(pos positioner, typ Type) {
+ 				check.softErrorf(pos, _Todo, "interface contains type constraints (%s)", t.allTypes)
+ 				return
+ 			}
+-			if t.IsComparable() {
++			if t._IsComparable() {
+ 				check.softErrorf(pos, _Todo, "interface is (or embeds) comparable")
+ 			}
+ 		}
+@@ -301,7 +301,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 				}
+ 				smap := makeSubstMap(recvTParams, list)
+ 				for i, tname := range sig.rparams {
+-					bound := recvTParams[i].typ.(*TypeParam).bound
++					bound := recvTParams[i].typ.(*_TypeParam).bound
+ 					// bound is (possibly) parameterized in the context of the
+ 					// receiver type declaration. Substitute parameters for the
+ 					// current context.
+@@ -309,7 +309,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 					//           (no bound == empty interface)
+ 					if bound != nil {
+ 						bound = check.subst(tname.pos, bound, smap)
+-						tname.typ.(*TypeParam).bound = bound
++						tname.typ.(*_TypeParam).bound = bound
+ 					}
+ 				}
+ 			}
+@@ -333,7 +333,7 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	recvList, _ := check.collectParams(scope, recvPar, recvTyp, false) // use rewritten receiver type, if any
+ 	params, variadic := check.collectParams(scope, ftyp.Params, nil, true)
+ 	results, _ := check.collectParams(scope, ftyp.Results, nil, false)
+-	scope.Squash(func(obj, alt Object) {
++	scope.squash(func(obj, alt Object) {
+ 		check.errorf(obj, _DuplicateDecl, "%s redeclared in this block", obj.Name())
+ 		check.reportAltDecl(alt)
+ 	})
+@@ -823,7 +823,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 	}
+ 
+ 	// type constraints
+-	ityp.types = NewSum(check.collectTypeConstraints(iface.Pos(), types))
++	ityp.types = _NewSum(check.collectTypeConstraints(iface.Pos(), types))
+ 
+ 	if len(ityp.methods) == 0 && ityp.types == nil && len(ityp.embeddeds) == 0 {
+ 		// empty interface
+@@ -928,7 +928,7 @@ func (check *Checker) completeInterface(pos token.Pos, ityp *Interface) {
+ 		if etyp == nil {
+ 			if utyp != Typ[Invalid] {
+ 				var format string
+-				if _, ok := utyp.(*TypeParam); ok {
++				if _, ok := utyp.(*_TypeParam); ok {
+ 					format = "%s is a type parameter, not an interface"
+ 				} else {
+ 					format = "%s is not an interface"
+@@ -987,7 +987,7 @@ func intersect(x, y Type) (r Type) {
+ 	if rtypes == nil {
+ 		return theBottom
+ 	}
+-	return NewSum(rtypes)
++	return _NewSum(rtypes)
+ }
+ 
+ func sortTypes(list []Type) {
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index ab18febbdf..fbcd64c442 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -83,7 +83,7 @@ func (d *tparamsList) init(tparams []*TypeName) {
+ 	}
+ 	if debug {
+ 		for i, tpar := range tparams {
+-			assert(i == tpar.typ.(*TypeParam).index)
++			assert(i == tpar.typ.(*_TypeParam).index)
+ 		}
+ 	}
+ 	d.tparams = tparams
+@@ -131,7 +131,7 @@ func (u *unifier) join(i, j int) bool {
+ // If typ is a type parameter of d, index returns the type parameter index.
+ // Otherwise, the result is < 0.
+ func (d *tparamsList) index(typ Type) int {
+-	if t, ok := typ.(*TypeParam); ok {
++	if t, ok := typ.(*_TypeParam); ok {
+ 		if i := t.index; i < len(d.tparams) && d.tparams[i].typ == t {
+ 			return i
+ 		}
+@@ -335,7 +335,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 				u.nify(x.results, y.results, p)
+ 		}
+ 
+-	case *Sum:
++	case *_Sum:
+ 		// This should not happen with the current internal use of sum types.
+ 		panic("type inference across sum types not implemented")
+ 
+@@ -431,7 +431,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 			}
+ 		}
+ 
+-	case *TypeParam:
++	case *_TypeParam:
+ 		// Two type parameters (which are not part of the type parameters of the
+ 		// enclosing type as those are handled in the beginning of this function)
+ 		// are identical if they originate in the same declaration.

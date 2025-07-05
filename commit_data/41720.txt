@@ -10,8 +10,75 @@ Date:   Mon Oct 21 09:55:23 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202441
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/runtime/sys_freebsd_arm.s | 4 ++--
  src/runtime/sys_netbsd_arm.s  | 4 ++--
  src/runtime/sys_openbsd_arm.s | 4 ++--
  3 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/sys_freebsd_arm.s b/src/runtime/sys_freebsd_arm.s
+index cdfecacfbc..8da36dff17 100644
+--- a/src/runtime/sys_freebsd_arm.s
++++ b/src/runtime/sys_freebsd_arm.s
+@@ -117,7 +117,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_read, R7
+ 	SWI $0
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -153,7 +153,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW n+8(FP), R2	// arg 3 count
+ 	MOVW $SYS_write, R7
+ 	SWI $0
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_netbsd_arm.s b/src/runtime/sys_netbsd_arm.s
+index 423982b115..c8ee262d59 100644
+--- a/src/runtime/sys_netbsd_arm.s
++++ b/src/runtime/sys_netbsd_arm.s
+@@ -92,7 +92,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW p+4(FP), R1
+ 	MOVW n+8(FP), R2
+ 	SWI $SYS_read
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -125,7 +125,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	p+4(FP), R1	// arg 2 - buf
+ 	MOVW	n+8(FP), R2	// arg 3 - nbyte
+ 	SWI $SYS_write
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_openbsd_arm.s b/src/runtime/sys_openbsd_arm.s
+index 3736451ba2..92ab3270be 100644
+--- a/src/runtime/sys_openbsd_arm.s
++++ b/src/runtime/sys_openbsd_arm.s
+@@ -55,7 +55,7 @@ TEXT runtime·read(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$3, R12			// sys_read
+ 	SWI	$0
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+@@ -82,7 +82,7 @@ TEXT runtime·write1(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	n+8(FP), R2		// arg 3 - nbyte
+ 	MOVW	$4, R12			// sys_write
+ 	SWI	$0
+-	SUB.CS	$0, R0, R0	// caller expects negative errno
++	RSB.CS	$0, R0		// caller expects negative errno
+ 	MOVW	R0, ret+12(FP)
+ 	RET
+ 

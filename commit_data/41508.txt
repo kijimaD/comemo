@@ -11,7 +11,111 @@ Date:   Tue Oct 8 14:19:34 2019 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/textproto/reader.go      | 35 +++++++++++++++++++++++++++++++----
  src/net/textproto/reader_test.go |  4 ++++
  2 files changed, 35 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 87f901b4fc..a505da985c 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -7,6 +7,7 @@ package textproto
+ import (
+ 	"bufio"
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"strconv"
+@@ -90,7 +91,7 @@ func (r *Reader) readLineSlice() ([]byte, error) {
+ // A line consisting of only white space is never continued.
+ //
+ func (r *Reader) ReadContinuedLine() (string, error) {
+-	line, err := r.readContinuedLineSlice()
++	line, err := r.readContinuedLineSlice(noValidation)
+ 	return string(line), err
+ }
+ 
+@@ -111,7 +112,7 @@ func trim(s []byte) []byte {
+ // ReadContinuedLineBytes is like ReadContinuedLine but
+ // returns a []byte instead of a string.
+ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
+-	line, err := r.readContinuedLineSlice()
++	line, err := r.readContinuedLineSlice(noValidation)
+ 	if line != nil {
+ 		buf := make([]byte, len(line))
+ 		copy(buf, line)
+@@ -120,7 +121,15 @@ func (r *Reader) ReadContinuedLineBytes() ([]byte, error) {
+ 	return line, err
+ }
+ 
+-func (r *Reader) readContinuedLineSlice() ([]byte, error) {
++// readContinuedLineSlice reads continued lines from the reader buffer,
++// returning a byte slice with all lines. The validateFirstLine function
++// is run on the first read line, and if it returns an error then this
++// error is returned from readContinuedLineSlice.
++func (r *Reader) readContinuedLineSlice(validateFirstLine func([]byte) error) ([]byte, error) {
++	if validateFirstLine == nil {
++		return nil, fmt.Errorf("missing validateFirstLine func")
++	}
++
+ 	// Read the first line.
+ 	line, err := r.readLineSlice()
+ 	if err != nil {
+@@ -130,6 +139,10 @@ func (r *Reader) readContinuedLineSlice() ([]byte, error) {
+ 		return line, nil
+ 	}
+ 
++	if err := validateFirstLine(line); err != nil {
++		return nil, err
++	}
++
+ 	// Optimistically assume that we have started to buffer the next line
+ 	// and it starts with an ASCII letter (the next header key), or a blank
+ 	// line, so we can avoid copying that buffered data around in memory
+@@ -490,7 +503,7 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 	}
+ 
+ 	for {
+-		kv, err := r.readContinuedLineSlice()
++		kv, err := r.readContinuedLineSlice(mustHaveFieldNameColon)
+ 		if len(kv) == 0 {
+ 			return m, err
+ 		}
+@@ -535,6 +548,20 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 	}
+ }
+ 
++// noValidation is a no-op validation func for readContinuedLineSlice
++// that permits any lines.
++func noValidation(_ []byte) error { return nil }
++
++// mustHaveFieldNameColon ensures that, per RFC 7230, the
++// field-name is on a single line, so the first line must
++// contain a colon.
++func mustHaveFieldNameColon(line []byte) error {
++	if bytes.IndexByte(line, ':') < 0 {
++		return ProtocolError(fmt.Sprintf("malformed MIME header: missing colon: %q" + string(line)))
++	}
++	return nil
++}
++
+ // upcomingHeaderNewlines returns an approximation of the number of newlines
+ // that will be in this header. If it gets confused, it returns 0.
+ func (r *Reader) upcomingHeaderNewlines() (n int) {
+diff --git a/src/net/textproto/reader_test.go b/src/net/textproto/reader_test.go
+index 97fb1ab028..595d94f938 100644
+--- a/src/net/textproto/reader_test.go
++++ b/src/net/textproto/reader_test.go
+@@ -218,6 +218,10 @@ func TestReadMIMEHeaderMalformed(t *testing.T) {
+ 		" First: line with leading space\r\nFoo: foo\r\n\r\n",
+ 		"\tFirst: line with leading tab\r\nFoo: foo\r\n\r\n",
+ 		"Foo: foo\r\nNo colon second line\r\n\r\n",
++		"Foo-\n\tBar: foo\r\n\r\n",
++		"Foo-\r\n\tBar: foo\r\n\r\n",
++		"Foo\r\n\t: foo\r\n\r\n",
++		"Foo-\n\tBar",
+ 	}
+ 
+ 	for _, input := range inputs {

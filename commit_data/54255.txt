@@ -12,6 +12,29 @@ Date:   Thu Sep 29 21:40:39 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/go/internal/gccgoimporter/ar.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/ar.go b/src/go/internal/gccgoimporter/ar.go
+index 443aa26a0c..9df7934212 100644
+--- a/src/go/internal/gccgoimporter/ar.go
++++ b/src/go/internal/gccgoimporter/ar.go
+@@ -82,7 +82,7 @@ func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
+ 		}
+ 		off += arHdrSize
+ 
+-		if bytes.Compare(hdrBuf[arFmagOff:arFmagOff+arFmagSize], []byte(arfmag)) != 0 {
++		if !bytes.Equal(hdrBuf[arFmagOff:arFmagOff+arFmagSize], []byte(arfmag)) {
+ 			return nil, fmt.Errorf("archive header format header (%q)", hdrBuf[:])
+ 		}
+ 
+@@ -92,7 +92,7 @@ func standardArExportData(archive io.ReadSeeker) (io.ReadSeeker, error) {
+ 		}
+ 
+ 		fn := hdrBuf[arNameOff : arNameOff+arNameSize]
+-		if fn[0] == '/' && (fn[1] == ' ' || fn[1] == '/' || bytes.Compare(fn[:8], []byte("/SYM64/ ")) == 0) {
++		if fn[0] == '/' && (fn[1] == ' ' || fn[1] == '/' || string(fn[:8]) == "/SYM64/ ") {
+ 			// Archive symbol table or extended name table,
+ 			// which we don't care about.
+ 		} else {

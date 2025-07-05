@@ -7,6 +7,35 @@ Date:   Mon Jul 6 09:05:33 2009 -0700
     R=ken
     OCL=31190
     CL=31190
-
+---
  src/cmd/8g/cgen.c | 13 +++++++------
  1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 85cc9aca7d..8c90ad544e 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -812,16 +812,17 @@ bgen(Node *n, int true, Prog *to)
+ 				cgen(nl, &tmp);
+ 				gins(AFUCOMPP, &tmp, &n2);
+ 			} else {
+-				// NOTE(rsc): This is wrong.
+-				// It's right for comparison but presumably all the
+-				// other ops have the same problem.  We need to
+-				// figure out what the right solution is, besides
+-				// tell people to use float64.
++				// TODO(rsc): The moves back and forth to memory
++				// here are for truncating the value to 32 bits.
++				// This handles 32-bit comparison but presumably
++				// all the other ops have the same problem.
++				// We need to figure out what the right general
++				// solution is, besides telling people to use float64.
+ 				tempalloc(&t1, types[TFLOAT32]);
+ 				tempalloc(&t2, types[TFLOAT32]);
+ 				cgen(nr, &t1);
+ 				cgen(nl, &t2);
+-				gmove(&t1, &tmp);
++				gmove(&t2, &tmp);
+ 				gins(AFCOMFP, &t1, &tmp);
+ 				tempfree(&t2);
+ 				tempfree(&t1);

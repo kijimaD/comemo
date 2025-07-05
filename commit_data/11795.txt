@@ -12,7 +12,56 @@ Date:   Fri Feb 10 22:32:02 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5645086
-
+---
  src/cmd/8g/reg.c         |  5 ++++-
  test/fixedbugs/bug411.go | 19 +++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/8g/reg.c b/src/cmd/8g/reg.c
+index 2276282264..4ff68625d2 100644
+--- a/src/cmd/8g/reg.c
++++ b/src/cmd/8g/reg.c
+@@ -220,6 +220,9 @@ regopt(Prog *firstp)
+ 		 * funny
+ 		 */
+ 		case ALEAL:
++		case AFMOVL: 
++		case AFMOVW:
++		case AFMOVV:
+ 			setaddrs(bit);
+ 			break;
+ 
+@@ -741,7 +744,7 @@ addmove(Reg *r, int bn, int rn, int f)
+ 	p1->as = AMOVL;
+ 	switch(v->etype) {
+ 	default:
+-		fatal("unknown type\n");
++		fatal("unknown type %E", v->etype);
+ 	case TINT8:
+ 	case TUINT8:
+ 	case TBOOL:
+diff --git a/test/fixedbugs/bug411.go b/test/fixedbugs/bug411.go
+new file mode 100644
+index 0000000000..3ca6a3de25
+--- /dev/null
++++ b/test/fixedbugs/bug411.go
+@@ -0,0 +1,19 @@
++// $G $D/$F.go
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2588.  Used to trigger internal compiler error on 8g,
++// because the compiler tried to registerize the int64 being
++// used as a memory operand of a int64->float64 move.
++
++package p
++
++func f1(a int64) {
++	f2(float64(a), float64(a))
++}
++
++func f2(a,b float64) {
++}
++

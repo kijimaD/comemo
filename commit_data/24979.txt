@@ -11,7 +11,45 @@ Date:   Sun Sep 13 22:58:12 2015 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/go.go        | 2 +-
  src/cmd/compile/internal/gc/typecheck.go | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f360378a43..a39cc6d489 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -210,7 +210,7 @@ type Type struct {
+ 	Embedlineno int32 // first use of TFORW as embedded type
+ 
+ 	// for TFORW, where to copy the eventual value to
+-	Copyto *NodeList
++	Copyto []*Node
+ 
+ 	Lastfn *Node // for usefield
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8989371e91..bb75a034a0 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3544,7 +3544,7 @@ var mapqueue *NodeList
+ func copytype(n *Node, t *Type) {
+ 	if t.Etype == TFORW {
+ 		// This type isn't computed yet; when it is, update n.
+-		t.Copyto = list(t.Copyto, n)
++		t.Copyto = append(t.Copyto, n)
+ 
+ 		return
+ 	}
+@@ -3569,8 +3569,8 @@ func copytype(n *Node, t *Type) {
+ 	t.Copyto = nil
+ 
+ 	// Update nodes waiting on this type.
+-	for ; l != nil; l = l.Next {
+-		copytype(l.N, t)
++	for _, n := range l {
++		copytype(n, t)
+ 	}
+ 
+ 	// Double-check use of type as embedded type.

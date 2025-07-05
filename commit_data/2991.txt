@@ -9,6 +9,29 @@ Date:   Fri Aug 14 20:33:20 2009 -0700
     DELTA=5  (2 added, 2 deleted, 1 changed)
     OCL=33317
     CL=33326
-
+---
  src/pkg/runtime/mgc0.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 52e36745fb..d27c186f41 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -221,8 +221,8 @@ gc(int32 force)
+ 		return;
+ 
+ //printf("gc...\n");
+-	m->gcing = 1;
+ 	semacquire(&gcsema);
++	m->gcing = 1;
+ 	stoptheworld();
+ 	if(mheap.Lock.key != 0)
+ 		throw("mheap locked during gc");
+@@ -232,6 +232,6 @@ gc(int32 force)
+ 		mstats.next_gc = mstats.inuse_pages+mstats.inuse_pages*gcpercent/100;
+ 	}
+ 	starttheworld();
+-	semrelease(&gcsema);
+ 	m->gcing = 0;
++	semrelease(&gcsema);
+ }

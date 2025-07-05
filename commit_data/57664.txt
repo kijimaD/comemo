@@ -18,7 +18,7 @@ Date:   Fri Jun 30 16:33:49 2023 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |  4 ++--
  src/cmd/asm/internal/flags/flags.go       | 21 ++++++++++-----------
  src/cmd/asm/internal/lex/input.go         |  8 ++++----
@@ -29,3 +29,229 @@ Date:   Fri Jun 30 16:33:49 2023 -0400
  src/cmd/go/internal/work/gc.go            |  4 ----
  src/cmd/internal/objabi/path.go           |  2 --
  9 files changed, 23 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 1ec9ebd5b5..694312170a 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -29,7 +29,7 @@ func testEndToEnd(t *testing.T, goarch, file string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	architecture.Init(ctxt)
+-	lexer := lex.NewLexer(input)
++	lexer := lex.NewLexer(input, false)
+ 	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+@@ -278,7 +278,7 @@ func testErrors(t *testing.T, goarch, file string, flags ...string) {
+ 	input := filepath.Join("testdata", file+".s")
+ 	architecture, ctxt := setArch(goarch)
+ 	architecture.Init(ctxt)
+-	lexer := lex.NewLexer(input)
++	lexer := lex.NewLexer(input, false)
+ 	parser := NewParser(ctxt, architecture, lexer, false)
+ 	pList := new(obj.Plist)
+ 	var ok bool
+diff --git a/src/cmd/asm/internal/flags/flags.go b/src/cmd/asm/internal/flags/flags.go
+index b9a94a0c09..e15a062749 100644
+--- a/src/cmd/asm/internal/flags/flags.go
++++ b/src/cmd/asm/internal/flags/flags.go
+@@ -16,17 +16,16 @@ import (
+ )
+ 
+ var (
+-	Debug            = flag.Bool("debug", false, "dump instructions as they are parsed")
+-	OutputFile       = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
+-	TrimPath         = flag.String("trimpath", "", "remove prefix from recorded source file paths")
+-	Shared           = flag.Bool("shared", false, "generate code that can be linked into a shared library")
+-	Dynlink          = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
+-	Linkshared       = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
+-	AllErrors        = flag.Bool("e", false, "no limit on number of errors reported")
+-	SymABIs          = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
+-	Importpath       = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
+-	Spectre          = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+-	CompilingRuntime = flag.Bool("compiling-runtime", false, "source to be compiled is part of the Go runtime")
++	Debug      = flag.Bool("debug", false, "dump instructions as they are parsed")
++	OutputFile = flag.String("o", "", "output file; default foo.o for /a/b/c/foo.s as first argument")
++	TrimPath   = flag.String("trimpath", "", "remove prefix from recorded source file paths")
++	Shared     = flag.Bool("shared", false, "generate code that can be linked into a shared library")
++	Dynlink    = flag.Bool("dynlink", false, "support references to Go symbols defined in other shared libraries")
++	Linkshared = flag.Bool("linkshared", false, "generate code that will be linked against Go shared libraries")
++	AllErrors  = flag.Bool("e", false, "no limit on number of errors reported")
++	SymABIs    = flag.Bool("gensymabis", false, "write symbol ABI information to output file, don't assemble")
++	Importpath = flag.String("p", obj.UnlinkablePkg, "set expected package import to path")
++	Spectre    = flag.String("spectre", "", "enable spectre mitigations in `list` (all, ret)")
+ )
+ 
+ var DebugFlags struct {
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index 276b4b0dcd..3034377793 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -34,22 +34,22 @@ type Input struct {
+ }
+ 
+ // NewInput returns an Input from the given path.
+-func NewInput(name string) *Input {
++func NewInput(name string, compilingRuntime bool) *Input {
+ 	return &Input{
+ 		// include directories: look in source dir, then -I directories.
+ 		includes:        append([]string{filepath.Dir(name)}, flags.I...),
+ 		beginningOfLine: true,
+-		macros:          predefine(flags.D),
++		macros:          predefine(flags.D, compilingRuntime),
+ 	}
+ }
+ 
+ // predefine installs the macros set by the -D flag on the command line.
+-func predefine(defines flags.MultiFlag) map[string]*Macro {
++func predefine(defines flags.MultiFlag, compilingRuntime bool) map[string]*Macro {
+ 	macros := make(map[string]*Macro)
+ 
+ 	// Set macros for GOEXPERIMENTs so we can easily switch
+ 	// runtime assembly code based on them.
+-	if *flags.CompilingRuntime {
++	if compilingRuntime {
+ 		for _, exp := range buildcfg.Experiment.Enabled() {
+ 			// Define macro.
+ 			name := "GOEXPERIMENT_" + exp
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index 7cd41a55a9..15a3c67d85 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -60,8 +60,8 @@ func (t ScanToken) String() string {
+ }
+ 
+ // NewLexer returns a lexer for the named file and the given link context.
+-func NewLexer(name string) TokenReader {
+-	input := NewInput(name)
++func NewLexer(name string, compilingRuntime bool) TokenReader {
++	input := NewInput(name, compilingRuntime)
+ 	fd, err := os.Open(name)
+ 	if err != nil {
+ 		log.Fatalf("%s\n", err)
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index e8dcf4b22f..a1c4974f64 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -258,7 +258,7 @@ var lexTests = []lexTest{
+ 
+ func TestLex(t *testing.T) {
+ 	for _, test := range lexTests {
+-		input := NewInput(test.name)
++		input := NewInput(test.name, false)
+ 		input.Push(NewTokenizer(test.name, strings.NewReader(test.input), nil))
+ 		result := drain(input)
+ 		if result != test.output {
+@@ -328,7 +328,7 @@ var badLexTests = []badLexTest{
+ 
+ func TestBadLex(t *testing.T) {
+ 	for _, test := range badLexTests {
+-		input := NewInput(test.error)
++		input := NewInput(test.error, false)
+ 		input.Push(NewTokenizer(test.error, strings.NewReader(test.input), nil))
+ 		err := firstError(input)
+ 		if err == nil {
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 6a25fd426b..e75aa8664b 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -35,6 +35,7 @@ func main() {
+ 	if architecture == nil {
+ 		log.Fatalf("unrecognized architecture %s", GOARCH)
+ 	}
++	compilingRuntime := objabi.IsRuntimePackagePath(*flags.Importpath)
+ 
+ 	ctxt := obj.Linknew(architecture.LinkArch)
+ 	ctxt.Debugasm = flags.PrintOut
+@@ -79,9 +80,9 @@ func main() {
+ 	var ok, diag bool
+ 	var failedFile string
+ 	for _, f := range flag.Args() {
+-		lexer := lex.NewLexer(f)
++		lexer := lex.NewLexer(f, compilingRuntime)
+ 		parser := asm.NewParser(ctxt, architecture, lexer,
+-			*flags.CompilingRuntime)
++			compilingRuntime)
+ 		ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 			diag = true
+ 			log.Printf(format, args...)
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 0afa5f062e..031a8d9013 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -892,9 +892,6 @@ func runInstall(pkg string, ch chan struct{}) {
+ 		}
+ 	}
+ 	goasmh := pathf("%s/go_asm.h", workdir)
+-	if IsRuntimePackagePath(pkg) {
+-		asmArgs = append(asmArgs, "-compiling-runtime")
+-	}
+ 
+ 	// Collect symabis from assembly code.
+ 	var symabis string
+@@ -1947,29 +1944,6 @@ func cmdlist() {
+ 	}
+ }
+ 
+-// IsRuntimePackagePath examines 'pkgpath' and returns TRUE if it
+-// belongs to the collection of "runtime-related" packages, including
+-// "runtime" itself, "reflect", "syscall", and the
+-// "runtime/internal/*" packages.
+-//
+-// Keep in sync with cmd/internal/objabi/path.go:IsRuntimePackagePath.
+-func IsRuntimePackagePath(pkgpath string) bool {
+-	rval := false
+-	switch pkgpath {
+-	case "runtime":
+-		rval = true
+-	case "reflect":
+-		rval = true
+-	case "syscall":
+-		rval = true
+-	case "internal/bytealg":
+-		rval = true
+-	default:
+-		rval = strings.HasPrefix(pkgpath, "runtime/internal")
+-	}
+-	return rval
+-}
+-
+ func setNoOpt() {
+ 	for _, gcflag := range strings.Split(gogcflags, " ") {
+ 		if gcflag == "-N" || gcflag == "-l" {
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 26b4e0f490..216cbcf344 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -22,7 +22,6 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+-	"cmd/internal/objabi"
+ 	"cmd/internal/quoted"
+ 	"crypto/sha1"
+ )
+@@ -359,9 +358,6 @@ func asmArgs(a *Action, p *load.Package) []any {
+ 			}
+ 		}
+ 	}
+-	if objabi.IsRuntimePackagePath(pkgpath) {
+-		args = append(args, "-compiling-runtime")
+-	}
+ 
+ 	if cfg.Goarch == "386" {
+ 		// Define GO386_value from cfg.GO386.
+diff --git a/src/cmd/internal/objabi/path.go b/src/cmd/internal/objabi/path.go
+index aacab9a0ca..cb06dbe58e 100644
+--- a/src/cmd/internal/objabi/path.go
++++ b/src/cmd/internal/objabi/path.go
+@@ -47,8 +47,6 @@ func PathToPrefix(s string) string {
+ // some cases need to be aware of when they are building such a
+ // package, for example to enable features such as ABI selectors in
+ // assembly sources.
+-//
+-// Keep in sync with cmd/dist/build.go:IsRuntimePackagePath.
+ func IsRuntimePackagePath(pkgpath string) bool {
+ 	rval := false
+ 	switch pkgpath {

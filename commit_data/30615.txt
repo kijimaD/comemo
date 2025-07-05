@@ -14,6 +14,19 @@ Date:   Wed Nov 16 20:35:02 2016 +0000
     Change-Id: Iaab7f09a4060da377fcd3ca2262527fef50c558d
     Reviewed-on: https://go-review.googlesource.com/33330
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/timeout_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index b916b83d20..dfaf061bc5 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -151,6 +151,7 @@ var acceptTimeoutTests = []struct {
+ }
+ 
+ func TestAcceptTimeout(t *testing.T) {
++	t.Skip("flaky test; golang.org/issue/17948")
+ 	t.Parallel()
+ 
+ 	switch runtime.GOOS {

@@ -11,6 +11,24 @@ Date:   Tue Dec 1 14:12:22 2020 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/274474
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.16.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index eaa8e46572..1c22c21758 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -783,8 +783,10 @@ Do not send CLs removing the interior tags from such phrases.
+ 
+ <dl id="reflect"><dt><a href="/pkg/reflect/">reflect</a></dt>
+   <dd>
+-    <p><!-- CL 248341 -->
+-      TODO: <a href="https://golang.org/cl/248341">https://golang.org/cl/248341</a>: support multiple keys in struct tags
++    <p><!-- CL 248341, golang.org/issues/40281 -->
++      <code>StructTag</code> now allows multiple space-separated keys
++      in key:value pairs, as in <code>`json xml:"field1"`</code>
++      (equivalent to <code>`json:"field1" xml:"field1"`</code>).
+     </p>
+   </dd>
+ </dl><!-- reflect -->

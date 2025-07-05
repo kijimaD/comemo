@@ -13,6 +13,50 @@ Date:   Wed Apr 19 06:35:18 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 26 ++------------------------
  1 file changed, 2 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 58961a8b16..03320b1407 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3957,16 +3957,10 @@ func deadcodeslice(nn Nodes) {
+ 			continue
+ 		}
+ 		if n.Op == OIF && Isconst(n.Left, CTBOOL) {
+-			var dead *Nodes
+ 			if n.Left.Bool() {
+-				dead = &n.Rlist
++				n.Rlist = Nodes{}
+ 			} else {
+-				dead = &n.Nbody
+-			}
+-			// TODO(mdempsky/josharian): eliminate need for haslabelgoto
+-			// by checking labels and gotos earlier. See issue 19699.
+-			if !(*dead).haslabelgoto() {
+-				*dead = Nodes{}
++				n.Nbody = Nodes{}
+ 			}
+ 		}
+ 		deadcodeslice(n.Ninit)
+@@ -3975,19 +3969,3 @@ func deadcodeslice(nn Nodes) {
+ 		deadcodeslice(n.Rlist)
+ 	}
+ }
+-
+-// haslabelgoto reports whether the Nodes list contains any label or goto statements.
+-func (l Nodes) haslabelgoto() bool {
+-	for _, n := range l.Slice() {
+-		if n == nil {
+-			continue
+-		}
+-		if n.Op == OLABEL || n.Op == OGOTO {
+-			return true
+-		}
+-		if n.Ninit.haslabelgoto() || n.Nbody.haslabelgoto() || n.List.haslabelgoto() || n.Rlist.haslabelgoto() {
+-			return true
+-		}
+-	}
+-	return false
+-}

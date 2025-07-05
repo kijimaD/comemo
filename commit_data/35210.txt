@@ -21,7 +21,143 @@ Date:   Mon Dec 18 15:17:02 2017 -0800
     Reviewed-by: Tom Bergan <tombergan@google.com>
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/serve_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++
  src/net/http/server.go     | 30 ++++++++++++++++--------
  2 files changed, 78 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 3660f83bef..9cbfe872af 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -523,6 +523,64 @@ func TestServeWithSlashRedirectKeepsQueryString(t *testing.T) {
+ 	}
+ }
+ 
++func TestServeWithSlashRedirectForHostPatterns(t *testing.T) {
++	setParallel(t)
++	defer afterTest(t)
++
++	mux := NewServeMux()
++	mux.Handle("example.com/pkg/foo/", stringHandler("example.com/pkg/foo/"))
++	mux.Handle("example.com/pkg/bar", stringHandler("example.com/pkg/bar"))
++	mux.Handle("example.com/pkg/bar/", stringHandler("example.com/pkg/bar/"))
++	mux.Handle("example.com:3000/pkg/connect/", stringHandler("example.com:3000/pkg/connect/"))
++	mux.Handle("example.com:9000/", stringHandler("example.com:9000/"))
++	mux.Handle("/pkg/baz/", stringHandler("/pkg/baz/"))
++
++	tests := []struct {
++		method string
++		url    string
++		code   int
++		loc    string
++		want   string
++	}{
++		{"GET", "http://example.com/", 404, "", ""},
++		{"GET", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
++		{"GET", "http://example.com/pkg/bar", 200, "", "example.com/pkg/bar"},
++		{"GET", "http://example.com/pkg/bar/", 200, "", "example.com/pkg/bar/"},
++		{"GET", "http://example.com/pkg/baz", 301, "/pkg/baz/", ""},
++		{"GET", "http://example.com:3000/pkg/foo", 301, "/pkg/foo/", ""},
++		{"CONNECT", "http://example.com/", 404, "", ""},
++		{"CONNECT", "http://example.com:3000/", 404, "", ""},
++		{"CONNECT", "http://example.com:9000/", 200, "", "example.com:9000/"},
++		{"CONNECT", "http://example.com/pkg/foo", 301, "/pkg/foo/", ""},
++		{"CONNECT", "http://example.com:3000/pkg/foo", 404, "", ""},
++		{"CONNECT", "http://example.com:3000/pkg/baz", 301, "/pkg/baz/", ""},
++		{"CONNECT", "http://example.com:3000/pkg/connect", 301, "/pkg/connect/", ""},
++	}
++
++	ts := httptest.NewServer(mux)
++	defer ts.Close()
++
++	for i, tt := range tests {
++		req, _ := NewRequest(tt.method, tt.url, nil)
++		w := httptest.NewRecorder()
++		mux.ServeHTTP(w, req)
++
++		if got, want := w.Code, tt.code; got != want {
++			t.Errorf("#%d: Status = %d; want = %d", i, got, want)
++		}
++
++		if tt.code == 301 {
++			if got, want := w.HeaderMap.Get("Location"), tt.loc; got != want {
++				t.Errorf("#%d: Location = %q; want = %q", i, got, want)
++			}
++		} else {
++			if got, want := w.HeaderMap.Get("Result"), tt.want; got != want {
++				t.Errorf("#%d: Result = %q; want = %q", i, got, want)
++			}
++		}
++	}
++}
++
+ func BenchmarkServeMux(b *testing.B) {
+ 
+ 	type test struct {
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 35adb87c63..5a7966d961 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2220,8 +2220,8 @@ func (mux *ServeMux) match(path string) (h Handler, pattern string) {
+ // This occurs when a handler for path + "/" was already registered, but
+ // not for path itself. If the path needs appending to, it creates a new
+ // URL, setting the path to u.Path + "/" and returning true to indicate so.
+-func (mux *ServeMux) redirectToPathSlash(path string, u *url.URL) (*url.URL, bool) {
+-	if !mux.shouldRedirect(path) {
++func (mux *ServeMux) redirectToPathSlash(host, path string, u *url.URL) (*url.URL, bool) {
++	if !mux.shouldRedirect(host, path) {
+ 		return u, false
+ 	}
+ 	path = path + "/"
+@@ -2229,16 +2229,26 @@ func (mux *ServeMux) redirectToPathSlash(path string, u *url.URL) (*url.URL, boo
+ 	return u, true
+ }
+ 
+-// shouldRedirect reports whether the given path should be redirected to
++// shouldRedirect reports whether the given path and host should be redirected to
+ // path+"/". This should happen if a handler is registered for path+"/" but
+ // not path -- see comments at ServeMux.
+-func (mux *ServeMux) shouldRedirect(path string) bool {
+-	if _, exist := mux.m[path]; exist {
+-		return false
++func (mux *ServeMux) shouldRedirect(host, path string) bool {
++	p := []string{path, host + path}
++
++	for _, c := range p {
++		if _, exist := mux.m[c]; exist {
++			return false
++		}
+ 	}
++
+ 	n := len(path)
+-	_, exist := mux.m[path+"/"]
+-	return n > 0 && path[n-1] != '/' && exist
++	for _, c := range p {
++		if _, exist := mux.m[c+"/"]; exist {
++			return n > 0 && path[n-1] != '/'
++		}
++	}
++
++	return false
+ }
+ 
+ // Handler returns the handler to use for the given request,
+@@ -2263,7 +2273,7 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+ 		// If r.URL.Path is /tree and its handler is not registered,
+ 		// the /tree -> /tree/ redirect applies to CONNECT requests
+ 		// but the path canonicalization does not.
+-		if u, ok := mux.redirectToPathSlash(r.URL.Path, r.URL); ok {
++		if u, ok := mux.redirectToPathSlash(r.URL.Host, r.URL.Path, r.URL); ok {
+ 			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+ 		}
+ 
+@@ -2277,7 +2287,7 @@ func (mux *ServeMux) Handler(r *Request) (h Handler, pattern string) {
+ 
+ 	// If the given path is /tree and its handler is not registered,
+ 	// redirect for /tree/.
+-	if u, ok := mux.redirectToPathSlash(path, r.URL); ok {
++	if u, ok := mux.redirectToPathSlash(host, path, r.URL); ok {
+ 		return RedirectHandler(u.String(), StatusMovedPermanently), u.Path
+ 	}
+ 

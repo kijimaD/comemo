@@ -26,7 +26,7 @@ Date:   Tue Oct 19 13:28:54 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     Trust: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go  | 36 ++++++++++++++++---------
  src/cmd/compile/internal/typecheck/iexport.go | 38 ++++++++++++++++++---------
  src/cmd/compile/internal/typecheck/iimport.go | 32 ++++++++++++++--------
@@ -34,3 +34,303 @@ Date:   Tue Oct 19 13:28:54 2021 -0700
  src/cmd/compile/internal/types/type.go        |  6 +++++
  src/go/internal/gcimporter/iimport.go         | 36 ++++++++++++++++---------
  6 files changed, 101 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index cbc78539fd..d04ef5c34d 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -43,12 +43,12 @@ func (r *intReader) uint64() uint64 {
+ 
+ // Keep this in sync with constants in iexport.go.
+ const (
+-	iexportVersionGo1_11 = 0
+-	iexportVersionPosCol = 1
+-	// TODO: before release, change this back to 2.
+-	iexportVersionGenerics = iexportVersionPosCol
++	iexportVersionGo1_11   = 0
++	iexportVersionPosCol   = 1
++	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGo1_18   = 2
+ 
+-	iexportVersionCurrent = iexportVersionGenerics
++	iexportVersionCurrent = 2
+ )
+ 
+ type ident struct {
+@@ -99,13 +99,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 
+ 	version = int64(r.uint64())
+ 	switch version {
+-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
++	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+-		if version > iexportVersionGenerics {
+-			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+-		} else {
+-			errorf("unknown iexport format version %d", version)
+-		}
++		errorf("unknown iexport format version %d", version)
+ 	}
+ 
+ 	sLen := int64(r.uint64())
+@@ -374,7 +370,19 @@ func (r *importReader) obj(name string) {
+ 		id := ident{r.currPkg.Name(), name}
+ 		r.p.tparamIndex[id] = t
+ 
+-		t.SetConstraint(r.typ())
++		var implicit bool
++		if r.p.exportVersion >= iexportVersionGo1_18 {
++			implicit = r.bool()
++		}
++		constraint := r.typ()
++		if implicit {
++			iface, _ := constraint.(*types2.Interface)
++			if iface == nil {
++				errorf("non-interface constraint marked implicit")
++			}
++			iface.MarkImplicit()
++		}
++		t.SetConstraint(constraint)
+ 
+ 	case 'V':
+ 		typ := r.typ()
+@@ -392,6 +400,10 @@ func (r *importReader) declare(obj types2.Object) {
+ 
+ func (r *importReader) value() (typ types2.Type, val constant.Value) {
+ 	typ = r.typ()
++	if r.p.exportVersion >= iexportVersionGo1_18 {
++		// TODO: add support for using the kind
++		_ = constant.Kind(r.int64())
++	}
+ 
+ 	switch b := typ.Underlying().(*types2.Basic); b.Info() & types2.IsConstType {
+ 	case types2.IsBoolean:
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 46865ba3fa..6057000a5d 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -254,15 +254,16 @@ import (
+ // Current indexed export format version. Increase with each format change.
+ // 0: Go1.11 encoding
+ // 1: added column details to Pos
+-// 2: added information for generic function/types (currently unstable)
++// 2: added information for generic function/types.  The export of non-generic
++// functions/types remains largely backward-compatible.  Breaking changes include:
++//    - a 'kind' byte is added to constant values
+ const (
+-	iexportVersionGo1_11 = 0
+-	iexportVersionPosCol = 1
+-	// TODO: before release, change this back to 2.  Kept at previous version
+-	// for now (for testing).
+-	iexportVersionGenerics = iexportVersionPosCol
++	iexportVersionGo1_11   = 0
++	iexportVersionPosCol   = 1
++	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGo1_18   = 2
+ 
+-	iexportVersionCurrent = iexportVersionGenerics
++	iexportVersionCurrent = 2
+ )
+ 
+ // predeclReserved is the number of type offsets reserved for types
+@@ -561,6 +562,10 @@ func (p *iexporter) doDecl(n *ir.Name) {
+ 			// A typeparam has a name, and has a type bound rather
+ 			// than an underlying type.
+ 			w.pos(n.Pos())
++			if iexportVersionCurrent >= iexportVersionGo1_18 {
++				implicit := n.Type().Bound().IsImplicit()
++				w.bool(implicit)
++			}
+ 			w.typ(n.Type().Bound())
+ 			break
+ 		}
+@@ -1137,17 +1142,24 @@ func constTypeOf(typ *types.Type) constant.Kind {
+ 
+ func (w *exportWriter) value(typ *types.Type, v constant.Value) {
+ 	w.typ(typ)
++
++	if iexportVersionCurrent >= iexportVersionGo1_18 {
++		w.int64(int64(v.Kind()))
++	}
++
+ 	var kind constant.Kind
+ 	var valType *types.Type
+ 
+ 	if typ.IsTypeParam() {
+-		// A constant will have a TYPEPARAM type if it appears in a place
+-		// where it must match that typeparam type (e.g. in a binary
+-		// operation with a variable of that typeparam type). If so, then
+-		// we must write out its actual constant kind as well, so its
+-		// constant val can be read in properly during import.
+ 		kind = v.Kind()
+-		w.int64(int64(kind))
++		if iexportVersionCurrent < iexportVersionGo1_18 {
++			// A constant will have a TYPEPARAM type if it appears in a place
++			// where it must match that typeparam type (e.g. in a binary
++			// operation with a variable of that typeparam type). If so, then
++			// we must write out its actual constant kind as well, so its
++			// constant val can be read in properly during import.
++			w.int64(int64(kind))
++		}
+ 
+ 		switch kind {
+ 		case constant.Int:
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index fcfadc146c..7c6c23e737 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -118,13 +118,9 @@ func ReadImports(pkg *types.Pkg, data string) {
+ 
+ 	version := ird.uint64()
+ 	switch version {
+-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
++	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+-		if version > iexportVersionGenerics {
+-			base.Errorf("import %q: unstable export format version %d, just recompile", pkg.Path, version)
+-		} else {
+-			base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+-		}
++		base.Errorf("import %q: unknown export format version %d", pkg.Path, version)
+ 		base.ErrorExit()
+ 	}
+ 
+@@ -408,8 +404,15 @@ func (r *importReader) doDecl(sym *types.Sym) *ir.Name {
+ 		sym.Def = nname
+ 		nname.SetType(t)
+ 		t.SetNod(nname)
+-
+-		t.SetBound(r.typ())
++		implicit := false
++		if r.p.exportVersion >= iexportVersionGo1_18 {
++			implicit = r.bool()
++		}
++		bound := r.typ()
++		if implicit {
++			bound.MarkImplicit()
++		}
++		t.SetBound(bound)
+ 		return nname
+ 
+ 	case 'V':
+@@ -429,10 +432,17 @@ func (r *importReader) value(typ *types.Type) constant.Value {
+ 	var kind constant.Kind
+ 	var valType *types.Type
+ 
+-	if typ.IsTypeParam() {
+-		// If a constant had a typeparam type, then we wrote out its
+-		// actual constant kind as well.
++	if r.p.exportVersion >= iexportVersionGo1_18 {
++		// TODO: add support for using the kind in the non-typeparam case.
+ 		kind = constant.Kind(r.int64())
++	}
++
++	if typ.IsTypeParam() {
++		if r.p.exportVersion < iexportVersionGo1_18 {
++			// If a constant had a typeparam type, then we wrote out its
++			// actual constant kind as well.
++			kind = constant.Kind(r.int64())
++		}
+ 		switch kind {
+ 		case constant.Int:
+ 			valType = types.Types[types.TINT64]
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 9ebd8f1423..96e120fe03 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1390,7 +1390,7 @@ func (ts *Tsubster) tinter(t *types.Type, force bool) *types.Type {
+ 		}
+ 	}
+ 	if newfields != nil {
+-		return types.NewInterface(t.Pkg(), newfields, false)
++		return types.NewInterface(t.Pkg(), newfields, t.IsImplicit())
+ 	}
+ 	return t
+ }
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index ec17fe8704..c3efbc9f07 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1884,6 +1884,12 @@ func (t *Type) IsImplicit() bool {
+ 	return t.extra.(*Interface).implicit
+ }
+ 
++// MarkImplicit marks the interface as implicit.
++func (t *Type) MarkImplicit() {
++	t.wantEtype(TINTER)
++	t.extra.(*Interface).implicit = true
++}
++
+ // NewUnion returns a new union with the specified set of terms (types). If
+ // tildes[i] is true, then terms[i] represents ~T, rather than just T.
+ func NewUnion(terms []*Type, tildes []bool) *Type {
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 0771fa3c26..49ea64392a 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -44,12 +44,12 @@ func (r *intReader) uint64() uint64 {
+ 
+ // Keep this in sync with constants in iexport.go.
+ const (
+-	iexportVersionGo1_11 = 0
+-	iexportVersionPosCol = 1
+-	// TODO: before release, change this back to 2.
+-	iexportVersionGenerics = iexportVersionPosCol
++	iexportVersionGo1_11   = 0
++	iexportVersionPosCol   = 1
++	iexportVersionGenerics = 1 // probably change to 2 before release
++	iexportVersionGo1_18   = 2
+ 
+-	iexportVersionCurrent = iexportVersionGenerics
++	iexportVersionCurrent = 2
+ )
+ 
+ type ident struct {
+@@ -98,13 +98,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 
+ 	version = int64(r.uint64())
+ 	switch version {
+-	case /* iexportVersionGenerics, */ iexportVersionPosCol, iexportVersionGo1_11:
++	case iexportVersionGo1_18, iexportVersionPosCol, iexportVersionGo1_11:
+ 	default:
+-		if version > iexportVersionGenerics {
+-			errorf("unstable iexport format version %d, just rebuild compiler and std library", version)
+-		} else {
+-			errorf("unknown iexport format version %d", version)
+-		}
++		errorf("unknown iexport format version %d", version)
+ 	}
+ 
+ 	sLen := int64(r.uint64())
+@@ -367,7 +363,19 @@ func (r *importReader) obj(name string) {
+ 		id := ident{r.currPkg.Name(), name}
+ 		r.p.tparamIndex[id] = t
+ 
+-		t.SetConstraint(r.typ())
++		var implicit bool
++		if r.p.exportVersion >= iexportVersionGo1_18 {
++			implicit = r.bool()
++		}
++		constraint := r.typ()
++		if implicit {
++			iface, _ := constraint.(*types.Interface)
++			if iface == nil {
++				errorf("non-interface constraint marked implicit")
++			}
++			iface.MarkImplicit()
++		}
++		t.SetConstraint(constraint)
+ 
+ 	case 'V':
+ 		typ := r.typ()
+@@ -385,6 +393,10 @@ func (r *importReader) declare(obj types.Object) {
+ 
+ func (r *importReader) value() (typ types.Type, val constant.Value) {
+ 	typ = r.typ()
++	if r.p.exportVersion >= iexportVersionGo1_18 {
++		// TODO: add support for using the kind
++		_ = constant.Kind(r.int64())
++	}
+ 
+ 	switch b := typ.Underlying().(*types.Basic); b.Info() & types.IsConstType {
+ 	case types.IsBoolean:

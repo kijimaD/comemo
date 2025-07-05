@@ -12,8 +12,113 @@ Date:   Thu Feb 17 17:14:19 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/4173061
-
+---
  src/pkg/json/decode.go      | 14 ++++++++------
  src/pkg/json/decode_test.go |  8 ++++++++
  src/pkg/json/encode.go      | 20 +++++++++++++++++---
  3 files changed, 33 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index ff91dd83c3..388c9a95b0 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -466,13 +466,15 @@ func (d *decodeState) object(v reflect.Value) {
+ 		} else {
+ 			var f reflect.StructField
+ 			var ok bool
+-			// First try for field with that tag.
+ 			st := sv.Type().(*reflect.StructType)
+-			for i := 0; i < sv.NumField(); i++ {
+-				f = st.Field(i)
+-				if f.Tag == key {
+-					ok = true
+-					break
++			// First try for field with that tag.
++			if isValidTag(key) {
++				for i := 0; i < sv.NumField(); i++ {
++					f = st.Field(i)
++					if f.Tag == key {
++						ok = true
++						break
++					}
+ 				}
+ 			}
+ 			if !ok {
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index 9cb27af412..2de862c6c2 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -40,6 +40,11 @@ var (
+ 	umtrue   = unmarshaler{true}
+ )
+ 
++type badTag struct {
++	X string
++	Y string "y"
++	Z string "@#*%(#@"
++}
+ 
+ type unmarshalTest struct {
+ 	in  string
+@@ -62,6 +67,9 @@ var unmarshalTests = []unmarshalTest{
+ 	{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
+ 	{`{"x": 1}`, new(tx), tx{}, &UnmarshalFieldError{"x", txType, txType.Field(0)}},
+ 
++	// skip invalid tags
++	{`{"X":"a", "y":"b", "Z":"c"}`, new(badTag), badTag{"a", "b", "c"}, nil},
++
+ 	// syntax errors
+ 	{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
+ 
+diff --git a/src/pkg/json/encode.go b/src/pkg/json/encode.go
+index 0fcc78aa80..baaba1a0d5 100644
+--- a/src/pkg/json/encode.go
++++ b/src/pkg/json/encode.go
+@@ -13,6 +13,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
++	"unicode"
+ 	"utf8"
+ )
+ 
+@@ -35,8 +36,9 @@ import (
+ //
+ // Struct values encode as JSON objects.  Each struct field becomes
+ // a member of the object.  By default the object's key name is the
+-// struct field name.  If the struct field has a tag, that tag will 
+-// be used as the name instead.  Only exported fields will be encoded.
++// struct field name.  If the struct field has a non-empty tag consisting
++// of only Unicode letters, digits, and underscores, that tag will be used
++// as the name instead.  Only exported fields will be encoded.
+ //
+ // Map values encode as JSON objects.
+ // The map's key type must be string; the object keys are used directly
+@@ -230,7 +232,7 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 			} else {
+ 				e.WriteByte(',')
+ 			}
+-			if f.Tag != "" {
++			if isValidTag(f.Tag) {
+ 				e.string(f.Tag)
+ 			} else {
+ 				e.string(f.Name)
+@@ -285,6 +287,18 @@ func (e *encodeState) reflectValue(v reflect.Value) {
+ 	return
+ }
+ 
++func isValidTag(s string) bool {
++	if s == "" {
++		return false
++	}
++	for _, c := range s {
++		if c != '_' && !unicode.IsLetter(c) && !unicode.IsDigit(c) {
++			return false
++		}
++	}
++	return true
++}
++
+ // stringValues is a slice of reflect.Value holding *reflect.StringValue.
+ // It implements the methods to sort by string.
+ type stringValues []reflect.Value

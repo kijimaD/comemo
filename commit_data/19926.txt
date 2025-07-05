@@ -8,6 +8,22 @@ Date:   Wed Aug 6 16:16:28 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/125760043
-
+---
  src/cmd/dist/unix.c | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 8b943a2d95..668b189cac 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -708,6 +708,10 @@ main(int argc, char **argv)
+ 			gohostarch = "386";
+ 		else if(contains(u.machine, "arm"))
+ 			gohostarch = "arm";
++		else if(contains(u.machine, "ppc64le"))
++			gohostarch = "power64le";
++		else if(contains(u.machine, "ppc64"))
++			gohostarch = "power64";
+ 		else
+ 			fatal("unknown architecture: %s", u.machine);
+ 	}

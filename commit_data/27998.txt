@@ -25,6 +25,31 @@ Date:   Mon May 4 15:01:03 2015 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 49d55091ff..727b9939e9 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -102,13 +102,18 @@ func mapbucket(t *Type) *Type {
+ 		valtype = Ptrto(valtype)
+ 	}
+ 
++	field := make([]*Field, 0, 5)
++
+ 	// The first field is: uint8 topbits[BUCKETSIZE].
+ 	arr := typArray(Types[TUINT8], BUCKETSIZE)
+-	field := make([]*Field, 0, 5)
+ 	field = append(field, makefield("topbits", arr))
++
+ 	arr = typArray(keytype, BUCKETSIZE)
++	arr.Noalg = true
+ 	field = append(field, makefield("keys", arr))
++
+ 	arr = typArray(valtype, BUCKETSIZE)
++	arr.Noalg = true
+ 	field = append(field, makefield("values", arr))
+ 
+ 	// Make sure the overflow pointer is the last memory in the struct,

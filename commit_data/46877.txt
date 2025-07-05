@@ -15,10 +15,151 @@ Date:   Wed Feb 10 17:41:26 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/gofmt/doc.go                     |  3 +++
  src/cmd/gofmt/gofmt.go                   | 16 +++++++++------
  src/cmd/gofmt/gofmt_test.go              |  2 ++
  src/cmd/gofmt/testdata/typeparams.golden | 35 ++++++++++++++++++++++++++++++++
  src/cmd/gofmt/testdata/typeparams.input  | 32 +++++++++++++++++++++++++++++
  5 files changed, 82 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index e340665594..68476e7d44 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -26,6 +26,9 @@ The flags are:
+ 		Do not print reformatted sources to standard output.
+ 		If a file's formatting is different from gofmt's, print its name
+ 		to standard output.
++	-G
++		Allow generic code, using type parameters.
++		See golang.org/issues/43651 for more information.
+ 	-r rule
+ 		Apply the rewrite rule to the source before reformatting.
+ 	-s
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 2793c2c2a4..b82aa7e7a9 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -26,12 +26,13 @@ import (
+ 
+ var (
+ 	// main operation modes
+-	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+-	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
+-	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
+-	simplifyAST = flag.Bool("s", false, "simplify code")
+-	doDiff      = flag.Bool("d", false, "display diffs instead of rewriting files")
+-	allErrors   = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
++	list            = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
++	write           = flag.Bool("w", false, "write result to (source) file instead of stdout")
++	rewriteRule     = flag.String("r", "", "rewrite rule (e.g., 'a[b:len(a)] -> a[b:]')")
++	simplifyAST     = flag.Bool("s", false, "simplify code")
++	doDiff          = flag.Bool("d", false, "display diffs instead of rewriting files")
++	allErrors       = flag.Bool("e", false, "report all errors (not just the first 10 on different lines)")
++	allowTypeParams = flag.Bool("G", false, "allow generic code")
+ 
+ 	// debugging
+ 	cpuprofile = flag.String("cpuprofile", "", "write cpu profile to this file")
+@@ -71,6 +72,9 @@ func initParserMode() {
+ 	if *allErrors {
+ 		parserMode |= parser.AllErrors
+ 	}
++	if *allowTypeParams {
++		parserMode |= parser.ParseTypeParams
++	}
+ }
+ 
+ func isGoFile(f fs.DirEntry) bool {
+diff --git a/src/cmd/gofmt/gofmt_test.go b/src/cmd/gofmt/gofmt_test.go
+index bf2adfe64c..60e4f2e03d 100644
+--- a/src/cmd/gofmt/gofmt_test.go
++++ b/src/cmd/gofmt/gofmt_test.go
+@@ -77,6 +77,8 @@ func runTest(t *testing.T, in, out string) {
+ 		case "-stdin":
+ 			// fake flag - pretend input is from stdin
+ 			stdin = true
++		case "-G":
++			*allowTypeParams = true
+ 		default:
+ 			t.Errorf("unrecognized flag name: %s", name)
+ 		}
+diff --git a/src/cmd/gofmt/testdata/typeparams.golden b/src/cmd/gofmt/testdata/typeparams.golden
+new file mode 100644
+index 0000000000..35f08d1379
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typeparams.golden
+@@ -0,0 +1,35 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//gofmt -G
++
++package typeparams
++
++type T[P any] struct{}
++type T[P1, P2, P3 any] struct{}
++
++type T[P C] struct{}
++type T[P1, P2, P3 C] struct{}
++
++type T[P C[P]] struct{}
++type T[P1, P2, P3 C[P1, P2, P3]] struct{}
++
++func f[P any](x P)
++func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
++
++func f[P interface{}](x P)
++func f[P1, P2, P3 interface {
++	m1(P1)
++	type P2, P3
++}](x1 P1, x2 P2, x3 P3) struct{}
++func f[P any](T1[P], T2[P]) T3[P]
++
++func (x T[P]) m()
++func (T[P]) m(x T[P]) P
++
++func _() {
++	type _ []T[P]
++	var _ []T[P]
++	_ = []T[P]{}
++}
+diff --git a/src/cmd/gofmt/testdata/typeparams.input b/src/cmd/gofmt/testdata/typeparams.input
+new file mode 100644
+index 0000000000..7f3212c8e4
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/typeparams.input
+@@ -0,0 +1,32 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//gofmt -G
++
++package typeparams
++
++type T[  P any] struct{}
++type T[P1, P2, P3 any] struct{}
++
++type T[P C] struct{}
++type T[P1,P2, P3 C] struct{}
++
++type T[P C[P]] struct{}
++type T[P1, P2, P3 C[P1,P2,P3]] struct{}
++
++func f[P any](x P)
++func f[P1, P2, P3 any](x1 P1, x2 P2, x3 P3) struct{}
++
++func f[P interface{}](x P)
++func f[P1, P2, P3 interface{ m1(P1); type P2, P3 }](x1 P1, x2 P2, x3 P3) struct{}
++func f[P any](T1[P], T2[P]) T3[P]
++
++func (x T[P]) m()
++func ((T[P])) m(x T[P]) P
++
++func _() {
++	type _ []T[P]
++	var _ []T[P]
++	_ = []T[P]{}
++}

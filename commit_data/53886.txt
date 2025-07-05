@@ -13,8 +13,64 @@ Date:   Sat Sep 3 14:29:35 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/runtime/debuglog.go                 | 6 +-----
  src/runtime/memmove_linux_amd64_test.go | 7 +------
  src/runtime/proc.go                     | 2 +-
  3 files changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 028d77ad41..83d5a3e9e6 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -657,11 +657,7 @@ func (r *debugLogReader) printVal() bool {
+ 	case debugLogConstString:
+ 		len, ptr := int(r.uvarint()), uintptr(r.uvarint())
+ 		ptr += firstmoduledata.etext
+-		str := stringStruct{
+-			str: unsafe.Pointer(ptr),
+-			len: len,
+-		}
+-		s := *(*string)(unsafe.Pointer(&str))
++		s := unsafe.String((*byte)(unsafe.Pointer(ptr)), len)
+ 		print(s)
+ 
+ 	case debugLogStringOverflow:
+diff --git a/src/runtime/memmove_linux_amd64_test.go b/src/runtime/memmove_linux_amd64_test.go
+index b3ccd907b9..5f900623be 100644
+--- a/src/runtime/memmove_linux_amd64_test.go
++++ b/src/runtime/memmove_linux_amd64_test.go
+@@ -6,7 +6,6 @@ package runtime_test
+ 
+ import (
+ 	"os"
+-	"reflect"
+ 	"syscall"
+ 	"testing"
+ 	"unsafe"
+@@ -45,11 +44,7 @@ func TestMemmoveOverflow(t *testing.T) {
+ 		defer syscall.Syscall(syscall.SYS_MUNMAP, base+off, 65536, 0)
+ 	}
+ 
+-	var s []byte
+-	sp := (*reflect.SliceHeader)(unsafe.Pointer(&s))
+-	sp.Data = base
+-	sp.Len, sp.Cap = 3<<30, 3<<30
+-
++	s := unsafe.Slice((*byte)(unsafe.Pointer(base)), 3<<30)
+ 	n := copy(s[1:], s)
+ 	if n != 3<<30-1 {
+ 		t.Fatalf("copied %d bytes, expected %d", n, 3<<30-1)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9ebb25bfd0..1e4d4098b6 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -620,7 +620,7 @@ func cpuinit() {
+ 
+ 		for i := int32(0); i < n; i++ {
+ 			p := argv_index(argv, argc+1+i)
+-			s := *(*string)(unsafe.Pointer(&stringStruct{unsafe.Pointer(p), findnull(p)}))
++			s := unsafe.String(p, findnull(p))
+ 
+ 			if hasPrefix(s, prefix) {
+ 				env = gostring(p)[len(prefix):]

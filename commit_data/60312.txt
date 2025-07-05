@@ -9,6 +9,25 @@ Date:   Thu Jun 13 22:47:18 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/slices/sort.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/slices/sort.go b/src/slices/sort.go
+index 4c20a2943c..f713ffe094 100644
+--- a/src/slices/sort.go
++++ b/src/slices/sort.go
+@@ -21,10 +21,12 @@ func Sort[S ~[]E, E cmp.Ordered](x S) {
+ // SortFunc sorts the slice x in ascending order as determined by the cmp
+ // function. This sort is not guaranteed to be stable.
+ // cmp(a, b) should return a negative number when a < b, a positive number when
+-// a > b and zero when a == b.
++// a > b and zero when a == b or a and b are incomparable in the sense of
++// a strict weak ordering.
+ //
+ // SortFunc requires that cmp is a strict weak ordering.
+ // See https://en.wikipedia.org/wiki/Weak_ordering#Strict_weak_orderings.
++// The function should return 0 for incomparable items.
+ func SortFunc[S ~[]E, E any](x S, cmp func(a, b E) int) {
+ 	n := len(x)
+ 	pdqsortCmpFunc(x, 0, n, bits.Len(uint(n)), cmp)

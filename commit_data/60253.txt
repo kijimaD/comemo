@@ -16,6 +16,20 @@ Date:   Wed Jun 5 11:53:35 2024 +0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/loong64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index 06ac5302cc..79c4c74fd3 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -30,7 +30,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 
+ 		ELF: ld.ELFArch{
+ 			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
+-			LinuxdynldMusl: "/lib/ld-musl-loongarch.so.1",
++			LinuxdynldMusl: "/lib/ld-musl-loongarch64.so.1",
+ 			Freebsddynld:   "XXX",
+ 			Openbsddynld:   "XXX",
+ 			Netbsddynld:    "XXX",

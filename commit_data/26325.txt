@@ -10,7 +10,7 @@ Date:   Fri Jan 8 16:56:02 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18449
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_arm.s                          | 10 +++--
  src/runtime/asm_arm64.s                        | 10 +++--
  src/runtime/asm_mips64x.s                      | 10 +++--
@@ -20,3 +20,229 @@ Date:   Fri Jan 8 16:56:02 2016 -0800
  src/runtime/testdata/testprogcgo/dropm.go      | 57 ++++++++++++++++++++++++++
  src/runtime/testdata/testprogcgo/dropm_stub.go | 11 +++++
  8 files changed, 110 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index d8757fd0b9..09fbc952e0 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -556,7 +556,13 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+ 	// lots of space, but the linker doesn't know. Hide the call from
+ 	// the linker analysis by using an indirect call.
+ 	CMP	$0, g
+-	B.NE	havem
++	B.EQ	needm
++
++	MOVW	g_m(g), R8
++	MOVW	R8, savedm-4(SP)
++	B	havem
++
++needm:
+ 	MOVW	g, savedm-4(SP) // g is zero, so is m.
+ 	MOVW	$runtime·needm(SB), R0
+ 	BL	(R0)
+@@ -577,8 +583,6 @@ TEXT	·cgocallback_gofunc(SB),NOSPLIT,$8-12
+ 	MOVW	R13, (g_sched+gobuf_sp)(R3)
+ 
+ havem:
+-	MOVW	g_m(g), R8
+-	MOVW	R8, savedm-4(SP)
+ 	// Now there's a valid m, and we're running on its m->g0.
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	// Save current sp in m->g0->sched.sp in preparation for
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 732abe13af..ab5d5b5e5f 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -586,7 +586,13 @@ nocgo:
+ 	// lots of space, but the linker doesn't know. Hide the call from
+ 	// the linker analysis by using an indirect call.
+ 	CMP	$0, g
+-	BNE	havem
++	BEQ	needm
++
++	MOVD	g_m(g), R8
++	MOVD	R8, savedm-8(SP)
++	B	havem
++
++needm:
+ 	MOVD	g, savedm-8(SP) // g is zero, so is m.
+ 	MOVD	$runtime·needm(SB), R0
+ 	BL	(R0)
+@@ -608,8 +614,6 @@ nocgo:
+ 	MOVD	R0, (g_sched+gobuf_sp)(R3)
+ 
+ havem:
+-	MOVD	g_m(g), R8
+-	MOVD	R8, savedm-8(SP)
+ 	// Now there's a valid m, and we're running on its m->g0.
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	// Save current sp in m->g0->sched.sp in preparation for
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 7d3d7c2ae2..08482fed23 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -486,7 +486,13 @@ nocgo:
+ 	// In this case, we're running on the thread stack, so there's
+ 	// lots of space, but the linker doesn't know. Hide the call from
+ 	// the linker analysis by using an indirect call.
+-	BNE	g, havem
++	BEQ	g, needm
++
++	MOVV	g_m(g), R3
++	MOVV	R3, savedm-8(SP)
++	JMP	havem
++
++needm:
+ 	MOVV	g, savedm-8(SP) // g is zero, so is m.
+ 	MOVV	$runtime·needm(SB), R4
+ 	JAL	(R4)
+@@ -507,8 +513,6 @@ nocgo:
+ 	MOVV	R29, (g_sched+gobuf_sp)(R1)
+ 
+ havem:
+-	MOVV	g_m(g), R3
+-	MOVV	R3, savedm-8(SP)
+ 	// Now there's a valid m, and we're running on its m->g0.
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	// Save current sp in m->g0->sched.sp in preparation for
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index f3b193ae31..6d003b04e1 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -602,7 +602,13 @@ nocgo:
+ 	// lots of space, but the linker doesn't know. Hide the call from
+ 	// the linker analysis by using an indirect call.
+ 	CMP	g, $0
+-	BNE	havem
++	BEQ	needm
++
++	MOVD	g_m(g), R8
++	MOVD	R8, savedm-8(SP)
++	BR	havem
++
++needm:
+ 	MOVD	g, savedm-8(SP) // g is zero, so is m.
+ 	MOVD	$runtime·needm(SB), R12
+ 	MOVD	R12, CTR
+@@ -624,8 +630,6 @@ nocgo:
+ 	MOVD	R1, (g_sched+gobuf_sp)(R3)
+ 
+ havem:
+-	MOVD	g_m(g), R8
+-	MOVD	R8, savedm-8(SP)
+ 	// Now there's a valid m, and we're running on its m->g0.
+ 	// Save current m->g0->sched.sp on stack and then set it to SP.
+ 	// Save current sp in m->g0->sched.sp in preparation for
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 9422a08620..92b4f0ca71 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -134,3 +134,12 @@ func TestCgoExecSignalMask(t *testing.T) {
+ 		t.Errorf("expected %q, got %v", want, got)
+ 	}
+ }
++
++func TestEnsureDropM(t *testing.T) {
++	// Test for issue 13881.
++	got := runTestProg(t, "testprogcgo", "EnsureDropM")
++	want := "OK\n"
++	if got != want {
++		t.Errorf("expected %q, got %v", want, got)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index b14aabde3d..545e134cc2 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1443,6 +1443,11 @@ func dropm() {
+ 	unlockextra(mp)
+ }
+ 
++// A helper function for EnsureDropM.
++func getm() uintptr {
++	return uintptr(unsafe.Pointer(getg().m))
++}
++
+ var extram uintptr
+ 
+ // lockextra locks the extra list and returns the list head.
+diff --git a/src/runtime/testdata/testprogcgo/dropm.go b/src/runtime/testdata/testprogcgo/dropm.go
+new file mode 100644
+index 0000000000..80ccdcc608
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/dropm.go
+@@ -0,0 +1,57 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that a sequence of callbacks from C to Go get the same m.
++// This failed to be true on arm and arm64, which was the root cause
++// of issue 13881.
++
++package main
++
++/*
++#include <stddef.h>
++#include <pthread.h>
++
++extern void GoCheckM();
++
++static void* thread(void* arg __attribute__ ((unused))) {
++	GoCheckM();
++	return NULL;
++}
++
++static void CheckM() {
++	pthread_t tid;
++	pthread_create(&tid, NULL, thread, NULL);
++	pthread_join(tid, NULL);
++	pthread_create(&tid, NULL, thread, NULL);
++	pthread_join(tid, NULL);
++}
++*/
++import "C"
++
++import (
++	"fmt"
++	"os"
++)
++
++func init() {
++	register("EnsureDropM", EnsureDropM)
++}
++
++var savedM uintptr
++
++//export GoCheckM
++func GoCheckM() {
++	m := runtime_getm_for_test()
++	if savedM == 0 {
++		savedM = m
++	} else if savedM != m {
++		fmt.Printf("m == %x want %x\n", m, savedM)
++		os.Exit(1)
++	}
++}
++
++func EnsureDropM() {
++	C.CheckM()
++	fmt.Println("OK")
++}
+diff --git a/src/runtime/testdata/testprogcgo/dropm_stub.go b/src/runtime/testdata/testprogcgo/dropm_stub.go
+new file mode 100644
+index 0000000000..4c3f46ade4
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/dropm_stub.go
+@@ -0,0 +1,11 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import _ "unsafe" // for go:linkname
++
++// Defined in the runtime package.
++//go:linkname runtime_getm_for_test runtime.getm
++func runtime_getm_for_test() uintptr

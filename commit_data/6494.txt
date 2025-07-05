@@ -9,6 +9,22 @@ Date:   Mon Oct 11 22:39:37 2010 -0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2444041
-
+---
  src/Make.cmd | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 73622f5a56..34f5663bc8 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -12,8 +12,8 @@ include $(QUOTED_GOROOT)/src/Make.common
+ 
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+-$(TARG): _go_.$O $(OFILES)
+-	$(LD) -o $@ _go_.$O $(OFILES)
++$(TARG): _go_.$O
++	$(LD) -o $@ _go_.$O
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+ 	$(GC) -o $@ $(GOFILES)

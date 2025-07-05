@@ -11,6 +11,40 @@ Date:   Fri Jul 16 02:36:52 2021 +1000
     Trust: Joel Sing <joel@sing.id.au>
     Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/regalloc.go | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3d978e7ac8..28fac6ccd0 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -620,20 +620,20 @@ func (s *regAllocState) init(f *Func) {
+ 	}
+ 	if s.f.Config.ctxt.Flag_dynlink {
+ 		switch s.f.Config.arch {
+-		case "amd64":
+-			s.allocatable &^= 1 << 15 // R15
+-		case "arm":
+-			s.allocatable &^= 1 << 9 // R9
+-		case "ppc64le": // R2 already reserved.
+-			// nothing to do
+-		case "arm64":
+-			// nothing to do?
+ 		case "386":
+ 			// nothing to do.
+ 			// Note that for Flag_shared (position independent code)
+ 			// we do need to be careful, but that carefulness is hidden
+ 			// in the rewrite rules so we always have a free register
+ 			// available for global load/stores. See gen/386.rules (search for Flag_shared).
++		case "amd64":
++			s.allocatable &^= 1 << 15 // R15
++		case "arm":
++			s.allocatable &^= 1 << 9 // R9
++		case "arm64":
++			// nothing to do
++		case "ppc64le": // R2 already reserved.
++			// nothing to do
+ 		case "s390x":
+ 			s.allocatable &^= 1 << 11 // R11
+ 		default:

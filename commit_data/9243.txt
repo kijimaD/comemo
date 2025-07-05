@@ -10,7 +10,91 @@ Date:   Thu Jul 28 11:43:16 2011 -0700
     R=golang-dev, rsc, bradfitz
     CC=golang-dev, kevlar
     https://golang.org/cl/4789042
-
+---
  src/pkg/http/fs.go      | 18 +++++++++++++++---
  src/pkg/http/fs_test.go | 24 ++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index bd5ff8bc68..26d9311370 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -102,8 +102,10 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	const indexPage = "/index.html"
+ 
+ 	// redirect .../index.html to .../
++	// can't use Redirect() because that would make the path absolute,
++	// which would be a problem running under StripPrefix
+ 	if strings.HasSuffix(r.URL.Path, indexPage) {
+-		Redirect(w, r, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently)
++		localRedirect(w, r, "./")
+ 		return
+ 	}
+ 
+@@ -128,12 +130,12 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		url := r.URL.Path
+ 		if d.IsDirectory() {
+ 			if url[len(url)-1] != '/' {
+-				Redirect(w, r, url+"/", StatusMovedPermanently)
++				localRedirect(w, r, path.Base(url)+"/")
+ 				return
+ 			}
+ 		} else {
+ 			if url[len(url)-1] == '/' {
+-				Redirect(w, r, url[0:len(url)-1], StatusMovedPermanently)
++				localRedirect(w, r, "../"+path.Base(url))
+ 				return
+ 			}
+ 		}
+@@ -221,6 +223,16 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	}
+ }
+ 
++// localRedirect gives a Moved Permanently response.
++// It does not convert relative paths to absolute paths like Redirect does.
++func localRedirect(w ResponseWriter, r *Request, newPath string) {
++	if q := r.URL.RawQuery; q != "" {
++		newPath += "?" + q
++	}
++	w.Header().Set("Location", newPath)
++	w.WriteHeader(StatusMovedPermanently)
++}
++
+ // ServeFile replies to the request with the contents of the named file or directory.
+ func ServeFile(w ResponseWriter, r *Request, name string) {
+ 	dir, file := filepath.Split(name)
+diff --git a/src/pkg/http/fs_test.go b/src/pkg/http/fs_test.go
+index c714795dcf..4d465d89a6 100644
+--- a/src/pkg/http/fs_test.go
++++ b/src/pkg/http/fs_test.go
+@@ -87,6 +87,30 @@ func TestServeFile(t *testing.T) {
+ 	}
+ }
+ 
++var fsRedirectTestData = []struct {
++	original, redirect string
++}{
++	{"/test/index.html", "/test/"},
++	{"/test/testdata", "/test/testdata/"},
++	{"/test/testdata/file/", "/test/testdata/file"},
++}
++
++func TestFSRedirect(t *testing.T) {
++	ts := httptest.NewServer(StripPrefix("/test", FileServer(Dir("."))))
++	defer ts.Close()
++
++	for _, data := range fsRedirectTestData {
++		res, err := Get(ts.URL + data.original)
++		if err != nil {
++			t.Fatal(err)
++		}
++		res.Body.Close()
++		if g, e := res.Request.URL.Path, data.redirect; g != e {
++			t.Errorf("redirect from %s: got %s, want %s", data.original, g, e)
++		}
++	}
++}
++
+ type testFileSystem struct {
+ 	open func(name string) (File, os.Error)
+ }

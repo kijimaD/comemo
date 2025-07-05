@@ -9,7 +9,33 @@ Date:   Tue Dec 17 07:36:01 2013 -0500
     R=alex.brainman, mattn.jp, rsc
     CC=golang-dev
     https://golang.org/cl/43130043
-
+---
  src/cmd/ld/lib.c  | 1 +
  src/cmd/ld/pobj.c | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 53c3ebd43c..76a3a1393a 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1255,6 +1255,7 @@ setheadtype(char *s)
+ 		fprint(2, "unknown header type -H %s\n", s);
+ 		errorexit();
+ 	}
++	headstring = s;
+ 	HEADTYPE = headtype(s);
+ }
+ 
+diff --git a/src/cmd/ld/pobj.c b/src/cmd/ld/pobj.c
+index 16d908a407..08d44f6376 100644
+--- a/src/cmd/ld/pobj.c
++++ b/src/cmd/ld/pobj.c
+@@ -138,6 +138,8 @@ main(int argc, char *argv[])
+ 	if(HEADTYPE == -1)
+ 		HEADTYPE = headtype(goos);
+ 	ctxt->headtype = HEADTYPE;
++	if (headstring == NULL)
++		headstring = headstr(HEADTYPE);
+ 
+ 	archinit();
+ 	ctxt->linkmode = linkmode;

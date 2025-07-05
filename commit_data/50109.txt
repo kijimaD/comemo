@@ -18,7 +18,7 @@ Date:   Wed Sep 29 17:35:27 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Trust: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/defs_linux_386.go     | 11 +++++++++++
  src/runtime/defs_linux_amd64.go   | 11 +++++++++++
  src/runtime/defs_linux_arm.go     | 11 +++++++++++
@@ -31,3 +31,387 @@ Date:   Wed Sep 29 17:35:27 2021 -0700
  src/runtime/defs_linux_s390x.go   | 11 +++++++++++
  src/runtime/os_linux.go           | 12 ++++++++++++
  11 files changed, 122 insertions(+)
+
+diff --git a/src/runtime/defs_linux_386.go b/src/runtime/defs_linux_386.go
+index d8b546cb4c..fd9b60c444 100644
+--- a/src/runtime/defs_linux_386.go
++++ b/src/runtime/defs_linux_386.go
+@@ -3,6 +3,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -172,6 +174,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint32
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type stackt struct {
+@@ -235,6 +242,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_amd64.go b/src/runtime/defs_linux_amd64.go
+index 6afb67f77f..29dabe08dd 100644
+--- a/src/runtime/defs_linux_amd64.go
++++ b/src/runtime/defs_linux_amd64.go
+@@ -3,6 +3,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -134,6 +136,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -152,6 +159,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_arm.go b/src/runtime/defs_linux_arm.go
+index ec24d76326..3ed6940647 100644
+--- a/src/runtime/defs_linux_arm.go
++++ b/src/runtime/defs_linux_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ // Constants
+ const (
+ 	_EINTR  = 0x4
+@@ -175,6 +177,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type siginfo struct {
+@@ -183,6 +189,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint32
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type sigactiont struct {
+diff --git a/src/runtime/defs_linux_arm64.go b/src/runtime/defs_linux_arm64.go
+index f9f175004b..6a126c4a15 100644
+--- a/src/runtime/defs_linux_arm64.go
++++ b/src/runtime/defs_linux_arm64.go
+@@ -3,6 +3,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -134,6 +136,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -152,6 +159,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_mips64x.go b/src/runtime/defs_linux_mips64x.go
+index 1743bbce41..34e803331c 100644
+--- a/src/runtime/defs_linux_mips64x.go
++++ b/src/runtime/defs_linux_mips64x.go
+@@ -8,6 +8,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -143,6 +145,11 @@ type siginfo struct {
+ 	__pad0   [1]int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -161,6 +168,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_mipsx.go b/src/runtime/defs_linux_mipsx.go
+index e84d4979e1..7a7db7f181 100644
+--- a/src/runtime/defs_linux_mipsx.go
++++ b/src/runtime/defs_linux_mipsx.go
+@@ -8,6 +8,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -137,6 +139,11 @@ type siginfo struct {
+ 	si_errno int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint32
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -155,6 +162,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_ppc64.go b/src/runtime/defs_linux_ppc64.go
+index e0775e2974..7971ca7058 100644
+--- a/src/runtime/defs_linux_ppc64.go
++++ b/src/runtime/defs_linux_ppc64.go
+@@ -3,6 +3,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -135,6 +137,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -153,6 +160,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_ppc64le.go b/src/runtime/defs_linux_ppc64le.go
+index e0775e2974..7971ca7058 100644
+--- a/src/runtime/defs_linux_ppc64le.go
++++ b/src/runtime/defs_linux_ppc64le.go
+@@ -3,6 +3,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -135,6 +137,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -153,6 +160,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_riscv64.go b/src/runtime/defs_linux_riscv64.go
+index 1052213a4c..92f4563dd5 100644
+--- a/src/runtime/defs_linux_riscv64.go
++++ b/src/runtime/defs_linux_riscv64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -132,6 +134,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -150,6 +157,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/defs_linux_s390x.go b/src/runtime/defs_linux_s390x.go
+index b072955d4a..8a56ef0b80 100644
+--- a/src/runtime/defs_linux_s390x.go
++++ b/src/runtime/defs_linux_s390x.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "internal/goarch"
++
+ const (
+ 	_EINTR  = 0x4
+ 	_EAGAIN = 0xb
+@@ -131,6 +133,11 @@ type siginfo struct {
+ 	si_code  int32
+ 	// below here is a union; si_addr is the only field we use
+ 	si_addr uint64
++
++	// Pad struct to the max size in the kernel. Account for the 3 32-bit
++	// fields, the alignment to this architecture's pointer size, and the final
++	// pointer-length field.
++	_ [_si_max_size - (3*4 + (1-4/goarch.PtrSize)*4 + 1*goarch.PtrSize)]byte
+ }
+ 
+ type itimerspec struct {
+@@ -149,6 +156,10 @@ type sigevent struct {
+ 	notify int32
+ 	// below here is a union; sigev_notify_thread_id is the only field we use
+ 	sigev_notify_thread_id int32
++
++	// Pad struct to the max size in the kernel. Account for the pointer-length
++	// field and the 3 32-bit fields.
++	_ [_sigev_max_size - (1*goarch.PtrSize + 3*4)]byte
+ }
+ 
+ type epollevent struct {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 06773c2193..d5a5ff763b 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -440,6 +440,18 @@ func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func setNonblock(fd int32)
+ 
++const (
++	_si_max_size    = 128
++	_sigev_max_size = 64
++)
++
++// Assert that the Go definitions of structures exchanged with the kernel are
++// the same size as what the kernel defines.
++var (
++	_ [_si_max_size]struct{}    = [unsafe.Sizeof(siginfo{})]struct{}{}
++	_ [_sigev_max_size]struct{} = [unsafe.Sizeof(sigevent{})]struct{}{}
++)
++
+ //go:nosplit
+ //go:nowritebarrierrec
+ func setsig(i uint32, fn uintptr) {

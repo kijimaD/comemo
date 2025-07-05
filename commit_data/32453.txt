@@ -11,7 +11,54 @@ Date:   Tue Apr 25 12:57:33 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/html/template/escape.go     | 8 ++++----
  src/html/template/transition.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 106067f792..3e8b455e33 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -64,7 +64,7 @@ var funcMap = template.FuncMap{
+ 
+ // predefinedEscapers contains template predefined escapers.
+ var predefinedEscapers = map[string]bool{
+-	"html" :    true,
++	"html":     true,
+ 	"urlquery": true,
+ 	"js":       true,
+ }
+@@ -155,8 +155,8 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		for _, ident := range allIdents(idNode.Args[0]) {
+ 			if _, ok := predefinedEscapers[ident]; ok {
+ 				return context{
+-				state: stateError,
+-				err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
++					state: stateError,
++					err:   errorf(ErrPredefinedEscaper, n, n.Line, "predefined escaper %q disallowed in template", ident),
+ 				}
+ 			}
+ 		}
+@@ -582,7 +582,7 @@ func (e *escaper) escapeText(c context, n *parse.TextNode) context {
+ 				// the entire comment is considered to be a
+ 				// LineTerminator for purposes of parsing by
+ 				// the syntactic grammar."
+-				if bytes.IndexAny(s[written:i1], "\n\r\u2028\u2029") != -1 {
++				if bytes.ContainsAny(s[written:i1], "\n\r\u2028\u2029") {
+ 					b.WriteByte('\n')
+ 				} else {
+ 					b.WriteByte(' ')
+diff --git a/src/html/template/transition.go b/src/html/template/transition.go
+index 5d34d6947e..df7ac2289b 100644
+--- a/src/html/template/transition.go
++++ b/src/html/template/transition.go
+@@ -246,7 +246,7 @@ func tAttr(c context, s []byte) (context, int) {
+ 
+ // tURL is the context transition function for the URL state.
+ func tURL(c context, s []byte) (context, int) {
+-	if bytes.IndexAny(s, "#?") >= 0 {
++	if bytes.ContainsAny(s, "#?") {
+ 		c.urlPart = urlPartQueryOrFrag
+ 	} else if len(s) != eatWhiteSpace(s, 0) && c.urlPart == urlPartNone {
+ 		// HTML5 uses "Valid URL potentially surrounded by spaces" for

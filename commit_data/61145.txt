@@ -17,9 +17,136 @@ Date:   Tue Oct 1 02:30:39 2024 +0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ir/type.go      | 20 ++++++++++++++
  src/cmd/compile/internal/noder/reader.go |  6 +++-
  src/cmd/compile/internal/walk/switch.go  | 17 ------------
  test/codegen/typeswitch.go               | 47 ++++++++++++++++++++++++++++++++
  4 files changed, 72 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/type.go b/src/cmd/compile/internal/ir/type.go
+index 7db76c1427..6daca856a6 100644
+--- a/src/cmd/compile/internal/ir/type.go
++++ b/src/cmd/compile/internal/ir/type.go
+@@ -67,3 +67,23 @@ func NewDynamicType(pos src.XPos, rtype Node) *DynamicType {
+ 	n.op = ODYNAMICTYPE
+ 	return n
+ }
++
++// ToStatic returns static type of dt if it is actually static.
++func (dt *DynamicType) ToStatic() Node {
++	if dt.Typecheck() == 0 {
++		base.Fatalf("missing typecheck: %v", dt)
++	}
++	if dt.RType != nil && dt.RType.Op() == OADDR {
++		addr := dt.RType.(*AddrExpr)
++		if addr.X.Op() == OLINKSYMOFFSET {
++			return TypeNode(dt.Type())
++		}
++	}
++	if dt.ITab != nil && dt.ITab.Op() == OADDR {
++		addr := dt.ITab.(*AddrExpr)
++		if addr.X.Op() == OLINKSYMOFFSET {
++			return TypeNode(dt.Type())
++		}
++	}
++	return nil
++}
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 55fbf860df..39ac1400a0 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3242,7 +3242,11 @@ func (r *reader) exprType() ir.Node {
+ 
+ 	dt := ir.NewDynamicType(pos, rtype)
+ 	dt.ITab = itab
+-	return typed(typ, dt)
++	dt = typed(typ, dt).(*ir.DynamicType)
++	if st := dt.ToStatic(); st != nil {
++		return st
++	}
++	return dt
+ }
+ 
+ func (r *reader) op() ir.Op {
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index e451a95d69..a45ca6e638 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -459,23 +459,6 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 				nilGoto = jmp
+ 				continue
+ 			}
+-			if n1.Op() == ir.ODYNAMICTYPE {
+-				// Convert dynamic to static, if the dynamic is actually static.
+-				// TODO: why isn't this OTYPE to begin with?
+-				dt := n1.(*ir.DynamicType)
+-				if dt.RType != nil && dt.RType.Op() == ir.OADDR {
+-					addr := dt.RType.(*ir.AddrExpr)
+-					if addr.X.Op() == ir.OLINKSYMOFFSET {
+-						n1 = ir.TypeNode(n1.Type())
+-					}
+-				}
+-				if dt.ITab != nil && dt.ITab.Op() == ir.OADDR {
+-					addr := dt.ITab.(*ir.AddrExpr)
+-					if addr.X.Op() == ir.OLINKSYMOFFSET {
+-						n1 = ir.TypeNode(n1.Type())
+-					}
+-				}
+-			}
+ 			cases = append(cases, oneCase{
+ 				pos: ncase.Pos(),
+ 				typ: n1,
+diff --git a/test/codegen/typeswitch.go b/test/codegen/typeswitch.go
+new file mode 100644
+index 0000000000..495853ed3c
+--- /dev/null
++++ b/test/codegen/typeswitch.go
+@@ -0,0 +1,47 @@
++// asmcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++type Ix interface {
++	X()
++}
++
++type Iy interface {
++	Y()
++}
++
++type Iz interface {
++	Z()
++}
++
++func swXYZ(a Ix) {
++	switch t := a.(type) {
++	case Iy: // amd64:-".*typeAssert"
++		t.Y()
++	case Iz: // amd64:-".*typeAssert"
++		t.Z()
++	}
++}
++
++type Ig[T any] interface {
++	G() T
++}
++
++func swGYZ[T any](a Ig[T]) {
++	switch t := a.(type) {
++	case Iy: // amd64:-".*typeAssert"
++		t.Y()
++	case Iz: // amd64:-".*typeAssert"
++		t.Z()
++	case interface{ G() T }: // amd64:-".*typeAssert",".*assertE2I"
++		t.G()
++	}
++}
++
++func swCaller() {
++	swGYZ[int]((Ig[int])(nil))
++}

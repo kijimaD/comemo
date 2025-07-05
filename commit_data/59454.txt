@@ -35,7 +35,7 @@ Date:   Tue Mar 12 09:31:06 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-on: https://go-review.googlesource.com/c/go/+/571137
-
+---
  src/cmd/compile/internal/types2/call.go            |  6 ++--
  src/cmd/compile/internal/types2/check.go           |  2 +-
  src/cmd/compile/internal/types2/conversions.go     |  4 +--
@@ -57,3 +57,500 @@ Date:   Tue Mar 12 09:31:06 2024 -0700
  src/go/types/version.go                            | 32 ++++++++++----------
  .../types/testdata/fixedbugs/issue66064.go         | 15 ++++++++++
  20 files changed, 86 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index fe5b71d965..0a5de6667e 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -87,7 +87,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 		var params []*Var
+ 		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+-			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
++			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
+ 				if inst != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+ 				} else {
+@@ -371,7 +371,7 @@ func (check *Checker) genericExprList(elist []syntax.Expr) (resList []*operand,
+ 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+ 	infer := true // for -lang < go1.21
+ 	n := len(elist)
+-	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
++	if n > 0 && check.allowVersion(elist[0], go1_21) {
+ 		infer = false
+ 	}
+ 
+@@ -541,7 +541,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	// collect type parameters of callee
+ 	n := sig.TypeParams().Len()
+ 	if n > 0 {
+-		if !check.allowVersion(check.pkg, call.Pos(), go1_18) {
++		if !check.allowVersion(call.Pos(), go1_18) {
+ 			if iexpr, _ := call.Fun.(*syntax.IndexExpr); iexpr != nil {
+ 				check.versionErrorf(iexpr, go1_18, "function instantiation")
+ 			} else {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index f36dff3d4a..bf613fd28b 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -127,7 +127,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*syntax.File              // list of package files
+-	versions      map[*syntax.PosBase]string  // maps file bases to version strings (each file has an entry)
++	versions      map[*syntax.PosBase]string  // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
+ 	imports       []*PkgName                  // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName   // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*syntax.Name]*TypeParam // maps blank receiver type parameters to their type
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index d9ed0b3c1b..b8d8f6e150 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -197,7 +197,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		switch a := Tu.(type) {
+ 		case *Array:
+ 			if Identical(s.Elem(), a.Elem()) {
+-				if check == nil || check.allowVersion(check.pkg, x, go1_20) {
++				if check == nil || check.allowVersion(x, go1_20) {
+ 					return true
+ 				}
+ 				// check != nil
+@@ -210,7 +210,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		case *Pointer:
+ 			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+-					if check == nil || check.allowVersion(check.pkg, x, go1_17) {
++					if check == nil || check.allowVersion(x, go1_17) {
+ 						return true
+ 					}
+ 					// check != nil
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2f9d544a4b..b2ff262762 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1036,7 +1036,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
+ // literal is not compatible with the current language version.
+ func (check *Checker) langCompat(lit *syntax.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
++	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index b3f0f47c22..1cdc4e79a2 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -110,7 +110,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, pos, go1_21))
++	u := newUnifier(tparams, targs, check.allowVersion(pos, go1_21))
+ 
+ 	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index e33d4b41c2..a25cb141ec 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -271,7 +271,7 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+ 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+-			if check == nil || check.allowVersion(check.pkg, atPos(pos), go1_20) { // atPos needed so that go/types generate passes
++			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+ 				return true
+ 			}
+ 			if cause != nil {
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e79e4cd586..1a6ec4ffc1 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -858,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a core type.
+ 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+-			return check.allowVersion(check.pkg, x.expr, v)
++			return check.allowVersion(x.expr, v)
+ 		})
+ 		switch {
+ 		case !ok && cause != "":
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 778809e42e..a7dddc308d 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -238,7 +238,9 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					if !check.allowVersion(m.pkg, atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					// ignore version check if method is from a different package
++					// TODO(gri) this seems incorrect - see go.dev/issue/66285
++					if check.pkg == m.pkg && pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+@@ -257,9 +259,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 	allTerms := allTermlist
+ 	allComparable := false
+ 	for i, typ := range ityp.embeddeds {
+-		// The embedding position is nil for imported interfaces
+-		// and also for interface copies after substitution (but
+-		// in that case we don't need to report errors again).
++		// The embedding position is nil for imported interfaces.
++		// We don't need to do version checks in those cases.
+ 		var pos syntax.Pos // embedding position
+ 		if ityp.embedPos != nil {
+ 			pos = (*ityp.embedPos)[i]
+@@ -272,7 +273,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			assert(!isTypeParam(typ))
+ 			tset := computeInterfaceTypeSet(check, pos, u)
+ 			// If typ is local, an error was already reported where typ is specified/defined.
+-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
++			if pos.IsKnown() && check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
+ 				continue
+ 			}
+ 			comparable = tset.comparable
+@@ -281,7 +282,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			}
+ 			terms = tset.terms
+ 		case *Union:
+-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
++			if pos.IsKnown() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
+ 				continue
+ 			}
+ 			tset := computeUnionTypeSet(check, unionSets, pos, u)
+@@ -295,7 +296,7 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 			if !isValid(u) {
+ 				continue
+ 			}
+-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
++			if pos.IsKnown() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
+ 				continue
+ 			}
+ 			terms = termlist{{false, typ}}
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index bcd47fbb7e..241b10d3e6 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -49,31 +49,28 @@ var (
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+ )
+ 
+-// allowVersion reports whether the given package is allowed to use version v.
+-func (check *Checker) allowVersion(pkg *Package, at poser, v goVersion) bool {
+-	// We assume that imported packages have all been checked,
+-	// so we only have to check for the local package.
+-	if pkg != check.pkg {
+-		return true
+-	}
+-
+-	// If no explicit file version is specified,
+-	// fileVersion corresponds to the module version.
+-	var fileVersion goVersion
++// allowVersion reports whether the current package at the given position
++// is allowed to use version v. If the position is unknown, the specified
++// module version (Config.GoVersion) is used. If that version is invalid,
++// allowVersion returns true.
++func (check *Checker) allowVersion(at poser, v goVersion) bool {
++	fileVersion := check.conf.GoVersion
+ 	if pos := at.Pos(); pos.IsKnown() {
+-		// We need version.Lang below because file versions
+-		// can be (unaltered) Config.GoVersion strings that
+-		// may contain dot-release information.
+-		fileVersion = asGoVersion(check.versions[base(pos)])
++		fileVersion = check.versions[base(pos)]
+ 	}
+-	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
++
++	// We need asGoVersion (which calls version.Lang) below
++	// because fileVersion may be the (unaltered) Config.GoVersion
++	// string which may contain dot-release information.
++	version := asGoVersion(fileVersion)
++
++	return !version.isValid() || version.cmp(v) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+-// which are used to report a version error if allowVersion returns false. It uses the
+-// current package.
++// which are used to report a version error if allowVersion returns false.
+ func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args ...interface{}) bool {
+-	if !check.allowVersion(check.pkg, at, v) {
++	if !check.allowVersion(at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 42ef5b6f86..b4f155a501 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -89,7 +89,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *typepar
+ 		var params []*Var
+ 		var reverse bool
+ 		if T != nil && sig.tparams != nil {
+-			if !versionErr && !check.allowVersion(check.pkg, instErrPos, go1_21) {
++			if !versionErr && !check.allowVersion(instErrPos, go1_21) {
+ 				if ix != nil {
+ 					check.versionErrorf(instErrPos, go1_21, "partially instantiated function in assignment")
+ 				} else {
+@@ -374,7 +374,7 @@ func (check *Checker) genericExprList(elist []ast.Expr) (resList []*operand, tar
+ 	// nor permitted. Checker.funcInst must infer missing type arguments in that case.
+ 	infer := true // for -lang < go1.21
+ 	n := len(elist)
+-	if n > 0 && check.allowVersion(check.pkg, elist[0], go1_21) {
++	if n > 0 && check.allowVersion(elist[0], go1_21) {
+ 		infer = false
+ 	}
+ 
+@@ -542,7 +542,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	// collect type parameters of callee
+ 	n := sig.TypeParams().Len()
+ 	if n > 0 {
+-		if !check.allowVersion(check.pkg, call, go1_18) {
++		if !check.allowVersion(call, go1_18) {
+ 			switch call.Fun.(type) {
+ 			case *ast.IndexExpr, *ast.IndexListExpr:
+ 				ix := typeparams.UnpackIndexExpr(call.Fun)
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index d9c290066b..6da42e63f6 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -131,7 +131,7 @@ type Checker struct {
+ 	// (initialized by Files, valid only for the duration of check.Files;
+ 	// maps and lists are allocated on demand)
+ 	files         []*ast.File               // package files
+-	versions      map[*ast.File]string      // maps files to version strings (each file has an entry)
++	versions      map[*ast.File]string      // maps files to version strings (each file has an entry); shared with Info.FileVersions if present
+ 	imports       []*PkgName                // list of imported packages
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	recvTParamMap map[*ast.Ident]*TypeParam // maps blank receiver type parameters to their type
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index f5834cd86d..1658567114 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -199,7 +199,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		switch a := Tu.(type) {
+ 		case *Array:
+ 			if Identical(s.Elem(), a.Elem()) {
+-				if check == nil || check.allowVersion(check.pkg, x, go1_20) {
++				if check == nil || check.allowVersion(x, go1_20) {
+ 					return true
+ 				}
+ 				// check != nil
+@@ -212,7 +212,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		case *Pointer:
+ 			if a, _ := under(a.Elem()).(*Array); a != nil {
+ 				if Identical(s.Elem(), a.Elem()) {
+-					if check == nil || check.allowVersion(check.pkg, x, go1_17) {
++					if check == nil || check.allowVersion(x, go1_17) {
+ 						return true
+ 					}
+ 					// check != nil
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 22904cb1b5..ef61e2cc40 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1021,7 +1021,7 @@ func (check *Checker) nonGeneric(T *target, x *operand) {
+ // literal is not compatible with the current language version.
+ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || check.allowVersion(check.pkg, lit, go1_13) {
++	if len(s) <= 2 || check.allowVersion(lit, go1_13) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/go/types/generate_test.go b/src/go/types/generate_test.go
+index f7ba479c3b..22ace576fe 100644
+--- a/src/go/types/generate_test.go
++++ b/src/go/types/generate_test.go
+@@ -305,7 +305,6 @@ func fixTokenPos(f *ast.File) {
+ 		case *ast.SelectorExpr:
+ 			// rewrite syntax.Pos to token.Pos
+ 			m.renameSel(n)
+-			return false
+ 		case *ast.CallExpr:
+ 			// rewrite x.IsKnown() to x.IsValid()
+ 			if fun, _ := n.Fun.(*ast.SelectorExpr); fun != nil && len(n.Args) == 0 {
+@@ -370,11 +369,11 @@ func fixInferSig(f *ast.File) {
+ 						return false
+ 					}
+ 				case "allowVersion":
+-					// rewrite check.allowVersion(..., pos, ...) to check.allowVersion(..., posn, ...)
+-					if isIdent(n.Args[1], "pos") {
+-						pos := n.Args[1].Pos()
++					// rewrite check.allowVersion(pos, ...) to check.allowVersion(posn, ...)
++					if isIdent(n.Args[0], "pos") {
++						pos := n.Args[0].Pos()
+ 						arg := newIdent(pos, "posn")
+-						n.Args[1] = arg
++						n.Args[0] = arg
+ 						return false
+ 					}
+ 				}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 39215d88d5..3a3e5de4dd 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -112,7 +112,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	// Unify parameter and argument types for generic parameters with typed arguments
+ 	// and collect the indices of generic parameters with untyped arguments.
+ 	// Terminology: generic parameter = function parameter with a type-parameterized type
+-	u := newUnifier(tparams, targs, check.allowVersion(check.pkg, posn, go1_21))
++	u := newUnifier(tparams, targs, check.allowVersion(posn, go1_21))
+ 
+ 	errorf := func(tpar, targ Type, arg *operand) {
+ 		// provide a better error message if we can
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index bf7ecc5316..c7ea9e1c78 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -273,7 +273,7 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+ 		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+-			if check == nil || check.allowVersion(check.pkg, atPos(pos), go1_20) { // atPos needed so that go/types generate passes
++			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+ 				return true
+ 			}
+ 			if cause != nil {
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 9788fc8142..4fd37a68f0 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -858,7 +858,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 	if x.mode != invalid {
+ 		// Ranging over a type parameter is permitted if it has a core type.
+ 		k, v, cause, isFunc, ok := rangeKeyVal(x.typ, func(v goVersion) bool {
+-			return check.allowVersion(check.pkg, x.expr, v)
++			return check.allowVersion(x.expr, v)
+ 		})
+ 		switch {
+ 		case !ok && cause != "":
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 16bc62cc19..29bd718335 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -240,7 +240,9 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			// error message.
+ 			if check != nil {
+ 				check.later(func() {
+-					if !check.allowVersion(m.pkg, atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
++					// ignore version check if method is from a different package
++					// TODO(gri) this seems incorrect - see go.dev/issue/66285
++					if check.pkg == m.pkg && pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+ 						err.addf(atPos(pos), "duplicate method %s", m.name)
+ 						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", m.name)
+@@ -259,9 +261,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 	allTerms := allTermlist
+ 	allComparable := false
+ 	for i, typ := range ityp.embeddeds {
+-		// The embedding position is nil for imported interfaces
+-		// and also for interface copies after substitution (but
+-		// in that case we don't need to report errors again).
++		// The embedding position is nil for imported interfaces.
++		// We don't need to do version checks in those cases.
+ 		var pos token.Pos // embedding position
+ 		if ityp.embedPos != nil {
+ 			pos = (*ityp.embedPos)[i]
+@@ -274,7 +275,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			assert(!isTypeParam(typ))
+ 			tset := computeInterfaceTypeSet(check, pos, u)
+ 			// If typ is local, an error was already reported where typ is specified/defined.
+-			if check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
++			if pos.IsValid() && check != nil && check.isImportedConstraint(typ) && !check.verifyVersionf(atPos(pos), go1_18, "embedding constraint interface %s", typ) {
+ 				continue
+ 			}
+ 			comparable = tset.comparable
+@@ -283,7 +284,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			}
+ 			terms = tset.terms
+ 		case *Union:
+-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
++			if pos.IsValid() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding interface element %s", u) {
+ 				continue
+ 			}
+ 			tset := computeUnionTypeSet(check, unionSets, pos, u)
+@@ -297,7 +298,7 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			if !isValid(u) {
+ 				continue
+ 			}
+-			if check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
++			if pos.IsValid() && check != nil && !check.verifyVersionf(atPos(pos), go1_18, "embedding non-interface type %s", typ) {
+ 				continue
+ 			}
+ 			terms = termlist{{false, typ}}
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 565183de04..669ca66a39 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -50,31 +50,29 @@ var (
+ 	go_current = asGoVersion(fmt.Sprintf("go1.%d", goversion.Version))
+ )
+ 
+-// allowVersion reports whether the given package is allowed to use version v.
+-func (check *Checker) allowVersion(pkg *Package, at positioner, v goVersion) bool {
+-	// We assume that imported packages have all been checked,
+-	// so we only have to check for the local package.
+-	if pkg != check.pkg {
+-		return true
+-	}
+-
+-	// If no explicit file version is specified,
+-	// fileVersion corresponds to the module version.
+-	var fileVersion goVersion
++// allowVersion reports whether the current package at the given position
++// is allowed to use version v. If the position is unknown, the specified
++// module version (Config.GoVersion) is used. If that version is invalid,
++// allowVersion returns true.
++func (check *Checker) allowVersion(at positioner, v goVersion) bool {
++	fileVersion := check.conf.GoVersion
+ 	if pos := at.Pos(); pos.IsValid() {
+-		// We need version.Lang below because file versions
+-		// can be (unaltered) Config.GoVersion strings that
+-		// may contain dot-release information.
+-		fileVersion = asGoVersion(check.versions[check.fileFor(pos)])
++		fileVersion = check.versions[check.fileFor(pos)]
+ 	}
+-	return !fileVersion.isValid() || fileVersion.cmp(v) >= 0
++
++	// We need asGoVersion (which calls version.Lang) below
++	// because fileVersion may be the (unaltered) Config.GoVersion
++	// string which may contain dot-release information.
++	version := asGoVersion(fileVersion)
++
++	return !version.isValid() || version.cmp(v) >= 0
+ }
+ 
+ // verifyVersionf is like allowVersion but also accepts a format string and arguments
+ // which are used to report a version error if allowVersion returns false. It uses the
+ // current package.
+ func (check *Checker) verifyVersionf(at positioner, v goVersion, format string, args ...interface{}) bool {
+-	if !check.allowVersion(check.pkg, at, v) {
++	if !check.allowVersion(at, v) {
+ 		check.versionErrorf(at, v, format, args...)
+ 		return false
+ 	}
+diff --git a/src/internal/types/testdata/fixedbugs/issue66064.go b/src/internal/types/testdata/fixedbugs/issue66064.go
+new file mode 100644
+index 0000000000..d4a361754b
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue66064.go
+@@ -0,0 +1,15 @@
++// -lang=go1.16
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.21
++
++package main
++
++import "slices"
++
++func main() {
++	_ = slices.Clone([]string{}) // no error should be reported here
++}

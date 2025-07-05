@@ -7,6 +7,20 @@ Date:   Wed Feb 17 14:55:16 2016 -0800
     Change-Id: If15fdcd3cd49394a0c1dffd39fbbeede11081ccb
     Reviewed-on: https://go-review.googlesource.com/19528
     Reviewed-by: Chris Broadfoot <cbro@golang.org>
-
+---
  doc/devel/release.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 6cdbe1d608..e0c2ac0219 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,7 +30,7 @@ to fix critical security problems in both Go 1.4 and Go 1.5 as they arise.
+ See the <a href="/security">security policy</a> for more details.
+ </p>
+ 
+-<h2 id="go1.6">go1.6 (released 2015/02/17)</h2>
++<h2 id="go1.6">go1.6 (released 2016/02/17)</h2>
+ 
+ <p>
+ Go 1.6 is a major release of Go.

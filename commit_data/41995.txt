@@ -16,6 +16,30 @@ Date:   Tue Nov 5 11:01:10 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/205437
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/modfetch/coderepo_test.go | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/coderepo_test.go b/src/cmd/go/internal/modfetch/coderepo_test.go
+index 397f274978..f6f7a35245 100644
+--- a/src/cmd/go/internal/modfetch/coderepo_test.go
++++ b/src/cmd/go/internal/modfetch/coderepo_test.go
+@@ -368,18 +368,6 @@ var codeRepoTests = []codeRepoTest{
+ 		zipSum:      "h1:829vOVxxusYHC+IqBtkX5mbKtsY9fheQiQn0MZRVLfQ=",
+ 		zipFileHash: "9e7cb3f4f1e66d722306442b0dbe1f6f43d74d1736d54c510537bdfb1d6f432f",
+ 	},
+-	{
+-		vcs:         "git",
+-		path:        "gopkg.in/yaml.v2",
+-		rev:         "v2",
+-		version:     "v2.2.5-0.20191002202810-970885f01c8b",
+-		name:        "970885f01c8bc1fecb7ab1c8ce8e7609bda45530",
+-		short:       "970885f01c8b",
+-		time:        time.Date(2019, 10, 2, 20, 28, 10, 0, time.UTC),
+-		gomod:       "module \"gopkg.in/yaml.v2\"\n\nrequire (\n\t\"gopkg.in/check.v1\" v0.0.0-20161208181325-20d25e280405\n)\n",
+-		zipSum:      "h1:c7zdkYUaqShimBvZzvhOA+Absl0aDaGKX267vSm0Z7E=",
+-		zipFileHash: "5856a108e1aa8ec9c35f4479f8e806652b326b648c80abd08fc403707f4eb5f1",
+-	},
+ 	{
+ 		vcs:         "git",
+ 		path:        "vcs-test.golang.org/go/mod/gitrepo1",

@@ -13,7 +13,194 @@ Date:   Tue May 22 10:03:53 2012 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6225047
-
+---
  src/pkg/go/scanner/scanner.go      | 16 +++++++-
  src/pkg/go/scanner/scanner_test.go | 84 ++++++++++++++++++++++++--------------
  2 files changed, 68 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index da508747a6..eee1f387a8 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -157,11 +157,15 @@ func (s *Scanner) interpretLineComment(text []byte) {
+ func (s *Scanner) scanComment() string {
+ 	// initial '/' already consumed; s.ch == '/' || s.ch == '*'
+ 	offs := s.offset - 1 // position of initial '/'
++	hasCR := false
+ 
+ 	if s.ch == '/' {
+ 		//-style comment
+ 		s.next()
+ 		for s.ch != '\n' && s.ch >= 0 {
++			if s.ch == '\r' {
++				hasCR = true
++			}
+ 			s.next()
+ 		}
+ 		if offs == s.lineOffset {
+@@ -175,6 +179,9 @@ func (s *Scanner) scanComment() string {
+ 	s.next()
+ 	for s.ch >= 0 {
+ 		ch := s.ch
++		if ch == '\r' {
++			hasCR = true
++		}
+ 		s.next()
+ 		if ch == '*' && s.ch == '/' {
+ 			s.next()
+@@ -185,7 +192,12 @@ func (s *Scanner) scanComment() string {
+ 	s.error(offs, "comment not terminated")
+ 
+ exit:
+-	return string(s.src[offs:s.offset])
++	lit := s.src[offs:s.offset]
++	if hasCR {
++		lit = stripCR(lit)
++	}
++
++	return string(lit)
+ }
+ 
+ func (s *Scanner) findLineEnd() bool {
+@@ -527,6 +539,8 @@ func (s *Scanner) switch4(tok0, tok1 token.Token, ch2 rune, tok2, tok3 token.Tok
+ // token.IMAG, token.CHAR, token.STRING) or token.COMMENT, the literal string
+ // has the corresponding value.
+ //
++// If the returned token is a keyword, the literal string is the keyword.
++//
+ // If the returned token is token.SEMICOLON, the corresponding
+ // literal string is ";" if the semicolon was present in the source,
+ // and "\n" if the semicolon was inserted because of a newline or
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index 06223e23bd..a2eb0865ee 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -43,6 +43,8 @@ var tokens = [...]elt{
+ 	// Special tokens
+ 	{token.COMMENT, "/* a comment */", special},
+ 	{token.COMMENT, "// a comment \n", special},
++	{token.COMMENT, "/*\r*/", special},
++	{token.COMMENT, "//\r\n", special},
+ 
+ 	// Identifiers and basic type literals
+ 	{token.IDENT, "foobar", literal},
+@@ -214,8 +216,6 @@ func checkPos(t *testing.T, lit string, p token.Pos, expected token.Position) {
+ 
+ // Verify that calling Scan() provides the correct results.
+ func TestScan(t *testing.T) {
+-	// make source
+-	src_linecount := newlineCount(string(source))
+ 	whitespace_linecount := newlineCount(whitespace)
+ 
+ 	// error handler
+@@ -226,59 +226,81 @@ func TestScan(t *testing.T) {
+ 	// verify scan
+ 	var s Scanner
+ 	s.Init(fset.AddFile("", fset.Base(), len(source)), source, eh, ScanComments|dontInsertSemis)
+-	index := 0
+-	// epos is the expected position
++
++	// set up expected position
+ 	epos := token.Position{
+ 		Filename: "",
+ 		Offset:   0,
+ 		Line:     1,
+ 		Column:   1,
+ 	}
++
++	index := 0
+ 	for {
+ 		pos, tok, lit := s.Scan()
+-		if lit == "" {
+-			// no literal value for non-literal tokens
+-			lit = tok.String()
++
++		// check position
++		if tok == token.EOF {
++			// correction for EOF
++			epos.Line = newlineCount(string(source))
++			epos.Column = 2
+ 		}
++		checkPos(t, lit, pos, epos)
++
++		// check token
+ 		e := elt{token.EOF, "", special}
+ 		if index < len(tokens) {
+ 			e = tokens[index]
++			index++
+ 		}
+-		if tok == token.EOF {
+-			lit = "<EOF>"
+-			epos.Line = src_linecount
+-			epos.Column = 2
+-		}
+-		checkPos(t, lit, pos, epos)
+ 		if tok != e.tok {
+ 			t.Errorf("bad token for %q: got %s, expected %s", lit, tok, e.tok)
+ 		}
+-		if e.tok.IsLiteral() {
+-			// no CRs in raw string literals
+-			elit := e.lit
+-			if elit[0] == '`' {
+-				elit = string(stripCR([]byte(elit)))
+-				epos.Offset += len(e.lit) - len(lit) // correct position
+-			}
+-			if lit != elit {
+-				t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
+-			}
+-		}
++
++		// check token class
+ 		if tokenclass(tok) != e.class {
+ 			t.Errorf("bad class for %q: got %d, expected %d", lit, tokenclass(tok), e.class)
+ 		}
+-		epos.Offset += len(lit) + len(whitespace)
+-		epos.Line += newlineCount(lit) + whitespace_linecount
+-		if tok == token.COMMENT && lit[1] == '/' {
+-			// correct for unaccounted '/n' in //-style comment
+-			epos.Offset++
+-			epos.Line++
++
++		// check literal
++		elit := ""
++		switch e.tok {
++		case token.COMMENT:
++			// no CRs in comments
++			elit = string(stripCR([]byte(e.lit)))
++			//-style comment literal doesn't contain newline
++			if elit[1] == '/' {
++				elit = elit[0 : len(elit)-1]
++			}
++		case token.IDENT:
++			elit = e.lit
++		case token.SEMICOLON:
++			elit = ";"
++		default:
++			if e.tok.IsLiteral() {
++				// no CRs in raw string literals
++				elit = e.lit
++				if elit[0] == '`' {
++					elit = string(stripCR([]byte(elit)))
++				}
++			} else if e.tok.IsKeyword() {
++				elit = e.lit
++			}
++		}
++		if lit != elit {
++			t.Errorf("bad literal for %q: got %q, expected %q", lit, lit, elit)
+ 		}
+-		index++
++
+ 		if tok == token.EOF {
+ 			break
+ 		}
++
++		// update position
++		epos.Offset += len(e.lit) + len(whitespace)
++		epos.Line += newlineCount(e.lit) + whitespace_linecount
++
+ 	}
++
+ 	if s.ErrorCount != 0 {
+ 		t.Errorf("found %d errors", s.ErrorCount)
+ 	}

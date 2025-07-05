@@ -40,6 +40,34 @@ Date:   Tue Sep 25 20:34:15 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/137441
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/sync/map.go | 12 ++++--------
  1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/sync/map.go b/src/sync/map.go
+index c4a0dc4194..c6aa308856 100644
+--- a/src/sync/map.go
++++ b/src/sync/map.go
+@@ -167,18 +167,14 @@ func (m *Map) Store(key, value interface{}) {
+ // If the entry is expunged, tryStore returns false and leaves the entry
+ // unchanged.
+ func (e *entry) tryStore(i *interface{}) bool {
+-	p := atomic.LoadPointer(&e.p)
+-	if p == expunged {
+-		return false
+-	}
+ 	for {
+-		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
+-			return true
+-		}
+-		p = atomic.LoadPointer(&e.p)
++		p := atomic.LoadPointer(&e.p)
+ 		if p == expunged {
+ 			return false
+ 		}
++		if atomic.CompareAndSwapPointer(&e.p, p, unsafe.Pointer(i)) {
++			return true
++		}
+ 	}
+ }
+ 

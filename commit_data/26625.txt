@@ -10,8 +10,78 @@ Date:   Mon Jan 25 15:21:10 2016 -0500
     Change-Id: Iafdfb71adccad76230191d922eb7ddf78b7d5898
     Reviewed-on: https://go-review.googlesource.com/19612
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/x86/a.out.go  | 9 ---------
  src/cmd/internal/obj/x86/anames.go | 9 ---------
  src/cmd/internal/obj/x86/asm6.go   | 2 --
  3 files changed, 20 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 28c973b4a8..dacf612bc2 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -289,8 +289,6 @@ const (
+ 	AFMOVX
+ 	AFMOVXP
+ 
+-	AFCOMB
+-	AFCOMBP
+ 	AFCOMD
+ 	AFCOMDP
+ 	AFCOMDPP
+@@ -620,14 +618,7 @@ const (
+ 	APADDUSW
+ 	APADDW
+ 	APAND
+-	APANDB
+-	APANDL
+ 	APANDN
+-	APANDSB
+-	APANDSW
+-	APANDUSB
+-	APANDUSW
+-	APANDW
+ 	APAVGB
+ 	APAVGW
+ 	APCMPEQB
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 3c3bc03622..3b59e2f36f 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -255,8 +255,6 @@ var Anames = []string{
+ 	"FMOVWP",
+ 	"FMOVX",
+ 	"FMOVXP",
+-	"FCOMB",
+-	"FCOMBP",
+ 	"FCOMD",
+ 	"FCOMDP",
+ 	"FCOMDPP",
+@@ -569,14 +567,7 @@ var Anames = []string{
+ 	"PADDUSW",
+ 	"PADDW",
+ 	"PAND",
+-	"PANDB",
+-	"PANDL",
+ 	"PANDN",
+-	"PANDSB",
+-	"PANDSW",
+-	"PANDUSB",
+-	"PANDUSW",
+-	"PANDW",
+ 	"PAVGB",
+ 	"PAVGW",
+ 	"PCMPEQB",
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a06d3097ad..2b71822799 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1525,8 +1525,6 @@ var optab =
+ 	{AFCMOVNE, yfcmv, Px, [23]uint8{0xdb, 01}},
+ 	{AFCMOVNU, yfcmv, Px, [23]uint8{0xdb, 03}},
+ 	{AFCMOVUN, yfcmv, Px, [23]uint8{0xda, 03}},
+-	{AFCOMB, nil, 0, [23]uint8{}},
+-	{AFCOMBP, nil, 0, [23]uint8{}},
+ 	{AFCOMD, yfadd, Px, [23]uint8{0xdc, 02, 0xd8, 02, 0xdc, 02}},  /* botch */
+ 	{AFCOMDP, yfadd, Px, [23]uint8{0xdc, 03, 0xd8, 03, 0xdc, 03}}, /* botch */
+ 	{AFCOMDPP, ycompp, Px, [23]uint8{0xde, 03}},

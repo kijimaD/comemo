@@ -7,6 +7,19 @@ Date:   Wed Jan 18 09:40:50 2012 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5553050
-
+---
  src/pkg/bytes/example_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/bytes/example_test.go b/src/pkg/bytes/example_test.go
+index 02da1ac082..0234a012a4 100644
+--- a/src/pkg/bytes/example_test.go
++++ b/src/pkg/bytes/example_test.go
+@@ -1,3 +1,7 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package bytes_test
+ 
+ import (

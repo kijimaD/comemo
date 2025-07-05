@@ -12,6 +12,29 @@ Date:   Thu Jun 25 22:38:14 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5bbfbb02c1..b23313d9e5 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -324,16 +324,12 @@ func (ctxt *Link) pclntab() loader.Bitmap {
+ 	}
+ 
+ 	setAddr := (*loader.SymbolBuilder).SetAddrPlus
+-	if ctxt.IsExe() && ctxt.IsInternal() && !ctxt.DynlinkingGo() {
++	if ctxt.IsExe() && ctxt.IsInternal() {
+ 		// Internal linking static executable. At this point the function
+ 		// addresses are known, so we can just use them instead of emitting
+ 		// relocations.
+ 		// For other cases we are generating a relocatable binary so we
+ 		// still need to emit relocations.
+-		//
+-		// Also not do this optimization when using plugins (DynlinkingGo),
+-		// as on darwin it does weird things with runtime.etext symbol.
+-		// TODO: remove the weird thing and remove this condition.
+ 		setAddr = func(s *loader.SymbolBuilder, arch *sys.Arch, off int64, tgt loader.Sym, add int64) int64 {
+ 			if v := ldr.SymValue(tgt); v != 0 {
+ 				return s.SetUint(arch, off, uint64(v+add))

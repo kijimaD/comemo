@@ -11,6 +11,20 @@ Date:   Sun Jul 7 23:06:30 2013 +0800
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/10907043
-
+---
  src/cmd/go/vcs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index 504b3bf548..59bc2adbe7 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -91,7 +91,7 @@ var vcsGit = &vcsCmd{
+ 	cmd:  "git",
+ 
+ 	createCmd:   "clone {repo} {dir}",
+-	downloadCmd: "fetch",
++	downloadCmd: "pull --ff-only",
+ 
+ 	tagCmd: []tagCmd{
+ 		// tags/xxx matches a git tag named xxx

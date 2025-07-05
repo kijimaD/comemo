@@ -13,8 +13,123 @@ Date:   Wed Apr 8 19:44:14 2015 -0400
     Change-Id: Ia56f3d97e126b40d8bbd2e8f677b008e4a1badad
     Reviewed-on: https://go-review.googlesource.com/8666
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin_386.s   | 16 ++++++++--------
  src/runtime/sys_darwin_amd64.s | 12 ++++++------
  src/runtime/sys_darwin_arm.s   | 15 +++++++--------
  3 files changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 571ec41324..6e1234567b 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -327,33 +327,32 @@ TEXT runtime·usleep(SB),NOSPLIT,$32
+ 	INT	$0x80
+ 	RET
+ 
+-// func bsdthread_create(stk unsafe.Pointer, mm *m, gg *g, fn uintptr) int32
++// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+ // System call args are: func arg stack pthread flags.
+ TEXT runtime·bsdthread_create(SB),NOSPLIT,$32
+ 	MOVL	$360, AX
+ 	// 0(SP) is where the caller PC would be; kernel skips it
+-	MOVL	fn+12(FP), BX
++	MOVL	fn+8(FP), BX
+ 	MOVL	BX, 4(SP)	// func
+-	MOVL	mm+4(FP), BX
++	MOVL	arg+4(FP), BX
+ 	MOVL	BX, 8(SP)	// arg
+ 	MOVL	stk+0(FP), BX
+ 	MOVL	BX, 12(SP)	// stack
+-	MOVL	gg+8(FP), BX
+-	MOVL	BX, 16(SP)	// pthread
++	MOVL    $0, 16(SP)      // pthread
+ 	MOVL	$0x1000000, 20(SP)	// flags = PTHREAD_START_CUSTOM
+ 	INT	$0x80
+ 	JAE	4(PC)
+ 	NEGL	AX
+-	MOVL	AX, ret+16(FP)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 	MOVL	$0, AX
+-	MOVL	AX, ret+16(FP)
++	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,
+ // because we registered this function using bsdthread_register
+ // at startup.
+-//	AX = "pthread" (= g)
++//	AX = "pthread" (= 0x0)
+ //	BX = mach thread port
+ //	CX = "func" (= fn)
+ //	DX = "arg" (= m)
+@@ -380,6 +379,7 @@ TEXT runtime·bsdthread_start(SB),NOSPLIT,$0
+ 
+ 	// Now segment is established.  Initialize m, g.
+ 	get_tls(BP)
++	MOVL    m_g0(DX), AX
+ 	MOVL	AX, g(BP)
+ 	MOVL	DX, g_m(AX)
+ 	MOVL	BX, m_procid(DX)	// m->procid = thread port (for debuggers)
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index d28ac856ec..2ec43014c6 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -308,12 +308,12 @@ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	// Set up arguments to bsdthread_create system call.
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+-	MOVQ	fn+24(SP), DI	// "func"
+-	MOVQ	arg+16(SP), SI	// "arg"
+-	MOVQ	stk+8(SP), DX	// stack
+-	MOVQ	$0, R10		// "pthread", paranoia
+-	MOVQ	$0x01000000, R8	// flags = PTHREAD_START_CUSTOM
+-	MOVQ	$0, R9	// paranoia
++	MOVQ	fn+24(SP),   DI
++	MOVQ	arg+16(SP),  SI
++	MOVQ	stk+8(SP),   DX
++	MOVQ	$0x01000000, R8  // flags = PTHREAD_START_CUSTOM
++	MOVQ	$0,          R9  // paranoia
++	MOVQ	$0,          R10 // paranoia, "pthread"
+ 	MOVQ	$(0x2000000+360), AX	// bsdthread_create
+ 	SYSCALL
+ 	JCC 4(PC)
+diff --git a/src/runtime/sys_darwin_arm.s b/src/runtime/sys_darwin_arm.s
+index 5cb8601a6b..870c3bff8f 100644
+--- a/src/runtime/sys_darwin_arm.s
++++ b/src/runtime/sys_darwin_arm.s
+@@ -320,26 +320,25 @@ sysctl_ret:
+ 	RET
+ 
+ // Thread related functions
+-// void bsdthread_create(void *stk, M *m, G *g, void (*fn)(void))
++// func bsdthread_create(stk, arg unsafe.Pointer, fn uintptr) int32
+ TEXT runtime·bsdthread_create(SB),NOSPLIT,$0
+ 	// Set up arguments to bsdthread_create system call.
+ 	// The ones in quotes pass through to the thread callback
+ 	// uninterpreted, so we can put whatever we want there.
+-	MOVW    fn+12(FP), R0   // "func"
+-	MOVW    mm+4(FP), R1 // "arg"
+-	MOVW    stk+0(FP), R2 // stack
+-	MOVW    gg+8(FP), R3 // "pthread"
++	MOVW    fn+8(FP),    R0 // "func"
++	MOVW    arg+4(FP),   R1 // "arg"
++	MOVW    stk+0(FP),   R2 // stack
+ 	MOVW	$0x01000000, R4	// flags = PTHREAD_START_CUSTOM
+-	MOVW	$0, R5	// paranoia
++	MOVW	$0,          R5 // paranoia
+ 	MOVW	$SYS_bsdthread_create, R12
+ 	SWI	$0x80
+ 	BCC		create_ret
+ 	RSB 	$0, R0, R0
+-	MOVW	R0, ret+16(FP)
++	MOVW	R0, ret+12(FP)
+ 	RET
+ create_ret:
+ 	MOVW	$0, R0
+-	MOVW	R0, ret+16(FP)
++	MOVW	R0, ret+12(FP)
+ 	RET
+ 
+ // The thread that bsdthread_create creates starts executing here,

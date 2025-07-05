@@ -38,7 +38,81 @@ Date:   Tue Apr 12 01:54:45 2022 +0000
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@google.com>
     Auto-Submit: Keith Randall <khr@google.com>
-
+---
  src/runtime/chan.go      | 36 ++++++++++++++++++++----------------
  src/runtime/chan_test.go | 13 +++++++++++++
  2 files changed, 33 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 6511d80c2c..993af7063b 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -510,24 +510,28 @@ func chanrecv(c *hchan, ep unsafe.Pointer, block bool) (selected, received bool)
+ 
+ 	lock(&c.lock)
+ 
+-	if c.closed != 0 && c.qcount == 0 {
+-		if raceenabled {
+-			raceacquire(c.raceaddr())
++	if c.closed != 0 {
++		if c.qcount == 0 {
++			if raceenabled {
++				raceacquire(c.raceaddr())
++			}
++			unlock(&c.lock)
++			if ep != nil {
++				typedmemclr(c.elemtype, ep)
++			}
++			return true, false
+ 		}
+-		unlock(&c.lock)
+-		if ep != nil {
+-			typedmemclr(c.elemtype, ep)
++		// The channel has been closed, but the channel's buffer have data.
++	} else {
++		// Just found waiting sender with not closed.
++		if sg := c.sendq.dequeue(); sg != nil {
++			// Found a waiting sender. If buffer is size 0, receive value
++			// directly from sender. Otherwise, receive from head of queue
++			// and add sender's value to the tail of the queue (both map to
++			// the same buffer slot because the queue is full).
++			recv(c, sg, ep, func() { unlock(&c.lock) }, 3)
++			return true, true
+ 		}
+-		return true, false
+-	}
+-
+-	if sg := c.sendq.dequeue(); sg != nil {
+-		// Found a waiting sender. If buffer is size 0, receive value
+-		// directly from sender. Otherwise, receive from head of queue
+-		// and add sender's value to the tail of the queue (both map to
+-		// the same buffer slot because the queue is full).
+-		recv(c, sg, ep, func() { unlock(&c.lock) }, 3)
+-		return true, true
+ 	}
+ 
+ 	if c.qcount > 0 {
+diff --git a/src/runtime/chan_test.go b/src/runtime/chan_test.go
+index 1e0aa53213..a8627e9898 100644
+--- a/src/runtime/chan_test.go
++++ b/src/runtime/chan_test.go
+@@ -1127,6 +1127,19 @@ func BenchmarkSelectProdCons(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkReceiveDataFromClosedChan(b *testing.B) {
++	count := b.N
++	ch := make(chan struct{}, count)
++	for i := 0; i < count; i++ {
++		ch <- struct{}{}
++	}
++	close(ch)
++
++	b.ResetTimer()
++	for range ch {
++	}
++}
++
+ func BenchmarkChanCreation(b *testing.B) {
+ 	b.RunParallel(func(pb *testing.PB) {
+ 		for pb.Next() {

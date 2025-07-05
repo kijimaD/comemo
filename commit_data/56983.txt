@@ -23,6 +23,25 @@ Date:   Mon Jun 5 20:04:31 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 11fb5f0753..15996534ec 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -657,13 +657,6 @@ var gentab = []struct {
+ 	{"zosarch.go", mkzosarch},
+ 	{"zversion.go", mkzversion},
+ 	{"zzipdata.go", mktzdata},
+-
+-	// not generated anymore, but delete the file if we see it
+-	{"enam.c", nil},
+-	{"anames5.c", nil},
+-	{"anames6.c", nil},
+-	{"anames8.c", nil},
+-	{"anames9.c", nil},
+ }
+ 
+ // installed maps from a dir name (as given to install) to a chan

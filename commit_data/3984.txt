@@ -11,6 +11,22 @@ Date:   Wed Nov 11 12:00:41 2009 -0800
     
     R=r1, r
     https://golang.org/cl/154058
-
+---
  src/cmd/gc/lex.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index c2818fc10e..14500dc75a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -48,8 +48,8 @@ main(int argc, char *argv[])
+ 	if(argc < 1)
+ 		goto usage;
+ 
+-	pathname = mal(100);
+-	if(getwd(pathname, 99) == 0)
++	pathname = mal(1000);
++	if(getwd(pathname, 999) == 0)
+ 		strcpy(pathname, "/???");
+ 
+ 	fmtinstall('O', Oconv);		// node opcodes

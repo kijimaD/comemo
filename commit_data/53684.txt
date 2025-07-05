@@ -12,6 +12,24 @@ Date:   Sat Aug 27 12:55:43 2022 +0930
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/debug/elf/file.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 95c28c1433..f37d4b8e9a 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -377,6 +377,12 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				Align:  ph.Align,
+ 			}
+ 		}
++		if int64(p.Off) < 0 {
++			return nil, &FormatError{off, "invalid program header offset", p.Off}
++		}
++		if int64(p.Filesz) < 0 {
++			return nil, &FormatError{off, "invalid program header file size", p.Filesz}
++		}
+ 		p.sr = io.NewSectionReader(r, int64(p.Off), int64(p.Filesz))
+ 		p.ReaderAt = p.sr
+ 		f.Progs[i] = p

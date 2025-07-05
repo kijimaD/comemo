@@ -10,10 +10,665 @@ Date:   Wed Oct 28 15:16:20 2009 -0700
     DELTA=566  (566 added, 0 deleted, 0 changed)
     OCL=35974
     CL=36111
-
+---
  src/pkg/Make.deps                   |  12 +-
  src/pkg/Makefile                    |   2 +-
  src/pkg/testing/quick/Makefile      |  11 ++
  src/pkg/testing/quick/quick.go      | 367 ++++++++++++++++++++++++++++++++++++
  src/pkg/testing/quick/quick_test.go | 186 ++++++++++++++++++
  5 files changed, 571 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index b0191defcb..c7bf14394d 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -5,8 +5,8 @@ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install unicode.install utf8.install
+ compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
+-compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
+-compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
++compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
++compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
+ container/heap.install: sort.install
+ container/list.install:
+ container/ring.install:
+@@ -26,17 +26,16 @@ ebnf.install: container/vector.install go/scanner.install go/token.install os.in
+ encoding/ascii85.install: bytes.install io.install os.install strconv.install
+ encoding/base64.install: bytes.install io.install os.install strconv.install
+ encoding/binary.install: io.install math.install os.install reflect.install
+-encoding/hex.install: os.install strconv.install strings.install
+ encoding/git85.install: bytes.install io.install os.install strconv.install
+ encoding/pem.install: bytes.install encoding/base64.install strings.install
+ exec.install: os.install strings.install
+ exp/datafmt.install: bytes.install container/vector.install fmt.install go/scanner.install go/token.install io.install os.install reflect.install runtime.install strconv.install strings.install
+-exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install sort.install strconv.install strings.install
++exp/eval.install: bignum.install fmt.install go/ast.install go/parser.install go/scanner.install go/token.install log.install os.install reflect.install runtime.install strconv.install strings.install
+ exp/iterable.install: container/vector.install
+ expvar.install: bytes.install fmt.install http.install log.install strconv.install sync.install
+ flag.install: fmt.install os.install strconv.install
+ fmt.install: io.install os.install reflect.install strconv.install utf8.install
+-go/ast.install: fmt.install go/token.install unicode.install utf8.install
++go/ast.install: go/token.install unicode.install utf8.install
+ go/doc.install: container/vector.install go/ast.install go/token.install io.install regexp.install sort.install strings.install template.install
+ go/parser.install: bytes.install container/vector.install fmt.install go/ast.install go/scanner.install go/token.install io.install os.install path.install strings.install
+ go/printer.install: bytes.install container/vector.install fmt.install go/ast.install go/token.install io.install os.install reflect.install runtime.install strings.install tabwriter.install
+@@ -48,7 +47,7 @@ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+ http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+ image.install:
+-image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
++image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
+ io.install: bytes.install os.install sort.install strings.install sync.install
+ json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+@@ -72,6 +71,7 @@ tabwriter.install: bytes.install container/vector.install io.install os.install
+ template.install: bytes.install container/vector.install fmt.install io.install os.install reflect.install runtime.install strings.install
+ testing.install: flag.install fmt.install os.install runtime.install utf8.install
+ testing/iotest.install: bytes.install io.install log.install os.install
++testing/quickcheck.install: flag.install rand.install reflect.install testing.install utf8.install
+ time.install: io.install once.install os.install syscall.install
+ unicode.install:
+ utf8.install: unicode.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index cc0ebe69a4..3f64abcf65 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -41,7 +41,6 @@ DIRS=\
+ 	encoding/base64\
+ 	encoding/binary\
+ 	encoding/git85\
+-	encoding/hex\
+ 	encoding/pem\
+ 	exec\
+ 	exp/datafmt\
+@@ -86,6 +85,7 @@ DIRS=\
+ 	template\
+ 	testing\
+ 	testing/iotest\
++	testing/quickcheck\
+ 	time\
+ 	unicode\
+ 	utf8\
+diff --git a/src/pkg/testing/quick/Makefile b/src/pkg/testing/quick/Makefile
+new file mode 100644
+index 0000000000..7e3a354daa
+--- /dev/null
++++ b/src/pkg/testing/quick/Makefile
+@@ -0,0 +1,11 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include $(GOROOT)/src/Make.$(GOARCH)
++
++TARG=testing/quick
++GOFILES=\
++	quick.go\
++
++include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+new file mode 100644
+index 0000000000..5a7e8d37a5
+--- /dev/null
++++ b/src/pkg/testing/quick/quick.go
+@@ -0,0 +1,367 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This package implements utility functions to help with black box testing.
++package quick
++
++import (
++	"flag";
++	"fmt";
++	"math";
++	"os";
++	"rand";
++	"reflect";
++	"strings";
++)
++
++var defaultMaxCount *int = flag.Int("quickchecks", 100, "The default number of iterations for each check")
++
++// A Generator can generate random values of its own type.
++type Generator interface {
++	// Generate returns a random instance of the type on which it is a
++	// method using the size as a size hint.
++	Generate(rand *rand.Rand, size int) reflect.Value;
++}
++
++// randFloat32 generates a random float taking the full range of a float32.
++func randFloat32(rand *rand.Rand) float32 {
++	f := rand.Float64() * math.MaxFloat32;
++	if rand.Int() & 1 == 1 {
++		f = -f;
++	}
++	return float32(f);
++}
++
++// randFloat64 generates a random float taking the full range of a float64.
++func randFloat64(rand *rand.Rand) float64 {
++	f := rand.Float64();
++	if rand.Int() & 1 == 1 {
++		f = -f;
++	}
++	return f;
++}
++
++// randInt64 returns a random integer taking half the range of an int64.
++func randInt64(rand *rand.Rand) int64 {
++	return rand.Int63() - 1<<62;
++}
++
++// complexSize is the maximum length of arbitrary values that contain other
++// values.
++const complexSize = 50
++
++// Value returns an arbitrary value of the given type.
++// If the type implements the Generator interface, that will be used.
++// Note: in order to create arbitrary values for structs, all the members must be public.
++func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
++	if m, ok := reflect.MakeZero(t).Interface().(Generator); ok {
++		return m.Generate(rand, complexSize), true;
++	}
++
++	switch concrete := t.(type) {
++	case *reflect.BoolType:
++		return reflect.NewValue(rand.Int() & 1 == 0), true;
++	case *reflect.Float32Type:
++		return reflect.NewValue(randFloat32(rand)), true;
++	case *reflect.Float64Type:
++		return reflect.NewValue(randFloat64(rand)), true;
++	case *reflect.FloatType:
++		if t.Size() == 4 {
++			return reflect.NewValue(float(randFloat32(rand))), true;
++		} else {
++			return reflect.NewValue(float(randFloat64(rand))), true;
++		}
++	case *reflect.Int16Type:
++		return reflect.NewValue(int16(randInt64(rand))), true;
++	case *reflect.Int32Type:
++		return reflect.NewValue(int32(randInt64(rand))), true;
++	case *reflect.Int64Type:
++		return reflect.NewValue(randInt64(rand)), true;
++	case *reflect.Int8Type:
++		return reflect.NewValue(int8(randInt64(rand))), true;
++	case *reflect.IntType:
++		return reflect.NewValue(int(randInt64(rand))), true;
++	case *reflect.MapType:
++		numElems := rand.Intn(complexSize);
++		m := reflect.MakeMap(concrete);
++		for i := 0; i < numElems; i++ {
++			key, ok1 := Value(concrete.Key(), rand);
++			value, ok2 := Value(concrete.Elem(), rand);
++			if !ok1 || !ok2 {
++				return nil, false;
++			}
++			m.SetElem(key, value);
++		}
++		return m, true;
++	case *reflect.PtrType:
++		v, ok := Value(concrete.Elem(), rand);
++		if !ok {
++			return nil, false;
++		}
++		p := reflect.MakeZero(concrete);
++		p.(*reflect.PtrValue).PointTo(v);
++		return p, true;
++	case *reflect.SliceType:
++		numElems := rand.Intn(complexSize);
++		s := reflect.MakeSlice(concrete, numElems, numElems);
++		for i := 0; i < numElems; i++ {
++			v, ok := Value(concrete.Elem(), rand);
++			if !ok {
++				return nil, false;
++			}
++			s.Elem(i).SetValue(v);
++		}
++		return s, true;
++	case *reflect.StringType:
++		numChars := rand.Intn(complexSize);
++		codePoints := make([]int, numChars);
++		for i := 0; i < numChars; i++ {
++			codePoints[i] = rand.Intn(0x10ffff);
++		}
++		return reflect.NewValue(string(codePoints)), true;
++	case *reflect.StructType:
++		s := reflect.MakeZero(t).(*reflect.StructValue);
++		for i := 0; i < s.NumField(); i++ {
++			v, ok := Value(concrete.Field(i).Type, rand);
++			if !ok {
++				return nil, false;
++			}
++			s.Field(i).SetValue(v);
++		}
++		return s, true;
++	case *reflect.Uint16Type:
++		return reflect.NewValue(uint16(randInt64(rand))), true;
++	case *reflect.Uint32Type:
++		return reflect.NewValue(uint32(randInt64(rand))), true;
++	case *reflect.Uint64Type:
++		return reflect.NewValue(uint64(randInt64(rand))), true;
++	case *reflect.Uint8Type:
++		return reflect.NewValue(uint8(randInt64(rand))), true;
++	case *reflect.UintType:
++		return reflect.NewValue(uint(randInt64(rand))), true;
++	case *reflect.UintptrType:
++		return reflect.NewValue(uintptr(randInt64(rand))), true;
++	default:
++		return nil, false;
++	}
++
++	return;
++}
++
++// A Config structure contains options for running a test.
++type Config struct {
++	// MaxCount sets the maximum number of iterations. If zero,
++	// MaxCountScale is used.
++	MaxCount	int;
++	// MaxCountScale is a non-negative scale factor applied to the default
++	// maximum. If zero, the default is unchanged.
++	MaxCountScale	float;
++	// If non-nil, rand is a source of random numbers. Otherwise a default
++	// pseudo-random source will be used.
++	Rand	*rand.Rand;
++	// If non-nil, Values is a function which generates a slice of arbitrary
++	// Values that are congruent with the arguments to the function being
++	// tested. Otherwise, Values is used to generate the values.
++	Values	func([]reflect.Value, *rand.Rand);
++}
++
++var defaultConfig Config
++
++// getRand returns the *rand.Rand to use for a given Config.
++func (c *Config) getRand() *rand.Rand {
++	if c.Rand == nil {
++		return rand.New(rand.NewSource(0));
++	}
++	return c.Rand;
++}
++
++// getMaxCount returns the maximum number of iterations to run for a given
++// Config.
++func (c *Config) getMaxCount() (maxCount int) {
++	maxCount = c.MaxCount;
++	if maxCount == 0 {
++		if c.MaxCountScale != 0 {
++			maxCount = int(c.MaxCountScale * float(*defaultMaxCount));
++		} else {
++			maxCount = *defaultMaxCount;
++		}
++	}
++
++	return;
++}
++
++// A SetupError is the result of an error in the way that check is being
++// used, independent of the functions being tested.
++type SetupError string
++
++func (s SetupError) String() string {
++	return string(s);
++}
++
++// A CheckError is the result of Check finding an error.
++type CheckError struct {
++	Count	int;
++	In	[]interface{};
++}
++
++func (s *CheckError) String() string {
++	return fmt.Sprintf("#%d: failed on input %s", s.Count, toString(s.In));
++}
++
++// A CheckEqualError is the result CheckEqual finding an error.
++type CheckEqualError struct {
++	CheckError;
++	Out1	[]interface{};
++	Out2	[]interface{};
++}
++
++func (s *CheckEqualError) String() string {
++	return fmt.Sprintf("#%d: failed on input %s. Output 1: %s. Output 2: %s", s.Count, toString(s.In), toString(s.Out1), toString(s.Out2));
++}
++
++// Check looks for an input to f, any function that returns bool,
++// such that f returns false.  It calls f repeatedly, with arbitrary
++// values for each argument.  If f returns false on a given input,
++// Check returns that input as a *CheckError.
++// For example:
++//
++// 	func TestOddMultipleOfThree(t *testing.T) {
++// 		f := func(x int) bool {
++// 			y := OddMultipleOfThree(x);
++// 			return y%2 == 1 && y%3 == 0
++// 		}
++// 		if err := quick.Check(f, nil); err != nil {
++// 			t.Error(err);
++// 		}
++// 	}
++func Check(function interface{}, config *Config) (err os.Error) {
++	if config == nil {
++		config = &defaultConfig;
++	}
++
++	f, fType, ok := functionAndType(function);
++	if !ok {
++		err = SetupError("argument is not a function");
++		return;
++	}
++
++	if fType.NumOut() != 1 {
++		err = SetupError("function returns more than one value.");
++		return;
++	}
++	if _, ok := fType.Out(0).(*reflect.BoolType); !ok {
++		err = SetupError("function does not return a bool");
++		return;
++	}
++
++	arguments := make([]reflect.Value, fType.NumIn());
++	rand := config.getRand();
++	maxCount := config.getMaxCount();
++
++	for i := 0; i < maxCount; i++ {
++		err = arbitraryValues(arguments, fType, config, rand);
++		if err != nil {
++			return;
++		}
++
++		if !f.Call(arguments)[0].(*reflect.BoolValue).Get() {
++			err = &CheckError{i+1, toInterfaces(arguments)};
++			return;
++		}
++	}
++
++	return;
++}
++
++// CheckEqual looks for an input on which f and g return different results.
++// It calls f and g repeatedly with arbitrary values for each argument.
++// If f and g return different answers, CheckEqual returns a *CheckEqualError
++// describing the input and the outputs.
++func CheckEqual(f, g interface{}, config *Config) (err os.Error) {
++	if config == nil {
++		config = &defaultConfig;
++	}
++
++	x, xType, ok := functionAndType(f);
++	if !ok {
++		err = SetupError("f is not a function");
++		return;
++	}
++	y, yType, ok := functionAndType(g);
++	if !ok {
++		err = SetupError("g is not a function");
++		return;
++	}
++
++	if xType != yType {
++		err = SetupError("functions have different types");
++		return;
++	}
++
++	arguments := make([]reflect.Value, xType.NumIn());
++	rand := config.getRand();
++	maxCount := config.getMaxCount();
++
++	for i := 0; i < maxCount; i++ {
++		err = arbitraryValues(arguments, xType, config, rand);
++		if err != nil {
++			return;
++		}
++
++		xOut := toInterfaces(x.Call(arguments));
++		yOut := toInterfaces(y.Call(arguments));
++
++		if !reflect.DeepEqual(xOut, yOut) {
++			err = &CheckEqualError{CheckError{i+1, toInterfaces(arguments)}, xOut, yOut};
++			return;
++		}
++	}
++
++	return;
++}
++
++// arbitraryValues writes Values to args such that args contains Values
++// suitable for calling f.
++func arbitraryValues(args []reflect.Value, f *reflect.FuncType, config *Config, rand *rand.Rand) (err os.Error) {
++	if config.Values != nil {
++		config.Values(args, rand);
++		return;
++	}
++
++	for j := 0; j < len(args); j++ {
++		var ok bool;
++		args[j], ok = Value(f.In(j), rand);
++		if !ok {
++			err = SetupError(fmt.Sprintf("cannot create arbitrary value of type %s for argument %d", f.In(j), j));
++			return;
++		}
++	}
++
++	return;
++}
++
++func functionAndType(f interface{}) (v *reflect.FuncValue, t *reflect.FuncType, ok bool) {
++	v, ok = reflect.NewValue(f).(*reflect.FuncValue);
++	if !ok {
++		return;
++	}
++	t = v.Type().(*reflect.FuncType);
++	return;
++}
++
++func toInterfaces(values []reflect.Value) []interface{} {
++	ret := make([]interface{}, len(values));
++	for i, v := range values {
++		ret[i] = v.Interface();
++	}
++	return ret;
++}
++
++func toString(interfaces []interface{}) string {
++	s := make([]string, len(interfaces));
++	for i, v := range interfaces {
++		s[i] = fmt.Sprintf("%#v", v);
++	}
++	return strings.Join(s, ", ");
++}
+diff --git a/src/pkg/testing/quick/quick_test.go b/src/pkg/testing/quick/quick_test.go
+new file mode 100644
+index 0000000000..290f171eaf
+--- /dev/null
++++ b/src/pkg/testing/quick/quick_test.go
+@@ -0,0 +1,186 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package quick
++
++import (
++	"rand";
++	"reflect";
++	"testing";
++	"os";
++)
++
++func fBool(a bool) bool {
++	return a;
++}
++
++func fFloat32(a float32) float32 {
++	return a;
++}
++
++func fFloat64(a float64) float64 {
++	return a;
++}
++
++func fFloat(a float) float {
++	return a;
++}
++
++func fInt16(a int16) int16 {
++	return a;
++}
++
++func fInt32(a int32) int32 {
++	return a;
++}
++
++func fInt64(a int64) int64 {
++	return a;
++}
++
++func fInt8(a int8) int8 {
++	return a;
++}
++
++func fInt(a int) int {
++	return a;
++}
++
++func fUInt8(a uint8) uint8 {
++	return a;
++}
++
++func fMap(a map[int]int) map[int]int {
++	return a;
++}
++
++func fSlice(a []byte) []byte {
++	return a;
++}
++
++func fString(a string) string {
++	return a;
++}
++
++type TestStruct struct {
++	A	int;
++	B	string;
++}
++
++func fStruct(a TestStruct) TestStruct {
++	return a;
++}
++
++func fUint16(a uint16) uint16 {
++	return a;
++}
++
++func fUint32(a uint32) uint32 {
++	return a;
++}
++
++func fUint64(a uint64) uint64 {
++	return a;
++}
++
++func fUint8(a uint8) uint8 {
++	return a;
++}
++
++func fUint(a uint) uint {
++	return a;
++}
++
++func fUintptr(a uintptr) uintptr {
++	return a;
++}
++
++func fIntptr(a *int) *int {
++	b := *a;
++	return &b;
++}
++
++func reportError(property string, err os.Error, t *testing.T) {
++	if err != nil {
++		t.Errorf("%s: %s", property, err);
++	}
++}
++
++func TestCheckEqual(t *testing.T) {
++	reportError("fBool", CheckEqual(fBool, fBool, nil), t);
++	reportError("fFloat32", CheckEqual(fFloat32, fFloat32, nil), t);
++	reportError("fFloat64", CheckEqual(fFloat64, fFloat64, nil), t);
++	reportError("fFloat", CheckEqual(fFloat, fFloat, nil), t);
++	reportError("fInt16", CheckEqual(fInt16, fInt16, nil), t);
++	reportError("fInt32", CheckEqual(fInt32, fInt32, nil), t);
++	reportError("fInt64", CheckEqual(fInt64, fInt64, nil), t);
++	reportError("fInt8", CheckEqual(fInt8, fInt8, nil), t);
++	reportError("fInt", CheckEqual(fInt, fInt, nil), t);
++	reportError("fUInt8", CheckEqual(fUInt8, fUInt8, nil), t);
++	reportError("fInt32", CheckEqual(fInt32, fInt32, nil), t);
++	reportError("fMap", CheckEqual(fMap, fMap, nil), t);
++	reportError("fSlice", CheckEqual(fSlice, fSlice, nil), t);
++	reportError("fString", CheckEqual(fString, fString, nil), t);
++	reportError("fStruct", CheckEqual(fStruct, fStruct, nil), t);
++	reportError("fUint16", CheckEqual(fUint16, fUint16, nil), t);
++	reportError("fUint32", CheckEqual(fUint32, fUint32, nil), t);
++	reportError("fUint64", CheckEqual(fUint64, fUint64, nil), t);
++	reportError("fUint8", CheckEqual(fUint8, fUint8, nil), t);
++	reportError("fUint", CheckEqual(fUint, fUint, nil), t);
++	reportError("fUintptr", CheckEqual(fUintptr, fUintptr, nil), t);
++	reportError("fIntptr", CheckEqual(fIntptr, fIntptr, nil), t);
++}
++
++// This tests that ArbitraryValue is working by checking that all the arbitrary
++// values of type MyStruct have x = 42.
++type myStruct struct {
++	x int;
++}
++
++func (m myStruct) Generate(r *rand.Rand, _ int) reflect.Value {
++	return reflect.NewValue(myStruct{x: 42});
++}
++
++func myStructProperty(in myStruct) bool {
++	return in.x == 42;
++}
++
++func TestCheckProperty(t *testing.T) {
++	reportError("myStructProperty", Check(myStructProperty, nil), t);
++}
++
++func TestFailure(t *testing.T) {
++	f := func(x int) bool { return false };
++	err := Check(f, nil);
++	if err == nil {
++		t.Errorf("Check didn't return an error");
++	}
++	if _, ok := err.(*CheckError); !ok {
++		t.Errorf("Error was not a CheckError: %s", err);
++	}
++
++	err = CheckEqual(fUint, fUint32, nil);
++	if err == nil {
++		t.Errorf("#1 CheckEqual didn't return an error");
++	}
++	if _, ok := err.(SetupError); !ok {
++		t.Errorf("#1 Error was not a SetupError: %s", err);
++	}
++
++	err = CheckEqual(func(x, y int) {}, func(x int) {}, nil);
++	if err == nil {
++		t.Errorf("#2 CheckEqual didn't return an error");
++	}
++	if _, ok := err.(SetupError); !ok {
++		t.Errorf("#2 Error was not a SetupError: %s", err);
++	}
++
++	err = CheckEqual(func(x int) int { return 0 }, func(x int) int32 { return 0 }, nil);
++	if err == nil {
++		t.Errorf("#3 CheckEqual didn't return an error");
++	}
++	if _, ok := err.(SetupError); !ok {
++		t.Errorf("#3 Error was not a SetupError: %s", err);
++	}
++}

@@ -31,6 +31,22 @@ Date:   Mon Sep 10 01:05:09 2018 -0600
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime1.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index d5f78baded..85a9ba2521 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -416,7 +416,9 @@ func timediv(v int64, div int32, rem *int32) int32 {
+ 	for bit := 30; bit >= 0; bit-- {
+ 		if v >= int64(div)<<uint(bit) {
+ 			v = v - (int64(div) << uint(bit))
+-			res += 1 << uint(bit)
++			// Before this for loop, res was 0, thus all these
++			// power of 2 increments are now just bitsets.
++			res |= 1 << uint(bit)
+ 		}
+ 	}
+ 	if v >= int64(div) {

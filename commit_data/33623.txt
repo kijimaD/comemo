@@ -21,7 +21,44 @@ Date:   Wed Aug 9 16:56:08 2017 +0900
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go  | 11 +++++++++++
  src/testing/testing.go |  6 ++++++
  2 files changed, 17 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index d720611216..87810ad6cb 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4487,3 +4487,14 @@ func TestExecBuildX(t *testing.T) {
+ 		t.Fatalf("got %q; want %q", out, "hello")
+ 	}
+ }
++
++func TestParallelNumber(t *testing.T) {
++	for _, n := range [...]string{"-1", "0"} {
++		t.Run(n, func(t *testing.T) {
++			tg := testgo(t)
++			defer tg.cleanup()
++			tg.runFail("test", "-parallel", n, "testdata/standalone_parallel_sub_test.go")
++			tg.grepBoth("-parallel can only be given", "go test -parallel with N<1 did not error")
++		})
++	}
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 53283796f8..8b4bfc31a8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -913,6 +913,12 @@ func (m *M) Run() int {
+ 		flag.Parse()
+ 	}
+ 
++	if *parallel < 1 {
++		fmt.Fprintln(os.Stderr, "testing: -parallel can only be given a positive integer")
++		flag.Usage()
++		return 2
++	}
++
+ 	if len(*matchList) != 0 {
+ 		listTests(m.deps.MatchString, m.tests, m.benchmarks, m.examples)
+ 		return 0

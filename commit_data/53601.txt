@@ -17,9 +17,73 @@ Date:   Mon Aug 22 22:11:03 2022 +0100
     Reviewed-by: David Chase <drchase@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/cmd/go/internal/modindex/write.go | 2 +-
  src/cmd/internal/quoted/quoted.go     | 6 +++---
  src/syscall/exec_linux.go             | 2 +-
  src/time/format.go                    | 2 +-
  4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modindex/write.go b/src/cmd/go/internal/modindex/write.go
+index 7db1fb0870..df1467d9d1 100644
+--- a/src/cmd/go/internal/modindex/write.go
++++ b/src/cmd/go/internal/modindex/write.go
+@@ -126,7 +126,7 @@ func (e *encoder) String(s string) {
+ 	e.strings[s] = pos
+ 	e.Int(pos)
+ 	e.stringTable = binary.AppendUvarint(e.stringTable, uint64(len(s)))
+-	e.stringTable = append(e.stringTable, []byte(s)...)
++	e.stringTable = append(e.stringTable, s...)
+ }
+ 
+ func (e *encoder) Bool(b bool) {
+diff --git a/src/cmd/internal/quoted/quoted.go b/src/cmd/internal/quoted/quoted.go
+index b3d3c400ec..a812275073 100644
+--- a/src/cmd/internal/quoted/quoted.go
++++ b/src/cmd/internal/quoted/quoted.go
+@@ -83,16 +83,16 @@ func Join(args []string) (string, error) {
+ 		}
+ 		switch {
+ 		case !sawSpace && !sawSingleQuote && !sawDoubleQuote:
+-			buf = append(buf, []byte(arg)...)
++			buf = append(buf, arg...)
+ 
+ 		case !sawSingleQuote:
+ 			buf = append(buf, '\'')
+-			buf = append(buf, []byte(arg)...)
++			buf = append(buf, arg...)
+ 			buf = append(buf, '\'')
+ 
+ 		case !sawDoubleQuote:
+ 			buf = append(buf, '"')
+-			buf = append(buf, []byte(arg)...)
++			buf = append(buf, arg...)
+ 			buf = append(buf, '"')
+ 
+ 		default:
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 4ae7f33462..d9e9e6df44 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -590,7 +590,7 @@ func forkExecPipe(p []int) (err error) {
+ func formatIDMappings(idMap []SysProcIDMap) []byte {
+ 	var data []byte
+ 	for _, im := range idMap {
+-		data = append(data, []byte(itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n")...)
++		data = append(data, itoa.Itoa(im.ContainerID)+" "+itoa.Itoa(im.HostID)+" "+itoa.Itoa(im.Size)+"\n"...)
+ 	}
+ 	return data
+ }
+diff --git a/src/time/format.go b/src/time/format.go
+index 1887e6bce6..c32861c6db 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -588,7 +588,7 @@ func (t Time) GoString() string {
+ 		// Of these, Location(loc.name) is the least disruptive. This is an edge
+ 		// case we hope not to hit too often.
+ 		buf = append(buf, `time.Location(`...)
+-		buf = append(buf, []byte(quote(loc.name))...)
++		buf = append(buf, quote(loc.name)...)
+ 		buf = append(buf, ')')
+ 	}
+ 	buf = append(buf, ')')

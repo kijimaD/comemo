@@ -21,7 +21,7 @@ Date:   Thu May 27 02:50:17 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/ir/expr.go       | 14 +++++++++
  src/cmd/compile/internal/ir/fmt.go        |  5 +++
  src/cmd/compile/internal/ir/node_gen.go   | 16 ++++++++++
@@ -29,3 +29,221 @@ Date:   Thu May 27 02:50:17 2021 -0700
  src/cmd/compile/internal/noder/expr.go    | 51 +++++++++++++++++++++++++++----
  src/cmd/compile/internal/noder/helpers.go | 26 ++++++++++++++++
  6 files changed, 107 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 9ea8b61965..519120ed6b 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -448,6 +448,20 @@ func (n *ParenExpr) SetOTYPE(t *types.Type) {
+ 	t.SetNod(n)
+ }
+ 
++// A RawOrigExpr represents an arbitrary Go expression as a string value.
++// When printed in diagnostics, the string value is written out exactly as-is.
++type RawOrigExpr struct {
++	miniExpr
++	Raw string
++}
++
++func NewRawOrigExpr(pos src.XPos, op Op, raw string) *RawOrigExpr {
++	n := &RawOrigExpr{Raw: raw}
++	n.pos = pos
++	n.op = op
++	return n
++}
++
+ // A ResultExpr represents a direct access to a result.
+ type ResultExpr struct {
+ 	miniExpr
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 4ac5f3fea2..d9cc5f109f 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -567,6 +567,11 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 		return
+ 	}
+ 
++	if n, ok := n.(*RawOrigExpr); ok {
++		fmt.Fprint(s, n.Raw)
++		return
++	}
++
+ 	switch n.Op() {
+ 	case OPAREN:
+ 		n := n.(*ParenExpr)
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 22855d7163..9a4858d037 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -947,6 +947,22 @@ func (n *RangeStmt) editChildren(edit func(Node) Node) {
+ 	}
+ }
+ 
++func (n *RawOrigExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
++func (n *RawOrigExpr) copy() Node {
++	c := *n
++	c.init = copyNodes(c.init)
++	return &c
++}
++func (n *RawOrigExpr) doChildren(do func(Node) bool) bool {
++	if doNodes(n.init, do) {
++		return true
++	}
++	return false
++}
++func (n *RawOrigExpr) editChildren(edit func(Node) Node) {
++	editNodes(n.init, edit)
++}
++
+ func (n *ResultExpr) Format(s fmt.State, verb rune) { fmtNode(n, s, verb) }
+ func (n *ResultExpr) copy() Node {
+ 	c := *n
+diff --git a/src/cmd/compile/internal/ir/val.go b/src/cmd/compile/internal/ir/val.go
+index af9f95b29d..bfe7d2bb43 100644
+--- a/src/cmd/compile/internal/ir/val.go
++++ b/src/cmd/compile/internal/ir/val.go
+@@ -66,7 +66,7 @@ func Float64Val(v constant.Value) float64 {
+ 
+ func AssertValidTypeForConst(t *types.Type, v constant.Value) {
+ 	if !ValidTypeForConst(t, v) {
+-		base.Fatalf("%v does not represent %v (%v)", t, v, v.Kind())
++		base.Fatalf("%v (%v) does not represent %v (%v)", t, t.Kind(), v, v.Kind())
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index f96144f8d7..c901dc5534 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -5,6 +5,8 @@
+ package noder
+ 
+ import (
++	"fmt"
++
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/syntax"
+@@ -15,6 +17,8 @@ import (
+ )
+ 
+ func (g *irgen) expr(expr syntax.Expr) ir.Node {
++	expr = unparen(expr) // skip parens; unneeded after parse+typecheck
++
+ 	if expr == nil {
+ 		return nil
+ 	}
+@@ -67,7 +71,9 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 
+ 	// Constant expression.
+ 	if tv.Value != nil {
+-		return Const(g.pos(expr), g.typ(typ), tv.Value)
++		typ := g.typ(typ)
++		value := FixValue(typ, tv.Value)
++		return OrigConst(g.pos(expr), typ, value, constExprOp(expr), syntax.String(expr))
+ 	}
+ 
+ 	n := g.expr0(typ, expr)
+@@ -161,9 +167,6 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		typed(g.typ(typ), n)
+ 		return n
+ 
+-	case *syntax.ParenExpr:
+-		return g.expr(expr.X) // skip parens; unneeded after parse+typecheck
+-
+ 	case *syntax.SelectorExpr:
+ 		// Qualified identifier.
+ 		if name, ok := expr.X.(*syntax.Name); ok {
+@@ -317,13 +320,17 @@ func getTargs(selinfo *types2.Selection) []types2.Type {
+ }
+ 
+ func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
++	return g.exprs(unpackListExpr(expr))
++}
++
++func unpackListExpr(expr syntax.Expr) []syntax.Expr {
+ 	switch expr := expr.(type) {
+ 	case nil:
+ 		return nil
+ 	case *syntax.ListExpr:
+-		return g.exprs(expr.ElemList)
++		return expr.ElemList
+ 	default:
+-		return []ir.Node{g.expr(expr)}
++		return []syntax.Expr{expr}
+ 	}
+ }
+ 
+@@ -402,3 +409,35 @@ func (g *irgen) typeExpr(typ syntax.Expr) *types.Type {
+ 	}
+ 	return n.Type()
+ }
++
++// constExprOp returns an ir.Op that represents the outermost
++// operation of the given constant expression. It's intended for use
++// with ir.RawOrigExpr.
++func constExprOp(expr syntax.Expr) ir.Op {
++	switch expr := expr.(type) {
++	default:
++		panic(fmt.Sprintf("%s: unexpected expression: %T", expr.Pos(), expr))
++
++	case *syntax.BasicLit:
++		return ir.OLITERAL
++	case *syntax.Name, *syntax.SelectorExpr:
++		return ir.ONAME
++	case *syntax.CallExpr:
++		return ir.OCALL
++	case *syntax.Operation:
++		if expr.Y == nil {
++			return unOps[expr.Op]
++		}
++		return binOps[expr.Op]
++	}
++}
++
++func unparen(expr syntax.Expr) syntax.Expr {
++	for {
++		paren, ok := expr.(*syntax.ParenExpr)
++		if !ok {
++			return expr
++		}
++		expr = paren.X
++	}
++}
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 9da0e49300..ea30a3bfa9 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -43,6 +43,32 @@ func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
+ 	return typed(typ, ir.NewBasicLit(pos, val))
+ }
+ 
++func OrigConst(pos src.XPos, typ *types.Type, val constant.Value, op ir.Op, raw string) ir.Node {
++	orig := ir.NewRawOrigExpr(pos, op, raw)
++	return ir.NewConstExpr(val, typed(typ, orig))
++}
++
++// FixValue returns val after converting and truncating it as
++// appropriate for typ.
++func FixValue(typ *types.Type, val constant.Value) constant.Value {
++	assert(typ.Kind() != types.TFORW)
++	switch {
++	case typ.IsInteger():
++		val = constant.ToInt(val)
++	case typ.IsFloat():
++		val = constant.ToFloat(val)
++	case typ.IsComplex():
++		val = constant.ToComplex(val)
++	}
++	if !typ.IsUntyped() {
++		val = typecheck.DefaultLit(ir.NewBasicLit(src.NoXPos, val), typ).Val()
++	}
++	if typ.Kind() != types.TTYPEPARAM {
++		ir.AssertValidTypeForConst(typ, val)
++	}
++	return val
++}
++
+ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+ 	return typed(typ, ir.NewNilExpr(pos))
+ }

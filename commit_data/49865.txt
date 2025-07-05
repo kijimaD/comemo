@@ -15,6 +15,19 @@ Date:   Fri Sep 17 14:23:04 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_linux_arm64.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index f575c84c93..517723ae47 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -42,7 +42,6 @@ func EpollCreate(size int) (fd int, err error) {
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+ //sysnb	setrlimit(resource int, rlim *Rlimit) (err error)
+-//sysnb	Setreuid(ruid int, euid int) (err error)
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ 

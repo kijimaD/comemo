@@ -25,6 +25,19 @@ Date:   Mon May 4 15:01:29 2015 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 7c4d74c8c3..7e160bdd94 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1739,6 +1739,7 @@ func mkdotargslice(lr0, nn []*Node, l *Field, fp int, init *Nodes, ddd *Node) []
+ 	}
+ 
+ 	tslice := typSlice(l.Type.Elem())
++	tslice.Noalg = true
+ 
+ 	var n *Node
+ 	if len(lr0) == 0 {

@@ -7,8 +7,212 @@ Date:   Wed Sep 17 13:05:39 2008 -0700
     R=r
     OCL=15439
     CL=15439
-
+---
  usr/gri/gosrc/decls.go   |  4 ++--
  usr/gri/gosrc/parser.go  | 56 ++++++++++++++++++++----------------------------
  usr/gri/gosrc/scanner.go | 18 +++++-----------
  3 files changed, 30 insertions(+), 48 deletions(-)
+
+diff --git a/usr/gri/gosrc/decls.go b/usr/gri/gosrc/decls.go
+index d183e9854c..1e7d3561a1 100755
+--- a/usr/gri/gosrc/decls.go
++++ b/usr/gri/gosrc/decls.go
+@@ -56,8 +56,8 @@ type (
+ export type M5 (p T5) . (a, b int, c float) (z T5, ok bool);
+ 
+ type T6 chan int
+-type T7 chan<- *T6
+-type T8 chan-< *T6
++type T7 <- chan *T6
++type T8 chan <- *T6
+ 
+ type T9 struct {
+ 	p *T9;
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 95f1771fea..f908dc78e8 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -430,8 +430,8 @@ func (P *Parser) ParseArrayType() *Globals.Type {
+ 	}
+ 	P.Expect(Scanner.RBRACK);
+ 	typ.elt = P.ParseVarType();
+-	P.Ecart();
+-	
++
++	P.Ecart();	
+ 	return typ;
+ }
+ 
+@@ -439,21 +439,23 @@ func (P *Parser) ParseArrayType() *Globals.Type {
+ func (P *Parser) ParseChannelType() *Globals.Type {
+ 	P.Trace("ChannelType");
+ 	
+-	P.Expect(Scanner.CHAN);
+ 	typ := Globals.NewType(Type.CHANNEL);
+-	switch P.tok {
+-	case Scanner.SEND:
+-		typ.flags = Type.SEND;
++	if P.tok == Scanner.CHAN {
+ 		P.Next();
+-	case Scanner.RECV:
++		if P.tok == Scanner.ARROW {
++			typ.flags = Type.SEND;
++			P.Next();
++		} else {
++			typ.flags = Type.SEND + Type.RECV;
++		}
++	} else {
++		P.Expect(Scanner.ARROW);
++		P.Expect(Scanner.CHAN);
+ 		typ.flags = Type.RECV;
+-		P.Next();
+-	default:
+-		typ.flags = Type.SEND + Type.RECV;
+ 	}
+ 	typ.elt = P.ParseVarType();
+-	P.Ecart();
+-	
++
++	P.Ecart();	
+ 	return typ;
+ }
+ 
+@@ -797,7 +799,7 @@ func (P *Parser) TryType() *Globals.Type {
+ 	switch P.tok {
+ 	case Scanner.IDENT: typ = P.ParseTypeName();
+ 	case Scanner.LBRACK: typ = P.ParseArrayType();
+-	case Scanner.CHAN: typ = P.ParseChannelType();
++	case Scanner.CHAN, Scanner.ARROW: typ = P.ParseChannelType();
+ 	case Scanner.INTERFACE: typ = P.ParseInterfaceType();
+ 	case Scanner.LPAREN: typ = P.ParseFunctionType();
+ 	case Scanner.MAP: typ = P.ParseMapType();
+@@ -946,25 +948,14 @@ func (P *Parser) ParseExpressionPairList(list *Globals.List) {
+ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
+ 	P.Trace("CompositeLit");
+ 	
+-	// TODO I think we should use {} instead of () for
+-	// composite literals to syntactically distinguish
+-	// them from conversions. For now: allow both.
+-	var paren int;
+-	if P.tok == Scanner.LPAREN {
+-		P.Next();
+-		paren = Scanner.RPAREN;
+-	} else {
+-		P.Expect(Scanner.LBRACE);
+-		paren = Scanner.RBRACE;
+-	}
+-	
++	P.Expect(Scanner.LBRACE);
+ 	// TODO: should allow trailing ','
+ 	list := Globals.NewList();
+-	if P.tok != paren {
++	if P.tok != Scanner.RBRACE {
+ 		list.AddExpr(P.ParseExpression());
+ 		if P.tok == Scanner.COMMA {
+ 			P.Next();
+-			if P.tok != paren {
++			if P.tok != Scanner.RBRACE {
+ 				P.ParseExpressionList(list);
+ 			}
+ 		} else if P.tok == Scanner.COLON {
+@@ -972,14 +963,13 @@ func (P *Parser) ParseCompositeLit(typ *Globals.Type) Globals.Expr {
+ 			list.AddExpr(P.ParseExpression());
+ 			if P.tok == Scanner.COMMA {
+ 				P.Next();
+-				if P.tok != paren {
++				if P.tok != Scanner.RBRACE {
+ 					P.ParseExpressionPairList(list);
+ 				}
+ 			}
+ 		}
+ 	}
+-
+-	P.Expect(paren);
++	P.Expect(Scanner.RBRACE);
+ 
+ 	P.Ecart();
+ 	return nil;
+@@ -1228,7 +1218,7 @@ func (P *Parser) ParseUnaryExpr() Globals.Expr {
+ 	case Scanner.NOT: fallthrough;
+ 	case Scanner.XOR: fallthrough;
+ 	case Scanner.MUL: fallthrough;
+-	case Scanner.RECV: fallthrough;
++	case Scanner.ARROW: fallthrough;
+ 	case Scanner.AND:
+ 		P.Next();
+ 		P.ParseUnaryExpr();
+@@ -1249,7 +1239,7 @@ func Precedence(tok int) int {
+ 		return 1;
+ 	case Scanner.LAND:
+ 		return 2;
+-	case Scanner.SEND, Scanner.RECV:
++	case Scanner.ARROW:
+ 		return 3;
+ 	case Scanner.EQL, Scanner.NEQ, Scanner.LSS, Scanner.LEQ, Scanner.GTR, Scanner.GEQ:
+ 		return 4;
+@@ -1702,7 +1692,7 @@ func (P *Parser) TryStatement() bool {
+ 	case Scanner.FUNC:
+ 		// for now we do not allow local function declarations
+ 		fallthrough;
+-	case Scanner.MUL, Scanner.SEND, Scanner.RECV, Scanner.IDENT, Scanner.LPAREN:
++	case Scanner.MUL, Scanner.ARROW, Scanner.IDENT, Scanner.LPAREN:
+ 		P.ParseSimpleStat();
+ 	case Scanner.GO:
+ 		P.ParseGoStat();
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 39d5760468..bfb8e3c360 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -54,8 +54,7 @@ export const (
+ 	SHL;
+ 	SHR;
+ 	
+-	SEND;
+-	RECV;
++	ARROW;
+ 
+ 	ADD_ASSIGN;
+ 	SUB_ASSIGN;
+@@ -163,8 +162,7 @@ export func TokenName(tok int) string {
+ 	case SHL: return "<<";
+ 	case SHR: return ">>";
+ 	
+-	case SEND: return "-<";
+-	case RECV: return "<-";
++	case ARROW: return "<-";
+ 
+ 	case ADD_ASSIGN: return "+=";
+ 	case SUB_ASSIGN: return "-=";
+@@ -740,13 +738,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 		case '{': tok = LBRACE;
+ 		case '}': tok = RBRACE;
+ 		case '+': tok = S.Select3(ADD, ADD_ASSIGN, '+', INC);
+-		case '-':
+-			if S.ch == '<' {
+-				S.Next();
+-				tok = SEND;
+-			} else {
+-				tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+-			}
++		case '-': tok = S.Select3(SUB, SUB_ASSIGN, '-', DEC);
+ 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+@@ -761,7 +753,7 @@ func (S *Scanner) Scan() (tok, pos int, val string) {
+ 		case '<':
+ 			if S.ch == '-' {
+ 				S.Next();
+-				tok = RECV;
++				tok = ARROW;
+ 			} else {
+ 				tok = S.Select4(LSS, LEQ, '<', SHL, SHL_ASSIGN);
+ 			}
+@@ -791,7 +783,7 @@ func (S *Scanner) Server(c *chan *Token) {
+ 	for {
+ 		t := new(Token);
+ 		t.tok, t.pos, t.val = S.Scan();
+-		c -< t;
++		c <- t;
+ 		if t.tok == EOF {
+ 			break;
+ 		}

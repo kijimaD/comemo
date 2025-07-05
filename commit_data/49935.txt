@@ -21,7 +21,7 @@ Date:   Tue Sep 21 14:35:37 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/ssagen/abi.go | 20 --------------------
  src/cmd/internal/goobj/builtin.go      |  4 +++-
  src/cmd/link/internal/ld/deadcode.go   | 10 ++++++----
@@ -32,3 +32,251 @@ Date:   Tue Sep 21 14:35:37 2021 -0400
  src/cmd/link/internal/loader/loader.go |  2 +-
  src/cmd/link/internal/sym/symbol.go    |  6 ++++++
  9 files changed, 29 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index c54a734c75..eabd232791 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -257,10 +257,6 @@ func InitLSym(f *ir.Func, hasBody bool) {
+ 			// when we see that.
+ 			staticdata.NeedFuncSym(f)
+ 		}
+-		if !buildcfg.Experiment.RegabiWrappers {
+-			// Create ABI aliases instead of wrappers.
+-			forEachWrapperABI(f, makeABIAlias)
+-		}
+ 	}
+ 	if hasBody {
+ 		setupTextLSym(f, 0)
+@@ -281,22 +277,6 @@ func forEachWrapperABI(fn *ir.Func, cb func(fn *ir.Func, wrapperABI obj.ABI)) {
+ 	}
+ }
+ 
+-// makeABIAlias creates a new ABI alias so calls to f via wrapperABI
+-// will be resolved directly to f's ABI by the linker.
+-func makeABIAlias(f *ir.Func, wrapperABI obj.ABI) {
+-	// These LSyms have the same name as the native function, so
+-	// we create them directly rather than looking them up.
+-	// The uniqueness of f.lsym ensures uniqueness of asym.
+-	asym := &obj.LSym{
+-		Name: f.LSym.Name,
+-		Type: objabi.SABIALIAS,
+-		R:    []obj.Reloc{{Sym: f.LSym}}, // 0 size, so "informational"
+-	}
+-	asym.SetABI(wrapperABI)
+-	asym.Set(obj.AttrDuplicateOK, true)
+-	base.Ctxt.ABIAliases = append(base.Ctxt.ABIAliases, asym)
+-}
+-
+ // makeABIWrapper creates a new function that will be called with
+ // wrapperABI and calls "f" using f.ABI.
+ func makeABIWrapper(f *ir.Func, wrapperABI obj.ABI) {
+diff --git a/src/cmd/internal/goobj/builtin.go b/src/cmd/internal/goobj/builtin.go
+index e7d612aeb7..aa665fde99 100644
+--- a/src/cmd/internal/goobj/builtin.go
++++ b/src/cmd/internal/goobj/builtin.go
+@@ -4,6 +4,8 @@
+ 
+ package goobj
+ 
++import "internal/buildcfg"
++
+ // Builtin (compiler-generated) function references appear
+ // frequently. We assign special indices for them, so they
+ // don't need to be referenced by name.
+@@ -27,7 +29,7 @@ func BuiltinIdx(name string, abi int) int {
+ 	if !ok {
+ 		return -1
+ 	}
+-	if builtins[i].abi != abi {
++	if buildcfg.Experiment.RegabiWrappers && builtins[i].abi != abi {
+ 		return -1
+ 	}
+ 	return i
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index dd5dafc21b..0221024d56 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -96,8 +96,10 @@ func (d *deadcodePass) init() {
+ 	for _, name := range names {
+ 		// Mark symbol as a data/ABI0 symbol.
+ 		d.mark(d.ldr.Lookup(name, 0), 0)
+-		// Also mark any Go functions (internal ABI).
+-		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal), 0)
++		if abiInternalVer != 0 {
++			// Also mark any Go functions (internal ABI).
++			d.mark(d.ldr.Lookup(name, abiInternalVer), 0)
++		}
+ 	}
+ 
+ 	// All dynamic exports are roots.
+@@ -327,8 +329,8 @@ func deadcode(ctxt *Link) {
+ 	d.init()
+ 	d.flood()
+ 
+-	methSym := ldr.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
+-	methByNameSym := ldr.Lookup("reflect.Value.MethodByName", sym.SymVerABIInternal)
++	methSym := ldr.Lookup("reflect.Value.Method", abiInternalVer)
++	methByNameSym := ldr.Lookup("reflect.Value.MethodByName", abiInternalVer)
+ 
+ 	if ctxt.DynlinkingGo() {
+ 		// Exported methods may satisfy interfaces we don't know
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index cf70374b16..f46d1f0221 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -144,7 +144,7 @@ func (ctxt *Link) setArchSyms() {
+ 	ctxt.mkArchSym(".dynamic", 0, &ctxt.Dynamic)
+ 	ctxt.mkArchSym(".dynsym", 0, &ctxt.DynSym)
+ 	ctxt.mkArchSym(".dynstr", 0, &ctxt.DynStr)
+-	ctxt.mkArchSym("runtime.unreachableMethod", sym.SymVerABIInternal, &ctxt.unreachableMethod)
++	ctxt.mkArchSym("runtime.unreachableMethod", abiInternalVer, &ctxt.unreachableMethod)
+ 
+ 	if ctxt.IsPPC64() {
+ 		ctxt.mkArchSym("TOC", 0, &ctxt.TOC)
+@@ -281,6 +281,10 @@ const (
+ 	MINFUNC = 16 // minimum size for a function
+ )
+ 
++// Symbol version of ABIInternal symbols. It is sym.SymVerABIInternal if ABI wrappers
++// are used, 0 otherwise.
++var abiInternalVer = sym.SymVerABIInternal
++
+ // DynlinkingGo reports whether we are producing Go code that can live
+ // in separate shared libraries linked together at runtime.
+ func (ctxt *Link) DynlinkingGo() bool {
+@@ -500,10 +504,6 @@ func (ctxt *Link) loadlib() {
+ 	default:
+ 		log.Fatalf("invalid -strictdups flag value %d", *FlagStrictDups)
+ 	}
+-	if !buildcfg.Experiment.RegabiWrappers {
+-		// Use ABI aliases if ABI wrappers are not used.
+-		flags |= loader.FlagUseABIAlias
+-	}
+ 	elfsetstring1 := func(str string, off int) { elfsetstring(ctxt, 0, str, off) }
+ 	ctxt.loader = loader.NewLoader(flags, elfsetstring1, &ctxt.ErrorReporter.ErrorReporter)
+ 	ctxt.ErrorReporter.SymName = func(s loader.Sym) string {
+@@ -769,7 +769,7 @@ func (ctxt *Link) linksetup() {
+ 		// Set runtime.disableMemoryProfiling bool if
+ 		// runtime.MemProfile is not retained in the binary after
+ 		// deadcode (and we're not dynamically linking).
+-		memProfile := ctxt.loader.Lookup("runtime.MemProfile", sym.SymVerABIInternal)
++		memProfile := ctxt.loader.Lookup("runtime.MemProfile", abiInternalVer)
+ 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
+ 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
+ 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
+@@ -2115,7 +2115,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		ver := 0
+ 		symname := elfsym.Name // (unmangled) symbol name
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && strings.HasPrefix(elfsym.Name, "type.") {
+-			ver = sym.SymVerABIInternal
++			ver = abiInternalVer
+ 		} else if buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC {
+ 			// Demangle the ABI name. Keep in sync with symtab.go:mangleABIName.
+ 			if strings.HasSuffix(elfsym.Name, ".abiinternal") {
+@@ -2156,19 +2156,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		if symname != elfsym.Name {
+ 			l.SetSymExtname(s, elfsym.Name)
+ 		}
+-
+-		// For function symbols, if ABI wrappers are not used, we don't
+-		// know what ABI is available, so alias it under both ABIs.
+-		if !buildcfg.Experiment.RegabiWrappers && elf.ST_TYPE(elfsym.Info) == elf.STT_FUNC && ver == 0 {
+-			alias := ctxt.loader.LookupOrCreateSym(symname, sym.SymVerABIInternal)
+-			if l.SymType(alias) != 0 {
+-				continue
+-			}
+-			su := l.MakeSymbolUpdater(alias)
+-			su.SetType(sym.SABIALIAS)
+-			r, _ := su.AddRel(0) // type doesn't matter
+-			r.SetSym(s)
+-		}
+ 	}
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
+ }
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 45a3971c33..a577a5308d 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -7,7 +7,6 @@ package ld
+ import (
+ 	"bytes"
+ 	"cmd/internal/codesign"
+-	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+@@ -561,7 +560,7 @@ func (ctxt *Link) domacho() {
+ 			ver := 0
+ 			// _cgo_panic is a Go function, so it uses ABIInternal.
+ 			if name == "_cgo_panic" {
+-				ver = sym.ABIToVersion(obj.ABIInternal)
++				ver = abiInternalVer
+ 			}
+ 			s := ctxt.loader.Lookup(name, ver)
+ 			if s != 0 {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 33b03b5024..4d3b8b904c 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -173,6 +173,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	checkStrictDups = *FlagStrictDups
+ 
++	if !buildcfg.Experiment.RegabiWrappers {
++		abiInternalVer = 0
++	}
++
+ 	startProfile()
+ 	if ctxt.BuildMode == BuildModeUnset {
+ 		ctxt.BuildMode.Set("exe")
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 5294da5724..3abbf05c54 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -739,7 +739,7 @@ func (state *pclntab) writeFuncData(ctxt *Link, sb *loader.SymbolBuilder, funcs
+ // writeFuncs writes the func structures and pcdata to runtime.functab.
+ func writeFuncs(ctxt *Link, sb *loader.SymbolBuilder, funcs []loader.Sym, inlSyms map[loader.Sym]loader.Sym, startLocations, cuOffsets []uint32, nameOffsets map[loader.Sym]uint32) {
+ 	ldr := ctxt.loader
+-	deferReturnSym := ldr.Lookup("runtime.deferreturn", sym.SymVerABIInternal)
++	deferReturnSym := ldr.Lookup("runtime.deferreturn", abiInternalVer)
+ 	funcdata, funcdataoff := []loader.Sym{}, []int64{}
+ 
+ 	// Write the individual func objects.
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index b9a1da6f45..487559829f 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2192,7 +2192,7 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 		}
+ 		if strings.HasPrefix(name, "runtime.") ||
+ 			(loadingRuntimePkg && strings.HasPrefix(name, "type.")) {
+-			if bi := goobj.BuiltinIdx(name, v); bi != -1 {
++			if bi := goobj.BuiltinIdx(name, int(osym.ABI())); bi != -1 {
+ 				// This is a definition of a builtin symbol. Record where it is.
+ 				l.builtinSyms[bi] = gi
+ 			}
+diff --git a/src/cmd/link/internal/sym/symbol.go b/src/cmd/link/internal/sym/symbol.go
+index 4687aa53bb..2f2c839006 100644
+--- a/src/cmd/link/internal/sym/symbol.go
++++ b/src/cmd/link/internal/sym/symbol.go
+@@ -6,6 +6,7 @@ package sym
+ 
+ import (
+ 	"cmd/internal/obj"
++	"internal/buildcfg"
+ )
+ 
+ const (
+@@ -20,6 +21,11 @@ func ABIToVersion(abi obj.ABI) int {
+ 	case obj.ABI0:
+ 		return SymVerABI0
+ 	case obj.ABIInternal:
++		if !buildcfg.Experiment.RegabiWrappers {
++			// If wrappers are not enabled, ABI0 and ABIInternal are actually same
++			// so we normalize everything to ABI0.
++			return SymVerABI0
++		}
+ 		return SymVerABIInternal
+ 	}
+ 	return -1

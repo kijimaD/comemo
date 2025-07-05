@@ -15,8 +15,150 @@ Date:   Thu Dec 6 08:01:33 2012 +1100
     R=remyoudompheng, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6854063
-
+---
  src/cmd/5g/cgen.c            | 31 +++++++++++++++++++------------
  test/fixedbugs/issue4396a.go | 27 +++++++++++++++++++++++++++
  test/fixedbugs/issue4396b.go | 29 +++++++++++++++++++++++++++++
  3 files changed, 75 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 764a2803f5..af5df72749 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -559,7 +559,6 @@ agen(Node *n, Node *res)
+ {
+ 	Node *nl;
+ 	Node n1, n2, n3;
+-	Prog *p1;
+ 	int r;
+ 
+ 	if(debug['g']) {
+@@ -704,10 +703,13 @@ agen(Node *n, Node *res)
+ 			if(nl->type->type->width >= unmappedzero) {
+ 				regalloc(&n1, types[tptr], N);
+ 				gmove(res, &n1);
+-				p1 = gins(AMOVW, &n1, &n1);
+-				p1->from.type = D_OREG;
+-				p1->from.offset = 0;
++				regalloc(&n2, types[TUINT8], &n1);
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gmove(&n1, &n2);
+ 				regfree(&n1);
++				regfree(&n2);
+ 			}
+ 			nodconst(&n1, types[TINT32], n->xoffset);
+ 			regalloc(&n2, n1.type, N);
+@@ -737,8 +739,7 @@ ret:
+ void
+ igen(Node *n, Node *a, Node *res)
+ {
+-	Node n1;
+-	Prog *p1;
++	Node n1, n2;
+ 	int r;
+ 
+ 	if(debug['g']) {
+@@ -785,10 +786,13 @@ igen(Node *n, Node *a, Node *res)
+ 			if(n->left->type->type->width >= unmappedzero) {
+ 				regalloc(&n1, types[tptr], N);
+ 				gmove(a, &n1);
+-				p1 = gins(AMOVW, &n1, &n1);
+-				p1->from.type = D_OREG;
+-				p1->from.offset = 0;
++				regalloc(&n2, types[TUINT8], &n1);
++				n1.op = OINDREG;
++				n1.type = types[TUINT8];
++				n1.xoffset = 0;
++				gmove(&n1, &n2);
+ 				regfree(&n1);
++				regfree(&n2);
+ 			}
+ 		}
+ 		a->op = OINDREG;
+@@ -957,10 +961,13 @@ agenr(Node *n, Node *a, Node *res)
+ 		if(isfixedarray(nl->type) && nl->type->width >= unmappedzero) {
+ 			regalloc(&n4, types[tptr], N);
+ 			gmove(&n3, &n4);
+-			p1 = gins(AMOVW, &n4, &n4);
+-			p1->from.type = D_OREG;
+-			p1->from.offset = 0;
++			regalloc(&tmp, types[TUINT8], &n4);
++			n4.op = OINDREG;
++			n4.type = types[TUINT8];
++			n4.xoffset = 0;
++			gmove(&n4, &tmp);
+ 			regfree(&n4);
++			regfree(&tmp);
+ 		}
+ 
+ 		// constant index
+diff --git a/test/fixedbugs/issue4396a.go b/test/fixedbugs/issue4396a.go
+new file mode 100644
+index 0000000000..11ae1f7c6c
+--- /dev/null
++++ b/test/fixedbugs/issue4396a.go
+@@ -0,0 +1,27 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4396. Arrays of bytes are not required to be
++// word aligned. 5g should use MOVB to load the address
++// of s.g[0] for its nil check.
++//
++// This test _may_ fail on arm, but requires the host to 
++// trap unaligned loads. This is generally done with
++//
++// echo "4" > /proc/cpu/alignment
++
++package main
++
++var s = struct {
++	// based on lzw.decoder
++	a, b, c, d, e uint16
++	f             [4096]uint8
++	g             [4096]uint8
++}{}
++
++func main() {
++	s.g[0] = 1
++}
+diff --git a/test/fixedbugs/issue4396b.go b/test/fixedbugs/issue4396b.go
+new file mode 100644
+index 0000000000..d0bf28fac2
+--- /dev/null
++++ b/test/fixedbugs/issue4396b.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test _may_ fail on arm, but requires the host to
++// trap unaligned loads. This is generally done with
++//
++// echo "4" > /proc/cpu/alignment
++
++package main
++
++type T struct {
++	U uint16
++	V T2
++}
++
++type T2 struct {
++	pad    [4096]byte
++	A, B byte
++}
++
++var s, t = new(T), new(T)
++
++func main() {
++	var u, v *T2 = &s.V, &t.V
++	u.B = v.B
++}

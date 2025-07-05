@@ -130,3 +130,25 @@ Date:   Tue Feb 8 10:31:51 2022 +0100
  test/typeparam/issue50193.go                       |   11 +-
  test/typeparam/issue50993.go                       |   35 +
  122 files changed, 2240 insertions(+), 2650 deletions(-)
+
+diff --cc src/go/build/deps_test.go
+index c148f99123,22a04ff537..4a54b689e5
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@@ -400,12 -400,9 +400,12 @@@ var depsRules = 
+  	NET, log
+  	< net/mail;
+  
+ -	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+ -	# Unfortunately, stuck with reflect via encoding/binary.
+ -	encoding/binary, golang.org/x/sys/cpu, hash
+ +	NONE < crypto/internal/boring/sig;
+ +	sync/atomic < crypto/internal/boring/fipstls;
+ +
+ +	encoding/binary, golang.org/x/sys/cpu, hash,
+- 	FMT, math/big,
+++	FMT, math/big, embed,
+ +	CGO, crypto/internal/boring/sig, crypto/internal/boring/fipstls
+  	< crypto
+  	< crypto/subtle
+  	< crypto/internal/subtle

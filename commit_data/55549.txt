@@ -18,6 +18,22 @@ Date:   Tue Feb 21 10:14:20 2023 -0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index ecde25ab89..9806c270bf 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -323,8 +323,8 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 			if err := binary.Read(b, bo, &hdr); err != nil {
+ 				return nil, err
+ 			}
+-			strtab := make([]byte, hdr.Strsize)
+-			if _, err := r.ReadAt(strtab, int64(hdr.Stroff)); err != nil {
++			strtab, err := saferio.ReadDataAt(r, uint64(hdr.Strsize), int64(hdr.Stroff))
++			if err != nil {
+ 				return nil, err
+ 			}
+ 			var symsz int

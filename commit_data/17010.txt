@@ -17,7 +17,7 @@ Date:   Sat Aug 3 13:32:22 2013 +0900
     R=golang-dev, dave, bradfitz
     CC=golang-dev
     https://golang.org/cl/12010043
-
+---
  src/pkg/net/iprawsock_posix.go | 11 +++++---
  src/pkg/net/ipsock_posix.go    | 13 +---------
  src/pkg/net/sock_posix.go      | 58 +++++++++++++++++++++++++++++-------------
@@ -27,3 +27,411 @@ Date:   Sat Aug 3 13:32:22 2013 +0900
  src/pkg/net/udpsock_posix.go   | 13 ++++++----
  src/pkg/net/unixsock_posix.go  | 17 ++++++-------
  8 files changed, 95 insertions(+), 74 deletions(-)
+
+diff --git a/src/pkg/net/iprawsock_posix.go b/src/pkg/net/iprawsock_posix.go
+index caeeb46538..8d41d20d6d 100644
+--- a/src/pkg/net/iprawsock_posix.go
++++ b/src/pkg/net/iprawsock_posix.go
+@@ -39,12 +39,15 @@ func (a *IPAddr) isWildcard() bool {
+ }
+ 
+ func (a *IPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
++	if a == nil {
++		return nil, nil
++	}
+ 	return ipToSockaddr(family, a.IP, 0, a.Zone)
+ }
+ 
+ func (a *IPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *IPAddr
+-		return nil // nil interface
++	if a == nil {
++		return nil
+ 	}
+ 	return a
+ }
+@@ -178,7 +181,7 @@ func dialIP(netProto string, laddr, raddr *IPAddr, deadline time.Time) (*IPConn,
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", netProto, nil, errMissingAddress}
+ 	}
+-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_RAW, proto, "dial", sockaddrToIP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -199,7 +202,7 @@ func ListenIP(netProto string, laddr *IPAddr) (*IPConn, error) {
+ 	default:
+ 		return nil, UnknownNetworkError(netProto)
+ 	}
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_RAW, proto, "listen", sockaddrToIP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/ipsock_posix.go b/src/pkg/net/ipsock_posix.go
+index f0c575a7db..86cad58059 100644
+--- a/src/pkg/net/ipsock_posix.go
++++ b/src/pkg/net/ipsock_posix.go
+@@ -132,19 +132,8 @@ func favoriteAddrFamily(net string, laddr, raddr sockaddr, mode string) (family
+ // Internet sockets (TCP, UDP, IP)
+ 
+ func internetSocket(net string, laddr, raddr sockaddr, deadline time.Time, sotype, proto int, mode string, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+-	var la, ra syscall.Sockaddr
+ 	family, ipv6only := favoriteAddrFamily(net, laddr, raddr, mode)
+-	if laddr != nil {
+-		if la, err = laddr.sockaddr(family); err != nil {
+-			goto Error
+-		}
+-	}
+-	if raddr != nil {
+-		if ra, err = raddr.sockaddr(family); err != nil {
+-			goto Error
+-		}
+-	}
+-	fd, err = socket(net, family, sotype, proto, ipv6only, la, ra, deadline, toAddr)
++	fd, err = socket(net, family, sotype, proto, ipv6only, laddr, raddr, deadline, toAddr)
+ 	if err != nil {
+ 		goto Error
+ 	}
+diff --git a/src/pkg/net/sock_posix.go b/src/pkg/net/sock_posix.go
+index 845428aa48..1b66d3761b 100644
+--- a/src/pkg/net/sock_posix.go
++++ b/src/pkg/net/sock_posix.go
+@@ -37,7 +37,7 @@ type sockaddr interface {
+ }
+ 
+ // Generic POSIX socket creation.
+-func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
++func socket(net string, f, t, p int, ipv6only bool, laddr, raddr sockaddr, deadline time.Time, toAddr func(syscall.Sockaddr) Addr) (fd *netFD, err error) {
+ 	s, err := sysSocket(f, t, p)
+ 	if err != nil {
+ 		return nil, err
+@@ -48,23 +48,42 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		return nil, err
+ 	}
+ 
+-	// This socket is used by a listener.
+-	if ulsa != nil && ursa == nil {
++	// This function makes a network file descriptor for stream
++	// and datagram dialers, stream and datagram listeners.
++	//
++	// For dialers, they will require either named or unnamed
++	// sockets for their flights.  We can assume that it's just a
++	// request from a dialer that wants a named socket when both
++	// laddr and raddr are not nil.  A dialer will also require a
++	// connection setup initiated socket when raddr is not nil.
++	//
++	// For listeners and some dialers on datagram networks, they
++	// will only require named sockets.  So we can assume that
++	// it's just for a listener or a datagram dialer when laddr is
++	// not nil but raddr is nil.
++
++	var lsa syscall.Sockaddr
++	if laddr != nil && raddr == nil {
+ 		// We provide a socket that listens to a wildcard
+-		// address with reusable UDP port when the given ulsa
++		// address with reusable UDP port when the given laddr
+ 		// is an appropriate UDP multicast address prefix.
+ 		// This makes it possible for a single UDP listener
+ 		// to join multiple different group addresses, for
+ 		// multiple UDP listeners that listen on the same UDP
+ 		// port to join the same group address.
+-		if ulsa, err = listenerSockaddr(s, f, ulsa, toAddr); err != nil {
++		if lsa, err = listenerSockaddr(s, f, laddr); err != nil {
++			closesocket(s)
++			return nil, err
++		}
++	} else if laddr != nil && raddr != nil {
++		if lsa, err = laddr.sockaddr(f); err != nil {
+ 			closesocket(s)
+ 			return nil, err
+ 		}
+ 	}
+ 
+-	if ulsa != nil {
+-		if err = syscall.Bind(s, ulsa); err != nil {
++	if lsa != nil {
++		if err = syscall.Bind(s, lsa); err != nil {
+ 			closesocket(s)
+ 			return nil, err
+ 		}
+@@ -75,12 +94,19 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		return nil, err
+ 	}
+ 
+-	// This socket is used by a dialer.
+-	if ursa != nil {
++	var rsa syscall.Sockaddr
++	if raddr != nil {
++		rsa, err = raddr.sockaddr(f)
++		if err != nil {
++			return nil, err
++		}
++	}
++
++	if rsa != nil {
+ 		if !deadline.IsZero() {
+ 			setWriteDeadline(fd, deadline)
+ 		}
+-		if err = fd.connect(ulsa, ursa); err != nil {
++		if err = fd.connect(lsa, rsa); err != nil {
+ 			fd.Close()
+ 			return nil, err
+ 		}
+@@ -90,13 +116,11 @@ func socket(net string, f, t, p int, ipv6only bool, ulsa, ursa syscall.Sockaddr,
+ 		}
+ 	}
+ 
+-	lsa, _ := syscall.Getsockname(s)
+-	laddr := toAddr(lsa)
+-	rsa, _ := syscall.Getpeername(s)
+-	if rsa == nil {
+-		rsa = ursa
++	lsa, _ = syscall.Getsockname(s)
++	if rsa, _ = syscall.Getpeername(s); rsa != nil {
++		fd.setAddr(toAddr(lsa), toAddr(rsa))
++	} else {
++		fd.setAddr(toAddr(lsa), raddr)
+ 	}
+-	raddr := toAddr(rsa)
+-	fd.setAddr(laddr, raddr)
+ 	return fd, nil
+ }
+diff --git a/src/pkg/net/sock_unix.go b/src/pkg/net/sock_unix.go
+index b0d6d4900f..29017dcfe7 100644
+--- a/src/pkg/net/sock_unix.go
++++ b/src/pkg/net/sock_unix.go
+@@ -8,29 +8,29 @@ package net
+ 
+ import "syscall"
+ 
+-func listenerSockaddr(s, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
+-	a := toAddr(la)
+-	if a == nil {
+-		return la, nil
+-	}
+-	switch a := a.(type) {
++func listenerSockaddr(s, f int, laddr sockaddr) (syscall.Sockaddr, error) {
++	switch laddr := laddr.(type) {
+ 	case *TCPAddr, *UnixAddr:
+ 		if err := setDefaultListenerSockopts(s); err != nil {
+ 			return nil, err
+ 		}
++		return laddr.sockaddr(f)
+ 	case *UDPAddr:
+-		if a.IP.IsMulticast() {
++		if laddr.IP != nil && laddr.IP.IsMulticast() {
+ 			if err := setDefaultMulticastSockopts(s); err != nil {
+ 				return nil, err
+ 			}
++			addr := *laddr
+ 			switch f {
+ 			case syscall.AF_INET:
+-				a.IP = IPv4zero
++				addr.IP = IPv4zero
+ 			case syscall.AF_INET6:
+-				a.IP = IPv6unspecified
++				addr.IP = IPv6unspecified
+ 			}
+-			return a.sockaddr(f)
++			laddr = &addr
+ 		}
++		return laddr.sockaddr(f)
++	default:
++		return laddr.sockaddr(f)
+ 	}
+-	return la, nil
+ }
+diff --git a/src/pkg/net/sock_windows.go b/src/pkg/net/sock_windows.go
+index 41368d39e8..150227a5bb 100644
+--- a/src/pkg/net/sock_windows.go
++++ b/src/pkg/net/sock_windows.go
+@@ -12,31 +12,31 @@ func maxListenerBacklog() int {
+ 	return syscall.SOMAXCONN
+ }
+ 
+-func listenerSockaddr(s syscall.Handle, f int, la syscall.Sockaddr, toAddr func(syscall.Sockaddr) Addr) (syscall.Sockaddr, error) {
+-	a := toAddr(la)
+-	if a == nil {
+-		return la, nil
+-	}
+-	switch a := a.(type) {
++func listenerSockaddr(s syscall.Handle, f int, laddr sockaddr) (syscall.Sockaddr, error) {
++	switch laddr := laddr.(type) {
+ 	case *TCPAddr, *UnixAddr:
+ 		if err := setDefaultListenerSockopts(s); err != nil {
+ 			return nil, err
+ 		}
++		return laddr.sockaddr(f)
+ 	case *UDPAddr:
+-		if a.IP.IsMulticast() {
++		if laddr.IP != nil && laddr.IP.IsMulticast() {
+ 			if err := setDefaultMulticastSockopts(s); err != nil {
+ 				return nil, err
+ 			}
++			addr := *laddr
+ 			switch f {
+ 			case syscall.AF_INET:
+-				a.IP = IPv4zero
++				addr.IP = IPv4zero
+ 			case syscall.AF_INET6:
+-				a.IP = IPv6unspecified
++				addr.IP = IPv6unspecified
+ 			}
+-			return a.sockaddr(f)
++			laddr = &addr
+ 		}
++		return laddr.sockaddr(f)
++	default:
++		return laddr.sockaddr(f)
+ 	}
+-	return la, nil
+ }
+ 
+ func sysSocket(f, t, p int) (syscall.Handle, error) {
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index 129065dbde..54c3d42ed7 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -46,12 +46,15 @@ func (a *TCPAddr) isWildcard() bool {
+ }
+ 
+ func (a *TCPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
++	if a == nil {
++		return nil, nil
++	}
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
+ func (a *TCPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *TCPAddr
+-		return nil // nil interface
++	if a == nil {
++		return nil
+ 	}
+ 	return a
+ }
+@@ -156,7 +159,7 @@ func DialTCP(net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ }
+ 
+ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, error) {
+-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+ 
+ 	// TCP has a rarely used mechanism called a 'simultaneous connection' in
+ 	// which Dial("tcp", addr1, addr2) run on the machine at addr1 can
+@@ -186,7 +189,7 @@ func dialTCP(net string, laddr, raddr *TCPAddr, deadline time.Time) (*TCPConn, e
+ 		if err == nil {
+ 			fd.Close()
+ 		}
+-		fd, err = internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
++		fd, err = internetSocket(net, laddr, raddr, deadline, syscall.SOCK_STREAM, 0, "dial", sockaddrToTCP)
+ 	}
+ 
+ 	if err != nil {
+@@ -294,7 +297,7 @@ func ListenTCP(net string, laddr *TCPAddr) (*TCPListener, error) {
+ 	if laddr == nil {
+ 		laddr = &TCPAddr{}
+ 	}
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_STREAM, 0, "listen", sockaddrToTCP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/udpsock_posix.go b/src/pkg/net/udpsock_posix.go
+index b90cb030d8..0504e4ff5b 100644
+--- a/src/pkg/net/udpsock_posix.go
++++ b/src/pkg/net/udpsock_posix.go
+@@ -39,12 +39,15 @@ func (a *UDPAddr) isWildcard() bool {
+ }
+ 
+ func (a *UDPAddr) sockaddr(family int) (syscall.Sockaddr, error) {
++	if a == nil {
++		return nil, nil
++	}
+ 	return ipToSockaddr(family, a.IP, a.Port, a.Zone)
+ }
+ 
+ func (a *UDPAddr) toAddr() sockaddr {
+-	if a == nil { // nil *UDPAddr
+-		return nil // nil interface
++	if a == nil {
++		return nil
+ 	}
+ 	return a
+ }
+@@ -173,7 +176,7 @@ func dialUDP(net string, laddr, raddr *UDPAddr, deadline time.Time) (*UDPConn, e
+ 	if raddr == nil {
+ 		return nil, &OpError{"dial", net, nil, errMissingAddress}
+ 	}
+-	fd, err := internetSocket(net, laddr.toAddr(), raddr.toAddr(), deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
++	fd, err := internetSocket(net, laddr, raddr, deadline, syscall.SOCK_DGRAM, 0, "dial", sockaddrToUDP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -196,7 +199,7 @@ func ListenUDP(net string, laddr *UDPAddr) (*UDPConn, error) {
+ 	if laddr == nil {
+ 		laddr = &UDPAddr{}
+ 	}
+-	fd, err := internetSocket(net, laddr.toAddr(), nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
++	fd, err := internetSocket(net, laddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -216,7 +219,7 @@ func ListenMulticastUDP(net string, ifi *Interface, gaddr *UDPAddr) (*UDPConn, e
+ 	if gaddr == nil || gaddr.IP == nil {
+ 		return nil, &OpError{"listen", net, nil, errMissingAddress}
+ 	}
+-	fd, err := internetSocket(net, gaddr.toAddr(), nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
++	fd, err := internetSocket(net, gaddr, nil, noDeadline, syscall.SOCK_DGRAM, 0, "listen", sockaddrToUDP)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 00f69d1201..24002aa3bf 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -13,7 +13,7 @@ import (
+ 	"time"
+ )
+ 
+-func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.Time) (*netFD, error) {
++func unixSocket(net string, laddr, raddr sockaddr, mode string, deadline time.Time) (*netFD, error) {
+ 	var sotype int
+ 	switch net {
+ 	case "unix":
+@@ -26,19 +26,18 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
+ 		return nil, UnknownNetworkError(net)
+ 	}
+ 
+-	var la, ra syscall.Sockaddr
+ 	switch mode {
+ 	case "dial":
+-		if !laddr.isWildcard() {
+-			la = &syscall.SockaddrUnix{Name: laddr.Name}
++		if laddr != nil && laddr.isWildcard() {
++			laddr = nil
+ 		}
+-		if raddr != nil {
+-			ra = &syscall.SockaddrUnix{Name: raddr.Name}
+-		} else if sotype != syscall.SOCK_DGRAM || laddr.isWildcard() {
++		if raddr != nil && raddr.isWildcard() {
++			raddr = nil
++		}
++		if raddr == nil && (sotype != syscall.SOCK_DGRAM || laddr == nil) {
+ 			return nil, &OpError{Op: mode, Net: net, Err: errMissingAddress}
+ 		}
+ 	case "listen":
+-		la = &syscall.SockaddrUnix{Name: laddr.Name}
+ 	default:
+ 		return nil, errors.New("unknown mode: " + mode)
+ 	}
+@@ -50,7 +49,7 @@ func unixSocket(net string, laddr, raddr *UnixAddr, mode string, deadline time.T
+ 		f = sockaddrToUnixpacket
+ 	}
+ 
+-	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, la, ra, deadline, f)
++	fd, err := socket(net, syscall.AF_UNIX, sotype, 0, false, laddr, raddr, deadline, f)
+ 	if err != nil {
+ 		goto error
+ 	}

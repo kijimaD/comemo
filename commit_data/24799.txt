@@ -17,6 +17,20 @@ Date:   Mon Aug 31 13:30:22 2015 -0700
     Run-TryBot: Paul Marks <pmarks@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/dial_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dial_test.go b/src/net/dial_test.go
+index ed6d7cc42f..9843306775 100644
+--- a/src/net/dial_test.go
++++ b/src/net/dial_test.go
+@@ -643,7 +643,7 @@ func TestDialerDualStack(t *testing.T) {
+ 		}
+ 	}
+ 
+-	var timeout = 100*time.Millisecond + closedPortDelay
++	var timeout = 150*time.Millisecond + closedPortDelay
+ 	for _, dualstack := range []bool{false, true} {
+ 		dss, err := newDualStackServer([]streamListener{
+ 			{network: "tcp4", address: "127.0.0.1"},

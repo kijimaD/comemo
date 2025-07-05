@@ -9,8 +9,132 @@ Date:   Wed Apr 29 11:00:23 2020 -0700
     Change-Id: Iac02d7f9574061bb26d1d9a41bb6ee6cc38934e5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230937
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html                            | 19 +++++++++++++----
  src/net/http/httputil/reverseproxy.go      | 17 +++++++++++----
  src/net/http/httputil/reverseproxy_test.go | 33 ++++++++++++++++++++++++++++++
  3 files changed, 61 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index f5e72649fa..e3cb3d3b9b 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -200,7 +200,7 @@ TODO
+ 
+ <dl id="net"><dt><a href="/pkg/net/">net</a></dt>
+   <dd>
+-    <p><!-- CL -->
++    <p><!-- CL 228645 -->
+       If an I/O operation exceeds a deadline set by
+       the <a href="/pkg/net/#Conn"><code>Conn.SetDeadline</code></a>,
+       <code>Conn.SetReadDeadline</code>,
+@@ -217,12 +217,23 @@ TODO
+   </dd>
+ </dl>
+ 
++<dl id="net/http/httputil"><dt><a href="/pkg/net/http/httputil/">net/http/httputil</a></dt>
++  <dd>
++    <p><!-- CL 230937 -->
++      <a href="/pkg/net/http/httputil/#ReverseProxy"><code>ReverseProxy</code></a>
++      now supports not modifying the <code>X-Forwarded-For</code>
++      header when the incoming <code>Request.Header</code> map entry
++      for that field is <code>nil</code>.
++    </p>
++  </dd>
++</dl>
++
+ <dl id="net/http/pprof"><dt><a href="/pkg/net/http/pprof/">net/http/pprof</a></dt>
+   <dd>
+-    <p><!-- CL 147598, 229537 -->
+-      All profile endpoints now support a "seconds" parameter. When present,
++    <p><!-- CL 147598, CL 229537 -->
++      All profile endpoints now support a "<code>seconds</code>" parameter. When present,
+       the endpoint profiles for the specified number of seconds and reports the difference.
+-      The meaning of the "seconds" parameter in the <code>cpu</code> profile and
++      The meaning of the "<code>seconds</code>" parameter in the <code>cpu</code> profile and
+       the trace endpoints is unchanged.
+     </p>
+   </dd>
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index eb17bef979..6e5bc4753e 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -25,10 +25,15 @@ import (
+ // sends it to another server, proxying the response back to the
+ // client.
+ //
+-// ReverseProxy automatically sets the client IP as the value of the
++// ReverseProxy by default sets the client IP as the value of the
+ // X-Forwarded-For header.
++//
+ // If an X-Forwarded-For header already exists, the client IP is
+-// appended to the existing values.
++// appended to the existing values. As a special case, if the header
++// exists in the Request.Header map but has a nil value (such as when
++// set by the Director func), the X-Forwarded-For header is
++// not modified.
++//
+ // To prevent IP spoofing, be sure to delete any pre-existing
+ // X-Forwarded-For header coming from the client or
+ // an untrusted proxy.
+@@ -248,10 +253,14 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		// If we aren't the first proxy retain prior
+ 		// X-Forwarded-For information as a comma+space
+ 		// separated list and fold multiple headers into one.
+-		if prior, ok := outreq.Header["X-Forwarded-For"]; ok {
++		prior, ok := outreq.Header["X-Forwarded-For"]
++		omit := ok && prior == nil // Issue 38079: nil now means don't populate the header
++		if len(prior) > 0 {
+ 			clientIP = strings.Join(prior, ", ") + ", " + clientIP
+ 		}
+-		outreq.Header.Set("X-Forwarded-For", clientIP)
++		if !omit {
++			outreq.Header.Set("X-Forwarded-For", clientIP)
++		}
+ 	}
+ 
+ 	res, err := transport.RoundTrip(outreq)
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 6fb9ba60a9..be5531951a 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -277,6 +277,39 @@ func TestXForwardedFor(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 38079: don't append to X-Forwarded-For if it's present but nil
++func TestXForwardedFor_Omit(t *testing.T) {
++	backend := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		if v := r.Header.Get("X-Forwarded-For"); v != "" {
++			t.Errorf("got X-Forwarded-For header: %q", v)
++		}
++		w.Write([]byte("hi"))
++	}))
++	defer backend.Close()
++	backendURL, err := url.Parse(backend.URL)
++	if err != nil {
++		t.Fatal(err)
++	}
++	proxyHandler := NewSingleHostReverseProxy(backendURL)
++	frontend := httptest.NewServer(proxyHandler)
++	defer frontend.Close()
++
++	oldDirector := proxyHandler.Director
++	proxyHandler.Director = func(r *http.Request) {
++		r.Header["X-Forwarded-For"] = nil
++		oldDirector(r)
++	}
++
++	getReq, _ := http.NewRequest("GET", frontend.URL, nil)
++	getReq.Host = "some-name"
++	getReq.Close = true
++	res, err := frontend.Client().Do(getReq)
++	if err != nil {
++		t.Fatalf("Get: %v", err)
++	}
++	res.Body.Close()
++}
++
+ var proxyQueryTests = []struct {
+ 	baseSuffix string // suffix to add to backend URL
+ 	reqSuffix  string // suffix to add to frontend's request URL

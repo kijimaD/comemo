@@ -9,6 +9,24 @@ Date:   Thu Jul 30 13:39:30 2015 -0400
     Change-Id: Idd6460cc9e842f7b874c9757379986aa723c974c
     Reviewed-on: https://go-review.googlesource.com/12922
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/internal/trace/parser.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 294a52f976..1eb39ddd76 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -191,8 +191,10 @@ func parseEvents(rawEvents []rawEvent) (events []*Event, err error) {
+ 		case EvFrequency:
+ 			ticksPerSec = int64(raw.args[0])
+ 			if ticksPerSec <= 0 {
+-				err = fmt.Errorf("EvFrequency contains invalid frequency %v at offset 0x%x",
+-					ticksPerSec, raw.off)
++				// The most likely cause for this is tick skew on different CPUs.
++				// For example, solaris/amd64 seems to have wildly different
++				// ticks on different CPUs.
++				err = ErrTimeOrder
+ 				return
+ 			}
+ 		case EvTimerGoroutine:

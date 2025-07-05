@@ -7,9 +7,62 @@ Date:   Fri Sep 6 12:00:03 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13592043
-
+---
  src/pkg/net/tcpsock_plan9.go  | 2 +-
  src/pkg/net/tcpsock_posix.go  | 2 +-
  src/pkg/net/unixsock_plan9.go | 2 +-
  src/pkg/net/unixsock_posix.go | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/tcpsock_plan9.go b/src/pkg/net/tcpsock_plan9.go
+index d155d0736a..cf9c0f8904 100644
+--- a/src/pkg/net/tcpsock_plan9.go
++++ b/src/pkg/net/tcpsock_plan9.go
+@@ -111,7 +111,7 @@ type TCPListener struct {
+ }
+ 
+ // AcceptTCP accepts the next incoming call and returns the new
+-// connection and the remote address.
++// connection.
+ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+ 	if l == nil || l.fd == nil || l.fd.ctl == nil {
+ 		return nil, syscall.EINVAL
+diff --git a/src/pkg/net/tcpsock_posix.go b/src/pkg/net/tcpsock_posix.go
+index d9e25e26e6..00c692e423 100644
+--- a/src/pkg/net/tcpsock_posix.go
++++ b/src/pkg/net/tcpsock_posix.go
+@@ -225,7 +225,7 @@ type TCPListener struct {
+ }
+ 
+ // AcceptTCP accepts the next incoming call and returns the new
+-// connection and the remote address.
++// connection.
+ func (l *TCPListener) AcceptTCP() (*TCPConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 8a1281fb1a..c60c1d83bb 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -97,7 +97,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ }
+ 
+ // AcceptUnix accepts the next incoming call and returns the new
+-// connection and the remote address.
++// connection.
+ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index fc061804c7..08ea24a430 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -275,7 +275,7 @@ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ }
+ 
+ // AcceptUnix accepts the next incoming call and returns the new
+-// connection and the remote address.
++// connection.
+ func (l *UnixListener) AcceptUnix() (*UnixConn, error) {
+ 	if l == nil || l.fd == nil {
+ 		return nil, syscall.EINVAL

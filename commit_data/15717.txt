@@ -9,7 +9,32 @@ Date:   Tue Mar 12 11:45:30 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7526046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 64d733cf93..d59adc4fe2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -9,6 +9,7 @@
+ # Please keep the list sorted.
+ 
+ Abhinav Gupta <abhinav.g90@gmail.com>
++Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Albert Strasheim <fullung@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b8291de446..50009eb86d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -34,6 +34,7 @@
+ Aaron Kemp <kemp.aaron@gmail.com>
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
++Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Alan Donovan <adonovan@google.com>

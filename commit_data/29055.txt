@@ -7,6 +7,20 @@ Date:   Tue Aug 23 08:17:58 2016 -0400
     Change-Id: I7c809ec385b56ebb2ec784a1479d466df6ab4d1a
     Reviewed-on: https://go-review.googlesource.com/27565
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/macho.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/debug/macho/macho.go b/src/debug/macho/macho.go
+index 31647536ac..40ac74e9a1 100644
+--- a/src/debug/macho/macho.go
++++ b/src/debug/macho/macho.go
+@@ -145,7 +145,7 @@ type Section32 struct {
+ 	Reserve2 uint32
+ }
+ 
+-// A Section32 is a 64-bit Mach-O section header.
++// A Section64 is a 64-bit Mach-O section header.
+ type Section64 struct {
+ 	Name     [16]byte
+ 	Seg      [16]byte

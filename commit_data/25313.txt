@@ -12,6 +12,23 @@ Date:   Mon Oct 19 18:44:50 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/16099
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/tighten.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 05c349cc17..1da5071a2a 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -58,6 +58,11 @@ func tighten(f *Func) {
+ 					// GetClosurePtr must stay in entry block
+ 					continue
+ 				}
++				if len(v.Args) > 0 && v.Args[len(v.Args)-1].Type.IsMemory() {
++					// We can't move values which have a memory arg - it might
++					// make two memory values live across a block boundary.
++					continue
++				}
+ 				if uses[v.ID] == 1 && !phi[v.ID] && home[v.ID] != b && len(v.Args) < 2 {
+ 					// v is used in exactly one block, and it is not b.
+ 					// Furthermore, it takes at most one input,

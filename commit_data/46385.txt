@@ -32,6 +32,22 @@ Date:   Fri Dec 25 00:12:15 2020 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 3fbf6f337f..27ee09ade2 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -835,6 +835,10 @@ func TypeSym(t *types.Type) *types.Sym {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() {
+ 		base.Fatalf("typenamesym %v", t)
+ 	}
++	if t.Kind() == types.TFUNC && t.Recv() != nil {
++		// TODO(mdempsky): Fix callers and make fatal.
++		t = typecheck.NewMethodType(t, t.Recv().Type)
++	}
+ 	s := types.TypeSym(t)
+ 	signatmu.Lock()
+ 	NeedRuntimeType(t)

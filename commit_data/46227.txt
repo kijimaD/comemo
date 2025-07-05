@@ -13,8 +13,238 @@ Date:   Tue Dec 15 18:31:41 2020 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/go/types/exprstring.go | 74 +++++++++++++++++++++++++++++++++-------------
  src/go/types/scope.go      | 34 +++++++++++++++++++++
  src/go/types/sizes.go      |  8 +++--
  3 files changed, 93 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/types/exprstring.go b/src/go/types/exprstring.go
+index 28d605f5ee..0d9ae58dfc 100644
+--- a/src/go/types/exprstring.go
++++ b/src/go/types/exprstring.go
+@@ -8,6 +8,7 @@ package types
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/ast"
+ )
+ 
+@@ -31,7 +32,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ 	switch x := x.(type) {
+ 	default:
+-		buf.WriteString("(bad expr)") // nil, ast.BadExpr, ast.KeyValueExpr
++		buf.WriteString(fmt.Sprintf("(ast: %T)", x)) // nil, ast.BadExpr, ast.KeyValueExpr
+ 
+ 	case *ast.Ident:
+ 		buf.WriteString(x.Name)
+@@ -97,17 +98,16 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ 	case *ast.CallExpr:
+ 		WriteExpr(buf, x.Fun)
+-		buf.WriteByte('(')
+-		for i, arg := range x.Args {
+-			if i > 0 {
+-				buf.WriteString(", ")
+-			}
+-			WriteExpr(buf, arg)
++		var l, r byte = '(', ')'
++		if x.Brackets {
++			l, r = '[', ']'
+ 		}
++		buf.WriteByte(l)
++		writeExprList(buf, x.Args)
+ 		if x.Ellipsis.IsValid() {
+ 			buf.WriteString("...")
+ 		}
+-		buf.WriteByte(')')
++		buf.WriteByte(r)
+ 
+ 	case *ast.StarExpr:
+ 		buf.WriteByte('*')
+@@ -134,7 +134,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ 	case *ast.StructType:
+ 		buf.WriteString("struct{")
+-		writeFieldList(buf, x.Fields, "; ", false)
++		writeFieldList(buf, x.Fields.List, "; ", false)
+ 		buf.WriteByte('}')
+ 
+ 	case *ast.FuncType:
+@@ -142,8 +142,29 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 		writeSigExpr(buf, x)
+ 
+ 	case *ast.InterfaceType:
++		// separate type list types from method list
++		// TODO(gri) we can get rid of this extra code if writeExprList does the separation
++		var types []ast.Expr
++		var methods []*ast.Field
++		for _, f := range x.Methods.List {
++			if len(f.Names) > 1 && f.Names[0].Name == "type" {
++				// type list type
++				types = append(types, f.Type)
++			} else {
++				// method or embedded interface
++				methods = append(methods, f)
++			}
++		}
++
+ 		buf.WriteString("interface{")
+-		writeFieldList(buf, x.Methods, "; ", true)
++		writeFieldList(buf, methods, "; ", true)
++		if len(types) > 0 {
++			if len(methods) > 0 {
++				buf.WriteString("; ")
++			}
++			buf.WriteString("type ")
++			writeExprList(buf, types)
++		}
+ 		buf.WriteByte('}')
+ 
+ 	case *ast.MapType:
+@@ -169,7 +190,7 @@ func WriteExpr(buf *bytes.Buffer, x ast.Expr) {
+ 
+ func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
+ 	buf.WriteByte('(')
+-	writeFieldList(buf, sig.Params, ", ", false)
++	writeFieldList(buf, sig.Params.List, ", ", false)
+ 	buf.WriteByte(')')
+ 
+ 	res := sig.Results
+@@ -188,23 +209,18 @@ func writeSigExpr(buf *bytes.Buffer, sig *ast.FuncType) {
+ 
+ 	// multiple or named result(s)
+ 	buf.WriteByte('(')
+-	writeFieldList(buf, res, ", ", false)
++	writeFieldList(buf, res.List, ", ", false)
+ 	buf.WriteByte(')')
+ }
+ 
+-func writeFieldList(buf *bytes.Buffer, fields *ast.FieldList, sep string, iface bool) {
+-	for i, f := range fields.List {
++func writeFieldList(buf *bytes.Buffer, list []*ast.Field, sep string, iface bool) {
++	for i, f := range list {
+ 		if i > 0 {
+ 			buf.WriteString(sep)
+ 		}
+ 
+ 		// field list names
+-		for i, name := range f.Names {
+-			if i > 0 {
+-				buf.WriteString(", ")
+-			}
+-			buf.WriteString(name.Name)
+-		}
++		writeIdentList(buf, f.Names)
+ 
+ 		// types of interface methods consist of signatures only
+ 		if sig, _ := f.Type.(*ast.FuncType); sig != nil && iface {
+@@ -222,3 +238,21 @@ func writeFieldList(buf *bytes.Buffer, fields *ast.FieldList, sep string, iface
+ 		// ignore tag
+ 	}
+ }
++
++func writeIdentList(buf *bytes.Buffer, list []*ast.Ident) {
++	for i, x := range list {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		buf.WriteString(x.Name)
++	}
++}
++
++func writeExprList(buf *bytes.Buffer, list []ast.Expr) {
++	for i, x := range list {
++		if i > 0 {
++			buf.WriteString(", ")
++		}
++		WriteExpr(buf, x)
++	}
++}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 8c9d9ab8b8..157b1b7066 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -108,6 +108,40 @@ func (s *Scope) Insert(obj Object) Object {
+ 	return nil
+ }
+ 
++// Squash merges s with its parent scope p by adding all
++// objects of s to p, adding all children of s to the
++// children of p, and removing s from p's children.
++// The function f is called for each object obj in s which
++// has an object alt in p. s should be discarded after
++// having been squashed.
++func (s *Scope) Squash(err func(obj, alt Object)) {
++	p := s.parent
++	assert(p != nil)
++	for _, obj := range s.elems {
++		obj.setParent(nil)
++		if alt := p.Insert(obj); alt != nil {
++			err(obj, alt)
++		}
++	}
++
++	j := -1 // index of s in p.children
++	for i, ch := range p.children {
++		if ch == s {
++			j = i
++			break
++		}
++	}
++	assert(j >= 0)
++	k := len(p.children) - 1
++	p.children[j] = p.children[k]
++	p.children = p.children[:k]
++
++	p.children = append(p.children, s.children...)
++
++	s.children = nil
++	s.elems = nil
++}
++
+ // Pos and End describe the scope's source code extent [pos, end).
+ // The results are guaranteed to be valid only if the type-checked
+ // AST has complete position information. The extent is undefined
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index 6ab6157b82..e8377a4f92 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -48,7 +48,7 @@ type StdSizes struct {
+ func (s *StdSizes) Alignof(T Type) int64 {
+ 	// For arrays and structs, alignment is defined in terms
+ 	// of alignment of the elements and fields, respectively.
+-	switch t := T.Underlying().(type) {
++	switch t := optype(T).(type) {
+ 	case *Array:
+ 		// spec: "For a variable x of array type: unsafe.Alignof(x)
+ 		// is the same as unsafe.Alignof(x[0]), but at least 1."
+@@ -118,7 +118,7 @@ var basicSizes = [...]byte{
+ }
+ 
+ func (s *StdSizes) Sizeof(T Type) int64 {
+-	switch t := T.Underlying().(type) {
++	switch t := optype(T).(type) {
+ 	case *Basic:
+ 		assert(isTyped(T))
+ 		k := t.kind
+@@ -148,6 +148,8 @@ func (s *StdSizes) Sizeof(T Type) int64 {
+ 		}
+ 		offsets := s.Offsetsof(t.fields)
+ 		return offsets[n-1] + s.Sizeof(t.fields[n-1].typ)
++	case *Sum:
++		panic("Sizeof unimplemented for type sum")
+ 	case *Interface:
+ 		return s.WordSize * 2
+ 	}
+@@ -239,7 +241,7 @@ func (conf *Config) offsetsof(T *Struct) []int64 {
+ func (conf *Config) offsetof(typ Type, index []int) int64 {
+ 	var o int64
+ 	for _, i := range index {
+-		s := typ.Underlying().(*Struct)
++		s := asStruct(typ)
+ 		o += conf.offsetsof(s)[i]
+ 		typ = s.fields[i].typ
+ 	}

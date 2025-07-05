@@ -11,6 +11,24 @@ Date:   Wed Apr 17 23:21:15 2013 -0700
     R=golang-dev, dave, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/8303043
-
+---
  src/pkg/crypto/rand/util.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/rand/util.go b/src/pkg/crypto/rand/util.go
+index 21608dbaca..0cd5e0e022 100644
+--- a/src/pkg/crypto/rand/util.go
++++ b/src/pkg/crypto/rand/util.go
+@@ -100,8 +100,11 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
+ 	}
+ }
+ 
+-// Int returns a uniform random value in [0, max).
++// Int returns a uniform random value in [0, max). It panics if max <= 0.
+ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
++	if max.Sign() <= 0 {
++		panic("crypto/rand: argument to Int is <= 0")
++	}
+ 	k := (max.BitLen() + 7) / 8
+ 
+ 	// b is the number of bits in the most significant byte of max.

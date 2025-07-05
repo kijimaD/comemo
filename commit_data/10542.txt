@@ -20,8 +20,57 @@ Date:   Wed Nov 30 11:44:54 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5450044
-
+---
  src/pkg/html/parse_test.go | 2 ++
  src/pkg/html/render.go     | 2 +-
  src/pkg/html/token.go      | 7 +++----
  3 files changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 3805bd7e9e..1e39f3ed70 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -153,6 +153,8 @@ func TestParser(t *testing.T) {
+ 		{"tests1.dat", -1},
+ 		{"tests2.dat", -1},
+ 		{"tests3.dat", -1},
++		// tests4.dat is fragment cases.
++		{"tests5.dat", 10},
+ 	}
+ 	for _, tf := range testFiles {
+ 		f, err := os.Open("testdata/webkit/" + tf.filename)
+diff --git a/src/pkg/html/render.go b/src/pkg/html/render.go
+index 2c868f511d..2a57566fd4 100644
+--- a/src/pkg/html/render.go
++++ b/src/pkg/html/render.go
+@@ -185,7 +185,7 @@ func render1(w writer, n *Node) error {
+ 
+ 	// Render any child nodes.
+ 	switch n.Data {
+-	case "noembed", "noframes", "noscript", "plaintext", "script", "style":
++	case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style":
+ 		for _, c := range n.Child {
+ 			if c.Type != TextNode {
+ 				return fmt.Errorf("html: raw text element <%s> has non-text child node", n.Data)
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index a6fbcdfcfe..2a2f96bbab 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -405,14 +405,13 @@ func (z *Tokenizer) readStartTag() TokenType {
+ 			break
+ 		}
+ 	}
+-	// Any "<noembed>", "<noframes>", "<noscript>", "<plaintext", "<script>", "<style>",
+-	// "<textarea>" or "<title>" tag flags the tokenizer's next token as raw.
++	// Several tags flag the tokenizer's next token as raw.
+ 	// The tag name lengths of these special cases ranges in [5, 9].
+ 	if x := z.data.end - z.data.start; 5 <= x && x <= 9 {
+ 		switch z.buf[z.data.start] {
+-		case 'n', 'p', 's', 't', 'N', 'P', 'S', 'T':
++		case 'i', 'n', 'p', 's', 't', 'I', 'N', 'P', 'S', 'T':
+ 			switch s := strings.ToLower(string(z.buf[z.data.start:z.data.end])); s {
+-			case "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
++			case "iframe", "noembed", "noframes", "noscript", "plaintext", "script", "style", "textarea", "title":
+ 				z.rawTag = s
+ 			}
+ 		}

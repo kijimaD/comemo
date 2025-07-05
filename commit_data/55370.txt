@@ -18,7 +18,48 @@ Date:   Thu Dec 8 14:10:59 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/os/file.go    |  3 +++
  src/os/os_test.go | 12 +++++++++++-
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 3d71ac068e..c41adc7da6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -486,6 +486,9 @@ func UserConfigDir() (string, error) {
+ // On Unix, including macOS, it returns the $HOME environment variable.
+ // On Windows, it returns %USERPROFILE%.
+ // On Plan 9, it returns the $home environment variable.
++//
++// If the expected variable is not set in the environment, UserHomeDir
++// returns either a platform-specific default value or a non-nil error.
+ func UserHomeDir() (string, error) {
+ 	env, enverr := "HOME", "$HOME"
+ 	switch runtime.GOOS {
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 7d39eb3e02..a8488a11f8 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2639,10 +2639,20 @@ func TestUserHomeDir(t *testing.T) {
+ 		t.Fatal("UserHomeDir returned an empty string but no error")
+ 	}
+ 	if err != nil {
+-		t.Skipf("UserHomeDir failed: %v", err)
++		// UserHomeDir may return a non-nil error if the environment variable
++		// for the home directory is empty or unset in the environment.
++		t.Skipf("skipping: %v", err)
+ 	}
++
+ 	fi, err := Stat(dir)
+ 	if err != nil {
++		if os.IsNotExist(err) {
++			// The user's home directory has a well-defined location, but does not
++			// exist. (Maybe nothing has written to it yet? That could happen, for
++			// example, on minimal VM images used for CI testing.)
++			t.Log(err)
++			return
++		}
+ 		t.Fatal(err)
+ 	}
+ 	if !fi.IsDir() {

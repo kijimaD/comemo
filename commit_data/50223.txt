@@ -20,10 +20,154 @@ Date:   Fri May 14 18:42:16 2021 +0200
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  2 ++
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  2 ++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteARM64.go | 32 ++++++++++++++++++++++++++++
  test/codegen/memcombine.go                   | 12 +++++++++++
  5 files changed, 80 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 1c63a3f70c..9c476d885a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2217,3 +2217,5 @@
+ (AND(Q|L) x (NEG(Q|L) x))           && buildcfg.GOAMD64 >= 3 => (BLSI(Q|L) x)
+ (XOR(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSMSK(Q|L) x)
+ (AND(Q|L) x (ADD(Q|L)const [-1] x)) && buildcfg.GOAMD64 >= 3 => (BLSR(Q|L) x)
++
++(BSWAP(Q|L) (BSWAP(Q|L) p)) => p
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 02fb4e1990..d34e1899db 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -2931,3 +2931,5 @@
+ 	&& isInlinableMemmove(dst, src, sz, config)
+ 	&& clobber(call)
+ 	=> (Move [sz] dst src mem)
++
++((REV|REVW) ((REV|REVW) p)) => p
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 10d3afbc7d..88c76dd169 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -70,6 +70,10 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAMD64ANDQmodify(v)
+ 	case OpAMD64BSFQ:
+ 		return rewriteValueAMD64_OpAMD64BSFQ(v)
++	case OpAMD64BSWAPL:
++		return rewriteValueAMD64_OpAMD64BSWAPL(v)
++	case OpAMD64BSWAPQ:
++		return rewriteValueAMD64_OpAMD64BSWAPQ(v)
+ 	case OpAMD64BTCLconst:
+ 		return rewriteValueAMD64_OpAMD64BTCLconst(v)
+ 	case OpAMD64BTCQconst:
+@@ -3607,6 +3611,34 @@ func rewriteValueAMD64_OpAMD64BSFQ(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpAMD64BSWAPL(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (BSWAPL (BSWAPL p))
++	// result: p
++	for {
++		if v_0.Op != OpAMD64BSWAPL {
++			break
++		}
++		p := v_0.Args[0]
++		v.copyOf(p)
++		return true
++	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64BSWAPQ(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (BSWAPQ (BSWAPQ p))
++	// result: p
++	for {
++		if v_0.Op != OpAMD64BSWAPQ {
++			break
++		}
++		p := v_0.Args[0]
++		v.copyOf(p)
++		return true
++	}
++	return false
++}
+ func rewriteValueAMD64_OpAMD64BTCLconst(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (BTCLconst [c] (XORLconst [d] x))
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 8ad9e400eb..ad34855c30 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -335,6 +335,10 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpARM64ORshiftRL(v)
+ 	case OpARM64ORshiftRO:
+ 		return rewriteValueARM64_OpARM64ORshiftRO(v)
++	case OpARM64REV:
++		return rewriteValueARM64_OpARM64REV(v)
++	case OpARM64REVW:
++		return rewriteValueARM64_OpARM64REVW(v)
+ 	case OpARM64ROR:
+ 		return rewriteValueARM64_OpARM64ROR(v)
+ 	case OpARM64RORW:
+@@ -20299,6 +20303,34 @@ func rewriteValueARM64_OpARM64ORshiftRO(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64_OpARM64REV(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (REV (REV p))
++	// result: p
++	for {
++		if v_0.Op != OpARM64REV {
++			break
++		}
++		p := v_0.Args[0]
++		v.copyOf(p)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64_OpARM64REVW(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (REVW (REVW p))
++	// result: p
++	for {
++		if v_0.Op != OpARM64REVW {
++			break
++		}
++		p := v_0.Args[0]
++		v.copyOf(p)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64_OpARM64ROR(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index d74dae07f5..2a0c534df0 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -432,6 +432,18 @@ func store_be32(b []byte) {
+ 	binary.BigEndian.PutUint32(b, sink32)
+ }
+ 
++func store_be64_load(b, x *[8]byte) {
++	// arm64:-`REV`
++	// amd64:-`BSWAPQ`
++	binary.BigEndian.PutUint64(b[:], binary.BigEndian.Uint64(x[:]))
++}
++
++func store_be32_load(b, x *[8]byte) {
++	// arm64:-`REVW`
++	// amd64:-`BSWAPL`
++	binary.BigEndian.PutUint32(b[:], binary.BigEndian.Uint32(x[:]))
++}
++
+ func store_be32_idx(b []byte, idx int) {
+ 	// amd64:`BSWAPL`,-`SHR.`
+ 	// arm64:`REVW`,`MOVW\sR[0-9]+,\s\(R[0-9]+\)\(R[0-9]+\)`,-`MOV[BH]`,-`REV16W`

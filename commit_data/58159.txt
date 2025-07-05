@@ -15,8 +15,60 @@ Date:   Sat Oct 7 09:19:16 2023 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/export_test.go |  4 ++++
  src/runtime/map.go         |  2 +-
  src/runtime/map_test.go    | 15 +++++++++++++++
  3 files changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f81e8a9ea1..6335dab41b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -583,6 +583,10 @@ func MapBucketsPointerIsNil(m map[int]int) bool {
+ 	return h.buckets == nil
+ }
+ 
++func OverLoadFactor(count int, B uint8) bool {
++	return overLoadFactor(count, B)
++}
++
+ func LockOSCounts() (external, internal uint32) {
+ 	gp := getg()
+ 	if gp.m.lockedExt+gp.m.lockedInt == 0 {
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index e6d651f688..5b264b0713 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -70,7 +70,7 @@ const (
+ 	// Because of minimum alignment rules, bucketCnt is known to be at least 8.
+ 	// Represent as loadFactorNum/loadFactorDen, to allow integer math.
+ 	loadFactorDen = 2
+-	loadFactorNum = (bucketCnt * 13 / 16) * loadFactorDen
++	loadFactorNum = loadFactorDen * bucketCnt * 13 / 16
+ 
+ 	// Maximum key or elem size to keep inline (instead of mallocing per element).
+ 	// Must fit in a uint8.
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 300e996de3..7e911b9fc9 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -1419,3 +1419,18 @@ func TestEmptyMapWithInterfaceKey(t *testing.T) {
+ 		_ = mi[panicStructKey]
+ 	})
+ }
++
++func TestLoadFactor(t *testing.T) {
++	for b := uint8(0); b < 20; b++ {
++		count := 13 * (1 << b) / 2 // 6.5
++		if b == 0 {
++			count = 8
++		}
++		if runtime.OverLoadFactor(count, b) {
++			t.Errorf("OverLoadFactor(%d,%d)=true, want false", count, b)
++		}
++		if !runtime.OverLoadFactor(count+1, b) {
++			t.Errorf("OverLoadFactor(%d,%d)=false, want true", count+1, b)
++		}
++	}
++}

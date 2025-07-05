@@ -19,6 +19,24 @@ Date:   Wed Apr 7 17:40:39 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/coverage.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/internal/fuzz/coverage.go b/src/internal/fuzz/coverage.go
+new file mode 100644
+index 0000000000..7624b56e0a
+--- /dev/null
++++ b/src/internal/fuzz/coverage.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fuzz
++
++// coverage returns a []byte containing unique 8-bit counters for each edge of
++// the instrumented source code. This coverage data will only be generated if
++// `-d=libfuzzer` is set at build time. This can be used to understand the code
++// coverage of a test execution.
++func coverage() []byte { return nil }

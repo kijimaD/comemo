@@ -8,6 +8,22 @@ Date:   Mon Nov 17 11:27:53 2014 +1100
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/175870043
-
+---
  misc/makerelease/makerelease.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/makerelease/makerelease.go b/misc/makerelease/makerelease.go
+index e94efdbcee..8cf6be2a43 100644
+--- a/misc/makerelease/makerelease.go
++++ b/misc/makerelease/makerelease.go
+@@ -56,8 +56,8 @@ const (
+ 	blogPath       = "golang.org/x/blog"
+ 	toolPath       = "golang.org/x/tools"
+ 	tourPath       = "code.google.com/p/go-tour"
+-	defaultToolTag = "release-branch.go1.3"
+-	defaultTourTag = "release-branch.go1.3"
++	defaultToolTag = "release-branch.go1.4"
++	defaultTourTag = "release-branch.go1.4"
+ )
+ 
+ // Import paths for tool commands.

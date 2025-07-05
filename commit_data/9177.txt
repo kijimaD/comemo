@@ -8,6 +8,23 @@ Date:   Fri Jul 22 17:52:46 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4808052
-
+---
  src/pkg/exp/template/set_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index 202ed688f0..f79663eb06 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -139,9 +139,9 @@ func TestParseSetFile(t *testing.T) {
+ }
+ 
+ func TestParseSetFiles(t *testing.T) {
+-	set, err := ParseSetFiles("NO SUCH FILE")
++	set, err := ParseSetFiles("DOES NOT EXIST")
+ 	if err == nil {
+-		t.Error("expected error for empty file list; got none")
++		t.Error("expected error for non-existent file; got none")
+ 	}
+ 	set, err = ParseSetFiles("[x")
+ 	if err == nil {

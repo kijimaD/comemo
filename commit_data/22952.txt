@@ -21,7 +21,63 @@ Date:   Sun Mar 29 23:11:47 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/8232
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/gc/reflect.go | 14 ++++++++++++++
  src/reflect/type.go            | 12 +++++++++++-
  2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/gc/reflect.go b/src/cmd/internal/gc/reflect.go
+index dd751d4017..ef3ebe3537 100644
+--- a/src/cmd/internal/gc/reflect.go
++++ b/src/cmd/internal/gc/reflect.go
+@@ -1213,6 +1213,20 @@ ok:
+ 	// we want be able to find.
+ 	if t.Sym == nil {
+ 		switch t.Etype {
++		case TPTR32, TPTR64:
++			// The ptrto field of the type data cannot be relied on when
++			// dynamic linking: a type T may be defined in a module that makes
++			// no use of pointers to that type, but another module can contain
++			// a package that imports the first one and does use *T pointers.
++			// The second module will end up defining type data for *T and a
++			// type.*T symbol pointing at it. It's important that calling
++			// .PtrTo() on the refect.Type for T returns this type data and
++			// not some synthesized object, so we need reflect to be able to
++			// find it!
++			if !Ctxt.Flag_dynlink {
++				break
++			}
++			fallthrough
+ 		case TARRAY, TCHAN, TFUNC, TMAP:
+ 			slink := typelinksym(t)
+ 			dsymptr(slink, 0, s, 0)
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index e51b2e7bc7..ef4e548d5c 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1057,6 +1057,17 @@ func (t *rtype) ptrTo() *rtype {
+ 		return &p.rtype
+ 	}
+ 
++	// Look in known types.
++	s := "*" + *t.string
++	for _, tt := range typesByString(s) {
++		p = (*ptrType)(unsafe.Pointer(tt))
++		if p.elem == t {
++			ptrMap.m[t] = p
++			ptrMap.Unlock()
++			return &p.rtype
++		}
++	}
++
+ 	// Create a new ptrType starting with the description
+ 	// of an *unsafe.Pointer.
+ 	p = new(ptrType)
+@@ -1064,7 +1075,6 @@ func (t *rtype) ptrTo() *rtype {
+ 	prototype := *(**ptrType)(unsafe.Pointer(&iptr))
+ 	*p = *prototype
+ 
+-	s := "*" + *t.string
+ 	p.string = &s
+ 
+ 	// For the type structures linked into the binary, the

@@ -13,6 +13,120 @@ Date:   Tue Jan 11 17:15:28 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/3923043
-
+---
  src/pkg/http/server.go | 95 ++++++++++++++++++++++++++------------------------
  1 file changed, 50 insertions(+), 45 deletions(-)
+
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 4c1c0914d1..b8783da283 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -452,58 +452,63 @@ func NotFoundHandler() Handler { return HandlerFunc(NotFound) }
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
+ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+-	// RFC2616 recommends that a short note "SHOULD" be included in the
+-	// response because older user agents may not understand 301/307.
+-	note := "<a href=\"%v\">" + statusText[code] + "</a>.\n"
+-	if r.Method == "POST" {
+-		note = ""
+-	}
+-
+-	u, err := ParseURL(url)
+-	if err != nil {
+-		goto finish
+-	}
+-
+-	// If url was relative, make absolute by
+-	// combining with request path.
+-	// The browser would probably do this for us,
+-	// but doing it ourselves is more reliable.
+-
+-	// NOTE(rsc): RFC 2616 says that the Location
+-	// line must be an absolute URI, like
+-	// "http://www.google.com/redirect/",
+-	// not a path like "/redirect/".
+-	// Unfortunately, we don't know what to
+-	// put in the host name section to get the
+-	// client to connect to us again, so we can't
+-	// know the right absolute URI to send back.
+-	// Because of this problem, no one pays attention
+-	// to the RFC; they all send back just a new path.
+-	// So do we.
+-	oldpath := r.URL.Path
+-	if oldpath == "" { // should not happen, but avoid a crash if it does
+-		oldpath = "/"
+-	}
+-	if u.Scheme == "" {
+-		// no leading http://server
+-		if url == "" || url[0] != '/' {
+-			// make relative path absolute
+-			olddir, _ := path.Split(oldpath)
+-			url = olddir + url
++	if u, err := ParseURL(url); err == nil {
++		// If url was relative, make absolute by
++		// combining with request path.
++		// The browser would probably do this for us,
++		// but doing it ourselves is more reliable.
++
++		// NOTE(rsc): RFC 2616 says that the Location
++		// line must be an absolute URI, like
++		// "http://www.google.com/redirect/",
++		// not a path like "/redirect/".
++		// Unfortunately, we don't know what to
++		// put in the host name section to get the
++		// client to connect to us again, so we can't
++		// know the right absolute URI to send back.
++		// Because of this problem, no one pays attention
++		// to the RFC; they all send back just a new path.
++		// So do we.
++		oldpath := r.URL.Path
++		if oldpath == "" { // should not happen, but avoid a crash if it does
++			oldpath = "/"
+ 		}
++		if u.Scheme == "" {
++			// no leading http://server
++			if url == "" || url[0] != '/' {
++				// make relative path absolute
++				olddir, _ := path.Split(oldpath)
++				url = olddir + url
++			}
+ 
+-		// clean up but preserve trailing slash
+-		trailing := url[len(url)-1] == '/'
+-		url = path.Clean(url)
+-		if trailing && url[len(url)-1] != '/' {
+-			url += "/"
++			// clean up but preserve trailing slash
++			trailing := url[len(url)-1] == '/'
++			url = path.Clean(url)
++			if trailing && url[len(url)-1] != '/' {
++				url += "/"
++			}
+ 		}
+ 	}
+ 
+-finish:
+ 	w.SetHeader("Location", url)
+ 	w.WriteHeader(code)
+-	fmt.Fprintf(w, note, url)
++
++	// RFC2616 recommends that a short note "SHOULD" be included in the
++	// response because older user agents may not understand 301/307.
++	note := "<a href=\"" + htmlEscape(url) + "\">" + statusText[code] + "</a>.\n"
++	if r.Method == "POST" {
++		note = ""
++	}
++	fmt.Fprintln(w, note)
++}
++
++func htmlEscape(s string) string {
++	s = strings.Replace(s, "&", "&amp;", -1)
++	s = strings.Replace(s, "<", "&lt;", -1)
++	s = strings.Replace(s, ">", "&gt;", -1)
++	s = strings.Replace(s, "\"", "&quot;", -1)
++	s = strings.Replace(s, "'", "&apos;", -1)
++	return s
+ }
+ 
+ // Redirect to a fixed URL

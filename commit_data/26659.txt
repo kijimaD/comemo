@@ -7,6 +7,20 @@ Date:   Thu Jul 2 17:56:13 2015 -0700
     Change-Id: Ief22b3dbba9616dd40bf3ea8e2633d3c5e7d1886
     Reviewed-on: https://go-review.googlesource.com/19761
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bytes/buffer.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index ddaba3bff3..f135b46959 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -17,7 +17,7 @@ import (
+ type Buffer struct {
+ 	buf       []byte            // contents are the bytes buf[off : len(buf)]
+ 	off       int               // read at &buf[off], write at &buf[len(buf)]
+-	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each WriteByte or Rune
++	runeBytes [utf8.UTFMax]byte // avoid allocation of slice on each call to WriteRune
+ 	bootstrap [64]byte          // memory to hold first slice; helps small buffers (Printf) avoid allocation.
+ 	lastRead  readOp            // last read operation, so that Unread* can work correctly.
+ }

@@ -13,7 +13,7 @@ Date:   Mon Nov 26 23:45:22 2012 +0100
     R=golang-dev, dave, mtj, iant, rsc
     CC=golang-dev
     https://golang.org/cl/6819123
-
+---
  src/cmd/5g/cgen.c  |   4 +
  src/cmd/5g/gg.h    |   1 +
  src/cmd/5g/ggen.c  |  56 ++++++++++
@@ -28,3 +28,945 @@ Date:   Mon Nov 26 23:45:22 2012 +0100
  src/cmd/8g/gsubr.c |  16 +++
  src/cmd/gc/walk.c  | 296 ++++++++++++++++++++++++++++++++++++++++++++++++++---
  13 files changed, 466 insertions(+), 188 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 008d1b9489..bd56728bf5 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -263,6 +263,10 @@ cgen(Node *n, Node *res)
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
++	case OHMUL:
++		cgen_hmul(nl, nr, res);
++		break;
++
+ 	case OLROT:
+ 	case OLSH:
+ 	case ORSH:
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index ba9356edc3..370cf6e038 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -102,6 +102,7 @@ Prog*	gshift(int as, Node *lhs, int32 stype, int32 sval, Node *rhs);
+ Prog *	gregshift(int as, Node *lhs, int32 stype, Node *reg, Node *rhs);
+ void	naddr(Node*, Addr*, int);
+ void	cgen_aret(Node*, Node*);
++void	cgen_hmul(Node*, Node*, Node*);
+ void	cgen_shift(int, int, Node*, Node*, Node*);
+ int	componentgen(Node*, Node*);
+ 
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 8566f935df..840d55a95c 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -473,6 +473,62 @@ samereg(Node *a, Node *b)
+ 	return 1;
+ }
+ 
++/*
++ * generate high multiply
++ *  res = (nl * nr) >> wordsize
++ */
++void
++cgen_hmul(Node *nl, Node *nr, Node *res)
++{
++	int w;
++	Node n1, n2, *tmp;
++	Type *t;
++	Prog *p;
++
++	if(nl->ullman < nr->ullman) {
++		tmp = nl;
++		nl = nr;
++		nr = tmp;
++	}
++	t = nl->type;
++	w = t->width * 8;
++	regalloc(&n1, t, res);
++	cgen(nl, &n1);
++	regalloc(&n2, t, N);
++	cgen(nr, &n2);
++	switch(simtype[t->etype]) {
++	case TINT8:
++	case TINT16:
++		gins(optoas(OMUL, t), &n2, &n1);
++		gshift(AMOVW, &n1, SHIFT_AR, w, &n1);
++		break;
++	case TUINT8:
++	case TUINT16:
++		gins(optoas(OMUL, t), &n2, &n1);
++		gshift(AMOVW, &n1, SHIFT_LR, w, &n1);
++		break;
++	case TINT32:
++	case TUINT32:
++		// perform a long multiplication.
++		if(issigned[t->etype])
++			p = gins(AMULL, &n2, N);
++		else
++			p = gins(AMULLU, &n2, N);
++		// n2 * n1 -> (n1 n2)
++		p->reg = n1.val.u.reg;
++		p->to.type = D_REGREG;
++		p->to.reg = n1.val.u.reg;
++		p->to.offset = n2.val.u.reg;
++		break;
++	default:
++		fatal("cgen_hmul %T", t);
++		break;
++	}
++	cgen(&n1, res);
++	regfree(&n1);
++	regfree(&n2);
++}
++
+ /*
+  * generate shift according to op, one of:
+  *	res = nl << nr
+diff --git a/src/cmd/5g/peep.c b/src/cmd/5g/peep.c
+index 0f60fbe176..10551e3c61 100644
+--- a/src/cmd/5g/peep.c
++++ b/src/cmd/5g/peep.c
+@@ -1056,6 +1056,7 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		return 0;
+ 
+ 	case AMULLU:	/* read, read, write, write */
++	case AMULL:
+ 	case AMULA:
+ 	case AMVN:
+ 		return 2;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 34e70ded09..aa94787592 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -257,6 +257,10 @@ cgen(Node *n, Node *res)
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
++	case OHMUL:
++		cgen_hmul(nl, nr, res);
++		break;
++
+ 	case OCONV:
+ 		if(n->type->width > nl->type->width) {
+ 			// If loading from memory, do conversion during load,
+@@ -528,7 +532,7 @@ cgenr(Node *n, Node *a, Node *res)
+ 		fatal("cgenr on fat node");
+ 
+ 	if(n->addable) {
+-		regalloc(a, types[tptr], res);
++		regalloc(a, n->type, res);
+ 		gmove(n, a);
+ 		return;
+ 	}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 9f8e95ceb5..2806fbc932 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -71,6 +71,7 @@ void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
++void	cgen_hmul(Node*, Node*, Node*);
+ void	cgen_shift(int, int, Node*, Node*, Node*);
+ void	cgen_dcl(Node*);
+ int	needconvert(Type*, Type*);
+@@ -86,6 +87,7 @@ void	clearslim(Node*);
+  */
+ void	agen(Node*, Node*);
+ void	agenr(Node*, Node*, Node*);
++void	cgenr(Node*, Node*, Node*);
+ void	igen(Node*, Node*, Node*);
+ vlong	fieldoffset(Type*, Node*);
+ void	sgen(Node*, Node*, int64);
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 729dda4f28..db83d57699 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -601,134 +601,21 @@ restx(Node *x, Node *oldx)
+ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node n1, n2, n3, savl, savr;
+-	Node ax, dx, oldax, olddx;
+-	int n, w, s, a;
++	Node n1, n2, n3;
++	int w, a;
+ 	Magic m;
+ 
+-	if(nl->ullman >= UINF) {
+-		tempname(&savl, nl->type);
+-		cgen(nl, &savl);
+-		nl = &savl;
+-	}
+-	if(nr->ullman >= UINF) {
+-		tempname(&savr, nr->type);
+-		cgen(nr, &savr);
+-		nr = &savr;
+-	}
+-
+ 	if(nr->op != OLITERAL)
+ 		goto longdiv;
+-
+-	// special cases of mod/div
+-	// by a constant
+ 	w = nl->type->width*8;
+-	s = 0;
+-	n = powtwo(nr);
+-	if(n >= 1000) {
+-		// negative power of 2
+-		s = 1;
+-		n -= 1000;
+-	}
+-
+-	if(n+1 >= w) {
+-		// just sign bit
+-		goto longdiv;
+-	}
+-
+-	if(n < 0)
+-		goto divbymul;
+-	switch(n) {
+-	case 0:
+-		// divide by 1
+-		regalloc(&n1, nl->type, res);
+-		cgen(nl, &n1);
+-		if(op == OMOD) {
+-			gins(optoas(OXOR, nl->type), &n1, &n1);
+-		} else
+-		if(s)
+-			gins(optoas(OMINUS, nl->type), N, &n1);
+-		gmove(&n1, res);
+-		regfree(&n1);
+-		return;
+-	case 1:
+-		// divide by 2
+-		if(op == OMOD) {
+-			if(issigned[nl->type->etype])
+-				goto longmod;
+-			regalloc(&n1, nl->type, res);
+-			cgen(nl, &n1);
+-			nodconst(&n2, nl->type, 1);
+-			gins(optoas(OAND, nl->type), &n2, &n1);
+-			gmove(&n1, res);
+-			regfree(&n1);
+-			return;
+-		}
+-		regalloc(&n1, nl->type, res);
+-		cgen(nl, &n1);
+-		if(!issigned[nl->type->etype])
+-			break;
+ 
+-		// develop -1 iff nl is negative
+-		regalloc(&n2, nl->type, N);
+-		gmove(&n1, &n2);
+-		nodconst(&n3, nl->type, w-1);
+-		gins(optoas(ORSH, nl->type), &n3, &n2);
+-		gins(optoas(OSUB, nl->type), &n2, &n1);
+-		regfree(&n2);
+-		break;
+-	default:
+-		if(op == OMOD) {
+-			if(issigned[nl->type->etype])
+-				goto longmod;
+-			regalloc(&n1, nl->type, res);
+-			cgen(nl, &n1);
+-			nodconst(&n2, nl->type, mpgetfix(nr->val.u.xval)-1);
+-			if(!smallintconst(&n2)) {
+-				regalloc(&n3, nl->type, N);
+-				gmove(&n2, &n3);
+-				gins(optoas(OAND, nl->type), &n3, &n1);
+-				regfree(&n3);
+-			} else
+-				gins(optoas(OAND, nl->type), &n2, &n1);
+-			gmove(&n1, res);
+-			regfree(&n1);
+-			return;
+-		}
+-		regalloc(&n1, nl->type, res);
+-		cgen(nl, &n1);
+-		if(!issigned[nl->type->etype])
+-			break;
+-
+-		// develop (2^k)-1 iff nl is negative
+-		regalloc(&n2, nl->type, N);
+-		gmove(&n1, &n2);
+-		nodconst(&n3, nl->type, w-1);
+-		gins(optoas(ORSH, nl->type), &n3, &n2);
+-		nodconst(&n3, nl->type, w-n);
+-		gins(optoas(ORSH, tounsigned(nl->type)), &n3, &n2);
+-		gins(optoas(OADD, nl->type), &n2, &n1);
+-		regfree(&n2);
+-		break;
+-	}
+-	nodconst(&n2, nl->type, n);
+-	gins(optoas(ORSH, nl->type), &n2, &n1);
+-	if(s)
+-		gins(optoas(OMINUS, nl->type), N, &n1);
+-	gmove(&n1, res);
+-	regfree(&n1);
+-	return;
+-
+-divbymul:
++	// Front end handled 32-bit division. We only need to handle 64-bit.
+ 	// try to do division by multiply by (2^w)/d
+ 	// see hacker's delight chapter 10
+ 	switch(simtype[nl->type->etype]) {
+ 	default:
+ 		goto longdiv;
+ 
+-	case TUINT8:
+-	case TUINT16:
+-	case TUINT32:
+ 	case TUINT64:
+ 		m.w = w;
+ 		m.ud = mpgetfix(nr->val.u.xval);
+@@ -738,47 +625,28 @@ divbymul:
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+-		regalloc(&n1, nl->type, N);
+-		cgen(nl, &n1);				// num -> reg(n1)
+-
+-		savex(D_AX, &ax, &oldax, res, nl->type);
+-		savex(D_DX, &dx, &olddx, res, nl->type);
+-
++		cgenr(nl, &n1, N);
+ 		nodconst(&n2, nl->type, m.um);
+-		gmove(&n2, &ax);			// const->ax
+-
+-		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+-		if(w == 8) {
+-			// fix up 8-bit multiply
+-			Node ah, dl;
+-			nodreg(&ah, types[TUINT8], D_AH);
+-			nodreg(&dl, types[TUINT8], D_DL);
+-			gins(AMOVB, &ah, &dl);
+-		}
++		regalloc(&n3, nl->type, res);
++		cgen_hmul(&n1, &n2, &n3);
+ 
+ 		if(m.ua) {
+ 			// need to add numerator accounting for overflow
+-			gins(optoas(OADD, nl->type), &n1, &dx);
++			gins(optoas(OADD, nl->type), &n1, &n3);
+ 			nodconst(&n2, nl->type, 1);
+-			gins(optoas(ORROTC, nl->type), &n2, &dx);
++			gins(optoas(ORROTC, nl->type), &n2, &n3);
+ 			nodconst(&n2, nl->type, m.s-1);
+-			gins(optoas(ORSH, nl->type), &n2, &dx);
++			gins(optoas(ORSH, nl->type), &n2, &n3);
+ 		} else {
+ 			nodconst(&n2, nl->type, m.s);
+-			gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
++			gins(optoas(ORSH, nl->type), &n2, &n3);	// shift dx
+ 		}
+ 
+-
++		gmove(&n3, res);
+ 		regfree(&n1);
+-		gmove(&dx, res);
+-
+-		restx(&ax, &oldax);
+-		restx(&dx, &olddx);
++		regfree(&n3);
+ 		return;
+ 
+-	case TINT8:
+-	case TINT16:
+-	case TINT32:
+ 	case TINT64:
+ 		m.w = w;
+ 		m.sd = mpgetfix(nr->val.u.xval);
+@@ -788,47 +656,32 @@ divbymul:
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+-		regalloc(&n1, nl->type, N);
+-		cgen(nl, &n1);				// num -> reg(n1)
+-
+-		savex(D_AX, &ax, &oldax, res, nl->type);
+-		savex(D_DX, &dx, &olddx, res, nl->type);
+-
++		cgenr(nl, &n1, res);
+ 		nodconst(&n2, nl->type, m.sm);
+-		gmove(&n2, &ax);			// const->ax
+-
+-		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+-		if(w == 8) {
+-			// fix up 8-bit multiply
+-			Node ah, dl;
+-			nodreg(&ah, types[TUINT8], D_AH);
+-			nodreg(&dl, types[TUINT8], D_DL);
+-			gins(AMOVB, &ah, &dl);
+-		}
++		regalloc(&n3, nl->type, N);
++		cgen_hmul(&n1, &n2, &n3);
+ 
+ 		if(m.sm < 0) {
+ 			// need to add numerator
+-			gins(optoas(OADD, nl->type), &n1, &dx);
++			gins(optoas(OADD, nl->type), &n1, &n3);
+ 		}
+ 
+ 		nodconst(&n2, nl->type, m.s);
+-		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
++		gins(optoas(ORSH, nl->type), &n2, &n3);	// shift n3
+ 
+ 		nodconst(&n2, nl->type, w-1);
+ 		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
+-		gins(optoas(OSUB, nl->type), &n1, &dx);	// added
++		gins(optoas(OSUB, nl->type), &n1, &n3);	// added
+ 
+ 		if(m.sd < 0) {
+ 			// this could probably be removed
+ 			// by factoring it into the multiplier
+-			gins(optoas(OMINUS, nl->type), N, &dx);
++			gins(optoas(OMINUS, nl->type), N, &n3);
+ 		}
+ 
++		gmove(&n3, res);
+ 		regfree(&n1);
+-		gmove(&dx, res);
+-
+-		restx(&ax, &oldax);
+-		restx(&dx, &olddx);
++		regfree(&n3);
+ 		return;
+ 	}
+ 	goto longdiv;
+@@ -864,6 +717,42 @@ longmod:
+ 	regfree(&n2);
+ }
+ 
++/*
++ * generate high multiply:
++ *   res = (nl*nr) >> width
++ */
++void
++cgen_hmul(Node *nl, Node *nr, Node *res)
++{
++	Type *t;
++	int a;
++	Node n1, n2, ax, dx, *tmp;
++
++	t = nl->type;
++	a = optoas(OHMUL, t);
++	if(nl->ullman < nr->ullman) {
++		tmp = nl;
++		nl = nr;
++		nr = tmp;
++	}
++	cgenr(nl, &n1, res);
++	cgenr(nr, &n2, N);
++	nodreg(&ax, t, D_AX);
++	gmove(&n1, &ax);
++	gins(a, &n2, N);
++	regfree(&n2);
++	regfree(&n1);
++
++	if(t->width == 1) {
++		// byte multiply behaves differently.
++		nodreg(&ax, t, D_AH);
++		nodreg(&dx, t, D_DL);
++		gmove(&ax, &dx);
++	}
++	nodreg(&dx, t, D_DX);
++	gmove(&dx, res);
++}
++
+ /*
+  * generate shift according to op, one of:
+  *	res = nl << nr
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index f597f28368..ec0a744b42 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -536,8 +536,10 @@ elimshortmov(Reg *r)
+ 					p->as = ASHLQ;
+ 					break;
+ 				}
+-			} else {
+-				// explicit zero extension
++			} else if(p->from.type >= D_NONE) {
++				// explicit zero extension, but don't
++				// do that if source is a byte register
++				// (only AH can occur and it's forbidden).
+ 				switch(p->as) {
+ 				case AMOVB:
+ 					p->as = AMOVBQZX;
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 33506c770c..9716d0616b 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -250,6 +250,10 @@ cgen(Node *n, Node *res)
+ 		a = optoas(n->op, nl->type);
+ 		goto abop;
+ 
++	case OHMUL:
++		cgen_hmul(nl, nr, res);
++		break;
++
+ 	case OCONV:
+ 		if(eqtype(n->type, nl->type) || noconv(n->type, nl->type)) {
+ 			cgen(nl, res);
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index e1d44c2300..3d53601523 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -83,6 +83,7 @@ void	cgen_proc(Node*, int);
+ void	cgen_callret(Node*, Node*);
+ void	cgen_div(int, Node*, Node*, Node*);
+ void	cgen_bmul(int, Node*, Node*, Node*);
++void	cgen_hmul(Node*, Node*, Node*);
+ void	cgen_shift(int, int, Node*, Node*, Node*);
+ void	cgen_dcl(Node*);
+ int	needconvert(Type*, Type*);
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 5ebd3b417c..39521b9a38 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -776,3 +776,39 @@ cgen_bmul(int op, Node *nl, Node *nr, Node *res)
+ 	regfree(&n1);
+ }
+ 
++/*
++ * generate high multiply:
++ *   res = (nl*nr) >> width
++ */
++void
++cgen_hmul(Node *nl, Node *nr, Node *res)
++{
++	Type *t;
++	int a;
++	Node n1, n2, ax, dx;
++
++	t = nl->type;
++	a = optoas(OHMUL, t);
++	// gen nl in n1.
++	tempname(&n1, t);
++	cgen(nl, &n1);
++	// gen nr in n2.
++	regalloc(&n2, t, res);
++	cgen(nr, &n2);
++
++	// multiply.
++	nodreg(&ax, t, D_AX);
++	gmove(&n2, &ax);
++	gins(a, &n1, N);
++	regfree(&n2);
++
++	if(t->width == 1) {
++		// byte multiply behaves differently.
++		nodreg(&ax, t, D_AH);
++		nodreg(&dx, t, D_DL);
++		gmove(&ax, &dx);
++	}
++	nodreg(&dx, t, D_DX);
++	gmove(&dx, res);
++}
++
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index d6d171227c..64aa1db93e 100644
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -611,22 +611,38 @@ optoas(int op, Type *t)
+ 		a = ASARL;
+ 		break;
+ 
++	case CASE(OHMUL, TINT8):
+ 	case CASE(OMUL, TINT8):
+ 	case CASE(OMUL, TUINT8):
+ 		a = AIMULB;
+ 		break;
+ 
++	case CASE(OHMUL, TINT16):
+ 	case CASE(OMUL, TINT16):
+ 	case CASE(OMUL, TUINT16):
+ 		a = AIMULW;
+ 		break;
+ 
++	case CASE(OHMUL, TINT32):
+ 	case CASE(OMUL, TINT32):
+ 	case CASE(OMUL, TUINT32):
+ 	case CASE(OMUL, TPTR32):
+ 		a = AIMULL;
+ 		break;
+ 
++	case CASE(OHMUL, TUINT8):
++		a = AMULB;
++		break;
++
++	case CASE(OHMUL, TUINT16):
++		a = AMULW;
++		break;
++
++	case CASE(OHMUL, TUINT32):
++	case CASE(OHMUL, TPTR32):
++		a = AMULL;
++		break;
++
+ 	case CASE(ODIV, TINT8):
+ 	case CASE(OMOD, TINT8):
+ 		a = AIDIVB;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index ecc81c41bb..ee8a481f06 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -24,6 +24,7 @@ static	Node*	append(Node*, NodeList**);
+ static	Node*	sliceany(Node*, NodeList**);
+ static	void	walkcompare(Node**, NodeList**);
+ static	void	walkrotate(Node**);
++static	void	walkdiv(Node**, NodeList**);
+ static	int	bounded(Node*, int64);
+ static	Mpint	mpzero;
+ 
+@@ -481,6 +482,7 @@ walkexpr(Node **np, NodeList **init)
+ 	case OAND:
+ 	case OSUB:
+ 	case OMUL:
++	case OHMUL:
+ 	case OLT:
+ 	case OLE:
+ 	case OGE:
+@@ -893,7 +895,7 @@ walkexpr(Node **np, NodeList **init)
+ 		 * on 386, rewrite float ops into l = l op r.
+ 		 * everywhere, rewrite map ops into l = l op r.
+ 		 * everywhere, rewrite string += into l = l op r.
+-		 * everywhere, rewrite complex /= into l = l op r.
++		 * everywhere, rewrite integer/complex /= into l = l op r.
+ 		 * TODO(rsc): Maybe this rewrite should be done always?
+ 		 */
+ 		et = n->left->type->etype;
+@@ -901,7 +903,8 @@ walkexpr(Node **np, NodeList **init)
+ 		   (thechar == '8' && isfloat[et]) ||
+ 		   l->op == OINDEXMAP ||
+ 		   et == TSTRING ||
+-		   (iscomplex[et] && n->etype == ODIV)) {
++		   (!isfloat[et] && n->etype == ODIV) ||
++		   n->etype == OMOD) {
+ 			l = safeexpr(n->left, init);
+ 			a = l;
+ 			if(a->op == OINDEXMAP) {
+@@ -945,26 +948,43 @@ walkexpr(Node **np, NodeList **init)
+ 			n = conv(n, t);
+ 			goto ret;
+ 		}
++		// Nothing to do for float divisions.
++		if(isfloat[et])
++			goto ret;
++
++		// Try rewriting as shifts or magic multiplies.
++		walkdiv(&n, init);
++
+ 		/*
+-		 * rewrite div and mod into function calls
++		 * rewrite 64-bit div and mod into function calls
+ 		 * on 32-bit architectures.
+ 		 */
+-		if(widthptr > 4 || (et != TUINT64 && et != TINT64))
+-			goto ret;
+-		if(et == TINT64)
+-			strcpy(namebuf, "int64");
+-		else
+-			strcpy(namebuf, "uint64");
+-		if(n->op == ODIV)
+-			strcat(namebuf, "div");
+-		else
+-			strcat(namebuf, "mod");
+-		n = mkcall(namebuf, n->type, init,
+-			conv(n->left, types[et]), conv(n->right, types[et]));
++		switch(n->op) {
++		case OMOD:
++		case ODIV:
++			if(widthptr > 4 || (et != TUINT64 && et != TINT64))
++				goto ret;
++			if(et == TINT64)
++				strcpy(namebuf, "int64");
++			else
++				strcpy(namebuf, "uint64");
++			if(n->op == ODIV)
++				strcat(namebuf, "div");
++			else
++				strcat(namebuf, "mod");
++			n = mkcall(namebuf, n->type, init,
++				conv(n->left, types[et]), conv(n->right, types[et]));
++			break;
++		default:
++			break;
++		}
+ 		goto ret;
+ 
+ 	case OINDEX:
+ 		walkexpr(&n->left, init);
++		// save the original node for bounds checking elision.
++		// If it was a ODIV/OMOD walk might rewrite it.
++		r = n->right;
+ 		walkexpr(&n->right, init);
+ 
+ 		// if range of type cannot exceed static array bound,
+@@ -975,13 +995,13 @@ walkexpr(Node **np, NodeList **init)
+ 		if(t != T && isptr[t->etype])
+ 			t = t->type;
+ 		if(isfixedarray(t)) {
+-			n->bounded = bounded(n->right, t->bound);
++			n->bounded = bounded(r, t->bound);
+ 			if(debug['m'] && n->bounded && !isconst(n->right, CTINT))
+ 				warn("index bounds check elided");
+ 			if(smallintconst(n->right) && !n->bounded)
+ 				yyerror("index out of bounds");
+ 		} else if(isconst(n->left, CTSTR)) {
+-			n->bounded = bounded(n->right, n->left->val.u.sval->len);
++			n->bounded = bounded(r, n->left->val.u.sval->len);
+ 			if(debug['m'] && n->bounded && !isconst(n->right, CTINT))
+ 				warn("index bounds check elided");
+ 			if(smallintconst(n->right)) {
+@@ -2863,6 +2883,248 @@ yes:
+ 	return;
+ }
+ 
++/*
++ * walkdiv rewrites division by a constant as less expensive
++ * operations.
++ */
++static void
++walkdiv(Node **np, NodeList **init)
++{
++	Node *n, *nl, *nr, *nc;
++	Node *n1, *n2, *n3, *n4;
++	int pow; // if >= 0, nr is 1<<pow
++	int s; // 1 if nr is negative.
++	int w;
++	Type *twide;
++	Magic m;
++
++	n = *np;
++	if(n->right->op != OLITERAL)
++		return;
++	// nr is a constant.
++	nl = cheapexpr(n->left, init);
++	nr = n->right;
++
++	// special cases of mod/div
++	// by a constant
++	w = nl->type->width*8;
++	s = 0;
++	pow = powtwo(nr);
++	if(pow >= 1000) {
++		// negative power of 2
++		s = 1;
++		pow -= 1000;
++	}
++
++	if(pow+1 >= w) {
++		// divisor too large.
++		return;
++	}
++	if(pow < 0) {
++		goto divbymul;
++	}
++
++	switch(pow) {
++	case 0:
++		if(n->op == OMOD) {
++			// nl % 1 is zero.
++			nodconst(n, n->type, 0);
++		} else if(s) {
++			// divide by -1
++			n->op = OMINUS;
++			n->right = N;
++		} else {
++			// divide by 1
++			n = nl;
++		}
++		break;
++	default:
++		if(issigned[n->type->etype]) {
++			if(n->op == OMOD) {
++				// signed modulo 2^pow is like ANDing
++				// with the last pow bits, but if nl < 0,
++				// nl & (2^pow-1) is (nl+1)%2^pow - 1.
++				nc = nod(OXXX, N, N);
++				nodconst(nc, types[simtype[TUINT]], w-1);
++				n1 = nod(ORSH, nl, nc); // n1 = -1 iff nl < 0.
++				if(pow == 1) {
++					typecheck(&n1, Erv);
++					n1 = cheapexpr(n1, init);
++					// n = (nl+ε)&1 -ε where ε=1 iff nl<0.
++					n2 = nod(OSUB, nl, n1);
++					nc = nod(OXXX, N, N);
++					nodconst(nc, nl->type, 1);
++					n3 = nod(OAND, n2, nc);
++					n = nod(OADD, n3, n1);
++				} else {
++					// n = (nl+ε)&(nr-1) - ε where ε=2^pow-1 iff nl<0.
++					nc = nod(OXXX, N, N);
++					nodconst(nc, nl->type, (1LL<<pow)-1);
++					n2 = nod(OAND, n1, nc); // n2 = 2^pow-1 iff nl<0.
++					typecheck(&n2, Erv);
++					n2 = cheapexpr(n2, init);
++
++					n3 = nod(OADD, nl, n2);
++					n4 = nod(OAND, n3, nc);
++					n = nod(OSUB, n4, n2);
++				}
++				break;
++			} else {
++				// arithmetic right shift does not give the correct rounding.
++				// if nl >= 0, nl >> n == nl / nr
++				// if nl < 0, we want to add 2^n-1 first.
++				nc = nod(OXXX, N, N);
++				nodconst(nc, types[simtype[TUINT]], w-1);
++				n1 = nod(ORSH, nl, nc); // n1 = -1 iff nl < 0.
++				if(pow == 1) {
++					// nl+1 is nl-(-1)
++					n->left = nod(OSUB, nl, n1);
++				} else {
++					// Do a logical right right on -1 to keep pow bits.
++					nc = nod(OXXX, N, N);
++					nodconst(nc, types[simtype[TUINT]], w-pow);
++					n2 = nod(ORSH, conv(n1, tounsigned(nl->type)), nc);
++					n->left = nod(OADD, nl, conv(n2, nl->type));
++				}
++				// n = (nl + 2^pow-1) >> pow
++				n->op = ORSH;
++				nc = nod(OXXX, N, N);
++				nodconst(nc, types[simtype[TUINT]], pow);
++				n->right = nc;
++				n->typecheck = 0;
++			}
++			if(s)
++				n = nod(OMINUS, n, N);
++			break;
++		}
++		nc = nod(OXXX, N, N);
++		if(n->op == OMOD) {
++			// n = nl & (nr-1)
++			n->op = OAND;
++			nodconst(nc, nl->type, mpgetfix(nr->val.u.xval)-1);
++		} else {
++			// n = nl >> pow
++			n->op = ORSH;
++			nodconst(nc, types[simtype[TUINT]], pow);
++		}
++		n->typecheck = 0;
++		n->right = nc;
++		break;
++	}
++	goto ret;
++
++divbymul:
++	// try to do division by multiply by (2^w)/d
++	// see hacker's delight chapter 10
++	// TODO: support 64-bit magic multiply here.
++	m.w = w;
++	if(issigned[nl->type->etype]) {
++		m.sd = mpgetfix(nr->val.u.xval);
++		smagic(&m);
++	} else {
++		m.ud = mpgetfix(nr->val.u.xval);
++		umagic(&m);
++	}
++	if(m.bad)
++		return;
++
++	// We have a quick division method so use it
++	// for modulo too.
++	if(n->op == OMOD)
++		goto longmod;
++
++	switch(simtype[nl->type->etype]) {
++	default:
++		return;
++
++	case TUINT8:
++	case TUINT16:
++	case TUINT32:
++		// n1 = nl * magic >> w (HMUL)
++		nc = nod(OXXX, N, N);
++		nodconst(nc, nl->type, m.um);
++		n1 = nod(OMUL, nl, nc);
++		typecheck(&n1, Erv);
++		n1->op = OHMUL;
++		if(m.ua) {
++			// Select a Go type with (at least) twice the width.
++			switch(simtype[nl->type->etype]) {
++			default:
++				return;
++			case TUINT8:
++			case TUINT16:
++				twide = types[TUINT32];
++				break;
++			case TUINT32:
++				twide = types[TUINT64];
++				break;
++			case TINT8:
++			case TINT16:
++				twide = types[TINT32];
++				break;
++			case TINT32:
++				twide = types[TINT64];
++				break;
++			}
++
++			// add numerator (might overflow).
++			// n2 = (n1 + nl)
++			n2 = nod(OADD, conv(n1, twide), conv(nl, twide));
++
++			// shift by m.s
++			nc = nod(OXXX, N, N);
++			nodconst(nc, types[TUINT], m.s);
++			n = conv(nod(ORSH, n2, nc), nl->type);
++		} else {
++			// n = n1 >> m.s
++			nc = nod(OXXX, N, N);
++			nodconst(nc, types[TUINT], m.s);
++			n = nod(ORSH, n1, nc);
++		}
++		break;
++
++	case TINT8:
++	case TINT16:
++	case TINT32:
++		// n1 = nl * magic >> w
++		nc = nod(OXXX, N, N);
++		nodconst(nc, nl->type, m.sm);
++		n1 = nod(OMUL, nl, nc);
++		typecheck(&n1, Erv);
++		n1->op = OHMUL;
++		if(m.sm < 0) {
++			// add the numerator.
++			n1 = nod(OADD, n1, nl);
++		}
++		// shift by m.s
++		nc = nod(OXXX, N, N);
++		nodconst(nc, types[TUINT], m.s);
++		n2 = conv(nod(ORSH, n1, nc), nl->type);
++		// add 1 iff n1 is negative.
++		nc = nod(OXXX, N, N);
++		nodconst(nc, types[TUINT], w-1);
++		n3 = nod(ORSH, nl, nc); // n4 = -1 iff n1 is negative.
++		n = nod(OSUB, n2, n3);
++		// apply sign.
++		if(m.sd < 0)
++			n = nod(OMINUS, n, N);
++		break;
++	}
++	goto ret;
++
++longmod:
++	// rewrite as A%B = A - (A/B*B).
++	n1 = nod(ODIV, nl, nr);
++	n2 = nod(OMUL, n1, nr);
++	n = nod(OSUB, nl, n2);
++	goto ret;
++
++ret:
++	typecheck(&n, Erv);
++	walkexpr(&n, init);
++	*np = n;
++}
++
+ // return 1 if integer n must be in range [0, max), 0 otherwise
+ static int
+ bounded(Node *n, int64 max)

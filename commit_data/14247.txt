@@ -11,7 +11,7 @@ Date:   Tue Oct 30 13:09:47 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6810055
-
+---
  src/cmd/fix/testdata/reflect.encoder.go.in  |  2 +-
  src/cmd/fix/testdata/reflect.encoder.go.out |  2 +-
  src/cmd/fix/testdata/reflect.export.go.in   |  2 +-
@@ -22,3 +22,211 @@ Date:   Tue Oct 30 13:09:47 2012 -0700
  src/pkg/go/printer/testdata/comments.golden | 11 ++++++++++-
  src/pkg/go/printer/testdata/comments.input  | 10 +++++++++-
  9 files changed, 37 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/fix/testdata/reflect.encoder.go.in b/src/cmd/fix/testdata/reflect.encoder.go.in
+index 0202d79ac9..702f6dc068 100644
+--- a/src/cmd/fix/testdata/reflect.encoder.go.in
++++ b/src/cmd/fix/testdata/reflect.encoder.go.in
+@@ -120,7 +120,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 	return true
+ }
+ 
+-// sendType sends the type info to the other side, if necessary. 
++// sendType sends the type info to the other side, if necessary.
+ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
+ 	ut := userType(origt)
+ 	if ut.isGobEncoder {
+diff --git a/src/cmd/fix/testdata/reflect.encoder.go.out b/src/cmd/fix/testdata/reflect.encoder.go.out
+index 925d39301e..f1a7b98f16 100644
+--- a/src/cmd/fix/testdata/reflect.encoder.go.out
++++ b/src/cmd/fix/testdata/reflect.encoder.go.out
+@@ -120,7 +120,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 	return true
+ }
+ 
+-// sendType sends the type info to the other side, if necessary. 
++// sendType sends the type info to the other side, if necessary.
+ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
+ 	ut := userType(origt)
+ 	if ut.isGobEncoder {
+diff --git a/src/cmd/fix/testdata/reflect.export.go.in b/src/cmd/fix/testdata/reflect.export.go.in
+index ce7940b298..722387ac58 100644
+--- a/src/cmd/fix/testdata/reflect.export.go.in
++++ b/src/cmd/fix/testdata/reflect.export.go.in
+@@ -162,7 +162,7 @@ func (client *expClient) run() {
+ 				// all messages <=N have been seen by the recipient.  We check anyway.
+ 				expLog("sequence out of order:", client.ackNum, hdr.SeqNum)
+ 			}
+-			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count. 
++			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count.
+ 				client.ackNum = hdr.SeqNum
+ 			}
+ 			client.mu.Unlock()
+diff --git a/src/cmd/fix/testdata/reflect.export.go.out b/src/cmd/fix/testdata/reflect.export.go.out
+index 7bd73c5e7f..d1324f3465 100644
+--- a/src/cmd/fix/testdata/reflect.export.go.out
++++ b/src/cmd/fix/testdata/reflect.export.go.out
+@@ -162,7 +162,7 @@ func (client *expClient) run() {
+ 				// all messages <=N have been seen by the recipient.  We check anyway.
+ 				expLog("sequence out of order:", client.ackNum, hdr.SeqNum)
+ 			}
+-			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count. 
++			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count.
+ 				client.ackNum = hdr.SeqNum
+ 			}
+ 			client.mu.Unlock()
+diff --git a/src/cmd/fix/testdata/reflect.print.go.in b/src/cmd/fix/testdata/reflect.print.go.in
+index 6c9b8e4f9a..14cf2b215c 100644
+--- a/src/cmd/fix/testdata/reflect.print.go.in
++++ b/src/cmd/fix/testdata/reflect.print.go.in
+@@ -182,7 +182,7 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
+-// Errorf formats according to a format specifier and returns the string 
++// Errorf formats according to a format specifier and returns the string
+ // converted to an os.ErrorString, which satisfies the os.Error interface.
+ func Errorf(format string, a ...interface{}) os.Error {
+ 	return os.NewError(Sprintf(format, a...))
+diff --git a/src/cmd/fix/testdata/reflect.print.go.out b/src/cmd/fix/testdata/reflect.print.go.out
+index b475a2ae17..e4e4c73687 100644
+--- a/src/cmd/fix/testdata/reflect.print.go.out
++++ b/src/cmd/fix/testdata/reflect.print.go.out
+@@ -182,7 +182,7 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
+-// Errorf formats according to a format specifier and returns the string 
++// Errorf formats according to a format specifier and returns the string
+ // converted to an os.ErrorString, which satisfies the os.Error interface.
+ func Errorf(format string, a ...interface{}) os.Error {
+ 	return os.NewError(Sprintf(format, a...))
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 516c37161c..030bc2387e 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -14,6 +14,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"text/tabwriter"
++	"unicode"
+ )
+ 
+ const (
+@@ -405,6 +406,7 @@ func (p *printer) writeCommentPrefix(pos, next token.Position, prev, comment *as
+ // Split comment text into lines
+ // (using strings.Split(text, "\n") is significantly slower for
+ // this specific purpose, as measured with: go test -bench=Print)
++//
+ func split(text string) []string {
+ 	// count lines (comment text never ends in a newline)
+ 	n := 1
+@@ -432,6 +434,7 @@ func split(text string) []string {
+ 
+ // Returns true if s contains only white space
+ // (only tabs and blanks can appear in the printer's context).
++//
+ func isBlank(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+ 		if s[i] > ' ' {
+@@ -441,6 +444,7 @@ func isBlank(s string) bool {
+ 	return true
+ }
+ 
++// commonPrefix returns the common prefix of a and b.
+ func commonPrefix(a, b string) string {
+ 	i := 0
+ 	for i < len(a) && i < len(b) && a[i] == b[i] && (a[i] <= ' ' || a[i] == '*') {
+@@ -449,6 +453,11 @@ func commonPrefix(a, b string) string {
+ 	return a[0:i]
+ }
+ 
++// trimRight returns s with trailing whitespace removed.
++func trimRight(s string) string {
++	return strings.TrimRightFunc(s, unicode.IsSpace)
++}
++
+ // stripCommonPrefix removes a common prefix from /*-style comment lines (unless no
+ // comment line is indented, all but the first line have some form of space prefix).
+ // The prefix is computed using heuristics such that is is likely that the comment
+@@ -611,7 +620,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 
+ 	// shortcut common case of //-style comments
+ 	if text[1] == '/' {
+-		p.writeString(pos, text, true)
++		p.writeString(pos, trimRight(text), true)
+ 		return
+ 	}
+ 
+@@ -641,7 +650,7 @@ func (p *printer) writeComment(comment *ast.Comment) {
+ 			pos = p.pos
+ 		}
+ 		if len(line) > 0 {
+-			p.writeString(pos, line, true)
++			p.writeString(pos, trimRight(line), true)
+ 		}
+ 	}
+ }
+@@ -1159,7 +1168,7 @@ func (p *trimmer) Write(data []byte) (n int, err error) {
+ // ----------------------------------------------------------------------------
+ // Public interface
+ 
+-// A Mode value is a set of flags (or 0). They control printing. 
++// A Mode value is a set of flags (or 0). They control printing.
+ type Mode uint
+ 
+ const (
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index d9aa2d82f7..610a42a68b 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -529,7 +529,7 @@ func _() {
+ }
+ 
+ func _() {
+-	var a = []int{1, 2}// jasldf 
++	var a = []int{1, 2}// jasldf
+ 
+ 	_ = a
+ }
+@@ -626,4 +626,13 @@ func _() {
+ 	var lflag bool		// -l			- disable line directives
+ }
+ 
++// Trailing white space in comments should be trimmed
++func _() {
++	// This comment has 4 blanks following that should be trimmed:
++	/* Each line of this comment has blanks or tabs following that should be trimmed:
++	   line 2:
++	   line 3:
++	*/
++}
++
+ /* This comment is the last entry in this file. It must be printed and should be followed by a newline */
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 6084b3fe45..d121dd4be7 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -534,7 +534,7 @@ func _() {
+ }
+ 
+ func _() {
+-	var a = []int{1, 2, // jasldf 
++	var a = []int{1, 2, // jasldf
+ 	}
+ 	_ = a
+ }
+@@ -630,5 +630,13 @@ var	vflag		string				// -v [y.output]	- y.output file
+ var	lflag		bool				// -l			- disable line directives
+ }
+ 
++// Trailing white space in comments should be trimmed
++func _() {
++// This comment has 4 blanks following that should be trimmed:    
++/* Each line of this comment has blanks or tabs following that should be trimmed:	
++   line 2:    
++   line 3:    			
++*/
++}
+ 
+ /* This comment is the last entry in this file. It must be printed and should be followed by a newline */

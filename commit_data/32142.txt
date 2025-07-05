@@ -25,7 +25,100 @@ Date:   Thu Apr 6 11:47:33 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/sym.go      | 42 +++++++++++++++++++++++-----------------
  src/cmd/internal/obj/x86/obj6.go |  4 ++--
  2 files changed, 26 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 61d65f9e5f..07ae24abd3 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -68,46 +68,52 @@ func Linknew(arch *LinkArch) *Link {
+ 	return ctxt
+ }
+ 
++// Lookup looks up the symbol with name name and version v.
++// If it does not exist, it creates it.
+ func (ctxt *Link) Lookup(name string, v int) *LSym {
++	return ctxt.LookupInit(name, v, nil)
++}
++
++// LookupInit looks up the symbol with name name and version v.
++// If it does not exist, it creates it and passes it to initfn for one-time initialization.
++func (ctxt *Link) LookupInit(name string, v int, init func(s *LSym)) *LSym {
+ 	s := ctxt.Hash[SymVer{name, v}]
+ 	if s != nil {
+ 		return s
+ 	}
+ 
+-	s = &LSym{
+-		Name:    name,
+-		Type:    0,
+-		Version: int16(v),
+-		Size:    0,
+-	}
++	s = &LSym{Name: name, Version: int16(v)}
+ 	ctxt.Hash[SymVer{name, v}] = s
++	if init != nil {
++		init(s)
++	}
+ 	return s
+ }
+ 
+ func (ctxt *Link) Float32Sym(f float32) *LSym {
+ 	i := math.Float32bits(f)
+ 	name := fmt.Sprintf("$f32.%08x", i)
+-	s := ctxt.Lookup(name, 0)
+-	s.Size = 4
+-	s.Set(AttrLocal, true)
+-	return s
++	return ctxt.LookupInit(name, 0, func(s *LSym) {
++		s.Size = 4
++		s.Set(AttrLocal, true)
++	})
+ }
+ 
+ func (ctxt *Link) Float64Sym(f float64) *LSym {
+ 	i := math.Float64bits(f)
+ 	name := fmt.Sprintf("$f64.%016x", i)
+-	s := ctxt.Lookup(name, 0)
+-	s.Size = 8
+-	s.Set(AttrLocal, true)
+-	return s
++	return ctxt.LookupInit(name, 0, func(s *LSym) {
++		s.Size = 8
++		s.Set(AttrLocal, true)
++	})
+ }
+ 
+ func (ctxt *Link) Int64Sym(i int64) *LSym {
+ 	name := fmt.Sprintf("$i64.%016x", uint64(i))
+-	s := ctxt.Lookup(name, 0)
+-	s.Size = 8
+-	s.Set(AttrLocal, true)
+-	return s
++	return ctxt.LookupInit(name, 0, func(s *LSym) {
++		s.Size = 8
++		s.Set(AttrLocal, true)
++	})
+ }
+ 
+ func Linksymfmt(s *LSym) string {
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 54c7a53829..b931871cee 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -534,10 +534,10 @@ func rewriteToPcrel(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	r := obj.Appendp(q, newprog)
+ 	r.RegTo2 = 1
+ 	q.As = obj.ACALL
+-	q.To.Sym = ctxt.Lookup("__x86.get_pc_thunk."+strings.ToLower(rconv(int(dst))), 0)
++	thunkname := "__x86.get_pc_thunk." + strings.ToLower(rconv(int(dst)))
++	q.To.Sym = ctxt.LookupInit(thunkname, 0, func(s *obj.LSym) { s.Set(obj.AttrLocal, true) })
+ 	q.To.Type = obj.TYPE_MEM
+ 	q.To.Name = obj.NAME_EXTERN
+-	q.To.Sym.Set(obj.AttrLocal, true)
+ 	r.As = p.As
+ 	r.Scond = p.Scond
+ 	r.From = p.From

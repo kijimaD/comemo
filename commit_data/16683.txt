@@ -13,7 +13,78 @@ Date:   Mon Jul 1 16:20:50 2013 +1000
     R=golang-dev, dsymonds, niklas.schnelle, 0xjnml
     CC=golang-dev
     https://golang.org/cl/10466043
-
+---
  misc/vim/compiler/go.vim | 30 ++++++++++++++++++++++++++++++
  misc/vim/readme.txt      | 16 ++++++++++++++++
  2 files changed, 46 insertions(+)
+
+diff --git a/misc/vim/compiler/go.vim b/misc/vim/compiler/go.vim
+new file mode 100644
+index 0000000000..2c8cce4973
+--- /dev/null
++++ b/misc/vim/compiler/go.vim
+@@ -0,0 +1,30 @@
++" Copyright 2013 The Go Authors. All rights reserved.
++" Use of this source code is governed by a BSD-style
++" license that can be found in the LICENSE file.
++"
++" compiler/go.vim: Vim compiler file for Go.
++
++if exists("current_compiler")
++    finish
++endif
++let current_compiler = "go"
++
++if exists(":CompilerSet") != 2
++    command -nargs=* CompilerSet setlocal <args>
++endif
++
++let s:save_cpo = &cpo
++set cpo-=C
++
++CompilerSet makeprg=go\ build
++CompilerSet errorformat=
++        \%-G#\ %.%#,
++        \%A%f:%l:%c:\ %m,
++        \%A%f:%l:\ %m,
++        \%C%*\\s%m,
++        \%-G%.%#
++
++let &cpo = s:save_cpo
++unlet s:save_cpo
++
++" vim:ts=4:sw=4:et
+diff --git a/misc/vim/readme.txt b/misc/vim/readme.txt
+index dca24ea1d0..a394cec5a9 100644
+--- a/misc/vim/readme.txt
++++ b/misc/vim/readme.txt
+@@ -14,6 +14,7 @@ To use all the Vim plugins, add these lines to your $HOME/.vimrc.
+ If you want to select fewer plugins, use the instructions in the rest of
+ this file.
+ 
++
+ Vim syntax highlighting
+ -----------------------
+ 
+@@ -69,6 +70,21 @@ To install automatic indentation:
+      filetype indent on
+ 
+ 
++Vim compiler plugin
++-------------------
++
++To install the compiler plugin:
++
++  1. Same as 1 above.
++  2. Copy or link compiler/go.vim to the compiler directory underneath your vim
++     runtime directory (normally $HOME/.vim/compiler).
++  3. Activate the compiler plugin with ":compiler go". To always enable the
++     compiler plugin in Go source files add an autocommand to your .vimrc file
++     (normally $HOME/.vimrc):
++
++     autocmd FileType go compiler go
++
++
+ Godoc plugin
+ ------------
+ 

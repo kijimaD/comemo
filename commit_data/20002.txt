@@ -9,6 +9,32 @@ Date:   Mon Aug 11 23:32:08 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/127780043
-
+---
  src/pkg/runtime/{traceback_arm.c => traceback_lr.c} | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_lr.c
+similarity index 99%
+rename from src/pkg/runtime/traceback_arm.c
+rename to src/pkg/runtime/traceback_lr.c
+index 778d95a28b..d8fcddf68b 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_lr.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build arm power64 power64le
++
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+@@ -267,7 +269,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		// sighandler saves the lr on stack before faking a call to sigpanic
+ 		if(waspanic) {
+ 			x = *(uintptr*)frame.sp;
+-			frame.sp += 4;
++			frame.sp += sizeof(uintptr);
+ 			frame.fn = f = runtime·findfunc(frame.pc);
+ 			if(f == nil)
+ 				frame.pc = x;

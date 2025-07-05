@@ -79,10 +79,446 @@ Date:   Fri Feb 9 18:41:21 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go | 70 ++++++++++++++++++---------
  src/cmd/compile/internal/ssagen/ssa.go     | 12 ++---
  src/cmd/compile/internal/typecheck/func.go | 45 +++++++++++++++--
  src/cmd/internal/dwarf/dwarf.go            | 10 +++-
  src/cmd/internal/dwarf/putvarabbrevgen.go  | 78 +++++++++++++++++++++++++++---
  5 files changed, 171 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 733eeff4ac..512d8d22e7 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
++	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+@@ -100,7 +101,23 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
+ 		}
+ 	}
+ 
+-	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn, apdecls)
++	var closureVars map[*ir.Name]int64
++	if fn.Needctxt() {
++		closureVars = make(map[*ir.Name]int64)
++		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
++		for {
++			n, _, offset := csiter.Next()
++			if n == nil {
++				break
++			}
++			closureVars[n] = offset
++			if n.Heapaddr != nil {
++				closureVars[n.Heapaddr] = offset
++			}
++		}
++	}
++
++	decls, dwarfVars := createDwarfVars(fnsym, isODCLFUNC, fn, apdecls, closureVars)
+ 
+ 	// For each type referenced by the functions auto vars but not
+ 	// already referenced by a dwarf var, attach an R_USETYPE relocation to
+@@ -137,18 +154,18 @@ func declPos(decl *ir.Name) src.XPos {
+ 
+ // createDwarfVars process fn, returning a list of DWARF variables and the
+ // Nodes they represent.
+-func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var) {
++func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir.Name, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var) {
+ 	// Collect a raw list of DWARF vars.
+ 	var vars []*dwarf.Var
+ 	var decls []*ir.Name
+ 	var selected ir.NameSet
+ 
+ 	if base.Ctxt.Flag_locationlists && base.Ctxt.Flag_optimize && fn.DebugInfo != nil && complexOK {
+-		decls, vars, selected = createComplexVars(fnsym, fn)
++		decls, vars, selected = createComplexVars(fnsym, fn, closureVars)
+ 	} else if fn.ABI == obj.ABIInternal && base.Flag.N != 0 && complexOK {
+-		decls, vars, selected = createABIVars(fnsym, fn, apDecls)
++		decls, vars, selected = createABIVars(fnsym, fn, apDecls, closureVars)
+ 	} else {
+-		decls, vars, selected = createSimpleVars(fnsym, apDecls)
++		decls, vars, selected = createSimpleVars(fnsym, apDecls, closureVars)
+ 	}
+ 	if fn.DebugInfo != nil {
+ 		// Recover zero sized variables eliminated by the stackframe pass
+@@ -159,7 +176,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			types.CalcSize(n.Type())
+ 			if n.Type().Size() == 0 {
+ 				decls = append(decls, n)
+-				vars = append(vars, createSimpleVar(fnsym, n))
++				vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+ 				vars[len(vars)-1].StackOffset = 0
+ 				fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+ 			}
+@@ -212,7 +229,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			// Args not of SSA-able type are treated here; they
+ 			// are homed on the stack in a single place for the
+ 			// entire call.
+-			vars = append(vars, createSimpleVar(fnsym, n))
++			vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+ 			decls = append(decls, n)
+ 			continue
+ 		}
+@@ -251,6 +268,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+ 			DictIndex:     n.DictIndex,
++			ClosureOffset: closureOffset(n, closureVars),
+ 		})
+ 		// Record go type of to insure that it gets emitted by the linker.
+ 		fnsym.Func().RecordAutoType(reflectdata.TypeLinksym(n.Type()))
+@@ -334,7 +352,7 @@ func preInliningDcls(fnsym *obj.LSym) []*ir.Name {
+ 
+ // createSimpleVars creates a DWARF entry for every variable declared in the
+ // function, claiming that they are permanently on the stack.
+-func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
++func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
+ 	var vars []*dwarf.Var
+ 	var decls []*ir.Name
+ 	var selected ir.NameSet
+@@ -344,13 +362,13 @@ func createSimpleVars(fnsym *obj.LSym, apDecls []*ir.Name) ([]*ir.Name, []*dwarf
+ 		}
+ 
+ 		decls = append(decls, n)
+-		vars = append(vars, createSimpleVar(fnsym, n))
++		vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+ 		selected.Add(n)
+ 	}
+ 	return decls, vars, selected
+ }
+ 
+-func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
++func createSimpleVar(fnsym *obj.LSym, n *ir.Name, closureVars map[*ir.Name]int64) *dwarf.Var {
+ 	var tag int
+ 	var offs int64
+ 
+@@ -406,6 +424,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		InlIndex:      int32(inlIndex),
+ 		ChildIndex:    -1,
+ 		DictIndex:     n.DictIndex,
++		ClosureOffset: closureOffset(n, closureVars),
+ 	}
+ }
+ 
+@@ -414,11 +433,11 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ // hybrid approach in which register-resident input params are
+ // captured with location lists, and all other vars use the "simple"
+ // strategy.
+-func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
++func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
+ 
+ 	// Invoke createComplexVars to generate dwarf vars for input parameters
+ 	// that are register-allocated according to the ABI rules.
+-	decls, vars, selected := createComplexVars(fnsym, fn)
++	decls, vars, selected := createComplexVars(fnsym, fn, closureVars)
+ 
+ 	// Now fill in the remainder of the variables: input parameters
+ 	// that are not register-resident, output parameters, and local
+@@ -433,7 +452,7 @@ func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name
+ 		}
+ 
+ 		decls = append(decls, n)
+-		vars = append(vars, createSimpleVar(fnsym, n))
++		vars = append(vars, createSimpleVar(fnsym, n, closureVars))
+ 		selected.Add(n)
+ 	}
+ 
+@@ -442,7 +461,7 @@ func createABIVars(fnsym *obj.LSym, fn *ir.Func, apDecls []*ir.Name) ([]*ir.Name
+ 
+ // createComplexVars creates recomposed DWARF vars with location lists,
+ // suitable for describing optimized code.
+-func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
++func createComplexVars(fnsym *obj.LSym, fn *ir.Func, closureVars map[*ir.Name]int64) ([]*ir.Name, []*dwarf.Var, ir.NameSet) {
+ 	debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+ 
+ 	// Produce a DWARF variable entry for each user variable.
+@@ -457,7 +476,7 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var,
+ 			ssaVars.Add(debugInfo.Slots[slot].N)
+ 		}
+ 
+-		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID)); dvar != nil {
++		if dvar := createComplexVar(fnsym, fn, ssa.VarID(varID), closureVars); dvar != nil {
+ 			decls = append(decls, n)
+ 			vars = append(vars, dvar)
+ 		}
+@@ -467,7 +486,7 @@ func createComplexVars(fnsym *obj.LSym, fn *ir.Func) ([]*ir.Name, []*dwarf.Var,
+ }
+ 
+ // createComplexVar builds a single DWARF variable entry and location list.
+-func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var {
++func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID, closureVars map[*ir.Name]int64) *dwarf.Var {
+ 	debug := fn.DebugInfo.(*ssa.FuncDebug)
+ 	n := debug.Vars[varID]
+ 
+@@ -505,13 +524,14 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 		// variables just give it the first one. It's not used otherwise.
+ 		// This won't work well if the first slot hasn't been assigned a stack
+ 		// location, but it's not obvious how to do better.
+-		StackOffset: ssagen.StackOffset(debug.Slots[debug.VarSlots[varID][0]]),
+-		DeclFile:    declpos.RelFilename(),
+-		DeclLine:    declpos.RelLine(),
+-		DeclCol:     declpos.RelCol(),
+-		InlIndex:    int32(inlIndex),
+-		ChildIndex:  -1,
+-		DictIndex:   n.DictIndex,
++		StackOffset:   ssagen.StackOffset(debug.Slots[debug.VarSlots[varID][0]]),
++		DeclFile:      declpos.RelFilename(),
++		DeclLine:      declpos.RelLine(),
++		DeclCol:       declpos.RelCol(),
++		InlIndex:      int32(inlIndex),
++		ChildIndex:    -1,
++		DictIndex:     n.DictIndex,
++		ClosureOffset: closureOffset(n, closureVars),
+ 	}
+ 	list := debug.LocationLists[varID]
+ 	if len(list) != 0 {
+@@ -594,3 +614,7 @@ func RecordPackageName() {
+ 	base.Ctxt.Data = append(base.Ctxt.Data, s)
+ 	s.P = []byte(types.LocalPkg.Name)
+ }
++
++func closureOffset(n *ir.Name, closureVars map[*ir.Name]int64) int64 {
++	return closureVars[n]
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 05919b9924..6335aff832 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -514,16 +514,14 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	// Populate closure variables.
+ 	if fn.Needctxt() {
+ 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+-		offset := int64(types.PtrSize) // PtrSize to skip past function entry PC field
+-		for _, n := range fn.ClosureVars {
+-			typ := n.Type()
+-			if !n.Byval() {
+-				typ = types.NewPtr(typ)
++		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
++		for {
++			n, typ, offset := csiter.Next()
++			if n == nil {
++				break
+ 			}
+ 
+-			offset = types.RoundUp(offset, typ.Alignment())
+ 			ptr := s.newValue1I(ssa.OpOffPtr, types.NewPtr(typ), offset, clo)
+-			offset += typ.Size()
+ 
+ 			// If n is a small variable captured by value, promote
+ 			// it to PAUTO so it can be converted to SSA.
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index 5c54a5bd49..02e59fa360 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -103,12 +103,15 @@ func ClosureType(clo *ir.ClosureExpr) *types.Type {
+ 
+ 	fields := make([]*types.Field, 1+len(clo.Func.ClosureVars))
+ 	fields[0] = types.NewField(base.AutogeneratedPos, types.LocalPkg.Lookup("F"), types.Types[types.TUINTPTR])
+-	for i, v := range clo.Func.ClosureVars {
+-		typ := v.Type()
+-		if !v.Byval() {
+-			typ = types.NewPtr(typ)
++	it := NewClosureStructIter(clo.Func.ClosureVars)
++	i := 0
++	for {
++		n, typ, _ := it.Next()
++		if n == nil {
++			break
+ 		}
+ 		fields[1+i] = types.NewField(base.AutogeneratedPos, types.LocalPkg.LookupNum("X", i), typ)
++		i++
+ 	}
+ 	typ := types.NewStruct(fields)
+ 	typ.SetNoalg(true)
+@@ -832,3 +835,37 @@ func tcUnsafeString(n *ir.BinaryExpr) *ir.BinaryExpr {
+ 	n.SetType(types.Types[types.TSTRING])
+ 	return n
+ }
++
++// ClosureStructIter iterates through a slice of closure variables returning
++// their type and offset in the closure struct.
++type ClosureStructIter struct {
++	closureVars []*ir.Name
++	offset      int64
++	next        int
++}
++
++// NewClosureStructIter creates a new ClosureStructIter for closureVars.
++func NewClosureStructIter(closureVars []*ir.Name) *ClosureStructIter {
++	return &ClosureStructIter{
++		closureVars: closureVars,
++		offset:      int64(types.PtrSize), // PtrSize to skip past function entry PC field
++		next:        0,
++	}
++}
++
++// Next returns the next name, type and offset of the next closure variable.
++// A nil name is returned after the last closure variable.
++func (iter *ClosureStructIter) Next() (n *ir.Name, typ *types.Type, offset int64) {
++	if iter.next >= len(iter.closureVars) {
++		return nil, nil, 0
++	}
++	n = iter.closureVars[iter.next]
++	typ = n.Type()
++	if !n.Byval() {
++		typ = types.NewPtr(typ)
++	}
++	iter.next++
++	offset = types.RoundUp(iter.offset, typ.Alignment())
++	iter.offset = offset + typ.Size()
++	return n, typ, offset
++}
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 06cafc8886..40ec8a6ec2 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -62,6 +62,7 @@ type Var struct {
+ 	InlIndex        int32 // subtract 1 to form real index into InlTree
+ 	ChildIndex      int32 // child DIE index in abstract function
+ 	IsInAbstract    bool  // variable exists in abstract function
++	ClosureOffset   int64 // if non-zero this is the offset of this variable in the closure struct
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -312,8 +313,9 @@ const (
+ 	DW_AT_go_embedded_field = 0x2903
+ 	DW_AT_go_runtime_type   = 0x2904
+ 
+-	DW_AT_go_package_name = 0x2905 // Attribute for DW_TAG_compile_unit
+-	DW_AT_go_dict_index   = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
++	DW_AT_go_package_name   = 0x2905 // Attribute for DW_TAG_compile_unit
++	DW_AT_go_dict_index     = 0x2906 // Attribute for DW_TAG_typedef_type, index of the dictionary entry describing the real type of this type shape
++	DW_AT_go_closure_offset = 0x2907 // Attribute for DW_TAG_variable, offset in the closure struct where this captured variable resides
+ 
+ 	DW_AT_internal_location = 253 // params and locals; not emitted
+ )
+@@ -1510,6 +1512,10 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
+ 		} else {
+ 			putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type) // DW_AT_type
+ 		}
++
++		if v.ClosureOffset > 0 {
++			putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, v.ClosureOffset, nil) // DW_AT_go_closure_offset
++		}
+ 	}
+ 
+ 	if withLoclist {
+diff --git a/src/cmd/internal/dwarf/putvarabbrevgen.go b/src/cmd/internal/dwarf/putvarabbrevgen.go
+index 418063d211..f930fdbb9b 100644
+--- a/src/cmd/internal/dwarf/putvarabbrevgen.go
++++ b/src/cmd/internal/dwarf/putvarabbrevgen.go
+@@ -38,6 +38,28 @@ var putvarAbbrevs = []dwAbbrev{
+ 			{DW_AT_location, DW_FORM_block1},
+ 		},
+ 	},
++	{
++		DW_TAG_variable,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_closure_offset, DW_FORM_udata},
++			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++	{
++		DW_TAG_variable,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_closure_offset, DW_FORM_udata},
++			{DW_AT_location, DW_FORM_block1},
++		},
++	},
+ 	{
+ 		DW_TAG_variable,
+ 		DW_CHILDREN_no,
+@@ -74,6 +96,30 @@ var putvarAbbrevs = []dwAbbrev{
+ 			{DW_AT_location, DW_FORM_block1},
+ 		},
+ 	},
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_variable_parameter, DW_FORM_flag},
++			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_closure_offset, DW_FORM_udata},
++			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_variable_parameter, DW_FORM_flag},
++			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_go_closure_offset, DW_FORM_udata},
++			{DW_AT_location, DW_FORM_block1},
++		},
++	},
+ 	{
+ 		DW_TAG_formal_parameter,
+ 		DW_CHILDREN_no,
+@@ -115,24 +161,40 @@ func putvarAbbrev(v *Var, concrete, withLoclist bool) int {
+ 				return DW_ABRV_PUTVAR_START + 3
+ 			}
+ 		} else {
+-			if withLoclist {
+-				return DW_ABRV_PUTVAR_START + 4
++			if v.ClosureOffset > 0 {
++				if withLoclist {
++					return DW_ABRV_PUTVAR_START + 4
++				} else {
++					return DW_ABRV_PUTVAR_START + 5
++				}
+ 			} else {
+-				return DW_ABRV_PUTVAR_START + 5
++				if withLoclist {
++					return DW_ABRV_PUTVAR_START + 6
++				} else {
++					return DW_ABRV_PUTVAR_START + 7
++				}
+ 			}
+ 		}
+ 	} else {
+ 		if concrete {
+ 			if withLoclist {
+-				return DW_ABRV_PUTVAR_START + 6
++				return DW_ABRV_PUTVAR_START + 8
+ 			} else {
+-				return DW_ABRV_PUTVAR_START + 7
++				return DW_ABRV_PUTVAR_START + 9
+ 			}
+ 		} else {
+-			if withLoclist {
+-				return DW_ABRV_PUTVAR_START + 8
++			if v.ClosureOffset > 0 {
++				if withLoclist {
++					return DW_ABRV_PUTVAR_START + 10
++				} else {
++					return DW_ABRV_PUTVAR_START + 11
++				}
+ 			} else {
+-				return DW_ABRV_PUTVAR_START + 9
++				if withLoclist {
++					return DW_ABRV_PUTVAR_START + 12
++				} else {
++					return DW_ABRV_PUTVAR_START + 13
++				}
+ 			}
+ 		}
+ 	}

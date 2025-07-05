@@ -9,6 +9,21 @@ Date:   Thu Jan 24 13:32:46 2013 +1100
     R=golang-dev, dave, adg
     CC=golang-dev
     https://golang.org/cl/7206049
-
+---
  src/pkg/go/build/doc.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index 36dd308934..c562d05d00 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -63,6 +63,9 @@
+ // they must appear near the top of the file, preceded
+ // only by blank lines and other line comments.
+ //
++// To distinguish build constraints from package documentation, a series of
++// build constraints must be followed by a blank line.
++//
+ // A build constraint is evaluated as the OR of space-separated options;
+ // each option evaluates as the AND of its comma-separated terms;
+ // and each term is an alphanumeric word or, preceded by !, its negation.

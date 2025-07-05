@@ -20,7 +20,7 @@ Date:   Fri Jan 22 13:44:58 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/18861
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 29 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/block.go        |  3 +++
  src/cmd/compile/internal/ssa/flagalloc.go    |  5 +++++
@@ -33,3 +33,345 @@ Date:   Fri Jan 22 13:44:58 2016 -0800
  src/cmd/internal/obj/x86/asm6.go             |  9 ++++++---
  src/cmd/internal/obj/x86/obj6.go             | 20 +++++++++----------
  11 files changed, 66 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5b8d2423d7..de00fe9651 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3405,6 +3405,7 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = Pc
+ 		// Emit values in block
++		s.markMoves(b)
+ 		for _, v := range b.Values {
+ 			x := Pc
+ 			s.genValue(v)
+@@ -3864,6 +3865,11 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		p.From.Offset = i
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x
++		// If flags are live at this instruction, suppress the
++		// MOV $0,AX -> XOR AX,AX optimization.
++		if v.Aux != nil {
++			p.Mark |= x86.PRESERVEFLAGS
++		}
+ 	case ssa.OpAMD64MOVSSconst, ssa.OpAMD64MOVSDconst:
+ 		x := regnum(v)
+ 		p := Prog(v.Op.Asm())
+@@ -4237,6 +4243,29 @@ func (s *genState) genValue(v *ssa.Value) {
+ 	}
+ }
+ 
++// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++func (s *genState) markMoves(b *ssa.Block) {
++	flive := b.FlagsLiveAtEnd
++	if b.Control != nil && b.Control.Type.IsFlags() {
++		flive = true
++	}
++	for i := len(b.Values) - 1; i >= 0; i-- {
++		v := b.Values[i]
++		if flive && (v.Op == ssa.OpAMD64MOVWconst || v.Op == ssa.OpAMD64MOVLconst || v.Op == ssa.OpAMD64MOVQconst) {
++			// The "mark" is any non-nil Aux value.
++			v.Aux = v
++		}
++		if v.Type.IsFlags() {
++			flive = false
++		}
++		for _, a := range v.Args {
++			if a.Type.IsFlags() {
++				flive = true
++			}
++		}
++	}
++}
++
+ // movZero generates a register indirect move with a 0 immediate and keeps track of bytes left and next offset
+ func movZero(as int, width int64, nbytes int64, offset int64, regnum int16) (nleft int64, noff int64) {
+ 	p := Prog(as)
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index 5fb93cd5a7..02673f0650 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -50,6 +50,9 @@ type Block struct {
+ 	// Ignored if len(Succs) < 2.
+ 	// Fatal if not BranchUnknown and len(Succs) > 2.
+ 	Likely BranchPrediction
++
++	// After flagalloc, records whether flags are live at the end of the block.
++	FlagsLiveAtEnd bool
+ }
+ 
+ //     kind           control    successors
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index c088158057..f4e289e782 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -120,4 +120,9 @@ func flagalloc(f *Func) {
+ 			// standard regs, and it runs next.)
+ 		}
+ 	}
++
++	// Save live flag state for later.
++	for _, b := range f.Blocks {
++		b.FlagsLiveAtEnd = end[b.ID] != nil
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index daee7336b0..dcffb49f63 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -93,7 +93,6 @@ func init() {
+ 	// Common regInfo
+ 	var (
+ 		gp01      = regInfo{inputs: []regMask{}, outputs: gponly}
+-		gp01flags = regInfo{inputs: []regMask{}, outputs: gponly, clobbers: flags}
+ 		gp11      = regInfo{inputs: []regMask{gpsp}, outputs: gponly, clobbers: flags}
+ 		gp11nf    = regInfo{inputs: []regMask{gpsp}, outputs: gponly} // nf: no flags clobbered
+ 		gp11sb    = regInfo{inputs: []regMask{gpspsb}, outputs: gponly}
+@@ -340,12 +339,10 @@ func init() {
+ 		{name: "MOVLQSX", reg: gp11nf, asm: "MOVLQSX"}, // sign extend arg0 from int32 to int64
+ 		{name: "MOVLQZX", reg: gp11nf, asm: "MOVLQZX"}, // zero extend arg0 from int32 to int64
+ 
+-		// clobbers flags as liblink will rewrite these to XOR reg, reg if the constant is zero
+-		// TODO: revisit when issue 12405 is fixed
+-		{name: "MOVBconst", reg: gp01flags, asm: "MOVB", typ: "UInt8"},  // 8 low bits of auxint
+-		{name: "MOVWconst", reg: gp01flags, asm: "MOVW", typ: "UInt16"}, // 16 low bits of auxint
+-		{name: "MOVLconst", reg: gp01flags, asm: "MOVL", typ: "UInt32"}, // 32 low bits of auxint
+-		{name: "MOVQconst", reg: gp01flags, asm: "MOVQ", typ: "UInt64"}, // auxint
++		{name: "MOVBconst", reg: gp01, asm: "MOVB", typ: "UInt8"},  // 8 low bits of auxint
++		{name: "MOVWconst", reg: gp01, asm: "MOVW", typ: "UInt16"}, // 16 low bits of auxint
++		{name: "MOVLconst", reg: gp01, asm: "MOVL", typ: "UInt32"}, // 32 low bits of auxint
++		{name: "MOVQconst", reg: gp01, asm: "MOVQ", typ: "UInt64"}, // auxint
+ 
+ 		{name: "CVTTSD2SL", reg: fpgp, asm: "CVTTSD2SL"}, // convert float64 to int32
+ 		{name: "CVTTSD2SQ", reg: fpgp, asm: "CVTTSD2SQ"}, // convert float64 to int64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 497b690192..d391b2435e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2694,7 +2694,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVBconst",
+ 		asm:  x86.AMOVB,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2704,7 +2703,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVWconst",
+ 		asm:  x86.AMOVW,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2714,7 +2712,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVLconst",
+ 		asm:  x86.AMOVL,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+@@ -2724,7 +2721,6 @@ var opcodeTable = [...]opInfo{
+ 		name: "MOVQconst",
+ 		asm:  x86.AMOVQ,
+ 		reg: regInfo{
+-			clobbers: 8589934592, // .FLAGS
+ 			outputs: []regMask{
+ 				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
+ 			},
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 27deeba718..7cbd30311f 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -1415,15 +1415,6 @@ func (v *Value) rematerializeable() bool {
+ 	// We can't rematerialize instructions which
+ 	// clobber the flags register.
+ 	if regspec.clobbers&flagRegMask != 0 {
+-		if v.Op == OpAMD64MOVQconst && v.AuxInt != 0 ||
+-			v.Op == OpAMD64MOVLconst && int32(v.AuxInt) != 0 ||
+-			v.Op == OpAMD64MOVWconst && int16(v.AuxInt) != 0 ||
+-			v.Op == OpAMD64MOVBconst && int8(v.AuxInt) != 0 {
+-			// These are marked as clobbering flags, but only
+-			// the 0 versions actually do.  TODO: fix MOV->XOR rewrites
+-			// to understand when they are allowed to clobber flags?
+-			return true
+-		}
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index bc898235c1..f3d1a9557a 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -214,14 +214,14 @@ type Prog struct {
+ 	Spadj  int32
+ 	As     int16
+ 	Reg    int16
+-	RegTo2 int16 // 2nd register output operand
+-	Mark   uint16
++	RegTo2 int16  // 2nd register output operand
++	Mark   uint16 // bitmask of arch-specific items
+ 	Optab  uint16
+ 	Scond  uint8
+ 	Back   uint8
+ 	Ft     uint8
+ 	Tt     uint8
+-	Isize  uint8
++	Isize  uint8 // size of the instruction in bytes (x86 only)
+ 	Mode   int8
+ 
+ 	Info ProgInfo
+diff --git a/src/cmd/internal/obj/pass.go b/src/cmd/internal/obj/pass.go
+index b92dfe23fb..14c9b6aaba 100644
+--- a/src/cmd/internal/obj/pass.go
++++ b/src/cmd/internal/obj/pass.go
+@@ -203,7 +203,6 @@ func linkpatch(ctxt *Link, sym *LSym) {
+ 	}
+ 
+ 	for p := sym.Text; p != nil; p = p.Link {
+-		p.Mark = 0 /* initialization for follow */
+ 		if p.Pcond != nil {
+ 			p.Pcond = brloop(ctxt, p.Pcond)
+ 			if p.Pcond != nil {
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 4ee8cfbc6c..f163505fd0 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -34,6 +34,12 @@ import "cmd/internal/obj"
+ 
+ //go:generate go run ../stringer.go -i $GOFILE -o anames.go -p x86
+ 
++const (
++	/* mark flags */
++	DONE          = 1 << iota
++	PRESERVEFLAGS // not allowed to clobber flags
++)
++
+ /*
+  *	amd64
+  */
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 164dbd6064..8d0f86681f 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1748,7 +1748,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 
+ 			// process forward jumps to p
+ 			for q = p.Rel; q != nil; q = q.Forwd {
+-				v = int32(p.Pc - (q.Pc + int64(q.Mark)))
++				v = int32(p.Pc - (q.Pc + int64(q.Isize)))
+ 				if q.Back&2 != 0 { // short
+ 					if v > 127 {
+ 						loop++
+@@ -1761,7 +1761,7 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 						s.P[q.Pc+1] = byte(v)
+ 					}
+ 				} else {
+-					bp = s.P[q.Pc+int64(q.Mark)-4:]
++					bp = s.P[q.Pc+int64(q.Isize)-4:]
+ 					bp[0] = byte(v)
+ 					bp = bp[1:]
+ 					bp[0] = byte(v >> 8)
+@@ -1784,7 +1784,6 @@ func span6(ctxt *obj.Link, s *obj.LSym) {
+ 
+ 			obj.Symgrow(ctxt, s, p.Pc+int64(m))
+ 			copy(s.P[p.Pc:][:m], ctxt.And[:m])
+-			p.Mark = uint16(m)
+ 			c += int32(m)
+ 		}
+ 
+@@ -2157,6 +2156,10 @@ func oclass(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 			v = int64(int32(v))
+ 		}
+ 		if v == 0 {
++			if p.Mark&PRESERVEFLAGS != 0 {
++				// If PRESERVEFLAGS is set, avoid MOV $0, AX turning into XOR AX, AX.
++				return Yu7
++			}
+ 			return Yi0
+ 		}
+ 		if v == 1 {
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index eff6c004c6..e545374828 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1214,16 +1214,16 @@ loop:
+ 		q = p.Pcond
+ 		if q != nil && q.As != obj.ATEXT {
+ 			/* mark instruction as done and continue layout at target of jump */
+-			p.Mark = 1
++			p.Mark |= DONE
+ 
+ 			p = q
+-			if p.Mark == 0 {
++			if p.Mark&DONE == 0 {
+ 				goto loop
+ 			}
+ 		}
+ 	}
+ 
+-	if p.Mark != 0 {
++	if p.Mark&DONE != 0 {
+ 		/*
+ 		 * p goes here, but already used it elsewhere.
+ 		 * copy up to 4 instructions or else branch to other copy.
+@@ -1246,7 +1246,7 @@ loop:
+ 			if nofollow(a) || pushpop(a) {
+ 				break // NOTE(rsc): arm does goto copy
+ 			}
+-			if q.Pcond == nil || q.Pcond.Mark != 0 {
++			if q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
+ 				continue
+ 			}
+ 			if a == obj.ACALL || a == ALOOP {
+@@ -1260,10 +1260,10 @@ loop:
+ 
+ 				q = obj.Copyp(ctxt, p)
+ 				p = p.Link
+-				q.Mark = 1
++				q.Mark |= DONE
+ 				(*last).Link = q
+ 				*last = q
+-				if int(q.As) != a || q.Pcond == nil || q.Pcond.Mark != 0 {
++				if int(q.As) != a || q.Pcond == nil || q.Pcond.Mark&DONE != 0 {
+ 					continue
+ 				}
+ 
+@@ -1273,7 +1273,7 @@ loop:
+ 				q.Link = p
+ 				xfol(ctxt, q.Link, last)
+ 				p = q.Link
+-				if p.Mark != 0 {
++				if p.Mark&DONE != 0 {
+ 					return
+ 				}
+ 				goto loop
+@@ -1290,7 +1290,7 @@ loop:
+ 	}
+ 
+ 	/* emit p */
+-	p.Mark = 1
++	p.Mark |= DONE
+ 
+ 	(*last).Link = p
+ 	*last = p
+@@ -1328,7 +1328,7 @@ loop:
+ 			}
+ 		} else {
+ 			q = p.Link
+-			if q.Mark != 0 {
++			if q.Mark&DONE != 0 {
+ 				if a != ALOOP {
+ 					p.As = relinv(int16(a))
+ 					p.Link = p.Pcond
+@@ -1338,7 +1338,7 @@ loop:
+ 		}
+ 
+ 		xfol(ctxt, p.Link, last)
+-		if p.Pcond.Mark != 0 {
++		if p.Pcond.Mark&DONE != 0 {
+ 			return
+ 		}
+ 		p = p.Pcond

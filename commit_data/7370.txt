@@ -7,6 +7,22 @@ Date:   Fri Feb 4 09:29:08 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4121058
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 2c6046a7c5..79548be40b 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -5049,8 +5049,8 @@ func Alignof(variable ArbitraryType) int
+ func Offsetof(selector ArbitraryType) int
+ func Sizeof(variable ArbitraryType) int
+ 
+-func Reflect(val interface {}) (typ runtime.Type, addr uintptr)
+-func Typeof(val interface {}) reflect.Type
++func Reflect(val interface{}) (typ runtime.Type, addr uintptr)
++func Typeof(val interface{}) (typ interface{})
+ func Unreflect(typ runtime.Type, addr uintptr) interface{}
+ </pre>
+ 

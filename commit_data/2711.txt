@@ -10,6 +10,22 @@ Date:   Tue Jul 14 18:05:29 2009 -0700
     DELTA=3  (0 added, 2 deleted, 1 changed)
     OCL=31650
     CL=31650
-
+---
  src/pkg/syscall/syscall_linux.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 70b34b46dc..ac77942a32 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -521,9 +521,7 @@ func PtraceSetOptions(pid int, options int) (errno int) {
+ func PtraceGetEventMsg(pid int) (msg uint, errno int) {
+ 	var data _C_long;
+ 	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
+-	if errno != 0 {
+-		msg = uint(data);
+-	}
++	msg = uint(data);
+ 	return;
+ }
+ 

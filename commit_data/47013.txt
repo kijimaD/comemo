@@ -11,6 +11,20 @@ Date:   Fri Feb 19 05:29:51 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/294070
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/os/exec_posix.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index 39f11c7ec1..8aa1e5e499 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -103,7 +103,7 @@ func (p *ProcessState) String() string {
+ 	switch {
+ 	case status.Exited():
+ 		code := status.ExitStatus()
+-		if runtime.GOOS == "windows" && code >= 1<<16 { // windows uses large hex numbers
++		if runtime.GOOS == "windows" && uint(code) >= 1<<16 { // windows uses large hex numbers
+ 			res = "exit status " + uitox(uint(code))
+ 		} else { // unix systems use small decimal integers
+ 			res = "exit status " + itoa(code) // unix

@@ -19,6 +19,21 @@ Date:   Mon May 8 16:56:21 2023 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/cmd/go/internal/envcmd/env.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 74c0b69629..b99176f939 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -435,8 +435,7 @@ func PrintEnv(w io.Writer, env []cfg.EnvVar) {
+ 						if x > 0 {
+ 							fmt.Fprintf(w, " ")
+ 						}
+-						// TODO(#59979): Does this need to be quoted like above?
+-						fmt.Fprintf(w, "%s", s)
++						fmt.Fprintf(w, "'%s'", strings.ReplaceAll(s, "'", "''"))
+ 					}
+ 					fmt.Fprintf(w, ")\n")
+ 				}

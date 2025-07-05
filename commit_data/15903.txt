@@ -7,7 +7,7 @@ Date:   Fri Mar 22 17:28:22 2013 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/7877045
-
+---
  src/cmd/go/discovery.go                   | 1 -
  src/cmd/yacc/yacc.go                      | 1 -
  src/pkg/compress/flate/inflate.go         | 1 -
@@ -33,3 +33,326 @@ Date:   Fri Mar 22 17:28:22 2013 -0400
  src/pkg/testing/quick/quick.go            | 2 --
  src/pkg/text/template/parse/parse.go      | 1 -
  24 files changed, 3 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/discovery.go b/src/cmd/go/discovery.go
+index d9f930867e..0478340505 100644
+--- a/src/cmd/go/discovery.go
++++ b/src/cmd/go/discovery.go
+@@ -48,7 +48,6 @@ func parseMetaGoImports(r io.Reader) (imports []metaImport) {
+ 			})
+ 		}
+ 	}
+-	return
+ }
+ 
+ // attrValue returns the attribute value for the case-insensitive key
+diff --git a/src/cmd/yacc/yacc.go b/src/cmd/yacc/yacc.go
+index 0c18f93b6c..76b3aeac5d 100644
+--- a/src/cmd/yacc/yacc.go
++++ b/src/cmd/yacc/yacc.go
+@@ -3164,7 +3164,6 @@ func ungetrune(f *bufio.Reader, c rune) {
+ 
+ func write(f *bufio.Writer, b []byte, n int) int {
+ 	panic("write")
+-	return 0
+ }
+ 
+ func open(s string) *bufio.Reader {
+diff --git a/src/pkg/compress/flate/inflate.go b/src/pkg/compress/flate/inflate.go
+index 7fe1749631..beca34b4d8 100644
+--- a/src/pkg/compress/flate/inflate.go
++++ b/src/pkg/compress/flate/inflate.go
+@@ -640,7 +640,6 @@ func (f *decompressor) huffSym(h *huffmanDecoder) (int, error) {
+ 			return int(chunk >> huffmanValueShift), nil
+ 		}
+ 	}
+-	return 0, CorruptInputError(f.roffset)
+ }
+ 
+ // Flush any buffered output to the underlying writer.
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index 33736f6350..1fb9b0964c 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -120,7 +120,6 @@ func (z *Reader) readString() (string, error) {
+ 			return string(z.buf[0:i]), nil
+ 		}
+ 	}
+-	panic("not reached")
+ }
+ 
+ func (z *Reader) read2() (uint32, error) {
+diff --git a/src/pkg/compress/lzw/reader.go b/src/pkg/compress/lzw/reader.go
+index cf8ca7c788..efbc758f94 100644
+--- a/src/pkg/compress/lzw/reader.go
++++ b/src/pkg/compress/lzw/reader.go
+@@ -202,7 +202,6 @@ func (d *decoder) decode() {
+ 			return
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ func (d *decoder) flush() {
+diff --git a/src/pkg/crypto/dsa/dsa_test.go b/src/pkg/crypto/dsa/dsa_test.go
+index 177aa444df..568416d0df 100644
+--- a/src/pkg/crypto/dsa/dsa_test.go
++++ b/src/pkg/crypto/dsa/dsa_test.go
+@@ -63,8 +63,9 @@ func testParameterGeneration(t *testing.T, sizes ParameterSizes, L, N int) {
+ }
+ 
+ func TestParameterGeneration(t *testing.T) {
+-	// This test is too slow to run all the time.
+-	return
++	if testing.Short() {
++		t.Skip("skipping parameter generation test in short mode")
++	}
+ 
+ 	testParameterGeneration(t, L1024N160, 1024, 160)
+ 	testParameterGeneration(t, L2048N224, 2048, 224)
+diff --git a/src/pkg/crypto/rand/util.go b/src/pkg/crypto/rand/util.go
+index 50e5b162bd..21608dbaca 100644
+--- a/src/pkg/crypto/rand/util.go
++++ b/src/pkg/crypto/rand/util.go
+@@ -98,8 +98,6 @@ func Prime(rand io.Reader, bits int) (p *big.Int, err error) {
+ 			return
+ 		}
+ 	}
+-
+-	return
+ }
+ 
+ // Int returns a uniform random value in [0, max).
+@@ -130,6 +128,4 @@ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
+ 			return
+ 		}
+ 	}
+-
+-	return
+ }
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 0c216fdb3c..adaf80dcdb 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -460,7 +460,6 @@ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameter
+ 		default:
+ 			return marshalUTF8String(out, v.String())
+ 		}
+-		return
+ 	}
+ 
+ 	return StructuralError{"unknown Go type"}
+diff --git a/src/pkg/encoding/csv/reader.go b/src/pkg/encoding/csv/reader.go
+index 336dd6540d..b099caf60a 100644
+--- a/src/pkg/encoding/csv/reader.go
++++ b/src/pkg/encoding/csv/reader.go
+@@ -212,7 +212,6 @@ func (r *Reader) skip(delim rune) error {
+ 			return nil
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // parseRecord reads and parses a single csv record from r.
+@@ -249,7 +248,6 @@ func (r *Reader) parseRecord() (fields []string, err error) {
+ 			return nil, err
+ 		}
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // parseField parses the next field in the record.  The read field is
+diff --git a/src/pkg/encoding/gob/decode.go b/src/pkg/encoding/gob/decode.go
+index a80d9f9195..7cc7565409 100644
+--- a/src/pkg/encoding/gob/decode.go
++++ b/src/pkg/encoding/gob/decode.go
+@@ -1066,7 +1066,6 @@ func (dec *Decoder) compatibleType(fr reflect.Type, fw typeId, inProgress map[re
+ 	case reflect.Struct:
+ 		return true
+ 	}
+-	return true
+ }
+ 
+ // typeString returns a human-readable description of the type identified by remoteId.
+diff --git a/src/pkg/encoding/gob/type.go b/src/pkg/encoding/gob/type.go
+index ea0db4eac4..7fa0b499f0 100644
+--- a/src/pkg/encoding/gob/type.go
++++ b/src/pkg/encoding/gob/type.go
+@@ -526,7 +526,6 @@ func newTypeObject(name string, ut *userTypeInfo, rt reflect.Type) (gobType, err
+ 	default:
+ 		return nil, errors.New("gob NewTypeObject can't handle type: " + rt.String())
+ 	}
+-	return nil, nil
+ }
+ 
+ // isExported reports whether this is an exported - upper case - name.
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 722037c309..62ac294b89 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -868,7 +868,6 @@ func (d *decodeState) literalInterface() interface{} {
+ 		}
+ 		return n
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // getu4 decodes \uXXXX from the beginning of s, returning the hex value,
+diff --git a/src/pkg/html/template/transition.go b/src/pkg/html/template/transition.go
+index 2ea2089c6b..564eb20207 100644
+--- a/src/pkg/html/template/transition.go
++++ b/src/pkg/html/template/transition.go
+@@ -429,7 +429,6 @@ func tCSS(c context, s []byte) (context, int) {
+ 		}
+ 		k = i + 1
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // tCSSStr is the context transition function for the CSS string and URL states.
+@@ -470,7 +469,6 @@ func tCSSStr(c context, s []byte) (context, int) {
+ 		c, _ = tURL(c, decodeCSS(s[:i+1]))
+ 		k = i + 1
+ 	}
+-	panic("unreachable")
+ }
+ 
+ // tError is the context transition function for the error state.
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 9d09f97b77..6874900d0b 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -1021,8 +1021,6 @@ func trailingZeroBits(x Word) uint {
+ 	default:
+ 		panic("unknown word size")
+ 	}
+-
+-	return 0
+ }
+ 
+ // trailingZeroBits returns the number of consecutive least significant zero
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 5099d973ff..1990f64dbd 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -202,7 +202,6 @@ func (m *maxLatencyWriter) flushLoop() {
+ 			m.lk.Unlock()
+ 		}
+ 	}
+-	panic("unreached")
+ }
+ 
+ func (m *maxLatencyWriter) stop() { m.done <- true }
+diff --git a/src/pkg/net/ip.go b/src/pkg/net/ip.go
+index aee4064161..b92b948784 100644
+--- a/src/pkg/net/ip.go
++++ b/src/pkg/net/ip.go
+@@ -222,7 +222,6 @@ func (ip IP) DefaultMask() IPMask {
+ 	default:
+ 		return classCMask
+ 	}
+-	return nil // not reached
+ }
+ 
+ func allFF(b []byte) bool {
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 6d6ce3f5e2..8d57dacbd6 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -99,7 +99,6 @@ func sotypeToNet(sotype int) string {
+ 	default:
+ 		panic("sotypeToNet unknown socket type")
+ 	}
+-	return ""
+ }
+ 
+ // UnixConn is an implementation of the Conn interface for connections
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index b979fed97f..3df43feaa1 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -46,8 +46,6 @@ func Readlink(name string) (string, error) {
+ 			return string(b[0:n]), nil
+ 		}
+ 	}
+-	// Silence 6g.
+-	return "", nil
+ }
+ 
+ // Rename renames a file.
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index 1b22123068..0235c5d779 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -90,8 +90,6 @@ func Getwd() (pwd string, err error) {
+ 				}
+ 			}
+ 		}
+-		fd.Close()
+-		return "", ErrNotExist
+ 
+ 	Found:
+ 		pd, err := fd.Stat()
+diff --git a/src/pkg/reflect/tostring_test.go b/src/pkg/reflect/tostring_test.go
+index 7486a9bfca..e416fd84da 100644
+--- a/src/pkg/reflect/tostring_test.go
++++ b/src/pkg/reflect/tostring_test.go
+@@ -92,5 +92,4 @@ func valueToString(val Value) string {
+ 	default:
+ 		panic("valueToString: can't print type " + typ.String())
+ 	}
+-	return "valueToString: can't happen"
+ }
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index b7eaaa61bf..bed8b16bda 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -636,7 +636,6 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
+ 				1<<shift, multiplier*2)
+ 		}
+ 	}
+-	return false
+ }
+ 
+ // adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+index 318cbc060c..bc644d97a4 100644
+--- a/src/pkg/syscall/exec_bsd.go
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -215,11 +215,6 @@ childerror:
+ 	for {
+ 		RawSyscall(SYS_EXIT, 253, 0, 0)
+ 	}
+-
+-	// Calling panic is not actually safe,
+-	// but the for loop above won't break
+-	// and this shuts up the compiler.
+-	panic("unreached")
+ }
+ 
+ // Try to open a pipe with O_CLOEXEC set on both file descriptors.
+diff --git a/src/pkg/testing/quick/quick.go b/src/pkg/testing/quick/quick.go
+index 2427098228..761a6471b5 100644
+--- a/src/pkg/testing/quick/quick.go
++++ b/src/pkg/testing/quick/quick.go
+@@ -140,8 +140,6 @@ func Value(t reflect.Type, rand *rand.Rand) (value reflect.Value, ok bool) {
+ 	default:
+ 		return reflect.Value{}, false
+ 	}
+-
+-	return
+ }
+ 
+ // A Config structure contains options for running a test.
+diff --git a/src/pkg/text/template/parse/parse.go b/src/pkg/text/template/parse/parse.go
+index 03bd22d95c..802e298c23 100644
+--- a/src/pkg/text/template/parse/parse.go
++++ b/src/pkg/text/template/parse/parse.go
+@@ -429,7 +429,6 @@ func (t *Tree) pipeline(context string) (pipe *PipeNode) {
+ 			t.unexpected(token, context)
+ 		}
+ 	}
+-	return
+ }
+ 
+ func (t *Tree) parseControl(context string) (pos Pos, line int, pipe *PipeNode, list, elseList *ListNode) {

@@ -14,10 +14,143 @@ Date:   Tue Sep 27 18:27:02 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/go/build/deps_test.go |  2 ++
  src/net/http/http.go      | 10 ++++++++++
  src/net/http/http_test.go | 10 +++++++++-
  src/net/http/request.go   | 19 +++++++++++++++++--
  src/net/http/transport.go |  3 +--
  5 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c7e11498dd..fb31ac31c3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -382,6 +382,8 @@ var pkgDeps = map[string][]string{
+ 		"golang_org/x/net/http2/hpack",
+ 		"golang_org/x/net/idna",
+ 		"golang_org/x/net/lex/httplex",
++		"golang_org/x/text/unicode/norm",
++		"golang_org/x/text/width",
+ 		"internal/nettrace",
+ 		"net/http/httptrace",
+ 	},
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index b34ae41ec5..258efbb152 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"strings"
++	"unicode/utf8"
+ 
+ 	"golang_org/x/net/lex/httplex"
+ )
+@@ -41,3 +42,12 @@ func removeEmptyPort(host string) string {
+ func isNotToken(r rune) bool {
+ 	return !httplex.IsTokenRune(r)
+ }
++
++func isASCII(s string) bool {
++	for i := 0; i < len(s); i++ {
++		if s[i] >= utf8.RuneSelf {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/net/http/http_test.go b/src/net/http/http_test.go
+index b95dab053c..c6c38ffcae 100644
+--- a/src/net/http/http_test.go
++++ b/src/net/http/http_test.go
+@@ -51,10 +51,18 @@ func TestCleanHost(t *testing.T) {
+ 		{"www.google.com foo", "www.google.com"},
+ 		{"www.google.com/foo", "www.google.com"},
+ 		{" first character is a space", ""},
++		{"[1::6]:8080", "[1::6]:8080"},
++
++		// Punycode:
+ 		{"гофер.рф/foo", "xn--c1ae0ajs.xn--p1ai"},
+ 		{"bücher.de", "xn--bcher-kva.de"},
+ 		{"bücher.de:8080", "xn--bcher-kva.de:8080"},
+-		{"[1::6]:8080", "[1::6]:8080"},
++		// Verify we convert to lowercase before punycode:
++		{"BÜCHER.de", "xn--bcher-kva.de"},
++		{"BÜCHER.de:8080", "xn--bcher-kva.de:8080"},
++		// Verify we normalize to NFC before punycode:
++		{"gophér.nfc", "xn--gophr-esa.nfc"},            // NFC input; no work needed
++		{"goph\u0065\u0301r.nfd", "xn--gophr-esa.nfd"}, // NFD input
+ 	}
+ 	for _, tt := range tests {
+ 		got := cleanHost(tt.in)
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index bebf55ccc4..a27d13cb98 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -27,6 +27,8 @@ import (
+ 	"sync"
+ 
+ 	"golang_org/x/net/idna"
++	"golang_org/x/text/unicode/norm"
++	"golang_org/x/text/width"
+ )
+ 
+ const (
+@@ -581,6 +583,19 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header, wai
+ 	return nil
+ }
+ 
++func idnaASCII(v string) (string, error) {
++	if isASCII(v) {
++		return v, nil
++	}
++	// The idna package doesn't do everything from
++	// https://tools.ietf.org/html/rfc5895 so we do it here.
++	// TODO(bradfitz): should the idna package do this instead?
++	v = strings.ToLower(v)
++	v = width.Fold.String(v)
++	v = norm.NFC.String(v)
++	return idna.ToASCII(v)
++}
++
+ // cleanHost cleans up the host sent in request's Host header.
+ //
+ // It both strips anything after '/' or ' ', and puts the value
+@@ -600,13 +615,13 @@ func cleanHost(in string) string {
+ 	}
+ 	host, port, err := net.SplitHostPort(in)
+ 	if err != nil { // input was just a host
+-		a, err := idna.ToASCII(in)
++		a, err := idnaASCII(in)
+ 		if err != nil {
+ 			return in // garbage in, garbage out
+ 		}
+ 		return a
+ 	}
+-	a, err := idna.ToASCII(host)
++	a, err := idnaASCII(host)
+ 	if err != nil {
+ 		return in // garbage in, garbage out
+ 	}
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index cde7acac31..ed2b3a26ed 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -27,7 +27,6 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang_org/x/net/idna"
+ 	"golang_org/x/net/lex/httplex"
+ )
+ 
+@@ -1945,7 +1944,7 @@ var portMap = map[string]string{
+ // canonicalAddr returns url.Host but always with a ":port" suffix
+ func canonicalAddr(url *url.URL) string {
+ 	addr := url.Hostname()
+-	if v, err := idna.ToASCII(addr); err == nil {
++	if v, err := idnaASCII(addr); err == nil {
+ 		addr = v
+ 	}
+ 	port := url.Port()

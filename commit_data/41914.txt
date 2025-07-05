@@ -13,6 +13,19 @@ Date:   Wed Oct 16 06:56:10 2019 +0200
     Change-Id: Id4120488b8b39ecee97fa7a6ad8a34158687ffcd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/201357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/header.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/header.go b/src/net/http/header.go
+index 4a4ebbcf2f..b9b53911f3 100644
+--- a/src/net/http/header.go
++++ b/src/net/http/header.go
+@@ -178,6 +178,7 @@ func (h Header) sortedKeyValues(exclude map[string]bool) (kvs []keyValues, hs *h
+ 
+ // WriteSubset writes a header in wire format.
+ // If exclude is not nil, keys where exclude[key] == true are not written.
++// Keys are not canonicalized before checking the exclude map.
+ func (h Header) WriteSubset(w io.Writer, exclude map[string]bool) error {
+ 	return h.writeSubset(w, exclude, nil)
+ }

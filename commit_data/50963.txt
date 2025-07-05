@@ -11,6 +11,17 @@ Date:   Fri Nov 19 17:52:41 2021 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  test/fixedbugs/issue49665.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue49665.go b/test/fixedbugs/issue49665.go
+index c6c22a1b4e..4a6593c454 100644
+--- a/test/fixedbugs/issue49665.go
++++ b/test/fixedbugs/issue49665.go
+@@ -1,4 +1,4 @@
+-// run
++// run -gcflags=-G=3
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

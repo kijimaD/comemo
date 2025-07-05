@@ -18,7 +18,7 @@ Date:   Sun Mar 11 19:11:33 2018 +0200
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/build/deps_test.go                     |  2 +-
  src/internal/syscall/unix/empty.s             |  7 ++++
  src/internal/syscall/unix/nonblocking.go      | 23 ++++++++++++
@@ -27,3 +27,214 @@ Date:   Sun Mar 11 19:11:33 2018 +0200
  src/os/file_unix.go                           | 17 +++++++--
  src/os/os_unix_test.go                        | 54 +++++++++++++++++++++++++++
  7 files changed, 114 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 1105de16da..af91fd662a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -158,7 +158,7 @@ var pkgDeps = map[string][]string{
+ 
+ 	"internal/poll":    {"L0", "internal/race", "syscall", "time", "unicode/utf16", "unicode/utf8", "internal/syscall/windows"},
+ 	"internal/testlog": {"L0"},
+-	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/testlog"},
++	"os":               {"L1", "os", "syscall", "time", "internal/poll", "internal/syscall/windows", "internal/syscall/unix", "internal/testlog"},
+ 	"path/filepath":    {"L2", "os", "syscall", "internal/syscall/windows"},
+ 	"io/ioutil":        {"L2", "os", "path/filepath", "time"},
+ 	"os/exec":          {"L2", "os", "context", "path/filepath", "syscall"},
+diff --git a/src/internal/syscall/unix/empty.s b/src/internal/syscall/unix/empty.s
+new file mode 100644
+index 0000000000..7151ab838b
+--- /dev/null
++++ b/src/internal/syscall/unix/empty.s
+@@ -0,0 +1,7 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is here just to make the go tool happy. It allows
++// empty function declarations (no function body).
++// It is used with "go:linkname".
+diff --git a/src/internal/syscall/unix/nonblocking.go b/src/internal/syscall/unix/nonblocking.go
+new file mode 100644
+index 0000000000..818e9c91a5
+--- /dev/null
++++ b/src/internal/syscall/unix/nonblocking.go
+@@ -0,0 +1,23 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package unix
++
++import (
++	"syscall"
++	_ "unsafe" // for go:linkname
++)
++
++//go:linkname syscall_fcntl syscall.fcntl
++func syscall_fcntl(fd int, cmd int, arg int) (val int, err error)
++
++func IsNonblock(fd int) (nonblocking bool, err error) {
++	flag, err := syscall_fcntl(fd, syscall.F_GETFL, 0)
++	if err != nil {
++		return false, err
++	}
++	return flag&syscall.O_NONBLOCK != 0, nil
++}
+diff --git a/src/internal/syscall/unix/nonblocking_nacl.go b/src/internal/syscall/unix/nonblocking_nacl.go
+new file mode 100644
+index 0000000000..ff67c75e81
+--- /dev/null
++++ b/src/internal/syscall/unix/nonblocking_nacl.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++func IsNonblock(fd int) (nonblocking bool, err error) {
++	return false, nil
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index ed2a55557d..61ffcafcd5 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -404,6 +404,12 @@ var testedAlreadyLeaked = false
+ // stdin, stdout, stderr, epoll/kqueue, maybe testlog
+ func basefds() uintptr {
+ 	n := os.Stderr.Fd() + 1
++	// The poll (epoll/kqueue) descriptor can be numerically
++	// either between stderr and the testlog-fd, or after
++	// testlog-fd.
++	if poll.PollDescriptor() == n {
++		n++
++	}
+ 	for _, arg := range os.Args {
+ 		if strings.HasPrefix(arg, "-test.testlogfile=") {
+ 			n++
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index fc6cad38d9..ed7e8cb31c 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"internal/poll"
++	"internal/syscall/unix"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -74,9 +75,15 @@ func (f *File) Fd() uintptr {
+ 
+ // NewFile returns a new File with the given file descriptor and
+ // name. The returned value will be nil if fd is not a valid file
+-// descriptor.
++// descriptor. On Unix systems, if the file descriptor is in
++// non-blocking mode, NewFile will attempt to return a pollable File
++// (one for which the SetDeadline methods work).
+ func NewFile(fd uintptr, name string) *File {
+-	return newFile(fd, name, kindNewFile)
++	kind := kindNewFile
++	if nb, err := unix.IsNonblock(int(fd)); err == nil && nb {
++		kind = kindNonBlock
++	}
++	return newFile(fd, name, kind)
+ }
+ 
+ // newFileKind describes the kind of file to newFile.
+@@ -86,6 +93,7 @@ const (
+ 	kindNewFile newFileKind = iota
+ 	kindOpenFile
+ 	kindPipe
++	kindNonBlock
+ )
+ 
+ // newFile is like NewFile, but if called from OpenFile or Pipe
+@@ -109,11 +117,14 @@ func newFile(fd uintptr, name string, kind newFileKind) *File {
+ 	// Don't try to use kqueue with regular files on FreeBSD.
+ 	// It crashes the system unpredictably while running all.bash.
+ 	// Issue 19093.
++	// If the caller passed a non-blocking filedes (kindNonBlock),
++	// we assume they know what they are doing so we allow it to be
++	// used with kqueue.
+ 	if runtime.GOOS == "freebsd" && kind == kindOpenFile {
+ 		kind = kindNewFile
+ 	}
+ 
+-	pollable := kind == kindOpenFile || kind == kindPipe
++	pollable := kind == kindOpenFile || kind == kindPipe || kind == kindNonBlock
+ 	if err := f.pfd.Init("file", pollable); err != nil {
+ 		// An error here indicates a failure to register
+ 		// with the netpoll system. That can happen for
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 51294ec419..54f121ef4c 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"strings"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+ func init() {
+@@ -224,3 +225,56 @@ func TestMkdirStickyUmask(t *testing.T) {
+ 		t.Errorf("unexpected mode %s", mode)
+ 	}
+ }
++
++// See also issues: 22939, 24331
++func newFileTest(t *testing.T, blocking bool) {
++	p := make([]int, 2)
++	if err := syscall.Pipe(p); err != nil {
++		t.Fatalf("pipe: %v", err)
++	}
++	defer syscall.Close(p[1])
++
++	// Set the the read-side to non-blocking.
++	if !blocking {
++		if err := syscall.SetNonblock(p[0], true); err != nil {
++			syscall.Close(p[0])
++			t.Fatalf("SetNonblock: %v", err)
++		}
++	}
++	// Convert it to a file.
++	file := NewFile(uintptr(p[0]), "notapipe")
++	if file == nil {
++		syscall.Close(p[0])
++		t.Fatalf("failed to convert fd to file!")
++	}
++	defer file.Close()
++
++	// Try to read with deadline (but don't block forever).
++	b := make([]byte, 1)
++	// Send something after 100ms.
++	timer := time.AfterFunc(100*time.Millisecond, func() { syscall.Write(p[1], []byte("a")) })
++	defer timer.Stop()
++	file.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
++	_, err := file.Read(b)
++	if !blocking {
++		// We want it to fail with a timeout.
++		if !IsTimeout(err) {
++			t.Fatalf("No timeout reading from file: %v", err)
++		}
++	} else {
++		// We want it to succeed after 100ms
++		if err != nil {
++			t.Fatalf("Error reading from file: %v", err)
++		}
++	}
++}
++
++func TestNewFileBlock(t *testing.T) {
++	t.Parallel()
++	newFileTest(t, true)
++}
++
++func TestNewFileNonBlock(t *testing.T) {
++	t.Parallel()
++	newFileTest(t, false)
++}

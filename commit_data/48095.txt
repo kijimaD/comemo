@@ -18,7 +18,7 @@ Date:   Wed Apr 21 23:50:58 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go         |  2 +-
  src/runtime/mcache.go              | 18 +++++++++++-------
  src/runtime/metrics.go             |  7 +++++++
@@ -27,3 +27,229 @@ Date:   Wed Apr 21 23:50:58 2021 +0000
  src/runtime/metrics_test.go        | 23 ++++++++++++++++++++++-
  src/runtime/mstats.go              | 10 ++++++----
  7 files changed, 64 insertions(+), 13 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 81200da915..f742225d51 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -393,7 +393,7 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
+ 			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
+ 		}
+-		slow.Frees += memstats.tinyallocs + uint64(m.largeFreeCount)
++		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
+ 		slow.Mallocs += slow.Frees
+ 
+ 		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 2390be406f..097e4a5ade 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -176,17 +176,17 @@ func (c *mcache) refill(spc spanClass) {
+ 	// mcache. If it gets uncached, we'll adjust this.
+ 	stats := memstats.heapStats.acquire()
+ 	atomic.Xadduintptr(&stats.smallAllocCount[spc.sizeclass()], uintptr(s.nelems)-uintptr(s.allocCount))
+-	memstats.heapStats.release()
+-
+-	// Update gcController.heapLive with the same assumption.
+-	usedBytes := uintptr(s.allocCount) * s.elemsize
+-	atomic.Xadd64(&gcController.heapLive, int64(s.npages*pageSize)-int64(usedBytes))
+ 
+ 	// Flush tinyAllocs.
+ 	if spc == tinySpanClass {
+-		atomic.Xadd64(&memstats.tinyallocs, int64(c.tinyAllocs))
++		atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+ 		c.tinyAllocs = 0
+ 	}
++	memstats.heapStats.release()
++
++	// Update gcController.heapLive with the same assumption.
++	usedBytes := uintptr(s.allocCount) * s.elemsize
++	atomic.Xadd64(&gcController.heapLive, int64(s.npages*pageSize)-int64(usedBytes))
+ 
+ 	// While we're here, flush scanAlloc, since we have to call
+ 	// revise anyway.
+@@ -280,8 +280,12 @@ func (c *mcache) releaseAll() {
+ 	// Clear tinyalloc pool.
+ 	c.tiny = 0
+ 	c.tinyoffset = 0
+-	atomic.Xadd64(&memstats.tinyallocs, int64(c.tinyAllocs))
++
++	// Flush tinyAllocs.
++	stats := memstats.heapStats.acquire()
++	atomic.Xadduintptr(&stats.tinyAllocCount, c.tinyAllocs)
+ 	c.tinyAllocs = 0
++	memstats.heapStats.release()
+ 
+ 	// Updated heapScan and possible gcController.heapLive.
+ 	if gcBlackenEnabled != 0 {
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index fe82688aac..240813b169 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -124,6 +124,13 @@ func initMetrics() {
+ 				out.scalar = in.heapStats.numObjects
+ 			},
+ 		},
++		"/gc/heap/tiny/allocs:objects": {
++			deps: makeStatDepSet(heapStatsDep),
++			compute: func(in *statAggregate, out *metricValue) {
++				out.kind = metricKindUint64
++				out.scalar = uint64(in.heapStats.tinyAllocCount)
++			},
++		},
+ 		"/gc/pauses:seconds": {
+ 			compute: func(_ *statAggregate, out *metricValue) {
+ 				hist := out.float64HistOrInit(timeHistBuckets)
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index 9aaf457135..697bc94e84 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -91,6 +91,16 @@ var allDesc = []Description{
+ 		Description: "Number of objects, live or unswept, occupying heap memory.",
+ 		Kind:        KindUint64,
+ 	},
++	{
++		Name: "/gc/heap/tiny/allocs:objects",
++		Description: "Count of small allocations that are packed together into blocks. " +
++			"These allocations are counted separately from other allocations " +
++			"because each individual allocation is not tracked by the runtime, " +
++			"only their block. Each block is already accounted for in " +
++			"allocs-by-size and frees-by-size.",
++		Kind:       KindUint64,
++		Cumulative: true,
++	},
+ 	{
+ 		Name:        "/gc/pauses:seconds",
+ 		Description: "Distribution individual GC-related stop-the-world pause latencies.",
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 7cbc0415dc..cd8ccf46c3 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -72,6 +72,13 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 	/gc/heap/objects:objects
+ 		Number of objects, live or unswept, occupying heap memory.
+ 
++	/gc/heap/tiny/allocs:objects
++		Count of small allocations that are packed together into blocks.
++		These allocations are counted separately from other allocations
++		because each individual allocation is not tracked by the runtime,
++		only their block. Each block is already accounted for in
++		allocs-by-size and frees-by-size.
++
+ 	/gc/pauses:seconds
+ 		Distribution individual GC-related stop-the-world pause latencies.
+ 
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 8a3cf019bd..e405d807e4 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -40,6 +40,8 @@ func TestReadMetrics(t *testing.T) {
+ 	}
+ 
+ 	// Check to make sure the values we read line up with other values we read.
++	var allocsBySize *metrics.Float64Histogram
++	var tinyAllocs uint64
+ 	for i := range samples {
+ 		switch name := samples[i].Name; name {
+ 		case "/memory/classes/heap/free:bytes":
+@@ -84,6 +86,7 @@ func TestReadMetrics(t *testing.T) {
+ 					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, m)
+ 				}
+ 			}
++			allocsBySize = hist
+ 		case "/gc/heap/frees-by-size:bytes":
+ 			hist := samples[i].Value.Float64Histogram()
+ 			// Skip size class 0 in BySize, because it's always empty and not represented
+@@ -95,9 +98,20 @@ func TestReadMetrics(t *testing.T) {
+ 					continue
+ 				}
+ 				if c, f := hist.Counts[i], sc.Frees; c != f {
+-					t.Errorf("histogram counts do not much BySize for class %d: got %d, want %d", i, c, f)
++					t.Errorf("histogram counts do not match BySize for class %d: got %d, want %d", i, c, f)
+ 				}
+ 			}
++		case "/gc/heap/tiny/allocs:objects":
++			// Currently, MemStats adds tiny alloc count to both Mallocs AND Frees.
++			// The reason for this is because MemStats couldn't be extended at the time
++			// but there was a desire to have Mallocs at least be a little more representative,
++			// while having Mallocs - Frees still represent a live object count.
++			// Unfortunately, MemStats doesn't actually export a large allocation count,
++			// so it's impossible to pull this number out directly.
++			//
++			// Check tiny allocation count outside of this loop, by using the allocs-by-size
++			// histogram in order to figure out how many large objects there are.
++			tinyAllocs = samples[i].Value.Uint64()
+ 		case "/gc/heap/objects:objects":
+ 			checkUint64(t, name, samples[i].Value.Uint64(), mstats.HeapObjects)
+ 		case "/gc/heap/goal:bytes":
+@@ -110,6 +124,13 @@ func TestReadMetrics(t *testing.T) {
+ 			checkUint64(t, name, samples[i].Value.Uint64(), uint64(mstats.NumGC))
+ 		}
+ 	}
++
++	// Check tinyAllocs.
++	nonTinyAllocs := uint64(0)
++	for _, c := range allocsBySize.Counts {
++		nonTinyAllocs += c
++	}
++	checkUint64(t, "/gc/heap/tiny/allocs:objects", tinyAllocs, mstats.Mallocs-nonTinyAllocs)
+ }
+ 
+ func TestReadMetricsConsistency(t *testing.T) {
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index c68cb2fcc3..eeb2a7b4bc 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
++	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -86,7 +87,6 @@ type mstats struct {
+ 	_ [1 - _NumSizeClasses%2]uint32
+ 
+ 	last_gc_nanotime uint64 // last gc (monotonic time)
+-	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+ 	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
+ 
+ 	// heapStats is a set of statistics
+@@ -586,8 +586,8 @@ func updatememstats() {
+ 	}
+ 
+ 	// Account for tiny allocations.
+-	memstats.nfree += memstats.tinyallocs
+-	memstats.nmalloc += memstats.tinyallocs
++	memstats.nfree += uint64(consStats.tinyAllocCount)
++	memstats.nmalloc += uint64(consStats.tinyAllocCount)
+ 
+ 	// Calculate derived stats.
+ 	memstats.total_alloc = totalAlloc
+@@ -703,6 +703,7 @@ type heapStatsDelta struct {
+ 	inPtrScalarBits int64 // byte delta of memory reserved for unrolled GC prog bits
+ 
+ 	// Allocator stats.
++	tinyAllocCount  uintptr                  // number of tiny allocations
+ 	largeAlloc      uintptr                  // bytes allocated for large objects
+ 	largeAllocCount uintptr                  // number of large object allocations
+ 	smallAllocCount [_NumSizeClasses]uintptr // number of allocs for small objects
+@@ -712,7 +713,7 @@ type heapStatsDelta struct {
+ 
+ 	// Add a uint32 to ensure this struct is a multiple of 8 bytes in size.
+ 	// Only necessary on 32-bit platforms.
+-	// _ [(sys.PtrSize / 4) % 2]uint32
++	_ [(sys.PtrSize / 4) % 2]uint32
+ }
+ 
+ // merge adds in the deltas from b into a.
+@@ -724,6 +725,7 @@ func (a *heapStatsDelta) merge(b *heapStatsDelta) {
+ 	a.inWorkBufs += b.inWorkBufs
+ 	a.inPtrScalarBits += b.inPtrScalarBits
+ 
++	a.tinyAllocCount += b.tinyAllocCount
+ 	a.largeAlloc += b.largeAlloc
+ 	a.largeAllocCount += b.largeAllocCount
+ 	for i := range b.smallAllocCount {

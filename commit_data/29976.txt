@@ -12,6 +12,24 @@ Date:   Wed Oct 19 08:48:25 2016 -0400
     Change-Id: I3d99087c8efc8cbc016c55e8365d0005f79d1b2f
     Reviewed-on: https://go-review.googlesource.com/31461
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/reflect/type.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index a9793978f7..89e02bccd7 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -160,7 +160,11 @@ type Type interface {
+ 	// that satisfies the match function and a boolean indicating if
+ 	// the field was found.
+ 	//
+-	// If multiple fields match the func, they cancel each other
++	// FieldByNameFunc considers the fields in the struct itself
++	// and then the fields in any anonymous structs, in breadth first order,
++	// stopping at the shallowest nesting depth containing one or more
++	// fields satisfying the match function. If multiple fields at that depth
++	// satisfy the match function, they cancel each other
+ 	// and FieldByNameFunc returns no match.
+ 	// This behavior mirrors Go's handling of name lookup in
+ 	// structs containing anonymous fields.

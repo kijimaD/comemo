@@ -16,7 +16,7 @@ Date:   Tue Sep 21 16:30:06 2021 -0700
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              | 14 +++-
  src/cmd/go/internal/cache/cache.go                 |  2 +
  src/cmd/go/internal/clean/clean.go                 |  9 ++-
@@ -30,3 +30,510 @@ Date:   Tue Sep 21 16:30:06 2021 -0700
  src/testing/fuzz.go                                | 85 ++++++++++------------
  src/testing/testing.go                             | 57 +++++++--------
  12 files changed, 142 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 0036d8615f..02d2afc582 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -293,8 +293,11 @@
+ // dependencies.
+ //
+ // The -fuzzcache flag causes clean to remove files stored in the Go build
+-// cache for fuzz testing. Files stored in source testdata directories
+-// are left in place.
++// cache for fuzz testing. The fuzzing engine caches files that expand
++// code coverage, so removing them may make fuzzing less effective until
++// new inputs are found that provide the same coverage. These files are
++// distinct from those stored in testdata directory; clean does not remove
++// those files.
+ //
+ // For more about build flags, see 'go help build'.
+ //
+@@ -1854,6 +1857,13 @@
+ // See 'go help test' for details. Running 'go clean -testcache' removes
+ // all cached test results (but not cached build results).
+ //
++// The go command also caches values used in fuzzing with 'go test -fuzz',
++// specifically, values that expanded code coverage when passed to a
++// fuzz function. These values are not used for regular building and
++// testing, but they're stored in a subdirectory of the build cache.
++// Running 'go clean -fuzzcache' removes all cached fuzzing values.
++// This may make fuzzing less effective, temporarily.
++//
+ // The GODEBUG environment variable can enable printing of debugging
+ // information about the state of the cache:
+ //
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 596f22e8fc..93d7c25658 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -540,6 +540,8 @@ func (c *Cache) copyFile(file io.ReadSeeker, out OutputID, size int64) error {
+ // This directory is managed by the internal/fuzz package. Files in this
+ // directory aren't removed by the 'go clean -cache' command or by Trim.
+ // They may be removed with 'go clean -fuzzcache'.
++//
++// TODO(#48526): make Trim remove unused files from this directory.
+ func (c *Cache) FuzzDir() string {
+ 	return filepath.Join(c.dir, "fuzz")
+ }
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index ca7623ea21..dc93cdf598 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -76,8 +76,11 @@ download cache, including unpacked source code of versioned
+ dependencies.
+ 
+ The -fuzzcache flag causes clean to remove files stored in the Go build
+-cache for fuzz testing. Files stored in source testdata directories
+-are left in place.
++cache for fuzz testing. The fuzzing engine caches files that expand
++code coverage, so removing them may make fuzzing less effective until
++new inputs are found that provide the same coverage. These files are
++distinct from those stored in testdata directory; clean does not remove
++those files.
+ 
+ For more about build flags, see 'go help build'.
+ 
+@@ -220,7 +223,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		}
+ 		if !cfg.BuildN {
+ 			if err := os.RemoveAll(fuzzDir); err != nil {
+-				base.Errorf("go clean -fuzzcache: %v", err)
++				base.Errorf("go: %v", err)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 749dcf192b..035235fe1b 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -775,6 +775,13 @@ The go command also caches successful package test results.
+ See 'go help test' for details. Running 'go clean -testcache' removes
+ all cached test results (but not cached build results).
+ 
++The go command also caches values used in fuzzing with 'go test -fuzz',
++specifically, values that expanded code coverage when passed to a
++fuzz function. These values are not used for regular building and
++testing, but they're stored in a subdirectory of the build cache.
++Running 'go clean -fuzzcache' removes all cached fuzzing values.
++This may make fuzzing less effective, temporarily.
++
+ The GODEBUG environment variable can enable printing of debugging
+ information about the state of the cache:
+ 
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index 24670524fc..4e0cb5bc19 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -22,9 +22,8 @@ var (
+ // that allows specifying different effective flags for different packages.
+ // See 'go help build' for more details about per-package flags.
+ type PerPackageFlag struct {
+-	present      bool
+-	values       []ppfValue
+-	seenPackages map[*Package]bool // the packages for which the flags have already been set
++	present bool
++	values  []ppfValue
+ }
+ 
+ // A ppfValue is a single <pattern>=<flags> per-package flag value.
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 317053d918..4013330bc4 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2630,20 +2630,10 @@ func (e *mainPackageError) ImportPath() string {
+ 
+ func setToolFlags(pkgs ...*Package) {
+ 	for _, p := range PackageList(pkgs) {
+-		appendFlags(p, &p.Internal.Asmflags, &BuildAsmflags)
+-		appendFlags(p, &p.Internal.Gcflags, &BuildGcflags)
+-		appendFlags(p, &p.Internal.Ldflags, &BuildLdflags)
+-		appendFlags(p, &p.Internal.Gccgoflags, &BuildGccgoflags)
+-	}
+-}
+-
+-func appendFlags(p *Package, flags *[]string, packageFlag *PerPackageFlag) {
+-	if !packageFlag.seenPackages[p] {
+-		if packageFlag.seenPackages == nil {
+-			packageFlag.seenPackages = make(map[*Package]bool)
+-		}
+-		packageFlag.seenPackages[p] = true
+-		*flags = append(*flags, packageFlag.For(p)...)
++		p.Internal.Asmflags = BuildAsmflags.For(p)
++		p.Internal.Gcflags = BuildGcflags.For(p)
++		p.Internal.Ldflags = BuildLdflags.For(p)
++		p.Internal.Gccgoflags = BuildGccgoflags.For(p)
+ 	}
+ }
+ 
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index c8305c7808..518555ecba 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -824,7 +824,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	if testFuzz != "" && fuzzFlags != nil {
+ 		// Don't instrument packages which may affect coverage guidance but are
+ 		// unlikely to be useful. Most of these are used by the testing or
+-		// internal/fuzz concurrently with fuzzing.
++		// internal/fuzz packages concurrently with fuzzing.
+ 		var fuzzNoInstrument = map[string]bool{
+ 			"context":       true,
+ 			"internal/fuzz": true,
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 34d2e1cbe1..1f8ec02df1 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -61,8 +61,11 @@ func BuildInit() {
+ }
+ 
+ // FuzzInstrumentFlags returns compiler flags that enable fuzzing instrumation
+-// on supported platforms. On unsupported platforms, FuzzInstrumentFlags returns
+-// nil.
++// on supported platforms.
++//
++// On unsupported platforms, FuzzInstrumentFlags returns nil, meaning no
++// instrumentation is added. 'go test -fuzz' still works without coverage,
++// but it generates random inputs without guidance, so it's much less effective.
+ func FuzzInstrumentFlags() []string {
+ 	// TODO: expand the set of supported platforms, with testing.
+ 	// Nothing about the instrumentation is OS specific, but only amd64 and arm64
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index b1a02f46eb..c9930aa37e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -77,10 +77,15 @@ stdout 'f.Fuzz function'
+ stdout FAIL
+ stdout 'f.Fuzz function'
+ 
+-# Test that a call to f.Fatal after the Fuzz func is never executed.
+-go test fatal_after_fuzz_func_fuzz_test.go
+-stdout ok
+-! stdout FAIL
++# Test that runtime.Goexit within the fuzz function is an error.
++! go test goexit_fuzz_fn_fuzz_test.go
++! stdout ^ok
++stdout FAIL
++
++# Test that a call to f.Fatal after the Fuzz func is executed.
++! go test fatal_after_fuzz_func_fuzz_test.go
++! stdout ok
++stdout FAIL
+ 
+ # Test that missing *T in f.Fuzz causes a non-zero exit status.
+ ! go test incomplete_fuzz_call_fuzz_test.go
+@@ -267,6 +272,18 @@ func Fuzz(f *testing.F) {
+     })
+ }
+ 
++-- goexit_fuzz_fn_fuzz_test.go --
++package goexit_fuzz_fn_fuzz
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++    f.Add([]byte("aa"))
++    f.Fuzz(func(t *testing.T, b []byte) {
++        runtime.Goexit()
++    })
++}
++
+ -- fatal_after_fuzz_func_fuzz_test.go --
+ package fatal_after_fuzz_func_fuzz
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 1b8b79b3dd..79476ecb28 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -29,6 +29,11 @@ stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+ go run check_testdata.go FuzzWithNilPanic
+ 
++! go test -run=FuzzWithGoexit -fuzz=FuzzWithGoexit -fuzztime=100x -fuzzminimizetime=1000x
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithGoexit[/\\]'
++stdout 'runtime.Goexit'
++go run check_testdata.go FuzzWithGoexit
++
+ ! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x -fuzzminimizetime=1000x
+ stdout 'testdata[/\\]fuzz[/\\]FuzzWithFail[/\\]'
+ go run check_testdata.go FuzzWithFail
+@@ -108,7 +113,8 @@ go 1.16
+ package fuzz_crash
+ 
+ import (
+-    "os"
++	"os"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -130,6 +136,15 @@ func FuzzWithNilPanic(f *testing.F) {
+ 	})
+ }
+ 
++func FuzzWithGoexit(f *testing.F) {
++	f.Add([]byte("aa"))
++	f.Fuzz(func(t *testing.T, b []byte) {
++		if string(b) != "aa" {
++			runtime.Goexit()
++		}
++	})
++}
++
+ func FuzzWithFail(f *testing.F) {
+ 	f.Add([]byte("aa"))
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index ddce065783..771917b069 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -69,7 +69,7 @@ type F struct {
+ 	// from testdata.
+ 	corpus []corpusEntry
+ 
+-	result     FuzzResult
++	result     fuzzResult
+ 	fuzzCalled bool
+ }
+ 
+@@ -290,17 +290,20 @@ var supportedTypes = map[reflect.Type]bool{
+ // whose remaining arguments are the types to be fuzzed.
+ // For example:
+ //
+-// f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
++//     f.Fuzz(func(t *testing.T, b []byte, i int) { ... })
+ //
+-// This function should be fast, deterministic, and stateless.
++// The following types are allowed: []byte, string, bool, byte, rune, float32,
++// float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64.
++// More types may be supported in the future.
+ //
+-// No mutatable input arguments, or pointers to them, should be retained between
+-// executions of the fuzz function, as the memory backing them may be mutated
+-// during a subsequent invocation.
++// This function sould be fast and deterministic, and its behavior should not
++// depend on shared state. No mutatable input arguments, or pointers to them,
++// should be retained between executions of the fuzz function, as the memory
++// backing them may be mutated during a subsequent invocation.
+ //
+-// This is a terminal function which will terminate the currently running fuzz
+-// target by calling runtime.Goexit.
+-// To run any code after fuzzing stops, use (*F).Cleanup.
++// When fuzzing, F.Fuzz does not return until a problem is found, time runs
++// out (set with -fuzztime), or the test process is interrupted by a signal.
++// F.Fuzz should be called exactly once unless F.Skip or F.Fail is called.
+ func (f *F) Fuzz(ff interface{}) {
+ 	if f.fuzzCalled {
+ 		panic("testing: F.Fuzz called more than once")
+@@ -440,7 +443,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 			corpusTargetDir,
+ 			cacheTargetDir)
+ 		if err != nil {
+-			f.result = FuzzResult{Error: err}
++			f.result = fuzzResult{Error: err}
+ 			f.Fail()
+ 			fmt.Fprintf(f.w, "%v\n", err)
+ 			if crashErr, ok := err.(fuzzCrashError); ok {
+@@ -469,16 +472,6 @@ func (f *F) Fuzz(ff interface{}) {
+ 			run(e)
+ 		}
+ 	}
+-
+-	// Record that the fuzz function (or coordinateFuzzing or runFuzzWorker)
+-	// returned normally. This is used to distinguish runtime.Goexit below
+-	// from panic(nil).
+-	f.finished = true
+-
+-	// Terminate the goroutine. F.Fuzz should not return.
+-	// We cannot call runtime.Goexit from a deferred function: if there is a
+-	// panic, that would replace the panic value with nil.
+-	runtime.Goexit()
+ }
+ 
+ func (f *F) report() {
+@@ -498,14 +491,14 @@ func (f *F) report() {
+ 	}
+ }
+ 
+-// FuzzResult contains the results of a fuzz run.
+-type FuzzResult struct {
++// fuzzResult contains the results of a fuzz run.
++type fuzzResult struct {
+ 	N     int           // The number of iterations.
+ 	T     time.Duration // The total time taken.
+ 	Error error         // Error is the error from the crash
+ }
+ 
+-func (r FuzzResult) String() string {
++func (r fuzzResult) String() string {
+ 	s := ""
+ 	if r.Error == nil {
+ 		return s
+@@ -698,27 +691,28 @@ func fRunner(f *F, fn func(*F)) {
+ 			atomic.AddUint32(&numFailed, 1)
+ 		}
+ 		err := recover()
+-		f.mu.RLock()
+-		ok := f.skipped || f.failed || (f.fuzzCalled && f.finished)
+-		f.mu.RUnlock()
+-		if err == nil && !ok {
+-			err = errNilPanicOrGoexit
++		if err == nil {
++			f.mu.RLock()
++			fuzzNotCalled := !f.fuzzCalled && !f.skipped && !f.failed
++			if !f.finished && !f.skipped && !f.failed {
++				err = errNilPanicOrGoexit
++			}
++			f.mu.RUnlock()
++			if fuzzNotCalled && err == nil {
++				f.Error("returned without calling F.Fuzz, F.Fail, or F.Skip")
++			}
+ 		}
+ 
+ 		// Use a deferred call to ensure that we report that the test is
+-		// complete even if a cleanup function calls t.FailNow. See issue 41355.
++		// complete even if a cleanup function calls F.FailNow. See issue 41355.
+ 		didPanic := false
+ 		defer func() {
+-			if didPanic {
+-				return
++			if !didPanic {
++				// Only report that the test is complete if it doesn't panic,
++				// as otherwise the test binary can exit before the panic is
++				// reported to the user. See issue 41479.
++				f.signal <- true
+ 			}
+-			if err != nil {
+-				panic(err)
+-			}
+-			// Only report that the test is complete if it doesn't panic,
+-			// as otherwise the test binary can exit before the panic is
+-			// reported to the user. See issue 41479.
+-			f.signal <- true
+ 		}()
+ 
+ 		// If we recovered a panic or inappropriate runtime.Goexit, fail the test,
+@@ -747,8 +741,9 @@ func fRunner(f *F, fn func(*F)) {
+ 
+ 		if len(f.sub) > 0 {
+ 			// Unblock inputs that called T.Parallel while running the seed corpus.
+-			// T.Parallel has no effect while fuzzing, so this only affects fuzz
+-			// targets run as normal tests.
++			// This only affects fuzz targets run as normal tests.
++			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
++			// branch is not taken. f.barrier is nil in that case.
+ 			close(f.barrier)
+ 			// Wait for the subtests to complete.
+ 			for _, sub := range f.sub {
+@@ -776,11 +771,9 @@ func fRunner(f *F, fn func(*F)) {
+ 	f.start = time.Now()
+ 	fn(f)
+ 
+-	// Code beyond this point is only executed if fn returned normally.
+-	// That means fn did not call F.Fuzz or F.Skip. It should have called F.Fail.
++	// Code beyond this point will not be executed when FailNow or SkipNow
++	// is invoked.
+ 	f.mu.Lock()
+-	defer f.mu.Unlock()
+-	if !f.failed {
+-		panic(f.name + " returned without calling F.Fuzz, F.Fail, or F.Skip")
+-	}
++	f.finished = true
++	f.mu.Unlock()
+ }
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index ac1e52af85..b3f4b4da58 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -146,21 +146,21 @@
+ //
+ // For example:
+ //
+-// func FuzzHex(f *testing.F) {
+-//   for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
+-//     f.Add(seed)
+-//   }
+-//   f.Fuzz(func(t *testing.T, in []byte) {
+-//     enc := hex.EncodeToString(in)
+-//     out, err := hex.DecodeString(enc)
+-//     if err != nil {
+-//       t.Fatalf("%v: decode: %v", in, err)
+-//     }
+-//     if !bytes.Equal(in, out) {
+-//       t.Fatalf("%v: not equal after round trip: %v", in, out)
++//     func FuzzHex(f *testing.F) {
++//       for _, seed := range [][]byte{{}, {0}, {9}, {0xa}, {0xf}, {1, 2, 3, 4}} {
++//         f.Add(seed)
++//       }
++//       f.Fuzz(func(t *testing.T, in []byte) {
++//         enc := hex.EncodeToString(in)
++//         out, err := hex.DecodeString(enc)
++//         if err != nil {
++//           t.Fatalf("%v: decode: %v", in, err)
++//         }
++//         if !bytes.Equal(in, out) {
++//           t.Fatalf("%v: not equal after round trip: %v", in, out)
++//         }
++//       })
+ //     }
+-//   })
+-// }
+ //
+ // Seed inputs may be registered by calling F.Add or by storing files in the
+ // directory testdata/fuzz/<Name> (where <Name> is the name of the fuzz target)
+@@ -506,7 +506,7 @@ type common struct {
+ 	name     string    // Name of test or benchmark.
+ 	start    time.Time // Time test or benchmark started
+ 	duration time.Duration
+-	barrier  chan bool // To signal parallel subtests they may start.
++	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
+ 	signal   chan bool // To signal a test is done.
+ 	sub      []*T      // Queue of subtests to be run in parallel.
+ 
+@@ -628,13 +628,6 @@ func (c *common) frameSkip(skip int) runtime.Frame {
+ // and inserts the final newline if needed and indentation spaces for formatting.
+ // This function must be called with c.mu held.
+ func (c *common) decorate(s string, skip int) string {
+-	if c.helperNames == nil {
+-		c.helperNames = make(map[string]struct{})
+-		for pc := range c.helperPCs {
+-			c.helperNames[pcToName(pc)] = struct{}{}
+-		}
+-	}
+-
+ 	frame := c.frameSkip(skip)
+ 	file := frame.File
+ 	line := frame.Line
+@@ -1280,14 +1273,6 @@ func tRunner(t *T, fn func(t *T)) {
+ 		err := recover()
+ 		signal := true
+ 
+-		if err != nil && t.isFuzzing() {
+-			t.Errorf("panic: %s\n%s\n", err, string(debug.Stack()))
+-			t.mu.Lock()
+-			t.finished = true
+-			t.mu.Unlock()
+-			err = nil
+-		}
+-
+ 		t.mu.RLock()
+ 		finished := t.finished
+ 		t.mu.RUnlock()
+@@ -1306,6 +1291,18 @@ func tRunner(t *T, fn func(t *T)) {
+ 			}
+ 		}
+ 
++		if err != nil && t.isFuzzing() {
++			prefix := "panic: "
++			if err == errNilPanicOrGoexit {
++				prefix = ""
++			}
++			t.Errorf("%s%s\n%s\n", prefix, err, string(debug.Stack()))
++			t.mu.Lock()
++			t.finished = true
++			t.mu.Unlock()
++			err = nil
++		}
++
+ 		// Use a deferred call to ensure that we report that the test is
+ 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+ 		didPanic := false

@@ -21,7 +21,7 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/ecdsa/boring.go               | 25 +++++++++--------
  src/crypto/ecdsa/ecdsa.go                | 11 ++------
  src/crypto/internal/boring/cache.go      | 16 ++++++-----
@@ -34,3 +34,552 @@ Date:   Wed Apr 27 09:02:53 2022 -0400
  src/runtime/mgc.go                       |  7 ++++-
  src/runtime/mgc_boring.go                | 14 ----------
  11 files changed, 110 insertions(+), 140 deletions(-)
+
+diff --git a/src/crypto/ecdsa/boring.go b/src/crypto/ecdsa/boring.go
+index 1529de3f2b..edb723fe0e 100644
+--- a/src/crypto/ecdsa/boring.go
++++ b/src/crypto/ecdsa/boring.go
+@@ -10,18 +10,13 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"math/big"
+-	"sync/atomic"
+ 	"unsafe"
+ )
+ 
+ // Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
+ //
+-// A new 'boring atomic.Value' field in both PublicKey and PrivateKey
+-// serves as a cache for the most recent conversion. The cache is an
+-// atomic.Value because code might reasonably set up a key and then
+-// (thinking it immutable) use it from multiple goroutines simultaneously.
+-// The first operation initializes the cache; if there are multiple simultaneous
+-// first operations, they will do redundant work but not step on each other.
++// The first operation on a PublicKey or PrivateKey makes a parallel
++// BoringCrypto key and saves it in pubCache or privCache.
+ //
+ // We could just assume that once used in a Sign or Verify operation,
+ // a particular key is never again modified, but that has not been a
+@@ -31,13 +26,21 @@ import (
+ // still matches before using the cached key. The theory is that the real
+ // operations are significantly more expensive than the comparison.
+ 
++var pubCache boring.Cache
++var privCache boring.Cache
++
++func init() {
++	pubCache.Register()
++	privCache.Register()
++}
++
+ type boringPub struct {
+ 	key  *boring.PublicKeyECDSA
+ 	orig PublicKey
+ }
+ 
+ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
+-	b := (*boringPub)(atomic.LoadPointer(&pub.boring))
++	b := (*boringPub)(pubCache.Get(unsafe.Pointer(pub)))
+ 	if b != nil && publicKeyEqual(&b.orig, pub) {
+ 		return b.key, nil
+ 	}
+@@ -49,7 +52,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyECDSA, error) {
+ 		return nil, err
+ 	}
+ 	b.key = key
+-	atomic.StorePointer(&pub.boring, unsafe.Pointer(b))
++	pubCache.Put(unsafe.Pointer(pub), unsafe.Pointer(b))
+ 	return key, nil
+ }
+ 
+@@ -59,7 +62,7 @@ type boringPriv struct {
+ }
+ 
+ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
+-	b := (*boringPriv)(atomic.LoadPointer(&priv.boring))
++	b := (*boringPriv)(privCache.Get(unsafe.Pointer(priv)))
+ 	if b != nil && privateKeyEqual(&b.orig, priv) {
+ 		return b.key, nil
+ 	}
+@@ -71,7 +74,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyECDSA, error) {
+ 		return nil, err
+ 	}
+ 	b.key = key
+-	atomic.StorePointer(&priv.boring, unsafe.Pointer(b))
++	privCache.Put(unsafe.Pointer(priv), unsafe.Pointer(b))
+ 	return key, nil
+ }
+ 
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index efc5dd5067..7ce7542872 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -31,15 +31,12 @@ import (
+ 	"io"
+ 	"math/big"
+ 
++	"crypto/internal/boring"
++
+ 	"golang.org/x/crypto/cryptobyte"
+ 	"golang.org/x/crypto/cryptobyte/asn1"
+ )
+ 
+-import (
+-	"crypto/internal/boring"
+-	"unsafe"
+-)
+-
+ // A invertible implements fast inverse in GF(N).
+ type invertible interface {
+ 	// Inverse returns the inverse of k mod Params().N.
+@@ -60,8 +57,6 @@ const (
+ type PublicKey struct {
+ 	elliptic.Curve
+ 	X, Y *big.Int
+-
+-	boring unsafe.Pointer
+ }
+ 
+ // Any methods implemented on PublicKey might need to also be implemented on
+@@ -89,8 +84,6 @@ func (pub *PublicKey) Equal(x crypto.PublicKey) bool {
+ type PrivateKey struct {
+ 	PublicKey
+ 	D *big.Int
+-
+-	boring unsafe.Pointer
+ }
+ 
+ // Public returns the public key corresponding to priv.
+diff --git a/src/crypto/internal/boring/cache.go b/src/crypto/internal/boring/cache.go
+index 4cf608368f..476e47706c 100644
+--- a/src/crypto/internal/boring/cache.go
++++ b/src/crypto/internal/boring/cache.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto
+-
+ package boring
+ 
+ import (
+@@ -39,7 +37,7 @@ type cacheEntry struct {
+ 	next *cacheEntry    // immutable once linked into table
+ }
+ 
+-func registerCache(unsafe.Pointer)
++func registerCache(unsafe.Pointer) // provided by runtime
+ 
+ // Register registers the cache with the runtime,
+ // so that c.ptable can be cleared at the start of each GC.
+@@ -106,7 +104,8 @@ func (c *Cache) Put(k, v unsafe.Pointer) {
+ 	//
+ 	//  1. We track in noK the start of the section of
+ 	//     the list that we've confirmed has no entry for k.
+-	//     The next time down the list, we can stop at noK.
++	//     The next time down the list, we can stop at noK,
++	//     because new entries are inserted at the front of the list.
+ 	//     This guarantees we never traverse an entry
+ 	//     multiple times.
+ 	//
+@@ -127,12 +126,15 @@ func (c *Cache) Put(k, v unsafe.Pointer) {
+ 		if add == nil {
+ 			add = &cacheEntry{k, v, nil}
+ 		}
+-		if n < 1000 {
+-			add.next = start
++		add.next = start
++		if n >= 1000 {
++			// If an individual list gets too long, which shouldn't happen,
++			// throw it away to avoid quadratic lookup behavior.
++			add.next = nil
+ 		}
+ 		if atomic.CompareAndSwapPointer(head, unsafe.Pointer(start), unsafe.Pointer(add)) {
+ 			return
+ 		}
+-		noK = e
++		noK = start
+ 	}
+ }
+diff --git a/src/crypto/internal/boring/cache_test.go b/src/crypto/internal/boring/cache_test.go
+index 050ba457b2..f9ccb74f6f 100644
+--- a/src/crypto/internal/boring/cache_test.go
++++ b/src/crypto/internal/boring/cache_test.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build boringcrypto
+-
+ package boring
+ 
+ import (
+ 	"fmt"
+ 	"runtime"
++	"sync"
++	"sync/atomic"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -25,11 +25,10 @@ func TestCache(t *testing.T) {
+ 	c := new(Cache)
+ 
+ 	// Create many entries.
+-	seq := 0
++	seq := uint32(0)
+ 	next := func() unsafe.Pointer {
+ 		x := new(int)
+-		*x = seq
+-		seq++
++		*x = int(atomic.AddUint32(&seq, 1))
+ 		return unsafe.Pointer(x)
+ 	}
+ 	m := make(map[unsafe.Pointer]unsafe.Pointer)
+@@ -67,7 +66,7 @@ func TestCache(t *testing.T) {
+ 	c.Clear()
+ 	for k := range m {
+ 		if cv := c.Get(k); cv != nil {
+-			t.Fatalf("after Clear, c.Get(%v) = %v, want nil", str(k), str(cv))
++			t.Fatalf("after GC, c.Get(%v) = %v, want nil", str(k), str(cv))
+ 		}
+ 	}
+ 
+@@ -82,4 +81,40 @@ func TestCache(t *testing.T) {
+ 			t.Fatalf("after Clear, c.Get(%v) = %v, want nil", str(k), str(cv))
+ 		}
+ 	}
++
++	// Check that cache works for concurrent access.
++	// Lists are discarded if they reach 1000 entries,
++	// and there are cacheSize list heads, so we should be
++	// able to do 100 * cacheSize entries with no problem at all.
++	c = new(Cache)
++	var barrier, wg sync.WaitGroup
++	const N = 100
++	barrier.Add(N)
++	wg.Add(N)
++	var lost int32
++	for i := 0; i < N; i++ {
++		go func() {
++			defer wg.Done()
++
++			m := make(map[unsafe.Pointer]unsafe.Pointer)
++			for j := 0; j < cacheSize; j++ {
++				k, v := next(), next()
++				m[k] = v
++				c.Put(k, v)
++			}
++			barrier.Done()
++			barrier.Wait()
++
++			for k, v := range m {
++				if cv := c.Get(k); cv != v {
++					t.Errorf("c.Get(%v) = %v, want %v", str(k), str(cv), str(v))
++					atomic.AddInt32(&lost, +1)
++				}
++			}
++		}()
++	}
++	wg.Wait()
++	if lost != 0 {
++		t.Errorf("lost %d entries", lost)
++	}
+ }
+diff --git a/src/crypto/rsa/boring.go b/src/crypto/rsa/boring.go
+index 362e9307f8..fc2842fb34 100644
+--- a/src/crypto/rsa/boring.go
++++ b/src/crypto/rsa/boring.go
+@@ -10,18 +10,13 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"math/big"
+-	"sync/atomic"
+ 	"unsafe"
+ )
+ 
+ // Cached conversions from Go PublicKey/PrivateKey to BoringCrypto.
+ //
+-// A new 'boring atomic.Value' field in both PublicKey and PrivateKey
+-// serves as a cache for the most recent conversion. The cache is an
+-// atomic.Value because code might reasonably set up a key and then
+-// (thinking it immutable) use it from multiple goroutines simultaneously.
+-// The first operation initializes the cache; if there are multiple simultaneous
+-// first operations, they will do redundant work but not step on each other.
++// The first operation on a PublicKey or PrivateKey makes a parallel
++// BoringCrypto key and saves it in pubCache or privCache.
+ //
+ // We could just assume that once used in a sign/verify/encrypt/decrypt operation,
+ // a particular key is never again modified, but that has not been a
+@@ -36,8 +31,16 @@ type boringPub struct {
+ 	orig PublicKey
+ }
+ 
++var pubCache boring.Cache
++var privCache boring.Cache
++
++func init() {
++	pubCache.Register()
++	privCache.Register()
++}
++
+ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyRSA, error) {
+-	b := (*boringPub)(atomic.LoadPointer(&pub.boring))
++	b := (*boringPub)(pubCache.Get(unsafe.Pointer(pub)))
+ 	if b != nil && publicKeyEqual(&b.orig, pub) {
+ 		return b.key, nil
+ 	}
+@@ -49,7 +52,7 @@ func boringPublicKey(pub *PublicKey) (*boring.PublicKeyRSA, error) {
+ 		return nil, err
+ 	}
+ 	b.key = key
+-	atomic.StorePointer(&pub.boring, unsafe.Pointer(b))
++	pubCache.Put(unsafe.Pointer(pub), unsafe.Pointer(b))
+ 	return key, nil
+ }
+ 
+@@ -59,7 +62,7 @@ type boringPriv struct {
+ }
+ 
+ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyRSA, error) {
+-	b := (*boringPriv)(atomic.LoadPointer(&priv.boring))
++	b := (*boringPriv)(privCache.Get(unsafe.Pointer(priv)))
+ 	if b != nil && privateKeyEqual(&b.orig, priv) {
+ 		return b.key, nil
+ 	}
+@@ -83,7 +86,7 @@ func boringPrivateKey(priv *PrivateKey) (*boring.PrivateKeyRSA, error) {
+ 		return nil, err
+ 	}
+ 	b.key = key
+-	atomic.StorePointer(&priv.boring, unsafe.Pointer(b))
++	privCache.Put(unsafe.Pointer(priv), unsafe.Pointer(b))
+ 	return key, nil
+ }
+ 
+diff --git a/src/crypto/rsa/boring_test.go b/src/crypto/rsa/boring_test.go
+index 1373da9937..6223244283 100644
+--- a/src/crypto/rsa/boring_test.go
++++ b/src/crypto/rsa/boring_test.go
+@@ -13,13 +13,10 @@ import (
+ 	"crypto"
+ 	"crypto/rand"
+ 	"encoding/asn1"
+-	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"sync"
+-	"sync/atomic"
+ 	"testing"
+-	"unsafe"
+ )
+ 
+ func TestBoringASN1Marshal(t *testing.T) {
+@@ -27,28 +24,12 @@ func TestBoringASN1Marshal(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	// This used to fail, because of the unexported 'boring' field.
+-	// Now the compiler hides it [sic].
+ 	_, err = asn1.Marshal(k.PublicKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ }
+ 
+-func TestBoringDeepEqual(t *testing.T) {
+-	k, err := GenerateKey(rand.Reader, 128)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	k.boring = nil // probably nil already but just in case
+-	k2 := *k
+-	k2.boring = unsafe.Pointer(k) // anything not nil, for this test
+-	if !reflect.DeepEqual(k, &k2) {
+-		// compiler should be hiding the boring field from reflection
+-		t.Fatalf("DeepEqual compared boring fields")
+-	}
+-}
+-
+ func TestBoringVerify(t *testing.T) {
+ 	// Check that signatures that lack leading zeroes don't verify.
+ 	key := &PublicKey{
+@@ -73,6 +54,28 @@ func TestBoringVerify(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkBoringVerify(b *testing.B) {
++	// Check that signatures that lack leading zeroes don't verify.
++	key := &PublicKey{
++		N: bigFromHex("c4fdf7b40a5477f206e6ee278eaef888ca73bf9128a9eef9f2f1ddb8b7b71a4c07cfa241f028a04edb405e4d916c61d6beabc333813dc7b484d2b3c52ee233c6a79b1eea4e9cc51596ba9cd5ac5aeb9df62d86ea051055b79d03f8a4fa9f38386f5bd17529138f3325d46801514ea9047977e0829ed728e68636802796801be1"),
++		E: 65537,
++	}
++
++	hash := fromHex("019c5571724fb5d0e47a4260c940e9803ba05a44")
++
++	// signature is one byte shorter than key.N.
++	sig := fromHex("5edfbeb6a73e7225ad3cc52724e2872e04260d7daf0d693c170d8c4b243b8767bc7785763533febc62ec2600c30603c433c095453ede59ff2fcabeb84ce32e0ed9d5cf15ffcbc816202b64370d4d77c1e9077d74e94a16fb4fa2e5bec23a56d7a73cf275f91691ae1801a976fcde09e981a2f6327ac27ea1fecf3185df0d56")
++
++	b.ReportAllocs()
++
++	for i := 0; i < b.N; i++ {
++		err := VerifyPKCS1v15(key, crypto.SHA1, hash, sig)
++		if err == nil {
++			b.Fatalf("sha1: expected verification error")
++		}
++	}
++}
++
+ func TestBoringGenerateKey(t *testing.T) {
+ 	k, err := GenerateKey(rand.Reader, 2048) // 2048 is smallest size BoringCrypto might kick in for
+ 	if err != nil {
+@@ -103,8 +106,8 @@ func TestBoringFinalizers(t *testing.T) {
+ 	// about 30 iterations.
+ 	defer debug.SetGCPercent(debug.SetGCPercent(10))
+ 	for n := 0; n < 200; n++ {
+-		// Clear the underlying BoringCrypto object.
+-		atomic.StorePointer(&k.boring, nil)
++		// Clear the underlying BoringCrypto object cache.
++		privCache.Clear()
+ 
+ 		// Race to create the underlying BoringCrypto object.
+ 		// The ones that lose the race are prime candidates for
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index e084be15cc..c941124fb2 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -34,7 +34,6 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/big"
+-	"unsafe"
+ )
+ 
+ var bigZero = big.NewInt(0)
+@@ -44,8 +43,6 @@ var bigOne = big.NewInt(1)
+ type PublicKey struct {
+ 	N *big.Int // modulus
+ 	E int      // public exponent
+-
+-	boring unsafe.Pointer
+ }
+ 
+ // Any methods implemented on PublicKey might need to also be implemented on
+@@ -109,8 +106,6 @@ type PrivateKey struct {
+ 	// Precomputed contains precomputed values that speed up private
+ 	// operations, if available.
+ 	Precomputed PrecomputedValues
+-
+-	boring unsafe.Pointer
+ }
+ 
+ // Public returns the public key corresponding to priv.
+diff --git a/src/internal/boringtest/boring.go b/src/internal/boringtest/boring.go
+deleted file mode 100644
+index bea1276e69..0000000000
+--- a/src/internal/boringtest/boring.go
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Nothing to see here but the tests.
+-// This file keeps 'go install internal/...' working.
+-
+-package boring
+diff --git a/src/internal/boringtest/boring_test.go b/src/internal/boringtest/boring_test.go
+deleted file mode 100644
+index a6b07eda70..0000000000
+--- a/src/internal/boringtest/boring_test.go
++++ /dev/null
+@@ -1,47 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Like crypto/rsa/boring_test.go but outside the crypto/ tree.
+-// Tests what happens if a package outside the crypto/ tree
+-// "adopts" a struct definition. This happens in golang.org/x/crypto/ssh.
+-
+-package boring
+-
+-import (
+-	"crypto/rand"
+-	"crypto/rsa"
+-	"encoding/asn1"
+-	"reflect"
+-	"testing"
+-)
+-
+-type publicKey rsa.PublicKey
+-
+-func TestBoringASN1Marshal(t *testing.T) {
+-	k, err := rsa.GenerateKey(rand.Reader, 128)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	pk := (*publicKey)(&k.PublicKey)
+-	// This used to fail, because of the unexported 'boring' field.
+-	// Now the compiler hides it [sic].
+-	_, err = asn1.Marshal(*pk)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-}
+-
+-func TestBoringDeepEqual(t *testing.T) {
+-	k0, err := rsa.GenerateKey(rand.Reader, 128)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	k := (*publicKey)(&k0.PublicKey)
+-	k2 := *k
+-	rsa.EncryptPKCS1v15(rand.Reader, (*rsa.PublicKey)(&k2), []byte("hello")) // initialize hidden boring field
+-	if !reflect.DeepEqual(k, &k2) {
+-		// compiler should be hiding the boring field from reflection
+-		t.Fatalf("DeepEqual compared boring fields")
+-	}
+-}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index b2558c8bd3..f79bd54c5e 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1536,13 +1536,18 @@ func gcResetMarkState() {
+ // Hooks for other packages
+ 
+ var poolcleanup func()
+-var boringCaches []unsafe.Pointer
++var boringCaches []unsafe.Pointer // for crypto/internal/boring
+ 
+ //go:linkname sync_runtime_registerPoolCleanup sync.runtime_registerPoolCleanup
+ func sync_runtime_registerPoolCleanup(f func()) {
+ 	poolcleanup = f
+ }
+ 
++//go:linkname boring_registerCache crypto/internal/boring.registerCache
++func boring_registerCache(p unsafe.Pointer) {
++	boringCaches = append(boringCaches, p)
++}
++
+ func clearpools() {
+ 	// clear sync.Pools
+ 	if poolcleanup != nil {
+diff --git a/src/runtime/mgc_boring.go b/src/runtime/mgc_boring.go
+deleted file mode 100644
+index 149ba51dd7..0000000000
+--- a/src/runtime/mgc_boring.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build boringcrypto
+-
+-package runtime
+-
+-import "unsafe"
+-
+-//go:linkname boring_registerCache crypto/internal/boring.registerCache
+-func boring_registerCache(p unsafe.Pointer) {
+-	boringCaches = append(boringCaches, p)
+-}

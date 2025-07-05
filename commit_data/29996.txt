@@ -9,6 +9,22 @@ Date:   Mon Sep 12 17:48:34 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mstkbar.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/mstkbar.go b/src/runtime/mstkbar.go
+index 1bf9d573b7..4415559b6c 100644
+--- a/src/runtime/mstkbar.go
++++ b/src/runtime/mstkbar.go
+@@ -148,6 +148,10 @@ var firstStackBarrierOffset = 1024
+ // gcMaxStackBarriers returns the maximum number of stack barriers
+ // that can be installed in a stack of stackSize bytes.
+ func gcMaxStackBarriers(stackSize int) (n int) {
++	if debug.gcstackbarrieroff > 0 {
++		return 0
++	}
++
+ 	if firstStackBarrierOffset == 0 {
+ 		// Special debugging case for inserting stack barriers
+ 		// at every frame. Steal half of the stack for the

@@ -9,6 +9,14 @@ Date:   Mon Jan 11 21:10:46 2016 -0500
     Change-Id: I46a4535cc768ce8bbe33c72961f1fa87658493f7
     Reviewed-on: https://go-review.googlesource.com/18534
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  dev.garbage | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/dev.garbage b/dev.garbage
+new file mode 100644
+index 0000000000..b8c3a3fcb7
+--- /dev/null
++++ b/dev.garbage
+@@ -0,0 +1 @@
++Reviving dev.garbage branch for use in new garbage collection experiment.

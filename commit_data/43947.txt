@@ -11,7 +11,41 @@ Date:   Wed Apr 29 17:53:40 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 6 ------
  src/cmd/link/internal/sym/symbols.go   | 5 -----
  2 files changed, 11 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index e4b8098a8a..7736ba9771 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2347,12 +2347,6 @@ func (l *Loader) ExtractSymbols(syms *sym.Symbols) {
+ 		i := l.Lookup(name, ver)
+ 		return l.Syms[i]
+ 	}
+-	syms.Newsym = func(name string, ver int) *sym.Symbol {
+-		i := l.newExtSym(name, ver)
+-		s := l.allocSym(name, ver)
+-		l.installSym(i, s)
+-		return s
+-	}
+ }
+ 
+ // allocSym allocates a new symbol backing.
+diff --git a/src/cmd/link/internal/sym/symbols.go b/src/cmd/link/internal/sym/symbols.go
+index 0d7b7e6a46..ff139fedff 100644
+--- a/src/cmd/link/internal/sym/symbols.go
++++ b/src/cmd/link/internal/sym/symbols.go
+@@ -43,11 +43,6 @@ type Symbols struct {
+ 	// Look up the symbol with the given name and version, returning nil
+ 	// if it is not found.
+ 	ROLookup func(name string, v int) *Symbol
+-
+-	// Create a symbol with the given name and version. The new symbol
+-	// is not added to the lookup table and is not dedup'd with existing
+-	// symbols (if any).
+-	Newsym func(name string, v int) *Symbol
+ }
+ 
+ func NewSymbols() *Symbols {

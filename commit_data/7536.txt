@@ -9,7 +9,7 @@ Date:   Wed Feb 23 14:30:40 2011 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/4174060
-
+---
  src/cmd/5l/asm.c   | 28 ++++++++---------
  src/cmd/5l/doc.go  |  2 ++
  src/cmd/5l/obj.c   | 46 +++++++++++++++++-----------
@@ -26,3 +26,1208 @@ Date:   Wed Feb 23 14:30:40 2011 +1100
  src/cmd/ld/lib.c   | 13 ++++++++
  src/cmd/ld/lib.h   | 31 +++++++++++++++++++
  15 files changed, 248 insertions(+), 187 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 7163997c0f..adc4ae7478 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -331,21 +331,21 @@ asmb(void)
+ 			Bprint(&bso, "%5.2f sym\n", cputime());
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+-		case 0:
+-		case 1:
+-		case 4:
+-		case 5:
++		case Hnoheader:
++		case Hrisc:
++		case Hixp1200:
++		case Hipaq:
+ 			debug['s'] = 1;
+ 			break;
+-		case 2:
++		case Hplan9x32:
+ 			OFFSET = HEADR+textsize+segdata.filelen;
+ 			seek(cout, OFFSET, 0);
+ 			break;
+-		case 3:
++		case Hnetbsd:
+ 			OFFSET += rnd(segdata.filelen, 4096);
+ 			seek(cout, OFFSET, 0);
+ 			break;
+-		case 6:
++		case Hlinux:
+ 			OFFSET += segdata.filelen;
+ 			seek(cout, rnd(OFFSET, INITRND), 0);
+ 			break;
+@@ -362,9 +362,9 @@ asmb(void)
+ 	OFFSET = 0;
+ 	seek(cout, OFFSET, 0);
+ 	switch(HEADTYPE) {
+-	case 0:	/* no header */
++	case Hnoheader:	/* no header */
+ 		break;
+-	case 1:	/* aif for risc os */
++	case Hrisc:	/* aif for risc os */
+ 		lputl(0xe1a00000);		/* NOP - decompress code */
+ 		lputl(0xe1a00000);		/* NOP - relocation code */
+ 		lputl(0xeb000000 + 12);		/* BL - zero init code */
+@@ -394,7 +394,7 @@ asmb(void)
+ 			lputl(0xe1a00000);	/* NOP - zero init code */
+ 		lputl(0xe1a0f00e);		/* B (R14) - zero init return */
+ 		break;
+-	case 2:	/* plan 9 */
++	case Hplan9x32:	/* plan 9 */
+ 		lput(0x647);			/* magic */
+ 		lput(textsize);			/* sizes */
+ 		lput(segdata.filelen);
+@@ -404,7 +404,7 @@ asmb(void)
+ 		lput(0L);
+ 		lput(lcsize);
+ 		break;
+-	case 3:	/* boot for NetBSD */
++	case Hnetbsd:	/* boot for NetBSD */
+ 		lput((143<<16)|0413);		/* magic */
+ 		lputl(rnd(HEADR+textsize, 4096));
+ 		lputl(rnd(segdata.filelen, 4096));
+@@ -414,15 +414,15 @@ asmb(void)
+ 		lputl(0L);
+ 		lputl(0L);
+ 		break;
+-	case 4: /* boot for IXP1200 */
++	case Hixp1200: /* boot for IXP1200 */
+ 		break;
+-	case 5: /* boot for ipaq */
++	case Hipaq: /* boot for ipaq */
+ 		lputl(0xe3300000);		/* nop */
+ 		lputl(0xe3300000);		/* nop */
+ 		lputl(0xe3300000);		/* nop */
+ 		lputl(0xe3300000);		/* nop */
+ 		break;
+-	case 6:
++	case Hlinux:
+ 		/* elf arm */
+ 		eh = getElfEhdr();
+ 		fo = HEADR;
+diff --git a/src/cmd/5l/doc.go b/src/cmd/5l/doc.go
+index d266b92331..aa7ccebfc9 100644
+--- a/src/cmd/5l/doc.go
++++ b/src/cmd/5l/doc.go
+@@ -23,6 +23,8 @@ Options new in this version:
+ -F
+ 	Force use of software floating point.
+ 	Also implied by setting GOARM=5 in the environment.
++-Hlinux
++	Write Linux ELF binaries (default when $GOOS is linux)
+ -I interpreter
+ 	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index b976e300bc..c929b3291e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -43,12 +43,24 @@
+ char	*noname		= "<none>";
+ char	*thestring 	= "arm";
+ 
++Header headers[] = {
++   "noheader", Hnoheader,
++   "risc", Hrisc,
++   "plan9", Hplan9x32,
++   "netbsd", Hnetbsd,
++   "ixp1200", Hixp1200,
++   "ipaq", Hipaq,
++   "linux", Hlinux,
++   0, 0
++};
++
+ /*
+- *	-H1 -T0x10005000 -R4		is aif for risc os
+- *	-H2 -T4128 -R4096		is plan9 format
+- *	-H3 -T0xF0000020 -R4		is NetBSD format
+- *	-H4				is IXP1200 (raw)
+- *	-H5 -T0xC0008010 -R1024		is ipaq
++ *	-Hrisc -T0x10005000 -R4		is aif for risc os
++ *	-Hplan9 -T4128 -R4096		is plan9 format
++ *	-Hnetbsd -T0xF0000020 -R4	is NetBSD format
++ *	-Hixp1200			is IXP1200 (raw)
++ *	-Hipaq -T0xC0008010 -R1024	is ipaq
++ *	-Hlinux -Tx -Rx			is linux elf
+  */
+ 
+ static char*
+@@ -118,7 +130,7 @@ main(int argc, char *argv[])
+ 		rpath = EARGF(usage());
+ 		break;
+ 	case 'H':
+-		HEADTYPE = atolwhex(EARGF(usage()));
++		HEADTYPE = headtype(EARGF(usage()));
+ 		/* do something about setting INITTEXT */
+ 		break;
+ 	case 'V':
+@@ -137,18 +149,18 @@ main(int argc, char *argv[])
+ 		debug[DEFAULT] = 1;
+ 	if(HEADTYPE == -1) {
+ 		if(debug['U'])
+-			HEADTYPE = 0;
++			HEADTYPE = Hnoheader;
+ 		if(debug['B'])
+-			HEADTYPE = 1;
++			HEADTYPE = Hrisc;
+ 		if(debug['9'])
+-			HEADTYPE = 2;
+-		HEADTYPE = 6;
++			HEADTYPE = Hplan9x32;
++		HEADTYPE = Hlinux;
+ 	}
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown -H option");
+ 		errorexit();
+-	case 0:	/* no header */
++	case Hnoheader:	/* no header */
+ 		HEADR = 0L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0;
+@@ -157,7 +169,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4;
+ 		break;
+-	case 1:	/* aif for risc os */
++	case Hrisc:	/* aif for risc os */
+ 		HEADR = 128L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x10005000 + HEADR;
+@@ -166,7 +178,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4;
+ 		break;
+-	case 2:	/* plan 9 */
++	case Hplan9x32:	/* plan 9 */
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4128;
+@@ -175,7 +187,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 3:	/* boot for NetBSD */
++	case Hnetbsd:	/* boot for NetBSD */
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0xF0000020L;
+@@ -184,7 +196,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 4: /* boot for IXP1200 */
++	case Hixp1200: /* boot for IXP1200 */
+ 		HEADR = 0L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x0;
+@@ -193,7 +205,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4;
+ 		break;
+-	case 5: /* boot for ipaq */
++	case Hipaq: /* boot for ipaq */
+ 		HEADR = 16L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0xC0008010;
+@@ -202,7 +214,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 1024;
+ 		break;
+-	case 6:	/* arm elf */
++	case Hlinux:	/* arm elf */
+ 		debug['d'] = 1;	// no dynamic linking
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d179e77b1e..fb041d83a5 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -262,7 +262,7 @@ adddynrel(Sym *s, Reloc *r)
+ 			r->type = 256;	// ignore during relocsym
+ 			return;
+ 		}
+-		if(HEADTYPE == 6 && s->size == PtrSize && r->off == 0) {
++		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -365,7 +365,7 @@ addpltsym(Sym *s)
+ 		adduint64(rela, 0);
+ 		
+ 		s->plt = plt->size - 16;
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		// To do lazy symbol lookup right, we're supposed
+ 		// to tell the dynamic loader which library each 
+ 		// symbol comes from and format the link info
+@@ -412,7 +412,7 @@ addgotsym(Sym *s)
+ 		addaddrplus(rela, got, s->got);
+ 		adduint64(rela, ELF64_R_INFO(s->dynid, R_X86_64_GLOB_DAT));
+ 		adduint64(rela, 0);
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		adduint32(lookup(".linkedit.got", 0), s->dynid);
+ 	} else {
+ 		diag("addgotsym: unsupported binary format");
+@@ -486,7 +486,7 @@ adddynsym(Sym *s)
+ 			elfwritedynent(lookup(".dynamic", 0), DT_NEEDED,
+ 				addstring(lookup(".dynstr", 0), s->dynimplib));
+ 		}
+-	} else if(HEADTYPE == 6) {
++	} else if(HEADTYPE == Hdarwin) {
+ 		// Mach-o symbol nlist64
+ 		d = lookup(".dynsym", 0);
+ 		name = s->dynimpname;
+@@ -539,7 +539,7 @@ adddynlib(char *lib)
+ 		if(s->size == 0)
+ 			addstring(s, "");
+ 		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		machoadddynlib(lib);
+ 	} else {
+ 		diag("adddynlib: unsupported binary format");
+@@ -551,7 +551,7 @@ doelf(void)
+ {
+ 	Sym *s, *shstrtab, *dynstr;
+ 
+-	if(HEADTYPE != 7 && HEADTYPE != 9)
++	if(HEADTYPE != Hlinux && HEADTYPE != Hfreebsd)
+ 		return;
+ 
+ 	/* predefine strings we need for section headers */
+@@ -717,20 +717,20 @@ asmb(void)
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	machlink = 0;
+-	if(HEADTYPE == 6)
++	if(HEADTYPE == Hdarwin)
+ 		machlink = domacholink();
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown header type %d", HEADTYPE);
+-	case 2:
+-	case 5:
++	case Hplan9x32:
++	case Helf:
+ 		break;
+-	case 6:
++	case Hdarwin:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		break;
+-	case 7:
+-	case 9:
++	case Hlinux:
++	case Hfreebsd:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+ 		/* !debug['d'] causes extra sections before the .text section */
+@@ -738,7 +738,7 @@ asmb(void)
+ 		if(!debug['d'])
+ 			elftextsh += 10;
+ 		break;
+-	case 10:
++	case Hwindows:
+ 		break;
+ 	}
+ 
+@@ -752,20 +752,20 @@ asmb(void)
+ 		Bflush(&bso);
+ 		switch(HEADTYPE) {
+ 		default:
+-		case 2:
+-		case 5:
++		case Hplan9x32:
++		case Helf:
+ 			debug['s'] = 1;
+ 			symo = HEADR+segtext.len+segdata.filelen;
+ 			break;
+-		case 6:
++		case Hdarwin:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+-		case 7:
+-		case 9:
++		case Hlinux:
++		case Hfreebsd:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+-		case 10:
++		case Hwindows:
+ 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+@@ -791,7 +791,7 @@ asmb(void)
+ 		lputl(symsize);
+ 		lputl(lcsize);
+ 		cflush();
+-		if(HEADTYPE != 10 && !debug['s']) {
++		if(HEADTYPE != Hwindows && !debug['s']) {
+ 			elfsymo = symo+8+symsize+lcsize;
+ 			seek(cout, elfsymo, 0);
+ 			asmelfsym64();
+@@ -813,7 +813,7 @@ asmb(void)
+ 	seek(cout, 0L, 0);
+ 	switch(HEADTYPE) {
+ 	default:
+-	case 2:	/* plan9 */
++	case Hplan9x32:	/* plan9 */
+ 		magic = 4*26*26+7;
+ 		magic |= 0x00008000;		/* fat header */
+ 		lputb(magic);			/* magic */
+@@ -827,7 +827,7 @@ asmb(void)
+ 		lputb(lcsize);			/* line offsets */
+ 		vputb(vl);			/* va of entry */
+ 		break;
+-	case 3:	/* plan9 */
++	case Hplan9x64:	/* plan9 */
+ 		magic = 4*26*26+7;
+ 		lputb(magic);			/* magic */
+ 		lputb(segtext.filelen);		/* sizes */
+@@ -838,11 +838,11 @@ asmb(void)
+ 		lputb(spsize);			/* sp offsets */
+ 		lputb(lcsize);			/* line offsets */
+ 		break;
+-	case 6:
++	case Hdarwin:
+ 		asmbmacho();
+ 		break;
+-	case 7:
+-	case 9:
++	case Hlinux:
++	case Hfreebsd:
+ 		/* elf amd-64 */
+ 
+ 		eh = getElfEhdr();
+@@ -871,10 +871,10 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			if(interpreter == nil) {
+ 				switch(HEADTYPE) {
+-				case 7:
++				case Hlinux:
+ 					interpreter = linuxdynld;
+ 					break;
+-				case 9:
++				case Hfreebsd:
+ 					interpreter = freebsddynld;
+ 					break;
+ 				}
+@@ -1032,7 +1032,7 @@ asmb(void)
+ 		eh->ident[EI_MAG1] = 'E';
+ 		eh->ident[EI_MAG2] = 'L';
+ 		eh->ident[EI_MAG3] = 'F';
+-		if(HEADTYPE == 9)
++		if(HEADTYPE == Hfreebsd)
+ 			eh->ident[EI_OSABI] = 9;
+ 		eh->ident[EI_CLASS] = ELFCLASS64;
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+@@ -1055,7 +1055,7 @@ asmb(void)
+ 		if(a+elfwriteinterp() > ELFRESERVE)
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+-	case 10:
++	case Hwindows:
+ 		asmbpe();
+ 		break;
+ 	}
+diff --git a/src/cmd/6l/doc.go b/src/cmd/6l/doc.go
+index 97fa2cc5a2..cc7782cfeb 100644
+--- a/src/cmd/6l/doc.go
++++ b/src/cmd/6l/doc.go
+@@ -28,10 +28,14 @@ Options new in this version:
+ -e
+ 	Emit an extra ELF-compatible symbol table useful with tools such as
+ 	nm, gdb, and oprofile. This option makes the binary file considerably larger.
+--H6
++-Hdarwin
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+--H7
++-Hlinux
+ 	Write Linux ELF binaries (default when $GOOS is linux)
++-Hfreebsd
++	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
++-Hwindows
++	Write Windows PE32+ binaries (default when $GOOS is windows)
+ -I interpreter
+ 	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3dabb4c178..6ade3800a2 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -43,13 +43,25 @@ char	*noname		= "<none>";
+ char*	thestring 	= "amd64";
+ char*	paramspace	= "FP";
+ 
++Header headers[] = {
++   "plan9x32", Hplan9x32,
++   "plan9", Hplan9x64,
++   "elf", Helf,
++   "darwin", Hdarwin,
++   "linux", Hlinux,
++   "freebsd", Hfreebsd,
++   "windows", Hwindows,
++   0, 0
++};
++
+ /*
+- *	-H2 -T4136 -R4096		is plan9 64-bit format
+- *	-H3 -T4128 -R4096		is plan9 32-bit format
+- *	-H5 -T0x80110000 -R4096		is ELF32
+- *	-H6 -Tx -Rx			is apple MH-exec
+- *	-H7 -Tx -Rx			is linux elf-exec
+- *      -H9 -Tx -Rx			is FreeBSD elf-exec
++ *	-Hplan9x32 -T4136 -R4096	is plan9 64-bit format
++ *	-Hplan9 -T4128 -R4096		is plan9 32-bit format
++ *	-Helf -T0x80110000 -R4096	is ELF32
++ *	-Hdarwin -Tx -Rx		is apple MH-exec
++ *	-Hlinux -Tx -Rx			is linux elf-exec
++ *	-Hfreebsd -Tx -Rx		is FreeBSD elf-exec
++ *	-Hwindows -Tx -Rx		is MS Windows PE32+
+  *
+  *	options used: 189BLQSWabcjlnpsvz
+  */
+@@ -93,7 +105,7 @@ main(int argc, char *argv[])
+ 		INITENTRY = EARGF(usage());
+ 		break;
+ 	case 'H':
+-		HEADTYPE = atolwhex(EARGF(usage()));
++		HEADTYPE = headtype(EARGF(usage()));
+ 		break;
+ 	case 'I':
+ 		interpreter = EARGF(usage());
+@@ -123,28 +135,14 @@ main(int argc, char *argv[])
+ 
+ 	libinit();
+ 
+-	if(HEADTYPE == -1) {
+-		HEADTYPE = 2;
+-		if(strcmp(goos, "linux") == 0)
+-			HEADTYPE = 7;
+-		else
+-		if(strcmp(goos, "darwin") == 0)
+-			HEADTYPE = 6;
+-		else
+-		if(strcmp(goos, "freebsd") == 0)
+-			HEADTYPE = 9;
+-		else
+-		if(strcmp(goos, "windows") == 0)
+-			HEADTYPE = 10;
+-		else
+-			print("goos is not known: %s\n", goos);
+-	}
++	if(HEADTYPE == -1)
++		HEADTYPE = headtype(goos);
+ 
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown -H option");
+ 		errorexit();
+-	case 2:	/* plan 9 */
++	case Hplan9x32:	/* plan 9 */
+ 		HEADR = 32L+8L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+HEADR;
+@@ -153,7 +151,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 3:	/* plan 9 */
++	case Hplan9x64:	/* plan 9 */
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 4096+32;
+@@ -162,7 +160,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 5:	/* elf32 executable */
++	case Helf:	/* elf32 executable */
+ 		HEADR = rnd(52L+3*32L, 16);
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x80110000L;
+@@ -171,7 +169,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 6:	/* apple MACH */
++	case Hdarwin:	/* apple MACH */
+ 		/*
+ 		 * OS X system constant - offset from 0(GS) to our TLS.
+ 		 * Explained in ../../libcgo/darwin_amd64.c.
+@@ -186,8 +184,8 @@ main(int argc, char *argv[])
+ 		if(INITDAT == -1)
+ 			INITDAT = 0;
+ 		break;
+-	case 7:	/* elf64 executable */
+-	case 9: /* freebsd */
++	case Hlinux:	/* elf64 executable */
++	case Hfreebsd: /* freebsd */
+ 		/*
+ 		 * ELF uses TLS offset negative from FS.
+ 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).
+@@ -204,7 +202,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 10: /* PE executable */
++	case Hwindows: /* PE executable */
+ 		peinit();
+ 		HEADR = PEFILEHEADR;
+ 		if(INITTEXT == -1)
+@@ -249,7 +247,7 @@ main(int argc, char *argv[])
+ 	patch();
+ 	follow();
+ 	doelf();
+-	if(HEADTYPE == 6)
++	if(HEADTYPE == Hdarwin)
+ 		domacho();
+ 	dostkoff();
+ 	dostkcheck();
+@@ -260,7 +258,7 @@ main(int argc, char *argv[])
+ 		else
+ 			doprof2();
+ 	span();
+-	if(HEADTYPE == 10)
++	if(HEADTYPE == Hwindows)
+ 		dope();
+ 	addexport();
+ 	textaddress();
+diff --git a/src/cmd/6l/pass.c b/src/cmd/6l/pass.c
+index 9d94cfc854..98a32a7624 100644
+--- a/src/cmd/6l/pass.c
++++ b/src/cmd/6l/pass.c
+@@ -271,7 +271,7 @@ patch(void)
+ 	vexit = s->value;
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next)
+ 	for(p = cursym->text; p != P; p = p->link) {
+-		if(HEADTYPE == 10) { 
++		if(HEADTYPE == Hwindows) { 
+ 			// Windows
+ 			// Convert
+ 			//   op   n(GS), reg
+@@ -294,7 +294,7 @@ patch(void)
+ 				p->from.offset = 0x58;
+ 			}
+ 		}
+-		if(HEADTYPE == 7 || HEADTYPE == 9) {
++		if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd) {
+ 			// ELF uses FS instead of GS.
+ 			if(p->from.type == D_INDIR+D_GS)
+ 				p->from.type = D_INDIR+D_FS;
+@@ -422,13 +422,13 @@ dostkoff(void)
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);	// load g into CX
+ 			p->as = AMOVQ;
+-			if(HEADTYPE == 7 || HEADTYPE == 9)	// ELF uses FS
++			if(HEADTYPE == Hlinux || HEADTYPE == Hfreebsd)	// ELF uses FS
+ 				p->from.type = D_INDIR+D_FS;
+ 			else
+ 				p->from.type = D_INDIR+D_GS;
+ 			p->from.offset = tlsoffset+0;
+ 			p->to.type = D_CX;
+-			if(HEADTYPE == 10) { // Windows
++			if(HEADTYPE == Hwindows) {
+ 				// movq %gs:0x58, %rcx
+ 				// movq (%rcx), %rcx
+ 				p->as = AMOVQ;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index d90eab7e7d..1e760d89e5 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -246,7 +246,7 @@ adddynrel(Sym *s, Reloc *r)
+ 			r->sym = S;
+ 			return;
+ 		}
+-		if(HEADTYPE == 6 && s->size == PtrSize && r->off == 0) {
++		if(HEADTYPE == Hdarwin && s->size == PtrSize && r->off == 0) {
+ 			// Mach-O relocations are a royal pain to lay out.
+ 			// They use a compact stateful bytecode representation
+ 			// that is too much bother to deal with.
+@@ -356,7 +356,7 @@ addpltsym(Sym *s)
+ 		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_JMP_SLOT));
+ 		
+ 		s->plt = plt->size - 16;
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		// Same laziness as in 6l.
+ 		
+ 		Sym *plt;
+@@ -395,7 +395,7 @@ addgotsym(Sym *s)
+ 		rel = lookup(".rel", 0);
+ 		addaddrplus(rel, got, s->got);
+ 		adduint32(rel, ELF32_R_INFO(s->dynid, R_386_GLOB_DAT));
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		adduint32(lookup(".linkedit.got", 0), s->dynid);
+ 	} else {
+ 		diag("addgotsym: unsupported binary format");
+@@ -465,7 +465,7 @@ adddynsym(Sym *s)
+ 			}
+ 			adduint16(d, t);
+ 		}
+-	} else if(HEADTYPE == 6) {
++	} else if(HEADTYPE == Hdarwin) {
+ 		// Mach-O symbol nlist32
+ 		d = lookup(".dynsym", 0);
+ 		name = s->dynimpname;
+@@ -481,7 +481,7 @@ adddynsym(Sym *s)
+ 		adduint8(d, 0);	// section
+ 		adduint16(d, 0);	// desc
+ 		adduint32(d, 0);	// value
+-	} else if(HEADTYPE != 10) {
++	} else if(HEADTYPE != Hwindows) {
+ 		diag("adddynsym: unsupported binary format");
+ 	}
+ }
+@@ -499,9 +499,9 @@ adddynlib(char *lib)
+ 		if(s->size == 0)
+ 			addstring(s, "");
+ 		elfwritedynent(lookup(".dynamic", 0), DT_NEEDED, addstring(s, lib));
+-	} else if(HEADTYPE == 6) {	// Mach-O
++	} else if(HEADTYPE == Hdarwin) {
+ 		machoadddynlib(lib);
+-	} else if(HEADTYPE != 10) {
++	} else if(HEADTYPE != Hwindows) {
+ 		diag("adddynlib: unsupported binary format");
+ 	}
+ }
+@@ -673,7 +673,7 @@ asmb(void)
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	machlink = 0;
+-	if(HEADTYPE == 6)
++	if(HEADTYPE == Hdarwin)
+ 		machlink = domacholink();
+ 
+ 	if(iself) {
+@@ -697,28 +697,28 @@ asmb(void)
+ 		default:
+ 			if(iself)
+ 				goto Elfsym;
+-		case 0:
++		case Hgarbunix:
+ 			seek(cout, rnd(HEADR+segtext.filelen, 8192)+segdata.filelen, 0);
+ 			break;
+-		case 1:
++		case Hunixcoff:
+ 			seek(cout, rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen, 0);
+ 			break;
+-		case 2:
++		case Hplan9x32:
+ 			symo = HEADR+segtext.filelen+segdata.filelen;
+ 			break;
+-		case 3:
+-		case 4:
++		case Hmsdoscom:
++		case Hmsdosexe:
+ 			debug['s'] = 1;
+ 			symo = HEADR+segtext.filelen+segdata.filelen;
+ 			break;
+-		case 6:
++		case Hdarwin:
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+rnd(segdata.filelen, INITRND)+machlink;
+ 			break;
+ 		Elfsym:
+ 			symo = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+-		case 10:
++		case Hwindows:
+ 			// TODO(brainman): not sure what symo meant to be, but it is not used for Windows PE for now anyway
+ 			symo = rnd(HEADR+segtext.filelen, PEFILEALIGN)+segdata.filelen;
+ 			symo = rnd(symo, PEFILEALIGN);
+@@ -727,7 +727,7 @@ asmb(void)
+ 		if(!debug['s']) {
+ 			seek(cout, symo, 0);
+ 			
+-			if(HEADTYPE == 2) {
++			if(HEADTYPE == Hplan9x32) {
+ 				asmplan9sym();
+ 				cflush();
+ 				
+@@ -740,7 +740,7 @@ asmb(void)
+ 					cflush();
+ 				}
+ 				
+-			} else if(HEADTYPE != 10) {
++			} else if(HEADTYPE != Hwindows) {
+ 				if(debug['v'])
+ 					Bprint(&bso, "%5.2f dwarf\n", cputime());
+ 				dwarfemitdebugsections();
+@@ -755,7 +755,7 @@ asmb(void)
+ 	default:
+ 		if(iself)
+ 			goto Elfput;
+-	case 0:	/* garbage */
++	case Hgarbunix:	/* garbage */
+ 		lputb(0x160L<<16);		/* magic and sections */
+ 		lputb(0L);			/* time and date */
+ 		lputb(rnd(HEADR+segtext.filelen, 4096)+segdata.filelen);
+@@ -777,7 +777,7 @@ asmb(void)
+ 		lputb(~0L);			/* gp value ?? */
+ 		break;
+ 		lputl(0);			/* x */
+-	case 1:	/* unix coff */
++	case Hunixcoff:	/* unix coff */
+ 		/*
+ 		 * file header
+ 		 */
+@@ -845,7 +845,7 @@ asmb(void)
+ 		lputl(0);			/* relocation, line numbers */
+ 		lputl(0x200);			/* flags comment only */
+ 		break;
+-	case 2:	/* plan9 */
++	case Hplan9x32:	/* plan9 */
+ 		magic = 4*11*11+7;
+ 		lputb(magic);		/* magic */
+ 		lputb(segtext.filelen);			/* sizes */
+@@ -856,10 +856,10 @@ asmb(void)
+ 		lputb(spsize);			/* sp offsets */
+ 		lputb(lcsize);			/* line offsets */
+ 		break;
+-	case 3:
++	case Hmsdoscom:
+ 		/* MS-DOS .COM */
+ 		break;
+-	case 4:
++	case Hmsdosexe:
+ 		/* fake MS-DOS .EXE */
+ 		v = rnd(HEADR+segtext.filelen, INITRND)+segdata.filelen;
+ 		wputl(0x5A4D);			/* 'MZ' */
+@@ -882,13 +882,13 @@ asmb(void)
+ 		wputl(0x0000);			/* overlay number */
+ 		break;
+ 
+-	case 6:
++	case Hdarwin:
+ 		asmbmacho();
+ 		break;
+ 
+ 	Elfput:
+ 		/* elf 386 */
+-		if(HEADTYPE == 11)
++		if(HEADTYPE == Htiny)
+ 			debug['d'] = 1;
+ 
+ 		eh = getElfEhdr();
+@@ -917,10 +917,10 @@ asmb(void)
+ 			sh->addralign = 1;
+ 			if(interpreter == nil) {
+ 				switch(HEADTYPE) {
+-				case 7:
++				case Hlinux:
+ 					interpreter = linuxdynld;
+ 					break;
+-				case 9:
++				case Hfreebsd:
+ 					interpreter = freebsddynld;
+ 					break;
+ 				}
+@@ -1068,7 +1068,7 @@ asmb(void)
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 		eh->ident[EI_VERSION] = EV_CURRENT;
+ 		switch(HEADTYPE) {
+-		case 9:
++		case Hfreebsd:
+ 			eh->ident[EI_OSABI] = 9;
+ 			break;
+ 		}
+@@ -1093,7 +1093,7 @@ asmb(void)
+ 			diag("ELFRESERVE too small: %d > %d", a, ELFRESERVE);
+ 		break;
+ 
+-	case 10:
++	case Hwindows:
+ 		asmbpe();
+ 		break;
+ 	}
+diff --git a/src/cmd/8l/doc.go b/src/cmd/8l/doc.go
+index ef5ebc31db..b708889078 100644
+--- a/src/cmd/8l/doc.go
++++ b/src/cmd/8l/doc.go
+@@ -25,10 +25,16 @@ Options new in this version:
+ 	Elide the dynamic linking header.  With this option, the binary
+ 	is statically linked and does not refer to dynld.  Without this option
+ 	(the default), the binary's contents are identical but it is loaded with dynld.
+--H6
++-Hplan9
++	Write Plan 9 32-bit format binaries (default when $GOOS is plan9)
++-Hdarwin
+ 	Write Apple Mach-O binaries (default when $GOOS is darwin)
+--H7
++-Hlinux
+ 	Write Linux ELF binaries (default when $GOOS is linux)
++-Hfreebsd
++	Write FreeBSD ELF binaries (default when $GOOS is freebsd)
++-Hwindows
++	Write Windows PE32 binaries (default when $GOOS is windows)
+ -I interpreter
+ 	Set the ELF dynamic linker to use.
+ -L dir1 -L dir2
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index fb97e84266..6ea9108f4d 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -46,18 +46,33 @@
+ char	*noname		= "<none>";
+ char	*thestring 	= "386";
+ 
++Header headers[] = {
++   "garbunix", Hgarbunix,
++   "unixcoff", Hunixcoff,
++   "plan9", Hplan9x32,
++   "msdoscom", Hmsdoscom,
++   "msdosexe", Hmsdosexe,
++   "darwin", Hdarwin,
++   "linux", Hlinux,
++   "nacl", Hnacl,
++   "freebsd", Hfreebsd,
++   "windows", Hwindows,
++   "tiny", Htiny,
++   0, 0
++};
++
+ /*
+- *	-H0 -T0x40004C -D0x10000000	is garbage unix
+- *	-H1 -T0xd0 -R4			is unix coff
+- *	-H2 -T4128 -R4096		is plan9 format
+- *	-H3 -Tx -Rx			is MS-DOS .COM
+- *	-H4 -Tx -Rx			is fake MS-DOS .EXE
+- *	-H6 -Tx -Rx			is Apple Mach-O
+- *	-H7 -Tx -Rx			is Linux ELF32
+- *	-H8 -Tx -Rx			was Google Native Client
+- *	-H9 -Tx -Rx			is FreeBSD ELF32
+- *	-H10 -Tx -Rx			is MS Windows PE
+- *	-H11 -Tx -Rx			is tiny (os image)
++ *	-Hgarbunix -T0x40004C -D0x10000000	is garbage unix
++ *	-Hunixcoff -T0xd0 -R4			is unix coff
++ *	-Hplan9 -T4128 -R4096			is plan9 format
++ *	-Hmsdoscom -Tx -Rx			is MS-DOS .COM
++ *	-Hmsdosexe -Tx -Rx			is fake MS-DOS .EXE
++ *	-Hdarwin -Tx -Rx			is Apple Mach-O
++ *	-Hlinux -Tx -Rx				is Linux ELF32
++ *	-Hnacl -Tx -Rx				was Google Native Client
++ *	-Hfreebsd -Tx -Rx			is FreeBSD ELF32
++ *	-Hwindows -Tx -Rx			is MS Windows PE32
++ *	-Htiny -Tx -Rx				is tiny (os image)
+  */
+ 
+ void
+@@ -99,7 +114,7 @@ main(int argc, char *argv[])
+ 		INITENTRY = EARGF(usage());
+ 		break;
+ 	case 'H':
+-		HEADTYPE = atolwhex(EARGF(usage()));
++		HEADTYPE = headtype(EARGF(usage()));
+ 		break;
+ 	case 'I':
+ 		interpreter = EARGF(usage());
+@@ -129,31 +144,11 @@ main(int argc, char *argv[])
+ 
+ 	mywhatsys();	// get goos
+ 
+-	if(HEADTYPE == -1) {
+-		HEADTYPE = 2;
+-		if(strcmp(goos, "linux") == 0)
+-			HEADTYPE = 7;
+-		else
+-		if(strcmp(goos, "darwin") == 0)
+-			HEADTYPE = 6;
+-		else
+-		if(strcmp(goos, "freebsd") == 0)
+-			HEADTYPE = 9;
+-		else
+-		if(strcmp(goos, "windows") == 0)
+-			HEADTYPE = 10;
+-		else
+-		if(strcmp(goos, "tiny") == 0)
+-			HEADTYPE = 11;
+-		else
+-		if(strcmp(goos, "plan9") == 0)
+-			HEADTYPE = 2;
+-		else
+-			print("goos is not known: %s\n", goos);
+-	}
++	if(HEADTYPE == -1)
++		HEADTYPE = headtype(goos);
+ 
+ 	if(outfile == nil) {
+-		if(HEADTYPE == 10)
++		if(HEADTYPE == Hwindows)
+ 			outfile = "8.out.exe";
+ 		else
+ 			outfile = "8.out";
+@@ -166,7 +161,7 @@ main(int argc, char *argv[])
+ 		diag("unknown -H option");
+ 		errorexit();
+ 
+-	case 0:	/* this is garbage */
++	case Hgarbunix:	/* this is garbage */
+ 		HEADR = 20L+56L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x40004CL;
+@@ -175,7 +170,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 0;
+ 		break;
+-	case 1:	/* is unix coff */
++	case Hunixcoff:	/* is unix coff */
+ 		HEADR = 0xd0L;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0xd0;
+@@ -184,7 +179,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 0;
+ 		break;
+-	case 2:	/* plan 9 */
++	case Hplan9x32:	/* plan 9 */
+ 		tlsoffset = -8;
+ 		HEADR = 32L;
+ 		if(INITTEXT == -1)
+@@ -194,7 +189,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 1;
+ 		break;
+-	case 3:	/* MS-DOS .COM */
++	case Hmsdoscom:	/* MS-DOS .COM */
+ 		HEADR = 0;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x0100;
+@@ -203,7 +198,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4;
+ 		break;
+-	case 4:	/* fake MS-DOS .EXE */
++	case Hmsdosexe:	/* fake MS-DOS .EXE */
+ 		HEADR = 0x200;
+ 		if(INITTEXT == -1)
+ 			INITTEXT = 0x0100;
+@@ -215,7 +210,7 @@ main(int argc, char *argv[])
+ 		if(debug['v'])
+ 			Bprint(&bso, "HEADR = 0x%d\n", HEADR);
+ 		break;
+-	case 6:	/* apple MACH */
++	case Hdarwin:	/* apple MACH */
+ 		/*
+ 		 * OS X system constant - offset from %gs to our TLS.
+ 		 * Explained in ../../libcgo/darwin_386.c.
+@@ -230,8 +225,8 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 7:	/* elf32 executable */
+-	case 9:
++	case Hlinux:	/* elf32 executable */
++	case Hfreebsd:
+ 		/*
+ 		 * ELF uses TLS offsets negative from %gs.
+ 		 * Translate 0(GS) and 4(GS) into -8(GS) and -4(GS).
+@@ -248,7 +243,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = 4096;
+ 		break;
+-	case 10: /* PE executable */
++	case Hwindows: /* PE executable */
+ 		peinit();
+ 		HEADR = PEFILEHEADR;
+ 		if(INITTEXT == -1)
+@@ -258,7 +253,7 @@ main(int argc, char *argv[])
+ 		if(INITRND == -1)
+ 			INITRND = PESECTALIGN;
+ 		break;
+-	case 11:
++	case Htiny:
+ 		tlsoffset = 0;
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+@@ -303,9 +298,9 @@ main(int argc, char *argv[])
+ 	patch();
+ 	follow();
+ 	doelf();
+-	if(HEADTYPE == 6)
++	if(HEADTYPE == Hdarwin)
+ 		domacho();
+-	if(HEADTYPE == 10)
++	if(HEADTYPE == Hwindows)
+ 		dope();
+ 	dostkoff();
+ 	if(debug['p'])
+diff --git a/src/cmd/8l/pass.c b/src/cmd/8l/pass.c
+index a5380ae130..bbb86cff7d 100644
+--- a/src/cmd/8l/pass.c
++++ b/src/cmd/8l/pass.c
+@@ -263,12 +263,12 @@ patch(void)
+ 	vexit = s->value;
+ 	
+ 	plan9_tos = S;
+-	if(HEADTYPE == 2)
++	if(HEADTYPE == Hplan9x32)
+ 		plan9_tos = lookup("_tos", 0);
+ 	
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+ 		for(p = cursym->text; p != P; p = p->link) {
+-			if(HEADTYPE == 10) {	// Windows
++			if(HEADTYPE == Hwindows) {
+ 				// Convert
+ 				//   op	  n(GS), reg
+ 				// to
+@@ -289,7 +289,7 @@ patch(void)
+ 					p->from.offset = 0x2C;
+ 				}
+ 			}
+-			if(HEADTYPE == 7) {	// Linux
++			if(HEADTYPE == Hlinux) {
+ 				// Running binaries under Xen requires using
+ 				//	MOVL 0(GS), reg
+ 				// and then off(reg) instead of saying off(GS) directly
+@@ -306,7 +306,7 @@ patch(void)
+ 					p->from.offset = 0;
+ 				}
+ 			}
+-			if(HEADTYPE == 2) {	// Plan 9
++			if(HEADTYPE == Hplan9x32) {
+ 				if(p->from.type == D_INDIR+D_GS
+ 				&& p->to.type >= D_AX && p->to.type <= D_DI) {
+ 					q = appendp(p);
+@@ -414,7 +414,7 @@ dostkoff(void)
+ 	}
+ 	
+ 	plan9_tos = S;
+-	if(HEADTYPE == 2)	
++	if(HEADTYPE == Hplan9x32)
+ 		plan9_tos = lookup("_tos", 0);
+ 
+ 	for(cursym = textp; cursym != nil; cursym = cursym->next) {
+@@ -432,7 +432,7 @@ dostkoff(void)
+ 		if(!(p->from.scale & NOSPLIT)) {
+ 			p = appendp(p);	// load g into CX
+ 			switch(HEADTYPE) {
+-			case 10:	// Windows
++			case Hwindows:
+ 				p->as = AMOVL;
+ 				p->from.type = D_INDIR+D_FS;
+ 				p->from.offset = 0x2c;
+@@ -445,7 +445,7 @@ dostkoff(void)
+ 				p->to.type = D_CX;
+ 				break;
+ 			
+-			case 7:	// Linux
++			case Hlinux:
+ 				p->as = AMOVL;
+ 				p->from.type = D_INDIR+D_GS;
+ 				p->from.offset = 0;
+@@ -458,7 +458,7 @@ dostkoff(void)
+ 				p->to.type = D_CX;
+ 				break;
+ 			
+-			case 2:	// Plan 9
++			case Hplan9x32:
+ 				p->as = AMOVL;
+ 				p->from.type = D_EXTERN;
+ 				p->from.sym = plan9_tos;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index 0551232cfc..a20b057ce5 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -241,7 +241,7 @@ dynrelocsym(Sym *s)
+ {
+ 	Reloc *r;
+ 	
+-	if(thechar == '8' && HEADTYPE == 10) { // Windows PE
++	if(HEADTYPE == Hwindows) {
+ 		Sym *rel, *targ;
+ 		
+ 		rel = lookup(".rel", 0);
+@@ -898,9 +898,9 @@ address(void)
+ 	segdata.rwx = 06;
+ 	segdata.vaddr = va;
+ 	segdata.fileoff = va - segtext.vaddr + segtext.fileoff;
+-	if((thechar == '6' || thechar == '8') && HEADTYPE == 10)	// Windows PE
++	if(HEADTYPE == Hwindows)
+ 		segdata.fileoff = segtext.fileoff + rnd(segtext.len, PEFILEALIGN);
+-	if(thechar == '8' && HEADTYPE == 2) {	// Plan 9		
++	if(HEADTYPE == Hplan9x32) {
+ 		segdata.vaddr = va = rnd(va, 4096);
+ 		segdata.fileoff = segtext.fileoff + segtext.filelen;
+ 	}
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 5df3515f5d..8c53d7d133 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -2302,7 +2302,7 @@ writegdbscript(void)
+ static void
+ align(vlong size)
+ {
+-	if((thechar == '6' || thechar == '8') && HEADTYPE == 10) // Only Windows PE need section align.
++	if(HEADTYPE == Hwindows) // Only Windows PE need section align.
+ 		strnput("", rnd(size, PEFILEALIGN) - size);
+ }
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 1838717bfe..998e28cf16 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1264,3 +1264,16 @@ stkprint(Chain *ch, int limit)
+ 	if(ch->limit != limit)
+ 		print("\t%d\tafter %s uses %d\n", limit, name, ch->limit - limit);
+ }
++
++int
++headtype(char *name)
++{
++	int i;
++
++	for(i=0; headers[i].name; i++)
++		if(strcmp(name, headers[i].name) == 0)
++			return headers[i].val;
++	fprint(2, "unknown header type -H %s\n", name);
++	errorexit();
++	return -1;  // not reached
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 1b37202271..234ea3198f 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -208,3 +208,34 @@ enum {
+ 	ArchiveObj,
+ 	Pkgdef
+ };
++
++/* executable header types */
++enum {
++   Hgarbunix = 0,	// garbage unix
++   Hnoheader,		// no header
++   Hunixcoff,		// unix coff
++   Hrisc,		// aif for risc os
++   Hplan9x32,		// plan 9 32-bit format
++   Hplan9x64,		// plan 9 64-bit format
++   Hmsdoscom,		// MS-DOS .COM
++   Hnetbsd,		// NetBSD
++   Hmsdosexe,		// fake MS-DOS .EXE
++   Hixp1200,		// IXP1200 (raw)
++   Helf,		// ELF32
++   Hipaq,		// ipaq
++   Hdarwin,		// Apple Mach-O
++   Hlinux,		// Linux ELF
++   Hnacl,		// Google Native Client
++   Hfreebsd,		// FreeBSD ELF
++   Hwindows,		// MS Windows PE
++   Htiny		// tiny (os image)
++};
++
++typedef struct Header Header;
++struct Header {
++   char *name;
++   int val;
++};
++
++extern Header headers[];
++int headtype(char*);

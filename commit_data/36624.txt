@@ -15,10 +15,179 @@ Date:   Thu May 10 10:15:52 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  8 +++----
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go |  2 +-
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 32 +++++++++++++++++++++-------
  test/fixedbugs/issue25322.go                 | 23 ++++++++++++++++++++
  test/fixedbugs/issue25322.out                |  1 +
  5 files changed, 53 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 23b03d3080..dd71ccaf5e 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -2396,10 +2396,10 @@
+ 
+ // Load args directly into the register class where it will be used.
+ // We do this by just modifying the type of the Arg.
+-(MOVQf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+-(MOVLf2i <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+-(MOVQi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
+-(MOVLi2f <t> (Arg [off] {sym})) -> @b.Func.Entry (Arg <t> [off] {sym})
++(MOVQf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
++(MOVLf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
++(MOVQi2f <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
++(MOVLi2f <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() -> @b.Func.Entry (Arg <t> [off] {sym})
+ 
+ // LEAQ is rematerializeable, so this helps to avoid register spill.
+ // See issue 22947 for details
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index e54ba11da8..2f0364fb00 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -482,7 +482,7 @@ func init() {
+ 		{name: "MOVQi2f", argLength: 1, reg: gpfp, typ: "Float64"}, // move 64 bits from int to float reg
+ 		{name: "MOVQf2i", argLength: 1, reg: fpgp, typ: "UInt64"},  // move 64 bits from float to int reg
+ 		{name: "MOVLi2f", argLength: 1, reg: gpfp, typ: "Float32"}, // move 32 bits from int to float reg
+-		{name: "MOVLf2i", argLength: 1, reg: fpgp, typ: "UInt32"},  // move 32 bits from float to int reg
++		{name: "MOVLf2i", argLength: 1, reg: fpgp, typ: "UInt32"},  // move 32 bits from float to int reg, zero extend
+ 
+ 		{name: "PXOR", argLength: 2, reg: fp21, asm: "PXOR", commutative: true, resultInArg0: true}, // exclusive or, applied to X regs for float negation.
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 5ccd176e34..5c681b94b7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -13143,8 +13143,8 @@ func rewriteValueAMD64_OpAMD64MOVLatomicload_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVLf2i_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVLf2i <t> (Arg [off] {sym}))
+-	// cond:
++	// match: (MOVLf2i <t> (Arg <u> [off] {sym}))
++	// cond: t.Size() == u.Size()
+ 	// result: @b.Func.Entry (Arg <t> [off] {sym})
+ 	for {
+ 		t := v.Type
+@@ -13152,8 +13152,12 @@ func rewriteValueAMD64_OpAMD64MOVLf2i_0(v *Value) bool {
+ 		if v_0.Op != OpArg {
+ 			break
+ 		}
++		u := v_0.Type
+ 		off := v_0.AuxInt
+ 		sym := v_0.Aux
++		if !(t.Size() == u.Size()) {
++			break
++		}
+ 		b = b.Func.Entry
+ 		v0 := b.NewValue0(v.Pos, OpArg, t)
+ 		v.reset(OpCopy)
+@@ -13167,8 +13171,8 @@ func rewriteValueAMD64_OpAMD64MOVLf2i_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVLi2f_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVLi2f <t> (Arg [off] {sym}))
+-	// cond:
++	// match: (MOVLi2f <t> (Arg <u> [off] {sym}))
++	// cond: t.Size() == u.Size()
+ 	// result: @b.Func.Entry (Arg <t> [off] {sym})
+ 	for {
+ 		t := v.Type
+@@ -13176,8 +13180,12 @@ func rewriteValueAMD64_OpAMD64MOVLi2f_0(v *Value) bool {
+ 		if v_0.Op != OpArg {
+ 			break
+ 		}
++		u := v_0.Type
+ 		off := v_0.AuxInt
+ 		sym := v_0.Aux
++		if !(t.Size() == u.Size()) {
++			break
++		}
+ 		b = b.Func.Entry
+ 		v0 := b.NewValue0(v.Pos, OpArg, t)
+ 		v.reset(OpCopy)
+@@ -15520,8 +15528,8 @@ func rewriteValueAMD64_OpAMD64MOVQatomicload_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVQf2i_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVQf2i <t> (Arg [off] {sym}))
+-	// cond:
++	// match: (MOVQf2i <t> (Arg <u> [off] {sym}))
++	// cond: t.Size() == u.Size()
+ 	// result: @b.Func.Entry (Arg <t> [off] {sym})
+ 	for {
+ 		t := v.Type
+@@ -15529,8 +15537,12 @@ func rewriteValueAMD64_OpAMD64MOVQf2i_0(v *Value) bool {
+ 		if v_0.Op != OpArg {
+ 			break
+ 		}
++		u := v_0.Type
+ 		off := v_0.AuxInt
+ 		sym := v_0.Aux
++		if !(t.Size() == u.Size()) {
++			break
++		}
+ 		b = b.Func.Entry
+ 		v0 := b.NewValue0(v.Pos, OpArg, t)
+ 		v.reset(OpCopy)
+@@ -15544,8 +15556,8 @@ func rewriteValueAMD64_OpAMD64MOVQf2i_0(v *Value) bool {
+ func rewriteValueAMD64_OpAMD64MOVQi2f_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+-	// match: (MOVQi2f <t> (Arg [off] {sym}))
+-	// cond:
++	// match: (MOVQi2f <t> (Arg <u> [off] {sym}))
++	// cond: t.Size() == u.Size()
+ 	// result: @b.Func.Entry (Arg <t> [off] {sym})
+ 	for {
+ 		t := v.Type
+@@ -15553,8 +15565,12 @@ func rewriteValueAMD64_OpAMD64MOVQi2f_0(v *Value) bool {
+ 		if v_0.Op != OpArg {
+ 			break
+ 		}
++		u := v_0.Type
+ 		off := v_0.AuxInt
+ 		sym := v_0.Aux
++		if !(t.Size() == u.Size()) {
++			break
++		}
+ 		b = b.Func.Entry
+ 		v0 := b.NewValue0(v.Pos, OpArg, t)
+ 		v.reset(OpCopy)
+diff --git a/test/fixedbugs/issue25322.go b/test/fixedbugs/issue25322.go
+new file mode 100644
+index 0000000000..7489bbdfc2
+--- /dev/null
++++ b/test/fixedbugs/issue25322.go
+@@ -0,0 +1,23 @@
++// cmpout
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Missing zero extension when converting a float32
++// to a uint64.
++
++package main
++
++import (
++	"fmt"
++	"math"
++)
++
++func Foo(v float32) {
++	fmt.Printf("%x\n", uint64(math.Float32bits(v)))
++}
++
++func main() {
++	Foo(2.0)
++}
+diff --git a/test/fixedbugs/issue25322.out b/test/fixedbugs/issue25322.out
+new file mode 100644
+index 0000000000..52f3f6a745
+--- /dev/null
++++ b/test/fixedbugs/issue25322.out
+@@ -0,0 +1 @@
++40000000

@@ -10,6 +10,17 @@ Date:   Thu Jun 2 08:11:01 2016 +1000
     Change-Id: I87029079458d4c4eeeff2f2fc0574f10afa9af09
     Reviewed-on: https://go-review.googlesource.com/23622
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  LICENSE | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/LICENSE b/LICENSE
+index 7448756763..6a66aea5ea 100644
+--- a/LICENSE
++++ b/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2012 The Go Authors. All rights reserved.
++Copyright (c) 2009 The Go Authors. All rights reserved.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are

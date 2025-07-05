@@ -54,6 +54,22 @@ Date:   Sat Dec 5 19:53:08 2020 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275672
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Trust: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 64e102fb0a..418e06932e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2882,7 +2882,9 @@ func wakeNetPoller(when int64) {
+ 	} else {
+ 		// There are no threads in the network poller, try to get
+ 		// one there so it can handle new timers.
+-		wakep()
++		if GOOS != "plan9" { // Temporary workaround - see issue #42303.
++			wakep()
++		}
+ 	}
+ }
+ 

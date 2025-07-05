@@ -13,6 +13,36 @@ Date:   Wed Dec 30 11:15:38 2015 -0500
     Change-Id: I7cbad86a8a06578f52f66f734f5447b597ddc962
     Reviewed-on: https://go-review.googlesource.com/18213
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 18 ++++++------------
  1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 634c52c3b0..85cf3f9136 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -322,18 +322,12 @@ func findgoversion() string {
+ 
+ // isGitRepo reports whether the working directory is inside a Git repository.
+ func isGitRepo() bool {
+-	p := ".git"
+-	for {
+-		fi, err := os.Stat(p)
+-		if os.IsNotExist(err) {
+-			p = filepath.Join("..", p)
+-			continue
+-		}
+-		if err != nil || !fi.IsDir() {
+-			return false
+-		}
+-		return true
+-	}
++	// NB: simply checking the exit code of `git rev-parse --git-dir` would
++	// suffice here, but that requires deviating from the infrastructure
++	// provided by `run`.
++	gitDir := chomp(run(goroot, 0, "git", "rev-parse", "--git-dir"))
++	fi, err := os.Stat(gitDir)
++	return err == nil && fi.IsDir()
+ }
+ 
+ /*

@@ -7,6 +7,29 @@ Date:   Fri Nov 18 01:06:59 2011 -0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5411045
-
+---
  src/pkg/html/doc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/doc.go b/src/pkg/html/doc.go
+index 1bea690c2c..56b194ffb9 100644
+--- a/src/pkg/html/doc.go
++++ b/src/pkg/html/doc.go
+@@ -37,7 +37,7 @@ lower-cased, and attributes are collected into a []Attribute. For example:
+ 	for {
+ 		if z.Next() == html.ErrorToken {
+ 			// Returning io.EOF indicates success.
+-			return z.Error()
++			return z.Err()
+ 		}
+ 		emitToken(z.Token())
+ 	}
+@@ -51,7 +51,7 @@ call to Next. For example, to extract an HTML page's anchor text:
+ 		tt := z.Next()
+ 		switch tt {
+ 		case ErrorToken:
+-			return z.Error()
++			return z.Err()
+ 		case TextToken:
+ 			if depth > 0 {
+ 				// emitBytes should copy the []byte it receives,

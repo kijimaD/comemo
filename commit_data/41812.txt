@@ -17,9 +17,126 @@ Date:   Fri Oct 25 15:37:00 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/203502
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/export_test.go    |  1 -
  src/os/removeall_at.go   |  1 -
  src/os/removeall_noat.go |  1 -
  src/os/removeall_test.go | 50 ++++++++++++++++++++++++++++++++----------------
  4 files changed, 34 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/export_test.go b/src/os/export_test.go
+index d17d5e6230..812432cee4 100644
+--- a/src/os/export_test.go
++++ b/src/os/export_test.go
+@@ -9,4 +9,3 @@ package os
+ var Atime = atime
+ var LstatP = &lstat
+ var ErrWriteAtInAppendMode = errWriteAtInAppendMode
+-var RemoveAllTestHook = &removeAllTestHook
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index bc632f5a75..e619851f9c 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -153,7 +153,6 @@ func removeAllFrom(parent *File, base string) error {
+ 
+ 	// Remove the directory itself.
+ 	unlinkError := unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
+-	unlinkError = removeAllTestHook(unlinkError)
+ 	if unlinkError == nil || IsNotExist(unlinkError) {
+ 		return nil
+ 	}
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index a0694fa4ce..32673c0ab0 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -124,7 +124,6 @@ func removeAll(path string) error {
+ 
+ 	// Remove directory.
+ 	err1 := Remove(path)
+-	err1 = removeAllTestHook(err1)
+ 	if err1 == nil || IsNotExist(err1) {
+ 		return nil
+ 	}
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 8700b6af17..1fa0dcdd33 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -5,7 +5,6 @@
+ package os_test
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"io/ioutil"
+ 	. "os"
+@@ -413,14 +412,6 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
+-	defer func(oldHook func(error) error) {
+-		*RemoveAllTestHook = oldHook
+-	}(*RemoveAllTestHook)
+-
+-	*RemoveAllTestHook = func(err error) error {
+-		return errors.New("error from RemoveAllTestHook")
+-	}
+-
+ 	tmpDir, err := ioutil.TempDir("", "TestRemoveAll-")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -429,7 +420,7 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 
+ 	path := filepath.Join(tmpDir, "_TestRemoveAllWithMoreErrorThanReqSize_")
+ 
+-	// Make directory with 1025 files and remove.
++	// Make directory with 1025 read-only files.
+ 	if err := MkdirAll(path, 0777); err != nil {
+ 		t.Fatalf("MkdirAll %q: %s", path, err)
+ 	}
+@@ -442,13 +433,40 @@ func TestRemoveAllWithMoreErrorThanReqSize(t *testing.T) {
+ 		fd.Close()
+ 	}
+ 
+-	// This call should not hang
+-	if err := RemoveAll(path); err == nil {
+-		t.Fatal("Want error from RemoveAllTestHook, got nil")
++	// Make the parent directory read-only. On some platforms, this is what
++	// prevents os.Remove from removing the files within that directory.
++	if err := Chmod(path, 0555); err != nil {
++		t.Fatal(err)
+ 	}
++	defer Chmod(path, 0755)
+ 
+-	// We hook to inject error, but the actual files must be deleted
+-	if _, err := Lstat(path); err == nil {
+-		t.Fatal("directory must be deleted even with removeAllTetHook run")
++	// This call should not hang, even on a platform that disallows file deletion
++	// from read-only directories.
++	err = RemoveAll(path)
++
++	if Getuid() == 0 {
++		// On many platforms, root can remove files from read-only directories.
++		return
++	}
++	if err == nil {
++		t.Fatal("RemoveAll(<read-only directory>) = nil; want error")
++	}
++
++	dir, err := Open(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer dir.Close()
++
++	if runtime.GOOS == "windows" {
++		// Marking a directory in Windows does not prevent the os package from
++		// creating or removing files within it.
++		// (See https://golang.org/issue/35042.)
++		return
++	}
++
++	names, _ := dir.Readdirnames(1025)
++	if len(names) < 1025 {
++		t.Fatalf("RemoveAll(<read-only directory>) unexpectedly removed %d read-only files from that directory", 1025-len(names))
+ 	}
+ }

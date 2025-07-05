@@ -19,6 +19,20 @@ Date:   Wed Sep 16 15:41:47 2020 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8783cb4e46..7ad3bfe0c8 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -617,7 +617,7 @@ func Main(archInit func(*Arch)) {
+ 	var fcount int64
+ 	for i := 0; i < len(xtop); i++ {
+ 		n := xtop[i]
+-		if op := n.Op; op == ODCLFUNC || op == OCLOSURE {
++		if n.Op == ODCLFUNC {
+ 			Curfn = n
+ 			decldepth = 1
+ 			saveerrors()

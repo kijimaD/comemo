@@ -8,10 +8,104 @@ Date:   Mon Aug 11 13:22:04 2008 -0700
     DELTA=37  (31 added, 4 deleted, 2 changed)
     OCL=14089
     CL=14089
-
+---
  src/cmd/gc/export.c   |  2 +-
  src/cmd/gc/go.h       |  1 +
  src/cmd/gc/lex.c      |  1 +
  src/cmd/gc/mparith1.c | 29 +++++++++++++++++++++++++++++
  src/cmd/gc/subr.c     |  6 +-----
  5 files changed, 33 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 427f649f2c..aaa32a11b2 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -78,7 +78,7 @@ dumpexportconst(Sym *s)
+ 	case CTINT:
+ 	case CTSINT:
+ 	case CTUINT:
+-		Bprint(bout, "0x%llux\n", mpgetfix(n->val.u.xval));
++		Bprint(bout, "%B\n", n->val.u.xval);
+ 		break;
+ 	case CTBOOL:
+ 		Bprint(bout, "0x%llux\n", n->val.u.bval);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index af50d48bd3..16efdc9cb9 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -487,6 +487,7 @@ void	mpatofix(Mpint *a, char *s);
+ void	mpatoflt(Mpflt *a, char *s);
+ void	mpmovefltfix(Mpint *a, Mpflt *b);
+ void	mpmovefixflt(Mpflt *a, Mpint *b);
++int	Bconv(Fmt*);
+ 
+ /*
+  *	mparith2.c
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index a1859b6e91..200960dff9 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -52,6 +52,7 @@ mainlex(int argc, char *argv[])
+ 	fmtinstall('N', Nconv);		// node pointer
+ 	fmtinstall('Z', Zconv);		// escaped string
+ 	fmtinstall('L', Lconv);		// line number
++	fmtinstall('B', Bconv);		// big numbers
+ 	
+ 	lexinit();
+ 	lineno = 1;
+diff --git a/src/cmd/gc/mparith1.c b/src/cmd/gc/mparith1.c
+index 6c625f3fd9..189e43af6f 100644
+--- a/src/cmd/gc/mparith1.c
++++ b/src/cmd/gc/mparith1.c
+@@ -348,3 +348,32 @@ bad:
+ 	warn("set ovf in mpatov: %s", as);
+ 	mpmovecfix(a, 0);
+ }
++
++int
++Bconv(Fmt *fp)
++{
++	char buf[500], *p;
++	Mpint *xval, q, r, ten;
++	int f;
++
++	xval = va_arg(fp->args, Mpint*);
++	mpmovefixfix(&q, xval);
++	f = 0;
++	if(mptestfix(&q) < 0) {
++		f = 1;
++		mpnegfix(&q);
++	}
++	mpmovecfix(&ten, 10);
++
++	p = &buf[sizeof(buf)];
++	*--p = 0;
++	for(;;) {
++		mpdivmodfixfix(&q, &r, &q, &ten);
++		*--p = mpgetfix(&r) + '0';
++		if(mptestfix(&q) <= 0)
++			break;
++	}
++	if(f)
++		*--p = '-';
++	return fmtstrcpy(fp, p);
++}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 1f9043a442..11cb870f9a 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1053,13 +1053,9 @@ Nconv(Fmt *fp)
+ 			snprint(buf1, sizeof(buf1), "LITERAL-ctype=%d", n->val.ctype);
+ 			break;
+ 		case CTINT:
+-			snprint(buf1, sizeof(buf1), "I%lld", mpgetfix(n->val.u.xval));
+-			break;
+ 		case CTSINT:
+-			snprint(buf1, sizeof(buf1), "S%lld", mpgetfix(n->val.u.xval));
+-			break;
+ 		case CTUINT:
+-			snprint(buf1, sizeof(buf1), "U%lld", mpgetfix(n->val.u.xval));
++			snprint(buf1, sizeof(buf1), "I%B", n->val.u.xval);
+ 			break;
+ 		case CTFLT:
+ 			snprint(buf1, sizeof(buf1), "F%g", mpgetflt(n->val.u.fval));

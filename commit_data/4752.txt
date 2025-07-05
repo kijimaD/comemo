@@ -8,7 +8,47 @@ Date:   Mon Feb 1 16:14:22 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/198045
-
+---
  src/pkg/bignum/bignum.go      | 6 ++++--
  src/pkg/bignum/bignum_test.go | 6 ++++++
  2 files changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/bignum/bignum.go
+index ee7d45ba67..485583199b 100644
+--- a/src/pkg/bignum/bignum.go
++++ b/src/pkg/bignum/bignum.go
+@@ -565,16 +565,18 @@ func divmod(x, y []digit2) ([]digit2, []digit2) {
+ 				t := c + digit(x[i+j]) - digit(y[j])*q
+ 				c, x[i+j] = digit(int64(t)>>_W2), digit2(t&_M2) // requires arithmetic shift!
+ 			}
++			x[k] = digit2((c + digit(x[k])) & _M2)
+ 
+ 			// correct if trial digit was too large
+-			if c+digit(x[k]) != 0 {
++			if x[k] != 0 {
+ 				// add y
+ 				c := digit(0)
+ 				for j := 0; j < m; j++ {
+ 					t := c + digit(x[i+j]) + digit(y[j])
+ 					c, x[i+j] = t>>_W2, digit2(t&_M2)
+ 				}
+-				assert(c+digit(x[k]) == 0)
++				x[k] = digit2((c + digit(x[k])) & _M2)
++				assert(x[k] == 0)
+ 				// correct trial digit
+ 				q--
+ 			}
+diff --git a/src/pkg/bignum/bignum_test.go b/src/pkg/bignum/bignum_test.go
+index 532fc97405..ade72dd1bc 100644
+--- a/src/pkg/bignum/bignum_test.go
++++ b/src/pkg/bignum/bignum_test.go
+@@ -663,3 +663,9 @@ func TestNatPop(t *testing.T) {
+ 		test(i, nat_one.Shl(i).Sub(nat_one).Pop() == i)
+ 	}
+ }
++
++
++func TestIssue571(t *testing.T) {
++	const min_float = "4.940656458412465441765687928682213723651e-324"
++	RatFromString(min_float, 10) // this must not crash
++}

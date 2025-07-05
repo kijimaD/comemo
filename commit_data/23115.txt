@@ -27,7 +27,55 @@ Date:   Mon Apr 13 20:13:14 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/csv/reader.go      |  6 ++++++
  src/encoding/csv/reader_test.go | 22 ++++++++++++++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index d9432954ac..d0a09044fb 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -228,6 +228,12 @@ func (r *Reader) parseRecord() (fields []string, err error) {
+ 	}
+ 	r.r.UnreadRune()
+ 
++	// If FieldsPerRecord is greater then 0 we can assume the final
++	// length of fields to be equal to FieldsPerRecord.
++	if r.FieldsPerRecord > 0 {
++		fields = make([]string, 0, r.FieldsPerRecord)
++	}
++
+ 	// At this point we have at least one field.
+ 	for {
+ 		haveField, delim, err := r.parseField()
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index 123df06bc8..b3c4f3bf18 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -282,3 +282,25 @@ func TestRead(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkRead(b *testing.B) {
++	data := `x,y,z,w
++x,y,z,
++x,y,,
++x,,,
++,,,
++"x","y","z","w"
++"x","y","z",""
++"x","y","",""
++"x","","",""
++"","","",""
++`
++
++	for i := 0; i < b.N; i++ {
++		_, err := NewReader(strings.NewReader(data)).ReadAll()
++
++		if err != nil {
++			b.Fatalf("could not read data: %s", err)
++		}
++	}
++}

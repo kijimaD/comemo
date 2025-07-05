@@ -14,7 +14,290 @@ Date:   Fri Jan 22 13:29:59 2021 -0800
     Trust: Matthew Dempsky <mdempsky@google.com>
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/noder/expr.go    | 121 +++++++++++-------------------
  src/cmd/compile/internal/noder/helpers.go |  90 +++++++++++++++++++---
  2 files changed, 125 insertions(+), 86 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index b38e9cfb4e..5a2cae12e3 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -107,7 +107,7 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 			}
+ 		}
+ 
+-		return g.selectorExpr(pos, typ, expr)
++		return g.selectorExpr(pos, expr)
+ 	case *syntax.SliceExpr:
+ 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+ 
+@@ -131,88 +131,55 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ // selectorExpr resolves the choice of ODOT, ODOTPTR, OCALLPART (eventually
+ // ODOTMETH & ODOTINTER), and OMETHEXPR and deals with embedded fields here rather
+ // than in typecheck.go.
+-func (g *irgen) selectorExpr(pos src.XPos, typ types2.Type, expr *syntax.SelectorExpr) ir.Node {
+-	x := g.expr(expr.X)
++func (g *irgen) selectorExpr(pos src.XPos, expr *syntax.SelectorExpr) ir.Node {
+ 	selinfo := g.info.Selections[expr]
+-	nindex := len(selinfo.Index())
+-
+-	// Iterate through the selections from types2. If nindex > 1, then we will
+-	// create extra nodes to deal with embedded fields.
+-	for i := 0; i < nindex; i++ {
+-		var f *types.Field
+-		var n *ir.SelectorExpr
+-
+-		op := ir.ODOT
+-		index := selinfo.Index()[i]
+-		xt := x.Type()
+-		origxt := xt
+-		if xt.IsPtr() && !xt.Elem().IsInterface() {
+-			// Get to the base type, but remember that we skipped the ptr
+-			xt = xt.Elem()
+-			op = ir.ODOTPTR
+-		}
+-		types.CalcSize(xt)
+-		// Everything up to the last selection is an embedded field
+-		// access, and the last selection is determined by selinfo.Kind().
+-		if i < nindex-1 || selinfo.Kind() == types2.FieldVal {
+-			f = xt.Field(index)
+-			sym := f.Sym
+-			n = ir.NewSelectorExpr(pos, op, x, sym)
+-			if i < nindex-1 {
+-				n.SetImplicit(true)
+-				typed(f.Type, n)
+-			}
+-		} else if selinfo.Kind() == types2.MethodExpr {
+-			var ms *types.Fields
+-			if xt.IsInterface() {
+-				// TODO(danscales,mdempsky): interface method sets
+-				// are not sorted the same between types and
+-				// types2. In particular, this will likely fail if
+-				// an interface contains unexported methods from
+-				// two different packages (due to cross-package
+-				// interface embedding).
+-				ms = xt.Fields()
+-			} else {
+-				mt := types.ReceiverBaseType(xt)
+-				ms = mt.Methods()
+-			}
+-			f = ms.Slice()[index]
+-			n = ir.NewSelectorExpr(pos, ir.OMETHEXPR, x, f.Sym)
+-		} else { // types.MethodVal
+-			if xt.IsInterface() {
+-				f = xt.Field(index)
++
++	// Everything up to the last selection is an implicit embedded field access,
++	// and the last selection is determined by selinfo.Kind().
++	index := selinfo.Index()
++	embeds, last := index[:len(index)-1], index[len(index)-1]
++
++	x := g.expr(expr.X)
++	for _, ix := range embeds {
++		x = Implicit(DotField(pos, x, ix))
++	}
++
++	kind := selinfo.Kind()
++	if kind == types2.FieldVal {
++		return DotField(pos, x, last)
++	}
++
++	// TODO(danscales,mdempsky): Interface method sets are not sorted the
++	// same between types and types2. In particular, using "last" here
++	// without conversion will likely fail if an interface contains
++	// unexported methods from two different packages (due to cross-package
++	// interface embedding).
++
++	method := selinfo.Obj().(*types2.Func)
++
++	// Add implicit addr/deref for method values, if needed.
++	if kind == types2.MethodVal && !x.Type().IsInterface() {
++		recvTyp := method.Type().(*types2.Signature).Recv().Type()
++		_, wantPtr := recvTyp.(*types2.Pointer)
++		havePtr := x.Type().IsPtr()
++
++		if havePtr != wantPtr {
++			if havePtr {
++				x = Implicit(Deref(pos, x))
+ 			} else {
+-				f = xt.Methods().Slice()[index]
+-				rcvr := f.Type.Recv().Type
+-				if rcvr.IsPtr() && types.Identical(rcvr.Elem(), origxt) {
+-					addr := typecheck.NodAddrAt(pos, x)
+-					addr.SetImplicit(true)
+-					typed(xt.PtrTo(), addr)
+-					x = addr
+-				} else if op == ir.ODOTPTR && !rcvr.IsPtr() {
+-					star := ir.NewStarExpr(pos, x)
+-					star.SetImplicit(true)
+-					typed(xt, star)
+-					x = star
+-				}
++				x = Implicit(Addr(pos, x))
+ 			}
+-			// We will change OCALLPART to ODOTMETH or ODOTINTER in
+-			// Call() if n is actually called.
+-			n = ir.NewSelectorExpr(pos, ir.OCALLPART, x, f.Sym)
+ 		}
+-		n.Selection = f
+-		x = n
++		if !g.match(x.Type(), recvTyp, false) {
++			base.FatalfAt(pos, "expected %L to have type %v", x, recvTyp)
++		}
+ 	}
+ 
+-	// We don't set type on x for the last index (i == nindex - 1), since that
+-	// is the actual selection (ignoring embedded fields) and may be an
+-	// OMETHEXPR or OCALLPART operation. In those cases, the type to set on the
+-	// node will be different from the type derived from the field/method
+-	// selection. Instead for the last index, we always set the type (at the
+-	// end of the function) from g.typ(typ).
+-	typed(g.typ(typ), x)
+-	types.CalcSize(x.Type())
+-	return x
++	n := DotMethod(pos, x, last)
++	if have, want := n.Sym(), g.selector(method); have != want {
++		base.FatalfAt(pos, "bad Sym: have %v, want %v", have, want)
++	}
++	return n
+ }
+ 
+ func (g *irgen) exprList(expr syntax.Expr) []ir.Node {
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index e43ea630bd..c84e08e71a 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -5,11 +5,13 @@
+ package noder
+ 
+ import (
++	"go/constant"
++
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+-	"go/constant"
+ )
+ 
+ // Helpers for constructing typed IR nodes.
+@@ -21,6 +23,17 @@ import (
+ // results, rather than leaving the caller responsible for using
+ // typecheck.Expr or typecheck.Stmt.
+ 
++type ImplicitNode interface {
++	ir.Node
++	SetImplicit(x bool)
++}
++
++// Implicit returns n after marking it as Implicit.
++func Implicit(n ImplicitNode) ImplicitNode {
++	n.SetImplicit(true)
++	return n
++}
++
+ // typed returns n after setting its type to typ.
+ func typed(typ *types.Type, n ir.Node) ir.Node {
+ 	n.SetType(typ)
+@@ -40,6 +53,13 @@ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+ 
+ // Expressions
+ 
++func Addr(pos src.XPos, x ir.Node) *ir.AddrExpr {
++	// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT when appropriate.
++	n := typecheck.Expr(typecheck.NodAddrAt(pos, x)).(*ir.AddrExpr)
++	typed(types.NewPtr(x.Type()), n)
++	return n
++}
++
+ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
+ 	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
+ }
+@@ -109,6 +129,58 @@ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+ 	return typed(typ, n)
+ }
+ 
++func Deref(pos src.XPos, x ir.Node) *ir.StarExpr {
++	n := ir.NewStarExpr(pos, x)
++	typed(x.Type().Elem(), n)
++	return n
++}
++
++func DotField(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
++	op, typ := ir.ODOT, x.Type()
++	if typ.IsPtr() {
++		op, typ = ir.ODOTPTR, typ.Elem()
++	}
++	if !typ.IsStruct() {
++		base.FatalfAt(pos, "DotField of non-struct: %L", x)
++	}
++
++	// TODO(mdempsky): This is the backend's responsibility.
++	types.CalcSize(typ)
++
++	field := typ.Field(index)
++	return dot(pos, field.Type, op, x, field)
++}
++
++func DotMethod(pos src.XPos, x ir.Node, index int) *ir.SelectorExpr {
++	method := method(x.Type(), index)
++
++	// Method expression.
++	// TODO(mdempsky): Handle with a separate helper?
++	if x.Op() == ir.OTYPE {
++		typ := typecheck.NewMethodType(method.Type, x.Type())
++		return dot(pos, typ, ir.OMETHEXPR, x, method)
++	}
++
++	// Method value.
++	typ := typecheck.NewMethodType(method.Type, nil)
++	return dot(pos, typ, ir.OCALLPART, x, method)
++}
++
++func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Field) *ir.SelectorExpr {
++	n := ir.NewSelectorExpr(pos, op, x, selection.Sym)
++	n.Selection = selection
++	typed(typ, n)
++	return n
++}
++
++// TODO(mdempsky): Move to package types.
++func method(typ *types.Type, index int) *types.Field {
++	if typ.IsInterface() {
++		return typ.Field(index)
++	}
++	return types.ReceiverBaseType(typ).Methods().Index(index)
++}
++
+ func Index(pos src.XPos, x, index ir.Node) ir.Node {
+ 	// TODO(mdempsky): Avoid typecheck.Expr.
+ 	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+@@ -124,18 +196,18 @@ func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
+ }
+ 
+ func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
+-	typ := x.Type()
+ 	switch op {
+ 	case ir.OADDR:
+-		// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT as needed.
+-		return typed(types.NewPtr(typ), typecheck.Expr(typecheck.NodAddrAt(pos, x)))
++		return Addr(pos, x)
+ 	case ir.ODEREF:
+-		return typed(typ.Elem(), ir.NewStarExpr(pos, x))
+-	case ir.ORECV:
+-		return typed(typ.Elem(), ir.NewUnaryExpr(pos, op, x))
+-	default:
+-		return typed(typ, ir.NewUnaryExpr(pos, op, x))
++		return Deref(pos, x)
++	}
++
++	typ := x.Type()
++	if op == ir.ORECV {
++		typ = typ.Elem()
+ 	}
++	return typed(typ, ir.NewUnaryExpr(pos, op, x))
+ }
+ 
+ // Statements

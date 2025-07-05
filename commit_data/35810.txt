@@ -20,7 +20,150 @@ Date:   Fri Mar 2 15:52:30 2018 -0500
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/trace/annotations.go | 50 ++++++++++++++++++++++++++++++++++++++++----
  src/cmd/trace/trace.go       | 32 ++++++++++++++++++++++++++++
  2 files changed, 78 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/trace/annotations.go b/src/cmd/trace/annotations.go
+index c7c0b637c7..aa72a50e72 100644
+--- a/src/cmd/trace/annotations.go
++++ b/src/cmd/trace/annotations.go
+@@ -446,12 +446,42 @@ func (task *taskDesc) overlappingGCDuration(evs []*trace.Event) (overlapping tim
+ 	return overlapping
+ }
+ 
++// overlappingInstant returns true if the instantaneous event, ev, occurred during
++// any of the task's span if ev is a goroutine-local event, or overlaps with the
++// task's lifetime if ev is a global event.
++func (task *taskDesc) overlappingInstant(ev *trace.Event) bool {
++	if isUserAnnotationEvent(ev) && task.id != ev.Args[0] {
++		return false // not this task's user event.
++	}
++
++	ts := ev.Ts
++	taskStart := task.firstTimestamp()
++	taskEnd := task.lastTimestamp()
++	if ts < taskStart || taskEnd < ts {
++		return false
++	}
++	if ev.P == trace.GCP {
++		return true
++	}
++
++	// Goroutine local event. Check whether there are spans overlapping with the event.
++	goid := ev.G
++	for _, span := range task.spans {
++		if span.goid != goid {
++			continue
++		}
++		if span.firstTimestamp() <= ts && ts <= span.lastTimestamp() {
++			return true
++		}
++	}
++	return false
++}
++
+ // overlappingDuration returns whether the durational event, ev, overlaps with
+ // any of the task's span if ev is a goroutine-local event, or overlaps with
+ // the task's lifetime if ev is a global event. It returns the overlapping time
+ // as well.
+ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool) {
+-	// TODO: check whether ev is a 'durational' event.
+ 	start := ev.Ts
+ 	end := lastTimestamp()
+ 	if ev.Link != nil {
+@@ -463,9 +493,13 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
+ 	}
+ 
+ 	goid := ev.G
++	goid2 := ev.G
++	if ev.Link != nil {
++		goid2 = ev.Link.G
++	}
+ 
+-	// This event is a global event (G=0)
+-	if goid == 0 {
++	// This event is a global GC event
++	if ev.P == trace.GCP {
+ 		taskStart := task.firstTimestamp()
+ 		taskEnd := task.lastTimestamp()
+ 		o := overlappingDuration(taskStart, taskEnd, start, end)
+@@ -476,7 +510,7 @@ func (task *taskDesc) overlappingDuration(ev *trace.Event) (time.Duration, bool)
+ 	var overlapping time.Duration
+ 	var lastSpanEnd int64 // the end of previous overlapping span
+ 	for _, span := range task.spans {
+-		if span.goid != goid {
++		if span.goid != goid && span.goid != goid2 {
+ 			continue
+ 		}
+ 		spanStart, spanEnd := span.firstTimestamp(), span.lastTimestamp()
+@@ -925,3 +959,11 @@ func describeEvent(ev *trace.Event) string {
+ 	}
+ 	return ""
+ }
++
++func isUserAnnotationEvent(ev *trace.Event) bool {
++	switch ev.Type {
++	case trace.EvUserLog, trace.EvUserSpan, trace.EvUserTaskCreate, trace.EvUserTaskEnd:
++		return true
++	}
++	return false
++}
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 7dd8a87d94..3a730a313b 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -916,6 +916,23 @@ func (ctx *traceContext) emitThreadCounters(ev *trace.Event) {
+ }
+ 
+ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
++	cname := ""
++	if ctx.mode == taskTraceview && ev.G != 0 {
++		overlapping := false
++		for _, task := range ctx.tasks {
++			if task.overlappingInstant(ev) {
++				overlapping = true
++				break
++			}
++		}
++		// grey out or skip if non-overlapping instant.
++		if !overlapping {
++			if isUserAnnotationEvent(ev) {
++				return // don't display unrelated task events.
++			}
++			cname = "grey"
++		}
++	}
+ 	var arg interface{}
+ 	if ev.Type == trace.EvProcStart {
+ 		type Arg struct {
+@@ -931,6 +948,7 @@ func (ctx *traceContext) emitInstant(ev *trace.Event, name, category string) {
+ 		Time:     ctx.time(ev),
+ 		Tid:      ctx.proc(ev),
+ 		Stack:    ctx.stack(ev.Stk),
++		Cname:    cname,
+ 		Arg:      arg})
+ }
+ 
+@@ -950,6 +968,20 @@ func (ctx *traceContext) emitArrow(ev *trace.Event, name string) {
+ 		ctx.emitInstant(&trace.Event{P: ev.P, Ts: ev.Ts}, "unblock", "")
+ 	}
+ 
++	if ctx.mode == taskTraceview {
++		overlapping := false
++		// skip non-overlapping arrows.
++		for _, task := range ctx.tasks {
++			if _, overlapped := task.overlappingDuration(ev); overlapped {
++				overlapping = true
++				break
++			}
++		}
++		if !overlapping {
++			return
++		}
++	}
++
+ 	ctx.arrowSeq++
+ 	ctx.emit(&ViewerEvent{Name: name, Phase: "s", Tid: ctx.proc(ev), ID: ctx.arrowSeq, Time: ctx.time(ev), Stack: ctx.stack(ev.Stk)})
+ 	ctx.emit(&ViewerEvent{Name: name, Phase: "t", Tid: ctx.proc(ev.Link), ID: ctx.arrowSeq, Time: ctx.time(ev.Link)})

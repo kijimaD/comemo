@@ -42,7 +42,35 @@ Date:   Tue Mar 28 13:52:33 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go  | 2 +-
  src/cmd/compile/internal/gc/walk.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e5f1beb0ce..c21422ac65 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4076,7 +4076,7 @@ func (s *state) dottype(n *Node, commaok bool) (res, resok *ssa.Value) {
+ 		targetITab = target
+ 	} else {
+ 		// Looking for pointer to itab for target type and source interface.
+-		targetITab = s.expr(itabname(n.Type, n.Left.Type))
++		targetITab = s.expr(n.List.First())
+ 	}
+ 
+ 	var tmp *Node       // temporary for use with large types
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 214844f55b..db409900b3 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -521,6 +521,9 @@ opswitch:
+ 		if n.Op == ODOTTYPE {
+ 			n.Right.Right = typename(n.Left.Type)
+ 		}
++		if !n.Type.IsInterface() && !n.Left.Type.IsEmptyInterface() {
++			n.List.Set1(itabname(n.Type, n.Left.Type))
++		}
+ 
+ 	case ODOTPTR:
+ 		usefield(n)

@@ -10,6 +10,61 @@ Date:   Wed Jul 24 17:09:15 2019 -0700
     Change-Id: I958ae87f761ec25a8fa7298a2a3019eeca5b25ba
     Reviewed-on: https://go-review.googlesource.com/c/go/+/187518
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go | 29 +++++++++--------------------
  1 file changed, 9 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index b45fd47253..073d9f2a12 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -59,25 +59,22 @@ func expandiface(t *types.Type) {
+ 			fields = append(fields, f)
+ 		}
+ 	}
++
+ 	sort.Sort(methcmp(fields))
++	checkdupfields("method", fields)
++
++	if int64(len(fields)) >= thearch.MAXWIDTH/int64(Widthptr) {
++		yyerror("interface too large")
++	}
++	for i, f := range fields {
++		f.Offset = int64(i) * int64(Widthptr)
++	}
+ 
+ 	// Access fields directly to avoid recursively calling dowidth
+ 	// within Type.Fields().
+ 	t.Extra.(*types.Interface).Fields.Set(fields)
+ }
+ 
+-func offmod(t *types.Type) {
+-	o := int32(0)
+-	for _, f := range t.Fields().Slice() {
+-		f.Offset = int64(o)
+-		o += int32(Widthptr)
+-		if int64(o) >= thearch.MAXWIDTH {
+-			yyerror("interface too large")
+-			o = int32(Widthptr)
+-		}
+-	}
+-}
+-
+ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 	starto := o
+ 	maxalign := int32(flag)
+@@ -381,14 +378,6 @@ func dowidth(t *types.Type) {
+ 		t.Align = uint8(w)
+ 	}
+ 
+-	if t.Etype == TINTER {
+-		// We defer calling these functions until after
+-		// setting t.Width and t.Align so the recursive calls
+-		// to dowidth within t.Fields() will succeed.
+-		checkdupfields("method", t.FieldSlice())
+-		offmod(t)
+-	}
+-
+ 	lineno = lno
+ 
+ 	if defercalc == 1 {

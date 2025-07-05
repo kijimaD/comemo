@@ -7,6 +7,19 @@ Date:   Fri Jul 1 10:42:25 2011 -0400
     R=golang-dev, m, rsc
     CC=golang-dev
     https://golang.org/cl/4639091
-
+---
  src/lib9/Makefile | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib9/Makefile b/src/lib9/Makefile
+index d222e2f531..28c97c9b45 100644
+--- a/src/lib9/Makefile
++++ b/src/lib9/Makefile
+@@ -116,5 +116,6 @@ GOROOT_FINAL?=$(GOROOT)
+ 	$(HOST_CC) -c $(HOST_CFLAGS) $<
+ 
+ goos.$O: goos.c
+-	$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$(../version.bash)"'"' $<
++	GOVERSION=`../version.bash` && \
++		$(HOST_CC) -c $(HOST_CFLAGS) -DGOOS='"$(GOOS)"' -DGOARCH='"$(GOARCH)"' -DGOROOT='"$(GOROOT_FINAL)"' -DGOVERSION='"'"$$GOVERSION"'"' $<
+ 

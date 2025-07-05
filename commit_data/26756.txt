@@ -13,7 +13,41 @@ Date:   Wed Feb 24 19:25:38 2016 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/expvar/expvar.go      | 3 ++-
  src/expvar/expvar_test.go | 8 ++++++++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 24c2d6b29a..1d51bc97f9 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -258,7 +258,8 @@ func Publish(name string, v Var) {
+ 	sort.Strings(varKeys)
+ }
+ 
+-// Get retrieves a named exported variable.
++// Get retrieves a named exported variable. It returns nil if the name has
++// not been registered.
+ func Get(name string) Var {
+ 	mutex.RLock()
+ 	defer mutex.RUnlock()
+diff --git a/src/expvar/expvar_test.go b/src/expvar/expvar_test.go
+index 8bc633e4a9..385fea81ad 100644
+--- a/src/expvar/expvar_test.go
++++ b/src/expvar/expvar_test.go
+@@ -26,6 +26,14 @@ func RemoveAll() {
+ 	varKeys = nil
+ }
+ 
++func TestNil(t *testing.T) {
++	RemoveAll()
++	val := Get("missing")
++	if val != nil {
++		t.Errorf("got %v, want nil", val)
++	}
++}
++
+ func TestInt(t *testing.T) {
+ 	RemoveAll()
+ 	reqs := NewInt("requests")

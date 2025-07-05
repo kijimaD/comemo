@@ -22,7 +22,7 @@ Date:   Sat Jun 3 11:51:02 2023 +1000
     Reviewed-by: Randy Reddig <ydnar@shaderlab.com>
     Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/cgo_stub.go       |  5 +++--
  src/net/conf.go           |  2 +-
  src/net/dnsclient_unix.go |  2 +-
@@ -32,3 +32,135 @@ Date:   Sat Jun 3 11:51:02 2023 +1000
  src/net/net_fake.go       |  6 ------
  src/net/net_fake_js.go    | 11 ++++++++++-
  8 files changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/cgo_stub.go b/src/net/cgo_stub.go
+index bd483110b5..a8514c19f8 100644
+--- a/src/net/cgo_stub.go
++++ b/src/net/cgo_stub.go
+@@ -4,11 +4,12 @@
+ 
+ // This file holds stub versions of the cgo functions called on Unix systems.
+ // We build this file if using the netgo build tag, or if cgo is not
+-// enabled and we are using a Unix system other than Darwin.
++// enabled and we are using a Unix system other than Darwin, or if it's
++// wasip1 where cgo is never available.
+ // Darwin is exempted because it always provides the cgo routines,
+ // in cgo_unix_syscall.go.
+ 
+-//go:build netgo || (!cgo && unix && !darwin)
++//go:build netgo || (!cgo && unix && !darwin) || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 1db166c9e3..77cc635592 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
++//go:build !js
+ 
+ package net
+ 
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index f3c075c83f..dab5144e5d 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1
++//go:build !js
+ 
+ // DNS client: see RFC 1035.
+ // Has to be linked into package net for Dial.
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index d5f34e5300..69b300410a 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !js && !wasip1 && !windows
++//go:build !js && !windows
+ 
+ // Read system DNS config from /etc/resolv.conf
+ 
+diff --git a/src/net/lookup_fake.go b/src/net/lookup_fake.go
+index 45146e1c95..c27eae4ba5 100644
+--- a/src/net/lookup_fake.go
++++ b/src/net/lookup_fake.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (js && wasm) || wasip1
++//go:build js && wasm
+ 
+ package net
+ 
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index dc75e0a3b6..56ae11e961 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix
++//go:build unix || wasip1
+ 
+ package net
+ 
+diff --git a/src/net/net_fake.go b/src/net/net_fake.go
+index 68d36966ca..908767a1f6 100644
+--- a/src/net/net_fake.go
++++ b/src/net/net_fake.go
+@@ -15,8 +15,6 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"time"
+-
+-	"golang.org/x/net/dns/dnsmessage"
+ )
+ 
+ var listenersMu sync.Mutex
+@@ -406,7 +404,3 @@ func (fd *fakeNetFD) writeMsg(p []byte, oob []byte, sa syscall.Sockaddr) (n int,
+ func (fd *fakeNetFD) dup() (f *os.File, err error) {
+ 	return nil, syscall.ENOSYS
+ }
+-
+-func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
+-	panic("unreachable")
+-}
+diff --git a/src/net/net_fake_js.go b/src/net/net_fake_js.go
+index 1fc0b50b7d..7ba108b664 100644
+--- a/src/net/net_fake_js.go
++++ b/src/net/net_fake_js.go
+@@ -8,7 +8,12 @@
+ 
+ package net
+ 
+-import "internal/poll"
++import (
++	"context"
++	"internal/poll"
++
++	"golang.org/x/net/dns/dnsmessage"
++)
+ 
+ // Network file descriptor.
+ type netFD struct {
+@@ -25,3 +30,7 @@ type netFD struct {
+ 	pfd         poll.FD
+ 	isConnected bool // handshake completed or use of association with peer
+ }
++
++func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Type, conf *dnsConfig) (dnsmessage.Parser, string, error) {
++	panic("unreachable")
++}

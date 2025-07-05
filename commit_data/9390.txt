@@ -8,7 +8,7 @@ Date:   Wed Aug 17 14:55:57 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4899048
-
+---
  misc/goplay/goplay.go                             |  2 +-
  src/cmd/godoc/codewalk.go                         |  2 +-
  src/cmd/godoc/format.go                           |  2 +-
@@ -40,3 +40,355 @@ Date:   Wed Aug 17 14:55:57 2011 +1000
  src/pkg/{exp => }/template/testdata/tmpl1.tmpl    |  0
  src/pkg/{exp => }/template/testdata/tmpl2.tmpl    |  0
  30 files changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 4b59bbbe22..bbc388ba4c 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -14,7 +14,7 @@ import (
+ 	"os"
+ 	"runtime"
+ 	"strconv"
+-	"exp/template"
++	"template"
+ )
+ 
+ var (
+diff --git a/src/cmd/godoc/codewalk.go b/src/cmd/godoc/codewalk.go
+index 2e14186b0b..e2643e4662 100644
+--- a/src/cmd/godoc/codewalk.go
++++ b/src/cmd/godoc/codewalk.go
+@@ -14,7 +14,6 @@ package main
+ 
+ import (
+ 	"container/vector"
+-	"exp/template"
+ 	"fmt"
+ 	"http"
+ 	"io"
+@@ -24,6 +23,7 @@ import (
+ 	"sort"
+ 	"strconv"
+ 	"strings"
++	"template"
+ 	"utf8"
+ 	"xml"
+ )
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index 69fd6ba0c0..78dde4166f 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -11,13 +11,13 @@
+ package main
+ 
+ import (
+-	"exp/template"
+ 	"fmt"
+ 	"go/scanner"
+ 	"go/token"
+ 	"io"
+ 	"regexp"
+ 	"strconv"
++	"template"
+ )
+ 
+ // ----------------------------------------------------------------------------
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 7d4bcdc0c9..b8a8394043 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -6,7 +6,6 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exp/template"
+ 	"flag"
+ 	"fmt"
+ 	"go/ast"
+@@ -24,6 +23,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strings"
++	"template"
+ 	"time"
+ )
+ 
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 25f79d60df..38a70ddfd4 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -8,11 +8,11 @@ package main
+ 
+ import (
+ 	"bytes"
+-	"exp/template"
+ 	"go/build"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
++	"template"
+ )
+ 
+ // domake builds the package in dir.
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 6fc4f9e46a..ac36aaf0ca 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -82,9 +82,7 @@ DIRS=\
+ 	exp/gui/x11\
+ 	exp/norm\
+ 	exp/regexp/syntax\
+-	exp/template\
+ 	exp/template/html\
+-	exp/template/parse\
+ 	expvar\
+ 	flag\
+ 	fmt\
+@@ -157,6 +155,8 @@ DIRS=\
+ 	syscall\
+ 	syslog\
+ 	tabwriter\
++	template\
++	template/parse\
+ 	testing\
+ 	testing/iotest\
+ 	testing/quick\
+diff --git a/src/pkg/exp/template/html/reverse.go b/src/pkg/exp/template/html/reverse.go
+index 446e0f7b5e..9a806c2069 100644
+--- a/src/pkg/exp/template/html/reverse.go
++++ b/src/pkg/exp/template/html/reverse.go
+@@ -9,9 +9,9 @@
+ package html
+ 
+ import (
+-	"exp/template"
+-	"exp/template/parse"
+ 	"fmt"
++	"template"
++	"template/parse"
+ )
+ 
+ // Reverse reverses a template.
+diff --git a/src/pkg/exp/template/html/reverse_test.go b/src/pkg/exp/template/html/reverse_test.go
+index 32d11c6d65..bc29c07b77 100644
+--- a/src/pkg/exp/template/html/reverse_test.go
++++ b/src/pkg/exp/template/html/reverse_test.go
+@@ -6,7 +6,7 @@ package html
+ 
+ import (
+ 	"bytes"
+-	"exp/template"
++	"template"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index af307459ec..e1989226b6 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -11,7 +11,7 @@ import (
+ 	"io"
+ 	"regexp"
+ 	"strings"
+-	"exp/template" // for HTMLEscape
++	"template" // for HTMLEscape
+ )
+ 
+ func isWhitespace(ch byte) bool { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' }
+diff --git a/src/pkg/rpc/debug.go b/src/pkg/rpc/debug.go
+index 80d2064153..7e3e6f6e5b 100644
+--- a/src/pkg/rpc/debug.go
++++ b/src/pkg/rpc/debug.go
+@@ -10,10 +10,10 @@ package rpc
+ */
+ 
+ import (
+-	"exp/template"
+ 	"fmt"
+ 	"http"
+ 	"sort"
++	"template"
+ )
+ 
+ const debugText = `<html>
+diff --git a/src/pkg/exp/template/parse/Makefile b/src/pkg/template/Makefile
+similarity index 65%
+rename from src/pkg/exp/template/parse/Makefile
+rename to src/pkg/template/Makefile
+index 5483a0cf9e..3ed3b03308 100644
+--- a/src/pkg/exp/template/parse/Makefile
++++ b/src/pkg/template/Makefile
+@@ -2,13 +2,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../../Make.inc
++include ../../Make.inc
+ 
+-TARG=exp/template/parse
++TARG=template
+ GOFILES=\
+-	lex.go\
+-	node.go\
++	exec.go\
++	funcs.go\
++	helper.go\
+ 	parse.go\
+ 	set.go\
+ 
+-include ../../../../Make.pkg
++include ../../Make.pkg
+diff --git a/src/pkg/exp/template/doc.go b/src/pkg/template/doc.go
+similarity index 100%
+rename from src/pkg/exp/template/doc.go
+rename to src/pkg/template/doc.go
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/template/exec.go
+similarity index 99%
+rename from src/pkg/exp/template/exec.go
+rename to src/pkg/template/exec.go
+index 08cb390900..eaa57ae818 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/template/exec.go
+@@ -5,13 +5,13 @@
+ package template
+ 
+ import (
+-	"exp/template/parse"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ 	"reflect"
+ 	"runtime"
+ 	"strings"
++	"template/parse"
+ )
+ 
+ // state represents the state of an execution. It's not part of the
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/template/exec_test.go
+similarity index 100%
+rename from src/pkg/exp/template/exec_test.go
+rename to src/pkg/template/exec_test.go
+diff --git a/src/pkg/exp/template/funcs.go b/src/pkg/template/funcs.go
+similarity index 100%
+rename from src/pkg/exp/template/funcs.go
+rename to src/pkg/template/funcs.go
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/template/helper.go
+similarity index 100%
+rename from src/pkg/exp/template/helper.go
+rename to src/pkg/template/helper.go
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/template/parse.go
+similarity index 99%
+rename from src/pkg/exp/template/parse.go
+rename to src/pkg/template/parse.go
+index 4b8a54e65c..b089c599a4 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/template/parse.go
+@@ -5,9 +5,9 @@
+ package template
+ 
+ import (
+-	"exp/template/parse"
+ 	"os"
+ 	"reflect"
++	"template/parse"
+ )
+ 
+ // Template is the representation of a parsed template.
+diff --git a/src/pkg/exp/template/Makefile b/src/pkg/template/parse/Makefile
+similarity index 82%
+rename from src/pkg/exp/template/Makefile
+rename to src/pkg/template/parse/Makefile
+index 06df9b6597..fe65858097 100644
+--- a/src/pkg/exp/template/Makefile
++++ b/src/pkg/template/parse/Makefile
+@@ -4,11 +4,10 @@
+ 
+ include ../../../Make.inc
+ 
+-TARG=exp/template
++TARG=template/parse
+ GOFILES=\
+-	exec.go\
+-	funcs.go\
+-	helper.go\
++	lex.go\
++	node.go\
+ 	parse.go\
+ 	set.go\
+ 
+diff --git a/src/pkg/exp/template/parse/lex.go b/src/pkg/template/parse/lex.go
+similarity index 100%
+rename from src/pkg/exp/template/parse/lex.go
+rename to src/pkg/template/parse/lex.go
+diff --git a/src/pkg/exp/template/parse/lex_test.go b/src/pkg/template/parse/lex_test.go
+similarity index 100%
+rename from src/pkg/exp/template/parse/lex_test.go
+rename to src/pkg/template/parse/lex_test.go
+diff --git a/src/pkg/exp/template/parse/node.go b/src/pkg/template/parse/node.go
+similarity index 100%
+rename from src/pkg/exp/template/parse/node.go
+rename to src/pkg/template/parse/node.go
+diff --git a/src/pkg/exp/template/parse/parse.go b/src/pkg/template/parse/parse.go
+similarity index 99%
+rename from src/pkg/exp/template/parse/parse.go
+rename to src/pkg/template/parse/parse.go
+index 691d85ef63..9a411a3f37 100644
+--- a/src/pkg/exp/template/parse/parse.go
++++ b/src/pkg/template/parse/parse.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package parse builds parse trees for templates.  The grammar is defined
+-// in the documents for the exp/template package.
++// in the documents for the template package.
+ package parse
+ 
+ import (
+diff --git a/src/pkg/exp/template/parse/parse_test.go b/src/pkg/template/parse/parse_test.go
+similarity index 100%
+rename from src/pkg/exp/template/parse/parse_test.go
+rename to src/pkg/template/parse/parse_test.go
+diff --git a/src/pkg/exp/template/parse/set.go b/src/pkg/template/parse/set.go
+similarity index 100%
+rename from src/pkg/exp/template/parse/set.go
+rename to src/pkg/template/parse/set.go
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/template/set.go
+similarity index 99%
+rename from src/pkg/exp/template/set.go
+rename to src/pkg/template/set.go
+index 7f2813c048..f778fd1693 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/template/set.go
+@@ -5,11 +5,11 @@
+ package template
+ 
+ import (
+-	"exp/template/parse"
+ 	"fmt"
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"template/parse"
+ )
+ 
+ // Set holds a set of related templates that can refer to one another by name.
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/template/set_test.go
+similarity index 100%
+rename from src/pkg/exp/template/set_test.go
+rename to src/pkg/template/set_test.go
+diff --git a/src/pkg/exp/template/testdata/file1.tmpl b/src/pkg/template/testdata/file1.tmpl
+similarity index 100%
+rename from src/pkg/exp/template/testdata/file1.tmpl
+rename to src/pkg/template/testdata/file1.tmpl
+diff --git a/src/pkg/exp/template/testdata/file2.tmpl b/src/pkg/template/testdata/file2.tmpl
+similarity index 100%
+rename from src/pkg/exp/template/testdata/file2.tmpl
+rename to src/pkg/template/testdata/file2.tmpl
+diff --git a/src/pkg/exp/template/testdata/tmpl1.tmpl b/src/pkg/template/testdata/tmpl1.tmpl
+similarity index 100%
+rename from src/pkg/exp/template/testdata/tmpl1.tmpl
+rename to src/pkg/template/testdata/tmpl1.tmpl
+diff --git a/src/pkg/exp/template/testdata/tmpl2.tmpl b/src/pkg/template/testdata/tmpl2.tmpl
+similarity index 100%
+rename from src/pkg/exp/template/testdata/tmpl2.tmpl
+rename to src/pkg/template/testdata/tmpl2.tmpl

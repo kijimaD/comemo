@@ -13,7 +13,7 @@ Date:   Thu Nov 5 16:44:02 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1022005
-
+---
  src/pkg/Make.deps                   |  9 ++++++---
  src/pkg/Makefile                    |  3 +++
  src/pkg/crypto/rsa/pkcs1v15.go      |  2 +-
@@ -23,3 +23,222 @@ Date:   Thu Nov 5 16:44:02 2009 -0800
  src/pkg/crypto/x509/x509.go         |  2 +-
  src/pkg/crypto/x509/x509_test.go    |  2 +-
  8 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/Make.deps b/src/pkg/Make.deps
+index 4cc7ce96c0..b1f6b3d67b 100644
+--- a/src/pkg/Make.deps
++++ b/src/pkg/Make.deps
+@@ -5,8 +5,8 @@ bignum.install: fmt.install
+ bufio.install: io.install os.install strconv.install utf8.install
+ bytes.install: os.install unicode.install utf8.install
+ compress/flate.install: bufio.install bytes.install io.install math.install os.install sort.install strconv.install
+-compress/gzip.install: bufio.install compress/flate.install hash.install hash/crc32.install io.install os.install
+-compress/zlib.install: bufio.install compress/flate.install hash.install hash/adler32.install io.install os.install
++compress/gzip.install: bufio.install compress/flate.install hash/crc32.install hash.install io.install os.install
++compress/zlib.install: bufio.install compress/flate.install hash/adler32.install hash.install io.install os.install
+ container/heap.install: sort.install
+ container/list.install:
+ container/ring.install:
+@@ -16,8 +16,11 @@ crypto/block.install: fmt.install hash.install io.install os.install strconv.ins
+ crypto/hmac.install: crypto/md5.install crypto/sha1.install hash.install os.install
+ crypto/md5.install: hash.install os.install
+ crypto/rc4.install: os.install strconv.install
++crypto/rsa.install: big.install bytes.install crypto/subtle.install hash.install io.install os.install
+ crypto/sha1.install: hash.install os.install
+ crypto/subtle.install:
++crypto/tls.install: bufio.install bytes.install container/list.install crypto/hmac.install crypto/md5.install crypto/rc4.install crypto/rsa.install crypto/sha1.install crypto/subtle.install fmt.install hash.install io.install net.install os.install strings.install time.install
++crypto/x509.install: asn1.install big.install crypto/rsa.install os.install
+ debug/dwarf.install: encoding/binary.install os.install strconv.install
+ debug/macho.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+ debug/elf.install: bytes.install debug/dwarf.install encoding/binary.install fmt.install io.install os.install strconv.install
+@@ -49,7 +52,7 @@ hash/adler32.install: hash.install os.install
+ hash/crc32.install: hash.install os.install
+ http.install: bufio.install bytes.install container/vector.install fmt.install io.install log.install net.install os.install path.install strconv.install strings.install utf8.install
+ image.install:
+-image/png.install: bufio.install compress/zlib.install hash.install hash/crc32.install image.install io.install os.install strconv.install
++image/png.install: bufio.install compress/zlib.install hash/crc32.install hash.install image.install io.install os.install strconv.install
+ io.install: bytes.install os.install sort.install strings.install sync.install
+ json.install: bytes.install container/vector.install fmt.install math.install reflect.install strconv.install strings.install utf8.install
+ log.install: fmt.install io.install os.install runtime.install time.install
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 252237183b..2869af2e07 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -30,8 +30,11 @@ DIRS=\
+ 	crypto/hmac\
+ 	crypto/md5\
+ 	crypto/rc4\
++	crypto/rsa\
+ 	crypto/sha1\
+ 	crypto/subtle\
++	crypto/tls\
++	crypto/x509\
+ 	debug/dwarf\
+ 	debug/macho\
+ 	debug/elf\
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 2583f19114..58f860facf 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -5,9 +5,9 @@
+ package rsa
+ 
+ import (
++	"big";
+ 	"bytes";
+ 	"crypto/subtle";
+-	big "gmp";
+ 	"io";
+ 	"os";
+ )
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index b2cdc26602..1f5cf463a2 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -5,9 +5,9 @@
+ package rsa
+ 
+ import (
++	"big";
+ 	"bytes";
+ 	"encoding/base64";
+-	big "gmp";
+ 	"os";
+ 	"io";
+ 	"strings";
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 65258781bd..701c4cd4f5 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -8,9 +8,9 @@ package rsa
+ // TODO(agl): Add support for PSS padding.
+ 
+ import (
++	"big";
+ 	"bytes";
+ 	"crypto/subtle";
+-	big "gmp";
+ 	"hash";
+ 	"io";
+ 	"os";
+@@ -19,6 +19,10 @@ import (
+ var bigZero = big.NewInt(0)
+ var bigOne = big.NewInt(1)
+ 
++/*
++
++TODO(agl): Enable once big implements ProbablyPrime.
++
+ // randomSafePrime returns a number, p, of the given size, such that p and
+ // (p-1)/2 are both prime with high probability.
+ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+@@ -53,6 +57,8 @@ func randomSafePrime(rand io.Reader, bits int) (p *big.Int, err os.Error) {
+ 	return;
+ }
+ 
++*/
++
+ // randomNumber returns a uniform random value in [0, max).
+ func randomNumber(rand io.Reader, max *big.Int) (n *big.Int, err os.Error) {
+ 	k := (max.Len() + 7)/8;
+@@ -103,6 +109,9 @@ type PrivateKey struct {
+ // It returns nil if the key is valid, or else an os.Error describing a problem.
+ 
+ func (priv PrivateKey) Validate() os.Error {
++	/*
++	TODO(agl): Enable once big implements ProbablyPrime.
++
+ 	// Check that p and q are prime.
+ 	if !priv.P.ProbablyPrime(20) {
+ 		return os.ErrorString("P is composite");
+@@ -110,6 +119,7 @@ func (priv PrivateKey) Validate() os.Error {
+ 	if !priv.Q.ProbablyPrime(20) {
+ 		return os.ErrorString("Q is composite");
+ 	}
++	*/
+ 	// Check that p*q == n.
+ 	modulus := new(big.Int).Mul(priv.P, priv.Q);
+ 	if big.CmpInt(modulus, priv.N) != 0 {
+@@ -136,6 +146,8 @@ func (priv PrivateKey) Validate() os.Error {
+ 	return nil;
+ }
+ 
++/*
++
+ // GenerateKeyPair generates an RSA keypair of the given bit size.
+ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	priv = new(PrivateKey);
+@@ -192,6 +204,8 @@ func GenerateKey(rand io.Reader, bits int) (priv *PrivateKey, err os.Error) {
+ 	return;
+ }
+ 
++*/
++
+ // incCounter increments a four byte, big-endian counter.
+ func incCounter(c *[4]byte) {
+ 	if c[3]++; c[3] != 0 {
+diff --git a/src/pkg/crypto/rsa/rsa_test.go b/src/pkg/crypto/rsa/rsa_test.go
+index 3bdfc66a79..7070a8ba8e 100644
+--- a/src/pkg/crypto/rsa/rsa_test.go
++++ b/src/pkg/crypto/rsa/rsa_test.go
+@@ -5,13 +5,17 @@
+ package rsa
+ 
+ import (
++	"big";
+ 	"bytes";
+ 	"crypto/sha1";
+-	big "gmp";
+ 	"os";
+ 	"testing";
+ )
+ 
++/*
++
++TODO(agl): Enable once big implements ProbablyPrime.
++
+ func TestKeyGeneration(t *testing.T) {
+ 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0);
+ 	if err != nil {
+@@ -42,6 +46,8 @@ func TestKeyGeneration(t *testing.T) {
+ 	}
+ }
+ 
++*/
++
+ type testEncryptOAEPMessage struct {
+ 	in	[]byte;
+ 	seed	[]byte;
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 1997ec9a58..87829ec8e2 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -9,9 +9,9 @@ package x509
+ 
+ import (
+ 	"asn1";
++	"big";
+ 	"crypto/rsa";
+ 	"os";
+-	big "gmp";
+ )
+ 
+ // pkcs1PrivateKey is a structure which mirrors the PKCS#1 ASN.1 for an RSA private key.
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index e5ca0f0f03..4b2a5ec8a2 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -5,12 +5,12 @@
+ package x509
+ 
+ import (
++	"big";
+ 	"crypto/rsa";
+ 	"encoding/pem";
+ 	"reflect";
+ 	"strings";
+ 	"testing";
+-	big "gmp";
+ )
+ 
+ func TestParsePKCS1PrivateKey(t *testing.T) {

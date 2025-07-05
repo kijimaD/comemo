@@ -13,7 +13,7 @@ Date:   Fri Dec 11 15:14:09 2009 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/171044
-
+---
  doc/install.html           | 11 ++++-------
  doc/progs/run              | 10 ++++++----
  misc/cgo/stdio/Makefile    |  4 ++--
@@ -36,3 +36,788 @@ Date:   Fri Dec 11 15:14:09 2009 -0800
  src/run.bash               | 36 +++++++++++++++++++-----------------
  test/bench/timing.sh       |  7 +++++--
  21 files changed, 162 insertions(+), 111 deletions(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index a3787191f7..e7365575c1 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -82,10 +82,9 @@ plus one optional variable:</p>
+ </dt>
+ <dd>
+ 	The location where binaries will be installed.
+-	If you set <code>$GOBIN</code>, you need to ensure that it
+-	is in your <code>$PATH</code> so that newly built Go-specific
+-	command such as the compiler can be found during the build.
+-	The default, <code>$HOME/bin</code>, may already be in your <code>$PATH</code>.
++	The default is <code>$HOME/bin</code>.
++	After installing, you will want to arrange to add this
++	directory to your <code>$PATH</code>, so you can use the tools.
+ </dd>
+ </dl>
+ 
+@@ -204,9 +203,7 @@ $ sudo apt-get install bison gcc libc6-dev ed make
+ </p>
+ 
+ <p>
+-To build the Go distribution, make sure <code>$GOBIN</code>
+-(or <code>$HOME/bin</code> if <code>$GOBIN</code> is not set)
+-is in your <code>$PATH</code> and then run
++To build the Go distribution, run
+ </p>
+ 
+ <pre>
+diff --git a/doc/progs/run b/doc/progs/run
+index 71999ece92..c0e4b53e0c 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -3,6 +3,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ . "$GOROOT"/src/Make.$GOARCH
+ 
+ if [ -z "$O" ]; then
+@@ -30,11 +32,11 @@ for i in \
+ ; do
+ 	BASE=$(basename $i .go)
+ 
+-	$GC $i
++	"$GOBIN"/$GC $i
+ done
+ 
+ function testit {
+-	$LD $1.$O
++	"$GOBIN"/$LD $1.$O
+ 	x=$(echo $(./$O.out $2 2>&1))  # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+@@ -43,7 +45,7 @@ function testit {
+ }
+ 
+ function testitpipe {
+-	$LD $1.$O
++	"$GOBIN"/$LD $1.$O
+ 	x=$(echo $(./$O.out | $2 2>&1))  # extra echo canonicalizes
+ 	if [ "$x" != "$3" ]
+ 	then
+@@ -72,7 +74,7 @@ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ testitpipe sieve "sed 10q" "2 3 5 7 11 13 17 19 23 29"
+ 
+ # server hangs; don't run it, just compile it
+-$GC server.go
++"$GOBIN"/$GC server.go
+ testit server1 "" ""
+ 
+ rm -f $O.out *.$O
+diff --git a/misc/cgo/stdio/Makefile b/misc/cgo/stdio/Makefile
+index 7ff8c3007e..2e3d466318 100644
+--- a/misc/cgo/stdio/Makefile
++++ b/misc/cgo/stdio/Makefile
+@@ -13,5 +13,5 @@ CLEANFILES+=hello fib chain run.out
+ include ../../../src/Make.pkg
+ 
+ %: install %.go
+-	$(GC) $*.go
+-	$(LD) -o $@ $*.$O
++	$(QUOTED_GOBIN)/$(GC) $*.go
++	$(QUOTED_GOBIN)/$(LD) -o $@ $*.$O
+diff --git a/misc/cgo/stdio/test.bash b/misc/cgo/stdio/test.bash
+index 82e3f7b45b..b8b5f6911e 100755
+--- a/misc/cgo/stdio/test.bash
++++ b/misc/cgo/stdio/test.bash
+@@ -4,7 +4,8 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
+-gomake hello fib chain
++GOBIN="${GOBIN:-$HOME/bin}"
++"$GOBIN"/gomake hello fib chain
+ echo '*' hello >run.out
+ ./hello >>run.out
+ echo '*' fib >>run.out
+@@ -12,4 +13,4 @@ echo '*' fib >>run.out
+ echo '*' chain >>run.out
+ ./chain >>run.out
+ diff run.out golden.out
+-gomake clean
++"$GOBIN"/gomake clean
+diff --git a/src/Make.cmd b/src/Make.cmd
+index 7cf0a5b532..268fd5ea70 100644
+--- a/src/Make.cmd
++++ b/src/Make.cmd
+@@ -15,10 +15,10 @@ QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ all: $(TARG)
+ 
+ $(TARG): _go_.$O $(OFILES)
+-	$(LD) -o $@ _go_.$O $(OFILES)
++	$(QUOTED_GOBIN)/$(LD) -o $@ _go_.$O $(OFILES)
+ 
+ _go_.$O: $(GOFILES)
+-	$(GC) -o $@ $(GOFILES)
++	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
+ 
+ install: $(QUOTED_GOBIN)/$(TARG)
+ 
+diff --git a/src/Make.conf b/src/Make.conf
+index 242fb74273..a90ed0da4d 100644
+--- a/src/Make.conf
++++ b/src/Make.conf
+@@ -2,8 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-CC=quietgcc
+-LD=quietgcc
+ CFLAGS=-ggdb -I"$(GOROOT)"/include -O2 -fno-inline
+ O=o
+ YFLAGS=-d
+@@ -13,7 +11,15 @@ nullstring :=
+ space := $(nullstring) # a space at the end
+ QUOTED_HOME=$(subst $(space),\ ,$(HOME))
+ GOBIN=$(QUOTED_HOME)/bin
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++else
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
+ endif
++
++CC=$(QUOTED_GOBIN)/quietgcc
++LD=$(QUOTED_GOBIN)/quietgcc
+ PWD=$(shell pwd)
+ 
+ %.$O: %.c
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 26d6e20ee7..87b4e442e1 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -6,6 +6,18 @@ all: package
+ package: _obj/$(TARG).a
+ testpackage: _test/$(TARG).a
+ 
++ifndef GOBIN
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_HOME=$(subst $(space),\ ,$(HOME))
++GOBIN=$(QUOTED_HOME)/bin
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++else
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_GOBIN=$(subst $(space),\ ,$(GOBIN))
++endif
++
+ # GNU Make 3.80 has a bug in lastword
+ # elem=$(lastword $(subst /, ,$(TARG)))
+ TARG_words=$(subst /, ,$(TARG))
+@@ -31,14 +43,14 @@ INSTALLFILES+=$(patsubst %.go,$(pkgdir)/$(dir)/$(elem)_%.so,$(CGOFILES))
+ PREREQ+=$(patsubst %,%.make,$(DEPS))
+ 
+ coverage:
+-	gotest
+-	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
++	$(QUOTED_GOBIN)/gotest
++	$(QUOTED_GOBIN)/6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+ clean:
+ 	rm -rf *.[$(OS)o] *.a [$(OS)].out *.cgo[12].go *.cgo[34].c *.so _obj _test _testmain.go $(CLEANFILES)
+ 
+ test:
+-	gotest
++	$(QUOTED_GOBIN)/gotest
+ 
+ nuke: clean
+ 	rm -f $(pkgdir)/$(TARG).a
+@@ -53,20 +65,20 @@ $(pkgdir)/$(TARG).a: package
+ 	cp _obj/$(TARG).a "$@"
+ 
+ _go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) -o $@ $(GOFILES)
++	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES)
+ 
+ _gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
+-	$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
++	$(QUOTED_GOBIN)/$(GC) -o $@ $(GOFILES) $(GOTESTFILES)
+ 
+ _obj/$(TARG).a: _go_.$O $(OFILES)
+ 	@mkdir -p _obj/$(dir)
+ 	rm -f _obj/$(TARG).a
+-	gopack grc $@ _go_.$O $(OFILES)
++	$(QUOTED_GOBIN)/gopack grc $@ _go_.$O $(OFILES)
+ 
+ _test/$(TARG).a: _gotest_.$O $(OFILES)
+ 	@mkdir -p _test/$(dir)
+ 	rm -f _test/$(TARG).a
+-	gopack grc $@ _gotest_.$O $(OFILES)
++	$(QUOTED_GOBIN)/gopack grc $@ _gotest_.$O $(OFILES)
+ 
+ importpath:
+ 	@echo $(TARG)
+@@ -75,7 +87,7 @@ dir:
+ 	@echo $(dir)
+ 
+ %.make:
+-	(cd $* && gomake)
++	(cd $* && $(QUOTED_GOBIN)/gomake)
+ 
+ # To use cgo in a Go package, add a line
+ #
+@@ -94,7 +106,7 @@ dir:
+ #	x.cgo4.c - C implementations compiled with gcc to create dynamic library
+ #
+ %.cgo1.go %.cgo2.go %.cgo3.c %.cgo4.c: %.go
+-	CGOPKGPATH=$(dir) cgo $(CGO_CFLAGS) $*.go
++	CGOPKGPATH=$(dir) $(QUOTED_GOBIN)/cgo $(CGO_CFLAGS) $*.go
+ 
+ # The rules above added x.cgo1.go and x.cgo2.go to $(GOFILES),
+ # added x.cgo3.$O to $OFILES, and added the installed copy of
+@@ -104,7 +116,7 @@ dir:
+ RUNTIME_CFLAGS_amd64=-D_64BIT
+ RUNTIME_CFLAGS=-I"$(GOROOT)/src/pkg/runtime" $(RUNTIME_CFLAGS_$(GOARCH))
+ %.cgo3.$O: %.cgo3.c
+-	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) $*.cgo3.c
+ 
+ # Have to run gcc with the right size argument on hybrid 32/64 machines.
+ _CGO_CFLAGS_386=-m32
+@@ -129,10 +141,10 @@ $(pkgdir)/$(dir)/$(elem)_%.so: $(elem)_%.so
+ # These come last so that the rules above can override them
+ # for more specific file names.
+ %.$O: %.c
+-	$(CC) $(CFLAGS) $*.c
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $*.c
+ 
+ %.$O: %.s
+-	$(AS) $*.s
++	$(QUOTED_GOBIN)/$(AS) $*.s
+ 
+ %.$O: $(HFILES)
+ 
+diff --git a/src/Makefile b/src/Makefile
+index 02581f5f80..e1b76f802e 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -1,11 +1,16 @@
++# GNU Make syntax:
++nullstring :=
++space := $(nullstring) # a space at the end
++QUOTED_GOROOT=$(subst $(space),\ ,$(GOROOT))
++
+ all: build run
+ 
+ build:
+-	bash $(GOROOT)/src/make.bash
++	bash $(QUOTED_GOROOT)/src/make.bash
+ 
+ run:
+-	bash $(GOROOT)/src/run.bash
++	bash $(QUOTED_GOROOT)/src/run.bash
+ 
+ clean:
+-	bash $(GOROOT)/src/clean.bash
++	bash $(QUOTED_GOROOT)/src/clean.bash
+ 
+diff --git a/src/clean.bash b/src/clean.bash
+index f6fc6d1f5e..3687244b20 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,16 +3,18 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+ rm -f "$GOROOT"/lib/*.a
+ for i in lib9 libbio libcgo libmach cmd pkg \
+ 	../misc/cgo/gmp ../misc/cgo/stdio \
+ 	../test/bench
+ do(
+-	cd $i || exit 1
++	cd "$GOROOT"/src/$i || exit 1
+ 	if test -f clean.bash; then
+ 		bash clean.bash
+ 	else
+-		gomake clean
++		"$GOBIN"/gomake clean
+ 	fi
+ )done
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 7a8ec107b3..9429057a02 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,9 +3,11 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack nm cgo cov ebnflint godefs godoc gofmt gotest goyacc hgpatch prof
+ do
+ 	cd $i
+-	gomake clean
++	"$GOBIN"/gomake clean
+ 	cd ..
+ done
+diff --git a/src/cmd/ebnflint/Makefile b/src/cmd/ebnflint/Makefile
+index 9c482446a7..8cb9fd821d 100644
+--- a/src/cmd/ebnflint/Makefile
++++ b/src/cmd/ebnflint/Makefile
+@@ -11,5 +11,5 @@ GOFILES=\
+ include ../../Make.cmd
+ 
+ test: $(TARG)
+-	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
++	$(QUOTED_GOBIN)/$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
+ 
+diff --git a/src/cmd/gc/mkbuiltin b/src/cmd/gc/mkbuiltin
+index 6616977dbc..ea12b686f2 100755
+--- a/src/cmd/gc/mkbuiltin
++++ b/src/cmd/gc/mkbuiltin
+@@ -5,6 +5,8 @@
+ 
+ set -e
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ . "$GOROOT"/src/Make.$GOARCH
+ if [ -z "$GC" ]; then
+ 	echo 'missing $GC - maybe no Make.$GOARCH?' 1>&2
+@@ -15,7 +17,7 @@ gcc -o mkbuiltin1 mkbuiltin1.c
+ rm -f _builtin.c
+ for i in runtime unsafe
+ do
+-	$GC -A $i.go
++	"$GOBIN"/$GC -A $i.go
+ 	O=$O ./mkbuiltin1 $i >>_builtin.c
+ done
+ 
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 3c5d67b6b5..b2e4330945 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -14,6 +14,8 @@ unset LANG
+ export LC_ALL=C
+ export LC_CTYPE=C
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ _GC=$GC	# Make.$GOARCH will overwrite this
+ 
+ if [ ! -f [Mm]akefile ]; then
+@@ -94,10 +96,10 @@ fi
+ 
+ set -e
+ 
+-gomake testpackage-clean
+-gomake testpackage "GOTESTFILES=$gofiles"
++"$GOBIN"/gomake testpackage-clean
++"$GOBIN"/gomake testpackage "GOTESTFILES=$gofiles"
+ if $havex; then
+-	$GC -o $xofile $xgofiles
++	"$GOBIN"/$GC -o $xofile $xgofiles
+ fi
+ 
+ # They all compile; now generate the code to call them.
+@@ -107,20 +109,20 @@ trap "rm -f _testmain.go _testmain.$O" 0 1 2 3 14 15
+ MAKEFLAGS=
+ MAKELEVEL=
+ 
+-importpath=$(gomake -s importpath)
++importpath=$("$GOBIN"/gomake -s importpath)
+ {
+ 	# test functions are named TestFoo
+ 	# the grep -v eliminates methods and other special names
+ 	# that have multiple dots.
+ 	pattern='Test([^a-z].*)?'
+-	tests=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	tests=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+ 	if [ "x$tests" = x ]; then
+ 		echo 'gotest: error: no tests matching '$pattern in _test/$importpath.a $xofile 1>&2
+ 		exit 2
+ 	fi
+ 	# benchmarks are named BenchmarkFoo.
+ 	pattern='Benchmark([^a-z].*)?'
+-	benchmarks=$(6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
++	benchmarks=$("$GOBIN"/6nm -s _test/$importpath.a $xofile | egrep ' T .*·'$pattern'$' | grep -v '·.*[.·]' | sed 's/.* //; s/·/./')
+ 
+ 	# package spec
+ 	echo 'package main'
+@@ -159,6 +161,6 @@ importpath=$(gomake -s importpath)
+ 	echo '}'
+ }>_testmain.go
+ 
+-$GC _testmain.go
+-$GL _testmain.$O
++"$GOBIN"/$GC _testmain.go
++"$GOBIN"/$GL _testmain.$O
+ $E ./$O.out "$@"
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index 8e1546b53f..db96c94a8a 100755
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -7,6 +7,8 @@ set -e
+ 
+ bash clean.bash
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ . "$GOROOT"/src/Make.$GOARCH
+ if [ -z "$O" ]; then
+ 	echo 'missing $O - maybe no Make.$GOARCH?' 1>&2
+@@ -15,13 +17,13 @@ fi
+ 
+ cd ${O}l
+ bash mkenam
+-gomake enam.o
++"$GOBIN"/gomake enam.o
+ cd ..
+ 
+ for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack nm cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i
+-	gomake install
++	"$GOBIN"/gomake install
+ 	cd ..
+ done
+diff --git a/src/make-arm.bash b/src/make-arm.bash
+index b007418db6..3491170782 100755
+--- a/src/make-arm.bash
++++ b/src/make-arm.bash
+@@ -4,6 +4,21 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++
++if test -z "$GOBIN"; then
++	if ! test -d "$HOME"/bin; then
++		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
++		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
++		echo 'be installed.' 1>&2
++		exit 1
++	fi
++	GOBIN="$HOME/bin"
++elif ! test -d "$GOBIN"; then
++	echo '$GOBIN is not a directory or does not exist' 1>&2
++	echo 'create it or set $GOBIN differently' 1>&2
++	exit 1
++fi
++
+ GOBIN="${GOBIN:-$HOME/bin}"
+ export MAKEFLAGS=-j4
+ 
+@@ -13,13 +28,6 @@ then
+ 	exit 1
+ fi
+ 
+-if ! test -d $GOBIN
+-then
+-	echo '$GOBIN is not a directory or does not exist' 1>&2
+-	echo 'create it or set $GOBIN differently' 1>&2
+-	exit 1
+-fi
+-
+ case "$GOARCH" in
+ arm)
+ 	;;
+@@ -38,17 +46,17 @@ esac
+ 
+ bash clean.bash
+ 
+-rm -f $GOBIN/quietgcc
+-cp quietgcc.bash $GOBIN/quietgcc
+-chmod +x $GOBIN/quietgcc
++rm -f "$GOBIN"/quietgcc
++cp quietgcc.bash "$GOBIN"/quietgcc
++chmod +x "$GOBIN"/quietgcc
+ 
+-rm -f $GOBIN/gomake
++rm -f "$GOBIN"/gomake
+ MAKE=make
+ if ! make --version 2>/dev/null | grep 'GNU Make' >/dev/null; then
+ 	MAKE=gmake
+ fi
+-(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >$GOBIN/gomake
+-chmod +x $GOBIN/gomake
++(echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
++chmod +x "$GOBIN"/gomake
+ 
+ bash clean.bash
+ 
+diff --git a/src/make.bash b/src/make.bash
+index eb537eae97..34a31063e6 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -4,6 +4,21 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++
++if test -z "$GOBIN"; then
++	if ! test -d "$HOME"/bin; then
++		echo '$GOBIN is not set and $HOME/bin is not a directory or does not exist.' 1>&2
++		echo 'mkdir $HOME/bin or set $GOBIN to a directory where binaries should' 1>&2
++		echo 'be installed.' 1>&2
++		exit 1
++	fi
++	GOBIN="$HOME/bin"
++elif ! test -d "$GOBIN"; then
++	echo '$GOBIN is not a directory or does not exist' 1>&2
++	echo 'create it or set $GOBIN differently' 1>&2
++	exit 1
++fi
++
+ GOBIN="${GOBIN:-$HOME/bin}"
+ export MAKEFLAGS=-j4
+ 
+@@ -15,13 +30,6 @@ then
+ 	exit 1
+ fi
+ 
+-if ! test -d "$GOBIN"
+-then
+-	echo '$GOBIN is not a directory or does not exist' 1>&2
+-	echo 'create it or set $GOBIN differently' 1>&2
+-	exit 1
+-fi
+-
+ case "$GOARCH" in
+ amd64 | 386 | arm)
+ 	;;
+@@ -40,7 +48,7 @@ esac
+ 
+ rm -f "$GOBIN"/quietgcc
+ CC=${CC:-gcc}
+-sed -e "s|@CC@|$CC|" < quietgcc.bash > "$GOBIN"/quietgcc
++sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+ chmod +x "$GOBIN"/quietgcc
+ 
+ rm -f "$GOBIN"/gomake
+@@ -51,12 +59,6 @@ fi
+ (echo '#!/bin/sh'; echo 'exec '$MAKE' "$@"') >"$GOBIN"/gomake
+ chmod +x "$GOBIN"/gomake
+ 
+-if ! (cd lib9 && which quietgcc) >/dev/null 2>&1; then
+-	echo "installed quietgcc as $GOBIN/quietgcc but 'which quietgcc' fails" 1>&2
+-	echo "double-check that $GOBIN is in your "'$PATH' 1>&2
+-	exit 1
+-fi
+-
+ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+ 	if ! cat /selinux/booleans/allow_execstack | grep -c '^1 1$' >> /dev/null ; then
+ 		echo "WARNING: the default SELinux policy on, at least, Fedora 12 breaks "
+@@ -74,10 +76,10 @@ if [ -d /selinux -a -f /selinux/booleans/allow_execstack ] ; then
+ fi
+ 
+ (
+-	cd pkg;
++	cd "$GOROOT"/src/pkg;
+ 	bash deps.bash	# do this here so clean.bash will work in the pkg directory
+ )
+-bash clean.bash
++bash "$GOROOT"/src/clean.bash
+ 
+ for i in lib9 libbio libmach cmd pkg libcgo cmd/cgo cmd/ebnflint cmd/godoc cmd/gofmt cmd/goyacc cmd/hgpatch
+ do
+@@ -91,16 +93,16 @@ do
+ 		# test the exit status.
+ 		(
+ 			echo; echo; echo %%%% making $i %%%%; echo
+-			cd $i
++			cd "$GOROOT"/src/$i
+ 			case $i in
+ 			cmd)
+ 				bash make.bash
+ 				;;
+ 			pkg)
+-				gomake install
++				"$GOBIN"/gomake install
+ 				;;
+ 			*)
+-				gomake install
++				"$GOBIN"/gomake install
+ 			esac
+ 		)  || exit 1
+ 	esac
+diff --git a/src/pkg/exp/eval/test.bash b/src/pkg/exp/eval/test.bash
+index 1755689ea1..5d9ba1ae7f 100755
+--- a/src/pkg/exp/eval/test.bash
++++ b/src/pkg/exp/eval/test.bash
+@@ -9,8 +9,11 @@
+ # line and do not contain imports.
+ 
+ set -e
+-make
+-6g main.go && 6l main.6
++
++GOBIN="${GOBIN:-$HOME/bin}"
++
++"$GOBIN"/gomake
++"$GOBIN"/6g main.go && "$GOBIN"/6l main.6
+ (
+ for i in $(egrep -l '// \$G (\$D/)?\$F\.go \&\& \$L \$F\.\$A && \./\$A\.out' "$GOROOT"/test/*.go "$GOROOT"/test/*/*.go)
+ do
+diff --git a/src/pkg/exp/ogle/Makefile b/src/pkg/exp/ogle/Makefile
+index 141f9759d0..b701afd9e1 100644
+--- a/src/pkg/exp/ogle/Makefile
++++ b/src/pkg/exp/ogle/Makefile
+@@ -23,7 +23,7 @@ CLEANFILES+=ogle
+ include ../../../Make.pkg
+ 
+ main.$O: main.go package
+-	$(GC) -I_obj $<
++	$(QUOTED_GOBIN)/$(GC) -I_obj $<
+ 
+ ogle: main.$O
+-	$(LD) -L_obj -o $@ $<
++	$(QUOTED_GOBIN)/$(LD) -L_obj -o $@ $<
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 80bfa5103c..6dc4f0ac15 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -92,27 +92,27 @@ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	mv -f $@.x $@
+ 
+ cgo2c: cgo2c.c
+-	quietgcc -o $@ $<
++	$(QUOTED_GOBIN)/quietgcc -o $@ $<
+ 
+ %.c:	%.cgo cgo2c
+ 	./cgo2c $< > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+ %.$O:	$(GOARCH)/%.c
+-	$(CC) $(CFLAGS) $<
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+ 
+ %.$O:	$(GOOS)/%.c
+-	$(CC) $(CFLAGS) $<
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+ 
+ %.$O:	$(GOOS)/$(GOARCH)/%.c
+-	$(CC) $(CFLAGS) $<
++	$(QUOTED_GOBIN)/$(CC) $(CFLAGS) $<
+ 
+ %.$O:	$(GOARCH)/%.s $(GOARCH)/asm.h
+-	$(AS) $<
++	$(QUOTED_GOBIN)/$(AS) $<
+ 
+ %.$O:	$(GOOS)/$(GOARCH)/%.s $(GOARCH)/asm.h
+-	$(AS) $<
++	$(QUOTED_GOBIN)/$(AS) $<
+ 
+ # for discovering offsets inside structs when debugging
+ runtime.acid.$(GOARCH): runtime.h proc.c
+-	$(CC) -a proc.c >$@
++	$(QUOTED_GOBIN)/$(CC) -a proc.c >$@
+diff --git a/src/run.bash b/src/run.bash
+index e307ddcc1f..35d499f956 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -5,13 +5,15 @@
+ 
+ set -e
+ 
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ # no core files, please
+ ulimit -c 0
+ 
+ xcd() {
+ 	echo
+ 	echo --- cd $1
+-	builtin cd $1
++	builtin cd "$GOROOT"/src/$1
+ }
+ 
+ maketest() {
+@@ -19,10 +21,10 @@ maketest() {
+ 	do
+ 		(
+ 			xcd $i
+-			gomake clean
+-			time gomake
+-			gomake install
+-			gomake test
++			"$GOBIN"/gomake clean
++			time "$GOBIN"/gomake
++			"$GOBIN"/gomake install
++			"$GOBIN"/gomake test
+ 		) || exit $?
+ 	done
+ }
+@@ -34,31 +36,31 @@ maketest \
+ # from what maketest does.
+ 
+ (xcd pkg/sync;
+-gomake clean;
+-time gomake
+-GOMAXPROCS=10 gomake test
++"$GOBIN"/gomake clean;
++time "$GOBIN"/gomake
++GOMAXPROCS=10 "$GOBIN"/gomake test
+ ) || exit $?
+ 
+ (xcd cmd/gofmt
+-gomake clean
+-time gomake
+-time gomake smoketest
++"$GOBIN"/gomake clean
++time "$GOBIN"/gomake
++time "$GOBIN"/gomake smoketest
+ ) || exit $?
+ 
+ (xcd cmd/ebnflint
+-gomake clean
+-time gomake
+-time gomake test
++"$GOBIN"/gomake clean
++time "$GOBIN"/gomake
++time "$GOBIN"/gomake test
+ ) || exit $?
+ 
+ (xcd ../misc/cgo/stdio
+-gomake clean
++"$GOBIN"/gomake clean
+ ./test.bash
+ ) || exit $?
+ 
+ (xcd pkg/exp/ogle
+-gomake clean
+-time gomake ogle
++"$GOBIN"/gomake clean
++time "$GOBIN"/gomake ogle
+ ) || exit $?
+ 
+ (xcd ../doc/progs
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 2227fbf0f9..5a53bf024c 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -4,6 +4,9 @@
+ # license that can be found in the LICENSE file.
+ 
+ set -e
++
++GOBIN="${GOBIN:-$HOME/bin}"
++
+ . "$GOROOT"/src/Make.$GOARCH
+ PATH=.:$PATH
+ 
+@@ -15,11 +18,11 @@ X-test)
+ esac
+ 
+ gc() {
+-	$GC $1.go; $LD $1.$O
++	"$GOBIN"/$GC $1.go; "$GOBIN"/$LD $1.$O
+ }
+ 
+ gc_B() {
+-	$GC -B $1.go; $LD $1.$O
++	"$GOBIN"/$GC -B $1.go; "$GOBIN"/$LD $1.$O
+ }
+ 
+ runonly() {

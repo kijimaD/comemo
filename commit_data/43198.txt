@@ -9,7 +9,40 @@ Date:   Mon Mar 16 03:29:19 2020 +1100
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/RISCV64.rules | 2 +-
  src/cmd/compile/internal/ssa/rewriteRISCV64.go | 5 ++---
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64.rules b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+index a4b141b4fb..fba431368b 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64.rules
+@@ -143,7 +143,7 @@
+ // For positive x, bit 63 of x-1 is always 0, so the result is -1.
+ // For zero x, bit 63 of x-1 is 1, so the result is 0.
+ //
+-(Slicemask <t> x) -> (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
++(Slicemask <t> x) -> (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+ 
+ // Truncations
+ // We ignore the unused high parts of registers, so truncates are just copies.
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 692cd92cc8..a7b0ba05b9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -4309,12 +4309,11 @@ func rewriteValueRISCV64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	// match: (Slicemask <t> x)
+-	// result: (XORI [-1] (SRAI <t> [63] (ADDI <t> [-1] x)))
++	// result: (NOT (SRAI <t> [63] (ADDI <t> [-1] x)))
+ 	for {
+ 		t := v.Type
+ 		x := v_0
+-		v.reset(OpRISCV64XORI)
+-		v.AuxInt = -1
++		v.reset(OpRISCV64NOT)
+ 		v0 := b.NewValue0(v.Pos, OpRISCV64SRAI, t)
+ 		v0.AuxInt = 63
+ 		v1 := b.NewValue0(v.Pos, OpRISCV64ADDI, t)

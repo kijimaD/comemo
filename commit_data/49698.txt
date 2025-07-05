@@ -18,8 +18,280 @@ Date:   Mon Aug 30 22:26:54 2021 +0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/346050
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   3 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 160 +++++++++++++++++++++++++
  test/codegen/issue48054.go                     |  31 +++++
  3 files changed, 194 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index e7ee3d0efd..40db1a6ee8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -500,6 +500,9 @@
+ (Leq32 (Const32 [0]) (Rsh32Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
+ (Leq64 (Const64 [0]) (Rsh64Ux64 _ (Const64 [c]))) && c > 0 => (ConstBool [true])
+ 
++(Less(64|32|16|8) (Const(64|32|16|8) <t> [0]) x) && isNonNegative(x) => (Neq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
++(Less(64|32|16|8) x (Const(64|32|16|8) <t> [1])) && isNonNegative(x) => (Eq(64|32|16|8) (Const(64|32|16|8) <t> [0]) x)
++
+ // constant floating point comparisons
+ (Eq32F   (Const32F [c]) (Const32F [d])) => (ConstBool [c == d])
+ (Eq64F   (Const64F [c]) (Const64F [d])) => (ConstBool [c == d])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index e2f9e3ebba..a6757e0d10 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -10083,6 +10083,7 @@ func rewriteValuegeneric_OpLeq8U(v *Value) bool {
+ func rewriteValuegeneric_OpLess16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (Less16 (Const16 [c]) (Const16 [d]))
+ 	// result: (ConstBool [c < d])
+ 	for {
+@@ -10098,6 +10099,45 @@ func rewriteValuegeneric_OpLess16(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(c < d)
+ 		return true
+ 	}
++	// match: (Less16 (Const16 <t> [0]) x)
++	// cond: isNonNegative(x)
++	// result: (Neq16 (Const16 <t> [0]) x)
++	for {
++		if v_0.Op != OpConst16 {
++			break
++		}
++		t := v_0.Type
++		if auxIntToInt16(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_1
++		if !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpNeq16)
++		v0 := b.NewValue0(v.Pos, OpConst16, t)
++		v0.AuxInt = int16ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
++	// match: (Less16 x (Const16 <t> [1]))
++	// cond: isNonNegative(x)
++	// result: (Eq16 (Const16 <t> [0]) x)
++	for {
++		x := v_0
++		if v_1.Op != OpConst16 {
++			break
++		}
++		t := v_1.Type
++		if auxIntToInt16(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpEq16)
++		v0 := b.NewValue0(v.Pos, OpConst16, t)
++		v0.AuxInt = int16ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess16U(v *Value) bool {
+@@ -10133,6 +10173,7 @@ func rewriteValuegeneric_OpLess16U(v *Value) bool {
+ func rewriteValuegeneric_OpLess32(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (Less32 (Const32 [c]) (Const32 [d]))
+ 	// result: (ConstBool [c < d])
+ 	for {
+@@ -10148,6 +10189,45 @@ func rewriteValuegeneric_OpLess32(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(c < d)
+ 		return true
+ 	}
++	// match: (Less32 (Const32 <t> [0]) x)
++	// cond: isNonNegative(x)
++	// result: (Neq32 (Const32 <t> [0]) x)
++	for {
++		if v_0.Op != OpConst32 {
++			break
++		}
++		t := v_0.Type
++		if auxIntToInt32(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_1
++		if !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpNeq32)
++		v0 := b.NewValue0(v.Pos, OpConst32, t)
++		v0.AuxInt = int32ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
++	// match: (Less32 x (Const32 <t> [1]))
++	// cond: isNonNegative(x)
++	// result: (Eq32 (Const32 <t> [0]) x)
++	for {
++		x := v_0
++		if v_1.Op != OpConst32 {
++			break
++		}
++		t := v_1.Type
++		if auxIntToInt32(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpEq32)
++		v0 := b.NewValue0(v.Pos, OpConst32, t)
++		v0.AuxInt = int32ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess32F(v *Value) bool {
+@@ -10203,6 +10283,7 @@ func rewriteValuegeneric_OpLess32U(v *Value) bool {
+ func rewriteValuegeneric_OpLess64(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (Less64 (Const64 [c]) (Const64 [d]))
+ 	// result: (ConstBool [c < d])
+ 	for {
+@@ -10218,6 +10299,45 @@ func rewriteValuegeneric_OpLess64(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(c < d)
+ 		return true
+ 	}
++	// match: (Less64 (Const64 <t> [0]) x)
++	// cond: isNonNegative(x)
++	// result: (Neq64 (Const64 <t> [0]) x)
++	for {
++		if v_0.Op != OpConst64 {
++			break
++		}
++		t := v_0.Type
++		if auxIntToInt64(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_1
++		if !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpNeq64)
++		v0 := b.NewValue0(v.Pos, OpConst64, t)
++		v0.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
++	// match: (Less64 x (Const64 <t> [1]))
++	// cond: isNonNegative(x)
++	// result: (Eq64 (Const64 <t> [0]) x)
++	for {
++		x := v_0
++		if v_1.Op != OpConst64 {
++			break
++		}
++		t := v_1.Type
++		if auxIntToInt64(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpEq64)
++		v0 := b.NewValue0(v.Pos, OpConst64, t)
++		v0.AuxInt = int64ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess64F(v *Value) bool {
+@@ -10273,6 +10393,7 @@ func rewriteValuegeneric_OpLess64U(v *Value) bool {
+ func rewriteValuegeneric_OpLess8(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
+ 	// match: (Less8 (Const8 [c]) (Const8 [d]))
+ 	// result: (ConstBool [c < d])
+ 	for {
+@@ -10288,6 +10409,45 @@ func rewriteValuegeneric_OpLess8(v *Value) bool {
+ 		v.AuxInt = boolToAuxInt(c < d)
+ 		return true
+ 	}
++	// match: (Less8 (Const8 <t> [0]) x)
++	// cond: isNonNegative(x)
++	// result: (Neq8 (Const8 <t> [0]) x)
++	for {
++		if v_0.Op != OpConst8 {
++			break
++		}
++		t := v_0.Type
++		if auxIntToInt8(v_0.AuxInt) != 0 {
++			break
++		}
++		x := v_1
++		if !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpNeq8)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = int8ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
++	// match: (Less8 x (Const8 <t> [1]))
++	// cond: isNonNegative(x)
++	// result: (Eq8 (Const8 <t> [0]) x)
++	for {
++		x := v_0
++		if v_1.Op != OpConst8 {
++			break
++		}
++		t := v_1.Type
++		if auxIntToInt8(v_1.AuxInt) != 1 || !(isNonNegative(x)) {
++			break
++		}
++		v.reset(OpEq8)
++		v0 := b.NewValue0(v.Pos, OpConst8, t)
++		v0.AuxInt = int8ToAuxInt(0)
++		v.AddArg2(v0, x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpLess8U(v *Value) bool {
+diff --git a/test/codegen/issue48054.go b/test/codegen/issue48054.go
+new file mode 100644
+index 0000000000..6ef37e9452
+--- /dev/null
++++ b/test/codegen/issue48054.go
+@@ -0,0 +1,31 @@
++// asmcheck
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func a(n string) bool {
++	// arm64:"CBZ"
++	if len(n) > 0 {
++		return true
++	}
++	return false
++}
++
++func a2(n []int) bool {
++	// arm64:"CBZ"
++	if len(n) > 0 {
++		return true
++	}
++	return false
++}
++
++func a3(n []int) bool {
++	// amd64:"TESTQ"
++	if len(n) < 1 {
++		return true
++	}
++	return false
++}

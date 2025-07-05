@@ -19,7 +19,7 @@ Date:   Mon Aug 6 16:59:31 2018 -0400
     Change-Id: I8bc8340c17f2df062d03ce720f4dc18b2ba406b2
     Reviewed-on: https://go-review.googlesource.com/128136
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/modget/get.go                  | 41 +++------------
  src/cmd/go/internal/modload/import.go              | 59 ++--------------------
  src/cmd/go/internal/modload/query.go               | 54 ++++++++++++++++++++
@@ -35,3 +35,441 @@ Date:   Mon Aug 6 16:59:31 2018 -0400
  src/cmd/go/testdata/script/mod_get_local.txt       | 10 ++--
  src/cmd/go/testdata/script/mod_get_moved.txt       | 37 ++++++++++++++
  14 files changed, 172 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index ee8ac8a176..f4a92686a5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -528,7 +528,7 @@ func runGet(cmd *base.Command, args []string) {
+ 					// current directory, even if it is not tho module root.
+ 					continue
+ 				}
+-				if strings.HasPrefix(p.Error.Err, "no Go files") && modload.ModuleInfo(p.ImportPath) != nil {
++				if strings.Contains(p.Error.Err, "cannot find module providing") && modload.ModuleInfo(p.ImportPath) != nil {
+ 					// Explicitly-requested module, but it doesn't contain a package at the
+ 					// module root.
+ 					continue
+@@ -551,13 +551,6 @@ func runGet(cmd *base.Command, args []string) {
+ // If forceModulePath is set, getQuery must interpret path
+ // as a module path.
+ func getQuery(path, vers string, forceModulePath bool) (module.Version, error) {
+-	if path == modload.Target.Path {
+-		if vers != "" {
+-			return module.Version{}, fmt.Errorf("cannot update main module to explicit version")
+-		}
+-		return modload.Target, nil
+-	}
+-
+ 	if vers == "" {
+ 		vers = "latest"
+ 	}
+@@ -569,36 +562,14 @@ func getQuery(path, vers string, forceModulePath bool) (module.Version, error) {
+ 		return module.Version{Path: path, Version: info.Version}, nil
+ 	}
+ 
+-	// Even if the query fails, if the path is (or must be) a real module, then report the query error.
+-	if forceModulePath || *getM || isModulePath(path) {
+-		return module.Version{}, err
+-	}
+-
+-	// Otherwise, interpret the package path as an import
+-	// and determine what module that import would address
+-	// if found in the current source code.
+-	// Then apply the version to that module.
+-	m, _, err := modload.Import(path)
+-	if e, ok := err.(*modload.ImportMissingError); ok && e.Module.Path != "" {
+-		m = e.Module
+-	} else if err != nil {
++	// Even if the query fails, if the path must be a real module, then report the query error.
++	if forceModulePath || *getM {
+ 		return module.Version{}, err
+ 	}
+-	if m.Path == "" {
+-		return module.Version{}, fmt.Errorf("package %q is not in a module", path)
+-	}
+-	info, err = modload.Query(m.Path, vers, modload.Allowed)
+-	if err != nil {
+-		return module.Version{}, err
+-	}
+-	return module.Version{Path: m.Path, Version: info.Version}, nil
+-}
+ 
+-// isModulePath reports whether path names an actual module,
+-// defined as one with an accessible latest version.
+-func isModulePath(path string) bool {
+-	_, err := modload.Query(path, "latest", modload.Allowed)
+-	return err == nil
++	// Otherwise, try a package path.
++	m, _, err := modload.QueryPackage(path, vers, modload.Allowed)
++	return m, err
+ }
+ 
+ // An upgrader adapts an underlying mvs.Reqs to apply an
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index fc845c2974..3b954f18fe 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"os"
+-	pathpkg "path"
+ 	"path/filepath"
+ 	"strings"
+ 
+@@ -124,24 +123,6 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		return module.Version{}, "", errors.New(buf.String())
+ 	}
+ 
+-	// Special case: if the path matches a module path,
+-	// and we haven't found code in any module on the build list
+-	// (since we haven't returned yet),
+-	// force the use of the current module instead of
+-	// looking for an alternate one.
+-	// This helps "go get golang.org/x/net" even though
+-	// there is no code in x/net.
+-	for _, m := range buildList {
+-		if m.Path == path {
+-			root, isLocal, err := fetch(m)
+-			if err != nil {
+-				return module.Version{}, "", err
+-			}
+-			dir, _ := dirInModule(path, m.Path, root, isLocal)
+-			return m, dir, nil
+-		}
+-	}
+-
+ 	// Not on build list.
+ 
+ 	// Look up module containing the package, for addition to the build list.
+@@ -150,43 +131,11 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		return module.Version{}, "", fmt.Errorf("import lookup disabled by -mod=%s", cfg.BuildMod)
+ 	}
+ 
+-	for p := path; p != "."; p = pathpkg.Dir(p) {
+-		// We can't upgrade the main module.
+-		// Note that this loop does consider upgrading other modules on the build list.
+-		// If that's too aggressive we can skip all paths already on the build list,
+-		// not just Target.Path, but for now let's try being aggressive.
+-		if p == Target.Path {
+-			// Can't move to a new version of main module.
+-			continue
+-		}
+-
+-		info, err := Query(p, "latest", Allowed)
+-		if err != nil {
+-			continue
+-		}
+-		m := module.Version{Path: p, Version: info.Version}
+-		root, isLocal, err := fetch(m)
+-		if err != nil {
+-			continue
+-		}
+-		_, ok := dirInModule(path, m.Path, root, isLocal)
+-		if ok {
+-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
+-		}
+-
+-		// Special case matching the one above:
+-		// if m.Path matches path, assume adding it to the build list
+-		// will either add the right code or the right code doesn't exist.
+-		if m.Path == path {
+-			return module.Version{}, "", &ImportMissingError{ImportPath: path, Module: m}
+-		}
++	m, _, err = QueryPackage(path, "latest", Allowed)
++	if err != nil {
++		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+ 	}
+-
+-	// Did not resolve import to any module.
+-	// TODO(rsc): It would be nice to return a specific error encountered
+-	// during the loop above if possible, but it's not clear how to pick
+-	// out the right one.
+-	return module.Version{}, "", &ImportMissingError{ImportPath: path}
++	return m, "", &ImportMissingError{ImportPath: path, Module: m}
+ }
+ 
+ // maybeInModule reports whether, syntactically,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index c69e49acd9..bd3141865c 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/semver"
+ 	"fmt"
++	pathpkg "path"
+ 	"strings"
+ )
+ 
+@@ -29,6 +30,8 @@ import (
+ //
+ // If the allowed function is non-nil, Query excludes any versions for which allowed returns false.
+ //
++// If path is the path of the main module and the query is "latest",
++// Query returns Target.Version as the version.
+ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.RevInfo, error) {
+ 	if allowed == nil {
+ 		allowed = func(module.Version) bool { return true }
+@@ -117,6 +120,16 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		return info, nil
+ 	}
+ 
++	if path == Target.Path {
++		if query != "latest" {
++			return nil, fmt.Errorf("can't query specific version (%q) for the main module (%s)", query, path)
++		}
++		if !allowed(Target) {
++			return nil, fmt.Errorf("internal error: main module version is not allowed")
++		}
++		return &modfetch.RevInfo{Version: Target.Version}, nil
++	}
++
+ 	// Load versions and execute query.
+ 	repo, err := modfetch.Lookup(path)
+ 	if err != nil {
+@@ -187,3 +200,44 @@ func isSemverPrefix(v string) bool {
+ func matchSemverPrefix(p, v string) bool {
+ 	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p
+ }
++
++// QueryPackage looks up a revision of a module containing path.
++//
++// If multiple modules with revisions matching the query provide the requested
++// package, QueryPackage picks the one with the longest module path.
++//
++// If the path is in the the main module and the query is "latest",
++// QueryPackage returns Target as the version.
++func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
++	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {
++		if query != "latest" {
++			return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
++		}
++		if !allowed(Target) {
++			return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
++		}
++		return Target, &modfetch.RevInfo{Version: Target.Version}, nil
++	}
++
++	finalErr := errMissing
++	for p := path; p != "."; p = pathpkg.Dir(p) {
++		info, err := Query(p, query, allowed)
++		if err != nil {
++			if finalErr == errMissing {
++				finalErr = err
++			}
++			continue
++		}
++		m := module.Version{Path: p, Version: info.Version}
++		root, isLocal, err := fetch(m)
++		if err != nil {
++			return module.Version{}, nil, err
++		}
++		_, ok := dirInModule(path, m.Path, root, isLocal)
++		if ok {
++			return m, info, nil
++		}
++	}
++
++	return module.Version{}, nil, finalErr
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.0.0.txt
+new file mode 100644
+index 0000000000..1ecfa0b6de
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.0.0.txt
+@@ -0,0 +1,9 @@
++Written by hand.
++Test case for package moved into a parent module.
++
++-- .mod --
++module example.com/join/subpkg
++-- .info --
++{"Version": "v1.0.0"}
++-- x.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.1.0.txt
+new file mode 100644
+index 0000000000..9eb823adb7
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_join_subpkg_v1.1.0.txt
+@@ -0,0 +1,9 @@
++Written by hand.
++Test case for package moved into a parent module.
++
++-- .mod --
++module example.com/join/subpkg
++
++require example.com/join v1.1.0
++-- .info --
++{"Version": "v1.1.0"}
+diff --git a/src/cmd/go/testdata/mod/example.com_join_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_join_v1.0.0.txt
+new file mode 100644
+index 0000000000..84c68b13b6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_join_v1.0.0.txt
+@@ -0,0 +1,7 @@
++Written by hand.
++Test case for package moved into a parent module.
++
++-- .mod --
++module example.com/join
++-- .info --
++{"Version": "v1.0.0"}
+diff --git a/src/cmd/go/testdata/mod/example.com_join_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_join_v1.1.0.txt
+new file mode 100644
+index 0000000000..5f92036d9e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_join_v1.1.0.txt
+@@ -0,0 +1,9 @@
++Written by hand.
++Test case for package moved into a parent module.
++
++-- .mod --
++module example.com/join
++-- .info --
++{"Version": "v1.1.0"}
++-- subpkg/x.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_split_subpkg_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_split_subpkg_v1.1.0.txt
+new file mode 100644
+index 0000000000..b197b66398
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split_subpkg_v1.1.0.txt
+@@ -0,0 +1,11 @@
++Written by hand.
++Test case for getting a package that has been moved to a different module.
++
++-- .mod --
++module example.com/split/subpkg
++
++require example.com/split v1.1.0
++-- .info --
++{"Version": "v1.1.0"}
++-- x.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_split_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_split_v1.0.0.txt
+new file mode 100644
+index 0000000000..b706e590d9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split_v1.0.0.txt
+@@ -0,0 +1,9 @@
++Written by hand.
++Test case for getting a package that has been moved to a different module.
++
++-- .mod --
++module example.com/split
++-- .info --
++{"Version": "v1.0.0"}
++-- subpkg/x.go --
++package subpkg
+diff --git a/src/cmd/go/testdata/mod/example.com_split_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_split_v1.1.0.txt
+new file mode 100644
+index 0000000000..d38971f9b6
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_split_v1.1.0.txt
+@@ -0,0 +1,9 @@
++Written by hand.
++Test case for getting a package that has been moved to a different module.
++
++-- .mod --
++module example.com/split
++
++require example.com/split/subpkg v1.1.0
++-- .info --
++{"Version": "v1.1.0"}
+diff --git a/src/cmd/go/testdata/script/mod_bad_domain.txt b/src/cmd/go/testdata/script/mod_bad_domain.txt
+index 829c88517e..c9fd044cdc 100644
+--- a/src/cmd/go/testdata/script/mod_bad_domain.txt
++++ b/src/cmd/go/testdata/script/mod_bad_domain.txt
+@@ -2,9 +2,9 @@ env GO111MODULE=on
+ 
+ # explicit get should report errors about bad names
+ ! go get appengine
+-stderr 'cannot find module providing package appengine'
++stderr 'malformed module path "appengine": missing dot in first path element'
+ ! go get x/y.z
+-stderr 'cannot find module providing package x/y.z'
++stderr 'malformed module path "x/y.z": missing dot in first path element'
+ 
+ # build should report all unsatisfied imports,
+ # but should be more definitive about non-module import paths
+diff --git a/src/cmd/go/testdata/script/mod_get_indirect.txt b/src/cmd/go/testdata/script/mod_get_indirect.txt
+index f567e97c6c..3ae5833834 100644
+--- a/src/cmd/go/testdata/script/mod_get_indirect.txt
++++ b/src/cmd/go/testdata/script/mod_get_indirect.txt
+@@ -15,7 +15,7 @@ grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ # TODO(bcmills): This doesn't seem correct. Fix is in the next change.
+ cp $WORK/tmp/usetext.go x.go
+ go list -e
+-grep 'golang.org/x/text [v0-9a-f\.-]+$' go.mod
++grep 'golang.org/x/text [v0-9a-f\.-]+ // indirect' go.mod
+ 
+ # indirect tag should be removed upon seeing direct import.
+ cp $WORK/tmp/uselang.go x.go
+diff --git a/src/cmd/go/testdata/script/mod_get_local.txt b/src/cmd/go/testdata/script/mod_get_local.txt
+index 5d2b6cd356..4edda993f1 100644
+--- a/src/cmd/go/testdata/script/mod_get_local.txt
++++ b/src/cmd/go/testdata/script/mod_get_local.txt
+@@ -35,13 +35,13 @@ grep 'rsc.io/quote.*v1.5.2' go.mod
+ grep 'golang.org/x/text.*v0.3.0' go.mod
+ cp go.mod go.mod.dotpkg
+ 
+-# BUG: 'go get -u -d' with an explicit package in a local-only package fails.
+-# TODO: Determine the correct behavior.
++# 'go get -u -d' with an explicit package in the main module updates
++# all dependencies of the main module.
++# TODO: Determine whether that behavior is a bug.
+ # (https://golang.org/issue/26902)
+ cp go.mod.orig go.mod
+-! go get -u -d local/uselang
+-stderr 'missing dot in first path element'
+-cmp go.mod go.mod.orig
++go get -u -d local/uselang
++cmp go.mod go.mod.dotpkg
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_get_moved.txt b/src/cmd/go/testdata/script/mod_get_moved.txt
+new file mode 100644
+index 0000000000..be91449155
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_moved.txt
+@@ -0,0 +1,37 @@
++env GO111MODULE=on
++
++# A 'go get' that worked at a previous version should continue to work at that version,
++# even if the package was subsequently moved into a submodule.
++go mod init example.com/foo
++go get -d example.com/split/subpkg@v1.0.0
++go list -m all
++stdout 'example.com/split v1.0.0'
++
++# A 'go get' that simultaneously upgrades away conflicting package defitions is not ambiguous.
++go get example.com/split/subpkg@v1.1.0
++
++# A 'go get' without an upgrade should find the package.
++rm go.mod
++go mod init example.com/foo
++go get -d example.com/split/subpkg
++go list -m all
++stdout 'example.com/split/subpkg v1.1.0'
++
++
++# A 'go get' that worked at a previous version should continue to work at that version,
++# even if the package was subsequently moved into a parent module.
++rm go.mod
++go mod init example.com/foo
++go get -d example.com/join/subpkg@v1.0.0
++go list -m all
++stdout 'example.com/join/subpkg v1.0.0'
++
++# A 'go get' that simultaneously upgrades away conflicting package definitions is not ambiguous.
++go get example.com/join/subpkg@v1.1.0
++
++# A 'go get' without an upgrade should find the package.
++rm go.mod
++go mod init example.com/foo
++go get -d example.com/join/subpkg@v1.1.0
++go list -m all
++stdout 'example.com/join v1.1.0'

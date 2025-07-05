@@ -7,7 +7,7 @@ Date:   Thu Feb 10 07:56:30 2011 -0500
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4156044
-
+---
  src/pkg/crypto/openpgp/packet/literal.go           |  53 ++++++
  .../crypto/openpgp/packet/one_pass_signature.go    |  49 +++++
  .../openpgp/packet/symmetric_key_encrypted.go      | 102 ++++++++++
@@ -15,3 +15,590 @@ Date:   Thu Feb 10 07:56:30 2011 -0500
  .../openpgp/packet/symmetrically_encrypted.go      | 206 +++++++++++++++++++++
  .../openpgp/packet/symmetrically_encrypted_test.go |  78 ++++++++
  6 files changed, 550 insertions(+)
+
+diff --git a/src/pkg/crypto/openpgp/packet/literal.go b/src/pkg/crypto/openpgp/packet/literal.go
+new file mode 100644
+index 0000000000..5f72d6a2cd
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/literal.go
+@@ -0,0 +1,53 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"encoding/binary"
++	"io"
++	"os"
++)
++
++// LiteralData represents an encrypted file. See RFC 4880, section 5.9.
++type LiteralData struct {
++	IsBinary bool
++	FileName string
++	Time     uint32 // Unix epoc time. Either creation time or modification time. 0 means undefined.
++	Body     io.Reader
++}
++
++// ForEyesOnly return whether the contents of the LiteralData have been marked
++// as especially sensitive.
++func (l *LiteralData) ForEyesOnly() bool {
++	return l.FileName == "_CONSOLE"
++}
++
++func (l *LiteralData) parse(r io.Reader) (err os.Error) {
++	var buf [256]byte
++
++	_, err = readFull(r, buf[:2])
++	if err != nil {
++		return
++	}
++
++	l.IsBinary = buf[0] == 'b'
++	fileNameLen := int(buf[1])
++
++	_, err = readFull(r, buf[:fileNameLen])
++	if err != nil {
++		return
++	}
++
++	l.FileName = string(buf[:fileNameLen])
++
++	_, err = readFull(r, buf[:4])
++	if err != nil {
++		return
++	}
++
++	l.Time = binary.BigEndian.Uint32(buf[:4])
++	l.Body = r
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/one_pass_signature.go b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+new file mode 100644
+index 0000000000..acbf58bbef
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/one_pass_signature.go
+@@ -0,0 +1,49 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"crypto"
++	"crypto/openpgp/error"
++	"crypto/openpgp/s2k"
++	"encoding/binary"
++	"io"
++	"os"
++	"strconv"
++)
++
++// OnePassSignature represents a one-pass signature packet. See RFC 4880,
++// section 5.4.
++type OnePassSignature struct {
++	SigType    SignatureType
++	Hash       crypto.Hash
++	PubKeyAlgo PublicKeyAlgorithm
++	KeyId      uint64
++	IsLast     bool
++}
++
++func (ops *OnePassSignature) parse(r io.Reader) (err os.Error) {
++	var buf [13]byte
++
++	_, err = readFull(r, buf[:])
++	if err != nil {
++		return
++	}
++	if buf[0] != 3 {
++		err = error.UnsupportedError("one-pass-signature packet version " + strconv.Itoa(int(buf[0])))
++	}
++
++	var ok bool
++	ops.Hash, ok = s2k.HashIdToHash(buf[2])
++	if !ok {
++		return error.UnsupportedError("hash function: " + strconv.Itoa(int(buf[2])))
++	}
++
++	ops.SigType = SignatureType(buf[1])
++	ops.PubKeyAlgo = PublicKeyAlgorithm(buf[3])
++	ops.KeyId = binary.BigEndian.Uint64(buf[4:12])
++	ops.IsLast = buf[12] != 0
++	return
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+new file mode 100644
+index 0000000000..d9010f88a3
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted.go
+@@ -0,0 +1,102 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"crypto/cipher"
++	"crypto/openpgp/error"
++	"crypto/openpgp/s2k"
++	"io"
++	"os"
++	"strconv"
++)
++
++// This is the largest session key that we'll support. Since no 512-bit cipher
++// has even been seriously used, this is comfortably large.
++const maxSessionKeySizeInBytes = 64
++
++// SymmetricKeyEncrypted represents a passphrase protected session key. See RFC
++// 4880, section 5.3.
++type SymmetricKeyEncrypted struct {
++	CipherFunc   CipherFunction
++	Encrypted    bool
++	Key          []byte // Empty unless Encrypted is false.
++	s2k          func(out, in []byte)
++	encryptedKey []byte
++}
++
++func (ske *SymmetricKeyEncrypted) parse(r io.Reader) (err os.Error) {
++	// RFC 4880, section 5.3.
++	var buf [2]byte
++	_, err = readFull(r, buf[:])
++	if err != nil {
++		return
++	}
++	if buf[0] != 4 {
++		return error.UnsupportedError("SymmetricKeyEncrypted version")
++	}
++	ske.CipherFunc = CipherFunction(buf[1])
++
++	if ske.CipherFunc.keySize() == 0 {
++		return error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(buf[1])))
++	}
++
++	ske.s2k, err = s2k.Parse(r)
++	if err != nil {
++		return
++	}
++
++	encryptedKey := make([]byte, maxSessionKeySizeInBytes)
++	// The session key may follow. We just have to try and read to find
++	// out. If it exists then we limit it to maxSessionKeySizeInBytes.
++	n, err := readFull(r, encryptedKey)
++	if err != nil && err != io.ErrUnexpectedEOF {
++		return
++	}
++	err = nil
++	if n != 0 {
++		if n == maxSessionKeySizeInBytes {
++			return error.UnsupportedError("oversized encrypted session key")
++		}
++		ske.encryptedKey = encryptedKey[:n]
++	}
++
++	ske.Encrypted = true
++
++	return
++}
++
++// Decrypt attempts to decrypt an encrypted session key. If it returns nil,
++// ske.Key will contain the session key.
++func (ske *SymmetricKeyEncrypted) Decrypt(passphrase []byte) os.Error {
++	if !ske.Encrypted {
++		return nil
++	}
++
++	key := make([]byte, ske.CipherFunc.keySize())
++	ske.s2k(key, passphrase)
++
++	if len(ske.encryptedKey) == 0 {
++		ske.Key = key
++	} else {
++		// the IV is all zeros
++		iv := make([]byte, ske.CipherFunc.blockSize())
++		c := cipher.NewCFBDecrypter(ske.CipherFunc.new(key), iv)
++		c.XORKeyStream(ske.encryptedKey, ske.encryptedKey)
++		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
++		if ske.CipherFunc.blockSize() == 0 {
++			return error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(ske.CipherFunc)))
++		}
++		ske.CipherFunc = CipherFunction(ske.encryptedKey[0])
++		ske.Key = ske.encryptedKey[1:]
++		if len(ske.Key)%ske.CipherFunc.blockSize() != 0 {
++			ske.Key = nil
++			return error.StructuralError("length of decrypted key not a multiple of block size")
++		}
++	}
++
++	ske.Encrypted = false
++	return nil
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go
+new file mode 100644
+index 0000000000..717c8ffa6d
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/symmetric_key_encrypted_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"bytes"
++	"encoding/hex"
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++func TestSymmetricKeyEncrypted(t *testing.T) {
++	buf := readerFromHex(symmetricallyEncryptedHex)
++	packet, err := Read(buf)
++	if err != nil {
++		t.Errorf("failed to read SymmetricKeyEncrypted: %s", err)
++		return
++	}
++	ske, ok := packet.(*SymmetricKeyEncrypted)
++	if !ok {
++		t.Error("didn't find SymmetricKeyEncrypted packet")
++		return
++	}
++	err = ske.Decrypt([]byte("password"))
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	packet, err = Read(buf)
++	if err != nil {
++		t.Errorf("failed to read SymmetricallyEncrypted: %s", err)
++		return
++	}
++	se, ok := packet.(*SymmetricallyEncrypted)
++	if !ok {
++		t.Error("didn't find SymmetricallyEncrypted packet")
++		return
++	}
++	r, err := se.Decrypt(ske.CipherFunc, ske.Key)
++	if err != nil {
++		t.Error(err)
++		return
++	}
++
++	contents, err := ioutil.ReadAll(r)
++	if err != nil && err != os.EOF {
++		t.Error(err)
++		return
++	}
++
++	expectedContents, _ := hex.DecodeString(symmetricallyEncryptedContentsHex)
++	if !bytes.Equal(expectedContents, contents) {
++		t.Errorf("bad contents got:%x want:%x", contents, expectedContents)
++	}
++}
++
++const symmetricallyEncryptedHex = "8c0d04030302371a0b38d884f02060c91cf97c9973b8e58e028e9501708ccfe618fb92afef7fa2d80ddadd93cf"
++const symmetricallyEncryptedContentsHex = "cb1062004d14c4df636f6e74656e74732e0a"
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+new file mode 100644
+index 0000000000..fc19ffe809
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted.go
+@@ -0,0 +1,206 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"crypto/cipher"
++	"crypto/openpgp/error"
++	"crypto/sha1"
++	"crypto/subtle"
++	"hash"
++	"io"
++	"os"
++	"strconv"
++)
++
++// SymmetricallyEncrypted represents a symmetrically encrypted byte string. The
++// encrypted contents will consist of more OpenPGP packets. See RFC 4880,
++// sections 5.7 and 5.13.
++type SymmetricallyEncrypted struct {
++	MDC      bool // true iff this is a type 18 packet and thus has an embedded MAC.
++	contents io.Reader
++	prefix   []byte
++}
++
++func (se *SymmetricallyEncrypted) parse(r io.Reader) os.Error {
++	if se.MDC {
++		// See RFC 4880, section 5.13.
++		var buf [1]byte
++		_, err := readFull(r, buf[:])
++		if err != nil {
++			return err
++		}
++		if buf[0] != 1 {
++			return error.UnsupportedError("unknown SymmetricallyEncrypted version")
++		}
++	}
++	se.contents = r
++	return nil
++}
++
++// Decrypt returns a ReadCloser, from which the decrypted contents of the
++// packet can be read. An incorrect key can, with high probability, be detected
++// immediately and this will result in a KeyIncorrect error being returned.
++func (se *SymmetricallyEncrypted) Decrypt(c CipherFunction, key []byte) (io.ReadCloser, os.Error) {
++	keySize := c.keySize()
++	if keySize == 0 {
++		return nil, error.UnsupportedError("unknown cipher: " + strconv.Itoa(int(c)))
++	}
++	if len(key) != keySize {
++		return nil, error.InvalidArgumentError("SymmetricallyEncrypted: incorrect key length")
++	}
++
++	if se.prefix == nil {
++		se.prefix = make([]byte, c.blockSize()+2)
++		_, err := readFull(se.contents, se.prefix)
++		if err != nil {
++			return nil, err
++		}
++	} else if len(se.prefix) != c.blockSize()+2 {
++		return nil, error.InvalidArgumentError("can't try ciphers with different block lengths")
++	}
++
++	ocfbResync := cipher.OCFBResync
++	if se.MDC {
++		// MDC packets use a different form of OCFB mode.
++		ocfbResync = cipher.OCFBNoResync
++	}
++
++	s := cipher.NewOCFBDecrypter(c.new(key), se.prefix, ocfbResync)
++	if s == nil {
++		return nil, error.KeyIncorrectError
++	}
++
++	plaintext := cipher.StreamReader{S: s, R: se.contents}
++
++	if se.MDC {
++		// MDC packets have an embedded hash that we need to check.
++		h := sha1.New()
++		h.Write(se.prefix)
++		return &seMDCReader{in: plaintext, h: h}, nil
++	}
++
++	// Otherwise, we just need to wrap plaintext so that it's a valid ReadCloser.
++	return seReader{plaintext}, nil
++}
++
++// seReader wraps an io.Reader with a no-op Close method.
++type seReader struct {
++	in io.Reader
++}
++
++func (ser seReader) Read(buf []byte) (int, os.Error) {
++	return ser.in.Read(buf)
++}
++
++func (ser seReader) Close() os.Error {
++	return nil
++}
++
++const mdcTrailerSize = 1 /* tag byte */ + 1 /* length byte */ + sha1.Size
++
++// An seMDCReader wraps an io.Reader, maintains a running hash and keeps hold
++// of the most recent 22 bytes (mdcTrailerSize). Upon EOF, those bytes form an
++// MDC packet containing a hash of the previous contents which is checked
++// against the running hash. See RFC 4880, section 5.13.
++type seMDCReader struct {
++	in          io.Reader
++	h           hash.Hash
++	trailer     [mdcTrailerSize]byte
++	scratch     [mdcTrailerSize]byte
++	trailerUsed int
++	error       bool
++	eof         bool
++}
++
++func (ser *seMDCReader) Read(buf []byte) (n int, err os.Error) {
++	if ser.error {
++		err = io.ErrUnexpectedEOF
++		return
++	}
++	if ser.eof {
++		err = os.EOF
++		return
++	}
++
++	// If we haven't yet filled the trailer buffer then we must do that
++	// first.
++	for ser.trailerUsed < mdcTrailerSize {
++		n, err = ser.in.Read(ser.trailer[ser.trailerUsed:])
++		ser.trailerUsed += n
++		if err == os.EOF {
++			if ser.trailerUsed != mdcTrailerSize {
++				n = 0
++				err = io.ErrUnexpectedEOF
++				ser.error = true
++				return
++			}
++			ser.eof = true
++			n = 0
++			return
++		}
++
++		if err != nil {
++			n = 0
++			return
++		}
++	}
++
++	// If it's a short read then we read into a temporary buffer and shift
++	// the data into the caller's buffer.
++	if len(buf) <= mdcTrailerSize {
++		n, err = readFull(ser.in, ser.scratch[:len(buf)])
++		copy(buf, ser.trailer[:n])
++		ser.h.Write(buf[:n])
++		copy(ser.trailer[:], ser.trailer[n:])
++		copy(ser.trailer[mdcTrailerSize-n:], ser.scratch[:])
++		if n < len(buf) {
++			ser.eof = true
++			err = os.EOF
++		}
++		return
++	}
++
++	n, err = ser.in.Read(buf[mdcTrailerSize:])
++	copy(buf, ser.trailer[:])
++	ser.h.Write(buf[:n])
++	copy(ser.trailer[:], buf[n:])
++
++	if err == os.EOF {
++		ser.eof = true
++	}
++	return
++}
++
++func (ser *seMDCReader) Close() os.Error {
++	if ser.error {
++		return error.SignatureError("error during reading")
++	}
++
++	for !ser.eof {
++		// We haven't seen EOF so we need to read to the end
++		var buf [1024]byte
++		_, err := ser.Read(buf[:])
++		if err == os.EOF {
++			break
++		}
++		if err != nil {
++			return error.SignatureError("error during reading")
++		}
++	}
++
++	// This is a new-format packet tag byte for a type 19 (MDC) packet.
++	const mdcPacketTagByte = byte(0x80) | 0x40 | 19
++	if ser.trailer[0] != mdcPacketTagByte || ser.trailer[1] != sha1.Size {
++		return error.SignatureError("MDC packet not found")
++	}
++	ser.h.Write(ser.trailer[:2])
++
++	final := ser.h.Sum()
++	if subtle.ConstantTimeCompare(final, ser.trailer[2:]) == 1 {
++		return error.SignatureError("hash mismatch")
++	}
++	return nil
++}
+diff --git a/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+new file mode 100644
+index 0000000000..ee5a30d321
+--- /dev/null
++++ b/src/pkg/crypto/openpgp/packet/symmetrically_encrypted_test.go
+@@ -0,0 +1,78 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package packet
++
++import (
++	"bytes"
++	"crypto/openpgp/error"
++	"crypto/sha1"
++	"encoding/hex"
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++// TestReader wraps a []byte and returns reads of a specific length.
++type testReader struct {
++	data   []byte
++	stride int
++}
++
++func (t *testReader) Read(buf []byte) (n int, err os.Error) {
++	n = t.stride
++	if n > len(t.data) {
++		n = len(t.data)
++	}
++	if n > len(buf) {
++		n = len(buf)
++	}
++	copy(buf, t.data)
++	t.data = t.data[n:]
++	if len(t.data) == 0 {
++		err = os.EOF
++	}
++	return
++}
++
++func testMDCReader(t *testing.T) {
++	mdcPlaintext, _ := hex.DecodeString(mdcPlaintextHex)
++
++	for stride := 1; stride < len(mdcPlaintext)/2; stride++ {
++		r := &testReader{data: mdcPlaintext, stride: stride}
++		mdcReader := &seMDCReader{in: r, h: sha1.New()}
++		body, err := ioutil.ReadAll(mdcReader)
++		if err != nil {
++			t.Errorf("stride: %d, error: %s", stride, err)
++			continue
++		}
++		if !bytes.Equal(body, mdcPlaintext[:len(mdcPlaintext)-22]) {
++			t.Errorf("stride: %d: bad contents %x", stride, body)
++			continue
++		}
++
++		err = mdcReader.Close()
++		if err != nil {
++			t.Errorf("stride: %d, error on Close: %s", err)
++		}
++	}
++
++	mdcPlaintext[15] ^= 80
++
++	r := &testReader{data: mdcPlaintext, stride: 2}
++	mdcReader := &seMDCReader{in: r, h: sha1.New()}
++	_, err := ioutil.ReadAll(mdcReader)
++	if err != nil {
++		t.Errorf("corruption test, error: %s", err)
++		return
++	}
++	err = mdcReader.Close()
++	if err == nil {
++		t.Error("corruption: no error")
++	} else if _, ok := err.(*error.SignatureError); !ok {
++		t.Errorf("corruption: expected SignatureError, got: %s", err)
++	}
++}
++
++const mdcPlaintextHex = "a302789c3b2d93c4e0eb9aba22283539b3203335af44a134afb800c849cb4c4de10200aff40b45d31432c80cb384299a0655966d6939dfdeed1dddf980"

@@ -13,7 +13,7 @@ Date:   Tue Mar 14 14:25:56 2023 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/testshared/shared_test.go             |   2 +-
  src/cmd/dist/buildtool.go                      |   1 +
  src/cmd/go/gotoolchain.go                      |   2 +-
@@ -36,3 +36,725 @@ Date:   Tue Mar 14 14:25:56 2023 -0400
  src/runtime/metrics/description.go             | 126 ++++++-------------------
  src/runtime/metrics/doc.go                     |   7 +-
  21 files changed, 208 insertions(+), 164 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index e300e20e20..3a8fda05ed 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -219,7 +219,7 @@ func cloneGOROOTDeps(goroot string) error {
+ 	for _, pkg := range pkgs {
+ 		parentFound := false
+ 		for _, prev := range pkgRoots {
+-			if strings.HasPrefix(pkg, prev) {
++			if pkg == prev || strings.HasPrefix(pkg, prev+"/") {
+ 				// We will copy in the source for pkg when we copy in prev.
+ 				parentFound = true
+ 				break
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 09b8750dc8..3a455b9677 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -65,6 +65,7 @@ var bootstrapDirs = []string{
+ 	"internal/coverage",
+ 	"internal/buildcfg",
+ 	"internal/goarch",
++	"internal/godebugs",
+ 	"internal/goexperiment",
+ 	"internal/goroot",
+ 	"internal/goversion",
+diff --git a/src/cmd/go/gotoolchain.go b/src/cmd/go/gotoolchain.go
+index a0512245f0..5b7468f21f 100644
+--- a/src/cmd/go/gotoolchain.go
++++ b/src/cmd/go/gotoolchain.go
+@@ -187,7 +187,7 @@ func execGoToolchain(gotoolchain, dir, exe string) {
+ 	// propagate signals and such, but there are no signals on Windows.
+ 	// We also use the exec case when GODEBUG=gotoolchainexec=0,
+ 	// to allow testing this code even when not on Windows.
+-	if godebug.New("gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
++	if godebug.New("#gotoolchainexec").Value() == "0" || runtime.GOOS == "windows" {
+ 		cmd := exec.Command(exe, os.Args[1:]...)
+ 		if runtime.GOOS == "windows" && strings.Contains(exe, "go1.999test") {
+ 			// See testdata/script/gotoolchain.txt.
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 57a8c2c352..c371610a4d 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -48,9 +48,9 @@ var (
+ 	traceFile *os.File
+ 	traceMu   sync.Mutex
+ 
+-	gofsystrace      = godebug.New("gofsystrace")
+-	gofsystracelog   = godebug.New("gofsystracelog")
+-	gofsystracestack = godebug.New("gofsystracestack")
++	gofsystrace      = godebug.New("#gofsystrace")
++	gofsystracelog   = godebug.New("#gofsystracelog")
++	gofsystracestack = godebug.New("#gofsystracestack")
+ )
+ 
+ func init() {
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+index f65c40d3e0..c79245e5cd 100644
+--- a/src/cmd/go/internal/load/godebug.go
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"internal/godebugs"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -43,7 +44,13 @@ func ParseGoDebug(text string) (key, value string, err error) {
+ 	if strings.ContainsAny(v, ",") {
+ 		return "", "", fmt.Errorf("value contains comma")
+ 	}
+-	return k, v, nil
++
++	for _, info := range godebugs.All {
++		if k == info.Name {
++			return k, v, nil
++		}
++	}
++	return "", "", fmt.Errorf("unknown //go:debug setting %q", k)
+ }
+ 
+ // defaultGODEBUG returns the default GODEBUG setting for the main package p.
+@@ -110,19 +117,10 @@ func godebugForGoVersion(v string) map[string]string {
+ 	}
+ 
+ 	def := make(map[string]string)
+-	for _, d := range defaultGodebugs {
+-		if (d.before != 0 && n < d.before) || (d.first != 0 && n >= d.first) {
+-			def[d.name] = d.value
++	for _, info := range godebugs.All {
++		if n < info.Changed {
++			def[info.Name] = info.Old
+ 		}
+ 	}
+ 	return def
+ }
+-
+-var defaultGodebugs = []struct {
+-	before int // applies to Go versions up until this one (21 for Go 1.21)
+-	first  int // applies to Go versions starting at this one (21 for Go 1.21)
+-	name   string
+-	value  string
+-}{
+-	{before: 21, name: "panicnil", value: "1"},
+-}
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 352b87ed62..1fa250ad47 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -37,7 +37,7 @@ import (
+ // It will be removed before the release.
+ // TODO(matloob): Remove enabled once we have more confidence on the
+ // module index.
+-var enabled = godebug.New("goindex").Value() != "0"
++var enabled = godebug.New("#goindex").Value() != "0"
+ 
+ // Module represents and encoded module index file. It is used to
+ // do the equivalent of build.Import of packages in the module and answer other
+diff --git a/src/cmd/go/testdata/script/godebug_unknown.txt b/src/cmd/go/testdata/script/godebug_unknown.txt
+new file mode 100644
+index 0000000000..57dacbcbc5
+--- /dev/null
++++ b/src/cmd/go/testdata/script/godebug_unknown.txt
+@@ -0,0 +1,9 @@
++! go build
++stderr 'p.go:1:1: invalid //go:debug: unknown //go:debug setting "x"'
++
++-- go.mod --
++module m
++-- p.go --
++//go:debug x=y
++package main
++func main() {}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index de80ed041f..3238d96b9d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -42,7 +42,7 @@ var depsRules = `
+ 	< constraints, container/list, container/ring,
+ 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+-	  internal/cpu, internal/goarch,
++	  internal/cpu, internal/goarch, internal/godebugs,
+ 	  internal/goexperiment, internal/goos,
+ 	  internal/goversion, internal/nettrace, internal/platform,
+ 	  log/internal,
+@@ -55,7 +55,7 @@ var depsRules = `
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi, internal/cpu, internal/goarch,
+-	internal/coverage/rtcov, internal/goexperiment,
++	internal/coverage/rtcov, internal/godebugs, internal/goexperiment,
+ 	internal/goos, unsafe
+ 	< internal/bytealg
+ 	< internal/itoa
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index 5aa277f960..b8c74f2e9c 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -48,7 +48,7 @@ func TestDisableAllCapabilities(t *testing.T) {
+ func TestAllCapabilitiesDisabled(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if godebug.New("cpu.all").Value() != "off" {
++	if godebug.New("#cpu.all").Value() != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.all=off not set")
+ 	}
+ 
+diff --git a/src/internal/cpu/cpu_x86_test.go b/src/internal/cpu/cpu_x86_test.go
+index d7be4308a2..8564ccc799 100644
+--- a/src/internal/cpu/cpu_x86_test.go
++++ b/src/internal/cpu/cpu_x86_test.go
+@@ -28,7 +28,7 @@ func TestDisableSSE3(t *testing.T) {
+ func TestSSE3DebugOption(t *testing.T) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	if godebug.New("cpu.sse3").Value() != "off" {
++	if godebug.New("#cpu.sse3").Value() != "off" {
+ 		t.Skipf("skipping test: GODEBUG=cpu.sse3=off not set")
+ 	}
+ 
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index 8e4351e011..fb4e1d3705 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -1090,7 +1090,7 @@ var zeroVals []any = []any{
+ 	uint64(0),
+ }
+ 
+-var debugInfo = godebug.New("fuzzdebug").Value() == "1"
++var debugInfo = godebug.New("#fuzzdebug").Value() == "1"
+ 
+ func shouldPrintDebugInfo() bool {
+ 	return debugInfo
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 679e3df8d6..cecbe7d585 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -30,6 +30,7 @@
+ package godebug
+ 
+ import (
++	"internal/godebugs"
+ 	"sync"
+ 	"sync/atomic"
+ 	_ "unsafe" // go:linkname
+@@ -46,21 +47,38 @@ type setting struct {
+ 	value          atomic.Pointer[string]
+ 	nonDefaultOnce sync.Once
+ 	nonDefault     atomic.Uint64
++	info           *godebugs.Info
+ }
+ 
+ // New returns a new Setting for the $GODEBUG setting with the given name.
++//
++// GODEBUGs meant for use by end users must be listed in ../godebugs/table.go,
++// which is used for generating and checking various documentation.
++// If the name is not listed in that table, New will succeed but calling Value
++// on the returned Setting will panic.
++// To disable that panic for access to an undocumented setting,
++// prefix the name with a #, as in godebug.New("#gofsystrace").
++// The # is a signal to New but not part of the key used in $GODEBUG.
+ func New(name string) *Setting {
+ 	return &Setting{name: name}
+ }
+ 
+ // Name returns the name of the setting.
+ func (s *Setting) Name() string {
++	if s.name != "" && s.name[0] == '#' {
++		return s.name[1:]
++	}
+ 	return s.name
+ }
+ 
++// Undocumented reports whether this is an undocumented setting.
++func (s *Setting) Undocumented() bool {
++	return s.name != "" && s.name[0] == '#'
++}
++
+ // String returns a printable form for the setting: name=value.
+ func (s *Setting) String() string {
+-	return s.name + "=" + s.Value()
++	return s.Name() + "=" + s.Value()
+ }
+ 
+ // IncNonDefault increments the non-default behavior counter
+@@ -69,20 +87,16 @@ func (s *Setting) String() string {
+ // /godebug/non-default-behavior/<name>:events.
+ //
+ // Note that Value must be called at least once before IncNonDefault.
+-//
+-// Any GODEBUG setting that can call IncNonDefault must be listed
+-// in three more places:
+-//
+-//   - the table in ../runtime/metrics.go (search for non-default-behavior)
+-//   - the table in ../../runtime/metrics/description.go (search for non-default-behavior; run 'go generate' afterward)
+-//   - the table in ../../cmd/go/internal/load/godebug.go (search for defaultGodebugs)
+ func (s *Setting) IncNonDefault() {
+ 	s.nonDefaultOnce.Do(s.register)
+ 	s.nonDefault.Add(1)
+ }
+ 
+ func (s *Setting) register() {
+-	registerMetric("/godebug/non-default-behavior/"+s.name+":events", s.nonDefault.Load)
++	if s.info == nil || s.info.Opaque {
++		panic("godebug: unexpected IncNonDefault of " + s.name)
++	}
++	registerMetric("/godebug/non-default-behavior/"+s.Name()+":events", s.nonDefault.Load)
+ }
+ 
+ // cache is a cache of all the GODEBUG settings,
+@@ -111,7 +125,10 @@ var empty string
+ // caching of Value's result.
+ func (s *Setting) Value() string {
+ 	s.once.Do(func() {
+-		s.setting = lookup(s.name)
++		s.setting = lookup(s.Name())
++		if s.info == nil && !s.Undocumented() {
++			panic("godebug: Value of name not listed in godebugs.All: " + s.name)
++		}
+ 	})
+ 	return *s.value.Load()
+ }
+@@ -122,6 +139,7 @@ func lookup(name string) *setting {
+ 		return v.(*setting)
+ 	}
+ 	s := new(setting)
++	s.info = godebugs.Lookup(name)
+ 	s.value.Store(&empty)
+ 	if v, loaded := cache.LoadOrStore(name, s); loaded {
+ 		// Lost race: someone else created it. Use theirs.
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 2f311106b1..ad5ced3558 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -11,13 +11,13 @@ import (
+ )
+ 
+ func TestGet(t *testing.T) {
+-	foo := New("foo")
++	foo := New("#foo")
+ 	tests := []struct {
+ 		godebug string
+ 		setting *Setting
+ 		want    string
+ 	}{
+-		{"", New(""), ""},
++		{"", New("#"), ""},
+ 		{"", foo, ""},
+ 		{"foo=bar", foo, "bar"},
+ 		{"foo=bar,after=x", foo, "bar"},
+@@ -28,7 +28,7 @@ func TestGet(t *testing.T) {
+ 		{"foo=", foo, ""},
+ 		{"foo", foo, ""},
+ 		{",foo", foo, ""},
+-		{"foo=bar,baz", New("loooooooong"), ""},
++		{"foo=bar,baz", New("#loooooooong"), ""},
+ 	}
+ 	for _, tt := range tests {
+ 		t.Setenv("GODEBUG", tt.godebug)
+diff --git a/src/internal/godebugs/godebugs_test.go b/src/internal/godebugs/godebugs_test.go
+new file mode 100644
+index 0000000000..663268f02b
+--- /dev/null
++++ b/src/internal/godebugs/godebugs_test.go
+@@ -0,0 +1,41 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package godebugs_test
++
++import (
++	"internal/godebugs"
++	"os"
++	"strings"
++	"testing"
++)
++
++func TestAll(t *testing.T) {
++	data, err := os.ReadFile("../../../doc/godebug.md")
++	if err != nil {
++		t.Fatal(err)
++	}
++	doc := string(data)
++
++	last := ""
++	for _, info := range godebugs.All {
++		if info.Name <= last {
++			t.Errorf("All not sorted: %s then %s", last, info.Name)
++		}
++		last = info.Name
++
++		if info.Package == "" {
++			t.Errorf("Name=%s missing Package", info.Name)
++		}
++		if info.Changed != 0 && info.Old == "" {
++			t.Errorf("Name=%s has Changed, missing Old", info.Name)
++		}
++		if info.Old != "" && info.Changed == 0 {
++			t.Errorf("Name=%s has Old, missing Changed", info.Name)
++		}
++		if !strings.Contains(doc, "`"+info.Name+"`") {
++			t.Errorf("Name=%s not documented in doc/godebug.md", info.Name)
++		}
++	}
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+new file mode 100644
+index 0000000000..6a78d74f8b
+--- /dev/null
++++ b/src/internal/godebugs/table.go
+@@ -0,0 +1,64 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package godebugs provides a table of known GODEBUG settings,
++// for use by a variety of other packages, including internal/godebug,
++// runtime, runtime/metrics, and cmd/go/internal/load.
++package godebugs
++
++// An Info describes a single known GODEBUG setting.
++type Info struct {
++	Name    string // name of the setting ("panicnil")
++	Package string // package that uses the setting ("runtime")
++	Changed int    // minor version when default changed, if any; 21 means Go 1.21
++	Old     string // value that restores behavior prior to Changed
++	Opaque  bool   // setting does not export information to runtime/metrics using [internal/godebug.Setting.IncNonDefault]
++}
++
++// All is the table of known settings, sorted by Name.
++//
++// Note: After adding entries to this table, run 'go generate runtime/metrics'
++// to update the runtime/metrics doc comment.
++// (Otherwise the runtime/metrics test will fail.)
++//
++// Note: After adding entries to this table, update the list in doc/godebug.md as well.
++// (Otherwise the test in this package will fail.)
++var All = []Info{
++	{Name: "execerrdot", Package: "os/exec"},
++	{Name: "http2client", Package: "net/http"},
++	{Name: "http2debug", Package: "net/http", Opaque: true},
++	{Name: "http2server", Package: "net/http"},
++	{Name: "installgoroot", Package: "go/build"},
++	{Name: "jstmpllitinterp", Package: "html/template"},
++	//{Name: "multipartfiles", Package: "mime/multipart"},
++	{Name: "multipartmaxheaders", Package: "mime/multipart"},
++	{Name: "multipartmaxparts", Package: "mime/multipart"},
++	{Name: "netdns", Package: "net", Opaque: true},
++	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
++	{Name: "randautoseed", Package: "math/rand"},
++	{Name: "tarinsecurepath", Package: "archive/tar"},
++	{Name: "x509sha1", Package: "crypto/x509"},
++	{Name: "x509usefallbackroots", Package: "crypto/x509"},
++	{Name: "zipinsecurepath", Package: "archive/zip"},
++}
++
++// Lookup returns the Info with the given name.
++func Lookup(name string) *Info {
++	// binary search, avoiding import of sort.
++	lo := 0
++	hi := len(All)
++	for lo < hi {
++		m := lo + (hi-lo)>>1
++		mid := All[m].Name
++		if name == mid {
++			return &All[m]
++		}
++		if name < mid {
++			hi = m
++		} else {
++			lo = m + 1
++		}
++	}
++	return nil
++}
+diff --git a/src/internal/intern/intern.go b/src/internal/intern/intern.go
+index 0e6852f729..2f97c2e669 100644
+--- a/src/internal/intern/intern.go
++++ b/src/internal/intern/intern.go
+@@ -66,7 +66,7 @@ var (
+ 	valSafe = safeMap()         // non-nil in safe+leaky mode
+ )
+ 
+-var intern = godebug.New("intern")
++var intern = godebug.New("#intern")
+ 
+ // safeMap returns a non-nil map if we're in safe-but-leaky mode,
+ // as controlled by GODEBUG=intern=leaky
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 86a8d2bfcf..f8258a961c 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -34,7 +34,7 @@ func (r *Reader) ReadForm(maxMemory int64) (*Form, error) {
+ }
+ 
+ var (
+-	multipartFiles    = godebug.New("multipartfiles")
++	multipartFiles    = godebug.New("#multipartfiles") // TODO: document and remove #
+ 	multipartMaxParts = godebug.New("multipartmaxparts")
+ )
+ 
+@@ -48,7 +48,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 	combineFiles := true
+ 	if multipartFiles.Value() == "distinct" {
+ 		combineFiles = false
+-		multipartFiles.IncNonDefault()
++		// multipartFiles.IncNonDefault() // TODO: uncomment after documenting
+ 	}
+ 	maxParts := 1000
+ 	if s := multipartMaxParts.Value(); s != "" {
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index 2f4bdffe9c..138be29ecf 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -348,7 +348,7 @@ type ctxResult struct {
+ 	timer *time.Timer
+ }
+ 
+-var execwait = godebug.New("execwait")
++var execwait = godebug.New("#execwait")
+ var execerrdot = godebug.New("execerrdot")
+ 
+ // Command returns the Cmd struct to execute the named program with
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index d154acce71..4a51ae573f 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -7,6 +7,7 @@ package runtime
+ // Metrics implementation exported to runtime/metrics.
+ 
+ import (
++	"internal/godebugs"
+ 	"unsafe"
+ )
+ 
+@@ -286,20 +287,6 @@ func initMetrics() {
+ 				out.scalar = uint64(startingStackSize)
+ 			},
+ 		},
+-		"/godebug/non-default-behavior/execerrdot:events":           {compute: compute0},
+-		"/godebug/non-default-behavior/http2client:events":          {compute: compute0},
+-		"/godebug/non-default-behavior/http2server:events":          {compute: compute0},
+-		"/godebug/non-default-behavior/installgoroot:events":        {compute: compute0},
+-		"/godebug/non-default-behavior/jstmpllitinterp:events":      {compute: compute0},
+-		"/godebug/non-default-behavior/multipartfiles:events":       {compute: compute0},
+-		"/godebug/non-default-behavior/multipartmaxheaders:events":  {compute: compute0},
+-		"/godebug/non-default-behavior/multipartmaxparts:events":    {compute: compute0},
+-		"/godebug/non-default-behavior/panicnil:events":             {compute: compute0},
+-		"/godebug/non-default-behavior/randautoseed:events":         {compute: compute0},
+-		"/godebug/non-default-behavior/tarinsecurepath:events":      {compute: compute0},
+-		"/godebug/non-default-behavior/x509sha1:events":             {compute: compute0},
+-		"/godebug/non-default-behavior/x509usefallbackroots:events": {compute: compute0},
+-		"/godebug/non-default-behavior/zipinsecurepath:events":      {compute: compute0},
+ 		"/memory/classes/heap/free:bytes": {
+ 			deps: makeStatDepSet(heapStatsDep),
+ 			compute: func(in *statAggregate, out *metricValue) {
+@@ -432,6 +419,13 @@ func initMetrics() {
+ 			},
+ 		},
+ 	}
++
++	for _, info := range godebugs.All {
++		if !info.Opaque {
++			metrics["/godebug/non-default-behavior/"+info.Name+":events"] = metricData{compute: compute0}
++		}
++	}
++
+ 	metricsInit = true
+ }
+ 
+@@ -447,10 +441,6 @@ func (f metricReader) compute(_ *statAggregate, out *metricValue) {
+ 	out.scalar = f()
+ }
+ 
+-var godebugNonDefaults = []string{
+-	"panicnil",
+-}
+-
+ //go:linkname godebug_registerMetric internal/godebug.registerMetric
+ func godebug_registerMetric(name string, read func() uint64) {
+ 	metricsLock()
+diff --git a/src/runtime/metrics/description.go b/src/runtime/metrics/description.go
+index a06c017b7f..9f486d1367 100644
+--- a/src/runtime/metrics/description.go
++++ b/src/runtime/metrics/description.go
+@@ -4,6 +4,8 @@
+ 
+ package metrics
+ 
++import "internal/godebugs"
++
+ // Description describes a runtime metric.
+ type Description struct {
+ 	// Name is the full name of the metric which includes the unit.
+@@ -49,7 +51,7 @@ type Description struct {
+ }
+ 
+ // The English language descriptions below must be kept in sync with the
+-// descriptions of each metric in doc.go.
++// descriptions of each metric in doc.go by running 'go generate'.
+ var allDesc = []Description{
+ 	{
+ 		Name:        "/cgo/go-to-c-calls:calls",
+@@ -277,104 +279,6 @@ var allDesc = []Description{
+ 		Kind:        KindUint64,
+ 		Cumulative:  false,
+ 	},
+-	{
+-		Name: "/godebug/non-default-behavior/execerrdot:events",
+-		Description: "The number of non-default behaviors executed by the os/exec package " +
+-			"due to a non-default GODEBUG=execerrdot=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/http2client:events",
+-		Description: "The number of non-default behaviors executed by the net/http package " +
+-			"due to a non-default GODEBUG=http2client=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/http2server:events",
+-		Description: "The number of non-default behaviors executed by the net/http package " +
+-			"due to a non-default GODEBUG=http2server=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/installgoroot:events",
+-		Description: "The number of non-default behaviors executed by the go/build package " +
+-			"due to a non-default GODEBUG=installgoroot=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/jstmpllitinterp:events",
+-		Description: "The number of non-default behaviors executed by the html/template" +
+-			"package due to a non-default GODEBUG=jstmpllitinterp=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/multipartfiles:events",
+-		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+-			"due to a non-default GODEBUG=multipartfiles=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/multipartmaxheaders:events",
+-		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+-			"due to a non-default GODEBUG=multipartmaxheaders=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/multipartmaxparts:events",
+-		Description: "The number of non-default behaviors executed by the mime/multipart package " +
+-			"due to a non-default GODEBUG=multipartmaxparts=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/panicnil:events",
+-		Description: "The number of non-default behaviors executed by the runtime package " +
+-			"due to a non-default GODEBUG=panicnil=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/randautoseed:events",
+-		Description: "The number of non-default behaviors executed by the math/rand package " +
+-			"due to a non-default GODEBUG=randautoseed=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/tarinsecurepath:events",
+-		Description: "The number of non-default behaviors executed by the archive/tar package " +
+-			"due to a non-default GODEBUG=tarinsecurepath=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/x509sha1:events",
+-		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
+-			"due to a non-default GODEBUG=x509sha1=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/x509usefallbackroots:events",
+-		Description: "The number of non-default behaviors executed by the crypto/x509 package " +
+-			"due to a non-default GODEBUG=x509usefallbackroots=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+-	{
+-		Name: "/godebug/non-default-behavior/zipinsecurepath:events",
+-		Description: "The number of non-default behaviors executed by the archive/zip package " +
+-			"due to a non-default GODEBUG=zipinsecurepath=... setting.",
+-		Kind:       KindUint64,
+-		Cumulative: true,
+-	},
+ 	{
+ 		Name: "/memory/classes/heap/free:bytes",
+ 		Description: "Memory that is completely free and eligible to be returned to the underlying system, " +
+@@ -472,6 +376,30 @@ var allDesc = []Description{
+ 	},
+ }
+ 
++func init() {
++	// Insert all the the non-default-reporting GODEBUGs into the table,
++	// preserving the overall sort order.
++	i := 0
++	for i < len(allDesc) && allDesc[i].Name < "/godebug/" {
++		i++
++	}
++	more := make([]Description, i, len(allDesc)+len(godebugs.All))
++	copy(more, allDesc)
++	for _, info := range godebugs.All {
++		if !info.Opaque {
++			more = append(more, Description{
++				Name: "/godebug/non-default-behavior/" + info.Name + ":events",
++				Description: "The number of non-default behaviors executed by the " +
++					info.Package + " package " + "due to a non-default " +
++					"GODEBUG=" + info.Name + "=... setting.",
++				Kind:       KindUint64,
++				Cumulative: true,
++			})
++		}
++	}
++	allDesc = append(more, allDesc[i:]...)
++}
++
+ // All returns a slice of containing metric descriptions for all supported metrics.
+ func All() []Description {
+ 	return allDesc
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 68bbf5a3ce..ce6e944d8c 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -221,14 +221,9 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 
+ 	/godebug/non-default-behavior/jstmpllitinterp:events
+ 		The number of non-default behaviors executed by
+-		the html/templatepackage due to a non-default
++		the html/template package due to a non-default
+ 		GODEBUG=jstmpllitinterp=... setting.
+ 
+-	/godebug/non-default-behavior/multipartfiles:events
+-		The number of non-default behaviors executed by
+-		the mime/multipart package due to a non-default
+-		GODEBUG=multipartfiles=... setting.
+-
+ 	/godebug/non-default-behavior/multipartmaxheaders:events
+ 		The number of non-default behaviors executed by
+ 		the mime/multipart package due to a non-default

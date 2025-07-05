@@ -12,6 +12,22 @@ Date:   Sat Sep 24 22:06:39 2016 -0700
     Change-Id: I69f78a6e10817db933f44e464a949ae896e44ec6
     Reviewed-on: https://go-review.googlesource.com/29755
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/httptrace/trace.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httptrace/trace.go b/src/net/http/httptrace/trace.go
+index 93c07b8ac3..8c29c4aa6f 100644
+--- a/src/net/http/httptrace/trace.go
++++ b/src/net/http/httptrace/trace.go
+@@ -65,8 +65,8 @@ func WithClientTrace(ctx context.Context, trace *ClientTrace) context.Context {
+ 	return ctx
+ }
+ 
+-// ClientTrace is a set of hooks to run at various stages of an HTTP
+-// client request. Any particular hook may be nil. Functions may be
++// ClientTrace is a set of hooks to run at various stages of an outgoing
++// HTTP request. Any particular hook may be nil. Functions may be
+ // called concurrently from different goroutines, starting after the
+ // call to Transport.RoundTrip and ending either when RoundTrip
+ // returns an error, or when the Response.Body is closed.

@@ -9,6 +9,20 @@ Date:   Thu Sep 8 14:50:24 2016 -0700
     Change-Id: Id75aed6410f06b302d5347f6ca6a2e19c61f6fb6
     Reviewed-on: https://go-review.googlesource.com/28779
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0beffd6752..47762ca989 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -244,7 +244,7 @@ func (o Op) oconv(s fmt.State) {
+ 		return
+ 	}
+ 
+-	fmt.Sprintf("O-%d", o)
++	fmt.Fprintf(s, "O-%d", o)
+ }
+ 
+ var classnames = []string{

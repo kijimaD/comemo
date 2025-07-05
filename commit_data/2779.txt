@@ -9,7 +9,115 @@ Date:   Sat Jul 25 17:18:05 2009 -0700
     DELTA=23  (23 added, 0 deleted, 0 changed)
     OCL=32106
     CL=32189
-
+---
  src/pkg/container/list/list.go      | 10 ++++++++++
  src/pkg/container/list/list_test.go | 13 +++++++++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/container/list/list.go b/src/pkg/container/list/list.go
+index 7e8daa65a7..3f598bf5e4 100755
+--- a/src/pkg/container/list/list.go
++++ b/src/pkg/container/list/list.go
+@@ -18,12 +18,14 @@ type Element struct {
+ // List represents a doubly linked list.
+ type List struct {
+ 	front, back *Element;
++	len int;
+ }
+ 
+ // Init initializes or clears a List.
+ func (l *List) Init() *List {
+ 	l.front = nil;
+ 	l.back = nil;
++	l.len = 0;
+ 	return l
+ }
+ 
+@@ -57,6 +59,7 @@ func (l *List) Remove(e *Element) {
+ 
+ 	e.prev = nil;
+ 	e.next = nil;
++	l.len--;
+ }
+ 
+ func (l *List) insertFront(e *Element) {
+@@ -68,6 +71,7 @@ func (l *List) insertFront(e *Element) {
+ 	} else {
+ 		l.back = e;
+ 	}
++	l.len++;
+ }
+ 
+ func (l *List) insertBack(e *Element) {
+@@ -79,6 +83,7 @@ func (l *List) insertBack(e *Element) {
+ 	} else {
+ 		l.front = e;
+ 	}
++	l.len++;
+ }
+ 
+ // PushFront inserts the value at the front of the list, and returns a new Element containing it.
+@@ -113,6 +118,11 @@ func (l *List) MoveToBack(e *Element) {
+ 	l.insertBack(e);
+ }
+ 
++// Len returns the number of elements in the list.
++func (l *List) Len() int {
++	return l.len
++}
++
+ func (l *List) iterate(c chan <- *Element) {
+ 	var next *Element;
+ 	for e := l.front; e != nil; e = next {
+diff --git a/src/pkg/container/list/list_test.go b/src/pkg/container/list/list_test.go
+index d5b2672e05..bdfed35788 100755
+--- a/src/pkg/container/list/list_test.go
++++ b/src/pkg/container/list/list_test.go
+@@ -42,19 +42,29 @@ func checkListPointers(t *testing.T, l *List, es []*Element) {
+ 	}
+ }
+ 
++func checkListLen(t *testing.T, l *List, n int) {
++	if an := l.Len(); an != n {
++		t.Errorf("l.Len() = %d, want %d", an, n);
++	}
++}
++
+ func TestList(t *testing.T) {
+ 	l := New();
+ 	checkListPointers(t, l, []*Element{});
++	checkListLen(t, l, 0);
+ 
+ 	// Single element list
+ 	e := l.PushFront("a");
++	checkListLen(t, l, 1);
+ 	checkListPointers(t, l, []*Element{ e });
+ 	l.MoveToFront(e);
+ 	checkListPointers(t, l, []*Element{ e });
+ 	l.MoveToBack(e);
+ 	checkListPointers(t, l, []*Element{ e });
++	checkListLen(t, l, 1);
+ 	l.Remove(e);
+ 	checkListPointers(t, l, []*Element{});
++	checkListLen(t, l, 0);
+ 
+ 	// Bigger list
+ 	e2 := l.PushFront(2);
+@@ -62,9 +72,11 @@ func TestList(t *testing.T) {
+ 	e3 := l.PushBack(3);
+ 	e4 := l.PushBack("banana");
+ 	checkListPointers(t, l, []*Element{ e1, e2, e3, e4 });
++	checkListLen(t, l, 4);
+ 
+ 	l.Remove(e2);
+ 	checkListPointers(t, l, []*Element{ e1, e3, e4 });
++	checkListLen(t, l, 3);
+ 
+ 	l.MoveToFront(e3);  // move from middle
+ 	checkListPointers(t, l, []*Element{ e3, e1, e4 });
+@@ -88,4 +100,5 @@ func TestList(t *testing.T) {
+ 		l.Remove(e);
+ 	}
+ 	checkListPointers(t, l, []*Element{});
++	checkListLen(t, l, 0);
+ }

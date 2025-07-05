@@ -13,7 +13,119 @@ Date:   Wed Jan 8 15:21:39 2020 -0500
     Change-Id: Ic323b643d7149df4fd63b222e820e2dff50686fc
     Reviewed-on: https://go-review.googlesource.com/c/go/+/213829
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go                       | 42 ------------------------
  src/cmd/go/testdata/script/get_insecure.txt | 51 +++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 42 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5cebddea52..afb4cafb57 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2552,48 +2552,6 @@ func TestImportLocal(t *testing.T) {
+ 	tg.grepStderr("cannot import current directory", "did not diagnose import current directory")
+ }
+ 
+-func TestGoGetInsecure(t *testing.T) {
+-	test := func(t *testing.T, modules bool) {
+-		testenv.MustHaveExternalNetwork(t)
+-		testenv.MustHaveExecPath(t, "git")
+-
+-		tg := testgo(t)
+-		defer tg.cleanup()
+-		tg.makeTempdir()
+-		tg.failSSH()
+-
+-		if modules {
+-			tg.setenv("GOPATH", tg.path("gp"))
+-			tg.tempFile("go.mod", "module m")
+-			tg.cd(tg.path("."))
+-			tg.setenv("GO111MODULE", "on")
+-			tg.setenv("GOPROXY", "")
+-		} else {
+-			tg.setenv("GOPATH", tg.path("."))
+-			tg.setenv("GO111MODULE", "off")
+-		}
+-
+-		const repo = "insecure.go-get-issue-15410.appspot.com/pkg/p"
+-
+-		// Try go get -d of HTTP-only repo (should fail).
+-		tg.runFail("get", "-d", repo)
+-
+-		// Try again with -insecure (should succeed).
+-		tg.run("get", "-d", "-insecure", repo)
+-
+-		// Try updating without -insecure (should fail).
+-		tg.runFail("get", "-d", "-u", "-f", repo)
+-
+-		if modules {
+-			tg.run("list", "-m", "...")
+-			tg.grepStdout("insecure.go-get-issue", "should find insecure module")
+-		}
+-	}
+-
+-	t.Run("gopath", func(t *testing.T) { test(t, false) })
+-	t.Run("modules", func(t *testing.T) { test(t, true) })
+-}
+-
+ func TestGoGetUpdateInsecure(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 	testenv.MustHaveExecPath(t, "git")
+diff --git a/src/cmd/go/testdata/script/get_insecure.txt b/src/cmd/go/testdata/script/get_insecure.txt
+new file mode 100644
+index 0000000000..36ad2c05b7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_insecure.txt
+@@ -0,0 +1,51 @@
++# TODO(matloob): Split this test into two? It's one of the slowest tests we have.
++
++[!net] skip
++[!exec:git] skip
++
++env PATH=$WORK/tmp/bin${:}$PATH
++go build -o $WORK/tmp/bin/ssh ssh.go
++
++# GOPATH: Set up
++env GO111MODULE=off
++
++# GOPATH: Try go get -d of HTTP-only repo (should fail).
++! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try again with -insecure (should succeed).
++go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# GOPATH: Try updating without -insecure (should fail).
++! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# Modules: Set up
++env GOPATH=$WORK/m/gp
++mkdir $WORK/m
++cp module_file $WORK/m/go.mod
++cd $WORK/m
++env GO111MODULE=on
++env GOPROXY=''
++
++# Modules: Try go get -d of HTTP-only repo (should fail).
++! go get -d insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# Modules: Try again with -insecure (should succeed).
++go get -d -insecure insecure.go-get-issue-15410.appspot.com/pkg/p
++
++# Modules: Try updating without -insecure (should fail).
++! go get -d -u -f insecure.go-get-issue-15410.appspot.com/pkg/p
++
++go list -m ...
++stdout 'insecure.go-get-issue'
++
++-- ssh.go --
++// stub out uses of ssh by go get
++package main
++
++import "os"
++
++func main() {
++	os.Exit(1)
++}
++-- module_file --
++module m
+\ No newline at end of file

@@ -8,6 +8,19 @@ Date:   Wed May 6 15:55:22 2015 +0900
     Reviewed-on: https://go-review.googlesource.com/9775
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  doc/go1.5.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index 20ad6b2437..b0602f9b77 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -52,6 +52,7 @@ math/big: add Jacobi and Int.ModSqrt (https://golang.org/cl/1886)
+ mime: add ExtensionByType (https://golang.org/cl/7444)
+ mime/quotedprintable: new package (https://golang.org/cl/5940 + others)
+ net: add Source field to OpError (https://go-review.googlesource.com/9231)
++net: fix inconsistent errors (https://golang.org/cl/9236)
+ net/http: support for setting trailers from a server Handler (https://golang.org/cl/2157)
+ net/http: ignore the Unix epoch time in ServeContent (https://golang.org/cl/7915)
+ net/http/cgi: fix REMOTE_ADDR, REMOTE_HOST, add REMOTE_PORT (https://golang.org/cl/4933)

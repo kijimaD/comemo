@@ -12,6 +12,20 @@ Date:   Tue Aug 12 07:49:10 2014 -0700
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/122300043
-
+---
  src/cmd/dist/buf.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buf.c b/src/cmd/dist/buf.c
+index 45fb1954d3..2ddc6be752 100644
+--- a/src/cmd/dist/buf.c
++++ b/src/cmd/dist/buf.c
+@@ -202,7 +202,7 @@ vadd(Vec *v, char *p)
+ }
+ 
+ // vaddn adds a string consisting of the n bytes at p to the vector.
+-void
++static void
+ vaddn(Vec *v, char *p, int n)
+ {
+ 	char *q;

@@ -11,7 +11,41 @@ Date:   Wed Mar 22 20:50:32 2017 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/printer.go |  3 +++
  test/fixedbugs/issue19667.go               | 13 +++++++++++++
  2 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 426921199e..64ed0e662c 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -341,6 +341,9 @@ func (p *printer) printNode(n Node) {
+ 
+ func (p *printer) printRawNode(n Node) {
+ 	switch n := n.(type) {
++	case nil:
++		// we should not reach here but don't crash
++
+ 	// expressions and types
+ 	case *Name:
+ 		p.print(_Name, n.Value) // _Name requires actual value following immediately
+diff --git a/test/fixedbugs/issue19667.go b/test/fixedbugs/issue19667.go
+new file mode 100644
+index 0000000000..c94a11d871
+--- /dev/null
++++ b/test/fixedbugs/issue19667.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Make sure we don't crash when reporting this error.
++
++package p
++
++func f() {
++	if err := http.ListenAndServe(
++} // ERROR "unexpected }, expecting expression"

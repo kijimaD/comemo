@@ -13,6 +13,21 @@ Date:   Tue Jun 7 12:28:54 2022 -0400
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  doc/go1.19.html | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/doc/go1.19.html b/doc/go1.19.html
+index 37983f93b6..037ea4fec6 100644
+--- a/doc/go1.19.html
++++ b/doc/go1.19.html
+@@ -32,6 +32,9 @@ Do not send CLs removing the interior tags from such phrases.
+ <p>
+   TODO: complete this section, or delete if not needed
+ </p>
++<p><!-- https://go.dev/issue/46229 -->
++  Go 1.19 supports the Loongson 64-bit architecture LoongArch on Linux (<code>GOOS=linux</code>, <code>GOARCH=loong64</code>).
++</p>
+ 
+ <h2 id="tools">Tools</h2>
+ <p>

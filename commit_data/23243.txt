@@ -17,7 +17,42 @@ Date:   Fri May 1 18:20:31 2015 +0000
     Change-Id: I1d4f433cc64e11bea5f4d61419ccc707ac01bb1d
     Reviewed-on: https://go-review.googlesource.com/9620
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/text/template/parse/parse.go      | 7 ++++---
  src/text/template/parse/parse_test.go | 3 +++
  2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index af33880c15..d0efcbf609 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -288,11 +288,12 @@ func (t *Tree) parse(treeSet map[string]*Tree) (next Node) {
+ 			}
+ 			t.backup2(delim)
+ 		}
+-		n := t.textOrAction()
+-		if n.Type() == nodeEnd {
++		switch n := t.textOrAction(); n.Type() {
++		case nodeEnd, nodeElse:
+ 			t.errorf("unexpected %s", n)
++		default:
++			t.Root.append(n)
+ 		}
+-		t.Root.append(n)
+ 	}
+ 	return nil
+ }
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 4a504fa7c8..faac06fe5a 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -230,6 +230,9 @@ var parseTests = []parseTest{
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
+ 	{"unmatched end", "{{end}}", hasError, ""},
++	{"unmatched else", "{{else}}", hasError, ""},
++	{"unmatched else after if", "{{if .X}}hello{{end}}{{else}}", hasError, ""},
++	{"multiple else", "{{if .X}}1{{else}}2{{else}}3{{end}}", hasError, ""},
+ 	{"missing end", "hello{{range .x}}", hasError, ""},
+ 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
+ 	{"undefined function", "hello{{undefined}}", hasError, ""},

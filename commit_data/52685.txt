@@ -14,6 +14,22 @@ Date:   Tue May 17 15:26:18 2022 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/posmap.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/posmap.go b/src/cmd/compile/internal/noder/posmap.go
+index f22628f845..6c7e57c996 100644
+--- a/src/cmd/compile/internal/noder/posmap.go
++++ b/src/cmd/compile/internal/noder/posmap.go
+@@ -26,8 +26,9 @@ func (m *posMap) pos(p poser) src.XPos { return m.makeXPos(p.Pos()) }
+ func (m *posMap) end(p ender) src.XPos { return m.makeXPos(p.End()) }
+ 
+ func (m *posMap) makeXPos(pos syntax.Pos) src.XPos {
++	// Predeclared objects (e.g., the result parameter for error.Error)
++	// do not have a position.
+ 	if !pos.IsKnown() {
+-		// TODO(mdempsky): Investigate restoring base.Fatalf.
+ 		return src.NoXPos
+ 	}
+ 

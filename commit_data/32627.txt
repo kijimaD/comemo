@@ -75,7 +75,7 @@ Date:   Fri Apr 28 18:02:00 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/42172
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s    |  54 +++++
  src/cmd/compile/internal/gc/asm_test.go      |  10 +
  src/cmd/compile/internal/ssa/gen/ARM64.rules | 115 ++++++---
@@ -85,3 +85,1702 @@ Date:   Fri Apr 28 18:02:00 2017 -0400
  src/cmd/internal/obj/arm64/anames7.go        |  14 +-
  src/cmd/internal/obj/arm64/asm7.go           | 346 ++++++++++++++++++---------
  8 files changed, 562 insertions(+), 258 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 734ed152b2..1b6dc188c4 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -85,6 +85,60 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVD	$1, R1
+ 	MOVD	ZR, (R1)
+ 
++	// small offset fits into instructions
++	MOVB	1(R1), R2 // 22048039
++	MOVH	1(R1), R2 // 22108078
++	MOVH	2(R1), R2 // 22048079
++	MOVW	1(R1), R2 // 221080b8
++	MOVW	4(R1), R2 // 220480b9
++	MOVD	1(R1), R2 // 221040f8
++	MOVD	8(R1), R2 // 220440f9
++	FMOVS	1(R1), F2 // 221040bc
++	FMOVS	4(R1), F2 // 220440bd
++	FMOVD	1(R1), F2 // 221040fc
++	FMOVD	8(R1), F2 // 220440fd
++	MOVB	R1, 1(R2) // 41040039
++	MOVH	R1, 1(R2) // 41100078
++	MOVH	R1, 2(R2) // 41040079
++	MOVW	R1, 1(R2) // 411000b8
++	MOVW	R1, 4(R2) // 410400b9
++	MOVD	R1, 1(R2) // 411000f8
++	MOVD	R1, 8(R2) // 410400f9
++	FMOVS	F1, 1(R2) // 411000bc
++	FMOVS	F1, 4(R2) // 410400bd
++	FMOVD	F1, 1(R2) // 411000fc
++	FMOVD	F1, 8(R2) // 410400fd
++
++	// large aligned offset, use two instructions
++	MOVB	0x1001(R1), R2 // MOVB	4097(R1), R2  // 3b04409162078039
++	MOVH	0x2002(R1), R2 // MOVH	8194(R1), R2  // 3b08409162078079
++	MOVW	0x4004(R1), R2 // MOVW	16388(R1), R2 // 3b104091620780b9
++	MOVD	0x8008(R1), R2 // MOVD	32776(R1), R2 // 3b204091620740f9
++	FMOVS	0x4004(R1), F2 // FMOVS	16388(R1), F2 // 3b104091620740bd
++	FMOVD	0x8008(R1), F2 // FMOVD	32776(R1), F2 // 3b204091620740fd
++	MOVB	R1, 0x1001(R2) // MOVB	R1, 4097(R2)  // 5b04409161070039
++	MOVH	R1, 0x2002(R2) // MOVH	R1, 8194(R2)  // 5b08409161070079
++	MOVW	R1, 0x4004(R2) // MOVW	R1, 16388(R2) // 5b104091610700b9
++	MOVD	R1, 0x8008(R2) // MOVD	R1, 32776(R2) // 5b204091610700f9
++	FMOVS	F1, 0x4004(R2) // FMOVS	F1, 16388(R2) // 5b104091610700bd
++	FMOVD	F1, 0x8008(R2) // FMOVD	F1, 32776(R2) // 5b204091610700fd
++
++	// very large or unaligned offset uses constant pool
++	// the encoding cannot be checked as the address of the constant pool is unknown.
++	// here we only test that they can be assembled.
++	MOVB	0x44332211(R1), R2 // MOVB	1144201745(R1), R2
++	MOVH	0x44332211(R1), R2 // MOVH	1144201745(R1), R2
++	MOVW	0x44332211(R1), R2 // MOVW	1144201745(R1), R2
++	MOVD	0x44332211(R1), R2 // MOVD	1144201745(R1), R2
++	FMOVS	0x44332211(R1), F2 // FMOVS	1144201745(R1), F2
++	FMOVD	0x44332211(R1), F2 // FMOVD	1144201745(R1), F2
++	MOVB	R1, 0x44332211(R2) // MOVB	R1, 1144201745(R2)
++	MOVH	R1, 0x44332211(R2) // MOVH	R1, 1144201745(R2)
++	MOVW	R1, 0x44332211(R2) // MOVW	R1, 1144201745(R2)
++	MOVD	R1, 0x44332211(R2) // MOVD	R1, 1144201745(R2)
++	FMOVS	F1, 0x44332211(R2) // FMOVS	F1, 1144201745(R2)
++	FMOVD	F1, 0x44332211(R2) // FMOVD	F1, 1144201745(R2)
++
+ //
+ // MOVK
+ //
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index e526e0f49b..1ab32f6e24 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -1424,6 +1424,16 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		[]string{"\tAND\t"},
+ 	},
++	{
++		// make sure offsets are folded into load and store.
++		`
++		func f36(_, a [20]byte) (b [20]byte) {
++			b = a
++			return
++		}
++		`,
++		[]string{"\tMOVD\t\"\"\\.a\\+[0-9]+\\(RSP\\), R[0-9]+", "\tMOVD\tR[0-9]+, \"\"\\.b\\+[0-9]+\\(RSP\\)"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index b05fdfc7f1..110ca8c3b1 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -525,103 +525,141 @@
+ (ADDconst [off1] (MOVDaddr [off2] {sym} ptr)) -> (MOVDaddr [off1+off2] {sym} ptr)
+ 
+ // fold address into load/store
+-(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 1, sym) ->
++(MOVBload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBload [off1+off2] {sym} ptr mem)
+-(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 1, sym) ->
++(MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBUload [off1+off2] {sym} ptr mem)
+-(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 2, sym) ->
++(MOVHload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHload [off1+off2] {sym} ptr mem)
+-(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 2, sym) ->
++(MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHUload [off1+off2] {sym} ptr mem)
+-(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(MOVWload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWload [off1+off2] {sym} ptr mem)
+-(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWUload [off1+off2] {sym} ptr mem)
+-(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 8, sym) ->
++(MOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDload [off1+off2] {sym} ptr mem)
+-(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVSload [off1+off2] {sym} ptr mem)
+-(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 8, sym) ->
++(FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVDload [off1+off2] {sym} ptr mem)
+ 
+-(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 1, sym) ->
++(MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBstore [off1+off2] {sym} ptr val mem)
+-(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 2, sym) ->
++(MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHstore [off1+off2] {sym} ptr val mem)
+-(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWstore [off1+off2] {sym} ptr val mem)
+-(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 8, sym) ->
++(MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDstore [off1+off2] {sym} ptr val mem)
+-(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVSstore [off1+off2] {sym} ptr val mem)
+-(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && fitsARM64Offset(off1+off2, 8, sym) ->
++(FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVDstore [off1+off2] {sym} ptr val mem)
+-(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 1, sym) ->
++(MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBstorezero [off1+off2] {sym} ptr mem)
+-(MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 2, sym) ->
++(MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHstorezero [off1+off2] {sym} ptr mem)
+-(MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 4, sym) ->
++(MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWstorezero [off1+off2] {sym} ptr mem)
+-(MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && fitsARM64Offset(off1+off2, 8, sym) ->
++(MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDstorezero [off1+off2] {sym} ptr mem)
+ 
+ (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 
+ (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	&& canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2)) ->
++	&& canMergeSym(sym1,sym2) && is32Bit(off1+off2)
++	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared) ->
+ 	(MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 
+ // store zero
+@@ -1211,7 +1249,6 @@
+ 	y0:(MOVDnop x0:(MOVBUload [i1] {s} p mem))
+ 	y1:(MOVDnop x1:(MOVBUload [i0] {s} p mem)))
+ 	&& i1 == i0+1
+-	&& fitsARM64Offset(i0, 2, s)
+ 	&& x0.Uses == 1 && x1.Uses == 1
+ 	&& y0.Uses == 1 && y1.Uses == 1
+ 	&& mergePoint(b,x0,x1) != nil
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index db1540d16c..4f2f3c0b5b 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -283,20 +283,6 @@ func isAuto(s interface{}) bool {
+ 	return ok
+ }
+ 
+-func fitsARM64Offset(off, align int64, sym interface{}) bool {
+-	// only small offset (between -256 and 256) or offset that is a multiple of data size
+-	// can be encoded in the instructions
+-	// since this rewriting takes place before stack allocation, the offset to SP is unknown,
+-	// so don't do it for args and locals with unaligned offset
+-	if !is32Bit(off) {
+-		return false
+-	}
+-	if align == 1 {
+-		return true
+-	}
+-	return !isArg(sym) && (off%align == 0 || off < 256 && off > -256 && !isAuto(sym))
+-}
+-
+ // isSameSym returns whether sym is the same as the given named symbol
+ func isSameSym(sym interface{}, name string) bool {
+ 	s, ok := sym.(fmt.Stringer)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 684961b1dd..e47055809c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -2707,8 +2707,12 @@ func rewriteValueARM64_OpARM64Equal_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (FMOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 8, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2720,7 +2724,7 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 8, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVDload)
+@@ -2731,7 +2735,7 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (FMOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2744,7 +2748,7 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVDload)
+@@ -2757,8 +2761,12 @@ func rewriteValueARM64_OpARM64FMOVDload_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (FMOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 8, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2771,7 +2779,7 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 8, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVDstore)
+@@ -2783,7 +2791,7 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (FMOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2797,7 +2805,7 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVDstore)
+@@ -2811,8 +2819,12 @@ func rewriteValueARM64_OpARM64FMOVDstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (FMOVSload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2824,7 +2836,7 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVSload)
+@@ -2835,7 +2847,7 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (FMOVSload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2848,7 +2860,7 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVSload)
+@@ -2861,8 +2873,12 @@ func rewriteValueARM64_OpARM64FMOVSload_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (FMOVSstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2875,7 +2891,7 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVSstore)
+@@ -2887,7 +2903,7 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (FMOVSstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (FMOVSstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -2901,7 +2917,7 @@ func rewriteValueARM64_OpARM64FMOVSstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64FMOVSstore)
+@@ -3565,8 +3581,12 @@ func rewriteValueARM64_OpARM64MODW_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBUload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 1, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBUload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3578,7 +3598,7 @@ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 1, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBUload)
+@@ -3589,7 +3609,7 @@ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3602,7 +3622,7 @@ func rewriteValueARM64_OpARM64MOVBUload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBUload)
+@@ -3676,8 +3696,12 @@ func rewriteValueARM64_OpARM64MOVBUreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 1, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3689,7 +3713,7 @@ func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 1, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBload)
+@@ -3700,7 +3724,7 @@ func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3713,7 +3737,7 @@ func rewriteValueARM64_OpARM64MOVBload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBload)
+@@ -3787,8 +3811,12 @@ func rewriteValueARM64_OpARM64MOVBreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 1, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3801,7 +3829,7 @@ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 1, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBstore)
+@@ -3813,7 +3841,7 @@ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -3827,7 +3855,7 @@ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBstore)
+@@ -3989,8 +4017,12 @@ func rewriteValueARM64_OpARM64MOVBstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVBstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 1, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBstorezero [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4002,7 +4034,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 1, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBstorezero)
+@@ -4013,7 +4045,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVBstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVBstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4026,7 +4058,7 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 1, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVBstorezero)
+@@ -4039,8 +4071,12 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVDload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 8, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4052,7 +4088,7 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 8, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDload)
+@@ -4063,7 +4099,7 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4076,7 +4112,7 @@ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDload)
+@@ -4138,8 +4174,12 @@ func rewriteValueARM64_OpARM64MOVDreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVDstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 8, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4152,7 +4192,7 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 8, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDstore)
+@@ -4164,7 +4204,7 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4178,7 +4218,7 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDstore)
+@@ -4214,8 +4254,12 @@ func rewriteValueARM64_OpARM64MOVDstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVDstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 8, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDstorezero [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4227,7 +4271,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 8, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDstorezero)
+@@ -4238,7 +4282,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVDstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVDstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4251,7 +4295,7 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 8, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVDstorezero)
+@@ -4264,8 +4308,12 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHUload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 2, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHUload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4277,7 +4325,7 @@ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 2, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHUload)
+@@ -4288,7 +4336,7 @@ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4301,7 +4349,7 @@ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHUload)
+@@ -4399,8 +4447,12 @@ func rewriteValueARM64_OpARM64MOVHUreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 2, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4412,7 +4464,7 @@ func rewriteValueARM64_OpARM64MOVHload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 2, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHload)
+@@ -4423,7 +4475,7 @@ func rewriteValueARM64_OpARM64MOVHload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4436,7 +4488,7 @@ func rewriteValueARM64_OpARM64MOVHload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHload)
+@@ -4558,8 +4610,12 @@ func rewriteValueARM64_OpARM64MOVHreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 2, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4572,7 +4628,7 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 2, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHstore)
+@@ -4584,7 +4640,7 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4598,7 +4654,7 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHstore)
+@@ -4718,8 +4774,12 @@ func rewriteValueARM64_OpARM64MOVHstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVHstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 2, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHstorezero [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4731,7 +4791,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 2, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHstorezero)
+@@ -4742,7 +4802,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVHstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVHstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4755,7 +4815,7 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 2, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVHstorezero)
+@@ -4768,8 +4828,12 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVWUload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWUload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4781,7 +4845,7 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWUload)
+@@ -4792,7 +4856,7 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWUload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWUload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4805,7 +4869,7 @@ func rewriteValueARM64_OpARM64MOVWUload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWUload)
+@@ -4927,8 +4991,12 @@ func rewriteValueARM64_OpARM64MOVWUreg_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWload_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVWload [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWload [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4940,7 +5008,7 @@ func rewriteValueARM64_OpARM64MOVWload_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWload)
+@@ -4951,7 +5019,7 @@ func rewriteValueARM64_OpARM64MOVWload_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWload [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWload [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -4964,7 +5032,7 @@ func rewriteValueARM64_OpARM64MOVWload_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWload)
+@@ -5137,8 +5205,12 @@ func rewriteValueARM64_OpARM64MOVWreg_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVWstore [off1] {sym} (ADDconst [off2] ptr) val mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWstore [off1+off2] {sym} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -5151,7 +5223,7 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWstore)
+@@ -5163,7 +5235,7 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstore [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) val mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -5177,7 +5249,7 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 		ptr := v_0.Args[0]
+ 		val := v.Args[1]
+ 		mem := v.Args[2]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWstore)
+@@ -5255,8 +5327,12 @@ func rewriteValueARM64_OpARM64MOVWstore_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
++	b := v.Block
++	_ = b
++	config := b.Func.Config
++	_ = config
+ 	// match: (MOVWstorezero [off1] {sym} (ADDconst [off2] ptr) mem)
+-	// cond: fitsARM64Offset(off1+off2, 4, sym)
++	// cond: is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWstorezero [off1+off2] {sym} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -5268,7 +5344,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
+ 		off2 := v_0.AuxInt
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(fitsARM64Offset(off1+off2, 4, sym)) {
++		if !(is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWstorezero)
+@@ -5279,7 +5355,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (MOVWstorezero [off1] {sym1} (MOVDaddr [off2] {sym2} ptr) mem)
+-	// cond: canMergeSym(sym1,sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))
++	// cond: canMergeSym(sym1,sym2) && is32Bit(off1+off2) 	&& (ptr.Op != OpSB || !config.ctxt.Flag_shared)
+ 	// result: (MOVWstorezero [off1+off2] {mergeSym(sym1,sym2)} ptr mem)
+ 	for {
+ 		off1 := v.AuxInt
+@@ -5292,7 +5368,7 @@ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
+ 		sym2 := v_0.Aux
+ 		ptr := v_0.Args[0]
+ 		mem := v.Args[1]
+-		if !(canMergeSym(sym1, sym2) && fitsARM64Offset(off1+off2, 4, mergeSym(sym1, sym2))) {
++		if !(canMergeSym(sym1, sym2) && is32Bit(off1+off2) && (ptr.Op != OpSB || !config.ctxt.Flag_shared)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64MOVWstorezero)
+@@ -8138,7 +8214,7 @@ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (ORshiftLL <t> [8] y0:(MOVDnop x0:(MOVBUload [i1] {s} p mem)) y1:(MOVDnop x1:(MOVBUload [i0] {s} p mem)))
+-	// cond: i1 == i0+1 	&& fitsARM64Offset(i0, 2, s) 	&& x0.Uses == 1 && x1.Uses == 1 	&& y0.Uses == 1 && y1.Uses == 1 	&& mergePoint(b,x0,x1) != nil 	&& clobber(x0) && clobber(x1) 	&& clobber(y0) && clobber(y1)
++	// cond: i1 == i0+1 	&& x0.Uses == 1 && x1.Uses == 1 	&& y0.Uses == 1 && y1.Uses == 1 	&& mergePoint(b,x0,x1) != nil 	&& clobber(x0) && clobber(x1) 	&& clobber(y0) && clobber(y1)
+ 	// result: @mergePoint(b,x0,x1) (REV16W <t> (MOVHUload <t> [i0] {s} p mem))
+ 	for {
+ 		t := v.Type
+@@ -8175,7 +8251,7 @@ func rewriteValueARM64_OpARM64ORshiftLL_0(v *Value) bool {
+ 		if mem != x1.Args[1] {
+ 			break
+ 		}
+-		if !(i1 == i0+1 && fitsARM64Offset(i0, 2, s) && x0.Uses == 1 && x1.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(y0) && clobber(y1)) {
++		if !(i1 == i0+1 && x0.Uses == 1 && x1.Uses == 1 && y0.Uses == 1 && y1.Uses == 1 && mergePoint(b, x0, x1) != nil && clobber(x0) && clobber(x1) && clobber(y0) && clobber(y1)) {
+ 			break
+ 		}
+ 		b = mergePoint(b, x0, x1)
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index f192a51b0a..3a3fed5cf5 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -289,16 +289,21 @@ const (
+ 	C_SBRA // for TYPE_BRANCH
+ 	C_LBRA
+ 
+-	C_NPAUTO   // -512 <= x < 0, 0 mod 8
+-	C_NSAUTO   // -256 <= x < 0
+-	C_PSAUTO   // 0 to 255
+-	C_PPAUTO   // 0 to 504, 0 mod 8
+-	C_UAUTO4K  // 0 to 4095
+-	C_UAUTO8K  // 0 to 8190, 0 mod 2
+-	C_UAUTO16K // 0 to 16380, 0 mod 4
+-	C_UAUTO32K // 0 to 32760, 0 mod 8
+-	C_UAUTO64K // 0 to 65520, 0 mod 16
+-	C_LAUTO    // any other 32-bit constant
++	C_NPAUTO     // -512 <= x < 0, 0 mod 8
++	C_NSAUTO     // -256 <= x < 0
++	C_PSAUTO     // 0 to 255
++	C_PPAUTO     // 0 to 504, 0 mod 8
++	C_UAUTO4K_8  // 0 to 4095, 0 mod 8
++	C_UAUTO4K_4  // 0 to 4095, 0 mod 4
++	C_UAUTO4K_2  // 0 to 4095, 0 mod 2
++	C_UAUTO4K    // 0 to 4095
++	C_UAUTO8K_8  // 0 to 8190, 0 mod 8
++	C_UAUTO8K_4  // 0 to 8190, 0 mod 4
++	C_UAUTO8K    // 0 to 8190, 0 mod 2
++	C_UAUTO16K_8 // 0 to 16380, 0 mod 8
++	C_UAUTO16K   // 0 to 16380, 0 mod 4
++	C_UAUTO32K   // 0 to 32760, 0 mod 8
++	C_LAUTO      // any other 32-bit constant
+ 
+ 	C_SEXT1  // 0 to 4095, direct
+ 	C_SEXT2  // 0 to 8190
+@@ -307,17 +312,21 @@ const (
+ 	C_SEXT16 // 0 to 65520
+ 	C_LEXT
+ 
+-	// TODO(aram): s/AUTO/INDIR/
+ 	C_ZOREG  // 0(R)
+-	C_NPOREG // mirror NPAUTO, etc
++	C_NPOREG // must mirror NPAUTO, etc
+ 	C_NSOREG
+ 	C_PSOREG
+ 	C_PPOREG
++	C_UOREG4K_8
++	C_UOREG4K_4
++	C_UOREG4K_2
+ 	C_UOREG4K
++	C_UOREG8K_8
++	C_UOREG8K_4
+ 	C_UOREG8K
++	C_UOREG16K_8
+ 	C_UOREG16K
+ 	C_UOREG32K
+-	C_UOREG64K
+ 	C_LOREG
+ 
+ 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index c3ef2f652e..24911f657d 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -37,11 +37,16 @@ var cnames7 = []string{
+ 	"NSAUTO",
+ 	"PSAUTO",
+ 	"PPAUTO",
++	"UAUTO4K_8",
++	"UAUTO4K_4",
++	"UAUTO4K_2",
+ 	"UAUTO4K",
++	"UAUTO8K_8",
++	"UAUTO8K_4",
+ 	"UAUTO8K",
++	"UAUTO16K_8",
+ 	"UAUTO16K",
+ 	"UAUTO32K",
+-	"UAUTO64K",
+ 	"LAUTO",
+ 	"SEXT1",
+ 	"SEXT2",
+@@ -54,11 +59,16 @@ var cnames7 = []string{
+ 	"NSOREG",
+ 	"PSOREG",
+ 	"PPOREG",
++	"UOREG4K_8",
++	"UOREG4K_4",
++	"UOREG4K_2",
+ 	"UOREG4K",
++	"UOREG8K_8",
++	"UOREG8K_4",
+ 	"UOREG8K",
++	"UOREG16K_8",
+ 	"UOREG16K",
+ 	"UOREG32K",
+-	"UOREG64K",
+ 	"LOREG",
+ 	"ADDR",
+ 	"GOTADDR",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 8218c6b333..f4e2562cdd 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -369,33 +369,28 @@ var optab = []Optab{
+ 	{AMOVD, C_NSOREG, C_NONE, C_REG, 21, 4, REGSP, 0, 0},
+ 
+ 	/* long displacement store */
+-	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
+-	{AMOVB, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
+-	{AMOVBU, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
+-	{AMOVBU, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
+-	{AMOVH, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
+-	{AMOVH, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
+-	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
+-	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
+-	{AMOVD, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, 0, 0},
+-	{AMOVD, C_REG, C_NONE, C_LOREG, 30, 8, 0, 0, 0},
++	{AMOVB, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
++	{AMOVB, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
++	{AMOVBU, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
++	{AMOVBU, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
++	{AMOVH, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
++	{AMOVH, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
++	{AMOVW, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
++	{AMOVW, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
++	{AMOVD, C_REG, C_NONE, C_LAUTO, 30, 8, REGSP, LTO, 0},
++	{AMOVD, C_REG, C_NONE, C_LOREG, 30, 8, 0, LTO, 0},
+ 
+ 	/* long displacement load */
+-	{AMOVB, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
+-	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVBU, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
+-	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVH, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
+-	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
+-	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVD, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, 0, 0},
+-	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
+-	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, 0, 0},
++	{AMOVB, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
++	{AMOVB, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
++	{AMOVBU, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
++	{AMOVBU, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
++	{AMOVH, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
++	{AMOVH, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
++	{AMOVW, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
++	{AMOVW, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
++	{AMOVD, C_LAUTO, C_NONE, C_REG, 31, 8, REGSP, LFROM, 0},
++	{AMOVD, C_LOREG, C_NONE, C_REG, 31, 8, 0, LFROM, 0},
+ 
+ 	/* load long effective stack address (load int32 offset and add) */
+ 	{AMOVD, C_LACON, C_NONE, C_REG, 34, 8, REGSP, LFROM, 0},
+@@ -741,7 +736,7 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 	//	MOVD addr, REGTMP
+ 	//	MOVD REGTMP, R
+ 	// where addr is the address of the DWORD containing the address of foo.
+-	if p.As == AMOVD || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
++	if p.As == AMOVD && a.Type != obj.TYPE_MEM || cls == C_ADDR || cls == C_VCON || int64(lit) != int64(int32(lit)) || uint64(lit) != uint64(uint32(lit)) {
+ 		// conservative: don't know if we want signed or unsigned extension.
+ 		// in case of ambiguity, store 64-bit
+ 		t.As = ADWORD
+@@ -767,21 +762,31 @@ func (c *ctxt7) addpool(p *obj.Prog, a *obj.Addr) {
+ 
+ 	case C_PSAUTO,
+ 		C_PPAUTO,
++		C_UAUTO4K_8,
++		C_UAUTO4K_4,
++		C_UAUTO4K_2,
+ 		C_UAUTO4K,
++		C_UAUTO8K_8,
++		C_UAUTO8K_4,
+ 		C_UAUTO8K,
++		C_UAUTO16K_8,
+ 		C_UAUTO16K,
+ 		C_UAUTO32K,
+-		C_UAUTO64K,
+ 		C_NSAUTO,
+ 		C_NPAUTO,
+ 		C_LAUTO,
+ 		C_PPOREG,
+ 		C_PSOREG,
++		C_UOREG4K_8,
++		C_UOREG4K_4,
++		C_UOREG4K_2,
+ 		C_UOREG4K,
++		C_UOREG8K_8,
++		C_UOREG8K_4,
+ 		C_UOREG8K,
++		C_UOREG16K_8,
+ 		C_UOREG16K,
+ 		C_UOREG32K,
+-		C_UOREG64K,
+ 		C_NSOREG,
+ 		C_NPOREG,
+ 		C_LOREG,
+@@ -998,20 +1003,39 @@ func autoclass(l int64) int {
+ 		return C_PPAUTO
+ 	}
+ 	if l <= 4095 {
++		if l&7 == 0 {
++			return C_UAUTO4K_8
++		}
++		if l&3 == 0 {
++			return C_UAUTO4K_4
++		}
++		if l&1 == 0 {
++			return C_UAUTO4K_2
++		}
+ 		return C_UAUTO4K
+ 	}
+-	if l <= 8190 && (l&1) == 0 {
+-		return C_UAUTO8K
++	if l <= 8190 {
++		if l&7 == 0 {
++			return C_UAUTO8K_8
++		}
++		if l&3 == 0 {
++			return C_UAUTO8K_4
++		}
++		if l&1 == 0 {
++			return C_UAUTO8K
++		}
+ 	}
+-	if l <= 16380 && (l&3) == 0 {
+-		return C_UAUTO16K
++	if l <= 16380 {
++		if l&7 == 0 {
++			return C_UAUTO16K_8
++		}
++		if l&3 == 0 {
++			return C_UAUTO16K
++		}
+ 	}
+ 	if l <= 32760 && (l&7) == 0 {
+ 		return C_UAUTO32K
+ 	}
+-	if l <= 65520 && (l&0xF) == 0 {
+-		return C_UAUTO64K
+-	}
+ 	return C_LAUTO
+ }
+ 
+@@ -1031,10 +1055,19 @@ func (c *ctxt7) offsetshift(p *obj.Prog, v int64, cls int) int64 {
+ 	s := 0
+ 	if cls >= C_SEXT1 && cls <= C_SEXT16 {
+ 		s = cls - C_SEXT1
+-	} else if cls >= C_UAUTO4K && cls <= C_UAUTO64K {
+-		s = cls - C_UAUTO4K
+-	} else if cls >= C_UOREG4K && cls <= C_UOREG64K {
+-		s = cls - C_UOREG4K
++	} else {
++		switch cls {
++		case C_UAUTO4K, C_UOREG4K, C_ZOREG:
++			s = 0
++		case C_UAUTO8K, C_UOREG8K:
++			s = 1
++		case C_UAUTO16K, C_UOREG16K:
++			s = 2
++		case C_UAUTO32K, C_UOREG32K:
++			s = 3
++		default:
++			c.ctxt.Diag("bad class: %v\n%v", DRconv(cls), p)
++		}
+ 	}
+ 	vs := v >> uint(s)
+ 	if vs<<uint(s) != v {
+@@ -1349,27 +1382,42 @@ func cmp(a int, b int) bool {
+ 		}
+ 
+ 	case C_UAUTO4K:
+-		if b == C_PSAUTO || b == C_PPAUTO {
++		switch b {
++		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UAUTO8K:
+-		return cmp(C_UAUTO4K, b)
++		switch b {
++		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8:
++			return true
++		}
+ 
+ 	case C_UAUTO16K:
+-		return cmp(C_UAUTO8K, b)
++		switch b {
++		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_4, C_UAUTO4K_8, C_UAUTO8K_4, C_UAUTO8K_8, C_UAUTO16K_8:
++			return true
++		}
+ 
+ 	case C_UAUTO32K:
+-		return cmp(C_UAUTO16K, b)
+-
+-	case C_UAUTO64K:
+-		return cmp(C_UAUTO32K, b)
++		switch b {
++		case C_PSAUTO, C_PPAUTO, C_UAUTO4K_8, C_UAUTO8K_8, C_UAUTO16K_8:
++			return true
++		}
+ 
+ 	case C_NPAUTO:
+ 		return cmp(C_NSAUTO, b)
+ 
+ 	case C_LAUTO:
+-		return cmp(C_NPAUTO, b) || cmp(C_UAUTO64K, b)
++		switch b {
++		case C_PSAUTO, C_PPAUTO,
++			C_UAUTO4K, C_UAUTO4K_2, C_UAUTO4K_4, C_UAUTO4K_8,
++			C_UAUTO8K, C_UAUTO8K_4, C_UAUTO8K_8,
++			C_UAUTO16K, C_UAUTO16K_8,
++			C_UAUTO32K:
++			return true
++		}
++		return cmp(C_NPAUTO, b)
+ 
+ 	case C_PSOREG:
+ 		if b == C_ZOREG {
+@@ -1382,27 +1430,42 @@ func cmp(a int, b int) bool {
+ 		}
+ 
+ 	case C_UOREG4K:
+-		if b == C_ZOREG || b == C_PSAUTO || b == C_PSOREG || b == C_PPAUTO || b == C_PPOREG {
++		switch b {
++		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8:
+ 			return true
+ 		}
+ 
+ 	case C_UOREG8K:
+-		return cmp(C_UOREG4K, b)
++		switch b {
++		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8:
++			return true
++		}
+ 
+ 	case C_UOREG16K:
+-		return cmp(C_UOREG8K, b)
++		switch b {
++		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_4, C_UOREG4K_8, C_UOREG8K_4, C_UOREG8K_8, C_UOREG16K_8:
++			return true
++		}
+ 
+ 	case C_UOREG32K:
+-		return cmp(C_UOREG16K, b)
+-
+-	case C_UOREG64K:
+-		return cmp(C_UOREG32K, b)
++		switch b {
++		case C_ZOREG, C_PSOREG, C_PPOREG, C_UOREG4K_8, C_UOREG8K_8, C_UOREG16K_8:
++			return true
++		}
+ 
+ 	case C_NPOREG:
+ 		return cmp(C_NSOREG, b)
+ 
+ 	case C_LOREG:
+-		return cmp(C_NPOREG, b) || cmp(C_UOREG64K, b)
++		switch b {
++		case C_ZOREG, C_PSOREG, C_PPOREG,
++			C_UOREG4K, C_UOREG4K_2, C_UOREG4K_4, C_UOREG4K_8,
++			C_UOREG8K, C_UOREG8K_4, C_UOREG8K_8,
++			C_UOREG16K, C_UOREG16K_8,
++			C_UOREG32K:
++			return true
++		}
++		return cmp(C_NPOREG, b)
+ 
+ 	case C_LBRA:
+ 		if b == C_SBRA {
+@@ -2420,58 +2483,92 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= uint32(p.From.Reg&31)<<5 | uint32(p.To.Reg&31)
+ 
+ 	case 30: /* movT R,L(R) -> strT */
++		// if offset L can be split into hi+lo, and both fit into instructions, do
++		//	add $hi, R, Rtmp
++		//	str R, lo(Rtmp)
++		// otherwise, use constant pool
++		//	mov $L, Rtmp (from constant pool)
++		//	str R, (R+Rtmp)
+ 		s := movesize(o.as)
+-
+ 		if s < 0 {
+ 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
+ 		}
+-		v := int32(c.regoff(&p.To))
+-		if v < 0 {
+-			c.ctxt.Diag("negative large offset\n%v", p)
+-		}
+-		if (v & ((1 << uint(s)) - 1)) != 0 {
+-			c.ctxt.Diag("misaligned offset\n%v", p)
+-		}
+-		hi := v - (v & (0xFFF << uint(s)))
+-		if (hi & 0xFFF) != 0 {
+-			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
+-		}
+ 
+-		//fprint(2, "v=%ld (%#lux) s=%d hi=%ld (%#lux) v'=%ld (%#lux)\n", v, v, s, hi, hi, ((v-hi)>>s)&0xFFF, ((v-hi)>>s)&0xFFF);
+ 		r := int(p.To.Reg)
+-
+ 		if r == 0 {
+ 			r = int(o.param)
+ 		}
++
++		v := int32(c.regoff(&p.To))
++		var hi int32
++		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
++			// negative or unaligned offset, use constant pool
++			goto storeusepool
++		}
++
++		hi = v - (v & (0xFFF << uint(s)))
++		if hi&0xFFF != 0 {
++			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
++		}
++		if hi&^0xFFF000 != 0 {
++			// hi doesn't fit into an ADD instruction
++			goto storeusepool
++		}
++
+ 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
+ 		o2 = c.olsr12u(p, int32(c.opstr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.From.Reg))
++		break
++
++	storeusepool:
++		if r == REGTMP || p.From.Reg == REGTMP {
++			c.ctxt.Diag("REGTMP used in large offset store: %v", p)
++		}
++		o1 = c.omovlit(AMOVD, p, &p.To, REGTMP)
++		o2 = c.olsxrr(p, int32(c.opstrr(p, p.As)), int(p.From.Reg), r, REGTMP)
+ 
+ 	case 31: /* movT L(R), R -> ldrT */
++		// if offset L can be split into hi+lo, and both fit into instructions, do
++		//	add $hi, R, Rtmp
++		//	ldr lo(Rtmp), R
++		// otherwise, use constant pool
++		//	mov $L, Rtmp (from constant pool)
++		//	ldr (R+Rtmp), R
+ 		s := movesize(o.as)
+-
+ 		if s < 0 {
+ 			c.ctxt.Diag("unexpected long move, op %v tab %v\n%v", p.As, o.as, p)
+ 		}
+-		v := int32(c.regoff(&p.From))
+-		if v < 0 {
+-			c.ctxt.Diag("negative large offset\n%v", p)
++
++		r := int(p.From.Reg)
++		if r == 0 {
++			r = int(o.param)
+ 		}
+-		if (v & ((1 << uint(s)) - 1)) != 0 {
+-			c.ctxt.Diag("misaligned offset\n%v", p)
++
++		v := int32(c.regoff(&p.From))
++		var hi int32
++		if v < 0 || (v&((1<<uint(s))-1)) != 0 {
++			// negative or unaligned offset, use constant pool
++			goto loadusepool
+ 		}
+-		hi := v - (v & (0xFFF << uint(s)))
++
++		hi = v - (v & (0xFFF << uint(s)))
+ 		if (hi & 0xFFF) != 0 {
+ 			c.ctxt.Diag("internal: miscalculated offset %d [%d]\n%v", v, s, p)
+ 		}
+-
+-		//fprint(2, "v=%ld (%#lux) s=%d hi=%ld (%#lux) v'=%ld (%#lux)\n", v, v, s, hi, hi, ((v-hi)>>s)&0xFFF, ((v-hi)>>s)&0xFFF);
+-		r := int(p.From.Reg)
+-
+-		if r == 0 {
+-			r = int(o.param)
++		if hi&^0xFFF000 != 0 {
++			// hi doesn't fit into an ADD instruction
++			goto loadusepool
+ 		}
++
+ 		o1 = c.oaddi(p, int32(c.opirr(p, AADD)), hi, r, REGTMP)
+ 		o2 = c.olsr12u(p, int32(c.opldr12(p, p.As)), ((v-hi)>>uint(s))&0xFFF, REGTMP, int(p.To.Reg))
++		break
++
++	loadusepool:
++		if r == REGTMP || p.From.Reg == REGTMP {
++			c.ctxt.Diag("REGTMP used in large offset load: %v", p)
++		}
++		o1 = c.omovlit(AMOVD, p, &p.From, REGTMP)
++		o2 = c.olsxrr(p, int32(c.opldrr(p, p.As)), int(p.To.Reg), r, REGTMP)
+ 
+ 	case 32: /* mov $con, R -> movz/movn */
+ 		o1 = c.omovconst(p.As, p, &p.From, int(p.To.Reg))
+@@ -2691,30 +2788,6 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= uint32(p.From.Reg&31) << 5
+ 		o1 |= uint32(p.To.Reg & 31)
+ 
+-	case 47: /* movT R,V(R) -> strT (huge offset) */
+-		o1 = c.omovlit(AMOVW, p, &p.To, REGTMP)
+-
+-		if !(o1 != 0) {
+-			break
+-		}
+-		r := int(p.To.Reg)
+-		if r == 0 {
+-			r = int(o.param)
+-		}
+-		o2 = c.olsxrr(p, p.As, REGTMP, r, int(p.From.Reg))
+-
+-	case 48: /* movT V(R), R -> ldrT (huge offset) */
+-		o1 = c.omovlit(AMOVW, p, &p.From, REGTMP)
+-
+-		if !(o1 != 0) {
+-			break
+-		}
+-		r := int(p.From.Reg)
+-		if r == 0 {
+-			r = int(o.param)
+-		}
+-		o2 = c.olsxrr(p, p.As, REGTMP, r, int(p.To.Reg))
+-
+ 	case 50: /* sys/sysl */
+ 		o1 = c.opirr(p, p.As)
+ 
+@@ -4211,12 +4284,61 @@ func (c *ctxt7) opldrpp(p *obj.Prog, a obj.As) uint32 {
+ 	return 0
+ }
+ 
+-/*
+- * load/store register (extended register)
+- */
+-func (c *ctxt7) olsxrr(p *obj.Prog, as obj.As, rt int, r1 int, r2 int) uint32 {
+-	c.ctxt.Diag("need load/store extended register\n%v", p)
+-	return 0xffffffff
++// olsxrr attaches register operands to a load/store opcode supplied in o.
++// The result either encodes a load of r from (r1+r2) or a store of r to (r1+r2).
++func (c *ctxt7) olsxrr(p *obj.Prog, o int32, r int, r1 int, r2 int) uint32 {
++	o |= int32(r1&31) << 5
++	o |= int32(r2&31) << 16
++	o |= int32(r & 31)
++	return uint32(o)
++}
++
++// opldrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
++// for load instruction with register offset.
++func (c *ctxt7) opldrr(p *obj.Prog, a obj.As) uint32 {
++	switch a {
++	case AMOVD:
++		return 0x1a<<10 | 0x3<<21 | 0x1f<<27
++	case AMOVW:
++		return 0x1a<<10 | 0x5<<21 | 0x17<<27
++	case AMOVWU:
++		return 0x1a<<10 | 0x3<<21 | 0x17<<27
++	case AMOVH:
++		return 0x1a<<10 | 0x5<<21 | 0x0f<<27
++	case AMOVHU:
++		return 0x1a<<10 | 0x3<<21 | 0x0f<<27
++	case AMOVB:
++		return 0x1a<<10 | 0x5<<21 | 0x07<<27
++	case AMOVBU:
++		return 0x1a<<10 | 0x3<<21 | 0x07<<27
++	case AFMOVS:
++		return 0x1a<<10 | 0x3<<21 | 0x17<<27 | 1<<26
++	case AFMOVD:
++		return 0x1a<<10 | 0x3<<21 | 0x1f<<27 | 1<<26
++	}
++	c.ctxt.Diag("bad opldrr %v\n%v", a, p)
++	return 0
++}
++
++// opstrr returns the ARM64 opcode encoding corresponding to the obj.As opcode
++// for store instruction with register offset.
++func (c *ctxt7) opstrr(p *obj.Prog, a obj.As) uint32 {
++	switch a {
++	case AMOVD:
++		return 0x1a<<10 | 0x1<<21 | 0x1f<<27
++	case AMOVW, AMOVWU:
++		return 0x1a<<10 | 0x1<<21 | 0x17<<27
++	case AMOVH, AMOVHU:
++		return 0x1a<<10 | 0x1<<21 | 0x0f<<27
++	case AMOVB, AMOVBU:
++		return 0x1a<<10 | 0x1<<21 | 0x07<<27
++	case AFMOVS:
++		return 0x1a<<10 | 0x1<<21 | 0x17<<27 | 1<<26
++	case AFMOVD:
++		return 0x1a<<10 | 0x1<<21 | 0x1f<<27 | 1<<26
++	}
++	c.ctxt.Diag("bad opstrr %v\n%v", a, p)
++	return 0
+ }
+ 
+ func (c *ctxt7) oaddi(p *obj.Prog, o1 int32, v int32, r int, rt int) uint32 {

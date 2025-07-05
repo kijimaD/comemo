@@ -16,6 +16,20 @@ Date:   Mon Sep 26 08:32:49 2016 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index e3e6864db0..67fab94bb0 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -813,7 +813,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 
+ 	case ssa.OpPPC64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+-		p := gc.Prog(ppc64.AMOVB)
++		p := gc.Prog(ppc64.AMOVBZ)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+ 		gc.AddAux(&p.From, v)

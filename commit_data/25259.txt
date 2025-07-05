@@ -7,7 +7,74 @@ Date:   Wed Oct 14 15:12:40 2015 +0000
     Change-Id: I0255f24f5c5925ea4daa28a28d23606df35d4373
     Reviewed-on: https://go-review.googlesource.com/15824
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/net/http/cgi/host.go      | 16 ++++++++--------
  src/net/http/cgi/host_test.go | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 1ae66e097c..9b4d875418 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -77,15 +77,15 @@ type Handler struct {
+ //      Env: []string{"SCRIPT_FILENAME=foo.php"},
+ //    }
+ func removeLeadingDuplicates(env []string) (ret []string) {
+-	n := len(env)
+-	for i := 0; i < n; i++ {
+-		e := env[i]
+-		s := strings.SplitN(e, "=", 2)[0]
++	for i, e := range env {
+ 		found := false
+-		for j := i + 1; j < n; j++ {
+-			if s == strings.SplitN(env[j], "=", 2)[0] {
+-				found = true
+-				break
++		if eq := strings.IndexByte(e, '='); eq != -1 {
++			keq := e[:eq+1] // "key="
++			for _, e2 := range env[i+1:] {
++				if strings.HasPrefix(e2, keq) {
++					found = true
++					break
++				}
+ 			}
+ 		}
+ 		if !found {
+diff --git a/src/net/http/cgi/host_test.go b/src/net/http/cgi/host_test.go
+index 8a82789fd3..33277640ea 100644
+--- a/src/net/http/cgi/host_test.go
++++ b/src/net/http/cgi/host_test.go
+@@ -16,6 +16,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"reflect"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -498,3 +499,25 @@ func TestEnvOverride(t *testing.T) {
+ 	}
+ 	runCgiTest(t, h, "GET /test.cgi HTTP/1.0\nHost: example.com\n\n", expectedMap)
+ }
++
++func TestRemoveLeadingDuplicates(t *testing.T) {
++	tests := []struct {
++		env  []string
++		want []string
++	}{
++		{
++			env:  []string{"a=b", "b=c", "a=b2"},
++			want: []string{"b=c", "a=b2"},
++		},
++		{
++			env:  []string{"a=b", "b=c", "d", "e=f"},
++			want: []string{"a=b", "b=c", "d", "e=f"},
++		},
++	}
++	for _, tt := range tests {
++		got := removeLeadingDuplicates(tt.env)
++		if !reflect.DeepEqual(got, tt.want) {
++			t.Errorf("removeLeadingDuplicates(%q) = %q; want %q", tt.env, got, tt.want)
++		}
++	}
++}

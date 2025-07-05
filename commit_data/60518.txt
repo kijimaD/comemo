@@ -14,7 +14,7 @@ Date:   Mon Jul 22 15:50:33 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/601358
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/vcweb/script.go                       | 2 +-
  src/cmd/go/internal/vcweb/vcweb.go                        | 2 +-
  src/cmd/go/script_test.go                                 | 4 ++--
@@ -30,3 +30,144 @@ Date:   Mon Jul 22 15:50:33 2024 +0000
  src/cmd/{go => }/internal/script/scripttest/scripttest.go | 2 +-
  src/cmd/{go => }/internal/script/state.go                 | 0
  14 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcweb/script.go b/src/cmd/go/internal/vcweb/script.go
+index c35b46f735..1ba9c0aff4 100644
+--- a/src/cmd/go/internal/vcweb/script.go
++++ b/src/cmd/go/internal/vcweb/script.go
+@@ -7,7 +7,7 @@ package vcweb
+ import (
+ 	"bufio"
+ 	"bytes"
+-	"cmd/go/internal/script"
++	"cmd/internal/script"
+ 	"context"
+ 	"errors"
+ 	"fmt"
+diff --git a/src/cmd/go/internal/vcweb/vcweb.go b/src/cmd/go/internal/vcweb/vcweb.go
+index f748b34358..757a595808 100644
+--- a/src/cmd/go/internal/vcweb/vcweb.go
++++ b/src/cmd/go/internal/vcweb/vcweb.go
+@@ -31,7 +31,7 @@ package vcweb
+ 
+ import (
+ 	"bufio"
+-	"cmd/go/internal/script"
++	"cmd/internal/script"
+ 	"context"
+ 	"crypto/sha256"
+ 	"errors"
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index a38dec3610..36605bb66c 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -27,9 +27,9 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+-	"cmd/go/internal/script"
+-	"cmd/go/internal/script/scripttest"
+ 	"cmd/go/internal/vcweb/vcstest"
++	"cmd/internal/script"
++	"cmd/internal/script/scripttest"
+ 
+ 	"golang.org/x/telemetry/counter/countertest"
+ )
+diff --git a/src/cmd/go/scriptcmds_test.go b/src/cmd/go/scriptcmds_test.go
+index 4ddf7ee654..ced8d880e9 100644
+--- a/src/cmd/go/scriptcmds_test.go
++++ b/src/cmd/go/scriptcmds_test.go
+@@ -5,9 +5,9 @@
+ package main_test
+ 
+ import (
+-	"cmd/go/internal/script"
+-	"cmd/go/internal/script/scripttest"
+ 	"cmd/go/internal/work"
++	"cmd/internal/script"
++	"cmd/internal/script/scripttest"
+ 	"errors"
+ 	"fmt"
+ 	"os"
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index 3f11af272b..b4f139a983 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -6,8 +6,8 @@ package main_test
+ 
+ import (
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/script"
+-	"cmd/go/internal/script/scripttest"
++	"cmd/internal/script"
++	"cmd/internal/script/scripttest"
+ 	"errors"
+ 	"fmt"
+ 	"internal/buildcfg"
+diff --git a/src/cmd/go/scriptreadme_test.go b/src/cmd/go/scriptreadme_test.go
+index 26c7aa19f0..dee6e5b0c3 100644
+--- a/src/cmd/go/scriptreadme_test.go
++++ b/src/cmd/go/scriptreadme_test.go
+@@ -6,7 +6,7 @@ package main_test
+ 
+ import (
+ 	"bytes"
+-	"cmd/go/internal/script"
++	"cmd/internal/script"
+ 	"flag"
+ 	"internal/diff"
+ 	"internal/testenv"
+@@ -38,7 +38,7 @@ func checkScriptReadme(t *testing.T, engine *script.Engine, env []string) {
+ 	args.Conditions = conds.String()
+ 
+ 	doc := new(strings.Builder)
+-	cmd := testenv.Command(t, testGo, "doc", "cmd/go/internal/script")
++	cmd := testenv.Command(t, testGo, "doc", "cmd/internal/script")
+ 	cmd.Env = env
+ 	cmd.Stdout = doc
+ 	if err := cmd.Run(); err != nil {
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/internal/script/cmds.go
+similarity index 100%
+rename from src/cmd/go/internal/script/cmds.go
+rename to src/cmd/internal/script/cmds.go
+diff --git a/src/cmd/go/internal/script/cmds_nonunix.go b/src/cmd/internal/script/cmds_nonunix.go
+similarity index 100%
+rename from src/cmd/go/internal/script/cmds_nonunix.go
+rename to src/cmd/internal/script/cmds_nonunix.go
+diff --git a/src/cmd/go/internal/script/cmds_unix.go b/src/cmd/internal/script/cmds_unix.go
+similarity index 100%
+rename from src/cmd/go/internal/script/cmds_unix.go
+rename to src/cmd/internal/script/cmds_unix.go
+diff --git a/src/cmd/go/internal/script/conds.go b/src/cmd/internal/script/conds.go
+similarity index 100%
+rename from src/cmd/go/internal/script/conds.go
+rename to src/cmd/internal/script/conds.go
+diff --git a/src/cmd/go/internal/script/engine.go b/src/cmd/internal/script/engine.go
+similarity index 100%
+rename from src/cmd/go/internal/script/engine.go
+rename to src/cmd/internal/script/engine.go
+diff --git a/src/cmd/go/internal/script/errors.go b/src/cmd/internal/script/errors.go
+similarity index 100%
+rename from src/cmd/go/internal/script/errors.go
+rename to src/cmd/internal/script/errors.go
+diff --git a/src/cmd/go/internal/script/scripttest/scripttest.go b/src/cmd/internal/script/scripttest/scripttest.go
+similarity index 99%
+rename from src/cmd/go/internal/script/scripttest/scripttest.go
+rename to src/cmd/internal/script/scripttest/scripttest.go
+index 07183cd7bb..bace662a67 100644
+--- a/src/cmd/go/internal/script/scripttest/scripttest.go
++++ b/src/cmd/internal/script/scripttest/scripttest.go
+@@ -7,8 +7,8 @@ package scripttest
+ 
+ import (
+ 	"bufio"
+-	"cmd/go/internal/script"
+ 	"cmd/internal/pathcache"
++	"cmd/internal/script"
+ 	"errors"
+ 	"io"
+ 	"strings"
+diff --git a/src/cmd/go/internal/script/state.go b/src/cmd/internal/script/state.go
+similarity index 100%
+rename from src/cmd/go/internal/script/state.go
+rename to src/cmd/internal/script/state.go

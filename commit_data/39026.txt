@@ -24,8 +24,200 @@ Date:   Mon Nov 26 23:56:35 2018 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go |  6 ++--
  src/runtime/mgclarge.go    | 74 ++++++++++++++++++++++++++++++++++++++++++++++
  src/runtime/mheap.go       | 48 +++++++-----------------------
  3 files changed, 88 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index ecb21935b9..de66b07c68 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -337,9 +337,9 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 			slow.BySize[i].Frees = bySize[i].Frees
+ 		}
+ 
+-		mheap_.scav.treap.walkTreap(func(tn *treapNode) {
+-			slow.HeapReleased += uint64(tn.spanKey.released())
+-		})
++		for i := mheap_.scav.iter(); i.valid(); i = i.next() {
++			slow.HeapReleased += uint64(i.span().released())
++		}
+ 
+ 		getg().m.mallocing--
+ 	})
+diff --git a/src/runtime/mgclarge.go b/src/runtime/mgclarge.go
+index 66259d4cdf..663a37e3ed 100644
+--- a/src/runtime/mgclarge.go
++++ b/src/runtime/mgclarge.go
+@@ -153,6 +153,70 @@ func checkTreapNode(t *treapNode) {
+ 	}
+ }
+ 
++// treapIter is a unidirectional iterator type which may be used to iterate over a
++// an mTreap in-order forwards (increasing order) or backwards (decreasing order).
++// Its purpose is to hide details about the treap from users when trying to iterate
++// over it.
++//
++// To create iterators over the treap, call iter or rev on an mTreap.
++type treapIter struct {
++	t   *treapNode
++	inc bool // if true, iterate in increasing order, otherwise decreasing order.
++}
++
++// span returns the span at the current position in the treap.
++// If the treap is not valid, span will panic.
++func (i *treapIter) span() *mspan {
++	return i.t.spanKey
++}
++
++// valid returns whether the iterator represents a valid position
++// in the mTreap.
++func (i *treapIter) valid() bool {
++	return i.t != nil
++}
++
++// next moves the iterator forward by one. Once the iterator
++// ceases to be valid, calling next will panic.
++func (i treapIter) next() treapIter {
++	if i.inc {
++		i.t = i.t.succ()
++	} else {
++		i.t = i.t.pred()
++	}
++	return i
++}
++
++// iter returns an iterator which may be used to iterate over the treap
++// in increasing order of span size ("forwards").
++func (root *mTreap) iter() treapIter {
++	i := treapIter{inc: true}
++	t := root.treap
++	if t == nil {
++		return i
++	}
++	for t.left != nil {
++		t = t.left
++	}
++	i.t = t
++	return i
++}
++
++// rev returns an iterator which may be used to iterate over the treap
++// in decreasing order of span size ("reverse").
++func (root *mTreap) rev() treapIter {
++	i := treapIter{inc: false}
++	t := root.treap
++	if t == nil {
++		return i
++	}
++	for t.right != nil {
++		t = t.right
++	}
++	i.t = t
++	return i
++}
++
+ // insert adds span to the large span treap.
+ func (root *mTreap) insert(span *mspan) {
+ 	npages := span.npages
+@@ -280,6 +344,16 @@ func (root *mTreap) removeSpan(span *mspan) {
+ 	root.removeNode(t)
+ }
+ 
++// erase removes the element referred to by the current position of the
++// iterator and returns i.next(). This operation consumes the given
++// iterator, so it should no longer be used and iteration should continue
++// from the returned iterator.
++func (root *mTreap) erase(i treapIter) treapIter {
++	n := i.next()
++	root.removeNode(i.t)
++	return n
++}
++
+ // rotateLeft rotates the tree rooted at node x.
+ // turning (x a (y b c)) into (y (x a b) c).
+ func (root *mTreap) rotateLeft(x *treapNode) {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 99994593c3..b5e0b0f306 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1273,21 +1273,11 @@ func (h *mheap) freeSpanLocked(s *mspan, acctinuse, acctidle bool, unusedsince i
+ // starting from the largest span and working down. It then takes those spans
+ // and places them in scav. h must be locked.
+ func (h *mheap) scavengeLargest(nbytes uintptr) {
+-	// Find the largest child.
+-	t := h.free.treap
+-	if t == nil {
+-		return
+-	}
+-	for t.right != nil {
+-		t = t.right
+-	}
+-	// Iterate over the treap from the largest child to the smallest by
+-	// starting from the largest and finding its predecessor until we've
+-	// recovered nbytes worth of physical memory, or it no longer has a
+-	// predecessor (meaning the treap is now empty).
++	// Iterate over the treap backwards (from largest to smallest) scavenging spans
++	// until we've reached our quota of nbytes.
+ 	released := uintptr(0)
+-	for t != nil && released < nbytes {
+-		s := t.spanKey
++	for t := h.free.rev(); released < nbytes && t.valid(); {
++		s := t.span()
+ 		r := s.scavenge()
+ 		if r == 0 {
+ 			// Since we're going in order of largest-to-smallest span, this
+@@ -1301,9 +1291,7 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
+ 			// those which have it unset are only in the `free` treap.
+ 			return
+ 		}
+-		prev := t.pred()
+-		h.free.removeNode(t)
+-		t = prev
++		t = h.free.erase(t)
+ 		h.scav.insert(s)
+ 		released += r
+ 	}
+@@ -1313,34 +1301,20 @@ func (h *mheap) scavengeLargest(nbytes uintptr) {
+ // treapNode's span. It then removes the scavenged span from
+ // unscav and adds it into scav before continuing. h must be locked.
+ func (h *mheap) scavengeAll(now, limit uint64) uintptr {
+-	// Compute the left-most child in unscav to start iteration from.
+-	t := h.free.treap
+-	if t == nil {
+-		return 0
+-	}
+-	for t.left != nil {
+-		t = t.left
+-	}
+-	// Iterate over the treap be computing t's successor before
+-	// potentially scavenging it.
++	// Iterate over the treap scavenging spans if unused for at least limit time.
+ 	released := uintptr(0)
+-	for t != nil {
+-		s := t.spanKey
+-		next := t.succ()
++	for t := h.free.iter(); t.valid(); {
++		s := t.span()
+ 		if (now - uint64(s.unusedsince)) > limit {
+ 			r := s.scavenge()
+ 			if r != 0 {
+-				// If we ended up scavenging s, then remove it from unscav
+-				// and add it to scav. This is safe to do since we've already
+-				// moved to t's successor.
+-				h.free.removeNode(t)
++				t = h.free.erase(t)
+ 				h.scav.insert(s)
+ 				released += r
++				continue
+ 			}
+ 		}
+-		// Move t forward to its successor to iterate over the whole
+-		// treap.
+-		t = next
++		t = t.next()
+ 	}
+ 	return released
+ }

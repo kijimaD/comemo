@@ -19,7 +19,7 @@ Date:   Mon May 22 14:14:44 2023 -0400
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                    | 42 ++++++++++++++-------
  src/cmd/go/internal/load/test.go                   |  4 +-
  src/cmd/go/internal/work/exec.go                   | 14 ++++---
@@ -27,3 +27,357 @@ Date:   Mon May 22 14:14:44 2023 -0400
  src/cmd/go/testdata/script/build_pgo_auto.txt      | 44 +++++++++++++++++-----
  .../go/testdata/script/build_pgo_auto_multi.txt    | 19 ++++++++--
  6 files changed, 103 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2056b95558..191118b1e7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -233,7 +233,7 @@ type PackageInternal struct {
+ 	CoverageCfg       string               // coverage info config file path (passed to compiler)
+ 	OmitDebug         bool                 // tell linker not to write debug information
+ 	GobinSubdir       bool                 // install target would be subdir of GOBIN
+-	BuildInfo         string               // add this info to package main
++	BuildInfo         *debug.BuildInfo     // add this info to package main
+ 	TestmainGo        *[]byte              // content for _testmain.go
+ 	Embed             map[string][]string  // //go:embed comment mapping
+ 	OrigImportPath    string               // original import path before adding '_test' suffix
+@@ -2260,9 +2260,15 @@ func isBadEmbedName(name string) bool {
+ // to their VCS information.
+ var vcsStatusCache par.ErrCache[string, vcs.Status]
+ 
+-// setBuildInfo gathers build information, formats it as a string to be
+-// embedded in the binary, then sets p.Internal.BuildInfo to that string.
+-// setBuildInfo should only be called on a main package with no errors.
++func appendBuildSetting(info *debug.BuildInfo, key, value string) {
++	value = strings.ReplaceAll(value, "\n", " ") // make value safe
++	info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
++}
++
++// setBuildInfo gathers build information and sets it into
++// p.Internal.BuildInfo, which will later be formatted as a string and embedded
++// in the binary. setBuildInfo should only be called on a main package with no
++// errors.
+ //
+ // This information can be retrieved using debug.ReadBuildInfo.
+ //
+@@ -2338,8 +2344,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 		Deps: deps,
+ 	}
+ 	appendSetting := func(key, value string) {
+-		value = strings.ReplaceAll(value, "\n", " ") // make value safe
+-		info.Settings = append(info.Settings, debug.BuildSetting{Key: key, Value: value})
++		appendBuildSetting(info, key, value)
+ 	}
+ 
+ 	// Add command-line flags relevant to the build.
+@@ -2380,13 +2385,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 			appendSetting("-ldflags", ldflags)
+ 		}
+ 	}
+-	if p.Internal.PGOProfile != "" {
+-		if cfg.BuildTrimpath {
+-			appendSetting("-pgo", filepath.Base(p.Internal.PGOProfile))
+-		} else {
+-			appendSetting("-pgo", p.Internal.PGOProfile)
+-		}
+-	}
++	// N.B. -pgo added later by setPGOProfilePath.
+ 	if cfg.BuildMSan {
+ 		appendSetting("-msan", "true")
+ 	}
+@@ -2534,7 +2533,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 	}
+ omitVCS:
+ 
+-	p.Internal.BuildInfo = info.String()
++	p.Internal.BuildInfo = info
+ }
+ 
+ // SafeArg reports whether arg is a "safe" command-line argument,
+@@ -2916,6 +2915,19 @@ func PackagesAndErrors(ctx context.Context, opts PackageOpts, patterns []string)
+ // setPGOProfilePath sets the PGO profile path for pkgs.
+ // In -pgo=auto mode, it finds the default PGO profile.
+ func setPGOProfilePath(pkgs []*Package) {
++	updateBuildInfo := func(p *Package, file string) {
++		// Don't create BuildInfo for packages that didn't already have it.
++		if p.Internal.BuildInfo == nil {
++			return
++		}
++
++		if cfg.BuildTrimpath {
++			appendBuildSetting(p.Internal.BuildInfo, "-pgo", filepath.Base(file))
++		} else {
++			appendBuildSetting(p.Internal.BuildInfo, "-pgo", file)
++		}
++	}
++
+ 	switch cfg.BuildPGO {
+ 	case "off":
+ 		return
+@@ -2962,6 +2974,7 @@ func setPGOProfilePath(pkgs []*Package) {
+ 					p.Internal.ForMain = pmain.ImportPath
+ 				}
+ 				p.Internal.PGOProfile = file
++				updateBuildInfo(p, file)
+ 				// Recurse to dependencies.
+ 				for i, pp := range p.Internal.Imports {
+ 					p.Internal.Imports[i] = split(pp)
+@@ -2983,6 +2996,7 @@ func setPGOProfilePath(pkgs []*Package) {
+ 
+ 		for _, p := range PackageList(pkgs) {
+ 			p.Internal.PGOProfile = file
++			updateBuildInfo(p, file)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 4a39a74443..ff3e17c90a 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -198,7 +198,7 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 		ptest.Internal.Imports = append(imports, p.Internal.Imports...)
+ 		ptest.Internal.RawImports = str.StringList(rawTestImports, p.Internal.RawImports)
+ 		ptest.Internal.ForceLibrary = true
+-		ptest.Internal.BuildInfo = ""
++		ptest.Internal.BuildInfo = nil
+ 		ptest.Internal.Build = new(build.Package)
+ 		*ptest.Internal.Build = *p.Internal.Build
+ 		m := map[string][]token.Position{}
+@@ -471,7 +471,7 @@ func recompileForTest(pmain, preal, ptest, pxtest *Package) *PackageError {
+ 			copy(p1.Imports, p.Imports)
+ 			p = p1
+ 			p.Target = ""
+-			p.Internal.BuildInfo = ""
++			p.Internal.BuildInfo = nil
+ 			p.Internal.ForceLibrary = true
+ 		}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e52de3b6af..2756b701cf 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -316,8 +316,8 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 			fmt.Fprintf(h, "fuzz %q\n", fuzzFlags)
+ 		}
+ 	}
+-	if p.Internal.BuildInfo != "" {
+-		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo)
++	if p.Internal.BuildInfo != nil {
++		fmt.Fprintf(h, "modinfo %q\n", p.Internal.BuildInfo.String())
+ 	}
+ 
+ 	// Configuration specific to compiler toolchain.
+@@ -842,8 +842,8 @@ OverlayLoop:
+ 		embedcfg = js
+ 	}
+ 
+-	if p.Internal.BuildInfo != "" && cfg.ModulesEnabled {
+-		prog := modload.ModInfoProg(p.Internal.BuildInfo, cfg.BuildToolchainName == "gccgo")
++	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
++		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
+ 		if len(prog) > 0 {
+ 			if err := b.writeFile(objdir+"_gomod_.go", prog); err != nil {
+ 				return err
+@@ -1474,7 +1474,11 @@ func (b *Builder) writeLinkImportcfg(a *Action, file string) error {
+ 			fmt.Fprintf(&icfg, "packageshlib %s=%s\n", p1.ImportPath, p1.Shlib)
+ 		}
+ 	}
+-	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(a.Package.Internal.BuildInfo))
++	info := ""
++	if a.Package.Internal.BuildInfo != nil {
++		info = a.Package.Internal.BuildInfo.String()
++	}
++	fmt.Fprintf(&icfg, "modinfo %q\n", modload.ModInfoData(info))
+ 	return b.writeFile(file, icfg.Bytes())
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/build_pgo.txt b/src/cmd/go/testdata/script/build_pgo.txt
+index 65ecd57203..2e3354a1ca 100644
+--- a/src/cmd/go/testdata/script/build_pgo.txt
++++ b/src/cmd/go/testdata/script/build_pgo.txt
+@@ -1,24 +1,27 @@
+ # Test go build -pgo flag.
+ # Specifically, the build cache handles profile content correctly.
+ 
+-# this test rebuild runtime with different flags, skip in short mode
+-[short] skip
++[short] skip 'compiles and links executables'
+ 
+ # build without PGO
+ go build triv.go
+ 
+ # build with PGO, should trigger rebuild
+ # starting with an empty profile (the compiler accepts it)
+-go build -x -pgo=prof triv.go
++go build -x -pgo=prof -o triv.exe triv.go
+ stderr 'compile.*-pgoprofile=.*prof.*triv.go'
+ 
++# check that PGO appears in build info
++go version -m triv.exe
++stdout '-pgo=.*/prof'
++
+ # store the build ID
+ go list -export -json=BuildID -pgo=prof triv.go
+ stdout '"BuildID":' # check that output actually contains a build ID
+ cp stdout list.out
+ 
+ # build again with the same profile, should be cached
+-go build -x -pgo=prof triv.go
++go build -x -pgo=prof -o triv.exe triv.go
+ ! stderr 'compile.*triv.go'
+ 
+ # check that the build ID is the same
+@@ -36,6 +39,13 @@ stderr 'compile.*-pgoprofile=.*prof.*p.go'
+ go list -export -json=BuildID -pgo=prof triv.go
+ ! cmp stdout list.out
+ 
++# build with trimpath, buildinfo path should be trimmed
++go build -x -pgo=prof -trimpath -o triv.exe triv.go
++
++# check that path is trimmed
++go version -m triv.exe
++stdout '-pgo=prof'
++
+ -- prof --
+ -- triv.go --
+ package main
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index 77f32d43b8..117f0c01cb 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -1,29 +1,43 @@
+ # Test go build -pgo=auto flag.
+ 
++[short] skip 'compiles and links executables'
++
+ # use default.pgo for a single main package
+-go build -n -pgo=auto ./a/a1
++go build -a -x -pgo=auto -o a1.exe ./a/a1
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ 
+ # check that pgo applied to dependencies
+ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+ 
++# check that pgo appears in build info
++go version -m a1.exe
++stdout '-pgo=.*default\.pgo'
++
+ # use default.pgo for ... with a single main package
+-go build -n -pgo=auto ./a/...
++go build -a -x -pgo=auto ./a/...
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ 
++# check that pgo appears in build info
++go version -m a1$GOEXE
++stdout '-pgo=.*default\.pgo'
++
+ # build succeeds without PGO when default.pgo file is absent
+-go build -n -pgo=auto -o nopgo.exe ./nopgo
++go build -a -x -pgo=auto -o nopgo.exe ./nopgo
+ stderr 'compile.*nopgo.go'
+ ! stderr '-pgoprofile'
+ 
++# check that pgo doesn't appear in build info
++go version -m nopgo.exe
++! stdout -pgo=
++
+ # other build-related commands
+-go install -n -pgo=auto ./a/a1
++go install -a -n -pgo=auto ./a/a1
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ 
+-go run -n -pgo=auto ./a/a1
++go run -a -n -pgo=auto ./a/a1
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ 
+-go test -n -pgo=auto ./a/a1
++go test -a -n -pgo=auto ./a/a1
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
+ 
+@@ -36,19 +50,31 @@ go list -deps -pgo=auto ./a/a1
+ 
+ # -pgo=auto is the default. Commands without explicit -pgo=auto
+ # should work as -pgo=auto.
+-go build -n ./a/a1
++go build -a -x -o a1.exe ./a/a1
+ stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+ stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
+ 
+-go build -n -o nopgo.exe ./nopgo
++# check that pgo appears in build info
++go version -m a1.exe
++stdout '-pgo=.*default\.pgo'
++
++go build -a -x -o nopgo.exe ./nopgo
+ stderr 'compile.*nopgo.go'
+ ! stderr '-pgoprofile'
+ 
++# check that pgo doesn't appear in build info
++go version -m nopgo.exe
++! stdout -pgo=
++
+ # -pgo=off should turn off PGO.
+-go build -n -pgo=off ./a/a1
++go build -a -x -pgo=off -o a1.exe ./a/a1
+ stderr 'compile.*a1.go'
+ ! stderr '-pgoprofile'
+ 
++# check that pgo doesn't appear in build info
++go version -m a1.exe
++! stdout -pgo=
++
+ -- go.mod --
+ module test
+ go 1.20
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+index 19f022838d..331a83e4c7 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+@@ -1,6 +1,9 @@
+ # Test go build -pgo=auto flag with multiple main packages.
+ 
+-go build -n -pgo=auto ./a ./b ./nopgo
++[short] skip 'compiles and links executables'
++
++env GOBIN=$WORK/bin
++go install -a -x -pgo=auto ./a ./b ./nopgo
+ 
+ # a/default.pgo applies to package a and (transitive)
+ # dependencies.
+@@ -32,8 +35,18 @@ stderr -count=2 'compile.*-pgoprofile=.*dep2(/|\\\\)dep2\.go'
+ stderr -count=3 'compile.*dep3(/|\\\\)dep3.go'
+ stderr -count=2 'compile.*-pgoprofile=.*dep3(/|\\\\)dep3\.go'
+ 
++# check that pgo appears or not in build info as expected
++go version -m $GOBIN/a$GOEXE
++stdout '-pgo=.*a'${/}'default\.pgo'
++
++go version -m $GOBIN/b$GOEXE
++stdout '-pgo=.*b'${/}'default\.pgo'
++
++go version -m $GOBIN/nopgo$GOEXE
++! stdout -pgo=
++
+ # go test works the same way
+-go test -n -pgo=auto ./a ./b ./nopgo
++go test -a -n -pgo=auto ./a ./b ./nopgo
+ stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a_test\.go'
+ stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+ stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
+@@ -63,7 +76,6 @@ package main
+ import "testing"
+ func TestA(*testing.T) {}
+ -- a/default.pgo --
+-dummy profile a
+ -- b/b.go --
+ package main
+ import _ "test/dep"
+@@ -74,7 +86,6 @@ package main
+ import "testing"
+ func TestB(*testing.T) {}
+ -- b/default.pgo --
+-dummy profile b
+ -- nopgo/nopgo.go --
+ package main
+ import _ "test/dep"

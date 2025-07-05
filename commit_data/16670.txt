@@ -9,8 +9,168 @@ Date:   Thu Jun 27 15:30:45 2013 -0700
     R=golang-dev, 0xjnml, r, rsc
     CC=golang-dev
     https://golang.org/cl/10472043
-
+---
  doc/go1.2.txt             |  1 +
  src/pkg/flag/flag.go      | 25 +++++++++++++++++++++++++
  src/pkg/flag/flag_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 70 insertions(+)
+
+diff --git a/doc/go1.2.txt b/doc/go1.2.txt
+index 1db0d763bf..0e36a7b182 100644
+--- a/doc/go1.2.txt
++++ b/doc/go1.2.txt
+@@ -17,6 +17,7 @@ crypto/sha1: Sum function to simplify hashing (CL 10571043).
+ crypto/sha256: Sum256 and Sum224 functions to simplify hashing (CL 10629043).
+ crypto/sha512: Sum512 and Sum384 functions to simplify hashing (CL 10630043).
+ crypto/tls: add support for TLS 1.1. (CL 7872043).
++flag: add Getter interface (CL 10472043).
+ fmt: indexed access to arguments in Printf etc. (CL 9680043).
+ go/build: support including C++ code with cgo (CL 8248043).
+ io: Copy prioritizes WriterTo over ReaderFrom (CL 9462044).
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 85dd8c3b37..c6bb1f0633 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -89,6 +89,8 @@ func (b *boolValue) Set(s string) error {
+ 	return err
+ }
+ 
++func (b *boolValue) Get() interface{} { return bool(*b) }
++
+ func (b *boolValue) String() string { return fmt.Sprintf("%v", *b) }
+ 
+ func (b *boolValue) IsBoolFlag() bool { return true }
+@@ -114,6 +116,8 @@ func (i *intValue) Set(s string) error {
+ 	return err
+ }
+ 
++func (i *intValue) Get() interface{} { return int(*i) }
++
+ func (i *intValue) String() string { return fmt.Sprintf("%v", *i) }
+ 
+ // -- int64 Value
+@@ -130,6 +134,8 @@ func (i *int64Value) Set(s string) error {
+ 	return err
+ }
+ 
++func (i *int64Value) Get() interface{} { return int64(*i) }
++
+ func (i *int64Value) String() string { return fmt.Sprintf("%v", *i) }
+ 
+ // -- uint Value
+@@ -146,6 +152,8 @@ func (i *uintValue) Set(s string) error {
+ 	return err
+ }
+ 
++func (i *uintValue) Get() interface{} { return uint(*i) }
++
+ func (i *uintValue) String() string { return fmt.Sprintf("%v", *i) }
+ 
+ // -- uint64 Value
+@@ -162,6 +170,8 @@ func (i *uint64Value) Set(s string) error {
+ 	return err
+ }
+ 
++func (i *uint64Value) Get() interface{} { return uint64(*i) }
++
+ func (i *uint64Value) String() string { return fmt.Sprintf("%v", *i) }
+ 
+ // -- string Value
+@@ -177,6 +187,8 @@ func (s *stringValue) Set(val string) error {
+ 	return nil
+ }
+ 
++func (s *stringValue) Get() interface{} { return string(*s) }
++
+ func (s *stringValue) String() string { return fmt.Sprintf("%s", *s) }
+ 
+ // -- float64 Value
+@@ -193,6 +205,8 @@ func (f *float64Value) Set(s string) error {
+ 	return err
+ }
+ 
++func (f *float64Value) Get() interface{} { return float64(*f) }
++
+ func (f *float64Value) String() string { return fmt.Sprintf("%v", *f) }
+ 
+ // -- time.Duration Value
+@@ -209,6 +223,8 @@ func (d *durationValue) Set(s string) error {
+ 	return err
+ }
+ 
++func (d *durationValue) Get() interface{} { return time.Duration(*d) }
++
+ func (d *durationValue) String() string { return (*time.Duration)(d).String() }
+ 
+ // Value is the interface to the dynamic value stored in a flag.
+@@ -222,6 +238,15 @@ type Value interface {
+ 	Set(string) error
+ }
+ 
++// Getter is an interface that allows the contents of a Value to be retrieved.
++// It wraps the Value interface, rather than being part of it, because it
++// appeared after Go 1 and its compatibility rules. All Value types provided
++// by this package satisfy the Getter interface.
++type Getter interface {
++	Value
++	Get() interface{}
++}
++
+ // ErrorHandling defines how to handle flag parsing errors.
+ type ErrorHandling int
+ 
+diff --git a/src/pkg/flag/flag_test.go b/src/pkg/flag/flag_test.go
+index ddd54b2777..22ec26744a 100644
+--- a/src/pkg/flag/flag_test.go
++++ b/src/pkg/flag/flag_test.go
+@@ -92,6 +92,50 @@ func TestEverything(t *testing.T) {
+ 	}
+ }
+ 
++func TestGet(t *testing.T) {
++	ResetForTesting(nil)
++	Bool("test_bool", true, "bool value")
++	Int("test_int", 1, "int value")
++	Int64("test_int64", 2, "int64 value")
++	Uint("test_uint", 3, "uint value")
++	Uint64("test_uint64", 4, "uint64 value")
++	String("test_string", "5", "string value")
++	Float64("test_float64", 6, "float64 value")
++	Duration("test_duration", 7, "time.Duration value")
++
++	visitor := func(f *Flag) {
++		if len(f.Name) > 5 && f.Name[0:5] == "test_" {
++			g, ok := f.Value.(Getter)
++			if !ok {
++				t.Errorf("Visit: value does not satisfy Getter: %T", f.Value)
++				return
++			}
++			switch f.Name {
++			case "test_bool":
++				ok = g.Get() == true
++			case "test_int":
++				ok = g.Get() == int(1)
++			case "test_int64":
++				ok = g.Get() == int64(2)
++			case "test_uint":
++				ok = g.Get() == uint(3)
++			case "test_uint64":
++				ok = g.Get() == uint64(4)
++			case "test_string":
++				ok = g.Get() == "5"
++			case "test_float64":
++				ok = g.Get() == float64(6)
++			case "test_duration":
++				ok = g.Get() == time.Duration(7)
++			}
++			if !ok {
++				t.Errorf("Visit: bad value %T(%v) for %s", g.Get(), g.Get(), f.Name)
++			}
++		}
++	}
++	VisitAll(visitor)
++}
++
+ func TestUsage(t *testing.T) {
+ 	called := false
+ 	ResetForTesting(func() { called = true })

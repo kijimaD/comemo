@@ -32,7 +32,122 @@ Date:   Fri Jul 13 16:11:24 2018 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/pprof/proto.go      | 14 ++++++++++++-
  src/runtime/pprof/proto_test.go | 45 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 1cf3a5154f..cbd0b83376 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -54,6 +54,7 @@ type memMap struct {
+ 	file, buildID string
+ 
+ 	funcs symbolizeFlag
++	fake  bool // map entry was faked; /proc/self/maps wasn't available
+ }
+ 
+ // symbolizeFlag keeps track of symbolization result.
+@@ -267,7 +268,7 @@ func (b *profileBuilder) locForPC(addr uintptr) uint64 {
+ 		frame, more = frames.Next()
+ 	}
+ 	for i := range b.mem {
+-		if b.mem[i].start <= addr && addr < b.mem[i].end {
++		if b.mem[i].start <= addr && addr < b.mem[i].end || b.mem[i].fake {
+ 			b.pb.uint64Opt(tagLocation_MappingID, uint64(i+1))
+ 
+ 			m := b.mem[i]
+@@ -440,6 +441,12 @@ func (b *profileBuilder) build() {
+ func (b *profileBuilder) readMapping() {
+ 	data, _ := ioutil.ReadFile("/proc/self/maps")
+ 	parseProcSelfMaps(data, b.addMapping)
++	if len(b.mem) == 0 { // pprof expects a map entry, so fake one.
++		b.addMappingEntry(0, 0, 0, "", "", true)
++		// TODO(hyangah): make addMapping return *memMap or
++		// take a memMap struct, and get rid of addMappingEntry
++		// that takes a bunch of positional arguments.
++	}
+ }
+ 
+ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file, buildID string)) {
+@@ -540,11 +547,16 @@ func parseProcSelfMaps(data []byte, addMapping func(lo, hi, offset uint64, file,
+ }
+ 
+ func (b *profileBuilder) addMapping(lo, hi, offset uint64, file, buildID string) {
++	b.addMappingEntry(lo, hi, offset, file, buildID, false)
++}
++
++func (b *profileBuilder) addMappingEntry(lo, hi, offset uint64, file, buildID string, fake bool) {
+ 	b.mem = append(b.mem, memMap{
+ 		start:   uintptr(lo),
+ 		end:     uintptr(hi),
+ 		offset:  offset,
+ 		file:    file,
+ 		buildID: buildID,
++		fake:    fake,
+ 	})
+ }
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index 36c345b6d9..76bd46da02 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -97,9 +97,16 @@ func testPCs(t *testing.T) (addr1, addr2 uint64, map1, map2 *profile.Mapping) {
+ 		addr2 = mprof.Mapping[1].Start
+ 		map2 = mprof.Mapping[1]
+ 		map2.BuildID, _ = elfBuildID(map2.File)
++	case "js":
++		addr1 = uint64(funcPC(f1))
++		addr2 = uint64(funcPC(f2))
+ 	default:
+ 		addr1 = uint64(funcPC(f1))
+ 		addr2 = uint64(funcPC(f2))
++		// Fake mapping - HasFunctions will be true because two PCs from Go
++		// will be fully symbolized.
++		fake := &profile.Mapping{ID: 1, HasFunctions: true}
++		map1, map2 = fake, fake
+ 	}
+ 	return
+ }
+@@ -301,3 +308,41 @@ func symbolized(loc *profile.Location) bool {
+ 	}
+ 	return true
+ }
++
++// TestFakeMapping tests if at least one mapping exists
++// (including a fake mapping), and their HasFunctions bits
++// are set correctly.
++func TestFakeMapping(t *testing.T) {
++	var buf bytes.Buffer
++	if err := Lookup("heap").WriteTo(&buf, 0); err != nil {
++		t.Fatalf("failed to write heap profile: %v", err)
++	}
++	prof, err := profile.Parse(&buf)
++	if err != nil {
++		t.Fatalf("failed to parse the generated profile data: %v", err)
++	}
++	t.Logf("Profile: %s", prof)
++	if len(prof.Mapping) == 0 {
++		t.Fatal("want profile with at least one mapping entry, got 0 mapping")
++	}
++
++	hit := make(map[*profile.Mapping]bool)
++	miss := make(map[*profile.Mapping]bool)
++	for _, loc := range prof.Location {
++		if symbolized(loc) {
++			hit[loc.Mapping] = true
++		} else {
++			miss[loc.Mapping] = true
++		}
++	}
++	for _, m := range prof.Mapping {
++		if miss[m] && m.HasFunctions {
++			t.Errorf("mapping %+v has HasFunctions=true, but contains locations with failed symbolization", m)
++			continue
++		}
++		if !miss[m] && hit[m] && !m.HasFunctions {
++			t.Errorf("mapping %+v has HasFunctions=false, but all referenced locations from this lapping were symbolized successfully", m)
++			continue
++		}
++	}
++}

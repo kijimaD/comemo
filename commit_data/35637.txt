@@ -62,9 +62,451 @@ Date:   Fri Feb 23 15:17:54 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/96435
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      | 226 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  30 ++++
  src/cmd/compile/internal/ssa/rewrite.go      |   4 +
  src/cmd/compile/internal/ssa/rewriteARM64.go | 116 ++++++++++++++
  4 files changed, 376 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index 6f34740239..750ac75192 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -2971,6 +2971,232 @@ var linuxARM64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"\tCSEL\t"},
+ 	},
++	// Check that zero stores are combine into larger stores
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[1] // early bounds check to guarantee safety of writes below
++			b[0] = 0
++			b[1] = 0
++		}
++		`,
++		pos: []string{"MOVH\tZR"},
++		neg: []string{"MOVB"},
++	},
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[1] // early bounds check to guarantee safety of writes below
++			b[1] = 0
++			b[0] = 0
++		}
++		`,
++		pos: []string{"MOVH\tZR"},
++		neg: []string{"MOVB"},
++	},
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[3] // early bounds check to guarantee safety of writes below
++			b[0] = 0
++			b[1] = 0
++			b[2] = 0
++			b[3] = 0
++		}
++		`,
++		pos: []string{"MOVW\tZR"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[3] // early bounds check to guarantee safety of writes below
++			b[2] = 0
++			b[3] = 0
++			b[1] = 0
++			b[0] = 0
++		}
++		`,
++		pos: []string{"MOVW\tZR"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(h []uint16) {
++			_ = h[1] // early bounds check to guarantee safety of writes below
++			h[0] = 0
++			h[1] = 0
++		}
++		`,
++		pos: []string{"MOVW\tZR"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(h []uint16) {
++			_ = h[1] // early bounds check to guarantee safety of writes below
++			h[1] = 0
++			h[0] = 0
++		}
++		`,
++		pos: []string{"MOVW\tZR"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[7] // early bounds check to guarantee safety of writes below
++			b[0] = 0
++			b[1] = 0
++			b[2] = 0
++			b[3] = 0
++			b[4] = 0
++			b[5] = 0
++			b[6] = 0
++			b[7] = 0
++		}
++		`,
++		pos: []string{"MOVD\tZR"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(h []uint16) {
++			_ = h[3] // early bounds check to guarantee safety of writes below
++			h[0] = 0
++			h[1] = 0
++			h[2] = 0
++			h[3] = 0
++		}
++		`,
++		pos: []string{"MOVD\tZR"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(h []uint16) {
++			_ = h[3] // early bounds check to guarantee safety of writes below
++			h[2] = 0
++			h[3] = 0
++			h[1] = 0
++			h[0] = 0
++		}
++		`,
++		pos: []string{"MOVD\tZR"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(w []uint32) {
++			_ = w[1] // early bounds check to guarantee safety of writes below
++			w[0] = 0
++			w[1] = 0
++		}
++		`,
++		pos: []string{"MOVD\tZR"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(w []uint32) {
++			_ = w[1] // early bounds check to guarantee safety of writes below
++			w[1] = 0
++			w[0] = 0
++		}
++		`,
++		pos: []string{"MOVD\tZR"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(b []byte) {
++			_ = b[15] // early bounds check to guarantee safety of writes below
++			b[0] = 0
++			b[1] = 0
++			b[2] = 0
++			b[3] = 0
++			b[4] = 0
++			b[5] = 0
++			b[6] = 0
++			b[7] = 0
++			b[8] = 0
++			b[9] = 0
++			b[10] = 0
++			b[11] = 0
++			b[12] = 0
++			b[13] = 0
++			b[15] = 0
++			b[14] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH", "MOVW"},
++	},
++	{
++		fn: `
++		func $(h []uint16) {
++			_ = h[7] // early bounds check to guarantee safety of writes below
++			h[0] = 0
++			h[1] = 0
++			h[2] = 0
++			h[3] = 0
++			h[4] = 0
++			h[5] = 0
++			h[6] = 0
++			h[7] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(w []uint32) {
++			_ = w[3] // early bounds check to guarantee safety of writes below
++			w[0] = 0
++			w[1] = 0
++			w[2] = 0
++			w[3] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(w []uint32) {
++			_ = w[3] // early bounds check to guarantee safety of writes below
++			w[1] = 0
++			w[0] = 0
++			w[3] = 0
++			w[2] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(d []uint64) {
++			_ = d[1] // early bounds check to guarantee safety of writes below
++			d[0] = 0
++			d[1] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH"},
++	},
++	{
++		fn: `
++		func $(d []uint64) {
++			_ = d[1] // early bounds check to guarantee safety of writes below
++			d[1] = 0
++			d[0] = 0
++		}
++		`,
++		pos: []string{"STP"},
++		neg: []string{"MOVB", "MOVH"},
++	},
+ }
+ 
+ var linuxMIPSTests = []*asmTest{
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index c5774edbd3..9f6ef57d43 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -1439,6 +1439,36 @@
+ 	&& clobber(o4) && clobber(o5) && clobber(s0)
+ 	-> @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (REV <t> (MOVDload <t> {s} (OffPtr <p.Type> [i0] p) mem))
+ 
++// Combine zero stores into larger (unaligned) stores.
++(MOVBstorezero [i] {s} ptr0 x:(MOVBstorezero [j] {s} ptr1 mem))
++	&& x.Uses == 1
++	&& areAdjacentOffsets(i,j,1)
++	&& is32Bit(min(i,j))
++	&& isSamePtr(ptr0, ptr1)
++	&& clobber(x)
++	-> (MOVHstorezero [min(i,j)] {s} ptr0 mem)
++(MOVHstorezero [i] {s} ptr0 x:(MOVHstorezero [j] {s} ptr1 mem))
++	&& x.Uses == 1
++	&& areAdjacentOffsets(i,j,2)
++	&& is32Bit(min(i,j))
++	&& isSamePtr(ptr0, ptr1)
++	&& clobber(x)
++	-> (MOVWstorezero [min(i,j)] {s} ptr0 mem)
++(MOVWstorezero [i] {s} ptr0 x:(MOVWstorezero [j] {s} ptr1 mem))
++	&& x.Uses == 1
++	&& areAdjacentOffsets(i,j,4)
++	&& is32Bit(min(i,j))
++	&& isSamePtr(ptr0, ptr1)
++	&& clobber(x)
++	-> (MOVDstorezero [min(i,j)] {s} ptr0 mem)
++(MOVDstorezero [i] {s} ptr0 x:(MOVDstorezero [j] {s} ptr1 mem))
++	&& x.Uses == 1
++	&& areAdjacentOffsets(i,j,8)
++	&& is32Bit(min(i,j))
++	&& isSamePtr(ptr0, ptr1)
++	&& clobber(x)
++	-> (MOVQstorezero [min(i,j)] {s} ptr0 mem)
++
+ // FP simplification
+ (FNEGS (FMULS x y)) -> (FNMULS x y)
+ (FNEGD (FMULD x y)) -> (FNMULD x y)
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 587a2a6d1a..2a20519f03 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -769,6 +769,10 @@ func overlap(offset1, size1, offset2, size2 int64) bool {
+ 	return false
+ }
+ 
++func areAdjacentOffsets(off1, off2, size int64) bool {
++	return off1+size == off2 || off1 == off2+size
++}
++
+ // check if value zeroes out upper 32-bit of 64-bit register.
+ // depth limits recursion depth. In AMD64.rules 3 is used as limit,
+ // because it catches same amount of cases as 4.
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 81be85c63a..1bb21d8a2c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -5941,6 +5941,35 @@ func rewriteValueARM64_OpARM64MOVBstorezero_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVBstorezero [i] {s} ptr0 x:(MOVBstorezero [j] {s} ptr1 mem))
++	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,1) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
++	// result: (MOVHstorezero [min(i,j)] {s} ptr0 mem)
++	for {
++		i := v.AuxInt
++		s := v.Aux
++		_ = v.Args[1]
++		ptr0 := v.Args[0]
++		x := v.Args[1]
++		if x.Op != OpARM64MOVBstorezero {
++			break
++		}
++		j := x.AuxInt
++		if x.Aux != s {
++			break
++		}
++		_ = x.Args[1]
++		ptr1 := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 1) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
++			break
++		}
++		v.reset(OpARM64MOVHstorezero)
++		v.AuxInt = min(i, j)
++		v.Aux = s
++		v.AddArg(ptr0)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVDload_0(v *Value) bool {
+@@ -6205,6 +6234,35 @@ func rewriteValueARM64_OpARM64MOVDstorezero_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVDstorezero [i] {s} ptr0 x:(MOVDstorezero [j] {s} ptr1 mem))
++	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,8) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
++	// result: (MOVQstorezero [min(i,j)] {s} ptr0 mem)
++	for {
++		i := v.AuxInt
++		s := v.Aux
++		_ = v.Args[1]
++		ptr0 := v.Args[0]
++		x := v.Args[1]
++		if x.Op != OpARM64MOVDstorezero {
++			break
++		}
++		j := x.AuxInt
++		if x.Aux != s {
++			break
++		}
++		_ = x.Args[1]
++		ptr1 := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 8) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
++			break
++		}
++		v.reset(OpARM64MOVQstorezero)
++		v.AuxInt = min(i, j)
++		v.Aux = s
++		v.AddArg(ptr0)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVHUload_0(v *Value) bool {
+@@ -6747,6 +6805,35 @@ func rewriteValueARM64_OpARM64MOVHstorezero_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVHstorezero [i] {s} ptr0 x:(MOVHstorezero [j] {s} ptr1 mem))
++	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,2) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
++	// result: (MOVWstorezero [min(i,j)] {s} ptr0 mem)
++	for {
++		i := v.AuxInt
++		s := v.Aux
++		_ = v.Args[1]
++		ptr0 := v.Args[0]
++		x := v.Args[1]
++		if x.Op != OpARM64MOVHstorezero {
++			break
++		}
++		j := x.AuxInt
++		if x.Aux != s {
++			break
++		}
++		_ = x.Args[1]
++		ptr1 := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 2) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
++			break
++		}
++		v.reset(OpARM64MOVWstorezero)
++		v.AuxInt = min(i, j)
++		v.Aux = s
++		v.AddArg(ptr0)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MOVQstorezero_0(v *Value) bool {
+@@ -7379,6 +7466,35 @@ func rewriteValueARM64_OpARM64MOVWstorezero_0(v *Value) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (MOVWstorezero [i] {s} ptr0 x:(MOVWstorezero [j] {s} ptr1 mem))
++	// cond: x.Uses == 1 && areAdjacentOffsets(i,j,4) && is32Bit(min(i,j)) && isSamePtr(ptr0, ptr1) && clobber(x)
++	// result: (MOVDstorezero [min(i,j)] {s} ptr0 mem)
++	for {
++		i := v.AuxInt
++		s := v.Aux
++		_ = v.Args[1]
++		ptr0 := v.Args[0]
++		x := v.Args[1]
++		if x.Op != OpARM64MOVWstorezero {
++			break
++		}
++		j := x.AuxInt
++		if x.Aux != s {
++			break
++		}
++		_ = x.Args[1]
++		ptr1 := x.Args[0]
++		mem := x.Args[1]
++		if !(x.Uses == 1 && areAdjacentOffsets(i, j, 4) && is32Bit(min(i, j)) && isSamePtr(ptr0, ptr1) && clobber(x)) {
++			break
++		}
++		v.reset(OpARM64MOVDstorezero)
++		v.AuxInt = min(i, j)
++		v.Aux = s
++		v.AddArg(ptr0)
++		v.AddArg(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM64_OpARM64MUL_0(v *Value) bool {

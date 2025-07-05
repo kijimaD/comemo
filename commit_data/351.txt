@@ -6,7 +6,7 @@ Date:   Mon Jul 14 16:57:42 2008 -0700
     - fixed types, added missing exports, etc.
     
     SVN=127104
-
+---
  usr/gri/gosrc/globals.go  | 164 ++++++++++++++++++++++++++++++++++++++++++----
  usr/gri/gosrc/go.go       |   6 ++
  usr/gri/gosrc/list.go     |  93 --------------------------
@@ -14,3 +14,542 @@ Date:   Mon Jul 14 16:57:42 2008 -0700
  usr/gri/gosrc/type.go     |  19 +++---
  usr/gri/gosrc/universe.go | 148 +++++++++++++++++++++++++++++++++++++++++
  6 files changed, 318 insertions(+), 129 deletions(-)
+
+diff --git a/usr/gri/gosrc/globals.go b/usr/gri/gosrc/globals.go
+index 986fbe82cb..f0f5711a31 100644
+--- a/usr/gri/gosrc/globals.go
++++ b/usr/gri/gosrc/globals.go
+@@ -17,14 +17,12 @@ export Object
+ type Object struct {
+ 	mark bool;  // mark => object marked for export
+ 	kind int;
+-	name string;
+-	type_ *Type;
++	ident string;
++	typ *Type;
+ 	pnolev int;  // >= 0: package no., <= 0: level, 0: global level of compilation
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-
+ export Type
+ type Type struct {
+ 	ref int;  // for exporting only: >= 0 means already exported
+@@ -39,30 +37,172 @@ type Type struct {
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
++// TODO This is hideous! We need to have a decent way to do lists.
++// Ideally open arrays that allow '+'.
++
++type Elem struct {
++	next *Elem;
++	str string;
++	obj *Object;
++	typ *Type;
++}
++
++
++export List
++type List struct {
++	len_ int;
++	first, last *Elem;
++};
++
+ 
+ export Scope
+ type Scope struct {
+ 	parent *Scope;
+-	// list ObjList
++	entries *List;
++	// entries *map[string] *Object;  // doesn't work yet
++}
++
++
++// ----------------------------------------------------------------------------
++// Creation
++
++export NewObject
++func NewObject(kind int, ident string) *Object {
++	obj := new(Object);
++	obj.mark = false;
++	obj.kind = kind;
++	obj.ident = ident;
++	obj.typ = nil;  // Universe::undef_t;
++	obj.pnolev = 0;
++	return obj;
++}
++
++
++export NewType
++func NewType(form int) *Type {
++	typ := new(Type);
++	typ.form = form;
++	return typ;
++}
++
++
++export NewList
++func NewList() *List {
++	return new(List);
++}
++
++
++export NewScope
++func NewScope(parent *Scope) *Scope {
++	scope := new(Scope);
++	scope.parent = parent;
++	scope.entries = NewList();
++	return scope;
++}
++
++
++// ----------------------------------------------------------------------------
++// List methods
++
++func (L* List) len_() int {
++	return L.len_;
++}
++
++
++func (L *List) at(i int) *Elem {
++	if i < 0 || L.len_ <= i {
++		panic "index out of bounds";
++	}
++
++	p := L.first;
++	for ; i > 0; i-- {
++		p = p.next;
++	}
+ 	
++	return p;
++}
++
++
++func (L *List) Add() *Elem {
++	L.len_++;
++	e := new(Elem);
++	if L.first == nil {
++		L.first = e;
++	} else {
++		L.last.next = e;
++	}
++	L.last = e;
++	return e;
++}
++
++
++func (L *List) StrAt(i int) string {
++	return L.at(i).str;
++}
++
++
++func (L *List) ObjAt(i int) *Object {
++	return L.at(i).obj;
++}
++
++
++func (L *List) TypAt(i int) *Type {
++	return L.at(i).typ;
++}
++
++
++func (L *List) AddStr(str string) {
++	L.Add().str = str;
++}
++
++
++func (L *List) AddObj(obj *Object) {
++	L.Add().obj = obj;
++}
++
++
++func (L *List) AddTyp(typ *Type) {
++	L.Add().typ = typ;
+ }
+ 
+ 
+-/*
++// ----------------------------------------------------------------------------
++// Scope methods
++
+ func (scope *Scope) Lookup(ident string) *Object {
+-	panic "UNIMPLEMENTED";
++	var p *Elem;
++	for p = scope.entries.first; p != nil; p = p.next {
++		if p.obj.ident == ident {
++			return p.obj;
++		}
++	}
+ 	return nil;
+ }
+ 
+ 
+ func (scope *Scope) Insert(obj *Object) {
+-	panic "UNIMPLEMENTED";
++	if scope.Lookup(obj.ident) != nil {
++		panic;
++	}
++	scope.entries.AddObj(obj);
+ }
+ 
+ 
+ func (scope *Scope) InsertImport(obj *Object) *Object {
+-	panic "UNIMPLEMENTED";
+-	return nil;
++	 p := scope.Lookup(obj.ident);
++	 if p == nil {
++		scope.Insert(obj);
++		p = obj;
++	 }
++	 return p;
++}
++
++
++func (scope *Scope) Print() {
++	print "scope {";
++	var p* Elem;
++	for p = scope.entries.first; p != nil; p = p.next {
++		print "\n  ", p.obj.ident;
++	}
++	print "\n}\n";
+ }
+-*/
+diff --git a/usr/gri/gosrc/go.go b/usr/gri/gosrc/go.go
+index 8bf44d98b5..70fb1765f3 100644
+--- a/usr/gri/gosrc/go.go
++++ b/usr/gri/gosrc/go.go
+@@ -5,6 +5,10 @@
+ package main
+ 
+ import Build "build"
++import Globals "globals"
++import Object "object"
++import Type "type"
++import Universe "universe"
+ import Scanner "scanner"
+ import Parser "parser"
+ 
+@@ -23,6 +27,8 @@ func PrintHelp() {
+ 
+ 
+ func Compile(filename, src string, verbose int) {
++	Universe.Init();
++
+ 	S := new(Scanner.Scanner);
+ 	S.Open(filename, src);
+ 	
+diff --git a/usr/gri/gosrc/list.go b/usr/gri/gosrc/list.go
+deleted file mode 100644
+index f72c04ca43..0000000000
+--- a/usr/gri/gosrc/list.go
++++ /dev/null
+@@ -1,93 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package List
+-
+-import Globals "globals"  // because of 6g warning
+-import Object "object"
+-import Type "type"
+-
+-
+-// TODO This is hideous! We need to have a decent way to do lists.
+-// Ideally open arrays that allow '+'.
+-
+-type Elem struct {
+-	next *Elem;
+-	str string;
+-	obj *Object.Object;
+-	typ *Type.Type;
+-}
+-
+-
+-export List
+-type List struct {
+-	len_ int;
+-	first, last *Elem;
+-};
+-
+-
+-export NewList
+-func NewList() *List {
+-	return new(List);
+-}
+-
+-
+-func (L* List) len_() int {
+-	return L.len_;
+-}
+-
+-
+-func (L *List) at(i int) *Elem {
+-	if i < 0 || L.len_ <= i {
+-		panic "index out of bounds";
+-	}
+-
+-	p := L.first;
+-	for ; i > 0; i-- {
+-		p = p.next;
+-	}
+-	
+-	return p;
+-}
+-
+-
+-func (L *List) Add() *Elem {
+-	L.len_++;
+-	e := new(Elem);
+-	if L.first == nil {
+-		L.first = e;
+-	}
+-	L.last.next = e;
+-	L.last = e;
+-}
+-
+-
+-func (L *List) StrAt(i int) string {
+-	return L.at(i).str;
+-}
+-
+-
+-func (L *List) ObjAt(i int) *Object.Object {
+-	return L.at(i).obj;
+-}
+-
+-
+-func (L *List) TypAt(i int) *Type.Type {
+-	return L.at(i).typ;
+-}
+-
+-
+-func (L *List) AddStr(str string) {
+-	L.Add().str = str;
+-}
+-
+-
+-func (L *List) AddObj(obj *Object.Object) {
+-	L.Add().obj = obj;
+-}
+-
+-
+-func (L *List) AddTyp(typ *Type.Type) {
+-	L.Add().typ = typ;
+-}
+diff --git a/usr/gri/gosrc/object.go b/usr/gri/gosrc/object.go
+index 2e975e5dd8..1f3c04180d 100755
+--- a/usr/gri/gosrc/object.go
++++ b/usr/gri/gosrc/object.go
+@@ -15,17 +15,6 @@ const /* kind */ (
+ )
+ 
+ 
+-export Object
+-type Object Globals.Object
+-
+-
+-export NewObject
+-func NewObject(kind int, name string) *Object {
+-	obj := new(Object);
+-	obj.mark = false;
+-	obj.kind = kind;
+-	obj.name = name;
+-	obj.type_ = nil;  // Universe::undef_t;
+-	obj.pnolev = 0;
+-	return obj;
+-}
++// The 'Object' declaration should be here as well, but 6g cannot handle
++// this due to cross-package circular references. For now it's all in
++// globals.go.
+diff --git a/usr/gri/gosrc/type.go b/usr/gri/gosrc/type.go
+index 8b1fc75dd6..df3e43ea50 100644
+--- a/usr/gri/gosrc/type.go
++++ b/usr/gri/gosrc/type.go
+@@ -4,7 +4,12 @@
+ 
+ package Type
+ 
+-import Globals "globals"
++export
++	UNDEF, BAD, NIL,
++	BOOL, UINT, INT, FLOAT, STRING,
++	ANY,
++	ARRAY, STRUCT, INTERFACE, MAP, CHANNEL, FUNCTION, POINTER, REFERENCE
++
+ 
+ const /* form */ (
+ 	// internal types
+@@ -24,12 +29,6 @@ const /* flag */ (
+ )
+ 
+ 
+-export Type
+-type Type Globals.Type
+-
+-
+-export NewType
+-func NewType(form int) *Type {
+-	panic "UNIMPLEMENTED";
+-	return nil;
+-}
++// The 'Type' declaration should be here as well, but 6g cannot handle
++// this due to cross-package circular references. For now it's all in
++// globals.go.
+diff --git a/usr/gri/gosrc/universe.go b/usr/gri/gosrc/universe.go
+new file mode 100755
+index 0000000000..0e545eb9ef
+--- /dev/null
++++ b/usr/gri/gosrc/universe.go
+@@ -0,0 +1,148 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Universe
++
++import Globals "globals"
++import Object "object"
++import Type "type"
++
++
++export
++	scope,
++	undef_t, bad_t, nil_t,
++	bool_t,
++	uint8_t, uint16_t, uint32_t, uint64_t,
++	int8_t, int16_t, int32_t, int64_t,
++	float32_t, float64_t, float80_t,
++	string_t, any_t,
++	byte_t,
++	ushort_t, uint_t, ulong_t,
++	short_t, int_t, long_t,
++	float_t, double_t,
++	ptrint_t,
++	true_, false_
++	
++
++var (
++	scope *Globals.Scope;
++	
++	// internal types
++	undef_t,
++	bad_t,
++	nil_t,
++	
++	// basic types
++	bool_t,
++	uint8_t,
++	uint16_t,
++	uint32_t,
++	uint64_t,
++	int8_t,
++	int16_t,
++	int32_t,
++	int64_t,
++	float32_t,
++	float64_t,
++	float80_t,
++	string_t,
++	any_t,
++	
++	// alias types
++	byte_t,
++	ushort_t,
++	uint_t,
++	ulong_t,
++	short_t,
++	int_t,
++	long_t,
++	float_t,
++	double_t,
++	ptrint_t *Globals.Type;
++	
++	true_,
++	false_ *Globals.Object;
++)
++
++
++func DeclObj(kind int, ident string, typ *Globals.Type) *Globals.Object {
++	obj := Globals.NewObject(kind, ident);
++	obj.typ = typ;
++	if kind == Object.TYPE && typ.obj == nil {
++		typ.obj = obj;  // set primary type object
++	}
++	scope.Insert(obj);
++	return obj
++}
++
++
++func DeclAlias(ident string, typ *Globals.Type) *Globals.Type {
++	return DeclObj(Object.TYPE, ident, typ).typ;
++}
++
++
++func DeclType(form int, ident string, size int) *Globals.Type {
++  typ := Globals.NewType(form);
++  typ.size = size;
++  return DeclAlias(ident, typ);
++}
++
++
++func Register(typ *Globals.Type) *Globals.Type {
++	/*
++	type->ref = Universe::types.len(); // >= 0
++	Universe::types.Add(type);
++	*/
++	return typ;
++}
++
++
++export Init
++func Init() {
++	// print "initializing universe\n";
++	
++	scope = Globals.NewScope(nil);  // universe has no parent
++	
++	// Interal types
++	undef_t = Globals.NewType(Type.UNDEF);
++	bad_t = Globals.NewType(Type.BAD);
++	nil_t = DeclType(Type.NIL, "nil", 8);
++	
++	// Basic types
++	bool_t = Register(DeclType(Type.BOOL, "bool", 1));
++	uint8_t = Register(DeclType(Type.UINT, "uint8", 1));
++	uint16_t = Register(DeclType(Type.UINT, "uint16", 2));
++	uint32_t = Register(DeclType(Type.UINT, "uint32", 4));
++	uint64_t = Register(DeclType(Type.UINT, "uint64", 8));
++	int8_t = Register(DeclType(Type.INT, "int8", 1));
++	int16_t = Register(DeclType(Type.INT, "int16", 2));
++	int32_t = Register(DeclType(Type.INT, "int32", 4));
++	int64_t = Register(DeclType(Type.INT, "int64", 8));
++	float32_t = Register(DeclType(Type.FLOAT, "float32", 4));
++	float64_t = Register(DeclType(Type.FLOAT, "float64", 8));
++	float80_t = Register(DeclType(Type.FLOAT, "float80", 10));
++	string_t = Register(DeclType(Type.STRING, "string", 8));
++	any_t = Register(DeclType(Type.ANY, "any", 8));
++
++	// All but 'byte' should be platform-dependent, eventually.
++	byte_t = DeclAlias("byte", uint8_t);
++	ushort_t = DeclAlias("ushort", uint16_t);
++	uint_t = DeclAlias("uint", uint32_t);
++	ulong_t = DeclAlias("ulong", uint32_t);
++	short_t = DeclAlias("short", int16_t);
++	int_t = DeclAlias("int", int32_t);
++	long_t = DeclAlias("long", int32_t);
++	float_t = DeclAlias("float", float32_t);
++	double_t = DeclAlias("double", float64_t);
++	ptrint_t = DeclAlias("ptrint", uint64_t);
++
++	// Predeclared constants
++	true_ = DeclObj(Object.CONST, "true", bool_t);
++	false_ = DeclObj(Object.CONST, "false", bool_t);
++
++	// Builtin functions
++	DeclObj(Object.FUNC, "len", Globals.NewType(Type.FUNCTION));  // incomplete
++	
++	// scope.Print();
++}

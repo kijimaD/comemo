@@ -22,10 +22,212 @@ Date:   Wed Dec 14 13:36:19 2022 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go |  7 +++----
  src/cmd/internal/dwarf/dwarf.go            |  7 +++++++
  src/cmd/internal/obj/dwarf.go              | 12 ++++++++++--
  src/cmd/internal/obj/link.go               |  2 +-
  src/cmd/link/internal/ld/dwarf_test.go     | 27 ++++++++++++++++++++-------
  5 files changed, 41 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 90c331f0b6..886250a62f 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -23,7 +23,7 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
++func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) (scopes []dwarf.Scope, inlcalls dwarf.InlCalls, startPos src.XPos) {
+ 	fn := curfn.(*ir.Func)
+ 
+ 	if fn.Nname != nil {
+@@ -124,12 +124,11 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn interface{}) ([]dwarf.Scope,
+ 		varScopes = append(varScopes, findScope(fn.Marks, pos))
+ 	}
+ 
+-	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
+-	var inlcalls dwarf.InlCalls
++	scopes = assembleScopes(fnsym, fn, dwarfVars, varScopes)
+ 	if base.Flag.GenDwarfInl > 0 {
+ 		inlcalls = assembleInlines(fnsym, dwarfVars)
+ 	}
+-	return scopes, inlcalls
++	return scopes, inlcalls, fn.Pos()
+ }
+ 
+ func declPos(decl *ir.Name) src.XPos {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index a6d19c61d1..d4a4e33652 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -94,6 +94,7 @@ type FnState struct {
+ 	Absfn         Sym
+ 	StartPC       Sym
+ 	Size          int64
++	StartLine     int32
+ 	External      bool
+ 	Scopes        []Scope
+ 	InlCalls      InlCalls
+@@ -458,6 +459,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_high_pc, DW_FORM_addr},
+ 			{DW_AT_frame_base, DW_FORM_block1},
+ 			{DW_AT_decl_file, DW_FORM_data4},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_external, DW_FORM_flag},
+ 		},
+ 	},
+@@ -482,6 +484,7 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_inline, DW_FORM_data1},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_external, DW_FORM_flag},
+ 		},
+ 	},
+@@ -1254,6 +1257,8 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 	// DW_AT_inlined value
+ 	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
+ 
++	putattr(ctxt, s.Absfn, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
++
+ 	var ev int64
+ 	if s.External {
+ 		ev = 1
+@@ -1446,6 +1451,8 @@ func PutDefaultFunc(ctxt Context, s *FnState, isWrapper bool) error {
+ 		putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, int64(1), 0)
+ 	} else {
+ 		ctxt.AddFileRef(s.Info, s.Filesym)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(s.StartLine), nil)
++
+ 		var ev int64
+ 		if s.External {
+ 			ev = 1
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index a9c13fdc8c..121a9f6ee9 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -353,7 +353,9 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
+ 	var scopes []dwarf.Scope
+ 	var inlcalls dwarf.InlCalls
+ 	if ctxt.DebugInfo != nil {
+-		scopes, inlcalls = ctxt.DebugInfo(s, info, curfn)
++		// Don't need startPos because s.Func().StartLine is populated,
++		// as s is in this package.
++		scopes, inlcalls, _ = ctxt.DebugInfo(s, info, curfn)
+ 	}
+ 	var err error
+ 	dwctxt := dwCtxt{ctxt}
+@@ -368,6 +370,7 @@ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string)
+ 		Absfn:         absfunc,
+ 		StartPC:       s,
+ 		Size:          s.Size,
++		StartLine:     s.Func().StartLine,
+ 		External:      !s.Static(),
+ 		Scopes:        scopes,
+ 		InlCalls:      inlcalls,
+@@ -427,8 +430,12 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 	if s.Func() == nil {
+ 		s.NewFuncInfo()
+ 	}
+-	scopes, _ := ctxt.DebugInfo(s, absfn, curfn)
++	scopes, _, startPos := ctxt.DebugInfo(s, absfn, curfn)
++	_, startLine := ctxt.getFileSymbolAndLine(startPos)
+ 	dwctxt := dwCtxt{ctxt}
++	// TODO(prattmic): this returns nil for symbols outside of the current
++	// package because s.Func() is empty. This doesn't matter because
++	// PutAbstractFunc doesn't use Filesym. Use startPos or remove.
+ 	filesym := ctxt.fileSymbol(s)
+ 	fnstate := dwarf.FnState{
+ 		Name:          s.Name,
+@@ -436,6 +443,7 @@ func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath str
+ 		Info:          absfn,
+ 		Filesym:       filesym,
+ 		Absfn:         absfn,
++		StartLine:     startLine,
+ 		External:      !s.Static(),
+ 		Scopes:        scopes,
+ 		UseBASEntries: ctxt.UseBASEntries,
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 80370173af..6d40b334af 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -916,7 +916,7 @@ type Link struct {
+ 	Imports            []goobj.ImportedPkg
+ 	DiagFunc           func(string, ...interface{})
+ 	DiagFlush          func()
+-	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
++	DebugInfo          func(fn *LSym, info *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls, src.XPos) // if non-nil, curfn is a *ir.Func
+ 	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index a3db4a99ff..a11541f320 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -334,10 +334,12 @@ func main() {
+ 	}
+ }
+ 
+-func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
++// expectLine is the expected line for main.
++func varDeclCoordsAndSubprogramDeclFile(t *testing.T, testpoint string, expectFile string, expectLine int, directive string) {
+ 	t.Parallel()
+ 
+ 	prog := fmt.Sprintf("package main\n%s\nfunc main() {\n\nvar i int\ni = i\n}\n", directive)
++	const iLineOffset = 2
+ 
+ 	dir := t.TempDir()
+ 
+@@ -385,9 +387,12 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
+ 	}
+ 
+ 	// Verify line/file attributes.
+-	line := iEntry.Val(dwarf.AttrDeclLine)
+-	if line == nil || line.(int64) != int64(expectLine) {
+-		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
++	line, lineOK := iEntry.Val(dwarf.AttrDeclLine).(int64)
++	if !lineOK {
++		t.Errorf("missing or invalid DW_AT_decl_line for i")
++	}
++	if line != int64(expectLine+iLineOffset) {
++		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine+iLineOffset)
+ 	}
+ 
+ 	fileIdx, fileIdxOK := maindie.Val(dwarf.AttrDeclFile).(int64)
+@@ -402,6 +407,14 @@ func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFil
+ 	if base != expectFile {
+ 		t.Errorf("DW_AT_decl_file for main is %v, want %v", base, expectFile)
+ 	}
++
++	line, lineOK = maindie.Val(dwarf.AttrDeclLine).(int64)
++	if !lineOK {
++		t.Errorf("missing or invalid DW_AT_decl_line for main")
++	}
++	if line != int64(expectLine) {
++		t.Errorf("DW_AT_decl_line for main is %v, want %d", line, expectLine)
++	}
+ }
+ 
+ func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+@@ -411,7 +424,7 @@ func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", "test.go", 5, "")
++	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoords", "test.go", 3, "")
+ }
+ 
+ func TestVarDeclCoordsWithLineDirective(t *testing.T) {
+@@ -421,8 +434,8 @@ func TestVarDeclCoordsWithLineDirective(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
+-		"foobar.go", 202, "//line /foobar.go:200")
++	varDeclCoordsAndSubprogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
++		"foobar.go", 200, "//line /foobar.go:200")
+ }
+ 
+ func TestInlinedRoutineRecords(t *testing.T) {

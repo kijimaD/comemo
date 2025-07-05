@@ -9,8 +9,99 @@ Date:   Sat Mar 16 00:37:28 2013 +0100
     R=golang-dev, r, rsc, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/7664043
-
+---
  src/cmd/gc/const.c     | 26 ++++++++++++++++++++++++++
  src/cmd/gc/typecheck.c |  6 ++++--
  test/shift1.go         | 12 ++++++++++++
  3 files changed, 42 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 4f1ff67785..db9693007d 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -119,6 +119,27 @@ convlit1(Node **np, Type *t, int explicit)
+ 		}
+ 		n->type = t;
+ 		return;
++	case OCOMPLEX:
++		if(n->type->etype == TIDEAL) {
++			switch(t->etype) {
++			default:
++				// If trying to convert to non-complex type,
++				// leave as complex128 and let typechecker complain.
++				t = types[TCOMPLEX128];
++				//fallthrough
++			case TCOMPLEX128:
++				n->type = t;
++				convlit(&n->left, types[TFLOAT64]);
++				convlit(&n->right, types[TFLOAT64]);
++				break;
++			case TCOMPLEX64:
++				n->type = t;
++				convlit(&n->left, types[TFLOAT32]);
++				convlit(&n->right, types[TFLOAT32]);
++				break;
++			}
++		}
++		return;
+ 	}
+ 
+ 	// avoided repeated calculations, errors
+@@ -1068,6 +1089,11 @@ idealkind(Node *n)
+ 			return k1;
+ 		else
+ 			return k2;
++	case OREAL:
++	case OIMAG:
++		return CTFLT;
++	case OCOMPLEX:
++		return CTCPLX;
+ 	case OADDSTR:
+ 		return CTSTR;
+ 	case OANDAND:
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index fd19c49bf6..4c213dd6d8 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1180,16 +1180,18 @@ reswitch:
+ 		if(l->type == T || r->type == T)
+ 			goto error;
+ 		defaultlit2(&l, &r, 0);
++		if(l->type == T || r->type == T)
++			goto error;
+ 		n->left = l;
+ 		n->right = r;
+ 		if(!eqtype(l->type, r->type)) {
+-		badcmplx:
+ 			yyerror("invalid operation: %N (mismatched types %T and %T)", n, l->type, r->type);
+ 			goto error;
+ 		}
+ 		switch(l->type->etype) {
+ 		default:
+-			goto badcmplx;
++			yyerror("invalid operation: %N (arguments have type %T, expected floating-point)", n, l->type, r->type);
++			goto error;
+ 		case TIDEAL:
+ 			t = types[TIDEAL];
+ 			break;
+diff --git a/test/shift1.go b/test/shift1.go
+index f1ec0bf587..46867a9334 100644
+--- a/test/shift1.go
++++ b/test/shift1.go
+@@ -42,4 +42,16 @@ var (
+ 	a3 = 1.0<<s + 0 // ERROR "invalid operation|shift of non-integer operand"
+ 	// issue 4937
+ 	b3 = 1<<s + 1 + 1.0 // ERROR "invalid operation|shift of non-integer operand"
++	// issue 5014
++	c3     = complex(1<<s, 0) // ERROR "shift of type float64"
++	d3 int = complex(1<<s, 3) // ERROR "cannot use.*as type int" "shift of type float64"
++	e3     = real(1 << s)     // ERROR "invalid"
++	f3     = imag(1 << s)     // ERROR "invalid"
++)
++
++var (
++	a4 float64
++	b4 int
++	c4 = complex(1<<s, a4) // ERROR "shift of type float64"
++	d4 = complex(1<<s, b4) // ERROR "invalid"
+ )

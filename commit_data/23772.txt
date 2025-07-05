@@ -8,8 +8,54 @@ Date:   Thu Jun 11 11:51:54 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/10950
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/type_dragonfly.go | 9 +++++++++
  src/mime/type_freebsd.go   | 9 +++++++++
  src/mime/type_openbsd.go   | 9 +++++++++
  3 files changed, 27 insertions(+)
+
+diff --git a/src/mime/type_dragonfly.go b/src/mime/type_dragonfly.go
+new file mode 100644
+index 0000000000..d09d74a9cc
+--- /dev/null
++++ b/src/mime/type_dragonfly.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++func init() {
++	typeFiles = append(typeFiles, "/usr/local/etc/mime.types")
++}
+diff --git a/src/mime/type_freebsd.go b/src/mime/type_freebsd.go
+new file mode 100644
+index 0000000000..d09d74a9cc
+--- /dev/null
++++ b/src/mime/type_freebsd.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++func init() {
++	typeFiles = append(typeFiles, "/usr/local/etc/mime.types")
++}
+diff --git a/src/mime/type_openbsd.go b/src/mime/type_openbsd.go
+new file mode 100644
+index 0000000000..c3b1abb99f
+--- /dev/null
++++ b/src/mime/type_openbsd.go
+@@ -0,0 +1,9 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mime
++
++func init() {
++	typeFiles = append(typeFiles, "/usr/share/misc/mime.types")
++}

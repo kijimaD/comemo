@@ -18,7 +18,7 @@ Date:   Fri Apr 17 09:11:57 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/228780
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/data.go   |  84 +++++++++++-------------
  src/cmd/link/internal/ld/dwarf.go  | 130 ++++++++++++++++++++++++-------------
  src/cmd/link/internal/ld/dwarf2.go |  75 ++++++++++++---------
@@ -28,3 +28,626 @@ Date:   Fri Apr 17 09:11:57 2020 -0400
  src/cmd/link/internal/ld/pe.go     |  10 ++-
  src/cmd/link/internal/ld/xcoff.go  |  10 ++-
  8 files changed, 215 insertions(+), 138 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index d8f823806a..1f0a4adde9 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -599,8 +599,10 @@ func (ctxt *Link) reloc() {
+ 		wg.Done()
+ 	}()
+ 	go func() {
+-		for _, s := range dwarfp {
+-			relocsym(target, ldr, reporter, syms, s)
++		for _, si := range dwarfp {
++			for _, s := range si.syms {
++				relocsym(target, ldr, reporter, syms, s)
++			}
+ 		}
+ 		wg.Done()
+ 	}()
+@@ -1042,7 +1044,21 @@ func Dwarfblk(ctxt *Link, out *OutBuf, addr int64, size int64) {
+ 		ctxt.Logf("dwarfblk [%#x,%#x) at offset %#x\n", addr, addr+size, ctxt.Out.Offset())
+ 	}
+ 
+-	writeBlocks(out, ctxt.outSem, dwarfp, addr, size, zeros[:])
++	// Concatenate the section symbol lists into a single list to pass
++	// to writeBlocks.
++	//
++	// NB: ideally we would do a separate writeBlocks call for each
++	// section, but this would run the risk of undoing any file offset
++	// adjustments made during layout.
++	n := 0
++	for i := range dwarfp {
++		n += len(dwarfp[i].syms)
++	}
++	syms := make([]*sym.Symbol, 0, n)
++	for i := range dwarfp {
++		syms = append(syms, dwarfp[i].syms...)
++	}
++	writeBlocks(out, ctxt.outSem, syms, addr, size, zeros[:])
+ }
+ 
+ var zeros [512]byte
+@@ -1963,13 +1979,10 @@ func (state *dodataState) allocateSections(ctxt *Link) {
+ 		ctxt.datap = append(ctxt.datap, state.data[symn]...)
+ 	}
+ 
+-	var i int
+-	for ; i < len(dwarfp); i++ {
+-		s := dwarfp[i]
+-		if s.Type != sym.SDWARFSECT {
+-			break
+-		}
+-
++	// DWARF
++	for i := 0; i < len(dwarfp); i++ {
++		// First the section symbol.
++		s := dwarfp[i].secSym()
+ 		sect = addsection(ctxt.Arch, &Segdwarf, s.Name, 04)
+ 		sect.Sym = s
+ 		sect.Align = 1
+@@ -1979,39 +1992,15 @@ func (state *dodataState) allocateSections(ctxt *Link) {
+ 		s.Type = sym.SRODATA
+ 		s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+ 		state.datsize += s.Size
+-		sect.Length = uint64(state.datsize) - sect.Vaddr
+-	}
+-	state.checkdatsize(sym.SDWARFSECT)
++		curType := s.Type
+ 
+-	for i < len(dwarfp) {
+-		curType := dwarfp[i].Type
+-		var sect *sym.Section
+-		var sectname string
+-		switch curType {
+-		case sym.SDWARFINFO:
+-			sectname = ".debug_info"
+-		case sym.SDWARFRANGE:
+-			sectname = ".debug_ranges"
+-		case sym.SDWARFLOC:
+-			sectname = ".debug_loc"
+-		default:
+-			// Error is unrecoverable, so panic.
+-			panic(fmt.Sprintf("unknown DWARF section %v", curType))
+-		}
+-		sect = addsection(ctxt.Arch, &Segdwarf, sectname, 04)
+-		sect.Sym = ctxt.Syms.ROLookup(sectname, 0)
+-		sect.Align = 1
+-		state.datsize = Rnd(state.datsize, int64(sect.Align))
+-		sect.Vaddr = uint64(state.datsize)
+-		for ; i < len(dwarfp); i++ {
+-			s := dwarfp[i]
+-			if s.Type != curType {
+-				break
+-			}
++		// Then any sub-symbols for the section symbol.
++		subSyms := dwarfp[i].subSyms()
++		for j := 0; j < len(subSyms); j++ {
++			s := subSyms[j]
+ 			s.Sect = sect
+ 			s.Type = sym.SRODATA
+ 			s.Value = int64(uint64(state.datsize) - sect.Vaddr)
+-			s.Attr |= sym.AttrLocal
+ 			state.datsize += s.Size
+ 
+ 			if ctxt.HeadType == objabi.Haix && curType == sym.SDWARFLOC {
+@@ -2504,12 +2493,17 @@ func (ctxt *Link) address() []*sym.Segment {
+ 		}
+ 	}
+ 
+-	for _, s := range dwarfp {
+-		if s.Sect != nil {
+-			s.Value += int64(s.Sect.Vaddr)
+-		}
+-		for sub := s.Sub; sub != nil; sub = sub.Sub {
+-			sub.Value += s.Value
++	for _, si := range dwarfp {
++		for _, s := range si.syms {
++			if s.Sect != nil {
++				s.Value += int64(s.Sect.Vaddr)
++			}
++			if s.Sub != nil {
++				panic(fmt.Sprintf("unexpected sub-sym for %s %s", s.Name, s.Type.String()))
++			}
++			for sub := s.Sub; sub != nil; sub = sub.Sub {
++				sub.Value += s.Value
++			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index fcc15016f8..41262eff7e 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -177,14 +177,46 @@ func (c dwctxt2) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets [
+ 
+ var gdbscript string
+ 
+-var dwarfp2 []loader.Sym
++// dwarfSecInfo holds information about a DWARF output section,
++// specifically a section symbol and a list of symbols contained in
++// that section. On the syms list, the first symbol will always be the
++// section symbol, then any remaining symbols (if any) will be
++// sub-symbols in that section. Note that for some sections (eg:
++// .debug_abbrev), the section symbol is all there is (all content is
++// contained in it). For other sections (eg: .debug_info), the section
++// symbol is empty and all the content is in the sub-symbols. Finally
++// there are some sections (eg: .debug_ranges) where it is a mix (both
++// the section symbol and the sub-symbols have content)
++type dwarfSecInfo struct {
++	syms []loader.Sym
++}
++
++// secSym returns the section symbol for the section.
++func (dsi *dwarfSecInfo) secSym() loader.Sym {
++	if len(dsi.syms) == 0 {
++		return 0
++	}
++	return dsi.syms[0]
++}
++
++// subSyms returns a list of sub-symbols for the section.
++func (dsi *dwarfSecInfo) subSyms() []loader.Sym {
++	if len(dsi.syms) == 0 {
++		return []loader.Sym{}
++	}
++	return dsi.syms[1:]
++}
++
++// dwarfp2 stores the collected DWARF symbols created during
++// dwarf generation.
++var dwarfp2 []dwarfSecInfo
+ 
+-func (d *dwctxt2) writeabbrev() loader.Sym {
++func (d *dwctxt2) writeabbrev() dwarfSecInfo {
+ 	abrvs := d.ldr.LookupOrCreateSym(".debug_abbrev", 0)
+ 	u := d.ldr.MakeSymbolUpdater(abrvs)
+ 	u.SetType(sym.SDWARFSECT)
+ 	u.AddBytes(dwarf.GetAbbrev())
+-	return abrvs
++	return dwarfSecInfo{syms: []loader.Sym{abrvs}}
+ }
+ 
+ var dwtypes dwarf.DWDie
+@@ -1294,12 +1326,11 @@ func appendPCDeltaCFA(arch *sys.Arch, b []byte, deltapc, cfa int64) []byte {
+ 	return b
+ }
+ 
+-func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
++func (d *dwctxt2) writeframes() dwarfSecInfo {
+ 	fs := d.ldr.LookupOrCreateSym(".debug_frame", 0)
+ 	fsd := dwSym(fs)
+ 	fsu := d.ldr.MakeSymbolUpdater(fs)
+ 	fsu.SetType(sym.SDWARFSECT)
+-	syms = append(syms, fs)
+ 	isdw64 := isDwarf64(d.linkctxt)
+ 	haslr := haslinkregister(d.linkctxt)
+ 
+@@ -1443,7 +1474,7 @@ func (d *dwctxt2) writeframes(syms []loader.Sym) []loader.Sym {
+ 		}
+ 	}
+ 
+-	return syms
++	return dwarfSecInfo{syms: []loader.Sym{fs}}
+ }
+ 
+ /*
+@@ -1464,13 +1495,13 @@ func appendSyms(syms []loader.Sym, src []sym.LoaderSym) []loader.Sym {
+ 	return syms
+ }
+ 
+-func (d *dwctxt2) writeinfo(syms []loader.Sym, units []*sym.CompilationUnit, abbrevsym loader.Sym, pubNames, pubTypes *pubWriter2) []loader.Sym {
++func (d *dwctxt2) writeinfo(units []*sym.CompilationUnit, abbrevsym loader.Sym, pubNames, pubTypes *pubWriter2) dwarfSecInfo {
+ 
+ 	infosec := d.ldr.LookupOrCreateSym(".debug_info", 0)
+ 	disu := d.ldr.MakeSymbolUpdater(infosec)
+ 	disu.SetType(sym.SDWARFINFO)
+ 	d.ldr.SetAttrReachable(infosec, true)
+-	syms = append(syms, infosec)
++	syms := []loader.Sym{infosec}
+ 
+ 	for _, u := range units {
+ 		compunit := u.DWInfo
+@@ -1548,7 +1579,8 @@ func (d *dwctxt2) writeinfo(syms []loader.Sym, units []*sym.CompilationUnit, abb
+ 		pubTypes.endCompUnit(compunit, uint32(cusize)+4)
+ 		syms = append(syms, cu...)
+ 	}
+-	return syms
++
++	return dwarfSecInfo{syms: syms}
+ }
+ 
+ /*
+@@ -1624,10 +1656,10 @@ func ispubtype(die *dwarf.DWDie) bool {
+ 	return die.Abbrev >= dwarf.DW_ABRV_NULLTYPE
+ }
+ 
+-func (d *dwctxt2) writegdbscript(syms []loader.Sym) []loader.Sym {
++func (d *dwctxt2) writegdbscript() dwarfSecInfo {
+ 	// TODO (aix): make it available
+ 	if d.linkctxt.HeadType == objabi.Haix {
+-		return syms
++		return dwarfSecInfo{}
+ 	}
+ 	if d.linkctxt.LinkMode == LinkExternal && d.linkctxt.HeadType == objabi.Hwindows && d.linkctxt.BuildMode == BuildModeCArchive {
+ 		// gcc on Windows places .debug_gdb_scripts in the wrong location, which
+@@ -1636,21 +1668,19 @@ func (d *dwctxt2) writegdbscript(syms []loader.Sym) []loader.Sym {
+ 		// (see fix near writeGDBLinkerScript).
+ 		// c-archive users would need to specify the linker script manually.
+ 		// For UX it's better not to deal with this.
+-		return syms
++		return dwarfSecInfo{}
+ 	}
+-
+-	if gdbscript != "" {
+-		gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
+-		u := d.ldr.MakeSymbolUpdater(gs)
+-		u.SetType(sym.SDWARFSECT)
+-
+-		syms = append(syms, gs)
+-		u.AddUint8(1) // magic 1 byte?
+-		u.Addstring(gdbscript)
++	if gdbscript == "" {
++		return dwarfSecInfo{}
+ 	}
+ 
+-	return syms
++	gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
++	u := d.ldr.MakeSymbolUpdater(gs)
++	u.SetType(sym.SDWARFSECT)
+ 
++	u.AddUint8(1) // magic 1 byte?
++	u.Addstring(gdbscript)
++	return dwarfSecInfo{syms: []loader.Sym{gs}}
+ }
+ 
+ // FIXME: might be worth looking replacing this map with a function
+@@ -1976,8 +2006,8 @@ func dwarfGenerateDebugSyms(ctxt *Link) {
+ }
+ 
+ func (d *dwctxt2) dwarfGenerateDebugSyms() {
+-	abbrev := d.writeabbrev()
+-	syms := []loader.Sym{abbrev}
++	abbrevSec := d.writeabbrev()
++	dwarfp2 = append(dwarfp2, abbrevSec)
+ 
+ 	d.calcCompUnitRanges()
+ 	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
+@@ -1987,7 +2017,7 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
+ 	dlu := d.ldr.MakeSymbolUpdater(debugLine)
+ 	dlu.SetType(sym.SDWARFSECT)
+ 	d.ldr.SetAttrReachable(debugLine, true)
+-	syms = append(syms, debugLine)
++	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{debugLine}})
+ 
+ 	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
+ 	dru := d.ldr.MakeSymbolUpdater(debugRanges)
+@@ -2014,27 +2044,34 @@ func (d *dwctxt2) dwarfGenerateDebugSyms() {
+ 	pubNames := newPubWriter2(d, ".debug_pubnames")
+ 	pubTypes := newPubWriter2(d, ".debug_pubtypes")
+ 
+-	// Need to reorder symbols so sym.SDWARFINFO is after all sym.SDWARFSECT
+-	infosyms := d.writeinfo(nil, d.linkctxt.compUnits, abbrev, pubNames, pubTypes)
+-
+-	syms = d.writeframes(syms)
+-	syms = append(syms, pubNames.s, pubTypes.s)
+-	syms = d.writegdbscript(syms)
+-	// We are now done writing SDWARFSECT symbols, so we can write
+-	// other SDWARF* symbols.
+-	syms = append(syms, infosyms...)
+-	syms = d.collectlocs(syms, d.linkctxt.compUnits)
+-	syms = append(syms, debugRanges)
++	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), pubNames, pubTypes)
++
++	framesSec := d.writeframes()
++	dwarfp2 = append(dwarfp2, framesSec)
++	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{pubNames.s}})
++	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: []loader.Sym{pubTypes.s}})
++	gdbScriptSec := d.writegdbscript()
++	if gdbScriptSec.secSym() != 0 {
++		dwarfp2 = append(dwarfp2, gdbScriptSec)
++	}
++	dwarfp2 = append(dwarfp2, infoSec)
++	locSec := d.collectlocs(d.linkctxt.compUnits)
++	if locSec.secSym() != 0 {
++		dwarfp2 = append(dwarfp2, locSec)
++	}
++
++	rsyms := []loader.Sym{debugRanges}
+ 	for _, unit := range d.linkctxt.compUnits {
+ 		for _, s := range unit.RangeSyms2 {
+-			syms = append(syms, loader.Sym(s))
++			rsyms = append(rsyms, loader.Sym(s))
+ 		}
+ 	}
+-	dwarfp2 = syms
++	dwarfp2 = append(dwarfp2, dwarfSecInfo{syms: rsyms})
+ }
+ 
+-func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) []loader.Sym {
++func (d *dwctxt2) collectlocs(units []*sym.CompilationUnit) dwarfSecInfo {
+ 	empty := true
++	syms := []loader.Sym{}
+ 	for _, u := range units {
+ 		for _, fn := range u.FuncDIEs2 {
+ 			relocs := d.ldr.Relocs(loader.Sym(fn))
+@@ -2057,14 +2094,15 @@ func (d *dwctxt2) collectlocs(syms []loader.Sym, units []*sym.CompilationUnit) [
+ 	}
+ 
+ 	// Don't emit .debug_loc if it's empty -- it makes the ARM linker mad.
+-	if !empty {
+-		locsym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
+-		u := d.ldr.MakeSymbolUpdater(locsym)
+-		u.SetType(sym.SDWARFLOC)
+-		d.ldr.SetAttrReachable(locsym, true)
+-		syms = append(syms, locsym)
++	if empty {
++		return dwarfSecInfo{}
+ 	}
+-	return syms
++
++	locsym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
++	u := d.ldr.MakeSymbolUpdater(locsym)
++	u.SetType(sym.SDWARFLOC)
++	d.ldr.SetAttrReachable(locsym, true)
++	return dwarfSecInfo{syms: append([]loader.Sym{locsym}, syms...)}
+ }
+ 
+ /*
+diff --git a/src/cmd/link/internal/ld/dwarf2.go b/src/cmd/link/internal/ld/dwarf2.go
+index cf69e17a1a..0f0eb0b756 100644
+--- a/src/cmd/link/internal/ld/dwarf2.go
++++ b/src/cmd/link/internal/ld/dwarf2.go
+@@ -24,7 +24,27 @@ func isDwarf64(ctxt *Link) bool {
+ 	return ctxt.HeadType == objabi.Haix
+ }
+ 
+-var dwarfp []*sym.Symbol
++// dwarfSecInfo2 is a replica of the dwarfSecInfo struct but with
++// *sym.Symbol content instead of loader.Sym content.
++type dwarfSecInfo2 struct {
++	syms []*sym.Symbol
++}
++
++func (dsi *dwarfSecInfo2) secSym() *sym.Symbol {
++	if len(dsi.syms) == 0 {
++		return nil
++	}
++	return dsi.syms[0]
++}
++
++func (dsi *dwarfSecInfo2) subSyms() []*sym.Symbol {
++	if len(dsi.syms) == 0 {
++		return []*sym.Symbol{}
++	}
++	return dsi.syms[1:]
++}
++
++var dwarfp []dwarfSecInfo2
+ 
+ /*
+  *  Elf.
+@@ -89,19 +109,13 @@ func dwarfcompress(ctxt *Link) {
+ 		return
+ 	}
+ 
+-	var start, compressedCount int
++	var compressedCount int
+ 	resChannel := make(chan compressedSect)
+-	for i, s := range dwarfp {
+-		// Find the boundaries between sections and compress
+-		// the whole section once we've found the last of its
+-		// symbols.
+-		if i+1 >= len(dwarfp) || s.Sect != dwarfp[i+1].Sect {
+-			go func(resIndex int, syms []*sym.Symbol) {
+-				resChannel <- compressedSect{resIndex, compressSyms(ctxt, syms), syms}
+-			}(compressedCount, dwarfp[start:i+1])
+-			compressedCount++
+-			start = i + 1
+-		}
++	for i := range dwarfp {
++		go func(resIndex int, syms []*sym.Symbol) {
++			resChannel <- compressedSect{resIndex, compressSyms(ctxt, syms), syms}
++		}(compressedCount, dwarfp[i].syms)
++		compressedCount++
+ 	}
+ 	res := make([]compressedSect, compressedCount)
+ 	for ; compressedCount > 0; compressedCount-- {
+@@ -109,13 +123,14 @@ func dwarfcompress(ctxt *Link) {
+ 		res[r.index] = r
+ 	}
+ 
+-	var newDwarfp []*sym.Symbol
++	var newDwarfp []dwarfSecInfo2
+ 	Segdwarf.Sections = Segdwarf.Sections[:0]
+ 	for _, z := range res {
+ 		s := z.syms[0]
+ 		if z.compressed == nil {
+ 			// Compression didn't help.
+-			newDwarfp = append(newDwarfp, z.syms...)
++			ds := dwarfSecInfo2{syms: z.syms}
++			newDwarfp = append(newDwarfp, ds)
+ 			Segdwarf.Sections = append(Segdwarf.Sections, s.Sect)
+ 		} else {
+ 			compressedSegName := ".zdebug_" + s.Sect.Name[len(".debug_"):]
+@@ -125,7 +140,8 @@ func dwarfcompress(ctxt *Link) {
+ 			newSym.P = z.compressed
+ 			newSym.Size = int64(len(z.compressed))
+ 			newSym.Sect = sect
+-			newDwarfp = append(newDwarfp, newSym)
++			ds := dwarfSecInfo2{syms: []*sym.Symbol{newSym}}
++			newDwarfp = append(newDwarfp, ds)
+ 		}
+ 	}
+ 	dwarfp = newDwarfp
+@@ -135,20 +151,21 @@ func dwarfcompress(ctxt *Link) {
+ 	// based on Section.Vaddr and Symbol.Value.
+ 	pos := Segdwarf.Vaddr
+ 	var prevSect *sym.Section
+-	for _, s := range dwarfp {
+-		s.Value = int64(pos)
+-		if s.Sect != prevSect {
+-			s.Sect.Vaddr = uint64(s.Value)
+-			prevSect = s.Sect
++	for _, si := range dwarfp {
++		for _, s := range si.syms {
++			s.Value = int64(pos)
++			if s.Sect != prevSect {
++				s.Sect.Vaddr = uint64(s.Value)
++				prevSect = s.Sect
++			}
++			if s.Sub != nil {
++				log.Fatalf("%s: unexpected sub-symbols", s)
++			}
++			pos += uint64(s.Size)
++			if ctxt.HeadType == objabi.Hwindows {
++				pos = uint64(Rnd(int64(pos), PEFILEALIGN))
++			}
+ 		}
+-		if s.Sub != nil {
+-			log.Fatalf("%s: unexpected sub-symbols", s)
+-		}
+-		pos += uint64(s.Size)
+-		if ctxt.HeadType == objabi.Hwindows {
+-			pos = uint64(Rnd(int64(pos), PEFILEALIGN))
+-		}
+-
+ 	}
+ 	Segdwarf.Length = pos - Segdwarf.Vaddr
+ }
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 43728f388f..fa7221ffb1 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1447,8 +1447,14 @@ func Elfemitreloc(ctxt *Link) {
+ 	for _, sect := range Segdata.Sections {
+ 		elfrelocsect(ctxt, sect, ctxt.datap)
+ 	}
+-	for _, sect := range Segdwarf.Sections {
+-		elfrelocsect(ctxt, sect, dwarfp)
++	for i := 0; i < len(Segdwarf.Sections); i++ {
++		sect := Segdwarf.Sections[i]
++		si := dwarfp[i]
++		if si.secSym() != sect.Sym ||
++			si.secSym().Sect != sect {
++			panic("inconsistency between dwarfp and Segdwarf")
++		}
++		elfrelocsect(ctxt, sect, si.syms)
+ 	}
+ }
+ 
+@@ -2230,10 +2236,9 @@ elfobj:
+ 		for _, sect := range Segdata.Sections {
+ 			elfshreloc(ctxt.Arch, sect)
+ 		}
+-		for _, s := range dwarfp {
+-			if len(s.R) > 0 || s.Type == sym.SDWARFINFO || s.Type == sym.SDWARFLOC {
+-				elfshreloc(ctxt.Arch, s.Sect)
+-			}
++		for _, si := range dwarfp {
++			s := si.secSym()
++			elfshreloc(ctxt.Arch, s.Sect)
+ 		}
+ 		// add a .note.GNU-stack section to mark the stack as non-executable
+ 		sh := elfshname(".note.GNU-stack")
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c400d80a18..b71bef22f4 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2820,14 +2820,19 @@ func (ctxt *Link) loadlibfull() {
+ 	pclntabFirstFunc = ctxt.loader.Syms[pclntabFirstFunc2]
+ 	pclntabLastFunc = ctxt.loader.Syms[pclntabLastFunc2]
+ 
+-	// Populate dwarfp from dwarfp2. If we see a symbol index on dwarfp2
++	// Populate dwarfp from dwarfp2. If we see a symbol index
+ 	// whose loader.Syms entry is nil, something went wrong.
+-	for _, symIdx := range dwarfp2 {
+-		s := ctxt.loader.Syms[symIdx]
+-		if s == nil {
+-			panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
++	for _, si := range dwarfp2 {
++		syms := make([]*sym.Symbol, 0, len(si.syms))
++		for _, symIdx := range si.syms {
++			s := ctxt.loader.Syms[symIdx]
++			if s == nil {
++				panic(fmt.Sprintf("nil sym for dwarfp2 element %d", symIdx))
++			}
++			s.Attr |= sym.AttrLocal
++			syms = append(syms, s)
+ 		}
+-		dwarfp = append(dwarfp, s)
++		dwarfp = append(dwarfp, dwarfSecInfo2{syms: syms})
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 4429b74d1e..baa1f4094a 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -1065,8 +1065,14 @@ func Machoemitreloc(ctxt *Link) {
+ 	for _, sect := range Segdata.Sections {
+ 		machorelocsect(ctxt, sect, ctxt.datap)
+ 	}
+-	for _, sect := range Segdwarf.Sections {
+-		machorelocsect(ctxt, sect, dwarfp)
++	for i := 0; i < len(Segdwarf.Sections); i++ {
++		sect := Segdwarf.Sections[i]
++		si := dwarfp[i]
++		if si.secSym() != sect.Sym ||
++			si.secSym().Sect != sect {
++			panic("inconsistency between dwarfp and Segdwarf")
++		}
++		machorelocsect(ctxt, sect, si.syms)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 364e757985..fda5590700 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -557,11 +557,17 @@ func (f *peFile) emitRelocations(ctxt *Link) {
+ 	}
+ 
+ dwarfLoop:
+-	for _, sect := range Segdwarf.Sections {
++	for i := 0; i < len(Segdwarf.Sections); i++ {
++		sect := Segdwarf.Sections[i]
++		si := dwarfp[i]
++		if si.secSym() != sect.Sym ||
++			si.secSym().Sect != sect {
++			panic("inconsistency between dwarfp and Segdwarf")
++		}
+ 		for _, pesect := range f.sections {
+ 			if sect.Name == pesect.name {
+ 				pesect.emitRelocations(ctxt.Out, func() int {
+-					return relocsect(sect, dwarfp, sect.Vaddr)
++					return relocsect(sect, si.syms, sect.Vaddr)
+ 				})
+ 				continue dwarfLoop
+ 			}
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 9fe3669eee..94920f4457 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1657,12 +1657,18 @@ func (f *xcoffFile) emitRelocations(ctxt *Link, fileoff int64) {
+ 	}
+ 
+ dwarfLoop:
+-	for _, sect := range Segdwarf.Sections {
++	for i := 0; i < len(Segdwarf.Sections); i++ {
++		sect := Segdwarf.Sections[i]
++		si := dwarfp[i]
++		if si.secSym() != sect.Sym ||
++			si.secSym().Sect != sect {
++			panic("inconsistency between dwarfp and Segdwarf")
++		}
+ 		for _, xcoffSect := range f.sections {
+ 			_, subtyp := xcoffGetDwarfSubtype(sect.Name)
+ 			if xcoffSect.Sflags&0xF0000 == subtyp {
+ 				xcoffSect.Srelptr = uint64(ctxt.Out.Offset())
+-				xcoffSect.Snreloc = relocsect(sect, dwarfp, sect.Vaddr)
++				xcoffSect.Snreloc = relocsect(sect, si.syms, sect.Vaddr)
+ 				continue dwarfLoop
+ 			}
+ 		}

@@ -26,7 +26,7 @@ Date:   Mon Sep 16 20:31:21 2013 -0400
     R=golang-dev, khr, cshapiro, rsc, dave
     CC=golang-dev
     https://golang.org/cl/12815046
-
+---
  src/cmd/gc/builtin.c         |   3 --
  src/cmd/gc/runtime.go        |   5 --
  src/cmd/gc/walk.c            | 108 ++++++++++++++++++++++++++++++++++++++-----
@@ -35,3 +35,314 @@ Date:   Mon Sep 16 20:31:21 2013 -0400
  src/pkg/runtime/arch_arm.h   |   1 -
  src/pkg/runtime/slice.c      | 103 -----------------------------------------
  7 files changed, 96 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c b/src/cmd/gc/builtin.c
+index 77deece47f..309dc1ea04 100644
+--- a/src/cmd/gc/builtin.c
++++ b/src/cmd/gc/builtin.c
+@@ -24,9 +24,6 @@ char *runtimeimport =
+ 	"func @\"\".printsp ()\n"
+ 	"func @\"\".goprintf ()\n"
+ 	"func @\"\".concatstring ()\n"
+-	"func @\"\".append ()\n"
+-	"func @\"\".appendslice (@\"\".typ·2 *byte, @\"\".x·3 any, @\"\".y·4 []any) (? any)\n"
+-	"func @\"\".appendstr (@\"\".typ·2 *byte, @\"\".x·3 []byte, @\"\".y·4 string) (? []byte)\n"
+ 	"func @\"\".cmpstring (? string, ? string) (? int)\n"
+ 	"func @\"\".eqstring (? string, ? string) (? bool)\n"
+ 	"func @\"\".intstring (? int64) (? string)\n"
+diff --git a/src/cmd/gc/runtime.go b/src/cmd/gc/runtime.go
+index 6054aafd25..c8d57ab33f 100644
+--- a/src/cmd/gc/runtime.go
++++ b/src/cmd/gc/runtime.go
+@@ -39,11 +39,6 @@ func goprintf()
+ // filled in by compiler: int n, string, string, ...
+ func concatstring()
+ 
+-// filled in by compiler: Type*, int n, Slice, ...
+-func append()
+-func appendslice(typ *byte, x any, y []any) any
+-func appendstr(typ *byte, x []byte, y string) []byte
+-
+ func cmpstring(string, string) int
+ func eqstring(string, string) bool
+ func intstring(int64) string
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a1172b87ef..9bba736631 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1236,12 +1236,8 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 	
+ 	case OAPPEND:
+-		if(n->isddd) {
+-			if(istype(n->type->type, TUINT8) && istype(n->list->next->n->type, TSTRING))
+-				n = mkcall("appendstr", n->type, init, typename(n->type), n->list->n, n->list->next->n);
+-			else
+-				n = appendslice(n, init);
+-		}
++		if(n->isddd)
++			n = appendslice(n, init); // also works for append(slice, string).
+ 		else
+ 			n = append(n, init);
+ 		goto ret;
+@@ -2538,16 +2534,104 @@ addstr(Node *n, NodeList **init)
+ 	return r;
+ }
+ 
++// expand append(l1, l2...) to
++//   init {
++//     s := l1
++//     if n := len(l1) + len(l2) - cap(s); n > 0 {
++//       s = growslice(s, n)
++//     }
++//     s = s[:len(l1)+len(l2)]
++//     memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
++//   }
++//   s
++//
++// l2 is allowed to be a string.
+ static Node*
+ appendslice(Node *n, NodeList **init)
+ {
+-	Node *f;
++	NodeList *l;
++	Node *l1, *l2, *nt, *nif, *fn;
++	Node *nptr1, *nptr2, *nwid;
++	Node *s;
++
++	walkexprlistsafe(n->list, init);
++
++	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
++	// and n are name or literal, but those may index the slice we're
++	// modifying here.  Fix explicitly.
++	for(l=n->list; l; l=l->next)
++		l->n = cheapexpr(l->n, init);
++
++	l1 = n->list->n;
++	l2 = n->list->next->n;
+ 
+-	f = syslook("appendslice", 1);
+-	argtype(f, n->type);
+-	argtype(f, n->type->type);
+-	argtype(f, n->type);
+-	return mkcall1(f, n->type, init, typename(n->type), n->list->n, n->list->next->n);
++	s = temp(l1->type); // var s []T
++	l = nil;
++	l = list(l, nod(OAS, s, l1)); // s = l1
++
++	nt = temp(types[TINT]);
++	nif = nod(OIF, N, N);
++	// n := len(s) + len(l2) - cap(s)
++	nif->ninit = list1(nod(OAS, nt,
++		nod(OSUB, nod(OADD, nod(OLEN, s, N), nod(OLEN, l2, N)), nod(OCAP, s, N))));
++	nif->ntest = nod(OGT, nt, nodintconst(0));
++	// instantiate growslice(Type*, []any, int64) []any
++	fn = syslook("growslice", 1);
++	argtype(fn, s->type->type);
++	argtype(fn, s->type->type);
++
++	// s = growslice(T, s, n)
++	nif->nbody = list1(nod(OAS, s, mkcall1(fn, s->type, &nif->ninit,
++					       typename(s->type),
++					       s,
++					       conv(nt, types[TINT64]))));
++
++	l = list(l, nif);
++
++	if(flag_race) {
++		// rely on runtime to instrument copy.
++		// copy(s[len(l1):len(l1)+len(l2)], l2)
++		nptr1 = nod(OSLICE, s, nod(OKEY,
++			nod(OLEN, l1, N),
++			nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N))));
++		nptr1->etype = 1;
++		nptr2 = l2;
++		if(l2->type->etype == TSTRING)
++			fn = syslook("slicestringcopy", 1);
++		else
++			fn = syslook("copy", 1);
++		argtype(fn, l1->type);
++		argtype(fn, l2->type);
++		l = list(l, mkcall1(fn, types[TINT], init,
++				nptr1, nptr2,
++				nodintconst(s->type->type->width)));
++	} else {
++		// memmove(&s[len(l1)], &l2[0], len(l2)*sizeof(T))
++		nptr1 = nod(OINDEX, s, nod(OLEN, l1, N));
++		nptr1->bounded = 1;
++		nptr1 = nod(OADDR, nptr1, N);
++
++		nptr2 = nod(OSPTR, l2, N);
++
++		fn = syslook("memmove", 1);
++		argtype(fn, s->type->type);	// 1 old []any
++		argtype(fn, s->type->type);	// 2 ret []any
++
++		nwid = cheapexpr(conv(nod(OLEN, l2, N), types[TUINTPTR]), &l);
++		nwid = nod(OMUL, nwid, nodintconst(s->type->type->width));
++		l = list(l, mkcall1(fn, T, init, nptr1, nptr2, nwid));
++	}
++
++	// s = s[:len(l1)+len(l2)]
++	nt = nod(OADD, nod(OLEN, l1, N), nod(OLEN, l2, N));
++	nt = nod(OSLICE, s, nod(OKEY, N, nt));
++	nt->etype = 1;
++	l = list(l, nod(OAS, s, nt));
++
++	typechecklist(l, Etop);
++	walkstmtlist(l);
++	*init = concat(*init, l);
++	return s;
+ }
+ 
+ // expand append(src, a [, b]* ) to
+diff --git a/src/pkg/runtime/arch_386.h b/src/pkg/runtime/arch_386.h
+index fb31f00a93..ebdb3ff4e2 100644
+--- a/src/pkg/runtime/arch_386.h
++++ b/src/pkg/runtime/arch_386.h
+@@ -6,7 +6,6 @@ enum {
+ 	thechar = '8',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 0,
+ 	RuntimeGogoBytes = 64,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_amd64.h b/src/pkg/runtime/arch_amd64.h
+index cd43dbadde..2bddf07967 100644
+--- a/src/pkg/runtime/arch_amd64.h
++++ b/src/pkg/runtime/arch_amd64.h
+@@ -6,7 +6,6 @@ enum {
+ 	thechar = '6',
+ 	BigEndian = 0,
+ 	CacheLineSize = 64,
+-	appendCrossover = 0,
+ 	RuntimeGogoBytes = 64,
+ 	PCQuantum = 1
+ };
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index 8c299dd006..e5da01c603 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -6,7 +6,6 @@ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+ 	CacheLineSize = 32,
+-	appendCrossover = 8,
+ 	RuntimeGogoBytes = 80,
+ 	PCQuantum = 4
+ };
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index abe4cfb5f9..ef8ab7fe0a 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -57,109 +57,6 @@ makeslice1(SliceType *t, intgo len, intgo cap, Slice *ret)
+ 	ret->array = runtime·cnewarray(t->elem, cap);
+ }
+ 
+-// appendslice(type *Type, x, y, []T) []T
+-#pragma textflag NOSPLIT
+-void
+-runtime·appendslice(SliceType *t, Slice x, Slice y, Slice ret)
+-{
+-	intgo m;
+-	uintptr w;
+-	void *pc;
+-	uint8 *p, *q;
+-
+-	m = x.len+y.len;
+-	w = t->elem->size;
+-
+-	if(m < x.len)
+-		runtime·throw("append: slice overflow");
+-
+-	if(m > x.cap)
+-		growslice1(t, x, m, &ret);
+-	else
+-		ret = x;
+-
+-	if(raceenabled) {
+-		// Don't mark read/writes on the newly allocated slice.
+-		pc = runtime·getcallerpc(&t);
+-		// read x[:len]
+-		if(m > x.cap)
+-			runtime·racereadrangepc(x.array, x.len*w, pc, runtime·appendslice);
+-		// read y
+-		runtime·racereadrangepc(y.array, y.len*w, pc, runtime·appendslice);
+-		// write x[len(x):len(x)+len(y)]
+-		if(m <= x.cap)
+-			runtime·racewriterangepc(ret.array+ret.len*w, y.len*w, pc, runtime·appendslice);
+-	}
+-
+-	// A very common case is appending bytes. Small appends can avoid the overhead of memmove.
+-	// We can generalize a bit here, and just pick small-sized appends.
+-	p = ret.array+ret.len*w;
+-	q = y.array;
+-	w *= y.len;
+-	if(appendCrossover > 0 && w <= appendCrossover) {
+-		if(p <= q || w <= p-q) // No overlap.
+-			while(w-- > 0)
+-				*p++ = *q++;
+-		else {
+-			p += w;
+-			q += w;
+-			while(w-- > 0)
+-				*--p = *--q;
+-		}
+-	} else {
+-		runtime·memmove(p, q, w);
+-	}
+-	ret.len += y.len;
+-	FLUSH(&ret);
+-}
+-
+-
+-// appendstr([]byte, string) []byte
+-#pragma textflag NOSPLIT
+-void
+-runtime·appendstr(SliceType *t, Slice x, String y, Slice ret)
+-{
+-	intgo m;
+-	void *pc;
+-	uintptr w;
+-	uint8 *p, *q;
+-
+-	m = x.len+y.len;
+-
+-	if(m < x.len)
+-		runtime·throw("append: string overflow");
+-
+-	if(m > x.cap)
+-		growslice1(t, x, m, &ret);
+-	else
+-		ret = x;
+-
+-	if(raceenabled) {
+-		// Don't mark read/writes on the newly allocated slice.
+-		pc = runtime·getcallerpc(&t);
+-		// read x[:len]
+-		if(m > x.cap)
+-			runtime·racereadrangepc(x.array, x.len, pc, runtime·appendstr);
+-		// write x[len(x):len(x)+len(y)]
+-		if(m <= x.cap)
+-			runtime·racewriterangepc(ret.array+ret.len, y.len, pc, runtime·appendstr);
+-	}
+-
+-	// Small appends can avoid the overhead of memmove.
+-	w = y.len;
+-	p = ret.array+ret.len;
+-	q = y.str;
+-	if(appendCrossover > 0 && w <= appendCrossover) {
+-		while(w-- > 0)
+-			*p++ = *q++;
+-	} else {
+-		runtime·memmove(p, q, w);
+-	}
+-	ret.len += y.len;
+-	FLUSH(&ret);
+-}
+-
+-
+ // growslice(type *Type, x, []T, n int64) []T
+ void
+ runtime·growslice(SliceType *t, Slice old, int64 n, Slice ret)

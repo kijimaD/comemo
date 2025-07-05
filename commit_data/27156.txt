@@ -12,6 +12,20 @@ Date:   Mon Mar 14 10:24:19 2016 +0000
     Reviewed-by: Minux Ma <minux@golang.org>
     Run-TryBot: Minux Ma <minux@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/funcdata.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/funcdata.h b/src/runtime/funcdata.h
+index 290c23b823..82992e221b 100644
+--- a/src/runtime/funcdata.h
++++ b/src/runtime/funcdata.h
+@@ -36,7 +36,7 @@
+ // GO_RESULTS_INITIALIZED indicates that the assembly function
+ // has initialized the stack space for its results and that those results
+ // should be considered live for the remainder of the function.
+-#define GO_RESULTS_INITIALIZED	FUNCDATA PCDATA $PCDATA_StackMapIndex, 1
++#define GO_RESULTS_INITIALIZED	PCDATA $PCDATA_StackMapIndex, $1
+ 
+ // NO_LOCAL_POINTERS indicates that the assembly function stores
+ // no pointers to heap objects in its local stack variables.

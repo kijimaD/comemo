@@ -13,7 +13,7 @@ Date:   Thu Mar 5 17:15:36 2009 -0800
     R=r
     OCL=25797
     CL=25797
-
+---
  usr/gri/pretty/ast.go         |  36 ++-
  usr/gri/pretty/compilation.go |   4 +-
  usr/gri/pretty/parser.go      | 736 +++++++++++++++++++-----------------------
@@ -21,3 +21,2526 @@ Date:   Thu Mar 5 17:15:36 2009 -0800
  usr/gri/pretty/printer.go     | 162 +++++-----
  usr/gri/pretty/selftest2.go   |  15 +-
  6 files changed, 453 insertions(+), 501 deletions(-)
+
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index adf9b59085..e854054887 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package AST
++package ast
+ 
+ import (
+ 	"vector";
+ 	"token";
+-	SymbolTable "symboltable";
+ )
+ 
+ 
+@@ -62,7 +61,7 @@ type (
+ 
+ 	Ident struct {
+ 		Pos_ int;
+-		Obj *SymbolTable.Object;
++		Str string;
+ 	};
+ 
+ 	BinaryExpr struct {
+@@ -77,10 +76,15 @@ type (
+ 		X Expr;
+ 	};
+ 
++	// TODO this should probably just be a list instead
++	ConcatExpr struct {
++		X, Y Expr;
++	};
++
+ 	BasicLit struct {
+ 		Pos_ int;
+ 		Tok int;
+-		Val string
++		Val []byte;
+ 	};
+ 
+ 	FunctionLit struct {
+@@ -121,6 +125,10 @@ type (
+ 	Ellipsis struct {  // neither a type nor an expression
+ 		Pos_ int;
+ 	};
++	
++	TypeType struct {  // for type switches
++		Pos_ int;  // position of "type"
++	};
+ 
+ 	ArrayType struct {
+ 		Pos_ int;  // position of "["
+@@ -184,6 +192,7 @@ type ExprVisitor interface {
+ 	DoIdent(x *Ident);
+ 	DoBinaryExpr(x *BinaryExpr);
+ 	DoUnaryExpr(x *UnaryExpr);
++	DoConcatExpr(x *ConcatExpr);
+ 	DoBasicLit(x *BasicLit);
+ 	DoFunctionLit(x *FunctionLit);
+ 	DoGroup(x *Group);
+@@ -193,6 +202,7 @@ type ExprVisitor interface {
+ 	DoCall(x *Call);
+ 	
+ 	DoEllipsis(x *Ellipsis);
++	DoTypeType(x *TypeType);
+ 	DoArrayType(x *ArrayType);
+ 	DoStructType(x *StructType);
+ 	DoPointerType(x *PointerType);
+@@ -209,6 +219,7 @@ func (x *BadExpr) Pos() int { return x.Pos_; }
+ func (x *Ident) Pos() int { return x.Pos_; }
+ func (x *BinaryExpr) Pos() int { return x.Pos_; }
+ func (x *UnaryExpr) Pos() int { return x.Pos_; }
++func (x *ConcatExpr) Pos() int { return x.X.Pos(); }
+ func (x *BasicLit) Pos() int { return x.Pos_; }
+ func (x *FunctionLit) Pos() int { return x.Pos_; }
+ func (x *Group) Pos() int { return x.Pos_; }
+@@ -218,6 +229,7 @@ func (x *Index) Pos() int { return x.Pos_; }
+ func (x *Call) Pos() int { return x.Pos_; }
+ 
+ func (x *Ellipsis) Pos() int { return x.Pos_; }
++func (x *TypeType) Pos() int { return x.Pos_; }
+ func (x *ArrayType) Pos() int { return x.Pos_; }
+ func (x *StructType) Pos() int { return x.Pos_; }
+ func (x *PointerType) Pos() int { return x.Pos_; }
+@@ -232,6 +244,7 @@ func (x *BadExpr) Visit(v ExprVisitor) { v.DoBadExpr(x); }
+ func (x *Ident) Visit(v ExprVisitor) { v.DoIdent(x); }
+ func (x *BinaryExpr) Visit(v ExprVisitor) { v.DoBinaryExpr(x); }
+ func (x *UnaryExpr) Visit(v ExprVisitor) { v.DoUnaryExpr(x); }
++func (x *ConcatExpr) Visit(v ExprVisitor) { v.DoConcatExpr(x); }
+ func (x *BasicLit) Visit(v ExprVisitor) { v.DoBasicLit(x); }
+ func (x *FunctionLit) Visit(v ExprVisitor) { v.DoFunctionLit(x); }
+ func (x *Group) Visit(v ExprVisitor) { v.DoGroup(x); }
+@@ -241,6 +254,7 @@ func (x *Index) Visit(v ExprVisitor) { v.DoIndex(x); }
+ func (x *Call) Visit(v ExprVisitor) { v.DoCall(x); }
+ 
+ func (x *Ellipsis) Visit(v ExprVisitor) { v.DoEllipsis(x); }
++func (x *TypeType) Visit(v ExprVisitor) { v.DoTypeType(x); }
+ func (x *ArrayType) Visit(v ExprVisitor) { v.DoArrayType(x); }
+ func (x *StructType) Visit(v ExprVisitor) { v.DoStructType(x); }
+ func (x *PointerType) Visit(v ExprVisitor) { v.DoPointerType(x); }
+@@ -482,7 +496,6 @@ type DeclVisitor interface {
+ }
+ 
+ 
+-//func (d *Decl) Visit(v DeclVisitor) { v.DoDecl(d); }
+ func (d *BadDecl) Visit(v DeclVisitor) { v.DoBadDecl(d); }
+ func (d *ImportDecl) Visit(v DeclVisitor) { v.DoImportDecl(d); }
+ func (d *ConstDecl) Visit(v DeclVisitor) { v.DoConstDecl(d); }
+@@ -497,22 +510,15 @@ func (d *DeclList) Visit(v DeclVisitor) { v.DoDeclList(d); }
+ 
+ type Comment struct {
+ 	Pos int;
+-	Text string;
+-}
+-
+-
+-func NewComment(pos int, text string) *Comment {
+-	c := new(Comment);
+-	c.Pos, c.Text = pos, text;
+-	return c;
++	Text []byte;
+ }
+ 
+ 
+ type Program struct {
+ 	Pos int;  // tok is token.PACKAGE
+-	Ident Expr;
++	Ident *Ident;
+ 	Decls []Decl;
+-	Comments *vector.Vector;
++	Comments []*Comment;
+ }
+ 
+ 
+diff --git a/usr/gri/pretty/compilation.go b/usr/gri/pretty/compilation.go
+index 74b589e40d..bec5d07031 100644
+--- a/usr/gri/pretty/compilation.go
++++ b/usr/gri/pretty/compilation.go
+@@ -27,7 +27,6 @@ func assert(b bool) {
+ 
+ type Flags struct {
+ 	Verbose bool;
+-	Sixg bool;
+ 	Deps bool;
+ 	Columns bool;
+ }
+@@ -124,7 +123,7 @@ func Compile(src_file string, flags *Flags) (*AST.Program, int) {
+ 	scanner.Init(src, &err, true);
+ 
+ 	var parser Parser.Parser;
+-	parser.Open(&scanner, &err, flags.Verbose, flags.Sixg, flags.Deps);
++	parser.Open(&scanner, &err, flags.Verbose);
+ 
+ 	prog := parser.ParseProgram();
+ 
+@@ -204,6 +203,7 @@ func addDeps(globalset map [string] bool, wset *vector.Vector, src_file string,
+ 
+ 
+ func ComputeDeps(src_file string, flags *Flags) {
++	panic("dependency printing currently disabled");
+ 	globalset := make(map [string] bool);
+ 	wset := vector.New(0);
+ 	wset.Push(Utils.TrimExt(src_file, ".go"));
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index 4b000b4463..f71620b90f 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -5,13 +5,10 @@
+ package Parser
+ 
+ import (
+-	"flag";
+ 	"fmt";
+ 	"vector";
+ 	"token";
+-	"scanner";
+-	AST "ast";
+-	SymbolTable "symboltable";
++	"ast";
+ )
+ 
+ 
+@@ -20,12 +17,17 @@ type ErrorHandler interface {
+ }
+ 
+ 
++type Scanner interface {
++	Scan() (pos, tok int, lit []byte);
++}
++
++
+ type Parser struct {
+-	scanner *scanner.Scanner;
++	scanner Scanner;
+ 	err ErrorHandler;
+ 
+ 	// Tracing/debugging
+-	trace, sixg, deps bool;
++	trace bool;
+ 	indent uint;
+ 
+ 	comments *vector.Vector;
+@@ -33,22 +35,18 @@ type Parser struct {
+ 	// The next token
+ 	pos int;  // token source position
+ 	tok int;  // one token look-ahead
+-	val string;  // token value (for IDENT, NUMBER, STRING only)
++	val []byte;  // token value
+ 
+ 	// Non-syntactic parser control
+ 	opt_semi bool;  // true if semicolon separator is optional in statement list
+ 
+ 	// Nesting levels
+ 	expr_lev int;  // < 0: in control clause, >= 0: in expression
+-	scope_lev int;  // 0: global scope, 1: function scope of global functions, etc.
+-
+-	// Scopes
+-	top_scope *SymbolTable.Scope;
+ };
+ 
+ 
+ // ----------------------------------------------------------------------------
+-// Elementary support
++// Helper functions
+ 
+ func unimplemented() {
+ 	panic("unimplemented");
+@@ -98,10 +96,8 @@ func un/*trace*/(P *Parser) {
+ 
+ 
+ func (P *Parser) next0() {
+-	// TODO make P.val a []byte
+ 	var val []byte;
+-	P.pos, P.tok, val = P.scanner.Scan();
+-	P.val = string(val);
++	P.pos, P.tok, P.val = P.scanner.Scan();
+ 	P.opt_semi = false;
+ 
+ 	if P.trace {
+@@ -124,24 +120,21 @@ func (P *Parser) next0() {
+ 
+ func (P *Parser) next() {
+ 	for P.next0(); P.tok == token.COMMENT; P.next0() {
+-		P.comments.Push(AST.NewComment(P.pos, P.val));
++		P.comments.Push(&ast.Comment{P.pos, P.val});
+ 	}
+ }
+ 
+ 
+-func (P *Parser) Open(scanner *scanner.Scanner, err ErrorHandler, trace, sixg, deps bool) {
++func (P *Parser) Open(scanner Scanner, err ErrorHandler, trace bool) {
+ 	P.scanner = scanner;
+ 	P.err = err;
+ 
+ 	P.trace = trace;
+-	P.sixg = sixg;
+-	P.deps = deps;
+ 	P.indent = 0;
+ 
+ 	P.comments = vector.New(0);
+ 
+ 	P.next();
+-	P.scope_lev = 0;
+ 	P.expr_lev = 0;
+ }
+ 
+@@ -155,7 +148,7 @@ func (P *Parser) expect(tok int) {
+ 	if P.tok != tok {
+ 		msg := "expected '" + token.TokenString(tok) + "', found '" + token.TokenString(P.tok) + "'";
+ 		if token.IsLiteral(P.tok) {
+-			msg += " " + P.val;
++			msg += " " + string(P.val);
+ 		}
+ 		P.error(P.pos, msg);
+ 	}
+@@ -170,114 +163,51 @@ func (P *Parser) OptSemicolon() {
+ }
+ 
+ 
+-// ----------------------------------------------------------------------------
+-// Scopes
+-
+-func (P *Parser) openScope() {
+-	P.top_scope = SymbolTable.NewScope(P.top_scope);
+-}
+-
+-
+-func (P *Parser) closeScope() {
+-	P.top_scope = P.top_scope.Parent;
+-}
+-
+-
+-/*
+-func (P *Parser) declareInScope(scope *SymbolTable.Scope, x AST.Expr, kind int, typ *AST.Type) {
+-	if P.scope_lev < 0 {
+-		panic("cannot declare objects in other packages");
+-	}
+-	if ident, ok := x.(*AST.Ident); ok {  // ignore bad exprs
+-		obj := ident.Obj;
+-		obj.Kind = kind;
+-		//TODO fix typ setup!
+-		//obj.Typ = typ;
+-		obj.Pnolev = P.scope_lev;
+-		switch {
+-		case scope.LookupLocal(obj.Ident) == nil:
+-			scope.Insert(obj);
+-		case kind == SymbolTable.TYPE:
+-			// possibly a forward declaration
+-		case kind == SymbolTable.FUNC:
+-			// possibly a forward declaration
+-		default:
+-			P.error(obj.Pos, `"` + obj.Ident + `" is declared already`);
+-		}
+-	}
+-}
+-
+-
+-// Declare a comma-separated list of idents or a single ident.
+-func (P *Parser) declare(x AST.Expr, kind int, typ *AST.Type) {
+-	for {
+-		p, ok := x.(*AST.BinaryExpr);
+-		if ok && p.Tok == token.COMMA {
+-			P.declareInScope(P.top_scope, p.X, kind, typ);
+-			x = p.Y;
+-		} else {
+-			break;
+-		}
+-	}
+-	P.declareInScope(P.top_scope, x, kind, typ);
+-}
+-*/
+-
+-
+ // ----------------------------------------------------------------------------
+ // Common productions
+ 
+-func (P *Parser) tryType() AST.Expr;
+-func (P *Parser) parseExpression(prec int) AST.Expr;
+-func (P *Parser) parseStatement() AST.Stat;
+-func (P *Parser) parseDeclaration() AST.Decl;
++func (P *Parser) tryType() ast.Expr;
++func (P *Parser) parseExpression(prec int) ast.Expr;
++func (P *Parser) parseStatement() ast.Stat;
++func (P *Parser) parseDeclaration() ast.Decl;
+ 
+ 
+ // If scope != nil, lookup identifier in scope. Otherwise create one.
+-func (P *Parser) parseIdent(scope *SymbolTable.Scope) *AST.Ident {
++func (P *Parser) parseIdent() *ast.Ident {
+ 	if P.trace {
+ 		defer un(trace(P, "Ident"));
+ 	}
+ 
+ 	if P.tok == token.IDENT {
+-		var obj *SymbolTable.Object;
+-		if scope != nil {
+-			obj = scope.Lookup(P.val);
+-		}
+-		if obj == nil {
+-			obj = SymbolTable.NewObject(P.pos, SymbolTable.NONE, P.val);
+-		} else {
+-			assert(obj.Kind != SymbolTable.NONE);
+-		}
+-		x := &AST.Ident{P.pos, obj};
++		x := &ast.Ident{P.pos, string(P.val)};
+ 		P.next();
+ 		return x;
+ 	}
+ 
+ 	P.expect(token.IDENT);  // use expect() error handling
+-	return &AST.Ident{P.pos, nil};
++	return &ast.Ident{P.pos, ""};
+ }
+ 
+ 
+-func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
++func (P *Parser) parseIdentList(x ast.Expr) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "IdentList"));
+ 	}
+ 
+-	var last *AST.BinaryExpr;
++	var last *ast.BinaryExpr;
+ 	if x == nil {
+-		x = P.parseIdent(nil);
++		x = P.parseIdent();
+ 	}
+ 	for P.tok == token.COMMA {
+ 		pos := P.pos;
+ 		P.next();
+-		y := P.parseIdent(nil);
++		y := P.parseIdent();
+ 		if last == nil {
+-			last = &AST.BinaryExpr{pos, token.COMMA, x, y};
++			last = &ast.BinaryExpr{pos, token.COMMA, x, y};
+ 			x = last;
+ 		} else {
+-			last.Y = &AST.BinaryExpr{pos, token.COMMA, last.Y, y};
+-			last = last.Y.(*AST.BinaryExpr);
++			last.Y = &ast.BinaryExpr{pos, token.COMMA, last.Y, y};
++			last = last.Y.(*ast.BinaryExpr);
+ 		}
+ 	}
+ 
+@@ -285,25 +215,25 @@ func (P *Parser) parseIdentList(x AST.Expr) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseIdentList2(x AST.Expr) []*AST.Ident {
++func (P *Parser) parseIdentList2(x ast.Expr) []*ast.Ident {
+ 	if P.trace {
+ 		defer un(trace(P, "IdentList"));
+ 	}
+ 
+ 	list := vector.New(0);
+ 	if x == nil {
+-		x = P.parseIdent(nil);
++		x = P.parseIdent();
+ 	}
+ 	list.Push(x);
+ 	for P.tok == token.COMMA {
+ 		P.next();
+-		list.Push(P.parseIdent(nil));
++		list.Push(P.parseIdent());
+ 	}
+ 
+ 	// convert vector
+-	idents := make([]*AST.Ident, list.Len());
++	idents := make([]*ast.Ident, list.Len());
+ 	for i := 0; i < list.Len(); i++ {
+-		idents[i] = list.At(i).(*AST.Ident);
++		idents[i] = list.At(i).(*ast.Ident);
+ 	}
+ 	return idents;
+ }
+@@ -312,7 +242,7 @@ func (P *Parser) parseIdentList2(x AST.Expr) []*AST.Ident {
+ // ----------------------------------------------------------------------------
+ // Types
+ 
+-func (P *Parser) parseType() AST.Expr {
++func (P *Parser) parseType() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Type"));
+ 	}
+@@ -320,14 +250,14 @@ func (P *Parser) parseType() AST.Expr {
+ 	t := P.tryType();
+ 	if t == nil {
+ 		P.error(P.pos, "type expected");
+-		t = &AST.BadExpr{P.pos};
++		t = &ast.BadExpr{P.pos};
+ 	}
+ 
+ 	return t;
+ }
+ 
+ 
+-func (P *Parser) parseVarType() AST.Expr {
++func (P *Parser) parseVarType() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "VarType"));
+ 	}
+@@ -336,24 +266,24 @@ func (P *Parser) parseVarType() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseQualifiedIdent() AST.Expr {
++func (P *Parser) parseQualifiedIdent() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "QualifiedIdent"));
+ 	}
+ 
+-	var x AST.Expr = P.parseIdent(P.top_scope);
++	var x ast.Expr = P.parseIdent();
+ 	for P.tok == token.PERIOD {
+ 		pos := P.pos;
+ 		P.next();
+-		y := P.parseIdent(nil);
+-		x = &AST.Selector{pos, x, y};
++		y := P.parseIdent();
++		x = &ast.Selector{pos, x, y};
+ 	}
+ 
+ 	return x;
+ }
+ 
+ 
+-func (P *Parser) parseTypeName() AST.Expr {
++func (P *Parser) parseTypeName() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeName"));
+ 	}
+@@ -362,16 +292,16 @@ func (P *Parser) parseTypeName() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseArrayType() *AST.ArrayType {
++func (P *Parser) parseArrayType() *ast.ArrayType {
+ 	if P.trace {
+ 		defer un(trace(P, "ArrayType"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	P.expect(token.LBRACK);
+-	var len AST.Expr;
++	var len ast.Expr;
+ 	if P.tok == token.ELLIPSIS {
+-		len = &AST.Ellipsis{P.pos};
++		len = &ast.Ellipsis{P.pos};
+ 		P.next();
+ 	} else if P.tok != token.RBRACK {
+ 		len = P.parseExpression(1);
+@@ -379,55 +309,55 @@ func (P *Parser) parseArrayType() *AST.ArrayType {
+ 	P.expect(token.RBRACK);
+ 	elt := P.parseType();
+ 
+-	return &AST.ArrayType{pos, len, elt};
++	return &ast.ArrayType{pos, len, elt};
+ }
+ 
+ 
+-func (P *Parser) parseChannelType() *AST.ChannelType {
++func (P *Parser) parseChannelType() *ast.ChannelType {
+ 	if P.trace {
+ 		defer un(trace(P, "ChannelType"));
+ 	}
+ 
+ 	pos := P.pos;
+-	mode := AST.FULL;
++	mode := ast.FULL;
+ 	if P.tok == token.CHAN {
+ 		P.next();
+ 		if P.tok == token.ARROW {
+ 			P.next();
+-			mode = AST.SEND;
++			mode = ast.SEND;
+ 		}
+ 	} else {
+ 		P.expect(token.ARROW);
+ 		P.expect(token.CHAN);
+-		mode = AST.RECV;
++		mode = ast.RECV;
+ 	}
+ 	val := P.parseVarType();
+ 
+-	return &AST.ChannelType{pos, mode, val};
++	return &ast.ChannelType{pos, mode, val};
+ }
+ 
+ 
+-func (P *Parser) tryParameterType() AST.Expr {
++func (P *Parser) tryParameterType() ast.Expr {
+ 	if P.tok == token.ELLIPSIS {
+ 		pos := P.tok;
+ 		P.next();
+-		return &AST.Ellipsis{pos};
++		return &ast.Ellipsis{pos};
+ 	}
+ 	return P.tryType();
+ }
+ 
+ 
+-func (P *Parser) parseParameterType() AST.Expr {
++func (P *Parser) parseParameterType() ast.Expr {
+ 	typ := P.tryParameterType();
+ 	if typ == nil {
+ 		P.error(P.tok, "type expected");
+-		typ = &AST.BadExpr{P.pos};
++		typ = &ast.BadExpr{P.pos};
+ 	}
+ 	return typ;
+ }
+ 
+ 
+-func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, AST.Expr) {
++func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, ast.Expr) {
+ 	if P.trace {
+ 		defer un(trace(P, "ParameterDecl"));
+ 	}
+@@ -451,7 +381,7 @@ func (P *Parser) parseParameterDecl(ellipsis_ok bool) (*vector.Vector, AST.Expr)
+ }
+ 
+ 
+-func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
++func (P *Parser) parseParameterList(ellipsis_ok bool) []*ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "ParameterList"));
+ 	}
+@@ -460,32 +390,32 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
+ 	if typ != nil {
+ 		// IdentifierList Type
+ 		// convert list of identifiers into []*Ident
+-		idents := make([]*AST.Ident, list.Len());
++		idents := make([]*ast.Ident, list.Len());
+ 		for i := 0; i < list.Len(); i++ {
+-			idents[i] = list.At(i).(*AST.Ident);
++			idents[i] = list.At(i).(*ast.Ident);
+ 		}
+ 		list.Init(0);
+-		list.Push(&AST.Field{idents, typ, nil});
++		list.Push(&ast.Field{idents, typ, nil});
+ 		
+ 		for P.tok == token.COMMA {
+ 			P.next();
+ 			idents := P.parseIdentList2(nil);
+ 			typ := P.parseParameterType();
+-			list.Push(&AST.Field{idents, typ, nil});
++			list.Push(&ast.Field{idents, typ, nil});
+ 		}
+ 
+ 	} else {
+ 		// Type { "," Type }
+ 		// convert list of types into list of *Param
+ 		for i := 0; i < list.Len(); i++ {
+-			list.Set(i, &AST.Field{nil, list.At(i).(AST.Expr), nil});
++			list.Set(i, &ast.Field{nil, list.At(i).(ast.Expr), nil});
+ 		}
+ 	}
+ 
+ 	// convert list
+-	params := make([]*AST.Field, list.Len());
++	params := make([]*ast.Field, list.Len());
+ 	for i := 0; i < list.Len(); i++ {
+-		params[i] = list.At(i).(*AST.Field);
++		params[i] = list.At(i).(*ast.Field);
+ 	}
+ 
+ 	return params;
+@@ -493,12 +423,12 @@ func (P *Parser) parseParameterList(ellipsis_ok bool) []*AST.Field {
+ 
+ 
+ // TODO make sure Go spec is updated
+-func (P *Parser) parseParameters(ellipsis_ok bool) []*AST.Field {
++func (P *Parser) parseParameters(ellipsis_ok bool) []*ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "Parameters"));
+ 	}
+ 
+-	var params []*AST.Field;
++	var params []*ast.Field;
+ 	P.expect(token.LPAREN);
+ 	if P.tok != token.RPAREN {
+ 		params = P.parseParameterList(ellipsis_ok);
+@@ -509,19 +439,19 @@ func (P *Parser) parseParameters(ellipsis_ok bool) []*AST.Field {
+ }
+ 
+ 
+-func (P *Parser) parseResult() []*AST.Field {
++func (P *Parser) parseResult() []*ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "Result"));
+ 	}
+ 
+-	var result []*AST.Field;
++	var result []*ast.Field;
+ 	if P.tok == token.LPAREN {
+ 		result = P.parseParameters(false);
+ 	} else if P.tok != token.FUNC {
+ 		typ := P.tryType();
+ 		if typ != nil {
+-			result = make([]*AST.Field, 1);
+-			result[0] = &AST.Field{nil, typ, nil};
++			result = make([]*ast.Field, 1);
++			result[0] = &ast.Field{nil, typ, nil};
+ 		}
+ 	}
+ 
+@@ -535,27 +465,20 @@ func (P *Parser) parseResult() []*AST.Field {
+ // (params) type
+ // (params) (results)
+ 
+-func (P *Parser) parseSignature() *AST.Signature {
++func (P *Parser) parseSignature() *ast.Signature {
+ 	if P.trace {
+ 		defer un(trace(P, "Signature"));
+ 	}
+ 
+-	//P.openScope();
+-	//P.scope_lev++;
+-
+-	//t.Scope = P.top_scope;
+ 	params := P.parseParameters(true);  // TODO find better solution
+ 	//t.End = P.pos;
+ 	result := P.parseResult();
+ 
+-	//P.scope_lev--;
+-	//P.closeScope();
+-
+-	return &AST.Signature{params, result};
++	return &ast.Signature{params, result};
+ }
+ 
+ 
+-func (P *Parser) parseFunctionType() *AST.FunctionType {
++func (P *Parser) parseFunctionType() *ast.FunctionType {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionType"));
+ 	}
+@@ -564,45 +487,43 @@ func (P *Parser) parseFunctionType() *AST.FunctionType {
+ 	P.expect(token.FUNC);
+ 	sig := P.parseSignature();
+ 	
+-	return &AST.FunctionType{pos, sig};
++	return &ast.FunctionType{pos, sig};
+ }
+ 
+ 
+-func (P *Parser) parseMethodSpec() *AST.Field {
++func (P *Parser) parseMethodSpec() *ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "MethodSpec"));
+ 	}
+ 
+-	var idents []*AST.Ident;
+-	var typ AST.Expr;
++	var idents []*ast.Ident;
++	var typ ast.Expr;
+ 	x := P.parseQualifiedIdent();
+-	if tmp, is_ident := x.(*AST.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
++	if tmp, is_ident := x.(*ast.Ident); is_ident && (P.tok == token.COMMA || P.tok == token.LPAREN) {
+ 		// method(s)
+ 		idents = P.parseIdentList2(x);
+-		typ = &AST.FunctionType{0, P.parseSignature()};
++		typ = &ast.FunctionType{0, P.parseSignature()};
+ 	} else {
+ 		// embedded interface
+ 		typ = x;
+ 	}
+ 	
+-	return &AST.Field{idents, typ, nil};
++	return &ast.Field{idents, typ, nil};
+ }
+ 
+ 
+-func (P *Parser) parseInterfaceType() *AST.InterfaceType {
++func (P *Parser) parseInterfaceType() *ast.InterfaceType {
+ 	if P.trace {
+ 		defer un(trace(P, "InterfaceType"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	end := 0;
+-	var methods []*AST.Field;
++	var methods []*ast.Field;
+ 
+ 	P.expect(token.INTERFACE);
+ 	if P.tok == token.LBRACE {
+ 		P.next();
+-		//P.openScope();
+-		//P.scope_lev++;
+ 
+ 		list := vector.New(0);
+ 		for P.tok == token.IDENT {
+@@ -611,26 +532,23 @@ func (P *Parser) parseInterfaceType() *AST.InterfaceType {
+ 				P.expect(token.SEMICOLON);
+ 			}
+ 		}
+-		//t.End = P.pos;
+ 
+-		//P.scope_lev--;
+-		//P.closeScope();
+ 		end = P.pos;
+ 		P.expect(token.RBRACE);
+ 		P.opt_semi = true;
+ 		
+ 		// convert vector
+-		methods = make([]*AST.Field, list.Len());
++		methods = make([]*ast.Field, list.Len());
+ 		for i := list.Len() - 1; i >= 0; i-- {
+-			methods[i] = list.At(i).(*AST.Field);
++			methods[i] = list.At(i).(*ast.Field);
+ 		}
+ 	}
+ 
+-	return &AST.InterfaceType{pos, methods, end};
++	return &ast.InterfaceType{pos, methods, end};
+ }
+ 
+ 
+-func (P *Parser) parseMapType() *AST.MapType {
++func (P *Parser) parseMapType() *ast.MapType {
+ 	if P.trace {
+ 		defer un(trace(P, "MapType"));
+ 	}
+@@ -642,14 +560,13 @@ func (P *Parser) parseMapType() *AST.MapType {
+ 	P.expect(token.RBRACK);
+ 	val := P.parseVarType();
+ 
+-	return &AST.MapType{pos, key, val};
++	return &ast.MapType{pos, key, val};
+ }
+ 
+ 
+-func (P *Parser) parseOperand() AST.Expr
++func (P *Parser) parseStringLit() ast.Expr
+ 
+-
+-func (P *Parser) parseFieldDecl() *AST.Field {
++func (P *Parser) parseFieldDecl() *ast.Field {
+ 	if P.trace {
+ 		defer un(trace(P, "FieldDecl"));
+ 	}
+@@ -670,46 +587,45 @@ func (P *Parser) parseFieldDecl() *AST.Field {
+ 	typ := P.tryType();
+ 
+ 	// optional tag
+-	var tag AST.Expr;
++	var tag ast.Expr;
+ 	if P.tok == token.STRING {
+-		// ParseOperand takes care of string concatenation
+-		tag = P.parseOperand();
++		tag = P.parseStringLit();
+ 	}
+ 
+ 	// analyze case
+-	var idents []*AST.Ident;
++	var idents []*ast.Ident;
+ 	if typ != nil {
+ 		// non-empty identifier list followed by a type
+-		idents = make([]*AST.Ident, list.Len());
++		idents = make([]*ast.Ident, list.Len());
+ 		for i := 0; i < list.Len(); i++ {
+-			if ident, is_ident := list.At(i).(*AST.Ident); is_ident {
++			if ident, is_ident := list.At(i).(*ast.Ident); is_ident {
+ 				idents[i] = ident;
+ 			} else {
+-				P.error(list.At(i).(AST.Expr).Pos(), "identifier expected");
++				P.error(list.At(i).(ast.Expr).Pos(), "identifier expected");
+ 			}
+ 		}
+ 	} else {
+ 		// anonymous field
+ 		if list.Len() == 1 {
+ 			// TODO should do more checks here
+-			typ = list.At(0).(AST.Expr);
++			typ = list.At(0).(ast.Expr);
+ 		} else {
+ 			P.error(P.pos, "anonymous field expected");
+ 		}
+ 	}
+ 	
+-	return &AST.Field{idents, typ, tag};
++	return &ast.Field{idents, typ, tag};
+ }
+ 
+ 
+-func (P *Parser) parseStructType() AST.Expr {
++func (P *Parser) parseStructType() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "StructType"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	end := 0;
+-	var fields []*AST.Field;
++	var fields []*ast.Field;
+ 	
+ 	P.expect(token.STRUCT);
+ 	if P.tok == token.LBRACE {
+@@ -731,17 +647,17 @@ func (P *Parser) parseStructType() AST.Expr {
+ 		P.opt_semi = true;
+ 
+ 		// convert vector
+-		fields = make([]*AST.Field, list.Len());
++		fields = make([]*ast.Field, list.Len());
+ 		for i := list.Len() - 1; i >= 0; i-- {
+-			fields[i] = list.At(i).(*AST.Field);
++			fields[i] = list.At(i).(*ast.Field);
+ 		}
+ 	}
+ 
+-	return AST.StructType{pos, fields, end};
++	return ast.StructType{pos, fields, end};
+ }
+ 
+ 
+-func (P *Parser) parsePointerType() AST.Expr {
++func (P *Parser) parsePointerType() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "PointerType"));
+ 	}
+@@ -750,11 +666,11 @@ func (P *Parser) parsePointerType() AST.Expr {
+ 	P.expect(token.MUL);
+ 	base := P.parseType();
+ 
+-	return &AST.PointerType{pos, base};
++	return &ast.PointerType{pos, base};
+ }
+ 
+ 
+-func (P *Parser) tryType() AST.Expr {
++func (P *Parser) tryType() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Type (try)"));
+ 	}
+@@ -773,7 +689,7 @@ func (P *Parser) tryType() AST.Expr {
+ 		P.next();
+ 		t := P.parseType();
+ 		P.expect(token.RPAREN);
+-		return &AST.Group{pos, t};
++		return &ast.Group{pos, t};
+ 	}
+ 
+ 	// no type found
+@@ -808,37 +724,16 @@ func (P *Parser) parseStatementList(list *vector.Vector) {
+ }
+ 
+ 
+-func (P *Parser) parseBlock(tok int) *AST.Block {
++func (P *Parser) parseBlock(tok int) *ast.Block {
+ 	if P.trace {
+ 		defer un(trace(P, "Block"));
+ 	}
+ 
+-	b := AST.NewBlock(P.pos, tok);
++	b := ast.NewBlock(P.pos, tok);
+ 	P.expect(tok);
+ 
+-	/*
+-	P.openScope();
+-	// enter recv and parameters into function scope
+-	if ftyp != nil {
+-		assert(ftyp.Form == AST.FUNCTION);
+-		if ftyp.Key != nil {
+-		}
+-		if ftyp.List != nil {
+-			for i, n := 0, ftyp.List.Len(); i < n; i++ {
+-				if x, ok := ftyp.List.At(i).(*AST.Ident); ok {
+-					P.declareInScope(P.top_scope, x, SymbolTable.VAR, nil);
+-				}
+-			}
+-		}
+-	}
+-	*/
+-	
+ 	P.parseStatementList(b.List);
+ 	
+-	/*
+-	P.closeScope();
+-	*/
+-
+ 	if tok == token.LBRACE {
+ 		b.End = P.pos;
+ 		P.expect(token.RBRACE);
+@@ -852,7 +747,7 @@ func (P *Parser) parseBlock(tok int) *AST.Block {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Parser) parseExpressionList() AST.Expr {
++func (P *Parser) parseExpressionList() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "ExpressionList"));
+ 	}
+@@ -863,10 +758,10 @@ func (P *Parser) parseExpressionList() AST.Expr {
+ 		P.next();
+ 		y := P.parseExpression(1);
+ 		if first {
+-			x = &AST.BinaryExpr{pos, token.COMMA, x, y};
++			x = &ast.BinaryExpr{pos, token.COMMA, x, y};
+ 			first = false;
+ 		} else {
+-			x.(*AST.BinaryExpr).Y = &AST.BinaryExpr{pos, token.COMMA, x.(*AST.BinaryExpr).Y, y};
++			x.(*ast.BinaryExpr).Y = &ast.BinaryExpr{pos, token.COMMA, x.(*ast.BinaryExpr).Y, y};
+ 		}
+ 	}
+ 
+@@ -874,7 +769,7 @@ func (P *Parser) parseExpressionList() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseFunctionLit() AST.Expr {
++func (P *Parser) parseFunctionLit() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionLit"));
+ 	}
+@@ -883,35 +778,48 @@ func (P *Parser) parseFunctionLit() AST.Expr {
+ 	P.expect(token.FUNC);
+ 	typ := P.parseSignature();
+ 	P.expr_lev++;
+-	P.scope_lev++;
+ 	body := P.parseBlock(token.LBRACE);
+-	P.scope_lev--;
+ 	P.expr_lev--;
+ 
+-	return &AST.FunctionLit{pos, typ, body};
++	return &ast.FunctionLit{pos, typ, body};
++}
++
++
++func (P *Parser) parseStringLit() ast.Expr {
++	if P.trace {
++		defer un(trace(P, "StringLit"));
++	}
++
++	assert(P.tok == token.STRING);
++	var x ast.Expr = &ast.BasicLit{P.pos, P.tok, P.val};
++	P.next();
++	
++	for P.tok == token.STRING {
++		y := &ast.BasicLit{P.pos, P.tok, P.val};
++		P.next();
++		x = &ast.ConcatExpr{x, y};
++	}
++
++	return x;
+ }
+ 
+ 
+-func (P *Parser) parseOperand() AST.Expr {
++func (P *Parser) parseOperand() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Operand"));
+ 	}
+ 
+ 	switch P.tok {
+ 	case token.IDENT:
+-		return P.parseIdent(P.top_scope);
++		return P.parseIdent();
+ 
+-	case token.INT, token.FLOAT, token.CHAR, token.STRING:
+-		x := &AST.BasicLit{P.pos, P.tok, P.val};
++	case token.INT, token.FLOAT, token.CHAR:
++		x := &ast.BasicLit{P.pos, P.tok, P.val};
+ 		P.next();
+-		if x.Tok == token.STRING {
+-			// TODO should remember the list instead of
+-			//      concatenate the strings here
+-			for ; P.tok == token.STRING; P.next() {
+-				x.Val += P.val;
+-			}
+-		}
+ 		return x;
++		
++	case token.STRING:
++		return P.parseStringLit();
+ 
+ 	case token.LPAREN:
+ 		pos := P.pos;
+@@ -920,7 +828,7 @@ func (P *Parser) parseOperand() AST.Expr {
+ 		x := P.parseExpression(1);
+ 		P.expr_lev--;
+ 		P.expect(token.RPAREN);
+-		return &AST.Group{pos, x};
++		return &ast.Group{pos, x};
+ 
+ 	case token.FUNC:
+ 		return P.parseFunctionLit();
+@@ -935,11 +843,11 @@ func (P *Parser) parseOperand() AST.Expr {
+ 		}
+ 	}
+ 
+-	return &AST.BadExpr{P.pos};
++	return &ast.BadExpr{P.pos};
+ }
+ 
+ 
+-func (P *Parser) parseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
++func (P *Parser) parseSelectorOrTypeGuard(x ast.Expr) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "SelectorOrTypeGuard"));
+ 	}
+@@ -948,11 +856,18 @@ func (P *Parser) parseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+ 	P.expect(token.PERIOD);
+ 
+ 	if P.tok == token.IDENT {
+-		x = &AST.Selector{pos, x, P.parseIdent(nil)};
++		x = &ast.Selector{pos, x, P.parseIdent()};
+ 
+ 	} else {
+ 		P.expect(token.LPAREN);
+-		x = &AST.TypeGuard{pos, x, P.parseType()};
++		var typ ast.Expr;
++		if P.tok == token.TYPE {
++			typ = &ast.TypeType{P.pos};
++			P.next();
++		} else {
++			typ = P.parseType();
++		}
++		x = &ast.TypeGuard{pos, x, typ};
+ 		P.expect(token.RPAREN);
+ 	}
+ 
+@@ -960,7 +875,7 @@ func (P *Parser) parseSelectorOrTypeGuard(x AST.Expr) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
++func (P *Parser) parseIndex(x ast.Expr) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "IndexOrSlice"));
+ 	}
+@@ -972,13 +887,13 @@ func (P *Parser) parseIndex(x AST.Expr) AST.Expr {
+ 	P.expr_lev--;
+ 	P.expect(token.RBRACK);
+ 
+-	return &AST.Index{pos, x, i};
++	return &ast.Index{pos, x, i};
+ }
+ 
+ 
+-func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr
++func (P *Parser) parseBinaryExpr(prec1 int) ast.Expr
+ 
+-func (P *Parser) parseCompositeElements(close int) AST.Expr {
++func (P *Parser) parseCompositeElements(close int) ast.Expr {
+ 	x := P.parseExpression(0);
+ 	if P.tok == token.COMMA {
+ 		pos := P.pos;
+@@ -986,30 +901,30 @@ func (P *Parser) parseCompositeElements(close int) AST.Expr {
+ 
+ 		// first element determines mode
+ 		singles := true;
+-		if t, is_binary := x.(*AST.BinaryExpr); is_binary && t.Tok == token.COLON {
++		if t, is_binary := x.(*ast.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 			singles = false;
+ 		}
+ 
+-		var last *AST.BinaryExpr;
++		var last *ast.BinaryExpr;
+ 		for P.tok != close && P.tok != token.EOF {
+ 			y := P.parseExpression(0);
+ 
+ 			if singles {
+-				if t, is_binary := y.(*AST.BinaryExpr); is_binary && t.Tok == token.COLON {
++				if t, is_binary := y.(*ast.BinaryExpr); is_binary && t.Tok == token.COLON {
+ 					P.error(t.X.Pos(), "single value expected; found pair");
+ 				}
+ 			} else {
+-				if t, is_binary := y.(*AST.BinaryExpr); !is_binary || t.Tok != token.COLON {
++				if t, is_binary := y.(*ast.BinaryExpr); !is_binary || t.Tok != token.COLON {
+ 					P.error(y.Pos(), "key:value pair expected; found single value");
+ 				}
+ 			}
+ 
+ 			if last == nil {
+-				last = &AST.BinaryExpr{pos, token.COMMA, x, y};
++				last = &ast.BinaryExpr{pos, token.COMMA, x, y};
+ 				x = last;
+ 			} else {
+-				last.Y = &AST.BinaryExpr{pos, token.COMMA, last.Y, y};
+-				last = last.Y.(*AST.BinaryExpr);
++				last.Y = &ast.BinaryExpr{pos, token.COMMA, last.Y, y};
++				last = last.Y.(*ast.BinaryExpr);
+ 			}
+ 
+ 			if P.tok == token.COMMA {
+@@ -1025,24 +940,24 @@ func (P *Parser) parseCompositeElements(close int) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseCallOrCompositeLit(f AST.Expr, open, close int) AST.Expr {
++func (P *Parser) parseCallOrCompositeLit(f ast.Expr, open, close int) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "CallOrCompositeLit"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	P.expect(open);
+-	var args AST.Expr;
++	var args ast.Expr;
+ 	if P.tok != close {
+ 		args = P.parseCompositeElements(close);
+ 	}
+ 	P.expect(close);
+ 
+-	return &AST.Call{pos, open, f, args};
++	return &ast.Call{pos, open, f, args};
+ }
+ 
+ 
+-func (P *Parser) parsePrimaryExpr() AST.Expr {
++func (P *Parser) parsePrimaryExpr() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "PrimaryExpr"));
+ 	}
+@@ -1070,7 +985,7 @@ func (P *Parser) parsePrimaryExpr() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseUnaryExpr() AST.Expr {
++func (P *Parser) parseUnaryExpr() ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "UnaryExpr"));
+ 	}
+@@ -1080,15 +995,15 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
+ 		pos, tok := P.pos, P.tok;
+ 		P.next();
+ 		y := P.parseUnaryExpr();
+-		return &AST.UnaryExpr{pos, tok, y};
++		return &ast.UnaryExpr{pos, tok, y};
+ 		/*
+-		if lit, ok := y.(*AST.TypeLit); ok && tok == token.MUL {
++		if lit, ok := y.(*ast.TypeLit); ok && tok == token.MUL {
+ 			// pointer type
+-			t := AST.NewType(pos, AST.POINTER);
++			t := ast.NewType(pos, ast.POINTER);
+ 			t.Elt = lit.Typ;
+-			return &AST.TypeLit{t};
++			return &ast.TypeLit{t};
+ 		} else {
+-			return &AST.UnaryExpr{pos, tok, y};
++			return &ast.UnaryExpr{pos, tok, y};
+ 		}
+ 		*/
+ 	}
+@@ -1097,7 +1012,7 @@ func (P *Parser) parseUnaryExpr() AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
++func (P *Parser) parseBinaryExpr(prec1 int) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "BinaryExpr"));
+ 	}
+@@ -1108,7 +1023,7 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
+ 			pos, tok := P.pos, P.tok;
+ 			P.next();
+ 			y := P.parseBinaryExpr(prec + 1);
+-			x = &AST.BinaryExpr{pos, tok, x, y};
++			x = &ast.BinaryExpr{pos, tok, x, y};
+ 		}
+ 	}
+ 
+@@ -1116,7 +1031,7 @@ func (P *Parser) parseBinaryExpr(prec1 int) AST.Expr {
+ }
+ 
+ 
+-func (P *Parser) parseExpression(prec int) AST.Expr {
++func (P *Parser) parseExpression(prec int) ast.Expr {
+ 	if P.trace {
+ 		defer un(trace(P, "Expression"));
+ 	}
+@@ -1132,7 +1047,7 @@ func (P *Parser) parseExpression(prec int) AST.Expr {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
++func (P *Parser) parseSimpleStat(range_ok bool) ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "SimpleStat"));
+ 	}
+@@ -1145,9 +1060,9 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ 		pos := P.pos;
+ 		P.next();  // consume ":"
+ 		P.opt_semi = true;
+-		if AST.ExprLen(x) == 1 {
+-			if label, is_ident := x.(*AST.Ident); is_ident {
+-				return &AST.LabelDecl{pos, label};
++		if ast.ExprLen(x) == 1 {
++			if label, is_ident := x.(*ast.Ident); is_ident {
++				return &ast.LabelDecl{pos, label};
+ 			}
+ 		}
+ 		P.error(x.Pos(), "illegal label declaration");
+@@ -1161,36 +1076,36 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ 		// declaration/assignment
+ 		pos, tok := P.pos, P.tok;
+ 		P.next();
+-		var y AST.Expr;
++		var y ast.Expr;
+ 		if range_ok && P.tok == token.RANGE {
+ 			range_pos := P.pos;
+ 			P.next();
+-			y = &AST.UnaryExpr{range_pos, token.RANGE, P.parseExpression(1)};
++			y = &ast.UnaryExpr{range_pos, token.RANGE, P.parseExpression(1)};
+ 			if tok != token.DEFINE && tok != token.ASSIGN {
+ 				P.error(pos, "expected '=' or ':=', found '" + token.TokenString(tok) + "'");
+ 			}
+ 		} else {
+ 			y = P.parseExpressionList();
+-			if xl, yl := AST.ExprLen(x), AST.ExprLen(y); xl > 1 && yl > 1 && xl != yl {
++			if xl, yl := ast.ExprLen(x), ast.ExprLen(y); xl > 1 && yl > 1 && xl != yl {
+ 				P.error(x.Pos(), "arity of lhs doesn't match rhs");
+ 			}
+ 		}
+ 		// TODO changed ILLEGAL -> NONE
+-		return &AST.ExpressionStat{x.Pos(), token.ILLEGAL, &AST.BinaryExpr{pos, tok, x, y}};
++		return &ast.ExpressionStat{x.Pos(), token.ILLEGAL, &ast.BinaryExpr{pos, tok, x, y}};
+ 
+ 	default:
+-		if AST.ExprLen(x) != 1 {
++		if ast.ExprLen(x) != 1 {
+ 			P.error(x.Pos(), "only one expression allowed");
+ 		}
+ 
+ 		if P.tok == token.INC || P.tok == token.DEC {
+-			s := &AST.ExpressionStat{P.pos, P.tok, x};
++			s := &ast.ExpressionStat{P.pos, P.tok, x};
+ 			P.next();  // consume "++" or "--"
+ 			return s;
+ 		}
+ 
+ 		// TODO changed ILLEGAL -> NONE
+-		return &AST.ExpressionStat{x.Pos(), token.ILLEGAL, x};
++		return &ast.ExpressionStat{x.Pos(), token.ILLEGAL, x};
+ 	}
+ 
+ 	unreachable();
+@@ -1198,49 +1113,49 @@ func (P *Parser) parseSimpleStat(range_ok bool) AST.Stat {
+ }
+ 
+ 
+-func (P *Parser) parseInvocationStat(keyword int) *AST.ExpressionStat {
++func (P *Parser) parseInvocationStat(keyword int) *ast.ExpressionStat {
+ 	if P.trace {
+ 		defer un(trace(P, "InvocationStat"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	P.expect(keyword);
+-	return &AST.ExpressionStat{pos, keyword, P.parseExpression(1)};
++	return &ast.ExpressionStat{pos, keyword, P.parseExpression(1)};
+ }
+ 
+ 
+-func (P *Parser) parseReturnStat() *AST.ExpressionStat {
++func (P *Parser) parseReturnStat() *ast.ExpressionStat {
+ 	if P.trace {
+ 		defer un(trace(P, "ReturnStat"));
+ 	}
+ 
+ 	pos := P.pos;
+ 	P.expect(token.RETURN);
+-	var x AST.Expr;
++	var x ast.Expr;
+ 	if P.tok != token.SEMICOLON && P.tok != token.RBRACE {
+ 		x = P.parseExpressionList();
+ 	}
+ 
+-	return &AST.ExpressionStat{pos, token.RETURN, x};
++	return &ast.ExpressionStat{pos, token.RETURN, x};
+ }
+ 
+ 
+-func (P *Parser) parseControlFlowStat(tok int) *AST.ControlFlowStat {
++func (P *Parser) parseControlFlowStat(tok int) *ast.ControlFlowStat {
+ 	if P.trace {
+ 		defer un(trace(P, "ControlFlowStat"));
+ 	}
+ 
+-	s := &AST.ControlFlowStat{P.pos, tok, nil};
++	s := &ast.ControlFlowStat{P.pos, tok, nil};
+ 	P.expect(tok);
+ 	if tok != token.FALLTHROUGH && P.tok == token.IDENT {
+-		s.Label = P.parseIdent(P.top_scope);
++		s.Label = P.parseIdent();
+ 	}
+ 
+ 	return s;
+ }
+ 
+ 
+-func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Expr, post AST.Stat) {
++func (P *Parser) parseControlClause(isForStat bool) (init ast.Stat, expr ast.Expr, post ast.Stat) {
+ 	if P.trace {
+ 		defer un(trace(P, "ControlClause"));
+ 	}
+@@ -1265,7 +1180,7 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
+ 			}
+ 		} else {
+ 			if init != nil {  // guard in case of errors
+-				if s, is_expr_stat := init.(*AST.ExpressionStat); is_expr_stat {
++				if s, is_expr_stat := init.(*ast.ExpressionStat); is_expr_stat {
+ 					expr, init = s.Expr, nil;
+ 				} else {
+ 					P.error(0, "illegal control clause");
+@@ -1279,61 +1194,47 @@ func (P *Parser) parseControlClause(isForStat bool) (init AST.Stat, expr AST.Exp
+ }
+ 
+ 
+-func (P *Parser) parseIfStat() *AST.IfStat {
++func (P *Parser) parseIfStat() *ast.IfStat {
+ 	if P.trace {
+ 		defer un(trace(P, "IfStat"));
+ 	}
+ 
+-	P.openScope();
+ 	pos := P.pos;
+ 	P.expect(token.IF);
+ 	init, cond, dummy := P.parseControlClause(false);
+ 	body := P.parseBlock(token.LBRACE);
+-	var else_ AST.Stat;
++	var else_ ast.Stat;
+ 	if P.tok == token.ELSE {
+ 		P.next();
+-		if ok := P.tok == token.IF || P.tok == token.LBRACE; ok || P.sixg {
+-			else_ = P.parseStatement();
+-			if !ok {
+-				// wrap in a block since we don't have one
+-				body := AST.NewBlock(0, token.LBRACE);
+-				body.List.Push(else_);
+-				else_ = &AST.CompositeStat{body};
+-			}
+-		} else {
+-			P.error(P.pos, "'if' or '{' expected - illegal 'else' branch");
+-		}
++		else_ = P.parseStatement();
+ 	}
+-	P.closeScope();
+ 
+-	return &AST.IfStat{pos, init, cond, body, else_};
++	return &ast.IfStat{pos, init, cond, body, else_};
+ }
+ 
+ 
+-func (P *Parser) parseForStat() *AST.ForStat {
++func (P *Parser) parseForStat() *ast.ForStat {
+ 	if P.trace {
+ 		defer un(trace(P, "ForStat"));
+ 	}
+ 
+-	P.openScope();
+ 	pos := P.pos;
+ 	P.expect(token.FOR);
+ 	init, cond, post := P.parseControlClause(true);
+ 	body := P.parseBlock(token.LBRACE);
+-	P.closeScope();
+ 
+-	return &AST.ForStat{pos, init, cond, post, body};
++	return &ast.ForStat{pos, init, cond, post, body};
+ }
+ 
+ 
+-func (P *Parser) parseCaseClause() *AST.CaseClause {
++func (P *Parser) parseCaseClause() *ast.CaseClause {
+ 	if P.trace {
+ 		defer un(trace(P, "CaseClause"));
+ 	}
+ 
+ 	// SwitchCase
+ 	pos := P.pos;
+-	var expr AST.Expr;
++	var expr ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+ 		expr = P.parseExpressionList();
+@@ -1341,20 +1242,19 @@ func (P *Parser) parseCaseClause() *AST.CaseClause {
+ 		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause{pos, expr, P.parseBlock(token.COLON)};
++	return &ast.CaseClause{pos, expr, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+-func (P *Parser) parseSwitchStat() *AST.SwitchStat {
++func (P *Parser) parseSwitchStat() *ast.SwitchStat {
+ 	if P.trace {
+ 		defer un(trace(P, "SwitchStat"));
+ 	}
+ 
+-	P.openScope();
+ 	pos := P.pos;
+ 	P.expect(token.SWITCH);
+ 	init, tag, post := P.parseControlClause(false);
+-	body := AST.NewBlock(P.pos, token.LBRACE);
++	body := ast.NewBlock(P.pos, token.LBRACE);
+ 	P.expect(token.LBRACE);
+ 	for P.tok != token.RBRACE && P.tok != token.EOF {
+ 		body.List.Push(P.parseCaseClause());
+@@ -1362,20 +1262,19 @@ func (P *Parser) parseSwitchStat() *AST.SwitchStat {
+ 	body.End = P.pos;
+ 	P.expect(token.RBRACE);
+ 	P.opt_semi = true;
+-	P.closeScope();
+ 
+-	return &AST.SwitchStat{pos, init, tag, body};
++	return &ast.SwitchStat{pos, init, tag, body};
+ }
+ 
+ 
+-func (P *Parser) parseCommClause() *AST.CaseClause {
++func (P *Parser) parseCommClause() *ast.CaseClause {
+ 	if P.trace {
+ 		defer un(trace(P, "CommClause"));
+ 	}
+ 
+ 	// CommCase
+ 	pos := P.pos;
+-	var expr AST.Expr;
++	var expr ast.Expr;
+ 	if P.tok == token.CASE {
+ 		P.next();
+ 		x := P.parseExpression(1);
+@@ -1384,7 +1283,7 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
+ 			P.next();
+ 			if P.tok == token.ARROW {
+ 				y := P.parseExpression(1);
+-				x = &AST.BinaryExpr{pos, tok, x, y};
++				x = &ast.BinaryExpr{pos, tok, x, y};
+ 			} else {
+ 				P.expect(token.ARROW);  // use expect() error handling
+ 			}
+@@ -1394,19 +1293,18 @@ func (P *Parser) parseCommClause() *AST.CaseClause {
+ 		P.expect(token.DEFAULT);
+ 	}
+ 
+-	return &AST.CaseClause{pos, expr, P.parseBlock(token.COLON)};
++	return &ast.CaseClause{pos, expr, P.parseBlock(token.COLON)};
+ }
+ 
+ 
+-func (P *Parser) parseSelectStat() *AST.SelectStat {
++func (P *Parser) parseSelectStat() *ast.SelectStat {
+ 	if P.trace {
+ 		defer un(trace(P, "SelectStat"));
+ 	}
+ 
+-	P.openScope();
+ 	pos := P.pos;
+ 	P.expect(token.SELECT);
+-	body := AST.NewBlock(P.pos, token.LBRACE);
++	body := ast.NewBlock(P.pos, token.LBRACE);
+ 	P.expect(token.LBRACE);
+ 	for P.tok != token.RBRACE && P.tok != token.EOF {
+ 		body.List.Push(P.parseCommClause());
+@@ -1414,20 +1312,19 @@ func (P *Parser) parseSelectStat() *AST.SelectStat {
+ 	body.End = P.pos;
+ 	P.expect(token.RBRACE);
+ 	P.opt_semi = true;
+-	P.closeScope();
+ 
+-	return &AST.SelectStat{pos, body};
++	return &ast.SelectStat{pos, body};
+ }
+ 
+ 
+-func (P *Parser) parseStatement() AST.Stat {
++func (P *Parser) parseStatement() ast.Stat {
+ 	if P.trace {
+ 		defer un(trace(P, "Statement"));
+ 	}
+ 
+ 	switch P.tok {
+ 	case token.CONST, token.TYPE, token.VAR:
+-		return &AST.DeclarationStat{P.parseDeclaration()};
++		return &ast.DeclarationStat{P.parseDeclaration()};
+ 	case token.FUNC:
+ 		// for now we do not allow local function declarations,
+ 		// instead we assume this starts a function literal
+@@ -1445,7 +1342,7 @@ func (P *Parser) parseStatement() AST.Stat {
+ 	case token.BREAK, token.CONTINUE, token.GOTO, token.FALLTHROUGH:
+ 		return P.parseControlFlowStat(P.tok);
+ 	case token.LBRACE:
+-		return &AST.CompositeStat{P.parseBlock(token.LBRACE)};
++		return &ast.CompositeStat{P.parseBlock(token.LBRACE)};
+ 	case token.IF:
+ 		return P.parseIfStat();
+ 	case token.FOR:
+@@ -1456,81 +1353,79 @@ func (P *Parser) parseStatement() AST.Stat {
+ 		return P.parseSelectStat();
+ 	case token.SEMICOLON:
+ 		// don't consume the ";", it is the separator following the empty statement
+-		return &AST.EmptyStat{P.pos};
++		return &ast.EmptyStat{P.pos};
+ 	}
+ 
+ 	// no statement found
+ 	P.error(P.pos, "statement expected");
+-	return &AST.BadStat{P.pos};
++	return &ast.BadStat{P.pos};
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Parser) parseImportSpec(pos int) *AST.ImportDecl {
++func (P *Parser) parseImportSpec(pos int) *ast.ImportDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ImportSpec"));
+ 	}
+ 
+-	var ident *AST.Ident;
++	var ident *ast.Ident;
+ 	if P.tok == token.PERIOD {
+ 		P.error(P.pos, `"import ." not yet handled properly`);
+ 		P.next();
+ 	} else if P.tok == token.IDENT {
+-		ident = P.parseIdent(nil);
++		ident = P.parseIdent();
+ 	}
+ 
+-	var path AST.Expr;
++	var path ast.Expr;
+ 	if P.tok == token.STRING {
+-		// TODO eventually the scanner should strip the quotes
+-		path = &AST.BasicLit{P.pos, token.STRING, P.val};
+-		P.next();
++		path = P.parseStringLit();
+ 	} else {
+ 		P.expect(token.STRING);  // use expect() error handling
+ 	}
+ 	
+-	return &AST.ImportDecl{pos, ident, path};
++	return &ast.ImportDecl{pos, ident, path};
+ }
+ 
+ 
+-func (P *Parser) parseConstSpec(pos int) *AST.ConstDecl {
++func (P *Parser) parseConstSpec(pos int) *ast.ConstDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "ConstSpec"));
+ 	}
+ 
+ 	idents := P.parseIdentList2(nil);
+ 	typ := P.tryType();
+-	var vals AST.Expr;
++	var vals ast.Expr;
+ 	if P.tok == token.ASSIGN {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+ 	}
+ 	
+-	return &AST.ConstDecl{pos, idents, typ, vals};
++	return &ast.ConstDecl{pos, idents, typ, vals};
+ }
+ 
+ 
+-func (P *Parser) parseTypeSpec(pos int) *AST.TypeDecl {
++func (P *Parser) parseTypeSpec(pos int) *ast.TypeDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "TypeSpec"));
+ 	}
+ 
+-	ident := P.parseIdent(nil);
++	ident := P.parseIdent();
+ 	typ := P.parseType();
+ 	
+-	return &AST.TypeDecl{pos, ident, typ};
++	return &ast.TypeDecl{pos, ident, typ};
+ }
+ 
+ 
+-func (P *Parser) parseVarSpec(pos int) *AST.VarDecl {
++func (P *Parser) parseVarSpec(pos int) *ast.VarDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "VarSpec"));
+ 	}
+ 
+ 	idents := P.parseIdentList2(nil);
+-	var typ AST.Expr;
+-	var vals AST.Expr;
++	var typ ast.Expr;
++	var vals ast.Expr;
+ 	if P.tok == token.ASSIGN {
+ 		P.next();
+ 		vals = P.parseExpressionList();
+@@ -1542,13 +1437,11 @@ func (P *Parser) parseVarSpec(pos int) *AST.VarDecl {
+ 		}
+ 	}
+ 	
+-	return &AST.VarDecl{pos, idents, typ, vals};
++	return &ast.VarDecl{pos, idents, typ, vals};
+ }
+ 
+ 
+-func (P *Parser) parseSpec(pos, keyword int) AST.Decl {
+-	kind := SymbolTable.NONE;
+-
++func (P *Parser) parseSpec(pos, keyword int) ast.Decl {
+ 	switch keyword {
+ 	case token.IMPORT: return P.parseImportSpec(pos);
+ 	case token.CONST: return P.parseConstSpec(pos);
+@@ -1558,39 +1451,10 @@ func (P *Parser) parseSpec(pos, keyword int) AST.Decl {
+ 	
+ 	unreachable();
+ 	return nil;
+-
+-	/*
+-	// semantic checks
+-	if d.Tok == token.IMPORT {
+-		if d.Ident != nil {
+-			//P.declare(d.Ident, kind, nil);
+-		}
+-	} else {
+-		//P.declare(d.Ident, kind, d.Typ);
+-		if d.Val != nil {
+-			// initialization/assignment
+-			llen := AST.ExprLen(d.Ident);
+-			rlen := AST.ExprLen(d.Val);
+-			if llen == rlen {
+-				// TODO
+-			} else if rlen == 1 {
+-				// TODO
+-			} else {
+-				if llen < rlen {
+-					P.error(AST.ExprAt(d.Val, llen).Pos(), "more expressions than variables");
+-				} else {
+-					P.error(AST.ExprAt(d.Ident, rlen).Pos(), "more variables than expressions");
+-				}
+-			}
+-		} else {
+-			// TODO
+-		}
+-	}
+-	*/
+ }
+ 
+ 
+-func (P *Parser) parseDecl(keyword int) AST.Decl {
++func (P *Parser) parseDecl(keyword int) ast.Decl {
+ 	if P.trace {
+ 		defer un(trace(P, "Decl"));
+ 	}
+@@ -1613,19 +1477,19 @@ func (P *Parser) parseDecl(keyword int) AST.Decl {
+ 		P.opt_semi = true;
+ 		
+ 		// convert vector
+-		decls := make([]AST.Decl, list.Len());
++		decls := make([]ast.Decl, list.Len());
+ 		for i := 0; i < list.Len(); i++ {
+-			decls[i] = list.At(i).(AST.Decl);
++			decls[i] = list.At(i).(ast.Decl);
+ 		}
+ 		
+-		return &AST.DeclList{pos, keyword, decls, end};
++		return &ast.DeclList{pos, keyword, decls, end};
+ 	}
+ 
+ 	return P.parseSpec(pos, keyword);
+ }
+ 
+ 
+-// Function declarations
++// Function and method declarations
+ //
+ // func        ident (params)
+ // func        ident (params) type
+@@ -1634,7 +1498,7 @@ func (P *Parser) parseDecl(keyword int) AST.Decl {
+ // func (recv) ident (params) type
+ // func (recv) ident (params) (results)
+ 
+-func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
++func (P *Parser) parseFunctionDecl() *ast.FuncDecl {
+ 	if P.trace {
+ 		defer un(trace(P, "FunctionDecl"));
+ 	}
+@@ -1642,7 +1506,7 @@ func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
+ 	pos := P.pos;
+ 	P.expect(token.FUNC);
+ 
+-	var recv *AST.Field;
++	var recv *ast.Field;
+ 	if P.tok == token.LPAREN {
+ 		pos := P.pos;
+ 		tmp := P.parseParameters(true);
+@@ -1653,19 +1517,19 @@ func (P *Parser) parseFunctionDecl() *AST.FuncDecl {
+ 		}
+ 	}
+ 
+-	ident := P.parseIdent(nil);
++	ident := P.parseIdent();
+ 	sig := P.parseSignature();
+ 
+-	var body *AST.Block;
++	var body *ast.Block;
+ 	if P.tok == token.LBRACE {
+ 		body = P.parseBlock(token.LBRACE);
+ 	}
+ 
+-	return &AST.FuncDecl{pos, recv, ident, sig, body};
++	return &ast.FuncDecl{pos, recv, ident, sig, body};
+ }
+ 
+ 
+-func (P *Parser) parseDeclaration() AST.Decl {
++func (P *Parser) parseDeclaration() ast.Decl {
+ 	if P.trace {
+ 		defer un(trace(P, "Declaration"));
+ 	}
+@@ -1680,47 +1544,101 @@ func (P *Parser) parseDeclaration() AST.Decl {
+ 	pos := P.pos;
+ 	P.error(pos, "declaration expected");
+ 	P.next();  // make progress
+-	return &AST.BadDecl{pos};
++	return &ast.BadDecl{pos};
+ }
+ 
+ 
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-func (P *Parser) ParseProgram() *AST.Program {
++// The top level parsing routines:
++//
++// ParsePackageClause
++// - parses the package clause only and returns the package name
++//
++// ParseImportDecls
++// - parses all import declarations and returns a list of them
++// - the package clause must have been parsed before
++// - useful to determine package dependencies
++//
++// ParseProgram
++// - parses the entire program and returns the complete AST
++
++
++func (P *Parser) ParsePackageClause() *ast.Ident {
+ 	if P.trace {
+-		defer un(trace(P, "Program"));
++		defer un(trace(P, "PackageClause"));
+ 	}
+ 
+-	P.openScope();
+-	p := AST.NewProgram(P.pos);
+ 	P.expect(token.PACKAGE);
+-	p.Ident = P.parseIdent(nil);
++	return P.parseIdent();
++}
++
++
++func (P *Parser) parseImportDecls() *vector.Vector {
++	if P.trace {
++		defer un(trace(P, "ImportDecls"));
++	}
++
++	list := vector.New(0);
++	for P.tok == token.IMPORT {
++		list.Push(P.parseDecl(token.IMPORT));
++		P.OptSemicolon();
++	}
++
++	return list;
++}
++
++
++func (P *Parser) ParseImportDecls() []ast.Decl {
++	list := P.parseImportDecls();
++
++	// convert list
++	imports := make([]ast.Decl, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		imports[i] = list.At(i).(ast.Decl);
++	}
++	
++	return imports;
++}
++
++
++// Returns the list of comments accumulated during parsing, if any.
++// (The scanner must return token.COMMENT tokens for comments to be
++// collected in the first place.)
++
++func (P *Parser) Comments() []*ast.Comment {
++	// convert comments vector
++	list := make([]*ast.Comment, P.comments.Len());
++	for i := 0; i < P.comments.Len(); i++ {
++		list[i] = P.comments.At(i).(*ast.Comment);
++	}
++	return list;
++}
++
++
++func (P *Parser) ParseProgram() *ast.Program {
++	if P.trace {
++		defer un(trace(P, "Program"));
++	}
++
++	p := ast.NewProgram(P.pos);
++	p.Ident = P.ParsePackageClause();
+ 
+ 	// package body
+-	{	P.openScope();
+-		list := vector.New(0);
+-		for P.tok == token.IMPORT {
+-			list.Push(P.parseDecl(token.IMPORT));
+-			P.OptSemicolon();
+-		}
+-		if !P.deps {
+-			for P.tok != token.EOF {
+-				list.Push(P.parseDeclaration());
+-				P.OptSemicolon();
+-			}
+-		}
+-		P.closeScope();
++	list := P.parseImportDecls();
++	for P.tok != token.EOF {
++		list.Push(P.parseDeclaration());
++		P.OptSemicolon();
++	}
+ 
+-		// convert list
+-		p.Decls = make([]AST.Decl, list.Len());
+-		for i := 0; i < list.Len(); i++ {
+-			p.Decls[i] = list.At(i).(AST.Decl);
+-		}
++	// convert list
++	p.Decls = make([]ast.Decl, list.Len());
++	for i := 0; i < list.Len(); i++ {
++		p.Decls[i] = list.At(i).(ast.Decl);
+ 	}
+ 
+-	p.Comments = P.comments;
+-	P.closeScope();
++	p.Comments = P.Comments();
+ 
+ 	return p;
+ }
+diff --git a/usr/gri/pretty/pretty.go b/usr/gri/pretty/pretty.go
+index d397b27a3c..4e9593039c 100644
+--- a/usr/gri/pretty/pretty.go
++++ b/usr/gri/pretty/pretty.go
+@@ -21,7 +21,6 @@ var (
+ 
+ func init() {
+ 	flag.BoolVar(&flags.Verbose, "v", false, "verbose mode: trace parsing");
+-	flag.BoolVar(&flags.Sixg, "6g", true, "6g compatibility mode");
+ 	flag.BoolVar(&flags.Deps, "d", false, "print dependency information only");
+ 	flag.BoolVar(&flags.Columns, "columns", Platform.USER == "gri", "print column info in error messages");
+ }
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index b9cd56f806..0bf281176e 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -13,7 +13,7 @@ import (
+ 	"fmt";
+ 	Utils "utils";
+ 	"token";
+-	AST "ast";
++	"ast";
+ 	SymbolTable "symboltable";
+ )
+ 
+@@ -83,7 +83,7 @@ type Printer struct {
+ 	html bool;
+ 
+ 	// comments
+-	comments *vector.Vector;  // the list of all comments
++	comments []*ast.Comment;  // the list of all comments
+ 	cindex int;  // the current comments index
+ 	cpos int;  // the position of the next comment
+ 
+@@ -113,15 +113,15 @@ func (P *Printer) HasComment(pos int) bool {
+ 
+ func (P *Printer) NextComment() {
+ 	P.cindex++;
+-	if P.comments != nil && P.cindex < P.comments.Len() {
+-		P.cpos = P.comments.At(P.cindex).(*AST.Comment).Pos;
++	if P.comments != nil && P.cindex < len(P.comments) {
++		P.cpos = P.comments[P.cindex].Pos;
+ 	} else {
+ 		P.cpos = 1<<30;  // infinite
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Init(text io.Write, html bool, comments *vector.Vector) {
++func (P *Printer) Init(text io.Write, html bool, comments []*ast.Comment) {
+ 	// writers
+ 	P.text = text;
+ 	
+@@ -243,8 +243,8 @@ func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 	nlcount := 0;
+ 	for ; P.HasComment(pos); P.NextComment() {
+ 		// we have a comment/newline that comes before the string
+-		comment := P.comments.At(P.cindex).(*AST.Comment);
+-		ctext := comment.Text;
++		comment := P.comments[P.cindex];
++		ctext := string(comment.Text);  // TODO get rid of string conversion here
+ 
+ 		if ctext == "\n" {
+ 			// found a newline in src - count it
+@@ -418,7 +418,9 @@ func (P *Printer) HtmlEpilogue() {
+ }
+ 
+ 
+-func (P *Printer) HtmlIdentifier(x *AST.Ident) {
++func (P *Printer) HtmlIdentifier(x *ast.Ident) {
++	P.String(x.Pos_, x.Str);
++	/*
+ 	obj := x.Obj;
+ 	if P.html && obj.Kind != SymbolTable.NONE {
+ 		// depending on whether we have a declaration or use, generate different html
+@@ -434,6 +436,7 @@ func (P *Printer) HtmlIdentifier(x *AST.Ident) {
+ 	} else {
+ 		P.String(x.Pos_, obj.Ident);
+ 	}
++	*/
+ }
+ 
+ 
+@@ -451,9 +454,9 @@ func (P *Printer) HtmlPackageName(pos int, name string) {
+ // ----------------------------------------------------------------------------
+ // Support
+ 
+-func (P *Printer) Expr(x AST.Expr)
++func (P *Printer) Expr(x ast.Expr)
+ 
+-func (P *Printer) Idents(list []*AST.Ident) {
++func (P *Printer) Idents(list []*ast.Ident) {
+ 	for i, x := range list {
+ 		if i > 0 {
+ 			P.Token(0, token.COMMA);
+@@ -465,7 +468,7 @@ func (P *Printer) Idents(list []*AST.Ident) {
+ }
+ 
+ 
+-func (P *Printer) Parameters(list []*AST.Field) {
++func (P *Printer) Parameters(list []*ast.Field) {
+ 	P.Token(0, token.LPAREN);
+ 	if len(list) > 0 {
+ 		for i, par := range list {
+@@ -485,7 +488,7 @@ func (P *Printer) Parameters(list []*AST.Field) {
+ 
+ // Returns the separator (semicolon or none) required if
+ // the type is terminating a declaration or statement.
+-func (P *Printer) Signature(sig *AST.Signature) {
++func (P *Printer) Signature(sig *ast.Signature) {
+ 	P.Parameters(sig.Params);
+ 	if sig.Result != nil {
+ 		P.separator = blank;
+@@ -494,7 +497,7 @@ func (P *Printer) Signature(sig *AST.Signature) {
+ 			// single anonymous result
+ 			// => no parentheses needed unless it's a function type
+ 			fld := sig.Result[0];
+-			if dummy, is_ftyp := fld.Typ.(*AST.FunctionType); !is_ftyp {
++			if dummy, is_ftyp := fld.Typ.(*ast.FunctionType); !is_ftyp {
+ 				P.Expr(fld.Typ);
+ 				return;
+ 			}
+@@ -505,7 +508,7 @@ func (P *Printer) Signature(sig *AST.Signature) {
+ }
+ 
+ 
+-func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
++func (P *Printer) Fields(list []*ast.Field, end int, is_interface bool) {
+ 	P.state = opening_scope;
+ 	P.separator = blank;
+ 	P.Token(0, token.LBRACE);
+@@ -522,7 +525,7 @@ func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
+ 				P.separator = tab
+ 			};
+ 			if is_interface {
+-				if ftyp, is_ftyp := fld.Typ.(*AST.FunctionType); is_ftyp {
++				if ftyp, is_ftyp := fld.Typ.(*ast.FunctionType); is_ftyp {
+ 					P.Signature(ftyp.Sig);
+ 				} else {
+ 					P.Expr(fld.Typ);
+@@ -547,21 +550,21 @@ func (P *Printer) Fields(list []*AST.Field, end int, is_interface bool) {
+ // ----------------------------------------------------------------------------
+ // Expressions
+ 
+-func (P *Printer) Block(b *AST.Block, indent bool)
+-func (P *Printer) Expr1(x AST.Expr, prec1 int)
++func (P *Printer) Block(b *ast.Block, indent bool)
++func (P *Printer) Expr1(x ast.Expr, prec1 int)
+ 
+ 
+-func (P *Printer) DoBadExpr(x *AST.BadExpr) {
++func (P *Printer) DoBadExpr(x *ast.BadExpr) {
+ 	P.String(0, "BadExpr");
+ }
+ 
+ 
+-func (P *Printer) DoIdent(x *AST.Ident) {
++func (P *Printer) DoIdent(x *ast.Ident) {
+ 	P.HtmlIdentifier(x);
+ }
+ 
+ 
+-func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
++func (P *Printer) DoBinaryExpr(x *ast.BinaryExpr) {
+ 	if x.Tok == token.COMMA {
+ 		// (don't use binary expression printing because of different spacing)
+ 		P.Expr(x.X);
+@@ -586,7 +589,7 @@ func (P *Printer) DoBinaryExpr(x *AST.BinaryExpr) {
+ }
+ 
+ 
+-func (P *Printer) DoUnaryExpr(x *AST.UnaryExpr) {
++func (P *Printer) DoUnaryExpr(x *ast.UnaryExpr) {
+ 	prec := token.UnaryPrec;
+ 	if prec < P.prec {
+ 		P.Token(0, token.LPAREN);
+@@ -602,12 +605,20 @@ func (P *Printer) DoUnaryExpr(x *AST.UnaryExpr) {
+ }
+ 
+ 
+-func (P *Printer) DoBasicLit(x *AST.BasicLit) {
+-	P.String(x.Pos_, x.Val);
++func (P *Printer) DoConcatExpr(x *ast.ConcatExpr) {
++	P.Expr1(x.X, token.HighestPrec);
++	P.separator = blank;
++	P.Expr1(x.Y, token.HighestPrec);
++}
++
++
++func (P *Printer) DoBasicLit(x *ast.BasicLit) {
++	// TODO get rid of string conversion here
++	P.String(x.Pos_, string(x.Val));
+ }
+ 
+ 
+-func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
++func (P *Printer) DoFunctionLit(x *ast.FunctionLit) {
+ 	P.Token(x.Pos_, token.FUNC);
+ 	P.Signature(x.Typ);
+ 	P.separator = blank;
+@@ -616,21 +627,21 @@ func (P *Printer) DoFunctionLit(x *AST.FunctionLit) {
+ }
+ 
+ 
+-func (P *Printer) DoGroup(x *AST.Group) {
++func (P *Printer) DoGroup(x *ast.Group) {
+ 	P.Token(x.Pos_, token.LPAREN);
+ 	P.Expr(x.X);
+ 	P.Token(0, token.RPAREN);
+ }
+ 
+ 
+-func (P *Printer) DoSelector(x *AST.Selector) {
++func (P *Printer) DoSelector(x *ast.Selector) {
+ 	P.Expr1(x.X, token.HighestPrec);
+ 	P.Token(x.Pos_, token.PERIOD);
+ 	P.Expr1(x.Sel, token.HighestPrec);
+ }
+ 
+ 
+-func (P *Printer) DoTypeGuard(x *AST.TypeGuard) {
++func (P *Printer) DoTypeGuard(x *ast.TypeGuard) {
+ 	P.Expr1(x.X, token.HighestPrec);
+ 	P.Token(x.Pos_, token.PERIOD);
+ 	P.Token(0, token.LPAREN);
+@@ -639,7 +650,7 @@ func (P *Printer) DoTypeGuard(x *AST.TypeGuard) {
+ }
+ 
+ 
+-func (P *Printer) DoIndex(x *AST.Index) {
++func (P *Printer) DoIndex(x *ast.Index) {
+ 	P.Expr1(x.X, token.HighestPrec);
+ 	P.Token(x.Pos_, token.LBRACK);
+ 	P.Expr1(x.I, 0);
+@@ -647,7 +658,7 @@ func (P *Printer) DoIndex(x *AST.Index) {
+ }
+ 
+ 
+-func (P *Printer) DoCall(x *AST.Call) {
++func (P *Printer) DoCall(x *ast.Call) {
+ 	P.Expr1(x.F, token.HighestPrec);
+ 	P.Token(x.Pos_, x.Tok);
+ 	P.Expr(x.Args);
+@@ -658,12 +669,12 @@ func (P *Printer) DoCall(x *AST.Call) {
+ }
+ 
+ 
+-func (P *Printer) DoEllipsis(x *AST.Ellipsis) {
++func (P *Printer) DoEllipsis(x *ast.Ellipsis) {
+ 	P.Token(x.Pos_, token.ELLIPSIS);
+ }
+ 
+ 
+-func (P *Printer) DoArrayType(x *AST.ArrayType) {
++func (P *Printer) DoArrayType(x *ast.ArrayType) {
+ 	P.Token(x.Pos_, token.LBRACK);
+ 	if x.Len != nil {
+ 		P.Expr(x.Len);
+@@ -673,7 +684,12 @@ func (P *Printer) DoArrayType(x *AST.ArrayType) {
+ }
+ 
+ 
+-func (P *Printer) DoStructType(x *AST.StructType) {
++func (P *Printer) DoTypeType(x *ast.TypeType) {
++	P.Token(x.Pos_, token.TYPE);
++}
++
++
++func (P *Printer) DoStructType(x *ast.StructType) {
+ 	P.Token(x.Pos_, token.STRUCT);
+ 	if x.End > 0 {
+ 		P.Fields(x.Fields, x.End, false);
+@@ -681,19 +697,19 @@ func (P *Printer) DoStructType(x *AST.StructType) {
+ }
+ 
+ 
+-func (P *Printer) DoPointerType(x *AST.PointerType) {
++func (P *Printer) DoPointerType(x *ast.PointerType) {
+ 	P.Token(x.Pos_, token.MUL);
+ 	P.Expr(x.Base);
+ }
+ 
+ 
+-func (P *Printer) DoFunctionType(x *AST.FunctionType) {
++func (P *Printer) DoFunctionType(x *ast.FunctionType) {
+ 	P.Token(x.Pos_, token.FUNC);
+ 	P.Signature(x.Sig);
+ }
+ 
+ 
+-func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
++func (P *Printer) DoInterfaceType(x *ast.InterfaceType) {
+ 	P.Token(x.Pos_, token.INTERFACE);
+ 	if x.End > 0 {
+ 		P.Fields(x.Methods, x.End, true);
+@@ -701,12 +717,12 @@ func (P *Printer) DoInterfaceType(x *AST.InterfaceType) {
+ }
+ 
+ 
+-func (P *Printer) DoSliceType(x *AST.SliceType) {
++func (P *Printer) DoSliceType(x *ast.SliceType) {
+ 	unimplemented();
+ }
+ 
+ 
+-func (P *Printer) DoMapType(x *AST.MapType) {
++func (P *Printer) DoMapType(x *ast.MapType) {
+ 	P.Token(x.Pos_, token.MAP);
+ 	P.separator = blank;
+ 	P.Token(0, token.LBRACK);
+@@ -716,14 +732,14 @@ func (P *Printer) DoMapType(x *AST.MapType) {
+ }
+ 
+ 
+-func (P *Printer) DoChannelType(x *AST.ChannelType) {
++func (P *Printer) DoChannelType(x *ast.ChannelType) {
+ 	switch x.Mode {
+-	case AST.FULL:
++	case ast.FULL:
+ 		P.Token(x.Pos_, token.CHAN);
+-	case AST.RECV:
++	case ast.RECV:
+ 		P.Token(x.Pos_, token.ARROW);
+ 		P.Token(0, token.CHAN);
+-	case AST.SEND:
++	case ast.SEND:
+ 		P.Token(x.Pos_, token.CHAN);
+ 		P.separator = blank;
+ 		P.Token(0, token.ARROW);
+@@ -733,7 +749,7 @@ func (P *Printer) DoChannelType(x *AST.ChannelType) {
+ }
+ 
+ 
+-func (P *Printer) Expr1(x AST.Expr, prec1 int) {
++func (P *Printer) Expr1(x ast.Expr, prec1 int) {
+ 	if x == nil {
+ 		return;  // empty expression list
+ 	}
+@@ -745,7 +761,7 @@ func (P *Printer) Expr1(x AST.Expr, prec1 int) {
+ }
+ 
+ 
+-func (P *Printer) Expr(x AST.Expr) {
++func (P *Printer) Expr(x ast.Expr) {
+ 	P.Expr1(x, token.LowestPrec);
+ }
+ 
+@@ -753,7 +769,7 @@ func (P *Printer) Expr(x AST.Expr) {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-func (P *Printer) Stat(s AST.Stat) {
++func (P *Printer) Stat(s ast.Stat) {
+ 	s.Visit(P);
+ }
+ 
+@@ -768,14 +784,14 @@ func (P *Printer) StatementList(list *vector.Vector) {
+ 				P.separator = semicolon;
+ 			}
+ 		}
+-		P.Stat(list.At(i).(AST.Stat));
++		P.Stat(list.At(i).(ast.Stat));
+ 		P.newlines = 1;
+ 		P.state = inside_list;
+ 	}
+ }
+ 
+ 
+-func (P *Printer) Block(b *AST.Block, indent bool) {
++func (P *Printer) Block(b *ast.Block, indent bool) {
+ 	P.state = opening_scope;
+ 	P.Token(b.Pos, b.Tok);
+ 	if !indent {
+@@ -798,14 +814,14 @@ func (P *Printer) Block(b *AST.Block, indent bool) {
+ }
+ 
+ 
+-func (P *Printer) Decl(d AST.Decl);
++func (P *Printer) Decl(d ast.Decl);
+ 
+-func (P *Printer) DoBadStat(s *AST.BadStat) {
++func (P *Printer) DoBadStat(s *ast.BadStat) {
+ 	panic();
+ }
+ 
+ 
+-func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
++func (P *Printer) DoLabelDecl(s *ast.LabelDecl) {
+ 	P.indentation--;
+ 	P.Expr(s.Label);
+ 	P.Token(s.Pos, token.COLON);
+@@ -817,12 +833,12 @@ func (P *Printer) DoLabelDecl(s *AST.LabelDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoDeclarationStat(s *AST.DeclarationStat) {
++func (P *Printer) DoDeclarationStat(s *ast.DeclarationStat) {
+ 	P.Decl(s.Decl);
+ }
+ 
+ 
+-func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
++func (P *Printer) DoExpressionStat(s *ast.ExpressionStat) {
+ 	switch s.Tok {
+ 	case token.ILLEGAL:
+ 		P.Expr(s.Expr);
+@@ -842,12 +858,12 @@ func (P *Printer) DoExpressionStat(s *AST.ExpressionStat) {
+ }
+ 
+ 
+-func (P *Printer) DoCompositeStat(s *AST.CompositeStat) {
++func (P *Printer) DoCompositeStat(s *ast.CompositeStat) {
+ 	P.Block(s.Body, true);
+ }
+ 
+ 
+-func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, post AST.Stat) {
++func (P *Printer) ControlClause(isForStat bool, init ast.Stat, expr ast.Expr, post ast.Stat) {
+ 	P.separator = blank;
+ 	if init == nil && post == nil {
+ 		// no semicolons required
+@@ -879,7 +895,7 @@ func (P *Printer) ControlClause(isForStat bool, init AST.Stat, expr AST.Expr, po
+ }
+ 
+ 
+-func (P *Printer) DoIfStat(s *AST.IfStat) {
++func (P *Printer) DoIfStat(s *ast.IfStat) {
+ 	P.Token(s.Pos, token.IF);
+ 	P.ControlClause(false, s.Init, s.Cond, nil);
+ 	P.Block(s.Body, true);
+@@ -892,14 +908,14 @@ func (P *Printer) DoIfStat(s *AST.IfStat) {
+ }
+ 
+ 
+-func (P *Printer) DoForStat(s *AST.ForStat) {
++func (P *Printer) DoForStat(s *ast.ForStat) {
+ 	P.Token(s.Pos, token.FOR);
+ 	P.ControlClause(true, s.Init, s.Cond, s.Post);
+ 	P.Block(s.Body, true);
+ }
+ 
+ 
+-func (P *Printer) DoCaseClause(s *AST.CaseClause) {
++func (P *Printer) DoCaseClause(s *ast.CaseClause) {
+ 	if s.Expr != nil {
+ 		P.Token(s.Pos, token.CASE);
+ 		P.separator = blank;
+@@ -917,21 +933,21 @@ func (P *Printer) DoCaseClause(s *AST.CaseClause) {
+ }
+ 
+ 
+-func (P *Printer) DoSwitchStat(s *AST.SwitchStat) {
++func (P *Printer) DoSwitchStat(s *ast.SwitchStat) {
+ 	P.Token(s.Pos, token.SWITCH);
+ 	P.ControlClause(false, s.Init, s.Tag, nil);
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+-func (P *Printer) DoSelectStat(s *AST.SelectStat) {
++func (P *Printer) DoSelectStat(s *ast.SelectStat) {
+ 	P.Token(s.Pos, token.SELECT);
+ 	P.separator = blank;
+ 	P.Block(s.Body, false);
+ }
+ 
+ 
+-func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
++func (P *Printer) DoControlFlowStat(s *ast.ControlFlowStat) {
+ 	P.Token(s.Pos, s.Tok);
+ 	if s.Label != nil {
+ 		P.separator = blank;
+@@ -940,7 +956,7 @@ func (P *Printer) DoControlFlowStat(s *AST.ControlFlowStat) {
+ }
+ 
+ 
+-func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
++func (P *Printer) DoEmptyStat(s *ast.EmptyStat) {
+ 	P.String(s.Pos, "");
+ }
+ 
+@@ -948,12 +964,12 @@ func (P *Printer) DoEmptyStat(s *AST.EmptyStat) {
+ // ----------------------------------------------------------------------------
+ // Declarations
+ 
+-func (P *Printer) DoBadDecl(d *AST.BadDecl) {
++func (P *Printer) DoBadDecl(d *ast.BadDecl) {
+ 	P.String(d.Pos, "<BAD DECL>");
+ }
+ 
+ 
+-func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
++func (P *Printer) DoImportDecl(d *ast.ImportDecl) {
+ 	if d.Pos > 0 {
+ 		P.Token(d.Pos, token.IMPORT);
+ 		P.separator = blank;
+@@ -964,8 +980,8 @@ func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
+ 		P.String(d.Path.Pos(), "");  // flush pending ';' separator/newlines
+ 	}
+ 	P.separator = tab;
+-	if lit, is_lit := d.Path.(*AST.BasicLit); is_lit && lit.Tok == token.STRING {
+-		P.HtmlPackageName(lit.Pos_, lit.Val);
++	if lit, is_lit := d.Path.(*ast.BasicLit); is_lit && lit.Tok == token.STRING {
++		P.HtmlPackageName(lit.Pos_, string(lit.Val));
+ 	} else {
+ 		// we should only reach here for strange imports
+ 		// import "foo" "bar"
+@@ -975,7 +991,7 @@ func (P *Printer) DoImportDecl(d *AST.ImportDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
++func (P *Printer) DoConstDecl(d *ast.ConstDecl) {
+ 	if d.Pos > 0 {
+ 		P.Token(d.Pos, token.CONST);
+ 		P.separator = blank;
+@@ -995,7 +1011,7 @@ func (P *Printer) DoConstDecl(d *AST.ConstDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoTypeDecl(d *AST.TypeDecl) {
++func (P *Printer) DoTypeDecl(d *ast.TypeDecl) {
+ 	if d.Pos > 0 {
+ 		P.Token(d.Pos, token.TYPE);
+ 		P.separator = blank;
+@@ -1007,7 +1023,7 @@ func (P *Printer) DoTypeDecl(d *AST.TypeDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoVarDecl(d *AST.VarDecl) {
++func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ 	if d.Pos > 0 {
+ 		P.Token(d.Pos, token.VAR);
+ 		P.separator = blank;
+@@ -1028,7 +1044,7 @@ func (P *Printer) DoVarDecl(d *AST.VarDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoFuncDecl(d *AST.FuncDecl) {
++func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ 	P.Token(d.Pos_, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+@@ -1052,7 +1068,7 @@ func (P *Printer) DoFuncDecl(d *AST.FuncDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoDeclList(d *AST.DeclList) {
++func (P *Printer) DoDeclList(d *ast.DeclList) {
+ 	if !*def || d.Tok == token.IMPORT || d.Tok == token.VAR {
+ 		P.Token(d.Pos, d.Tok);
+ 	} else {
+@@ -1080,7 +1096,7 @@ func (P *Printer) DoDeclList(d *AST.DeclList) {
+ }
+ 
+ 
+-func (P *Printer) Decl(d AST.Decl) {
++func (P *Printer) Decl(d ast.Decl) {
+ 	d.Visit(P);
+ }
+ 
+@@ -1088,7 +1104,7 @@ func (P *Printer) Decl(d AST.Decl) {
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+-func (P *Printer) Program(p *AST.Program) {
++func (P *Printer) Program(p *ast.Program) {
+ 	P.Token(p.Pos, token.PACKAGE);
+ 	P.separator = blank;
+ 	P.Expr(p.Ident);
+@@ -1103,7 +1119,7 @@ func (P *Printer) Program(p *AST.Program) {
+ // ----------------------------------------------------------------------------
+ // External interface
+ 
+-func Print(writer io.Write, html bool, prog *AST.Program) {
++func Print(writer io.Write, html bool, prog *ast.Program) {
+ 	// setup
+ 	var P Printer;
+ 	padchar := byte(' ');
+@@ -1114,7 +1130,7 @@ func Print(writer io.Write, html bool, prog *AST.Program) {
+ 	P.Init(text, html, prog.Comments);
+ 
+ 	// TODO would be better to make the name of the src file be the title
+-	P.HtmlPrologue("package " + prog.Ident.(*AST.Ident).Obj.Ident);
++	P.HtmlPrologue("package " + prog.Ident.Str);
+ 	P.Program(prog);
+ 	P.HtmlEpilogue();
+ 
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+index 8fa907462d..48fe33cf97 100644
+--- a/usr/gri/pretty/selftest2.go
++++ b/usr/gri/pretty/selftest2.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	"array";  // not needed
++	"vector";  // not needed
+ 	"utf8";  // not needed
+ 	Fmt "fmt"
+ )
+@@ -128,6 +128,19 @@ func f3(a *[]int, m map[string] int) {
+ }
+ 
+ 
++type I interface {}
++
++func f3(x I) int {
++	switch tmp := tmp.(type) {
++	case S: return 1;
++	}
++	switch {
++	case t := x.(S): return 2;
++	}
++	return 0;
++}
++
++
+ func main() {
+ // the prologue
+ 	for i := 0; i <= 10 /* limit */; i++ {

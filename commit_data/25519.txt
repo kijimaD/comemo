@@ -15,6 +15,21 @@ Date:   Thu Nov 5 10:20:32 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/16691
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
-
+---
  src/cmd/go/go_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 489782df58..43660d75cc 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1167,6 +1167,9 @@ func TestInstallIntoGOPATH(t *testing.T) {
+ 
+ // Issue 12407
+ func TestBuildOutputToDevNull(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping because /dev/null is a regular file on plan9")
++	}
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))

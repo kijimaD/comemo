@@ -19,7 +19,49 @@ Date:   Sun Nov 25 23:02:28 2018 +0000
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
-
+---
  src/encoding/hex/hex.go      | 9 +++++----
  src/encoding/hex/hex_test.go | 2 ++
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 7675de9bd9..fbba78ffd2 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -23,11 +23,12 @@ func EncodedLen(n int) int { return n * 2 }
+ // of bytes written to dst, but this value is always EncodedLen(len(src)).
+ // Encode implements hexadecimal encoding.
+ func Encode(dst, src []byte) int {
+-	for i, v := range src {
+-		dst[i*2] = hextable[v>>4]
+-		dst[i*2+1] = hextable[v&0x0f]
++	j := 0
++	for _, v := range src {
++		dst[j] = hextable[v>>4]
++		dst[j+1] = hextable[v&0x0f]
++		j += 2
+ 	}
+-
+ 	return len(src) * 2
+ }
+ 
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index ba703cf1c1..dbb00b94ca 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -242,6 +242,7 @@ func BenchmarkEncode(b *testing.B) {
+ 		sink = make([]byte, 2*size)
+ 
+ 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			b.SetBytes(int64(size))
+ 			for i := 0; i < b.N; i++ {
+ 				Encode(sink, src)
+ 			}
+@@ -269,6 +270,7 @@ func BenchmarkDump(b *testing.B) {
+ 		sink = make([]byte, 2*size)
+ 
+ 		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			b.SetBytes(int64(size))
+ 			for i := 0; i < b.N; i++ {
+ 				Dump(src)
+ 			}

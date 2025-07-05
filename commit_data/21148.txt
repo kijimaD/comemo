@@ -23,8 +23,131 @@ Date:   Wed Nov 19 15:25:33 2014 -0500
     R=dneil
     CC=dvyukov, golang-codereviews, iant
     https://golang.org/cl/179980043
-
+---
  src/run.bash          |  5 +++--
  src/runtime/malloc.go | 11 +++++++++--
  src/runtime/race.c    | 44 +++++++++++++++++++++++++++++++++++++++-----
  3 files changed, 51 insertions(+), 9 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 3c9430c87e..9a0e1cb0f2 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -70,9 +70,10 @@ case "$GOHOSTOS-$GOOS-$GOARCH-$CGO_ENABLED" in
+ linux-linux-amd64-1 | freebsd-freebsd-amd64-1 | darwin-darwin-amd64-1)
+ 	echo
+ 	echo '# Testing race detector.'
+-	go test -race -i runtime/race flag
++	go test -race -i runtime/race flag os/exec
+ 	go test -race -run=Output runtime/race
+-	go test -race -short flag
++	go test -race -short flag os/exec
++	go test -race -short -ldflags=-linkmode=external flag os/exec
+ esac
+ 
+ xcd() {
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 8cf1c3d342..1170449440 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -490,6 +490,8 @@ func GC() {
+ 
+ // linker-provided
+ var noptrdata struct{}
++var enoptrdata struct{}
++var noptrbss struct{}
+ var enoptrbss struct{}
+ 
+ // SetFinalizer sets the finalizer associated with x to f.
+@@ -566,8 +568,13 @@ func SetFinalizer(obj interface{}, finalizer interface{}) {
+ 		//	func main() {
+ 		//		runtime.SetFinalizer(Foo, nil)
+ 		//	}
+-		// The segments are, in order: text, rodata, noptrdata, data, bss, noptrbss.
+-		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
++		// The relevant segments are: noptrdata, data, bss, noptrbss.
++		// We cannot assume they are in any order or even contiguous,
++		// due to external linking.
++		if uintptr(unsafe.Pointer(&noptrdata)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrdata)) ||
++			uintptr(unsafe.Pointer(&data)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&edata)) ||
++			uintptr(unsafe.Pointer(&bss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&ebss)) ||
++			uintptr(unsafe.Pointer(&noptrbss)) <= uintptr(e.data) && uintptr(e.data) < uintptr(unsafe.Pointer(&enoptrbss)) {
+ 			return
+ 		}
+ 		gothrow("runtime.SetFinalizer: pointer not in allocated block")
+diff --git a/src/runtime/race.c b/src/runtime/race.c
+index 9ac73fbccf..e400c8d102 100644
+--- a/src/runtime/race.c
++++ b/src/runtime/race.c
+@@ -63,8 +63,14 @@ void __tsan_go_ignore_sync_end(void);
+ #pragma cgo_import_static __tsan_go_atomic64_compare_exchange
+ 
+ extern byte runtime·noptrdata[];
++extern byte runtime·enoptrdata[];
++extern byte runtime·data[];
++extern byte runtime·edata[];
++extern byte runtime·bss[];
++extern byte runtime·ebss[];
++extern byte runtime·noptrbss[];
+ extern byte runtime·enoptrbss[];
+-  
++
+ // start/end of heap for race_amd64.s
+ uintptr runtime·racearenastart;
+ uintptr runtime·racearenaend;
+@@ -86,7 +92,13 @@ isvalidaddr(uintptr addr)
+ {
+ 	if(addr >= runtime·racearenastart && addr < runtime·racearenaend)
+ 		return true;
+-	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrbss)
++	if(addr >= (uintptr)runtime·noptrdata && addr < (uintptr)runtime·enoptrdata)
++		return true;
++	if(addr >= (uintptr)runtime·data && addr < (uintptr)runtime·edata)
++		return true;
++	if(addr >= (uintptr)runtime·bss && addr < (uintptr)runtime·ebss)
++		return true;
++	if(addr >= (uintptr)runtime·noptrbss && addr < (uintptr)runtime·enoptrbss)
+ 		return true;
+ 	return false;
+ }
+@@ -95,15 +107,37 @@ isvalidaddr(uintptr addr)
+ uintptr
+ runtime·raceinit(void)
+ {
+-	uintptr racectx, start, size;
++	uintptr racectx, start, end, size;
+ 
+ 	// cgo is required to initialize libc, which is used by race runtime
+ 	if(!runtime·iscgo)
+ 		runtime·throw("raceinit: race build must use cgo");
+ 	runtime·racecall(__tsan_init, &racectx, runtime·racesymbolizethunk);
+ 	// Round data segment to page boundaries, because it's used in mmap().
+-	start = (uintptr)runtime·noptrdata & ~(PageSize-1);
+-	size = ROUND((uintptr)runtime·enoptrbss - start, PageSize);
++	// The relevant sections are noptrdata, data, bss, noptrbss.
++	// In external linking mode, there may be other non-Go data mixed in,
++	// and the sections may even occur out of order.
++	// Work out a conservative range of addresses.
++	start = ~(uintptr)0;
++	end = 0;
++	if(start > (uintptr)runtime·noptrdata)
++		start = (uintptr)runtime·noptrdata;
++	if(start > (uintptr)runtime·data)
++		start = (uintptr)runtime·data;
++	if(start > (uintptr)runtime·noptrbss)
++		start = (uintptr)runtime·noptrbss;
++	if(start > (uintptr)runtime·bss)
++		start = (uintptr)runtime·bss;
++	if(end < (uintptr)runtime·enoptrdata)
++		end = (uintptr)runtime·enoptrdata;
++	if(end < (uintptr)runtime·edata)
++		end = (uintptr)runtime·edata;
++	if(end < (uintptr)runtime·enoptrbss)
++		end = (uintptr)runtime·enoptrbss;
++	if(end < (uintptr)runtime·ebss)
++		end = (uintptr)runtime·ebss;
++	start = start & ~(PageSize-1);
++	size = ROUND(end - start, PageSize);
+ 	runtime·racecall(__tsan_map_shadow, start, size);
+ 	return racectx;
+ }

@@ -12,7 +12,81 @@ Date:   Wed Feb 29 09:52:52 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5708055
-
+---
  src/pkg/net/http/transport.go      |  6 ++++--
  src/pkg/net/http/transport_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 3e48abafb5..09579f8a09 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -76,7 +76,9 @@ type Transport struct {
+ // ProxyFromEnvironment returns the URL of the proxy to use for a
+ // given request, as indicated by the environment variables
+ // $HTTP_PROXY and $NO_PROXY (or $http_proxy and $no_proxy).
+-// Either URL or an error is returned.
++// An error is returned if the proxy environment is invalid.
++// A nil URL and nil error are returned if no proxy is defined in the
++// environment, or a proxy should not be used for the given request.
+ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+ 	proxy := getenvEitherCase("HTTP_PROXY")
+ 	if proxy == "" {
+@@ -86,7 +88,7 @@ func ProxyFromEnvironment(req *Request) (*url.URL, error) {
+ 		return nil, nil
+ 	}
+ 	proxyURL, err := url.Parse(proxy)
+-	if err != nil {
++	if err != nil || proxyURL.Scheme == "" {
+ 		if u, err := url.Parse("http://" + proxy); err == nil {
+ 			proxyURL = u
+ 			err = nil
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 1a629c1727..cbb3884f9e 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -16,6 +16,7 @@ import (
+ 	. "net/http"
+ 	"net/http/httptest"
+ 	"net/url"
++	"os"
+ 	"runtime"
+ 	"strconv"
+ 	"strings"
+@@ -727,6 +728,36 @@ func TestTransportAltProto(t *testing.T) {
+ 	}
+ }
+ 
++var proxyFromEnvTests = []struct {
++	env     string
++	wanturl string
++	wanterr error
++}{
++	{"127.0.0.1:8080", "http://127.0.0.1:8080", nil},
++	{"http://127.0.0.1:8080", "http://127.0.0.1:8080", nil},
++	{"https://127.0.0.1:8080", "https://127.0.0.1:8080", nil},
++	{"", "<nil>", nil},
++}
++
++func TestProxyFromEnvironment(t *testing.T) {
++	os.Setenv("HTTP_PROXY", "")
++	os.Setenv("http_proxy", "")
++	os.Setenv("NO_PROXY", "")
++	os.Setenv("no_proxy", "")
++	for i, tt := range proxyFromEnvTests {
++		os.Setenv("HTTP_PROXY", tt.env)
++		req, _ := NewRequest("GET", "http://example.com", nil)
++		url, err := ProxyFromEnvironment(req)
++		if g, e := fmt.Sprintf("%v", err), fmt.Sprintf("%v", tt.wanterr); g != e {
++			t.Errorf("%d. got error = %q, want %q", i, g, e)
++			continue
++		}
++		if got := fmt.Sprintf("%s", url); got != tt.wanturl {
++			t.Errorf("%d. got URL = %q, want %q", i, url, tt.wanturl)
++		}
++	}
++}
++
+ // rgz is a gzip quine that uncompresses to itself.
+ var rgz = []byte{
+ 	0x1f, 0x8b, 0x08, 0x08, 0x00, 0x00, 0x00, 0x00,

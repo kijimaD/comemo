@@ -11,9 +11,115 @@ Date:   Thu Apr 14 14:47:28 2011 -0400
     R=bradfitzgo
     CC=golang-dev
     https://golang.org/cl/4408044
-
+---
  src/pkg/crypto/tls/common.go             |  3 +++
  src/pkg/crypto/tls/handshake_client.go   |  2 +-
  src/pkg/crypto/tls/handshake_messages.go | 10 +++++-----
  src/pkg/crypto/tls/handshake_server.go   | 11 +++++++++++
  4 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index fb2916ae05..102d986f00 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -178,6 +178,9 @@ func (c *Config) cipherSuites() []uint16 {
+ type Certificate struct {
+ 	Certificate [][]byte
+ 	PrivateKey  *rsa.PrivateKey
++	// OCSPStaple contains an optional OCSP response which will be served
++	// to clients that request it.
++	OCSPStaple []byte
+ }
+ 
+ // A TLS record.
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 540b25c875..0e45c5057d 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -145,7 +145,7 @@ func (c *Conn) clientHandshake() os.Error {
+ 
+ 	c.peerCertificates = certs
+ 
+-	if serverHello.certStatus {
++	if serverHello.ocspStapling {
+ 		msg, err = c.readHandshake()
+ 		if err != nil {
+ 			return err
+diff --git a/src/pkg/crypto/tls/handshake_messages.go b/src/pkg/crypto/tls/handshake_messages.go
+index e5e8562713..6645adce4f 100644
+--- a/src/pkg/crypto/tls/handshake_messages.go
++++ b/src/pkg/crypto/tls/handshake_messages.go
+@@ -306,7 +306,7 @@ type serverHelloMsg struct {
+ 	compressionMethod uint8
+ 	nextProtoNeg      bool
+ 	nextProtos        []string
+-	certStatus        bool
++	ocspStapling      bool
+ }
+ 
+ func (m *serverHelloMsg) marshal() []byte {
+@@ -327,7 +327,7 @@ func (m *serverHelloMsg) marshal() []byte {
+ 		nextProtoLen += len(m.nextProtos)
+ 		extensionsLength += nextProtoLen
+ 	}
+-	if m.certStatus {
++	if m.ocspStapling {
+ 		numExtensions++
+ 	}
+ 	if numExtensions > 0 {
+@@ -373,7 +373,7 @@ func (m *serverHelloMsg) marshal() []byte {
+ 			z = z[1+l:]
+ 		}
+ 	}
+-	if m.certStatus {
++	if m.ocspStapling {
+ 		z[0] = byte(extensionStatusRequest >> 8)
+ 		z[1] = byte(extensionStatusRequest)
+ 		z = z[4:]
+@@ -406,7 +406,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 
+ 	m.nextProtoNeg = false
+ 	m.nextProtos = nil
+-	m.certStatus = false
++	m.ocspStapling = false
+ 
+ 	if len(data) == 0 {
+ 		// ServerHello is optionally followed by extension data
+@@ -450,7 +450,7 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 			if length > 0 {
+ 				return false
+ 			}
+-			m.certStatus = true
++			m.ocspStapling = true
+ 		}
+ 		data = data[length:]
+ 	}
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 809c8c15e5..37c8d154ac 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -103,6 +103,9 @@ FindCipherSuite:
+ 		hello.nextProtoNeg = true
+ 		hello.nextProtos = config.NextProtos
+ 	}
++	if clientHello.ocspStapling && len(config.Certificates[0].OCSPStaple) > 0 {
++		hello.ocspStapling = true
++	}
+ 
+ 	finishedHash.Write(hello.marshal())
+ 	c.writeRecord(recordTypeHandshake, hello.marshal())
+@@ -116,6 +119,14 @@ FindCipherSuite:
+ 	finishedHash.Write(certMsg.marshal())
+ 	c.writeRecord(recordTypeHandshake, certMsg.marshal())
+ 
++	if hello.ocspStapling {
++		certStatus := new(certificateStatusMsg)
++		certStatus.statusType = statusTypeOCSP
++		certStatus.response = config.Certificates[0].OCSPStaple
++		finishedHash.Write(certStatus.marshal())
++		c.writeRecord(recordTypeHandshake, certStatus.marshal())
++	}
++
+ 	keyAgreement := suite.ka()
+ 
+ 	skx, err := keyAgreement.generateServerKeyExchange(config, clientHello, hello)

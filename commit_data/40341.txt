@@ -11,8 +11,77 @@ Date:   Sun May 5 17:23:20 2019 +0900
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dial.go          | 8 +++++++-
  src/net/tcpsock_plan9.go | 3 +--
  src/net/tcpsock_posix.go | 3 +--
  3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index e2e60530a9..4d55a95ddf 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -12,6 +12,12 @@ import (
+ 	"time"
+ )
+ 
++// defaultTCPKeepAlive is a default constant value for TCPKeepAlive times
++// See golang.org/issue/31510
++const (
++	defaultTCPKeepAlive = 15 * time.Second
++)
++
+ // A Dialer contains options for connecting to an address.
+ //
+ // The zero value for each field is equivalent to dialing
+@@ -425,7 +431,7 @@ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn
+ 		setKeepAlive(tc.fd, true)
+ 		ka := d.KeepAlive
+ 		if d.KeepAlive == 0 {
+-			ka = 15 * time.Second
++			ka = defaultTCPKeepAlive
+ 		}
+ 		setKeepAlivePeriod(tc.fd, ka)
+ 		testHookSetKeepAlive(ka)
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index e538f55865..e2e835957c 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -8,7 +8,6 @@ import (
+ 	"context"
+ 	"io"
+ 	"os"
+-	"time"
+ )
+ 
+ func (c *TCPConn) readFrom(r io.Reader) (int64, error) {
+@@ -50,7 +49,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
+ 		setKeepAlive(fd, true)
+ 		ka := ln.lc.KeepAlive
+ 		if ln.lc.KeepAlive == 0 {
+-			ka = 3 * time.Minute
++			ka = defaultTCPKeepAlive
+ 		}
+ 		setKeepAlivePeriod(fd, ka)
+ 	}
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index 14d383b74d..e32d5d7ee3 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"syscall"
+-	"time"
+ )
+ 
+ func sockaddrToTCP(sa syscall.Sockaddr) Addr {
+@@ -146,7 +145,7 @@ func (ln *TCPListener) accept() (*TCPConn, error) {
+ 		setKeepAlive(fd, true)
+ 		ka := ln.lc.KeepAlive
+ 		if ln.lc.KeepAlive == 0 {
+-			ka = 3 * time.Minute
++			ka = defaultTCPKeepAlive
+ 		}
+ 		setKeepAlivePeriod(fd, ka)
+ 	}

@@ -11,9 +11,261 @@ Date:   Thu Nov 16 01:00:22 2023 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/542976
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/internal/reflectlite/all_test.go    | 18 +++++-----
  src/internal/reflectlite/export_test.go |  2 +-
  src/internal/reflectlite/type.go        |  8 ++++-
  src/internal/reflectlite/value.go       | 59 +++++++++++++++++++++------------
  4 files changed, 54 insertions(+), 33 deletions(-)
+
+diff --git a/src/internal/reflectlite/all_test.go b/src/internal/reflectlite/all_test.go
+index 820b4aeaf8..a78f9ae70f 100644
+--- a/src/internal/reflectlite/all_test.go
++++ b/src/internal/reflectlite/all_test.go
+@@ -809,15 +809,15 @@ func TestAllocations(t *testing.T) {
+ 		var i any
+ 		var v Value
+ 
+-		// We can uncomment this when compiler escape analysis
+-		// is good enough to see that the integer assigned to i
+-		// does not escape and therefore need not be allocated.
+-		//
+-		// i = 42 + j
+-		// v = ValueOf(i)
+-		// if int(v.Int()) != 42+j {
+-		// 	panic("wrong int")
+-		// }
++		i = []int{j, j, j}
++		v = ValueOf(i)
++		if v.Len() != 3 {
++			panic("wrong length")
++		}
++	})
++	noAlloc(t, 100, func(j int) {
++		var i any
++		var v Value
+ 
+ 		i = func(j int) int { return j }
+ 		v = ValueOf(i)
+diff --git a/src/internal/reflectlite/export_test.go b/src/internal/reflectlite/export_test.go
+index 88be6e2723..ea937b8db7 100644
+--- a/src/internal/reflectlite/export_test.go
++++ b/src/internal/reflectlite/export_test.go
+@@ -14,7 +14,7 @@ func Field(v Value, i int) Value {
+ 	if v.kind() != Struct {
+ 		panic(&ValueError{"reflect.Value.Field", v.kind()})
+ 	}
+-	tt := (*structType)(unsafe.Pointer(v.typ))
++	tt := (*structType)(unsafe.Pointer(v.typ()))
+ 	if uint(i) >= uint(len(tt.Fields)) {
+ 		panic("reflect: Field index out of range")
+ 	}
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index f13ce8fc62..e585d24f53 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -233,11 +233,15 @@ func pkgPath(n abi.Name) string {
+ // resolveNameOff resolves a name offset from a base pointer.
+ // The (*rtype).nameOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
++//
++//go:noescape
+ func resolveNameOff(ptrInModule unsafe.Pointer, off int32) unsafe.Pointer
+ 
+ // resolveTypeOff resolves an *rtype offset from a base type.
+ // The (*rtype).typeOff method is a convenience wrapper for this function.
+ // Implemented in the runtime package.
++//
++//go:noescape
+ func resolveTypeOff(rtype unsafe.Pointer, off int32) unsafe.Pointer
+ 
+ func (t rtype) nameOff(off nameOff) abi.Name {
+@@ -395,7 +399,9 @@ func add(p unsafe.Pointer, x uintptr, whySafe string) unsafe.Pointer {
+ // If i is a nil interface value, TypeOf returns nil.
+ func TypeOf(i any) Type {
+ 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+-	return toType(eface.typ)
++	// Noescape so this doesn't make i to escape. See the comment
++	// at Value.typ for why this is safe.
++	return toType((*abi.Type)(noescape(unsafe.Pointer(eface.typ))))
+ }
+ 
+ func (t rtype) Implements(u Type) bool {
+diff --git a/src/internal/reflectlite/value.go b/src/internal/reflectlite/value.go
+index eb79894842..c47e5ea12b 100644
+--- a/src/internal/reflectlite/value.go
++++ b/src/internal/reflectlite/value.go
+@@ -34,8 +34,9 @@ import (
+ // Using == on two Values does not compare the underlying values
+ // they represent.
+ type Value struct {
+-	// typ holds the type of the value represented by a Value.
+-	typ *abi.Type
++	// typ_ holds the type of the value represented by a Value.
++	// Access using the typ method to avoid escape of v.
++	typ_ *abi.Type
+ 
+ 	// Pointer-valued data or, if flagIndir is set, pointer to data.
+ 	// Valid when either flagIndir is set or typ.pointers() is true.
+@@ -87,10 +88,19 @@ func (f flag) ro() flag {
+ 	return 0
+ }
+ 
++func (v Value) typ() *abi.Type {
++	// Types are either static (for compiler-created types) or
++	// heap-allocated but always reachable (for reflection-created
++	// types, held in the central map). So there is no need to
++	// escape types. noescape here help avoid unnecessary escape
++	// of v.
++	return (*abi.Type)(noescape(unsafe.Pointer(v.typ_)))
++}
++
+ // pointer returns the underlying pointer represented by v.
+ // v.Kind() must be Pointer, Map, Chan, Func, or UnsafePointer
+ func (v Value) pointer() unsafe.Pointer {
+-	if v.typ.Size() != goarch.PtrSize || !v.typ.Pointers() {
++	if v.typ().Size() != goarch.PtrSize || !v.typ().Pointers() {
+ 		panic("can't call pointer on a non-pointer Value")
+ 	}
+ 	if v.flag&flagIndir != 0 {
+@@ -101,7 +111,7 @@ func (v Value) pointer() unsafe.Pointer {
+ 
+ // packEface converts v to the empty interface.
+ func packEface(v Value) any {
+-	t := v.typ
++	t := v.typ()
+ 	var i any
+ 	e := (*emptyInterface)(unsafe.Pointer(&i))
+ 	// First, fill in the data portion of the interface.
+@@ -228,7 +238,7 @@ func (v Value) Elem() Value {
+ 	switch k {
+ 	case abi.Interface:
+ 		var eface any
+-		if v.typ.NumMethod() == 0 {
++		if v.typ().NumMethod() == 0 {
+ 			eface = *(*any)(v.ptr)
+ 		} else {
+ 			eface = (any)(*(*interface {
+@@ -249,7 +259,7 @@ func (v Value) Elem() Value {
+ 		if ptr == nil {
+ 			return Value{}
+ 		}
+-		tt := (*ptrType)(unsafe.Pointer(v.typ))
++		tt := (*ptrType)(unsafe.Pointer(v.typ()))
+ 		typ := tt.Elem
+ 		fl := v.flag&flagRO | flagIndir | flagAddr
+ 		fl |= flag(typ.Kind())
+@@ -322,7 +332,11 @@ func (v Value) Kind() Kind {
+ }
+ 
+ // implemented in runtime:
++
++//go:noescape
+ func chanlen(unsafe.Pointer) int
++
++//go:noescape
+ func maplen(unsafe.Pointer) int
+ 
+ // Len returns v's length.
+@@ -331,7 +345,7 @@ func (v Value) Len() int {
+ 	k := v.kind()
+ 	switch k {
+ 	case abi.Array:
+-		tt := (*arrayType)(unsafe.Pointer(v.typ))
++		tt := (*arrayType)(unsafe.Pointer(v.typ()))
+ 		return int(tt.Len)
+ 	case abi.Chan:
+ 		return chanlen(v.pointer())
+@@ -349,10 +363,10 @@ func (v Value) Len() int {
+ 
+ // NumMethod returns the number of exported methods in the value's method set.
+ func (v Value) numMethod() int {
+-	if v.typ == nil {
++	if v.typ() == nil {
+ 		panic(&ValueError{"reflectlite.Value.NumMethod", abi.Invalid})
+ 	}
+-	return v.typ.NumMethod()
++	return v.typ().NumMethod()
+ }
+ 
+ // Set assigns x to the value v.
+@@ -365,9 +379,9 @@ func (v Value) Set(x Value) {
+ 	if v.kind() == abi.Interface {
+ 		target = v.ptr
+ 	}
+-	x = x.assignTo("reflectlite.Set", v.typ, target)
++	x = x.assignTo("reflectlite.Set", v.typ(), target)
+ 	if x.flag&flagIndir != 0 {
+-		typedmemmove(v.typ, v.ptr, x.ptr)
++		typedmemmove(v.typ(), v.ptr, x.ptr)
+ 	} else {
+ 		*(*unsafe.Pointer)(v.ptr) = x.ptr
+ 	}
+@@ -380,7 +394,7 @@ func (v Value) Type() Type {
+ 		panic(&ValueError{"reflectlite.Value.Type", abi.Invalid})
+ 	}
+ 	// Method values not supported.
+-	return toRType(v.typ)
++	return toRType(v.typ())
+ }
+ 
+ /*
+@@ -388,6 +402,8 @@ func (v Value) Type() Type {
+  */
+ 
+ // implemented in package runtime
++
++//go:noescape
+ func unsafe_New(*abi.Type) unsafe.Pointer
+ 
+ // ValueOf returns a new Value initialized to the concrete value
+@@ -396,13 +412,6 @@ func ValueOf(i any) Value {
+ 	if i == nil {
+ 		return Value{}
+ 	}
+-
+-	// TODO: Maybe allow contents of a Value to live on the stack.
+-	// For now we make the contents always escape to the heap. It
+-	// makes life easier in a few places (see chanrecv/mapassign
+-	// comment below).
+-	escapes(i)
+-
+ 	return unpackEface(i)
+ }
+ 
+@@ -415,14 +424,14 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
+ 	// }
+ 
+ 	switch {
+-	case directlyAssignable(dst, v.typ):
++	case directlyAssignable(dst, v.typ()):
+ 		// Overwrite type so that they match.
+ 		// Same memory layout, so no harm done.
+ 		fl := v.flag&(flagAddr|flagIndir) | v.flag.ro()
+ 		fl |= flag(dst.Kind())
+ 		return Value{dst, v.ptr, fl}
+ 
+-	case implements(dst, v.typ):
++	case implements(dst, v.typ()):
+ 		if target == nil {
+ 			target = unsafe_New(dst)
+ 		}
+@@ -442,7 +451,7 @@ func (v Value) assignTo(context string, dst *abi.Type, target unsafe.Pointer) Va
+ 	}
+ 
+ 	// Failed.
+-	panic(context + ": value of type " + toRType(v.typ).String() + " is not assignable to type " + toRType(dst).String())
++	panic(context + ": value of type " + toRType(v.typ()).String() + " is not assignable to type " + toRType(dst).String())
+ }
+ 
+ // arrayAt returns the i-th element of p,
+@@ -476,3 +485,9 @@ var dummy struct {
+ 	b bool
+ 	x any
+ }
++
++//go:nosplit
++func noescape(p unsafe.Pointer) unsafe.Pointer {
++	x := uintptr(p)
++	return unsafe.Pointer(x ^ 0)
++}

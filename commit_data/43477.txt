@@ -12,8 +12,105 @@ Date:   Wed Apr 8 11:45:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/arm/asm.go   | 18 +++++++++---------
  src/cmd/link/internal/ppc64/asm.go | 12 ++++++------
  src/cmd/link/internal/wasm/asm.go  |  2 +-
  3 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 18fc54a7e2..ddc3e8fc08 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -520,11 +520,11 @@ func gentramp(arch *sys.Arch, linkmode ld.LinkMode, ldr *loader.Loader, tramp *l
+ 
+ 	if linkmode == ld.LinkExternal {
+ 		r := loader.Reloc{
+-			Off: 8,
++			Off:  8,
+ 			Type: objabi.R_ADDR,
+ 			Size: 4,
+-			Sym: target,
+-			Add: offset,
++			Sym:  target,
++			Add:  offset,
+ 		}
+ 		tramp.AddReloc(r)
+ 	}
+@@ -545,11 +545,11 @@ func gentramppic(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
+ 	tramp.SetData(P)
+ 
+ 	r := loader.Reloc{
+-		Off: 12,
++		Off:  12,
+ 		Type: objabi.R_PCREL,
+ 		Size: 4,
+-		Sym: target,
+-		Add: offset + 4,
++		Sym:  target,
++		Add:  offset + 4,
+ 	}
+ 	tramp.AddReloc(r)
+ }
+@@ -583,11 +583,11 @@ func gentrampdyn(arch *sys.Arch, tramp *loader.SymbolBuilder, target loader.Sym,
+ 	tramp.SetData(P)
+ 
+ 	r := loader.Reloc{
+-		Off: 16,
++		Off:  16,
+ 		Type: objabi.R_GOTPCREL,
+ 		Size: 4,
+-		Sym: target,
+-		Add: 8,
++		Sym:  target,
++		Add:  8,
+ 	}
+ 	if offset != 0 {
+ 		// increase reloc offset by 4 as we inserted an ADD instruction
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index bc090c8e7c..d6b6c76f9a 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -736,11 +736,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 		toctramp.AddAddr(ctxt.Arch, target)
+ 
+ 		r := loader.Reloc{
+-			Off: 0,
++			Off:  0,
+ 			Type: objabi.R_ADDRPOWER_TOCREL_DS,
+ 			Size: 8, // generates 2 relocations:  HA + LO
+-			Sym: toctramp.Sym(),
+-			Add: offset,
++			Sym:  toctramp.Sym(),
++			Add:  offset,
+ 		}
+ 		tramp.AddReloc(r)
+ 	} else {
+@@ -754,11 +754,11 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 		// relocated using LO and HA
+ 		if ctxt.IsExternal() {
+ 			r := loader.Reloc{
+-				Off: 0,
++				Off:  0,
+ 				Type: objabi.R_ADDRPOWER,
+ 				Size: 8, // generates 2 relocations:  HA + LO
+-				Sym: target,
+-				Add: offset,
++				Sym:  target,
++				Add:  offset,
+ 			}
+ 			tramp.AddReloc(r)
+ 		} else {
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 4367decba5..550ed5bc3c 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -87,7 +87,7 @@ func assignAddress(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, v
+ 	// However, there is no PC register, only PC_F and PC_B. PC_F denotes the function,
+ 	// PC_B the resume point inside of that function. The entry of the function has PC_B = 0.
+ 	ldr.SetSymSect(s, sect)
+-	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC) << 16) // va starts at zero
++	ldr.SetSymValue(s, int64(funcValueOffset+va/ld.MINFUNC)<<16) // va starts at zero
+ 	va += uint64(ld.MINFUNC)
+ 	return sect, n, va
+ }

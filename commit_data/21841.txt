@@ -17,10 +17,85 @@ Date:   Tue Feb 3 12:59:40 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3851
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/net.go            | 4 ++++
  src/net/tcpsock_plan9.go  | 2 ++
  src/net/tcpsock_posix.go  | 2 ++
  src/net/unixsock_plan9.go | 2 ++
  src/net/unixsock_posix.go | 2 ++
  5 files changed, 12 insertions(+)
+
+diff --git a/src/net/net.go b/src/net/net.go
+index c850d2b1fd..339c972906 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -135,6 +135,8 @@ func (c *conn) Close() error {
+ }
+ 
+ // LocalAddr returns the local network address.
++// The Addr returned is shared by all invocations of LocalAddr, so
++// do not modify it.
+ func (c *conn) LocalAddr() Addr {
+ 	if !c.ok() {
+ 		return nil
+@@ -143,6 +145,8 @@ func (c *conn) LocalAddr() Addr {
+ }
+ 
+ // RemoteAddr returns the remote network address.
++// The Addr returned is shared by all invocations of RemoteAddr, so
++// do not modify it.
+ func (c *conn) RemoteAddr() Addr {
+ 	if !c.ok() {
+ 		return nil
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index 52019d7b4e..ae2194277d 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -157,6 +157,8 @@ func (l *TCPListener) Close() error {
+ }
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
++// The Addr returned is shared by all invocations of Addr, so
++// do not modify it.
+ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+ 
+ // SetDeadline sets the deadline associated with the listener.
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index dd78aefa77..aaff0acaa6 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -258,6 +258,8 @@ func (l *TCPListener) Close() error {
+ }
+ 
+ // Addr returns the listener's network address, a *TCPAddr.
++// The Addr returned is shared by all invocations of Addr, so
++// do not modify it.
+ func (l *TCPListener) Addr() Addr { return l.fd.laddr }
+ 
+ // SetDeadline sets the deadline associated with the listener.
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index c60c1d83bb..64a511d648 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -115,6 +115,8 @@ func (l *UnixListener) Close() error {
+ }
+ 
+ // Addr returns the listener's network address.
++// The Addr returned is shared by all invocations of Addr, so
++// do not modify it.
+ func (l *UnixListener) Addr() Addr { return nil }
+ 
+ // SetDeadline sets the deadline associated with the listener.
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 3c2e78bdca..d7127d9c69 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -321,6 +321,8 @@ func (l *UnixListener) Close() error {
+ }
+ 
+ // Addr returns the listener's network address.
++// The Addr returned is shared by all invocations of Addr, so
++// do not modify it.
+ func (l *UnixListener) Addr() Addr { return l.fd.laddr }
+ 
+ // SetDeadline sets the deadline associated with the listener.

@@ -20,6 +20,25 @@ Date:   Tue Apr 21 11:00:53 2020 +0100
     Run-TryBot: David du Colombier <0intro@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/os/file_plan9.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index bcf3c625bf..ac68cf7fed 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -112,10 +112,9 @@ func openFileNolog(name string, flag int, perm FileMode) (*File, error) {
+ 	} else {
+ 		fd, e = syscall.Open(name, flag)
+ 		if IsNotExist(e) && create {
+-			var e1 error
+-			fd, e1 = syscall.Create(name, flag, syscallMode(perm))
+-			if e1 == nil {
+-				e = nil
++			fd, e = syscall.Create(name, flag, syscallMode(perm))
++			if e != nil {
++				return nil, &PathError{"create", name, e}
+ 			}
+ 		}
+ 	}

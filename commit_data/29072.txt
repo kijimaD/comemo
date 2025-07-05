@@ -8,6 +8,34 @@ Date:   Mon Jul 11 14:26:18 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/24845
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue15722.go | 21 +++++++++++++++++++++
  1 file changed, 21 insertions(+)
+
+diff --git a/test/fixedbugs/issue15722.go b/test/fixedbugs/issue15722.go
+new file mode 100644
+index 0000000000..dec54587f6
+--- /dev/null
++++ b/test/fixedbugs/issue15722.go
+@@ -0,0 +1,21 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Checks to make sure that the compiler can catch a specific invalid
++// method type expression. NB: gccgo and gc have slightly different
++// error messages, hence the generic test for 'method' and not something
++// more specific.
++
++package issue15722
++
++type T int
++type P *T
++
++func (T) t() {}
++
++func _(p P) {
++	P.t(p) // ERROR "method"
++}

@@ -9,10 +9,682 @@ Date:   Thu Nov 15 12:15:18 2018 -0500
     Run-TryBot: Alan Donovan <adonovan@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  .../x/tools/go/analysis/cmd/vet-lite/main.go       | 133 +++-----
  .../vendor/golang.org/x/tools/go/analysis/doc.go   |  18 +-
  .../go/analysis/internal/analysisflags/help.go     |  23 +-
  .../x/tools/go/analysis/passes/printf/printf.go    |  25 +-
  .../x/tools/go/analysis/unitchecker/unitchecker.go | 356 +++++++++++++++++++++
  5 files changed, 446 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+index b4b0e631b9..d767d56663 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/cmd/vet-lite/main.go
+@@ -8,14 +8,8 @@ package main
+ 
+ import (
+ 	"flag"
+-	"fmt"
+-	"log"
+-	"os"
+-	"strings"
+ 
+-	"golang.org/x/tools/go/analysis"
+-	"golang.org/x/tools/go/analysis/internal/analysisflags"
+-	"golang.org/x/tools/go/analysis/internal/unitchecker"
++	"golang.org/x/tools/go/analysis/unitchecker"
+ 
+ 	"golang.org/x/tools/go/analysis/passes/asmdecl"
+ 	"golang.org/x/tools/go/analysis/passes/assign"
+@@ -41,84 +35,55 @@ import (
+ 	"golang.org/x/tools/go/analysis/passes/unusedresult"
+ )
+ 
+-var analyzers = []*analysis.Analyzer{
+-	asmdecl.Analyzer,
+-	assign.Analyzer,
+-	atomic.Analyzer,
+-	bools.Analyzer,
+-	buildtag.Analyzer,
+-	cgocall.Analyzer,
+-	composite.Analyzer,
+-	copylock.Analyzer,
+-	httpresponse.Analyzer,
+-	loopclosure.Analyzer,
+-	lostcancel.Analyzer,
+-	nilfunc.Analyzer,
+-	pkgfact.Analyzer,
+-	printf.Analyzer,
+-	shift.Analyzer,
+-	stdmethods.Analyzer,
+-	structtag.Analyzer,
+-	tests.Analyzer,
+-	unmarshal.Analyzer,
+-	unreachable.Analyzer,
+-	unsafeptr.Analyzer,
+-	unusedresult.Analyzer,
++// Flags for legacy vet compatibility.
++//
++// These flags, plus the shims in analysisflags, enable
++// existing scripts that run vet to continue to work.
++//
++// Legacy vet had the concept of "experimental" checkers. There
++// was exactly one, shadow, and it had to be explicitly enabled
++// by the -shadow flag, which would of course disable all the
++// other tristate flags, requiring the -all flag to reenable them.
++// (By itself, -all did not enable all checkers.)
++// The -all flag is no longer needed, so it is a no-op.
++//
++// The shadow analyzer has been removed from the suite,
++// but can be run using these additional commands:
++//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
++//   $ go vet -vettool=$(which shadow)
++// Alternatively, one could build a multichecker containing all
++// the desired checks (vet's suite + shadow) and run it in a
++// single "go vet" command.
++func init() {
++	_ = flag.Bool("source", false, "no effect (deprecated)")
++	_ = flag.Bool("v", false, "no effect (deprecated)")
++	_ = flag.Bool("all", false, "no effect (deprecated)")
++	_ = flag.String("tags", "", "no effect (deprecated)")
+ }
+ 
+ func main() {
+-	log.SetFlags(0)
+-	log.SetPrefix("vet: ")
+-
+-	if err := analysis.Validate(analyzers); err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	// Flags for legacy vet compatibility.
+-	//
+-	// These flags, plus the shims in analysisflags, enable
+-	// existing scripts that run vet to continue to work.
+-	//
+-	// Legacy vet had the concept of "experimental" checkers. There
+-	// was exactly one, shadow, and it had to be explicitly enabled
+-	// by the -shadow flag, which would of course disable all the
+-	// other tristate flags, requiring the -all flag to reenable them.
+-	// (By itself, -all did not enable all checkers.)
+-	// The -all flag is no longer needed, so it is a no-op.
+-	//
+-	// The shadow analyzer has been removed from the suite,
+-	// but can be run using these additional commands:
+-	//   $ go install golang.org/x/tools/go/analysis/passes/shadow/cmd/shadow
+-	//   $ go vet -vettool=$(which shadow)
+-	// Alternatively, one could build a multichecker containing all
+-	// the desired checks (vet's suite + shadow) and run it in a
+-	// single "go vet" command.
+-	for _, name := range []string{"source", "v", "all"} {
+-		_ = flag.Bool(name, false, "no effect (deprecated)")
+-	}
+-
+-	flag.Usage = func() {
+-		fmt.Fprintln(os.Stderr, `Usage of vet:
+-	vet unit.cfg		# execute analysis specified by config file
+-	vet help		# general help
+-	vet help name		# help on specific analyzer and its flags`)
+-		flag.PrintDefaults()
+-		os.Exit(1)
+-	}
+-
+-	analyzers = analysisflags.Parse(analyzers, true)
+-
+-	args := flag.Args()
+-	if len(args) == 0 {
+-		flag.Usage()
+-	}
+-	if args[0] == "help" {
+-		analysisflags.Help("vet", analyzers, args[1:])
+-		os.Exit(0)
+-	}
+-	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
+-		log.Fatalf("invalid command: want .cfg file (this reduced version of vet is intended to be run only by the 'go vet' command)")
+-	}
+-
+-	unitchecker.Main(args[0], analyzers)
++	unitchecker.Main(
++		asmdecl.Analyzer,
++		assign.Analyzer,
++		atomic.Analyzer,
++		bools.Analyzer,
++		buildtag.Analyzer,
++		cgocall.Analyzer,
++		composite.Analyzer,
++		copylock.Analyzer,
++		httpresponse.Analyzer,
++		loopclosure.Analyzer,
++		lostcancel.Analyzer,
++		nilfunc.Analyzer,
++		pkgfact.Analyzer,
++		printf.Analyzer,
++		shift.Analyzer,
++		stdmethods.Analyzer,
++		structtag.Analyzer,
++		tests.Analyzer,
++		unmarshal.Analyzer,
++		unreachable.Analyzer,
++		unsafeptr.Analyzer,
++		unusedresult.Analyzer,
++	)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 4223ab80fc..5dee615181 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -72,11 +72,13 @@ To add a new Analyzer to an existing driver, add another item to the list:
+ 
+ A driver may use the name, flags, and documentation to provide on-line
+ help that describes the analyses its performs.
++The doc comment contains a brief one-line summary,
++optionally followed by paragraphs of explanation.
+ The vet command, shown below, is an example of a driver that runs
+ multiple analyzers. It is based on the multichecker package
+ (see the "Standalone commands" section for details).
+ 
+-	$ go build golang.org/x/tools/cmd/vet
++	$ go build golang.org/x/tools/go/analysis/cmd/vet
+ 	$ ./vet help
+ 	vet is a tool for static analysis of Go programs.
+ 
+@@ -285,6 +287,16 @@ pointed to by fact. This scheme assumes that the concrete type of fact
+ is a pointer; this assumption is checked by the Validate function.
+ See the "printf" analyzer for an example of object facts in action.
+ 
++Some driver implementations (such as those based on Bazel and Blaze) do
++not currently apply analyzers to packages of the standard library.
++Therefore, for best results, analyzer authors should not rely on
++analysis facts being available for standard packages.
++For example, although the printf checker is capable of deducing during
++analysis of the log package that log.Printf is a printf-wrapper,
++this fact is built in to the analyzer so that it correctly checks
++calls to log.Printf even when run in a driver that does not apply
++it to standard packages. We plan to remove this limitation in future.
++
+ 
+ Testing an Analyzer
+ 
+@@ -298,14 +310,14 @@ diagnostics and facts (and no more). Expectations are expressed using
+ Standalone commands
+ 
+ Analyzers are provided in the form of packages that a driver program is
+-expected to import. The vet command imports a set of several analyses,
++expected to import. The vet command imports a set of several analyzers,
+ but users may wish to define their own analysis commands that perform
+ additional checks. To simplify the task of creating an analysis command,
+ either for a single analyzer or for a whole suite, we provide the
+ singlechecker and multichecker subpackages.
+ 
+ The singlechecker package provides the main function for a command that
+-runs one analysis. By convention, each analyzer such as
++runs one analyzer. By convention, each analyzer such as
+ go/passes/findcall should be accompanied by a singlechecker-based
+ command such as go/analysis/passes/findcall/cmd/findcall, defined in its
+ entirety as:
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+index dc7ba06650..66aa624572 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/help.go
+@@ -3,39 +3,28 @@ package analysisflags
+ import (
+ 	"flag"
+ 	"fmt"
+-	"io"
+ 	"log"
+-	"os"
+-	"path/filepath"
+ 	"sort"
+ 	"strings"
+ 
+ 	"golang.org/x/tools/go/analysis"
+ )
+ 
+-const usage = `PROGNAME is a tool for static analysis of Go programs.
++const help = `PROGNAME is a tool for static analysis of Go programs.
+ 
+-PROGNAME examines Go source code and reports suspicious constructs, such as Printf
+-calls whose arguments do not align with the format string. It uses heuristics
+-that do not guarantee all reports are genuine problems, but it can find errors
+-not caught by the compilers.
+-
+-Usage: PROGNAME [-flag] [package]
++PROGNAME examines Go source code and reports suspicious constructs,
++such as Printf calls whose arguments do not align with the format
++string. It uses heuristics that do not guarantee all reports are
++genuine problems, but it can find errors not caught by the compilers.
+ `
+ 
+-// PrintUsage prints the usage message to stderr.
+-func PrintUsage(out io.Writer) {
+-	progname := filepath.Base(os.Args[0])
+-	fmt.Fprintln(out, strings.Replace(usage, "PROGNAME", progname, -1))
+-}
+-
+ // Help implements the help subcommand for a multichecker or vet-lite
+ // style command. The optional args specify the analyzers to describe.
+ // Help calls log.Fatal if no such analyzer exists.
+ func Help(progname string, analyzers []*analysis.Analyzer, args []string) {
+ 	// No args: show summary of all analyzers.
+ 	if len(args) == 0 {
+-		PrintUsage(os.Stdout)
++		fmt.Println(strings.Replace(help, "PROGNAME", progname, -1))
+ 		fmt.Println("Registered analyzers:")
+ 		fmt.Println()
+ 		sort.Slice(analyzers, func(i, j int) bool {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 4b761e25b5..9fa0a1c603 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -32,7 +32,7 @@ func init() {
+ 
+ var Analyzer = &analysis.Analyzer{
+ 	Name:      "printf",
+-	Doc:       "check printf-like invocations",
++	Doc:       doc,
+ 	Requires:  []*analysis.Analyzer{inspect.Analyzer},
+ 	Run:       run,
+ 	FactTypes: []analysis.Fact{new(isWrapper)},
+@@ -43,12 +43,12 @@ const doc = `check consistency of Printf format strings and arguments
+ The check applies to known functions (for example, those in package fmt)
+ as well as any detected wrappers of known functions.
+ 
+-A function that wants to avail itself of printf checking but does not
+-get found by this analyzer's heuristics (for example, due to use of
++A function that wants to avail itself of printf checking but is not
++found by this analyzer's heuristics (for example, due to use of
+ dynamic calls) can insert a bogus call:
+ 
+ 	if false {
+-		fmt.Sprintf(format, args...) // enable printf checking
++		_ = fmt.Sprintf(format, args...) // enable printf checking
+ 	}
+ 
+ The -funcs flag specifies a comma-separated list of names of additional
+@@ -843,7 +843,22 @@ func recursiveStringer(pass *analysis.Pass, e ast.Expr) bool {
+ 	}
+ 
+ 	// Is the expression e within the body of that String method?
+-	return stringMethod.Pkg() == pass.Pkg && stringMethod.Scope().Contains(e.Pos())
++	if stringMethod.Pkg() != pass.Pkg || !stringMethod.Scope().Contains(e.Pos()) {
++		return false
++	}
++
++	// Is it the receiver r, or &r?
++	recv := stringMethod.Type().(*types.Signature).Recv()
++	if recv == nil {
++		return false
++	}
++	if u, ok := e.(*ast.UnaryExpr); ok && u.Op == token.AND {
++		e = u.X // strip off & from &r
++	}
++	if id, ok := e.(*ast.Ident); ok {
++		return pass.TypesInfo.Uses[id] == recv
++	}
++	return false
+ }
+ 
+ // isFunctionValue reports whether the expression is a function as opposed to a function call.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+new file mode 100644
+index 0000000000..edfca577bf
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -0,0 +1,356 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// The unitchecker package defines the main function for an analysis
++// driver that analyzes a single compilation unit during a build.
++// It is invoked by a build system such as "go vet":
++//
++//   $ go vet -vettool=$(which vet)
++//
++// It supports the following command-line protocol:
++//
++//      -V=full         describe executable               (to the build tool)
++//      -flags          describe flags                    (to the build tool)
++//      foo.cfg         description of compilation unit (from the build tool)
++//
++// This package does not depend on go/packages.
++// If you need a standalone tool, use multichecker,
++// which supports this mode but can also load packages
++// from source using go/packages.
++package unitchecker
++
++// TODO(adonovan):
++// - with gccgo, go build does not build standard library,
++//   so we will not get to analyze it. Yet we must in order
++//   to create base facts for, say, the fmt package for the
++//   printf checker.
++// - support JSON output, factored with multichecker.
++
++import (
++	"encoding/gob"
++	"encoding/json"
++	"flag"
++	"fmt"
++	"go/ast"
++	"go/build"
++	"go/importer"
++	"go/parser"
++	"go/token"
++	"go/types"
++	"io"
++	"io/ioutil"
++	"log"
++	"os"
++	"path/filepath"
++	"sort"
++	"strings"
++	"sync"
++	"time"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/internal/analysisflags"
++	"golang.org/x/tools/go/analysis/internal/facts"
++)
++
++// A Config describes a compilation unit to be analyzed.
++// It is provided to the tool in a JSON-encoded file
++// whose name ends with ".cfg".
++type Config struct {
++	Compiler                  string
++	Dir                       string
++	ImportPath                string
++	GoFiles                   []string
++	NonGoFiles                []string
++	ImportMap                 map[string]string
++	PackageFile               map[string]string
++	Standard                  map[string]bool
++	PackageVetx               map[string]string
++	VetxOnly                  bool
++	VetxOutput                string
++	SucceedOnTypecheckFailure bool
++}
++
++// Main is the main function of a vet-like analysis tool that must be
++// invoked by a build system to analyze a single package.
++//
++// The protocol required by 'go vet -vettool=...' is that the tool must support:
++//
++//      -flags          describe flags in JSON
++//      -V=full         describe executable for build caching
++//      foo.cfg         perform separate modular analyze on the single
++//                      unit described by a JSON config file foo.cfg.
++//
++func Main(analyzers ...*analysis.Analyzer) {
++	progname := filepath.Base(os.Args[0])
++	log.SetFlags(0)
++	log.SetPrefix(progname + ": ")
++
++	if err := analysis.Validate(analyzers); err != nil {
++		log.Fatal(err)
++	}
++
++	flag.Usage = func() {
++		fmt.Fprintf(os.Stderr, `%[1]s is a tool for static analysis of Go programs.
++
++Usage of %[1]s:
++	%.16[1]s unit.cfg	# execute analysis specified by config file
++	%.16[1]s help		# general help
++	%.16[1]s help name	# help on specific analyzer and its flags
++`, progname)
++		os.Exit(1)
++	}
++
++	analyzers = analysisflags.Parse(analyzers, true)
++
++	args := flag.Args()
++	if len(args) == 0 {
++		flag.Usage()
++	}
++	if args[0] == "help" {
++		analysisflags.Help(progname, analyzers, args[1:])
++		os.Exit(0)
++	}
++	if len(args) != 1 || !strings.HasSuffix(args[0], ".cfg") {
++		log.Fatalf("invalid command: want .cfg file (this reduced version of %s is intended to be run only by the 'go vet' command)", progname)
++	}
++	Run(args[0], analyzers)
++}
++
++// Run reads the *.cfg file, runs the analysis,
++// and calls os.Exit with an appropriate error code.
++// It assumes flags have already been set.
++func Run(configFile string, analyzers []*analysis.Analyzer) {
++	cfg, err := readConfig(configFile)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fset := token.NewFileSet()
++	diags, err := run(fset, cfg, analyzers)
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	if !cfg.VetxOnly && len(diags) > 0 {
++		for _, diag := range diags {
++			fmt.Fprintf(os.Stderr, "%s: %s\n", fset.Position(diag.Pos), diag.Message)
++		}
++		os.Exit(1)
++	}
++
++	os.Exit(0)
++}
++
++func readConfig(filename string) (*Config, error) {
++	data, err := ioutil.ReadFile(filename)
++	if err != nil {
++		return nil, err
++	}
++	cfg := new(Config)
++	if err := json.Unmarshal(data, cfg); err != nil {
++		return nil, fmt.Errorf("cannot decode JSON config file %s: %v", filename, err)
++	}
++	if len(cfg.GoFiles) == 0 {
++		// The go command disallows packages with no files.
++		// The only exception is unsafe, but the go command
++		// doesn't call vet on it.
++		return nil, fmt.Errorf("package has no files: %s", cfg.ImportPath)
++	}
++	return cfg, nil
++}
++
++func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]analysis.Diagnostic, error) {
++	// Load, parse, typecheck.
++	var files []*ast.File
++	for _, name := range cfg.GoFiles {
++		f, err := parser.ParseFile(fset, name, nil, parser.ParseComments)
++		if err != nil {
++			if cfg.SucceedOnTypecheckFailure {
++				// Silently succeed; let the compiler
++				// report parse errors.
++				err = nil
++			}
++			return nil, err
++		}
++		files = append(files, f)
++	}
++	compilerImporter := importer.For(cfg.Compiler, func(path string) (io.ReadCloser, error) {
++		// path is a resolved package path, not an import path.
++		file, ok := cfg.PackageFile[path]
++		if !ok {
++			if cfg.Compiler == "gccgo" && cfg.Standard[path] {
++				return nil, nil // fall back to default gccgo lookup
++			}
++			return nil, fmt.Errorf("no package file for %q", path)
++		}
++		return os.Open(file)
++	})
++	importer := importerFunc(func(importPath string) (*types.Package, error) {
++		path, ok := cfg.ImportMap[importPath] // resolve vendoring, etc
++		if !ok {
++			return nil, fmt.Errorf("can't resolve import %q", path)
++		}
++		return compilerImporter.Import(path)
++	})
++	tc := &types.Config{
++		Importer: importer,
++		Sizes:    types.SizesFor("gc", build.Default.GOARCH), // assume gccgo ≡ gc?
++	}
++	info := &types.Info{
++		Types:      make(map[ast.Expr]types.TypeAndValue),
++		Defs:       make(map[*ast.Ident]types.Object),
++		Uses:       make(map[*ast.Ident]types.Object),
++		Implicits:  make(map[ast.Node]types.Object),
++		Scopes:     make(map[ast.Node]*types.Scope),
++		Selections: make(map[*ast.SelectorExpr]*types.Selection),
++	}
++	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
++	if err != nil {
++		if cfg.SucceedOnTypecheckFailure {
++			// Silently succeed; let the compiler
++			// report type errors.
++			err = nil
++		}
++		return nil, err
++	}
++
++	// Register fact types with gob.
++	// In VetxOnly mode, analyzers are only for their facts,
++	// so we can skip any analysis that neither produces facts
++	// nor depends on any analysis that produces facts.
++	// Also build a map to hold working state and result.
++	type action struct {
++		once        sync.Once
++		result      interface{}
++		err         error
++		usesFacts   bool // (transitively uses)
++		diagnostics []analysis.Diagnostic
++	}
++	actions := make(map[*analysis.Analyzer]*action)
++	var registerFacts func(a *analysis.Analyzer) bool
++	registerFacts = func(a *analysis.Analyzer) bool {
++		act, ok := actions[a]
++		if !ok {
++			act = new(action)
++			var usesFacts bool
++			for _, f := range a.FactTypes {
++				usesFacts = true
++				gob.Register(f)
++			}
++			for _, req := range a.Requires {
++				if registerFacts(req) {
++					usesFacts = true
++				}
++			}
++			act.usesFacts = usesFacts
++			actions[a] = act
++		}
++		return act.usesFacts
++	}
++	var filtered []*analysis.Analyzer
++	for _, a := range analyzers {
++		if registerFacts(a) || !cfg.VetxOnly {
++			filtered = append(filtered, a)
++		}
++	}
++	analyzers = filtered
++
++	// Read facts from imported packages.
++	read := func(path string) ([]byte, error) {
++		if vetx, ok := cfg.PackageVetx[path]; ok {
++			return ioutil.ReadFile(vetx)
++		}
++		return nil, nil // no .vetx file, no facts
++	}
++	facts, err := facts.Decode(pkg, read)
++	if err != nil {
++		return nil, err
++	}
++
++	// In parallel, execute the DAG of analyzers.
++	var exec func(a *analysis.Analyzer) *action
++	var execAll func(analyzers []*analysis.Analyzer)
++	exec = func(a *analysis.Analyzer) *action {
++		act := actions[a]
++		act.once.Do(func() {
++			execAll(a.Requires) // prefetch dependencies in parallel
++
++			// The inputs to this analysis are the
++			// results of its prerequisites.
++			inputs := make(map[*analysis.Analyzer]interface{})
++			var failed []string
++			for _, req := range a.Requires {
++				reqact := exec(req)
++				if reqact.err != nil {
++					failed = append(failed, req.String())
++					continue
++				}
++				inputs[req] = reqact.result
++			}
++
++			// Report an error if any dependency failed.
++			if failed != nil {
++				sort.Strings(failed)
++				act.err = fmt.Errorf("failed prerequisites: %s", strings.Join(failed, ", "))
++				return
++			}
++
++			pass := &analysis.Pass{
++				Analyzer:          a,
++				Fset:              fset,
++				Files:             files,
++				OtherFiles:        cfg.NonGoFiles,
++				Pkg:               pkg,
++				TypesInfo:         info,
++				ResultOf:          inputs,
++				Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
++				ImportObjectFact:  facts.ImportObjectFact,
++				ExportObjectFact:  facts.ExportObjectFact,
++				ImportPackageFact: facts.ImportPackageFact,
++				ExportPackageFact: facts.ExportPackageFact,
++			}
++
++			t0 := time.Now()
++			act.result, act.err = a.Run(pass)
++			if false {
++				log.Printf("analysis %s = %s", pass, time.Since(t0))
++			}
++		})
++		return act
++	}
++	execAll = func(analyzers []*analysis.Analyzer) {
++		var wg sync.WaitGroup
++		for _, a := range analyzers {
++			wg.Add(1)
++			go func(a *analysis.Analyzer) {
++				_ = exec(a)
++				wg.Done()
++			}(a)
++		}
++		wg.Wait()
++	}
++
++	execAll(analyzers)
++
++	// Return diagnostics from root analyzers.
++	var diags []analysis.Diagnostic
++	for _, a := range analyzers {
++		act := actions[a]
++		if act.err != nil {
++			return nil, act.err // some analysis failed
++		}
++		diags = append(diags, act.diagnostics...)
++	}
++
++	data := facts.Encode()
++	if err := ioutil.WriteFile(cfg.VetxOutput, data, 0666); err != nil {
++		return nil, fmt.Errorf("failed to write analysis facts: %v", err)
++	}
++
++	return diags, nil
++}
++
++type importerFunc func(path string) (*types.Package, error)
++
++func (f importerFunc) Import(path string) (*types.Package, error) { return f(path) }

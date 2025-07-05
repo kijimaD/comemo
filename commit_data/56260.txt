@@ -12,7 +12,51 @@ Date:   Mon Apr 17 12:39:37 2023 +0300
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/vcweb/auth.go   | 4 ++--
  src/cmd/go/internal/vcweb/fossil.go | 3 +--
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/vcweb/auth.go b/src/cmd/go/internal/vcweb/auth.go
+index 094a828e81..383bf759ff 100644
+--- a/src/cmd/go/internal/vcweb/auth.go
++++ b/src/cmd/go/internal/vcweb/auth.go
+@@ -7,7 +7,7 @@ package vcweb
+ import (
+ 	"encoding/json"
+ 	"fmt"
+-	"io/ioutil"
++	"io"
+ 	"log"
+ 	"net/http"
+ 	"os"
+@@ -77,7 +77,7 @@ func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (htt
+ 			accessDir = path.Dir(accessDir)
+ 		}
+ 
+-		data, err := ioutil.ReadAll(accessFile)
++		data, err := io.ReadAll(accessFile)
+ 		if err != nil {
+ 			http.Error(w, err.Error(), http.StatusInternalServerError)
+ 			return
+diff --git a/src/cmd/go/internal/vcweb/fossil.go b/src/cmd/go/internal/vcweb/fossil.go
+index 4b5db22b0a..cc24f2f1b0 100644
+--- a/src/cmd/go/internal/vcweb/fossil.go
++++ b/src/cmd/go/internal/vcweb/fossil.go
+@@ -6,7 +6,6 @@ package vcweb
+ 
+ import (
+ 	"fmt"
+-	"io/ioutil"
+ 	"log"
+ 	"net/http"
+ 	"net/http/cgi"
+@@ -39,7 +38,7 @@ func (h *fossilHandler) Handler(dir string, env []string, logger *log.Logger) (h
+ 
+ 	cgiPath := db + ".cgi"
+ 	cgiScript := fmt.Sprintf("#!%s\nrepository: %s\n", h.fossilPath, db)
+-	if err := ioutil.WriteFile(cgiPath, []byte(cgiScript), 0755); err != nil {
++	if err := os.WriteFile(cgiPath, []byte(cgiScript), 0755); err != nil {
+ 		return nil, err
+ 	}
+ 

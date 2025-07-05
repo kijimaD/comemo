@@ -8,8 +8,75 @@ Date:   Fri Oct 31 15:26:14 2008 -0700
     DELTA=14  (9 added, 0 deleted, 5 changed)
     OCL=18281
     CL=18281
-
+---
  src/lib/reflect/test.go     |  2 +-
  src/lib/reflect/tostring.go |  2 +-
  src/lib/reflect/type.go     | 15 ++++++++++++---
  3 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/lib/reflect/test.go b/src/lib/reflect/test.go
+index 0ed53a3ac4..9ec22d1ac4 100644
+--- a/src/lib/reflect/test.go
++++ b/src/lib/reflect/test.go
+@@ -119,7 +119,7 @@ func main() {
+ 	typedump("struct {a int8; b int8; c int8; d int8; b int32}", "struct{a int8; b int8; c int8; d int8; b int32}");
+ 	typedump("struct {a int8; b int8; c int8; d int8; e int8; b int32}", "struct{a int8; b int8; c int8; d int8; e int8; b int32}");
+ 	typedump("struct {a int8 \"hi there\"; }", "struct{a int8 \"hi there\"}");
+-	typedump("struct {a int8 \"hi \\0there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\0there\\t\\n\\\"\\\\\"}");
++	typedump("struct {a int8 \"hi \\x00there\\t\\n\\\"\\\\\"; }", "struct{a int8 \"hi \\x00there\\t\\n\\\"\\\\\"}");
+ 
+ 	valuedump("int8", "8");
+ 	valuedump("int16", "16");
+diff --git a/src/lib/reflect/tostring.go b/src/lib/reflect/tostring.go
+index c57e1995f5..963ab0fbb3 100644
+--- a/src/lib/reflect/tostring.go
++++ b/src/lib/reflect/tostring.go
+@@ -25,7 +25,7 @@ func DoubleQuote(s string) string {
+ 		case '\t':
+ 			out += `\t`;
+ 		case '\x00':
+-			out += `\0`;
++			out += `\x00`;
+ 		case '"':
+ 			out += `\"`;
+ 		case '\\':
+diff --git a/src/lib/reflect/type.go b/src/lib/reflect/type.go
+index 0d73944bb1..3e5179190c 100644
+--- a/src/lib/reflect/type.go
++++ b/src/lib/reflect/type.go
+@@ -453,7 +453,7 @@ func init() {
+ 	typename =
+ 		name '.' name
+ 	doublequotedstring = 
+-		string in " ";  escapes are \0 (NUL) \n \t \" \\
++		string in " ";  escapes are \x00 (NUL) \n \t \" \\
+ 	fieldlist =
+ 		[ field { [ ',' | ';' ] field } ]
+ 	field =
+@@ -492,6 +492,10 @@ func special(c uint8) bool {
+ 	return false;
+ }
+ 
++func hex00(s string, i int) bool {
++	return i + 2 < len(s) && s[i] == '0' && s[i+1] == '0'
++}
++
+ // Process backslashes.  String known to be well-formed.
+ // Initial double-quote is left in, as an indication this token is a string.
+ func unescape(s string, backslash bool) string {
+@@ -509,8 +513,13 @@ func unescape(s string, backslash bool) string {
+ 				c = '\n';
+ 			case 't':
+ 				c = '\t';
+-			case '0':	// it's not a legal go string but \0 means NUL
+-				c = '\x00';
++			case 'x':
++				if hex00(s, i+1) {
++					i += 2;
++					c = 0;
++					break;
++				}
++			// otherwise just put an 'x'; erroneous but safe.
+ 			// default is correct already; \\ is \; \" is "
+ 			}
+ 		}

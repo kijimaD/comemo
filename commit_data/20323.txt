@@ -8,6 +8,20 @@ Date:   Mon Sep 1 12:03:23 2014 +1000
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/138960043
-
+---
  src/pkg/net/http/fs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 146b0026b9..bae902cd29 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -403,7 +403,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		return
+ 	}
+ 
+-	// serverContent will check modification time
++	// serveContent will check modification time
+ 	sizeFunc := func() (int64, error) { return d.Size(), nil }
+ 	serveContent(w, r, d.Name(), d.ModTime(), sizeFunc, f)
+ }

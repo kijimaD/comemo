@@ -8,7 +8,47 @@ Date:   Mon Jan 26 18:35:18 2009 -0800
     DELTA=18  (18 added, 0 deleted, 0 changed)
     OCL=23544
     CL=23547
-
+---
  test/bugs/bug135.go | 18 ++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 22 insertions(+)
+
+diff --git a/test/bugs/bug135.go b/test/bugs/bug135.go
+new file mode 100644
+index 0000000000..d7115c4f27
+--- /dev/null
++++ b/test/bugs/bug135.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Foo interface { }
++
++type T struct {}
++func (t *T) foo() {}
++
++func main() {
++  t := new(T);
++  var i interface {};
++  f, ok := i.(Foo);
++}
+diff --git a/test/golden.out b/test/golden.out
+index d70df181d3..241225ab09 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -181,6 +181,10 @@ BUG: should not compile
+ =========== bugs/bug132.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug135.go
++bugs/bug135.go:13: assignment count mismatch: 2 = 1
++BUG: should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: overflow converting constant to uint
+ 

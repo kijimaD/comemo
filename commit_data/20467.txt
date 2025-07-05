@@ -15,6 +15,27 @@ Date:   Tue Sep 9 15:38:55 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/136450043
-
+---
  src/runtime/proc.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index a7f9db410f..54efb035bf 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -1047,6 +1047,7 @@ runtime·newextram(void)
+ 	gp = runtime·malg(4096);
+ 	gp->sched.pc = (uintptr)runtime·goexit;
+ 	gp->sched.sp = gp->stack.hi;
++	gp->sched.sp -= 4*sizeof(uintreg); // extra space in case of reads slightly beyond frame
+ 	gp->sched.lr = 0;
+ 	gp->sched.g = gp;
+ 	gp->syscallpc = gp->sched.pc;
+@@ -2229,6 +2230,7 @@ runtime·newproc1(FuncVal *fn, byte *argp, int32 narg, int32 nret, void *callerp
+ 		runtime·throw("newproc1: new g is not Gdead");
+ 
+ 	sp = (byte*)newg->stack.hi;
++	sp -= 4*sizeof(uintreg); // extra space in case of reads slightly beyond frame
+ 	sp -= siz;
+ 	runtime·memmove(sp, argp, narg);
+ 	if(thechar == '5') {

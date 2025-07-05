@@ -16,7 +16,57 @@ Date:   Fri Aug 2 11:33:34 2024 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/time/time.go      |  3 ++-
  src/time/time_test.go | 10 ++++++++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 54c4bfdba3..572ea64ccf 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -591,6 +591,7 @@ type absJanFeb int
+ 
+ // dateToAbsDays takes a standard year/month/day and returns the
+ // number of days from the absolute epoch to that day.
++// The days argument can be out of range and in particular can be negative.
+ func dateToAbsDays(year int64, month Month, day int) absDays {
+ 	// See “Computations on Times” comment above.
+ 	amonth := uint32(month)
+@@ -626,7 +627,7 @@ func dateToAbsDays(year int64, month Month, day int) absDays {
+ 	cday := 1461 * cyear / 4
+ 	centurydays := 146097 * century / 4
+ 
+-	return absDays(centurydays + uint64(cday+ayday+uint32(day)-1))
++	return absDays(centurydays + uint64(int64(cday+ayday)+int64(day)-1))
+ }
+ 
+ // days converts absolute seconds to absolute days.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index bd2c01649f..e375d3f973 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -666,6 +666,9 @@ var dateTests = []struct {
+ 	{2012, 1, -43, 7, 56, 35, 0, Local, 1321631795},                 // Jan -52 7:56:35 2012
+ 	{2012, int(January - 2), 18, 7, 56, 35, 0, Local, 1321631795},   // (Jan-2) 18 7:56:35 2012
+ 	{2010, int(December + 11), 18, 7, 56, 35, 0, Local, 1321631795}, // (Dec+11) 18 7:56:35 2010
++	{1970, 1, 15297, 7, 56, 35, 0, Local, 1321631795},               // large number of days
++
++	{1970, 1, -25508, 0, 0, 0, 0, Local, -2203948800}, // negative Unix time
+ }
+ 
+ func TestDate(t *testing.T) {
+@@ -704,6 +707,13 @@ func TestAddDate(t *testing.T) {
+ 				time, t1)
+ 		}
+ 	}
++
++	t2 := Date(1899, 12, 31, 0, 0, 0, 0, UTC)
++	days := t2.Unix() / (24 * 60 * 60)
++	t3 := Unix(0, 0).AddDate(0, 0, int(days))
++	if !t2.Equal(t3) {
++		t.Errorf("Adddate(0, 0, %d) = %v, want %v", days, t3, t2)
++	}
+ }
+ 
+ var daysInTests = []struct {

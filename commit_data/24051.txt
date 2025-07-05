@@ -28,7 +28,7 @@ Date:   Tue Jun 30 15:07:20 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11790
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/go/internal/gccgoimporter/importer_test.go |  2 +-
  src/go/internal/gcimporter/gcimporter_test.go  |  2 +-
  src/go/types/errors.go                         | 13 +++-
@@ -40,3 +40,563 @@ Date:   Tue Jun 30 15:07:20 2015 -0400
  src/go/types/typestring.go                     | 96 ++++++++++++++++----------
  src/go/types/typestring_test.go                |  8 ++-
  10 files changed, 143 insertions(+), 92 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index 4fa01c762c..f3bcadbaf7 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -34,7 +34,7 @@ func runImporterTest(t *testing.T, imp Importer, initmap map[*types.Package]Init
+ 			return
+ 		}
+ 
+-		got := types.ObjectString(pkg, obj)
++		got := types.ObjectString(obj, types.RelativeTo(pkg))
+ 		if got != test.want {
+ 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
+ 		}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index fe4a758cd4..85846a1348 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -165,7 +165,7 @@ func TestImportedTypes(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		got := types.ObjectString(pkg, obj)
++		got := types.ObjectString(obj, types.RelativeTo(pkg))
+ 		if got != test.want {
+ 			t.Errorf("%s: got %q; want %q", test.name, got, test.want)
+ 		}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 0a9dd0e19b..0c0049b1f3 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -23,6 +23,13 @@ func unreachable() {
+ 	panic("unreachable")
+ }
+ 
++func (check *Checker) qualifier(pkg *Package) string {
++	if pkg != check.pkg {
++		return pkg.path
++	}
++	return ""
++}
++
+ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+@@ -31,15 +38,15 @@ func (check *Checker) sprintf(format string, args ...interface{}) string {
+ 		case operand:
+ 			panic("internal error: should always pass *operand")
+ 		case *operand:
+-			arg = operandString(check.pkg, a)
++			arg = operandString(a, check.qualifier)
+ 		case token.Pos:
+ 			arg = check.fset.Position(a).String()
+ 		case ast.Expr:
+ 			arg = ExprString(a)
+ 		case Object:
+-			arg = ObjectString(check.pkg, a)
++			arg = ObjectString(a, check.qualifier)
+ 		case Type:
+-			arg = TypeString(check.pkg, a)
++			arg = TypeString(a, check.qualifier)
+ 		}
+ 		args[i] = arg
+ 	}
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 997aed33d1..8882e5063a 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -199,7 +199,7 @@ func fib(x int) int {
+ 	for obj, uses := range usesByObj {
+ 		sort.Strings(uses)
+ 		item := fmt.Sprintf("%s:\n  defined at %s\n  used at %s",
+-			types.ObjectString(pkg, obj),
++			types.ObjectString(obj, types.RelativeTo(pkg)),
+ 			fset.Position(obj.Pos()),
+ 			strings.Join(uses, ", "))
+ 		items = append(items, item)
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index ebbd760df4..62b39c6b81 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -207,7 +207,7 @@ func NewFunc(pos token.Pos, pkg *Package, name string, sig *Signature) *Func {
+ // function or method obj.
+ func (obj *Func) FullName() string {
+ 	var buf bytes.Buffer
+-	writeFuncName(&buf, nil, obj)
++	writeFuncName(&buf, obj, nil)
+ 	return buf.String()
+ }
+ 
+@@ -241,7 +241,7 @@ type Nil struct {
+ 	object
+ }
+ 
+-func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
++func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	typ := obj.Type()
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+@@ -267,9 +267,9 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
+ 
+ 	case *Func:
+ 		buf.WriteString("func ")
+-		writeFuncName(buf, this, obj)
++		writeFuncName(buf, obj, qf)
+ 		if typ != nil {
+-			WriteSignature(buf, this, typ.(*Signature))
++			WriteSignature(buf, typ.(*Signature), qf)
+ 		}
+ 		return
+ 
+@@ -291,39 +291,52 @@ func writeObject(buf *bytes.Buffer, this *Package, obj Object) {
+ 
+ 	buf.WriteByte(' ')
+ 
+-	// For package-level objects, package-qualify the name,
+-	// except for intra-package references (this != nil).
+-	if pkg := obj.Pkg(); pkg != nil && this != pkg && pkg.scope.Lookup(obj.Name()) == obj {
+-		buf.WriteString(pkg.path)
+-		buf.WriteByte('.')
++	// For package-level objects, qualify the name.
++	if obj.Pkg() != nil && obj.Pkg().scope.Lookup(obj.Name()) == obj {
++		writePackage(buf, obj.Pkg(), qf)
+ 	}
+ 	buf.WriteString(obj.Name())
+ 	if typ != nil {
+ 		buf.WriteByte(' ')
+-		WriteType(buf, this, typ)
++		WriteType(buf, typ, qf)
++	}
++}
++
++func writePackage(buf *bytes.Buffer, pkg *Package, qf Qualifier) {
++	if pkg == nil {
++		return
++	}
++	var s string
++	if qf != nil {
++		s = qf(pkg)
++	} else {
++		s = pkg.Path()
++	}
++	if s != "" {
++		buf.WriteString(s)
++		buf.WriteByte('.')
+ 	}
+ }
+ 
+ // ObjectString returns the string form of obj.
+-// Object and type names are printed package-qualified
+-// only if they do not belong to this package.
+-//
+-func ObjectString(this *Package, obj Object) string {
++// The Qualifier controls the printing of
++// package-level objects, and may be nil.
++func ObjectString(obj Object, qf Qualifier) string {
+ 	var buf bytes.Buffer
+-	writeObject(&buf, this, obj)
++	writeObject(&buf, obj, qf)
+ 	return buf.String()
+ }
+ 
+-func (obj *PkgName) String() string  { return ObjectString(nil, obj) }
+-func (obj *Const) String() string    { return ObjectString(nil, obj) }
+-func (obj *TypeName) String() string { return ObjectString(nil, obj) }
+-func (obj *Var) String() string      { return ObjectString(nil, obj) }
+-func (obj *Func) String() string     { return ObjectString(nil, obj) }
+-func (obj *Label) String() string    { return ObjectString(nil, obj) }
+-func (obj *Builtin) String() string  { return ObjectString(nil, obj) }
+-func (obj *Nil) String() string      { return ObjectString(nil, obj) }
++func (obj *PkgName) String() string  { return ObjectString(obj, nil) }
++func (obj *Const) String() string    { return ObjectString(obj, nil) }
++func (obj *TypeName) String() string { return ObjectString(obj, nil) }
++func (obj *Var) String() string      { return ObjectString(obj, nil) }
++func (obj *Func) String() string     { return ObjectString(obj, nil) }
++func (obj *Label) String() string    { return ObjectString(obj, nil) }
++func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
++func (obj *Nil) String() string      { return ObjectString(obj, nil) }
+ 
+-func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
++func writeFuncName(buf *bytes.Buffer, f *Func, qf Qualifier) {
+ 	if f.typ != nil {
+ 		sig := f.typ.(*Signature)
+ 		if recv := sig.Recv(); recv != nil {
+@@ -335,13 +348,12 @@ func writeFuncName(buf *bytes.Buffer, this *Package, f *Func) {
+ 				// Don't print it in full.
+ 				buf.WriteString("interface")
+ 			} else {
+-				WriteType(buf, this, recv.Type())
++				WriteType(buf, recv.Type(), qf)
+ 			}
+ 			buf.WriteByte(')')
+ 			buf.WriteByte('.')
+-		} else if f.pkg != nil && f.pkg != this {
+-			buf.WriteString(f.pkg.path)
+-			buf.WriteByte('.')
++		} else if f.pkg != nil {
++			writePackage(buf, f.pkg, qf)
+ 		}
+ 	}
+ 	buf.WriteString(f.name)
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index 8d167067d5..a7d3b0aaee 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -93,7 +93,7 @@ func (x *operand) pos() token.Pos {
+ // commaok    <expr> (<untyped kind> <mode>                    )
+ // commaok    <expr> (               <mode>       of type <typ>)
+ //
+-func operandString(this *Package, x *operand) string {
++func operandString(x *operand, qf Qualifier) string {
+ 	var buf bytes.Buffer
+ 
+ 	var expr string
+@@ -104,7 +104,7 @@ func operandString(this *Package, x *operand) string {
+ 		case builtin:
+ 			expr = predeclaredFuncs[x.id].name
+ 		case typexpr:
+-			expr = TypeString(this, x.typ)
++			expr = TypeString(x.typ, qf)
+ 		case constant:
+ 			expr = x.val.String()
+ 		}
+@@ -146,7 +146,7 @@ func operandString(this *Package, x *operand) string {
+ 	if hasType {
+ 		if x.typ != Typ[Invalid] {
+ 			buf.WriteString(" of type ")
+-			WriteType(&buf, this, x.typ)
++			WriteType(&buf, x.typ, qf)
+ 		} else {
+ 			buf.WriteString(" with invalid type")
+ 		}
+@@ -161,7 +161,7 @@ func operandString(this *Package, x *operand) string {
+ }
+ 
+ func (x *operand) String() string {
+-	return operandString(nil, x)
++	return operandString(x, nil)
+ }
+ 
+ // setConst sets x to the untyped constant for literal lit.
+diff --git a/src/go/types/selection.go b/src/go/types/selection.go
+index 1c7016550a..124e0d39f0 100644
+--- a/src/go/types/selection.go
++++ b/src/go/types/selection.go
+@@ -105,18 +105,18 @@ func (s *Selection) Index() []int { return s.index }
+ // x to f in x.f.
+ func (s *Selection) Indirect() bool { return s.indirect }
+ 
+-func (s *Selection) String() string { return SelectionString(nil, s) }
++func (s *Selection) String() string { return SelectionString(s, nil) }
+ 
+ // SelectionString returns the string form of s.
+-// Type names are printed package-qualified
+-// only if they do not belong to this package.
++// The Qualifier controls the printing of
++// package-level objects, and may be nil.
+ //
+ // Examples:
+ //	"field (T) f int"
+ //	"method (T) f(X) Y"
+ //	"method expr (T) f(X) Y"
+ //
+-func SelectionString(this *Package, s *Selection) string {
++func SelectionString(s *Selection, qf Qualifier) string {
+ 	var k string
+ 	switch s.kind {
+ 	case FieldVal:
+@@ -131,13 +131,13 @@ func SelectionString(this *Package, s *Selection) string {
+ 	var buf bytes.Buffer
+ 	buf.WriteString(k)
+ 	buf.WriteByte('(')
+-	WriteType(&buf, this, s.Recv())
++	WriteType(&buf, s.Recv(), qf)
+ 	fmt.Fprintf(&buf, ") %s", s.obj.Name())
+ 	if T := s.Type(); s.kind == FieldVal {
+ 		buf.WriteByte(' ')
+-		WriteType(&buf, this, T)
++		WriteType(&buf, T, qf)
+ 	} else {
+-		WriteSignature(&buf, this, T.(*Signature))
++		WriteSignature(&buf, T.(*Signature), qf)
+ 	}
+ 	return buf.String()
+ }
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index 3d1af20a10..1df8b45b28 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -441,14 +441,14 @@ func (t *Map) Underlying() Type       { return t }
+ func (t *Chan) Underlying() Type      { return t }
+ func (t *Named) Underlying() Type     { return t.underlying }
+ 
+-func (t *Basic) String() string     { return TypeString(nil, t) }
+-func (t *Array) String() string     { return TypeString(nil, t) }
+-func (t *Slice) String() string     { return TypeString(nil, t) }
+-func (t *Struct) String() string    { return TypeString(nil, t) }
+-func (t *Pointer) String() string   { return TypeString(nil, t) }
+-func (t *Tuple) String() string     { return TypeString(nil, t) }
+-func (t *Signature) String() string { return TypeString(nil, t) }
+-func (t *Interface) String() string { return TypeString(nil, t) }
+-func (t *Map) String() string       { return TypeString(nil, t) }
+-func (t *Chan) String() string      { return TypeString(nil, t) }
+-func (t *Named) String() string     { return TypeString(nil, t) }
++func (t *Basic) String() string     { return TypeString(t, nil) }
++func (t *Array) String() string     { return TypeString(t, nil) }
++func (t *Slice) String() string     { return TypeString(t, nil) }
++func (t *Struct) String() string    { return TypeString(t, nil) }
++func (t *Pointer) String() string   { return TypeString(t, nil) }
++func (t *Tuple) String() string     { return TypeString(t, nil) }
++func (t *Signature) String() string { return TypeString(t, nil) }
++func (t *Interface) String() string { return TypeString(t, nil) }
++func (t *Map) String() string       { return TypeString(t, nil) }
++func (t *Chan) String() string      { return TypeString(t, nil) }
++func (t *Named) String() string     { return TypeString(t, nil) }
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 6f527bbed0..bd62f4dc22 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -11,6 +11,33 @@ import (
+ 	"fmt"
+ )
+ 
++// A Qualifier controls how named package-level objects are printed in
++// calls to TypeString, ObjectString, and SelectionString.
++//
++// These three formatting routines call the Qualifier for each
++// package-level object O, and if the Qualifier returns a non-empty
++// string p, the object is printed in the form p.O.
++// If it returns an empty string, only the object name O is printed.
++//
++// Using a nil Qualifier is equivalent to using (*Package).Path: the
++// object is qualified by the import path, e.g., "encoding/json.Marshal".
++//
++type Qualifier func(*Package) string
++
++// RelativeTo(pkg) returns a Qualifier that fully qualifies members of
++// all packages other than pkg.
++func RelativeTo(pkg *Package) Qualifier {
++	if pkg == nil {
++		return nil
++	}
++	return func(other *Package) string {
++		if pkg == other {
++			return "" // same package; unqualified
++		}
++		return other.Path()
++	}
++}
++
+ // If gcCompatibilityMode is set, printing of types is modified
+ // to match the representation of some types in the gc compiler:
+ //
+@@ -32,22 +59,22 @@ import (
+ var gcCompatibilityMode bool
+ 
+ // TypeString returns the string representation of typ.
+-// Named types are printed package-qualified if they
+-// do not belong to this package.
+-func TypeString(this *Package, typ Type) string {
++// The Qualifier controls the printing of
++// package-level objects, and may be nil.
++func TypeString(typ Type, qf Qualifier) string {
+ 	var buf bytes.Buffer
+-	WriteType(&buf, this, typ)
++	WriteType(&buf, typ, qf)
+ 	return buf.String()
+ }
+ 
+ // WriteType writes the string representation of typ to buf.
+-// Named types are printed package-qualified if they
+-// do not belong to this package.
+-func WriteType(buf *bytes.Buffer, this *Package, typ Type) {
+-	writeType(buf, this, typ, make([]Type, 8))
++// The Qualifier controls the printing of
++// package-level objects, and may be nil.
++func WriteType(buf *bytes.Buffer, typ Type, qf Qualifier) {
++	writeType(buf, typ, qf, make([]Type, 8))
+ }
+ 
+-func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
++func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 	// Theoretically, this is a quadratic lookup algorithm, but in
+ 	// practice deeply nested composite types with unnamed component
+ 	// types are uncommon. This code is likely more efficient than
+@@ -81,11 +108,11 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 
+ 	case *Array:
+ 		fmt.Fprintf(buf, "[%d]", t.len)
+-		writeType(buf, this, t.elem, visited)
++		writeType(buf, t.elem, qf, visited)
+ 
+ 	case *Slice:
+ 		buf.WriteString("[]")
+-		writeType(buf, this, t.elem, visited)
++		writeType(buf, t.elem, qf, visited)
+ 
+ 	case *Struct:
+ 		buf.WriteString("struct{")
+@@ -97,7 +124,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 				buf.WriteString(f.name)
+ 				buf.WriteByte(' ')
+ 			}
+-			writeType(buf, this, f.typ, visited)
++			writeType(buf, f.typ, qf, visited)
+ 			if tag := t.Tag(i); tag != "" {
+ 				fmt.Fprintf(buf, " %q", tag)
+ 			}
+@@ -106,14 +133,14 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 
+ 	case *Pointer:
+ 		buf.WriteByte('*')
+-		writeType(buf, this, t.base, visited)
++		writeType(buf, t.base, qf, visited)
+ 
+ 	case *Tuple:
+-		writeTuple(buf, this, t, false, visited)
++		writeTuple(buf, t, false, qf, visited)
+ 
+ 	case *Signature:
+ 		buf.WriteString("func")
+-		writeSignature(buf, this, t, visited)
++		writeSignature(buf, t, qf, visited)
+ 
+ 	case *Interface:
+ 		// We write the source-level methods and embedded types rather
+@@ -136,7 +163,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 					buf.WriteString("; ")
+ 				}
+ 				buf.WriteString(m.name)
+-				writeSignature(buf, this, m.typ.(*Signature), visited)
++				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 			}
+ 		} else {
+ 			// print explicit interface methods and embedded types
+@@ -145,22 +172,22 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 					buf.WriteString("; ")
+ 				}
+ 				buf.WriteString(m.name)
+-				writeSignature(buf, this, m.typ.(*Signature), visited)
++				writeSignature(buf, m.typ.(*Signature), qf, visited)
+ 			}
+ 			for i, typ := range t.embeddeds {
+ 				if i > 0 || len(t.methods) > 0 {
+ 					buf.WriteString("; ")
+ 				}
+-				writeType(buf, this, typ, visited)
++				writeType(buf, typ, qf, visited)
+ 			}
+ 		}
+ 		buf.WriteByte('}')
+ 
+ 	case *Map:
+ 		buf.WriteString("map[")
+-		writeType(buf, this, t.key, visited)
++		writeType(buf, t.key, qf, visited)
+ 		buf.WriteByte(']')
+-		writeType(buf, this, t.elem, visited)
++		writeType(buf, t.elem, qf, visited)
+ 
+ 	case *Chan:
+ 		var s string
+@@ -183,7 +210,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 		if parens {
+ 			buf.WriteByte('(')
+ 		}
+-		writeType(buf, this, t.elem, visited)
++		writeType(buf, t.elem, qf, visited)
+ 		if parens {
+ 			buf.WriteByte(')')
+ 		}
+@@ -191,9 +218,8 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 	case *Named:
+ 		s := "<Named w/o object>"
+ 		if obj := t.obj; obj != nil {
+-			if pkg := obj.pkg; pkg != nil && pkg != this {
+-				buf.WriteString(pkg.path)
+-				buf.WriteByte('.')
++			if obj.pkg != nil {
++				writePackage(buf, obj.pkg, qf)
+ 			}
+ 			// TODO(gri): function-local named types should be displayed
+ 			// differently from named types at package level to avoid
+@@ -208,7 +234,7 @@ func writeType(buf *bytes.Buffer, this *Package, typ Type, visited []Type) {
+ 	}
+ }
+ 
+-func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, visited []Type) {
++func writeTuple(buf *bytes.Buffer, tup *Tuple, variadic bool, qf Qualifier, visited []Type) {
+ 	buf.WriteByte('(')
+ 	if tup != nil {
+ 		for i, v := range tup.vars {
+@@ -230,12 +256,12 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
+ 					if t, ok := typ.Underlying().(*Basic); !ok || t.kind != String {
+ 						panic("internal error: string type expected")
+ 					}
+-					writeType(buf, this, typ, visited)
++					writeType(buf, typ, qf, visited)
+ 					buf.WriteString("...")
+ 					continue
+ 				}
+ 			}
+-			writeType(buf, this, typ, visited)
++			writeType(buf, typ, qf, visited)
+ 		}
+ 	}
+ 	buf.WriteByte(')')
+@@ -243,14 +269,14 @@ func writeTuple(buf *bytes.Buffer, this *Package, tup *Tuple, variadic bool, vis
+ 
+ // WriteSignature writes the representation of the signature sig to buf,
+ // without a leading "func" keyword.
+-// Named types are printed package-qualified if they
+-// do not belong to this package.
+-func WriteSignature(buf *bytes.Buffer, this *Package, sig *Signature) {
+-	writeSignature(buf, this, sig, make([]Type, 8))
++// The Qualifier controls the printing of
++// package-level objects, and may be nil.
++func WriteSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier) {
++	writeSignature(buf, sig, qf, make([]Type, 8))
+ }
+ 
+-func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature, visited []Type) {
+-	writeTuple(buf, this, sig.params, sig.variadic, visited)
++func writeSignature(buf *bytes.Buffer, sig *Signature, qf Qualifier, visited []Type) {
++	writeTuple(buf, sig.params, sig.variadic, qf, visited)
+ 
+ 	n := sig.results.Len()
+ 	if n == 0 {
+@@ -261,10 +287,10 @@ func writeSignature(buf *bytes.Buffer, this *Package, sig *Signature, visited []
+ 	buf.WriteByte(' ')
+ 	if n == 1 && sig.results.vars[0].name == "" {
+ 		// single unnamed result
+-		writeType(buf, this, sig.results.vars[0].typ, visited)
++		writeType(buf, sig.results.vars[0].typ, qf, visited)
+ 		return
+ 	}
+ 
+ 	// multiple or named result(s)
+-	writeTuple(buf, this, sig.results, false, visited)
++	writeTuple(buf, sig.results, false, qf, visited)
+ }
+diff --git a/src/go/types/typestring_test.go b/src/go/types/typestring_test.go
+index 9945ed8c12..913e6c735c 100644
+--- a/src/go/types/typestring_test.go
++++ b/src/go/types/typestring_test.go
+@@ -154,7 +154,13 @@ func TestQualifiedTypeString(t *testing.T) {
+ 		{NewPointer(pT), p, "*T"},
+ 		{NewPointer(pT), q, "*p.T"},
+ 	} {
+-		if got := TypeString(test.this, test.typ); got != test.want {
++		qualifier := func(pkg *Package) string {
++			if pkg != test.this {
++				return pkg.Name()
++			}
++			return ""
++		}
++		if got := TypeString(test.typ, qualifier); got != test.want {
+ 			t.Errorf("TypeString(%s, %s) = %s, want %s",
+ 				test.this, test.typ, got, test.want)
+ 		}

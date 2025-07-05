@@ -14,7 +14,39 @@ Date:   Wed Mar 28 13:45:26 2018 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/env.go      | 7 ++++++-
  src/os/env_test.go | 2 ++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index 4e0171f408..b3b615cb33 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -21,7 +21,12 @@ func Expand(s string, mapping func(string) string) string {
+ 		if s[j] == '$' && j+1 < len(s) {
+ 			buf = append(buf, s[i:j]...)
+ 			name, w := getShellName(s[j+1:])
+-			buf = append(buf, mapping(name)...)
++			// If the name is empty, keep the $.
++			if name == "" {
++				buf = append(buf, s[j])
++			} else {
++				buf = append(buf, mapping(name)...)
++			}
+ 			j += w
+ 			i = j + 1
+ 		}
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 16f1945638..78c8fe57cb 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -49,6 +49,8 @@ var expandTests = []struct {
+ 	{"${HOME}", "/usr/gopher"},
+ 	{"${H}OME", "(Value of H)OME"},
+ 	{"A$$$#$1$H$home_1*B", "APIDNARGSARGUMENT1(Value of H)/usr/foo*B"},
++	{"start$+middle$^end$", "start$+middle$^end$"},
++	{"mixed$|bag$$$", "mixed$|bagPID$"},
+ }
+ 
+ func TestExpand(t *testing.T) {

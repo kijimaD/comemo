@@ -7,6 +7,20 @@ Date:   Sat Jul 4 18:33:21 2015 +0200
     Change-Id: If33ffe1da23a8463fc5479f453422d280b736372
     Reviewed-on: https://go-review.googlesource.com/11865
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 4270fa3398..d2244da394 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -249,7 +249,7 @@ cmd/trace: new command to view traces (https://golang.org/cl/3601)
+ The assembler in Go 1.5 is a single new Go program that replaces
+ the suite of C-language assemblers (<code>6a</code>,
+ <code>8a</code>, etc.) in previous releases.
+-The values of the environmetn variables
++The values of the environment variables
+ <code>GOARCH</code> and <code>GOOS</code>
+ choose which architecture and operating system the generated
+ code will be for.

@@ -7,6 +7,29 @@ Date:   Mon Oct 8 01:54:56 2012 +0800
     R=golang-dev, daniel.morsing
     CC=golang-dev
     https://golang.org/cl/6624060
-
+---
  test/run.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/run.go b/test/run.go
+index c22bfb2ec3..a6464e3802 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -177,7 +177,7 @@ func compileInDir(runcmd runCmd, dir, name string) (out []byte, err error) {
+ 
+ func linkFile(runcmd runCmd, goname string) (err error) {
+ 	pfile := strings.Replace(goname, ".go", "."+letter, -1)
+-	_, err = runcmd("go", "tool", ld, "-o", "run.out", "-L", ".", pfile)
++	_, err = runcmd("go", "tool", ld, "-o", "a.exe", "-L", ".", pfile)
+ 	return
+ }
+ 
+@@ -440,7 +440,7 @@ func (t *test) run() {
+ 			t.err = err
+ 			return
+ 		}
+-		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "run.out")}, args...)...)
++		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
+ 		if err != nil {
+ 			t.err = err
+ 			return

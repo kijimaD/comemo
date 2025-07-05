@@ -30,7 +30,60 @@ Date:   Wed Apr 28 18:26:54 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug.go  | 8 +++++++-
  src/cmd/compile/internal/ssagen/ssa.go | 8 ++++++++
  2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index d725fc526e..46743f54eb 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -152,6 +152,12 @@ var BlockEnd = &Value{
+ 	Aux: StringToAux("BlockEnd"),
+ }
+ 
++var FuncEnd = &Value{
++	ID:  -30000,
++	Op:  OpInvalid,
++	Aux: StringToAux("FuncEnd"),
++}
++
+ // RegisterSet is a bitmap of registers, indexed by Register.num.
+ type RegisterSet uint64
+ 
+@@ -948,7 +954,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 
+ 	// Flush any leftover entries live at the end of the last block.
+ 	for varID := range state.lists {
+-		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, BlockEnd.ID)
++		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
+ 		list := state.lists[varID]
+ 		if state.loggingEnabled {
+ 			if len(list) == 0 {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index c49350005e..fb35d8044e 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6964,6 +6964,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		debugInfo := ssa.BuildFuncDebug(base.Ctxt, f, base.Debug.LocationLists > 1, StackOffset)
+ 		e.curfn.DebugInfo = debugInfo
+ 		bstart := s.bstart
++		idToIdx := make([]int, f.NumBlocks())
++		for i, b := range f.Blocks {
++			idToIdx[b.ID] = i
++		}
+ 		// Note that at this moment, Prog.Pc is a sequence number; it's
+ 		// not a real PC until after assembly, so this mapping has to
+ 		// be done later.
+@@ -6976,6 +6980,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 				}
+ 				return bstart[b].Pc
+ 			case ssa.BlockEnd.ID:
++				blk := f.Blocks[idToIdx[b]]
++				nv := len(blk.Values)
++				return valueToProgAfter[blk.Values[nv-1].ID].Pc
++			case ssa.FuncEnd.ID:
+ 				return e.curfn.LSym.Size
+ 			default:
+ 				return valueToProgAfter[v].Pc

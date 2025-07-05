@@ -19,6 +19,20 @@ Date:   Mon Mar 16 15:18:49 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7741
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index acacd1d8e8..69e077c002 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -139,7 +139,7 @@ func bootstrapFixImports(text, srcFile string) string {
+ 		}
+ 	}
+ 
+-	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n" + lines[0]
++	lines[0] = "// Do not edit. Bootstrap copy of " + srcFile + "\n\n//line " + srcFile + ":1\n" + lines[0]
+ 
+ 	return strings.Join(lines, "")
+ }

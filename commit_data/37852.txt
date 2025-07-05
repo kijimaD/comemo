@@ -13,6 +13,20 @@ Date:   Sun Sep 2 16:53:03 2018 +0000
     GitHub-Pull-Request: golang/go#27444
     Reviewed-on: https://go-review.googlesource.com/132779
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/types/typexpr.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 2edd1f5bac..83848099c2 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -132,7 +132,7 @@ func (check *Checker) definedType(e ast.Expr, def *Named) (T Type) {
+ 
+ // indirectType is like typ but it also breaks the (otherwise) infinite size of recursive
+ // types by introducing an indirection. It should be called for components of types that
+-// are not layed out in place in memory, such as pointer base types, slice or map element
++// are not laid out in place in memory, such as pointer base types, slice or map element
+ // types, function parameter types, etc.
+ func (check *Checker) indirectType(e ast.Expr) Type {
+ 	check.push(indir)

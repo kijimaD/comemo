@@ -27,10 +27,144 @@ Date:   Wed Sep 21 18:38:23 2022 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/noder/irgen.go        | 10 +++++++++-
  src/cmd/compile/internal/types2/conversions.go |  7 -------
  src/cmd/compile/internal/types2/errors.go      |  6 +-----
  src/go/types/conversions.go                    |  7 -------
  src/go/types/errors.go                         |  6 +-----
  5 files changed, 11 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index dc69e94924..bf471e08fa 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -6,6 +6,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"regexp"
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+@@ -18,6 +19,8 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
++var versionErrorRx = regexp.MustCompile(`requires go[0-9]+\.[0-9]+ or later`)
++
+ // checkFiles configures and runs the types2 checker on the given
+ // parsed source files and then returns the result.
+ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+@@ -46,7 +49,12 @@ func checkFiles(noders []*noder) (posMap, *types2.Package, *types2.Info) {
+ 		CompilerErrorMessages: true, // use error strings matching existing compiler errors
+ 		Error: func(err error) {
+ 			terr := err.(types2.Error)
+-			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", terr.Msg)
++			msg := terr.Msg
++			// if we have a version error, hint at the -lang setting
++			if versionErrorRx.MatchString(msg) {
++				msg = fmt.Sprintf("%s (-lang was set to %s; check go.mod)", msg, base.Flag.Lang)
++			}
++			base.ErrorfAt(m.makeXPos(terr.Pos), "%s", msg)
+ 		},
+ 		Importer: &importer,
+ 		Sizes:    &gcSizes{},
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index d15645499b..da3a31736a 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -7,7 +7,6 @@
+ package types2
+ 
+ import (
+-	"fmt"
+ 	"go/constant"
+ 	"unicode"
+ )
+@@ -201,9 +200,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				if cause != nil {
+ 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
+ 					*cause = "conversion of slices to arrays requires go1.20 or later"
+-					if check.conf.CompilerErrorMessages {
+-						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
+-					}
+ 				}
+ 				return false
+ 			}
+@@ -216,9 +212,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					// check != nil
+ 					if cause != nil {
+ 						*cause = "conversion of slices to array pointers requires go1.17 or later"
+-						if check.conf.CompilerErrorMessages {
+-							*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
+-						}
+ 					}
+ 					return false
+ 				}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 7df6656543..09d44f6899 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -286,11 +286,7 @@ func (check *Checker) softErrorf(at poser, code errorCode, format string, args .
+ 
+ func (check *Checker) versionErrorf(at poser, goVersion string, format string, args ...interface{}) {
+ 	msg := check.sprintf(format, args...)
+-	if check.conf.CompilerErrorMessages {
+-		msg = fmt.Sprintf("%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
+-	} else {
+-		msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
+-	}
++	msg = fmt.Sprintf("%s requires %s or later", msg, goVersion)
+ 	check.err(at, _UnsupportedFeature, msg, true)
+ }
+ 
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 926a79cf5e..edb983ddb9 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -7,7 +7,6 @@
+ package types
+ 
+ import (
+-	"fmt"
+ 	"go/constant"
+ 	"go/token"
+ 	"unicode"
+@@ -201,9 +200,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				if cause != nil {
+ 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
+ 					*cause = "conversion of slices to arrays requires go1.20 or later"
+-					if compilerErrorMessages {
+-						*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
+-					}
+ 				}
+ 				return false
+ 			}
+@@ -216,9 +212,6 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					// check != nil
+ 					if cause != nil {
+ 						*cause = "conversion of slices to array pointers requires go1.17 or later"
+-						if compilerErrorMessages {
+-							*cause += fmt.Sprintf(" (-lang was set to %s; check go.mod)", check.conf.GoVersion)
+-						}
+ 					}
+ 					return false
+ 				}
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 9869ec7d4a..c6a6971495 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -295,11 +295,7 @@ func (check *Checker) softErrorf(at positioner, code errorCode, format string, a
+ func (check *Checker) versionErrorf(at positioner, code errorCode, goVersion string, format string, args ...interface{}) {
+ 	msg := check.sprintf(format, args...)
+ 	var err *error_
+-	if compilerErrorMessages {
+-		err = newErrorf(at, code, "%s requires %s or later (-lang was set to %s; check go.mod)", msg, goVersion, check.conf.GoVersion)
+-	} else {
+-		err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
+-	}
++	err = newErrorf(at, code, "%s requires %s or later", msg, goVersion)
+ 	check.report(err)
+ }
+ 

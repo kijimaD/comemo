@@ -9,9 +9,107 @@ Date:   Thu Feb 18 23:33:06 2010 -0800
     R=rsc
     CC=Charlie Dorian, golang-dev
     https://golang.org/cl/207049
-
+---
  src/cmd/8a/lex.c   |  8 ++++++++
  src/cmd/8l/8.out.h |  9 +++++++++
  src/cmd/8l/optab.c | 15 +++++++++++++++
  src/libmach/8db.c  |  8 ++++++++
  4 files changed, 40 insertions(+)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index c164151c65..c8127bde9c 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -601,6 +601,14 @@ struct
+ 	"FMOVWP",	LTYPE3, AFMOVWP,
+ 	"FMOVX",	LTYPE3, AFMOVX,
+ 	"FMOVXP",	LTYPE3, AFMOVXP,
++	"FCMOVCC",	LTYPE3, AFCMOVCC,
++	"FCMOVCS",	LTYPE3, AFCMOVCS,
++	"FCMOVEQ",	LTYPE3, AFCMOVEQ,
++	"FCMOVHI",	LTYPE3, AFCMOVHI,
++	"FCMOVLS",	LTYPE3, AFCMOVLS,
++	"FCMOVNE",	LTYPE3, AFCMOVNE,
++	"FCMOVNU",	LTYPE3, AFCMOVNU,
++	"FCMOVUN",	LTYPE3, AFCMOVUN,
+ 	"FCOMB",	LTYPE3, AFCOMB,
+ 	"FCOMBP",	LTYPE3, AFCOMBP,
+ 	"FCOMD",	LTYPE3, AFCOMD,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index eba475b9a9..c17f606e26 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -426,6 +426,15 @@ enum	as
+ 	ACMOVWPL,
+ 	ACMOVWPS,
+ 
++	AFCMOVCC,
++	AFCMOVCS,
++	AFCMOVEQ,
++	AFCMOVHI,
++	AFCMOVLS,
++	AFCMOVNE,
++	AFCMOVNU,
++	AFCMOVUN,
++
+ 	ALAST
+ };
+ 
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index f41734f82e..5b7be692ed 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -302,6 +302,11 @@ uchar	yfmvp[] =
+ 	Yf0,	Ym,	Zo_m,	2,
+ 	0
+ };
++uchar	yfcmv[] =
++{
++	Yrf,	Yf0,	Zm_o,	2,
++	0
++};
+ uchar	yfadd[] =
+ {
+ 	Ym,	Yf0,	Zm_o,	2,
+@@ -730,5 +735,15 @@ Optab optab[] =
+ 	{ ACMOVWPC,	yml_rl,	Pq, 0x4b },
+ 	{ ACMOVWPL,	yml_rl,	Pq, 0x49 },
+ 	{ ACMOVWPS,	yml_rl,	Pq, 0x4a },
++
++	{ AFCMOVCC,	yfcmv,	Px, 0xdb,(00) },
++	{ AFCMOVCS,	yfcmv,	Px, 0xda,(00) },
++	{ AFCMOVEQ,	yfcmv,	Px, 0xda,(01) },
++	{ AFCMOVHI,	yfcmv,	Px, 0xdb,(02) },
++	{ AFCMOVLS,	yfcmv,	Px, 0xda,(02) },
++	{ AFCMOVNE,	yfcmv,	Px, 0xdb,(01) },
++	{ AFCMOVNU,	yfcmv,	Px, 0xdb,(03) },
++	{ AFCMOVUN,	yfcmv,	Px, 0xda,(03) },
++
+ 	0
+ };
+diff --git a/src/libmach/8db.c b/src/libmach/8db.c
+index 8a52d4ae73..3c670cdb1a 100644
+--- a/src/libmach/8db.c
++++ b/src/libmach/8db.c
+@@ -1004,6 +1004,10 @@ static Optable optabDA[8+8] =
+ [0x05]	0,0,		"FSUBRL	%e,F0",
+ [0x06]	0,0,		"FDIVL	%e,F0",
+ [0x07]	0,0,		"FDIVRL	%e,F0",
++[0x08]	0,0,		"FCMOVCS	%f,F0",
++[0x09]	0,0,		"FCMOVEQ	%f,F0",
++[0x0a]	0,0,		"FCMOVLS	%f,F0",
++[0x0b]	0,0,		"FCMOVUN	%f,F0",
+ [0x0d]	R1,0,		"FUCOMPP",
+ };
+ 
+@@ -1014,6 +1018,10 @@ static Optable optabDB[8+64] =
+ [0x03]	0,0,		"FMOVLP	F0,%e",
+ [0x05]	0,0,		"FMOVX	%e,F0",
+ [0x07]	0,0,		"FMOVXP	F0,%e",
++[0x08]	0,0,		"FCMOVCC	%f,F0",
++[0x09]	0,0,		"FCMOVNE	%f,F0",
++[0x0a]	0,0,		"FCMOVHI	%f,F0",
++[0x0b]	0,0,		"FCMOVNU	%f,F0",
+ [0x0d]	0,0,		"FUCOMI	F0,%f",
+ [0x0e]	0,0,		"FCOMI	F0,%f",
+ [0x2a]	0,0,		"FCLEX",

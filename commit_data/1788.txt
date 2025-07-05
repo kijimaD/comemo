@@ -8,6 +8,22 @@ Date:   Mon Mar 9 17:30:38 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=25956
     CL=25960
-
+---
  src/lib/go/scanner.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/go/scanner.go b/src/lib/go/scanner.go
+index 4e4f03d90d..7e20d194d7 100644
+--- a/src/lib/go/scanner.go
++++ b/src/lib/go/scanner.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// A Go scanner. Takes a []byte as source which can then be
+-// tokenized through repeated calls to the Scan() function.
++// A scanner for Go source text. Takes a []byte as source which can
++// then be tokenized through repeated calls to the Scan() function.
+ //
+ // Sample use:
+ //

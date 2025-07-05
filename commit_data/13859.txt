@@ -9,7 +9,58 @@ Date:   Tue Sep 18 14:22:55 2012 -0400
     R=golang-dev, mike.rosset, r
     CC=golang-dev
     https://golang.org/cl/6524043
-
+---
  src/pkg/encoding/json/stream.go      |  2 +-
  src/pkg/encoding/json/stream_test.go | 22 ++++++++++++++++++++++
  2 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/stream.go b/src/pkg/encoding/json/stream.go
+index 5c196faeab..9592467d25 100644
+--- a/src/pkg/encoding/json/stream.go
++++ b/src/pkg/encoding/json/stream.go
+@@ -78,7 +78,7 @@ Input:
+ 			// scanEnd is delayed one byte.
+ 			// We might block trying to get that byte from src,
+ 			// so instead invent a space byte.
+-			if v == scanEndObject && dec.scan.step(&dec.scan, ' ') == scanEnd {
++			if (v == scanEndObject || v == scanEndArray) && dec.scan.step(&dec.scan, ' ') == scanEnd {
+ 				scanp += i + 1
+ 				break Input
+ 			}
+diff --git a/src/pkg/encoding/json/stream_test.go b/src/pkg/encoding/json/stream_test.go
+index ce5a7e6d65..4d66f55676 100644
+--- a/src/pkg/encoding/json/stream_test.go
++++ b/src/pkg/encoding/json/stream_test.go
+@@ -6,6 +6,7 @@ package json
+ 
+ import (
+ 	"bytes"
++	"net"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -145,3 +146,24 @@ func TestNullRawMessage(t *testing.T) {
+ 		t.Fatalf("Marshal: have %#q want %#q", b, msg)
+ 	}
+ }
++
++var blockingTests = []string{
++	`{"x": 1}`,
++	`[1, 2, 3]`,
++}
++
++func TestBlocking(t *testing.T) {
++	for _, enc := range blockingTests {
++		r, w := net.Pipe()
++		go w.Write([]byte(enc))
++		var val interface{}
++
++		// If Decode reads beyond what w.Write writes above,
++		// it will block, and the test will deadlock.
++		if err := NewDecoder(r).Decode(&val); err != nil {
++			t.Errorf("decoding %s: %v", enc, err)
++		}
++		r.Close()
++		w.Close()
++	}
++}

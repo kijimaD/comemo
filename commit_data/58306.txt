@@ -20,7 +20,51 @@ Date:   Fri Apr 7 18:53:49 2023 +0100
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/internal/profile/encode.go  | 5 ++++-
  src/runtime/pprof/proto_test.go | 8 ++------
  2 files changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/profile/encode.go b/src/internal/profile/encode.go
+index 77d77f1dfb..72d6fe2fa7 100644
+--- a/src/internal/profile/encode.go
++++ b/src/internal/profile/encode.go
+@@ -207,6 +207,9 @@ var profileDecoder = []decoder{
+ // suffix X) and populates the corresponding exported fields.
+ // The unexported fields are cleared up to facilitate testing.
+ func (p *Profile) postDecode() error {
++	if p.Empty() {
++		return nil
++	}
+ 	var err error
+ 
+ 	mappings := make(map[uint64]*Mapping)
+@@ -291,7 +294,7 @@ func (p *Profile) postDecode() error {
+ 	p.commentX = nil
+ 	p.DefaultSampleType, err = getString(p.stringTable, &p.defaultSampleTypeX, err)
+ 	p.stringTable = nil
+-	return nil
++	return err
+ }
+ 
+ func (p *ValueType) decoder() []decoder {
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index f788b167da..e1a7f2306d 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -64,13 +64,9 @@ func TestConvertCPUProfileEmpty(t *testing.T) {
+ 	}
+ 
+ 	// Expected PeriodType and SampleType.
+-	periodType := &profile.ValueType{Type: "cpu", Unit: "nanoseconds"}
+-	sampleType := []*profile.ValueType{
+-		{Type: "samples", Unit: "count"},
+-		{Type: "cpu", Unit: "nanoseconds"},
+-	}
++	sampleType := []*profile.ValueType{{}, {}}
+ 
+-	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
++	checkProfile(t, p, 2000*1000, nil, sampleType, nil, "")
+ }
+ 
+ func f1() { f1() }

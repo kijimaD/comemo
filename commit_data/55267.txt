@@ -13,7 +13,7 @@ Date:   Tue Jan 24 10:16:42 2023 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/runtime/cgo/asm_mips64x.s           | 1 -
  src/runtime/cgo/asm_mipsx.s             | 1 -
  src/runtime/cgo/asm_ppc64x.s            | 1 -
@@ -39,3 +39,325 @@ Date:   Tue Jan 24 10:16:42 2023 +0100
  src/runtime/cgo/gcc_traceback.c         | 2 +-
  src/runtime/cgo/linux_syscall.c         | 2 +-
  24 files changed, 18 insertions(+), 39 deletions(-)
+
+diff --git a/src/runtime/cgo/asm_mips64x.s b/src/runtime/cgo/asm_mips64x.s
+index ba948071fa..904f781d87 100644
+--- a/src/runtime/cgo/asm_mips64x.s
++++ b/src/runtime/cgo/asm_mips64x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build mips64 || mips64le
+-// +build mips64 mips64le
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/cgo/asm_mipsx.s b/src/runtime/cgo/asm_mipsx.s
+index fd5d78ef97..5e2db0b56e 100644
+--- a/src/runtime/cgo/asm_mipsx.s
++++ b/src/runtime/cgo/asm_mipsx.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build mips || mipsle
+-// +build mips mipsle
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/runtime/cgo/asm_ppc64x.s b/src/runtime/cgo/asm_ppc64x.s
+index 187b2d42f6..c201005044 100644
+--- a/src/runtime/cgo/asm_ppc64x.s
++++ b/src/runtime/cgo/asm_ppc64x.s
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ppc64 || ppc64le
+-// +build ppc64 ppc64le
+ 
+ #include "textflag.h"
+ #include "asm_ppc64x.h"
+diff --git a/src/runtime/cgo/gcc_aix_ppc64.S b/src/runtime/cgo/gcc_aix_ppc64.S
+index a77363ee25..6f465f0a1d 100644
+--- a/src/runtime/cgo/gcc_aix_ppc64.S
++++ b/src/runtime/cgo/gcc_aix_ppc64.S
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64
+-// +build aix
+-
+ .file "gcc_aix_ppc64.S"
+ 
+ /*
+diff --git a/src/runtime/cgo/gcc_aix_ppc64.c b/src/runtime/cgo/gcc_aix_ppc64.c
+index f4f50b89ce..9dd9524853 100644
+--- a/src/runtime/cgo/gcc_aix_ppc64.c
++++ b/src/runtime/cgo/gcc_aix_ppc64.c
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix
+-// +build ppc64 ppc64le
+-
+ /*
+  * On AIX, call to _cgo_topofstack and Go main are forced to be a longcall.
+  * Without it, ld might add trampolines in the middle of .text section
+diff --git a/src/runtime/cgo/gcc_context.c b/src/runtime/cgo/gcc_context.c
+index 5fc0abb8bc..ad58692821 100644
+--- a/src/runtime/cgo/gcc_context.c
++++ b/src/runtime/cgo/gcc_context.c
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
++//go:build unix || windows
+ 
+ #include "libcgo.h"
+ 
+diff --git a/src/runtime/cgo/gcc_fatalf.c b/src/runtime/cgo/gcc_fatalf.c
+index 597e750f12..9493dbb4b0 100644
+--- a/src/runtime/cgo/gcc_fatalf.c
++++ b/src/runtime/cgo/gcc_fatalf.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build aix !android,linux freebsd
++//go:build aix || (!android && linux) || freebsd
+ 
+ #include <stdarg.h>
+ #include <stdio.h>
+diff --git a/src/runtime/cgo/gcc_freebsd_sigaction.c b/src/runtime/cgo/gcc_freebsd_sigaction.c
+index 98b122d75e..b324983771 100644
+--- a/src/runtime/cgo/gcc_freebsd_sigaction.c
++++ b/src/runtime/cgo/gcc_freebsd_sigaction.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build freebsd,amd64
++//go:build freebsd && amd64
+ 
+ #include <errno.h>
+ #include <stddef.h>
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 3304d95fdf..57620fe4de 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++//go:build unix
+ 
+ #include <pthread.h>
+ #include <errno.h>
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 2b5896bb22..fdcf027424 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-
+ #define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ #include <process.h>
+diff --git a/src/runtime/cgo/gcc_linux_mips64x.c b/src/runtime/cgo/gcc_linux_mips64x.c
+index 3ea29b0f86..fbe199a678 100644
+--- a/src/runtime/cgo/gcc_linux_mips64x.c
++++ b/src/runtime/cgo/gcc_linux_mips64x.c
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build linux
+-// +build mips64 mips64le
++//go:build mips64 || mips64le
+ 
+ #include <pthread.h>
+ #include <string.h>
+diff --git a/src/runtime/cgo/gcc_linux_mipsx.c b/src/runtime/cgo/gcc_linux_mipsx.c
+index 3b60a0ea58..781afc097d 100644
+--- a/src/runtime/cgo/gcc_linux_mipsx.c
++++ b/src/runtime/cgo/gcc_linux_mipsx.c
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build linux
+-// +build mips mipsle
++//go:build mips || mipsle
+ 
+ #include <pthread.h>
+ #include <string.h>
+diff --git a/src/runtime/cgo/gcc_linux_ppc64x.S b/src/runtime/cgo/gcc_linux_ppc64x.S
+index 957ef3ab1b..5c8b3e70bb 100644
+--- a/src/runtime/cgo/gcc_linux_ppc64x.S
++++ b/src/runtime/cgo/gcc_linux_ppc64x.S
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64 ppc64le
+-// +build linux
++//go:build linux && (ppc64 || ppc64le)
+ 
+ .file "gcc_linux_ppc64x.S"
+ 
+diff --git a/src/runtime/cgo/gcc_mips64x.S b/src/runtime/cgo/gcc_mips64x.S
+index ec24d7199c..1629e47235 100644
+--- a/src/runtime/cgo/gcc_mips64x.S
++++ b/src/runtime/cgo/gcc_mips64x.S
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build mips64 mips64le
++//go:build mips64 || mips64le
+ 
+ .file "gcc_mips64x.S"
+ 
+diff --git a/src/runtime/cgo/gcc_mipsx.S b/src/runtime/cgo/gcc_mipsx.S
+index 2867f6a052..fb19c11702 100644
+--- a/src/runtime/cgo/gcc_mipsx.S
++++ b/src/runtime/cgo/gcc_mipsx.S
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build mips mipsle
++//go:build mips || mipsle
+ 
+ .file "gcc_mipsx.S"
+ 
+diff --git a/src/runtime/cgo/gcc_mmap.c b/src/runtime/cgo/gcc_mmap.c
+index 83d857f0d1..1fbd5e82a4 100644
+--- a/src/runtime/cgo/gcc_mmap.c
++++ b/src/runtime/cgo/gcc_mmap.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64 linux,arm64 linux,ppc64le freebsd,amd64
++//go:build (linux && (amd64 || arm64 || ppc64le)) || (freebsd && amd64)
+ 
+ #include <errno.h>
+ #include <stdint.h>
+diff --git a/src/runtime/cgo/gcc_ppc64x.c b/src/runtime/cgo/gcc_ppc64x.c
+index 9cb6e0ce4b..7e34fe4e02 100644
+--- a/src/runtime/cgo/gcc_ppc64x.c
++++ b/src/runtime/cgo/gcc_ppc64x.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build ppc64 ppc64le
++//go:build ppc64 || ppc64le
+ 
+ #include <pthread.h>
+ #include <string.h>
+diff --git a/src/runtime/cgo/gcc_setenv.c b/src/runtime/cgo/gcc_setenv.c
+index d4f798357a..47caa4b00a 100644
+--- a/src/runtime/cgo/gcc_setenv.c
++++ b/src/runtime/cgo/gcc_setenv.c
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo
+-// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris
++//go:build unix
+ 
+ #include "libcgo.h"
+ 
+diff --git a/src/runtime/cgo/gcc_sigaction.c b/src/runtime/cgo/gcc_sigaction.c
+index fcf1e50740..374909bf97 100644
+--- a/src/runtime/cgo/gcc_sigaction.c
++++ b/src/runtime/cgo/gcc_sigaction.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64 linux,arm64 linux,ppc64le
++//go:build linux && (amd64 || arm64 || ppc64le)
+ 
+ #include <errno.h>
+ #include <stddef.h>
+diff --git a/src/runtime/cgo/gcc_signal2_ios_arm64.c b/src/runtime/cgo/gcc_signal2_ios_arm64.c
+index 5b8a18ffd6..f8cef54f6a 100644
+--- a/src/runtime/cgo/gcc_signal2_ios_arm64.c
++++ b/src/runtime/cgo/gcc_signal2_ios_arm64.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build lldb
++//go:build lldb
+ 
+ // Used by gcc_signal_darwin_arm64.c when doing the test build during cgo.
+ // We hope that for real binaries the definition provided by Go will take precedence
+diff --git a/src/runtime/cgo/gcc_signal_ios_arm64.c b/src/runtime/cgo/gcc_signal_ios_arm64.c
+index 6519edd4cc..87055e9422 100644
+--- a/src/runtime/cgo/gcc_signal_ios_arm64.c
++++ b/src/runtime/cgo/gcc_signal_ios_arm64.c
+@@ -17,7 +17,7 @@
+ //
+ // The dist tool enables this by build flag when testing.
+ 
+-// +build lldb
++//go:build lldb
+ 
+ #include <limits.h>
+ #include <pthread.h>
+diff --git a/src/runtime/cgo/gcc_signal_ios_nolldb.c b/src/runtime/cgo/gcc_signal_ios_nolldb.c
+index cfa4025414..9ddc37a013 100644
+--- a/src/runtime/cgo/gcc_signal_ios_nolldb.c
++++ b/src/runtime/cgo/gcc_signal_ios_nolldb.c
+@@ -2,9 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !lldb
+-// +build ios
+-// +build arm64
++//go:build !lldb && ios && arm64
+ 
+ #include <stdint.h>
+ 
+diff --git a/src/runtime/cgo/gcc_traceback.c b/src/runtime/cgo/gcc_traceback.c
+index 6e9470c43c..053430047b 100644
+--- a/src/runtime/cgo/gcc_traceback.c
++++ b/src/runtime/cgo/gcc_traceback.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build cgo,darwin cgo,linux
++//go:build darwin || linux
+ 
+ #include <stdint.h>
+ #include "libcgo.h"
+diff --git a/src/runtime/cgo/linux_syscall.c b/src/runtime/cgo/linux_syscall.c
+index 59761c8b40..0ea2da719a 100644
+--- a/src/runtime/cgo/linux_syscall.c
++++ b/src/runtime/cgo/linux_syscall.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux
++//go:build linux
+ 
+ #ifndef _GNU_SOURCE // setres[ug]id() API.
+ #define _GNU_SOURCE

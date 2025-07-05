@@ -13,7 +13,34 @@ Date:   Fri Jun 11 12:40:42 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/builtins.go | 2 +-
  src/go/types/builtins.go                    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 1f7eb23cdf..14be24e251 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -802,7 +802,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(nopos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
++		ptyp := check.NewTypeParam(tpar, tp.index, &emptyInterface) // assigns type to tpar as a side-effect
+ 		tsum := newUnion(rtypes, tildes)
+ 		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
+ 
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index eb3503fd6b..2edf901165 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -806,7 +806,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x Type) Type {
+ 		// type param is placed in the current package so export/import
+ 		// works as expected.
+ 		tpar := NewTypeName(token.NoPos, check.pkg, "<type parameter>", nil)
+-		ptyp := check.NewTypeParam(tpar, 0, &emptyInterface) // assigns type to tpar as a side-effect
++		ptyp := check.NewTypeParam(tpar, tp.index, &emptyInterface) // assigns type to tpar as a side-effect
+ 		tsum := newUnion(rtypes, tildes)
+ 		ptyp.bound = &Interface{complete: true, tset: &TypeSet{types: tsum}}
+ 

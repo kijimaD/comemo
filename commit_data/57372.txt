@@ -22,6 +22,25 @@ Date:   Mon Jul 31 17:33:40 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/os_windows.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index f5c2429a05..6686a90534 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1266,7 +1266,12 @@ func profileLoop() {
+ 
+ func setProcessCPUProfiler(hz int32) {
+ 	if profiletimer == 0 {
+-		timer := stdcall3(_CreateWaitableTimerA, 0, 0, 0)
++		var timer uintptr
++		if haveHighResTimer {
++			timer = createHighResTimer()
++		} else {
++			timer = stdcall3(_CreateWaitableTimerA, 0, 0, 0)
++		}
+ 		atomic.Storeuintptr(&profiletimer, timer)
+ 		newm(profileLoop, nil, -1)
+ 	}

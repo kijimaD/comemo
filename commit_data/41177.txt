@@ -22,8 +22,63 @@ Date:   Thu Aug 8 01:21:46 2019 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go             | 4 +++-
  src/cmd/go/internal/work/build.go | 4 +++-
  src/cmd/go/internal/work/init.go  | 5 +++++
  3 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ebbead5d31..2caa8e78f4 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -110,11 +110,13 @@
+ // 		The default is the number of CPUs available.
+ // 	-race
+ // 		enable data race detection.
+-// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
++// 		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
++// 		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ // 	-msan
+ // 		enable interoperation with memory sanitizer.
+ // 		Supported only on linux/amd64, linux/arm64
+ // 		and only with Clang/LLVM as the host C compiler.
++// 		On linux/arm64, pie build mode will be used.
+ // 	-v
+ // 		print the names of packages as they are compiled.
+ // 	-work
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 9305b2d859..9d6fa0c25b 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -62,11 +62,13 @@ and test commands:
+ 		The default is the number of CPUs available.
+ 	-race
+ 		enable data race detection.
+-		Supported only on linux/amd64, freebsd/amd64, darwin/amd64 and windows/amd64.
++		Supported only on linux/amd64, freebsd/amd64, darwin/amd64, windows/amd64,
++		linux/ppc64le and linux/arm64 (only for 48-bit VMA).
+ 	-msan
+ 		enable interoperation with memory sanitizer.
+ 		Supported only on linux/amd64, linux/arm64
+ 		and only with Clang/LLVM as the host C compiler.
++		On linux/arm64, pie build mode will be used.
+ 	-v
+ 		print the names of packages as they are compiled.
+ 	-work
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index c220d87123..548e73515f 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -60,6 +60,11 @@ func instrumentInit() {
+ 	mode := "race"
+ 	if cfg.BuildMSan {
+ 		mode = "msan"
++		// MSAN does not support non-PIE binaries on ARM64.
++		// See issue #33712 for details.
++		if cfg.Goos == "linux" && cfg.Goarch == "arm64" && cfg.BuildBuildmode == "default" {
++			cfg.BuildBuildmode = "pie"
++		}
+ 	}
+ 	modeFlag := "-" + mode
+ 

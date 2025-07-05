@@ -21,7 +21,7 @@ Date:   Mon Oct 31 11:47:17 2022 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/ppc64/ssa.go           |  2 +-
  src/cmd/compile/internal/ssa/_gen/PPC64.rules   |  2 +
  src/cmd/compile/internal/ssa/_gen/PPC64Ops.go   |  3 ++
@@ -32,3 +32,296 @@ Date:   Mon Oct 31 11:47:17 2022 -0500
  test/codegen/mathbits.go                        |  3 ++
  test/run.go                                     |  4 +-
  9 files changed, 132 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index d567a12b01..08a2a0cfa2 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -670,7 +670,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpPPC64NEG, ssa.OpPPC64FNEG, ssa.OpPPC64FSQRT, ssa.OpPPC64FSQRTS, ssa.OpPPC64FFLOOR, ssa.OpPPC64FTRUNC, ssa.OpPPC64FCEIL,
+ 		ssa.OpPPC64FCTIDZ, ssa.OpPPC64FCTIWZ, ssa.OpPPC64FCFID, ssa.OpPPC64FCFIDS, ssa.OpPPC64FRSP, ssa.OpPPC64CNTLZD, ssa.OpPPC64CNTLZW,
+ 		ssa.OpPPC64POPCNTD, ssa.OpPPC64POPCNTW, ssa.OpPPC64POPCNTB, ssa.OpPPC64MFVSRD, ssa.OpPPC64MTVSRD, ssa.OpPPC64FABS, ssa.OpPPC64FNABS,
+-		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD:
++		ssa.OpPPC64FROUND, ssa.OpPPC64CNTTZW, ssa.OpPPC64CNTTZD, ssa.OpPPC64BRH, ssa.OpPPC64BRW, ssa.OpPPC64BRD:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 2eda1af3bf..7953125255 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -1273,3 +1273,5 @@
+ (PrefetchCache ptr mem)          => (DCBT ptr mem [0])
+ (PrefetchCacheStreamed ptr mem)  => (DCBT ptr mem [16])
+ 
++// Use byte reverse instructions on Power10
++(Bswap(16|32|64) x) && buildcfg.GOPPC64>=10 => (BR(H|W|D) x)
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index 88d85ed946..10e8f1d97f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -295,6 +295,9 @@ func init() {
+ 		{name: "XORCC", argLength: 2, reg: gp21, asm: "XORCC", commutative: true, clobberFlags: true, typ: "(Int,Flags)"},   // arg0^arg1 sets CC
+ 		{name: "EQV", argLength: 2, reg: gp21, asm: "EQV", typ: "Int64", commutative: true},                                 // arg0^^arg1
+ 		{name: "NEG", argLength: 1, reg: gp11, asm: "NEG"},                                                                  // -arg0 (integer)
++		{name: "BRD", argLength: 1, reg: gp11, asm: "BRD"},                                                                  // reversebytes64(arg0)
++		{name: "BRW", argLength: 1, reg: gp11, asm: "BRW"},                                                                  // reversebytes32(arg0)
++		{name: "BRH", argLength: 1, reg: gp11, asm: "BRH"},                                                                  // reversebytes16(arg0)
+ 		{name: "FNEG", argLength: 1, reg: fp11, asm: "FNEG"},                                                                // -arg0 (floating point)
+ 		{name: "FSQRT", argLength: 1, reg: fp11, asm: "FSQRT"},                                                              // sqrt(arg0) (floating point)
+ 		{name: "FSQRTS", argLength: 1, reg: fp11, asm: "FSQRTS"},                                                            // sqrt(arg0) (floating point, single precision)
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index cb4470a99b..6ecccc3e92 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -238,6 +238,7 @@ var genericOps = []opData{
+ 	{name: "BitLen32", argLength: 1},     // Number of bits in arg[0] (returns 0-32)
+ 	{name: "BitLen64", argLength: 1},     // Number of bits in arg[0] (returns 0-64)
+ 
++	{name: "Bswap16", argLength: 1}, // Swap bytes
+ 	{name: "Bswap32", argLength: 1}, // Swap bytes
+ 	{name: "Bswap64", argLength: 1}, // Swap bytes
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6c26213eac..59e1a5eb76 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2161,6 +2161,9 @@ const (
+ 	OpPPC64XORCC
+ 	OpPPC64EQV
+ 	OpPPC64NEG
++	OpPPC64BRD
++	OpPPC64BRW
++	OpPPC64BRH
+ 	OpPPC64FNEG
+ 	OpPPC64FSQRT
+ 	OpPPC64FSQRTS
+@@ -2962,6 +2965,7 @@ const (
+ 	OpBitLen16
+ 	OpBitLen32
+ 	OpBitLen64
++	OpBswap16
+ 	OpBswap32
+ 	OpBswap64
+ 	OpBitRev8
+@@ -29013,6 +29017,45 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "BRD",
++		argLen: 1,
++		asm:    ppc64.ABRD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "BRW",
++		argLen: 1,
++		asm:    ppc64.ABRW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
++	{
++		name:   "BRH",
++		argLen: 1,
++		asm:    ppc64.ABRH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++			outputs: []outputInfo{
++				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
++			},
++		},
++	},
+ 	{
+ 		name:   "FNEG",
+ 		argLen: 1,
+@@ -38564,6 +38607,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "Bswap16",
++		argLen:  1,
++		generic: true,
++	},
+ 	{
+ 		name:    "Bswap32",
+ 		argLen:  1,
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index aee570df7a..7b6e3beb71 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -107,6 +107,12 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpBitLen32(v)
+ 	case OpBitLen64:
+ 		return rewriteValuePPC64_OpBitLen64(v)
++	case OpBswap16:
++		return rewriteValuePPC64_OpBswap16(v)
++	case OpBswap32:
++		return rewriteValuePPC64_OpBswap32(v)
++	case OpBswap64:
++		return rewriteValuePPC64_OpBswap64(v)
+ 	case OpCeil:
+ 		v.Op = OpPPC64FCEIL
+ 		return true
+@@ -1122,6 +1128,54 @@ func rewriteValuePPC64_OpBitLen64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValuePPC64_OpBswap16(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Bswap16 x)
++	// cond: buildcfg.GOPPC64>=10
++	// result: (BRH x)
++	for {
++		x := v_0
++		if !(buildcfg.GOPPC64 >= 10) {
++			break
++		}
++		v.reset(OpPPC64BRH)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpBswap32(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Bswap32 x)
++	// cond: buildcfg.GOPPC64>=10
++	// result: (BRW x)
++	for {
++		x := v_0
++		if !(buildcfg.GOPPC64 >= 10) {
++			break
++		}
++		v.reset(OpPPC64BRW)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValuePPC64_OpBswap64(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (Bswap64 x)
++	// cond: buildcfg.GOPPC64>=10
++	// result: (BRD x)
++	for {
++		x := v_0
++		if !(buildcfg.GOPPC64 >= 10) {
++			break
++		}
++		v.reset(OpPPC64BRD)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpCom16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Com16 x)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 654db8f317..48f813a48f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4000,17 +4000,23 @@ func InitTables() {
+ 		},
+ 		sys.ARM64, sys.PPC64)
+ 
++	/* Use only on Power10 as the new byte reverse instructions that Power10 provide
++	   make it worthwhile as an intrinsic */
++	brev_arch := []sys.ArchFamily{sys.AMD64, sys.ARM64, sys.ARM, sys.S390X}
++	if buildcfg.GOPPC64 >= 10 {
++		brev_arch = append(brev_arch, sys.PPC64)
++	}
+ 	/******** runtime/internal/sys ********/
+ 	addF("runtime/internal/sys", "Bswap32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap32, types.Types[types.TUINT32], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
++		brev_arch...)
+ 	addF("runtime/internal/sys", "Bswap64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBswap64, types.Types[types.TUINT64], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X)
++		brev_arch...)
+ 
+ 	/****** Prefetch ******/
+ 	makePrefetchFunc := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+@@ -4537,7 +4543,16 @@ func InitTables() {
+ 	alias("math/bits", "ReverseBytes64", "runtime/internal/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "runtime/internal/sys", "Bswap32", all...)
+ 	// ReverseBytes inlines correctly, no need to intrinsify it.
+-	// ReverseBytes16 lowers to a rotate, no need for anything special here.
++	// Nothing special is needed for targets where ReverseBytes16 lowers to a rotate
++	// On Power10, 16-bit rotate is not available so use BRH instruction
++	if buildcfg.GOPPC64 >= 10 {
++		addF("math/bits", "ReverseBytes16",
++			func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++				return s.newValue1(ssa.OpBswap16, types.Types[types.TUINT], args[0])
++			},
++			sys.PPC64)
++	}
++
+ 	addF("math/bits", "Len64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 09aa5a136e..0eed27a619 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -198,6 +198,7 @@ func ReverseBytes64(n uint64) uint64 {
+ 	// amd64:"BSWAPQ"
+ 	// s390x:"MOVDBR"
+ 	// arm64:"REV"
++	// ppc64x/power10: "BRD"
+ 	return bits.ReverseBytes64(n)
+ }
+ 
+@@ -205,6 +206,7 @@ func ReverseBytes32(n uint32) uint32 {
+ 	// amd64:"BSWAPL"
+ 	// s390x:"MOVWBR"
+ 	// arm64:"REVW"
++	// ppc64x/power10: "BRW"
+ 	return bits.ReverseBytes32(n)
+ }
+ 
+@@ -214,6 +216,7 @@ func ReverseBytes16(n uint16) uint16 {
+ 	// arm/5:"SLL","SRL","ORR"
+ 	// arm/6:"REV16"
+ 	// arm/7:"REV16"
++	// ppc64x/power10: "BRH"
+ 	return bits.ReverseBytes16(n)
+ }
+ 
+diff --git a/test/run.go b/test/run.go
+index 8eff84d92d..611fb02d72 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1649,8 +1649,8 @@ var (
+ 		"loong64": {},
+ 		"mips":    {"GOMIPS", "hardfloat", "softfloat"},
+ 		"mips64":  {"GOMIPS64", "hardfloat", "softfloat"},
+-		"ppc64":   {"GOPPC64", "power8", "power9"},
+-		"ppc64le": {"GOPPC64", "power8", "power9"},
++		"ppc64":   {"GOPPC64", "power8", "power9", "power10"},
++		"ppc64le": {"GOPPC64", "power8", "power9", "power10"},
+ 		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
+ 		"s390x":   {},
+ 		"wasm":    {},

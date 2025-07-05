@@ -27,7 +27,7 @@ Date:   Thu Apr 21 19:28:28 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/22365
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          | 12 +++++++++
  src/cmd/compile/internal/gc/plive.go           | 21 +++------------
  src/cmd/compile/internal/gc/ssa.go             | 30 +++++++++++++++++++--
@@ -39,3 +39,381 @@ Date:   Thu Apr 21 19:28:28 2016 -0700
  src/cmd/compile/internal/ssa/regalloc.go       | 17 ++++++++++++
  test/fixedbugs/issue15277.go                   | 37 ++++++++++++++++++++++++++
  10 files changed, 145 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 54d878d92b..756bcec75c 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -878,6 +878,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Gvarkill(v.Aux.(*gc.Node))
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
++	case ssa.OpKeepAlive:
++		if !v.Args[0].Type.IsPtrShaped() {
++			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
++		}
++		n, off := gc.AutoVar(v.Args[0])
++		if n == nil {
++			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
++		}
++		if off != 0 {
++			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
++		}
++		gc.Gvarlive(n)
+ 	case ssa.OpAMD64LoweredNilCheck:
+ 		// Optimization - if the subsequent block has a load or store
+ 		// at the same address, we don't need to issue this instruction.
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 87f4a11c00..cf5359ecdf 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -569,7 +569,9 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar bvec, varkill bvec, avarini
+ 		for i, node := range vars {
+ 			switch node.Class &^ PHEAP {
+ 			case PPARAM:
+-				bvset(uevar, int32(i))
++				if !node.NotLiveAtEnd() {
++					bvset(uevar, int32(i))
++				}
+ 
+ 				// If the result had its address taken, it is being tracked
+ 			// by the avarinit code, which does not use uevar.
+@@ -980,23 +982,6 @@ func onebitlivepointermap(lv *Liveness, liveout bvec, vars []*Node, args bvec, l
+ 			onebitwalktype1(node.Type, &xoffset, args)
+ 		}
+ 	}
+-
+-	// The node list only contains declared names.
+-	// If the receiver or arguments are unnamed, they will be omitted
+-	// from the list above. Preserve those values - even though they are unused -
+-	// in order to keep their addresses live for use in stack traces.
+-	thisargtype := lv.fn.Type.Recvs()
+-
+-	if thisargtype != nil {
+-		xoffset = 0
+-		onebitwalktype1(thisargtype, &xoffset, args)
+-	}
+-
+-	inargtype := lv.fn.Type.Params()
+-	if inargtype != nil {
+-		xoffset = 0
+-		onebitwalktype1(inargtype, &xoffset, args)
+-	}
+ }
+ 
+ // Construct a disembodied instruction.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index fdf040d5af..7bae8b4672 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -161,6 +161,10 @@ func buildssa(fn *Node) *ssa.Func {
+ 				// the function.
+ 				s.returns = append(s.returns, n)
+ 			}
++			if n.Class == PPARAM && s.canSSA(n) && n.Type.IsPtrShaped() {
++				s.ptrargs = append(s.ptrargs, n)
++				n.SetNotLiveAtEnd(true) // SSA takes care of this explicitly
++			}
+ 		case PAUTO | PHEAP:
+ 			// TODO this looks wrong for PAUTO|PHEAP, no vardef, but also no definition
+ 			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Typ: n.Type, Node: n})
+@@ -293,6 +297,10 @@ type state struct {
+ 	// list of PPARAMOUT (return) variables. Does not include PPARAM|PHEAP vars.
+ 	returns []*Node
+ 
++	// list of PPARAM SSA-able pointer-shaped args. We ensure these are live
++	// throughout the function to help users avoid premature finalizers.
++	ptrargs []*Node
++
+ 	cgoUnsafeArgs bool
+ 	noWB          bool
+ 	WBLineno      int32 // line number of first write barrier. 0=no write barriers
+@@ -988,8 +996,7 @@ func (s *state) exit() *ssa.Block {
+ 
+ 	// Store SSAable PPARAMOUT variables back to stack locations.
+ 	for _, n := range s.returns {
+-		aux := &ssa.ArgSymbol{Typ: n.Type, Node: n}
+-		addr := s.newValue1A(ssa.OpAddr, Ptrto(n.Type), aux, s.sp)
++		addr := s.decladdrs[n]
+ 		val := s.variable(n, n.Type)
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, ssa.TypeMem, n, s.mem())
+ 		s.vars[&memVar] = s.newValue3I(ssa.OpStore, ssa.TypeMem, n.Type.Size(), addr, val, s.mem())
+@@ -998,6 +1005,16 @@ func (s *state) exit() *ssa.Block {
+ 		// currently.
+ 	}
+ 
++	// Keep input pointer args live until the return. This is a bandaid
++	// fix for 1.7 for what will become in 1.8 explicit runtime.KeepAlive calls.
++	// For <= 1.7 we guarantee that pointer input arguments live to the end of
++	// the function to prevent premature (from the user's point of view)
++	// execution of finalizers. See issue 15277.
++	// TODO: remove for 1.8?
++	for _, n := range s.ptrargs {
++		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
++	}
++
+ 	// Do actual return.
+ 	m := s.mem()
+ 	b := s.endBlock()
+@@ -2648,6 +2665,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 
+ 	// Start exit block, find address of result.
+ 	s.startBlock(bNext)
++	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
++	for _, n := range s.ptrargs {
++		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
++	}
+ 	res := n.Left.Type.Results()
+ 	if res.NumFields() == 0 || k != callNormal {
+ 		// call has no return value. Continue with the next statement.
+@@ -2997,6 +3018,11 @@ func (s *state) rtcall(fn *Node, returns bool, results []*Type, args ...*ssa.Val
+ 	b.AddEdgeTo(bNext)
+ 	s.startBlock(bNext)
+ 
++	// Keep input pointer args live across calls.  This is a bandaid until 1.8.
++	for _, n := range s.ptrargs {
++		s.vars[&memVar] = s.newValue2(ssa.OpKeepAlive, ssa.TypeMem, s.variable(n, n.Type), s.mem())
++	}
++
+ 	// Load results
+ 	res := make([]*ssa.Value, len(results))
+ 	for i, t := range results {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 8a675ac157..0135061e68 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -68,11 +68,37 @@ type Node struct {
+ 	Used      bool
+ 	Isddd     bool // is the argument variadic
+ 	Implicit  bool
+-	Addrtaken bool // address taken, even if not moved to heap
+-	Assigned  bool // is the variable ever assigned to
+-	Likely    int8 // likeliness of if statement
+-	Hasbreak  bool // has break statement
+-	hasVal    int8 // +1 for Val, -1 for Opt, 0 for not yet set
++	Addrtaken bool  // address taken, even if not moved to heap
++	Assigned  bool  // is the variable ever assigned to
++	Likely    int8  // likeliness of if statement
++	hasVal    int8  // +1 for Val, -1 for Opt, 0 for not yet set
++	flags     uint8 // TODO: store more bool fields in this flag field
++}
++
++const (
++	hasBreak = 1 << iota
++	notLiveAtEnd
++)
++
++func (n *Node) HasBreak() bool {
++	return n.flags&hasBreak != 0
++}
++func (n *Node) SetHasBreak(b bool) {
++	if b {
++		n.flags |= hasBreak
++	} else {
++		n.flags &^= hasBreak
++	}
++}
++func (n *Node) NotLiveAtEnd() bool {
++	return n.flags&notLiveAtEnd != 0
++}
++func (n *Node) SetNotLiveAtEnd(b bool) {
++	if b {
++		n.flags |= notLiveAtEnd
++	} else {
++		n.flags &^= notLiveAtEnd
++	}
+ }
+ 
+ // Val returns the Val for the node.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 7fccbe1a52..5c23d08cf3 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3786,12 +3786,12 @@ func markbreak(n *Node, implicit *Node) {
+ 	case OBREAK:
+ 		if n.Left == nil {
+ 			if implicit != nil {
+-				implicit.Hasbreak = true
++				implicit.SetHasBreak(true)
+ 			}
+ 		} else {
+ 			lab := n.Left.Sym.Label
+ 			if lab != nil {
+-				lab.Def.Hasbreak = true
++				lab.Def.SetHasBreak(true)
+ 			}
+ 		}
+ 
+@@ -3867,7 +3867,7 @@ func (n *Node) isterminating() bool {
+ 		if n.Left != nil {
+ 			return false
+ 		}
+-		if n.Hasbreak {
++		if n.HasBreak() {
+ 			return false
+ 		}
+ 		return true
+@@ -3876,7 +3876,7 @@ func (n *Node) isterminating() bool {
+ 		return n.Nbody.isterminating() && n.Rlist.isterminating()
+ 
+ 	case OSWITCH, OTYPESW, OSELECT:
+-		if n.Hasbreak {
++		if n.HasBreak() {
+ 			return false
+ 		}
+ 		def := 0
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 8ea04c4fe5..8388ea8946 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -382,9 +382,9 @@ var genericOps = []opData{
+ 	{name: "ComplexImag", argLength: 1}, // imag(arg0)
+ 
+ 	// Strings
+-	{name: "StringMake", argLength: 2}, // arg0=ptr, arg1=len
+-	{name: "StringPtr", argLength: 1},  // ptr(arg0)
+-	{name: "StringLen", argLength: 1},  // len(arg0)
++	{name: "StringMake", argLength: 2},                // arg0=ptr, arg1=len
++	{name: "StringPtr", argLength: 1, typ: "BytePtr"}, // ptr(arg0)
++	{name: "StringLen", argLength: 1, typ: "Int"},     // len(arg0)
+ 
+ 	// Interfaces
+ 	{name: "IMake", argLength: 2},                // arg0=itab, arg1=data
+@@ -407,7 +407,7 @@ var genericOps = []opData{
+ 	{name: "LoadReg", argLength: 1},
+ 
+ 	// Used during ssa construction. Like Copy, but the arg has not been specified yet.
+-	{name: "FwdRef"},
++	{name: "FwdRef", aux: "Sym"},
+ 
+ 	// Unknown value. Used for Values whose values don't matter because they are dead code.
+ 	{name: "Unknown"},
+@@ -415,6 +415,7 @@ var genericOps = []opData{
+ 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+ 	{name: "VarKill", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ 	{name: "VarLive", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
++	{name: "KeepAlive", argLength: 2, typ: "Mem"},          // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ }
+ 
+ //     kind           control    successors       implicit exit
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index af0ee4cccf..e271ed4ef6 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -21,7 +21,7 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive:
++			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive:
+ 				continue // ok not to lower
+ 			}
+ 			s := "not lowered: " + v.Op.String() + " " + v.Type.SimpleString()
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 2795d97333..383f1ae5f3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -617,6 +617,7 @@ const (
+ 	OpVarDef
+ 	OpVarKill
+ 	OpVarLive
++	OpKeepAlive
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -5357,6 +5358,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:    "FwdRef",
++		auxType: auxSym,
+ 		argLen:  0,
+ 		generic: true,
+ 	},
+@@ -5383,6 +5385,11 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "KeepAlive",
++		argLen:  2,
++		generic: true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index c9ef0d3017..c05e9ade77 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -941,11 +941,28 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				s.advanceUses(v)
+ 				continue
+ 			}
++			if v.Op == OpKeepAlive {
++				// Make sure the argument to v is still live here.
++				s.advanceUses(v)
++				vi := &s.values[v.Args[0].ID]
++				if vi.spillUsed {
++					// Use the spill location.
++					v.SetArg(0, vi.spill)
++					b.Values = append(b.Values, v)
++				} else {
++					// No need to keep unspilled values live.
++					// These are typically rematerializeable constants like nil,
++					// or values of a variable that were modified since the last call.
++					v.Args[0].Uses--
++				}
++				continue
++			}
+ 			regspec := opcodeTable[v.Op].reg
+ 			if len(regspec.inputs) == 0 && len(regspec.outputs) == 0 {
+ 				// No register allocation required (or none specified yet)
+ 				s.freeRegs(regspec.clobbers)
+ 				b.Values = append(b.Values, v)
++				s.advanceUses(v)
+ 				continue
+ 			}
+ 
+diff --git a/test/fixedbugs/issue15277.go b/test/fixedbugs/issue15277.go
+new file mode 100644
+index 0000000000..a3acc614bf
+--- /dev/null
++++ b/test/fixedbugs/issue15277.go
+@@ -0,0 +1,37 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++type big [10 << 20]byte
++
++func f(x *big, start int64) {
++	if delta := inuse() - start; delta < 9<<20 {
++		println("after alloc: expected delta at least 9MB, got: ", delta)
++	}
++	x = nil
++	if delta := inuse() - start; delta > 1<<20 {
++		println("after drop: expected delta below 1MB, got: ", delta)
++	}
++	x = new(big)
++	if delta := inuse() - start; delta < 9<<20 {
++		println("second alloc: expected delta at least 9MB, got: ", delta)
++	}
++}
++
++func main() {
++	x := inuse()
++	f(new(big), x)
++}
++
++func inuse() int64 {
++	runtime.GC()
++	var st runtime.MemStats
++	runtime.ReadMemStats(&st)
++	return int64(st.Alloc)
++}

@@ -17,6 +17,18 @@ Date:   Sat Mar 9 19:34:58 2019 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/rulegen.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 730e768ed6..f3a54b6299 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -1019,5 +1019,6 @@ func normalizeWhitespace(x string) string {
+ 	x = strings.Join(strings.Fields(x), " ")
+ 	x = strings.Replace(x, "( ", "(", -1)
+ 	x = strings.Replace(x, " )", ")", -1)
++	x = strings.Replace(x, ")->", ") ->", -1)
+ 	return x
+ }

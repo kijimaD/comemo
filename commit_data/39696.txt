@@ -11,8 +11,170 @@ Date:   Wed Mar 13 16:42:18 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/reboot/overlaydir_test.go | 80 ++++++++++++++++++++++++++++++++++++++++++
  misc/reboot/reboot_test.go     | 52 +++++++++++++++++++++++++++
  src/cmd/dist/test.go           |  6 ++++
  3 files changed, 138 insertions(+)
+
+diff --git a/misc/reboot/overlaydir_test.go b/misc/reboot/overlaydir_test.go
+new file mode 100644
+index 0000000000..b38a8efbb9
+--- /dev/null
++++ b/misc/reboot/overlaydir_test.go
+@@ -0,0 +1,80 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package reboot_test
++
++import (
++	"io"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++// overlayDir makes a minimal-overhead copy of srcRoot in which new files may be added.
++//
++// TODO: Once we no longer need to support the misc module in GOPATH mode,
++// factor this function out into a package to reduce duplication.
++func overlayDir(dstRoot, srcRoot string) error {
++	dstRoot = filepath.Clean(dstRoot)
++	if err := os.MkdirAll(dstRoot, 0777); err != nil {
++		return err
++	}
++
++	// If we don't use the absolute path here, exec'ing make.bash fails with
++	// “too many levels of symbolic links”.
++	symBase, err := filepath.Abs(srcRoot)
++	if err != nil {
++		return err
++	}
++
++	return filepath.Walk(srcRoot, func(srcPath string, info os.FileInfo, err error) error {
++		if err != nil || srcPath == srcRoot {
++			return err
++		}
++
++		suffix := strings.TrimPrefix(srcPath, srcRoot)
++		for len(suffix) > 0 && suffix[0] == filepath.Separator {
++			suffix = suffix[1:]
++		}
++		dstPath := filepath.Join(dstRoot, suffix)
++
++		perm := info.Mode() & os.ModePerm
++		if info.Mode()&os.ModeSymlink != 0 {
++			info, err = os.Stat(srcPath)
++			if err != nil {
++				return err
++			}
++			perm = info.Mode() & os.ModePerm
++		}
++
++		// Always copy directories (don't symlink them).
++		// If we add a file in the overlay, we don't want to add it in the original.
++		if info.IsDir() {
++			return os.Mkdir(dstPath, perm)
++		}
++
++		// If the OS supports symlinks, use them instead of copying bytes.
++		if err := os.Symlink(filepath.Join(symBase, suffix), dstPath); err == nil {
++			return nil
++		}
++
++		// Otherwise, copy the bytes.
++		src, err := os.Open(srcPath)
++		if err != nil {
++			return err
++		}
++		defer src.Close()
++
++		dst, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, perm)
++		if err != nil {
++			return err
++		}
++
++		_, err = io.Copy(dst, src)
++		if closeErr := dst.Close(); err == nil {
++			err = closeErr
++		}
++		return err
++	})
++}
+diff --git a/misc/reboot/reboot_test.go b/misc/reboot/reboot_test.go
+new file mode 100644
+index 0000000000..717c0fb709
+--- /dev/null
++++ b/misc/reboot/reboot_test.go
+@@ -0,0 +1,52 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package reboot_test verifies that the current GOROOT can be used to bootstrap
++// itself.
++package reboot_test
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"runtime"
++	"testing"
++)
++
++func TestRepeatBootstrap(t *testing.T) {
++	goroot, err := ioutil.TempDir("", "reboot-goroot")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(goroot)
++
++	gorootSrc := filepath.Join(goroot, "src")
++	if err := overlayDir(gorootSrc, filepath.Join(runtime.GOROOT(), "src")); err != nil {
++		t.Fatal(err)
++	}
++
++	if err := ioutil.WriteFile(filepath.Join(goroot, "VERSION"), []byte(runtime.Version()), 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	var makeScript string
++	switch runtime.GOOS {
++	case "windows":
++		makeScript = "make.bat"
++	case "plan9":
++		makeScript = "make.rc"
++	default:
++		makeScript = "make.bash"
++	}
++
++	cmd := exec.Command(filepath.Join(runtime.GOROOT(), "src", makeScript))
++	cmd.Dir = gorootSrc
++	cmd.Env = append(os.Environ(), "GOROOT=", "GOROOT_BOOTSTRAP="+runtime.GOROOT())
++	cmd.Stderr = os.Stderr
++	cmd.Stdout = os.Stdout
++	if err := cmd.Run(); err != nil {
++		t.Fatal(err)
++	}
++}
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1a54752f35..9e7205f56e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -739,6 +739,12 @@ func (t *tester) registerTests() {
+ 			},
+ 		})
+ 	}
++
++	// Ensure that the toolchain can bootstrap itself.
++	// This test adds another ~45s to all.bash if run sequentially, so run it only on the builders.
++	if os.Getenv("GO_BUILDER_NAME") != "" && goos != "android" && !t.iOS() {
++		t.registerHostTest("reboot", "../misc/reboot", "misc/reboot", ".")
++	}
+ }
+ 
+ // isRegisteredTestName reports whether a test named testName has already

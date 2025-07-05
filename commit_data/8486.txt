@@ -7,9 +7,100 @@ Date:   Wed May 25 21:25:15 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4556060
-
+---
  src/pkg/fmt/doc.go      |  1 +
  src/pkg/fmt/fmt_test.go | 11 +++++++++++
  src/pkg/fmt/format.go   |  7 +++++++
  src/pkg/fmt/print.go    | 13 +++++++++++++
  4 files changed, 32 insertions(+)
+
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 08609ca64b..79fe5758c9 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -25,6 +25,7 @@
+ 		%c	the character represented by the corresponding Unicode code point
+ 		%d	base 10
+ 		%o	base 8
++		%q	a single-quoted character literal safely escaped with Go syntax.
+ 		%x	base 16, with lower-case letters for a-f
+ 		%X	base 16, with upper-case letters for A-F
+ 		%U	Unicode format: U+1234; same as "U+%04X"
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b3c0c5abed..caecb6fb84 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -135,6 +135,17 @@ var fmttests = []struct {
+ 	{"%q", "\u263a", `"\u263a"`},
+ 	{"%q", "\U0010ffff", `"\U0010ffff"`},
+ 
++	// escaped characters
++	{"%q", 'x', `'x'`},
++	{"%q", 0, `'\x00'`},
++	{"%q", '\n', `'\n'`},
++	{"%q", '\u1234', `'\u1234'`},
++	{"%q", '\U00012345', `'\U00012345'`},
++	{"%q", int64(0x7FFFFFFF), `%!q(int64=2147483647)`},
++	{"%q", uint64(0xFFFFFFFF), `%!q(uint64=4294967295)`},
++	{"%q", '"', `'"'`},
++	{"%q", '\'', `'\''`},
++
+ 	// width
+ 	{"%5s", "abc", "  abc"},
+ 	{"%2s", "\u263a", " \u263a"},
+diff --git a/src/pkg/fmt/format.go b/src/pkg/fmt/format.go
+index f9d2b4fcaf..5dcfb96774 100644
+--- a/src/pkg/fmt/format.go
++++ b/src/pkg/fmt/format.go
+@@ -296,6 +296,13 @@ func (f *fmt) fmt_q(s string) {
+ 	f.padString(quoted)
+ }
+ 
++// fmt_qc formats the integer as a single-quoted, escaped Go character constant.
++// If the character is not valid Unicode, it will print '\ufffd'.
++func (f *fmt) fmt_qc(c int64) {
++	quoted := strconv.QuoteRune(int(c))
++	f.padString(quoted)
++}
++
+ // floating-point
+ 
+ func doPrec(f *fmt, def int) int {
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 8885cebdf8..c18a8ea38d 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -9,6 +9,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"reflect"
++	"unicode"
+ 	"utf8"
+ )
+ 
+@@ -332,6 +333,12 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
+ 		p.fmt.integer(v, 10, signed, ldigits)
+ 	case 'o':
+ 		p.fmt.integer(v, 8, signed, ldigits)
++	case 'q':
++		if 0 <= v && v <= unicode.MaxRune {
++			p.fmt.fmt_qc(v)
++		} else {
++			p.badVerb(verb, value)
++		}
+ 	case 'x':
+ 		p.fmt.integer(v, 16, signed, ldigits)
+ 	case 'U':
+@@ -385,6 +392,12 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
+ 		}
+ 	case 'o':
+ 		p.fmt.integer(int64(v), 8, unsigned, ldigits)
++	case 'q':
++		if 0 <= v && v <= unicode.MaxRune {
++			p.fmt.fmt_qc(int64(v))
++		} else {
++			p.badVerb(verb, value)
++		}
+ 	case 'x':
+ 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
+ 	case 'X':

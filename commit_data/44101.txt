@@ -16,10 +16,143 @@ Date:   Wed Oct 16 23:13:25 2019 -0700
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  7 ++++++
  test/fixedbugs/issue25727.go             |  8 +++---
  test/fixedbugs/issue31053.dir/f1.go      | 18 ++++++++++++++
  test/fixedbugs/issue31053.dir/main.go    | 42 ++++++++++++++++++++++++++++++++
  test/fixedbugs/issue31053.go             |  7 ++++++
  5 files changed, 78 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8132aee863..dec4b96fc4 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2967,6 +2967,8 @@ func typecheckcomplit(n *Node) (res *Node) {
+ 					if ci := lookdot1(nil, l.Sym, t, t.Fields(), 2); ci != nil { // Case-insensitive lookup.
+ 						if visible(ci.Sym) {
+ 							yyerror("unknown field '%v' in struct literal of type %v (but does have %v)", l.Sym, t, ci.Sym)
++						} else if nonexported(l.Sym) && l.Sym.Name == ci.Sym.Name { // Ensure exactness before the suggestion.
++							yyerror("cannot refer to unexported field '%v' in struct literal of type %v", l.Sym, t)
+ 						} else {
+ 							yyerror("unknown field '%v' in struct literal of type %v", l.Sym, t)
+ 						}
+@@ -3070,6 +3072,11 @@ func visible(sym *types.Sym) bool {
+ 	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == localpkg)
+ }
+ 
++// nonexported reports whether sym is an unexported field.
++func nonexported(sym *types.Sym) bool {
++	return sym != nil && !types.IsExported(sym.Name)
++}
++
+ // lvalue etc
+ func islvalue(n *Node) bool {
+ 	switch n.Op {
+diff --git a/test/fixedbugs/issue25727.go b/test/fixedbugs/issue25727.go
+index 9b7c804a0e..da7c94cc12 100644
+--- a/test/fixedbugs/issue25727.go
++++ b/test/fixedbugs/issue25727.go
+@@ -9,13 +9,13 @@ package main
+ import "net/http"
+ 
+ var s = http.Server{}
+-var _ = s.doneChan // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$"
+-var _ = s.DoneChan // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
++var _ = s.doneChan                  // ERROR "s.doneChan undefined .cannot refer to unexported field or method doneChan.$"
++var _ = s.DoneChan                  // ERROR "s.DoneChan undefined .type http.Server has no field or method DoneChan.$"
+ var _ = http.Server{tlsConfig: nil} // ERROR "unknown field 'tlsConfig' in struct literal.+ .but does have TLSConfig.$"
+-var _ = http.Server{DoneChan: nil} // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
++var _ = http.Server{DoneChan: nil}  // ERROR "unknown field 'DoneChan' in struct literal of type http.Server$"
+ 
+ type foo struct {
+-    bar int
++	bar int
+ }
+ 
+ var _ = &foo{bAr: 10} // ERROR "unknown field 'bAr' in struct literal.+ .but does have bar.$"
+diff --git a/test/fixedbugs/issue31053.dir/f1.go b/test/fixedbugs/issue31053.dir/f1.go
+new file mode 100644
+index 0000000000..610f393818
+--- /dev/null
++++ b/test/fixedbugs/issue31053.dir/f1.go
+@@ -0,0 +1,18 @@
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package f1
++
++type Foo struct {
++	doneChan chan bool
++	Name     string
++	fOO      int
++	hook     func()
++}
++
++func (f *Foo) Exported() {
++}
++
++func (f *Foo) unexported() {
++}
+diff --git a/test/fixedbugs/issue31053.dir/main.go b/test/fixedbugs/issue31053.dir/main.go
+new file mode 100644
+index 0000000000..895c262164
+--- /dev/null
++++ b/test/fixedbugs/issue31053.dir/main.go
+@@ -0,0 +1,42 @@
++// errorcheck
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "./f1"
++
++func main() {
++	f := f1.Foo{
++		doneChan:      nil, // ERROR "cannot refer to unexported field 'doneChan' in struct literal of type f1.Foo"
++		DoneChan:      nil, // ERROR "unknown field 'DoneChan' in struct literal of type f1.Foo"
++		Name:          "hey",
++		name:          "there",   // ERROR "unknown field 'name' in struct literal of type f1.Foo .but does have Name."
++		noSuchPrivate: true,      // ERROR "unknown field 'noSuchPrivate' in struct literal of type f1.Foo"
++		NoSuchPublic:  true,      // ERROR "unknown field 'NoSuchPublic' in struct literal of type f1.Foo"
++		foo:           true,      // ERROR "unknown field 'foo' in struct literal of type f1.Foo"
++		hook:          func() {}, // ERROR "cannot refer to unexported field 'hook' in struct literal of type f1.Foo"
++		unexported:    func() {}, // ERROR "unknown field 'unexported' in struct literal of type f1.Foo"
++		Exported:      func() {}, // ERROR "unknown field 'Exported' in struct literal of type f1.Foo"
++	}
++	f.doneChan = nil // ERROR "f.doneChan undefined .cannot refer to unexported field or method doneChan."
++	f.DoneChan = nil // ERROR "f.DoneChan undefined .type f1.Foo has no field or method DoneChan."
++	f.name = nil     // ERROR "f.name undefined .type f1.Foo has no field or method name, but does have Name."
++
++	_ = f.doneChan // ERROR "f.doneChan undefined .cannot refer to unexported field or method doneChan."
++	_ = f.DoneChan // ERROR "f.DoneChan undefined .type f1.Foo has no field or method DoneChan."
++	_ = f.Name
++	_ = f.name          // ERROR "f.name undefined .type f1.Foo has no field or method name, but does have Name."
++	_ = f.noSuchPrivate // ERROR "f.noSuchPrivate undefined .type f1.Foo has no field or method noSuchPrivate."
++	_ = f.NoSuchPublic  // ERROR "f.NoSuchPublic undefined .type f1.Foo has no field or method NoSuchPublic."
++	_ = f.foo           // ERROR "f.foo undefined .type f1.Foo has no field or method foo."
++	_ = f.Exported
++	_ = f.exported    // ERROR "f.exported undefined .type f1.Foo has no field or method exported, but does have Exported."
++	_ = f.Unexported  // ERROR "f.Unexported undefined .type f1.Foo has no field or method Unexported."
++	_ = f.unexported  // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
++	f.unexported = 10 // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
++	f.unexported()    // ERROR "f.unexported undefined .cannot refer to unexported field or method f1..\*Foo..unexported."
++	_ = f.hook        // ERROR "f.hook undefined .cannot refer to unexported field or method hook."
++}
+diff --git a/test/fixedbugs/issue31053.go b/test/fixedbugs/issue31053.go
+new file mode 100644
+index 0000000000..a33d3ff347
+--- /dev/null
++++ b/test/fixedbugs/issue31053.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2019 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

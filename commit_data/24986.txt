@@ -11,6 +11,19 @@ Date:   Mon Aug 3 12:13:05 2015 -0400
     Change-Id: I41b87ad2b427974d256ec7a7f6d4bdc2ce8a13bb
     Reviewed-on: https://go-review.googlesource.com/13111
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/runtime2.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7d3c8f6aa2..5ef1ddfb7d 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -257,7 +257,6 @@ type g struct {
+ 	startpc        uintptr // pc of goroutine function
+ 	racectx        uintptr
+ 	waiting        *sudog // sudog structures this g is waiting on (that have a valid elem ptr)
+-	readyg         *g     // scratch for readyExecute
+ 
+ 	// Per-G gcController state
+ 	gcalloc    uintptr // bytes allocated during this GC cycle

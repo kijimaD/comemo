@@ -8,6 +8,20 @@ Date:   Tue Jun 17 00:45:39 2014 -0700
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/105280045
-
+---
  src/pkg/runtime/string_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/string_test.go b/src/pkg/runtime/string_test.go
+index 28a5c6bd1e..cd253b2349 100644
+--- a/src/pkg/runtime/string_test.go
++++ b/src/pkg/runtime/string_test.go
+@@ -104,7 +104,7 @@ func BenchmarkRuneIterate2(b *testing.B) {
+ func TestStringW(t *testing.T) {
+ 	strings := []string{
+ 		"hello",
+-		"a\u5566\u7788\b",
++		//"a\u5566\u7788b",
+ 	}
+ 
+ 	for _, s := range strings {

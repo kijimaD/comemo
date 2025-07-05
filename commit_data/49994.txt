@@ -19,8 +19,275 @@ Date:   Fri Sep 24 10:43:55 2021 +1000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351852
     Trust: Nigel Tao <nigeltao@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/image/draw/bench_test.go |  9 ++++-
  src/image/draw/draw.go       | 87 ++++++++++++++++++++++++++++++++++++++++++++
  src/image/draw/draw_test.go  | 84 ++++++++++++++++++++++++++++++++++++------
  3 files changed, 166 insertions(+), 14 deletions(-)
+
+diff --git a/src/image/draw/bench_test.go b/src/image/draw/bench_test.go
+index 831fd958ba..524ead2b8e 100644
+--- a/src/image/draw/bench_test.go
++++ b/src/image/draw/bench_test.go
+@@ -190,7 +190,8 @@ func bench(b *testing.B, dcm, scm, mcm color.Model, op Op) {
+ 	}
+ }
+ 
+-// The BenchmarkFoo functions exercise a drawFoo fast-path function in draw.go.
++// The BenchmarkFoo and BenchmarkFooN functions exercise a drawFoo fast-path
++// function in draw.go.
+ 
+ func BenchmarkFillOver(b *testing.B) {
+ 	bench(b, color.RGBAModel, nil, nil, Over)
+@@ -232,10 +233,14 @@ func BenchmarkGlyphOver(b *testing.B) {
+ 	bench(b, color.RGBAModel, nil, color.AlphaModel, Over)
+ }
+ 
+-func BenchmarkRGBA(b *testing.B) {
++func BenchmarkRGBA1(b *testing.B) {
+ 	bench(b, color.RGBAModel, color.RGBA64Model, nil, Src)
+ }
+ 
++func BenchmarkRGBA2(b *testing.B) {
++	bench(b, color.RGBAModel, color.RGBAModel, color.AlphaModel, Over)
++}
++
+ func BenchmarkPalettedFill(b *testing.B) {
+ 	bench(b, palette, nil, nil, Src)
+ }
+diff --git a/src/image/draw/draw.go b/src/image/draw/draw.go
+index 4431028201..5e81ddc395 100644
+--- a/src/image/draw/draw.go
++++ b/src/image/draw/draw.go
+@@ -220,6 +220,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		y0, y1, dy = y1-1, y0-1, -1
+ 	}
+ 
++	// FALLBACK1.17
++	//
+ 	// Try the draw.RGBA64Image and image.RGBA64Image interfaces, part of the
+ 	// standard library since Go 1.17. These are like the draw.Image and
+ 	// image.Image interfaces but they can avoid allocations from converting
+@@ -295,6 +297,8 @@ func DrawMask(dst Image, r image.Rectangle, src image.Image, sp image.Point, mas
+ 		}
+ 	}
+ 
++	// FALLBACK1.0
++	//
+ 	// If none of the faster code paths above apply, use the draw.Image and
+ 	// image.Image interfaces, part of the standard library since Go 1.0.
+ 
+@@ -615,6 +619,89 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
+ 	sx1 := sx0 + (x1 - x0)
+ 	i0 := dst.PixOffset(x0, y0)
+ 	di := dx * 4
++
++	// Try the image.RGBA64Image interface, part of the standard library since
++	// Go 1.17.
++	//
++	// This optimization is similar to how FALLBACK1.17 optimizes FALLBACK1.0
++	// in DrawMask, except here the concrete type of dst is known to be
++	// *image.RGBA.
++	if src0, _ := src.(image.RGBA64Image); src0 != nil {
++		if mask == nil {
++			if op == Over {
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
++						srgba := src0.RGBA64At(sx, sy)
++						d := dst.Pix[i : i+4 : i+4]
++						dr := uint32(d[0])
++						dg := uint32(d[1])
++						db := uint32(d[2])
++						da := uint32(d[3])
++						a := (m - uint32(srgba.A)) * 0x101
++						d[0] = uint8((dr*a/m + uint32(srgba.R)) >> 8)
++						d[1] = uint8((dg*a/m + uint32(srgba.G)) >> 8)
++						d[2] = uint8((db*a/m + uint32(srgba.B)) >> 8)
++						d[3] = uint8((da*a/m + uint32(srgba.A)) >> 8)
++					}
++					i0 += dy * dst.Stride
++				}
++			} else {
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
++						srgba := src0.RGBA64At(sx, sy)
++						d := dst.Pix[i : i+4 : i+4]
++						d[0] = uint8(srgba.R >> 8)
++						d[1] = uint8(srgba.G >> 8)
++						d[2] = uint8(srgba.B >> 8)
++						d[3] = uint8(srgba.A >> 8)
++					}
++					i0 += dy * dst.Stride
++				}
++			}
++			return
++
++		} else if mask0, _ := mask.(image.RGBA64Image); mask0 != nil {
++			if op == Over {
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
++						ma := uint32(mask0.RGBA64At(mx, my).A)
++						srgba := src0.RGBA64At(sx, sy)
++						d := dst.Pix[i : i+4 : i+4]
++						dr := uint32(d[0])
++						dg := uint32(d[1])
++						db := uint32(d[2])
++						da := uint32(d[3])
++						a := (m - (uint32(srgba.A) * ma / m)) * 0x101
++						d[0] = uint8((dr*a + uint32(srgba.R)*ma) / m >> 8)
++						d[1] = uint8((dg*a + uint32(srgba.G)*ma) / m >> 8)
++						d[2] = uint8((db*a + uint32(srgba.B)*ma) / m >> 8)
++						d[3] = uint8((da*a + uint32(srgba.A)*ma) / m >> 8)
++					}
++					i0 += dy * dst.Stride
++				}
++			} else {
++				for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
++					for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
++						ma := uint32(mask0.RGBA64At(mx, my).A)
++						srgba := src0.RGBA64At(sx, sy)
++						d := dst.Pix[i : i+4 : i+4]
++						d[0] = uint8(uint32(srgba.R) * ma / m >> 8)
++						d[1] = uint8(uint32(srgba.G) * ma / m >> 8)
++						d[2] = uint8(uint32(srgba.B) * ma / m >> 8)
++						d[3] = uint8(uint32(srgba.A) * ma / m >> 8)
++					}
++					i0 += dy * dst.Stride
++				}
++			}
++			return
++		}
++	}
++
++	// Use the image.Image interface, part of the standard library since Go
++	// 1.0.
++	//
++	// This is similar to FALLBACK1.0 in DrawMask, except here the concrete
++	// type of dst is known to be *image.RGBA.
+ 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+ 		for i, sx, mx := i0, sx0, mx0; sx != sx1; i, sx, mx = i+di, sx+dx, mx+dx {
+ 			ma := uint32(m)
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index ea383a0172..8a51409526 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -66,6 +66,23 @@ func (p *slowestRGBA) PixOffset(x, y int) int {
+ 	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+ }
+ 
++func convertToSlowestRGBA(m image.Image) *slowestRGBA {
++	if rgba, ok := m.(*image.RGBA); ok {
++		return &slowestRGBA{
++			Pix:    append([]byte(nil), rgba.Pix...),
++			Stride: rgba.Stride,
++			Rect:   rgba.Rect,
++		}
++	}
++	rgba := image.NewRGBA(m.Bounds())
++	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
++	return &slowestRGBA{
++		Pix:    rgba.Pix,
++		Stride: rgba.Stride,
++		Rect:   rgba.Rect,
++	}
++}
++
+ func init() {
+ 	var p interface{} = (*slowestRGBA)(nil)
+ 	if _, ok := p.(RGBA64Image); ok {
+@@ -138,6 +155,23 @@ func (p *slowerRGBA) PixOffset(x, y int) int {
+ 	return (y-p.Rect.Min.Y)*p.Stride + (x-p.Rect.Min.X)*4
+ }
+ 
++func convertToSlowerRGBA(m image.Image) *slowerRGBA {
++	if rgba, ok := m.(*image.RGBA); ok {
++		return &slowerRGBA{
++			Pix:    append([]byte(nil), rgba.Pix...),
++			Stride: rgba.Stride,
++			Rect:   rgba.Rect,
++		}
++	}
++	rgba := image.NewRGBA(m.Bounds())
++	Draw(rgba, rgba.Bounds(), m, m.Bounds().Min, Src)
++	return &slowerRGBA{
++		Pix:    rgba.Pix,
++		Stride: rgba.Stride,
++		Rect:   rgba.Rect,
++	}
++}
++
+ func init() {
+ 	var p interface{} = (*slowerRGBA)(nil)
+ 	if _, ok := p.(RGBA64Image); !ok {
+@@ -310,6 +344,32 @@ var drawTests = []drawTest{
+ 	{"grayAlphaSrc", vgradGray(), fillAlpha(192), Src, color.RGBA{102, 102, 102, 192}},
+ 	{"grayNil", vgradGray(), nil, Over, color.RGBA{136, 136, 136, 255}},
+ 	{"grayNilSrc", vgradGray(), nil, Src, color.RGBA{136, 136, 136, 255}},
++	// Same again, but with a slowerRGBA source.
++	{"graySlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
++		Over, color.RGBA{136, 136, 136, 255}},
++	{"graySrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(255),
++		Src, color.RGBA{136, 136, 136, 255}},
++	{"grayAlphaSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
++		Over, color.RGBA{136, 102, 102, 255}},
++	{"grayAlphaSrcSlower", convertToSlowerRGBA(vgradGray()), fillAlpha(192),
++		Src, color.RGBA{102, 102, 102, 192}},
++	{"grayNilSlower", convertToSlowerRGBA(vgradGray()), nil,
++		Over, color.RGBA{136, 136, 136, 255}},
++	{"grayNilSrcSlower", convertToSlowerRGBA(vgradGray()), nil,
++		Src, color.RGBA{136, 136, 136, 255}},
++	// Same again, but with a slowestRGBA source.
++	{"graySlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
++		Over, color.RGBA{136, 136, 136, 255}},
++	{"graySrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(255),
++		Src, color.RGBA{136, 136, 136, 255}},
++	{"grayAlphaSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
++		Over, color.RGBA{136, 102, 102, 255}},
++	{"grayAlphaSrcSlowest", convertToSlowestRGBA(vgradGray()), fillAlpha(192),
++		Src, color.RGBA{102, 102, 102, 192}},
++	{"grayNilSlowest", convertToSlowestRGBA(vgradGray()), nil,
++		Over, color.RGBA{136, 136, 136, 255}},
++	{"grayNilSrcSlowest", convertToSlowestRGBA(vgradGray()), nil,
++		Src, color.RGBA{136, 136, 136, 255}},
+ 	// Uniform mask (100%, 75%, nil) and variable CMYK source.
+ 	// At (x, y) == (8, 8):
+ 	// The destination pixel is {136, 0, 0, 255}.
+@@ -327,6 +387,16 @@ var drawTests = []drawTest{
+ 	// The mask pixel's alpha is 102, or 40%.
+ 	{"generic", fillBlue(255), vgradAlpha(192), Over, color.RGBA{81, 0, 102, 255}},
+ 	{"genericSrc", fillBlue(255), vgradAlpha(192), Src, color.RGBA{0, 0, 102, 102}},
++	// Same again, but with a slowerRGBA mask.
++	{"genericSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
++		Over, color.RGBA{81, 0, 102, 255}},
++	{"genericSrcSlower", fillBlue(255), convertToSlowerRGBA(vgradAlpha(192)),
++		Src, color.RGBA{0, 0, 102, 102}},
++	// Same again, but with a slowestRGBA mask.
++	{"genericSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
++		Over, color.RGBA{81, 0, 102, 255}},
++	{"genericSrcSlowest", fillBlue(255), convertToSlowestRGBA(vgradAlpha(192)),
++		Src, color.RGBA{0, 0, 102, 102}},
+ }
+ 
+ func makeGolden(dst image.Image, r image.Rectangle, src image.Image, sp image.Point, mask image.Image, mp image.Point, op Op) image.Image {
+@@ -399,19 +469,9 @@ func TestDraw(t *testing.T) {
+ 				// result, in terms of final pixel RGBA values.
+ 				switch i {
+ 				case 1:
+-					d := dst.(*image.RGBA)
+-					dst = &slowerRGBA{
+-						Pix:    d.Pix,
+-						Stride: d.Stride,
+-						Rect:   d.Rect,
+-					}
++					dst = convertToSlowerRGBA(dst)
+ 				case 2:
+-					d := dst.(*image.RGBA)
+-					dst = &slowestRGBA{
+-						Pix:    d.Pix,
+-						Stride: d.Stride,
+-						Rect:   d.Rect,
+-					}
++					dst = convertToSlowestRGBA(dst)
+ 				}
+ 
+ 				// Draw the (src, mask, op) onto a copy of dst using a slow but obviously correct implementation.

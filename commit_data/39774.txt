@@ -14,6 +14,22 @@ Date:   Tue Mar 19 17:11:15 2019 +0000
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts b/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts
+index 8a49b168bf..70dfa07b87 100644
+--- a/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts
++++ b/src/cmd/compile/internal/ssa/testdata/i22558.gdb-dbg.nexts
+@@ -2,3 +2,10 @@
+ 19:	func test(t *thing, u *thing) {
+ 20:		if t.next != nil {
+ 23:		fmt.Fprintf(os.Stderr, "%s\n", t.name)
++24:		u.self = u
++25:		t.self = t
++26:		t.next = u
++27:		for _, p := range t.stuff {
++28:			if isFoo(t, p) {
++29:				return
++44:	}

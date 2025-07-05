@@ -9,7 +9,7 @@ Date:   Wed Feb 23 10:23:28 2011 -0500
     R=bradfitzgo, r2, nigeltao, rsc
     CC=golang-dev
     https://golang.org/cl/4176051
-
+---
  src/pkg/Makefile                        |   1 +
  src/pkg/compress/bzip2/Makefile         |  14 ++
  src/pkg/compress/bzip2/bit_reader.go    |  88 ++++++++
@@ -18,3 +18,986 @@ Date:   Wed Feb 23 10:23:28 2011 -0500
  src/pkg/compress/bzip2/huffman.go       | 223 +++++++++++++++++++
  src/pkg/compress/bzip2/move_to_front.go | 101 +++++++++
  7 files changed, 935 insertions(+)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 55340b84fa..87b43ed3d7 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -21,6 +21,7 @@ DIRS=\
+ 	bufio\
+ 	bytes\
+ 	cmath\
++	compress/bzip2\
+ 	compress/flate\
+ 	compress/gzip\
+ 	compress/lzw \
+diff --git a/src/pkg/compress/bzip2/Makefile b/src/pkg/compress/bzip2/Makefile
+new file mode 100644
+index 0000000000..a4bceef161
+--- /dev/null
++++ b/src/pkg/compress/bzip2/Makefile
+@@ -0,0 +1,14 @@
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../Make.inc
++
++TARG=compress/bzip2
++GOFILES=\
++	bit_reader.go\
++	bzip2.go\
++	huffman.go\
++	move_to_front.go\
++
++include ../../../Make.pkg
+diff --git a/src/pkg/compress/bzip2/bit_reader.go b/src/pkg/compress/bzip2/bit_reader.go
+new file mode 100644
+index 0000000000..50f0ec836b
+--- /dev/null
++++ b/src/pkg/compress/bzip2/bit_reader.go
+@@ -0,0 +1,88 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bzip2
++
++import (
++	"bufio"
++	"io"
++	"os"
++)
++
++// bitReader wraps an io.Reader and provides the ability to read values,
++// bit-by-bit, from it. Its Read* methods don't return the usual os.Error
++// because the error handling was verbose. Instead, any error is kept and can
++// be checked afterwards.
++type bitReader struct {
++	r    byteReader
++	n    uint64
++	bits uint
++	err  os.Error
++}
++
++// bitReader needs to read bytes from an io.Reader. We attempt to cast the
++// given io.Reader to this interface and, if it doesn't already fit, we wrap in
++// a bufio.Reader.
++type byteReader interface {
++	ReadByte() (byte, os.Error)
++}
++
++func newBitReader(r io.Reader) bitReader {
++	byter, ok := r.(byteReader)
++	if !ok {
++		byter = bufio.NewReader(r)
++	}
++	return bitReader{r: byter}
++}
++
++// ReadBits64 reads the given number of bits and returns them in the
++// least-significant part of a uint64. In the event of an error, it returns 0
++// and the error can be obtained by calling Error().
++func (br *bitReader) ReadBits64(bits uint) (n uint64) {
++	for bits > br.bits {
++		b, err := br.r.ReadByte()
++		if err == os.EOF {
++			err = io.ErrUnexpectedEOF
++		}
++		if err != nil {
++			br.err = err
++			return 0
++		}
++		br.n <<= 8
++		br.n |= uint64(b)
++		br.bits += 8
++	}
++
++	// br.n looks like this (assuming that br.bits = 14 and bits = 6):
++	// Bit: 111111
++	//      5432109876543210
++	//
++	//         (6 bits, the desired output)
++	//        |-----|
++	//        V     V
++	//      0101101101001110
++	//        ^            ^
++	//        |------------|
++	//           br.bits (num valid bits)
++	//
++	// This the next line right shifts the desired bits into the
++	// least-significant places and masks off anything above.
++	n = (br.n >> (br.bits - bits)) & ((1 << bits) - 1)
++	br.bits -= bits
++	return
++}
++
++func (br *bitReader) ReadBits(bits uint) (n int) {
++	n64 := br.ReadBits64(bits)
++	return int(n64)
++}
++
++func (br *bitReader) ReadBit() bool {
++	n := br.ReadBits(1)
++	return n != 0
++}
++
++func (br *bitReader) Error() os.Error {
++	return br.err
++}
+diff --git a/src/pkg/compress/bzip2/bzip2.go b/src/pkg/compress/bzip2/bzip2.go
+new file mode 100644
+index 0000000000..6dcf57f197
+--- /dev/null
++++ b/src/pkg/compress/bzip2/bzip2.go
+@@ -0,0 +1,371 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package bzip2 implements bzip2 decompression.
++package bzip2
++
++import (
++	"io"
++	"os"
++)
++
++// There's no RFC for bzip2. I used the Wikipedia page for reference and a lot
++// of guessing: http://en.wikipedia.org/wiki/Bzip2
++// The source code to pyflate was useful for debugging:
++// http://www.paul.sladen.org/projects/pyflate
++
++// A StructuralError is returned when the bzip2 data is found to be
++// syntactically invalid.
++type StructuralError string
++
++func (s StructuralError) String() string {
++	return "bzip2 data invalid: " + string(s)
++}
++
++// A reader decompresses bzip2 compressed data.
++type reader struct {
++	br        bitReader
++	setupDone bool // true if we have parsed the bzip2 header.
++	blockSize int  // blockSize in bytes, i.e. 900 * 1024.
++	eof       bool
++	buf       []byte    // stores Burrows-Wheeler transformed data.
++	rle       []byte    // stores the RLE compressed data.
++	c         [256]uint // the `C' and `P' arrays for the inverse BWT.
++	p         []uint
++
++	preRLE      []byte // contains the RLE data still to be processed.
++	lastByte    int    // the last byte value seen.
++	byteRepeats uint   // the number of repeats of lastByte seen.
++	repeats     uint   // the number of copies of lastByte to output.
++}
++
++// NewReader returns an io.Reader which decompresses bzip2 data from r.
++func NewReader(r io.Reader) io.Reader {
++	bz2 := new(reader)
++	bz2.br = newBitReader(r)
++	return bz2
++}
++
++const bzip2FileMagic = 0x425a // "BZ"
++const bzip2BlockMagic = 0x314159265359
++const bzip2FinalMagic = 0x177245385090
++
++// setup parses the bzip2 header.
++func (bz2 *reader) setup() os.Error {
++	br := &bz2.br
++
++	magic := br.ReadBits(16)
++	if magic != bzip2FileMagic {
++		return StructuralError("bad magic value")
++	}
++
++	t := br.ReadBits(8)
++	if t != 'h' {
++		return StructuralError("non-Huffman entropy encoding")
++	}
++
++	level := br.ReadBits(8)
++	if level < '1' || level > '9' {
++		return StructuralError("invalid compression level")
++	}
++
++	bz2.blockSize = 100 * 1024 * (int(level) - '0')
++	bz2.buf = make([]byte, bz2.blockSize)
++	bz2.rle = make([]byte, bz2.blockSize)
++	bz2.p = make([]uint, bz2.blockSize)
++	return nil
++}
++
++func (bz2 *reader) Read(buf []byte) (n int, err os.Error) {
++	if bz2.eof {
++		return 0, os.EOF
++	}
++
++	if !bz2.setupDone {
++		err = bz2.setup()
++		brErr := bz2.br.Error()
++		if brErr != nil {
++			err = brErr
++		}
++		if err != nil {
++			return 0, err
++		}
++		bz2.setupDone = true
++	}
++
++	n, err = bz2.read(buf)
++	brErr := bz2.br.Error()
++	if brErr != nil {
++		err = brErr
++	}
++	return
++}
++
++func (bz2 *reader) read(buf []byte) (n int, err os.Error) {
++	// bzip2 is a block based compressor, except that it has a run-length
++	// preprocessing step. The block based nature means that we can
++	// preallocate fixed-size buffers and reuse them. However, the RLE
++	// preprocessing would require allocating huge buffers to store the
++	// maximum expansion. Thus we process blocks all at once, except for
++	// the RLE which we decompress as required.
++
++	for (bz2.repeats > 0 || len(bz2.preRLE) > 0) && n < len(buf) {
++		// We have RLE data pending.
++
++		// The run-length encoding works like this:
++		// Any sequence of four equal bytes is followed by a length
++		// byte which contains the number of repeats of that byte to
++		// include. (The number of repeats can be zero.) Because we are
++		// decompressing on-demand our state is kept in the reader
++		// object.
++
++		if bz2.repeats > 0 {
++			buf[n] = byte(bz2.lastByte)
++			n++
++			bz2.repeats--
++			if bz2.repeats == 0 {
++				bz2.lastByte = -1
++			}
++			continue
++		}
++
++		b := bz2.preRLE[0]
++		bz2.preRLE = bz2.preRLE[1:]
++
++		if bz2.byteRepeats == 3 {
++			bz2.repeats = uint(b)
++			bz2.byteRepeats = 0
++			continue
++		}
++
++		if bz2.lastByte == int(b) {
++			bz2.byteRepeats++
++		}
++		bz2.lastByte = int(b)
++
++		buf[n] = b
++		n++
++	}
++
++	if n > 0 {
++		return
++	}
++
++	// No RLE data is pending so we need to read a block.
++
++	br := &bz2.br
++	magic := br.ReadBits64(48)
++	if magic == bzip2FinalMagic {
++		br.ReadBits64(32) // ignored CRC
++		bz2.eof = true
++		return 0, os.EOF
++	} else if magic != bzip2BlockMagic {
++		return 0, StructuralError("bad magic value found")
++	}
++
++	err = bz2.readBlock()
++	if err != nil {
++		return 0, err
++	}
++
++	return bz2.read(buf)
++}
++
++// readBlock reads a bzip2 block. The magic number should already have been consumed.
++func (bz2 *reader) readBlock() (err os.Error) {
++	br := &bz2.br
++	br.ReadBits64(32) // skip checksum. TODO: check it if we can figure out what it is.
++	randomized := br.ReadBits(1)
++	if randomized != 0 {
++		return StructuralError("deprecated randomized files")
++	}
++	origPtr := uint(br.ReadBits(24))
++
++	// If not every byte value is used in the block (i.e., it's text) then
++	// the symbol set is reduced. The symbols used are stored as a
++	// two-level, 16x16 bitmap.
++	symbolRangeUsedBitmap := br.ReadBits(16)
++	symbolPresent := make([]bool, 256)
++	numSymbols := 0
++	for symRange := uint(0); symRange < 16; symRange++ {
++		if symbolRangeUsedBitmap&(1<<(15-symRange)) != 0 {
++			bits := br.ReadBits(16)
++			for symbol := uint(0); symbol < 16; symbol++ {
++				if bits&(1<<(15-symbol)) != 0 {
++					symbolPresent[16*symRange+symbol] = true
++					numSymbols++
++				}
++			}
++		}
++	}
++
++	// A block uses between two and six different Huffman trees.
++	numHuffmanTrees := br.ReadBits(3)
++	if numHuffmanTrees < 2 || numHuffmanTrees > 6 {
++		return StructuralError("invalid number of Huffman trees")
++	}
++
++	// The Huffman tree can switch every 50 symbols so there's a list of
++	// tree indexes telling us which tree to use for each 50 symbol block.
++	numSelectors := br.ReadBits(15)
++	treeIndexes := make([]uint8, numSelectors)
++
++	// The tree indexes are move-to-front transformed and stored as unary
++	// numbers.
++	mtfTreeDecoder := newMTFDecoderWithRange(numHuffmanTrees)
++	for i := range treeIndexes {
++		c := 0
++		for {
++			inc := br.ReadBits(1)
++			if inc == 0 {
++				break
++			}
++			c++
++		}
++		if c >= numHuffmanTrees {
++			return StructuralError("tree index too large")
++		}
++		treeIndexes[i] = uint8(mtfTreeDecoder.Decode(c))
++	}
++
++	numSymbols += 2 // to account for RUNA and RUNB symbols
++	huffmanTrees := make([]huffmanTree, numHuffmanTrees)
++
++	// Now we decode the arrays of code-lengths for each tree.
++	lengths := make([]uint8, numSymbols)
++	for i := 0; i < numHuffmanTrees; i++ {
++		// The code lengths are delta encoded from a 5-bit base value.
++		length := br.ReadBits(5)
++		for j := 0; j < numSymbols; j++ {
++			for {
++				if !br.ReadBit() {
++					break
++				}
++				if br.ReadBit() {
++					length--
++				} else {
++					length++
++				}
++			}
++			if length < 0 || length > 20 {
++				return StructuralError("Huffman length out of range")
++			}
++			lengths[j] = uint8(length)
++		}
++		huffmanTrees[i], err = newHuffmanTree(lengths)
++		if err != nil {
++			return err
++		}
++	}
++
++	// The list of symbols for the move-to-front transform is taken from
++	// the previously decoded symbol bitmap.
++	symbols := make([]byte, numSymbols)
++	nextSymbol := 0
++	for i := 0; i < 256; i++ {
++		if symbolPresent[i] {
++			symbols[nextSymbol] = byte(i)
++			nextSymbol++
++		}
++	}
++	mtf := newMTFDecoder(symbols)
++
++	selectorIndex := 1 // the next tree index to use
++	currentHuffmanTree := huffmanTrees[treeIndexes[0]]
++	bufIndex := 0 // indexes bz2.buf, the output buffer.
++	// The output of the move-to-front transform is run-length encoded and
++	// we merge the decoding into the Huffman parsing loop. These two
++	// variables accumulate the repeat count. See the Wikipedia page for
++	// details.
++	repeat := 0
++	repeat_power := 0
++
++	// The `C' array (used by the inverse BWT) needs to be zero initialised.
++	for i := range bz2.c {
++		bz2.c[i] = 0
++	}
++
++	decoded := 0 // counts the number of symbols decoded by the current tree.
++	for {
++		if decoded == 50 {
++			currentHuffmanTree = huffmanTrees[treeIndexes[selectorIndex]]
++			selectorIndex++
++			decoded = 0
++		}
++
++		v := currentHuffmanTree.Decode(br)
++		decoded++
++
++		if v < 2 {
++			// This is either the RUNA or RUNB symbol.
++			if repeat == 0 {
++				repeat_power = 1
++			}
++			repeat += repeat_power << v
++			repeat_power <<= 1
++			continue
++		}
++
++		if repeat > 0 {
++			// We have decoded a complete run-length so we need to
++			// replicate the last output symbol.
++			for i := 0; i < repeat; i++ {
++				b := byte(mtf.First())
++				bz2.buf[bufIndex] = b
++				bz2.p[bufIndex] = bz2.c[b]
++				bz2.c[b]++
++				bufIndex++
++			}
++			repeat = 0
++		}
++
++		if int(v) == numSymbols-1 {
++			// This is the EOF symbol. Because it's always at the
++			// end of the move-to-front list, and nevers gets moved
++			// to the front, it has this unique value.
++			break
++		}
++
++		// Since two metasymbols (RUNA and RUNB) have values 0 and 1,
++		// one would expect |v-2| to be passed to the MTF decoder.
++		// However, the front of the MTF list is never referenced as 0,
++		// it's always referenced with a run-length of 1. Thus 0
++		// doesn't need to be encoded and we have |v-1| in the next
++		// line.
++		b := byte(mtf.Decode(int(v - 1)))
++		bz2.buf[bufIndex] = b
++		bz2.p[bufIndex] = bz2.c[b]
++		bz2.c[b]++
++		bufIndex++
++	}
++
++	// We have completed the entropy decoding. Now we can perform the
++	// inverse BWT and setup the RLE buffer.
++	inverseBWT(bz2.rle, bz2.buf[:bufIndex], origPtr, bz2.c[:], bz2.p[:bufIndex])
++	bz2.preRLE = bz2.rle[:bufIndex]
++	bz2.lastByte = -1
++	bz2.byteRepeats = 0
++	bz2.repeats = 0
++
++	return nil
++}
++
++// inverseBWT implements the inverse Burrows-Wheeler transform as described in
++// http://www.hpl.hp.com/techreports/Compaq-DEC/SRC-RR-124.pdf, section 4.2.
++// In that document, origPtr is called `I' and c and p are the `C' and `P'
++// arrays after the first pass over the data. They are arguments here because
++// we merge the first pass with the Huffman decoding.
++func inverseBWT(out, in []byte, origPtr uint, c, p []uint) {
++	sum := uint(0)
++	for i := 0; i < 256; i++ {
++		sum += c[i]
++		c[i] = sum - c[i]
++	}
++
++	i := origPtr
++	for j := len(in) - 1; j >= 0; j-- {
++		out[j] = in[i]
++		i = p[i] + c[in[i]]
++	}
++}
+diff --git a/src/pkg/compress/bzip2/bzip2_test.go b/src/pkg/compress/bzip2/bzip2_test.go
+new file mode 100644
+index 0000000000..7afcc6396a
+--- /dev/null
++++ b/src/pkg/compress/bzip2/bzip2_test.go
+@@ -0,0 +1,137 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bzip2
++
++import (
++	"bytes"
++	"encoding/hex"
++	"io"
++	"io/ioutil"
++	"os"
++	"testing"
++)
++
++func TestBitReader(t *testing.T) {
++	buf := bytes.NewBuffer([]byte{0xaa})
++	br := newBitReader(buf)
++	if n := br.ReadBits(1); n != 1 {
++		t.Errorf("read 1 wrong")
++	}
++	if n := br.ReadBits(1); n != 0 {
++		t.Errorf("read 2 wrong")
++	}
++	if n := br.ReadBits(1); n != 1 {
++		t.Errorf("read 3 wrong")
++	}
++	if n := br.ReadBits(1); n != 0 {
++		t.Errorf("read 4 wrong")
++	}
++}
++
++func TestBitReaderLarge(t *testing.T) {
++	buf := bytes.NewBuffer([]byte{0x12, 0x34, 0x56, 0x78})
++	br := newBitReader(buf)
++	if n := br.ReadBits(32); n != 0x12345678 {
++		t.Errorf("got: %x want: %x", n, 0x12345678)
++	}
++}
++
++func readerFromHex(s string) io.Reader {
++	data, err := hex.DecodeString(s)
++	if err != nil {
++		panic("readerFromHex: bad input")
++	}
++	return bytes.NewBuffer(data)
++}
++
++func decompressHex(s string) (out []byte, err os.Error) {
++	r := NewReader(readerFromHex(s))
++	return ioutil.ReadAll(r)
++}
++
++func TestHelloWorldBZ2(t *testing.T) {
++	out, err := decompressHex(helloWorldBZ2Hex)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++
++	if !bytes.Equal(helloWorld, out) {
++		t.Errorf("got %x, want %x", out, helloWorld)
++	}
++}
++
++func testZeros(t *testing.T, inHex string, n int) {
++	out, err := decompressHex(inHex)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++
++	expected := make([]byte, n)
++
++	if !bytes.Equal(expected, out) {
++		allZeros := true
++		for _, b := range out {
++			if b != 0 {
++				allZeros = false
++				break
++			}
++		}
++		t.Errorf("incorrect result, got %d bytes (allZeros: %t)", len(out), allZeros)
++	}
++}
++
++func Test32Zeros(t *testing.T) {
++	testZeros(t, thirtyTwoZerosBZ2Hex, 32)
++}
++
++func Test1MBZeros(t *testing.T) {
++	testZeros(t, oneMBZerosBZ2Hex, 1024*1024)
++}
++
++func TestRandomData(t *testing.T) {
++	out, err := decompressHex(randBZ2Hex)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++
++	expected, _ := hex.DecodeString(randHex)
++
++	if !bytes.Equal(out, expected) {
++		t.Error("incorrect result")
++	}
++}
++
++func Test1MBSawtooth(t *testing.T) {
++	out, err := decompressHex(oneMBSawtoothBZ2Hex)
++	if err != nil {
++		t.Errorf("error from Read: %s", err)
++		return
++	}
++
++	expected := make([]byte, 1024*1024)
++
++	for i := range expected {
++		expected[i] = byte(i)
++	}
++
++	if !bytes.Equal(out, expected) {
++		t.Error("incorrect result")
++	}
++}
++
++const helloWorldBZ2Hex = "425a68393141592653594eece83600000251800010400006449080200031064c4101a7a9a580bb9431f8bb9229c28482776741b0"
++
++var helloWorld = []byte("hello world\n")
++
++const thirtyTwoZerosBZ2Hex = "425a6839314159265359b5aa5098000000600040000004200021008283177245385090b5aa5098"
++const oneMBZerosBZ2Hex = "425a683931415926535938571ce50008084000c0040008200030cc0529a60806c4201e2ee48a70a12070ae39ca"
++
++const randBZ2Hex = "425a6839314159265359905d990d0001957fffffffffffafffffffffffffffffbfff6fffdfffffffffffffffffffffffffffffc002b6dd75676ed5b77720098320d11a64626981323d4da47a83131a13d09e8040f534cd4f4d27a464d193008cd09804601347a980026350c9886234d36864193d1351b44c136919e90340d26127a4cd264c32023009898981310c0344c340027a8303427a99a04c00003534c230d034f5006468d268cf54d36a3009a69a62626261311b40026013d34201a6934c9a604c98ca6c8460989fa9346234d30d3469a2604fd4131a7aa6d0046043d4c62098479269e89e835190d018d4c046001a11e801a0264792321932308c43a130688c260d46686804cd01a9e80981193684c6a68c00000004c4c20c04627a4c0000260003400d04c0681a01334026009a6f48041466132581ec5212b081d96b0effc16543e2228b052fcd30f2567ee8d970e0f10aabca68dd8270591c376cfc1baae0dba00aaff2d6caf6b211322c997cc18eaee5927f75185336bf907021324c71626c1dd20e22b9b0977f05d0f901eaa51db9fbaf7c603b4c87bc82890e6dd7e61d0079e27ec050dd788fd958152061cd01e222f9547cb9efc465d775b6fc98bac7d387bffd151ae09dadf19494f7a638e2eae58e550faba5fe6820ea520eb986096de4e527d80def3ba625e71fbefdcf7e7844e0a25d29b52dcd1344fca083737d42692aab38d230485f3c8ed54c2ed31f15cf0270c8143765b10b92157233fa1dfe0d7ce8ffe70b8b8f7250071701dfe9f1c94de362c9031455951c93eb098a6b50ee45c6131fefc3b6f9643e21f4adc59497138e246f5c57d834aa67c4f10d8bd8b3908d8130dd7388409c299a268eab3664fa4907c5c31574874bd8d388a4ab22b339660804e53e1b8d05867d40e3082560608d35d5d2c6054e8bab23da28f61f83efd41d25529ad6ea15fb50505cacfabb0902166427354ca3830a2c8415f21b19e592690fbe447020d685a4bcd16ecc4ff1a1c0e572627d0ef6265c008a43fc243240541061ed7840606be466d1c0dac2c53250ed567507d926c844154560d631960c65e15157829b2c7f16859f111a3a8cb72bf24ffa57a680c3be67b1be67c8dd8aea73ac2437a78df5b686d427080ebc01bd30b71a49f6ea31dc0f08e4849e38face96717690239538bc08b6cc5aa8d467cb9c36aa83d40ac7e58bddbfa185b22065e89a86c0145569d9e23726651aec49e31588d70f40fe9a4449dcf4f89eac220171e9c938e803dc195679651004b79ad33cc0c13aeeba5941b33ffeeb8fbe16e76c7811445c67b4269c90479433ddf9e8ed1d00c166b6c17217fb22c3ef1b0c1c7e28e185446a111c37f1ea6c07a59fbcc6546ecc6968d36ba58bc5489a5640647e426b0c39350cb6f07d5dc7a717648c4ec7f841467597ae1f65f408fd2d9940a4b1b860b3c9ae351dcae0b4425f7e8538710f2e40b7f70d13b51ac05ccc6ecda8264a88cad2d721d18132a9b9110a9e759c2483c77dcefc7e464ec88588174cb0c9abff93230ea0bed8decdd8ed8bfe2b5df0a253803678df04fab44c03b9ab7cc97d6e6d6fd0c4c840ce0efc498436f453bbb181603459471f2b588724592b222ec990614db530e10cadd84705621cfdd9261fa44a5f5806a2d74b575056b3c915255c65678f9c16e6dc00a99180fef1a840aff0e842ac02731080cc92782538360a60a727991013984da4fad95f79d5030677b7528d076b2483685fca4429edf804682fdc110dfc2f7c30e23e20a72e039108a0ad6fdee2f76985a4b4be4f5afc6101bf9d5042b657a05dc914e1424241766434"
++const randHex = "c95138082bdf2b9bfa5b1072b23f729735d42c785eeb94320fb14c265b9c2ca421d01a3db986df1ac2acde5a0e6bf955d6f95e61261540905928e195f1a66644cc7f37281744fff4dc6df35566a494c41a8167151950eb74f5fc45f85ad0e5ed28b49adfe218aa7ec1707e8e1d55825f61f72beda3b4c006b8c9188d7336a5d875329b1b58c27cc4e89ecbae02c7712400c39dd131d2c6de82e2863da51d472bdfb21ecce62cc9cf769ed28aedc7583d755da45a0d90874bda269dd53283a9bdfd05f95fc8e9a304bb338ea1a2111894678c18134f17d31a15d9bfc1237894650f3e715e2548639ecbddb845cfe4a46a7b3a3c540f48629488e8c869f1e9f3f4c552243a8105b20eb8e264994214349dae83b165fd6c2a5b8e83fce09fc0a80d3281c8d53a9a08095bd19cbc1388df23975646ed259e003d39261ee68cbece8bcf32971f7fe7e588e8ba8f5e8597909abaea693836a79a1964050ed910a45a0f13a58cd2d3ae18992c5b23082407fd920d0bf01e33118a017bb5e39f44931346845af52128f7965206759433a346034ea481671f501280067567619f5ecef6cded077f92ed7f3b3ce8e308c80f34ba06939e9303f91b4318c8c1dd4cc223c1f057ac0c91211c629cd30e46ee9ec1d9fd493086b7bc2bc83e33f08749a5d430b0ed4f79d70f481940c9b0930b16321886a0df4fa5a1465d5208c7d3494a7987d9a5e42aa256f0c9523947f8318d0ef0af3d59a45cfc2418d0785c9a548b32b81e7de18be7d55a69a4c156bbb3d7579c0ac8e9c72b24646e54b0d0e8725f8f49fb44ae3c6b9d0287be118586255a90a4a83483ed0328518037e52aa959c5748ed83e13023e532306be98b8288da306bbb040bcf5d92176f84a9306dc6b274b040370b61d71fde58dd6d20e6fee348eae0c54bd0a5a487b2d005f329794f2a902c296af0a4c1f638f63292a1fa18e006c1b1838636f4de71c73635b25660d32e88a0917e1a5677f6a02ca65585b82cbd99fb4badbfa97a585da1e6cadf6737b4ec6ca33f245d66ee6a9fae6785d69b003c17b9fc6ec34fe5824ab8caae5e8e14dc6f9e116e7bf4a60c04388783c8ae929e1b46b3ef3bbe81b38f2fa6da771bf39dfba2374d3d2ed356b8e2c42081d885a91a3afb2f31986d2f9873354c48cf5448492c32e62385af423aa4f83db6d1b2669650379a1134b0a04cbca0862d6f9743c791cbb527d36cd5d1f0fc7f503831c8bd1b7a0ef8ae1a5ed1155dfdd9e32b6bb33138112d3d476b802179cb85a2a6c354ccfed2f31604fbd8d6ec4baf9f1c8454f72c6588c06a7df3178c43a6970bfa02dd6f74cb5ec3b63f9eddaa17db5cbf27fac6de8e57c384afd0954179f7b5690c3bee42abc4fa79b4b12101a9cf5f0b9aecdda945def0bd04163237247d3539850e123fe18139f316fa0256d5bd2faa8"
++
++const oneMBSawtoothBZ2Hex = "425a683931415926535971931ea00006ddffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe007de00000000000000024c00130001300000000000000000000000000000000000000000000000000000000126000980009800000000000000000000000000000000000000000000000000000000930004c0004c000000000000000000000000000000000000000000000000000000004980026000260000000000000000000000000000000000000000000000000000000009aaaaa0000000000000000000000000000000000000000000000000000000000000000498002600026000000000000000000000000000000000000000000000000000000007fc42271980d044c0a822607411304a08982d044c1a82260f411308a08984d044c2a82261741130ca08986d044c3a82261f411310a08988d044c4a822627411314a0898ad044c5a82262f411318a0898cd044c6a82263741131ca0898ed044c7a82263f411320a08990d044c8a822647411324a08992d044c9a82264f411328a08994d044caa82265741132ca08996d044cba82265f411330a08998d044cca822667411334a0899ad044cda82266f411338a0899cd044cea82267741133ca0899ed044cfa82267f411340a089a0d044d0a822687411344a089a2d044d1a82268f411348a089a4d044d2a82269741134ca089a6d044d3a82269f411350a089a8d044d4a8226a7411354a089aad044d5a8226af411358a089acd044d6a8226b741135ca089aed044d7a8226bf411360a089b0d044d8a8226c7411364a089b2d044d9a8226cf411368a089b4d044daa8226d741136ca089b6d044dba8226df411370a089b8d044dca8226e7411374a089bad044dda8226ef411378a089bcd044dea8226f741137ca089bed044dfa8226ff411380a089c0d044e0a822707411384a089c2d044e1a82270f411388a089c4d044e2a82271741138ca089c59089c69089c71089c79089c81089c89089c91089c99089ca1089ca9089cb1089cb9089cc1089cc9089cd1089cd9089ce1089ce9089cf1089cf9089d01089d09089d11089d19089d21089d29089d31089d39089d41089d49089d51089d59089d61089d69089d71089d79089d81089d89089d91089d99089da1089da9089db1089db9089dc1089dc9089dd1089dd9089de1089de9089df1089df9089e01089e09089e11089e19089e21089e29089e31089e39089e41089e49089e51089e59089e61089e69089e71089e79089e81089e89089e91089e99089ea1089ea9089eb1089eb9089ec1089ec9089ed1089ed9089ee1089ee9089ef1089ef9089f01089f09089f11089f19089f21089f29089f31089f39089f41089f49089f51089f59089f61089f69089f71089f79089f81089f89089f91089f99089fa1089fa9089fb1089fb9089fc1089fc9089fd1089fd9089fe1089fe9089ff1089ff98a0ac9329acf23ba884804fdd3ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0034f800000000000024c00130001300000000000000000000000000000000000000000000000000000000126000980009800000000000000000000000000000000000000000000000000000000930004c0004c000000000000000000000000000000000000000000000000000000004980026000260000000000000000000000000000000000000000000000000000000024c0013000130000000000000000000000000000000000000000000000000000000002955540000000000000000000000000000000000000000000000000000000000000001ff108c00846024230221181908c108460a4230621183908c20846124230a21185908c308461a4230e21187908c40846224231221189908c508462a423162118b908c60846324231a2118d908c708463a4231e2118f908c80846424232221191908c908464a4232621193908ca0846524232a21195908cb08465a4232e21197908cc0846624233221199908cd08466a423362119b908ce0846724233a2119d908cf08467a4233e2119f908d008468242342211a1908d108468a42346211a3908d20846924234a211a5908d308469a4234e211a7908d40846a242352211a9908d50846aa42356211ab908d60846b24235a211ad908d70846ba4235e211af908d80846c242362211b1908d90846ca42366211b3908da0846d24236a211b5908db0846da4236e211b7908dc0846e242372211b9908dd0846ea42376211bb908de0846f24237a211bd908df0846fa4237e211bf908e008470242382211c1908e108470a42386211c3908e20847124238a211c5908e2f8c211c6c8471d211c7c84721211c8c84725211c9c84729211cac8472d211cbc84731211ccc84735211cdc84739211cec8473d211cfc84741211d0c84745211d1c84749211d2c8474d211d3c84751211d4c84755211d5c84759211d6c8475d211d7c84761211d8c84765211d9c84769211dac8476d211dbc84771211dcc84775211ddc84779211dec8477d211dfc84781211e0c84785211e1c84789211e2c8478d211e3c84791211e4c84795211e5c84799211e6c8479d211e7c847a1211e8c847a5211e9c847a9211eac847ad211ebc847b1211ecc847b5211edc847b9211eec847bd211efc847c1211f0c847c5211f1c847c9211f2c847cd211f3c847d1211f4c847d5211f5c847d9211f6c847dd211f7c847e1211f8c847e5211f9c847e9211fac847ed211fbc847f1211fcc847f5211fdc847f9211fec847fd211ff8bb9229c284803a8b6248"
+diff --git a/src/pkg/compress/bzip2/huffman.go b/src/pkg/compress/bzip2/huffman.go
+new file mode 100644
+index 0000000000..732bc4a21d
+--- /dev/null
++++ b/src/pkg/compress/bzip2/huffman.go
+@@ -0,0 +1,223 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bzip2
++
++import (
++	"os"
++	"sort"
++)
++
++// A huffmanTree is a binary tree which is navigated, bit-by-bit to reach a
++// symbol.
++type huffmanTree struct {
++	// nodes contains all the non-leaf nodes in the tree. nodes[0] is the
++	// root of the tree and nextNode contains the index of the next element
++	// of nodes to use when the tree is being constructed.
++	nodes    []huffmanNode
++	nextNode int
++}
++
++// A huffmanNode is a node in the tree. left and right contain indexes into the
++// nodes slice of the tree. If left or right is invalidNodeValue then the child
++// is a left node and its value is in leftValue/rightValue.
++//
++// The symbols are uint16s because bzip2 encodes not only MTF indexes in the
++// tree, but also two magic values for run-length encoding and an EOF symbol.
++// Thus there are more than 256 possible symbols.
++type huffmanNode struct {
++	left, right           uint16
++	leftValue, rightValue uint16
++}
++
++// invalidNodeValue is an invalid index which marks a leaf node in the tree.
++const invalidNodeValue = 0xffff
++
++// Decode reads bits from the given bitReader and navigates the tree until a
++// symbol is found.
++func (t huffmanTree) Decode(br *bitReader) (v uint16) {
++	nodeIndex := uint16(0) // node 0 is the root of the tree.
++
++	for {
++		node := &t.nodes[nodeIndex]
++		bit := br.ReadBit()
++		// bzip2 encodes left as a true bit.
++		if bit {
++			// left
++			if node.left == invalidNodeValue {
++				return node.leftValue
++			}
++			nodeIndex = node.left
++		} else {
++			// right
++			if node.right == invalidNodeValue {
++				return node.rightValue
++			}
++			nodeIndex = node.right
++		}
++	}
++
++	panic("unreachable")
++}
++
++// newHuffmanTree builds a Huffman tree from a slice containing the code
++// lengths of each symbol. The maximum code length is 32 bits.
++func newHuffmanTree(lengths []uint8) (huffmanTree, os.Error) {
++	// There are many possible trees that assign the same code length to
++	// each symbol (consider reflecting a tree down the middle, for
++	// example). Since the code length assignments determine the
++	// efficiency of the tree, each of these trees is equally good. In
++	// order to minimise the amount of information needed to build a tree
++	// bzip2 uses a canonical tree so that it can be reconstructed given
++	// only the code length assignments.
++
++	if len(lengths) < 2 {
++		panic("newHuffmanTree: too few symbols")
++	}
++
++	var t huffmanTree
++
++	// First we sort the code length assignments by ascending code length,
++	// using the symbol value to break ties.
++	pairs := huffmanSymbolLengthPairs(make([]huffmanSymbolLengthPair, len(lengths)))
++	for i, length := range lengths {
++		pairs[i].value = uint16(i)
++		pairs[i].length = length
++	}
++
++	sort.Sort(pairs)
++
++	// Now we assign codes to the symbols, starting with the longest code.
++	// We keep the codes packed into a uint32, at the most-significant end.
++	// So branches are taken from the MSB downwards. This makes it easy to
++	// sort them later.
++	code := uint32(0)
++	length := uint8(32)
++
++	codes := huffmanCodes(make([]huffmanCode, len(lengths)))
++	for i := len(pairs) - 1; i >= 0; i-- {
++		if length > pairs[i].length {
++			// If the code length decreases we shift in order to
++			// zero any bits beyond the end of the code.
++			length >>= 32 - pairs[i].length
++			length <<= 32 - pairs[i].length
++			length = pairs[i].length
++		}
++		codes[i].code = code
++		codes[i].codeLen = length
++		codes[i].value = pairs[i].value
++		// We need to 'increment' the code, which means treating |code|
++		// like a |length| bit number.
++		code += 1 << (32 - length)
++	}
++
++	// Now we can sort by the code so that the left half of each branch are
++	// grouped together, recursively.
++	sort.Sort(codes)
++
++	t.nodes = make([]huffmanNode, len(codes))
++	_, err := buildHuffmanNode(&t, codes, 0)
++	return t, err
++}
++
++// huffmanSymbolLengthPair contains a symbol and its code length.
++type huffmanSymbolLengthPair struct {
++	value  uint16
++	length uint8
++}
++
++// huffmanSymbolLengthPair is used to provide an interface for sorting.
++type huffmanSymbolLengthPairs []huffmanSymbolLengthPair
++
++func (h huffmanSymbolLengthPairs) Len() int {
++	return len(h)
++}
++
++func (h huffmanSymbolLengthPairs) Less(i, j int) bool {
++	if h[i].length < h[j].length {
++		return true
++	}
++	if h[i].length > h[j].length {
++		return false
++	}
++	if h[i].value < h[j].value {
++		return true
++	}
++	return false
++}
++
++func (h huffmanSymbolLengthPairs) Swap(i, j int) {
++	h[i], h[j] = h[j], h[i]
++}
++
++// huffmanCode contains a symbol, its code and code length.
++type huffmanCode struct {
++	code    uint32
++	codeLen uint8
++	value   uint16
++}
++
++// huffmanCodes is used to provide an interface for sorting.
++type huffmanCodes []huffmanCode
++
++func (n huffmanCodes) Len() int {
++	return len(n)
++}
++
++func (n huffmanCodes) Less(i, j int) bool {
++	return n[i].code < n[j].code
++}
++
++func (n huffmanCodes) Swap(i, j int) {
++	n[i], n[j] = n[j], n[i]
++}
++
++// buildHuffmanNode takes a slice of sorted huffmanCodes and builds a node in
++// the Huffman tree at the given level. It returns the index of the newly
++// constructed node.
++func buildHuffmanNode(t *huffmanTree, codes []huffmanCode, level uint32) (nodeIndex uint16, err os.Error) {
++	test := uint32(1) << (31 - level)
++
++	// We have to search the list of codes to find the divide between the left and right sides.
++	firstRightIndex := len(codes)
++	for i, code := range codes {
++		if code.code&test != 0 {
++			firstRightIndex = i
++			break
++		}
++	}
++
++	left := codes[:firstRightIndex]
++	right := codes[firstRightIndex:]
++
++	if len(left) == 0 || len(right) == 0 {
++		return 0, StructuralError("superfluous level in Huffman tree")
++	}
++
++	nodeIndex = uint16(t.nextNode)
++	node := &t.nodes[t.nextNode]
++	t.nextNode++
++
++	if len(left) == 1 {
++		// leaf node
++		node.left = invalidNodeValue
++		node.leftValue = left[0].value
++	} else {
++		node.left, err = buildHuffmanNode(t, left, level+1)
++	}
++
++	if err != nil {
++		return
++	}
++
++	if len(right) == 1 {
++		// leaf node
++		node.right = invalidNodeValue
++		node.rightValue = right[0].value
++	} else {
++		node.right, err = buildHuffmanNode(t, right, level+1)
++	}
++
++	return
++}
+diff --git a/src/pkg/compress/bzip2/move_to_front.go b/src/pkg/compress/bzip2/move_to_front.go
+new file mode 100644
+index 0000000000..79586b08a5
+--- /dev/null
++++ b/src/pkg/compress/bzip2/move_to_front.go
+@@ -0,0 +1,101 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bzip2
++
++// moveToFrontDecoder implements a move-to-front list. Such a list is an
++// efficient way to transform a string with repeating elements into one with
++// many small valued numbers, which is suitable for entropy encoding. It works
++// by starting with an initial list of symbols and references symbols by their
++// index into that list. When a symbol is referenced, it's moved to the front
++// of the list. Thus, a repeated symbol ends up being encoded with many zeros,
++// as the symbol will be at the front of the list after the first access.
++type moveToFrontDecoder struct {
++	// Rather than actually keep the list in memory, the symbols are stored
++	// as a circular, double linked list which the symbol indexed by head
++	// at the front of the list.
++	symbols []byte
++	next    []uint8
++	prev    []uint8
++	head    uint8
++}
++
++// newMTFDecoder creates a move-to-front decoder with an explicit initial list
++// of symbols.
++func newMTFDecoder(symbols []byte) *moveToFrontDecoder {
++	m := &moveToFrontDecoder{
++		symbols: symbols,
++		next:    make([]uint8, len(symbols)),
++		prev:    make([]uint8, len(symbols)),
++	}
++
++	m.threadLinkedList()
++	return m
++}
++
++// newMTFDecoderWithRange creates a move-to-front decoder with an initial
++// symbol list of 0...n-1.
++func newMTFDecoderWithRange(n int) *moveToFrontDecoder {
++	if n > 256 {
++		panic("newMTFDecoderWithRange: cannot have > 256 symbols")
++	}
++
++	m := &moveToFrontDecoder{
++		symbols: make([]uint8, n),
++		next:    make([]uint8, n),
++		prev:    make([]uint8, n),
++	}
++
++	for i := 0; i < n; i++ {
++		m.symbols[i] = byte(i)
++	}
++
++	m.threadLinkedList()
++	return m
++}
++
++// threadLinkedList creates the initial linked-list pointers.
++func (m *moveToFrontDecoder) threadLinkedList() {
++	if len(m.symbols) == 0 {
++		return
++	}
++
++	m.prev[0] = uint8(len(m.symbols) - 1)
++
++	for i := 0; i < len(m.symbols)-1; i++ {
++		m.next[i] = uint8(i + 1)
++		m.prev[i+1] = uint8(i)
++	}
++
++	m.next[len(m.symbols)-1] = 0
++}
++
++func (m *moveToFrontDecoder) Decode(n int) (b byte) {
++	// Most of the time, n will be zero so it's worth dealing with this
++	// simple case.
++	if n == 0 {
++		return m.symbols[m.head]
++	}
++
++	i := m.head
++	for j := 0; j < n; j++ {
++		i = m.next[i]
++	}
++	b = m.symbols[i]
++
++	m.next[m.prev[i]] = m.next[i]
++	m.prev[m.next[i]] = m.prev[i]
++	m.next[i] = m.head
++	m.prev[i] = m.prev[m.head]
++	m.next[m.prev[m.head]] = i
++	m.prev[m.head] = i
++	m.head = i
++
++	return
++}
++
++// First returns the symbol at the front of the list.
++func (m *moveToFrontDecoder) First() byte {
++	return m.symbols[m.head]
++}

@@ -8,9 +8,115 @@ Date:   Fri Nov 6 11:36:21 2009 -0800
     R=gri
     CC=go-dev
     http://go/go-review/1026004
-
+---
  src/pkg/big/arith.go             |  3 ---
  src/pkg/big/arith_test.go        |  3 ++-
  src/pkg/big/int_test.go          | 29 +++++++++++++++++++++++++++++
  src/pkg/crypto/x509/x509_test.go | 13 -------------
  4 files changed, 31 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/big/arith.go b/src/pkg/big/arith.go
+index 2b89638a5d..d442e1dda3 100644
+--- a/src/pkg/big/arith.go
++++ b/src/pkg/big/arith.go
+@@ -82,9 +82,6 @@ func mulWW_g(x, y Word) (z1, z0 Word) {
+ 		// z = z[1]*_B + z[0] = x*y
+ 		z0 = t1<<_W2 + t0;
+ 		z1 = (t1 + t0>>_W2)>>_W2;
+-		if z0 < t0 {
+-			z1++;
+-		}
+ 		return;
+ 	}
+ 
+diff --git a/src/pkg/big/arith_test.go b/src/pkg/big/arith_test.go
+index f47f004efa..030b81f168 100644
+--- a/src/pkg/big/arith_test.go
++++ b/src/pkg/big/arith_test.go
+@@ -278,10 +278,11 @@ type mulWWTest struct {
+ 
+ var mulWWTests = []mulWWTest{
+ 	mulWWTest{_M, _M, _M-1, 1},
++	// 32 bit only: mulWWTest{0xc47dfa8c, 50911, 0x98a4, 0x998587f4},
+ }
+ 
+ 
+-func TestMulWWW(t *testing.T) {
++func TestMulWW(t *testing.T) {
+ 	for i, test := range mulWWTests {
+ 		q, r := mulWW_g(test.x, test.y);
+ 		if q != test.q || r != test.r {
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 3b110ca86a..442b76fcc0 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -263,11 +263,40 @@ func checkDiv(x, y []byte) bool {
+ }
+ 
+ 
++type divTest struct {
++	x, y string;
++	q, r string;
++}
++
++
++var divTests = []divTest{
++	divTest{
++		"476217953993950760840509444250624797097991362735329973741718102894495832294430498335824897858659711275234906400899559094370964723884706254265559534144986498357",
++		"9353930466774385905609975137998169297361893554149986716853295022578535724979483772383667534691121982974895531435241089241440253066816724367338287092081996",
++		"50911",
++		"1",
++	},
++}
++
++
+ func TestDiv(t *testing.T) {
+ 	err := quick.Check(checkDiv, nil);
+ 	if err != nil {
+ 		t.Error(err);
+ 	}
++
++	for i, test := range divTests {
++		x, _ := new(Int).SetString(test.x, 10);
++		y, _ := new(Int).SetString(test.y, 10);
++		expectedQ, _ := new(Int).SetString(test.q, 10);
++		expectedR, _ := new(Int).SetString(test.r, 10);
++
++		q, r := new(Int).Div(x, y);
++
++		if CmpInt(q, expectedQ) != 0 || CmpInt(r, expectedR) != 0 {
++			t.Errorf("#%d got (%s, %s) want (%s, %s)", i, q, r, expectedQ, expectedR);
++		}
++	}
+ }
+ 
+ 
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index da82db1df9..4b2a5ec8a2 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -4,17 +4,6 @@
+ 
+ package x509
+ 
+-import "testing"
+-
+-func TestToKeepGoTestHappy(t *testing.T) {
+-}
+-
+-/*
+-
+-Div is broken for this key in 32-bit mode.
+-
+-TODO(agl): reenabled when Div is fixed.
+-
+ import (
+ 	"big";
+ 	"crypto/rsa";
+@@ -61,5 +50,3 @@ var rsaPrivateKey = &rsa.PrivateKey{
+ 	P: bigFromString("98920366548084643601728869055592650835572950932266967461790948584315647051443"),
+ 	Q: bigFromString("94560208308847015747498523884063394671606671904944666360068158221458669711639"),
+ }
+-
+-*/
+\ No newline at end of file

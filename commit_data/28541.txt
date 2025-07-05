@@ -10,6 +10,25 @@ Date:   Thu Jun 2 08:53:11 2016 +0900
     Change-Id: I35de1d3f8e887c6bb5fe50e7299f2fc12e4426de
     Reviewed-on: https://go-review.googlesource.com/23660
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/vendor/golang.org/x/net/route/message_freebsd_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/vendor/golang.org/x/net/route/message_freebsd_test.go b/src/vendor/golang.org/x/net/route/message_freebsd_test.go
+index 6d03d000a8..785c273f65 100644
+--- a/src/vendor/golang.org/x/net/route/message_freebsd_test.go
++++ b/src/vendor/golang.org/x/net/route/message_freebsd_test.go
+@@ -32,11 +32,11 @@ func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
+ 
+ func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
+ 	if _, err := FetchRIB(sysAF_UNSPEC, sysNET_RT_IFLISTL, 0); err != nil {
+-		t.Skip("NET_RT_LISTL not supported")
++		t.Skip("NET_RT_IFLISTL not supported")
+ 	}
+ 	var p uintptr
+ 	if kernelAlign != int(unsafe.Sizeof(p)) {
+-		t.Skip("NET_RT_LIST vs. NET_RT_LISTL doesn't work for 386 emulation on amd64")
++		t.Skip("NET_RT_IFLIST vs. NET_RT_IFLISTL doesn't work for 386 emulation on amd64")
+ 	}
+ 
+ 	var tests = [2]struct {

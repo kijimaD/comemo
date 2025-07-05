@@ -7,6 +7,36 @@ Date:   Tue Sep 17 18:06:58 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13683046
-
+---
  test/fixedbugs/bug476.go | 23 +++++++++++++++++++++++
  1 file changed, 23 insertions(+)
+
+diff --git a/test/fixedbugs/bug476.go b/test/fixedbugs/bug476.go
+new file mode 100644
+index 0000000000..4ea2174048
+--- /dev/null
++++ b/test/fixedbugs/bug476.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Logical operation on named boolean type returns the same type,
++// supporting an implicit convertion to an interface type.  This used
++// to crash gccgo.
++
++package p
++
++type B bool
++
++func (b B) M() {}
++
++type I interface {
++	M()
++}
++
++func F(a, b B) I {
++	return a && b
++}

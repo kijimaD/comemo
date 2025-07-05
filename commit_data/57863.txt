@@ -14,6 +14,20 @@ Date:   Wed Sep 6 17:09:35 2023 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: abner chenc <chenguoqi@loongson.cn>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/loong64/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index c3f6ed9386..fd193a2445 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -29,7 +29,7 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Gentext:          gentext,
+ 
+ 		ELF: ld.ELFArch{
+-			Linuxdynld:     "/lib64/ld.so.1",
++			Linuxdynld:     "/lib64/ld-linux-loongarch-lp64d.so.1",
+ 			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
+ 			Freebsddynld:   "XXX",
+ 			Openbsddynld:   "XXX",

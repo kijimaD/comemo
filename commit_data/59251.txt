@@ -10,7 +10,7 @@ Date:   Tue Feb 27 09:21:44 2024 -0800
     Reviewed-by: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/conversions.go |  4 ++--
  src/cmd/compile/internal/types2/version.go     |  8 ++++----
  src/go/types/conversions.go                    |  4 ++--
@@ -18,3 +18,176 @@ Date:   Tue Feb 27 09:21:44 2024 -0800
  src/internal/types/testdata/check/go1_12.go    | 18 +++++++++---------
  test/fixedbugs/issue31747.go                   | 18 +++++++++---------
  6 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 286fad578a..d9ed0b3c1b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -203,7 +203,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				// check != nil
+ 				if cause != nil {
+ 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
+-					*cause = "conversion of slices to arrays requires go1.20 or later"
++					*cause = "conversion of slice to array requires go1.20 or later"
+ 				}
+ 				return false
+ 			}
+@@ -215,7 +215,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					}
+ 					// check != nil
+ 					if cause != nil {
+-						*cause = "conversion of slices to array pointers requires go1.17 or later"
++						*cause = "conversion of slice to array pointer requires go1.17 or later"
+ 					}
+ 					return false
+ 				}
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index b904072a7b..1b6e48e788 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -59,7 +59,7 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
+ 	}
+ 	// len(s) > 2
+ 	if strings.Contains(s, "_") {
+-		check.versionErrorf(lit, go1_13, "underscores in numeric literals")
++		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+ 		return
+ 	}
+ 	if s[0] != '0' {
+@@ -67,15 +67,15 @@ func (check *Checker) langCompat(lit *syntax.BasicLit) {
+ 	}
+ 	radix := s[1]
+ 	if radix == 'b' || radix == 'B' {
+-		check.versionErrorf(lit, go1_13, "binary literals")
++		check.versionErrorf(lit, go1_13, "binary literal")
+ 		return
+ 	}
+ 	if radix == 'o' || radix == 'O' {
+-		check.versionErrorf(lit, go1_13, "0o/0O-style octal literals")
++		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+ 		return
+ 	}
+ 	if lit.Kind != syntax.IntLit && (radix == 'x' || radix == 'X') {
+-		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literals")
++		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
+ 	}
+ }
+ 
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index 89043f2c46..f5834cd86d 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -205,7 +205,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 				// check != nil
+ 				if cause != nil {
+ 					// TODO(gri) consider restructuring versionErrorf so we can use it here and below
+-					*cause = "conversion of slices to arrays requires go1.20 or later"
++					*cause = "conversion of slice to array requires go1.20 or later"
+ 				}
+ 				return false
+ 			}
+@@ -217,7 +217,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 					}
+ 					// check != nil
+ 					if cause != nil {
+-						*cause = "conversion of slices to array pointers requires go1.17 or later"
++						*cause = "conversion of slice to array pointer requires go1.17 or later"
+ 					}
+ 					return false
+ 				}
+diff --git a/src/go/types/version.go b/src/go/types/version.go
+index 1b02ae5493..a11e989b64 100644
+--- a/src/go/types/version.go
++++ b/src/go/types/version.go
+@@ -60,7 +60,7 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	// len(s) > 2
+ 	if strings.Contains(s, "_") {
+-		check.versionErrorf(lit, go1_13, "underscores in numeric literals")
++		check.versionErrorf(lit, go1_13, "underscore in numeric literal")
+ 		return
+ 	}
+ 	if s[0] != '0' {
+@@ -68,15 +68,15 @@ func (check *Checker) langCompat(lit *ast.BasicLit) {
+ 	}
+ 	radix := s[1]
+ 	if radix == 'b' || radix == 'B' {
+-		check.versionErrorf(lit, go1_13, "binary literals")
++		check.versionErrorf(lit, go1_13, "binary literal")
+ 		return
+ 	}
+ 	if radix == 'o' || radix == 'O' {
+-		check.versionErrorf(lit, go1_13, "0o/0O-style octal literals")
++		check.versionErrorf(lit, go1_13, "0o/0O-style octal literal")
+ 		return
+ 	}
+ 	if lit.Kind != token.INT && (radix == 'x' || radix == 'X') {
+-		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literals")
++		check.versionErrorf(lit, go1_13, "hexadecimal floating-point literal")
+ 	}
+ }
+ 
+diff --git a/src/internal/types/testdata/check/go1_12.go b/src/internal/types/testdata/check/go1_12.go
+index b47d3de147..f1266c23cc 100644
+--- a/src/internal/types/testdata/check/go1_12.go
++++ b/src/internal/types/testdata/check/go1_12.go
+@@ -10,18 +10,18 @@ package p
+ 
+ // numeric literals
+ const (
+-	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later"
+-	_ = 0b111 // ERROR "binary literals requires go1.13 or later"
+-	_ = 0o567 // ERROR "0o/0O-style octal literals requires go1.13 or later"
++	_ = 1_000 // ERROR "underscore in numeric literal requires go1.13 or later"
++	_ = 0b111 // ERROR "binary literal requires go1.13 or later"
++	_ = 0o567 // ERROR "0o/0O-style octal literal requires go1.13 or later"
+ 	_ = 0xabc // ok
+-	_ = 0x0p1 // ERROR "hexadecimal floating-point literals requires go1.13 or later"
++	_ = 0x0p1 // ERROR "hexadecimal floating-point literal requires go1.13 or later"
+ 
+-	_ = 0B111 // ERROR "binary"
+-	_ = 0O567 // ERROR "octal"
+-	_ = 0Xabc // ok
+-	_ = 0X0P1 // ERROR "hexadecimal floating-point"
++	_ = 0b111 // ERROR "binary"
++	_ = 0o567 // ERROR "octal"
++	_ = 0xabc // ok
++	_ = 0x0p1 // ERROR "hexadecimal floating-point"
+ 
+-	_ = 1_000i // ERROR "underscores"
++	_ = 1_000i // ERROR "underscore"
+ 	_ = 0b111i // ERROR "binary"
+ 	_ = 0o567i // ERROR "octal"
+ 	_ = 0xabci // ERROR "hexadecimal floating-point"
+diff --git a/test/fixedbugs/issue31747.go b/test/fixedbugs/issue31747.go
+index 319a721337..b40aecd5d2 100644
+--- a/test/fixedbugs/issue31747.go
++++ b/test/fixedbugs/issue31747.go
+@@ -8,18 +8,18 @@ package p
+ 
+ // numeric literals
+ const (
+-	_ = 1_000 // ERROR "underscores in numeric literals requires go1.13 or later \(-lang was set to go1.12; check go.mod\)|requires go1.13"
+-	_ = 0b111 // ERROR "binary literals requires go1.13 or later"
+-	_ = 0o567 // ERROR "0o/0O-style octal literals requires go1.13 or later"
++	_ = 1_000 // ERROR "underscore in numeric literal requires go1.13 or later \(-lang was set to go1.12; check go.mod\)|requires go1.13"
++	_ = 0b111 // ERROR "binary literal requires go1.13 or later"
++	_ = 0o567 // ERROR "0o/0O-style octal literal requires go1.13 or later"
+ 	_ = 0xabc // ok
+-	_ = 0x0p1 // ERROR "hexadecimal floating-point literals requires go1.13 or later"
++	_ = 0x0p1 // ERROR "hexadecimal floating-point literal requires go1.13 or later"
+ 
+-	_ = 0B111 // ERROR "binary"
+-	_ = 0O567 // ERROR "octal"
+-	_ = 0Xabc // ok
+-	_ = 0X0P1 // ERROR "hexadecimal floating-point"
++	_ = 0b111 // ERROR "binary"
++	_ = 0o567 // ERROR "octal"
++	_ = 0xabc // ok
++	_ = 0x0p1 // ERROR "hexadecimal floating-point"
+ 
+-	_ = 1_000i // ERROR "underscores"
++	_ = 1_000i // ERROR "underscore"
+ 	_ = 0b111i // ERROR "binary"
+ 	_ = 0o567i // ERROR "octal"
+ 	_ = 0xabci // ERROR "hexadecimal floating-point"

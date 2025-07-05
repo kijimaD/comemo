@@ -9,7 +9,32 @@ Date:   Wed Apr 30 09:59:33 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/90950044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 77742d278e..81f9d543e2 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -268,6 +268,7 @@ Maxim Khitrov <max@mxcrypt.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
++Michael Fraenkel <michael.fraenkel@gmail.com>
+ Michael Gehring <mg@ebfe.org> <gnirheg.leahcim@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Lewis <mikelikespie@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 46c76bd481..0cd641594a 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -382,6 +382,7 @@ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Chaten <mchaten@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
++Michael Fraenkel <michael.fraenkel@gmail.com>
+ Michael Gehring <mg@ebfe.org> <gnirheg.leahcim@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
+ Michael Hudson-Doyle <michael.hudson@linaro.org>

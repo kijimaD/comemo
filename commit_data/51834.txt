@@ -13,6 +13,59 @@ Date:   Tue Feb 1 00:36:33 2022 +0000
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/crypto/x509/x509.go | 20 ++++----------------
  1 file changed, 4 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index 47be77d994..837c42a3db 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -1269,10 +1269,7 @@ func marshalKeyUsage(ku KeyUsage) (pkix.Extension, error) {
+ 	bitString := a[:l]
+ 	var err error
+ 	ext.Value, err = asn1.Marshal(asn1.BitString{Bytes: bitString, BitLength: asn1BitLength(bitString)})
+-	if err != nil {
+-		return ext, err
+-	}
+-	return ext, nil
++	return ext, err
+ }
+ 
+ func marshalExtKeyUsage(extUsages []ExtKeyUsage, unknownUsages []asn1.ObjectIdentifier) (pkix.Extension, error) {
+@@ -1291,10 +1288,7 @@ func marshalExtKeyUsage(extUsages []ExtKeyUsage, unknownUsages []asn1.ObjectIden
+ 
+ 	var err error
+ 	ext.Value, err = asn1.Marshal(oids)
+-	if err != nil {
+-		return ext, err
+-	}
+-	return ext, nil
++	return ext, err
+ }
+ 
+ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pkix.Extension, error) {
+@@ -1307,10 +1301,7 @@ func marshalBasicConstraints(isCA bool, maxPathLen int, maxPathLenZero bool) (pk
+ 	}
+ 	var err error
+ 	ext.Value, err = asn1.Marshal(basicConstraints{isCA, maxPathLen})
+-	if err != nil {
+-		return ext, nil
+-	}
+-	return ext, nil
++	return ext, err
+ }
+ 
+ func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix.Extension, error) {
+@@ -1321,10 +1312,7 @@ func marshalCertificatePolicies(policyIdentifiers []asn1.ObjectIdentifier) (pkix
+ 	}
+ 	var err error
+ 	ext.Value, err = asn1.Marshal(policies)
+-	if err != nil {
+-		return ext, err
+-	}
+-	return ext, nil
++	return ext, err
+ }
+ 
+ func buildCSRExtensions(template *CertificateRequest) ([]pkix.Extension, error) {

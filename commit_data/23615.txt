@@ -11,6 +11,22 @@ Date:   Tue Jun 2 13:21:37 2015 +1000
     Change-Id: I22f1a438cbb60a2fe1740fc2d43fbf8aa008b6de
     Reviewed-on: https://go-review.googlesource.com/10605
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/cover/cover_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index e5cfccf9df..af7ea443cd 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -59,7 +59,9 @@ func TestCover(t *testing.T) {
+ 	for i, line := range lines {
+ 		lines[i] = bytes.Replace(line, []byte("LINE"), []byte(fmt.Sprint(i+1)), -1)
+ 	}
+-	err = ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666)
++	if err := ioutil.WriteFile(coverInput, bytes.Join(lines, []byte("\n")), 0666); err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	// defer removal of test_line.go
+ 	if !debug {

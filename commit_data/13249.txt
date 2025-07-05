@@ -12,7 +12,57 @@ Date:   Sat Jun 2 13:00:09 2012 -0400
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/6257059
-
+---
  src/pkg/path/filepath/path.go      |  7 +++++--
  src/pkg/path/filepath/path_test.go | 23 +++++++++++++++++++++++
  2 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index a4e429baec..815021bd04 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -320,8 +320,11 @@ func walk(path string, info os.FileInfo, walkFn WalkFunc) error {
+ 	}
+ 
+ 	for _, fileInfo := range list {
+-		if err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn); err != nil {
+-			return err
++		err = walk(Join(path, fileInfo.Name()), fileInfo, walkFn)
++		if err != nil {
++			if !fileInfo.IsDir() || err != SkipDir {
++				return err
++			}
+ 		}
+ 	}
+ 	return nil
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index e4b4da43cb..e6097d5146 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -874,3 +874,26 @@ func TestDriveLetterInEvalSymlinks(t *testing.T) {
+ 		t.Errorf("Results of EvalSymlinks do not match: %q and %q", flp, fup)
+ 	}
+ }
++
++func TestBug3486(t *testing.T) { // http://code.google.com/p/go/issues/detail?id=3486
++	root := os.Getenv("GOROOT")
++	lib := filepath.Join(root, "lib")
++	src := filepath.Join(root, "src")
++	seenSrc := false
++	filepath.Walk(root, func(pth string, info os.FileInfo, err error) error {
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		switch pth {
++		case lib:
++			return filepath.SkipDir
++		case src:
++			seenSrc = true
++		}
++		return nil
++	})
++	if !seenSrc {
++		t.Fatalf("%q not seen", src)
++	}
++}

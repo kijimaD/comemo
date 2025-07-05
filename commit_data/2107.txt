@@ -8,6 +8,20 @@ Date:   Wed Apr 29 11:45:08 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=28032
     CL=28032
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index f86a293d57..3517834463 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -3396,7 +3396,7 @@ a single byte in the string.
+ </p>
+ <p>
+ For channels, the identifier list must contain one identifier.
+-The iteration recieves values sent on the channel until the channel is closed;
++The iteration receives values sent on the channel until the channel is closed;
+ it does not process the zero value sent before the channel is closed.
+ </p>
+ <p>

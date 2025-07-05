@@ -7,7 +7,44 @@ Date:   Mon Nov 1 15:21:35 2010 -0700
     R=r
     CC=golang-dev, r2, rsc
     https://golang.org/cl/2819041
-
+---
  src/cmd/cgo/gcc.go            | 8 ++++----
  src/cmd/goinstall/download.go | 2 +-
  2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 777e00bb8f..f17ac1b934 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -223,14 +223,14 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 		switch {
+ 		default:
+ 			continue
+-		case strings.Index(line, ": useless type name in empty declaration") >= 0:
++		case strings.Contains(line, ": useless type name in empty declaration"):
+ 			what = "type"
+ 			isConst[i] = false
+-		case strings.Index(line, ": statement with no effect") >= 0:
++		case strings.Contains(line, ": statement with no effect"):
+ 			what = "not-type" // const or func or var
+-		case strings.Index(line, "undeclared") >= 0:
++		case strings.Contains(line, "undeclared"):
+ 			error(noPos, "%s", strings.TrimSpace(line[colon+1:]))
+-		case strings.Index(line, "is not an integer constant") >= 0:
++		case strings.Contains(line, "is not an integer constant"):
+ 			isConst[i] = false
+ 			continue
+ 		}
+diff --git a/src/cmd/goinstall/download.go b/src/cmd/goinstall/download.go
+index c60d9c41ca..76aabb812f 100644
+--- a/src/cmd/goinstall/download.go
++++ b/src/cmd/goinstall/download.go
+@@ -38,7 +38,7 @@ var launchpad = regexp.MustCompile(`^(launchpad\.net/([a-z0-9A-Z_.\-]+(/[a-z0-9A
+ 
+ // download checks out or updates pkg from the remote server.
+ func download(pkg string) (string, os.Error) {
+-	if strings.Index(pkg, "..") >= 0 {
++	if strings.Contains(pkg, "..") {
+ 		return "", os.ErrorString("invalid path (contains ..)")
+ 	}
+ 	if m := bitbucket.FindStringSubmatch(pkg); m != nil {

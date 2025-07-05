@@ -17,9 +17,134 @@ Date:   Sun Oct 17 18:27:53 2021 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/decl.go                           | 23 ++++++-----------------
  src/go/types/named.go                          | 17 ++++++++++++++++-
  src/go/types/testdata/check/typeinst.go2       |  2 +-
  src/go/types/testdata/fixedbugs/issue49043.go2 | 24 ++++++++++++++++++++++++
  4 files changed, 47 insertions(+), 19 deletions(-)
+
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4aa49b17ca..3e97fbbccd 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -647,22 +647,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *Named) {
+ 	assert(rhs != nil)
+ 	named.fromRHS = rhs
+ 
+-	// The underlying type of named may be itself a named type that is
+-	// incomplete:
+-	//
+-	//	type (
+-	//		A B
+-	//		B *C
+-	//		C A
+-	//	)
+-	//
+-	// The type of C is the (named) type of A which is incomplete,
+-	// and which has as its underlying type the named type B.
+-	// Determine the (final, unnamed) underlying type by resolving
+-	// any forward chain.
+-	// TODO(gri) Investigate if we can just use named.fromRHS here
+-	//           and rely on lazy computation of the underlying type.
+-	named.underlying = under(named)
++	// If the underlying was not set while type-checking the right-hand side, it
++	// is invalid and an error should have been reported elsewhere.
++	if named.underlying == nil {
++		named.underlying = Typ[Invalid]
++	}
+ 
+ 	// If the RHS is a type parameter, it must be from this type declaration.
+ 	if tpar, _ := named.underlying.(*TypeParam); tpar != nil && tparamIndex(named.TypeParams().list(), tpar) < 0 {
+@@ -776,7 +765,7 @@ func (check *Checker) collectMethods(obj *TypeName) {
+ 	// and field names must be distinct."
+ 	base := asNamed(obj.typ) // shouldn't fail but be conservative
+ 	if base != nil {
+-		u := safeUnderlying(base) // base should be expanded, but use safeUnderlying to be conservative
++		u := base.under()
+ 		if t, _ := u.(*Struct); t != nil {
+ 			for _, fld := range t.fields {
+ 				if fld.name != "_" {
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index c81383810e..393d40b127 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -132,6 +132,18 @@ func (t *Named) String() string   { return TypeString(t, nil) }
+ // chain before returning it. If no underlying type is found or a cycle
+ // is detected, the result is Typ[Invalid]. If a cycle is detected and
+ // n0.check != nil, the cycle is reported.
++//
++// This is necessary because the underlying type of named may be itself a
++// named type that is incomplete:
++//
++//	type (
++//		A B
++//		B *C
++//		C A
++//	)
++//
++// The type of C is the (named) type of A which is incomplete,
++// and which has as its underlying type the named type B.
+ func (n0 *Named) under() Type {
+ 	u := n0.Underlying()
+ 
+@@ -141,7 +153,9 @@ func (n0 *Named) under() Type {
+ 	var n1 *Named
+ 	switch u1 := u.(type) {
+ 	case nil:
+-		return Typ[Invalid]
++		// After expansion via Underlying(), we should never encounter a nil
++		// underlying.
++		panic("nil underlying")
+ 	default:
+ 		// common case
+ 		return u
+@@ -225,6 +239,7 @@ func (check *Checker) bestContext(ctxt *Context) *Context {
+ // The underlying type will be Typ[Invalid] if there was an error.
+ func expandNamed(ctxt *Context, n *Named, instPos token.Pos) (tparams *TypeParamList, underlying Type, methods []*Func) {
+ 	n.orig.resolve(ctxt)
++	assert(n.orig.underlying != nil)
+ 
+ 	check := n.check
+ 
+diff --git a/src/go/types/testdata/check/typeinst.go2 b/src/go/types/testdata/check/typeinst.go2
+index 4a8918ab86..f4f6c0264b 100644
+--- a/src/go/types/testdata/check/typeinst.go2
++++ b/src/go/types/testdata/check/typeinst.go2
+@@ -57,5 +57,5 @@ var _ T3[int] = T3[int](List[int]{1, 2, 3})
+ 
+ // Self-recursive generic types are not permitted
+ 
+-type self1[P any] self1 /* ERROR illegal cycle */ [P]
++type self1 /* ERROR illegal cycle */ [P any] self1[P]
+ type self2[P any] *self2[P] // this is ok
+diff --git a/src/go/types/testdata/fixedbugs/issue49043.go2 b/src/go/types/testdata/fixedbugs/issue49043.go2
+new file mode 100644
+index 0000000000..c37b0f1267
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue49043.go2
+@@ -0,0 +1,24 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// The example from the issue.
++type (
++	N /* ERROR illegal cycle */ [P any] M[P]
++	M[P any] N[P]
++)
++
++// A slightly more complicated case.
++type (
++	A /* ERROR illegal cycle */ [P any] B[P]
++	B[P any] C[P]
++	C[P any] A[P]
++)
++
++// Confusing but valid (note that `type T *T` is valid).
++type (
++	N1[P any] *M1[P]
++	M1[P any] *N1[P]
++)

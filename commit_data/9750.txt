@@ -9,9 +9,145 @@ Date:   Mon Sep 19 17:27:49 2011 -0700
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5071043
-
+---
  src/pkg/exp/template/html/context.go     | 16 +++++++++++++---
  src/pkg/exp/template/html/escape.go      | 11 ++++++-----
  src/pkg/exp/template/html/escape_test.go |  8 ++++----
  src/pkg/exp/template/html/transition.go  |  8 ++++----
  4 files changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index f7802d04b3..57d44938ca 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -89,8 +89,8 @@ const (
+ 	// stateBeforeValue occurs after the equals sign but before the value.
+ 	// It occurs between the ^'s in ` name =^ ^value`.
+ 	stateBeforeValue
+-	// stateComment occurs inside an <!-- HTML comment -->.
+-	stateComment
++	// stateHTMLCmt occurs inside an <!-- HTML comment -->.
++	stateHTMLCmt
+ 	// stateRCDATA occurs inside an RCDATA element (<textarea> or <title>)
+ 	// as described at http://dev.w3.org/html5/spec/syntax.html#elements-0
+ 	stateRCDATA
+@@ -137,7 +137,7 @@ var stateNames = [...]string{
+ 	stateAttrName:    "stateAttrName",
+ 	stateAfterName:   "stateAfterName",
+ 	stateBeforeValue: "stateBeforeValue",
+-	stateComment:     "stateComment",
++	stateHTMLCmt:     "stateHTMLCmt",
+ 	stateRCDATA:      "stateRCDATA",
+ 	stateAttr:        "stateAttr",
+ 	stateURL:         "stateURL",
+@@ -165,6 +165,16 @@ func (s state) String() string {
+ 	return fmt.Sprintf("illegal state %d", int(s))
+ }
+ 
++// isComment is true for any state that contains content meant for template
++// authors & maintainers, not for end-users or machines.
++func isComment(s state) bool {
++	switch s {
++	case stateHTMLCmt, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
++		return true
++	}
++	return false
++}
++
+ // delim is the delimiter that will end the current HTML attribute.
+ type delim uint8
+ 
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index a8f3dfc17d..e307fc9ae4 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -187,11 +187,6 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		s = append(s, "exp_template_html_jsstrescaper")
+ 	case stateJSRegexp:
+ 		s = append(s, "exp_template_html_jsregexpescaper")
+-	case stateComment, stateJSBlockCmt, stateJSLineCmt, stateCSSBlockCmt, stateCSSLineCmt:
+-		return context{
+-			state: stateError,
+-			err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
+-		}
+ 	case stateCSS:
+ 		s = append(s, "exp_template_html_cssvaluefilter")
+ 	case stateText:
+@@ -204,6 +199,12 @@ func (e *escaper) escapeAction(c context, n *parse.ActionNode) context {
+ 		c.state = stateAttrName
+ 		s = append(s, "exp_template_html_htmlnamefilter")
+ 	default:
++		if isComment(c.state) {
++			return context{
++				state: stateError,
++				err:   errorf(ErrInsideComment, n.Line, "%s appears inside a comment", n),
++			}
++		}
+ 		panic("unexpected state " + c.state.String())
+ 	}
+ 	switch c.delim {
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 5202aa34a1..47927e753e 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -1123,15 +1123,15 @@ func TestEscapeText(t *testing.T) {
+ 		},
+ 		{
+ 			`<!-- foo`,
+-			context{state: stateComment},
++			context{state: stateHTMLCmt},
+ 		},
+ 		{
+ 			`<!-->`,
+-			context{state: stateComment},
++			context{state: stateHTMLCmt},
+ 		},
+ 		{
+ 			`<!--->`,
+-			context{state: stateComment},
++			context{state: stateHTMLCmt},
+ 		},
+ 		{
+ 			`<!-- foo -->`,
+@@ -1167,7 +1167,7 @@ func TestEscapeText(t *testing.T) {
+ 		},
+ 		{
+ 			`<script>foo</script><!--`,
+-			context{state: stateComment},
++			context{state: stateHTMLCmt},
+ 		},
+ 		{
+ 			`<script>document.write("<p>foo</p>");`,
+diff --git a/src/pkg/exp/template/html/transition.go b/src/pkg/exp/template/html/transition.go
+index 6b10561caa..7c7f845b17 100644
+--- a/src/pkg/exp/template/html/transition.go
++++ b/src/pkg/exp/template/html/transition.go
+@@ -21,7 +21,7 @@ var transitionFunc = [...]func(context, []byte) (context, []byte){
+ 	stateAttrName:    tAttrName,
+ 	stateAfterName:   tAfterName,
+ 	stateBeforeValue: tBeforeValue,
+-	stateComment:     tComment,
++	stateHTMLCmt:     tHTMLCmt,
+ 	stateRCDATA:      tSpecialTagEnd,
+ 	stateAttr:        tAttr,
+ 	stateURL:         tURL,
+@@ -52,7 +52,7 @@ func tText(c context, s []byte) (context, []byte) {
+ 		if i == -1 || i+1 == len(s) {
+ 			return c, nil
+ 		} else if i+4 <= len(s) && bytes.Equal(commentStart, s[i:i+4]) {
+-			return context{state: stateComment}, s[i+4:]
++			return context{state: stateHTMLCmt}, s[i+4:]
+ 		}
+ 		i++
+ 		if s[i] == '/' {
+@@ -168,8 +168,8 @@ func tBeforeValue(c context, s []byte) (context, []byte) {
+ 	return c, s[i:]
+ }
+ 
+-// tComment is the context transition function for stateComment.
+-func tComment(c context, s []byte) (context, []byte) {
++// tHTMLCmt is the context transition function for stateHTMLCmt.
++func tHTMLCmt(c context, s []byte) (context, []byte) {
+ 	i := bytes.Index(s, commentEnd)
+ 	if i != -1 {
+ 		return context{}, s[i+3:]

@@ -7,6 +7,20 @@ Date:   Wed Feb 22 10:09:34 2012 +1100
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5685070
-
+---
  doc/root.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/root.html b/doc/root.html
+index 1c6bcd101c..6884fbafe7 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -118,7 +118,7 @@ function init() {
+ 		"outputEl":      "#output",
+ 		"runEl":         "#run",
+ 		"shareEl":       "#share",
+-		"shareRedirect": "http://play.golang.org/"
++		"shareRedirect": "http://play.golang.org/p/"
+ 	});
+ }
+ 

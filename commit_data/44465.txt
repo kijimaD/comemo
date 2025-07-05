@@ -9,6 +9,24 @@ Date:   Thu Jul 9 14:16:44 2020 -0400
     Change-Id: If77067eb348de47a4b101325de8a43502383b6d3
     Reviewed-on: https://go-review.googlesource.com/c/go/+/241740
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  doc/go1.15.html | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index b7b422e4a1..e4a2491e70 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -336,8 +336,10 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <p><!-- CL 207877 -->
+-  TODO: <a href="https://golang.org/cl/207877">https://golang.org/cl/207877</a>: Revert -buildmode=pie to internal linking.
+-  The linker defaults to internal linking mode for PIE on linux/amd64 and linux/arm64, which does require a C linker.
++  The linker now defaults to internal linking mode
++  for <code>-buildmode=pie</code> on
++  <code>linux/amd64</code> and <code>linux/arm64</code>, so these
++  configurations no longer require a C linker.
+ </p>
+ 
+ <h2 id="objdump">Objdump</h2>

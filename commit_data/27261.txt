@@ -7,7 +7,34 @@ Date:   Thu Mar 17 15:32:20 2016 -0400
     Change-Id: Ic5f62a7d0a5c090da69213d1d0187af0ea48e358
     Reviewed-on: https://go-review.googlesource.com/20820
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/pack/pack.go | 2 +-
  src/cmd/vet/main.go  | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index f65ae0cf94..5be42555d0 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -40,7 +40,7 @@ For compatibility with old Go build environments the op string grc is
+ accepted as a synonym for c.
+ 
+ For more information, run
+-	godoc cmd/pack`
++	go doc cmd/pack`
+ 
+ func usage() {
+ 	fmt.Fprintln(os.Stderr, usageMessage)
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 12000867ae..2d5da9895f 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -164,7 +164,7 @@ func Usage() {
+ 	fmt.Fprintf(os.Stderr, "\tvet [flags] directory...\n")
+ 	fmt.Fprintf(os.Stderr, "\tvet [flags] files... # Must be a single package\n")
+ 	fmt.Fprintf(os.Stderr, "For more information run\n")
+-	fmt.Fprintf(os.Stderr, "\tgodoc cmd/vet\n\n")
++	fmt.Fprintf(os.Stderr, "\tgo doc cmd/vet\n\n")
+ 	fmt.Fprintf(os.Stderr, "Flags:\n")
+ 	flag.PrintDefaults()
+ 	os.Exit(2)

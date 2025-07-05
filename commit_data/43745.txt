@@ -18,7 +18,82 @@ Date:   Wed Apr 22 14:37:02 2020 -0700
     Change-Id: Iadd210d2123accb2020f5728ea2a47814f703352
     Reviewed-on: https://go-review.googlesource.com/c/go/+/229578
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html                      | 12 ++++++++++++
  src/cmd/compile/internal/gc/order.go | 31 ++++++++++++-------------------
  2 files changed, 24 insertions(+), 19 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 597eb591c0..806d7463cd 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -84,6 +84,18 @@ TODO
+ TODO
+ </p>
+ 
++<h2 id="compiler">Compiler</h2>
++
++<p><!-- https://golang.org/cl/229578 -->
++  Package <code>unsafe</code>'s <a href="/pkg/unsafe/#Pointer">safety
++  rules</a> allow converting an <code>unsafe.Pointer</code>
++  into <code>uintptr</code> when calling certain
++  functions. Previously, in some cases, the compiler allowed multiple
++  chained conversions (for example, <code>syscall.Syscall(…,
++  uintptr(uintptr(ptr)), …)</code>). The compiler now requires exactly
++  one conversion. Code that used multiple conversions should be
++  updated to satisfy the safety rules.
++</p>
+ 
+ <h2 id="library">Core library</h2>
+ 
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index efac51e65b..dc37f97ff7 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -414,34 +414,27 @@ func (o *Order) call(n *Node) {
+ 	if n.Op != OCALLFUNC && n.Op != OCALLMETH {
+ 		return
+ 	}
+-	keepAlive := func(i int) {
++	keepAlive := func(arg *Node) {
+ 		// If the argument is really a pointer being converted to uintptr,
+ 		// arrange for the pointer to be kept alive until the call returns,
+ 		// by copying it into a temp and marking that temp
+ 		// still alive when we pop the temp stack.
+-		xp := n.List.Addr(i)
+-		for (*xp).Op == OCONVNOP && !(*xp).Type.IsUnsafePtr() {
+-			xp = &(*xp).Left
+-		}
+-		x := *xp
+-		if x.Type.IsUnsafePtr() {
+-			x = o.copyExpr(x, x.Type, false)
++		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
++			x := o.copyExpr(arg.Left, arg.Left.Type, false)
+ 			x.Name.SetKeepalive(true)
+-			*xp = x
++			arg.Left = x
+ 		}
+ 	}
+ 
+-	for i, t := range n.Left.Type.Params().FieldSlice() {
+-		// Check for "unsafe-uintptr" tag provided by escape analysis.
+-		if t.IsDDD() && !n.IsDDD() {
+-			if t.Note == uintptrEscapesTag {
+-				for ; i < n.List.Len(); i++ {
+-					keepAlive(i)
++	// Check for "unsafe-uintptr" tag provided by escape analysis.
++	for i, param := range n.Left.Type.Params().FieldSlice() {
++		if param.Note == unsafeUintptrTag || param.Note == uintptrEscapesTag {
++			if param.IsDDD() && !n.IsDDD() {
++				for _, arg := range n.List.Slice()[i:] {
++					keepAlive(arg)
+ 				}
+-			}
+-		} else {
+-			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
+-				keepAlive(i)
++			} else {
++				keepAlive(n.List.Index(i))
+ 			}
+ 		}
+ 	}

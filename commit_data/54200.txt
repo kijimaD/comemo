@@ -13,6 +13,42 @@ Date:   Wed Sep 28 21:34:01 2022 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/cgo/util.go | 20 --------------------
  1 file changed, 20 deletions(-)
+
+diff --git a/src/cmd/cgo/util.go b/src/cmd/cgo/util.go
+index f2a5cd2b9d..054cd6c5c7 100644
+--- a/src/cmd/cgo/util.go
++++ b/src/cmd/cgo/util.go
+@@ -105,19 +105,6 @@ func error_(pos token.Pos, msg string, args ...interface{}) {
+ 	fmt.Fprintf(os.Stderr, "\n")
+ }
+ 
+-// isName reports whether s is a valid C identifier
+-func isName(s string) bool {
+-	for i, v := range s {
+-		if v != '_' && (v < 'A' || v > 'Z') && (v < 'a' || v > 'z') && (v < '0' || v > '9') {
+-			return false
+-		}
+-		if i == 0 && '0' <= v && v <= '9' {
+-			return false
+-		}
+-	}
+-	return s != ""
+-}
+-
+ func creat(name string) *os.File {
+ 	f, err := os.Create(name)
+ 	if err != nil {
+@@ -125,10 +112,3 @@ func creat(name string) *os.File {
+ 	}
+ 	return f
+ }
+-
+-func slashToUnderscore(c rune) rune {
+-	if c == '/' || c == '\\' || c == ':' {
+-		c = '_'
+-	}
+-	return c
+-}

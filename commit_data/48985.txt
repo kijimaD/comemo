@@ -14,6 +14,20 @@ Date:   Fri Jul 2 05:41:10 2021 +0000
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 4acd357974..f40fa926df 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -781,7 +781,7 @@ func (t *tester) registerTests() {
+ 			t.registerTest("testasan", "../misc/cgo/testasan", "go", "run", ".")
+ 		}
+ 		if goos == "linux" && goarch != "ppc64le" {
+-			// because syscall.SysProcAttri struct used in misc/cgo/testsanitizers is only built on linux.
++			// because syscall.SysProcAttr struct used in misc/cgo/testsanitizers is only built on linux.
+ 			// Some inconsistent failures happen on ppc64le so disable for now.
+ 			t.registerHostTest("testsanitizers", "../misc/cgo/testsanitizers", "misc/cgo/testsanitizers", ".")
+ 		}

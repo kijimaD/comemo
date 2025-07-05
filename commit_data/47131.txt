@@ -13,7 +13,7 @@ Date:   Thu Jan 7 19:08:37 2021 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go    | 76 ++++++--------------------------
  src/cmd/compile/internal/arm/ssa.go      |  3 --
  src/cmd/compile/internal/arm64/ssa.go    |  9 +---
@@ -27,3 +27,632 @@ Date:   Thu Jan 7 19:08:37 2021 -0800
  src/cmd/compile/internal/ssagen/ssa.go   |  4 ++
  src/cmd/compile/internal/x86/ssa.go      | 44 +++---------------
  12 files changed, 52 insertions(+), 166 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 6944ba7ce7..230219a383 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -202,9 +202,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
+ 		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()})
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+@@ -254,11 +251,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpAMD64BTSL, ssa.OpAMD64BTSQ,
+ 		ssa.OpAMD64BTCL, ssa.OpAMD64BTCQ,
+ 		ssa.OpAMD64BTRL, ssa.OpAMD64BTRQ:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+ 
+ 	case ssa.OpAMD64DIVQU, ssa.OpAMD64DIVLU, ssa.OpAMD64DIVWU:
+ 		// Arg[0] (the dividend) is in AX.
+@@ -401,20 +394,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// compute (x+y)/2 unsigned.
+ 		// Do a 64-bit add, the overflow goes into the carry.
+ 		// Shift right once and pull the carry back into the 63rd bit.
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(x86.AADDQ)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 		p.From.Reg = v.Args[1].Reg()
+ 		p = s.Prog(x86.ARCRQ)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 1
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 
+ 	case ssa.OpAMD64ADDQcarry, ssa.OpAMD64ADCQ:
+ 		r := v.Reg0()
+@@ -530,21 +519,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpAMD64CMOVQCS, ssa.OpAMD64CMOVLCS, ssa.OpAMD64CMOVWCS,
+ 		ssa.OpAMD64CMOVQGTF, ssa.OpAMD64CMOVLGTF, ssa.OpAMD64CMOVWGTF,
+ 		ssa.OpAMD64CMOVQGEF, ssa.OpAMD64CMOVLGEF, ssa.OpAMD64CMOVWGEF:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 
+ 	case ssa.OpAMD64CMOVQNEF, ssa.OpAMD64CMOVLNEF, ssa.OpAMD64CMOVWNEF:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// Flag condition: ^ZERO || PARITY
+ 		// Generate:
+ 		//   CMOV*NE  SRC,DST
+@@ -553,7 +534,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 		var q *obj.Prog
+ 		if v.Op == ssa.OpAMD64CMOVQNEF {
+ 			q = s.Prog(x86.ACMOVQPS)
+@@ -565,14 +546,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		q.From.Type = obj.TYPE_REG
+ 		q.From.Reg = v.Args[1].Reg()
+ 		q.To.Type = obj.TYPE_REG
+-		q.To.Reg = r
++		q.To.Reg = v.Reg()
+ 
+ 	case ssa.OpAMD64CMOVQEQF, ssa.OpAMD64CMOVLEQF, ssa.OpAMD64CMOVWEQF:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-
+ 		// Flag condition: ZERO && !PARITY
+ 		// Generate:
+ 		//   MOV      SRC,AX
+@@ -589,7 +565,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r
++		p.From.Reg = v.Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = x86.REG_AX
+ 		var q *obj.Prog
+@@ -603,7 +579,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		q.From.Type = obj.TYPE_REG
+ 		q.From.Reg = x86.REG_AX
+ 		q.To.Type = obj.TYPE_REG
+-		q.To.Reg = r
++		q.To.Reg = v.Reg()
+ 
+ 	case ssa.OpAMD64MULQconst, ssa.OpAMD64MULLconst:
+ 		r := v.Reg()
+@@ -622,15 +598,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpAMD64SHRQconst, ssa.OpAMD64SHRLconst, ssa.OpAMD64SHRWconst, ssa.OpAMD64SHRBconst,
+ 		ssa.OpAMD64SARQconst, ssa.OpAMD64SARLconst, ssa.OpAMD64SARWconst, ssa.OpAMD64SARBconst,
+ 		ssa.OpAMD64ROLQconst, ssa.OpAMD64ROLLconst, ssa.OpAMD64ROLWconst, ssa.OpAMD64ROLBconst:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpAMD64SBBQcarrymask, ssa.OpAMD64SBBLcarrymask:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+@@ -913,9 +885,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 	case ssa.OpAMD64ADDLloadidx1, ssa.OpAMD64ADDLloadidx4, ssa.OpAMD64ADDLloadidx8, ssa.OpAMD64ADDQloadidx1, ssa.OpAMD64ADDQloadidx8,
+ 		ssa.OpAMD64SUBLloadidx1, ssa.OpAMD64SUBLloadidx4, ssa.OpAMD64SUBLloadidx8, ssa.OpAMD64SUBQloadidx1, ssa.OpAMD64SUBQloadidx8,
+ 		ssa.OpAMD64ANDLloadidx1, ssa.OpAMD64ANDLloadidx4, ssa.OpAMD64ANDLloadidx8, ssa.OpAMD64ANDQloadidx1, ssa.OpAMD64ANDQloadidx8,
+@@ -939,9 +908,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 	case ssa.OpAMD64DUFFZERO:
+ 		if s.ABI != obj.ABIInternal {
+ 			v.Fatalf("MOVOconst can be only used in ABIInternal functions")
+@@ -1078,22 +1044,14 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpAMD64NEGQ, ssa.OpAMD64NEGL,
+ 		ssa.OpAMD64BSWAPQ, ssa.OpAMD64BSWAPL,
+ 		ssa.OpAMD64NOTQ, ssa.OpAMD64NOTL:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 
+ 	case ssa.OpAMD64NEGLflags:
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg0()
+ 
+ 	case ssa.OpAMD64BSFQ, ssa.OpAMD64BSRQ, ssa.OpAMD64BSFL, ssa.OpAMD64BSRL, ssa.OpAMD64SQRTSD:
+ 		p := s.Prog(v.Op.Asm())
+@@ -1214,25 +1172,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+ 	case ssa.OpAMD64XCHGB, ssa.OpAMD64XCHGL, ssa.OpAMD64XCHGQ:
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r
++		p.From.Reg = v.Reg0()
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[1].Reg()
+ 		ssagen.AddAux(&p.To, v)
+ 	case ssa.OpAMD64XADDLlock, ssa.OpAMD64XADDQlock:
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+-		}
+ 		s.Prog(x86.ALOCK)
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = r
++		p.From.Reg = v.Reg0()
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[1].Reg()
+ 		ssagen.AddAux(&p.To, v)
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 729d2dab2d..6cbdf4377d 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -173,9 +173,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = y
+ 	case ssa.OpARMMOVWnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index ca5eac72bf..2576aeb600 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -142,9 +142,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = y
+ 	case ssa.OpARM64MOVDnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+@@ -522,17 +519,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.To, v)
+ 	case ssa.OpARM64BFI,
+ 		ssa.OpARM64BFXIL:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt >> 8
+ 		p.SetFrom3(obj.Addr{Type: obj.TYPE_CONST, Offset: v.AuxInt & 0xff})
+ 		p.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpARM64SBFIZ,
+ 		ssa.OpARM64SBFX,
+ 		ssa.OpARM64UBFIZ,
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index f1cdbd3241..115e3cb8e2 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -112,9 +112,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p.To.Reg = y
+ 		}
+ 	case ssa.OpMIPSMOVWnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+@@ -244,9 +241,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpMIPSCMOVZ:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[2].Reg()
+@@ -254,9 +248,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 	case ssa.OpMIPSCMOVZzero:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 14cf7af143..d9c47751e1 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -115,9 +115,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p.To.Reg = y
+ 		}
+ 	case ssa.OpMIPS64MOVVnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 70c29a4b7b..0a3064323a 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -211,9 +211,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = rd
+ 	case ssa.OpRISCV64MOVDnop:
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		// nothing to do
+ 	case ssa.OpLoadReg:
+ 		if v.Type.IsFlags() {
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index d4c7a286e2..0c65f7a238 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -175,10 +175,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p.Reg = r1
+ 		}
+ 	case ssa.OpS390XRXSBG:
+-		r1 := v.Reg()
+-		if r1 != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		r2 := v.Args[1].Reg()
+ 		i := v.Aux.(s390x.RotateParams)
+ 		p := s.Prog(v.Op.Asm())
+@@ -188,7 +184,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			{Type: obj.TYPE_CONST, Offset: int64(i.Amount)},
+ 			{Type: obj.TYPE_REG, Reg: r2},
+ 		})
+-		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: r1}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
+ 	case ssa.OpS390XRISBGZ:
+ 		r1 := v.Reg()
+ 		r2 := v.Args[0].Reg()
+@@ -233,12 +229,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			p.Reg = r2
+ 		}
+ 	case ssa.OpS390XADDE, ssa.OpS390XSUBE:
+-		r1 := v.Reg0()
+-		if r1 != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		r2 := v.Args[1].Reg()
+-		opregreg(s, v.Op.Asm(), r1, r2)
++		opregreg(s, v.Op.Asm(), v.Reg0(), r2)
+ 	case ssa.OpS390XADDCconst:
+ 		r1 := v.Reg0()
+ 		r3 := v.Args[0].Reg()
+@@ -248,18 +240,10 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpS390XMULLD, ssa.OpS390XMULLW,
+ 		ssa.OpS390XMULHD, ssa.OpS390XMULHDU,
+ 		ssa.OpS390XFMULS, ssa.OpS390XFMUL, ssa.OpS390XFDIVS, ssa.OpS390XFDIV:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+ 	case ssa.OpS390XFSUBS, ssa.OpS390XFSUB,
+ 		ssa.OpS390XFADDS, ssa.OpS390XFADD:
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++		opregreg(s, v.Op.Asm(), v.Reg0(), v.Args[1].Reg())
+ 	case ssa.OpS390XMLGR:
+ 		// MLGR Rx R3 -> R2:R3
+ 		r0 := v.Args[0].Reg()
+@@ -274,10 +258,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 	case ssa.OpS390XFMADD, ssa.OpS390XFMADDS,
+ 		ssa.OpS390XFMSUB, ssa.OpS390XFMSUBS:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		r1 := v.Args[1].Reg()
+ 		r2 := v.Args[2].Reg()
+ 		p := s.Prog(v.Op.Asm())
+@@ -285,7 +265,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = r1
+ 		p.Reg = r2
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XFIDBR:
+ 		switch v.AuxInt {
+ 		case 0, 1, 3, 4, 5, 6, 7:
+@@ -361,15 +341,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpS390XANDconst, ssa.OpS390XANDWconst,
+ 		ssa.OpS390XORconst, ssa.OpS390XORWconst,
+ 		ssa.OpS390XXORconst, ssa.OpS390XXORWconst:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XSLDconst, ssa.OpS390XSLWconst,
+ 		ssa.OpS390XSRDconst, ssa.OpS390XSRWconst,
+ 		ssa.OpS390XSRADconst, ssa.OpS390XSRAWconst,
+@@ -441,16 +417,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpS390XANDWload, ssa.OpS390XANDload,
+ 		ssa.OpS390XORWload, ssa.OpS390XORload,
+ 		ssa.OpS390XXORWload, ssa.OpS390XXORload:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[1].Reg()
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XMOVDload,
+ 		ssa.OpS390XMOVWZload, ssa.OpS390XMOVHZload, ssa.OpS390XMOVBZload,
+ 		ssa.OpS390XMOVDBRload, ssa.OpS390XMOVWBRload, ssa.OpS390XMOVHBRload,
+@@ -608,16 +580,12 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.OpS390XSumBytes2, ssa.OpS390XSumBytes4, ssa.OpS390XSumBytes8:
+ 		v.Fatalf("SumBytes generated %s", v.LongString())
+ 	case ssa.OpS390XLOCGR:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = int64(v.Aux.(s390x.CCMask))
+ 		p.Reg = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.OpS390XFSQRT:
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index f5385389c3..8e5997b25a 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -407,6 +407,7 @@ func genOp() {
+ 	fmt.Fprintln(w, "func (o Op) IsCall() bool { return opcodeTable[o].call }")
+ 	fmt.Fprintln(w, "func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }")
+ 	fmt.Fprintln(w, "func (o Op) UnsafePoint() bool { return opcodeTable[o].unsafePoint }")
++	fmt.Fprintln(w, "func (o Op) ResultInArg0() bool { return opcodeTable[o].resultInArg0 }")
+ 
+ 	// generate registers
+ 	for _, a := range archs {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 551aa725b6..10ea57b36b 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -36193,6 +36193,7 @@ func (o Op) SymEffect() SymEffect { return opcodeTable[o].symEffect }
+ func (o Op) IsCall() bool         { return opcodeTable[o].call }
+ func (o Op) HasSideEffects() bool { return opcodeTable[o].hasSideEffects }
+ func (o Op) UnsafePoint() bool    { return opcodeTable[o].unsafePoint }
++func (o Op) ResultInArg0() bool   { return opcodeTable[o].resultInArg0 }
+ 
+ var registers386 = [...]Register{
+ 	{0, x86.REG_AX, 0, "AX"},
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 6539631b9c..55e4b684c1 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -411,6 +411,23 @@ func (v *Value) isGenericIntConst() bool {
+ 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
+ }
+ 
++// ResultReg returns the result register assigned to v, in cmd/internal/obj/$ARCH numbering.
++// It is similar to Reg and Reg0, except that it is usable interchangeably for all Value Ops.
++// If you know v.Op, using Reg or Reg0 (as appropriate) will be more efficient.
++func (v *Value) ResultReg() int16 {
++	reg := v.Block.Func.RegAlloc[v.ID]
++	if reg == nil {
++		v.Fatalf("nil reg for value: %s\n%s\n", v.LongString(), v.Block.Func)
++	}
++	if pair, ok := reg.(LocPair); ok {
++		reg = pair[0]
++	}
++	if reg == nil {
++		v.Fatalf("nil reg0 for value: %s\n%s\n", v.LongString(), v.Block.Func)
++	}
++	return reg.(*Register).objNum
++}
++
+ // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
+ func (v *Value) Reg() int16 {
+ 	reg := v.Block.Func.RegAlloc[v.ID]
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d69eb17ca9..20acdbdc66 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6509,6 +6509,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 			x := s.pp.Next
+ 			s.DebugFriendlySetPosFrom(v)
+ 
++			if v.Op.ResultInArg0() && v.ResultReg() != v.Args[0].Reg() {
++				v.Fatalf("input[0] and output not in same register %s", v.LongString())
++			}
++
+ 			switch v.Op {
+ 			case ssa.OpInitMem:
+ 				// memory arg needs no code
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 00dfa07bf7..c5fe3ae2e2 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -161,31 +161,19 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.Op386PXOR,
+ 		ssa.Op386ADCL,
+ 		ssa.Op386SBBL:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+-		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++		opregreg(s, v.Op.Asm(), v.Reg(), v.Args[1].Reg())
+ 
+ 	case ssa.Op386ADDLcarry, ssa.Op386SUBLcarry:
+ 		// output 0 is carry/borrow, output 1 is the low 32 bits.
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+-		}
+-		opregreg(s, v.Op.Asm(), r, v.Args[1].Reg())
++		opregreg(s, v.Op.Asm(), v.Reg0(), v.Args[1].Reg())
+ 
+ 	case ssa.Op386ADDLconstcarry, ssa.Op386SUBLconstcarry:
+ 		// output 0 is carry/borrow, output 1 is the low 32 bits.
+-		r := v.Reg0()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output[0] not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg0()
+ 
+ 	case ssa.Op386DIVL, ssa.Op386DIVW,
+ 		ssa.Op386DIVLU, ssa.Op386DIVWU,
+@@ -306,20 +294,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		// compute (x+y)/2 unsigned.
+ 		// Do a 32-bit add, the overflow goes into the carry.
+ 		// Shift right once and pull the carry back into the 31st bit.
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(x86.AADDL)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 		p.From.Reg = v.Args[1].Reg()
+ 		p = s.Prog(x86.ARCRL)
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = 1
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 
+ 	case ssa.Op386ADDLconst:
+ 		r := v.Reg()
+@@ -370,15 +354,11 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.Op386SHRLconst, ssa.Op386SHRWconst, ssa.Op386SHRBconst,
+ 		ssa.Op386SARLconst, ssa.Op386SARWconst, ssa.Op386SARBconst,
+ 		ssa.Op386ROLLconst, ssa.Op386ROLWconst, ssa.Op386ROLBconst:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+ 		p.From.Offset = v.AuxInt
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.Op386SBBLcarrymask:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+@@ -536,9 +516,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 	case ssa.Op386ADDLload, ssa.Op386SUBLload, ssa.Op386MULLload,
+ 		ssa.Op386ANDLload, ssa.Op386ORLload, ssa.Op386XORLload,
+ 		ssa.Op386ADDSDload, ssa.Op386ADDSSload, ssa.Op386SUBSDload, ssa.Op386SUBSSload,
+@@ -549,9 +526,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+-		if v.Reg() != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 	case ssa.Op386MOVSSstore, ssa.Op386MOVSDstore, ssa.Op386MOVLstore, ssa.Op386MOVWstore, ssa.Op386MOVBstore,
+ 		ssa.Op386ADDLmodify, ssa.Op386SUBLmodify, ssa.Op386ANDLmodify, ssa.Op386ORLmodify, ssa.Op386XORLmodify:
+ 		p := s.Prog(v.Op.Asm())
+@@ -781,13 +755,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	case ssa.Op386NEGL,
+ 		ssa.Op386BSWAPL,
+ 		ssa.Op386NOTL:
+-		r := v.Reg()
+-		if r != v.Args[0].Reg() {
+-			v.Fatalf("input[0] and output not in same register %s", v.LongString())
+-		}
+ 		p := s.Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = r
++		p.To.Reg = v.Reg()
+ 	case ssa.Op386BSFL, ssa.Op386BSFW,
+ 		ssa.Op386BSRL, ssa.Op386BSRW,
+ 		ssa.Op386SQRTSD:

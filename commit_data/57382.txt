@@ -21,7 +21,107 @@ Date:   Tue Aug 1 18:02:54 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/dnsclient_unix.go      | 27 +++++++++++++++++++++++----
  src/net/dnsclient_unix_test.go | 31 +++++++++++++++++++++++++++++++
  2 files changed, 54 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index dab5144e5d..ed32ba0280 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -205,7 +205,9 @@ func (r *Resolver) exchange(ctx context.Context, server string, q dnsmessage.Que
+ 
+ // checkHeader performs basic sanity checks on the header.
+ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
+-	if h.RCode == dnsmessage.RCodeNameError {
++	rcode := extractExtendedRCode(*p, h)
++
++	if rcode == dnsmessage.RCodeNameError {
+ 		return errNoSuchHost
+ 	}
+ 
+@@ -216,17 +218,17 @@ func checkHeader(p *dnsmessage.Parser, h dnsmessage.Header) error {
+ 
+ 	// libresolv continues to the next server when it receives
+ 	// an invalid referral response. See golang.org/issue/15434.
+-	if h.RCode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
++	if rcode == dnsmessage.RCodeSuccess && !h.Authoritative && !h.RecursionAvailable && err == dnsmessage.ErrSectionDone {
+ 		return errLameReferral
+ 	}
+ 
+-	if h.RCode != dnsmessage.RCodeSuccess && h.RCode != dnsmessage.RCodeNameError {
++	if rcode != dnsmessage.RCodeSuccess && rcode != dnsmessage.RCodeNameError {
+ 		// None of the error codes make sense
+ 		// for the query we sent. If we didn't get
+ 		// a name error and we didn't get success,
+ 		// the server is behaving incorrectly or
+ 		// having temporary trouble.
+-		if h.RCode == dnsmessage.RCodeServerFailure {
++		if rcode == dnsmessage.RCodeServerFailure {
+ 			return errServerTemporarilyMisbehaving
+ 		}
+ 		return errServerMisbehaving
+@@ -253,6 +255,23 @@ func skipToAnswer(p *dnsmessage.Parser, qtype dnsmessage.Type) error {
+ 	}
+ }
+ 
++// extractExtendedRCode extracts the extended RCode from the OPT resource (EDNS(0))
++// If an OPT record is not found, the RCode from the hdr is returned.
++func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage.RCode {
++	p.SkipAllAnswers()
++	p.SkipAllAuthorities()
++	for {
++		ahdr, err := p.AdditionalHeader()
++		if err != nil {
++			return hdr.RCode
++		}
++		if ahdr.Type == dnsmessage.TypeOPT {
++			return ahdr.ExtendedRCode(hdr.RCode)
++		}
++		p.SkipAdditional()
++	}
++}
++
+ // Do a lookup for a single name, which must be rooted
+ // (otherwise answer will not find the answers).
+ func (r *Resolver) tryOneName(ctx context.Context, cfg *dnsConfig, name string, qtype dnsmessage.Type) (dnsmessage.Parser, string, error) {
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 8d435a557f..9ae68f9a99 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2598,3 +2598,34 @@ func TestLookupOrderFilesNoSuchHost(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestExtendedRCode(t *testing.T) {
++	fake := fakeDNSServer{
++		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
++			fraudSuccessCode := dnsmessage.RCodeSuccess | 1<<10
++
++			var edns0Hdr dnsmessage.ResourceHeader
++			edns0Hdr.SetEDNS0(maxDNSPacketSize, fraudSuccessCode, false)
++
++			return dnsmessage.Message{
++				Header: dnsmessage.Header{
++					ID:       q.Header.ID,
++					Response: true,
++					RCode:    fraudSuccessCode,
++				},
++				Questions: []dnsmessage.Question{q.Questions[0]},
++				Additionals: []dnsmessage.Resource{{
++					Header: edns0Hdr,
++					Body:   &dnsmessage.OPTResource{},
++				}},
++			}, nil
++		},
++	}
++
++	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
++	_, _, err := r.tryOneName(context.Background(), getSystemDNSConfig(), "go.dev.", dnsmessage.TypeA)
++	var dnsErr *DNSError
++	if !(errors.As(err, &dnsErr) && dnsErr.Err == errServerMisbehaving.Error()) {
++		t.Fatalf("r.tryOneName(): unexpected error: %v", err)
++	}
++}

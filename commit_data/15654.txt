@@ -7,6 +7,22 @@ Date:   Fri Mar 8 21:18:06 2013 -0800
     R=golang-dev, andybalholm, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/7485045
-
+---
  src/pkg/net/sock_cloexec.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/sock_cloexec.go b/src/pkg/net/sock_cloexec.go
+index 12d0f34887..3f22cd8f57 100644
+--- a/src/pkg/net/sock_cloexec.go
++++ b/src/pkg/net/sock_cloexec.go
+@@ -44,8 +44,8 @@ func sysSocket(f, t, p int) (int, error) {
+ func accept(fd int) (int, syscall.Sockaddr, error) {
+ 	nfd, sa, err := syscall.Accept4(fd, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+ 	// The accept4 system call was introduced in Linux 2.6.28.  If
+-	// we get an ENOSYS error, fall back to using accept.
+-	if err == nil || err != syscall.ENOSYS {
++	// we get an ENOSYS or EINVAL error, fall back to using accept.
++	if err == nil || (err != syscall.ENOSYS && err != syscall.EINVAL) {
+ 		return nfd, sa, err
+ 	}
+ 

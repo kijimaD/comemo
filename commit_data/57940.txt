@@ -16,8 +16,48 @@ Date:   Tue Sep 12 13:18:33 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Keith Randall <khr@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/internal/godebugs/table.go | 2 +-
  src/runtime/mranges.go         | 2 +-
  src/syscall/syscall_openbsd.go | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index cc169e6661..09d5616c9d 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -55,7 +55,7 @@ func Lookup(name string) *Info {
+ 	lo := 0
+ 	hi := len(All)
+ 	for lo < hi {
+-		m := lo + (hi-lo)>>1
++		m := int(uint(lo+hi) >> 1)
+ 		mid := All[m].Name
+ 		if name == mid {
+ 			return &All[m]
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index 4388d26088..6dd1a75247 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -271,7 +271,7 @@ func (a *addrRanges) findSucc(addr uintptr) int {
+ 	const iterMax = 8
+ 	bot, top := 0, len(a.ranges)
+ 	for top-bot > iterMax {
+-		i := ((top - bot) / 2) + bot
++		i := int(uint(bot+top) >> 1)
+ 		if a.ranges[i].contains(base.addr()) {
+ 			// a.ranges[i] contains base, so
+ 			// its successor is the next index.
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 5784d5c583..44bb1121ac 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -37,7 +37,7 @@ func nametomib(name string) (mib []_C_int, err error) {
+ 	left := 0
+ 	right := len(sysctlMib) - 1
+ 	for {
+-		idx := left + (right-left)/2
++		idx := int(uint(left+right) >> 1)
+ 		switch {
+ 		case name == sysctlMib[idx].ctlname:
+ 			return sysctlMib[idx].ctloid, nil

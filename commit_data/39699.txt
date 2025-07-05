@@ -12,8 +12,328 @@ Date:   Wed Mar 13 13:53:38 2019 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167499
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   5 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 232 +++++++++++++++++++++++++
  test/codegen/shift.go                          |  28 +++
  3 files changed, 265 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 61451891a5..43e788562c 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -420,6 +420,11 @@
+ (Less(64|32|16|8)    (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) -> (ConstBool [b2i(c < d)])
+ (Leq(64|32|16|8)     (Const(64|32|16|8) [c]) (Const(64|32|16|8) [d])) -> (ConstBool [b2i(c <= d)])
+ 
++(Geq8  (And8  _ (Const8  [c])) (Const8  [0])) && int8(c)  >= 0 -> (ConstBool [1])
++(Geq16 (And16 _ (Const16 [c])) (Const16 [0])) && int16(c) >= 0 -> (ConstBool [1])
++(Geq32 (And32 _ (Const32 [c])) (Const32 [0])) && int32(c) >= 0 -> (ConstBool [1])
++(Geq64 (And64 _ (Const64 [c])) (Const64 [0])) && int64(c) >= 0 -> (ConstBool [1])
++
+ (Greater64U (Const64 [c]) (Const64 [d])) -> (ConstBool [b2i(uint64(c) > uint64(d))])
+ (Greater32U (Const32 [c]) (Const32 [d])) -> (ConstBool [b2i(uint32(c) > uint32(d))])
+ (Greater16U (Const16 [c]) (Const16 [d])) -> (ConstBool [b2i(uint16(c) > uint16(d))])
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 868cd76f55..b25012cb31 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -10430,6 +10430,64 @@ func rewriteValuegeneric_OpGeq16_0(v *Value) bool {
+ 		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
++	// match: (Geq16 (And16 _ (Const16 [c])) (Const16 [0]))
++	// cond: int16(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd16 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst16 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int16(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (Geq16 (And16 (Const16 [c]) _) (Const16 [0]))
++	// cond: int16(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd16 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst16 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst16 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int16(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpGeq16U_0(v *Value) bool {
+@@ -10474,6 +10532,64 @@ func rewriteValuegeneric_OpGeq32_0(v *Value) bool {
+ 		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
++	// match: (Geq32 (And32 _ (Const32 [c])) (Const32 [0]))
++	// cond: int32(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd32 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst32 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int32(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (Geq32 (And32 (Const32 [c]) _) (Const32 [0]))
++	// cond: int32(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd32 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst32 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int32(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpGeq32F_0(v *Value) bool {
+@@ -10540,6 +10656,64 @@ func rewriteValuegeneric_OpGeq64_0(v *Value) bool {
+ 		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
++	// match: (Geq64 (And64 _ (Const64 [c])) (Const64 [0]))
++	// cond: int64(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd64 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst64 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int64(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (Geq64 (And64 (Const64 [c]) _) (Const64 [0]))
++	// cond: int64(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd64 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst64 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int64(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpGeq64F_0(v *Value) bool {
+@@ -10606,6 +10780,64 @@ func rewriteValuegeneric_OpGeq8_0(v *Value) bool {
+ 		v.AuxInt = b2i(c >= d)
+ 		return true
+ 	}
++	// match: (Geq8 (And8 _ (Const8 [c])) (Const8 [0]))
++	// cond: int8(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd8 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConst8 {
++			break
++		}
++		c := v_0_1.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int8(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
++	// match: (Geq8 (And8 (Const8 [c]) _) (Const8 [0]))
++	// cond: int8(c) >= 0
++	// result: (ConstBool [1])
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAnd8 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConst8 {
++			break
++		}
++		c := v_0_0.AuxInt
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst8 {
++			break
++		}
++		if v_1.AuxInt != 0 {
++			break
++		}
++		if !(int8(c) >= 0) {
++			break
++		}
++		v.reset(OpConstBool)
++		v.AuxInt = 1
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpGeq8U_0(v *Value) bool {
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 1e145d3748..4ae9d7d6a0 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -70,6 +70,34 @@ func rshMask64x32Ext(v int64, s int32) int64 {
+ 	return v >> uint(s&63)
+ }
+ 
++// --------------- //
++//  signed shifts  //
++// --------------- //
++
++// We do want to generate a test + panicshift for these cases.
++func lshSigned(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
++	// amd64:"TESTB"
++	_ = x << v8
++	// amd64:"TESTW"
++	_ = x << v16
++	// amd64:"TESTL"
++	_ = x << v32
++	// amd64:"TESTQ"
++	_ = x << v64
++}
++
++// We want to avoid generating a test + panicshift for these cases.
++func lshSignedMasked(v8 int8, v16 int16, v32 int32, v64 int64, x int) {
++	// amd64:-"TESTB"
++	_ = x << (v8 & 7)
++	// amd64:-"TESTW"
++	_ = x << (v16 & 15)
++	// amd64:-"TESTL"
++	_ = x << (v32 & 31)
++	// amd64:-"TESTQ"
++	_ = x << (v64 & 63)
++}
++
+ // ------------------ //
+ //   bounded shifts   //
+ // ------------------ //

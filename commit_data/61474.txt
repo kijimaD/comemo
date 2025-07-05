@@ -16,9 +16,75 @@ Date:   Wed Nov 6 11:30:25 2024 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/626000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/fips.go                 | 7 ++++++-
  src/cmd/link/internal/ld/fips.go             | 2 +-
  src/crypto/internal/fips/check/check.go      | 3 ++-
  src/crypto/internal/fips/check/check_test.go | 2 +-
  4 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/fips.go b/src/cmd/internal/obj/fips.go
+index 11028ce602..6505ce79ee 100644
+--- a/src/cmd/internal/obj/fips.go
++++ b/src/cmd/internal/obj/fips.go
+@@ -144,7 +144,7 @@ import (
+ 	"strings"
+ )
+ 
+-const enableFIPS = false
++const enableFIPS = true
+ 
+ // IsFIPS reports whether we are compiling one of the crypto/internal/fips/... packages.
+ func (ctxt *Link) IsFIPS() bool {
+@@ -201,6 +201,11 @@ func EnableFIPS() bool {
+ 		}
+ 	}
+ 
++	// AIX doesn't just work, and it's not worth fixing.
++	if buildcfg.GOOS == "aix" {
++		return false
++	}
++
+ 	return enableFIPS
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/fips.go b/src/cmd/link/internal/ld/fips.go
+index 8223da49d7..a88fdd822d 100644
+--- a/src/cmd/link/internal/ld/fips.go
++++ b/src/cmd/link/internal/ld/fips.go
+@@ -115,7 +115,7 @@ import (
+ 	"os"
+ )
+ 
+-const enableFIPS = false
++const enableFIPS = true
+ 
+ // fipsSyms are the special FIPS section bracketing symbols.
+ var fipsSyms = []struct {
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index 7c1d788437..ac64697f3f 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -39,7 +39,8 @@ func supported() bool {
+ 	case runtime.GOARCH == "wasm",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
+-		runtime.GOOS == "windows" && runtime.GOARCH == "arm64":
++		runtime.GOOS == "windows" && runtime.GOARCH == "arm64",
++		runtime.GOOS == "aix":
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/crypto/internal/fips/check/check_test.go b/src/crypto/internal/fips/check/check_test.go
+index a551f7c865..56d7a19503 100644
+--- a/src/crypto/internal/fips/check/check_test.go
++++ b/src/crypto/internal/fips/check/check_test.go
+@@ -18,7 +18,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-const enableFIPSTest = false
++const enableFIPSTest = true
+ 
+ func TestVerify(t *testing.T) {
+ 	if *Verified {

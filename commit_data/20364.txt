@@ -19,7 +19,7 @@ Date:   Wed Sep 3 13:02:48 2014 -0400
     R=golang-codereviews, dave, bradfitz, josharian
     CC=golang-codereviews, iant, khr, r
     https://golang.org/cl/140880043
-
+---
  src/pkg/runtime/error.go     |   2 +-
  src/pkg/runtime/extern.go    |  13 +-
  src/pkg/runtime/funcdata.h   |   2 +
@@ -30,3 +30,936 @@ Date:   Wed Sep 3 13:02:48 2014 -0400
  src/pkg/runtime/symtab.go    | 272 +++++++++++++++++++++++++++--------
  src/pkg/runtime/traceback.go |  80 +++++++----
  9 files changed, 275 insertions(+), 459 deletions(-)
+
+diff --git a/src/pkg/runtime/error.go b/src/pkg/runtime/error.go
+index 54591ee43e..3ea93680ce 100644
+--- a/src/pkg/runtime/error.go
++++ b/src/pkg/runtime/error.go
+@@ -85,7 +85,7 @@ type errorCString struct{ cstr unsafe.Pointer }
+ func (e errorCString) RuntimeError() {}
+ 
+ func (e errorCString) Error() string {
+-	return "runtime error: " + cstringToGo(e.cstr)
++	return "runtime error: " + gostringnocopy((*byte)(e.cstr))
+ }
+ 
+ // For calling from C.
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 2ca22d923b..3d06a23fce 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -75,12 +75,6 @@ of the run-time system.
+ */
+ package runtime
+ 
+-import "unsafe"
+-
+-// sigpanic is the C function sigpanic.
+-// That is, unsafe.Pointer(&sigpanic) is the C function pointer for sigpanic.
+-var sigpanic struct{}
+-
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack.  The argument skip is the number of stack frames
+ // to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
+@@ -109,7 +103,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	// All architectures turn faults into apparent calls to sigpanic.
+ 	// If we see a call to sigpanic, we do not back up the PC to find
+ 	// the line number of the call instruction, because there is no call.
+-	if xpc > f.entry && (g == nil || g.entry != uintptr(unsafe.Pointer(&sigpanic))) {
++	if xpc > f.entry && (g == nil || g.entry != funcPC(sigpanic)) {
+ 		xpc--
+ 	}
+ 	line = int(funcline(f, xpc, &file))
+@@ -117,11 +111,6 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	return
+ }
+ 
+-func findfunc(uintptr) *_func
+-
+-//go:noescape
+-func funcline(*_func, uintptr, *string) int32
+-
+ // Callers fills the slice pc with the program counters of function invocations
+ // on the calling goroutine's stack.  The argument skip is the number of stack frames
+ // to skip before recording in pc, with 0 identifying the frame for Callers itself and
+diff --git a/src/pkg/runtime/funcdata.h b/src/pkg/runtime/funcdata.h
+index 85e82838b7..dc9c41363e 100644
+--- a/src/pkg/runtime/funcdata.h
++++ b/src/pkg/runtime/funcdata.h
+@@ -6,6 +6,8 @@
+ // in Go binaries. It is included by both C and assembly, so it must
+ // be written using #defines. It is included by the runtime package
+ // as well as the compilers.
++//
++// symtab.go also contains a copy of these constants.
+ 
+ #define PCDATA_ArgSize 0 /* argument size at CALL instruction */
+ #define PCDATA_StackMapIndex 1
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index d4999e7465..b0adfb601b 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -120,6 +120,7 @@ runtime·goenvs_unix(void)
+ 	syscall·envs.cap = n;
+ }
+ 
++#pragma textflag NOSPLIT
+ Slice
+ runtime·environ()
+ {
+diff --git a/src/pkg/runtime/string.go b/src/pkg/runtime/string.go
+index 1cefad9671..91f33db118 100644
+--- a/src/pkg/runtime/string.go
++++ b/src/pkg/runtime/string.go
+@@ -145,19 +145,6 @@ type stringStruct struct {
+ 	len int
+ }
+ 
+-func cstringToGo(str unsafe.Pointer) (s string) {
+-	i := 0
+-	for ; ; i++ {
+-		if *(*byte)(unsafe.Pointer(uintptr(str) + uintptr(i))) == 0 {
+-			break
+-		}
+-	}
+-	t := (*stringStruct)(unsafe.Pointer(&s))
+-	t.str = unsafe.Pointer(str)
+-	t.len = i
+-	return
+-}
+-
+ func intstring(v int64) string {
+ 	s, b := rawstring(4)
+ 	n := runetochar(b, rune(v))
+diff --git a/src/pkg/runtime/stubs.go b/src/pkg/runtime/stubs.go
+index bf83500b5a..14857908fd 100644
+--- a/src/pkg/runtime/stubs.go
++++ b/src/pkg/runtime/stubs.go
+@@ -248,19 +248,15 @@ func open(name *byte, mode, perm int32) int32
+ //go:noescape
+ func gotraceback(*bool) int32
+ 
+-func funcname(*_func) *byte
+-
+-func gofuncname(f *_func) string {
+-	return gostringnocopy(funcname(f))
+-}
+-
+ const _NoArgs = ^uintptr(0)
+ 
+-var newproc, lessstack struct{} // C/assembly functions
+-
+-func funcspdelta(*_func, uintptr) int32 // symtab.c
+-func funcarglen(*_func, uintptr) int32  // symtab.c
+-const _ArgsSizeUnknown = -0x80000000    // funcdata.h
++func newstack()
++func newproc()
++func lessstack()
++func morestack()
++func mstart()
++func rt0_go()
++func sigpanic()
+ 
+ // return0 is a stub used to return 0 from deferproc.
+ // It is called at the very end of deferproc to signal
+diff --git a/src/pkg/runtime/symtab.c b/src/pkg/runtime/symtab.c
+deleted file mode 100644
+index 802ad5da38..0000000000
+--- a/src/pkg/runtime/symtab.c
++++ /dev/null
+@@ -1,333 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Runtime symbol table parsing.
+-// See http://golang.org/s/go12symtab for an overview.
+-
+-#include "runtime.h"
+-#include "defs_GOOS_GOARCH.h"
+-#include "os_GOOS.h"
+-#include "arch_GOARCH.h"
+-#include "malloc.h"
+-#include "funcdata.h"
+-
+-typedef struct Ftab Ftab;
+-struct Ftab
+-{
+-	uintptr	entry;
+-	uintptr	funcoff;
+-};
+-
+-extern byte runtime·pclntab[];
+-extern byte runtime·epclntab[];
+-
+-static Ftab *ftab;
+-static uintptr runtime·nftab;
+-static uint32 *filetab;
+-static uint32 runtime·nfiletab;
+-
+-extern Slice runtime·pclntable;
+-extern Slice runtime·ftabs;
+-extern Slice runtime·filetab;
+-extern uint32 runtime·pcquantum;
+-
+-static String end = { (uint8*)"end", 3 };
+-
+-void
+-runtime·symtabinit(void)
+-{
+-	int32 i, j;
+-	Func *f1, *f2;
+-	
+-	// See golang.org/s/go12symtab for header: 0xfffffffb,
+-	// two zero bytes, a byte giving the PC quantum,
+-	// and a byte giving the pointer width in bytes.
+-	if(*(uint32*)runtime·pclntab != 0xfffffffb || runtime·pclntab[4] != 0 || runtime·pclntab[5] != 0 || runtime·pclntab[6] != PCQuantum || runtime·pclntab[7] != sizeof(void*)) {
+-		runtime·printf("runtime: function symbol table header: %x %x\n", *(uint32*)runtime·pclntab, *(uint32*)(runtime·pclntab+4));
+-		runtime·throw("invalid function symbol table\n");
+-	}
+-
+-	runtime·nftab = *(uintptr*)(runtime·pclntab+8);
+-	ftab = (Ftab*)(runtime·pclntab+8+sizeof(void*));
+-	for(i=0; i<runtime·nftab; i++) {
+-		// NOTE: ftab[runtime·nftab].entry is legal; it is the address beyond the final function.
+-		if(ftab[i].entry > ftab[i+1].entry) {
+-			f1 = (Func*)(runtime·pclntab + ftab[i].funcoff);
+-			f2 = (Func*)(runtime·pclntab + ftab[i+1].funcoff);
+-			runtime·printf("function symbol table not sorted by program counter: %p %s > %p %s", ftab[i].entry, runtime·funcname(f1), ftab[i+1].entry, i+1 == runtime·nftab ? "end" : runtime·funcname(f2));
+-			for(j=0; j<=i; j++)
+-				runtime·printf("\t%p %s\n", ftab[j].entry, runtime·funcname((Func*)(runtime·pclntab + ftab[j].funcoff)));
+-			runtime·throw("invalid runtime symbol table");
+-		}
+-	}
+-	
+-	filetab = (uint32*)(runtime·pclntab + *(uint32*)&ftab[runtime·nftab].funcoff);
+-	runtime·nfiletab = filetab[0];
+-
+-	runtime·pcquantum = PCQuantum;
+-
+-	runtime·pclntable.array = (byte*)runtime·pclntab;
+-	runtime·pclntable.len = (byte*)runtime·epclntab - (byte*)runtime·pclntab;
+-	runtime·pclntable.cap = runtime·pclntable.len;
+-
+-	runtime·ftabs.array = (byte*)ftab;
+-	runtime·ftabs.len = runtime·nftab+1;
+-	runtime·ftabs.cap = runtime·ftabs.len;
+-
+-	runtime·filetab.array = (byte*)filetab;
+-	runtime·filetab.len = filetab[0];
+-	runtime·filetab.cap = runtime·filetab.len;
+-}
+-
+-static uint32
+-readvarint(byte **pp)
+-{
+-	byte *p;
+-	uint32 v;
+-	int32 shift;
+-	
+-	v = 0;
+-	p = *pp;
+-	for(shift = 0;; shift += 7) {
+-		v |= (*p & 0x7F) << shift;
+-		if(!(*p++ & 0x80))
+-			break;
+-	}
+-	*pp = p;
+-	return v;
+-}
+-
+-void*
+-runtime·funcdata(Func *f, int32 i)
+-{
+-	byte *p;
+-
+-	if(i < 0 || i >= f->nfuncdata)
+-		return nil;
+-	p = (byte*)&f->nfuncdata + 4 + f->npcdata*4;
+-	if(sizeof(void*) == 8 && ((uintptr)p & 4)) {
+-		if(((uintptr)f & 4))
+-			runtime·printf("misaligned func %p\n", f);
+-		p += 4;
+-	}
+-	return ((void**)p)[i];
+-}
+-
+-static bool
+-step(byte **pp, uintptr *pc, int32 *value, bool first)
+-{
+-	uint32 uvdelta, pcdelta;
+-	int32 vdelta;
+-
+-	uvdelta = readvarint(pp);
+-	if(uvdelta == 0 && !first)
+-		return 0;
+-	if(uvdelta&1)
+-		uvdelta = ~(uvdelta>>1);
+-	else
+-		uvdelta >>= 1;
+-	vdelta = (int32)uvdelta;
+-	pcdelta = readvarint(pp) * PCQuantum;
+-	*value += vdelta;
+-	*pc += pcdelta;
+-	return 1;
+-}
+-
+-// Return associated data value for targetpc in func f.
+-// (Source file is f->src.)
+-static int32
+-pcvalue(Func *f, int32 off, uintptr targetpc, bool strict)
+-{
+-	byte *p;
+-	uintptr pc;
+-	int32 value;
+-
+-	enum {
+-		debug = 0
+-	};
+-
+-	// The table is a delta-encoded sequence of (value, pc) pairs.
+-	// Each pair states the given value is in effect up to pc.
+-	// The value deltas are signed, zig-zag encoded.
+-	// The pc deltas are unsigned.
+-	// The starting value is -1, the starting pc is the function entry.
+-	// The table ends at a value delta of 0 except in the first pair.
+-	if(off == 0)
+-		return -1;
+-	p = runtime·pclntab + off;
+-	pc = f->entry;
+-	value = -1;
+-
+-	if(debug && !runtime·panicking)
+-		runtime·printf("pcvalue start f=%s [%p] pc=%p targetpc=%p value=%d tab=%p\n",
+-			runtime·funcname(f), f, pc, targetpc, value, p);
+-	
+-	while(step(&p, &pc, &value, pc == f->entry)) {
+-		if(debug)
+-			runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
+-		if(targetpc < pc)
+-			return value;
+-	}
+-	
+-	// If there was a table, it should have covered all program counters.
+-	// If not, something is wrong.
+-	if(runtime·panicking || !strict)
+-		return -1;
+-	runtime·printf("runtime: invalid pc-encoded table f=%s pc=%p targetpc=%p tab=%p\n",
+-		runtime·funcname(f), pc, targetpc, p);
+-	p = (byte*)f + off;
+-	pc = f->entry;
+-	value = -1;
+-	
+-	while(step(&p, &pc, &value, pc == f->entry))
+-		runtime·printf("\tvalue=%d until pc=%p\n", value, pc);
+-	
+-	runtime·throw("invalid runtime symbol table");
+-	return -1;
+-}
+-
+-static String unknown = { (uint8*)"?", 1 };
+-
+-int8*
+-runtime·funcname(Func *f)
+-{
+-	if(f == nil || f->nameoff == 0)
+-		return nil;
+-	return (int8*)(runtime·pclntab + f->nameoff);
+-}
+-
+-static int32
+-funcline(Func *f, uintptr targetpc, String *file, bool strict)
+-{
+-	int32 line;
+-	int32 fileno;
+-
+-	*file = unknown;
+-	fileno = pcvalue(f, f->pcfile, targetpc, strict);
+-	line = pcvalue(f, f->pcln, targetpc, strict);
+-	if(fileno == -1 || line == -1 || fileno >= runtime·nfiletab) {
+-		// runtime·printf("looking for %p in %S got file=%d line=%d\n", targetpc, *f->name, fileno, line);
+-		return 0;
+-	}
+-	*file = runtime·gostringnocopy(runtime·pclntab + filetab[fileno]);
+-	return line;
+-}
+-
+-int32
+-runtime·funcline(Func *f, uintptr targetpc, String *file)
+-{
+-	return funcline(f, targetpc, file, true);
+-}
+-
+-int32
+-runtime·funcspdelta(Func *f, uintptr targetpc)
+-{
+-	int32 x;
+-	
+-	x = pcvalue(f, f->pcsp, targetpc, true);
+-	if(x&(sizeof(void*)-1))
+-		runtime·printf("invalid spdelta %d %d\n", f->pcsp, x);
+-	return x;
+-}
+-
+-int32
+-runtime·pcdatavalue(Func *f, int32 table, uintptr targetpc)
+-{
+-	if(table < 0 || table >= f->npcdata)
+-		return -1;
+-	return pcvalue(f, (&f->nfuncdata)[1+table], targetpc, true);
+-}
+-
+-int32
+-runtime·funcarglen(Func *f, uintptr targetpc)
+-{
+-	if(targetpc == f->entry)
+-		return 0;
+-	return runtime·pcdatavalue(f, PCDATA_ArgSize, targetpc-PCQuantum);
+-}
+-
+-Func*
+-runtime·findfunc(uintptr addr)
+-{
+-	Ftab *f;
+-	int32 nf, n;
+-
+-	if(runtime·nftab == 0)
+-		return nil;
+-	if(addr < ftab[0].entry || addr >= ftab[runtime·nftab].entry)
+-		return nil;
+-
+-	// binary search to find func with entry <= addr.
+-	f = ftab;
+-	nf = runtime·nftab;
+-	while(nf > 0) {
+-		n = nf/2;
+-		if(f[n].entry <= addr && addr < f[n+1].entry)
+-			return (Func*)(runtime·pclntab + f[n].funcoff);
+-		else if(addr < f[n].entry)
+-			nf = n;
+-		else {
+-			f += n+1;
+-			nf -= n+1;
+-		}
+-	}
+-
+-	// can't get here -- we already checked above
+-	// that the address was in the table bounds.
+-	// this can only happen if the table isn't sorted
+-	// by address or if the binary search above is buggy.
+-	runtime·prints("findfunc unreachable\n");
+-	return nil;
+-}
+-
+-static bool
+-hasprefix(String s, int8 *p)
+-{
+-	int32 i;
+-
+-	for(i=0; i<s.len; i++) {
+-		if(p[i] == 0)
+-			return 1;
+-		if(p[i] != s.str[i])
+-			return 0;
+-	}
+-	return p[i] == 0;
+-}
+-
+-static bool
+-contains(String s, int8 *p)
+-{
+-	int32 i;
+-
+-	if(p[0] == 0)
+-		return 1;
+-	for(i=0; i<s.len; i++) {
+-		if(s.str[i] != p[0])
+-			continue;
+-		if(hasprefix((String){s.str + i, s.len - i}, p))
+-			return 1;
+-	}
+-	return 0;
+-}
+-
+-bool
+-runtime·showframe(Func *f, G *gp)
+-{
+-	static int32 traceback = -1;
+-	String name;
+-
+-	if(g->m->throwing > 0 && gp != nil && (gp == g->m->curg || gp == g->m->caughtsig))
+-		return 1;
+-	if(traceback < 0)
+-		traceback = runtime·gotraceback(nil);
+-	name = runtime·gostringnocopy((uint8*)runtime·funcname(f));
+-
+-	// Special case: always show runtime.panic frame, so that we can
+-	// see where a panic started in the middle of a stack trace.
+-	// See golang.org/issue/5832.
+-	if(name.len == 7+1+5 && hasprefix(name, "runtime.panic"))
+-		return 1;
+-
+-	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.");
+-}
+diff --git a/src/pkg/runtime/symtab.go b/src/pkg/runtime/symtab.go
+index 880a78d481..bd9e9924c4 100644
+--- a/src/pkg/runtime/symtab.go
++++ b/src/pkg/runtime/symtab.go
+@@ -6,45 +6,110 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// FuncForPC returns a *Func describing the function that contains the
+-// given program counter address, or else nil.
+-func FuncForPC(pc uintptr) *Func {
+-	if len(ftabs) == 0 {
+-		return nil
+-	}
++// NOTE: Func does not expose the actual unexported fields, because we return *Func
++// values to users, and we want to keep them from being able to overwrite the data
++// with (say) *f = Func{}.
++// All code operating on a *Func must call raw to get the *_func instead.
+ 
+-	if pc < ftabs[0].entry || pc >= ftabs[len(ftabs)-1].entry {
+-		return nil
++// A Func represents a Go function in the running binary.
++type Func struct {
++	opaque struct{} // unexported field to disallow conversions
++}
++
++func (f *Func) raw() *_func {
++	return (*_func)(unsafe.Pointer(f))
++}
++
++// funcdata.h
++const (
++	_PCDATA_ArgSize             = 0
++	_PCDATA_StackMapIndex       = 1
++	_FUNCDATA_ArgsPointerMaps   = 0
++	_FUNCDATA_LocalsPointerMaps = 1
++	_FUNCDATA_DeadValueMaps     = 2
++	_ArgsSizeUnknown            = -0x80000000
++)
++
++var (
++	pclntable []byte
++	ftab      []functab
++	filetab   []uint32
++
++	pclntab, epclntab struct{} // linker symbols
++)
++
++type functab struct {
++	entry   uintptr
++	funcoff uintptr
++}
++
++func symtabinit() {
++	// See golang.org/s/go12symtab for header: 0xfffffffb,
++	// two zero bytes, a byte giving the PC quantum,
++	// and a byte giving the pointer width in bytes.
++	pcln := (*[8]byte)(unsafe.Pointer(&pclntab))
++	pcln32 := (*[2]uint32)(unsafe.Pointer(&pclntab))
++	if pcln32[0] != 0xfffffffb || pcln[4] != 0 || pcln[5] != 0 || pcln[6] != _PCQuantum || pcln[7] != ptrSize {
++		println("runtime: function symbol table header:", hex(pcln32[0]), hex(pcln[4]), hex(pcln[5]), hex(pcln[6]), hex(pcln[7]))
++		gothrow("invalid function symbol table\n")
+ 	}
+ 
+-	// binary search to find func with entry <= pc.
+-	lo := 0
+-	nf := len(ftabs) - 1 // last entry is sentinel
+-	for nf > 0 {
+-		n := nf / 2
+-		f := &ftabs[lo+n]
+-		if f.entry <= pc && pc < ftabs[lo+n+1].entry {
+-			return (*Func)(unsafe.Pointer(&pclntable[f.funcoff]))
+-		} else if pc < f.entry {
+-			nf = n
+-		} else {
+-			lo += n + 1
+-			nf -= n + 1
++	// pclntable is all bytes of pclntab symbol.
++	sp := (*sliceStruct)(unsafe.Pointer(&pclntable))
++	sp.array = unsafe.Pointer(&pclntab)
++	sp.len = int(uintptr(unsafe.Pointer(&epclntab)) - uintptr(unsafe.Pointer(&pclntab)))
++	sp.cap = sp.len
++
++	// ftab is lookup table for function by program counter.
++	nftab := int(*(*uintptr)(add(unsafe.Pointer(pcln), 8)))
++	p := add(unsafe.Pointer(pcln), 8+ptrSize)
++	sp = (*sliceStruct)(unsafe.Pointer(&ftab))
++	sp.array = p
++	sp.len = nftab + 1
++	sp.cap = sp.len
++	for i := 0; i < nftab; i++ {
++		// NOTE: ftab[nftab].entry is legal; it is the address beyond the final function.
++		if ftab[i].entry > ftab[i+1].entry {
++			f1 := (*_func)(unsafe.Pointer(&pclntable[ftab[i].funcoff]))
++			f2 := (*_func)(unsafe.Pointer(&pclntable[ftab[i+1].funcoff]))
++			f2name := "end"
++			if i+1 < nftab {
++				f2name = gofuncname(f2)
++			}
++			println("function symbol table not sorted by program counter:", hex(ftab[i].entry), gofuncname(f1), ">", hex(ftab[i+1].entry), f2name)
++			for j := 0; j <= i; j++ {
++				print("\t", hex(ftab[j].entry), " ", gofuncname((*_func)(unsafe.Pointer(&pclntable[ftab[j].funcoff]))))
++			}
++			gothrow("invalid runtime symbol table")
+ 		}
+ 	}
+ 
+-	gothrow("FuncForPC: binary search failed")
+-	return nil
++	// file table follows ftab.
++	sp = (*sliceStruct)(unsafe.Pointer(&filetab))
++	p = unsafe.Pointer(add(unsafe.Pointer(pcln), ftab[nftab].funcoff))
++	sp.array = unsafe.Pointer(add(unsafe.Pointer(pcln), ftab[nftab].funcoff))
++	// length is in first element of array.
++	// set len to 1 so we can get first element.
++	sp.len = 1
++	sp.cap = 1
++	sp.len = int(filetab[0])
++	sp.cap = sp.len
++}
++
++// FuncForPC returns a *Func describing the function that contains the
++// given program counter address, or else nil.
++func FuncForPC(pc uintptr) *Func {
++	return (*Func)(unsafe.Pointer(findfunc(pc)))
+ }
+ 
+ // Name returns the name of the function.
+ func (f *Func) Name() string {
+-	return cstringToGo(unsafe.Pointer(&pclntable[f.nameoff]))
++	return gofuncname(f.raw())
+ }
+ 
+ // Entry returns the entry address of the function.
+ func (f *Func) Entry() uintptr {
+-	return f.entry
++	return f.raw().entry
+ }
+ 
+ // FileLine returns the file name and line number of the
+@@ -52,20 +117,42 @@ func (f *Func) Entry() uintptr {
+ // The result will not be accurate if pc is not a program
+ // counter within f.
+ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+-	fileno := int(f.pcvalue(f.pcfile, pc))
+-	if fileno == -1 || fileno >= len(filetab) {
+-		return "?", 0
++	// Pass strict=false here, because anyone can call this function,
++	// and they might just be wrong about targetpc belonging to f.
++	line = int(funcline1(f.raw(), pc, &file, false))
++	return file, line
++}
++
++func findfunc(pc uintptr) *_func {
++	if len(ftab) == 0 {
++		return nil
+ 	}
+-	line = int(f.pcvalue(f.pcln, pc))
+-	if line == -1 {
+-		return "?", 0
++
++	if pc < ftab[0].entry || pc >= ftab[len(ftab)-1].entry {
++		return nil
+ 	}
+-	file = cstringToGo(unsafe.Pointer(&pclntable[filetab[fileno]]))
+-	return file, line
++
++	// binary search to find func with entry <= pc.
++	lo := 0
++	nf := len(ftab) - 1 // last entry is sentinel
++	for nf > 0 {
++		n := nf / 2
++		f := &ftab[lo+n]
++		if f.entry <= pc && pc < ftab[lo+n+1].entry {
++			return (*_func)(unsafe.Pointer(&pclntable[f.funcoff]))
++		} else if pc < f.entry {
++			nf = n
++		} else {
++			lo += n + 1
++			nf -= n + 1
++		}
++	}
++
++	gothrow("findfunc: binary search failed")
++	return nil
+ }
+ 
+-// Return associated data value for targetpc in func f.
+-func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
++func pcvalue(f *_func, off int32, targetpc uintptr, strict bool) int32 {
+ 	if off == 0 {
+ 		return -1
+ 	}
+@@ -82,9 +169,95 @@ func (f *Func) pcvalue(off int32, targetpc uintptr) int32 {
+ 			return val
+ 		}
+ 	}
++
++	// If there was a table, it should have covered all program counters.
++	// If not, something is wrong.
++	if panicking != 0 || !strict {
++		return -1
++	}
++
++	print("runtime: invalid pc-encoded table f=", gofuncname(f), " pc=", hex(pc), " targetpc=", hex(targetpc), " tab=", p, "\n")
++
++	p = pclntable[off:]
++	pc = f.entry
++	val = -1
++	for {
++		var ok bool
++		p, ok = step(p, &pc, &val, pc == f.entry)
++		if !ok {
++			break
++		}
++		print("\tvalue=", val, " until pc=", hex(pc), "\n")
++	}
++
++	gothrow("invalid runtime symbol table")
+ 	return -1
+ }
+ 
++func funcname(f *_func) *byte {
++	if f == nil || f.nameoff == 0 {
++		return nil
++	}
++	return (*byte)(unsafe.Pointer(&pclntable[f.nameoff]))
++}
++
++func gofuncname(f *_func) string {
++	return gostringnocopy(funcname(f))
++}
++
++func funcline1(f *_func, targetpc uintptr, file *string, strict bool) int32 {
++	*file = "?"
++	fileno := int(pcvalue(f, f.pcfile, targetpc, strict))
++	line := pcvalue(f, f.pcln, targetpc, strict)
++	if fileno == -1 || line == -1 || fileno >= len(filetab) {
++		// print("looking for ", hex(targetpc), " in ", gofuncname(f), " got file=", fileno, " line=", lineno, "\n")
++		return 0
++	}
++	*file = gostringnocopy(&pclntable[filetab[fileno]])
++	return line
++}
++
++func funcline(f *_func, targetpc uintptr, file *string) int32 {
++	return funcline1(f, targetpc, file, true)
++}
++
++func funcspdelta(f *_func, targetpc uintptr) int32 {
++	x := pcvalue(f, f.pcsp, targetpc, true)
++	if x&(ptrSize-1) != 0 {
++		print("invalid spdelta ", f.pcsp, " ", x, "\n")
++	}
++	return x
++}
++
++func pcdatavalue(f *_func, table int32, targetpc uintptr) int32 {
++	if table < 0 || table >= f.npcdata {
++		return -1
++	}
++	off := *(*int32)(add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(table)*4))
++	return pcvalue(f, off, targetpc, true)
++}
++
++func funcarglen(f *_func, targetpc uintptr) int32 {
++	if targetpc == f.entry {
++		return 0
++	}
++	return pcdatavalue(f, _PCDATA_ArgSize, targetpc-_PCQuantum)
++}
++
++func funcdata(f *_func, i int32) unsafe.Pointer {
++	if i < 0 || i >= f.nfuncdata {
++		return nil
++	}
++	p := add(unsafe.Pointer(&f.nfuncdata), unsafe.Sizeof(f.nfuncdata)+uintptr(f.npcdata)*4)
++	if ptrSize == 8 && uintptr(p)&4 != 0 {
++		if uintptr(unsafe.Pointer(f))&4 != 0 {
++			println("runtime: misaligned func", f)
++		}
++		p = add(p, 4)
++	}
++	return *(*unsafe.Pointer)(add(p, uintptr(i)*ptrSize))
++}
++
+ // step advances to the next pc, value pair in the encoded table.
+ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool) {
+ 	p, uvdelta := readvarint(p)
+@@ -98,7 +271,7 @@ func step(p []byte, pc *uintptr, val *int32, first bool) (newp []byte, ok bool)
+ 	}
+ 	vdelta := int32(uvdelta)
+ 	p, pcdelta := readvarint(p)
+-	*pc += uintptr(pcdelta * pcquantum)
++	*pc += uintptr(pcdelta * _PCQuantum)
+ 	*val += vdelta
+ 	return p, true
+ }
+@@ -117,30 +290,3 @@ func readvarint(p []byte) (newp []byte, val uint32) {
+ 	}
+ 	return p, v
+ }
+-
+-// Populated by runtime·symtabinit during bootstrapping. Treat as immutable.
+-var (
+-	pclntable []byte
+-	ftabs     []ftab
+-	filetab   []uint32
+-	pcquantum uint32
+-)
+-
+-type Func struct {
+-	entry   uintptr // start pc
+-	nameoff int32   // function name
+-
+-	args  int32 // in/out args size
+-	frame int32 // legacy frame size; use pcsp if possible
+-
+-	pcsp      int32
+-	pcfile    int32
+-	pcln      int32
+-	npcdata   int32
+-	nfuncdata int32
+-}
+-
+-type ftab struct {
+-	entry   uintptr
+-	funcoff uintptr
+-}
+diff --git a/src/pkg/runtime/traceback.go b/src/pkg/runtime/traceback.go
+index 6286c9dac1..adb03440b3 100644
+--- a/src/pkg/runtime/traceback.go
++++ b/src/pkg/runtime/traceback.go
+@@ -30,10 +30,22 @@ import "unsafe"
+ 
+ const usesLR = GOARCH != "amd64" && GOARCH != "amd64p32" && GOARCH != "386"
+ 
+-// jmpdeferPC is the PC at the beginning of the jmpdefer assembly function.
+-// The traceback needs to recognize it on link register architectures.
+-var jmpdeferPC = funcPC(jmpdefer)
+-var deferprocPC = funcPC(deferproc)
++var (
++	deferprocPC = funcPC(deferproc)
++	goexitPC    = funcPC(goexit)
++	jmpdeferPC  = funcPC(jmpdefer)
++	lessstackPC = funcPC(lessstack)
++	mcallPC     = funcPC(mcall)
++	morestackPC = funcPC(morestack)
++	mstartPC    = funcPC(mstart)
++	newprocPC   = funcPC(newproc)
++	newstackPC  = funcPC(newstack)
++	onMPC       = funcPC(onM)
++	rt0_goPC    = funcPC(rt0_go)
++	sigpanicPC  = funcPC(sigpanic)
++
++	externalthreadhandlerp uintptr // initialized elsewhere
++)
+ 
+ // System-specific hook. See traceback_windows.go
+ var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
+@@ -112,7 +124,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		//	fp is the frame pointer (caller's stack pointer) at that program counter, or nil if unknown.
+ 		//	stk is the stack containing sp.
+ 		//	The caller's program counter is lr, unless lr is zero, in which case it is *(uintptr*)sp.
+-		if frame.pc == uintptr(unsafe.Pointer(&lessstack)) {
++		if frame.pc == lessstackPC {
+ 			// Hit top of stack segment.  Unwind to next segment.
+ 			frame.pc = stk.gobuf.pc
+ 			frame.sp = stk.gobuf.sp
+@@ -213,7 +225,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 				frame.arglen = uintptr(f.args)
+ 			} else if flr == nil {
+ 				frame.arglen = 0
+-			} else if frame.lr == uintptr(unsafe.Pointer(&lessstack)) {
++			} else if frame.lr == lessstackPC {
+ 				frame.arglen = uintptr(stk.argsize)
+ 			} else {
+ 				i := funcarglen(flr, frame.lr)
+@@ -342,8 +354,8 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		n++
+ 
+ 	skipped:
+-		waspanic = f.entry == uintptr(unsafe.Pointer(&sigpanic))
+-		wasnewproc = f.entry == uintptr(unsafe.Pointer(&newproc)) || f.entry == deferprocPC
++		waspanic = f.entry == sigpanicPC
++		wasnewproc = f.entry == newprocPC || f.entry == deferprocPC
+ 
+ 		// Do not unwind past the bottom of the stack.
+ 		if flr == nil {
+@@ -448,8 +460,6 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 	return n
+ }
+ 
+-func showframe(*_func, *g) bool
+-
+ func printcreatedby(gp *g) {
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	pc := gp.gopc
+@@ -499,6 +509,40 @@ func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
+ 	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, false)
+ }
+ 
++func showframe(f *_func, gp *g) bool {
++	g := getg()
++	if g.m.throwing > 0 && gp != nil && (gp == g.m.curg || gp == g.m.caughtsig) {
++		return true
++	}
++	traceback := gotraceback(nil)
++	name := gostringnocopy(funcname(f))
++
++	// Special case: always show runtime.panic frame, so that we can
++	// see where a panic started in the middle of a stack trace.
++	// See golang.org/issue/5832.
++	if name == "runtime.panic" {
++		return true
++	}
++
++	return traceback > 1 || f != nil && contains(name, ".") && !hasprefix(name, "runtime.")
++}
++
++func contains(s, t string) bool {
++	if len(t) == 0 {
++		return true
++	}
++	for i := 0; i < len(s); i++ {
++		if s[i] == t[0] && hasprefix(s[i:], t) {
++			return true
++		}
++	}
++	return false
++}
++
++func hasprefix(s, t string) bool {
++	return len(s) >= len(t) && s[:len(t)] == t
++}
++
+ var gStatusStrings = [...]string{
+ 	_Gidle:      "idle",
+ 	_Grunnable:  "runnable",
+@@ -583,22 +627,6 @@ func tracebackothers(me *g) {
+ 	unlock(&allglock)
+ }
+ 
+-func mstart()
+-func morestack()
+-func rt0_go()
+-
+-var (
+-	goexitPC    = funcPC(goexit)
+-	mstartPC    = funcPC(mstart)
+-	mcallPC     = funcPC(mcall)
+-	onMPC       = funcPC(onM)
+-	morestackPC = funcPC(morestack)
+-	lessstackPC = funcPC(lessstack)
+-	rt0_goPC    = funcPC(rt0_go)
+-
+-	externalthreadhandlerp uintptr // initialized elsewhere
+-)
+-
+ // Does f mark the top of a goroutine stack?
+ func topofstack(f *_func) bool {
+ 	pc := f.entry

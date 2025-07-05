@@ -7,6 +7,38 @@ Date:   Mon Feb 2 16:42:40 2015 -0800
     Change-Id: I7514e643a6a81ca715adbf6f8d19d3b2dd43fe6c
     Reviewed-on: https://go-review.googlesource.com/3810
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/strconv/decimal.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/strconv/decimal.go b/src/strconv/decimal.go
+index 42601283d2..3d7c8d1da9 100644
+--- a/src/strconv/decimal.go
++++ b/src/strconv/decimal.go
+@@ -12,7 +12,7 @@
+ package strconv
+ 
+ type decimal struct {
+-	d     [800]byte // digits
++	d     [800]byte // digits, big-endian representation
+ 	nd    int       // number of digits used
+ 	dp    int       // decimal point
+ 	neg   bool
+@@ -105,7 +105,7 @@ func (a *decimal) Assign(v uint64) {
+ // Signed int has 31 bits, and we have to be able to accommodate 9<<k.
+ const maxShift = 27
+ 
+-// Binary shift right (* 2) by k bits.  k <= maxShift to avoid overflow.
++// Binary shift right (/ 2) by k bits.  k <= maxShift to avoid overflow.
+ func rightShift(a *decimal, k uint) {
+ 	r := 0 // read pointer
+ 	w := 0 // write pointer
+@@ -228,7 +228,7 @@ func prefixIsLessThan(b []byte, s string) bool {
+ 	return false
+ }
+ 
+-// Binary shift left (/ 2) by k bits.  k <= maxShift to avoid overflow.
++// Binary shift left (* 2) by k bits.  k <= maxShift to avoid overflow.
+ func leftShift(a *decimal, k uint) {
+ 	delta := leftcheats[k].delta
+ 	if prefixIsLessThan(a.d[0:a.nd], leftcheats[k].cutoff) {

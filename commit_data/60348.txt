@@ -19,6 +19,19 @@ Date:   Fri Jun 21 16:44:44 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Commit-Queue: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3bec04e0b8..c29a532bfd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2917,6 +2917,6 @@ func (ctxt *Link) findExtLinkTool(toolname string) string {
+ 	if err != nil {
+ 		Exitf("%s: finding %s failed: %v\n%s", os.Args[0], toolname, err, out)
+ 	}
+-	cmdpath := strings.TrimSuffix(string(out), "\n")
++	cmdpath := strings.TrimRight(string(out), "\r\n")
+ 	return cmdpath
+ }

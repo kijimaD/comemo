@@ -9,6 +9,20 @@ Date:   Fri Jun 3 13:02:35 2011 -0700
     R=iant, jan.mercl, rsc
     CC=golang-dev
     https://golang.org/cl/4515189
-
+---
  src/pkg/ebnf/ebnf.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 964e1c1b0e..386bfce504 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -8,7 +8,7 @@
+ //	Production  = name "=" [ Expression ] "." .
+ //	Expression  = Alternative { "|" Alternative } .
+ //	Alternative = Term { Term } .
+-//	Term        = name | token [ "..." token ] | Group | Option | Repetition .
++//	Term        = name | token [ "…" token ] | Group | Option | Repetition .
+ //	Group       = "(" Expression ")" .
+ //	Option      = "[" Expression "]" .
+ //	Repetition  = "{" Expression "}" .

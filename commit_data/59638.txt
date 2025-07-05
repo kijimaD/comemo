@@ -25,6 +25,29 @@ Date:   Tue Apr 2 10:13:32 2024 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/main_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/main_test.go b/src/net/http/main_test.go
+index 9022d4f124..4c18320717 100644
+--- a/src/net/http/main_test.go
++++ b/src/net/http/main_test.go
+@@ -142,7 +142,7 @@ func afterTest(t testing.TB) {
+ 		").noteClientGone(":     "a closenotifier sender",
+ 	}
+ 	var stacks string
+-	for i := 0; i < 10; i++ {
++	for i := 0; i < 2500; i++ {
+ 		bad = ""
+ 		stacks = strings.Join(interestingGoroutines(), "\n\n")
+ 		for substr, what := range badSubstring {
+@@ -156,7 +156,7 @@ func afterTest(t testing.TB) {
+ 		}
+ 		// Bad stuff found, but goroutines might just still be
+ 		// shutting down, so give it some time.
+-		time.Sleep(250 * time.Millisecond)
++		time.Sleep(1 * time.Millisecond)
+ 	}
+ 	t.Errorf("Test appears to have leaked %s:\n%s", bad, stacks)
+ }

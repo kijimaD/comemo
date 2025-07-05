@@ -12,6 +12,28 @@ Date:   Fri Nov 8 12:37:17 2019 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/init.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 428d7e4b30..61cbdf2c54 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -28,7 +28,6 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/mvs"
+-	"cmd/go/internal/renameio"
+ 	"cmd/go/internal/search"
+ 
+ 	"golang.org/x/mod/modfile"
+@@ -398,7 +397,7 @@ func InitMod() {
+ 	}
+ 
+ 	gomod := ModFilePath()
+-	data, err := renameio.ReadFile(gomod)
++	data, err := lockedfile.Read(gomod)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}

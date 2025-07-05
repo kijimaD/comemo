@@ -7,6 +7,31 @@ Date:   Fri Jul 17 14:23:26 2015 -0700
     Change-Id: Ie02426b2b726170d858de96fdd8c51bfdf20d7dc
     Reviewed-on: https://go-review.googlesource.com/12376
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.5.html | 13 ++++++++-----
  1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/doc/go1.5.html b/doc/go1.5.html
+index 56adaa1558..79f5b8c1d2 100644
+--- a/doc/go1.5.html
++++ b/doc/go1.5.html
+@@ -1071,11 +1071,14 @@ package that implements the quoted-printable encoding defined by RFC 2045.
+ </li>
+ 
+ <li>
+-Go 1.5's <a href="/pkg/net/"><code>net</code></a> package
+-adds RFC-6555-compliant dialing for sites with multiple TCP
+-addresses listed in DNS.
+-A new <code>DualStack</code> field
+-in <a href="/pkg/net/#Dialer"><code>Dialer</code></a> enables the feature.
++The <a href="/pkg/net/"><code>net</code></a> package will now
++<a href="/pkg/net/#Dial"><code>Dial</code></a> hostnames by trying each
++IP address in order until one succeeds.
++The <code><a href="/pkg/net/#Dialer">Dialer</a>.DualStack</code>
++mode now implements Happy Eyeballs
++(<a href="https://tools.ietf.org/html/rfc6555">RFC 6555</a>) by giving the
++first address family a 300ms head start; this value can be overridden by
++the new <code>Dialer.FallbackDelay</code>.
+ </li>
+ 
+ <li>

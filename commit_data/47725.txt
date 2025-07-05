@@ -14,7 +14,7 @@ Date:   Tue Apr 6 17:04:52 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/dist/buildruntime.go                        |  2 --
  src/cmd/go/testdata/script/version_goexperiment.txt | 16 ++++++++++++++++
  src/cmd/link/internal/ld/main.go                    |  6 ++++++
@@ -22,3 +22,117 @@ Date:   Tue Apr 6 17:04:52 2021 -0400
  src/runtime/extern.go                               | 12 +++++++++++-
  src/runtime/proc.go                                 |  2 --
  6 files changed, 36 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index e0a101a353..3ef551e187 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -19,7 +19,6 @@ import (
+ //
+ //	package sys
+ //
+-//	const TheVersion = <version>
+ //	const StackGuardMultiplier = <multiplier value>
+ //
+ func mkzversion(dir, file string) {
+@@ -28,7 +27,6 @@ func mkzversion(dir, file string) {
+ 	fmt.Fprintln(&buf)
+ 	fmt.Fprintf(&buf, "package sys\n")
+ 	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "const TheVersion = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const StackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+diff --git a/src/cmd/go/testdata/script/version_goexperiment.txt b/src/cmd/go/testdata/script/version_goexperiment.txt
+new file mode 100644
+index 0000000000..4b165eb605
+--- /dev/null
++++ b/src/cmd/go/testdata/script/version_goexperiment.txt
+@@ -0,0 +1,16 @@
++# Test that experiments appear in "go version <binary>"
++
++# This test requires rebuilding the runtime, which takes a while.
++[short] skip
++
++env GOEXPERIMENT=fieldtrack
++go build -o main$GOEXE version.go
++go version main$GOEXE
++stdout 'X:fieldtrack$'
++exec ./main$GOEXE
++stderr 'X:fieldtrack$'
++
++-- version.go --
++package main
++import "runtime"
++func main() { println(runtime.Version()) }
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 95c89f813b..8631cf2939 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -118,6 +118,12 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+ 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+ 
++	buildVersion := objabi.Version
++	if goexperiment := objabi.GOEXPERIMENT(); goexperiment != "" {
++		buildVersion += " X:" + goexperiment
++	}
++	addstrdata1(ctxt, "runtime.buildVersion="+buildVersion)
++
+ 	// TODO(matloob): define these above and then check flag values here
+ 	if ctxt.Arch.Family == sys.AMD64 && objabi.GOOS == "plan9" {
+ 		flag.BoolVar(&flag8, "8", false, "use 64-bit addresses in symbol table")
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 1c513d5a70..4803fabe28 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -26,6 +26,9 @@
+ // In the toolchain, the set of experiments enabled for the current
+ // build should be accessed via objabi.Experiment.
+ //
++// The set of experiments is included in the output of runtime.Version()
++// and "go version <binary>" if it differs from the default experiments.
++//
+ // For the set of experiments supported by the current toolchain, see
+ // go doc internal/experiment.Flags.
+ package goexperiment
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index b73d68428f..48e1e6603b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -240,11 +240,21 @@ func GOROOT() string {
+ 	return defaultGOROOT
+ }
+ 
++// buildVersion is the Go tree's version string at build time.
++//
++// If any GOEXPERIMENTs are set to non-default values, it will include
++// "X:<GOEXPERIMENT>".
++//
++// This is set by the linker.
++//
++// This is accessed by "go version <binary>".
++var buildVersion string
++
+ // Version returns the Go tree's version string.
+ // It is either the commit hash and date at the time of the build or,
+ // when possible, a release tag like "go1.3".
+ func Version() string {
+-	return sys.TheVersion
++	return buildVersion
+ }
+ 
+ // GOOS is the running program's operating system target:
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 35a3f9ca19..d545a143a0 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -12,8 +12,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-var buildVersion = sys.TheVersion
+-
+ // set using cmd/go/internal/modload.ModInfoProg
+ var modinfo string
+ 

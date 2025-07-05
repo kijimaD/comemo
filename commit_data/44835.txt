@@ -9,6 +9,41 @@ Date:   Sat Sep 5 14:24:28 2020 +0300
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/mime/example_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/mime/example_test.go b/src/mime/example_test.go
+index c7d13cdcdb..85795976f0 100644
+--- a/src/mime/example_test.go
++++ b/src/mime/example_test.go
+@@ -96,3 +96,29 @@ func ExampleWordDecoder_DecodeHeader() {
+ 	// ¡Hola, señor!
+ 	// HELLO WORLD!
+ }
++
++func ExampleFormatMediaType() {
++	mediatype := "text/html"
++	params := map[string]string{
++		"charset": "utf-8",
++	}
++
++	result := mime.FormatMediaType(mediatype, params)
++
++	fmt.Println("result:", result)
++	// Output:
++	// result: text/html; charset=utf-8
++}
++
++func ExampleParseMediaType() {
++	mediatype, params, err := mime.ParseMediaType("text/html; charset=utf-8")
++	if err != nil {
++		panic(err)
++	}
++
++	fmt.Println("type:", mediatype)
++	fmt.Println("charset:", params["charset"])
++	// Output:
++	// type: text/html
++	// charset: utf-8
++}

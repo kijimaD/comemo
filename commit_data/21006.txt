@@ -15,7 +15,118 @@ Date:   Thu Nov 6 09:57:46 2014 +1100
     R=golang-codereviews, rsc, adg, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/169970043
-
+---
  src/bufio/scan.go      | 12 +++++++++++
  src/bufio/scan_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 70 insertions(+)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index a41451524d..73ad763b8f 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -36,6 +36,7 @@ type Scanner struct {
+ 	start        int       // First non-processed byte in buf.
+ 	end          int       // End of data in buf.
+ 	err          error     // Sticky error.
++	empties      int       // Count of successive empty tokens.
+ }
+ 
+ // SplitFunc is the signature of the split function used to tokenize the
+@@ -108,6 +109,8 @@ func (s *Scanner) Text() string {
+ // After Scan returns false, the Err method will return any error that
+ // occurred during scanning, except that if it was io.EOF, Err
+ // will return nil.
++// Split panics if the split function returns 100 empty tokens without
++// advancing the input. This is a common error mode for scanners.
+ func (s *Scanner) Scan() bool {
+ 	// Loop until we have a token.
+ 	for {
+@@ -125,6 +128,14 @@ func (s *Scanner) Scan() bool {
+ 			}
+ 			s.token = token
+ 			if token != nil {
++				if len(token) > 0 {
++					s.empties = 0
++				} else {
++					s.empties++
++					if s.empties > 100 {
++						panic("bufio.Scan: 100 empty tokens without progressing")
++					}
++				}
+ 				return true
+ 			}
+ 		}
+@@ -172,6 +183,7 @@ func (s *Scanner) Scan() bool {
+ 				break
+ 			}
+ 			if n > 0 {
++				s.empties = 0
+ 				break
+ 			}
+ 			loop++
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index 1454a8113c..a1cf90ddbf 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -455,3 +455,61 @@ func TestEmptyTokens(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++func loopAtEOFSplit(data []byte, atEOF bool) (advance int, token []byte, err error) {
++	if len(data) > 0 {
++		return 1, data[:1], nil
++	}
++	return 0, data, nil
++}
++
++func TestDontLoopForever(t *testing.T) {
++	s := NewScanner(strings.NewReader("abc"))
++	s.Split(loopAtEOFSplit)
++	// Expect a panic
++	panicked := true
++	defer func() {
++		err := recover()
++		if err == nil {
++			t.Fatal("should have panicked")
++		}
++		if msg, ok := err.(string); ok && strings.Contains(msg, "empty tokens") {
++			panicked = true
++		} else {
++			panic(err)
++		}
++	}()
++	for count := 0; s.Scan(); count++ {
++		if count > 1000 {
++			t.Fatal("looping")
++		}
++	}
++	if s.Err() != nil {
++		t.Fatal("after scan:", s.Err())
++	}
++}
++
++type countdown int
++
++func (c *countdown) split(data []byte, atEOF bool) (advance int, token []byte, err error) {
++	if *c > 0 {
++		*c--
++		return 1, data[:1], nil
++	}
++	return 0, nil, nil
++}
++
++// Check that the looping-at-EOF check doesn't trigger for merely empty tokens.
++func TestEmptyLinesOK(t *testing.T) {
++	c := countdown(10000)
++	s := NewScanner(strings.NewReader(strings.Repeat("\n", 10000)))
++	s.Split(c.split)
++	for s.Scan() {
++	}
++	if s.Err() != nil {
++		t.Fatal("after scan:", s.Err())
++	}
++	if c != 0 {
++		t.Fatalf("stopped with %d left to process", c)
++	}
++}

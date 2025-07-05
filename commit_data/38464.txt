@@ -9,7 +9,99 @@ Date:   Mon Oct 29 13:44:44 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/align.go   | 16 ++++++++--------
  src/cmd/compile/internal/types/type.go | 12 ++++++------
  2 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index fb761d2339..87a7de547a 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -208,7 +208,7 @@ func dowidth(t *types.Type) {
+ 	}
+ 
+ 	t.Width = -2
+-	t.Align = 0
++	t.Align = 0 // 0 means use t.Width, below
+ 
+ 	et := t.Etype
+ 	switch et {
+@@ -222,7 +222,7 @@ func dowidth(t *types.Type) {
+ 		}
+ 	}
+ 
+-	w := int64(0)
++	var w int64
+ 	switch et {
+ 	default:
+ 		Fatalf("dowidth: unknown type: %v", t)
+@@ -366,7 +366,7 @@ func dowidth(t *types.Type) {
+ 
+ 	t.Width = w
+ 	if t.Align == 0 {
+-		if w > 8 || w&(w-1) != 0 || w == 0 {
++		if w == 0 || w > 8 || w&(w-1) != 0 {
+ 			Fatalf("invalid alignment for %v", t)
+ 		}
+ 		t.Align = uint8(w)
+@@ -423,12 +423,11 @@ func checkwidth(t *types.Type) {
+ 		return
+ 	}
+ 
+-	if t.Deferwidth() {
+-		return
++	// if type has not yet been pushed on deferredTypeStack yet, do it now
++	if !t.Deferwidth() {
++		t.SetDeferwidth(true)
++		deferredTypeStack = append(deferredTypeStack, t)
+ 	}
+-	t.SetDeferwidth(true)
+-
+-	deferredTypeStack = append(deferredTypeStack, t)
+ }
+ 
+ func defercheckwidth() {
+@@ -443,6 +442,7 @@ func resumecheckwidth() {
+ 	if defercalc == 0 {
+ 		Fatalf("resumecheckwidth")
+ 	}
++
+ 	for len(deferredTypeStack) > 0 {
+ 		t := deferredTypeStack[len(deferredTypeStack)-1]
+ 		deferredTypeStack = deferredTypeStack[:len(deferredTypeStack)-1]
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index e6e6127405..39f4d2aa7b 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -141,7 +141,7 @@ type Type struct {
+ 	Extra interface{}
+ 
+ 	// Width is the width of this Type in bytes.
+-	Width int64
++	Width int64 // valid if Align > 0
+ 
+ 	methods    Fields
+ 	allMethods Fields
+@@ -156,16 +156,16 @@ type Type struct {
+ 	Vargen int32 // unique name for OTYPE/ONAME
+ 
+ 	Etype EType // kind of type
+-	Align uint8 // the required alignment of this type, in bytes
++	Align uint8 // the required alignment of this type, in bytes (0 means Width and Align have not yet been computed)
+ 
+ 	flags bitset8
+ }
+ 
+ const (
+-	typeNotInHeap = 1 << iota // type cannot be heap allocated
+-	typeBroke                 // broken type definition
+-	typeNoalg                 // suppress hash and eq algorithm generation
+-	typeDeferwidth
++	typeNotInHeap  = 1 << iota // type cannot be heap allocated
++	typeBroke                  // broken type definition
++	typeNoalg                  // suppress hash and eq algorithm generation
++	typeDeferwidth             // width computation has been deferred and type is on deferredTypeStack
+ 	typeRecur
+ )
+ 

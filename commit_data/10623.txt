@@ -11,7 +11,67 @@ Date:   Tue Dec 6 10:47:42 2011 -0500
     R=nigeltao, r
     CC=golang-dev
     https://golang.org/cl/5440103
-
+---
  src/pkg/image/color/color.go | 21 +++++++++++++++------
  src/pkg/image/names.go       |  8 ++++++--
  2 files changed, 21 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/image/color/color.go b/src/pkg/image/color/color.go
+index 4a0fae5a78..2948db7f38 100644
+--- a/src/pkg/image/color/color.go
++++ b/src/pkg/image/color/color.go
+@@ -134,13 +134,22 @@ type Model interface {
+ 	Convert(c Color) Color
+ }
+ 
+-// ModelFunc is an adapter type to allow the use of a color conversion
+-// function as a Model. If f is such a function, ModelFunc(f) is a Model that
+-// invokes f to implement the conversion.
+-type ModelFunc func(Color) Color
++// ModelFunc returns a Model that invokes f to implement the conversion.
++func ModelFunc(f func(Color) Color) Model {
++	// Note: using *modelFunc as the implementation
++	// means that callers can still use comparisons
++	// like m == RGBAModel.  This is not possible if
++	// we use the func value directly, because funcs
++	// are no longer comparable.
++	return &modelFunc{f}
++}
++
++type modelFunc struct {
++	f func(Color) Color
++}
+ 
+-func (f ModelFunc) Convert(c Color) Color {
+-	return f(c)
++func (m *modelFunc) Convert(c Color) Color {
++	return m.f(c)
+ }
+ 
+ // RGBAModel is the Model for RGBA colors.
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index a7ad51d537..a7d1a57983 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -20,7 +20,7 @@ var (
+ )
+ 
+ // Uniform is an infinite-sized Image of uniform color.
+-// It implements both the color.Color and Image interfaces.
++// It implements the color.Color, color.ColorModel, and Image interfaces.
+ type Uniform struct {
+ 	C color.Color
+ }
+@@ -30,7 +30,11 @@ func (c *Uniform) RGBA() (r, g, b, a uint32) {
+ }
+ 
+ func (c *Uniform) ColorModel() color.Model {
+-	return color.ModelFunc(func(color.Color) color.Color { return c.C })
++	return c
++}
++
++func (c *Uniform) Convert(color.Color) color.Color {
++	return c.C
+ }
+ 
+ func (c *Uniform) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }

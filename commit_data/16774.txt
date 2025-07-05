@@ -15,7 +15,61 @@ Date:   Tue Jul 16 09:04:20 2013 +0200
     R=golang-dev, dvyukov
     CC=golang-dev
     https://golang.org/cl/11308043
-
+---
  src/cmd/gc/racewalk.c                     |  5 +----
  src/pkg/runtime/race/testdata/mop_test.go | 19 +++++++++++++++++++
  2 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/racewalk.c b/src/cmd/gc/racewalk.c
+index dbb11d7b89..4a90549909 100644
+--- a/src/cmd/gc/racewalk.c
++++ b/src/cmd/gc/racewalk.c
+@@ -323,10 +323,6 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 		racewalknode(&n->left, init, 0, 0);
+ 		goto ret;
+ 
+-	case OTYPESW:
+-		racewalknode(&n->right, init, 0, 0);
+-		goto ret;
+-
+ 	// should not appear in AST by now
+ 	case OSEND:
+ 	case ORECV:
+@@ -402,6 +398,7 @@ racewalknode(Node **np, NodeList **init, int wr, int skip)
+ 	case ONONAME:
+ 	case OLITERAL:
+ 	case OSLICESTR:  // always preceded by bounds checking, avoid double instrumentation.
++	case OTYPESW:    // ignored by code generation, do not instrument.
+ 		goto ret;
+ 	}
+ 
+diff --git a/src/pkg/runtime/race/testdata/mop_test.go b/src/pkg/runtime/race/testdata/mop_test.go
+index b5eecd9fdf..fe62bb07e1 100644
+--- a/src/pkg/runtime/race/testdata/mop_test.go
++++ b/src/pkg/runtime/race/testdata/mop_test.go
+@@ -262,6 +262,25 @@ func TestRaceCaseTypeBody(t *testing.T) {
+ 	<-c
+ }
+ 
++func TestRaceCaseTypeIssue5890(t *testing.T) {
++	// spurious extra instrumentation of the initial interface
++	// value.
++	var x, y int
++	m := make(map[int]map[int]interface{})
++	m[0] = make(map[int]interface{})
++	c := make(chan int, 1)
++	go func() {
++		switch i := m[0][1].(type) {
++		case nil:
++		case *int:
++			*i = x
++		}
++		c <- 1
++	}()
++	m[0][1] = y
++	<-c
++}
++
+ func TestNoRaceRange(t *testing.T) {
+ 	ch := make(chan int, 3)
+ 	a := [...]int{1, 2, 3}

@@ -7,7 +7,7 @@ Date:   Fri Oct 3 16:23:02 2008 -0700
     R=ken
     OCL=16449
     CL=16466
-
+---
  src/cmd/6g/gen.c      | 10 +++-------
  src/cmd/6g/gg.h       |  1 +
  src/cmd/6g/gsubr.c    |  2 +-
@@ -20,3 +20,209 @@ Date:   Fri Oct 3 16:23:02 2008 -0700
  src/cmd/gc/mparith2.c |  2 +-
  src/cmd/gc/subr.c     |  3 ---
  11 files changed, 13 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 3c1c92947a..d96c4e6a3c 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -117,8 +117,6 @@ void
+ allocparams(void)
+ {
+ 	Dcl *d;
+-	Iter list;
+-	Type *t;
+ 	Node *n;
+ 	uint32 w;
+ 
+@@ -153,7 +151,6 @@ gen(Node *n, Label *labloop)
+ 	int32 lno;
+ 	Prog *scontin, *sbreak;
+ 	Prog *p1, *p2, *p3;
+-	Sym *s;
+ 	Node *l;
+ 	Label *lab;
+ 
+@@ -723,7 +720,7 @@ void
+ cgen_call(Node *n, int proc)
+ {
+ 	Type *t;
+-	Node nod, afun, regax;
++	Node nod, afun;
+ 
+ 	if(n == N)
+ 		return;
+@@ -823,7 +820,7 @@ cgen_callret(Node *n, Node *res)
+ void
+ cgen_aret(Node *n, Node *res)
+ {
+-	Node nod1, nod2;
++	Node nod1;
+ 	Type *fp, *t;
+ 	Iter flist;
+ 
+@@ -858,7 +855,6 @@ cgen_asop(Node *n)
+ {
+ 	Node n1, n2, n3, n4;
+ 	Node *nl, *nr;
+-	int32 lno;
+ 
+ 	nl = n->left;
+ 	nr = n->right;
+@@ -1069,7 +1065,7 @@ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+ 	Node ax, dx, n3, tmpax, tmpdx;
+-	int a, rax, rdx;
++	int rax, rdx;
+ 
+ 	rax = reg[D_AX];
+ 	rdx = reg[D_DX];
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index c1d244d992..e7fccd2d2d 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -159,6 +159,7 @@ void	gmove(Node*, Node*);
+ Prog*	gins(int, Node*, Node*);
+ int	samaddr(Node*, Node*);
+ void	naddr(Node*, Addr*);
++void	cgen_aret(Node*, Node*);
+ 
+ /*
+  * gsubr.c
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index 0256100a83..36936e3df8 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -836,7 +836,7 @@ nodconst(&nodc, types[TUINT64], 1);
+ 	if(a == AMOVQ ||
+ 	   a == AMOVSD ||
+ 	   a == AMOVSS ||
+-	   a == AMOVL && f->type->width == t->type->width)	/* TO DO: check AMOVL */
++	   (a == AMOVL && f->type->width == t->type->width))	/* TO DO: check AMOVL */
+ 		if(samaddr(f, t))
+ 			return;
+ 	gins(a, f, t);
+diff --git a/src/cmd/6g/list.c b/src/cmd/6g/list.c
+index 8f764a6223..b5e298b108 100644
+--- a/src/cmd/6g/list.c
++++ b/src/cmd/6g/list.c
+@@ -316,9 +316,9 @@ Yconv(Fmt *fp)
+ 	p = str;
+ 	for(i=0; i<sconsize; i++) {
+ 		c = a[i] & 0xff;
+-		if(c >= 'a' && c <= 'z' ||
+-		   c >= 'A' && c <= 'Z' ||
+-		   c >= '0' && c <= '9') {
++		if((c >= 'a' && c <= 'z') ||
++		   (c >= 'A' && c <= 'Z') ||
++		   (c >= '0' && c <= '9')) {
+ 			*p++ = c;
+ 			continue;
+ 		}
+diff --git a/src/cmd/6g/obj.c b/src/cmd/6g/obj.c
+index b33dcc3288..ccbf29fb3c 100644
+--- a/src/cmd/6g/obj.c
++++ b/src/cmd/6g/obj.c
+@@ -163,6 +163,7 @@ dumpobj(void)
+ 	Bterm(bout);
+ }
+ 
++void
+ Bputdot(Biobuf *b)
+ {
+ 	// put out middle dot ·
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index 649b548a83..a22cbbc130 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -9,7 +9,6 @@ void
+ convlit(Node *n, Type *t)
+ {
+ 	int et;
+-	Node *n1;
+ 
+ 	if(n == N || t == T)
+ 		return;
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 0fdae33786..a96d58a33c 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -640,8 +640,6 @@ addvar(Node *n, Type *t, int ctxt)
+ {
+ 	Dcl *r, *d;
+ 	Sym *s;
+-	Type *ot;
+-	Node *on;
+ 	int gen;
+ 
+ 	if(n==N || n->sym == S || n->op != ONAME || t == T)
+@@ -965,9 +963,8 @@ mixed:
+ void
+ fninit(Node *n)
+ {
+-	Node *done, *any;
++	Node *done;
+ 	Node *a, *fn, *r;
+-	Iter iter;
+ 	uint32 h;
+ 	Sym *s;
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7b337fbc06..fc22c40472 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -591,6 +591,8 @@ Type*	ptrto(Type*);
+ Node*	cleanidlist(Node*);
+ Node*	syslook(char*, int);
+ Node*	treecopy(Node*);
++int	isselect(Node*);
++void	tempname(Node*, Type*);
+ 
+ Type**	getthis(Type*);
+ Type**	getoutarg(Type*);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 94917d5ff1..df02fc2f80 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -200,7 +200,6 @@ importfile(Val *f)
+ 	Biobuf *imp;
+ 	char *file;
+ 	int32 c;
+-	char *p;
+ 	int len;
+ 
+ 	if(f->ctype != CTSTR) {
+diff --git a/src/cmd/gc/mparith2.c b/src/cmd/gc/mparith2.c
+index b819bd4006..67bbd93228 100644
+--- a/src/cmd/gc/mparith2.c
++++ b/src/cmd/gc/mparith2.c
+@@ -484,7 +484,7 @@ mpmovecfix(Mpint *a, vlong c)
+ void
+ mpdivmodfixfix(Mpint *q, Mpint *r, Mpint *n, Mpint *d)
+ {
+-	int i, nn, dn;
++	int i;
+ 
+ 	mpmovefixfix(r, n);
+ 	mpmovecfix(q, 0);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 7d017d6674..df6ea8144c 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -780,7 +780,6 @@ Lconv(Fmt *fp)
+ 	if(n == 0)
+ 		strcat(str, "<epoch>");
+ 
+-ret:
+ 	return fmtstrcpy(fp, str);
+ }
+ 
+@@ -1458,8 +1457,6 @@ signame(Type *t)
+ {
+ 	Sym *s, *ss;
+ 	char *e;
+-	Type *t1;
+-	int n;
+ 	char buf[NSYMB];
+ 
+ 	if(t == T)

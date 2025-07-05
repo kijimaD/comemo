@@ -11,6 +11,20 @@ Date:   Wed Feb 5 14:18:20 2020 -0500
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/pkcs8.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkcs8.go b/src/crypto/x509/pkcs8.go
+index d37fc9e1b3..ec4ab10c57 100644
+--- a/src/crypto/x509/pkcs8.go
++++ b/src/crypto/x509/pkcs8.go
+@@ -79,7 +79,7 @@ func ParsePKCS8PrivateKey(der []byte) (key interface{}, err error) {
+ 	}
+ }
+ 
+-// MarshalPKCS8PrivateKey converts an RSA private key to PKCS#8, ASN.1 DER form.
++// MarshalPKCS8PrivateKey converts a private key to PKCS#8, ASN.1 DER form.
+ //
+ // The following key types are currently supported: *rsa.PrivateKey, *ecdsa.PrivateKey
+ // and ed25519.PrivateKey. Unsupported key types result in an error.

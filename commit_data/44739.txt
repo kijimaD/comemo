@@ -11,6 +11,29 @@ Date:   Fri Aug 21 10:02:44 2020 -0700
     Change-Id: I4530c96fb164d23b0ce5311f2cecb1964f2dea74
     Reviewed-on: https://go-review.googlesource.com/c/go/+/249837
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/encoding/binary/varint.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/binary/varint.go b/src/encoding/binary/varint.go
+index 38af61075c..1fa325dec7 100644
+--- a/src/encoding/binary/varint.go
++++ b/src/encoding/binary/varint.go
+@@ -62,7 +62,7 @@ func Uvarint(buf []byte) (uint64, int) {
+ 	var s uint
+ 	for i, b := range buf {
+ 		if b < 0x80 {
+-			if i > 9 || i == 9 && b > 1 {
++			if i >= MaxVarintLen64 || i == MaxVarintLen64-1 && b > 1 {
+ 				return 0, -(i + 1) // overflow
+ 			}
+ 			return x | uint64(b)<<s, i + 1
+@@ -112,7 +112,7 @@ func ReadUvarint(r io.ByteReader) (uint64, error) {
+ 			return x, err
+ 		}
+ 		if b < 0x80 {
+-			if i == 9 && b > 1 {
++			if i == MaxVarintLen64-1 && b > 1 {
+ 				return x, overflow
+ 			}
+ 			return x | uint64(b)<<s, nil

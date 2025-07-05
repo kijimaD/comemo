@@ -11,6 +11,31 @@ Date:   Wed Sep 19 16:19:05 2018 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d3d672ea32..5d2e36ee51 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1304,16 +1304,14 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 		mode.Fprintf(s, "%v { %v }", n.Type, n.Func.Closure.Nbody)
+ 
+ 	case OCOMPLIT:
+-		ptrlit := n.Right != nil && n.Right.Implicit() && n.Right.Type != nil && n.Right.Type.IsPtr()
+ 		if mode == FErr {
+ 			if n.Right != nil && n.Right.Type != nil && !n.Implicit() {
+-				if ptrlit {
++				if n.Right.Implicit() && n.Right.Type.IsPtr() {
+ 					mode.Fprintf(s, "&%v literal", n.Right.Type.Elem())
+ 					return
+-				} else {
+-					mode.Fprintf(s, "%v literal", n.Right.Type)
+-					return
+ 				}
++				mode.Fprintf(s, "%v literal", n.Right.Type)
++				return
+ 			}
+ 
+ 			fmt.Fprint(s, "composite literal")

@@ -35,7 +35,7 @@ Date:   Wed May 18 18:14:36 2016 -0400
     Change-Id: I7867c76785a456312de5d8398a6b3f7ca5a4f7ec
     Reviewed-on: https://go-review.googlesource.com/23213
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go            |   47 +
  src/cmd/compile/internal/gc/ssa.go             |   19 +
  src/cmd/compile/internal/gc/type.go            |    1 +
@@ -57,3 +57,2965 @@ Date:   Wed May 18 18:14:36 2016 -0400
  src/cmd/compile/internal/ssa/type.go           |   57 +
  src/cmd/compile/internal/ssa/type_test.go      |    1 +
  20 files changed, 2445 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 0462a0fd7a..4804919a28 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -149,7 +149,9 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 			p.To.Name = obj.NAME_AUTO
+ 		}
+ 	case ssa.OpARMADD,
++		ssa.OpARMADC,
+ 		ssa.OpARMSUB,
++		ssa.OpARMSBC,
+ 		ssa.OpARMRSB,
+ 		ssa.OpARMAND,
+ 		ssa.OpARMOR,
+@@ -165,6 +167,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.Reg = r1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpARMADDS,
++		ssa.OpARMSUBS:
++		r := gc.SSARegNum(v)
++		r1 := gc.SSARegNum(v.Args[0])
++		r2 := gc.SSARegNum(v.Args[1])
++		p := gc.Prog(v.Op.Asm())
++		p.Scond = arm.C_SBIT
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = r2
++		p.Reg = r1
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = r
+ 	case ssa.OpARMSLL,
+ 		ssa.OpARMSRL:
+ 		// ARM shift instructions uses only the low-order byte of the shift amount
+@@ -273,6 +287,23 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REGREG
+ 		p.To.Reg = gc.SSARegNum(v)
+ 		p.To.Offset = arm.REGTMP // throw away low 32-bit into tmp register
++	case ssa.OpARMMULLU:
++		// 32-bit multiplication, results 64-bit, low 32-bit in reg(v), high 32-bit in R0
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REGREG
++		p.To.Reg = arm.REG_R0                // high 32-bit
++		p.To.Offset = int64(gc.SSARegNum(v)) // low 32-bit
++	case ssa.OpARMMULA:
++		p := gc.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[0])
++		p.Reg = gc.SSARegNum(v.Args[1])
++		p.To.Type = obj.TYPE_REGREG2
++		p.To.Reg = gc.SSARegNum(v)                   // result
++		p.To.Offset = int64(gc.SSARegNum(v.Args[2])) // addend
+ 	case ssa.OpARMMOVWconst:
+ 		p := gc.Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+@@ -458,6 +489,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Gvarkill(v.Aux.(*gc.Node))
+ 	case ssa.OpVarLive:
+ 		gc.Gvarlive(v.Aux.(*gc.Node))
++	case ssa.OpKeepAlive:
++		if !v.Args[0].Type.IsPtrShaped() {
++			v.Fatalf("keeping non-pointer alive %v", v.Args[0])
++		}
++		n, off := gc.AutoVar(v.Args[0])
++		if n == nil {
++			v.Fatalf("KeepLive with non-spilled value %s %s", v, v.Args[0])
++		}
++		if off != 0 {
++			v.Fatalf("KeepLive with non-zero offset spill location %s:%d", n, off)
++		}
++		gc.Gvarlive(n)
+ 	case ssa.OpARMEqual,
+ 		ssa.OpARMNotEqual,
+ 		ssa.OpARMLessThan,
+@@ -481,6 +524,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.From.Offset = 1
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = gc.SSARegNum(v)
++	case ssa.OpARMCarry,
++		ssa.OpARMLoweredSelect0,
++		ssa.OpARMLoweredSelect1:
++		// nothing to do
+ 	default:
+ 		v.Unimplementedf("genValue not implemented: %s", v.LongString())
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index ecff7c07de..70899cb1cd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4334,6 +4334,25 @@ func (e *ssaExport) SplitComplex(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSl
+ 	return ssa.LocalSlot{N: n, Type: t, Off: name.Off}, ssa.LocalSlot{N: n, Type: t, Off: name.Off + s}
+ }
+ 
++func (e *ssaExport) SplitInt64(name ssa.LocalSlot) (ssa.LocalSlot, ssa.LocalSlot) {
++	n := name.N.(*Node)
++	var t *Type
++	if name.Type.IsSigned() {
++		t = Types[TINT32]
++	} else {
++		t = Types[TUINT32]
++	}
++	if n.Class == PAUTO && !n.Addrtaken {
++		// Split this int64 up into two separate variables.
++		h := e.namedAuto(n.Sym.Name+".hi", t)
++		l := e.namedAuto(n.Sym.Name+".lo", Types[TUINT32])
++		return ssa.LocalSlot{N: h, Type: t, Off: 0}, ssa.LocalSlot{N: l, Type: Types[TUINT32], Off: 0}
++	}
++	// Return the two parts of the larger variable.
++	// Assuming little endian (we don't support big endian 32-bit architecture yet)
++	return ssa.LocalSlot{N: n, Type: t, Off: name.Off + 4}, ssa.LocalSlot{N: n, Type: Types[TUINT32], Off: name.Off}
++}
++
+ func (e *ssaExport) SplitStruct(name ssa.LocalSlot, i int) ssa.LocalSlot {
+ 	n := name.N.(*Node)
+ 	st := name.Type
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index ab13df6eba..460b395c2e 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -1207,6 +1207,7 @@ func (t *Type) ChanDir() ChanDir {
+ func (t *Type) IsMemory() bool { return false }
+ func (t *Type) IsFlags() bool  { return false }
+ func (t *Type) IsVoid() bool   { return false }
++func (t *Type) IsTuple() bool  { return false }
+ 
+ // IsUntyped reports whether t is an untyped type.
+ func (t *Type) IsUntyped() bool {
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ddb58d9f79..7c3f87147f 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -107,6 +107,7 @@ type Frontend interface {
+ 	SplitSlice(LocalSlot) (LocalSlot, LocalSlot, LocalSlot)
+ 	SplitComplex(LocalSlot) (LocalSlot, LocalSlot)
+ 	SplitStruct(LocalSlot, int) LocalSlot
++	SplitInt64(LocalSlot) (LocalSlot, LocalSlot) // returns (hi, lo)
+ 
+ 	// Line returns a string describing the given line number.
+ 	Line(int32) string
+diff --git a/src/cmd/compile/internal/ssa/decompose.go b/src/cmd/compile/internal/ssa/decompose.go
+index 53116ba593..0ee5f53291 100644
+--- a/src/cmd/compile/internal/ssa/decompose.go
++++ b/src/cmd/compile/internal/ssa/decompose.go
+@@ -25,6 +25,22 @@ func decomposeBuiltIn(f *Func) {
+ 	for _, name := range f.Names {
+ 		t := name.Type
+ 		switch {
++		case t.IsInteger() && t.Size() == 8 && f.Config.IntSize == 4:
++			var elemType Type
++			if t.IsSigned() {
++				elemType = f.Config.fe.TypeInt32()
++			} else {
++				elemType = f.Config.fe.TypeUInt32()
++			}
++			hiName, loName := f.Config.fe.SplitInt64(name)
++			newNames = append(newNames, hiName, loName)
++			for _, v := range f.NamedValues[name] {
++				hi := v.Block.NewValue1(v.Line, OpInt64Hi, elemType, v)
++				lo := v.Block.NewValue1(v.Line, OpInt64Lo, f.Config.fe.TypeUInt32(), v)
++				f.NamedValues[hiName] = append(f.NamedValues[hiName], hi)
++				f.NamedValues[loName] = append(f.NamedValues[loName], lo)
++			}
++			delete(f.NamedValues, name)
+ 		case t.IsComplex():
+ 			var elemType Type
+ 			if t.Size() == 16 {
+@@ -88,8 +104,9 @@ func decomposeBuiltIn(f *Func) {
+ }
+ 
+ func decomposeBuiltInPhi(v *Value) {
+-	// TODO: decompose 64-bit ops on 32-bit archs?
+ 	switch {
++	case v.Type.IsInteger() && v.Type.Size() == 8 && v.Block.Func.Config.IntSize == 4:
++		decomposeInt64Phi(v)
+ 	case v.Type.IsComplex():
+ 		decomposeComplexPhi(v)
+ 	case v.Type.IsString():
+@@ -138,6 +155,26 @@ func decomposeSlicePhi(v *Value) {
+ 	v.AddArg(cap)
+ }
+ 
++func decomposeInt64Phi(v *Value) {
++	fe := v.Block.Func.Config.fe
++	var partType Type
++	if v.Type.IsSigned() {
++		partType = fe.TypeInt32()
++	} else {
++		partType = fe.TypeUInt32()
++	}
++
++	hi := v.Block.NewValue0(v.Line, OpPhi, partType)
++	lo := v.Block.NewValue0(v.Line, OpPhi, fe.TypeUInt32())
++	for _, a := range v.Args {
++		hi.AddArg(a.Block.NewValue1(v.Line, OpInt64Hi, partType, a))
++		lo.AddArg(a.Block.NewValue1(v.Line, OpInt64Lo, fe.TypeUInt32(), a))
++	}
++	v.reset(OpInt64Make)
++	v.AddArg(hi)
++	v.AddArg(lo)
++}
++
+ func decomposeComplexPhi(v *Value) {
+ 	fe := v.Block.Func.Config.fe
+ 	var partType Type
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 27892a8dc1..c26e55517c 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -49,6 +49,12 @@ func (d DummyFrontend) SplitComplex(s LocalSlot) (LocalSlot, LocalSlot) {
+ 	}
+ 	return LocalSlot{s.N, d.TypeFloat32(), s.Off}, LocalSlot{s.N, d.TypeFloat32(), s.Off + 4}
+ }
++func (d DummyFrontend) SplitInt64(s LocalSlot) (LocalSlot, LocalSlot) {
++	if s.Type.IsSigned() {
++		return LocalSlot{s.N, d.TypeInt32(), s.Off + 4}, LocalSlot{s.N, d.TypeUInt32(), s.Off}
++	}
++	return LocalSlot{s.N, d.TypeUInt32(), s.Off + 4}, LocalSlot{s.N, d.TypeUInt32(), s.Off}
++}
+ func (d DummyFrontend) SplitStruct(s LocalSlot, i int) LocalSlot {
+ 	return LocalSlot{s.N, s.Type.FieldType(i), s.Off + s.Type.FieldOff(i)}
+ }
+diff --git a/src/cmd/compile/internal/ssa/flagalloc.go b/src/cmd/compile/internal/ssa/flagalloc.go
+index c6dc8d7f91..85c75e99d6 100644
+--- a/src/cmd/compile/internal/ssa/flagalloc.go
++++ b/src/cmd/compile/internal/ssa/flagalloc.go
+@@ -95,9 +95,18 @@ func flagalloc(f *Func) {
+ 					continue
+ 				}
+ 				// Recalculate a
++				var c1 *Value
++				if a.Op == OpARMCarry {
++					// Pseudo-op does not generate flags, its arg actually does
++					//TODO: generalize this condition?
++					c1 = a.Args[0].copyInto(b)
++				}
+ 				c := a.copyInto(b)
+ 				// Update v.
+ 				v.SetArg(i, c)
++				if c1 != nil {
++					c.SetArg(0, c1)
++				}
+ 				// Remember the most-recently computed flag value.
+ 				flag = a
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index ca47e70cfb..8924f31b2d 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -7,11 +7,17 @@
+ (Add16 x y) -> (ADD x y)
+ (Add8 x y) -> (ADD x y)
+ 
++(Add32carry x y) -> (ADDS x y)
++(Add32withcarry x y c) -> (ADC x y c)
++
+ (SubPtr x y) -> (SUB x y)
+ (Sub32 x y) -> (SUB x y)
+ (Sub16 x y) -> (SUB x y)
+ (Sub8 x y) -> (SUB x y)
+ 
++(Sub32carry x y) -> (SUBS x y)
++(Sub32withcarry x y c) -> (SBC x y c)
++
+ (Mul32 x y) -> (MUL x y)
+ (Mul16 x y) -> (MUL x y)
+ (Mul8 x y) -> (MUL x y)
+@@ -23,6 +29,8 @@
+ (Hmul8 x y) -> (SRAconst (MUL <config.fe.TypeInt16()> (SignExt8to32 x) (SignExt8to32 y)) [8])
+ (Hmul8u x y) -> (SRLconst (MUL <config.fe.TypeUInt16()> (ZeroExt8to32 x) (ZeroExt8to32 y)) [8])
+ 
++(Mul32uhilo x y) -> (MULLU x y)
++
+ (And32 x y) -> (AND x y)
+ (And16 x y) -> (AND x y)
+ (And8 x y) -> (AND x y)
+@@ -135,6 +143,8 @@
+ (SignExt8to32 x) -> (MOVBreg x)
+ (SignExt16to32 x) -> (MOVHreg x)
+ 
++(Signmask x) -> (SRAconst x [31])
++
+ // comparisons
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+@@ -258,6 +268,11 @@
+ (IsInBounds idx len) -> (LessThanU (CMP idx len))
+ (IsSliceInBounds idx len) -> (LessEqualU (CMP idx len))
+ 
++// pseudo-ops
++(Select0 <t> x) && t.IsFlags() -> (Carry x)
++(Select0 <t> x) && !t.IsFlags() -> (LoweredSelect0 x)
++(Select1 x) -> (LoweredSelect1 x)
++
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+ (If (NotEqual cc) yes no) -> (NE cc yes no)
+@@ -306,3 +321,6 @@
+   (MOVHstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
+ (MOVWstore [off1] {sym1} (ADDconst [off2] {sym2} ptr) val mem) && canMergeSym(sym1,sym2) ->
+   (MOVWstore [off1+off2] {mergeSym(sym1,sym2)} ptr val mem)
++
++(ADD (MUL x y) a) -> (MULA x y a)
++(ADD a (MUL x y)) -> (MULA x y a)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 627748a905..629feeb403 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -84,6 +84,8 @@ func init() {
+ 		gp21      = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}}
+ 		gp21cf    = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp}, clobbers: flags} // cf: clobbers flags
+ 		gp2flags  = regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{flags}}
++		gp2flags1 = regInfo{inputs: []regMask{gp, gp, flags}, outputs: []regMask{gp}}
++		gp31      = regInfo{inputs: []regMask{gp, gp, gp}, outputs: []regMask{gp}}
+ 		gpload    = regInfo{inputs: []regMask{gpspsb}, outputs: []regMask{gp}}
+ 		gpstore   = regInfo{inputs: []regMask{gpspsb, gp}, outputs: []regMask{}}
+ 		readflags = regInfo{inputs: []regMask{flags}, outputs: []regMask{gp}}
+@@ -100,6 +102,14 @@ func init() {
+ 		{name: "HMUL", argLength: 2, reg: gp21, asm: "MULL", commutative: true},   // (arg0 * arg1) >> 32, signed
+ 		{name: "HMULU", argLength: 2, reg: gp21, asm: "MULLU", commutative: true}, // (arg0 * arg1) >> 32, unsigned
+ 
++		{name: "ADDS", argLength: 2, reg: gp21cf, asm: "ADD", commutative: true},   // arg0 + arg1, set carry flag
++		{name: "ADC", argLength: 3, reg: gp2flags1, asm: "ADC", commutative: true}, // arg0 + arg1 + carry, arg2=flags
++		{name: "SUBS", argLength: 2, reg: gp21cf, asm: "SUB"},                      // arg0 - arg1, set carry flag
++		{name: "SBC", argLength: 3, reg: gp2flags1, asm: "SBC"},                    // arg0 - arg1 - carry, arg2=flags
++
++		{name: "MULLU", argLength: 2, reg: regInfo{inputs: []regMask{gp, gp}, outputs: []regMask{gp &^ buildReg("R0")}, clobbers: buildReg("R0")}, asm: "MULLU", commutative: true}, // arg0 * arg1, results 64-bit, high 32-bit in R0
++		{name: "MULA", argLength: 3, reg: gp31, asm: "MULA"},                                                                                                                        // arg0 * arg1 + arg2
++
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32"}, // arg0 & auxInt
+ 		{name: "OR", argLength: 2, reg: gp21, asm: "ORR", commutative: true},  // arg0 | arg1
+@@ -166,6 +176,10 @@ func init() {
+ 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
+ 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
+ 
++		{name: "Carry", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{flags}}, typ: "Flags"},     // flags of a (Flags,UInt32)
++		{name: "LoweredSelect0", argLength: 1, reg: regInfo{inputs: []regMask{}, outputs: []regMask{buildReg("R0")}}}, // the first component of a tuple, implicitly in R0, arg0=tuple
++		{name: "LoweredSelect1", argLength: 1, reg: gp11, resultInArg0: true},                                         // the second component of a tuple, arg0=tuple
++
+ 		// duffzero
+ 		// arg0 = address of memory to zero (in R1, changed as side effect)
+ 		// arg1 = value to store (always zero)
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64.rules b/src/cmd/compile/internal/ssa/gen/dec64.rules
+new file mode 100644
+index 0000000000..8d0790d310
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/dec64.rules
+@@ -0,0 +1,185 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains rules to decompose [u]int32 types on 32-bit
++// architectures. These rules work together with the decomposeBuiltIn
++// pass which handles phis of these types.
++
++(Int64Hi (Int64Make hi _)) -> hi
++(Int64Lo (Int64Make _ lo)) -> lo
++
++// Assuming little endian (we don't support big endian 32-bit architecture yet)
++(Load <t> ptr mem) && is64BitInt(t) && t.IsSigned() ->
++	(Int64Make
++		(Load <config.fe.TypeInt32()> (OffPtr <config.fe.TypeInt32().PtrTo()> [4] ptr) mem)
++		(Load <config.fe.TypeUInt32()> ptr mem))
++(Load <t> ptr mem) && is64BitInt(t) && !t.IsSigned() ->
++	(Int64Make
++		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem)
++		(Load <config.fe.TypeUInt32()> ptr mem))
++
++(Store [8] dst (Int64Make hi lo) mem) ->
++	(Store [4]
++		(OffPtr <hi.Type.PtrTo()> [4] dst)
++		hi
++		(Store [4] dst lo mem))
++
++(Arg {n} [off]) && is64BitInt(v.Type) && v.Type.IsSigned() ->
++  (Int64Make
++    (Arg <config.fe.TypeInt32()> {n} [off+4])
++    (Arg <config.fe.TypeUInt32()> {n} [off]))
++(Arg {n} [off]) && is64BitInt(v.Type) && !v.Type.IsSigned() ->
++  (Int64Make
++    (Arg <config.fe.TypeUInt32()> {n} [off+4])
++    (Arg <config.fe.TypeUInt32()> {n} [off]))
++
++(Add64 x y) ->
++	(Int64Make
++		(Add32withcarry <config.fe.TypeInt32()>
++			(Int64Hi x)
++			(Int64Hi y)
++			(Select0 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y))))
++		(Select1 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
++
++(Sub64 x y) ->
++	(Int64Make
++		(Sub32withcarry <config.fe.TypeInt32()>
++			(Int64Hi x)
++			(Int64Hi y)
++			(Select0 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y))))
++		(Select1 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
++
++(Mul64 x y) ->
++	(Int64Make
++		(Add32 <config.fe.TypeUInt32()>
++			(Mul32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Hi y))
++			(Add32 <config.fe.TypeUInt32()>
++				(Mul32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Lo y))
++				(Select0 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y)))))
++		(Select1 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
++
++(And64 x y) ->
++	(Int64Make
++		(And32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
++		(And32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++
++(Or64 x y) ->
++	(Int64Make
++		(Or32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
++		(Or32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++
++(Xor64 x y) ->
++	(Int64Make
++		(Xor32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y))
++		(Xor32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++
++(Neg64 <t> x) -> (Sub64 (Const64 <t> [0]) x)
++
++(Com64 x) ->
++	(Int64Make
++		(Com32 <config.fe.TypeUInt32()> (Int64Hi x))
++		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
++
++(SignExt32to64 x) -> (Int64Make (Signmask x) x)
++(SignExt16to64 x) -> (SignExt32to64 (SignExt16to32 x))
++(SignExt8to64 x) -> (SignExt32to64 (SignExt8to32 x))
++
++(ZeroExt32to64 x) -> (Int64Make (Const32 <config.fe.TypeUInt32()> [0]) x)
++(ZeroExt16to64 x) -> (ZeroExt32to64 (ZeroExt16to32 x))
++(ZeroExt8to64 x) -> (ZeroExt32to64 (ZeroExt8to32 x))
++
++(Trunc64to32 (Int64Make _ lo)) -> lo
++(Trunc64to16 (Int64Make _ lo)) -> (Trunc32to16 lo)
++(Trunc64to8 (Int64Make _ lo)) -> (Trunc32to8 lo)
++
++(Lsh32x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++(Rsh32x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask x)
++(Rsh32Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++(Lsh16x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++(Rsh16x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask (SignExt16to32 x))
++(Rsh16Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++(Lsh8x64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++(Rsh8x64 x (Int64Make (Const32 [c]) _)) && c != 0 -> (Signmask (SignExt8to32 x))
++(Rsh8Ux64 _ (Int64Make (Const32 [c]) _)) && c != 0 -> (Const32 [0])
++
++(Lsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh32x32 x lo)
++(Rsh32x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32x32 x lo)
++(Rsh32Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh32Ux32 x lo)
++(Lsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh16x32 x lo)
++(Rsh16x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16x32 x lo)
++(Rsh16Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh16Ux32 x lo)
++(Lsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Lsh8x32 x lo)
++(Rsh8x64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8x32 x lo)
++(Rsh8Ux64 x (Int64Make (Const32 [0]) lo)) -> (Rsh8Ux32 x lo)
++
++(Const64 <t> [c]) && t.IsSigned() ->
++	(Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++(Const64 <t> [c]) && !t.IsSigned() ->
++	(Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++
++(Eq64 x y) ->
++	(AndB
++		(Eq32 (Int64Hi x) (Int64Hi y))
++		(Eq32 (Int64Lo x) (Int64Lo y)))
++
++(Neq64 x y) ->
++	(OrB
++		(Neq32 (Int64Hi x) (Int64Hi y))
++		(Neq32 (Int64Lo x) (Int64Lo y)))
++
++(Less64U x y) ->
++	(OrB
++		(Less32U (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Less32U (Int64Lo x) (Int64Lo y))))
++
++(Leq64U x y) ->
++	(OrB
++		(Less32U (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Leq32U (Int64Lo x) (Int64Lo y))))
++
++(Greater64U x y) ->
++	(OrB
++		(Greater32U (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Greater32U (Int64Lo x) (Int64Lo y))))
++
++(Geq64U x y) ->
++	(OrB
++		(Greater32U (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Geq32U (Int64Lo x) (Int64Lo y))))
++
++(Less64 x y) ->
++	(OrB
++		(Less32 (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Less32U (Int64Lo x) (Int64Lo y))))
++
++(Leq64 x y) ->
++	(OrB
++		(Less32 (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Leq32U (Int64Lo x) (Int64Lo y))))
++
++(Greater64 x y) ->
++	(OrB
++		(Greater32 (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Greater32U (Int64Lo x) (Int64Lo y))))
++
++(Geq64 x y) ->
++	(OrB
++		(Greater32 (Int64Hi x) (Int64Hi y))
++		(AndB
++			(Eq32 (Int64Hi x) (Int64Hi y))
++			(Geq32U (Int64Lo x) (Int64Lo y))))
+diff --git a/src/cmd/compile/internal/ssa/gen/dec64Ops.go b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+new file mode 100644
+index 0000000000..8c5883bc56
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/gen/dec64Ops.go
+@@ -0,0 +1,20 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
++package main
++
++var dec64Ops = []opData{}
++
++var dec64Blocks = []blockData{}
++
++func init() {
++	archs = append(archs, arch{
++		name:    "dec64",
++		ops:     dec64Ops,
++		blocks:  dec64Blocks,
++		generic: true,
++	})
++}
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 9465014194..880d3bb3c9 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -173,76 +173,76 @@ var genericOps = []opData{
+ 	{name: "Lrot64", argLength: 1, aux: "Int64"},
+ 
+ 	// 2-input comparisons
+-	{name: "Eq8", argLength: 2, commutative: true}, // arg0 == arg1
+-	{name: "Eq16", argLength: 2, commutative: true},
+-	{name: "Eq32", argLength: 2, commutative: true},
+-	{name: "Eq64", argLength: 2, commutative: true},
+-	{name: "EqPtr", argLength: 2, commutative: true},
+-	{name: "EqInter", argLength: 2}, // arg0 or arg1 is nil; other cases handled by frontend
+-	{name: "EqSlice", argLength: 2}, // arg0 or arg1 is nil; other cases handled by frontend
+-	{name: "Eq32F", argLength: 2},
+-	{name: "Eq64F", argLength: 2},
+-
+-	{name: "Neq8", argLength: 2, commutative: true}, // arg0 != arg1
+-	{name: "Neq16", argLength: 2, commutative: true},
+-	{name: "Neq32", argLength: 2, commutative: true},
+-	{name: "Neq64", argLength: 2, commutative: true},
+-	{name: "NeqPtr", argLength: 2, commutative: true},
+-	{name: "NeqInter", argLength: 2}, // arg0 or arg1 is nil; other cases handled by frontend
+-	{name: "NeqSlice", argLength: 2}, // arg0 or arg1 is nil; other cases handled by frontend
+-	{name: "Neq32F", argLength: 2},
++	{name: "Eq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 == arg1
++	{name: "Eq16", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "Eq32", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "Eq64", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "EqPtr", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "EqInter", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "EqSlice", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "Eq32F", argLength: 2, typ: "Bool"},
++	{name: "Eq64F", argLength: 2, typ: "Bool"},
++
++	{name: "Neq8", argLength: 2, commutative: true, typ: "Bool"}, // arg0 != arg1
++	{name: "Neq16", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "Neq32", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "Neq64", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "NeqPtr", argLength: 2, commutative: true, typ: "Bool"},
++	{name: "NeqInter", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "NeqSlice", argLength: 2, typ: "Bool"}, // arg0 or arg1 is nil; other cases handled by frontend
++	{name: "Neq32F", argLength: 2, typ: "Bool"},
+ 	{name: "Neq64F", argLength: 2},
+ 
+-	{name: "Less8", argLength: 2},  // arg0 < arg1, signed
+-	{name: "Less8U", argLength: 2}, // arg0 < arg1, unsigned
+-	{name: "Less16", argLength: 2},
+-	{name: "Less16U", argLength: 2},
+-	{name: "Less32", argLength: 2},
+-	{name: "Less32U", argLength: 2},
+-	{name: "Less64", argLength: 2},
+-	{name: "Less64U", argLength: 2},
+-	{name: "Less32F", argLength: 2},
+-	{name: "Less64F", argLength: 2},
+-
+-	{name: "Leq8", argLength: 2},  // arg0 <= arg1, signed
+-	{name: "Leq8U", argLength: 2}, // arg0 <= arg1, unsigned
+-	{name: "Leq16", argLength: 2},
+-	{name: "Leq16U", argLength: 2},
+-	{name: "Leq32", argLength: 2},
+-	{name: "Leq32U", argLength: 2},
+-	{name: "Leq64", argLength: 2},
+-	{name: "Leq64U", argLength: 2},
+-	{name: "Leq32F", argLength: 2},
+-	{name: "Leq64F", argLength: 2},
+-
+-	{name: "Greater8", argLength: 2},  // arg0 > arg1, signed
+-	{name: "Greater8U", argLength: 2}, // arg0 > arg1, unsigned
+-	{name: "Greater16", argLength: 2},
+-	{name: "Greater16U", argLength: 2},
+-	{name: "Greater32", argLength: 2},
+-	{name: "Greater32U", argLength: 2},
+-	{name: "Greater64", argLength: 2},
+-	{name: "Greater64U", argLength: 2},
+-	{name: "Greater32F", argLength: 2},
+-	{name: "Greater64F", argLength: 2},
+-
+-	{name: "Geq8", argLength: 2},  // arg0 <= arg1, signed
+-	{name: "Geq8U", argLength: 2}, // arg0 <= arg1, unsigned
+-	{name: "Geq16", argLength: 2},
+-	{name: "Geq16U", argLength: 2},
+-	{name: "Geq32", argLength: 2},
+-	{name: "Geq32U", argLength: 2},
+-	{name: "Geq64", argLength: 2},
+-	{name: "Geq64U", argLength: 2},
+-	{name: "Geq32F", argLength: 2},
+-	{name: "Geq64F", argLength: 2},
++	{name: "Less8", argLength: 2, typ: "Bool"},  // arg0 < arg1, signed
++	{name: "Less8U", argLength: 2, typ: "Bool"}, // arg0 < arg1, unsigned
++	{name: "Less16", argLength: 2, typ: "Bool"},
++	{name: "Less16U", argLength: 2, typ: "Bool"},
++	{name: "Less32", argLength: 2, typ: "Bool"},
++	{name: "Less32U", argLength: 2, typ: "Bool"},
++	{name: "Less64", argLength: 2, typ: "Bool"},
++	{name: "Less64U", argLength: 2, typ: "Bool"},
++	{name: "Less32F", argLength: 2, typ: "Bool"},
++	{name: "Less64F", argLength: 2, typ: "Bool"},
++
++	{name: "Leq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
++	{name: "Leq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
++	{name: "Leq16", argLength: 2, typ: "Bool"},
++	{name: "Leq16U", argLength: 2, typ: "Bool"},
++	{name: "Leq32", argLength: 2, typ: "Bool"},
++	{name: "Leq32U", argLength: 2, typ: "Bool"},
++	{name: "Leq64", argLength: 2, typ: "Bool"},
++	{name: "Leq64U", argLength: 2, typ: "Bool"},
++	{name: "Leq32F", argLength: 2, typ: "Bool"},
++	{name: "Leq64F", argLength: 2, typ: "Bool"},
++
++	{name: "Greater8", argLength: 2, typ: "Bool"},  // arg0 > arg1, signed
++	{name: "Greater8U", argLength: 2, typ: "Bool"}, // arg0 > arg1, unsigned
++	{name: "Greater16", argLength: 2, typ: "Bool"},
++	{name: "Greater16U", argLength: 2, typ: "Bool"},
++	{name: "Greater32", argLength: 2, typ: "Bool"},
++	{name: "Greater32U", argLength: 2, typ: "Bool"},
++	{name: "Greater64", argLength: 2, typ: "Bool"},
++	{name: "Greater64U", argLength: 2, typ: "Bool"},
++	{name: "Greater32F", argLength: 2, typ: "Bool"},
++	{name: "Greater64F", argLength: 2, typ: "Bool"},
++
++	{name: "Geq8", argLength: 2, typ: "Bool"},  // arg0 <= arg1, signed
++	{name: "Geq8U", argLength: 2, typ: "Bool"}, // arg0 <= arg1, unsigned
++	{name: "Geq16", argLength: 2, typ: "Bool"},
++	{name: "Geq16U", argLength: 2, typ: "Bool"},
++	{name: "Geq32", argLength: 2, typ: "Bool"},
++	{name: "Geq32U", argLength: 2, typ: "Bool"},
++	{name: "Geq64", argLength: 2, typ: "Bool"},
++	{name: "Geq64U", argLength: 2, typ: "Bool"},
++	{name: "Geq32F", argLength: 2, typ: "Bool"},
++	{name: "Geq64F", argLength: 2, typ: "Bool"},
+ 
+ 	// boolean ops
+-	{name: "AndB", argLength: 2}, // arg0 && arg1 (not shortcircuited)
+-	{name: "OrB", argLength: 2},  // arg0 || arg1 (not shortcircuited)
+-	{name: "EqB", argLength: 2},  // arg0 == arg1
+-	{name: "NeqB", argLength: 2}, // arg0 != arg1
+-	{name: "Not", argLength: 1},  // !arg0, boolean
++	{name: "AndB", argLength: 2, typ: "Bool"}, // arg0 && arg1 (not shortcircuited)
++	{name: "OrB", argLength: 2, typ: "Bool"},  // arg0 || arg1 (not shortcircuited)
++	{name: "EqB", argLength: 2, typ: "Bool"},  // arg0 == arg1
++	{name: "NeqB", argLength: 2, typ: "Bool"}, // arg0 != arg1
++	{name: "Not", argLength: 1, typ: "Bool"},  // !arg0, boolean
+ 
+ 	// 1-input ops
+ 	{name: "Neg8", argLength: 1}, // -arg0
+@@ -416,6 +416,25 @@ var genericOps = []opData{
+ 	{name: "VarKill", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+ 	{name: "VarLive", argLength: 1, aux: "Sym"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem"},          // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
++
++	// Ops for breaking 64-bit operations on 32-bit architectures
++	{name: "Int64Make", argLength: 2, typ: "UInt64"}, // arg0=hi, arg1=lo
++	{name: "Int64Hi", argLength: 1, typ: "UInt32"},   // high 32-bit of arg0
++	{name: "Int64Lo", argLength: 1, typ: "UInt32"},   // low 32-bit of arg0
++
++	{name: "Add32carry", argLength: 2, commutative: true, typ: "(Flags,UInt32)"}, // arg0 + arg1, returns (carry, value)
++	{name: "Add32withcarry", argLength: 3, commutative: true},                    // arg0 + arg1 + arg2, arg2=carry (0 or 1)
++
++	{name: "Sub32carry", argLength: 2, typ: "(Flags,UInt32)"}, // arg0 - arg1, returns (carry, value)
++	{name: "Sub32withcarry", argLength: 3},                    // arg0 - arg1 - arg2, arg2=carry (0 or 1)
++
++	{name: "Mul32uhilo", argLength: 2, typ: "(UInt32,UInt32)"}, // arg0 * arg1, returns (hi, lo)
++
++	{name: "Signmask", argLength: 1, typ: "Int32"}, // 0 if arg0 >= 0, -1 if arg0 < 0
++
++	// pseudo-ops for breaking Tuple
++	{name: "Select0", argLength: 1}, // the first component of a tuple
++	{name: "Select1", argLength: 1}, // the second component of a tuple
+ }
+ 
+ //     kind           control    successors       implicit exit
+diff --git a/src/cmd/compile/internal/ssa/gen/rulegen.go b/src/cmd/compile/internal/ssa/gen/rulegen.go
+index 0fc5749f1d..0947e65ca7 100644
+--- a/src/cmd/compile/internal/ssa/gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/gen/rulegen.go
+@@ -689,6 +689,13 @@ func blockName(name string, arch arch) string {
+ 
+ // typeName returns the string to use to generate a type.
+ func typeName(typ string) string {
++	if typ[0] == '(' {
++		ts := strings.Split(typ[1:len(typ)-1], ",")
++		if len(ts) != 2 {
++			panic("Tuple expect 2 arguments")
++		}
++		return "MakeTuple(" + typeName(ts[0]) + ", " + typeName(ts[1]) + ")"
++	}
+ 	switch typ {
+ 	case "Flags", "Mem", "Void", "Int128":
+ 		return "Type" + typ
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index fc8214b9d9..1f33c5b3db 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -332,6 +332,12 @@ const (
+ 	OpARMMUL
+ 	OpARMHMUL
+ 	OpARMHMULU
++	OpARMADDS
++	OpARMADC
++	OpARMSUBS
++	OpARMSBC
++	OpARMMULLU
++	OpARMMULA
+ 	OpARMAND
+ 	OpARMANDconst
+ 	OpARMOR
+@@ -384,6 +390,9 @@ const (
+ 	OpARMLessEqualU
+ 	OpARMGreaterThanU
+ 	OpARMGreaterEqualU
++	OpARMCarry
++	OpARMLoweredSelect0
++	OpARMLoweredSelect1
+ 	OpARMDUFFZERO
+ 	OpARMDUFFCOPY
+ 	OpARMLoweredZero
+@@ -675,6 +684,17 @@ const (
+ 	OpVarKill
+ 	OpVarLive
+ 	OpKeepAlive
++	OpInt64Make
++	OpInt64Hi
++	OpInt64Lo
++	OpAdd32carry
++	OpAdd32withcarry
++	OpSub32carry
++	OpSub32withcarry
++	OpMul32uhilo
++	OpSignmask
++	OpSelect0
++	OpSelect1
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -3985,6 +4005,99 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:        "ADDS",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:        "ADC",
++		argLen:      3,
++		commutative: true,
++		asm:         arm.AADC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 65536}, // FLAGS
++				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "SUBS",
++		argLen: 2,
++		asm:    arm.ASUB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65536, // FLAGS
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "SBC",
++		argLen: 3,
++		asm:    arm.ASBC,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{2, 65536}, // FLAGS
++				{0, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119},  // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:        "MULLU",
++		argLen:      2,
++		commutative: true,
++		asm:         arm.AMULLU,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 1, // R0
++			outputs: []regMask{
++				5118, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
++	{
++		name:   "MULA",
++		argLen: 3,
++		asm:    arm.AMULA,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+@@ -4661,6 +4774,37 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "Carry",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []regMask{
++				65536, // FLAGS
++			},
++		},
++	},
++	{
++		name:   "LoweredSelect0",
++		argLen: 1,
++		reg: regInfo{
++			outputs: []regMask{
++				1, // R0
++			},
++		},
++	},
++	{
++		name:         "LoweredSelect1",
++		argLen:       1,
++		resultInArg0: true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			outputs: []regMask{
++				5119, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++		},
++	},
+ 	{
+ 		name:    "DUFFZERO",
+ 		auxType: auxInt64,
+@@ -6200,6 +6344,63 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  2,
+ 		generic: true,
+ 	},
++	{
++		name:    "Int64Make",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Int64Hi",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Int64Lo",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:        "Add32carry",
++		argLen:      2,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:        "Add32withcarry",
++		argLen:      3,
++		commutative: true,
++		generic:     true,
++	},
++	{
++		name:    "Sub32carry",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Sub32withcarry",
++		argLen:  3,
++		generic: true,
++	},
++	{
++		name:    "Mul32uhilo",
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "Signmask",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Select0",
++		argLen:  1,
++		generic: true,
++	},
++	{
++		name:    "Select1",
++		argLen:  1,
++		generic: true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As    { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/opt.go b/src/cmd/compile/internal/ssa/opt.go
+index caf8cca1e6..f6a904abca 100644
+--- a/src/cmd/compile/internal/ssa/opt.go
++++ b/src/cmd/compile/internal/ssa/opt.go
+@@ -11,4 +11,7 @@ func opt(f *Func) {
+ 
+ func dec(f *Func) {
+ 	applyRewrite(f, rewriteBlockdec, rewriteValuedec)
++	if f.Config.IntSize == 4 {
++		applyRewrite(f, rewriteBlockdec64, rewriteValuedec64)
++	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index d45ed2d87e..ccc4360b19 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -14,6 +14,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpAdd16(v, config)
+ 	case OpAdd32:
+ 		return rewriteValueARM_OpAdd32(v, config)
++	case OpAdd32carry:
++		return rewriteValueARM_OpAdd32carry(v, config)
++	case OpAdd32withcarry:
++		return rewriteValueARM_OpAdd32withcarry(v, config)
+ 	case OpAdd8:
+ 		return rewriteValueARM_OpAdd8(v, config)
+ 	case OpAddPtr:
+@@ -176,6 +180,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpMul16(v, config)
+ 	case OpMul32:
+ 		return rewriteValueARM_OpMul32(v, config)
++	case OpMul32uhilo:
++		return rewriteValueARM_OpMul32uhilo(v, config)
+ 	case OpMul8:
+ 		return rewriteValueARM_OpMul8(v, config)
+ 	case OpNeg16:
+@@ -256,12 +262,18 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpRsh8x64(v, config)
+ 	case OpRsh8x8:
+ 		return rewriteValueARM_OpRsh8x8(v, config)
++	case OpSelect0:
++		return rewriteValueARM_OpSelect0(v, config)
++	case OpSelect1:
++		return rewriteValueARM_OpSelect1(v, config)
+ 	case OpSignExt16to32:
+ 		return rewriteValueARM_OpSignExt16to32(v, config)
+ 	case OpSignExt8to16:
+ 		return rewriteValueARM_OpSignExt8to16(v, config)
+ 	case OpSignExt8to32:
+ 		return rewriteValueARM_OpSignExt8to32(v, config)
++	case OpSignmask:
++		return rewriteValueARM_OpSignmask(v, config)
+ 	case OpStaticCall:
+ 		return rewriteValueARM_OpStaticCall(v, config)
+ 	case OpStore:
+@@ -270,6 +282,10 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpSub16(v, config)
+ 	case OpSub32:
+ 		return rewriteValueARM_OpSub32(v, config)
++	case OpSub32carry:
++		return rewriteValueARM_OpSub32carry(v, config)
++	case OpSub32withcarry:
++		return rewriteValueARM_OpSub32withcarry(v, config)
+ 	case OpSub8:
+ 		return rewriteValueARM_OpSub8(v, config)
+ 	case OpSubPtr:
+@@ -330,6 +346,40 @@ func rewriteValueARM_OpARMADD(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ADD (MUL x y) a)
++	// cond:
++	// result: (MULA x y a)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpARMMUL {
++			break
++		}
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		a := v.Args[1]
++		v.reset(OpARMMULA)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(a)
++		return true
++	}
++	// match: (ADD a (MUL x y))
++	// cond:
++	// result: (MULA x y a)
++	for {
++		a := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpARMMUL {
++			break
++		}
++		x := v_1.Args[0]
++		y := v_1.Args[1]
++		v.reset(OpARMMULA)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(a)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueARM_OpAdd16(v *Value, config *Config) bool {
+@@ -362,6 +412,38 @@ func rewriteValueARM_OpAdd32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpAdd32carry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32carry x y)
++	// cond:
++	// result: (ADDS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMADDS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpAdd32withcarry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add32withcarry x y c)
++	// cond:
++	// result: (ADC x y c)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		c := v.Args[2]
++		v.reset(OpARMADC)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++}
+ func rewriteValueARM_OpAdd8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2156,6 +2238,21 @@ func rewriteValueARM_OpMul32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpMul32uhilo(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul32uhilo x y)
++	// cond:
++	// result: (MULLU x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMMULLU)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueARM_OpMul8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -2968,6 +3065,50 @@ func rewriteValueARM_OpRsh8x8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSelect0(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select0 <t> x)
++	// cond: t.IsFlags()
++	// result: (Carry x)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if !(t.IsFlags()) {
++			break
++		}
++		v.reset(OpARMCarry)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Select0 <t> x)
++	// cond: !t.IsFlags()
++	// result: (LoweredSelect0 x)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		if !(!t.IsFlags()) {
++			break
++		}
++		v.reset(OpARMLoweredSelect0)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
++func rewriteValueARM_OpSelect1(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Select1 x)
++	// cond:
++	// result: (LoweredSelect1 x)
++	for {
++		x := v.Args[0]
++		v.reset(OpARMLoweredSelect1)
++		v.AddArg(x)
++		return true
++	}
++}
+ func rewriteValueARM_OpSignExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3007,6 +3148,20 @@ func rewriteValueARM_OpSignExt8to32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSignmask(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Signmask x)
++	// cond:
++	// result: (SRAconst x [31])
++	for {
++		x := v.Args[0]
++		v.reset(OpARMSRAconst)
++		v.AddArg(x)
++		v.AuxInt = 31
++		return true
++	}
++}
+ func rewriteValueARM_OpStaticCall(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3107,6 +3262,38 @@ func rewriteValueARM_OpSub32(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpSub32carry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32carry x y)
++	// cond:
++	// result: (SUBS x y)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpARMSUBS)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
++func rewriteValueARM_OpSub32withcarry(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub32withcarry x y c)
++	// cond:
++	// result: (SBC x y c)
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		c := v.Args[2]
++		v.reset(OpARMSBC)
++		v.AddArg(x)
++		v.AddArg(y)
++		v.AddArg(c)
++		return true
++	}
++}
+ func rewriteValueARM_OpSub8(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewritedec64.go b/src/cmd/compile/internal/ssa/rewritedec64.go
+new file mode 100644
+index 0000000000..72dfec89b9
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewritedec64.go
+@@ -0,0 +1,1522 @@
++// autogenerated from gen/dec64.rules: do not edit!
++// generated with: cd gen; go run *.go
++
++package ssa
++
++import "math"
++
++var _ = math.MinInt8 // in case not otherwise used
++func rewriteValuedec64(v *Value, config *Config) bool {
++	switch v.Op {
++	case OpAdd64:
++		return rewriteValuedec64_OpAdd64(v, config)
++	case OpAnd64:
++		return rewriteValuedec64_OpAnd64(v, config)
++	case OpArg:
++		return rewriteValuedec64_OpArg(v, config)
++	case OpCom64:
++		return rewriteValuedec64_OpCom64(v, config)
++	case OpConst64:
++		return rewriteValuedec64_OpConst64(v, config)
++	case OpEq64:
++		return rewriteValuedec64_OpEq64(v, config)
++	case OpGeq64:
++		return rewriteValuedec64_OpGeq64(v, config)
++	case OpGeq64U:
++		return rewriteValuedec64_OpGeq64U(v, config)
++	case OpGreater64:
++		return rewriteValuedec64_OpGreater64(v, config)
++	case OpGreater64U:
++		return rewriteValuedec64_OpGreater64U(v, config)
++	case OpInt64Hi:
++		return rewriteValuedec64_OpInt64Hi(v, config)
++	case OpInt64Lo:
++		return rewriteValuedec64_OpInt64Lo(v, config)
++	case OpLeq64:
++		return rewriteValuedec64_OpLeq64(v, config)
++	case OpLeq64U:
++		return rewriteValuedec64_OpLeq64U(v, config)
++	case OpLess64:
++		return rewriteValuedec64_OpLess64(v, config)
++	case OpLess64U:
++		return rewriteValuedec64_OpLess64U(v, config)
++	case OpLoad:
++		return rewriteValuedec64_OpLoad(v, config)
++	case OpLsh16x64:
++		return rewriteValuedec64_OpLsh16x64(v, config)
++	case OpLsh32x64:
++		return rewriteValuedec64_OpLsh32x64(v, config)
++	case OpLsh8x64:
++		return rewriteValuedec64_OpLsh8x64(v, config)
++	case OpMul64:
++		return rewriteValuedec64_OpMul64(v, config)
++	case OpNeg64:
++		return rewriteValuedec64_OpNeg64(v, config)
++	case OpNeq64:
++		return rewriteValuedec64_OpNeq64(v, config)
++	case OpOr64:
++		return rewriteValuedec64_OpOr64(v, config)
++	case OpRsh16Ux64:
++		return rewriteValuedec64_OpRsh16Ux64(v, config)
++	case OpRsh16x64:
++		return rewriteValuedec64_OpRsh16x64(v, config)
++	case OpRsh32Ux64:
++		return rewriteValuedec64_OpRsh32Ux64(v, config)
++	case OpRsh32x64:
++		return rewriteValuedec64_OpRsh32x64(v, config)
++	case OpRsh8Ux64:
++		return rewriteValuedec64_OpRsh8Ux64(v, config)
++	case OpRsh8x64:
++		return rewriteValuedec64_OpRsh8x64(v, config)
++	case OpSignExt16to64:
++		return rewriteValuedec64_OpSignExt16to64(v, config)
++	case OpSignExt32to64:
++		return rewriteValuedec64_OpSignExt32to64(v, config)
++	case OpSignExt8to64:
++		return rewriteValuedec64_OpSignExt8to64(v, config)
++	case OpStore:
++		return rewriteValuedec64_OpStore(v, config)
++	case OpSub64:
++		return rewriteValuedec64_OpSub64(v, config)
++	case OpTrunc64to16:
++		return rewriteValuedec64_OpTrunc64to16(v, config)
++	case OpTrunc64to32:
++		return rewriteValuedec64_OpTrunc64to32(v, config)
++	case OpTrunc64to8:
++		return rewriteValuedec64_OpTrunc64to8(v, config)
++	case OpXor64:
++		return rewriteValuedec64_OpXor64(v, config)
++	case OpZeroExt16to64:
++		return rewriteValuedec64_OpZeroExt16to64(v, config)
++	case OpZeroExt32to64:
++		return rewriteValuedec64_OpZeroExt32to64(v, config)
++	case OpZeroExt8to64:
++		return rewriteValuedec64_OpZeroExt8to64(v, config)
++	}
++	return false
++}
++func rewriteValuedec64_OpAdd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Add64 x y)
++	// cond:
++	// result: (Int64Make 		(Add32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select0 <TypeFlags> (Add32carry (Int64Lo x) (Int64Lo y)))) 		(Select1 <config.fe.TypeUInt32()> (Add32carry (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpAdd32withcarry, config.fe.TypeInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSelect0, TypeFlags)
++		v4 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		v7 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
++		v8 := b.NewValue0(v.Line, OpAdd32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(x)
++		v8.AddArg(v9)
++		v10 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v10.AddArg(y)
++		v8.AddArg(v10)
++		v7.AddArg(v8)
++		v.AddArg(v7)
++		return true
++	}
++}
++func rewriteValuedec64_OpAnd64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (And64 x y)
++	// cond:
++	// result: (Int64Make 		(And32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y)) 		(And32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpAnd32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAnd32, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(y)
++		v3.AddArg(v5)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpArg(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Arg {n} [off])
++	// cond: is64BitInt(v.Type) && v.Type.IsSigned()
++	// result: (Int64Make     (Arg <config.fe.TypeInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
++	for {
++		n := v.Aux
++		off := v.AuxInt
++		if !(is64BitInt(v.Type) && v.Type.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeInt32())
++		v0.Aux = n
++		v0.AuxInt = off + 4
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
++		v1.Aux = n
++		v1.AuxInt = off
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Arg {n} [off])
++	// cond: is64BitInt(v.Type) && !v.Type.IsSigned()
++	// result: (Int64Make     (Arg <config.fe.TypeUInt32()> {n} [off+4])     (Arg <config.fe.TypeUInt32()> {n} [off]))
++	for {
++		n := v.Aux
++		off := v.AuxInt
++		if !(is64BitInt(v.Type) && !v.Type.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
++		v0.Aux = n
++		v0.AuxInt = off + 4
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpArg, config.fe.TypeUInt32())
++		v1.Aux = n
++		v1.AuxInt = off
++		v.AddArg(v1)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpCom64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Com64 x)
++	// cond:
++	// result: (Int64Make 		(Com32 <config.fe.TypeUInt32()> (Int64Hi x)) 		(Com32 <config.fe.TypeUInt32()> (Int64Lo x)))
++	for {
++		x := v.Args[0]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpCom32, config.fe.TypeUInt32())
++		v3 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v3.AddArg(x)
++		v2.AddArg(v3)
++		v.AddArg(v2)
++		return true
++	}
++}
++func rewriteValuedec64_OpConst64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Const64 <t> [c])
++	// cond: t.IsSigned()
++	// result: (Int64Make (Const32 <config.fe.TypeInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	for {
++		t := v.Type
++		c := v.AuxInt
++		if !(t.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeInt32())
++		v0.AuxInt = c >> 32
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v1.AuxInt = c & 0xffffffff
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Const64 <t> [c])
++	// cond: !t.IsSigned()
++	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [c>>32]) (Const32 <config.fe.TypeUInt32()> [c&0xffffffff]))
++	for {
++		t := v.Type
++		c := v.AuxInt
++		if !(!t.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v0.AuxInt = c >> 32
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v1.AuxInt = c & 0xffffffff
++		v.AddArg(v1)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpEq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Eq64 x y)
++	// cond:
++	// result: (AndB 		(Eq32 (Int64Hi x) (Int64Hi y)) 		(Eq32 (Int64Lo x) (Int64Lo y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAndB)
++		v0 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(y)
++		v3.AddArg(v5)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpGeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64 x y)
++	// cond:
++	// result: (OrB 		(Greater32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Geq32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpGreater32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpGeq32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpGeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Geq64U x y)
++	// cond:
++	// result: (OrB 		(Greater32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Geq32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpGreater32U, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpGeq32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpGreater64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64 x y)
++	// cond:
++	// result: (OrB 		(Greater32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Greater32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpGreater32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpGreater32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpGreater64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Greater64U x y)
++	// cond:
++	// result: (OrB 		(Greater32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Greater32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpGreater32U, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpGreater32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpInt64Hi(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Int64Hi (Int64Make hi _))
++	// cond:
++	// result: hi
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpInt64Make {
++			break
++		}
++		hi := v_0.Args[0]
++		v.reset(OpCopy)
++		v.Type = hi.Type
++		v.AddArg(hi)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpInt64Lo(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Int64Lo (Int64Make _ lo))
++	// cond:
++	// result: lo
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpInt64Make {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpCopy)
++		v.Type = lo.Type
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpLeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64 x y)
++	// cond:
++	// result: (OrB 		(Less32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Leq32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpLess32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpLeq32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpLeq64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Leq64U x y)
++	// cond:
++	// result: (OrB 		(Less32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Leq32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpLess32U, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpLeq32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpLess64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64 x y)
++	// cond:
++	// result: (OrB 		(Less32 (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Less32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpLess32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpLess32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpLess64U(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Less64U x y)
++	// cond:
++	// result: (OrB 		(Less32U (Int64Hi x) (Int64Hi y)) 		(AndB 			(Eq32 (Int64Hi x) (Int64Hi y)) 			(Less32U (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpLess32U, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpAndB, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpEq32, config.fe.TypeBool())
++		v5 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v7 := b.NewValue0(v.Line, OpLess32U, config.fe.TypeBool())
++		v8 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v8.AddArg(x)
++		v7.AddArg(v8)
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(y)
++		v7.AddArg(v9)
++		v3.AddArg(v7)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpLoad(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Load <t> ptr mem)
++	// cond: is64BitInt(t) && t.IsSigned()
++	// result: (Int64Make 		(Load <config.fe.TypeInt32()> (OffPtr <config.fe.TypeInt32().PtrTo()> [4] ptr) mem) 		(Load <config.fe.TypeUInt32()> ptr mem))
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitInt(t) && t.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeInt32())
++		v1 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeInt32().PtrTo())
++		v1.AuxInt = 4
++		v1.AddArg(ptr)
++		v0.AddArg(v1)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
++		v2.AddArg(ptr)
++		v2.AddArg(mem)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Load <t> ptr mem)
++	// cond: is64BitInt(t) && !t.IsSigned()
++	// result: (Int64Make 		(Load <config.fe.TypeUInt32()> (OffPtr <config.fe.TypeUInt32().PtrTo()> [4] ptr) mem) 		(Load <config.fe.TypeUInt32()> ptr mem))
++	for {
++		t := v.Type
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(is64BitInt(t) && !t.IsSigned()) {
++			break
++		}
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpOffPtr, config.fe.TypeUInt32().PtrTo())
++		v1.AuxInt = 4
++		v1.AddArg(ptr)
++		v0.AddArg(v1)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpLoad, config.fe.TypeUInt32())
++		v2.AddArg(ptr)
++		v2.AddArg(mem)
++		v.AddArg(v2)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpLsh16x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh16x64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Lsh16x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Lsh16x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpLsh16x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpLsh32x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh32x64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Lsh32x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Lsh32x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpLsh32x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpLsh8x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Lsh8x64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Lsh8x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Lsh8x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpLsh8x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpMul64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Mul64 x y)
++	// cond:
++	// result: (Int64Make 		(Add32 <config.fe.TypeUInt32()> 			(Mul32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Hi y)) 			(Add32 <config.fe.TypeUInt32()> 				(Mul32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Lo y)) 				(Select0 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y))))) 		(Select1 <config.fe.TypeUInt32()> (Mul32uhilo (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpAdd32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpMul32, config.fe.TypeUInt32())
++		v2 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v3.AddArg(y)
++		v1.AddArg(v3)
++		v0.AddArg(v1)
++		v4 := b.NewValue0(v.Line, OpAdd32, config.fe.TypeUInt32())
++		v5 := b.NewValue0(v.Line, OpMul32, config.fe.TypeUInt32())
++		v6 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v6.AddArg(x)
++		v5.AddArg(v6)
++		v7 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v7.AddArg(y)
++		v5.AddArg(v7)
++		v4.AddArg(v5)
++		v8 := b.NewValue0(v.Line, OpSelect0, config.fe.TypeUInt32())
++		v9 := b.NewValue0(v.Line, OpMul32uhilo, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v10 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v10.AddArg(x)
++		v9.AddArg(v10)
++		v11 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v11.AddArg(y)
++		v9.AddArg(v11)
++		v8.AddArg(v9)
++		v4.AddArg(v8)
++		v0.AddArg(v4)
++		v.AddArg(v0)
++		v12 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
++		v13 := b.NewValue0(v.Line, OpMul32uhilo, MakeTuple(config.fe.TypeUInt32(), config.fe.TypeUInt32()))
++		v14 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v14.AddArg(x)
++		v13.AddArg(v14)
++		v15 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v15.AddArg(y)
++		v13.AddArg(v15)
++		v12.AddArg(v13)
++		v.AddArg(v12)
++		return true
++	}
++}
++func rewriteValuedec64_OpNeg64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neg64 <t> x)
++	// cond:
++	// result: (Sub64 (Const64 <t> [0]) x)
++	for {
++		t := v.Type
++		x := v.Args[0]
++		v.reset(OpSub64)
++		v0 := b.NewValue0(v.Line, OpConst64, t)
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuedec64_OpNeq64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Neq64 x y)
++	// cond:
++	// result: (OrB 		(Neq32 (Int64Hi x) (Int64Hi y)) 		(Neq32 (Int64Lo x) (Int64Lo y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpOrB)
++		v0 := b.NewValue0(v.Line, OpNeq32, config.fe.TypeBool())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpNeq32, config.fe.TypeBool())
++		v4 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(y)
++		v3.AddArg(v5)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpOr64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Or64 x y)
++	// cond:
++	// result: (Int64Make 		(Or32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y)) 		(Or32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpOr32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpOr32, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(y)
++		v3.AddArg(v5)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpRsh16Ux64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16Ux64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Rsh16Ux64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh16Ux32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh16Ux32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpRsh16x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh16x64 x (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Signmask (SignExt16to32 x))
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpSignmask)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh16x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh16x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh16x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpRsh32Ux64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh32Ux64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Rsh32Ux64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh32Ux32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh32Ux32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpRsh32x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh32x64 x (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Signmask x)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpSignmask)
++		v.AddArg(x)
++		return true
++	}
++	// match: (Rsh32x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh32x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh32x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpRsh8Ux64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh8Ux64 _ (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Const32 [0])
++	for {
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = 0
++		return true
++	}
++	// match: (Rsh8Ux64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh8Ux32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh8Ux32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpRsh8x64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Rsh8x64 x (Int64Make (Const32 [c]) _))
++	// cond: c != 0
++	// result: (Signmask (SignExt8to32 x))
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		c := v_1_0.AuxInt
++		if !(c != 0) {
++			break
++		}
++		v.reset(OpSignmask)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (Rsh8x64 x (Int64Make (Const32 [0]) lo))
++	// cond:
++	// result: (Rsh8x32 x lo)
++	for {
++		x := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpConst32 {
++			break
++		}
++		if v_1_0.AuxInt != 0 {
++			break
++		}
++		lo := v_1.Args[1]
++		v.reset(OpRsh8x32)
++		v.AddArg(x)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpSignExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt16to64 x)
++	// cond:
++	// result: (SignExt32to64 (SignExt16to32 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSignExt32to64)
++		v0 := b.NewValue0(v.Line, OpSignExt16to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuedec64_OpSignExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt32to64 x)
++	// cond:
++	// result: (Int64Make (Signmask x) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpSignmask, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuedec64_OpSignExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (SignExt8to64 x)
++	// cond:
++	// result: (SignExt32to64 (SignExt8to32 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpSignExt32to64)
++		v0 := b.NewValue0(v.Line, OpSignExt8to32, config.fe.TypeInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuedec64_OpStore(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Store [8] dst (Int64Make hi lo) mem)
++	// cond:
++	// result: (Store [4] 		(OffPtr <hi.Type.PtrTo()> [4] dst) 		hi 		(Store [4] dst lo mem))
++	for {
++		if v.AuxInt != 8 {
++			break
++		}
++		dst := v.Args[0]
++		v_1 := v.Args[1]
++		if v_1.Op != OpInt64Make {
++			break
++		}
++		hi := v_1.Args[0]
++		lo := v_1.Args[1]
++		mem := v.Args[2]
++		v.reset(OpStore)
++		v.AuxInt = 4
++		v0 := b.NewValue0(v.Line, OpOffPtr, hi.Type.PtrTo())
++		v0.AuxInt = 4
++		v0.AddArg(dst)
++		v.AddArg(v0)
++		v.AddArg(hi)
++		v1 := b.NewValue0(v.Line, OpStore, TypeMem)
++		v1.AuxInt = 4
++		v1.AddArg(dst)
++		v1.AddArg(lo)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpSub64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Sub64 x y)
++	// cond:
++	// result: (Int64Make 		(Sub32withcarry <config.fe.TypeInt32()> 			(Int64Hi x) 			(Int64Hi y) 			(Select0 <TypeFlags> (Sub32carry (Int64Lo x) (Int64Lo y)))) 		(Select1 <config.fe.TypeUInt32()> (Sub32carry (Int64Lo x) (Int64Lo y))))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpSub32withcarry, config.fe.TypeInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v3 := b.NewValue0(v.Line, OpSelect0, TypeFlags)
++		v4 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(x)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v6.AddArg(y)
++		v4.AddArg(v6)
++		v3.AddArg(v4)
++		v0.AddArg(v3)
++		v.AddArg(v0)
++		v7 := b.NewValue0(v.Line, OpSelect1, config.fe.TypeUInt32())
++		v8 := b.NewValue0(v.Line, OpSub32carry, MakeTuple(TypeFlags, config.fe.TypeUInt32()))
++		v9 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v9.AddArg(x)
++		v8.AddArg(v9)
++		v10 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v10.AddArg(y)
++		v8.AddArg(v10)
++		v7.AddArg(v8)
++		v.AddArg(v7)
++		return true
++	}
++}
++func rewriteValuedec64_OpTrunc64to16(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to16 (Int64Make _ lo))
++	// cond:
++	// result: (Trunc32to16 lo)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpInt64Make {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpTrunc32to16)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpTrunc64to32(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to32 (Int64Make _ lo))
++	// cond:
++	// result: lo
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpInt64Make {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpCopy)
++		v.Type = lo.Type
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpTrunc64to8(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Trunc64to8 (Int64Make _ lo))
++	// cond:
++	// result: (Trunc32to8 lo)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpInt64Make {
++			break
++		}
++		lo := v_0.Args[1]
++		v.reset(OpTrunc32to8)
++		v.AddArg(lo)
++		return true
++	}
++	return false
++}
++func rewriteValuedec64_OpXor64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Xor64 x y)
++	// cond:
++	// result: (Int64Make 		(Xor32 <config.fe.TypeUInt32()> (Int64Hi x) (Int64Hi y)) 		(Xor32 <config.fe.TypeUInt32()> (Int64Lo x) (Int64Lo y)))
++	for {
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpXor32, config.fe.TypeUInt32())
++		v1 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpInt64Hi, config.fe.TypeUInt32())
++		v2.AddArg(y)
++		v0.AddArg(v2)
++		v.AddArg(v0)
++		v3 := b.NewValue0(v.Line, OpXor32, config.fe.TypeUInt32())
++		v4 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v4.AddArg(x)
++		v3.AddArg(v4)
++		v5 := b.NewValue0(v.Line, OpInt64Lo, config.fe.TypeUInt32())
++		v5.AddArg(y)
++		v3.AddArg(v5)
++		v.AddArg(v3)
++		return true
++	}
++}
++func rewriteValuedec64_OpZeroExt16to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt16to64 x)
++	// cond:
++	// result: (ZeroExt32to64 (ZeroExt16to32 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpZeroExt32to64)
++		v0 := b.NewValue0(v.Line, OpZeroExt16to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValuedec64_OpZeroExt32to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt32to64 x)
++	// cond:
++	// result: (Int64Make (Const32 <config.fe.TypeUInt32()> [0]) x)
++	for {
++		x := v.Args[0]
++		v.reset(OpInt64Make)
++		v0 := b.NewValue0(v.Line, OpConst32, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(x)
++		return true
++	}
++}
++func rewriteValuedec64_OpZeroExt8to64(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (ZeroExt8to64 x)
++	// cond:
++	// result: (ZeroExt32to64 (ZeroExt8to32 x))
++	for {
++		x := v.Args[0]
++		v.reset(OpZeroExt32to64)
++		v0 := b.NewValue0(v.Line, OpZeroExt8to32, config.fe.TypeUInt32())
++		v0.AddArg(x)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteBlockdec64(b *Block) bool {
++	switch b.Kind {
++	}
++	return false
++}
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 765f0c1277..bcdc52ae3e 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -8,6 +8,7 @@ import "container/heap"
+ 
+ const (
+ 	ScorePhi = iota // towards top of block
++	ScoreReadTuple
+ 	ScoreVarDef
+ 	ScoreMemory
+ 	ScoreDefault
+@@ -44,6 +45,21 @@ func (h ValHeap) Less(i, j int) bool {
+ 	if c := sx - sy; c != 0 {
+ 		return c > 0 // higher score comes later.
+ 	}
++	if sx == ScoreReadTuple {
++		// both are tuple-reading ops
++		// if they read same tuple, flag-reading op comes earlier
++		if x.Args[0] == y.Args[0] {
++			if x.Op == OpARMCarry || x.Op == OpARMLoweredSelect0 { //TODO: abstract this condition?
++				return false
++			} else {
++				return true
++			}
++		}
++		// if they read different tuples, order them as
++		// tuple-generating order to avoid interleaving
++		x = x.Args[0]
++		y = y.Args[0]
++	}
+ 	if x.Line != y.Line { // Favor in-order line stepping
+ 		return x.Line > y.Line
+ 	}
+@@ -103,7 +119,14 @@ func schedule(f *Func) {
+ 				// reduce register pressure. It also helps make sure
+ 				// VARDEF ops are scheduled before the corresponding LEA.
+ 				score[v.ID] = ScoreMemory
+-			case v.Type.IsFlags():
++			case v.Op == OpARMCarry || v.Op == OpARMLoweredSelect0 || v.Op == OpARMLoweredSelect1:
++				// Schedule the pseudo-op of reading part of a tuple
++				// immediately after the tuple-generating op, since
++				// this value is already live. This also removes its
++				// false dependency on the other part of the tuple.
++				// Also ensures tuple is never spilled.
++				score[v.ID] = ScoreReadTuple
++			case v.Type.IsFlags() || v.Type.IsTuple():
+ 				// Schedule flag register generation as late as possible.
+ 				// This makes sure that we only have one live flags
+ 				// value at a time.
+diff --git a/src/cmd/compile/internal/ssa/type.go b/src/cmd/compile/internal/ssa/type.go
+index 91a4efe78f..4470dc1010 100644
+--- a/src/cmd/compile/internal/ssa/type.go
++++ b/src/cmd/compile/internal/ssa/type.go
+@@ -27,6 +27,7 @@ type Type interface {
+ 	IsMemory() bool // special ssa-package-only types
+ 	IsFlags() bool
+ 	IsVoid() bool
++	IsTuple() bool
+ 
+ 	ElemType() Type // given []T or *T or [n]T, return T
+ 	PtrTo() Type    // given T, return *T
+@@ -69,6 +70,7 @@ func (t *CompilerType) IsInterface() bool      { return false }
+ func (t *CompilerType) IsMemory() bool         { return t.Memory }
+ func (t *CompilerType) IsFlags() bool          { return t.Flags }
+ func (t *CompilerType) IsVoid() bool           { return t.Void }
++func (t *CompilerType) IsTuple() bool          { return false }
+ func (t *CompilerType) String() string         { return t.Name }
+ func (t *CompilerType) SimpleString() string   { return t.Name }
+ func (t *CompilerType) ElemType() Type         { panic("not implemented") }
+@@ -79,6 +81,38 @@ func (t *CompilerType) FieldOff(i int) int64   { panic("not implemented") }
+ func (t *CompilerType) FieldName(i int) string { panic("not implemented") }
+ func (t *CompilerType) NumElem() int64         { panic("not implemented") }
+ 
++type TupleType struct {
++	first  Type
++	second Type
++}
++
++func (t *TupleType) Size() int64            { panic("not implemented") }
++func (t *TupleType) Alignment() int64       { panic("not implemented") }
++func (t *TupleType) IsBoolean() bool        { return false }
++func (t *TupleType) IsInteger() bool        { return false }
++func (t *TupleType) IsSigned() bool         { return false }
++func (t *TupleType) IsFloat() bool          { return false }
++func (t *TupleType) IsComplex() bool        { return false }
++func (t *TupleType) IsPtrShaped() bool      { return false }
++func (t *TupleType) IsString() bool         { return false }
++func (t *TupleType) IsSlice() bool          { return false }
++func (t *TupleType) IsArray() bool          { return false }
++func (t *TupleType) IsStruct() bool         { return false }
++func (t *TupleType) IsInterface() bool      { return false }
++func (t *TupleType) IsMemory() bool         { return false }
++func (t *TupleType) IsFlags() bool          { return false }
++func (t *TupleType) IsVoid() bool           { return false }
++func (t *TupleType) IsTuple() bool          { return true }
++func (t *TupleType) String() string         { return t.first.String() + "," + t.second.String() }
++func (t *TupleType) SimpleString() string   { return "Tuple" }
++func (t *TupleType) ElemType() Type         { panic("not implemented") }
++func (t *TupleType) PtrTo() Type            { panic("not implemented") }
++func (t *TupleType) NumFields() int         { panic("not implemented") }
++func (t *TupleType) FieldType(i int) Type   { panic("not implemented") }
++func (t *TupleType) FieldOff(i int) int64   { panic("not implemented") }
++func (t *TupleType) FieldName(i int) string { panic("not implemented") }
++func (t *TupleType) NumElem() int64         { panic("not implemented") }
++
+ // Cmp is a comparison between values a and b.
+ // -1 if a < b
+ //  0 if a == b
+@@ -116,6 +150,25 @@ func (t *CompilerType) Compare(u Type) Cmp {
+ 	return CMPlt
+ }
+ 
++func (t *TupleType) Compare(u Type) Cmp {
++	// ssa.TupleType is greater than ssa.CompilerType
++	if _, ok := u.(*CompilerType); ok {
++		return CMPgt
++	}
++	// ssa.TupleType is smaller than any other type
++	x, ok := u.(*TupleType)
++	if !ok {
++		return CMPlt
++	}
++	if t == x {
++		return CMPeq
++	}
++	if c := t.first.Compare(x.first); c != CMPeq {
++		return c
++	}
++	return t.second.Compare(x.second)
++}
++
+ var (
+ 	TypeInvalid = &CompilerType{Name: "invalid"}
+ 	TypeMem     = &CompilerType{Name: "mem", Memory: true}
+@@ -123,3 +176,7 @@ var (
+ 	TypeVoid    = &CompilerType{Name: "void", Void: true}
+ 	TypeInt128  = &CompilerType{Name: "int128", size: 16, Int128: true}
+ )
++
++func MakeTuple(t0, t1 Type) *TupleType {
++	return &TupleType{first: t0, second: t1}
++}
+diff --git a/src/cmd/compile/internal/ssa/type_test.go b/src/cmd/compile/internal/ssa/type_test.go
+index 3b1a892083..a76a0651bb 100644
+--- a/src/cmd/compile/internal/ssa/type_test.go
++++ b/src/cmd/compile/internal/ssa/type_test.go
+@@ -39,6 +39,7 @@ func (t *TypeImpl) IsStruct() bool         { return t.struct_ }
+ func (t *TypeImpl) IsInterface() bool      { return t.inter }
+ func (t *TypeImpl) IsMemory() bool         { return false }
+ func (t *TypeImpl) IsFlags() bool          { return false }
++func (t *TypeImpl) IsTuple() bool          { return false }
+ func (t *TypeImpl) IsVoid() bool           { return false }
+ func (t *TypeImpl) String() string         { return t.Name }
+ func (t *TypeImpl) SimpleString() string   { return t.Name }

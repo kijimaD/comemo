@@ -11,7 +11,54 @@ Date:   Sat Apr 13 16:46:23 2019 +0300
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go   | 13 -------------
  src/cmd/link/internal/ld/symtab.go | 11 ++++++++++-
  2 files changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index e421caabce..b869eea278 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -990,19 +990,6 @@ func addinitarrdata(ctxt *Link, s *sym.Symbol) {
+ 	sp.AddAddr(ctxt.Arch, s)
+ }
+ 
+-func dosymtype(ctxt *Link) {
+-	switch ctxt.BuildMode {
+-	case BuildModeCArchive, BuildModeCShared:
+-		for _, s := range ctxt.Syms.Allsym {
+-			// Create a new entry in the .init_array section that points to the
+-			// library initializer function.
+-			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
+-				addinitarrdata(ctxt, s)
+-			}
+-		}
+-	}
+-}
+-
+ // symalign returns the required alignment for the given symbol s.
+ func symalign(s *sym.Symbol) int32 {
+ 	min := int32(thearch.Minalign)
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 3add7197b8..d686a8a476 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -326,7 +326,16 @@ func textsectionmap(ctxt *Link) uint32 {
+ }
+ 
+ func (ctxt *Link) symtab() {
+-	dosymtype(ctxt)
++	switch ctxt.BuildMode {
++	case BuildModeCArchive, BuildModeCShared:
++		for _, s := range ctxt.Syms.Allsym {
++			// Create a new entry in the .init_array section that points to the
++			// library initializer function.
++			if s.Name == *flagEntrySymbol && ctxt.HeadType != objabi.Haix {
++				addinitarrdata(ctxt, s)
++			}
++		}
++	}
+ 
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.

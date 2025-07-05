@@ -16,6 +16,57 @@ Date:   Tue Jan 22 22:42:44 2013 -0500
     R=rsc, rminnich, npe, ality
     CC=golang-dev
     https://golang.org/cl/7128059
-
+---
  src/pkg/syscall/exec_plan9.go | 18 ++++++++++--------
  1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index ae0cd0d4b5..ebd57f3e3a 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -495,11 +495,6 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 	return pid, nil
+ }
+ 
+-// Combination of fork and exec, careful to be thread safe.
+-func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
+-	return forkExec(argv0, argv, attr)
+-}
+-
+ type waitErr struct {
+ 	Waitmsg
+ 	err error
+@@ -551,7 +546,9 @@ func startProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, err err
+ 		forkc <- ret
+ 
+ 		var w waitErr
+-		w.err = Await(&w.Waitmsg)
++		for w.err == nil && w.Pid != ret.pid {
++			w.err = Await(&w.Waitmsg)
++		}
+ 		waitc <- &w
+ 		close(waitc)
+ 	}()
+@@ -559,6 +556,11 @@ func startProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, err err
+ 	return ret.pid, ret.err
+ }
+ 
++// Combination of fork and exec, careful to be thread safe.
++func ForkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error) {
++	return startProcess(argv0, argv, attr)
++}
++
+ // StartProcess wraps ForkExec for package os.
+ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle uintptr, err error) {
+ 	pid, err = startProcess(argv0, argv, attr)
+@@ -612,8 +614,8 @@ func Exec(argv0 string, argv []string, envv []string) (err error) {
+ // WaitProcess waits until the pid of a
+ // running process is found in the queue of
+ // wait messages. It is used in conjunction
+-// with StartProcess to wait for a running
+-// process to exit.
++// with ForkExec/StartProcess to wait for a
++// running process to exit.
+ func WaitProcess(pid int, w *Waitmsg) (err error) {
+ 	procs.Lock()
+ 	ch := procs.waits[pid]

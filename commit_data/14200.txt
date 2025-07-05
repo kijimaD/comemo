@@ -7,7 +7,34 @@ Date:   Mon Oct 22 16:26:47 2012 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/6736057
-
+---
  src/pkg/os/doc.go  | 2 +-
  src/pkg/os/file.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/doc.go b/src/pkg/os/doc.go
+index 6a531e0d74..c469e58533 100644
+--- a/src/pkg/os/doc.go
++++ b/src/pkg/os/doc.go
+@@ -89,7 +89,7 @@ func Hostname() (name string, err error) {
+ }
+ 
+ // Readdir reads the contents of the directory associated with file and
+-// returns an array of up to n FileInfo values, as would be returned
++// returns a slice of up to n FileInfo values, as would be returned
+ // by Lstat, in directory order. Subsequent calls on the same file will yield
+ // further FileInfos.
+ //
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 4acf35d675..5b1658a715 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -185,7 +185,7 @@ func (f *File) Seek(offset int64, whence int) (ret int64, err error) {
+ }
+ 
+ // WriteString is like Write, but writes the contents of string s rather than
+-// an array of bytes.
++// a slice of bytes.
+ func (f *File) WriteString(s string) (ret int, err error) {
+ 	if f == nil {
+ 		return 0, ErrInvalid

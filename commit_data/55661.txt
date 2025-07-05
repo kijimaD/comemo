@@ -15,7 +15,34 @@ Date:   Wed Feb 8 16:47:16 2023 +0100
     TryBot-Bypass: Quim Muntal <quimmuntal@gmail.com>
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 2 +-
  src/runtime/sys_plan9_amd64.s    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 21126adfda..395a0a7919 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -617,7 +617,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 	var usefpheuristic bool
+ 	switch ctxt.Headtype {
+ 	case objabi.Hwindows, objabi.Hdarwin, objabi.Hlinux, objabi.Hdragonfly,
+-		objabi.Hfreebsd, objabi.Hnetbsd, objabi.Hopenbsd, objabi.Hsolaris:
++		objabi.Hfreebsd, objabi.Hnetbsd, objabi.Hopenbsd, objabi.Hsolaris, objabi.Hplan9:
+ 	default:
+ 		usefpheuristic = true
+ 	}
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 638300dfb9..a53f9201f4 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -166,7 +166,7 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	RET
+ 
+ // void sigtramp(void *ureg, int8 *note)
+-TEXT runtime·sigtramp(SB),NOSPLIT,$0
++TEXT runtime·sigtramp(SB),NOSPLIT|NOFRAME,$0
+ 	get_tls(AX)
+ 
+ 	// check that g exists

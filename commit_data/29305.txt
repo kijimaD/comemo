@@ -11,6 +11,20 @@ Date:   Thu Sep 8 14:12:28 2016 -0700
     Change-Id: I6ed559b83adc891bbf4b3d855a7dc1e428366f7f
     Reviewed-on: https://go-review.googlesource.com/28776
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/fmt_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/fmt_test.go b/src/cmd/compile/internal/gc/fmt_test.go
+index 0975e85d89..8ec4b67c77 100644
+--- a/src/cmd/compile/internal/gc/fmt_test.go
++++ b/src/cmd/compile/internal/gc/fmt_test.go
+@@ -66,6 +66,8 @@ type CallSite struct {
+ }
+ 
+ func TestFormats(t *testing.T) {
++	return // temporarily disabled
++
+ 	testenv.MustHaveGoBuild(t) // more restrictive than necessary, but that's ok
+ 
+ 	// determine .go files

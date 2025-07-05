@@ -10,7 +10,7 @@ Date:   Wed Jul 29 17:52:25 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/12766
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go                | 14 +++-
  src/cmd/compile/internal/gc/testdata/arith_ssa.go | 22 ++++++
  src/cmd/compile/internal/ssa/gen/AMD64.rules      |  5 ++
@@ -19,3 +19,329 @@ Date:   Wed Jul 29 17:52:25 2015 +0200
  src/cmd/compile/internal/ssa/opGen.go             | 89 +++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go      | 72 ++++++++++++++++++
  7 files changed, 211 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8eeb29d4bd..4334dc729a 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -745,6 +745,15 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OAND, TINT64}:  ssa.OpAnd64,
+ 	opAndType{OAND, TUINT64}: ssa.OpAnd64,
+ 
++	opAndType{OOR, TINT8}:   ssa.OpOr8,
++	opAndType{OOR, TUINT8}:  ssa.OpOr8,
++	opAndType{OOR, TINT16}:  ssa.OpOr16,
++	opAndType{OOR, TUINT16}: ssa.OpOr16,
++	opAndType{OOR, TINT32}:  ssa.OpOr32,
++	opAndType{OOR, TUINT32}: ssa.OpOr32,
++	opAndType{OOR, TINT64}:  ssa.OpOr64,
++	opAndType{OOR, TUINT64}: ssa.OpOr64,
++
+ 	opAndType{OLSH, TINT8}:   ssa.OpLsh8,
+ 	opAndType{OLSH, TUINT8}:  ssa.OpLsh8,
+ 	opAndType{OLSH, TINT16}:  ssa.OpLsh16,
+@@ -990,7 +999,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Left.Type), ssa.TypeBool, a, b)
+-	case OADD, OSUB, OMUL, OLSH, ORSH, OAND:
++	case OADD, OAND, OLSH, OMUL, OOR, ORSH, OSUB:
+ 		a := s.expr(n.Left)
+ 		b := s.expr(n.Right)
+ 		return s.newValue2(s.ssaOp(n.Op, n.Type), a.Type, a, b)
+@@ -1621,7 +1630,8 @@ func genValue(v *ssa.Value) {
+ 		p.To.Reg = regnum(v)
+ 	case ssa.OpAMD64ADDB,
+ 		ssa.OpAMD64ANDQ, ssa.OpAMD64ANDL, ssa.OpAMD64ANDW, ssa.OpAMD64ANDB,
+-		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW:
++		ssa.OpAMD64MULQ, ssa.OpAMD64MULL, ssa.OpAMD64MULW,
++		ssa.OpAMD64ORQ, ssa.OpAMD64ORL, ssa.OpAMD64ORW, ssa.OpAMD64ORB:
+ 		r := regnum(v)
+ 		x := regnum(v.Args[0])
+ 		y := regnum(v.Args[1])
+diff --git a/src/cmd/compile/internal/gc/testdata/arith_ssa.go b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+index 22fc034a1c..2731337dbf 100644
+--- a/src/cmd/compile/internal/gc/testdata/arith_ssa.go
++++ b/src/cmd/compile/internal/gc/testdata/arith_ssa.go
+@@ -53,6 +53,28 @@ func testRegallocCVSpill_ssa(a, b, c, d int8) int8 {
+ 	return a + -32 + b + 63*c*-87*d
+ }
+ 
++func testBitwiseLogic() {
++	a, b := uint32(57623283), uint32(1314713839)
++	if want, got := uint32(38551779), testBitwiseAnd_ssa(a, b); want != got {
++		println("testBitwiseAnd failed, wanted", want, "got", got)
++	}
++	if want, got := uint32(1333785343), testBitwiseOr_ssa(a, b); want != got {
++		println("testBitwiseAnd failed, wanted", want, "got", got)
++	}
++}
++
++func testBitwiseAnd_ssa(a, b uint32) uint32 {
++	switch { // prevent inlining
++	}
++	return a & b
++}
++
++func testBitwiseOr_ssa(a, b uint32) uint32 {
++	switch { // prevent inlining
++	}
++	return a | b
++}
++
+ var failed = false
+ 
+ func main() {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 3e667c8951..4ceb6185c5 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -21,6 +21,11 @@
+ (And16 x y) -> (ANDW x y)
+ (And8 x y) -> (ANDB x y)
+ 
++(Or64 x y) -> (ORQ x y)
++(Or32 x y) -> (ORL x y)
++(Or16 x y) -> (ORW x y)
++(Or8 x y) -> (ORB x y)
++
+ (Sub64 x y) -> (SUBQ x y)
+ (Sub32 x y) -> (SUBL x y)
+ (Sub16 x y) -> (SUBW x y)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 40f7b1680f..1983ae8c44 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -203,6 +203,12 @@ func init() {
+ 		{name: "ANDW", reg: gp21, asm: "ANDW"},      // arg0 & arg1
+ 		{name: "ANDB", reg: gp21, asm: "ANDB"},      // arg0 & arg1
+ 
++		{name: "ORQ", reg: gp21, asm: "ORQ"},      // arg0 | arg1
++		{name: "ORQconst", reg: gp11, asm: "ORQ"}, // arg0 | auxint
++		{name: "ORL", reg: gp21, asm: "ORL"},      // arg0 | arg1
++		{name: "ORW", reg: gp21, asm: "ORW"},      // arg0 | arg1
++		{name: "ORB", reg: gp21, asm: "ORB"},      // arg0 | arg1
++
+ 		// (InvertFlags (CMPQ a b)) == (CMPQ b a)
+ 		// So if we want (SETL (CMPQ a b)) but we can't do that because a is a constant,
+ 		// then we do (SETL (InvertFlags (CMPQ b a))) instead.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 732641319f..0459a2edc0 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -32,6 +32,11 @@ var genericOps = []opData{
+ 	{name: "And32"},
+ 	{name: "And64"},
+ 
++	{name: "Or8"}, // arg0 | arg1
++	{name: "Or16"},
++	{name: "Or32"},
++	{name: "Or64"},
++
+ 	{name: "Lsh8"}, // arg0 << arg1
+ 	{name: "Lsh16"},
+ 	{name: "Lsh32"},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 358459ea8e..4fe098136f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -134,6 +134,11 @@ const (
+ 	OpAMD64ANDL
+ 	OpAMD64ANDW
+ 	OpAMD64ANDB
++	OpAMD64ORQ
++	OpAMD64ORQconst
++	OpAMD64ORL
++	OpAMD64ORW
++	OpAMD64ORB
+ 	OpAMD64InvertFlags
+ 
+ 	OpAdd8
+@@ -154,6 +159,10 @@ const (
+ 	OpAnd16
+ 	OpAnd32
+ 	OpAnd64
++	OpOr8
++	OpOr16
++	OpOr32
++	OpOr64
+ 	OpLsh8
+ 	OpLsh16
+ 	OpLsh32
+@@ -1254,6 +1263,70 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "ORQ",
++		asm:  x86.AORQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORQconst",
++		asm:  x86.AORQ,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORL",
++		asm:  x86.AORL,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORW",
++		asm:  x86.AORW,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
++	{
++		name: "ORB",
++		asm:  x86.AORB,
++		reg: regInfo{
++			inputs: []regMask{
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++				65535, // .AX .CX .DX .BX .SP .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++			outputs: []regMask{
++				65519, // .AX .CX .DX .BX .BP .SI .DI .R8 .R9 .R10 .R11 .R12 .R13 .R14 .R15
++			},
++		},
++	},
+ 	{
+ 		name: "InvertFlags",
+ 		reg:  regInfo{},
+@@ -1331,6 +1404,22 @@ var opcodeTable = [...]opInfo{
+ 		name:    "And64",
+ 		generic: true,
+ 	},
++	{
++		name:    "Or8",
++		generic: true,
++	},
++	{
++		name:    "Or16",
++		generic: true,
++	},
++	{
++		name:    "Or32",
++		generic: true,
++	},
++	{
++		name:    "Or64",
++		generic: true,
++	},
+ 	{
+ 		name:    "Lsh8",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index b172cf3527..ec8e381201 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2489,6 +2489,78 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto end0429f947ee7ac49ff45a243e461a5290
+ 	end0429f947ee7ac49ff45a243e461a5290:
+ 		;
++	case OpOr16:
++		// match: (Or16 x y)
++		// cond:
++		// result: (ORW x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64ORW
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end8fedf2c79d5607b7056b0ff015199cbd
++	end8fedf2c79d5607b7056b0ff015199cbd:
++		;
++	case OpOr32:
++		// match: (Or32 x y)
++		// cond:
++		// result: (ORL x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64ORL
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto endea45bed9ca97d2995b68b53e6012d384
++	endea45bed9ca97d2995b68b53e6012d384:
++		;
++	case OpOr64:
++		// match: (Or64 x y)
++		// cond:
++		// result: (ORQ x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64ORQ
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end3a446becaf2461f4f1a41faeef313f41
++	end3a446becaf2461f4f1a41faeef313f41:
++		;
++	case OpOr8:
++		// match: (Or8 x y)
++		// cond:
++		// result: (ORB x y)
++		{
++			x := v.Args[0]
++			y := v.Args[1]
++			v.Op = OpAMD64ORB
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			v.AddArg(y)
++			return true
++		}
++		goto end6f8a8c559a167d1f0a5901d09a1fb248
++	end6f8a8c559a167d1f0a5901d09a1fb248:
++		;
+ 	case OpRsh64:
+ 		// match: (Rsh64 <t> x y)
+ 		// cond: y.Type.Size() == 8

@@ -18,7 +18,7 @@ Date:   Tue Oct 13 12:37:04 2009 -0700
     DELTA=139  (0 added, 44 deleted, 95 changed)
     OCL=35670
     CL=35670
-
+---
  doc/progs/cat.go          |  4 +--
  doc/progs/cat_rot13.go    | 22 ++++++++--------
  doc/progs/echo.go         | 12 ++++-----
@@ -34,3 +34,578 @@ Date:   Tue Oct 13 12:37:04 2009 -0700
  doc/progs/strings.go      |  4 +--
  doc/progs/sum.go          |  8 +++---
  14 files changed, 95 insertions(+), 139 deletions(-)
+
+diff --git a/doc/progs/cat.go b/doc/progs/cat.go
+index 824b924598..f9f00b6e32 100644
+--- a/doc/progs/cat.go
++++ b/doc/progs/cat.go
+@@ -19,7 +19,7 @@ func cat(f *file.File) {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", f.String(), er.String());
+ 			os.Exit(1);
+-		case nr == 0:	// EOF
++		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+ 			if nw, ew := file.Stdout.Write(buf[0:nr]); nw != nr {
+@@ -30,7 +30,7 @@ func cat(f *file.File) {
+ }
+ 
+ func main() {
+-	flag.Parse();	// Scans the arg list and sets up flags
++	flag.Parse();   // Scans the arg list and sets up flags
+ 	if flag.NArg() == 0 {
+ 		cat(file.Stdin);
+ 	}
+diff --git a/doc/progs/cat_rot13.go b/doc/progs/cat_rot13.go
+index 6cad78f5a7..ea608b83d7 100644
+--- a/doc/progs/cat_rot13.go
++++ b/doc/progs/cat_rot13.go
+@@ -15,12 +15,12 @@ var rot13_flag = flag.Bool("rot13", false, "rot13 the input")
+ 
+ func rot13(b byte) byte {
+ 	if 'a' <= b && b <= 'z' {
+-		b = 'a' + ((b-'a')+13)%26;
++	   b = 'a' + ((b - 'a') + 13) % 26;
+ 	}
+ 	if 'A' <= b && b <= 'Z' {
+-		b = 'A' + ((b-'A')+13)%26;
++	   b = 'A' + ((b - 'A') + 13) % 26
+ 	}
+-	return b;
++	return b
+ }
+ 
+ type reader interface {
+@@ -29,23 +29,23 @@ type reader interface {
+ }
+ 
+ type rotate13 struct {
+-	source reader;
++	source	reader;
+ }
+ 
+ func newRotate13(source reader) *rotate13 {
+-	return &rotate13{source};
++	return &rotate13{source}
+ }
+ 
+ func (r13 *rotate13) Read(b []byte) (ret int, err os.Error) {
+ 	r, e := r13.source.Read(b);
+ 	for i := 0; i < r; i++ {
+-		b[i] = rot13(b[i]);
++		b[i] = rot13(b[i])
+ 	}
+-	return r, e;
++	return r, e
+ }
+ 
+ func (r13 *rotate13) String() string {
+-	return r13.source.String();
++	return r13.source.String()
+ }
+ // end of rotate13 implementation
+ 
+@@ -54,14 +54,14 @@ func cat(r reader) {
+ 	var buf [NBUF]byte;
+ 
+ 	if *rot13_flag {
+-		r = newRotate13(r);
++		r = newRotate13(r)
+ 	}
+ 	for {
+ 		switch nr, er := r.Read(&buf); {
+ 		case nr < 0:
+ 			fmt.Fprintf(os.Stderr, "error reading from %s: %s\n", r.String(), er.String());
+ 			os.Exit(1);
+-		case nr == 0:	// EOF
++		case nr == 0:  // EOF
+ 			return;
+ 		case nr > 0:
+ 			nw, ew := file.Stdout.Write(buf[0:nr]);
+@@ -73,7 +73,7 @@ func cat(r reader) {
+ }
+ 
+ func main() {
+-	flag.Parse();	// Scans the arg list and sets up flags
++	flag.Parse();   // Scans the arg list and sets up flags
+ 	if flag.NArg() == 0 {
+ 		cat(file.Stdin);
+ 	}
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index e5cd016005..3ddb4f83e2 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -12,21 +12,21 @@ import (
+ var n_flag = flag.Bool("n", false, "don't print final newline")
+ 
+ const (
+-	kSpace		= " ";
+-	kNewline	= "\n";
++	kSpace = " ";
++	kNewline = "\n";
+ )
+ 
+ func main() {
+-	flag.Parse();	// Scans the arg list and sets up flags
++	flag.Parse();   // Scans the arg list and sets up flags
+ 	var s string = "";
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		if i > 0 {
+-			s += kSpace;
++			s += kSpace
+ 		}
+-		s += flag.Arg(i);
++		s += flag.Arg(i)
+ 	}
+ 	if !*n_flag {
+-		s += kNewline;
++		s += kNewline
+ 	}
+ 	os.Stdout.WriteString(s);
+ }
+diff --git a/doc/progs/file.go b/doc/progs/file.go
+index 74b9ee4403..bda3890de2 100644
+--- a/doc/progs/file.go
++++ b/doc/progs/file.go
+@@ -10,21 +10,21 @@ import (
+ )
+ 
+ type File struct {
+-	fd	int;	// file descriptor number
+-	name	string;	// file name at Open time
++	fd      int;  // file descriptor number
++	name    string; // file name at Open time
+ }
+ 
+ func newFile(fd int, name string) *File {
+ 	if fd < 0 {
+-		return nil;
++		return nil
+ 	}
+-	return &File{fd, name};
++	return &File{fd, name}
+ }
+ 
+ var (
+-	Stdin	= newFile(0, "/dev/stdin");
+-	Stdout	= newFile(1, "/dev/stdout");
+-	Stderr	= newFile(2, "/dev/stderr");
++	Stdin  = newFile(0, "/dev/stdin");
++	Stdout = newFile(1, "/dev/stdout");
++	Stderr = newFile(2, "/dev/stderr");
+ )
+ 
+ func Open(name string, mode int, perm int) (file *File, err os.Error) {
+@@ -32,43 +32,43 @@ func Open(name string, mode int, perm int) (file *File, err os.Error) {
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return newFile(r, name), err;
++	return newFile(r, name), err
+ }
+ 
+ func (file *File) Close() os.Error {
+ 	if file == nil {
+-		return os.EINVAL;
++		return os.EINVAL
+ 	}
+ 	e := syscall.Close(file.fd);
+-	file.fd = -1;	// so it can't be closed again
++	file.fd = -1;  // so it can't be closed again
+ 	if e != 0 {
+ 		return os.Errno(e);
+ 	}
+-	return nil;
++	return nil
+ }
+ 
+ func (file *File) Read(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+-		return -1, os.EINVAL;
++		return -1, os.EINVAL
+ 	}
+ 	r, e := syscall.Read(file.fd, b);
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return int(r), err;
++	return int(r), err
+ }
+ 
+ func (file *File) Write(b []byte) (ret int, err os.Error) {
+ 	if file == nil {
+-		return -1, os.EINVAL;
++		return -1, os.EINVAL
+ 	}
+ 	r, e := syscall.Write(file.fd, b);
+ 	if e != 0 {
+ 		err = os.Errno(e);
+ 	}
+-	return int(r), err;
++	return int(r), err
+ }
+ 
+ func (file *File) String() string {
+-	return file.name;
++	return file.name
+ }
+diff --git a/doc/progs/helloworld.go b/doc/progs/helloworld.go
+index 9192c41ba4..c4c3855edf 100644
+--- a/doc/progs/helloworld.go
++++ b/doc/progs/helloworld.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import fmt "fmt"	// Package implementing formatted I/O.
++import fmt "fmt"  // Package implementing formatted I/O.
+ 
+ func main() {
+ 	fmt.Printf("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n");
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 1aa0eab09c..ea567fe1bd 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -13,9 +13,9 @@ import (
+ func main() {
+ 	hello := []byte{'h', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd', '\n'};
+ 	file.Stdout.Write(hello);
+-	file, err := file.Open("/does/not/exist", 0, 0);
++	file, err := file.Open("/does/not/exist",  0,  0);
+ 	if file == nil {
+-		fmt.Printf("can't open file; err=%s\n", err.String());
++		fmt.Printf("can't open file; err=%s\n",  err.String());
+ 		os.Exit(1);
+ 	}
+ }
+diff --git a/doc/progs/print.go b/doc/progs/print.go
+index 0c08bff18d..cc146fed8c 100644
+--- a/doc/progs/print.go
++++ b/doc/progs/print.go
+@@ -7,14 +7,11 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	var u64 uint64 = 1<<64 - 1;
++	var u64 uint64 = 1<<64-1;
+ 	fmt.Printf("%d %d\n", u64, int64(u64));
+ 
+ 	// harder stuff
+-	type T struct {
+-		a	int;
+-		b	string;
+-	}
++	type T struct { a int; b string };
+ 	t := T{77, "Sunset Strip"};
+ 	a := []int{1, 2, 3, 4};
+ 	fmt.Printf("%v %v %v\n", u64, t, a);
+diff --git a/doc/progs/print_string.go b/doc/progs/print_string.go
+index 7526f79fbd..13a8d82418 100644
+--- a/doc/progs/print_string.go
++++ b/doc/progs/print_string.go
+@@ -6,16 +6,13 @@ package main
+ 
+ import "fmt"
+ 
+-type testType struct {
+-	a	int;
+-	b	string;
+-}
++type testType struct { a int; b string }
+ 
+ func (t *testType) String() string {
+-	return fmt.Sprint(t.a) + " " + t.b;
++	return fmt.Sprint(t.a) + " " + t.b
+ }
+ 
+ func main() {
+ 	t := &testType{77, "Sunset Strip"};
+-	fmt.Println(t);
++	fmt.Println(t)
+ }
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index 601c2c410a..cd011d2931 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -9,7 +9,7 @@ import "fmt"
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func generate(ch chan int) {
+ 	for i := 2; ; i++ {
+-		ch <- i;	// Send 'i' to channel 'ch'.
++		ch <- i  // Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+@@ -17,22 +17,22 @@ func generate(ch chan int) {
+ // removing those divisible by 'prime'.
+ func filter(in, out chan int, prime int) {
+ 	for {
+-		i := <-in;	// Receive value of new variable 'i' from 'in'.
+-		if i%prime != 0 {
+-			out <- i;	// Send 'i' to channel 'out'.
++		i := <-in;  // Receive value of new variable 'i' from 'in'.
++		if i % prime != 0 {
++			out <- i  // Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+ 
+ // The prime sieve: Daisy-chain filter processes together.
+ func main() {
+-	ch := make(chan int);	// Create a new channel.
+-	go generate(ch);	// Start generate() as a goroutine.
++	ch := make(chan int);  // Create a new channel.
++	go generate(ch);  // Start generate() as a goroutine.
+ 	for {
+ 		prime := <-ch;
+ 		fmt.Println(prime);
+ 		ch1 := make(chan int);
+ 		go filter(ch, ch1, prime);
+-		ch = ch1;
++		ch = ch1
+ 	}
+ }
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index 7dd5ecc2cf..0ae3893ab7 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -6,12 +6,12 @@ package main
+ 
+ import "fmt"
+ 
+-// Send the sequence 2, 3, 4, ... to returned channel
++// Send the sequence 2, 3, 4, ... to returned channel 
+ func generate() chan int {
+ 	ch := make(chan int);
+-	go func() {
++	go func(){
+ 		for i := 2; ; i++ {
+-			ch <- i;
++			ch <- i
+ 		}
+ 	}();
+ 	return ch;
+@@ -22,8 +22,8 @@ func filter(in chan int, prime int) chan int {
+ 	out := make(chan int);
+ 	go func() {
+ 		for {
+-			if i := <-in; i%prime != 0 {
+-				out <- i;
++			if i := <-in; i % prime != 0 {
++				out <- i
+ 			}
+ 		}
+ 	}();
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 0d9eab6077..687217a316 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -20,8 +20,8 @@ func Sort(data SortInterface) {
+ 
+ func IsSorted(data SortInterface) bool {
+ 	n := data.Len();
+-	for i := n-1; i > 0; i-- {
+-		if data.Less(i, i-1) {
++	for i := n - 1; i > 0; i-- {
++		if data.Less(i, i - 1) {
+ 			return false;
+ 		}
+ 	}
+@@ -32,62 +32,32 @@ func IsSorted(data SortInterface) bool {
+ 
+ type IntArray []int
+ 
+-func (p IntArray) Len() int {
+-	return len(p);
+-}
+-func (p IntArray) Less(i, j int) bool {
+-	return p[i] < p[j];
+-}
+-func (p IntArray) Swap(i, j int) {
+-	p[i], p[j] = p[j], p[i];
+-}
++func (p IntArray) Len() int            { return len(p); }
++func (p IntArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p IntArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+ type FloatArray []float
+ 
+-func (p FloatArray) Len() int {
+-	return len(p);
+-}
+-func (p FloatArray) Less(i, j int) bool {
+-	return p[i] < p[j];
+-}
+-func (p FloatArray) Swap(i, j int) {
+-	p[i], p[j] = p[j], p[i];
+-}
++func (p FloatArray) Len() int            { return len(p); }
++func (p FloatArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p FloatArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+ type StringArray []string
+ 
+-func (p StringArray) Len() int {
+-	return len(p);
+-}
+-func (p StringArray) Less(i, j int) bool {
+-	return p[i] < p[j];
+-}
+-func (p StringArray) Swap(i, j int) {
+-	p[i], p[j] = p[j], p[i];
+-}
++func (p StringArray) Len() int            { return len(p); }
++func (p StringArray) Less(i, j int) bool  { return p[i] < p[j]; }
++func (p StringArray) Swap(i, j int)       { p[i], p[j] = p[j], p[i]; }
+ 
+ 
+ // Convenience wrappers for common cases
+ 
+-func SortInts(a []int) {
+-	Sort(IntArray(a));
+-}
+-func SortFloats(a []float) {
+-	Sort(FloatArray(a));
+-}
+-func SortStrings(a []string) {
+-	Sort(StringArray(a));
+-}
++func SortInts(a []int)        { Sort(IntArray(a)); }
++func SortFloats(a []float)    { Sort(FloatArray(a)); }
++func SortStrings(a []string)  { Sort(StringArray(a)); }
+ 
+ 
+-func IntsAreSorted(a []int) bool {
+-	return IsSorted(IntArray(a));
+-}
+-func FloatsAreSorted(a []float) bool {
+-	return IsSorted(FloatArray(a));
+-}
+-func StringsAreSorted(a []string) bool {
+-	return IsSorted(StringArray(a));
+-}
++func IntsAreSorted(a []int) bool       { return IsSorted(IntArray(a)); }
++func FloatsAreSorted(a []float) bool   { return IsSorted(FloatArray(a)); }
++func StringsAreSorted(a []string) bool { return IsSorted(StringArray(a)); }
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 9f1a58ce5b..63d68ff05c 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -14,7 +14,7 @@ func ints() {
+ 	a := sort.IntArray(data);
+ 	sort.Sort(a);
+ 	if !sort.IsSorted(a) {
+-		panic();
++		panic()
+ 	}
+ }
+ 
+@@ -23,48 +23,42 @@ func strings() {
+ 	a := sort.StringArray(data);
+ 	sort.Sort(a);
+ 	if !sort.IsSorted(a) {
+-		panic();
++		panic()
+ 	}
+ }
+ 
+ type day struct {
+-	num		int;
+-	short_name	string;
+-	long_name	string;
++	num        int;
++	short_name string;
++	long_name  string;
+ }
+ 
+ type dayArray struct {
+ 	data []*day;
+ }
+ 
+-func (p *dayArray) Len() int {
+-	return len(p.data);
+-}
+-func (p *dayArray) Less(i, j int) bool {
+-	return p.data[i].num < p.data[j].num;
+-}
+-func (p *dayArray) Swap(i, j int) {
+-	p.data[i], p.data[j] = p.data[j], p.data[i];
+-}
++func (p *dayArray) Len() int            { return len(p.data); }
++func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num; }
++func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i]; }
+ 
+ func days() {
+-	Sunday := day{0, "SUN", "Sunday"};
+-	Monday := day{1, "MON", "Monday"};
+-	Tuesday := day{2, "TUE", "Tuesday"};
+-	Wednesday := day{3, "WED", "Wednesday"};
+-	Thursday := day{4, "THU", "Thursday"};
+-	Friday := day{5, "FRI", "Friday"};
+-	Saturday := day{6, "SAT", "Saturday"};
++	Sunday :=    day{ 0, "SUN", "Sunday" };
++	Monday :=    day{ 1, "MON", "Monday" };
++	Tuesday :=   day{ 2, "TUE", "Tuesday" };
++	Wednesday := day{ 3, "WED", "Wednesday" };
++	Thursday :=  day{ 4, "THU", "Thursday" };
++	Friday :=    day{ 5, "FRI", "Friday" };
++	Saturday :=  day{ 6, "SAT", "Saturday" };
+ 	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday};
+ 	a := dayArray{data};
+ 	sort.Sort(&a);
+ 	if !sort.IsSorted(&a) {
+-		panic();
++		panic()
+ 	}
+ 	for _, d := range data {
+-		fmt.Printf("%s ", d.long_name);
++		fmt.Printf("%s ", d.long_name)
+ 	}
+-	fmt.Printf("\n");
++	fmt.Printf("\n")
+ }
+ 
+ 
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+index 3a3d61f470..2c4937e38f 100644
+--- a/doc/progs/strings.go
++++ b/doc/progs/strings.go
+@@ -9,9 +9,7 @@ import "os"
+ 
+ func main() {
+ 	s := "hello";
+-	if s[1] != 'e' {
+-		os.Exit(1);
+-	}
++	if s[1] != 'e' { os.Exit(1) }
+ 	s = "good bye";
+ 	var p *string = &s;
+ 	*p = "ciao";
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+index 1194230f8f..f087ca3e5c 100644
+--- a/doc/progs/sum.go
++++ b/doc/progs/sum.go
+@@ -6,16 +6,16 @@ package main
+ 
+ import "fmt"
+ 
+-func sum(a []int) int {	// returns an int
++func sum(a []int) int {   // returns an int
+ 	s := 0;
+ 	for i := 0; i < len(a); i++ {
+-		s += a[i];
++		s += a[i]
+ 	}
+-	return s;
++	return s
+ }
+ 
+ 
+ func main() {
+-	s := sum(&[3]int{1, 2, 3});	// a slice of the array is passed to sum
++	s := sum(&[3]int{1,2,3});  // a slice of the array is passed to sum
+ 	fmt.Print(s, "\n");
+ }

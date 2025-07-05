@@ -11,6 +11,35 @@ Date:   Tue May 28 14:29:28 2019 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ssa/deadcode.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadcode.go b/src/cmd/compile/internal/ssa/deadcode.go
+index b79ec7c2f6..395c1617e5 100644
+--- a/src/cmd/compile/internal/ssa/deadcode.go
++++ b/src/cmd/compile/internal/ssa/deadcode.go
+@@ -242,8 +242,9 @@ func deadcode(f *Func) {
+ 			f.NamedValues[name] = values[:j]
+ 		}
+ 	}
+-	for k := len(f.Names) - 1; k >= i; k-- {
+-		f.Names[k] = LocalSlot{}
++	clearNames := f.Names[i:]
++	for j := range clearNames {
++		clearNames[j] = LocalSlot{}
+ 	}
+ 	f.Names = f.Names[:i]
+ 
+@@ -311,8 +312,9 @@ func deadcode(f *Func) {
+ 			i++
+ 		}
+ 	}
+-	for j := i; j < len(f.WBLoads); j++ {
+-		f.WBLoads[j] = nil
++	clearWBLoads := f.WBLoads[i:]
++	for j := range clearWBLoads {
++		clearWBLoads[j] = nil
+ 	}
+ 	f.WBLoads = f.WBLoads[:i]
+ 

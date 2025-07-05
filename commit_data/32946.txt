@@ -13,7 +13,126 @@ Date:   Thu Jun 15 10:47:57 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go |  9 ++++-
  src/cmd/compile/internal/gc/export.go  | 73 ++++++++++++++++++++++++++++++++++
  2 files changed, 81 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index a1eea64837..868bbe73b0 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -506,6 +506,13 @@ func (p *exporter) obj(sym *types.Sym) {
+ 			var f *Func
+ 			if inlineable {
+ 				f = asNode(sym.Def).Func
++				// TODO(gri) re-examine reexportdeplist:
++				// Because we can trivially export types
++				// in-place, we don't need to collect types
++				// inside function bodies in the exportlist.
++				// With an adjusted reexportdeplist used only
++				// by the binary exporter, we can also avoid
++				// the global exportlist.
+ 				reexportdeplist(f.Inl)
+ 			}
+ 			p.funcList = append(p.funcList, f)
+@@ -698,7 +705,7 @@ func (p *exporter) typ(t *types.Type) {
+ 			var f *Func
+ 			if inlineable {
+ 				f = mfn.Func
+-				reexportdeplist(f.Inl)
++				reexportdeplist(mfn.Func.Inl)
+ 			}
+ 			p.funcList = append(p.funcList, f)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 75be4ec10d..a92a41c5ce 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -107,6 +107,7 @@ func reexportdep(n *Node) {
+ 		return
+ 	}
+ 
++	//print("reexportdep %+hN\n", n);
+ 	switch n.Op {
+ 	case ONAME:
+ 		switch n.Class() {
+@@ -131,6 +132,78 @@ func reexportdep(n *Node) {
+ 				exportlist = append(exportlist, n)
+ 			}
+ 		}
++
++	// Local variables in the bodies need their type.
++	case ODCL:
++		t := n.Left.Type
++
++		if t != types.Types[t.Etype] && t != types.Idealbool && t != types.Idealstring {
++			if t.IsPtr() {
++				t = t.Elem()
++			}
++			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
++				if Debug['E'] != 0 {
++					fmt.Printf("reexport type %v from declaration\n", t.Sym)
++				}
++				exportlist = append(exportlist, asNode(t.Sym.Def))
++			}
++		}
++
++	case OLITERAL:
++		t := n.Type
++		if t != types.Types[n.Type.Etype] && t != types.Idealbool && t != types.Idealstring {
++			if t.IsPtr() {
++				t = t.Elem()
++			}
++			if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
++				if Debug['E'] != 0 {
++					fmt.Printf("reexport literal type %v\n", t.Sym)
++				}
++				exportlist = append(exportlist, asNode(t.Sym.Def))
++			}
++		}
++		fallthrough
++
++	case OTYPE:
++		if n.Sym != nil && n.Sym.Def != nil && !exportedsym(n.Sym) {
++			if Debug['E'] != 0 {
++				fmt.Printf("reexport literal/type %v\n", n.Sym)
++			}
++			exportlist = append(exportlist, n)
++		}
++
++	// for operations that need a type when rendered, put the type on the export list.
++	case OCONV,
++		OCONVIFACE,
++		OCONVNOP,
++		ORUNESTR,
++		OARRAYBYTESTR,
++		OARRAYRUNESTR,
++		OSTRARRAYBYTE,
++		OSTRARRAYRUNE,
++		ODOTTYPE,
++		ODOTTYPE2,
++		OSTRUCTLIT,
++		OARRAYLIT,
++		OSLICELIT,
++		OPTRLIT,
++		OMAKEMAP,
++		OMAKESLICE,
++		OMAKECHAN:
++		t := n.Type
++
++		switch t.Etype {
++		case TARRAY, TCHAN, TPTR32, TPTR64, TSLICE:
++			if t.Sym == nil {
++				t = t.Elem()
++			}
++		}
++		if t != nil && t.Sym != nil && t.Sym.Def != nil && !exportedsym(t.Sym) {
++			if Debug['E'] != 0 {
++				fmt.Printf("reexport type for expression %v\n", t.Sym)
++			}
++			exportlist = append(exportlist, asNode(t.Sym.Def))
++		}
+ 	}
+ 
+ 	reexportdep(n.Left)

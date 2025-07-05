@@ -10,6 +10,37 @@ Date:   Fri Mar 4 18:55:09 2016 -0800
     Change-Id: I12697697a50ecd86d49698200144a4c80dd3e5a4
     Reviewed-on: https://go-review.googlesource.com/20274
     Reviewed-by: Todd Neal <todd@tneal.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 19 ++++++++++++++-----
  1 file changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 86f3c2010e..356b375657 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -207,11 +207,20 @@ func isSamePtr(p1, p2 *Value) bool {
+ 	if p1 == p2 {
+ 		return true
+ 	}
+-	// Aux isn't used  in OffPtr, and AuxInt isn't currently used in
+-	// Addr, but this still works as the values will be null/0
+-	return (p1.Op == OpOffPtr || p1.Op == OpAddr) && p1.Op == p2.Op &&
+-		p1.Aux == p2.Aux && p1.AuxInt == p2.AuxInt &&
+-		p1.Args[0] == p2.Args[0]
++	if p1.Op != p2.Op {
++		return false
++	}
++	switch p1.Op {
++	case OpOffPtr:
++		return p1.AuxInt == p2.AuxInt && isSamePtr(p1.Args[0], p2.Args[0])
++	case OpAddr:
++		// OpAddr's 0th arg is either OpSP or OpSB, which means that it is uniquely identified by its Op.
++		// Checking for value equality only works after [z]cse has run.
++		return p1.Aux == p2.Aux && p1.Args[0].Op == p2.Args[0].Op
++	case OpAddPtr:
++		return p1.Args[1] == p2.Args[1] && isSamePtr(p1.Args[0], p2.Args[0])
++	}
++	return false
+ }
+ 
+ // DUFFZERO consists of repeated blocks of 4 MOVUPSs + ADD,

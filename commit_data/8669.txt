@@ -7,7 +7,40 @@ Date:   Thu Jun 9 11:44:28 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4572052
-
+---
  src/cmd/gc/pgen.c  | 6 ++----
  src/cmd/gc/print.c | 4 ++++
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 9bd845dde4..7917ea29cc 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -2,10 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#undef	EXTERN
+-#define	EXTERN
+-#include "gg.h"
+-#include "opt.h"
++#include	"gg.h"
++#include	"opt.h"
+ 
+ void
+ compile(Node *fn)
+diff --git a/src/cmd/gc/print.c b/src/cmd/gc/print.c
+index e03a140801..e88e0f844e 100644
+--- a/src/cmd/gc/print.c
++++ b/src/cmd/gc/print.c
+@@ -134,6 +134,10 @@ exprfmt(Fmt *f, Node *n, int prec)
+ 		fmtprint(f, "(node %O)", n->op);
+ 		break;
+ 
++	case OREGISTER:
++		fmtprint(f, "%R", n->val.u.reg);
++		break;
++
+ 	case OLITERAL:
+ 		if(n->sym != S) {
+ 			fmtprint(f, "%S", n->sym);

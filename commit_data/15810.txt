@@ -7,6 +7,19 @@ Date:   Sat Mar 16 14:53:12 2013 -0700
     R=golang-dev, minux.ma
     CC=golang-dev
     https://golang.org/cl/7789050
-
+---
  src/make.bash | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/make.bash b/src/make.bash
+index c15711b31a..2d83b6f4d1 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -140,7 +140,6 @@ if [ "$GOHOSTARCH" != "$GOARCH" -o "$GOHOSTOS" != "$GOOS" ]; then
+ fi
+ 
+ echo "# Building packages and commands for $GOOS/$GOARCH."
+-# TODO: Drop the -tags gotypes before releasing Go 1.1. It is to allow type checking in go vet.
+ "$GOTOOLDIR"/go_bootstrap install $GO_FLAGS -ccflags "$GO_CCFLAGS" -gcflags "$GO_GCFLAGS" -ldflags "$GO_LDFLAGS" -v std
+ echo
+ 

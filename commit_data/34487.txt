@@ -45,7 +45,7 @@ Date:   Sun Oct 22 16:36:27 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go         | 248 ++++++++++++++++++-----------
  src/cmd/compile/internal/gc/main.go        |  17 +-
  src/cmd/compile/internal/gc/sizeof_test.go |   2 +-
@@ -53,3 +53,452 @@ Date:   Sun Oct 22 16:36:27 2017 -0400
  src/cmd/compile/internal/gc/syntax.go      |  51 ++++++
  test/nowritebarrier.go                     |  15 ++
  6 files changed, 239 insertions(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 2f060fa05f..f99c89d667 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -5,7 +5,9 @@
+ package gc
+ 
+ import (
++	"bytes"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"strings"
+@@ -1108,123 +1110,175 @@ func dclfunc(sym *types.Sym, tfn *Node) *Node {
+ }
+ 
+ type nowritebarrierrecChecker struct {
+-	curfn  *Node
+-	stable bool
++	// extraCalls contains extra function calls that may not be
++	// visible during later analysis. It maps from the ODCLFUNC of
++	// the caller to a list of callees.
++	extraCalls map[*Node][]nowritebarrierrecCall
+ 
+-	// best maps from the ODCLFUNC of each visited function that
+-	// recursively invokes a write barrier to the called function
+-	// on the shortest path to a write barrier.
+-	best map[*Node]nowritebarrierrecCall
++	// curfn is the current function during AST walks.
++	curfn *Node
+ }
+ 
+ type nowritebarrierrecCall struct {
+-	target *Node
+-	depth  int
+-	lineno src.XPos
++	target *Node    // ODCLFUNC of caller or callee
++	lineno src.XPos // line of call
+ }
+ 
+-func checknowritebarrierrec() {
+-	c := nowritebarrierrecChecker{
+-		best: make(map[*Node]nowritebarrierrecCall),
+-	}
+-	visitBottomUp(xtop, func(list []*Node, recursive bool) {
+-		// Functions with write barriers have depth 0.
+-		for _, n := range list {
+-			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Nowritebarrier != 0 {
+-				yyerrorl(n.Func.WBPos, "write barrier prohibited")
+-			}
+-			if n.Func.WBPos.IsKnown() && n.Func.Pragma&Yeswritebarrierrec == 0 {
+-				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBPos}
+-			}
+-		}
+-
+-		// Propagate write barrier depth up from callees. In
+-		// the recursive case, we have to update this at most
+-		// len(list) times and can stop when we an iteration
+-		// that doesn't change anything.
+-		for range list {
+-			c.stable = false
+-			for _, n := range list {
+-				if n.Func.Pragma&Yeswritebarrierrec != 0 {
+-					// Don't propagate write
+-					// barrier up to a
+-					// yeswritebarrierrec function.
+-					continue
+-				}
+-				if !n.Func.WBPos.IsKnown() {
+-					c.curfn = n
+-					c.visitcodelist(n.Nbody)
+-				}
+-			}
+-			if c.stable {
+-				break
+-			}
+-		}
++type nowritebarrierrecCallSym struct {
++	target *obj.LSym // LSym of callee
++	lineno src.XPos  // line of call
++}
+ 
+-		// Check nowritebarrierrec functions.
+-		for _, n := range list {
+-			if n.Func.Pragma&Nowritebarrierrec == 0 {
+-				continue
+-			}
+-			call, hasWB := c.best[n]
+-			if !hasWB {
+-				continue
+-			}
++// newNowritebarrierrecChecker creates a nowritebarrierrecChecker. It
++// must be called before transformclosure and walk.
++func newNowritebarrierrecChecker() *nowritebarrierrecChecker {
++	c := &nowritebarrierrecChecker{
++		extraCalls: make(map[*Node][]nowritebarrierrecCall),
++	}
+ 
+-			// Build the error message in reverse.
+-			err := ""
+-			for call.target != nil {
+-				err = fmt.Sprintf("\n\t%v: called by %v%s", linestr(call.lineno), n.Func.Nname, err)
+-				n = call.target
+-				call = c.best[n]
+-			}
+-			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
+-			yyerrorl(n.Func.WBPos, err)
++	// Find all systemstack calls and record their targets. In
++	// general, flow analysis can't see into systemstack, but it's
++	// important to handle it for this check, so we model it
++	// directly. This has to happen before transformclosure since
++	// it's a lot harder to work out the argument after.
++	for _, n := range xtop {
++		if n.Op != ODCLFUNC {
++			continue
+ 		}
+-	})
+-}
+-
+-func (c *nowritebarrierrecChecker) visitcodelist(l Nodes) {
+-	for _, n := range l.Slice() {
+-		c.visitcode(n)
++		c.curfn = n
++		inspect(n, c.findExtraCalls)
+ 	}
++	c.curfn = nil
++	return c
+ }
+ 
+-func (c *nowritebarrierrecChecker) visitcode(n *Node) {
+-	if n == nil {
+-		return
++func (c *nowritebarrierrecChecker) findExtraCalls(n *Node) bool {
++	if n.Op != OCALLFUNC {
++		return true
++	}
++	fn := n.Left
++	if fn == nil || fn.Op != ONAME || fn.Class() != PFUNC || fn.Name.Defn == nil {
++		return true
++	}
++	if !isRuntimePkg(fn.Sym.Pkg) || fn.Sym.Name != "systemstack" {
++		return true
+ 	}
+ 
+-	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+-		c.visitcall(n)
++	var callee *Node
++	arg := n.List.First()
++	switch arg.Op {
++	case ONAME:
++		callee = arg.Name.Defn
++	case OCLOSURE:
++		callee = arg.Func.Closure
++	default:
++		Fatalf("expected ONAME or OCLOSURE node, got %+v", arg)
++	}
++	if callee.Op != ODCLFUNC {
++		Fatalf("expected ODCLFUNC node, got %+v", callee)
+ 	}
++	c.extraCalls[c.curfn] = append(c.extraCalls[c.curfn], nowritebarrierrecCall{callee, n.Pos})
++	return true
++}
+ 
+-	c.visitcodelist(n.Ninit)
+-	c.visitcode(n.Left)
+-	c.visitcode(n.Right)
+-	c.visitcodelist(n.List)
+-	c.visitcodelist(n.Nbody)
+-	c.visitcodelist(n.Rlist)
++// recordCall records a call from ODCLFUNC node "from", to function
++// symbol "to" at position pos.
++//
++// This should be done as late as possible during compilation to
++// capture precise call graphs. The target of the call is an LSym
++// because that's all we know after we start SSA.
++//
++// This can be called concurrently for different from Nodes.
++func (c *nowritebarrierrecChecker) recordCall(from *Node, to *obj.LSym, pos src.XPos) {
++	if from.Op != ODCLFUNC {
++		Fatalf("expected ODCLFUNC, got %v", from)
++	}
++	// We record this information on the *Func so this is
++	// concurrent-safe.
++	fn := from.Func
++	if fn.nwbrCalls == nil {
++		fn.nwbrCalls = new([]nowritebarrierrecCallSym)
++	}
++	*fn.nwbrCalls = append(*fn.nwbrCalls, nowritebarrierrecCallSym{to, pos})
+ }
+ 
+-func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+-	fn := n.Left
+-	if n.Op == OCALLMETH {
+-		fn = asNode(n.Left.Sym.Def)
+-	}
+-	if fn == nil || fn.Op != ONAME || fn.Class() != PFUNC || fn.Name.Defn == nil {
+-		return
++func (c *nowritebarrierrecChecker) check() {
++	// We walk the call graph as late as possible so we can
++	// capture all calls created by lowering, but this means we
++	// only get to see the obj.LSyms of calls. symToFunc lets us
++	// get back to the ODCLFUNCs.
++	symToFunc := make(map[*obj.LSym]*Node)
++	// funcs records the back-edges of the BFS call graph walk. It
++	// maps from the ODCLFUNC of each function that must not have
++	// write barriers to the call that inhibits them. Functions
++	// that are directly marked go:nowritebarrierrec are in this
++	// map with a zero-valued nowritebarrierrecCall. This also
++	// acts as the set of marks for the BFS of the call graph.
++	funcs := make(map[*Node]nowritebarrierrecCall)
++	// q is the queue of ODCLFUNC Nodes to visit in BFS order.
++	var q nodeQueue
++
++	for _, n := range xtop {
++		if n.Op != ODCLFUNC {
++			continue
++		}
++
++		symToFunc[n.Func.lsym] = n
++
++		// Make nowritebarrierrec functions BFS roots.
++		if n.Func.Pragma&Nowritebarrierrec != 0 {
++			funcs[n] = nowritebarrierrecCall{}
++			q.pushRight(n)
++		}
++		// Check go:nowritebarrier functions.
++		if n.Func.Pragma&Nowritebarrier != 0 && n.Func.WBPos.IsKnown() {
++			yyerrorl(n.Func.WBPos, "write barrier prohibited")
++		}
+ 	}
+-	defn := fn.Name.Defn
+ 
+-	fnbest, ok := c.best[defn]
+-	if !ok {
+-		return
++	// Perform a BFS of the call graph from all
++	// go:nowritebarrierrec functions.
++	enqueue := func(src, target *Node, pos src.XPos) {
++		if target.Func.Pragma&Yeswritebarrierrec != 0 {
++			// Don't flow into this function.
++			return
++		}
++		if _, ok := funcs[target]; ok {
++			// Already found a path to target.
++			return
++		}
++
++		// Record the path.
++		funcs[target] = nowritebarrierrecCall{target: src, lineno: pos}
++		q.pushRight(target)
+ 	}
+-	best, ok := c.best[c.curfn]
+-	if ok && fnbest.depth+1 >= best.depth {
+-		return
++	for !q.empty() {
++		fn := q.popLeft()
++
++		// Check fn.
++		if fn.Func.WBPos.IsKnown() {
++			var err bytes.Buffer
++			call := funcs[fn]
++			for call.target != nil {
++				fmt.Fprintf(&err, "\n\t%v: called by %v", linestr(call.lineno), call.target.Func.Nname)
++				call = funcs[call.target]
++			}
++			yyerrorl(fn.Func.WBPos, "write barrier prohibited by caller; %v%s", fn.Func.Nname, err.String())
++			continue
++		}
++
++		// Enqueue fn's calls.
++		for _, callee := range c.extraCalls[fn] {
++			enqueue(fn, callee.target, callee.lineno)
++		}
++		if fn.Func.nwbrCalls == nil {
++			continue
++		}
++		for _, callee := range *fn.Func.nwbrCalls {
++			target := symToFunc[callee.target]
++			if target != nil {
++				enqueue(fn, target, callee.lineno)
++			}
++		}
+ 	}
+-	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Pos}
+-	c.stable = false
+ }
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index ce91c6b48b..d94dd08012 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -130,6 +130,8 @@ func supportsDynlink(arch *sys.Arch) bool {
+ var timings Timings
+ var benchfile string
+ 
++var nowritebarrierrecCheck *nowritebarrierrecChecker
++
+ // Main parses flags and Go source files specified in the command-line
+ // arguments, type-checks the parsed Go package, compiles functions to machine
+ // code, and finally writes the compiled package definition to disk.
+@@ -568,6 +570,14 @@ func Main(archInit func(*Arch)) {
+ 	escapes(xtop)
+ 
+ 	if dolinkobj {
++		// Collect information for go:nowritebarrierrec
++		// checking. This must happen before transformclosure.
++		// We'll do the final check after write barriers are
++		// inserted.
++		if compiling_runtime {
++			nowritebarrierrecCheck = newNowritebarrierrecChecker()
++		}
++
+ 		// Phase 7: Transform closure bodies to properly reference captured variables.
+ 		// This needs to happen before walk, because closures must be transformed
+ 		// before walk reaches a call of a closure.
+@@ -616,8 +626,11 @@ func Main(archInit func(*Arch)) {
+ 		// at least until this convoluted structure has been unwound.
+ 		nBackendWorkers = 1
+ 
+-		if compiling_runtime {
+-			checknowritebarrierrec()
++		if nowritebarrierrecCheck != nil {
++			// Write barriers are now known. Check the
++			// call graph.
++			nowritebarrierrecCheck.check()
++			nowritebarrierrecCheck = nil
+ 		}
+ 
+ 		// Check whether any of the functions we have compiled have gigantic stack frames.
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index bd4453fa84..48d357a0b0 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 128, 224},
++		{Func{}, 132, 232},
+ 		{Name{}, 36, 56},
+ 		{Param{}, 28, 56},
+ 		{Node{}, 76, 128},
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 8d5bbd0fa1..103a0f4cd6 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4919,6 +4919,12 @@ func (s *SSAGenState) Call(v *ssa.Value) *obj.Prog {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Name = obj.NAME_EXTERN
+ 		p.To.Sym = sym
++
++		// Record call graph information for nowritebarrierrec
++		// analysis.
++		if nowritebarrierrecCheck != nil {
++			nowritebarrierrecCheck.recordCall(s.pp.curfn, sym, v.Pos)
++		}
+ 	} else {
+ 		// TODO(mdempsky): Can these differences be eliminated?
+ 		switch thearch.LinkArch.Family {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index c315338c35..e18cdfef5d 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -432,6 +432,11 @@ type Func struct {
+ 	Pragma syntax.Pragma // go:xxx function annotations
+ 
+ 	flags bitset16
++
++	// nwbrCalls records the LSyms of functions called by this
++	// function for go:nowritebarrierrec analysis. Only filled in
++	// if nowritebarrierrecCheck != nil.
++	nwbrCalls *[]nowritebarrierrecCallSym
+ }
+ 
+ // A Mark represents a scope boundary.
+@@ -811,3 +816,49 @@ func inspectList(l Nodes, f func(*Node) bool) {
+ 		inspect(n, f)
+ 	}
+ }
++
++// nodeQueue is a FIFO queue of *Node. The zero value of nodeQueue is
++// a ready-to-use empty queue.
++type nodeQueue struct {
++	ring       []*Node
++	head, tail int
++}
++
++// empty returns true if q contains no Nodes.
++func (q *nodeQueue) empty() bool {
++	return q.head == q.tail
++}
++
++// pushRight appends n to the right of the queue.
++func (q *nodeQueue) pushRight(n *Node) {
++	if len(q.ring) == 0 {
++		q.ring = make([]*Node, 16)
++	} else if q.head+len(q.ring) == q.tail {
++		// Grow the ring.
++		nring := make([]*Node, len(q.ring)*2)
++		// Copy the old elements.
++		part := q.ring[q.head%len(q.ring):]
++		if q.tail-q.head <= len(part) {
++			part = part[:q.tail-q.head]
++			copy(nring, part)
++		} else {
++			pos := copy(nring, part)
++			copy(nring[pos:], q.ring[:q.tail%len(q.ring)])
++		}
++		q.ring, q.head, q.tail = nring, 0, q.tail-q.head
++	}
++
++	q.ring[q.tail%len(q.ring)] = n
++	q.tail++
++}
++
++// popLeft pops a node from the left of the queue. It panics if q is
++// empty.
++func (q *nodeQueue) popLeft() *Node {
++	if q.empty() {
++		panic("dequeue empty")
++	}
++	n := q.ring[q.head%len(q.ring)]
++	q.head++
++	return n
++}
+diff --git a/test/nowritebarrier.go b/test/nowritebarrier.go
+index 23dce753b0..64666fa5c6 100644
+--- a/test/nowritebarrier.go
++++ b/test/nowritebarrier.go
+@@ -76,3 +76,18 @@ func d3() {
+ func d4() {
+ 	d2()
+ }
++
++//go:noinline
++func systemstack(func()) {}
++
++//go:nowritebarrierrec
++func e1() {
++	systemstack(e2)
++	systemstack(func() {
++		x.f = y // ERROR "write barrier prohibited by caller"
++	})
++}
++
++func e2() {
++	x.f = y // ERROR "write barrier prohibited by caller"
++}

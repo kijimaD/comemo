@@ -9,9 +9,84 @@ Date:   Thu Sep 3 19:15:26 2015 -0400
     Change-Id: I3dcb0e2190c11f83f15fb07cc637fead54f734f7
     Reviewed-on: https://go-review.googlesource.com/14275
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/hash/adler32/adler32.go | 1 +
  src/hash/crc32/crc32.go     | 2 ++
  src/hash/crc64/crc64.go     | 1 +
  src/hash/fnv/fnv.go         | 4 ++++
  4 files changed, 8 insertions(+)
+
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 7c80796bf9..0c733f751a 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -33,6 +33,7 @@ type digest uint32
+ func (d *digest) Reset() { *d = 1 }
+ 
+ // New returns a new hash.Hash32 computing the Adler-32 checksum.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New() hash.Hash32 {
+ 	d := new(digest)
+ 	d.Reset()
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 228cc0461c..1b5e0dbde0 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -113,10 +113,12 @@ type digest struct {
+ 
+ // New creates a new hash.Hash32 computing the CRC-32 checksum
+ // using the polynomial represented by the Table.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New(tab *Table) hash.Hash32 { return &digest{0, tab} }
+ 
+ // NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum
+ // using the IEEE polynomial.
++// Its Sum method will lay the value out in big-endian byte order.
+ func NewIEEE() hash.Hash32 { return New(IEEETable) }
+ 
+ func (d *digest) Size() int { return Size }
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index b420a22562..54cc56055e 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -50,6 +50,7 @@ type digest struct {
+ 
+ // New creates a new hash.Hash64 computing the CRC-64 checksum
+ // using the polynomial represented by the Table.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
+ 
+ func (d *digest) Size() int { return Size }
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index 09c5b2a336..f1fbb25bdf 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -27,24 +27,28 @@ const (
+ )
+ 
+ // New32 returns a new 32-bit FNV-1 hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New32() hash.Hash32 {
+ 	var s sum32 = offset32
+ 	return &s
+ }
+ 
+ // New32a returns a new 32-bit FNV-1a hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New32a() hash.Hash32 {
+ 	var s sum32a = offset32
+ 	return &s
+ }
+ 
+ // New64 returns a new 64-bit FNV-1 hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New64() hash.Hash64 {
+ 	var s sum64 = offset64
+ 	return &s
+ }
+ 
+ // New64a returns a new 64-bit FNV-1a hash.Hash.
++// Its Sum method will lay the value out in big-endian byte order.
+ func New64a() hash.Hash64 {
+ 	var s sum64a = offset64
+ 	return &s

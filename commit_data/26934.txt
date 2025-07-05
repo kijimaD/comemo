@@ -11,10 +11,501 @@ Date:   Thu Mar 3 15:08:25 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20195
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go   | 32 ++++++++--------
  src/cmd/compile/internal/gc/gen.go    | 40 +++++++++-----------
  src/cmd/compile/internal/gc/pgen.go   |  4 +-
  src/cmd/compile/internal/gc/syntax.go | 69 ++++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/walk.go   | 40 ++++++++++----------
  5 files changed, 124 insertions(+), 61 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index df30100b10..b1f5f9a35e 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -1753,7 +1753,7 @@ func Bvgen(n, res *Node, wantTrue bool) {
+ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
+ 	init := n.Ninit
+ 	if !geninit {
+-		n.Ninit = nil
++		setNodeSeq(&n.Ninit, nil)
+ 	}
+ 	p1 := Gbranch(obj.AJMP, nil, 0)
+ 	p2 := Pc
+@@ -1763,7 +1763,7 @@ func bvgenjump(n, res *Node, wantTrue, geninit bool) {
+ 	Bgen(n, wantTrue, 0, p2)
+ 	Thearch.Gmove(Nodbool(false), res)
+ 	Patch(p3, Pc)
+-	n.Ninit = init
++	setNodeSeq(&n.Ninit, init)
+ }
+ 
+ // bgenx is the backend for Bgen and Bvgen.
+@@ -1921,11 +1921,11 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		if Isfloat[nr.Type.Etype] {
+ 			// Brcom is not valid on floats when NaN is involved.
+ 			ll := n.Ninit // avoid re-genning Ninit
+-			n.Ninit = nil
++			setNodeSeq(&n.Ninit, nil)
+ 			if genval {
+ 				bgenx(n, res, true, likely, to)
+ 				Thearch.Gins(Thearch.Optoas(OXOR, Types[TUINT8]), Nodintconst(1), res) // res = !res
+-				n.Ninit = ll
++				setNodeSeq(&n.Ninit, ll)
+ 				return
+ 			}
+ 			p1 := Gbranch(obj.AJMP, nil, 0)
+@@ -1934,7 +1934,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			bgenx(n, res, true, -likely, p2)
+ 			Patch(Gbranch(obj.AJMP, nil, 0), to)
+ 			Patch(p2, Pc)
+-			n.Ninit = ll
++			setNodeSeq(&n.Ninit, ll)
+ 			return
+ 		}
+ 
+@@ -2621,7 +2621,7 @@ func cgen_ret(n *Node) {
+ 	if hasdefer {
+ 		Ginscall(Deferreturn, 0)
+ 	}
+-	Genslice(Curfn.Func.Exit.Slice())
++	Genlist(Curfn.Func.Exit)
+ 	p := Thearch.Gins(obj.ARET, nil, nil)
+ 	if n != nil && n.Op == ORETJMP {
+ 		p.To.Type = obj.TYPE_MEM
+@@ -2803,13 +2803,13 @@ func cgen_append(n, res *Node) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+ 	}
+-	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
++	if res.Op != ONAME && !samesafeexpr(res, nodeSeqFirst(n.List)) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+ 		Fatalf("append not lowered")
+ 	}
+-	for l := n.List; l != nil; l = l.Next {
+-		if l.N.Ullman >= UINF {
++	for it := nodeSeqIterate(n.List); !it.Done(); it.Next() {
++		if it.N().Ullman >= UINF {
+ 			Fatalf("append with function call arguments")
+ 		}
+ 	}
+@@ -2818,7 +2818,7 @@ func cgen_append(n, res *Node) {
+ 	//
+ 	// If res and src are the same, we can avoid writing to base and cap
+ 	// unless we grow the underlying array.
+-	needFullUpdate := !samesafeexpr(res, n.List.N)
++	needFullUpdate := !samesafeexpr(res, nodeSeqFirst(n.List))
+ 
+ 	// Copy src triple into base, len, cap.
+ 	base := temp(Types[Tptr])
+@@ -2826,7 +2826,7 @@ func cgen_append(n, res *Node) {
+ 	cap := temp(Types[TUINT])
+ 
+ 	var src Node
+-	Igen(n.List.N, &src, nil)
++	Igen(nodeSeqFirst(n.List), &src, nil)
+ 	src.Type = Types[Tptr]
+ 	Thearch.Gmove(&src, base)
+ 	src.Type = Types[TUINT]
+@@ -2839,7 +2839,7 @@ func cgen_append(n, res *Node) {
+ 	var rlen Node
+ 	Regalloc(&rlen, Types[TUINT], nil)
+ 	Thearch.Gmove(len, &rlen)
+-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &rlen)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &rlen)
+ 	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
+ 	// Note: rlen and src are Regrealloc'ed below at the target of the
+ 	// branch we just emitted; do not reuse these Go variables for
+@@ -2909,7 +2909,7 @@ func cgen_append(n, res *Node) {
+ 	dst.Xoffset += int64(Widthptr)
+ 	Regalloc(&r1, Types[TUINT], nil)
+ 	Thearch.Gmove(len, &r1)
+-	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &r1)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(nodeSeqLen(n.List)-1), &r1)
+ 	Thearch.Gmove(&r1, &dst)
+ 	Regfree(&r1)
+ 	dst.Xoffset += int64(Widthptr)
+@@ -2947,7 +2947,9 @@ func cgen_append(n, res *Node) {
+ 	// is not going to use a write barrier.
+ 	i := 0
+ 	var r2 Node
+-	for l := n.List.Next; l != nil; l = l.Next {
++	it := nodeSeqIterate(n.List)
++	it.Next()
++	for ; !it.Done(); it.Next() {
+ 		Regalloc(&r1, Types[Tptr], nil)
+ 		Thearch.Gmove(base, &r1)
+ 		Regalloc(&r2, Types[TUINT], nil)
+@@ -2968,7 +2970,7 @@ func cgen_append(n, res *Node) {
+ 
+ 		r1.Op = OINDREG
+ 		r1.Type = res.Type.Type
+-		cgen_wb(l.N, &r1, needwritebarrier(&r1, l.N))
++		cgen_wb(it.N(), &r1, needwritebarrier(&r1, it.N()))
+ 		Regfree(&r1)
+ 		i++
+ 	}
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 92ee2aed14..a978e1af6f 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -215,15 +215,9 @@ func stmtlabel(n *Node) *Label {
+ }
+ 
+ // compile statements
+-func Genlist(l *NodeList) {
+-	for ; l != nil; l = l.Next {
+-		gen(l.N)
+-	}
+-}
+-
+-func Genslice(l []*Node) {
+-	for _, n := range l {
+-		gen(n)
++func Genlist(l nodesOrNodeList) {
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		gen(it.N())
+ 	}
+ }
+ 
+@@ -445,8 +439,8 @@ func cgen_dottype(n *Node, res, resok *Node, wb bool) {
+ 		call := Nod(OCALLFUNC, fn, nil)
+ 		r1.Type = byteptr
+ 		r2.Type = byteptr
+-		call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+-		call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
++		setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
++		setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil))
+ 		gen(call)
+ 		Regfree(&r1)
+ 		Regfree(&r2)
+@@ -531,8 +525,8 @@ func Cgen_As2dottype(n, res, resok *Node) {
+ 	fn := syslook("panicdottype", 0)
+ 	dowidth(fn.Type)
+ 	call := Nod(OCALLFUNC, fn, nil)
+-	call.List = list(list(list1(&r1), &r2), typename(n.Left.Type))
+-	call.List = ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil)
++	setNodeSeq(&call.List, list(list(list1(&r1), &r2), typename(n.Left.Type)))
++	setNodeSeq(&call.List, ascompatte(OCALLFUNC, call, false, getinarg(fn.Type), call.List, 0, nil))
+ 	gen(call)
+ 	Regfree(&r1)
+ 	Regfree(&r2)
+@@ -644,7 +638,7 @@ func gen(n *Node) {
+ 		goto ret
+ 	}
+ 
+-	if n.Ninit != nil {
++	if nodeSeqLen(n.Ninit) > 0 {
+ 		Genlist(n.Ninit)
+ 	}
+ 
+@@ -779,7 +773,7 @@ func gen(n *Node) {
+ 		gen(n.Right)                     // contin:	incr
+ 		Patch(p1, Pc)                    // test:
+ 		Bgen(n.Left, false, -1, breakpc) //		if(!test) goto break
+-		Genslice(n.Nbody.Slice())        //		body
++		Genlist(n.Nbody)                 //		body
+ 		gjmp(continpc)
+ 		Patch(breakpc, Pc) // done:
+ 		continpc = scontin
+@@ -794,7 +788,7 @@ func gen(n *Node) {
+ 		p2 := gjmp(nil)                         // p2:		goto else
+ 		Patch(p1, Pc)                           // test:
+ 		Bgen(n.Left, false, int(-n.Likely), p2) //		if(!test) goto p2
+-		Genslice(n.Nbody.Slice())               //		then
++		Genlist(n.Nbody)                        //		then
+ 		p3 := gjmp(nil)                         //		goto done
+ 		Patch(p2, Pc)                           // else:
+ 		Genlist(n.Rlist)                        //		else
+@@ -811,9 +805,9 @@ func gen(n *Node) {
+ 			lab.Breakpc = breakpc
+ 		}
+ 
+-		Patch(p1, Pc)             // test:
+-		Genslice(n.Nbody.Slice()) //		switch(test) body
+-		Patch(breakpc, Pc)        // done:
++		Patch(p1, Pc)      // test:
++		Genlist(n.Nbody)   //		switch(test) body
++		Patch(breakpc, Pc) // done:
+ 		breakpc = sbreak
+ 		if lab != nil {
+ 			lab.Breakpc = nil
+@@ -830,9 +824,9 @@ func gen(n *Node) {
+ 			lab.Breakpc = breakpc
+ 		}
+ 
+-		Patch(p1, Pc)             // test:
+-		Genslice(n.Nbody.Slice()) //		select() body
+-		Patch(breakpc, Pc)        // done:
++		Patch(p1, Pc)      // test:
++		Genlist(n.Nbody)   //		select() body
++		Patch(breakpc, Pc) // done:
+ 		breakpc = sbreak
+ 		if lab != nil {
+ 			lab.Breakpc = nil
+@@ -851,7 +845,7 @@ func gen(n *Node) {
+ 		Cgen_as_wb(n.Left, n.Right, true)
+ 
+ 	case OAS2DOTTYPE:
+-		cgen_dottype(n.Rlist.N, n.List.N, n.List.Next.N, needwritebarrier(n.List.N, n.Rlist.N))
++		cgen_dottype(nodeSeqFirst(n.Rlist), nodeSeqFirst(n.List), nodeSeqSecond(n.List), needwritebarrier(nodeSeqFirst(n.List), nodeSeqFirst(n.Rlist)))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 41038d342f..b01c1583a0 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -491,8 +491,8 @@ func compile(fn *Node) {
+ 		ssafn.Free()
+ 		return
+ 	}
+-	Genslice(Curfn.Func.Enter.Slice())
+-	Genslice(Curfn.Nbody.Slice())
++	Genlist(Curfn.Func.Enter)
++	Genlist(Curfn.Nbody)
+ 	gclean()
+ 	checklabels()
+ 	if nerrors != 0 {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 39a3d95322..30e69994ad 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -520,6 +520,9 @@ type nodeSeqIterator interface {
+ 	P() **Node
+ 	// Return the number of items remaining in the iteration.
+ 	Len() int
++	// Return the remaining items as a sequence.
++	// This will have the same type as that passed to nodeSeqIterate.
++	Seq() nodesOrNodeList
+ }
+ 
+ // nodeListIterator is a type that implements nodeSeqIterator using a
+@@ -548,6 +551,10 @@ func (nli *nodeListIterator) Len() int {
+ 	return count(nli.l)
+ }
+ 
++func (nli *nodeListIterator) Seq() nodesOrNodeList {
++	return nli.l
++}
++
+ // nodesIterator implements nodeSeqIterator using a Nodes.
+ type nodesIterator struct {
+ 	n Nodes
+@@ -574,7 +581,13 @@ func (ni *nodesIterator) Len() int {
+ 	return len(ni.n.Slice())
+ }
+ 
+-// nodeSeqIterate returns an iterator over either a *Nodelist or a *Nodes.
++func (ni *nodesIterator) Seq() nodesOrNodeList {
++	var r Nodes
++	r.Set(ni.n.Slice()[ni.i:])
++	return r
++}
++
++// nodeSeqIterate returns an iterator over either a *NodeList or a Nodes.
+ func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
+ 	switch ns := ns.(type) {
+ 	case *NodeList:
+@@ -586,12 +599,64 @@ func nodeSeqIterate(ns nodesOrNodeList) nodeSeqIterator {
+ 	}
+ }
+ 
++// nodeSeqLen returns the length of either a *NodeList or a Nodes.
++func nodeSeqLen(ns nodesOrNodeList) int {
++	switch ns := ns.(type) {
++	case *NodeList:
++		return count(ns)
++	case Nodes:
++		return len(ns.Slice())
++	default:
++		panic("can't happen")
++	}
++}
++
++// nodeSeqFirst returns the first element of either a *NodeList or a Nodes.
++// It panics if the sequence is empty.
++func nodeSeqFirst(ns nodesOrNodeList) *Node {
++	switch ns := ns.(type) {
++	case *NodeList:
++		return ns.N
++	case Nodes:
++		return ns.Slice()[0]
++	default:
++		panic("can't happen")
++	}
++}
++
++// nodeSeqSecond returns the second element of either a *NodeList or a Nodes.
++// It panics if the sequence has fewer than two elements.
++func nodeSeqSecond(ns nodesOrNodeList) *Node {
++	switch ns := ns.(type) {
++	case *NodeList:
++		return ns.Next.N
++	case Nodes:
++		return ns.Slice()[1]
++	default:
++		panic("can't happen")
++	}
++}
++
+ // setNodeSeq implements *a = b.
+ // a must have type **NodeList, *Nodes, or *[]*Node.
+-// b must have type *NodeList, Nodes, or []*Node.
++// b must have type *NodeList, Nodes, []*Node, or nil.
+ // This is an interim function during the transition from NodeList to Nodes.
+ // TODO(iant): Remove when transition is complete.
+ func setNodeSeq(a nodesOrNodeListPtr, b nodesOrNodeList) {
++	if b == nil {
++		switch a := a.(type) {
++		case **NodeList:
++			*a = nil
++		case *Nodes:
++			a.Set(nil)
++		case *[]*Node:
++			*a = nil
++		default:
++			panic("can't happen")
++		}
++		return
++	}
++
+ 	// Simplify b to either *Nodelist or []*Node.
+ 	if n, ok := b.(Nodes); ok {
+ 		b = n.Slice()
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c85bfd7b0f..aa3411c945 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -1717,7 +1717,7 @@ func ascompatet(op Op, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeLi
+ }
+ 
+ // package all the arguments that match a ... T parameter into a []T.
+-func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
++func mkdotargslice(lr0 nodesOrNodeList, nn *NodeList, l *Type, fp int, init **NodeList, ddd *Node) *NodeList {
+ 	esc := uint16(EscUnknown)
+ 	if ddd != nil {
+ 		esc = ddd.Esc
+@@ -1728,7 +1728,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
+ 	tslice.Bound = -1
+ 
+ 	var n *Node
+-	if count(lr0) == 0 {
++	if nodeSeqLen(lr0) == 0 {
+ 		n = nodnil()
+ 		n.Type = tslice
+ 	} else {
+@@ -1736,7 +1736,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
+ 		if ddd != nil && prealloc[ddd] != nil {
+ 			prealloc[n] = prealloc[ddd] // temporary to use
+ 		}
+-		n.List = lr0
++		setNodeSeq(&n.List, lr0)
+ 		n.Esc = esc
+ 		typecheck(&n, Erv)
+ 		if n.Type == nil {
+@@ -1772,14 +1772,14 @@ func dumptypes(nl **Type, what string) string {
+ 	return fmt_
+ }
+ 
+-func dumpnodetypes(l *NodeList, what string) string {
++func dumpnodetypes(l nodesOrNodeList, what string) string {
+ 	var r *Node
+ 
+ 	fmt_ := ""
+ 	fmt_ += "\t"
+ 	first := 1
+-	for ; l != nil; l = l.Next {
+-		r = l.N
++	for it := nodeSeqIterate(l); !it.Done(); it.Next() {
++		r = it.N()
+ 		if first != 0 {
+ 			first = 0
+ 		} else {
+@@ -1798,14 +1798,14 @@ func dumpnodetypes(l *NodeList, what string) string {
+ // a type list. called in
+ //	return expr-list
+ //	func(expr-list)
+-func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int, init **NodeList) *NodeList {
++func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr nodesOrNodeList, fp int, init **NodeList) *NodeList {
+ 	var savel Iter
+ 
+ 	lr0 := lr
+ 	l := Structfirst(&savel, nl)
+ 	var r *Node
+-	if lr != nil {
+-		r = lr.N
++	if nodeSeqLen(lr) > 0 {
++		r = nodeSeqFirst(lr)
+ 	}
+ 	var nn *NodeList
+ 
+@@ -1814,7 +1814,8 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int,
+ 	var l2 string
+ 	var ll *Type
+ 	var l1 string
+-	if r != nil && lr.Next == nil && r.Type.Etype == TSTRUCT && r.Type.Funarg {
++	var lrit nodeSeqIterator
++	if r != nil && nodeSeqLen(lr) <= 1 && r.Type.Etype == TSTRUCT && r.Type.Funarg {
+ 		// optimization - can do block copy
+ 		if eqtypenoname(r.Type, *nl) {
+ 			a := nodarg(*nl, fp)
+@@ -1835,15 +1836,16 @@ func ascompatte(op Op, call *Node, isddd bool, nl **Type, lr *NodeList, fp int,
+ 
+ 		a = Nod(OAS2, nil, nil)
+ 		a.List = alist
+-		a.Rlist = lr
++		setNodeSeq(&a.Rlist, lr)
+ 		typecheck(&a, Etop)
+ 		walkstmt(&a)
+ 		*init = list(*init, a)
+ 		lr = alist
+-		r = lr.N
++		r = nodeSeqFirst(lr)
+ 		l = Structfirst(&savel, nl)
+ 	}
+ 
++	lrit = nodeSeqIterate(lr)
+ loop:
+ 	if l != nil && l.Isddd {
+ 		// the ddd parameter must be last
+@@ -1857,7 +1859,7 @@ loop:
+ 		// only if we are assigning a single ddd
+ 		// argument to a ddd parameter then it is
+ 		// passed thru unencapsulated
+-		if r != nil && lr.Next == nil && isddd && Eqtype(l.Type, r.Type) {
++		if r != nil && lrit.Len() <= 1 && isddd && Eqtype(l.Type, r.Type) {
+ 			a = Nod(OAS, nodarg(l, fp), r)
+ 			a = convas(a, init)
+ 			nn = list(nn, a)
+@@ -1867,7 +1869,7 @@ loop:
+ 		// normal case -- make a slice of all
+ 		// remaining arguments and pass it to
+ 		// the ddd parameter.
+-		nn = mkdotargslice(lr, nn, l, fp, init, call.Right)
++		nn = mkdotargslice(lrit.Seq(), nn, l, fp, init, call.Right)
+ 
+ 		goto ret
+ 	}
+@@ -1892,15 +1894,15 @@ loop:
+ 
+ 	l = structnext(&savel)
+ 	r = nil
+-	lr = lr.Next
+-	if lr != nil {
+-		r = lr.N
++	lrit.Next()
++	if !lrit.Done() {
++		r = lrit.N()
+ 	}
+ 	goto loop
+ 
+ ret:
+-	for lr = nn; lr != nil; lr = lr.Next {
+-		lr.N.Typecheck = 1
++	for lrit = nodeSeqIterate(nn); !lrit.Done(); lrit.Next() {
++		lrit.N().Typecheck = 1
+ 	}
+ 	return nn
+ }

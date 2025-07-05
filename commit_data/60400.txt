@@ -22,7 +22,7 @@ Date:   Fri Jul 12 22:03:43 2024 +0000
     Auto-Submit: Robert Findley <rfindley@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |   6 +-
  src/cmd/go.sum                                     |  12 +-
  src/cmd/vendor/golang.org/x/mod/module/module.go   |   2 -
@@ -53,3 +53,1069 @@ Date:   Fri Jul 12 22:03:43 2024 +0000
  src/go.sum                                         |   4 +-
  src/vendor/modules.txt                             |   2 +-
  29 files changed, 400 insertions(+), 98 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 3058165dbf..f568996fd0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,10 +6,10 @@ require (
+ 	github.com/google/pprof v0.0.0-20240528025155-186aa0362fba
+ 	golang.org/x/arch v0.8.0
+ 	golang.org/x/build v0.0.0-20240603162849-5dfbda438323
+-	golang.org/x/mod v0.18.0
++	golang.org/x/mod v0.19.0
+ 	golang.org/x/sync v0.7.0
+-	golang.org/x/sys v0.21.0
+-	golang.org/x/telemetry v0.0.0-20240624145040-38a44306ed05
++	golang.org/x/sys v0.22.0
++	golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7
+ 	golang.org/x/term v0.20.0
+ 	golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 081ced64dc..f822fa372a 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -10,14 +10,14 @@ golang.org/x/arch v0.8.0 h1:3wRIsP3pM4yUptoR96otTUOXI367OS0+c9eeRi9doIc=
+ golang.org/x/arch v0.8.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240603162849-5dfbda438323 h1:XHj9DzsjpryRW9MnyZq85mQ1dRpSxVC+2TLcMzVZNMo=
+ golang.org/x/build v0.0.0-20240603162849-5dfbda438323/go.mod h1:yz9anu0Z63yrVrqnoOxoJuyBRDwtGUoOFJwtfvs+D+U=
+-golang.org/x/mod v0.18.0 h1:5+9lSbEzPSdWkH32vYPBwEpX8KwDbM52Ud9xBUvNlb0=
+-golang.org/x/mod v0.18.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.19.0 h1:fEdghXQSo20giMthA7cd28ZC+jts4amQ3YMXiP5oMQ8=
++golang.org/x/mod v0.19.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+-golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240624145040-38a44306ed05 h1:fzUVo05u80jHc31RGqQsPYEAGMXS8tyK5azYUK2sSms=
+-golang.org/x/telemetry v0.0.0-20240624145040-38a44306ed05/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
++golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
++golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7 h1:nU8/tAV/21mkPrCjACUeSibjhynTovgRMXc32+Y1Aec=
++golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
+ golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index cac1a899e9..2a364b229b 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -506,7 +506,6 @@ var badWindowsNames = []string{
+ 	"PRN",
+ 	"AUX",
+ 	"NUL",
+-	"COM0",
+ 	"COM1",
+ 	"COM2",
+ 	"COM3",
+@@ -516,7 +515,6 @@ var badWindowsNames = []string{
+ 	"COM7",
+ 	"COM8",
+ 	"COM9",
+-	"LPT0",
+ 	"LPT1",
+ 	"LPT2",
+ 	"LPT3",
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+index 04c6e24d0e..04dbdfe46a 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/client.go
+@@ -142,6 +142,14 @@ func (c *Client) initWork() {
+ 	c.verifiers = note.VerifierList(verifier)
+ 	c.name = verifier.Name()
+ 
++	if c.latest.N == 0 {
++		c.latest.Hash, err = tlog.TreeHash(0, nil)
++		if err != nil {
++			c.initErr = err
++			return
++		}
++	}
++
+ 	data, err := c.ops.ReadConfig(c.name + "/latest")
+ 	if err != nil {
+ 		c.initErr = err
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+index 6a11a752f9..f7ea753832 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tlog.go
+@@ -234,14 +234,22 @@ func (f HashReaderFunc) ReadHashes(indexes []int64) ([]Hash, error) {
+ 	return f(indexes)
+ }
+ 
++// emptyHash is the hash of the empty tree, per RFC 6962, Section 2.1.
++// It is the hash of the empty string.
++var emptyHash = Hash{
++	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14,
++	0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
++	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c,
++	0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
++}
++
+ // TreeHash computes the hash for the root of the tree with n records,
+ // using the HashReader to obtain previously stored hashes
+ // (those returned by StoredHashes during the writes of those n records).
+ // TreeHash makes a single call to ReadHash requesting at most 1 + log₂ n hashes.
+-// The tree of size zero is defined to have an all-zero Hash.
+ func TreeHash(n int64, r HashReader) (Hash, error) {
+ 	if n == 0 {
+-		return Hash{}, nil
++		return emptyHash, nil
+ 	}
+ 	indexes := subTreeIndex(0, n, nil)
+ 	hashes, err := r.ReadHashes(indexes)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mremap.go b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+index fd45fe529d..3a5e776f89 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mremap.go
+@@ -50,3 +50,8 @@ func (m *mremapMmapper) Mremap(oldData []byte, newLength int, flags int) (data [
+ func Mremap(oldData []byte, newLength int, flags int) (data []byte, err error) {
+ 	return mapper.Mremap(oldData, newLength, flags)
+ }
++
++func MremapPtr(oldAddr unsafe.Pointer, oldSize uintptr, newAddr unsafe.Pointer, newSize uintptr, flags int) (ret unsafe.Pointer, err error) {
++	xaddr, err := mapper.mremap(uintptr(oldAddr), oldSize, newSize, flags, uintptr(newAddr))
++	return unsafe.Pointer(xaddr), err
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 59542a897d..4cc7b00596 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -542,6 +542,18 @@ func SysctlKinfoProcSlice(name string, args ...int) ([]KinfoProc, error) {
+ 	}
+ }
+ 
++//sys	pthread_chdir_np(path string) (err error)
++
++func PthreadChdir(path string) (err error) {
++	return pthread_chdir_np(path)
++}
++
++//sys	pthread_fchdir_np(fd int) (err error)
++
++func PthreadFchdir(fd int) (err error) {
++	return pthread_fchdir_np(fd)
++}
++
+ //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+ 
+ //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index 77081de8c7..4e92e5aa40 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -154,6 +154,15 @@ func Munmap(b []byte) (err error) {
+ 	return mapper.Munmap(b)
+ }
+ 
++func MmapPtr(fd int, offset int64, addr unsafe.Pointer, length uintptr, prot int, flags int) (ret unsafe.Pointer, err error) {
++	xaddr, err := mapper.mmap(uintptr(addr), length, prot, flags, fd, offset)
++	return unsafe.Pointer(xaddr), err
++}
++
++func MunmapPtr(addr unsafe.Pointer, length uintptr) (err error) {
++	return mapper.munmap(uintptr(addr), length)
++}
++
+ func Read(fd int, p []byte) (n int, err error) {
+ 	n, err = read(fd, p)
+ 	if raceenabled {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+index ccb02f240a..07642c308d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+@@ -760,6 +760,39 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pthread_chdir_np(path string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall(libc_pthread_chdir_np_trampoline_addr, uintptr(unsafe.Pointer(_p0)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pthread_chdir_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pthread_chdir_np pthread_chdir_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pthread_fchdir_np(fd int) (err error) {
++	_, _, e1 := syscall_syscall(libc_pthread_fchdir_np_trampoline_addr, uintptr(fd), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pthread_fchdir_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pthread_fchdir_np pthread_fchdir_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error) {
+ 	_, _, e1 := syscall_syscall6(libc_sendfile_trampoline_addr, uintptr(infd), uintptr(outfd), uintptr(offset), uintptr(unsafe.Pointer(len)), uintptr(hdtr), uintptr(flags))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+index 8b8bb28402..923e08cb79 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+@@ -228,6 +228,16 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_pthread_chdir_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pthread_chdir_np(SB)
++GLOBL	·libc_pthread_chdir_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pthread_chdir_np_trampoline_addr(SB)/8, $libc_pthread_chdir_np_trampoline<>(SB)
++
++TEXT libc_pthread_fchdir_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pthread_fchdir_np(SB)
++GLOBL	·libc_pthread_fchdir_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pthread_fchdir_np_trampoline_addr(SB)/8, $libc_pthread_fchdir_np_trampoline<>(SB)
++
+ TEXT libc_sendfile_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ GLOBL	·libc_sendfile_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+index 1b40b997b5..7d73dda647 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+@@ -760,6 +760,39 @@ var libc_sysctl_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func pthread_chdir_np(path string) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall_syscall(libc_pthread_chdir_np_trampoline_addr, uintptr(unsafe.Pointer(_p0)), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pthread_chdir_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pthread_chdir_np pthread_chdir_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
++func pthread_fchdir_np(fd int) (err error) {
++	_, _, e1 := syscall_syscall(libc_pthread_fchdir_np_trampoline_addr, uintptr(fd), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_pthread_fchdir_np_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_pthread_fchdir_np pthread_fchdir_np "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error) {
+ 	_, _, e1 := syscall_syscall6(libc_sendfile_trampoline_addr, uintptr(infd), uintptr(outfd), uintptr(offset), uintptr(unsafe.Pointer(len)), uintptr(hdtr), uintptr(flags))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+index 08362c1ab7..057700111e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+@@ -228,6 +228,16 @@ TEXT libc_sysctl_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_sysctl_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_sysctl_trampoline_addr(SB)/8, $libc_sysctl_trampoline<>(SB)
+ 
++TEXT libc_pthread_chdir_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pthread_chdir_np(SB)
++GLOBL	·libc_pthread_chdir_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pthread_chdir_np_trampoline_addr(SB)/8, $libc_pthread_chdir_np_trampoline<>(SB)
++
++TEXT libc_pthread_fchdir_np_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_pthread_fchdir_np(SB)
++GLOBL	·libc_pthread_fchdir_np_trampoline_addr(SB), RODATA, $8
++DATA	·libc_pthread_fchdir_np_trampoline_addr(SB)/8, $libc_pthread_fchdir_np_trampoline<>(SB)
++
+ TEXT libc_sendfile_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ GLOBL	·libc_sendfile_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+index 6f7d2ac70a..97651b5bd0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/security_windows.go
+@@ -894,7 +894,7 @@ type ACL struct {
+ 	aclRevision byte
+ 	sbz1        byte
+ 	aclSize     uint16
+-	aceCount    uint16
++	AceCount    uint16
+ 	sbz2        uint16
+ }
+ 
+@@ -1087,6 +1087,27 @@ type EXPLICIT_ACCESS struct {
+ 	Trustee           TRUSTEE
+ }
+ 
++// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-ace_header
++type ACE_HEADER struct {
++	AceType  uint8
++	AceFlags uint8
++	AceSize  uint16
++}
++
++// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-access_allowed_ace
++type ACCESS_ALLOWED_ACE struct {
++	Header   ACE_HEADER
++	Mask     ACCESS_MASK
++	SidStart uint32
++}
++
++const (
++	// Constants for AceType
++	// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-ace_header
++	ACCESS_ALLOWED_ACE_TYPE = 0
++	ACCESS_DENIED_ACE_TYPE  = 1
++)
++
+ // This type is the union inside of TRUSTEE and must be created using one of the TrusteeValueFrom* functions.
+ type TrusteeValue uintptr
+ 
+@@ -1158,6 +1179,7 @@ type OBJECTS_AND_NAME struct {
+ //sys	makeSelfRelativeSD(absoluteSD *SECURITY_DESCRIPTOR, selfRelativeSD *SECURITY_DESCRIPTOR, selfRelativeSDSize *uint32) (err error) = advapi32.MakeSelfRelativeSD
+ 
+ //sys	setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCESS, oldACL *ACL, newACL **ACL) (ret error) = advapi32.SetEntriesInAclW
++//sys	GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) = advapi32.GetAce
+ 
+ // Control returns the security descriptor control bits.
+ func (sd *SECURITY_DESCRIPTOR) Control() (control SECURITY_DESCRIPTOR_CONTROL, revision uint32, err error) {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 9f73df75b5..eba761018a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -91,6 +91,7 @@ var (
+ 	procEnumServicesStatusExW                                = modadvapi32.NewProc("EnumServicesStatusExW")
+ 	procEqualSid                                             = modadvapi32.NewProc("EqualSid")
+ 	procFreeSid                                              = modadvapi32.NewProc("FreeSid")
++	procGetAce                                               = modadvapi32.NewProc("GetAce")
+ 	procGetLengthSid                                         = modadvapi32.NewProc("GetLengthSid")
+ 	procGetNamedSecurityInfoW                                = modadvapi32.NewProc("GetNamedSecurityInfoW")
+ 	procGetSecurityDescriptorControl                         = modadvapi32.NewProc("GetSecurityDescriptorControl")
+@@ -1224,6 +1225,14 @@ func setEntriesInAcl(countExplicitEntries uint32, explicitEntries *EXPLICIT_ACCE
+ 	return
+ }
+ 
++func GetAce(acl *ACL, aceIndex uint32, pAce **ACCESS_ALLOWED_ACE) (ret error) {
++	r0, _, _ := syscall.Syscall(procGetAce.Addr(), 3, uintptr(unsafe.Pointer(acl)), uintptr(aceIndex), uintptr(unsafe.Pointer(pAce)))
++	if r0 == 0 {
++		ret = GetLastError()
++	}
++	return
++}
++
+ func SetKernelObjectSecurity(handle Handle, securityInformation SECURITY_INFORMATION, securityDescriptor *SECURITY_DESCRIPTOR) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procSetKernelObjectSecurity.Addr(), 3, uintptr(handle), uintptr(securityInformation), uintptr(unsafe.Pointer(securityDescriptor)))
+ 	if r1 == 0 {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+index 53695ac270..639e9ea356 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/doc.go
+@@ -48,4 +48,11 @@
+ //     For example given two counters "gopls/completion/latency:<50ms" and
+ //     "gopls/completion/latency:<100ms", the "<100ms" bucket counts events
+ //     with latency in the half-open interval [50ms, 100ms).
++//
++// # Debugging
++//
++// The GODEBUG environment variable can enable printing of additional debug
++// information for counters. Adding GODEBUG=countertrace=1 to the environment
++// of a process using counters causes the x/telemetry/counter package to log
++// counter information to stderr.
+ package counter
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+index cc562bc744..6fbcec3a92 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/counter.go
+@@ -15,10 +15,15 @@ import (
+ 	"sync/atomic"
+ )
+ 
+-// Note: not using internal/godebug, so that internal/godebug can use internal/counter.
+-var debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
++var (
++	// Note: not using internal/godebug, so that internal/godebug can use
++	// internal/counter.
++	debugCounter = strings.Contains(os.Getenv("GODEBUG"), "countertrace=1")
++	CrashOnBugs  = false // for testing; if set, exit on fatal log messages
++)
+ 
+-func debugPrintf(format string, args ...interface{}) {
++// debugPrintf formats a debug message if GODEBUG=countertrace=1.
++func debugPrintf(format string, args ...any) {
+ 	if debugCounter {
+ 		if len(format) == 0 || format[len(format)-1] != '\n' {
+ 			format += "\n"
+@@ -27,6 +32,17 @@ func debugPrintf(format string, args ...interface{}) {
+ 	}
+ }
+ 
++// debugFatalf logs a fatal error if GODEBUG=countertrace=1.
++func debugFatalf(format string, args ...any) {
++	if debugCounter || CrashOnBugs {
++		if len(format) == 0 || format[len(format)-1] != '\n' {
++			format += "\n"
++		}
++		fmt.Fprintf(os.Stderr, "counter bug: "+format, args...)
++		os.Exit(1)
++	}
++}
++
+ // A Counter is a single named event counter.
+ // A Counter is safe for use by multiple goroutines simultaneously.
+ //
+@@ -246,6 +262,7 @@ func (c *Counter) releaseLock(state counterStateBits) {
+ 	}
+ }
+ 
++// add wraps the atomic.Uint64.Add operation to handle integer overflow.
+ func (c *Counter) add(n uint64) uint64 {
+ 	count := c.ptr.count
+ 	for {
+@@ -336,11 +353,11 @@ func readFile(f *file) (*File, error) {
+ }
+ 
+ // ReadFile reads the counters and stack counters from the given file.
+-// This is the implementation of x/telemetry/counter/countertest.Read
++// This is the implementation of x/telemetry/counter/countertest.ReadFile.
+ func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error) {
+ 	// TODO: Document the format of the stackCounters names.
+ 
+-	data, err := os.ReadFile(name)
++	data, err := ReadMapped(name)
+ 	if err != nil {
+ 		return nil, nil, fmt.Errorf("failed to read from file: %v", err)
+ 	}
+@@ -359,3 +376,26 @@ func ReadFile(name string) (counters, stackCounters map[string]uint64, _ error)
+ 	}
+ 	return counters, stackCounters, nil
+ }
++
++// ReadMapped reads the contents of the given file by memory mapping.
++//
++// This avoids file synchronization issues.
++func ReadMapped(name string) ([]byte, error) {
++	f, err := os.OpenFile(name, os.O_RDWR, 0666)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	fi, err := f.Stat()
++	if err != nil {
++		return nil, err
++	}
++	mapping, err := memmap(f)
++	if err != nil {
++		return nil, err
++	}
++	data := make([]byte, fi.Size())
++	copy(data, mapping.Data)
++	munmap(mapping)
++	return data, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index e3c574dcb4..4fe9e577b1 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -36,7 +36,22 @@ type file struct {
+ 	buildInfo          *debug.BuildInfo
+ 	timeBegin, timeEnd time.Time
+ 	err                error
+-	current            atomic.Pointer[mappedFile] // may be read without holding mu, but may be nil
++	// current holds the current file mapping, which may change when the file is
++	// rotated or extended.
++	//
++	// current may be read without holding mu, but may be nil.
++	//
++	// The cleanup logic for file mappings is complicated, because invalidating
++	// counter pointers is reentrant: [file.invalidateCounters] may call
++	// [file.lookup], which acquires mu. Therefore, writing current must be done
++	// as follows:
++	//  1. record the previous value of current
++	//  2. Store a new value in current
++	//  3. unlock mu
++	//  4. call invalidateCounters
++	//  5. close the previous mapped value from (1)
++	// TODO(rfindley): simplify
++	current atomic.Pointer[mappedFile]
+ }
+ 
+ var defaultFile file
+@@ -292,7 +307,7 @@ func (f *file) rotate1() time.Time {
+ 	}
+ 	name := filepath.Join(dir, baseName)
+ 
+-	m, err := openMapped(name, meta, nil)
++	m, err := openMapped(name, meta)
+ 	if err != nil {
+ 		// Mapping failed:
+ 		// If there used to be a mapped file, after cleanup
+@@ -334,8 +349,10 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
+ 	cleanup = nop
+ 	if newM != nil {
+ 		f.current.Store(newM)
+-		// TODO(rfindley): shouldn't this close f.current?
+-		cleanup = f.invalidateCounters
++		cleanup = func() {
++			f.invalidateCounters()
++			current.close()
++		}
+ 	}
+ 	return v, cleanup
+ }
+@@ -374,7 +391,38 @@ func Open() func() {
+ 	return close
+ }
+ 
++const (
++	FileVersion = "v1"
++	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
++	recordUnit  = 32
++	maxMetaLen  = 512
++	numHash     = 512 // 2kB for hash table
++	maxNameLen  = 4 * 1024
++	limitOff    = 0
++	hashOff     = 4
++	pageSize    = 16 * 1024
++	minFileLen  = 16 * 1024
++)
++
+ // A mappedFile is a counter file mmapped into memory.
++//
++// The file layout for a mappedFile m is as follows:
++//
++//	offset, byte size:                 description
++//	------------------                 -----------
++//	0, hdrLen:                         header, containing metadata; see [mappedHeader]
++//	hdrLen+limitOff, 4:                uint32 allocation limit (byte offset of the end of counter records)
++//	hdrLen+hashOff, 4*numHash:         hash table, stores uint32 heads of a linked list of records, keyed by name hash
++//	hdrLen+hashOff+4*numHash to limit: counter records: see record syntax below
++//
++// The record layout is as follows:
++//
++//	offset, byte size: description
++//	------------------ -----------
++//	0, 8:              uint64 counter value
++//	8, 12:             uint32 name length
++//	12, 16:            uint32 offset of next record in linked list
++//	16, name length:   counter name
+ type mappedFile struct {
+ 	meta      string
+ 	hdrLen    uint32
+@@ -384,9 +432,16 @@ type mappedFile struct {
+ 	mapping   *mmap.Data
+ }
+ 
++// openMapped opens and memory maps a file.
++//
++// name is the path to the file.
++//
++// meta is the file metadata, which must match the metadata of the file on disk
++// exactly.
++//
+ // existing should be nil the first time this is called for a file,
+ // and when remapping, should be the previous mappedFile.
+-func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile, err error) {
++func openMapped(name, meta string) (_ *mappedFile, err error) {
+ 	hdr, err := mappedHeader(meta)
+ 	if err != nil {
+ 		return nil, err
+@@ -402,13 +457,13 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile,
+ 		f:    f,
+ 		meta: meta,
+ 	}
+-	// without this files cannot be cleanedup on Windows (affects tests)
+-	runtime.SetFinalizer(m, (*mappedFile).close)
++
+ 	defer func() {
+ 		if err != nil {
+ 			m.close()
+ 		}
+ 	}()
++
+ 	info, err := f.Stat()
+ 	if err != nil {
+ 		return nil, err
+@@ -433,17 +488,14 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile,
+ 	}
+ 
+ 	// Map into memory.
+-	var mapping mmap.Data
+-	if existing != nil {
+-		mapping, err = memmap(f, existing.mapping)
+-	} else {
+-		mapping, err = memmap(f, nil)
+-	}
++	mapping, err := memmap(f)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	m.mapping = &mapping
++	m.mapping = mapping
+ 	if !bytes.HasPrefix(m.mapping.Data, hdr) {
++		// TODO(rfindley): we can and should do better here, reading the mapped
++		// header length and comparing headers exactly.
+ 		return nil, fmt.Errorf("counter: header mismatch")
+ 	}
+ 	m.hdrLen = uint32(len(hdr))
+@@ -451,19 +503,6 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile,
+ 	return m, nil
+ }
+ 
+-const (
+-	FileVersion = "v1"
+-	hdrPrefix   = "# telemetry/counter file " + FileVersion + "\n"
+-	recordUnit  = 32
+-	maxMetaLen  = 512
+-	numHash     = 512 // 2kB for hash table
+-	maxNameLen  = 4 * 1024
+-	limitOff    = 0
+-	hashOff     = 4
+-	pageSize    = 16 * 1024
+-	minFileLen  = 16 * 1024
+-)
+-
+ func mappedHeader(meta string) ([]byte, error) {
+ 	if len(meta) > maxMetaLen {
+ 		return nil, fmt.Errorf("counter: metadata too large")
+@@ -484,6 +523,11 @@ func (m *mappedFile) place(limit uint32, name string) (start, end uint32) {
+ 	}
+ 	n := round(uint32(16+len(name)), recordUnit)
+ 	start = round(limit, recordUnit) // should already be rounded but just in case
++	// Note: Checking for crossing a page boundary would be
++	// start/pageSize != (start+n-1)/pageSize,
++	// but we are checking for reaching the page end, so no -1.
++	// The page end is reserved for use by extend.
++	// See the comment in m.extend.
+ 	if start/pageSize != (start+n)/pageSize {
+ 		// bump start to next page
+ 		start = round(limit, pageSize)
+@@ -538,6 +582,9 @@ func (m *mappedFile) cas32(off, old, new uint32) bool {
+ 	return (*atomic.Uint32)(unsafe.Pointer(&m.mapping.Data[off])).CompareAndSwap(old, new)
+ }
+ 
++// entryAt reads a counter record at the given byte offset.
++//
++// See the documentation for [mappedFile] for a description of the counter record layout.
+ func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Uint64, ok bool) {
+ 	if off < m.hdrLen+hashOff || int64(off)+16 > int64(len(m.mapping.Data)) {
+ 		return nil, 0, nil, false
+@@ -552,7 +599,14 @@ func (m *mappedFile) entryAt(off uint32) (name []byte, next uint32, v *atomic.Ui
+ 	return name, next, v, true
+ }
+ 
++// writeEntryAt writes a new counter record at the given offset.
++//
++// See the documentation for [mappedFile] for a description of the counter record layout.
++//
++// writeEntryAt only returns false in the presence of some form of corruption:
++// an offset outside the bounds of the record region in the mapped file.
+ func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32, v *atomic.Uint64, ok bool) {
++	// TODO(rfindley): shouldn't this first condition be off < m.hdrLen+hashOff+4*numHash?
+ 	if off < m.hdrLen+hashOff || int64(off)+16+int64(len(name)) > int64(len(m.mapping.Data)) {
+ 		return nil, nil, false
+ 	}
+@@ -563,6 +617,11 @@ func (m *mappedFile) writeEntryAt(off uint32, name string) (next *atomic.Uint32,
+ 	return next, v, true
+ }
+ 
++// lookup searches the mapped file for a counter record with the given name, returning:
++//   - v: the mapped counter value
++//   - headOff: the offset of the head pointer (see [mappedFile])
++//   - head: the value of the head pointer
++//   - ok: whether lookup succeeded
+ func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32, ok bool) {
+ 	h := hash(name)
+ 	headOff = m.hdrLen + hashOff + h*4
+@@ -581,6 +640,9 @@ func (m *mappedFile) lookup(name string) (v *atomic.Uint64, headOff, head uint32
+ 	return nil, headOff, head, true
+ }
+ 
++// newCounter allocates and writes a new counter record with the given name.
++//
++// If name is already recorded in the file, newCounter returns the existing counter.
+ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile, err error) {
+ 	if len(name) > maxNameLen {
+ 		return nil, nil, fmt.Errorf("counter name too long")
+@@ -597,19 +659,37 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile,
+ 	}()
+ 
+ 	v, headOff, head, ok := m.lookup(name)
+-	for !ok {
++	for tries := 0; !ok; tries++ {
++		if tries >= 10 {
++			debugFatalf("corrupt: failed to remap after 10 tries")
++			return nil, nil, errCorrupt
++		}
+ 		// Lookup found an invalid pointer,
+ 		// perhaps because the file has grown larger than the mapping.
+ 		limit := m.load32(m.hdrLen + limitOff)
+-		if int64(limit) <= int64(len(m.mapping.Data)) {
+-			// Mapping doesn't need to grow, so lookup found actual corruption.
+-			debugPrintf("corrupt1\n")
++		if limit, datalen := int64(limit), int64(len(m.mapping.Data)); limit <= datalen {
++			// Mapping doesn't need to grow, so lookup found actual corruption,
++			// in the form of an entry pointer that exceeds the recorded allocation
++			// limit. This should never happen, unless the actual file contents are
++			// corrupt.
++			debugFatalf("corrupt: limit %d is within mapping length %d", limit, datalen)
+ 			return nil, nil, errCorrupt
+ 		}
+-		newM, err := openMapped(m.f.Name(), m.meta, m)
++		// That the recorded limit is greater than the mapped data indicates that
++		// an external process has extended the file. Re-map to pick up this extension.
++		newM, err := openMapped(m.f.Name(), m.meta)
+ 		if err != nil {
+ 			return nil, nil, err
+ 		}
++		if limit, datalen := int64(limit), int64(len(newM.mapping.Data)); limit > datalen {
++			// We've re-mapped, yet limit still exceeds the data length. This
++			// indicates that the underlying file was somehow truncated, or the
++			// recorded limit is corrupt.
++			debugFatalf("corrupt: limit %d exceeds file size %d", limit, datalen)
++			return nil, nil, errCorrupt
++		}
++		// If m != orig, this is at least the second time around the loop
++		// trying to open the mapping. Close the previous attempt.
+ 		if m != orig {
+ 			m.close()
+ 		}
+@@ -650,7 +730,7 @@ func (m *mappedFile) newCounter(name string) (v *atomic.Uint64, m1 *mappedFile,
+ 	// Write record.
+ 	next, v, ok := m.writeEntryAt(start, name)
+ 	if !ok {
+-		debugPrintf("corrupt2 %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
++		debugFatalf("corrupt: failed to write entry: %#x+%d vs %#x\n", start, len(name), len(m.mapping.Data))
+ 		return nil, nil, errCorrupt // more likely our math is wrong
+ 	}
+ 
+@@ -686,12 +766,26 @@ func (m *mappedFile) extend(end uint32) (*mappedFile, error) {
+ 		return nil, err
+ 	}
+ 	if info.Size() < int64(end) {
++		// Note: multiple processes could be calling extend at the same time,
++		// but this write only writes the last 4 bytes of the page.
++		// The last 4 bytes of the page are reserved for this purpose and hold no data.
++		// (In m.place, if a new record would extend to the very end of the page,
++		// it is placed in the next page instead.)
++		// So it is fine if multiple processes extend at the same time.
+ 		if _, err := m.f.WriteAt(m.zero[:], int64(end)-int64(len(m.zero))); err != nil {
+ 			return nil, err
+ 		}
+ 	}
+-	newM, err := openMapped(m.f.Name(), m.meta, m)
+-	m.f.Close()
++	newM, err := openMapped(m.f.Name(), m.meta)
++	if err != nil {
++		return nil, err
++	}
++	if int64(len(newM.mapping.Data)) < int64(end) {
++		// File system or logic bug: new file is somehow not extended.
++		// See go.dev/issue/68311, where this appears to have been happening.
++		newM.close()
++		return nil, errCorrupt
++	}
+ 	return newM, err
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go
+index fb3ca9650d..2febe3ecb9 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap.go
+@@ -26,12 +26,11 @@ type Data struct {
+ 
+ // Mmap maps the given file into memory.
+ // When remapping a file, pass the most recently returned Data.
+-func Mmap(f *os.File, data *Data) (Data, error) {
+-	return mmapFile(f, data)
++func Mmap(f *os.File) (*Data, error) {
++	return mmapFile(f)
+ }
+ 
+ // Munmap unmaps the given file from memory.
+ func Munmap(d *Data) error {
+-	// d.f.Close() on Windows still gets an error
+-	return munmapFile(*d)
++	return munmapFile(d)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go
+index 361ca8b01a..190afd8e9f 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_other.go
+@@ -12,14 +12,14 @@ import (
+ )
+ 
+ // mmapFile on other systems doesn't mmap the file. It just reads everything.
+-func mmapFile(f *os.File, _ *Data) (Data, error) {
++func mmapFile(f *os.File) (*Data, error) {
+ 	b, err := io.ReadAll(f)
+ 	if err != nil {
+-		return Data{}, err
++		return nil, err
+ 	}
+-	return Data{f, b, nil}, nil
++	return &Data{f, b, nil}, nil
+ }
+ 
+-func munmapFile(d Data) error {
++func munmapFile(_ *Data) error {
+ 	return nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go
+index af462ff676..f15ac615b3 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_unix.go
+@@ -13,29 +13,29 @@ import (
+ 	"syscall"
+ )
+ 
+-func mmapFile(f *os.File, _ *Data) (Data, error) {
++func mmapFile(f *os.File) (*Data, error) {
+ 	st, err := f.Stat()
+ 	if err != nil {
+-		return Data{}, err
++		return nil, err
+ 	}
+ 	size := st.Size()
+ 	pagesize := int64(os.Getpagesize())
+ 	if int64(int(size+(pagesize-1))) != size+(pagesize-1) {
+-		return Data{}, fmt.Errorf("%s: too large for mmap", f.Name())
++		return nil, fmt.Errorf("%s: too large for mmap", f.Name())
+ 	}
+ 	n := int(size)
+ 	if n == 0 {
+-		return Data{f, nil, nil}, nil
++		return &Data{f, nil, nil}, nil
+ 	}
+ 	mmapLength := int(((size + pagesize - 1) / pagesize) * pagesize) // round up to page size
+ 	data, err := syscall.Mmap(int(f.Fd()), 0, mmapLength, syscall.PROT_READ|syscall.PROT_WRITE, syscall.MAP_SHARED)
+ 	if err != nil {
+-		return Data{}, &fs.PathError{Op: "mmap", Path: f.Name(), Err: err}
++		return nil, &fs.PathError{Op: "mmap", Path: f.Name(), Err: err}
+ 	}
+-	return Data{f, data[:n], nil}, nil
++	return &Data{f, data[:n], nil}, nil
+ }
+ 
+-func munmapFile(d Data) error {
++func munmapFile(d *Data) error {
+ 	if len(d.Data) == 0 {
+ 		return nil
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+index e70e7c7b07..2e8dfbea9c 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/mmap/mmap_windows.go
+@@ -13,35 +13,35 @@ import (
+ 	"golang.org/x/sys/windows"
+ )
+ 
+-func mmapFile(f *os.File, previous *Data) (Data, error) {
+-	if previous != nil {
+-		munmapFile(*previous)
+-	}
++func mmapFile(f *os.File) (*Data, error) {
+ 	st, err := f.Stat()
+ 	if err != nil {
+-		return Data{}, err
++		return nil, err
+ 	}
+ 	size := st.Size()
+ 	if size == 0 {
+-		return Data{f, nil, nil}, nil
++		return &Data{f, nil, nil}, nil
+ 	}
+ 	// set the min and max sizes to zero to map the whole file, as described in
+ 	// https://learn.microsoft.com/en-us/windows/win32/memory/creating-a-file-mapping-object#file-mapping-size
+ 	h, err := windows.CreateFileMapping(windows.Handle(f.Fd()), nil, syscall.PAGE_READWRITE, 0, 0, nil)
+ 	if err != nil {
+-		return Data{}, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
++		return nil, fmt.Errorf("CreateFileMapping %s: %w", f.Name(), err)
+ 	}
+ 	// the mapping extends from zero to the end of the file mapping
+ 	// https://learn.microsoft.com/en-us/windows/win32/api/memoryapi/nf-memoryapi-mapviewoffile
+ 	addr, err := windows.MapViewOfFile(h, syscall.FILE_MAP_READ|syscall.FILE_MAP_WRITE, 0, 0, 0)
+ 	if err != nil {
+-		return Data{}, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
++		return nil, fmt.Errorf("MapViewOfFile %s: %w", f.Name(), err)
+ 	}
+-	// need to remember addr and h for unmapping
+-	return Data{f, unsafe.Slice((*byte)(unsafe.Pointer(addr)), size), h}, nil
++	// Note: previously, we called windows.VirtualQuery here to get the exact
++	// size of the memory mapped region, but VirtualQuery reported sizes smaller
++	// than the actual file size (hypothesis: VirtualQuery only reports pages in
++	// a certain state, and newly written pages may not be counted).
++	return &Data{f, unsafe.Slice((*byte)(unsafe.Pointer(addr)), size), h}, nil
+ }
+ 
+-func munmapFile(d Data) error {
++func munmapFile(d *Data) error {
+ 	err := windows.UnmapViewOfFile(uintptr(unsafe.Pointer(&d.Data[0])))
+ 	x, ok := d.Windows.(windows.Handle)
+ 	if ok {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+index bcd172d97f..7c788b3415 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+@@ -31,9 +31,9 @@ type CounterConfig struct {
+ 	Depth int     `json:",omitempty"` // for stack counters
+ }
+ 
+-// A Report is what's uploaded (or saved locally)
++// A Report is the weekly aggregate of counters.
+ type Report struct {
+-	Week     string  // first day this report covers (YYYY-MM-DD)
++	Week     string  // End day this report covers (YYYY-MM-DD)
+ 	LastWeek string  // Week field from latest previous report uploaded
+ 	X        float64 // A random probability used to determine which counters are uploaded
+ 	Programs []*ProgramReport
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+index f1490be3a5..2b165be3f9 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+@@ -32,7 +32,7 @@ func (u *uploader) findWork() work {
+ 	}
+ 
+ 	mode, asof := u.dir.Mode()
+-	u.logger.Printf("Finding work: mode %s, asof %s", mode, asof)
++	u.logger.Printf("Finding work: mode %s asof %s", mode, asof)
+ 
+ 	// count files end in .v1.count
+ 	// reports end in .json. If they are not to be uploaded they
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index d1091f40ad..31bda70676 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -115,8 +115,11 @@ func (u *uploader) deleteFiles(files []string) {
+ 	}
+ }
+ 
+-// createReport for all the count files for the same date.
+-// returns the absolute path name of the file containing the report
++// createReport creates local and upload report files by
++// combining all the count files for the expiryDate, and
++// returns the upload report file's path.
++// It may delete the count files once local and upload report
++// files are successfully created.
+ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
+ 	uploadOK := true
+ 	mode, asof := u.dir.Mode()
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 2a3bf70f9d..aa0f4f0c87 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -65,12 +65,6 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	fdate = fdate[len(fdate)-len("2006-01-02"):]
+ 
+ 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+-	if _, err := os.Stat(newname); err == nil {
+-		// Another process uploaded but failed to clean up (or hasn't yet cleaned
+-		// up). Ensure that cleanup occurs.
+-		_ = os.Remove(fname)
+-		return false
+-	}
+ 
+ 	// Lock the upload, to prevent duplicate uploads.
+ 	{
+@@ -84,6 +78,14 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 		defer os.Remove(lockname)
+ 	}
+ 
++	if _, err := os.Stat(newname); err == nil {
++		// Another process uploaded but failed to clean up (or hasn't yet cleaned
++		// up). Ensure that cleanup occurs.
++		u.logger.Printf("After acquire: report already uploaded")
++		_ = os.Remove(fname)
++		return false
++	}
++
+ 	endpoint := u.uploadServerURL + "/" + fdate
+ 	b := bytes.NewReader(buf)
+ 	resp, err := http.Post(endpoint, "application/json", b)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f4eefe4a1d..8a3cc87dcb 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240603162849-5dfbda438323
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.18.0
++# golang.org/x/mod v0.19.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -40,12 +40,12 @@ golang.org/x/mod/zip
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.21.0
++# golang.org/x/sys v0.22.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240624145040-38a44306ed05
++# golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+diff --git a/src/go.mod b/src/go.mod
+index b38dee7e6d..789f5aaa1d 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.21.0 // indirect
++	golang.org/x/sys v0.22.0 // indirect
+ 	golang.org/x/text v0.16.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index c5eab7d4b2..a75ea98c73 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a h1:37MIv+iGfwMYzWJECGy
+ golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
+ golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c h1:CR/7/SLUhIJw6g675eeoDiwggElO2MV9rGkNYjqi8GM=
+ golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
+-golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+-golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
++golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+ golang.org/x/text v0.16.0/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 2868749b89..b8a0b84a28 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.21.0
++# golang.org/x/sys v0.22.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.16.0

@@ -13,7 +13,52 @@ Date:   Wed Aug 18 14:42:12 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/dwarfgen/dwarf.go | 6 +++---
  src/cmd/compile/internal/dwarfgen/dwinl.go | 2 +-
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 0e22b61bc3..30472a9ebd 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -214,7 +214,7 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 			Type:          base.Ctxt.Lookup(typename),
+ 			DeclFile:      declpos.RelFilename(),
+ 			DeclLine:      declpos.RelLine(),
+-			DeclCol:       declpos.Col(),
++			DeclCol:       declpos.RelCol(),
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+ 		})
+@@ -371,7 +371,7 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 		Type:          base.Ctxt.Lookup(typename),
+ 		DeclFile:      declpos.RelFilename(),
+ 		DeclLine:      declpos.RelLine(),
+-		DeclCol:       declpos.Col(),
++		DeclCol:       declpos.RelCol(),
+ 		InlIndex:      int32(inlIndex),
+ 		ChildIndex:    -1,
+ 	}
+@@ -475,7 +475,7 @@ func createComplexVar(fnsym *obj.LSym, fn *ir.Func, varID ssa.VarID) *dwarf.Var
+ 		StackOffset: ssagen.StackOffset(debug.Slots[debug.VarSlots[varID][0]]),
+ 		DeclFile:    declpos.RelFilename(),
+ 		DeclLine:    declpos.RelLine(),
+-		DeclCol:     declpos.Col(),
++		DeclCol:     declpos.RelCol(),
+ 		InlIndex:    int32(inlIndex),
+ 		ChildIndex:  -1,
+ 	}
+diff --git a/src/cmd/compile/internal/dwarfgen/dwinl.go b/src/cmd/compile/internal/dwarfgen/dwinl.go
+index 8adb36fc88..c785e064a7 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwinl.go
++++ b/src/cmd/compile/internal/dwarfgen/dwinl.go
+@@ -244,7 +244,7 @@ func makePreinlineDclMap(fnsym *obj.LSym) map[varPos]int {
+ 			DeclName: unversion(n.Sym().Name),
+ 			DeclFile: pos.RelFilename(),
+ 			DeclLine: pos.RelLine(),
+-			DeclCol:  pos.Col(),
++			DeclCol:  pos.RelCol(),
+ 		}
+ 		if _, found := m[vp]; found {
+ 			// We can see collisions (variables with the same name/file/line/col) in obfuscated or machine-generated code -- see issue 44378 for an example. Skip duplicates in such cases, since it is unlikely that a human will be debugging such code.

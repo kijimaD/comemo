@@ -21,7 +21,7 @@ Date:   Wed Jan 27 01:06:52 2021 -0500
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgocall.go                    |  9 +-------
  src/runtime/export_test.go                |  2 --
  src/runtime/internal/sys/arch.go          | 38 +++++++++++++++++++++++++++++++
@@ -49,3 +49,602 @@ Date:   Wed Jan 27 01:06:52 2021 -0500
  src/runtime/sys_x86.go                    |  4 ----
  src/runtime/traceback.go                  | 20 +++++++---------
  26 files changed, 124 insertions(+), 168 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 20cacd6043..534a2c4295 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -306,14 +306,7 @@ func unwindm(restore *bool) {
+ 		// unwind of g's stack (see comment at top of file).
+ 		mp := acquirem()
+ 		sched := &mp.g0.sched
+-		switch GOARCH {
+-		default:
+-			throw("unwindm not implemented")
+-		case "386", "amd64", "arm", "ppc64", "ppc64le", "mips64", "mips64le", "s390x", "mips", "mipsle", "riscv64":
+-			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + sys.MinFrameSize))
+-		case "arm64":
+-			sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + 16))
+-		}
++		sched.sp = *(*uintptr)(unsafe.Pointer(sched.sp + alignUp(sys.MinFrameSize, sys.StackAlign)))
+ 
+ 		// Do the accounting that cgocall will not have a chance to do
+ 		// during an unwind.
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 22fef3134f..a48bb2636f 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -200,8 +200,6 @@ func GostringW(w []uint16) (s string) {
+ 	return
+ }
+ 
+-type Uintreg sys.Uintreg
+-
+ var Open = open
+ var Close = closefd
+ var Read = read
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index 13c00cf639..69278bf2d5 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -18,3 +18,41 @@ const (
+ 	S390X
+ 	WASM
+ )
++
++// PtrSize is the size of a pointer in bytes - unsafe.Sizeof(uintptr(0)) but as an ideal constant.
++// It is also the size of the machine's native word size (that is, 4 on 32-bit systems, 8 on 64-bit).
++const PtrSize = 4 << (^uintptr(0) >> 63)
++
++// AIX requires a larger stack for syscalls.
++const StackGuardMultiplier = StackGuardMultiplierDefault*(1-GoosAix) + 2*GoosAix
++
++// ArchFamily is the architecture family (AMD64, ARM, ...)
++const ArchFamily ArchFamilyType = _ArchFamily
++
++// BigEndian reports whether the architecture is big-endian.
++const BigEndian = GoarchArmbe|GoarchArm64be|GoarchMips|GoarchMips64|GoarchPpc|GoarchPpc64|GoarchS390|GoarchS390x|GoarchSparc|GoarchSparc64 == 1
++
++// DefaultPhysPageSize is the default physical page size.
++const DefaultPhysPageSize = _DefaultPhysPageSize
++
++// PCQuantum is the minimal unit for a program counter (1 on x86, 4 on most other systems).
++// The various PC tables record PC deltas pre-divided by PCQuantum.
++const PCQuantum = _PCQuantum
++
++// Int64Align is the required alignment for a 64-bit integer (4 on 32-bit systems, 8 on 64-bit).
++const Int64Align = PtrSize
++
++// MinFrameSize is the size of the system-reserved words at the bottom
++// of a frame (just above the architectural stack pointer).
++// It is zero on x86 and PtrSize on most non-x86 (LR-based) systems.
++// On PowerPC it is larger, to cover three more reserved words:
++// the compiler word, the link editor word, and the TOC save word.
++const MinFrameSize = _MinFrameSize
++
++// StackAlign is the required alignment of the SP register.
++// The stack must be at least word aligned, but some architectures require more.
++const StackAlign = _StackAlign
++
++// DefaultGoroot is set by the linker for use by package runtime.
++// It doesn't really belong in this file or this package.
++var DefaultGoroot string
+diff --git a/src/runtime/internal/sys/arch_386.go b/src/runtime/internal/sys/arch_386.go
+index b51f70a512..1ebce3435e 100644
+--- a/src/runtime/internal/sys/arch_386.go
++++ b/src/runtime/internal/sys/arch_386.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = I386
+-	BigEndian           = false
+-	DefaultPhysPageSize = 4096
+-	PCQuantum           = 1
+-	Int64Align          = 4
+-	MinFrameSize        = 0
++	_ArchFamily          = I386
++	_DefaultPhysPageSize = 4096
++	_PCQuantum           = 1
++	_MinFrameSize        = 0
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint32
+diff --git a/src/runtime/internal/sys/arch_amd64.go b/src/runtime/internal/sys/arch_amd64.go
+index 3d6776e71e..7f003d0f1d 100644
+--- a/src/runtime/internal/sys/arch_amd64.go
++++ b/src/runtime/internal/sys/arch_amd64.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = AMD64
+-	BigEndian           = false
+-	DefaultPhysPageSize = 4096
+-	PCQuantum           = 1
+-	Int64Align          = 8
+-	MinFrameSize        = 0
++	_ArchFamily          = AMD64
++	_DefaultPhysPageSize = 4096
++	_PCQuantum           = 1
++	_MinFrameSize        = 0
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_arm.go b/src/runtime/internal/sys/arch_arm.go
+index 97960d6f83..ef2048bb71 100644
+--- a/src/runtime/internal/sys/arch_arm.go
++++ b/src/runtime/internal/sys/arch_arm.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = ARM
+-	BigEndian           = false
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 4
+-	MinFrameSize        = 4
++	_ArchFamily          = ARM
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 4
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint32
+diff --git a/src/runtime/internal/sys/arch_arm64.go b/src/runtime/internal/sys/arch_arm64.go
+index 911a9485e1..b9f2f7b1fe 100644
+--- a/src/runtime/internal/sys/arch_arm64.go
++++ b/src/runtime/internal/sys/arch_arm64.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = ARM64
+-	BigEndian           = false
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	MinFrameSize        = 8
++	_ArchFamily          = ARM64
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 8
++	_StackAlign          = 16
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_mips.go b/src/runtime/internal/sys/arch_mips.go
+index 75cdb2e07f..4cb0eebea7 100644
+--- a/src/runtime/internal/sys/arch_mips.go
++++ b/src/runtime/internal/sys/arch_mips.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = MIPS
+-	BigEndian           = true
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 4
+-	MinFrameSize        = 4
++	_ArchFamily          = MIPS
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 4
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint32
+diff --git a/src/runtime/internal/sys/arch_mips64.go b/src/runtime/internal/sys/arch_mips64.go
+index 494291a802..57636ac4a4 100644
+--- a/src/runtime/internal/sys/arch_mips64.go
++++ b/src/runtime/internal/sys/arch_mips64.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = MIPS64
+-	BigEndian           = true
+-	DefaultPhysPageSize = 16384
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	MinFrameSize        = 8
++	_ArchFamily          = MIPS64
++	_DefaultPhysPageSize = 16384
++	_PCQuantum           = 4
++	_MinFrameSize        = 8
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_mips64le.go b/src/runtime/internal/sys/arch_mips64le.go
+index d36d1202f6..57636ac4a4 100644
+--- a/src/runtime/internal/sys/arch_mips64le.go
++++ b/src/runtime/internal/sys/arch_mips64le.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = MIPS64
+-	BigEndian           = false
+-	DefaultPhysPageSize = 16384
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	MinFrameSize        = 8
++	_ArchFamily          = MIPS64
++	_DefaultPhysPageSize = 16384
++	_PCQuantum           = 4
++	_MinFrameSize        = 8
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_mipsle.go b/src/runtime/internal/sys/arch_mipsle.go
+index 323bf82059..4240f5ce47 100644
+--- a/src/runtime/internal/sys/arch_mipsle.go
++++ b/src/runtime/internal/sys/arch_mipsle.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = MIPS
+-	BigEndian           = false
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 4
+-	MinFrameSize        = 4
++	_ArchFamily          = MIPS
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 4
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint32
+diff --git a/src/runtime/internal/sys/arch_ppc64.go b/src/runtime/internal/sys/arch_ppc64.go
+index da1fe3d596..1869213ce2 100644
+--- a/src/runtime/internal/sys/arch_ppc64.go
++++ b/src/runtime/internal/sys/arch_ppc64.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = PPC64
+-	BigEndian           = true
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	MinFrameSize        = 32
++	_ArchFamily          = PPC64
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 32
++	_StackAlign          = 16
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_ppc64le.go b/src/runtime/internal/sys/arch_ppc64le.go
+index 605979903a..1869213ce2 100644
+--- a/src/runtime/internal/sys/arch_ppc64le.go
++++ b/src/runtime/internal/sys/arch_ppc64le.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = PPC64
+-	BigEndian           = false
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	MinFrameSize        = 32
++	_ArchFamily          = PPC64
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 4
++	_MinFrameSize        = 32
++	_StackAlign          = 16
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_riscv64.go b/src/runtime/internal/sys/arch_riscv64.go
+index 7cdcc8fcbd..360d236e32 100644
+--- a/src/runtime/internal/sys/arch_riscv64.go
++++ b/src/runtime/internal/sys/arch_riscv64.go
+@@ -5,14 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = RISCV64
+-	BigEndian           = false
+-	CacheLineSize       = 64
+-	DefaultPhysPageSize = 4096
+-	PCQuantum           = 4
+-	Int64Align          = 8
+-	HugePageSize        = 1 << 21
+-	MinFrameSize        = 8
++	_ArchFamily          = RISCV64
++	_DefaultPhysPageSize = 4096
++	_PCQuantum           = 4
++	_MinFrameSize        = 8
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_s390x.go b/src/runtime/internal/sys/arch_s390x.go
+index 12cb8a0fcb..e33e0b7f2b 100644
+--- a/src/runtime/internal/sys/arch_s390x.go
++++ b/src/runtime/internal/sys/arch_s390x.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = S390X
+-	BigEndian           = true
+-	DefaultPhysPageSize = 4096
+-	PCQuantum           = 2
+-	Int64Align          = 8
+-	MinFrameSize        = 8
++	_ArchFamily          = S390X
++	_DefaultPhysPageSize = 4096
++	_PCQuantum           = 2
++	_MinFrameSize        = 8
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/arch_wasm.go b/src/runtime/internal/sys/arch_wasm.go
+index eb825df626..ee919ff9e6 100644
+--- a/src/runtime/internal/sys/arch_wasm.go
++++ b/src/runtime/internal/sys/arch_wasm.go
+@@ -5,12 +5,9 @@
+ package sys
+ 
+ const (
+-	ArchFamily          = WASM
+-	BigEndian           = false
+-	DefaultPhysPageSize = 65536
+-	PCQuantum           = 1
+-	Int64Align          = 8
+-	MinFrameSize        = 0
++	_ArchFamily          = WASM
++	_DefaultPhysPageSize = 65536
++	_PCQuantum           = 1
++	_MinFrameSize        = 0
++	_StackAlign          = PtrSize
+ )
+-
+-type Uintreg uint64
+diff --git a/src/runtime/internal/sys/stubs.go b/src/runtime/internal/sys/stubs.go
+deleted file mode 100644
+index 10b0173f60..0000000000
+--- a/src/runtime/internal/sys/stubs.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package sys
+-
+-// Declarations for runtime services implemented in C or assembly.
+-
+-const PtrSize = 4 << (^uintptr(0) >> 63)           // unsafe.Sizeof(uintptr(0)) but an ideal const
+-const RegSize = 4 << (^Uintreg(0) >> 63)           // unsafe.Sizeof(uintreg(0)) but an ideal const
+-const SpAlign = 1*(1-GoarchArm64) + 16*GoarchArm64 // SP alignment: 1 normally, 16 for ARM64
+-
+-var DefaultGoroot string // set at link time
+-
+-// AIX requires a larger stack for syscalls.
+-const StackGuardMultiplier = StackGuardMultiplierDefault*(1-GoosAix) + 2*GoosAix
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 15ca3359d2..b6ee98cab6 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -92,10 +92,6 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 			if usesLR {
+ 				c.setlr(pc)
+ 			} else {
+-				if sys.RegSize > sys.PtrSize {
+-					sp -= sys.PtrSize
+-					*(*uintptr)(unsafe.Pointer(sp)) = 0
+-				}
+ 				sp -= sys.PtrSize
+ 				*(*uintptr)(unsafe.Pointer(sp)) = pc
+ 				c.setsp(sp)
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4092dd55cb..1dbd01ed40 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1900,7 +1900,7 @@ func oneNewExtraM() {
+ 	gp := malg(4096)
+ 	gp.sched.pc = funcPC(goexit) + sys.PCQuantum
+ 	gp.sched.sp = gp.stack.hi
+-	gp.sched.sp -= 4 * sys.RegSize // extra space in case of reads slightly beyond frame
++	gp.sched.sp -= 4 * sys.PtrSize // extra space in case of reads slightly beyond frame
+ 	gp.sched.lr = 0
+ 	gp.sched.g = guintptr(unsafe.Pointer(gp))
+ 	gp.syscallpc = gp.sched.pc
+@@ -4009,9 +4009,9 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
+ 
+ 	// We could allocate a larger initial stack if necessary.
+ 	// Not worth it: this is almost always an error.
+-	// 4*sizeof(uintreg): extra space added below
+-	// sizeof(uintreg): caller's LR (arm) or return address (x86, in gostartcall).
+-	if siz >= _StackMin-4*sys.RegSize-sys.RegSize {
++	// 4*PtrSize: extra space added below
++	// PtrSize: caller's LR (arm) or return address (x86, in gostartcall).
++	if siz >= _StackMin-4*sys.PtrSize-sys.PtrSize {
+ 		throw("newproc: function arguments too large for new goroutine")
+ 	}
+ 
+@@ -4030,8 +4030,8 @@ func newproc1(fn *funcval, argp unsafe.Pointer, narg int32, callergp *g, callerp
+ 		throw("newproc1: new g is not Gdead")
+ 	}
+ 
+-	totalSize := 4*sys.RegSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
+-	totalSize += -totalSize & (sys.SpAlign - 1)                  // align to spAlign
++	totalSize := 4*sys.PtrSize + uintptr(siz) + sys.MinFrameSize // extra space in case of reads slightly beyond frame
++	totalSize += -totalSize & (sys.StackAlign - 1)               // align to StackAlign
+ 	sp := newg.stack.hi - totalSize
+ 	spArg := sp
+ 	if usesLR {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index b7c7b4cff2..675c613b6e 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -327,7 +327,7 @@ type gobuf struct {
+ 	pc   uintptr
+ 	g    guintptr
+ 	ctxt unsafe.Pointer
+-	ret  sys.Uintreg
++	ret  uintptr
+ 	lr   uintptr
+ 	bp   uintptr // for framepointer-enabled architectures
+ }
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index e5d2d97d05..4572a25195 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -266,8 +266,8 @@ func TestTrailingZero(t *testing.T) {
+ 		n int64
+ 		z struct{}
+ 	}
+-	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(Uintreg(0)) {
+-		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(Uintreg(0)))
++	if unsafe.Sizeof(T2{}) != 8+unsafe.Sizeof(uintptr(0)) {
++		t.Errorf("sizeof(%#v)==%d, want %d", T2{}, unsafe.Sizeof(T2{}), 8+unsafe.Sizeof(uintptr(0)))
+ 	}
+ 	type T3 struct {
+ 		n byte
+diff --git a/src/runtime/signal_arm64.go b/src/runtime/signal_arm64.go
+index 3c20139c99..b559b93938 100644
+--- a/src/runtime/signal_arm64.go
++++ b/src/runtime/signal_arm64.go
+@@ -63,7 +63,7 @@ func (c *sigctxt) preparePanic(sig uint32, gp *g) {
+ 	// functions are correctly handled. This smashes
+ 	// the stack frame but we're not going back there
+ 	// anyway.
+-	sp := c.sp() - sys.SpAlign // needs only sizeof uint64, but must align the stack
++	sp := c.sp() - sys.StackAlign // needs only sizeof uint64, but must align the stack
+ 	c.set_sp(sp)
+ 	*(*uint64)(unsafe.Pointer(uintptr(sp))) = c.lr()
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 7b9dce5393..8c90e7b46f 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -651,7 +651,7 @@ func adjustframe(frame *stkframe, arg unsafe.Pointer) bool {
+ 
+ 	// Adjust saved base pointer if there is one.
+ 	// TODO what about arm64 frame pointer adjustment?
+-	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.RegSize {
++	if sys.ArchFamily == sys.AMD64 && frame.argp-frame.varp == 2*sys.PtrSize {
+ 		if stackDebug >= 3 {
+ 			print("      saved bp\n")
+ 		}
+@@ -1245,7 +1245,7 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 	var minsize uintptr
+ 	switch sys.ArchFamily {
+ 	case sys.ARM64:
+-		minsize = sys.SpAlign
++		minsize = sys.StackAlign
+ 	default:
+ 		minsize = sys.MinFrameSize
+ 	}
+diff --git a/src/runtime/sys_wasm.go b/src/runtime/sys_wasm.go
+index 9bf710ba0e..3ed621f92e 100644
+--- a/src/runtime/sys_wasm.go
++++ b/src/runtime/sys_wasm.go
+@@ -30,10 +30,6 @@ func wasmExit(code int32)
+ // and then did an immediate gosave.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+-	if sys.RegSize > sys.PtrSize {
+-		sp -= sys.PtrSize
+-		*(*uintptr)(unsafe.Pointer(sp)) = 0
+-	}
+ 	sp -= sys.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
+ 	buf.sp = sp
+diff --git a/src/runtime/sys_x86.go b/src/runtime/sys_x86.go
+index f917cb8bd7..5b7a666679 100644
+--- a/src/runtime/sys_x86.go
++++ b/src/runtime/sys_x86.go
+@@ -15,10 +15,6 @@ import (
+ // and then did an immediate gosave.
+ func gostartcall(buf *gobuf, fn, ctxt unsafe.Pointer) {
+ 	sp := buf.sp
+-	if sys.RegSize > sys.PtrSize {
+-		sp -= sys.PtrSize
+-		*(*uintptr)(unsafe.Pointer(sp)) = 0
+-	}
+ 	sp -= sys.PtrSize
+ 	*(*uintptr)(unsafe.Pointer(sp)) = buf.pc
+ 	buf.sp = sp
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2601cd697f..127f54e42e 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -144,8 +144,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.pc = *(*uintptr)(unsafe.Pointer(frame.sp))
+ 			frame.lr = 0
+ 		} else {
+-			frame.pc = uintptr(*(*sys.Uintreg)(unsafe.Pointer(frame.sp)))
+-			frame.sp += sys.RegSize
++			frame.pc = uintptr(*(*uintptr)(unsafe.Pointer(frame.sp)))
++			frame.sp += sys.PtrSize
+ 		}
+ 	}
+ 
+@@ -208,7 +208,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.fp = frame.sp + uintptr(funcspdelta(f, frame.pc, &cache))
+ 			if !usesLR {
+ 				// On x86, call instruction pushes return PC before entering new function.
+-				frame.fp += sys.RegSize
++				frame.fp += sys.PtrSize
+ 			}
+ 		}
+ 		var flr funcInfo
+@@ -235,8 +235,8 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 				}
+ 			} else {
+ 				if frame.lr == 0 {
+-					lrPtr = frame.fp - sys.RegSize
+-					frame.lr = uintptr(*(*sys.Uintreg)(unsafe.Pointer(lrPtr)))
++					lrPtr = frame.fp - sys.PtrSize
++					frame.lr = uintptr(*(*uintptr)(unsafe.Pointer(lrPtr)))
+ 				}
+ 			}
+ 			flr = findfunc(frame.lr)
+@@ -266,13 +266,13 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.varp = frame.fp
+ 		if !usesLR {
+ 			// On x86, call instruction pushes return PC before entering new function.
+-			frame.varp -= sys.RegSize
++			frame.varp -= sys.PtrSize
+ 		}
+ 
+ 		// For architectures with frame pointers, if there's
+ 		// a frame, then there's a saved frame pointer here.
+ 		if frame.varp > frame.sp && (GOARCH == "amd64" || GOARCH == "arm64") {
+-			frame.varp -= sys.RegSize
++			frame.varp -= sys.PtrSize
+ 		}
+ 
+ 		// Derive size of arguments.
+@@ -490,11 +490,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		// before faking a call.
+ 		if usesLR && injectedCall {
+ 			x := *(*uintptr)(unsafe.Pointer(frame.sp))
+-			frame.sp += sys.MinFrameSize
+-			if GOARCH == "arm64" {
+-				// arm64 needs 16-byte aligned SP, always
+-				frame.sp += sys.PtrSize
+-			}
++			frame.sp += alignUp(sys.MinFrameSize, sys.StackAlign)
+ 			f = findfunc(frame.pc)
+ 			frame.fn = f
+ 			if !f.valid() {

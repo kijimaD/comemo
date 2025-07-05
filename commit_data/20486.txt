@@ -10,8 +10,62 @@ Date:   Thu Sep 11 16:53:34 2014 -0700
     R=josharian
     CC=golang-codereviews
     https://golang.org/cl/143880043
-
+---
  src/runtime/export_test.go |  3 +++
  src/runtime/string.c       |  7 ++++++-
  src/runtime/string_test.go | 13 +++++++++++++
  3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 1f1b5fc794..be352557fb 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -160,3 +160,6 @@ func GostringW(w []uint16) (s string) {
+ 	})
+ 	return
+ }
++
++var Gostringnocopy = gostringnocopy
++var Maxstring = &maxstring
+diff --git a/src/runtime/string.c b/src/runtime/string.c
+index 811a289060..ed5debc33e 100644
+--- a/src/runtime/string.c
++++ b/src/runtime/string.c
+@@ -42,10 +42,15 @@ String
+ runtime·gostringnocopy(byte *str)
+ {
+ 	String s;
++	uintptr ms;
+ 	
+ 	s.str = str;
+ 	s.len = runtime·findnull(str);
+-	return s;
++	while(true) {
++		ms = runtime·maxstring;
++		if(s.len <= ms || runtime·casp((void**)&runtime·maxstring, (void*)ms, (void*)s.len))
++			return s;
++	}
+ }
+ 
+ // TODO: move this elsewhere
+diff --git a/src/runtime/string_test.go b/src/runtime/string_test.go
+index e7ac51a5f0..1551ecc82b 100644
+--- a/src/runtime/string_test.go
++++ b/src/runtime/string_test.go
+@@ -145,3 +145,16 @@ func main() {
+ 	panic(s)
+ }
+ `
++
++func TestGostringnocopy(t *testing.T) {
++	max := *runtime.Maxstring
++	b := make([]byte, max+10)
++	for i := uintptr(0); i < max+9; i++ {
++		b[i] = 'a'
++	}
++	_ = runtime.Gostringnocopy(&b[0])
++	newmax := *runtime.Maxstring
++	if newmax != max+9 {
++		t.Errorf("want %d, got %d", max+9, newmax)
++	}
++}

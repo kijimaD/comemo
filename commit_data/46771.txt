@@ -12,6 +12,20 @@ Date:   Tue Jan 26 12:53:08 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/286752
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.16.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 7ddb4a935e..3a45940479 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -275,7 +275,7 @@ Do not send CLs removing the interior tags from such phrases.
+   When the <code>-export</code> flag is specified, the <code>BuildID</code>
+   field is now set to the build ID of the compiled package. This is equivalent
+   to running <code>go</code> <code>tool</code> <code>buildid</code> on
+-  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}</code>,
++  <code>go</code> <code>list</code> <code>-exported</code> <code>-f</code> <code>{{.Export}}</code>,
+   but without the extra step.
+ </p>
+ 

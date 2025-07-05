@@ -11,8 +11,58 @@ Date:   Fri Apr 15 10:48:45 2011 -0700
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4441041
-
+---
  doc/all.css          |  2 +-
  doc/godocs.js        | 11 +++++++++++
  lib/godoc/godoc.html |  2 +-
  3 files changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/doc/all.css b/doc/all.css
+index b1d55cf25a..dd00d1adb0 100644
+--- a/doc/all.css
++++ b/doc/all.css
+@@ -96,7 +96,7 @@ h1#title {
+   color: #999;
+ }
+ #search {
+-  width: 100px;
++  width: 120px;
+   margin-left: 0.5em;
+ }
+ #search.inactive {
+diff --git a/doc/godocs.js b/doc/godocs.js
+index 8b451547d6..2b3ab065ff 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -34,7 +34,18 @@ function godocs_bindSearchEvents() {
+       search.className = "";
+     }
+   }
++  function restoreInactive() {
++    if (search.value != "") {
++      return;
++    }
++    if (search.type != "search") {
++      search.value = search.getAttribute("placeholder");
++    }
++    search.className = "inactive";
++  }
++  restoreInactive();
+   bindEvent(search, 'focus', clearInactive);
++  bindEvent(search, 'blur', restoreInactive);
+ }
+ 
+ /* Generates a table of contents: looks for h2 and h3 elements and generates
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index f1d9c2ad9c..837f53c483 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -33,7 +33,7 @@
+         <a href="/pkg/">Packages</a> <span class="sep">|</span>
+         <a href="/cmd/">Commands</a> <span class="sep">|</span>
+         <a href="/doc/go_spec.html">Specification</a>
+-        <input id="search" type="text" name="q" value="{.section Query}{Query|html-esc}{.or}code search{.end}" class="{.section Query}{.or}inactive{.end}" />
++        <input id="search" type="search" name="q" value="{.section Query}{Query|html-esc}{.end}" class="{.section Query}{.or}inactive{.end}" placeholder="code search" results="0" />
+         </form>
+       </div>
+     </div>

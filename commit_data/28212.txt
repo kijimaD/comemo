@@ -9,7 +9,7 @@ Date:   Thu May 5 09:39:50 2016 -0700
     Change-Id: I1dfa9c8739a4b6d5e4c737c1a1e09e80e045b7aa
     Reviewed-on: https://go-review.googlesource.com/22803
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 52 +++++++++++++++++++++++++++++++++-
  src/cmd/compile/internal/gc/export.go  |  1 +
  test/fixedbugs/issue15548.dir/a.go     | 17 +++++++++++
@@ -17,3 +17,174 @@ Date:   Thu May 5 09:39:50 2016 -0700
  test/fixedbugs/issue15548.dir/c.go     | 10 +++++++
  test/fixedbugs/issue15548.go           |  7 +++++
  6 files changed, 95 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 167a36b2c0..6b0593cd47 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -29,6 +29,9 @@ type importer struct {
+ 	typList  []*Type
+ 	funcList []*Node // nil entry means already declared
+ 
++	// for delayed type verification
++	cmpList []struct{ pt, t *Type }
++
+ 	// position encoding
+ 	posInfoFormat bool
+ 	prevFile      string
+@@ -175,6 +178,8 @@ func Import(in *bufio.Reader) {
+ 		Fatalf("importer: unexpected context %d", dclcontext)
+ 	}
+ 
++	p.verifyTypes()
++
+ 	// --- end of export data ---
+ 
+ 	typecheckok = tcok
+@@ -183,6 +188,19 @@ func Import(in *bufio.Reader) {
+ 	testdclstack() // debugging only
+ }
+ 
++func (p *importer) verifyTypes() {
++	for _, pair := range p.cmpList {
++		pt := pair.pt
++		t := pair.t
++		if !Eqtype(pt.Orig, t) {
++			// TODO(gri) Is this a possible regular error (stale files)
++			// or can this only happen if export/import is flawed?
++			// (if the latter, change to Fatalf here)
++			Yyerror("inconsistent definition for type %v during import\n\t%v (in %q)\n\t%v (in %q)", pt.Sym, Tconv(pt, FmtLong), pt.Sym.Importdef.Path, Tconv(t, FmtLong), importpkg.Path)
++		}
++	}
++}
++
+ func (p *importer) pkg() *Pkg {
+ 	// if the package was seen before, i is its index (>= 0)
+ 	i := p.tagOrIndex()
+@@ -317,6 +335,38 @@ func (p *importer) newtyp(etype EType) *Type {
+ 	return t
+ }
+ 
++// This is like the function importtype but it delays the
++// type identity check for types that have been seen already.
++// importer.importtype and importtype and (export.go) need to
++// remain in sync.
++func (p *importer) importtype(pt, t *Type) {
++	// override declaration in unsafe.go for Pointer.
++	// there is no way in Go code to define unsafe.Pointer
++	// so we have to supply it.
++	if incannedimport != 0 && importpkg.Name == "unsafe" && pt.Nod.Sym.Name == "Pointer" {
++		t = Types[TUNSAFEPTR]
++	}
++
++	if pt.Etype == TFORW {
++		n := pt.Nod
++		copytype(pt.Nod, t)
++		pt.Nod = n // unzero nod
++		pt.Sym.Importdef = importpkg
++		pt.Sym.Lastlineno = lineno
++		declare(n, PEXTERN)
++		checkwidth(pt)
++	} else {
++		// pt.Orig and t must be identical. Since t may not be
++		// fully set up yet, collect the types and verify identity
++		// later.
++		p.cmpList = append(p.cmpList, struct{ pt, t *Type }{pt, t})
++	}
++
++	if Debug['E'] != 0 {
++		fmt.Printf("import type %v %v\n", pt, Tconv(t, FmtLong))
++	}
++}
++
+ func (p *importer) typ() *Type {
+ 	// if the type was seen before, i is its index (>= 0)
+ 	i := p.tagOrIndex()
+@@ -339,7 +389,7 @@ func (p *importer) typ() *Type {
+ 		// read underlying type
+ 		// parser.go:hidden_type
+ 		t0 := p.typ()
+-		importtype(t, t0) // parser.go:hidden_import
++		p.importtype(t, t0) // parser.go:hidden_import
+ 
+ 		// interfaces don't have associated methods
+ 		if t0.IsInterface() {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 0a0fbc6b85..2dd137ed77 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -551,6 +551,7 @@ func importvar(s *Sym, t *Type) {
+ 	}
+ }
+ 
++// importtype and importer.importtype (bimport.go) need to remain in sync.
+ func importtype(pt *Type, t *Type) {
+ 	// override declaration in unsafe.go for Pointer.
+ 	// there is no way in Go code to define unsafe.Pointer
+diff --git a/test/fixedbugs/issue15548.dir/a.go b/test/fixedbugs/issue15548.dir/a.go
+new file mode 100644
+index 0000000000..3c593fc0f6
+--- /dev/null
++++ b/test/fixedbugs/issue15548.dir/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type I0 interface {
++	I1
++}
++
++type T struct {
++	I1
++}
++
++type I1 interface {
++	M(*T) // removing * makes crash go away
++}
+diff --git a/test/fixedbugs/issue15548.dir/b.go b/test/fixedbugs/issue15548.dir/b.go
+new file mode 100644
+index 0000000000..b46f5adfdd
+--- /dev/null
++++ b/test/fixedbugs/issue15548.dir/b.go
+@@ -0,0 +1,9 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "./a"
++
++var X a.T
+diff --git a/test/fixedbugs/issue15548.dir/c.go b/test/fixedbugs/issue15548.dir/c.go
+new file mode 100644
+index 0000000000..ce6e3204b3
+--- /dev/null
++++ b/test/fixedbugs/issue15548.dir/c.go
+@@ -0,0 +1,10 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import (
++	_ "./a"
++	_ "./b"
++)
+diff --git a/test/fixedbugs/issue15548.go b/test/fixedbugs/issue15548.go
+new file mode 100644
+index 0000000000..4d2844dbb9
+--- /dev/null
++++ b/test/fixedbugs/issue15548.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

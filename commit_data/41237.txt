@@ -29,8 +29,176 @@ Date:   Mon Jun 17 01:15:53 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/walk.go | 19 +++++++++--------
  test/codegen/slices.go              | 42 +++++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue4085b.go        | 37 ++++++++++++++++++++++++++------
  3 files changed, 83 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d2036b6e32..8dd60f4285 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2700,15 +2700,14 @@ func isAppendOfMake(n *Node) bool {
+ 		return false
+ 	}
+ 
+-	// y must be either an integer constant or a variable of type int.
+-	// typecheck checks that constant arguments to make are not negative and
+-	// fit into an int.
+-	// runtime.growslice uses int as type for the newcap argument.
+-	// Constraining variables to be type int avoids the need for runtime checks
+-	// that e.g. check if an int64 value fits into an int.
+-	// TODO(moehrmann): support other integer types that always fit in an int
++	// y must be either an integer constant or the largest possible positive value
++	// of variable y needs to fit into an uint.
++
++	// typecheck made sure that constant arguments to make are not negative and fit into an int.
++
++	// The care of overflow of the len argument to make will be handled by an explicit check of int(len) < 0 during runtime.
+ 	y := second.Left
+-	if !Isconst(y, CTINT) && y.Type.Etype != TINT {
++	if !Isconst(y, CTINT) && maxintval[y.Type.Etype].Cmp(maxintval[TUINT]) > 0 {
+ 		return false
+ 	}
+ 
+@@ -2742,7 +2741,9 @@ func isAppendOfMake(n *Node) bool {
+ //   }
+ //   s
+ func extendslice(n *Node, init *Nodes) *Node {
+-	// isAppendOfMake made sure l2 fits in an int.
++	// isAppendOfMake made sure all possible positive values of l2 fit into an uint.
++	// The case of l2 overflow when converting from e.g. uint to int is handled by an explicit
++	// check of l2 < 0 at runtime which is generated below.
+ 	l2 := conv(n.List.Second().Left, types.Types[TINT])
+ 	l2 = typecheck(l2, ctxExpr)
+ 	n.List.SetSecond(l2) // walkAppendArgs expects l2 in n.List.Second().
+diff --git a/test/codegen/slices.go b/test/codegen/slices.go
+index 6477c6f6c7..fccd711d71 100644
+--- a/test/codegen/slices.go
++++ b/test/codegen/slices.go
+@@ -44,6 +44,27 @@ func SliceExtensionConst(s []int) []int {
+ 	return append(s, make([]int, 1<<2)...)
+ }
+ 
++func SliceExtensionConstInt64(s []int) []int {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:-`.*runtime\.panicmakeslicelen`
++	return append(s, make([]int, int64(1<<2))...)
++}
++
++func SliceExtensionConstUint64(s []int) []int {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:-`.*runtime\.panicmakeslicelen`
++	return append(s, make([]int, uint64(1<<2))...)
++}
++
++func SliceExtensionConstUint(s []int) []int {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:-`.*runtime\.panicmakeslicelen`
++	return append(s, make([]int, uint(1<<2))...)
++}
++
+ func SliceExtensionPointer(s []*int, l int) []*int {
+ 	// amd64:`.*runtime\.memclrHasPointers`
+ 	// amd64:-`.*runtime\.makeslice`
+@@ -56,6 +77,27 @@ func SliceExtensionVar(s []byte, l int) []byte {
+ 	return append(s, make([]byte, l)...)
+ }
+ 
++func SliceExtensionVarInt64(s []byte, l int64) []byte {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:`.*runtime\.panicmakeslicelen`
++	return append(s, make([]byte, l)...)
++}
++
++func SliceExtensionVarUint64(s []byte, l uint64) []byte {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:`.*runtime\.panicmakeslicelen`
++	return append(s, make([]byte, l)...)
++}
++
++func SliceExtensionVarUint(s []byte, l uint) []byte {
++	// amd64:`.*runtime\.memclrNoHeapPointers`
++	// amd64:-`.*runtime\.makeslice`
++	// amd64:`.*runtime\.panicmakeslicelen`
++	return append(s, make([]byte, l)...)
++}
++
+ func SliceExtensionInt64(s []int, l64 int64) []int {
+ 	// 386:`.*runtime\.makeslice`
+ 	// 386:-`.*runtime\.memclr`
+diff --git a/test/fixedbugs/issue4085b.go b/test/fixedbugs/issue4085b.go
+index 6304ce073a..cf27512da0 100644
+--- a/test/fixedbugs/issue4085b.go
++++ b/test/fixedbugs/issue4085b.go
+@@ -19,29 +19,36 @@ func main() {
+ 	shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+ 	shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
+ 	shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
++	testMakeInAppend(n)
++
+ 	var t *byte
+ 	if unsafe.Sizeof(t) == 8 {
+ 		// Test mem > maxAlloc
+ 		var n2 int64 = 1 << 59
+ 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
++		testMakeInAppend(int(n2))
+ 		// Test elem.size*cap overflow
+ 		n2 = 1<<63 - 1
+ 		shouldPanic("len out of range", func() { _ = make(T, int(n2)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int(n2)) })
++		testMakeInAppend(int(n2))
++		var x uint64 = 1<<64 - 1
++		shouldPanic("len out of range", func() { _ = make([]byte, x) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, x) })
++		testMakeInAppend(int(x))
+ 	} else {
+ 		n = 1<<31 - 1
+ 		shouldPanic("len out of range", func() { _ = make(T, n) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, n) })
+ 		shouldPanic("len out of range", func() { _ = make(T, int64(n)) })
+ 		shouldPanic("cap out of range", func() { _ = make(T, 0, int64(n)) })
++		testMakeInAppend(n)
++		var x uint64 = 1<<32 - 1
++		shouldPanic("len out of range", func() { _ = make([]byte, x) })
++		shouldPanic("cap out of range", func() { _ = make(T, 0, x) })
++		testMakeInAppend(int(x))
+ 	}
+-
+-	// Test make in append panics since the gc compiler optimizes makes in appends.
+-	shouldPanic("len out of range", func() { _ = append(T{}, make(T, n)...) })
+-	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, n)...) })
+-	shouldPanic("len out of range", func() { _ = append(T{}, make(T, int64(n))...) })
+-	shouldPanic("cap out of range", func() { _ = append(T{}, make(T, 0, int64(n))...) })
+ }
+ 
+ func shouldPanic(str string, f func()) {
+@@ -58,3 +65,21 @@ func shouldPanic(str string, f func()) {
+ 
+ 	f()
+ }
++
++// Test make in append panics since the gc compiler optimizes makes in appends.
++func testMakeInAppend(n int) {
++	lengths := []int{0, 1}
++	for _, length := range lengths {
++		t := make(T, length)
++		shouldPanic("len out of range", func() { _ = append(t, make(T, n)...) })
++		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, n)...) })
++		shouldPanic("len out of range", func() { _ = append(t, make(T, int64(n))...) })
++		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, int64(n))...) })
++		shouldPanic("len out of range", func() { _ = append(t, make(T, uint64(n))...) })
++		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, uint64(n))...) })
++		shouldPanic("len out of range", func() { _ = append(t, make(T, int(n))...) })
++		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, int(n))...) })
++		shouldPanic("len out of range", func() { _ = append(t, make(T, uint(n))...) })
++		shouldPanic("cap out of range", func() { _ = append(t, make(T, 0, uint(n))...) })
++	}
++}

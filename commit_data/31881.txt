@@ -18,8 +18,55 @@ Date:   Tue Mar 21 22:21:33 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/obj/x86/a.out.go  |  1 -
  src/cmd/internal/obj/x86/anames.go |  1 -
  src/cmd/internal/obj/x86/obj6.go   | 11 -----------
  3 files changed, 13 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/a.out.go b/src/cmd/internal/obj/x86/a.out.go
+index 02f92ed387..04f9ef68a4 100644
+--- a/src/cmd/internal/obj/x86/a.out.go
++++ b/src/cmd/internal/obj/x86/a.out.go
+@@ -746,7 +746,6 @@ const (
+ 	ARETFQ
+ 	ASWAPGS
+ 
+-	AMODE
+ 	ACRC32B
+ 	ACRC32Q
+ 	AIMUL3Q
+diff --git a/src/cmd/internal/obj/x86/anames.go b/src/cmd/internal/obj/x86/anames.go
+index 8c5be80795..38cc03d84d 100644
+--- a/src/cmd/internal/obj/x86/anames.go
++++ b/src/cmd/internal/obj/x86/anames.go
+@@ -687,7 +687,6 @@ var Anames = []string{
+ 	"RETFL",
+ 	"RETFQ",
+ 	"SWAPGS",
+-	"MODE",
+ 	"CRC32B",
+ 	"CRC32Q",
+ 	"IMUL3Q",
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7af6dc5882..8161419602 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -79,17 +79,6 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 	}
+ 	p.Mode = int8(ctxt.Mode)
+ 
+-	switch p.As {
+-	case AMODE:
+-		if p.From.Type == obj.TYPE_CONST || (p.From.Type == obj.TYPE_MEM && p.From.Reg == REG_NONE) {
+-			switch int(p.From.Offset) {
+-			case 16, 32, 64:
+-				ctxt.Mode = int(p.From.Offset)
+-			}
+-		}
+-		obj.Nopout(p)
+-	}
+-
+ 	// Thread-local storage references use the TLS pseudo-register.
+ 	// As a register, TLS refers to the thread-local storage base, and it
+ 	// can only be loaded into another register:

@@ -7,6 +7,50 @@ Date:   Thu Feb 23 14:54:10 2012 -0800
     R=adg, rsc
     CC=golang-dev
     https://golang.org/cl/5695054
-
+---
  doc/style.css | 25 +++++++++++++++++++++++++
  1 file changed, 25 insertions(+)
+
+diff --git a/doc/style.css b/doc/style.css
+index c387705214..821c886a15 100644
+--- a/doc/style.css
++++ b/doc/style.css
+@@ -13,6 +13,27 @@ pre {
+ pre .comment {
+ 	color: #375EAB;
+ }
++pre .highlight {
++	background: #FFFF00;
++}
++pre .highlight-comment {
++	background: #FFFF00;
++	color: #375EAB;
++}
++pre .selection {
++	background: #FF9632;
++}
++pre .selection-comment {
++	background: #FF9632;
++	color: #375EAB;
++}
++pre .selection-highlight {
++	background: #FFFF00;
++}
++pre .selection-highlight-comment {
++	background: #FFFF00;
++	color: #375EAB;
++}
+ pre .ln {
+ 	color: #999;
+ }
+@@ -88,6 +109,10 @@ table.dir td {
+ 	vertical-align: top;
+ }
+ 
++.alert {
++	color: #FF0000;
++}
++
+ #heading {
+ 	float: left;
+ 	margin: 0 0 10px 0;

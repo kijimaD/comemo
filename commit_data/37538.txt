@@ -13,7 +13,50 @@ Date:   Sun Aug 5 18:52:15 2018 +0200
     Run-TryBot: Richard Musiol <neelance@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go |  4 ++++
  test/closure4.go                   | 21 +++++++++++++++++++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 553713a1e9..af43da6275 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3515,6 +3515,10 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 			break
+ 		}
+ 		closure = s.expr(fn)
++		if thearch.LinkArch.Family == sys.Wasm {
++			// TODO(neelance): On other architectures this should be eliminated by the optimization steps
++			s.nilCheck(closure)
++		}
+ 	case OCALLMETH:
+ 		if fn.Op != ODOTMETH {
+ 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+diff --git a/test/closure4.go b/test/closure4.go
+new file mode 100644
+index 0000000000..ec4e0a18eb
+--- /dev/null
++++ b/test/closure4.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check that calling a nil func causes a proper panic.
++
++package main
++
++func main() {
++	defer func() {
++		err := recover()
++		if err == nil {
++			panic("panic expected")
++		}
++	}()
++
++	var f func()
++	f()
++}

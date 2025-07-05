@@ -7,6 +7,27 @@ Date:   Thu Feb 21 13:30:31 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7390047
-
+---
  src/pkg/runtime/gc_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/runtime/gc_test.go b/src/pkg/runtime/gc_test.go
+index 283a6812e9..0215ff2cf4 100644
+--- a/src/pkg/runtime/gc_test.go
++++ b/src/pkg/runtime/gc_test.go
+@@ -5,11 +5,15 @@
+ package runtime_test
+ 
+ import (
++	"os"
+ 	"runtime"
+ 	"testing"
+ )
+ 
+ func TestGcSys(t *testing.T) {
++	if os.Getenv("GOGC") == "off" {
++		t.Fatalf("GOGC=off in environment; test cannot pass")
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 	memstats := new(runtime.MemStats)
+ 	runtime.GC()

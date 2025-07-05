@@ -14,6 +14,19 @@ Date:   Mon Dec 4 17:47:52 2023 -0500
     Commit-Queue: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/runtime-gdb_unix_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/runtime-gdb_unix_test.go b/src/runtime/runtime-gdb_unix_test.go
+index 23eb3e2362..a1f2401a6e 100644
+--- a/src/runtime/runtime-gdb_unix_test.go
++++ b/src/runtime/runtime-gdb_unix_test.go
+@@ -296,6 +296,7 @@ func TestGdbCoreCrashThreadBacktrace(t *testing.T) {
+ 		t.Skip("Backtrace through signal handler only works on 386 and amd64")
+ 	}
+ 
++	testenv.MustHaveCGO(t)
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)

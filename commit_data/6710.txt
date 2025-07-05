@@ -7,7 +7,94 @@ Date:   Thu Nov 4 13:15:42 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2908041
-
+---
  src/pkg/go/scanner/scanner.go      | 32 ++++++++++++++------------------
  src/pkg/go/scanner/scanner_test.go |  7 ++++---
  2 files changed, 18 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index ab11714705..64ff127750 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -183,29 +183,25 @@ func (S *Scanner) scanComment() {
+ 
+ 	if S.ch == '/' {
+ 		//-style comment
+-		for S.ch >= 0 {
++		S.next()
++		for S.ch != '\n' && S.ch >= 0 {
+ 			S.next()
+-			if S.ch == '\n' {
+-				// '\n' is not part of the comment for purposes of scanning
+-				// (the comment ends on the same line where it started)
+-				if col == 1 {
+-					// comment starts at the beginning of the current line
+-					S.interpretLineComment(S.src[offs:S.offset])
+-				}
+-				return
+-			}
+ 		}
++		if col == 1 {
++			// comment starts at the beginning of the current line
++			S.interpretLineComment(S.src[offs:S.offset])
++		}
++		return
++	}
+ 
+-	} else {
+-		/*-style comment */
++	/*-style comment */
++	S.next()
++	for S.ch >= 0 {
++		ch := S.ch
+ 		S.next()
+-		for S.ch >= 0 {
+-			ch := S.ch
++		if ch == '*' && S.ch == '/' {
+ 			S.next()
+-			if ch == '*' && S.ch == '/' {
+-				S.next()
+-				return
+-			}
++			return
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/go/scanner/scanner_test.go b/src/pkg/go/scanner/scanner_test.go
+index c40753fb03..dbec8f7147 100644
+--- a/src/pkg/go/scanner/scanner_test.go
++++ b/src/pkg/go/scanner/scanner_test.go
+@@ -395,12 +395,14 @@ var lines = []string{
+ 	"var\n",
+ 
+ 	"foo$//comment\n",
++	"foo$//comment",
+ 	"foo$/*comment*/\n",
+ 	"foo$/*\n*/",
+ 	"foo$/*comment*/    \n",
+ 	"foo$/*\n*/    ",
+ 
+ 	"foo    $// comment\n",
++	"foo    $// comment",
+ 	"foo    $/*comment*/\n",
+ 	"foo    $/*\n*/",
+ 	"foo    $/*  */ /* \n */ bar$/**/\n",
+@@ -410,7 +412,8 @@ var lines = []string{
+ 	"foo    $/*0*/ /*1*/ /*2*/    \n",
+ 	"foo	$/**/ /*-------------*/       /*----\n*/bar       $/*  \n*/baa$\n",
+ 	"foo    $/* an EOF terminates a line */",
+-	"foo    $/* an EOF terminates a line *//*",
++	"foo    $/* an EOF terminates a line */ /*",
++	"foo    $/* an EOF terminates a line */ //",
+ 
+ 	"package main$\n\nfunc main() {\n\tif {\n\t\treturn /* */ }$\n}$\n",
+ 	"package main$",
+@@ -626,8 +629,6 @@ var errors = []struct {
+ 	{"`", token.STRING, 0, "string not terminated"},
+ 	{"/**/", token.COMMENT, 0, ""},
+ 	{"/*", token.COMMENT, 0, "comment not terminated"},
+-	{"//\n", token.COMMENT, 0, ""},
+-	{"//", token.COMMENT, 0, "comment not terminated"},
+ 	{"077", token.INT, 0, ""},
+ 	{"078.", token.FLOAT, 0, ""},
+ 	{"07801234567.", token.FLOAT, 0, ""},

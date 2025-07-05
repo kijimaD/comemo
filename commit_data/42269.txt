@@ -13,7 +13,35 @@ Date:   Mon Nov 18 20:07:11 2019 -0500
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/runtime/os_windows.go | 2 ++
  src/runtime/runtime2.go   | 3 +--
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 58e13acb1f..b4df08322c 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -143,6 +143,8 @@ func tstart_stdcall(newm *m)
+ func ctrlhandler()
+ 
+ type mOS struct {
++	thread uintptr // thread handle; accessed atomically
++
+ 	waitsema   uintptr // semaphore for parking on locks
+ 	resumesema uintptr // semaphore to indicate suspend/resume
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index fe1147e247..3f9e51c528 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -522,8 +522,7 @@ type m struct {
+ 	waittraceskip int
+ 	startingtrace bool
+ 	syscalltick   uint32
+-	thread        uintptr // thread handle
+-	freelink      *m      // on sched.freem
++	freelink      *m // on sched.freem
+ 
+ 	// these are here because they are too large to be on the stack
+ 	// of low-level NOSPLIT functions.

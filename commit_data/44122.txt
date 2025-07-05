@@ -9,7 +9,32 @@ Date:   Tue May 12 05:14:25 2020 +0000
     GitHub-Pull-Request: golang/go#39010
     Reviewed-on: https://go-review.googlesource.com/c/go/+/233324
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index d79d4ed7d8..69e35a13ae 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1142,6 +1142,7 @@ Pietro Gagliardi <pietro10@mac.com>
+ Piyush Mishra <piyush@codeitout.com>
+ Platform.sh
+ Pontus Leitzler <leitzler@gmail.com>
++Prasanga Siripala <pj@pjebs.com.au>
+ Prashant Varanasi <prashant@prashantv.com>
+ Pravendra Singh <hackpravj@gmail.com>
+ Preetam Jinka <pj@preet.am>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 07bdb4cb60..934834fc79 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1788,6 +1788,7 @@ Pietro Gagliardi <pietro10@mac.com>
+ Piyush Mishra <piyush@codeitout.com>
+ Plekhanov Maxim <kishtatix@gmail.com>
+ Pontus Leitzler <leitzler@gmail.com>
++Prasanga Siripala <pj@pjebs.com.au>
+ Prasanna Swaminathan <prasanna@mediamath.com>
+ Prashant Agrawal <prashant.a.vjti@gmail.com>
+ Prashant Varanasi <prashant@prashantv.com>

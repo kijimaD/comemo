@@ -12,6 +12,19 @@ Date:   Sat Nov 8 15:13:28 2014 -0300
     R=golang-codereviews, iant
     CC=adg, golang-codereviews, rsc
     https://golang.org/cl/170210043
-
+---
  src/net/http/serve_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index bb44ac8537..5e0a0053c0 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2819,6 +2819,7 @@ func benchmarkClientServerParallel(b *testing.B, parallelism int, useTLS bool) {
+ 				InsecureSkipVerify: true,
+ 			},
+ 		}
++		defer noVerifyTransport.CloseIdleConnections()
+ 		client := &Client{Transport: noVerifyTransport}
+ 		for pb.Next() {
+ 			res, err := client.Get(ts.URL)

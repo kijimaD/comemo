@@ -11,9 +11,327 @@ Date:   Wed Jun 27 16:52:36 2012 -0400
     R=golang-dev, r, hanwen, iant
     CC=golang-dev
     https://golang.org/cl/6335056
-
+---
  src/pkg/path/filepath/path.go      | 81 ++++++++++++++++++++++++++------------
  src/pkg/path/filepath/path_test.go | 18 +++++++++
  src/pkg/path/path.go               | 80 ++++++++++++++++++++++++++-----------
  src/pkg/path/path_test.go          | 19 +++++++++
  4 files changed, 149 insertions(+), 49 deletions(-)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 815021bd04..7b6a9bd5d2 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -13,6 +13,43 @@ import (
+ 	"strings"
+ )
+ 
++// A lazybuf is a lazily constructed path buffer.
++// It supports append, reading previously appended bytes,
++// and retrieving the final string. It does not allocate a buffer
++// to hold the output until that output diverges from s.
++type lazybuf struct {
++	s   string
++	buf []byte
++	w   int
++}
++
++func (b *lazybuf) index(i int) byte {
++	if b.buf != nil {
++		return b.buf[i]
++	}
++	return b.s[i]
++}
++
++func (b *lazybuf) append(c byte) {
++	if b.buf == nil {
++		if b.w < len(b.s) && b.s[b.w] == c {
++			b.w++
++			return
++		}
++		b.buf = make([]byte, len(b.s))
++		copy(b.buf, b.s[:b.w])
++	}
++	b.buf[b.w] = c
++	b.w++
++}
++
++func (b *lazybuf) string() string {
++	if b.buf == nil {
++		return b.s[:b.w]
++	}
++	return string(b.buf[:b.w])
++}
++
+ const (
+ 	Separator     = os.PathSeparator
+ 	ListSeparator = os.PathListSeparator
+@@ -57,11 +94,11 @@ func Clean(path string) string {
+ 	//	dotdot is index in buf where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+ 	n := len(path)
+-	buf := []byte(path)
+-	r, w, dotdot := 0, 0, 0
++	out := lazybuf{s: path}
++	r, dotdot := 0, 0
+ 	if rooted {
+-		buf[0] = Separator
+-		r, w, dotdot = 1, 1, 1
++		out.append(Separator)
++		r, dotdot = 1, 1
+ 	}
+ 
+ 	for r < n {
+@@ -76,46 +113,40 @@ func Clean(path string) string {
+ 			// .. element: remove to last separator
+ 			r += 2
+ 			switch {
+-			case w > dotdot:
++			case out.w > dotdot:
+ 				// can backtrack
+-				w--
+-				for w > dotdot && !os.IsPathSeparator(buf[w]) {
+-					w--
++				out.w--
++				for out.w > dotdot && !os.IsPathSeparator(out.index(out.w)) {
++					out.w--
+ 				}
+ 			case !rooted:
+ 				// cannot backtrack, but not rooted, so append .. element.
+-				if w > 0 {
+-					buf[w] = Separator
+-					w++
++				if out.w > 0 {
++					out.append(Separator)
+ 				}
+-				buf[w] = '.'
+-				w++
+-				buf[w] = '.'
+-				w++
+-				dotdot = w
++				out.append('.')
++				out.append('.')
++				dotdot = out.w
+ 			}
+ 		default:
+ 			// real path element.
+ 			// add slash if needed
+-			if rooted && w != 1 || !rooted && w != 0 {
+-				buf[w] = Separator
+-				w++
++			if rooted && out.w != 1 || !rooted && out.w != 0 {
++				out.append(Separator)
+ 			}
+ 			// copy element
+ 			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
+-				buf[w] = path[r]
+-				w++
++				out.append(path[r])
+ 			}
+ 		}
+ 	}
+ 
+ 	// Turn empty string into "."
+-	if w == 0 {
+-		buf[w] = '.'
+-		w++
++	if out.w == 0 {
++		out.append('.')
+ 	}
+ 
+-	return FromSlash(vol + string(buf[0:w]))
++	return FromSlash(vol + out.string())
+ }
+ 
+ // ToSlash returns the result of replacing each separator character
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index cb84d98b47..ec6af4db7e 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -99,6 +99,24 @@ func TestClean(t *testing.T) {
+ 		if s := filepath.Clean(test.path); s != test.result {
+ 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+ 		}
++		if s := filepath.Clean(test.result); s != test.result {
++			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
++		}
++	}
++
++	var ms runtime.MemStats
++	runtime.ReadMemStats(&ms)
++	allocs := -ms.Mallocs
++	const rounds = 100
++	for i := 0; i < rounds; i++ {
++		for _, test := range tests {
++			filepath.Clean(test.result)
++		}
++	}
++	runtime.ReadMemStats(&ms)
++	allocs += ms.Mallocs
++	if allocs >= rounds {
++		t.Errorf("Clean cleaned paths: %d allocations per test round, want zero", allocs/rounds)
+ 	}
+ }
+ 
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index a7e0415689..649c1504c8 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -10,6 +10,43 @@ import (
+ 	"strings"
+ )
+ 
++// A lazybuf is a lazily constructed path buffer.
++// It supports append, reading previously appended bytes,
++// and retrieving the final string. It does not allocate a buffer
++// to hold the output until that output diverges from s.
++type lazybuf struct {
++	s   string
++	buf []byte
++	w   int
++}
++
++func (b *lazybuf) index(i int) byte {
++	if b.buf != nil {
++		return b.buf[i]
++	}
++	return b.s[i]
++}
++
++func (b *lazybuf) append(c byte) {
++	if b.buf == nil {
++		if b.w < len(b.s) && b.s[b.w] == c {
++			b.w++
++			return
++		}
++		b.buf = make([]byte, len(b.s))
++		copy(b.buf, b.s[:b.w])
++	}
++	b.buf[b.w] = c
++	b.w++
++}
++
++func (b *lazybuf) string() string {
++	if b.buf == nil {
++		return b.s[:b.w]
++	}
++	return string(b.buf[:b.w])
++}
++
+ // Clean returns the shortest path name equivalent to path
+ // by purely lexical processing.  It applies the following rules
+ // iteratively until no further processing can be done:
+@@ -42,10 +79,11 @@ func Clean(path string) string {
+ 	//	writing to buf; w is index of next byte to write.
+ 	//	dotdot is index in buf where .. must stop, either because
+ 	//		it is the leading slash or it is a leading ../../.. prefix.
+-	buf := []byte(path)
+-	r, w, dotdot := 0, 0, 0
++	out := lazybuf{s: path}
++	r, dotdot := 0, 0
+ 	if rooted {
+-		r, w, dotdot = 1, 1, 1
++		out.append('/')
++		r, dotdot = 1, 1
+ 	}
+ 
+ 	for r < n {
+@@ -60,46 +98,40 @@ func Clean(path string) string {
+ 			// .. element: remove to last /
+ 			r += 2
+ 			switch {
+-			case w > dotdot:
++			case out.w > dotdot:
+ 				// can backtrack
+-				w--
+-				for w > dotdot && buf[w] != '/' {
+-					w--
++				out.w--
++				for out.w > dotdot && out.index(out.w) != '/' {
++					out.w--
+ 				}
+ 			case !rooted:
+ 				// cannot backtrack, but not rooted, so append .. element.
+-				if w > 0 {
+-					buf[w] = '/'
+-					w++
++				if out.w > 0 {
++					out.append('/')
+ 				}
+-				buf[w] = '.'
+-				w++
+-				buf[w] = '.'
+-				w++
+-				dotdot = w
++				out.append('.')
++				out.append('.')
++				dotdot = out.w
+ 			}
+ 		default:
+ 			// real path element.
+ 			// add slash if needed
+-			if rooted && w != 1 || !rooted && w != 0 {
+-				buf[w] = '/'
+-				w++
++			if rooted && out.w != 1 || !rooted && out.w != 0 {
++				out.append('/')
+ 			}
+ 			// copy element
+ 			for ; r < n && path[r] != '/'; r++ {
+-				buf[w] = path[r]
+-				w++
++				out.append(path[r])
+ 			}
+ 		}
+ 	}
+ 
+ 	// Turn empty string into "."
+-	if w == 0 {
+-		buf[w] = '.'
+-		w++
++	if out.w == 0 {
++		return "."
+ 	}
+ 
+-	return string(buf[0:w])
++	return out.string()
+ }
+ 
+ // Split splits path immediately following the final slash.
+diff --git a/src/pkg/path/path_test.go b/src/pkg/path/path_test.go
+index 77f080433b..109005de39 100644
+--- a/src/pkg/path/path_test.go
++++ b/src/pkg/path/path_test.go
+@@ -5,6 +5,7 @@
+ package path
+ 
+ import (
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -67,6 +68,24 @@ func TestClean(t *testing.T) {
+ 		if s := Clean(test.path); s != test.result {
+ 			t.Errorf("Clean(%q) = %q, want %q", test.path, s, test.result)
+ 		}
++		if s := Clean(test.result); s != test.result {
++			t.Errorf("Clean(%q) = %q, want %q", test.result, s, test.result)
++		}
++	}
++
++	var ms runtime.MemStats
++	runtime.ReadMemStats(&ms)
++	allocs := -ms.Mallocs
++	const rounds = 100
++	for i := 0; i < rounds; i++ {
++		for _, test := range cleantests {
++			Clean(test.result)
++		}
++	}
++	runtime.ReadMemStats(&ms)
++	allocs += ms.Mallocs
++	if allocs >= rounds {
++		t.Errorf("Clean cleaned paths: %d allocations per test round, want zero", allocs/rounds)
+ 	}
+ }
+ 

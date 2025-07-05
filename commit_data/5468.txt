@@ -9,6 +9,20 @@ Date:   Tue May 11 16:50:20 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1180042
-
+---
  src/pkg/http/request.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 83a335bec0..27fbc3902a 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -345,7 +345,7 @@ func atoi(s string, i int) (n, i1 int, ok bool) {
+ 
+ // Parse HTTP version: "HTTP/1.2" -> (1, 2, true).
+ func parseHTTPVersion(vers string) (int, int, bool) {
+-	if vers[0:5] != "HTTP/" {
++	if len(vers) < 5 || vers[0:5] != "HTTP/" {
+ 		return 0, 0, false
+ 	}
+ 	major, i, ok := atoi(vers, 5)

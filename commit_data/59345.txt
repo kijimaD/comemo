@@ -13,6 +13,23 @@ Date:   Fri Mar 1 07:29:54 2024 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-
+---
  src/internal/trace/v2/testdata/cmd/gotraceraw/main.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/internal/trace/v2/testdata/cmd/gotraceraw/main.go b/src/internal/trace/v2/testdata/cmd/gotraceraw/main.go
+index a0d595dec1..3df11be7a8 100644
+--- a/src/internal/trace/v2/testdata/cmd/gotraceraw/main.go
++++ b/src/internal/trace/v2/testdata/cmd/gotraceraw/main.go
+@@ -69,11 +69,9 @@ func main() {
+ 		}
+ 		if err != nil {
+ 			log.Fatal(err)
+-			break
+ 		}
+ 		if err := tw.WriteEvent(ev); err != nil {
+ 			log.Fatal(err)
+-			break
+ 		}
+ 	}
+ }

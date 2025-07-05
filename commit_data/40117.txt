@@ -9,7 +9,7 @@ Date:   Tue Apr 2 15:03:08 2019 -0400
     Change-Id: Ia126e4e83ac5cb12c2c4151d5e5c975497598f24
     Reviewed-on: https://go-review.googlesource.com/c/go/+/172979
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .../github.com/ianlancetaylor/demangle/c++filt.go  | 144 ---
  .../vendor/golang.org/x/sys/unix/mkasm_darwin.go   |  61 --
  src/cmd/vendor/golang.org/x/sys/unix/mkpost.go     | 106 ---
@@ -40,3 +40,6725 @@ Date:   Tue Apr 2 15:03:08 2019 -0400
  .../golang.org/x/text/unicode/norm/maketables.go   | 976 ---------------------
  .../golang.org/x/text/unicode/norm/triegen.go      | 117 ---
  29 files changed, 5 insertions(+), 6511 deletions(-)
+
+diff --git a/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go b/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go
+deleted file mode 100644
+index 7ba817c9fe..0000000000
+--- a/src/cmd/vendor/github.com/ianlancetaylor/demangle/c++filt.go
++++ /dev/null
+@@ -1,144 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// This is a program that works like the GNU c++filt program.
+-// It's here for testing purposes and as an example.
+-
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"io"
+-	"os"
+-	"strings"
+-	"unicode"
+-
+-	"github.com/ianlancetaylor/demangle"
+-)
+-
+-func flagUsage() {
+-	usage(os.Stderr, 2)
+-}
+-
+-func usage(w io.Writer, status int) {
+-	fmt.Fprintf(w, "Usage: %s [options] [mangled names]\n", os.Args[0])
+-	flag.CommandLine.SetOutput(w)
+-	flag.PrintDefaults()
+-	fmt.Fprintln(w, `Demangled names are displayed to stdout
+-If a name cannot be demangled it is just echoed to stdout.
+-If no names are provided on the command line, stdin is read.`)
+-	os.Exit(status)
+-}
+-
+-var stripUnderscore = flag.Bool("_", false, "Ignore first leading underscore")
+-var noParams = flag.Bool("p", false, "Do not display function argument types")
+-var noVerbose = flag.Bool("i", false, "Do not show implementation details (if any)")
+-var help = flag.Bool("h", false, "Display help information")
+-var debug = flag.Bool("d", false, "Display debugging information for strings on command line")
+-
+-// Unimplemented c++filt flags:
+-// -n (opposite of -_)
+-// -t (demangle types)
+-// -s (set demangling style)
+-// -V (print version information)
+-
+-// Characters considered to be part of a symbol.
+-const symbolChars = "_$."
+-
+-func main() {
+-	flag.Usage = func() { usage(os.Stderr, 1) }
+-	flag.Parse()
+-
+-	if *help {
+-		usage(os.Stdout, 0)
+-	}
+-
+-	out := bufio.NewWriter(os.Stdout)
+-
+-	if flag.NArg() > 0 {
+-		for _, f := range flag.Args() {
+-			if *debug {
+-				a, err := demangle.ToAST(f, options()...)
+-				if err != nil {
+-					fmt.Fprintf(os.Stderr, "%s: %v\n", f, err)
+-				} else {
+-					fmt.Fprintf(out, "%#v\n", a)
+-				}
+-			} else {
+-				doDemangle(out, f)
+-			}
+-			out.WriteByte('\n')
+-		}
+-		if err := out.Flush(); err != nil {
+-			fmt.Fprintln(os.Stderr, err)
+-			os.Exit(2)
+-		}
+-		return
+-	}
+-
+-	scanner := bufio.NewScanner(bufio.NewReader(os.Stdin))
+-	for scanner.Scan() {
+-		line := scanner.Text()
+-		start := -1
+-		for i, c := range line {
+-			if unicode.IsLetter(c) || unicode.IsNumber(c) || strings.ContainsRune(symbolChars, c) {
+-				if start < 0 {
+-					start = i
+-				}
+-			} else {
+-				if start >= 0 {
+-					doDemangle(out, line[start:i])
+-				}
+-				out.WriteRune(c)
+-				start = -1
+-			}
+-		}
+-		if start >= 0 {
+-			doDemangle(out, line[start:])
+-			start = -1
+-		}
+-		out.WriteByte('\n')
+-		if err := out.Flush(); err != nil {
+-			fmt.Fprintln(os.Stderr, err)
+-			os.Exit(2)
+-		}
+-	}
+-}
+-
+-// Demangle a string just as the GNU c++filt program does.
+-func doDemangle(out *bufio.Writer, name string) {
+-	skip := 0
+-	if name[0] == '.' || name[0] == '$' {
+-		skip++
+-	}
+-	if *stripUnderscore && name[skip] == '_' {
+-		skip++
+-	}
+-	result := demangle.Filter(name[skip:], options()...)
+-	if result == name[skip:] {
+-		out.WriteString(name)
+-	} else {
+-		if name[0] == '.' {
+-			out.WriteByte('.')
+-		}
+-		out.WriteString(result)
+-	}
+-}
+-
+-// options returns the demangling options to use based on the command
+-// line flags.
+-func options() []demangle.Option {
+-	var options []demangle.Option
+-	if *noParams {
+-		options = append(options, demangle.NoParams)
+-	}
+-	if !*noVerbose {
+-		options = append(options, demangle.Verbose)
+-	}
+-	return options
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkasm_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/mkasm_darwin.go
+deleted file mode 100644
+index 4548b993db..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkasm_darwin.go
++++ /dev/null
+@@ -1,61 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// mkasm_darwin.go generates assembly trampolines to call libSystem routines from Go.
+-//This program must be run after mksyscall.go.
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"io/ioutil"
+-	"log"
+-	"os"
+-	"strings"
+-)
+-
+-func main() {
+-	in1, err := ioutil.ReadFile("syscall_darwin.go")
+-	if err != nil {
+-		log.Fatalf("can't open syscall_darwin.go: %s", err)
+-	}
+-	arch := os.Args[1]
+-	in2, err := ioutil.ReadFile(fmt.Sprintf("syscall_darwin_%s.go", arch))
+-	if err != nil {
+-		log.Fatalf("can't open syscall_darwin_%s.go: %s", arch, err)
+-	}
+-	in3, err := ioutil.ReadFile(fmt.Sprintf("zsyscall_darwin_%s.go", arch))
+-	if err != nil {
+-		log.Fatalf("can't open zsyscall_darwin_%s.go: %s", arch, err)
+-	}
+-	in := string(in1) + string(in2) + string(in3)
+-
+-	trampolines := map[string]bool{}
+-
+-	var out bytes.Buffer
+-
+-	fmt.Fprintf(&out, "// go run mkasm_darwin.go %s\n", strings.Join(os.Args[1:], " "))
+-	fmt.Fprintf(&out, "// Code generated by the command above; DO NOT EDIT.\n")
+-	fmt.Fprintf(&out, "\n")
+-	fmt.Fprintf(&out, "// +build go1.12\n")
+-	fmt.Fprintf(&out, "\n")
+-	fmt.Fprintf(&out, "#include \"textflag.h\"\n")
+-	for _, line := range strings.Split(in, "\n") {
+-		if !strings.HasPrefix(line, "func ") || !strings.HasSuffix(line, "_trampoline()") {
+-			continue
+-		}
+-		fn := line[5 : len(line)-13]
+-		if !trampolines[fn] {
+-			trampolines[fn] = true
+-			fmt.Fprintf(&out, "TEXT ·%s_trampoline(SB),NOSPLIT,$0-0\n", fn)
+-			fmt.Fprintf(&out, "\tJMP\t%s(SB)\n", fn)
+-		}
+-	}
+-	err = ioutil.WriteFile(fmt.Sprintf("zsyscall_darwin_%s.s", arch), out.Bytes(), 0644)
+-	if err != nil {
+-		log.Fatalf("can't write zsyscall_darwin_%s.s: %s", arch, err)
+-	}
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkpost.go b/src/cmd/vendor/golang.org/x/sys/unix/mkpost.go
+deleted file mode 100644
+index 9feddd00c4..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkpost.go
++++ /dev/null
+@@ -1,106 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// mkpost processes the output of cgo -godefs to
+-// modify the generated types. It is used to clean up
+-// the sys API in an architecture specific manner.
+-//
+-// mkpost is run after cgo -godefs; see README.md.
+-package main
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"go/format"
+-	"io/ioutil"
+-	"log"
+-	"os"
+-	"regexp"
+-)
+-
+-func main() {
+-	// Get the OS and architecture (using GOARCH_TARGET if it exists)
+-	goos := os.Getenv("GOOS")
+-	goarch := os.Getenv("GOARCH_TARGET")
+-	if goarch == "" {
+-		goarch = os.Getenv("GOARCH")
+-	}
+-	// Check that we are using the Docker-based build system if we should be.
+-	if goos == "linux" {
+-		if os.Getenv("GOLANG_SYS_BUILD") != "docker" {
+-			os.Stderr.WriteString("In the Docker-based build system, mkpost should not be called directly.\n")
+-			os.Stderr.WriteString("See README.md\n")
+-			os.Exit(1)
+-		}
+-	}
+-
+-	b, err := ioutil.ReadAll(os.Stdin)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	// Intentionally export __val fields in Fsid and Sigset_t
+-	valRegex := regexp.MustCompile(`type (Fsid|Sigset_t) struct {(\s+)X__val(\s+\S+\s+)}`)
+-	b = valRegex.ReplaceAll(b, []byte("type $1 struct {${2}Val$3}"))
+-
+-	// Intentionally export __fds_bits field in FdSet
+-	fdSetRegex := regexp.MustCompile(`type (FdSet) struct {(\s+)X__fds_bits(\s+\S+\s+)}`)
+-	b = fdSetRegex.ReplaceAll(b, []byte("type $1 struct {${2}Bits$3}"))
+-
+-	// If we have empty Ptrace structs, we should delete them. Only s390x emits
+-	// nonempty Ptrace structs.
+-	ptraceRexexp := regexp.MustCompile(`type Ptrace((Psw|Fpregs|Per) struct {\s*})`)
+-	b = ptraceRexexp.ReplaceAll(b, nil)
+-
+-	// Replace the control_regs union with a blank identifier for now.
+-	controlRegsRegex := regexp.MustCompile(`(Control_regs)\s+\[0\]uint64`)
+-	b = controlRegsRegex.ReplaceAll(b, []byte("_ [0]uint64"))
+-
+-	// Remove fields that are added by glibc
+-	// Note that this is unstable as the identifers are private.
+-	removeFieldsRegex := regexp.MustCompile(`X__glibc\S*`)
+-	b = removeFieldsRegex.ReplaceAll(b, []byte("_"))
+-
+-	// Convert [65]int8 to [65]byte in Utsname members to simplify
+-	// conversion to string; see golang.org/issue/20753
+-	convertUtsnameRegex := regexp.MustCompile(`((Sys|Node|Domain)name|Release|Version|Machine)(\s+)\[(\d+)\]u?int8`)
+-	b = convertUtsnameRegex.ReplaceAll(b, []byte("$1$3[$4]byte"))
+-
+-	// Convert [1024]int8 to [1024]byte in Ptmget members
+-	convertPtmget := regexp.MustCompile(`([SC]n)(\s+)\[(\d+)\]u?int8`)
+-	b = convertPtmget.ReplaceAll(b, []byte("$1[$3]byte"))
+-
+-	// Remove spare fields (e.g. in Statx_t)
+-	spareFieldsRegex := regexp.MustCompile(`X__spare\S*`)
+-	b = spareFieldsRegex.ReplaceAll(b, []byte("_"))
+-
+-	// Remove cgo padding fields
+-	removePaddingFieldsRegex := regexp.MustCompile(`Pad_cgo_\d+`)
+-	b = removePaddingFieldsRegex.ReplaceAll(b, []byte("_"))
+-
+-	// Remove padding, hidden, or unused fields
+-	removeFieldsRegex = regexp.MustCompile(`\b(X_\S+|Padding)`)
+-	b = removeFieldsRegex.ReplaceAll(b, []byte("_"))
+-
+-	// Remove the first line of warning from cgo
+-	b = b[bytes.IndexByte(b, '\n')+1:]
+-	// Modify the command in the header to include:
+-	//  mkpost, our own warning, and a build tag.
+-	replacement := fmt.Sprintf(`$1 | go run mkpost.go
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s,%s`, goarch, goos)
+-	cgoCommandRegex := regexp.MustCompile(`(cgo -godefs .*)`)
+-	b = cgoCommandRegex.ReplaceAll(b, []byte(replacement))
+-
+-	// gofmt
+-	b, err = format.Source(b)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-
+-	os.Stdout.Write(b)
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go
+deleted file mode 100644
+index bed93d4890..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall.go
++++ /dev/null
+@@ -1,402 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-This program reads a file containing function prototypes
+-(like syscall_darwin.go) and generates system call bodies.
+-The prototypes are marked by lines beginning with "//sys"
+-and read like func declarations if //sys is replaced by func, but:
+-	* The parameter lists must give a name for each argument.
+-	  This includes return parameters.
+-	* The parameter lists must give a type for each argument:
+-	  the (x, y, z int) shorthand is not allowed.
+-	* If the return parameter is an error number, it must be named errno.
+-
+-A line beginning with //sysnb is like //sys, except that the
+-goroutine will not be suspended during the execution of the system
+-call.  This must only be used for system calls which can never
+-block, as otherwise the system call could cause all goroutines to
+-hang.
+-*/
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"os"
+-	"regexp"
+-	"strings"
+-)
+-
+-var (
+-	b32       = flag.Bool("b32", false, "32bit big-endian")
+-	l32       = flag.Bool("l32", false, "32bit little-endian")
+-	plan9     = flag.Bool("plan9", false, "plan9")
+-	openbsd   = flag.Bool("openbsd", false, "openbsd")
+-	netbsd    = flag.Bool("netbsd", false, "netbsd")
+-	dragonfly = flag.Bool("dragonfly", false, "dragonfly")
+-	arm       = flag.Bool("arm", false, "arm") // 64-bit value should use (even, odd)-pair
+-	tags      = flag.String("tags", "", "build tags")
+-	filename  = flag.String("output", "", "output file name (standard output if omitted)")
+-)
+-
+-// cmdLine returns this programs's commandline arguments
+-func cmdLine() string {
+-	return "go run mksyscall.go " + strings.Join(os.Args[1:], " ")
+-}
+-
+-// buildTags returns build tags
+-func buildTags() string {
+-	return *tags
+-}
+-
+-// Param is function parameter
+-type Param struct {
+-	Name string
+-	Type string
+-}
+-
+-// usage prints the program usage
+-func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go run mksyscall.go [-b32 | -l32] [-tags x,y] [file ...]\n")
+-	os.Exit(1)
+-}
+-
+-// parseParamList parses parameter list and returns a slice of parameters
+-func parseParamList(list string) []string {
+-	list = strings.TrimSpace(list)
+-	if list == "" {
+-		return []string{}
+-	}
+-	return regexp.MustCompile(`\s*,\s*`).Split(list, -1)
+-}
+-
+-// parseParam splits a parameter into name and type
+-func parseParam(p string) Param {
+-	ps := regexp.MustCompile(`^(\S*) (\S*)$`).FindStringSubmatch(p)
+-	if ps == nil {
+-		fmt.Fprintf(os.Stderr, "malformed parameter: %s\n", p)
+-		os.Exit(1)
+-	}
+-	return Param{ps[1], ps[2]}
+-}
+-
+-func main() {
+-	// Get the OS and architecture (using GOARCH_TARGET if it exists)
+-	goos := os.Getenv("GOOS")
+-	if goos == "" {
+-		fmt.Fprintln(os.Stderr, "GOOS not defined in environment")
+-		os.Exit(1)
+-	}
+-	goarch := os.Getenv("GOARCH_TARGET")
+-	if goarch == "" {
+-		goarch = os.Getenv("GOARCH")
+-	}
+-
+-	// Check that we are using the Docker-based build system if we should
+-	if goos == "linux" {
+-		if os.Getenv("GOLANG_SYS_BUILD") != "docker" {
+-			fmt.Fprintf(os.Stderr, "In the Docker-based build system, mksyscall should not be called directly.\n")
+-			fmt.Fprintf(os.Stderr, "See README.md\n")
+-			os.Exit(1)
+-		}
+-	}
+-
+-	flag.Usage = usage
+-	flag.Parse()
+-	if len(flag.Args()) <= 0 {
+-		fmt.Fprintf(os.Stderr, "no files to parse provided\n")
+-		usage()
+-	}
+-
+-	endianness := ""
+-	if *b32 {
+-		endianness = "big-endian"
+-	} else if *l32 {
+-		endianness = "little-endian"
+-	}
+-
+-	libc := false
+-	if goos == "darwin" && strings.Contains(buildTags(), ",go1.12") {
+-		libc = true
+-	}
+-	trampolines := map[string]bool{}
+-
+-	text := ""
+-	for _, path := range flag.Args() {
+-		file, err := os.Open(path)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		s := bufio.NewScanner(file)
+-		for s.Scan() {
+-			t := s.Text()
+-			t = strings.TrimSpace(t)
+-			t = regexp.MustCompile(`\s+`).ReplaceAllString(t, ` `)
+-			nonblock := regexp.MustCompile(`^\/\/sysnb `).FindStringSubmatch(t)
+-			if regexp.MustCompile(`^\/\/sys `).FindStringSubmatch(t) == nil && nonblock == nil {
+-				continue
+-			}
+-
+-			// Line must be of the form
+-			//	func Open(path string, mode int, perm int) (fd int, errno error)
+-			// Split into name, in params, out params.
+-			f := regexp.MustCompile(`^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*((?i)SYS_[A-Z0-9_]+))?$`).FindStringSubmatch(t)
+-			if f == nil {
+-				fmt.Fprintf(os.Stderr, "%s:%s\nmalformed //sys declaration\n", path, t)
+-				os.Exit(1)
+-			}
+-			funct, inps, outps, sysname := f[2], f[3], f[4], f[5]
+-
+-			// Split argument lists on comma.
+-			in := parseParamList(inps)
+-			out := parseParamList(outps)
+-
+-			// Try in vain to keep people from editing this file.
+-			// The theory is that they jump into the middle of the file
+-			// without reading the header.
+-			text += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-
+-			// Go function header.
+-			outDecl := ""
+-			if len(out) > 0 {
+-				outDecl = fmt.Sprintf(" (%s)", strings.Join(out, ", "))
+-			}
+-			text += fmt.Sprintf("func %s(%s)%s {\n", funct, strings.Join(in, ", "), outDecl)
+-
+-			// Check if err return available
+-			errvar := ""
+-			for _, param := range out {
+-				p := parseParam(param)
+-				if p.Type == "error" {
+-					errvar = p.Name
+-					break
+-				}
+-			}
+-
+-			// Prepare arguments to Syscall.
+-			var args []string
+-			n := 0
+-			for _, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					args = append(args, "uintptr(unsafe.Pointer("+p.Name+"))")
+-				} else if p.Type == "string" && errvar != "" {
+-					text += fmt.Sprintf("\tvar _p%d *byte\n", n)
+-					text += fmt.Sprintf("\t_p%d, %s = BytePtrFromString(%s)\n", n, errvar, p.Name)
+-					text += fmt.Sprintf("\tif %s != nil {\n\t\treturn\n\t}\n", errvar)
+-					args = append(args, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					n++
+-				} else if p.Type == "string" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses string arguments, but has no error return\n")
+-					text += fmt.Sprintf("\tvar _p%d *byte\n", n)
+-					text += fmt.Sprintf("\t_p%d, _ = BytePtrFromString(%s)\n", n, p.Name)
+-					args = append(args, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					n++
+-				} else if regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type) != nil {
+-					// Convert slice into pointer, length.
+-					// Have to be careful not to take address of &a[0] if len == 0:
+-					// pass dummy pointer in that case.
+-					// Used to pass nil, but some OSes or simulators reject write(fd, nil, 0).
+-					text += fmt.Sprintf("\tvar _p%d unsafe.Pointer\n", n)
+-					text += fmt.Sprintf("\tif len(%s) > 0 {\n\t\t_p%d = unsafe.Pointer(&%s[0])\n\t}", p.Name, n, p.Name)
+-					text += fmt.Sprintf(" else {\n\t\t_p%d = unsafe.Pointer(&_zero)\n\t}\n", n)
+-					args = append(args, fmt.Sprintf("uintptr(_p%d)", n), fmt.Sprintf("uintptr(len(%s))", p.Name))
+-					n++
+-				} else if p.Type == "int64" && (*openbsd || *netbsd) {
+-					args = append(args, "0")
+-					if endianness == "big-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s>>32)", p.Name), fmt.Sprintf("uintptr(%s)", p.Name))
+-					} else if endianness == "little-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name), fmt.Sprintf("uintptr(%s>>32)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
+-					}
+-				} else if p.Type == "int64" && *dragonfly {
+-					if regexp.MustCompile(`^(?i)extp(read|write)`).FindStringSubmatch(funct) == nil {
+-						args = append(args, "0")
+-					}
+-					if endianness == "big-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s>>32)", p.Name), fmt.Sprintf("uintptr(%s)", p.Name))
+-					} else if endianness == "little-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name), fmt.Sprintf("uintptr(%s>>32)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
+-					}
+-				} else if (p.Type == "int64" || p.Type == "uint64") && endianness != "" {
+-					if len(args)%2 == 1 && *arm {
+-						// arm abi specifies 64-bit argument uses
+-						// (even, odd) pair
+-						args = append(args, "0")
+-					}
+-					if endianness == "big-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s>>32)", p.Name), fmt.Sprintf("uintptr(%s)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name), fmt.Sprintf("uintptr(%s>>32)", p.Name))
+-					}
+-				} else {
+-					args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
+-				}
+-			}
+-
+-			// Determine which form to use; pad args with zeros.
+-			asm := "Syscall"
+-			if nonblock != nil {
+-				if errvar == "" && goos == "linux" {
+-					asm = "RawSyscallNoError"
+-				} else {
+-					asm = "RawSyscall"
+-				}
+-			} else {
+-				if errvar == "" && goos == "linux" {
+-					asm = "SyscallNoError"
+-				}
+-			}
+-			if len(args) <= 3 {
+-				for len(args) < 3 {
+-					args = append(args, "0")
+-				}
+-			} else if len(args) <= 6 {
+-				asm += "6"
+-				for len(args) < 6 {
+-					args = append(args, "0")
+-				}
+-			} else if len(args) <= 9 {
+-				asm += "9"
+-				for len(args) < 9 {
+-					args = append(args, "0")
+-				}
+-			} else {
+-				fmt.Fprintf(os.Stderr, "%s:%s too many arguments to system call\n", path, funct)
+-			}
+-
+-			// System call number.
+-			if sysname == "" {
+-				sysname = "SYS_" + funct
+-				sysname = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllString(sysname, `${1}_$2`)
+-				sysname = strings.ToUpper(sysname)
+-			}
+-
+-			var libcFn string
+-			if libc {
+-				asm = "syscall_" + strings.ToLower(asm[:1]) + asm[1:] // internal syscall call
+-				sysname = strings.TrimPrefix(sysname, "SYS_")         // remove SYS_
+-				sysname = strings.ToLower(sysname)                    // lowercase
+-				if sysname == "getdirentries64" {
+-					// Special case - libSystem name and
+-					// raw syscall name don't match.
+-					sysname = "__getdirentries64"
+-				}
+-				libcFn = sysname
+-				sysname = "funcPC(libc_" + sysname + "_trampoline)"
+-			}
+-
+-			// Actual call.
+-			arglist := strings.Join(args, ", ")
+-			call := fmt.Sprintf("%s(%s, %s)", asm, sysname, arglist)
+-
+-			// Assign return values.
+-			body := ""
+-			ret := []string{"_", "_", "_"}
+-			doErrno := false
+-			for i := 0; i < len(out); i++ {
+-				p := parseParam(out[i])
+-				reg := ""
+-				if p.Name == "err" && !*plan9 {
+-					reg = "e1"
+-					ret[2] = reg
+-					doErrno = true
+-				} else if p.Name == "err" && *plan9 {
+-					ret[0] = "r0"
+-					ret[2] = "e1"
+-					break
+-				} else {
+-					reg = fmt.Sprintf("r%d", i)
+-					ret[i] = reg
+-				}
+-				if p.Type == "bool" {
+-					reg = fmt.Sprintf("%s != 0", reg)
+-				}
+-				if p.Type == "int64" && endianness != "" {
+-					// 64-bit number in r1:r0 or r0:r1.
+-					if i+2 > len(out) {
+-						fmt.Fprintf(os.Stderr, "%s:%s not enough registers for int64 return\n", path, funct)
+-					}
+-					if endianness == "big-endian" {
+-						reg = fmt.Sprintf("int64(r%d)<<32 | int64(r%d)", i, i+1)
+-					} else {
+-						reg = fmt.Sprintf("int64(r%d)<<32 | int64(r%d)", i+1, i)
+-					}
+-					ret[i] = fmt.Sprintf("r%d", i)
+-					ret[i+1] = fmt.Sprintf("r%d", i+1)
+-				}
+-				if reg != "e1" || *plan9 {
+-					body += fmt.Sprintf("\t%s = %s(%s)\n", p.Name, p.Type, reg)
+-				}
+-			}
+-			if ret[0] == "_" && ret[1] == "_" && ret[2] == "_" {
+-				text += fmt.Sprintf("\t%s\n", call)
+-			} else {
+-				if errvar == "" && goos == "linux" {
+-					// raw syscall without error on Linux, see golang.org/issue/22924
+-					text += fmt.Sprintf("\t%s, %s := %s\n", ret[0], ret[1], call)
+-				} else {
+-					text += fmt.Sprintf("\t%s, %s, %s := %s\n", ret[0], ret[1], ret[2], call)
+-				}
+-			}
+-			text += body
+-
+-			if *plan9 && ret[2] == "e1" {
+-				text += "\tif int32(r0) == -1 {\n"
+-				text += "\t\terr = e1\n"
+-				text += "\t}\n"
+-			} else if doErrno {
+-				text += "\tif e1 != 0 {\n"
+-				text += "\t\terr = errnoErr(e1)\n"
+-				text += "\t}\n"
+-			}
+-			text += "\treturn\n"
+-			text += "}\n\n"
+-
+-			if libc && !trampolines[libcFn] {
+-				// some system calls share a trampoline, like read and readlen.
+-				trampolines[libcFn] = true
+-				// Declare assembly trampoline.
+-				text += fmt.Sprintf("func libc_%s_trampoline()\n", libcFn)
+-				// Assembly trampoline calls the libc_* function, which this magic
+-				// redirects to use the function from libSystem.
+-				text += fmt.Sprintf("//go:linkname libc_%s libc_%s\n", libcFn, libcFn)
+-				text += fmt.Sprintf("//go:cgo_import_dynamic libc_%s %s \"/usr/lib/libSystem.B.dylib\"\n", libcFn, libcFn)
+-				text += "\n"
+-			}
+-		}
+-		if err := s.Err(); err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		file.Close()
+-	}
+-	fmt.Printf(srcTemplate, cmdLine(), buildTags(), text)
+-}
+-
+-const srcTemplate = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-
+-package unix
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-var _ syscall.Errno
+-
+-%s
+-`
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc.go
+deleted file mode 100644
+index f2c58fb7cc..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc.go
++++ /dev/null
+@@ -1,404 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-This program reads a file containing function prototypes
+-(like syscall_aix.go) and generates system call bodies.
+-The prototypes are marked by lines beginning with "//sys"
+-and read like func declarations if //sys is replaced by func, but:
+-	* The parameter lists must give a name for each argument.
+-	  This includes return parameters.
+-	* The parameter lists must give a type for each argument:
+-	  the (x, y, z int) shorthand is not allowed.
+-	* If the return parameter is an error number, it must be named err.
+-	* If go func name needs to be different than its libc name,
+-	* or the function is not in libc, name could be specified
+-	* at the end, after "=" sign, like
+-	  //sys getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) = libsocket.getsockopt
+-*/
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"os"
+-	"regexp"
+-	"strings"
+-)
+-
+-var (
+-	b32  = flag.Bool("b32", false, "32bit big-endian")
+-	l32  = flag.Bool("l32", false, "32bit little-endian")
+-	aix  = flag.Bool("aix", false, "aix")
+-	tags = flag.String("tags", "", "build tags")
+-)
+-
+-// cmdLine returns this programs's commandline arguments
+-func cmdLine() string {
+-	return "go run mksyscall_aix_ppc.go " + strings.Join(os.Args[1:], " ")
+-}
+-
+-// buildTags returns build tags
+-func buildTags() string {
+-	return *tags
+-}
+-
+-// Param is function parameter
+-type Param struct {
+-	Name string
+-	Type string
+-}
+-
+-// usage prints the program usage
+-func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go run mksyscall_aix_ppc.go [-b32 | -l32] [-tags x,y] [file ...]\n")
+-	os.Exit(1)
+-}
+-
+-// parseParamList parses parameter list and returns a slice of parameters
+-func parseParamList(list string) []string {
+-	list = strings.TrimSpace(list)
+-	if list == "" {
+-		return []string{}
+-	}
+-	return regexp.MustCompile(`\s*,\s*`).Split(list, -1)
+-}
+-
+-// parseParam splits a parameter into name and type
+-func parseParam(p string) Param {
+-	ps := regexp.MustCompile(`^(\S*) (\S*)$`).FindStringSubmatch(p)
+-	if ps == nil {
+-		fmt.Fprintf(os.Stderr, "malformed parameter: %s\n", p)
+-		os.Exit(1)
+-	}
+-	return Param{ps[1], ps[2]}
+-}
+-
+-func main() {
+-	flag.Usage = usage
+-	flag.Parse()
+-	if len(flag.Args()) <= 0 {
+-		fmt.Fprintf(os.Stderr, "no files to parse provided\n")
+-		usage()
+-	}
+-
+-	endianness := ""
+-	if *b32 {
+-		endianness = "big-endian"
+-	} else if *l32 {
+-		endianness = "little-endian"
+-	}
+-
+-	pack := ""
+-	text := ""
+-	cExtern := "/*\n#include <stdint.h>\n#include <stddef.h>\n"
+-	for _, path := range flag.Args() {
+-		file, err := os.Open(path)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		s := bufio.NewScanner(file)
+-		for s.Scan() {
+-			t := s.Text()
+-			t = strings.TrimSpace(t)
+-			t = regexp.MustCompile(`\s+`).ReplaceAllString(t, ` `)
+-			if p := regexp.MustCompile(`^package (\S+)$`).FindStringSubmatch(t); p != nil && pack == "" {
+-				pack = p[1]
+-			}
+-			nonblock := regexp.MustCompile(`^\/\/sysnb `).FindStringSubmatch(t)
+-			if regexp.MustCompile(`^\/\/sys `).FindStringSubmatch(t) == nil && nonblock == nil {
+-				continue
+-			}
+-
+-			// Line must be of the form
+-			//	func Open(path string, mode int, perm int) (fd int, err error)
+-			// Split into name, in params, out params.
+-			f := regexp.MustCompile(`^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$`).FindStringSubmatch(t)
+-			if f == nil {
+-				fmt.Fprintf(os.Stderr, "%s:%s\nmalformed //sys declaration\n", path, t)
+-				os.Exit(1)
+-			}
+-			funct, inps, outps, modname, sysname := f[2], f[3], f[4], f[5], f[6]
+-
+-			// Split argument lists on comma.
+-			in := parseParamList(inps)
+-			out := parseParamList(outps)
+-
+-			inps = strings.Join(in, ", ")
+-			outps = strings.Join(out, ", ")
+-
+-			// Try in vain to keep people from editing this file.
+-			// The theory is that they jump into the middle of the file
+-			// without reading the header.
+-			text += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-
+-			// Check if value return, err return available
+-			errvar := ""
+-			retvar := ""
+-			rettype := ""
+-			for _, param := range out {
+-				p := parseParam(param)
+-				if p.Type == "error" {
+-					errvar = p.Name
+-				} else {
+-					retvar = p.Name
+-					rettype = p.Type
+-				}
+-			}
+-
+-			// System call name.
+-			if sysname == "" {
+-				sysname = funct
+-			}
+-			sysname = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllString(sysname, `${1}_$2`)
+-			sysname = strings.ToLower(sysname) // All libc functions are lowercase.
+-
+-			cRettype := ""
+-			if rettype == "unsafe.Pointer" {
+-				cRettype = "uintptr_t"
+-			} else if rettype == "uintptr" {
+-				cRettype = "uintptr_t"
+-			} else if regexp.MustCompile(`^_`).FindStringSubmatch(rettype) != nil {
+-				cRettype = "uintptr_t"
+-			} else if rettype == "int" {
+-				cRettype = "int"
+-			} else if rettype == "int32" {
+-				cRettype = "int"
+-			} else if rettype == "int64" {
+-				cRettype = "long long"
+-			} else if rettype == "uint32" {
+-				cRettype = "unsigned int"
+-			} else if rettype == "uint64" {
+-				cRettype = "unsigned long long"
+-			} else {
+-				cRettype = "int"
+-			}
+-			if sysname == "exit" {
+-				cRettype = "void"
+-			}
+-
+-			// Change p.Types to c
+-			var cIn []string
+-			for _, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "string" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t", "size_t")
+-				} else if p.Type == "unsafe.Pointer" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "uintptr" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if regexp.MustCompile(`^_`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "int" {
+-					cIn = append(cIn, "int")
+-				} else if p.Type == "int32" {
+-					cIn = append(cIn, "int")
+-				} else if p.Type == "int64" {
+-					cIn = append(cIn, "long long")
+-				} else if p.Type == "uint32" {
+-					cIn = append(cIn, "unsigned int")
+-				} else if p.Type == "uint64" {
+-					cIn = append(cIn, "unsigned long long")
+-				} else {
+-					cIn = append(cIn, "int")
+-				}
+-			}
+-
+-			if funct != "fcntl" && funct != "FcntlInt" && funct != "readlen" && funct != "writelen" {
+-				// Imports of system calls from libc
+-				cExtern += fmt.Sprintf("%s %s", cRettype, sysname)
+-				cIn := strings.Join(cIn, ", ")
+-				cExtern += fmt.Sprintf("(%s);\n", cIn)
+-			}
+-
+-			// So file name.
+-			if *aix {
+-				if modname == "" {
+-					modname = "libc.a/shr_64.o"
+-				} else {
+-					fmt.Fprintf(os.Stderr, "%s: only syscall using libc are available\n", funct)
+-					os.Exit(1)
+-				}
+-			}
+-
+-			strconvfunc := "C.CString"
+-
+-			// Go function header.
+-			if outps != "" {
+-				outps = fmt.Sprintf(" (%s)", outps)
+-			}
+-			if text != "" {
+-				text += "\n"
+-			}
+-
+-			text += fmt.Sprintf("func %s(%s)%s {\n", funct, strings.Join(in, ", "), outps)
+-
+-			// Prepare arguments to Syscall.
+-			var args []string
+-			n := 0
+-			argN := 0
+-			for _, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					args = append(args, "C.uintptr_t(uintptr(unsafe.Pointer("+p.Name+")))")
+-				} else if p.Type == "string" && errvar != "" {
+-					text += fmt.Sprintf("\t_p%d := uintptr(unsafe.Pointer(%s(%s)))\n", n, strconvfunc, p.Name)
+-					args = append(args, fmt.Sprintf("C.uintptr_t(_p%d)", n))
+-					n++
+-				} else if p.Type == "string" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses string arguments, but has no error return\n")
+-					text += fmt.Sprintf("\t_p%d := uintptr(unsafe.Pointer(%s(%s)))\n", n, strconvfunc, p.Name)
+-					args = append(args, fmt.Sprintf("C.uintptr_t(_p%d)", n))
+-					n++
+-				} else if m := regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type); m != nil {
+-					// Convert slice into pointer, length.
+-					// Have to be careful not to take address of &a[0] if len == 0:
+-					// pass nil in that case.
+-					text += fmt.Sprintf("\tvar _p%d *%s\n", n, m[1])
+-					text += fmt.Sprintf("\tif len(%s) > 0 {\n\t\t_p%d = &%s[0]\n\t}\n", p.Name, n, p.Name)
+-					args = append(args, fmt.Sprintf("C.uintptr_t(uintptr(unsafe.Pointer(_p%d)))", n))
+-					n++
+-					text += fmt.Sprintf("\tvar _p%d int\n", n)
+-					text += fmt.Sprintf("\t_p%d = len(%s)\n", n, p.Name)
+-					args = append(args, fmt.Sprintf("C.size_t(_p%d)", n))
+-					n++
+-				} else if p.Type == "int64" && endianness != "" {
+-					if endianness == "big-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s>>32)", p.Name), fmt.Sprintf("uintptr(%s)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name), fmt.Sprintf("uintptr(%s>>32)", p.Name))
+-					}
+-					n++
+-				} else if p.Type == "bool" {
+-					text += fmt.Sprintf("\tvar _p%d uint32\n", n)
+-					text += fmt.Sprintf("\tif %s {\n\t\t_p%d = 1\n\t} else {\n\t\t_p%d = 0\n\t}\n", p.Name, n, n)
+-					args = append(args, fmt.Sprintf("_p%d", n))
+-				} else if regexp.MustCompile(`^_`).FindStringSubmatch(p.Type) != nil {
+-					args = append(args, fmt.Sprintf("C.uintptr_t(uintptr(%s))", p.Name))
+-				} else if p.Type == "unsafe.Pointer" {
+-					args = append(args, fmt.Sprintf("C.uintptr_t(uintptr(%s))", p.Name))
+-				} else if p.Type == "int" {
+-					if (argN == 2) && ((funct == "readlen") || (funct == "writelen")) {
+-						args = append(args, fmt.Sprintf("C.size_t(%s)", p.Name))
+-					} else if argN == 0 && funct == "fcntl" {
+-						args = append(args, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-					} else if (argN == 2) && ((funct == "fcntl") || (funct == "FcntlInt")) {
+-						args = append(args, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("C.int(%s)", p.Name))
+-					}
+-				} else if p.Type == "int32" {
+-					args = append(args, fmt.Sprintf("C.int(%s)", p.Name))
+-				} else if p.Type == "int64" {
+-					args = append(args, fmt.Sprintf("C.longlong(%s)", p.Name))
+-				} else if p.Type == "uint32" {
+-					args = append(args, fmt.Sprintf("C.uint(%s)", p.Name))
+-				} else if p.Type == "uint64" {
+-					args = append(args, fmt.Sprintf("C.ulonglong(%s)", p.Name))
+-				} else if p.Type == "uintptr" {
+-					args = append(args, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-				} else {
+-					args = append(args, fmt.Sprintf("C.int(%s)", p.Name))
+-				}
+-				argN++
+-			}
+-
+-			// Actual call.
+-			arglist := strings.Join(args, ", ")
+-			call := ""
+-			if sysname == "exit" {
+-				if errvar != "" {
+-					call += "er :="
+-				} else {
+-					call += ""
+-				}
+-			} else if errvar != "" {
+-				call += "r0,er :="
+-			} else if retvar != "" {
+-				call += "r0,_ :="
+-			} else {
+-				call += ""
+-			}
+-			call += fmt.Sprintf("C.%s(%s)", sysname, arglist)
+-
+-			// Assign return values.
+-			body := ""
+-			for i := 0; i < len(out); i++ {
+-				p := parseParam(out[i])
+-				reg := ""
+-				if p.Name == "err" {
+-					reg = "e1"
+-				} else {
+-					reg = "r0"
+-				}
+-				if reg != "e1" {
+-					body += fmt.Sprintf("\t%s = %s(%s)\n", p.Name, p.Type, reg)
+-				}
+-			}
+-
+-			// verify return
+-			if sysname != "exit" && errvar != "" {
+-				if regexp.MustCompile(`^uintptr`).FindStringSubmatch(cRettype) != nil {
+-					body += "\tif (uintptr(r0) ==^uintptr(0) && er != nil) {\n"
+-					body += fmt.Sprintf("\t\t%s = er\n", errvar)
+-					body += "\t}\n"
+-				} else {
+-					body += "\tif (r0 ==-1 && er != nil) {\n"
+-					body += fmt.Sprintf("\t\t%s = er\n", errvar)
+-					body += "\t}\n"
+-				}
+-			} else if errvar != "" {
+-				body += "\tif (er != nil) {\n"
+-				body += fmt.Sprintf("\t\t%s = er\n", errvar)
+-				body += "\t}\n"
+-			}
+-
+-			text += fmt.Sprintf("\t%s\n", call)
+-			text += body
+-
+-			text += "\treturn\n"
+-			text += "}\n"
+-		}
+-		if err := s.Err(); err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		file.Close()
+-	}
+-	imp := ""
+-	if pack != "unix" {
+-		imp = "import \"golang.org/x/sys/unix\"\n"
+-
+-	}
+-	fmt.Printf(srcTemplate, cmdLine(), buildTags(), pack, cExtern, imp, text)
+-}
+-
+-const srcTemplate = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-
+-package %s
+-
+-
+-%s
+-*/
+-import "C"
+-import (
+-	"unsafe"
+-)
+-
+-
+-%s
+-
+-%s
+-`
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc64.go
+deleted file mode 100644
+index 45b4429088..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_aix_ppc64.go
++++ /dev/null
+@@ -1,602 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-This program reads a file containing function prototypes
+-(like syscall_aix.go) and generates system call bodies.
+-The prototypes are marked by lines beginning with "//sys"
+-and read like func declarations if //sys is replaced by func, but:
+-	* The parameter lists must give a name for each argument.
+-	  This includes return parameters.
+-	* The parameter lists must give a type for each argument:
+-	  the (x, y, z int) shorthand is not allowed.
+-	* If the return parameter is an error number, it must be named err.
+-	* If go func name needs to be different than its libc name,
+-	* or the function is not in libc, name could be specified
+-	* at the end, after "=" sign, like
+-	  //sys getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) = libsocket.getsockopt
+-
+-
+-This program will generate three files and handle both gc and gccgo implementation:
+-  - zsyscall_aix_ppc64.go: the common part of each implementation (error handler, pointer creation)
+-  - zsyscall_aix_ppc64_gc.go: gc part with //go_cgo_import_dynamic and a call to syscall6
+-  - zsyscall_aix_ppc64_gccgo.go: gccgo part with C function and conversion to C type.
+-
+- The generated code looks like this
+-
+-zsyscall_aix_ppc64.go
+-func asyscall(...) (n int, err error) {
+-	 // Pointer Creation
+-	 r1, e1 := callasyscall(...)
+-	 // Type Conversion
+-	 // Error Handler
+-	 return
+-}
+-
+-zsyscall_aix_ppc64_gc.go
+-//go:cgo_import_dynamic libc_asyscall asyscall "libc.a/shr_64.o"
+-//go:linkname libc_asyscall libc_asyscall
+-var asyscall syscallFunc
+-
+-func callasyscall(...) (r1 uintptr, e1 Errno) {
+-	 r1, _, e1 = syscall6(uintptr(unsafe.Pointer(&libc_asyscall)), "nb_args", ... )
+-	 return
+-}
+-
+-zsyscall_aix_ppc64_ggcgo.go
+-
+-// int asyscall(...)
+-
+-import "C"
+-
+-func callasyscall(...) (r1 uintptr, e1 Errno) {
+-	 r1 = uintptr(C.asyscall(...))
+-	 e1 = syscall.GetErrno()
+-	 return
+-}
+-*/
+-
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"io/ioutil"
+-	"os"
+-	"regexp"
+-	"strings"
+-)
+-
+-var (
+-	b32  = flag.Bool("b32", false, "32bit big-endian")
+-	l32  = flag.Bool("l32", false, "32bit little-endian")
+-	aix  = flag.Bool("aix", false, "aix")
+-	tags = flag.String("tags", "", "build tags")
+-)
+-
+-// cmdLine returns this programs's commandline arguments
+-func cmdLine() string {
+-	return "go run mksyscall_aix_ppc64.go " + strings.Join(os.Args[1:], " ")
+-}
+-
+-// buildTags returns build tags
+-func buildTags() string {
+-	return *tags
+-}
+-
+-// Param is function parameter
+-type Param struct {
+-	Name string
+-	Type string
+-}
+-
+-// usage prints the program usage
+-func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go run mksyscall_aix_ppc64.go [-b32 | -l32] [-tags x,y] [file ...]\n")
+-	os.Exit(1)
+-}
+-
+-// parseParamList parses parameter list and returns a slice of parameters
+-func parseParamList(list string) []string {
+-	list = strings.TrimSpace(list)
+-	if list == "" {
+-		return []string{}
+-	}
+-	return regexp.MustCompile(`\s*,\s*`).Split(list, -1)
+-}
+-
+-// parseParam splits a parameter into name and type
+-func parseParam(p string) Param {
+-	ps := regexp.MustCompile(`^(\S*) (\S*)$`).FindStringSubmatch(p)
+-	if ps == nil {
+-		fmt.Fprintf(os.Stderr, "malformed parameter: %s\n", p)
+-		os.Exit(1)
+-	}
+-	return Param{ps[1], ps[2]}
+-}
+-
+-func main() {
+-	flag.Usage = usage
+-	flag.Parse()
+-	if len(flag.Args()) <= 0 {
+-		fmt.Fprintf(os.Stderr, "no files to parse provided\n")
+-		usage()
+-	}
+-
+-	endianness := ""
+-	if *b32 {
+-		endianness = "big-endian"
+-	} else if *l32 {
+-		endianness = "little-endian"
+-	}
+-
+-	pack := ""
+-	// GCCGO
+-	textgccgo := ""
+-	cExtern := "/*\n#include <stdint.h>\n"
+-	// GC
+-	textgc := ""
+-	dynimports := ""
+-	linknames := ""
+-	var vars []string
+-	// COMMON
+-	textcommon := ""
+-	for _, path := range flag.Args() {
+-		file, err := os.Open(path)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		s := bufio.NewScanner(file)
+-		for s.Scan() {
+-			t := s.Text()
+-			t = strings.TrimSpace(t)
+-			t = regexp.MustCompile(`\s+`).ReplaceAllString(t, ` `)
+-			if p := regexp.MustCompile(`^package (\S+)$`).FindStringSubmatch(t); p != nil && pack == "" {
+-				pack = p[1]
+-			}
+-			nonblock := regexp.MustCompile(`^\/\/sysnb `).FindStringSubmatch(t)
+-			if regexp.MustCompile(`^\/\/sys `).FindStringSubmatch(t) == nil && nonblock == nil {
+-				continue
+-			}
+-
+-			// Line must be of the form
+-			//	func Open(path string, mode int, perm int) (fd int, err error)
+-			// Split into name, in params, out params.
+-			f := regexp.MustCompile(`^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$`).FindStringSubmatch(t)
+-			if f == nil {
+-				fmt.Fprintf(os.Stderr, "%s:%s\nmalformed //sys declaration\n", path, t)
+-				os.Exit(1)
+-			}
+-			funct, inps, outps, modname, sysname := f[2], f[3], f[4], f[5], f[6]
+-
+-			// Split argument lists on comma.
+-			in := parseParamList(inps)
+-			out := parseParamList(outps)
+-
+-			inps = strings.Join(in, ", ")
+-			outps = strings.Join(out, ", ")
+-
+-			if sysname == "" {
+-				sysname = funct
+-			}
+-
+-			onlyCommon := false
+-			if funct == "readlen" || funct == "writelen" || funct == "FcntlInt" || funct == "FcntlFlock" {
+-				// This function call another syscall which is already implemented.
+-				// Therefore, the gc and gccgo part must not be generated.
+-				onlyCommon = true
+-			}
+-
+-			// Try in vain to keep people from editing this file.
+-			// The theory is that they jump into the middle of the file
+-			// without reading the header.
+-
+-			textcommon += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-			if !onlyCommon {
+-				textgccgo += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-				textgc += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-			}
+-
+-			// Check if value return, err return available
+-			errvar := ""
+-			rettype := ""
+-			for _, param := range out {
+-				p := parseParam(param)
+-				if p.Type == "error" {
+-					errvar = p.Name
+-				} else {
+-					rettype = p.Type
+-				}
+-			}
+-
+-			sysname = regexp.MustCompile(`([a-z])([A-Z])`).ReplaceAllString(sysname, `${1}_$2`)
+-			sysname = strings.ToLower(sysname) // All libc functions are lowercase.
+-
+-			// GCCGO Prototype return type
+-			cRettype := ""
+-			if rettype == "unsafe.Pointer" {
+-				cRettype = "uintptr_t"
+-			} else if rettype == "uintptr" {
+-				cRettype = "uintptr_t"
+-			} else if regexp.MustCompile(`^_`).FindStringSubmatch(rettype) != nil {
+-				cRettype = "uintptr_t"
+-			} else if rettype == "int" {
+-				cRettype = "int"
+-			} else if rettype == "int32" {
+-				cRettype = "int"
+-			} else if rettype == "int64" {
+-				cRettype = "long long"
+-			} else if rettype == "uint32" {
+-				cRettype = "unsigned int"
+-			} else if rettype == "uint64" {
+-				cRettype = "unsigned long long"
+-			} else {
+-				cRettype = "int"
+-			}
+-			if sysname == "exit" {
+-				cRettype = "void"
+-			}
+-
+-			// GCCGO Prototype arguments type
+-			var cIn []string
+-			for i, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "string" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t", "size_t")
+-				} else if p.Type == "unsafe.Pointer" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "uintptr" {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if regexp.MustCompile(`^_`).FindStringSubmatch(p.Type) != nil {
+-					cIn = append(cIn, "uintptr_t")
+-				} else if p.Type == "int" {
+-					if (i == 0 || i == 2) && funct == "fcntl" {
+-						// These fcntl arguments needs to be uintptr to be able to call FcntlInt and FcntlFlock
+-						cIn = append(cIn, "uintptr_t")
+-					} else {
+-						cIn = append(cIn, "int")
+-					}
+-
+-				} else if p.Type == "int32" {
+-					cIn = append(cIn, "int")
+-				} else if p.Type == "int64" {
+-					cIn = append(cIn, "long long")
+-				} else if p.Type == "uint32" {
+-					cIn = append(cIn, "unsigned int")
+-				} else if p.Type == "uint64" {
+-					cIn = append(cIn, "unsigned long long")
+-				} else {
+-					cIn = append(cIn, "int")
+-				}
+-			}
+-
+-			if !onlyCommon {
+-				// GCCGO Prototype Generation
+-				// Imports of system calls from libc
+-				cExtern += fmt.Sprintf("%s %s", cRettype, sysname)
+-				cIn := strings.Join(cIn, ", ")
+-				cExtern += fmt.Sprintf("(%s);\n", cIn)
+-			}
+-			// GC Library name
+-			if modname == "" {
+-				modname = "libc.a/shr_64.o"
+-			} else {
+-				fmt.Fprintf(os.Stderr, "%s: only syscall using libc are available\n", funct)
+-				os.Exit(1)
+-			}
+-			sysvarname := fmt.Sprintf("libc_%s", sysname)
+-
+-			if !onlyCommon {
+-				// GC Runtime import of function to allow cross-platform builds.
+-				dynimports += fmt.Sprintf("//go:cgo_import_dynamic %s %s \"%s\"\n", sysvarname, sysname, modname)
+-				// GC Link symbol to proc address variable.
+-				linknames += fmt.Sprintf("//go:linkname %s %s\n", sysvarname, sysvarname)
+-				// GC Library proc address variable.
+-				vars = append(vars, sysvarname)
+-			}
+-
+-			strconvfunc := "BytePtrFromString"
+-			strconvtype := "*byte"
+-
+-			// Go function header.
+-			if outps != "" {
+-				outps = fmt.Sprintf(" (%s)", outps)
+-			}
+-			if textcommon != "" {
+-				textcommon += "\n"
+-			}
+-
+-			textcommon += fmt.Sprintf("func %s(%s)%s {\n", funct, strings.Join(in, ", "), outps)
+-
+-			// Prepare arguments tocall.
+-			var argscommon []string // Arguments in the common part
+-			var argscall []string   // Arguments for call prototype
+-			var argsgc []string     // Arguments for gc call (with syscall6)
+-			var argsgccgo []string  // Arguments for gccgo call (with C.name_of_syscall)
+-			n := 0
+-			argN := 0
+-			for _, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					argscommon = append(argscommon, fmt.Sprintf("uintptr(unsafe.Pointer(%s))", p.Name))
+-					argscall = append(argscall, fmt.Sprintf("%s uintptr", p.Name))
+-					argsgc = append(argsgc, p.Name)
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-				} else if p.Type == "string" && errvar != "" {
+-					textcommon += fmt.Sprintf("\tvar _p%d %s\n", n, strconvtype)
+-					textcommon += fmt.Sprintf("\t_p%d, %s = %s(%s)\n", n, errvar, strconvfunc, p.Name)
+-					textcommon += fmt.Sprintf("\tif %s != nil {\n\t\treturn\n\t}\n", errvar)
+-
+-					argscommon = append(argscommon, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					argscall = append(argscall, fmt.Sprintf("_p%d uintptr ", n))
+-					argsgc = append(argsgc, fmt.Sprintf("_p%d", n))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(_p%d)", n))
+-					n++
+-				} else if p.Type == "string" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses string arguments, but has no error return\n")
+-					textcommon += fmt.Sprintf("\tvar _p%d %s\n", n, strconvtype)
+-					textcommon += fmt.Sprintf("\t_p%d, %s = %s(%s)\n", n, errvar, strconvfunc, p.Name)
+-					textcommon += fmt.Sprintf("\tif %s != nil {\n\t\treturn\n\t}\n", errvar)
+-
+-					argscommon = append(argscommon, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					argscall = append(argscall, fmt.Sprintf("_p%d uintptr", n))
+-					argsgc = append(argsgc, fmt.Sprintf("_p%d", n))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(_p%d)", n))
+-					n++
+-				} else if m := regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type); m != nil {
+-					// Convert slice into pointer, length.
+-					// Have to be careful not to take address of &a[0] if len == 0:
+-					// pass nil in that case.
+-					textcommon += fmt.Sprintf("\tvar _p%d *%s\n", n, m[1])
+-					textcommon += fmt.Sprintf("\tif len(%s) > 0 {\n\t\t_p%d = &%s[0]\n\t}\n", p.Name, n, p.Name)
+-					argscommon = append(argscommon, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n), fmt.Sprintf("len(%s)", p.Name))
+-					argscall = append(argscall, fmt.Sprintf("_p%d uintptr", n), fmt.Sprintf("_lenp%d int", n))
+-					argsgc = append(argsgc, fmt.Sprintf("_p%d", n), fmt.Sprintf("uintptr(_lenp%d)", n))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(_p%d)", n), fmt.Sprintf("C.size_t(_lenp%d)", n))
+-					n++
+-				} else if p.Type == "int64" && endianness != "" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses int64 with 32 bits mode. Case not yet implemented\n")
+-				} else if p.Type == "bool" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses bool. Case not yet implemented\n")
+-				} else if regexp.MustCompile(`^_`).FindStringSubmatch(p.Type) != nil || p.Type == "unsafe.Pointer" {
+-					argscommon = append(argscommon, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argscall = append(argscall, fmt.Sprintf("%s uintptr", p.Name))
+-					argsgc = append(argsgc, p.Name)
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-				} else if p.Type == "int" {
+-					if (argN == 0 || argN == 2) && ((funct == "fcntl") || (funct == "FcntlInt") || (funct == "FcntlFlock")) {
+-						// These fcntl arguments need to be uintptr to be able to call FcntlInt and FcntlFlock
+-						argscommon = append(argscommon, fmt.Sprintf("uintptr(%s)", p.Name))
+-						argscall = append(argscall, fmt.Sprintf("%s uintptr", p.Name))
+-						argsgc = append(argsgc, p.Name)
+-						argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-
+-					} else {
+-						argscommon = append(argscommon, p.Name)
+-						argscall = append(argscall, fmt.Sprintf("%s int", p.Name))
+-						argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-						argsgccgo = append(argsgccgo, fmt.Sprintf("C.int(%s)", p.Name))
+-					}
+-				} else if p.Type == "int32" {
+-					argscommon = append(argscommon, p.Name)
+-					argscall = append(argscall, fmt.Sprintf("%s int32", p.Name))
+-					argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.int(%s)", p.Name))
+-				} else if p.Type == "int64" {
+-					argscommon = append(argscommon, p.Name)
+-					argscall = append(argscall, fmt.Sprintf("%s int64", p.Name))
+-					argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.longlong(%s)", p.Name))
+-				} else if p.Type == "uint32" {
+-					argscommon = append(argscommon, p.Name)
+-					argscall = append(argscall, fmt.Sprintf("%s uint32", p.Name))
+-					argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uint(%s)", p.Name))
+-				} else if p.Type == "uint64" {
+-					argscommon = append(argscommon, p.Name)
+-					argscall = append(argscall, fmt.Sprintf("%s uint64", p.Name))
+-					argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.ulonglong(%s)", p.Name))
+-				} else if p.Type == "uintptr" {
+-					argscommon = append(argscommon, p.Name)
+-					argscall = append(argscall, fmt.Sprintf("%s uintptr", p.Name))
+-					argsgc = append(argsgc, p.Name)
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.uintptr_t(%s)", p.Name))
+-				} else {
+-					argscommon = append(argscommon, fmt.Sprintf("int(%s)", p.Name))
+-					argscall = append(argscall, fmt.Sprintf("%s int", p.Name))
+-					argsgc = append(argsgc, fmt.Sprintf("uintptr(%s)", p.Name))
+-					argsgccgo = append(argsgccgo, fmt.Sprintf("C.int(%s)", p.Name))
+-				}
+-				argN++
+-			}
+-			nargs := len(argsgc)
+-
+-			// COMMON function generation
+-			argscommonlist := strings.Join(argscommon, ", ")
+-			callcommon := fmt.Sprintf("call%s(%s)", sysname, argscommonlist)
+-			ret := []string{"_", "_"}
+-			body := ""
+-			doErrno := false
+-			for i := 0; i < len(out); i++ {
+-				p := parseParam(out[i])
+-				reg := ""
+-				if p.Name == "err" {
+-					reg = "e1"
+-					ret[1] = reg
+-					doErrno = true
+-				} else {
+-					reg = "r0"
+-					ret[0] = reg
+-				}
+-				if p.Type == "bool" {
+-					reg = fmt.Sprintf("%s != 0", reg)
+-				}
+-				if reg != "e1" {
+-					body += fmt.Sprintf("\t%s = %s(%s)\n", p.Name, p.Type, reg)
+-				}
+-			}
+-			if ret[0] == "_" && ret[1] == "_" {
+-				textcommon += fmt.Sprintf("\t%s\n", callcommon)
+-			} else {
+-				textcommon += fmt.Sprintf("\t%s, %s := %s\n", ret[0], ret[1], callcommon)
+-			}
+-			textcommon += body
+-
+-			if doErrno {
+-				textcommon += "\tif e1 != 0 {\n"
+-				textcommon += "\t\terr = errnoErr(e1)\n"
+-				textcommon += "\t}\n"
+-			}
+-			textcommon += "\treturn\n"
+-			textcommon += "}\n"
+-
+-			if onlyCommon {
+-				continue
+-			}
+-
+-			// CALL Prototype
+-			callProto := fmt.Sprintf("func call%s(%s) (r1 uintptr, e1 Errno) {\n", sysname, strings.Join(argscall, ", "))
+-
+-			// GC function generation
+-			asm := "syscall6"
+-			if nonblock != nil {
+-				asm = "rawSyscall6"
+-			}
+-
+-			if len(argsgc) <= 6 {
+-				for len(argsgc) < 6 {
+-					argsgc = append(argsgc, "0")
+-				}
+-			} else {
+-				fmt.Fprintf(os.Stderr, "%s: too many arguments to system call", funct)
+-				os.Exit(1)
+-			}
+-			argsgclist := strings.Join(argsgc, ", ")
+-			callgc := fmt.Sprintf("%s(uintptr(unsafe.Pointer(&%s)), %d, %s)", asm, sysvarname, nargs, argsgclist)
+-
+-			textgc += callProto
+-			textgc += fmt.Sprintf("\tr1, _, e1 = %s\n", callgc)
+-			textgc += "\treturn\n}\n"
+-
+-			// GCCGO function generation
+-			argsgccgolist := strings.Join(argsgccgo, ", ")
+-			callgccgo := fmt.Sprintf("C.%s(%s)", sysname, argsgccgolist)
+-			textgccgo += callProto
+-			textgccgo += fmt.Sprintf("\tr1 = uintptr(%s)\n", callgccgo)
+-			textgccgo += "\te1 = syscall.GetErrno()\n"
+-			textgccgo += "\treturn\n}\n"
+-		}
+-		if err := s.Err(); err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		file.Close()
+-	}
+-	imp := ""
+-	if pack != "unix" {
+-		imp = "import \"golang.org/x/sys/unix\"\n"
+-
+-	}
+-
+-	// Print zsyscall_aix_ppc64.go
+-	err := ioutil.WriteFile("zsyscall_aix_ppc64.go",
+-		[]byte(fmt.Sprintf(srcTemplate1, cmdLine(), buildTags(), pack, imp, textcommon)),
+-		0644)
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, err.Error())
+-		os.Exit(1)
+-	}
+-
+-	// Print zsyscall_aix_ppc64_gc.go
+-	vardecls := "\t" + strings.Join(vars, ",\n\t")
+-	vardecls += " syscallFunc"
+-	err = ioutil.WriteFile("zsyscall_aix_ppc64_gc.go",
+-		[]byte(fmt.Sprintf(srcTemplate2, cmdLine(), buildTags(), pack, imp, dynimports, linknames, vardecls, textgc)),
+-		0644)
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, err.Error())
+-		os.Exit(1)
+-	}
+-
+-	// Print zsyscall_aix_ppc64_gccgo.go
+-	err = ioutil.WriteFile("zsyscall_aix_ppc64_gccgo.go",
+-		[]byte(fmt.Sprintf(srcTemplate3, cmdLine(), buildTags(), pack, cExtern, imp, textgccgo)),
+-		0644)
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, err.Error())
+-		os.Exit(1)
+-	}
+-}
+-
+-const srcTemplate1 = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-
+-package %s
+-
+-import (
+-	"unsafe"
+-)
+-
+-
+-%s
+-
+-%s
+-`
+-const srcTemplate2 = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-// +build !gccgo
+-
+-package %s
+-
+-import (
+-	"unsafe"
+-)
+-%s
+-%s
+-%s
+-type syscallFunc uintptr
+-
+-var (
+-%s
+-)
+-
+-// Implemented in runtime/syscall_aix.go.
+-func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+-
+-%s
+-`
+-const srcTemplate3 = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-// +build gccgo
+-
+-package %s
+-
+-%s
+-*/
+-import "C"
+-import (
+-	"syscall"
+-)
+-
+-
+-%s
+-
+-%s
+-`
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_solaris.go b/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_solaris.go
+deleted file mode 100644
+index 3d864738b6..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksyscall_solaris.go
++++ /dev/null
+@@ -1,335 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+- This program reads a file containing function prototypes
+- (like syscall_solaris.go) and generates system call bodies.
+- The prototypes are marked by lines beginning with "//sys"
+- and read like func declarations if //sys is replaced by func, but:
+-	* The parameter lists must give a name for each argument.
+-	  This includes return parameters.
+-	* The parameter lists must give a type for each argument:
+-	  the (x, y, z int) shorthand is not allowed.
+-	* If the return parameter is an error number, it must be named err.
+-	* If go func name needs to be different than its libc name,
+-	* or the function is not in libc, name could be specified
+-	* at the end, after "=" sign, like
+-	  //sys getsockopt(s int, level int, name int, val uintptr, vallen *_Socklen) (err error) = libsocket.getsockopt
+-*/
+-
+-package main
+-
+-import (
+-	"bufio"
+-	"flag"
+-	"fmt"
+-	"os"
+-	"regexp"
+-	"strings"
+-)
+-
+-var (
+-	b32  = flag.Bool("b32", false, "32bit big-endian")
+-	l32  = flag.Bool("l32", false, "32bit little-endian")
+-	tags = flag.String("tags", "", "build tags")
+-)
+-
+-// cmdLine returns this programs's commandline arguments
+-func cmdLine() string {
+-	return "go run mksyscall_solaris.go " + strings.Join(os.Args[1:], " ")
+-}
+-
+-// buildTags returns build tags
+-func buildTags() string {
+-	return *tags
+-}
+-
+-// Param is function parameter
+-type Param struct {
+-	Name string
+-	Type string
+-}
+-
+-// usage prints the program usage
+-func usage() {
+-	fmt.Fprintf(os.Stderr, "usage: go run mksyscall_solaris.go [-b32 | -l32] [-tags x,y] [file ...]\n")
+-	os.Exit(1)
+-}
+-
+-// parseParamList parses parameter list and returns a slice of parameters
+-func parseParamList(list string) []string {
+-	list = strings.TrimSpace(list)
+-	if list == "" {
+-		return []string{}
+-	}
+-	return regexp.MustCompile(`\s*,\s*`).Split(list, -1)
+-}
+-
+-// parseParam splits a parameter into name and type
+-func parseParam(p string) Param {
+-	ps := regexp.MustCompile(`^(\S*) (\S*)$`).FindStringSubmatch(p)
+-	if ps == nil {
+-		fmt.Fprintf(os.Stderr, "malformed parameter: %s\n", p)
+-		os.Exit(1)
+-	}
+-	return Param{ps[1], ps[2]}
+-}
+-
+-func main() {
+-	flag.Usage = usage
+-	flag.Parse()
+-	if len(flag.Args()) <= 0 {
+-		fmt.Fprintf(os.Stderr, "no files to parse provided\n")
+-		usage()
+-	}
+-
+-	endianness := ""
+-	if *b32 {
+-		endianness = "big-endian"
+-	} else if *l32 {
+-		endianness = "little-endian"
+-	}
+-
+-	pack := ""
+-	text := ""
+-	dynimports := ""
+-	linknames := ""
+-	var vars []string
+-	for _, path := range flag.Args() {
+-		file, err := os.Open(path)
+-		if err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		s := bufio.NewScanner(file)
+-		for s.Scan() {
+-			t := s.Text()
+-			t = strings.TrimSpace(t)
+-			t = regexp.MustCompile(`\s+`).ReplaceAllString(t, ` `)
+-			if p := regexp.MustCompile(`^package (\S+)$`).FindStringSubmatch(t); p != nil && pack == "" {
+-				pack = p[1]
+-			}
+-			nonblock := regexp.MustCompile(`^\/\/sysnb `).FindStringSubmatch(t)
+-			if regexp.MustCompile(`^\/\/sys `).FindStringSubmatch(t) == nil && nonblock == nil {
+-				continue
+-			}
+-
+-			// Line must be of the form
+-			//	func Open(path string, mode int, perm int) (fd int, err error)
+-			// Split into name, in params, out params.
+-			f := regexp.MustCompile(`^\/\/sys(nb)? (\w+)\(([^()]*)\)\s*(?:\(([^()]+)\))?\s*(?:=\s*(?:(\w*)\.)?(\w*))?$`).FindStringSubmatch(t)
+-			if f == nil {
+-				fmt.Fprintf(os.Stderr, "%s:%s\nmalformed //sys declaration\n", path, t)
+-				os.Exit(1)
+-			}
+-			funct, inps, outps, modname, sysname := f[2], f[3], f[4], f[5], f[6]
+-
+-			// Split argument lists on comma.
+-			in := parseParamList(inps)
+-			out := parseParamList(outps)
+-
+-			inps = strings.Join(in, ", ")
+-			outps = strings.Join(out, ", ")
+-
+-			// Try in vain to keep people from editing this file.
+-			// The theory is that they jump into the middle of the file
+-			// without reading the header.
+-			text += "// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT\n\n"
+-
+-			// So file name.
+-			if modname == "" {
+-				modname = "libc"
+-			}
+-
+-			// System call name.
+-			if sysname == "" {
+-				sysname = funct
+-			}
+-
+-			// System call pointer variable name.
+-			sysvarname := fmt.Sprintf("proc%s", sysname)
+-
+-			strconvfunc := "BytePtrFromString"
+-			strconvtype := "*byte"
+-
+-			sysname = strings.ToLower(sysname) // All libc functions are lowercase.
+-
+-			// Runtime import of function to allow cross-platform builds.
+-			dynimports += fmt.Sprintf("//go:cgo_import_dynamic libc_%s %s \"%s.so\"\n", sysname, sysname, modname)
+-			// Link symbol to proc address variable.
+-			linknames += fmt.Sprintf("//go:linkname %s libc_%s\n", sysvarname, sysname)
+-			// Library proc address variable.
+-			vars = append(vars, sysvarname)
+-
+-			// Go function header.
+-			outlist := strings.Join(out, ", ")
+-			if outlist != "" {
+-				outlist = fmt.Sprintf(" (%s)", outlist)
+-			}
+-			if text != "" {
+-				text += "\n"
+-			}
+-			text += fmt.Sprintf("func %s(%s)%s {\n", funct, strings.Join(in, ", "), outlist)
+-
+-			// Check if err return available
+-			errvar := ""
+-			for _, param := range out {
+-				p := parseParam(param)
+-				if p.Type == "error" {
+-					errvar = p.Name
+-					continue
+-				}
+-			}
+-
+-			// Prepare arguments to Syscall.
+-			var args []string
+-			n := 0
+-			for _, param := range in {
+-				p := parseParam(param)
+-				if regexp.MustCompile(`^\*`).FindStringSubmatch(p.Type) != nil {
+-					args = append(args, "uintptr(unsafe.Pointer("+p.Name+"))")
+-				} else if p.Type == "string" && errvar != "" {
+-					text += fmt.Sprintf("\tvar _p%d %s\n", n, strconvtype)
+-					text += fmt.Sprintf("\t_p%d, %s = %s(%s)\n", n, errvar, strconvfunc, p.Name)
+-					text += fmt.Sprintf("\tif %s != nil {\n\t\treturn\n\t}\n", errvar)
+-					args = append(args, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					n++
+-				} else if p.Type == "string" {
+-					fmt.Fprintf(os.Stderr, path+":"+funct+" uses string arguments, but has no error return\n")
+-					text += fmt.Sprintf("\tvar _p%d %s\n", n, strconvtype)
+-					text += fmt.Sprintf("\t_p%d, _ = %s(%s)\n", n, strconvfunc, p.Name)
+-					args = append(args, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n))
+-					n++
+-				} else if s := regexp.MustCompile(`^\[\](.*)`).FindStringSubmatch(p.Type); s != nil {
+-					// Convert slice into pointer, length.
+-					// Have to be careful not to take address of &a[0] if len == 0:
+-					// pass nil in that case.
+-					text += fmt.Sprintf("\tvar _p%d *%s\n", n, s[1])
+-					text += fmt.Sprintf("\tif len(%s) > 0 {\n\t\t_p%d = &%s[0]\n\t}\n", p.Name, n, p.Name)
+-					args = append(args, fmt.Sprintf("uintptr(unsafe.Pointer(_p%d))", n), fmt.Sprintf("uintptr(len(%s))", p.Name))
+-					n++
+-				} else if p.Type == "int64" && endianness != "" {
+-					if endianness == "big-endian" {
+-						args = append(args, fmt.Sprintf("uintptr(%s>>32)", p.Name), fmt.Sprintf("uintptr(%s)", p.Name))
+-					} else {
+-						args = append(args, fmt.Sprintf("uintptr(%s)", p.Name), fmt.Sprintf("uintptr(%s>>32)", p.Name))
+-					}
+-				} else if p.Type == "bool" {
+-					text += fmt.Sprintf("\tvar _p%d uint32\n", n)
+-					text += fmt.Sprintf("\tif %s {\n\t\t_p%d = 1\n\t} else {\n\t\t_p%d = 0\n\t}\n", p.Name, n, n)
+-					args = append(args, fmt.Sprintf("uintptr(_p%d)", n))
+-					n++
+-				} else {
+-					args = append(args, fmt.Sprintf("uintptr(%s)", p.Name))
+-				}
+-			}
+-			nargs := len(args)
+-
+-			// Determine which form to use; pad args with zeros.
+-			asm := "sysvicall6"
+-			if nonblock != nil {
+-				asm = "rawSysvicall6"
+-			}
+-			if len(args) <= 6 {
+-				for len(args) < 6 {
+-					args = append(args, "0")
+-				}
+-			} else {
+-				fmt.Fprintf(os.Stderr, "%s: too many arguments to system call\n", path)
+-				os.Exit(1)
+-			}
+-
+-			// Actual call.
+-			arglist := strings.Join(args, ", ")
+-			call := fmt.Sprintf("%s(uintptr(unsafe.Pointer(&%s)), %d, %s)", asm, sysvarname, nargs, arglist)
+-
+-			// Assign return values.
+-			body := ""
+-			ret := []string{"_", "_", "_"}
+-			doErrno := false
+-			for i := 0; i < len(out); i++ {
+-				p := parseParam(out[i])
+-				reg := ""
+-				if p.Name == "err" {
+-					reg = "e1"
+-					ret[2] = reg
+-					doErrno = true
+-				} else {
+-					reg = fmt.Sprintf("r%d", i)
+-					ret[i] = reg
+-				}
+-				if p.Type == "bool" {
+-					reg = fmt.Sprintf("%d != 0", reg)
+-				}
+-				if p.Type == "int64" && endianness != "" {
+-					// 64-bit number in r1:r0 or r0:r1.
+-					if i+2 > len(out) {
+-						fmt.Fprintf(os.Stderr, "%s: not enough registers for int64 return\n", path)
+-						os.Exit(1)
+-					}
+-					if endianness == "big-endian" {
+-						reg = fmt.Sprintf("int64(r%d)<<32 | int64(r%d)", i, i+1)
+-					} else {
+-						reg = fmt.Sprintf("int64(r%d)<<32 | int64(r%d)", i+1, i)
+-					}
+-					ret[i] = fmt.Sprintf("r%d", i)
+-					ret[i+1] = fmt.Sprintf("r%d", i+1)
+-				}
+-				if reg != "e1" {
+-					body += fmt.Sprintf("\t%s = %s(%s)\n", p.Name, p.Type, reg)
+-				}
+-			}
+-			if ret[0] == "_" && ret[1] == "_" && ret[2] == "_" {
+-				text += fmt.Sprintf("\t%s\n", call)
+-			} else {
+-				text += fmt.Sprintf("\t%s, %s, %s := %s\n", ret[0], ret[1], ret[2], call)
+-			}
+-			text += body
+-
+-			if doErrno {
+-				text += "\tif e1 != 0 {\n"
+-				text += "\t\terr = e1\n"
+-				text += "\t}\n"
+-			}
+-			text += "\treturn\n"
+-			text += "}\n"
+-		}
+-		if err := s.Err(); err != nil {
+-			fmt.Fprintf(os.Stderr, err.Error())
+-			os.Exit(1)
+-		}
+-		file.Close()
+-	}
+-	imp := ""
+-	if pack != "unix" {
+-		imp = "import \"golang.org/x/sys/unix\"\n"
+-
+-	}
+-	vardecls := "\t" + strings.Join(vars, ",\n\t")
+-	vardecls += " syscallFunc"
+-	fmt.Printf(srcTemplate, cmdLine(), buildTags(), pack, imp, dynimports, linknames, vardecls, text)
+-}
+-
+-const srcTemplate = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-
+-package %s
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-%s
+-%s
+-%s
+-var (
+-%s	
+-)
+-
+-%s
+-`
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mksysnum.go b/src/cmd/vendor/golang.org/x/sys/unix/mksysnum.go
+deleted file mode 100644
+index 07f8960ff3..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mksysnum.go
++++ /dev/null
+@@ -1,190 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// Generate system call table for DragonFly, NetBSD,
+-// FreeBSD, OpenBSD or Darwin from master list
+-// (for example, /usr/src/sys/kern/syscalls.master or
+-// sys/syscall.h).
+-package main
+-
+-import (
+-	"bufio"
+-	"fmt"
+-	"io"
+-	"io/ioutil"
+-	"net/http"
+-	"os"
+-	"regexp"
+-	"strings"
+-)
+-
+-var (
+-	goos, goarch string
+-)
+-
+-// cmdLine returns this programs's commandline arguments
+-func cmdLine() string {
+-	return "go run mksysnum.go " + strings.Join(os.Args[1:], " ")
+-}
+-
+-// buildTags returns build tags
+-func buildTags() string {
+-	return fmt.Sprintf("%s,%s", goarch, goos)
+-}
+-
+-func checkErr(err error) {
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "%v\n", err)
+-		os.Exit(1)
+-	}
+-}
+-
+-// source string and substring slice for regexp
+-type re struct {
+-	str string   // source string
+-	sub []string // matched sub-string
+-}
+-
+-// Match performs regular expression match
+-func (r *re) Match(exp string) bool {
+-	r.sub = regexp.MustCompile(exp).FindStringSubmatch(r.str)
+-	if r.sub != nil {
+-		return true
+-	}
+-	return false
+-}
+-
+-// fetchFile fetches a text file from URL
+-func fetchFile(URL string) io.Reader {
+-	resp, err := http.Get(URL)
+-	checkErr(err)
+-	defer resp.Body.Close()
+-	body, err := ioutil.ReadAll(resp.Body)
+-	checkErr(err)
+-	return strings.NewReader(string(body))
+-}
+-
+-// readFile reads a text file from path
+-func readFile(path string) io.Reader {
+-	file, err := os.Open(os.Args[1])
+-	checkErr(err)
+-	return file
+-}
+-
+-func format(name, num, proto string) string {
+-	name = strings.ToUpper(name)
+-	// There are multiple entries for enosys and nosys, so comment them out.
+-	nm := re{str: name}
+-	if nm.Match(`^SYS_E?NOSYS$`) {
+-		name = fmt.Sprintf("// %s", name)
+-	}
+-	if name == `SYS_SYS_EXIT` {
+-		name = `SYS_EXIT`
+-	}
+-	return fmt.Sprintf("	%s = %s;  // %s\n", name, num, proto)
+-}
+-
+-func main() {
+-	// Get the OS (using GOOS_TARGET if it exist)
+-	goos = os.Getenv("GOOS_TARGET")
+-	if goos == "" {
+-		goos = os.Getenv("GOOS")
+-	}
+-	// Get the architecture (using GOARCH_TARGET if it exists)
+-	goarch = os.Getenv("GOARCH_TARGET")
+-	if goarch == "" {
+-		goarch = os.Getenv("GOARCH")
+-	}
+-	// Check if GOOS and GOARCH environment variables are defined
+-	if goarch == "" || goos == "" {
+-		fmt.Fprintf(os.Stderr, "GOARCH or GOOS not defined in environment\n")
+-		os.Exit(1)
+-	}
+-
+-	file := strings.TrimSpace(os.Args[1])
+-	var syscalls io.Reader
+-	if strings.HasPrefix(file, "https://") || strings.HasPrefix(file, "http://") {
+-		// Download syscalls.master file
+-		syscalls = fetchFile(file)
+-	} else {
+-		syscalls = readFile(file)
+-	}
+-
+-	var text, line string
+-	s := bufio.NewScanner(syscalls)
+-	for s.Scan() {
+-		t := re{str: line}
+-		if t.Match(`^(.*)\\$`) {
+-			// Handle continuation
+-			line = t.sub[1]
+-			line += strings.TrimLeft(s.Text(), " \t")
+-		} else {
+-			// New line
+-			line = s.Text()
+-		}
+-		t = re{str: line}
+-		if t.Match(`\\$`) {
+-			continue
+-		}
+-		t = re{str: line}
+-
+-		switch goos {
+-		case "dragonfly":
+-			if t.Match(`^([0-9]+)\s+STD\s+({ \S+\s+(\w+).*)$`) {
+-				num, proto := t.sub[1], t.sub[2]
+-				name := fmt.Sprintf("SYS_%s", t.sub[3])
+-				text += format(name, num, proto)
+-			}
+-		case "freebsd":
+-			if t.Match(`^([0-9]+)\s+\S+\s+(?:NO)?STD\s+({ \S+\s+(\w+).*)$`) {
+-				num, proto := t.sub[1], t.sub[2]
+-				name := fmt.Sprintf("SYS_%s", t.sub[3])
+-				text += format(name, num, proto)
+-			}
+-		case "openbsd":
+-			if t.Match(`^([0-9]+)\s+STD\s+(NOLOCK\s+)?({ \S+\s+\*?(\w+).*)$`) {
+-				num, proto, name := t.sub[1], t.sub[3], t.sub[4]
+-				text += format(name, num, proto)
+-			}
+-		case "netbsd":
+-			if t.Match(`^([0-9]+)\s+((STD)|(NOERR))\s+(RUMP\s+)?({\s+\S+\s*\*?\s*\|(\S+)\|(\S*)\|(\w+).*\s+})(\s+(\S+))?$`) {
+-				num, proto, compat := t.sub[1], t.sub[6], t.sub[8]
+-				name := t.sub[7] + "_" + t.sub[9]
+-				if t.sub[11] != "" {
+-					name = t.sub[7] + "_" + t.sub[11]
+-				}
+-				name = strings.ToUpper(name)
+-				if compat == "" || compat == "13" || compat == "30" || compat == "50" {
+-					text += fmt.Sprintf("	%s = %s;  // %s\n", name, num, proto)
+-				}
+-			}
+-		case "darwin":
+-			if t.Match(`^#define\s+SYS_(\w+)\s+([0-9]+)`) {
+-				name, num := t.sub[1], t.sub[2]
+-				name = strings.ToUpper(name)
+-				text += fmt.Sprintf("	SYS_%s = %s;\n", name, num)
+-			}
+-		default:
+-			fmt.Fprintf(os.Stderr, "unrecognized GOOS=%s\n", goos)
+-			os.Exit(1)
+-
+-		}
+-	}
+-	err := s.Err()
+-	checkErr(err)
+-
+-	fmt.Printf(template, cmdLine(), buildTags(), text)
+-}
+-
+-const template = `// %s
+-// Code generated by the command above; see README.md. DO NOT EDIT.
+-
+-// +build %s
+-
+-package unix
+-
+-const(
+-%s)`
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/types_aix.go
+deleted file mode 100644
+index 25e834940d..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_aix.go
++++ /dev/null
+@@ -1,236 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-// +build aix
+-
+-/*
+-Input to cgo -godefs.  See also mkerrors.sh and mkall.sh
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#include <sys/types.h>
+-#include <sys/time.h>
+-#include <sys/limits.h>
+-#include <sys/un.h>
+-#include <utime.h>
+-#include <sys/utsname.h>
+-#include <sys/poll.h>
+-#include <sys/resource.h>
+-#include <sys/stat.h>
+-#include <sys/statfs.h>
+-#include <sys/termio.h>
+-#include <sys/ioctl.h>
+-
+-#include <termios.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-
+-
+-#include <dirent.h>
+-#include <fcntl.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;     // this one gets used for fields
+-	struct sockaddr_in s2;  // these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-	PathMax        = C.PATH_MAX
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-type off64 C.off64_t
+-type off C.off_t
+-type Mode_t C.mode_t
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type StTimespec C.struct_st_timespec
+-
+-type Timeval C.struct_timeval
+-
+-type Timeval32 C.struct_timeval32
+-
+-type Timex C.struct_timex
+-
+-type Time_t C.time_t
+-
+-type Tms C.struct_tms
+-
+-type Utimbuf C.struct_utimbuf
+-
+-type Timezone C.struct_timezone
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit64
+-
+-type Pid_t C.pid_t
+-
+-type _Gid_t C.gid_t
+-
+-type dev_t C.dev_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat
+-
+-type StatxTimestamp C.struct_statx_timestamp
+-
+-type Statx_t C.struct_statx
+-
+-type Dirent C.struct_dirent
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type Linger C.struct_linger
+-
+-type Msghdr C.struct_msghdr
+-
+-const (
+-	SizeofSockaddrInet4 = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6 = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny   = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix  = C.sizeof_struct_sockaddr_un
+-	SizeofLinger        = C.sizeof_struct_linger
+-	SizeofIPMreq        = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq      = C.sizeof_struct_ipv6_mreq
+-	SizeofIPv6MTUInfo   = C.sizeof_struct_ip6_mtuinfo
+-	SizeofMsghdr        = C.sizeof_struct_msghdr
+-	SizeofCmsghdr       = C.sizeof_struct_cmsghdr
+-	SizeofICMPv6Filter  = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr = C.sizeof_struct_if_msghdr
+-)
+-
+-type IfMsgHdr C.struct_if_msghdr
+-
+-// Misc
+-
+-type FdSet C.fd_set
+-
+-type Utsname C.struct_utsname
+-
+-type Ustat_t C.struct_ustat
+-
+-type Sigset_t C.sigset_t
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_REMOVEDIR        = C.AT_REMOVEDIR
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Termio C.struct_termio
+-
+-type Winsize C.struct_winsize
+-
+-//poll
+-
+-type PollFd struct {
+-	Fd      int32
+-	Events  uint16
+-	Revents uint16
+-}
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+-
+-//flock_t
+-
+-type Flock_t C.struct_flock64
+-
+-// Statfs
+-
+-type Fsid_t C.struct_fsid_t
+-type Fsid64_t C.struct_fsid64_t
+-
+-type Statfs_t C.struct_statfs
+-
+-const RNDGETENTCNT = 0x80045200
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/types_darwin.go
+deleted file mode 100644
+index 9fd2aaa6a2..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_darwin.go
++++ /dev/null
+@@ -1,277 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define __DARWIN_UNIX03 0
+-#define KERNEL
+-#define _DARWIN_USE_64_BIT_INODE
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <unistd.h>
+-#include <mach/mach.h>
+-#include <mach/message.h>
+-#include <sys/event.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/param.h>
+-#include <sys/ptrace.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/time.h>
+-#include <sys/types.h>
+-#include <sys/uio.h>
+-#include <sys/un.h>
+-#include <sys/utsname.h>
+-#include <sys/wait.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/if_var.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-type Timeval32 C.struct_timeval32
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat64
+-
+-type Statfs_t C.struct_statfs64
+-
+-type Flock_t C.struct_flock
+-
+-type Fstore_t C.struct_fstore
+-
+-type Radvisory_t C.struct_radvisory
+-
+-type Fbootstraptransfer_t C.struct_fbootstraptransfer
+-
+-type Log2phys_t C.struct_log2phys
+-
+-type Fsid C.struct_fsid
+-
+-type Dirent C.struct_dirent
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet4Pktinfo C.struct_in_pktinfo
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet4Pktinfo     = C.sizeof_struct_in_pktinfo
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Ptrace requests
+-
+-const (
+-	PTRACE_TRACEME = C.PT_TRACE_ME
+-	PTRACE_CONT    = C.PT_CONTINUE
+-	PTRACE_KILL    = C.PT_KILL
+-)
+-
+-// Events (kqueue, kevent)
+-
+-type Kevent_t C.struct_kevent
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr    = C.sizeof_struct_if_msghdr
+-	SizeofIfData      = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr   = C.sizeof_struct_ifa_msghdr
+-	SizeofIfmaMsghdr  = C.sizeof_struct_ifma_msghdr
+-	SizeofIfmaMsghdr2 = C.sizeof_struct_ifma_msghdr2
+-	SizeofRtMsghdr    = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics   = C.sizeof_struct_rt_metrics
+-)
+-
+-type IfMsghdr C.struct_if_msghdr
+-
+-type IfData C.struct_if_data
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type IfmaMsghdr C.struct_ifma_msghdr
+-
+-type IfmaMsghdr2 C.struct_ifma_msghdr2
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion = C.sizeof_struct_bpf_version
+-	SizeofBpfStat    = C.sizeof_struct_bpf_stat
+-	SizeofBpfProgram = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Winsize C.struct_winsize
+-
+-// fchmodat-like syscalls.
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_REMOVEDIR        = C.AT_REMOVEDIR
+-	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+-
+-// uname
+-
+-type Utsname C.struct_utsname
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_dragonfly.go b/src/cmd/vendor/golang.org/x/sys/unix/types_dragonfly.go
+deleted file mode 100644
+index 3365dd79d0..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_dragonfly.go
++++ /dev/null
+@@ -1,263 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define KERNEL
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/event.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/param.h>
+-#include <sys/ptrace.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/time.h>
+-#include <sys/types.h>
+-#include <sys/un.h>
+-#include <sys/utsname.h>
+-#include <sys/wait.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat
+-
+-type Statfs_t C.struct_statfs
+-
+-type Flock_t C.struct_flock
+-
+-type Dirent C.struct_dirent
+-
+-type Fsid C.struct_fsid
+-
+-// File system limits
+-
+-const (
+-	PathMax = C.PATH_MAX
+-)
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Ptrace requests
+-
+-const (
+-	PTRACE_TRACEME = C.PT_TRACE_ME
+-	PTRACE_CONT    = C.PT_CONTINUE
+-	PTRACE_KILL    = C.PT_KILL
+-)
+-
+-// Events (kqueue, kevent)
+-
+-type Kevent_t C.struct_kevent
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+-	SizeofIfData           = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
+-	SizeofIfmaMsghdr       = C.sizeof_struct_ifma_msghdr
+-	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
+-	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+-)
+-
+-type IfMsghdr C.struct_if_msghdr
+-
+-type IfData C.struct_if_data
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type IfmaMsghdr C.struct_ifma_msghdr
+-
+-type IfAnnounceMsghdr C.struct_if_announcemsghdr
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion = C.sizeof_struct_bpf_version
+-	SizeofBpfStat    = C.sizeof_struct_bpf_stat
+-	SizeofBpfProgram = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Winsize C.struct_winsize
+-
+-// fchmodat-like syscalls.
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+-
+-// Uname
+-
+-type Utsname C.struct_utsname
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_freebsd.go b/src/cmd/vendor/golang.org/x/sys/unix/types_freebsd.go
+deleted file mode 100644
+index 7470798951..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_freebsd.go
++++ /dev/null
+@@ -1,356 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define	_WANT_FREEBSD11_STAT	1
+-#define	_WANT_FREEBSD11_STATFS	1
+-#define	_WANT_FREEBSD11_DIRENT	1
+-#define	_WANT_FREEBSD11_KEVENT  1
+-
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/capsicum.h>
+-#include <sys/event.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/param.h>
+-#include <sys/ptrace.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/time.h>
+-#include <sys/types.h>
+-#include <sys/un.h>
+-#include <sys/utsname.h>
+-#include <sys/wait.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-// This structure is a duplicate of if_data on FreeBSD 8-STABLE.
+-// See /usr/include/net/if.h.
+-struct if_data8 {
+-	u_char  ifi_type;
+-	u_char  ifi_physical;
+-	u_char  ifi_addrlen;
+-	u_char  ifi_hdrlen;
+-	u_char  ifi_link_state;
+-	u_char  ifi_spare_char1;
+-	u_char  ifi_spare_char2;
+-	u_char  ifi_datalen;
+-	u_long  ifi_mtu;
+-	u_long  ifi_metric;
+-	u_long  ifi_baudrate;
+-	u_long  ifi_ipackets;
+-	u_long  ifi_ierrors;
+-	u_long  ifi_opackets;
+-	u_long  ifi_oerrors;
+-	u_long  ifi_collisions;
+-	u_long  ifi_ibytes;
+-	u_long  ifi_obytes;
+-	u_long  ifi_imcasts;
+-	u_long  ifi_omcasts;
+-	u_long  ifi_iqdrops;
+-	u_long  ifi_noproto;
+-	u_long  ifi_hwassist;
+-// FIXME: these are now unions, so maybe need to change definitions?
+-#undef ifi_epoch
+-	time_t  ifi_epoch;
+-#undef ifi_lastchange
+-	struct  timeval ifi_lastchange;
+-};
+-
+-// This structure is a duplicate of if_msghdr on FreeBSD 8-STABLE.
+-// See /usr/include/net/if.h.
+-struct if_msghdr8 {
+-	u_short ifm_msglen;
+-	u_char  ifm_version;
+-	u_char  ifm_type;
+-	int     ifm_addrs;
+-	int     ifm_flags;
+-	u_short ifm_index;
+-	struct  if_data8 ifm_data;
+-};
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-const (
+-	_statfsVersion = C.STATFS_VERSION
+-	_dirblksiz     = C.DIRBLKSIZ
+-)
+-
+-type Stat_t C.struct_stat
+-
+-type stat_freebsd11_t C.struct_freebsd11_stat
+-
+-type Statfs_t C.struct_statfs
+-
+-type statfs_freebsd11_t C.struct_freebsd11_statfs
+-
+-type Flock_t C.struct_flock
+-
+-type Dirent C.struct_dirent
+-
+-type dirent_freebsd11 C.struct_freebsd11_dirent
+-
+-type Fsid C.struct_fsid
+-
+-// File system limits
+-
+-const (
+-	PathMax = C.PATH_MAX
+-)
+-
+-// Advice to Fadvise
+-
+-const (
+-	FADV_NORMAL     = C.POSIX_FADV_NORMAL
+-	FADV_RANDOM     = C.POSIX_FADV_RANDOM
+-	FADV_SEQUENTIAL = C.POSIX_FADV_SEQUENTIAL
+-	FADV_WILLNEED   = C.POSIX_FADV_WILLNEED
+-	FADV_DONTNEED   = C.POSIX_FADV_DONTNEED
+-	FADV_NOREUSE    = C.POSIX_FADV_NOREUSE
+-)
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPMreqn C.struct_ip_mreqn
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPMreqn          = C.sizeof_struct_ip_mreqn
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Ptrace requests
+-
+-const (
+-	PTRACE_TRACEME = C.PT_TRACE_ME
+-	PTRACE_CONT    = C.PT_CONTINUE
+-	PTRACE_KILL    = C.PT_KILL
+-)
+-
+-// Events (kqueue, kevent)
+-
+-type Kevent_t C.struct_kevent_freebsd11
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Routing and interface messages
+-
+-const (
+-	sizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+-	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr8
+-	sizeofIfData           = C.sizeof_struct_if_data
+-	SizeofIfData           = C.sizeof_struct_if_data8
+-	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
+-	SizeofIfmaMsghdr       = C.sizeof_struct_ifma_msghdr
+-	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
+-	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+-)
+-
+-type ifMsghdr C.struct_if_msghdr
+-
+-type IfMsghdr C.struct_if_msghdr8
+-
+-type ifData C.struct_if_data
+-
+-type IfData C.struct_if_data8
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type IfmaMsghdr C.struct_ifma_msghdr
+-
+-type IfAnnounceMsghdr C.struct_if_announcemsghdr
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion    = C.sizeof_struct_bpf_version
+-	SizeofBpfStat       = C.sizeof_struct_bpf_stat
+-	SizeofBpfZbuf       = C.sizeof_struct_bpf_zbuf
+-	SizeofBpfProgram    = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn       = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr        = C.sizeof_struct_bpf_hdr
+-	SizeofBpfZbufHeader = C.sizeof_struct_bpf_zbuf_header
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfZbuf C.struct_bpf_zbuf
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-type BpfZbufHeader C.struct_bpf_zbuf_header
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Winsize C.struct_winsize
+-
+-// fchmodat-like syscalls.
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_REMOVEDIR        = C.AT_REMOVEDIR
+-	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR      = C.POLLERR
+-	POLLHUP      = C.POLLHUP
+-	POLLIN       = C.POLLIN
+-	POLLINIGNEOF = C.POLLINIGNEOF
+-	POLLNVAL     = C.POLLNVAL
+-	POLLOUT      = C.POLLOUT
+-	POLLPRI      = C.POLLPRI
+-	POLLRDBAND   = C.POLLRDBAND
+-	POLLRDNORM   = C.POLLRDNORM
+-	POLLWRBAND   = C.POLLWRBAND
+-	POLLWRNORM   = C.POLLWRNORM
+-)
+-
+-// Capabilities
+-
+-type CapRights C.struct_cap_rights
+-
+-// Uname
+-
+-type Utsname C.struct_utsname
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_netbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/types_netbsd.go
+deleted file mode 100644
+index 2dd4f9542c..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_netbsd.go
++++ /dev/null
+@@ -1,289 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define KERNEL
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/param.h>
+-#include <sys/types.h>
+-#include <sys/event.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/ptrace.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/sysctl.h>
+-#include <sys/time.h>
+-#include <sys/uio.h>
+-#include <sys/un.h>
+-#include <sys/utsname.h>
+-#include <sys/wait.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat
+-
+-type Statfs_t C.struct_statfs
+-
+-type Flock_t C.struct_flock
+-
+-type Dirent C.struct_dirent
+-
+-type Fsid C.fsid_t
+-
+-// File system limits
+-
+-const (
+-	PathMax = C.PATH_MAX
+-)
+-
+-// Advice to Fadvise
+-
+-const (
+-	FADV_NORMAL     = C.POSIX_FADV_NORMAL
+-	FADV_RANDOM     = C.POSIX_FADV_RANDOM
+-	FADV_SEQUENTIAL = C.POSIX_FADV_SEQUENTIAL
+-	FADV_WILLNEED   = C.POSIX_FADV_WILLNEED
+-	FADV_DONTNEED   = C.POSIX_FADV_DONTNEED
+-	FADV_NOREUSE    = C.POSIX_FADV_NOREUSE
+-)
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Ptrace requests
+-
+-const (
+-	PTRACE_TRACEME = C.PT_TRACE_ME
+-	PTRACE_CONT    = C.PT_CONTINUE
+-	PTRACE_KILL    = C.PT_KILL
+-)
+-
+-// Events (kqueue, kevent)
+-
+-type Kevent_t C.struct_kevent
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+-	SizeofIfData           = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
+-	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
+-	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+-)
+-
+-type IfMsghdr C.struct_if_msghdr
+-
+-type IfData C.struct_if_data
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type IfAnnounceMsghdr C.struct_if_announcemsghdr
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-type Mclpool C.struct_mclpool
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion = C.sizeof_struct_bpf_version
+-	SizeofBpfStat    = C.sizeof_struct_bpf_stat
+-	SizeofBpfProgram = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-type BpfTimeval C.struct_bpf_timeval
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Winsize C.struct_winsize
+-
+-type Ptmget C.struct_ptmget
+-
+-// fchmodat-like syscalls.
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+-
+-// Sysctl
+-
+-type Sysctlnode C.struct_sysctlnode
+-
+-// Uname
+-
+-type Utsname C.struct_utsname
+-
+-// Clockinfo
+-
+-const SizeofClockinfo = C.sizeof_struct_clockinfo
+-
+-type Clockinfo C.struct_clockinfo
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go b/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go
+deleted file mode 100644
+index 8aafbe4469..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_openbsd.go
++++ /dev/null
+@@ -1,282 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define KERNEL
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/param.h>
+-#include <sys/types.h>
+-#include <sys/event.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/ptrace.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/time.h>
+-#include <sys/uio.h>
+-#include <sys/un.h>
+-#include <sys/utsname.h>
+-#include <sys/wait.h>
+-#include <uvm/uvmexp.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat
+-
+-type Statfs_t C.struct_statfs
+-
+-type Flock_t C.struct_flock
+-
+-type Dirent C.struct_dirent
+-
+-type Fsid C.fsid_t
+-
+-// File system limits
+-
+-const (
+-	PathMax = C.PATH_MAX
+-)
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Ptrace requests
+-
+-const (
+-	PTRACE_TRACEME = C.PT_TRACE_ME
+-	PTRACE_CONT    = C.PT_CONTINUE
+-	PTRACE_KILL    = C.PT_KILL
+-)
+-
+-// Events (kqueue, kevent)
+-
+-type Kevent_t C.struct_kevent
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr         = C.sizeof_struct_if_msghdr
+-	SizeofIfData           = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr        = C.sizeof_struct_ifa_msghdr
+-	SizeofIfAnnounceMsghdr = C.sizeof_struct_if_announcemsghdr
+-	SizeofRtMsghdr         = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics        = C.sizeof_struct_rt_metrics
+-)
+-
+-type IfMsghdr C.struct_if_msghdr
+-
+-type IfData C.struct_if_data
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type IfAnnounceMsghdr C.struct_if_announcemsghdr
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-type Mclpool C.struct_mclpool
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion = C.sizeof_struct_bpf_version
+-	SizeofBpfStat    = C.sizeof_struct_bpf_stat
+-	SizeofBpfProgram = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-type BpfTimeval C.struct_bpf_timeval
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Winsize C.struct_winsize
+-
+-// fchmodat-like syscalls.
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-)
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+-
+-// Signal Sets
+-
+-type Sigset_t C.sigset_t
+-
+-// Uname
+-
+-type Utsname C.struct_utsname
+-
+-// Uvmexp
+-
+-const SizeofUvmexp = C.sizeof_struct_uvmexp
+-
+-type Uvmexp C.struct_uvmexp
+-
+-// Clockinfo
+-
+-const SizeofClockinfo = C.sizeof_struct_clockinfo
+-
+-type Clockinfo C.struct_clockinfo
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/types_solaris.go b/src/cmd/vendor/golang.org/x/sys/unix/types_solaris.go
+deleted file mode 100644
+index 2b716f9348..0000000000
+--- a/src/cmd/vendor/golang.org/x/sys/unix/types_solaris.go
++++ /dev/null
+@@ -1,266 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-/*
+-Input to cgo -godefs.  See README.md
+-*/
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package unix
+-
+-/*
+-#define KERNEL
+-// These defines ensure that builds done on newer versions of Solaris are
+-// backwards-compatible with older versions of Solaris and
+-// OpenSolaris-based derivatives.
+-#define __USE_SUNOS_SOCKETS__          // msghdr
+-#define __USE_LEGACY_PROTOTYPES__      // iovec
+-#include <dirent.h>
+-#include <fcntl.h>
+-#include <netdb.h>
+-#include <limits.h>
+-#include <poll.h>
+-#include <signal.h>
+-#include <termios.h>
+-#include <termio.h>
+-#include <stdio.h>
+-#include <unistd.h>
+-#include <sys/mman.h>
+-#include <sys/mount.h>
+-#include <sys/param.h>
+-#include <sys/resource.h>
+-#include <sys/select.h>
+-#include <sys/signal.h>
+-#include <sys/socket.h>
+-#include <sys/stat.h>
+-#include <sys/statvfs.h>
+-#include <sys/time.h>
+-#include <sys/times.h>
+-#include <sys/types.h>
+-#include <sys/utsname.h>
+-#include <sys/un.h>
+-#include <sys/wait.h>
+-#include <net/bpf.h>
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-#include <netinet/in.h>
+-#include <netinet/icmp6.h>
+-#include <netinet/tcp.h>
+-#include <ustat.h>
+-#include <utime.h>
+-
+-enum {
+-	sizeofPtr = sizeof(void*),
+-};
+-
+-union sockaddr_all {
+-	struct sockaddr s1;	// this one gets used for fields
+-	struct sockaddr_in s2;	// these pad it out
+-	struct sockaddr_in6 s3;
+-	struct sockaddr_un s4;
+-	struct sockaddr_dl s5;
+-};
+-
+-struct sockaddr_any {
+-	struct sockaddr addr;
+-	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+-};
+-
+-*/
+-import "C"
+-
+-// Machine characteristics
+-
+-const (
+-	SizeofPtr      = C.sizeofPtr
+-	SizeofShort    = C.sizeof_short
+-	SizeofInt      = C.sizeof_int
+-	SizeofLong     = C.sizeof_long
+-	SizeofLongLong = C.sizeof_longlong
+-	PathMax        = C.PATH_MAX
+-	MaxHostNameLen = C.MAXHOSTNAMELEN
+-)
+-
+-// Basic types
+-
+-type (
+-	_C_short     C.short
+-	_C_int       C.int
+-	_C_long      C.long
+-	_C_long_long C.longlong
+-)
+-
+-// Time
+-
+-type Timespec C.struct_timespec
+-
+-type Timeval C.struct_timeval
+-
+-type Timeval32 C.struct_timeval32
+-
+-type Tms C.struct_tms
+-
+-type Utimbuf C.struct_utimbuf
+-
+-// Processes
+-
+-type Rusage C.struct_rusage
+-
+-type Rlimit C.struct_rlimit
+-
+-type _Gid_t C.gid_t
+-
+-// Files
+-
+-type Stat_t C.struct_stat
+-
+-type Flock_t C.struct_flock
+-
+-type Dirent C.struct_dirent
+-
+-// Filesystems
+-
+-type _Fsblkcnt_t C.fsblkcnt_t
+-
+-type Statvfs_t C.struct_statvfs
+-
+-// Sockets
+-
+-type RawSockaddrInet4 C.struct_sockaddr_in
+-
+-type RawSockaddrInet6 C.struct_sockaddr_in6
+-
+-type RawSockaddrUnix C.struct_sockaddr_un
+-
+-type RawSockaddrDatalink C.struct_sockaddr_dl
+-
+-type RawSockaddr C.struct_sockaddr
+-
+-type RawSockaddrAny C.struct_sockaddr_any
+-
+-type _Socklen C.socklen_t
+-
+-type Linger C.struct_linger
+-
+-type Iovec C.struct_iovec
+-
+-type IPMreq C.struct_ip_mreq
+-
+-type IPv6Mreq C.struct_ipv6_mreq
+-
+-type Msghdr C.struct_msghdr
+-
+-type Cmsghdr C.struct_cmsghdr
+-
+-type Inet6Pktinfo C.struct_in6_pktinfo
+-
+-type IPv6MTUInfo C.struct_ip6_mtuinfo
+-
+-type ICMPv6Filter C.struct_icmp6_filter
+-
+-const (
+-	SizeofSockaddrInet4    = C.sizeof_struct_sockaddr_in
+-	SizeofSockaddrInet6    = C.sizeof_struct_sockaddr_in6
+-	SizeofSockaddrAny      = C.sizeof_struct_sockaddr_any
+-	SizeofSockaddrUnix     = C.sizeof_struct_sockaddr_un
+-	SizeofSockaddrDatalink = C.sizeof_struct_sockaddr_dl
+-	SizeofLinger           = C.sizeof_struct_linger
+-	SizeofIPMreq           = C.sizeof_struct_ip_mreq
+-	SizeofIPv6Mreq         = C.sizeof_struct_ipv6_mreq
+-	SizeofMsghdr           = C.sizeof_struct_msghdr
+-	SizeofCmsghdr          = C.sizeof_struct_cmsghdr
+-	SizeofInet6Pktinfo     = C.sizeof_struct_in6_pktinfo
+-	SizeofIPv6MTUInfo      = C.sizeof_struct_ip6_mtuinfo
+-	SizeofICMPv6Filter     = C.sizeof_struct_icmp6_filter
+-)
+-
+-// Select
+-
+-type FdSet C.fd_set
+-
+-// Misc
+-
+-type Utsname C.struct_utsname
+-
+-type Ustat_t C.struct_ustat
+-
+-const (
+-	AT_FDCWD            = C.AT_FDCWD
+-	AT_SYMLINK_NOFOLLOW = C.AT_SYMLINK_NOFOLLOW
+-	AT_SYMLINK_FOLLOW   = C.AT_SYMLINK_FOLLOW
+-	AT_REMOVEDIR        = C.AT_REMOVEDIR
+-	AT_EACCESS          = C.AT_EACCESS
+-)
+-
+-// Routing and interface messages
+-
+-const (
+-	SizeofIfMsghdr  = C.sizeof_struct_if_msghdr
+-	SizeofIfData    = C.sizeof_struct_if_data
+-	SizeofIfaMsghdr = C.sizeof_struct_ifa_msghdr
+-	SizeofRtMsghdr  = C.sizeof_struct_rt_msghdr
+-	SizeofRtMetrics = C.sizeof_struct_rt_metrics
+-)
+-
+-type IfMsghdr C.struct_if_msghdr
+-
+-type IfData C.struct_if_data
+-
+-type IfaMsghdr C.struct_ifa_msghdr
+-
+-type RtMsghdr C.struct_rt_msghdr
+-
+-type RtMetrics C.struct_rt_metrics
+-
+-// Berkeley packet filter
+-
+-const (
+-	SizeofBpfVersion = C.sizeof_struct_bpf_version
+-	SizeofBpfStat    = C.sizeof_struct_bpf_stat
+-	SizeofBpfProgram = C.sizeof_struct_bpf_program
+-	SizeofBpfInsn    = C.sizeof_struct_bpf_insn
+-	SizeofBpfHdr     = C.sizeof_struct_bpf_hdr
+-)
+-
+-type BpfVersion C.struct_bpf_version
+-
+-type BpfStat C.struct_bpf_stat
+-
+-type BpfProgram C.struct_bpf_program
+-
+-type BpfInsn C.struct_bpf_insn
+-
+-type BpfTimeval C.struct_bpf_timeval
+-
+-type BpfHdr C.struct_bpf_hdr
+-
+-// Terminal handling
+-
+-type Termios C.struct_termios
+-
+-type Termio C.struct_termio
+-
+-type Winsize C.struct_winsize
+-
+-// poll
+-
+-type PollFd C.struct_pollfd
+-
+-const (
+-	POLLERR    = C.POLLERR
+-	POLLHUP    = C.POLLHUP
+-	POLLIN     = C.POLLIN
+-	POLLNVAL   = C.POLLNVAL
+-	POLLOUT    = C.POLLOUT
+-	POLLPRI    = C.POLLPRI
+-	POLLRDBAND = C.POLLRDBAND
+-	POLLRDNORM = C.POLLRDNORM
+-	POLLWRBAND = C.POLLWRBAND
+-	POLLWRNORM = C.POLLWRNORM
+-)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+index 5be1ef0d57..b5161836a5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/lostcancel/lostcancel.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package lostcancel defines an Analyzer that checks for failure to
+-// call a context cancellation function.
++// call a context cancelation function.
+ package lostcancel
+ 
+ import (
+@@ -20,7 +20,7 @@ import (
+ 
+ const Doc = `check cancel func returned by context.WithCancel is called
+ 
+-The cancellation function returned by context.WithCancel, WithTimeout,
++The cancelation function returned by context.WithCancel, WithTimeout,
+ and WithDeadline must be called or the new context will remain live
+ until its parent context is cancelled.
+ (The background context is never cancelled.)`
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go
+deleted file mode 100644
+index 844e8f3dac..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/main.go
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// +build ignore
+-
+-// This file provides an example command for static checkers
+-// conforming to the golang.org/x/tools/go/analysis API.
+-// It serves as a model for the behavior of the cmd/vet tool in $GOROOT.
+-// Being based on the unitchecker driver, it must be run by go vet:
+-//
+-//   $ go build -o unitchecker main.go
+-//   $ go vet -vettool=unitchecker my/project/...
+-//
+-// For a checker also capable of running standalone, use multichecker.
+-package main
+-
+-import (
+-	"golang.org/x/tools/go/analysis/unitchecker"
+-
+-	"golang.org/x/tools/go/analysis/passes/asmdecl"
+-	"golang.org/x/tools/go/analysis/passes/assign"
+-	"golang.org/x/tools/go/analysis/passes/atomic"
+-	"golang.org/x/tools/go/analysis/passes/bools"
+-	"golang.org/x/tools/go/analysis/passes/buildtag"
+-	"golang.org/x/tools/go/analysis/passes/cgocall"
+-	"golang.org/x/tools/go/analysis/passes/composite"
+-	"golang.org/x/tools/go/analysis/passes/copylock"
+-	"golang.org/x/tools/go/analysis/passes/httpresponse"
+-	"golang.org/x/tools/go/analysis/passes/loopclosure"
+-	"golang.org/x/tools/go/analysis/passes/lostcancel"
+-	"golang.org/x/tools/go/analysis/passes/nilfunc"
+-	"golang.org/x/tools/go/analysis/passes/printf"
+-	"golang.org/x/tools/go/analysis/passes/shift"
+-	"golang.org/x/tools/go/analysis/passes/stdmethods"
+-	"golang.org/x/tools/go/analysis/passes/structtag"
+-	"golang.org/x/tools/go/analysis/passes/tests"
+-	"golang.org/x/tools/go/analysis/passes/unmarshal"
+-	"golang.org/x/tools/go/analysis/passes/unreachable"
+-	"golang.org/x/tools/go/analysis/passes/unsafeptr"
+-	"golang.org/x/tools/go/analysis/passes/unusedresult"
+-)
+-
+-func main() {
+-	unitchecker.Main(
+-		asmdecl.Analyzer,
+-		assign.Analyzer,
+-		atomic.Analyzer,
+-		bools.Analyzer,
+-		buildtag.Analyzer,
+-		cgocall.Analyzer,
+-		composite.Analyzer,
+-		copylock.Analyzer,
+-		httpresponse.Analyzer,
+-		loopclosure.Analyzer,
+-		lostcancel.Analyzer,
+-		nilfunc.Analyzer,
+-		printf.Analyzer,
+-		shift.Analyzer,
+-		stdmethods.Analyzer,
+-		structtag.Analyzer,
+-		tests.Analyzer,
+-		unmarshal.Analyzer,
+-		unreachable.Analyzer,
+-		unsafeptr.Analyzer,
+-		unusedresult.Analyzer,
+-	)
+-}
+diff --git a/src/vendor/golang.org/x/net/lif/defs_solaris.go b/src/vendor/golang.org/x/net/lif/defs_solaris.go
+deleted file mode 100644
+index 02c19981d2..0000000000
+--- a/src/vendor/golang.org/x/net/lif/defs_solaris.go
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// +godefs map struct_in_addr [4]byte /* in_addr */
+-// +godefs map struct_in6_addr [16]byte /* in6_addr */
+-
+-package lif
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sockio.h>
+-
+-#include <net/if.h>
+-#include <net/if_types.h>
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_DGRAM = C.SOCK_DGRAM
+-)
+-
+-type sockaddrStorage C.struct_sockaddr_storage
+-
+-const (
+-	sysLIFC_NOXMIT          = C.LIFC_NOXMIT
+-	sysLIFC_EXTERNAL_SOURCE = C.LIFC_EXTERNAL_SOURCE
+-	sysLIFC_TEMPORARY       = C.LIFC_TEMPORARY
+-	sysLIFC_ALLZONES        = C.LIFC_ALLZONES
+-	sysLIFC_UNDER_IPMP      = C.LIFC_UNDER_IPMP
+-	sysLIFC_ENABLED         = C.LIFC_ENABLED
+-
+-	sysSIOCGLIFADDR    = C.SIOCGLIFADDR
+-	sysSIOCGLIFDSTADDR = C.SIOCGLIFDSTADDR
+-	sysSIOCGLIFFLAGS   = C.SIOCGLIFFLAGS
+-	sysSIOCGLIFMTU     = C.SIOCGLIFMTU
+-	sysSIOCGLIFNETMASK = C.SIOCGLIFNETMASK
+-	sysSIOCGLIFMETRIC  = C.SIOCGLIFMETRIC
+-	sysSIOCGLIFNUM     = C.SIOCGLIFNUM
+-	sysSIOCGLIFINDEX   = C.SIOCGLIFINDEX
+-	sysSIOCGLIFSUBNET  = C.SIOCGLIFSUBNET
+-	sysSIOCGLIFLNKINFO = C.SIOCGLIFLNKINFO
+-	sysSIOCGLIFCONF    = C.SIOCGLIFCONF
+-	sysSIOCGLIFHWADDR  = C.SIOCGLIFHWADDR
+-)
+-
+-const (
+-	sysIFF_UP          = C.IFF_UP
+-	sysIFF_BROADCAST   = C.IFF_BROADCAST
+-	sysIFF_DEBUG       = C.IFF_DEBUG
+-	sysIFF_LOOPBACK    = C.IFF_LOOPBACK
+-	sysIFF_POINTOPOINT = C.IFF_POINTOPOINT
+-	sysIFF_NOTRAILERS  = C.IFF_NOTRAILERS
+-	sysIFF_RUNNING     = C.IFF_RUNNING
+-	sysIFF_NOARP       = C.IFF_NOARP
+-	sysIFF_PROMISC     = C.IFF_PROMISC
+-	sysIFF_ALLMULTI    = C.IFF_ALLMULTI
+-	sysIFF_INTELLIGENT = C.IFF_INTELLIGENT
+-	sysIFF_MULTICAST   = C.IFF_MULTICAST
+-	sysIFF_MULTI_BCAST = C.IFF_MULTI_BCAST
+-	sysIFF_UNNUMBERED  = C.IFF_UNNUMBERED
+-	sysIFF_PRIVATE     = C.IFF_PRIVATE
+-)
+-
+-const (
+-	sizeofLifnum       = C.sizeof_struct_lifnum
+-	sizeofLifreq       = C.sizeof_struct_lifreq
+-	sizeofLifconf      = C.sizeof_struct_lifconf
+-	sizeofLifIfinfoReq = C.sizeof_struct_lif_ifinfo_req
+-)
+-
+-type lifnum C.struct_lifnum
+-
+-type lifreq C.struct_lifreq
+-
+-type lifconf C.struct_lifconf
+-
+-type lifIfinfoReq C.struct_lif_ifinfo_req
+-
+-const (
+-	sysIFT_IPV4 = C.IFT_IPV4
+-	sysIFT_IPV6 = C.IFT_IPV6
+-	sysIFT_6TO4 = C.IFT_6TO4
+-)
+diff --git a/src/vendor/golang.org/x/net/nettest/conntest.go b/src/vendor/golang.org/x/net/nettest/conntest.go
+index adbcaf02c6..5bd3a8c68c 100644
+--- a/src/vendor/golang.org/x/net/nettest/conntest.go
++++ b/src/vendor/golang.org/x/net/nettest/conntest.go
+@@ -138,7 +138,7 @@ func testPingPong(t *testing.T, c1, c2 net.Conn) {
+ }
+ 
+ // testRacyRead tests that it is safe to mutate the input Read buffer
+-// immediately after cancellation has occurred.
++// immediately after cancelation has occurred.
+ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
+ 	go chunkedCopy(c2, rand.New(rand.NewSource(0)))
+ 
+@@ -166,7 +166,7 @@ func testRacyRead(t *testing.T, c1, c2 net.Conn) {
+ }
+ 
+ // testRacyWrite tests that it is safe to mutate the input Write buffer
+-// immediately after cancellation has occurred.
++// immediately after cancelation has occurred.
+ func testRacyWrite(t *testing.T, c1, c2 net.Conn) {
+ 	go chunkedCopy(ioutil.Discard, c2)
+ 
+@@ -314,7 +314,7 @@ func testCloseTimeout(t *testing.T, c1, c2 net.Conn) {
+ 	defer wg.Wait()
+ 	wg.Add(3)
+ 
+-	// Test for cancellation upon connection closure.
++	// Test for cancelation upon connection closure.
+ 	c1.SetDeadline(neverTimeout)
+ 	go func() {
+ 		defer wg.Done()
+diff --git a/src/vendor/golang.org/x/net/route/defs_darwin.go b/src/vendor/golang.org/x/net/route/defs_darwin.go
+deleted file mode 100644
+index e7716442d2..0000000000
+--- a/src/vendor/golang.org/x/net/route/defs_darwin.go
++++ /dev/null
+@@ -1,114 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package route
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sysctl.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-
+-#include <netinet/in.h>
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_ROUTE  = C.AF_ROUTE
+-	sysAF_LINK   = C.AF_LINK
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_RAW = C.SOCK_RAW
+-
+-	sysNET_RT_DUMP    = C.NET_RT_DUMP
+-	sysNET_RT_FLAGS   = C.NET_RT_FLAGS
+-	sysNET_RT_IFLIST  = C.NET_RT_IFLIST
+-	sysNET_RT_STAT    = C.NET_RT_STAT
+-	sysNET_RT_TRASH   = C.NET_RT_TRASH
+-	sysNET_RT_IFLIST2 = C.NET_RT_IFLIST2
+-	sysNET_RT_DUMP2   = C.NET_RT_DUMP2
+-	sysNET_RT_MAXID   = C.NET_RT_MAXID
+-)
+-
+-const (
+-	sysCTL_MAXNAME = C.CTL_MAXNAME
+-
+-	sysCTL_UNSPEC  = C.CTL_UNSPEC
+-	sysCTL_KERN    = C.CTL_KERN
+-	sysCTL_VM      = C.CTL_VM
+-	sysCTL_VFS     = C.CTL_VFS
+-	sysCTL_NET     = C.CTL_NET
+-	sysCTL_DEBUG   = C.CTL_DEBUG
+-	sysCTL_HW      = C.CTL_HW
+-	sysCTL_MACHDEP = C.CTL_MACHDEP
+-	sysCTL_USER    = C.CTL_USER
+-	sysCTL_MAXID   = C.CTL_MAXID
+-)
+-
+-const (
+-	sysRTM_VERSION = C.RTM_VERSION
+-
+-	sysRTM_ADD       = C.RTM_ADD
+-	sysRTM_DELETE    = C.RTM_DELETE
+-	sysRTM_CHANGE    = C.RTM_CHANGE
+-	sysRTM_GET       = C.RTM_GET
+-	sysRTM_LOSING    = C.RTM_LOSING
+-	sysRTM_REDIRECT  = C.RTM_REDIRECT
+-	sysRTM_MISS      = C.RTM_MISS
+-	sysRTM_LOCK      = C.RTM_LOCK
+-	sysRTM_OLDADD    = C.RTM_OLDADD
+-	sysRTM_OLDDEL    = C.RTM_OLDDEL
+-	sysRTM_RESOLVE   = C.RTM_RESOLVE
+-	sysRTM_NEWADDR   = C.RTM_NEWADDR
+-	sysRTM_DELADDR   = C.RTM_DELADDR
+-	sysRTM_IFINFO    = C.RTM_IFINFO
+-	sysRTM_NEWMADDR  = C.RTM_NEWMADDR
+-	sysRTM_DELMADDR  = C.RTM_DELMADDR
+-	sysRTM_IFINFO2   = C.RTM_IFINFO2
+-	sysRTM_NEWMADDR2 = C.RTM_NEWMADDR2
+-	sysRTM_GET2      = C.RTM_GET2
+-
+-	sysRTA_DST     = C.RTA_DST
+-	sysRTA_GATEWAY = C.RTA_GATEWAY
+-	sysRTA_NETMASK = C.RTA_NETMASK
+-	sysRTA_GENMASK = C.RTA_GENMASK
+-	sysRTA_IFP     = C.RTA_IFP
+-	sysRTA_IFA     = C.RTA_IFA
+-	sysRTA_AUTHOR  = C.RTA_AUTHOR
+-	sysRTA_BRD     = C.RTA_BRD
+-
+-	sysRTAX_DST     = C.RTAX_DST
+-	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+-	sysRTAX_NETMASK = C.RTAX_NETMASK
+-	sysRTAX_GENMASK = C.RTAX_GENMASK
+-	sysRTAX_IFP     = C.RTAX_IFP
+-	sysRTAX_IFA     = C.RTAX_IFA
+-	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
+-	sysRTAX_BRD     = C.RTAX_BRD
+-	sysRTAX_MAX     = C.RTAX_MAX
+-)
+-
+-const (
+-	sizeofIfMsghdrDarwin15    = C.sizeof_struct_if_msghdr
+-	sizeofIfaMsghdrDarwin15   = C.sizeof_struct_ifa_msghdr
+-	sizeofIfmaMsghdrDarwin15  = C.sizeof_struct_ifma_msghdr
+-	sizeofIfMsghdr2Darwin15   = C.sizeof_struct_if_msghdr2
+-	sizeofIfmaMsghdr2Darwin15 = C.sizeof_struct_ifma_msghdr2
+-	sizeofIfDataDarwin15      = C.sizeof_struct_if_data
+-	sizeofIfData64Darwin15    = C.sizeof_struct_if_data64
+-
+-	sizeofRtMsghdrDarwin15  = C.sizeof_struct_rt_msghdr
+-	sizeofRtMsghdr2Darwin15 = C.sizeof_struct_rt_msghdr2
+-	sizeofRtMetricsDarwin15 = C.sizeof_struct_rt_metrics
+-
+-	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+-	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+-	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
+-)
+diff --git a/src/vendor/golang.org/x/net/route/defs_dragonfly.go b/src/vendor/golang.org/x/net/route/defs_dragonfly.go
+deleted file mode 100644
+index dd31de269a..0000000000
+--- a/src/vendor/golang.org/x/net/route/defs_dragonfly.go
++++ /dev/null
+@@ -1,113 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package route
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sysctl.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-
+-#include <netinet/in.h>
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_ROUTE  = C.AF_ROUTE
+-	sysAF_LINK   = C.AF_LINK
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_RAW = C.SOCK_RAW
+-
+-	sysNET_RT_DUMP   = C.NET_RT_DUMP
+-	sysNET_RT_FLAGS  = C.NET_RT_FLAGS
+-	sysNET_RT_IFLIST = C.NET_RT_IFLIST
+-	sysNET_RT_MAXID  = C.NET_RT_MAXID
+-)
+-
+-const (
+-	sysCTL_MAXNAME = C.CTL_MAXNAME
+-
+-	sysCTL_UNSPEC   = C.CTL_UNSPEC
+-	sysCTL_KERN     = C.CTL_KERN
+-	sysCTL_VM       = C.CTL_VM
+-	sysCTL_VFS      = C.CTL_VFS
+-	sysCTL_NET      = C.CTL_NET
+-	sysCTL_DEBUG    = C.CTL_DEBUG
+-	sysCTL_HW       = C.CTL_HW
+-	sysCTL_MACHDEP  = C.CTL_MACHDEP
+-	sysCTL_USER     = C.CTL_USER
+-	sysCTL_P1003_1B = C.CTL_P1003_1B
+-	sysCTL_LWKT     = C.CTL_LWKT
+-	sysCTL_MAXID    = C.CTL_MAXID
+-)
+-
+-const (
+-	sysRTM_VERSION = C.RTM_VERSION
+-
+-	sysRTM_ADD        = C.RTM_ADD
+-	sysRTM_DELETE     = C.RTM_DELETE
+-	sysRTM_CHANGE     = C.RTM_CHANGE
+-	sysRTM_GET        = C.RTM_GET
+-	sysRTM_LOSING     = C.RTM_LOSING
+-	sysRTM_REDIRECT   = C.RTM_REDIRECT
+-	sysRTM_MISS       = C.RTM_MISS
+-	sysRTM_LOCK       = C.RTM_LOCK
+-	sysRTM_OLDADD     = C.RTM_OLDADD
+-	sysRTM_OLDDEL     = C.RTM_OLDDEL
+-	sysRTM_RESOLVE    = C.RTM_RESOLVE
+-	sysRTM_NEWADDR    = C.RTM_NEWADDR
+-	sysRTM_DELADDR    = C.RTM_DELADDR
+-	sysRTM_IFINFO     = C.RTM_IFINFO
+-	sysRTM_NEWMADDR   = C.RTM_NEWMADDR
+-	sysRTM_DELMADDR   = C.RTM_DELMADDR
+-	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
+-	sysRTM_IEEE80211  = C.RTM_IEEE80211
+-
+-	sysRTA_DST     = C.RTA_DST
+-	sysRTA_GATEWAY = C.RTA_GATEWAY
+-	sysRTA_NETMASK = C.RTA_NETMASK
+-	sysRTA_GENMASK = C.RTA_GENMASK
+-	sysRTA_IFP     = C.RTA_IFP
+-	sysRTA_IFA     = C.RTA_IFA
+-	sysRTA_AUTHOR  = C.RTA_AUTHOR
+-	sysRTA_BRD     = C.RTA_BRD
+-	sysRTA_MPLS1   = C.RTA_MPLS1
+-	sysRTA_MPLS2   = C.RTA_MPLS2
+-	sysRTA_MPLS3   = C.RTA_MPLS3
+-
+-	sysRTAX_DST     = C.RTAX_DST
+-	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+-	sysRTAX_NETMASK = C.RTAX_NETMASK
+-	sysRTAX_GENMASK = C.RTAX_GENMASK
+-	sysRTAX_IFP     = C.RTAX_IFP
+-	sysRTAX_IFA     = C.RTAX_IFA
+-	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
+-	sysRTAX_BRD     = C.RTAX_BRD
+-	sysRTAX_MPLS1   = C.RTAX_MPLS1
+-	sysRTAX_MPLS2   = C.RTAX_MPLS2
+-	sysRTAX_MPLS3   = C.RTAX_MPLS3
+-	sysRTAX_MAX     = C.RTAX_MAX
+-)
+-
+-const (
+-	sizeofIfMsghdrDragonFlyBSD4         = C.sizeof_struct_if_msghdr
+-	sizeofIfaMsghdrDragonFlyBSD4        = C.sizeof_struct_ifa_msghdr
+-	sizeofIfmaMsghdrDragonFlyBSD4       = C.sizeof_struct_ifma_msghdr
+-	sizeofIfAnnouncemsghdrDragonFlyBSD4 = C.sizeof_struct_if_announcemsghdr
+-
+-	sizeofRtMsghdrDragonFlyBSD4  = C.sizeof_struct_rt_msghdr
+-	sizeofRtMetricsDragonFlyBSD4 = C.sizeof_struct_rt_metrics
+-
+-	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+-	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+-	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
+-)
+diff --git a/src/vendor/golang.org/x/net/route/defs_freebsd.go b/src/vendor/golang.org/x/net/route/defs_freebsd.go
+deleted file mode 100644
+index d95594d8ea..0000000000
+--- a/src/vendor/golang.org/x/net/route/defs_freebsd.go
++++ /dev/null
+@@ -1,337 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package route
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sysctl.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-
+-#include <netinet/in.h>
+-
+-struct if_data_freebsd7 {
+-	u_char ifi_type;
+-	u_char ifi_physical;
+-	u_char ifi_addrlen;
+-	u_char ifi_hdrlen;
+-	u_char ifi_link_state;
+-	u_char ifi_spare_char1;
+-	u_char ifi_spare_char2;
+-	u_char ifi_datalen;
+-	u_long ifi_mtu;
+-	u_long ifi_metric;
+-	u_long ifi_baudrate;
+-	u_long ifi_ipackets;
+-	u_long ifi_ierrors;
+-	u_long ifi_opackets;
+-	u_long ifi_oerrors;
+-	u_long ifi_collisions;
+-	u_long ifi_ibytes;
+-	u_long ifi_obytes;
+-	u_long ifi_imcasts;
+-	u_long ifi_omcasts;
+-	u_long ifi_iqdrops;
+-	u_long ifi_noproto;
+-	u_long ifi_hwassist;
+-	time_t __ifi_epoch;
+-	struct timeval __ifi_lastchange;
+-};
+-
+-struct if_data_freebsd8 {
+-	u_char ifi_type;
+-	u_char ifi_physical;
+-	u_char ifi_addrlen;
+-	u_char ifi_hdrlen;
+-	u_char ifi_link_state;
+-	u_char ifi_spare_char1;
+-	u_char ifi_spare_char2;
+-	u_char ifi_datalen;
+-	u_long ifi_mtu;
+-	u_long ifi_metric;
+-	u_long ifi_baudrate;
+-	u_long ifi_ipackets;
+-	u_long ifi_ierrors;
+-	u_long ifi_opackets;
+-	u_long ifi_oerrors;
+-	u_long ifi_collisions;
+-	u_long ifi_ibytes;
+-	u_long ifi_obytes;
+-	u_long ifi_imcasts;
+-	u_long ifi_omcasts;
+-	u_long ifi_iqdrops;
+-	u_long ifi_noproto;
+-	u_long ifi_hwassist;
+-	time_t __ifi_epoch;
+-	struct timeval __ifi_lastchange;
+-};
+-
+-struct if_data_freebsd9 {
+-	u_char ifi_type;
+-	u_char ifi_physical;
+-	u_char ifi_addrlen;
+-	u_char ifi_hdrlen;
+-	u_char ifi_link_state;
+-	u_char ifi_spare_char1;
+-	u_char ifi_spare_char2;
+-	u_char ifi_datalen;
+-	u_long ifi_mtu;
+-	u_long ifi_metric;
+-	u_long ifi_baudrate;
+-	u_long ifi_ipackets;
+-	u_long ifi_ierrors;
+-	u_long ifi_opackets;
+-	u_long ifi_oerrors;
+-	u_long ifi_collisions;
+-	u_long ifi_ibytes;
+-	u_long ifi_obytes;
+-	u_long ifi_imcasts;
+-	u_long ifi_omcasts;
+-	u_long ifi_iqdrops;
+-	u_long ifi_noproto;
+-	u_long ifi_hwassist;
+-	time_t __ifi_epoch;
+-	struct timeval __ifi_lastchange;
+-};
+-
+-struct if_data_freebsd10 {
+-	u_char ifi_type;
+-	u_char ifi_physical;
+-	u_char ifi_addrlen;
+-	u_char ifi_hdrlen;
+-	u_char ifi_link_state;
+-	u_char ifi_vhid;
+-	u_char ifi_baudrate_pf;
+-	u_char ifi_datalen;
+-	u_long ifi_mtu;
+-	u_long ifi_metric;
+-	u_long ifi_baudrate;
+-	u_long ifi_ipackets;
+-	u_long ifi_ierrors;
+-	u_long ifi_opackets;
+-	u_long ifi_oerrors;
+-	u_long ifi_collisions;
+-	u_long ifi_ibytes;
+-	u_long ifi_obytes;
+-	u_long ifi_imcasts;
+-	u_long ifi_omcasts;
+-	u_long ifi_iqdrops;
+-	u_long ifi_noproto;
+-	uint64_t ifi_hwassist;
+-	time_t __ifi_epoch;
+-	struct timeval __ifi_lastchange;
+-};
+-
+-struct if_data_freebsd11 {
+-	uint8_t ifi_type;
+-	uint8_t ifi_physical;
+-	uint8_t ifi_addrlen;
+-	uint8_t ifi_hdrlen;
+-	uint8_t ifi_link_state;
+-	uint8_t ifi_vhid;
+-	uint16_t ifi_datalen;
+-	uint32_t ifi_mtu;
+-	uint32_t ifi_metric;
+-	uint64_t ifi_baudrate;
+-	uint64_t ifi_ipackets;
+-	uint64_t ifi_ierrors;
+-	uint64_t ifi_opackets;
+-	uint64_t ifi_oerrors;
+-	uint64_t ifi_collisions;
+-	uint64_t ifi_ibytes;
+-	uint64_t ifi_obytes;
+-	uint64_t ifi_imcasts;
+-	uint64_t ifi_omcasts;
+-	uint64_t ifi_iqdrops;
+-	uint64_t ifi_oqdrops;
+-	uint64_t ifi_noproto;
+-	uint64_t ifi_hwassist;
+-	union {
+-		time_t tt;
+-		uint64_t ph;
+-	} __ifi_epoch;
+-	union {
+-		struct timeval tv;
+-		struct {
+-			uint64_t ph1;
+-			uint64_t ph2;
+-		} ph;
+-	} __ifi_lastchange;
+-};
+-
+-struct if_msghdr_freebsd7 {
+-	u_short ifm_msglen;
+-	u_char ifm_version;
+-	u_char ifm_type;
+-	int ifm_addrs;
+-	int ifm_flags;
+-	u_short ifm_index;
+-	struct if_data_freebsd7 ifm_data;
+-};
+-
+-struct if_msghdr_freebsd8 {
+-	u_short ifm_msglen;
+-	u_char ifm_version;
+-	u_char ifm_type;
+-	int ifm_addrs;
+-	int ifm_flags;
+-	u_short ifm_index;
+-	struct if_data_freebsd8 ifm_data;
+-};
+-
+-struct if_msghdr_freebsd9 {
+-	u_short ifm_msglen;
+-	u_char ifm_version;
+-	u_char ifm_type;
+-	int ifm_addrs;
+-	int ifm_flags;
+-	u_short ifm_index;
+-	struct if_data_freebsd9 ifm_data;
+-};
+-
+-struct if_msghdr_freebsd10 {
+-	u_short ifm_msglen;
+-	u_char ifm_version;
+-	u_char ifm_type;
+-	int ifm_addrs;
+-	int ifm_flags;
+-	u_short ifm_index;
+-	struct if_data_freebsd10 ifm_data;
+-};
+-
+-struct if_msghdr_freebsd11 {
+-	u_short ifm_msglen;
+-	u_char ifm_version;
+-	u_char ifm_type;
+-	int ifm_addrs;
+-	int ifm_flags;
+-	u_short ifm_index;
+-	struct if_data_freebsd11 ifm_data;
+-};
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_ROUTE  = C.AF_ROUTE
+-	sysAF_LINK   = C.AF_LINK
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_RAW = C.SOCK_RAW
+-
+-	sysNET_RT_DUMP     = C.NET_RT_DUMP
+-	sysNET_RT_FLAGS    = C.NET_RT_FLAGS
+-	sysNET_RT_IFLIST   = C.NET_RT_IFLIST
+-	sysNET_RT_IFMALIST = C.NET_RT_IFMALIST
+-	sysNET_RT_IFLISTL  = C.NET_RT_IFLISTL
+-)
+-
+-const (
+-	sysCTL_MAXNAME = C.CTL_MAXNAME
+-
+-	sysCTL_UNSPEC   = C.CTL_UNSPEC
+-	sysCTL_KERN     = C.CTL_KERN
+-	sysCTL_VM       = C.CTL_VM
+-	sysCTL_VFS      = C.CTL_VFS
+-	sysCTL_NET      = C.CTL_NET
+-	sysCTL_DEBUG    = C.CTL_DEBUG
+-	sysCTL_HW       = C.CTL_HW
+-	sysCTL_MACHDEP  = C.CTL_MACHDEP
+-	sysCTL_USER     = C.CTL_USER
+-	sysCTL_P1003_1B = C.CTL_P1003_1B
+-)
+-
+-const (
+-	sysRTM_VERSION = C.RTM_VERSION
+-
+-	sysRTM_ADD        = C.RTM_ADD
+-	sysRTM_DELETE     = C.RTM_DELETE
+-	sysRTM_CHANGE     = C.RTM_CHANGE
+-	sysRTM_GET        = C.RTM_GET
+-	sysRTM_LOSING     = C.RTM_LOSING
+-	sysRTM_REDIRECT   = C.RTM_REDIRECT
+-	sysRTM_MISS       = C.RTM_MISS
+-	sysRTM_LOCK       = C.RTM_LOCK
+-	sysRTM_RESOLVE    = C.RTM_RESOLVE
+-	sysRTM_NEWADDR    = C.RTM_NEWADDR
+-	sysRTM_DELADDR    = C.RTM_DELADDR
+-	sysRTM_IFINFO     = C.RTM_IFINFO
+-	sysRTM_NEWMADDR   = C.RTM_NEWMADDR
+-	sysRTM_DELMADDR   = C.RTM_DELMADDR
+-	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
+-	sysRTM_IEEE80211  = C.RTM_IEEE80211
+-
+-	sysRTA_DST     = C.RTA_DST
+-	sysRTA_GATEWAY = C.RTA_GATEWAY
+-	sysRTA_NETMASK = C.RTA_NETMASK
+-	sysRTA_GENMASK = C.RTA_GENMASK
+-	sysRTA_IFP     = C.RTA_IFP
+-	sysRTA_IFA     = C.RTA_IFA
+-	sysRTA_AUTHOR  = C.RTA_AUTHOR
+-	sysRTA_BRD     = C.RTA_BRD
+-
+-	sysRTAX_DST     = C.RTAX_DST
+-	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+-	sysRTAX_NETMASK = C.RTAX_NETMASK
+-	sysRTAX_GENMASK = C.RTAX_GENMASK
+-	sysRTAX_IFP     = C.RTAX_IFP
+-	sysRTAX_IFA     = C.RTAX_IFA
+-	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
+-	sysRTAX_BRD     = C.RTAX_BRD
+-	sysRTAX_MAX     = C.RTAX_MAX
+-)
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = C.sizeof_struct_if_msghdrl
+-	sizeofIfaMsghdrFreeBSD10        = C.sizeof_struct_ifa_msghdr
+-	sizeofIfaMsghdrlFreeBSD10       = C.sizeof_struct_ifa_msghdrl
+-	sizeofIfmaMsghdrFreeBSD10       = C.sizeof_struct_ifma_msghdr
+-	sizeofIfAnnouncemsghdrFreeBSD10 = C.sizeof_struct_if_announcemsghdr
+-
+-	sizeofRtMsghdrFreeBSD10  = C.sizeof_struct_rt_msghdr
+-	sizeofRtMetricsFreeBSD10 = C.sizeof_struct_rt_metrics
+-
+-	sizeofIfMsghdrFreeBSD7  = C.sizeof_struct_if_msghdr_freebsd7
+-	sizeofIfMsghdrFreeBSD8  = C.sizeof_struct_if_msghdr_freebsd8
+-	sizeofIfMsghdrFreeBSD9  = C.sizeof_struct_if_msghdr_freebsd9
+-	sizeofIfMsghdrFreeBSD10 = C.sizeof_struct_if_msghdr_freebsd10
+-	sizeofIfMsghdrFreeBSD11 = C.sizeof_struct_if_msghdr_freebsd11
+-
+-	sizeofIfDataFreeBSD7  = C.sizeof_struct_if_data_freebsd7
+-	sizeofIfDataFreeBSD8  = C.sizeof_struct_if_data_freebsd8
+-	sizeofIfDataFreeBSD9  = C.sizeof_struct_if_data_freebsd9
+-	sizeofIfDataFreeBSD10 = C.sizeof_struct_if_data_freebsd10
+-	sizeofIfDataFreeBSD11 = C.sizeof_struct_if_data_freebsd11
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = C.sizeof_struct_if_msghdrl
+-	sizeofIfaMsghdrFreeBSD10Emu        = C.sizeof_struct_ifa_msghdr
+-	sizeofIfaMsghdrlFreeBSD10Emu       = C.sizeof_struct_ifa_msghdrl
+-	sizeofIfmaMsghdrFreeBSD10Emu       = C.sizeof_struct_ifma_msghdr
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = C.sizeof_struct_if_announcemsghdr
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = C.sizeof_struct_rt_msghdr
+-	sizeofRtMetricsFreeBSD10Emu = C.sizeof_struct_rt_metrics
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = C.sizeof_struct_if_msghdr_freebsd7
+-	sizeofIfMsghdrFreeBSD8Emu  = C.sizeof_struct_if_msghdr_freebsd8
+-	sizeofIfMsghdrFreeBSD9Emu  = C.sizeof_struct_if_msghdr_freebsd9
+-	sizeofIfMsghdrFreeBSD10Emu = C.sizeof_struct_if_msghdr_freebsd10
+-	sizeofIfMsghdrFreeBSD11Emu = C.sizeof_struct_if_msghdr_freebsd11
+-
+-	sizeofIfDataFreeBSD7Emu  = C.sizeof_struct_if_data_freebsd7
+-	sizeofIfDataFreeBSD8Emu  = C.sizeof_struct_if_data_freebsd8
+-	sizeofIfDataFreeBSD9Emu  = C.sizeof_struct_if_data_freebsd9
+-	sizeofIfDataFreeBSD10Emu = C.sizeof_struct_if_data_freebsd10
+-	sizeofIfDataFreeBSD11Emu = C.sizeof_struct_if_data_freebsd11
+-
+-	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+-	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+-	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
+-)
+diff --git a/src/vendor/golang.org/x/net/route/defs_netbsd.go b/src/vendor/golang.org/x/net/route/defs_netbsd.go
+deleted file mode 100644
+index b0abd549a0..0000000000
+--- a/src/vendor/golang.org/x/net/route/defs_netbsd.go
++++ /dev/null
+@@ -1,112 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package route
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sysctl.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-
+-#include <netinet/in.h>
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_ROUTE  = C.AF_ROUTE
+-	sysAF_LINK   = C.AF_LINK
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_RAW = C.SOCK_RAW
+-
+-	sysNET_RT_DUMP   = C.NET_RT_DUMP
+-	sysNET_RT_FLAGS  = C.NET_RT_FLAGS
+-	sysNET_RT_IFLIST = C.NET_RT_IFLIST
+-	sysNET_RT_MAXID  = C.NET_RT_MAXID
+-)
+-
+-const (
+-	sysCTL_MAXNAME = C.CTL_MAXNAME
+-
+-	sysCTL_UNSPEC   = C.CTL_UNSPEC
+-	sysCTL_KERN     = C.CTL_KERN
+-	sysCTL_VM       = C.CTL_VM
+-	sysCTL_VFS      = C.CTL_VFS
+-	sysCTL_NET      = C.CTL_NET
+-	sysCTL_DEBUG    = C.CTL_DEBUG
+-	sysCTL_HW       = C.CTL_HW
+-	sysCTL_MACHDEP  = C.CTL_MACHDEP
+-	sysCTL_USER     = C.CTL_USER
+-	sysCTL_DDB      = C.CTL_DDB
+-	sysCTL_PROC     = C.CTL_PROC
+-	sysCTL_VENDOR   = C.CTL_VENDOR
+-	sysCTL_EMUL     = C.CTL_EMUL
+-	sysCTL_SECURITY = C.CTL_SECURITY
+-	sysCTL_MAXID    = C.CTL_MAXID
+-)
+-
+-const (
+-	sysRTM_VERSION = C.RTM_VERSION
+-
+-	sysRTM_ADD        = C.RTM_ADD
+-	sysRTM_DELETE     = C.RTM_DELETE
+-	sysRTM_CHANGE     = C.RTM_CHANGE
+-	sysRTM_GET        = C.RTM_GET
+-	sysRTM_LOSING     = C.RTM_LOSING
+-	sysRTM_REDIRECT   = C.RTM_REDIRECT
+-	sysRTM_MISS       = C.RTM_MISS
+-	sysRTM_LOCK       = C.RTM_LOCK
+-	sysRTM_OLDADD     = C.RTM_OLDADD
+-	sysRTM_OLDDEL     = C.RTM_OLDDEL
+-	sysRTM_RESOLVE    = C.RTM_RESOLVE
+-	sysRTM_NEWADDR    = C.RTM_NEWADDR
+-	sysRTM_DELADDR    = C.RTM_DELADDR
+-	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
+-	sysRTM_IEEE80211  = C.RTM_IEEE80211
+-	sysRTM_SETGATE    = C.RTM_SETGATE
+-	sysRTM_LLINFO_UPD = C.RTM_LLINFO_UPD
+-	sysRTM_IFINFO     = C.RTM_IFINFO
+-	sysRTM_CHGADDR    = C.RTM_CHGADDR
+-
+-	sysRTA_DST     = C.RTA_DST
+-	sysRTA_GATEWAY = C.RTA_GATEWAY
+-	sysRTA_NETMASK = C.RTA_NETMASK
+-	sysRTA_GENMASK = C.RTA_GENMASK
+-	sysRTA_IFP     = C.RTA_IFP
+-	sysRTA_IFA     = C.RTA_IFA
+-	sysRTA_AUTHOR  = C.RTA_AUTHOR
+-	sysRTA_BRD     = C.RTA_BRD
+-	sysRTA_TAG     = C.RTA_TAG
+-
+-	sysRTAX_DST     = C.RTAX_DST
+-	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+-	sysRTAX_NETMASK = C.RTAX_NETMASK
+-	sysRTAX_GENMASK = C.RTAX_GENMASK
+-	sysRTAX_IFP     = C.RTAX_IFP
+-	sysRTAX_IFA     = C.RTAX_IFA
+-	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
+-	sysRTAX_BRD     = C.RTAX_BRD
+-	sysRTAX_TAG     = C.RTAX_TAG
+-	sysRTAX_MAX     = C.RTAX_MAX
+-)
+-
+-const (
+-	sizeofIfMsghdrNetBSD7         = C.sizeof_struct_if_msghdr
+-	sizeofIfaMsghdrNetBSD7        = C.sizeof_struct_ifa_msghdr
+-	sizeofIfAnnouncemsghdrNetBSD7 = C.sizeof_struct_if_announcemsghdr
+-
+-	sizeofRtMsghdrNetBSD7  = C.sizeof_struct_rt_msghdr
+-	sizeofRtMetricsNetBSD7 = C.sizeof_struct_rt_metrics
+-
+-	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+-	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+-	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
+-)
+diff --git a/src/vendor/golang.org/x/net/route/defs_openbsd.go b/src/vendor/golang.org/x/net/route/defs_openbsd.go
+deleted file mode 100644
+index 173bb5d513..0000000000
+--- a/src/vendor/golang.org/x/net/route/defs_openbsd.go
++++ /dev/null
+@@ -1,116 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package route
+-
+-/*
+-#include <sys/socket.h>
+-#include <sys/sysctl.h>
+-
+-#include <net/if.h>
+-#include <net/if_dl.h>
+-#include <net/route.h>
+-
+-#include <netinet/in.h>
+-*/
+-import "C"
+-
+-const (
+-	sysAF_UNSPEC = C.AF_UNSPEC
+-	sysAF_INET   = C.AF_INET
+-	sysAF_ROUTE  = C.AF_ROUTE
+-	sysAF_LINK   = C.AF_LINK
+-	sysAF_INET6  = C.AF_INET6
+-
+-	sysSOCK_RAW = C.SOCK_RAW
+-
+-	sysNET_RT_DUMP    = C.NET_RT_DUMP
+-	sysNET_RT_FLAGS   = C.NET_RT_FLAGS
+-	sysNET_RT_IFLIST  = C.NET_RT_IFLIST
+-	sysNET_RT_STATS   = C.NET_RT_STATS
+-	sysNET_RT_TABLE   = C.NET_RT_TABLE
+-	sysNET_RT_IFNAMES = C.NET_RT_IFNAMES
+-	sysNET_RT_MAXID   = C.NET_RT_MAXID
+-)
+-
+-const (
+-	sysCTL_MAXNAME = C.CTL_MAXNAME
+-
+-	sysCTL_UNSPEC  = C.CTL_UNSPEC
+-	sysCTL_KERN    = C.CTL_KERN
+-	sysCTL_VM      = C.CTL_VM
+-	sysCTL_FS      = C.CTL_FS
+-	sysCTL_NET     = C.CTL_NET
+-	sysCTL_DEBUG   = C.CTL_DEBUG
+-	sysCTL_HW      = C.CTL_HW
+-	sysCTL_MACHDEP = C.CTL_MACHDEP
+-	sysCTL_DDB     = C.CTL_DDB
+-	sysCTL_VFS     = C.CTL_VFS
+-	sysCTL_MAXID   = C.CTL_MAXID
+-)
+-
+-const (
+-	sysRTM_VERSION = C.RTM_VERSION
+-
+-	sysRTM_ADD        = C.RTM_ADD
+-	sysRTM_DELETE     = C.RTM_DELETE
+-	sysRTM_CHANGE     = C.RTM_CHANGE
+-	sysRTM_GET        = C.RTM_GET
+-	sysRTM_LOSING     = C.RTM_LOSING
+-	sysRTM_REDIRECT   = C.RTM_REDIRECT
+-	sysRTM_MISS       = C.RTM_MISS
+-	sysRTM_LOCK       = C.RTM_LOCK
+-	sysRTM_RESOLVE    = C.RTM_RESOLVE
+-	sysRTM_NEWADDR    = C.RTM_NEWADDR
+-	sysRTM_DELADDR    = C.RTM_DELADDR
+-	sysRTM_IFINFO     = C.RTM_IFINFO
+-	sysRTM_IFANNOUNCE = C.RTM_IFANNOUNCE
+-	sysRTM_DESYNC     = C.RTM_DESYNC
+-	sysRTM_INVALIDATE = C.RTM_INVALIDATE
+-	sysRTM_BFD        = C.RTM_BFD
+-	sysRTM_PROPOSAL   = C.RTM_PROPOSAL
+-
+-	sysRTA_DST     = C.RTA_DST
+-	sysRTA_GATEWAY = C.RTA_GATEWAY
+-	sysRTA_NETMASK = C.RTA_NETMASK
+-	sysRTA_GENMASK = C.RTA_GENMASK
+-	sysRTA_IFP     = C.RTA_IFP
+-	sysRTA_IFA     = C.RTA_IFA
+-	sysRTA_AUTHOR  = C.RTA_AUTHOR
+-	sysRTA_BRD     = C.RTA_BRD
+-	sysRTA_SRC     = C.RTA_SRC
+-	sysRTA_SRCMASK = C.RTA_SRCMASK
+-	sysRTA_LABEL   = C.RTA_LABEL
+-	sysRTA_BFD     = C.RTA_BFD
+-	sysRTA_DNS     = C.RTA_DNS
+-	sysRTA_STATIC  = C.RTA_STATIC
+-	sysRTA_SEARCH  = C.RTA_SEARCH
+-
+-	sysRTAX_DST     = C.RTAX_DST
+-	sysRTAX_GATEWAY = C.RTAX_GATEWAY
+-	sysRTAX_NETMASK = C.RTAX_NETMASK
+-	sysRTAX_GENMASK = C.RTAX_GENMASK
+-	sysRTAX_IFP     = C.RTAX_IFP
+-	sysRTAX_IFA     = C.RTAX_IFA
+-	sysRTAX_AUTHOR  = C.RTAX_AUTHOR
+-	sysRTAX_BRD     = C.RTAX_BRD
+-	sysRTAX_SRC     = C.RTAX_SRC
+-	sysRTAX_SRCMASK = C.RTAX_SRCMASK
+-	sysRTAX_LABEL   = C.RTAX_LABEL
+-	sysRTAX_BFD     = C.RTAX_BFD
+-	sysRTAX_DNS     = C.RTAX_DNS
+-	sysRTAX_STATIC  = C.RTAX_STATIC
+-	sysRTAX_SEARCH  = C.RTAX_SEARCH
+-	sysRTAX_MAX     = C.RTAX_MAX
+-)
+-
+-const (
+-	sizeofRtMsghdr = C.sizeof_struct_rt_msghdr
+-
+-	sizeofSockaddrStorage = C.sizeof_struct_sockaddr_storage
+-	sizeofSockaddrInet    = C.sizeof_struct_sockaddr_in
+-	sizeofSockaddrInet6   = C.sizeof_struct_sockaddr_in6
+-)
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/gen.go b/src/vendor/golang.org/x/text/unicode/bidi/gen.go
+deleted file mode 100644
+index 040f3013d5..0000000000
+--- a/src/vendor/golang.org/x/text/unicode/bidi/gen.go
++++ /dev/null
+@@ -1,133 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package main
+-
+-import (
+-	"flag"
+-	"log"
+-
+-	"golang.org/x/text/internal/gen"
+-	"golang.org/x/text/internal/triegen"
+-	"golang.org/x/text/internal/ucd"
+-)
+-
+-var outputFile = flag.String("out", "tables.go", "output file")
+-
+-func main() {
+-	gen.Init()
+-	gen.Repackage("gen_trieval.go", "trieval.go", "bidi")
+-	gen.Repackage("gen_ranges.go", "ranges_test.go", "bidi")
+-
+-	genTables()
+-}
+-
+-// bidiClass names and codes taken from class "bc" in
+-// http://www.unicode.org/Public/8.0.0/ucd/PropertyValueAliases.txt
+-var bidiClass = map[string]Class{
+-	"AL":  AL,  // ArabicLetter
+-	"AN":  AN,  // ArabicNumber
+-	"B":   B,   // ParagraphSeparator
+-	"BN":  BN,  // BoundaryNeutral
+-	"CS":  CS,  // CommonSeparator
+-	"EN":  EN,  // EuropeanNumber
+-	"ES":  ES,  // EuropeanSeparator
+-	"ET":  ET,  // EuropeanTerminator
+-	"L":   L,   // LeftToRight
+-	"NSM": NSM, // NonspacingMark
+-	"ON":  ON,  // OtherNeutral
+-	"R":   R,   // RightToLeft
+-	"S":   S,   // SegmentSeparator
+-	"WS":  WS,  // WhiteSpace
+-
+-	"FSI": Control,
+-	"PDF": Control,
+-	"PDI": Control,
+-	"LRE": Control,
+-	"LRI": Control,
+-	"LRO": Control,
+-	"RLE": Control,
+-	"RLI": Control,
+-	"RLO": Control,
+-}
+-
+-func genTables() {
+-	if numClass > 0x0F {
+-		log.Fatalf("Too many Class constants (%#x > 0x0F).", numClass)
+-	}
+-	w := gen.NewCodeWriter()
+-	defer w.WriteGoFile(*outputFile, "bidi")
+-
+-	gen.WriteUnicodeVersion(w)
+-
+-	t := triegen.NewTrie("bidi")
+-
+-	// Build data about bracket mapping. These bits need to be or-ed with
+-	// any other bits.
+-	orMask := map[rune]uint64{}
+-
+-	xorMap := map[rune]int{}
+-	xorMasks := []rune{0} // First value is no-op.
+-
+-	ucd.Parse(gen.OpenUCDFile("BidiBrackets.txt"), func(p *ucd.Parser) {
+-		r1 := p.Rune(0)
+-		r2 := p.Rune(1)
+-		xor := r1 ^ r2
+-		if _, ok := xorMap[xor]; !ok {
+-			xorMap[xor] = len(xorMasks)
+-			xorMasks = append(xorMasks, xor)
+-		}
+-		entry := uint64(xorMap[xor]) << xorMaskShift
+-		switch p.String(2) {
+-		case "o":
+-			entry |= openMask
+-		case "c", "n":
+-		default:
+-			log.Fatalf("Unknown bracket class %q.", p.String(2))
+-		}
+-		orMask[r1] = entry
+-	})
+-
+-	w.WriteComment(`
+-	xorMasks contains masks to be xor-ed with brackets to get the reverse
+-	version.`)
+-	w.WriteVar("xorMasks", xorMasks)
+-
+-	done := map[rune]bool{}
+-
+-	insert := func(r rune, c Class) {
+-		if !done[r] {
+-			t.Insert(r, orMask[r]|uint64(c))
+-			done[r] = true
+-		}
+-	}
+-
+-	// Insert the derived BiDi properties.
+-	ucd.Parse(gen.OpenUCDFile("extracted/DerivedBidiClass.txt"), func(p *ucd.Parser) {
+-		r := p.Rune(0)
+-		class, ok := bidiClass[p.String(1)]
+-		if !ok {
+-			log.Fatalf("%U: Unknown BiDi class %q", r, p.String(1))
+-		}
+-		insert(r, class)
+-	})
+-	visitDefaults(insert)
+-
+-	// TODO: use sparse blocks. This would reduce table size considerably
+-	// from the looks of it.
+-
+-	sz, err := t.Gen(w)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	w.Size += sz
+-}
+-
+-// dummy values to make methods in gen_common compile. The real versions
+-// will be generated by this file to tables.go.
+-var (
+-	xorMasks []rune
+-)
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/gen_ranges.go b/src/vendor/golang.org/x/text/unicode/bidi/gen_ranges.go
+deleted file mode 100644
+index 51bd68fa7f..0000000000
+--- a/src/vendor/golang.org/x/text/unicode/bidi/gen_ranges.go
++++ /dev/null
+@@ -1,57 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package main
+-
+-import (
+-	"unicode"
+-
+-	"golang.org/x/text/internal/gen"
+-	"golang.org/x/text/internal/ucd"
+-	"golang.org/x/text/unicode/rangetable"
+-)
+-
+-// These tables are hand-extracted from:
+-// http://www.unicode.org/Public/8.0.0/ucd/extracted/DerivedBidiClass.txt
+-func visitDefaults(fn func(r rune, c Class)) {
+-	// first write default values for ranges listed above.
+-	visitRunes(fn, AL, []rune{
+-		0x0600, 0x07BF, // Arabic
+-		0x08A0, 0x08FF, // Arabic Extended-A
+-		0xFB50, 0xFDCF, // Arabic Presentation Forms
+-		0xFDF0, 0xFDFF,
+-		0xFE70, 0xFEFF,
+-		0x0001EE00, 0x0001EEFF, // Arabic Mathematical Alpha Symbols
+-	})
+-	visitRunes(fn, R, []rune{
+-		0x0590, 0x05FF, // Hebrew
+-		0x07C0, 0x089F, // Nko et al.
+-		0xFB1D, 0xFB4F,
+-		0x00010800, 0x00010FFF, // Cypriot Syllabary et. al.
+-		0x0001E800, 0x0001EDFF,
+-		0x0001EF00, 0x0001EFFF,
+-	})
+-	visitRunes(fn, ET, []rune{ // European Terminator
+-		0x20A0, 0x20Cf, // Currency symbols
+-	})
+-	rangetable.Visit(unicode.Noncharacter_Code_Point, func(r rune) {
+-		fn(r, BN) // Boundary Neutral
+-	})
+-	ucd.Parse(gen.OpenUCDFile("DerivedCoreProperties.txt"), func(p *ucd.Parser) {
+-		if p.String(1) == "Default_Ignorable_Code_Point" {
+-			fn(p.Rune(0), BN) // Boundary Neutral
+-		}
+-	})
+-}
+-
+-func visitRunes(fn func(r rune, c Class), c Class, runes []rune) {
+-	for i := 0; i < len(runes); i += 2 {
+-		lo, hi := runes[i], runes[i+1]
+-		for j := lo; j <= hi; j++ {
+-			fn(j, c)
+-		}
+-	}
+-}
+diff --git a/src/vendor/golang.org/x/text/unicode/bidi/gen_trieval.go b/src/vendor/golang.org/x/text/unicode/bidi/gen_trieval.go
+deleted file mode 100644
+index 9cb9942894..0000000000
+--- a/src/vendor/golang.org/x/text/unicode/bidi/gen_trieval.go
++++ /dev/null
+@@ -1,64 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-package main
+-
+-// Class is the Unicode BiDi class. Each rune has a single class.
+-type Class uint
+-
+-const (
+-	L       Class = iota // LeftToRight
+-	R                    // RightToLeft
+-	EN                   // EuropeanNumber
+-	ES                   // EuropeanSeparator
+-	ET                   // EuropeanTerminator
+-	AN                   // ArabicNumber
+-	CS                   // CommonSeparator
+-	B                    // ParagraphSeparator
+-	S                    // SegmentSeparator
+-	WS                   // WhiteSpace
+-	ON                   // OtherNeutral
+-	BN                   // BoundaryNeutral
+-	NSM                  // NonspacingMark
+-	AL                   // ArabicLetter
+-	Control              // Control LRO - PDI
+-
+-	numClass
+-
+-	LRO // LeftToRightOverride
+-	RLO // RightToLeftOverride
+-	LRE // LeftToRightEmbedding
+-	RLE // RightToLeftEmbedding
+-	PDF // PopDirectionalFormat
+-	LRI // LeftToRightIsolate
+-	RLI // RightToLeftIsolate
+-	FSI // FirstStrongIsolate
+-	PDI // PopDirectionalIsolate
+-
+-	unknownClass = ^Class(0)
+-)
+-
+-var controlToClass = map[rune]Class{
+-	0x202D: LRO, // LeftToRightOverride,
+-	0x202E: RLO, // RightToLeftOverride,
+-	0x202A: LRE, // LeftToRightEmbedding,
+-	0x202B: RLE, // RightToLeftEmbedding,
+-	0x202C: PDF, // PopDirectionalFormat,
+-	0x2066: LRI, // LeftToRightIsolate,
+-	0x2067: RLI, // RightToLeftIsolate,
+-	0x2068: FSI, // FirstStrongIsolate,
+-	0x2069: PDI, // PopDirectionalIsolate,
+-}
+-
+-// A trie entry has the following bits:
+-// 7..5  XOR mask for brackets
+-// 4     1: Bracket open, 0: Bracket close
+-// 3..0  Class type
+-
+-const (
+-	openMask     = 0x10
+-	xorMaskShift = 5
+-)
+diff --git a/src/vendor/golang.org/x/text/unicode/norm/maketables.go b/src/vendor/golang.org/x/text/unicode/norm/maketables.go
+deleted file mode 100644
+index 8d418160ca..0000000000
+--- a/src/vendor/golang.org/x/text/unicode/norm/maketables.go
++++ /dev/null
+@@ -1,976 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// Normalization table generator.
+-// Data read from the web.
+-// See forminfo.go for a description of the trie values associated with each rune.
+-
+-package main
+-
+-import (
+-	"bytes"
+-	"flag"
+-	"fmt"
+-	"io"
+-	"log"
+-	"sort"
+-	"strconv"
+-	"strings"
+-
+-	"golang.org/x/text/internal/gen"
+-	"golang.org/x/text/internal/triegen"
+-	"golang.org/x/text/internal/ucd"
+-)
+-
+-func main() {
+-	gen.Init()
+-	loadUnicodeData()
+-	compactCCC()
+-	loadCompositionExclusions()
+-	completeCharFields(FCanonical)
+-	completeCharFields(FCompatibility)
+-	computeNonStarterCounts()
+-	verifyComputed()
+-	printChars()
+-	testDerived()
+-	printTestdata()
+-	makeTables()
+-}
+-
+-var (
+-	tablelist = flag.String("tables",
+-		"all",
+-		"comma-separated list of which tables to generate; "+
+-			"can be 'decomp', 'recomp', 'info' and 'all'")
+-	test = flag.Bool("test",
+-		false,
+-		"test existing tables against DerivedNormalizationProps and generate test data for regression testing")
+-	verbose = flag.Bool("verbose",
+-		false,
+-		"write data to stdout as it is parsed")
+-)
+-
+-const MaxChar = 0x10FFFF // anything above this shouldn't exist
+-
+-// Quick Check properties of runes allow us to quickly
+-// determine whether a rune may occur in a normal form.
+-// For a given normal form, a rune may be guaranteed to occur
+-// verbatim (QC=Yes), may or may not combine with another
+-// rune (QC=Maybe), or may not occur (QC=No).
+-type QCResult int
+-
+-const (
+-	QCUnknown QCResult = iota
+-	QCYes
+-	QCNo
+-	QCMaybe
+-)
+-
+-func (r QCResult) String() string {
+-	switch r {
+-	case QCYes:
+-		return "Yes"
+-	case QCNo:
+-		return "No"
+-	case QCMaybe:
+-		return "Maybe"
+-	}
+-	return "***UNKNOWN***"
+-}
+-
+-const (
+-	FCanonical     = iota // NFC or NFD
+-	FCompatibility        // NFKC or NFKD
+-	FNumberOfFormTypes
+-)
+-
+-const (
+-	MComposed   = iota // NFC or NFKC
+-	MDecomposed        // NFD or NFKD
+-	MNumberOfModes
+-)
+-
+-// This contains only the properties we're interested in.
+-type Char struct {
+-	name          string
+-	codePoint     rune  // if zero, this index is not a valid code point.
+-	ccc           uint8 // canonical combining class
+-	origCCC       uint8
+-	excludeInComp bool // from CompositionExclusions.txt
+-	compatDecomp  bool // it has a compatibility expansion
+-
+-	nTrailingNonStarters uint8
+-	nLeadingNonStarters  uint8 // must be equal to trailing if non-zero
+-
+-	forms [FNumberOfFormTypes]FormInfo // For FCanonical and FCompatibility
+-
+-	state State
+-}
+-
+-var chars = make([]Char, MaxChar+1)
+-var cccMap = make(map[uint8]uint8)
+-
+-func (c Char) String() string {
+-	buf := new(bytes.Buffer)
+-
+-	fmt.Fprintf(buf, "%U [%s]:\n", c.codePoint, c.name)
+-	fmt.Fprintf(buf, "  ccc: %v\n", c.ccc)
+-	fmt.Fprintf(buf, "  excludeInComp: %v\n", c.excludeInComp)
+-	fmt.Fprintf(buf, "  compatDecomp: %v\n", c.compatDecomp)
+-	fmt.Fprintf(buf, "  state: %v\n", c.state)
+-	fmt.Fprintf(buf, "  NFC:\n")
+-	fmt.Fprint(buf, c.forms[FCanonical])
+-	fmt.Fprintf(buf, "  NFKC:\n")
+-	fmt.Fprint(buf, c.forms[FCompatibility])
+-
+-	return buf.String()
+-}
+-
+-// In UnicodeData.txt, some ranges are marked like this:
+-//	3400;<CJK Ideograph Extension A, First>;Lo;0;L;;;;;N;;;;;
+-//	4DB5;<CJK Ideograph Extension A, Last>;Lo;0;L;;;;;N;;;;;
+-// parseCharacter keeps a state variable indicating the weirdness.
+-type State int
+-
+-const (
+-	SNormal State = iota // known to be zero for the type
+-	SFirst
+-	SLast
+-	SMissing
+-)
+-
+-var lastChar = rune('\u0000')
+-
+-func (c Char) isValid() bool {
+-	return c.codePoint != 0 && c.state != SMissing
+-}
+-
+-type FormInfo struct {
+-	quickCheck [MNumberOfModes]QCResult // index: MComposed or MDecomposed
+-	verified   [MNumberOfModes]bool     // index: MComposed or MDecomposed
+-
+-	combinesForward  bool // May combine with rune on the right
+-	combinesBackward bool // May combine with rune on the left
+-	isOneWay         bool // Never appears in result
+-	inDecomp         bool // Some decompositions result in this char.
+-	decomp           Decomposition
+-	expandedDecomp   Decomposition
+-}
+-
+-func (f FormInfo) String() string {
+-	buf := bytes.NewBuffer(make([]byte, 0))
+-
+-	fmt.Fprintf(buf, "    quickCheck[C]: %v\n", f.quickCheck[MComposed])
+-	fmt.Fprintf(buf, "    quickCheck[D]: %v\n", f.quickCheck[MDecomposed])
+-	fmt.Fprintf(buf, "    cmbForward: %v\n", f.combinesForward)
+-	fmt.Fprintf(buf, "    cmbBackward: %v\n", f.combinesBackward)
+-	fmt.Fprintf(buf, "    isOneWay: %v\n", f.isOneWay)
+-	fmt.Fprintf(buf, "    inDecomp: %v\n", f.inDecomp)
+-	fmt.Fprintf(buf, "    decomposition: %X\n", f.decomp)
+-	fmt.Fprintf(buf, "    expandedDecomp: %X\n", f.expandedDecomp)
+-
+-	return buf.String()
+-}
+-
+-type Decomposition []rune
+-
+-func parseDecomposition(s string, skipfirst bool) (a []rune, err error) {
+-	decomp := strings.Split(s, " ")
+-	if len(decomp) > 0 && skipfirst {
+-		decomp = decomp[1:]
+-	}
+-	for _, d := range decomp {
+-		point, err := strconv.ParseUint(d, 16, 64)
+-		if err != nil {
+-			return a, err
+-		}
+-		a = append(a, rune(point))
+-	}
+-	return a, nil
+-}
+-
+-func loadUnicodeData() {
+-	f := gen.OpenUCDFile("UnicodeData.txt")
+-	defer f.Close()
+-	p := ucd.New(f)
+-	for p.Next() {
+-		r := p.Rune(ucd.CodePoint)
+-		char := &chars[r]
+-
+-		char.ccc = uint8(p.Uint(ucd.CanonicalCombiningClass))
+-		decmap := p.String(ucd.DecompMapping)
+-
+-		exp, err := parseDecomposition(decmap, false)
+-		isCompat := false
+-		if err != nil {
+-			if len(decmap) > 0 {
+-				exp, err = parseDecomposition(decmap, true)
+-				if err != nil {
+-					log.Fatalf(`%U: bad decomp |%v|: "%s"`, r, decmap, err)
+-				}
+-				isCompat = true
+-			}
+-		}
+-
+-		char.name = p.String(ucd.Name)
+-		char.codePoint = r
+-		char.forms[FCompatibility].decomp = exp
+-		if !isCompat {
+-			char.forms[FCanonical].decomp = exp
+-		} else {
+-			char.compatDecomp = true
+-		}
+-		if len(decmap) > 0 {
+-			char.forms[FCompatibility].decomp = exp
+-		}
+-	}
+-	if err := p.Err(); err != nil {
+-		log.Fatal(err)
+-	}
+-}
+-
+-// compactCCC converts the sparse set of CCC values to a continguous one,
+-// reducing the number of bits needed from 8 to 6.
+-func compactCCC() {
+-	m := make(map[uint8]uint8)
+-	for i := range chars {
+-		c := &chars[i]
+-		m[c.ccc] = 0
+-	}
+-	cccs := []int{}
+-	for v, _ := range m {
+-		cccs = append(cccs, int(v))
+-	}
+-	sort.Ints(cccs)
+-	for i, c := range cccs {
+-		cccMap[uint8(i)] = uint8(c)
+-		m[uint8(c)] = uint8(i)
+-	}
+-	for i := range chars {
+-		c := &chars[i]
+-		c.origCCC = c.ccc
+-		c.ccc = m[c.ccc]
+-	}
+-	if len(m) >= 1<<6 {
+-		log.Fatalf("too many difference CCC values: %d >= 64", len(m))
+-	}
+-}
+-
+-// CompositionExclusions.txt has form:
+-// 0958    # ...
+-// See http://unicode.org/reports/tr44/ for full explanation
+-func loadCompositionExclusions() {
+-	f := gen.OpenUCDFile("CompositionExclusions.txt")
+-	defer f.Close()
+-	p := ucd.New(f)
+-	for p.Next() {
+-		c := &chars[p.Rune(0)]
+-		if c.excludeInComp {
+-			log.Fatalf("%U: Duplicate entry in exclusions.", c.codePoint)
+-		}
+-		c.excludeInComp = true
+-	}
+-	if e := p.Err(); e != nil {
+-		log.Fatal(e)
+-	}
+-}
+-
+-// hasCompatDecomp returns true if any of the recursive
+-// decompositions contains a compatibility expansion.
+-// In this case, the character may not occur in NFK*.
+-func hasCompatDecomp(r rune) bool {
+-	c := &chars[r]
+-	if c.compatDecomp {
+-		return true
+-	}
+-	for _, d := range c.forms[FCompatibility].decomp {
+-		if hasCompatDecomp(d) {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-// Hangul related constants.
+-const (
+-	HangulBase = 0xAC00
+-	HangulEnd  = 0xD7A4 // hangulBase + Jamo combinations (19 * 21 * 28)
+-
+-	JamoLBase = 0x1100
+-	JamoLEnd  = 0x1113
+-	JamoVBase = 0x1161
+-	JamoVEnd  = 0x1176
+-	JamoTBase = 0x11A8
+-	JamoTEnd  = 0x11C3
+-
+-	JamoLVTCount = 19 * 21 * 28
+-	JamoTCount   = 28
+-)
+-
+-func isHangul(r rune) bool {
+-	return HangulBase <= r && r < HangulEnd
+-}
+-
+-func isHangulWithoutJamoT(r rune) bool {
+-	if !isHangul(r) {
+-		return false
+-	}
+-	r -= HangulBase
+-	return r < JamoLVTCount && r%JamoTCount == 0
+-}
+-
+-func ccc(r rune) uint8 {
+-	return chars[r].ccc
+-}
+-
+-// Insert a rune in a buffer, ordered by Canonical Combining Class.
+-func insertOrdered(b Decomposition, r rune) Decomposition {
+-	n := len(b)
+-	b = append(b, 0)
+-	cc := ccc(r)
+-	if cc > 0 {
+-		// Use bubble sort.
+-		for ; n > 0; n-- {
+-			if ccc(b[n-1]) <= cc {
+-				break
+-			}
+-			b[n] = b[n-1]
+-		}
+-	}
+-	b[n] = r
+-	return b
+-}
+-
+-// Recursively decompose.
+-func decomposeRecursive(form int, r rune, d Decomposition) Decomposition {
+-	dcomp := chars[r].forms[form].decomp
+-	if len(dcomp) == 0 {
+-		return insertOrdered(d, r)
+-	}
+-	for _, c := range dcomp {
+-		d = decomposeRecursive(form, c, d)
+-	}
+-	return d
+-}
+-
+-func completeCharFields(form int) {
+-	// Phase 0: pre-expand decomposition.
+-	for i := range chars {
+-		f := &chars[i].forms[form]
+-		if len(f.decomp) == 0 {
+-			continue
+-		}
+-		exp := make(Decomposition, 0)
+-		for _, c := range f.decomp {
+-			exp = decomposeRecursive(form, c, exp)
+-		}
+-		f.expandedDecomp = exp
+-	}
+-
+-	// Phase 1: composition exclusion, mark decomposition.
+-	for i := range chars {
+-		c := &chars[i]
+-		f := &c.forms[form]
+-
+-		// Marks script-specific exclusions and version restricted.
+-		f.isOneWay = c.excludeInComp
+-
+-		// Singletons
+-		f.isOneWay = f.isOneWay || len(f.decomp) == 1
+-
+-		// Non-starter decompositions
+-		if len(f.decomp) > 1 {
+-			chk := c.ccc != 0 || chars[f.decomp[0]].ccc != 0
+-			f.isOneWay = f.isOneWay || chk
+-		}
+-
+-		// Runes that decompose into more than two runes.
+-		f.isOneWay = f.isOneWay || len(f.decomp) > 2
+-
+-		if form == FCompatibility {
+-			f.isOneWay = f.isOneWay || hasCompatDecomp(c.codePoint)
+-		}
+-
+-		for _, r := range f.decomp {
+-			chars[r].forms[form].inDecomp = true
+-		}
+-	}
+-
+-	// Phase 2: forward and backward combining.
+-	for i := range chars {
+-		c := &chars[i]
+-		f := &c.forms[form]
+-
+-		if !f.isOneWay && len(f.decomp) == 2 {
+-			f0 := &chars[f.decomp[0]].forms[form]
+-			f1 := &chars[f.decomp[1]].forms[form]
+-			if !f0.isOneWay {
+-				f0.combinesForward = true
+-			}
+-			if !f1.isOneWay {
+-				f1.combinesBackward = true
+-			}
+-		}
+-		if isHangulWithoutJamoT(rune(i)) {
+-			f.combinesForward = true
+-		}
+-	}
+-
+-	// Phase 3: quick check values.
+-	for i := range chars {
+-		c := &chars[i]
+-		f := &c.forms[form]
+-
+-		switch {
+-		case len(f.decomp) > 0:
+-			f.quickCheck[MDecomposed] = QCNo
+-		case isHangul(rune(i)):
+-			f.quickCheck[MDecomposed] = QCNo
+-		default:
+-			f.quickCheck[MDecomposed] = QCYes
+-		}
+-		switch {
+-		case f.isOneWay:
+-			f.quickCheck[MComposed] = QCNo
+-		case (i & 0xffff00) == JamoLBase:
+-			f.quickCheck[MComposed] = QCYes
+-			if JamoLBase <= i && i < JamoLEnd {
+-				f.combinesForward = true
+-			}
+-			if JamoVBase <= i && i < JamoVEnd {
+-				f.quickCheck[MComposed] = QCMaybe
+-				f.combinesBackward = true
+-				f.combinesForward = true
+-			}
+-			if JamoTBase <= i && i < JamoTEnd {
+-				f.quickCheck[MComposed] = QCMaybe
+-				f.combinesBackward = true
+-			}
+-		case !f.combinesBackward:
+-			f.quickCheck[MComposed] = QCYes
+-		default:
+-			f.quickCheck[MComposed] = QCMaybe
+-		}
+-	}
+-}
+-
+-func computeNonStarterCounts() {
+-	// Phase 4: leading and trailing non-starter count
+-	for i := range chars {
+-		c := &chars[i]
+-
+-		runes := []rune{rune(i)}
+-		// We always use FCompatibility so that the CGJ insertion points do not
+-		// change for repeated normalizations with different forms.
+-		if exp := c.forms[FCompatibility].expandedDecomp; len(exp) > 0 {
+-			runes = exp
+-		}
+-		// We consider runes that combine backwards to be non-starters for the
+-		// purpose of Stream-Safe Text Processing.
+-		for _, r := range runes {
+-			if cr := &chars[r]; cr.ccc == 0 && !cr.forms[FCompatibility].combinesBackward {
+-				break
+-			}
+-			c.nLeadingNonStarters++
+-		}
+-		for i := len(runes) - 1; i >= 0; i-- {
+-			if cr := &chars[runes[i]]; cr.ccc == 0 && !cr.forms[FCompatibility].combinesBackward {
+-				break
+-			}
+-			c.nTrailingNonStarters++
+-		}
+-		if c.nTrailingNonStarters > 3 {
+-			log.Fatalf("%U: Decomposition with more than 3 (%d) trailing modifiers (%U)", i, c.nTrailingNonStarters, runes)
+-		}
+-
+-		if isHangul(rune(i)) {
+-			c.nTrailingNonStarters = 2
+-			if isHangulWithoutJamoT(rune(i)) {
+-				c.nTrailingNonStarters = 1
+-			}
+-		}
+-
+-		if l, t := c.nLeadingNonStarters, c.nTrailingNonStarters; l > 0 && l != t {
+-			log.Fatalf("%U: number of leading and trailing non-starters should be equal (%d vs %d)", i, l, t)
+-		}
+-		if t := c.nTrailingNonStarters; t > 3 {
+-			log.Fatalf("%U: number of trailing non-starters is %d > 3", t)
+-		}
+-	}
+-}
+-
+-func printBytes(w io.Writer, b []byte, name string) {
+-	fmt.Fprintf(w, "// %s: %d bytes\n", name, len(b))
+-	fmt.Fprintf(w, "var %s = [...]byte {", name)
+-	for i, c := range b {
+-		switch {
+-		case i%64 == 0:
+-			fmt.Fprintf(w, "\n// Bytes %x - %x\n", i, i+63)
+-		case i%8 == 0:
+-			fmt.Fprintf(w, "\n")
+-		}
+-		fmt.Fprintf(w, "0x%.2X, ", c)
+-	}
+-	fmt.Fprint(w, "\n}\n\n")
+-}
+-
+-// See forminfo.go for format.
+-func makeEntry(f *FormInfo, c *Char) uint16 {
+-	e := uint16(0)
+-	if r := c.codePoint; HangulBase <= r && r < HangulEnd {
+-		e |= 0x40
+-	}
+-	if f.combinesForward {
+-		e |= 0x20
+-	}
+-	if f.quickCheck[MDecomposed] == QCNo {
+-		e |= 0x4
+-	}
+-	switch f.quickCheck[MComposed] {
+-	case QCYes:
+-	case QCNo:
+-		e |= 0x10
+-	case QCMaybe:
+-		e |= 0x18
+-	default:
+-		log.Fatalf("Illegal quickcheck value %v.", f.quickCheck[MComposed])
+-	}
+-	e |= uint16(c.nTrailingNonStarters)
+-	return e
+-}
+-
+-// decompSet keeps track of unique decompositions, grouped by whether
+-// the decomposition is followed by a trailing and/or leading CCC.
+-type decompSet [7]map[string]bool
+-
+-const (
+-	normalDecomp = iota
+-	firstMulti
+-	firstCCC
+-	endMulti
+-	firstLeadingCCC
+-	firstCCCZeroExcept
+-	firstStarterWithNLead
+-	lastDecomp
+-)
+-
+-var cname = []string{"firstMulti", "firstCCC", "endMulti", "firstLeadingCCC", "firstCCCZeroExcept", "firstStarterWithNLead", "lastDecomp"}
+-
+-func makeDecompSet() decompSet {
+-	m := decompSet{}
+-	for i := range m {
+-		m[i] = make(map[string]bool)
+-	}
+-	return m
+-}
+-func (m *decompSet) insert(key int, s string) {
+-	m[key][s] = true
+-}
+-
+-func printCharInfoTables(w io.Writer) int {
+-	mkstr := func(r rune, f *FormInfo) (int, string) {
+-		d := f.expandedDecomp
+-		s := string([]rune(d))
+-		if max := 1 << 6; len(s) >= max {
+-			const msg = "%U: too many bytes in decomposition: %d >= %d"
+-			log.Fatalf(msg, r, len(s), max)
+-		}
+-		head := uint8(len(s))
+-		if f.quickCheck[MComposed] != QCYes {
+-			head |= 0x40
+-		}
+-		if f.combinesForward {
+-			head |= 0x80
+-		}
+-		s = string([]byte{head}) + s
+-
+-		lccc := ccc(d[0])
+-		tccc := ccc(d[len(d)-1])
+-		cc := ccc(r)
+-		if cc != 0 && lccc == 0 && tccc == 0 {
+-			log.Fatalf("%U: trailing and leading ccc are 0 for non-zero ccc %d", r, cc)
+-		}
+-		if tccc < lccc && lccc != 0 {
+-			const msg = "%U: lccc (%d) must be <= tcc (%d)"
+-			log.Fatalf(msg, r, lccc, tccc)
+-		}
+-		index := normalDecomp
+-		nTrail := chars[r].nTrailingNonStarters
+-		nLead := chars[r].nLeadingNonStarters
+-		if tccc > 0 || lccc > 0 || nTrail > 0 {
+-			tccc <<= 2
+-			tccc |= nTrail
+-			s += string([]byte{tccc})
+-			index = endMulti
+-			for _, r := range d[1:] {
+-				if ccc(r) == 0 {
+-					index = firstCCC
+-				}
+-			}
+-			if lccc > 0 || nLead > 0 {
+-				s += string([]byte{lccc})
+-				if index == firstCCC {
+-					log.Fatalf("%U: multi-segment decomposition not supported for decompositions with leading CCC != 0", r)
+-				}
+-				index = firstLeadingCCC
+-			}
+-			if cc != lccc {
+-				if cc != 0 {
+-					log.Fatalf("%U: for lccc != ccc, expected ccc to be 0; was %d", r, cc)
+-				}
+-				index = firstCCCZeroExcept
+-			}
+-		} else if len(d) > 1 {
+-			index = firstMulti
+-		}
+-		return index, s
+-	}
+-
+-	decompSet := makeDecompSet()
+-	const nLeadStr = "\x00\x01" // 0-byte length and tccc with nTrail.
+-	decompSet.insert(firstStarterWithNLead, nLeadStr)
+-
+-	// Store the uniqued decompositions in a byte buffer,
+-	// preceded by their byte length.
+-	for _, c := range chars {
+-		for _, f := range c.forms {
+-			if len(f.expandedDecomp) == 0 {
+-				continue
+-			}
+-			if f.combinesBackward {
+-				log.Fatalf("%U: combinesBackward and decompose", c.codePoint)
+-			}
+-			index, s := mkstr(c.codePoint, &f)
+-			decompSet.insert(index, s)
+-		}
+-	}
+-
+-	decompositions := bytes.NewBuffer(make([]byte, 0, 10000))
+-	size := 0
+-	positionMap := make(map[string]uint16)
+-	decompositions.WriteString("\000")
+-	fmt.Fprintln(w, "const (")
+-	for i, m := range decompSet {
+-		sa := []string{}
+-		for s := range m {
+-			sa = append(sa, s)
+-		}
+-		sort.Strings(sa)
+-		for _, s := range sa {
+-			p := decompositions.Len()
+-			decompositions.WriteString(s)
+-			positionMap[s] = uint16(p)
+-		}
+-		if cname[i] != "" {
+-			fmt.Fprintf(w, "%s = 0x%X\n", cname[i], decompositions.Len())
+-		}
+-	}
+-	fmt.Fprintln(w, "maxDecomp = 0x8000")
+-	fmt.Fprintln(w, ")")
+-	b := decompositions.Bytes()
+-	printBytes(w, b, "decomps")
+-	size += len(b)
+-
+-	varnames := []string{"nfc", "nfkc"}
+-	for i := 0; i < FNumberOfFormTypes; i++ {
+-		trie := triegen.NewTrie(varnames[i])
+-
+-		for r, c := range chars {
+-			f := c.forms[i]
+-			d := f.expandedDecomp
+-			if len(d) != 0 {
+-				_, key := mkstr(c.codePoint, &f)
+-				trie.Insert(rune(r), uint64(positionMap[key]))
+-				if c.ccc != ccc(d[0]) {
+-					// We assume the lead ccc of a decomposition !=0 in this case.
+-					if ccc(d[0]) == 0 {
+-						log.Fatalf("Expected leading CCC to be non-zero; ccc is %d", c.ccc)
+-					}
+-				}
+-			} else if c.nLeadingNonStarters > 0 && len(f.expandedDecomp) == 0 && c.ccc == 0 && !f.combinesBackward {
+-				// Handle cases where it can't be detected that the nLead should be equal
+-				// to nTrail.
+-				trie.Insert(c.codePoint, uint64(positionMap[nLeadStr]))
+-			} else if v := makeEntry(&f, &c)<<8 | uint16(c.ccc); v != 0 {
+-				trie.Insert(c.codePoint, uint64(0x8000|v))
+-			}
+-		}
+-		sz, err := trie.Gen(w, triegen.Compact(&normCompacter{name: varnames[i]}))
+-		if err != nil {
+-			log.Fatal(err)
+-		}
+-		size += sz
+-	}
+-	return size
+-}
+-
+-func contains(sa []string, s string) bool {
+-	for _, a := range sa {
+-		if a == s {
+-			return true
+-		}
+-	}
+-	return false
+-}
+-
+-func makeTables() {
+-	w := &bytes.Buffer{}
+-
+-	size := 0
+-	if *tablelist == "" {
+-		return
+-	}
+-	list := strings.Split(*tablelist, ",")
+-	if *tablelist == "all" {
+-		list = []string{"recomp", "info"}
+-	}
+-
+-	// Compute maximum decomposition size.
+-	max := 0
+-	for _, c := range chars {
+-		if n := len(string(c.forms[FCompatibility].expandedDecomp)); n > max {
+-			max = n
+-		}
+-	}
+-
+-	fmt.Fprintln(w, "const (")
+-	fmt.Fprintln(w, "\t// Version is the Unicode edition from which the tables are derived.")
+-	fmt.Fprintf(w, "\tVersion = %q\n", gen.UnicodeVersion())
+-	fmt.Fprintln(w)
+-	fmt.Fprintln(w, "\t// MaxTransformChunkSize indicates the maximum number of bytes that Transform")
+-	fmt.Fprintln(w, "\t// may need to write atomically for any Form. Making a destination buffer at")
+-	fmt.Fprintln(w, "\t// least this size ensures that Transform can always make progress and that")
+-	fmt.Fprintln(w, "\t// the user does not need to grow the buffer on an ErrShortDst.")
+-	fmt.Fprintf(w, "\tMaxTransformChunkSize = %d+maxNonStarters*4\n", len(string(0x034F))+max)
+-	fmt.Fprintln(w, ")\n")
+-
+-	// Print the CCC remap table.
+-	size += len(cccMap)
+-	fmt.Fprintf(w, "var ccc = [%d]uint8{", len(cccMap))
+-	for i := 0; i < len(cccMap); i++ {
+-		if i%8 == 0 {
+-			fmt.Fprintln(w)
+-		}
+-		fmt.Fprintf(w, "%3d, ", cccMap[uint8(i)])
+-	}
+-	fmt.Fprintln(w, "\n}\n")
+-
+-	if contains(list, "info") {
+-		size += printCharInfoTables(w)
+-	}
+-
+-	if contains(list, "recomp") {
+-		// Note that we use 32 bit keys, instead of 64 bit.
+-		// This clips the bits of three entries, but we know
+-		// this won't cause a collision. The compiler will catch
+-		// any changes made to UnicodeData.txt that introduces
+-		// a collision.
+-		// Note that the recomposition map for NFC and NFKC
+-		// are identical.
+-
+-		// Recomposition map
+-		nrentries := 0
+-		for _, c := range chars {
+-			f := c.forms[FCanonical]
+-			if !f.isOneWay && len(f.decomp) > 0 {
+-				nrentries++
+-			}
+-		}
+-		sz := nrentries * 8
+-		size += sz
+-		fmt.Fprintf(w, "// recompMap: %d bytes (entries only)\n", sz)
+-		fmt.Fprintln(w, "var recompMap = map[uint32]rune{")
+-		for i, c := range chars {
+-			f := c.forms[FCanonical]
+-			d := f.decomp
+-			if !f.isOneWay && len(d) > 0 {
+-				key := uint32(uint16(d[0]))<<16 + uint32(uint16(d[1]))
+-				fmt.Fprintf(w, "0x%.8X: 0x%.4X,\n", key, i)
+-			}
+-		}
+-		fmt.Fprintf(w, "}\n\n")
+-	}
+-
+-	fmt.Fprintf(w, "// Total size of tables: %dKB (%d bytes)\n", (size+512)/1024, size)
+-	gen.WriteGoFile("tables.go", "norm", w.Bytes())
+-}
+-
+-func printChars() {
+-	if *verbose {
+-		for _, c := range chars {
+-			if !c.isValid() || c.state == SMissing {
+-				continue
+-			}
+-			fmt.Println(c)
+-		}
+-	}
+-}
+-
+-// verifyComputed does various consistency tests.
+-func verifyComputed() {
+-	for i, c := range chars {
+-		for _, f := range c.forms {
+-			isNo := (f.quickCheck[MDecomposed] == QCNo)
+-			if (len(f.decomp) > 0) != isNo && !isHangul(rune(i)) {
+-				log.Fatalf("%U: NF*D QC must be No if rune decomposes", i)
+-			}
+-
+-			isMaybe := f.quickCheck[MComposed] == QCMaybe
+-			if f.combinesBackward != isMaybe {
+-				log.Fatalf("%U: NF*C QC must be Maybe if combinesBackward", i)
+-			}
+-			if len(f.decomp) > 0 && f.combinesForward && isMaybe {
+-				log.Fatalf("%U: NF*C QC must be Yes or No if combinesForward and decomposes", i)
+-			}
+-
+-			if len(f.expandedDecomp) != 0 {
+-				continue
+-			}
+-			if a, b := c.nLeadingNonStarters > 0, (c.ccc > 0 || f.combinesBackward); a != b {
+-				// We accept these runes to be treated differently (it only affects
+-				// segment breaking in iteration, most likely on improper use), but
+-				// reconsider if more characters are added.
+-				// U+FF9E HALFWIDTH KATAKANA VOICED SOUND MARK;Lm;0;L;<narrow> 3099;;;;N;;;;;
+-				// U+FF9F HALFWIDTH KATAKANA SEMI-VOICED SOUND MARK;Lm;0;L;<narrow> 309A;;;;N;;;;;
+-				// U+3133 HANGUL LETTER KIYEOK-SIOS;Lo;0;L;<compat> 11AA;;;;N;HANGUL LETTER GIYEOG SIOS;;;;
+-				// U+318E HANGUL LETTER ARAEAE;Lo;0;L;<compat> 11A1;;;;N;HANGUL LETTER ALAE AE;;;;
+-				// U+FFA3 HALFWIDTH HANGUL LETTER KIYEOK-SIOS;Lo;0;L;<narrow> 3133;;;;N;HALFWIDTH HANGUL LETTER GIYEOG SIOS;;;;
+-				// U+FFDC HALFWIDTH HANGUL LETTER I;Lo;0;L;<narrow> 3163;;;;N;;;;;
+-				if i != 0xFF9E && i != 0xFF9F && !(0x3133 <= i && i <= 0x318E) && !(0xFFA3 <= i && i <= 0xFFDC) {
+-					log.Fatalf("%U: nLead was %v; want %v", i, a, b)
+-				}
+-			}
+-		}
+-		nfc := c.forms[FCanonical]
+-		nfkc := c.forms[FCompatibility]
+-		if nfc.combinesBackward != nfkc.combinesBackward {
+-			log.Fatalf("%U: Cannot combine combinesBackward\n", c.codePoint)
+-		}
+-	}
+-}
+-
+-// Use values in DerivedNormalizationProps.txt to compare against the
+-// values we computed.
+-// DerivedNormalizationProps.txt has form:
+-// 00C0..00C5    ; NFD_QC; N # ...
+-// 0374          ; NFD_QC; N # ...
+-// See http://unicode.org/reports/tr44/ for full explanation
+-func testDerived() {
+-	f := gen.OpenUCDFile("DerivedNormalizationProps.txt")
+-	defer f.Close()
+-	p := ucd.New(f)
+-	for p.Next() {
+-		r := p.Rune(0)
+-		c := &chars[r]
+-
+-		var ftype, mode int
+-		qt := p.String(1)
+-		switch qt {
+-		case "NFC_QC":
+-			ftype, mode = FCanonical, MComposed
+-		case "NFD_QC":
+-			ftype, mode = FCanonical, MDecomposed
+-		case "NFKC_QC":
+-			ftype, mode = FCompatibility, MComposed
+-		case "NFKD_QC":
+-			ftype, mode = FCompatibility, MDecomposed
+-		default:
+-			continue
+-		}
+-		var qr QCResult
+-		switch p.String(2) {
+-		case "Y":
+-			qr = QCYes
+-		case "N":
+-			qr = QCNo
+-		case "M":
+-			qr = QCMaybe
+-		default:
+-			log.Fatalf(`Unexpected quick check value "%s"`, p.String(2))
+-		}
+-		if got := c.forms[ftype].quickCheck[mode]; got != qr {
+-			log.Printf("%U: FAILED %s (was %v need %v)\n", r, qt, got, qr)
+-		}
+-		c.forms[ftype].verified[mode] = true
+-	}
+-	if err := p.Err(); err != nil {
+-		log.Fatal(err)
+-	}
+-	// Any unspecified value must be QCYes. Verify this.
+-	for i, c := range chars {
+-		for j, fd := range c.forms {
+-			for k, qr := range fd.quickCheck {
+-				if !fd.verified[k] && qr != QCYes {
+-					m := "%U: FAIL F:%d M:%d (was %v need Yes) %s\n"
+-					log.Printf(m, i, j, k, qr, c.name)
+-				}
+-			}
+-		}
+-	}
+-}
+-
+-var testHeader = `const (
+-	Yes = iota
+-	No
+-	Maybe
+-)
+-
+-type formData struct {
+-	qc              uint8
+-	combinesForward bool
+-	decomposition   string
+-}
+-
+-type runeData struct {
+-	r      rune
+-	ccc    uint8
+-	nLead  uint8
+-	nTrail uint8
+-	f      [2]formData // 0: canonical; 1: compatibility
+-}
+-
+-func f(qc uint8, cf bool, dec string) [2]formData {
+-	return [2]formData{{qc, cf, dec}, {qc, cf, dec}}
+-}
+-
+-func g(qc, qck uint8, cf, cfk bool, d, dk string) [2]formData {
+-	return [2]formData{{qc, cf, d}, {qck, cfk, dk}}
+-}
+-
+-var testData = []runeData{
+-`
+-
+-func printTestdata() {
+-	type lastInfo struct {
+-		ccc    uint8
+-		nLead  uint8
+-		nTrail uint8
+-		f      string
+-	}
+-
+-	last := lastInfo{}
+-	w := &bytes.Buffer{}
+-	fmt.Fprintf(w, testHeader)
+-	for r, c := range chars {
+-		f := c.forms[FCanonical]
+-		qc, cf, d := f.quickCheck[MComposed], f.combinesForward, string(f.expandedDecomp)
+-		f = c.forms[FCompatibility]
+-		qck, cfk, dk := f.quickCheck[MComposed], f.combinesForward, string(f.expandedDecomp)
+-		s := ""
+-		if d == dk && qc == qck && cf == cfk {
+-			s = fmt.Sprintf("f(%s, %v, %q)", qc, cf, d)
+-		} else {
+-			s = fmt.Sprintf("g(%s, %s, %v, %v, %q, %q)", qc, qck, cf, cfk, d, dk)
+-		}
+-		current := lastInfo{c.ccc, c.nLeadingNonStarters, c.nTrailingNonStarters, s}
+-		if last != current {
+-			fmt.Fprintf(w, "\t{0x%x, %d, %d, %d, %s},\n", r, c.origCCC, c.nLeadingNonStarters, c.nTrailingNonStarters, s)
+-			last = current
+-		}
+-	}
+-	fmt.Fprintln(w, "}")
+-	gen.WriteGoFile("data_test.go", "norm", w.Bytes())
+-}
+diff --git a/src/vendor/golang.org/x/text/unicode/norm/triegen.go b/src/vendor/golang.org/x/text/unicode/norm/triegen.go
+deleted file mode 100644
+index 45d711900d..0000000000
+--- a/src/vendor/golang.org/x/text/unicode/norm/triegen.go
++++ /dev/null
+@@ -1,117 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build ignore
+-
+-// Trie table generator.
+-// Used by make*tables tools to generate a go file with trie data structures
+-// for mapping UTF-8 to a 16-bit value. All but the last byte in a UTF-8 byte
+-// sequence are used to lookup offsets in the index table to be used for the
+-// next byte. The last byte is used to index into a table with 16-bit values.
+-
+-package main
+-
+-import (
+-	"fmt"
+-	"io"
+-)
+-
+-const maxSparseEntries = 16
+-
+-type normCompacter struct {
+-	sparseBlocks [][]uint64
+-	sparseOffset []uint16
+-	sparseCount  int
+-	name         string
+-}
+-
+-func mostFrequentStride(a []uint64) int {
+-	counts := make(map[int]int)
+-	var v int
+-	for _, x := range a {
+-		if stride := int(x) - v; v != 0 && stride >= 0 {
+-			counts[stride]++
+-		}
+-		v = int(x)
+-	}
+-	var maxs, maxc int
+-	for stride, cnt := range counts {
+-		if cnt > maxc || (cnt == maxc && stride < maxs) {
+-			maxs, maxc = stride, cnt
+-		}
+-	}
+-	return maxs
+-}
+-
+-func countSparseEntries(a []uint64) int {
+-	stride := mostFrequentStride(a)
+-	var v, count int
+-	for _, tv := range a {
+-		if int(tv)-v != stride {
+-			if tv != 0 {
+-				count++
+-			}
+-		}
+-		v = int(tv)
+-	}
+-	return count
+-}
+-
+-func (c *normCompacter) Size(v []uint64) (sz int, ok bool) {
+-	if n := countSparseEntries(v); n <= maxSparseEntries {
+-		return (n+1)*4 + 2, true
+-	}
+-	return 0, false
+-}
+-
+-func (c *normCompacter) Store(v []uint64) uint32 {
+-	h := uint32(len(c.sparseOffset))
+-	c.sparseBlocks = append(c.sparseBlocks, v)
+-	c.sparseOffset = append(c.sparseOffset, uint16(c.sparseCount))
+-	c.sparseCount += countSparseEntries(v) + 1
+-	return h
+-}
+-
+-func (c *normCompacter) Handler() string {
+-	return c.name + "Sparse.lookup"
+-}
+-
+-func (c *normCompacter) Print(w io.Writer) (retErr error) {
+-	p := func(f string, x ...interface{}) {
+-		if _, err := fmt.Fprintf(w, f, x...); retErr == nil && err != nil {
+-			retErr = err
+-		}
+-	}
+-
+-	ls := len(c.sparseBlocks)
+-	p("// %sSparseOffset: %d entries, %d bytes\n", c.name, ls, ls*2)
+-	p("var %sSparseOffset = %#v\n\n", c.name, c.sparseOffset)
+-
+-	ns := c.sparseCount
+-	p("// %sSparseValues: %d entries, %d bytes\n", c.name, ns, ns*4)
+-	p("var %sSparseValues = [%d]valueRange {", c.name, ns)
+-	for i, b := range c.sparseBlocks {
+-		p("\n// Block %#x, offset %#x", i, c.sparseOffset[i])
+-		var v int
+-		stride := mostFrequentStride(b)
+-		n := countSparseEntries(b)
+-		p("\n{value:%#04x,lo:%#02x},", stride, uint8(n))
+-		for i, nv := range b {
+-			if int(nv)-v != stride {
+-				if v != 0 {
+-					p(",hi:%#02x},", 0x80+i-1)
+-				}
+-				if nv != 0 {
+-					p("\n{value:%#04x,lo:%#02x", nv, 0x80+i)
+-				}
+-			}
+-			v = int(nv)
+-		}
+-		if v != 0 {
+-			p(",hi:%#02x},", 0x80+len(b)-1)
+-		}
+-	}
+-	p("\n}\n\n")
+-	return
+-}

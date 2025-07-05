@@ -9,7 +9,38 @@ Date:   Sat Apr 6 20:02:03 2013 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8368044
-
+---
  src/pkg/runtime/malloc.h  | 4 ++--
  src/pkg/runtime/mprof.goc | 2 ++
  2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index 38122bf8a5..4635e53e09 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -416,10 +416,10 @@ struct MHeap
+ 	byte *arena_end;
+ 
+ 	// central free lists for small size classes.
+-	// the union makes sure that the MCentrals are
++	// the padding makes sure that the MCentrals are
+ 	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
+ 	// gets its own cache line.
+-	union {
++	struct {
+ 		MCentral;
+ 		byte pad[CacheLineSize];
+ 	} central[NumSizeClasses];
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 707e505ba7..63334e704e 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -61,6 +61,8 @@ struct Bucket
+ 	Bucket	*next;	// next in hash list
+ 	Bucket	*allnext;	// next in list of all mbuckets/bbuckets
+ 	int32	typ;
++	// Generally unions can break precise GC,
++	// this one is fine because it does not contain pointers.
+ 	union
+ 	{
+ 		struct  // typ == MProf

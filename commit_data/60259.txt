@@ -13,6 +13,17 @@ Date:   Wed Jun 5 13:07:09 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Bypass: Robert Griesemer <gri@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/next/6-stdlib/99-minor/go/types/cl-577715.md | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/go/types/cl-577715.md b/doc/next/6-stdlib/99-minor/go/types/cl-577715.md
+new file mode 100644
+index 0000000000..939d5ac46c
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/cl-577715.md
+@@ -0,0 +1,4 @@
++<!-- CL 577715, CL 579076 -->
++By default, go/types now produces [Alias] type nodes for type aliases.
++This behavior can be controlled by the `GODEBUG` `gotypesalias` flag.
++Its default has changed from 0 in Go 1.22 to 1 in Go 1.23.

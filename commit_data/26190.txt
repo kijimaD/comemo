@@ -7,6 +7,27 @@ Date:   Sat Jan 2 19:39:37 2016 -0800
     Change-Id: I0280d478b7d0a59d8e2082aa87fab6d7d9f36a18
     Reviewed-on: https://go-review.googlesource.com/18158
     Reviewed-by: Aram Hăvărneanu <aram@mgk.ro>
-
+---
  src/runtime/os3_solaris.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 0e6d2e55da..598beffa09 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -280,7 +280,14 @@ func setsig(i int32, fn uintptr, restart bool) {
+ }
+ 
+ func setsigstack(i int32) {
+-	throw("setsigstack")
++	var sa sigactiont
++	sigaction(i, nil, &sa)
++	handler := *((*uintptr)(unsafe.Pointer(&sa._funcptr)))
++	if handler == 0 || handler == _SIG_DFL || handler == _SIG_IGN || sa.sa_flags&_SA_ONSTACK != 0 {
++		return
++	}
++	sa.sa_flags |= _SA_ONSTACK
++	sigaction(i, &sa, nil)
+ }
+ 
+ func getsig(i int32) uintptr {

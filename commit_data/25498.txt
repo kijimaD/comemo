@@ -9,8 +9,130 @@ Date:   Mon Nov 2 09:13:44 2015 -0800
     Change-Id: I8a824156c84016504d29dc2dd2d522149b189be8
     Reviewed-on: https://go-review.googlesource.com/16537
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/generate.go      | 44 ++++++++++++++++++++++----------------------
  src/cmd/go/generate_test.go |  1 +
  src/cmd/go/go_test.go       | 14 ++++++++++++++
  3 files changed, 37 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/generate.go b/src/cmd/go/generate.go
+index efdc229b22..152b7d3fb1 100644
+--- a/src/cmd/go/generate.go
++++ b/src/cmd/go/generate.go
+@@ -179,6 +179,7 @@ type Generator struct {
+ 	pkg      string
+ 	commands map[string][]string
+ 	lineNum  int // current line number.
++	env      []string
+ }
+ 
+ // run runs the generators in the current file.
+@@ -242,6 +243,7 @@ func (g *Generator) run() (ok bool) {
+ 			}
+ 		}
+ 
++		g.setEnv()
+ 		words := g.split(string(buf))
+ 		if len(words) == 0 {
+ 			g.errorf("no arguments to directive")
+@@ -269,6 +271,19 @@ func isGoGenerate(buf []byte) bool {
+ 	return bytes.HasPrefix(buf, []byte("//go:generate ")) || bytes.HasPrefix(buf, []byte("//go:generate\t"))
+ }
+ 
++// setEnv sets the extra environment variables used when executing a
++// single go:generate command.
++func (g *Generator) setEnv() {
++	g.env = []string{
++		"GOARCH=" + runtime.GOARCH,
++		"GOOS=" + runtime.GOOS,
++		"GOFILE=" + g.file,
++		"GOLINE=" + strconv.Itoa(g.lineNum),
++		"GOPACKAGE=" + g.pkg,
++		"DOLLAR=" + "$",
++	}
++}
++
+ // split breaks the line into words, evaluating quoted
+ // strings and evaluating environment variables.
+ // The initial //go:generate element is present in line.
+@@ -345,22 +360,13 @@ func (g *Generator) errorf(format string, args ...interface{}) {
+ // expandVar expands the $XXX invocation in word. It is called
+ // by os.Expand.
+ func (g *Generator) expandVar(word string) string {
+-	switch word {
+-	case "GOARCH":
+-		return buildContext.GOARCH
+-	case "GOOS":
+-		return buildContext.GOOS
+-	case "GOFILE":
+-		return g.file
+-	case "GOLINE":
+-		return fmt.Sprint(g.lineNum)
+-	case "GOPACKAGE":
+-		return g.pkg
+-	case "DOLLAR":
+-		return "$"
+-	default:
+-		return os.Getenv(word)
++	w := word + "="
++	for _, e := range g.env {
++		if strings.HasPrefix(e, w) {
++			return e[len(w):]
++		}
+ 	}
++	return os.Getenv(word)
+ }
+ 
+ // identLength returns the length of the identifier beginning the string.
+@@ -396,13 +402,7 @@ func (g *Generator) exec(words []string) {
+ 	cmd.Stderr = os.Stderr
+ 	// Run the command in the package directory.
+ 	cmd.Dir = g.dir
+-	env := []string{
+-		"GOARCH=" + runtime.GOARCH,
+-		"GOOS=" + runtime.GOOS,
+-		"GOFILE=" + g.file,
+-		"GOPACKAGE=" + g.pkg,
+-	}
+-	cmd.Env = mergeEnvLists(env, origEnv)
++	cmd.Env = mergeEnvLists(g.env, origEnv)
+ 	err := cmd.Run()
+ 	if err != nil {
+ 		g.errorf("running %q: %s", words[0], err)
+diff --git a/src/cmd/go/generate_test.go b/src/cmd/go/generate_test.go
+index 169d71ca81..ba0669278e 100644
+--- a/src/cmd/go/generate_test.go
++++ b/src/cmd/go/generate_test.go
+@@ -39,6 +39,7 @@ func TestGenerateCommandParse(t *testing.T) {
+ 		pkg:      "sys",
+ 		commands: make(map[string][]string),
+ 	}
++	g.setEnv()
+ 	g.setShorthand([]string{"-command", "yacc", "go", "tool", "yacc"})
+ 	for _, test := range splitTests {
+ 		// First with newlines.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1d39824b9b..2042f7035b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2035,6 +2035,20 @@ func TestGoGenerateRunFlag(t *testing.T) {
+ 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
+ }
+ 
++func TestGoGenerateEnv(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Skip("skipping because windows does not have the env command")
++	}
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.tempFile("env.go", "package main\n\n//go:generate env")
++	tg.run("generate", tg.path("env.go"))
++	for _, v := range []string{"GOARCH", "GOOS", "GOFILE", "GOLINE", "GOPACKAGE", "DOLLAR"} {
++		tg.grepStdout("^"+v+"=", "go generate environment missing "+v)
++	}
++}
++
+ func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 

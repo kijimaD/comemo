@@ -34,10 +34,654 @@ Date:   Mon Jun 26 18:08:44 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/race/output_test.go |   2 +-
  src/testing/benchmark.go        |  12 +-
  src/testing/fuzz.go             |   2 +
  src/testing/testing.go          | 120 ++++++++++++--
  src/testing/testing_test.go     | 345 +++++++++++++++++++++++++++++++++++++++-
  5 files changed, 459 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/race/output_test.go b/src/runtime/race/output_test.go
+index 0c636ff6c1..0ee0f41334 100644
+--- a/src/runtime/race/output_test.go
++++ b/src/runtime/race/output_test.go
+@@ -208,8 +208,8 @@ func TestFail(t *testing.T) {
+ `, []string{`
+ ==================
+ --- FAIL: TestFail \([0-9.]+s\)
+-.*main_test.go:14: true
+ .*testing.go:.*: race detected during execution of test
++.*main_test.go:14: true
+ FAIL`}},
+ 
+ 	{"slicebytetostring_pc", "run", "", "atexit_sleep_ms=0", `
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index c9012ea0ac..261d0b2a04 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -7,7 +7,6 @@ package testing
+ import (
+ 	"flag"
+ 	"fmt"
+-	"internal/race"
+ 	"internal/sysinfo"
+ 	"io"
+ 	"math"
+@@ -179,11 +178,14 @@ func (b *B) ReportAllocs() {
+ func (b *B) runN(n int) {
+ 	benchmarkLock.Lock()
+ 	defer benchmarkLock.Unlock()
+-	defer b.runCleanup(normalPanic)
++	defer func() {
++		b.runCleanup(normalPanic)
++		b.checkRaces()
++	}()
+ 	// Try to get a comparable environment for each run
+ 	// by clearing garbage from previous runs.
+ 	runtime.GC()
+-	b.raceErrors = -race.Errors()
++	b.resetRaces()
+ 	b.N = n
+ 	b.parallelism = 1
+ 	b.ResetTimer()
+@@ -192,10 +194,6 @@ func (b *B) runN(n int) {
+ 	b.StopTimer()
+ 	b.previousN = n
+ 	b.previousDuration = b.duration
+-	b.raceErrors += race.Errors()
+-	if b.raceErrors > 0 {
+-		b.Errorf("race detected during execution of benchmark")
+-	}
+ }
+ 
+ // run1 runs the first iteration of benchFunc. It reports whether more
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index d31a3f81f5..81ed1141df 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -636,6 +636,7 @@ func fRunner(f *F, fn func(*F)) {
+ 		// Unfortunately, recovering here adds stack frames, but the location of
+ 		// the original panic should still be
+ 		// clear.
++		f.checkRaces()
+ 		if f.Failed() {
+ 			numFailed.Add(1)
+ 		}
+@@ -719,6 +720,7 @@ func fRunner(f *F, fn func(*F)) {
+ 	}()
+ 
+ 	f.start = time.Now()
++	f.resetRaces()
+ 	fn(f)
+ 
+ 	// Code beyond this point will not be executed when FailNow or SkipNow
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 2a80bf26f4..6e277a40f9 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -611,7 +611,6 @@ type common struct {
+ 	bench          bool           // Whether the current test is a benchmark.
+ 	hasSub         atomic.Bool    // whether there are sub-benchmarks.
+ 	cleanupStarted atomic.Bool    // Registered cleanup callbacks have started to execute
+-	raceErrors     int            // Number of races detected during test.
+ 	runner         string         // Function name of tRunner running the test.
+ 	isParallel     bool           // Whether the test is parallel.
+ 
+@@ -625,6 +624,9 @@ type common struct {
+ 	signal   chan bool // To signal a test is done.
+ 	sub      []*T      // Queue of subtests to be run in parallel.
+ 
++	lastRaceErrors  atomic.Int64 // Max value of race.Errors seen during the test or its subtests.
++	raceErrorLogged atomic.Bool
++
+ 	tempDirMu  sync.Mutex
+ 	tempDir    string
+ 	tempDirErr error
+@@ -955,9 +957,15 @@ func (c *common) Fail() {
+ // Failed reports whether the function has failed.
+ func (c *common) Failed() bool {
+ 	c.mu.RLock()
+-	failed := c.failed
+-	c.mu.RUnlock()
+-	return failed || c.raceErrors+race.Errors() > 0
++	defer c.mu.RUnlock()
++
++	if !c.done && int64(race.Errors()) > c.lastRaceErrors.Load() {
++		c.mu.RUnlock()
++		c.checkRaces()
++		c.mu.RLock()
++	}
++
++	return c.failed
+ }
+ 
+ // FailNow marks the function as having failed and stops its execution
+@@ -1346,6 +1354,69 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
+ 	}
+ }
+ 
++// resetRaces updates c.parent's count of data race errors (or the global count,
++// if c has no parent), and updates c.lastRaceErrors to match.
++//
++// Any races that occurred prior to this call to resetRaces will
++// not be attributed to c.
++func (c *common) resetRaces() {
++	if c.parent == nil {
++		c.lastRaceErrors.Store(int64(race.Errors()))
++	} else {
++		c.lastRaceErrors.Store(c.parent.checkRaces())
++	}
++}
++
++// checkRaces checks whether the global count of data race errors has increased
++// since c's count was last reset.
++//
++// If so, it marks c as having failed due to those races (logging an error for
++// the first such race), and updates the race counts for the parents of c so
++// that if they are currently suspended (such as in a call to T.Run) they will
++// not log separate errors for the race(s).
++//
++// Note that multiple tests may be marked as failed due to the same race if they
++// are executing in parallel.
++func (c *common) checkRaces() (raceErrors int64) {
++	raceErrors = int64(race.Errors())
++	for {
++		last := c.lastRaceErrors.Load()
++		if raceErrors <= last {
++			// All races have already been reported.
++			return raceErrors
++		}
++		if c.lastRaceErrors.CompareAndSwap(last, raceErrors) {
++			break
++		}
++	}
++
++	if c.raceErrorLogged.CompareAndSwap(false, true) {
++		// This is the first race we've encountered for this test.
++		// Mark the test as failed, and log the reason why only once.
++		// (Note that the race detector itself will still write a goroutine
++		// dump for any further races it detects.)
++		c.Errorf("race detected during execution of test")
++	}
++
++	// Update the parent(s) of this test so that they don't re-report the race.
++	parent := c.parent
++	for parent != nil {
++		for {
++			last := parent.lastRaceErrors.Load()
++			if raceErrors <= last {
++				// This race was already reported by another (likely parallel) subtest.
++				return raceErrors
++			}
++			if parent.lastRaceErrors.CompareAndSwap(last, raceErrors) {
++				break
++			}
++		}
++		parent = parent.parent
++	}
++
++	return raceErrors
++}
++
+ // callerName gives the function name (qualified with a package path)
+ // for the caller after skip frames (where 0 means the current function).
+ func callerName(skip int) string {
+@@ -1390,7 +1461,18 @@ func (t *T) Parallel() {
+ 
+ 	// Add to the list of tests to be released by the parent.
+ 	t.parent.sub = append(t.parent.sub, t)
+-	t.raceErrors += race.Errors()
++
++	// Report any races during execution of this test up to this point.
++	//
++	// We will assume that any races that occur between here and the point where
++	// we unblock are not caused by this subtest. That assumption usually holds,
++	// although it can be wrong if the test spawns a goroutine that races in the
++	// background while the rest of the test is blocked on the call to Parallel.
++	// If that happens, we will misattribute the background race to some other
++	// test, or to no test at all — but that false-negative is so unlikely that it
++	// is not worth adding race-report noise for the common case where the test is
++	// completely suspended during the call to Parallel.
++	t.checkRaces()
+ 
+ 	if t.chatty != nil {
+ 		t.chatty.Updatef(t.name, "=== PAUSE %s\n", t.name)
+@@ -1405,9 +1487,16 @@ func (t *T) Parallel() {
+ 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
+ 	}
+ 	running.Store(t.name, time.Now())
+-
+ 	t.start = time.Now()
+-	t.raceErrors += -race.Errors()
++
++	// Reset the local race counter to ignore any races that happened while this
++	// goroutine was blocked, such as in the parent test or in other parallel
++	// subtests.
++	//
++	// (Note that we don't call parent.checkRaces here:
++	// if other parallel subtests have already introduced races, we want to
++	// let them report those races instead of attributing them to the parent.)
++	t.lastRaceErrors.Store(int64(race.Errors()))
+ }
+ 
+ // Setenv calls os.Setenv(key, value) and uses Cleanup to
+@@ -1455,14 +1544,13 @@ func tRunner(t *T, fn func(t *T)) {
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
++		t.checkRaces()
++
++		// TODO(#61034): This is the wrong place for this check.
+ 		if t.Failed() {
+ 			numFailed.Add(1)
+ 		}
+ 
+-		if t.raceErrors+race.Errors() > 0 {
+-			t.Errorf("race detected during execution of test")
+-		}
+-
+ 		// Check if the test panicked or Goexited inappropriately.
+ 		//
+ 		// If this happens in a normal test, print output but continue panicking.
+@@ -1564,6 +1652,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			if err != nil {
+ 				doPanic(err)
+ 			}
++			t.checkRaces()
+ 			if !t.isParallel {
+ 				// Reacquire the count for sequential tests. See comment in Run.
+ 				t.context.waitParallel()
+@@ -1589,7 +1678,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 	}()
+ 
+ 	t.start = time.Now()
+-	t.raceErrors = -race.Errors()
++	t.resetRaces()
+ 	fn(t)
+ 
+ 	// code beyond here will not be executed when FailNow is invoked
+@@ -1936,7 +2025,12 @@ func (m *M) Run() (code int) {
+ 				testOk = false
+ 			}
+ 		}
+-		if !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks) || race.Errors() > 0 {
++		anyFailed := !testOk || !exampleOk || !fuzzTargetsOk || !runBenchmarks(m.deps.ImportPath(), m.deps.MatchString, m.benchmarks)
++		if !anyFailed && race.Errors() > 0 {
++			fmt.Print(chatty.prefix(), "testing: race detected outside of test execution\n")
++			anyFailed = true
++		}
++		if anyFailed {
+ 			fmt.Print(chatty.prefix(), "FAIL\n")
+ 			m.exitCode = 1
+ 			return
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 5e9268779f..91c6ccf21d 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -6,9 +6,12 @@ package testing_test
+ 
+ import (
+ 	"bytes"
++	"internal/race"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
++	"regexp"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -17,7 +20,22 @@ import (
+ // standard library with a TestMain, so that code is executed.
+ 
+ func TestMain(m *testing.M) {
+-	os.Exit(m.Run())
++	if os.Getenv("GO_WANT_RACE_BEFORE_TESTS") == "1" {
++		doRace()
++	}
++
++	m.Run()
++
++	// Note: m.Run currently prints the final "PASS" line, so if any race is
++	// reported here (after m.Run but before the process exits), it will print
++	// "PASS", then print the stack traces for the race, then exit with nonzero
++	// status.
++	//
++	// This is a somewhat fundamental race: because the race detector hooks into
++	// the runtime at a very low level, no matter where we put the printing it
++	// would be possible to report a race that occurs afterward. However, we could
++	// theoretically move the printing after TestMain, which would at least do a
++	// better job of diagnosing races in cleanup functions within TestMain itself.
+ }
+ 
+ func TestTempDirInCleanup(t *testing.T) {
+@@ -293,3 +311,328 @@ func TestTesting(t *testing.T) {
+ 		t.Errorf("in non-test testing.Test() returned %q, want %q", s, "false")
+ 	}
+ }
++
++// runTest runs a helper test with -test.v, ignoring its exit status.
++// runTest both logs and returns the test output.
++func runTest(t *testing.T, test string) []byte {
++	t.Helper()
++
++	testenv.MustHaveExec(t)
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Skipf("can't find test executable: %v", err)
++	}
++
++	cmd := testenv.Command(t, exe, "-test.run=^"+test+"$", "-test.bench="+test, "-test.v", "-test.parallel=2", "-test.benchtime=2x")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
++	out, err := cmd.CombinedOutput()
++	t.Logf("%v: %v\n%s", cmd, err, out)
++
++	return out
++}
++
++// doRace provokes a data race that generates a race detector report if run
++// under the race detector and is otherwise benign.
++func doRace() {
++	var x int
++	c1 := make(chan bool)
++	go func() {
++		x = 1 // racy write
++		c1 <- true
++	}()
++	_ = x // racy read
++	<-c1
++}
++
++func TestRaceReports(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		// Generate a race detector report in a sub test.
++		t.Run("Sub", func(t *testing.T) {
++			doRace()
++		})
++		return
++	}
++
++	out := runTest(t, "TestRaceReports")
++
++	// We should see at most one race detector report.
++	c := bytes.Count(out, []byte("race detected"))
++	want := 0
++	if race.Enabled {
++		want = 1
++	}
++	if c != want {
++		t.Errorf("got %d race reports, want %d", c, want)
++	}
++}
++
++// Issue #60083. This used to fail on the race builder.
++func TestRaceName(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		doRace()
++		return
++	}
++
++	out := runTest(t, "TestRaceName")
++
++	if regexp.MustCompile(`=== NAME\s*$`).Match(out) {
++		t.Errorf("incorrectly reported test with no name")
++	}
++}
++
++func TestRaceSubReports(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		t.Parallel()
++		c1 := make(chan bool, 1)
++		t.Run("sub", func(t *testing.T) {
++			t.Run("subsub1", func(t *testing.T) {
++				t.Parallel()
++				doRace()
++				c1 <- true
++			})
++			t.Run("subsub2", func(t *testing.T) {
++				t.Parallel()
++				doRace()
++				<-c1
++			})
++		})
++		doRace()
++		return
++	}
++
++	out := runTest(t, "TestRaceSubReports")
++
++	// There should be three race reports: one for each subtest, and one for the
++	// race after the subtests complete. Note that because the subtests run in
++	// parallel, the race stacks may both be printed in with one or the other
++	// test's logs.
++	cReport := bytes.Count(out, []byte("race detected during execution of test"))
++	wantReport := 0
++	if race.Enabled {
++		wantReport = 3
++	}
++	if cReport != wantReport {
++		t.Errorf("got %d race reports, want %d", cReport, wantReport)
++	}
++
++	// Regardless of when the stacks are printed, we expect each subtest to be
++	// marked as failed, and that failure should propagate up to the parents.
++	cFail := bytes.Count(out, []byte("--- FAIL:"))
++	wantFail := 0
++	if race.Enabled {
++		wantFail = 4
++	}
++	if cFail != wantFail {
++		t.Errorf(`got %d "--- FAIL:" lines, want %d`, cReport, wantReport)
++	}
++}
++
++func TestRaceInCleanup(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		t.Cleanup(doRace)
++		t.Parallel()
++		t.Run("sub", func(t *testing.T) {
++			t.Parallel()
++			// No race should be reported for sub.
++		})
++		return
++	}
++
++	out := runTest(t, "TestRaceInCleanup")
++
++	// There should be one race report, for the parent test only.
++	cReport := bytes.Count(out, []byte("race detected during execution of test"))
++	wantReport := 0
++	if race.Enabled {
++		wantReport = 1
++	}
++	if cReport != wantReport {
++		t.Errorf("got %d race reports, want %d", cReport, wantReport)
++	}
++
++	// Only the parent test should be marked as failed.
++	// (The subtest does not race, and should pass.)
++	cFail := bytes.Count(out, []byte("--- FAIL:"))
++	wantFail := 0
++	if race.Enabled {
++		wantFail = 1
++	}
++	if cFail != wantFail {
++		t.Errorf(`got %d "--- FAIL:" lines, want %d`, cReport, wantReport)
++	}
++}
++
++func TestDeepSubtestRace(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		t.Run("sub", func(t *testing.T) {
++			t.Run("subsub", func(t *testing.T) {
++				t.Run("subsubsub", func(t *testing.T) {
++					doRace()
++				})
++			})
++			doRace()
++		})
++		return
++	}
++
++	out := runTest(t, "TestDeepSubtestRace")
++
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++	want := 0
++	// There should be two race reports.
++	if race.Enabled {
++		want = 2
++	}
++	if c != want {
++		t.Errorf("got %d race reports, want %d", c, want)
++	}
++}
++
++func TestRaceDuringParallelFailsAllSubtests(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		var ready sync.WaitGroup
++		ready.Add(2)
++		done := make(chan struct{})
++		go func() {
++			ready.Wait()
++			doRace() // This race happens while both subtests are running.
++			close(done)
++		}()
++
++		t.Run("sub", func(t *testing.T) {
++			t.Run("subsub1", func(t *testing.T) {
++				t.Parallel()
++				ready.Done()
++				<-done
++			})
++			t.Run("subsub2", func(t *testing.T) {
++				t.Parallel()
++				ready.Done()
++				<-done
++			})
++		})
++
++		return
++	}
++
++	out := runTest(t, "TestRaceDuringParallelFailsAllSubtests")
++
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++	want := 0
++	// Each subtest should report the race independently.
++	if race.Enabled {
++		want = 2
++	}
++	if c != want {
++		t.Errorf("got %d race reports, want %d", c, want)
++	}
++}
++
++func TestRaceBeforeParallel(t *testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
++		t.Run("sub", func(t *testing.T) {
++			doRace()
++			t.Parallel()
++		})
++		return
++	}
++
++	out := runTest(t, "TestRaceBeforeParallel")
++
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++	want := 0
++	// We should see one race detector report.
++	if race.Enabled {
++		want = 1
++	}
++	if c != want {
++		t.Errorf("got %d race reports, want %d", c, want)
++	}
++}
++
++func TestRaceBeforeTests(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Skipf("can't find test executable: %v", err)
++	}
++
++	cmd := testenv.Command(t, exe, "-test.run=^$")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_RACE_BEFORE_TESTS=1")
++	out, _ := cmd.CombinedOutput()
++	t.Logf("%s", out)
++
++	c := bytes.Count(out, []byte("race detected outside of test execution"))
++
++	want := 0
++	if race.Enabled {
++		want = 1
++	}
++	if c != want {
++		t.Errorf("got %d race reports; want %d", c, want)
++	}
++}
++
++func TestBenchmarkRace(t *testing.T) {
++	out := runTest(t, "BenchmarkRacy")
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++
++	want := 0
++	// We should see one race detector report.
++	if race.Enabled {
++		want = 1
++	}
++	if c != want {
++		t.Errorf("got %d race reports; want %d", c, want)
++	}
++}
++
++func BenchmarkRacy(b *testing.B) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		b.Skipf("skipping intentionally-racy benchmark")
++	}
++	for i := 0; i < b.N; i++ {
++		doRace()
++	}
++}
++
++func TestBenchmarkSubRace(t *testing.T) {
++	out := runTest(t, "BenchmarkSubRacy")
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++
++	want := 0
++	// We should see two race detector reports:
++	// one in the sub-bencmark, and one in the parent afterward.
++	if race.Enabled {
++		want = 2
++	}
++	if c != want {
++		t.Errorf("got %d race reports; want %d", c, want)
++	}
++}
++
++func BenchmarkSubRacy(b *testing.B) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		b.Skipf("skipping intentionally-racy benchmark")
++	}
++
++	b.Run("non-racy", func(b *testing.B) {
++		tot := 0
++		for i := 0; i < b.N; i++ {
++			tot++
++		}
++		_ = tot
++	})
++
++	b.Run("racy", func(b *testing.B) {
++		for i := 0; i < b.N; i++ {
++			doRace()
++		}
++	})
++
++	doRace() // should be reported separately
++}

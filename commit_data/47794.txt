@@ -12,6 +12,30 @@ Date:   Sun Apr 11 14:53:18 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/cgo/out.go | 12 ++++++------
  1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 8e83f02202..d0a7369c94 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1746,12 +1746,12 @@ Slice _cgoPREFIX_Cfunc_GoBytes(char *p, int32_t n) {
+ 
+ extern void runtime_throw(const char *);
+ void *_cgoPREFIX_Cfunc__CMalloc(size_t n) {
+-        void *p = malloc(n);
+-        if(p == NULL && n == 0)
+-                p = malloc(1);
+-        if(p == NULL)
+-                runtime_throw("runtime: C malloc failed");
+-        return p;
++	void *p = malloc(n);
++	if(p == NULL && n == 0)
++		p = malloc(1);
++	if(p == NULL)
++		runtime_throw("runtime: C malloc failed");
++	return p;
+ }
+ 
+ struct __go_type_descriptor;

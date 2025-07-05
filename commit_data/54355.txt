@@ -15,7 +15,7 @@ Date:   Thu Oct 6 18:09:23 2022 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go |  3 ++-
  src/cmd/compile/internal/types2/call.go        |  2 +-
  src/cmd/compile/internal/types2/decl.go        |  2 +-
@@ -33,3 +33,377 @@ Date:   Thu Oct 6 18:09:23 2022 -0700
  src/go/types/call.go                           |  2 +-
  src/go/types/errors.go                         |  6 +++++-
  16 files changed, 42 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 9120e8ce99..73c126c027 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -28,7 +28,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// ok
+ 	default:
+ 		// we may get here because of other problems (issue #39634, crash 12)
+-		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
++		// TODO(gri) do we need a new "generic" error code here?
++		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 0f8fbec43d..5b1be07e84 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -287,7 +287,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 	for _, a := range args {
+ 		switch a.mode {
+ 		case typexpr:
+-			check.errorf(a, 0, "%s used as value", a)
++			check.errorf(a, NotAnExpr, "%s used as value", a)
+ 			return
+ 		case invalid:
+ 			return
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 7c6ecd8b02..a15d232aa3 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -899,7 +899,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 			check.pop().setColor(black)
+ 
+ 		default:
+-			check.errorf(s, 0, invalidAST+"unknown syntax.Decl node %T", s)
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown syntax.Decl node %T", s)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index ab9e483681..d1e4b65e1a 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -221,6 +221,10 @@ func (check *Checker) dump(format string, args ...interface{}) {
+ }
+ 
+ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
++	if code == 0 {
++		panic("no error code provided")
++	}
++
+ 	// Cheap trick: Don't report errors with messages containing
+ 	// "invalid operand" or "invalid type" as those tend to be
+ 	// follow-on errors which don't add useful information. Only
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 03040ae1b1..d2ec7bd7fd 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -78,7 +78,7 @@ func (check *Checker) op(m opPredicates, x *operand, op syntax.Operator) bool {
+ 			return false
+ 		}
+ 	} else {
+-		check.errorf(x, 0, invalidAST+"unknown operator %s", op)
++		check.errorf(x, InvalidSyntaxTree, invalidAST+"unknown operator %s", op)
+ 		return false
+ 	}
+ 	return true
+@@ -1337,7 +1337,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 			x.mode = value
+ 			x.typ = sig
+ 		} else {
+-			check.errorf(e, 0, invalidAST+"invalid function literal %v", e)
++			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid function literal %v", e)
+ 			goto Error
+ 		}
+ 
+@@ -1594,7 +1594,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 		}
+ 		// x.(type) expressions are encoded via TypeSwitchGuards
+ 		if e.Type == nil {
+-			check.error(e, 0, invalidAST+"invalid use of AssertExpr")
++			check.error(e, InvalidSyntaxTree, invalidAST+"invalid use of AssertExpr")
+ 			goto Error
+ 		}
+ 		T := check.varType(e.Type)
+@@ -1607,7 +1607,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.TypeSwitchGuard:
+ 		// x.(type) expressions are handled explicitly in type switches
+-		check.error(e, 0, invalidAST+"use of .(type) outside type switch")
++		check.error(e, InvalidSyntaxTree, invalidAST+"use of .(type) outside type switch")
+ 		goto Error
+ 
+ 	case *syntax.CallExpr:
+@@ -1615,7 +1615,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.ListExpr:
+ 		// catch-all for unexpected expression lists
+-		check.error(e, 0, invalidAST+"unexpected list of expressions")
++		check.error(e, InvalidSyntaxTree, invalidAST+"unexpected list of expressions")
+ 		goto Error
+ 
+ 	// case *syntax.UnaryExpr:
+@@ -1692,7 +1692,7 @@ func (check *Checker) exprInternal(x *operand, e syntax.Expr, hint Type) exprKin
+ 
+ 	case *syntax.KeyValueExpr:
+ 		// key:value expressions are handled in composite literals
+-		check.error(e, 0, invalidAST+"no key:value expected")
++		check.error(e, InvalidSyntaxTree, invalidAST+"no key:value expected")
+ 		goto Error
+ 
+ 	case *syntax.ArrayType, *syntax.SliceType, *syntax.StructType, *syntax.FuncType,
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 71c4152ec5..0cf6072cab 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -274,7 +274,7 @@ func (check *Checker) sliceExpr(x *operand, e *syntax.SliceExpr) {
+ 
+ 	// spec: "Only the first index may be omitted; it defaults to 0."
+ 	if e.Full && (e.Index[1] == nil || e.Index[2] == nil) {
+-		check.error(e, 0, invalidAST+"2nd and 3rd index required in 3-index slice")
++		check.error(e, InvalidSyntaxTree, invalidAST+"2nd and 3rd index required in 3-index slice")
+ 		x.mode = invalid
+ 		return
+ 	}
+@@ -329,12 +329,12 @@ L:
+ func (check *Checker) singleIndex(e *syntax.IndexExpr) syntax.Expr {
+ 	index := e.Index
+ 	if index == nil {
+-		check.errorf(e, 0, invalidAST+"missing index for %s", e.X)
++		check.errorf(e, InvalidSyntaxTree, invalidAST+"missing index for %s", e.X)
+ 		return nil
+ 	}
+ 	if l, _ := index.(*syntax.ListExpr); l != nil {
+ 		if n := len(l.ElemList); n <= 1 {
+-			check.errorf(e, 0, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
++			check.errorf(e, InvalidSyntaxTree, invalidAST+"invalid use of ListExpr for index expression %v with %d indices", e, n)
+ 			return nil
+ 		}
+ 		// len(l.ElemList) > 1
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index b18900888b..6382ceedce 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -143,7 +143,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		sig, _ := typ.(*Signature)
+ 		if sig == nil {
+ 			if typ != Typ[Invalid] {
+-				check.errorf(f.Type, 0, invalidAST+"%s is not a method signature", typ)
++				check.errorf(f.Type, InvalidSyntaxTree, invalidAST+"%s is not a method signature", typ)
+ 			}
+ 			continue // ignore
+ 		}
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 1f67e65abd..dd6f54ac05 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -219,7 +219,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 				}
+ 
+ 			default:
+-				check.errorf(s, 0, invalidAST+"branch statement: %s %s", s.Tok, name)
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"branch statement: %s %s", s.Tok, name)
+ 				return
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 2df74ae093..122d5ec49c 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -467,7 +467,7 @@ func (check *Checker) collectObjects() {
+ 				obj.setOrder(uint32(len(check.objMap)))
+ 
+ 			default:
+-				check.errorf(s, 0, invalidAST+"unknown syntax.Decl node %T", s)
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"unknown syntax.Decl node %T", s)
+ 			}
+ 		}
+ 	}
+@@ -550,7 +550,7 @@ L: // unpack receiver type
+ 				case *syntax.BadExpr:
+ 					// ignore - error already reported by parser
+ 				case nil:
+-					check.error(ptyp, 0, invalidAST+"parameterized receiver contains nil parameters")
++					check.error(ptyp, InvalidSyntaxTree, invalidAST+"parameterized receiver contains nil parameters")
+ 				default:
+ 					check.errorf(arg, BadDecl, "receiver type parameter %s must be an identifier", arg)
+ 				}
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index eab18b6b7c..a6afc0ffe6 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -289,7 +289,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 			// named parameter
+ 			name := field.Name.Value
+ 			if name == "" {
+-				check.error(field.Name, 0, invalidAST+"anonymous parameter")
++				check.error(field.Name, InvalidSyntaxTree, invalidAST+"anonymous parameter")
+ 				// ok to continue
+ 			}
+ 			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
+@@ -306,7 +306,7 @@ func (check *Checker) collectParams(scope *Scope, list []*syntax.Field, variadic
+ 	}
+ 
+ 	if named && anonymous {
+-		check.error(list[0], 0, invalidAST+"list contains both named and anonymous parameters")
++		check.error(list[0], InvalidSyntaxTree, invalidAST+"list contains both named and anonymous parameters")
+ 		// ok to continue
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index c5f801e45f..9dcb375e7a 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -450,7 +450,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		if s.Rhs == nil {
+ 			// x++ or x--
+ 			if len(lhs) != 1 {
+-				check.errorf(s, 0, invalidAST+"%s%s requires one operand", s.Op, s.Op)
++				check.errorf(s, InvalidSyntaxTree, invalidAST+"%s%s requires one operand", s.Op, s.Op)
+ 				return
+ 			}
+ 			var x operand
+@@ -554,7 +554,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			// goto's must have labels, should have been caught above
+ 			fallthrough
+ 		default:
+-			check.errorf(s, 0, invalidAST+"branch statement: %s", s.Tok)
++			check.errorf(s, InvalidSyntaxTree, invalidAST+"branch statement: %s", s.Tok)
+ 		}
+ 
+ 	case *syntax.BlockStmt:
+@@ -582,7 +582,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		case *syntax.IfStmt, *syntax.BlockStmt:
+ 			check.stmt(inner, s.Else)
+ 		default:
+-			check.error(s.Else, 0, invalidAST+"invalid else branch in if statement")
++			check.error(s.Else, InvalidSyntaxTree, invalidAST+"invalid else branch in if statement")
+ 		}
+ 
+ 	case *syntax.SwitchStmt:
+@@ -674,7 +674,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		check.stmt(inner, s.Body)
+ 
+ 	default:
+-		check.error(s, 0, invalidAST+"invalid statement")
++		check.error(s, InvalidSyntaxTree, invalidAST+"invalid statement")
+ 	}
+ }
+ 
+@@ -710,7 +710,7 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 	seen := make(valueMap) // map of seen case values to positions and types
+ 	for i, clause := range s.Body {
+ 		if clause == nil {
+-			check.error(clause, 0, invalidAST+"incorrect expression switch case")
++			check.error(clause, InvalidSyntaxTree, invalidAST+"incorrect expression switch case")
+ 			continue
+ 		}
+ 		end := s.Rbrace
+@@ -773,7 +773,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	seen := make(map[Type]syntax.Expr) // map of seen types to positions
+ 	for i, clause := range s.Body {
+ 		if clause == nil {
+-			check.error(s, 0, invalidAST+"incorrect type switch case")
++			check.error(s, InvalidSyntaxTree, invalidAST+"incorrect type switch case")
+ 			continue
+ 		}
+ 		end := s.Rbrace
+@@ -836,7 +836,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 	var sValue, sExtra syntax.Expr
+ 	if p, _ := sKey.(*syntax.ListExpr); p != nil {
+ 		if len(p.ElemList) < 2 {
+-			check.error(s, 0, invalidAST+"invalid lhs in range clause")
++			check.error(s, InvalidSyntaxTree, invalidAST+"invalid lhs in range clause")
+ 			return
+ 		}
+ 		// len(p.ElemList) >= 2
+@@ -918,7 +918,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 					vars = append(vars, obj)
+ 				}
+ 			} else {
+-				check.errorf(lhs, 0, invalidAST+"cannot declare %s", lhs)
++				check.errorf(lhs, InvalidSyntaxTree, invalidAST+"cannot declare %s", lhs)
+ 				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/struct.go b/src/cmd/compile/internal/types2/struct.go
+index 6d37710724..ccf66d68cb 100644
+--- a/src/cmd/compile/internal/types2/struct.go
++++ b/src/cmd/compile/internal/types2/struct.go
+@@ -130,7 +130,7 @@ func (check *Checker) structType(styp *Struct, e *syntax.StructType) {
+ 			pos := syntax.StartPos(f.Type)
+ 			name := embeddedFieldIdent(f.Type)
+ 			if name == nil {
+-				check.errorf(pos, 0, invalidAST+"invalid embedded field type %s", f.Type)
++				check.errorf(pos, InvalidSyntaxTree, invalidAST+"invalid embedded field type %s", f.Type)
+ 				name = &syntax.Name{Value: "_"} // TODO(gri) need to set position to pos
+ 				addInvalid(name, pos)
+ 				continue
+@@ -217,7 +217,7 @@ func (check *Checker) tag(t *syntax.BasicLit) string {
+ 				return val
+ 			}
+ 		}
+-		check.errorf(t, 0, invalidAST+"incorrect tag syntax: %q", t.Value)
++		check.errorf(t, InvalidSyntaxTree, invalidAST+"incorrect tag syntax: %q", t.Value)
+ 	}
+ 	return ""
+ }
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index a85e2d9ce0..cd75e6ed00 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -385,7 +385,7 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 		case syntax.RecvOnly:
+ 			dir = RecvOnly
+ 		default:
+-			check.errorf(e, 0, invalidAST+"unknown channel direction %d", e.Dir)
++			check.errorf(e, InvalidSyntaxTree, invalidAST+"unknown channel direction %d", e.Dir)
+ 			// ok to continue
+ 		}
+ 
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index a0fe55ac0d..4d5acb1052 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -29,7 +29,8 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 		// ok
+ 	default:
+ 		// we may get here because of other problems (issue #39634, crash 12)
+-		check.errorf(x, 0, "cannot assign %s to %s in %s", x, T, context)
++		// TODO(gri) do we need a new "generic" error code here?
++		check.errorf(x, IncompatibleAssign, "cannot assign %s to %s in %s", x, T, context)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 6fcbc1461a..82d4533ee7 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -293,7 +293,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 	for _, a := range args {
+ 		switch a.mode {
+ 		case typexpr:
+-			check.errorf(a, 0, "%s used as value", a)
++			check.errorf(a, NotAnExpr, "%s used as value", a)
+ 			return
+ 		case invalid:
+ 			return
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 3f36bebc2c..bbcf4e6e75 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -220,6 +220,10 @@ func (check *Checker) report(errp *error_) {
+ 		panic("empty error details")
+ 	}
+ 
++	if errp.code == 0 {
++		panic("no error code provided")
++	}
++
+ 	span := spanOf(errp.desc[0].posn)
+ 	e := Error{
+ 		Fset:       check.fset,
+@@ -301,7 +305,7 @@ func (check *Checker) versionErrorf(at positioner, goVersion string, format stri
+ }
+ 
+ func (check *Checker) invalidAST(at positioner, format string, args ...any) {
+-	check.errorf(at, 0, "invalid AST: "+format, args...)
++	check.errorf(at, InvalidSyntaxTree, "invalid AST: "+format, args...)
+ }
+ 
+ func (check *Checker) invalidArg(at positioner, code Code, format string, args ...any) {

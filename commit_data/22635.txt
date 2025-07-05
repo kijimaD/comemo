@@ -8,7 +8,108 @@ Date:   Fri Mar 20 15:27:35 2015 +0100
     Reviewed-on: https://go-review.googlesource.com/7892
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/quotedprintable/writer.go      |  6 ++++-
  src/mime/quotedprintable/writer_test.go | 43 +++++++++++++++++++++++----------
  2 files changed, 35 insertions(+), 14 deletions(-)
+
+diff --git a/src/mime/quotedprintable/writer.go b/src/mime/quotedprintable/writer.go
+index 00775f56f2..16ea0bf7d6 100644
+--- a/src/mime/quotedprintable/writer.go
++++ b/src/mime/quotedprintable/writer.go
+@@ -10,6 +10,10 @@ const lineMaxLen = 76
+ 
+ // A Writer is a quoted-printable writer that implements io.WriteCloser.
+ type Writer struct {
++	// Binary mode treats the writer's input as pure binary and processes end of
++	// line bytes as binary data.
++	Binary bool
++
+ 	w    io.Writer
+ 	i    int
+ 	line [78]byte
+@@ -30,7 +34,7 @@ func (w *Writer) Write(p []byte) (n int, err error) {
+ 		// Simple writes are done in batch.
+ 		case b >= '!' && b <= '~' && b != '=':
+ 			continue
+-		case isWhitespace(b) || b == '\n' || b == '\r':
++		case isWhitespace(b) || !w.Binary && (b == '\n' || b == '\r'):
+ 			continue
+ 		}
+ 
+diff --git a/src/mime/quotedprintable/writer_test.go b/src/mime/quotedprintable/writer_test.go
+index 36b6eae2f6..a9b77b3f98 100644
+--- a/src/mime/quotedprintable/writer_test.go
++++ b/src/mime/quotedprintable/writer_test.go
+@@ -12,25 +12,33 @@ import (
+ )
+ 
+ func TestWriter(t *testing.T) {
++	testWriter(t, false)
++}
++
++func TestWriterBinary(t *testing.T) {
++	testWriter(t, true)
++}
++
++func testWriter(t *testing.T, binary bool) {
+ 	tests := []struct {
+-		in, want string
++		in, want, wantB string
+ 	}{
+ 		{in: "", want: ""},
+ 		{in: "foo bar", want: "foo bar"},
+ 		{in: "foo bar=", want: "foo bar=3D"},
+-		{in: "foo bar\r", want: "foo bar\r\n"},
+-		{in: "foo bar\r\r", want: "foo bar\r\n\r\n"},
+-		{in: "foo bar\n", want: "foo bar\r\n"},
+-		{in: "foo bar\r\n", want: "foo bar\r\n"},
+-		{in: "foo bar\r\r\n", want: "foo bar\r\n\r\n"},
++		{in: "foo bar\r", want: "foo bar\r\n", wantB: "foo bar=0D"},
++		{in: "foo bar\r\r", want: "foo bar\r\n\r\n", wantB: "foo bar=0D=0D"},
++		{in: "foo bar\n", want: "foo bar\r\n", wantB: "foo bar=0A"},
++		{in: "foo bar\r\n", want: "foo bar\r\n", wantB: "foo bar=0D=0A"},
++		{in: "foo bar\r\r\n", want: "foo bar\r\n\r\n", wantB: "foo bar=0D=0D=0A"},
+ 		{in: "foo bar ", want: "foo bar=20"},
+ 		{in: "foo bar\t", want: "foo bar=09"},
+ 		{in: "foo bar  ", want: "foo bar =20"},
+-		{in: "foo bar \n", want: "foo bar=20\r\n"},
+-		{in: "foo bar \r", want: "foo bar=20\r\n"},
+-		{in: "foo bar \r\n", want: "foo bar=20\r\n"},
+-		{in: "foo bar  \n", want: "foo bar =20\r\n"},
+-		{in: "foo bar  \n ", want: "foo bar =20\r\n=20"},
++		{in: "foo bar \n", want: "foo bar=20\r\n", wantB: "foo bar =0A"},
++		{in: "foo bar \r", want: "foo bar=20\r\n", wantB: "foo bar =0D"},
++		{in: "foo bar \r\n", want: "foo bar=20\r\n", wantB: "foo bar =0D=0A"},
++		{in: "foo bar  \n", want: "foo bar =20\r\n", wantB: "foo bar  =0A"},
++		{in: "foo bar  \n ", want: "foo bar =20\r\n=20", wantB: "foo bar  =0A=20"},
+ 		{in: "¡Hola Señor!", want: "=C2=A1Hola Se=C3=B1or!"},
+ 		{
+ 			in:   "\t !\"#$%&'()*+,-./ :;<>?@[\\]^_`{|}~",
+@@ -85,6 +93,15 @@ func TestWriter(t *testing.T) {
+ 	for _, tt := range tests {
+ 		buf := new(bytes.Buffer)
+ 		w := NewWriter(buf)
++
++		want := tt.want
++		if binary {
++			w.Binary = true
++			if tt.wantB != "" {
++				want = tt.wantB
++			}
++		}
++
+ 		if _, err := w.Write([]byte(tt.in)); err != nil {
+ 			t.Errorf("Write(%q): %v", tt.in, err)
+ 			continue
+@@ -94,8 +111,8 @@ func TestWriter(t *testing.T) {
+ 			continue
+ 		}
+ 		got := buf.String()
+-		if got != tt.want {
+-			t.Errorf("Write(%q), got:\n%q\nwant:\n%q", tt.in, got, tt.want)
++		if got != want {
++			t.Errorf("Write(%q), got:\n%q\nwant:\n%q", tt.in, got, want)
+ 		}
+ 	}
+ }

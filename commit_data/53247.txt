@@ -22,10 +22,98 @@ Date:   Fri Aug 5 16:09:22 2022 -0700
     Reviewed-by: Keith Randall <khr@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/iexport.go |  4 +++-
  src/cmd/compile/internal/typecheck/iimport.go |  5 ++++-
  test/typeparam/issue54302.dir/a.go            | 20 ++++++++++++++++++++
  test/typeparam/issue54302.dir/main.go         | 11 +++++++++++
  test/typeparam/issue54302.go                  |  7 +++++++
  5 files changed, 45 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 43ec7b80a0..f3af8f7ffe 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -1928,7 +1928,9 @@ func (w *exportWriter) expr(n ir.Node) {
+ 		w.op(n.Op())
+ 		w.pos(n.Pos())
+ 		w.expr(n.X)
+-		w.expr(n.RType)
++		if w.bool(n.RType != nil) {
++			w.expr(n.RType)
++		}
+ 		if w.bool(n.ITab != nil) {
+ 			w.expr(n.ITab)
+ 		}
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 84c748f7f0..51978de095 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -1460,7 +1460,10 @@ func (r *importReader) node() ir.Node {
+ 		return n
+ 
+ 	case ir.ODYNAMICDOTTYPE, ir.ODYNAMICDOTTYPE2:
+-		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), r.expr())
++		n := ir.NewDynamicTypeAssertExpr(r.pos(), op, r.expr(), nil)
++		if r.bool() {
++			n.RType = r.expr()
++		}
+ 		if r.bool() {
+ 			n.ITab = r.expr()
+ 		}
+diff --git a/test/typeparam/issue54302.dir/a.go b/test/typeparam/issue54302.dir/a.go
+new file mode 100644
+index 0000000000..52875ab5e1
+--- /dev/null
++++ b/test/typeparam/issue54302.dir/a.go
+@@ -0,0 +1,20 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func A() {
++	B[int](new(G[int]))
++}
++
++func B[T any](iface interface{ M(T) }) {
++	x, ok := iface.(*G[T])
++	if !ok || iface != x {
++		panic("FAIL")
++	}
++}
++
++type G[T any] struct{}
++
++func (*G[T]) M(T) {}
+diff --git a/test/typeparam/issue54302.dir/main.go b/test/typeparam/issue54302.dir/main.go
+new file mode 100644
+index 0000000000..b4c6cd142d
+--- /dev/null
++++ b/test/typeparam/issue54302.dir/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func main() {
++	a.A()
++}
+diff --git a/test/typeparam/issue54302.go b/test/typeparam/issue54302.go
+new file mode 100644
+index 0000000000..f132421c84
+--- /dev/null
++++ b/test/typeparam/issue54302.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p

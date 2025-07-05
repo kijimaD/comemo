@@ -11,7 +11,43 @@ Date:   Thu Aug 21 22:34:00 2014 +0200
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/129460043
-
+---
  src/pkg/runtime/mprof.go | 2 +-
  src/pkg/runtime/mprof.h  | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/mprof.go b/src/pkg/runtime/mprof.go
+index 057e3dee1c..7c90c21c98 100644
+--- a/src/pkg/runtime/mprof.go
++++ b/src/pkg/runtime/mprof.go
+@@ -122,7 +122,7 @@ func BlockProfile(p []BlockProfileRecord) (n int, ok bool) {
+ 		ok = true
+ 		idx := 0
+ 		for b := bbuckets; b != nil; b = b.allnext {
+-			bp := (*_4_)(unsafe.Pointer(&b.data))
++			bp := (*bprofrecord)(unsafe.Pointer(&b.data))
+ 			p[idx].Count = int64(bp.count)
+ 			p[idx].Cycles = int64(bp.cycles)
+ 			i := 0
+diff --git a/src/pkg/runtime/mprof.h b/src/pkg/runtime/mprof.h
+index 5e9f3b55a4..a8cf1513e8 100644
+--- a/src/pkg/runtime/mprof.h
++++ b/src/pkg/runtime/mprof.h
+@@ -13,7 +13,7 @@ struct Bucket
+ 	// this one is fine because it does not contain pointers.
+ 	union
+ 	{
+-		struct  // typ == MProf
++		struct MProfRecord // typ == MProf
+ 		{
+ 			// The following complex 3-stage scheme of stats accumulation
+ 			// is required to obtain a consistent picture of mallocs and frees
+@@ -43,7 +43,7 @@ struct Bucket
+ 			uintptr	recent_free_bytes;
+ 
+ 		} mp;
+-		struct  // typ == BProf
++		struct BProfRecord // typ == BProf
+ 		{
+ 			int64	count;
+ 			int64	cycles;

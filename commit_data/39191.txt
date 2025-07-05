@@ -12,7 +12,40 @@ Date:   Fri Jan 18 20:45:41 2019 +0000
     GitHub-Pull-Request: golang/go#29823
     Reviewed-on: https://go-review.googlesource.com/c/158540
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8001484e12..e754fec012 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -1304,6 +1304,7 @@ Sven Almgren <sven@tras.se>
+ Sylvain Zimmer <sylvain@sylvainzimmer.com>
+ Syohei YOSHIDA <syohex@gmail.com>
+ Szabolcs Nagy <nsz@port70.net>
++Taavi Kivisik <taavi.kivisik@gmail.com>
+ Tad Fisher <tadfisher@gmail.com>
+ Tad Glines <tad.glines@gmail.com>
+ Taj Khattra <taj.khattra@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index f6a0df11f7..d1be11e392 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -715,7 +715,6 @@ GitHub User @OlgaVlPetrova (44112727) <OVPpetrova@gmail.com>
+ GitHub User @pityonline (438222) <pityonline@gmail.com>
+ GitHub User @pytimer (17105586) <lixin20101023@gmail.com>
+ GitHub User @shogo-ma (9860598) <Choroma194@gmail.com>
+-GitHub User @tkivisik (13732144) <taavi.kivisik@gmail.com>
+ GitHub User @uhei (2116845) <uhei@users.noreply.github.com>
+ GitHub User @uropek (39370426) <uropek@gmail.com>
+ Giulio Iotti <dullgiulio@gmail.com>
+@@ -1773,6 +1772,7 @@ Sven Blumenstein <svbl@google.com>
+ Sylvain Zimmer <sylvain@sylvainzimmer.com>
+ Syohei YOSHIDA <syohex@gmail.com>
+ Szabolcs Nagy <nsz@port70.net>
++Taavi Kivisik <taavi.kivisik@gmail.com>
+ Tad Fisher <tadfisher@gmail.com>
+ Tad Glines <tad.glines@gmail.com>
+ Tadas Valiukas <tadovas@gmail.com>

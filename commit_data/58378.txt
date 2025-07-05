@@ -32,7 +32,34 @@ Date:   Thu Nov 2 14:36:30 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/syscall/rlimit_stub.go | 2 +-
  src/syscall/rlimit_test.go | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/rlimit_stub.go b/src/syscall/rlimit_stub.go
+index e8f839dd99..7daa935dd5 100644
+--- a/src/syscall/rlimit_stub.go
++++ b/src/syscall/rlimit_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build unix && !darwin
+ 
+ package syscall
+ 
+diff --git a/src/syscall/rlimit_test.go b/src/syscall/rlimit_test.go
+index e48f45e3aa..764694fe2d 100644
+--- a/src/syscall/rlimit_test.go
++++ b/src/syscall/rlimit_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build unix
++
+ package syscall_test
+ 
+ import (

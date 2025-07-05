@@ -10,6 +10,21 @@ Date:   Wed Dec 9 17:17:36 2020 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  test/run.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/test/run.go b/test/run.go
+index db8bffc81f..3e0e7ab368 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -1969,7 +1969,8 @@ var excluded = map[string]bool{
+ 	"fixedbugs/bug374.go":    true,
+ 	"fixedbugs/bug379.go":    true,
+ 	"fixedbugs/bug383.go":    true,
+-	"fixedbugs/bug385_64.go": true,
++	"fixedbugs/bug385_32.go": true, // types2 doesn't produce "stack frame too large" error (32-bit specific)
++	"fixedbugs/bug385_64.go": true, // types2 doesn't produce "stack frame too large" error
+ 	"fixedbugs/bug386.go":    true,
+ 	"fixedbugs/bug388.go":    true,
+ 	"fixedbugs/bug389.go":    true,

@@ -9,6 +9,29 @@ Date:   Wed Mar 23 21:49:19 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4271062
-
+---
  src/pkg/gob/encoder.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 55481a9885..e52a4de29f 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -21,6 +21,7 @@ type Encoder struct {
+ 	countState *encoderState           // stage for writing counts
+ 	freeList   *encoderState           // list of free encoderStates; avoids reallocation
+ 	buf        []byte                  // for collecting the output.
++	byteBuf    bytes.Buffer            // buffer for top-level encoderState
+ 	err        os.Error
+ }
+ 
+@@ -219,7 +220,8 @@ func (enc *Encoder) EncodeValue(value reflect.Value) os.Error {
+ 	}
+ 
+ 	enc.err = nil
+-	state := enc.newEncoderState(new(bytes.Buffer))
++	enc.byteBuf.Reset()
++	state := enc.newEncoderState(&enc.byteBuf)
+ 
+ 	enc.sendTypeDescriptor(enc.writer(), state, ut)
+ 	enc.sendTypeId(state, ut)

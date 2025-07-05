@@ -7,6 +7,19 @@ Date:   Fri Feb 10 09:33:51 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5645074
-
+---
  src/pkg/compress/gzip/gunzip.go | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index d3743105d1..4094c45bb0 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -83,7 +83,6 @@ func NewReader(r io.Reader) (*Decompressor, error) {
+ 	z.r = makeReader(r)
+ 	z.digest = crc32.NewIEEE()
+ 	if err := z.readHeader(true); err != nil {
+-		z.err = err
+ 		return nil, err
+ 	}
+ 	return z, nil

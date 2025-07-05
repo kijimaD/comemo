@@ -13,7 +13,153 @@ Date:   Thu Aug 28 15:50:13 2014 +1000
     R=nigeltao, ruiu
     CC=golang-codereviews
     https://golang.org/cl/129190043
-
+---
  src/pkg/image/png/writer.go      | 52 ++++++++++++++++++++++++++++++++++++----
  src/pkg/image/png/writer_test.go | 26 ++++++++++++++++----
  2 files changed, 68 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index 5c232b760a..703aeec0a2 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -14,7 +14,13 @@ import (
+ 	"strconv"
+ )
+ 
++// Encoder configures encoding PNG images.
++type Encoder struct {
++	CompressionLevel CompressionLevel
++}
++
+ type encoder struct {
++	enc    *Encoder
+ 	w      io.Writer
+ 	m      image.Image
+ 	cb     int
+@@ -24,6 +30,15 @@ type encoder struct {
+ 	tmp    [4 * 256]byte
+ }
+ 
++type CompressionLevel int
++
++const (
++	DefaultCompression CompressionLevel = iota
++	NoCompression
++	BestSpeed
++	BestCompression
++)
++
+ // Big-endian.
+ func writeUint32(b []uint8, u uint32) {
+ 	b[0] = uint8(u >> 24)
+@@ -255,8 +270,11 @@ func filter(cr *[nFilter][]byte, pr []byte, bpp int) int {
+ 	return filter
+ }
+ 
+-func writeImage(w io.Writer, m image.Image, cb int) error {
+-	zw := zlib.NewWriter(w)
++func writeImage(w io.Writer, m image.Image, cb int, level int) error {
++	zw, err := zlib.NewWriterLevel(w, level)
++	if err != nil {
++		return err
++	}
+ 	defer zw.Close()
+ 
+ 	bpp := 0 // Bytes per pixel.
+@@ -419,18 +437,41 @@ func (e *encoder) writeIDATs() {
+ 	}
+ 	var bw *bufio.Writer
+ 	bw = bufio.NewWriterSize(e, 1<<15)
+-	e.err = writeImage(bw, e.m, e.cb)
++	e.err = writeImage(bw, e.m, e.cb, levelToZlib(e.enc.CompressionLevel))
+ 	if e.err != nil {
+ 		return
+ 	}
+ 	e.err = bw.Flush()
+ }
+ 
++// This function is required because we want the zero value of
++// Encoder.CompressionLevel to map to zlib.DefaultCompression.
++func levelToZlib(l CompressionLevel) int {
++	switch l {
++	case DefaultCompression:
++		return zlib.DefaultCompression
++	case NoCompression:
++		return zlib.NoCompression
++	case BestSpeed:
++		return zlib.BestSpeed
++	case BestCompression:
++		return zlib.BestCompression
++	default:
++		return zlib.DefaultCompression
++	}
++}
++
+ func (e *encoder) writeIEND() { e.writeChunk(nil, "IEND") }
+ 
+-// Encode writes the Image m to w in PNG format. Any Image may be encoded, but
+-// images that are not image.NRGBA might be encoded lossily.
++// Encode writes the Image m to w in PNG format. Any Image may be
++// encoded, but images that are not image.NRGBA might be encoded lossily.
+ func Encode(w io.Writer, m image.Image) error {
++	var e Encoder
++	return e.Encode(w, m)
++}
++
++// Encode writes the Image m to w in PNG format.
++func (enc *Encoder) Encode(w io.Writer, m image.Image) error {
+ 	// Obviously, negative widths and heights are invalid. Furthermore, the PNG
+ 	// spec section 11.2.2 says that zero is invalid. Excessively large images are
+ 	// also rejected.
+@@ -440,6 +481,7 @@ func Encode(w io.Writer, m image.Image) error {
+ 	}
+ 
+ 	var e encoder
++	e.enc = enc
+ 	e.w = w
+ 	e.m = m
+ 
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 3116fc9ff9..6a872e2749 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -40,11 +40,7 @@ func encodeDecode(m image.Image) (image.Image, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	m, err = Decode(&b)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return m, nil
++	return Decode(&b)
+ }
+ 
+ func TestWriter(t *testing.T) {
+@@ -81,6 +77,26 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriterLevels(t *testing.T) {
++	m := image.NewNRGBA(image.Rect(0, 0, 100, 100))
++
++	var b1, b2 bytes.Buffer
++	var e1, e2 Encoder
++
++	if err := e1.Encode(&b1, m); err != nil {
++		t.Fatal(err)
++	}
++
++	e2.CompressionLevel = NoCompression
++	if err := e2.Encode(&b2, m); err != nil {
++		t.Fatal(err)
++	}
++
++	if b2.Len() <= b1.Len() {
++		t.Error("DefaultCompression encoding was larger than NoCompression encoding")
++	}
++}
++
+ func TestSubImage(t *testing.T) {
+ 	m0 := image.NewRGBA(image.Rect(0, 0, 256, 256))
+ 	for y := 0; y < 256; y++ {

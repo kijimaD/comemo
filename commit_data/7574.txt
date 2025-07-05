@@ -7,8 +7,63 @@ Date:   Fri Feb 25 01:04:29 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4240041
-
+---
  src/cmd/8a/lex.c   | 4 ++++
  src/cmd/8l/8.out.h | 5 +++++
  src/cmd/8l/optab.c | 5 +++++
  3 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index d5fa959aa8..ca18b69ce6 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -332,6 +332,7 @@ struct
+ 	"CMPSB",	LTYPE0,	ACMPSB,
+ 	"CMPSL",	LTYPE0,	ACMPSL,
+ 	"CMPSW",	LTYPE0,	ACMPSW,
++	"CMPXCHG8B",	LTYPE1,	ACMPXCHG8B,
+ 	"CMPXCHGB",	LTYPE3,	ACMPXCHGB,
+ 	"CMPXCHGL",	LTYPE3,	ACMPXCHGL,
+ 	"CMPXCHGW",	LTYPE3,	ACMPXCHGW,
+@@ -546,6 +547,9 @@ struct
+ 	"VERW",		LTYPE2,	AVERW,
+ 	"WAIT",		LTYPE0,	AWAIT,
+ 	"WORD",		LTYPE2,	AWORD,
++	"XADDB",	LTYPE3,	AXADDB,
++	"XADDL",	LTYPE3,	AXADDL,
++	"XADDW",	LTYPE3,	AXADDW,
+ 	"XCHGB",	LTYPE3,	AXCHGB,
+ 	"XCHGL",	LTYPE3,	AXCHGL,
+ 	"XCHGW",	LTYPE3,	AXCHGW,
+diff --git a/src/cmd/8l/8.out.h b/src/cmd/8l/8.out.h
+index 0866f05f00..03db0016b5 100644
+--- a/src/cmd/8l/8.out.h
++++ b/src/cmd/8l/8.out.h
+@@ -392,6 +392,11 @@ enum	as
+ 	ACMPXCHGB,
+ 	ACMPXCHGL,
+ 	ACMPXCHGW,
++	ACMPXCHG8B,
++	
++	AXADDB,
++	AXADDL,
++	AXADDW,
+ 
+ 	/* conditional move */
+ 	ACMOVLCC,
+diff --git a/src/cmd/8l/optab.c b/src/cmd/8l/optab.c
+index fceab785df..1e89a21053 100644
+--- a/src/cmd/8l/optab.c
++++ b/src/cmd/8l/optab.c
+@@ -702,6 +702,11 @@ Optab optab[] =
+ 	{ ACMPXCHGB,	yrb_mb,	Pm, 0xb0 },
+ 	{ ACMPXCHGL,	yrl_ml,	Pm, 0xb1 },
+ 	{ ACMPXCHGW,	yrl_ml,	Pm, 0xb1 },
++	{ ACMPXCHG8B,	yscond,	Pm, 0xc7,(01) },
++
++	{ AXADDB,	yrb_mb,	Pb, 0x0f,0xc0 },
++	{ AXADDL,	yrl_ml,	Pm, 0xc1 },
++	{ AXADDW,	yrl_ml,	Pe, 0x0f,0xc1 },
+ 
+ 	{ ACMOVLCC,	yml_rl,	Pm, 0x43 },
+ 	{ ACMOVLCS,	yml_rl,	Pm, 0x42 },

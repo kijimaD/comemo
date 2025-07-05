@@ -9,10 +9,219 @@ Date:   Mon Feb 13 12:24:02 2012 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5650078
-
+---
  src/pkg/go/doc/reader.go           |  2 +-
  src/pkg/go/doc/testdata/b.0.golden | 28 ++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/b.1.golden | 36 +++++++++++++++++++++++++++++++++++-
  src/pkg/go/doc/testdata/b.2.golden | 28 ++++++++++++++++++++++++++++
  src/pkg/go/doc/testdata/b.go       | 28 ++++++++++++++++++++++++++++
  5 files changed, 120 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index 13b465bbd7..5f0643caa3 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -274,7 +274,7 @@ func (r *reader) readValue(decl *ast.GenDecl) {
+ 	// determine values list with which to associate the Value for this decl
+ 	values := &r.values
+ 	const threshold = 0.75
+-	if domName != "" && domFreq >= int(float64(len(decl.Specs))*threshold) {
++	if domName != "" && r.isVisible(domName) && domFreq >= int(float64(len(decl.Specs))*threshold) {
+ 		// typed entries are sufficiently frequent
+ 		if typ := r.lookupType(domName); typ != nil {
+ 			values = &typ.values // associate with that type
+diff --git a/src/pkg/go/doc/testdata/b.0.golden b/src/pkg/go/doc/testdata/b.0.golden
+index 7c33300616..9d93392eaa 100644
+--- a/src/pkg/go/doc/testdata/b.0.golden
++++ b/src/pkg/go/doc/testdata/b.0.golden
+@@ -11,19 +11,47 @@ FILENAMES
+ 	testdata/b.go
+ 
+ CONSTANTS
++	// 
++	const (
++		C1	notExported	= iota
++		C2
++	
++		C4
++		C5
++	)
++
++	// 
++	const C notExported = 0
++
+ 	// 
+ 	const Pi = 3.14	// Pi
+ 
+ 
+ VARIABLES
++	// 
++	var (
++		U1, U2, U4, U5	notExported
++	
++		U7	notExported	= 7
++	)
++
+ 	// 
+ 	var MaxInt int	// MaxInt
+ 
++	// 
++	var V notExported
++
++	// 
++	var V1, V2, V4, V5 notExported
++
+ 
+ FUNCTIONS
+ 	// 
+ 	func F(x int) int
+ 
++	// 
++	func F1() notExported
++
+ 	// Always under the package functions list. 
+ 	func NotAFactory() int
+ 
+diff --git a/src/pkg/go/doc/testdata/b.1.golden b/src/pkg/go/doc/testdata/b.1.golden
+index f30380516b..66c47b5c2a 100644
+--- a/src/pkg/go/doc/testdata/b.1.golden
++++ b/src/pkg/go/doc/testdata/b.1.golden
+@@ -38,8 +38,42 @@ TYPES
+ 	// 
+ 	func (x *T) M()
+ 
++	// 
++	type notExported int
++
++	// 
++	const (
++		C1	notExported	= iota
++		C2
++		c3
++		C4
++		C5
++	)
++
++	// 
++	const C notExported = 0
++
++	// 
++	var (
++		U1, U2, u3, U4, U5	notExported
++		u6			notExported
++		U7			notExported	= 7
++	)
++
++	// 
++	var V notExported
++
++	// 
++	var V1, V2, v3, V4, V5 notExported
++
++	// 
++	func F1() notExported
++
++	// 
++	func f2() notExported
++
+ 	// Should only appear if AllDecls is set. 
+-	type uint struct{}
++	type uint struct{}	// overrides a predeclared type uint
+ 
+ 	// Associated with uint type if AllDecls is set. 
+ 	func UintFactory() uint
+diff --git a/src/pkg/go/doc/testdata/b.2.golden b/src/pkg/go/doc/testdata/b.2.golden
+index 7c33300616..9d93392eaa 100644
+--- a/src/pkg/go/doc/testdata/b.2.golden
++++ b/src/pkg/go/doc/testdata/b.2.golden
+@@ -11,19 +11,47 @@ FILENAMES
+ 	testdata/b.go
+ 
+ CONSTANTS
++	// 
++	const (
++		C1	notExported	= iota
++		C2
++	
++		C4
++		C5
++	)
++
++	// 
++	const C notExported = 0
++
+ 	// 
+ 	const Pi = 3.14	// Pi
+ 
+ 
+ VARIABLES
++	// 
++	var (
++		U1, U2, U4, U5	notExported
++	
++		U7	notExported	= 7
++	)
++
+ 	// 
+ 	var MaxInt int	// MaxInt
+ 
++	// 
++	var V notExported
++
++	// 
++	var V1, V2, V4, V5 notExported
++
+ 
+ FUNCTIONS
+ 	// 
+ 	func F(x int) int
+ 
++	// 
++	func F1() notExported
++
+ 	// Always under the package functions list. 
+ 	func NotAFactory() int
+ 
+diff --git a/src/pkg/go/doc/testdata/b.go b/src/pkg/go/doc/testdata/b.go
+index 28660f9be7..e50663b3df 100644
+--- a/src/pkg/go/doc/testdata/b.go
++++ b/src/pkg/go/doc/testdata/b.go
+@@ -6,6 +6,7 @@ package b
+ 
+ import "a"
+ 
++// ----------------------------------------------------------------------------
+ // Basic declarations
+ 
+ const Pi = 3.14   // Pi
+@@ -28,3 +29,30 @@ func uintFactory() uint {}
+ 
+ // Should only appear if AllDecls is set.
+ type uint struct{} // overrides a predeclared type uint
++
++// ----------------------------------------------------------------------------
++// Exported declarations associated with non-exported types must always be shown.
++
++type notExported int
++
++const C notExported = 0
++
++const (
++	C1 notExported = iota
++	C2
++	c3
++	C4
++	C5
++)
++
++var V notExported
++var V1, V2, v3, V4, V5 notExported
++
++var (
++	U1, U2, u3, U4, U5 notExported
++	u6                 notExported
++	U7                 notExported = 7
++)
++
++func F1() notExported {}
++func f2() notExported {}

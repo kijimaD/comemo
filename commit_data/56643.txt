@@ -14,6 +14,50 @@ Date:   Wed May 17 11:35:52 2023 +0200
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Alessandro Arzilli <alessandro.arzilli@gmail.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 22 ++++++++++++++++------
  1 file changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index e7028d3b54..c0969b25b0 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -325,15 +325,11 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 		if *flagDumpDep {
+ 			to := d.ldr.SymName(symIdx)
+ 			if to != "" {
+-				if d.ldr.AttrUsedInIface(symIdx) {
+-					to += " <UsedInIface>"
+-				}
++				to = d.dumpDepAddFlags(to, symIdx)
+ 				from := "_"
+ 				if parent != 0 {
+ 					from = d.ldr.SymName(parent)
+-					if d.ldr.AttrUsedInIface(parent) {
+-						from += " <UsedInIface>"
+-					}
++					from = d.dumpDepAddFlags(from, parent)
+ 				}
+ 				fmt.Printf("%s -> %s\n", from, to)
+ 			}
+@@ -341,6 +337,20 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	}
+ }
+ 
++func (d *deadcodePass) dumpDepAddFlags(name string, symIdx loader.Sym) string {
++	var flags strings.Builder
++	if d.ldr.AttrUsedInIface(symIdx) {
++		flags.WriteString("<UsedInIface>")
++	}
++	if d.ldr.IsReflectMethod(symIdx) {
++		flags.WriteString("<ReflectMethod>")
++	}
++	if flags.Len() > 0 {
++		return name + " " + flags.String()
++	}
++	return name
++}
++
+ func (d *deadcodePass) markMethod(m methodref) {
+ 	relocs := d.ldr.Relocs(m.src)
+ 	d.mark(relocs.At(m.r).Sym(), m.src)

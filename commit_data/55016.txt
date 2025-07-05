@@ -13,7 +13,7 @@ Date:   Mon Nov 14 20:13:10 2022 +0800
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/format.go                   |  4 ++--
  src/archive/tar/reader.go                   |  2 +-
  src/archive/tar/writer.go                   |  2 +-
@@ -33,3 +33,355 @@ Date:   Mon Nov 14 20:13:10 2022 +0800
  test/typeparam/list.go                      |  2 +-
  test/typeparam/listimp.dir/a.go             |  2 +-
  18 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+index 8898c438b5..e50124d99e 100644
+--- a/src/archive/tar/format.go
++++ b/src/archive/tar/format.go
+@@ -166,7 +166,7 @@ func (b *block) toSTAR() *headerSTAR   { return (*headerSTAR)(b) }
+ func (b *block) toUSTAR() *headerUSTAR { return (*headerUSTAR)(b) }
+ func (b *block) toSparse() sparseArray { return sparseArray(b[:]) }
+ 
+-// GetFormat checks that the block is a valid tar header based on the checksum.
++// getFormat checks that the block is a valid tar header based on the checksum.
+ // It then attempts to guess the specific format based on magic values.
+ // If the checksum fails, then FormatUnknown is returned.
+ func (b *block) getFormat() Format {
+@@ -239,7 +239,7 @@ func (b *block) computeChecksum() (unsigned, signed int64) {
+ 	return unsigned, signed
+ }
+ 
+-// Reset clears the block with all zeros.
++// reset clears the block with all zeros.
+ func (b *block) reset() {
+ 	*b = block{}
+ }
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index a4e35bddb2..52a3150fc4 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -696,7 +696,7 @@ func (fr regFileReader) logicalRemaining() int64 {
+ 	return fr.nb
+ }
+ 
+-// logicalRemaining implements fileState.physicalRemaining.
++// physicalRemaining implements fileState.physicalRemaining.
+ func (fr regFileReader) physicalRemaining() int64 {
+ 	return fr.nb
+ }
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 9b2e3e25d4..1c95f0738a 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -519,7 +519,7 @@ func (fw regFileWriter) logicalRemaining() int64 {
+ 	return fw.nb
+ }
+ 
+-// logicalRemaining implements fileState.physicalRemaining.
++// physicalRemaining implements fileState.physicalRemaining.
+ func (fw regFileWriter) physicalRemaining() int64 {
+ 	return fw.nb
+ }
+diff --git a/src/cmd/compile/internal/abt/avlint32.go b/src/cmd/compile/internal/abt/avlint32.go
+index e0998f5bac..9800e03ac0 100644
+--- a/src/cmd/compile/internal/abt/avlint32.go
++++ b/src/cmd/compile/internal/abt/avlint32.go
+@@ -37,7 +37,7 @@ func makeNode(key int32) *node32 {
+ 	return &node32{key: key, height_: LEAF_HEIGHT}
+ }
+ 
+-// IsSingle returns true iff t is empty.
++// IsEmpty returns true iff t is empty.
+ func (t *T) IsEmpty() bool {
+ 	return t.root == nil
+ }
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 5d62f4acd4..6139d5e23b 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -20,7 +20,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+ 	flive := b.FlagsLiveAtEnd
+ 	for _, c := range b.ControlValues() {
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index 1e83227816..d0be4d8818 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -270,7 +270,7 @@ func parseLogFlag(flag, value string) (version int, directory string) {
+ 	return
+ }
+ 
+-// isWindowsDriveURI returns true if the file URI is of the format used by
++// isWindowsDriveURIPath returns true if the file URI is of the format used by
+ // Windows URIs. The url.Parse package does not specially handle Windows paths
+ // (see golang/go#6027), so we check if the URI path has a drive prefix (e.g. "/C:").
+ // (copied from tools/internal/span/uri.go)
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index c25681a71c..d567a12b01 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -19,7 +19,7 @@ import (
+ 	"strings"
+ )
+ 
+-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+ 	//	flive := b.FlagsLiveAtEnd
+ 	//	if b.Control != nil && b.Control.Type.IsFlags() {
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 5f74fd876c..984779f0ea 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -179,7 +179,7 @@ func largestMove(alignment int64) (obj.As, int64) {
+ 	}
+ }
+ 
+-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ // RISC-V has no flags, so this is a no-op.
+ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {}
+ 
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 7d9b31de4c..ba50b00572 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -16,7 +16,7 @@ import (
+ 	"cmd/internal/obj/s390x"
+ )
+ 
+-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+ 	flive := b.FlagsLiveAtEnd
+ 	for _, c := range b.ControlValues() {
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 347038bf82..39ba4d1647 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -144,7 +144,7 @@ func (f *Func) dominatorsLTOrig(entry *Block, predFn linkedBlocks, succFn linked
+ 	return idom
+ }
+ 
+-// dfs performs a depth first search over the blocks starting at entry block
++// dfsOrig performs a depth first search over the blocks starting at entry block
+ // (in arbitrary order).  This is a de-recursed version of dfs from the
+ // original Tarjan-Lengauer TOPLAS article.  It's important to return the
+ // same values for parent as the original algorithm.
+@@ -203,7 +203,7 @@ func linkOrig(v, w ID, ancestor []ID) {
+ 	ancestor[w] = v
+ }
+ 
+-// dominators computes the dominator tree for f. It returns a slice
++// dominatorsSimple computes the dominator tree for f. It returns a slice
+ // which maps block ID to the immediate dominator of that block.
+ // Unreachable blocks map to nil. The entry block maps to nil.
+ func dominatorsSimple(f *Func) []*Block {
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 281f04ddae..b10911aa92 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -304,7 +304,7 @@ func (f *Func) newValueNoBlock(op Op, t *types.Type, pos src.XPos) *Value {
+ 	return v
+ }
+ 
+-// logPassStat writes a string key and int value as a warning in a
++// LogStat writes a string key and int value as a warning in a
+ // tab-separated format easily handled by spreadsheets or awk.
+ // file names, lines, and function names are included to provide enough (?)
+ // context to allow item-by-item comparisons across runs.
+@@ -387,7 +387,7 @@ func (f *Func) freeValue(v *Value) {
+ 	f.freeValues = v
+ }
+ 
+-// newBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
++// NewBlock allocates a new Block of the given kind and places it at the end of f.Blocks.
+ func (f *Func) NewBlock(kind BlockKind) *Block {
+ 	var b *Block
+ 	if f.freeBlocks != nil {
+@@ -433,7 +433,7 @@ func (b *Block) NewValue0(pos src.XPos, op Op, t *types.Type) *Value {
+ 	return v
+ }
+ 
+-// NewValue returns a new value in the block with no arguments and an auxint value.
++// NewValue0I returns a new value in the block with no arguments and an auxint value.
+ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+@@ -441,7 +441,7 @@ func (b *Block) NewValue0I(pos src.XPos, op Op, t *types.Type, auxint int64) *Va
+ 	return v
+ }
+ 
+-// NewValue returns a new value in the block with no arguments and an aux value.
++// NewValue0A returns a new value in the block with no arguments and an aux value.
+ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = 0
+@@ -450,7 +450,7 @@ func (b *Block) NewValue0A(pos src.XPos, op Op, t *types.Type, aux Aux) *Value {
+ 	return v
+ }
+ 
+-// NewValue returns a new value in the block with no arguments and both an auxint and aux values.
++// NewValue0IA returns a new value in the block with no arguments and both an auxint and aux values.
+ func (b *Block) NewValue0IA(pos src.XPos, op Op, t *types.Type, auxint int64, aux Aux) *Value {
+ 	v := b.Func.newValue(op, t, b, pos)
+ 	v.AuxInt = auxint
+@@ -654,7 +654,7 @@ const (
+ 	constEmptyStringMagic = 4455667788
+ )
+ 
+-// ConstInt returns an int constant representing its argument.
++// ConstBool returns an int constant representing its argument.
+ func (f *Func) ConstBool(t *types.Type, c bool) *Value {
+ 	i := int64(0)
+ 	if c {
+diff --git a/src/cmd/compile/internal/ssa/magic.go b/src/cmd/compile/internal/ssa/magic.go
+index e903d92bb6..df4b568134 100644
+--- a/src/cmd/compile/internal/ssa/magic.go
++++ b/src/cmd/compile/internal/ssa/magic.go
+@@ -181,7 +181,7 @@ type smagicData struct {
+ 	m uint64 // ⎡2^(n+s)/c⎤
+ }
+ 
+-// magic computes the constants needed to strength reduce signed n-bit divides by the constant c.
++// smagic computes the constants needed to strength reduce signed n-bit divides by the constant c.
+ // Must have c>0.
+ // The return values satisfy for all -2^(n-1) <= x < 2^(n-1)
+ //
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 99dc779c90..f4ac97c5eb 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -423,7 +423,7 @@ func canLoadUnaligned(c *Config) bool {
+ 	return c.ctxt.Arch.Alignment == 1
+ }
+ 
+-// nlz returns the number of leading zeros.
++// nlzX returns the number of leading zeros.
+ func nlz64(x int64) int { return bits.LeadingZeros64(uint64(x)) }
+ func nlz32(x int32) int { return bits.LeadingZeros32(uint32(x)) }
+ func nlz16(x int16) int { return bits.LeadingZeros16(uint16(x)) }
+@@ -467,7 +467,7 @@ func log2uint32(n int64) int64 {
+ 	return int64(bits.Len32(uint32(n))) - 1
+ }
+ 
+-// isPowerOfTwo functions report whether n is a power of 2.
++// isPowerOfTwoX functions report whether n is a power of 2.
+ func isPowerOfTwo8(n int8) bool {
+ 	return n > 0 && n&(n-1) == 0
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index aec826dc27..52f94030df 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1113,7 +1113,7 @@ func (s *state) newValue4(op ssa.Op, t *types.Type, arg0, arg1, arg2, arg3 *ssa.
+ 	return s.curBlock.NewValue4(s.peekPos(), op, t, arg0, arg1, arg2, arg3)
+ }
+ 
+-// newValue4 adds a new value with four arguments and an auxint value to the current block.
++// newValue4I adds a new value with four arguments and an auxint value to the current block.
+ func (s *state) newValue4I(op ssa.Op, t *types.Type, aux int64, arg0, arg1, arg2, arg3 *ssa.Value) *ssa.Value {
+ 	return s.curBlock.NewValue4I(s.peekPos(), op, t, aux, arg0, arg1, arg2, arg3)
+ }
+@@ -1145,7 +1145,7 @@ func (s *state) entryNewValue1(op ssa.Op, t *types.Type, arg *ssa.Value) *ssa.Va
+ 	return s.entryBlock().NewValue1(src.NoXPos, op, t, arg)
+ }
+ 
+-// entryNewValue1 adds a new value with one argument and an auxint value to the entry block.
++// entryNewValue1I adds a new value with one argument and an auxint value to the entry block.
+ func (s *state) entryNewValue1I(op ssa.Op, t *types.Type, auxint int64, arg *ssa.Value) *ssa.Value {
+ 	return s.entryBlock().NewValue1I(src.NoXPos, op, t, auxint, arg)
+ }
+@@ -7813,7 +7813,7 @@ func (e *ssafn) Line(pos src.XPos) string {
+ 	return base.FmtPos(pos)
+ }
+ 
+-// Log logs a message from the compiler.
++// Logf logs a message from the compiler.
+ func (e *ssafn) Logf(msg string, args ...interface{}) {
+ 	if e.log {
+ 		fmt.Printf(msg, args...)
+@@ -7824,7 +7824,7 @@ func (e *ssafn) Log() bool {
+ 	return e.log
+ }
+ 
+-// Fatal reports a compiler error and exits.
++// Fatalf reports a compiler error and exits.
+ func (e *ssafn) Fatalf(pos src.XPos, msg string, args ...interface{}) {
+ 	base.Pos = pos
+ 	nargs := append([]interface{}{ir.FuncName(e.curfn)}, args...)
+@@ -7952,7 +7952,7 @@ func deferstruct() *types.Type {
+ 	return s
+ }
+ 
+-// SlotAddr uses LocalSlot information to initialize an obj.Addr
++// SpillSlotAddr uses LocalSlot information to initialize an obj.Addr
+ // The resulting addr is used in a non-standard context -- in the prologue
+ // of a function, before the frame has been constructed, so the standard
+ // addressing for the parameters will be wrong.
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index d80b269557..ee9761e4a6 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -217,7 +217,7 @@ func (p *parser) posAt(line, col uint) Pos {
+ 	return MakePos(p.base, line, col)
+ }
+ 
+-// error reports an error at the given position.
++// errorAt reports an error at the given position.
+ func (p *parser) errorAt(pos Pos, msg string) {
+ 	err := Error{pos, msg}
+ 	if p.first == nil {
+@@ -314,7 +314,7 @@ const stopset uint64 = 1<<_Break |
+ 	1<<_Type |
+ 	1<<_Var
+ 
+-// Advance consumes tokens until it finds a token of the stopset or followlist.
++// advance consumes tokens until it finds a token of the stopset or followlist.
+ // The stopset is only considered if we are inside a function (p.fnest > 0).
+ // The followlist is the list of valid tokens that can follow a production;
+ // if it is empty, exactly one (non-EOF) token is consumed to ensure progress.
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 90bb0b9c09..40a483fb24 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -18,7 +18,7 @@ import (
+ 	"cmd/internal/obj/x86"
+ )
+ 
+-// markMoves marks any MOVXconst ops that need to avoid clobbering flags.
++// ssaMarkMoves marks any MOVXconst ops that need to avoid clobbering flags.
+ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+ 	flive := b.FlagsLiveAtEnd
+ 	for _, c := range b.ControlValues() {
+diff --git a/test/typeparam/list.go b/test/typeparam/list.go
+index 311207e892..34ad71c499 100644
+--- a/test/typeparam/list.go
++++ b/test/typeparam/list.go
+@@ -47,7 +47,7 @@ type _ListNum[T OrderedNum] struct {
+ 
+ const Clip = 5
+ 
+-// clippedLargest returns the largest in the list of OrderNums, but a max of 5.
++// ClippedLargest returns the largest in the list of OrderNums, but a max of 5.
+ // Test use of untyped constant in an expression with a generically-typed parameter
+ func (l *_ListNum[T]) ClippedLargest() T {
+ 	var max T
+diff --git a/test/typeparam/listimp.dir/a.go b/test/typeparam/listimp.dir/a.go
+index bf1641af9c..e9c46d6f32 100644
+--- a/test/typeparam/listimp.dir/a.go
++++ b/test/typeparam/listimp.dir/a.go
+@@ -41,7 +41,7 @@ type ListNum[T OrderedNum] struct {
+ 
+ const Clip = 5
+ 
+-// clippedLargest returns the largest in the list of OrderNums, but a max of 5.
++// ClippedLargest returns the largest in the list of OrderNums, but a max of 5.
+ func (l *ListNum[T]) ClippedLargest() T {
+ 	var max T
+ 	for p := l; p != nil; p = p.Next {

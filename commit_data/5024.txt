@@ -7,6 +7,20 @@ Date:   Tue Mar 9 14:21:34 2010 -0800
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/367041
-
+---
  doc/go_for_cpp_programmers.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_for_cpp_programmers.html b/doc/go_for_cpp_programmers.html
+index 6786b7cca6..a2291715ce 100644
+--- a/doc/go_for_cpp_programmers.html
++++ b/doc/go_for_cpp_programmers.html
+@@ -374,7 +374,7 @@ capacity of the new slice is simply the capacity of <code>a</code> minus
+ <code>I</code>.  The capacity
+ of an array is the length of the array.  You may also assign an array pointer
+ to a variable of slice type; given <code>var s []int; var a[10] int</code>,
+-the assignment <code>s = &ampa</code> is equivalent to
++the assignment <code>s = &amp;a</code> is equivalent to
+ <code>s = a[0:len(a)]</code>.
+ 
+ <p>

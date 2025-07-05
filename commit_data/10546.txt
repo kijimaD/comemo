@@ -7,7 +7,7 @@ Date:   Wed Nov 30 12:01:46 2011 -0500
     R=bradfitz, gri, r, dsymonds
     CC=golang-dev
     https://golang.org/cl/5390042
-
+---
  misc/dashboard/builder/main.go                    | 18 ++++----
  src/cmd/godoc/filesystem.go                       |  7 +--
  src/cmd/godoc/godoc.go                            | 41 +++++++++---------
@@ -91,3 +91,3131 @@ Date:   Wed Nov 30 12:01:46 2011 -0500
  src/pkg/testing/testing.go                        | 21 ++++-----
  test/initsyscall.go                               |  3 +-
  82 files changed, 558 insertions(+), 494 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 6168eb3489..baffc807dc 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -24,9 +24,9 @@ const (
+ 	codeProject      = "go"
+ 	codePyScript     = "misc/dashboard/googlecode_upload.py"
+ 	hgUrl            = "https://go.googlecode.com/hg/"
+-	waitInterval     = 30e9 // time to wait before checking for new revs
+ 	mkdirPerm        = 0750
+-	pkgBuildInterval = 1e9 * 60 * 60 * 24 // rebuild packages every 24 hours
++	waitInterval     = 30 * time.Second // time to wait before checking for new revs
++	pkgBuildInterval = 24 * time.Hour   // rebuild packages every 24 hours
+ )
+ 
+ // These variables are copied from the gobuilder's environment
+@@ -131,7 +131,7 @@ func main() {
+ 	// check for new commits and build them
+ 	for {
+ 		built := false
+-		t := time.Nanoseconds()
++		t := time.Now()
+ 		if *parallel {
+ 			done := make(chan bool)
+ 			for _, b := range builders {
+@@ -152,9 +152,9 @@ func main() {
+ 			time.Sleep(waitInterval)
+ 		}
+ 		// sleep if we're looping too fast.
+-		t1 := time.Nanoseconds() - t
+-		if t1 < waitInterval {
+-			time.Sleep(waitInterval - t1)
++		dt := time.Now().Sub(t)
++		if dt < waitInterval {
++			time.Sleep(waitInterval - dt)
+ 		}
+ 	}
+ }
+@@ -194,7 +194,7 @@ func NewBuilder(builder string) (*Builder, error) {
+ // a new release tag is found.
+ func (b *Builder) buildExternal() {
+ 	var prevTag string
+-	var nextBuild int64
++	var nextBuild time.Time
+ 	for {
+ 		time.Sleep(waitInterval)
+ 		err := run(nil, goroot, "hg", "pull", "-u")
+@@ -213,7 +213,7 @@ func (b *Builder) buildExternal() {
+ 		// don't rebuild if there's no new release
+ 		// and it's been less than pkgBuildInterval
+ 		// nanoseconds since the last build.
+-		if tag == prevTag && time.Nanoseconds() < nextBuild {
++		if tag == prevTag && time.Now().Before(nextBuild) {
+ 			continue
+ 		}
+ 		// build will also build the packages
+@@ -222,7 +222,7 @@ func (b *Builder) buildExternal() {
+ 			continue
+ 		}
+ 		prevTag = tag
+-		nextBuild = time.Nanoseconds() + pkgBuildInterval
++		nextBuild = time.Now().Add(pkgBuildInterval)
+ 	}
+ }
+ 
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index ece9ebbf3e..aa79b3693f 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -13,13 +13,14 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
++	"time"
+ )
+ 
+ // The FileInfo interface provides access to file information.
+ type FileInfo interface {
+ 	Name() string
+ 	Size() int64
+-	Mtime_ns() int64
++	ModTime() time.Time
+ 	IsRegular() bool
+ 	IsDirectory() bool
+ }
+@@ -64,8 +65,8 @@ func (fi osFI) Size() int64 {
+ 	return fi.FileInfo.Size
+ }
+ 
+-func (fi osFI) Mtime_ns() int64 {
+-	return fi.FileInfo.Mtime_ns
++func (fi osFI) ModTime() time.Time {
++	return fi.FileInfo.ModTime
+ }
+ 
+ // osFS is the OS-specific implementation of FileSystem
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index b66617431e..e3413544a9 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -35,9 +35,9 @@ type delayTime struct {
+ 	RWValue
+ }
+ 
+-func (dt *delayTime) backoff(max int) {
++func (dt *delayTime) backoff(max time.Duration) {
+ 	dt.mutex.Lock()
+-	v := dt.value.(int) * 2
++	v := dt.value.(time.Duration) * 2
+ 	if v > max {
+ 		v = max
+ 	}
+@@ -207,7 +207,7 @@ func updateFilterFile() {
+ 	// update filter file
+ 	if err := writeFileAtomically(*filter, buf.Bytes()); err != nil {
+ 		log.Printf("writeFileAtomically(%s): %s", *filter, err)
+-		filterDelay.backoff(24 * 60) // back off exponentially, but try at least once a day
++		filterDelay.backoff(24 * time.Hour) // back off exponentially, but try at least once a day
+ 	} else {
+ 		filterDelay.set(*filterMin) // revert to regular filter update schedule
+ 	}
+@@ -230,7 +230,7 @@ func initDirTrees() {
+ 
+ 	// start filter update goroutine, if enabled.
+ 	if *filter != "" && *filterMin > 0 {
+-		filterDelay.set(*filterMin) // initial filter update delay
++		filterDelay.set(time.Duration(*filterMin) * time.Minute) // initial filter update delay
+ 		go func() {
+ 			for {
+ 				if *verbose {
+@@ -238,10 +238,11 @@ func initDirTrees() {
+ 				}
+ 				updateFilterFile()
+ 				delay, _ := filterDelay.get()
++				dt := delay.(time.Duration)
+ 				if *verbose {
+-					log.Printf("next filter update in %dmin", delay.(int))
++					log.Printf("next filter update in %s", dt)
+ 				}
+-				time.Sleep(int64(delay.(int)) * 60e9)
++				time.Sleep(dt)
+ 			}
+ 		}()
+ 	}
+@@ -389,8 +390,8 @@ func fileInfoNameFunc(fi FileInfo) string {
+ }
+ 
+ func fileInfoTimeFunc(fi FileInfo) string {
+-	if t := fi.Mtime_ns(); t != 0 {
+-		return time.SecondsToLocalTime(t / 1e9).String()
++	if t := fi.ModTime(); t.Unix() != 0 {
++		return t.Local().String()
+ 	}
+ 	return "" // don't return epoch if time is obviously not set
+ }
+@@ -876,7 +877,7 @@ type PageInfo struct {
+ 	PDoc     *doc.PackageDoc // nil if no single package documentation
+ 	Examples []*doc.Example  // nil if no example code
+ 	Dirs     *DirList        // nil if no directory information
+-	DirTime  int64           // directory time stamp in seconds since epoch
++	DirTime  time.Time       // directory time stamp
+ 	DirFlat  bool            // if set, show directory in a flat (non-indented) manner
+ 	IsPkg    bool            // false if this is not documenting a real package
+ 	Err      error           // I/O error or nil
+@@ -906,7 +907,7 @@ func fsReadDir(dir string) ([]*os.FileInfo, error) {
+ 		if f.IsDirectory() {
+ 			mode = S_IFDIR
+ 		}
+-		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), Mtime_ns: f.Mtime_ns(), Mode: mode}
++		osfi[i] = &os.FileInfo{Name: f.Name(), Size: f.Size(), ModTime: f.ModTime(), Mode: mode}
+ 	}
+ 	return osfi, nil
+ }
+@@ -1075,7 +1076,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 
+ 	// get directory information
+ 	var dir *Directory
+-	var timestamp int64
++	var timestamp time.Time
+ 	if tree, ts := fsTree.get(); tree != nil && tree.(*Directory) != nil {
+ 		// directory tree is present; lookup respective directory
+ 		// (may still fail if the file system was updated and the
+@@ -1112,7 +1113,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInf
+ 		// note: cannot use path filter here because in general
+ 		//       it doesn't contain the fsTree path
+ 		dir = newDirectory(abspath, nil, 1)
+-		timestamp = time.Seconds()
++		timestamp = time.Now()
+ 	}
+ 
+ 	return PageInfo{
+@@ -1172,7 +1173,7 @@ func (h *httpHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+ 	default:
+ 		title = "Directory " + relativeURL(info.Dirname)
+ 		if *showTimestamps {
+-			subtitle = "Last update: " + time.SecondsToLocalTime(info.DirTime).String()
++			subtitle = "Last update: " + info.DirTime.String()
+ 		}
+ 	}
+ 
+@@ -1238,7 +1239,7 @@ func lookup(query string) (result SearchResult) {
+ 
+ 	// is the result accurate?
+ 	if *indexEnabled {
+-		if _, ts := fsModified.get(); timestamp < ts {
++		if _, ts := fsModified.get(); timestamp.Before(ts) {
+ 			// The index is older than the latest file system change under godoc's observation.
+ 			result.Alert = "Indexing in progress: result may be inaccurate"
+ 		}
+@@ -1286,7 +1287,7 @@ func invalidateIndex() {
+ func indexUpToDate() bool {
+ 	_, fsTime := fsModified.get()
+ 	_, siTime := searchIndex.get()
+-	return fsTime <= siTime
++	return !fsTime.After(siTime)
+ }
+ 
+ // feedDirnames feeds the directory names of all directories
+@@ -1343,12 +1344,12 @@ func updateIndex() {
+ 	if *verbose {
+ 		log.Printf("updating index...")
+ 	}
+-	start := time.Nanoseconds()
++	start := time.Now()
+ 	index := NewIndex(fsDirnames(), *maxResults > 0, *indexThrottle)
+-	stop := time.Nanoseconds()
++	stop := time.Now()
+ 	searchIndex.set(index)
+ 	if *verbose {
+-		secs := float64((stop-start)/1e6) / 1e3
++		secs := stop.Sub(start).Seconds()
+ 		stats := index.Stats()
+ 		log.Printf("index updated (%gs, %d bytes of source, %d files, %d lines, %d unique words, %d spots)",
+ 			secs, stats.Bytes, stats.Files, stats.Lines, stats.Words, stats.Spots)
+@@ -1372,10 +1373,10 @@ func indexer() {
+ 			// index possibly out of date - make a new one
+ 			updateIndex()
+ 		}
+-		var delay int64 = 60 * 1e9 // by default, try every 60s
++		delay := 60 * time.Second // by default, try every 60s
+ 		if *testDir != "" {
+ 			// in test mode, try once a second for fast startup
+-			delay = 1 * 1e9
++			delay = 1 * time.Second
+ 		}
+ 		time.Sleep(delay)
+ 	}
+diff --git a/src/cmd/godoc/httpzip.go b/src/cmd/godoc/httpzip.go
+index a6c5ed654f..88b2e8f423 100644
+--- a/src/cmd/godoc/httpzip.go
++++ b/src/cmd/godoc/httpzip.go
+@@ -32,6 +32,7 @@ import (
+ 	"path"
+ 	"sort"
+ 	"strings"
++	"time"
+ )
+ 
+ // We cannot import syscall on app engine.
+@@ -77,17 +78,18 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ 		}
+ 		name := e.Name[len(dirname):] // local name
+ 		var mode uint32
+-		var size, mtime_ns int64
++		var size int64
++		var mtime time.Time
+ 		if i := strings.IndexRune(name, '/'); i >= 0 {
+ 			// We infer directories from files in subdirectories.
+ 			// If we have x/y, return a directory entry for x.
+ 			name = name[0:i] // keep local directory name only
+ 			mode = S_IFDIR
+-			// no size or mtime_ns for directories
++			// no size or mtime for directories
+ 		} else {
+ 			mode = S_IFREG
+ 			size = int64(e.UncompressedSize)
+-			mtime_ns = e.Mtime_ns()
++			mtime = e.ModTime()
+ 		}
+ 		// If we have x/y and x/z, don't return two directory entries for x.
+ 		// TODO(gri): It should be possible to do this more efficiently
+@@ -95,10 +97,10 @@ func (f *httpZipFile) Readdir(count int) ([]os.FileInfo, error) {
+ 		// (via two binary searches).
+ 		if name != prevname {
+ 			list = append(list, os.FileInfo{
+-				Name:     name,
+-				Mode:     mode,
+-				Size:     size,
+-				Mtime_ns: mtime_ns,
++				Name:    name,
++				Mode:    mode,
++				Size:    size,
++				ModTime: mtime,
+ 			})
+ 			prevname = name
+ 			count--
+@@ -142,10 +144,10 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 		return &httpZipFile{
+ 			path,
+ 			os.FileInfo{
+-				Name:     name,
+-				Mode:     S_IFREG,
+-				Size:     int64(f.UncompressedSize),
+-				Mtime_ns: f.Mtime_ns(),
++				Name:    name,
++				Mode:    S_IFREG,
++				Size:    int64(f.UncompressedSize),
++				ModTime: f.ModTime(),
+ 			},
+ 			rc,
+ 			nil,
+@@ -158,7 +160,7 @@ func (fs *httpZipFS) Open(name string) (http.File, error) {
+ 		os.FileInfo{
+ 			Name: name,
+ 			Mode: S_IFDIR,
+-			// no size or mtime_ns for directories
++			// no size or mtime for directories
+ 		},
+ 		nil,
+ 		fs.list[index:],
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index e1a175d72d..47369a3b4c 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -141,10 +141,10 @@ func dosync(w http.ResponseWriter, r *http.Request) {
+ 	case 1:
+ 		// sync failed because no files changed;
+ 		// don't change the package tree
+-		syncDelay.set(*syncMin) //  revert to regular sync schedule
++		syncDelay.set(time.Duration(*syncMin) * time.Minute) //  revert to regular sync schedule
+ 	default:
+ 		// sync failed because of an error - back off exponentially, but try at least once a day
+-		syncDelay.backoff(24 * 60)
++		syncDelay.backoff(24 * time.Hour)
+ 	}
+ }
+ 
+@@ -328,10 +328,11 @@ func main() {
+ 				for {
+ 					dosync(nil, nil)
+ 					delay, _ := syncDelay.get()
++					dt := delay.(time.Duration)
+ 					if *verbose {
+-						log.Printf("next sync in %dmin", delay.(int))
++						log.Printf("next sync in %s", dt)
+ 					}
+-					time.Sleep(int64(delay.(int)) * 60e9)
++					time.Sleep(dt)
+ 				}
+ 			}()
+ 		}
+diff --git a/src/cmd/godoc/throttle.go b/src/cmd/godoc/throttle.go
+index 1934928027..ac18b44e0e 100644
+--- a/src/cmd/godoc/throttle.go
++++ b/src/cmd/godoc/throttle.go
+@@ -10,15 +10,15 @@ import "time"
+ // calling the Throttle method repeatedly.
+ //
+ type Throttle struct {
+-	f  float64 // f = (1-r)/r for 0 < r < 1
+-	tm int64   // minimum run time slice; >= 0
+-	tr int64   // accumulated time running
+-	ts int64   // accumulated time stopped
+-	tt int64   // earliest throttle time (= time Throttle returned + tm)
++	f  float64       // f = (1-r)/r for 0 < r < 1
++	dt time.Duration // minimum run time slice; >= 0
++	tr time.Duration // accumulated time running
++	ts time.Duration // accumulated time stopped
++	tt time.Time     // earliest throttle time (= time Throttle returned + tm)
+ }
+ 
+ // NewThrottle creates a new Throttle with a throttle value r and
+-// a minimum allocated run time slice of tm nanoseconds:
++// a minimum allocated run time slice of dt:
+ //
+ //	r == 0: "empty" throttle; the goroutine is always sleeping
+ //	r == 1: full throttle; the goroutine is never sleeping
+@@ -26,9 +26,9 @@ type Throttle struct {
+ // A value of r == 0.6 throttles a goroutine such that it runs
+ // approx. 60% of the time, and sleeps approx. 40% of the time.
+ // Values of r < 0 or r > 1 are clamped down to values between 0 and 1.
+-// Values of tm < 0 are set to 0.
++// Values of dt < 0 are set to 0.
+ //
+-func NewThrottle(r float64, tm int64) *Throttle {
++func NewThrottle(r float64, dt time.Duration) *Throttle {
+ 	var f float64
+ 	switch {
+ 	case r <= 0:
+@@ -39,10 +39,10 @@ func NewThrottle(r float64, tm int64) *Throttle {
+ 		// 0 < r < 1
+ 		f = (1 - r) / r
+ 	}
+-	if tm < 0 {
+-		tm = 0
++	if dt < 0 {
++		dt = 0
+ 	}
+-	return &Throttle{f: f, tm: tm, tt: time.Nanoseconds() + tm}
++	return &Throttle{f: f, dt: dt, tt: time.Now().Add(dt)}
+ }
+ 
+ // Throttle calls time.Sleep such that over time the ratio tr/ts between
+@@ -55,13 +55,13 @@ func (p *Throttle) Throttle() {
+ 		select {} // always sleep
+ 	}
+ 
+-	t0 := time.Nanoseconds()
+-	if t0 < p.tt {
++	t0 := time.Now()
++	if t0.Before(p.tt) {
+ 		return // keep running (minimum time slice not exhausted yet)
+ 	}
+ 
+ 	// accumulate running time
+-	p.tr += t0 - (p.tt - p.tm)
++	p.tr += t0.Sub(p.tt) + p.dt
+ 
+ 	// compute sleep time
+ 	// Over time we want:
+@@ -75,14 +75,14 @@ func (p *Throttle) Throttle() {
+ 	// After some incremental run time δr added to the total run time
+ 	// tr, the incremental sleep-time δs to get to the same ratio again
+ 	// after waking up from time.Sleep is:
+-	if δs := int64(float64(p.tr)*p.f) - p.ts; δs > 0 {
++	if δs := time.Duration(float64(p.tr)*p.f) - p.ts; δs > 0 {
+ 		time.Sleep(δs)
+ 	}
+ 
+ 	// accumulate (actual) sleep time
+-	t1 := time.Nanoseconds()
+-	p.ts += t1 - t0
++	t1 := time.Now()
++	p.ts += t1.Sub(t0)
+ 
+ 	// set earliest next throttle time
+-	p.tt = t1 + p.tm
++	p.tt = t1.Add(p.dt)
+ }
+diff --git a/src/cmd/godoc/utils.go b/src/cmd/godoc/utils.go
+index b572647681..be0bdc3067 100644
+--- a/src/cmd/godoc/utils.go
++++ b/src/cmd/godoc/utils.go
+@@ -24,17 +24,17 @@ import (
+ type RWValue struct {
+ 	mutex     sync.RWMutex
+ 	value     interface{}
+-	timestamp int64 // time of last set(), in seconds since epoch
++	timestamp time.Time // time of last set()
+ }
+ 
+ func (v *RWValue) set(value interface{}) {
+ 	v.mutex.Lock()
+ 	v.value = value
+-	v.timestamp = time.Seconds()
++	v.timestamp = time.Now()
+ 	v.mutex.Unlock()
+ }
+ 
+-func (v *RWValue) get() (interface{}, int64) {
++func (v *RWValue) get() (interface{}, time.Time) {
+ 	v.mutex.RLock()
+ 	defer v.mutex.RUnlock()
+ 	return v.value, v.timestamp
+diff --git a/src/cmd/godoc/zip.go b/src/cmd/godoc/zip.go
+index 2012142228..274999ba00 100644
+--- a/src/cmd/godoc/zip.go
++++ b/src/cmd/godoc/zip.go
+@@ -25,6 +25,7 @@ import (
+ 	"path"
+ 	"sort"
+ 	"strings"
++	"time"
+ )
+ 
+ // zipFI is the zip-file based implementation of FileInfo
+@@ -44,11 +45,11 @@ func (fi zipFI) Size() int64 {
+ 	return 0 // directory
+ }
+ 
+-func (fi zipFI) Mtime_ns() int64 {
++func (fi zipFI) ModTime() time.Time {
+ 	if f := fi.file; f != nil {
+-		return f.Mtime_ns()
++		return f.ModTime()
+ 	}
+-	return 0 // directory has no modified time entry
++	return time.Time{} // directory has no modified time entry
+ }
+ 
+ func (fi zipFI) IsDirectory() bool {
+diff --git a/src/cmd/gotest/gotest.go b/src/cmd/gotest/gotest.go
+index 536e01f971..2e8e20ccf0 100644
+--- a/src/cmd/gotest/gotest.go
++++ b/src/cmd/gotest/gotest.go
+@@ -56,10 +56,10 @@ var (
+ 
+ // elapsed returns the number of seconds since gotest started.
+ func elapsed() float64 {
+-	return float64(time.Nanoseconds()-start) / 1e9
++	return time.Now().Sub(start).Seconds()
+ }
+ 
+-var start = time.Nanoseconds()
++var start = time.Now()
+ 
+ // File represents a file that contains tests.
+ type File struct {
+@@ -293,10 +293,10 @@ func runTestWithArgs(binary string) {
+ func doRun(argv []string, returnStdout bool) string {
+ 	if xFlag {
+ 		fmt.Printf("gotest %.2fs: %s\n", elapsed(), strings.Join(argv, " "))
+-		t := -time.Nanoseconds()
++		start := time.Now()
+ 		defer func() {
+-			t += time.Nanoseconds()
+-			fmt.Printf(" [+%.2fs]\n", float64(t)/1e9)
++			t := time.Now().Sub(start)
++			fmt.Printf(" [+%.2fs]\n", t.Seconds())
+ 		}()
+ 	}
+ 	command := argv[0]
+diff --git a/src/pkg/archive/tar/common.go b/src/pkg/archive/tar/common.go
+index 67355086a6..fc7a40923c 100644
+--- a/src/pkg/archive/tar/common.go
++++ b/src/pkg/archive/tar/common.go
+@@ -11,41 +11,42 @@
+ //   http://www.gnu.org/software/tar/manual/html_node/Standard.html
+ package tar
+ 
++import "time"
++
+ const (
+ 	blockSize = 512
+ 
+ 	// Types
+-	TypeReg           = '0'    // regular file.
+-	TypeRegA          = '\x00' // regular file.
+-	TypeLink          = '1'    // hard link.
+-	TypeSymlink       = '2'    // symbolic link.
+-	TypeChar          = '3'    // character device node.
+-	TypeBlock         = '4'    // block device node.
+-	TypeDir           = '5'    // directory.
+-	TypeFifo          = '6'    // fifo node.
+-	TypeCont          = '7'    // reserved.
+-	TypeXHeader       = 'x'    // extended header.
+-	TypeXGlobalHeader = 'g'    // global extended header.
++	TypeReg           = '0'    // regular file
++	TypeRegA          = '\x00' // regular file
++	TypeLink          = '1'    // hard link
++	TypeSymlink       = '2'    // symbolic link
++	TypeChar          = '3'    // character device node
++	TypeBlock         = '4'    // block device node
++	TypeDir           = '5'    // directory
++	TypeFifo          = '6'    // fifo node
++	TypeCont          = '7'    // reserved
++	TypeXHeader       = 'x'    // extended header
++	TypeXGlobalHeader = 'g'    // global extended header
+ )
+ 
+ // A Header represents a single header in a tar archive.
+ // Some fields may not be populated.
+ type Header struct {
+-	Name     string // name of header file entry.
+-	Mode     int64  // permission and mode bits.
+-	Uid      int    // user id of owner.
+-	Gid      int    // group id of owner.
+-	Size     int64  // length in bytes.
+-	Mtime    int64  // modified time; seconds since epoch.
+-	Typeflag byte   // type of header entry.
+-	Linkname string // target name of link.
+-	Uname    string // user name of owner.
+-	Gname    string // group name of owner.
+-	Devmajor int64  // major number of character or block device.
+-	Devminor int64  // minor number of character or block device.
+-	Atime    int64  // access time; seconds since epoch.
+-	Ctime    int64  // status change time; seconds since epoch.
+-
++	Name       string    // name of header file entry
++	Mode       int64     // permission and mode bits
++	Uid        int       // user id of owner
++	Gid        int       // group id of owner
++	Size       int64     // length in bytes
++	ModTime    time.Time // modified time
++	Typeflag   byte      // type of header entry
++	Linkname   string    // target name of link
++	Uname      string    // user name of owner
++	Gname      string    // group name of owner
++	Devmajor   int64     // major number of character or block device
++	Devminor   int64     // minor number of character or block device
++	AccessTime time.Time // access time
++	ChangeTime time.Time // status change time
+ }
+ 
+ var zeroBlock = make([]byte, blockSize)
+diff --git a/src/pkg/archive/tar/reader.go b/src/pkg/archive/tar/reader.go
+index facba2cc7a..76955e2ec0 100644
+--- a/src/pkg/archive/tar/reader.go
++++ b/src/pkg/archive/tar/reader.go
+@@ -14,6 +14,7 @@ import (
+ 	"io/ioutil"
+ 	"os"
+ 	"strconv"
++	"time"
+ )
+ 
+ var (
+@@ -141,7 +142,7 @@ func (tr *Reader) readHeader() *Header {
+ 	hdr.Uid = int(tr.octal(s.next(8)))
+ 	hdr.Gid = int(tr.octal(s.next(8)))
+ 	hdr.Size = tr.octal(s.next(12))
+-	hdr.Mtime = tr.octal(s.next(12))
++	hdr.ModTime = time.Unix(tr.octal(s.next(12)), 0)
+ 	s.next(8) // chksum
+ 	hdr.Typeflag = s.next(1)[0]
+ 	hdr.Linkname = cString(s.next(100))
+@@ -178,8 +179,8 @@ func (tr *Reader) readHeader() *Header {
+ 			prefix = cString(s.next(155))
+ 		case "star":
+ 			prefix = cString(s.next(131))
+-			hdr.Atime = tr.octal(s.next(12))
+-			hdr.Ctime = tr.octal(s.next(12))
++			hdr.AccessTime = time.Unix(tr.octal(s.next(12)), 0)
++			hdr.ChangeTime = time.Unix(tr.octal(s.next(12)), 0)
+ 		}
+ 		if len(prefix) > 0 {
+ 			hdr.Name = prefix + "/" + hdr.Name
+diff --git a/src/pkg/archive/tar/reader_test.go b/src/pkg/archive/tar/reader_test.go
+index 00eea6b62d..794cedb2d7 100644
+--- a/src/pkg/archive/tar/reader_test.go
++++ b/src/pkg/archive/tar/reader_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"os"
+ 	"reflect"
+ 	"testing"
++	"time"
+ )
+ 
+ type untarTest struct {
+@@ -29,7 +30,7 @@ var gnuTarTest = &untarTest{
+ 			Uid:      73025,
+ 			Gid:      5000,
+ 			Size:     5,
+-			Mtime:    1244428340,
++			ModTime:  time.Unix(1244428340, 0),
+ 			Typeflag: '0',
+ 			Uname:    "dsymonds",
+ 			Gname:    "eng",
+@@ -40,7 +41,7 @@ var gnuTarTest = &untarTest{
+ 			Uid:      73025,
+ 			Gid:      5000,
+ 			Size:     11,
+-			Mtime:    1244436044,
++			ModTime:  time.Unix(1244436044, 0),
+ 			Typeflag: '0',
+ 			Uname:    "dsymonds",
+ 			Gname:    "eng",
+@@ -58,30 +59,30 @@ var untarTests = []*untarTest{
+ 		file: "testdata/star.tar",
+ 		headers: []*Header{
+ 			&Header{
+-				Name:     "small.txt",
+-				Mode:     0640,
+-				Uid:      73025,
+-				Gid:      5000,
+-				Size:     5,
+-				Mtime:    1244592783,
+-				Typeflag: '0',
+-				Uname:    "dsymonds",
+-				Gname:    "eng",
+-				Atime:    1244592783,
+-				Ctime:    1244592783,
++				Name:       "small.txt",
++				Mode:       0640,
++				Uid:        73025,
++				Gid:        5000,
++				Size:       5,
++				ModTime:    time.Unix(1244592783, 0),
++				Typeflag:   '0',
++				Uname:      "dsymonds",
++				Gname:      "eng",
++				AccessTime: time.Unix(1244592783, 0),
++				ChangeTime: time.Unix(1244592783, 0),
+ 			},
+ 			&Header{
+-				Name:     "small2.txt",
+-				Mode:     0640,
+-				Uid:      73025,
+-				Gid:      5000,
+-				Size:     11,
+-				Mtime:    1244592783,
+-				Typeflag: '0',
+-				Uname:    "dsymonds",
+-				Gname:    "eng",
+-				Atime:    1244592783,
+-				Ctime:    1244592783,
++				Name:       "small2.txt",
++				Mode:       0640,
++				Uid:        73025,
++				Gid:        5000,
++				Size:       11,
++				ModTime:    time.Unix(1244592783, 0),
++				Typeflag:   '0',
++				Uname:      "dsymonds",
++				Gname:      "eng",
++				AccessTime: time.Unix(1244592783, 0),
++				ChangeTime: time.Unix(1244592783, 0),
+ 			},
+ 		},
+ 	},
+@@ -94,7 +95,7 @@ var untarTests = []*untarTest{
+ 				Uid:      73025,
+ 				Gid:      5000,
+ 				Size:     5,
+-				Mtime:    1244593104,
++				ModTime:  time.Unix(1244593104, 0),
+ 				Typeflag: '\x00',
+ 			},
+ 			&Header{
+@@ -103,7 +104,7 @@ var untarTests = []*untarTest{
+ 				Uid:      73025,
+ 				Gid:      5000,
+ 				Size:     11,
+-				Mtime:    1244593104,
++				ModTime:  time.Unix(1244593104, 0),
+ 				Typeflag: '\x00',
+ 			},
+ 		},
+diff --git a/src/pkg/archive/tar/writer.go b/src/pkg/archive/tar/writer.go
+index 222df90782..b9310b3f18 100644
+--- a/src/pkg/archive/tar/writer.go
++++ b/src/pkg/archive/tar/writer.go
+@@ -127,19 +127,19 @@ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 	// TODO(dsymonds): handle names longer than 100 chars
+ 	copy(s.next(100), []byte(hdr.Name))
+ 
+-	tw.octal(s.next(8), hdr.Mode)          // 100:108
+-	tw.numeric(s.next(8), int64(hdr.Uid))  // 108:116
+-	tw.numeric(s.next(8), int64(hdr.Gid))  // 116:124
+-	tw.numeric(s.next(12), hdr.Size)       // 124:136
+-	tw.numeric(s.next(12), hdr.Mtime)      // 136:148
+-	s.next(8)                              // chksum (148:156)
+-	s.next(1)[0] = hdr.Typeflag            // 156:157
+-	tw.cString(s.next(100), hdr.Linkname)  // linkname (157:257)
+-	copy(s.next(8), []byte("ustar\x0000")) // 257:265
+-	tw.cString(s.next(32), hdr.Uname)      // 265:297
+-	tw.cString(s.next(32), hdr.Gname)      // 297:329
+-	tw.numeric(s.next(8), hdr.Devmajor)    // 329:337
+-	tw.numeric(s.next(8), hdr.Devminor)    // 337:345
++	tw.octal(s.next(8), hdr.Mode)              // 100:108
++	tw.numeric(s.next(8), int64(hdr.Uid))      // 108:116
++	tw.numeric(s.next(8), int64(hdr.Gid))      // 116:124
++	tw.numeric(s.next(12), hdr.Size)           // 124:136
++	tw.numeric(s.next(12), hdr.ModTime.Unix()) // 136:148
++	s.next(8)                                  // chksum (148:156)
++	s.next(1)[0] = hdr.Typeflag                // 156:157
++	tw.cString(s.next(100), hdr.Linkname)      // linkname (157:257)
++	copy(s.next(8), []byte("ustar\x0000"))     // 257:265
++	tw.cString(s.next(32), hdr.Uname)          // 265:297
++	tw.cString(s.next(32), hdr.Gname)          // 297:329
++	tw.numeric(s.next(8), hdr.Devmajor)        // 329:337
++	tw.numeric(s.next(8), hdr.Devminor)        // 337:345
+ 
+ 	// Use the GNU magic instead of POSIX magic if we used any GNU extensions.
+ 	if tw.usedBinary {
+diff --git a/src/pkg/archive/tar/writer_test.go b/src/pkg/archive/tar/writer_test.go
+index 6cc9386882..8d7ed32d32 100644
+--- a/src/pkg/archive/tar/writer_test.go
++++ b/src/pkg/archive/tar/writer_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io/ioutil"
+ 	"testing"
+ 	"testing/iotest"
++	"time"
+ )
+ 
+ type writerTestEntry struct {
+@@ -38,7 +39,7 @@ var writerTests = []*writerTest{
+ 					Uid:      73025,
+ 					Gid:      5000,
+ 					Size:     5,
+-					Mtime:    1246508266,
++					ModTime:  time.Unix(1246508266, 0),
+ 					Typeflag: '0',
+ 					Uname:    "dsymonds",
+ 					Gname:    "eng",
+@@ -52,7 +53,7 @@ var writerTests = []*writerTest{
+ 					Uid:      73025,
+ 					Gid:      5000,
+ 					Size:     11,
+-					Mtime:    1245217492,
++					ModTime:  time.Unix(1245217492, 0),
+ 					Typeflag: '0',
+ 					Uname:    "dsymonds",
+ 					Gname:    "eng",
+@@ -66,7 +67,7 @@ var writerTests = []*writerTest{
+ 					Uid:      1000,
+ 					Gid:      1000,
+ 					Size:     0,
+-					Mtime:    1314603082,
++					ModTime:  time.Unix(1314603082, 0),
+ 					Typeflag: '2',
+ 					Linkname: "small.txt",
+ 					Uname:    "strings",
+@@ -89,7 +90,7 @@ var writerTests = []*writerTest{
+ 					Uid:      73025,
+ 					Gid:      5000,
+ 					Size:     16 << 30,
+-					Mtime:    1254699560,
++					ModTime:  time.Unix(1254699560, 0),
+ 					Typeflag: '0',
+ 					Uname:    "dsymonds",
+ 					Gname:    "eng",
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index ca0b04e2bb..8c0ecaa438 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -164,8 +164,8 @@ func readTestFile(t *testing.T, ft ZipTestFile, f *File) {
+ 		t.Error(err)
+ 		return
+ 	}
+-	if got, want := f.Mtime_ns()/1e9, mtime.Seconds(); got != want {
+-		t.Errorf("%s: mtime=%s (%d); want %s (%d)", f.Name, time.SecondsToUTC(got), got, mtime, want)
++	if ft := f.ModTime(); !ft.Equal(mtime) {
++		t.Errorf("%s: mtime=%s, want %s", f.Name, ft, mtime)
+ 	}
+ 
+ 	testFileMode(t, f, ft.Mode)
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index b862b5a6ac..43c04bb27b 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -11,8 +11,10 @@ This package does not support ZIP64 or disk spanning.
+ */
+ package zip
+ 
+-import "errors"
+-import "time"
++import (
++	"errors"
++	"time"
++)
+ 
+ // Compression methods.
+ const (
+@@ -74,24 +76,26 @@ func recoverError(errp *error) {
+ // The resolution is 2s.
+ // See: http://msdn.microsoft.com/en-us/library/ms724247(v=VS.85).aspx
+ func msDosTimeToTime(dosDate, dosTime uint16) time.Time {
+-	return time.Time{
++	return time.Date(
+ 		// date bits 0-4: day of month; 5-8: month; 9-15: years since 1980
+-		Year:  int64(dosDate>>9 + 1980),
+-		Month: int(dosDate >> 5 & 0xf),
+-		Day:   int(dosDate & 0x1f),
++		int(dosDate>>9+1980),
++		time.Month(dosDate>>5&0xf),
++		int(dosDate&0x1f),
+ 
+ 		// time bits 0-4: second/2; 5-10: minute; 11-15: hour
+-		Hour:   int(dosTime >> 11),
+-		Minute: int(dosTime >> 5 & 0x3f),
+-		Second: int(dosTime & 0x1f * 2),
+-	}
++		int(dosTime>>11),
++		int(dosTime>>5&0x3f),
++		int(dosTime&0x1f*2),
++		0, // nanoseconds
++
++		time.UTC,
++	)
+ }
+ 
+-// Mtime_ns returns the modified time in ns since epoch.
++// ModTime returns the modification time.
+ // The resolution is 2s.
+-func (h *FileHeader) Mtime_ns() int64 {
+-	t := msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+-	return t.Seconds() * 1e9
++func (h *FileHeader) ModTime() time.Time {
++	return msDosTimeToTime(h.ModifiedDate, h.ModifiedTime)
+ }
+ 
+ // Mode returns the permission and mode bits for the FileHeader.
+diff --git a/src/pkg/compress/gzip/gunzip.go b/src/pkg/compress/gzip/gunzip.go
+index a23e515e0e..7c78b9e366 100644
+--- a/src/pkg/compress/gzip/gunzip.go
++++ b/src/pkg/compress/gzip/gunzip.go
+@@ -13,6 +13,7 @@ import (
+ 	"hash"
+ 	"hash/crc32"
+ 	"io"
++	"time"
+ )
+ 
+ // BUG(nigeltao): Comments and Names don't properly map UTF-8 character codes outside of
+@@ -42,11 +43,11 @@ var ChecksumError = errors.New("gzip checksum error")
+ // The gzip file stores a header giving metadata about the compressed file.
+ // That header is exposed as the fields of the Compressor and Decompressor structs.
+ type Header struct {
+-	Comment string // comment
+-	Extra   []byte // "extra data"
+-	Mtime   uint32 // modification time (seconds since January 1, 1970)
+-	Name    string // file name
+-	OS      byte   // operating system type
++	Comment string    // comment
++	Extra   []byte    // "extra data"
++	ModTime time.Time // modification time
++	Name    string    // file name
++	OS      byte      // operating system type
+ }
+ 
+ // An Decompressor is an io.Reader that can be read to retrieve
+@@ -130,7 +131,7 @@ func (z *Decompressor) readHeader(save bool) error {
+ 	}
+ 	z.flg = z.buf[3]
+ 	if save {
+-		z.Mtime = get4(z.buf[4:8])
++		z.ModTime = time.Unix(int64(get4(z.buf[4:8])), 0)
+ 		// z.buf[8] is xfl, ignored
+ 		z.OS = z.buf[9]
+ 	}
+diff --git a/src/pkg/compress/gzip/gzip.go b/src/pkg/compress/gzip/gzip.go
+index 94b0f1f85e..07b91b6682 100644
+--- a/src/pkg/compress/gzip/gzip.go
++++ b/src/pkg/compress/gzip/gzip.go
+@@ -122,7 +122,7 @@ func (z *Compressor) Write(p []byte) (int, error) {
+ 		if z.Comment != "" {
+ 			z.buf[3] |= 0x10
+ 		}
+-		put4(z.buf[4:8], z.Mtime)
++		put4(z.buf[4:8], uint32(z.ModTime.Unix()))
+ 		if z.level == BestCompression {
+ 			z.buf[8] = 2
+ 		} else if z.level == BestSpeed {
+diff --git a/src/pkg/compress/gzip/gzip_test.go b/src/pkg/compress/gzip/gzip_test.go
+index 121e627e6b..815825be99 100644
+--- a/src/pkg/compress/gzip/gzip_test.go
++++ b/src/pkg/compress/gzip/gzip_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"testing"
++	"time"
+ )
+ 
+ // pipe creates two ends of a pipe that gzip and gunzip, and runs dfunc at the
+@@ -53,7 +54,7 @@ func TestWriter(t *testing.T) {
+ 		func(compressor *Compressor) {
+ 			compressor.Comment = "comment"
+ 			compressor.Extra = []byte("extra")
+-			compressor.Mtime = 1e8
++			compressor.ModTime = time.Unix(1e8, 0)
+ 			compressor.Name = "name"
+ 			_, err := compressor.Write([]byte("payload"))
+ 			if err != nil {
+@@ -74,8 +75,8 @@ func TestWriter(t *testing.T) {
+ 			if string(decompressor.Extra) != "extra" {
+ 				t.Fatalf("extra is %q, want %q", decompressor.Extra, "extra")
+ 			}
+-			if decompressor.Mtime != 1e8 {
+-				t.Fatalf("mtime is %d, want %d", decompressor.Mtime, uint32(1e8))
++			if decompressor.ModTime.Unix() != 1e8 {
++				t.Fatalf("mtime is %d, want %d", decompressor.ModTime.Unix(), uint32(1e8))
+ 			}
+ 			if decompressor.Name != "name" {
+ 				t.Fatalf("name is %q, want %q", decompressor.Name, "name")
+diff --git a/src/pkg/crypto/ocsp/ocsp.go b/src/pkg/crypto/ocsp/ocsp.go
+index a04b5bd713..aff7913b2f 100644
+--- a/src/pkg/crypto/ocsp/ocsp.go
++++ b/src/pkg/crypto/ocsp/ocsp.go
+@@ -61,7 +61,7 @@ type responseData struct {
+ 	Version       int              `asn1:"optional,default:1,explicit,tag:0"`
+ 	RequestorName pkix.RDNSequence `asn1:"optional,explicit,tag:1"`
+ 	KeyHash       []byte           `asn1:"optional,explicit,tag:2"`
+-	ProducedAt    *time.Time
++	ProducedAt    time.Time
+ 	Responses     []singleResponse
+ }
+ 
+@@ -70,12 +70,12 @@ type singleResponse struct {
+ 	Good       asn1.Flag   `asn1:"explicit,tag:0,optional"`
+ 	Revoked    revokedInfo `asn1:"explicit,tag:1,optional"`
+ 	Unknown    asn1.Flag   `asn1:"explicit,tag:2,optional"`
+-	ThisUpdate *time.Time
+-	NextUpdate *time.Time `asn1:"explicit,tag:0,optional"`
++	ThisUpdate time.Time
++	NextUpdate time.Time `asn1:"explicit,tag:0,optional"`
+ }
+ 
+ type revokedInfo struct {
+-	RevocationTime *time.Time
++	RevocationTime time.Time
+ 	Reason         int `asn1:"explicit,tag:0,optional"`
+ }
+ 
+@@ -97,7 +97,7 @@ type Response struct {
+ 	// Status is one of {Good, Revoked, Unknown, ServerFailed}
+ 	Status                                        int
+ 	SerialNumber                                  []byte
+-	ProducedAt, ThisUpdate, NextUpdate, RevokedAt *time.Time
++	ProducedAt, ThisUpdate, NextUpdate, RevokedAt time.Time
+ 	RevocationReason                              int
+ 	Certificate                                   *x509.Certificate
+ }
+diff --git a/src/pkg/crypto/ocsp/ocsp_test.go b/src/pkg/crypto/ocsp/ocsp_test.go
+index 7be37211c1..bacca558b4 100644
+--- a/src/pkg/crypto/ocsp/ocsp_test.go
++++ b/src/pkg/crypto/ocsp/ocsp_test.go
+@@ -15,7 +15,13 @@ func TestOCSPDecode(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ 
+-	expected := Response{Status: 0, SerialNumber: []byte{0x1, 0xd0, 0xfa}, RevocationReason: 0, ThisUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 15, Minute: 1, Second: 5, ZoneOffset: 0, Zone: "UTC"}, NextUpdate: &time.Time{Year: 2010, Month: 7, Day: 7, Hour: 18, Minute: 35, Second: 17, ZoneOffset: 0, Zone: "UTC"}}
++	expected := Response{
++		Status:           0,
++		SerialNumber:     []byte{0x1, 0xd0, 0xfa},
++		RevocationReason: 0,
++		ThisUpdate:       time.Date(2010, 7, 7, 15, 1, 5, 0, time.UTC),
++		NextUpdate:       time.Date(2010, 7, 7, 18, 35, 17, 0, time.UTC),
++	}
+ 
+ 	if !reflect.DeepEqual(resp.ThisUpdate, resp.ThisUpdate) {
+ 		t.Errorf("resp.ThisUpdate: got %d, want %d", resp.ThisUpdate, expected.ThisUpdate)
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index b705d226e1..df39970c0b 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -381,7 +381,7 @@ const defaultRSAKeyBits = 2048
+ // NewEntity returns an Entity that contains a fresh RSA/RSA keypair with a
+ // single identity composed of the given full name, comment and email, any of
+ // which may be empty but must not contain any of "()<>\x00".
+-func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email string) (*Entity, error) {
++func NewEntity(rand io.Reader, currentTime time.Time, name, comment, email string) (*Entity, error) {
+ 	uid := packet.NewUserId(name, comment, email)
+ 	if uid == nil {
+ 		return nil, error_.InvalidArgumentError("user id field contained invalid characters")
+@@ -395,11 +395,9 @@ func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email strin
+ 		return nil, err
+ 	}
+ 
+-	t := uint32(currentTimeSecs)
+-
+ 	e := &Entity{
+-		PrimaryKey: packet.NewRSAPublicKey(t, &signingPriv.PublicKey, false /* not a subkey */ ),
+-		PrivateKey: packet.NewRSAPrivateKey(t, signingPriv, false /* not a subkey */ ),
++		PrimaryKey: packet.NewRSAPublicKey(currentTime, &signingPriv.PublicKey, false /* not a subkey */ ),
++		PrivateKey: packet.NewRSAPrivateKey(currentTime, signingPriv, false /* not a subkey */ ),
+ 		Identities: make(map[string]*Identity),
+ 	}
+ 	isPrimaryId := true
+@@ -407,7 +405,7 @@ func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email strin
+ 		Name:   uid.Name,
+ 		UserId: uid,
+ 		SelfSignature: &packet.Signature{
+-			CreationTime: t,
++			CreationTime: currentTime,
+ 			SigType:      packet.SigTypePositiveCert,
+ 			PubKeyAlgo:   packet.PubKeyAlgoRSA,
+ 			Hash:         crypto.SHA256,
+@@ -421,10 +419,10 @@ func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email strin
+ 
+ 	e.Subkeys = make([]Subkey, 1)
+ 	e.Subkeys[0] = Subkey{
+-		PublicKey:  packet.NewRSAPublicKey(t, &encryptingPriv.PublicKey, true /* is a subkey */ ),
+-		PrivateKey: packet.NewRSAPrivateKey(t, encryptingPriv, true /* is a subkey */ ),
++		PublicKey:  packet.NewRSAPublicKey(currentTime, &encryptingPriv.PublicKey, true /* is a subkey */ ),
++		PrivateKey: packet.NewRSAPrivateKey(currentTime, encryptingPriv, true /* is a subkey */ ),
+ 		Sig: &packet.Signature{
+-			CreationTime:              t,
++			CreationTime:              currentTime,
+ 			SigType:                   packet.SigTypeSubkeyBinding,
+ 			PubKeyAlgo:                packet.PubKeyAlgoRSA,
+ 			Hash:                      crypto.SHA256,
+@@ -533,7 +531,7 @@ func (e *Entity) SignIdentity(identity string, signer *Entity) error {
+ 		SigType:      packet.SigTypeGenericCert,
+ 		PubKeyAlgo:   signer.PrivateKey.PubKeyAlgo,
+ 		Hash:         crypto.SHA256,
+-		CreationTime: uint32(time.Seconds()),
++		CreationTime: time.Now(),
+ 		IssuerKeyId:  &signer.PrivateKey.KeyId,
+ 	}
+ 	if err := sig.SignKey(e.PrimaryKey, signer.PrivateKey); err != nil {
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index 5ef3db2a74..729e88d686 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -17,6 +17,7 @@ import (
+ 	"io/ioutil"
+ 	"math/big"
+ 	"strconv"
++	"time"
+ )
+ 
+ // PrivateKey represents a possibly encrypted private key. See RFC 4880,
+@@ -32,9 +33,9 @@ type PrivateKey struct {
+ 	iv            []byte
+ }
+ 
+-func NewRSAPrivateKey(currentTimeSecs uint32, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
++func NewRSAPrivateKey(currentTime time.Time, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
+ 	pk := new(PrivateKey)
+-	pk.PublicKey = *NewRSAPublicKey(currentTimeSecs, &priv.PublicKey, isSubkey)
++	pk.PublicKey = *NewRSAPublicKey(currentTime, &priv.PublicKey, isSubkey)
+ 	pk.PrivateKey = priv
+ 	return pk
+ }
+diff --git a/src/pkg/crypto/openpgp/packet/private_key_test.go b/src/pkg/crypto/openpgp/packet/private_key_test.go
+index 60eebaa6b0..35d8951a86 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/private_key_test.go
+@@ -6,19 +6,20 @@ package packet
+ 
+ import (
+ 	"testing"
++	"time"
+ )
+ 
+ var privateKeyTests = []struct {
+ 	privateKeyHex string
+-	creationTime  uint32
++	creationTime  time.Time
+ }{
+ 	{
+ 		privKeyRSAHex,
+-		0x4cc349a8,
++		time.Unix(0x4cc349a8, 0),
+ 	},
+ 	{
+ 		privKeyElGamalHex,
+-		0x4df9ee1a,
++		time.Unix(0x4df9ee1a, 0),
+ 	},
+ }
+ 
+@@ -43,7 +44,7 @@ func TestPrivateKeyRead(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if privKey.CreationTime != test.creationTime || privKey.Encrypted {
++		if !privKey.CreationTime.Equal(test.creationTime) || privKey.Encrypted {
+ 			t.Errorf("#%d: bad result, got: %#v", i, privKey)
+ 		}
+ 	}
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index 7d71dc49a7..865313e597 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -16,11 +16,12 @@ import (
+ 	"io"
+ 	"math/big"
+ 	"strconv"
++	"time"
+ )
+ 
+ // PublicKey represents an OpenPGP public key. See RFC 4880, section 5.5.2.
+ type PublicKey struct {
+-	CreationTime uint32 // seconds since the epoch
++	CreationTime time.Time
+ 	PubKeyAlgo   PublicKeyAlgorithm
+ 	PublicKey    interface{} // Either a *rsa.PublicKey or *dsa.PublicKey
+ 	Fingerprint  [20]byte
+@@ -38,9 +39,9 @@ func fromBig(n *big.Int) parsedMPI {
+ }
+ 
+ // NewRSAPublicKey returns a PublicKey that wraps the given rsa.PublicKey.
+-func NewRSAPublicKey(creationTimeSecs uint32, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
++func NewRSAPublicKey(creationTime time.Time, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
+ 	pk := &PublicKey{
+-		CreationTime: creationTimeSecs,
++		CreationTime: creationTime,
+ 		PubKeyAlgo:   PubKeyAlgoRSA,
+ 		PublicKey:    pub,
+ 		IsSubkey:     isSubkey,
+@@ -62,7 +63,7 @@ func (pk *PublicKey) parse(r io.Reader) (err error) {
+ 	if buf[0] != 4 {
+ 		return error_.UnsupportedError("public key version")
+ 	}
+-	pk.CreationTime = uint32(buf[1])<<24 | uint32(buf[2])<<16 | uint32(buf[3])<<8 | uint32(buf[4])
++	pk.CreationTime = time.Unix(int64(uint32(buf[1])<<24|uint32(buf[2])<<16|uint32(buf[3])<<8|uint32(buf[4])), 0)
+ 	pk.PubKeyAlgo = PublicKeyAlgorithm(buf[5])
+ 	switch pk.PubKeyAlgo {
+ 	case PubKeyAlgoRSA, PubKeyAlgoRSAEncryptOnly, PubKeyAlgoRSASignOnly:
+@@ -234,10 +235,11 @@ func (pk *PublicKey) Serialize(w io.Writer) (err error) {
+ func (pk *PublicKey) serializeWithoutHeaders(w io.Writer) (err error) {
+ 	var buf [6]byte
+ 	buf[0] = 4
+-	buf[1] = byte(pk.CreationTime >> 24)
+-	buf[2] = byte(pk.CreationTime >> 16)
+-	buf[3] = byte(pk.CreationTime >> 8)
+-	buf[4] = byte(pk.CreationTime)
++	t := uint32(pk.CreationTime.Unix())
++	buf[1] = byte(t >> 24)
++	buf[2] = byte(t >> 16)
++	buf[3] = byte(t >> 8)
++	buf[4] = byte(t)
+ 	buf[5] = byte(pk.PubKeyAlgo)
+ 
+ 	_, err = w.Write(buf[:])
+diff --git a/src/pkg/crypto/openpgp/packet/public_key_test.go b/src/pkg/crypto/openpgp/packet/public_key_test.go
+index 6e8bfbce66..72f459f47b 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key_test.go
++++ b/src/pkg/crypto/openpgp/packet/public_key_test.go
+@@ -8,19 +8,20 @@ import (
+ 	"bytes"
+ 	"encoding/hex"
+ 	"testing"
++	"time"
+ )
+ 
+ var pubKeyTests = []struct {
+ 	hexData        string
+ 	hexFingerprint string
+-	creationTime   uint32
++	creationTime   time.Time
+ 	pubKeyAlgo     PublicKeyAlgorithm
+ 	keyId          uint64
+ 	keyIdString    string
+ 	keyIdShort     string
+ }{
+-	{rsaPkDataHex, rsaFingerprintHex, 0x4d3c5c10, PubKeyAlgoRSA, 0xa34d7e18c20c31bb, "A34D7E18C20C31BB", "C20C31BB"},
+-	{dsaPkDataHex, dsaFingerprintHex, 0x4d432f89, PubKeyAlgoDSA, 0x8e8fbe54062f19ed, "8E8FBE54062F19ED", "062F19ED"},
++	{rsaPkDataHex, rsaFingerprintHex, time.Unix(0x4d3c5c10, 0), PubKeyAlgoRSA, 0xa34d7e18c20c31bb, "A34D7E18C20C31BB", "C20C31BB"},
++	{dsaPkDataHex, dsaFingerprintHex, time.Unix(0x4d432f89, 0), PubKeyAlgoDSA, 0x8e8fbe54062f19ed, "8E8FBE54062F19ED", "062F19ED"},
+ }
+ 
+ func TestPublicKeyRead(t *testing.T) {
+@@ -38,8 +39,8 @@ func TestPublicKeyRead(t *testing.T) {
+ 		if pk.PubKeyAlgo != test.pubKeyAlgo {
+ 			t.Errorf("#%d: bad public key algorithm got:%x want:%x", i, pk.PubKeyAlgo, test.pubKeyAlgo)
+ 		}
+-		if pk.CreationTime != test.creationTime {
+-			t.Errorf("#%d: bad creation time got:%x want:%x", i, pk.CreationTime, test.creationTime)
++		if !pk.CreationTime.Equal(test.creationTime) {
++			t.Errorf("#%d: bad creation time got:%v want:%v", i, pk.CreationTime, test.creationTime)
+ 		}
+ 		expectedFingerprint, _ := hex.DecodeString(test.hexFingerprint)
+ 		if !bytes.Equal(expectedFingerprint, pk.Fingerprint[:]) {
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 4ebb906cad..f5bc8e86ad 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -15,6 +15,7 @@ import (
+ 	"hash"
+ 	"io"
+ 	"strconv"
++	"time"
+ )
+ 
+ // Signature represents a signature. See RFC 4880, section 5.2.
+@@ -28,7 +29,7 @@ type Signature struct {
+ 	// HashTag contains the first two bytes of the hash for fast rejection
+ 	// of bad signed data.
+ 	HashTag      [2]byte
+-	CreationTime uint32 // Unix epoch time
++	CreationTime time.Time
+ 
+ 	RSASignature     parsedMPI
+ 	DSASigR, DSASigS parsedMPI
+@@ -151,7 +152,7 @@ func parseSignatureSubpackets(sig *Signature, subpackets []byte, isHashed bool)
+ 		}
+ 	}
+ 
+-	if sig.CreationTime == 0 {
++	if sig.CreationTime.IsZero() {
+ 		err = error_.StructuralError("no creation time in signature")
+ 	}
+ 
+@@ -223,7 +224,12 @@ func parseSignatureSubpacket(sig *Signature, subpacket []byte, isHashed bool) (r
+ 			err = error_.StructuralError("signature creation time not four bytes")
+ 			return
+ 		}
+-		sig.CreationTime = binary.BigEndian.Uint32(subpacket)
++		t := binary.BigEndian.Uint32(subpacket)
++		if t == 0 {
++			sig.CreationTime = time.Time{}
++		} else {
++			sig.CreationTime = time.Unix(int64(t), 0)
++		}
+ 	case signatureExpirationSubpacket:
+ 		// Signature expiration time, section 5.2.3.10
+ 		if !isHashed {
+@@ -541,10 +547,7 @@ type outputSubpacket struct {
+ 
+ func (sig *Signature) buildSubpackets() (subpackets []outputSubpacket) {
+ 	creationTime := make([]byte, 4)
+-	creationTime[0] = byte(sig.CreationTime >> 24)
+-	creationTime[1] = byte(sig.CreationTime >> 16)
+-	creationTime[2] = byte(sig.CreationTime >> 8)
+-	creationTime[3] = byte(sig.CreationTime)
++	binary.BigEndian.PutUint32(creationTime, uint32(sig.CreationTime.Unix()))
+ 	subpackets = append(subpackets, outputSubpacket{true, creationTimeSubpacket, false, creationTime})
+ 
+ 	if sig.IssuerKeyId != nil {
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index 6f3450c9cd..60dae01e64 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -68,7 +68,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
+ 	sig.SigType = sigType
+ 	sig.PubKeyAlgo = signer.PrivateKey.PubKeyAlgo
+ 	sig.Hash = crypto.SHA256
+-	sig.CreationTime = uint32(time.Seconds())
++	sig.CreationTime = time.Now()
+ 	sig.IssuerKeyId = &signer.PrivateKey.KeyId
+ 
+ 	h, wrappedHash, err := hashForSignature(sig.Hash, sig.SigType)
+@@ -95,8 +95,8 @@ type FileHints struct {
+ 	// file should not be written to disk. It may be equal to "_CONSOLE" to
+ 	// suggest the data should not be written to disk.
+ 	FileName string
+-	// EpochSeconds contains the modification time of the file, or 0 if not applicable.
+-	EpochSeconds uint32
++	// ModTime contains the modification time of the file, or the zero time if not applicable.
++	ModTime time.Time
+ }
+ 
+ // SymmetricallyEncrypt acts like gpg -c: it encrypts a file with a passphrase.
+@@ -115,7 +115,11 @@ func SymmetricallyEncrypt(ciphertext io.Writer, passphrase []byte, hints *FileHi
+ 	if err != nil {
+ 		return
+ 	}
+-	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++	var epochSeconds uint32
++	if !hints.ModTime.IsZero() {
++		epochSeconds = uint32(hints.ModTime.Unix())
++	}
++	return packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, epochSeconds)
+ }
+ 
+ // intersectPreferences mutates and returns a prefix of a that contains only
+@@ -243,7 +247,11 @@ func Encrypt(ciphertext io.Writer, to []*Entity, signed *Entity, hints *FileHint
+ 		w = noOpCloser{encryptedData}
+ 
+ 	}
+-	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, hints.EpochSeconds)
++	var epochSeconds uint32
++	if !hints.ModTime.IsZero() {
++		epochSeconds = uint32(hints.ModTime.Unix())
++	}
++	literalData, err := packet.SerializeLiteral(w, hints.IsBinary, hints.FileName, epochSeconds)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -275,7 +283,7 @@ func (s signatureWriter) Close() error {
+ 		SigType:      packet.SigTypeBinary,
+ 		PubKeyAlgo:   s.signer.PubKeyAlgo,
+ 		Hash:         s.hashType,
+-		CreationTime: uint32(time.Seconds()),
++		CreationTime: time.Now(),
+ 		IssuerKeyId:  &s.signer.KeyId,
+ 	}
+ 
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index 3cadf4cc95..02fa5b75bf 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -54,7 +54,7 @@ func TestNewEntity(t *testing.T) {
+ 		return
+ 	}
+ 
+-	e, err := NewEntity(rand.Reader, time.Seconds(), "Test User", "test", "test@example.com")
++	e, err := NewEntity(rand.Reader, time.Now(), "Test User", "test", "test@example.com")
+ 	if err != nil {
+ 		t.Errorf("failed to create entity: %s", err)
+ 		return
+diff --git a/src/pkg/crypto/rand/rand_unix.go b/src/pkg/crypto/rand/rand_unix.go
+index 09442ad283..d9cddf6d2a 100644
+--- a/src/pkg/crypto/rand/rand_unix.go
++++ b/src/pkg/crypto/rand/rand_unix.go
+@@ -100,7 +100,7 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 		// t = encrypt(time)
+ 		// dst = encrypt(t^seed)
+ 		// seed = encrypt(t^dst)
+-		ns := time.Nanoseconds()
++		ns := time.Now().UnixNano()
+ 		r.time[0] = byte(ns >> 56)
+ 		r.time[1] = byte(ns >> 48)
+ 		r.time[2] = byte(ns >> 40)
+diff --git a/src/pkg/crypto/tls/common.go b/src/pkg/crypto/tls/common.go
+index e904248682..f57d932a98 100644
+--- a/src/pkg/crypto/tls/common.go
++++ b/src/pkg/crypto/tls/common.go
+@@ -121,7 +121,7 @@ type Config struct {
+ 
+ 	// Time returns the current time as the number of seconds since the epoch.
+ 	// If Time is nil, TLS uses the system time.Seconds.
+-	Time func() int64
++	Time func() time.Time
+ 
+ 	// Certificates contains one or more certificate chains
+ 	// to present to the other side of the connection.
+@@ -175,10 +175,10 @@ func (c *Config) rand() io.Reader {
+ 	return r
+ }
+ 
+-func (c *Config) time() int64 {
++func (c *Config) time() time.Time {
+ 	t := c.Time
+ 	if t == nil {
+-		t = time.Seconds
++		t = time.Now
+ 	}
+ 	return t()
+ }
+diff --git a/src/pkg/crypto/tls/handshake_client.go b/src/pkg/crypto/tls/handshake_client.go
+index 0f41008bf4..5559c7a22d 100644
+--- a/src/pkg/crypto/tls/handshake_client.go
++++ b/src/pkg/crypto/tls/handshake_client.go
+@@ -32,7 +32,7 @@ func (c *Conn) clientHandshake() error {
+ 		nextProtoNeg:       len(c.config.NextProtos) > 0,
+ 	}
+ 
+-	t := uint32(c.config.time())
++	t := uint32(c.config.time().Unix())
+ 	hello.random[0] = byte(t >> 24)
+ 	hello.random[1] = byte(t >> 16)
+ 	hello.random[2] = byte(t >> 8)
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 1fa4585189..11ea500fc7 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -95,7 +95,7 @@ FindCipherSuite:
+ 
+ 	hello.vers = vers
+ 	hello.cipherSuite = suite.id
+-	t := uint32(config.time())
++	t := uint32(config.time().Unix())
+ 	hello.random = make([]byte, 32)
+ 	hello.random[0] = byte(t >> 24)
+ 	hello.random[1] = byte(t >> 16)
+diff --git a/src/pkg/crypto/tls/handshake_server_test.go b/src/pkg/crypto/tls/handshake_server_test.go
+index bc3797947f..e00c32c550 100644
+--- a/src/pkg/crypto/tls/handshake_server_test.go
++++ b/src/pkg/crypto/tls/handshake_server_test.go
+@@ -15,6 +15,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ type zeroSource struct{}
+@@ -31,7 +32,7 @@ var testConfig *Config
+ 
+ func init() {
+ 	testConfig = new(Config)
+-	testConfig.Time = func() int64 { return 0 }
++	testConfig.Time = func() time.Time { return time.Unix(0, 0) }
+ 	testConfig.Rand = zeroSource{}
+ 	testConfig.Certificates = make([]Certificate, 1)
+ 	testConfig.Certificates[0].Certificate = [][]byte{testCertificate}
+diff --git a/src/pkg/crypto/x509/pkix/pkix.go b/src/pkg/crypto/x509/pkix/pkix.go
+index b35274c9ae..8eced55f93 100644
+--- a/src/pkg/crypto/x509/pkix/pkix.go
++++ b/src/pkg/crypto/x509/pkix/pkix.go
+@@ -142,10 +142,9 @@ type CertificateList struct {
+ 	SignatureValue     asn1.BitString
+ }
+ 
+-// HasExpired returns true iff currentTimeSeconds is past the expiry time of
+-// certList.
+-func (certList *CertificateList) HasExpired(currentTimeSeconds int64) bool {
+-	return certList.TBSCertList.NextUpdate.Seconds() <= currentTimeSeconds
++// HasExpired returns true iff now is past the expiry time of certList.
++func (certList *CertificateList) HasExpired(now time.Time) bool {
++	return now.After(certList.TBSCertList.NextUpdate)
+ }
+ 
+ // TBSCertificateList represents the ASN.1 structure of the same name. See RFC
+@@ -155,8 +154,8 @@ type TBSCertificateList struct {
+ 	Version             int `asn1:"optional,default:2"`
+ 	Signature           AlgorithmIdentifier
+ 	Issuer              RDNSequence
+-	ThisUpdate          *time.Time
+-	NextUpdate          *time.Time
++	ThisUpdate          time.Time
++	NextUpdate          time.Time
+ 	RevokedCertificates []RevokedCertificate `asn1:"optional"`
+ 	Extensions          []Extension          `asn1:"tag:0,optional,explicit"`
+ }
+@@ -165,6 +164,6 @@ type TBSCertificateList struct {
+ // 5280, section 5.1.
+ type RevokedCertificate struct {
+ 	SerialNumber   *big.Int
+-	RevocationTime *time.Time
++	RevocationTime time.Time
+ 	Extensions     []Extension `asn1:"optional"`
+ }
+diff --git a/src/pkg/crypto/x509/verify.go b/src/pkg/crypto/x509/verify.go
+index 3021d20a67..50a3b66e55 100644
+--- a/src/pkg/crypto/x509/verify.go
++++ b/src/pkg/crypto/x509/verify.go
+@@ -76,7 +76,7 @@ type VerifyOptions struct {
+ 	DNSName       string
+ 	Intermediates *CertPool
+ 	Roots         *CertPool
+-	CurrentTime   int64 // if 0, the current system time is used.
++	CurrentTime   time.Time // if zero, the current time is used
+ }
+ 
+ const (
+@@ -87,8 +87,11 @@ const (
+ 
+ // isValid performs validity checks on the c.
+ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
+-	if opts.CurrentTime < c.NotBefore.Seconds() ||
+-		opts.CurrentTime > c.NotAfter.Seconds() {
++	now := opts.CurrentTime
++	if now.IsZero() {
++		now = time.Now()
++	}
++	if now.Before(c.NotBefore) || now.After(c.NotAfter) {
+ 		return CertificateInvalidError{c, Expired}
+ 	}
+ 
+@@ -136,9 +139,6 @@ func (c *Certificate) isValid(certType int, opts *VerifyOptions) error {
+ //
+ // WARNING: this doesn't do any revocation checking.
+ func (c *Certificate) Verify(opts VerifyOptions) (chains [][]*Certificate, err error) {
+-	if opts.CurrentTime == 0 {
+-		opts.CurrentTime = time.Seconds()
+-	}
+ 	err = c.isValid(leafCertificate, &opts)
+ 	if err != nil {
+ 		return
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 2194d15bc8..df5443023f 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ type verifyTest struct {
+@@ -133,7 +134,7 @@ func TestVerify(t *testing.T) {
+ 			Roots:         NewCertPool(),
+ 			Intermediates: NewCertPool(),
+ 			DNSName:       test.dnsName,
+-			CurrentTime:   test.currentTime,
++			CurrentTime:   time.Unix(test.currentTime, 0),
+ 		}
+ 
+ 		for j, root := range test.roots {
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index a5f5d8d405..d64723a156 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -107,7 +107,7 @@ type dsaSignature struct {
+ }
+ 
+ type validity struct {
+-	NotBefore, NotAfter *time.Time
++	NotBefore, NotAfter time.Time
+ }
+ 
+ type publicKeyInfo struct {
+@@ -303,7 +303,7 @@ type Certificate struct {
+ 	SerialNumber        *big.Int
+ 	Issuer              pkix.Name
+ 	Subject             pkix.Name
+-	NotBefore, NotAfter *time.Time // Validity bounds.
++	NotBefore, NotAfter time.Time // Validity bounds.
+ 	KeyUsage            KeyUsage
+ 
+ 	ExtKeyUsage        []ExtKeyUsage           // Sequence of extended key usages.
+@@ -1005,7 +1005,7 @@ func ParseDERCRL(derBytes []byte) (certList *pkix.CertificateList, err error) {
+ 
+ // CreateCRL returns a DER encoded CRL, signed by this Certificate, that
+ // contains the given list of revoked certificates.
+-func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry *time.Time) (crlBytes []byte, err error) {
++func (c *Certificate) CreateCRL(rand io.Reader, priv *rsa.PrivateKey, revokedCerts []pkix.RevokedCertificate, now, expiry time.Time) (crlBytes []byte, err error) {
+ 	tbsCertList := pkix.TBSCertificateList{
+ 		Version: 2,
+ 		Signature: pkix.AlgorithmIdentifier{
+diff --git a/src/pkg/crypto/x509/x509_test.go b/src/pkg/crypto/x509/x509_test.go
+index c42471507b..f0327b0124 100644
+--- a/src/pkg/crypto/x509/x509_test.go
++++ b/src/pkg/crypto/x509/x509_test.go
+@@ -250,8 +250,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			CommonName:   commonName,
+ 			Organization: []string{"Acme Co"},
+ 		},
+-		NotBefore: time.SecondsToUTC(1000),
+-		NotAfter:  time.SecondsToUTC(100000),
++		NotBefore: time.Unix(1000, 0),
++		NotAfter:  time.Unix(100000, 0),
+ 
+ 		SubjectKeyId: []byte{1, 2, 3, 4},
+ 		KeyUsage:     KeyUsageCertSign,
+@@ -396,8 +396,8 @@ func TestCRLCreation(t *testing.T) {
+ 	block, _ = pem.Decode([]byte(pemCertificate))
+ 	cert, _ := ParseCertificate(block.Bytes)
+ 
+-	now := time.SecondsToUTC(1000)
+-	expiry := time.SecondsToUTC(10000)
++	now := time.Unix(1000, 0)
++	expiry := time.Unix(10000, 0)
+ 
+ 	revokedCerts := []pkix.RevokedCertificate{
+ 		{
+@@ -443,7 +443,7 @@ func TestParseDERCRL(t *testing.T) {
+ 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+ 	}
+ 
+-	if certList.HasExpired(1302517272) {
++	if certList.HasExpired(time.Unix(1302517272, 0)) {
+ 		t.Errorf("CRL has expired (but shouldn't have)")
+ 	}
+ 
+@@ -463,7 +463,7 @@ func TestParsePEMCRL(t *testing.T) {
+ 		t.Errorf("bad number of revoked certificates. got: %d want: %d", numCerts, expected)
+ 	}
+ 
+-	if certList.HasExpired(1302517272) {
++	if certList.HasExpired(time.Unix(1302517272, 0)) {
+ 		t.Errorf("CRL has expired (but shouldn't have)")
+ 	}
+ 
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index a0066654f8..22a0dde0da 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -247,7 +247,7 @@ func parseBase128Int(bytes []byte, initOffset int) (ret, offset int, err error)
+ 
+ // UTCTime
+ 
+-func parseUTCTime(bytes []byte) (ret *time.Time, err error) {
++func parseUTCTime(bytes []byte) (ret time.Time, err error) {
+ 	s := string(bytes)
+ 	ret, err = time.Parse("0601021504Z0700", s)
+ 	if err == nil {
+@@ -259,7 +259,7 @@ func parseUTCTime(bytes []byte) (ret *time.Time, err error) {
+ 
+ // parseGeneralizedTime parses the GeneralizedTime from the given byte slice
+ // and returns the resulting time.
+-func parseGeneralizedTime(bytes []byte) (ret *time.Time, err error) {
++func parseGeneralizedTime(bytes []byte) (ret time.Time, err error) {
+ 	return time.Parse("20060102150405Z0700", string(bytes))
+ }
+ 
+@@ -450,7 +450,7 @@ var (
+ 	objectIdentifierType = reflect.TypeOf(ObjectIdentifier{})
+ 	enumeratedType       = reflect.TypeOf(Enumerated(0))
+ 	flagType             = reflect.TypeOf(Flag(false))
+-	timeType             = reflect.TypeOf(&time.Time{})
++	timeType             = reflect.TypeOf(time.Time{})
+ 	rawValueType         = reflect.TypeOf(RawValue{})
+ 	rawContentsType      = reflect.TypeOf(RawContent(nil))
+ 	bigIntType           = reflect.TypeOf(new(big.Int))
+@@ -647,7 +647,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		err = err1
+ 		return
+ 	case timeType:
+-		var time *time.Time
++		var time time.Time
+ 		var err1 error
+ 		if universalTag == tagUTCTime {
+ 			time, err1 = parseUTCTime(innerBytes)
+@@ -799,7 +799,7 @@ func setDefaultValue(v reflect.Value, params fieldParameters) (ok bool) {
+ //
+ // An ASN.1 ENUMERATED can be written to an Enumerated.
+ //
+-// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a *time.Time.
++// An ASN.1 UTCTIME or GENERALIZEDTIME can be written to a time.Time.
+ //
+ // An ASN.1 PrintableString or IA5String can be written to a string.
+ //
+diff --git a/src/pkg/encoding/asn1/asn1_test.go b/src/pkg/encoding/asn1/asn1_test.go
+index 1c529bdb30..ea1906a7b6 100644
+--- a/src/pkg/encoding/asn1/asn1_test.go
++++ b/src/pkg/encoding/asn1/asn1_test.go
+@@ -202,22 +202,22 @@ func TestObjectIdentifier(t *testing.T) {
+ type timeTest struct {
+ 	in  string
+ 	ok  bool
+-	out *time.Time
++	out time.Time
+ }
+ 
+ var utcTestData = []timeTest{
+-	{"910506164540-0700", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, -7 * 60 * 60, ""}},
+-	{"910506164540+0730", true, &time.Time{1991, 05, 06, 16, 45, 40, 0, 7*60*60 + 30*60, ""}},
+-	{"910506234540Z", true, &time.Time{1991, 05, 06, 23, 45, 40, 0, 0, "UTC"}},
+-	{"9105062345Z", true, &time.Time{1991, 05, 06, 23, 45, 0, 0, 0, "UTC"}},
+-	{"a10506234540Z", false, nil},
+-	{"91a506234540Z", false, nil},
+-	{"9105a6234540Z", false, nil},
+-	{"910506a34540Z", false, nil},
+-	{"910506334a40Z", false, nil},
+-	{"91050633444aZ", false, nil},
+-	{"910506334461Z", false, nil},
+-	{"910506334400Za", false, nil},
++	{"910506164540-0700", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", -7*60*60))},
++	{"910506164540+0730", true, time.Date(1991, 05, 06, 16, 45, 40, 0, time.FixedZone("", 7*60*60+30*60))},
++	{"910506234540Z", true, time.Date(1991, 05, 06, 23, 45, 40, 0, time.UTC)},
++	{"9105062345Z", true, time.Date(1991, 05, 06, 23, 45, 0, 0, time.UTC)},
++	{"a10506234540Z", false, time.Time{}},
++	{"91a506234540Z", false, time.Time{}},
++	{"9105a6234540Z", false, time.Time{}},
++	{"910506a34540Z", false, time.Time{}},
++	{"910506334a40Z", false, time.Time{}},
++	{"91050633444aZ", false, time.Time{}},
++	{"910506334461Z", false, time.Time{}},
++	{"910506334400Za", false, time.Time{}},
+ }
+ 
+ func TestUTCTime(t *testing.T) {
+@@ -235,10 +235,10 @@ func TestUTCTime(t *testing.T) {
+ }
+ 
+ var generalizedTimeTestData = []timeTest{
+-	{"20100102030405Z", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 0, "UTC"}},
+-	{"20100102030405", false, nil},
+-	{"20100102030405+0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, 6*60*60 + 7*60, ""}},
+-	{"20100102030405-0607", true, &time.Time{2010, 01, 02, 03, 04, 05, 0, -6*60*60 - 7*60, ""}},
++	{"20100102030405Z", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.UTC)},
++	{"20100102030405", false, time.Time{}},
++	{"20100102030405+0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", 6*60*60+7*60))},
++	{"20100102030405-0607", true, time.Date(2010, 01, 02, 03, 04, 05, 0, time.FixedZone("", -6*60*60-7*60))},
+ }
+ 
+ func TestGeneralizedTime(t *testing.T) {
+@@ -407,7 +407,7 @@ type AttributeTypeAndValue struct {
+ }
+ 
+ type Validity struct {
+-	NotBefore, NotAfter *time.Time
++	NotBefore, NotAfter time.Time
+ }
+ 
+ type PublicKeyInfo struct {
+@@ -475,7 +475,10 @@ var derEncodedSelfSignedCert = Certificate{
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 3}, Value: "false.example.com"}},
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{1, 2, 840, 113549, 1, 9, 1}, Value: "false@example.com"}},
+ 		},
+-		Validity: Validity{NotBefore: &time.Time{Year: 2009, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}, NotAfter: &time.Time{Year: 2010, Month: 10, Day: 8, Hour: 0, Minute: 25, Second: 53, ZoneOffset: 0, Zone: "UTC"}},
++		Validity: Validity{
++			NotBefore: time.Date(2009, 10, 8, 00, 25, 53, 0, time.UTC),
++			NotAfter:  time.Date(2010, 10, 8, 00, 25, 53, 0, time.UTC),
++		},
+ 		Subject: RDNSequence{
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 6}, Value: "XX"}},
+ 			RelativeDistinguishedNameSET{AttributeTypeAndValue{Type: ObjectIdentifier{2, 5, 4, 8}, Value: "Some-State"}},
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index 89c50a70ef..c181e43f97 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -288,52 +288,58 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
+ 	return out.WriteByte(byte('0' + v%10))
+ }
+ 
+-func marshalUTCTime(out *forkableWriter, t *time.Time) (err error) {
++func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
++	utc := t.UTC()
++	year, month, day := utc.Date()
++
+ 	switch {
+-	case 1950 <= t.Year && t.Year < 2000:
+-		err = marshalTwoDigits(out, int(t.Year-1900))
+-	case 2000 <= t.Year && t.Year < 2050:
+-		err = marshalTwoDigits(out, int(t.Year-2000))
++	case 1950 <= year && year < 2000:
++		err = marshalTwoDigits(out, int(year-1900))
++	case 2000 <= year && year < 2050:
++		err = marshalTwoDigits(out, int(year-2000))
+ 	default:
+ 		return StructuralError{"Cannot represent time as UTCTime"}
+ 	}
+-
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	err = marshalTwoDigits(out, t.Month)
++	err = marshalTwoDigits(out, int(month))
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	err = marshalTwoDigits(out, t.Day)
++	err = marshalTwoDigits(out, day)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	err = marshalTwoDigits(out, t.Hour)
++	hour, min, sec := utc.Clock()
++
++	err = marshalTwoDigits(out, hour)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	err = marshalTwoDigits(out, t.Minute)
++	err = marshalTwoDigits(out, min)
+ 	if err != nil {
+ 		return
+ 	}
+ 
+-	err = marshalTwoDigits(out, t.Second)
++	err = marshalTwoDigits(out, sec)
+ 	if err != nil {
+ 		return
+ 	}
+ 
++	_, offset := t.Zone()
++
+ 	switch {
+-	case t.ZoneOffset/60 == 0:
++	case offset/60 == 0:
+ 		err = out.WriteByte('Z')
+ 		return
+-	case t.ZoneOffset > 0:
++	case offset > 0:
+ 		err = out.WriteByte('+')
+-	case t.ZoneOffset < 0:
++	case offset < 0:
+ 		err = out.WriteByte('-')
+ 	}
+ 
+@@ -341,7 +347,7 @@ func marshalUTCTime(out *forkableWriter, t *time.Time) (err error) {
+ 		return
+ 	}
+ 
+-	offsetMinutes := t.ZoneOffset / 60
++	offsetMinutes := offset / 60
+ 	if offsetMinutes < 0 {
+ 		offsetMinutes = -offsetMinutes
+ 	}
+@@ -366,7 +372,7 @@ func stripTagAndLength(in []byte) []byte {
+ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
+ 	switch value.Type() {
+ 	case timeType:
+-		return marshalUTCTime(out, value.Interface().(*time.Time))
++		return marshalUTCTime(out, value.Interface().(time.Time))
+ 	case bitStringType:
+ 		return marshalBitString(out, value.Interface().(BitString))
+ 	case objectIdentifierType:
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index 03df5f1e1d..d05b5d8d4e 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -51,10 +51,7 @@ type optionalRawValueTest struct {
+ 
+ type testSET []int
+ 
+-func setPST(t *time.Time) *time.Time {
+-	t.ZoneOffset = -28800
+-	return t
+-}
++var PST = time.FixedZone("PST", -8*60*60)
+ 
+ type marshalTest struct {
+ 	in  interface{}
+@@ -73,9 +70,9 @@ var marshalTests = []marshalTest{
+ 	{[]byte{1, 2, 3}, "0403010203"},
+ 	{implicitTagTest{64}, "3003850140"},
+ 	{explicitTagTest{64}, "3005a503020140"},
+-	{time.SecondsToUTC(0), "170d3730303130313030303030305a"},
+-	{time.SecondsToUTC(1258325776), "170d3039313131353232353631365a"},
+-	{setPST(time.SecondsToUTC(1258325776)), "17113039313131353232353631362d30383030"},
++	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
++	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
++	{time.Unix(1258325776, 0).In(PST), "17113039313131353232353631362d30383030"},
+ 	{BitString{[]byte{0x80}, 1}, "03020780"},
+ 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
+ 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},
+@@ -123,7 +120,8 @@ func TestMarshal(t *testing.T) {
+ 		}
+ 		out, _ := hex.DecodeString(test.out)
+ 		if bytes.Compare(out, data) != 0 {
+-			t.Errorf("#%d got: %x want %x", i, data, out)
++			t.Errorf("#%d got: %x want %x\n\t%q\n\t%q", i, data, out, data, out)
++
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/exp/types/gcimporter_test.go b/src/pkg/exp/types/gcimporter_test.go
+index 3f66d22615..adac072f85 100644
+--- a/src/pkg/exp/types/gcimporter_test.go
++++ b/src/pkg/exp/types/gcimporter_test.go
+@@ -58,16 +58,16 @@ func testPath(t *testing.T, path string) bool {
+ 	return true
+ }
+ 
+-const maxTime = 3e9 // maximum allotted testing time in ns
++const maxTime = 3 * time.Second
+ 
+-func testDir(t *testing.T, dir string, endTime int64) (nimports int) {
++func testDir(t *testing.T, dir string, endTime time.Time) (nimports int) {
+ 	dirname := filepath.Join(pkgRoot, dir)
+ 	list, err := ioutil.ReadDir(dirname)
+ 	if err != nil {
+ 		t.Errorf("testDir(%s): %s", dirname, err)
+ 	}
+ 	for _, f := range list {
+-		if time.Nanoseconds() >= endTime {
++		if time.Now().After(endTime) {
+ 			t.Log("testing time used up")
+ 			return
+ 		}
+@@ -96,6 +96,6 @@ func TestGcImport(t *testing.T) {
+ 	if testPath(t, "./testdata/exports") {
+ 		nimports++
+ 	}
+-	nimports += testDir(t, "", time.Nanoseconds()+maxTime) // installed packages
++	nimports += testDir(t, "", time.Now().Add(maxTime)) // installed packages
+ 	t.Logf("tested %d imports", nimports)
+ }
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index e3de8d0fa7..9b3ab02d1d 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -15,6 +15,7 @@ import (
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
++	"time"
+ )
+ 
+ // Build produces a build Script for the given package.
+@@ -150,7 +151,7 @@ func (s *Script) Run() error {
+ 
+ // Stale returns true if the build's inputs are newer than its outputs.
+ func (s *Script) Stale() bool {
+-	var latest int64
++	var latest time.Time
+ 	// get latest mtime of outputs
+ 	for _, file := range s.Output {
+ 		fi, err := os.Stat(file)
+@@ -158,13 +159,13 @@ func (s *Script) Stale() bool {
+ 			// any error reading output files means stale
+ 			return true
+ 		}
+-		if m := fi.Mtime_ns; m > latest {
+-			latest = m
++		if fi.ModTime.After(latest) {
++			latest = fi.ModTime
+ 		}
+ 	}
+ 	for _, file := range s.Input {
+ 		fi, err := os.Stat(file)
+-		if err != nil || fi.Mtime_ns > latest {
++		if err != nil || fi.ModTime.After(latest) {
+ 			// any error reading input files means stale
+ 			// (attempt to rebuild to figure out why)
+ 			return true
+diff --git a/src/pkg/io/ioutil/tempfile.go b/src/pkg/io/ioutil/tempfile.go
+index 71028e2267..645eed6abb 100644
+--- a/src/pkg/io/ioutil/tempfile.go
++++ b/src/pkg/io/ioutil/tempfile.go
+@@ -18,7 +18,7 @@ import (
+ var rand uint32
+ 
+ func reseed() uint32 {
+-	return uint32(time.Nanoseconds() + int64(os.Getpid()))
++	return uint32(time.Now().UnixNano() + int64(os.Getpid()))
+ }
+ 
+ func nextSuffix() string {
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index b5368af531..a5d88fd9b3 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -83,27 +83,28 @@ func itoa(buf *bytes.Buffer, i int, wid int) {
+ 	}
+ }
+ 
+-func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int) {
++func (l *Logger) formatHeader(buf *bytes.Buffer, t time.Time, file string, line int) {
+ 	buf.WriteString(l.prefix)
+ 	if l.flag&(Ldate|Ltime|Lmicroseconds) != 0 {
+-		t := time.SecondsToLocalTime(ns / 1e9)
+ 		if l.flag&Ldate != 0 {
+-			itoa(buf, int(t.Year), 4)
++			year, month, day := t.Date()
++			itoa(buf, year, 4)
+ 			buf.WriteByte('/')
+-			itoa(buf, int(t.Month), 2)
++			itoa(buf, int(month), 2)
+ 			buf.WriteByte('/')
+-			itoa(buf, int(t.Day), 2)
++			itoa(buf, day, 2)
+ 			buf.WriteByte(' ')
+ 		}
+ 		if l.flag&(Ltime|Lmicroseconds) != 0 {
+-			itoa(buf, int(t.Hour), 2)
++			hour, min, sec := t.Clock()
++			itoa(buf, hour, 2)
+ 			buf.WriteByte(':')
+-			itoa(buf, int(t.Minute), 2)
++			itoa(buf, min, 2)
+ 			buf.WriteByte(':')
+-			itoa(buf, int(t.Second), 2)
++			itoa(buf, sec, 2)
+ 			if l.flag&Lmicroseconds != 0 {
+ 				buf.WriteByte('.')
+-				itoa(buf, int(ns%1e9)/1e3, 6)
++				itoa(buf, t.Nanosecond()/1e3, 6)
+ 			}
+ 			buf.WriteByte(' ')
+ 		}
+@@ -133,7 +134,7 @@ func (l *Logger) formatHeader(buf *bytes.Buffer, ns int64, file string, line int
+ // provided for generality, although at the moment on all pre-defined
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
+-	now := time.Nanoseconds() // get this early.
++	now := time.Now() // get this early.
+ 	var file string
+ 	var line int
+ 	l.mu.Lock()
+diff --git a/src/pkg/math/big/calibrate_test.go b/src/pkg/math/big/calibrate_test.go
+index 1cd93b1052..0950eeedbd 100644
+--- a/src/pkg/math/big/calibrate_test.go
++++ b/src/pkg/math/big/calibrate_test.go
+@@ -22,14 +22,14 @@ import (
+ var calibrate = flag.Bool("calibrate", false, "run calibration test")
+ 
+ // measure returns the time to run f
+-func measure(f func()) int64 {
++func measure(f func()) time.Duration {
+ 	const N = 100
+-	start := time.Nanoseconds()
++	start := time.Now()
+ 	for i := N; i > 0; i-- {
+ 		f()
+ 	}
+-	stop := time.Nanoseconds()
+-	return (stop - start) / N
++	stop := time.Now()
++	return stop.Sub(start) / N
+ }
+ 
+ func computeThresholds() {
+@@ -46,7 +46,7 @@ func computeThresholds() {
+ 	th1 := -1
+ 	th2 := -1
+ 
+-	var deltaOld int64
++	var deltaOld time.Duration
+ 	for count := -1; count != 0; count-- {
+ 		// determine Tk, the work load execution time using Karatsuba multiplication
+ 		karatsubaThreshold = n // enable karatsuba
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index bab5f2a9b6..79a958e3cd 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -29,7 +29,7 @@ func exchange(cfg *dnsConfig, c Conn, name string, qtype uint16) (*dnsMsg, error
+ 		return nil, &DNSError{Err: "name too long", Name: name}
+ 	}
+ 	out := new(dnsMsg)
+-	out.id = uint16(rand.Int()) ^ uint16(time.Nanoseconds())
++	out.id = uint16(rand.Int()) ^ uint16(time.Now().UnixNano())
+ 	out.question = []dnsQuestion{
+ 		{name, qtype, dnsClassINET},
+ 	}
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 70e04a21c0..5318c51c9a 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -171,7 +171,7 @@ func (s *pollServer) WakeFD(fd *netFD, mode int) {
+ }
+ 
+ func (s *pollServer) Now() int64 {
+-	return time.Nanoseconds()
++	return time.Now().UnixNano()
+ }
+ 
+ func (s *pollServer) CheckDeadlines() {
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 7a1602371e..264b918c57 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -172,11 +172,12 @@ func (s *ioSrv) ExecIO(oi anOpIface, deadline_delta int64) (n int, err error) {
+ 		return 0, &OpError{oi.Name(), o.fd.net, o.fd.laddr, e}
+ 	}
+ 	// Wait for our request to complete.
++	// TODO(rsc): This should stop the timer.
+ 	var r ioResult
+ 	if deadline_delta > 0 {
+ 		select {
+ 		case r = <-o.resultc:
+-		case <-time.After(deadline_delta):
++		case <-time.After(time.Duration(deadline_delta) * time.Nanosecond):
+ 			s.canchan <- oi
+ 			<-o.errnoc
+ 			r = <-o.resultc
+diff --git a/src/pkg/net/hosts.go b/src/pkg/net/hosts.go
+index ddfb074ee8..e6674ba341 100644
+--- a/src/pkg/net/hosts.go
++++ b/src/pkg/net/hosts.go
+@@ -11,7 +11,7 @@ import (
+ 	"time"
+ )
+ 
+-const cacheMaxAge = int64(300) // 5 minutes.
++const cacheMaxAge = 5 * time.Minute
+ 
+ // hostsPath points to the file with static IP/address entries.
+ var hostsPath = "/etc/hosts"
+@@ -21,14 +21,14 @@ var hosts struct {
+ 	sync.Mutex
+ 	byName map[string][]string
+ 	byAddr map[string][]string
+-	time   int64
++	expire time.Time
+ 	path   string
+ }
+ 
+ func readHosts() {
+-	now := time.Seconds()
++	now := time.Now()
+ 	hp := hostsPath
+-	if len(hosts.byName) == 0 || hosts.time+cacheMaxAge <= now || hosts.path != hp {
++	if len(hosts.byName) == 0 || now.After(hosts.expire) || hosts.path != hp {
+ 		hs := make(map[string][]string)
+ 		is := make(map[string][]string)
+ 		var file *file
+@@ -51,7 +51,7 @@ func readHosts() {
+ 			}
+ 		}
+ 		// Update the data cache.
+-		hosts.time = time.Seconds()
++		hosts.expire = time.Now().Add(cacheMaxAge)
+ 		hosts.path = hp
+ 		hosts.byName = hs
+ 		hosts.byAddr = is
+diff --git a/src/pkg/net/http/cgi/host_test.go b/src/pkg/net/http/cgi/host_test.go
+index 4e977040c0..9a8d3c0118 100644
+--- a/src/pkg/net/http/cgi/host_test.go
++++ b/src/pkg/net/http/cgi/host_test.go
+@@ -365,7 +365,7 @@ func TestCopyError(t *testing.T) {
+ 
+ 	tries := 0
+ 	for tries < 15 && childRunning() {
+-		time.Sleep(50e6 * int64(tries))
++		time.Sleep(50 * time.Millisecond * time.Duration(tries))
+ 		tries++
+ 	}
+ 	if childRunning() {
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index 6935014324..cad852242e 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -115,7 +115,7 @@ func readSetCookies(h Header) []*Cookie {
+ 						break
+ 					}
+ 				}
+-				c.Expires = *exptime
++				c.Expires = exptime.UTC()
+ 				continue
+ 			case "path":
+ 				c.Path = val
+@@ -146,8 +146,8 @@ func (c *Cookie) String() string {
+ 	if len(c.Domain) > 0 {
+ 		fmt.Fprintf(&b, "; Domain=%s", sanitizeValue(c.Domain))
+ 	}
+-	if len(c.Expires.Zone) > 0 {
+-		fmt.Fprintf(&b, "; Expires=%s", c.Expires.Format(time.RFC1123))
++	if c.Expires.Unix() > 0 {
++		fmt.Fprintf(&b, "; Expires=%s", c.Expires.UTC().Format(time.RFC1123))
+ 	}
+ 	if c.MaxAge > 0 {
+ 		fmt.Fprintf(&b, "; Max-Age=%d", c.MaxAge)
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 24adf20298..26bff93f64 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -123,7 +123,7 @@ var readSetCookiesTests = []struct {
+ 			Path:       "/",
+ 			Domain:     ".google.ch",
+ 			HttpOnly:   true,
+-			Expires:    time.Time{Year: 2011, Month: 11, Day: 23, Hour: 1, Minute: 5, Second: 3, ZoneOffset: 0, Zone: "GMT"},
++			Expires:    time.Date(2011, 11, 23, 1, 5, 3, 0, time.UTC),
+ 			RawExpires: "Wed, 23-Nov-2011 01:05:03 GMT",
+ 			Raw:        "NID=99=YsDT5i3E-CXax-; expires=Wed, 23-Nov-2011 01:05:03 GMT; path=/; domain=.google.ch; HttpOnly",
+ 		}},
+diff --git a/src/pkg/net/http/export_test.go b/src/pkg/net/http/export_test.go
+index 3fe658641f..13640ca85e 100644
+--- a/src/pkg/net/http/export_test.go
++++ b/src/pkg/net/http/export_test.go
+@@ -7,6 +7,8 @@
+ 
+ package http
+ 
++import "time"
++
+ func (t *Transport) IdleConnKeysForTesting() (keys []string) {
+ 	keys = make([]string, 0)
+ 	t.lk.Lock()
+@@ -33,8 +35,8 @@ func (t *Transport) IdleConnCountForTesting(cacheKey string) int {
+ 	return len(conns)
+ }
+ 
+-func NewTestTimeoutHandler(handler Handler, ch <-chan int64) Handler {
+-	f := func() <-chan int64 {
++func NewTestTimeoutHandler(handler Handler, ch <-chan time.Time) Handler {
++	f := func() <-chan time.Time {
+ 		return ch
+ 	}
+ 	return &timeoutHandler{handler, f, ""}
+diff --git a/src/pkg/net/http/fcgi/child.go b/src/pkg/net/http/fcgi/child.go
+index 529440cbe9..c94b9a7b24 100644
+--- a/src/pkg/net/http/fcgi/child.go
++++ b/src/pkg/net/http/fcgi/child.go
+@@ -103,7 +103,7 @@ func (r *response) WriteHeader(code int) {
+ 	}
+ 
+ 	if r.header.Get("Date") == "" {
+-		r.header.Set("Date", time.UTC().Format(http.TimeFormat))
++		r.header.Set("Date", time.Now().UTC().Format(http.TimeFormat))
+ 	}
+ 
+ 	fmt.Fprintf(r.w, "Status: %d %s\r\n", code, http.StatusText(code))
+diff --git a/src/pkg/net/http/fs.go b/src/pkg/net/http/fs.go
+index 5aadac17a2..7f22188653 100644
+--- a/src/pkg/net/http/fs.go
++++ b/src/pkg/net/http/fs.go
+@@ -148,11 +148,11 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 		}
+ 	}
+ 
+-	if t, _ := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); t != nil && d.Mtime_ns/1e9 <= t.Seconds() {
++	if t, err := time.Parse(TimeFormat, r.Header.Get("If-Modified-Since")); err == nil && !d.ModTime.After(t) {
+ 		w.WriteHeader(StatusNotModified)
+ 		return
+ 	}
+-	w.Header().Set("Last-Modified", time.SecondsToUTC(d.Mtime_ns/1e9).Format(TimeFormat))
++	w.Header().Set("Last-Modified", d.ModTime.UTC().Format(TimeFormat))
+ 
+ 	// use contents of index.html for directory, if present
+ 	if d.IsDirectory() {
+diff --git a/src/pkg/net/http/httptest/server.go b/src/pkg/net/http/httptest/server.go
+index f09e826d9c..5b02e143d4 100644
+--- a/src/pkg/net/http/httptest/server.go
++++ b/src/pkg/net/http/httptest/server.go
+@@ -7,14 +7,12 @@
+ package httptest
+ 
+ import (
+-	"crypto/rand"
+ 	"crypto/tls"
+ 	"flag"
+ 	"fmt"
+ 	"net"
+ 	"net/http"
+ 	"os"
+-	"time"
+ )
+ 
+ // A Server is an HTTP server listening on a system-chosen port on the
+@@ -113,8 +111,6 @@ func (s *Server) StartTLS() {
+ 	}
+ 
+ 	s.TLS = &tls.Config{
+-		Rand:         rand.Reader,
+-		Time:         time.Seconds,
+ 		NextProtos:   []string{"http/1.1"},
+ 		Certificates: []tls.Certificate{cert},
+ 	}
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index bfcb3ca6b1..1dc83e7d03 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -31,11 +31,11 @@ type ReverseProxy struct {
+ 	// If nil, http.DefaultTransport is used.
+ 	Transport http.RoundTripper
+ 
+-	// FlushInterval specifies the flush interval, in
+-	// nanoseconds, to flush to the client while
+-	// coping the response body.
++	// FlushInterval specifies the flush interval
++	// to flush to the client while copying the
++	// response body.
+ 	// If zero, no periodic flushing is done.
+-	FlushInterval int64
++	FlushInterval time.Duration
+ }
+ 
+ func singleJoiningSlash(a, b string) string {
+@@ -135,7 +135,7 @@ type writeFlusher interface {
+ 
+ type maxLatencyWriter struct {
+ 	dst     writeFlusher
+-	latency int64 // nanos
++	latency time.Duration
+ 
+ 	lk   sync.Mutex // protects init of done, as well Write + Flush
+ 	done chan bool
+diff --git a/src/pkg/net/http/pprof/pprof.go b/src/pkg/net/http/pprof/pprof.go
+index c0327a9482..2de147579d 100644
+--- a/src/pkg/net/http/pprof/pprof.go
++++ b/src/pkg/net/http/pprof/pprof.go
+@@ -80,7 +80,7 @@ func Profile(w http.ResponseWriter, r *http.Request) {
+ 		fmt.Fprintf(w, "Could not enable CPU profiling: %s\n", err)
+ 		return
+ 	}
+-	time.Sleep(sec * 1e9)
++	time.Sleep(time.Duration(sec) * time.Second)
+ 	pprof.StopCPUProfile()
+ }
+ 
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 97a0b139e3..670b5418fc 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -266,19 +266,19 @@ func TestServerTimeouts(t *testing.T) {
+ 	}
+ 
+ 	// Slow client that should timeout.
+-	t1 := time.Nanoseconds()
++	t1 := time.Now()
+ 	conn, err := net.Dial("tcp", addr.String())
+ 	if err != nil {
+ 		t.Fatalf("Dial: %v", err)
+ 	}
+ 	buf := make([]byte, 1)
+ 	n, err := conn.Read(buf)
+-	latency := time.Nanoseconds() - t1
++	latency := time.Now().Sub(t1)
+ 	if n != 0 || err != io.EOF {
+ 		t.Errorf("Read = %v, %v, wanted %v, %v", n, err, 0, io.EOF)
+ 	}
+-	if latency < second*0.20 /* fudge from 0.25 above */ {
+-		t.Errorf("got EOF after %d ns, want >= %d", latency, second*0.20)
++	if latency < 200*time.Millisecond /* fudge from 0.25 above */ {
++		t.Errorf("got EOF after %s, want >= %s", latency, 200*time.Millisecond)
+ 	}
+ 
+ 	// Hit the HTTP server successfully again, verifying that the
+@@ -760,7 +760,7 @@ func TestTimeoutHandler(t *testing.T) {
+ 		_, werr := w.Write([]byte("hi"))
+ 		writeErrors <- werr
+ 	})
+-	timeout := make(chan int64, 1) // write to this to force timeouts
++	timeout := make(chan time.Time, 1) // write to this to force timeouts
+ 	ts := httptest.NewServer(NewTestTimeoutHandler(sayHi, timeout))
+ 	defer ts.Close()
+ 
+@@ -782,7 +782,7 @@ func TestTimeoutHandler(t *testing.T) {
+ 	}
+ 
+ 	// Times out:
+-	timeout <- 1
++	timeout <- time.Time{}
+ 	res, err = Get(ts.URL)
+ 	if err != nil {
+ 		t.Error(err)
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 0e8580a6ff..125f3f214b 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -347,7 +347,7 @@ func (w *response) WriteHeader(code int) {
+ 	}
+ 
+ 	if _, ok := w.header["Date"]; !ok {
+-		w.Header().Set("Date", time.UTC().Format(TimeFormat))
++		w.Header().Set("Date", time.Now().UTC().Format(TimeFormat))
+ 	}
+ 
+ 	te := w.header.Get("Transfer-Encoding")
+@@ -1084,7 +1084,6 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 	}
+ 	config := &tls.Config{
+ 		Rand:       rand.Reader,
+-		Time:       time.Seconds,
+ 		NextProtos: []string{"http/1.1"},
+ 	}
+ 
+@@ -1112,9 +1111,9 @@ func (s *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ // (If msg is empty, a suitable default message will be sent.)
+ // After such a timeout, writes by h to its ResponseWriter will return
+ // ErrHandlerTimeout.
+-func TimeoutHandler(h Handler, ns int64, msg string) Handler {
+-	f := func() <-chan int64 {
+-		return time.After(ns)
++func TimeoutHandler(h Handler, dt time.Duration, msg string) Handler {
++	f := func() <-chan time.Time {
++		return time.After(dt)
+ 	}
+ 	return &timeoutHandler{h, f, msg}
+ }
+@@ -1125,7 +1124,7 @@ var ErrHandlerTimeout = errors.New("http: Handler timeout")
+ 
+ type timeoutHandler struct {
+ 	handler Handler
+-	timeout func() <-chan int64 // returns channel producing a timeout
++	timeout func() <-chan time.Time // returns channel producing a timeout
+ 	body    string
+ }
+ 
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 7729797244..6f50f6f276 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -263,7 +263,7 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 				t.Fatalf(format, arg...)
+ 			}
+ 			t.Logf("retrying shortly after expected error: "+format, arg...)
+-			time.Sleep(1e9 / int64(retries))
++			time.Sleep(time.Second / time.Duration(retries))
+ 		}
+ 		for retries >= 0 {
+ 			retries--
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index a1a86d3c6f..e1afa32062 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -89,14 +89,14 @@ func init() {
+ 	}
+ }
+ 
+-func parseDate(date string) (*time.Time, error) {
++func parseDate(date string) (time.Time, error) {
+ 	for _, layout := range dateLayouts {
+ 		t, err := time.Parse(layout, date)
+ 		if err == nil {
+ 			return t, nil
+ 		}
+ 	}
+-	return nil, errors.New("mail: header could not be parsed")
++	return time.Time{}, errors.New("mail: header could not be parsed")
+ }
+ 
+ // A Header represents the key-value pairs in a mail message header.
+@@ -111,10 +111,10 @@ func (h Header) Get(key string) string {
+ var ErrHeaderNotPresent = errors.New("mail: header not in message")
+ 
+ // Date parses the Date header field.
+-func (h Header) Date() (*time.Time, error) {
++func (h Header) Date() (time.Time, error) {
+ 	hdr := h.Get("Date")
+ 	if hdr == "" {
+-		return nil, ErrHeaderNotPresent
++		return time.Time{}, ErrHeaderNotPresent
+ 	}
+ 	return parseDate(hdr)
+ }
+diff --git a/src/pkg/net/mail/message_test.go b/src/pkg/net/mail/message_test.go
+index 5653647b8c..1f71cc480a 100644
+--- a/src/pkg/net/mail/message_test.go
++++ b/src/pkg/net/mail/message_test.go
+@@ -82,34 +82,18 @@ func headerEq(a, b Header) bool {
+ func TestDateParsing(t *testing.T) {
+ 	tests := []struct {
+ 		dateStr string
+-		exp     *time.Time
++		exp     time.Time
+ 	}{
+ 		// RFC 5322, Appendix A.1.1
+ 		{
+ 			"Fri, 21 Nov 1997 09:55:06 -0600",
+-			&time.Time{
+-				Year:       1997,
+-				Month:      11,
+-				Day:        21,
+-				Hour:       9,
+-				Minute:     55,
+-				Second:     6,
+-				ZoneOffset: -6 * 60 * 60,
+-			},
++			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("", -6*60*60)),
+ 		},
+ 		// RFC5322, Appendix A.6.2
+ 		// Obsolete date.
+ 		{
+ 			"21 Nov 97 09:55:06 GMT",
+-			&time.Time{
+-				Year:   1997,
+-				Month:  11,
+-				Day:    21,
+-				Hour:   9,
+-				Minute: 55,
+-				Second: 6,
+-				Zone:   "GMT",
+-			},
++			time.Date(1997, 11, 21, 9, 55, 6, 0, time.FixedZone("GMT", 0)),
+ 		},
+ 	}
+ 	for _, test := range tests {
+diff --git a/src/pkg/net/timeout_test.go b/src/pkg/net/timeout_test.go
+index 3c884ca7cf..f6e5238c1b 100644
+--- a/src/pkg/net/timeout_test.go
++++ b/src/pkg/net/timeout_test.go
+@@ -17,7 +17,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 		return
+ 	}
+ 	defer fd.Close()
+-	t0 := time.Nanoseconds()
++	t0 := time.Now()
+ 	fd.SetReadTimeout(1e8) // 100ms
+ 	var b [100]byte
+ 	var n int
+@@ -27,7 +27,7 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	} else {
+ 		n, err1 = fd.Read(b[0:])
+ 	}
+-	t1 := time.Nanoseconds()
++	t1 := time.Now()
+ 	what := "Read"
+ 	if readFrom {
+ 		what = "ReadFrom"
+@@ -35,8 +35,8 @@ func testTimeout(t *testing.T, network, addr string, readFrom bool) {
+ 	if n != 0 || err1 == nil || !err1.(Error).Timeout() {
+ 		t.Errorf("fd.%s on %s %s did not return 0, timeout: %v, %v", what, network, addr, n, err1)
+ 	}
+-	if t1-t0 < 0.5e8 || t1-t0 > 1.5e8 {
+-		t.Errorf("fd.%s on %s %s took %f seconds, expected 0.1", what, network, addr, float64(t1-t0)/1e9)
++	if dt := t1.Sub(t0); dt < 50*time.Millisecond || dt > 150*time.Millisecond {
++		t.Errorf("fd.%s on %s %s took %s, expected 0.1s", what, network, addr, dt)
+ 	}
+ }
+ 
+diff --git a/src/pkg/old/netchan/common.go b/src/pkg/old/netchan/common.go
+index dfd1fd0342..03fa8ff6c4 100644
+--- a/src/pkg/old/netchan/common.go
++++ b/src/pkg/old/netchan/common.go
+@@ -129,8 +129,8 @@ func (ed *encDec) encode(hdr *header, payloadType int, payload interface{}) erro
+ }
+ 
+ // See the comment for Exporter.Drain.
+-func (cs *clientSet) drain(timeout int64) error {
+-	startTime := time.Nanoseconds()
++func (cs *clientSet) drain(timeout time.Duration) error {
++	deadline := time.Now().Add(timeout)
+ 	for {
+ 		pending := false
+ 		cs.mu.Lock()
+@@ -152,7 +152,7 @@ func (cs *clientSet) drain(timeout int64) error {
+ 		if !pending {
+ 			break
+ 		}
+-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
++		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6) // 100 milliseconds
+@@ -161,8 +161,8 @@ func (cs *clientSet) drain(timeout int64) error {
+ }
+ 
+ // See the comment for Exporter.Sync.
+-func (cs *clientSet) sync(timeout int64) error {
+-	startTime := time.Nanoseconds()
++func (cs *clientSet) sync(timeout time.Duration) error {
++	deadline := time.Now().Add(timeout)
+ 	// seq remembers the clients and their seqNum at point of entry.
+ 	seq := make(map[unackedCounter]int64)
+ 	for client := range cs.clients {
+@@ -185,7 +185,7 @@ func (cs *clientSet) sync(timeout int64) error {
+ 		if !pending {
+ 			break
+ 		}
+-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
++		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6) // 100 milliseconds
+diff --git a/src/pkg/old/netchan/export.go b/src/pkg/old/netchan/export.go
+index d698dd53a9..d94c4b16b2 100644
+--- a/src/pkg/old/netchan/export.go
++++ b/src/pkg/old/netchan/export.go
+@@ -29,6 +29,7 @@ import (
+ 	"reflect"
+ 	"strconv"
+ 	"sync"
++	"time"
+ )
+ 
+ // Export
+@@ -322,9 +323,9 @@ func (exp *Exporter) delClient(client *expClient) {
+ // those not yet sent to any client and possibly including those sent while
+ // Drain was executing, have been received by the importer.  In short, it
+ // waits until all the exporter's messages have been received by a client.
+-// If the timeout (measured in nanoseconds) is positive and Drain takes
+-// longer than that to complete, an error is returned.
+-func (exp *Exporter) Drain(timeout int64) error {
++// If the timeout is positive and Drain takes longer than that to complete,
++// an error is returned.
++func (exp *Exporter) Drain(timeout time.Duration) error {
+ 	// This wrapper function is here so the method's comment will appear in godoc.
+ 	return exp.clientSet.drain(timeout)
+ }
+@@ -332,10 +333,9 @@ func (exp *Exporter) Drain(timeout int64) error {
+ // Sync waits until all clients of the exporter have received the messages
+ // that were sent at the time Sync was invoked.  Unlike Drain, it does not
+ // wait for messages sent while it is running or messages that have not been
+-// dispatched to any client.  If the timeout (measured in nanoseconds) is
+-// positive and Sync takes longer than that to complete, an error is
+-// returned.
+-func (exp *Exporter) Sync(timeout int64) error {
++// dispatched to any client.  If the timeout is positive and Sync takes longer
++// than that to complete, an error is returned.
++func (exp *Exporter) Sync(timeout time.Duration) error {
+ 	// This wrapper function is here so the method's comment will appear in godoc.
+ 	return exp.clientSet.sync(timeout)
+ }
+diff --git a/src/pkg/old/netchan/import.go b/src/pkg/old/netchan/import.go
+index 7243672ecd..a6da8210b9 100644
+--- a/src/pkg/old/netchan/import.go
++++ b/src/pkg/old/netchan/import.go
+@@ -276,9 +276,9 @@ func (imp *Importer) unackedCount() int64 {
+ // If the timeout (measured in nanoseconds) is positive and Drain takes
+ // longer than that to complete, an error is returned.
+ func (imp *Importer) Drain(timeout int64) error {
+-	startTime := time.Nanoseconds()
++	deadline := time.Now().Add(time.Duration(timeout))
+ 	for imp.unackedCount() > 0 {
+-		if timeout > 0 && time.Nanoseconds()-startTime >= timeout {
++		if timeout > 0 && time.Now().After(deadline) {
+ 			return errors.New("timeout")
+ 		}
+ 		time.Sleep(100 * 1e6)
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index c80d3df5e5..9662f64da3 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"syscall"
++	"time"
+ )
+ 
+ func sigpipe() // implemented in package runtime
+@@ -181,11 +182,12 @@ func (file *File) Sync() (err error) {
+ // Chtimes changes the access and modification times of the named
+ // file, similar to the Unix utime() or utimes() functions.
+ //
+-// The argument times are in nanoseconds, although the underlying
+-// filesystem may truncate or round the values to a more
+-// coarse time unit.
+-func Chtimes(name string, atime_ns int64, mtime_ns int64) error {
++// The underlying filesystem may truncate or round the values to a
++// less precise time unit.
++func Chtimes(name string, atime time.Time, mtime time.Time) error {
+ 	var utimes [2]syscall.Timeval
++	atime_ns := atime.Unix()*1e9 + int64(atime.Nanosecond())
++	mtime_ns := mtime.Unix()*1e9 + int64(mtime.Nanosecond())
+ 	utimes[0] = syscall.NsecToTimeval(atime_ns)
+ 	utimes[1] = syscall.NsecToTimeval(mtime_ns)
+ 	if e := syscall.Utimes(name, utimes[0:]); e != nil {
+diff --git a/src/pkg/os/os_test.go b/src/pkg/os/os_test.go
+index c2fbc9fdd5..2439f03348 100644
+--- a/src/pkg/os/os_test.go
++++ b/src/pkg/os/os_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+ var dot = []string{
+@@ -719,8 +720,7 @@ func TestChtimes(t *testing.T) {
+ 	}
+ 
+ 	// Move access and modification time back a second
+-	const OneSecond = 1e9 // in nanoseconds
+-	err = Chtimes(f.Name(), preStat.Atime_ns-OneSecond, preStat.Mtime_ns-OneSecond)
++	err = Chtimes(f.Name(), preStat.AccessTime.Add(-time.Second), preStat.ModTime.Add(-time.Second))
+ 	if err != nil {
+ 		t.Fatalf("Chtimes %s: %s", f.Name(), err)
+ 	}
+@@ -734,16 +734,16 @@ func TestChtimes(t *testing.T) {
+ 		Mtime is the time of the last change of content.  Similarly, atime is set whenever the
+ 	    contents are accessed; also, it is set whenever mtime is set.
+ 	*/
+-	if postStat.Atime_ns >= preStat.Atime_ns && syscall.OS != "plan9" {
+-		t.Errorf("Atime_ns didn't go backwards; was=%d, after=%d",
+-			preStat.Atime_ns,
+-			postStat.Atime_ns)
++	if !postStat.AccessTime.Before(preStat.AccessTime) && syscall.OS != "plan9" {
++		t.Errorf("AccessTime didn't go backwards; was=%d, after=%d",
++			preStat.AccessTime,
++			postStat.AccessTime)
+ 	}
+ 
+-	if postStat.Mtime_ns >= preStat.Mtime_ns {
+-		t.Errorf("Mtime_ns didn't go backwards; was=%d, after=%d",
+-			preStat.Mtime_ns,
+-			postStat.Mtime_ns)
++	if !postStat.ModTime.Before(preStat.ModTime) {
++		t.Errorf("ModTime didn't go backwards; was=%d, after=%d",
++			preStat.ModTime,
++			postStat.ModTime)
+ 	}
+ }
+ 
+diff --git a/src/pkg/os/stat_darwin.go b/src/pkg/os/stat_darwin.go
+index 0661a6d591..00bf612746 100644
+--- a/src/pkg/os/stat_darwin.go
++++ b/src/pkg/os/stat_darwin.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+@@ -21,12 +24,16 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Size = stat.Size
+ 	fi.Blksize = int64(stat.Blksize)
+ 	fi.Blocks = stat.Blocks
+-	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
+-	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
+-	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
++	fi.AccessTime = timespecToTime(stat.Atimespec)
++	fi.ModTime = timespecToTime(stat.Mtimespec)
++	fi.ChangeTime = timespecToTime(stat.Ctimespec)
+ 	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+ 	return fi
+ }
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
+diff --git a/src/pkg/os/stat_freebsd.go b/src/pkg/os/stat_freebsd.go
+index 454165d4e0..a82a0b7bb1 100644
+--- a/src/pkg/os/stat_freebsd.go
++++ b/src/pkg/os/stat_freebsd.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+@@ -21,12 +24,16 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Size = int64(stat.Size)
+ 	fi.Blksize = int64(stat.Blksize)
+ 	fi.Blocks = stat.Blocks
+-	fi.Atime_ns = syscall.TimespecToNsec(stat.Atimespec)
+-	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtimespec)
+-	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctimespec)
++	fi.AccessTime = timespecToTime(stat.Atimespec)
++	fi.ModTime = timespecToTime(stat.Mtimespec)
++	fi.ChangeTime = timespecToTime(stat.Ctimespec)
+ 	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+ 	return fi
+ }
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
+diff --git a/src/pkg/os/stat_linux.go b/src/pkg/os/stat_linux.go
+index 7a3cf794d6..5f9c115e29 100644
+--- a/src/pkg/os/stat_linux.go
++++ b/src/pkg/os/stat_linux.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+@@ -21,12 +24,16 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Size = stat.Size
+ 	fi.Blksize = int64(stat.Blksize)
+ 	fi.Blocks = stat.Blocks
+-	fi.Atime_ns = syscall.TimespecToNsec(stat.Atim)
+-	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtim)
+-	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctim)
++	fi.AccessTime = timespecToTime(stat.Atim)
++	fi.ModTime = timespecToTime(stat.Mtim)
++	fi.ChangeTime = timespecToTime(stat.Ctim)
+ 	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+ 	return fi
+ }
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
+diff --git a/src/pkg/os/stat_openbsd.go b/src/pkg/os/stat_openbsd.go
+index 6d3a3813b0..943d34c402 100644
+--- a/src/pkg/os/stat_openbsd.go
++++ b/src/pkg/os/stat_openbsd.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ func isSymlink(stat *syscall.Stat_t) bool {
+ 	return stat.Mode&syscall.S_IFMT == syscall.S_IFLNK
+@@ -21,12 +24,16 @@ func fileInfoFromStat(name string, fi *FileInfo, lstat, stat *syscall.Stat_t) *F
+ 	fi.Size = int64(stat.Size)
+ 	fi.Blksize = int64(stat.Blksize)
+ 	fi.Blocks = stat.Blocks
+-	fi.Atime_ns = syscall.TimespecToNsec(stat.Atim)
+-	fi.Mtime_ns = syscall.TimespecToNsec(stat.Mtim)
+-	fi.Ctime_ns = syscall.TimespecToNsec(stat.Ctim)
++	fi.AccessTime = timespecToTime(stat.Atim)
++	fi.ModTime = timespecToTime(stat.Mtim)
++	fi.ChangeTime = timespecToTime(stat.Ctim)
+ 	fi.Name = basename(name)
+ 	if isSymlink(lstat) && !isSymlink(stat) {
+ 		fi.FollowedSymlink = true
+ 	}
+ 	return fi
+ }
++
++func timespecToTime(ts syscall.Timespec) time.Time {
++	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
++}
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index a6f3723a73..b226b2913b 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"syscall"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -91,8 +92,8 @@ func setFileInfo(fi *FileInfo, name string, fa, sizehi, sizelo uint32, ctime, at
+ 	fi.Size = int64(sizehi)<<32 + int64(sizelo)
+ 	fi.Name = name
+ 	fi.FollowedSymlink = false
+-	fi.Atime_ns = atime.Nanoseconds()
+-	fi.Mtime_ns = wtime.Nanoseconds()
+-	fi.Ctime_ns = ctime.Nanoseconds()
++	fi.AccessTime = time.Unix(0, atime.Nanoseconds())
++	fi.ModTime = time.Unix(0, wtime.Nanoseconds())
++	fi.ChangeTime = time.Unix(0, ctime.Nanoseconds())
+ 	return fi
+ }
+diff --git a/src/pkg/os/types.go b/src/pkg/os/types.go
+index df57b59a38..3f8ac78350 100644
+--- a/src/pkg/os/types.go
++++ b/src/pkg/os/types.go
+@@ -4,7 +4,10 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	"time"
++)
+ 
+ // An operating-system independent representation of Unix data structures.
+ // OS-specific routines in this directory convert the OS-local versions to these.
+@@ -14,21 +17,21 @@ func Getpagesize() int { return syscall.Getpagesize() }
+ 
+ // A FileInfo describes a file and is returned by Stat, Fstat, and Lstat
+ type FileInfo struct {
+-	Dev             uint64 // device number of file system holding file.
+-	Ino             uint64 // inode number.
+-	Nlink           uint64 // number of hard links.
+-	Mode            uint32 // permission and mode bits.
+-	Uid             int    // user id of owner.
+-	Gid             int    // group id of owner.
+-	Rdev            uint64 // device type for special file.
+-	Size            int64  // length in bytes.
+-	Blksize         int64  // size of blocks, in bytes.
+-	Blocks          int64  // number of blocks allocated for file.
+-	Atime_ns        int64  // access time; nanoseconds since epoch.
+-	Mtime_ns        int64  // modified time; nanoseconds since epoch.
+-	Ctime_ns        int64  // status change time; nanoseconds since epoch.
+-	Name            string // base name of the file name provided in Open, Stat, etc.
+-	FollowedSymlink bool   // followed a symlink to get this information
++	Dev             uint64    // device number of file system holding file.
++	Ino             uint64    // inode number.
++	Nlink           uint64    // number of hard links.
++	Mode            uint32    // permission and mode bits.
++	Uid             int       // user id of owner.
++	Gid             int       // group id of owner.
++	Rdev            uint64    // device type for special file.
++	Size            int64     // length in bytes.
++	Blksize         int64     // size of blocks, in bytes.
++	Blocks          int64     // number of blocks allocated for file.
++	AccessTime      time.Time // access time
++	ModTime         time.Time // modification time
++	ChangeTime      time.Time // status change time
++	Name            string    // base name of the file name provided in Open, Stat, etc.
++	FollowedSymlink bool      // followed a symlink to get this information
+ }
+ 
+ // IsFifo reports whether the FileInfo describes a FIFO file.
+diff --git a/src/pkg/testing/benchmark.go b/src/pkg/testing/benchmark.go
+index 4f049a31f7..e81e5c5845 100644
+--- a/src/pkg/testing/benchmark.go
++++ b/src/pkg/testing/benchmark.go
+@@ -27,17 +27,19 @@ type InternalBenchmark struct {
+ type B struct {
+ 	N         int
+ 	benchmark InternalBenchmark
+-	ns        int64
++	ns        time.Duration
+ 	bytes     int64
+-	start     int64
++	start     time.Time
++	timerOn   bool
+ }
+ 
+ // StartTimer starts timing a test.  This function is called automatically
+ // before a benchmark starts, but it can also used to resume timing after
+ // a call to StopTimer.
+ func (b *B) StartTimer() {
+-	if b.start == 0 {
+-		b.start = time.Nanoseconds()
++	if !b.timerOn {
++		b.start = time.Now()
++		b.timerOn = true
+ 	}
+ }
+ 
+@@ -45,17 +47,17 @@ func (b *B) StartTimer() {
+ // while performing complex initialization that you don't
+ // want to measure.
+ func (b *B) StopTimer() {
+-	if b.start > 0 {
+-		b.ns += time.Nanoseconds() - b.start
++	if b.timerOn {
++		b.ns += time.Now().Sub(b.start)
++		b.timerOn = false
+ 	}
+-	b.start = 0
+ }
+ 
+ // ResetTimer sets the elapsed benchmark time to zero.
+ // It does not affect whether the timer is running.
+ func (b *B) ResetTimer() {
+-	if b.start > 0 {
+-		b.start = time.Nanoseconds()
++	if b.timerOn {
++		b.start = time.Now()
+ 	}
+ 	b.ns = 0
+ }
+@@ -68,7 +70,7 @@ func (b *B) nsPerOp() int64 {
+ 	if b.N <= 0 {
+ 		return 0
+ 	}
+-	return b.ns / int64(b.N)
++	return b.ns.Nanoseconds() / int64(b.N)
+ }
+ 
+ // runN runs a single benchmark for the specified number of iterations.
+@@ -134,14 +136,14 @@ func (b *B) run() BenchmarkResult {
+ 	n := 1
+ 	b.runN(n)
+ 	// Run the benchmark for at least the specified amount of time.
+-	time := int64(*benchTime * 1e9)
+-	for b.ns < time && n < 1e9 {
++	d := time.Duration(*benchTime * float64(time.Second))
++	for b.ns < d && n < 1e9 {
+ 		last := n
+ 		// Predict iterations/sec.
+ 		if b.nsPerOp() == 0 {
+ 			n = 1e9
+ 		} else {
+-			n = int(time / b.nsPerOp())
++			n = int(d.Nanoseconds() / b.nsPerOp())
+ 		}
+ 		// Run more iterations than we think we'll need for a second (1.5x).
+ 		// Don't grow too fast in case we had timing errors previously.
+@@ -156,23 +158,23 @@ func (b *B) run() BenchmarkResult {
+ 
+ // The results of a benchmark run.
+ type BenchmarkResult struct {
+-	N     int   // The number of iterations.
+-	Ns    int64 // The total time taken.
+-	Bytes int64 // Bytes processed in one iteration.
++	N     int           // The number of iterations.
++	T     time.Duration // The total time taken.
++	Bytes int64         // Bytes processed in one iteration.
+ }
+ 
+ func (r BenchmarkResult) NsPerOp() int64 {
+ 	if r.N <= 0 {
+ 		return 0
+ 	}
+-	return r.Ns / int64(r.N)
++	return r.T.Nanoseconds() / int64(r.N)
+ }
+ 
+ func (r BenchmarkResult) mbPerSec() float64 {
+-	if r.Bytes <= 0 || r.Ns <= 0 || r.N <= 0 {
++	if r.Bytes <= 0 || r.T <= 0 || r.N <= 0 {
+ 		return 0
+ 	}
+-	return float64(r.Bytes) * float64(r.N) / float64(r.Ns) * 1e3
++	return (float64(r.Bytes) * float64(r.N) / 1e6) / r.T.Seconds()
+ }
+ 
+ func (r BenchmarkResult) String() string {
+@@ -187,9 +189,9 @@ func (r BenchmarkResult) String() string {
+ 		// The format specifiers here make sure that
+ 		// the ones digits line up for all three possible formats.
+ 		if nsop < 10 {
+-			ns = fmt.Sprintf("%13.2f ns/op", float64(r.Ns)/float64(r.N))
++			ns = fmt.Sprintf("%13.2f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
+ 		} else {
+-			ns = fmt.Sprintf("%12.1f ns/op", float64(r.Ns)/float64(r.N))
++			ns = fmt.Sprintf("%12.1f ns/op", float64(r.T.Nanoseconds())/float64(r.N))
+ 		}
+ 	}
+ 	return fmt.Sprintf("%8d\t%s%s", r.N, ns, mb)
+diff --git a/src/pkg/testing/example.go b/src/pkg/testing/example.go
+index 3b026ee66e..e23f13b6f1 100644
+--- a/src/pkg/testing/example.go
++++ b/src/pkg/testing/example.go
+@@ -56,9 +56,9 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 		}()
+ 
+ 		// run example
+-		ns := -time.Nanoseconds()
++		t0 := time.Now()
+ 		eg.F()
+-		ns += time.Nanoseconds()
++		dt := time.Now().Sub(t0)
+ 
+ 		// close pipe, restore stdout/stderr, get output
+ 		w.Close()
+@@ -66,7 +66,7 @@ func RunExamples(examples []InternalExample) (ok bool) {
+ 		out := <-outC
+ 
+ 		// report any errors
+-		tstr := fmt.Sprintf("(%.2f seconds)", float64(ns)/1e9)
++		tstr := fmt.Sprintf("(%.2f seconds)", dt.Seconds())
+ 		if out != eg.Output {
+ 			fmt.Printf(
+ 				"--- FAIL: %s %s\ngot:\n%s\nwant:\n%s\n",
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 08443a3125..0b3a07108c 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -111,12 +111,13 @@ func decorate(s string, addFileLine bool) string {
+ // T is a type passed to Test functions to manage test state and support formatted test logs.
+ // Logs are accumulated during execution and dumped to standard error when done.
+ type T struct {
+-	name          string    // Name of test.
+-	errors        string    // Error string from test.
+-	failed        bool      // Test has failed.
+-	ch            chan *T   // Output for serial tests.
+-	startParallel chan bool // Parallel tests will wait on this.
+-	ns            int64     // Duration of test in nanoseconds.
++	name          string        // Name of test.
++	errors        string        // Error string from test.
++	failed        bool          // Test has failed.
++	ch            chan *T       // Output for serial tests.
++	startParallel chan bool     // Parallel tests will wait on this.
++	start         time.Time     // Time test started
++	dt            time.Duration // Length of test
+ }
+ 
+ // Fail marks the Test function as having failed but continues execution.
+@@ -128,7 +129,7 @@ func (t *T) Failed() bool { return t.failed }
+ // FailNow marks the Test function as having failed and stops its execution.
+ // Execution will continue at the next Test.
+ func (t *T) FailNow() {
+-	t.ns = time.Nanoseconds() - t.ns
++	t.dt = time.Now().Sub(t.start)
+ 	t.Fail()
+ 	t.ch <- t
+ 	runtime.Goexit()
+@@ -184,9 +185,9 @@ type InternalTest struct {
+ }
+ 
+ func tRunner(t *T, test *InternalTest) {
+-	t.ns = time.Nanoseconds()
++	t.start = time.Now()
+ 	test.F(t)
+-	t.ns = time.Nanoseconds() - t.ns
++	t.dt = time.Now().Sub(t.start)
+ 	t.ch <- t
+ }
+ 
+@@ -211,7 +212,7 @@ func Main(matchString func(pat, str string) (bool, error), tests []InternalTest,
+ }
+ 
+ func report(t *T) {
+-	tstr := fmt.Sprintf("(%.2f seconds)", float64(t.ns)/1e9)
++	tstr := fmt.Sprintf("(%.2f seconds)", t.dt.Seconds())
+ 	format := "--- %s: %s %s\n%s"
+ 	if t.failed {
+ 		fmt.Printf(format, "FAIL", t.name, tstr, t.errors)
+diff --git a/test/initsyscall.go b/test/initsyscall.go
+index b5e5812b64..d0c26d2a83 100644
+--- a/test/initsyscall.go
++++ b/test/initsyscall.go
+@@ -19,9 +19,8 @@ func f() {
+ 
+ func init() {
+ 	go f()
+-	time.Nanoseconds()
++	time.Now()
+ }
+ 
+ func main() {
+ }
+-

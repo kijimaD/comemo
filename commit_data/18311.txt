@@ -10,6 +10,11 @@ Date:   Tue Jan 21 17:12:30 2014 -0500
     TBR=iant
     CC=golang-codereviews
     https://golang.org/cl/55290043
-
+---
  src/cmd/link/testdata/pclntab.6 | Bin 0 -> 4604 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/cmd/link/testdata/pclntab.6 b/src/cmd/link/testdata/pclntab.6
+new file mode 100644
+index 0000000000..bc889c964a
+Binary files /dev/null and b/src/cmd/link/testdata/pclntab.6 differ

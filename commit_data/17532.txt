@@ -11,6 +11,21 @@ Date:   Tue Sep 10 12:55:07 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/13253048
-
+---
  src/cmd/go/build.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index af80be8081..f355044d79 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2162,6 +2162,9 @@ const i int = 1 << 32
+ // Determine the size of int on the target system for the -intgosize option
+ // of swig >= 2.0.9
+ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
++	if buildN {
++		return "$INTBITS", nil
++	}
+ 	src := filepath.Join(b.work, "swig_intsize.go")
+ 	if err = ioutil.WriteFile(src, []byte(swigIntSizeCode), 0644); err != nil {
+ 		return

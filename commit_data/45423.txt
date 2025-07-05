@@ -17,7 +17,39 @@ Date:   Thu Oct 22 22:16:01 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/log/log.go      | 3 +++
  src/log/log_test.go | 6 ++++++
  2 files changed, 9 insertions(+)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 216cfe0322..8c0f83f0d1 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -75,6 +75,9 @@ func (l *Logger) SetOutput(w io.Writer) {
+ 
+ var std = New(os.Stderr, "", LstdFlags)
+ 
++// Default returns the *Logger used by the package-level output functions.
++func Default() *Logger { return std }
++
+ // Cheap integer to fixed-width decimal ASCII. Give a negative width to avoid zero-padding.
+ func itoa(buf *[]byte, i int, wid int) {
+ 	// Assemble decimal in reverse order.
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index cdccbc554d..5be8e82258 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -74,6 +74,12 @@ func testPrint(t *testing.T, flag int, prefix string, pattern string, useFormat
+ 	SetOutput(os.Stderr)
+ }
+ 
++func TestDefault(t *testing.T) {
++	if got := Default(); got != std {
++		t.Errorf("Default [%p] should be std [%p]", got, std)
++	}
++}
++
+ func TestAll(t *testing.T) {
+ 	for _, testcase := range tests {
+ 		testPrint(t, testcase.flag, testcase.prefix, testcase.pattern, false)

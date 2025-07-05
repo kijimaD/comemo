@@ -7,9 +7,91 @@ Date:   Tue Jul 12 17:27:07 2011 +1000
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/4696041
-
+---
  src/pkg/go/build/build.go           | 12 ++++++++++--
  src/pkg/go/build/cgotest/cgotest.c  |  9 +++++++++
  src/pkg/go/build/cgotest/cgotest.go |  7 +++++++
  src/pkg/go/build/cgotest/cgotest.h  |  5 +++++
  4 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index de22a5a65f..97f92bfb6e 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -61,7 +61,9 @@ func Build(tree *Tree, pkg string, info *DirInfo) (*Script, os.Error) {
+ 	if len(info.CgoFiles) > 0 {
+ 		cgoFiles := b.abss(info.CgoFiles...)
+ 		s.addInput(cgoFiles...)
+-		outGo, outObj := b.cgo(cgoFiles)
++		cgoCFiles := b.abss(info.CFiles...)
++		s.addInput(cgoCFiles...)
++		outGo, outObj := b.cgo(cgoFiles, cgoCFiles)
+ 		gofiles = append(gofiles, outGo...)
+ 		ofiles = append(ofiles, outObj...)
+ 		s.addIntermediate(outGo...)
+@@ -370,7 +372,7 @@ func (b *build) gccArgs(args ...string) []string {
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+-func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
++func (b *build) cgo(cgofiles, cgocfiles []string) (outGo, outObj []string) {
+ 	// cgo
+ 	// TODO(adg): CGOPKGPATH
+ 	// TODO(adg): CGO_FLAGS
+@@ -413,6 +415,12 @@ func (b *build) cgo(cgofiles []string) (outGo, outObj []string) {
+ 			b.script.addIntermediate(ofile)
+ 		}
+ 	}
++	for _, cfile := range cgocfiles {
++		ofile := b.obj + cgoRe.ReplaceAllString(cfile[:len(cfile)-1], "_") + "o"
++		b.gccCompile(ofile, cfile)
++		linkobj = append(linkobj, ofile)
++		outObj = append(outObj, ofile)
++	}
+ 	dynObj := b.obj + "_cgo_.o"
+ 	b.gccLink(dynObj, linkobj...)
+ 	b.script.addIntermediate(dynObj)
+diff --git a/src/pkg/go/build/cgotest/cgotest.c b/src/pkg/go/build/cgotest/cgotest.c
+new file mode 100644
+index 0000000000..b13acb2275
+--- /dev/null
++++ b/src/pkg/go/build/cgotest/cgotest.c
+@@ -0,0 +1,9 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++int
++Add(int x, int y, int *sum)
++{
++	sum = x+y;
++}
+diff --git a/src/pkg/go/build/cgotest/cgotest.go b/src/pkg/go/build/cgotest/cgotest.go
+index 32b9318614..93bbf06883 100644
+--- a/src/pkg/go/build/cgotest/cgotest.go
++++ b/src/pkg/go/build/cgotest/cgotest.go
+@@ -7,6 +7,13 @@ package cgotest
+ /*
+ char* greeting = "hello, world";
+ */
++// #include "cgotest.h"
+ import "C"
++import "unsafe"
+ 
+ var Greeting = C.GoString(C.greeting)
++
++func DoAdd(x, y int) (sum int) {
++	C.Add(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&sum)))
++	return
++}
+diff --git a/src/pkg/go/build/cgotest/cgotest.h b/src/pkg/go/build/cgotest/cgotest.h
+new file mode 100644
+index 0000000000..9c73643b6f
+--- /dev/null
++++ b/src/pkg/go/build/cgotest/cgotest.h
+@@ -0,0 +1,5 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern int Add(int, int, int *);

@@ -15,8 +15,165 @@ Date:   Tue Apr 9 15:00:21 2013 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/8583044
-
+---
  src/pkg/encoding/json/decode_test.go |  2 +-
  src/pkg/encoding/json/encode.go      | 63 ++++++++++++++++++++++++++++++------
  src/pkg/encoding/json/encode_test.go | 50 ++++++++++++++++++++++++++++
  3 files changed, 104 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 037c5b2368..f845f69ab7 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -30,7 +30,7 @@ type V struct {
+ 	F3 Number
+ }
+ 
+-// ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshalling with and
++// ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
+ // without UseNumber
+ var ifaceNumAsFloat64 = map[string]interface{}{
+ 	"k1": float64(1),
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index fb57f1d51b..2e46903c7c 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -654,27 +654,70 @@ func typeFields(t reflect.Type) []field {
+ 
+ 	sort.Sort(byName(fields))
+ 
+-	// Remove fields with annihilating name collisions
+-	// and also fields shadowed by fields with explicit JSON tags.
+-	name := ""
++	// Delete all fields that are hidden by the Go rules for embedded fields,
++	// except that fields with JSON tags are promoted.
++
++	// The fields are sorted in primary order of name, secondary order
++	// of field index length. Loop over names; for each name, delete
++	// hidden fields by choosing the one dominant field that survives.
+ 	out := fields[:0]
+-	for _, f := range fields {
+-		if f.name != name {
+-			name = f.name
+-			out = append(out, f)
++	for advance, i := 0, 0; i < len(fields); i += advance {
++		// One iteration per name.
++		// Find the sequence of fields with the name of this first field.
++		fi := fields[i]
++		name := fi.name
++		hasTags := fi.tag
++		for advance = 1; i+advance < len(fields); advance++ {
++			fj := fields[i+advance]
++			if fj.name != name {
++				break
++			}
++			hasTags = hasTags || fj.tag
++		}
++		if advance == 1 { // Only one field with this name
++			out = append(out, fi)
+ 			continue
+ 		}
+-		if n := len(out); n > 0 && out[n-1].name == name && (!out[n-1].tag || f.tag) {
+-			out = out[:n-1]
++		dominant, ok := dominantField(fields[i:i+advance], hasTags)
++		if ok {
++			out = append(out, dominant)
+ 		}
+ 	}
+-	fields = out
+ 
++	fields = out
+ 	sort.Sort(byIndex(fields))
+ 
+ 	return fields
+ }
+ 
++// dominantField looks through the fields, all of which are known to
++// have the same name, to find the single field that dominates the
++// others using Go's embedding rules, modified by the presence of
++// JSON tags. If there are multiple top-level fields, the boolean
++// will be false: This condition is an error in Go and we skip all
++// the fields.
++func dominantField(fields []field, hasTags bool) (field, bool) {
++	if hasTags {
++		// If there's a tag, it gets promoted, so delete all fields without tags.
++		var j int
++		for i := 0; i < len(fields); i++ {
++			if fields[i].tag {
++				fields[j] = fields[i]
++				j++
++			}
++		}
++		fields = fields[:j]
++	}
++	// The fields are sorted in increasing index-length order. The first entry
++	// therefore wins, unless the second entry is of the same length. If that
++	// is true, then there is a conflict (two fields named "X" at the same level)
++	// and we have no fields.
++	if len(fields) > 1 && len(fields[0].index) == len(fields[1].index) {
++		return field{}, false
++	}
++	return fields[0], true
++}
++
+ var fieldCache struct {
+ 	sync.RWMutex
+ 	m map[reflect.Type][]field
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index be74c997cf..f4a7170d8f 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -206,3 +206,53 @@ func TestAnonymousNonstruct(t *testing.T) {
+ 		t.Errorf("got %q, want %q", got, want)
+ 	}
+ }
++
++type BugA struct {
++	S string
++}
++
++type BugB struct {
++	BugA
++	S string
++}
++
++type BugC struct {
++	S string
++}
++
++// Legal Go: We never use the repeated embedded field (S).
++type BugD struct {
++	A int
++	BugA
++	BugB
++}
++
++// Issue 5245.
++func TestEmbeddedBug(t *testing.T) {
++	v := BugB{
++		BugA{"A"},
++		"B",
++	}
++	b, err := Marshal(v)
++	if err != nil {
++		t.Fatal("Marshal:", err)
++	}
++	want := `{"S":"B"}`
++	got := string(b)
++	if got != want {
++		t.Fatalf("Marshal: got %s want %s", got, want)
++	}
++	// Now check that the duplicate field, S, does not appear.
++	x := BugD{
++		A: 23,
++	}
++	b, err = Marshal(x)
++	if err != nil {
++		t.Fatal("Marshal:", err)
++	}
++	want = `{"A":23}`
++	got = string(b)
++	if got != want {
++		t.Fatalf("Marshal: got %s want %s", got, want)
++	}
++}

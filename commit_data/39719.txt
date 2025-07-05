@@ -8,6 +8,20 @@ Date:   Thu Mar 14 16:44:38 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/167711
     Reviewed-by: Katie Hockman <katiehockman@google.com>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  doc/devel/release.html | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index 7a036db9a8..c7dde6ff4d 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -30,6 +30,8 @@ Go 1.12 is a major release of Go.
+ Read the <a href="/doc/go1.12">Go 1.12 Release Notes</a> for more information.
+ </p>
+ 
++<h3 id="go1.12.minor">Minor revisions</h3>
++
+ <p>
+ go1.12.1 (released 2019/03/14) includes fixes to cgo, the compiler, the go
+ command, and the <code>fmt</code>, <code>net/smtp</code>, <code>os</code>,

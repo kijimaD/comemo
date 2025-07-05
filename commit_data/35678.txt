@@ -25,7 +25,159 @@ Date:   Wed Feb 28 13:14:44 2018 +0100
     Reviewed-by: Kunpei Sakai <namusyaka@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/testing/sub_test.go | 78 ++++++++++++++++++++++++++++++++++++++++++++++++-
  src/testing/testing.go  | 21 +++++++++++--
  2 files changed, 95 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index acf5dea878..a5e6a1fb41 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -315,6 +315,81 @@ func TestTRun(t *T) {
+ 		f: func(t *T) {
+ 			t.Skip()
+ 		},
++	}, {
++		desc: "subtest calls error on parent",
++		ok:   false,
++		output: `
++--- FAIL: subtest calls error on parent (N.NNs)
++	sub_test.go:NNN: first this
++	sub_test.go:NNN: and now this!
++	sub_test.go:NNN: oh, and this too`,
++		maxPar: 1,
++		f: func(t *T) {
++			t.Errorf("first this")
++			outer := t
++			t.Run("", func(t *T) {
++				outer.Errorf("and now this!")
++			})
++			t.Errorf("oh, and this too")
++		},
++	}, {
++		desc: "subtest calls fatal on parent",
++		ok:   false,
++		output: `
++--- FAIL: subtest calls fatal on parent (N.NNs)
++	sub_test.go:NNN: first this
++	sub_test.go:NNN: and now this!
++    --- FAIL: subtest calls fatal on parent/#00 (N.NNs)
++    	testing.go:NNN: test executed panic(nil) or runtime.Goexit: subtest may have called FailNow on a parent test`,
++		maxPar: 1,
++		f: func(t *T) {
++			outer := t
++			t.Errorf("first this")
++			t.Run("", func(t *T) {
++				outer.Fatalf("and now this!")
++			})
++			t.Errorf("Should not reach here.")
++		},
++	}, {
++		desc: "subtest calls error on ancestor",
++		ok:   false,
++		output: `
++--- FAIL: subtest calls error on ancestor (N.NNs)
++	sub_test.go:NNN: Report to ancestor
++    --- FAIL: subtest calls error on ancestor/#00 (N.NNs)
++    	sub_test.go:NNN: Still do this
++	sub_test.go:NNN: Also do this`,
++		maxPar: 1,
++		f: func(t *T) {
++			outer := t
++			t.Run("", func(t *T) {
++				t.Run("", func(t *T) {
++					outer.Errorf("Report to ancestor")
++				})
++				t.Errorf("Still do this")
++			})
++			t.Errorf("Also do this")
++		},
++	}, {
++		desc: "subtest calls fatal on ancestor",
++		ok:   false,
++		output: `
++--- FAIL: subtest calls fatal on ancestor (N.NNs)
++	sub_test.go:NNN: Nope`,
++		maxPar: 1,
++		f: func(t *T) {
++			outer := t
++			t.Run("", func(t *T) {
++				for i := 0; i < 4; i++ {
++					t.Run("", func(t *T) {
++						outer.Fatalf("Nope")
++					})
++					t.Errorf("Don't do this")
++				}
++				t.Errorf("And neither do this")
++			})
++			t.Errorf("Nor this")
++		},
+ 	}, {
+ 		desc:   "panic on goroutine fail after test exit",
+ 		ok:     false,
+@@ -518,8 +593,9 @@ func TestBRun(t *T) {
+ }
+ 
+ func makeRegexp(s string) string {
++	s = regexp.QuoteMeta(s)
+ 	s = strings.Replace(s, ":NNN:", `:\d\d\d:`, -1)
+-	s = strings.Replace(s, "(N.NNs)", `\(\d*\.\d*s\)`, -1)
++	s = strings.Replace(s, "N\\.NNs", `\d*\.\d*s`, -1)
+ 	return s
+ }
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index f56dbf8f6d..27d0de7728 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -718,6 +718,8 @@ type InternalTest struct {
+ 	F    func(*T)
+ }
+ 
++var errNilPanicOrGoexit = errors.New("test executed panic(nil) or runtime.Goexit")
++
+ func tRunner(t *T, fn func(t *T)) {
+ 	t.runner = callerName(0)
+ 
+@@ -733,8 +735,17 @@ func tRunner(t *T, fn func(t *T)) {
+ 		t.duration += time.Since(t.start)
+ 		// If the test panicked, print any test output before dying.
+ 		err := recover()
++		signal := true
+ 		if !t.finished && err == nil {
+-			err = fmt.Errorf("test executed panic(nil) or runtime.Goexit")
++			err = errNilPanicOrGoexit
++			for p := t.parent; p != nil; p = p.parent {
++				if p.finished {
++					t.Errorf("%v: subtest may have called FailNow on a parent test", err)
++					err = nil
++					signal = false
++					break
++				}
++			}
+ 		}
+ 		if err != nil {
+ 			t.Fail()
+@@ -769,7 +780,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 		if t.parent != nil && atomic.LoadInt32(&t.hasSub) == 0 {
+ 			t.setRan()
+ 		}
+-		t.signal <- true
++		t.signal <- signal
+ 	}()
+ 
+ 	t.start = time.Now()
+@@ -822,7 +833,11 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	// without being preempted, even when their parent is a parallel test. This
+ 	// may especially reduce surprises if *parallel == 1.
+ 	go tRunner(t, f)
+-	<-t.signal
++	if !<-t.signal {
++		// At this point, it is likely that FailNow was called on one of the
++		// parent tests by one of the subtests. Continue aborting up the chain.
++		runtime.Goexit()
++	}
+ 	return !t.failed
+ }
+ 

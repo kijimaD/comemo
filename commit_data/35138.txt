@@ -8,6 +8,23 @@ Date:   Sat Dec 16 09:35:52 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/84475
     Reviewed-by: Filippo Valsorda <hi@filippo.io>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/common.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index d4b0286b85..646b107958 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -406,8 +406,9 @@ type Config struct {
+ 	//
+ 	// If normal verification fails then the handshake will abort before
+ 	// considering this callback. If normal verification is disabled by
+-	// setting InsecureSkipVerify then this callback will be considered but
+-	// the verifiedChains argument will always be nil.
++	// setting InsecureSkipVerify, or (for a server) when ClientAuth is
++	// RequestClientCert or RequireAnyClientCert, then this callback will
++	// be considered but the verifiedChains argument will always be nil.
+ 	VerifyPeerCertificate func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error
+ 
+ 	// RootCAs defines the set of root certificate authorities

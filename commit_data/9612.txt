@@ -7,10 +7,653 @@ Date:   Wed Sep 7 21:50:51 2011 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4950060
-
+---
  src/pkg/sync/atomic/asm_386.s       |  18 ++
  src/pkg/sync/atomic/asm_amd64.s     |  21 +++
  src/pkg/sync/atomic/asm_linux_arm.s |  21 +++
  src/pkg/sync/atomic/atomic_test.go  | 349 ++++++++++++++++++++++++++++--------
  src/pkg/sync/atomic/doc.go          |  15 ++
  5 files changed, 351 insertions(+), 73 deletions(-)
+
+diff --git a/src/pkg/sync/atomic/asm_386.s b/src/pkg/sync/atomic/asm_386.s
+index 99e8b1fd80..4cab426547 100644
+--- a/src/pkg/sync/atomic/asm_386.s
++++ b/src/pkg/sync/atomic/asm_386.s
+@@ -18,6 +18,9 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
+ TEXT ·CompareAndSwapUintptr(SB),7,$0
+ 	JMP	·CompareAndSwapUint32(SB)
+ 
++TEXT ·CompareAndSwapPointer(SB),7,$0
++	JMP	·CompareAndSwapUint32(SB)
++
+ TEXT ·CompareAndSwapInt64(SB),7,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+@@ -100,3 +103,18 @@ TEXT ·LoadUintptr(SB),7,$0
+ 
+ TEXT ·LoadPointer(SB),7,$0
+ 	JMP	·LoadUint32(SB)
++
++TEXT ·StoreInt32(SB),7,$0
++	JMP	·StoreUint32(SB)
++
++TEXT ·StoreUint32(SB),7,$0
++	MOVL	addrptr+0(FP), BP
++	MOVL	val+4(FP), AX
++	XCHGL	AX, 0(BP)
++	RET
++
++TEXT ·StoreUintptr(SB),7,$0
++	JMP	·StoreUint32(SB)
++
++TEXT ·StorePointer(SB),7,$0
++	JMP	·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/asm_amd64.s b/src/pkg/sync/atomic/asm_amd64.s
+index d21ade1cb6..d903f365a2 100644
+--- a/src/pkg/sync/atomic/asm_amd64.s
++++ b/src/pkg/sync/atomic/asm_amd64.s
+@@ -17,6 +17,9 @@ TEXT ·CompareAndSwapUint32(SB),7,$0
+ TEXT ·CompareAndSwapUintptr(SB),7,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
++TEXT ·CompareAndSwapPointer(SB),7,$0
++	JMP	·CompareAndSwapUint64(SB)
++
+ TEXT ·CompareAndSwapInt64(SB),7,$0
+ 	JMP	·CompareAndSwapUint64(SB)
+ 
+@@ -75,3 +78,21 @@ TEXT ·LoadPointer(SB),7,$0
+ 	MOVQ	0(AX), AX
+ 	MOVQ	AX, ret+8(FP)
+ 	RET
++
++TEXT ·StoreInt32(SB),7,$0
++	JMP	·StoreUint32(SB)
++
++TEXT ·StoreUint32(SB),7,$0
++	MOVQ	addrptr+0(FP), BP
++	MOVL	val+8(FP), AX
++	XCHGL	AX, 0(BP)
++	RET
++
++TEXT ·StoreUintptr(SB),7,$0
++	JMP	·StorePointer(SB)
++
++TEXT ·StorePointer(SB),7,$0
++	MOVQ	addrptr+0(FP), BP
++	MOVQ	val+8(FP), AX
++	XCHGQ	AX, 0(BP)
++	RET
+diff --git a/src/pkg/sync/atomic/asm_linux_arm.s b/src/pkg/sync/atomic/asm_linux_arm.s
+index 20a45243f2..ff44191c79 100644
+--- a/src/pkg/sync/atomic/asm_linux_arm.s
++++ b/src/pkg/sync/atomic/asm_linux_arm.s
+@@ -50,6 +50,9 @@ cascheck:
+ TEXT ·CompareAndSwapUintptr(SB),7,$0
+ 	B	·CompareAndSwapUint32(SB)
+ 
++TEXT ·CompareAndSwapPointer(SB),7,$0
++	B	·CompareAndSwapUint32(SB)
++
+ TEXT ·AddInt32(SB),7,$0
+ 	B	·AddUint32(SB)
+ 
+@@ -102,3 +105,21 @@ TEXT ·LoadUintptr(SB),7,$0
+ 
+ TEXT ·LoadPointer(SB),7,$0
+ 	B	·LoadUint32(SB)
++
++TEXT ·StoreInt32(SB),7,$0
++	B	·StoreUint32(SB)
++
++TEXT ·StoreUint32(SB),7,$0
++	MOVW	addrptr+0(FP), R2
++	MOVW	val+4(FP), R1
++storeloop1:
++	MOVW	0(R2), R0
++	BL	cas<>(SB)
++	BCC	storeloop1
++	RET
++
++TEXT ·StoreUintptr(SB),7,$0
++	B	·StoreUint32(SB)
++
++TEXT ·StorePointer(SB),7,$0
++	B	·StoreUint32(SB)
+diff --git a/src/pkg/sync/atomic/atomic_test.go b/src/pkg/sync/atomic/atomic_test.go
+index 5f44bd04b9..d3fc1387c4 100644
+--- a/src/pkg/sync/atomic/atomic_test.go
++++ b/src/pkg/sync/atomic/atomic_test.go
+@@ -164,17 +164,17 @@ func TestCompareAndSwapInt32(t *testing.T) {
+ 	for val := int32(1); val+val > val; val += val {
+ 		x.i = val
+ 		if !CompareAndSwapInt32(&x.i, val, val+1) {
+-			t.Errorf("should have swapped %#x %#x", val, val+1)
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 		x.i = val + 1
+ 		if CompareAndSwapInt32(&x.i, val, val+2) {
+-			t.Errorf("should not have swapped %#x %#x", val, val+2)
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 	}
+ 	if x.before != magic32 || x.after != magic32 {
+@@ -193,17 +193,17 @@ func TestCompareAndSwapUint32(t *testing.T) {
+ 	for val := uint32(1); val+val > val; val += val {
+ 		x.i = val
+ 		if !CompareAndSwapUint32(&x.i, val, val+1) {
+-			t.Errorf("should have swapped %#x %#x", val, val+1)
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 		x.i = val + 1
+ 		if CompareAndSwapUint32(&x.i, val, val+2) {
+-			t.Errorf("should not have swapped %#x %#x", val, val+2)
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 	}
+ 	if x.before != magic32 || x.after != magic32 {
+@@ -226,17 +226,17 @@ func TestCompareAndSwapInt64(t *testing.T) {
+ 	for val := int64(1); val+val > val; val += val {
+ 		x.i = val
+ 		if !CompareAndSwapInt64(&x.i, val, val+1) {
+-			t.Errorf("should have swapped %#x %#x", val, val+1)
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 		x.i = val + 1
+ 		if CompareAndSwapInt64(&x.i, val, val+2) {
+-			t.Errorf("should not have swapped %#x %#x", val, val+2)
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 	}
+ 	if x.before != magic64 || x.after != magic64 {
+@@ -259,17 +259,17 @@ func TestCompareAndSwapUint64(t *testing.T) {
+ 	for val := uint64(1); val+val > val; val += val {
+ 		x.i = val
+ 		if !CompareAndSwapUint64(&x.i, val, val+1) {
+-			t.Errorf("should have swapped %#x %#x", val, val+1)
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 		x.i = val + 1
+ 		if CompareAndSwapUint64(&x.i, val, val+2) {
+-			t.Errorf("should not have swapped %#x %#x", val, val+2)
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 	}
+ 	if x.before != magic64 || x.after != magic64 {
+@@ -290,17 +290,48 @@ func TestCompareAndSwapUintptr(t *testing.T) {
+ 	for val := uintptr(1); val+val > val; val += val {
+ 		x.i = val
+ 		if !CompareAndSwapUintptr(&x.i, val, val+1) {
+-			t.Errorf("should have swapped %#x %#x", val, val+1)
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 		x.i = val + 1
+ 		if CompareAndSwapUintptr(&x.i, val, val+2) {
+-			t.Errorf("should not have swapped %#x %#x", val, val+2)
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
+ 		}
+ 		if x.i != val+1 {
+-			t.Errorf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++		}
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
++func TestCompareAndSwapPointer(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      unsafe.Pointer
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	for val := uintptr(1); val+val > val; val += val {
++		x.i = unsafe.Pointer(val)
++		if !CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+1)) {
++			t.Fatalf("should have swapped %#x %#x", val, val+1)
++		}
++		if x.i != unsafe.Pointer(val+1) {
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
++		}
++		x.i = unsafe.Pointer(val + 1)
++		if CompareAndSwapPointer(&x.i, unsafe.Pointer(val), unsafe.Pointer(val+2)) {
++			t.Fatalf("should not have swapped %#x %#x", val, val+2)
++		}
++		if x.i != unsafe.Pointer(val+1) {
++			t.Fatalf("wrong x.i after swap: x.i=%#x val+1=%#x", x.i, val+1)
+ 		}
+ 	}
+ 	if x.before != magicptr || x.after != magicptr {
+@@ -392,6 +423,94 @@ func TestLoadPointer(t *testing.T) {
+ 	}
+ }
+ 
++func TestStoreInt32(t *testing.T) {
++	var x struct {
++		before int32
++		i      int32
++		after  int32
++	}
++	x.before = magic32
++	x.after = magic32
++	v := int32(0)
++	for delta := int32(1); delta+delta > delta; delta += delta {
++		StoreInt32(&x.i, v)
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v += delta
++	}
++	if x.before != magic32 || x.after != magic32 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
++	}
++}
++
++func TestStoreUint32(t *testing.T) {
++	var x struct {
++		before uint32
++		i      uint32
++		after  uint32
++	}
++	x.before = magic32
++	x.after = magic32
++	v := uint32(0)
++	for delta := uint32(1); delta+delta > delta; delta += delta {
++		StoreUint32(&x.i, v)
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v += delta
++	}
++	if x.before != magic32 || x.after != magic32 {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magic32, magic32)
++	}
++}
++
++func TestStoreUintptr(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      uintptr
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	v := uintptr(0)
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		StoreUintptr(&x.i, v)
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v += delta
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
++func TestStorePointer(t *testing.T) {
++	var x struct {
++		before uintptr
++		i      unsafe.Pointer
++		after  uintptr
++	}
++	var m uint64 = magic64
++	magicptr := uintptr(m)
++	x.before = magicptr
++	x.after = magicptr
++	v := unsafe.Pointer(uintptr(0))
++	for delta := uintptr(1); delta+delta > delta; delta += delta {
++		StorePointer(&x.i, unsafe.Pointer(v))
++		if x.i != v {
++			t.Fatalf("delta=%d i=%d v=%d", delta, x.i, v)
++		}
++		v = unsafe.Pointer(uintptr(v) + delta)
++	}
++	if x.before != magicptr || x.after != magicptr {
++		t.Fatalf("wrong magic: %#x _ %#x != %#x _ %#x", x.before, x.after, magicptr, magicptr)
++	}
++}
++
+ // Tests of correct behavior, with contention.
+ // (Is the function atomic?)
+ //
+@@ -410,6 +529,7 @@ var hammer32 = []struct {
+ 	{"CompareAndSwapInt32", hammerCompareAndSwapInt32},
+ 	{"CompareAndSwapUint32", hammerCompareAndSwapUint32},
+ 	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr32},
++	{"CompareAndSwapPointer", hammerCompareAndSwapPointer32},
+ }
+ 
+ func init() {
+@@ -480,6 +600,20 @@ func hammerCompareAndSwapUintptr32(uval *uint32, count int) {
+ 	}
+ }
+ 
++func hammerCompareAndSwapPointer32(uval *uint32, count int) {
++	// only safe when uintptr is 32-bit.
++	// not called on 64-bit systems.
++	val := (*unsafe.Pointer)(unsafe.Pointer(uval))
++	for i := 0; i < count; i++ {
++		for {
++			v := *val
++			if CompareAndSwapPointer(val, v, unsafe.Pointer(uintptr(v)+1)) {
++				break
++			}
++		}
++	}
++}
++
+ func TestHammer32(t *testing.T) {
+ 	const p = 4
+ 	n := 100000
+@@ -504,7 +638,7 @@ func TestHammer32(t *testing.T) {
+ 			<-c
+ 		}
+ 		if val != uint32(n)*p {
+-			t.Errorf("%s: val=%d want %d", tt.name, val, n*p)
++			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
+ 		}
+ 	}
+ }
+@@ -519,6 +653,7 @@ var hammer64 = []struct {
+ 	{"CompareAndSwapInt64", hammerCompareAndSwapInt64},
+ 	{"CompareAndSwapUint64", hammerCompareAndSwapUint64},
+ 	{"CompareAndSwapUintptr", hammerCompareAndSwapUintptr64},
++	{"CompareAndSwapPointer", hammerCompareAndSwapPointer64},
+ }
+ 
+ func init() {
+@@ -589,6 +724,20 @@ func hammerCompareAndSwapUintptr64(uval *uint64, count int) {
+ 	}
+ }
+ 
++func hammerCompareAndSwapPointer64(uval *uint64, count int) {
++	// only safe when uintptr is 64-bit.
++	// not called on 32-bit systems.
++	val := (*unsafe.Pointer)(unsafe.Pointer(uval))
++	for i := 0; i < count; i++ {
++		for {
++			v := *val
++			if CompareAndSwapPointer(val, v, unsafe.Pointer(uintptr(v)+1)) {
++				break
++			}
++		}
++	}
++}
++
+ func TestHammer64(t *testing.T) {
+ 	if test64err != nil {
+ 		t.Logf("Skipping 64-bit tests: %v", test64err)
+@@ -617,86 +766,103 @@ func TestHammer64(t *testing.T) {
+ 			<-c
+ 		}
+ 		if val != uint64(n)*p {
+-			t.Errorf("%s: val=%d want %d", tt.name, val, n*p)
++			t.Fatalf("%s: val=%d want %d", tt.name, val, n*p)
+ 		}
+ 	}
+ }
+ 
+-func hammerLoadInt32(t *testing.T, valp unsafe.Pointer) {
++func hammerStoreLoadInt32(t *testing.T, valp unsafe.Pointer) {
+ 	val := (*int32)(valp)
+-	for {
+-		v := LoadInt32(val)
+-		vlo := v & ((1 << 16) - 1)
+-		vhi := v >> 16
+-		if vlo != vhi {
+-			t.Fatalf("LoadInt32: %#x != %#x", vlo, vhi)
+-		}
+-		new := v + 1 + 1<<16
+-		if vlo == 1e4 {
+-			new = 0
+-		}
+-		if CompareAndSwapInt32(val, v, new) {
+-			break
+-		}
++	v := LoadInt32(val)
++	vlo := v & ((1 << 16) - 1)
++	vhi := v >> 16
++	if vlo != vhi {
++		t.Fatalf("LoadInt32: %#x != %#x", vlo, vhi)
++	}
++	new := v + 1 + 1<<16
++	if vlo == 1e4 {
++		new = 0
+ 	}
++	StoreInt32(val, new)
+ }
+ 
+-func hammerLoadUint32(t *testing.T, valp unsafe.Pointer) {
++func hammerStoreLoadUint32(t *testing.T, valp unsafe.Pointer) {
+ 	val := (*uint32)(valp)
+-	for {
+-		v := LoadUint32(val)
++	v := LoadUint32(val)
++	vlo := v & ((1 << 16) - 1)
++	vhi := v >> 16
++	if vlo != vhi {
++		t.Fatalf("LoadUint32: %#x != %#x", vlo, vhi)
++	}
++	new := v + 1 + 1<<16
++	if vlo == 1e4 {
++		new = 0
++	}
++	StoreUint32(val, new)
++}
++
++func hammerStoreLoadUintptr(t *testing.T, valp unsafe.Pointer) {
++	val := (*uintptr)(valp)
++	var test64 uint64 = 1 << 50
++	arch32 := uintptr(test64) == 0
++	v := LoadUintptr(val)
++	new := v
++	if arch32 {
+ 		vlo := v & ((1 << 16) - 1)
+ 		vhi := v >> 16
+ 		if vlo != vhi {
+-			t.Fatalf("LoadUint32: %#x != %#x", vlo, vhi)
++			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+ 		}
+-		new := v + 1 + 1<<16
++		new = v + 1 + 1<<16
+ 		if vlo == 1e4 {
+ 			new = 0
+ 		}
+-		if CompareAndSwapUint32(val, v, new) {
+-			break
++	} else {
++		vlo := v & ((1 << 32) - 1)
++		vhi := v >> 32
++		if vlo != vhi {
++			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+ 		}
++		inc := uint64(1 + 1<<32)
++		new = v + uintptr(inc)
+ 	}
++	StoreUintptr(val, new)
+ }
+ 
+-func hammerLoadUintptr(t *testing.T, valp unsafe.Pointer) {
+-	val := (*uintptr)(valp)
++func hammerStoreLoadPointer(t *testing.T, valp unsafe.Pointer) {
++	val := (*unsafe.Pointer)(valp)
+ 	var test64 uint64 = 1 << 50
+ 	arch32 := uintptr(test64) == 0
+-	for {
+-		v := LoadUintptr(val)
+-		new := v
+-		if arch32 {
+-			vlo := v & ((1 << 16) - 1)
+-			vhi := v >> 16
+-			if vlo != vhi {
+-				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+-			}
+-			new = v + 1 + 1<<16
+-			if vlo == 1e4 {
+-				new = 0
+-			}
+-		} else {
+-			vlo := v & ((1 << 32) - 1)
+-			vhi := v >> 32
+-			if vlo != vhi {
+-				t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+-			}
+-			inc := uint64(1 + 1<<32)
+-			new = v + uintptr(inc)
++	v := uintptr(LoadPointer(val))
++	new := v
++	if arch32 {
++		vlo := v & ((1 << 16) - 1)
++		vhi := v >> 16
++		if vlo != vhi {
++			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+ 		}
+-		if CompareAndSwapUintptr(val, v, new) {
+-			break
++		new = v + 1 + 1<<16
++		if vlo == 1e4 {
++			new = 0
++		}
++	} else {
++		vlo := v & ((1 << 32) - 1)
++		vhi := v >> 32
++		if vlo != vhi {
++			t.Fatalf("LoadUintptr: %#x != %#x", vlo, vhi)
+ 		}
++		inc := uint64(1 + 1<<32)
++		new = v + uintptr(inc)
+ 	}
++	StorePointer(val, unsafe.Pointer(new))
+ }
+ 
+-func TestHammerLoad(t *testing.T) {
+-	tests := [...]func(*testing.T, unsafe.Pointer){hammerLoadInt32, hammerLoadUint32, hammerLoadUintptr}
+-	n := 100000
++func TestHammerStoreLoad(t *testing.T) {
++	tests := [...]func(*testing.T, unsafe.Pointer){hammerStoreLoadInt32, hammerStoreLoadUint32,
++		hammerStoreLoadUintptr, hammerStoreLoadPointer}
++	n := int(1e6)
+ 	if testing.Short() {
+-		n = 10000
++		n = int(1e4)
+ 	}
+ 	const procs = 8
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(procs))
+@@ -716,3 +882,40 @@ func TestHammerLoad(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestStoreLoadSeqCst(t *testing.T) {
++	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
++	N := int32(1e6)
++	if testing.Short() {
++		N = int32(1e5)
++	}
++	c := make(chan bool, 2)
++	X := [2]int32{}
++	ack := [2][3]int32{{-1, -1, -1}, {-1, -1, -1}}
++	for p := 0; p < 2; p++ {
++		go func(me int) {
++			he := 1 - me
++			for i := int32(1); i < N; i++ {
++				StoreInt32(&X[me], i)
++				my := LoadInt32(&X[he])
++				ack[me][i%3] = my
++				for w := 1; ack[he][i%3] == -1; w++ {
++					if w%1000 == 0 {
++						runtime.Gosched()
++					}
++				}
++				his := ack[he][i%3]
++				if (my != i && my != i-1) || (his != i && his != i-1) {
++					t.Fatalf("invalid values: %d/%d (%d)", my, his, i)
++				}
++				if my != i && his != i {
++					t.Fatalf("store/load are not sequentially consistent: %d/%d (%d)", my, his, i)
++				}
++				ack[me][(i-1)%3] = -1
++			}
++			c <- true
++		}(p)
++	}
++	<-c
++	<-c
++}
+diff --git a/src/pkg/sync/atomic/doc.go b/src/pkg/sync/atomic/doc.go
+index 0f38886601..987f8c93d7 100644
+--- a/src/pkg/sync/atomic/doc.go
++++ b/src/pkg/sync/atomic/doc.go
+@@ -45,6 +45,9 @@ func CompareAndSwapUint64(val *uint64, old, new uint64) (swapped bool)
+ // CompareAndSwapUintptr executes the compare-and-swap operation for a uintptr value.
+ func CompareAndSwapUintptr(val *uintptr, old, new uintptr) (swapped bool)
+ 
++// CompareAndSwapPointer executes the compare-and-swap operation for a unsafe.Pointer value.
++func CompareAndSwapPointer(val *unsafe.Pointer, old, new unsafe.Pointer) (swapped bool)
++
+ // AddInt32 atomically adds delta to *val and returns the new value.
+ func AddInt32(val *int32, delta int32) (new int32)
+ 
+@@ -72,6 +75,18 @@ func LoadUintptr(addr *uintptr) (val uintptr)
+ // LoadPointer atomically loads *addr.
+ func LoadPointer(addr *unsafe.Pointer) (val unsafe.Pointer)
+ 
++// StoreInt32 atomically stores val into *addr.
++func StoreInt32(addr *int32, val int32)
++
++// StoreUint32 atomically stores val into *addr.
++func StoreUint32(addr *uint32, val uint32)
++
++// StoreUintptr atomically stores val into *addr.
++func StoreUintptr(addr *uintptr, val uintptr)
++
++// StorePointer atomically stores val into *addr.
++func StorePointer(addr *unsafe.Pointer, val unsafe.Pointer)
++
+ // Helper for ARM.  Linker will discard on other systems
+ func panic64() {
+ 	panic("sync/atomic: broken 64-bit atomic operations (buggy QEMU)")

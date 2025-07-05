@@ -8,6 +8,26 @@ Date:   Sat Apr 12 14:56:17 2014 +1000
     R=alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/87250043
-
+---
  doc/go1.3.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.html b/doc/go1.3.html
+index fcb8d4c641..07e695124d 100644
+--- a/doc/go1.3.html
++++ b/doc/go1.3.html
+@@ -368,7 +368,13 @@ non-printing.
+ 
+ <li> TODO: syscall: add Accept4 for freebsd (CL 68880043)</li>
+ 
+-<li> TODO: syscall: add NewCallbackCDecl to use for windows callbacks (CL 36180044)</li>
++<li>
++On Windows, the <a href="/pkg/syscall/"><code>syscall</code></a> package now
++supports the cdecl calling convention through the addition of a new function
++<a href="/pkg/syscall/#NewCallbackCDecl"><code>NewCallbackCDecl</code></a>
++alongside the existing function
++<a href="/pkg/syscall/#NewCallback"><code>NewCallback</code></a>.
++</li>
+ 
+ <li> TODO: syscall: add support for FreeBSD 10 (CL 56770044, 56980043)</li>
+ 

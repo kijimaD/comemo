@@ -16,7 +16,7 @@ Date:   Mon Jul 6 09:49:20 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  api/except.txt       | 228 ++++++++++++++++++++++++++++++---------------------
  api/next.txt         |  88 +++++++++++++++++++-
  src/cmd/api/goapi.go |  20 ++++-
@@ -24,3 +24,829 @@ Date:   Mon Jul 6 09:49:20 2020 -0400
  src/os/error.go      |  32 ++------
  src/os/types.go      |  91 ++++----------------
  6 files changed, 406 insertions(+), 193 deletions(-)
+
+diff --git a/api/except.txt b/api/except.txt
+index 962bb14271..6f6f839ba6 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -2,12 +2,56 @@ pkg encoding/json, method (*RawMessage) MarshalJSON() ([]uint8, error)
+ pkg math/big, const MaxBase = 36
+ pkg math/big, type Word uintptr
+ pkg net, func ListenUnixgram(string, *UnixAddr) (*UDPConn, error)
+-pkg os, const ModeType = 2399141888
+-pkg os, const ModeType = 2399666176
+-pkg os (linux-arm), const O_SYNC = 4096
+-pkg os (linux-arm-cgo), const O_SYNC = 4096
+ pkg os (linux-arm), const O_SYNC = 1052672
++pkg os (linux-arm), const O_SYNC = 4096
+ pkg os (linux-arm-cgo), const O_SYNC = 1052672
++pkg os (linux-arm-cgo), const O_SYNC = 4096
++pkg os, const ModeAppend FileMode
++pkg os, const ModeCharDevice FileMode
++pkg os, const ModeDevice FileMode
++pkg os, const ModeDir FileMode
++pkg os, const ModeExclusive FileMode
++pkg os, const ModeIrregular FileMode
++pkg os, const ModeNamedPipe FileMode
++pkg os, const ModePerm FileMode
++pkg os, const ModeSetgid FileMode
++pkg os, const ModeSetuid FileMode
++pkg os, const ModeSocket FileMode
++pkg os, const ModeSticky FileMode
++pkg os, const ModeSymlink FileMode
++pkg os, const ModeTemporary FileMode
++pkg os, const ModeType = 2399141888
++pkg os, const ModeType = 2399666176
++pkg os, const ModeType FileMode
++pkg os, func Chmod(string, FileMode) error
++pkg os, func Lstat(string) (FileInfo, error)
++pkg os, func Mkdir(string, FileMode) error
++pkg os, func MkdirAll(string, FileMode) error
++pkg os, func OpenFile(string, int, FileMode) (*File, error)
++pkg os, func SameFile(FileInfo, FileInfo) bool
++pkg os, func Stat(string) (FileInfo, error)
++pkg os, method (*File) Chmod(FileMode) error
++pkg os, method (*File) Readdir(int) ([]FileInfo, error)
++pkg os, method (*File) Stat() (FileInfo, error)
++pkg os, method (*PathError) Error() string
++pkg os, method (*PathError) Timeout() bool
++pkg os, method (*PathError) Unwrap() error
++pkg os, method (FileMode) IsDir() bool
++pkg os, method (FileMode) IsRegular() bool
++pkg os, method (FileMode) Perm() FileMode
++pkg os, method (FileMode) String() string
++pkg os, type FileInfo interface { IsDir, ModTime, Mode, Name, Size, Sys }
++pkg os, type FileInfo interface, IsDir() bool
++pkg os, type FileInfo interface, ModTime() time.Time
++pkg os, type FileInfo interface, Mode() FileMode
++pkg os, type FileInfo interface, Name() string
++pkg os, type FileInfo interface, Size() int64
++pkg os, type FileInfo interface, Sys() interface{}
++pkg os, type FileMode uint32
++pkg os, type PathError struct
++pkg os, type PathError struct, Err error
++pkg os, type PathError struct, Op string
++pkg os, type PathError struct, Path string
+ pkg syscall (darwin-amd64), const ImplementsGetwd = false
+ pkg syscall (darwin-amd64), func Fchflags(string, int) error
+ pkg syscall (darwin-amd64-cgo), const ImplementsGetwd = false
+@@ -18,22 +62,72 @@ pkg syscall (freebsd-386), const ELAST = 94
+ pkg syscall (freebsd-386), const ImplementsGetwd = false
+ pkg syscall (freebsd-386), const O_CLOEXEC = 0
+ pkg syscall (freebsd-386), func Fchflags(string, int) error
++pkg syscall (freebsd-386), func Mknod(string, uint32, int) error
++pkg syscall (freebsd-386), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-386), type Dirent struct, Namlen uint8
++pkg syscall (freebsd-386), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-386), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-386), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-386), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-386), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-386), type Stat_t struct, Nlink uint16
++pkg syscall (freebsd-386), type Stat_t struct, Pad_cgo_0 [8]uint8
++pkg syscall (freebsd-386), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-386), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-386), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-386-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-386-cgo), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-386-cgo), const ELAST = 94
+ pkg syscall (freebsd-386-cgo), const ImplementsGetwd = false
+ pkg syscall (freebsd-386-cgo), const O_CLOEXEC = 0
++pkg syscall (freebsd-386-cgo), func Mknod(string, uint32, int) error
++pkg syscall (freebsd-386-cgo), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint8
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint16
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Pad_cgo_0 [8]uint8
++pkg syscall (freebsd-386-cgo), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-amd64), const AF_MAX = 38
+ pkg syscall (freebsd-amd64), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-amd64), const ELAST = 94
+ pkg syscall (freebsd-amd64), const ImplementsGetwd = false
+ pkg syscall (freebsd-amd64), const O_CLOEXEC = 0
+ pkg syscall (freebsd-amd64), func Fchflags(string, int) error
++pkg syscall (freebsd-amd64), func Mknod(string, uint32, int) error
++pkg syscall (freebsd-amd64), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint8
++pkg syscall (freebsd-amd64), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-amd64), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint16
++pkg syscall (freebsd-amd64), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-amd64), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-amd64), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-amd64-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-amd64-cgo), const DLT_MATCHING_MAX = 242
+ pkg syscall (freebsd-amd64-cgo), const ELAST = 94
+ pkg syscall (freebsd-amd64-cgo), const ImplementsGetwd = false
+ pkg syscall (freebsd-amd64-cgo), const O_CLOEXEC = 0
++pkg syscall (freebsd-amd64-cgo), func Mknod(string, uint32, int) error
++pkg syscall (freebsd-amd64-cgo), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint8
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint16
++pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-arm), const AF_MAX = 38
+ pkg syscall (freebsd-arm), const BIOCGRTIMEOUT = 1074545262
+ pkg syscall (freebsd-arm), const BIOCSRTIMEOUT = 2148287085
+@@ -62,10 +156,22 @@ pkg syscall (freebsd-arm), const SizeofSockaddrDatalink = 56
+ pkg syscall (freebsd-arm), const SizeofSockaddrUnix = 108
+ pkg syscall (freebsd-arm), const TIOCTIMESTAMP = 1074558041
+ pkg syscall (freebsd-arm), func Fchflags(string, int) error
++pkg syscall (freebsd-arm), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-arm), type BpfHdr struct, Pad_cgo_0 [2]uint8
++pkg syscall (freebsd-arm), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-arm), type Dirent struct, Namlen uint8
+ pkg syscall (freebsd-arm), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+ pkg syscall (freebsd-arm), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
++pkg syscall (freebsd-arm), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-arm), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-arm), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-arm), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-arm), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-arm), type Stat_t struct, Pad_cgo_0 [4]uint8
++pkg syscall (freebsd-arm), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-arm), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-arm), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (freebsd-arm-cgo), const AF_MAX = 38
+ pkg syscall (freebsd-arm-cgo), const BIOCGRTIMEOUT = 1074545262
+ pkg syscall (freebsd-arm-cgo), const BIOCSRTIMEOUT = 2148287085
+@@ -94,10 +200,22 @@ pkg syscall (freebsd-arm-cgo), const SizeofSockaddrDatalink = 56
+ pkg syscall (freebsd-arm-cgo), const SizeofSockaddrUnix = 108
+ pkg syscall (freebsd-arm-cgo), const TIOCTIMESTAMP = 1074558041
+ pkg syscall (freebsd-arm-cgo), func Fchflags(string, int) error
++pkg syscall (freebsd-arm-cgo), func Mknod(string, uint32, int) error
+ pkg syscall (freebsd-arm-cgo), type BpfHdr struct, Pad_cgo_0 [2]uint8
++pkg syscall (freebsd-arm-cgo), type Dirent struct, Fileno uint32
++pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint8
+ pkg syscall (freebsd-arm-cgo), type RawSockaddrDatalink struct, Pad_cgo_0 [2]uint8
+ pkg syscall (freebsd-arm-cgo), type RawSockaddrUnix struct, Pad_cgo_0 [2]uint8
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize uint32
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint32
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint32
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint32
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Lspare int32
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint16
+ pkg syscall (freebsd-arm-cgo), type Stat_t struct, Pad_cgo_0 [4]uint8
++pkg syscall (freebsd-arm-cgo), type Stat_t struct, Rdev uint32
++pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntfromname [88]int8
++pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntonname [88]int8
+ pkg syscall (linux-386), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (linux-386-cgo), type Cmsghdr struct, X__cmsg_data [0]uint8
+ pkg syscall (linux-amd64), type Cmsghdr struct, X__cmsg_data [0]uint8
+@@ -109,10 +227,10 @@ pkg syscall (netbsd-386-cgo), const ImplementsGetwd = false
+ pkg syscall (netbsd-amd64), const ImplementsGetwd = false
+ pkg syscall (netbsd-amd64-cgo), const ImplementsGetwd = false
+ pkg syscall (netbsd-arm), const ImplementsGetwd = false
+-pkg syscall (netbsd-arm-cgo), const ImplementsGetwd = false
+ pkg syscall (netbsd-arm), const SizeofIfData = 132
+ pkg syscall (netbsd-arm), func Fchflags(string, int) error
+ pkg syscall (netbsd-arm), type IfMsghdr struct, Pad_cgo_1 [4]uint8
++pkg syscall (netbsd-arm-cgo), const ImplementsGetwd = false
+ pkg syscall (netbsd-arm-cgo), const SizeofIfData = 132
+ pkg syscall (netbsd-arm-cgo), func Fchflags(string, int) error
+ pkg syscall (netbsd-arm-cgo), type IfMsghdr struct, Pad_cgo_1 [4]uint8
+@@ -140,6 +258,7 @@ pkg syscall (openbsd-386), const SYS_GETITIMER = 86
+ pkg syscall (openbsd-386), const SYS_GETRUSAGE = 117
+ pkg syscall (openbsd-386), const SYS_GETTIMEOFDAY = 116
+ pkg syscall (openbsd-386), const SYS_KEVENT = 270
++pkg syscall (openbsd-386), const SYS_KILL = 37
+ pkg syscall (openbsd-386), const SYS_LSTAT = 293
+ pkg syscall (openbsd-386), const SYS_NANOSLEEP = 240
+ pkg syscall (openbsd-386), const SYS_SELECT = 93
+@@ -193,6 +312,7 @@ pkg syscall (openbsd-386-cgo), const SYS_GETITIMER = 86
+ pkg syscall (openbsd-386-cgo), const SYS_GETRUSAGE = 117
+ pkg syscall (openbsd-386-cgo), const SYS_GETTIMEOFDAY = 116
+ pkg syscall (openbsd-386-cgo), const SYS_KEVENT = 270
++pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+ pkg syscall (openbsd-386-cgo), const SYS_LSTAT = 293
+ pkg syscall (openbsd-386-cgo), const SYS_NANOSLEEP = 240
+ pkg syscall (openbsd-386-cgo), const SYS_SELECT = 93
+@@ -257,6 +377,7 @@ pkg syscall (openbsd-amd64), const SYS_GETITIMER = 86
+ pkg syscall (openbsd-amd64), const SYS_GETRUSAGE = 117
+ pkg syscall (openbsd-amd64), const SYS_GETTIMEOFDAY = 116
+ pkg syscall (openbsd-amd64), const SYS_KEVENT = 270
++pkg syscall (openbsd-amd64), const SYS_KILL = 37
+ pkg syscall (openbsd-amd64), const SYS_LSTAT = 293
+ pkg syscall (openbsd-amd64), const SYS_NANOSLEEP = 240
+ pkg syscall (openbsd-amd64), const SYS_SELECT = 93
+@@ -320,6 +441,7 @@ pkg syscall (openbsd-amd64-cgo), const SYS_GETITIMER = 86
+ pkg syscall (openbsd-amd64-cgo), const SYS_GETRUSAGE = 117
+ pkg syscall (openbsd-amd64-cgo), const SYS_GETTIMEOFDAY = 116
+ pkg syscall (openbsd-amd64-cgo), const SYS_KEVENT = 270
++pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+ pkg syscall (openbsd-amd64-cgo), const SYS_LSTAT = 293
+ pkg syscall (openbsd-amd64-cgo), const SYS_NANOSLEEP = 240
+ pkg syscall (openbsd-amd64-cgo), const SYS_SELECT = 93
+@@ -348,19 +470,6 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_spare [3]uint32
+ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
+-pkg testing, func RegisterCover(Cover)
+-pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
+-pkg text/template/parse, type DotNode bool
+-pkg text/template/parse, type Node interface { Copy, String, Type }
+-pkg unicode, const Version = "6.2.0"
+-pkg unicode, const Version = "6.3.0"
+-pkg unicode, const Version = "7.0.0"
+-pkg unicode, const Version = "8.0.0"
+-pkg syscall (openbsd-386), const SYS_KILL = 37
+-pkg syscall (openbsd-386-cgo), const SYS_KILL = 37
+-pkg syscall (openbsd-amd64), const SYS_KILL = 37
+-pkg syscall (openbsd-amd64-cgo), const SYS_KILL = 37
+-pkg unicode, const Version = "9.0.0"
+ pkg syscall (windows-386), const TOKEN_ALL_ACCESS = 983295
+ pkg syscall (windows-386), type AddrinfoW struct, Addr uintptr
+ pkg syscall (windows-386), type CertChainPolicyPara struct, ExtraPolicyPara uintptr
+@@ -379,81 +488,16 @@ pkg syscall (windows-amd64), type CertRevocationInfo struct, CrlInfo uintptr
+ pkg syscall (windows-amd64), type CertRevocationInfo struct, OidSpecificInfo uintptr
+ pkg syscall (windows-amd64), type CertSimpleChain struct, TrustListInfo uintptr
+ pkg syscall (windows-amd64), type RawSockaddrAny struct, Pad [96]int8
+-pkg syscall (freebsd-386), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-386), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-386), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-386), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-386), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-386), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-386), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-386), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-386), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-386), type Stat_t struct, Pad_cgo_0 [8]uint8
+-pkg syscall (freebsd-386), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-386), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-386), type Statfs_t struct, Mntonname [88]int8
+-pkg syscall (freebsd-386-cgo), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-386-cgo), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-386-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Pad_cgo_0 [8]uint8
+-pkg syscall (freebsd-386-cgo), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-386-cgo), type Statfs_t struct, Mntonname [88]int8
+-pkg syscall (freebsd-amd64), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-amd64), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-amd64), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-amd64), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-amd64), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-amd64), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-amd64), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-amd64), type Statfs_t struct, Mntonname [88]int8
+-pkg syscall (freebsd-amd64-cgo), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-amd64-cgo), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-amd64-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-amd64-cgo), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-amd64-cgo), type Statfs_t struct, Mntonname [88]int8
+-pkg syscall (freebsd-arm), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-arm), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-arm), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-arm), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-arm), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-arm), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-arm), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-arm), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-arm), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-arm), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-arm), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-arm), type Statfs_t struct, Mntonname [88]int8
+-pkg syscall (freebsd-arm-cgo), func Mknod(string, uint32, int) error
+-pkg syscall (freebsd-arm-cgo), type Dirent struct, Fileno uint32
+-pkg syscall (freebsd-arm-cgo), type Dirent struct, Namlen uint8
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Blksize uint32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Dev uint32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Gen uint32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Ino uint32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Lspare int32
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Nlink uint16
+-pkg syscall (freebsd-arm-cgo), type Stat_t struct, Rdev uint32
+-pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntfromname [88]int8
+-pkg syscall (freebsd-arm-cgo), type Statfs_t struct, Mntonname [88]int8
++pkg testing, func MainStart(func(string, string) (bool, error), []InternalTest, []InternalBenchmark, []InternalExample) *M
++pkg testing, func RegisterCover(Cover)
+ pkg text/scanner, const GoTokens = 1012
++pkg text/template/parse, type DotNode bool
++pkg text/template/parse, type Node interface { Copy, String, Type }
+ pkg unicode, const Version = "10.0.0"
+ pkg unicode, const Version = "11.0.0"
+ pkg unicode, const Version = "12.0.0"
++pkg unicode, const Version = "6.2.0"
++pkg unicode, const Version = "6.3.0"
++pkg unicode, const Version = "7.0.0"
++pkg unicode, const Version = "8.0.0"
++pkg unicode, const Version = "9.0.0"
+diff --git a/api/next.txt b/api/next.txt
+index 59422cca4d..3184a8ceae 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -223,15 +223,97 @@ pkg io, type ReadSeekCloser interface { Close, Read, Seek }
+ pkg io, type ReadSeekCloser interface, Close() error
+ pkg io, type ReadSeekCloser interface, Read([]uint8) (int, error)
+ pkg io, type ReadSeekCloser interface, Seek(int64, int) (int64, error)
++pkg io/fs, const ModeAppend = 1073741824
++pkg io/fs, const ModeAppend FileMode
++pkg io/fs, const ModeCharDevice = 2097152
++pkg io/fs, const ModeCharDevice FileMode
++pkg io/fs, const ModeDevice = 67108864
++pkg io/fs, const ModeDevice FileMode
++pkg io/fs, const ModeDir = 2147483648
++pkg io/fs, const ModeDir FileMode
++pkg io/fs, const ModeExclusive = 536870912
++pkg io/fs, const ModeExclusive FileMode
++pkg io/fs, const ModeIrregular = 524288
++pkg io/fs, const ModeIrregular FileMode
++pkg io/fs, const ModeNamedPipe = 33554432
++pkg io/fs, const ModeNamedPipe FileMode
++pkg io/fs, const ModePerm = 511
++pkg io/fs, const ModePerm FileMode
++pkg io/fs, const ModeSetgid = 4194304
++pkg io/fs, const ModeSetgid FileMode
++pkg io/fs, const ModeSetuid = 8388608
++pkg io/fs, const ModeSetuid FileMode
++pkg io/fs, const ModeSocket = 16777216
++pkg io/fs, const ModeSocket FileMode
++pkg io/fs, const ModeSticky = 1048576
++pkg io/fs, const ModeSticky FileMode
++pkg io/fs, const ModeSymlink = 134217728
++pkg io/fs, const ModeSymlink FileMode
++pkg io/fs, const ModeTemporary = 268435456
++pkg io/fs, const ModeTemporary FileMode
++pkg io/fs, const ModeType = 2401763328
++pkg io/fs, const ModeType FileMode
++pkg io/fs, method (*PathError) Error() string
++pkg io/fs, method (*PathError) Timeout() bool
++pkg io/fs, method (*PathError) Unwrap() error
++pkg io/fs, method (FileMode) IsDir() bool
++pkg io/fs, method (FileMode) IsRegular() bool
++pkg io/fs, method (FileMode) Perm() FileMode
++pkg io/fs, method (FileMode) String() string
++pkg io/fs, method (FileMode) Type() FileMode
++pkg io/fs, type FileInfo interface { IsDir, ModTime, Mode, Name, Size, Sys }
++pkg io/fs, type FileInfo interface, IsDir() bool
++pkg io/fs, type FileInfo interface, ModTime() time.Time
++pkg io/fs, type FileInfo interface, Mode() FileMode
++pkg io/fs, type FileInfo interface, Name() string
++pkg io/fs, type FileInfo interface, Size() int64
++pkg io/fs, type FileInfo interface, Sys() interface{}
++pkg io/fs, type FileMode uint32
++pkg io/fs, type PathError struct
++pkg io/fs, type PathError struct, Err error
++pkg io/fs, type PathError struct, Op string
++pkg io/fs, type PathError struct, Path string
++pkg io/fs, var ErrClosed error
++pkg io/fs, var ErrExist error
++pkg io/fs, var ErrInvalid error
++pkg io/fs, var ErrNotExist error
++pkg io/fs, var ErrPermission error
+ pkg net, var ErrClosed error
+ pkg net/http, type Transport struct, GetProxyConnectHeader func(context.Context, *url.URL, string) (Header, error)
++pkg os, const ModeAppend fs.FileMode
++pkg os, const ModeCharDevice fs.FileMode
++pkg os, const ModeDevice fs.FileMode
++pkg os, const ModeDir fs.FileMode
++pkg os, const ModeExclusive fs.FileMode
++pkg os, const ModeIrregular fs.FileMode
++pkg os, const ModeNamedPipe fs.FileMode
++pkg os, const ModePerm fs.FileMode
++pkg os, const ModeSetgid fs.FileMode
++pkg os, const ModeSetuid fs.FileMode
++pkg os, const ModeSocket fs.FileMode
++pkg os, const ModeSticky fs.FileMode
++pkg os, const ModeSymlink fs.FileMode
++pkg os, const ModeTemporary fs.FileMode
++pkg os, const ModeType fs.FileMode
++pkg os, func Chmod(string, fs.FileMode) error
++pkg os, func Lstat(string) (fs.FileInfo, error)
++pkg os, func Mkdir(string, fs.FileMode) error
++pkg os, func MkdirAll(string, fs.FileMode) error
++pkg os, func OpenFile(string, int, fs.FileMode) (*File, error)
++pkg os, func SameFile(fs.FileInfo, fs.FileInfo) bool
++pkg os, func Stat(string) (fs.FileInfo, error)
++pkg os, method (*File) Chmod(fs.FileMode) error
+ pkg os, method (*File) ReadDir(int) ([]DirEntry, error)
+-pkg os, method (FileMode) Type() FileMode
++pkg os, method (*File) Readdir(int) ([]fs.FileInfo, error)
++pkg os, method (*File) Stat() (fs.FileInfo, error)
+ pkg os, type DirEntry interface { Info, IsDir, Name, Type }
+-pkg os, type DirEntry interface, Info() (FileInfo, error)
++pkg os, type DirEntry interface, Info() (fs.FileInfo, error)
+ pkg os, type DirEntry interface, IsDir() bool
+ pkg os, type DirEntry interface, Name() string
+-pkg os, type DirEntry interface, Type() FileMode
++pkg os, type DirEntry interface, Type() fs.FileMode
++pkg os, type FileInfo = fs.FileInfo
++pkg os, type FileMode = fs.FileMode
++pkg os, type PathError = fs.PathError
+ pkg os/signal, func NotifyContext(context.Context, ...os.Signal) (context.Context, context.CancelFunc)
+ pkg testing/iotest, func ErrReader(error) io.Reader
+ pkg text/template/parse, const NodeComment = 20
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 6a80ed269b..b14d57c236 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -326,6 +326,18 @@ func compareAPI(w io.Writer, features, required, optional, exception []string, a
+ 	return
+ }
+ 
++// aliasReplacer applies type aliases to earlier API files,
++// to avoid misleading negative results.
++// This makes all the references to os.FileInfo in go1.txt
++// be read as if they said fs.FileInfo, since os.FileInfo is now an alias.
++// If there are many of these, we could do a more general solution,
++// but for now the replacer is fine.
++var aliasReplacer = strings.NewReplacer(
++	"os.FileInfo", "fs.FileInfo",
++	"os.FileMode", "fs.FileMode",
++	"os.PathError", "fs.PathError",
++)
++
+ func fileFeatures(filename string) []string {
+ 	if filename == "" {
+ 		return nil
+@@ -334,7 +346,9 @@ func fileFeatures(filename string) []string {
+ 	if err != nil {
+ 		log.Fatalf("Error reading file %s: %v", filename, err)
+ 	}
+-	lines := strings.Split(string(bs), "\n")
++	s := string(bs)
++	s = aliasReplacer.Replace(s)
++	lines := strings.Split(s, "\n")
+ 	var nonblank []string
+ 	for _, line := range lines {
+ 		line = strings.TrimSpace(line)
+@@ -856,6 +870,10 @@ func (w *Walker) emitObj(obj types.Object) {
+ func (w *Walker) emitType(obj *types.TypeName) {
+ 	name := obj.Name()
+ 	typ := obj.Type()
++	if obj.IsAlias() {
++		w.emitf("type %s = %s", name, w.typeString(typ))
++		return
++	}
+ 	switch typ := typ.Underlying().(type) {
+ 	case *types.Struct:
+ 		w.emitStructType(name, typ)
+diff --git a/src/io/fs/fs.go b/src/io/fs/fs.go
+new file mode 100644
+index 0000000000..de5c465d9d
+--- /dev/null
++++ b/src/io/fs/fs.go
+@@ -0,0 +1,140 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fs defines basic interfaces to a file system.
++// A file system can be provided by the host operating system
++// but also by other packages.
++package fs
++
++import (
++	"internal/oserror"
++	"time"
++)
++
++// Generic file system errors.
++// Errors returned by file systems can be tested against these errors
++// using errors.Is.
++var (
++	ErrInvalid    = errInvalid()    // "invalid argument"
++	ErrPermission = errPermission() // "permission denied"
++	ErrExist      = errExist()      // "file already exists"
++	ErrNotExist   = errNotExist()   // "file does not exist"
++	ErrClosed     = errClosed()     // "file already closed"
++)
++
++func errInvalid() error    { return oserror.ErrInvalid }
++func errPermission() error { return oserror.ErrPermission }
++func errExist() error      { return oserror.ErrExist }
++func errNotExist() error   { return oserror.ErrNotExist }
++func errClosed() error     { return oserror.ErrClosed }
++
++// A FileInfo describes a file and is returned by Stat.
++type FileInfo interface {
++	Name() string       // base name of the file
++	Size() int64        // length in bytes for regular files; system-dependent for others
++	Mode() FileMode     // file mode bits
++	ModTime() time.Time // modification time
++	IsDir() bool        // abbreviation for Mode().IsDir()
++	Sys() interface{}   // underlying data source (can return nil)
++}
++
++// A FileMode represents a file's mode and permission bits.
++// The bits have the same definition on all systems, so that
++// information about files can be moved from one system
++// to another portably. Not all bits apply to all systems.
++// The only required bit is ModeDir for directories.
++type FileMode uint32
++
++// The defined file mode bits are the most significant bits of the FileMode.
++// The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
++// The values of these bits should be considered part of the public API and
++// may be used in wire protocols or disk representations: they must not be
++// changed, although new bits might be added.
++const (
++	// The single letters are the abbreviations
++	// used by the String method's formatting.
++	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
++	ModeAppend                                     // a: append-only
++	ModeExclusive                                  // l: exclusive use
++	ModeTemporary                                  // T: temporary file; Plan 9 only
++	ModeSymlink                                    // L: symbolic link
++	ModeDevice                                     // D: device file
++	ModeNamedPipe                                  // p: named pipe (FIFO)
++	ModeSocket                                     // S: Unix domain socket
++	ModeSetuid                                     // u: setuid
++	ModeSetgid                                     // g: setgid
++	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
++	ModeSticky                                     // t: sticky
++	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
++
++	// Mask for the type bits. For regular files, none will be set.
++	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
++
++	ModePerm FileMode = 0777 // Unix permission bits
++)
++
++func (m FileMode) String() string {
++	const str = "dalTLDpSugct?"
++	var buf [32]byte // Mode is uint32.
++	w := 0
++	for i, c := range str {
++		if m&(1<<uint(32-1-i)) != 0 {
++			buf[w] = byte(c)
++			w++
++		}
++	}
++	if w == 0 {
++		buf[w] = '-'
++		w++
++	}
++	const rwx = "rwxrwxrwx"
++	for i, c := range rwx {
++		if m&(1<<uint(9-1-i)) != 0 {
++			buf[w] = byte(c)
++		} else {
++			buf[w] = '-'
++		}
++		w++
++	}
++	return string(buf[:w])
++}
++
++// IsDir reports whether m describes a directory.
++// That is, it tests for the ModeDir bit being set in m.
++func (m FileMode) IsDir() bool {
++	return m&ModeDir != 0
++}
++
++// IsRegular reports whether m describes a regular file.
++// That is, it tests that no mode type bits are set.
++func (m FileMode) IsRegular() bool {
++	return m&ModeType == 0
++}
++
++// Perm returns the Unix permission bits in m (m & ModePerm).
++func (m FileMode) Perm() FileMode {
++	return m & ModePerm
++}
++
++// Type returns type bits in m (m & ModeType).
++func (m FileMode) Type() FileMode {
++	return m & ModeType
++}
++
++// PathError records an error and the operation and file path that caused it.
++type PathError struct {
++	Op   string
++	Path string
++	Err  error
++}
++
++func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
++
++func (e *PathError) Unwrap() error { return e.Err }
++
++// Timeout reports whether this error represents a timeout.
++func (e *PathError) Timeout() bool {
++	t, ok := e.Err.(interface{ Timeout() bool })
++	return ok && t.Timeout()
++}
+diff --git a/src/os/error.go b/src/os/error.go
+index 875cc9711f..7cd9f22bfb 100644
+--- a/src/os/error.go
++++ b/src/os/error.go
+@@ -7,6 +7,7 @@ package os
+ import (
+ 	"internal/oserror"
+ 	"internal/poll"
++	"io/fs"
+ )
+ 
+ // Portable analogs of some common system call errors.
+@@ -16,20 +17,17 @@ import (
+ var (
+ 	// ErrInvalid indicates an invalid argument.
+ 	// Methods on File will return this error when the receiver is nil.
+-	ErrInvalid = errInvalid() // "invalid argument"
++	ErrInvalid = fs.ErrInvalid // "invalid argument"
++
++	ErrPermission = fs.ErrPermission // "permission denied"
++	ErrExist      = fs.ErrExist      // "file already exists"
++	ErrNotExist   = fs.ErrNotExist   // "file does not exist"
++	ErrClosed     = fs.ErrClosed     // "file already closed"
+ 
+-	ErrPermission       = errPermission()       // "permission denied"
+-	ErrExist            = errExist()            // "file already exists"
+-	ErrNotExist         = errNotExist()         // "file does not exist"
+-	ErrClosed           = errClosed()           // "file already closed"
+ 	ErrNoDeadline       = errNoDeadline()       // "file type does not support deadline"
+ 	ErrDeadlineExceeded = errDeadlineExceeded() // "i/o timeout"
+ )
+ 
+-func errInvalid() error    { return oserror.ErrInvalid }
+-func errPermission() error { return oserror.ErrPermission }
+-func errExist() error      { return oserror.ErrExist }
+-func errNotExist() error   { return oserror.ErrNotExist }
+ func errClosed() error     { return oserror.ErrClosed }
+ func errNoDeadline() error { return poll.ErrNoDeadline }
+ 
+@@ -47,21 +45,7 @@ type timeout interface {
+ }
+ 
+ // PathError records an error and the operation and file path that caused it.
+-type PathError struct {
+-	Op   string
+-	Path string
+-	Err  error
+-}
+-
+-func (e *PathError) Error() string { return e.Op + " " + e.Path + ": " + e.Err.Error() }
+-
+-func (e *PathError) Unwrap() error { return e.Err }
+-
+-// Timeout reports whether this error represents a timeout.
+-func (e *PathError) Timeout() bool {
+-	t, ok := e.Err.(timeout)
+-	return ok && t.Timeout()
+-}
++type PathError = fs.PathError
+ 
+ // SyscallError records an error from a specific system call.
+ type SyscallError struct {
+diff --git a/src/os/types.go b/src/os/types.go
+index 0f51a48286..d8edd98b68 100644
+--- a/src/os/types.go
++++ b/src/os/types.go
+@@ -5,8 +5,8 @@
+ package os
+ 
+ import (
++	"io/fs"
+ 	"syscall"
+-	"time"
+ )
+ 
+ // Getpagesize returns the underlying system's memory page size.
+@@ -18,21 +18,14 @@ type File struct {
+ }
+ 
+ // A FileInfo describes a file and is returned by Stat and Lstat.
+-type FileInfo interface {
+-	Name() string       // base name of the file
+-	Size() int64        // length in bytes for regular files; system-dependent for others
+-	Mode() FileMode     // file mode bits
+-	ModTime() time.Time // modification time
+-	IsDir() bool        // abbreviation for Mode().IsDir()
+-	Sys() interface{}   // underlying data source (can return nil)
+-}
++type FileInfo = fs.FileInfo
+ 
+ // A FileMode represents a file's mode and permission bits.
+ // The bits have the same definition on all systems, so that
+ // information about files can be moved from one system
+ // to another portably. Not all bits apply to all systems.
+ // The only required bit is ModeDir for directories.
+-type FileMode uint32
++type FileMode = fs.FileMode
+ 
+ // The defined file mode bits are the most significant bits of the FileMode.
+ // The nine least-significant bits are the standard Unix rwxrwxrwx permissions.
+@@ -42,74 +35,26 @@ type FileMode uint32
+ const (
+ 	// The single letters are the abbreviations
+ 	// used by the String method's formatting.
+-	ModeDir        FileMode = 1 << (32 - 1 - iota) // d: is a directory
+-	ModeAppend                                     // a: append-only
+-	ModeExclusive                                  // l: exclusive use
+-	ModeTemporary                                  // T: temporary file; Plan 9 only
+-	ModeSymlink                                    // L: symbolic link
+-	ModeDevice                                     // D: device file
+-	ModeNamedPipe                                  // p: named pipe (FIFO)
+-	ModeSocket                                     // S: Unix domain socket
+-	ModeSetuid                                     // u: setuid
+-	ModeSetgid                                     // g: setgid
+-	ModeCharDevice                                 // c: Unix character device, when ModeDevice is set
+-	ModeSticky                                     // t: sticky
+-	ModeIrregular                                  // ?: non-regular file; nothing else is known about this file
++	ModeDir        = fs.ModeDir        // d: is a directory
++	ModeAppend     = fs.ModeAppend     // a: append-only
++	ModeExclusive  = fs.ModeExclusive  // l: exclusive use
++	ModeTemporary  = fs.ModeTemporary  // T: temporary file; Plan 9 only
++	ModeSymlink    = fs.ModeSymlink    // L: symbolic link
++	ModeDevice     = fs.ModeDevice     // D: device file
++	ModeNamedPipe  = fs.ModeNamedPipe  // p: named pipe (FIFO)
++	ModeSocket     = fs.ModeSocket     // S: Unix domain socket
++	ModeSetuid     = fs.ModeSetuid     // u: setuid
++	ModeSetgid     = fs.ModeSetgid     // g: setgid
++	ModeCharDevice = fs.ModeCharDevice // c: Unix character device, when ModeDevice is set
++	ModeSticky     = fs.ModeSticky     // t: sticky
++	ModeIrregular  = fs.ModeIrregular  // ?: non-regular file; nothing else is known about this file
+ 
+ 	// Mask for the type bits. For regular files, none will be set.
+-	ModeType = ModeDir | ModeSymlink | ModeNamedPipe | ModeSocket | ModeDevice | ModeCharDevice | ModeIrregular
++	ModeType = fs.ModeType
+ 
+-	ModePerm FileMode = 0777 // Unix permission bits
++	ModePerm = fs.ModePerm // Unix permission bits, 0o777
+ )
+ 
+-func (m FileMode) String() string {
+-	const str = "dalTLDpSugct?"
+-	var buf [32]byte // Mode is uint32.
+-	w := 0
+-	for i, c := range str {
+-		if m&(1<<uint(32-1-i)) != 0 {
+-			buf[w] = byte(c)
+-			w++
+-		}
+-	}
+-	if w == 0 {
+-		buf[w] = '-'
+-		w++
+-	}
+-	const rwx = "rwxrwxrwx"
+-	for i, c := range rwx {
+-		if m&(1<<uint(9-1-i)) != 0 {
+-			buf[w] = byte(c)
+-		} else {
+-			buf[w] = '-'
+-		}
+-		w++
+-	}
+-	return string(buf[:w])
+-}
+-
+-// IsDir reports whether m describes a directory.
+-// That is, it tests for the ModeDir bit being set in m.
+-func (m FileMode) IsDir() bool {
+-	return m&ModeDir != 0
+-}
+-
+-// IsRegular reports whether m describes a regular file.
+-// That is, it tests that no mode type bits are set.
+-func (m FileMode) IsRegular() bool {
+-	return m&ModeType == 0
+-}
+-
+-// Perm returns the Unix permission bits in m (m & ModePerm).
+-func (m FileMode) Perm() FileMode {
+-	return m & ModePerm
+-}
+-
+-// Type returns type bits in m (m & ModeType).
+-func (m FileMode) Type() FileMode {
+-	return m & ModeType
+-}
+-
+ func (fs *fileStat) Name() string { return fs.name }
+ func (fs *fileStat) IsDir() bool  { return fs.Mode().IsDir() }
+ 

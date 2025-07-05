@@ -9,6 +9,20 @@ Date:   Tue Jul 30 10:27:26 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/12104043
-
+---
  src/cmd/gc/dcl.c | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d3759efde3..dc4d1f18e1 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -141,6 +141,8 @@ testdclstack(void)
+ 
+ 	for(d=dclstack; d!=S; d=d->link) {
+ 		if(d->name == nil) {
++			if(nerrors != 0)
++				errorexit();
+ 			yyerror("mark left on the stack");
+ 			continue;
+ 		}

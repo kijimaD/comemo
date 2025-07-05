@@ -10,7 +10,66 @@ Date:   Fri Mar 14 16:42:42 2014 +0100
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/72920046
-
+---
  src/cmd/gc/typecheck.c      | 14 ++++++++++----
  test/fixedbugs/issue6405.go | 13 +++++++++++++
  2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 5efc8d7913..ebff0694a0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -1065,6 +1065,7 @@ reswitch:
+ 			goto reswitch;
+ 		}
+ 		typecheck(&n->left, Erv | Etype | Ecall |(top&Eproc));
++		n->diag |= n->left->diag;
+ 		l = n->left;
+ 		if(l->op == ONAME && l->etype != 0) {
+ 			if(n->isddd && l->etype != OAPPEND)
+@@ -2165,6 +2166,7 @@ typecheckaste(int op, Node *call, int isddd, Type *tstruct, NodeList *nl, char *
+ 	if(tstruct->broke)
+ 		goto out;
+ 
++	n = N;
+ 	if(nl != nil && nl->next == nil && (n = nl->n)->type != T)
+ 	if(n->type->etype == TSTRUCT && n->type->funarg) {
+ 		tn = n->type->type;
+@@ -2239,10 +2241,14 @@ out:
+ 	return;
+ 
+ notenough:
+-	if(call != N)
+-		yyerror("not enough arguments in call to %N", call);
+-	else
+-		yyerror("not enough arguments to %O", op);
++	if(n == N || !n->diag) {
++		if(call != N)
++			yyerror("not enough arguments in call to %N", call);
++		else
++			yyerror("not enough arguments to %O", op);
++		if(n != N)
++			n->diag = 1;
++	}
+ 	goto out;
+ 
+ toomany:
+diff --git a/test/fixedbugs/issue6405.go b/test/fixedbugs/issue6405.go
+new file mode 100644
+index 0000000000..b4551cc250
+--- /dev/null
++++ b/test/fixedbugs/issue6405.go
+@@ -0,0 +1,13 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6405: spurious 'not enough arguments to return' error
++
++package p
++
++func Open() (int, error) {
++	return OpenFile() // ERROR "undefined: OpenFile"
++}

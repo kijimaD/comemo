@@ -11,6 +11,20 @@ Date:   Tue Jan 9 13:23:13 2018 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa_test.go b/src/cmd/compile/internal/gc/ssa_test.go
+index 13fb98b276..2aa923f9f4 100644
+--- a/src/cmd/compile/internal/gc/ssa_test.go
++++ b/src/cmd/compile/internal/gc/ssa_test.go
+@@ -82,7 +82,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 
+ 	stdout.Reset()
+ 	stderr.Reset()
+-	cmd = exec.Command("go", "run", "-gcflags=-d=ssa/check/on", rungo)
++	cmd = exec.Command(gotool, "run", "-gcflags=-d=ssa/check/on", rungo)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	cmd.Env = append(cmd.Env, ev...)

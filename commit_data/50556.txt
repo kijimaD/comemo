@@ -51,9 +51,147 @@ Date:   Mon Nov 1 13:34:08 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ipsock_posix.go  | 30 ++++++++++++++++++++++++++++++
  src/net/udpsock.go       | 20 +++++++++++++++-----
  src/net/udpsock_plan9.go |  4 ++++
  src/net/udpsock_posix.go | 28 ++++++++++++++++++++++++++++
  4 files changed, 77 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/ipsock_posix.go b/src/net/ipsock_posix.go
+index 0910f63d48..e433e8a91c 100644
+--- a/src/net/ipsock_posix.go
++++ b/src/net/ipsock_posix.go
+@@ -9,6 +9,7 @@ package net
+ import (
+ 	"context"
+ 	"internal/poll"
++	"net/netip"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -196,3 +197,32 @@ func ipToSockaddr(family int, ip IP, port int, zone string) (syscall.Sockaddr, e
+ 	}
+ 	return nil, &AddrError{Err: "invalid address family", Addr: ip.String()}
+ }
++
++func addrPortToSockaddrInet4(ap netip.AddrPort) (syscall.SockaddrInet4, error) {
++	// ipToSockaddrInet4 has special handling here for zero length slices.
++	// We do not, because netip has no concept of a generic zero IP address.
++	addr := ap.Addr()
++	if !addr.Is4() {
++		return syscall.SockaddrInet4{}, &AddrError{Err: "non-IPv4 address", Addr: addr.String()}
++	}
++	sa := syscall.SockaddrInet4{
++		Addr: addr.As4(),
++		Port: int(ap.Port()),
++	}
++	return sa, nil
++}
++
++func addrPortToSockaddrInet6(ap netip.AddrPort) (syscall.SockaddrInet6, error) {
++	// ipToSockaddrInet6 has special handling here for zero length slices.
++	// We do not, because netip has no concept of a generic zero IP address.
++	addr := ap.Addr()
++	if !addr.Is6() {
++		return syscall.SockaddrInet6{}, &AddrError{Err: "non-IPv6 address", Addr: addr.String()}
++	}
++	sa := syscall.SockaddrInet6{
++		Addr:   addr.As16(),
++		Port:   int(ap.Port()),
++		ZoneId: uint32(zoneCache.index(addr.Zone())),
++	}
++	return sa, nil
++}
+diff --git a/src/net/udpsock.go b/src/net/udpsock.go
+index 8c97ca7537..0d563fd4f5 100644
+--- a/src/net/udpsock.go
++++ b/src/net/udpsock.go
+@@ -114,6 +114,13 @@ func UDPAddrFromAddrPort(addr netip.AddrPort) *UDPAddr {
+ 	}
+ }
+ 
++// An addrPortUDPAddr is a netip.AddrPort-based UDP address that satisfies the Addr interface.
++type addrPortUDPAddr struct {
++	netip.AddrPort
++}
++
++func (addrPortUDPAddr) Network() string { return "udp" }
++
+ // UDPConn is the implementation of the Conn and PacketConn interfaces
+ // for UDP network connections.
+ type UDPConn struct {
+@@ -244,11 +251,14 @@ func (c *UDPConn) WriteMsgUDP(b, oob []byte, addr *UDPAddr) (n, oobn int, err er
+ 
+ // WriteMsgUDPAddrPort is like WriteMsgUDP but takes a netip.AddrPort instead of a UDPAddr.
+ func (c *UDPConn) WriteMsgUDPAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
+-	// TODO(bradfitz): make this efficient, making the internal net package
+-	// type throughout be netip.Addr and only converting to the net.IP slice
+-	// version at the edge. But for now (2021-10-20), this is a wrapper around
+-	// the old way.
+-	return c.WriteMsgUDP(b, oob, UDPAddrFromAddrPort(addr))
++	if !c.ok() {
++		return 0, 0, syscall.EINVAL
++	}
++	n, oobn, err = c.writeMsgAddrPort(b, oob, addr)
++	if err != nil {
++		err = &OpError{Op: "write", Net: c.fd.net, Source: c.fd.laddr, Addr: addrPortUDPAddr{addr}, Err: err}
++	}
++	return
+ }
+ 
+ func newUDPConn(fd *netFD) *UDPConn { return &UDPConn{conn{fd}} }
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index c18af2356d..ac5afa2281 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -57,6 +57,10 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
+ 	return 0, 0, syscall.EPLAN9
+ }
+ 
++func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
++	return 0, 0, syscall.EPLAN9
++}
++
+ func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	fd, err := dialPlan9(ctx, sd.network, laddr, raddr)
+ 	if err != nil {
+diff --git a/src/net/udpsock_posix.go b/src/net/udpsock_posix.go
+index b20025140f..646687d148 100644
+--- a/src/net/udpsock_posix.go
++++ b/src/net/udpsock_posix.go
+@@ -123,6 +123,34 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
+ 	return c.fd.writeMsg(b, oob, sa)
+ }
+ 
++func (c *UDPConn) writeMsgAddrPort(b, oob []byte, addr netip.AddrPort) (n, oobn int, err error) {
++	if c.fd.isConnected && addr.IsValid() {
++		return 0, 0, ErrWriteToConnected
++	}
++	if !c.fd.isConnected && !addr.IsValid() {
++		return 0, 0, errMissingAddress
++	}
++
++	switch c.fd.family {
++	case syscall.AF_INET:
++		sa, err := addrPortToSockaddrInet4(addr)
++		if err != nil {
++			return 0, 0, err
++		}
++		// TODO: Implement writeMsgInet4 to avoid allocation converting sa to an interface.
++		return c.fd.writeMsg(b, oob, &sa)
++	case syscall.AF_INET6:
++		sa, err := addrPortToSockaddrInet6(addr)
++		if err != nil {
++			return 0, 0, err
++		}
++		// TODO: Implement writeMsgInet6 to avoid allocation converting sa to an interface.
++		return c.fd.writeMsg(b, oob, &sa)
++	default:
++		return 0, 0, &AddrError{Err: "invalid address family", Addr: addr.Addr().String()}
++	}
++}
++
+ func (sd *sysDialer) dialUDP(ctx context.Context, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	fd, err := internetSocket(ctx, sd.network, laddr, raddr, syscall.SOCK_DGRAM, 0, "dial", sd.Dialer.Control)
+ 	if err != nil {

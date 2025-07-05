@@ -9,9 +9,139 @@ Date:   Wed Aug 14 07:04:39 2013 +0900
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12763044
-
+---
  src/pkg/net/dial.go       | 18 ++++++++++--------
  src/pkg/net/dial_gen.go   |  6 +++---
  src/pkg/net/fd_unix.go    |  2 +-
  src/pkg/net/fd_windows.go |  2 +-
  4 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index b18d283626..b6ed830511 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -85,10 +85,10 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
+ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
+ 	afnet, _, err := parseNetwork(net)
+ 	if err != nil {
+-		return nil, &OpError{op, net, nil, err}
++		return nil, err
+ 	}
+ 	if op == "dial" && addr == "" {
+-		return nil, &OpError{op, net, nil, errMissingAddress}
++		return nil, errMissingAddress
+ 	}
+ 	switch afnet {
+ 	case "unix", "unixgram", "unixpacket":
+@@ -148,7 +148,7 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ 
+ func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error) {
+ 	if la != nil && la.Network() != ra.Network() {
+-		return nil, &OpError{"dial", net, ra, errors.New("mismatched local addr type " + la.Network())}
++		return nil, &OpError{Op: "dial", Net: net, Addr: ra, Err: errors.New("mismatched local address type " + la.Network())}
+ 	}
+ 	switch ra := ra.(type) {
+ 	case *TCPAddr:
+@@ -164,7 +164,7 @@ func dial(net, addr string, la, ra Addr, deadline time.Time) (c Conn, err error)
+ 		la, _ := la.(*UnixAddr)
+ 		c, err = dialUnix(net, la, ra, deadline)
+ 	default:
+-		err = &OpError{"dial", net + " " + addr, ra, UnknownNetworkError(net)}
++		err = &OpError{Op: "dial", Net: net, Addr: ra, Err: &AddrError{Err: "unexpected address type", Addr: addr}}
+ 	}
+ 	if err != nil {
+ 		return nil, err
+@@ -186,15 +186,16 @@ func (a stringAddr) String() string  { return a.addr }
+ func Listen(net, laddr string) (Listener, error) {
+ 	la, err := resolveAddr("listen", net, laddr, noDeadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+ 	switch la := la.(type) {
+ 	case *TCPAddr:
+ 		return ListenTCP(net, la)
+ 	case *UnixAddr:
+ 		return ListenUnix(net, la)
++	default:
++		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
+ 	}
+-	return nil, UnknownNetworkError(net)
+ }
+ 
+ // ListenPacket announces on the local network address laddr.
+@@ -204,7 +205,7 @@ func Listen(net, laddr string) (Listener, error) {
+ func ListenPacket(net, laddr string) (PacketConn, error) {
+ 	la, err := resolveAddr("listen", net, laddr, noDeadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "listen", Net: net, Addr: nil, Err: err}
+ 	}
+ 	switch la := la.(type) {
+ 	case *UDPAddr:
+@@ -213,6 +214,7 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
+ 		return ListenIP(net, la)
+ 	case *UnixAddr:
+ 		return ListenUnixgram(net, la)
++	default:
++		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
+ 	}
+-	return nil, UnknownNetworkError(net)
+ }
+diff --git a/src/pkg/net/dial_gen.go b/src/pkg/net/dial_gen.go
+index 19f8681682..4fb1c7ad94 100644
+--- a/src/pkg/net/dial_gen.go
++++ b/src/pkg/net/dial_gen.go
+@@ -24,7 +24,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
+ 	if timeout <= 0 {
+ 		ra, err := resolveAddr("dial", net, addr, noDeadline)
+ 		if err != nil {
+-			return nil, err
++			return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 		}
+ 		return dial(net, addr, localAddr, ra, noDeadline)
+ 	}
+@@ -42,7 +42,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
+ 		}
+ 		ra, err := resolveAddr("dial", net, addr, noDeadline)
+ 		if err != nil {
+-			ch <- pair{nil, err}
++			ch <- pair{nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}}
+ 			return
+ 		}
+ 		resolvedAddr <- ra // in case we need it for OpError
+@@ -64,7 +64,7 @@ func resolveAndDialChannel(net, addr string, localAddr Addr, deadline time.Time)
+ 			Op:   "dial",
+ 			Net:  net,
+ 			Addr: ra,
+-			Err:  &timeoutError{},
++			Err:  errTimeout,
+ 		}
+ 		return nil, err
+ 	case p := <-ch:
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index f704c0a2a0..f475cf45db 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -41,7 +41,7 @@ func sysInit() {
+ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn, error) {
+ 	ra, err := resolveAddr("dial", net, addr, deadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 	}
+ 	return dial(net, addr, localAddr, ra, deadline)
+ }
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index ff0190240b..d9c3a3cb26 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -87,7 +87,7 @@ func resolveAndDial(net, addr string, localAddr Addr, deadline time.Time) (Conn,
+ 	}
+ 	ra, err := resolveAddr("dial", net, addr, deadline)
+ 	if err != nil {
+-		return nil, err
++		return nil, &OpError{Op: "dial", Net: net, Addr: nil, Err: err}
+ 	}
+ 	return dial(net, addr, localAddr, ra, deadline)
+ }

@@ -8,6 +8,61 @@ Date:   Thu Oct 11 01:34:26 2012 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6635064
-
+---
  src/cmd/go/clean.go | 18 ++++++++++++++----
  1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/clean.go b/src/cmd/go/clean.go
+index b148eaaec8..ba600d3bb1 100644
+--- a/src/cmd/go/clean.go
++++ b/src/cmd/go/clean.go
+@@ -170,7 +170,9 @@ func clean(p *Package) {
+ 						continue
+ 					}
+ 				}
+-				os.RemoveAll(filepath.Join(p.Dir, name))
++				if err := os.RemoveAll(filepath.Join(p.Dir, name)); err != nil {
++					errorf("go clean: %v", err)
++				}
+ 			}
+ 			continue
+ 		}
+@@ -180,7 +182,7 @@ func clean(p *Package) {
+ 		}
+ 
+ 		if cleanFile[name] || cleanExt[filepath.Ext(name)] || toRemove[name] {
+-			os.Remove(filepath.Join(p.Dir, name))
++			removeFile(filepath.Join(p.Dir, name))
+ 		}
+ 	}
+ 
+@@ -189,7 +191,7 @@ func clean(p *Package) {
+ 			b.showcmd("", "rm -f %s", p.target)
+ 		}
+ 		if !cleanN {
+-			os.Remove(p.target)
++			removeFile(p.target)
+ 		}
+ 	}
+ 
+@@ -202,7 +204,7 @@ func clean(p *Package) {
+ 				b.showcmd("", "rm -f %s", target)
+ 			}
+ 			if !cleanN {
+-				os.Remove(target)
++				removeFile(target)
+ 			}
+ 		}
+ 	}
+@@ -213,3 +215,11 @@ func clean(p *Package) {
+ 		}
+ 	}
+ }
++
++// removeFile tries to remove file f, if error other than file doesn't exist
++// occurs, it will report the error.
++func removeFile(f string) {
++	if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
++		errorf("go clean: %v", err)
++	}
++}

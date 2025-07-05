@@ -24,9 +24,130 @@ Date:   Wed Jul 13 09:00:57 2022 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/ARM64.rules |  3 ++
  src/cmd/compile/internal/ssa/rewrite.go      |  4 +--
  src/cmd/compile/internal/ssa/rewriteARM64.go | 45 ++++++++++++++++++++++++++--
  test/codegen/mathbits.go                     | 10 ++++---
  4 files changed, 54 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index a91f17a2d3..0d319609aa 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -64,8 +64,11 @@
+ (Sqrt32 ...) => (FSQRTS ...)
+ 
+ // lowering rotates
++// we do rotate detection in generic rules, if the following rules need to be changed, chcek generic rules first.
+ (RotateLeft8 <t> x (MOVDconst [c])) => (Or8 (Lsh8x64 <t> x (MOVDconst [c&7])) (Rsh8Ux64 <t> x (MOVDconst [-c&7])))
++(RotateLeft8 <t> x y) => (OR <t> (SLL <t> x (ANDconst <typ.Int64> [7] y)) (SRL <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEG <typ.Int64> y))))
+ (RotateLeft16 <t> x (MOVDconst [c])) => (Or16 (Lsh16x64 <t> x (MOVDconst [c&15])) (Rsh16Ux64 <t> x (MOVDconst [-c&15])))
++(RotateLeft16 <t> x y) => (RORW <t> (ORshiftLL <typ.UInt32> (ZeroExt16to32 x) (ZeroExt16to32 x) [16]) (NEG <typ.Int64> y))
+ (RotateLeft32 x y) => (RORW x (NEG <y.Type> y))
+ (RotateLeft64 x y) => (ROR x (NEG <y.Type> y))
+ 
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 44b5173968..c95d873456 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1986,9 +1986,9 @@ func canRotate(c *Config, bits int64) bool {
+ 		return false
+ 	}
+ 	switch c.arch {
+-	case "386", "amd64":
++	case "386", "amd64", "arm64":
+ 		return true
+-	case "arm", "arm64", "s390x", "ppc64", "ppc64le", "wasm", "loong64":
++	case "arm", "s390x", "ppc64", "ppc64le", "wasm", "loong64":
+ 		return bits >= 32
+ 	default:
+ 		return false
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index ecb8a6b779..097d1772ab 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -25610,7 +25610,24 @@ func rewriteValueARM64_OpRotateLeft16(v *Value) bool {
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}
+-	return false
++	// match: (RotateLeft16 <t> x y)
++	// result: (RORW <t> (ORshiftLL <typ.UInt32> (ZeroExt16to32 x) (ZeroExt16to32 x) [16]) (NEG <typ.Int64> y))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpARM64RORW)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64ORshiftLL, typ.UInt32)
++		v0.AuxInt = int64ToAuxInt(16)
++		v1 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
++		v1.AddArg(x)
++		v0.AddArg2(v1, v1)
++		v2 := b.NewValue0(v.Pos, OpARM64NEG, typ.Int64)
++		v2.AddArg(y)
++		v.AddArg2(v0, v2)
++		return true
++	}
+ }
+ func rewriteValueARM64_OpRotateLeft32(v *Value) bool {
+ 	v_1 := v.Args[1]
+@@ -25670,7 +25687,31 @@ func rewriteValueARM64_OpRotateLeft8(v *Value) bool {
+ 		v.AddArg2(v0, v2)
+ 		return true
+ 	}
+-	return false
++	// match: (RotateLeft8 <t> x y)
++	// result: (OR <t> (SLL <t> x (ANDconst <typ.Int64> [7] y)) (SRL <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEG <typ.Int64> y))))
++	for {
++		t := v.Type
++		x := v_0
++		y := v_1
++		v.reset(OpARM64OR)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpARM64SLL, t)
++		v1 := b.NewValue0(v.Pos, OpARM64ANDconst, typ.Int64)
++		v1.AuxInt = int64ToAuxInt(7)
++		v1.AddArg(y)
++		v0.AddArg2(x, v1)
++		v2 := b.NewValue0(v.Pos, OpARM64SRL, t)
++		v3 := b.NewValue0(v.Pos, OpZeroExt8to64, typ.UInt64)
++		v3.AddArg(x)
++		v4 := b.NewValue0(v.Pos, OpARM64ANDconst, typ.Int64)
++		v4.AuxInt = int64ToAuxInt(7)
++		v5 := b.NewValue0(v.Pos, OpARM64NEG, typ.Int64)
++		v5.AddArg(y)
++		v4.AddArg(v5)
++		v2.AddArg2(v3, v4)
++		v.AddArg2(v0, v2)
++		return true
++	}
+ }
+ func rewriteValueARM64_OpRsh16Ux16(v *Value) bool {
+ 	v_1 := v.Args[1]
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 9c643647ee..0620766f5a 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -258,14 +258,16 @@ func RotateLeft32(n uint32) uint32 {
+ 	return bits.RotateLeft32(n, 9)
+ }
+ 
+-func RotateLeft16(n uint16) uint16 {
++func RotateLeft16(n uint16, s int) uint16 {
+ 	// amd64:"ROLW" 386:"ROLW"
+-	return bits.RotateLeft16(n, 5)
++	// arm64:"RORW",-"CSEL"
++	return bits.RotateLeft16(n, s)
+ }
+ 
+-func RotateLeft8(n uint8) uint8 {
++func RotateLeft8(n uint8, s int) uint8 {
+ 	// amd64:"ROLB" 386:"ROLB"
+-	return bits.RotateLeft8(n, 5)
++	// arm64:"LSL","LSR",-"CSEL"
++	return bits.RotateLeft8(n, s)
+ }
+ 
+ func RotateLeftVariable(n uint, m int) uint {

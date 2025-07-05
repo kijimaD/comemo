@@ -11,6 +11,19 @@ Date:   Sat Aug 18 15:50:33 2012 -0700
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6453148
-
+---
  src/pkg/crypto/tls/handshake_server.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/crypto/tls/handshake_server.go b/src/pkg/crypto/tls/handshake_server.go
+index 76adc540c7..e5049a2f0d 100644
+--- a/src/pkg/crypto/tls/handshake_server.go
++++ b/src/pkg/crypto/tls/handshake_server.go
+@@ -211,6 +211,7 @@ FindCipherSuite:
+ 				Roots:         c.config.ClientCAs,
+ 				CurrentTime:   c.config.time(),
+ 				Intermediates: x509.NewCertPool(),
++				KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+ 			}
+ 
+ 			for i, cert := range certs {

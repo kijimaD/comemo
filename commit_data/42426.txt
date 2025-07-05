@@ -19,6 +19,32 @@ Date:   Wed Dec 18 15:19:05 2019 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/preempt.go | 14 +++++++++++---
  1 file changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 2c38ac02f5..420a7f96e0 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -411,9 +411,17 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) bool {
+ 		// locals pointer map, like empty frame functions?
+ 		return false
+ 	}
+-	if hasPrefix(funcname(f), "runtime.") ||
+-		hasPrefix(funcname(f), "runtime/internal/") ||
+-		hasPrefix(funcname(f), "reflect.") {
++	name := funcname(f)
++	if inldata := funcdata(f, _FUNCDATA_InlTree); inldata != nil {
++		inltree := (*[1 << 20]inlinedCall)(inldata)
++		ix := pcdatavalue(f, _PCDATA_InlTreeIndex, pc, nil)
++		if ix >= 0 {
++			name = funcnameFromNameoff(f, inltree[ix].func_)
++		}
++	}
++	if hasPrefix(name, "runtime.") ||
++		hasPrefix(name, "runtime/internal/") ||
++		hasPrefix(name, "reflect.") {
+ 		// For now we never async preempt the runtime or
+ 		// anything closely tied to the runtime. Known issues
+ 		// include: various points in the scheduler ("don't

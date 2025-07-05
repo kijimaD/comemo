@@ -14,7 +14,46 @@ Date:   Thu Apr 4 13:40:26 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8391043
-
+---
  src/pkg/net/http/response_test.go | 6 +++---
  src/pkg/net/http/server.go        | 3 ---
  2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/http/response_test.go b/src/pkg/net/http/response_test.go
+index 49836ce2cc..02796e88b4 100644
+--- a/src/pkg/net/http/response_test.go
++++ b/src/pkg/net/http/response_test.go
+@@ -112,8 +112,8 @@ var respTests = []respTest{
+ 			ProtoMinor: 0,
+ 			Request:    dummyReq("GET"),
+ 			Header: Header{
+-				"Connection":     {"close"}, // TODO(rsc): Delete?
+-				"Content-Length": {"10"},    // TODO(rsc): Delete?
++				"Connection":     {"close"},
++				"Content-Length": {"10"},
+ 			},
+ 			Close:         true,
+ 			ContentLength: 10,
+@@ -170,7 +170,7 @@ var respTests = []respTest{
+ 			Request:          dummyReq("GET"),
+ 			Header:           Header{},
+ 			Close:            false,
+-			ContentLength:    -1, // TODO(rsc): Fix?
++			ContentLength:    -1,
+ 			TransferEncoding: []string{"chunked"},
+ 		},
+ 
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index 488aeb938b..4792bfba22 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -4,9 +4,6 @@
+ 
+ // HTTP server.  See RFC 2616.
+ 
+-// TODO(rsc):
+-//	logging
+-
+ package http
+ 
+ import (

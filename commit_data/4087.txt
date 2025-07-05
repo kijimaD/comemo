@@ -9,7 +9,67 @@ Date:   Tue Nov 17 08:39:04 2009 -0800
     
     R=r
     https://golang.org/cl/154178
-
+---
  src/pkg/runtime/linux/386/signal.c   | 26 +++++++++++++-------------
  src/pkg/syscall/syscall_linux_386.go |  4 ++--
  2 files changed, 15 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/runtime/linux/386/signal.c b/src/pkg/runtime/linux/386/signal.c
+index 54e109f588..90685d8799 100644
+--- a/src/pkg/runtime/linux/386/signal.c
++++ b/src/pkg/runtime/linux/386/signal.c
+@@ -10,19 +10,19 @@
+ void
+ dumpregs(Sigcontext *r)
+ {
+-	printf("eax     %X\n", r->eax);
+-	printf("ebx     %X\n", r->ebx);
+-	printf("ecx     %X\n", r->ecx);
+-	printf("edx     %X\n", r->edx);
+-	printf("edi     %X\n", r->edi);
+-	printf("esi     %X\n", r->esi);
+-	printf("ebp     %X\n", r->ebp);
+-	printf("esp     %X\n", r->esp);
+-	printf("eip     %X\n", r->eip);
+-	printf("eflags  %X\n", r->eflags);
+-	printf("cs      %X\n", r->cs);
+-	printf("fs      %X\n", r->fs);
+-	printf("gs      %X\n", r->gs);
++	printf("eax     %x\n", r->eax);
++	printf("ebx     %x\n", r->ebx);
++	printf("ecx     %x\n", r->ecx);
++	printf("edx     %x\n", r->edx);
++	printf("edi     %x\n", r->edi);
++	printf("esi     %x\n", r->esi);
++	printf("ebp     %x\n", r->ebp);
++	printf("esp     %x\n", r->esp);
++	printf("eip     %x\n", r->eip);
++	printf("eflags  %x\n", r->eflags);
++	printf("cs      %x\n", r->cs);
++	printf("fs      %x\n", r->fs);
++	printf("gs      %x\n", r->gs);
+ }
+ 
+ /*
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 8dbe4c7c9e..1e6fa75a30 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -125,7 +125,7 @@ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int)
+ func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Socklen) (n int, errno int) {
+ 	var base uintptr;
+ 	if len(p) > 0 {
+-		base = uintptr(unsafe.Pointer(&p))
++		base = uintptr(unsafe.Pointer(&p[0]))
+ 	}
+ 	n, errno = socketcall(_RECVFROM, uintptr(s), base, uintptr(len(p)), uintptr(flags), uintptr(unsafe.Pointer(from)), uintptr(unsafe.Pointer(fromlen)));
+ 	return;
+@@ -134,7 +134,7 @@ func recvfrom(s int, p []byte, flags int, from *RawSockaddrAny, fromlen *_Sockle
+ func sendto(s int, p []byte, flags int, to uintptr, addrlen _Socklen) (errno int) {
+ 	var base uintptr;
+ 	if len(p) > 0 {
+-		base = uintptr(unsafe.Pointer(&p))
++		base = uintptr(unsafe.Pointer(&p[0]))
+ 	}
+ 	_, errno = socketcall(_SENDTO, uintptr(s), base, uintptr(len(p)), uintptr(flags), to, uintptr(addrlen));
+ 	return;

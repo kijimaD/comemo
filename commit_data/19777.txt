@@ -11,6 +11,33 @@ Date:   Fri Jul 18 21:04:56 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/106320043
-
+---
  lib/codereview/codereview.py | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 8445555fa2..116d313b01 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2289,6 +2289,10 @@ codereview_init = False
+ def uisetup(ui):
+ 	global testing
+ 	testing = ui.config("codereview", "testing")
++	# Disable the Mercurial commands that might change the repository.
++	# Only commands in this extension are supposed to do that.
++	ui.setconfig("hooks", "pre-commit.codereview", precommithook) # runs before 'hg commit'
++	ui.setconfig("hooks", "precommit.codereview", precommithook) # catches all cases
+ 
+ def reposetup(ui, repo):
+ 	global codereview_disabled
+@@ -2338,10 +2342,6 @@ def reposetup(ui, repo):
+ 	InstallMatch(ui, repo)
+ 	RietveldSetup(ui, repo)
+ 
+-	# Disable the Mercurial commands that might change the repository.
+-	# Only commands in this extension are supposed to do that.
+-	ui.setconfig("hooks", "precommit.codereview", precommithook)
+-
+ 	# Rollback removes an existing commit.  Don't do that either.
+ 	global real_rollback
+ 	real_rollback = repo.rollback

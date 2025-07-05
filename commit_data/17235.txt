@@ -11,6 +11,24 @@ Date:   Wed Aug 14 21:53:27 2013 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/12939043
-
+---
  src/pkg/net/tcp_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/tcp_test.go b/src/pkg/net/tcp_test.go
+index 5b3d8353cf..e3c79b2c84 100644
+--- a/src/pkg/net/tcp_test.go
++++ b/src/pkg/net/tcp_test.go
+@@ -497,8 +497,11 @@ func TestTCPReadWriteMallocs(t *testing.T) {
+ 
+ func TestTCPStress(t *testing.T) {
+ 	const conns = 2
+-	const msgs = 1e4
+ 	const msgLen = 512
++	msgs := int(1e4)
++	if testing.Short() {
++		msgs = 1e2
++	}
+ 
+ 	sendMsg := func(c Conn, buf []byte) bool {
+ 		n, err := c.Write(buf)

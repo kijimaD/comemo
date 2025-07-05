@@ -11,7 +11,7 @@ Date:   Mon Sep 30 14:10:40 2024 -0700
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go          | 27 +++++++++++++---------
  .../compile/internal/syntax/testdata/issue69506.go |  9 ++++++++
  .../compile/internal/syntax/testdata/tparams.go    |  2 +-
@@ -20,3 +20,169 @@ Date:   Mon Sep 30 14:10:40 2024 -0700
  test/fixedbugs/bug388.go                           |  2 +-
  test/func3.go                                      |  6 ++---
  7 files changed, 54 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index cd6b6696a2..77abdda867 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -2075,26 +2075,31 @@ func (p *parser) paramList(name *Name, typ Expr, close token, requireNames bool)
+ 			}
+ 		}
+ 		if errPos.IsKnown() {
++			// Not all parameters are named because named != len(list).
++			// If named == typed, there must be parameters that have no types.
++			// They must be at the end of the parameter list, otherwise types
++			// would have been filled in by the right-to-left sweep above and
++			// there would be no error.
++			// If requireNames is set, the parameter list is a type parameter
++			// list.
+ 			var msg string
+-			if requireNames {
+-				// Not all parameters are named because named != len(list).
+-				// If named == typed we must have parameters that have no types,
+-				// and they must be at the end of the parameter list, otherwise
+-				// the types would have been filled in by the right-to-left sweep
+-				// above and we wouldn't have an error. Since we are in a type
+-				// parameter list, the missing types are constraints.
+-				if named == typed {
+-					errPos = end // position error at closing ]
++			if named == typed {
++				errPos = end // position error at closing token ) or ]
++				if requireNames {
+ 					msg = "missing type constraint"
+ 				} else {
++					msg = "missing parameter type"
++				}
++			} else {
++				if requireNames {
+ 					msg = "missing type parameter name"
+ 					// go.dev/issue/60812
+ 					if len(list) == 1 {
+ 						msg += " or invalid array length"
+ 					}
++				} else {
++					msg = "missing parameter name"
+ 				}
+-			} else {
+-				msg = "mixed named and unnamed parameters"
+ 			}
+ 			p.syntaxErrorAt(errPos, msg)
+ 		}
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue69506.go b/src/cmd/compile/internal/syntax/testdata/issue69506.go
+new file mode 100644
+index 0000000000..36e9da77c1
+--- /dev/null
++++ b/src/cmd/compile/internal/syntax/testdata/issue69506.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(a int, b /* ERROR missing parameter type */ )
++func _(a int, /* ERROR missing parameter name */ []int)
++func _(a int, /* ERROR missing parameter name */ []int, c int)
+diff --git a/src/cmd/compile/internal/syntax/testdata/tparams.go b/src/cmd/compile/internal/syntax/testdata/tparams.go
+index 4b68a1585f..a4967bf70f 100644
+--- a/src/cmd/compile/internal/syntax/testdata/tparams.go
++++ b/src/cmd/compile/internal/syntax/testdata/tparams.go
+@@ -13,7 +13,7 @@ type t struct {
+ }
+ type t interface {
+ 	t[a]
+-	m /* ERROR method must have no type parameters */ [_ _, /* ERROR mixed */ _]()
++	m /* ERROR method must have no type parameters */ [_ _, _ /* ERROR missing parameter type */ ]()
+ 	t[a, b]
+ }
+ 
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index c9f28a6a69..8ed893430d 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -978,26 +978,30 @@ func (p *parser) parseParameterList(name0 *ast.Ident, typ0 ast.Expr, closing tok
+ 			}
+ 		}
+ 		if errPos.IsValid() {
++			// Not all parameters are named because named != len(list).
++			// If named == typed, there must be parameters that have no types.
++			// They must be at the end of the parameter list, otherwise types
++			// would have been filled in by the right-to-left sweep above and
++			// there would be no error.
++			// If tparams is set, the parameter list is a type parameter list.
+ 			var msg string
+-			if tparams {
+-				// Not all parameters are named because named != len(list).
+-				// If named == typed we must have parameters that have no types,
+-				// and they must be at the end of the parameter list, otherwise
+-				// the types would have been filled in by the right-to-left sweep
+-				// above and we wouldn't have an error. Since we are in a type
+-				// parameter list, the missing types are constraints.
+-				if named == typed {
+-					errPos = p.pos // position error at closing ]
++			if named == typed {
++				errPos = p.pos // position error at closing token ) or ]
++				if tparams {
+ 					msg = "missing type constraint"
+ 				} else {
++					msg = "missing parameter type"
++				}
++			} else {
++				if tparams {
+ 					msg = "missing type parameter name"
+ 					// go.dev/issue/60812
+ 					if len(list) == 1 {
+ 						msg += " or invalid array length"
+ 					}
++				} else {
++					msg = "missing parameter name"
+ 				}
+-			} else {
+-				msg = "mixed named and unnamed parameters"
+ 			}
+ 			p.error(errPos, msg)
+ 		}
+diff --git a/src/go/parser/testdata/issue69506.go2 b/src/go/parser/testdata/issue69506.go2
+new file mode 100644
+index 0000000000..b93666ad82
+--- /dev/null
++++ b/src/go/parser/testdata/issue69506.go2
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _(a int, b) /* ERROR "missing parameter type" */
++func _(a int, [ /* ERROR "missing parameter name" */ ]int)
++func _(a int, [ /* ERROR "missing parameter name" */ ]int, c int)
+diff --git a/test/fixedbugs/bug388.go b/test/fixedbugs/bug388.go
+index a060c9fd5a..0524534bb3 100644
+--- a/test/fixedbugs/bug388.go
++++ b/test/fixedbugs/bug388.go
+@@ -9,7 +9,7 @@
+ package main
+ import "runtime"
+ 
+-func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|mixed named and unnamed|undefined identifier"
++func foo(runtime.UintType, i int) {  // ERROR "cannot declare name runtime.UintType|missing parameter name|undefined identifier"
+ 	println(i, runtime.UintType) // GCCGO_ERROR "undefined identifier"
+ }
+ 
+diff --git a/test/func3.go b/test/func3.go
+index 6be3bf0184..861ab2cba5 100644
+--- a/test/func3.go
++++ b/test/func3.go
+@@ -13,8 +13,8 @@ type t1 int
+ type t2 int
+ type t3 int
+ 
+-func f1(*t2, x t3)	// ERROR "named"
+-func f2(t1, *t2, x t3)	// ERROR "named"
+-func f3() (x int, *string)	// ERROR "named"
++func f1(*t2, x t3)	// ERROR "missing parameter name"
++func f2(t1, *t2, x t3)	// ERROR "missing parameter name"
++func f3() (x int, *string)	// ERROR "missing parameter name"
+ 
+ func f4() (t1 t1)	// legal - scope of parameter named t1 starts in body of f4.

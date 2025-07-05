@@ -10,7 +10,7 @@ Date:   Tue Mar 24 12:12:57 2009 -0700
     TBR=r
     OCL=26679
     CL=26679
-
+---
  src/cmd/5a/lex.c   | 21 ++++++--------
  src/cmd/6a/lex.c   | 46 ++++++++++++++++++++----------
  src/cmd/6l/asm.c   |  4 +--
@@ -22,3 +22,513 @@ Date:   Tue Mar 24 12:12:57 2009 -0700
  src/cmd/gc/lex.c   |  6 ++--
  src/cmd/gc/subr.c  |  4 +--
  10 files changed, 128 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 82f2228bf4..8ca10249e7 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -86,16 +86,13 @@ main(int argc, char *argv[])
+ 		c = 0;
+ 		nout = 0;
+ 		for(;;) {
++			Waitmsg *w;
++
+ 			while(nout < nproc && argc > 0) {
+-				i = myfork();
++				i = fork();
+ 				if(i < 0) {
+-					i = mywait(&status);
+-					if(i < 0)
+-						errorexit();
+-					if(status)
+-						c++;
+-					nout--;
+-					continue;
++					fprint(2, "fork: %r\n");
++					errorexit();
+ 				}
+ 				if(i == 0) {
+ 					print("%s:\n", *argv);
+@@ -107,13 +104,13 @@ main(int argc, char *argv[])
+ 				argc--;
+ 				argv++;
+ 			}
+-			i = mywait(&status);
+-			if(i < 0) {
++			w = wait();
++			if(w == nil) {
+ 				if(c)
+ 					errorexit();
+ 				exits(0);
+ 			}
+-			if(status)
++			if(w->msg[0])
+ 				c++;
+ 			nout--;
+ 		}
+@@ -160,7 +157,7 @@ assemble(char *file)
+ 		}
+ 	}
+ 
+-	of = mycreat(outfile, 0664);
++	of = create(outfile, OWRITE, 0664);
+ 	if(of < 0) {
+ 		yyerror("%ca: cannot create %s", thechar, outfile);
+ 		errorexit();
+diff --git a/src/cmd/6a/lex.c b/src/cmd/6a/lex.c
+index 22539fc7ea..7621021c4f 100644
+--- a/src/cmd/6a/lex.c
++++ b/src/cmd/6a/lex.c
+@@ -33,11 +33,30 @@
+ #include "y.tab.h"
+ #include <ctype.h>
+ 
++enum
++{
++	Plan9	= 1<<0,
++	Unix	= 1<<1,
++	Windows	= 1<<2,
++};
++
++int
++systemtype(int sys)
++{
++	return sys&Plan9;
++}
++
++int
++pathchar(void)
++{
++	return '/';
++}
++
+ void
+ main(int argc, char *argv[])
+ {
+ 	char *p;
+-	int nout, nproc, status, i, c;
++	int nout, nproc, i, c;
+ 
+ 	thechar = '6';
+ 	thestring = "amd64";
+@@ -83,16 +102,13 @@ main(int argc, char *argv[])
+ 		c = 0;
+ 		nout = 0;
+ 		for(;;) {
++			Waitmsg *w;
++
+ 			while(nout < nproc && argc > 0) {
+-				i = myfork();
++				i = fork();
+ 				if(i < 0) {
+-					i = mywait(&status);
+-					if(i < 0)
+-						errorexit();
+-					if(status)
+-						c++;
+-					nout--;
+-					continue;
++					fprint(2, "fork: %r\n");
++					errorexit();
+ 				}
+ 				if(i == 0) {
+ 					print("%s:\n", *argv);
+@@ -104,13 +120,13 @@ main(int argc, char *argv[])
+ 				argc--;
+ 				argv++;
+ 			}
+-			i = mywait(&status);
+-			if(i < 0) {
++			w = wait();
++			if(w == nil) {
+ 				if(c)
+ 					errorexit();
+ 				exits(0);
+ 			}
+-			if(status)
++			if(w->msg[0])
+ 				c++;
+ 			nout--;
+ 		}
+@@ -157,7 +173,7 @@ assemble(char *file)
+ 		}
+ 	}
+ 
+-	of = mycreate(outfile, 0664);
++	of = create(outfile, OWRITE, 0664);
+ 	if(of < 0) {
+ 		yyerror("%ca: cannot create %s", thechar, outfile);
+ 		errorexit();
+@@ -1044,9 +1060,9 @@ cinit(void)
+ 	}
+ 
+ 	pathname = allocn(pathname, 0, 100);
+-	if(mygetwd(pathname, 99) == 0) {
++	if(getwd(pathname, 99) == 0) {
+ 		pathname = allocn(pathname, 100, 900);
+-		if(mygetwd(pathname, 999) == 0)
++		if(getwd(pathname, 999) == 0)
+ 			strcpy(pathname, "/???");
+ 	}
+ }
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 3857bc272d..b981570c0d 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -182,7 +182,7 @@ asmb(void)
+ 	case 6:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		v = HEADR+textsize;
+-		myseek(cout, v);
++		seek(cout, v, 0);
+ 		v = rnd(v, 4096) - v;
+ 		while(v > 0) {
+ 			cput(0);
+@@ -197,7 +197,7 @@ asmb(void)
+ 		strtabsize = linuxstrtable();
+ 		cflush();
+ 		v = rnd(HEADR+textsize, INITRND);
+-		myseek(cout, v);
++		seek(cout, v, 0);
+ 		break;
+ 	}
+ 
+diff --git a/src/cmd/8a/lex.c b/src/cmd/8a/lex.c
+index fcc4cf964a..139ab0a328 100644
+--- a/src/cmd/8a/lex.c
++++ b/src/cmd/8a/lex.c
+@@ -82,16 +82,13 @@ main(int argc, char *argv[])
+ 		c = 0;
+ 		nout = 0;
+ 		for(;;) {
++			Waitmsg *w;
++
+ 			while(nout < nproc && argc > 0) {
+-				i = myfork();
++				i = fork();
+ 				if(i < 0) {
+-					i = mywait(&status);
+-					if(i < 0)
+-						errorexit();
+-					if(status)
+-						c++;
+-					nout--;
+-					continue;
++					fprint(2, "fork: %r\n");
++					errorexit();
+ 				}
+ 				if(i == 0) {
+ 					print("%s:\n", *argv);
+@@ -103,13 +100,13 @@ main(int argc, char *argv[])
+ 				argc--;
+ 				argv++;
+ 			}
+-			i = mywait(&status);
+-			if(i < 0) {
++			w = wait();
++			if(w == nil) {
+ 				if(c)
+ 					errorexit();
+ 				exits(0);
+ 			}
+-			if(status)
++			if(w->msg[0])
+ 				c++;
+ 			nout--;
+ 		}
+@@ -156,7 +153,7 @@ assemble(char *file)
+ 		}
+ 	}
+ 
+-	of = mycreate(outfile, 0664);
++	of = create(outfile, OWRITE, 0664);
+ 	if(of < 0) {
+ 		yyerror("%ca: cannot create %s", thechar, outfile);
+ 		errorexit();
+diff --git a/src/cmd/cc/cc.h b/src/cmd/cc/cc.h
+index 42341a70c9..2ebea6f5f6 100644
+--- a/src/cmd/cc/cc.h
++++ b/src/cmd/cc/cc.h
+@@ -32,7 +32,6 @@
+ #include <libc.h>
+ #include <bio.h>
+ #include <ctype.h>
+-#include "compat.h"
+ 
+ #pragma	lib	"../cc/cc.a$O"
+ 
+@@ -542,17 +541,8 @@ extern	uint32	thash[];
+ /*
+  *	compat.c/unix.c/windows.c
+  */
+-int	mywait(int*);
+-int	mycreat(char*, int);
+ int	systemtype(int);
+ int	pathchar(void);
+-int	myaccess(char*);
+-char*	mygetwd(char*, int);
+-int	myexec(char*, char*[]);
+-int	mydup(int, int);
+-int	myfork(void);
+-int	mypipe(int*);
+-void*	mysbrk(uint32);
+ 
+ /*
+  *	parser
+@@ -794,3 +784,14 @@ int	machcap(Node*);
+ #pragma	varargck	type	"O"	int
+ #pragma	varargck	type	"T"	Type*
+ #pragma	varargck	type	"|"	int
++
++enum
++{
++	Plan9	= 1<<0,
++	Unix	= 1<<1,
++	Windows	= 1<<2,
++};
++int	pathchar(void);
++int	systemtype(int);
++void*	alloc(int32 n);
++void*	allocn(void*, int32, int32);
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index c5126b7edd..b3216af44d 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -35,6 +35,19 @@
+ #define	CPP	"/bin/cpp"
+ #endif
+ 
++int
++systemtype(int sys)
++{
++
++	return sys&Plan9;
++}
++
++int
++pathchar(void)
++{
++	return '/';
++}
++
+ /*
+  * known debug flags
+  *	-a		acid declaration output
+@@ -67,7 +80,7 @@ void
+ main(int argc, char *argv[])
+ {
+ 	char *defs[50], *p;
+-	int nproc, nout, status, i, c, ndef;
++	int nproc, nout, i, c, ndef;
+ 
+ 	memset(debug, 0, sizeof(debug));
+ 	tinit();
+@@ -132,18 +145,13 @@ main(int argc, char *argv[])
+ 		c = 0;
+ 		nout = 0;
+ 		for(;;) {
++			Waitmsg *w;
++
+ 			while(nout < nproc && argc > 0) {
+-				i = myfork();
++				i = fork();
+ 				if(i < 0) {
+-					i = mywait(&status);
+-					if(i < 0) {
+-						print("cannot create a process\n");
+-						errorexit();
+-					}
+-					if(status)
+-						c++;
+-					nout--;
+-					continue;
++					print("cannot create a process\n");
++					errorexit();
+ 				}
+ 				if(i == 0) {
+ 					fprint(2, "%s:\n", *argv);
+@@ -155,13 +163,13 @@ main(int argc, char *argv[])
+ 				argc--;
+ 				argv++;
+ 			}
+-			i = mywait(&status);
+-			if(i < 0) {
++			w = wait();
++			if(w == nil) {
+ 				if(c)
+ 					errorexit();
+ 				exits(0);
+ 			}
+-			if(status)
++			if(w->msg[0])
+ 				c++;
+ 			nout--;
+ 		}
+@@ -236,7 +244,7 @@ compile(char *file, char **defs, int ndef)
+ 			dup(2, 1);
+ 		}
+ 	} else {
+-		c = mycreate(outfile, 0664);
++		c = create(outfile, OWRITE, 0664);
+ 		if(c < 0) {
+ 			diag(Z, "cannot open %s - %r", outfile);
+ 			outfile = 0;
+@@ -254,21 +262,21 @@ compile(char *file, char **defs, int ndef)
+ 			diag(Z, "-p option not supported on windows");
+ 			errorexit();
+ 		}
+-		if(myaccess(file) < 0) {
++		if(access(file, AREAD) < 0) {
+ 			diag(Z, "%s does not exist", file);
+ 			errorexit();
+ 		}
+-		if(mypipe(fd) < 0) {
++		if(pipe(fd) < 0) {
+ 			diag(Z, "pipe failed");
+ 			errorexit();
+ 		}
+-		switch(myfork()) {
++		switch(fork()) {
+ 		case -1:
+ 			diag(Z, "fork failed");
+ 			errorexit();
+ 		case 0:
+ 			close(fd[0]);
+-			mydup(fd[1], 1);
++			dup(fd[1], 1);
+ 			close(fd[1]);
+ 			av[0] = CPP;
+ 			i = 1;
+@@ -296,7 +304,7 @@ compile(char *file, char **defs, int ndef)
+ 					fprint(2, "%s ", av[c]);
+ 				fprint(2, "\n");
+ 			}
+-			myexec(av[0], av);
++			exec(av[0], av);
+ 			fprint(2, "can't exec C preprocessor %s: %r\n", CPP);
+ 			errorexit();
+ 		default:
+@@ -1266,9 +1274,9 @@ cinit(void)
+ 	dclstack = D;
+ 
+ 	pathname = allocn(pathname, 0, 100);
+-	if(mygetwd(pathname, 99) == 0) {
++	if(getwd(pathname, 99) == 0) {
+ 		pathname = allocn(pathname, 100, 900);
+-		if(mygetwd(pathname, 999) == 0)
++		if(getwd(pathname, 999) == 0)
+ 			strcpy(pathname, "/???");
+ 	}
+ 
+@@ -1540,3 +1548,33 @@ setinclude(char *p)
+ 		p = e+1;
+ 	}
+ }
++
++void*
++alloc(int32 n)
++{
++	void *p;
++
++	p = malloc(n);
++	if(p == nil) {
++		print("alloc out of mem\n");
++		exit(1);
++	}
++	memset(p, 0, n);
++	return p;
++}
++
++void*
++allocn(void *p, int32 n, int32 d)
++{
++
++	if(p == nil)
++		return alloc(d);
++	p = realloc(p, n+d);
++	if(p == nil) {
++		print("allocn out of mem\n");
++		exit(1);
++	}
++	if(d > 0)
++		memset((char*)p+n, 0, d);
++	return p;
++}
+diff --git a/src/cmd/cc/macbody b/src/cmd/cc/macbody
+index e23d1bdc95..64f04129f4 100644
+--- a/src/cmd/cc/macbody
++++ b/src/cmd/cc/macbody
+@@ -579,7 +579,7 @@ macinc(void)
+ 		if(strcmp(symb, "./") == 0)
+ 			symb[0] = 0;
+ 		strcat(symb, str);
+-		f = myopen(symb);
++		f = open(symb, OREAD);
+ 		if(f >= 0)
+ 			break;
+ 	}
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 458a37ad1c..65f45de63a 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -618,7 +618,6 @@ int	Fconv(Fmt*);
+ /*
+  *	subr.c
+  */
+-void	myexit(int);
+ void*	mal(int32);
+ void*	remal(void*, int32, int32);
+ void	errorexit(void);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index cff5b39933..3eedb8b61a 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -45,7 +45,7 @@ mainlex(int argc, char *argv[])
+ 		goto usage;
+ 
+ 	pathname = mal(100);
+-	if(mygetwd(pathname, 99) == 0)
++	if(getwd(pathname, 99) == 0)
+ 		strcpy(pathname, "/???");
+ 
+ 	fmtinstall('O', Oconv);		// node opcodes
+@@ -107,7 +107,7 @@ mainlex(int argc, char *argv[])
+ 	if(nerrors)
+ 		errorexit();
+ 
+-	myexit(0);
++	exit(0);
+ 	return 0;
+ 
+ usage:
+@@ -122,7 +122,7 @@ usage:
+ 	print("  -p print the assembly language\n");
+ 	print("  -w print the parse tree after typing\n");
+ 	print("  -x print lex tokens\n");
+-	myexit(0);
++	exit(0);
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index eda84820a2..cd7fef9dc3 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -10,7 +10,7 @@ errorexit(void)
+ {
+ 	if(outfile)
+ 		remove(outfile);
+-	myexit(1);
++	exit(1);
+ }
+ 
+ void
+@@ -59,7 +59,7 @@ fatal(char *fmt, ...)
+ 	print("\n");
+ 	if(debug['h'])
+ 		*(int*)0 = 0;
+-	myexit(1);
++	exit(1);
+ }
+ 
+ void

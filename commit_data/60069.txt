@@ -15,6 +15,61 @@ Date:   Mon May 20 11:13:36 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/embed/embed.go | 23 +++++------------------
  1 file changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index b7bb16099e..f6c0ef9b97 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -130,6 +130,8 @@ package embed
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
++	"internal/stringslite"
+ 	"io"
+ 	"io/fs"
+ 	"time"
+@@ -185,29 +187,14 @@ type FS struct {
+ // comment in the FS struct above. isDir reports whether the
+ // final trailing slash was present, indicating that name is a directory.
+ func split(name string) (dir, elem string, isDir bool) {
+-	if name[len(name)-1] == '/' {
+-		isDir = true
+-		name = name[:len(name)-1]
+-	}
+-	i := len(name) - 1
+-	for i >= 0 && name[i] != '/' {
+-		i--
+-	}
++	name, isDir = stringslite.CutSuffix(name, "/")
++	i := bytealg.LastIndexByteString(name, '/')
+ 	if i < 0 {
+ 		return ".", name, isDir
+ 	}
+ 	return name[:i], name[i+1:], isDir
+ }
+ 
+-// trimSlash trims a trailing slash from name, if present,
+-// returning the possibly shortened name.
+-func trimSlash(name string) string {
+-	if len(name) > 0 && name[len(name)-1] == '/' {
+-		return name[:len(name)-1]
+-	}
+-	return name
+-}
+-
+ var (
+ 	_ fs.ReadDirFS  = FS{}
+ 	_ fs.ReadFileFS = FS{}
+@@ -274,7 +261,7 @@ func (f FS) lookup(name string) *file {
+ 		idir, ielem, _ := split(files[i].name)
+ 		return idir > dir || idir == dir && ielem >= elem
+ 	})
+-	if i < len(files) && trimSlash(files[i].name) == name {
++	if i < len(files) && stringslite.TrimSuffix(files[i].name, "/") == name {
+ 		return &files[i]
+ 	}
+ 	return nil

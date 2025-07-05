@@ -12,7 +12,42 @@ Date:   Wed Jun 16 14:48:45 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go               |  2 +-
  src/cmd/go/testdata/script/mod_edit_no_modcache.txt | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index f3b58a172a..b01b467413 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -152,7 +152,7 @@ func lockVersion(mod module.Version) (unlock func(), err error) {
+ // If err is nil, the caller MUST eventually call the unlock function.
+ func SideLock() (unlock func(), err error) {
+ 	if err := checkCacheDir(); err != nil {
+-		base.Fatalf("go: %v", err)
++		return nil, err
+ 	}
+ 
+ 	path := filepath.Join(cfg.GOMODCACHE, "cache", "lock")
+diff --git a/src/cmd/go/testdata/script/mod_edit_no_modcache.txt b/src/cmd/go/testdata/script/mod_edit_no_modcache.txt
+new file mode 100644
+index 0000000000..ced15bb301
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_edit_no_modcache.txt
+@@ -0,0 +1,15 @@
++# 'go mod edit' opportunistically locks the side-lock file in the module cache,
++# for compatibility with older versions of the 'go' command.
++# It does not otherwise depend on the module cache, so it should not
++# fail if the module cache directory cannot be created.
++
++[root] skip
++
++mkdir $WORK/readonly
++chmod 0555 $WORK/readonly
++env GOPATH=$WORK/readonly/nonexist
++
++go mod edit -go=1.17
++
++-- go.mod --
++module example.com/m

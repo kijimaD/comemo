@@ -7,6 +7,19 @@ Date:   Mon Dec 11 23:45:19 2017 +0300
     Change-Id: I6d94a14a781a2fbeb90db35ae3490ce2ac5f8ed1
     Reviewed-on: https://go-review.googlesource.com/83315
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contrib.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/contrib.html b/doc/contrib.html
+index 2dc1e7d0e4..df53d480d3 100644
+--- a/doc/contrib.html
++++ b/doc/contrib.html
+@@ -118,6 +118,6 @@ guidelines</a> for information on design, testing, and our code review process.
+ <p>
+ Check <a href="//golang.org/issue">the tracker</a> for 
+ open issues that interest you. Those labeled
+-<a href="https://github.com/golang/go/issues?q=is%3Aopen+is%3Aissue+label%3Ahelpwanted">helpwanted</a>
++<a href="https://github.com/golang/go/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22">help wanted</a>
+ are particularly in need of outside help.
+ </p>

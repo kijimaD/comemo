@@ -7,7 +7,7 @@ Date:   Sat Jul 9 20:16:45 2011 +1000
     R=r, gri, r
     CC=golang-dev
     https://golang.org/cl/4662085
-
+---
  doc/progs/echo.go         |  6 +++---
  doc/progs/file_windows.go |  4 ++--
  doc/progs/helloworld.go   |  2 +-
@@ -22,3 +22,344 @@ Date:   Sat Jul 9 20:16:45 2011 +1000
  doc/progs/strings.go      |  4 +++-
  doc/progs/sum.go          |  1 -
  13 files changed, 57 insertions(+), 60 deletions(-)
+
+diff --git a/doc/progs/echo.go b/doc/progs/echo.go
+index 84470ddb9c..3260edd747 100644
+--- a/doc/progs/echo.go
++++ b/doc/progs/echo.go
+@@ -6,18 +6,18 @@ package main
+ 
+ import (
+ 	"os"
+-	"flag"  // command line option parser
++	"flag" // command line option parser
+ )
+ 
+ var omitNewline = flag.Bool("n", false, "don't print final newline")
+ 
+ const (
+-	Space = " "
++	Space   = " "
+ 	Newline = "\n"
+ )
+ 
+ func main() {
+-	flag.Parse()   // Scans the arg list and sets up flags
++	flag.Parse() // Scans the arg list and sets up flags
+ 	var s string = ""
+ 	for i := 0; i < flag.NArg(); i++ {
+ 		if i > 0 {
+diff --git a/doc/progs/file_windows.go b/doc/progs/file_windows.go
+index d5e7c00d3c..03003a3f71 100644
+--- a/doc/progs/file_windows.go
++++ b/doc/progs/file_windows.go
+@@ -10,8 +10,8 @@ import (
+ )
+ 
+ type File struct {
+-	fd   syscall.Handle    // file descriptor number
+-	name string // file name at Open time
++	fd   syscall.Handle // file descriptor number
++	name string         // file name at Open time
+ }
+ 
+ func newFile(fd syscall.Handle, name string) *File {
+diff --git a/doc/progs/helloworld.go b/doc/progs/helloworld.go
+index 637a0956b8..8185038d98 100644
+--- a/doc/progs/helloworld.go
++++ b/doc/progs/helloworld.go
+@@ -4,7 +4,7 @@
+ 
+ package main
+ 
+-import fmt "fmt"  // Package implementing formatted I/O.
++import fmt "fmt" // Package implementing formatted I/O.
+ 
+ func main() {
+ 	fmt.Printf("Hello, world; or Καλημέρα κόσμε; or こんにちは 世界\n")
+diff --git a/doc/progs/helloworld3.go b/doc/progs/helloworld3.go
+index 5bb0be2184..2011513b73 100644
+--- a/doc/progs/helloworld3.go
++++ b/doc/progs/helloworld3.go
+@@ -15,7 +15,7 @@ func main() {
+ 	file.Stdout.Write(hello)
+ 	f, err := file.Open("/does/not/exist")
+ 	if f == nil {
+-		fmt.Printf("can't open file; err=%s\n",  err.String())
++		fmt.Printf("can't open file; err=%s\n", err.String())
+ 		os.Exit(1)
+ 	}
+ }
+diff --git a/doc/progs/print.go b/doc/progs/print.go
+index 69c35a532a..8f44ba8c61 100644
+--- a/doc/progs/print.go
++++ b/doc/progs/print.go
+@@ -7,7 +7,7 @@ package main
+ import "fmt"
+ 
+ func main() {
+-	var u64 uint64 = 1<<64-1
++	var u64 uint64 = 1<<64 - 1
+ 	fmt.Printf("%d %d\n", u64, int64(u64))
+ 
+ 	// harder stuff
+diff --git a/doc/progs/server.go b/doc/progs/server.go
+index f3a6b18897..b498b53a63 100644
+--- a/doc/progs/server.go
++++ b/doc/progs/server.go
+@@ -7,8 +7,8 @@ package main
+ import "fmt"
+ 
+ type request struct {
+-	a, b    int
+-	replyc  chan int
++	a, b   int
++	replyc chan int
+ }
+ 
+ type binOp func(a, b int) int
+@@ -21,7 +21,7 @@ func run(op binOp, req *request) {
+ func server(op binOp, service chan *request) {
+ 	for {
+ 		req := <-service
+-		go run(op, req)  // don't wait for it
++		go run(op, req) // don't wait for it
+ 	}
+ }
+ 
+@@ -42,8 +42,8 @@ func main() {
+ 		req.replyc = make(chan int)
+ 		adder <- req
+ 	}
+-	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+-		if <-reqs[i].replyc != N + 2*i {
++	for i := N - 1; i >= 0; i-- { // doesn't matter what order
++		if <-reqs[i].replyc != N+2*i {
+ 			fmt.Println("fail at", i)
+ 		}
+ 	}
+diff --git a/doc/progs/server1.go b/doc/progs/server1.go
+index b8c09269b7..a4093924b8 100644
+--- a/doc/progs/server1.go
++++ b/doc/progs/server1.go
+@@ -7,8 +7,8 @@ package main
+ import "fmt"
+ 
+ type request struct {
+-	a, b	int
+-	replyc	chan int
++	a, b   int
++	replyc chan int
+ }
+ 
+ type binOp func(a, b int) int
+@@ -22,7 +22,7 @@ func server(op binOp, service chan *request, quit chan bool) {
+ 	for {
+ 		select {
+ 		case req := <-service:
+-			go run(op, req)  // don't wait for it
++			go run(op, req) // don't wait for it
+ 		case <-quit:
+ 			return
+ 		}
+@@ -47,8 +47,8 @@ func main() {
+ 		req.replyc = make(chan int)
+ 		adder <- req
+ 	}
+-	for i := N-1; i >= 0; i-- {   // doesn't matter what order
+-		if <-reqs[i].replyc != N + 2*i {
++	for i := N - 1; i >= 0; i-- { // doesn't matter what order
++		if <-reqs[i].replyc != N+2*i {
+ 			fmt.Println("fail at", i)
+ 		}
+ 	}
+diff --git a/doc/progs/sieve.go b/doc/progs/sieve.go
+index c7c3e78122..b315309819 100644
+--- a/doc/progs/sieve.go
++++ b/doc/progs/sieve.go
+@@ -9,7 +9,7 @@ import "fmt"
+ // Send the sequence 2, 3, 4, ... to channel 'ch'.
+ func generate(ch chan int) {
+ 	for i := 2; ; i++ {
+-		ch <- i  // Send 'i' to channel 'ch'.
++		ch <- i // Send 'i' to channel 'ch'.
+ 	}
+ }
+ 
+@@ -17,17 +17,17 @@ func generate(ch chan int) {
+ // removing those divisible by 'prime'.
+ func filter(in, out chan int, prime int) {
+ 	for {
+-		i := <-in  // Receive value of new variable 'i' from 'in'.
+-		if i % prime != 0 {
+-			out <- i  // Send 'i' to channel 'out'.
++		i := <-in // Receive value of new variable 'i' from 'in'.
++		if i%prime != 0 {
++			out <- i // Send 'i' to channel 'out'.
+ 		}
+ 	}
+ }
+ 
+ // The prime sieve: Daisy-chain filter processes together.
+ func main() {
+-	ch := make(chan int)  // Create a new channel.
+-	go generate(ch)  // Start generate() as a goroutine.
++	ch := make(chan int)       // Create a new channel.
++	go generate(ch)            // Start generate() as a goroutine.
+ 	for i := 0; i < 100; i++ { // Print the first hundred primes.
+ 		prime := <-ch
+ 		fmt.Println(prime)
+diff --git a/doc/progs/sieve1.go b/doc/progs/sieve1.go
+index e785e20355..e1411a3346 100644
+--- a/doc/progs/sieve1.go
++++ b/doc/progs/sieve1.go
+@@ -9,7 +9,7 @@ import "fmt"
+ // Send the sequence 2, 3, 4, ... to returned channel 
+ func generate() chan int {
+ 	ch := make(chan int)
+-	go func(){
++	go func() {
+ 		for i := 2; ; i++ {
+ 			ch <- i
+ 		}
+@@ -22,7 +22,7 @@ func filter(in chan int, prime int) chan int {
+ 	out := make(chan int)
+ 	go func() {
+ 		for {
+-			if i := <-in; i % prime != 0 {
++			if i := <-in; i%prime != 0 {
+ 				out <- i
+ 			}
+ 		}
+diff --git a/doc/progs/sort.go b/doc/progs/sort.go
+index 47df9b3513..894693f0d5 100644
+--- a/doc/progs/sort.go
++++ b/doc/progs/sort.go
+@@ -21,7 +21,7 @@ func Sort(data Interface) {
+ func IsSorted(data Interface) bool {
+ 	n := data.Len()
+ 	for i := n - 1; i > 0; i-- {
+-		if data.Less(i, i - 1) {
++		if data.Less(i, i-1) {
+ 			return false
+ 		}
+ 	}
+@@ -32,32 +32,28 @@ func IsSorted(data Interface) bool {
+ 
+ type IntSlice []int
+ 
+-func (p IntSlice) Len() int            { return len(p) }
+-func (p IntSlice) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p IntSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+-
++func (p IntSlice) Len() int           { return len(p) }
++func (p IntSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p IntSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ type Float64Slice []float64
+ 
+-func (p Float64Slice) Len() int            { return len(p) }
+-func (p Float64Slice) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p Float64Slice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+-
++func (p Float64Slice) Len() int           { return len(p) }
++func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] }
++func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ type StringSlice []string
+ 
+-func (p StringSlice) Len() int            { return len(p) }
+-func (p StringSlice) Less(i, j int) bool  { return p[i] < p[j] }
+-func (p StringSlice) Swap(i, j int)       { p[i], p[j] = p[j], p[i] }
+-
++func (p StringSlice) Len() int           { return len(p) }
++func (p StringSlice) Less(i, j int) bool { return p[i] < p[j] }
++func (p StringSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
+ // Convenience wrappers for common cases
+ 
+-func SortInts(a []int)        { Sort(IntSlice(a)) }
+-func SortFloat64s(a []float64)    { Sort(Float64Slice(a)) }
+-func SortStrings(a []string)  { Sort(StringSlice(a)) }
+-
++func SortInts(a []int)         { Sort(IntSlice(a)) }
++func SortFloat64s(a []float64) { Sort(Float64Slice(a)) }
++func SortStrings(a []string)   { Sort(StringSlice(a)) }
+ 
+-func IntsAreSorted(a []int) bool       { return IsSorted(IntSlice(a)) }
+-func Float64sAreSorted(a []float64) bool   { return IsSorted(Float64Slice(a)) }
+-func StringsAreSorted(a []string) bool { return IsSorted(StringSlice(a)) }
++func IntsAreSorted(a []int) bool         { return IsSorted(IntSlice(a)) }
++func Float64sAreSorted(a []float64) bool { return IsSorted(Float64Slice(a)) }
++func StringsAreSorted(a []string) bool   { return IsSorted(StringSlice(a)) }
+diff --git a/doc/progs/sortmain.go b/doc/progs/sortmain.go
+index 28eec8d4f8..c1babb01f8 100644
+--- a/doc/progs/sortmain.go
++++ b/doc/progs/sortmain.go
+@@ -28,27 +28,27 @@ func strings() {
+ }
+ 
+ type day struct {
+-	num        int
+-	shortName  string
+-	longName   string
++	num       int
++	shortName string
++	longName  string
+ }
+ 
+ type dayArray struct {
+ 	data []*day
+ }
+ 
+-func (p *dayArray) Len() int            { return len(p.data) }
+-func (p *dayArray) Less(i, j int) bool  { return p.data[i].num < p.data[j].num }
+-func (p *dayArray) Swap(i, j int)       { p.data[i], p.data[j] = p.data[j], p.data[i] }
++func (p *dayArray) Len() int           { return len(p.data) }
++func (p *dayArray) Less(i, j int) bool { return p.data[i].num < p.data[j].num }
++func (p *dayArray) Swap(i, j int)      { p.data[i], p.data[j] = p.data[j], p.data[i] }
+ 
+ func days() {
+-	Sunday :=    day{0, "SUN", "Sunday"}
+-	Monday :=    day{1, "MON", "Monday"}
+-	Tuesday :=   day{2, "TUE", "Tuesday"}
++	Sunday := day{0, "SUN", "Sunday"}
++	Monday := day{1, "MON", "Monday"}
++	Tuesday := day{2, "TUE", "Tuesday"}
+ 	Wednesday := day{3, "WED", "Wednesday"}
+-	Thursday :=  day{4, "THU", "Thursday"}
+-	Friday :=    day{5, "FRI", "Friday"}
+-	Saturday :=  day{6, "SAT", "Saturday"}
++	Thursday := day{4, "THU", "Thursday"}
++	Friday := day{5, "FRI", "Friday"}
++	Saturday := day{6, "SAT", "Saturday"}
+ 	data := []*day{&Tuesday, &Thursday, &Wednesday, &Sunday, &Monday, &Friday, &Saturday}
+ 	a := dayArray{data}
+ 	sort.Sort(&a)
+diff --git a/doc/progs/strings.go b/doc/progs/strings.go
+index 2cdb6101a0..e6739b3851 100644
+--- a/doc/progs/strings.go
++++ b/doc/progs/strings.go
+@@ -8,7 +8,9 @@ import "os"
+ 
+ func main() {
+ 	s := "hello"
+-	if s[1] != 'e' { os.Exit(1) }
++	if s[1] != 'e' {
++		os.Exit(1)
++	}
+ 	s = "good bye"
+ 	var p *string = &s
+ 	*p = "ciao"
+diff --git a/doc/progs/sum.go b/doc/progs/sum.go
+index 9caa799fdd..e022195ed5 100644
+--- a/doc/progs/sum.go
++++ b/doc/progs/sum.go
+@@ -14,7 +14,6 @@ func sum(a []int) int { // returns an int
+ 	return s
+ }
+ 
+-
+ func main() {
+ 	s := sum([3]int{1, 2, 3}[:]) // a slice of the array is passed to sum
+ 	fmt.Print(s, "\n")

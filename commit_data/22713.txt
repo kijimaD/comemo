@@ -13,10 +13,105 @@ Date:   Fri Apr 3 18:15:26 2015 -0400
     Signed-off-by: Shenghou Ma <minux@golang.org>
     Reviewed-on: https://go-review.googlesource.com/8465
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/7g/gsubr.go         |  3 +++
  src/cmd/7g/prog.go          | 25 +++++++++++++------------
  src/cmd/internal/gc/walk.go |  2 +-
  src/math/sqrt_arm64.s       | 12 ++++++++++++
  src/math/stubs_arm64.s      |  3 ---
  5 files changed, 29 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/7g/gsubr.go b/src/cmd/7g/gsubr.go
+index 2d2bdb7ca4..cea1e9205f 100644
+--- a/src/cmd/7g/gsubr.go
++++ b/src/cmd/7g/gsubr.go
+@@ -938,6 +938,9 @@ func optoas(op int, t *gc.Type) int {
+ 
+ 	case gc.ODIV<<16 | gc.TFLOAT64:
+ 		a = arm64.AFDIVD
++
++	case gc.OSQRT<<16 | gc.TFLOAT64:
++		a = arm64.AFSQRTD
+ 	}
+ 
+ 	return a
+diff --git a/src/cmd/7g/prog.go b/src/cmd/7g/prog.go
+index 2763e27a1e..733c405fac 100644
+--- a/src/cmd/7g/prog.go
++++ b/src/cmd/7g/prog.go
+@@ -60,18 +60,19 @@ var progtable = [arm64.ALAST]obj.ProgInfo{
+ 	arm64.ACMP:   {gc.SizeQ | gc.LeftRead | gc.RegRead, 0, 0, 0},
+ 
+ 	// Floating point.
+-	arm64.AFADDD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFADDS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFSUBD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFSUBS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFNEGD: {gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFNEGS: {gc.SizeF | gc.LeftRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFMULD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFMULS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFDIVD: {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFDIVS: {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
+-	arm64.AFCMPD: {gc.SizeD | gc.LeftRead | gc.RegRead, 0, 0, 0},
+-	arm64.AFCMPS: {gc.SizeF | gc.LeftRead | gc.RegRead, 0, 0, 0},
++	arm64.AFADDD:  {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFADDS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBD:  {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSUBS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGD:  {gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFNEGS:  {gc.SizeF | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFSQRTD: {gc.SizeD | gc.LeftRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULD:  {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFMULS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVD:  {gc.SizeD | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFDIVS:  {gc.SizeF | gc.LeftRead | gc.RegRead | gc.RightWrite, 0, 0, 0},
++	arm64.AFCMPD:  {gc.SizeD | gc.LeftRead | gc.RegRead, 0, 0, 0},
++	arm64.AFCMPS:  {gc.SizeF | gc.LeftRead | gc.RegRead, 0, 0, 0},
+ 
+ 	// float -> integer
+ 	arm64.AFCVTZSD:  {gc.SizeD | gc.LeftRead | gc.RightWrite | gc.Conv, 0, 0, 0},
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index a0a29d35ac..c845f783e5 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -624,7 +624,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 
+ 		if n.Left.Op == ONAME && n.Left.Sym.Name == "Sqrt" && n.Left.Sym.Pkg.Path == "math" {
+ 			switch Thearch.Thechar {
+-			case '5', '6':
++			case '5', '6', '7':
+ 				n.Op = OSQRT
+ 				n.Left = n.List.N
+ 				n.List = nil
+diff --git a/src/math/sqrt_arm64.s b/src/math/sqrt_arm64.s
+new file mode 100644
+index 0000000000..9861446eb9
+--- /dev/null
++++ b/src/math/sqrt_arm64.s
+@@ -0,0 +1,12 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++// func Sqrt(x float64) float64
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	FMOVD	x+0(FP), F0
++	FSQRTD	F0, F0
++	FMOVD	F0, ret+8(FP)
++	RET
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+index 2ffd2289b8..eea81e9241 100644
+--- a/src/math/stubs_arm64.s
++++ b/src/math/stubs_arm64.s
+@@ -84,8 +84,5 @@ TEXT ·Sin(SB),NOSPLIT,$0
+ TEXT ·Cos(SB),NOSPLIT,$0
+ 	B ·cos(SB)
+ 
+-TEXT ·Sqrt(SB),NOSPLIT,$0
+-	B ·sqrt(SB)
+-
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	B ·tan(SB)

@@ -11,6 +11,58 @@ Date:   Mon Aug 22 19:02:33 2016 +0200
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/example_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 43 insertions(+)
+
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 9c890c4519..07f9c76959 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -61,3 +61,46 @@ func ExampleIsNotExist() {
+ 	// Output:
+ 	// file does not exist
+ }
++
++func init() {
++	os.Setenv("USER", "gopher")
++	os.Setenv("HOME", "/usr/gopher")
++	os.Unsetenv("GOPATH")
++}
++
++func ExampleExpandEnv() {
++	fmt.Println(os.ExpandEnv("$USER lives in ${HOME}."))
++
++	// Output:
++	// gopher lives in /usr/gopher.
++}
++
++func ExampleLookupEnv() {
++	show := func(key string) {
++		val, ok := os.LookupEnv(key)
++		if !ok {
++			fmt.Printf("%s not set\n", key)
++		} else {
++			fmt.Printf("%s=%s\n", key, val)
++		}
++	}
++
++	show("USER")
++	show("GOPATH")
++
++	// Output:
++	// USER=gopher
++	// GOPATH not set
++}
++
++func ExampleGetenv() {
++	fmt.Printf("%s lives in %s.\n", os.Getenv("USER"), os.Getenv("HOME"))
++
++	// Output:
++	// gopher lives in /usr/gopher.
++}
++
++func ExampleUnsetenv() {
++	os.Setenv("TMPDIR", "/my/tmp")
++	defer os.Unsetenv("TMPDIR")
++}

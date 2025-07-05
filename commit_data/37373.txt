@@ -12,7 +12,7 @@ Date:   Wed Jul 18 16:09:36 2018 -0400
     Change-Id: Ibc0c4af0192a4af251e5dd6f2d36cda7e529099a
     Reviewed-on: https://go-review.googlesource.com/124795
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/cache.go              | 12 ++-
  src/cmd/go/internal/modfetch/proxy.go              | 18 ++++-
  src/cmd/go/internal/module/module.go               | 65 ++++++++++++----
@@ -22,3 +22,379 @@ Date:   Wed Jul 18 16:09:36 2018 -0400
  src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt    |  2 +-
  src/cmd/go/testdata/script/mod_case.txt            |  7 ++
  8 files changed, 192 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index d3cf8f3af1..e0132f8673 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -46,7 +46,11 @@ func CachePath(m module.Version, suffix string) (string, error) {
+ 	if module.CanonicalVersion(m.Version) != m.Version {
+ 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+ 	}
+-	return filepath.Join(dir, m.Version+"."+suffix), nil
++	encVer, err := module.EncodeVersion(m.Version)
++	if err != nil {
++		return "", err
++	}
++	return filepath.Join(dir, encVer+"."+suffix), nil
+ }
+ 
+ func DownloadDir(m module.Version) (string, error) {
+@@ -63,7 +67,11 @@ func DownloadDir(m module.Version) (string, error) {
+ 	if module.CanonicalVersion(m.Version) != m.Version {
+ 		return "", fmt.Errorf("non-canonical module version %q", m.Version)
+ 	}
+-	return filepath.Join(SrcMod, enc+"@"+m.Version), nil
++	encVer, err := module.EncodeVersion(m.Version)
++	if err != nil {
++		return "", err
++	}
++	return filepath.Join(SrcMod, enc+"@"+encVer), nil
+ }
+ 
+ // A cachingRepo is a cache around an underlying Repo,
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index ffd65d4ad0..dc667032ac 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -163,7 +163,11 @@ func (p *proxyRepo) latest() (*RevInfo, error) {
+ 
+ func (p *proxyRepo) Stat(rev string) (*RevInfo, error) {
+ 	var data []byte
+-	err := webGetBytes(p.url+"/@v/"+pathEscape(rev)+".info", &data)
++	encRev, err := module.EncodeVersion(rev)
++	if err != nil {
++		return nil, err
++	}
++	err = webGetBytes(p.url+"/@v/"+pathEscape(encRev)+".info", &data)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -191,7 +195,11 @@ func (p *proxyRepo) Latest() (*RevInfo, error) {
+ 
+ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+ 	var data []byte
+-	err := webGetBytes(p.url+"/@v/"+pathEscape(version)+".mod", &data)
++	encVer, err := module.EncodeVersion(version)
++	if err != nil {
++		return nil, err
++	}
++	err = webGetBytes(p.url+"/@v/"+pathEscape(encVer)+".mod", &data)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -200,7 +208,11 @@ func (p *proxyRepo) GoMod(version string) ([]byte, error) {
+ 
+ func (p *proxyRepo) Zip(version string, tmpdir string) (tmpfile string, err error) {
+ 	var body io.ReadCloser
+-	err = webGetBody(p.url+"/@v/"+pathEscape(version)+".zip", &body)
++	encVer, err := module.EncodeVersion(version)
++	if err != nil {
++		return "", err
++	}
++	err = webGetBody(p.url+"/@v/"+pathEscape(encVer)+".zip", &body)
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/cmd/go/internal/module/module.go b/src/cmd/go/internal/module/module.go
+index 992b19e3ed..03b401164b 100644
+--- a/src/cmd/go/internal/module/module.go
++++ b/src/cmd/go/internal/module/module.go
+@@ -433,8 +433,22 @@ func EncodePath(path string) (encoding string, err error) {
+ 		return "", err
+ 	}
+ 
++	return encodeString(path)
++}
++
++// EncodeVersion returns the safe encoding of the given module version.
++// Versions are allowed to be in non-semver form but must be valid file names
++// and not contain exclamation marks.
++func EncodeVersion(v string) (encoding string, err error) {
++	if err := checkElem(v, true); err != nil || strings.Contains(v, "!") {
++		return "", fmt.Errorf("disallowed version string %q", v)
++	}
++	return encodeString(v)
++}
++
++func encodeString(s string) (encoding string, err error) {
+ 	haveUpper := false
+-	for _, r := range path {
++	for _, r := range s {
+ 		if r == '!' || r >= utf8.RuneSelf {
+ 			// This should be disallowed by CheckPath, but diagnose anyway.
+ 			// The correctness of the encoding loop below depends on it.
+@@ -446,11 +460,11 @@ func EncodePath(path string) (encoding string, err error) {
+ 	}
+ 
+ 	if !haveUpper {
+-		return path, nil
++		return s, nil
+ 	}
+ 
+ 	var buf []byte
+-	for _, r := range path {
++	for _, r := range s {
+ 		if 'A' <= r && r <= 'Z' {
+ 			buf = append(buf, '!', byte(r+'a'-'A'))
+ 		} else {
+@@ -461,19 +475,45 @@ func EncodePath(path string) (encoding string, err error) {
+ }
+ 
+ // DecodePath returns the module path of the given safe encoding.
+-// It fails if the encoding is invalid.
++// It fails if the encoding is invalid or encodes an invalid path.
+ func DecodePath(encoding string) (path string, err error) {
++	path, ok := decodeString(encoding)
++	if !ok {
++		return "", fmt.Errorf("invalid module path encoding %q", encoding)
++	}
++	if err := CheckPath(path); err != nil {
++		return "", fmt.Errorf("invalid module path encoding %q: %v", encoding, err)
++	}
++	return path, nil
++}
++
++// DecodeVersion returns the version string for the given safe encoding.
++// It fails if the encoding is invalid or encodes an invalid version.
++// Versions are allowed to be in non-semver form but must be valid file names
++// and not contain exclamation marks.
++func DecodeVersion(encoding string) (v string, err error) {
++	v, ok := decodeString(encoding)
++	if !ok {
++		return "", fmt.Errorf("invalid version encoding %q", encoding)
++	}
++	if err := checkElem(v, true); err != nil {
++		return "", fmt.Errorf("disallowed version string %q", v)
++	}
++	return v, nil
++}
++
++func decodeString(encoding string) (string, bool) {
+ 	var buf []byte
+ 
+ 	bang := false
+ 	for _, r := range encoding {
+ 		if r >= utf8.RuneSelf {
+-			goto BadEncoding
++			return "", false
+ 		}
+ 		if bang {
+ 			bang = false
+ 			if r < 'a' || 'z' < r {
+-				goto BadEncoding
++				return "", false
+ 			}
+ 			buf = append(buf, byte(r+'A'-'a'))
+ 			continue
+@@ -483,19 +523,12 @@ func DecodePath(encoding string) (path string, err error) {
+ 			continue
+ 		}
+ 		if 'A' <= r && r <= 'Z' {
+-			goto BadEncoding
++			return "", false
+ 		}
+ 		buf = append(buf, byte(r))
+ 	}
+ 	if bang {
+-		goto BadEncoding
++		return "", false
+ 	}
+-	path = string(buf)
+-	if err := CheckPath(path); err != nil {
+-		return "", fmt.Errorf("invalid module path encoding %q: %v", encoding, err)
+-	}
+-	return path, nil
+-
+-BadEncoding:
+-	return "", fmt.Errorf("invalid module path encoding %q", encoding)
++	return string(buf), true
+ }
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 7e3fe1e4e5..ca60281262 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -78,13 +78,18 @@ func readModList() {
+ 		if i < 0 {
+ 			continue
+ 		}
+-		enc := strings.Replace(name[:i], "_", "/", -1)
+-		path, err := module.DecodePath(enc)
++		encPath := strings.Replace(name[:i], "_", "/", -1)
++		path, err := module.DecodePath(encPath)
++		if err != nil {
++			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++			continue
++		}
++		encVers := name[i+1:]
++		vers, err := module.DecodeVersion(encVers)
+ 		if err != nil {
+ 			fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
+ 			continue
+ 		}
+-		vers := name[i+1:]
+ 		modList = append(modList, module.Version{Path: path, Version: vers})
+ 	}
+ }
+@@ -132,7 +137,13 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		http.NotFound(w, r)
+ 		return
+ 	}
+-	vers, ext := file[:i], file[i+1:]
++	encVers, ext := file[:i], file[i+1:]
++	vers, err := module.DecodeVersion(encVers)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go proxy_test: %v", err)
++		http.NotFound(w, r)
++		return
++	}
+ 
+ 	if codehost.AllHex(vers) {
+ 		var best string
+@@ -239,9 +250,14 @@ func readArchive(path, vers string) *txtar.Archive {
+ 		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
+ 		return nil
+ 	}
++	encVers, err := module.EncodeVersion(vers)
++	if err != nil {
++		fmt.Fprintf(os.Stderr, "go proxy: %v\n", err)
++		return nil
++	}
+ 
+ 	prefix := strings.Replace(enc, "/", "_", -1)
+-	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+vers+".txt")
++	name := filepath.Join(cmdGoDir, "testdata/mod", prefix+"_"+encVers+".txt")
+ 	a := archiveCache.Do(name, func() interface{} {
+ 		a, err := txtar.ParseFile(name)
+ 		if err != nil {
+diff --git a/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt
+index 177f077ae1..21185c39f3 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.2.txt
+@@ -1,4 +1,4 @@
+-rsc.io/quote@v2.0.0 && cp mod/rsc.io_quote_v0.0.0-20180709153244-fd906ed3b100.txt mod/rsc.io_quote_v2.0.0.txt
++rsc.io/QUOTE v1.5.2
+ 
+ -- .mod --
+ module rsc.io/QUOTE
+diff --git a/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.3-!p!r!e.txt b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.3-!p!r!e.txt
+new file mode 100644
+index 0000000000..54bac2df7b
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/rsc.io_!q!u!o!t!e_v1.5.3-!p!r!e.txt
+@@ -0,0 +1,88 @@
++rsc.io/QUOTE v1.5.3-PRE (sigh)
++
++-- .mod --
++module rsc.io/QUOTE
++
++require rsc.io/quote v1.5.2
++-- .info --
++{"Version":"v1.5.3-PRE","Name":"","Short":"","Time":"2018-07-15T16:25:34Z"}
++-- go.mod --
++module rsc.io/QUOTE
++
++require rsc.io/quote v1.5.2
++-- QUOTE/quote.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// PACKAGE QUOTE COLLECTS LOUD SAYINGS.
++package QUOTE
++
++import (
++	"strings"
++
++	"rsc.io/quote"
++)
++
++// HELLO RETURNS A GREETING.
++func HELLO() string {
++	return strings.ToUpper(quote.Hello())
++}
++
++// GLASS RETURNS A USEFUL PHRASE FOR WORLD TRAVELERS.
++func GLASS() string {
++	return strings.ToUpper(quote.GLASS())
++}
++
++// GO RETURNS A GO PROVERB.
++func GO() string {
++	return strings.ToUpper(quote.GO())
++}
++
++// OPT RETURNS AN OPTIMIZATION TRUTH.
++func OPT() string {
++	return strings.ToUpper(quote.OPT())
++}
++-- QUOTE/quote_test.go --
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package QUOTE
++
++import (
++	"os"
++	"testing"
++)
++
++func init() {
++	os.Setenv("LC_ALL", "en")
++}
++
++func TestHELLO(t *testing.T) {
++	hello := "HELLO, WORLD"
++	if out := HELLO(); out != hello {
++		t.Errorf("HELLO() = %q, want %q", out, hello)
++	}
++}
++
++func TestGLASS(t *testing.T) {
++	glass := "I CAN EAT GLASS AND IT DOESN'T HURT ME."
++	if out := GLASS(); out != glass {
++		t.Errorf("GLASS() = %q, want %q", out, glass)
++	}
++}
++
++func TestGO(t *testing.T) {
++	go1 := "DON'T COMMUNICATE BY SHARING MEMORY, SHARE MEMORY BY COMMUNICATING."
++	if out := GO(); out != go1 {
++		t.Errorf("GO() = %q, want %q", out, go1)
++	}
++}
++
++func TestOPT(t *testing.T) {
++	opt := "IF A PROGRAM IS TOO SLOW, IT MUST HAVE A LOOP."
++	if out := OPT(); out != opt {
++		t.Errorf("OPT() = %q, want %q", out, opt)
++	}
++}
+diff --git a/src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt b/src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt
+index 2f687f58b4..e461ed4231 100644
+--- a/src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt
++++ b/src/cmd/go/testdata/mod/rsc.io_quote_v2.0.0.txt
+@@ -1,4 +1,4 @@
+-rsc.io/quote@v2.0.0 && cp mod/rsc.io_quote_v0.0.0-20180709153244-fd906ed3b100.txt mod/rsc.io_quote_v2.0.0.txt
++rsc.io/quote@v2.0.0
+ 
+ -- .mod --
+ module "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_case.txt b/src/cmd/go/testdata/script/mod_case.txt
+index db21c13efe..ee818c2c07 100644
+--- a/src/cmd/go/testdata/script/mod_case.txt
++++ b/src/cmd/go/testdata/script/mod_case.txt
+@@ -9,5 +9,12 @@ go list -f 'DIR {{.Dir}} DEPS {{.Deps}}' rsc.io/QUOTE/QUOTE
+ stdout 'DEPS.*rsc.io/quote'
+ stdout 'DIR.*!q!u!o!t!e'
+ 
++go get rsc.io/QUOTE@v1.5.3-PRE
++go list -m all
++stdout '^rsc.io/QUOTE v1.5.3-PRE'
++
++go list -f '{{.Dir}}' rsc.io/QUOTE/QUOTE
++stdout '!q!u!o!t!e@v1.5.3-!p!r!e'
++
+ -- go.mod --
+ module x

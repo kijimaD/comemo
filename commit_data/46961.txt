@@ -18,8 +18,56 @@ Date:   Wed Jan 27 10:47:38 2021 -0500
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/cmd/link/internal/ld/main.go | 2 +-
  src/runtime/extern.go            | 4 +++-
  src/runtime/internal/sys/arch.go | 4 ----
  3 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index cbd811846b..68dee18598 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -116,7 +116,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	final := gorootFinal()
+-	addstrdata1(ctxt, "runtime/internal/sys.DefaultGoroot="+final)
++	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
+ 	addstrdata1(ctxt, "cmd/internal/objabi.defaultGOROOT="+final)
+ 
+ 	// TODO(matloob): define these above and then check flag values here
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index dacdf4f383..bbe41dd0d4 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -229,6 +229,8 @@ func Callers(skip int, pc []uintptr) int {
+ 	return callers(skip, pc)
+ }
+ 
++var defaultGOROOT string // set by cmd/link
++
+ // GOROOT returns the root of the Go tree. It uses the
+ // GOROOT environment variable, if set at process start,
+ // or else the root used during the Go build.
+@@ -237,7 +239,7 @@ func GOROOT() string {
+ 	if s != "" {
+ 		return s
+ 	}
+-	return sys.DefaultGoroot
++	return defaultGOROOT
+ }
+ 
+ // Version returns the Go tree's version string.
+diff --git a/src/runtime/internal/sys/arch.go b/src/runtime/internal/sys/arch.go
+index 69278bf2d5..3c99a2f7da 100644
+--- a/src/runtime/internal/sys/arch.go
++++ b/src/runtime/internal/sys/arch.go
+@@ -52,7 +52,3 @@ const MinFrameSize = _MinFrameSize
+ // StackAlign is the required alignment of the SP register.
+ // The stack must be at least word aligned, but some architectures require more.
+ const StackAlign = _StackAlign
+-
+-// DefaultGoroot is set by the linker for use by package runtime.
+-// It doesn't really belong in this file or this package.
+-var DefaultGoroot string

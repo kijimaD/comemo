@@ -13,6 +13,22 @@ Date:   Wed Aug 30 11:28:54 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/user/cgo_lookup_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 3735971eb4..402429ba4a 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -165,8 +165,8 @@ func (k bufferKind) initialSize() _C_size_t {
+ // retryWithBuffer repeatedly calls f(), increasing the size of the
+ // buffer each time, until f succeeds, fails with a non-ERANGE error,
+ // or the buffer exceeds a reasonable limit.
+-func retryWithBuffer(startSize bufferKind, f func([]byte) syscall.Errno) error {
+-	buf := make([]byte, startSize)
++func retryWithBuffer(kind bufferKind, f func([]byte) syscall.Errno) error {
++	buf := make([]byte, kind.initialSize())
+ 	for {
+ 		errno := f(buf)
+ 		if errno == 0 {

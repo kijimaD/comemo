@@ -11,6 +11,34 @@ Date:   Tue Sep 6 08:08:47 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 7750f1dc68..093a6f1b3d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -453,9 +453,9 @@ func (ctxt *Link) loadlib() {
+ 			Linkmode = LinkExternal
+ 		}
+ 
+-		// Force external linking for PIE executables, as
+-		// internal linking does not support TLS_IE.
+-		if Buildmode == BuildmodePIE {
++		// Force external linking for PIE binaries on systems
++		// that do not support internal PIE linking.
++		if Buildmode == BuildmodePIE && (obj.GOOS != "linux" || SysArch.Family != sys.AMD64) {
+ 			Linkmode = LinkExternal
+ 		}
+ 
+@@ -636,8 +636,7 @@ func (ctxt *Link) loadlib() {
+ 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+ 	// Also leave it enabled on Solaris which doesn't support
+ 	// statically linked binaries.
+-	switch Buildmode {
+-	case BuildmodeExe, BuildmodePIE:
++	if Buildmode == BuildmodeExe {
+ 		if havedynamic == 0 && Headtype != obj.Hdarwin && Headtype != obj.Hsolaris {
+ 			*FlagD = true
+ 		}

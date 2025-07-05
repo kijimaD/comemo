@@ -14,7 +14,7 @@ Date:   Tue Jul 25 23:10:34 2023 +0000
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/list/list.go      | 4 +---
  src/cmd/go/internal/load/pkg.go       | 4 +---
  src/cmd/gofmt/rewrite.go              | 4 +---
@@ -24,3 +24,136 @@ Date:   Tue Jul 25 23:10:34 2023 +0000
  src/testing/benchmark.go              | 4 +---
  src/testing/match.go                  | 4 +---
  8 files changed, 9 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 79120e6a99..6a3ff0ebeb 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -780,9 +780,7 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 					p.Imports[i] = new
+ 				}
+ 			}
+-			for old := range m {
+-				delete(m, old)
+-			}
++			clear(m)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index c0e6265e29..4ea1ebaa25 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -603,9 +603,7 @@ var packageCache = map[string]*Package{}
+ // It is only for use by GOPATH-based "go get".
+ // TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
+ func ClearPackageCache() {
+-	for name := range packageCache {
+-		delete(packageCache, name)
+-	}
++	clear(packageCache)
+ 	resolvedImportCache.Clear()
+ 	packageDataCache.Clear()
+ }
+diff --git a/src/cmd/gofmt/rewrite.go b/src/cmd/gofmt/rewrite.go
+index 0b7e211309..8ed093041c 100644
+--- a/src/cmd/gofmt/rewrite.go
++++ b/src/cmd/gofmt/rewrite.go
+@@ -69,9 +69,7 @@ func rewriteFile(fileSet *token.FileSet, pattern, replace ast.Expr, p *ast.File)
+ 			return reflect.Value{}
+ 		}
+ 		val = apply(rewriteVal, val)
+-		for k := range m {
+-			delete(m, k)
+-		}
++		clear(m)
+ 		if match(m, pat, val) {
+ 			val = subst(m, repl, reflect.ValueOf(val.Interface().(ast.Node).Pos()))
+ 		}
+diff --git a/src/internal/intern/intern_test.go b/src/internal/intern/intern_test.go
+index d1e409ef95..e87d7e4dc7 100644
+--- a/src/internal/intern/intern_test.go
++++ b/src/internal/intern/intern_test.go
+@@ -171,9 +171,7 @@ func mapKeys() (keys []string) {
+ func clearMap() {
+ 	mu.Lock()
+ 	defer mu.Unlock()
+-	for k := range valMap {
+-		delete(valMap, k)
+-	}
++	clear(valMap)
+ }
+ 
+ var (
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 2a76b0b8dc..719ab62d1a 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -461,10 +461,7 @@ func (p *ReverseProxy) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 			rw.WriteHeader(code)
+ 
+ 			// Clear headers, it's not automatically done by ResponseWriter.WriteHeader() for 1xx responses
+-			for k := range h {
+-				delete(h, k)
+-			}
+-
++			clear(h)
+ 			return nil
+ 		},
+ 	}
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index b46d2a4727..ef0747fcd8 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -429,9 +429,7 @@ func BenchmarkGoMapClear(b *testing.B) {
+ 				m := make(map[int]int, size)
+ 				for i := 0; i < b.N; i++ {
+ 					m[0] = size // Add one element so len(m) != 0 avoiding fast paths.
+-					for k := range m {
+-						delete(m, k)
+-					}
++					clear(m)
+ 				}
+ 			})
+ 		}
+@@ -442,9 +440,7 @@ func BenchmarkGoMapClear(b *testing.B) {
+ 				m := make(map[float64]int, size)
+ 				for i := 0; i < b.N; i++ {
+ 					m[1.0] = size // Add one element so len(m) != 0 avoiding fast paths.
+-					for k := range m {
+-						delete(m, k)
+-					}
++					clear(m)
+ 				}
+ 			})
+ 		}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index be9b87f80b..0f4fc3d930 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -151,9 +151,7 @@ func (b *B) ResetTimer() {
+ 		// Pre-size it to make more allocation unlikely.
+ 		b.extra = make(map[string]float64, 16)
+ 	} else {
+-		for k := range b.extra {
+-			delete(b.extra, k)
+-		}
++		clear(b.extra)
+ 	}
+ 	if b.timerOn {
+ 		runtime.ReadMemStats(&memStats)
+diff --git a/src/testing/match.go b/src/testing/match.go
+index 92b7dc622d..84804dc2ec 100644
+--- a/src/testing/match.go
++++ b/src/testing/match.go
+@@ -119,9 +119,7 @@ func (m *matcher) fullName(c *common, subname string) (name string, ok, partial
+ func (m *matcher) clearSubNames() {
+ 	m.mu.Lock()
+ 	defer m.mu.Unlock()
+-	for key := range m.subNames {
+-		delete(m.subNames, key)
+-	}
++	clear(m.subNames)
+ }
+ 
+ func (m simpleMatch) matches(name []string, matchString func(pat, str string) (bool, error)) (ok, partial bool) {

@@ -21,8 +21,155 @@ Date:   Sun Oct 7 11:32:02 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/6625057
-
+---
  src/pkg/image/jpeg/dct_test.go | 22 ++++++++--------------
  src/pkg/image/jpeg/idct.go     | 23 ++---------------------
  src/pkg/image/jpeg/reader.go   | 26 ++++++++++++++++++++++----
  3 files changed, 32 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/image/jpeg/dct_test.go b/src/pkg/image/jpeg/dct_test.go
+index c7d7cfe55c..770e274bac 100644
+--- a/src/pkg/image/jpeg/dct_test.go
++++ b/src/pkg/image/jpeg/dct_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ )
+ 
+-func BenchmarkFDCT(b *testing.B) {
++func benchmarkDCT(b *testing.B, f func(*block)) {
+ 	b.StopTimer()
+ 	blocks := make([]block, 0, b.N*len(testBlocks))
+ 	for i := 0; i < b.N; i++ {
+@@ -20,21 +20,16 @@ func BenchmarkFDCT(b *testing.B) {
+ 	}
+ 	b.StartTimer()
+ 	for i := range blocks {
+-		fdct(&blocks[i])
++		f(&blocks[i])
+ 	}
+ }
+ 
++func BenchmarkFDCT(b *testing.B) {
++	benchmarkDCT(b, fdct)
++}
++
+ func BenchmarkIDCT(b *testing.B) {
+-	b.StopTimer()
+-	dummy := make([]byte, 64)
+-	blocks := make([]block, 0, b.N*len(testBlocks))
+-	for i := 0; i < b.N; i++ {
+-		blocks = append(blocks, testBlocks[:]...)
+-	}
+-	b.StartTimer()
+-	for i := range blocks {
+-		idct(dummy, 8, &blocks[i])
+-	}
++	benchmarkDCT(b, idct)
+ }
+ 
+ func TestDCT(t *testing.T) {
+@@ -85,10 +80,9 @@ func TestDCT(t *testing.T) {
+ 	}
+ 
+ 	// Check that the optimized and slow IDCT implementations agree.
+-	dummy := make([]byte, 64)
+ 	for i, b := range blocks {
+ 		got, want := b, b
+-		idct(dummy, 8, &got)
++		idct(&got)
+ 		slowIDCT(&want)
+ 		if differ(&got, &want) {
+ 			t.Errorf("i=%d: IDCT\nsrc\n%s\ngot\n%s\nwant\n%s\n", i, &b, &got, &want)
+diff --git a/src/pkg/image/jpeg/idct.go b/src/pkg/image/jpeg/idct.go
+index 1808bebd1a..92ff1e4b41 100644
+--- a/src/pkg/image/jpeg/idct.go
++++ b/src/pkg/image/jpeg/idct.go
+@@ -59,9 +59,7 @@ const (
+ 	r2 = 181 // 256/sqrt(2)
+ )
+ 
+-// idct performs a 2-D Inverse Discrete Cosine Transformation, followed by a
+-// +128 level shift and a clip to [0, 255], writing the results to dst.
+-// stride is the number of elements between successive rows of dst.
++// idct performs a 2-D Inverse Discrete Cosine Transformation.
+ //
+ // The input coefficients should already have been multiplied by the
+ // appropriate quantization table. We use fixed-point computation, with the
+@@ -71,7 +69,7 @@ const (
+ // For more on the actual algorithm, see Z. Wang, "Fast algorithms for the
+ // discrete W transform and for the discrete Fourier transform", IEEE Trans. on
+ // ASSP, Vol. ASSP- 32, pp. 803-816, Aug. 1984.
+-func idct(dst []byte, stride int, src *block) {
++func idct(src *block) {
+ 	// Horizontal 1-D IDCT.
+ 	for y := 0; y < 8; y++ {
+ 		y8 := y * 8
+@@ -191,21 +189,4 @@ func idct(dst []byte, stride int, src *block) {
+ 		src[8*6+x] = (y3 - y2) >> 14
+ 		src[8*7+x] = (y7 - y1) >> 14
+ 	}
+-
+-	// Level shift by +128, clip to [0, 255], and write to dst.
+-	for y := 0; y < 8; y++ {
+-		y8 := y * 8
+-		yStride := y * stride
+-		for x := 0; x < 8; x++ {
+-			c := src[y8+x]
+-			if c < -128 {
+-				c = 0
+-			} else if c > 127 {
+-				c = 255
+-			} else {
+-				c += 128
+-			}
+-			dst[yStride+x] = uint8(c)
+-		}
+-	}
+ }
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index bdafd5143e..263ef45aac 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -309,8 +309,10 @@ func (d *decoder) processSOS(n int) error {
+ 					}
+ 
+ 					// Perform the inverse DCT and store the MCU component to the image.
++					idct(&b)
++					dst, stride := []byte(nil), 0
+ 					if d.nComp == nGrayComponent {
+-						idct(d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride, &b)
++						dst, stride = d.img1.Pix[8*(my*d.img1.Stride+mx):], d.img1.Stride
+ 					} else {
+ 						switch i {
+ 						case 0:
+@@ -321,11 +323,27 @@ func (d *decoder) processSOS(n int) error {
+ 								mx0 += j % 2
+ 								my0 += j / 2
+ 							}
+-							idct(d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride, &b)
++							dst, stride = d.img3.Y[8*(my0*d.img3.YStride+mx0):], d.img3.YStride
+ 						case 1:
+-							idct(d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
++							dst, stride = d.img3.Cb[8*(my*d.img3.CStride+mx):], d.img3.CStride
+ 						case 2:
+-							idct(d.img3.Cr[8*(my*d.img3.CStride+mx):], d.img3.CStride, &b)
++							dst, stride = d.img3.Cr[8*(my*d.img3.CStride+mx):], d.img3.CStride
++						}
++					}
++					// Level shift by +128, clip to [0, 255], and write to dst.
++					for y := 0; y < 8; y++ {
++						y8 := y * 8
++						yStride := y * stride
++						for x := 0; x < 8; x++ {
++							c := b[y8+x]
++							if c < -128 {
++								c = 0
++							} else if c > 127 {
++								c = 255
++							} else {
++								c += 128
++							}
++							dst[yStride+x] = uint8(c)
+ 						}
+ 					}
+ 				} // for j

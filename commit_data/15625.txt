@@ -7,6 +7,20 @@ Date:   Thu Mar 7 19:15:00 2013 +0900
     R=golang-dev, akumar
     CC=golang-dev
     https://golang.org/cl/7564043
-
+---
  src/pkg/net/ipraw_test.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 65defc7ea6..3cf8297e43 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !plan9
+-
+ package net
+ 
+ import (

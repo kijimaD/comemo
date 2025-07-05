@@ -9,7 +9,32 @@ Date:   Tue Mar 4 08:39:51 2014 -0800
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/71160044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 6041c7a24b..4194b2e99a 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -249,6 +249,7 @@ Martin Olsson <martin@minimum.se>
+ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se>
++Matt Aimonetti <mattaimonetti@gmail.com>
+ Matt Jibson <matt.jibson@gmail.com>
+ Matt Joiner <anacrolix@gmail.com>
+ Matt Reiferson <mreiferson@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index fbcbaeebdb..d59b95d772 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -353,6 +353,7 @@ Martin Olsson <martin@minimum.se>
+ Mateusz Czapliński <czapkofan@gmail.com>
+ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Mats Lidell <mats.lidell@cag.se> <mats.lidell@gmail.com>
++Matt Aimonetti <mattaimonetti@gmail.com>
+ Matt Brown <mdbrown@google.com>
+ Matt Jibson <matt.jibson@gmail.com>
+ Matt Joiner <anacrolix@gmail.com>

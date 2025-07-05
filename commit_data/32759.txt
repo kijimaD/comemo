@@ -16,7 +16,35 @@ Date:   Tue May 23 23:42:47 2017 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matt Layher <mdlayher@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 3 +++
  src/net/http/server.go     | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 80fcc8c407..2897c15228 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -4358,6 +4358,9 @@ func TestServerValidatesHostHeader(t *testing.T) {
+ 		// Make an exception for HTTP upgrade requests:
+ 		{"PRI * HTTP/2.0", "", 200},
+ 
++		// Also an exception for CONNECT requests: (Issue 18215)
++		{"CONNECT golang.org:443 HTTP/1.1", "", 200},
++
+ 		// But not other HTTP/2 stuff:
+ 		{"PRI / HTTP/2.0", "", 400},
+ 		{"GET / HTTP/2.0", "", 400},
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b60bd2481e..a8d32459e0 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -943,7 +943,7 @@ func (c *conn) readRequest(ctx context.Context) (w *response, err error) {
+ 
+ 	hosts, haveHost := req.Header["Host"]
+ 	isH2Upgrade := req.isH2Upgrade()
+-	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) && !isH2Upgrade {
++	if req.ProtoAtLeast(1, 1) && (!haveHost || len(hosts) == 0) && !isH2Upgrade && req.Method != "CONNECT" {
+ 		return nil, badRequestError("missing required Host header")
+ 	}
+ 	if len(hosts) > 1 {

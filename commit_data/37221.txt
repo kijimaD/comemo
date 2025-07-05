@@ -16,6 +16,25 @@ Date:   Thu Jul 5 15:32:31 2018 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Paul Jolly <paul@myitcv.org.uk>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/wasm/wasm_exec.js | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 565dc928bc..233c5aa187 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -177,8 +177,12 @@
+ 				go: {
+ 					// func wasmExit(code int32)
+ 					"runtime.wasmExit": (sp) => {
++						const code = mem().getInt32(sp + 8, true);
+ 						this.exited = true;
+-						this.exit(mem().getInt32(sp + 8, true));
++						delete this._inst;
++						delete this._values;
++						delete this._refs;
++						this.exit(code);
+ 					},
+ 
+ 					// func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)

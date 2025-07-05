@@ -15,6 +15,31 @@ Date:   Thu May 12 14:06:31 2022 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 1f547130ad..e9483decaa 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -70,6 +70,9 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
+ 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
+ 
++	base.DebugSSA = ssa.PhaseOption
++	base.ParseFlags()
++
+ 	types.LocalPkg = types.NewPkg("", "")
+ 	types.LocalPkg.Prefix = "\"\""
+ 
+@@ -100,9 +103,6 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	// pseudo-package used for methods with anonymous receivers
+ 	ir.Pkgs.Go = types.NewPkg("go", "")
+ 
+-	base.DebugSSA = ssa.PhaseOption
+-	base.ParseFlags()
+-
+ 	// Record flags that affect the build result. (And don't
+ 	// record flags that don't, since that would cause spurious
+ 	// changes in the binary.)

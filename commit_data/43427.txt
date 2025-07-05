@@ -7,6 +7,22 @@ Date:   Thu Apr 2 09:04:24 2020 -0700
     Change-Id: I49a79c07081cd8f12a3ffef21fd02a9a622a7eb5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226979
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/ip.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 9d1223e705..c00fe8ed3c 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -671,8 +671,8 @@ func parseIPv6(s string) (ip IP) {
+ }
+ 
+ // ParseIP parses s as an IP address, returning the result.
+-// The string s can be in dotted decimal ("192.0.2.1")
+-// or IPv6 ("2001:db8::68") form.
++// The string s can be in IPv4 dotted decimal ("192.0.2.1"), IPv6
++// ("2001:db8::68"), or IPv4-mapped IPv6 ("::ffff:192.0.2.1") form.
+ // If s is not a valid textual representation of an IP address,
+ // ParseIP returns nil.
+ func ParseIP(s string) IP {

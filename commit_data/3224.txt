@@ -9,7 +9,34 @@ Date:   Fri Sep 4 16:12:50 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=34404
     CL=34406
-
+---
  src/pkg/debug/gosym/symtab.go | 2 +-
  usr/austin/sym/gosymtab.go    | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/debug/gosym/symtab.go b/src/pkg/debug/gosym/symtab.go
+index d236be5153..ece74f19d5 100644
+--- a/src/pkg/debug/gosym/symtab.go
++++ b/src/pkg/debug/gosym/symtab.go
+@@ -52,7 +52,7 @@ func (s *Sym) PackageName() string {
+ func (s *Sym) ReceiverName() string {
+ 	l := strings.Index(s.Name, ".");
+ 	r := strings.LastIndex(s.Name, ".");
+-	if l == -1 || r == -1 {
++	if l == -1 || r == -1 || l == r {
+ 		return "";
+ 	}
+ 	return s.Name[l+1:r];
+diff --git a/usr/austin/sym/gosymtab.go b/usr/austin/sym/gosymtab.go
+index 1ecfb42099..e9519a3e54 100644
+--- a/usr/austin/sym/gosymtab.go
++++ b/usr/austin/sym/gosymtab.go
+@@ -63,7 +63,7 @@ func (c *CommonSym) PackageName() string {
+ func (c *CommonSym) ReceiverName() string {
+ 	l := strings.Index(c.Name, "·");
+ 	r := strings.LastIndex(c.Name, "·");
+-	if l == -1 || r == -1 {
++	if l == -1 || r == -1 || l == r {
+ 		return "";
+ 	}
+ 	return c.Name[l+len("·"):r];

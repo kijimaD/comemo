@@ -7,9 +7,62 @@ Date:   Tue Dec 23 00:03:40 2014 -0500
     Change-Id: Iaad548ea90d3b70341a723450d5e4d4c2b88856f
     Reviewed-on: https://go-review.googlesource.com/2063
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/noasm.go            | 2 +-
  src/runtime/os_android_arm.go   | 2 +-
  src/runtime/os_windows.go       | 2 +-
  src/runtime/syscall2_solaris.go | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/noasm.go b/src/runtime/noasm.go
+index 998309e828..c5ef672432 100644
+--- a/src/runtime/noasm.go
++++ b/src/runtime/noasm.go
+@@ -9,7 +9,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ func cmpstring(s1, s2 string) int {
+ 	l := len(s1)
+diff --git a/src/runtime/os_android_arm.go b/src/runtime/os_android_arm.go
+index 132832236a..be7c3c000b 100644
+--- a/src/runtime/os_android_arm.go
++++ b/src/runtime/os_android_arm.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:cgo_export_static and go:cgo_export_dynamic
+ 
+ // Export the runtime entry point symbol.
+ //
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 9497a600fe..66e0d77b65 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ type stdFunction *byte
+ 
+diff --git a/src/runtime/syscall2_solaris.go b/src/runtime/syscall2_solaris.go
+index f4ffa74105..cbf2a95329 100644
+--- a/src/runtime/syscall2_solaris.go
++++ b/src/runtime/syscall2_solaris.go
+@@ -4,7 +4,7 @@
+ 
+ package runtime
+ 
+-import _ "unsafe"
++import _ "unsafe" // for go:linkname
+ 
+ //go:cgo_import_dynamic libc_chdir chdir "libc.so"
+ //go:cgo_import_dynamic libc_chroot chroot "libc.so"

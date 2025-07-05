@@ -14,6 +14,20 @@ Date:   Sun Nov 18 17:18:37 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/removeall_at.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index 5eea770a3e..777690ec66 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -22,7 +22,7 @@ func RemoveAll(path string) error {
+ 	// The rmdir system call does not permit removing ".",
+ 	// so we don't permit it either.
+ 	if endsWithDot(path) {
+-		return syscall.EINVAL
++		return &PathError{"RemoveAll", path, syscall.EINVAL}
+ 	}
+ 
+ 	// RemoveAll recurses by deleting the path base from

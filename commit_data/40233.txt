@@ -12,6 +12,21 @@ Date:   Sun Apr 28 18:02:36 2019 +1000
     Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  src/runtime/sys_openbsd_amd64.s | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 227e81869c..d5c030dd8d 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -348,9 +348,6 @@ TEXT runtime·sysctl(SB),NOSPLIT,$0
+ 
+ // int32 runtime·kqueue(void);
+ TEXT runtime·kqueue(SB),NOSPLIT,$0
+-	MOVQ	$0, DI
+-	MOVQ	$0, SI
+-	MOVQ	$0, DX
+ 	MOVL	$269, AX
+ 	SYSCALL
+ 	JCC	2(PC)

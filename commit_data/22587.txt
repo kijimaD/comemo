@@ -9,6 +9,22 @@ Date:   Wed Mar 25 12:00:54 2015 +1100
     Change-Id: I0ac807a0fed7a5b4c745454246764c524460472b
     Reviewed-on: https://go-review.googlesource.com/8071
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/proc1.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 1c34e4b691..325955665b 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -738,10 +738,6 @@ func mstart1() {
+ 		_g_.m.nextp = nil
+ 	}
+ 	schedule()
+-
+-	// TODO(brainman): This point is never reached, because scheduler
+-	// does not release os threads at the moment. But once this path
+-	// is enabled, we must remove our seh here.
+ }
+ 
+ // When running with cgo, we call _cgo_thread_start

@@ -36,7 +36,157 @@ Date:   Wed Feb 1 18:18:57 2023 -0800
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Joseph Tsai <joetsai@digital-static.net>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/log/log.go      | 67 +++++++++++++++++++++++++++++------------------------
  src/log/log_test.go | 10 ++++++++
  2 files changed, 47 insertions(+), 30 deletions(-)
+
+diff --git a/src/log/log.go b/src/log/log.go
+index 9e38b6ed69..78458c19f3 100644
+--- a/src/log/log.go
++++ b/src/log/log.go
+@@ -190,6 +190,17 @@ func putBuffer(p *[]byte) {
+ // provided for generality, although at the moment on all pre-defined
+ // paths it will be 2.
+ func (l *Logger) Output(calldepth int, s string) error {
++	calldepth++ // +1 for this frame.
++	return l.output(calldepth, func(b []byte) []byte {
++		return append(b, s...)
++	})
++}
++
++func (l *Logger) output(calldepth int, appendOutput func([]byte) []byte) error {
++	if l.isDiscard.Load() {
++		return nil
++	}
++
+ 	now := time.Now() // get this early.
+ 
+ 	// Load prefix and flag once so that their value is consistent within
+@@ -211,7 +222,9 @@ func (l *Logger) Output(calldepth int, s string) error {
+ 	buf := getBuffer()
+ 	defer putBuffer(buf)
+ 	formatHeader(buf, now, prefix, flag, file, line)
+-	*buf = append(*buf, s...)
++	headerLen := len(*buf)
++	*buf = appendOutput(*buf)
++	s := (*buf)[headerLen:]
+ 	if len(s) == 0 || s[len(s)-1] != '\n' {
+ 		*buf = append(*buf, '\n')
+ 	}
+@@ -222,31 +235,28 @@ func (l *Logger) Output(calldepth int, s string) error {
+ 	return err
+ }
+ 
+-// Printf calls l.Output to print to the logger.
+-// Arguments are handled in the manner of fmt.Printf.
+-func (l *Logger) Printf(format string, v ...any) {
+-	if l.isDiscard.Load() {
+-		return
+-	}
+-	l.Output(2, fmt.Sprintf(format, v...))
+-}
+-
+ // Print calls l.Output to print to the logger.
+ // Arguments are handled in the manner of fmt.Print.
+ func (l *Logger) Print(v ...any) {
+-	if l.isDiscard.Load() {
+-		return
+-	}
+-	l.Output(2, fmt.Sprint(v...))
++	l.output(2, func(b []byte) []byte {
++		return fmt.Append(b, v...)
++	})
++}
++
++// Printf calls l.Output to print to the logger.
++// Arguments are handled in the manner of fmt.Printf.
++func (l *Logger) Printf(format string, v ...any) {
++	l.output(2, func(b []byte) []byte {
++		return fmt.Appendf(b, format, v...)
++	})
+ }
+ 
+ // Println calls l.Output to print to the logger.
+ // Arguments are handled in the manner of fmt.Println.
+ func (l *Logger) Println(v ...any) {
+-	if l.isDiscard.Load() {
+-		return
+-	}
+-	l.Output(2, fmt.Sprintln(v...))
++	l.output(2, func(b []byte) []byte {
++		return fmt.Appendln(b, v...)
++	})
+ }
+ 
+ // Fatal is equivalent to l.Print() followed by a call to os.Exit(1).
+@@ -357,28 +367,25 @@ func Writer() io.Writer {
+ // Print calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Print.
+ func Print(v ...any) {
+-	if std.isDiscard.Load() {
+-		return
+-	}
+-	std.Output(2, fmt.Sprint(v...))
++	std.output(2, func(b []byte) []byte {
++		return fmt.Append(b, v...)
++	})
+ }
+ 
+ // Printf calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Printf.
+ func Printf(format string, v ...any) {
+-	if std.isDiscard.Load() {
+-		return
+-	}
+-	std.Output(2, fmt.Sprintf(format, v...))
++	std.output(2, func(b []byte) []byte {
++		return fmt.Appendf(b, format, v...)
++	})
+ }
+ 
+ // Println calls Output to print to the standard logger.
+ // Arguments are handled in the manner of fmt.Println.
+ func Println(v ...any) {
+-	if std.isDiscard.Load() {
+-		return
+-	}
+-	std.Output(2, fmt.Sprintln(v...))
++	std.output(2, func(b []byte) []byte {
++		return fmt.Appendln(b, v...)
++	})
+ }
+ 
+ // Fatal is equivalent to Print() followed by a call to os.Exit(1).
+diff --git a/src/log/log_test.go b/src/log/log_test.go
+index c212b60554..ea7e7917b8 100644
+--- a/src/log/log_test.go
++++ b/src/log/log_test.go
+@@ -217,6 +217,7 @@ func BenchmarkPrintln(b *testing.B) {
+ 	const testString = "test"
+ 	var buf bytes.Buffer
+ 	l := New(&buf, "", LstdFlags)
++	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+ 		buf.Reset()
+ 		l.Println(testString)
+@@ -227,6 +228,7 @@ func BenchmarkPrintlnNoFlags(b *testing.B) {
+ 	const testString = "test"
+ 	var buf bytes.Buffer
+ 	l := New(&buf, "", 0)
++	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+ 		buf.Reset()
+ 		l.Println(testString)
+@@ -255,3 +257,11 @@ func BenchmarkConcurrent(b *testing.B) {
+ 	}
+ 	group.Wait()
+ }
++
++func BenchmarkDiscard(b *testing.B) {
++	l := New(io.Discard, "", LstdFlags|Lshortfile)
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		l.Printf("processing %d objects from bucket %q", 1234, "fizzbuzz")
++	}
++}

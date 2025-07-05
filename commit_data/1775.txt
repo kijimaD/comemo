@@ -9,7 +9,82 @@ Date:   Fri Mar 6 16:54:26 2009 -0800
     R=r
     OCL=25866
     CL=25866
-
+---
  usr/gri/pretty/printer.go    | 26 +++++++++++++++++++++++---
  usr/gri/pretty/template.html |  1 +
  2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index 009dde35cb..5a75483fb2 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -1016,7 +1016,7 @@ func (P *Printer) DoVarDecl(d *ast.VarDecl) {
+ }
+ 
+ 
+-func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
++func (P *Printer) funcDecl(d *ast.FuncDecl, with_body bool) {
+ 	P.Token(d.Pos_, token.FUNC);
+ 	P.separator = blank;
+ 	if recv := d.Recv; recv != nil {
+@@ -1032,7 +1032,7 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ 	}
+ 	P.Expr(d.Ident);
+ 	P.Signature(d.Sig);
+-	if d.Body != nil {
++	if with_body && d.Body != nil {
+ 		P.separator = blank;
+ 		P.Block(d.Body, true);
+ 	}
+@@ -1040,6 +1040,11 @@ func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
+ }
+ 
+ 
++func (P *Printer) DoFuncDecl(d *ast.FuncDecl) {
++	P.funcDecl(d, true);
++}
++
++
+ func (P *Printer) DoDeclList(d *ast.DeclList) {
+ 	if !*def || d.Tok == token.IMPORT || d.Tok == token.VAR {
+ 		P.Token(d.Pos, d.Tok);
+@@ -1073,6 +1078,20 @@ func (P *Printer) Decl(d ast.Decl) {
+ }
+ 
+ 
++// ----------------------------------------------------------------------------
++// Interface
++
++func (P *Printer) Interface(p *ast.Program) {
++	for i := 0; i < len(p.Decls); i++ {
++		decl := p.Decls[i];
++		// TODO use type switch
++		if fun, is_fun := decl.(*ast.FuncDecl); is_fun {
++			P.funcDecl(fun, false);
++		}
++	}
++}
++
++
+ // ----------------------------------------------------------------------------
+ // Program
+ 
+@@ -1110,7 +1129,8 @@ func Print(writer io.Write, html bool, prog *ast.Program) {
+ 
+ 	if P.html {
+ 		err := templ.Apply(text, "<!--", template.Substitution {
+-			"PACKAGE-->" : func() { /* P.Expr(prog.Ident); */ },
++			"PACKAGE-->" : func() { P.Printf("%s", prog.Ident.Str); },
++			"INTERFACE-->" : func() { P.Interface(prog); },
+ 			"BODY-->" : func() { P.Program(prog); },
+ 		});
+ 		if err != nil {
+diff --git a/usr/gri/pretty/template.html b/usr/gri/pretty/template.html
+index 4689bee64b..71126499b6 100644
+--- a/usr/gri/pretty/template.html
++++ b/usr/gri/pretty/template.html
+@@ -1,3 +1,4 @@
++
+ <h1><!--PACKAGE--></h1>
+ 
+ <pre>

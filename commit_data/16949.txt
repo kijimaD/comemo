@@ -14,7 +14,7 @@ Date:   Wed Jul 31 20:00:33 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12163043
-
+---
  src/cmd/5g/ggen.c               | 7 ++++++-
  src/cmd/6g/ggen.c               | 7 ++++++-
  src/cmd/8g/ggen.c               | 7 ++++++-
@@ -24,3 +24,144 @@ Date:   Wed Jul 31 20:00:33 2013 +0400
  src/pkg/runtime/traceback_arm.c | 2 +-
  src/pkg/runtime/traceback_x86.c | 2 +-
  8 files changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 6e4f564618..43354724dc 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -81,7 +81,12 @@ ginscall(Node *f, int proc)
+ 		setmaxarg(f->type);
+ 
+ 	arg = -1;
+-	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
++	// Not all, though: there are some variadic functions in package runtime,
++	// and for those we emit call-specific metadata recorded by caller.
++	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
++	// so we do this for all indirect calls as well.
++	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+ 		arg = f->type->argwid;
+ 		if(proc == 1 || proc == 2)
+ 			arg += 3*widthptr;
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index 7883dad593..ec558f2e61 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -79,7 +79,12 @@ ginscall(Node *f, int proc)
+ 		setmaxarg(f->type);
+ 
+ 	arg = -1;
+-	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
++	// Not all, though: there are some variadic functions in package runtime,
++	// and for those we emit call-specific metadata recorded by caller.
++	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
++	// so we do this for all indirect calls as well.
++	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+ 		arg = f->type->argwid;
+ 		if(proc == 1 || proc == 2)
+ 			arg += 2*widthptr;
+diff --git a/src/cmd/8g/ggen.c b/src/cmd/8g/ggen.c
+index 5570e12855..1677d9529b 100644
+--- a/src/cmd/8g/ggen.c
++++ b/src/cmd/8g/ggen.c
+@@ -123,7 +123,12 @@ ginscall(Node *f, int proc)
+ 		setmaxarg(f->type);
+ 
+ 	arg = -1;
+-	if(f->type != T && ((f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
++	// Most functions have a fixed-size argument block, so traceback uses that during unwind.
++	// Not all, though: there are some variadic functions in package runtime,
++	// and for those we emit call-specific metadata recorded by caller.
++	// Reflect generates functions with variable argsize (see reflect.methodValueCall/makeFuncStub),
++	// so we do this for all indirect calls as well.
++	if(f->type != T && (f->sym == S || (f->sym != S && f->sym->pkg == runtimepkg) || proc == 1 || proc == 2)) {
+ 		arg = f->type->argwid;
+ 		if(proc == 1 || proc == 2)
+ 			arg += 2*widthptr;
+diff --git a/src/pkg/reflect/asm_386.s b/src/pkg/reflect/asm_386.s
+index bbd068d98e..2d5ac0367d 100644
+--- a/src/pkg/reflect/asm_386.s
++++ b/src/pkg/reflect/asm_386.s
+@@ -5,6 +5,7 @@
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+@@ -15,6 +16,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·methodValueCall(SB),7,$8
+ 	MOVL	DX, 0(SP)
+ 	LEAL	argframe+0(FP), CX
+diff --git a/src/pkg/reflect/asm_amd64.s b/src/pkg/reflect/asm_amd64.s
+index 2e7fce55d6..7d3aaeba45 100644
+--- a/src/pkg/reflect/asm_amd64.s
++++ b/src/pkg/reflect/asm_amd64.s
+@@ -5,6 +5,7 @@
+ // makeFuncStub is the code half of the function returned by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·makeFuncStub(SB),7,$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+@@ -15,6 +16,7 @@ TEXT ·makeFuncStub(SB),7,$16
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·methodValueCall(SB),7,$16
+ 	MOVQ	DX, 0(SP)
+ 	LEAQ	argframe+0(FP), CX
+diff --git a/src/pkg/reflect/asm_arm.s b/src/pkg/reflect/asm_arm.s
+index fb1dddebe9..bf10929dc6 100644
+--- a/src/pkg/reflect/asm_arm.s
++++ b/src/pkg/reflect/asm_arm.s
+@@ -5,6 +5,7 @@
+ // makeFuncStub is jumped to by the code generated by MakeFunc.
+ // See the comment on the declaration of makeFuncStub in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·makeFuncStub(SB),7,$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+@@ -15,6 +16,7 @@ TEXT ·makeFuncStub(SB),7,$8
+ // methodValueCall is the code half of the function returned by makeMethodValue.
+ // See the comment on the declaration of methodValueCall in makefunc.go
+ // for more details.
++// No argsize here, gc generates argsize info at call site.
+ TEXT ·methodValueCall(SB),7,$8
+ 	MOVW	R7, 4(R13)
+ 	MOVW	$argframe+0(FP), R1
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 563ba28c94..4b9692c076 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -102,7 +102,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		// Most functions have a fixed-size argument block,
+ 		// so we can use metadata about the function f.
+ 		// Not all, though: there are some variadic functions
+-		// in package runtime, and for those we use call-specific
++		// in package runtime and reflect, and for those we use call-specific
+ 		// metadata recorded by f's caller.
+ 		if(callback != nil || printing) {
+ 			frame.argp = (byte*)frame.fp + sizeof(uintptr);
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index b88797210e..c5197a6e10 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -118,7 +118,7 @@ runtime·gentraceback(uintptr pc0, uintptr sp0, uintptr lr0, G *gp, int32 skip,
+ 		// Most functions have a fixed-size argument block,
+ 		// so we can use metadata about the function f.
+ 		// Not all, though: there are some variadic functions
+-		// in package runtime, and for those we use call-specific
++		// in package runtime and reflect, and for those we use call-specific
+ 		// metadata recorded by f's caller.
+ 		if(callback != nil || printing) {
+ 			frame.argp = (byte*)frame.fp;

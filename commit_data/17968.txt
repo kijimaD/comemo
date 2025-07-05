@@ -7,6 +7,15 @@ Date:   Thu Dec 12 11:17:54 2013 -0800
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/40650047
-
+---
  doc/go1.3.txt | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.3.txt b/doc/go1.3.txt
+index e92cff4cab..90167a5cff 100644
+--- a/doc/go1.3.txt
++++ b/doc/go1.3.txt
+@@ -1 +1,2 @@
+-<YOUR CL HERE>
++pull linker i/o into separate liblink C library (CL 35790044)
++misc/dist renamed misc/makerelease (CL 39920043)

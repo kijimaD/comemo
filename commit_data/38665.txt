@@ -19,7 +19,7 @@ Date:   Wed Jun 20 09:09:03 2018 +0000
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/racewalk.go |   4 +-
  src/cmd/go/internal/work/init.go        |   2 +-
  src/cmd/internal/sys/supported.go       |   2 +-
@@ -31,3 +31,579 @@ Date:   Wed Jun 20 09:09:03 2018 +0000
  src/runtime/race/race_linux_arm64.syso  | Bin 0 -> 418080 bytes
  src/runtime/race_arm64.s                | 445 ++++++++++++++++++++++++++++++++
  10 files changed, 457 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 8a8b436a23..6f251377c9 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -71,14 +71,14 @@ func instrument(fn *Node) {
+ 		lno := lineno
+ 		lineno = src.NoXPos
+ 
+-		if thearch.LinkArch.Arch == sys.ArchPPC64LE {
++		if thearch.LinkArch.Arch.Family != sys.AMD64 {
+ 			fn.Func.Enter.Prepend(mkcall("racefuncenterfp", nil, nil))
+ 			fn.Func.Exit.Append(mkcall("racefuncexit", nil, nil))
+ 		} else {
+ 
+ 			// nodpc is the PC of the caller as extracted by
+ 			// getcallerpc. We use -widthptr(FP) for x86.
+-			// BUG: This only works for amd64. This will not
++			// This only works for amd64. This will not
+ 			// work on arm or others that might support
+ 			// race in the future.
+ 			nodpc := nodfp.copy()
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 3f6252ed84..8d2fd10524 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -49,7 +49,7 @@ func instrumentInit() {
+ 	}
+ 	if cfg.BuildRace {
+ 		if !sys.RaceDetectorSupported(cfg.Goos, cfg.Goarch) {
+-			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
++			fmt.Fprintf(os.Stderr, "go %s: -race is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64, darwin/amd64 and windows/amd64\n", flag.Args()[0])
+ 			os.Exit(2)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/sys/supported.go b/src/cmd/internal/sys/supported.go
+index 22dec702a5..a53da6ed2c 100644
+--- a/src/cmd/internal/sys/supported.go
++++ b/src/cmd/internal/sys/supported.go
+@@ -9,7 +9,7 @@ package sys
+ func RaceDetectorSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+-		return goarch == "amd64" || goarch == "ppc64le"
++		return goarch == "amd64" || goarch == "ppc64le" || goarch == "arm64"
+ 	case "darwin", "freebsd", "netbsd", "windows":
+ 		return goarch == "amd64"
+ 	default:
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 77b03b67f9..2f6dd7a7e2 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -199,8 +199,8 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	// When the race flag is set, the LLVM tsan relocatable file is linked
+ 	// into the final binary, which means external linking is required because
+ 	// internal linking does not support it.
+-	if *flagRace && ctxt.Arch.InFamily(sys.PPC64) {
+-		return true, "race on ppc64le"
++	if *flagRace && ctxt.Arch.InFamily(sys.PPC64, sys.ARM64) {
++		return true, "race on " + objabi.GOARCH
+ 	}
+ 
+ 	// Some build modes require work the internal linker cannot do (yet).
+diff --git a/src/race.bash b/src/race.bash
+index d673f503a9..e83c175df3 100755
+--- a/src/race.bash
++++ b/src/race.bash
+@@ -9,7 +9,7 @@
+ set -e
+ 
+ function usage {
+-	echo 'race detector is only supported on linux/amd64, linux/ppc64le, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
++	echo 'race detector is only supported on linux/amd64, linux/ppc64le, linux/arm64, freebsd/amd64, netbsd/amd64 and darwin/amd64' 1>&2
+ 	exit 1
+ }
+ 
+@@ -21,7 +21,7 @@ case $(uname) in
+ 	fi
+ 	;;
+ "Linux")
+-	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "ppc64le" ]; then
++	if [ $(uname -m) != "x86_64" ] && [ $(uname -m) != "ppc64le" ] && [ $(uname -m) != "aarch64" ]; then
+ 		usage
+ 	fi
+ 	;;
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 2248cec132..28d3077b9d 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -18,7 +18,8 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+ 	MOVD	$runtime·g0(SB), g
+-	MOVD RSP, R7
++	BL	runtime·save_g(SB)
++	MOVD	RSP, R7
+ 	MOVD	$(-64*1024)(R7), R0
+ 	MOVD	R0, g_stackguard0(g)
+ 	MOVD	R0, g_stackguard1(g)
+diff --git a/src/runtime/race/README b/src/runtime/race/README
+index 1c66c63695..be53b4c37c 100644
+--- a/src/runtime/race/README
++++ b/src/runtime/race/README
+@@ -10,3 +10,4 @@ race_linux_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 a
+ race_linux_ppc64le.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+ race_netbsd_amd64.syso built with LLVM fe2c72c59aa7f4afa45e3f65a5d16a374b6cce26 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
+ race_windows_amd64.syso built with LLVM ae08a22cc215448aa3ad5a6fb099f6df77e9fa01 and Go 323c85862a7afbde66a3bba0776bf4ba6cd7c030.
++race_linux_arm64.syso built with LLVM 3aa2b775d08f903f804246af10b80a439c16b436 and Go ef2c48659880c7e8a989e6721a21f018790f7793.
+diff --git a/src/runtime/race/race.go b/src/runtime/race/race.go
+index 95e965411b..d298e805cf 100644
+--- a/src/runtime/race/race.go
++++ b/src/runtime/race/race.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le
++// +build race,linux,amd64 race,freebsd,amd64 race,netbsd,amd64 race,darwin,amd64 race,windows,amd64 race,linux,ppc64le race,linux,arm64
+ 
+ package race
+ 
+diff --git a/src/runtime/race/race_linux_arm64.syso b/src/runtime/race/race_linux_arm64.syso
+new file mode 100644
+index 0000000000..65bc1ececa
+Binary files /dev/null and b/src/runtime/race/race_linux_arm64.syso differ
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+new file mode 100644
+index 0000000000..7223be3d68
+--- /dev/null
++++ b/src/runtime/race_arm64.s
+@@ -0,0 +1,445 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++#include "go_asm.h"
++#include "funcdata.h"
++#include "textflag.h"
++#include "tls_arm64.h"
++
++// The following thunks allow calling the gcc-compiled race runtime directly
++// from Go code without going all the way through cgo.
++// First, it's much faster (up to 50% speedup for real Go programs).
++// Second, it eliminates race-related special cases from cgocall and scheduler.
++// Third, in long-term it will allow to remove cyclic runtime/race dependency on cmd/go.
++
++// A brief recap of the arm64 calling convention.
++// Arguments are passed in R0...R7, the rest is on stack.
++// Callee-saved registers are: R19...R28.
++// Temporary registers are: R9...R15
++// SP must be 16-byte aligned.
++
++// When calling racecalladdr, R9 is the call target address.
++
++// The race ctx, ThreadState *thr below, is passed in R0 and loaded in racecalladdr.
++
++#define load_g \
++	MRS_TPIDR_R0 \
++	MOVD    runtime·tls_g(SB), R11 \
++	ADD     R11, R0 \
++	MOVD    0(R0), g
++
++// func runtime·raceread(addr uintptr)
++// Called from instrumented code.
++TEXT	runtime·raceread(SB), NOSPLIT, $0-8
++	MOVD	addr+0(FP), R1
++	MOVD	LR, R2
++	// void __tsan_read(ThreadState *thr, void *addr, void *pc);
++	MOVD	$__tsan_read(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·RaceRead(addr uintptr)
++TEXT	runtime·RaceRead(SB), NOSPLIT, $0-8
++	// This needs to be a tail call, because raceread reads caller pc.
++	JMP	runtime·raceread(SB)
++
++// func runtime·racereadpc(void *addr, void *callpc, void *pc)
++TEXT	runtime·racereadpc(SB), NOSPLIT, $0-24
++	MOVD	addr+0(FP), R1
++	MOVD	callpc+8(FP), R2
++	MOVD	pc+16(FP), R3
++	// void __tsan_read_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
++	MOVD	$__tsan_read_pc(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·racewrite(addr uintptr)
++// Called from instrumented code.
++TEXT	runtime·racewrite(SB), NOSPLIT, $0-8
++	MOVD	addr+0(FP), R1
++	MOVD	LR, R2
++	// void __tsan_write(ThreadState *thr, void *addr, void *pc);
++	MOVD	$__tsan_write(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·RaceWrite(addr uintptr)
++TEXT	runtime·RaceWrite(SB), NOSPLIT, $0-8
++	// This needs to be a tail call, because racewrite reads caller pc.
++	JMP	runtime·racewrite(SB)
++
++// func runtime·racewritepc(void *addr, void *callpc, void *pc)
++TEXT	runtime·racewritepc(SB), NOSPLIT, $0-24
++	MOVD	addr+0(FP), R1
++	MOVD	callpc+8(FP), R2
++	MOVD	pc+16(FP), R3
++	// void __tsan_write_pc(ThreadState *thr, void *addr, void *callpc, void *pc);
++	MOVD	$__tsan_write_pc(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·racereadrange(addr, size uintptr)
++// Called from instrumented code.
++TEXT	runtime·racereadrange(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), R1
++	MOVD	size+8(FP), R2
++	MOVD	LR, R3
++	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
++	MOVD	$__tsan_read_range(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·RaceReadRange(addr, size uintptr)
++TEXT	runtime·RaceReadRange(SB), NOSPLIT, $0-16
++	// This needs to be a tail call, because racereadrange reads caller pc.
++	JMP	runtime·racereadrange(SB)
++
++// func runtime·racereadrangepc1(void *addr, uintptr sz, void *pc)
++TEXT	runtime·racereadrangepc1(SB), NOSPLIT, $0-24
++	MOVD	addr+0(FP), R1
++	MOVD	size+8(FP), R2
++	MOVD	pc+16(FP), R3
++	ADD	$4, R3	// pc is function start, tsan wants return address.
++	// void __tsan_read_range(ThreadState *thr, void *addr, uintptr size, void *pc);
++	MOVD	$__tsan_read_range(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·racewriterange(addr, size uintptr)
++// Called from instrumented code.
++TEXT	runtime·racewriterange(SB), NOSPLIT, $0-16
++	MOVD	addr+0(FP), R1
++	MOVD	size+8(FP), R2
++	MOVD	LR, R3
++	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
++	MOVD	$__tsan_write_range(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// func runtime·RaceWriteRange(addr, size uintptr)
++TEXT	runtime·RaceWriteRange(SB), NOSPLIT, $0-16
++	// This needs to be a tail call, because racewriterange reads caller pc.
++	JMP	runtime·racewriterange(SB)
++
++// func runtime·racewriterangepc1(void *addr, uintptr sz, void *pc)
++TEXT	runtime·racewriterangepc1(SB), NOSPLIT, $0-24
++	MOVD	addr+0(FP), R1
++	MOVD	size+8(FP), R2
++	MOVD	pc+16(FP), R3
++	ADD	$4, R3	// pc is function start, tsan wants return address.
++	// void __tsan_write_range(ThreadState *thr, void *addr, uintptr size, void *pc);
++	MOVD	$__tsan_write_range(SB), R9
++	JMP	racecalladdr<>(SB)
++
++// If addr (R1) is out of range, do nothing.
++// Otherwise, setup goroutine context and invoke racecall. Other arguments already set.
++TEXT	racecalladdr<>(SB), NOSPLIT, $0-0
++	load_g
++	MOVD	g_racectx(g), R0
++	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
++	MOVD	runtime·racearenastart(SB), R10
++	CMP	R10, R1
++	BLT	data
++	MOVD	runtime·racearenaend(SB), R10
++	CMP	R10, R1
++	BLT	call
++data:
++	MOVD	runtime·racedatastart(SB), R10
++	CMP	R10, R1
++	BLT	ret
++	MOVD	runtime·racedataend(SB), R10
++	CMP	R10, R1
++	BGT	ret
++call:
++	JMP	racecall<>(SB)
++ret:
++	RET
++
++// func runtime·racefuncenterfp(fp uintptr)
++// Called from instrumented code.
++// Like racefuncenter but doesn't passes an arg, uses the caller pc
++// from the first slot on the stack
++TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
++	MOVD	0(RSP), R9
++	JMP	racefuncenter<>(SB)
++
++// func runtime·racefuncenter(pc uintptr)
++// Called from instrumented code.
++TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
++	MOVD	callpc+0(FP), R9
++	JMP	racefuncenter<>(SB)
++
++// Common code for racefuncenter/racefuncenterfp
++// R9 = caller's return address
++TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
++	load_g
++	MOVD	g_racectx(g), R0	// goroutine racectx
++	MOVD	R9, R1
++	// void __tsan_func_enter(ThreadState *thr, void *pc);
++	MOVD	$__tsan_func_enter(SB), R9
++	BL	racecall<>(SB)
++	RET
++
++// func runtime·racefuncexit()
++// Called from instrumented code.
++TEXT	runtime·racefuncexit(SB), NOSPLIT, $0-0
++	load_g
++	MOVD	g_racectx(g), R0	// race context
++	// void __tsan_func_exit(ThreadState *thr);
++	MOVD	$__tsan_func_exit(SB), R9
++	JMP	racecall<>(SB)
++
++// Atomic operations for sync/atomic package.
++// R3 = addr of arguments passed to this function, it can
++// be fetched at 40(RSP) in racecallatomic after two times BL
++// R0, R1, R2 set in racecallatomic
++
++// Load
++TEXT	sync∕atomic·LoadInt32(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic32_load(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·LoadInt64(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic64_load(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·LoadUint32(SB), NOSPLIT, $0
++	JMP	sync∕atomic·LoadInt32(SB)
++
++TEXT	sync∕atomic·LoadUint64(SB), NOSPLIT, $0
++	JMP	sync∕atomic·LoadInt64(SB)
++
++TEXT	sync∕atomic·LoadUintptr(SB), NOSPLIT, $0
++	JMP	sync∕atomic·LoadInt64(SB)
++
++TEXT	sync∕atomic·LoadPointer(SB), NOSPLIT, $0
++	JMP	sync∕atomic·LoadInt64(SB)
++
++// Store
++TEXT	sync∕atomic·StoreInt32(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic32_store(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·StoreInt64(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic64_store(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·StoreUint32(SB), NOSPLIT, $0
++	JMP	sync∕atomic·StoreInt32(SB)
++
++TEXT	sync∕atomic·StoreUint64(SB), NOSPLIT, $0
++	JMP	sync∕atomic·StoreInt64(SB)
++
++TEXT	sync∕atomic·StoreUintptr(SB), NOSPLIT, $0
++	JMP	sync∕atomic·StoreInt64(SB)
++
++// Swap
++TEXT	sync∕atomic·SwapInt32(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic32_exchange(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·SwapInt64(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic64_exchange(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·SwapUint32(SB), NOSPLIT, $0
++	JMP	sync∕atomic·SwapInt32(SB)
++
++TEXT	sync∕atomic·SwapUint64(SB), NOSPLIT, $0
++	JMP	sync∕atomic·SwapInt64(SB)
++
++TEXT	sync∕atomic·SwapUintptr(SB), NOSPLIT, $0
++	JMP	sync∕atomic·SwapInt64(SB)
++
++// Add
++TEXT	sync∕atomic·AddInt32(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic32_fetch_add(SB), R9
++	BL	racecallatomic<>(SB)
++	MOVW	add+8(FP), R0	// convert fetch_add to add_fetch
++	MOVW	ret+16(FP), R1
++	ADD	R0, R1, R0
++	MOVW	R0, ret+16(FP)
++	RET
++
++TEXT	sync∕atomic·AddInt64(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic64_fetch_add(SB), R9
++	BL	racecallatomic<>(SB)
++	MOVD	add+8(FP), R0	// convert fetch_add to add_fetch
++	MOVD	ret+16(FP), R1
++	ADD	R0, R1, R0
++	MOVD	R0, ret+16(FP)
++	RET
++
++TEXT	sync∕atomic·AddUint32(SB), NOSPLIT, $0
++	JMP	sync∕atomic·AddInt32(SB)
++
++TEXT	sync∕atomic·AddUint64(SB), NOSPLIT, $0
++	JMP	sync∕atomic·AddInt64(SB)
++
++TEXT	sync∕atomic·AddUintptr(SB), NOSPLIT, $0
++	JMP	sync∕atomic·AddInt64(SB)
++
++// CompareAndSwap
++TEXT	sync∕atomic·CompareAndSwapInt32(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic32_compare_exchange(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·CompareAndSwapInt64(SB), NOSPLIT, $0
++	MOVD	$__tsan_go_atomic64_compare_exchange(SB), R9
++	BL	racecallatomic<>(SB)
++	RET
++
++TEXT	sync∕atomic·CompareAndSwapUint32(SB), NOSPLIT, $0
++	JMP	sync∕atomic·CompareAndSwapInt32(SB)
++
++TEXT	sync∕atomic·CompareAndSwapUint64(SB), NOSPLIT, $0
++	JMP	sync∕atomic·CompareAndSwapInt64(SB)
++
++TEXT	sync∕atomic·CompareAndSwapUintptr(SB), NOSPLIT, $0
++	JMP	sync∕atomic·CompareAndSwapInt64(SB)
++
++// Generic atomic operation implementation.
++// R9 = addr of target function
++TEXT	racecallatomic<>(SB), NOSPLIT, $0
++	// Set up these registers
++	// R0 = *ThreadState
++	// R1 = caller pc
++	// R2 = pc
++	// R3 = addr of incoming arg list
++
++	// Trigger SIGSEGV early.
++	MOVD	40(RSP), R3	// 1st arg is addr. after two times BL, get it at 40(RSP)
++	MOVD	(R3), R13	// segv here if addr is bad
++	// Check that addr is within [arenastart, arenaend) or within [racedatastart, racedataend).
++	MOVD	runtime·racearenastart(SB), R10
++	CMP	R10, R3
++	BLT	racecallatomic_data
++	MOVD	runtime·racearenaend(SB), R10
++	CMP	R10, R3
++	BLT	racecallatomic_ok
++racecallatomic_data:
++	MOVD	runtime·racedatastart(SB), R10
++	CMP	R10, R3
++	BLT	racecallatomic_ignore
++	MOVD	runtime·racedataend(SB), R10
++	CMP	R10, R3
++	BGE	racecallatomic_ignore
++racecallatomic_ok:
++	// Addr is within the good range, call the atomic function.
++	load_g
++	MOVD	g_racectx(g), R0	// goroutine context
++	MOVD	16(RSP), R1	// caller pc
++	MOVD	R9, R2	// pc
++	ADD	$40, RSP, R3
++	JMP	racecall<>(SB)	// does not return
++racecallatomic_ignore:
++	// Addr is outside the good range.
++	// Call __tsan_go_ignore_sync_begin to ignore synchronization during the atomic op.
++	// An attempt to synchronize on the address would cause crash.
++	MOVD	R9, R20	// remember the original function
++	MOVD	$__tsan_go_ignore_sync_begin(SB), R9
++	load_g
++	MOVD	g_racectx(g), R0	// goroutine context
++	BL	racecall<>(SB)
++	MOVD	R20, R9	// restore the original function
++	// Call the atomic function.
++	// racecall will call LLVM race code which might clobber R28 (g)
++	load_g
++	MOVD	g_racectx(g), R0	// goroutine context
++	MOVD	16(RSP), R1	// caller pc
++	MOVD	R9, R2	// pc
++	ADD	$40, RSP, R3	// arguments
++	BL	racecall<>(SB)
++	// Call __tsan_go_ignore_sync_end.
++	MOVD	$__tsan_go_ignore_sync_end(SB), R9
++	MOVD	g_racectx(g), R0	// goroutine context
++	BL	racecall<>(SB)
++	RET
++
++// func runtime·racecall(void(*f)(...), ...)
++// Calls C function f from race runtime and passes up to 4 arguments to it.
++// The arguments are never heap-object-preserving pointers, so we pretend there are no arguments.
++TEXT	runtime·racecall(SB), NOSPLIT, $0-0
++	MOVD	fn+0(FP), R9
++	MOVD	arg0+8(FP), R0
++	MOVD	arg1+16(FP), R1
++	MOVD	arg2+24(FP), R2
++	MOVD	arg3+32(FP), R3
++	JMP	racecall<>(SB)
++
++// Switches SP to g0 stack and calls (R9). Arguments already set.
++TEXT	racecall<>(SB), NOSPLIT, $0-0
++	MOVD	g_m(g), R10
++	// Switch to g0 stack.
++	MOVD	RSP, R19	// callee-saved, preserved across the CALL
++	MOVD	m_g0(R10), R11
++	CMP	R11, g
++	BEQ	call	// already on g0
++	MOVD	(g_sched+gobuf_sp)(R11), R12
++	MOVD	R12, RSP
++call:
++	BL	R9
++	MOVD	R19, RSP
++	RET
++
++// C->Go callback thunk that allows to call runtime·racesymbolize from C code.
++// Direct Go->C race call has only switched SP, finish g->g0 switch by setting correct g.
++// The overall effect of Go->C->Go call chain is similar to that of mcall.
++// R0 contains command code. R1 contains command-specific context.
++// See racecallback for command codes.
++TEXT	runtime·racecallbackthunk(SB), NOSPLIT|NOFRAME, $0
++	// Handle command raceGetProcCmd (0) here.
++	// First, code below assumes that we are on curg, while raceGetProcCmd
++	// can be executed on g0. Second, it is called frequently, so will
++	// benefit from this fast path.
++	CMP	$0, R0
++	BNE	rest
++	MOVD	g, R13
++	load_g
++	MOVD	g_m(g), R0
++	MOVD	m_p(R0), R0
++	MOVD	p_racectx(R0), R0
++	MOVD	R0, (R1)
++	MOVD	R13, g
++	JMP	(LR)
++rest:
++        // Save callee-saved registers (Go code won't respect that).
++	// 8(RSP) and 16(RSP) are for args passed through racecallback
++	SUB	$96, RSP
++	MOVD	LR, 0(RSP)
++	STP	(R19, R20), 24(RSP)
++	STP	(R21, R22), 40(RSP)
++	STP	(R23, R24), 56(RSP)
++	STP	(R25, R26), 72(RSP)
++	MOVD	R27, 88(RSP)
++	// Set g = g0.
++	// load_g will clobber R0, Save R0
++	MOVD	R0, R13
++	load_g
++	// restore R0
++	MOVD	R13, R0
++	MOVD	g_m(g), R13
++	MOVD	m_g0(R13), g
++
++	MOVD	R0, 8(RSP)	// func arg
++	MOVD	R1, 16(RSP)	// func arg
++	BL	runtime·racecallback(SB)
++
++	// All registers are smashed after Go code, reload.
++	MOVD	g_m(g), R13
++	MOVD	m_curg(R13), g	// g = m->curg
++	// Restore callee-saved registers.
++	MOVD	0(RSP), LR
++	LDP	24(RSP), (R19, R20)
++	LDP	40(RSP), (R21, R22)
++	LDP	56(RSP), (R23, R24)
++	LDP	72(RSP), (R25, R26)
++	MOVD	88(RSP), R27
++	ADD	$96, RSP
++	JMP	(LR)
++
++// tls_g, g value for each thread in TLS
++GLOBL runtime·tls_g+0(SB), TLSBSS+DUPOK, $8

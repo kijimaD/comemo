@@ -13,10 +13,91 @@ Date:   Wed Nov 29 11:58:03 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/80759
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/export.go |  8 ++++----
  test/fixedbugs/issue22877.dir/p.go    | 14 ++++++++++++++
  test/fixedbugs/issue22877.dir/p.s     |  8 ++++++++
  test/fixedbugs/issue22877.go          |  7 +++++++
  test/run.go                           |  3 +++
  5 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 2c44785859..c5d5c52205 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -387,10 +387,10 @@ func dumpasmhdr() {
+ 			if !t.IsStruct() || t.StructType().Map != nil || t.IsFuncArgStruct() {
+ 				break
+ 			}
+-			fmt.Fprintf(b, "#define %s__size %d\n", t.Sym.Name, int(t.Width))
+-			for _, t := range t.Fields().Slice() {
+-				if !t.Sym.IsBlank() {
+-					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, t.Sym.Name, int(t.Offset))
++			fmt.Fprintf(b, "#define %s__size %d\n", n.Sym.Name, int(t.Width))
++			for _, f := range t.Fields().Slice() {
++				if !f.Sym.IsBlank() {
++					fmt.Fprintf(b, "#define %s_%s %d\n", n.Sym.Name, f.Sym.Name, int(f.Offset))
+ 				}
+ 			}
+ 		}
+diff --git a/test/fixedbugs/issue22877.dir/p.go b/test/fixedbugs/issue22877.dir/p.go
+new file mode 100644
+index 0000000000..fc86cb9e1e
+--- /dev/null
++++ b/test/fixedbugs/issue22877.dir/p.go
+@@ -0,0 +1,14 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type S struct{ i int }
++type SS = S
++
++func sub()
++
++func main() {
++	sub()
++}
+diff --git a/test/fixedbugs/issue22877.dir/p.s b/test/fixedbugs/issue22877.dir/p.s
+new file mode 100644
+index 0000000000..8b14358cdc
+--- /dev/null
++++ b/test/fixedbugs/issue22877.dir/p.s
+@@ -0,0 +1,8 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++
++TEXT ·sub(SB), 0, $0
++	RET
+diff --git a/test/fixedbugs/issue22877.go b/test/fixedbugs/issue22877.go
+new file mode 100644
+index 0000000000..284b6807eb
+--- /dev/null
++++ b/test/fixedbugs/issue22877.go
+@@ -0,0 +1,7 @@
++// builddir
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index e33539eb0f..22ec7576f8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -736,6 +736,9 @@ func (t *test) run() {
+ 		}
+ 		var objs []string
+ 		cmd := []string{"go", "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
++		if len(asms) > 0 {
++			cmd = append(cmd, "-asmhdr", "go_asm.h")
++		}
+ 		for _, file := range gos {
+ 			cmd = append(cmd, filepath.Join(longdir, file.Name()))
+ 		}

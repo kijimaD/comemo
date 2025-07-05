@@ -20,7 +20,7 @@ Date:   Mon Jul 1 15:25:04 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                              | 14 +++---
  src/cmd/go/internal/modget/get.go                  | 56 ++++++++++++----------
  src/cmd/go/internal/modload/build.go               |  2 +-
@@ -30,3 +30,356 @@ Date:   Mon Jul 1 15:25:04 2019 -0400
  src/cmd/go/testdata/script/mod_get_svn.txt         |  2 +-
  .../go/testdata/script/mod_get_upgrade_pseudo.txt  | 38 ++++++++++++---
  8 files changed, 95 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fa60fb63b5..6541e085cc 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -586,12 +586,14 @@
+ // depending on it as needed.
+ //
+ // The version suffix @latest explicitly requests the latest minor release of the
+-// given path. The suffix @patch requests the latest patch release: if the path
+-// is already in the build list, the selected version will have the same minor
+-// version. If the path is not already in the build list, @patch is equivalent
+-// to @latest. Neither @latest nor @patch will cause 'go get' to downgrade a module
+-// in the build list if it is required at a newer pre-release version that is
+-// newer than the latest released version.
++// module named by the given path. The suffix @upgrade is like @latest but
++// will not downgrade a module if it is already required at a revision or
++// pre-release version newer than the latest released version. The suffix
++// @patch requests the latest patch release: the latest released version
++// with the same major and minor version numbers as the currently required
++// version. Like @upgrade, @patch will not downgrade a module already required
++// at a newer version. If the path is not already required, @upgrade and @patch
++// are equivalent to @latest.
+ //
+ // Although get defaults to using the latest version of the module containing
+ // a named package, it does not use the latest version of that module's
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 491d2891c7..e35327ff94 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -59,12 +59,14 @@ dependency should be removed entirely, downgrading or removing modules
+ depending on it as needed.
+ 
+ The version suffix @latest explicitly requests the latest minor release of the
+-given path. The suffix @patch requests the latest patch release: if the path
+-is already in the build list, the selected version will have the same minor
+-version. If the path is not already in the build list, @patch is equivalent
+-to @latest. Neither @latest nor @patch will cause 'go get' to downgrade a module
+-in the build list if it is required at a newer pre-release version that is
+-newer than the latest released version.
++module named by the given path. The suffix @upgrade is like @latest but
++will not downgrade a module if it is already required at a revision or
++pre-release version newer than the latest released version. The suffix
++@patch requests the latest patch release: the latest released version
++with the same major and minor version numbers as the currently required
++version. Like @upgrade, @patch will not downgrade a module already required
++at a newer version. If the path is not already required, @upgrade and @patch
++are equivalent to @latest.
+ 
+ Although get defaults to using the latest version of the module containing
+ a named package, it does not use the latest version of that module's
+@@ -178,7 +180,7 @@ func (v *upgradeFlag) Set(s string) error {
+ 		s = ""
+ 	}
+ 	if s == "true" {
+-		s = "latest"
++		s = "upgrade"
+ 	}
+ 	*v = upgradeFlag(s)
+ 	return nil
+@@ -202,8 +204,9 @@ type getArg struct {
+ 	// if there is no "@"). path specifies the modules or packages to get.
+ 	path string
+ 
+-	// vers is the part of the argument after "@" (or "" if there is no "@").
+-	// vers specifies the module version to get.
++	// vers is the part of the argument after "@" or an implied
++	// "upgrade" or "patch" if there is no "@". vers specifies the
++	// module version to get.
+ 	vers string
+ }
+ 
+@@ -249,7 +252,7 @@ func runGet(cmd *base.Command, args []string) {
+ 	}
+ 
+ 	switch getU {
+-	case "", "latest", "patch":
++	case "", "upgrade", "patch":
+ 		// ok
+ 	default:
+ 		base.Fatalf("go get: unknown upgrade flag -u=%s", getU)
+@@ -283,11 +286,11 @@ func runGet(cmd *base.Command, args []string) {
+ 
+ 	// Parse command-line arguments and report errors. The command-line
+ 	// arguments are of the form path@version or simply path, with implicit
+-	// @latest. path@none is "downgrade away".
++	// @upgrade. path@none is "downgrade away".
+ 	var gets []getArg
+ 	var queries []*query
+ 	for _, arg := range search.CleanPatterns(args) {
+-		// Argument is module query path@vers, or else path with implicit @latest.
++		// Argument is path or path@vers.
+ 		path := arg
+ 		vers := ""
+ 		if i := strings.Index(arg, "@"); i >= 0 {
+@@ -298,10 +301,14 @@ func runGet(cmd *base.Command, args []string) {
+ 			continue
+ 		}
+ 
+-		// If the user runs 'go get -u=patch some/module', update some/module to a
+-		// patch release, not a minor version.
+-		if vers == "" && getU != "" {
+-			vers = string(getU)
++		// If no version suffix is specified, assume @upgrade.
++		// If -u=patch was specified, assume @patch instead.
++		if vers == "" {
++			if getU != "" {
++				vers = string(getU)
++			} else {
++				vers = "upgrade"
++			}
+ 		}
+ 
+ 		gets = append(gets, getArg{raw: arg, path: path, vers: vers})
+@@ -358,7 +365,7 @@ func runGet(cmd *base.Command, args []string) {
+ 			// The argument is a package path.
+ 			if pkgs := modload.TargetPackages(path); len(pkgs) != 0 {
+ 				// The path is in the main module. Nothing to query.
+-				if vers != "" && vers != "latest" && vers != "patch" {
++				if vers != "upgrade" && vers != "patch" {
+ 					base.Errorf("go get %s: can't request explicit version of path in main module", arg)
+ 				}
+ 				continue
+@@ -376,8 +383,8 @@ func runGet(cmd *base.Command, args []string) {
+ 				continue
+ 			}
+ 
+-			// If we're querying "latest" or "patch", we need to know the current
+-			// version of the module. For "latest", we want to avoid accidentally
++			// If we're querying "upgrade" or "patch", we need to know the current
++			// version of the module. For "upgrade", we want to avoid accidentally
+ 			// downgrading from a newer prerelease. For "patch", we need to query
+ 			// the correct minor version.
+ 			// Here, we check if "path" is the name of a module in the build list
+@@ -736,10 +743,6 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		base.Fatalf("go get: internal error: prevM may be set if and only if forceModulePath is set")
+ 	}
+ 
+-	if vers == "" || vers == "patch" && prevM.Version == "" {
+-		vers = "latest"
+-	}
+-
+ 	if forceModulePath || !strings.Contains(path, "...") {
+ 		if path == modload.Target.Path {
+ 			if vers != "latest" {
+@@ -893,9 +896,10 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 	// which may return a pseudoversion for the latest commit.
+ 	// Query "latest" returns the newest tagged version or the newest
+ 	// prerelease version if there are no non-prereleases, or repo.Latest
+-	// if there aren't any tagged versions. Since we're providing the previous
+-	// version, Query will confirm the latest version is actually newer
+-	// and will return the current version if not.
++	// if there aren't any tagged versions.
++	// If we're querying "upgrade" or "patch", Query will compare the current
++	// version against the chosen version and will return the current version
++	// if it is newer.
+ 	info, err := modload.Query(m.Path, string(getU), m.Version, modload.Allowed)
+ 	if err != nil {
+ 		// Report error but return m, to let version selection continue.
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index c26c8a2f59..ff42516c80 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -79,7 +79,7 @@ func addUpdate(m *modinfo.ModulePublic) {
+ 		return
+ 	}
+ 
+-	if info, err := Query(m.Path, "latest", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
++	if info, err := Query(m.Path, "upgrade", m.Version, Allowed); err == nil && semver.Compare(info.Version, m.Version) > 0 {
+ 		m.Update = &modinfo.ModulePublic{
+ 			Path:    m.Path,
+ 			Version: info.Version,
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 8ce61c0a1d..269f60d620 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -28,9 +28,10 @@ import (
+ //   tagged version, with non-prereleases preferred over prereleases.
+ //   If there are no tagged versions in the repo, latest returns the most
+ //   recent commit.
++// - the literal string "upgrade", equivalent to "latest" except that if
++//   current is a newer version, current will be returned (see below).
+ // - the literal string "patch", denoting the latest available tagged version
+-//   with the same major and minor number as current. If current is "",
+-//   "patch" is equivalent to "latest".
++//   with the same major and minor number as current (see below).
+ // - v1, denoting the latest available tagged version v1.x.x.
+ // - v1.2, denoting the latest available tagged version v1.2.x.
+ // - v1.2.3, a semantic version string denoting that tagged version.
+@@ -39,11 +40,12 @@ import (
+ //   with non-prereleases preferred over prereleases.
+ // - a repository commit identifier or tag, denoting that commit.
+ //
+-// current is optional, denoting the current version of the module.
+-// If query is "latest" or "patch", current will be returned if it is a newer
+-// semantic version or if it is a chronologically later pseudoversion. This
+-// prevents accidental downgrades from newer prerelease or development
+-// versions.
++// current denotes the current version of the module; it may be "" if the
++// current version is unknown or should not be considered. If query is
++// "upgrade" or "patch", current will be returned if it is a newer
++// semantic version or a chronologically later pseudo-version than the
++// version that would otherwise be chosen. This prevents accidental downgrades
++// from newer pre-release or development versions.
+ //
+ // If the allowed function is non-nil, Query excludes any versions for which
+ // allowed returns false.
+@@ -81,6 +83,10 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 		ok = allowed
+ 		mayUseLatest = true
+ 
++	case query == "upgrade":
++		ok = allowed
++		mayUseLatest = true
++
+ 	case query == "patch":
+ 		if current == "" {
+ 			ok = allowed
+@@ -202,9 +208,9 @@ func queryProxy(proxy, path, query, current string, allowed func(module.Version)
+ 			return nil, err
+ 		}
+ 
+-		// For "latest" and "patch", make sure we don't accidentally downgrade
++		// For "upgrade" and "patch", make sure we don't accidentally downgrade
+ 		// from a newer prerelease or from a chronologically newer pseudoversion.
+-		if current != "" && (query == "latest" || query == "patch") {
++		if current != "" && (query == "upgrade" || query == "patch") {
+ 			currentTime, err := modfetch.PseudoVersionTime(current)
+ 			if semver.Compare(rev.Version, current) < 0 || (err == nil && rev.Time.Before(currentTime)) {
+ 				return repo.Stat(current)
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+index 8e06220f9e..403abcd28b 100644
+--- a/src/cmd/go/testdata/script/mod_get_main.txt
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -4,13 +4,19 @@ env GO111MODULE=on
+ # @patch and @latest within the main module refer to the current version.
+ # The main module won't be upgraded, but missing dependencies will be added.
+ cp go.mod.orig go.mod
+-go get -d rsc.io/x@latest
++go get -d rsc.io/x
++grep 'rsc.io/quote v1.5.2' go.mod
++go get -d rsc.io/x@upgrade
+ grep 'rsc.io/quote v1.5.2' go.mod
+ cp go.mod.orig go.mod
+ go get -d rsc.io/x@patch
+ grep 'rsc.io/quote v1.5.2' go.mod
+ cp go.mod.orig go.mod
+ 
++# The main module cannot be updated to @latest, which is a specific version.
++! go get -d rsc.io/x@latest
++stderr '^go get rsc.io/x@latest: can.t request explicit version of path in main module$'
++
+ # The main module cannot be updated to a specific version.
+ ! go get rsc.io/x@v0.1.0
+ stderr '^go get rsc.io/x@v0.1.0: can.t request explicit version of path in main module$'
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index b9931970e0..bfab70090c 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -10,11 +10,11 @@ grep 'require rsc.io/quote' go.mod
+ 
+ cp go.mod.orig go.mod
+ ! go get -d rsc.io/quote/x...
+-stderr 'go get rsc.io/quote/x...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
++stderr 'go get rsc.io/quote/x...: module rsc.io/quote@upgrade \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ ! go get -d rsc.io/quote/x/...
+-stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
++stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@upgrade \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ # If a pattern matches no packages within a module, the module should not
+diff --git a/src/cmd/go/testdata/script/mod_get_svn.txt b/src/cmd/go/testdata/script/mod_get_svn.txt
+index 90be737213..cd19d99dbc 100644
+--- a/src/cmd/go/testdata/script/mod_get_svn.txt
++++ b/src/cmd/go/testdata/script/mod_get_svn.txt
+@@ -17,7 +17,7 @@ stderr 'ReadZip not implemented for svn'
+ # reasonable message instead of a panic.
+ ! go get -d vcs-test.golang.org/svn/nonexistent.svn
+ ! stderr panic
+-stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "latest"'
++stderr 'go get vcs-test.golang.org/svn/nonexistent.svn: no matching versions for query "upgrade"'
+ 
+ -- go.mod --
+ module golang/go/issues/28943/main
+diff --git a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+index 9184d85f7f..f5f415aa3f 100644
+--- a/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
++++ b/src/cmd/go/testdata/script/mod_get_upgrade_pseudo.txt
+@@ -9,18 +9,33 @@ env GO111MODULE=on
+ # The v0.1.1 pseudo-version is semantically higher than the latest tag.
+ # The v0.0.0 pseudo-version is chronologically newer.
+ 
+-# 'get -u' should not downgrade to the (lower) tagged version.
++# Start at v0.1.1-0.20190429073117-b5426c86b553
+ go get -d example.com/pseudoupgrade@b5426c8
++go list -m -u all
++stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
++
++# 'get -u' should not downgrade to the (lower) tagged version.
+ go get -d -u
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+ 
+-# 'get example.com/pseudoupgrade@latest' should not downgrade to
+-# the (lower) tagged version.
+-go get -d example.com/pseudoupgrade@latest
++# 'get example.com/pseudoupgrade@upgrade' should not downgrade.
++go get -d example.com/pseudoupgrade@upgrade
+ go list -m all
+ stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
+ 
++# 'get example.com/pseudoupgrade' should not downgrade.
++# This is equivalent to 'get example.com/pseudoupgrade@upgrade'.
++go get -d example.com/pseudoupgrade
++go list -m all
++stdout '^example.com/pseudoupgrade v0.1.1-0.20190429073117-b5426c86b553$'
++
++# 'get example.com/pseudoupgrade@latest' should downgrade.
++# @latest should not consider the current version.
++go get -d example.com/pseudoupgrade@latest
++go list -m all
++stdout '^example.com/pseudoupgrade v0.1.0$'
++
+ # We should observe the same behavior with the newer pseudo-version.
+ go get -d example.com/pseudoupgrade@v0.0.0-20190430073000-30950c05d534
+ 
+@@ -29,12 +44,21 @@ go get -d -u
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
+ 
+-# 'get example.com/pseudoupgrade@latest' should not downgrade to the
+-# chronologically older tagged version.
+-go get -d example.com/pseudoupgrade@latest
++# 'get example.com/pseudoupgrade@upgrade should not downgrade.
++go get -d example.com/pseudoupgrade@upgrade
+ go list -m -u all
+ stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
+ 
++# 'get example.com/pseudoupgrade' should not downgrade.
++go get -d example.com/pseudoupgrade
++go list -m -u all
++stdout '^example.com/pseudoupgrade v0.0.0-20190430073000-30950c05d534$'
++
++# 'get example.com/pseudoupgrade@latest' should downgrade.
++go get -d example.com/pseudoupgrade@latest
++go list -m -u all
++stdout '^example.com/pseudoupgrade v0.1.0$'
++
+ -- go.mod --
+ module x
+ 

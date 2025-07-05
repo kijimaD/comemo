@@ -15,8 +15,87 @@ Date:   Tue Oct 10 12:18:43 2023 -0400
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/dec.rules |  2 ++
  src/cmd/compile/internal/ssa/rewritedec.go  | 12 ++++++++++
  test/fixedbugs/issue63490.go                | 36 +++++++++++++++++++++++++++++
  3 files changed, 50 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/dec.rules b/src/cmd/compile/internal/ssa/_gen/dec.rules
+index 4484cd7e28..2adf061874 100644
+--- a/src/cmd/compile/internal/ssa/_gen/dec.rules
++++ b/src/cmd/compile/internal/ssa/_gen/dec.rules
+@@ -7,6 +7,8 @@
+ // types.  These rules work together with the decomposeBuiltIn
+ // pass which handles phis of these types.
+ 
++(Store {t} _ _ mem) && t.Size() == 0 => mem
++
+ // complex ops
+ (ComplexReal (ComplexMake real _  )) => real
+ (ComplexImag (ComplexMake _ imag )) => imag
+diff --git a/src/cmd/compile/internal/ssa/rewritedec.go b/src/cmd/compile/internal/ssa/rewritedec.go
+index fbfe15c0c5..7468518246 100644
+--- a/src/cmd/compile/internal/ssa/rewritedec.go
++++ b/src/cmd/compile/internal/ssa/rewritedec.go
+@@ -583,6 +583,18 @@ func rewriteValuedec_OpStore(v *Value) bool {
+ 	b := v.Block
+ 	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
++	// match: (Store {t} _ _ mem)
++	// cond: t.Size() == 0
++	// result: mem
++	for {
++		t := auxToType(v.Aux)
++		mem := v_2
++		if !(t.Size() == 0) {
++			break
++		}
++		v.copyOf(mem)
++		return true
++	}
+ 	// match: (Store {t} dst (ComplexMake real imag) mem)
+ 	// cond: t.Size() == 8
+ 	// result: (Store {typ.Float32} (OffPtr <typ.Float32Ptr> [4] dst) imag (Store {typ.Float32} dst real mem))
+diff --git a/test/fixedbugs/issue63490.go b/test/fixedbugs/issue63490.go
+new file mode 100644
+index 0000000000..740ce9b634
+--- /dev/null
++++ b/test/fixedbugs/issue63490.go
+@@ -0,0 +1,36 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type ResourceFunc struct {
++	junk [8]int
++	base assignmentBaseResource
++}
++
++type SubscriptionAssignmentResource struct {
++	base assignmentBaseResource
++}
++
++type assignmentBaseResource struct{}
++
++//go:noinline
++func (a assignmentBaseResource) f(s string) ResourceFunc {
++	println(s)
++	return ResourceFunc{}
++}
++
++//go:noinline
++func (r SubscriptionAssignmentResource) Hi() ResourceFunc {
++	rf := r.base.f("Hello world")
++	rf.base = r.base
++	return rf
++}
++
++func main() {
++	var r SubscriptionAssignmentResource
++	r.Hi()
++}

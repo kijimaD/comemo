@@ -31,7 +31,46 @@ Date:   Sat Nov 24 18:02:29 2018 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go |  4 ++--
  src/plugin/plugin_test.go       | 17 +++++++++++++++++
  2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 3038b79574..458d7a4317 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -588,8 +588,8 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
+-	if ctxt.Arch == sys.Arch386 {
+-		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || (ctxt.BuildMode == BuildModeCShared && ctxt.HeadType != objabi.Hwindows) || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
++	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
++		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.Syms.Lookup("_GLOBAL_OFFSET_TABLE_", 0)
+ 			got.Type = sym.SDYNIMPORT
+ 			got.Attr |= sym.AttrReachable
+diff --git a/src/plugin/plugin_test.go b/src/plugin/plugin_test.go
+new file mode 100644
+index 0000000000..6dfe14854c
+--- /dev/null
++++ b/src/plugin/plugin_test.go
+@@ -0,0 +1,17 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !nacl
++
++package plugin_test
++
++import (
++	_ "plugin"
++	"testing"
++)
++
++func TestPlugin(t *testing.T) {
++	// This test makes sure that executable that imports plugin
++	// package can actually run. See issue #28789 for details.
++}

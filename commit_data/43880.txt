@@ -11,6 +11,20 @@ Date:   Tue Apr 28 00:36:41 2020 +0000
     GitHub-Pull-Request: golang/go#38715
     Reviewed-on: https://go-review.googlesource.com/c/go/+/230381
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
-
+---
  src/database/sql/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/example_test.go b/src/database/sql/example_test.go
+index 4533fc78b1..aafb0e3ad7 100644
+--- a/src/database/sql/example_test.go
++++ b/src/database/sql/example_test.go
+@@ -220,7 +220,7 @@ func ExampleTx_Prepare() {
+ 	}
+ }
+ 
+-func ExampleConn_BeginTx() {
++func ExampleDB_BeginTx() {
+ 	tx, err := db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelSerializable})
+ 	if err != nil {
+ 		log.Fatal(err)

@@ -13,6 +13,20 @@ Date:   Fri Feb 14 15:56:58 2014 -0800
     R=golang-codereviews, franciscossouza, r
     CC=golang-codereviews
     https://golang.org/cl/57500045
-
+---
  lib/codereview/codereview.py | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/codereview/codereview.py b/lib/codereview/codereview.py
+index 18ecc141d2..e19d601ffd 100644
+--- a/lib/codereview/codereview.py
++++ b/lib/codereview/codereview.py
+@@ -2669,7 +2669,7 @@ def RietveldSetup(ui, repo):
+ 	rpc = None
+ 	
+ 	global releaseBranch
+-	tags = repo.branchtags().keys()
++	tags = repo.branchmap().keys()
+ 	if 'release-branch.go10' in tags:
+ 		# NOTE(rsc): This tags.sort is going to get the wrong
+ 		# answer when comparing release-branch.go9 with

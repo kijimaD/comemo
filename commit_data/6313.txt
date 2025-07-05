@@ -9,7 +9,44 @@ Date:   Sun Sep 19 23:28:32 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/2237043
-
+---
  test/index.go | 4 ++--
  test/run      | 3 ++-
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/test/index.go b/test/index.go
+index a91294cffb..38aa33dd30 100644
+--- a/test/index.go
++++ b/test/index.go
+@@ -1,8 +1,8 @@
+ // $G $D/$F.go && $L $F.$A &&
+-// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o tmp1.$A tmp.$A && ./tmp1.$A &&
++// ./$A.out -pass 0 >tmp.go && $G tmp.go && $L -o $A.out1 tmp.$A && ./$A.out1 &&
+ // ./$A.out -pass 1 >tmp.go && errchk $G -e tmp.go &&
+ // ./$A.out -pass 2 >tmp.go && errchk $G -e tmp.go
+-// rm -f tmp.go
++// rm -f tmp.go $A.out1
+ 
+ // Copyright 2010 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/run b/test/run
+index 4ca7754140..f4765d7fae 100755
+--- a/test/run
++++ b/test/run
+@@ -57,7 +57,7 @@ do
+ 	do
+ 		export F=$(basename $i .go)
+ 		export D=$dir
+-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|' >$RUNFILE
++		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >$RUNFILE
+ 		if ! { time -p bash -c "bash $RUNFILE >$TMP1FILE 2>&1" ; } 2>$TMP2FILE
+ 		then
+ 			echo
+@@ -99,6 +99,7 @@ done | # clean up some stack noise
+ 		/^Trace\/BPT trap/d
+ 		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+ 		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
++		/Fault in NaCl untrusted code/d
+ 		/Segmentation fault/d
+ 		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+ 

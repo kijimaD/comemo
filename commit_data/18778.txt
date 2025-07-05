@@ -13,7 +13,54 @@ Date:   Thu Mar 6 18:44:14 2014 +0400
     R=bradfitz
     CC=golang-codereviews
     https://golang.org/cl/71940044
-
+---
  src/pkg/net/http/proxy_test.go     | 15 +++++++++------
  src/pkg/net/http/transport_test.go |  5 +----
  2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/http/proxy_test.go b/src/pkg/net/http/proxy_test.go
+index d0726f61f3..b6aed3792b 100644
+--- a/src/pkg/net/http/proxy_test.go
++++ b/src/pkg/net/http/proxy_test.go
+@@ -35,12 +35,8 @@ var UseProxyTests = []struct {
+ }
+ 
+ func TestUseProxy(t *testing.T) {
+-	oldenv := os.Getenv("NO_PROXY")
+-	defer os.Setenv("NO_PROXY", oldenv)
+-
+-	no_proxy := "foobar.com, .barbaz.net"
+-	os.Setenv("NO_PROXY", no_proxy)
+-
++	ResetProxyEnv()
++	os.Setenv("NO_PROXY", "foobar.com, .barbaz.net")
+ 	for _, test := range UseProxyTests {
+ 		if useProxy(test.host+":80") != test.match {
+ 			t.Errorf("useProxy(%v) = %v, want %v", test.host, !test.match, test.match)
+@@ -76,3 +72,10 @@ func TestCacheKeys(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func ResetProxyEnv() {
++	for _, v := range []string{"HTTP_PROXY", "http_proxy", "NO_PROXY", "no_proxy"} {
++		os.Setenv(v, "")
++	}
++	ResetCachedEnvironment()
++}
+diff --git a/src/pkg/net/http/transport_test.go b/src/pkg/net/http/transport_test.go
+index 1d73633ea4..7584db992b 100644
+--- a/src/pkg/net/http/transport_test.go
++++ b/src/pkg/net/http/transport_test.go
+@@ -1694,10 +1694,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ }
+ 
+ func TestProxyFromEnvironment(t *testing.T) {
+-	os.Setenv("HTTP_PROXY", "")
+-	os.Setenv("http_proxy", "")
+-	os.Setenv("NO_PROXY", "")
+-	os.Setenv("no_proxy", "")
++	ResetProxyEnv()
+ 	for _, tt := range proxyFromEnvTests {
+ 		os.Setenv("HTTP_PROXY", tt.env)
+ 		os.Setenv("NO_PROXY", tt.noenv)

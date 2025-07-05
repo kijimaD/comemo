@@ -7,9 +7,103 @@ Date:   Mon Feb 20 12:31:24 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5689043
-
+---
  src/pkg/os/file.go             | 13 +++++++++++++
  src/pkg/os/file_posix.go       | 13 -------------
  src/pkg/time/sys_plan9.go      |  3 ++-
  src/pkg/time/zoneinfo_plan9.go |  5 ++---
  4 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index ddcaa6fed9..1c3d0172d3 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -72,6 +72,19 @@ const (
+ 	SEEK_END int = 2 // seek relative to the end
+ )
+ 
++// LinkError records an error during a link or symlink or rename
++// system call and the paths that caused it.
++type LinkError struct {
++	Op  string
++	Old string
++	New string
++	Err error
++}
++
++func (e *LinkError) Error() string {
++	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
++}
++
+ // Read reads up to len(b) bytes from the File.
+ // It returns the number of bytes read and an error, if any.
+ // EOF is signaled by a zero count with err set to io.EOF.
+diff --git a/src/pkg/os/file_posix.go b/src/pkg/os/file_posix.go
+index 2ffc2ee083..073bd56a47 100644
+--- a/src/pkg/os/file_posix.go
++++ b/src/pkg/os/file_posix.go
+@@ -24,19 +24,6 @@ func epipecheck(file *File, e error) {
+ 	}
+ }
+ 
+-// LinkError records an error during a link or symlink or rename
+-// system call and the paths that caused it.
+-type LinkError struct {
+-	Op  string
+-	Old string
+-	New string
+-	Err error
+-}
+-
+-func (e *LinkError) Error() string {
+-	return e.Op + " " + e.Old + " " + e.New + ": " + e.Err.Error()
+-}
+-
+ // Link creates newname as a hard link to the oldname file.
+ // If there is an error, it will be of type *LinkError.
+ func Link(oldname, newname string) error {
+diff --git a/src/pkg/time/sys_plan9.go b/src/pkg/time/sys_plan9.go
+index e2f91bccb5..8484729448 100644
+--- a/src/pkg/time/sys_plan9.go
++++ b/src/pkg/time/sys_plan9.go
+@@ -43,7 +43,7 @@ func readFile(name string) ([]byte, error) {
+ }
+ 
+ func open(name string) (uintptr, error) {
+-	fd, err := syscall.Open(name, syscall.O_RDONLY, 0)
++	fd, err := syscall.Open(name, syscall.O_RDONLY)
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -72,4 +72,5 @@ func preadn(fd uintptr, buf []byte, off int) error {
+ 		}
+ 		buf = buf[m:]
+ 	}
++	return nil
+ }
+diff --git a/src/pkg/time/zoneinfo_plan9.go b/src/pkg/time/zoneinfo_plan9.go
+index 0fc2c25c0b..6855238dc8 100644
+--- a/src/pkg/time/zoneinfo_plan9.go
++++ b/src/pkg/time/zoneinfo_plan9.go
+@@ -8,11 +8,10 @@ package time
+ 
+ import (
+ 	"errors"
++	"runtime"
+ 	"syscall"
+ )
+ 
+-var badData = errors.New("malformed time zone information")
+-
+ func isSpace(r rune) bool {
+ 	return r == ' ' || r == '\t' || r == '\n'
+ }
+@@ -149,7 +148,7 @@ func initLocal() {
+ }
+ 
+ func loadLocation(name string) (*Location, error) {
+-	if z, err := loadZoneFile(runtime.GOROOT() + "/lib/time/zoneinfo/" + name); err == nil {
++	if z, err := loadZoneFile(runtime.GOROOT()+"/lib/time/zoneinfo.zip", name); err == nil {
+ 		z.name = name
+ 		return z, nil
+ 	}

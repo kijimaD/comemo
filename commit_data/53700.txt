@@ -13,10 +13,94 @@ Date:   Fri Aug 26 15:11:40 2022 +0800
     Reviewed-by: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/clean/clean.go             | 17 +++++++++++++++++
  src/cmd/go/testdata/script/clean_cache_n.txt   |  3 +++
  src/cmd/go/testdata/script/clean_testcache.txt |  2 ++
  src/cmd/go/testdata/script/mod_clean_cache.txt |  3 +++
  src/cmd/go/testdata/script/test_fuzz_cache.txt |  3 +++
  5 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 37e126ac8b..2417cc077e 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -118,6 +118,23 @@ func init() {
+ }
+ 
+ func runClean(ctx context.Context, cmd *base.Command, args []string) {
++	if len(args) > 0 {
++		cacheFlag := ""
++		switch {
++		case cleanCache:
++			cacheFlag = "-cache"
++		case cleanTestcache:
++			cacheFlag = "-testcache"
++		case cleanFuzzcache:
++			cacheFlag = "-fuzzcache"
++		case cleanModcache:
++			cacheFlag = "-modcache"
++		}
++		if cacheFlag != "" {
++			base.Fatalf("go: clean %s cannot be used with package arguments", cacheFlag)
++		}
++	}
++
+ 	// golang.org/issue/29925: only load packages before cleaning if
+ 	// either the flags and arguments explicitly imply a package,
+ 	// or no other target (such as a cache) was requested to be cleaned.
+diff --git a/src/cmd/go/testdata/script/clean_cache_n.txt b/src/cmd/go/testdata/script/clean_cache_n.txt
+index 4497b36bc3..72f9abf9ae 100644
+--- a/src/cmd/go/testdata/script/clean_cache_n.txt
++++ b/src/cmd/go/testdata/script/clean_cache_n.txt
+@@ -15,6 +15,9 @@ exists $GOCACHE/00
+ go clean -cache
+ ! exists $GOCACHE/00
+ 
++! go clean -cache .
++stderr 'go: clean -cache cannot be used with package arguments'
++
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/clean_testcache.txt b/src/cmd/go/testdata/script/clean_testcache.txt
+index b3f32fe696..3f98602c4e 100644
+--- a/src/cmd/go/testdata/script/clean_testcache.txt
++++ b/src/cmd/go/testdata/script/clean_testcache.txt
+@@ -8,6 +8,8 @@ go test x_test.go
+ go clean -testcache
+ go test x_test.go
+ ! stdout 'cached'
++! go clean -testcache ../x
++stderr 'go: clean -testcache cannot be used with package arguments'
+ 
+ # golang.org/issue/29100: 'go clean -testcache' should succeed
+ # if the cache directory doesn't exist at all.
+diff --git a/src/cmd/go/testdata/script/mod_clean_cache.txt b/src/cmd/go/testdata/script/mod_clean_cache.txt
+index 01fbc381e0..2b8e820653 100644
+--- a/src/cmd/go/testdata/script/mod_clean_cache.txt
++++ b/src/cmd/go/testdata/script/mod_clean_cache.txt
+@@ -35,6 +35,9 @@ go clean -modcache
+ ! stderr 'finding rsc.io'
+ go mod edit -droprequire rsc.io/quote
+ 
++! go clean -modcache m
++stderr 'go: clean -modcache cannot be used with package arguments'
++
+ -- go.mod --
+ module m
+ -- m.go --
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cache.txt b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+index 19fb764add..752ab3adec 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_cache.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_cache.txt
+@@ -37,6 +37,9 @@ go test -fuzz=FuzzEmpty -fuzztime=2x .
+ stdout 'new interesting: 0'
+ stdout 'total: 1'
+ 
++! go clean -fuzzcache example.com/y
++stderr 'go: clean -fuzzcache cannot be used with package arguments'
++
+ -- go.mod --
+ module example.com/y
+ 

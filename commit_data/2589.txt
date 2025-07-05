@@ -7,6 +7,21 @@ Date:   Sat Jul 4 13:59:08 2009 -0700
     R=r
     OCL=31156
     CL=31156
-
+---
  src/cmd/gc/walk.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 6d102982cb..30c864df63 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -402,7 +402,8 @@ loop:
+ 			break;
+ 
+ 		case 1:
+-			n->type = n->type->type->type;
++			if(n->type != T && n->type->type != T && n->type->type->type != T)
++				n->type = n->type->type->type;
+ 			break;
+ 		}
+ 

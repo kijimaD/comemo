@@ -36,6 +36,26 @@ Date:   Thu Dec 3 13:29:58 2020 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/time_nofake.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/time_nofake.go b/src/runtime/time_nofake.go
+index 2b85c5aa01..70a2102b22 100644
+--- a/src/runtime/time_nofake.go
++++ b/src/runtime/time_nofake.go
+@@ -19,9 +19,14 @@ func nanotime() int64 {
+ 	return nanotime1()
+ }
+ 
++var overrideWrite func(fd uintptr, p unsafe.Pointer, n int32) int32
++
+ // write must be nosplit on Windows (see write1)
+ //
+ //go:nosplit
+ func write(fd uintptr, p unsafe.Pointer, n int32) int32 {
++	if overrideWrite != nil {
++		return overrideWrite(fd, noescape(p), n)
++	}
+ 	return write1(fd, p, n)
+ }

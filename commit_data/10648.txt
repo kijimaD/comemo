@@ -8,7 +8,48 @@ Date:   Wed Dec 7 15:00:38 2011 -0500
     R=golang-dev, dr.volker.dobler, rsc
     CC=golang-dev
     https://golang.org/cl/5450115
-
+---
  lib/godoc/example.html | 4 ++--
  lib/godoc/package.html | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index 7badbb6fad..7af943172b 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -5,10 +5,10 @@
+ 	<div class="expanded">
+ 		<p class="exampleHeading">▾ Example</p>
+ 		<p>Code:</p>
+-		<p class="code"><pre>{{.Code}}</pre></p>
++		<pre class="code">{{.Code}}</pre>
+ 		{{if .Output}}
+ 		<p>Output:</p>
+-		<p class="output"><pre>{{html .Output}}</pre></p>
++		<pre class="output">{{html .Output}}</pre>
+ 		{{end}}
+ 	</div>
+ </div>
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index 1286f6eff4..34ca3b629f 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -51,8 +51,8 @@
+ 	{{comment_html .Doc}}
+ 	{{if $.IsPkg}}
+ 		{{with .Filenames}}
+-			<p>
+ 			<h4>Package files</h4>
++			<p>
+ 			<span style="font-size:90%">
+ 			{{range .}}
+ 				<a href="/{{.|srcLink}}">{{.|filename|html}}</a>
+@@ -88,7 +88,7 @@
+ 		{{$tname_html := node_html .Type.Name $.FSet}}
+ 		<h2 id="{{$tname_html}}">type <a href="/{{posLink_url .Decl $.FSet}}">{{$tname_html}}</a></h2>
+ 		{{comment_html .Doc}}
+-		<p><pre>{{node_html .Decl $.FSet}}</pre></p>
++		<pre>{{node_html .Decl $.FSet}}</pre>
+ 		{{range .Consts}}
+ 			{{comment_html .Doc}}
+ 			<pre>{{node_html .Decl $.FSet}}</pre>

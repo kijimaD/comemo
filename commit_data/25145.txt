@@ -12,8 +12,68 @@ Date:   Thu Oct 1 14:21:37 2015 +1000
     Reviewed-on: https://go-review.googlesource.com/15240
     Run-TryBot: David Symonds <dsymonds@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/template.go | 3 +--
  src/text/template/exec.go     | 8 ++++++--
  src/text/template/funcs.go    | 2 +-
  3 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/html/template/template.go b/src/html/template/template.go
+index 4c38f36e67..5cfac49d08 100644
+--- a/src/html/template/template.go
++++ b/src/html/template/template.go
+@@ -9,7 +9,6 @@ import (
+ 	"io"
+ 	"io/ioutil"
+ 	"path/filepath"
+-	"reflect"
+ 	"sync"
+ 	"text/template"
+ 	"text/template/parse"
+@@ -420,6 +419,6 @@ func parseGlob(t *Template, pattern string) (*Template, error) {
+ // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+ // and whether the value has a meaningful truth value. This is the definition of
+ // truth used by if and other such actions.
+-func IsTrue(val reflect.Value) (truth, ok bool) {
++func IsTrue(val interface{}) (truth, ok bool) {
+ 	return template.IsTrue(val)
+ }
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 8d74255070..16839a8d6d 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -242,7 +242,7 @@ func (s *state) walk(dot reflect.Value, node parse.Node) {
+ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.PipeNode, list, elseList *parse.ListNode) {
+ 	defer s.pop(s.mark())
+ 	val := s.evalPipeline(dot, pipe)
+-	truth, ok := IsTrue(val)
++	truth, ok := isTrue(val)
+ 	if !ok {
+ 		s.errorf("if/with can't use %v", val)
+ 	}
+@@ -260,7 +260,11 @@ func (s *state) walkIfOrWith(typ parse.NodeType, dot reflect.Value, pipe *parse.
+ // IsTrue reports whether the value is 'true', in the sense of not the zero of its type,
+ // and whether the value has a meaningful truth value. This is the definition of
+ // truth used by if and other such actions.
+-func IsTrue(val reflect.Value) (truth, ok bool) {
++func IsTrue(val interface{}) (truth, ok bool) {
++	return isTrue(reflect.ValueOf(val))
++}
++
++func isTrue(val reflect.Value) (truth, ok bool) {
+ 	if !val.IsValid() {
+ 		// Something like var x interface{}, never set. It's a form of nil.
+ 		return false, true
+diff --git a/src/text/template/funcs.go b/src/text/template/funcs.go
+index 6eda731834..49e9e7419a 100644
+--- a/src/text/template/funcs.go
++++ b/src/text/template/funcs.go
+@@ -265,7 +265,7 @@ func call(fn interface{}, args ...interface{}) (interface{}, error) {
+ // Boolean logic.
+ 
+ func truth(a interface{}) bool {
+-	t, _ := IsTrue(reflect.ValueOf(a))
++	t, _ := IsTrue(a)
+ 	return t
+ }
+ 

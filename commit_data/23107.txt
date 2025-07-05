@@ -25,6 +25,20 @@ Date:   Thu Apr 23 20:00:10 2015 -0400
     Change-Id: Ic76d22b7b5d040bc4f58a6b5975e9217650e66c4
     Reviewed-on: https://go-review.googlesource.com/9299
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 497c20f0ea..353610d50c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -501,7 +501,7 @@ func (c *gcControllerState) findRunnable(_p_ *p) *g {
+ 		// else for a while, so kick everything out of its run
+ 		// queue.
+ 	} else {
+-		if work.full == 0 && work.partial == 0 {
++		if _p_.m.ptr().currentwbuf == 0 && work.full == 0 && work.partial == 0 {
+ 			// No work to be done right now. This can
+ 			// happen at the end of the mark phase when
+ 			// there are still assists tapering off. Don't

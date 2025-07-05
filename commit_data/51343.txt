@@ -22,9 +22,314 @@ Date:   Wed Jan 12 11:30:57 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/crawler.go | 143 +++++++++++++++++---------
  test/typeparam/issue50561.dir/diameter.go     |  86 ++++++++++++++++
  test/typeparam/issue50561.dir/main.go         |  13 +++
  test/typeparam/issue50561.go                  |   7 ++
  4 files changed, 203 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index 87dc5165fd..11c8056df5 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -30,9 +30,10 @@ import (
+ // type.
+ func crawlExports(exports []*ir.Name) {
+ 	p := crawler{
+-		marked:   make(map[*types.Type]bool),
+-		embedded: make(map[*types.Type]bool),
+-		generic:  make(map[*types.Type]bool),
++		marked:         make(map[*types.Type]bool),
++		embedded:       make(map[*types.Type]bool),
++		generic:        make(map[*types.Type]bool),
++		checkFullyInst: make(map[*types.Type]bool),
+ 	}
+ 	for _, n := range exports {
+ 		p.markObject(n)
+@@ -40,9 +41,10 @@ func crawlExports(exports []*ir.Name) {
+ }
+ 
+ type crawler struct {
+-	marked   map[*types.Type]bool // types already seen by markType
+-	embedded map[*types.Type]bool // types already seen by markEmbed
+-	generic  map[*types.Type]bool // types already seen by markGeneric
++	marked         map[*types.Type]bool // types already seen by markType
++	embedded       map[*types.Type]bool // types already seen by markEmbed
++	generic        map[*types.Type]bool // types already seen by markGeneric
++	checkFullyInst map[*types.Type]bool // types already seen by checkForFullyInst
+ }
+ 
+ // markObject visits a reachable object (function, method, global type, or global variable)
+@@ -208,6 +210,93 @@ func (p *crawler) markGeneric(t *types.Type) {
+ 	}
+ }
+ 
++// checkForFullyInst looks for fully-instantiated types in a type (at any nesting
++// level). If it finds a fully-instantiated type, it ensures that the necessary
++// dictionary and shape methods are exported. It updates p.checkFullyInst, so it
++// traverses each particular type only once.
++func (p *crawler) checkForFullyInst(t *types.Type) {
++	if p.checkFullyInst[t] {
++		return
++	}
++	p.checkFullyInst[t] = true
++
++	if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
++		// For any fully-instantiated type, the relevant
++		// dictionaries and shape instantiations will have
++		// already been created or are in the import data.
++		// Make sure that they are exported, so that any
++		// other package that inlines this function will have
++		// them available for import, and so will not need
++		// another round of method and dictionary
++		// instantiation after inlining.
++		baseType := t.OrigSym().Def.(*ir.Name).Type()
++		shapes := make([]*types.Type, len(t.RParams()))
++		for i, t1 := range t.RParams() {
++			shapes[i] = Shapify(t1, i)
++		}
++		for j := range t.Methods().Slice() {
++			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
++			dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
++			if dictsym.Def == nil {
++				in := Resolve(ir.NewIdent(src.NoXPos, dictsym))
++				dictsym = in.Sym()
++			}
++			Export(dictsym.Def.(*ir.Name))
++			methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
++			if methsym.Def == nil {
++				in := Resolve(ir.NewIdent(src.NoXPos, methsym))
++				methsym = in.Sym()
++			}
++			methNode := methsym.Def.(*ir.Name)
++			Export(methNode)
++			if HaveInlineBody(methNode.Func) {
++				// Export the body as well if
++				// instantiation is inlineable.
++				methNode.Func.SetExportInline(true)
++			}
++		}
++	}
++
++	// Descend into the type. We descend even if it is a fully-instantiated type,
++	// since the instantiated type may have other instantiated types inside of
++	// it (in fields, methods, etc.).
++	switch t.Kind() {
++	case types.TPTR, types.TARRAY, types.TSLICE:
++		p.checkForFullyInst(t.Elem())
++
++	case types.TCHAN:
++		p.checkForFullyInst(t.Elem())
++
++	case types.TMAP:
++		p.checkForFullyInst(t.Key())
++		p.checkForFullyInst(t.Elem())
++
++	case types.TSTRUCT:
++		if t.IsFuncArgStruct() {
++			break
++		}
++		for _, f := range t.FieldSlice() {
++			p.checkForFullyInst(f.Type)
++		}
++
++	case types.TFUNC:
++		if recv := t.Recv(); recv != nil {
++			p.checkForFullyInst(t.Recv().Type)
++		}
++		for _, f := range t.Params().FieldSlice() {
++			p.checkForFullyInst(f.Type)
++		}
++		for _, f := range t.Results().FieldSlice() {
++			p.checkForFullyInst(f.Type)
++		}
++
++	case types.TINTER:
++		for _, f := range t.AllMethods().Slice() {
++			p.checkForFullyInst(f.Type)
++		}
++	}
++}
++
+ // markInlBody marks n's inline body for export and recursively
+ // ensures all called functions are marked too.
+ func (p *crawler) markInlBody(n *ir.Name) {
+@@ -236,51 +325,13 @@ func (p *crawler) markInlBody(n *ir.Name) {
+ 	doFlood = func(n ir.Node) {
+ 		t := n.Type()
+ 		if t != nil {
+-			if t.IsPtr() {
+-				t = t.Elem()
+-			}
+-			if t.IsFullyInstantiated() && !t.HasShape() && !t.IsInterface() && t.Methods().Len() > 0 {
+-				// For any fully-instantiated type, the relevant
+-				// dictionaries and shape instantiations will have
+-				// already been created or are in the import data.
+-				// Make sure that they are exported, so that any
+-				// other package that inlines this function will have
+-				// them available for import, and so will not need
+-				// another round of method and dictionary
+-				// instantiation after inlining.
+-				baseType := t.OrigSym().Def.(*ir.Name).Type()
+-				shapes := make([]*types.Type, len(t.RParams()))
+-				for i, t1 := range t.RParams() {
+-					shapes[i] = Shapify(t1, i)
+-				}
+-				for j := range t.Methods().Slice() {
+-					baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+-					dictsym := MakeDictSym(baseNname.Sym(), t.RParams(), true)
+-					if dictsym.Def == nil {
+-						in := Resolve(ir.NewIdent(src.NoXPos, dictsym))
+-						dictsym = in.Sym()
+-					}
+-					Export(dictsym.Def.(*ir.Name))
+-					methsym := MakeFuncInstSym(baseNname.Sym(), shapes, false, true)
+-					if methsym.Def == nil {
+-						in := Resolve(ir.NewIdent(src.NoXPos, methsym))
+-						methsym = in.Sym()
+-					}
+-					methNode := methsym.Def.(*ir.Name)
+-					Export(methNode)
+-					if HaveInlineBody(methNode.Func) {
+-						// Export the body as well if
+-						// instantiation is inlineable.
+-						methNode.Func.SetExportInline(true)
+-					}
+-				}
+-			}
+-
+ 			if t.HasTParam() {
+ 				// If any generic types are used, then make sure that
+ 				// the methods of the generic type are exported and
+ 				// scanned for other possible exports.
+ 				p.markGeneric(t)
++			} else {
++				p.checkForFullyInst(t)
+ 			}
+ 			if base.Debug.Unified == 0 {
+ 				// If a method of un-exported type is promoted and accessible by
+diff --git a/test/typeparam/issue50561.dir/diameter.go b/test/typeparam/issue50561.dir/diameter.go
+new file mode 100644
+index 0000000000..2bfe92405d
+--- /dev/null
++++ b/test/typeparam/issue50561.dir/diameter.go
+@@ -0,0 +1,86 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package diameter
++
++type Runnable interface {
++	Run()
++}
++
++// RunnableFunc is converter which converts function to Runnable interface
++type RunnableFunc func()
++
++// Run is Runnable.Run
++func (r RunnableFunc) Run() {
++	r()
++}
++
++type Executor interface {
++	ExecuteUnsafe(runnable Runnable)
++}
++
++type Promise[T any] interface {
++	Future() Future[T]
++	Success(value T) bool
++	Failure(err error) bool
++	IsCompleted() bool
++	Complete(result Try[T]) bool
++}
++
++type Future[T any] interface {
++	OnFailure(cb func(err error), ctx ...Executor)
++	OnSuccess(cb func(success T), ctx ...Executor)
++	Foreach(f func(v T), ctx ...Executor)
++	OnComplete(cb func(try Try[T]), ctx ...Executor)
++	IsCompleted() bool
++	//	Value() Option[Try[T]]
++	Failed() Future[error]
++	Recover(f func(err error) T, ctx ...Executor) Future[T]
++	RecoverWith(f func(err error) Future[T], ctx ...Executor) Future[T]
++}
++
++type Try[T any] struct {
++	v   *T
++	err error
++}
++
++func (r Try[T]) IsSuccess() bool {
++	return r.v != nil
++}
++
++type ByteBuffer struct {
++	pos       int
++	buf       []byte
++	underflow error
++}
++
++// InboundHandler is extends of uclient.NetInboundHandler
++type InboundHandler interface {
++	OriginHost() string
++	OriginRealm() string
++}
++
++type transactionID struct {
++	hopID uint32
++	endID uint32
++}
++
++type roundTripper struct {
++	promise map[transactionID]Promise[*ByteBuffer]
++	host    string
++	realm   string
++}
++
++func (r *roundTripper) OriginHost() string {
++	return r.host
++}
++func (r *roundTripper) OriginRealm() string {
++	return r.realm
++}
++
++func NewInboundHandler(host string, realm string, productName string) InboundHandler {
++	ret := &roundTripper{promise: make(map[transactionID]Promise[*ByteBuffer]), host: host, realm: realm}
++
++	return ret
++}
+diff --git a/test/typeparam/issue50561.dir/main.go b/test/typeparam/issue50561.dir/main.go
+new file mode 100644
+index 0000000000..bad7b6a34b
+--- /dev/null
++++ b/test/typeparam/issue50561.dir/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"diameter"
++)
++
++func main() {
++	diameter.NewInboundHandler("hello", "world", "hi")
++}
+diff --git a/test/typeparam/issue50561.go b/test/typeparam/issue50561.go
+new file mode 100644
+index 0000000000..060a1214cc
+--- /dev/null
++++ b/test/typeparam/issue50561.go
+@@ -0,0 +1,7 @@
++// compiledir -G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

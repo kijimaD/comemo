@@ -13,7 +13,7 @@ Date:   Sun Nov 3 13:05:57 2024 +0100
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  .../internal/fips/sha256/sha256block_amd64.go      |  4 ++--
  .../internal/fips/sha256/sha256block_arm64.go      |  2 +-
  .../internal/fips/sha256/sha256block_ppc64x.go     |  2 +-
@@ -29,3 +29,351 @@ Date:   Sun Nov 3 13:05:57 2024 +0100
  src/crypto/sha512/sha512_test.go                   | 12 ++++++------
  src/go/build/deps_test.go                          |  2 +-
  14 files changed, 38 insertions(+), 33 deletions(-)
+
+diff --git a/src/crypto/internal/fips/sha256/sha256block_amd64.go b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+index 7c19bbb19b..a08114a8ba 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_amd64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+@@ -15,8 +15,8 @@ var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+ var useSHANI = useAVX2 && cpu.X86.HasSHA
+ 
+ func init() {
+-	impl.Register("crypto/sha256", "AVX2", &useAVX2)
+-	impl.Register("crypto/sha256", "SHA-NI", &useSHANI)
++	impl.Register("sha256", "AVX2", &useAVX2)
++	impl.Register("sha256", "SHA-NI", &useSHANI)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha256/sha256block_arm64.go b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+index c0301aef25..ae53d9e546 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_arm64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+@@ -14,7 +14,7 @@ import (
+ var useSHA2 = cpu.ARM64.HasSHA2
+ 
+ func init() {
+-	impl.Register("crypto/sha256", "Armv8.0", &useSHA2)
++	impl.Register("sha256", "Armv8.0", &useSHA2)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha256/sha256block_ppc64x.go b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+index 1854fdf04a..6d4d255631 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+@@ -18,7 +18,7 @@ import (
+ var ppc64sha2 = godebug.New("#ppc64sha2").Value() != "off"
+ 
+ func init() {
+-	impl.Register("crypto/sha256", "POWER8", &ppc64sha2)
++	impl.Register("sha256", "POWER8", &ppc64sha2)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha256/sha256block_s390x.go b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+index 4cc4713f3a..55bea69e05 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_s390x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+@@ -16,7 +16,7 @@ var useSHA256 = cpu.S390X.HasSHA256
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+ 	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
+-	impl.Register("crypto/sha256", "CPACF", &useSHA256)
++	impl.Register("sha256", "CPACF", &useSHA256)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.go b/src/crypto/internal/fips/sha3/sha3_s390x.go
+index 36556955b5..472b20d07d 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.go
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.go
+@@ -23,7 +23,7 @@ var useSHA3 = cpu.S390X.HasSHA3
+ 
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+-	impl.Register("crypto/sha3", "CPACF", &useSHA3)
++	impl.Register("sha3", "CPACF", &useSHA3)
+ }
+ 
+ func keccakF1600(a *[200]byte) {
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fips/sha3/sha3_test.go
+index 1a3d571235..c85a4f8e01 100644
+--- a/src/crypto/internal/fips/sha3/sha3_test.go
++++ b/src/crypto/internal/fips/sha3/sha3_test.go
+@@ -106,7 +106,7 @@ func decodeHex(s string) []byte {
+ 
+ // TestKeccak does a basic test of the non-standardized Keccak hash functions.
+ func TestKeccak(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testKeccak)
++	cryptotest.TestAllImplementations(t, "sha3", testKeccak)
+ }
+ 
+ func testKeccak(t *testing.T) {
+@@ -140,7 +140,7 @@ func testKeccak(t *testing.T) {
+ 
+ // TestShakeSum tests that the output of Sum matches the output of Read.
+ func TestShakeSum(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testShakeSum)
++	cryptotest.TestAllImplementations(t, "sha3", testShakeSum)
+ }
+ 
+ func testShakeSum(t *testing.T) {
+@@ -173,7 +173,7 @@ func testShakeSum(t *testing.T) {
+ // TestUnalignedWrite tests that writing data in an arbitrary pattern with
+ // small input buffers.
+ func TestUnalignedWrite(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testUnalignedWrite)
++	cryptotest.TestAllImplementations(t, "sha3", testUnalignedWrite)
+ }
+ 
+ func testUnalignedWrite(t *testing.T) {
+@@ -233,7 +233,7 @@ func testUnalignedWrite(t *testing.T) {
+ 
+ // TestAppend checks that appending works when reallocation is necessary.
+ func TestAppend(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testAppend)
++	cryptotest.TestAllImplementations(t, "sha3", testAppend)
+ }
+ 
+ func testAppend(t *testing.T) {
+@@ -255,7 +255,7 @@ func testAppend(t *testing.T) {
+ 
+ // TestAppendNoRealloc tests that appending works when no reallocation is necessary.
+ func TestAppendNoRealloc(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testAppendNoRealloc)
++	cryptotest.TestAllImplementations(t, "sha3", testAppendNoRealloc)
+ }
+ 
+ func testAppendNoRealloc(t *testing.T) {
+@@ -272,7 +272,7 @@ func testAppendNoRealloc(t *testing.T) {
+ // TestSqueezing checks that squeezing the full output a single time produces
+ // the same output as repeatedly squeezing the instance.
+ func TestSqueezing(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testSqueezing)
++	cryptotest.TestAllImplementations(t, "sha3", testSqueezing)
+ }
+ 
+ func testSqueezing(t *testing.T) {
+@@ -313,7 +313,7 @@ func sequentialBytes(size int) []byte {
+ }
+ 
+ func TestReset(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testReset)
++	cryptotest.TestAllImplementations(t, "sha3", testReset)
+ }
+ 
+ func testReset(t *testing.T) {
+@@ -338,7 +338,7 @@ func testReset(t *testing.T) {
+ }
+ 
+ func TestClone(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testClone)
++	cryptotest.TestAllImplementations(t, "sha3", testClone)
+ }
+ 
+ func testClone(t *testing.T) {
+@@ -452,7 +452,7 @@ func TestCSHAKEAccumulated(t *testing.T) {
+ 	//    }
+ 	//    console.log(bytesToHex(acc.xof(32)));
+ 	//
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", func(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
+ 		t.Run("cSHAKE128", func(t *testing.T) {
+ 			testCSHAKEAccumulated(t, NewCShake128, (1600-256)/8,
+ 				"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
+@@ -493,7 +493,7 @@ func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rat
+ }
+ 
+ func TestCSHAKELargeS(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", testCSHAKELargeS)
++	cryptotest.TestAllImplementations(t, "sha3", testCSHAKELargeS)
+ }
+ 
+ func testCSHAKELargeS(t *testing.T) {
+@@ -525,7 +525,7 @@ func testCSHAKELargeS(t *testing.T) {
+ }
+ 
+ func TestMarshalUnmarshal(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha3", func(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha3", func(t *testing.T) {
+ 		t.Run("SHA3-224", func(t *testing.T) { testMarshalUnmarshal(t, New224()) })
+ 		t.Run("SHA3-256", func(t *testing.T) { testMarshalUnmarshal(t, New256()) })
+ 		t.Run("SHA3-384", func(t *testing.T) { testMarshalUnmarshal(t, New384()) })
+diff --git a/src/crypto/internal/fips/sha512/sha512block_amd64.go b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+index 1fec14e229..998b78e1a5 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_amd64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+@@ -14,7 +14,7 @@ import (
+ var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ 
+ func init() {
+-	impl.Register("crypto/sha512", "AVX2", &useAVX2)
++	impl.Register("sha512", "AVX2", &useAVX2)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha512/sha512block_arm64.go b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+index 617c646da4..20b5d6aadc 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_arm64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+@@ -14,7 +14,7 @@ import (
+ var useSHA512 = cpu.ARM64.HasSHA512
+ 
+ func init() {
+-	impl.Register("crypto/sha512", "Armv8.2", &useSHA512)
++	impl.Register("sha512", "Armv8.2", &useSHA512)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha512/sha512block_ppc64x.go b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+index 8e5e7d74a0..23061d4aa6 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+@@ -18,7 +18,7 @@ import (
+ var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
+ 
+ func init() {
+-	impl.Register("crypto/sha512", "POWER8", &ppc64sha512)
++	impl.Register("sha512", "POWER8", &ppc64sha512)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/fips/sha512/sha512block_s390x.go b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+index eff6b49b5a..fe710fe4c6 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_s390x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+@@ -16,7 +16,7 @@ var useSHA512 = cpu.S390X.HasSHA512
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+ 	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
+-	impl.Register("crypto/sha512", "CPACF", &useSHA512)
++	impl.Register("sha512", "CPACF", &useSHA512)
+ }
+ 
+ //go:noescape
+diff --git a/src/crypto/internal/impl/impl.go b/src/crypto/internal/impl/impl.go
+index f90785fa1c..524db45d74 100644
+--- a/src/crypto/internal/impl/impl.go
++++ b/src/crypto/internal/impl/impl.go
+@@ -6,6 +6,8 @@
+ // primitives, to allow selecting them for testing.
+ package impl
+ 
++import "strings"
++
+ type implementation struct {
+ 	Package   string
+ 	Name      string
+@@ -23,8 +25,11 @@ var allImplementations []implementation
+ // remaining one must be used (i.e. disabling one implementation must not
+ // implicitly disable any other). Each package has an implicit base
+ // implementation that is selected when all alternatives are unavailable or
+-// disabled.
++// disabled. pkg must be the package name, not path (e.g. "aes" not "crypto/aes").
+ func Register(pkg, name string, available *bool) {
++	if strings.Contains(pkg, "/") {
++		panic("impl: package name must not contain slashes")
++	}
+ 	allImplementations = append(allImplementations, implementation{
+ 		Package:   pkg,
+ 		Name:      name,
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 77617a41a2..4693bcaacb 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -93,7 +93,7 @@ var golden224 = []sha256Test{
+ }
+ 
+ func TestGolden(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha256", testGolden)
++	cryptotest.TestAllImplementations(t, "sha256", testGolden)
+ }
+ 
+ func testGolden(t *testing.T) {
+@@ -142,7 +142,7 @@ func testGolden(t *testing.T) {
+ }
+ 
+ func TestGoldenMarshal(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha256", testGoldenMarshal)
++	cryptotest.TestAllImplementations(t, "sha256", testGoldenMarshal)
+ }
+ 
+ func testGoldenMarshal(t *testing.T) {
+@@ -344,12 +344,12 @@ func TestCgo(t *testing.T) {
+ 
+ func TestHash(t *testing.T) {
+ 	t.Run("SHA-224", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New224)
+ 		})
+ 	})
+ 	t.Run("SHA-256", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New)
+ 		})
+ 	})
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index fdad37b186..fd362e2a46 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -680,7 +680,7 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
+ }
+ 
+ func TestGolden(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 		testGolden(t)
+ 	})
+ }
+@@ -726,7 +726,7 @@ func testGolden(t *testing.T) {
+ }
+ 
+ func TestGoldenMarshal(t *testing.T) {
+-	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 		testGoldenMarshal(t)
+ 	})
+ }
+@@ -947,22 +947,22 @@ func TestAllocations(t *testing.T) {
+ 
+ func TestHash(t *testing.T) {
+ 	t.Run("SHA-384", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New384)
+ 		})
+ 	})
+ 	t.Run("SHA-512/224", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New512_224)
+ 		})
+ 	})
+ 	t.Run("SHA-512/256", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New512_256)
+ 		})
+ 	})
+ 	t.Run("SHA-512", func(t *testing.T) {
+-		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
+ 			cryptotest.TestHash(t, New)
+ 		})
+ 	})
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d8992f8bb8..b06c64b8a4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -444,7 +444,7 @@ var depsRules = `
+ 	NET, log
+ 	< net/mail;
+ 
+-	NONE < crypto/internal/impl;
++	STR < crypto/internal/impl;
+ 
+ 	# FIPS is the FIPS 140 module.
+ 	# It must not depend on external crypto packages.

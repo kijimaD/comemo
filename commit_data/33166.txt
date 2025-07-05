@@ -24,7 +24,75 @@ Date:   Thu Jul 20 11:12:37 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_unix_test.go  | 17 +++++++++++++++++
  src/runtime/export_unix_test.go | 19 +++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index fdb3267006..cbaa1f65fe 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -24,6 +24,15 @@ import (
+ // Send SIGQUIT to get a stack trace.
+ var sigquit = syscall.SIGQUIT
+ 
++func init() {
++	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
++		// We can't use SIGQUIT to kill subprocesses because
++		// it's blocked. Use SIGKILL instead. See issue
++		// #19196 for an example of when this happens.
++		sigquit = syscall.SIGKILL
++	}
++}
++
+ func TestCrashDumpsAllThreads(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "darwin", "dragonfly", "freebsd", "linux", "netbsd", "openbsd", "solaris":
+@@ -31,6 +40,10 @@ func TestCrashDumpsAllThreads(t *testing.T) {
+ 		t.Skipf("skipping; not supported on %v", runtime.GOOS)
+ 	}
+ 
++	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
++		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
++	}
++
+ 	// We don't use executeTest because we need to kill the
+ 	// program while it is running.
+ 
+@@ -165,6 +178,10 @@ func TestPanicSystemstack(t *testing.T) {
+ 		t.Skip("Skipping in short mode (GOTRACEBACK=crash is slow)")
+ 	}
+ 
++	if runtime.Sigisblocked(int(syscall.SIGQUIT)) {
++		t.Skip("skipping; SIGQUIT is blocked, see golang.org/issue/19196")
++	}
++
+ 	t.Parallel()
+ 	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
+ 	cmd = testEnv(cmd)
+diff --git a/src/runtime/export_unix_test.go b/src/runtime/export_unix_test.go
+new file mode 100644
+index 0000000000..54d577072e
+--- /dev/null
++++ b/src/runtime/export_unix_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd solaris
++
++package runtime
++
++func sigismember(mask *sigset, i int) bool {
++	clear := *mask
++	sigdelset(&clear, i)
++	return clear != *mask
++}
++
++func Sigisblocked(i int) bool {
++	var sigmask sigset
++	sigprocmask(_SIG_SETMASK, nil, &sigmask)
++	return sigismember(&sigmask, i)
++}

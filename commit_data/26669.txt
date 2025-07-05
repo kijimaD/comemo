@@ -19,7 +19,54 @@ Date:   Mon May 4 15:02:09 2015 -0700
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go |  9 +++++++++
  src/cmd/compile/internal/gc/walk.go | 15 +++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 0d25ddf2af..a17d7df60d 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -465,6 +465,15 @@ func algtype1(t *Type, bad **Type) int {
+ 			return a
+ 		}
+ 
++		switch t.Bound {
++		case 0:
++			// We checked above that the element type is comparable.
++			return AMEM
++		case 1:
++			// Single-element array is same as its lone element.
++			return a
++		}
++
+ 		return -1 // needs special compare
+ 
+ 	case TSTRUCT:
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e008317562..f324d5e00f 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -3193,6 +3193,21 @@ func walkcompare(np **Node, init **NodeList) {
+ 		return
+ 	}
+ 
++	if t.Etype == TARRAY {
++		// Zero- or single-element array, of any type.
++		switch t.Bound {
++		case 0:
++			finishcompare(np, n, Nodbool(n.Op == OEQ), init)
++			return
++		case 1:
++			l0 := Nod(OINDEX, l, Nodintconst(0))
++			r0 := Nod(OINDEX, r, Nodintconst(0))
++			a := Nod(n.Op, l0, r0)
++			finishcompare(np, n, a, init)
++			return
++		}
++	}
++
+ 	if t.Etype == TSTRUCT && countfield(t) <= 4 {
+ 		// Struct of four or fewer fields.
+ 		// Inline comparisons.

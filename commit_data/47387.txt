@@ -12,7 +12,7 @@ Date:   Mon Mar 15 21:12:08 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/302053
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go          | 31 ++--------
  src/cmd/compile/internal/dwarfgen/dwarf.go        | 10 +--
  src/cmd/compile/internal/gc/compile.go            |  2 +-
@@ -31,3 +31,760 @@ Date:   Mon Mar 15 21:12:08 2021 +0000
  test/abi/spills3.go                               | 48 ---------------
  test/abi/spills4.go                               | 44 -------------
  17 files changed, 90 insertions(+), 309 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index e92827fc7f..ecde34313a 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -69,14 +69,6 @@ func (a *ABIParamResultInfo) SpillAreaSize() int64 {
+ 	return a.spillAreaSize
+ }
+ 
+-// ArgWidth returns the amount of stack needed for all the inputs
+-// and outputs of a function or method, including ABI-defined parameter
+-// slots and ABI-defined spill slots for register-resident parameters.
+-// The name is inherited from (*Type).ArgWidth(), which it replaces.
+-func (a *ABIParamResultInfo) ArgWidth() int64 {
+-	return a.spillAreaSize + a.offsetToSpillArea
+-}
+-
+ // RegIndex stores the index into the set of machine registers used by
+ // the ABI on a specific architecture for parameter passing.  RegIndex
+ // values 0 through N-1 (where N is the number of integer registers
+@@ -422,25 +414,20 @@ func (config *ABIConfig) ABIAnalyzeFuncType(ft *types.Func) *ABIParamResultInfo
+ 
+ // ABIAnalyze returns the same result as ABIAnalyzeFuncType, but also
+ // updates the offsets of all the receiver, input, and output fields.
+-// If setNname is true, it also sets the FrameOffset of the Nname for
+-// the field(s); this is for use when compiling a function and figuring out
+-// spill locations.  Doing this for callers can cause races for register
+-// outputs because their frame location transitions from BOGUS_FUNARG_OFFSET
+-// to zero to an as-if-AUTO offset that has no use for callers.
+-func (config *ABIConfig) ABIAnalyze(t *types.Type, setNname bool) *ABIParamResultInfo {
++func (config *ABIConfig) ABIAnalyze(t *types.Type) *ABIParamResultInfo {
+ 	ft := t.FuncType()
+ 	result := config.ABIAnalyzeFuncType(ft)
+ 	// Fill in the frame offsets for receiver, inputs, results
+ 	k := 0
+ 	if t.NumRecvs() != 0 {
+-		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false, setNname)
++		config.updateOffset(result, ft.Receiver.FieldSlice()[0], result.inparams[0], false)
+ 		k++
+ 	}
+ 	for i, f := range ft.Params.FieldSlice() {
+-		config.updateOffset(result, f, result.inparams[k+i], false, setNname)
++		config.updateOffset(result, f, result.inparams[k+i], false)
+ 	}
+ 	for i, f := range ft.Results.FieldSlice() {
+-		config.updateOffset(result, f, result.outparams[i], true, setNname)
++		config.updateOffset(result, f, result.outparams[i], true)
+ 	}
+ 	return result
+ }
+@@ -455,7 +442,7 @@ func FieldOffsetOf(f *types.Field) int64 {
+ 	return f.Offset
+ }
+ 
+-func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn, setNname bool) {
++func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field, a ABIParamAssignment, isReturn bool) {
+ 	// Everything except return values in registers has either a frame home (if not in a register) or a frame spill location.
+ 	if !isReturn || len(a.Registers) == 0 {
+ 		// The type frame offset DOES NOT show effects of minimum frame size.
+@@ -468,19 +455,11 @@ func (config *ABIConfig) updateOffset(result *ABIParamResultInfo, f *types.Field
+ 			// Set the Offset the first time. After that, we may recompute it, but it should never change.
+ 			f.Offset = off
+ 			if f.Nname != nil {
+-				// always set it in this case.
+ 				f.Nname.(*ir.Name).SetFrameOffset(off)
+-				f.Nname.(*ir.Name).SetIsOutputParamInRegisters(false)
+ 			}
+ 		} else if fOffset != off {
+ 			panic(fmt.Errorf("Offset changed from %d to %d", fOffset, off))
+ 		}
+-	} else {
+-		if setNname && f.Nname != nil {
+-			fname := f.Nname.(*ir.Name)
+-			fname.SetIsOutputParamInRegisters(true)
+-			fname.SetFrameOffset(0)
+-		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 53752097ed..70168cffeb 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -265,13 +265,6 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 	var offs int64
+ 
+ 	switch n.Class {
+-	case ir.PPARAM, ir.PPARAMOUT:
+-		if !n.IsOutputParamInRegisters() {
+-			abbrev = dwarf.DW_ABRV_PARAM
+-			offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+-			break
+-		}
+-		fallthrough
+ 	case ir.PAUTO:
+ 		offs = n.FrameOffset()
+ 		abbrev = dwarf.DW_ABRV_AUTO
+@@ -282,6 +275,9 @@ func createSimpleVar(fnsym *obj.LSym, n *ir.Name) *dwarf.Var {
+ 			offs -= int64(types.PtrSize)
+ 		}
+ 
++	case ir.PPARAM, ir.PPARAMOUT:
++		abbrev = dwarf.DW_ABRV_PARAM
++		offs = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+ 	default:
+ 		base.Fatalf("createSimpleVar unexpected class %v for node %v", n.Class, n)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 83cfceb2c8..2d7a74a403 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -45,7 +45,7 @@ func enqueueFunc(fn *ir.Func) {
+ 		ssagen.InitLSym(fn, false)
+ 		types.CalcSize(fn.Type()) // TODO register args; remove this once all is done by abiutils
+ 		a := ssagen.AbiForFunc(fn)
+-		a.ABIAnalyze(fn.Type(), true) // will set parameter spill/home locations correctly
++		a.ABIAnalyze(fn.Type()) // will set parameter spill/home locations correctly
+ 		liveness.WriteFuncMap(fn)
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 5738aa1f3f..16c30324e5 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -246,47 +246,44 @@ func (n *Name) Alias() bool { return n.flags&nameAlias != 0 }
+ func (n *Name) SetAlias(alias bool) { n.flags.set(nameAlias, alias) }
+ 
+ const (
+-	nameReadonly                 = 1 << iota
+-	nameByval                    // is the variable captured by value or by reference
+-	nameNeedzero                 // if it contains pointers, needs to be zeroed on function entry
+-	nameAutoTemp                 // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+-	nameUsed                     // for variable declared and not used error
+-	nameIsClosureVar             // PAUTOHEAP closure pseudo-variable; original (if any) at n.Defn
+-	nameIsOutputParamHeapAddr    // pointer to a result parameter's heap copy
+-	nameIsOutputParamInRegisters // output parameter in registers spills as an auto
+-	nameAddrtaken                // address taken, even if not moved to heap
+-	nameInlFormal                // PAUTO created by inliner, derived from callee formal
+-	nameInlLocal                 // PAUTO created by inliner, derived from callee local
+-	nameOpenDeferSlot            // if temporary var storing info for open-coded defers
+-	nameLibfuzzerExtraCounter    // if PEXTERN should be assigned to __libfuzzer_extra_counters section
+-	nameAlias                    // is type name an alias
++	nameReadonly              = 1 << iota
++	nameByval                 // is the variable captured by value or by reference
++	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
++	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
++	nameUsed                  // for variable declared and not used error
++	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original (if any) at n.Defn
++	nameIsOutputParamHeapAddr // pointer to a result parameter's heap copy
++	nameAddrtaken             // address taken, even if not moved to heap
++	nameInlFormal             // PAUTO created by inliner, derived from callee formal
++	nameInlLocal              // PAUTO created by inliner, derived from callee local
++	nameOpenDeferSlot         // if temporary var storing info for open-coded defers
++	nameLibfuzzerExtraCounter // if PEXTERN should be assigned to __libfuzzer_extra_counters section
++	nameAlias                 // is type name an alias
+ )
+ 
+-func (n *Name) Readonly() bool                 { return n.flags&nameReadonly != 0 }
+-func (n *Name) Needzero() bool                 { return n.flags&nameNeedzero != 0 }
+-func (n *Name) AutoTemp() bool                 { return n.flags&nameAutoTemp != 0 }
+-func (n *Name) Used() bool                     { return n.flags&nameUsed != 0 }
+-func (n *Name) IsClosureVar() bool             { return n.flags&nameIsClosureVar != 0 }
+-func (n *Name) IsOutputParamHeapAddr() bool    { return n.flags&nameIsOutputParamHeapAddr != 0 }
+-func (n *Name) IsOutputParamInRegisters() bool { return n.flags&nameIsOutputParamInRegisters != 0 }
+-func (n *Name) Addrtaken() bool                { return n.flags&nameAddrtaken != 0 }
+-func (n *Name) InlFormal() bool                { return n.flags&nameInlFormal != 0 }
+-func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal != 0 }
+-func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
+-func (n *Name) LibfuzzerExtraCounter() bool    { return n.flags&nameLibfuzzerExtraCounter != 0 }
+-
+-func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
+-func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
+-func (n *Name) SetAutoTemp(b bool)                 { n.flags.set(nameAutoTemp, b) }
+-func (n *Name) SetUsed(b bool)                     { n.flags.set(nameUsed, b) }
+-func (n *Name) SetIsClosureVar(b bool)             { n.flags.set(nameIsClosureVar, b) }
+-func (n *Name) SetIsOutputParamHeapAddr(b bool)    { n.flags.set(nameIsOutputParamHeapAddr, b) }
+-func (n *Name) SetIsOutputParamInRegisters(b bool) { n.flags.set(nameIsOutputParamInRegisters, b) }
+-func (n *Name) SetAddrtaken(b bool)                { n.flags.set(nameAddrtaken, b) }
+-func (n *Name) SetInlFormal(b bool)                { n.flags.set(nameInlFormal, b) }
+-func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b) }
+-func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
+-func (n *Name) SetLibfuzzerExtraCounter(b bool)    { n.flags.set(nameLibfuzzerExtraCounter, b) }
++func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
++func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
++func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
++func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
++func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
++func (n *Name) IsOutputParamHeapAddr() bool { return n.flags&nameIsOutputParamHeapAddr != 0 }
++func (n *Name) Addrtaken() bool             { return n.flags&nameAddrtaken != 0 }
++func (n *Name) InlFormal() bool             { return n.flags&nameInlFormal != 0 }
++func (n *Name) InlLocal() bool              { return n.flags&nameInlLocal != 0 }
++func (n *Name) OpenDeferSlot() bool         { return n.flags&nameOpenDeferSlot != 0 }
++func (n *Name) LibfuzzerExtraCounter() bool { return n.flags&nameLibfuzzerExtraCounter != 0 }
++
++func (n *Name) setReadonly(b bool)              { n.flags.set(nameReadonly, b) }
++func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
++func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
++func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
++func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
++func (n *Name) SetIsOutputParamHeapAddr(b bool) { n.flags.set(nameIsOutputParamHeapAddr, b) }
++func (n *Name) SetAddrtaken(b bool)             { n.flags.set(nameAddrtaken, b) }
++func (n *Name) SetInlFormal(b bool)             { n.flags.set(nameInlFormal, b) }
++func (n *Name) SetInlLocal(b bool)              { n.flags.set(nameInlLocal, b) }
++func (n *Name) SetOpenDeferSlot(b bool)         { n.flags.set(nameOpenDeferSlot, b) }
++func (n *Name) SetLibfuzzerExtraCounter(b bool) { n.flags.set(nameLibfuzzerExtraCounter, b) }
+ 
+ // OnStack reports whether variable n may reside on the stack.
+ func (n *Name) OnStack() bool {
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index f3fbb8b9b1..48a26cf66a 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -405,17 +405,11 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
+ 		}
+ 		node := vars[i]
+ 		switch node.Class {
+-		case ir.PPARAM, ir.PPARAMOUT:
+-			if !node.IsOutputParamInRegisters() {
+-				if node.FrameOffset() < 0 {
+-					lv.f.Fatalf("Node %v has frameoffset %d\n", node.Sym().Name, node.FrameOffset())
+-				}
+-				typebits.Set(node.Type(), node.FrameOffset(), args)
+-				break
+-			}
+-			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
+ 		case ir.PAUTO:
+ 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
++
++		case ir.PPARAM, ir.PPARAMOUT:
++			typebits.Set(node.Type(), node.FrameOffset(), args)
+ 		}
+ 	}
+ }
+@@ -1089,10 +1083,8 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	for _, n := range lv.vars {
+ 		switch n.Class {
+ 		case ir.PPARAM, ir.PPARAMOUT:
+-			if !n.IsOutputParamInRegisters() {
+-				if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
+-					maxArgNode = n
+-				}
++			if maxArgNode == nil || n.FrameOffset() > maxArgNode.FrameOffset() {
++				maxArgNode = n
+ 			}
+ 		}
+ 	}
+@@ -1290,7 +1282,6 @@ func isfat(t *types.Type) bool {
+ 	return false
+ }
+ 
+-// TODO THIS IS ALL WRONG AND NEEDS TO USE ABI.
+ func WriteFuncMap(fn *ir.Func) {
+ 	if ir.FuncName(fn) == "_" || fn.Sym().Linkname != "" {
+ 		return
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index fe9ba0e156..084098fb64 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -191,16 +191,6 @@ func archRegForAbiReg(r abi.RegIndex, c *Config) uint8 {
+ 	return uint8(m)
+ }
+ 
+-// ArgWidth returns the amount of stack needed for all the inputs
+-// and outputs of a function or method, including ABI-defined parameter
+-// slots and ABI-defined spill slots for register-resident parameters.
+-//
+-// The name is taken from the types package's ArgWidth(<function type>),
+-// which predated changes to the ABI; this version handles those changes.
+-func (a *AuxCall) ArgWidth() int64 {
+-	return a.abiInfo.ArgWidth()
+-}
+-
+ // OffsetOfResult returns the SP offset of result which (indexed 0, 1, etc).
+ func (a *AuxCall) ParamAssignmentForResult(which int64) *abi.ABIParamAssignment {
+ 	return a.abiInfo.OutParam(int(which))
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 0088f10fa8..8fa5980dab 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -104,9 +104,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	// Reassign stack offsets of the locals that are used.
+ 	lastHasPtr := false
+ 	for i, n := range fn.Dcl {
+-		if n.Op() != ir.ONAME || n.Class != ir.PAUTO && !(n.Class == ir.PPARAMOUT && n.IsOutputParamInRegisters()) {
+-			// i.e., stack assign if AUTO, or if PARAMOUT in registers (which has no predefined spill locations)
+-			// TODO figure out when we don't need to spill output params.
++		if n.Op() != ir.ONAME || n.Class != ir.PAUTO {
+ 			continue
+ 		}
+ 		if !n.Used() {
+@@ -150,9 +148,9 @@ const maxStackSize = 1 << 30
+ func Compile(fn *ir.Func, worker int) {
+ 	f := buildssa(fn, worker)
+ 	// Note: check arg size to fix issue 25507.
+-	if f.Frontend().(*ssafn).stksize >= maxStackSize || f.OwnAux.ArgWidth() >= maxStackSize {
++	if f.Frontend().(*ssafn).stksize >= maxStackSize || fn.Type().ArgWidth() >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+-		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: f.OwnAux.ArgWidth(), pos: fn.Pos()})
++		largeStackFrames = append(largeStackFrames, largeStack{locals: f.Frontend().(*ssafn).stksize, args: fn.Type().ArgWidth(), pos: fn.Pos()})
+ 		largeStackFramesMu.Unlock()
+ 		return
+ 	}
+@@ -168,7 +166,7 @@ func Compile(fn *ir.Func, worker int) {
+ 	if pp.Text.To.Offset >= maxStackSize {
+ 		largeStackFramesMu.Lock()
+ 		locals := f.Frontend().(*ssafn).stksize
+-		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: f.OwnAux.ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos()})
++		largeStackFrames = append(largeStackFrames, largeStack{locals: locals, args: fn.Type().ArgWidth(), callee: pp.Text.To.Offset - locals, pos: fn.Pos()})
+ 		largeStackFramesMu.Unlock()
+ 		return
+ 	}
+@@ -191,12 +189,6 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 	n := slot.N
+ 	var off int64
+ 	switch n.Class {
+-	case ir.PPARAM, ir.PPARAMOUT:
+-		if !n.IsOutputParamInRegisters() {
+-			off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+-			break
+-		}
+-		fallthrough // PPARAMOUT in registers allocates like an AUTO
+ 	case ir.PAUTO:
+ 		off = n.FrameOffset()
+ 		if base.Ctxt.FixedFrameSize() == 0 {
+@@ -205,6 +197,8 @@ func StackOffset(slot ssa.LocalSlot) int32 {
+ 		if objabi.Framepointer_enabled {
+ 			off -= int64(types.PtrSize)
+ 		}
++	case ir.PPARAM, ir.PPARAMOUT:
++		off = n.FrameOffset() + base.Ctxt.FixedFrameSize()
+ 	}
+ 	return int32(off + slot.Off)
+ }
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6a3c0d28cb..0029558963 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -372,7 +372,7 @@ func (s *state) emitOpenDeferInfo() {
+ }
+ 
+ func okOffset(offset int64) int64 {
+-	if offset == types.BOGUS_FUNARG_OFFSET {
++	if offset >= types.BOGUS_FUNARG_OFFSET {
+ 		panic(fmt.Errorf("Bogus offset %d", offset))
+ 	}
+ 	return offset
+@@ -516,7 +516,7 @@ func buildssa(fn *ir.Func, worker int) *ssa.Func {
+ 	}
+ 
+ 	var params *abi.ABIParamResultInfo
+-	params = s.f.ABISelf.ABIAnalyze(fn.Type(), true)
++	params = s.f.ABISelf.ABIAnalyze(fn.Type())
+ 
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*ir.Name]*ssa.Value{}
+@@ -4914,6 +4914,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 			closure = iclosure
+ 		}
+ 	}
++	types.CalcSize(fn.Type())
++	stksize := fn.Type().ArgWidth() // includes receiver, args, and results
+ 
+ 	if regAbiForFuncType(n.X.Type().FuncType()) {
+ 		// fmt.Printf("Saw magic last type in call %v\n", n)
+@@ -4925,9 +4927,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool) *ssa.Val
+ 		callABI = s.f.ABI0
+ 	}
+ 
+-	params := callABI.ABIAnalyze(n.X.Type(), false /* Do not set (register) nNames from caller side -- can cause races. */ )
+-	types.CalcSize(fn.Type())
+-	stksize := params.ArgWidth() // includes receiver, args, and results
++	params := callABI.ABIAnalyze(n.X.Type())
+ 
+ 	res := n.X.Type().Results()
+ 	if k == callNormal {
+@@ -6838,13 +6838,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		f.HTMLWriter.WriteColumn("genssa", "genssa", "ssa-prog", buf.String())
+ 	}
+ 
+-	defframe(&s, e, f)
++	defframe(&s, e)
+ 
+ 	f.HTMLWriter.Close()
+ 	f.HTMLWriter = nil
+ }
+ 
+-func defframe(s *State, e *ssafn, f *ssa.Func) {
++func defframe(s *State, e *ssafn) {
+ 	pp := s.pp
+ 
+ 	frame := types.Rnd(s.maxarg+e.stksize, int64(types.RegSize))
+@@ -6854,7 +6854,7 @@ func defframe(s *State, e *ssafn, f *ssa.Func) {
+ 
+ 	// Fill in argument and frame size.
+ 	pp.Text.To.Type = obj.TYPE_TEXTSIZE
+-	pp.Text.To.Val = int32(types.Rnd(f.OwnAux.ArgWidth(), int64(types.RegSize)))
++	pp.Text.To.Val = int32(types.Rnd(e.curfn.Type().ArgWidth(), int64(types.RegSize)))
+ 	pp.Text.To.Offset = frame
+ 
+ 	// Insert code to zero ambiguously live variables so that the
+@@ -6957,18 +6957,14 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		a.Name = obj.NAME_EXTERN
+ 		a.Sym = n
+ 	case *ir.Name:
+-		if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
++		if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 			a.Name = obj.NAME_PARAM
+ 			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+ 			a.Offset += n.FrameOffset()
+ 			break
+ 		}
+ 		a.Name = obj.NAME_AUTO
+-		if n.Class == ir.PPARAMOUT {
+-			a.Sym = ir.Orig(n).(*ir.Name).Linksym()
+-		} else {
+-			a.Sym = n.Linksym()
+-		}
++		a.Sym = n.Linksym()
+ 		a.Offset += n.FrameOffset()
+ 	default:
+ 		v.Fatalf("aux in %s not implemented %#v", v, v.Aux)
+@@ -7112,7 +7108,7 @@ func AddrAuto(a *obj.Addr, v *ssa.Value) {
+ 	a.Sym = n.Linksym()
+ 	a.Reg = int16(Arch.REGSP)
+ 	a.Offset = n.FrameOffset() + off
+-	if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
++	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 		a.Name = obj.NAME_PARAM
+ 	} else {
+ 		a.Name = obj.NAME_AUTO
+@@ -7549,10 +7545,10 @@ func AddrForParamSlot(slot *ssa.LocalSlot, addr *obj.Addr) {
+ 	addr.Type = obj.TYPE_MEM
+ 	addr.Sym = n.Linksym()
+ 	addr.Offset = off
+-	if n.Class == ir.PPARAM || (n.Class == ir.PPARAMOUT && !n.IsOutputParamInRegisters()) {
++	if n.Class == ir.PPARAM || n.Class == ir.PPARAMOUT {
+ 		addr.Name = obj.NAME_PARAM
+ 		addr.Offset += n.FrameOffset()
+-	} else { // out parameters in registers allocate stack slots like autos.
++	} else {
+ 		addr.Name = obj.NAME_AUTO
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/test/abiutilsaux_test.go b/src/cmd/compile/internal/test/abiutilsaux_test.go
+index b945633133..7eb273273d 100644
+--- a/src/cmd/compile/internal/test/abiutilsaux_test.go
++++ b/src/cmd/compile/internal/test/abiutilsaux_test.go
+@@ -119,7 +119,7 @@ func abitest(t *testing.T, ft *types.Type, exp expectedDump) {
+ 	types.CalcSize(ft)
+ 
+ 	// Analyze with full set of registers.
+-	regRes := configAMD64.ABIAnalyze(ft, false)
++	regRes := configAMD64.ABIAnalyze(ft)
+ 	regResString := strings.TrimSpace(regRes.String())
+ 
+ 	// Check results.
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index a75429f0ab..ef23cdf5fe 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -163,9 +163,19 @@ func calcStructOffset(errtype *Type, t *Type, o int64, flag int) int64 {
+ 		if f.Type.Align > 0 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+-		if isStruct { // For receiver/args/results, do not set, it depends on ABI
++		if isStruct { // For receiver/args/results, depends on ABI
+ 			f.Offset = o
+ 		}
++		if f.Nname != nil {
++			// addrescapes has similar code to update these offsets.
++			// Usually addrescapes runs after calcStructOffset,
++			// in which case we could drop this,
++			// but function closure functions are the exception.
++			// NOTE(rsc): This comment may be stale.
++			// It's possible the ordering has changed and this is
++			// now the common case. I'm not sure.
++			f.Nname.(VarObject).RecordFrameOffset(o)
++		}
+ 
+ 		w := f.Type.Width
+ 		if w < 0 {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7bf63764b8..ffaf755345 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1750,7 +1750,7 @@ func NewTypeParam(pkg *Pkg) *Type {
+ 	return t
+ }
+ 
+-const BOGUS_FUNARG_OFFSET = -1000000000
++const BOGUS_FUNARG_OFFSET = 1000000000
+ 
+ func unzeroFieldOffsets(f []*Field) {
+ 	for i := range f {
+@@ -1759,7 +1759,7 @@ func unzeroFieldOffsets(f []*Field) {
+ }
+ 
+ // NewSignature returns a new function type for the given receiver,
+-// parameters, results, and type parameters, any of which may be nil.
++// parametes, results, and type parameters, any of which may be nil.
+ func NewSignature(pkg *Pkg, recv *Field, tparams, params, results []*Field) *Type {
+ 	var recvs []*Field
+ 	if recv != nil {
+diff --git a/test/abi/fibish2.go b/test/abi/fibish2.go
+index 388aabc8b0..14f3f9ada7 100644
+--- a/test/abi/fibish2.go
++++ b/test/abi/fibish2.go
+@@ -13,12 +13,12 @@ import "fmt"
+ 
+ // Test that register results are correctly returned (and passed)
+ 
+-type MagicLastTypeNameForTestingRegisterABI func(int, MagicLastTypeNameForTestingRegisterABI) int
++type MagicLastTypeNameForTestingRegisterABI func(int,MagicLastTypeNameForTestingRegisterABI) int
+ 
+ //go:registerparams
+ //go:noinline
+ func minus(decrement int) MagicLastTypeNameForTestingRegisterABI {
+-	return MagicLastTypeNameForTestingRegisterABI(func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x - decrement })
++	return MagicLastTypeNameForTestingRegisterABI( func(x int, _ MagicLastTypeNameForTestingRegisterABI) int { return x-decrement} )
+ }
+ 
+ //go:noinline
+diff --git a/test/abi/leaf.go b/test/abi/leaf.go
+deleted file mode 100644
+index f893f5dddb..0000000000
+--- a/test/abi/leaf.go
++++ /dev/null
+@@ -1,36 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// wasm is excluded because the compiler chatter about register abi pragma ends up
+-// on stdout, and causes the expected output to not match.
+-
+-package main
+-
+-import "fmt"
+-
+-type i5f5 struct {
+-	a, b          int16
+-	c, d, e       int32
+-	r, s, t, u, v float32
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func F(x i5f5) i5f5 {
+-	return x
+-}
+-
+-func main() {
+-	x := i5f5{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+-	y := x
+-	z := F(x)
+-	if y != z {
+-		fmt.Printf("y=%v, z=%v\n", y, z)
+-	}
+-}
+diff --git a/test/abi/leaf2.go b/test/abi/leaf2.go
+deleted file mode 100644
+index d2018d5313..0000000000
+--- a/test/abi/leaf2.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// wasm is excluded because the compiler chatter about register abi pragma ends up
+-// on stdout, and causes the expected output to not match.
+-
+-package main
+-
+-import "fmt"
+-
+-type i4 struct {
+-	a, b, c, d int
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func F(x i4) i4 {
+-	ab := x.a + x.b
+-	bc := x.b + x.c
+-	cd := x.c + x.d
+-	ad := x.a + x.d
+-	ba := x.a - x.b
+-	cb := x.b - x.c
+-	dc := x.c - x.d
+-	da := x.a - x.d
+-
+-	return i4{ab*bc + da, cd*ad + cb, ba*cb + ad, dc*da + bc}
+-}
+-
+-func main() {
+-	x := i4{1, 2, 3, 4}
+-	y := x
+-	z := F(x)
+-	if (i4{12, 34, 6, 8}) != z {
+-		fmt.Printf("y=%v, z=%v\n", y, z)
+-	}
+-}
+diff --git a/test/abi/methods.go b/test/abi/methods.go
+index 3dcd3e327a..9ecae9833e 100644
+--- a/test/abi/methods.go
++++ b/test/abi/methods.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ type toobig struct {
+-	a, b, c string
++	a,b,c string
+ }
+ 
+ //go:registerparams
+@@ -29,8 +29,8 @@ type AnInterface interface {
+ 
+ //go:registerparams
+ //go:noinline
+-func I(a, b, c string) toobig {
+-	return toobig{a, b, c}
++func I(a,b,c string) toobig {
++	return toobig{a,b,c}
+ }
+ 
+ // AnIid prevents the compiler from figuring out what the interface really is.
+@@ -40,13 +40,12 @@ func AnIid(x AnInterface) AnInterface {
+ }
+ 
+ var tmp toobig
+-
+ func main() {
+ 	x := I("Ahoy", "1,", "2")
+ 	y := I("3", "there,", "4")
+ 	z := I("5", "6,", "Matey")
+-	tmp = x.MagicMethodNameForTestingRegisterABI(y, z)
++	tmp = x.MagicMethodNameForTestingRegisterABI(y,z)
+ 	fmt.Println(tmp.a, tmp.b, tmp.c)
+-	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y, z)
++	tmp = AnIid(&x).MagicMethodNameForTestingRegisterABI(y,z)
+ 	fmt.Println(tmp.a, tmp.b, tmp.c)
+ }
+diff --git a/test/abi/spills3.go b/test/abi/spills3.go
+deleted file mode 100644
+index 247828437b..0000000000
+--- a/test/abi/spills3.go
++++ /dev/null
+@@ -1,48 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// wasm is excluded because the compiler chatter about register abi pragma ends up
+-// on stdout, and causes the expected output to not match.
+-
+-package main
+-
+-import "fmt"
+-
+-type i4 struct {
+-	a, b, c, d int
+-}
+-
+-//go:noinline
+-func spills(px *i4) {
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func F(x i4) i4 {
+-	ab := x.a + x.b
+-	bc := x.b + x.c
+-	cd := x.c + x.d
+-	ad := x.a + x.d
+-	ba := x.a - x.b
+-	cb := x.b - x.c
+-	dc := x.c - x.d
+-	da := x.a - x.d
+-	i := i4{ab*bc + da, cd*ad + cb, ba*cb + ad, dc*da + bc}
+-	spills(&i)
+-	return i
+-}
+-
+-func main() {
+-	x := i4{1, 2, 3, 4}
+-	y := x
+-	z := F(x)
+-	if z != (i4{12, 34, 6, 8}) {
+-		fmt.Printf("y=%v, z=%v\n", y, z)
+-	}
+-}
+diff --git a/test/abi/spills4.go b/test/abi/spills4.go
+deleted file mode 100644
+index 205f5a64c0..0000000000
+--- a/test/abi/spills4.go
++++ /dev/null
+@@ -1,44 +0,0 @@
+-// run
+-
+-//go:build !wasm
+-// +build !wasm
+-
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// wasm is excluded because the compiler chatter about register abi pragma ends up
+-// on stdout, and causes the expected output to not match.
+-
+-package main
+-
+-import "fmt"
+-
+-type i5f5 struct {
+-	a, b          int16
+-	c, d, e       int32
+-	r, s, t, u, v float32
+-}
+-
+-//go:noinline
+-func spills(_ *float32) {
+-
+-}
+-
+-//go:registerparams
+-//go:noinline
+-func F(x i5f5) i5f5 {
+-	y := x.v
+-	spills(&y)
+-	x.r = y
+-	return x
+-}
+-
+-func main() {
+-	x := i5f5{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+-	y := x
+-	z := F(x)
+-	if (i5f5{1, 2, 3, 4, 5, 10, 7, 8, 9, 10}) != z {
+-		fmt.Printf("y=%v, z=%v\n", y, z)
+-	}
+-}

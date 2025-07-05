@@ -15,7 +15,102 @@ Date:   Sat Feb 27 03:14:06 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/request.go      |  7 +++++
  src/net/http/request_test.go | 62 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 69 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 76fb8fe6d1..9dba0c33b5 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -997,9 +997,16 @@ func (r *Request) ParseMultipartForm(maxMemory int64) error {
+ 	if err != nil {
+ 		return err
+ 	}
++
++	if r.PostForm == nil {
++		r.PostForm = make(url.Values)
++	}
+ 	for k, v := range f.Value {
+ 		r.Form[k] = append(r.Form[k], v...)
++		// r.PostForm should also be populated. See Issue 9305.
++		r.PostForm[k] = append(r.PostForm[k], v...)
+ 	}
++
+ 	r.MultipartForm = f
+ 
+ 	return nil
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 3d215ff538..ff4837f2fa 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -158,6 +158,68 @@ func TestMultipartReader(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 9305: ParseMultipartForm should populate PostForm too
++func TestParseMultipartFormPopulatesPostForm(t *testing.T) {
++	postData :=
++		`--xxx
++Content-Disposition: form-data; name="field1"
++
++value1
++--xxx
++Content-Disposition: form-data; name="field2"
++
++value2
++--xxx
++Content-Disposition: form-data; name="file"; filename="file"
++Content-Type: application/octet-stream
++Content-Transfer-Encoding: binary
++
++binary data
++--xxx--
++`
++	req := &Request{
++		Method: "POST",
++		Header: Header{"Content-Type": {`multipart/form-data; boundary=xxx`}},
++		Body:   ioutil.NopCloser(strings.NewReader(postData)),
++	}
++
++	initialFormItems := map[string]string{
++		"language": "Go",
++		"name":     "gopher",
++		"skill":    "go-ing",
++		"field2":   "initial-value2",
++	}
++
++	req.Form = make(url.Values)
++	for k, v := range initialFormItems {
++		req.Form.Add(k, v)
++	}
++
++	err := req.ParseMultipartForm(10000)
++	if err != nil {
++		t.Fatalf("unexpected multipart error %v", err)
++	}
++
++	wantForm := url.Values{
++		"language": []string{"Go"},
++		"name":     []string{"gopher"},
++		"skill":    []string{"go-ing"},
++		"field1":   []string{"value1"},
++		"field2":   []string{"initial-value2", "value2"},
++	}
++	if !reflect.DeepEqual(req.Form, wantForm) {
++		t.Fatalf("req.Form = %v, want %v", req.Form, wantForm)
++	}
++
++	wantPostForm := url.Values{
++		"field1": []string{"value1"},
++		"field2": []string{"value2"},
++	}
++	if !reflect.DeepEqual(req.PostForm, wantPostForm) {
++		t.Fatalf("req.PostForm = %v, want %v", req.PostForm, wantPostForm)
++	}
++}
++
+ func TestParseMultipartForm(t *testing.T) {
+ 	req := &Request{
+ 		Method: "POST",

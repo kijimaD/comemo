@@ -15,6 +15,19 @@ Date:   Mon Apr 20 22:17:17 2020 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cover/html.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/cover/html.go b/src/cmd/cover/html.go
+index 7940e78f22..82ef88b79c 100644
+--- a/src/cmd/cover/html.go
++++ b/src/cmd/cover/html.go
+@@ -183,6 +183,7 @@ const tmplHTML = `
+ <html>
+ 	<head>
+ 		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
++		<title>Go Coverage Report</title>
+ 		<style>
+ 			body {
+ 				background: black;

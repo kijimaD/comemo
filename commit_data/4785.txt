@@ -7,6 +7,19 @@ Date:   Thu Feb 4 11:42:41 2010 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/201041
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index c961924a7b..03a65a0a36 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -29,6 +29,7 @@
+ Abhinav Gupta <abhinav.g90@gmail.com>
+ Adam Langley <agl@golang.org>
+ Adrian O'Grady <elpollouk@gmail.com>
++Andrew Gerrand <adg@golang.org>
+ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>

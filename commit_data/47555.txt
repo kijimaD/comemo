@@ -22,6 +22,20 @@ Date:   Thu Aug 6 18:37:10 2020 -0400
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/fma.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/fma.go b/src/math/fma.go
+index db78dfa5e1..ca0bf99f21 100644
+--- a/src/math/fma.go
++++ b/src/math/fma.go
+@@ -128,7 +128,7 @@ func FMA(x, y, z float64) float64 {
+ 	pe -= int32(is62zero)
+ 
+ 	// Swap addition operands so |p| >= |z|
+-	if pe < ze || (pe == ze && (pm1 < zm1 || (pm1 == zm1 && pm2 < zm2))) {
++	if pe < ze || pe == ze && pm1 < zm1 {
+ 		ps, pe, pm1, pm2, zs, ze, zm1, zm2 = zs, ze, zm1, zm2, ps, pe, pm1, pm2
+ 	}
+ 

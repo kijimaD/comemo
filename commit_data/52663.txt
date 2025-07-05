@@ -26,7 +26,58 @@ Date:   Sun May 15 08:05:41 2022 +0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/inline/inl.go | 10 ++++++----
  test/fixedbugs/issue52907.go           |  7 +++++++
  2 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index ff2780de82..9ef016ab73 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -701,13 +701,15 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	// apparent when we first created the instantiation of the generic function.
+ 	// We can't handle this if we actually do the inlining, since we want to know
+ 	// all interface conversions immediately after stenciling. So, we avoid
+-	// inlining in this case. See #49309. (1)
+-	if !fn.Type().HasShape() {
++	// inlining in this case, see issue #49309. (1)
++	//
++	// See discussion on go.dev/cl/406475 for more background.
++	if !fn.Type().Params().HasShape() {
+ 		for _, arg := range n.Args {
+ 			if arg.Type().HasShape() {
+ 				if logopt.Enabled() {
+ 					logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-						fmt.Sprintf("inlining non-shape function %v with shape args", ir.FuncName(fn)))
++						fmt.Sprintf("inlining function %v has no-shape params with shape args", ir.FuncName(fn)))
+ 				}
+ 				return n
+ 			}
+@@ -725,7 +727,7 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 		if !inlineable {
+ 			if logopt.Enabled() {
+ 				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", ir.FuncName(ir.CurFunc),
+-					fmt.Sprintf("inlining shape function %v with no shape args", ir.FuncName(fn)))
++					fmt.Sprintf("inlining function %v has shape params with no-shape args", ir.FuncName(fn)))
+ 			}
+ 			return n
+ 		}
+diff --git a/test/fixedbugs/issue52907.go b/test/fixedbugs/issue52907.go
+index 776be7f280..f54b2049eb 100644
+--- a/test/fixedbugs/issue52907.go
++++ b/test/fixedbugs/issue52907.go
+@@ -14,6 +14,13 @@ func f[T int](t T) {
+ 	}
+ }
+ 
++func g[T int](g T) {
++	for true {
++		_ = func() T { return func(int) T { return g }(0) }()
++	}
++}
++
+ func main() {
+ 	f(0)
++	g(0)
+ }

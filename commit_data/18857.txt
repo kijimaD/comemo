@@ -14,10 +14,96 @@ Date:   Thu Mar 13 13:25:59 2014 +0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/75320043
-
+---
  src/pkg/runtime/panic.c         | 23 +++++++++++++++++++++++
  src/pkg/runtime/runtime.h       |  1 +
  src/pkg/runtime/signal_386.c    |  2 +-
  src/pkg/runtime/signal_amd64x.c |  2 +-
  src/pkg/runtime/signal_arm.c    |  2 +-
  5 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/runtime/panic.c b/src/pkg/runtime/panic.c
+index 29bf7de27f..d35f7800a3 100644
+--- a/src/pkg/runtime/panic.c
++++ b/src/pkg/runtime/panic.c
+@@ -485,6 +485,29 @@ runtime·throwinit(void)
+ 	runtime·throw("recursive call during initialization - linker skew");
+ }
+ 
++bool
++runtime·canpanic(G *gp)
++{
++	byte g;
++
++	USED(&g);  // don't use global g, it points to gsignal
++
++	// Is it okay for gp to panic instead of crashing the program?
++	// Yes, as long as it is running Go code, not runtime code,
++	// and not stuck in a system call.
++	if(gp == nil || gp != m->curg)
++		return false;
++	if(m->locks != 0 || m->mallocing != 0 || m->throwing != 0 || m->gcing != 0 || m->dying != 0)
++		return false;
++	if(gp->status != Grunning || gp->syscallsp != 0)
++		return false;
++#ifdef GOOS_windows
++	if(m->libcallsp != 0)
++		return false;
++#endif
++	return true;
++}
++
+ void
+ runtime·throw(int8 *s)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 0682a8026a..ecff533f59 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -836,6 +836,7 @@ void	runtime·goenvs_unix(void);
+ void*	runtime·getu(void);
+ void	runtime·throw(int8*);
+ void	runtime·panicstring(int8*);
++bool	runtime·canpanic(G*);
+ void	runtime·prints(int8*);
+ void	runtime·printf(int8*, ...);
+ byte*	runtime·mchr(byte*, byte, byte*);
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 829f389cc2..70790fa0a3 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -45,7 +45,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
++		if(!runtime·canpanic(gp))
+ 			goto Throw;
+ 
+ 		// Make it look like a call to the signal func.
+diff --git a/src/pkg/runtime/signal_amd64x.c b/src/pkg/runtime/signal_amd64x.c
+index 871891ad18..b217338711 100644
+--- a/src/pkg/runtime/signal_amd64x.c
++++ b/src/pkg/runtime/signal_amd64x.c
+@@ -54,7 +54,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
++		if(!runtime·canpanic(gp))
+ 			goto Throw;
+ 
+ 		// Make it look like a call to the signal func.
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 563f1f2bef..41997dbd85 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -52,7 +52,7 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(gp == nil || gp == m->g0)
++		if(!runtime·canpanic(gp))
+ 			goto Throw;
+ 
+ 		// Make it look like a call to the signal func.

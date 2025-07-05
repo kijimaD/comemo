@@ -43,8 +43,83 @@ Date:   Wed Sep 4 13:20:36 2024 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go       | 16 ++++++++++++++--
  src/cmd/compile/internal/syntax/printer.go      | 12 ++++++++----
  src/cmd/compile/internal/syntax/printer_test.go |  6 ++++++
  3 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index 20106f4e61..cd6b6696a2 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -721,8 +721,20 @@ func extractName(x Expr, force bool) (*Name, Expr) {
+ 	case *CallExpr:
+ 		if name, _ := x.Fun.(*Name); name != nil {
+ 			if len(x.ArgList) == 1 && !x.HasDots && (force || isTypeElem(x.ArgList[0])) {
+-				// x = name "(" x.ArgList[0] ")"
+-				return name, x.ArgList[0]
++				// The parser doesn't keep unnecessary parentheses.
++				// Set the flag below to keep them, for testing
++				// (see go.dev/issues/69206).
++				const keep_parens = false
++				if keep_parens {
++					// x = name (x.ArgList[0])
++					px := new(ParenExpr)
++					px.pos = x.pos // position of "(" in call
++					px.X = x.ArgList[0]
++					return name, px
++				} else {
++					// x = name x.ArgList[0]
++					return name, Unparen(x.ArgList[0])
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 9f20db54de..3b234d43f9 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -916,7 +916,7 @@ func (p *printer) printParameterList(list []*Field, tok token) {
+ 			}
+ 			p.print(blank)
+ 		}
+-		p.printNode(Unparen(f.Type)) // no need for (extra) parentheses around parameter types
++		p.printNode(f.Type)
+ 	}
+ 	// A type parameter list [P T] where the name P and the type expression T syntactically
+ 	// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+@@ -943,9 +943,13 @@ func combinesWithName(x Expr) bool {
+ 		// binary expressions
+ 		return combinesWithName(x.X) && !isTypeElem(x.Y)
+ 	case *ParenExpr:
+-		// name(x) combines but we are making sure at
+-		// the call site that x is never parenthesized.
+-		panic("unexpected parenthesized expression")
++		// Note that the parser strips parentheses in these cases
++		// (see extractName, parser.typeOrNil) unless keep_parens
++		// is set, so we should never reach here.
++		// Do the right thing (rather than panic) for testing and
++		// in case we change parser behavior.
++		// See also go.dev/issues/69206.
++		return !isTypeElem(x.X)
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/syntax/printer_test.go b/src/cmd/compile/internal/syntax/printer_test.go
+index 99baf7f5b6..22585dfd25 100644
+--- a/src/cmd/compile/internal/syntax/printer_test.go
++++ b/src/cmd/compile/internal/syntax/printer_test.go
+@@ -134,6 +134,12 @@ var stringTests = [][2]string{
+ 	dup("package p; type _ chan<- <-chan int"),
+ 	dup("package p; type _ chan<- chan<- int"),
+ 
++	// go.dev/issues/69206
++	dup("package p; type _[P C] int"),
++	{"package p; type _[P (C),] int", "package p; type _[P C] int"},
++	{"package p; type _[P ((C)),] int", "package p; type _[P C] int"},
++	{"package p; type _[P, Q ((C))] int", "package p; type _[P, Q C] int"},
++
+ 	// TODO(gri) expand
+ }
+ 

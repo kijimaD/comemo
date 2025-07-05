@@ -13,6 +13,18 @@ Date:   Sat Jan 30 11:31:30 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/194157
-
+---
  test/runtime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/runtime.go b/test/runtime.go
+index 9507300a27..256873a7a9 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -16,5 +16,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true);	// ERROR "cannot refer|undefined identifier"
++	runtime.printbool(true);	// ERROR "unexported"
+ }

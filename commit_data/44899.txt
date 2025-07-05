@@ -19,8 +19,100 @@ Date:   Mon Sep 14 10:19:47 2020 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/api/goapi.go                | 17 +++++++++++++----
  src/cmd/api/goapi_test.go           | 13 +++++++++++++
  src/cmd/go/internal/modload/load.go |  8 ++++++--
  3 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 01b17b8839..6a80ed269b 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -87,7 +87,10 @@ var contexts = []*build.Context{
+ func contextName(c *build.Context) string {
+ 	s := c.GOOS + "-" + c.GOARCH
+ 	if c.CgoEnabled {
+-		return s + "-cgo"
++		s += "-cgo"
++	}
++	if c.Dir != "" {
++		s += fmt.Sprintf(" [%s]", c.Dir)
+ 	}
+ 	return s
+ }
+@@ -478,6 +481,9 @@ func (w *Walker) loadImports() {
+ 
+ 		cmd := exec.Command(goCmd(), "list", "-e", "-deps", "-json", "std")
+ 		cmd.Env = listEnv(w.context)
++		if w.context.Dir != "" {
++			cmd.Dir = w.context.Dir
++		}
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			log.Fatalf("loading imports: %v\n%s", err, out)
+@@ -491,6 +497,7 @@ func (w *Walker) loadImports() {
+ 			var pkg struct {
+ 				ImportPath, Dir string
+ 				ImportMap       map[string]string
++				Standard        bool
+ 			}
+ 			err := dec.Decode(&pkg)
+ 			if err == io.EOF {
+@@ -503,11 +510,13 @@ func (w *Walker) loadImports() {
+ 			// - Package "unsafe" contains special signatures requiring
+ 			//   extra care when printing them - ignore since it is not
+ 			//   going to change w/o a language change.
+-			// - internal and vendored packages do not contribute to our
+-			//   API surface.
++			// - Internal and vendored packages do not contribute to our
++			//   API surface. (If we are running within the "std" module,
++			//   vendored dependencies appear as themselves instead of
++			//   their "vendor/" standard-library copies.)
+ 			// - 'go list std' does not include commands, which cannot be
+ 			//   imported anyway.
+-			if ip := pkg.ImportPath; ip != "unsafe" && !strings.HasPrefix(ip, "vendor/") && !internalPkg.MatchString(ip) {
++			if ip := pkg.ImportPath; pkg.Standard && ip != "unsafe" && !strings.HasPrefix(ip, "vendor/") && !internalPkg.MatchString(ip) {
+ 				stdPackages = append(stdPackages, ip)
+ 			}
+ 			importDir[pkg.ImportPath] = pkg.Dir
+diff --git a/src/cmd/api/goapi_test.go b/src/cmd/api/goapi_test.go
+index eaccc5ceb5..24620a94af 100644
+--- a/src/cmd/api/goapi_test.go
++++ b/src/cmd/api/goapi_test.go
+@@ -216,3 +216,16 @@ func TestIssue29837(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue41358(t *testing.T) {
++	context := new(build.Context)
++	*context = build.Default
++	context.Dir = filepath.Join(context.GOROOT, "src")
++
++	w := NewWalker(context, context.Dir)
++	for _, pkg := range w.stdPackages {
++		if strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "golang.org/x/") {
++			t.Fatalf("stdPackages contains unexpected package %s", pkg)
++		}
++	}
++}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 1664d8c5be..2fe68e6f88 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1106,8 +1106,12 @@ func (ld *loader) stdVendor(parentPath, path string) string {
+ 		// Do the same for importers beginning with the prefix 'vendor/' even if we
+ 		// are *inside* of the 'std' module: the 'vendor/' packages that resolve
+ 		// globally from GOROOT/src/vendor (and are listed as part of 'go list std')
+-		// are distinct from the real module dependencies, and cannot import internal
+-		// packages from the real module.
++		// are distinct from the real module dependencies, and cannot import
++		// internal packages from the real module.
++		//
++		// (Note that although the 'vendor/' packages match the 'std' *package*
++		// pattern, they are not part of the std *module*, and do not affect
++		// 'go mod tidy' and similar module commands when working within std.)
+ 		vendorPath := pathpkg.Join("vendor", path)
+ 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+ 			return vendorPath

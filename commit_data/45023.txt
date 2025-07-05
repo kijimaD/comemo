@@ -33,7 +33,85 @@ Date:   Fri Jun 12 15:14:42 2020 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/test/testflag.go     | 16 ++++++++++++++++
  src/cmd/go/testdata/script/test_flag.txt | 18 ++++++++++++++++++
  2 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 4f0a8924f1..d2671ff5a7 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -212,6 +212,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		}
+ 	})
+ 
++	// firstUnknownFlag helps us report an error when flags not known to 'go
++	// test' are used along with -i or -c.
++	firstUnknownFlag := ""
++
+ 	explicitArgs := make([]string, 0, len(args))
+ 	inPkgList := false
+ 	afterFlagWithoutValue := false
+@@ -288,6 +292,10 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				break
+ 			}
+ 
++			if firstUnknownFlag == "" {
++				firstUnknownFlag = nd.RawArg
++			}
++
+ 			explicitArgs = append(explicitArgs, nd.RawArg)
+ 			args = remainingArgs
+ 			if !nd.HasValue {
+@@ -312,6 +320,14 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 
+ 		args = remainingArgs
+ 	}
++	if firstUnknownFlag != "" && (testC || cfg.BuildI) {
++		buildFlag := "-c"
++		if !testC {
++			buildFlag = "-i"
++		}
++		fmt.Fprintf(os.Stderr, "flag %s is not a 'go test' flag (unknown flags cannot be used with %s)\n", firstUnknownFlag, buildFlag)
++		exitWithUsage()
++	}
+ 
+ 	var injectedFlags []string
+ 	if testJSON {
+diff --git a/src/cmd/go/testdata/script/test_flag.txt b/src/cmd/go/testdata/script/test_flag.txt
+index bbcad1c59c..ec88d38cbe 100644
+--- a/src/cmd/go/testdata/script/test_flag.txt
++++ b/src/cmd/go/testdata/script/test_flag.txt
+@@ -3,6 +3,22 @@
+ go test flag_test.go -v -args -v=7 # Two distinct -v flags
+ go test -v flag_test.go -args -v=7 # Two distinct -v flags
+ 
++# Using a custom flag mixed with regular 'go test' flags should be OK.
++go test -count=1 -custom -args -v=7
++
++# However, it should be an error to use custom flags when -i or -c are used,
++# since we know for sure that no test binary will run at all.
++! go test -i -custom
++stderr '^flag -custom is not a ''go test'' flag \(unknown flags cannot be used with -i\)$'
++! go test -c -custom
++stderr '^flag -custom is not a ''go test'' flag \(unknown flags cannot be used with -c\)$'
++
++# The same should apply even if -c or -i come after a custom flag.
++! go test -custom -c
++stderr '^flag -custom is not a ''go test'' flag \(unknown flags cannot be used with -c\)$'
++
++-- go.mod --
++module m
+ -- flag_test.go --
+ package flag_test
+ 
+@@ -14,6 +30,8 @@ import (
+ 
+ var v = flag.Int("v", 0, "v flag")
+ 
++var custom = flag.Bool("custom", false, "")
++
+ // Run this as go test pkg -v=7
+ func TestVFlagIsSet(t *testing.T) {
+ 	if *v != 7 {

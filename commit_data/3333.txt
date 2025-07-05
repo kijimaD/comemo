@@ -7,7 +7,7 @@ Date:   Mon Sep 21 15:45:55 2009 -0700
     R=ken
     OCL=34859
     CL=34865
-
+---
  src/cmd/8g/cgen.c      |  6 +++---
  src/cmd/gc/const.c     | 35 +++++++++++++++++++++++++++--------
  src/cmd/gc/export.c    |  2 +-
@@ -20,3 +20,410 @@ Date:   Mon Sep 21 15:45:55 2009 -0700
  src/cmd/gc/typecheck.c | 26 +++++++++++++++++++-------
  src/cmd/gc/walk.c      |  4 ++--
  11 files changed, 76 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 6e22c5489d..6c96aad3e3 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -136,7 +136,7 @@ cgen(Node *n, Node *res)
+ 		tempfree(&n1);
+ 		return;
+ 	}
+-
++	
+ 	// 64-bit ops are hard on 32-bit machine.
+ 	if(is64(n->type) || is64(res->type) || n->left != N && is64(n->left->type)) {
+ 		switch(n->op) {
+@@ -156,7 +156,7 @@ cgen(Node *n, Node *res)
+ 		}
+ 	}
+ 
+-	if(isfloat[n->type->etype] && isfloat[nl->type->etype])
++	if(nl != N && isfloat[n->type->etype] && isfloat[nl->type->etype])
+ 		goto flt;
+ 
+ 	switch(n->op) {
+@@ -392,7 +392,7 @@ flt:	// floating-point.  387 (not SSE2) to interoperate with 6c
+ 
+ 	// unary
+ 	cgen(nl, &f0);
+-	if(n->op != OCONV)
++	if(n->op != OCONV && n->op != OPLUS)
+ 		gins(foptoas(n->op, n->type, 0), &f0, &f0);
+ 	gmove(&f0, res);
+ 	return;
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index db28b3c9d4..dd0cc15e52 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -70,7 +70,7 @@ convlit1(Node **np, Type *t, int explicit)
+ 	Node *n, *nn;
+ 
+ 	n = *np;
+-	if(n == N || t == T || n->type == T || isideal(t) || eqtype(t, n->type))
++	if(n == N || t == T || n->type == T || isideal(t) || n->type == t)
+ 		return;
+ 	if(!explicit && !isideal(n->type))
+ 		return;
+@@ -285,12 +285,19 @@ tostr(Val v)
+ 		s = mal(sizeof(*s)+l);
+ 		s->len = l;
+ 		runetochar((char*)s->s, &rune);
++		memset(&v, 0, sizeof v);
+ 		v.ctype = CTSTR;
+ 		v.u.sval = s;
+ 		break;
+ 
+ 	case CTFLT:
+ 		yyerror("no float -> string");
++	
++	case CTNIL:
++		memset(&v, 0, sizeof v);
++		v.ctype = CTSTR;
++		v.u.sval = mal(sizeof *s);
++		break;
+ 	}
+ 	return v;
+ }
+@@ -593,11 +600,17 @@ unary:
+ 		}
+ 		return;
+ 
++	case TUP(OCONV, CTNIL):
++	case TUP(OARRAYBYTESTR, CTNIL):
++		if(n->type->etype == TSTRING) {
++			v = tostr(v);
++			nl->type = n->type;
++			break;
++		}
++		// fall through
+ 	case TUP(OCONV, CTINT):
+ 	case TUP(OCONV, CTFLT):
+ 	case TUP(OCONV, CTSTR):
+-	case TUP(OCONV, CTNIL):
+-	case TUP(OARRAYBYTESTR, CTNIL):
+ 		convlit1(&nl, n->type, 1);
+ 		break;
+ 
+@@ -679,10 +692,10 @@ nodlit(Val v)
+ 	default:
+ 		fatal("nodlit ctype %d", v.ctype);
+ 	case CTSTR:
+-		n->type = types[TSTRING];
++		n->type = idealstring;
+ 		break;
+ 	case CTBOOL:
+-		n->type = types[TBOOL];
++		n->type = idealbool;
+ 		break;
+ 	case CTINT:
+ 	case CTFLT:
+@@ -730,7 +743,10 @@ defaultlit(Node **np, Type *t)
+ 		}
+ 		defaultlit(&n->left, t);
+ 		defaultlit(&n->right, t);
+-		n->type = n->left->type;
++		if(n->type == idealbool || n->type == idealstring)
++			n->type = types[n->type->etype];
++		else
++			n->type = n->left->type;
+ 		return;
+ 	}
+ 
+@@ -753,6 +769,9 @@ defaultlit(Node **np, Type *t)
+ 		}
+ 		yyerror("defaultlit: unknown literal: %#N", n);
+ 		break;
++	case CTBOOL:
++		n->type = types[TBOOL];
++		break;
+ 	case CTINT:
+ 		n->type = types[TINT];
+ 		if(t != T) {
+@@ -795,11 +814,11 @@ defaultlit2(Node **lp, Node **rp, int force)
+ 	r = *rp;
+ 	if(l->type == T || r->type == T)
+ 		return;
+-	if(l->type->etype != TIDEAL && l->type->etype != TNIL) {
++	if(!isideal(l->type)) {
+ 		convlit(rp, l->type);
+ 		return;
+ 	}
+-	if(r->type->etype != TIDEAL && r->type->etype != TNIL) {
++	if(!isideal(r->type)) {
+ 		convlit(lp, r->type);
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 65f537c83c..bd0e185c16 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -102,7 +102,7 @@ dumpexportconst(Sym *s)
+ 
+ 	Bprint(bout, "\t");
+ 	Bprint(bout, "const %lS", s);
+-	if(t != T && t->etype != TIDEAL)
++	if(t != T && !isideal(t))
+ 		Bprint(bout, " %#T", t);
+ 	Bprint(bout, " = ");
+ 
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index b7c2474bf2..e570d589c6 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -443,7 +443,8 @@ cgen_discard(Node *nr)
+ 
+ 	switch(nr->op) {
+ 	case ONAME:
+-		gused(nr);
++		if(!(nr->class & PHEAP))
++			gused(nr);
+ 		break;
+ 
+ 	// unary
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index dadc3bf830..8c01ad9a30 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -630,6 +630,7 @@ EXTERN	Idir*	idirs;
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	Type*	idealstring;
++EXTERN	Type*	idealbool;
+ EXTERN	uchar	simtype[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+ EXTERN	uchar	isforw[NTYPE];
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 05e71f87a3..827a351a7f 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -1311,15 +1311,6 @@ lexinit(void)
+ 	s->def->iota = 1;
+ 	s->def->sym = s;
+ 
+-	s = pkglookup("true", "/builtin/");
+-	s->def = nodbool(1);
+-	s->def->sym = lookup("true");
+-
+-	s = pkglookup("false", "/builtin/");
+-	s->def = nodbool(0);
+-	s->def->sym = lookup("false");
+-
+-
+ 	// logically, the type of a string literal.
+ 	// types[TSTRING] is the named type string
+ 	// (the type of x in var x string or var x = "hello").
+@@ -1327,6 +1318,17 @@ lexinit(void)
+ 	// (the type of x in const x = "hello").
+ 	// TODO(rsc): this may need some more thought.
+ 	idealstring = typ(TSTRING);
++	idealbool = typ(TBOOL);
++
++	s = pkglookup("true", "/builtin/");
++	s->def = nodbool(1);
++	s->def->sym = lookup("true");
++	s->def->type = idealbool;
++
++	s = pkglookup("false", "/builtin/");
++	s->def = nodbool(0);
++	s->def->sym = lookup("false");
++	s->def->type = idealbool;
+ 
+ 	s = lookup("_");
+ 	s->block = -100;
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index da63cd0d77..dfe4f3fa84 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -450,7 +450,7 @@ typename(Type *t)
+ 	Sym *s;
+ 	Node *n;
+ 
+-	if(isptr[t->etype] && t->type == T)
++	if((isptr[t->etype] && t->type == T) || isideal(t))
+ 		fatal("typename %T", t);
+ 	s = typesym(t);
+ 	if(s->def == N) {
+@@ -482,8 +482,8 @@ dtypesym(Type *t)
+ 	Type *t1;
+ 	Sym *tsym;
+ 
+-	if(t->etype == TNIL || t->etype == TIDEAL || t == idealstring)
+-		fatal("dtypesym ideal %T", t);
++	if(isideal(t))
++		fatal("dtypesym %T", t);
+ 
+ 	s = typesym(t);
+ 	if(s->flags & SymSiggen)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 27c13b02d1..97fdc4f192 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -462,7 +462,7 @@ nodbool(int b)
+ 	c = nodintconst(0);
+ 	c->val.ctype = CTBOOL;
+ 	c->val.u.bval = b;
+-	c->type = types[TBOOL];
++	c->type = idealbool;
+ 	return c;
+ }
+ 
+@@ -992,8 +992,11 @@ Tpretty(Fmt *fp, Type *t)
+ 		return fmtprint(fp, "%S", s);
+ 	}
+ 
+-	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
++	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil) {
++		if(isideal(t) && t->etype != TIDEAL && t->etype != TNIL)
++			fmtprint(fp, "ideal ");
+ 		return fmtprint(fp, "%s", basicnames[t->etype]);
++	}
+ 
+ 	switch(t->etype) {
+ 	case TPTR32:
+@@ -1498,9 +1501,7 @@ isideal(Type *t)
+ {
+ 	if(t == T)
+ 		return 0;
+-	if(t == idealstring)
+-		return 1;
+-	return t->etype == TNIL || t->etype == TIDEAL;
++	return t == idealstring || t == idealbool || t->etype == TNIL || t->etype == TIDEAL;
+ }
+ 
+ /*
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 60696e6f6b..09d8c564d3 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -840,7 +840,7 @@ typecheckswitch(Node *n)
+ 					if(ll->n->op == OTYPE)
+ 						yyerror("type %T is not an expression", ll->n->type);
+ 					else if(ll->n->type != T && !eqtype(ll->n->type, t))
+-						yyerror("case %+N in switch of %+N %#O", ll->n, n->ntest, ll->n->op);
++						yyerror("case %+N in %T switch", ll->n, t);
+ 					break;
+ 				case Etype:	// type switch
+ 					if(ll->n->op == OLITERAL && istype(ll->n->type, TNIL))
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 2f2b6f6a13..81ca117a14 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -337,7 +337,7 @@ reswitch:
+ 			goto badbinary;
+ 		t = l->type;
+ 		if(iscmp[n->op]) {
+-			t = types[TBOOL];
++			t = idealbool;
+ 			evconst(n);
+ 			if(n->op != OLITERAL) {
+ 				defaultlit2(&l, &r, 1);
+@@ -564,9 +564,11 @@ reswitch:
+ 			goto error;
+ 		// TODO: more aggressive
+ 		n->etype = 0;
+-		if(top & Erv)
++		n->type = T;
++		if(top & Erv) {
+ 			n->op = OSENDNB;
+-		n->type = types[TBOOL];
++			n->type = idealbool;
++		}
+ 		goto ret;
+ 
+ 	case OSLICE:
+@@ -743,7 +745,7 @@ reswitch:
+ 			goto error;
+ 		}
+ 		if(n->op == OCLOSED) {
+-			n->type = types[TBOOL];
++			n->type = idealbool;
+ 			ok |= Erv;
+ 		} else
+ 			ok |= Etop;
+@@ -1185,12 +1187,17 @@ nokeys(NodeList *l)
+ 	return 1;
+ }
+ 
++/*
++ * check implicit or explicit conversion from node type nt to type t.
++ */
+ int
+ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ {
+ 	*op = OCONV;
+ 	*et = 0;
+ 
++	
++
+ 	// preexisting error
+ 	if(t == T || t->etype == TFORW)
+ 		return 0;
+@@ -1218,6 +1225,8 @@ checkconv(Type *nt, Type *t, int explicit, int *op, int *et)
+ 	// accept anything involving interfaces and let ifacecvt
+ 	// generate a good message.  some messages have to be
+ 	// delayed anyway.
++	// TODO(rsc): now that everything is delayed for whole-package
++	// compilation, the messages could be generated right here.
+ 	if(isnilinter(t) || isnilinter(nt) || isinter(t) || isinter(nt)) {
+ 		*et = ifaceas1(t, nt, 0);
+ 		*op = OCONVIFACE;
+@@ -1320,7 +1329,7 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+ 		return n;
+ 
+ 	if(n->op == OLITERAL)
+-	if(explicit || n->type->etype == TIDEAL || n->type == idealstring || n->type->etype == TNIL)
++	if(explicit || isideal(n->type))
+ 	if(cvttype(t, n->type)) {
+ 		// can convert literal in place
+ 		// TODO(rsc) is this needed?
+@@ -1346,6 +1355,9 @@ typecheckconv(Node *nconv, Node *n, Type *t, int explicit)
+ 		return n;
+ 	}
+ 
++	if(op == OCONVIFACE)
++		defaultlit(&n, T);
++
+ 	if(nconv == N)
+ 		nconv = nod(OCONV, n, N);
+ 	nconv->op = op;
+@@ -1909,7 +1921,7 @@ typecheckas2(Node *n)
+ 		n->op = OAS2MAPW;
+ 		n->rlist->n = typecheckconv(nil, r, l->type->down, 0);
+ 		r = n->rlist->next->n;
+-		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 0);
++		n->rlist->next->n = typecheckconv(nil, r, types[TBOOL], 1);
+ 		goto out;
+ 	}
+ 
+@@ -1959,7 +1971,7 @@ typecheckas2(Node *n)
+ 			if(l->defn == n)
+ 				l->type = r->type;
+ 			l = n->list->next->n;
+-			if(l->type != T && checkconv(types[TBOOL], l->type, 0, &op, &et) < 0)
++			if(l->type != T && checkconv(idealbool, l->type, 0, &op, &et) < 0)
+ 				yyerror("cannot assign bool value to %+N", l);
+ 			if(l->defn == n && l->ntype == N)
+ 				l->type = types[TBOOL];
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 7524cecedf..53352a8e0d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -718,7 +718,7 @@ walkexpr(Node **np, NodeList **init)
+ 		if(n->etype == OANDNOT) {
+ 			n->etype = OAND;
+ 			n->right = nod(OCOM, n->right, N);
+-			n->right->type = n->right->left->type;
++			typecheck(&n->right, Erv);
+ 			goto ret;
+ 		}
+ 
+@@ -740,7 +740,7 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->right, init);
+ 		n->op = OAND;
+ 		n->right = nod(OCOM, n->right, N);
+-		n->right->type = n->right->left->type;
++		typecheck(&n->right, Erv);
+ 		goto ret;
+ 
+ 	case ODIV:

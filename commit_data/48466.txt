@@ -20,7 +20,7 @@ Date:   Thu May 20 21:33:01 2021 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/defs_plan9_386.go     | 2 +-
  src/runtime/defs_plan9_amd64.go   | 2 +-
  src/runtime/os3_plan9.go          | 2 +-
@@ -38,3 +38,298 @@ Date:   Thu May 20 21:33:01 2021 -0400
  src/runtime/sys_plan9_386.s       | 4 ++++
  src/runtime/sys_plan9_amd64.s     | 4 ++++
  16 files changed, 46 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/defs_plan9_386.go b/src/runtime/defs_plan9_386.go
+index 49129b3c3f..428044df68 100644
+--- a/src/runtime/defs_plan9_386.go
++++ b/src/runtime/defs_plan9_386.go
+@@ -61,4 +61,4 @@ func dumpregs(u *ureg) {
+ 	print("gs    ", hex(u.gs), "\n")
+ }
+ 
+-func sigpanictramp() {}
++func sigpanictramp()
+diff --git a/src/runtime/defs_plan9_amd64.go b/src/runtime/defs_plan9_amd64.go
+index 0099563034..15a27fc7db 100644
+--- a/src/runtime/defs_plan9_amd64.go
++++ b/src/runtime/defs_plan9_amd64.go
+@@ -78,4 +78,4 @@ func dumpregs(u *ureg) {
+ 	print("gs    ", hex(u.gs), "\n")
+ }
+ 
+-func sigpanictramp() {}
++func sigpanictramp()
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index dacb5c23a0..ce8bc7f103 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -99,7 +99,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 			}
+ 		}
+ 		if usesLR {
+-			c.setpc(funcPC(sigpanictramp))
++			c.setpc(abi.FuncPCABI0(sigpanictramp))
+ 		} else {
+ 			c.setpc(abi.FuncPCABI0(sigpanic0))
+ 		}
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index ab0ad4728f..45aeaecd89 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -148,14 +148,14 @@ func lwp_start(uintptr)
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", funcPC(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " lwp_start=", abi.FuncPCABI0(lwp_start), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 
+ 	params := lwpparams{
+-		start_func: funcPC(lwp_start),
++		start_func: abi.FuncPCABI0(lwp_start),
+ 		arg:        unsafe.Pointer(mp),
+ 		stack:      uintptr(stk),
+ 		tid1:       nil, // minit will record tid
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 09dd50ce59..41feaecf6b 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -197,11 +198,11 @@ func thr_start()
+ func newosproc(mp *m) {
+ 	stk := unsafe.Pointer(mp.g0.stack.hi)
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", funcPC(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " thr_start=", abi.FuncPCABI0(thr_start), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	param := thrparam{
+-		start_func: funcPC(thr_start),
++		start_func: abi.FuncPCABI0(thr_start),
+ 		arg:        unsafe.Pointer(mp),
+ 		stack_base: mp.g0.stack.lo,
+ 		stack_size: uintptr(stk) - mp.g0.stack.lo,
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 235c96e45a..9203f28351 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -143,7 +143,7 @@ func newosproc(mp *m) {
+ 	 * note: strace gets confused if we use CLONE_PTRACE here.
+ 	 */
+ 	if false {
+-		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", funcPC(clone), " id=", mp.id, " ostk=", &mp, "\n")
++		print("newosproc stk=", stk, " m=", mp, " g=", mp.g0, " clone=", abi.FuncPCABI0(clone), " id=", mp.id, " ostk=", &mp, "\n")
+ 	}
+ 
+ 	// Disable signals during clone, so that the new thread starts
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 6fbb3aa694..0920d5293e 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -215,7 +216,7 @@ func newosproc(mp *m) {
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+ 
+-	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, funcPC(netbsdMstart))
++	lwp_mcontext_init(&uc.uc_mcontext, stk, mp, mp.g0, abi.FuncPCABI0(netbsdMstart))
+ 
+ 	ret := lwp_create(unsafe.Pointer(&uc), _LWP_DETACHED, unsafe.Pointer(&mp.procid))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+@@ -319,7 +320,7 @@ func setsig(i uint32, fn uintptr) {
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTART
+ 	sa.sa_mask = sigset_all
+ 	if fn == funcPC(sighandler) {
+-		fn = funcPC(sigtramp)
++		fn = abi.FuncPCABI0(sigtramp)
+ 	}
+ 	sa.sa_sigaction = fn
+ 	sigaction(i, &sa, nil)
+diff --git a/src/runtime/os_netbsd_386.go b/src/runtime/os_netbsd_386.go
+index 037f7e36dc..ac89b9852c 100644
+--- a/src/runtime/os_netbsd_386.go
++++ b/src/runtime/os_netbsd_386.go
+@@ -4,11 +4,14 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+-	mc.__gregs[_REG_EIP] = uint32(funcPC(lwp_tramp))
++	mc.__gregs[_REG_EIP] = uint32(abi.FuncPCABI0(lwp_tramp))
+ 	mc.__gregs[_REG_UESP] = uint32(uintptr(stk))
+ 	mc.__gregs[_REG_EBX] = uint32(uintptr(unsafe.Pointer(mp)))
+ 	mc.__gregs[_REG_EDX] = uint32(uintptr(unsafe.Pointer(gp)))
+diff --git a/src/runtime/os_netbsd_amd64.go b/src/runtime/os_netbsd_amd64.go
+index 5118b0c4ff..74eea0ceab 100644
+--- a/src/runtime/os_netbsd_amd64.go
++++ b/src/runtime/os_netbsd_amd64.go
+@@ -4,11 +4,14 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+-	mc.__gregs[_REG_RIP] = uint64(funcPC(lwp_tramp))
++	mc.__gregs[_REG_RIP] = uint64(abi.FuncPCABI0(lwp_tramp))
+ 	mc.__gregs[_REG_RSP] = uint64(uintptr(stk))
+ 	mc.__gregs[_REG_R8] = uint64(uintptr(unsafe.Pointer(mp)))
+ 	mc.__gregs[_REG_R9] = uint64(uintptr(unsafe.Pointer(gp)))
+diff --git a/src/runtime/os_netbsd_arm.go b/src/runtime/os_netbsd_arm.go
+index b5ec23e45b..5fb4e08d66 100644
+--- a/src/runtime/os_netbsd_arm.go
++++ b/src/runtime/os_netbsd_arm.go
+@@ -4,11 +4,14 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+-	mc.__gregs[_REG_R15] = uint32(funcPC(lwp_tramp))
++	mc.__gregs[_REG_R15] = uint32(abi.FuncPCABI0(lwp_tramp))
+ 	mc.__gregs[_REG_R13] = uint32(uintptr(stk))
+ 	mc.__gregs[_REG_R0] = uint32(uintptr(unsafe.Pointer(mp)))
+ 	mc.__gregs[_REG_R1] = uint32(uintptr(unsafe.Pointer(gp)))
+diff --git a/src/runtime/os_netbsd_arm64.go b/src/runtime/os_netbsd_arm64.go
+index 8d21b0a430..2dda9c9274 100644
+--- a/src/runtime/os_netbsd_arm64.go
++++ b/src/runtime/os_netbsd_arm64.go
+@@ -4,11 +4,14 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/abi"
++	"unsafe"
++)
+ 
+ func lwp_mcontext_init(mc *mcontextt, stk unsafe.Pointer, mp *m, gp *g, fn uintptr) {
+ 	// Machine dependent mcontext initialisation for LWP.
+-	mc.__gregs[_REG_ELR] = uint64(funcPC(lwp_tramp))
++	mc.__gregs[_REG_ELR] = uint64(abi.FuncPCABI0(lwp_tramp))
+ 	mc.__gregs[_REG_X31] = uint64(uintptr(stk))
+ 	mc.__gregs[_REG_X0] = uint64(uintptr(unsafe.Pointer(mp)))
+ 	mc.__gregs[_REG_X1] = uint64(uintptr(unsafe.Pointer(mp.g0)))
+diff --git a/src/runtime/os_openbsd_syscall.go b/src/runtime/os_openbsd_syscall.go
+index 3cdcb6c707..a04eb4fc4d 100644
+--- a/src/runtime/os_openbsd_syscall.go
++++ b/src/runtime/os_openbsd_syscall.go
+@@ -8,6 +8,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -33,7 +34,7 @@ func newosproc(mp *m) {
+ 
+ 	var oset sigset
+ 	sigprocmask(_SIG_SETMASK, &sigset_all, &oset)
+-	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, funcPC(mstart))
++	ret := tfork(&param, unsafe.Sizeof(param), mp, mp.g0, abi.FuncPCABI0(mstart))
+ 	sigprocmask(_SIG_SETMASK, &oset, nil)
+ 
+ 	if ret < 0 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ded406cc28..694f456ac5 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2236,7 +2236,7 @@ func newm1(mp *m) {
+ 		}
+ 		ts.g.set(mp.g0)
+ 		ts.tls = (*uint64)(unsafe.Pointer(&mp.tls[0]))
+-		ts.fn = unsafe.Pointer(funcPC(mstart))
++		ts.fn = unsafe.Pointer(abi.FuncPCABI0(mstart))
+ 		if msanenabled {
+ 			msanwrite(unsafe.Pointer(&ts), unsafe.Sizeof(ts))
+ 		}
+diff --git a/src/runtime/sys_darwin_arm64.go b/src/runtime/sys_darwin_arm64.go
+index 9c14f33a1c..7dabaca08d 100644
+--- a/src/runtime/sys_darwin_arm64.go
++++ b/src/runtime/sys_darwin_arm64.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -14,14 +15,14 @@ import (
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func g0_pthread_key_create(k *pthreadkey, destructor uintptr) int32 {
+-	return asmcgocall(unsafe.Pointer(funcPC(pthread_key_create_trampoline)), unsafe.Pointer(&k))
++	return asmcgocall(unsafe.Pointer(abi.FuncPCABI0(pthread_key_create_trampoline)), unsafe.Pointer(&k))
+ }
+ func pthread_key_create_trampoline()
+ 
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func g0_pthread_setspecific(k pthreadkey, value uintptr) int32 {
+-	return asmcgocall(unsafe.Pointer(funcPC(pthread_setspecific_trampoline)), unsafe.Pointer(&k))
++	return asmcgocall(unsafe.Pointer(abi.FuncPCABI0(pthread_setspecific_trampoline)), unsafe.Pointer(&k))
+ }
+ func pthread_setspecific_trampoline()
+ 
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index b3d2f1376d..bdcb98e19e 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -250,3 +250,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$8-8
+ 	MOVL	0(SP), AX
+ 	MOVL	AX, ret_base+0(FP)
+ 	RET
++
++// never called on this platform
++TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
++	UNDEF
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index 731306ab44..39fc4c68e4 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -251,3 +251,7 @@ TEXT runtime·errstr(SB),NOSPLIT,$16-16
+ 	MOVQ	0(SP), AX
+ 	MOVQ	AX, ret_base+0(FP)
+ 	RET
++
++// never called on this platform
++TEXT ·sigpanictramp(SB),NOSPLIT,$0-0
++	UNDEF

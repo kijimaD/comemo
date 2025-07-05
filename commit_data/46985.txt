@@ -25,8 +25,64 @@ Date:   Tue Jan 26 21:14:43 2021 -0500
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/run.bash | 10 +---------
  src/run.bat  |  4 +---
  src/run.rc   |  9 ++++-----
  3 files changed, 6 insertions(+), 17 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 706b4b60ee..2123c509f8 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -23,15 +23,7 @@ fi
+ 
+ eval $(../bin/go env)
+ export GOROOT   # The api test requires GOROOT to be set, so set it to match ../bin/go.
+-
+-# We disallow local import for non-local packages, if $GOROOT happens
+-# to be under $GOPATH, then some tests below will fail.  $GOPATH needs
+-# to be set to a non-empty string, else Go will set a default value
+-# that may also conflict with $GOROOT.  The $GOPATH value doesn't need
+-# to point to an actual directory, it just needs to pass the semantic
+-# checks performed by Go.  Use $GOROOT to define $GOPATH so that we
+-# don't blunder into a user-defined symbolic link.
+-export GOPATH=/dev/null
++export GOPATH=/nonexist-gopath
+ 
+ unset CDPATH	# in case user has it set
+ export GOBIN=$GOROOT/bin  # Issue 14340
+diff --git a/src/run.bat b/src/run.bat
+index c299671c13..edcaf52659 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -18,9 +18,7 @@ setlocal
+ 
+ set GOBUILDFAIL=0
+ 
+-:: we disallow local import for non-local packages, if %GOROOT% happens
+-:: to be under %GOPATH%, then some tests below will fail
+-set GOPATH=
++set GOPATH=c:\nonexist-gopath
+ :: Issue 14340: ignore GOBIN during all.bat.
+ set GOBIN=
+ set GOFLAGS=
+diff --git a/src/run.rc b/src/run.rc
+index ab7abfa991..a7b4801207 100755
+--- a/src/run.rc
++++ b/src/run.rc
+@@ -12,10 +12,9 @@ if(! test -f ../bin/go){
+ 
+ eval `{../bin/go env}
+ 
+-GOPATH = () # we disallow local import for non-local packages, if $GOROOT happens
+-            # to be under $GOPATH, then some tests below will fail
+-GOBIN = () # Issue 14340
+-GOFLAGS = ()
+-GO111MODULE = ()
++GOPATH=/nonexist-gopath
++GOBIN=() # Issue 14340
++GOFLAGS=()
++GO111MODULE=()
+ 
+ exec ../bin/go tool dist test -rebuild $*

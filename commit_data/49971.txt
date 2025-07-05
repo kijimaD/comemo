@@ -14,8 +14,95 @@ Date:   Thu Sep 23 17:35:36 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/351971
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/types/testdata/fixedbugs/issue46461.go2 |  9 +++++++++
  src/go/types/typeset.go                        |  8 ++++----
  src/go/types/union.go                          | 20 ++++++++++++++------
  3 files changed, 27 insertions(+), 10 deletions(-)
+
+diff --git a/src/go/types/testdata/fixedbugs/issue46461.go2 b/src/go/types/testdata/fixedbugs/issue46461.go2
+index bfeaf3a966..8bf31090b8 100644
+--- a/src/go/types/testdata/fixedbugs/issue46461.go2
++++ b/src/go/types/testdata/fixedbugs/issue46461.go2
+@@ -4,8 +4,17 @@
+ 
+ package p
+ 
++// test case 1
+ type T[U interface{ M() T[U] }] int
+ 
+ type X int
+ 
+ func (X) M() T[X] { return 0 }
++
++// test case 2
++type A[T interface{ A[T] }] interface{}
++
++// test case 3
++type A2[U interface{ A2[U] }] interface{ M() A2[U] }
++
++type I interface{ A2[I]; M() A2[I] }
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 648d3c7bf3..3e59155e5c 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -289,8 +289,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 			terms = tset.terms
+ 		case *TypeParam:
+ 			// Embedding stand-alone type parameters is not permitted.
+-			// This case is handled during union parsing.
+-			unreachable()
++			// Union parsing reports a (delayed) error, so we can ignore this entry.
++			continue
+ 		default:
+ 			if typ == Typ[Invalid] {
+ 				continue
+@@ -370,8 +370,8 @@ func computeUnionTypeSet(check *Checker, pos token.Pos, utyp *Union) *_TypeSet {
+ 			terms = computeInterfaceTypeSet(check, pos, u).terms
+ 		case *TypeParam:
+ 			// A stand-alone type parameters is not permitted as union term.
+-			// This case is handled during union parsing.
+-			unreachable()
++			// Union parsing reports a (delayed) error, so we can ignore this entry.
++			continue
+ 		default:
+ 			if t.typ == Typ[Invalid] {
+ 				continue
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index f6b32b9e5d..88b2a9ff8f 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -57,7 +57,10 @@ func parseUnion(check *Checker, tlist []ast.Expr) Type {
+ 	for _, x := range tlist {
+ 		tilde, typ := parseTilde(check, x)
+ 		if len(tlist) == 1 && !tilde {
+-			return typ // single type (optimization)
++			// Single type. Ok to return early because all relevant
++			// checks have been performed in parseTilde (no need to
++			// run through term validity check below).
++			return typ
+ 		}
+ 		if len(terms) >= maxTermCount {
+ 			check.errorf(x, _Todo, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+@@ -126,11 +129,16 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+ 		tilde = true
+ 	}
+ 	typ = check.typ(x)
+-	// embedding stand-alone type parameters is not permitted (issue #47127).
+-	if _, ok := under(typ).(*TypeParam); ok {
+-		check.error(x, _Todo, "cannot embed a type parameter")
+-		typ = Typ[Invalid]
+-	}
++	// Embedding stand-alone type parameters is not permitted (issue #47127).
++	// Do this check later because it requires computation of the underlying type (see also issue #46461).
++	// Note: If an underlying type cannot be a type parameter, the call to
++	//       under() will not be needed and then we don't need to delay this
++	//       check to later and could return Typ[Invalid] instead.
++	check.later(func() {
++		if _, ok := under(typ).(*TypeParam); ok {
++			check.error(x, _Todo, "cannot embed a type parameter")
++		}
++	})
+ 	return
+ }
+ 

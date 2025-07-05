@@ -72,7 +72,7 @@ Date:   Thu Dec 22 09:44:56 2022 -0500
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/syscall/exec_libc2.go            |  4 ++--
  src/syscall/syscall_darwin.go        | 32 ++++++++++++++++++++++++++++++--
  src/syscall/syscall_openbsd_libc.go  |  6 +++++-
@@ -81,3 +81,238 @@ Date:   Thu Dec 22 09:44:56 2022 -0500
  src/syscall/zsyscall_darwin_arm64.go | 22 ++++++++++++++++++----
  src/syscall/zsyscall_darwin_arm64.s  |  6 ++++--
  7 files changed, 81 insertions(+), 17 deletions(-)
+
+diff --git a/src/syscall/exec_libc2.go b/src/syscall/exec_libc2.go
+index 41bc79a721..6e3c2bf9d7 100644
+--- a/src/syscall/exec_libc2.go
++++ b/src/syscall/exec_libc2.go
+@@ -78,7 +78,7 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 	// About to call fork.
+ 	// No more allocation or calls of non-assembly functions.
+ 	runtime_BeforeFork()
+-	r1, _, err1 = rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
++	r1, _, err1 = rawSyscall(forkTrampoline, 0, 0, 0)
+ 	if err1 != 0 {
+ 		runtime_AfterFork()
+ 		return 0, err1
+@@ -276,6 +276,6 @@ childerror:
+ 	// send error code on pipe
+ 	rawSyscall(abi.FuncPCABI0(libc_write_trampoline), uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
+ 	for {
+-		rawSyscall(abi.FuncPCABI0(libc_exit_trampoline), 253, 0, 0)
++		rawSyscall(exitTrampoline, 253, 0, 0)
+ 	}
+ }
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index a39e99dc63..5ec311962a 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -22,7 +22,34 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+-var dupTrampoline = abi.FuncPCABI0(libc_dup2_trampoline)
++// These are called from exec_libc2.go in the child of fork.
++// The names differ between macOS and OpenBSD, so we need
++// to declare the specific ones used here to keep the exec_libc2.go
++// code portable.
++//
++// We use __fork and __exit, not fork and exit, to avoid the libc atfork
++// and atexit handlers. The atfork handlers have caused fork child
++// hangs in the past (see #33565, #56784). The atexit handlers have
++// not, but the non-libc ports all invoke the system call, so doing
++// the same here makes sense. In general we wouldn't expect
++// atexit handlers to work terribly well in a fork child anyway.
++// (Also, perhaps the atfork handlers clear the atexit handlers,
++// in which case we definitely need to avoid calling the libc exit
++// if we bypass the libc fork.)
++//
++// Other calls that are made in the child after the fork are
++// ptrace, setsid, setpgid, getpid, ioctl, chroot, setgroups,
++// setgid, setuid, chdir, dup2, fcntl, close, execve, and write.
++// Those are all simple kernel wrappers that should be safe
++// to be called directly. The fcntl and ioctl functions do run
++// some code around the kernel call, but they don't call any
++// other functions, so for now we keep using them instead of
++// calling the lower-level __fcntl and __ioctl functions.
++var (
++	dupTrampoline  = abi.FuncPCABI0(libc_dup2_trampoline)
++	exitTrampoline = abi.FuncPCABI0(libc___exit_trampoline)
++	forkTrampoline = abi.FuncPCABI0(libc___fork_trampoline)
++)
+ 
+ type SockaddrDatalink struct {
+ 	Len    uint8
+@@ -210,11 +237,12 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	writev(fd int, iovecs []Iovec) (cnt uintptr, err error)
+ //sys   mmap(addr uintptr, length uintptr, prot int, flag int, fd int, pos int64) (ret uintptr, err error)
+ //sys   munmap(addr uintptr, length uintptr) (err error)
+-//sysnb fork() (pid int, err error)
++//sysnb __fork() (pid int, err error)
+ //sysnb ioctl(fd int, req int, arg int) (err error)
+ //sysnb ioctlPtr(fd int, req uint, arg unsafe.Pointer) (err error) = SYS_ioctl
+ //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+ //sysnb exit(res int) (err error)
++//sysnb __exit(res int) (err error)
+ //sys	sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error)
+ //sys	fcntlPtr(fd int, cmd int, arg unsafe.Pointer) (val int, err error) = SYS_fcntl
+ //sys   unlinkat(fd int, path string, flags int) (err error)
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 516d02975c..6358a9a390 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -10,7 +10,11 @@ import (
+ 	"internal/abi"
+ )
+ 
+-var dupTrampoline = abi.FuncPCABI0(libc_dup3_trampoline)
++var (
++	dupTrampoline  = abi.FuncPCABI0(libc_dup3_trampoline)
++	exitTrampoline = abi.FuncPCABI0(libc_exit_trampoline)
++	forkTrampoline = abi.FuncPCABI0(libc_fork_trampoline)
++)
+ 
+ func init() {
+ 	execveOpenBSD = execve
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 6b3fff3f37..5e3f6cccf0 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -1734,8 +1734,8 @@ func libc_munmap_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fork() (pid int, err error) {
+-	r0, _, e1 := rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
++func __fork() (pid int, err error) {
++	r0, _, e1 := rawSyscall(abi.FuncPCABI0(libc___fork_trampoline), 0, 0, 0)
+ 	pid = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1743,9 +1743,9 @@ func fork() (pid int, err error) {
+ 	return
+ }
+ 
+-func libc_fork_trampoline()
++func libc___fork_trampoline()
+ 
+-//go:cgo_import_dynamic libc_fork fork "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc___fork __fork "/usr/lib/libSystem.B.dylib"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+@@ -1801,6 +1801,20 @@ func libc_exit_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func __exit(res int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc___exit_trampoline), uintptr(res), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc___exit_trampoline()
++
++//go:cgo_import_dynamic libc___exit __exit "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 90e51fb9a4..cbb4496a50 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -221,14 +221,16 @@ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_fork(SB)
++TEXT ·libc___fork_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc___fork(SB)
+ TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
++TEXT ·libc___exit_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc___exit(SB)
+ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 61601449a0..d4c56be818 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -1734,8 +1734,8 @@ func libc_munmap_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func fork() (pid int, err error) {
+-	r0, _, e1 := rawSyscall(abi.FuncPCABI0(libc_fork_trampoline), 0, 0, 0)
++func __fork() (pid int, err error) {
++	r0, _, e1 := rawSyscall(abi.FuncPCABI0(libc___fork_trampoline), 0, 0, 0)
+ 	pid = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1743,9 +1743,9 @@ func fork() (pid int, err error) {
+ 	return
+ }
+ 
+-func libc_fork_trampoline()
++func libc___fork_trampoline()
+ 
+-//go:cgo_import_dynamic libc_fork fork "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc___fork __fork "/usr/lib/libSystem.B.dylib"
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+@@ -1801,6 +1801,20 @@ func libc_exit_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func __exit(res int) (err error) {
++	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc___exit_trampoline), uintptr(res), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc___exit_trampoline()
++
++//go:cgo_import_dynamic libc___exit __exit "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sysctl(mib []_C_int, old *byte, oldlen *uintptr, new *byte, newlen uintptr) (err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(mib) > 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index f00747939e..ce1850e0ae 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -221,14 +221,16 @@ TEXT ·libc_mmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_mmap(SB)
+ TEXT ·libc_munmap_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_munmap(SB)
+-TEXT ·libc_fork_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_fork(SB)
++TEXT ·libc___fork_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc___fork(SB)
+ TEXT ·libc_ioctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ioctl(SB)
+ TEXT ·libc_execve_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_execve(SB)
+ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
++TEXT ·libc___exit_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc___exit(SB)
+ TEXT ·libc_sysctl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_sysctl(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0

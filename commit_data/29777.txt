@@ -10,6 +10,19 @@ Date:   Fri Oct 7 21:27:32 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/30718
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/compress/gzip/gunzip.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 7e640692f3..bc303898b3 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -238,6 +238,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
+ 	return hdr, nil
+ }
+ 
++// Read implements io.Reader, reading uncompressed bytes from its underlying Reader.
+ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	if z.err != nil {
+ 		return 0, z.err

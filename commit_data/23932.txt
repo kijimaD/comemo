@@ -7,7 +7,74 @@ Date:   Thu Jun 18 20:58:50 2015 +0200
     Change-Id: I42a952b04a56fb888fa7d5d9c2b56cbdd3434034
     Reviewed-on: https://go-review.googlesource.com/11246
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/text/scanner/example_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/text/scanner/scanner.go      | 11 -----------
  2 files changed, 38 insertions(+), 11 deletions(-)
+
+diff --git a/src/text/scanner/example_test.go b/src/text/scanner/example_test.go
+new file mode 100644
+index 0000000000..101145948f
+--- /dev/null
++++ b/src/text/scanner/example_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package scanner_test
++
++import (
++	"fmt"
++	"strings"
++	"text/scanner"
++)
++
++func Example() {
++	const src = `
++	// This is scanned code.
++	if a > 10 {
++		someParsable = text
++	}`
++	var s scanner.Scanner
++	s.Init(strings.NewReader(src))
++	var tok rune
++	for tok != scanner.EOF {
++		tok = s.Scan()
++		fmt.Println("At position", s.Pos(), ":", s.TokenText())
++	}
++
++	// Output:
++	// At position 3:4 : if
++	// At position 3:6 : a
++	// At position 3:8 : >
++	// At position 3:11 : 10
++	// At position 3:13 : {
++	// At position 4:15 : someParsable
++	// At position 4:17 : =
++	// At position 4:22 : text
++	// At position 5:3 : }
++	// At position 5:3 :
++}
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index eacc0a2245..3ab01edd24 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -12,17 +12,6 @@
+ // literals as defined by the Go language specification.  It may be
+ // customized to recognize only a subset of those literals and to recognize
+ // different identifier and white space characters.
+-//
+-// Basic usage pattern:
+-//
+-//	var s scanner.Scanner
+-//	s.Init(src)
+-//	tok := s.Scan()
+-//	for tok != scanner.EOF {
+-//		// do something with tok
+-//		tok = s.Scan()
+-//	}
+-//
+ package scanner
+ 
+ import (

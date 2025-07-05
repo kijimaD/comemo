@@ -15,7 +15,7 @@ Date:   Thu Nov 13 17:50:46 2008 -0800
     R=r
     OCL=19220
     CL=19220
-
+---
  src/run.bash                |   2 +-
  usr/gri/pretty/Makefile     |   3 +
  usr/gri/pretty/ast.go       |   5 +
@@ -25,3 +25,683 @@ Date:   Thu Nov 13 17:50:46 2008 -0800
  usr/gri/pretty/selftest2.go |  36 ++++++
  usr/gri/pretty/test.sh      |   4 +-
  8 files changed, 278 insertions(+), 129 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index 449e7ed234..d412a6903d 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -32,7 +32,7 @@ time make
+ (xcd ../usr/gri/pretty
+ make clean
+ time make
+-make test
++make smoketest
+ ) || exit $?
+ 
+ (xcd ../test
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index 2af8b8ab55..000d88f1da 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -11,6 +11,9 @@ pretty: pretty.6
+ test: pretty
+ 	./test.sh
+ 
++smoketest: pretty
++	./test.sh parser.go
++
+ install: pretty
+ 	cp pretty $(HOME)/bin/pretty
+ 
+diff --git a/usr/gri/pretty/ast.go b/usr/gri/pretty/ast.go
+index d566361bf2..928e85dc69 100644
+--- a/usr/gri/pretty/ast.go
++++ b/usr/gri/pretty/ast.go
+@@ -43,6 +43,11 @@ func (p *List) at(i int) Any {
+ }
+ 
+ 
++func (p *List) last() Any {
++	return p.a[len(p.a) - 1];
++}
++
++
+ func (p *List) set(i int, x Any) {
+ 	p.a[i] = x;
+ }
+diff --git a/usr/gri/pretty/parser.go b/usr/gri/pretty/parser.go
+index d091529c07..d9e7c921ee 100644
+--- a/usr/gri/pretty/parser.go
++++ b/usr/gri/pretty/parser.go
+@@ -77,13 +77,8 @@ func (P *Parser) Next0() {
+ 
+ 
+ func (P *Parser) Next() {
+-	P.Next0();
+-	if P.tok == Scanner.COMMENT {
+-		pos, s := P.pos, P.val;
+-		for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
+-			s += P.val;
+-		}
+-		P.comments.Add(AST.NewComment(pos, s));
++	for P.Next0(); P.tok == Scanner.COMMENT; P.Next0() {
++		P.comments.Add(AST.NewComment(P.pos, P.val));
+ 	}
+ }
+ 
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index ea670eb0c8..14f8e60b5f 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -11,6 +11,7 @@ import Flag "flag"
+ import Fmt "fmt"
+ 
+ var tabwith = Flag.Int("tabwidth", 4, nil, "tab width");
++var comments = Flag.Bool("comments", false, nil, "enable printing of comments");
+ 
+ 
+ // ----------------------------------------------------------------------------
+@@ -33,58 +34,66 @@ func PrintBlanks(n int) {
+ 
+ // ----------------------------------------------------------------------------
+ // Implemententation of flexible tab stops.
+-// (http://nickgravgaard.com/elastictabstops/index.html)
++
++// Buffer is a representation for a list of lines consisting of
++// cells. A new cell is added for each Tab() call, and a new line
++// is added for each Newline() call.
++//
++// The lines are formatted and printed such that all cells in a column
++// of adjacent cells have the same width (by adding padding). For more
++// details see: http://nickgravgaard.com/elastictabstops/index.html .
+ 
+ type Buffer struct {
+-	segment string;  // current line segment
+-	lines AST.List;  // a list of lines; and each line is a list of strings
++	cell string;  // current cell (last cell in last line, not in lines yet)
++	lines AST.List;  // list of lines; each line is a list of cells (strings)
++	widths AST.List;  // list of column widths - (re-)used during formatting
+ }
+ 
+ 
+-func (b *Buffer) Line(i int) *AST.List {
+-	return b.lines.at(i).(*AST.List);
+-}
++// Implementation
++// (Do not use these functions outside the Buffer implementation).
+ 
+-
+-func (b *Buffer) Tab() {
+-	b.lines.at(b.lines.len() - 1).(*AST.List).Add(b.segment);
+-	b.segment = "";
++func (b *Buffer) AddLine() {
++	b.lines.Add(AST.NewList());
+ }
+ 
+ 
+-func (b *Buffer) Newline() {
+-	b.Tab();  // add last segment to current line
+-	b.lines.Add(AST.NewList());
++func (b *Buffer) Line(i int) *AST.List {
++	return b.lines.at(i).(*AST.List);
+ }
+ 
+ 
+-func (b *Buffer) Print(s string) {
+-	b.segment += s;
++func (b *Buffer) LastLine() *AST.List {
++	return b.lines.last().(*AST.List);
+ }
+ 
+ 
+-func (b *Buffer) Init() {
+-	b.lines.Init();
+-	b.lines.Add(AST.NewList());
++// debugging support
++func (b *Buffer) Dump() {
++	for i := 0; i < b.lines.len(); i++ {
++		line := b.Line(i);
++		print("(", i, ") ");
++		for j := 0; j < line.len(); j++ {
++			print("[", line.at(j).(string), "]");
++		}
++		print("\n");
++	}
++	print("\n");
+ }
+ 
+ 
+-func (b *Buffer) PrintLines(line0, line1 int, widths *AST.List) {
++func (b *Buffer) PrintLines(line0, line1 int) {
+ 	for i := line0; i < line1; i++ {
+-		nsep := 0;
+ 		line := b.Line(i);
+ 		for j := 0; j < line.len(); j++ {
+ 			s := line.at(j).(string);
+-			PrintBlanks(nsep);
+ 			print(s);
+-			if j < widths.len() {
+-				nsep = widths.at(j).(int) - len(s);
++			if j < b.widths.len() {
++				nsep := b.widths.at(j).(int) - len(s);
+ 				assert(nsep >= 0);
+-				if nsep < int(tabwith.IVal()) {
+-					nsep = int(tabwith.IVal());
+-				}
++				PrintBlanks(nsep);
+ 			} else {
+-				nsep = 0;
++				assert(j == b.widths.len());
+ 			}
+ 		}
+ 		println();
+@@ -92,55 +101,95 @@ func (b *Buffer) PrintLines(line0, line1 int, widths *AST.List) {
+ }
+ 
+ 
+-func (b *Buffer) Format(line0, line1 int, widths *AST.List) {
+-	i0, i1 := line0, line0;
+-	column := widths.len();
+-	width := -1;
+-	for i := line0; i < line1; i++ {
+-		line := b.Line(i);
++func (b *Buffer) Format(line0, line1 int) {
++	column := b.widths.len();
++	
++	last := line0;
++	for this := line0; this < line1; this++ {
++		line := b.Line(this);
++		
+ 		if column < line.len() - 1 {
+-			if width < 0 {
+-				// column start
+-				i1 = i;
+-				b.PrintLines(i0, i1, widths);
+-			}
+-			w := len(line.at(column).(string));
+-			if w > width {
+-				width = w;
+-			}
+-		} else {
+-			if width >= 0 {
+-				// column end
+-				i0 = i;
+-				widths.Add(width);
+-				b.Format(i1, i0, widths);
+-				widths.Pop();
+-				width = -1;
++			// cell exists in this column
++			// (note that the last cell per line is ignored)
++			
++			// print unprinted lines until beginning of block
++			b.PrintLines(last, this);
++			last = this;
++			
++			// column block begin
++			width := int(tabwith.IVal());  // minimal width
++			for ; this < line1; this++ {
++				line := b.Line(this);
++				if column < line.len() - 1 {
++					// cell exists in this column
++					// update width
++					w := len(line.at(column).(string)) + 1; // 1 = minimum space between cells
++					if w > width {
++						width = w;
++					}
++				} else {
++					break
++				}
+ 			}
++			// column block end
++
++			// format and print all columns to the right of this column
++			// (we know the widths of this column and all columns to the left)
++			b.widths.Add(width);
++			b.Format(last, this);
++			b.widths.Pop();
++			last = this;
+ 		}
+ 	}
+-	b.PrintLines(i0, line1, widths);
++
++	// print unprinted lines until end
++	b.PrintLines(last, line1);
+ }
+ 
+ 
+-func (b *Buffer) Dump() {
+-	for i := 0; i < b.lines.len(); i++ {
+-		line := b.Line(i);
+-		print("(", i, ") ");
+-		for j := 0; j < line.len(); j++ {
+-			print("[", line.at(j).(string), "]");
+-		}
+-		print("\n");
++// Buffer interface
++// (Use these functions to interact with Buffers).
++
++func (b *Buffer) Init() {
++	b.lines.Init();
++	b.widths.Init();
++	b.AddLine();  // the very first line
++}
++
++
++func (b *Buffer) EmptyLine() bool {
++	return b.LastLine().len() == 0 && len(b.cell) == 0;
++}
++
++
++func (b *Buffer) Tab() {
++	b.LastLine().Add(b.cell);
++	b.cell = "";
++}
++
++
++func (b *Buffer) Newline() {
++	b.Tab();  // add last cell to current line
++	
++	if b.LastLine().len() == 1 {
++		// The current line has only one cell which does not have an impact
++		// on the formatting of the following lines (the last cell per line
++		// is ignored by Format), thus we can print the buffer contents.
++		assert(b.widths.len() == 0);
++		b.Format(0, b.lines.len());
++		assert(b.widths.len() == 0);
++		
++		// reset the buffer
++		b.lines.Clear();
+ 	}
+-	print("\n");
++	
++	b.AddLine();
++	assert(len(b.cell) == 0);
+ }
+ 
+ 
+-func (b *Buffer) Flush() {
+-	b.Tab();  // add last segment to current line
+-	b.Format(0, b.lines.len(), AST.NewList());
+-	b.lines.Clear();
+-	b.lines.Add(AST.NewList());
++func (b *Buffer) Print(s string) {
++	b.cell += s;
+ }
+ 
+ 
+@@ -151,6 +200,7 @@ export type Printer struct {
+ 	buf Buffer;
+ 	
+ 	// formatting control
++	lastpos int;  // pos after last string
+ 	level int;  // true scope level
+ 	indent int;  // indentation level
+ 	semi bool;  // pending ";"
+@@ -163,43 +213,75 @@ export type Printer struct {
+ }
+ 
+ 
+-func CountNewlinesAndTabs(s string) (int, int, string) {
+-	nls, tabs := 0, 0;
+-	for i := 0; i < len(s); i++ {
+-		switch ch := s[i]; ch {
+-		case '\n': nls++;
+-		case '\t': tabs++;
+-		case ' ':
+-		default:
+-			// non-whitespace char
+-			assert(ch == '/');
+-			return nls, tabs, s[i : len(s)];
+-		}
++func (P *Printer) String(pos int, s string) {
++	if pos == 0 {
++		pos = P.lastpos;  // estimate
+ 	}
+-	return nls, tabs, "";
+-}
+-
+ 
+-func (P *Printer) String(pos int, s string) {
+ 	if P.semi && P.level > 0 {  // no semicolons at level 0
+ 		P.buf.Print(";");
+ 	}
+ 
+-	/*
+-	for pos > P.cpos {
+-		// we have a comment
++	//print("--", pos, "[", s, "]\n");
++	
++	at_line_begin := false;
++	for comments.BVal() && P.cpos < pos {
++		//print("cc", P.cpos, "\n");
++		
++		// we have a comment that comes before s
+ 		comment := P.clist.at(P.cindex).(*AST.Comment);
+-		nls, tabs, text := CountNewlinesAndTabs(comment.text);
++		text := comment.text;
++		assert(len(text) >= 3);  // classification char + "//" or "/*"
+ 		
+-		if nls == 0 && len(text) > 1 && text[1] == '/' {
+-			P.buf.Tab();
+-			P.buf.Print(text);
+-			if P.newl <= 0 {
+-				//P.newl = 1;  // line comments must have a newline
++		// classify comment
++		switch text[0] {
++		case ' ':
++			// not only white space before comment on the same line
++			// - put into next cell if //-style comment
++			// - preceed with a space if /*-style comment
++			//print("[case a][", text[1 : len(text)], "]");
++			if text[2] == '/' {
++				P.buf.Tab();
++			} else {
++				P.buf.Print(" ");
+ 			}
+-		} else {
+-			P.buf.Print(text);
++			
++			/*
++		case '\n':
++			// comment starts at beginning of line
++			// - reproduce exactly
++			//print("[case b][", text[1 : len(text)], "]");
++			if !P.buf.AtLineBegin() {
++				P.buf.Newline();
++			}
++			*/
++			
++		case '\n', '\t':
++			// only white space before comment on the same line
++			// - indent
++			//print("[case c][", text[1 : len(text)], "]");
++			if !P.buf.EmptyLine() {
++				P.buf.Newline();
++			}
++			for i := P.indent; i > 0; i-- {
++				P.buf.Tab();
++			}
++
++		default:
++			panic("UNREACHABLE");
++		}
++		
++		P.buf.Print(text[1 : len(text)]);
++		if text[2] == '/' {
++			// line comments must end in newline
++			// TODO should we set P.newl instead?
++			P.buf.Newline();
++			for i := P.indent; i > 0; i-- {
++				P.buf.Tab();
++			}
++			at_line_begin = true;
+ 		}
++
+ 		P.cindex++;
+ 		if P.cindex < P.clist.len() {
+ 			P.cpos = P.clist.at(P.cindex).(*AST.Comment).pos;
+@@ -207,8 +289,11 @@ func (P *Printer) String(pos int, s string) {
+ 			P.cpos = 1000000000;  // infinite
+ 		}
+ 	}
+-	*/
+ 
++	if at_line_begin && P.newl > 0 {
++		P.newl--;
++	}
++	
+ 	if P.newl > 0 {
+ 		P.buf.Newline();
+ 		if P.newl > 1 {
+@@ -224,6 +309,7 @@ func (P *Printer) String(pos int, s string) {
+ 
+ 	P.buf.Print(s);
+ 
++	P.lastpos = pos + len(s);
+ 	P.semi, P.newl = false, 0;
+ }
+ 
+@@ -233,6 +319,12 @@ func (P *Printer) Blank() {
+ }
+ 
+ 
++func (P *Printer) Tab() {
++	P.String(0, "");
++	P.buf.Tab();
++}
++
++
+ func (P *Printer) Token(pos int, tok int) {
+ 	P.String(pos, Scanner.TokenString(tok));
+ }
+@@ -255,6 +347,7 @@ func (P *Printer) CloseScope(paren string) {
+ 	P.semi, P.newl = false, 1;
+ }
+ 
++
+ func (P *Printer) Error(pos int, tok int, msg string) {
+ 	P.String(0, "<");
+ 	P.Token(pos, tok);
+@@ -298,7 +391,7 @@ func (P *Printer) Fields(list *AST.List) {
+ 			} else if prev == x.tok {
+ 				P.String(0, ", ");
+ 			} else {
+-				P.Blank();
++				P.Tab();
+ 			}
+ 		}
+ 		P.Expr(x);
+@@ -605,7 +698,7 @@ func (P *Printer) Stat(s *AST.Stat) {
+ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 	if !parenthesized {
+ 		if d.exported {
+-			P.String(0, "export ");
++			P.String(d.pos, "export ");
+ 		}
+ 		P.Token(d.pos, d.tok);
+ 		P.Blank();
+@@ -633,10 +726,9 @@ func (P *Printer) Declaration(d *AST.Decl, parenthesized bool) {
+ 		}
+ 
+ 		if d.val != nil {
+-			if d.tok == Scanner.IMPORT {
+-				P.Blank();
+-			} else {
+-				P.String(0, " = ");
++			P.Tab();
++			if d.tok != Scanner.IMPORT {
++				P.String(0, "= ");
+ 			}
+ 			P.Expr(d.val);
+ 		}
+@@ -690,7 +782,8 @@ func (P *Printer) Program(p *AST.Program) {
+ 	for i := 0; i < p.decls.len(); i++ {
+ 		P.Declaration(p.decls.at(i), false);
+ 	}
+-	P.newl = 1;
++	P.newl = 2;	// TODO we should be able to do this with 1 instead of 2
++				// but we are loosing the last buffer flush in that case
+ 
+-	P.buf.Flush();  // TODO should not access P.buf directly here
++	P.String(0, "");  // flush buffer
+ }
+diff --git a/usr/gri/pretty/scanner.go b/usr/gri/pretty/scanner.go
+index 06428e9b64..0c986423b5 100644
+--- a/usr/gri/pretty/scanner.go
++++ b/usr/gri/pretty/scanner.go
+@@ -518,22 +518,29 @@ func (S *Scanner) Expect(ch int) {
+ }
+ 
+ 
+-func (S *Scanner) SkipWhitespace() {
+-	for S.ch == ' ' || S.ch == '\r' {
++func (S *Scanner) SkipWhitespace() int {
++	pos := -1;  // no new line position yet
++	
++	if S.chpos == 0 {
++		// file beginning is always start of a new line
++		pos = 0;
++	}
++	
++	for {
++		switch S.ch {
++		case '\t', '\r', ' ':  // nothing to do
++		case '\n': pos = S.pos;  // remember start of new line
++		default: goto exit;
++		}
+ 		S.Next();
+ 	}
+-}
+-
+ 
+-func (S *Scanner) ScanWhitespace() string {
+-	// first char ('\n' or '\t', 1 byte) already consumed
+-	pos := S.chpos - 1;
+-	S.SkipWhitespace();
+-	return S.src[pos : S.chpos];
++exit:
++	return pos;
+ }
+ 
+ 
+-func (S *Scanner) ScanComment() string {
++func (S *Scanner) ScanComment(nlpos int) string {
+ 	// first '/' already consumed
+ 	pos := S.chpos - 1;
+ 	
+@@ -543,6 +550,9 @@ func (S *Scanner) ScanComment() string {
+ 		for S.ch >= 0 {
+ 			S.Next();
+ 			if S.ch == '\n' {
++				// '\n' terminates comment but we do not include
++				// it in the comment (otherwise we cannot see the
++				// start of a newline in SkipWhitespace()).
+ 				goto exit;
+ 			}
+ 		}
+@@ -554,6 +564,7 @@ func (S *Scanner) ScanComment() string {
+ 			ch := S.ch;
+ 			S.Next();
+ 			if ch == '*' && S.ch == '/' {
++				S.Next();
+ 				goto exit;
+ 			}
+ 		}
+@@ -562,7 +573,6 @@ func (S *Scanner) ScanComment() string {
+ 	S.Error(pos, "comment not terminated");
+ 
+ exit:
+-	S.Next();
+ 	comment := S.src[pos : S.chpos];
+ 
+ 	if S.testmode {
+@@ -586,6 +596,16 @@ exit:
+ 		}
+ 	}
+ 	
++	if nlpos < 0 {
++		// not only whitespace before comment on this line
++		comment = " " + comment;
++	} else if nlpos == pos {
++		// comment starts at the beginning of the line
++		comment = "\n" + comment;
++	} else {
++		// only whitespace before comment on this line
++		comment = "\t" + comment;
++	}
+ 	return comment;
+ }
+ 
+@@ -815,20 +835,17 @@ func (S *Scanner) Select4(tok0, tok1, ch2, tok2, tok3 int) int {
+ 
+ 
+ func (S *Scanner) Scan() (pos, tok int, val string) {
+-	S.SkipWhitespace();
++	nlpos := S.SkipWhitespace();
+ 	
+-	ch := S.ch;
+-	pos = S.chpos;
+-	tok = ILLEGAL;
++	pos, tok = S.chpos, ILLEGAL;
+ 	
+-	switch {
++	switch ch := S.ch; {
+ 	case is_letter(ch): tok, val = S.ScanIdentifier();
+ 	case digit_val(ch) < 10: tok, val = S.ScanNumber(false);
+ 	default:
+ 		S.Next();  // always make progress
+ 		switch ch {
+ 		case -1: tok = EOF;
+-		case '\n', '\t': tok, val = COMMENT, S.ScanWhitespace();
+ 		case '"': tok, val = STRING, S.ScanString();
+ 		case '\'': tok, val = INT, S.ScanChar();
+ 		case '`': tok, val = STRING, S.ScanRawString();
+@@ -858,7 +875,7 @@ func (S *Scanner) Scan() (pos, tok int, val string) {
+ 		case '*': tok = S.Select2(MUL, MUL_ASSIGN);
+ 		case '/':
+ 			if S.ch == '/' || S.ch == '*' {
+-				tok, val = COMMENT, S.ScanComment();
++				tok, val = COMMENT, S.ScanComment(nlpos);
+ 			} else {
+ 				tok = S.Select2(QUO, QUO_ASSIGN);
+ 			}
+diff --git a/usr/gri/pretty/selftest2.go b/usr/gri/pretty/selftest2.go
+new file mode 100644
+index 0000000000..a6c49b675c
+--- /dev/null
++++ b/usr/gri/pretty/selftest2.go
+@@ -0,0 +1,36 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import Fmt "fmt"
++
++
++type T struct {
++	x, y int;
++	s string;
++	next_t *T
++}
++
++
++var (
++	A = 5;
++	a, b, c int = 0, 0, 0;
++	foo = "foo";
++)
++
++
++func main() {
++// the prolog
++	for i := 0; i <= 10 /* limit */; i++ {
++		println(i);  // the index
++		println(i + 1);  // the index + 1
++		println(i + 1000);  // the index + 1000
++		println();
++	}
++// the epilog
++	println("foo");  // foo
++	println("foobar");  // foobar
++var x int;
++}
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 141193cf2a..2b57aedca7 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -96,11 +96,11 @@ valid() {
+ runtest() {
+ 	#echo "Testing silent mode"
+ 	cleanup
+-	$1 silent
++	$1 silent $2
+ 
+ 	#echo "Testing idempotency"
+ 	cleanup
+-	$1 idempotent
++	$1 idempotent $2
+ }
+ 
+ 

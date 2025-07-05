@@ -20,9 +20,77 @@ Date:   Mon Sep 16 14:05:06 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13421049
-
+---
  src/pkg/net/ipraw_test.go      | 6 ++++++
  src/pkg/net/multicast_test.go  | 4 ++++
  src/pkg/net/packetconn_test.go | 3 +++
  src/pkg/net/protoconn_test.go  | 3 +++
  4 files changed, 16 insertions(+)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 7f83891cc7..c8e3c846f4 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -84,6 +84,9 @@ func TestConnICMPEcho(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "windows":
++		if testing.Short() || !*testExternal {
++			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
++		}
+ 	default:
+ 		if os.Getuid() != 0 {
+ 			t.Skip("skipping test; must be root")
+@@ -158,6 +161,9 @@ func TestPacketConnICMPEcho(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "windows":
++		if testing.Short() || !*testExternal {
++			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
++		}
+ 	default:
+ 		if os.Getuid() != 0 {
+ 			t.Skip("skipping test; must be root")
+diff --git a/src/pkg/net/multicast_test.go b/src/pkg/net/multicast_test.go
+index 5660fd42f8..31a650aa28 100644
+--- a/src/pkg/net/multicast_test.go
++++ b/src/pkg/net/multicast_test.go
+@@ -25,6 +25,10 @@ var ipv4MulticastListenerTests = []struct {
+ // port.
+ func TestIPv4MulticastListener(t *testing.T) {
+ 	switch runtime.GOOS {
++	case "windows":
++		if testing.Short() || !*testExternal {
++			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
++		}
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	}
+diff --git a/src/pkg/net/packetconn_test.go b/src/pkg/net/packetconn_test.go
+index f779b4ad47..e64457bd37 100644
+--- a/src/pkg/net/packetconn_test.go
++++ b/src/pkg/net/packetconn_test.go
+@@ -32,6 +32,9 @@ func packetConnTestData(t *testing.T, net string, i int) ([]byte, func()) {
+ 				t.Logf("skipping %q test on %q", net, runtime.GOOS)
+ 			}
+ 		case "windows":
++			if testing.Short() || !*testExternal {
++				t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
++			}
+ 		default:
+ 			if os.Getuid() != 0 {
+ 				return nil, func() {
+diff --git a/src/pkg/net/protoconn_test.go b/src/pkg/net/protoconn_test.go
+index 3afa41b411..2c268a91d2 100644
+--- a/src/pkg/net/protoconn_test.go
++++ b/src/pkg/net/protoconn_test.go
+@@ -177,6 +177,9 @@ func TestIPConnSpecificMethods(t *testing.T) {
+ 	case "plan9":
+ 		t.Skipf("skipping test on %q", runtime.GOOS)
+ 	case "windows":
++		if testing.Short() || !*testExternal {
++			t.Skipf("skipping test on %q to avoid network firewall", runtime.GOOS)
++		}
+ 	default:
+ 		if os.Getuid() != 0 {
+ 			t.Skipf("skipping test; must be root")

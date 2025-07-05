@@ -13,7 +13,465 @@ Date:   Tue Aug 3 20:43:39 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/termlist.go      | 167 ++++++++++++++
  src/cmd/compile/internal/types2/termlist_test.go | 278 +++++++++++++++++++++++
  2 files changed, 445 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/termlist.go b/src/cmd/compile/internal/types2/termlist.go
+new file mode 100644
+index 0000000000..b2c26f41be
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/termlist.go
+@@ -0,0 +1,167 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++import "bytes"
++
++// A termlist represents the type set represented by the union
++// t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
++// A termlist is in normal form if all terms are disjoint.
++// termlist operations don't require the operands to be in
++// normal form.
++type termlist []*term
++
++// topTermList represents the set of all types.
++// It is in normal form.
++var topTermlist = termlist{new(term)}
++
++// String prints the termlist exactly (without normalization).
++func (xl termlist) String() string {
++	if len(xl) == 0 {
++		return "∅"
++	}
++	var buf bytes.Buffer
++	for i, x := range xl {
++		if i > 0 {
++			buf.WriteString(" ∪ ")
++		}
++		buf.WriteString(x.String())
++	}
++	return buf.String()
++}
++
++// isEmpty reports whether the termlist xl represents the empty set of types.
++func (xl termlist) isEmpty() bool {
++	// If there's a non-nil term, the entire list is not empty.
++	// If the termlist is in normal form, this requires at most
++	// one iteration.
++	for _, x := range xl {
++		if x != nil {
++			return false
++		}
++	}
++	return true
++}
++
++// isTop reports whether the termlist xl represents the set of all types.
++func (xl termlist) isTop() bool {
++	// If there's a ⊤ (top) term, the entire list is ⊤ (top).
++	// If the termlist is in normal form, this requires at most
++	// one iteration.
++	for _, x := range xl {
++		if x != nil && x.typ == nil {
++			return true
++		}
++	}
++	return false
++}
++
++// norm returns the normal form of xl.
++func (xl termlist) norm() termlist {
++	// Quadratic algorithm, but good enough for now.
++	// TODO(gri) fix asymptotic performance
++	used := make([]bool, len(xl))
++	var rl termlist
++	for i, xi := range xl {
++		if xi == nil || used[i] {
++			continue
++		}
++		for j := i + 1; j < len(xl); j++ {
++			xj := xl[j]
++			if xj == nil || used[j] {
++				continue
++			}
++			if u1, u2 := xi.union(xj); u2 == nil {
++				// If we encounter a ⊤ (top) term, the entire
++				// list is ⊤ (top). Exit early.
++				// (Note that this is not just an optimization;
++				// if we continue, we may end up with a ⊤ term
++				// and other terms and the result would not be
++				// in normal form.)
++				if u1.typ == nil {
++					return topTermlist
++				}
++				xi = u1
++				used[j] = true // xj is now unioned into xi - ignore it in future iterations
++			}
++		}
++		rl = append(rl, xi)
++	}
++	return rl
++}
++
++// If the type set represented by xl is specified by a single (non-⊤) term,
++// structuralType returns that type. Otherwise it returns nil.
++func (xl termlist) structuralType() Type {
++	if nl := xl.norm(); len(nl) == 1 {
++		return nl[0].typ // if nl.isTop() then typ is nil, which is ok
++	}
++	return nil
++}
++
++// union returns the union xl ∪ yl.
++func (xl termlist) union(yl termlist) termlist {
++	return append(xl, yl...).norm()
++}
++
++// intersect returns the intersection xl ∩ yl.
++func (xl termlist) intersect(yl termlist) termlist {
++	if xl.isEmpty() || yl.isEmpty() {
++		return nil
++	}
++
++	// Quadratic algorithm, but good enough for now.
++	// TODO(gri) fix asymptotic performance
++	var rl termlist
++	for _, x := range xl {
++		for _, y := range yl {
++			if r := x.intersect(y); r != nil {
++				rl = append(rl, r)
++			}
++		}
++	}
++	return rl.norm()
++}
++
++// equal reports whether xl and yl represent the same type set.
++func (xl termlist) equal(yl termlist) bool {
++	// TODO(gri) this should be more efficient
++	return xl.subsetOf(yl) && yl.subsetOf(xl)
++}
++
++// includes reports whether t ∈ xl.
++func (xl termlist) includes(t Type) bool {
++	for _, x := range xl {
++		if x.includes(t) {
++			return true
++		}
++	}
++	return false
++}
++
++// supersetOf reports whether y ⊆ xl.
++func (xl termlist) supersetOf(y *term) bool {
++	for _, x := range xl {
++		if y.subsetOf(x) {
++			return true
++		}
++	}
++	return false
++}
++
++// subsetOf reports whether xl ⊆ yl.
++func (xl termlist) subsetOf(yl termlist) bool {
++	if yl.isEmpty() {
++		return xl.isEmpty()
++	}
++
++	// each term x of xl must be a subset of yl
++	for _, x := range xl {
++		if !yl.supersetOf(x) {
++			return false // x is not a subset yl
++		}
++	}
++	return true
++}
+diff --git a/src/cmd/compile/internal/types2/termlist_test.go b/src/cmd/compile/internal/types2/termlist_test.go
+new file mode 100644
+index 0000000000..c36baeb86f
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/termlist_test.go
+@@ -0,0 +1,278 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types2
++
++import (
++	"strings"
++	"testing"
++)
++
++// maketl makes a term list from a string of the term list.
++func maketl(s string) termlist {
++	s = strings.Replace(s, " ", "", -1)
++	names := strings.Split(s, "∪")
++	r := make(termlist, len(names))
++	for i, n := range names {
++		r[i] = testTerm(n)
++	}
++	return r
++}
++
++func TestTermlistTop(t *testing.T) {
++	if !topTermlist.isTop() {
++		t.Errorf("topTermlist is not top")
++	}
++}
++
++func TestTermlistString(t *testing.T) {
++	for _, want := range []string{
++		"∅",
++		"⊤",
++		"int",
++		"~int",
++		"∅ ∪ ∅",
++		"⊤ ∪ ⊤",
++		"∅ ∪ ⊤ ∪ int",
++	} {
++		if got := maketl(want).String(); got != want {
++			t.Errorf("(%v).String() == %v", want, got)
++		}
++	}
++}
++
++func TestTermlistIsEmpty(t *testing.T) {
++	for test, want := range map[string]bool{
++		"∅":         true,
++		"∅ ∪ ∅":     true,
++		"∅ ∪ ∅ ∪ ⊤": false,
++		"⊤":         false,
++		"⊤ ∪ int":   false,
++	} {
++		xl := maketl(test)
++		got := xl.isEmpty()
++		if got != want {
++			t.Errorf("(%v).isEmpty() == %v; want %v", test, got, want)
++		}
++	}
++}
++
++func TestTermlistIsTop(t *testing.T) {
++	for test, want := range map[string]bool{
++		"∅":             false,
++		"∅ ∪ ∅":         false,
++		"int ∪ ~string": false,
++		"∅ ∪ ∅ ∪ ⊤":     true,
++		"⊤":             true,
++		"⊤ ∪ int":       true,
++	} {
++		xl := maketl(test)
++		got := xl.isTop()
++		if got != want {
++			t.Errorf("(%v).isTop() == %v; want %v", test, got, want)
++		}
++	}
++}
++
++func TestTermlistNorm(t *testing.T) {
++	for _, test := range []struct {
++		xl, want string
++	}{
++		{"∅", "∅"},
++		{"∅ ∪ ∅", "∅"},
++		{"∅ ∪ int", "int"},
++		{"⊤ ∪ int", "⊤"},
++		{"~int ∪ int", "~int"},
++		{"int ∪ ~string ∪ int", "int ∪ ~string"},
++		{"~int ∪ string ∪ ⊤ ∪ ~string ∪ int", "⊤"},
++	} {
++		xl := maketl(test.xl)
++		got := maketl(test.xl).norm()
++		if got.String() != test.want {
++			t.Errorf("(%v).norm() = %v; want %v", xl, got, test.want)
++		}
++	}
++}
++
++func TestTermlistStructuralType(t *testing.T) {
++	// helper to deal with nil types
++	tstring := func(typ Type) string {
++		if typ == nil {
++			return "nil"
++		}
++		return typ.String()
++	}
++
++	for test, want := range map[string]string{
++		"∅":                 "nil",
++		"⊤":                 "nil",
++		"int":               "int",
++		"~int":              "int",
++		"~int ∪ string":     "nil",
++		"∅ ∪ int":           "int",
++		"∅ ∪ ~int":          "int",
++		"∅ ∪ ~int ∪ string": "nil",
++	} {
++		xl := maketl(test)
++		got := tstring(xl.structuralType())
++		if got != want {
++			t.Errorf("(%v).structuralType() == %v; want %v", test, got, want)
++		}
++	}
++}
++
++func TestTermlistUnion(t *testing.T) {
++	for _, test := range []struct {
++		xl, yl, want string
++	}{
++
++		{"∅", "∅", "∅"},
++		{"∅", "⊤", "⊤"},
++		{"∅", "int", "int"},
++		{"⊤", "~int", "⊤"},
++		{"int", "~int", "~int"},
++		{"int", "string", "int ∪ string"},
++		{"int ∪ string", "~string", "int ∪ ~string"},
++		{"~int ∪ string", "~string ∪ int", "~int ∪ ~string"},
++		{"~int ∪ string ∪ ∅", "~string ∪ int", "~int ∪ ~string"},
++		{"~int ∪ string ∪ ⊤", "~string ∪ int", "⊤"},
++	} {
++		xl := maketl(test.xl)
++		yl := maketl(test.yl)
++		got := xl.union(yl).String()
++		if got != test.want {
++			t.Errorf("(%v).union(%v) = %v; want %v", test.xl, test.yl, got, test.want)
++		}
++	}
++}
++
++func TestTermlistIntersect(t *testing.T) {
++	for _, test := range []struct {
++		xl, yl, want string
++	}{
++
++		{"∅", "∅", "∅"},
++		{"∅", "⊤", "∅"},
++		{"∅", "int", "∅"},
++		{"⊤", "~int", "~int"},
++		{"int", "~int", "int"},
++		{"int", "string", "∅"},
++		{"int ∪ string", "~string", "string"},
++		{"~int ∪ string", "~string ∪ int", "int ∪ string"},
++		{"~int ∪ string ∪ ∅", "~string ∪ int", "int ∪ string"},
++		{"~int ∪ string ∪ ⊤", "~string ∪ int", "int ∪ ~string"},
++	} {
++		xl := maketl(test.xl)
++		yl := maketl(test.yl)
++		got := xl.intersect(yl).String()
++		if got != test.want {
++			t.Errorf("(%v).intersect(%v) = %v; want %v", test.xl, test.yl, got, test.want)
++		}
++	}
++}
++
++func TestTermlistEqual(t *testing.T) {
++	for _, test := range []struct {
++		xl, yl string
++		want   bool
++	}{
++		{"∅", "∅", true},
++		{"∅", "⊤", false},
++		{"⊤", "⊤", true},
++		{"⊤ ∪ int", "⊤", true},
++		{"⊤ ∪ int", "string ∪ ⊤", true},
++		{"int ∪ ~string", "string ∪ int", false},
++		{"int ∪ ~string ∪ ∅", "string ∪ int ∪ ~string", true},
++	} {
++		xl := maketl(test.xl)
++		yl := maketl(test.yl)
++		got := xl.equal(yl)
++		if got != test.want {
++			t.Errorf("(%v).equal(%v) = %v; want %v", test.xl, test.yl, got, test.want)
++		}
++	}
++}
++
++func TestTermlistIncludes(t *testing.T) {
++	for _, test := range []struct {
++		xl, typ string
++		want    bool
++	}{
++		{"∅", "int", false},
++		{"⊤", "int", true},
++		{"~int", "int", true},
++		{"int", "string", false},
++		{"~int", "string", false},
++		{"int ∪ string", "string", true},
++		{"~int ∪ string", "int", true},
++		{"~int ∪ string ∪ ∅", "string", true},
++		{"~string ∪ ∅ ∪ ⊤", "int", true},
++	} {
++		xl := maketl(test.xl)
++		yl := testTerm(test.typ).typ
++		got := xl.includes(yl)
++		if got != test.want {
++			t.Errorf("(%v).includes(%v) = %v; want %v", test.xl, yl, got, test.want)
++		}
++	}
++}
++
++func TestTermlistSupersetOf(t *testing.T) {
++	for _, test := range []struct {
++		xl, typ string
++		want    bool
++	}{
++		{"∅", "∅", true},
++		{"∅", "⊤", false},
++		{"∅", "int", false},
++		{"⊤", "∅", true},
++		{"⊤", "⊤", true},
++		{"⊤", "int", true},
++		{"⊤", "~int", true},
++		{"~int", "int", true},
++		{"~int", "~int", true},
++		{"int", "~int", false},
++		{"int", "string", false},
++		{"~int", "string", false},
++		{"int ∪ string", "string", true},
++		{"int ∪ string", "~string", false},
++		{"~int ∪ string", "int", true},
++		{"~int ∪ string ∪ ∅", "string", true},
++		{"~string ∪ ∅ ∪ ⊤", "int", true},
++	} {
++		xl := maketl(test.xl)
++		y := testTerm(test.typ)
++		got := xl.supersetOf(y)
++		if got != test.want {
++			t.Errorf("(%v).supersetOf(%v) = %v; want %v", test.xl, y, got, test.want)
++		}
++	}
++}
++
++func TestTermlistSubsetOf(t *testing.T) {
++	for _, test := range []struct {
++		xl, yl string
++		want   bool
++	}{
++		{"∅", "∅", true},
++		{"∅", "⊤", true},
++		{"⊤", "∅", false},
++		{"⊤", "⊤", true},
++		{"int", "int ∪ string", true},
++		{"~int", "int ∪ string", false},
++		{"~int", "string ∪ string ∪ int ∪ ~int", true},
++		{"int ∪ string", "string", false},
++		{"int ∪ string", "string ∪ int", true},
++		{"int ∪ ~string", "string ∪ int", false},
++		{"int ∪ ~string", "string ∪ int ∪ ⊤", true},
++		{"int ∪ ~string", "string ∪ int ∪ ∅ ∪ string", false},
++	} {
++		xl := maketl(test.xl)
++		yl := maketl(test.yl)
++		got := xl.subsetOf(yl)
++		if got != test.want {
++			t.Errorf("(%v).subsetOf(%v) = %v; want %v", test.xl, test.yl, got, test.want)
++		}
++	}
++}

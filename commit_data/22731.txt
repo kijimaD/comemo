@@ -12,6 +12,21 @@ Date:   Mon Apr 6 18:43:25 2015 -0400
     Change-Id: I1d762383ba61efcbcf0bbc7c77895f5c1dbf8968
     Reviewed-on: https://go-review.googlesource.com/8510
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/runtime/rt0_android_arm.s | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/runtime/rt0_android_arm.s b/src/runtime/rt0_android_arm.s
+index 6b65fb47b1..ad5cf88baa 100644
+--- a/src/runtime/rt0_android_arm.s
++++ b/src/runtime/rt0_android_arm.s
+@@ -9,3 +9,9 @@ TEXT _rt0_arm_android(SB),NOSPLIT,$-4
+ 	MOVW		$4(R13), R1    // argv
+ 	MOVW		$_rt0_arm_linux1(SB), R4
+ 	B		(R4)
++
++// This symbol is called when a shared library is loaded.
++TEXT _rt0_arm_android_lib(SB),NOSPLIT,$0
++	// TODO(crawshaw): initialize runtime.
++	// At the moment this is done in mobile/app/android.c:init_go_runtime
++	RET

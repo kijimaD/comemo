@@ -16,7 +16,62 @@ Date:   Thu Apr 28 15:49:39 2016 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/malloc.go   | 17 -----------------
  src/runtime/mgcsweep.go | 15 +++++++++++++++
  2 files changed, 15 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d5061b55ba..2ac504f9dc 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -743,23 +743,6 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		gcmarknewobject(uintptr(x), size, scanSize)
+ 	}
+ 
+-	// The object x is about to be reused but tracefree and msanfree
+-	// need to be informed.
+-	// TODO:(rlh) It is quite possible that this object is being allocated
+-	// out of a fresh span and that there is no preceding call to
+-	// tracealloc with this object. If this is an issue then initialization
+-	// of the fresh span needs to leave some crumbs around that can be used to
+-	// avoid these calls. Furthermore these crumbs a likely the same as
+-	// those needed to determine if the object needs to be zeroed.
+-	// In the case of msanfree it does not make sense to call msanfree
+-	// followed by msanmalloc. msanfree indicates that the bytes are not
+-	// initialized but msanmalloc is about to indicate that they are.
+-	// It makes no difference whether msanmalloc has been called on these
+-	// bytes or not.
+-	if debug.allocfreetrace != 0 {
+-		tracefree(unsafe.Pointer(x), size)
+-	}
+-
+ 	if raceenabled {
+ 		racemalloc(x, size)
+ 	}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 084d0a71c1..c9ef63547a 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -251,6 +251,21 @@ func (s *mspan) sweep(preserve bool) bool {
+ 		}
+ 	}
+ 
++	if debug.allocfreetrace != 0 {
++		// Find all newly freed objects. This doesn't have to
++		// efficient; allocfreetrace has massive overhead.
++		mbits := s.markBitsForBase()
++		abits := s.allocBitsForIndex(0)
++		for i := uintptr(0); i < s.nelems; i++ {
++			if !mbits.isMarked() && (abits.index < s.freeindex || abits.isMarked()) {
++				x := s.base() + i*s.elemsize
++				tracefree(unsafe.Pointer(x), size)
++			}
++			mbits.advance()
++			abits.advance()
++		}
++	}
++
+ 	// Count the number of free objects in this span.
+ 	nfree = s.countFree()
+ 	if cl == 0 && nfree != 0 {

@@ -17,8 +17,67 @@ Date:   Tue Sep 22 17:57:06 2020 +0200
     Reviewed-on: https://go-review.googlesource.com/c/go/+/256498
     Trust: Roberto Clapis <roberto@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  doc/go1.16.html             |  5 +++++
  src/net/http/cookie.go      |  2 +-
  src/net/http/cookie_test.go | 11 ++++++++++-
  3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.16.html b/doc/go1.16.html
+index 2962448742..720acc757a 100644
+--- a/doc/go1.16.html
++++ b/doc/go1.16.html
+@@ -286,6 +286,11 @@ Do not send CLs removing the interior tags from such phrases.
+      of the form <code>"Range": "bytes=--N"</code> where <code>"-N"</code> is a negative suffix length, for
+      example <code>"Range": "bytes=--2"</code>. It now replies with a <code>416 "Range Not Satisfiable"</code> response.
+     </p>
++
++    <p><!-- CL 256498, golang.org/issue/36990 -->
++    Cookies set with <code>SameSiteDefaultMode</code> now behave according to the current
++    spec (no attribute is set) instead of generating a SameSite key without a value.
++    </p>
+   </dd>
+ </dl><!-- net/http -->
+ 
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index d7a8f5e94e..141bc947f6 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -220,7 +220,7 @@ func (c *Cookie) String() string {
+ 	}
+ 	switch c.SameSite {
+ 	case SameSiteDefaultMode:
+-		b.WriteString("; SameSite")
++		// Skip, default mode is obtained by not emitting the attribute.
+ 	case SameSiteNoneMode:
+ 		b.WriteString("; SameSite=None")
+ 	case SameSiteLaxMode:
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 9e8196ebce..959713a0dc 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -67,7 +67,7 @@ var writeSetCookiesTests = []struct {
+ 	},
+ 	{
+ 		&Cookie{Name: "cookie-12", Value: "samesite-default", SameSite: SameSiteDefaultMode},
+-		"cookie-12=samesite-default; SameSite",
++		"cookie-12=samesite-default",
+ 	},
+ 	{
+ 		&Cookie{Name: "cookie-13", Value: "samesite-lax", SameSite: SameSiteLaxMode},
+@@ -282,6 +282,15 @@ var readSetCookiesTests = []struct {
+ 			Raw:      "samesitedefault=foo; SameSite",
+ 		}},
+ 	},
++	{
++		Header{"Set-Cookie": {"samesiteinvalidisdefault=foo; SameSite=invalid"}},
++		[]*Cookie{{
++			Name:     "samesiteinvalidisdefault",
++			Value:    "foo",
++			SameSite: SameSiteDefaultMode,
++			Raw:      "samesiteinvalidisdefault=foo; SameSite=invalid",
++		}},
++	},
+ 	{
+ 		Header{"Set-Cookie": {"samesitelax=foo; SameSite=Lax"}},
+ 		[]*Cookie{{

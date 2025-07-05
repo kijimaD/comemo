@@ -12,6 +12,28 @@ Date:   Sun Sep 4 20:09:40 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/go.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 171f3cef11..9dfb0f756e 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -7,7 +7,6 @@
+ package ld
+ 
+ import (
+-	"bytes"
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+@@ -383,7 +382,7 @@ func Adddynsym(ldr *loader.Loader, target *Target, syms *ArchSyms, s loader.Sym)
+ }
+ 
+ func fieldtrack(arch *sys.Arch, l *loader.Loader) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for i := loader.Sym(1); i < loader.Sym(l.NSym()); i++ {
+ 		if name := l.SymName(i); strings.HasPrefix(name, "go:track.") {
+ 			if l.AttrReachable(i) {

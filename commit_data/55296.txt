@@ -21,7 +21,67 @@ Date:   Thu Dec 1 17:24:23 2022 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/noder/reader.go | 32 ++++++++++++++++++++++++++------
  test/typeparam/issue52124.go             |  4 +++-
  2 files changed, 29 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index bdec467f90..ac6d2fa931 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -519,13 +519,33 @@ func (r *reader) doTyp() *types.Type {
+ }
+ 
+ func (r *reader) unionType() *types.Type {
+-	terms := make([]*types.Type, r.Len())
+-	tildes := make([]bool, len(terms))
+-	for i := range terms {
+-		tildes[i] = r.Bool()
+-		terms[i] = r.typ()
++	// In the types1 universe, we only need to handle value types.
++	// Impure interfaces (i.e., interfaces with non-trivial type sets
++	// like "int | string") can only appear as type parameter bounds,
++	// and this is enforced by the types2 type checker.
++	//
++	// However, type unions can still appear in pure interfaces if the
++	// type union is equivalent to "any". E.g., typeparam/issue52124.go
++	// declares variables with the type "interface { any | int }".
++	//
++	// To avoid needing to represent type unions in types1 (since we
++	// don't have any uses for that today anyway), we simply fold them
++	// to "any". As a consistency check, we still read the union terms
++	// to make sure this substitution is safe.
++
++	pure := false
++	for i, n := 0, r.Len(); i < n; i++ {
++		_ = r.Bool() // tilde
++		term := r.typ()
++		if term.IsEmptyInterface() {
++			pure = true
++		}
++	}
++	if !pure {
++		base.Fatalf("impure type set used in value type")
+ 	}
+-	return types.NewUnion(terms, tildes)
++
++	return types.Types[types.TINTER]
+ }
+ 
+ func (r *reader) interfaceType() *types.Type {
+diff --git a/test/typeparam/issue52124.go b/test/typeparam/issue52124.go
+index a113fc7444..07cba47982 100644
+--- a/test/typeparam/issue52124.go
++++ b/test/typeparam/issue52124.go
+@@ -6,7 +6,9 @@
+ 
+ package p
+ 
+-type I interface{ any | int }
++type Any any
++
++type I interface{ Any | int }
+ 
+ var (
+ 	X I = 42

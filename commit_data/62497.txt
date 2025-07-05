@@ -14,7 +14,53 @@ Date:   Fri Mar 7 13:34:55 2025 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/debug/dwarf/entry.go    | 7 ++++---
  src/debug/dwarf/typeunit.go | 2 +-
  2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 4541d74d4d..3e54a1a13a 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -407,7 +407,8 @@ type Offset uint32
+ 
+ // Entry reads a single entry from buf, decoding
+ // according to the given abbreviation table.
+-func (b *buf) entry(cu *Entry, atab abbrevTable, ubase Offset, vers int) *Entry {
++func (b *buf) entry(cu *Entry, u *unit) *Entry {
++	atab, ubase, vers := u.atable, u.base, u.vers
+ 	off := b.off
+ 	id := uint32(b.uint())
+ 	if id == 0 {
+@@ -884,7 +885,7 @@ func (r *Reader) Next() (*Entry, error) {
+ 		return nil, nil
+ 	}
+ 	u := &r.d.unit[r.unit]
+-	e := r.b.entry(r.cu, u.atable, u.base, u.vers)
++	e := r.b.entry(r.cu, u)
+ 	if r.b.err != nil {
+ 		r.err = r.b.err
+ 		return nil, r.err
+@@ -1091,7 +1092,7 @@ func (d *Data) baseAddressForEntry(e *Entry) (*Entry, uint64, error) {
+ 		}
+ 		u := &d.unit[i]
+ 		b := makeBuf(d, u, "info", u.off, u.data)
+-		cu = b.entry(nil, u.atable, u.base, u.vers)
++		cu = b.entry(nil, u)
+ 		if b.err != nil {
+ 			return nil, 0, b.err
+ 		}
+diff --git a/src/debug/dwarf/typeunit.go b/src/debug/dwarf/typeunit.go
+index 8ecf876416..e5b8973ac9 100644
+--- a/src/debug/dwarf/typeunit.go
++++ b/src/debug/dwarf/typeunit.go
+@@ -137,7 +137,7 @@ func (tur *typeUnitReader) Next() (*Entry, error) {
+ 	if len(tur.tu.data) == 0 {
+ 		return nil, nil
+ 	}
+-	e := tur.b.entry(nil, tur.tu.atable, tur.tu.base, tur.tu.vers)
++	e := tur.b.entry(nil, &tur.tu.unit)
+ 	if tur.b.err != nil {
+ 		tur.err = tur.b.err
+ 		return nil, tur.err

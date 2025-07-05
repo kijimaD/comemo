@@ -9,7 +9,47 @@ Date:   Mon Nov 28 12:10:16 2011 -0500
     R=agl, gustav.paul, tg8866, rsc
     CC=golang-dev
     https://golang.org/cl/5443044
-
+---
  src/pkg/exp/ssh/channel.go | 12 ++++++------
  src/pkg/exp/ssh/client.go  |  4 ++--
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/channel.go b/src/pkg/exp/ssh/channel.go
+index 6ff8203ce2..9d75f37de7 100644
+--- a/src/pkg/exp/ssh/channel.go
++++ b/src/pkg/exp/ssh/channel.go
+@@ -244,13 +244,13 @@ func (c *channel) Write(data []byte) (n int, err error) {
+ 
+ 		packet := make([]byte, 1+4+4+len(todo))
+ 		packet[0] = msgChannelData
+-		packet[1] = byte(c.theirId) >> 24
+-		packet[2] = byte(c.theirId) >> 16
+-		packet[3] = byte(c.theirId) >> 8
++		packet[1] = byte(c.theirId >> 24)
++		packet[2] = byte(c.theirId >> 16)
++		packet[3] = byte(c.theirId >> 8)
+ 		packet[4] = byte(c.theirId)
+-		packet[5] = byte(len(todo)) >> 24
+-		packet[6] = byte(len(todo)) >> 16
+-		packet[7] = byte(len(todo)) >> 8
++		packet[5] = byte(len(todo) >> 24)
++		packet[6] = byte(len(todo) >> 16)
++		packet[7] = byte(len(todo) >> 8)
+ 		packet[8] = byte(len(todo))
+ 		copy(packet[9:], todo)
+ 
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index 39aee80420..f22782244c 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -403,8 +403,8 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
+ 		n = len(data)
+ 		packet := make([]byte, 0, 9+n)
+ 		packet = append(packet, msgChannelData,
+-			byte(w.peersId)>>24, byte(w.peersId)>>16, byte(w.peersId)>>8, byte(w.peersId),
+-			byte(n)>>24, byte(n)>>16, byte(n)>>8, byte(n))
++			byte(w.peersId>>24), byte(w.peersId>>16), byte(w.peersId>>8), byte(w.peersId),
++			byte(n>>24), byte(n>>16), byte(n>>8), byte(n))
+ 		err = w.writePacket(append(packet, data...))
+ 		w.rwin -= n
+ 		return

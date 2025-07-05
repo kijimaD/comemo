@@ -7,7 +7,32 @@ Date:   Fri Mar 9 11:19:10 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5783063
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 07acf71f22..403ed76d46 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -101,6 +101,7 @@ Jani Monoses <jani.monoses@ubuntu.com>
+ Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org>
++Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b843e791b2..7c5ea0a33f 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -149,6 +149,7 @@ Jani Monoses <jani.monoses@ubuntu.com> <jani.monoses@gmail.com>
+ Jaroslavas Počepko <jp@webmaster.ms>
+ Jeff Hodges <jeff@somethingsimilar.com>
+ Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
++Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Joel Sing <jsing@google.com>

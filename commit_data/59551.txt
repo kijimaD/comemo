@@ -66,10 +66,194 @@ Date:   Sun Feb 4 12:59:59 2024 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/aes/aes_gcm.go    |  2 +-
  src/crypto/aes/aes_test.go   | 41 +++++++++++++++++++++++++++++++++++------
  src/crypto/aes/cipher.go     | 14 +++++++-------
  src/crypto/aes/cipher_asm.go | 13 +++++++------
  src/crypto/aes/gcm_ppc64x.go |  2 +-
  5 files changed, 51 insertions(+), 21 deletions(-)
+
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/aes/aes_gcm.go
+index b95796970c..d1e3fade71 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/aes/aes_gcm.go
+@@ -45,7 +45,7 @@ var _ gcmAble = (*aesCipherGCM)(nil)
+ // NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+ // called by [crypto/cipher.NewGCM] via the gcmAble interface.
+ func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+-	g := &gcmAsm{ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
++	g := &gcmAsm{ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
+ 	gcmAesInit(&g.productTable, g.ks)
+ 	return g, nil
+ }
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index 1e8bac4bb5..6035f16050 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -345,7 +345,12 @@ func mustPanic(t *testing.T, msg string, f func()) {
+ }
+ 
+ func BenchmarkEncrypt(b *testing.B) {
+-	tt := encryptTests[0]
++	b.Run("AES-128", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[1]) })
++	b.Run("AES-192", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[2]) })
++	b.Run("AES-256", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[3]) })
++}
++
++func benchmarkEncrypt(b *testing.B, tt CryptTest) {
+ 	c, err := NewCipher(tt.key)
+ 	if err != nil {
+ 		b.Fatal("NewCipher:", err)
+@@ -359,7 +364,12 @@ func BenchmarkEncrypt(b *testing.B) {
+ }
+ 
+ func BenchmarkDecrypt(b *testing.B) {
+-	tt := encryptTests[0]
++	b.Run("AES-128", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[1]) })
++	b.Run("AES-192", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[2]) })
++	b.Run("AES-256", func(b *testing.B) { benchmarkDecrypt(b, encryptTests[3]) })
++}
++
++func benchmarkDecrypt(b *testing.B, tt CryptTest) {
+ 	c, err := NewCipher(tt.key)
+ 	if err != nil {
+ 		b.Fatal("NewCipher:", err)
+@@ -373,11 +383,30 @@ func BenchmarkDecrypt(b *testing.B) {
+ }
+ 
+ func BenchmarkExpand(b *testing.B) {
+-	tt := encryptTests[0]
+-	n := len(tt.key) + 28
+-	c := &aesCipher{make([]uint32, n), make([]uint32, n)}
++	b.Run("AES-128", func(b *testing.B) { benchmarkExpand(b, encryptTests[1]) })
++	b.Run("AES-192", func(b *testing.B) { benchmarkExpand(b, encryptTests[2]) })
++	b.Run("AES-256", func(b *testing.B) { benchmarkExpand(b, encryptTests[3]) })
++}
++
++func benchmarkExpand(b *testing.B, tt CryptTest) {
++	c := &aesCipher{l: uint8(len(tt.key) + 28)}
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		expandKey(tt.key, c.enc, c.dec)
++		expandKey(tt.key, c.enc[:c.l], c.dec[:c.l])
++	}
++}
++
++func BenchmarkCreateCipher(b *testing.B) {
++	b.Run("AES-128", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[1]) })
++	b.Run("AES-192", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[2]) })
++	b.Run("AES-256", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[3]) })
++}
++
++func benchmarkCreateCipher(b *testing.B, tt CryptTest) {
++	b.ReportAllocs()
++	for i := 0; i < b.N; i++ {
++		if _, err := NewCipher(tt.key); err != nil {
++			b.Fatal(err)
++		}
+ 	}
+ }
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+index a9e6208696..cde2e45d2c 100644
+--- a/src/crypto/aes/cipher.go
++++ b/src/crypto/aes/cipher.go
+@@ -16,8 +16,9 @@ const BlockSize = 16
+ 
+ // A cipher is an instance of AES encryption using a particular key.
+ type aesCipher struct {
+-	enc []uint32
+-	dec []uint32
++	l   uint8 // only this length of the enc and dec array is actually used
++	enc [28 + 32]uint32
++	dec [28 + 32]uint32
+ }
+ 
+ type KeySizeError int
+@@ -47,9 +48,8 @@ func NewCipher(key []byte) (cipher.Block, error) {
+ // newCipherGeneric creates and returns a new cipher.Block
+ // implemented in pure Go.
+ func newCipherGeneric(key []byte) (cipher.Block, error) {
+-	n := len(key) + 28
+-	c := aesCipher{make([]uint32, n), make([]uint32, n)}
+-	expandKeyGo(key, c.enc, c.dec)
++	c := aesCipher{l: uint8(len(key) + 28)}
++	expandKeyGo(key, c.enc[:c.l], c.dec[:c.l])
+ 	return &c, nil
+ }
+ 
+@@ -65,7 +65,7 @@ func (c *aesCipher) Encrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	encryptBlockGo(c.enc, dst, src)
++	encryptBlockGo(c.enc[:c.l], dst, src)
+ }
+ 
+ func (c *aesCipher) Decrypt(dst, src []byte) {
+@@ -78,5 +78,5 @@ func (c *aesCipher) Decrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	decryptBlockGo(c.dec, dst, src)
++	decryptBlockGo(c.dec[:c.l], dst, src)
+ }
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+index 5451fa60d3..3e5f589c2c 100644
+--- a/src/crypto/aes/cipher_asm.go
++++ b/src/crypto/aes/cipher_asm.go
+@@ -44,8 +44,9 @@ func newCipher(key []byte) (cipher.Block, error) {
+ 	if !supportsAES {
+ 		return newCipherGeneric(key)
+ 	}
+-	n := len(key) + 28
+-	c := aesCipherAsm{aesCipher{make([]uint32, n), make([]uint32, n)}}
++	// Note that under certain circumstances, we only return the inner aesCipherAsm.
++	// This avoids an unnecessary allocation of the aesCipher struct.
++	c := aesCipherGCM{aesCipherAsm{aesCipher{l: uint8(len(key) + 28)}}}
+ 	var rounds int
+ 	switch len(key) {
+ 	case 128 / 8:
+@@ -60,9 +61,9 @@ func newCipher(key []byte) (cipher.Block, error) {
+ 
+ 	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
+ 	if supportsAES && supportsGFMUL {
+-		return &aesCipherGCM{c}, nil
++		return &c, nil
+ 	}
+-	return &c, nil
++	return &c.aesCipherAsm, nil
+ }
+ 
+ func (c *aesCipherAsm) BlockSize() int { return BlockSize }
+@@ -78,7 +79,7 @@ func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	encryptBlockAsm(len(c.enc)/4-1, &c.enc[0], &dst[0], &src[0])
++	encryptBlockAsm(int(c.l)/4-1, &c.enc[0], &dst[0], &src[0])
+ }
+ 
+ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+@@ -92,7 +93,7 @@ func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+ 		panic("crypto/aes: invalid buffer overlap")
+ 	}
+-	decryptBlockAsm(len(c.dec)/4-1, &c.dec[0], &dst[0], &src[0])
++	decryptBlockAsm(int(c.l)/4-1, &c.dec[0], &dst[0], &src[0])
+ }
+ 
+ // expandKey is used by BenchmarkExpand to ensure that the asm implementation
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/aes/gcm_ppc64x.go
+index 04fac72459..f206b47607 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/aes/gcm_ppc64x.go
+@@ -57,7 +57,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
+ // called by [crypto/cipher.NewGCM] via the gcmAble interface.
+ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	var h1, h2 uint64
+-	g := &gcmAsm{cipher: c, ks: c.enc, nonceSize: nonceSize, tagSize: tagSize}
++	g := &gcmAsm{cipher: c, ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
+ 
+ 	hle := make([]byte, gcmBlockSize)
+ 

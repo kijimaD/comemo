@@ -14,6 +14,24 @@ Date:   Wed Aug 28 14:42:06 2019 -0400
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  test/codegen/README | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/test/codegen/README b/test/codegen/README
+index f6877e701d..1afefd9e3c 100644
+--- a/test/codegen/README
++++ b/test/codegen/README
+@@ -30,6 +30,12 @@ transformation, it can be useful to first run the test harness with a
+ toolchain from a released Go version (and verify that the new tests
+ fail), and then re-runnig the tests using the devel toolchain.
+ 
++By default, only checks that are relevant to the current GOOS/GOARCH
++are run. Checks for all platforms can be enabled by specifiying the
++-all_codegen option, as
++
++  $ ../bin/go run run.go -all_codegen codegen
++
+ 
+ - Regexps comments syntax
+ 

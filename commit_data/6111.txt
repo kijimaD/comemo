@@ -10,6 +10,28 @@ Date:   Thu Aug 26 18:47:34 2010 -0400
     R=r, iant
     CC=golang-dev
     https://golang.org/cl/2007047
-
+---
  src/Make.pkg | 7 ++-----
  1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 239820b152..1f5f2823b9 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -102,14 +102,11 @@ dir:
+ #	x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
+ #
+ 
+-_cgo_defun.c _cgo_gotypes.go _cgo_export.c _cgo_export.h: $(CGOFILES)
++_cgo_defun.c: $(CGOFILES)
+ 	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+ 
+ # Ugly but necessary
+-%.cgo1.go: _cgo_defun.c _cgo_gotypes.go
+-	@true
+-
+-%.cgo2.c: _cgo_defun.c _cgo_gotypes.go
++_cgo_gotypes.go _cgo_export.c _cgo_export.h %.cgo1.go %.cgo2.c: _cgo_defun.c
+ 	@true
+ 
+ %.cgo2.o: %.cgo2.c

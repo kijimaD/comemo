@@ -16,7 +16,62 @@ Date:   Sat Mar 9 13:28:50 2019 +0100
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go                       | 17 ++++++++++++++---
  src/cmd/go/testdata/script/list_test_non_go_files.txt | 13 +++++++++++++
  2 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 6d3a2972a1..68acb96a80 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1935,8 +1935,12 @@ func Packages(args []string) []*Package {
+ // cannot be loaded at all.
+ // The packages that fail to load will have p.Error != nil.
+ func PackagesAndErrors(patterns []string) []*Package {
+-	if len(patterns) > 0 && strings.HasSuffix(patterns[0], ".go") {
+-		return []*Package{GoFilesPackage(patterns)}
++	if len(patterns) > 0 {
++		for _, p := range patterns {
++			if strings.HasSuffix(p, ".go") {
++				return []*Package{GoFilesPackage(patterns)}
++			}
++		}
+ 	}
+ 
+ 	matches := ImportPaths(patterns)
+@@ -2048,7 +2052,14 @@ func GoFilesPackage(gofiles []string) *Package {
+ 
+ 	for _, f := range gofiles {
+ 		if !strings.HasSuffix(f, ".go") {
+-			base.Fatalf("named files must be .go files")
++			pkg := new(Package)
++			pkg.Internal.Local = true
++			pkg.Internal.CmdlineFiles = true
++			pkg.Name = f
++			pkg.Error = &PackageError{
++				Err: fmt.Sprintf("named files must be .go files: %s", pkg.Name),
++			}
++			return pkg
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/list_test_non_go_files.txt b/src/cmd/go/testdata/script/list_test_non_go_files.txt
+new file mode 100644
+index 0000000000..16b98f4a37
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_test_non_go_files.txt
+@@ -0,0 +1,13 @@
++env GO111MODULE=off
++
++# issue 29899: handling files with non-Go extension
++go list -e -test -json -- c.c x.go
++stdout '"Err": "named files must be .go files: c.c"'
++
++! go list -test -json -- c.c x.go
++stderr 'can''t load package: named files must be .go files: c.c'
++
++-- x.go --
++package main
++-- c.c --
++package c

@@ -15,6 +15,28 @@ Date:   Fri Oct 2 09:58:45 2020 +0200
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/go/testdata/script/build_cache_arch_mode.txt | 10 +---------
  1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_cache_arch_mode.txt b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+index 68e662555f..931827fbde 100644
+--- a/src/cmd/go/testdata/script/build_cache_arch_mode.txt
++++ b/src/cmd/go/testdata/script/build_cache_arch_mode.txt
+@@ -1,15 +1,7 @@
+-# Issue 9737: verify that GOARM and GO386 affect the computed build ID
++# Issue 9737: verify that GOARM affects the computed build ID
+ 
+ [short] skip
+ 
+-# 386
+-env GOOS=linux
+-env GOARCH=386
+-env GO386=387
+-go install mycmd
+-env GO386=sse2
+-stale mycmd
+-
+ # arm
+ env GOOS=linux
+ env GOARCH=arm

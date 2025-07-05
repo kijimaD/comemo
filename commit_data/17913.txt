@@ -7,6 +7,20 @@ Date:   Thu Dec 5 17:49:34 2013 -0800
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/38130043
-
+---
  src/cmd/dist/build.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index e3b3c73af3..51503e2800 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -452,7 +452,7 @@ static char *proto_gccargs[] = {
+ 	// Fix available at http://patchwork.ozlabs.org/patch/64562/.
+ 	"-O1",
+ #else
+-	"-O0",
++	"-O2",
+ #endif
+ };
+ 

@@ -14,7 +14,39 @@ Date:   Sat Jul 16 16:08:35 2022 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/dist/test.go        | 2 +-
  src/runtime/runtime_test.go | 7 ++++++-
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 976e8346ba..da5b17980b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -542,7 +542,7 @@ func (t *tester) registerTests() {
+ 			name:    testName,
+ 			heading: "GOMAXPROCS=2 runtime -cpu=1,2,4 -quick",
+ 			fn: func(dt *distTest) error {
+-				cmd := t.addCmd(dt, "src", t.goTest(), t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
++				cmd := t.addCmd(dt, "src", t.goTest(), "-short=true", t.timeout(300), "runtime", "-cpu=1,2,4", "-quick")
+ 				// We set GOMAXPROCS=2 in addition to -cpu=1,2,4 in order to test runtime bootstrap code,
+ 				// creation of first goroutines and first garbage collections in the parallel setting.
+ 				setEnv(cmd, "GOMAXPROCS", "2")
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 0bdd01b086..018a8dbaa6 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -18,7 +18,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-var flagQuick = flag.Bool("quick", false, "skip slow tests, for second run in all.bash")
++// flagQuick is set by the -quick option to skip some relatively slow tests.
++// This is used by the cmd/dist test runtime:cpu124.
++// The cmd/dist test passes both -test.short and -quick;
++// there are tests that only check testing.Short, and those tests will
++// not be skipped if only -quick is used.
++var flagQuick = flag.Bool("quick", false, "skip slow tests, for cmd/dist test runtime:cpu124")
+ 
+ func init() {
+ 	// We're testing the runtime, so make tracebacks show things

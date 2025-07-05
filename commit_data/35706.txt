@@ -7,7 +7,36 @@ Date:   Fri Mar 2 21:06:09 2018 +0100
     Change-Id: I9fe6572d1043ef9ee09c0925059ded554ad24c6b
     Reviewed-on: https://go-review.googlesource.com/98215
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/codegen/bits.go   | 4 ++++
  test/codegen/rotate.go | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 28fef4b4ae..3c5ad2bce7 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -1,5 +1,9 @@
+ // asmcheck
+ 
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package codegen
+ 
+ func bitcheck(a, b uint64) int {
+diff --git a/test/codegen/rotate.go b/test/codegen/rotate.go
+index f2b587d202..0c8a35b0c7 100644
+--- a/test/codegen/rotate.go
++++ b/test/codegen/rotate.go
+@@ -1,5 +1,9 @@
+ // asmcheck
+ 
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package codegen
+ 
+ import "math"

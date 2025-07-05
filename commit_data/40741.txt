@@ -11,6 +11,23 @@ Date:   Tue Jun 25 09:17:28 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 9d82ac7dc8..e07f97d068 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -5061,6 +5061,11 @@ func TestExecBuildX(t *testing.T) {
+ 	tg.tempDir("cache")
+ 	tg.setenv("GOCACHE", tg.path("cache"))
+ 
++	// Before building our test main.go, ensure that an up-to-date copy of
++	// runtime/cgo is present in the cache. If it isn't, the 'go build' step below
++	// will fail with "can't open import". See golang.org/issue/29004.
++	tg.run("build", "runtime/cgo")
++
+ 	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
+ 	src := tg.path("main.go")
+ 	obj := tg.path("main")

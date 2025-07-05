@@ -11,6 +11,20 @@ Date:   Wed Jun 22 09:47:42 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/html/template/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index 1827403aa3..e1e9cad0af 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -166,7 +166,7 @@ that would have been produced if {{.}} was a regular string.
+ 
+ Security Model
+ 
+-http://js-quasis-libraries-and-repl.googlecode.com/svn/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
++https://rawgit.com/mikesamuel/sanitized-jquery-templates/trunk/safetemplate.html#problem_definition defines "safe" as used by this package.
+ 
+ This package assumes that template authors are trusted, that Execute's data
+ parameter is not, and seeks to preserve the properties below in the face

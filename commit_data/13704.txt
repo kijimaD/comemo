@@ -8,8 +8,98 @@ Date:   Wed Aug 29 23:42:05 2012 +0800
     R=golang-dev, dave, r
     CC=golang-dev
     https://golang.org/cl/6496043
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue1635.go | 33 +++++++++++++++++++++++++++++++++
  src/cmd/ld/ldmacho.c       | 21 +++++++++++++++------
  3 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 9c3c116345..1aa21cb65b 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -28,5 +28,6 @@ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+ func TestHelpers(t *testing.T)             { testHelpers(t) }
+ func TestLibgcc(t *testing.T)              { testLibgcc(t) }
++func Test1635(t *testing.T)                { test1635(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue1635.go b/misc/cgo/test/issue1635.go
+new file mode 100644
+index 0000000000..6bfe110fdf
+--- /dev/null
++++ b/misc/cgo/test/issue1635.go
+@@ -0,0 +1,33 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++/*
++// Mac OS X's gcc will generate scattered relocation 2/1 for
++// this function on Darwin/386, and 8l couldn't handle it.
++// this example is in issue 1635
++#include <stdio.h>
++void scatter() {
++	void *p = scatter;
++	printf("scatter = %p\n", p);
++}
++
++// this example is in issue 3253
++int hola = 0;
++int testHola() { return hola; }
++*/
++import "C"
++
++import "testing"
++
++func test1635(t *testing.T) {
++	C.scatter()
++	if v := C.hola; v != 0 {
++		t.Fatalf("C.hola is %d, should be 0", v)
++	}
++	if v := C.testHola(); v != 0 {
++		t.Fatalf("C.testHola() is %d, should be 0", v)
++	}
++}
+diff --git a/src/cmd/ld/ldmacho.c b/src/cmd/ld/ldmacho.c
+index 3888487673..54126d5862 100644
+--- a/src/cmd/ld/ldmacho.c
++++ b/src/cmd/ld/ldmacho.c
+@@ -680,19 +680,28 @@ ldmacho(Biobuf *f, char *pkg, int64 len, char *pn)
+ 				int k;
+ 				MachoSect *ks;
+ 
+-				if(thechar != '8')
++				if(thechar != '8') {
++					// mach-o only uses scattered relocation on 32-bit platforms
+ 					diag("unexpected scattered relocation");
++					continue;
++				}
+ 
+-				// on 386, rewrite scattered 4/1 relocation into
+-				// the pseudo-pc-relative reference that it is.
++				// on 386, rewrite scattered 4/1 relocation and some
++				// scattered 2/1 relocation into the pseudo-pc-relative
++				// reference that it is.
+ 				// assume that the second in the pair is in this section
+ 				// and use that as the pc-relative base.
+-				if(thechar != '8' || rel->type != 4 || j+1 >= sect->nreloc ||
+-						!(rel+1)->scattered || (rel+1)->type != 1 ||
+-						(rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
++				if(j+1 >= sect->nreloc) {
++					werrstr("unsupported scattered relocation %d", (int)rel->type);
++					goto bad;
++				}
++				if(!(rel+1)->scattered || (rel+1)->type != 1 ||
++				   (rel->type != 4 && rel->type != 2) ||
++				   (rel+1)->value < sect->addr || (rel+1)->value >= sect->addr+sect->size) {
+ 					werrstr("unsupported scattered relocation %d/%d", (int)rel->type, (int)(rel+1)->type);
+ 					goto bad;
+ 				}
++
+ 				rp->siz = rel->length;
+ 				rp->off = rel->addr;
+ 				

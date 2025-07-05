@@ -34,6 +34,20 @@ Date:   Wed Jul 9 13:17:27 2014 +1000
     R=golang-codereviews, josharian, gobot, adg
     CC=golang-codereviews
     https://golang.org/cl/107140043
-
+---
  src/cmd/go/build.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 152806f876..7a09471fa2 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -287,6 +287,8 @@ func runBuild(cmd *Command, args []string) {
+ 	if *buildO != "" {
+ 		if len(pkgs) > 1 {
+ 			fatalf("go build: cannot use -o with multiple packages")
++		} else if len(pkgs) == 0 {
++			fatalf("no packages to build")
+ 		}
+ 		p := pkgs[0]
+ 		p.target = "" // must build - not up to date

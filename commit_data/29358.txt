@@ -11,7 +11,38 @@ Date:   Sun Sep 11 12:16:11 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go | 4 ++++
  test/fixedbugs/issue17038.go             | 9 +++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index f5a244e85f..68b0fd8e56 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1397,6 +1397,10 @@ OpSwitch:
+ 			}
+ 
+ 			t := n.List.First().Left.Type
++			if !t.IsKind(TFUNC) {
++				// Bail. This error will be reported elsewhere.
++				return n
++			}
+ 			if t.Results().NumFields() != 2 {
+ 				Yyerror("invalid operation: complex expects two arguments, %v returns %d results", n.List.First(), t.Results().NumFields())
+ 				n.Type = nil
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+new file mode 100644
+index 0000000000..1b65ffc1f0
+--- /dev/null
++++ b/test/fixedbugs/issue17038.go
+@@ -0,0 +1,9 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++const A = complex(0()) // ERROR "cannot call non-function"

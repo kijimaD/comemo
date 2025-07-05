@@ -23,9 +23,88 @@ Date:   Sat Apr 16 02:04:00 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/client.go       |  4 ----
  src/net/http/http.go         | 17 +++++++++++++++++
  src/net/http/request.go      |  2 ++
  src/net/http/request_test.go |  2 ++
  4 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index ee0fd2cb62..f8ab675a3d 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -110,10 +110,6 @@ type RoundTripper interface {
+ 	RoundTrip(*Request) (*Response, error)
+ }
+ 
+-// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
+-// return true if the string includes a port.
+-func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
+-
+ // refererForURL returns a referer without any authentication info or
+ // an empty string if lastReq scheme is https and newReq scheme is http.
+ func refererForURL(lastReq, newReq *url.URL) string {
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 7484348f52..a121628632 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -4,6 +4,10 @@
+ 
+ package http
+ 
++import (
++	"strings"
++)
++
+ // maxInt64 is the effective "infinite" value for the Server and
+ // Transport's byte-limiting readers.
+ const maxInt64 = 1<<63 - 1
+@@ -18,3 +22,16 @@ type contextKey struct {
+ }
+ 
+ func (k *contextKey) String() string { return "net/http context value " + k.name }
++
++// Given a string of the form "host", "host:port", or "[ipv6::address]:port",
++// return true if the string includes a port.
++func hasPort(s string) bool { return strings.LastIndex(s, ":") > strings.LastIndex(s, "]") }
++
++// removeEmptyPort strips the empty port in ":port" to ""
++// as mandated by RFC 3986 Section 6.2.3.
++func removeEmptyPort(host string) string {
++	if hasPort(host) {
++		return strings.TrimSuffix(host, ":")
++	}
++	return host
++}
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index bac2de1a2e..a49ab36964 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -660,6 +660,8 @@ func NewRequest(method, urlStr string, body io.Reader) (*Request, error) {
+ 	if !ok && body != nil {
+ 		rc = ioutil.NopCloser(body)
+ 	}
++	// The host's colon:port should be normalized. See Issue 14836.
++	u.Host = removeEmptyPort(u.Host)
+ 	req := &Request{
+ 		Method:     method,
+ 		URL:        u,
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index ff4837f2fa..82c7af3cda 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -398,11 +398,13 @@ var newRequestHostTests = []struct {
+ 
+ 	{"http://192.168.0.1/", "192.168.0.1"},
+ 	{"http://192.168.0.1:8080/", "192.168.0.1:8080"},
++	{"http://192.168.0.1:/", "192.168.0.1"},
+ 
+ 	{"http://[fe80::1]/", "[fe80::1]"},
+ 	{"http://[fe80::1]:8080/", "[fe80::1]:8080"},
+ 	{"http://[fe80::1%25en0]/", "[fe80::1%en0]"},
+ 	{"http://[fe80::1%25en0]:8080/", "[fe80::1%en0]:8080"},
++	{"http://[fe80::1%25en0]:/", "[fe80::1%en0]"},
+ }
+ 
+ func TestNewRequestHost(t *testing.T) {

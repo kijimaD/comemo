@@ -12,7 +12,50 @@ Date:   Wed Dec 5 09:52:59 2018 -0800
     Change-Id: Ib4b4fe582c35315a4f71cf6dbc7f7f2f24b37ec1
     Reviewed-on: https://go-review.googlesource.com/c/152758
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 8 +++++---
  test/fixedbugs/issue28450.go         | 4 ++--
  2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 89e9ddb668..3aa303c0c1 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -546,12 +546,14 @@ func (p *noder) param(param *syntax.Field, dddOk, final bool) *Node {
+ 	// rewrite ...T parameter
+ 	if typ.Op == ODDD {
+ 		if !dddOk {
+-			yyerror("cannot use ... in receiver or result parameter list")
++			// We mark these as syntax errors to get automatic elimination
++			// of multiple such errors per line (see yyerrorl in subr.go).
++			yyerror("syntax error: cannot use ... in receiver or result parameter list")
+ 		} else if !final {
+ 			if param.Name == nil {
+-				yyerror("cannot use ... with non-final parameter")
++				yyerror("syntax error: cannot use ... with non-final parameter")
+ 			} else {
+-				p.yyerrorpos(param.Name.Pos(), "cannot use ... with non-final parameter %s", param.Name.Value)
++				p.yyerrorpos(param.Name.Pos(), "syntax error: cannot use ... with non-final parameter %s", param.Name.Value)
+ 			}
+ 		}
+ 		typ.Op = OTARRAY
+diff --git a/test/fixedbugs/issue28450.go b/test/fixedbugs/issue28450.go
+index 21e5e0c5f1..1a1183b291 100644
+--- a/test/fixedbugs/issue28450.go
++++ b/test/fixedbugs/issue28450.go
+@@ -6,13 +6,13 @@
+ 
+ package p
+ 
+-func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a" "non-final parameter b" "non-final parameter c"
++func f(a, b, c, d ...int)       {} // ERROR "non-final parameter a"
+ func g(a ...int, b ...int)      {} // ERROR "non-final parameter a"
+ func h(...int, ...int, float32) {} // ERROR "non-final parameter"
+ 
+ type a func(...float32, ...interface{}) // ERROR "non-final parameter"
+ type b interface {
+ 	f(...int, ...int)                // ERROR "non-final parameter"
+-	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a" "non-final parameter b"
++	g(a ...int, b ...int, c float32) // ERROR "non-final parameter a"
+ 	valid(...int)
+ }

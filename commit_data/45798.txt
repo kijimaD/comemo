@@ -28,9 +28,84 @@ Date:   Tue Nov 17 23:16:30 2020 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go               |  9 +--------
  src/cmd/go/internal/modload/mvs.go                     |  2 +-
  src/cmd/go/internal/work/build.go                      | 10 ++++++----
  src/cmd/go/testdata/script/mod_install_pkg_version.txt |  2 +-
  4 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 4aaaa8d206..5b9984a492 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -73,13 +73,6 @@ func Selected(path string) (version string) {
+ 	return ""
+ }
+ 
+-// SetBuildList sets the module build list.
+-// The caller is responsible for ensuring that the list is valid.
+-// SetBuildList does not retain a reference to the original list.
+-func SetBuildList(list []module.Version) {
+-	buildList = append([]module.Version{}, list...)
+-}
+-
+ // EditBuildList edits the global build list by first adding every module in add
+ // to the existing build list, then adjusting versions (and adding or removing
+ // requirements as needed) until every module in mustSelect is selected at the
+@@ -222,7 +215,7 @@ type Conflict struct {
+ }
+ 
+ // ReloadBuildList resets the state of loaded packages, then loads and returns
+-// the build list set in SetBuildList.
++// the build list set by EditBuildList.
+ func ReloadBuildList() []module.Version {
+ 	loaded = loadFromRoots(loaderParams{
+ 		PackageOpts: PackageOpts{
+diff --git a/src/cmd/go/internal/modload/mvs.go b/src/cmd/go/internal/modload/mvs.go
+index 02b13cdd05..db57b3ec5f 100644
+--- a/src/cmd/go/internal/modload/mvs.go
++++ b/src/cmd/go/internal/modload/mvs.go
+@@ -24,7 +24,7 @@ type mvsReqs struct {
+ }
+ 
+ // Reqs returns the current module requirement graph.
+-// Future calls to SetBuildList do not affect the operation
++// Future calls to EditBuildList do not affect the operation
+ // of the returned Reqs.
+ func Reqs() mvs.Reqs {
+ 	r := &mvsReqs{
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 7e26d4e6a3..0f91a86311 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -789,10 +789,12 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 		base.Fatalf(directiveFmt, args[0], installMod, "exclude")
+ 	}
+ 
+-	// Initialize the build list using a dummy main module that requires the
+-	// module providing the packages on the command line.
+-	target := module.Version{Path: "go-install-target"}
+-	modload.SetBuildList([]module.Version{target, installMod})
++	// Since we are in NoRoot mode, the build list initially contains only
++	// the dummy command-line-arguments module. Add a requirement on the
++	// module that provides the packages named on the command line.
++	if err := modload.EditBuildList(ctx, nil, []module.Version{installMod}); err != nil {
++		base.Fatalf("go install %s: %v", args[0], err)
++	}
+ 
+ 	// Load packages for all arguments. Ignore non-main packages.
+ 	// Print a warning if an argument contains "..." and matches no main packages.
+diff --git a/src/cmd/go/testdata/script/mod_install_pkg_version.txt b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+index 93318b6659..e4a7668351 100644
+--- a/src/cmd/go/testdata/script/mod_install_pkg_version.txt
++++ b/src/cmd/go/testdata/script/mod_install_pkg_version.txt
+@@ -159,7 +159,7 @@ cmp stderr exclude-err
+ # 'go install pkg@version' should report an error if the module requires a
+ # higher version of itself.
+ ! go install example.com/cmd/a@v1.0.0-newerself
+-stderr '^go install: example.com/cmd@v1.0.0-newerself: module requires a higher version of itself \(v1.0.0\)$'
++stderr '^go install example.com/cmd/a@v1.0.0-newerself: version constraints conflict:\n\texample.com/cmd@v1.0.0-newerself requires example.com/cmd@v1.0.0, but example.com/cmd@v1.0.0-newerself is requested$'
+ 
+ 
+ # 'go install pkg@version' will only match a retracted version if it's

@@ -9,7 +9,93 @@ Date:   Sat Feb 2 12:39:04 2013 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7241051
-
+---
  src/cmd/gc/walk.c           | 16 ++++++++++++++--
  test/fixedbugs/issue4620.go | 21 +++++++++++++++++++++
  2 files changed, 35 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 3bcbb9cd74..0185a0f9f4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1296,9 +1296,16 @@ ret:
+ static Node*
+ ascompatee1(int op, Node *l, Node *r, NodeList **init)
+ {
++	Node *n;
+ 	USED(op);
++	
++	// convas will turn map assigns into function calls,
++	// making it impossible for reorder3 to work.
++	n = nod(OAS, l, r);
++	if(l->op == OINDEXMAP)
++		return n;
+ 
+-	return convas(nod(OAS, l, r), init);
++	return convas(n, init);
+ }
+ 
+ static NodeList*
+@@ -1896,13 +1903,14 @@ static int aliased(Node*, NodeList*, NodeList*);
+ static NodeList*
+ reorder3(NodeList *all)
+ {
+-	NodeList *list, *early;
++	NodeList *list, *early, *mapinit;
+ 	Node *l;
+ 
+ 	// If a needed expression may be affected by an
+ 	// earlier assignment, make an early copy of that
+ 	// expression and use the copy instead.
+ 	early = nil;
++	mapinit = nil;
+ 	for(list=all; list; list=list->next) {
+ 		l = list->n->left;
+ 
+@@ -1926,8 +1934,11 @@ reorder3(NodeList *all)
+ 		case ONAME:
+ 			break;
+ 		case OINDEX:
++		case OINDEXMAP:
+ 			reorder3save(&l->left, all, list, &early);
+ 			reorder3save(&l->right, all, list, &early);
++			if(l->op == OINDEXMAP)
++				list->n = convas(list->n, &mapinit);
+ 			break;
+ 		case OIND:
+ 		case ODOTPTR:
+@@ -1938,6 +1949,7 @@ reorder3(NodeList *all)
+ 		reorder3save(&list->n->right, all, list, &early);
+ 	}
+ 
++	early = concat(mapinit, early);
+ 	return concat(early, all);
+ }
+ 
+diff --git a/test/fixedbugs/issue4620.go b/test/fixedbugs/issue4620.go
+new file mode 100644
+index 0000000000..7b4ebf944d
+--- /dev/null
++++ b/test/fixedbugs/issue4620.go
+@@ -0,0 +1,21 @@
++// run
++
++// Copyright 2013 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4620: map indexes are not evaluated before assignment of other elements
++
++package main
++
++import "fmt"
++
++func main() {
++	m := map[int]int{0:1}
++	i := 0
++	i, m[i] = 1, 2
++	if m[0] != 2 {
++		fmt.Println(m)
++		panic("m[i] != 2")
++	}
++}

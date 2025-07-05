@@ -13,6 +13,20 @@ Date:   Tue Sep 14 10:36:29 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/go/internal/gcimporter/iimport.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 56f6418d5e..d9174d470b 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -284,8 +284,6 @@ type importReader struct {
+ 	prevColumn int64
+ }
+ 
+-// obj reads import declaration for an object. It may not read
+-// the entire declaration, e.g, for recursive type.
+ func (r *importReader) obj(name string) {
+ 	tag := r.byte()
+ 	pos := r.pos()

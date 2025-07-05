@@ -7,6 +7,20 @@ Date:   Thu Feb 28 16:58:14 2013 -0800
     R=golang-dev, nigeltao, adg
     CC=golang-dev
     https://golang.org/cl/7444048
-
+---
  src/pkg/net/http/jar.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/net/http/jar.go b/src/pkg/net/http/jar.go
+index 35eee682f9..5c3de0dad2 100644
+--- a/src/pkg/net/http/jar.go
++++ b/src/pkg/net/http/jar.go
+@@ -12,6 +12,8 @@ import (
+ //
+ // Implementations of CookieJar must be safe for concurrent use by multiple
+ // goroutines.
++//
++// The net/http/cookiejar package provides a CookieJar implementation.
+ type CookieJar interface {
+ 	// SetCookies handles the receipt of the cookies in a reply for the
+ 	// given URL.  It may or may not choose to save the cookies, depending

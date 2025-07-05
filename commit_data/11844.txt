@@ -8,6 +8,28 @@ Date:   Mon Feb 13 23:39:56 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5645097
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index fb96db7d3e..27c37c2ce1 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 13, 2012"
++	"Subtitle": "Version of February 14, 2012"
+ }-->
+ 
+ <!--
+@@ -737,7 +737,7 @@ particular architecture.
+ 
+ <p>
+ A <i>string type</i> represents the set of string values.
+-Strings behave like arrays of bytes but are immutable: once created,
++Strings behave like slices of bytes but are immutable: once created,
+ it is impossible to change the contents of a string.
+ The predeclared string type is <code>string</code>.
+ 

@@ -9,6 +9,20 @@ Date:   Sat Oct 13 13:14:39 2018 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Iskander Sharipov <iskander.sharipov@intel.com>
-
+---
  src/strings/replace.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/strings/replace.go b/src/strings/replace.go
+index 9ddf5e1e3f..ace0b8d646 100644
+--- a/src/strings/replace.go
++++ b/src/strings/replace.go
+@@ -459,7 +459,7 @@ func (r *byteReplacer) WriteString(w io.Writer, s string) (n int, err error) {
+ 	buf := make([]byte, bufsize)
+ 
+ 	for len(s) > 0 {
+-		ncopy := copy(buf, s[:])
++		ncopy := copy(buf, s)
+ 		s = s[ncopy:]
+ 		for i, b := range buf[:ncopy] {
+ 			buf[i] = r[b]

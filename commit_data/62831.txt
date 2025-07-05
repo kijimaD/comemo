@@ -21,6 +21,29 @@ Date:   Thu Mar 9 11:16:56 2023 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/database/sql/sql.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index eddb647ed0..b0abcf7fcd 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1050,7 +1050,7 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
+ 	}
+ 	db.mu.Lock()
+ 	// Wake cleaner up when lifetime is shortened.
+-	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
++	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
+ 		select {
+ 		case db.cleanerCh <- struct{}{}:
+ 		default:
+@@ -1074,7 +1074,7 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
+ 	defer db.mu.Unlock()
+ 
+ 	// Wake cleaner up when idle time is shortened.
+-	if d > 0 && d < db.maxIdleTime && db.cleanerCh != nil {
++	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
+ 		select {
+ 		case db.cleanerCh <- struct{}{}:
+ 		default:

@@ -26,10 +26,217 @@ Date:   Sat Oct 24 13:14:36 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/asm_arm64.s            | 15 ++++++++-
  src/runtime/cgo/gcc_darwin_arm64.c | 36 +---------------------
  src/runtime/defs_darwin_arm64.go   |  4 +++
  src/runtime/sys_darwin_arm64.go    | 62 ++++++++++++++++++++++++++++++++++++++
  src/runtime/sys_darwin_arm64.s     | 12 ++++++++
  5 files changed, 93 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index a45e342478..6257c1a183 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -15,6 +15,19 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVW	R0, 8(RSP) // argc
+ 	MOVD	R1, 16(RSP) // argv
+ 
++#ifdef TLS_darwin
++	// Initialize TLS.
++	MOVD	ZR, g // clear g, make sure it's not junk.
++	SUB	$32, RSP
++	MRS_TPIDR_R0
++	AND	$~7, R0
++	MOVD	R0, 16(RSP)             // arg2: TLS base
++	MOVD	$runtime·tls_g(SB), R2
++	MOVD	R2, 8(RSP)              // arg1: &tlsg
++	BL	·tlsinit(SB)
++	ADD	$32, RSP
++#endif
++
+ 	// create istack out of the given (operating system) stack.
+ 	// _cgo_init may update stackguard.
+ 	MOVD	$runtime·g0(SB), g
+@@ -29,9 +42,9 @@ TEXT runtime·rt0_go(SB),NOSPLIT,$0
+ 	MOVD	_cgo_init(SB), R12
+ 	CBZ	R12, nocgo
+ 
++#ifdef GOOS_android
+ 	MRS_TPIDR_R0			// load TLS base pointer
+ 	MOVD	R0, R3			// arg 3: TLS base pointer
+-#ifdef TLSG_IS_VARIABLE
+ 	MOVD	$runtime·tls_g(SB), R2 	// arg 2: &tls_g
+ #else
+ 	MOVD	$0, R2		        // arg 2: not used when using platform's TLS
+diff --git a/src/runtime/cgo/gcc_darwin_arm64.c b/src/runtime/cgo/gcc_darwin_arm64.c
+index dbe848b4ee..a5f07f1f1b 100644
+--- a/src/runtime/cgo/gcc_darwin_arm64.c
++++ b/src/runtime/cgo/gcc_darwin_arm64.c
+@@ -20,37 +20,6 @@
+ #include <CoreFoundation/CFString.h>
+ #endif
+ 
+-#define magic (0xc476c475c47957UL)
+-
+-// inittls allocates a thread-local storage slot for g.
+-//
+-// It finds the first available slot using pthread_key_create and uses
+-// it as the offset value for runtime.tlsg.
+-static void
+-inittls(void **tlsg, void **tlsbase)
+-{
+-	pthread_key_t k;
+-	int i, err;
+-
+-	err = pthread_key_create(&k, nil);
+-	if(err != 0) {
+-		fprintf(stderr, "runtime/cgo: pthread_key_create failed: %d\n", err);
+-		abort();
+-	}
+-	//fprintf(stderr, "runtime/cgo: k = %d, tlsbase = %p\n", (int)k, tlsbase); // debug
+-	pthread_setspecific(k, (void*)magic);
+-	// The first key should be at 257.
+-	for (i=0; i<PTHREAD_KEYS_MAX; i++) {
+-		if (*(tlsbase+i) == (void*)magic) {
+-			*tlsg = (void*)(i*sizeof(void *));
+-			pthread_setspecific(k, 0);
+-			return;
+-		}
+-	}
+-	fprintf(stderr, "runtime/cgo: could not find pthread key.\n");
+-	abort();
+-}
+-
+ static void *threadentry(void*);
+ static void (*setg_gcc)(void*);
+ 
+@@ -156,7 +125,7 @@ init_working_dir()
+ #endif // TARGET_OS_IPHONE
+ 
+ void
+-x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
++x_cgo_init(G *g, void (*setg)(void*))
+ {
+ 	pthread_attr_t attr;
+ 	size_t size;
+@@ -168,9 +137,6 @@ x_cgo_init(G *g, void (*setg)(void*), void **tlsg, void **tlsbase)
+ 	g->stacklo = (uintptr)&attr - size + 4096;
+ 	pthread_attr_destroy(&attr);
+ 
+-	// yes, tlsbase from mrs might not be correctly aligned.
+-	inittls(tlsg, (void**)((uintptr)tlsbase & ~7));
+-
+ #if TARGET_OS_IPHONE
+ 	darwin_arm_init_mach_exception_handler();
+ 	darwin_arm_init_thread_exception_port();
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index 2f466045d4..9076e8bd54 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -94,6 +94,8 @@ const (
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
++	_PTHREAD_KEYS_MAX = 512
++
+ 	_F_SETFD    = 0x2
+ 	_F_GETFL    = 0x3
+ 	_F_SETFL    = 0x4
+@@ -233,3 +235,5 @@ type machTimebaseInfo struct {
+ 	numer uint32
+ 	denom uint32
+ }
++
++type pthreadkey uint64
+diff --git a/src/runtime/sys_darwin_arm64.go b/src/runtime/sys_darwin_arm64.go
+new file mode 100644
+index 0000000000..9c14f33a1c
+--- /dev/null
++++ b/src/runtime/sys_darwin_arm64.go
+@@ -0,0 +1,62 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"runtime/internal/sys"
++	"unsafe"
++)
++
++// libc function wrappers. Must run on system stack.
++
++//go:nosplit
++//go:cgo_unsafe_args
++func g0_pthread_key_create(k *pthreadkey, destructor uintptr) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_key_create_trampoline)), unsafe.Pointer(&k))
++}
++func pthread_key_create_trampoline()
++
++//go:nosplit
++//go:cgo_unsafe_args
++func g0_pthread_setspecific(k pthreadkey, value uintptr) int32 {
++	return asmcgocall(unsafe.Pointer(funcPC(pthread_setspecific_trampoline)), unsafe.Pointer(&k))
++}
++func pthread_setspecific_trampoline()
++
++//go:cgo_import_dynamic libc_pthread_key_create pthread_key_create "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_pthread_setspecific pthread_setspecific "/usr/lib/libSystem.B.dylib"
++
++// tlsinit allocates a thread-local storage slot for g.
++//
++// It finds the first available slot using pthread_key_create and uses
++// it as the offset value for runtime.tlsg.
++//
++// This runs at startup on g0 stack, but before g is set, so it must
++// not split stack (transitively). g is expected to be nil, so things
++// (e.g. asmcgocall) will skip saving or reading g.
++//
++//go:nosplit
++func tlsinit(tlsg *uintptr, tlsbase *[_PTHREAD_KEYS_MAX]uintptr) {
++	var k pthreadkey
++	err := g0_pthread_key_create(&k, 0)
++	if err != 0 {
++		abort()
++	}
++
++	const magic = 0xc476c475c47957
++	err = g0_pthread_setspecific(k, magic)
++	if err != 0 {
++		abort()
++	}
++
++	for i, x := range tlsbase {
++		if x == magic {
++			*tlsg = uintptr(i * sys.PtrSize)
++			g0_pthread_setspecific(k, 0)
++			return
++		}
++	}
++	abort()
++}
+diff --git a/src/runtime/sys_darwin_arm64.s b/src/runtime/sys_darwin_arm64.s
+index f8d6f28dc7..31b997df13 100644
+--- a/src/runtime/sys_darwin_arm64.s
++++ b/src/runtime/sys_darwin_arm64.s
+@@ -497,6 +497,18 @@ TEXT runtime·pthread_kill_trampoline(SB),NOSPLIT,$0
+ 	BL	libc_pthread_kill(SB)
+ 	RET
+ 
++TEXT runtime·pthread_key_create_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 destructor
++	MOVD	0(R0), R0	// arg 1 *key
++	BL	libc_pthread_key_create(SB)
++	RET
++
++TEXT runtime·pthread_setspecific_trampoline(SB),NOSPLIT,$0
++	MOVD	8(R0), R1	// arg 2 value
++	MOVD	0(R0), R0	// arg 1 key
++	BL	libc_pthread_setspecific(SB)
++	RET
++
+ // syscall calls a function in libc on behalf of the syscall package.
+ // syscall takes a pointer to a struct like:
+ // struct {

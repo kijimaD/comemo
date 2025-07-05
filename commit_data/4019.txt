@@ -6,6 +6,20 @@ Date:   Thu Nov 12 16:12:28 2009 -0800
     
     R=rsc
     https://golang.org/cl/152110
-
+---
  src/pkg/runtime/Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index e31073cf27..08bf278ef4 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -28,7 +28,7 @@ OFILES_386=\
+ 	vlop.$O\
+ 	vlrt.$O\
+ 
+-GOARM ?= 6
++GOARM?=6
+ 
+ # arm-specific object files
+ OFILES_arm=\

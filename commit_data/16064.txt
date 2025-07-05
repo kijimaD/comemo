@@ -7,6 +7,30 @@ Date:   Wed Apr 3 16:49:17 2013 +1100
     R=r, adg, minux.ma
     CC=golang-dev
     https://golang.org/cl/8250043
-
+---
  doc/go1.1.html | 12 +++++++++---
  1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index e2db58adcc..dfd9e65340 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -358,9 +358,15 @@ to convert the code to Go 1.0 first.
+ The Go 1.1 tool chain adds experimental support for <code>freebsd/arm</code>,
+ <code>netbsd/386</code>, <code>netbsd/amd64</code>, <code>netbsd/arm</code>, 
+ <code>openbsd/386</code> and <code>openbsd/amd64</code> platforms.
+-<code>freebsd/arm</code> and <code>netbsd/arm</code> require an ARMv6 or
+-better processor. Go 1.1 adds experimental support for <code>cgo</code> on
+-<code>linux/arm</code>.
++</p>
++
++<p>
++An ARMv6 or later processor is required for <code>freebsd/arm</code> or
++<code>netbsd/arm</code>.
++</p>
++
++<p>
++Go 1.1 adds experimental support for <code>cgo</code> on <code>linux/arm</code>.
+ </p>
+ 
+ <h2 id="performance">Performance</h2>

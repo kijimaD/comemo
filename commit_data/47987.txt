@@ -23,8 +23,287 @@ Date:   Thu Apr 15 16:54:41 2021 -0400
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/buildlist.go | 170 +++++++++++++++++--------------
  src/cmd/go/internal/modload/init.go      |   2 +-
  src/cmd/go/internal/modload/load.go      |  14 ++-
  3 files changed, 106 insertions(+), 80 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 2eb47d2c9f..07d9fdfc54 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -409,7 +409,7 @@ func expandGraph(ctx context.Context, rs *Requirements) (*Requirements, *ModuleG
+ 		// roots — but in a lazy module it may pull in previously-irrelevant
+ 		// transitive dependencies.
+ 
+-		newRS, rsErr := updateRoots(ctx, rs.depth, rs.direct, nil, rs)
++		newRS, rsErr := updateRoots(ctx, rs.direct, rs)
+ 		if rsErr != nil {
+ 			// Failed to update roots, perhaps because of an error in a transitive
+ 			// dependency needed for the update. Return the original Requirements
+@@ -552,7 +552,15 @@ func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Re
+ 		// changed after loading packages.
+ 	}
+ 
+-	tidy, err := updateRoots(ctx, depth, ld.requirements.direct, ld.pkgs, nil)
++	var (
++		tidy *Requirements
++		err  error
++	)
++	if depth == lazy {
++		panic("internal error: 'go mod tidy' for lazy modules is not yet implemented")
++	} else {
++		tidy, err = tidyEagerRoots(ctx, ld.requirements, ld.pkgs)
++	}
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+@@ -573,75 +581,57 @@ func tidyBuildList(ctx context.Context, ld *loader, initialRS *Requirements) *Re
+ 	return tidy
+ }
+ 
+-// updateRoots returns a set of root requirements that includes the selected
+-// version of every module path in direct as a root, and maintains the selected
+-// versions of every module selected in the graph of rs (if rs is non-nil), or
+-// every module that provides any package in pkgs (otherwise).
+-//
+-// If pkgs is non-empty and rs is non-nil, the packages are assumed to be loaded
+-// from the modules selected in the graph of rs.
+-//
+-// The roots are updated such that:
+-//
+-// 	1. The selected version of every module path in direct is included as a root
+-// 	   (if it is not "none").
+-// 	2. Each root is the selected version of its path. (We say that such a root
+-// 	   set is “consistent”.)
+-// 	3. The selected version of the module providing each package in pkgs remains
+-// 	   selected.
+-// 	4. If rs is non-nil, every version selected in the graph of rs remains selected.
+-func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pkgs []*loadPkg, rs *Requirements) (*Requirements, error) {
++// tidyEagerRoots returns a minimal set of root requirements that maintains the
++// selected version of every module that provided a package in pkgs, and
++// includes the selected version of every such module in rs.direct as a root.
++func tidyEagerRoots(ctx context.Context, rs *Requirements, pkgs []*loadPkg) (*Requirements, error) {
++	var (
++		keep     []module.Version
++		keptPath = map[string]bool{}
++	)
+ 	var (
+ 		rootPaths   []string // module paths that should be included as roots
+ 		inRootPaths = map[string]bool{}
+ 	)
+-
+-	var keep []module.Version
+-	if rs != nil {
+-		mg, err := rs.Graph(ctx)
+-		if err != nil {
+-			// We can't ignore errors in the module graph even if the user passed the -e
+-			// flag to try to push past them. If we can't load the complete module
+-			// dependencies, then we can't reliably compute a minimal subset of them.
+-			return rs, err
+-		}
+-		keep = mg.BuildList()[1:]
+-
+-		for _, root := range rs.rootModules {
+-			// If the selected version of the root is the same as what was already
+-			// listed in the go.mod file, retain it as a root (even if redundant) to
+-			// avoid unnecessary churn. (See https://golang.org/issue/34822.)
+-			//
+-			// We do this even for indirect requirements, since we don't know why they
+-			// were added and they could become direct at any time.
+-			if !inRootPaths[root.Path] && mg.Selected(root.Path) == root.Version {
+-				rootPaths = append(rootPaths, root.Path)
+-				inRootPaths[root.Path] = true
+-			}
++	for _, pkg := range pkgs {
++		if !pkg.fromExternalModule() {
++			continue
+ 		}
+-	} else {
+-		kept := map[module.Version]bool{Target: true}
+-		for _, pkg := range pkgs {
+-			if pkg.mod.Path != "" && !kept[pkg.mod] {
+-				keep = append(keep, pkg.mod)
+-				kept[pkg.mod] = true
++		if m := pkg.mod; !keptPath[m.Path] {
++			keep = append(keep, m)
++			keptPath[m.Path] = true
++			if rs.direct[m.Path] && !inRootPaths[m.Path] {
++				rootPaths = append(rootPaths, m.Path)
++				inRootPaths[m.Path] = true
+ 			}
+ 		}
+ 	}
+ 
+-	// “The selected version of every module path in direct is included as a root.”
+-	//
+-	// This is only for convenience and clarity for end users: the choice of
+-	// explicit vs. implicit dependency has no impact on MVS selection (for itself
+-	// or any other module).
+-	if go117LazyTODO {
+-		// Update the above comment to reflect lazy loading once implemented.
++	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
++	if err != nil {
++		return nil, err
+ 	}
+-	for _, m := range keep {
+-		if direct[m.Path] && !inRootPaths[m.Path] {
+-			rootPaths = append(rootPaths, m.Path)
+-			inRootPaths[m.Path] = true
+-		}
++	return newRequirements(eager, min, rs.direct), nil
++}
++
++// updateRoots returns a set of root requirements that includes the selected
++// version of every module path in direct as a root, and maintains the selected
++// version of every module selected in the graph of rs.
++//
++// The roots are updated such that:
++//
++// 	1. The selected version of every module path in direct is included as a root
++// 	   (if it is not "none").
++// 	2. Each root is the selected version of its path. (We say that such a root
++// 	   set is “consistent”.)
++// 	3. Every version selected in the graph of rs remains selected.
++func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements) (*Requirements, error) {
++	mg, err := rs.Graph(ctx)
++	if err != nil {
++		// We can't ignore errors in the module graph even if the user passed the -e
++		// flag to try to push past them. If we can't load the complete module
++		// dependencies, then we can't reliably compute a minimal subset of them.
++		return rs, err
+ 	}
+ 
+ 	if cfg.BuildMod != "mod" {
+@@ -652,7 +642,13 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 			// but we aren't even allowed to modify them.
+ 			return rs, errGoModDirty
+ 		}
+-		for _, mPath := range rootPaths {
++		for _, m := range rs.rootModules {
++			if m.Version != mg.Selected(m.Path) {
++				// The root version v is misleading: the actual selected version is higher.
++				return rs, errGoModDirty
++			}
++		}
++		for mPath := range direct {
+ 			if _, ok := rs.rootSelected(mPath); !ok {
+ 				// Module m is supposed to be listed explicitly, but isn't.
+ 				//
+@@ -662,21 +658,6 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 				return rs, errGoModDirty
+ 			}
+ 		}
+-		for _, m := range keep {
+-			if v, ok := rs.rootSelected(m.Path); ok && v != m.Version {
+-				// The root version v is misleading: the actual selected version is
+-				// m.Version.
+-				return rs, errGoModDirty
+-			}
+-		}
+-		for _, m := range rs.rootModules {
+-			if v, ok := rs.rootSelected(m.Path); ok && v != m.Version {
+-				// The roots list both m.Version and some higher version of m.Path.
+-				// The root for m.Version is misleading: the actual selected version is
+-				// *at least* v.
+-				return rs, errGoModDirty
+-			}
+-		}
+ 
+ 		// No explicit roots are missing and all roots are already at the versions
+ 		// we want to keep. Any other changes we would make are purely cosmetic,
+@@ -685,6 +666,39 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 		return rs, nil
+ 	}
+ 
++	var (
++		rootPaths   []string // module paths that should be included as roots
++		inRootPaths = map[string]bool{}
++	)
++	for _, root := range rs.rootModules {
++		// If the selected version of the root is the same as what was already
++		// listed in the go.mod file, retain it as a root (even if redundant) to
++		// avoid unnecessary churn. (See https://golang.org/issue/34822.)
++		//
++		// We do this even for indirect requirements, since we don't know why they
++		// were added and they could become direct at any time.
++		if !inRootPaths[root.Path] && mg.Selected(root.Path) == root.Version {
++			rootPaths = append(rootPaths, root.Path)
++			inRootPaths[root.Path] = true
++		}
++	}
++
++	// “The selected version of every module path in direct is included as a root.”
++	//
++	// This is only for convenience and clarity for end users: the choice of
++	// explicit vs. implicit dependency has no impact on MVS selection (for itself
++	// or any other module).
++	if go117LazyTODO {
++		// Update the above comment to reflect lazy loading once implemented.
++	}
++	keep := mg.BuildList()[1:]
++	for _, m := range keep {
++		if direct[m.Path] && !inRootPaths[m.Path] {
++			rootPaths = append(rootPaths, m.Path)
++			inRootPaths[m.Path] = true
++		}
++	}
++
+ 	min, err := mvs.Req(Target, rootPaths, &mvsReqs{roots: keep})
+ 	if err != nil {
+ 		return rs, err
+@@ -695,7 +709,7 @@ func updateRoots(ctx context.Context, depth modDepth, direct map[string]bool, pk
+ 	// the root set is the same as the original root set in rs and recycle its
+ 	// module graph and build list, if they have already been loaded.
+ 
+-	return newRequirements(depth, min, direct), nil
++	return newRequirements(rs.depth, min, direct), nil
+ }
+ 
+ // checkMultiplePaths verifies that a given module path is used as itself
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 953419a718..238e471c54 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -691,7 +691,7 @@ func requirementsFromModFile(ctx context.Context, f *modfile.File) *Requirements
+ 	for _, n := range mPathCount {
+ 		if n > 1 {
+ 			var err error
+-			rs, err = updateRoots(ctx, rs.depth, rs.direct, nil, rs)
++			rs, err = updateRoots(ctx, rs.direct, rs)
+ 			if err != nil {
+ 				base.Fatalf("go: %v", err)
+ 			}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 1da8493c36..98707eadd7 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -864,6 +864,18 @@ func (pkg *loadPkg) isTest() bool {
+ 	return pkg.testOf != nil
+ }
+ 
++// fromExternalModule reports whether pkg was loaded from a module other than
++// the main module.
++func (pkg *loadPkg) fromExternalModule() bool {
++	if pkg.mod.Path == "" {
++		return false // loaded from the standard library, not a module
++	}
++	if pkg.mod.Path == Target.Path {
++		return false // loaded from the main module.
++	}
++	return true
++}
++
+ var errMissing = errors.New("cannot find package")
+ 
+ // loadFromRoots attempts to load the build graph needed to process a set of
+@@ -1030,7 +1042,7 @@ func (ld *loader) updateRequirements(ctx context.Context) error {
+ 		}
+ 	}
+ 
+-	rs, err := updateRoots(ctx, rs.depth, direct, ld.pkgs, rs)
++	rs, err := updateRoots(ctx, direct, rs)
+ 	if err == nil {
+ 		ld.requirements = rs
+ 	}

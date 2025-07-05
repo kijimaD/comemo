@@ -13,7 +13,48 @@ Date:   Mon Aug 31 15:45:47 2015 -0700
     Change-Id: I7b95c842528bed66933681c8b9cc00640fccfcb4
     Reviewed-on: https://go-review.googlesource.com/14123
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go      | 8 +++++++-
  src/time/format_test.go | 3 +++
  2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 6cf7946711..d727ef0988 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -696,6 +696,11 @@ func skip(value, prefix string) (string, error) {
+ // location and zone in the returned time. Otherwise it records the time as
+ // being in a fabricated location with time fixed at the given zone offset.
+ //
++// No checking is done that the day of the month is within the month's
++// valid dates; any one- or two-digit value is accepted. For example
++// February 31 and even February 99 are valid dates, specifying dates
++// in March and May. This behavior is consistent with time.Date.
++//
+ // When parsing a time with a zone abbreviation like MST, if the zone abbreviation
+ // has a defined offset in the current location, then that offset is used.
+ // The zone abbreviation "UTC" is recognized as UTC regardless of location.
+@@ -794,7 +799,8 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 				value = value[1:]
+ 			}
+ 			day, value, err = getnum(value, std == stdZeroDay)
+-			if day < 0 || 31 < day {
++			if day < 0 {
++				// Note that we allow any one- or two-digit day here.
+ 				rangeErrString = "day"
+ 			}
+ 		case stdHour:
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index d44347aed5..8ff053d4d7 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -164,6 +164,9 @@ var parseTests = []ParseTest{
+ 	// GMT with offset.
+ 	{"GMT-8", UnixDate, "Fri Feb  5 05:00:57 GMT-8 2010", true, true, 1, 0},
+ 
++	// Day of month can be out of range.
++	{"Jan 36", UnixDate, "Fri Jan 36 05:00:57 GMT-8 2010", true, true, 1, 0},
++
+ 	// Accept any number of fractional second digits (including none) for .999...
+ 	// In Go 1, .999... was completely ignored in the format, meaning the first two
+ 	// cases would succeed, but the next four would not. Go 1.1 accepts all six.

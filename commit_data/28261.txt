@@ -7,6 +7,29 @@ Date:   Mon May 9 15:03:15 2016 -0400
     Change-Id: I4613aa6d62baba01686bbab10738a7de23daae30
     Reviewed-on: https://go-review.googlesource.com/22971
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mbitmap.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index e01926e71a..27f8e66d50 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -498,7 +498,6 @@ func (h heapBits) morePointers() bool {
+ }
+ 
+ // isPointer reports whether the heap bits describe a pointer word.
+-// h must describe the initial word of the object.
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
+ //go:nosplit
+@@ -507,8 +506,7 @@ func (h heapBits) isPointer() bool {
+ }
+ 
+ // hasPointers reports whether the given object has any pointers.
+-// It must be told how large the object at h is, so that it does not read too
+-// far into the bitmap.
++// It must be told how large the object at h is for efficiency.
+ // h must describe the initial word of the object.
+ func (h heapBits) hasPointers(size uintptr) bool {
+ 	if size == sys.PtrSize { // 1-word objects are always pointers

@@ -57,7 +57,7 @@ Date:   Tue Sep 16 10:36:38 2014 -0400
     R=khr
     CC=dvyukov, golang-codereviews, iant, rlh
     https://golang.org/cl/141490043
-
+---
  src/runtime/heapdump.c    |   2 +-
  src/runtime/malloc.go     |  10 ++++
  src/runtime/mgc0.c        |   1 +
@@ -69,3 +69,847 @@ Date:   Tue Sep 16 10:36:38 2014 -0400
  src/runtime/stack_test.go |  96 ++++++++++++++++++++++++++++++--
  src/runtime/traceback.go  |  99 ++++++++++++++++++---------------
  10 files changed, 298 insertions(+), 175 deletions(-)
+
+diff --git a/src/runtime/heapdump.c b/src/runtime/heapdump.c
+index 3d7960aab0..8bbc7d8a56 100644
+--- a/src/runtime/heapdump.c
++++ b/src/runtime/heapdump.c
+@@ -432,7 +432,7 @@ dumpgoroutine(G *gp)
+ 		dumpint((uintptr)gp);
+ 		dumpint((uintptr)p->arg.type);
+ 		dumpint((uintptr)p->arg.data);
+-		dumpint((uintptr)p->defer);
++		dumpint(0); // was p->defer, no longer recorded
+ 		dumpint((uintptr)p->link);
+ 	}
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 7bb85057f4..acf6b48f84 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -209,6 +209,16 @@ func mallocgc(size uintptr, typ *_type, flags int) unsafe.Pointer {
+ 		goto marked
+ 	}
+ 
++	// If allocating a defer+arg block, now that we've picked a malloc size
++	// large enough to hold everything, cut the "asked for" size down to
++	// just the defer header, so that the GC bitmap will record the arg block
++	// as containing nothing at all (as if it were unused space at the end of
++	// a malloc block caused by size rounding).
++	// The defer arg areas are scanned as part of scanstack.
++	if typ == deferType {
++		size0 = unsafe.Sizeof(_defer{})
++	}
++
+ 	// From here till marked label marking the object as allocated
+ 	// and storing type info in the GC bitmap.
+ 	{
+diff --git a/src/runtime/mgc0.c b/src/runtime/mgc0.c
+index eac6e704be..ba02700dea 100644
+--- a/src/runtime/mgc0.c
++++ b/src/runtime/mgc0.c
+@@ -713,6 +713,7 @@ scanstack(G *gp)
+ 
+ 	fn = scanframe;
+ 	runtime·gentraceback(~(uintptr)0, ~(uintptr)0, 0, gp, 0, nil, 0x7fffffff, &fn, nil, false);
++	runtime·tracebackdefers(gp, &fn, nil);
+ }
+ 
+ // The gp has been moved to a gc safepoint. If there is gcphase specific
+diff --git a/src/runtime/panic.c b/src/runtime/panic.c
+index e015e41cca..1cd0aa8654 100644
+--- a/src/runtime/panic.c
++++ b/src/runtime/panic.c
+@@ -18,7 +18,8 @@ uint32 runtime·panicking;
+ static Mutex paniclk;
+ 
+ void
+-runtime·deferproc_m(void) {
++runtime·deferproc_m(void)
++{
+ 	int32 siz;
+ 	FuncVal *fn;
+ 	uintptr argp;
+@@ -35,7 +36,7 @@ runtime·deferproc_m(void) {
+ 	d->fn = fn;
+ 	d->pc = callerpc;
+ 	d->argp = argp;
+-	runtime·memmove(d->args, (void*)argp, siz);
++	runtime·memmove(d+1, (void*)argp, siz);
+ }
+ 
+ // Unwind the stack after a deferred function calls recover
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 017f5d4896..12c85e7caf 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -90,19 +90,31 @@ func deferproc(siz int32, fn *funcval) { // arguments of fn follow fn
+ 	// been set and must not be clobbered.
+ }
+ 
+-// Each P holds pool for defers with arg sizes 8, 24, 40, 56 and 72 bytes.
+-// Memory block is 40 (24 for 32 bits) bytes larger due to Defer header.
+-// This maps exactly to malloc size classes.
++// Small malloc size classes >= 16 are the multiples of 16: 16, 32, 48, 64, 80, 96, 112, 128, 144, ...
++// Each P holds a pool for defers with small arg sizes.
++// Assign defer allocations to pools by rounding to 16, to match malloc size classes.
++
++const (
++	deferHeaderSize = unsafe.Sizeof(_defer{})
++	minDeferAlloc   = (deferHeaderSize + 15) &^ 15
++	minDeferArgs    = minDeferAlloc - deferHeaderSize
++)
+ 
+ // defer size class for arg size sz
+ //go:nosplit
+ func deferclass(siz uintptr) uintptr {
+-	return (siz + 7) >> 4
++	if siz <= minDeferArgs {
++		return 0
++	}
++	return (siz - minDeferArgs + 15) / 16
+ }
+ 
+ // total size of memory block for defer with arg size sz
+ func totaldefersize(siz uintptr) uintptr {
+-	return (unsafe.Sizeof(_defer{}) - unsafe.Sizeof(_defer{}.args)) + round(siz, ptrSize)
++	if siz <= minDeferArgs {
++		return minDeferAlloc
++	}
++	return deferHeaderSize + siz
+ }
+ 
+ // Ensure that defer arg sizes that map to the same defer size class
+@@ -130,6 +142,21 @@ func testdefersizes() {
+ 	}
+ }
+ 
++// The arguments associated with a deferred call are stored
++// immediately after the _defer header in memory.
++//go:nosplit
++func deferArgs(d *_defer) unsafe.Pointer {
++	return add(unsafe.Pointer(d), unsafe.Sizeof(*d))
++}
++
++var deferType *_type // type of _defer struct
++
++func init() {
++	var x interface{}
++	x = (*_defer)(nil)
++	deferType = (*(**ptrtype)(unsafe.Pointer(&x))).elem
++}
++
+ // Allocate a Defer, usually using per-P pool.
+ // Each defer must be released with freedefer.
+ // Note: runs on M stack
+@@ -145,12 +172,11 @@ func newdefer(siz int32) *_defer {
+ 		}
+ 	}
+ 	if d == nil {
+-		// deferpool is empty or just a big defer
++		// Allocate new defer+args.
+ 		total := goroundupsize(totaldefersize(uintptr(siz)))
+-		d = (*_defer)(mallocgc(total, conservative, 0))
++		d = (*_defer)(mallocgc(total, deferType, 0))
+ 	}
+ 	d.siz = siz
+-	d.special = false
+ 	gp := mp.curg
+ 	d.link = gp._defer
+ 	gp._defer = d
+@@ -162,18 +188,14 @@ func newdefer(siz int32) *_defer {
+ // The defer cannot be used after this call.
+ //go:nosplit
+ func freedefer(d *_defer) {
+-	if d.special {
+-		return
+-	}
+ 	sc := deferclass(uintptr(d.siz))
+ 	if sc < uintptr(len(p{}.deferpool)) {
+ 		mp := acquirem()
+ 		pp := mp.p
++		*d = _defer{}
+ 		d.link = pp.deferpool[sc]
+ 		pp.deferpool[sc] = d
+ 		releasem(mp)
+-		// No need to wipe out pointers in argp/pc/fn/args,
+-		// because we empty the pool before GC.
+ 	}
+ }
+ 
+@@ -207,7 +229,7 @@ func deferreturn(arg0 uintptr) {
+ 	// won't know the form of the arguments until the jmpdefer can
+ 	// flip the PC over to fn.
+ 	mp := acquirem()
+-	memmove(unsafe.Pointer(argp), unsafe.Pointer(&d.args), uintptr(d.siz))
++	memmove(unsafe.Pointer(argp), deferArgs(d), uintptr(d.siz))
+ 	fn := d.fn
+ 	gp._defer = d.link
+ 	freedefer(d)
+@@ -227,8 +249,9 @@ func Goexit() {
+ 	gp := getg()
+ 	for gp._defer != nil {
+ 		d := gp._defer
++		d.started = true
++		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+ 		gp._defer = d.link
+-		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
+ 		freedefer(d)
+ 		// Note: we ignore recovers here because Goexit isn't a panic
+ 	}
+@@ -258,55 +281,58 @@ func gopanic(e interface{}) {
+ 		gothrow("panic on m stack")
+ 	}
+ 	var p _panic
+-	var dabort _defer
+ 	p.arg = e
+ 	p.link = gp._panic
+ 	gp._panic = (*_panic)(noescape(unsafe.Pointer(&p)))
+ 
+-	fn := abortpanic
+-	dabort.fn = *(**funcval)(unsafe.Pointer(&fn))
+-	dabort.siz = ptrSize
+-	dabort.args[0] = noescape((unsafe.Pointer)(&p)) // TODO(khr): why do I need noescape here?
+-	dabort.argp = _NoArgs
+-	dabort.special = true
+-
+ 	for {
+ 		d := gp._defer
+ 		if d == nil {
+ 			break
+ 		}
+-		// take defer off list in case of recursive panic
+-		gp._defer = d.link
+-		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
+-		pc := d.pc
+ 
+-		// The deferred function may cause another panic,
+-		// so reflectcall may not return. Set up a defer
+-		// to mark this panic aborted if that happens.
+-		dabort.link = gp._defer
+-		gp._defer = (*_defer)(noescape(unsafe.Pointer(&dabort)))
+-		p._defer = d
++		// If defer was started by earlier panic or Goexit (and, since we're back here, that triggered a new panic),
++		// take defer off list. The earlier panic or Goexit will not continue running.
++		if d.started {
++			if d._panic != nil {
++				d._panic.aborted = true
++			}
++			gp._defer = d.link
++			freedefer(d)
++			continue
++		}
++
++		// Mark defer as started, but keep on list, so that traceback
++		// can find and update the defer's argument frame if stack growth
++		// or a garbage collection hapens before reflectcall starts executing d.fn.
++		d.started = true
++
++		// Record the panic that is running the defer.
++		// If there is a new panic during the deferred call, that panic
++		// will find d in the list and will mark d._panic (this panic) aborted.
++		d._panic = (*_panic)(noescape((unsafe.Pointer)(&p)))
+ 
+ 		p.argp = unsafe.Pointer(getargp(0))
+-		reflectcall(unsafe.Pointer(d.fn), unsafe.Pointer(&d.args), uint32(d.siz), uint32(d.siz))
++		reflectcall(unsafe.Pointer(d.fn), deferArgs(d), uint32(d.siz), uint32(d.siz))
+ 		p.argp = nil
+ 
+-		// reflectcall did not panic. Remove dabort.
+-		if gp._defer != &dabort {
++		// reflectcall did not panic. Remove d.
++		if gp._defer != d {
+ 			gothrow("bad defer entry in panic")
+ 		}
+-		gp._defer = dabort.link
++		gp._defer = d.link
+ 
+ 		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic
+ 		//GC()
+ 
++		pc := d.pc
++		argp := unsafe.Pointer(d.argp) // must be pointer so it gets adjusted during stack copy
+ 		freedefer(d)
+ 		if p.recovered {
+ 			gp._panic = p.link
+ 			// Aborted panics are marked but remain on the g.panic list.
+-			// Remove them from the list and free the associated defers.
++			// Remove them from the list.
+ 			for gp._panic != nil && gp._panic.aborted {
+-				freedefer(gp._panic._defer)
+ 				gp._panic = gp._panic.link
+ 			}
+ 			if gp._panic == nil { // must be done with signal
+@@ -342,10 +368,6 @@ func getargp(x int) uintptr {
+ 	return uintptr(noescape(unsafe.Pointer(&x)))
+ }
+ 
+-func abortpanic(p *_panic) {
+-	p.aborted = true
+-}
+-
+ // The implementation of the predeclared function recover.
+ // Cannot split the stack because it needs to reliably
+ // find the stack segment of its caller.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2f07c8a0b3..9b95868594 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -39,6 +39,12 @@ func main() {
+ 	// to preserve the lock.
+ 	lockOSThread()
+ 
++	if g.m != &m0 {
++		gothrow("runtime.main not on m0")
++	}
++
++	runtime_init() // must be before defer
++
+ 	// Defer unlock so that runtime.Goexit during init does the unlock too.
+ 	needUnlock := true
+ 	defer func() {
+@@ -47,11 +53,6 @@ func main() {
+ 		}
+ 	}()
+ 
+-	if g.m != &m0 {
+-		gothrow("runtime.main not on m0")
+-	}
+-
+-	runtime_init()
+ 	memstats.enablegc = true // now that runtime is initialized, GC is okay
+ 
+ 	main_init()
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 4aa9a963f5..adc74cf417 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -638,12 +638,12 @@ void    runtime·gcphasework(G*);
+ struct Defer
+ {
+ 	int32	siz;
+-	bool	special;	// not part of defer frame
++	bool	started;
+ 	uintptr	argp;		// where args were copied from
+ 	uintptr	pc;
+ 	FuncVal*	fn;
++	Panic*	panic;	// panic that is running defer
+ 	Defer*	link;
+-	void*	args[1];	// padded to actual size
+ };
+ 
+ // argp used in Defer structs when there is no argp.
+@@ -657,7 +657,6 @@ struct Panic
+ 	void*	argp;	// pointer to arguments of deferred call run during panic; cannot move - known to liblink
+ 	Eface	arg;		// argument to panic
+ 	Panic*	link;		// link to earlier panic
+-	Defer*	defer;		// current executing defer
+ 	bool	recovered;	// whether this panic is over
+ 	bool	aborted;	// the panic was aborted
+ };
+diff --git a/src/runtime/stack.c b/src/runtime/stack.c
+index f29266eb6b..143b645e42 100644
+--- a/src/runtime/stack.c
++++ b/src/runtime/stack.c
+@@ -23,6 +23,7 @@ enum
+ 	StackDebug = 0,
+ 	StackFromSystem = 0,	// allocate stacks from system memory instead of the heap
+ 	StackFaultOnFree = 0,	// old stacks are mapped noaccess to detect use after free
++	StackPoisonCopy = 0,	// fill stack that should not be accessed with garbage, to detect bad dereferences during copy
+ 
+ 	StackCache = 1,
+ };
+@@ -353,6 +354,24 @@ struct AdjustInfo {
+ 	uintptr delta;  // ptr distance from old to new stack (newbase - oldbase)
+ };
+ 
++// Adjustpointer checks whether *vpp is in the old stack described by adjinfo.
++// If so, it rewrites *vpp to point into the new stack.
++static void
++adjustpointer(AdjustInfo *adjinfo, void *vpp)
++{
++	byte **pp, *p;
++	
++	pp = vpp;
++	p = *pp;
++	if(StackDebug >= 4)
++		runtime·printf("        %p:%p\n", pp, p);
++	if(adjinfo->old.lo <= (uintptr)p && (uintptr)p < adjinfo->old.hi) {
++		*pp = p + adjinfo->delta;
++		if(StackDebug >= 3)
++			runtime·printf("        adjust ptr %p: %p -> %p\n", pp, p, *pp);
++	}
++}
++
+ // bv describes the memory starting at address scanp.
+ // Adjust any pointers contained therein.
+ static void
+@@ -447,6 +466,11 @@ adjustframe(Stkframe *frame, void *arg)
+ 	uintptr targetpc;
+ 
+ 	adjinfo = arg;
++	targetpc = frame->continpc;
++	if(targetpc == 0) {
++		// Frame is dead.
++		return true;
++	}
+ 	f = frame->fn;
+ 	if(StackDebug >= 2)
+ 		runtime·printf("    adjusting %s frame=[%p,%p] pc=%p continpc=%p\n", runtime·funcname(f), frame->sp, frame->fp, frame->pc, frame->continpc);
+@@ -456,11 +480,6 @@ adjustframe(Stkframe *frame, void *arg)
+ 		// have full GC info for it (because it is written in asm).
+ 		return true;
+ 	}
+-	targetpc = frame->continpc;
+-	if(targetpc == 0) {
+-		// Frame is dead.
+-		return true;
+-	}
+ 	if(targetpc != f->entry)
+ 		targetpc--;
+ 	pcdata = runtime·pcdatavalue(f, PCDATA_StackMapIndex, targetpc);
+@@ -495,103 +514,53 @@ adjustframe(Stkframe *frame, void *arg)
+ 			runtime·printf("      args\n");
+ 		adjustpointers((byte**)frame->argp, &bv, adjinfo, nil);
+ 	}
++	
+ 	return true;
+ }
+ 
+ static void
+ adjustctxt(G *gp, AdjustInfo *adjinfo)
+ {
+-	if(adjinfo->old.lo <= (uintptr)gp->sched.ctxt && (uintptr)gp->sched.ctxt < adjinfo->old.hi)
+-		gp->sched.ctxt = (byte*)gp->sched.ctxt + adjinfo->delta;
++	adjustpointer(adjinfo, &gp->sched.ctxt);
+ }
+ 
+ static void
+ adjustdefers(G *gp, AdjustInfo *adjinfo)
+ {
+-	Defer *d, **dp;
+-	Func *f;
+-	FuncVal *fn;
+-	StackMap *stackmap;
+-	BitVector bv;
++	Defer *d;
++	bool (*cb)(Stkframe*, void*);
+ 
+-	for(dp = &gp->defer, d = *dp; d != nil; dp = &d->link, d = *dp) {
+-		if(adjinfo->old.lo <= (uintptr)d && (uintptr)d < adjinfo->old.hi) {
+-			// The Defer record is on the stack.  Its fields will
+-			// get adjusted appropriately.
+-			// This only happens for runtime.main and runtime.gopanic now,
+-			// but a compiler optimization could do more of this.
+-			// If such an optimization were introduced, Defer.argp should
+-			// change to have pointer type so that it will be updated by
+-			// the stack copying. Today both of those on-stack defers
+-			// set argp = NoArgs, so no adjustment is necessary.
+-			*dp = (Defer*)((byte*)d + adjinfo->delta);
+-			continue;
+-		}
+-		if(d->argp == NoArgs)
+-			continue;
+-		if(d->argp < adjinfo->old.lo || adjinfo->old.hi <= d->argp) {
+-			runtime·printf("runtime: adjustdefers argp=%p stk=%p %p\n", d->argp, adjinfo->old.lo, adjinfo->old.hi);
+-			runtime·throw("adjustdefers: unexpected argp");
+-		}
+-		d->argp += adjinfo->delta;
+-		fn = d->fn;
+-		if(fn == nil) {
+-			// Defer of nil function.  It will panic when run.  See issue 8047.
+-			continue;
+-		}
+-		f = runtime·findfunc((uintptr)fn->fn);
+-		if(f == nil)
+-			runtime·throw("can't adjust unknown defer");
+-		if(StackDebug >= 4)
+-			runtime·printf("  checking defer %s\n", runtime·funcname(f));
+-		// Defer's FuncVal might be on the stack
+-		if(adjinfo->old.lo <= (uintptr)fn && (uintptr)fn < adjinfo->old.hi) {
+-			if(StackDebug >= 3)
+-				runtime·printf("    adjust defer fn %s\n", runtime·funcname(f));
+-			d->fn = (FuncVal*)((byte*)fn + adjinfo->delta);
+-		} else {
+-			// deferred function's args might point into the stack.
+-			if(StackDebug >= 3)
+-				runtime·printf("    adjust deferred args for %s\n", runtime·funcname(f));
+-			stackmap = runtime·funcdata(f, FUNCDATA_ArgsPointerMaps);
+-			if(stackmap == nil)
+-				runtime·throw("runtime: deferred function has no arg ptr map");
+-			bv = runtime·stackmapdata(stackmap, 0);
+-			adjustpointers(d->args, &bv, adjinfo, f);
+-		}
+-		// The FuncVal may have pointers in it, but fortunately for us
+-		// the compiler won't put pointers into the stack in a
+-		// heap-allocated FuncVal.
+-		// One day if we do need to check this, we can use the gc bits in the
+-		// heap to do the right thing (although getting the size will be expensive).
++	// Adjust defer argument blocks the same way we adjust active stack frames.
++	cb = adjustframe;
++	runtime·tracebackdefers(gp, &cb, adjinfo);
++
++	// Adjust pointers in the Defer structs.
++	// Defer structs themselves are never on the stack.
++	for(d = gp->defer; d != nil; d = d->link) {
++		adjustpointer(adjinfo, &d->fn);
++		adjustpointer(adjinfo, &d->argp);
++		adjustpointer(adjinfo, &d->panic);
+ 	}
+ }
+ 
+ static void
+ adjustpanics(G *gp, AdjustInfo *adjinfo)
+ {
+-	// Panic structs are all on the stack
+-	// and are adjusted by stack copying.
+-	// The only pointer we need to update is gp->panic, the head of the list.
+-	if(adjinfo->old.lo <= (uintptr)gp->panic && (uintptr)gp->panic < adjinfo->old.hi)
+-		gp->panic = (Panic*)((byte*)gp->panic + adjinfo->delta);
++	// Panics are on stack and already adjusted.
++	// Update pointer to head of list in G.
++	adjustpointer(adjinfo, &gp->panic);
+ }
+ 
+ static void
+ adjustsudogs(G *gp, AdjustInfo *adjinfo)
+ {
+ 	SudoG *s;
+-	byte *e;
+ 
+ 	// the data elements pointed to by a SudoG structure
+ 	// might be in the stack.
+ 	for(s = gp->waiting; s != nil; s = s->waitlink) {
+-		e = s->elem;
+-		if(adjinfo->old.lo <= (uintptr)e && (uintptr)e < adjinfo->old.hi)
+-			s->elem = e + adjinfo->delta;
+-		e = (byte*)s->selectdone;
+-		if(adjinfo->old.lo <= (uintptr)e && (uintptr)e < adjinfo->old.hi)
+-			s->selectdone = (uint32*)(e + adjinfo->delta);
++		adjustpointer(adjinfo, &s->elem);
++		adjustpointer(adjinfo, &s->selectdone);
+ 	}
+ }
+ 
+@@ -604,6 +573,7 @@ copystack(G *gp, uintptr newsize)
+ 	AdjustInfo adjinfo;
+ 	uint32 oldstatus;
+ 	bool (*cb)(Stkframe*, void*);
++	byte *p, *ep;
+ 
+ 	if(gp->syscallsp != 0)
+ 		runtime·throw("stack growth not allowed in system call");
+@@ -614,6 +584,12 @@ copystack(G *gp, uintptr newsize)
+ 
+ 	// allocate new stack
+ 	new = runtime·stackalloc(newsize);
++	if(StackPoisonCopy) {
++		p = (byte*)new.lo;
++		ep = (byte*)new.hi;
++		while(p < ep)
++			*p++ = 0xfd;
++	}
+ 
+ 	if(StackDebug >= 1)
+ 		runtime·printf("copystack gp=%p [%p %p %p]/%d -> [%p %p %p]/%d\n", gp, old.lo, old.hi-used, old.hi, (int32)(old.hi-old.lo), new.lo, new.hi-used, new.hi, (int32)newsize);
+@@ -631,6 +607,12 @@ copystack(G *gp, uintptr newsize)
+ 	adjustsudogs(gp, &adjinfo);
+ 	
+ 	// copy the stack to the new location
++	if(StackPoisonCopy) {
++		p = (byte*)new.lo;
++		ep = (byte*)new.hi;
++		while(p < ep)
++			*p++ = 0xfb;
++	}
+ 	runtime·memmove((byte*)new.hi - used, (byte*)old.hi - used, used);
+ 
+ 	oldstatus = runtime·readgstatus(gp);
+@@ -648,6 +630,12 @@ copystack(G *gp, uintptr newsize)
+ 	runtime·casgstatus(gp, Gcopystack, oldstatus); // oldstatus is Gwaiting or Grunnable
+ 
+ 	// free old stack
++	if(StackPoisonCopy) {
++		p = (byte*)old.lo;
++		ep = (byte*)old.hi;
++		while(p < ep)
++			*p++ = 0xfc;
++	}
+ 	runtime·stackfree(old);
+ }
+ 
+diff --git a/src/runtime/stack_test.go b/src/runtime/stack_test.go
+index cd525a3fc5..3a0802a1c2 100644
+--- a/src/runtime/stack_test.go
++++ b/src/runtime/stack_test.go
+@@ -141,7 +141,7 @@ func growStack() {
+ 	GC()
+ }
+ 
+-// This function is not an anonimous func, so that the compiler can do escape
++// This function is not an anonymous func, so that the compiler can do escape
+ // analysis and place x on stack (and subsequently stack growth update the pointer).
+ func growStackIter(p *int, n int) {
+ 	if n == 0 {
+@@ -230,13 +230,101 @@ func TestDeferPtrs(t *testing.T) {
+ 	growStack()
+ }
+ 
+-// use about n KB of stack
+-func useStack(n int) {
++type bigBuf [4 * 1024]byte
++
++// TestDeferPtrsGoexit is like TestDeferPtrs but exercises the possibility that the
++// stack grows as part of starting the deferred function. It calls Goexit at various
++// stack depths, forcing the deferred function (with >4kB of args) to be run at
++// the bottom of the stack. The goal is to find a stack depth less than 4kB from
++// the end of the stack. Each trial runs in a different goroutine so that an earlier
++// stack growth does not invalidate a later attempt.
++func TestDeferPtrsGoexit(t *testing.T) {
++	for i := 0; i < 100; i++ {
++		c := make(chan int, 1)
++		go testDeferPtrsGoexit(c, i)
++		if n := <-c; n != 42 {
++			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
++		}
++	}
++}
++
++func testDeferPtrsGoexit(c chan int, i int) {
++	var y int
++	defer func() {
++		c <- y
++	}()
++	defer setBig(&y, 42, bigBuf{})
++	useStackAndCall(i, Goexit)
++}
++
++func setBig(p *int, x int, b bigBuf) {
++	*p = x
++}
++
++// TestDeferPtrsPanic is like TestDeferPtrsGoexit, but it's using panic instead
++// of Goexit to run the Defers. Those two are different execution paths
++// in the runtime.
++func TestDeferPtrsPanic(t *testing.T) {
++	for i := 0; i < 100; i++ {
++		c := make(chan int, 1)
++		go testDeferPtrsGoexit(c, i)
++		if n := <-c; n != 42 {
++			t.Fatalf("defer's stack references were not adjusted appropriately (i=%d n=%d)", i, n)
++		}
++	}
++}
++
++func testDeferPtrsPanic(c chan int, i int) {
++	var y int
++	defer func() {
++		if recover() == nil {
++			c <- -1
++			return
++		}
++		c <- y
++	}()
++	defer setBig(&y, 42, bigBuf{})
++	useStackAndCall(i, func() { panic(1) })
++}
++
++// TestPanicUseStack checks that a chain of Panic structs on the stack are
++// updated correctly if the stack grows during the deferred execution that
++// happens as a result of the panic.
++func TestPanicUseStack(t *testing.T) {
++	pc := make([]uintptr, 10000)
++	defer func() {
++		recover()
++		Callers(0, pc) // force stack walk
++		useStackAndCall(100, func() {
++			defer func() {
++				recover()
++				Callers(0, pc) // force stack walk
++				useStackAndCall(200, func() {
++					defer func() {
++						recover()
++						Callers(0, pc) // force stack walk
++					}()
++					panic(3)
++				})
++			}()
++			panic(2)
++		})
++	}()
++	panic(1)
++}
++
++// use about n KB of stack and call f
++func useStackAndCall(n int, f func()) {
+ 	if n == 0 {
++		f()
+ 		return
+ 	}
+ 	var b [1024]byte // makes frame about 1KB
+-	useStack(n - 1 + int(b[99]))
++	useStackAndCall(n-1+int(b[99]), f)
++}
++
++func useStack(n int) {
++	useStackAndCall(n, func() {})
+ }
+ 
+ func growing(c chan int, done chan struct{}) {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 07b68d29b5..9e95fa33d5 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -45,8 +45,36 @@ var (
+ 	externalthreadhandlerp uintptr // initialized elsewhere
+ )
+ 
+-// System-specific hook. See traceback_windows.go
+-var systraceback func(*_func, *stkframe, *g, bool, func(*stkframe, unsafe.Pointer) bool, unsafe.Pointer) (changed, aborted bool)
++// Traceback over the deferred function calls.
++// Report them like calls that have been invoked but not started executing yet.
++func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer) {
++	var frame stkframe
++	for d := gp._defer; d != nil; d = d.link {
++		fn := d.fn
++		if fn == nil {
++			// Defer of nil function. Args don't matter.
++			frame.pc = 0
++			frame.fn = nil
++			frame.argp = 0
++			frame.arglen = 0
++			frame.argmap = nil
++		} else {
++			frame.pc = uintptr(fn.fn)
++			f := findfunc(frame.pc)
++			if f == nil {
++				print("runtime: unknown pc in defer ", hex(frame.pc), "\n")
++				gothrow("unknown pc")
++			}
++			frame.fn = f
++			frame.argp = uintptr(deferArgs(d))
++			setArgInfo(&frame, f, true)
++		}
++		frame.continpc = frame.pc
++		if !callback((*stkframe)(noescape(unsafe.Pointer(&frame))), v) {
++			return
++		}
++	}
++}
+ 
+ // Generic traceback.  Handles runtime stack prints (pcbuf == nil),
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+@@ -81,15 +109,11 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 	waspanic := false
+ 	wasnewproc := false
+ 	printing := pcbuf == nil && callback == nil
+-	panic := gp._panic
+ 	_defer := gp._defer
+ 
+ 	for _defer != nil && uintptr(_defer.argp) == _NoArgs {
+ 		_defer = _defer.link
+ 	}
+-	for panic != nil && panic._defer == nil {
+-		panic = panic.link
+-	}
+ 
+ 	// If the PC is zero, it's likely a nil function call.
+ 	// Start in the caller's frame.
+@@ -187,25 +211,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 			if usesLR {
+ 				frame.argp += ptrSize
+ 			}
+-			frame.arglen = uintptr(f.args)
+-			if callback != nil && f.args == _ArgsSizeUnknown {
+-				// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+-				switch gofuncname(f) {
+-				case "reflect.makeFuncStub", "reflect.methodValueCall":
+-					arg0 := frame.sp
+-					if usesLR {
+-						arg0 += ptrSize
+-					}
+-					fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
+-					if fn[0] != f.entry {
+-						print("runtime: confused by ", gofuncname(f), "\n")
+-						gothrow("reflect mismatch")
+-					}
+-					bv := (*bitvector)(unsafe.Pointer(fn[1]))
+-					frame.arglen = uintptr(bv.n / 2 * ptrSize)
+-					frame.argmap = bv
+-				}
+-			}
++			setArgInfo(&frame, f, callback != nil)
+ 		}
+ 
+ 		// Determine function SP where deferproc would find its arguments.
+@@ -246,19 +252,14 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		// returns; everything live at earlier deferprocs is still live at that one.
+ 		frame.continpc = frame.pc
+ 		if waspanic {
+-			if panic != nil && panic._defer.argp == sparg {
+-				frame.continpc = panic._defer.pc
+-			} else if _defer != nil && _defer.argp == sparg {
++			if _defer != nil && _defer.argp == sparg {
+ 				frame.continpc = _defer.pc
+ 			} else {
+ 				frame.continpc = 0
+ 			}
+ 		}
+ 
+-		// Unwind our local panic & defer stacks past this frame.
+-		for panic != nil && (panic._defer == nil || panic._defer.argp == sparg || panic._defer.argp == _NoArgs) {
+-			panic = panic.link
+-		}
++		// Unwind our local defer stack past this frame.
+ 		for _defer != nil && (_defer.argp == sparg || _defer.argp == _NoArgs) {
+ 			_defer = _defer.link
+ 		}
+@@ -403,25 +404,37 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		if _defer != nil {
+ 			print("runtime: g", gp.goid, ": leftover defer argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
+ 		}
+-		if panic != nil {
+-			print("runtime: g", gp.goid, ": leftover panic argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc), "\n")
+-		}
+ 		for _defer = gp._defer; _defer != nil; _defer = _defer.link {
+ 			print("\tdefer ", _defer, " argp=", hex(_defer.argp), " pc=", hex(_defer.pc), "\n")
+ 		}
+-		for panic = gp._panic; panic != nil; panic = panic.link {
+-			print("\tpanic ", panic, " defer ", panic._defer)
+-			if panic._defer != nil {
+-				print(" argp=", hex(panic._defer.argp), " pc=", hex(panic._defer.pc))
+-			}
+-			print("\n")
+-		}
+-		gothrow("traceback has leftover defers or panics")
++		gothrow("traceback has leftover defers")
+ 	}
+ 
+ 	return n
+ }
+ 
++func setArgInfo(frame *stkframe, f *_func, needArgMap bool) {
++	frame.arglen = uintptr(f.args)
++	if needArgMap && f.args == _ArgsSizeUnknown {
++		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
++		switch gofuncname(f) {
++		case "reflect.makeFuncStub", "reflect.methodValueCall":
++			arg0 := frame.sp
++			if usesLR {
++				arg0 += ptrSize
++			}
++			fn := *(**[2]uintptr)(unsafe.Pointer(arg0))
++			if fn[0] != f.entry {
++				print("runtime: confused by ", gofuncname(f), "\n")
++				gothrow("reflect mismatch")
++			}
++			bv := (*bitvector)(unsafe.Pointer(fn[1]))
++			frame.arglen = uintptr(bv.n / 2 * ptrSize)
++			frame.argmap = bv
++		}
++	}
++}
++
+ func printcreatedby(gp *g) {
+ 	// Show what created goroutine, except main goroutine (goid 1).
+ 	pc := gp.gopc

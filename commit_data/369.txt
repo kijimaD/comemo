@@ -5,7 +5,7 @@ Date:   Tue Jul 15 21:07:59 2008 -0700
     new chan syntax
     
     SVN=127437
-
+---
  src/cmd/gc/go.y        |  33 +++++++-------
  src/cmd/gc/lex.c       |   8 ++++
  src/cmd/gc/sys.go      |   8 +++-
@@ -14,3 +14,551 @@ Date:   Tue Jul 15 21:07:59 2008 -0700
  src/runtime/chan.c     |  47 +++++++++++++++++++-
  test/chan/sieve.go     |   4 +-
  7 files changed, 214 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index c5f42bfd57..d5ef370c46 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -22,7 +22,7 @@
+ %token			LFOR LIF LELSE LSWITCH LCASE LDEFAULT
+ %token			LBREAK LCONTINUE LGO LGOTO LRANGE
+ %token			LOROR LANDAND LEQ LNE LLE LLT LGE LGT
+-%token			LLSH LRSH LINC LDEC
++%token			LLSH LRSH LINC LDEC LSEND LRECV
+ %token			LNIL LTRUE LFALSE LIOTA
+ %token			LPANIC LPRINT LIGNORE
+ 
+@@ -56,6 +56,7 @@
+ 
+ %left			LOROR
+ %left			LANDAND
++%left			LSEND LRECV
+ %left			LEQ LNE LLE LGE LLT LGT
+ %left			'+' '-' '|' '^'
+ %left			'*' '/' '%' '&' LLSH LRSH
+@@ -599,6 +600,14 @@ expr:
+ 	{
+ 		$$ = nod(ORSH, $1, $3);
+ 	}
++|	expr LSEND expr
++	{
++		$$ = nod(OSEND, $1, $3);
++	}
++|	expr LRECV expr
++	{
++		$$ = nod(ORECV, $1, $3);
++	}
+ 
+ uexpr:
+ 	pexpr
+@@ -631,14 +640,10 @@ uexpr:
+ 	{
+ 		$$ = nod(OCOM, $2, N);
+ 	}
+-|	LLT uexpr
++|	LRECV uexpr
+ 	{
+ 		$$ = nod(ORECV, $2, N);
+ 	}
+-|	LGT uexpr
+-	{
+-		$$ = nod(OSEND, $2, N);
+-	}
+ 
+ pexpr:
+ 	LLITERAL
+@@ -907,22 +912,14 @@ chandir:
+ 	{
+ 		$$ = Cboth;
+ 	}
+-|	LLT
++|	LRECV
+ 	{
+ 		$$ = Crecv;
+ 	}
+-|	LGT
++|	LSEND
+ 	{
+ 		$$ = Csend;
+ 	}
+-|	LLT LGT
+-	{
+-		$$ = Cboth;
+-	}
+-|	LGT LLT
+-	{
+-		$$ = 0;
+-	}
+ 
+ keyval:
+ 	expr ':' expr
+@@ -1027,6 +1024,7 @@ fnliteral:
+ 
+ 		$$ = newname(lookup(namebuf));
+ 		addvar($$, $1, PEXTERN);
++dump("lit1", $$);
+ 
+ 		{
+ 			Node *n;
+@@ -1037,10 +1035,13 @@ fnliteral:
+ 			n->nbody = $3;
+ 			if(n->nbody == N)
+ 				n->nbody = nod(ORETURN, N, N);
++dump("comp1", n);
+ 			compile(n);
++dump("comp2", n);
+ 		}
+ 
+ 		$$ = nod(OADDR, $$, N);
++dump("lit2", $$);
+ 	}
+ 
+ fnbody:
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index e9eaab8b48..19233085ce 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -480,6 +480,10 @@ l0:
+ 			c = LDEC;
+ 			goto lx;
+ 		}
++		if(c1 == '<') {
++			c = LSEND;
++			goto lx;
++		}
+ 		if(c1 == '=') {
+ 			c = OSUB;
+ 			goto asop;
+@@ -519,6 +523,10 @@ l0:
+ 			c = LLE;
+ 			goto lx;
+ 		}
++		if(c1 == '-') {
++			c = LRECV;
++			goto lx;
++		}
+ 		c = LLT;
+ 		break;
+ 
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 10b74e4ce6..f5328d2fd1 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -45,9 +45,11 @@ func	mapassign1(hmap *map[any]any, key any, val any);
+ func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+ 
+ func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+-func	chansend(hchan *chan any, elem any);
+ func	chanrecv1(hchan *chan any) (elem any);
+ func	chanrecv2(hchan *chan any) (elem any, pres bool);
++func	chanrecv3(hchan *chan any) (elem any, pres bool);
++func	chansend1(hchan *chan any, elem any);
++func	chansend2(hchan *chan any, elem any) (pres bool);
+ 
+ func	gosched();
+ func	goexit();
+@@ -104,9 +106,11 @@ export
+ 
+ 	// chan
+ 	newchan
+-	chansend
+ 	chanrecv1
+ 	chanrecv2
++	chanrecv3
++	chansend1
++	chansend2
+ 
+ 	// go routines
+ 	gosched
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index a6b5c9ecfc..615981eba6 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -190,61 +190,75 @@ char*	sysimport =
+ 	"type sys._esys_094 (sys._esys_095 sys._osys_548 sys._isys_550)\n"
+ 	"var !sys.newchan sys._esys_094\n"
+ 	"type sys._esys_099 {}\n"
+-	"type sys._esys_100 {}\n"
+-	"type sys._esys_102 1 sys.any\n"
+-	"type sys._esys_101 *sys._esys_102\n"
+-	"type sys._isys_557 {hchan sys._esys_101 elem sys.any}\n"
+-	"type sys._esys_098 (sys._esys_099 sys._esys_100 sys._isys_557)\n"
+-	"var !sys.chansend sys._esys_098\n"
+-	"type sys._esys_104 {}\n"
+-	"type sys._osys_562 {elem sys.any}\n"
+-	"type sys._esys_106 1 sys.any\n"
+-	"type sys._esys_105 *sys._esys_106\n"
+-	"type sys._isys_564 {hchan sys._esys_105}\n"
+-	"type sys._esys_103 (sys._esys_104 sys._osys_562 sys._isys_564)\n"
+-	"var !sys.chanrecv1 sys._esys_103\n"
+-	"type sys._esys_108 {}\n"
+-	"type sys._osys_569 {elem sys.any pres sys.bool}\n"
+-	"type sys._esys_110 1 sys.any\n"
+-	"type sys._esys_109 *sys._esys_110\n"
+-	"type sys._isys_571 {hchan sys._esys_109}\n"
+-	"type sys._esys_107 (sys._esys_108 sys._osys_569 sys._isys_571)\n"
+-	"var !sys.chanrecv2 sys._esys_107\n"
++	"type sys._osys_557 {elem sys.any}\n"
++	"type sys._esys_101 1 sys.any\n"
++	"type sys._esys_100 *sys._esys_101\n"
++	"type sys._isys_559 {hchan sys._esys_100}\n"
++	"type sys._esys_098 (sys._esys_099 sys._osys_557 sys._isys_559)\n"
++	"var !sys.chanrecv1 sys._esys_098\n"
++	"type sys._esys_103 {}\n"
++	"type sys._osys_564 {elem sys.any pres sys.bool}\n"
++	"type sys._esys_105 1 sys.any\n"
++	"type sys._esys_104 *sys._esys_105\n"
++	"type sys._isys_566 {hchan sys._esys_104}\n"
++	"type sys._esys_102 (sys._esys_103 sys._osys_564 sys._isys_566)\n"
++	"var !sys.chanrecv2 sys._esys_102\n"
++	"type sys._esys_107 {}\n"
++	"type sys._osys_572 {elem sys.any pres sys.bool}\n"
++	"type sys._esys_109 1 sys.any\n"
++	"type sys._esys_108 *sys._esys_109\n"
++	"type sys._isys_574 {hchan sys._esys_108}\n"
++	"type sys._esys_106 (sys._esys_107 sys._osys_572 sys._isys_574)\n"
++	"var !sys.chanrecv3 sys._esys_106\n"
++	"type sys._esys_111 {}\n"
+ 	"type sys._esys_112 {}\n"
+-	"type sys._esys_113 {}\n"
+-	"type sys._esys_114 {}\n"
+-	"type sys._esys_111 (sys._esys_112 sys._esys_113 sys._esys_114)\n"
+-	"var !sys.gosched sys._esys_111\n"
++	"type sys._esys_114 1 sys.any\n"
++	"type sys._esys_113 *sys._esys_114\n"
++	"type sys._isys_580 {hchan sys._esys_113 elem sys.any}\n"
++	"type sys._esys_110 (sys._esys_111 sys._esys_112 sys._isys_580)\n"
++	"var !sys.chansend1 sys._esys_110\n"
+ 	"type sys._esys_116 {}\n"
+-	"type sys._esys_117 {}\n"
+-	"type sys._esys_118 {}\n"
+-	"type sys._esys_115 (sys._esys_116 sys._esys_117 sys._esys_118)\n"
+-	"var !sys.goexit sys._esys_115\n"
++	"type sys._osys_585 {pres sys.bool}\n"
++	"type sys._esys_118 1 sys.any\n"
++	"type sys._esys_117 *sys._esys_118\n"
++	"type sys._isys_587 {hchan sys._esys_117 elem sys.any}\n"
++	"type sys._esys_115 (sys._esys_116 sys._osys_585 sys._isys_587)\n"
++	"var !sys.chansend2 sys._esys_115\n"
+ 	"type sys._esys_120 {}\n"
+-	"type sys._osys_582 {_esys_579 sys.string _esys_580 sys.bool}\n"
+-	"type sys._isys_584 {_esys_581 sys.string}\n"
+-	"type sys._esys_119 (sys._esys_120 sys._osys_582 sys._isys_584)\n"
+-	"var !sys.readfile sys._esys_119\n"
++	"type sys._esys_121 {}\n"
+ 	"type sys._esys_122 {}\n"
+-	"type sys._osys_591 {_esys_588 sys.bool}\n"
+-	"type sys._isys_593 {_esys_589 sys.string _esys_590 sys.string}\n"
+-	"type sys._esys_121 (sys._esys_122 sys._osys_591 sys._isys_593)\n"
+-	"var !sys.writefile sys._esys_121\n"
++	"type sys._esys_119 (sys._esys_120 sys._esys_121 sys._esys_122)\n"
++	"var !sys.gosched sys._esys_119\n"
+ 	"type sys._esys_124 {}\n"
+-	"type sys._osys_603 {_esys_598 sys.int32 _esys_599 sys.int32}\n"
+-	"type sys._esys_125 *sys.uint8\n"
+-	"type sys._isys_605 {_esys_600 sys._esys_125 _esys_601 sys.int32 _esys_602 sys.int32}\n"
+-	"type sys._esys_123 (sys._esys_124 sys._osys_603 sys._isys_605)\n"
+-	"var !sys.bytestorune sys._esys_123\n"
+-	"type sys._esys_127 {}\n"
+-	"type sys._osys_616 {_esys_611 sys.int32 _esys_612 sys.int32}\n"
+-	"type sys._isys_618 {_esys_613 sys.string _esys_614 sys.int32 _esys_615 sys.int32}\n"
+-	"type sys._esys_126 (sys._esys_127 sys._osys_616 sys._isys_618)\n"
+-	"var !sys.stringtorune sys._esys_126\n"
+-	"type sys._esys_129 {}\n"
++	"type sys._esys_125 {}\n"
++	"type sys._esys_126 {}\n"
++	"type sys._esys_123 (sys._esys_124 sys._esys_125 sys._esys_126)\n"
++	"var !sys.goexit sys._esys_123\n"
++	"type sys._esys_128 {}\n"
++	"type sys._osys_598 {_esys_595 sys.string _esys_596 sys.bool}\n"
++	"type sys._isys_600 {_esys_597 sys.string}\n"
++	"type sys._esys_127 (sys._esys_128 sys._osys_598 sys._isys_600)\n"
++	"var !sys.readfile sys._esys_127\n"
+ 	"type sys._esys_130 {}\n"
+-	"type sys._isys_625 {_esys_624 sys.int32}\n"
+-	"type sys._esys_128 (sys._esys_129 sys._esys_130 sys._isys_625)\n"
+-	"var !sys.exit sys._esys_128\n"
++	"type sys._osys_607 {_esys_604 sys.bool}\n"
++	"type sys._isys_609 {_esys_605 sys.string _esys_606 sys.string}\n"
++	"type sys._esys_129 (sys._esys_130 sys._osys_607 sys._isys_609)\n"
++	"var !sys.writefile sys._esys_129\n"
++	"type sys._esys_132 {}\n"
++	"type sys._osys_619 {_esys_614 sys.int32 _esys_615 sys.int32}\n"
++	"type sys._esys_133 *sys.uint8\n"
++	"type sys._isys_621 {_esys_616 sys._esys_133 _esys_617 sys.int32 _esys_618 sys.int32}\n"
++	"type sys._esys_131 (sys._esys_132 sys._osys_619 sys._isys_621)\n"
++	"var !sys.bytestorune sys._esys_131\n"
++	"type sys._esys_135 {}\n"
++	"type sys._osys_632 {_esys_627 sys.int32 _esys_628 sys.int32}\n"
++	"type sys._isys_634 {_esys_629 sys.string _esys_630 sys.int32 _esys_631 sys.int32}\n"
++	"type sys._esys_134 (sys._esys_135 sys._osys_632 sys._isys_634)\n"
++	"var !sys.stringtorune sys._esys_134\n"
++	"type sys._esys_137 {}\n"
++	"type sys._esys_138 {}\n"
++	"type sys._isys_641 {_esys_640 sys.int32}\n"
++	"type sys._esys_136 (sys._esys_137 sys._esys_138 sys._isys_641)\n"
++	"var !sys.exit sys._esys_136\n"
+ 	"))\n"
+ ;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index cadf5fac5f..177d80081d 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -278,6 +278,7 @@ loop:
+ 		case ORECV:
+ 			if(cl == 2 && cr == 1) {
+ 				// a,b = <chan - chanrecv2
++				walktype(r->left, Erv);
+ 				if(!isptrto(r->left->type, TCHAN))
+ 					break;
+ 				l = chanop(n, top);
+@@ -585,25 +586,24 @@ loop:
+ 		goto ret;
+ 
+ 	case OSEND:
+-		if(top != Elv)
++		if(top == Elv)
+ 			goto nottop;
+ 		walktype(n->left, Erv);
+-		t = n->left->type;
+-		if(!isptrto(t, TCHAN))
+-			goto badt;
+-		n->type = t->type->type;
++		walktype(n->right, Erv);
++		*n = *chanop(n, top);
+ 		goto ret;
+ 
+ 	case ORECV:
+-		if(top != Erv)
++		if(top == Elv)
+ 			goto nottop;
+-		walktype(n->left, Erv);
+-		t = n->left->type;
+-		if(!isptrto(t, TCHAN))
+-			goto badt;
+-		n->type = t->type->type;
+-
+-		*n = *chanop(n, top);
++		if(n->right == N) {
++			walktype(n->left, Erv);	// chan
++			*n = *chanop(n, top);	// returns e blocking
++			goto ret;
++		}
++		walktype(n->left, Elv);		// e
++		walktype(n->right, Erv);	// chan
++		*n = *chanop(n, top);		// returns bool non-blocking
+ 		goto ret;
+ 
+ 	case OSLICE:
+@@ -1396,7 +1396,7 @@ fixmap(Type *tm)
+ 	}
+ 
+ 	if(t->etype != TMAP) {
+-		fatal("fixmap: %O not map");
++		fatal("fixmap: %lT not map", tm);
+ 		return T;
+ 	}
+ 
+@@ -1423,7 +1423,7 @@ fixchan(Type *tm)
+ 	}
+ 
+ 	if(t->etype != TCHAN) {
+-		fatal("fixchan: %O not map");
++		fatal("fixchan: %lT not chan", tm);
+ 		return T;
+ 	}
+ 
+@@ -1703,31 +1703,32 @@ chanop(Node *n, int top)
+ 		cl = listcount(n->left);
+ 		cr = listcount(n->right);
+ 
+-		if(cl == 2 && cr == 1 && n->right->op == ORECV)
+-			goto recv2;
+-		if(cl != 1 || cr != 1 || n->left->op != OSEND)
++		if(cl != 2 || cr != 1 || n->right->op != ORECV)
+ 			goto shape;
+ 
+-		// chansend(hchan *chan any, elem any);
++		// chanrecv2(hchan *chan any) (elem any, pres bool);
+ 
+-		t = fixchan(n->left->left->type);
++		t = fixchan(n->right->left->type);
+ 		if(t == T)
+ 			break;
+ 
+-		a = n->right;				// val
++		a = n->right->left;			// chan
+ 		r = a;
+-		a = n->left->left;			// chan
+-		r = nod(OLIST, a, r);
+ 
+-		on = syslook("chansend", 1);
++		on = syslook("chanrecv2", 1);
++
+ 		argtype(on, t->type);	// any-1
+ 		argtype(on, t->type);	// any-2
+-
+ 		r = nod(OCALL, on, r);
+-		walktype(r, Erv);
++		n->right = r;
++		r = n;
++		walktype(r, Etop);
+ 		break;
+ 
+ 	case ORECV:
++		if(n->right != N)
++			goto recv2;
++
+ 		// chanrecv1(hchan *chan any) (elem any);
+ 
+ 		t = fixchan(n->left->type);
+@@ -1747,12 +1748,12 @@ chanop(Node *n, int top)
+ 
+ 	recv2:
+ 		// chanrecv2(hchan *chan any) (elem any, pres bool);
+-
+-		t = fixchan(n->right->left->type);
++fatal("recv2 not yet");
++		t = fixchan(n->right->type);
+ 		if(t == T)
+ 			break;
+ 
+-		a = n->right->left;			// chan
++		a = n->right;			// chan
+ 		r = a;
+ 
+ 		on = syslook("chanrecv2", 1);
+@@ -1764,6 +1765,48 @@ chanop(Node *n, int top)
+ 		r = n;
+ 		walktype(r, Etop);
+ 		break;
++
++	case OSEND:
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++		if(top != Etop)
++			goto send2;
++
++		// chansend1(hchan *chan any, elem any);
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++
++		a = n->right;			// e
++		r = a;
++		a = n->left;			// chan
++		r = nod(OLIST, a, r);
++
++		on = syslook("chansend1", 1);
++		argtype(on, t->type);	// any-1
++		argtype(on, t->type);	// any-2
++		r = nod(OCALL, on, r);
++		walktype(r, top);
++		break;
++
++	send2:
++		// chansend2(hchan *chan any, val any) (pres bool);
++		t = fixchan(n->left->type);
++		if(t == T)
++			break;
++
++		a = n->right;			// e
++		r = a;
++		a = n->left;			// chan
++		r = nod(OLIST, a, r);
++
++		on = syslook("chansend2", 1);
++		argtype(on, t->type);	// any-1
++		argtype(on, t->type);	// any-2
++		r = nod(OCALL, on, r);
++		walktype(r, top);
++		break;
+ 	}
+ 	return r;
+ 
+diff --git a/src/runtime/chan.c b/src/runtime/chan.c
+index 78ad5d8af7..6bc08ae0fb 100644
+--- a/src/runtime/chan.c
++++ b/src/runtime/chan.c
+@@ -93,9 +93,9 @@ sys·newchan(uint32 elemsize, uint32 elemalg, uint32 hint,
+ 
+ }
+ 
+-// chansend(hchan *chan any, elem any);
++// chansend1(hchan *chan any, elem any);
+ void
+-sys·chansend(Hchan* c, ...)
++sys·chansend1(Hchan* c, ...)
+ {
+ 	byte *ae;
+ 	G *gr;
+@@ -137,6 +137,49 @@ asynch:
+ 		gr->status = Grunnable;
+ }
+ 
++// chansend2(hchan *chan any, elem any) (pres bool);
++void
++sys·chansend2(Hchan* c, ...)
++{
++	byte *ae, *ap;
++	G *gr;
++
++	ae = (byte*)&c + c->eo;
++	ap = (byte*)&c + c->po;
++	if(debug) {
++		prints("chansend: chan=");
++		sys·printpointer(c);
++		prints("; elem=");
++		c->elemalg->print(c->elemsize, ae);
++		prints("\n");
++	}
++	if(c->dataqsiz > 0)
++		goto asynch;
++
++	gr = dequeue(&c->recvq);
++	if(gr != nil) {
++		c->elemalg->copy(c->elemsize, gr->elem, ae);
++		gr->status = Grunnable;
++		*ap = true;
++		return;
++	}
++	*ap = false;
++	return;
++
++asynch:
++	if(c->qcount >= c->dataqsiz) {
++		*ap = false;
++		return;
++	}
++	c->elemalg->copy(c->elemsize, c->senddataq->elem, ae);
++	c->senddataq = c->senddataq->link;
++	c->qcount++;
++	gr = dequeue(&c->recvq);
++	if(gr != nil)
++		gr->status = Grunnable;
++	*ap = true;
++}
++
+ // chanrecv1(hchan *chan any) (elem any);
+ void
+ sys·chanrecv1(Hchan* c, ...)
+diff --git a/test/chan/sieve.go b/test/chan/sieve.go
+index c1cf690a26..6fd28e5130 100644
+--- a/test/chan/sieve.go
++++ b/test/chan/sieve.go
+@@ -28,12 +28,12 @@ func Filter(in *chan<- int, out *chan-< int, prime int) {
+ }
+ 
+ // The prime sieve: Daisy-chain Filter processes together.
+-func Sieve() {
++func Sieve(primes *chan-< int) {
+ 	ch := new(chan int);  // Create a new channel.
+ 	go Generate(ch);  // Start Generate() as a subprocess.
+ 	for {
+ 		prime := <-ch;
+-		print prime, "\n";
++		primes -< prime;
+ 		ch1 := new(chan int);
+ 		go Filter(ch, ch1, prime);
+ 		ch = ch1

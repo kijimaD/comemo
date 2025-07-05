@@ -22,10 +22,187 @@ Date:   Thu Dec 9 09:09:52 2021 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/go.mod                                         |  2 +-
  src/go.sum                                         |  4 +--
  src/net/http/h2_bundle.go                          | 32 ++++++++++++++--------
  .../golang.org/x/net/dns/dnsmessage/message.go     | 22 +++++++--------
  src/vendor/modules.txt                             |  2 +-
  5 files changed, 36 insertions(+), 26 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index 24d034b810..07d0acf2bd 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.18
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa
+-	golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
++	golang.org/x/net v0.0.0-20211209124913-491a49abca63
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index d063e65530..cec5bc4d0e 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa h1:idItI2DDfCokpg0N51B2VtiLdJ4vAuXC9fnCb2gACo4=
+ golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
+-golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9 h1:0qxwC5n+ttVOINCBeRHO0nq9X7uy8SDsPoi5OaCdIEI=
+-golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/net v0.0.0-20211209124913-491a49abca63 h1:iocB37TsdFuN6IBRZ+ry36wrkoV51/tl5vOWqkcPGvY=
++golang.org/x/net v0.0.0-20211209124913-491a49abca63/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
+ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d h1:FjkYO/PPp4Wi0EAUOVLxePm7qVW4r4ctbWpURyuOD0E=
+ golang.org/x/sys v0.0.0-20211205182925-97ca703d548d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.8-0.20211105212822-18b340fc7af2 h1:GLw7MR8AfAG2GmGcmVgObFOHXYypgGjnGno25RDwn3Y=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 8d19c42b5a..bb82f24585 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -4436,7 +4436,15 @@ func (sc *http2serverConn) canonicalHeader(v string) string {
+ 		sc.canonHeader = make(map[string]string)
+ 	}
+ 	cv = CanonicalHeaderKey(v)
+-	sc.canonHeader[v] = cv
++	// maxCachedCanonicalHeaders is an arbitrarily-chosen limit on the number of
++	// entries in the canonHeader cache. This should be larger than the number
++	// of unique, uncommon header keys likely to be sent by the peer, while not
++	// so high as to permit unreaasonable memory usage if the peer sends an unbounded
++	// number of unique header keys.
++	const maxCachedCanonicalHeaders = 32
++	if len(sc.canonHeader) < maxCachedCanonicalHeaders {
++		sc.canonHeader[v] = cv
++	}
+ 	return cv
+ }
+ 
+@@ -7958,12 +7966,12 @@ func (cs *http2clientStream) writeRequest(req *Request) (err error) {
+ 	}
+ 
+ 	continueTimeout := cc.t.expectContinueTimeout()
+-	if continueTimeout != 0 &&
+-		!httpguts.HeaderValuesContainsToken(
+-			req.Header["Expect"],
+-			"100-continue") {
+-		continueTimeout = 0
+-		cs.on100 = make(chan struct{}, 1)
++	if continueTimeout != 0 {
++		if !httpguts.HeaderValuesContainsToken(req.Header["Expect"], "100-continue") {
++			continueTimeout = 0
++		} else {
++			cs.on100 = make(chan struct{}, 1)
++		}
+ 	}
+ 
+ 	// Past this point (where we send request headers), it is possible for
+@@ -10117,7 +10125,8 @@ type http2WriteScheduler interface {
+ 
+ 	// Pop dequeues the next frame to write. Returns false if no frames can
+ 	// be written. Frames with a given wr.StreamID() are Pop'd in the same
+-	// order they are Push'd. No frames should be discarded except by CloseStream.
++	// order they are Push'd, except RST_STREAM frames. No frames should be
++	// discarded except by CloseStream.
+ 	Pop() (wr http2FrameWriteRequest, ok bool)
+ }
+ 
+@@ -10137,6 +10146,7 @@ type http2FrameWriteRequest struct {
+ 
+ 	// stream is the stream on which this frame will be written.
+ 	// nil for non-stream frames like PING and SETTINGS.
++	// nil for RST_STREAM streams, which use the StreamError.StreamID field instead.
+ 	stream *http2stream
+ 
+ 	// done, if non-nil, must be a buffered channel with space for
+@@ -10816,11 +10826,11 @@ func (ws *http2randomWriteScheduler) AdjustStream(streamID uint32, priority http
+ }
+ 
+ func (ws *http2randomWriteScheduler) Push(wr http2FrameWriteRequest) {
+-	id := wr.StreamID()
+-	if id == 0 {
++	if wr.isControl() {
+ 		ws.zero.push(wr)
+ 		return
+ 	}
++	id := wr.StreamID()
+ 	q, ok := ws.sq[id]
+ 	if !ok {
+ 		q = ws.queuePool.get()
+@@ -10830,7 +10840,7 @@ func (ws *http2randomWriteScheduler) Push(wr http2FrameWriteRequest) {
+ }
+ 
+ func (ws *http2randomWriteScheduler) Pop() (http2FrameWriteRequest, bool) {
+-	// Control frames first.
++	// Control and RST_STREAM frames first.
+ 	if !ws.zero.empty() {
+ 		return ws.zero.shift(), true
+ 	}
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 1736fc5d12..8c24430c5c 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -125,14 +125,14 @@ func (o OpCode) GoString() string {
+ // An RCode is a DNS response status code.
+ type RCode uint16
+ 
++// Header.RCode values.
+ const (
+-	// Message.Rcode
+-	RCodeSuccess        RCode = 0
+-	RCodeFormatError    RCode = 1
+-	RCodeServerFailure  RCode = 2
+-	RCodeNameError      RCode = 3
+-	RCodeNotImplemented RCode = 4
+-	RCodeRefused        RCode = 5
++	RCodeSuccess        RCode = 0 // NoError
++	RCodeFormatError    RCode = 1 // FormErr
++	RCodeServerFailure  RCode = 2 // ServFail
++	RCodeNameError      RCode = 3 // NXDomain
++	RCodeNotImplemented RCode = 4 // NotImp
++	RCodeRefused        RCode = 5 // Refused
+ )
+ 
+ var rCodeNames = map[RCode]string{
+@@ -1207,8 +1207,8 @@ type Builder struct {
+ //
+ // The DNS message is appended to the provided initial buffer buf (which may be
+ // nil) as it is built. The final message is returned by the (*Builder).Finish
+-// method, which may return the same underlying array if there was sufficient
+-// capacity in the slice.
++// method, which includes buf[:len(buf)] and may return the same underlying
++// array if there was sufficient capacity in the slice.
+ func NewBuilder(buf []byte, h Header) Builder {
+ 	if buf == nil {
+ 		buf = make([]byte, 0, packStartingCap)
+@@ -1713,7 +1713,7 @@ const (
+ 
+ // SetEDNS0 configures h for EDNS(0).
+ //
+-// The provided extRCode must be an extedned RCode.
++// The provided extRCode must be an extended RCode.
+ func (h *ResourceHeader) SetEDNS0(udpPayloadLen int, extRCode RCode, dnssecOK bool) error {
+ 	h.Name = Name{Data: [nameLen]byte{'.'}, Length: 1} // RFC 6891 section 6.1.2
+ 	h.Type = TypeOPT
+@@ -1880,7 +1880,7 @@ const nameLen = 255
+ // A Name is a non-encoded domain name. It is used instead of strings to avoid
+ // allocations.
+ type Name struct {
+-	Data   [nameLen]byte
++	Data   [nameLen]byte // 255 bytes
+ 	Length uint8
+ }
+ 
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index bef622891e..4130027c7f 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -9,7 +9,7 @@ golang.org/x/crypto/curve25519/internal/field
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/internal/subtle
+-# golang.org/x/net v0.0.0-20211123203042-d83791d6bcd9
++# golang.org/x/net v0.0.0-20211209124913-491a49abca63
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

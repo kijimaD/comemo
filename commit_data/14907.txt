@@ -11,8 +11,72 @@ Date:   Fri Jan 18 10:30:12 2013 +1100
     R=mikesamuel, rsc
     CC=golang-dev
     https://golang.org/cl/7142048
-
+---
  doc/go1.1.html                       |  7 +++++++
  src/pkg/html/template/escape.go      |  5 +----
  src/pkg/html/template/escape_test.go | 11 -----------
  3 files changed, 8 insertions(+), 15 deletions(-)
+
+diff --git a/doc/go1.1.html b/doc/go1.1.html
+index 49ee97b1c4..287f007fc4 100644
+--- a/doc/go1.1.html
++++ b/doc/go1.1.html
+@@ -116,6 +116,13 @@ calls the debug/elf functions Symbols or ImportedSymbols may need to be
+ adjusted to account for the additional symbol and the change in symbol offsets.
+ </p>
+ 
++<h3 id="html/template">html/template</h3>
++
++<p>
++Templates using the undocumented and only partially implemented
++"noescape" feature will break: that feature was removed.
++</p>
++
+ <h3 id="net">net</h3>
+ 
+ <p>
+diff --git a/src/pkg/html/template/escape.go b/src/pkg/html/template/escape.go
+index ce11dedf6b..4829bfcc43 100644
+--- a/src/pkg/html/template/escape.go
++++ b/src/pkg/html/template/escape.go
+@@ -220,10 +220,7 @@ func ensurePipelineContains(p *parse.PipeNode, s []string) {
+ 	idents := p.Cmds
+ 	for i := n - 1; i >= 0; i-- {
+ 		if cmd := p.Cmds[i]; len(cmd.Args) != 0 {
+-			if id, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+-				if id.Ident == "noescape" {
+-					return
+-				}
++			if _, ok := cmd.Args[0].(*parse.IdentifierNode); ok {
+ 				continue
+ 			}
+ 		}
+diff --git a/src/pkg/html/template/escape_test.go b/src/pkg/html/template/escape_test.go
+index 0d08101ecf..de3659ba8f 100644
+--- a/src/pkg/html/template/escape_test.go
++++ b/src/pkg/html/template/escape_test.go
+@@ -550,11 +550,6 @@ func TestEscape(t *testing.T) {
+ 			"<textarea>{{range .A}}{{.}}{{end}}</textarea>",
+ 			"<textarea>&lt;a&gt;&lt;b&gt;</textarea>",
+ 		},
+-		{
+-			"auditable exemption from escaping",
+-			"{{range .A}}{{. | noescape}}{{end}}",
+-			"<a><b>",
+-		},
+ 		{
+ 			"No tag injection",
+ 			`{{"10$"}}<{{"script src,evil.org/pwnd.js"}}...`,
+@@ -659,12 +654,6 @@ func TestEscape(t *testing.T) {
+ 
+ 	for _, test := range tests {
+ 		tmpl := New(test.name)
+-		// TODO: Move noescape into template/func.go
+-		tmpl.Funcs(FuncMap{
+-			"noescape": func(a ...interface{}) string {
+-				return fmt.Sprint(a...)
+-			},
+-		})
+ 		tmpl = Must(tmpl.Parse(test.input))
+ 		b := new(bytes.Buffer)
+ 		if err := tmpl.Execute(b, data); err != nil {

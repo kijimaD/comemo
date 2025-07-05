@@ -17,10 +17,259 @@ Date:   Wed Mar 22 20:57:52 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Auto-Submit: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go | 29 ++++++++++++++------------
  src/cmd/compile/internal/types2/call.go        | 25 ++++++++++++----------
  src/go/types/assignments.go                    | 29 ++++++++++++++------------
  src/go/types/call.go                           | 21 ++++++++++++-------
  test/fixedbugs/issue19012.go                   |  2 +-
  5 files changed, 60 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index adef1e8d99..3ca6bebd31 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -360,11 +360,14 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	// If we don't have an n:n mapping, the rhs must be a single expression
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+-		if returnStmt != nil {
+-			rhs := check.exprList(orig_rhs)
+-			check.returnError(returnStmt, lhs, rhs)
+-		} else {
+-			check.assignError(orig_rhs, l, r)
++		// Only report a mismatch error if there are no other errors on the rhs.
++		if check.use(orig_rhs...) {
++			if returnStmt != nil {
++				rhs := check.exprList(orig_rhs)
++				check.returnError(returnStmt, lhs, rhs)
++			} else {
++				check.assignError(orig_rhs, l, r)
++			}
+ 		}
+ 		// ensure that LHS variables have a type
+ 		for _, v := range lhs {
+@@ -372,7 +375,6 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 				v.typ = Typ[Invalid]
+ 			}
+ 		}
+-		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+@@ -389,8 +391,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []syntax.Expr, returnStmt sy
+ 	}
+ 
+ 	// In all other cases we have an assignment mismatch.
+-	// Only report a mismatch error if there was no error
+-	// on the rhs.
++	// Only report a mismatch error if there are no other errors on the rhs.
+ 	if rhs[0].mode != invalid {
+ 		if returnStmt != nil {
+ 			check.returnError(returnStmt, lhs, rhs)
+@@ -432,9 +433,12 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	// If we don't have an n:n mapping, the rhs must be a single expression
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+-		check.assignError(orig_rhs, l, r)
+-		check.useLHS(lhs...)
+-		check.use(orig_rhs...)
++		// Only report a mismatch error if there are no other errors on the lhs or rhs.
++		okLHS := check.useLHS(lhs...)
++		okRHS := check.use(orig_rhs...)
++		if okLHS && okRHS {
++			check.assignError(orig_rhs, l, r)
++		}
+ 		return
+ 	}
+ 
+@@ -451,8 +455,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []syntax.Expr) {
+ 	}
+ 
+ 	// In all other cases we have an assignment mismatch.
+-	// Only report a mismatch error if there was no error
+-	// on the rhs.
++	// Only report a mismatch error if there are no other errors on the rhs.
+ 	if rhs[0].mode != invalid {
+ 		check.assignError(orig_rhs, l, r)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 1400aba883..72608dea26 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -699,23 +699,27 @@ Error:
+ // Useful to make sure expressions are evaluated
+ // (and variables are "used") in the presence of
+ // other errors. Arguments may be nil.
+-func (check *Checker) use(args ...syntax.Expr) {
+-	for _, e := range args {
+-		check.use1(e, false)
+-	}
+-}
++// Reports if all arguments evaluated without error.
++func (check *Checker) use(args ...syntax.Expr) bool { return check.useN(args, false) }
+ 
+ // useLHS is like use, but doesn't "use" top-level identifiers.
+ // It should be called instead of use if the arguments are
+ // expressions on the lhs of an assignment.
+-func (check *Checker) useLHS(args ...syntax.Expr) {
++func (check *Checker) useLHS(args ...syntax.Expr) bool { return check.useN(args, true) }
++
++func (check *Checker) useN(args []syntax.Expr, lhs bool) bool {
++	ok := true
+ 	for _, e := range args {
+-		check.use1(e, true)
++		if !check.use1(e, lhs) {
++			ok = false
++		}
+ 	}
++	return ok
+ }
+ 
+-func (check *Checker) use1(e syntax.Expr, lhs bool) {
++func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
+ 	var x operand
++	x.mode = value // anything but invalid
+ 	switch n := unparen(e).(type) {
+ 	case nil:
+ 		// nothing to do
+@@ -745,10 +749,9 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) {
+ 			v.used = v_used // restore v.used
+ 		}
+ 	case *syntax.ListExpr:
+-		for _, e := range n.ElemList {
+-			check.use1(e, lhs)
+-		}
++		return check.useN(n.ElemList, lhs)
+ 	default:
+ 		check.rawExpr(&x, e, nil, true)
+ 	}
++	return x.mode != invalid
+ }
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 26de0a093a..a73e4515bc 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -358,11 +358,14 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
+ 	// If we don't have an n:n mapping, the rhs must be a single expression
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+-		if returnStmt != nil {
+-			rhs := check.exprList(orig_rhs)
+-			check.returnError(returnStmt, lhs, rhs)
+-		} else {
+-			check.assignError(orig_rhs, l, r)
++		// Only report a mismatch error if there are no other errors on the rhs.
++		if check.use(orig_rhs...) {
++			if returnStmt != nil {
++				rhs := check.exprList(orig_rhs)
++				check.returnError(returnStmt, lhs, rhs)
++			} else {
++				check.assignError(orig_rhs, l, r)
++			}
+ 		}
+ 		// ensure that LHS variables have a type
+ 		for _, v := range lhs {
+@@ -370,7 +373,6 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
+ 				v.typ = Typ[Invalid]
+ 			}
+ 		}
+-		check.use(orig_rhs...)
+ 		return
+ 	}
+ 
+@@ -387,8 +389,7 @@ func (check *Checker) initVars(lhs []*Var, orig_rhs []ast.Expr, returnStmt ast.S
+ 	}
+ 
+ 	// In all other cases we have an assignment mismatch.
+-	// Only report a mismatch error if there was no error
+-	// on the rhs.
++	// Only report a mismatch error if there are no other errors on the rhs.
+ 	if rhs[0].mode != invalid {
+ 		if returnStmt != nil {
+ 			check.returnError(returnStmt, lhs, rhs)
+@@ -430,9 +431,12 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+ 	// If we don't have an n:n mapping, the rhs must be a single expression
+ 	// resulting in 2 or more values; otherwise we have an assignment mismatch.
+ 	if r != 1 {
+-		check.assignError(orig_rhs, l, r)
+-		check.useLHS(lhs...)
+-		check.use(orig_rhs...)
++		// Only report a mismatch error if there are no other errors on the lhs or rhs.
++		okLHS := check.useLHS(lhs...)
++		okRHS := check.use(orig_rhs...)
++		if okLHS && okRHS {
++			check.assignError(orig_rhs, l, r)
++		}
+ 		return
+ 	}
+ 
+@@ -449,8 +453,7 @@ func (check *Checker) assignVars(lhs, orig_rhs []ast.Expr) {
+ 	}
+ 
+ 	// In all other cases we have an assignment mismatch.
+-	// Only report a mismatch error if there was no error
+-	// on the rhs.
++	// Only report a mismatch error if there are no other errors on the rhs.
+ 	if rhs[0].mode != invalid {
+ 		check.assignError(orig_rhs, l, r)
+ 	}
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index f8aa261816..e5968c7cfc 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -746,23 +746,27 @@ Error:
+ // Useful to make sure expressions are evaluated
+ // (and variables are "used") in the presence of
+ // other errors. Arguments may be nil.
+-func (check *Checker) use(args ...ast.Expr) {
+-	for _, e := range args {
+-		check.use1(e, false)
+-	}
+-}
++// Reports if all arguments evaluated without error.
++func (check *Checker) use(args ...ast.Expr) bool { return check.useN(args, false) }
+ 
+ // useLHS is like use, but doesn't "use" top-level identifiers.
+ // It should be called instead of use if the arguments are
+ // expressions on the lhs of an assignment.
+-func (check *Checker) useLHS(args ...ast.Expr) {
++func (check *Checker) useLHS(args ...ast.Expr) bool { return check.useN(args, true) }
++
++func (check *Checker) useN(args []ast.Expr, lhs bool) bool {
++	ok := true
+ 	for _, e := range args {
+-		check.use1(e, true)
++		if !check.use1(e, lhs) {
++			ok = false
++		}
+ 	}
++	return ok
+ }
+ 
+-func (check *Checker) use1(e ast.Expr, lhs bool) {
++func (check *Checker) use1(e ast.Expr, lhs bool) bool {
+ 	var x operand
++	x.mode = value // anything but invalid
+ 	switch n := unparen(e).(type) {
+ 	case nil:
+ 		// nothing to do
+@@ -794,4 +798,5 @@ func (check *Checker) use1(e ast.Expr, lhs bool) {
+ 	default:
+ 		check.rawExpr(&x, e, nil, true)
+ 	}
++	return x.mode != invalid
+ }
+diff --git a/test/fixedbugs/issue19012.go b/test/fixedbugs/issue19012.go
+index c911a9a1d0..77b2236063 100644
+--- a/test/fixedbugs/issue19012.go
++++ b/test/fixedbugs/issue19012.go
+@@ -15,7 +15,7 @@ func f(x int, y uint) {
+ 	if true {
+ 		return "a" > 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
+ 	}
+-	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types" "too many return values"
++	return "gopher" == true, 10 // ERROR "^too many arguments to return$|return with value in function with no return|no result values expected|mismatched types"
+ }
+ 
+ func main() {

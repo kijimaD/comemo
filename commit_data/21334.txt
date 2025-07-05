@@ -14,7 +14,7 @@ Date:   Thu Dec 18 10:34:12 2014 -0800
     Change-Id: Ibb5fbfb5cf72ddc285829245318eeacd3fb5a636
     Reviewed-on: https://go-review.googlesource.com/1774
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  test/bugs/bug395.go               |   7 +-
  test/fixedbugs/bug248.go          |  61 ++++++++++++++---
  test/fixedbugs/bug345.go          |  48 +++++++++++--
@@ -26,3 +26,582 @@ Date:   Thu Dec 18 10:34:12 2014 -0800
  test/run                          | 138 --------------------------------------
  test/run.go                       |  15 +----
  10 files changed, 222 insertions(+), 239 deletions(-)
+
+diff --git a/test/bugs/bug395.go b/test/bugs/bug395.go
+index 4632dcd0f7..5490a3d786 100644
+--- a/test/bugs/bug395.go
++++ b/test/bugs/bug395.go
+@@ -1,8 +1,6 @@
+-// echo bug395 is broken  # takes 90+ seconds to break
+-// # $G $D/$F.go || echo bug395
++// skip
+ 
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// When issue 1909 is fixed, change from skip to compile.
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -10,6 +8,7 @@
+ 
+ // Issue 1909
+ // Would OOM due to exponential recursion on Foo's expanded methodset in nodefmt
++
+ package test
+ 
+ type Foo interface {
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 98cda35c49..338bc8eb96 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,15 +1,56 @@
+-// $G $D/$F.dir/bug0.go &&
+-// $G $D/$F.dir/bug1.go &&
+-// $G $D/$F.dir/bug2.go &&
+-// errchk $G -e $D/$F.dir/bug3.go &&
+-// $L bug2.$A &&
+-// ./$A.out || echo BUG: failed to compile
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// +build !nacl
++// run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-ignored
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	a, err := build.ArchChar(build.Default.GOARCH)
++	check(err)
++
++	errchk, err := filepath.Abs("errchk")
++	check(err)
++
++	err = os.Chdir(filepath.Join("fixedbugs", "bug248.dir"))
++	check(err)
++
++	run("go", "tool", a+"g", "bug0.go")
++	run("go", "tool", a+"g", "bug1.go")
++	run("go", "tool", a+"g", "bug2.go")
++	run(errchk, "go", "tool", a+"g", "-e", "bug3.go")
++	run("go", "tool", a+"l", "bug2."+a)
++	run(fmt.Sprintf(".%c%s.out", filepath.Separator, a))
++
++	os.Remove("bug0." + a)
++	os.Remove("bug1." + a)
++	os.Remove("bug2." + a)
++	os.Remove(a + ".out")
++}
++
++func run(name string, args ...string) {
++	cmd := exec.Command(name, args...)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		fmt.Println(string(out))
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
++
++func check(err error) {
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index e3705f6c18..e772d86e77 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,10 +1,48 @@
+-// $G $D/$F.dir/io.go && errchk $G -e $D/$F.dir/main.go
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// +build !nacl
++// run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ignored
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	a, err := build.ArchChar(build.Default.GOARCH)
++	check(err)
++
++	errchk, err := filepath.Abs("errchk")
++	check(err)
++
++	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug345.dir"))
++	check(err)
++
++	run("go", "tool", a+"g", "io.go")
++	run(errchk, "go", "tool", a+"g", "-e", "main.go")
++	os.Remove("io." + a)
++}
++
++func run(name string, args ...string) {
++	cmd := exec.Command(name, args...)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		fmt.Println(string(out))
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
++
++func check(err error) {
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/bug369.dir/main.go b/test/fixedbugs/bug369.dir/main.go
+new file mode 100644
+index 0000000000..1c9e36bc2c
+--- /dev/null
++++ b/test/fixedbugs/bug369.dir/main.go
+@@ -0,0 +1,54 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"flag"
++	"os"
++	"runtime"
++	"testing"
++
++	fast "./fast"
++	slow "./slow"
++)
++
++var buf = make([]byte, 1048576)
++
++func BenchmarkFastNonASCII(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		fast.NonASCII(buf, 0)
++	}
++}
++
++func BenchmarkSlowNonASCII(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		slow.NonASCII(buf, 0)
++	}
++}
++
++func main() {
++	os.Args = []string{os.Args[0], "-test.benchtime=100ms"}
++	flag.Parse()
++
++	rslow := testing.Benchmark(BenchmarkSlowNonASCII)
++	rfast := testing.Benchmark(BenchmarkFastNonASCII)
++	tslow := rslow.NsPerOp()
++	tfast := rfast.NsPerOp()
++
++	// Optimization should be good for at least 2x, but be forgiving.
++	// On the ARM simulator we see closer to 1.5x.
++	speedup := float64(tslow) / float64(tfast)
++	want := 1.8
++	if runtime.GOARCH == "arm" {
++		want = 1.3
++	}
++	if speedup < want {
++		// TODO(rsc): doesn't work on linux-amd64 or darwin-amd64 builders, nor on
++		// a Lenovo x200 (linux-amd64) laptop.
++		// println("fast:", tfast, "slow:", tslow, "speedup:", speedup, "want:", want)
++		// println("not fast enough")
++		// os.Exit(1)
++	}
++}
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 6d526228b8..8cb2bf0995 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -1,10 +1,6 @@
+-// $G -N -o slow.$A $D/bug369.dir/pkg.go &&
+-// $G -o fast.$A $D/bug369.dir/pkg.go &&
++// +build !nacl
+ // run
+ 
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
+-
+ // Copyright 2011 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+@@ -14,49 +10,45 @@
+ package main
+ 
+ import (
+-	"flag"
++	"fmt"
++	"go/build"
+ 	"os"
+-	"runtime"
+-	"testing"
+-
+-	fast "./fast"
+-	slow "./slow"
++	"os/exec"
++	"path/filepath"
+ )
+ 
+-var buf = make([]byte, 1048576)
+-
+-func BenchmarkFastNonASCII(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		fast.NonASCII(buf, 0)
+-	}
++func main() {
++	a, err := build.ArchChar(build.Default.GOARCH)
++	check(err)
++
++	err = os.Chdir(filepath.Join(".", "fixedbugs", "bug369.dir"))
++	check(err)
++
++	run("go", "tool", a+"g", "-N", "-o", "slow."+a, "pkg.go")
++	run("go", "tool", a+"g", "-o", "fast."+a, "pkg.go")
++	run("go", "tool", a+"g", "-o", "main."+a, "main.go")
++	run("go", "tool", a+"l", "-o", "a.exe", "main."+a)
++	run("." + string(filepath.Separator) + "a.exe")
++
++	os.Remove("slow." + a)
++	os.Remove("fast." + a)
++	os.Remove("main." + a)
++	os.Remove("a.exe")
+ }
+ 
+-func BenchmarkSlowNonASCII(b *testing.B) {
+-	for i := 0; i < b.N; i++ {
+-		slow.NonASCII(buf, 0)
++func run(name string, args ...string) {
++	cmd := exec.Command(name, args...)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		fmt.Println(string(out))
++		fmt.Println(err)
++		os.Exit(1)
+ 	}
+ }
+ 
+-func main() {
+-	os.Args = []string{os.Args[0], "-test.benchtime=100ms"}
+-	flag.Parse()
+-
+-	rslow := testing.Benchmark(BenchmarkSlowNonASCII)
+-	rfast := testing.Benchmark(BenchmarkFastNonASCII)
+-	tslow := rslow.NsPerOp()
+-	tfast := rfast.NsPerOp()
+-
+-	// Optimization should be good for at least 2x, but be forgiving.
+-	// On the ARM simulator we see closer to 1.5x.
+-	speedup := float64(tslow)/float64(tfast)
+-	want := 1.8
+-	if runtime.GOARCH == "arm" {
+-		want = 1.3
+-	}
+-	if speedup < want {
+-		// TODO(rsc): doesn't work on linux-amd64 or darwin-amd64 builders, nor on
+-		// a Lenovo x200 (linux-amd64) laptop.
+-		//println("fast:", tfast, "slow:", tslow, "speedup:", speedup, "want:", want)
+-		//println("not fast enough")
++func check(err error) {
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
+ 	}
+ }
+diff --git a/test/fixedbugs/bug429.go b/test/fixedbugs/bug429.go
+index 794d293db2..31d5a3af18 100644
+--- a/test/fixedbugs/bug429.go
++++ b/test/fixedbugs/bug429.go
+@@ -1,13 +1,11 @@
+-// $G $D/$F.go && $L $F.$A && ! ./$A.out || echo BUG: bug429
+-
+-// NOTE: This test is not run by 'run.go' and so not run by all.bash.
+-// To run this test you must use the ./run shell script.
++// skip
+ 
+ // Copyright 2012 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ // Should print deadlock message, not hang.
++// This test is run by bug429_run.go.
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/bug429_run.go b/test/fixedbugs/bug429_run.go
+new file mode 100644
+index 0000000000..284033d1f7
+--- /dev/null
++++ b/test/fixedbugs/bug429_run.go
+@@ -0,0 +1,34 @@
++// +build !nacl
++// run
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Run the bug429.go test.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"strings"
++)
++
++func main() {
++	cmd := exec.Command("go", "run", filepath.Join("fixedbugs", "bug429.go"))
++	out, err := cmd.CombinedOutput()
++	if err == nil {
++		fmt.Println("expected deadlock")
++		os.Exit(1)
++	}
++
++	want := "fatal error: all goroutines are asleep - deadlock!"
++	got := string(out)
++	if !strings.Contains(got, want) {
++		fmt.Printf("got:\n%q\nshould contain:\n%q\n", got, want)
++		os.Exit(1)
++	}
++}
+diff --git a/test/golden.out b/test/golden.out
+deleted file mode 100644
+index 742a5d3f63..0000000000
+--- a/test/golden.out
++++ /dev/null
+@@ -1,24 +0,0 @@
+-
+-== ./
+-
+-== ken/
+-
+-== chan/
+-
+-== interface/
+-
+-== syntax/
+-
+-== dwarf/
+-
+-== safe/
+-
+-== fixedbugs/
+-
+-=========== fixedbugs/bug429.go
+-fatal error: all goroutines are asleep - deadlock!
+-
+-== bugs/
+-
+-=========== bugs/bug395.go
+-bug395 is broken
+diff --git a/test/run b/test/run
+deleted file mode 100755
+index 729fc1eaaf..0000000000
+--- a/test/run
++++ /dev/null
+@@ -1,138 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-eval $(go tool dist env)
+-export GOARCH GOOS GOROOT
+-export E=
+-
+-case X"$GOARCH" in
+-Xamd64)
+-	export A=6
+-	;;
+-X386)
+-	export A=8
+-	;;
+-Xarm)
+-	export A=5
+-	export E="$GORUN"
+-	;;
+-*)
+-	echo 1>&2 run: unsupported '$GOARCH'
+-	exit 1
+-esac
+-
+-export G="${A}g ${GCFLAGS}"
+-export L=${A}l
+-export GOTRACEBACK=0
+-export LANG=C
+-unset GREP_OPTIONS	# in case user has a non-standard set
+-
+-unset GOROOT_FINAL  # breaks ./ imports
+-
+-failed=0
+-
+-PATH=${GOBIN:-$GOROOT/bin}:`pwd`:/bin:/usr/bin:/usr/local/bin:/usr/pkg/bin
+-
+-# TODO: We add the tool directory to the PATH to avoid thinking about a better way.
+-PATH="$GOTOOLDIR:$PATH"
+-
+-RUNFILE="${TMPDIR:-/tmp}/gorun-$$-$USER"
+-TMP1FILE="${TMPDIR:-/tmp}/gotest1-$$-$USER"
+-TMP2FILE="${TMPDIR:-/tmp}/gotest2-$$-$USER"
+-
+-# don't run the machine out of memory: limit individual processes to 4GB.
+-# on thresher, 3GB suffices to run the tests; with 2GB, peano fails.
+-ulimit -v 4000000
+-
+-# no core files please
+-ulimit -c 0
+-
+-true >pass.out >times.out
+-
+-exclude=false	# exclude nothing
+-golden=golden.out
+-
+-rm -f tmp.go  # generated by some tests, left behind if interrupted
+-
+-filterout() {
+-	grep '^'"$2"'$' $1 >/dev/null
+-}
+-
+-for dir in . ken chan interface syntax dwarf safe fixedbugs bugs
+-do
+-	echo
+-	echo '==' $dir'/'
+-	for i in $(ls $dir/*.go 2>/dev/null)
+-	do (
+-		if $exclude $i; then
+-			exit 0  # continues for loop
+-		fi
+-		export F=$(basename $i .go)
+-		export D=$dir
+-		echo '. ./testlib' >"$RUNFILE"
+-		sed '/^\/\//!q' $i | sed 's@//@@; $d' |sed 's|./\$A.out|$E &|g' >>"$RUNFILE"
+-		if ! { time -p bash -c "bash '$RUNFILE' >'$TMP1FILE' 2>&1" ; } 2>"$TMP2FILE"
+-		then
+-			echo
+-			echo "===========" $i
+-			cat "$TMP1FILE"
+-			echo >&2 fail: $i
+-			echo "# $i	# fail" >>pass.out
+-		elif test -s "$TMP1FILE"
+-		then
+-			echo
+-			echo "===========" $i
+-			cat "$TMP1FILE"
+-			if grep -q '^BUG' "$TMP1FILE"
+-			then
+-				if [ $dir != bugs ]
+-				then
+-					echo >&2 bug: $i
+-				fi
+-				echo "# $i	# fail, BUG" >>pass.out
+-			else
+-				echo $i >>pass.out
+-			fi
+-		elif [ $dir = "bugs" ]
+-		then
+-			echo $i succeeded with no output.
+-		else
+-			echo $i >>pass.out
+-		fi
+-		echo $(awk 'NR==1{print $2}' "$TMP2FILE") $D/$F >>times.out
+-		rm -f $F.$A $A.out tmp.go
+-	) done
+-done | # clean up some stack noise
+-	egrep -v '^(r[0-9a-z]+|[cfg]s)  +0x'  |
+-	sed '/tmp.*Bus error/s/.*Bus/Bus/; /tmp.*Trace.BPT/s/.*Trace/Trace/
+-		s!'"$RUNFILE"'!$RUNFILE!g
+-		s/^PC=0x[0-9a-f]*/pc: xxx/
+-		s/^pc: 0x[0-9a-f]*/pc: xxx/
+-		s/PC=0x[0-9a-f]*/PC=xxx/
+-		/^Trace\/breakpoint trap/d
+-		/^Trace\/BPT trap/d
+-		/RUNFILE/ s/line 1: *[0-9]*/line 1: PID/
+-		/^\$RUNFILE: line 1: PID Trace\/breakpoint trap/d
+-		/Segmentation fault/d
+-		/^qemu: uncaught target signal 11 (Segmentation fault) - exiting/d' > run.out
+-
+-rm -f "$RUNFILE" "$TMP1FILE" "$TMP2FILE" *.$A *.a $A.out
+-diffmsg=""
+-if ! diff $golden run.out
+-then
+-	diffmsg="; test output differs"
+-	failed=1
+-fi
+-
+-notinbugs=$(sed '/^== bugs/q' run.out | grep -c '^BUG')
+-inbugs=$(sed '1,/^== bugs/d' run.out | grep -c '^BUG')
+-
+-echo 2>&1 $inbugs known bugs';' $notinbugs unexpected bugs$diffmsg
+-
+-if [ "$failed" != "0" ]; then
+-	echo FAILED
+-fi
+-
+-exit $failed
+diff --git a/test/run.go b/test/run.go
+index 7c46dababf..aa26061af8 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -126,12 +126,9 @@ func main() {
+ 		status := "ok  "
+ 		errStr := ""
+ 		if _, isSkip := test.err.(skipError); isSkip {
+-			status = "skip"
+ 			test.err = nil
+-			if !skipOkay[path.Join(test.dir, test.gofile)] {
+-				errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
+-				status = "FAIL"
+-			}
++			errStr = "unexpected skip for " + path.Join(test.dir, test.gofile) + ": " + errStr
++			status = "FAIL"
+ 		}
+ 		if test.err != nil {
+ 			status = "FAIL"
+@@ -906,14 +903,6 @@ func (t *test) wantedErrors(file, short string) (errs []wantedError) {
+ 	return
+ }
+ 
+-var skipOkay = map[string]bool{
+-	"fixedbugs/bug248.go": true, // combines errorcheckdir and rundir in the same dir.
+-	"fixedbugs/bug345.go": true, // needs the appropriate flags in gc invocation.
+-	"fixedbugs/bug369.go": true, // needs compiler flags.
+-	"fixedbugs/bug429.go": true, // like "run" but program should fail
+-	"bugs/bug395.go":      true,
+-}
+-
+ // defaultRunOutputLimit returns the number of runoutput tests that
+ // can be executed in parallel.
+ func defaultRunOutputLimit() int {

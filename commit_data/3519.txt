@@ -9,9 +9,58 @@ Date:   Tue Oct 13 12:37:28 2009 -0700
     DELTA=3547  (1770 added, 1775 deleted, 2 changed)
     OCL=35669
     CL=35671
-
+---
  src/cmd/clean.bash              | 2 +-
  src/cmd/{ar => gopack}/Makefile | 4 ----
  src/cmd/{ar => gopack}/ar.c     | 0
  src/cmd/make.bash               | 2 +-
  4 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 8432c9f22b..f686328105 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g ar db nm acid cgo cov ebnflint godefs godoc gofmt prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 8g 5l 5a 5c 5g gc 6g gopack db nm acid cgo cov ebnflint godefs godoc gofmt prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/ar/Makefile b/src/cmd/gopack/Makefile
+similarity index 67%
+rename from src/cmd/ar/Makefile
+rename to src/cmd/gopack/Makefile
+index cbed2617d8..d95c9dd9d6 100644
+--- a/src/cmd/ar/Makefile
++++ b/src/cmd/gopack/Makefile
+@@ -4,10 +4,6 @@
+ 
+ include ../../Make.conf
+ 
+-# The directory is ar because the source is portable and general.
+-# We call the binary 6ar to avoid confusion and because this binary
+-# is linked only with amd64 and x86 support.
+-
+ TARG=gopack
+ OFILES=\
+ 	ar.$O\
+diff --git a/src/cmd/ar/ar.c b/src/cmd/gopack/ar.c
+similarity index 100%
+rename from src/cmd/ar/ar.c
+rename to src/cmd/gopack/ar.c
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index ca4517218e..25bcd38e79 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -18,7 +18,7 @@ bash mkenam
+ make enam.o
+ cd ..
+ 
+-for i in cc ${O}l ${O}a ${O}c gc ${O}g ar db nm acid cov godefs prof gotest
++for i in cc ${O}l ${O}a ${O}c gc ${O}g gopack db nm acid cov godefs prof gotest
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	cd $i

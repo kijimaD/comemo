@@ -12,6 +12,21 @@ Date:   Thu May 7 11:49:49 2015 -0700
     Change-Id: I4a8f76d237e67f5a0ea189a0f3cadddbf426778a
     Reviewed-on: https://go-review.googlesource.com/9841
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/text/template/parse/lex.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/text/template/parse/lex.go b/src/text/template/parse/lex.go
+index 762d085e68..8f9fe1d4d8 100644
+--- a/src/text/template/parse/lex.go
++++ b/src/text/template/parse/lex.go
+@@ -177,9 +177,6 @@ func (l *lexer) nextItem() item {
+ // drain drains the output so the lexing goroutine will exit.
+ // Called by the parser, not in the lexing goroutine.
+ func (l *lexer) drain() {
+-	if l == nil {
+-		return
+-	}
+ 	for range l.items {
+ 	}
+ }

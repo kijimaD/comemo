@@ -9,7 +9,36 @@ Date:   Mon Apr 8 14:42:06 2013 +1000
     R=golang-dev, r, dave, adg
     CC=golang-dev
     https://golang.org/cl/8171044
-
+---
  src/cmd/go/doc.go  | 3 +++
  src/cmd/go/test.go | 3 +++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index dcf6612f1f..664d51f257 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -398,6 +398,9 @@ the file pattern "*_test.go".  These additional files can contain test functions
+ benchmark functions, and example functions.  See 'go help testfunc' for more.
+ Each listed package causes the execution of a separate test binary.
+ 
++Additionally, test files that declare a package with the suffix "_test" will be
++compiled and executed separately from the package test binary.
++
+ By default, go test needs no arguments.  It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+ 
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 58ebcc0717..babdb18503 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -50,6 +50,9 @@ the file pattern "*_test.go".  These additional files can contain test functions
+ benchmark functions, and example functions.  See 'go help testfunc' for more.
+ Each listed package causes the execution of a separate test binary.
+ 
++Additionally, test files that declare a package with the suffix "_test" will be
++compiled and executed separately from the package test binary.
++
+ By default, go test needs no arguments.  It compiles and tests the package
+ with source in the current directory, including tests, and runs the tests.
+ 

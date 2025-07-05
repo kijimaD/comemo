@@ -11,7 +11,7 @@ Date:   Wed Mar 25 09:17:09 2015 +1100
     Change-Id: I26ff5d9ac57b3f25e936519e443de6583cdafa56
     Reviewed-on: https://go-review.googlesource.com/7994
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/8g/galign.go         |  1 +
  src/cmd/8g/ggen.go           |  8 ++++----
  src/cmd/8g/gsubr.go          |  8 ++++----
@@ -19,3 +19,126 @@ Date:   Wed Mar 25 09:17:09 2015 +1100
  src/cmd/internal/gc/gsubr.go |  2 +-
  src/cmd/internal/gc/lex.go   | 11 -----------
  6 files changed, 11 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/8g/galign.go b/src/cmd/8g/galign.go
+index e92802d0b5..1c03df5907 100644
+--- a/src/cmd/8g/galign.go
++++ b/src/cmd/8g/galign.go
+@@ -54,6 +54,7 @@ func main() {
+ 	case "387":
+ 		gc.Thearch.FREGMIN = x86.REG_F0
+ 		gc.Thearch.FREGMAX = x86.REG_F7
++		gc.Thearch.Use387 = true
+ 	case "sse2":
+ 		gc.Thearch.FREGMIN = x86.REG_X0
+ 		gc.Thearch.FREGMAX = x86.REG_X7
+diff --git a/src/cmd/8g/ggen.go b/src/cmd/8g/ggen.go
+index 949156eda8..a4a373c346 100644
+--- a/src/cmd/8g/ggen.go
++++ b/src/cmd/8g/ggen.go
+@@ -617,10 +617,10 @@ func cgen_float(n *gc.Node, res *gc.Node) {
+ 		return
+ 	}
+ 
+-	if gc.Use_sse {
+-		cgen_floatsse(n, res)
+-	} else {
++	if gc.Thearch.Use387 {
+ 		cgen_float387(n, res)
++	} else {
++		cgen_floatsse(n, res)
+ 	}
+ }
+ 
+@@ -761,7 +761,7 @@ func bgen_float(n *gc.Node, true_ int, likely int, to *obj.Prog) {
+ 	var et int
+ 	var n2 gc.Node
+ 	var ax gc.Node
+-	if gc.Use_sse {
++	if !gc.Thearch.Use387 {
+ 		if nl.Addable == 0 {
+ 			var n1 gc.Node
+ 			gc.Tempname(&n1, nl.Type)
+diff --git a/src/cmd/8g/gsubr.go b/src/cmd/8g/gsubr.go
+index 7ca4dacf91..929cbaedfc 100644
+--- a/src/cmd/8g/gsubr.go
++++ b/src/cmd/8g/gsubr.go
+@@ -402,7 +402,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 	a := obj.AXXX
+ 	et := int(gc.Simtype[t.Etype])
+ 
+-	if gc.Use_sse {
++	if !gc.Thearch.Use387 {
+ 		switch uint32(op)<<16 | uint32(et) {
+ 		default:
+ 			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), gc.Tconv(t, 0))
+@@ -1036,10 +1036,10 @@ func floatmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		if gc.Use_sse {
+-			floatmove_sse(f, t)
+-		} else {
++		if gc.Thearch.Use387 {
+ 			floatmove_387(f, t)
++		} else {
++			floatmove_sse(f, t)
+ 		}
+ 		return
+ 
+diff --git a/src/cmd/internal/gc/go.go b/src/cmd/internal/gc/go.go
+index 1abbfe41d0..c5a7bc4e49 100644
+--- a/src/cmd/internal/gc/go.go
++++ b/src/cmd/internal/gc/go.go
+@@ -632,8 +632,6 @@ var typesw *Node
+ 
+ var nblank *Node
+ 
+-var Use_sse bool // should we generate SSE2 instructions for 386 targets
+-
+ var hunk string
+ 
+ var nhunk int32
+@@ -832,6 +830,7 @@ type Arch struct {
+ 	Optoas       func(int, *Type) int
+ 	Doregbits    func(int) uint64
+ 	Regnames     func(*int) []string
++	Use387       bool // should 8g use 387 FP instructions instead of sse2.
+ }
+ 
+ var pcloc int32
+diff --git a/src/cmd/internal/gc/gsubr.go b/src/cmd/internal/gc/gsubr.go
+index 499c216425..d54f90594c 100644
+--- a/src/cmd/internal/gc/gsubr.go
++++ b/src/cmd/internal/gc/gsubr.go
+@@ -688,7 +688,7 @@ Switch:
+ 		Fatal("out of fixed registers")
+ 
+ 	case TFLOAT32, TFLOAT64:
+-		if Thearch.Thechar == '8' && !Use_sse {
++		if Thearch.Use387 {
+ 			i = Thearch.FREGMIN // x86.REG_F0
+ 			break Switch
+ 		}
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index cc259292c8..323b5c5d47 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -277,17 +277,6 @@ func Main() {
+ 		Debug['l'] = 1 - Debug['l']
+ 	}
+ 
+-	if Thearch.Thechar == '8' {
+-		switch v := obj.Getgo386(); v {
+-		case "387":
+-			Use_sse = false
+-		case "sse2":
+-			Use_sse = true
+-		default:
+-			log.Fatalf("unsupported setting GO386=%s", v)
+-		}
+-	}
+-
+ 	Thearch.Betypeinit()
+ 	if Widthptr == 0 {
+ 		Fatal("betypeinit failed")

@@ -13,6 +13,22 @@ Date:   Sat Jan 31 02:19:50 2015 +1100
     Change-Id: Id00e2dfbe7bae42856f996065d3fb90b820e29a8
     Reviewed-on: https://go-review.googlesource.com/3610
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  include/u.h | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/include/u.h b/include/u.h
+index 0ae228a9c5..d9acc72acb 100644
+--- a/include/u.h
++++ b/include/u.h
+@@ -71,10 +71,6 @@ extern "C" {
+ #include <ctype.h>	/* for tolower */
+ #include <time.h>
+ 
+-#ifndef PLAN9
+-#include <signal.h>
+-#endif
+-
+ /*
+  * OS-specific crap
+  */

@@ -12,8 +12,60 @@ Date:   Tue Sep 27 16:06:13 2022 +0800
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
-
+---
  src/net/http/cgi/child.go   | 6 ++++--
  src/net/http/pprof/pprof.go | 3 +--
  src/net/http/server.go      | 4 ++--
  3 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/cgi/child.go b/src/net/http/cgi/child.go
+index bdb35a64e5..1411f0b8e8 100644
+--- a/src/net/http/cgi/child.go
++++ b/src/net/http/cgi/child.go
+@@ -82,10 +82,12 @@ func RequestFromMap(params map[string]string) (*http.Request, error) {
+ 
+ 	// Copy "HTTP_FOO_BAR" variables to "Foo-Bar" Headers
+ 	for k, v := range params {
+-		if !strings.HasPrefix(k, "HTTP_") || k == "HTTP_HOST" {
++		if k == "HTTP_HOST" {
+ 			continue
+ 		}
+-		r.Header.Add(strings.ReplaceAll(k[5:], "_", "-"), v)
++		if after, found := strings.CutPrefix(k, "HTTP_"); found {
++			r.Header.Add(strings.ReplaceAll(after, "_", "-"), v)
++		}
+ 	}
+ 
+ 	uriStr := params["REQUEST_URI"]
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index bba522768f..db03af1c44 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -371,8 +371,7 @@ type profileEntry struct {
+ // Index responds to a request for "/debug/pprof/" with an HTML page
+ // listing the available profiles.
+ func Index(w http.ResponseWriter, r *http.Request) {
+-	if strings.HasPrefix(r.URL.Path, "/debug/pprof/") {
+-		name := strings.TrimPrefix(r.URL.Path, "/debug/pprof/")
++	if name, found := strings.CutPrefix(r.URL.Path, "/debug/pprof/"); found {
+ 		if name != "" {
+ 			handler(name).ServeHTTP(w, r)
+ 			return
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index b22528dcdb..8d3b0f3ad1 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -509,11 +509,11 @@ const TrailerPrefix = "Trailer:"
+ func (w *response) finalTrailers() Header {
+ 	var t Header
+ 	for k, vv := range w.handlerHeader {
+-		if strings.HasPrefix(k, TrailerPrefix) {
++		if kk, found := strings.CutPrefix(k, TrailerPrefix); found {
+ 			if t == nil {
+ 				t = make(Header)
+ 			}
+-			t[strings.TrimPrefix(k, TrailerPrefix)] = vv
++			t[kk] = vv
+ 		}
+ 	}
+ 	for _, k := range w.trailers {

@@ -11,8 +11,59 @@ Date:   Sun Jun 3 23:54:14 2012 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6250075
-
+---
  src/pkg/net/cgo_bsd.go   | 4 ++--
  src/pkg/net/cgo_linux.go | 8 +++++++-
  src/pkg/net/cgo_unix.go  | 8 +-------
  3 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/pkg/net/cgo_bsd.go b/src/pkg/net/cgo_bsd.go
+index 63750f7a3d..cf9cabbfeb 100644
+--- a/src/pkg/net/cgo_bsd.go
++++ b/src/pkg/net/cgo_bsd.go
+@@ -11,6 +11,6 @@ package net
+ */
+ import "C"
+ 
+-func cgoAddrInfoMask() C.int {
+-	return C.AI_MASK
++func cgoAddrInfoFlags() C.int {
++	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
+ }
+diff --git a/src/pkg/net/cgo_linux.go b/src/pkg/net/cgo_linux.go
+index 8d4413d2da..f6cefa89ae 100644
+--- a/src/pkg/net/cgo_linux.go
++++ b/src/pkg/net/cgo_linux.go
+@@ -9,6 +9,12 @@ package net
+ */
+ import "C"
+ 
+-func cgoAddrInfoMask() C.int {
++func cgoAddrInfoFlags() C.int {
++	// NOTE(rsc): In theory there are approximately balanced
++	// arguments for and against including AI_ADDRCONFIG
++	// in the flags (it includes IPv4 results only on IPv4 systems,
++	// and similarly for IPv6), but in practice setting it causes
++	// getaddrinfo to return the wrong canonical name on Linux.
++	// So definitely leave it out.
+ 	return C.AI_CANONNAME | C.AI_V4MAPPED | C.AI_ALL
+ }
+diff --git a/src/pkg/net/cgo_unix.go b/src/pkg/net/cgo_unix.go
+index 36a3f3d349..d703df992c 100644
+--- a/src/pkg/net/cgo_unix.go
++++ b/src/pkg/net/cgo_unix.go
+@@ -81,13 +81,7 @@ func cgoLookupIPCNAME(name string) (addrs []IP, cname string, err error, complet
+ 	var res *C.struct_addrinfo
+ 	var hints C.struct_addrinfo
+ 
+-	// NOTE(rsc): In theory there are approximately balanced
+-	// arguments for and against including AI_ADDRCONFIG
+-	// in the flags (it includes IPv4 results only on IPv4 systems,
+-	// and similarly for IPv6), but in practice setting it causes
+-	// getaddrinfo to return the wrong canonical name on Linux.
+-	// So definitely leave it out.
+-	hints.ai_flags = (C.AI_ALL | C.AI_V4MAPPED | C.AI_CANONNAME) & cgoAddrInfoMask()
++	hints.ai_flags = cgoAddrInfoFlags()
+ 
+ 	h := C.CString(name)
+ 	defer C.free(unsafe.Pointer(h))

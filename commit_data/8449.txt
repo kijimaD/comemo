@@ -10,7 +10,7 @@ Date:   Fri May 20 09:36:20 2011 -0700
     R=bradfitz, r, bradfitz
     CC=golang-dev
     https://golang.org/cl/4551044
-
+---
  src/pkg/crypto/openpgp/keys.go               | 103 +++++++++++++++++++++++++++
  src/pkg/crypto/openpgp/packet/private_key.go |  84 ++++++++++++++++++++++
  src/pkg/crypto/openpgp/packet/public_key.go  |  68 ++++++++++++++----
@@ -20,3 +20,631 @@ Date:   Fri May 20 09:36:20 2011 -0700
  src/pkg/crypto/openpgp/write.go              |  15 +---
  src/pkg/crypto/openpgp/write_test.go         |  41 +++++++++++
  8 files changed, 415 insertions(+), 37 deletions(-)
+
+diff --git a/src/pkg/crypto/openpgp/keys.go b/src/pkg/crypto/openpgp/keys.go
+index 6c03f88283..2acb7e6123 100644
+--- a/src/pkg/crypto/openpgp/keys.go
++++ b/src/pkg/crypto/openpgp/keys.go
+@@ -5,9 +5,11 @@
+ package openpgp
+ 
+ import (
++	"crypto"
+ 	"crypto/openpgp/armor"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/packet"
++	"crypto/rsa"
+ 	"io"
+ 	"os"
+ )
+@@ -297,3 +299,104 @@ func addSubkey(e *Entity, packets *packet.Reader, pub *packet.PublicKey, priv *p
+ 	e.Subkeys = append(e.Subkeys, subKey)
+ 	return nil
+ }
++
++const defaultRSAKeyBits = 2048
++
++// NewEntity returns an Entity that contains a fresh RSA/RSA keypair with a
++// single identity composed of the given full name, comment and email, any of
++// which may be empty but must not contain any of "()<>\x00".
++func NewEntity(rand io.Reader, currentTimeSecs int64, name, comment, email string) (*Entity, os.Error) {
++	uid := packet.NewUserId(name, comment, email)
++	if uid == nil {
++		return nil, error.InvalidArgumentError("user id field contained invalid characters")
++	}
++	signingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
++	if err != nil {
++		return nil, err
++	}
++	encryptingPriv, err := rsa.GenerateKey(rand, defaultRSAKeyBits)
++	if err != nil {
++		return nil, err
++	}
++
++	t := uint32(currentTimeSecs)
++
++	e := &Entity{
++		PrimaryKey: packet.NewRSAPublicKey(t, &signingPriv.PublicKey, false /* not a subkey */ ),
++		PrivateKey: packet.NewRSAPrivateKey(t, signingPriv, false /* not a subkey */ ),
++		Identities: make(map[string]*Identity),
++	}
++	isPrimaryId := true
++	e.Identities[uid.Id] = &Identity{
++		Name:   uid.Name,
++		UserId: uid,
++		SelfSignature: &packet.Signature{
++			CreationTime: t,
++			SigType:      packet.SigTypePositiveCert,
++			PubKeyAlgo:   packet.PubKeyAlgoRSA,
++			Hash:         crypto.SHA256,
++			IsPrimaryId:  &isPrimaryId,
++			FlagsValid:   true,
++			FlagSign:     true,
++			FlagCertify:  true,
++			IssuerKeyId:  &e.PrimaryKey.KeyId,
++		},
++	}
++
++	e.Subkeys = make([]Subkey, 1)
++	e.Subkeys[0] = Subkey{
++		PublicKey:  packet.NewRSAPublicKey(t, &encryptingPriv.PublicKey, true /* is a subkey */ ),
++		PrivateKey: packet.NewRSAPrivateKey(t, encryptingPriv, true /* is a subkey */ ),
++		Sig: &packet.Signature{
++			CreationTime:              t,
++			SigType:                   packet.SigTypeSubkeyBinding,
++			PubKeyAlgo:                packet.PubKeyAlgoRSA,
++			Hash:                      crypto.SHA256,
++			FlagsValid:                true,
++			FlagEncryptStorage:        true,
++			FlagEncryptCommunications: true,
++			IssuerKeyId:               &e.PrimaryKey.KeyId,
++		},
++	}
++
++	return e, nil
++}
++
++// SerializePrivate serializes an Entity, including private key material, to
++// the given Writer. For now, it must only be used on an Entity returned from
++// NewEntity.
++func (e *Entity) SerializePrivate(w io.Writer) (err os.Error) {
++	err = e.PrivateKey.Serialize(w)
++	if err != nil {
++		return
++	}
++	for _, ident := range e.Identities {
++		err = ident.UserId.Serialize(w)
++		if err != nil {
++			return
++		}
++		err = ident.SelfSignature.SignUserId(ident.UserId.Id, e.PrimaryKey, e.PrivateKey)
++		if err != nil {
++			return
++		}
++		err = ident.SelfSignature.Serialize(w)
++		if err != nil {
++			return
++		}
++	}
++	for _, subkey := range e.Subkeys {
++		err = subkey.PrivateKey.Serialize(w)
++		if err != nil {
++			return
++		}
++		err = subkey.Sig.SignKey(subkey.PublicKey, e.PrivateKey)
++		if err != nil {
++			return
++		}
++		err = subkey.Sig.Serialize(w)
++		if err != nil {
++			return
++		}
++	}
++	return nil
++}
+diff --git a/src/pkg/crypto/openpgp/packet/private_key.go b/src/pkg/crypto/openpgp/packet/private_key.go
+index fde2a9933d..92e7ee4226 100644
+--- a/src/pkg/crypto/openpgp/packet/private_key.go
++++ b/src/pkg/crypto/openpgp/packet/private_key.go
+@@ -32,6 +32,13 @@ type PrivateKey struct {
+ 	iv            []byte
+ }
+ 
++func NewRSAPrivateKey(currentTimeSecs uint32, priv *rsa.PrivateKey, isSubkey bool) *PrivateKey {
++	pk := new(PrivateKey)
++	pk.PublicKey = *NewRSAPublicKey(currentTimeSecs, &priv.PublicKey, isSubkey)
++	pk.PrivateKey = priv
++	return pk
++}
++
+ func (pk *PrivateKey) parse(r io.Reader) (err os.Error) {
+ 	err = (&pk.PublicKey).parse(r)
+ 	if err != nil {
+@@ -91,6 +98,83 @@ func (pk *PrivateKey) parse(r io.Reader) (err os.Error) {
+ 	return
+ }
+ 
++func mod64kHash(d []byte) uint16 {
++	h := uint16(0)
++	for i := 0; i < len(d); i += 2 {
++		v := uint16(d[i]) << 8
++		if i+1 < len(d) {
++			v += uint16(d[i+1])
++		}
++		h += v
++	}
++	return h
++}
++
++func (pk *PrivateKey) Serialize(w io.Writer) (err os.Error) {
++	// TODO(agl): support encrypted private keys
++	buf := bytes.NewBuffer(nil)
++	err = pk.PublicKey.serializeWithoutHeaders(buf)
++	if err != nil {
++		return
++	}
++	buf.WriteByte(0 /* no encryption */ )
++
++	privateKeyBuf := bytes.NewBuffer(nil)
++
++	switch priv := pk.PrivateKey.(type) {
++	case *rsa.PrivateKey:
++		err = serializeRSAPrivateKey(privateKeyBuf, priv)
++	default:
++		err = error.InvalidArgumentError("non-RSA private key")
++	}
++	if err != nil {
++		return
++	}
++
++	ptype := packetTypePrivateKey
++	contents := buf.Bytes()
++	privateKeyBytes := privateKeyBuf.Bytes()
++	if pk.IsSubkey {
++		ptype = packetTypePrivateSubkey
++	}
++	err = serializeHeader(w, ptype, len(contents)+len(privateKeyBytes)+2)
++	if err != nil {
++		return
++	}
++	_, err = w.Write(contents)
++	if err != nil {
++		return
++	}
++	_, err = w.Write(privateKeyBytes)
++	if err != nil {
++		return
++	}
++
++	checksum := mod64kHash(privateKeyBytes)
++	var checksumBytes [2]byte
++	checksumBytes[0] = byte(checksum >> 8)
++	checksumBytes[1] = byte(checksum)
++	_, err = w.Write(checksumBytes[:])
++
++	return
++}
++
++func serializeRSAPrivateKey(w io.Writer, priv *rsa.PrivateKey) os.Error {
++	err := writeBig(w, priv.D)
++	if err != nil {
++		return err
++	}
++	err = writeBig(w, priv.Primes[1])
++	if err != nil {
++		return err
++	}
++	err = writeBig(w, priv.Primes[0])
++	if err != nil {
++		return err
++	}
++	return writeBig(w, priv.Precomputed.Qinv)
++}
++
+ // Decrypt decrypts an encrypted private key using a passphrase.
+ func (pk *PrivateKey) Decrypt(passphrase []byte) os.Error {
+ 	if !pk.Encrypted {
+diff --git a/src/pkg/crypto/openpgp/packet/public_key.go b/src/pkg/crypto/openpgp/packet/public_key.go
+index b0ecfe3947..46d365b2a9 100644
+--- a/src/pkg/crypto/openpgp/packet/public_key.go
++++ b/src/pkg/crypto/openpgp/packet/public_key.go
+@@ -30,6 +30,28 @@ type PublicKey struct {
+ 	n, e, p, q, g, y parsedMPI
+ }
+ 
++func fromBig(n *big.Int) parsedMPI {
++	return parsedMPI{
++		bytes:     n.Bytes(),
++		bitLength: uint16(n.BitLen()),
++	}
++}
++
++// NewRSAPublicKey returns a PublicKey that wraps the given rsa.PublicKey.
++func NewRSAPublicKey(creationTimeSecs uint32, pub *rsa.PublicKey, isSubkey bool) *PublicKey {
++	pk := &PublicKey{
++		CreationTime: creationTimeSecs,
++		PubKeyAlgo:   PubKeyAlgoRSA,
++		PublicKey:    pub,
++		IsSubkey:     isSubkey,
++		n:            fromBig(pub.N),
++		e:            fromBig(big.NewInt(int64(pub.E))),
++	}
++
++	pk.setFingerPrintAndKeyId()
++	return pk
++}
++
+ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
+ 	// RFC 4880, section 5.5.2
+ 	var buf [6]byte
+@@ -54,14 +76,17 @@ func (pk *PublicKey) parse(r io.Reader) (err os.Error) {
+ 		return
+ 	}
+ 
++	pk.setFingerPrintAndKeyId()
++	return
++}
++
++func (pk *PublicKey) setFingerPrintAndKeyId() {
+ 	// RFC 4880, section 12.2
+ 	fingerPrint := sha1.New()
+ 	pk.SerializeSignaturePrefix(fingerPrint)
+ 	pk.serializeWithoutHeaders(fingerPrint)
+ 	copy(pk.Fingerprint[:], fingerPrint.Sum())
+ 	pk.KeyId = binary.BigEndian.Uint64(pk.Fingerprint[12:20])
+-
+-	return
+ }
+ 
+ // parseRSA parses RSA public key material from the given Reader. See RFC 4880,
+@@ -232,12 +257,12 @@ func (pk *PublicKey) VerifySignature(signed hash.Hash, sig *Signature) (err os.E
+ 	panic("unreachable")
+ }
+ 
+-// VerifyKeySignature returns nil iff sig is a valid signature, make by this
+-// public key, of the public key in signed.
+-func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err os.Error) {
+-	h := sig.Hash.New()
++// keySignatureHash returns a Hash of the message that needs to be signed for
++// pk to assert a subkey relationship to signed.
++func keySignatureHash(pk, signed *PublicKey, sig *Signature) (h hash.Hash, err os.Error) {
++	h = sig.Hash.New()
+ 	if h == nil {
+-		return error.UnsupportedError("hash function")
++		return nil, error.UnsupportedError("hash function")
+ 	}
+ 
+ 	// RFC 4880, section 5.2.4
+@@ -245,16 +270,25 @@ func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err
+ 	pk.serializeWithoutHeaders(h)
+ 	signed.SerializeSignaturePrefix(h)
+ 	signed.serializeWithoutHeaders(h)
++	return
++}
+ 
++// VerifyKeySignature returns nil iff sig is a valid signature, made by this
++// public key, of signed.
++func (pk *PublicKey) VerifyKeySignature(signed *PublicKey, sig *Signature) (err os.Error) {
++	h, err := keySignatureHash(pk, signed, sig)
++	if err != nil {
++		return err
++	}
+ 	return pk.VerifySignature(h, sig)
+ }
+ 
+-// VerifyUserIdSignature returns nil iff sig is a valid signature, make by this
+-// public key, of the given user id.
+-func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Error) {
+-	h := sig.Hash.New()
++// userIdSignatureHash returns a Hash of the message that needs to be signed
++// to assert that pk is a valid key for id.
++func userIdSignatureHash(id string, pk *PublicKey, sig *Signature) (h hash.Hash, err os.Error) {
++	h = sig.Hash.New()
+ 	if h == nil {
+-		return error.UnsupportedError("hash function")
++		return nil, error.UnsupportedError("hash function")
+ 	}
+ 
+ 	// RFC 4880, section 5.2.4
+@@ -270,6 +304,16 @@ func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Er
+ 	h.Write(buf[:])
+ 	h.Write([]byte(id))
+ 
++	return
++}
++
++// VerifyUserIdSignature returns nil iff sig is a valid signature, made by this
++// public key, of id.
++func (pk *PublicKey) VerifyUserIdSignature(id string, sig *Signature) (err os.Error) {
++	h, err := userIdSignatureHash(id, pk, sig)
++	if err != nil {
++		return err
++	}
+ 	return pk.VerifySignature(h, sig)
+ }
+ 
+diff --git a/src/pkg/crypto/openpgp/packet/signature.go b/src/pkg/crypto/openpgp/packet/signature.go
+index 0dee47c6fb..3169bac1e6 100644
+--- a/src/pkg/crypto/openpgp/packet/signature.go
++++ b/src/pkg/crypto/openpgp/packet/signature.go
+@@ -420,28 +420,46 @@ func (sig *Signature) signPrepareHash(h hash.Hash) (digest []byte, err os.Error)
+ 	return
+ }
+ 
+-// SignRSA signs a message with an RSA private key. The hash, h, must contain
++// Sign signs a message with a private key. The hash, h, must contain
+ // the hash of the message to be signed and will be mutated by this function.
+ // On success, the signature is stored in sig. Call Serialize to write it out.
+-func (sig *Signature) SignRSA(h hash.Hash, priv *rsa.PrivateKey) (err os.Error) {
++func (sig *Signature) Sign(h hash.Hash, priv *PrivateKey) (err os.Error) {
+ 	digest, err := sig.signPrepareHash(h)
+ 	if err != nil {
+ 		return
+ 	}
+-	sig.RSASignature, err = rsa.SignPKCS1v15(rand.Reader, priv, sig.Hash, digest)
++
++	switch priv.PubKeyAlgo {
++	case PubKeyAlgoRSA, PubKeyAlgoRSASignOnly:
++		sig.RSASignature, err = rsa.SignPKCS1v15(rand.Reader, priv.PrivateKey.(*rsa.PrivateKey), sig.Hash, digest)
++	case PubKeyAlgoDSA:
++		sig.DSASigR, sig.DSASigS, err = dsa.Sign(rand.Reader, priv.PrivateKey.(*dsa.PrivateKey), digest)
++	default:
++		err = error.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
++	}
++
+ 	return
+ }
+ 
+-// SignDSA signs a message with a DSA private key. The hash, h, must contain
+-// the hash of the message to be signed and will be mutated by this function.
+-// On success, the signature is stored in sig. Call Serialize to write it out.
+-func (sig *Signature) SignDSA(h hash.Hash, priv *dsa.PrivateKey) (err os.Error) {
+-	digest, err := sig.signPrepareHash(h)
++// SignUserId computes a signature from priv, asserting that pub is a valid
++// key for the identity id.  On success, the signature is stored in sig. Call
++// Serialize to write it out.
++func (sig *Signature) SignUserId(id string, pub *PublicKey, priv *PrivateKey) os.Error {
++	h, err := userIdSignatureHash(id, pub, sig)
+ 	if err != nil {
+-		return
++		return nil
+ 	}
+-	sig.DSASigR, sig.DSASigS, err = dsa.Sign(rand.Reader, priv, digest)
+-	return
++	return sig.Sign(h, priv)
++}
++
++// SignKey computes a signature from priv, asserting that pub is a subkey.  On
++// success, the signature is stored in sig. Call Serialize to write it out.
++func (sig *Signature) SignKey(pub *PublicKey, priv *PrivateKey) os.Error {
++	h, err := keySignatureHash(&priv.PublicKey, pub, sig)
++	if err != nil {
++		return err
++	}
++	return sig.Sign(h, priv)
+ }
+ 
+ // Serialize marshals sig to w. SignRSA or SignDSA must have been called first.
+diff --git a/src/pkg/crypto/openpgp/packet/userid.go b/src/pkg/crypto/openpgp/packet/userid.go
+index ed2ad77748..0580ba3edc 100644
+--- a/src/pkg/crypto/openpgp/packet/userid.go
++++ b/src/pkg/crypto/openpgp/packet/userid.go
+@@ -20,6 +20,51 @@ type UserId struct {
+ 	Name, Comment, Email string
+ }
+ 
++func hasInvalidCharacters(s string) bool {
++	for _, c := range s {
++		switch c {
++		case '(', ')', '<', '>', 0:
++			return true
++		}
++	}
++	return false
++}
++
++// NewUserId returns a UserId or nil if any of the arguments contain invalid
++// characters. The invalid characters are '\x00', '(', ')', '<' and '>'
++func NewUserId(name, comment, email string) *UserId {
++	// RFC 4880 doesn't deal with the structure of userid strings; the
++	// name, comment and email form is just a convention. However, there's
++	// no convention about escaping the metacharacters and GPG just refuses
++	// to create user ids where, say, the name contains a '('. We mirror
++	// this behaviour.
++
++	if hasInvalidCharacters(name) || hasInvalidCharacters(comment) || hasInvalidCharacters(email) {
++		return nil
++	}
++
++	uid := new(UserId)
++	uid.Name, uid.Comment, uid.Email = name, comment, email
++	uid.Id = name
++	if len(comment) > 0 {
++		if len(uid.Id) > 0 {
++			uid.Id += " "
++		}
++		uid.Id += "("
++		uid.Id += comment
++		uid.Id += ")"
++	}
++	if len(email) > 0 {
++		if len(uid.Id) > 0 {
++			uid.Id += " "
++		}
++		uid.Id += "<"
++		uid.Id += email
++		uid.Id += ">"
++	}
++	return uid
++}
++
+ func (uid *UserId) parse(r io.Reader) (err os.Error) {
+ 	// RFC 4880, section 5.11
+ 	b, err := ioutil.ReadAll(r)
+@@ -31,6 +76,17 @@ func (uid *UserId) parse(r io.Reader) (err os.Error) {
+ 	return
+ }
+ 
++// Serialize marshals uid to w in the form of an OpenPGP packet, including
++// header.
++func (uid *UserId) Serialize(w io.Writer) os.Error {
++	err := serializeHeader(w, packetTypeUserId, len(uid.Id))
++	if err != nil {
++		return err
++	}
++	_, err = w.Write([]byte(uid.Id))
++	return err
++}
++
+ // parseUserId extracts the name, comment and email from a user id string that
+ // is formatted as "Full Name (Comment) <email@example.com>".
+ func parseUserId(id string) (name, comment, email string) {
+diff --git a/src/pkg/crypto/openpgp/packet/userid_test.go b/src/pkg/crypto/openpgp/packet/userid_test.go
+index 394873dc38..2968193893 100644
+--- a/src/pkg/crypto/openpgp/packet/userid_test.go
++++ b/src/pkg/crypto/openpgp/packet/userid_test.go
+@@ -40,3 +40,48 @@ func TestParseUserId(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var newUserIdTests = []struct {
++	name, comment, email, id string
++}{
++	{"foo", "", "", "foo"},
++	{"", "bar", "", "(bar)"},
++	{"", "", "baz", "<baz>"},
++	{"foo", "bar", "", "foo (bar)"},
++	{"foo", "", "baz", "foo <baz>"},
++	{"", "bar", "baz", "(bar) <baz>"},
++	{"foo", "bar", "baz", "foo (bar) <baz>"},
++}
++
++func TestNewUserId(t *testing.T) {
++	for i, test := range newUserIdTests {
++		uid := NewUserId(test.name, test.comment, test.email)
++		if uid == nil {
++			t.Errorf("#%d: returned nil", i)
++			continue
++		}
++		if uid.Id != test.id {
++			t.Errorf("#%d: got '%s', want '%s'", i, uid.Id, test.id)
++		}
++	}
++}
++
++var invalidNewUserIdTests = []struct {
++	name, comment, email string
++}{
++	{"foo(", "", ""},
++	{"foo<", "", ""},
++	{"", "bar)", ""},
++	{"", "bar<", ""},
++	{"", "", "baz>"},
++	{"", "", "baz)"},
++	{"", "", "baz\x00"},
++}
++
++func TestNewUserIdWithInvalidInput(t *testing.T) {
++	for i, test := range invalidNewUserIdTests {
++		if uid := NewUserId(test.name, test.comment, test.email); uid != nil {
++			t.Errorf("#%d: returned non-nil value: %#v", i, uid)
++		}
++	}
++}
+diff --git a/src/pkg/crypto/openpgp/write.go b/src/pkg/crypto/openpgp/write.go
+index ef7b11230a..a1ede564e2 100644
+--- a/src/pkg/crypto/openpgp/write.go
++++ b/src/pkg/crypto/openpgp/write.go
+@@ -6,15 +6,12 @@ package openpgp
+ 
+ import (
+ 	"crypto"
+-	"crypto/dsa"
+ 	"crypto/openpgp/armor"
+ 	"crypto/openpgp/error"
+ 	"crypto/openpgp/packet"
+-	"crypto/rsa"
+ 	_ "crypto/sha256"
+ 	"io"
+ 	"os"
+-	"strconv"
+ 	"time"
+ )
+ 
+@@ -77,17 +74,7 @@ func detachSign(w io.Writer, signer *Entity, message io.Reader, sigType packet.S
+ 	}
+ 	io.Copy(wrappedHash, message)
+ 
+-	switch signer.PrivateKey.PubKeyAlgo {
+-	case packet.PubKeyAlgoRSA, packet.PubKeyAlgoRSASignOnly:
+-		priv := signer.PrivateKey.PrivateKey.(*rsa.PrivateKey)
+-		err = sig.SignRSA(h, priv)
+-	case packet.PubKeyAlgoDSA:
+-		priv := signer.PrivateKey.PrivateKey.(*dsa.PrivateKey)
+-		err = sig.SignDSA(h, priv)
+-	default:
+-		err = error.UnsupportedError("public key algorithm: " + strconv.Itoa(int(sig.PubKeyAlgo)))
+-	}
+-
++	err = sig.Sign(h, signer.PrivateKey)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/crypto/openpgp/write_test.go b/src/pkg/crypto/openpgp/write_test.go
+index 42cd0d27f8..a74a84b2b7 100644
+--- a/src/pkg/crypto/openpgp/write_test.go
++++ b/src/pkg/crypto/openpgp/write_test.go
+@@ -6,7 +6,9 @@ package openpgp
+ 
+ import (
+ 	"bytes"
++	"crypto/rand"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestSignDetached(t *testing.T) {
+@@ -44,3 +46,42 @@ func TestSignDetachedDSA(t *testing.T) {
+ 
+ 	testDetachedSignature(t, kring, out, signedInput, "check", testKey3KeyId)
+ }
++
++func TestNewEntity(t *testing.T) {
++	if testing.Short() {
++		return
++	}
++
++	e, err := NewEntity(rand.Reader, time.Seconds(), "Test User", "test", "test@example.com")
++	if err != nil {
++		t.Errorf("failed to create entity: %s", err)
++		return
++	}
++
++	w := bytes.NewBuffer(nil)
++	if err := e.SerializePrivate(w); err != nil {
++		t.Errorf("failed to serialize entity: %s", err)
++		return
++	}
++	serialized := w.Bytes()
++
++	el, err := ReadKeyRing(w)
++	if err != nil {
++		t.Errorf("failed to reparse entity: %s", err)
++		return
++	}
++
++	if len(el) != 1 {
++		t.Errorf("wrong number of entities found, got %d, want 1", len(el))
++	}
++
++	w = bytes.NewBuffer(nil)
++	if err := e.SerializePrivate(w); err != nil {
++		t.Errorf("failed to serialize entity second time: %s", err)
++		return
++	}
++
++	if !bytes.Equal(w.Bytes(), serialized) {
++		t.Errorf("results differed")
++	}
++}

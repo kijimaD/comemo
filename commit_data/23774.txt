@@ -27,8 +27,298 @@ Date:   Fri Jun 5 14:23:54 2015 -0700
     Change-Id: If060ac021017346723b0d62de4e5a305da898f68
     Reviewed-on: https://go-review.googlesource.com/10991
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/fmt/doc.go       | 30 +++++++++++--------
  src/fmt/scan.go      | 74 ++++++++++++++++++++++++++++-------------------
  src/fmt/scan_test.go | 82 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 144 insertions(+), 42 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index cbca6ab492..a5fb513f30 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -237,11 +237,24 @@
+ 	An analogous set of functions scans formatted text to yield
+ 	values.  Scan, Scanf and Scanln read from os.Stdin; Fscan,
+ 	Fscanf and Fscanln read from a specified io.Reader; Sscan,
+-	Sscanf and Sscanln read from an argument string.  Scanln,
+-	Fscanln and Sscanln stop scanning at a newline and require that
+-	the items be followed by one; Scanf, Fscanf and Sscanf require
+-	newlines in the input to match newlines in the format; the other
+-	routines treat newlines as spaces.
++	Sscanf and Sscanln read from an argument string.
++
++	Scan, Fscan, Sscan treat newlines in the input as spaces.
++
++	Scanln, Fscanln and Sscanln stop scanning at a newline and
++	require that the items be followed by a newline or EOF.
++
++	Scanf, Fscanf and Sscanf require that (after skipping spaces)
++	newlines in the format are matched by newlines in the input
++	and vice versa.  This behavior differs from the corresponding
++	routines in C, which uniformly treat newlines as spaces.
++
++	When scanning with Scanf, Fscanf, and Sscanf, all non-empty
++	runs of space characters (except newline) are equivalent
++	to a single space in both the format and the input.  With
++	that proviso, text in the format string must match the input
++	text; scanning stops if it does not, with the return value
++	of the function indicating the number of arguments scanned.
+ 
+ 	Scanf, Fscanf, and Sscanf parse the arguments according to a
+ 	format string, analogous to that of Printf.  For example, %x
+@@ -266,13 +279,6 @@
+ 	is no syntax for scanning with a precision (no %5.2f, just
+ 	%5f).
+ 
+-	When scanning with a format, all non-empty runs of space
+-	characters (except newline) are equivalent to a single
+-	space in both the format and the input.  With that proviso,
+-	text in the format string must match the input text; scanning
+-	stops if it does not, with the return value of the function
+-	indicating the number of arguments scanned.
+-
+ 	In all the scanning functions, a carriage return followed
+ 	immediately by a newline is treated as a plain newline
+ 	(\r\n means the same as \n).
+diff --git a/src/fmt/scan.go b/src/fmt/scan.go
+index 95725303d9..d6b9b79c6b 100644
+--- a/src/fmt/scan.go
++++ b/src/fmt/scan.go
+@@ -34,16 +34,16 @@ type ScanState interface {
+ 	ReadRune() (r rune, size int, err error)
+ 	// UnreadRune causes the next call to ReadRune to return the same rune.
+ 	UnreadRune() error
+-	// SkipSpace skips space in the input. Newlines are treated as space
+-	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case
+-	// a newline is treated as EOF.
++	// SkipSpace skips space in the input. Newlines are treated appropriately
++	// for the operation being performed; see the package documentation
++	// for more information.
+ 	SkipSpace()
+ 	// Token skips space in the input if skipSpace is true, then returns the
+ 	// run of Unicode code points c satisfying f(c).  If f is nil,
+ 	// !unicode.IsSpace(c) is used; that is, the token will hold non-space
+-	// characters.  Newlines are treated as space unless the scan operation
+-	// is Scanln, Fscanln or Sscanln, in which case a newline is treated as
+-	// EOF.  The returned slice points to shared data that may be overwritten
++	// characters.  Newlines are treated appropriately for the operation being
++	// performed; see the package documentation for more information.
++	// The returned slice points to shared data that may be overwritten
+ 	// by the next call to Token, a call to a Scan function using the ScanState
+ 	// as input, or when the calling Scan method returns.
+ 	Token(skipSpace bool, f func(rune) bool) (token []byte, err error)
+@@ -82,6 +82,7 @@ func Scanln(a ...interface{}) (n int, err error) {
+ // space-separated values into successive arguments as determined by
+ // the format.  It returns the number of items successfully scanned.
+ // If that is less than the number of arguments, err will report why.
++// Newlines in the input must match newlines in the format.
+ func Scanf(format string, a ...interface{}) (n int, err error) {
+ 	return Fscanf(os.Stdin, format, a...)
+ }
+@@ -114,6 +115,7 @@ func Sscanln(str string, a ...interface{}) (n int, err error) {
+ // Sscanf scans the argument string, storing successive space-separated
+ // values into successive arguments as determined by the format.  It
+ // returns the number of items successfully parsed.
++// Newlines in the input must match newlines in the format.
+ func Sscanf(str string, format string, a ...interface{}) (n int, err error) {
+ 	return Fscanf((*stringReader)(&str), format, a...)
+ }
+@@ -141,6 +143,7 @@ func Fscanln(r io.Reader, a ...interface{}) (n int, err error) {
+ // Fscanf scans text read from r, storing successive space-separated
+ // values into successive arguments as determined by the format.  It
+ // returns the number of items successfully parsed.
++// Newlines in the input must match newlines in the format.
+ func Fscanf(r io.Reader, format string, a ...interface{}) (n int, err error) {
+ 	s, old := newScanState(r, false, false)
+ 	n, err = s.doScanf(format, a)
+@@ -388,17 +391,6 @@ var ssFree = sync.Pool{
+ 
+ // newScanState allocates a new ss struct or grab a cached one.
+ func newScanState(r io.Reader, nlIsSpace, nlIsEnd bool) (s *ss, old ssave) {
+-	// If the reader is a *ss, then we've got a recursive
+-	// call to Scan, so re-use the scan state.
+-	s, ok := r.(*ss)
+-	if ok {
+-		old = s.ssave
+-		s.limit = s.argLimit
+-		s.nlIsEnd = nlIsEnd || s.nlIsEnd
+-		s.nlIsSpace = nlIsSpace
+-		return
+-	}
+-
+ 	s = ssFree.Get().(*ss)
+ 	if rr, ok := r.(io.RuneReader); ok {
+ 		s.rr = rr
+@@ -1057,8 +1049,8 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
+ 		s.scanOne('v', arg)
+ 		numProcessed++
+ 	}
+-	// Check for newline if required.
+-	if !s.nlIsSpace {
++	// Check for newline (or EOF) if required (Scanln etc.).
++	if s.nlIsEnd {
+ 		for {
+ 			r := s.getRune()
+ 			if r == '\n' || r == eof {
+@@ -1074,12 +1066,13 @@ func (s *ss) doScan(a []interface{}) (numProcessed int, err error) {
+ }
+ 
+ // advance determines whether the next characters in the input match
+-// those of the format.  It returns the number of bytes (sic) consumed
+-// in the format. Newlines included, all runs of space characters in
+-// either input or format behave as a single space. This routine also
+-// handles the %% case.  If the return value is zero, either format
+-// starts with a % (with no following %) or the input is empty.
+-// If it is negative, the input did not match the string.
++// those of the format. It returns the number of bytes (sic) consumed
++// in the format. All runs of space characters in either input or
++// format behave as a single space. Newlines are special, though:
++// newlines in the format must match those in the input and vice versa.
++// This routine also handles the %% case. If the return value is zero,
++// either format starts with a % (with no following %) or the input
++// is empty. If it is negative, the input did not match the string.
+ func (s *ss) advance(format string) (i int) {
+ 	for i < len(format) {
+ 		fmtc, w := utf8.DecodeRuneInString(format[i:])
+@@ -1092,24 +1085,45 @@ func (s *ss) advance(format string) (i int) {
+ 			i += w // skip the first %
+ 		}
+ 		sawSpace := false
++		wasNewline := false
++		// Skip spaces in format but absorb at most one newline.
+ 		for isSpace(fmtc) && i < len(format) {
++			if fmtc == '\n' {
++				if wasNewline { // Already saw one; stop here.
++					break
++				}
++				wasNewline = true
++			}
+ 			sawSpace = true
+ 			i += w
+ 			fmtc, w = utf8.DecodeRuneInString(format[i:])
+ 		}
+ 		if sawSpace {
+-			// There was space in the format, so there should be space (EOF)
++			// There was space in the format, so there should be space
+ 			// in the input.
+ 			inputc := s.getRune()
+-			if inputc == eof || inputc == '\n' {
+-				// If we've reached a newline, stop now; don't read ahead.
++			if inputc == eof {
+ 				return
+ 			}
+ 			if !isSpace(inputc) {
+-				// Space in format but not in input: error
++				// Space in format but not in input.
+ 				s.errorString("expected space in input to match format")
+ 			}
+-			s.skipSpace(true)
++			// Skip spaces but stop at newline.
++			for inputc != '\n' && isSpace(inputc) {
++				inputc = s.getRune()
++			}
++			if inputc == '\n' {
++				if !wasNewline {
++					s.errorString("newline in input does not match format")
++				}
++				// We've reached a newline, stop now; don't read further.
++				return
++			}
++			s.UnreadRune()
++			if wasNewline {
++				s.errorString("newline in format does not match input")
++			}
+ 			continue
+ 		}
+ 		inputc := s.mustReadRune()
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index a932831e8d..9e3e90a5c4 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -1044,3 +1044,85 @@ func TestHexBytes(t *testing.T) {
+ 		t.Errorf("odd count: got count, err = %d, %v; expected 0, error", n, err)
+ 	}
+ }
++
++func TestScanNewlinesAreSpaces(t *testing.T) {
++	var a, b int
++	var tests = []struct {
++		name  string
++		text  string
++		count int
++	}{
++		{"newlines", "1\n2\n", 2},
++		{"no final newline", "1\n2", 2},
++		{"newlines with spaces ", "1  \n  2  \n", 2},
++		{"no final newline with spaces", "1  \n  2", 2},
++	}
++	for _, test := range tests {
++		n, err := Sscan(test.text, &a, &b)
++		if n != test.count {
++			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
++		}
++		if err != nil {
++			t.Errorf("%s: unexpected error: %s", test.name, err)
++		}
++	}
++}
++
++func TestScanlnNewlinesTerminate(t *testing.T) {
++	var a, b int
++	var tests = []struct {
++		name  string
++		text  string
++		count int
++		ok    bool
++	}{
++		{"one line one item", "1\n", 1, false},
++		{"one line two items with spaces ", "   1 2    \n", 2, true},
++		{"one line two items no newline", "   1 2", 2, true},
++		{"two lines two items", "1\n2\n", 1, false},
++	}
++	for _, test := range tests {
++		n, err := Sscanln(test.text, &a, &b)
++		if n != test.count {
++			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
++		}
++		if test.ok && err != nil {
++			t.Errorf("%s: unexpected error: %s", test.name, err)
++		}
++		if !test.ok && err == nil {
++			t.Errorf("%s: expected error; got none", test.name)
++		}
++	}
++}
++
++func TestScanfNewlineMatchFormat(t *testing.T) {
++	var a, b int
++	var tests = []struct {
++		name   string
++		text   string
++		format string
++		count  int
++		ok     bool
++	}{
++		{"newline in both", "1\n2", "%d\n%d\n", 2, true},
++		{"newline in input", "1\n2", "%d %d", 1, false},
++		{"space-newline in input", "1 \n2", "%d %d", 1, false},
++		{"newline in format", "1 2", "%d\n%d", 1, false},
++		{"space-newline in format", "1 2", "%d \n%d", 1, false},
++		{"space-newline in both", "1 \n2", "%d \n%d", 2, true},
++		{"extra space in format", "1\n2", "%d\n %d", 2, true},
++		{"two extra spaces in format", "1\n2", "%d \n %d", 2, true},
++	}
++	for _, test := range tests {
++		n, err := Sscanf(test.text, test.format, &a, &b)
++		if n != test.count {
++			t.Errorf("%s: expected to scan %d item(s), scanned %d", test.name, test.count, n)
++		}
++		if test.ok && err != nil {
++			t.Errorf("%s: unexpected error: %s", test.name, err)
++		}
++		if !test.ok && err == nil {
++			t.Errorf("%s: expected error; got none", test.name)
++		}
++	}
++}

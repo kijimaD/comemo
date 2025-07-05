@@ -7,6 +7,19 @@ Date:   Tue Dec 13 14:12:16 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5482059
-
+---
  src/cmd/5g/ggen.c | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 3f38318e75..832767e862 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -14,7 +14,6 @@ defframe(Prog *ptxt)
+ {
+ 	// fill in argument size
+ 	ptxt->to.type = D_CONST2;
+-	ptxt->reg = 0; // flags
+ 	ptxt->to.offset2 = rnd(curfn->type->argwid, widthptr);
+ 
+ 	// fill in final stack size

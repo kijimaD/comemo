@@ -9,8 +9,97 @@ Date:   Thu Sep 25 15:18:25 2014 -0700
     R=golang-codereviews, ruiu
     CC=golang-codereviews
     https://golang.org/cl/142710043
-
+---
  src/encoding/gob/decode.go       | 12 +++++++++++-
  src/encoding/gob/decoder.go      |  9 ++++++---
  src/encoding/gob/encoder_test.go | 22 ++++++++++++++++++++++
  3 files changed, 39 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/decode.go b/src/encoding/gob/decode.go
+index 2367650c8b..502209a8a8 100644
+--- a/src/encoding/gob/decode.go
++++ b/src/encoding/gob/decode.go
+@@ -312,6 +312,9 @@ func decUint8Slice(i *decInstr, state *decoderState, value reflect.Value) {
+ 	if n > state.b.Len() {
+ 		errorf("%s data too long for buffer: %d", value.Type(), n)
+ 	}
++	if n > tooBig {
++		errorf("byte slice too big: %d", n)
++	}
+ 	if value.Cap() < n {
+ 		value.Set(reflect.MakeSlice(value.Type(), n, n))
+ 	} else {
+@@ -539,8 +542,15 @@ func (dec *Decoder) decodeSlice(state *decoderState, value reflect.Value, elemOp
+ 		// of interfaces, there will be buffer reloads.
+ 		errorf("length of %s is negative (%d bytes)", value.Type(), u)
+ 	}
++	typ := value.Type()
++	size := uint64(typ.Elem().Size())
++	// Take care with overflow in this calculation.
++	nBytes := u * size
++	if nBytes > tooBig || (size > 0 && nBytes/size != u) {
++		errorf("%s slice too big: %d elements of %d bytes", typ.Elem(), n, size)
++	}
+ 	if value.Cap() < n {
+-		value.Set(reflect.MakeSlice(value.Type(), n, n))
++		value.Set(reflect.MakeSlice(typ, n, n))
+ 	} else {
+ 		value.Set(value.Slice(0, n))
+ 	}
+diff --git a/src/encoding/gob/decoder.go b/src/encoding/gob/decoder.go
+index 3a769ec125..dcad7a0e48 100644
+--- a/src/encoding/gob/decoder.go
++++ b/src/encoding/gob/decoder.go
+@@ -13,6 +13,11 @@ import (
+ 	"sync"
+ )
+ 
++// tooBig provides a sanity check for sizes; used in several places.
++// Upper limit of 1GB, allowing room to grow a little without overflow.
++// TODO: make this adjustable?
++const tooBig = 1 << 30
++
+ // A Decoder manages the receipt of type and data information read from the
+ // remote side of a connection.
+ type Decoder struct {
+@@ -75,9 +80,7 @@ func (dec *Decoder) recvMessage() bool {
+ 		dec.err = err
+ 		return false
+ 	}
+-	// Upper limit of 1GB, allowing room to grow a little without overflow.
+-	// TODO: We might want more control over this limit.
+-	if nbytes >= 1<<30 {
++	if nbytes >= tooBig {
+ 		dec.err = errBadCount
+ 		return false
+ 	}
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 376df82f15..0ea4c0ec8e 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -932,3 +932,25 @@ func Test29ElementSlice(t *testing.T) {
+ 		return
+ 	}
+ }
++
++// Don't crash, just give error when allocating a huge slice.
++// Issue 8084.
++func TestErrorForHugeSlice(t *testing.T) {
++	// Encode an int slice.
++	buf := new(bytes.Buffer)
++	slice := []int{1, 1, 1, 1, 1, 1, 1, 1, 1, 1}
++	err := NewEncoder(buf).Encode(slice)
++	if err != nil {
++		t.Fatal("encode:", err)
++	}
++	// Reach into the buffer and smash the count to make the encoded slice very long.
++	buf.Bytes()[buf.Len()-len(slice)-1] = 0xfa
++	// Decode and see error.
++	err = NewDecoder(buf).Decode(&slice)
++	if err == nil {
++		t.Fatal("decode: no error")
++	}
++	if !strings.Contains(err.Error(), "slice too big") {
++		t.Fatal("decode: expected slice too big error, got %s", err.Error())
++	}
++}

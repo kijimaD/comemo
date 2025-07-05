@@ -13,6 +13,31 @@ Date:   Tue Feb 23 10:42:06 2016 -0800
     Change-Id: I0b7521ac912130d9ea8740b8793b3b88e2609418
     Reviewed-on: https://go-review.googlesource.com/19853
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go_spec.html | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 6b6e75c7c9..437fc066bb 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 5, 2016",
++	"Subtitle": "Version of February 23, 2016",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -2443,9 +2443,8 @@ PrimaryExpr =
+ 
+ Selector       = "." identifier .
+ Index          = "[" Expression "]" .
+-Slice          = "[" ( [ Expression ] ":" [ Expression ] ) |
+-                     ( [ Expression ] ":" Expression ":" Expression )
+-                 "]" .
++Slice          = "[" [ Expression ] ":" [ Expression ] "]" |
++                 "[" [ Expression ] ":" Expression ":" Expression "]" .
+ TypeAssertion  = "." "(" Type ")" .
+ Arguments      = "(" [ ( ExpressionList | Type [ "," ExpressionList ] ) [ "..." ] [ "," ] ] ")" .
+ </pre>

@@ -7,9 +7,62 @@ Date:   Wed Feb 9 17:11:01 2011 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/4169044
-
+---
  src/pkg/crypto/cipher/ocfb_test.go           | 2 +-
  src/pkg/crypto/openpgp/packet/packet_test.go | 2 +-
  src/pkg/exp/eval/stmt.go                     | 2 +-
  src/pkg/template/template_test.go            | 2 +-
  4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/crypto/cipher/ocfb_test.go b/src/pkg/crypto/cipher/ocfb_test.go
+index 7aae27bec9..40938b5892 100644
+--- a/src/pkg/crypto/cipher/ocfb_test.go
++++ b/src/pkg/crypto/cipher/ocfb_test.go
+@@ -27,7 +27,7 @@ func testOCFB(t *testing.T, resync OCFBResyncOption) {
+ 
+ 	ocfbdec := NewOCFBDecrypter(block, prefix, resync)
+ 	if ocfbdec == nil {
+-		t.Error("NewOCFBDecrypter failed (resync: %t)", resync)
++		t.Errorf("NewOCFBDecrypter failed (resync: %t)", resync)
+ 		return
+ 	}
+ 	plaintextCopy := make([]byte, len(plaintext))
+diff --git a/src/pkg/crypto/openpgp/packet/packet_test.go b/src/pkg/crypto/openpgp/packet/packet_test.go
+index 050b7341fb..6789d2abc7 100644
+--- a/src/pkg/crypto/openpgp/packet/packet_test.go
++++ b/src/pkg/crypto/openpgp/packet/packet_test.go
+@@ -115,7 +115,7 @@ func TestPartialLengthReader(t *testing.T) {
+ 
+ 		got := fmt.Sprintf("%x", out)
+ 		if got != test.hexOutput {
+-			t.Errorf("%d: got:%s want:%s", test.hexOutput, got)
++			t.Errorf("%d: got:%s want:%s", i, test.hexOutput, got)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index 77ff066d09..5c5d4338a1 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -908,7 +908,7 @@ func (a *stmtCompiler) compileBranchStmt(s *ast.BranchStmt) {
+ 		return
+ 
+ 	default:
+-		log.Panic("Unexpected branch token %v", s.Tok)
++		log.Panicf("Unexpected branch token %v", s.Tok)
+ 	}
+ 
+ 	a.flow.put1(false, pc)
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 9df3ab59c0..d21a5397a1 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -740,7 +740,7 @@ func TestFormatters(t *testing.T) {
+ 				continue
+ 			}
+ 			if strings.Index(err.String(), c.err) < 0 {
+-				t.Error("unexpected error: expected %q, got %q", c.err, err.String())
++				t.Errorf("unexpected error: expected %q, got %q", c.err, err.String())
+ 				continue
+ 			}
+ 		} else {

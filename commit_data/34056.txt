@@ -29,7 +29,72 @@ Date:   Wed Sep 27 20:31:55 2017 -0300
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/flag/flag.go      | 10 ++++++----
  src/flag/flag_test.go |  8 ++++++++
  2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index a1a8dc7fad..5544a25282 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -71,6 +71,7 @@ import (
+ 	"reflect"
+ 	"sort"
+ 	"strconv"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -448,9 +449,9 @@ func UnquoteUsage(flag *Flag) (name string, usage string) {
+ 	return
+ }
+ 
+-// PrintDefaults prints to standard error the default values of all
+-// defined command-line flags in the set. See the documentation for
+-// the global function PrintDefaults for more information.
++// PrintDefaults prints, to standard error unless configured otherwise, the
++// default values of all defined command-line flags in the set. See the
++// documentation for the global function PrintDefaults for more information.
+ func (f *FlagSet) PrintDefaults() {
+ 	f.VisitAll(func(flag *Flag) {
+ 		s := fmt.Sprintf("  -%s", flag.Name) // Two spaces before -; see next two comments.
+@@ -467,7 +468,8 @@ func (f *FlagSet) PrintDefaults() {
+ 			// for both 4- and 8-space tab stops.
+ 			s += "\n    \t"
+ 		}
+-		s += usage
++		s += strings.Replace(usage, "\n", "\n    \t", -1)
++
+ 		if !isZeroValue(flag, flag.DefValue) {
+ 			if _, ok := flag.Value.(*stringValue); ok {
+ 				// put quotes on the value
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 20d09c4c41..4c6db96ba0 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -389,8 +389,14 @@ const defaultOutput = `  -A	for bootstrapping, allow 'any' type
+     	a non-zero number (default 2.7)
+   -G float
+     	a float that defaults to zero
++  -M string
++    	a multiline
++    	help
++    	string
+   -N int
+     	a non-zero int (default 27)
++  -O	a flag
++    	multiline help string (default true)
+   -Z int
+     	an int that defaults to zero
+   -maxT timeout
+@@ -407,7 +413,9 @@ func TestPrintDefaults(t *testing.T) {
+ 	fs.String("D", "", "set relative `path` for local imports")
+ 	fs.Float64("F", 2.7, "a non-zero `number`")
+ 	fs.Float64("G", 0, "a float that defaults to zero")
++	fs.String("M", "", "a multiline\nhelp\nstring")
+ 	fs.Int("N", 27, "a non-zero int")
++	fs.Bool("O", true, "a flag\nmultiline help string")
+ 	fs.Int("Z", 0, "an int that defaults to zero")
+ 	fs.Duration("maxT", 0, "set `timeout` for dial")
+ 	fs.PrintDefaults()

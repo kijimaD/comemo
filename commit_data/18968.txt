@@ -11,6 +11,26 @@ Date:   Wed Mar 26 21:52:29 2014 -0400
     R=khr, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/80960047
-
+---
  src/pkg/runtime/hashmap.goc | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/pkg/runtime/hashmap.goc b/src/pkg/runtime/hashmap.goc
+index 4900a16ff4..4f5e78897b 100644
+--- a/src/pkg/runtime/hashmap.goc
++++ b/src/pkg/runtime/hashmap.goc
+@@ -1004,6 +1004,14 @@ func reflect·mapdelete(t *MapType, h *Hmap, key *byte) {
+ 
+ #pragma textflag NOSPLIT
+ func mapiterinit(t *MapType, h *Hmap, it *Hiter) {
++	// Clear pointer fields so garbage collector does not complain.
++	it->key = nil;
++	it->value = nil;
++	it->t = nil;
++	it->h = nil;
++	it->buckets = nil;
++	it->bptr = nil;
++
+ 	if(h == nil || h->count == 0) {
+ 		it->key = nil;
+ 		return;

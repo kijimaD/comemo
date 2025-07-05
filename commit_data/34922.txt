@@ -12,6 +12,24 @@ Date:   Wed Nov 29 11:46:48 2017 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/os_test.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index eb8a7d1b92..2d608f4b24 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1239,9 +1239,9 @@ func TestChdirAndGetwd(t *testing.T) {
+ 			if mode == 0 {
+ 				err = Chdir(d)
+ 			} else {
+-				fd1, err := Open(d)
+-				if err != nil {
+-					t.Errorf("Open %s: %s", d, err)
++				fd1, err1 := Open(d)
++				if err1 != nil {
++					t.Errorf("Open %s: %s", d, err1)
+ 					continue
+ 				}
+ 				err = fd1.Chdir()

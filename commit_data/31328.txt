@@ -17,7 +17,87 @@ Date:   Thu Feb 9 12:54:25 2017 +0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/ip.go      | 16 +++++-----------
  src/net/ip_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 35 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index db3364c1b3..c482ef6303 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -12,6 +12,8 @@
+ 
+ package net
+ 
++import _ "unsafe" // for go:linkname
++
+ // IP address lengths (bytes).
+ const (
+ 	IPv4len = 4
+@@ -381,17 +383,9 @@ func (ip IP) Equal(x IP) bool {
+ 	return false
+ }
+ 
+-func bytesEqual(x, y []byte) bool {
+-	if len(x) != len(y) {
+-		return false
+-	}
+-	for i, b := range x {
+-		if y[i] != b {
+-			return false
+-		}
+-	}
+-	return true
+-}
++// bytes.Equal is implemented in runtime/asm_$goarch.s
++//go:linkname bytesEqual bytes.Equal
++func bytesEqual(x, y []byte) bool
+ 
+ func (ip IP) matchAddrFamily(x IP) bool {
+ 	return ip.To4() != nil && x.To4() != nil || ip.To16() != nil && ip.To4() == nil && x.To16() != nil && x.To4() == nil
+diff --git a/src/net/ip_test.go b/src/net/ip_test.go
+index 46551633ce..f765582cad 100644
+--- a/src/net/ip_test.go
++++ b/src/net/ip_test.go
+@@ -6,6 +6,7 @@ package net
+ 
+ import (
+ 	"bytes"
++	"math/rand"
+ 	"reflect"
+ 	"runtime"
+ 	"testing"
+@@ -645,3 +646,32 @@ func TestIPAddrScope(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkIPEqual(b *testing.B) {
++	b.Run("IPv4", func(b *testing.B) {
++		benchmarkIPEqual(b, IPv4len)
++	})
++	b.Run("IPv6", func(b *testing.B) {
++		benchmarkIPEqual(b, IPv6len)
++	})
++}
++
++func benchmarkIPEqual(b *testing.B, size int) {
++	ips := make([]IP, 1000)
++	for i := range ips {
++		ips[i] = make(IP, size)
++		rand.Read(ips[i])
++	}
++	// Half of the N are equal.
++	for i := 0; i < b.N/2; i++ {
++		x := ips[i%len(ips)]
++		y := ips[i%len(ips)]
++		x.Equal(y)
++	}
++	// The other half are not equal.
++	for i := 0; i < b.N/2; i++ {
++		x := ips[i%len(ips)]
++		y := ips[(i+1)%len(ips)]
++		x.Equal(y)
++	}
++}

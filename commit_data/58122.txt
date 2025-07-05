@@ -17,7 +17,7 @@ Date:   Fri May 26 12:02:54 2023 +0800
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Tim King <taking@google.com>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/cmd/go/internal/test/flagdefs.go               |  1 +
  .../x/tools/go/analysis/passes/appends/appends.go  | 49 ++++++++++++++++++++++
  .../x/tools/go/analysis/passes/appends/doc.go      | 20 +++++++++
@@ -26,3 +26,159 @@ Date:   Fri May 26 12:02:54 2023 +0800
  src/cmd/vet/testdata/appends/appends.go            | 12 ++++++
  src/cmd/vet/vet_test.go                            |  1 +
  7 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/go/internal/test/flagdefs.go b/src/cmd/go/internal/test/flagdefs.go
+index 12d506862d..baa0cdf4c6 100644
+--- a/src/cmd/go/internal/test/flagdefs.go
++++ b/src/cmd/go/internal/test/flagdefs.go
+@@ -40,6 +40,7 @@ var passFlagToTest = map[string]bool{
+ }
+ 
+ var passAnalyzersToVet = map[string]bool{
++	"appends":          true,
+ 	"asmdecl":          true,
+ 	"assign":           true,
+ 	"atomic":           true,
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/appends.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/appends.go
+new file mode 100644
+index 0000000000..f0b90a4920
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/appends.go
+@@ -0,0 +1,49 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package appends defines an Analyzer that detects
++// if there is only one variable in append.
++package appends
++
++import (
++	_ "embed"
++	"go/ast"
++	"go/types"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/go/ast/inspector"
++)
++
++//go:embed doc.go
++var doc string
++
++var Analyzer = &analysis.Analyzer{
++	Name:     "appends",
++	Doc:      analysisutil.MustExtractDoc(doc, "appends"),
++	URL:      "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/appends",
++	Requires: []*analysis.Analyzer{inspect.Analyzer},
++	Run:      run,
++}
++
++func run(pass *analysis.Pass) (interface{}, error) {
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++
++	nodeFilter := []ast.Node{
++		(*ast.CallExpr)(nil),
++	}
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		call := n.(*ast.CallExpr)
++		if ident, ok := call.Fun.(*ast.Ident); ok && ident.Name == "append" {
++			if _, ok := pass.TypesInfo.Uses[ident].(*types.Builtin); ok {
++				if len(call.Args) == 1 {
++					pass.ReportRangef(call, "append with no values")
++				}
++			}
++		}
++	})
++
++	return nil, nil
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/doc.go
+new file mode 100644
+index 0000000000..2e6a2e010b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/appends/doc.go
+@@ -0,0 +1,20 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package appends defines an Analyzer that detects
++// if there is only one variable in append.
++//
++// # Analyzer appends
++//
++// appends: check for missing values after append
++//
++// This checker reports calls to append that pass
++// no values to be appended to the slice.
++//
++//	s := []string{"a", "b", "c"}
++//	_ = append(s)
++//
++// Such calls are always no-ops and often indicate an
++// underlying mistake.
++package appends
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index a2b1e248be..74f9d488f1 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -52,6 +52,7 @@ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+ golang.org/x/tools/go/analysis/internal/analysisflags
++golang.org/x/tools/go/analysis/passes/appends
+ golang.org/x/tools/go/analysis/passes/asmdecl
+ golang.org/x/tools/go/analysis/passes/assign
+ golang.org/x/tools/go/analysis/passes/atomic
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 2290b95033..c5197284b5 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -9,6 +9,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis/unitchecker"
+ 
++	"golang.org/x/tools/go/analysis/passes/appends"
+ 	"golang.org/x/tools/go/analysis/passes/asmdecl"
+ 	"golang.org/x/tools/go/analysis/passes/assign"
+ 	"golang.org/x/tools/go/analysis/passes/atomic"
+@@ -46,6 +47,7 @@ func main() {
+ 	objabi.AddVersionFlag()
+ 
+ 	unitchecker.Main(
++		appends.Analyzer,
+ 		asmdecl.Analyzer,
+ 		assign.Analyzer,
+ 		atomic.Analyzer,
+diff --git a/src/cmd/vet/testdata/appends/appends.go b/src/cmd/vet/testdata/appends/appends.go
+new file mode 100644
+index 0000000000..09ef3d2a33
+--- /dev/null
++++ b/src/cmd/vet/testdata/appends/appends.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file contains tests for the appends checker.
++
++package appends
++
++func AppendsTest() {
++	sli := []string{"a", "b", "c"}
++	sli = append(sli) // ERROR "append with no values"
++}
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index 8b29907e81..4bb0de00b3 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -62,6 +62,7 @@ func vetCmd(t *testing.T, arg, pkg string) *exec.Cmd {
+ func TestVet(t *testing.T) {
+ 	t.Parallel()
+ 	for _, pkg := range []string{
++		"appends",
+ 		"asm",
+ 		"assign",
+ 		"atomic",

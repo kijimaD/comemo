@@ -14,7 +14,7 @@ Date:   Wed Oct 1 11:17:15 2014 -0700
     R=rsc, iant, r, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/148370043
-
+---
  src/os/env.go                |  5 +++++
  src/os/env_test.go           | 26 ++++++++++++++++++++++++++
  src/runtime/cgo/gcc_setenv.c |  7 +++++++
@@ -25,3 +25,321 @@ Date:   Wed Oct 1 11:17:15 2014 -0700
  src/syscall/env_unix.go      | 44 ++++++++++++++++++++++++++++++++++++--------
  src/syscall/env_windows.go   |  8 ++++++++
  9 files changed, 135 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/env.go b/src/os/env.go
+index db7fc72b8a..d0494a4763 100644
+--- a/src/os/env.go
++++ b/src/os/env.go
+@@ -91,6 +91,11 @@ func Setenv(key, value string) error {
+ 	return nil
+ }
+ 
++// Unsetenv unsets a single environment variable.
++func Unsetenv(key string) error {
++	return syscall.Unsetenv(key)
++}
++
+ // Clearenv deletes all environment variables.
+ func Clearenv() {
+ 	syscall.Clearenv()
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 991fa4d057..e618067513 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -7,6 +7,7 @@ package os_test
+ import (
+ 	. "os"
+ 	"reflect"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -68,3 +69,28 @@ func TestConsistentEnviron(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestUnsetenv(t *testing.T) {
++	const testKey = "GO_TEST_UNSETENV"
++	set := func() bool {
++		prefix := testKey + "="
++		for _, key := range Environ() {
++			if strings.HasPrefix(key, prefix) {
++				return true
++			}
++		}
++		return false
++	}
++	if err := Setenv(testKey, "1"); err != nil {
++		t.Fatalf("Setenv: %v", err)
++	}
++	if !set() {
++		t.Error("Setenv didn't set TestUnsetenv")
++	}
++	if err := Unsetenv(testKey); err != nil {
++		t.Fatalf("Unsetenv: %v", err)
++	}
++	if set() {
++		t.Fatal("Unsetenv didn't clear TestUnsetenv")
++	}
++}
+diff --git a/src/runtime/cgo/gcc_setenv.c b/src/runtime/cgo/gcc_setenv.c
+index 8b128b9465..af0fc5d8d8 100644
+--- a/src/runtime/cgo/gcc_setenv.c
++++ b/src/runtime/cgo/gcc_setenv.c
+@@ -14,3 +14,10 @@ x_cgo_setenv(char **arg)
+ {
+ 	setenv(arg[0], arg[1], 1);
+ }
++
++/* Stub for calling unsetenv */
++void
++x_cgo_unsetenv(char *arg)
++{
++	unsetenv(arg);
++}
+diff --git a/src/runtime/cgo/setenv.c b/src/runtime/cgo/setenv.c
+index ee529904f7..76d88cbf13 100644
+--- a/src/runtime/cgo/setenv.c
++++ b/src/runtime/cgo/setenv.c
+@@ -5,6 +5,9 @@
+ // +build darwin dragonfly freebsd linux netbsd openbsd
+ 
+ #pragma cgo_import_static x_cgo_setenv
++#pragma cgo_import_static x_cgo_unsetenv
+ 
+ void x_cgo_setenv(char**);
+ void (*runtime·_cgo_setenv)(char**) = x_cgo_setenv;
++void x_cgo_unsetenv(char**);
++void (*runtime·_cgo_unsetenv)(char**) = x_cgo_unsetenv;
+diff --git a/src/runtime/env_posix.go b/src/runtime/env_posix.go
+index 6c04f6cc70..dd57872d7c 100644
+--- a/src/runtime/env_posix.go
++++ b/src/runtime/env_posix.go
+@@ -32,7 +32,8 @@ func gogetenv(key string) string {
+ 	return ""
+ }
+ 
+-var _cgo_setenv uintptr // pointer to C function
++var _cgo_setenv uintptr   // pointer to C function
++var _cgo_unsetenv uintptr // pointer to C function
+ 
+ // Update the C environment if cgo is loaded.
+ // Called from syscall.Setenv.
+@@ -44,6 +45,16 @@ func syscall_setenv_c(k string, v string) {
+ 	asmcgocall(unsafe.Pointer(_cgo_setenv), unsafe.Pointer(&arg))
+ }
+ 
++// Update the C environment if cgo is loaded.
++// Called from syscall.unsetenv.
++func syscall_unsetenv_c(k string) {
++	if _cgo_unsetenv == 0 {
++		return
++	}
++	arg := [1]unsafe.Pointer{cstring(k)}
++	asmcgocall(unsafe.Pointer(_cgo_unsetenv), unsafe.Pointer(&arg))
++}
++
+ func cstring(s string) unsafe.Pointer {
+ 	p := make([]byte, len(s)+1)
+ 	sp := (*_string)(unsafe.Pointer(&s))
+diff --git a/src/runtime/thunk.s b/src/runtime/thunk.s
+index d6a2d399e6..0a0f147c4b 100644
+--- a/src/runtime/thunk.s
++++ b/src/runtime/thunk.s
+@@ -110,6 +110,9 @@ TEXT net·runtime_pollUnblock(SB),NOSPLIT,$0-0
+ TEXT syscall·setenv_c(SB), NOSPLIT, $0-0
+ 	JMP	runtime·syscall_setenv_c(SB)
+ 
++TEXT syscall·unsetenv_c(SB), NOSPLIT, $0-0
++	JMP	runtime·syscall_unsetenv_c(SB)
++
+ TEXT reflect·makemap(SB),NOSPLIT,$0-0
+ 	JMP	runtime·reflect_makemap(SB)
+ 
+diff --git a/src/syscall/env_plan9.go b/src/syscall/env_plan9.go
+index 9587ab5af9..3044b410a9 100644
+--- a/src/syscall/env_plan9.go
++++ b/src/syscall/env_plan9.go
+@@ -12,16 +12,22 @@ import (
+ )
+ 
+ var (
+-	// envOnce guards copyenv, which populates env.
++	// envOnce guards copyenv, which populates env, envi and envs.
+ 	envOnce sync.Once
+ 
+-	// envLock guards env and envs.
++	// envLock guards env, envi and envs.
+ 	envLock sync.RWMutex
+ 
+ 	// env maps from an environment variable to its value.
++	// TODO: remove this? golang.org/issue/8849
+ 	env = make(map[string]string)
+ 
++	// envi maps from an environment variable to its index in envs.
++	// TODO: remove this? golang.org/issue/8849
++	envi = make(map[string]int)
++
+ 	// envs contains elements of env in the form "key=value".
++	// empty strings mean deleted.
+ 	envs []string
+ 
+ 	errZeroLengthKey = errors.New("zero length key")
+@@ -83,6 +89,7 @@ func copyenv() {
+ 		}
+ 		env[key] = v
+ 		envs[i] = key + "=" + v
++		envi[key] = i
+ 		i++
+ 	}
+ }
+@@ -129,14 +136,39 @@ func Clearenv() {
+ 	defer envLock.Unlock()
+ 
+ 	env = make(map[string]string)
++	envi = make(map[string]int)
+ 	envs = []string{}
+ 	RawSyscall(SYS_RFORK, RFCENVG, 0, 0)
+ }
+ 
++func Unsetenv(key string) error {
++	if len(key) == 0 {
++		return errZeroLengthKey
++	}
++
++	envLock.Lock()
++	defer envLock.Unlock()
++
++	Remove("/env/" + key)
++
++	if i, ok := envi[key]; ok {
++		delete(env, key)
++		delete(envi, key)
++		envs[i] = ""
++	}
++	return nil
++}
++
+ func Environ() []string {
+ 	envLock.RLock()
+ 	defer envLock.RUnlock()
+ 
+ 	envOnce.Do(copyenv)
+-	return append([]string(nil), envs...)
++	ret := make([]string, 0, len(envs))
++	for _, pair := range envs {
++		if pair != "" {
++			ret = append(ret, pair)
++		}
++	}
++	return ret
+ }
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index 01ac38af13..b5ded9c763 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -20,16 +20,18 @@ var (
+ 	// env maps from an environment variable to its first occurrence in envs.
+ 	env map[string]int
+ 
+-	// envs is provided by the runtime. elements are expected to be
+-	// of the form "key=value".
++	// envs is provided by the runtime. elements are expected to
++	// be of the form "key=value". An empty string means deleted
++	// (or a duplicate to be ignored).
+ 	envs []string = runtime_envs()
+ )
+ 
+ func runtime_envs() []string // in package runtime
+ 
+-// setenv_c is provided by the runtime, but is a no-op if cgo isn't
+-// loaded.
++// setenv_c and unsetenv_c are provided by the runtime but are no-ops
++// if cgo isn't loaded.
+ func setenv_c(k, v string)
++func unsetenv_c(k string)
+ 
+ func copyenv() {
+ 	env = make(map[string]int)
+@@ -38,7 +40,13 @@ func copyenv() {
+ 			if s[j] == '=' {
+ 				key := s[:j]
+ 				if _, ok := env[key]; !ok {
+-					env[key] = i
++					env[key] = i // first mention of key
++				} else {
++					// Clear duplicate keys. This permits Unsetenv to
++					// safely delete only the first item without
++					// worrying about unshadowing a later one,
++					// which might be a security problem.
++					envs[i] = ""
+ 				}
+ 				break
+ 			}
+@@ -46,6 +54,20 @@ func copyenv() {
+ 	}
+ }
+ 
++func Unsetenv(key string) error {
++	envOnce.Do(copyenv)
++
++	envLock.Lock()
++	defer envLock.Unlock()
++
++	if i, ok := env[key]; ok {
++		envs[i] = ""
++		delete(env, key)
++	}
++	unsetenv_c(key)
++	return nil
++}
++
+ func Getenv(key string) (value string, found bool) {
+ 	envOnce.Do(copyenv)
+ 	if len(key) == 0 {
+@@ -106,16 +128,22 @@ func Clearenv() {
+ 	envLock.Lock()
+ 	defer envLock.Unlock()
+ 
++	for k := range env {
++		unsetenv_c(k)
++	}
+ 	env = make(map[string]int)
+ 	envs = []string{}
+-	// TODO(bradfitz): pass through to C
+ }
+ 
+ func Environ() []string {
+ 	envOnce.Do(copyenv)
+ 	envLock.RLock()
+ 	defer envLock.RUnlock()
+-	a := make([]string, len(envs))
+-	copy(a, envs)
++	a := make([]string, 0, len(envs))
++	for _, env := range envs {
++		if env != "" {
++			a = append(a, env)
++		}
++	}
+ 	return a
+ }
+diff --git a/src/syscall/env_windows.go b/src/syscall/env_windows.go
+index 420b387246..bc21690d9f 100644
+--- a/src/syscall/env_windows.go
++++ b/src/syscall/env_windows.go
+@@ -47,6 +47,14 @@ func Setenv(key, value string) error {
+ 	return nil
+ }
+ 
++func Unsetenv(key string) error {
++	keyp, err := UTF16PtrFromString(key)
++	if err != nil {
++		return err
++	}
++	return SetEnvironmentVariable(keyp, nil)
++}
++
+ func Clearenv() {
+ 	for _, s := range Environ() {
+ 		// Environment variables can begin with =

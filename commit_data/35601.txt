@@ -22,9 +22,68 @@ Date:   Mon Feb 19 13:26:01 2018 -0800
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/os/path.go         |  4 +---
  src/os/path_plan9.go   |  4 ++++
  src/os/path_unix.go    |  4 ++++
  src/os/path_windows.go | 11 +++++++++++
  4 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/path.go b/src/os/path.go
+index ec6a7938b2..5c5350670d 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -40,9 +40,7 @@ func MkdirAll(path string, perm FileMode) error {
+ 
+ 	if j > 1 {
+ 		// Create parent.
+-		// Pass trailing path separator to MkdirAll, so our
+-		// algorithm works for paths, like \\?\c:\
+-		err = MkdirAll(path[0:j], perm)
++		err = MkdirAll(fixRootDirectory(path[:j-1]), perm)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/os/path_plan9.go b/src/os/path_plan9.go
+index b09b53a3d8..a54b4b98f1 100644
+--- a/src/os/path_plan9.go
++++ b/src/os/path_plan9.go
+@@ -13,3 +13,7 @@ const (
+ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
++
++func fixRootDirectory(p string) string {
++	return p
++}
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index ecf098c461..9117ad0ef6 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -33,3 +33,7 @@ func basename(name string) string {
+ 
+ 	return name
+ }
++
++func fixRootDirectory(p string) string {
++	return p
++}
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 101b026dc9..87b1cac531 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -207,3 +207,14 @@ func fixLongPath(path string) string {
+ 	}
+ 	return string(pathbuf[:w])
+ }
++
++// fixRootDirectory fixes a reference to a drive's root directory to
++// have the required trailing slash.
++func fixRootDirectory(p string) string {
++	if len(p) == len(`\\?\c:`) {
++		if IsPathSeparator(p[0]) && IsPathSeparator(p[1]) && p[2] == '?' && IsPathSeparator(p[3]) && p[5] == ':' {
++			return p + `\`
++		}
++	}
++	return p
++}

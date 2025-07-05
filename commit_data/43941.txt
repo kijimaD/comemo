@@ -11,6 +11,23 @@ Date:   Wed Apr 29 15:43:11 2020 +0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/example_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/math/example_test.go b/src/math/example_test.go
+index 50c7426979..ce9c383256 100644
+--- a/src/math/example_test.go
++++ b/src/math/example_test.go
+@@ -219,3 +219,11 @@ func ExampleTrunc() {
+ 	// 3.00
+ 	// -1.00
+ }
++
++func ExampleCbrt() {
++	fmt.Printf("%.2f\n", math.Cbrt(8))
++	fmt.Printf("%.2f\n", math.Cbrt(27))
++	// Output:
++	// 2.00
++	// 3.00
++}

@@ -12,7 +12,72 @@ Date:   Wed Oct 2 17:45:05 2019 -0400
     Change-Id: Ib3160ecf47c4ca530b09369e0e8284db6597cfd0
     Reviewed-on: https://go-review.googlesource.com/c/go/+/198492
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/types/sym.go | 16 +++++++---------
  src/cmd/internal/obj/sym.go           | 10 ++++++++++
  2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index d43efd3bd0..07bce4d5cd 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -76,24 +76,22 @@ func (sym *Sym) LinksymName() string {
+ 	return sym.Pkg.Prefix + "." + sym.Name
+ }
+ 
+-func (sym *Sym) Linksym() (r *obj.LSym) {
++func (sym *Sym) Linksym() *obj.LSym {
+ 	if sym == nil {
+ 		return nil
+ 	}
+-	if sym.Func() {
+-		// This is a function symbol. Mark it as "internal ABI".
+-		r = Ctxt.LookupABI(sym.LinksymName(), obj.ABIInternal)
+-	} else {
+-		r = Ctxt.Lookup(sym.LinksymName())
+-	}
+-	if r.Pkg == "" {
++	initPkg := func(r *obj.LSym) {
+ 		if sym.Linkname != "" {
+ 			r.Pkg = "_"
+ 		} else {
+ 			r.Pkg = sym.Pkg.Prefix
+ 		}
+ 	}
+-	return
++	if sym.Func() {
++		// This is a function symbol. Mark it as "internal ABI".
++		return Ctxt.LookupABIInit(sym.LinksymName(), obj.ABIInternal, initPkg)
++	}
++	return Ctxt.LookupInit(sym.LinksymName(), initPkg)
+ }
+ 
+ // Less reports whether symbol a is ordered before symbol b.
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index c4eabe7806..e47c511ddc 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -78,6 +78,13 @@ func (ctxt *Link) LookupStatic(name string) *LSym {
+ // LookupABI looks up a symbol with the given ABI.
+ // If it does not exist, it creates it.
+ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
++	return ctxt.LookupABIInit(name, abi, nil)
++}
++
++// LookupABI looks up a symbol with the given ABI.
++// If it does not exist, it creates it and
++// passes it to init for one-time initialization.
++func (ctxt *Link) LookupABIInit(name string, abi ABI, init func(s *LSym)) *LSym {
+ 	var hash map[string]*LSym
+ 	switch abi {
+ 	case ABI0:
+@@ -94,6 +101,9 @@ func (ctxt *Link) LookupABI(name string, abi ABI) *LSym {
+ 		s = &LSym{Name: name}
+ 		s.SetABI(abi)
+ 		hash[name] = s
++		if init != nil {
++			init(s)
++		}
+ 	}
+ 	ctxt.hashmu.Unlock()
+ 	return s

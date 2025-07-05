@@ -16,7 +16,33 @@ Date:   Fri Jan 15 19:18:34 2021 -0500
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go      | 1 +
  src/cmd/go/testdata/script/embed.txt | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 92dd794871..3f67927111 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1809,6 +1809,7 @@ func (p *Package) load(ctx context.Context, path string, stk *ImportStack, impor
+ 
+ 	p.EmbedFiles, p.Internal.Embed, err = resolveEmbed(p.Dir, p.EmbedPatterns)
+ 	if err != nil {
++		p.Incomplete = true
+ 		setError(err)
+ 		embedErr := err.(*EmbedError)
+ 		p.Error.setPos(p.Internal.Build.EmbedPatternPos[embedErr.Pattern])
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+index 2ad799b7a7..6ad42e9cd1 100644
+--- a/src/cmd/go/testdata/script/embed.txt
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -46,6 +46,8 @@ stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddab
+ cp x.txt t/.git
+ ! go build -x
+ stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'
++go list -e -f '{{.Incomplete}}'
++stdout 'true'
+ [symlink] symlink t/x.link -> ../x.txt
+ [symlink] ! go build -x
+ [symlink] stderr '^x.go:5:12: pattern [*]t: cannot embed directory t: contains no embeddable files$'

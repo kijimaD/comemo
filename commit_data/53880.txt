@@ -12,6 +12,31 @@ Date:   Mon Sep 5 14:57:40 2022 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/pkginit/initorder.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/pkginit/initorder.go b/src/cmd/compile/internal/pkginit/initorder.go
+index a50975343f..6290a8f314 100644
+--- a/src/cmd/compile/internal/pkginit/initorder.go
++++ b/src/cmd/compile/internal/pkginit/initorder.go
+@@ -5,9 +5,9 @@
+ package pkginit
+ 
+ import (
+-	"bytes"
+ 	"container/heap"
+ 	"fmt"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -236,7 +236,7 @@ func reportInitLoopAndExit(l []*ir.Name) {
+ 	// TODO(mdempsky): Method values are printed as "T.m-fm"
+ 	// rather than "T.m". Figure out how to avoid that.
+ 
+-	var msg bytes.Buffer
++	var msg strings.Builder
+ 	fmt.Fprintf(&msg, "initialization loop:\n")
+ 	for _, n := range l {
+ 		fmt.Fprintf(&msg, "\t%v: %v refers to\n", ir.Line(n), n)

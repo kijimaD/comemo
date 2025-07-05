@@ -10,6 +10,21 @@ Date:   Mon Aug 11 23:32:33 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/124900043
-
+---
  src/pkg/runtime/os_linux.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 77754f481c..b9ac8c619c 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -312,7 +312,8 @@ runtime·setsig(int32 i, GoSighandler *fn, bool restart)
+ 	if(fn == runtime·sighandler)
+ 		fn = (void*)runtime·sigtramp;
+ 	sa.sa_handler = fn;
+-	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0)
++	// Qemu rejects rt_sigaction of SIGRTMAX (64).
++	if(runtime·rt_sigaction(i, &sa, nil, sizeof(sa.sa_mask)) != 0 && i != 64)
+ 		runtime·throw("rt_sigaction failure");
+ }
+ 

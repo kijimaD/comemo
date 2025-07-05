@@ -53,6 +53,20 @@ Date:   Mon May 13 04:10:34 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/runtime/proc_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 67eadeac9e..a930ea707f 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -200,7 +200,7 @@ func testGoroutineParallelism2(t *testing.T, load, netpoll bool) {
+ 				laddr = "127.0.0.1:0"
+ 			}
+ 			ln, err := net.Listen("tcp", laddr)
+-			if err != nil {
++			if err == nil {
+ 				defer ln.Close() // yup, defer in a loop
+ 			}
+ 		}

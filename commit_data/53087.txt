@@ -15,8 +15,116 @@ Date:   Fri Jul 8 10:02:14 2022 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go             |  9 +++++++++
  src/cmd/go/script_test.go         | 19 ++++++-------------
  src/cmd/go/testdata/script/README | 17 ++++++++++++-----
  3 files changed, 27 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index b39a62f3e4..c100316f47 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1363,6 +1363,15 @@ func tempEnvName() string {
+ 	}
+ }
+ 
++func pathEnvName() string {
++	switch runtime.GOOS {
++	case "plan9":
++		return "path"
++	default:
++		return "PATH"
++	}
++}
++
+ func TestDefaultGOPATH(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 5e82929f19..809dfb452f 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -163,7 +163,7 @@ func (ts *testScript) setup() {
+ 	ts.cd = filepath.Join(ts.workdir, "gopath/src")
+ 	ts.env = []string{
+ 		"WORK=" + ts.workdir, // must be first for ts.abbrev
+-		"PATH=" + testBin + string(filepath.ListSeparator) + os.Getenv("PATH"),
++		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
+ 		homeEnvName() + "=/no-home",
+ 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
+ 		"GOARCH=" + runtime.GOARCH,
+@@ -187,8 +187,6 @@ func (ts *testScript) setup() {
+ 		tempEnvName() + "=" + filepath.Join(ts.workdir, "tmp"),
+ 		"devnull=" + os.DevNull,
+ 		"goversion=" + goVersion(ts),
+-		":=" + string(os.PathListSeparator),
+-		"/=" + string(os.PathSeparator),
+ 		"CMDGO_TEST_RUN_MAIN=true",
+ 	}
+ 	if testenv.Builder() != "" || os.Getenv("GIT_TRACE_CURL") == "1" {
+@@ -203,10 +201,6 @@ func (ts *testScript) setup() {
+ 		ts.env = append(ts.env, "TESTGONETWORK=panic", "TESTGOVCS=panic")
+ 	}
+ 
+-	if runtime.GOOS == "plan9" {
+-		ts.env = append(ts.env, "path="+testBin+string(filepath.ListSeparator)+os.Getenv("path"))
+-	}
+-
+ 	for _, key := range extraEnvKeys {
+ 		if val := os.Getenv(key); val != "" {
+ 			ts.env = append(ts.env, key+"="+val)
+@@ -219,6 +213,10 @@ func (ts *testScript) setup() {
+ 			ts.envMap[kv[:i]] = kv[i+1:]
+ 		}
+ 	}
++	// Add entries for ${:} and ${/} to make it easier to write platform-independent
++	// environment variables.
++	ts.envMap["/"] = string(os.PathSeparator)
++	ts.envMap[":"] = string(os.PathListSeparator)
+ 
+ 	fmt.Fprintf(&ts.log, "# (%s)\n", time.Now().UTC().Format(time.RFC3339))
+ 	ts.mark = ts.log.Len()
+@@ -1264,12 +1262,7 @@ func (ts *testScript) lookPath(command string) (string, error) {
+ 		}
+ 	}
+ 
+-	pathName := "PATH"
+-	if runtime.GOOS == "plan9" {
+-		pathName = "path"
+-	}
+-
+-	for _, dir := range strings.Split(ts.envMap[pathName], string(filepath.ListSeparator)) {
++	for _, dir := range strings.Split(ts.envMap[pathEnvName()], string(filepath.ListSeparator)) {
+ 		if searchExt {
+ 			ents, err := os.ReadDir(dir)
+ 			if err != nil {
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index c575bff1a5..e52917684f 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -41,12 +41,19 @@ Scripts also have access to these other environment variables:
+ 	GODEBUG=<actual GODEBUG>
+ 	devnull=<value of os.DevNull>
+ 	goversion=<current Go version; for example, 1.12>
+-	:=<OS-specific path list separator>
+ 
+-The scripts' supporting files are unpacked relative to $GOPATH/src (aka $WORK/gopath/src)
+-and then the script begins execution in that directory as well. Thus the example above runs
+-in $WORK/gopath/src with GOPATH=$WORK/gopath and $WORK/gopath/src/hello.go
+-containing the listed contents.
++On Plan 9, the variables $path and $home are set instead of $PATH and $HOME.
++On Windows, the variables $USERPROFILE and $TMP are set instead of
++$HOME and $TMPDIR.
++
++In addition, variables named ':' and '/' are expanded within script arguments
++(expanding to the value of os.PathListSeparator and os.PathSeparator
++respectively) but are not inherited in subprocess environments.
++
++The scripts' supporting files are unpacked relative to $GOPATH/src
++(aka $WORK/gopath/src) and then the script begins execution in that directory as
++well. Thus the example above runs in $WORK/gopath/src with GOPATH=$WORK/gopath
++and $WORK/gopath/src/hello.go containing the listed contents.
+ 
+ The lines at the top of the script are a sequence of commands to be executed
+ by a tiny script engine in ../../script_test.go (not the system shell).

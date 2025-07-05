@@ -12,10 +12,73 @@ Date:   Tue Dec 10 12:05:37 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/40400043
-
+---
  test/fixedbugs/bug191.dir/a.go    | 4 +++-
  test/fixedbugs/bug191.dir/b.go    | 4 +++-
  test/fixedbugs/bug191.dir/main.go | 3 +++
  test/fixedbugs/bug191.go          | 2 +-
  test/fixedbugs/bug191.out         | 2 --
  5 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/test/fixedbugs/bug191.dir/a.go b/test/fixedbugs/bug191.dir/a.go
+index b87ad6f4fe..139a8a3a23 100644
+--- a/test/fixedbugs/bug191.dir/a.go
++++ b/test/fixedbugs/bug191.dir/a.go
+@@ -4,8 +4,10 @@
+ 
+ package a
+ 
++var A int
++
+ func init() {
+-	println("a");
++	A = 1
+ }
+ 
+ type T int;
+diff --git a/test/fixedbugs/bug191.dir/b.go b/test/fixedbugs/bug191.dir/b.go
+index 3e780ac0dd..36770f6fc9 100644
+--- a/test/fixedbugs/bug191.dir/b.go
++++ b/test/fixedbugs/bug191.dir/b.go
+@@ -4,8 +4,10 @@
+ 
+ package b
+ 
++var B int
++
+ func init() {
+-	println("b");
++	B = 2
+ }
+ 
+ type V int;
+diff --git a/test/fixedbugs/bug191.dir/main.go b/test/fixedbugs/bug191.dir/main.go
+index 995134ccfc..2d24dd12d5 100644
+--- a/test/fixedbugs/bug191.dir/main.go
++++ b/test/fixedbugs/bug191.dir/main.go
+@@ -11,4 +11,7 @@ var _ T
+ var _ V
+ 
+ func main() {
++	if A != 1 || B != 2 {
++		panic("wrong vars")
++	}
+ }
+diff --git a/test/fixedbugs/bug191.go b/test/fixedbugs/bug191.go
+index acb4796b33..248e23edfc 100644
+--- a/test/fixedbugs/bug191.go
++++ b/test/fixedbugs/bug191.go
+@@ -1,4 +1,4 @@
+-// rundircmpout
++// rundir
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug191.out b/test/fixedbugs/bug191.out
+deleted file mode 100644
+index 0e1677a978..0000000000
+--- a/test/fixedbugs/bug191.out
++++ /dev/null
+@@ -1,2 +0,0 @@
+-b
+-a

@@ -11,7 +11,7 @@ Date:   Sun Aug 9 15:16:06 2009 -0700
     R=rsc
     OCL=32946
     CL=32946
-
+---
  src/cmd/6g/gg.h    |  21 -----
  src/cmd/6g/ggen.c  |  38 ++++----
  src/cmd/6g/gsubr.c | 269 ++++-------------------------------------------------
@@ -20,3 +20,816 @@ Date:   Sun Aug 9 15:16:06 2009 -0700
  src/cmd/gc/go.h    |  29 +++++-
  src/cmd/gc/subr.c  | 267 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  7 files changed, 361 insertions(+), 287 deletions(-)
+
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index 6ba975bad2..ce5f6c86cd 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -42,23 +42,6 @@ struct	Prog
+ 	void*	reg;		// pointer to containing Reg struct
+ };
+ 
+-typedef	struct	Magic Magic;
+-struct	Magic
+-{
+-	int	w;	// input for both - width
+-	int	s;	// output for both - shift
+-	int	bad;	// output for both - unexpected failure
+-
+-	// magic multiplier for signed literal divisors
+-	int64	sd;	// input - literal divisor
+-	int64	sm;	// output - multiplier
+-
+-	// magic multiplier for unsigned literal divisors
+-	uint64	ud;	// input - literal divisor
+-	uint64	um;	// output - multiplier
+-	int	ua;	// output - adder
+-};
+-
+ EXTERN	Biobuf*	bout;
+ EXTERN	int32	dynloc;
+ EXTERN	uchar	reg[D_NONE];
+@@ -142,10 +125,6 @@ void	sudoclean(void);
+ int	sudoaddable(int, Node*, Addr*);
+ void	afunclit(Addr*);
+ void	datagostring(Strlit*, Addr*);
+-int	powtwo(Node*);
+-Type*	tounsigned(Type*);
+-void	smagic(Magic*);
+-void	umagic(Magic*);
+ 
+ /*
+  * obj.c
+diff --git a/src/cmd/6g/ggen.c b/src/cmd/6g/ggen.c
+index a3723738f5..2a61ca4e6b 100644
+--- a/src/cmd/6g/ggen.c
++++ b/src/cmd/6g/ggen.c
+@@ -563,7 +563,7 @@ restx(Node *x, Node *oldx)
+ void
+ cgen_div(int op, Node *nl, Node *nr, Node *res)
+ {
+-	Node ax, dx, cx, oldax, olddx, oldcx;
++	Node ax, dx, oldax, olddx;
+ 	Node n1, n2, n3, savl, savr;
+ 	int n, w, s;
+ 	Magic m;
+@@ -697,16 +697,11 @@ divbymul:
+ 		umagic(&m);
+ 		if(m.bad)
+ 			break;
+-		if(m.ua != 0) {
+-			// todo fixup
+-			break;
+-		}
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+ 		savex(D_AX, &ax, &oldax, res, nl->type);
+ 		savex(D_DX, &dx, &olddx, res, nl->type);
+-		savex(D_CX, &cx, &oldcx, res, nl->type);
+ 
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);				// num -> reg(n1)
+@@ -716,15 +711,24 @@ divbymul:
+ 
+ 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+ 
+-		nodconst(&n2, nl->type, m.s);
+-		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
++		if(m.ua) {
++			// need to add numerator accounting for overflow
++			gins(optoas(OADD, nl->type), &n1, &dx);
++			nodconst(&n2, nl->type, 1);
++			gins(optoas(ORRC, nl->type), &n2, &dx);
++			nodconst(&n2, nl->type, m.s-1);
++			gins(optoas(ORSH, nl->type), &n2, &dx);
++		} else {
++			nodconst(&n2, nl->type, m.s);
++			gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
++		}
++
+ 
+ 		regfree(&n1);
+ 		gmove(&dx, res);
+ 
+ 		restx(&ax, &oldax);
+ 		restx(&dx, &olddx);
+-		restx(&cx, &oldcx);
+ 		return;
+ 
+ 	case TINT16:
+@@ -735,16 +739,11 @@ divbymul:
+ 		smagic(&m);
+ 		if(m.bad)
+ 			break;
+-		if(m.sm < 0) {
+-			// todo fixup
+-			break;
+-		}
+ 		if(op == OMOD)
+ 			goto longmod;
+ 
+ 		savex(D_AX, &ax, &oldax, res, nl->type);
+ 		savex(D_DX, &dx, &olddx, res, nl->type);
+-		savex(D_CX, &cx, &oldcx, res, nl->type);
+ 
+ 		regalloc(&n1, nl->type, N);
+ 		cgen(nl, &n1);				// num -> reg(n1)
+@@ -754,6 +753,11 @@ divbymul:
+ 
+ 		gins(optoas(OHMUL, nl->type), &n1, N);	// imul reg
+ 
++		if(m.sm < 0) {
++			// need to add numerator
++			gins(optoas(OADD, nl->type), &n1, &dx);
++		}
++
+ 		nodconst(&n2, nl->type, m.s);
+ 		gins(optoas(ORSH, nl->type), &n2, &dx);	// shift dx
+ 
+@@ -761,15 +765,17 @@ divbymul:
+ 		gins(optoas(ORSH, nl->type), &n2, &n1);	// -1 iff num is neg
+ 		gins(optoas(OSUB, nl->type), &n1, &dx);	// added
+ 
+-		if(m.sd < 0)
++		if(m.sd < 0) {
++			// this could probably be removed
++			// by factoring it into the multiplier
+ 			gins(optoas(OMINUS, nl->type), N, &dx);
++		}
+ 
+ 		regfree(&n1);
+ 		gmove(&dx, res);
+ 
+ 		restx(&ax, &oldax);
+ 		restx(&dx, &olddx);
+-		restx(&cx, &oldcx);
+ 		return;
+ 	}
+ 	goto longdiv;
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index f7c80f50e3..c98642ee0d 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -1473,6 +1473,26 @@ optoas(int op, Type *t)
+ 		a = ASARQ;
+ 		break;
+ 
++	case CASE(ORRC, TINT8):
++	case CASE(ORRC, TUINT8):
++		a = ARCRB;
++		break;
++
++	case CASE(ORRC, TINT16):
++	case CASE(ORRC, TUINT16):
++		a = ARCRW;
++		break;
++
++	case CASE(ORRC, TINT32):
++	case CASE(ORRC, TUINT32):
++		a = ARCRL;
++		break;
++
++	case CASE(ORRC, TINT64):
++	case CASE(ORRC, TUINT64):
++		a = ARCRQ;
++		break;
++
+ 	case CASE(OHMUL, TINT8):
+ 	case CASE(OMUL, TINT8):
+ 	case CASE(OMUL, TUINT8):
+@@ -1883,252 +1903,3 @@ no:
+ 	sudoclean();
+ 	return 0;
+ }
+-
+-int
+-powtwo(Node *n)
+-{
+-	uvlong v, b;
+-	int i;
+-
+-	if(n == N || n->op != OLITERAL || n->type == T)
+-		goto no;
+-	if(!isint[n->type->etype])
+-		goto no;
+-
+-	v = mpgetfix(n->val.u.xval);
+-	b = 1ULL;
+-	for(i=0; i<64; i++) {
+-		if(b == v)
+-			return i;
+-		b = b<<1;
+-	}
+-
+-	if(!issigned[n->type->etype])
+-		goto no;
+-
+-	v = -v;
+-	b = 1ULL;
+-	for(i=0; i<64; i++) {
+-		if(b == v)
+-			return i+1000;
+-		b = b<<1;
+-	}
+-
+-no:
+-	return -1;
+-}
+-
+-Type*
+-tounsigned(Type *t)
+-{
+-
+-	// this is types[et+1], but not sure
+-	// that this relation is immutable
+-	switch(t->etype) {
+-	default:
+-		print("tounsigned: unknown type %T\n", t);
+-		t = T;
+-		break;
+-	case TINT:
+-		t = types[TUINT];
+-		break;
+-	case TINT8:
+-		t = types[TUINT8];
+-		break;
+-	case TINT16:
+-		t = types[TUINT16];
+-		break;
+-	case TINT32:
+-		t = types[TUINT32];
+-		break;
+-	case TINT64:
+-		t = types[TUINT64];
+-		break;
+-	}
+-	return t;
+-}
+-
+-void
+-smagic(Magic *m)
+-{
+-	int p;
+-	uint64 ad, anc, delta, q1, r1, q2, r2, t;
+-	uint64 mask, two31;
+-
+-	m->bad = 0;
+-	switch(m->w) {
+-	default:
+-		m->bad = 1;
+-		return;
+-	case 8:
+-		mask = 0xffLL;
+-		break;
+-	case 16:
+-		mask = 0xffffLL;
+-		break;
+-	case 32:
+-		mask = 0xffffffffLL;
+-		break;
+-	case 64:
+-		mask = 0xffffffffffffffffLL;
+-		break;
+-	}
+-	two31 = mask ^ (mask>>1);
+-
+-	p = m->w-1;
+-	ad = m->sd;
+-	if(m->sd < 0)
+-		ad = -m->sd;
+-
+-	// bad denominators
+-	if(ad == 0 || ad == 1 || ad == two31) {
+-		m->bad = 1;
+-		return;
+-	}
+-
+-	t = two31;
+-	ad &= mask;
+-
+-	anc = t - 1 - t%ad;
+-	anc &= mask;
+-
+-	q1 = two31/anc;
+-	r1 = two31 - q1*anc;
+-	q1 &= mask;
+-	r1 &= mask;
+-
+-	q2 = two31/ad;
+-	r2 = two31 - q2*ad;
+-	q2 &= mask;
+-	r2 &= mask;
+-
+-	for(;;) {
+-		p++;
+-		q1 <<= 1;
+-		r1 <<= 1;
+-		q1 &= mask;
+-		r1 &= mask;
+-		if(r1 >= anc) {
+-			q1++;
+-			r1 -= anc;
+-			q1 &= mask;
+-			r1 &= mask;
+-		}
+-
+-		q2 <<= 1;
+-		r2 <<= 1;
+-		q2 &= mask;
+-		r2 &= mask;
+-		if(r2 >= ad) {
+-			q2++;
+-			r2 -= ad;
+-			q2 &= mask;
+-			r2 &= mask;
+-		}
+-
+-		delta = ad - r2;
+-		delta &= mask;
+-		if(q1 < delta || (q1 == delta && r1 == 0)) {
+-			continue;
+-		}
+-		break;
+-	}
+-
+-	m->sm = q2+1;
+-	if(m->sm & two31)
+-		m->sm |= ~mask;
+-	m->s = p-m->w;
+-}
+-
+-void
+-umagic(Magic *m)
+-{
+-	int p;
+-	uint64 nc, delta, q1, r1, q2, r2;
+-	uint64 mask, two31;
+-
+-	m->bad = 0;
+-	m->ua = 0;
+-
+-	switch(m->w) {
+-	default:
+-		m->bad = 1;
+-		return;
+-	case 8:
+-		mask = 0xffLL;
+-		break;
+-	case 16:
+-		mask = 0xffffLL;
+-		break;
+-	case 32:
+-		mask = 0xffffffffLL;
+-		break;
+-	case 64:
+-		mask = 0xffffffffffffffffLL;
+-		break;
+-	}
+-	two31 = mask ^ (mask>>1);
+-
+-	m->ud &= mask;
+-	if(m->ud == 0 || m->ud == two31) {
+-		m->bad = 1;
+-		return;
+-	}
+-	nc = mask - (-m->ud&mask)%m->ud;
+-	p = m->w-1;
+-
+-	q1 = two31/nc;
+-	r1 = two31 - q1*nc;
+-	q1 &= mask;
+-	r1 &= mask;
+-
+-	q2 = (two31-1) / m->ud;
+-	r2 = (two31-1) - q2*m->ud;
+-	q2 &= mask;
+-	r2 &= mask;
+-
+-	for(;;) {
+-		p++;
+-		if(r1 >= nc-r1) {
+-			q1 <<= 1;
+-			q1++;
+-			r1 <<= 1;
+-			r1 -= nc;
+-		} else {
+-			q1 <<= 1;
+-			r1 <<= 1;
+-		}
+-		q1 &= mask;
+-		r1 &= mask;
+-		if(r2+1 >= m->ud-r2) {
+-			if(q2 >= two31-1) {
+-				m->ua = 1;
+-			}
+-			q2 <<= 1;
+-			q2++;
+-			r2 <<= 1;
+-			r2++;
+-			r2 -= m->ud;
+-		} else {
+-			if(q2 >= two31) {
+-				m->ua = 1;
+-			}
+-			q2 <<= 1;
+-			r2 <<= 1;
+-			r2++;
+-		}
+-		q2 &= mask;
+-		r2 &= mask;
+-
+-		delta = m->ud - 1 - r2;
+-		delta &= mask;
+-
+-		if(p < m->w+m->w)
+-		if(q1 < delta || (q1 == delta && r1 == 0)) {
+-			continue;
+-		}
+-		break;
+-	}
+-	m->um = q2+1;
+-	m->s = p-m->w;
+-}
+diff --git a/src/cmd/6g/peep.c b/src/cmd/6g/peep.c
+index 4cfdf59e0d..4432203f2f 100644
+--- a/src/cmd/6g/peep.c
++++ b/src/cmd/6g/peep.c
+@@ -390,6 +390,14 @@ subprop(Reg *r0)
+ 		case AMULQ:
+ 		case AMULW:
+ 
++		case ARCLB:
++		case ARCLL:
++		case ARCLQ:
++		case ARCLW:
++		case ARCRB:
++		case ARCRL:
++		case ARCRQ:
++		case ARCRW:
+ 		case AROLB:
+ 		case AROLL:
+ 		case AROLQ:
+@@ -652,6 +660,14 @@ copyu(Prog *p, Adr *v, Adr *s)
+ 		}
+ 		goto caseread;
+ 
++	case ARCLB:
++	case ARCLL:
++	case ARCLQ:
++	case ARCLW:
++	case ARCRB:
++	case ARCRL:
++	case ARCRQ:
++	case ARCRW:
+ 	case AROLB:
+ 	case AROLL:
+ 	case AROLQ:
+diff --git a/src/cmd/6g/reg.c b/src/cmd/6g/reg.c
+index daad3f1250..f9704f202b 100644
+--- a/src/cmd/6g/reg.c
++++ b/src/cmd/6g/reg.c
+@@ -298,6 +298,14 @@ regopt(Prog *firstp)
+ 		case ASARL:
+ 		case ASARQ:
+ 		case ASARW:
++		case ARCLB:
++		case ARCLL:
++		case ARCLQ:
++		case ARCLW:
++		case ARCRB:
++		case ARCRL:
++		case ARCRQ:
++		case ARCRW:
+ 		case AROLB:
+ 		case AROLL:
+ 		case AROLQ:
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index c0c4354b87..73deb98263 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -343,7 +343,8 @@ enum
+ 	OKEY, OPARAM,
+ 	OLEN,
+ 	OMAKE, OMAKECHAN, OMAKEMAP, OMAKESLICE,
+-	OMUL, ODIV, OMOD, OLSH, ORSH, OHMUL, OAND, OANDNOT,
++	OHMUL, ORRC, OLRC,	// high-mul and rotate-carry
++	OMUL, ODIV, OMOD, OLSH, ORSH, OAND, OANDNOT,
+ 	ONEW,
+ 	ONOT, OCOM, OPLUS, OMINUS,
+ 	OOROR,
+@@ -542,6 +543,27 @@ struct Idir
+ 	char*	dir;
+ };
+ 
++/*
++ * argument passing to/from
++ * smagic and umagic
++ */
++typedef	struct	Magic Magic;
++struct	Magic
++{
++	int	w;	// input for both - width
++	int	s;	// output for both - shift
++	int	bad;	// output for both - unexpected failure
++
++	// magic multiplier for signed literal divisors
++	int64	sd;	// input - literal divisor
++	int64	sm;	// output - multiplier
++
++	// magic multiplier for unsigned literal divisors
++	uint64	ud;	// input - literal divisor
++	uint64	um;	// output - multiplier
++	int	ua;	// output - adder
++};
++
+ /*
+  * note this is the runtime representation
+  * of the compilers arrays.
+@@ -856,6 +878,11 @@ void	genwrapper(Type*, Type*, Sym*);
+ 
+ int	simsimtype(Type*);
+ 
++int	powtwo(Node*);
++Type*	tounsigned(Type*);
++void	smagic(Magic*);
++void	umagic(Magic*);
++
+ /*
+  *	dcl.c
+  */
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index e6ddaf63fc..d4ee33d872 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -3019,3 +3019,270 @@ resumecheckwidth(void)
+ 	}
+ }
+ 
++/*
++ * return power of 2 of the constant
++ * operand. -1 if it is not a power of 2.
++ * 1000+ if it is a -(power of 2)
++ */
++int
++powtwo(Node *n)
++{
++	uvlong v, b;
++	int i;
++
++	if(n == N || n->op != OLITERAL || n->type == T)
++		goto no;
++	if(!isint[n->type->etype])
++		goto no;
++
++	v = mpgetfix(n->val.u.xval);
++	b = 1ULL;
++	for(i=0; i<64; i++) {
++		if(b == v)
++			return i;
++		b = b<<1;
++	}
++
++	if(!issigned[n->type->etype])
++		goto no;
++
++	v = -v;
++	b = 1ULL;
++	for(i=0; i<64; i++) {
++		if(b == v)
++			return i+1000;
++		b = b<<1;
++	}
++
++no:
++	return -1;
++}
++
++/*
++ * return the unsigned type for
++ * a signed integer type.
++ * returns T if input is not a
++ * signed integer type.
++ */
++Type*
++tounsigned(Type *t)
++{
++
++	// this is types[et+1], but not sure
++	// that this relation is immutable
++	switch(t->etype) {
++	default:
++		print("tounsigned: unknown type %T\n", t);
++		t = T;
++		break;
++	case TINT:
++		t = types[TUINT];
++		break;
++	case TINT8:
++		t = types[TUINT8];
++		break;
++	case TINT16:
++		t = types[TUINT16];
++		break;
++	case TINT32:
++		t = types[TUINT32];
++		break;
++	case TINT64:
++		t = types[TUINT64];
++		break;
++	}
++	return t;
++}
++
++/*
++ * magic number for signed division
++ * see hacker's delight chapter 10
++ */
++void
++smagic(Magic *m)
++{
++	int p;
++	uint64 ad, anc, delta, q1, r1, q2, r2, t;
++	uint64 mask, two31;
++
++	m->bad = 0;
++	switch(m->w) {
++	default:
++		m->bad = 1;
++		return;
++	case 8:
++		mask = 0xffLL;
++		break;
++	case 16:
++		mask = 0xffffLL;
++		break;
++	case 32:
++		mask = 0xffffffffLL;
++		break;
++	case 64:
++		mask = 0xffffffffffffffffLL;
++		break;
++	}
++	two31 = mask ^ (mask>>1);
++
++	p = m->w-1;
++	ad = m->sd;
++	if(m->sd < 0)
++		ad = -m->sd;
++
++	// bad denominators
++	if(ad == 0 || ad == 1 || ad == two31) {
++		m->bad = 1;
++		return;
++	}
++
++	t = two31;
++	ad &= mask;
++
++	anc = t - 1 - t%ad;
++	anc &= mask;
++
++	q1 = two31/anc;
++	r1 = two31 - q1*anc;
++	q1 &= mask;
++	r1 &= mask;
++
++	q2 = two31/ad;
++	r2 = two31 - q2*ad;
++	q2 &= mask;
++	r2 &= mask;
++
++	for(;;) {
++		p++;
++		q1 <<= 1;
++		r1 <<= 1;
++		q1 &= mask;
++		r1 &= mask;
++		if(r1 >= anc) {
++			q1++;
++			r1 -= anc;
++			q1 &= mask;
++			r1 &= mask;
++		}
++
++		q2 <<= 1;
++		r2 <<= 1;
++		q2 &= mask;
++		r2 &= mask;
++		if(r2 >= ad) {
++			q2++;
++			r2 -= ad;
++			q2 &= mask;
++			r2 &= mask;
++		}
++
++		delta = ad - r2;
++		delta &= mask;
++		if(q1 < delta || (q1 == delta && r1 == 0)) {
++			continue;
++		}
++		break;
++	}
++
++	m->sm = q2+1;
++	if(m->sm & two31)
++		m->sm |= ~mask;
++	m->s = p-m->w;
++}
++
++/*
++ * magic number for unsigned division
++ * see hacker's delight chapter 10
++ */
++void
++umagic(Magic *m)
++{
++	int p;
++	uint64 nc, delta, q1, r1, q2, r2;
++	uint64 mask, two31;
++
++	m->bad = 0;
++	m->ua = 0;
++
++	switch(m->w) {
++	default:
++		m->bad = 1;
++		return;
++	case 8:
++		mask = 0xffLL;
++		break;
++	case 16:
++		mask = 0xffffLL;
++		break;
++	case 32:
++		mask = 0xffffffffLL;
++		break;
++	case 64:
++		mask = 0xffffffffffffffffLL;
++		break;
++	}
++	two31 = mask ^ (mask>>1);
++
++	m->ud &= mask;
++	if(m->ud == 0 || m->ud == two31) {
++		m->bad = 1;
++		return;
++	}
++	nc = mask - (-m->ud&mask)%m->ud;
++	p = m->w-1;
++
++	q1 = two31/nc;
++	r1 = two31 - q1*nc;
++	q1 &= mask;
++	r1 &= mask;
++
++	q2 = (two31-1) / m->ud;
++	r2 = (two31-1) - q2*m->ud;
++	q2 &= mask;
++	r2 &= mask;
++
++	for(;;) {
++		p++;
++		if(r1 >= nc-r1) {
++			q1 <<= 1;
++			q1++;
++			r1 <<= 1;
++			r1 -= nc;
++		} else {
++			q1 <<= 1;
++			r1 <<= 1;
++		}
++		q1 &= mask;
++		r1 &= mask;
++		if(r2+1 >= m->ud-r2) {
++			if(q2 >= two31-1) {
++				m->ua = 1;
++			}
++			q2 <<= 1;
++			q2++;
++			r2 <<= 1;
++			r2++;
++			r2 -= m->ud;
++		} else {
++			if(q2 >= two31) {
++				m->ua = 1;
++			}
++			q2 <<= 1;
++			r2 <<= 1;
++			r2++;
++		}
++		q2 &= mask;
++		r2 &= mask;
++
++		delta = m->ud - 1 - r2;
++		delta &= mask;
++
++		if(p < m->w+m->w)
++		if(q1 < delta || (q1 == delta && r1 == 0)) {
++			continue;
++		}
++		break;
++	}
++	m->um = q2+1;
++	m->s = p-m->w;
++}

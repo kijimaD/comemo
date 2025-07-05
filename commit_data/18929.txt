@@ -10,8 +10,57 @@ Date:   Mon Mar 24 20:36:42 2014 +0100
     R=iant, rsc
     CC=golang-codereviews
     https://golang.org/cl/72840044
-
+---
  src/cmd/gc/subr.c           |  1 +
  src/cmd/gc/typecheck.c      |  5 ++++-
  test/fixedbugs/issue6403.go | 14 ++++++++++++++
  3 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 01a5c435aa..f9746f0278 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2243,6 +2243,7 @@ adddot(Node *n)
+ 	int c, d;
+ 
+ 	typecheck(&n->left, Etype|Erv);
++	n->diag |= n->left->diag;
+ 	t = n->left->type;
+ 	if(t == T)
+ 		goto ret;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index ebff0694a0..f6e77acebd 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -3174,7 +3174,10 @@ typecheckdef(Node *n)
+ 			goto ret;
+ 		}
+ 		if(e->type != T && e->op != OLITERAL || !isgoconst(e)) {
+-			yyerror("const initializer %N is not a constant", e);
++			if(!e->diag) {
++				yyerror("const initializer %N is not a constant", e);
++				e->diag = 1;
++			}
+ 			goto ret;
+ 		}
+ 		t = n->type;
+diff --git a/test/fixedbugs/issue6403.go b/test/fixedbugs/issue6403.go
+new file mode 100644
+index 0000000000..b61e2e225d
+--- /dev/null
++++ b/test/fixedbugs/issue6403.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 6403: fix spurious 'const initializer is not a constant' error
++
++package p
++
++import "syscall"
++
++const A int = syscall.X // ERROR "undefined: syscall.X"
++const B int = voidpkg.X // ERROR "undefined: voidpkg"

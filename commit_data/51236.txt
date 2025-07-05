@@ -12,6 +12,20 @@ Date:   Sun Dec 19 03:03:38 2021 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/mgc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 8c8f7d936b..44b96154e7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1323,7 +1323,7 @@ func gcBgMarkWorker() {
+ 		// point, signal the main GC goroutine.
+ 		if incnwait == work.nproc && !gcMarkWorkAvailable(nil) {
+ 			// We don't need the P-local buffers here, allow
+-			// preemption becuse we may schedule like a regular
++			// preemption because we may schedule like a regular
+ 			// goroutine in gcMarkDone (block on locks, etc).
+ 			releasem(node.m.ptr())
+ 			node.m.set(nil)

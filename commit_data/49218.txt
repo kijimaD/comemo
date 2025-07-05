@@ -12,7 +12,7 @@ Date:   Wed Jul 14 13:52:00 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/334730
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/base/base.go                  | 2 +-
  src/cmd/go/internal/base/flag.go                  | 2 +-
  src/cmd/go/internal/fix/fix.go                    | 2 +-
@@ -40,3 +40,331 @@ Date:   Wed Jul 14 13:52:00 2021 -0700
  src/cmd/{go => }/internal/str/str.go              | 0
  src/cmd/{go => }/internal/str/str_test.go         | 0
  26 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 954ce47a98..0144525e30 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -17,7 +17,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ )
+ 
+ // A Command is an implementation of a go command
+diff --git a/src/cmd/go/internal/base/flag.go b/src/cmd/go/internal/base/flag.go
+index 2262e2e992..7e5121bffb 100644
+--- a/src/cmd/go/internal/base/flag.go
++++ b/src/cmd/go/internal/base/flag.go
+@@ -9,7 +9,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ )
+ 
+ // A StringsFlag is a command-line flag that interprets its argument
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 988d45e71c..cc5940fccd 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ 	"context"
+ 	"fmt"
+ 	"os"
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index 8a04008753..2b89a078ac 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -18,7 +18,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ )
+ 
+ func init() {
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 80ea32b428..d7f2eb4610 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -25,8 +25,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ )
+ 
+ var CmdGenerate = &base.Command{
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index cc676428e2..075594b271 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -17,10 +17,10 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/go/internal/web"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 04630dc341..704d61e7c1 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -23,8 +23,8 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ )
+ 
+ var CmdList = &base.Command{
+diff --git a/src/cmd/go/internal/load/flag.go b/src/cmd/go/internal/load/flag.go
+index 440cb86134..4e0cb5bc19 100644
+--- a/src/cmd/go/internal/load/flag.go
++++ b/src/cmd/go/internal/load/flag.go
+@@ -6,7 +6,7 @@ package load
+ 
+ import (
+ 	"cmd/go/internal/base"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ 	"fmt"
+ 	"strings"
+ )
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ac89127a4b..f0613a4c0a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -36,8 +36,8 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 
+ 	"golang.org/x/mod/modfile"
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index c828296566..42eefe37ba 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -22,8 +22,8 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/str"
+ )
+ 
+ var TestMainDeps = []string{
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 3506655a4a..6273afbbe6 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -24,7 +24,7 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 378fbae34f..efb4b1516a 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -21,7 +21,7 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ )
+ 
+ // Downloaded size limits.
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index c2cca084e3..5d810d2621 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -20,7 +20,7 @@ import (
+ 
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/par"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ )
+ 
+ // A VCSError indicates an error using a version control system.
+diff --git a/src/cmd/go/internal/modget/query.go b/src/cmd/go/internal/modget/query.go
+index bbb364fa5e..76041906f2 100644
+--- a/src/cmd/go/internal/modget/query.go
++++ b/src/cmd/go/internal/modget/query.go
+@@ -14,7 +14,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index e7b03b08e9..a643cca0a9 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -118,7 +118,7 @@ import (
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 05ef0a9c48..ba137eda1d 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -21,8 +21,8 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index 7d9e2930ab..931fdcef8f 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -18,8 +18,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ )
+ 
+ var CmdRun = &base.Command{
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 5fcea18caa..5e02a397a6 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -31,9 +31,9 @@ import (
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/work"
++	"cmd/internal/str"
+ 	"cmd/internal/test2json"
+ )
+ 
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 91485f6f74..97b2a631ae 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -23,8 +23,8 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/web"
++	"cmd/internal/str"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 4e9189a363..15f944d2af 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -15,8 +15,8 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+-	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
++	"cmd/internal/str"
+ )
+ 
+ // Build IDs
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index b506b83656..d51ec144f3 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -34,8 +34,8 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/str"
+ )
+ 
+ // actionList returns the list of actions in the dag rooted at root
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 85da4f89f9..c5f3fc264f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -20,8 +20,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/str"
+ 	"cmd/internal/objabi"
++	"cmd/internal/str"
+ 	"cmd/internal/sys"
+ 	"crypto/sha1"
+ )
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 1499536932..3cb7b64183 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -16,8 +16,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/str"
+ 	"cmd/internal/pkgpath"
++	"cmd/internal/str"
+ )
+ 
+ // The Gccgo toolchain.
+diff --git a/src/cmd/go/internal/str/path.go b/src/cmd/internal/str/path.go
+similarity index 100%
+rename from src/cmd/go/internal/str/path.go
+rename to src/cmd/internal/str/path.go
+diff --git a/src/cmd/go/internal/str/str.go b/src/cmd/internal/str/str.go
+similarity index 100%
+rename from src/cmd/go/internal/str/str.go
+rename to src/cmd/internal/str/str.go
+diff --git a/src/cmd/go/internal/str/str_test.go b/src/cmd/internal/str/str_test.go
+similarity index 100%
+rename from src/cmd/go/internal/str/str_test.go
+rename to src/cmd/internal/str/str_test.go

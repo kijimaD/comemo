@@ -9,7 +9,145 @@ Date:   Tue Jul 12 13:15:26 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4696042
-
+---
  src/pkg/exp/template/exec.go      | 52 ++++++++++++++++++++-------------------
  src/pkg/exp/template/exec_test.go | 23 ++++++++++++++++-
  2 files changed, 49 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index 61079838a4..12aa80ec77 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -300,19 +300,7 @@ func (s *state) evalCommand(dot reflect.Value, cmd *commandNode, final reflect.V
+ 	case *dotNode:
+ 		return dot
+ 	case *numberNode:
+-		// These are ideal constants but we don't know the type
+-		// and we have no context.  (If it was a method argument,
+-		// we'd know what we need.) The syntax guides us to some extent.
+-		switch {
+-		case word.isComplex:
+-			return reflect.ValueOf(word.complex128) // incontrovertible.
+-		case word.isFloat && strings.IndexAny(word.text, ".eE") >= 0:
+-			return reflect.ValueOf(word.float64)
+-		case word.isInt:
+-			return reflect.ValueOf(word.int64)
+-		case word.isUint:
+-			return reflect.ValueOf(word.uint64)
+-		}
++		return s.idealConstant(word)
+ 	case *stringNode:
+ 		return reflect.ValueOf(word.text)
+ 	}
+@@ -320,6 +308,31 @@ func (s *state) evalCommand(dot reflect.Value, cmd *commandNode, final reflect.V
+ 	panic("not reached")
+ }
+ 
++// idealConstant is called to return the value of a number in a context where
++// we don't know the type. In that case, the syntax of the number tells us
++// its type, and we use Go rules to resolve.  Note there is no such thing as
++// a uint ideal constant in this situation - the value must be of int type.
++func (s *state) idealConstant(constant *numberNode) reflect.Value {
++	// These are ideal constants but we don't know the type
++	// and we have no context.  (If it was a method argument,
++	// we'd know what we need.) The syntax guides us to some extent.
++	switch {
++	case constant.isComplex:
++		return reflect.ValueOf(constant.complex128) // incontrovertible.
++	case constant.isFloat && strings.IndexAny(constant.text, ".eE") >= 0:
++		return reflect.ValueOf(constant.float64)
++	case constant.isInt:
++		n := int(constant.int64)
++		if int64(n) != constant.int64 {
++			s.errorf("%s overflows int", constant.text)
++		}
++		return reflect.ValueOf(n)
++	case constant.isUint:
++		s.errorf("%s overflows int", constant.text)
++	}
++	return zero
++}
++
+ func (s *state) evalFieldNode(dot reflect.Value, field *fieldNode, args []node, final reflect.Value) reflect.Value {
+ 	return s.evalFieldChain(dot, dot, field.ident, args, final)
+ }
+@@ -577,18 +590,7 @@ func (s *state) evalEmptyInterface(dot reflect.Value, n node) reflect.Value {
+ 	case *identifierNode:
+ 		return s.evalFunction(dot, n.ident, nil, zero)
+ 	case *numberNode:
+-		if n.isComplex {
+-			return reflect.ValueOf(n.complex128)
+-		}
+-		if n.isInt {
+-			return reflect.ValueOf(n.int64)
+-		}
+-		if n.isUint {
+-			return reflect.ValueOf(n.uint64)
+-		}
+-		if n.isFloat {
+-			return reflect.ValueOf(n.float64)
+-		}
++		return s.idealConstant(n)
+ 	case *stringNode:
+ 		return reflect.ValueOf(n.text)
+ 	case *variableNode:
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index e4bb58065d..5b0a47fe1f 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"os"
++	"reflect"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -127,6 +128,10 @@ func (t *T) EPERM(error bool) (bool, os.Error) {
+ 	return false, nil
+ }
+ 
++func typeOf(arg interface{}) string {
++	return fmt.Sprintf("%T", arg)
++}
++
+ type execTest struct {
+ 	name   string
+ 	input  string
+@@ -135,11 +140,27 @@ type execTest struct {
+ 	ok     bool
+ }
+ 
++// bigInt and bigUint are hex string representing numbers either side
++// of the max int boundary.
++// We do it this way so the test doesn't depend on ints being 32 bits.
++var (
++	bigInt  = fmt.Sprintf("0x%x", int(1<<uint(reflect.TypeOf(0).Bits()-1)-1))
++	bigUint = fmt.Sprintf("0x%x", uint(1<<uint(reflect.TypeOf(0).Bits()-1)))
++)
++
+ var execTests = []execTest{
+ 	// Trivial cases.
+ 	{"empty", "", "", nil, true},
+ 	{"text", "some text", "some text", nil, true},
+ 
++	// Ideal constants.
++	{"ideal int", "{{typeOf 3}}", "int", 0, true},
++	{"ideal float", "{{typeOf 1.0}}", "float64", 0, true},
++	{"ideal exp float", "{{typeOf 1e1}}", "float64", 0, true},
++	{"ideal complex", "{{typeOf 1i}}", "complex128", 0, true},
++	{"ideal int", "{{typeOf " + bigInt + "}}", "int", 0, true},
++	{"ideal too big", "{{typeOf " + bigUint + "}}", "", 0, false},
++
+ 	// Fields of structs.
+ 	{".X", "-{{.X}}-", "-x-", tVal, true},
+ 	{".U.V", "-{{.U.V}}-", "-v-", tVal, true},
+@@ -301,7 +322,7 @@ func oneArg(a string) string {
+ 
+ func testExecute(execTests []execTest, set *Set, t *testing.T) {
+ 	b := new(bytes.Buffer)
+-	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg}
++	funcs := FuncMap{"zeroArgs": zeroArgs, "oneArg": oneArg, "typeOf": typeOf}
+ 	for _, test := range execTests {
+ 		tmpl := New(test.name).Funcs(funcs)
+ 		err := tmpl.Parse(test.input)

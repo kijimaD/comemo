@@ -9,6 +9,40 @@ Date:   Tue Jul 30 23:48:18 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/12006045
-
+---
  src/pkg/runtime/runtime.h | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index dfd88e001e..1935a9a2f5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -277,8 +277,8 @@ struct	G
+ 	int32	sig;
+ 	int32	writenbuf;
+ 	byte*	writebuf;
+-	DeferChunk	*dchunk;
+-	DeferChunk	*dchunknext;
++	DeferChunk*	dchunk;
++	DeferChunk*	dchunknext;
+ 	uintptr	sigcode0;
+ 	uintptr	sigcode1;
+ 	uintptr	sigpc;
+@@ -323,7 +323,7 @@ struct	M
+ 	M*	alllink;	// on allm
+ 	M*	schedlink;
+ 	uint32	machport;	// Return address for Mach IPC (OS X)
+-	MCache	*mcache;
++	MCache*	mcache;
+ 	int32	stackinuse;
+ 	uint32	stackcachepos;
+ 	uint32	stackcachecnt;
+@@ -353,7 +353,7 @@ struct	M
+ 	WinCall	wincall;
+ #endif
+ #ifdef GOOS_plan9
+-	int8*		notesig;
++	int8*	notesig;
+ 	byte*	errstr;
+ #endif
+ 	SEH*	seh;

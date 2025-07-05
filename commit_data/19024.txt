@@ -10,6 +10,26 @@ Date:   Thu Apr 3 16:10:45 2014 -0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/84170043
-
+---
  src/pkg/net/sock_cloexec.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/sock_cloexec.go b/src/pkg/net/sock_cloexec.go
+index 18ff64388c..dec81855b6 100644
+--- a/src/pkg/net/sock_cloexec.go
++++ b/src/pkg/net/sock_cloexec.go
+@@ -49,8 +49,13 @@ func accept(s int) (int, syscall.Sockaddr, error) {
+ 	// kernel and on FreeBSD it was introduced in 10 kernel. If we
+ 	// get an ENOSYS error on both Linux and FreeBSD, or EINVAL
+ 	// error on Linux, fall back to using accept.
+-	if err == nil || (err != syscall.ENOSYS && err != syscall.EINVAL) {
++	switch err {
++	default: // nil and errors other than the ones listed
+ 		return ns, sa, err
++	case syscall.ENOSYS: // syscall missing
++	case syscall.EINVAL: // some Linux use this instead of ENOSYS
++	case syscall.EACCES: // some Linux use this instead of ENOSYS
++	case syscall.EFAULT: // some Linux use this instead of ENOSYS
+ 	}
+ 
+ 	// See ../syscall/exec_unix.go for description of ForkLock.

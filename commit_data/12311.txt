@@ -7,6 +7,42 @@ Date:   Thu Mar 1 22:16:20 2012 +0400
     R=golang-dev, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/5715046
-
+---
  src/pkg/sync/example_test.go | 20 ++++++++++++++++++++
  1 file changed, 20 insertions(+)
+
+diff --git a/src/pkg/sync/example_test.go b/src/pkg/sync/example_test.go
+index 1424b1e79e..1564924003 100644
+--- a/src/pkg/sync/example_test.go
++++ b/src/pkg/sync/example_test.go
+@@ -5,6 +5,7 @@
+ package sync_test
+ 
+ import (
++	"fmt"
+ 	"net/http"
+ 	"sync"
+ )
+@@ -32,3 +33,22 @@ func ExampleWaitGroup() {
+ 	// Wait for all HTTP fetches to complete.
+ 	wg.Wait()
+ }
++
++func ExampleOnce() {
++	var once sync.Once
++	onceBody := func() {
++		fmt.Printf("Only once\n")
++	}
++	done := make(chan bool)
++	for i := 0; i < 10; i++ {
++		go func() {
++			once.Do(onceBody)
++			done <- true
++		}()
++	}
++	for i := 0; i < 10; i++ {
++		<-done
++	}
++	// Output:
++	// Only once
++}

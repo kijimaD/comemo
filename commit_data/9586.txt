@@ -9,7 +9,62 @@ Date:   Fri Sep 2 15:11:28 2011 -0400
     R=lvd
     CC=golang-dev
     https://golang.org/cl/4977052
-
+---
  src/cmd/gc/sinit.c |  1 +
  test/escape3.go    | 36 ++++++++++++++++++++++++++++++++++++
  2 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index ed2b709156..d98f4fef29 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -696,6 +696,7 @@ slicelit(int ctxt, Node *n, Node *var, NodeList **init)
+ 	if(n->esc == EscNone) {
+ 		a = nod(OXXX, N, N);
+ 		tempname(a, t);
++		*init = list(*init, nod(OAS, a, N));  // zero new temp
+ 		a = nod(OADDR, a, N);
+ 	} else {
+ 		a = nod(ONEW, N, N);
+diff --git a/test/escape3.go b/test/escape3.go
+new file mode 100644
+index 0000000000..fc2d6ebbe4
+--- /dev/null
++++ b/test/escape3.go
+@@ -0,0 +1,36 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test run-time behavior of escape analysis-related optimizations.
++
++package main
++
++func main() {
++	test1()
++}
++
++func test1() {
++	check1(0)
++	check1(1)
++	check1(2)
++}
++
++type T1 struct {
++	X, Y, Z int
++}
++
++func f() int {
++	return 1
++}
++
++func check1(pass int) T1 {
++	v := []T1{{X: f(), Z: f()}}
++	if v[0].Y != 0 {
++		panic("nonzero init")
++	}
++	v[0].Y = pass
++	return v[0]
++}

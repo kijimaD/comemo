@@ -17,7 +17,7 @@ Date:   Tue Apr 10 15:15:39 2012 -0400
     R=iant, rsc, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/5937053
-
+---
  src/pkg/hash/adler32/adler32.go      |  6 +-----
  src/pkg/hash/adler32/adler32_test.go | 21 ++++++++++++---------
  src/pkg/hash/crc32/crc32.go          |  6 +-----
@@ -27,3 +27,277 @@ Date:   Tue Apr 10 15:15:39 2012 -0400
  src/pkg/hash/fnv/fnv.go              | 32 ++++----------------------------
  src/pkg/hash/fnv/fnv_test.go         | 34 ++++++++++++++++------------------
  8 files changed, 55 insertions(+), 89 deletions(-)
+
+diff --git a/src/pkg/hash/adler32/adler32.go b/src/pkg/hash/adler32/adler32.go
+index 64fe68c443..7e483b3f76 100644
+--- a/src/pkg/hash/adler32/adler32.go
++++ b/src/pkg/hash/adler32/adler32.go
+@@ -75,11 +75,7 @@ func (d *digest) Sum32() uint32 { return finish(d.a, d.b) }
+ 
+ func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum32()
+-	in = append(in, byte(s>>24))
+-	in = append(in, byte(s>>16))
+-	in = append(in, byte(s>>8))
+-	in = append(in, byte(s))
+-	return in
++	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+ }
+ 
+ // Checksum returns the Adler-32 checksum of data.
+diff --git a/src/pkg/hash/adler32/adler32_test.go b/src/pkg/hash/adler32/adler32_test.go
+index 01f931c685..31c6029774 100644
+--- a/src/pkg/hash/adler32/adler32_test.go
++++ b/src/pkg/hash/adler32/adler32_test.go
+@@ -5,7 +5,6 @@
+ package adler32
+ 
+ import (
+-	"bytes"
+ 	"io"
+ 	"testing"
+ )
+@@ -63,15 +62,19 @@ func TestGolden(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkGolden(b *testing.B) {
+-	b.StopTimer()
+-	c := New()
+-	var buf bytes.Buffer
+-	for _, g := range golden {
+-		buf.Write([]byte(g.in))
++func BenchmarkAdler32KB(b *testing.B) {
++	b.SetBytes(1024)
++	data := make([]byte, 1024)
++	for i := range data {
++		data[i] = byte(i)
+ 	}
+-	b.StartTimer()
++	h := New()
++	in := make([]byte, 0, h.Size())
++
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		c.Write(buf.Bytes())
++		h.Reset()
++		h.Write(data)
++		h.Sum(in)
+ 	}
+ }
+diff --git a/src/pkg/hash/crc32/crc32.go b/src/pkg/hash/crc32/crc32.go
+index 236d778728..a2a21a06f9 100644
+--- a/src/pkg/hash/crc32/crc32.go
++++ b/src/pkg/hash/crc32/crc32.go
+@@ -123,11 +123,7 @@ func (d *digest) Sum32() uint32 { return d.crc }
+ 
+ func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum32()
+-	in = append(in, byte(s>>24))
+-	in = append(in, byte(s>>16))
+-	in = append(in, byte(s>>8))
+-	in = append(in, byte(s))
+-	return in
++	return append(in, byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+ }
+ 
+ // Checksum returns the CRC-32 checksum of data
+diff --git a/src/pkg/hash/crc32/crc32_test.go b/src/pkg/hash/crc32/crc32_test.go
+index 7e82dd755e..75dc26e7cc 100644
+--- a/src/pkg/hash/crc32/crc32_test.go
++++ b/src/pkg/hash/crc32/crc32_test.go
+@@ -82,16 +82,18 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func BenchmarkCrc32KB(b *testing.B) {
+-	b.StopTimer()
+-	data := make([]uint8, 1024)
+-	for i := 0; i < 1024; i++ {
+-		data[i] = uint8(i)
++	b.SetBytes(1024)
++	data := make([]byte, 1024)
++	for i := range data {
++		data[i] = byte(i)
+ 	}
+-	c := NewIEEE()
+-	b.StartTimer()
+-	b.SetBytes(int64(len(data)))
++	h := NewIEEE()
++	in := make([]byte, 0, h.Size())
+ 
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		c.Write(data)
++		h.Reset()
++		h.Write(data)
++		h.Sum(in)
+ 	}
+ }
+diff --git a/src/pkg/hash/crc64/crc64.go b/src/pkg/hash/crc64/crc64.go
+index 5b64390f3d..6925867988 100644
+--- a/src/pkg/hash/crc64/crc64.go
++++ b/src/pkg/hash/crc64/crc64.go
+@@ -79,15 +79,7 @@ func (d *digest) Sum64() uint64 { return d.crc }
+ 
+ func (d *digest) Sum(in []byte) []byte {
+ 	s := d.Sum64()
+-	in = append(in, byte(s>>56))
+-	in = append(in, byte(s>>48))
+-	in = append(in, byte(s>>40))
+-	in = append(in, byte(s>>32))
+-	in = append(in, byte(s>>24))
+-	in = append(in, byte(s>>16))
+-	in = append(in, byte(s>>8))
+-	in = append(in, byte(s))
+-	return in
++	return append(in, byte(s>>56), byte(s>>48), byte(s>>40), byte(s>>32), byte(s>>24), byte(s>>16), byte(s>>8), byte(s))
+ }
+ 
+ // Checksum returns the CRC-64 checksum of data
+diff --git a/src/pkg/hash/crc64/crc64_test.go b/src/pkg/hash/crc64/crc64_test.go
+index e932524e09..81a87b56e3 100644
+--- a/src/pkg/hash/crc64/crc64_test.go
++++ b/src/pkg/hash/crc64/crc64_test.go
+@@ -64,15 +64,18 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func BenchmarkCrc64KB(b *testing.B) {
+-	b.StopTimer()
+-	data := make([]uint8, 1024)
+-	for i := 0; i < 1024; i++ {
+-		data[i] = uint8(i)
++	b.SetBytes(1024)
++	data := make([]byte, 1024)
++	for i := range data {
++		data[i] = byte(i)
+ 	}
+-	c := New(tab)
+-	b.StartTimer()
++	h := New(tab)
++	in := make([]byte, 0, h.Size())
+ 
++	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		c.Write(data)
++		h.Reset()
++		h.Write(data)
++		h.Sum(in)
+ 	}
+ }
+diff --git a/src/pkg/hash/fnv/fnv.go b/src/pkg/hash/fnv/fnv.go
+index ea50198180..b5ecd4a7c6 100644
+--- a/src/pkg/hash/fnv/fnv.go
++++ b/src/pkg/hash/fnv/fnv.go
+@@ -111,44 +111,20 @@ func (s *sum64a) BlockSize() int { return 1 }
+ 
+ func (s *sum32) Sum(in []byte) []byte {
+ 	v := uint32(*s)
+-	in = append(in, byte(v>>24))
+-	in = append(in, byte(v>>16))
+-	in = append(in, byte(v>>8))
+-	in = append(in, byte(v))
+-	return in
++	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+ }
+ 
+ func (s *sum32a) Sum(in []byte) []byte {
+ 	v := uint32(*s)
+-	in = append(in, byte(v>>24))
+-	in = append(in, byte(v>>16))
+-	in = append(in, byte(v>>8))
+-	in = append(in, byte(v))
+-	return in
++	return append(in, byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+ }
+ 
+ func (s *sum64) Sum(in []byte) []byte {
+ 	v := uint64(*s)
+-	in = append(in, byte(v>>56))
+-	in = append(in, byte(v>>48))
+-	in = append(in, byte(v>>40))
+-	in = append(in, byte(v>>32))
+-	in = append(in, byte(v>>24))
+-	in = append(in, byte(v>>16))
+-	in = append(in, byte(v>>8))
+-	in = append(in, byte(v))
+-	return in
++	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+ }
+ 
+ func (s *sum64a) Sum(in []byte) []byte {
+ 	v := uint64(*s)
+-	in = append(in, byte(v>>56))
+-	in = append(in, byte(v>>48))
+-	in = append(in, byte(v>>40))
+-	in = append(in, byte(v>>32))
+-	in = append(in, byte(v>>24))
+-	in = append(in, byte(v>>16))
+-	in = append(in, byte(v>>8))
+-	in = append(in, byte(v))
+-	return in
++	return append(in, byte(v>>56), byte(v>>48), byte(v>>40), byte(v>>32), byte(v>>24), byte(v>>16), byte(v>>8), byte(v))
+ }
+diff --git a/src/pkg/hash/fnv/fnv_test.go b/src/pkg/hash/fnv/fnv_test.go
+index 17454deda9..89d39b38ad 100644
+--- a/src/pkg/hash/fnv/fnv_test.go
++++ b/src/pkg/hash/fnv/fnv_test.go
+@@ -11,8 +11,6 @@ import (
+ 	"testing"
+ )
+ 
+-const testDataSize = 40
+-
+ type golden struct {
+ 	sum  []byte
+ 	text string
+@@ -134,34 +132,34 @@ func testIntegrity(t *testing.T, h hash.Hash) {
+ 	}
+ }
+ 
+-func Benchmark32(b *testing.B) {
+-	benchmark(b, New32())
++func BenchmarkFnv32KB(b *testing.B) {
++	benchmarkKB(b, New32())
+ }
+ 
+-func Benchmark32a(b *testing.B) {
+-	benchmark(b, New32a())
++func BenchmarkFnv32aKB(b *testing.B) {
++	benchmarkKB(b, New32a())
+ }
+ 
+-func Benchmark64(b *testing.B) {
+-	benchmark(b, New64())
++func BenchmarkFnv64KB(b *testing.B) {
++	benchmarkKB(b, New64())
+ }
+ 
+-func Benchmark64a(b *testing.B) {
+-	benchmark(b, New64a())
++func BenchmarkFnv64aKB(b *testing.B) {
++	benchmarkKB(b, New64a())
+ }
+ 
+-func benchmark(b *testing.B, h hash.Hash) {
+-	b.ResetTimer()
+-	b.SetBytes(testDataSize)
+-	data := make([]byte, testDataSize)
++func benchmarkKB(b *testing.B, h hash.Hash) {
++	b.SetBytes(1024)
++	data := make([]byte, 1024)
+ 	for i := range data {
+-		data[i] = byte(i + 'a')
++		data[i] = byte(i)
+ 	}
++	in := make([]byte, 0, h.Size())
+ 
+-	b.StartTimer()
+-	for todo := b.N; todo != 0; todo-- {
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
+ 		h.Reset()
+ 		h.Write(data)
+-		h.Sum(nil)
++		h.Sum(in)
+ 	}
+ }

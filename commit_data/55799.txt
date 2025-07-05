@@ -15,10 +15,178 @@ Date:   Fri Mar 10 15:37:17 2023 -0500
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/go/internal/work/init.go       | 28 +++++++---------------------
  src/cmd/link/internal/ld/dwarf_test.go | 15 ++-------------
  src/cmd/nm/nm_test.go                  | 15 +++------------
  src/cmd/pprof/pprof_test.go            | 10 ++++------
  src/internal/platform/supported.go     | 14 ++++++++++++++
  5 files changed, 30 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/init.go b/src/cmd/go/internal/work/init.go
+index 93c068c528..35ea2311c7 100644
+--- a/src/cmd/go/internal/work/init.go
++++ b/src/cmd/go/internal/work/init.go
+@@ -229,30 +229,16 @@ func buildModeInit() {
+ 		}
+ 		ldBuildmode = "c-shared"
+ 	case "default":
+-		switch cfg.Goos {
+-		case "android":
+-			codegenArg = "-shared"
+-			ldBuildmode = "pie"
+-		case "windows":
+-			if cfg.BuildRace {
+-				ldBuildmode = "exe"
++		ldBuildmode = "exe"
++		if platform.DefaultPIE(cfg.Goos, cfg.Goarch) {
++			if cfg.Goos == "windows" && cfg.BuildRace {
++				// PIE is not supported with -race on windows; see https://go.dev/cl/416174.
+ 			} else {
+ 				ldBuildmode = "pie"
++				if cfg.Goos != "windows" && !gccgo {
++					codegenArg = "-shared"
++				}
+ 			}
+-		case "ios":
+-			codegenArg = "-shared"
+-			ldBuildmode = "pie"
+-		case "darwin":
+-			switch cfg.Goarch {
+-			case "arm64":
+-				codegenArg = "-shared"
+-			}
+-			fallthrough
+-		default:
+-			ldBuildmode = "exe"
+-		}
+-		if gccgo {
+-			codegenArg = ""
+ 		}
+ 	case "exe":
+ 		pkgsFilter = pkgsMain
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index abbfec0c41..103ca5a4ab 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"debug/dwarf"
+ 	"debug/pe"
+ 	"fmt"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+@@ -891,12 +892,6 @@ func TestRuntimeTypeAttrInternal(t *testing.T) {
+ 		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
+ 
+-	// TODO(#58807): factor this condition out into a function in
+-	// internal/platform so that it won't get out of sync with cmd/link.
+-	if runtime.GOOS == "android" || runtime.GOOS == "windows" {
+-		t.Skipf("skipping on %s; test is incompatible with relocatable binaries", runtime.GOOS)
+-	}
+-
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=internal")
+ }
+ 
+@@ -914,10 +909,6 @@ func TestRuntimeTypeAttrExternal(t *testing.T) {
+ 		t.Skip("-linkmode=external not supported on ppc64")
+ 	}
+ 
+-	if runtime.GOOS == "windows" {
+-		t.Skip("skipping on windows; test is incompatible with relocatable binaries")
+-	}
+-
+ 	testRuntimeTypeAttr(t, "-ldflags=-linkmode=external")
+ }
+ 
+@@ -985,9 +976,7 @@ func main() {
+ 		t.Fatalf("*main.X DIE had no runtime type attr. DIE: %v", dies[0])
+ 	}
+ 
+-	// TODO(#58807): factor this condition out into a function in
+-	// internal/platform so that it won't get out of sync with cmd/link.
+-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
++	if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH) {
+ 		return // everything is PIE, addresses are relocated
+ 	}
+ 	if rtAttr.(uint64)+types.Addr != addr {
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 014a5d2bd7..8c23d73d6d 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"internal/obscuretestdata"
++	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
+ 	"path/filepath"
+@@ -165,20 +166,10 @@ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 				return true
+ 			}
+ 		}
+-		// Code is always relocated if the default buildmode is PIE.
+-		//
+-		// TODO(#58807): factor this condition out into a function in
+-		// internal/platform so that it won't get out of sync with cmd/go and
+-		// cmd/link.
+-		if runtime.GOOS == "android" {
++		if platform.DefaultPIE(runtime.GOOS, runtime.GOARCH) {
++			// Code is always relocated if the default buildmode is PIE.
+ 			return true
+ 		}
+-		if runtime.GOOS == "windows" {
+-			return true
+-		}
+-		if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" {
+-			return true // On darwin/arm64 everything is PIE
+-		}
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/pprof/pprof_test.go b/src/cmd/pprof/pprof_test.go
+index d6ca0e28da..2a651dda5f 100644
+--- a/src/cmd/pprof/pprof_test.go
++++ b/src/cmd/pprof/pprof_test.go
+@@ -74,12 +74,10 @@ func mustHaveDisasm(t *testing.T) {
+ 		t.Skipf("skipping on %s, issue 15255", runtime.GOARCH)
+ 	}
+ 
+-	// Skip PIE platforms, pprof can't disassemble PIE.
+-	//
+-	// TODO(#58807): factor this condition out into a function in
+-	// internal/platform so that it won't get out of sync with cmd/go and
+-	// cmd/link.
+-	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") || runtime.GOOS == "android" {
++	// pprof can only disassemble PIE on some platforms.
++	// Skip the ones it can't handle yet.
++	if (runtime.GOOS == "darwin" && runtime.GOARCH == "arm64") ||
++		(runtime.GOOS == "android" && runtime.GOARCH == "arm") {
+ 		t.Skipf("skipping on %s/%s, issue 46639", runtime.GOOS, runtime.GOARCH)
+ 	}
+ }
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 8bf68a6d58..ea89ff19e3 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -217,3 +217,17 @@ func InternalLinkPIESupported(goos, goarch string) bool {
+ 	}
+ 	return false
+ }
++
++// DefaultPIE reports whether goos/goarch produces a PIE binary when using the
++// "default" buildmode.
++func DefaultPIE(goos, goarch string) bool {
++	switch goos {
++	case "android", "ios":
++		return true
++	case "windows":
++		return true // but switches back to "exe" if -race is enabled
++	case "darwin":
++		return goarch == "arm64"
++	}
++	return false
++}

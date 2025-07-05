@@ -15,6 +15,36 @@ Date:   Mon May 4 17:50:17 2020 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 6a3a1c54fc..764939fb0f 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -1224,13 +1224,22 @@ func TestReverseProxyWebSocketCancelation(t *testing.T) {
+ 
+ 		for i := 0; i < n; i++ {
+ 			if _, err := bufrw.WriteString(nthResponse(i)); err != nil {
+-				t.Errorf("Writing response #%d failed: %v", i, err)
++				select {
++				case <-triggerCancelCh:
++				default:
++					t.Errorf("Writing response #%d failed: %v", i, err)
++				}
++				return
+ 			}
+ 			bufrw.Flush()
+ 			time.Sleep(time.Second)
+ 		}
+ 		if _, err := bufrw.WriteString(terminalMsg); err != nil {
+-			t.Errorf("Failed to write terminal message: %v", err)
++			select {
++			case <-triggerCancelCh:
++			default:
++				t.Errorf("Failed to write terminal message: %v", err)
++			}
+ 		}
+ 		bufrw.Flush()
+ 	}))

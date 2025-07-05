@@ -10,6 +10,20 @@ Date:   Thu Apr 21 17:03:58 2011 -0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4400042
-
+---
  src/cmd/8l/prof.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/8l/prof.c b/src/cmd/8l/prof.c
+index 4e95fad793..d99c5e4084 100644
+--- a/src/cmd/8l/prof.c
++++ b/src/cmd/8l/prof.c
+@@ -36,7 +36,7 @@
+ void
+ doprof1(void)
+ {
+-#if 0	// TODO(rsc)
++#ifdef	NOTDEF  // TODO(rsc)
+ 	Sym *s;
+ 	int32 n;
+ 	Prog *p, *q;

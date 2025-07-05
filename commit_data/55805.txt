@@ -22,9 +22,119 @@ Date:   Mon Mar 13 15:20:11 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/{os => syscall}/rlimit.go        | 10 ++++------
  src/{os => syscall}/rlimit_darwin.go |  8 +++-----
  src/{os => syscall}/rlimit_stub.go   |  6 ++----
  src/{os => syscall}/rlimit_test.go   |  8 ++++----
  4 files changed, 13 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/rlimit.go b/src/syscall/rlimit.go
+similarity index 83%
+rename from src/os/rlimit.go
+rename to src/syscall/rlimit.go
+index e0d0ef9b62..2049200c00 100644
+--- a/src/os/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -4,9 +4,7 @@
+ 
+ //go:build unix
+ 
+-package os
+-
+-import "syscall"
++package syscall
+ 
+ // Some systems set an artificially low soft limit on open file count, for compatibility
+ // with code that uses select and its hard-coded maximum file descriptor
+@@ -23,10 +21,10 @@ import "syscall"
+ // Code that really wants Go to leave the limit alone can set the hard limit,
+ // which Go of course has no choice but to respect.
+ func init() {
+-	var lim syscall.Rlimit
+-	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
++	var lim Rlimit
++	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
+ 		lim.Cur = lim.Max
+ 		adjustFileLimit(&lim)
+-		syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim)
++		Setrlimit(RLIMIT_NOFILE, &lim)
+ 	}
+ }
+diff --git a/src/os/rlimit_darwin.go b/src/syscall/rlimit_darwin.go
+similarity index 79%
+rename from src/os/rlimit_darwin.go
+rename to src/syscall/rlimit_darwin.go
+index b28982a83a..73e49646b3 100644
+--- a/src/os/rlimit_darwin.go
++++ b/src/syscall/rlimit_darwin.go
+@@ -4,15 +4,13 @@
+ 
+ //go:build darwin
+ 
+-package os
+-
+-import "syscall"
++package syscall
+ 
+ // adjustFileLimit adds per-OS limitations on the Rlimit used for RLIMIT_NOFILE. See rlimit.go.
+-func adjustFileLimit(lim *syscall.Rlimit) {
++func adjustFileLimit(lim *Rlimit) {
+ 	// On older macOS, setrlimit(RLIMIT_NOFILE, lim) with lim.Cur = infinity fails.
+ 	// Set to the value of kern.maxfilesperproc instead.
+-	n, err := syscall.SysctlUint32("kern.maxfilesperproc")
++	n, err := SysctlUint32("kern.maxfilesperproc")
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/os/rlimit_stub.go b/src/syscall/rlimit_stub.go
+similarity index 82%
+rename from src/os/rlimit_stub.go
+rename to src/syscall/rlimit_stub.go
+index cbe28400c5..e8f839dd99 100644
+--- a/src/os/rlimit_stub.go
++++ b/src/syscall/rlimit_stub.go
+@@ -4,9 +4,7 @@
+ 
+ //go:build aix || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ 
+-package os
+-
+-import "syscall"
++package syscall
+ 
+ // adjustFileLimit adds per-OS limitations on the Rlimit used for RLIMIT_NOFILE. See rlimit.go.
+-func adjustFileLimit(lim *syscall.Rlimit) {}
++func adjustFileLimit(lim *Rlimit) {}
+diff --git a/src/os/rlimit_test.go b/src/syscall/rlimit_test.go
+similarity index 91%
+rename from src/os/rlimit_test.go
+rename to src/syscall/rlimit_test.go
+index c02e36f3f7..e48f45e3aa 100644
+--- a/src/os/rlimit_test.go
++++ b/src/syscall/rlimit_test.go
+@@ -2,10 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package os_test
++package syscall_test
+ 
+ import (
+-	. "os"
++	"os"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -24,9 +24,9 @@ func TestOpenFileLimit(t *testing.T) {
+ 		fileCount = 768
+ 	}
+ 
+-	var files []*File
++	var files []*os.File
+ 	for i := 0; i < fileCount; i++ {
+-		f, err := Open("rlimit.go")
++		f, err := os.Open("rlimit.go")
+ 		if err != nil {
+ 			t.Error(err)
+ 			break

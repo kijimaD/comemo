@@ -13,7 +13,125 @@ Date:   Mon Jan 22 10:06:10 2018 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 ++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 37 +++++++++++++++++---------
  2 files changed, 27 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 9b004be9f1..b65adba176 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -150,6 +150,8 @@
+ (Div32F (Const32F [c]) (Const32F [d])) -> (Const32F [f2i(float64(i2f32(c) / i2f32(d)))])
+ (Div64F (Const64F [c]) (Const64F [d])) -> (Const64F [f2i(i2f(c) / i2f(d))])
+ 
++(Not (ConstBool [c])) -> (ConstBool [1-c])
++
+ // Convert x * 1 to x.
+ (Mul8  (Const8  [1]) x) -> x
+ (Mul16 (Const16 [1]) x) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index def2cca9fc..0ef79b0ed6 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -17715,6 +17715,19 @@ func rewriteValuegeneric_OpNilCheck_0(v *Value) bool {
+ 	return false
+ }
+ func rewriteValuegeneric_OpNot_0(v *Value) bool {
++	// match: (Not (ConstBool [c]))
++	// cond:
++	// result: (ConstBool [1-c])
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpConstBool {
++			break
++		}
++		c := v_0.AuxInt
++		v.reset(OpConstBool)
++		v.AuxInt = 1 - c
++		return true
++	}
+ 	// match: (Not (Eq64 x y))
+ 	// cond:
+ 	// result: (Neq64 x y)
+@@ -17859,6 +17872,9 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpNot_10(v *Value) bool {
+ 	// match: (Not (NeqB x y))
+ 	// cond:
+ 	// result: (EqB  x y)
+@@ -17875,9 +17891,6 @@ func rewriteValuegeneric_OpNot_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNot_10(v *Value) bool {
+ 	// match: (Not (Greater64 x y))
+ 	// cond:
+ 	// result: (Leq64 x y)
+@@ -18022,6 +18035,9 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpNot_20(v *Value) bool {
+ 	// match: (Not (Geq32 x y))
+ 	// cond:
+ 	// result: (Less32 x y)
+@@ -18038,9 +18054,6 @@ func rewriteValuegeneric_OpNot_10(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNot_20(v *Value) bool {
+ 	// match: (Not (Geq16 x y))
+ 	// cond:
+ 	// result: (Less16 x y)
+@@ -18185,6 +18198,9 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpNot_30(v *Value) bool {
+ 	// match: (Not (Less8 x y))
+ 	// cond:
+ 	// result: (Geq8  x y)
+@@ -18201,9 +18217,6 @@ func rewriteValuegeneric_OpNot_20(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNot_30(v *Value) bool {
+ 	// match: (Not (Less64U x y))
+ 	// cond:
+ 	// result: (Geq64U x y)
+@@ -18348,6 +18361,9 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValuegeneric_OpNot_40(v *Value) bool {
+ 	// match: (Not (Leq32U x y))
+ 	// cond:
+ 	// result: (Greater32U x y)
+@@ -18364,9 +18380,6 @@ func rewriteValuegeneric_OpNot_30(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
+-	return false
+-}
+-func rewriteValuegeneric_OpNot_40(v *Value) bool {
+ 	// match: (Not (Leq16U x y))
+ 	// cond:
+ 	// result: (Greater16U x y)

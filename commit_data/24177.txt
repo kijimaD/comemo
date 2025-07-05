@@ -9,9 +9,56 @@ Date:   Mon Jul 13 23:31:14 2015 -0400
     Change-Id: Ic4803aa499ca20215085a87bad649014984d84c8
     Reviewed-on: https://go-review.googlesource.com/12149
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/go/build.go                   |  3 +++
  src/cmd/go/go_test.go                 | 10 ++++++++++
  src/cmd/go/testdata/rundir/sub/sub.go |  1 +
  src/cmd/go/testdata/rundir/x.go       |  1 +
  4 files changed, 15 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index c3afa5af9c..68fdb98b7a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -712,6 +712,9 @@ func goFilesPackage(gofiles []string) *Package {
+ 			fatalf("%s is a directory, should be a Go file", file)
+ 		}
+ 		dir1, _ := filepath.Split(file)
++		if dir1 == "" {
++			dir1 = "."
++		}
+ 		if dir == "" {
+ 			dir = dir1
+ 		} else if dir != dir1 {
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index bb22076ce4..768cf025a8 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2055,3 +2055,13 @@ func TestIssue10193(t *testing.T) {
+ 	tg.runFail("get", "code.google.com/p/rsc-svn")
+ 	tg.grepStderr("is shutting down", "missed warning about code.google.com")
+ }
++
++func TestGoRunDirs(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.cd("testdata/rundir")
++	tg.runFail("run", "x.go", "sub/sub.go")
++	tg.grepStderr("named files must all be in one directory; have . and sub/", "wrong output")
++	tg.runFail("run", "sub/sub.go", "x.go")
++	tg.grepStderr("named files must all be in one directory; have sub/ and .", "wrong output")
++}
+diff --git a/src/cmd/go/testdata/rundir/sub/sub.go b/src/cmd/go/testdata/rundir/sub/sub.go
+new file mode 100644
+index 0000000000..06ab7d0f9a
+--- /dev/null
++++ b/src/cmd/go/testdata/rundir/sub/sub.go
+@@ -0,0 +1 @@
++package main
+diff --git a/src/cmd/go/testdata/rundir/x.go b/src/cmd/go/testdata/rundir/x.go
+new file mode 100644
+index 0000000000..06ab7d0f9a
+--- /dev/null
++++ b/src/cmd/go/testdata/rundir/x.go
+@@ -0,0 +1 @@
++package main

@@ -7,8 +7,56 @@ Date:   Thu Feb 9 11:26:03 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5644063
-
+---
  doc/go1.html                      | 3 ++-
  doc/go1.tmpl                      | 5 ++++-
  src/pkg/encoding/binary/binary.go | 6 ++++++
  3 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 28f17f1b5d..8b0b4745e3 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -931,7 +931,8 @@ No changes will be needed.
+ <h3 id="encoding_binary">The encoding/binary package</h3>
+ 
+ <p>
+-In Go 1, the <code>binary.TotalSize</code></a> function is no longer exported.
++In Go 1, the <code>binary.TotalSize</code> function is renamed
++<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index 6375ebcc00..d6803ed189 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -835,7 +835,10 @@ No changes will be needed.
+ <h3 id="encoding_binary">The encoding/binary package</h3>
+ 
+ <p>
+-In Go 1, the <code>binary.TotalSize</code></a> function is no longer exported.
++In Go 1, the <code>binary.TotalSize</code> function has been replaced by
++<a href="/pkg/encoding/binary/#Size"><code>Size</code></a>,
++which takes an <code>interface{}</code> argument rather than
++a <code>reflect.Value</code>.
+ </p>
+ 
+ <p>
+diff --git a/src/pkg/encoding/binary/binary.go b/src/pkg/encoding/binary/binary.go
+index 4be83f53bd..7f10d40a11 100644
+--- a/src/pkg/encoding/binary/binary.go
++++ b/src/pkg/encoding/binary/binary.go
+@@ -253,6 +253,12 @@ func Write(w io.Writer, order ByteOrder, data interface{}) error {
+ 	return err
+ }
+ 
++// Size returns how many bytes Write would generate to encode the value v, assuming
++// the Write would succeed.
++func Size(v interface{}) int {
++	return dataSize(reflect.ValueOf(v))
++}
++
+ // dataSize returns the number of bytes the actual data represented by v occupies in memory.
+ // For compound structures, it sums the sizes of the elements. Thus, for instance, for a slice
+ // it returns the length of the slice times the element size and does not count the memory

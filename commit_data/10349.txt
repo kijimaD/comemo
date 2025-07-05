@@ -7,7 +7,42 @@ Date:   Fri Nov 11 14:56:49 2011 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/5373074
-
+---
  src/cmd/6a/a.y | 6 ++++++
  src/cmd/8a/a.y | 6 ++++++
  2 files changed, 12 insertions(+)
+
+diff --git a/src/cmd/6a/a.y b/src/cmd/6a/a.y
+index c0fa4106e7..8459ff3233 100644
+--- a/src/cmd/6a/a.y
++++ b/src/cmd/6a/a.y
+@@ -429,6 +429,12 @@ imm:
+ 		$$.type = D_FCONST;
+ 		$$.dval = $3;
+ 	}
++|	'$' '(' '-' LFCONST ')'
++	{
++		$$ = nullgen;
++		$$.type = D_FCONST;
++		$$.dval = -$4;
++	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;
+diff --git a/src/cmd/8a/a.y b/src/cmd/8a/a.y
+index 96976089de..f1881808fe 100644
+--- a/src/cmd/8a/a.y
++++ b/src/cmd/8a/a.y
+@@ -392,6 +392,12 @@ imm:
+ 		$$.type = D_FCONST;
+ 		$$.dval = $3;
+ 	}
++|	'$' '(' '-' LFCONST ')'
++	{
++		$$ = nullgen;
++		$$.type = D_FCONST;
++		$$.dval = -$4;
++	}
+ |	'$' '-' LFCONST
+ 	{
+ 		$$ = nullgen;

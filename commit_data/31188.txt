@@ -12,7 +12,75 @@ Date:   Fri Feb 3 14:28:32 2017 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go   | 19 +++----------------
  src/cmd/compile/internal/ssa/func.go | 17 ++++++++---------
  2 files changed, 11 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 05e97a904f..a1060d9a2b 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -642,15 +642,11 @@ func (s *state) stmt(n *Node) {
+ 		b.AddEdgeTo(lab.target)
+ 
+ 	case OAS, OASWB:
+-		// Check whether we can generate static data rather than code.
+-		// If so, ignore n and defer data generation until codegen.
+-		// Failure to do this causes writes to readonly symbols.
++		// Generate static data rather than code, if possible.
+ 		if gen_as_init(n, true) {
+-			var data []*Node
+-			if s.f.StaticData != nil {
+-				data = s.f.StaticData.([]*Node)
++			if !gen_as_init(n, false) {
++				Fatalf("non-static data marked as static: %v\n\n", n)
+ 			}
+-			s.f.StaticData = append(data, n)
+ 			return
+ 		}
+ 
+@@ -4487,15 +4483,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		}
+ 	}
+ 
+-	// Emit static data
+-	if f.StaticData != nil {
+-		for _, n := range f.StaticData.([]*Node) {
+-			if !gen_as_init(n, false) {
+-				Fatalf("non-static data marked as static: %v\n\n", n)
+-			}
+-		}
+-	}
+-
+ 	// Generate gc bitmaps.
+ 	liveness(Curfn, ptxt, gcargs, gclocals)
+ 
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 3f3c0d6888..ea259190da 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -14,15 +14,14 @@ import (
+ // A Func represents a Go func declaration (or function literal) and
+ // its body. This package compiles each Func independently.
+ type Func struct {
+-	Config     *Config     // architecture information
+-	pass       *pass       // current pass information (name, options, etc.)
+-	Name       string      // e.g. bytes·Compare
+-	Type       Type        // type signature of the function.
+-	StaticData interface{} // associated static data, untouched by the ssa package
+-	Blocks     []*Block    // unordered set of all basic blocks (note: not indexable by ID)
+-	Entry      *Block      // the entry basic block
+-	bid        idAlloc     // block ID allocator
+-	vid        idAlloc     // value ID allocator
++	Config *Config  // architecture information
++	pass   *pass    // current pass information (name, options, etc.)
++	Name   string   // e.g. bytes·Compare
++	Type   Type     // type signature of the function.
++	Blocks []*Block // unordered set of all basic blocks (note: not indexable by ID)
++	Entry  *Block   // the entry basic block
++	bid    idAlloc  // block ID allocator
++	vid    idAlloc  // value ID allocator
+ 
+ 	scheduled bool // Values in Blocks are in final order
+ 	NoSplit   bool // true if function is marked as nosplit.  Used by schedule check pass.

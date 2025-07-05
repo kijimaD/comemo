@@ -17,6 +17,22 @@ Date:   Fri Nov 22 17:10:01 2024 -0800
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/net/http/transport.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index e2ce4dde3d..41e674188f 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -412,6 +412,10 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 		}
+ 	}
+ 
++	if _, ok := t.TLSNextProto["h2"]; ok {
++		// There's an existing HTTP/2 implementation installed.
++		return
++	}
+ 	protocols := t.protocols()
+ 	if !protocols.HTTP2() && !protocols.UnencryptedHTTP2() {
+ 		return

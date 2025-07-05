@@ -18,8 +18,171 @@ Date:   Mon Jul 20 18:07:00 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go    | 63 +++++++++++++++----------------
  src/cmd/link/link_test.go                 | 20 ++++++++++
  src/cmd/link/testdata/testHashedSyms/p.go | 33 ++++++++++++++++
  3 files changed, 84 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6d541af950..86fdbeffd8 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -434,24 +434,46 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
+ 		l.symsByName[ver][name] = i
+ 		addToGlobal()
+ 		return i, true
+-	case hashed64Def:
++	case hashed64Def, hashedDef:
+ 		// Hashed (content-addressable) symbol. Check the hash
+ 		// but don't add to name lookup table, as they are not
+ 		// referenced by name. Also no need to do overwriting
+ 		// check, as same hash indicates same content.
+-		hash := r.Hash64(li - uint32(r.ndef))
++		var checkHash func() (symSizeAlign, bool)
++		var addToHashMap func(symSizeAlign)
++		var h64 uint64         // only used for hashed64Def
++		var h *goobj2.HashType // only used for hashedDef
++		if kind == hashed64Def {
++			checkHash = func() (symSizeAlign, bool) {
++				h64 = r.Hash64(li - uint32(r.ndef))
++				s, existed := l.hashed64Syms[h64]
++				return s, existed
++			}
++			addToHashMap = func(ss symSizeAlign) { l.hashed64Syms[h64] = ss }
++		} else {
++			checkHash = func() (symSizeAlign, bool) {
++				h = r.Hash(li - uint32(r.ndef+r.nhashed64def))
++				s, existed := l.hashedSyms[*h]
++				return s, existed
++			}
++			addToHashMap = func(ss symSizeAlign) { l.hashedSyms[*h] = ss }
++		}
+ 		siz := osym.Siz()
+ 		align := osym.Align()
+-		if s, existed := l.hashed64Syms[hash]; existed {
+-			// For short symbols, the content hash is the identity function of the
+-			// 8 bytes, and trailing zeros doesn't change the hash value, e.g.
++		if s, existed := checkHash(); existed {
++			// The content hash is built from symbol data and relocations. In the
++			// object file, the symbol data may not always contain trailing zeros,
++			// e.g. for [5]int{1,2,3} and [100]int{1,2,3}, the data is same
++			// (although the size is different).
++			// Also, for short symbols, the content hash is the identity function of
++			// the 8 bytes, and trailing zeros doesn't change the hash value, e.g.
+ 			// hash("A") == hash("A\0\0\0").
+ 			// So when two symbols have the same hash, we need to use the one with
+-			// larget size.
++			// larger size.
+ 			if siz <= s.size {
+ 				if align > s.align { // we need to use the biggest alignment
+ 					l.SetSymAlign(s.sym, int32(align))
+-					l.hashed64Syms[hash] = symSizeAlign{s.sym, s.size, align}
++					addToHashMap(symSizeAlign{s.sym, s.size, align})
+ 				}
+ 			} else {
+ 				// New symbol has larger size, use the new one. Rewrite the index mapping.
+@@ -460,34 +482,11 @@ func (l *Loader) addSym(name string, ver int, r *oReader, li uint32, kind int, o
+ 					align = s.align // keep the biggest alignment
+ 					l.SetSymAlign(s.sym, int32(align))
+ 				}
+-				l.hashed64Syms[hash] = symSizeAlign{s.sym, siz, align}
+-			}
+-			return s.sym, false
+-		}
+-		l.hashed64Syms[hash] = symSizeAlign{i, siz, align}
+-		addToGlobal()
+-		return i, true
+-	case hashedDef:
+-		// Hashed (content-addressable) symbol. Check the hash
+-		// but don't add to name lookup table, as they are not
+-		// referenced by name. Also no need to do overwriting
+-		// check, as same hash indicates same content.
+-		hash := r.Hash(li - uint32(r.ndef+r.nhashed64def))
+-		if s, existed := l.hashedSyms[*hash]; existed {
+-			if s.size != osym.Siz() {
+-				fmt.Printf("hash collision: %v (size %d) and %v (size %d), hash %x\n", l.SymName(s.sym), s.size, osym.Name(r.Reader), osym.Siz(), *hash)
+-				panic("hash collision")
+-			}
+-			if l.flags&FlagStrictDups != 0 {
+-				l.checkdup(name, r, li, s.sym)
+-			}
+-			if a := osym.Align(); a > s.align { // we need to use the biggest alignment
+-				l.SetSymAlign(s.sym, int32(a))
+-				l.hashedSyms[*hash] = symSizeAlign{s.sym, s.size, a}
++				addToHashMap(symSizeAlign{s.sym, siz, align})
+ 			}
+ 			return s.sym, false
+ 		}
+-		l.hashedSyms[*hash] = symSizeAlign{i, osym.Siz(), osym.Align()}
++		addToHashMap(symSizeAlign{i, siz, align})
+ 		addToGlobal()
+ 		return i, true
+ 	}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 6ed6688a23..3b5efdf7a3 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -778,3 +778,23 @@ func TestPErsrc(t *testing.T) {
+ 		t.Fatalf("binary does not contain expected content")
+ 	}
+ }
++
++func TestContentAddressableSymbols(t *testing.T) {
++	// Test that the linker handles content-addressable symbols correctly.
++	testenv.MustHaveGoBuild(t)
++
++	t.Parallel()
++
++	tmpdir, err := ioutil.TempDir("", "TestContentAddressableSymbols")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join("testdata", "testHashedSyms", "p.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "run", src)
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Errorf("command %s failed: %v\n%s", cmd, err, out)
++	}
++}
+diff --git a/src/cmd/link/testdata/testHashedSyms/p.go b/src/cmd/link/testdata/testHashedSyms/p.go
+new file mode 100644
+index 0000000000..87dddcfcac
+--- /dev/null
++++ b/src/cmd/link/testdata/testHashedSyms/p.go
+@@ -0,0 +1,33 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test case contains two static temps (the array literals)
++// with same contents but different sizes. The linker should not
++// report a hash collision. The linker can (and actually does)
++// dedup the two symbols, by keeping the larger symbol. The dedup
++// is not a requirement for correctness and not checked in this test.
++// We do check the emitted symbol contents are correct, though.
++
++package main
++
++func main() {
++	F([10]int{1, 2, 3, 4, 5, 6}, [20]int{1, 2, 3, 4, 5, 6})
++}
++
++//go:noinline
++func F(x, y interface{}) {
++	x1 := x.([10]int)
++	y1 := y.([20]int)
++	for i := range y1 {
++		if i < 6 {
++			if x1[i] != i+1 || y1[i] != i+1 {
++				panic("FAIL")
++			}
++		} else {
++			if (i < len(x1) && x1[i] != 0) || y1[i] != 0 {
++				panic("FAIL")
++			}
++		}
++	}
++}

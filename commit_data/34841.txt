@@ -13,9 +13,90 @@ Date:   Mon Oct 23 15:27:04 2017 +0900
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/go_test.go                              | 15 +++++++++++++++
  src/cmd/go/internal/test/test.go                   | 11 ++++++++++-
  src/cmd/go/testdata/standalone_main_normal_test.go | 10 ++++++++++
  src/cmd/go/testdata/standalone_main_wrong_test.go  | 10 ++++++++++
  4 files changed, 45 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a1f8a7f4eb..8f0db27cb2 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2901,6 +2901,21 @@ func TestGoTestFooTestWorks(t *testing.T) {
+ 	tg.run("test", "testdata/standalone_test.go")
+ }
+ 
++// Issue 22388
++func TestGoTestMainWithWrongSignature(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.runFail("test", "testdata/standalone_main_wrong_test.go")
++	tg.grepStderr(`wrong signature for TestMain, must be: func TestMain\(m \*testing.M\)`, "detected wrong error message")
++}
++
++func TestGoTestMainAsNormalTest(t *testing.T) {
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.run("test", "testdata/standalone_main_normal_test.go")
++	tg.grepBoth(okPattern, "go test did not say ok")
++}
++
+ func TestGoTestFlagsAfterPackage(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 998607509d..f8490485dd 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1694,7 +1694,16 @@ func (t *testFuncs) load(filename, pkg string, doImport, seen *bool) error {
+ 		}
+ 		name := n.Name.String()
+ 		switch {
+-		case name == "TestMain" && isTestFunc(n, "M"):
++		case name == "TestMain":
++			if isTestFunc(n, "T") {
++				t.Tests = append(t.Tests, testFunc{pkg, name, "", false})
++				*doImport, *seen = true, true
++				continue
++			}
++			err := checkTestFunc(n, "M")
++			if err != nil {
++				return err
++			}
+ 			if t.TestMain != nil {
+ 				return errors.New("multiple definitions of TestMain")
+ 			}
+diff --git a/src/cmd/go/testdata/standalone_main_normal_test.go b/src/cmd/go/testdata/standalone_main_normal_test.go
+new file mode 100644
+index 0000000000..018ce75b2e
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_main_normal_test.go
+@@ -0,0 +1,10 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_main_normal_test
++
++import "testing"
++
++func TestMain(t *testing.T) {
++}
+diff --git a/src/cmd/go/testdata/standalone_main_wrong_test.go b/src/cmd/go/testdata/standalone_main_wrong_test.go
+new file mode 100644
+index 0000000000..59998873f9
+--- /dev/null
++++ b/src/cmd/go/testdata/standalone_main_wrong_test.go
+@@ -0,0 +1,10 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package standalone_main_wrong_test
++
++import "testing"
++
++func TestMain(m *testing.Main) {
++}

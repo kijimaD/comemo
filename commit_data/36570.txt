@@ -10,6 +10,20 @@ Date:   Mon May 7 13:42:28 2018 -0700
     Change-Id: I924fb22a81fffcd6944b93f0e3357c3aa2c4c49e
     Reviewed-on: https://go-review.googlesource.com/111880
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a0a0afe779..13581452e7 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -100,7 +100,7 @@ var genericOps = []opData{
+ 	// For shifts, AxB means the shifted value has A bits and the shift amount has B bits.
+ 	// Shift amounts are considered unsigned.
+ 	// If arg1 is known to be less than the number of bits in arg0,
+-	// then aux may be set to true.
++	// then auxInt may be set to 1.
+ 	// This enables better code generation on some platforms.
+ 	{name: "Lsh8x8", argLength: 2, aux: "Bool"}, // arg0 << arg1
+ 	{name: "Lsh8x16", argLength: 2, aux: "Bool"},

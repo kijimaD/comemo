@@ -9,9 +9,88 @@ Date:   Wed Jan 5 13:12:30 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3731046
-
+---
  src/cmd/gc/go.h          |  1 +
  src/cmd/gc/subr.c        | 15 +++++++++++++++
  src/cmd/gc/typecheck.c   |  6 ++++++
  test/fixedbugs/bug316.go | 17 +++++++++++++++++
  4 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 4b48ad55ea..73ea5b9767 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -1106,6 +1106,7 @@ Node*	nod(int op, Node *nleft, Node *nright);
+ Node*	nodbool(int b);
+ void	nodconst(Node *n, Type *t, int64 v);
+ Node*	nodintconst(int64 v);
++Node*	nodfltconst(Mpflt *v);
+ Node*	nodnil(void);
+ int	parserline(void);
+ Sym*	pkglookup(char *name, Pkg *pkg);
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 9b6c79d866..3c45010962 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -592,6 +592,21 @@ nodintconst(int64 v)
+ 	return c;
+ }
+ 
++Node*
++nodfltconst(Mpflt* v)
++{
++	Node *c;
++
++	c = nod(OLITERAL, N, N);
++	c->addable = 1;
++	c->val.u.fval = mal(sizeof(*c->val.u.fval));
++	mpmovefltflt(c->val.u.fval, v);
++	c->val.ctype = CTFLT;
++	c->type = types[TIDEAL];
++	ullmancalc(c);
++	return c;
++}
++
+ void
+ nodconst(Node *n, Type *t, int64 v)
+ {
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 4dd0d706bd..ca114d47cd 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -829,6 +829,12 @@ reswitch:
+ 		case OIMAG:
+ 			if(!iscomplex[t->etype])
+ 				goto badcall1;
++			if(isconst(l, CTCPLX)){
++				if(n->op == OREAL)
++					n = nodfltconst(&l->val.u.cval->real);
++				else
++					n = nodfltconst(&l->val.u.cval->imag);
++			}
+ 			n->type = types[cplxsubtype(t->etype)];
+ 			goto ret;
+ 		}
+diff --git a/test/fixedbugs/bug316.go b/test/fixedbugs/bug316.go
+new file mode 100644
+index 0000000000..bd4d99eb6a
+--- /dev/null
++++ b/test/fixedbugs/bug316.go
+@@ -0,0 +1,17 @@
++// $G $D/$F.go || echo BUG: bug316
++
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 1369.
++
++package main
++
++const (
++	c = cmplx(1, 2)
++	r = real(c) // was: const initializer must be constant
++	i = imag(c) // was: const initializer must be constant
++)
++
++func main() {}

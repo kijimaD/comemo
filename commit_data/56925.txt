@@ -26,7 +26,7 @@ Date:   Wed May 31 15:15:13 2023 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/infer.go            |  8 ++++++--
  src/go/types/infer.go                               |  8 ++++++--
  src/internal/types/testdata/examples/inference.go   | 18 +++++++++++-------
@@ -35,3 +35,171 @@ Date:   Wed May 31 15:15:13 2023 -0700
  src/internal/types/testdata/fixedbugs/issue51472.go |  2 +-
  src/internal/types/testdata/fixedbugs/issue60542.go | 12 ++++++++++++
  7 files changed, 41 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index c323344ca7..c2b1395953 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -231,7 +231,10 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 					// 2) If the core type doesn't have a tilde, we also must unify tx
+ 					//    with the core type.
+ 					if !u.unify(tx, core.typ, 0) {
+-						check.errorf(pos, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
++						// TODO(gri) Type parameters that appear in the constraint and
++						//           for which we have type arguments inferred should
++						//           use those type arguments for a better error message.
++						check.errorf(pos, CannotInferTypeArgs, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
+ 						return nil
+ 					}
+ 				case single && !core.tilde:
+@@ -249,7 +252,8 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 					var cause string
+ 					constraint := tpar.iface()
+ 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
+-						check.errorf(pos, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, cause)
++						// TODO(gri) better error message (see TODO above)
++						check.errorf(pos, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 						return nil
+ 					}
+ 				}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index 015edb5fbe..f39ef41415 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -233,7 +233,10 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 					// 2) If the core type doesn't have a tilde, we also must unify tx
+ 					//    with the core type.
+ 					if !u.unify(tx, core.typ, 0) {
+-						check.errorf(posn, CannotInferTypeArgs, "%s does not match %s", tpar, core.typ)
++						// TODO(gri) Type parameters that appear in the constraint and
++						//           for which we have type arguments inferred should
++						//           use those type arguments for a better error message.
++						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s", tpar, tx, tpar.Constraint())
+ 						return nil
+ 					}
+ 				case single && !core.tilde:
+@@ -251,7 +254,8 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 					var cause string
+ 					constraint := tpar.iface()
+ 					if m, _ := check.missingMethod(tx, constraint, true, func(x, y Type) bool { return u.unify(x, y, 0) }, &cause); m != nil {
+-						check.errorf(posn, CannotInferTypeArgs, "%s does not satisfy %s %s", tx, constraint, cause)
++						// TODO(gri) better error message (see TODO above)
++						check.errorf(posn, CannotInferTypeArgs, "%s (type %s) does not satisfy %s %s", tpar, tx, tpar.Constraint(), cause)
+ 						return nil
+ 					}
+ 				}
+diff --git a/src/internal/types/testdata/examples/inference.go b/src/internal/types/testdata/examples/inference.go
+index b6f735263e..f55dd09bde 100644
+--- a/src/internal/types/testdata/examples/inference.go
++++ b/src/internal/types/testdata/examples/inference.go
+@@ -99,7 +99,7 @@ func _() {
+ 	// last.
+ 	related2(1.2, []float64{})
+ 	related2(1.0, []int{})
+-	related2 /* ERROR "Slice does not match []Elem" */ (float64(1.0), []int{}) // TODO(gri) better error message
++	related2 /* ERROR "Slice (type []int) does not satisfy interface{[]Elem}" */ (float64(1.0), []int{}) // TODO(gri) better error message
+ }
+ 
+ type List[P any] []P
+@@ -117,7 +117,11 @@ func _() {
+ 	related3 /* ERROR "cannot infer Slice" */ [int]()
+ }
+ 
+-func wantsMethods[P interface{ m1(Q); m2() R }, Q, R any](P) {}
++func wantsMethods[P interface {
++	m1(Q)
++	m2() R
++}, Q, R any](P) {
++}
+ 
+ type hasMethods1 struct{}
+ 
+@@ -129,12 +133,12 @@ type hasMethods2 struct{}
+ func (*hasMethods2) m1(int)
+ func (*hasMethods2) m2() string
+ 
+-type hasMethods3 interface{
++type hasMethods3 interface {
+ 	m1(float64)
+ 	m2() complex128
+ }
+ 
+-type hasMethods4 interface{
++type hasMethods4 interface {
+ 	m1()
+ }
+ 
+@@ -144,11 +148,11 @@ func _() {
+ 	// signatures.
+ 	wantsMethods(hasMethods1{})
+ 	wantsMethods(&hasMethods1{})
+-	wantsMethods /* ERROR "hasMethods2 does not satisfy interface{m1(Q); m2() R} (method m1 has pointer receiver)" */ (hasMethods2{})
++	wantsMethods /* ERROR "P (type hasMethods2) does not satisfy interface{m1(Q); m2() R} (method m1 has pointer receiver)" */ (hasMethods2{})
+ 	wantsMethods(&hasMethods2{})
+ 	wantsMethods(hasMethods3(nil))
+-	wantsMethods /* ERROR "any does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
+-	wantsMethods /* ERROR "hasMethods4 does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods4(nil))
++	wantsMethods /* ERROR "P (type any) does not satisfy interface{m1(Q); m2() R} (missing method m1)" */ (any(nil))
++	wantsMethods /* ERROR "P (type hasMethods4) does not satisfy interface{m1(Q); m2() R} (wrong type for method m1)" */ (hasMethods4(nil))
+ }
+ 
+ // "Reverse" type inference is not yet permitted.
+diff --git a/src/internal/types/testdata/fixedbugs/issue45985.go b/src/internal/types/testdata/fixedbugs/issue45985.go
+index 9e321a0d8e..c486150cb3 100644
+--- a/src/internal/types/testdata/fixedbugs/issue45985.go
++++ b/src/internal/types/testdata/fixedbugs/issue45985.go
+@@ -9,5 +9,5 @@ func app[S interface{ ~[]T }, T any](s S, e T) S {
+ }
+ 
+ func _() {
+-	_ = app /* ERROR "S does not match []T" */ [int] // TODO(gri) better error message
++	_ = app /* ERROR "S (type int) does not satisfy interface{~[]T}" */ [int] // TODO(gri) better error message
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49112.go b/src/internal/types/testdata/fixedbugs/issue49112.go
+index 02e98ca417..e87d1c07dc 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49112.go
++++ b/src/internal/types/testdata/fixedbugs/issue49112.go
+@@ -7,9 +7,9 @@ package p
+ func f[P int](P) {}
+ 
+ func _() {
+-        _ = f[int]
+-        _ = f[[ /* ERROR "[]int does not satisfy int" */ ]int]
++	_ = f[int]
++	_ = f[[ /* ERROR "[]int does not satisfy int ([]int missing in int)" */ ]int]
+ 
+-        f(0)
+-        f /* ERROR "P does not match int" */ ([]int{}) // TODO(gri) better error message
++	f(0)
++	f /* ERROR "P (type []int) does not satisfy int" */ ([]int{}) // TODO(gri) better error message
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue51472.go b/src/internal/types/testdata/fixedbugs/issue51472.go
+index d366a3c18e..6dfff05395 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51472.go
++++ b/src/internal/types/testdata/fixedbugs/issue51472.go
+@@ -49,6 +49,6 @@ func f[T interface{comparable; []byte|string}](x T) {
+ }
+ 
+ func _(s []byte) {
+-	f /* ERROR "T does not match string" */ (s) // TODO(gri) better error message (T's type set only contains string!)
++	f /* ERROR "T (type []byte) does not satisfy interface{comparable; []byte | string}" */ (s) // TODO(gri) better error message (T's type set only contains string!)
+         _ = f[[ /* ERROR "does not satisfy" */ ]byte]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60542.go b/src/internal/types/testdata/fixedbugs/issue60542.go
+new file mode 100644
+index 0000000000..b536ddb198
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue60542.go
+@@ -0,0 +1,12 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func Clip[S ~[]E, E any](s S) S {
++	return s
++}
++
++var versions func()
++var _ = Clip /* ERROR "S (type func()) does not satisfy ~[]E" */ (versions)

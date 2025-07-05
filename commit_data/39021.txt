@@ -7,6 +7,41 @@ Date:   Wed Dec 12 19:30:32 2018 -0500
     Change-Id: If65518c76a865c03266be76b1c21c76e1c8b4763
     Reviewed-on: https://go-review.googlesource.com/c/153828
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.12.html | 9 +++++++--
  1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go1.12.html b/doc/go1.12.html
+index 14adc7c4da..6b6d9d4401 100644
+--- a/doc/go1.12.html
++++ b/doc/go1.12.html
+@@ -220,7 +220,7 @@ for {
+   printing and variable location information.
+ </p>
+ 
+-<h3 id="godoc">Godoc</h3>
++<h3 id="godoc"><code>godoc</code> and <code>go</code> <code>doc</code></h3>
+ 
+ <p>
+   In Go 1.12, <code>godoc</code> no longer has a command-line interface and
+@@ -228,6 +228,12 @@ for {
+   for command-line help output instead.
+ </p>
+ 
++<p><!-- CL 141977 -->
++  <code>go</code> <code>doc</code> now supports the <code>-all</code> flag,
++  which will cause it to print all exported APIs and their documentation,
++  similarly to what the <code>godoc</code> command line used to do.
++</p>
++
+ <h3 id="trace">Trace</h3>
+ 
+ <p><!-- CL 60790 -->
+@@ -276,7 +282,6 @@ for {
+ <!-- CL 116275: https://golang.org/cl/116275: cmd/compile: avoid string allocations when map key is struct or array literal -->
+ <!-- CL 142717: https://golang.org/cl/142717: cmd/compile: remove obsolete "safe" mode -->
+ <!-- CL 146058: https://golang.org/cl/146058: It is invalid to convert a nil unsafe.Pointer to uintptr and back, with arithmetic.: cmd/compile: assume unsafe pointer arithmetic generates non-nil results -->
+-<!-- CL 141977: https://golang.org/cl/141977: cmd/doc: add -all flag to print all documentation for package -->
+ <!-- CL 146898: https://golang.org/cl/146898: cmd/link, runtime: add initial cgo support for ppc64 -->
+ <!-- CL 115677: https://golang.org/cl/115677: cmd/vet: check embedded field tags too -->
+ <dl id="bufio"><dt><a href="/pkg/bufio/">bufio</a></dt>

@@ -12,9 +12,66 @@ Date:   Thu May 4 02:49:23 2017 +0000
     Reviewed-on: https://go-review.googlesource.com/42614
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/crypto/des/const.go | 3 ++-
  src/crypto/md5/md5.go   | 3 ++-
  src/crypto/rc4/rc4.go   | 3 ++-
  src/crypto/sha1/sha1.go | 3 ++-
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/des/const.go b/src/crypto/des/const.go
+index 781f075455..a20879d574 100644
+--- a/src/crypto/des/const.go
++++ b/src/crypto/des/const.go
+@@ -6,7 +6,8 @@
+ // Triple Data Encryption Algorithm (TDEA) as defined
+ // in U.S. Federal Information Processing Standards Publication 46-3.
+ //
+-// DES is broken and should not be used anymore.
++// DES is cryptographically broken and should not be used for secure
++// applications.
+ package des
+ 
+ // Used to perform an initial permutation of a 64-bit input block.
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 41afedd6a2..b682f00894 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -6,7 +6,8 @@
+ 
+ // Package md5 implements the MD5 hash algorithm as defined in RFC 1321.
+ //
+-// MD5 is broken and should not be used anymore.
++// MD5 is cryptographically broken and should not be used for secure
++// applications.
+ package md5
+ 
+ import (
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index 97534091d6..772af0e7e0 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -5,7 +5,8 @@
+ // Package rc4 implements RC4 encryption, as defined in Bruce Schneier's
+ // Applied Cryptography.
+ //
+-// RC4 is broken and should not be used anymore.
++// RC4 is cryptographically broken and should not be used for secure
++// applications.
+ package rc4
+ 
+ import "strconv"
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 73a42e0090..6b1721470b 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -4,7 +4,8 @@
+ 
+ // Package sha1 implements the SHA-1 hash algorithm as defined in RFC 3174.
+ //
+-// SHA-1 is broken and should not be used anymore.
++// SHA-1 is cryptographically broken and should not be used for secure
++// applications.
+ package sha1
+ 
+ import (

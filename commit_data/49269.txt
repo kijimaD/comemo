@@ -19,8 +19,141 @@ Date:   Wed Aug 4 12:27:26 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/339832
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/api_test.go        |  8 +++
  src/cmd/compile/internal/types2/typestring.go      | 25 +++-------
  src/cmd/compile/internal/types2/typestring_test.go | 58 ----------------------
  3 files changed, 15 insertions(+), 76 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 1d3347a6de..c625bd4959 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1567,6 +1567,14 @@ func F(){
+ 	}
+ }
+ 
++var nopos syntax.Pos
++
++// newDefined creates a new defined type named T with the given underlying type.
++func newDefined(underlying Type) *Named {
++	tname := NewTypeName(nopos, nil, "T", nil)
++	return NewNamed(tname, underlying, nil)
++}
++
+ func TestConvertibleTo(t *testing.T) {
+ 	for _, test := range []struct {
+ 		v, t Type
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 1416008b16..628eeaf3dd 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -144,32 +144,21 @@ func writeType(buf *bytes.Buffer, typ Type, qf Qualifier, visited []Type) {
+ 
+ 	case *Interface:
+ 		buf.WriteString("interface{")
+-		empty := true
+-		for i, m := range t.methods {
+-			if i > 0 {
++		first := true
++		for _, m := range t.methods {
++			if !first {
+ 				buf.WriteString("; ")
+ 			}
++			first = false
+ 			buf.WriteString(m.name)
+ 			writeSignature(buf, m.typ.(*Signature), qf, visited)
+-			empty = false
+-		}
+-		if !empty && len(t.embeddeds) > 0 {
+-			buf.WriteString("; ")
+ 		}
+-		for i, typ := range t.embeddeds {
+-			if i > 0 {
++		for _, typ := range t.embeddeds {
++			if !first {
+ 				buf.WriteString("; ")
+ 			}
++			first = false
+ 			writeType(buf, typ, qf, visited)
+-			empty = false
+-		}
+-		// print /* incomplete */ if needed to satisfy existing tests
+-		// TODO(gri) get rid of this eventually
+-		if debug && t.tset == nil {
+-			if !empty {
+-				buf.WriteByte(' ')
+-			}
+-			buf.WriteString("/* incomplete */")
+ 		}
+ 		buf.WriteByte('}')
+ 
+diff --git a/src/cmd/compile/internal/types2/typestring_test.go b/src/cmd/compile/internal/types2/typestring_test.go
+index 88103b81b1..0ed2934961 100644
+--- a/src/cmd/compile/internal/types2/typestring_test.go
++++ b/src/cmd/compile/internal/types2/typestring_test.go
+@@ -136,64 +136,6 @@ func TestTypeString(t *testing.T) {
+ 	}
+ }
+ 
+-var nopos syntax.Pos
+-
+-func TestIncompleteInterfaces(t *testing.T) {
+-	if !Debug {
+-		t.Skip("requires type checker to be compiled with debug = true")
+-	}
+-
+-	sig := NewSignature(nil, nil, nil, false)
+-	m := NewFunc(nopos, nil, "m", sig)
+-	for _, test := range []struct {
+-		typ  *Interface
+-		want string
+-	}{
+-		{new(Interface), "interface{/* incomplete */}"},
+-		{new(Interface).Complete(), "interface{}"},
+-
+-		{NewInterface(nil, nil), "interface{}"},
+-		{NewInterface(nil, nil).Complete(), "interface{}"},
+-		{NewInterface([]*Func{}, nil), "interface{}"},
+-		{NewInterface([]*Func{}, nil).Complete(), "interface{}"},
+-		{NewInterface(nil, []*Named{}), "interface{}"},
+-		{NewInterface(nil, []*Named{}).Complete(), "interface{}"},
+-		{NewInterface([]*Func{m}, nil), "interface{m() /* incomplete */}"},
+-		{NewInterface([]*Func{m}, nil).Complete(), "interface{m()}"},
+-		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}), "interface{T /* incomplete */}"},
+-		{NewInterface(nil, []*Named{newDefined(new(Interface).Complete())}).Complete(), "interface{T}"},
+-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil))}), "interface{T /* incomplete */}"},
+-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}), "interface{T /* incomplete */}"},
+-		{NewInterface(nil, []*Named{newDefined(NewInterface([]*Func{m}, nil).Complete())}).Complete(), "interface{T}"},
+-
+-		{NewInterfaceType(nil, nil), "interface{}"},
+-		{NewInterfaceType(nil, nil).Complete(), "interface{}"},
+-		{NewInterfaceType([]*Func{}, nil), "interface{}"},
+-		{NewInterfaceType([]*Func{}, nil).Complete(), "interface{}"},
+-		{NewInterfaceType(nil, []Type{}), "interface{}"},
+-		{NewInterfaceType(nil, []Type{}).Complete(), "interface{}"},
+-		{NewInterfaceType([]*Func{m}, nil), "interface{m() /* incomplete */}"},
+-		{NewInterfaceType([]*Func{m}, nil).Complete(), "interface{m()}"},
+-		{NewInterfaceType(nil, []Type{new(Interface).Complete()}), "interface{interface{} /* incomplete */}"},
+-		{NewInterfaceType(nil, []Type{new(Interface).Complete()}).Complete(), "interface{interface{}}"},
+-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil)}), "interface{interface{m() /* incomplete */} /* incomplete */}"},
+-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}), "interface{interface{m()} /* incomplete */}"},
+-		{NewInterfaceType(nil, []Type{NewInterfaceType([]*Func{m}, nil).Complete()}).Complete(), "interface{interface{m()}}"},
+-	} {
+-		got := test.typ.String()
+-		if got != test.want {
+-			t.Errorf("got: %s, want: %s", got, test.want)
+-		}
+-	}
+-}
+-
+-// newDefined creates a new defined type named T with the given underlying type.
+-// Helper function for use with TestIncompleteInterfaces only.
+-func newDefined(underlying Type) *Named {
+-	tname := NewTypeName(nopos, nil, "T", nil)
+-	return NewNamed(tname, underlying, nil)
+-}
+-
+ func TestQualifiedTypeString(t *testing.T) {
+ 	p, _ := pkgFor("p.go", "package p; type T int", nil)
+ 	q, _ := pkgFor("q.go", "package q", nil)

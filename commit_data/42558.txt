@@ -12,6 +12,19 @@ Date:   Tue Jan 14 15:57:49 2020 +0900
     Change-Id: I5d6b5684d61ea5da679519a9e703d977470de175
     Reviewed-on: https://go-review.googlesource.com/c/go/+/214617
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index b1ed674f2f..613101a2cd 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -1275,6 +1275,7 @@ Koki Tomoshige <tomocy.dev@gmail.com>
+ Komu Wairagu <komuw05@gmail.com>
+ Konstantin <konstantin8105@gmail.com>
+ Konstantin Shaposhnikov <k.shaposhnikov@gmail.com>
++Koya IWAMURA <kiwamura0314@gmail.com>
+ Kris Kwiatkowski <kris@cloudflare.com>
+ Kris Nova <kris@nivenly.com>
+ Kris Rousey <krousey@google.com>

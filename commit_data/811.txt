@@ -8,9 +8,66 @@ Date:   Sun Oct 5 08:34:48 2008 -0700
     DELTA=87  (37 added, 50 deleted, 0 changed)
     OCL=16498
     CL=16507
-
+---
  test/{bugs => fixedbugs}/bug026.go |  0
  test/{bugs => fixedbugs}/bug060.go |  0
  test/golden.out                    | 11 -----------
  test/map.go                        |  2 --
  4 files changed, 13 deletions(-)
+
+diff --git a/test/bugs/bug026.go b/test/fixedbugs/bug026.go
+similarity index 100%
+rename from test/bugs/bug026.go
+rename to test/fixedbugs/bug026.go
+diff --git a/test/bugs/bug060.go b/test/fixedbugs/bug060.go
+similarity index 100%
+rename from test/bugs/bug060.go
+rename to test/fixedbugs/bug060.go
+diff --git a/test/golden.out b/test/golden.out
+index a619502969..b83de865dc 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -5,9 +5,6 @@ BUG: errchk: func3.go: missing expected error message on line 14: 'type'
+ =========== ./helloworld.go
+ hello, world
+ 
+-=========== ./map.go
+-skipping increment test until bug060 is fixed
+-
+ =========== ./peano.go
+ 0! = 1
+ 1! = 1
+@@ -56,20 +53,12 @@ PASS
+ bugs/bug020.go:7: type of a structure field cannot be an open array
+ BUG should compile
+ 
+-=========== bugs/bug026.go
+-sys·printnl: main·sigt_I: not defined
+-BUG: known to fail incorrectly
+-
+ =========== bugs/bug032.go
+ BUG: compilation succeeds incorrectly
+ 
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 
+-=========== bugs/bug060.go
+-map does not increment
+-BUG: map increment
+-
+ =========== bugs/bug064.go
+ bugs/bug064.go:15: illegal types for operand: CALL
+ 	int32
+diff --git a/test/map.go b/test/map.go
+index 33658bae0f..c913fc6909 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -412,8 +412,6 @@ func main() {
+ 		}
+ 	}
+ 	
+-	print("skipping increment test until bug060 is fixed\n");
+-	return;
+ 
+ 	// tests for structured map element updates
+ 	for i := 0; i < count; i++ {

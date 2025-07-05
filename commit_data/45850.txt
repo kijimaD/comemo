@@ -12,9 +12,110 @@ Date:   Fri Nov 20 13:23:58 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/272651
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/const.go     | 23 ++++++++++++++++++-----
  src/cmd/compile/internal/gc/iexport.go   |  4 +---
  src/cmd/compile/internal/gc/syntax.go    |  3 +++
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  4 files changed, 23 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 42ac3a26f8..4e7318cfc6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -275,8 +275,8 @@ func convlit1(n *Node, t *types.Type, explicit bool, context func() string) *Nod
+ 		if v.U == nil {
+ 			break
+ 		}
+-		n.SetVal(v)
+ 		n.Type = t
++		n.SetVal(v)
+ 		return n
+ 
+ 	case OPLUS, ONEG, OBITNOT, ONOT, OREAL, OIMAG:
+@@ -979,9 +979,6 @@ func setconst(n *Node, v Val) {
+ 		Xoffset: BADWIDTH,
+ 	}
+ 	n.SetVal(v)
+-	if vt := idealType(v.Ctype()); n.Type.IsUntyped() && n.Type != vt {
+-		Fatalf("untyped type mismatch, have: %v, want: %v", n.Type, vt)
+-	}
+ 
+ 	// Check range.
+ 	lno := setlineno(n)
+@@ -1000,6 +997,22 @@ func setconst(n *Node, v Val) {
+ 	}
+ }
+ 
++func assertRepresents(t *types.Type, v Val) {
++	if !represents(t, v) {
++		Fatalf("%v does not represent %v", t, v)
++	}
++}
++
++func represents(t *types.Type, v Val) bool {
++	if !t.IsUntyped() {
++		// TODO(mdempsky): Stricter handling of typed types.
++		return true
++	}
++
++	vt := idealType(v.Ctype())
++	return t == vt
++}
++
+ func setboolconst(n *Node, v bool) {
+ 	setconst(n, Val{U: v})
+ }
+@@ -1013,8 +1026,8 @@ func setintconst(n *Node, v int64) {
+ // nodlit returns a new untyped constant with value v.
+ func nodlit(v Val) *Node {
+ 	n := nod(OLITERAL, nil, nil)
+-	n.SetVal(v)
+ 	n.Type = idealType(v.Ctype())
++	n.SetVal(v)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index b48a840d00..c3385f785a 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -777,9 +777,7 @@ func constTypeOf(typ *types.Type) Ctype {
+ }
+ 
+ func (w *exportWriter) value(typ *types.Type, v Val) {
+-	if vt := idealType(v.Ctype()); typ.IsUntyped() && typ != vt {
+-		Fatalf("exporter: untyped type mismatch, have: %v, want: %v", typ, vt)
+-	}
++	assertRepresents(typ, v)
+ 	w.typ(typ)
+ 
+ 	// Each type has only one admissible constant representation,
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index f364ed1527..de516dec69 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -251,6 +251,9 @@ func (n *Node) SetVal(v Val) {
+ 		Dump("have Opt", n)
+ 		Fatalf("have Opt")
+ 	}
++	if n.Op == OLITERAL {
++		assertRepresents(n.Type, v)
++	}
+ 	n.SetHasVal(true)
+ 	n.E = v.U
+ }
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 32619b08d1..443a3f7827 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3624,8 +3624,8 @@ func typecheckdef(n *Node) {
+ 			e = convlit(e, t)
+ 		}
+ 
+-		n.SetVal(e.Val())
+ 		n.Type = e.Type
++		n.SetVal(e.Val())
+ 
+ 	case ONAME:
+ 		if n.Name.Param.Ntype != nil {

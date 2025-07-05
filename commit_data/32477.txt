@@ -30,6 +30,39 @@ Date:   Fri Feb 10 15:54:35 2017 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/encoding/xml/marshal_test.go | 16 ++++++++++------
  1 file changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/xml/marshal_test.go b/src/encoding/xml/marshal_test.go
+index 4fb901f258..674c6b5b3f 100644
+--- a/src/encoding/xml/marshal_test.go
++++ b/src/encoding/xml/marshal_test.go
+@@ -1901,17 +1901,21 @@ func TestMarshalFlush(t *testing.T) {
+ 
+ func BenchmarkMarshal(b *testing.B) {
+ 	b.ReportAllocs()
+-	for i := 0; i < b.N; i++ {
+-		Marshal(atomValue)
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Marshal(atomValue)
++		}
++	})
+ }
+ 
+ func BenchmarkUnmarshal(b *testing.B) {
+ 	b.ReportAllocs()
+ 	xml := []byte(atomXml)
+-	for i := 0; i < b.N; i++ {
+-		Unmarshal(xml, &Feed{})
+-	}
++	b.RunParallel(func(pb *testing.PB) {
++		for pb.Next() {
++			Unmarshal(xml, &Feed{})
++		}
++	})
+ }
+ 
+ // golang.org/issue/6556

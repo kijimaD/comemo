@@ -30,7 +30,7 @@ Date:   Thu Feb 24 16:54:13 2022 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/proc.go             |  2 +-
  src/syscall/asm_linux_386.s     | 26 --------------------------
  src/syscall/asm_linux_amd64.s   | 27 ---------------------------
@@ -43,3 +43,409 @@ Date:   Thu Feb 24 16:54:13 2022 -0500
  src/syscall/asm_linux_s390x.s   | 26 --------------------------
  src/syscall/syscall_linux.go    | 35 ++++++++++++++++++++++++++++++++++-
  11 files changed, 35 insertions(+), 235 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 4535f62053..b281d9f3b8 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3658,7 +3658,7 @@ func reentersyscall(pc, sp uintptr) {
+ 
+ // Standard syscall entry used by the go syscall library and normal cgo calls.
+ //
+-// This is exported via linkname to assembly in the syscall package.
++// This is exported via linkname to assembly in the syscall package and x/sys.
+ //
+ //go:nosplit
+ //go:linkname entersyscall
+diff --git a/src/syscall/asm_linux_386.s b/src/syscall/asm_linux_386.s
+index 546d27932d..ae0047b6fb 100644
+--- a/src/syscall/asm_linux_386.s
++++ b/src/syscall/asm_linux_386.s
+@@ -13,32 +13,6 @@
+ // instead of the glibc-specific "CALL 0x10(GS)".
+ #define INVOKE_SYSCALL	INT	$0x80
+ 
+-// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-// Trap # in AX, args in BX CX DX SI DI, return in AX
+-TEXT ·Syscall(SB),NOSPLIT,$0-28
+-	CALL	runtime·entersyscall(SB)
+-	MOVL	trap+0(FP), AX	// syscall entry
+-	MOVL	a1+4(FP), BX
+-	MOVL	a2+8(FP), CX
+-	MOVL	a3+12(FP), DX
+-	MOVL	$0, SI
+-	MOVL	$0, DI
+-	INVOKE_SYSCALL
+-	CMPL	AX, $0xfffff001
+-	JLS	ok
+-	MOVL	$-1, r1+16(FP)
+-	MOVL	$0, r2+20(FP)
+-	NEGL	AX
+-	MOVL	AX, err+24(FP)
+-	CALL	runtime·exitsyscall(SB)
+-	RET
+-ok:
+-	MOVL	AX, r1+16(FP)
+-	MOVL	DX, r2+20(FP)
+-	MOVL	$0, err+24(FP)
+-	CALL	runtime·exitsyscall(SB)
+-	RET
+-
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ TEXT ·Syscall6(SB),NOSPLIT,$0-40
+ 	CALL	runtime·entersyscall(SB)
+diff --git a/src/syscall/asm_linux_amd64.s b/src/syscall/asm_linux_amd64.s
+index bd50b5ebfe..ea939b39f0 100644
+--- a/src/syscall/asm_linux_amd64.s
++++ b/src/syscall/asm_linux_amd64.s
+@@ -11,33 +11,6 @@
+ 
+ #define SYS_gettimeofday 96
+ 
+-// func Syscall(trap int64, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-// Trap # in AX, args in DI SI DX R10 R8 R9, return in AX DX
+-// Note that this differs from "standard" ABI convention, which
+-// would pass 4th arg in CX, not R10.
+-
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	CALL	runtime·entersyscall<ABIInternal>(SB)
+-	MOVQ	a1+8(FP), DI
+-	MOVQ	a2+16(FP), SI
+-	MOVQ	a3+24(FP), DX
+-	MOVQ	trap+0(FP), AX	// syscall entry
+-	SYSCALL
+-	CMPQ	AX, $0xfffffffffffff001
+-	JLS	ok
+-	MOVQ	$-1, r1+32(FP)
+-	MOVQ	$0, r2+40(FP)
+-	NEGQ	AX
+-	MOVQ	AX, err+48(FP)
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-ok:
+-	MOVQ	AX, r1+32(FP)
+-	MOVQ	DX, r2+40(FP)
+-	MOVQ	$0, err+48(FP)
+-	CALL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-
+ // func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall<ABIInternal>(SB)
+diff --git a/src/syscall/asm_linux_arm.s b/src/syscall/asm_linux_arm.s
+index 12986f801e..6f9a612fa1 100644
+--- a/src/syscall/asm_linux_arm.s
++++ b/src/syscall/asm_linux_arm.s
+@@ -9,36 +9,6 @@
+ // System calls for arm, Linux
+ //
+ 
+-// func Syscall(syscall uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-TEXT ·Syscall(SB),NOSPLIT,$0-28
+-	BL	runtime·entersyscall(SB)
+-	MOVW	trap+0(FP), R7
+-	MOVW	a1+4(FP), R0
+-	MOVW	a2+8(FP), R1
+-	MOVW	a3+12(FP), R2
+-	MOVW	$0, R3
+-	MOVW	$0, R4
+-	MOVW	$0, R5
+-	SWI	$0
+-	MOVW	$0xfffff001, R1
+-	CMP	R1, R0
+-	BLS	ok
+-	MOVW	$-1, R1
+-	MOVW	R1, r1+16(FP)
+-	MOVW	$0, R2
+-	MOVW	R2, r2+20(FP)
+-	RSB	$0, R0, R0
+-	MOVW	R0, err+24(FP)
+-	BL	runtime·exitsyscall(SB)
+-	RET
+-ok:
+-	MOVW	R0, r1+16(FP)
+-	MOVW	$0, R0
+-	MOVW	R0, r2+20(FP)
+-	MOVW	R0, err+24(FP)
+-	BL	runtime·exitsyscall(SB)
+-	RET
+-
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ // Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+ TEXT ·Syscall6(SB),NOSPLIT,$0-40
+diff --git a/src/syscall/asm_linux_arm64.s b/src/syscall/asm_linux_arm64.s
+index fc1466cc80..c9d28d301a 100644
+--- a/src/syscall/asm_linux_arm64.s
++++ b/src/syscall/asm_linux_arm64.s
+@@ -4,33 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	BL	runtime·entersyscall<ABIInternal>(SB)
+-	MOVD	a1+8(FP), R0
+-	MOVD	a2+16(FP), R1
+-	MOVD	a3+24(FP), R2
+-	MOVD	$0, R3
+-	MOVD	$0, R4
+-	MOVD	$0, R5
+-	MOVD	trap+0(FP), R8	// syscall entry
+-	SVC
+-	CMN	$4095, R0
+-	BCC	ok
+-	MOVD	$-1, R4
+-	MOVD	R4, r1+32(FP)	// r1
+-	MOVD	ZR, r2+40(FP)	// r2
+-	NEG	R0, R0
+-	MOVD	R0, err+48(FP)	// errno
+-	BL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-ok:
+-	MOVD	R0, r1+32(FP)	// r1
+-	MOVD	R1, r2+40(FP)	// r2
+-	MOVD	ZR, err+48(FP)	// errno
+-	BL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	BL	runtime·entersyscall<ABIInternal>(SB)
+ 	MOVD	a1+8(FP), R0
+diff --git a/src/syscall/asm_linux_mips64x.s b/src/syscall/asm_linux_mips64x.s
+index b6f293471d..994d7779fb 100644
+--- a/src/syscall/asm_linux_mips64x.s
++++ b/src/syscall/asm_linux_mips64x.s
+@@ -10,31 +10,6 @@
+ // System calls for mips64, Linux
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	JAL	runtime·entersyscall(SB)
+-	MOVV	a1+8(FP), R4
+-	MOVV	a2+16(FP), R5
+-	MOVV	a3+24(FP), R6
+-	MOVV	R0, R7
+-	MOVV	R0, R8
+-	MOVV	R0, R9
+-	MOVV	trap+0(FP), R2	// syscall entry
+-	SYSCALL
+-	BEQ	R7, ok
+-	MOVV	$-1, R1
+-	MOVV	R1, r1+32(FP)	// r1
+-	MOVV	R0, r2+40(FP)	// r2
+-	MOVV	R2, err+48(FP)	// errno
+-	JAL	runtime·exitsyscall(SB)
+-	RET
+-ok:
+-	MOVV	R2, r1+32(FP)	// r1
+-	MOVV	R3, r2+40(FP)	// r2
+-	MOVV	R0, err+48(FP)	// errno
+-	JAL	runtime·exitsyscall(SB)
+-	RET
+-
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	JAL	runtime·entersyscall(SB)
+ 	MOVV	a1+8(FP), R4
+diff --git a/src/syscall/asm_linux_mipsx.s b/src/syscall/asm_linux_mipsx.s
+index 041c353e79..8c45861d64 100644
+--- a/src/syscall/asm_linux_mipsx.s
++++ b/src/syscall/asm_linux_mipsx.s
+@@ -11,29 +11,6 @@
+ // System calls for mips, Linux
+ //
+ 
+-// func Syscall(trap uintptr, a1, a2, a3 uintptr) (r1, r2, err uintptr);
+-TEXT ·Syscall(SB),NOSPLIT,$0-28
+-	JAL	runtime·entersyscall(SB)
+-	MOVW	a1+4(FP), R4
+-	MOVW	a2+8(FP), R5
+-	MOVW	a3+12(FP), R6
+-	MOVW	R0, R7
+-	MOVW	trap+0(FP), R2	// syscall entry
+-	SYSCALL
+-	BEQ	R7, ok
+-	MOVW	$-1, R1
+-	MOVW	R1, r1+16(FP)	// r1
+-	MOVW	R0, r2+20(FP)	// r2
+-	MOVW	R2, err+24(FP)	// errno
+-	JAL	runtime·exitsyscall(SB)
+-	RET
+-ok:
+-	MOVW	R2, r1+16(FP)	// r1
+-	MOVW	R3, r2+20(FP)	// r2
+-	MOVW	R0, err+24(FP)	// errno
+-	JAL	runtime·exitsyscall(SB)
+-	RET
+-
+ // func Syscall6(trap trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+ // 5th and 6th arg go at sp+16, sp+20.
+ // Note that frame size of 20 means that 24 bytes gets reserved on stack.
+diff --git a/src/syscall/asm_linux_ppc64x.s b/src/syscall/asm_linux_ppc64x.s
+index b03d859ca2..d60e472226 100644
+--- a/src/syscall/asm_linux_ppc64x.s
++++ b/src/syscall/asm_linux_ppc64x.s
+@@ -10,31 +10,6 @@
+ // System calls for ppc64, Linux
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64);
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	BL	runtime·entersyscall<ABIInternal>(SB)
+-	MOVD	a1+8(FP), R3
+-	MOVD	a2+16(FP), R4
+-	MOVD	a3+24(FP), R5
+-	MOVD	R0, R6
+-	MOVD	R0, R7
+-	MOVD	R0, R8
+-	MOVD	trap+0(FP), R9	// syscall entry
+-	SYSCALL R9
+-	BVC	ok
+-	MOVD	$-1, R4
+-	MOVD	R4, r1+32(FP)	// r1
+-	MOVD	R0, r2+40(FP)	// r2
+-	MOVD	R3, err+48(FP)	// errno
+-	BL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-ok:
+-	MOVD	R3, r1+32(FP)	// r1
+-	MOVD	R0, r2+40(FP)	// r2
+-	MOVD	R0, err+48(FP)	// errno
+-	BL	runtime·exitsyscall<ABIInternal>(SB)
+-	RET
+-
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	BL	runtime·entersyscall<ABIInternal>(SB)
+ 	MOVD	a1+8(FP), R3
+diff --git a/src/syscall/asm_linux_riscv64.s b/src/syscall/asm_linux_riscv64.s
+index f6b7d11c08..60b5cdbc1c 100644
+--- a/src/syscall/asm_linux_riscv64.s
++++ b/src/syscall/asm_linux_riscv64.s
+@@ -8,30 +8,6 @@
+ // System calls for riscv64, Linux
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64)
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	CALL	runtime·entersyscall(SB)
+-	MOV	a1+8(FP), A0
+-	MOV	a2+16(FP), A1
+-	MOV	a3+24(FP), A2
+-	MOV	trap+0(FP), A7	// syscall entry
+-	ECALL
+-	MOV	$-4096, T0
+-	BLTU	T0, A0, err
+-	MOV	A0, r1+32(FP)	// r1
+-	MOV	A1, r2+40(FP)	// r2
+-	MOV	ZERO, err+48(FP)	// errno
+-	CALL	runtime·exitsyscall(SB)
+-	RET
+-err:
+-	MOV	$-1, T0
+-	MOV	T0, r1+32(FP)	// r1
+-	MOV	ZERO, r2+40(FP)	// r2
+-	SUB	A0, ZERO, A0
+-	MOV	A0, err+48(FP)	// errno
+-	CALL	runtime·exitsyscall(SB)
+-	RET
+-
+ // func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	CALL	runtime·entersyscall(SB)
+diff --git a/src/syscall/asm_linux_s390x.s b/src/syscall/asm_linux_s390x.s
+index 0a4913779a..14dabd85c2 100644
+--- a/src/syscall/asm_linux_s390x.s
++++ b/src/syscall/asm_linux_s390x.s
+@@ -8,32 +8,6 @@
+ // System calls for s390x, Linux
+ //
+ 
+-// func Syscall(trap int64, a1, a2, a3 int64) (r1, r2, err int64)
+-TEXT ·Syscall(SB),NOSPLIT,$0-56
+-	BL	runtime·entersyscall(SB)
+-	MOVD	a1+8(FP), R2
+-	MOVD	a2+16(FP), R3
+-	MOVD	a3+24(FP), R4
+-	MOVD	$0, R5
+-	MOVD	$0, R6
+-	MOVD	$0, R7
+-	MOVD	trap+0(FP), R1	// syscall entry
+-	SYSCALL
+-	MOVD	$0xfffffffffffff001, R8
+-	CMPUBLT	R2, R8, ok
+-	MOVD	$-1, r1+32(FP)
+-	MOVD	$0, r2+40(FP)
+-	NEG	R2, R2
+-	MOVD	R2, err+48(FP)	// errno
+-	BL	runtime·exitsyscall(SB)
+-	RET
+-ok:
+-	MOVD	R2, r1+32(FP)
+-	MOVD	R3, r2+40(FP)
+-	MOVD	$0, err+48(FP)	// errno
+-	BL	runtime·exitsyscall(SB)
+-	RET
+-
+ // func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr)
+ TEXT ·Syscall6(SB),NOSPLIT,$0-80
+ 	BL	runtime·entersyscall(SB)
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index a9a8ecbefd..999ca5bb7f 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -16,7 +16,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno)
+ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ // N.B. RawSyscall6 is provided via linkname by runtime/internal/syscall.
+@@ -26,6 +25,18 @@ func Syscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
+ func RawSyscall6(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno)
+ 
++// Pull in entersyscall/exitsyscall for Syscall/Syscall6.
++//
++// Note that this can't be a push linkname because the runtime already has a
++// nameless linkname to export to assembly here and in x/sys. Additionally,
++// entersyscall fetches the caller PC and SP and thus can't have a wrapper
++// inbetween.
++
++//go:linkname runtime_entersyscall runtime.entersyscall
++func runtime_entersyscall()
++//go:linkname runtime_exitsyscall runtime.exitsyscall
++func runtime_exitsyscall()
++
+ // N.B. For the Syscall functions below:
+ //
+ // //go:uintptrkeepalive because the uintptr argument may be converted pointers
+@@ -47,6 +58,28 @@ func RawSyscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
+ 	return RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
+ }
+ 
++//go:uintptrkeepalive
++//go:nosplit
++//go:linkname Syscall
++func Syscall(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	runtime_entersyscall()
++	// N.B. Calling RawSyscall here is unsafe with atomic coverage
++	// instrumentation and race mode.
++	//
++	// Coverage instrumentation will add a sync/atomic call to RawSyscall.
++	// Race mode will add race instrumentation to sync/atomic. Race
++	// instrumentation requires a P, which we no longer have.
++	//
++	// RawSyscall6 is fine because it is implemented in assembly and thus
++	// has no coverage instrumentation.
++	//
++	// This is typically not a problem in the runtime because cmd/go avoids
++	// adding coverage instrumentation to the runtime in race mode.
++	r1, r2, err = RawSyscall6(trap, a1, a2, a3, 0, 0, 0)
++	runtime_exitsyscall()
++	return
++}
++
+ func rawSyscallNoError(trap, a1, a2, a3 uintptr) (r1, r2 uintptr)
+ 
+ /*

@@ -10,7 +10,82 @@ Date:   Thu Apr 2 17:14:25 2020 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/mbarrier.go | 24 ++++++++++++++++++++----
  src/runtime/slice.go    |  2 +-
  2 files changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index df3ab6fc3c..941324782c 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -158,7 +158,7 @@ func typedmemmove(typ *_type, dst, src unsafe.Pointer) {
+ 		return
+ 	}
+ 	if typ.ptrdata != 0 {
+-		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.size)
++		bulkBarrierPreWrite(uintptr(dst), uintptr(src), typ.ptrdata)
+ 	}
+ 	// There's a race here: if some other goroutine can write to
+ 	// src, it may change some pointer in src after we've
+@@ -198,12 +198,27 @@ func reflect_typedmemmovepartial(typ *_type, dst, src unsafe.Pointer, off, size
+ 	if writeBarrier.needed && typ.ptrdata != 0 && size >= sys.PtrSize {
+ 		// Pointer-align start address for bulk barrier.
+ 		adst, asrc, asize := dst, src, size
++		ptrdata := typ.ptrdata
++		if ptrdata > off {
++			ptrdata -= off
++		} else {
++			ptrdata = 0
++		}
+ 		if frag := -off & (sys.PtrSize - 1); frag != 0 {
+ 			adst = add(dst, frag)
+ 			asrc = add(src, frag)
+ 			asize -= frag
++			if ptrdata > frag {
++				ptrdata -= frag
++			} else {
++				ptrdata = 0
++			}
++		}
++		pwsize := asize &^ (sys.PtrSize - 1)
++		if pwsize > ptrdata {
++			pwsize = ptrdata
+ 		}
+-		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), asize&^(sys.PtrSize-1))
++		bulkBarrierPreWrite(uintptr(adst), uintptr(asrc), pwsize)
+ 	}
+ 
+ 	memmove(dst, src, size)
+@@ -270,7 +285,8 @@ func typedslicecopy(typ *_type, dst, src slice) int {
+ 	// before calling typedslicecopy.
+ 	size := uintptr(n) * typ.size
+ 	if writeBarrier.needed {
+-		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), size)
++		pwsize := size - typ.size + typ.ptrdata
++		bulkBarrierPreWrite(uintptr(dstp), uintptr(srcp), pwsize)
+ 	}
+ 	// See typedmemmove for a discussion of the race between the
+ 	// barrier and memmove.
+@@ -318,7 +334,7 @@ func reflect_typedslicecopy(elemType *_type, dst, src slice) int {
+ //go:nosplit
+ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 	if typ.ptrdata != 0 {
+-		bulkBarrierPreWrite(uintptr(ptr), 0, typ.size)
++		bulkBarrierPreWrite(uintptr(ptr), 0, typ.ptrdata)
+ 	}
+ 	memclrNoHeapPointers(ptr, typ.size)
+ }
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 9ad814a555..52353ea151 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -182,7 +182,7 @@ func growslice(et *_type, old slice, cap int) slice {
+ 		if lenmem > 0 && writeBarrier.enabled {
+ 			// Only shade the pointers in old.array since we know the destination slice p
+ 			// only contains nil pointers because it has been cleared during alloc.
+-			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem)
++			bulkBarrierPreWriteSrcOnly(uintptr(p), uintptr(old.array), lenmem-et.size+et.ptrdata)
+ 		}
+ 	}
+ 	memmove(p, old.array, lenmem)

@@ -10,6 +10,22 @@ Date:   Wed Dec 3 14:14:00 2014 -0500
     R=golang-codereviews, iant
     CC=austin, golang-codereviews, minux
     https://golang.org/cl/183080043
-
+---
  src/cmd/pprof/internal/symbolizer/symbolizer.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/pprof/internal/symbolizer/symbolizer.go b/src/cmd/pprof/internal/symbolizer/symbolizer.go
+index cabddaa76e..86de5640d2 100644
+--- a/src/cmd/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/pprof/internal/symbolizer/symbolizer.go
+@@ -32,6 +32,10 @@ func Symbolize(mode string, prof *profile.Profile, obj plugin.ObjTool, ui plugin
+ 		}
+ 	}
+ 
++	if len(prof.Mapping) == 0 {
++		return fmt.Errorf("no known mappings")
++	}
++
+ 	mt, err := newMapping(prof, obj, ui, force)
+ 	if err != nil {
+ 		return err

@@ -14,7 +14,116 @@ Date:   Tue Mar 11 18:07:22 2008 -0700
     - added sieve as test case
     
     SVN=112135
-
+---
  doc/go_lang.txt | 13 +++++++------
  tests/sieve.go  | 42 ++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/doc/go_lang.txt b/doc/go_lang.txt
+index daa34ff988..75a1a91c52 100644
+--- a/doc/go_lang.txt
++++ b/doc/go_lang.txt
+@@ -154,7 +154,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
+   // Send the sequence 2, 3, 4, ... to channel 'ch'.
+   func Generate(ch *chan> int) {
+     for i := 2; ; i++ {
+-      >ch = i;  // Send 'i' to channel 'ch'.
++      >ch = i  // Send 'i' to channel 'ch'.
+     }
+   }
+   
+@@ -164,7 +164,7 @@ Here is a complete example Go program that implements a concurrent prime sieve:
+     for {
+       i := <in;  // Receive value of new variable 'i' from 'in'.
+       if i % prime != 0 {
+-        >out = i;  // Send 'i' to channel 'out'.
++        >out = i  // Send 'i' to channel 'out'.
+       }
+     }
+   }
+@@ -178,12 +178,12 @@ Here is a complete example Go program that implements a concurrent prime sieve:
+       printf("%d\n",  prime);
+       ch1 := new(chan int);
+       go Filter(ch, ch1, prime);
+-      ch = ch1;
++      ch = ch1
+     }
+   }
+   
+   func Main() {
+-    Sieve();
++    Sieve()
+   }
+ 
+ 
+@@ -822,7 +822,7 @@ Literals
+ ----
+ 
+   Literal = BasicLit | CompoundLit .
+-  BasicLit = char_lit | string_lit | int_lit | float_lit .
++  BasicLit = char_lit | string_lit | int_lit | float_lit | "nil" .
+   CompoundLit = ArrayLit | MapLit | StructLit | FunctionLit .
+ 
+ 
+@@ -993,11 +993,12 @@ Expression syntax is based on that of C but with fewer precedence levels.
+ 
+   PrimaryExpr =
+     identifier | Literal | "(" Expression ")" | "iota" |
+-    Call | Conversion |
++    Call | Conversion | Allocation |
+     Expression "[" Expression [ ":" Expression ] "]" | Expression "." identifier .
+   
+   Call = Expression "(" [ ExpressionList ] ")" .
+   Conversion = TypeName "(" [ ExpressionList ] ")" .
++  Allocation = "new" "(" Type [ "," ExpressionList ] ")" .
+ 
+   binary_op = log_op | rel_op | add_op | mul_op .
+   log_op = "||" | "&&" .
+diff --git a/tests/sieve.go b/tests/sieve.go
+new file mode 100644
+index 0000000000..03538d62a3
+--- /dev/null
++++ b/tests/sieve.go
+@@ -0,0 +1,42 @@
++// $G $F.go && $L $F.$A  # don't run it - goes forever
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package Main
++
++// Send the sequence 2, 3, 4, ... to channel 'ch'.
++func Generate(ch *chan> int) {
++  for i := 2; ; i++ {
++    >ch = i  // Send 'i' to channel 'ch'.
++  }
++}
++
++// Copy the values from channel 'in' to channel 'out',
++// removing those divisible by 'prime'.
++func Filter(in *chan< int, out *chan> int, prime int) {
++  for {
++    i := <in;  // Receive value of new variable 'i' from 'in'.
++    if i % prime != 0 {
++      >out = i  // Send 'i' to channel 'out'.
++    }
++  }
++}
++
++// The prime sieve: Daisy-chain Filter processes together.
++func Sieve() {
++  ch := new(chan int);  // Create a new channel.
++  go Generate(ch);  // Start Generate() as a subprocess.
++  for {
++    prime := <ch;
++    printf("%d\n",  prime);
++    ch1 := new(chan int);
++    go Filter(ch, ch1, prime);
++    ch = ch1
++  }
++}
++
++func Main() {
++  Sieve()
++}

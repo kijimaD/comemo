@@ -28,9 +28,130 @@ Date:   Wed Mar 30 09:56:13 2022 -0400
     Trust: Robert Findley <rfindley@google.com>
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/api_test.go                      |  2 +-
  src/go/types/check_test.go                    |  5 ++++
  src/go/types/expr.go                          | 38 +++++++++++++--------------
  src/go/types/testdata/fixedbugs/issue52031.go | 33 +++++++++++++++++++++++
  4 files changed, 58 insertions(+), 20 deletions(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 9ed4633b6f..0ad97c5922 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -330,7 +330,7 @@ func TestTypesInfo(t *testing.T) {
+ 
+ 		// issue 47243
+ 		{`package issue47243_a; var x int32; var _ = x << 3`, `3`, `untyped int`},
+-		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `uint`}, // issue 47410: should be untyped float
++		{`package issue47243_b; var x int32; var _ = x << 3.`, `3.`, `untyped float`},
+ 		{`package issue47243_c; var x int32; var _ = 1 << x`, `1 << x`, `int`},
+ 		{`package issue47243_d; var x int32; var _ = 1 << x`, `1`, `int`},
+ 		{`package issue47243_e; var x int32; var _ = 1 << 2`, `1`, `untyped int`},
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 5c42d124ea..88622d6b0c 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -235,6 +235,11 @@ func testFiles(t *testing.T, sizes Sizes, filenames []string, srcs [][]byte, man
+ 		t.Fatal(err)
+ 	}
+ 
++	if manual && *goVersion != "" {
++		// goVersion overrides -lang for manual tests.
++		conf.GoVersion = *goVersion
++	}
++
+ 	// TODO(gri) remove this or use flag mechanism to set mode if still needed
+ 	if strings.HasSuffix(filenames[0], ".go1") {
+ 		// TODO(rfindley): re-enable this test by using GoVersion.
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 1def8cc84d..977153512f 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -934,28 +934,28 @@ func (check *Checker) shift(x, y *operand, e ast.Expr, op token.Token) {
+ 				return
+ 			}
+ 		}
+-	}
+-
+-	// Check that RHS is otherwise at least of integer type.
+-	switch {
+-	case allInteger(y.typ):
+-		if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
+-			check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
+-			x.mode = invalid
+-			return
+-		}
+-	case isUntyped(y.typ):
+-		// This is incorrect, but preserves pre-existing behavior.
+-		// See also bug #47410.
+-		check.convertUntyped(y, Typ[Uint])
+-		if y.mode == invalid {
++	} else {
++		// Check that RHS is otherwise at least of integer type.
++		switch {
++		case allInteger(y.typ):
++			if !allUnsigned(y.typ) && !check.allowVersion(check.pkg, 1, 13) {
++				check.invalidOp(y, _InvalidShiftCount, "signed shift count %s requires go1.13 or later", y)
++				x.mode = invalid
++				return
++			}
++		case isUntyped(y.typ):
++			// This is incorrect, but preserves pre-existing behavior.
++			// See also bug #47410.
++			check.convertUntyped(y, Typ[Uint])
++			if y.mode == invalid {
++				x.mode = invalid
++				return
++			}
++		default:
++			check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
+ 			x.mode = invalid
+ 			return
+ 		}
+-	default:
+-		check.invalidOp(y, _InvalidShiftCount, "shift count %s must be integer", y)
+-		x.mode = invalid
+-		return
+ 	}
+ 
+ 	if x.mode == constant_ {
+diff --git a/src/go/types/testdata/fixedbugs/issue52031.go b/src/go/types/testdata/fixedbugs/issue52031.go
+new file mode 100644
+index 0000000000..448a550b25
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue52031.go
+@@ -0,0 +1,33 @@
++// -lang=go1.12
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type resultFlags uint
++
++// Example from #52031.
++//
++// The following shifts should not produce errors on Go < 1.13, as their
++// untyped constant operands are representable by type uint.
++const (
++	_ resultFlags = (1 << iota) / 2
++
++	reportEqual
++	reportUnequal
++	reportByIgnore
++	reportByMethod
++	reportByFunc
++	reportByCycle
++)
++
++// Invalid cases.
++var x int = 1
++var _ = (8 << x /* ERROR "signed shift count .* requires go1.13 or later" */)
++
++const _ = (1 << 1.2 /* ERROR "truncated to uint" */)
++
++var y float64
++var _ = (1 << y /* ERROR "must be integer" */)

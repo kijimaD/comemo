@@ -11,6 +11,20 @@ Date:   Thu Mar 29 23:00:01 2018 +0000
     GitHub-Pull-Request: golang/go#24600
     Reviewed-on: https://go-review.googlesource.com/103516
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/fmt/doc.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 375cdb4266..f3f2023dc2 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -45,6 +45,8 @@
+ 		%q	a double-quoted string safely escaped with Go syntax
+ 		%x	base 16, lower-case, two characters per byte
+ 		%X	base 16, upper-case, two characters per byte
++	Slice:
++		%p	address of 0th element in base 16 notation, with leading 0x
+ 	Pointer:
+ 		%p	base 16 notation, with leading 0x
+ 		The %b, %d, %o, %x and %X verbs also work with pointers,

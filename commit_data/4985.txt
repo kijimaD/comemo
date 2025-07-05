@@ -9,7 +9,7 @@ Date:   Wed Mar 3 18:17:13 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/217109
-
+---
  src/pkg/math/Makefile          |   4 ++
  src/pkg/math/all_test.go       | 109 ++++++++++++++++++++++++++++++++++++++++-
  src/pkg/math/exp_386.s         |   7 ++-
@@ -20,3 +20,507 @@ Date:   Wed Mar 3 18:17:13 2010 -0800
  src/pkg/math/remainder_386.s   |  15 ++++++
  src/pkg/math/remainder_decl.go |   7 +++
  9 files changed, 331 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+index e24c448f88..6650482a7e 100644
+--- a/src/pkg/math/Makefile
++++ b/src/pkg/math/Makefile
+@@ -15,6 +15,7 @@ OFILES_386=\
+ 	atan2_386.$O\
+ 	exp_386.$O\
+ 	exp2_386.$O\
++	expm1_386.$O\
+ 	fabs_386.$O\
+ 	floor_386.$O\
+ 	frexp_386.$O\
+@@ -24,6 +25,7 @@ OFILES_386=\
+ 	log_386.$O\
+ 	log1p_386.$O\
+ 	modf_386.$O\
++	remainder_386.$O\
+ 	sin_386.$O\
+ 	sincos_386.$O\
+ 	sqrt_386.$O\
+@@ -52,6 +54,7 @@ ALLGOFILES=\
+ 	fmod.go\
+ 	frexp.go\
+ 	hypot.go\
++	logb.go\
+ 	lgamma.go\
+ 	ldexp.go\
+ 	log.go\
+@@ -60,6 +63,7 @@ ALLGOFILES=\
+ 	nextafter.go\
+ 	pow.go\
+ 	pow10.go\
++	remainder.go\
+ 	sin.go\
+ 	sincos.go\
+ 	sinh.go\
+diff --git a/src/pkg/math/all_test.go b/src/pkg/math/all_test.go
+index d80f4ee133..6279499713 100644
+--- a/src/pkg/math/all_test.go
++++ b/src/pkg/math/all_test.go
+@@ -310,6 +310,18 @@ var log = []float64{
+ 	6.0174879014578057187016475e-01,
+ 	2.161703872847352815363655e+00,
+ }
++var logb = []float64{
++	3.0000000000000000e+00,
++	3.0000000000000000e+00,
++	-1.0000000000000000e+00,
++	3.0000000000000000e+00,
++	4.0000000000000000e+00,
++	2.0000000000000000e+00,
++	3.0000000000000000e+00,
++	2.0000000000000000e+00,
++	1.0000000000000000e+00,
++	4.0000000000000000e+00,
++}
+ var log10 = []float64{
+ 	6.9714316642508290997617083e-01,
+ 	8.886776901739320576279124e-01,
+@@ -382,6 +394,18 @@ var pow = []float64{
+ 	6.688182138451414936380374e+01,
+ 	2.0609869004248742886827439e-09,
+ }
++var remainder = []float64{
++	4.197615023265299782906368e-02,
++	2.261127525421895434476482e+00,
++	3.231794108794261433104108e-02,
++	-2.120723654214984321697556e-02,
++	3.637062928015826201999516e-01,
++	1.220868282268106064236690e+00,
++	-4.581668629186133046005125e-01,
++	-9.117596417440410050403443e-01,
++	8.734595415957246977711748e-01,
++	1.314075231424398637614104e+00,
++}
+ var sin = []float64{
+ 	-9.6466616586009283766724726e-01,
+ 	9.9338225271646545763467022e-01,
+@@ -747,6 +771,19 @@ var hypotSC = []float64{
+ 	NaN(),
+ }
+ 
++var vfilogbSC = []float64{
++	Inf(-1),
++	0,
++	Inf(1),
++	NaN(),
++}
++var ilogbSC = []int{
++	MaxInt32,
++	MinInt32,
++	MaxInt32,
++	MaxInt32,
++}
++
+ var vflgammaSC = []float64{
+ 	Inf(-1),
+ 	-3,
+@@ -777,6 +814,19 @@ var logSC = []float64{
+ 	NaN(),
+ }
+ 
++var vflogbSC = []float64{
++	Inf(-1),
++	0,
++	Inf(1),
++	NaN(),
++}
++var logbSC = []float64{
++	Inf(1),
++	Inf(-1),
++	Inf(1),
++	NaN(),
++}
++
+ var vflog1pSC = []float64{
+ 	Inf(-1),
+ 	-Pi,
+@@ -1204,7 +1254,7 @@ func TestFmin(t *testing.T) {
+ 
+ func TestFmod(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+-		if f := Fmod(10, vf[i]); fmod[i] != f { /*!close(fmod[i], f)*/
++		if f := Fmod(10, vf[i]); fmod[i] != f {
+ 			t.Errorf("Fmod(10, %g) = %g, want %g\n", vf[i], f, fmod[i])
+ 		}
+ 	}
+@@ -1242,6 +1292,19 @@ func TestHypot(t *testing.T) {
+ 	}
+ }
+ 
++func TestIlogb(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if e := Ilogb(vf[i]); frexp[i].i != e {
++			t.Errorf("Ilogb(%g) = %d, want %d\n", vf[i], e, frexp[i].i)
++		}
++	}
++	for i := 0; i < len(vflogbSC); i++ {
++		if e := Ilogb(vflogbSC[i]); ilogbSC[i] != e {
++			t.Errorf("Ilogb(%g) = %d, want %d\n", vflogbSC[i], e, ilogbSC[i])
++		}
++	}
++}
++
+ func TestLdexp(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Ldexp(frexp[i].f, frexp[i].i); !veryclose(vf[i], f) {
+@@ -1285,6 +1348,19 @@ func TestLog(t *testing.T) {
+ 	}
+ }
+ 
++func TestLogb(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Logb(vf[i]); logb[i] != f {
++			t.Errorf("Logb(%g) = %g, want %g\n", vf[i], f, logb[i])
++		}
++	}
++	for i := 0; i < len(vflogbSC); i++ {
++		if f := Logb(vflogbSC[i]); !alike(logbSC[i], f) {
++			t.Errorf("Logb(%g) = %g, want %g\n", vflogbSC[i], f, logbSC[i])
++		}
++	}
++}
++
+ func TestLog10(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		a := Fabs(vf[i])
+@@ -1376,6 +1452,19 @@ func TestPow(t *testing.T) {
+ 	}
+ }
+ 
++func TestRemainder(t *testing.T) {
++	for i := 0; i < len(vf); i++ {
++		if f := Remainder(10, vf[i]); remainder[i] != f {
++			t.Errorf("Remainder(10, %g) = %g, want %g\n", vf[i], f, remainder[i])
++		}
++	}
++	for i := 0; i < len(vffmodSC); i++ {
++		if f := Remainder(vffmodSC[i][0], vffmodSC[i][1]); !alike(fmodSC[i], f) {
++			t.Errorf("Remainder(%g, %g) = %g, want %g\n", vffmodSC[i][0], vffmodSC[i][1], f, fmodSC[i])
++		}
++	}
++}
++
+ func TestSin(t *testing.T) {
+ 	for i := 0; i < len(vf); i++ {
+ 		if f := Sin(vf[i]); !close(sin[i], f) {
+@@ -1665,6 +1754,12 @@ func BenchmarkHypot(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkIlogb(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Ilogb(.5)
++	}
++}
++
+ func BenchmarkLdexp(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Ldexp(.5, 2)
+@@ -1683,6 +1778,12 @@ func BenchmarkLog(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkLogb(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Logb(.5)
++	}
++}
++
+ func BenchmarkLog10(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Log10(.5)
+@@ -1725,6 +1826,12 @@ func BenchmarkPowFrac(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkRemainder(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		Remainder(10, 3)
++	}
++}
++
+ func BenchmarkSin(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		Sin(.5)
+diff --git a/src/pkg/math/exp_386.s b/src/pkg/math/exp_386.s
+index 5121f3ec1d..e0743e72a2 100644
+--- a/src/pkg/math/exp_386.s
++++ b/src/pkg/math/exp_386.s
+@@ -10,8 +10,7 @@ TEXT ·Exp(SB),7,$0
+ 	CMPL    AX, $0x7ff00000
+ 	JEQ     not_finite
+ 	FLDL2E                // F0=log2(e)
+-	FMOVD   x+0(FP), F0   // F0=x, F1=log2(e)
+-	FMULDP  F0, F1        // F0=x*log2(e)
++	FMULD   x+0(FP), F0   // F0=x*log2(e)
+ 	FMOVD   F0, F1        // F0=x*log2(e), F1=x*log2(e)
+ 	FRNDINT               // F0=int(x*log2(e)), F1=x*log2(e)
+ 	FSUBD   F0, F1        // F0=int(x*log2(e)), F1=x*log2(e)-int(x*log2(e))
+@@ -31,8 +30,8 @@ not_finite:
+ 	JNE     not_neginf
+ 	CMPL    CX, $0
+ 	JNE     not_neginf
+-	MOVL    $0, r+8(FP)
+-	MOVL    $0, r+12(FP)
++	FLDZ                  // F0=0
++	FMOVDP  F0, r+8(FP)
+ 	RET
+ not_neginf:
+ 	MOVL    CX, r+8(FP)
+diff --git a/src/pkg/math/expm1_386.s b/src/pkg/math/expm1_386.s
+new file mode 100644
+index 0000000000..8185f49a41
+--- /dev/null
++++ b/src/pkg/math/expm1_386.s
+@@ -0,0 +1,55 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Expm1(x float64) float64
++TEXT ·Expm1(SB),7,$0
++	FLDLN2               // F0=log(2) = 1/log2(e) ~ 0.693147
++	FMOVD   x+0(FP), F0  // F0=x, F1=1/log2(e)
++	FABS                 // F0=|x|, F1=1/log2(e) 
++	FUCOMPP F0, F1       // compare F0 to F1
++	FSTSW   AX
++	SAHF
++	JCC     use_exp      // jump if F0 >= F1
++	FLDL2E                // F0=log2(e)
++	FMULD   x+0(FP), F0   // F0=x*log2(e) (-1<F0<1)
++	F2XM1                 // F0=e**x-1 = 2**(x*log2(e))-1
++	FMOVDP  F0, r+8(FP)
++	RET
++use_exp:
++// test bits for not-finite
++	MOVL    x+4(FP), AX
++	ANDL    $0x7ff00000, AX
++	CMPL    AX, $0x7ff00000
++	JEQ     not_finite
++	FLDL2E                // F0=log2(e)
++	FMULD   x+0(FP), F0   // F0=x*log2(e)
++	FMOVD   F0, F1        // F0=x*log2(e), F1=x*log2(e)
++	FRNDINT               // F0=int(x*log2(e)), F1=x*log2(e)
++	FSUBD   F0, F1        // F0=int(x*log2(e)), F1=x*log2(e)-int(x*log2(e))
++	FXCHD   F0, F1        // F0=x*log2(e)-int(x*log2(e)), F1=int(x*log2(e))
++	F2XM1                 // F0=2**(x*log2(e)-int(x*log2(e)))-1, F1=int(x*log2(e))
++	FLD1                  // F0=1, F1=2**(x*log2(e)-int(x*log2(e)))-1, F2=int(x*log2(e))
++	FADDDP  F0, F1        // F0=2**(x*log2(e)-int(x*log2(e))), F1=int(x*log2(e))
++	FSCALE                // F0=e**x, F1=int(x*log2(e))
++	FMOVDP  F0, F1        // F0=e**x
++	FLD1                  // F0=1, F1=e**x
++	FSUBDP  F0, F1        // F0=e**x-1 
++	FMOVDP  F0, r+8(FP)
++	RET
++not_finite:
++// test bits for -Inf
++	MOVL    x+4(FP), BX
++	MOVL    x+0(FP), CX
++	CMPL    BX, $0xfff00000
++	JNE     not_neginf
++	CMPL    CX, $0
++	JNE     not_neginf
++	FLD1                 // F0=1
++	FCHS                 // F0=-1
++	FMOVDP  F0, r+8(FP)
++	RET
++not_neginf:
++	MOVL    CX, r+8(FP)
++	MOVL    BX, r+12(FP)
++	RET
+diff --git a/src/pkg/math/expm1_decl.go b/src/pkg/math/expm1_decl.go
+new file mode 100644
+index 0000000000..4dab70bc9f
+--- /dev/null
++++ b/src/pkg/math/expm1_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Expm1(x float64) float64
+diff --git a/src/pkg/math/logb.go b/src/pkg/math/logb.go
+new file mode 100644
+index 0000000000..acda15d226
+--- /dev/null
++++ b/src/pkg/math/logb.go
+@@ -0,0 +1,47 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Logb(x) returns the binary logarithm of non-zero x.
++//
++// Special cases are:
++//	Logb(±Inf) = +Inf
++//	Logb(0) = -Inf
++//	Logb(NaN) = NaN
++func Logb(x float64) float64 {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x == 0:
++		return Inf(-1)
++	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++		return Inf(1)
++	case x != x: // IsNaN(x):
++		return x
++	}
++	return float64(int((Float64bits(x)>>shift)&mask) - bias)
++}
++
++// Ilogb(x) returns the binary logarithm of non-zero x as an integer.
++//
++// Special cases are:
++//	Ilogb(±Inf) = MaxInt32
++//	Ilogb(0) = MinInt32
++//	Ilogb(NaN) = MaxInt32
++func Ilogb(x float64) int {
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x == 0:
++		return MinInt32
++	case x != x: // IsNaN(x):
++		return MaxInt32
++	case x < -MaxFloat64 || x > MaxFloat64: // IsInf(x, 0):
++		return MaxInt32
++	}
++	return int((Float64bits(x)>>shift)&mask) - bias
++}
+diff --git a/src/pkg/math/remainder.go b/src/pkg/math/remainder.go
+new file mode 100644
+index 0000000000..be8724c7f3
+--- /dev/null
++++ b/src/pkg/math/remainder.go
+@@ -0,0 +1,85 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// The original C code and the the comment below are from
++// FreeBSD's /usr/src/lib/msun/src/e_remainder.c and came
++// with this notice.  The go code is a simplified version of
++// the original C.
++//
++// ====================================================
++// Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
++//
++// Developed at SunPro, a Sun Microsystems, Inc. business.
++// Permission to use, copy, modify, and distribute this
++// software is freely granted, provided that this notice
++// is preserved.
++// ====================================================
++//
++// __ieee754_remainder(x,y)
++// Return :
++//      returns  x REM y  =  x - [x/y]*y  as if in infinite
++//      precision arithmetic, where [x/y] is the (infinite bit)
++//      integer nearest x/y (in half way cases, choose the even one).
++// Method :
++//      Based on fmod() returning  x - [x/y]chopped * y  exactly.
++
++// Remainder returns the IEEE 754 floating-point remainder of x/y.
++//
++// Special cases are:
++//	Remainder(x, NaN) = NaN
++//	Remainder(NaN, y) = NaN
++//	Remainder(Inf, y) = NaN
++//	Remainder(x, 0) = NaN
++//	Remainder(x, Inf) = x
++func Remainder(x, y float64) float64 {
++	const (
++		Tiny    = 4.45014771701440276618e-308 // 0x0020000000000000
++		HalfMax = MaxFloat64 / 2
++	)
++	// TODO(rsc): Remove manual inlining of IsNaN, IsInf
++	// when compiler does it for us
++	// special cases
++	switch {
++	case x != x || y != y || x < -MaxFloat64 || x > MaxFloat64 || y == 0: // IsNaN(x) || IsNaN(y) || IsInf(x, 0) || y == 0:
++		return NaN()
++	case y < -MaxFloat64 || y > MaxFloat64: // IsInf(y):
++		return x
++	}
++	sign := false
++	if x < 0 {
++		x = -x
++		sign = true
++	}
++	if y < 0 {
++		y = -y
++	}
++	if x == y {
++		return 0
++	}
++	if y <= HalfMax {
++		x = Fmod(x, y+y) // now x < 2y
++	}
++	if y < Tiny {
++		if x+x > y {
++			x -= y
++			if x+x >= y {
++				x -= y
++			}
++		}
++	} else {
++		yHalf := 0.5 * y
++		if x > yHalf {
++			x -= y
++			if x >= yHalf {
++				x -= y
++			}
++		}
++	}
++	if sign {
++		x = -x
++	}
++	return x
++}
+diff --git a/src/pkg/math/remainder_386.s b/src/pkg/math/remainder_386.s
+new file mode 100644
+index 0000000000..4cb98233a6
+--- /dev/null
++++ b/src/pkg/math/remainder_386.s
+@@ -0,0 +1,15 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// func Remainder(x, y float64) float64
++TEXT ·Remainder(SB),7,$0
++	FMOVD   y+8(FP), F0  // F0=y
++	FMOVD   x+0(FP), F0  // F0=x, F1=y
++	FPREM1               // F0=reduced_x, F1=y
++	FSTSW   AX           // AX=status word
++	ANDW    $0x0400, AX
++	JNE     -3(PC)       // jump if reduction incomplete
++	FMOVDP  F0, F1       // F0=x-q*y
++	FMOVDP  F0, r+16(FP)
++	RET
+diff --git a/src/pkg/math/remainder_decl.go b/src/pkg/math/remainder_decl.go
+new file mode 100644
+index 0000000000..1407d9a6a4
+--- /dev/null
++++ b/src/pkg/math/remainder_decl.go
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++func Remainder(x, y float64) float64

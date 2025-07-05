@@ -13,6 +13,20 @@ Date:   Wed Oct 20 07:46:23 2021 +0000
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Daniel Martí <mvdan@mvdan.cc>
     Trust: Alexander Rakoczy <alex@golang.org>
-
+---
  src/math/big/arith_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 59be952200..5c72a27d8d 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -379,7 +379,7 @@ E5:	CMPQ BX, R11		// i < n
+ 
+ // func addMulVVW(z, x []Word, y Word) (c Word)
+ TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	CMPB    ·support_adx(SB), $1
++	CMPB ·support_adx(SB), $1
+ 	JEQ adx
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+24(FP), R8

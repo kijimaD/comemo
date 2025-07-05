@@ -12,8 +12,93 @@ Date:   Sun Apr 24 13:33:33 2016 +0200
     Reviewed-on: https://go-review.googlesource.com/22410
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/go/test.go     |  1 -
  src/cmd/go/testflag.go |  4 +++-
  src/cmd/trace/main.go  | 21 ++++++++++++++-------
  3 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 5c21de5d9b..02abcbe23a 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -233,7 +233,6 @@ const testFlag2 = `
+ 
+ 	-trace trace.out
+ 	    Write an execution trace to the specified file before exiting.
+-	    Writes test binary as -c would.
+ 
+ 	-v
+ 	    Verbose output: log all tests as they are run. Also print all
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 873df1ffc3..a65ed1f384 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -149,9 +149,11 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 				testBench = true
+ 			case "timeout":
+ 				testTimeout = value
+-			case "blockprofile", "cpuprofile", "memprofile", "trace":
++			case "blockprofile", "cpuprofile", "memprofile":
+ 				testProfile = true
+ 				testNeedBinary = true
++			case "trace":
++				testProfile = true
+ 			case "coverpkg":
+ 				testCover = true
+ 				if value == "" {
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index cfd222e132..2735bf13ea 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -14,7 +14,7 @@ Example usage:
+ Generate a trace file with 'go test':
+ 	go test -trace trace.out pkg
+ View the trace in a web browser:
+-	go tool trace pkg.test trace.out
++	go tool trace trace.out
+ */
+ package main
+ 
+@@ -37,7 +37,9 @@ Given a trace file produced by 'go test':
+ 	go test -trace=trace.out pkg
+ 
+ Open a web browser displaying trace:
+-	go tool trace [flags] pkg.test trace.out
++	go tool trace [flags] [pkg.test] trace.out
++[pkg.test] argument is required for traces produced by Go 1.6 and below.
++Go 1.7 does not require the binary argument.
+ 
+ Flags:
+ 	-http=addr: HTTP service address (e.g., ':6060')
+@@ -58,12 +60,17 @@ func main() {
+ 	}
+ 	flag.Parse()
+ 
+-	// Usage information when no arguments.
+-	if flag.NArg() != 2 {
++	// Go 1.7 traces embed symbol info and does not require the binary.
++	// But we optionally accept binary as first arg for Go 1.5 traces.
++	switch flag.NArg() {
++	case 1:
++		traceFile = flag.Arg(0)
++	case 2:
++		programBinary = flag.Arg(0)
++		traceFile = flag.Arg(1)
++	default:
+ 		flag.Usage()
+ 	}
+-	programBinary = flag.Arg(0)
+-	traceFile = flag.Arg(1)
+ 
+ 	ln, err := net.Listen("tcp", *httpFlag)
+ 	if err != nil {
+@@ -91,7 +98,7 @@ var loader struct {
+ 
+ func parseEvents() ([]*trace.Event, error) {
+ 	loader.once.Do(func() {
+-		tracef, err := os.Open(flag.Arg(1))
++		tracef, err := os.Open(traceFile)
+ 		if err != nil {
+ 			loader.err = fmt.Errorf("failed to open trace file: %v", err)
+ 			return

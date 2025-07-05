@@ -8,6 +8,11 @@ Date:   Tue Nov 11 23:46:20 2014 +1100
     R=golang-codereviews, adg
     CC=golang-codereviews
     https://golang.org/cl/172980043
-
+---
  doc/gopher/fiveyears.jpg | Bin 0 -> 220526 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/doc/gopher/fiveyears.jpg b/doc/gopher/fiveyears.jpg
+new file mode 100644
+index 0000000000..df1064868e
+Binary files /dev/null and b/doc/gopher/fiveyears.jpg differ

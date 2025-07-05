@@ -24,7 +24,65 @@ Date:   Tue Feb 26 00:40:28 2013 +0100
     R=daniel.morsing, bradfitz, minux.ma, dave, rsc
     CC=golang-dev
     https://golang.org/cl/7397056
-
+---
  src/cmd/gc/closure.c        |  6 +++++-
  src/pkg/sort/search_test.go | 22 ++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/closure.c b/src/cmd/gc/closure.c
+index 78b73d847c..4e029ef83a 100644
+--- a/src/cmd/gc/closure.c
++++ b/src/cmd/gc/closure.c
+@@ -238,14 +238,18 @@ walkclosure(Node *func, NodeList **init)
+ 	}
+ 
+ 	clos = nod(OCOMPLIT, N, nod(OIND, typ, N));
++	clos->esc = func->esc;
+ 	clos->right->implicit = 1;
+ 	clos->list = concat(list1(nod(OCFUNC, func->closure->nname, N)), func->enter);
+ 
+ 	// Force type conversion from *struct to the func type.
+ 	clos = nod(OCONVNOP, clos, N);
+ 	clos->type = func->type;
+-	
++
+ 	typecheck(&clos, Erv);
++	// typecheck will insert a PTRLIT node under CONVNOP,
++	// tag it with escape analysis result.
++	clos->left->esc = func->esc;
+ 	walkexpr(&clos, init);
+ 
+ 	return clos;
+diff --git a/src/pkg/sort/search_test.go b/src/pkg/sort/search_test.go
+index 07295ffa97..4d8d6d930b 100644
+--- a/src/pkg/sort/search_test.go
++++ b/src/pkg/sort/search_test.go
+@@ -117,6 +117,28 @@ func TestSearchWrappers(t *testing.T) {
+ 	}
+ }
+ 
++func runSearchWrappers() {
++	SearchInts(data, 11)
++	SearchFloat64s(fdata, 2.1)
++	SearchStrings(sdata, "")
++	IntSlice(data).Search(0)
++	Float64Slice(fdata).Search(2.0)
++	StringSlice(sdata).Search("x")
++}
++
++func TestSearchWrappersDontAlloc(t *testing.T) {
++	allocs := testing.AllocsPerRun(100, runSearchWrappers)
++	if allocs != 0 {
++		t.Errorf("expected no allocs for runSearchWrappers, got %v", allocs)
++	}
++}
++
++func BenchmarkSearchWrappers(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		runSearchWrappers()
++	}
++}
++
+ // Abstract exhaustive test: all sizes up to 100,
+ // all possible return values.  If there are any small
+ // corner cases, this test exercises them.

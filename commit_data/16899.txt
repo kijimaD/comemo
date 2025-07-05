@@ -9,6 +9,20 @@ Date:   Mon Jul 29 18:33:39 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/11892043
-
+---
  doc/articles/slices_usage_and_internals.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/articles/slices_usage_and_internals.html b/doc/articles/slices_usage_and_internals.html
+index 7eb751b455..ebdca01503 100644
+--- a/doc/articles/slices_usage_and_internals.html
++++ b/doc/articles/slices_usage_and_internals.html
+@@ -25,7 +25,7 @@ the type <code>[4]int</code> represents an array of four integers. An array's
+ size is fixed; its length is part of its type (<code>[4]int</code> and
+ <code>[5]int</code> are distinct, incompatible types). Arrays can be indexed in
+ the usual way, so the expression <code>s[n]</code> accesses the <i>n</i>th
+-element:
++element, starting from zero.
+ </p>
+ 
+ <pre>

@@ -9,6 +9,28 @@ Date:   Tue Nov 15 12:41:33 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  test/fixedbugs/bug499.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/test/fixedbugs/bug499.go b/test/fixedbugs/bug499.go
+new file mode 100644
+index 0000000000..e4142e935b
+--- /dev/null
++++ b/test/fixedbugs/bug499.go
+@@ -0,0 +1,15 @@
++// run
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Gccgo got confused when a type was used both for a map bucket type
++// and for a map key type.
++
++package main
++
++func main() {
++	_ = make(map[byte]byte)
++	_ = make(map[[8]byte]chan struct{})
++}

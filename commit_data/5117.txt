@@ -7,7 +7,53 @@ Date:   Tue Mar 23 18:13:20 2010 -0700
     R=kaib, rsc
     CC=golang-dev
     https://golang.org/cl/627045
-
+---
  src/cmd/5g/gobj.c   | 4 ++--
  test/golden-arm.out | 5 ++---
  2 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/5g/gobj.c b/src/cmd/5g/gobj.c
+index 0e82200075..c819be96e7 100644
+--- a/src/cmd/5g/gobj.c
++++ b/src/cmd/5g/gobj.c
+@@ -498,12 +498,12 @@ gdatacomplex(Node *nam, Mpcplx *cval)
+ 	w = types[w]->width;
+ 
+ 	p = gins(ADATA, nam, N);
+-	p->from.scale = w;
++	p->reg = w;
+ 	p->to.type = D_FCONST;
+ 	p->to.dval = mpgetflt(&cval->real);
+ 
+ 	p = gins(ADATA, nam, N);
+-	p->from.scale = w;
++	p->reg = w;
+ 	p->from.offset += w;
+ 	p->to.type = D_FCONST;
+ 	p->to.dval = mpgetflt(&cval->imag);
+diff --git a/test/golden-arm.out b/test/golden-arm.out
+index dff4be70db..6764f93347 100644
+--- a/test/golden-arm.out
++++ b/test/golden-arm.out
+@@ -59,7 +59,7 @@ do break
+ broke
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:9: fatal error: typecheck loop
++fixedbugs/bug081.go:9: typechecking loop
+ 
+ =========== fixedbugs/bug093.go
+ M
+@@ -80,11 +80,10 @@ panic PC=xxx
+ [1]   Segmentation fault      "${@}"
+ 
+ =========== fixedbugs/bug154.go
+-??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
++[1]   Segmentation fault      "${@}"
+ BUG: should not panic
+ 
+ =========== fixedbugs/bug206.go
+-??none??: $GOROOT/pkg/linux_arm/strconv.a: failed to load: os.ERANGE
+ BUG: bug206
+ 
+ =========== helloworld.go

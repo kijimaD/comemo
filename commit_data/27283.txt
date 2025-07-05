@@ -16,7 +16,44 @@ Date:   Fri Mar 18 13:35:34 2016 -0400
     Reviewed-on: https://go-review.googlesource.com/20871
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/dist/build.go | 4 ++--
  src/make.bash         | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index e35d96946e..2712d25e38 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -167,7 +167,7 @@ func xinit() {
+ 		goextlinkenabled = b
+ 	}
+ 
+-	gogcflags = os.Getenv("GO_GCFLAGS")
++	gogcflags = os.Getenv("BOOT_GO_GCFLAGS")
+ 
+ 	b = os.Getenv("CC")
+ 	if b == "" {
+@@ -691,7 +691,7 @@ func install(dir string) {
+ 	}
+ 	compile := []string{pathf("%s/compile", tooldir), "-pack", "-o", b, "-p", pkg}
+ 	if gogcflags != "" {
+-		compile = append(compile, gogcflags)
++		compile = append(compile, strings.Fields(gogcflags)...)
+ 	}
+ 	if dir == "runtime" {
+ 		compile = append(compile, "-+", "-asmhdr", pathf("%s/go_asm.h", workdir))
+diff --git a/src/make.bash b/src/make.bash
+index 6e9c12901b..82c903eadb 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -151,8 +151,8 @@ if [ "$1" = "--no-clean" ]; then
+ 	buildall=""
+ 	shift
+ fi
++./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ 
+-GO_GCFLAGS="$BOOT_GO_GCFLAGS" ./cmd/dist/dist bootstrap $buildall $GO_DISTFLAGS -v # builds go_bootstrap
+ # Delay move of dist tool to now, because bootstrap may clear tool directory.
+ mv cmd/dist/dist "$GOTOOLDIR"/dist
+ echo

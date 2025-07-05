@@ -18,6 +18,19 @@ Date:   Fri Jul 26 14:06:55 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Sean Liao <sean@liao.dev>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/common.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index faa14319c3..26f795f13a 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1013,6 +1013,7 @@ func (c *Config) ticketKeys(configForClient *Config) []ticketKey {
+ 	if configForClient != nil {
+ 		configForClient.mutex.RLock()
+ 		if configForClient.SessionTicketsDisabled {
++			configForClient.mutex.RUnlock()
+ 			return nil
+ 		}
+ 		configForClient.initLegacySessionTicketKeyRLocked()

@@ -16,7 +16,42 @@ Date:   Mon Jan 29 11:28:17 2018 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/asm/internal/asm/asm.go         | 2 +-
  src/cmd/asm/internal/asm/pseudo_test.go | 3 +++
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index bf3545b32f..19f930d802 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -71,7 +71,7 @@ func (p *Parser) append(prog *obj.Prog, cond string, doLabel bool) {
+ 
+ // validSymbol checks that addr represents a valid name for a pseudo-op.
+ func (p *Parser) validSymbol(pseudo string, addr *obj.Addr, offsetOk bool) bool {
+-	if addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
++	if addr.Sym == nil || addr.Name != obj.NAME_EXTERN && addr.Name != obj.NAME_STATIC || addr.Scale != 0 || addr.Reg != 0 {
+ 		p.errorf("%s symbol %q must be a symbol(SB)", pseudo, symbolName(addr))
+ 		return false
+ 	}
+diff --git a/src/cmd/asm/internal/asm/pseudo_test.go b/src/cmd/asm/internal/asm/pseudo_test.go
+index 9ba9adfcfd..52c98b4056 100644
+--- a/src/cmd/asm/internal/asm/pseudo_test.go
++++ b/src/cmd/asm/internal/asm/pseudo_test.go
+@@ -36,13 +36,16 @@ func TestErroneous(t *testing.T) {
+ 		{"TEXT", "$\"foo\", 0, $1", "TEXT symbol \"<erroneous symbol>\" must be a symbol(SB)"},
+ 		{"TEXT", "$0É:0, 0, $1", "expected end of operand, found É"}, // Issue #12467.
+ 		{"TEXT", "$:0:(SB, 0, $1", "expected '(', found 0"},          // Issue 12468.
++		{"TEXT", "@B(SB),0,$0", "expected '(', found B"},             // Issue 23580.
+ 		{"FUNCDATA", "", "expect two operands for FUNCDATA"},
+ 		{"FUNCDATA", "(SB ", "expect two operands for FUNCDATA"},
+ 		{"DATA", "", "expect two operands for DATA"},
+ 		{"DATA", "0", "expect two operands for DATA"},
+ 		{"DATA", "(0), 1", "expect /size for DATA argument"},
++		{"DATA", "@B(SB)/4,0", "expected '(', found B"}, // Issue 23580.
+ 		{"GLOBL", "", "expect two or three operands for GLOBL"},
+ 		{"GLOBL", "0,1", "GLOBL symbol \"<erroneous symbol>\" must be a symbol(SB)"},
++		{"GLOBL", "@B(SB), 0", "expected '(', found B"}, // Issue 23580.
+ 		{"PCDATA", "", "expect two operands for PCDATA"},
+ 		{"PCDATA", "1", "expect two operands for PCDATA"},
+ 	}

@@ -21,7 +21,93 @@ Date:   Mon Jun 22 14:45:35 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go         | 21 ++++++++++++++++-----
  src/cmd/go/testdata/script/vet_flags.txt | 16 ++++++++++------
  2 files changed, 26 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index e68b322c7d..17074afaf6 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1052,17 +1052,28 @@ func (b *Builder) vet(ctx context.Context, a *Action) error {
+ 	// This is OK as long as the packages that are farther down the
+ 	// dependency tree turn on *more* analysis, as here.
+ 	// (The unsafeptr check does not write any facts for use by
+-	// later vet runs.)
++	// later vet runs, nor does unreachable.)
+ 	if a.Package.Goroot && !VetExplicit && VetTool == "" {
++		// Turn off -unsafeptr checks.
++		// There's too much unsafe.Pointer code
++		// that vet doesn't like in low-level packages
++		// like runtime, sync, and reflect.
+ 		// Note that $GOROOT/src/buildall.bash
+ 		// does the same for the misc-compile trybots
+ 		// and should be updated if these flags are
+ 		// changed here.
+-		//
+-		// There's too much unsafe.Pointer code
+-		// that vet doesn't like in low-level packages
+-		// like runtime, sync, and reflect.
+ 		vetFlags = []string{"-unsafeptr=false"}
++
++		// Also turn off -unreachable checks during go test.
++		// During testing it is very common to make changes
++		// like hard-coded forced returns or panics that make
++		// code unreachable. It's unreasonable to insist on files
++		// not having any unreachable code during "go test".
++		// (buildall.bash still runs with -unreachable enabled
++		// for the overall whole-tree scan.)
++		if cfg.CmdName == "test" {
++			vetFlags = append(vetFlags, "-unreachable=false")
++		}
+ 	}
+ 
+ 	// Note: We could decide that vet should compute export data for
+diff --git a/src/cmd/go/testdata/script/vet_flags.txt b/src/cmd/go/testdata/script/vet_flags.txt
+index b85b133c19..e2e3f5bc55 100644
+--- a/src/cmd/go/testdata/script/vet_flags.txt
++++ b/src/cmd/go/testdata/script/vet_flags.txt
+@@ -2,21 +2,25 @@ env GO111MODULE=on
+ 
+ # Issue 35837: "go vet -<analyzer> <std package>" should use the requested
+ # analyzers, not the default analyzers for 'go test'.
+-go vet -n -unreachable=false encoding/binary
+-stderr '-unreachable=false'
++go vet -n -buildtags=false runtime
++stderr '-buildtags=false'
+ ! stderr '-unsafeptr=false'
+ 
+ # Issue 37030: "go vet <std package>" without other flags should disable the
+ # unsafeptr check by default.
+-go vet -n encoding/binary
++go vet -n runtime
+ stderr '-unsafeptr=false'
+ ! stderr '-unreachable=false'
+ 
+ # However, it should be enabled if requested explicitly.
+-go vet -n -unsafeptr encoding/binary
++go vet -n -unsafeptr runtime
+ stderr '-unsafeptr'
+ ! stderr '-unsafeptr=false'
+ 
++# -unreachable is disabled during test but on during plain vet.
++go test -n runtime
++stderr '-unreachable=false'
++
+ # A flag terminator should be allowed before the package list.
+ go vet -n -- .
+ 
+@@ -60,10 +64,10 @@ stderr '[/\\]vet'$GOEXE'["]? .* -errorsas .* ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+ 
+ # "go test" on a standard package should by default disable an explicit list.
+ go test -x -run=none encoding/binary
+-stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
++stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+ 
+ go test -x -vet= -run=none encoding/binary
+-stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
++stderr '[/\\]vet'$GOEXE'["]? -unsafeptr=false -unreachable=false ["]?\$WORK[/\\][^ ]*[/\\]vet\.cfg'
+ 
+ # Both should allow users to override via the -vet flag.
+ go test -x -vet=unreachable -run=none .

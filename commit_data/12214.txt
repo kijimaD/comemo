@@ -7,6 +7,20 @@ Date:   Sun Feb 26 01:40:29 2012 +0800
     R=adg, golang-dev, go.peter.90, rsc
     CC=golang-dev
     https://golang.org/cl/5700062
-
+---
  doc/install.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/install.html b/doc/install.html
+index 95bfaa7694..2bd36782b9 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -75,7 +75,7 @@ Extract the archive into <code>/usr/local</code>, creating a Go tree in
+ </p>
+ 
+ <pre>
+-tar -C /usr/local go.release.go1.tar.gz
++tar -C /usr/local -xzf go.release.go1.tar.gz
+ </pre>
+ 
+ <p>

@@ -15,9 +15,185 @@ Date:   Tue Mar 7 16:38:29 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/export_test.go |  4 ++--
  src/runtime/lfstack.go     | 35 +++++++++++++++++++++++------------
  src/runtime/mgc.go         |  6 +++---
  src/runtime/mgcwork.go     | 14 +++++++-------
  4 files changed, 35 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 2650853471..4bff1bd454 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -41,11 +41,11 @@ type LFNode struct {
+ }
+ 
+ func LFStackPush(head *uint64, node *LFNode) {
+-	lfstackpush(head, (*lfnode)(unsafe.Pointer(node)))
++	(*lfstack)(head).push((*lfnode)(unsafe.Pointer(node)))
+ }
+ 
+ func LFStackPop(head *uint64) *LFNode {
+-	return (*LFNode)(unsafe.Pointer(lfstackpop(head)))
++	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
+ }
+ 
+ func GCMask(x interface{}) (ret []byte) {
+diff --git a/src/runtime/lfstack.go b/src/runtime/lfstack.go
+index 8e33ce1d09..4787c5be3f 100644
+--- a/src/runtime/lfstack.go
++++ b/src/runtime/lfstack.go
+@@ -3,10 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Lock-free stack.
+-// Initialize head to 0, compare with 0 to test for emptiness.
+-// The stack does not keep pointers to nodes,
+-// so they can be garbage collected if there are no other pointers to nodes.
+-// The following code runs only in non-preemptible contexts.
+ 
+ package runtime
+ 
+@@ -15,32 +11,47 @@ import (
+ 	"unsafe"
+ )
+ 
+-func lfstackpush(head *uint64, node *lfnode) {
++// lfstack is the head of a lock-free stack.
++//
++// The zero value of lfstack is an empty list.
++//
++// This stack is intrusive. Nodes must embed lfnode as the first field.
++//
++// The stack does not keep GC-visible pointers to nodes, so the caller
++// is responsible for ensuring the nodes are not garbage collected
++// (typically by allocating them from manually-managed memory).
++type lfstack uint64
++
++func (head *lfstack) push(node *lfnode) {
+ 	node.pushcnt++
+ 	new := lfstackPack(node, node.pushcnt)
+ 	if node1 := lfstackUnpack(new); node1 != node {
+-		print("runtime: lfstackpush invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
+-		throw("lfstackpush")
++		print("runtime: lfstack.push invalid packing: node=", node, " cnt=", hex(node.pushcnt), " packed=", hex(new), " -> node=", node1, "\n")
++		throw("lfstack.push")
+ 	}
+ 	for {
+-		old := atomic.Load64(head)
++		old := atomic.Load64((*uint64)(head))
+ 		node.next = old
+-		if atomic.Cas64(head, old, new) {
++		if atomic.Cas64((*uint64)(head), old, new) {
+ 			break
+ 		}
+ 	}
+ }
+ 
+-func lfstackpop(head *uint64) unsafe.Pointer {
++func (head *lfstack) pop() unsafe.Pointer {
+ 	for {
+-		old := atomic.Load64(head)
++		old := atomic.Load64((*uint64)(head))
+ 		if old == 0 {
+ 			return nil
+ 		}
+ 		node := lfstackUnpack(old)
+ 		next := atomic.Load64(&node.next)
+-		if atomic.Cas64(head, old, next) {
++		if atomic.Cas64((*uint64)(head), old, next) {
+ 			return unsafe.Pointer(node)
+ 		}
+ 	}
+ }
++
++func (head *lfstack) empty() bool {
++	return atomic.Load64((*uint64)(head)) == 0
++}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 94adef46cb..2bdb21af99 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -782,8 +782,8 @@ const gcAssistTimeSlack = 5000
+ const gcOverAssistWork = 64 << 10
+ 
+ var work struct {
+-	full  uint64                   // lock-free list of full blocks workbuf
+-	empty uint64                   // lock-free list of empty blocks workbuf
++	full  lfstack                  // lock-free list of full blocks workbuf
++	empty lfstack                  // lock-free list of empty blocks workbuf
+ 	pad0  [sys.CacheLineSize]uint8 // prevents false-sharing between full/empty and nproc/nwait
+ 
+ 	// bytesMarked is the number of bytes marked this cycle. This
+@@ -1574,7 +1574,7 @@ func gcMarkWorkAvailable(p *p) bool {
+ 	if p != nil && !p.gcw.empty() {
+ 		return true
+ 	}
+-	if atomic.Load64(&work.full) != 0 {
++	if !work.full.empty() {
+ 		return true // global work available
+ 	}
+ 	if work.markrootNext < work.markrootJobs {
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 6b0c4dccaa..1df40d2afe 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -312,7 +312,7 @@ func (b *workbuf) checkempty() {
+ func getempty() *workbuf {
+ 	var b *workbuf
+ 	if work.empty != 0 {
+-		b = (*workbuf)(lfstackpop(&work.empty))
++		b = (*workbuf)(work.empty.pop())
+ 		if b != nil {
+ 			b.checkempty()
+ 		}
+@@ -324,11 +324,11 @@ func getempty() *workbuf {
+ }
+ 
+ // putempty puts a workbuf onto the work.empty list.
+-// Upon entry this go routine owns b. The lfstackpush relinquishes ownership.
++// Upon entry this go routine owns b. The lfstack.push relinquishes ownership.
+ //go:nowritebarrier
+ func putempty(b *workbuf) {
+ 	b.checkempty()
+-	lfstackpush(&work.empty, &b.node)
++	work.empty.push(&b.node)
+ }
+ 
+ // putfull puts the workbuf on the work.full list for the GC.
+@@ -337,14 +337,14 @@ func putempty(b *workbuf) {
+ //go:nowritebarrier
+ func putfull(b *workbuf) {
+ 	b.checknonempty()
+-	lfstackpush(&work.full, &b.node)
++	work.full.push(&b.node)
+ }
+ 
+ // trygetfull tries to get a full or partially empty workbuffer.
+ // If one is not immediately available return nil
+ //go:nowritebarrier
+ func trygetfull() *workbuf {
+-	b := (*workbuf)(lfstackpop(&work.full))
++	b := (*workbuf)(work.full.pop())
+ 	if b != nil {
+ 		b.checknonempty()
+ 		return b
+@@ -365,7 +365,7 @@ func trygetfull() *workbuf {
+ // phase.
+ //go:nowritebarrier
+ func getfull() *workbuf {
+-	b := (*workbuf)(lfstackpop(&work.full))
++	b := (*workbuf)(work.full.pop())
+ 	if b != nil {
+ 		b.checknonempty()
+ 		return b
+@@ -383,7 +383,7 @@ func getfull() *workbuf {
+ 				println("runtime: work.nwait=", decnwait, "work.nproc=", work.nproc)
+ 				throw("work.nwait > work.nproc")
+ 			}
+-			b = (*workbuf)(lfstackpop(&work.full))
++			b = (*workbuf)(work.full.pop())
+ 			if b != nil {
+ 				b.checknonempty()
+ 				return b

@@ -22,7 +22,7 @@ Date:   Fri Aug 27 17:04:42 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/345790
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/stmt.go            | 26 +++++++---
  .../types2/testdata/fixedbugs/issue48008.go2       | 60 ++++++++++++++++++++++
  src/cmd/compile/internal/types2/typexpr.go         | 24 ---------
@@ -30,3 +30,289 @@ Date:   Fri Aug 27 17:04:42 2021 -0700
  src/go/types/testdata/fixedbugs/issue48008.go2     | 60 ++++++++++++++++++++++
  src/go/types/typexpr.go                            | 27 ----------
  6 files changed, 160 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 8cfdf92e67..3e2ac2e29e 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -264,15 +264,29 @@ L:
+ 	}
+ }
+ 
++// isNil reports whether the expression e denotes the predeclared value nil.
++func (check *Checker) isNil(e syntax.Expr) bool {
++	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
++	if name, _ := unparen(e).(*syntax.Name); name != nil {
++		_, ok := check.lookup(name.Value).(*Nil)
++		return ok
++	}
++	return false
++}
++
+ func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []syntax.Expr, seen map[Type]syntax.Expr) (T Type) {
++	var dummy operand
+ L:
+ 	for _, e := range types {
+-		T = check.typOrNil(e)
+-		if T == Typ[Invalid] {
+-			continue L
+-		}
+-		if T != nil {
+-			check.ordinaryType(e.Pos(), T)
++		// The spec allows the value nil instead of a type.
++		if check.isNil(e) {
++			T = nil
++			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
++		} else {
++			T = check.varType(e)
++			if T == Typ[Invalid] {
++				continue L
++			}
+ 		}
+ 		// look for duplicate types
+ 		// (quadratic algorithm, but type switches tend to be reasonably small)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2
+new file mode 100644
+index 0000000000..5c9726875c
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48008.go2
+@@ -0,0 +1,60 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++func _(x interface{}) {
++	switch x.(type) {
++	case nil:
++	case int:
++
++	case T[int]:
++	case []T[int]:
++	case [10]T[int]:
++	case struct{T[int]}:
++	case *T[int]:
++	case func(T[int]):
++	case interface{m(T[int])}:
++	case map[T[int]] string:
++	case chan T[int]:
++
++	case T /* ERROR cannot use generic type T\[P interface{}\] without instantiation */ :
++	case []T /* ERROR cannot use generic type */ :
++	case [10]T /* ERROR cannot use generic type */ :
++	case struct{T /* ERROR cannot use generic type */ }:
++	case *T /* ERROR cannot use generic type */ :
++	case func(T /* ERROR cannot use generic type */ ):
++	case interface{m(T /* ERROR cannot use generic type */ )}:
++	case map[T /* ERROR cannot use generic type */ ] string:
++	case chan T /* ERROR cannot use generic type */ :
++
++	case T /* ERROR cannot use generic type */ , *T /* ERROR cannot use generic type */ :
++	}
++}
++
++// Make sure a parenthesized nil is ok.
++
++func _(x interface{}) {
++	switch x.(type) {
++	case ((nil)), int:
++	}
++}
++
++// Make sure we look for the predeclared nil.
++
++func _(x interface{}) {
++	type nil int
++	switch x.(type) {
++	case nil: // ok - this is the type nil
++	}
++}
++
++func _(x interface{}) {
++	var nil int
++	switch x.(type) {
++	case nil /* ERROR not a type */ : // not ok - this is the variable nil
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 6938648bbc..33e7559cc9 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -398,30 +398,6 @@ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	return typ
+ }
+ 
+-// typeOrNil type-checks the type expression (or nil value) e
+-// and returns the type of e, or nil. If e is a type, it must
+-// not be an (uninstantiated) generic type.
+-// If e is neither a type nor nil, typeOrNil returns Typ[Invalid].
+-// TODO(gri) should we also disallow non-var types?
+-func (check *Checker) typOrNil(e syntax.Expr) Type {
+-	var x operand
+-	check.rawExpr(&x, e, nil)
+-	switch x.mode {
+-	case invalid:
+-		// ignore - error reported before
+-	case novalue:
+-		check.errorf(&x, "%s used as type", &x)
+-	case typexpr:
+-		check.instantiatedOperand(&x)
+-		return x.typ
+-	case nilvalue:
+-		return nil
+-	default:
+-		check.errorf(&x, "%s is not a type", &x)
+-	}
+-	return Typ[Invalid]
+-}
+-
+ func (check *Checker) instantiatedType(x syntax.Expr, targsx []syntax.Expr, def *Named) Type {
+ 	gtyp := check.genericType(x, true)
+ 	if gtyp == Typ[Invalid] {
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index fd6eba2deb..056b21e3d2 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -276,15 +276,29 @@ L:
+ 	}
+ }
+ 
++// isNil reports whether the expression e denotes the predeclared value nil.
++func (check *Checker) isNil(e ast.Expr) bool {
++	// The only way to express the nil value is by literally writing nil (possibly in parentheses).
++	if name, _ := unparen(e).(*ast.Ident); name != nil {
++		_, ok := check.lookup(name.Name).(*Nil)
++		return ok
++	}
++	return false
++}
++
+ func (check *Checker) caseTypes(x *operand, xtyp *Interface, types []ast.Expr, seen map[Type]ast.Expr) (T Type) {
++	var dummy operand
+ L:
+ 	for _, e := range types {
+-		T = check.typeOrNil(e)
+-		if T == Typ[Invalid] {
+-			continue L
+-		}
+-		if T != nil {
+-			check.ordinaryType(e, T)
++		// The spec allows the value nil instead of a type.
++		if check.isNil(e) {
++			T = nil
++			check.expr(&dummy, e) // run e through expr so we get the usual Info recordings
++		} else {
++			T = check.varType(e)
++			if T == Typ[Invalid] {
++				continue L
++			}
+ 		}
+ 		// look for duplicate types
+ 		// (quadratic algorithm, but type switches tend to be reasonably small)
+diff --git a/src/go/types/testdata/fixedbugs/issue48008.go2 b/src/go/types/testdata/fixedbugs/issue48008.go2
+new file mode 100644
+index 0000000000..5c9726875c
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue48008.go2
+@@ -0,0 +1,60 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[P any] struct{}
++
++func _(x interface{}) {
++	switch x.(type) {
++	case nil:
++	case int:
++
++	case T[int]:
++	case []T[int]:
++	case [10]T[int]:
++	case struct{T[int]}:
++	case *T[int]:
++	case func(T[int]):
++	case interface{m(T[int])}:
++	case map[T[int]] string:
++	case chan T[int]:
++
++	case T /* ERROR cannot use generic type T\[P interface{}\] without instantiation */ :
++	case []T /* ERROR cannot use generic type */ :
++	case [10]T /* ERROR cannot use generic type */ :
++	case struct{T /* ERROR cannot use generic type */ }:
++	case *T /* ERROR cannot use generic type */ :
++	case func(T /* ERROR cannot use generic type */ ):
++	case interface{m(T /* ERROR cannot use generic type */ )}:
++	case map[T /* ERROR cannot use generic type */ ] string:
++	case chan T /* ERROR cannot use generic type */ :
++
++	case T /* ERROR cannot use generic type */ , *T /* ERROR cannot use generic type */ :
++	}
++}
++
++// Make sure a parenthesized nil is ok.
++
++func _(x interface{}) {
++	switch x.(type) {
++	case ((nil)), int:
++	}
++}
++
++// Make sure we look for the predeclared nil.
++
++func _(x interface{}) {
++	type nil int
++	switch x.(type) {
++	case nil: // ok - this is the type nil
++	}
++}
++
++func _(x interface{}) {
++	var nil int
++	switch x.(type) {
++	case nil /* ERROR not a type */ : // not ok - this is the variable nil
++	}
++}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index baa4e3c2d0..5c8a6b497d 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -383,33 +383,6 @@ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 	return typ
+ }
+ 
+-// typeOrNil type-checks the type expression (or nil value) e
+-// and returns the type of e, or nil. If e is a type, it must
+-// not be an (uninstantiated) generic type.
+-// If e is neither a type nor nil, typeOrNil returns Typ[Invalid].
+-// TODO(gri) should we also disallow non-var types?
+-func (check *Checker) typeOrNil(e ast.Expr) Type {
+-	var x operand
+-	check.rawExpr(&x, e, nil)
+-	switch x.mode {
+-	case invalid:
+-		// ignore - error reported before
+-	case novalue:
+-		check.errorf(&x, _NotAType, "%s used as type", &x)
+-	case typexpr:
+-		check.instantiatedOperand(&x)
+-		return x.typ
+-	case value:
+-		if x.isNil() {
+-			return nil
+-		}
+-		fallthrough
+-	default:
+-		check.errorf(&x, _NotAType, "%s is not a type", &x)
+-	}
+-	return Typ[Invalid]
+-}
+-
+ func (check *Checker) instantiatedType(x ast.Expr, targsx []ast.Expr, def *Named) Type {
+ 	gtyp := check.genericType(x, true)
+ 	if gtyp == Typ[Invalid] {

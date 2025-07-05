@@ -7,7 +7,34 @@ Date:   Tue Apr 5 17:11:31 2011 -0400
     R=golang-dev, agl1
     CC=golang-dev
     https://golang.org/cl/4316057
-
+---
  src/pkg/crypto/ecdsa/ecdsa.go  | 2 +-
  src/pkg/crypto/rsa/pkcs1v15.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/crypto/ecdsa/ecdsa.go b/src/pkg/crypto/ecdsa/ecdsa.go
+index 1f37849c5d..7bce1bc967 100644
+--- a/src/pkg/crypto/ecdsa/ecdsa.go
++++ b/src/pkg/crypto/ecdsa/ecdsa.go
+@@ -37,7 +37,7 @@ var one = new(big.Int).SetInt64(1)
+ // curve using the procedure given in [NSA] A.2.1.
+ func randFieldElement(c *elliptic.Curve, rand io.Reader) (k *big.Int, err os.Error) {
+ 	b := make([]byte, c.BitSize/8+8)
+-	_, err = rand.Read(b)
++	_, err = io.ReadFull(rand, b)
+ 	if err != nil {
+ 		return
+ 	}
+diff --git a/src/pkg/crypto/rsa/pkcs1v15.go b/src/pkg/crypto/rsa/pkcs1v15.go
+index 2eaadee24c..9a7184127d 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15.go
++++ b/src/pkg/crypto/rsa/pkcs1v15.go
+@@ -127,7 +127,7 @@ func nonZeroRandomBytes(s []byte, rand io.Reader) (err os.Error) {
+ 
+ 	for i := 0; i < len(s); i++ {
+ 		for s[i] == 0 {
+-			_, err = rand.Read(s[i : i+1])
++			_, err = io.ReadFull(rand, s[i:i+1])
+ 			if err != nil {
+ 				return
+ 			}

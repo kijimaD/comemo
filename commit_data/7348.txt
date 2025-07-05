@@ -9,7 +9,43 @@ Date:   Thu Feb 3 00:42:03 2011 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4007041
-
+---
  src/Make.pkg             | 2 +-
  src/pkg/runtime/Makefile | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 41124c828a..850e86e352 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -167,7 +167,7 @@ _CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+ _CGO_LDFLAGS_windows=-shared -lm -mthreads
+ 
+ # Have to compile the runtime header.
+-RUNTIME_CFLAGS=-I"$(pkgdir)"
++RUNTIME_CFLAGS=-I$(pkgdir)
+ 
+ # Compile _cgo_defun.c with 6c; needs access to the runtime headers.
+ _cgo_defun.$O: _cgo_defun.c
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 3a2d313976..521c095b99 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -111,7 +111,7 @@ include ../../Make.pkg
+ 
+ $(pkgdir)/%.h: %.h
+ 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+-	cp $< $@
++	cp $< "$@"
+ 
+ clean: clean-local
+ 
+@@ -138,7 +138,7 @@ version_$(GOOS).go:
+ 	(echo 'package runtime'; echo 'const theGoos = "$(GOOS)"') >$@
+ 
+ %.c:	%.goc goc2c
+-	./goc2c `pwd`/$< > $@.tmp
++	./goc2c "`pwd`/$<" > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+ %.$O:	$(GOARCH)/%.c

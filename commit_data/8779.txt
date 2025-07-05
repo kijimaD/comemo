@@ -7,8 +7,47 @@ Date:   Sun Jun 19 13:58:08 2011 +1000
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/4648043
-
+---
  src/cmd/6c/cgen.c | 2 +-
  src/cmd/8c/cgen.c | 2 +-
  src/cmd/cc/dcl.c  | 1 -
  3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 90394884f6..7aa4aa9766 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -1544,7 +1544,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 			nod0.addable = 0;
+ 			nod0.right = l;
+ 
+-			/* prtree(&nod0, "hand craft"); /* */
++			// prtree(&nod0, "hand craft");
+ 			cgen(&nod0, Z);
+ 		}
+ 		break;
+diff --git a/src/cmd/8c/cgen.c b/src/cmd/8c/cgen.c
+index edb29ad8c7..7f02bd96ef 100644
+--- a/src/cmd/8c/cgen.c
++++ b/src/cmd/8c/cgen.c
+@@ -1581,7 +1581,7 @@ sugen(Node *n, Node *nn, int32 w)
+ 			nod0.addable = 0;
+ 			nod0.right = l;
+ 
+-			/* prtree(&nod0, "hand craft"); /* */
++			// prtree(&nod0, "hand craft");
+ 			cgen(&nod0, Z);
+ 		}
+ 		break;
+diff --git a/src/cmd/cc/dcl.c b/src/cmd/cc/dcl.c
+index d7604b649d..6f1b8a9a9a 100644
+--- a/src/cmd/cc/dcl.c
++++ b/src/cmd/cc/dcl.c
+@@ -1378,7 +1378,6 @@ tmerge(Type *t1, Sym *s)
+ 	Type *ta, *tb, *t2;
+ 
+ 	t2 = s->type;
+-/*print("merge	%T; %T\n", t1, t2);/**/
+ 	for(;;) {
+ 		if(t1 == T || t2 == T || t1 == t2)
+ 			break;

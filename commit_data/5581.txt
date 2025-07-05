@@ -9,6 +9,19 @@ Date:   Tue Jun 1 12:02:00 2010 -0700
     R=iant
     CC=golang-dev, golang-nuts, joel.sherrill
     https://golang.org/cl/1452041
-
+---
  src/pkg/os/signal/mkunix.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/os/signal/mkunix.sh b/src/pkg/os/signal/mkunix.sh
+index e1ea66059b..653b016641 100755
+--- a/src/pkg/os/signal/mkunix.sh
++++ b/src/pkg/os/signal/mkunix.sh
+@@ -19,6 +19,6 @@ var _ = syscall.Syscall  // in case there are zero signals
+ const (
+ EOH
+ 
+-sed -n 's/^[ 	]*\(SIG[A-Z0-9][A-Z0-9]*\).*/  \1 = UnixSignal(syscall.\1)/p' "$1"
++sed -n 's/^[ 	]*\(SIG[A-Z0-9][A-Z0-9]*\)[ 	].*/  \1 = UnixSignal(syscall.\1)/p' "$1"
+ 
+ echo ")"

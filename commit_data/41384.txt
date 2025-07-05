@@ -13,8 +13,123 @@ Date:   Tue Jan 2 09:43:41 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.14.html         | 13 +++++++++++++
  src/reflect/all_test.go | 23 ++++++++---------------
  src/reflect/type.go     | 19 +++++++++++--------
  3 files changed, 32 insertions(+), 23 deletions(-)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 525a1421f7..e68cca56df 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -115,6 +115,19 @@ TODO
+ 
+ </dl><!-- plugin -->
+ 
++<dl id="reflect">
++
++<dt><a href="/pkg/reflect/">reflect</a></dt>
++  <dd>
++    <p><!-- CL 85661 -->
++      <a href="/pkg/reflect#StructOf"><code>StructOf</code></a> now
++      supports creating struct types with unexported fields, by
++      setting the <code>PkgPath</code> field in
++      a <code>StructField</code> element.
++    </p>
++
++</dl><!-- reflect -->
++
+ <dl id="runtime"><dt><a href="/pkg/runtime/">runtime</a></dt>
+   <dd>
+     <p><!-- CL 187739 -->
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index fbb6feb0d9..7c5dd59aa7 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -4733,17 +4733,14 @@ func TestStructOfExportRules(t *testing.T) {
+ 			mustPanic: true,
+ 		},
+ 		{
+-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+-			mustPanic: true,
++			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+ 		},
+ 		{
+-			field:     StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+-			mustPanic: true,
++			field: StructField{Name: "s2", Type: TypeOf(int(0)), PkgPath: "other/pkg"},
+ 		},
+ 		{
+-			field:     StructField{Name: "S", Type: TypeOf(S1{})},
+-			mustPanic: false,
+-			exported:  true,
++			field:    StructField{Name: "S", Type: TypeOf(S1{})},
++			exported: true,
+ 		},
+ 		{
+ 			field:    StructField{Name: "S", Type: TypeOf((*S1)(nil))},
+@@ -4774,20 +4771,16 @@ func TestStructOfExportRules(t *testing.T) {
+ 			mustPanic: true,
+ 		},
+ 		{
+-			field:     StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
+-			mustPanic: true, // TODO(sbinet): creating a name with a package path
++			field: StructField{Name: "s", Type: TypeOf(S1{}), PkgPath: "other/pkg"},
+ 		},
+ 		{
+-			field:     StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
+-			mustPanic: true, // TODO(sbinet): creating a name with a package path
++			field: StructField{Name: "s", Type: TypeOf((*S1)(nil)), PkgPath: "other/pkg"},
+ 		},
+ 		{
+-			field:     StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
+-			mustPanic: true, // TODO(sbinet): creating a name with a package path
++			field: StructField{Name: "s", Type: TypeOf(s2{}), PkgPath: "other/pkg"},
+ 		},
+ 		{
+-			field:     StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
+-			mustPanic: true, // TODO(sbinet): creating a name with a package path
++			field: StructField{Name: "s", Type: TypeOf((*s2)(nil)), PkgPath: "other/pkg"},
+ 		},
+ 		{
+ 			field:     StructField{Name: "", Type: TypeOf(ΦType{})},
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 2cf912cf54..f1f8ba93a4 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2731,15 +2731,18 @@ func StructOf(fields []StructField) Type {
+ }
+ 
+ func runtimeStructField(field StructField) structField {
+-	if field.PkgPath != "" {
+-		panic("reflect.StructOf: StructOf does not allow unexported fields")
++	if field.Anonymous && field.PkgPath != "" {
++		panic("reflect.StructOf: field \"" + field.Name + "\" is anonymous but has PkgPath set")
+ 	}
+ 
+-	// Best-effort check for misuse.
+-	// Since PkgPath is empty, not much harm done if Unicode lowercase slips through.
+-	c := field.Name[0]
+-	if 'a' <= c && c <= 'z' || c == '_' {
+-		panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
++	exported := field.PkgPath == ""
++	if exported {
++		// Best-effort check for misuse.
++		// Since this field will be treated as exported, not much harm done if Unicode lowercase slips through.
++		c := field.Name[0]
++		if 'a' <= c && c <= 'z' || c == '_' {
++			panic("reflect.StructOf: field \"" + field.Name + "\" is unexported but missing PkgPath")
++		}
+ 	}
+ 
+ 	offsetEmbed := uintptr(0)
+@@ -2749,7 +2752,7 @@ func runtimeStructField(field StructField) structField {
+ 
+ 	resolveReflectType(field.Type.common()) // install in runtime
+ 	return structField{
+-		name:        newName(field.Name, string(field.Tag), true),
++		name:        newName(field.Name, string(field.Tag), exported),
+ 		typ:         field.Type.common(),
+ 		offsetEmbed: offsetEmbed,
+ 	}

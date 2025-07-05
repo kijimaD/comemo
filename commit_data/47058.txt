@@ -12,6 +12,20 @@ Date:   Tue Feb 16 10:36:10 2021 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/io/fs/sub.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/io/fs/sub.go b/src/io/fs/sub.go
+index 64cdffe6de..d689b9e2bc 100644
+--- a/src/io/fs/sub.go
++++ b/src/io/fs/sub.go
+@@ -68,7 +68,7 @@ func (f *subFS) shorten(name string) (rel string, ok bool) {
+ 	return "", false
+ }
+ 
+-// fixErr shortens any reported names in PathErrors by stripping dir.
++// fixErr shortens any reported names in PathErrors by stripping f.dir.
+ func (f *subFS) fixErr(err error) error {
+ 	if e, ok := err.(*PathError); ok {
+ 		if short, ok := f.shorten(e.Path); ok {

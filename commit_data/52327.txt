@@ -9,6 +9,20 @@ Date:   Tue Apr 26 09:26:50 2022 -0400
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  README.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 829fe777b9..e40f3aa0a1 100644
+--- a/README.md
++++ b/README.md
+@@ -35,7 +35,7 @@ Go is the work of thousands of contributors. We appreciate your help!
+ To contribute, please read the contribution guidelines at https://go.dev/doc/contribute.
+ 
+ Note that the Go project uses the issue tracker for bug reports and
+-proposals only. See https://golang.org/wiki/Questions for a list of
++proposals only. See https://go.dev/wiki/Questions for a list of
+ places to ask questions about the Go language.
+ 
+ [rf]: https://reneefrench.blogspot.com/

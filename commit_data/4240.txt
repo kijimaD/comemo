@@ -7,9 +7,151 @@ Date:   Mon Nov 30 11:57:21 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/161069
-
+---
  src/pkg/exp/nacl/av/av.go        |  3 +--
  src/pkg/exp/nacl/av/event.go     |  5 ++---
  src/pkg/exp/nacl/srpc/msg.go     |  7 +++----
  src/pkg/syscall/syscall_linux.go | 19 ++++---------------
  4 files changed, 10 insertions(+), 24 deletions(-)
+
+diff --git a/src/pkg/exp/nacl/av/av.go b/src/pkg/exp/nacl/av/av.go
+index b7cb805a7e..4c76aeb30a 100644
+--- a/src/pkg/exp/nacl/av/av.go
++++ b/src/pkg/exp/nacl/av/av.go
+@@ -12,7 +12,6 @@
+ package av
+ 
+ import (
+-	"bytes";
+ 	"exp/draw";
+ 	"exp/nacl/srpc";
+ 	"log";
+@@ -158,7 +157,7 @@ func videoPollEvent(ev []byte) (err os.Error) {
+ 		if r == bridge.share.eq.wi {
+ 			return noEvents
+ 		}
+-		bytes.Copy(ev, &bridge.share.eq.event[r]);
++		copy(ev, &bridge.share.eq.event[r]);
+ 		bridge.share.eq.ri = (r + 1) % eqsize;
+ 		return nil;
+ 	}
+diff --git a/src/pkg/exp/nacl/av/event.go b/src/pkg/exp/nacl/av/event.go
+index 5d38ac7cec..32d9e98c5c 100644
+--- a/src/pkg/exp/nacl/av/event.go
++++ b/src/pkg/exp/nacl/av/event.go
+@@ -10,8 +10,7 @@
+ package av
+ 
+ import (
+-	"bytes";
+-	"debug/binary";
++	"encoding/binary";
+ 	"exp/draw";
+ 	"log";
+ 	"os";
+@@ -383,7 +382,7 @@ func (r *reader) Read(p []byte) (n int, err os.Error) {
+ 	if len(b) == 0 && len(p) > 0 {
+ 		return 0, os.EOF
+ 	}
+-	n = bytes.Copy(p, b);
++	n = copy(p, b);
+ 	*r = b[n:];
+ 	return;
+ }
+diff --git a/src/pkg/exp/nacl/srpc/msg.go b/src/pkg/exp/nacl/srpc/msg.go
+index 857055a400..54ba5a4e33 100644
+--- a/src/pkg/exp/nacl/srpc/msg.go
++++ b/src/pkg/exp/nacl/srpc/msg.go
+@@ -7,7 +7,6 @@
+ package srpc
+ 
+ import (
+-	"bytes";
+ 	"math";
+ 	"os";
+ 	"strconv";
+@@ -121,7 +120,7 @@ func (r *msgReceiver) recv() (*msg, os.Error) {
+ 	// returned the total byte count as n.
+ 	m := new(msg);
+ 	m.rdata = make([]byte, n);
+-	bytes.Copy(m.rdata, &r.data);
++	copy(m.rdata, &r.data);
+ 
+ 	// Make a copy of the desc too.
+ 	// The system call *did* update r.hdr.ndesc.
+@@ -219,7 +218,7 @@ func (m *msg) grow(n int) []byte {
+ 	i := len(m.wdata);
+ 	if i+n > cap(m.wdata) {
+ 		a := make([]byte, i, (i+n)*2);
+-		bytes.Copy(a, m.wdata);
++		copy(a, m.wdata);
+ 		m.wdata = a;
+ 	}
+ 	m.wdata = m.wdata[0 : i+n];
+@@ -250,7 +249,7 @@ func (m *msg) wuint64(x uint64) {
+ 	b[7] = byte(hi >> 24);
+ }
+ 
+-func (m *msg) wbytes(p []byte)	{ bytes.Copy(m.grow(len(p)), p) }
++func (m *msg) wbytes(p []byte)	{ copy(m.grow(len(p)), p) }
+ 
+ func (m *msg) wstring(s string) {
+ 	b := m.grow(len(s));
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index f94dc7df75..0c2d1aa79a 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -385,17 +385,6 @@ func Sendto(fd int, p []byte, flags int, to Sockaddr) (errno int) {
+ 
+ //sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
+ 
+-// See bytes.Copy.
+-func bytesCopy(dst, src []byte) int {
+-	if len(src) > len(dst) {
+-		src = src[0:len(dst)]
+-	}
+-	for i, x := range src {
+-		dst[i] = x
+-	}
+-	return len(src);
+-}
+-
+ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
+ 	// The peek requests are machine-size oriented, so we wrap it
+ 	// to retrieve arbitrary-length data.
+@@ -416,7 +405,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ 		if errno != 0 {
+ 			return 0, errno
+ 		}
+-		n += bytesCopy(out, buf[addr%sizeofPtr:]);
++		n += copy(out, buf[addr%sizeofPtr:]);
+ 		out = out[n:];
+ 	}
+ 
+@@ -428,7 +417,7 @@ func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno in
+ 		if errno != 0 {
+ 			return n, errno
+ 		}
+-		copied := bytesCopy(out, &buf);
++		copied := copy(out, &buf);
+ 		n += copied;
+ 		out = out[copied:];
+ 	}
+@@ -456,7 +445,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 		if errno != 0 {
+ 			return 0, errno
+ 		}
+-		n += bytesCopy(buf[addr%sizeofPtr:], data);
++		n += copy(buf[addr%sizeofPtr:], data);
+ 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+ 		errno = ptrace(pokeReq, pid, addr-addr%sizeofPtr, word);
+ 		if errno != 0 {
+@@ -483,7 +472,7 @@ func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (c
+ 		if errno != 0 {
+ 			return n, errno
+ 		}
+-		bytesCopy(&buf, data);
++		copy(&buf, data);
+ 		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
+ 		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
+ 		if errno != 0 {

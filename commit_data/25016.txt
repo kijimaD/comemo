@@ -7,6 +7,19 @@ Date:   Wed Sep 16 10:55:25 2015 -0700
     Change-Id: I94af55bb894409b77bd87df36be9471dcc544fda
     Reviewed-on: https://go-review.googlesource.com/14627
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/go1.6.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/doc/go1.6.txt b/doc/go1.6.txt
+index 1a24fbe0a7..45b638ce78 100644
+--- a/doc/go1.6.txt
++++ b/doc/go1.6.txt
+@@ -9,6 +9,7 @@ NaCl is no longer restricted to pepper_41 (https://golang.org/cl/13958/)
+ API additions and behavior changes:
+ 
+ fmt: allow any integer type as an argument to the * operator (https://golang.org/cl/14491/)
++math/rand: add Read (https://golang.org/cl/14522)
+ strconv: QuoteToGraphic (https://golang.org/cl/14184/)
+ text/template: ExecError (https://golang.org/cl/13957/)
+ text/template: trimming spaces (https://golang.org/cl/14391/)

@@ -10,6 +10,20 @@ Date:   Fri Jun 18 00:19:10 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/329289
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  doc/go1.17.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index f8d7aad034..6424709453 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -162,7 +162,7 @@ Do not send CLs removing the interior tags from such phrases.
+   By default, <code>go</code> <code>mod</code> <code>tidy</code> verifies that
+   the selected versions of dependencies relevant to the main module are the same
+   versions that would be used by the prior Go release (Go 1.16 for a module that
+-  spsecifies <code>go</code> <code>1.17</code>), and preserves
++  specifies <code>go</code> <code>1.17</code>), and preserves
+   the <code>go.sum</code> entries needed by that release even for dependencies
+   that are not normally needed by other commands.
+ </p>

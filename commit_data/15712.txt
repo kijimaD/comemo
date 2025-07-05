@@ -9,7 +9,32 @@ Date:   Tue Mar 12 01:50:03 2013 -0400
     R=gobot
     CC=golang-dev
     https://golang.org/cl/7592044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index e4641d0fa9..64d733cf93 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -226,6 +226,7 @@ Peter Mundy <go.peter.90@gmail.com>
+ Péter Surányi <speter.go1@gmail.com>
+ Peter Waller <peter.waller@gmail.com>
+ Peter Williams <pwil3058@gmail.com>
++Philip K. Warren <pkwarren@gmail.com>
+ Pieter Droogendijk <pieter@binky.org.uk>
+ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 4ec69c7896..b8291de446 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -330,6 +330,7 @@ Peter Waller <peter.waller@gmail.com>
+ Peter Weinberger <pjw@golang.org>
+ Peter Williams <pwil3058@gmail.com>
+ Phil Pennock <pdp@golang.org>
++Philip K. Warren <pkwarren@gmail.com>
+ Pieter Droogendijk <pieter@binky.org.uk>
+ Quan Yong Zhai <qyzhai@gmail.com>
+ Raif S. Naffah <go@naffah-raif.name>

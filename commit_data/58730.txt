@@ -26,10 +26,175 @@ Date:   Mon Dec 4 14:28:30 2023 -0500
     Auto-Submit: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Rhys Hiltner <rhys@justin.tv>
-
+---
  src/runtime/extern.go       | 15 ++++++++-------
  src/runtime/metrics_test.go |  4 ++--
  src/runtime/mprof.go        | 10 +++++-----
  src/runtime/proc.go         |  2 +-
  src/runtime/runtime1.go     | 46 ++++++++++++++++++++++-----------------------
  5 files changed, 39 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 03050df766..b7bf0a505b 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -152,13 +152,14 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	risk in that scenario. Currently not supported on Windows, plan9 or js/wasm. Setting this
+ 	option for some applications can produce large traces, so use with care.
+ 
+-	profileruntimelocks: setting profileruntimelocks=1 includes call stacks related to
+-	contention on runtime-internal locks in the "mutex" profile, subject to the
+-	MutexProfileFraction setting. The call stacks will correspond to the unlock call that
+-	released the lock. But instead of the value corresponding to the amount of contention that
+-	call stack caused, it corresponds to the amount of time the caller of unlock had to wait
+-	in its original call to lock. A future release is expected to align those and remove this
+-	setting.
++	runtimecontentionstacks: setting runtimecontentionstacks=1 enables inclusion of call stacks
++	related to contention on runtime-internal locks in the "mutex" profile, subject to the
++	MutexProfileFraction setting. When runtimecontentionstacks=0, contention on
++	runtime-internal locks will report as "runtime._LostContendedRuntimeLock". When
++	runtimecontentionstacks=1, the call stacks will correspond to the unlock call that released
++	the lock. But instead of the value corresponding to the amount of contention that call
++	stack caused, it corresponds to the amount of time the caller of unlock had to wait in its
++	original call to lock. A future release is expected to align those and remove this setting.
+ 
+ 	invalidptr: invalidptr=1 (the default) causes the garbage collector and stack
+ 	copier to crash the program if an invalid pointer value (for example, 1)
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 7074abfd69..fc0321e4c5 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -956,12 +956,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 	{
+ 		before := os.Getenv("GODEBUG")
+ 		for _, s := range strings.Split(before, ",") {
+-			if strings.HasPrefix(s, "profileruntimelocks=") {
++			if strings.HasPrefix(s, "runtimecontentionstacks=") {
+ 				t.Logf("GODEBUG includes explicit setting %q", s)
+ 			}
+ 		}
+ 		defer func() { os.Setenv("GODEBUG", before) }()
+-		os.Setenv("GODEBUG", fmt.Sprintf("%s,profileruntimelocks=1", before))
++		os.Setenv("GODEBUG", fmt.Sprintf("%s,runtimecontentionstacks=1", before))
+ 	}
+ 
+ 	t.Logf("NumCPU %d", runtime.NumCPU())
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index aeb03985cc..e5c11c58c9 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -552,7 +552,7 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+ // previous lock call took (like the user-space "block" profile).
+ //
+ // Thus, reporting the call stacks of runtime-internal lock contention is
+-// guarded by GODEBUG for now. Set GODEBUG=profileruntimelocks=1 to enable.
++// guarded by GODEBUG for now. Set GODEBUG=runtimecontentionstacks=1 to enable.
+ //
+ // TODO(rhysh): plumb through the delay duration, remove GODEBUG, update comment
+ //
+@@ -644,7 +644,7 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
+ 	if prev := prof.cycles; prev > 0 {
+ 		// We can only store one call stack for runtime-internal lock contention
+ 		// on this M, and we've already got one. Decide which should stay, and
+-		// add the other to the report for runtime._LostContendedLock.
++		// add the other to the report for runtime._LostContendedRuntimeLock.
+ 		prevScore := uint64(cheaprand64()) % uint64(prev)
+ 		thisScore := uint64(cheaprand64()) % uint64(cycles)
+ 		if prevScore > thisScore {
+@@ -690,8 +690,8 @@ func (prof *mLockProfile) captureStack() {
+ 	}
+ 	prof.pending = 0
+ 
+-	if debug.profileruntimelocks.Load() == 0 {
+-		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum
++	if debug.runtimeContentionStacks.Load() == 0 {
++		prof.stack[0] = abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum
+ 		prof.stack[1] = 0
+ 		return
+ 	}
+@@ -733,7 +733,7 @@ func (prof *mLockProfile) store() {
+ 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
+ 	if lost > 0 {
+ 		lostStk := [...]uintptr{
+-			abi.FuncPCABIInternal(_LostContendedLock) + sys.PCQuantum,
++			abi.FuncPCABIInternal(_LostContendedRuntimeLock) + sys.PCQuantum,
+ 		}
+ 		saveBlockEventStack(lost, rate, lostStk[:], mutexProfile)
+ 	}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 7bb8b81c26..661dc0f1ca 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -5279,7 +5279,7 @@ func _ExternalCode()              { _ExternalCode() }
+ func _LostExternalCode()          { _LostExternalCode() }
+ func _GC()                        { _GC() }
+ func _LostSIGPROFDuringAtomic64() { _LostSIGPROFDuringAtomic64() }
+-func _LostContendedLock()         { _LostContendedLock() }
++func _LostContendedRuntimeLock()  { _LostContendedRuntimeLock() }
+ func _VDSO()                      { _VDSO() }
+ 
+ // Called if we receive a SIGPROF signal.
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 087d5ebce7..6f4a89df2b 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -307,28 +307,28 @@ type dbgVar struct {
+ // existing int var for that value, which may
+ // already have an initial value.
+ var debug struct {
+-	cgocheck            int32
+-	clobberfree         int32
+-	disablethp          int32
+-	dontfreezetheworld  int32
+-	efence              int32
+-	gccheckmark         int32
+-	gcpacertrace        int32
+-	gcshrinkstackoff    int32
+-	gcstoptheworld      int32
+-	gctrace             int32
+-	invalidptr          int32
+-	madvdontneed        int32 // for Linux; issue 28466
+-	profileruntimelocks atomic.Int32
+-	scavtrace           int32
+-	scheddetail         int32
+-	schedtrace          int32
+-	tracebackancestors  int32
+-	asyncpreemptoff     int32
+-	harddecommit        int32
+-	adaptivestackstart  int32
+-	tracefpunwindoff    int32
+-	traceadvanceperiod  int32
++	cgocheck                int32
++	clobberfree             int32
++	disablethp              int32
++	dontfreezetheworld      int32
++	efence                  int32
++	gccheckmark             int32
++	gcpacertrace            int32
++	gcshrinkstackoff        int32
++	gcstoptheworld          int32
++	gctrace                 int32
++	invalidptr              int32
++	madvdontneed            int32 // for Linux; issue 28466
++	runtimeContentionStacks atomic.Int32
++	scavtrace               int32
++	scheddetail             int32
++	schedtrace              int32
++	tracebackancestors      int32
++	asyncpreemptoff         int32
++	harddecommit            int32
++	adaptivestackstart      int32
++	tracefpunwindoff        int32
++	traceadvanceperiod      int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -355,7 +355,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "gctrace", value: &debug.gctrace},
+ 	{name: "invalidptr", value: &debug.invalidptr},
+ 	{name: "madvdontneed", value: &debug.madvdontneed},
+-	{name: "profileruntimelocks", atomic: &debug.profileruntimelocks},
++	{name: "runtimecontentionstacks", atomic: &debug.runtimeContentionStacks},
+ 	{name: "sbrk", value: &debug.sbrk},
+ 	{name: "scavtrace", value: &debug.scavtrace},
+ 	{name: "scheddetail", value: &debug.scheddetail},

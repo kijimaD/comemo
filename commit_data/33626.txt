@@ -14,9 +14,365 @@ Date:   Fri Aug 25 15:34:35 2017 -0700
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/archive/tar/common.go | 150 +++++++++++++++++++++++++---------------------
  src/archive/tar/format.go |   3 +-
  src/archive/tar/reader.go |  13 ++--
  src/archive/tar/writer.go |  21 +++----
  4 files changed, 101 insertions(+), 86 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index ae62973726..50bb5d6a03 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -3,8 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package tar implements access to tar archives.
+-// It aims to cover most of the variations, including those produced
+-// by GNU and BSD tars.
++//
++// Tape archives (tar) are a file format for storing a sequence of files that
++// can be read and written in a streaming manner.
++// This package aims to cover most variations of the format,
++// including those produced by GNU and BSD tar tools.
+ package tar
+ 
+ import (
+@@ -49,22 +52,43 @@ func (he headerError) Error() string {
+ 	return fmt.Sprintf("%s: %v", prefix, strings.Join(ss, "; and "))
+ }
+ 
+-// Header type flags.
++// Type flags for Header.Typeflag.
+ const (
+-	TypeReg           = '0'    // regular file
+-	TypeRegA          = '\x00' // regular file
+-	TypeLink          = '1'    // hard link
+-	TypeSymlink       = '2'    // symbolic link
+-	TypeChar          = '3'    // character device node
+-	TypeBlock         = '4'    // block device node
+-	TypeDir           = '5'    // directory
+-	TypeFifo          = '6'    // fifo node
+-	TypeCont          = '7'    // reserved
+-	TypeXHeader       = 'x'    // extended header
+-	TypeXGlobalHeader = 'g'    // global extended header
+-	TypeGNULongName   = 'L'    // Next file has a long name
+-	TypeGNULongLink   = 'K'    // Next file symlinks to a file w/ a long name
+-	TypeGNUSparse     = 'S'    // sparse file
++	// Type '0' indicates a regular file.
++	TypeReg  = '0'
++	TypeRegA = '\x00' // For legacy support (use TypeReg instead)
++
++	// Type '1' to '6' are header-only flags and may not have a data body.
++	TypeLink    = '1' // Hard link
++	TypeSymlink = '2' // Symbolic link
++	TypeChar    = '3' // Character device node
++	TypeBlock   = '4' // Block device node
++	TypeDir     = '5' // Directory
++	TypeFifo    = '6' // FIFO node
++
++	// Type '7' is reserved.
++	TypeCont = '7'
++
++	// Type 'x' is used by the PAX format to store key-value records that
++	// are only relevant to the next file.
++	// This package transparently handles these types.
++	TypeXHeader = 'x'
++
++	// Type 'g' is used by the PAX format to store key-value records that
++	// are relevant to all subsequent files.
++	// This package only supports parsing and composing such headers,
++	// but does not currently support persisting the global state across files.
++	TypeXGlobalHeader = 'g'
++
++	// Type 'S' indicates a sparse file in the GNU format.
++	// Header.SparseHoles should be populated when using this type.
++	TypeGNUSparse = 'S'
++
++	// Types 'L' and 'K' are used by the GNU format for a meta file
++	// used to store the path or link name for the next entry.
++	// This package transparently handles these types.
++	TypeGNULongName = 'L'
++	TypeGNULongLink = 'K'
+ )
+ 
+ // Keywords for PAX extended header records.
+@@ -115,20 +139,24 @@ var basicKeys = map[string]bool{
+ // should do so by creating a new Header and copying the fields
+ // that they are interested in preserving.
+ type Header struct {
+-	Name       string    // name of header file entry
+-	Mode       int64     // permission and mode bits
+-	Uid        int       // user id of owner
+-	Gid        int       // group id of owner
+-	Size       int64     // length in bytes
+-	ModTime    time.Time // modified time
+-	Typeflag   byte      // type of header entry
+-	Linkname   string    // target name of link
+-	Uname      string    // user name of owner
+-	Gname      string    // group name of owner
+-	Devmajor   int64     // major number of character or block device
+-	Devminor   int64     // minor number of character or block device
+-	AccessTime time.Time // access time
+-	ChangeTime time.Time // status change time
++	Typeflag byte // Type of header entry (should be TypeReg for most files)
++
++	Name     string // Name of file entry
++	Linkname string // Target name of link (valid for TypeLink or TypeSymlink)
++
++	Size  int64  // Logical file size in bytes
++	Mode  int64  // Permission and mode bits
++	Uid   int    // User ID of owner
++	Gid   int    // Group ID of owner
++	Uname string // User name of owner
++	Gname string // Group name of owner
++
++	ModTime    time.Time // Modification time
++	AccessTime time.Time // Access time (requires either PAX or GNU support)
++	ChangeTime time.Time // Change time (requires either PAX or GNU support)
++
++	Devmajor int64 // Major device number (valid for TypeChar or TypeBlock)
++	Devminor int64 // Minor device number (valid for TypeChar or TypeBlock)
+ 
+ 	// SparseHoles represents a sequence of holes in a sparse file.
+ 	//
+@@ -175,8 +203,9 @@ type Header struct {
+ 	// Since the Reader liberally reads some non-compliant files,
+ 	// it is possible for this to be FormatUnknown.
+ 	//
+-	// When writing, if this is not FormatUnknown, then Writer.WriteHeader
+-	// uses this as the format to encode the header.
++	// When Writer.WriteHeader is called, if this is FormatUnknown,
++	// then it tries to encode the header in the order of USTAR, PAX, then GNU.
++	// Otherwise, it tries to use the specified format.
+ 	Format Format
+ }
+ 
+@@ -297,11 +326,6 @@ type fileState interface {
+ 	Remaining() int64
+ }
+ 
+-// FileInfo returns an os.FileInfo for the Header.
+-func (h *Header) FileInfo() os.FileInfo {
+-	return headerFileInfo{h}
+-}
+-
+ // allowedFormats determines which formats can be used.
+ // The value returned is the logical OR of multiple possible formats.
+ // If the value is FormatUnknown, then the input Header cannot be encoded
+@@ -489,6 +513,11 @@ func (h *Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	return format, paxHdrs, err
+ }
+ 
++// FileInfo returns an os.FileInfo for the Header.
++func (h *Header) FileInfo() os.FileInfo {
++	return headerFileInfo{h}
++}
++
+ // headerFileInfo implements os.FileInfo.
+ type headerFileInfo struct {
+ 	h *Header
+@@ -514,63 +543,43 @@ func (fi headerFileInfo) Mode() (mode os.FileMode) {
+ 
+ 	// Set setuid, setgid and sticky bits.
+ 	if fi.h.Mode&c_ISUID != 0 {
+-		// setuid
+ 		mode |= os.ModeSetuid
+ 	}
+ 	if fi.h.Mode&c_ISGID != 0 {
+-		// setgid
+ 		mode |= os.ModeSetgid
+ 	}
+ 	if fi.h.Mode&c_ISVTX != 0 {
+-		// sticky
+ 		mode |= os.ModeSticky
+ 	}
+ 
+-	// Set file mode bits.
+-	// clear perm, setuid, setgid and sticky bits.
+-	m := os.FileMode(fi.h.Mode) &^ 07777
+-	if m == c_ISDIR {
+-		// directory
++	// Set file mode bits; clear perm, setuid, setgid, and sticky bits.
++	switch m := os.FileMode(fi.h.Mode) &^ 07777; m {
++	case c_ISDIR:
+ 		mode |= os.ModeDir
+-	}
+-	if m == c_ISFIFO {
+-		// named pipe (FIFO)
++	case c_ISFIFO:
+ 		mode |= os.ModeNamedPipe
+-	}
+-	if m == c_ISLNK {
+-		// symbolic link
++	case c_ISLNK:
+ 		mode |= os.ModeSymlink
+-	}
+-	if m == c_ISBLK {
+-		// device file
++	case c_ISBLK:
+ 		mode |= os.ModeDevice
+-	}
+-	if m == c_ISCHR {
+-		// Unix character device
++	case c_ISCHR:
+ 		mode |= os.ModeDevice
+ 		mode |= os.ModeCharDevice
+-	}
+-	if m == c_ISSOCK {
+-		// Unix domain socket
++	case c_ISSOCK:
+ 		mode |= os.ModeSocket
+ 	}
+ 
+ 	switch fi.h.Typeflag {
+ 	case TypeSymlink:
+-		// symbolic link
+ 		mode |= os.ModeSymlink
+ 	case TypeChar:
+-		// character device node
+ 		mode |= os.ModeDevice
+ 		mode |= os.ModeCharDevice
+ 	case TypeBlock:
+-		// block device node
+ 		mode |= os.ModeDevice
+ 	case TypeDir:
+-		// directory
+ 		mode |= os.ModeDir
+ 	case TypeFifo:
+-		// fifo node
+ 		mode |= os.ModeNamedPipe
+ 	}
+ 
+@@ -601,9 +610,12 @@ const (
+ // FileInfoHeader creates a partially-populated Header from fi.
+ // If fi describes a symlink, FileInfoHeader records link as the link target.
+ // If fi describes a directory, a slash is appended to the name.
+-// Because os.FileInfo's Name method returns only the base name of
+-// the file it describes, it may be necessary to modify the Name field
+-// of the returned header to provide the full path name of the file.
++//
++// Since os.FileInfo's Name method only returns the base name of
++// the file it describes, it may be necessary to modify Header.Name
++// to provide the full path name of the file.
++//
++// This function does not populate Header.SparseHoles.
+ func FileInfoHeader(fi os.FileInfo, link string) (*Header, error) {
+ 	if fi == nil {
+ 		return nil, errors.New("tar: FileInfo is nil")
+diff --git a/src/archive/tar/format.go b/src/archive/tar/format.go
+index b07d706e59..bedc447d8d 100644
+--- a/src/archive/tar/format.go
++++ b/src/archive/tar/format.go
+@@ -34,7 +34,8 @@ const (
+ 	//
+ 	// PAX extends USTAR by writing a special file with Typeflag TypeXHeader
+ 	// preceding the original header. This file contains a set of key-value
+-	// records, which are used to overcome USTAR's shortcomings.
++	// records, which are used to overcome USTAR's shortcomings, in addition to
++	// providing the ability to have sub-second resolution for timestamps.
+ 	//
+ 	// Some newer formats add their own extensions to PAX by defining their
+ 	// own keys and assigning certain semantic meaning to the associated values.
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index c0d4ea6940..0cf2a221e9 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -13,10 +13,9 @@ import (
+ 	"time"
+ )
+ 
+-// A Reader provides sequential access to the contents of a tar archive.
+-// A tar archive consists of a sequence of files.
+-// The Next method advances to the next file in the archive (including the first),
+-// and then it can be treated as an io.Reader to access the file's data.
++// Reader provides sequential access to the contents of a tar archive.
++// Reader.Next advances to the next file in the archive (including the first),
++// and then Reader can be treated as an io.Reader to access the file's data.
+ type Reader struct {
+ 	r    io.Reader
+ 	pad  int64      // Amount of padding (ignored) after current file entry
+@@ -42,6 +41,8 @@ func NewReader(r io.Reader) *Reader {
+ }
+ 
+ // Next advances to the next entry in the tar archive.
++// The Header.Size determines how many bytes can be read for the next file.
++// Any remaining data in the current file is automatically discarded.
+ //
+ // io.EOF is returned at the end of the input.
+ func (tr *Reader) Next() (*Header, error) {
+@@ -604,11 +605,11 @@ func readGNUSparseMap0x1(paxHdrs map[string]string) (sparseDatas, error) {
+ }
+ 
+ // Read reads from the current entry in the tar archive.
+-// It returns 0, io.EOF when it reaches the end of that entry,
++// It returns (0, io.EOF) when it reaches the end of that entry,
+ // until Next is called to advance to the next entry.
+ //
+ // If the current file is sparse, then the regions marked as a sparse hole
+-// will read back NUL-bytes.
++// are read back as NUL-bytes.
+ //
+ // Calling Read on special types like TypeLink, TypeSymLink, TypeChar,
+ // TypeBlock, TypeDir, and TypeFifo returns (0, io.EOF) regardless of what
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 38ebc5906b..426c61f342 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -15,10 +15,9 @@ import (
+ 	"time"
+ )
+ 
+-// A Writer provides sequential writing of a tar archive in POSIX.1 format.
+-// A tar archive consists of a sequence of files.
+-// Call WriteHeader to begin a new file, and then call Write to supply that file's data,
+-// writing at most hdr.Size bytes in total.
++// Writer provides sequential writing of a tar archive.
++// Write.WriteHeader begins a new file with the provided Header,
++// and then Writer can be treated as an io.Writer to supply that file's data.
+ type Writer struct {
+ 	w    io.Writer
+ 	pad  int64      // Amount of padding to write after current file entry
+@@ -54,7 +53,7 @@ func (tw *Writer) Flush() error {
+ 		return tw.err
+ 	}
+ 	if nb := tw.curr.Remaining(); nb > 0 {
+-		return fmt.Errorf("archive/tar: missed writing %d bytes", nb)
++		return fmt.Errorf("tar: missed writing %d bytes", nb)
+ 	}
+ 	if _, tw.err = tw.w.Write(zeroBlock[:tw.pad]); tw.err != nil {
+ 		return tw.err
+@@ -64,8 +63,9 @@ func (tw *Writer) Flush() error {
+ }
+ 
+ // WriteHeader writes hdr and prepares to accept the file's contents.
+-// WriteHeader calls Flush if it is not the first header.
+-// Calling after a Close will return ErrWriteAfterClose.
++// The Header.Size determines how many bytes can be written for the next file.
++// If the current file is not fully written, then this returns an error.
++// This implicitly flushes any padding necessary before writing the header.
+ func (tw *Writer) WriteHeader(hdr *Header) error {
+ 	if err := tw.Flush(); err != nil {
+ 		return err
+@@ -385,7 +385,7 @@ func splitUSTARPath(name string) (prefix, suffix string, ok bool) {
+ 	return name[:i], name[i+1:], true
+ }
+ 
+-// Write writes to the current entry in the tar archive.
++// Write writes to the current file in the tar archive.
+ // Write returns the error ErrWriteTooLong if more than
+ // Header.Size bytes are written after WriteHeader.
+ //
+@@ -425,8 +425,9 @@ func (tw *Writer) fillZeros(n int64) (int64, error) {
+ 	return n, err
+ }
+ 
+-// Close closes the tar archive, flushing any unwritten
+-// data to the underlying writer.
++// Close closes the tar archive by flushing the padding, and writing the footer.
++// If the current file (from a prior call to WriteHeader) is not fully written,
++// then this returns an error.
+ func (tw *Writer) Close() error {
+ 	if tw.err == ErrWriteAfterClose {
+ 		return nil

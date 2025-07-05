@@ -9,6 +9,26 @@ Date:   Mon Apr 23 10:52:16 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 6644827635..d71c069cfc 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -1002,13 +1002,7 @@ func parName(f *types.Field, numbered bool) string {
+ 		return ""
+ 	}
+ 
+-	// The "s != f.Sym" check here is unnecessary and causes blank
+-	// input/receiver parameters to receive vargen numbers
+-	// below. However, this is consistent with the logic it
+-	// replaces, so we keep it for now to appease toolstash-check.
+-	//
+-	// TODO(mdempsky): Simplify to just "if s.Name == "_"".
+-	if s != f.Sym && s.Name == "_" {
++	if s.Name == "_" {
+ 		return "_"
+ 	}
+ 

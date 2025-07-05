@@ -8,7 +8,7 @@ Date:   Wed Jun 24 20:12:50 2009 -0700
     DELTA=32  (0 added, 3 deleted, 29 changed)
     OCL=30718
     CL=30725
-
+---
  src/pkg/http/client_test.go          |  7 ++-----
  src/pkg/http/request_test.go         |  4 ++--
  src/pkg/http/url.go                  | 10 +++++-----
@@ -24,3 +24,289 @@ Date:   Wed Jun 24 20:12:50 2009 -0700
  src/pkg/unicode/decimaldigit_test.go |  4 ++--
  src/pkg/unicode/letter_test.go       | 12 ++++++------
  14 files changed, 29 insertions(+), 32 deletions(-)
+
+diff --git a/src/pkg/http/client_test.go b/src/pkg/http/client_test.go
+index ca4235879e..919e556e4c 100644
+--- a/src/pkg/http/client_test.go
++++ b/src/pkg/http/client_test.go
+@@ -27,10 +27,7 @@ func TestClient(t *testing.T) {
+ 
+ 	if err != nil {
+ 		t.Errorf("Error fetching URL: %v", err);
+-	} else {
+-		s := string(b);
+-		if (!strings.HasPrefix(s, "User-agent:")) {
+-			t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
+-		}
++	} else if s := string(b); !strings.HasPrefix(s, "User-agent:") {
++		t.Errorf("Incorrect page body (did not begin with User-agent): %q", s);
+ 	}
+ }
+diff --git a/src/pkg/http/request_test.go b/src/pkg/http/request_test.go
+index ab611a0ca8..230fe7bbb8 100644
+--- a/src/pkg/http/request_test.go
++++ b/src/pkg/http/request_test.go
+@@ -42,7 +42,7 @@ func TestParseForm(t *testing.T) {
+ 		if dlen, olen := len(data), len(test.out); dlen != olen {
+ 			t.Errorf("test %d: Have %d keys, want %d keys", i, dlen, olen);
+ 		}
+-		for k, vs := range(test.out) {
++		for k, vs := range test.out {
+ 			vec, ok := data[k];
+ 			if !ok {
+ 				t.Errorf("test %d: Missing key %q", i, k);
+@@ -52,7 +52,7 @@ func TestParseForm(t *testing.T) {
+ 				t.Errorf("test %d: key %q: Have %d keys, want %d keys", i, k, dlen, olen);
+ 				continue
+ 			}
+-			for j, v := range(vs) {
++			for j, v := range vs {
+ 				if dv := vec.At(j); dv != v {
+ 					t.Errorf("test %d: key %q: val %d: Have %q, want %q", i, k, j, dv, v);
+ 				}
+diff --git a/src/pkg/http/url.go b/src/pkg/http/url.go
+index bd2bfcf936..156f3ad016 100644
+--- a/src/pkg/http/url.go
++++ b/src/pkg/http/url.go
+@@ -108,8 +108,8 @@ func URLEscape(s string) string {
+ 	spaceCount, hexCount := 0, 0;
+ 	for i := 0; i < len(s); i++ {
+ 		c := s[i];
+-		if (shouldEscape(c)) {
+-			if (c == ' ') {
++		if shouldEscape(c) {
++			if c == ' ' {
+ 				spaceCount++;
+ 			} else {
+ 				hexCount++;
+@@ -128,7 +128,7 @@ func URLEscape(s string) string {
+ 		if !shouldEscape(c) {
+ 			t[j] = s[i];
+ 			j++;
+-		} else if (c == ' ') {
++		} else if c == ' ' {
+ 			t[j] = '+';
+ 			j++;
+ 		} else {
+@@ -256,10 +256,10 @@ func ParseURL(rawurl string) (url *URL, err os.Error) {
+ 	if url.Userinfo, err = URLUnescape(url.Userinfo); err != nil {
+ 		return nil, err
+ 	}
+-	if (strings.Index(url.Scheme, "%") >= 0) {
++	if strings.Index(url.Scheme, "%") >= 0 {
+ 		return nil, BadURL{"hexadecimal escape in scheme"}
+ 	}
+-	if (strings.Index(url.Host, "%") >= 0) {
++	if strings.Index(url.Host, "%") >= 0 {
+ 		return nil, BadURL{"hexadecimal escape in host"}
+ 	}
+ 
+diff --git a/src/pkg/log/log_test.go b/src/pkg/log/log_test.go
+index 0cfb2e36f8..819e959ceb 100644
+--- a/src/pkg/log/log_test.go
++++ b/src/pkg/log/log_test.go
+@@ -75,7 +75,7 @@ func testLog(t *testing.T, flag int, prefix string, pattern string, useLogf bool
+ }
+ 
+ func TestAllLog(t *testing.T) {
+-	for i, testcase := range(tests) {
++	for i, testcase := range tests {
+ 		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, false);
+ 		testLog(t, testcase.flag, testcase.prefix, testcase.pattern, true);
+ 	}
+diff --git a/src/pkg/math/sin.go b/src/pkg/math/sin.go
+index 9fc69606cd..0c26a767b7 100644
+--- a/src/pkg/math/sin.go
++++ b/src/pkg/math/sin.go
+@@ -20,7 +20,7 @@ func sinus(x float64, quad int) float64 {
+ 		Q2	=  .9463096101538208180571257e4;
+ 		Q3	=  .1326534908786136358911494e3;
+ 	)
+-	if(x < 0) {
++	if x < 0 {
+ 		x = -x;
+ 		quad = quad+2;
+ 	}
+diff --git a/src/pkg/math/tan.go b/src/pkg/math/tan.go
+index 2d4a044b87..ee6dfbe40a 100644
+--- a/src/pkg/math/tan.go
++++ b/src/pkg/math/tan.go
+@@ -27,7 +27,7 @@ func Tan(x float64) float64 {
+ 
+ 	flag := false;
+ 	sign := false;
+-	if(x < 0) {
++	if x < 0 {
+ 		x = -x;
+ 		sign = true;
+ 	}
+@@ -55,7 +55,7 @@ func Tan(x float64) float64 {
+ 	temp = temp/(((xsq+Q2)*xsq+Q1)*xsq+Q0);
+ 
+ 	if flag {
+-		if(temp == 0) {
++		if temp == 0 {
+ 			panic(NaN());
+ 		}
+ 		temp = 1/temp;
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 7487504130..4dbc2a4883 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -68,7 +68,7 @@ func Environ() []string {
+ 	once.Do(copyenv);
+ 	a := make([]string, len(env));
+ 	i := 0;
+-	for k, v := range(env) {
++	for k, v := range env {
+ 		// check i < len(a) for safety,
+ 		// in case env is changing underfoot.
+ 		if i < len(a) {
+diff --git a/src/pkg/os/exec.go b/src/pkg/os/exec.go
+index d283c72670..c1551f86dd 100644
+--- a/src/pkg/os/exec.go
++++ b/src/pkg/os/exec.go
+@@ -21,7 +21,7 @@ func ForkExec(argv0 string, argv []string, envv []string, dir string, fd []*File
+ {
+ 	// Create array of integer (system) fds.
+ 	intfd := make([]int, len(fd));
+-	for i, f := range(fd) {
++	for i, f := range fd {
+ 		if f == nil {
+ 			intfd[i] = -1;
+ 		} else {
+diff --git a/src/pkg/reflect/tostring.go b/src/pkg/reflect/tostring.go
+index 43be4b9e8f..a74fe32639 100644
+--- a/src/pkg/reflect/tostring.go
++++ b/src/pkg/reflect/tostring.go
+@@ -77,7 +77,7 @@ func typeToString(typ Type, expand bool) string {
+ 	if name := typ.Name(); !expand && name != "" {
+ 		return name
+ 	}
+-	switch(typ.Kind()) {
++	switch typ.Kind() {
+ 	case MissingKind:
+ 		return "$missing$";
+ 	case IntKind, Int8Kind, Int16Kind, Int32Kind, Int64Kind,
+@@ -141,7 +141,7 @@ func integer(v int64) string {
+ func valueToString(val Value) string {
+ 	var str string;
+ 	typ := val.Type();
+-	switch(val.Kind()) {
++	switch val.Kind() {
+ 	case MissingKind:
+ 		return "missing";
+ 	case IntKind:
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index c8542183aa..3ff191727b 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -397,7 +397,7 @@ func (t *structTypeStruct) Size() int {
+ 		t.field[i].offset = size;
+ 		size += elemsize;
+ 	}
+-	if (structAlignMask > 0) {
++	if structAlignMask > 0 {
+ 		// 6g etc. always aligns structs to a minimum size, typically int64
+ 		if structAlignMask < minStructAlignMask {
+ 			structAlignMask = minStructAlignMask
+diff --git a/src/pkg/strconv/decimal.go b/src/pkg/strconv/decimal.go
+index 38d9c47fb1..bf559b1936 100644
+--- a/src/pkg/strconv/decimal.go
++++ b/src/pkg/strconv/decimal.go
+@@ -328,7 +328,7 @@ func (a *decimal) Round(nd int) *decimal {
+ 	if nd <= 0 || nd >= a.nd {
+ 		return a;
+ 	}
+-	if(shouldRoundUp(a, nd)) {
++	if shouldRoundUp(a, nd) {
+ 		return a.RoundUp(nd);
+ 	}
+ 	return a.RoundDown(nd);
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index 7a41584b70..a1733b3df5 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -66,7 +66,7 @@ var lastIndexTests = []IndexTest {
+ func runIndexTests(t *testing.T, f func(s, sep string) int, funcName string, testCases []IndexTest) {
+ 	for i,test := range testCases {
+ 		actual := f(test.s, test.sep);
+-		if (actual != test.out) {
++		if actual != test.out {
+ 			t.Errorf("%s(%q,%q) = %v; want %v", funcName, test.s, test.sep, actual, test.out);
+ 		}
+ 	}
+@@ -149,7 +149,7 @@ type StringTest struct {
+ func runStringTests(t *testing.T, f func(string) string, funcName string, testCases []StringTest) {
+ 	for i, tc := range testCases {
+ 		actual := f(tc.in);
+-		if (actual != tc.out) {
++		if actual != tc.out {
+ 			t.Errorf("%s(%q) = %q; want %q", funcName, tc.in, actual, tc.out);
+ 		}
+ 	}
+diff --git a/src/pkg/unicode/decimaldigit_test.go b/src/pkg/unicode/decimaldigit_test.go
+index f7b470c676..393846e2e9 100644
+--- a/src/pkg/unicode/decimaldigit_test.go
++++ b/src/pkg/unicode/decimaldigit_test.go
+@@ -362,12 +362,12 @@ var testLetter = []int{
+ }
+ 
+ func TestIsDecimalDigit(t *testing.T) {
+-	for i, r := range(testDecimal) {
++	for i, r := range testDecimal {
+ 		if !IsDecimalDigit(r) {
+ 			t.Errorf("IsDecimalDigit(%#x) = false, want true\n", r);
+ 		}
+ 	}
+-	for i, r := range(testLetter) {
++	for i, r := range testLetter {
+ 		if IsDecimalDigit(r) {
+ 			t.Errorf("IsDecimalDigit(%#x) = true, want false\n", r);
+ 		}
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index d39d74e6b9..8e4290d6da 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -93,17 +93,17 @@ var notletter = []int{
+ }
+ 
+ func TestIsLetter(t *testing.T) {
+-	for i, r := range(upper) {
++	for i, r := range upper {
+ 		if !IsLetter(r) {
+ 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
+ 		}
+ 	}
+-	for i, r := range(letter) {
++	for i, r := range letter {
+ 		if !IsLetter(r) {
+ 			t.Errorf("IsLetter(%#x) = false, want true\n", r);
+ 		}
+ 	}
+-	for i, r := range(notletter) {
++	for i, r := range notletter {
+ 		if IsLetter(r) {
+ 			t.Errorf("IsLetter(%#x) = true, want false\n", r);
+ 		}
+@@ -111,17 +111,17 @@ func TestIsLetter(t *testing.T) {
+ }
+ 
+ func TestIsUpper(t *testing.T) {
+-	for i, r := range(upper) {
++	for i, r := range upper {
+ 		if !IsUpper(r) {
+ 			t.Errorf("IsUpper(%#x) = false, want true\n", r);
+ 		}
+ 	}
+-	for i, r := range(notupper) {
++	for i, r := range notupper {
+ 		if IsUpper(r) {
+ 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
+ 		}
+ 	}
+-	for i, r := range(notletter) {
++	for i, r := range notletter {
+ 		if IsUpper(r) {
+ 			t.Errorf("IsUpper(%#x) = true, want false\n", r);
+ 		}

@@ -22,8 +22,143 @@ Date:   Sun Oct 4 20:56:11 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/15409
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
-
+---
  src/runtime/malloc.go  | 35 ++++++++++++++++++++++++++++-------
  src/runtime/mgc.go     |  6 ++++++
  src/runtime/mgcmark.go | 34 ++++++++++++----------------------
  3 files changed, 46 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 29f81a09f5..6c7db0ffff 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -510,6 +510,27 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		return persistentalloc(size, align, &memstats.other_sys)
+ 	}
+ 
++	// assistG is the G to charge for this allocation, or nil if
++	// GC is not currently active.
++	var assistG *g
++	if gcBlackenEnabled != 0 {
++		// Charge the current user G for this allocation.
++		assistG = getg()
++		if assistG.m.curg != nil {
++			assistG = assistG.m.curg
++		}
++		// Charge the allocation against the G. We'll account
++		// for internal fragmentation at the end of mallocgc.
++		assistG.gcAssistBytes -= int64(size)
++
++		if assistG.gcAssistBytes < 0 {
++			// This G is in debt. Assist the GC to correct
++			// this before allocating. This must happen
++			// before disabling preemption.
++			gcAssistAlloc(assistG)
++		}
++	}
++
+ 	// Set mp.mallocing to keep from being preempted by GC.
+ 	mp := acquirem()
+ 	if mp.mallocing != 0 {
+@@ -704,15 +725,15 @@ func mallocgc(size uintptr, typ *_type, flags uint32) unsafe.Pointer {
+ 		}
+ 	}
+ 
++	if assistG != nil {
++		// Account for internal fragmentation in the assist
++		// debt now that we know it.
++		assistG.gcAssistBytes -= int64(size - dataSize)
++	}
++
+ 	if shouldhelpgc && shouldtriggergc() {
+ 		startGC(gcBackgroundMode, false)
+-	} else if gcBlackenEnabled != 0 {
+-		// Assist garbage collector. We delay this until the
+-		// epilogue so that it doesn't interfere with the
+-		// inner working of malloc such as mcache refills that
+-		// might happen while doing the gcAssistAlloc.
+-		gcAssistAlloc(size, shouldhelpgc)
+-	} else if shouldhelpgc && bggc.working != 0 {
++	} else if shouldhelpgc && bggc.working != 0 && gcBlackenEnabled == 0 {
+ 		// The GC is starting up or shutting down, so we can't
+ 		// assist, but we also can't allocate unabated. Slow
+ 		// down this G's allocation and help the GC stay
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 62f6a13ab6..086fc957f0 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -723,6 +723,12 @@ const gcCreditSlack = 2000
+ // can accumulate on a P before updating gcController.assistTime.
+ const gcAssistTimeSlack = 5000
+ 
++// gcOverAssistBytes determines how many extra allocation bytes of
++// assist credit a GC assist builds up when an assist happens. This
++// amortizes the cost of an assist by pre-paying for this many bytes
++// of future allocations.
++const gcOverAssistBytes = 1 << 20
++
+ // Determine whether to initiate a GC.
+ // If the GC is already working no need to trigger another one.
+ // This should establish a feedback loop where if the GC does not
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 413274fef1..498c355fe8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -198,28 +198,12 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 	}
+ }
+ 
+-// gcAssistAlloc records and allocation of size bytes and, if
+-// allowAssist is true, may assist GC scanning in proportion to the
+-// allocations performed by this mutator since the last assist.
++// gcAssistAlloc performs GC work to make gp's assist debt positive.
++// gp must be the calling user gorountine.
+ //
+-// It should only be called if gcBlackenEnabled != 0.
+-//
+-// This must be called with preemption disabled.
++// This must be called with preemption enabled.
+ //go:nowritebarrier
+-func gcAssistAlloc(size uintptr, allowAssist bool) {
+-	// Find the G responsible for this assist.
+-	gp := getg()
+-	if gp.m.curg != nil {
+-		gp = gp.m.curg
+-	}
+-
+-	// Record allocation.
+-	gp.gcAssistBytes -= int64(size)
+-
+-	if !allowAssist || gp.gcAssistBytes >= 0 {
+-		return
+-	}
+-
++func gcAssistAlloc(gp *g) {
+ 	// Don't assist in non-preemptible contexts. These are
+ 	// generally fragile and won't allow the assist to block.
+ 	if getg() == gp.m.g0 {
+@@ -230,8 +214,9 @@ func gcAssistAlloc(size uintptr, allowAssist bool) {
+ 	}
+ 
+ 	// Compute the amount of scan work we need to do to make the
+-	// balance positive.
+-	debtBytes := -gp.gcAssistBytes
++	// balance positive. We over-assist to build up credit for
++	// future allocations and amortize the cost of assisting.
++	debtBytes := -gp.gcAssistBytes + gcOverAssistBytes
+ 	scanWork := int64(gcController.assistWorkPerByte * float64(debtBytes))
+ 
+ retry:
+@@ -358,7 +343,12 @@ retry:
+ 		// more, so go around again after performing an
+ 		// interruptible sleep for 100 us (the same as the
+ 		// getfull barrier) to let other mutators run.
++
++		// timeSleep may allocate, so avoid recursive assist.
++		gcAssistBytes := gp.gcAssistBytes
++		gp.gcAssistBytes = int64(^uint64(0) >> 1)
+ 		timeSleep(100 * 1000)
++		gp.gcAssistBytes = gcAssistBytes
+ 		goto retry
+ 	}
+ }

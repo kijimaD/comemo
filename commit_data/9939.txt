@@ -11,7 +11,7 @@ Date:   Wed Oct 12 10:48:38 2011 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5231042
-
+---
  misc/godoc/README                  |  22 -------
  misc/godoc/app.yaml                |  12 ----
  misc/godoc/init.go                 |  35 -----------
@@ -19,3 +19,344 @@ Date:   Wed Oct 12 10:48:38 2011 -0700
  src/cmd/godoc/appconfig.go         |  30 ---------
  src/cmd/godoc/setup-godoc-app.bash | 121 +++++++++++++++++++++++++++++++++++++
  6 files changed, 205 insertions(+), 99 deletions(-)
+
+diff --git a/misc/godoc/README b/misc/godoc/README
+deleted file mode 100644
+index 3c8d830e4d..0000000000
+--- a/misc/godoc/README
++++ /dev/null
+@@ -1,22 +0,0 @@
+-Instructions to get an initial godoc running on a local app engine emulator
+----------------------------------------------------------------------------
+-
+-To run godoc under the app engine emulator, create a ("goroot") godoc
+-directory that contains the app.yaml file, the doc and lib directories
+-from the Go distribution, as well as a godoc directory with the godoc
+-sources from src/cmd/godoc. In the godoc source directory, replace
+-main.go with init.go. The directory structure should look as follows:
+-
+-godoc				// "goroot" directory
+-	app.yaml		// app engine control file
+-	doc			// goroot/doc directory
+-	favicon.ico
+-	godoc			// contains godoc sources
+-		godoc.go	// unchanged godoc file
+-		init.go		// this file instead of godoc/main.go
+-		...		// remaining godoc files
+-	lib			// goroot/lib directory
+-
+-Run app engine emulator locally: dev_appserver.py -a <hostname> godoc
+-where godoc is the top-level "goroot" directory. The godoc home page
+-is then served at: <hostname>:8080 .
+diff --git a/misc/godoc/app.yaml b/misc/godoc/app.yaml
+deleted file mode 100644
+index f8b46db31c..0000000000
+--- a/misc/godoc/app.yaml
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-application: godoc
+-version: 1
+-runtime: go
+-api_version: 1
+-
+-handlers:
+-- url: /.*
+-  script: _go_app
+diff --git a/misc/godoc/init.go b/misc/godoc/init.go
+deleted file mode 100644
+index 0fd0bd5428..0000000000
+--- a/misc/godoc/init.go
++++ /dev/null
+@@ -1,35 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file replaces main.go when running godoc under the app engine emulator.
+-// See the README file for instructions.
+-
+-package main
+-
+-import (
+-	"http"
+-	"log"
+-	"os"
+-	"path/filepath"
+-)
+-
+-func serveError(w http.ResponseWriter, r *http.Request, relpath string, err os.Error) {
+-	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+-	w.WriteHeader(http.StatusNotFound)
+-	servePage(w, "File "+relpath, "", "", contents)
+-}
+-
+-func init() {
+-	// set goroot
+-	cwd, err := os.Getwd()
+-	if err != nil {
+-		log.Fatalf("cwd: %s", err)
+-	}
+-	log.Printf("cwd = %s", cwd)
+-	*goroot = filepath.Clean(cwd)
+-
+-	initHandlers()
+-	readTemplates()
+-	registerPublicHandlers(http.DefaultServeMux)
+-}
+diff --git a/src/cmd/godoc/README.godoc-app b/src/cmd/godoc/README.godoc-app
+new file mode 100644
+index 0000000000..39fd369f6b
+--- /dev/null
++++ b/src/cmd/godoc/README.godoc-app
+@@ -0,0 +1,84 @@
++Copyright 2011 The Go Authors. All rights reserved.
++Use of this source code is governed by a BSD-style
++license that can be found in the LICENSE file.
++
++godoc on appengine
++------------------
++(documentation in progress)
++
++Prerequisites
++-------------
++
++* Go appengine SDK 1.5.3 - 2011-08-17
++  http://code.google.com/appengine/downloads.html#Google_App_Engine_SDK_for_Go
++
++* go_appengine_sdk_darwin_amd64-1.5.3.zip
++  Go sources at tip under $GOROOT
++
++
++Directory structure
++-------------------
++
++* Let $APPDIR be the directory containing the app engine files.
++  (e.g., $APPDIR=$HOME/godoc-app)
++
++* $APPDIR contains the following entries (this may change depending on
++  app-engine release and version of godoc):
++
++	alt/
++		archive/
++		go/
++			ast/
++			doc/
++			parser/
++			...
++		http/
++		index/suffixarray/
++		mime/
++		path/filepath/
++		sort/
++		strings/
++		template/
++		url/
++	app.yaml
++	godoc.zip
++	godoc/
++	index.split.*
++
++* The app.yaml file is set up per app engine documentation.
++  For instance:
++
++	application: godoc-app
++	version: 1-5-4
++	runtime: go
++	api_version: 2
++
++	handlers:
++	- url: /.*
++	  script: _go_app
++
++* The godoc/ directory contains a copy of the files under $GOROOT/src/cmd/godoc
++  with modifications:
++
++	- doc.go is excluded (it belongs to pseudo-package “documentation”)
++	- main.go is excluded (appinit.go is taking its place)
++
++  Additional manual modifications are required to refer to the alt/ packages
++  where the app-engine library is not up-to-date with the godoc version.
++
++* The alt/ directory contains up-to-date copies of Go packages that a tip-based
++  godoc is dependent on but which do not yet exist in the current app-engine SDK.
++
++
++Configuring godoc
++-----------------
++
++Run
++
++	bash setup-godoc-app.bash
++
++to create the godoc.zip, index.split.*, and godoc/appconfig.go files
++based on $GOROOT and $APPDIR. See the script for details on usage.
++
++
++ 
+diff --git a/src/cmd/godoc/appconfig.go b/src/cmd/godoc/appconfig.go
+deleted file mode 100644
+index 052a9ebc8a..0000000000
+--- a/src/cmd/godoc/appconfig.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// This file contains configuration information used by
+-// godoc when running on app engine. Adjust as needed
+-// (typically when the .zip file changes).
+-
+-package main
+-
+-const (
+-	// zipFilename is the name of the .zip file
+-	// containing the file system served by godoc.
+-	zipFilename = "godoc.zip"
+-
+-	// zipGoroot is the path of the goroot directory
+-	// in the .zip file.
+-	zipGoroot = "/home/user/go"
+-
+-	// If indexFilenames != "", the search index is
+-	// initialized with the index stored in these
+-	// files (otherwise it will be built at run-time,
+-	// eventually). indexFilenames is a glob pattern;
+-	// the specified files are concatenated in sorted
+-	// order (by filename).
+-	// app-engine limit: file sizes must be <= 10MB;
+-	// use "split -b8m indexfile index.split." to get
+-	// smaller files.
+-	indexFilenames = "index.split.*"
+-)
+diff --git a/src/cmd/godoc/setup-godoc-app.bash b/src/cmd/godoc/setup-godoc-app.bash
+new file mode 100644
+index 0000000000..7530e7ca48
+--- /dev/null
++++ b/src/cmd/godoc/setup-godoc-app.bash
+@@ -0,0 +1,121 @@
++#!/usr/bin/env bash
++
++# Copyright 2011 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++# This script creates the .zip, index, and configuration files for running
++# godoc on app-engine.
++#
++# If an argument is provided it is assumed to be the app-engine godoc directory.
++# Without an argument, $APPDIR is used instead. If GOROOT is not set, the
++# current working directory is assumed to be $GOROOT. Various sanity checks
++# prevent accidents.
++#
++# The script creates a .zip file representing the $GOROOT file system
++# and computes the correspondig search index files. These files are then
++# copied to $APPDIR. A corresponding godoc configuration file is created
++# in $APPDIR/appconfig.go.
++
++ZIPFILE=godoc.zip
++INDEXFILE=godoc.index
++SPLITFILES=index.split.
++CONFIGFILE=godoc/appconfig.go
++
++error() {
++	echo "error: $1"
++	exit 2
++}
++
++getArgs() {
++	if [ -z $GOROOT ]; then
++		GOROOT=$(pwd)
++		echo "GOROOT not set, using cwd instead"
++	fi
++	if [ -z $APPDIR ]; then
++		if [ $# == 0 ]; then
++			error "APPDIR not set, and no argument provided"
++		fi
++		APPDIR=$1
++		echo "APPDIR not set, using argument instead"
++	fi
++	
++	# safety checks
++	if [ ! -d $GOROOT ]; then
++		error "$GOROOT is not a directory"
++	fi
++	if [ ! -x $GOROOT/src/cmd/godoc/godoc ]; then
++		error "$GOROOT/src/cmd/godoc/godoc does not exist or is not executable"
++	fi
++	if [ ! -d $APPDIR ]; then
++		error "$APPDIR is not a directory"
++	fi
++	if [ ! -e $APPDIR/app.yaml ]; then
++		error "$APPDIR is not an app-engine directory; missing file app.yaml"
++	fi
++	if [ ! -d $APPDIR/godoc ]; then
++		error "$APPDIR is missing directory godoc"
++	fi
++
++	# reporting
++	echo "GOROOT = $GOROOT"
++	echo "APPDIR = $APPDIR"
++}
++
++cleanup() {
++	echo "*** cleanup $APPDIR"
++	rm $APPDIR/$ZIPFILE
++	rm $APPDIR/$INDEXFILE
++	rm $APPDIR/$SPLITFILES*
++	rm $APPDIR/$CONFIGFILE
++}
++
++makeZipfile() {
++	echo "*** make $APPDIR/$ZIPFILE"
++	zip -q -r $APPDIR/$ZIPFILE $GOROOT -i \*.go -i \*.html -i \*.css -i \*.js -i \*.txt -i \*.c -i \*.h -i \*.s -i \*.png -i \*.jpg -i \*.sh -i favicon.ico
++}
++
++makeIndexfile() {
++	echo "*** make $APPDIR/$INDEXFILE"
++	OUT=/tmp/godoc.out
++	$GOROOT/src/cmd/godoc/godoc -write_index -index_files=$APPDIR/$INDEXFILE -zip=$APPDIR/$ZIPFILE 2> $OUT
++	if [ $? != 0 ]; then
++		error "$GOROOT/src/cmd/godoc/godoc failed - see $OUT for details"
++	fi
++}
++
++splitIndexfile() {
++	echo "*** split $APPDIR/$INDEXFILE"
++	split -b8m $APPDIR/$INDEXFILE $APPDIR/$SPLITFILES
++}
++
++makeConfigfile() {
++	echo "*** make $APPDIR/$CONFIGFILE"
++	cat > $APPDIR/$CONFIGFILE <<EOF
++package main
++
++// GENERATED FILE - DO NOT MODIFY BY HAND.
++// (generated by $GOROOT/src/cmd/godoc/setup-godoc-app.bash)
++
++const (
++	// .zip filename
++	zipFilename = "$ZIPFILE"
++
++	// goroot directory in .zip file
++	zipGoroot = "$GOROOT"
++
++	// glob pattern describing search index files
++	// (if empty, the index is built at run-time)
++	indexFilenames = "$SPLITFILES*"
++)
++EOF
++}
++
++getArgs "$@"
++cleanup
++makeZipfile
++makeIndexfile
++splitIndexfile
++makeConfigfile
++
++echo "*** setup complete"

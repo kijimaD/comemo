@@ -8,6 +8,22 @@ Date:   Fri May 15 17:26:08 2009 -0700
     DELTA=2  (1 added, 0 deleted, 1 changed)
     OCL=28949
     CL=28951
-
+---
  src/runtime/symtab.c | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.c b/src/runtime/symtab.c
+index 10debe52f0..b4802715e1 100644
+--- a/src/runtime/symtab.c
++++ b/src/runtime/symtab.c
+@@ -250,8 +250,9 @@ splitpcln(void)
+ 
+ 	f = func;
+ 	ef = func + nfunc;
+-	f->pcln.array = p;
+ 	pc = func[0].entry;	// text base
++	f->pcln.array = p;
++	f->pc0 = pc - PcQuant;
+ 	line = 0;
+ 	for(; p < ep; p++) {
+ 		if(f < ef && pc >= (f+1)->entry) {

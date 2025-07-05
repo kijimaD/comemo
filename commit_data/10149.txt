@@ -8,6 +8,20 @@ Date:   Mon Oct 31 10:58:04 2011 +0100
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/5177052
-
+---
  src/pkg/exp/norm/maketables.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 626f324a54..93edf221ef 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -764,7 +764,7 @@ func verifyComputed() {
+ 	}
+ }
+ 
+-var qcRe = regexp.MustCompile(`^([0-9A-F\.]+) *; (NF.*_QC); ([YNM]) #.*$`)
++var qcRe = regexp.MustCompile(`([0-9A-F\.]+) *; (NF.*_QC); ([YNM]) #.*`)
+ 
+ // Use values in DerivedNormalizationProps.txt to compare against the
+ // values we computed.

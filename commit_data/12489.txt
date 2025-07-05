@@ -8,6 +8,44 @@ Date:   Thu Mar 8 03:56:31 2012 +0800
     R=rsc, r, adg
     CC=golang-dev
     https://golang.org/cl/5732061
-
+---
  doc/go_mem.html | 13 ++++---------
  1 file changed, 4 insertions(+), 9 deletions(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index a003241581..1d45dceb62 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Memory Model",
+-	"Subtitle": "Version of June 10, 2011",
++	"Subtitle": "Version of March 6, 2012"
+ 	"Path": "/ref/mem"
+ }-->
+ 
+@@ -107,9 +107,9 @@ unspecified order.
+ <h3>Initialization</h3>
+ 
+ <p>
+-Program initialization runs in a single goroutine and
+-new goroutines created during initialization do not
+-start running until initialization ends.
++Program initialization runs in a single goroutine,
++but that goroutine may create other goroutines,
++which run concurrently.
+ </p>
+ 
+ <p class="rule">
+@@ -122,11 +122,6 @@ The start of the function <code>main.main</code> happens after
+ all <code>init</code> functions have finished.
+ </p>
+ 
+-<p class="rule">
+-The execution of any goroutines created during <code>init</code>
+-functions happens after all <code>init</code> functions have finished.
+-</p>
+-
+ <h3>Goroutine creation</h3>
+ 
+ <p class="rule">

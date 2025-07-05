@@ -22,8 +22,68 @@ Date:   Mon Apr 24 10:18:07 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/crash_cgo_test.go                | 11 +++++++++++
  src/runtime/testdata/testprogcgo/raceprof.go |  4 ++--
  src/runtime/testdata/testprogcgo/racesig.go  |  4 ++--
  3 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 5ed82d6eea..6fe9364122 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -371,6 +371,10 @@ func TestRaceProf(t *testing.T) {
+ 	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+ 		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+ 	}
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping: test requires pthread support")
++		// TODO: Can this test be rewritten to use the C11 thread API instead?
++	}
+ 
+ 	testenv.MustHaveGoRun(t)
+ 
+@@ -399,6 +403,13 @@ func TestRaceSignal(t *testing.T) {
+ 	if !platform.RaceDetectorSupported(runtime.GOOS, runtime.GOARCH) {
+ 		t.Skipf("skipping on %s/%s because race detector not supported", runtime.GOOS, runtime.GOARCH)
+ 	}
++	if runtime.GOOS == "windows" {
++		t.Skipf("skipping: test requires pthread support")
++		// TODO: Can this test be rewritten to use the C11 thread API instead?
++	}
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
++		testenv.SkipFlaky(t, 59807)
++	}
+ 
+ 	t.Parallel()
+ 
+diff --git a/src/runtime/testdata/testprogcgo/raceprof.go b/src/runtime/testdata/testprogcgo/raceprof.go
+index c098e16196..68cabd4101 100644
+--- a/src/runtime/testdata/testprogcgo/raceprof.go
++++ b/src/runtime/testdata/testprogcgo/raceprof.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && amd64) || (freebsd && amd64)
+-// +build linux,amd64 freebsd,amd64
++//go:build unix
++// +build unix
+ 
+ package main
+ 
+diff --git a/src/runtime/testdata/testprogcgo/racesig.go b/src/runtime/testdata/testprogcgo/racesig.go
+index 9352679714..b7f3a21529 100644
+--- a/src/runtime/testdata/testprogcgo/racesig.go
++++ b/src/runtime/testdata/testprogcgo/racesig.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (linux && amd64) || (freebsd && amd64)
+-// +build linux,amd64 freebsd,amd64
++//go:build unix
++// +build unix
+ 
+ package main
+ 

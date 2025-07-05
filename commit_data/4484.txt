@@ -10,6 +10,22 @@ Date:   Wed Dec 23 09:26:21 2009 -0800
     R=rsc, phf
     CC=golang-dev
     https://golang.org/cl/183043
-
+---
  src/cmd/cgo/ast.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 76ff9ec653..c78d8bb8e6 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -118,7 +118,9 @@ func openProg(name string, p *Prog) {
+ 	}
+ 
+ 	// Accumulate pointers to uses of C.x.
+-	p.Crefs = make([]*Cref, 0, 8)
++	if p.Crefs == nil {
++		p.Crefs = make([]*Cref, 0, 8)
++	}
+ 	walk(p.AST, p, "prog")
+ }
+ 

@@ -18,7 +18,68 @@ Date:   Wed Sep 16 13:13:50 2020 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  9 +++++++--
  test/cannotassign.go                     | 33 ++++++++++++++++++++++++++++++++
  2 files changed, 40 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 8d777c399e..55773641ed 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3135,9 +3135,14 @@ func checkassign(stmt *Node, n *Node) {
+ 		return
+ 	}
+ 
+-	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
++	switch {
++	case n.Op == ODOT && n.Left.Op == OINDEXMAP:
+ 		yyerror("cannot assign to struct field %v in map", n)
+-	} else {
++	case (n.Op == OINDEX && n.Left.Type.IsString()) || n.Op == OSLICESTR:
++		yyerror("cannot assign to %v (strings are immutable)", n)
++	case n.Op == OLITERAL && n.Sym != nil && n.isGoConst():
++		yyerror("cannot assign to %v (declared const)", n)
++	default:
+ 		yyerror("cannot assign to %v", n)
+ 	}
+ 	n.Type = nil
+diff --git a/test/cannotassign.go b/test/cannotassign.go
+new file mode 100644
+index 0000000000..0de04ecad0
+--- /dev/null
++++ b/test/cannotassign.go
+@@ -0,0 +1,33 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test "cannot assign" errors
++
++package main
++
++func main() {
++	var s string = "hello"
++	s[1:2] = "a" // ERROR "cannot assign to .* \(strings are immutable\)"
++	s[3] = "b"   // ERROR "cannot assign to .* \(strings are immutable\)"
++
++	const n int = 1
++	const cs string = "hello"
++	n = 2        // ERROR "cannot assign to .* \(declared const\)"
++	cs = "hi"    // ERROR "cannot assign to .* \(declared const\)"
++	true = false // ERROR "cannot assign to .* \(declared const\)"
++
++	var m map[int]struct{ n int }
++	m[0].n = 7 // ERROR "cannot assign to struct field .* in map$"
++
++	1 = 7         // ERROR "cannot assign to 1$"
++	"hi" = 7      // ERROR `cannot assign to "hi"$`
++	nil = 7       // ERROR "cannot assign to nil$"
++	len("") = 7   // ERROR `cannot assign to len\(""\)$`
++	[]int{} = nil // ERROR "cannot assign to \[\]int\{\}$"
++
++	var x int = 7
++	x + 1 = 7 // ERROR "cannot assign to x \+ 1$"
++}

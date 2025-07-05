@@ -16,7 +16,7 @@ Date:   Sun Sep 25 21:33:27 2016 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os3_solaris.go     |  3 +++
  src/runtime/os_dragonfly.go    |  3 +++
  src/runtime/os_freebsd.go      |  3 +++
@@ -31,3 +31,434 @@ Date:   Sun Sep 25 21:33:27 2016 -0700
  src/runtime/sys_darwin_386.s   | 21 +++-------------
  src/runtime/sys_darwin_amd64.s | 22 +++++++----------
  13 files changed, 78 insertions(+), 204 deletions(-)
+
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 1b618fd42c..dc300cbc94 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -318,6 +318,9 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	return set
+ }
+ 
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
++
+ //go:nosplit
+ func semacreate(mp *m) {
+ 	if mp.waitsema != 0 {
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 0bbe644440..96e6cb9c31 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -290,3 +290,6 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	copy(set.__bits[:], m[:])
+ 	return set
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index ae057b86ca..fade93acd9 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -280,3 +280,6 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	copy(set.__bits[:], m[:])
+ 	return set
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 88139ae2fc..bc0d9f2027 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -410,3 +410,6 @@ func getsig(i int32) uintptr {
+ func setSignalstackSP(s *stackt, sp uintptr) {
+ 	s.ss_sp = (*byte)(unsafe.Pointer(sp))
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 81c52324ff..79d684217a 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -316,3 +316,6 @@ func sigmaskToSigset(m sigmask) sigset {
+ 	copy(set.__bits[:], m[:])
+ 	return set
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
+diff --git a/src/runtime/os_openbsd.go b/src/runtime/os_openbsd.go
+index 714416fa5b..19055bd9c3 100644
+--- a/src/runtime/os_openbsd.go
++++ b/src/runtime/os_openbsd.go
+@@ -294,3 +294,6 @@ func setSignalstackSP(s *stackt, sp uintptr) {
+ func sigmaskToSigset(m sigmask) sigset {
+ 	return sigset(m[0])
+ }
++
++func (c *sigctxt) fixsigcode(sig uint32) {
++}
+diff --git a/src/runtime/signal_darwin.go b/src/runtime/signal_darwin.go
+index b75d24d63f..0c5481a2ef 100644
+--- a/src/runtime/signal_darwin.go
++++ b/src/runtime/signal_darwin.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ type sigTabT struct {
+ 	flags int32
+ 	name  string
+@@ -45,46 +43,3 @@ var sigtable = [...]sigTabT{
+ 	/* 30 */ {_SigNotify, "SIGUSR1: user-defined signal 1"},
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ }
+-
+-//go:noescape
+-func sigreturn(ctx unsafe.Pointer, infostyle uint32)
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigtrampgo(fn uintptr, infostyle, sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if sigfwdgo(sig, info, ctx) {
+-		sigreturn(ctx, infostyle)
+-		return
+-	}
+-	g := getg()
+-	if g == nil {
+-		badsignal(uintptr(sig), &sigctxt{info, ctx})
+-		sigreturn(ctx, infostyle)
+-		return
+-	}
+-
+-	// If some non-Go code called sigaltstack, adjust.
+-	sp := uintptr(unsafe.Pointer(&sig))
+-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		if sp < stsp || sp >= stsp+st.ss_size {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		setGsignalStack(&st)
+-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+-	}
+-
+-	setg(g.m.gsignal)
+-	c := &sigctxt{info, ctx}
+-	c.fixsigcode(sig)
+-	sighandler(sig, info, ctx, g)
+-	setg(g)
+-	sigreturn(ctx, infostyle)
+-}
+diff --git a/src/runtime/signal_freebsd.go b/src/runtime/signal_freebsd.go
+index 180b7bab4b..7ce7217e07 100644
+--- a/src/runtime/signal_freebsd.go
++++ b/src/runtime/signal_freebsd.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ type sigTabT struct {
+ 	flags int32
+ 	name  string
+@@ -46,38 +44,3 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ 	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if sigfwdgo(sig, info, ctx) {
+-		return
+-	}
+-	g := getg()
+-	if g == nil {
+-		badsignal(uintptr(sig), &sigctxt{info, ctx})
+-		return
+-	}
+-
+-	// If some non-Go code called sigaltstack, adjust.
+-	sp := uintptr(unsafe.Pointer(&sig))
+-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		if sp < stsp || sp >= stsp+st.ss_size {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		setGsignalStack(&st)
+-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+-	}
+-
+-	setg(g.m.gsignal)
+-	sighandler(sig, info, ctx, g)
+-	setg(g)
+-}
+diff --git a/src/runtime/signal_openbsd.go b/src/runtime/signal_openbsd.go
+index b10686adf3..30a3b8e1a9 100644
+--- a/src/runtime/signal_openbsd.go
++++ b/src/runtime/signal_openbsd.go
+@@ -4,8 +4,6 @@
+ 
+ package runtime
+ 
+-import "unsafe"
+-
+ type sigTabT struct {
+ 	flags int32
+ 	name  string
+@@ -46,38 +44,3 @@ var sigtable = [...]sigTabT{
+ 	/* 31 */ {_SigNotify, "SIGUSR2: user-defined signal 2"},
+ 	/* 32 */ {_SigNotify, "SIGTHR: reserved"},
+ }
+-
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if sigfwdgo(sig, info, ctx) {
+-		return
+-	}
+-	g := getg()
+-	if g == nil {
+-		badsignal(uintptr(sig), &sigctxt{info, ctx})
+-		return
+-	}
+-
+-	// If some non-Go code called sigaltstack, adjust.
+-	sp := uintptr(unsafe.Pointer(&sig))
+-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		if sp < stsp || sp >= stsp+st.ss_size {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		setGsignalStack(&st)
+-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+-	}
+-
+-	setg(g.m.gsignal)
+-	sighandler(sig, info, ctx, g)
+-	setg(g)
+-}
+diff --git a/src/runtime/signal_sigtramp.go b/src/runtime/signal_sigtramp.go
+deleted file mode 100644
+index 1ada2759a7..0000000000
+--- a/src/runtime/signal_sigtramp.go
++++ /dev/null
+@@ -1,54 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build dragonfly linux netbsd
+-
+-package runtime
+-
+-import "unsafe"
+-
+-// Continuation of the (assembly) sigtramp() logic.
+-// This may be called with the world stopped.
+-//go:nosplit
+-//go:nowritebarrierrec
+-func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+-	if sigfwdgo(sig, info, ctx) {
+-		return
+-	}
+-	g := getg()
+-	if g == nil {
+-		if sig == _SIGPROF {
+-			// Ignore profiling signals that arrive on
+-			// non-Go threads. On some systems they will
+-			// be handled directly by the signal handler,
+-			// by calling sigprofNonGo, in which case we won't
+-			// get here anyhow.
+-			return
+-		}
+-		badsignal(uintptr(sig), &sigctxt{info, ctx})
+-		return
+-	}
+-
+-	// If some non-Go code called sigaltstack, adjust.
+-	sp := uintptr(unsafe.Pointer(&sig))
+-	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
+-		var st stackt
+-		sigaltstack(nil, &st)
+-		if st.ss_flags&_SS_DISABLE != 0 {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		stsp := uintptr(unsafe.Pointer(st.ss_sp))
+-		if sp < stsp || sp >= stsp+st.ss_size {
+-			setg(nil)
+-			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
+-		}
+-		setGsignalStack(&st)
+-		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
+-	}
+-
+-	setg(g.m.gsignal)
+-	sighandler(sig, info, ctx, g)
+-	setg(g)
+-}
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index c0952d7019..013271ba43 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -196,6 +196,54 @@ func sigpipe() {
+ 	dieFromSignal(_SIGPIPE)
+ }
+ 
++// sigtrampgo is called from the signal handler function, sigtramp,
++// written in assembly code.
++// This is called by the signal handler, and the world may be stopped.
++//go:nosplit
++//go:nowritebarrierrec
++func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
++	if sigfwdgo(sig, info, ctx) {
++		return
++	}
++	g := getg()
++	if g == nil {
++		if sig == _SIGPROF {
++			// Ignore profiling signals that arrive on
++			// non-Go threads. On some systems they will
++			// be handled directly by the signal handler,
++			// by calling sigprofNonGo, in which case we won't
++			// get here anyhow.
++			return
++		}
++		badsignal(uintptr(sig), &sigctxt{info, ctx})
++		return
++	}
++
++	// If some non-Go code called sigaltstack, adjust.
++	sp := uintptr(unsafe.Pointer(&sig))
++	if sp < g.m.gsignal.stack.lo || sp >= g.m.gsignal.stack.hi {
++		var st stackt
++		sigaltstack(nil, &st)
++		if st.ss_flags&_SS_DISABLE != 0 {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(noSignalStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
++		}
++		stsp := uintptr(unsafe.Pointer(st.ss_sp))
++		if sp < stsp || sp >= stsp+st.ss_size {
++			setg(nil)
++			cgocallback(unsafe.Pointer(funcPC(sigNotOnStack)), noescape(unsafe.Pointer(&sig)), unsafe.Sizeof(sig), 0)
++		}
++		setGsignalStack(&st)
++		g.m.gsignal.stktopsp = getcallersp(unsafe.Pointer(&sig))
++	}
++
++	setg(g.m.gsignal)
++	c := &sigctxt{info, ctx}
++	c.fixsigcode(sig)
++	sighandler(sig, info, ctx, g)
++	setg(g)
++}
++
+ // sigpanic turns a synchronous signal into a run-time panic.
+ // If the signal handler sees a synchronous panic, it arranges the
+ // stack to look like the function where the signal occurred called
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index d19e56317c..9cffe3e424 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -265,17 +265,6 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-16
+ 	MOVL	AX, SP
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
+-	MOVL	ctx+0(FP), CX
+-	MOVL	infostyle+4(FP), BX
+-	MOVL	$0, 0(SP)	// "caller PC" - ignored
+-	MOVL	CX, 4(SP)
+-	MOVL	BX, 8(SP)
+-	MOVL	$184, AX	// sigreturn(ucontext, infostyle)
+-	INT	$0x80
+-	MOVL	$0xf1, 0xf1  // crash
+-	RET
+-
+ // Sigtramp's job is to call the actual signal handler.
+ // It is called with the following arguments on the stack:
+ //	0(SP)	"return address" - ignored
+@@ -285,16 +274,12 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$12-8
+ //	16(SP)	siginfo
+ //	20(SP)	context
+ TEXT runtime·sigtramp(SB),NOSPLIT,$20
+-	MOVL	fn+0(FP), BX
+-	MOVL	BX, 0(SP)
+-	MOVL	infostyle+4(FP), BX
+-	MOVL	BX, 4(SP)
+ 	MOVL	sig+8(FP), BX
+-	MOVL	BX, 8(SP)
++	MOVL	BX, 0(SP)
+ 	MOVL	info+12(FP), BX
+-	MOVL	BX, 12(SP)
++	MOVL	BX, 4(SP)
+ 	MOVL	ctx+16(FP), BX
+-	MOVL	BX, 16(SP)
++	MOVL	BX, 8(SP)
+ 	CALL	runtime·sigtrampgo(SB)
+ 
+ 	// call sigreturn
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 69cee55299..8d1b9b11d9 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -230,22 +230,18 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	MOVQ BP, SP
+ 	RET
+ 
+-TEXT runtime·sigreturn(SB),NOSPLIT,$0-12
+-	MOVQ ctx+0(FP),        DI
+-	MOVL infostyle+8(FP),  SI
+-	MOVL $(0x2000000+184), AX
+-	SYSCALL
+-	INT $3 // not reached
+-
+ TEXT runtime·sigtramp(SB),NOSPLIT,$32
+-	MOVQ DI,  0(SP) // fn
+-	MOVL SI,  8(SP) // infostyle
+-	MOVL DX, 12(SP) // sig
+-	MOVQ CX, 16(SP) // info
+-	MOVQ R8, 24(SP) // ctx
++	MOVL SI, 24(SP) // save infostyle for sigreturn below
++	MOVL DX, 0(SP)  // sig
++	MOVQ CX, 8(SP)  // info
++	MOVQ R8, 16(SP) // ctx
+ 	MOVQ $runtime·sigtrampgo(SB), AX
+ 	CALL AX
+-	INT $3 // not reached (see issue 16453)
++	MOVQ 16(SP), DI // ctx
++	MOVL 24(SP), SI // infostyle
++	MOVL $(0x2000000+184), AX
++	SYSCALL
++	INT $3 // not reached
+ 
+ TEXT runtime·mmap(SB),NOSPLIT,$0
+ 	MOVQ	addr+0(FP), DI		// arg 1 addr

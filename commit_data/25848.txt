@@ -14,7 +14,7 @@ Date:   Wed Sep 23 10:03:54 2015 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/deps.go           | 83 +++++++++++++++++++++---------------------
  src/fmt/fmt_test.go            |  3 +-
  src/fmt/norace_test.go         |  9 -----
@@ -40,3 +40,1061 @@ Date:   Wed Sep 23 10:03:54 2015 +0200
  src/syscall/syscall_unix.go    | 19 +++++-----
  src/syscall/syscall_windows.go | 15 ++++----
  24 files changed, 239 insertions(+), 334 deletions(-)
+
+diff --git a/src/cmd/dist/deps.go b/src/cmd/dist/deps.go
+index 15d2743be8..c15ed8d465 100644
+--- a/src/cmd/dist/deps.go
++++ b/src/cmd/dist/deps.go
+@@ -3,58 +3,59 @@
+ package main
+ 
+ var builddeps = map[string][]string{
+-	"bufio":                             {"bytes", "errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"bytes":                             {"errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"bufio":                             {"bytes", "errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"bytes":                             {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"container/heap":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort"},
+-	"crypto":                            {"errors", "hash", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"crypto/sha1":                       {"crypto", "errors", "hash", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"debug/elf":                         {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"debug/macho":                       {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"crypto":                            {"errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"crypto/sha1":                       {"crypto", "errors", "hash", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"debug/dwarf":                       {"encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"debug/elf":                         {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"debug/macho":                       {"bytes", "debug/dwarf", "encoding/binary", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"encoding":                          {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"encoding/base64":                   {"errors", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"encoding/binary":                   {"errors", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"encoding/json":                     {"bytes", "encoding", "encoding/base64", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"encoding/base64":                   {"errors", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"encoding/binary":                   {"errors", "internal/race", "io", "math", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"encoding/json":                     {"bytes", "encoding", "encoding/base64", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ 	"errors":                            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"flag":                              {"errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"fmt":                               {"errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"go/ast":                            {"bytes", "errors", "fmt", "go/scanner", "go/token", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/build":                          {"bufio", "bytes", "errors", "fmt", "go/ast", "go/doc", "go/parser", "go/scanner", "go/token", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/doc":                            {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/parser":                         {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/scanner":                        {"bytes", "errors", "fmt", "go/token", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"go/token":                          {"errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"hash":                              {"errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"internal/singleflight":             {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"internal/syscall/windows":          {"errors", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+-	"internal/syscall/windows/registry": {"errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+-	"io":                      {"errors", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
+-	"io/ioutil":               {"bytes", "errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"log":                     {"errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"flag":                              {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"fmt":                               {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"go/ast":                            {"bytes", "errors", "fmt", "go/scanner", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/build":                          {"bufio", "bytes", "errors", "fmt", "go/ast", "go/doc", "go/parser", "go/scanner", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/doc":                            {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "net/url", "os", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/parser":                         {"bytes", "errors", "fmt", "go/ast", "go/scanner", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/scanner":                        {"bytes", "errors", "fmt", "go/token", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"go/token":                          {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"hash":                              {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
++	"internal/race":                     {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
++	"internal/singleflight":             {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
++	"internal/syscall/windows":          {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
++	"internal/syscall/windows/registry": {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
++	"io":                      {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic"},
++	"io/ioutil":               {"bytes", "errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"log":                     {"errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+ 	"math":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"net/url":                 {"bytes", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"os":                      {"errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"os/exec":                 {"bytes", "errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"os/signal":               {"errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
+-	"path":                    {"errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"path/filepath":           {"errors", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"reflect":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
+-	"regexp":                  {"bytes", "errors", "io", "math", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"regexp/syntax":           {"bytes", "errors", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"net/url":                 {"bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"os":                      {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"os/exec":                 {"bytes", "errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "path/filepath", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"os/signal":               {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "time", "unicode/utf16", "unicode/utf8"},
++	"path":                    {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"path/filepath":           {"errors", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "os", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"reflect":                 {"errors", "internal/race", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "sync", "sync/atomic", "unicode/utf8"},
++	"regexp":                  {"bytes", "errors", "internal/race", "io", "math", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"regexp/syntax":           {"bytes", "errors", "internal/race", "io", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+ 	"runtime":                 {"runtime/internal/atomic", "runtime/internal/sys"},
+ 	"runtime/internal/atomic": {"runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+ 	"sort":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"strconv":                 {"errors", "math", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "unicode/utf8"},
+-	"strings":                 {"errors", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
+-	"sync":                    {"runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync/atomic"},
++	"strings":                 {"errors", "internal/race", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode", "unicode/utf8"},
++	"sync":                    {"internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync/atomic"},
+ 	"sync/atomic":             {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"syscall":                 {"errors", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode/utf16"},
+-	"text/template":           {"bytes", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "net/url", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"text/template/parse":     {"bytes", "errors", "fmt", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+-	"time":                    {"errors", "internal/syscall/windows/registry", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
++	"syscall":                 {"errors", "internal/race", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "unicode/utf16"},
++	"text/template":           {"bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "math", "net/url", "os", "path/filepath", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"text/template/parse":     {"bytes", "errors", "fmt", "internal/race", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "math", "os", "reflect", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "strconv", "strings", "sync", "sync/atomic", "syscall", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"time":                    {"errors", "internal/race", "internal/syscall/windows/registry", "io", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sync", "sync/atomic", "syscall", "unicode/utf16"},
+ 	"unicode":                 {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf16":           {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"unicode/utf8":            {"runtime", "runtime/internal/atomic", "runtime/internal/sys"},
+-	"cmd/go":                  {"bufio", "bytes", "container/heap", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
++	"cmd/go":                  {"bufio", "bytes", "container/heap", "crypto", "crypto/sha1", "debug/dwarf", "debug/elf", "debug/macho", "encoding", "encoding/base64", "encoding/binary", "encoding/json", "errors", "flag", "fmt", "go/ast", "go/build", "go/doc", "go/parser", "go/scanner", "go/token", "hash", "internal/race", "internal/singleflight", "internal/syscall/windows", "internal/syscall/windows/registry", "io", "io/ioutil", "log", "math", "net/url", "os", "os/exec", "os/signal", "path", "path/filepath", "reflect", "regexp", "regexp/syntax", "runtime", "runtime/internal/atomic", "runtime/internal/sys", "sort", "strconv", "strings", "sync", "sync/atomic", "syscall", "text/template", "text/template/parse", "time", "unicode", "unicode/utf16", "unicode/utf8"},
+ }
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 26383f6d1e..793f709a79 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -7,6 +7,7 @@ package fmt_test
+ import (
+ 	"bytes"
+ 	. "fmt"
++	"internal/race"
+ 	"io"
+ 	"math"
+ 	"reflect"
+@@ -982,7 +983,7 @@ func TestCountMallocs(t *testing.T) {
+ 		t.Skip("skipping malloc count in short mode")
+ 	case runtime.GOMAXPROCS(0) > 1:
+ 		t.Skip("skipping; GOMAXPROCS>1")
+-	case raceenabled:
++	case race.Enabled:
+ 		t.Skip("skipping malloc count under race detector")
+ 	}
+ 	for _, mt := range mallocTest {
+diff --git a/src/fmt/norace_test.go b/src/fmt/norace_test.go
+deleted file mode 100644
+index 1267cc34ee..0000000000
+--- a/src/fmt/norace_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-package fmt_test
+-
+-const raceenabled = false
+diff --git a/src/fmt/race_test.go b/src/fmt/race_test.go
+deleted file mode 100644
+index ae3147a5b0..0000000000
+--- a/src/fmt/race_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2015 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package fmt_test
+-
+-const raceenabled = true
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b3b8c232dc..45144a23bb 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -39,9 +39,10 @@ var pkgDeps = map[string][]string{
+ 	"runtime":                 {"unsafe", "runtime/internal/atomic", "runtime/internal/sys"},
+ 	"runtime/internal/sys":    {},
+ 	"runtime/internal/atomic": {"unsafe", "runtime/internal/sys"},
+-	"sync":        {"runtime", "sync/atomic", "unsafe"},
+-	"sync/atomic": {"unsafe"},
+-	"unsafe":      {},
++	"internal/race":           {"runtime", "unsafe"},
++	"sync":                    {"internal/race", "runtime", "sync/atomic", "unsafe"},
++	"sync/atomic":             {"unsafe"},
++	"unsafe":                  {},
+ 
+ 	"L0": {
+ 		"errors",
+@@ -131,7 +132,7 @@ var pkgDeps = map[string][]string{
+ 	// End of linear dependency definitions.
+ 
+ 	// Operating system access.
+-	"syscall":                           {"L0", "unicode/utf16"},
++	"syscall":                           {"L0", "internal/race", "unicode/utf16"},
+ 	"internal/syscall/unix":             {"L0", "syscall"},
+ 	"internal/syscall/windows":          {"L0", "syscall"},
+ 	"internal/syscall/windows/registry": {"L0", "syscall", "unicode/utf16"},
+@@ -278,7 +279,7 @@ var pkgDeps = map[string][]string{
+ 	// Basic networking.
+ 	// Because net must be used by any package that wants to
+ 	// do networking portably, it must have a small dependency set: just L0+basic os.
+-	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight"},
++	"net": {"L0", "CGO", "math/rand", "os", "sort", "syscall", "time", "internal/syscall/windows", "internal/singleflight", "internal/race"},
+ 
+ 	// NET enables use of basic network-related packages.
+ 	"NET": {
+diff --git a/src/internal/race/doc.go b/src/internal/race/doc.go
+new file mode 100644
+index 0000000000..d6a2243eb8
+--- /dev/null
++++ b/src/internal/race/doc.go
+@@ -0,0 +1,11 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Package race contains helper functions for manually instrumenting code for the race detector.
++
++The runtime package intentionally exports these functions only in the race build;
++this package exports them unconditionally but without the "race" build tag they are no-ops.
++*/
++package race
+diff --git a/src/internal/race/norace.go b/src/internal/race/norace.go
+new file mode 100644
+index 0000000000..d9049eb1eb
+--- /dev/null
++++ b/src/internal/race/norace.go
+@@ -0,0 +1,40 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !race
++
++package race
++
++import (
++	"unsafe"
++)
++
++const Enabled = false
++
++func Acquire(addr unsafe.Pointer) {
++}
++
++func Release(addr unsafe.Pointer) {
++}
++
++func ReleaseMerge(addr unsafe.Pointer) {
++}
++
++func Disable() {
++}
++
++func Enable() {
++}
++
++func Read(addr unsafe.Pointer) {
++}
++
++func Write(addr unsafe.Pointer) {
++}
++
++func ReadRange(addr unsafe.Pointer, len int) {
++}
++
++func WriteRange(addr unsafe.Pointer, len int) {
++}
+diff --git a/src/internal/race/race.go b/src/internal/race/race.go
+new file mode 100644
+index 0000000000..cb0e773c44
+--- /dev/null
++++ b/src/internal/race/race.go
+@@ -0,0 +1,50 @@
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build race
++
++package race
++
++import (
++	"runtime"
++	"unsafe"
++)
++
++const Enabled = true
++
++func Acquire(addr unsafe.Pointer) {
++	runtime.RaceAcquire(addr)
++}
++
++func Release(addr unsafe.Pointer) {
++	runtime.RaceRelease(addr)
++}
++
++func ReleaseMerge(addr unsafe.Pointer) {
++	runtime.RaceReleaseMerge(addr)
++}
++
++func Disable() {
++	runtime.RaceDisable()
++}
++
++func Enable() {
++	runtime.RaceEnable()
++}
++
++func Read(addr unsafe.Pointer) {
++	runtime.RaceRead(addr)
++}
++
++func Write(addr unsafe.Pointer) {
++	runtime.RaceWrite(addr)
++}
++
++func ReadRange(addr unsafe.Pointer, len int) {
++	runtime.RaceReadRange(addr, len)
++}
++
++func WriteRange(addr unsafe.Pointer, len int) {
++	runtime.RaceWriteRange(addr, len)
++}
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 43b2f0ccb0..aa2b13c5de 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -5,6 +5,7 @@
+ package net
+ 
+ import (
++	"internal/race"
+ 	"os"
+ 	"runtime"
+ 	"sync"
+@@ -461,8 +462,8 @@ func (fd *netFD) Read(buf []byte) (int, error) {
+ 	n, err := rsrv.ExecIO(o, "WSARecv", func(o *operation) error {
+ 		return syscall.WSARecv(o.fd.sysfd, &o.buf, 1, &o.qty, &o.flags, &o.o, nil)
+ 	})
+-	if raceenabled {
+-		raceAcquire(unsafe.Pointer(&ioSync))
++	if race.Enabled {
++		race.Acquire(unsafe.Pointer(&ioSync))
+ 	}
+ 	err = fd.eofError(n, err)
+ 	if _, ok := err.(syscall.Errno); ok {
+@@ -504,8 +505,8 @@ func (fd *netFD) Write(buf []byte) (int, error) {
+ 		return 0, err
+ 	}
+ 	defer fd.writeUnlock()
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+ 	o := &fd.wop
+ 	o.InitBuf(buf)
+diff --git a/src/net/race.go b/src/net/race.go
+deleted file mode 100644
+index 2f02a6c226..0000000000
+--- a/src/net/race.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-// +build windows
+-
+-package net
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const raceenabled = true
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-	runtime.RaceAcquire(addr)
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-	runtime.RaceReleaseMerge(addr)
+-}
+-
+-func raceReadRange(addr unsafe.Pointer, len int) {
+-	runtime.RaceReadRange(addr, len)
+-}
+-
+-func raceWriteRange(addr unsafe.Pointer, len int) {
+-	runtime.RaceWriteRange(addr, len)
+-}
+diff --git a/src/net/race0.go b/src/net/race0.go
+deleted file mode 100644
+index f504297793..0000000000
+--- a/src/net/race0.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-// +build windows
+-
+-package net
+-
+-import (
+-	"unsafe"
+-)
+-
+-const raceenabled = false
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-}
+-
+-func raceReadRange(addr unsafe.Pointer, len int) {
+-}
+-
+-func raceWriteRange(addr unsafe.Pointer, len int) {
+-}
+diff --git a/src/sync/cond.go b/src/sync/cond.go
+index 9e6bc170f1..0aefcda908 100644
+--- a/src/sync/cond.go
++++ b/src/sync/cond.go
+@@ -5,6 +5,7 @@
+ package sync
+ 
+ import (
++	"internal/race"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -51,12 +52,12 @@ func NewCond(l Locker) *Cond {
+ //
+ func (c *Cond) Wait() {
+ 	c.checker.check()
+-	if raceenabled {
+-		raceDisable()
++	if race.Enabled {
++		race.Disable()
+ 	}
+ 	atomic.AddUint32(&c.waiters, 1)
+-	if raceenabled {
+-		raceEnable()
++	if race.Enabled {
++		race.Enable()
+ 	}
+ 	c.L.Unlock()
+ 	runtime_Syncsemacquire(&c.sema)
+@@ -81,14 +82,14 @@ func (c *Cond) Broadcast() {
+ 
+ func (c *Cond) signalImpl(all bool) {
+ 	c.checker.check()
+-	if raceenabled {
+-		raceDisable()
++	if race.Enabled {
++		race.Disable()
+ 	}
+ 	for {
+ 		old := atomic.LoadUint32(&c.waiters)
+ 		if old == 0 {
+-			if raceenabled {
+-				raceEnable()
++			if race.Enabled {
++				race.Enable()
+ 			}
+ 			return
+ 		}
+@@ -97,8 +98,8 @@ func (c *Cond) signalImpl(all bool) {
+ 			new = 0
+ 		}
+ 		if atomic.CompareAndSwapUint32(&c.waiters, old, new) {
+-			if raceenabled {
+-				raceEnable()
++			if race.Enabled {
++				race.Enable()
+ 			}
+ 			runtime_Syncsemrelease(&c.sema, old-new)
+ 			return
+diff --git a/src/sync/export_test.go b/src/sync/export_test.go
+index 6f49b3bd8a..fa5983a2d1 100644
+--- a/src/sync/export_test.go
++++ b/src/sync/export_test.go
+@@ -7,5 +7,3 @@ package sync
+ // Export for testing.
+ var Runtime_Semacquire = runtime_Semacquire
+ var Runtime_Semrelease = runtime_Semrelease
+-
+-const RaceEnabled = raceenabled
+diff --git a/src/sync/mutex.go b/src/sync/mutex.go
+index 3f280ad719..eb526144c5 100644
+--- a/src/sync/mutex.go
++++ b/src/sync/mutex.go
+@@ -11,6 +11,7 @@
+ package sync
+ 
+ import (
++	"internal/race"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -41,8 +42,8 @@ const (
+ func (m *Mutex) Lock() {
+ 	// Fast path: grab unlocked mutex.
+ 	if atomic.CompareAndSwapInt32(&m.state, 0, mutexLocked) {
+-		if raceenabled {
+-			raceAcquire(unsafe.Pointer(m))
++		if race.Enabled {
++			race.Acquire(unsafe.Pointer(m))
+ 		}
+ 		return
+ 	}
+@@ -85,8 +86,8 @@ func (m *Mutex) Lock() {
+ 		}
+ 	}
+ 
+-	if raceenabled {
+-		raceAcquire(unsafe.Pointer(m))
++	if race.Enabled {
++		race.Acquire(unsafe.Pointer(m))
+ 	}
+ }
+ 
+@@ -97,9 +98,9 @@ func (m *Mutex) Lock() {
+ // It is allowed for one goroutine to lock a Mutex and then
+ // arrange for another goroutine to unlock it.
+ func (m *Mutex) Unlock() {
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = m.state
+-		raceRelease(unsafe.Pointer(m))
++		race.Release(unsafe.Pointer(m))
+ 	}
+ 
+ 	// Fast path: drop lock bit.
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 0cf0637024..381af0bead 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -5,6 +5,7 @@
+ package sync
+ 
+ import (
++	"internal/race"
+ 	"runtime"
+ 	"sync/atomic"
+ 	"unsafe"
+@@ -59,7 +60,7 @@ type poolLocal struct {
+ 
+ // Put adds x to the pool.
+ func (p *Pool) Put(x interface{}) {
+-	if raceenabled {
++	if race.Enabled {
+ 		// Under race detector the Pool degenerates into no-op.
+ 		// It's conforming, simple and does not introduce excessive
+ 		// happens-before edges between unrelated goroutines.
+@@ -91,7 +92,7 @@ func (p *Pool) Put(x interface{}) {
+ // If Get would otherwise return nil and p.New is non-nil, Get returns
+ // the result of calling p.New.
+ func (p *Pool) Get() interface{} {
+-	if raceenabled {
++	if race.Enabled {
+ 		if p.New != nil {
+ 			return p.New()
+ 		}
+diff --git a/src/sync/race.go b/src/sync/race.go
+deleted file mode 100644
+index fd0277dcc9..0000000000
+--- a/src/sync/race.go
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package sync
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const raceenabled = true
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-	runtime.RaceAcquire(addr)
+-}
+-
+-func raceRelease(addr unsafe.Pointer) {
+-	runtime.RaceRelease(addr)
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-	runtime.RaceReleaseMerge(addr)
+-}
+-
+-func raceDisable() {
+-	runtime.RaceDisable()
+-}
+-
+-func raceEnable() {
+-	runtime.RaceEnable()
+-}
+-
+-func raceRead(addr unsafe.Pointer) {
+-	runtime.RaceRead(addr)
+-}
+-
+-func raceWrite(addr unsafe.Pointer) {
+-	runtime.RaceWrite(addr)
+-}
+diff --git a/src/sync/race0.go b/src/sync/race0.go
+deleted file mode 100644
+index 65ada1c5d3..0000000000
+--- a/src/sync/race0.go
++++ /dev/null
+@@ -1,34 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-package sync
+-
+-import (
+-	"unsafe"
+-)
+-
+-const raceenabled = false
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-}
+-
+-func raceRelease(addr unsafe.Pointer) {
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-}
+-
+-func raceDisable() {
+-}
+-
+-func raceEnable() {
+-}
+-
+-func raceRead(addr unsafe.Pointer) {
+-}
+-
+-func raceWrite(addr unsafe.Pointer) {
+-}
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 0e8a58e5f0..d438c93c88 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -5,6 +5,7 @@
+ package sync
+ 
+ import (
++	"internal/race"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -27,17 +28,17 @@ const rwmutexMaxReaders = 1 << 30
+ 
+ // RLock locks rw for reading.
+ func (rw *RWMutex) RLock() {
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = rw.w.state
+-		raceDisable()
++		race.Disable()
+ 	}
+ 	if atomic.AddInt32(&rw.readerCount, 1) < 0 {
+ 		// A writer is pending, wait for it.
+ 		runtime_Semacquire(&rw.readerSem)
+ 	}
+-	if raceenabled {
+-		raceEnable()
+-		raceAcquire(unsafe.Pointer(&rw.readerSem))
++	if race.Enabled {
++		race.Enable()
++		race.Acquire(unsafe.Pointer(&rw.readerSem))
+ 	}
+ }
+ 
+@@ -46,14 +47,14 @@ func (rw *RWMutex) RLock() {
+ // It is a run-time error if rw is not locked for reading
+ // on entry to RUnlock.
+ func (rw *RWMutex) RUnlock() {
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = rw.w.state
+-		raceReleaseMerge(unsafe.Pointer(&rw.writerSem))
+-		raceDisable()
++		race.ReleaseMerge(unsafe.Pointer(&rw.writerSem))
++		race.Disable()
+ 	}
+ 	if r := atomic.AddInt32(&rw.readerCount, -1); r < 0 {
+ 		if r+1 == 0 || r+1 == -rwmutexMaxReaders {
+-			raceEnable()
++			race.Enable()
+ 			panic("sync: RUnlock of unlocked RWMutex")
+ 		}
+ 		// A writer is pending.
+@@ -62,8 +63,8 @@ func (rw *RWMutex) RUnlock() {
+ 			runtime_Semrelease(&rw.writerSem)
+ 		}
+ 	}
+-	if raceenabled {
+-		raceEnable()
++	if race.Enabled {
++		race.Enable()
+ 	}
+ }
+ 
+@@ -74,9 +75,9 @@ func (rw *RWMutex) RUnlock() {
+ // a blocked Lock call excludes new readers from acquiring
+ // the lock.
+ func (rw *RWMutex) Lock() {
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = rw.w.state
+-		raceDisable()
++		race.Disable()
+ 	}
+ 	// First, resolve competition with other writers.
+ 	rw.w.Lock()
+@@ -86,10 +87,10 @@ func (rw *RWMutex) Lock() {
+ 	if r != 0 && atomic.AddInt32(&rw.readerWait, r) != 0 {
+ 		runtime_Semacquire(&rw.writerSem)
+ 	}
+-	if raceenabled {
+-		raceEnable()
+-		raceAcquire(unsafe.Pointer(&rw.readerSem))
+-		raceAcquire(unsafe.Pointer(&rw.writerSem))
++	if race.Enabled {
++		race.Enable()
++		race.Acquire(unsafe.Pointer(&rw.readerSem))
++		race.Acquire(unsafe.Pointer(&rw.writerSem))
+ 	}
+ }
+ 
+@@ -100,17 +101,17 @@ func (rw *RWMutex) Lock() {
+ // goroutine.  One goroutine may RLock (Lock) an RWMutex and then
+ // arrange for another goroutine to RUnlock (Unlock) it.
+ func (rw *RWMutex) Unlock() {
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = rw.w.state
+-		raceRelease(unsafe.Pointer(&rw.readerSem))
+-		raceRelease(unsafe.Pointer(&rw.writerSem))
+-		raceDisable()
++		race.Release(unsafe.Pointer(&rw.readerSem))
++		race.Release(unsafe.Pointer(&rw.writerSem))
++		race.Disable()
+ 	}
+ 
+ 	// Announce to readers there is no active writer.
+ 	r := atomic.AddInt32(&rw.readerCount, rwmutexMaxReaders)
+ 	if r >= rwmutexMaxReaders {
+-		raceEnable()
++		race.Enable()
+ 		panic("sync: Unlock of unlocked RWMutex")
+ 	}
+ 	// Unblock blocked readers, if any.
+@@ -119,8 +120,8 @@ func (rw *RWMutex) Unlock() {
+ 	}
+ 	// Allow other writers to proceed.
+ 	rw.w.Unlock()
+-	if raceenabled {
+-		raceEnable()
++	if race.Enabled {
++		race.Enable()
+ 	}
+ }
+ 
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index de399e64eb..c77fec306c 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -5,6 +5,7 @@
+ package sync
+ 
+ import (
++	"internal/race"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -46,24 +47,24 @@ func (wg *WaitGroup) state() *uint64 {
+ // See the WaitGroup example.
+ func (wg *WaitGroup) Add(delta int) {
+ 	statep := wg.state()
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = *statep // trigger nil deref early
+ 		if delta < 0 {
+ 			// Synchronize decrements with Wait.
+-			raceReleaseMerge(unsafe.Pointer(wg))
++			race.ReleaseMerge(unsafe.Pointer(wg))
+ 		}
+-		raceDisable()
+-		defer raceEnable()
++		race.Disable()
++		defer race.Enable()
+ 	}
+ 	state := atomic.AddUint64(statep, uint64(delta)<<32)
+ 	v := int32(state >> 32)
+ 	w := uint32(state)
+-	if raceenabled {
++	if race.Enabled {
+ 		if delta > 0 && v == int32(delta) {
+ 			// The first increment must be synchronized with Wait.
+ 			// Need to model this as a read, because there can be
+ 			// several concurrent wg.counter transitions from 0.
+-			raceRead(unsafe.Pointer(&wg.sema))
++			race.Read(unsafe.Pointer(&wg.sema))
+ 		}
+ 	}
+ 	if v < 0 {
+@@ -98,9 +99,9 @@ func (wg *WaitGroup) Done() {
+ // Wait blocks until the WaitGroup counter is zero.
+ func (wg *WaitGroup) Wait() {
+ 	statep := wg.state()
+-	if raceenabled {
++	if race.Enabled {
+ 		_ = *statep // trigger nil deref early
+-		raceDisable()
++		race.Disable()
+ 	}
+ 	for {
+ 		state := atomic.LoadUint64(statep)
+@@ -108,28 +109,28 @@ func (wg *WaitGroup) Wait() {
+ 		w := uint32(state)
+ 		if v == 0 {
+ 			// Counter is 0, no need to wait.
+-			if raceenabled {
+-				raceEnable()
+-				raceAcquire(unsafe.Pointer(wg))
++			if race.Enabled {
++				race.Enable()
++				race.Acquire(unsafe.Pointer(wg))
+ 			}
+ 			return
+ 		}
+ 		// Increment waiters count.
+ 		if atomic.CompareAndSwapUint64(statep, state, state+1) {
+-			if raceenabled && w == 0 {
++			if race.Enabled && w == 0 {
+ 				// Wait must be synchronized with the first Add.
+ 				// Need to model this is as a write to race with the read in Add.
+ 				// As a consequence, can do the write only for the first waiter,
+ 				// otherwise concurrent Waits will race with each other.
+-				raceWrite(unsafe.Pointer(&wg.sema))
++				race.Write(unsafe.Pointer(&wg.sema))
+ 			}
+ 			runtime_Semacquire(&wg.sema)
+ 			if *statep != 0 {
+ 				panic("sync: WaitGroup is reused before previous Wait has returned")
+ 			}
+-			if raceenabled {
+-				raceEnable()
+-				raceAcquire(unsafe.Pointer(wg))
++			if race.Enabled {
++				race.Enable()
++				race.Acquire(unsafe.Pointer(wg))
+ 			}
+ 			return
+ 		}
+diff --git a/src/sync/waitgroup_test.go b/src/sync/waitgroup_test.go
+index 3e3e3bf824..a581660940 100644
+--- a/src/sync/waitgroup_test.go
++++ b/src/sync/waitgroup_test.go
+@@ -5,6 +5,7 @@
+ package sync_test
+ 
+ import (
++	"internal/race"
+ 	"runtime"
+ 	. "sync"
+ 	"sync/atomic"
+@@ -48,7 +49,7 @@ func TestWaitGroup(t *testing.T) {
+ }
+ 
+ func knownRacy(t *testing.T) {
+-	if RaceEnabled {
++	if race.Enabled {
+ 		t.Skip("skipping known-racy test under the race detector")
+ 	}
+ }
+diff --git a/src/syscall/race.go b/src/syscall/race.go
+deleted file mode 100644
+index e69c1119a2..0000000000
+--- a/src/syscall/race.go
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build race
+-
+-package syscall
+-
+-import (
+-	"runtime"
+-	"unsafe"
+-)
+-
+-const raceenabled = true
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-	runtime.RaceAcquire(addr)
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-	runtime.RaceReleaseMerge(addr)
+-}
+-
+-func raceReadRange(addr unsafe.Pointer, len int) {
+-	runtime.RaceReadRange(addr, len)
+-}
+-
+-func raceWriteRange(addr unsafe.Pointer, len int) {
+-	runtime.RaceWriteRange(addr, len)
+-}
+diff --git a/src/syscall/race0.go b/src/syscall/race0.go
+deleted file mode 100644
+index b02f882fd0..0000000000
+--- a/src/syscall/race0.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// +build !race
+-
+-package syscall
+-
+-import (
+-	"unsafe"
+-)
+-
+-const raceenabled = false
+-
+-func raceAcquire(addr unsafe.Pointer) {
+-}
+-
+-func raceReleaseMerge(addr unsafe.Pointer) {
+-}
+-
+-func raceReadRange(addr unsafe.Pointer, len int) {
+-}
+-
+-func raceWriteRange(addr unsafe.Pointer, len int) {
+-}
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 1db1193ac4..570313394c 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/race"
+ 	"runtime"
+ 	"sync"
+ 	"unsafe"
+@@ -158,12 +159,12 @@ func (s Signal) String() string {
+ 
+ func Read(fd int, p []byte) (n int, err error) {
+ 	n, err = read(fd, p)
+-	if raceenabled {
++	if race.Enabled {
+ 		if n > 0 {
+-			raceWriteRange(unsafe.Pointer(&p[0]), n)
++			race.WriteRange(unsafe.Pointer(&p[0]), n)
+ 		}
+ 		if err == nil {
+-			raceAcquire(unsafe.Pointer(&ioSync))
++			race.Acquire(unsafe.Pointer(&ioSync))
+ 		}
+ 	}
+ 	if msanenabled && n > 0 {
+@@ -173,12 +174,12 @@ func Read(fd int, p []byte) (n int, err error) {
+ }
+ 
+ func Write(fd int, p []byte) (n int, err error) {
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+ 	n, err = write(fd, p)
+-	if raceenabled && n > 0 {
+-		raceReadRange(unsafe.Pointer(&p[0]), n)
++	if race.Enabled && n > 0 {
++		race.ReadRange(unsafe.Pointer(&p[0]), n)
+ 	}
+ 	if msanenabled && n > 0 {
+ 		msanRead(unsafe.Pointer(&p[0]), n)
+@@ -320,8 +321,8 @@ func Socketpair(domain, typ, proto int) (fd [2]int, err error) {
+ }
+ 
+ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+ 	return sendfile(outfd, infd, offset, count)
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 71fdf29e2d..6416655ade 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -8,6 +8,7 @@ package syscall
+ 
+ import (
+ 	errorspkg "errors"
++	"internal/race"
+ 	"sync"
+ 	"unicode/utf16"
+ 	"unsafe"
+@@ -304,11 +305,11 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ 		}
+ 		return 0, e
+ 	}
+-	if raceenabled {
++	if race.Enabled {
+ 		if done > 0 {
+-			raceWriteRange(unsafe.Pointer(&p[0]), int(done))
++			race.WriteRange(unsafe.Pointer(&p[0]), int(done))
+ 		}
+-		raceAcquire(unsafe.Pointer(&ioSync))
++		race.Acquire(unsafe.Pointer(&ioSync))
+ 	}
+ 	if msanenabled && done > 0 {
+ 		msanWrite(unsafe.Pointer(&p[0]), int(done))
+@@ -317,16 +318,16 @@ func Read(fd Handle, p []byte) (n int, err error) {
+ }
+ 
+ func Write(fd Handle, p []byte) (n int, err error) {
+-	if raceenabled {
+-		raceReleaseMerge(unsafe.Pointer(&ioSync))
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
+ 	}
+ 	var done uint32
+ 	e := WriteFile(fd, p, &done, nil)
+ 	if e != nil {
+ 		return 0, e
+ 	}
+-	if raceenabled && done > 0 {
+-		raceReadRange(unsafe.Pointer(&p[0]), int(done))
++	if race.Enabled && done > 0 {
++		race.ReadRange(unsafe.Pointer(&p[0]), int(done))
+ 	}
+ 	if msanenabled && done > 0 {
+ 		msanRead(unsafe.Pointer(&p[0]), int(done))

@@ -13,7 +13,7 @@ Date:   Thu May 9 22:11:00 2024 +0000
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  doc/next/3-tools.md                        |   4 +
  src/cmd/go/alldocs.go                      |   6 +-
  src/cmd/go/go_test.go                      |   2 +-
@@ -31,3 +31,873 @@ Date:   Thu May 9 22:11:00 2024 +0000
  src/cmd/go/testdata/script/env_changed.txt |  45 ++++++++
  src/go/build/build.go                      |   1 +
  16 files changed, 272 insertions(+), 129 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index c052f3b084..4112fb61ac 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -8,6 +8,10 @@ Distributions that install the `go` command to a location other than
+ `$GOROOT/bin/go` should install a symlink instead of relocating
+ or copying the `go` binary.
+ 
++The new go env `-changed` flag causes the command to print only
++those settings whose effective value differs from the default value
++that would be obtained in an empty environment with no prior uses of the `-w` flag.
++
+ ### Vet {#vet}
+ 
+ The `go vet` subcommand now includes the
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ad34b8dfcc..9263be5a6b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -456,7 +456,7 @@
+ //
+ // Usage:
+ //
+-//	go env [-json] [-u] [-w] [var ...]
++//	go env [-json] [-changed] [-u] [-w] [var ...]
+ //
+ // Env prints Go environment information.
+ //
+@@ -476,6 +476,10 @@
+ // form NAME=VALUE and changes the default settings
+ // of the named environment variables to the given values.
+ //
++// The -changed flag prints only those settings whose effective
++// value differs from the default value that would be obtained in
++// an empty environment with no prior uses of the -w flag.
++//
+ // For more about environment variables, see 'go help environment'.
+ //
+ // # Update packages to use new APIs
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a5ce22c0c3..3a3383b271 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -196,7 +196,7 @@ func TestMain(m *testing.M) {
+ 		defer removeAll(testTmpDir)
+ 	}
+ 
+-	testGOCACHE = cache.DefaultDir()
++	testGOCACHE, _ = cache.DefaultDir()
+ 	if testenv.HasGoBuild() {
+ 		testBin = filepath.Join(testTmpDir, "testbin")
+ 		if err := os.Mkdir(testBin, 0777); err != nil {
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index ed1813605e..d3f9065d3d 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -106,7 +106,7 @@ func printGoEnv(w io.Writer) {
+ 	env := envcmd.MkEnv()
+ 	env = append(env, envcmd.ExtraEnvVars()...)
+ 	env = append(env, envcmd.ExtraEnvVarsCostly()...)
+-	envcmd.PrintEnv(w, env)
++	envcmd.PrintEnv(w, env, false)
+ }
+ 
+ func printGoDetails(w io.Writer) {
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index b5650eac66..5430d9651e 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -39,7 +39,7 @@ See golang.org to learn more about Go.
+ // initDefaultCache does the work of finding the default cache
+ // the first time Default is called.
+ func initDefaultCache() {
+-	dir := DefaultDir()
++	dir, _ := DefaultDir()
+ 	if dir == "off" {
+ 		if defaultDirErr != nil {
+ 			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
+@@ -67,14 +67,16 @@ func initDefaultCache() {
+ }
+ 
+ var (
+-	defaultDirOnce sync.Once
+-	defaultDir     string
+-	defaultDirErr  error
++	defaultDirOnce    sync.Once
++	defaultDir        string
++	defaultDirChanged bool // effective value differs from $GOCACHE
++	defaultDirErr     error
+ )
+ 
+ // DefaultDir returns the effective GOCACHE setting.
+-// It returns "off" if the cache is disabled.
+-func DefaultDir() string {
++// It returns "off" if the cache is disabled,
++// and reports whether the effective value differs from GOCACHE.
++func DefaultDir() (string, bool) {
+ 	// Save the result of the first call to DefaultDir for later use in
+ 	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
+ 	// subprocesses will inherit it, but that means initDefaultCache can't
+@@ -82,10 +84,11 @@ func DefaultDir() string {
+ 
+ 	defaultDirOnce.Do(func() {
+ 		defaultDir = cfg.Getenv("GOCACHE")
+-		if filepath.IsAbs(defaultDir) || defaultDir == "off" {
+-			return
+-		}
+ 		if defaultDir != "" {
++			defaultDirChanged = true
++			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
++				return
++			}
+ 			defaultDir = "off"
+ 			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
+ 			return
+@@ -95,11 +98,12 @@ func DefaultDir() string {
+ 		dir, err := os.UserCacheDir()
+ 		if err != nil {
+ 			defaultDir = "off"
++			defaultDirChanged = true
+ 			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
+ 			return
+ 		}
+ 		defaultDir = filepath.Join(dir, "go-build")
+ 	})
+ 
+-	return defaultDir
++	return defaultDir, defaultDirChanged
+ }
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index afb595a0c6..002d0006ed 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -101,7 +101,9 @@ var (
+ 
+ 	// GoPathError is set when GOPATH is not set. it contains an
+ 	// explanation why GOPATH is unset.
+-	GoPathError string
++	GoPathError   string
++	GOPATHChanged bool
++	CGOChanged    bool
+ )
+ 
+ func defaultContext() build.Context {
+@@ -111,7 +113,7 @@ func defaultContext() build.Context {
+ 
+ 	// Override defaults computed in go/build with defaults
+ 	// from go environment configuration file, if known.
+-	ctxt.GOPATH = envOr("GOPATH", gopath(ctxt))
++	ctxt.GOPATH, GOPATHChanged = EnvOrAndChanged("GOPATH", gopath(ctxt))
+ 	ctxt.GOOS = Goos
+ 	ctxt.GOARCH = Goarch
+ 
+@@ -125,14 +127,16 @@ func defaultContext() build.Context {
+ 	ctxt.ToolTags = save
+ 
+ 	// The go/build rule for whether cgo is enabled is:
+-	//	1. If $CGO_ENABLED is set, respect it.
+-	//	2. Otherwise, if this is a cross-compile, disable cgo.
+-	//	3. Otherwise, use built-in default for GOOS/GOARCH.
++	//  1. If $CGO_ENABLED is set, respect it.
++	//  2. Otherwise, if this is a cross-compile, disable cgo.
++	//  3. Otherwise, use built-in default for GOOS/GOARCH.
++	//
+ 	// Recreate that logic here with the new GOOS/GOARCH setting.
+-	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
+-		ctxt.CgoEnabled = v[0] == '1'
+-	} else if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
+-		ctxt.CgoEnabled = false
++	// We need to run steps 2 and 3 to determine what the default value
++	// of CgoEnabled would be for computing CGOChanged.
++	defaultCgoEnabled := ctxt.CgoEnabled
++	if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
++		defaultCgoEnabled = false
+ 	} else {
+ 		// Use built-in default cgo setting for GOOS/GOARCH.
+ 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
+@@ -159,11 +163,16 @@ func defaultContext() build.Context {
+ 			if os.Getenv("CC") == "" {
+ 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
+ 				if _, err := LookPath(cc); err != nil {
+-					ctxt.CgoEnabled = false
++					defaultCgoEnabled = false
+ 				}
+ 			}
+ 		}
+ 	}
++	ctxt.CgoEnabled = defaultCgoEnabled
++	if v := Getenv("CGO_ENABLED"); v == "0" || v == "1" {
++		ctxt.CgoEnabled = v[0] == '1'
++	}
++	CGOChanged = ctxt.CgoEnabled != defaultCgoEnabled
+ 
+ 	ctxt.OpenFile = func(path string) (io.ReadCloser, error) {
+ 		return fsys.Open(path)
+@@ -262,8 +271,9 @@ func init() {
+ 
+ // An EnvVar is an environment variable Name=Value.
+ type EnvVar struct {
+-	Name  string
+-	Value string
++	Name    string
++	Value   string
++	Changed bool // effective Value differs from default
+ }
+ 
+ // OrigEnv is the original environment of the program at startup.
+@@ -279,27 +289,28 @@ var envCache struct {
+ 	m    map[string]string
+ }
+ 
+-// EnvFile returns the name of the Go environment configuration file.
+-func EnvFile() (string, error) {
++// EnvFile returns the name of the Go environment configuration file,
++// and reports whether the effective value differs from the default.
++func EnvFile() (string, bool, error) {
+ 	if file := os.Getenv("GOENV"); file != "" {
+ 		if file == "off" {
+-			return "", fmt.Errorf("GOENV=off")
++			return "", false, fmt.Errorf("GOENV=off")
+ 		}
+-		return file, nil
++		return file, true, nil
+ 	}
+ 	dir, err := os.UserConfigDir()
+ 	if err != nil {
+-		return "", err
++		return "", false, err
+ 	}
+ 	if dir == "" {
+-		return "", fmt.Errorf("missing user-config dir")
++		return "", false, fmt.Errorf("missing user-config dir")
+ 	}
+-	return filepath.Join(dir, "go/env"), nil
++	return filepath.Join(dir, "go/env"), false, nil
+ }
+ 
+ func initEnvCache() {
+ 	envCache.m = make(map[string]string)
+-	if file, _ := EnvFile(); file != "" {
++	if file, _, _ := EnvFile(); file != "" {
+ 		readEnvFile(file, "user")
+ 	}
+ 	goroot := findGOROOT(envCache.m["GOROOT"])
+@@ -397,57 +408,67 @@ var (
+ 	GOROOTpkg string
+ 	GOROOTsrc string
+ 
+-	GOBIN      = Getenv("GOBIN")
+-	GOMODCACHE = envOr("GOMODCACHE", gopathDir("pkg/mod"))
++	GOBIN                         = Getenv("GOBIN")
++	GOMODCACHE, GOMODCACHEChanged = EnvOrAndChanged("GOMODCACHE", gopathDir("pkg/mod"))
+ 
+ 	// Used in envcmd.MkEnv and build ID computations.
+-	GOARM     = envOr("GOARM", fmt.Sprint(buildcfg.GOARM))
+-	GOARM64   = envOr("GOARM64", fmt.Sprint(buildcfg.GOARM64))
+-	GO386     = envOr("GO386", buildcfg.GO386)
+-	GOAMD64   = envOr("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
+-	GOMIPS    = envOr("GOMIPS", buildcfg.GOMIPS)
+-	GOMIPS64  = envOr("GOMIPS64", buildcfg.GOMIPS64)
+-	GOPPC64   = envOr("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
+-	GORISCV64 = envOr("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
+-	GOWASM    = envOr("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+-
+-	GOPROXY    = envOr("GOPROXY", "")
+-	GOSUMDB    = envOr("GOSUMDB", "")
+-	GOPRIVATE  = Getenv("GOPRIVATE")
+-	GONOPROXY  = envOr("GONOPROXY", GOPRIVATE)
+-	GONOSUMDB  = envOr("GONOSUMDB", GOPRIVATE)
+-	GOINSECURE = Getenv("GOINSECURE")
+-	GOVCS      = Getenv("GOVCS")
++	GOARM64, goARM64Changed     = EnvOrAndChanged("GOARM64", fmt.Sprint(buildcfg.GOARM64))
++	GOARM, goARMChanged         = EnvOrAndChanged("GOARM", fmt.Sprint(buildcfg.GOARM))
++	GO386, go386Changed         = EnvOrAndChanged("GO386", buildcfg.GO386)
++	GOAMD64, goAMD64Changed     = EnvOrAndChanged("GOAMD64", fmt.Sprintf("%s%d", "v", buildcfg.GOAMD64))
++	GOMIPS, goMIPSChanged       = EnvOrAndChanged("GOMIPS", buildcfg.GOMIPS)
++	GOMIPS64, goMIPS64Changed   = EnvOrAndChanged("GOMIPS64", buildcfg.GOMIPS64)
++	GOPPC64, goPPC64Changed     = EnvOrAndChanged("GOPPC64", fmt.Sprintf("%s%d", "power", buildcfg.GOPPC64))
++	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", fmt.Sprintf("rva%du64", buildcfg.GORISCV64))
++	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
++
++	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
++	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
++	GOPRIVATE                   = Getenv("GOPRIVATE")
++	GONOPROXY, GONOPROXYChanged = EnvOrAndChanged("GONOPROXY", GOPRIVATE)
++	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
++	GOINSECURE                  = Getenv("GOINSECURE")
++	GOVCS                       = Getenv("GOVCS")
+ )
+ 
++// EnvOrAndChanged returns the environment variable value
++// and reports whether it differs from the default value.
++func EnvOrAndChanged(name, def string) (string, bool) {
++	val := Getenv(name)
++	if val != "" {
++		return val, val != def
++	}
++	return def, false
++}
++
+ var SumdbDir = gopathDir("pkg/sumdb")
+ 
+ // GetArchEnv returns the name and setting of the
+ // GOARCH-specific architecture environment variable.
+ // If the current architecture has no GOARCH-specific variable,
+ // GetArchEnv returns empty key and value.
+-func GetArchEnv() (key, val string) {
++func GetArchEnv() (key, val string, changed bool) {
+ 	switch Goarch {
+ 	case "arm":
+-		return "GOARM", GOARM
++		return "GOARM", GOARM, goARMChanged
+ 	case "arm64":
+-		return "GOARM64", GOARM64
++		return "GOARM64", GOARM64, goARM64Changed
+ 	case "386":
+-		return "GO386", GO386
++		return "GO386", GO386, go386Changed
+ 	case "amd64":
+-		return "GOAMD64", GOAMD64
++		return "GOAMD64", GOAMD64, goAMD64Changed
+ 	case "mips", "mipsle":
+-		return "GOMIPS", GOMIPS
++		return "GOMIPS", GOMIPS, goMIPSChanged
+ 	case "mips64", "mips64le":
+-		return "GOMIPS64", GOMIPS64
++		return "GOMIPS64", GOMIPS64, goMIPS64Changed
+ 	case "ppc64", "ppc64le":
+-		return "GOPPC64", GOPPC64
++		return "GOPPC64", GOPPC64, goPPC64Changed
+ 	case "riscv64":
+-		return "GORISCV64", GORISCV64
++		return "GORISCV64", GORISCV64, goRISCV64Changed
+ 	case "wasm":
+-		return "GOWASM", GOWASM
++		return "GOWASM", GOWASM, goWASMChanged
+ 	}
+-	return "", ""
++	return "", "", false
+ }
+ 
+ // envOr returns Getenv(key) if set, or else def.
+@@ -565,6 +586,7 @@ func gopathDir(rel string) string {
+ 	return filepath.Join(list[0], rel)
+ }
+ 
++// Keep consistent with go/build.defaultGOPATH.
+ func gopath(ctxt build.Context) string {
+ 	if len(ctxt.GOPATH) > 0 {
+ 		return ctxt.GOPATH
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index b021b784da..de2ef9dcb9 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -153,7 +153,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 	sh := work.NewShell("", fmt.Print)
+ 
+ 	if cleanCache {
+-		dir := cache.DefaultDir()
++		dir, _ := cache.DefaultDir()
+ 		if dir != "off" {
+ 			// Remove the cache subdirectories but not the top cache directory.
+ 			// The top cache directory may have been created with special permissions
+@@ -180,7 +180,7 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Instead of walking through the entire cache looking for test results,
+ 		// we write a file to the cache indicating that all test results from before
+ 		// right now are to be ignored.
+-		dir := cache.DefaultDir()
++		dir, _ := cache.DefaultDir()
+ 		if dir != "off" {
+ 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+ 			if err == nil {
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index bff3fe5d55..b3838a75e2 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -32,7 +32,7 @@ import (
+ )
+ 
+ var CmdEnv = &base.Command{
+-	UsageLine: "go env [-json] [-u] [-w] [var ...]",
++	UsageLine: "go env [-json] [-changed] [-u] [-w] [var ...]",
+ 	Short:     "print Go environment information",
+ 	Long: `
+ Env prints Go environment information.
+@@ -53,6 +53,10 @@ The -w flag requires one or more arguments of the
+ form NAME=VALUE and changes the default settings
+ of the named environment variables to the given values.
+ 
++The -changed flag prints only those settings whose effective
++value differs from the default value that would be obtained in
++an empty environment with no prior uses of the -w flag.
++
+ For more about environment variables, see 'go help environment'.
+ 	`,
+ }
+@@ -64,19 +68,20 @@ func init() {
+ }
+ 
+ var (
+-	envJson = CmdEnv.Flag.Bool("json", false, "")
+-	envU    = CmdEnv.Flag.Bool("u", false, "")
+-	envW    = CmdEnv.Flag.Bool("w", false, "")
++	envJson    = CmdEnv.Flag.Bool("json", false, "")
++	envU       = CmdEnv.Flag.Bool("u", false, "")
++	envW       = CmdEnv.Flag.Bool("w", false, "")
++	envChanged = CmdEnv.Flag.Bool("changed", false, "")
+ )
+ 
+ func MkEnv() []cfg.EnvVar {
+-	envFile, _ := cfg.EnvFile()
++	envFile, envFileChanged, _ := cfg.EnvFile()
+ 	env := []cfg.EnvVar{
+ 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
+-		{Name: "GOARCH", Value: cfg.Goarch},
++		{Name: "GOARCH", Value: cfg.Goarch, Changed: cfg.Goarch != runtime.GOARCH},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
+-		{Name: "GOCACHE", Value: cache.DefaultDir()},
+-		{Name: "GOENV", Value: envFile},
++		{Name: "GOCACHE"},
++		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
+ 		{Name: "GOEXE", Value: cfg.ExeSuffix},
+ 
+ 		// List the raw value of GOEXPERIMENT, not the cleaned one.
+@@ -90,63 +95,82 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+ 		{Name: "GOINSECURE", Value: cfg.GOINSECURE},
+-		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE},
+-		{Name: "GONOPROXY", Value: cfg.GONOPROXY},
+-		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB},
+-		{Name: "GOOS", Value: cfg.Goos},
+-		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH},
++		{Name: "GOMODCACHE", Value: cfg.GOMODCACHE, Changed: cfg.GOMODCACHEChanged},
++		{Name: "GONOPROXY", Value: cfg.GONOPROXY, Changed: cfg.GONOPROXYChanged},
++		{Name: "GONOSUMDB", Value: cfg.GONOSUMDB, Changed: cfg.GONOSUMDBChanged},
++		{Name: "GOOS", Value: cfg.Goos, Changed: cfg.Goos != runtime.GOOS},
++		{Name: "GOPATH", Value: cfg.BuildContext.GOPATH, Changed: cfg.GOPATHChanged},
+ 		{Name: "GOPRIVATE", Value: cfg.GOPRIVATE},
+-		{Name: "GOPROXY", Value: cfg.GOPROXY},
++		{Name: "GOPROXY", Value: cfg.GOPROXY, Changed: cfg.GOPROXYChanged},
+ 		{Name: "GOROOT", Value: cfg.GOROOT},
+-		{Name: "GOSUMDB", Value: cfg.GOSUMDB},
++		{Name: "GOSUMDB", Value: cfg.GOSUMDB, Changed: cfg.GOSUMDBChanged},
+ 		{Name: "GOTMPDIR", Value: cfg.Getenv("GOTMPDIR")},
+ 		{Name: "GOTOOLCHAIN", Value: cfg.Getenv("GOTOOLCHAIN")},
+ 		{Name: "GOTOOLDIR", Value: build.ToolDir},
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+-		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
++		{Name: "GODEBUG"},
++	}
++
++	for i := range env {
++		switch env[i].Name {
++		case "GO111MODULE":
++			if env[i].Value != "on" && env[i].Value != "" {
++				env[i].Changed = true
++			}
++		case "GOBIN", "GOEXPERIMENT", "GOFLAGS", "GOINSECURE", "GOPRIVATE", "GOTMPDIR", "GOVCS":
++			if env[i].Value != "" {
++				env[i].Changed = true
++			}
++		case "GOCACHE":
++			env[i].Value, env[i].Changed = cache.DefaultDir()
++		case "GOTOOLCHAIN":
++			if env[i].Value != "auto" {
++				env[i].Changed = true
++			}
++		case "GODEBUG":
++			env[i].Value = os.Getenv("GODEBUG")
++			env[i].Changed = env[i].Value != ""
++		}
+ 	}
+ 
+ 	if work.GccgoBin != "" {
+-		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin})
++		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoBin, Changed: true})
+ 	} else {
+ 		env = append(env, cfg.EnvVar{Name: "GCCGO", Value: work.GccgoName})
+ 	}
+ 
+-	key, val := cfg.GetArchEnv()
+-	if key != "" {
+-		env = append(env, cfg.EnvVar{Name: key, Value: val})
++	goarch, val, changed := cfg.GetArchEnv()
++	if goarch != "" {
++		env = append(env, cfg.EnvVar{Name: goarch, Value: val, Changed: changed})
+ 	}
+ 
+ 	cc := cfg.Getenv("CC")
++	ccChanged := true
+ 	if cc == "" {
++		ccChanged = false
+ 		cc = cfg.DefaultCC(cfg.Goos, cfg.Goarch)
+ 	}
+ 	cxx := cfg.Getenv("CXX")
++	cxxChanged := true
+ 	if cxx == "" {
++		cxxChanged = false
+ 		cxx = cfg.DefaultCXX(cfg.Goos, cfg.Goarch)
+ 	}
+-	env = append(env, cfg.EnvVar{Name: "AR", Value: envOr("AR", "ar")})
+-	env = append(env, cfg.EnvVar{Name: "CC", Value: cc})
+-	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx})
++	ar, arChanged := cfg.EnvOrAndChanged("AR", "ar")
++	env = append(env, cfg.EnvVar{Name: "AR", Value: ar, Changed: arChanged})
++	env = append(env, cfg.EnvVar{Name: "CC", Value: cc, Changed: ccChanged})
++	env = append(env, cfg.EnvVar{Name: "CXX", Value: cxx, Changed: cxxChanged})
+ 
+ 	if cfg.BuildContext.CgoEnabled {
+-		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1"})
++		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "1", Changed: cfg.CGOChanged})
+ 	} else {
+-		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "0"})
++		env = append(env, cfg.EnvVar{Name: "CGO_ENABLED", Value: "0", Changed: cfg.CGOChanged})
+ 	}
+ 
+ 	return env
+ }
+ 
+-func envOr(name, def string) string {
+-	val := cfg.Getenv(name)
+-	if val != "" {
+-		return val
+-	}
+-	return def
+-}
+-
+ func findEnv(env []cfg.EnvVar, name string) string {
+ 	for _, e := range env {
+ 		if e.Name == name {
+@@ -206,7 +230,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 		return q
+ 	}
+ 
+-	return []cfg.EnvVar{
++	ret := []cfg.EnvVar{
+ 		// Note: Update the switch in runEnv below when adding to this list.
+ 		{Name: "CGO_CFLAGS", Value: join(cflags)},
+ 		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
+@@ -216,6 +240,21 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+ 		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
+ 	}
++
++	for i := range ret {
++		ev := &ret[i]
++		switch ev.Name {
++		case "GOGCCFLAGS": // GOGCCFLAGS cannot be modified
++		case "CGO_CPPFLAGS":
++			ev.Changed = ev.Value != ""
++		case "PKG_CONFIG":
++			ev.Changed = ev.Value != cfg.DefaultPkgConfig
++		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "GGO_LDFLAGS":
++			ev.Changed = ev.Value != work.DefaultCFlags
++		}
++	}
++
++	return ret
+ }
+ 
+ // argKey returns the KEY part of the arg KEY=VAL, or else arg itself.
+@@ -297,27 +336,43 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 
+ 	if len(args) > 0 {
+-		if *envJson {
+-			var es []cfg.EnvVar
+-			for _, name := range args {
+-				e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+-				es = append(es, e)
++		// Show only the named vars.
++		if !*envChanged {
++			if *envJson {
++				var es []cfg.EnvVar
++				for _, name := range args {
++					e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
++					es = append(es, e)
++				}
++				env = es
++			} else {
++				// Print just the values, without names.
++				for _, name := range args {
++					fmt.Printf("%s\n", findEnv(env, name))
++				}
++				return
+ 			}
+-			printEnvAsJSON(es)
+ 		} else {
++			// Show only the changed, named vars.
++			var es []cfg.EnvVar
+ 			for _, name := range args {
+-				fmt.Printf("%s\n", findEnv(env, name))
++				for _, e := range env {
++					if e.Name == name {
++						es = append(es, e)
++						break
++					}
++				}
+ 			}
++			env = es
+ 		}
+-		return
+ 	}
+ 
++	// print
+ 	if *envJson {
+-		printEnvAsJSON(env)
+-		return
++		printEnvAsJSON(env, *envChanged)
++	} else {
++		PrintEnv(os.Stdout, env, *envChanged)
+ 	}
+-
+-	PrintEnv(os.Stdout, env)
+ }
+ 
+ func runEnvW(args []string) {
+@@ -423,12 +478,15 @@ func checkBuildConfig(add map[string]string, del map[string]bool) error {
+ }
+ 
+ // PrintEnv prints the environment variables to w.
+-func PrintEnv(w io.Writer, env []cfg.EnvVar) {
++func PrintEnv(w io.Writer, env []cfg.EnvVar, onlyChanged bool) {
+ 	for _, e := range env {
+ 		if e.Name != "TERM" {
+ 			if runtime.GOOS != "plan9" && bytes.Contains([]byte(e.Value), []byte{0}) {
+ 				base.Fatalf("go: internal error: encountered null byte in environment variable %s on non-plan9 platform", e.Name)
+ 			}
++			if onlyChanged && !e.Changed {
++				continue
++			}
+ 			switch runtime.GOOS {
+ 			default:
+ 				fmt.Fprintf(w, "%s=%s\n", e.Name, shellQuote(e.Value))
+@@ -503,12 +561,15 @@ func batchEscape(s string) string {
+ 	return b.String()
+ }
+ 
+-func printEnvAsJSON(env []cfg.EnvVar) {
++func printEnvAsJSON(env []cfg.EnvVar, onlyChanged bool) {
+ 	m := make(map[string]string)
+ 	for _, e := range env {
+ 		if e.Name == "TERM" {
+ 			continue
+ 		}
++		if onlyChanged && !e.Changed {
++			continue
++		}
+ 		m[e.Name] = e.Value
+ 	}
+ 	enc := json.NewEncoder(os.Stdout)
+@@ -591,7 +652,7 @@ func checkEnvWrite(key, val string) error {
+ }
+ 
+ func readEnvFileLines(mustExist bool) []string {
+-	file, err := cfg.EnvFile()
++	file, _, err := cfg.EnvFile()
+ 	if file == "" {
+ 		if mustExist {
+ 			base.Fatalf("go: cannot find go env config: %v", err)
+@@ -655,7 +716,7 @@ func updateEnvFile(add map[string]string, del map[string]bool) {
+ 		}
+ 	}
+ 
+-	file, err := cfg.EnvFile()
++	file, _, err := cfg.EnvFile()
+ 	if file == "" {
+ 		base.Fatalf("go: cannot find go env config: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/envcmd/env_test.go b/src/cmd/go/internal/envcmd/env_test.go
+index 7419cf3fc2..2f6470b871 100644
+--- a/src/cmd/go/internal/envcmd/env_test.go
++++ b/src/cmd/go/internal/envcmd/env_test.go
+@@ -56,7 +56,7 @@ func FuzzPrintEnvEscape(f *testing.F) {
+ 		if runtime.GOOS == "windows" {
+ 			b.WriteString("@echo off\n")
+ 		}
+-		PrintEnv(&b, []cfg.EnvVar{{Name: "var", Value: s}})
++		PrintEnv(&b, []cfg.EnvVar{{Name: "var", Value: s}}, false)
+ 		var want string
+ 		if runtime.GOOS == "windows" {
+ 			fmt.Fprintf(&b, "echo \"%%var%%\"\n")
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 58acd4dc34..4bf2f381dd 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2392,7 +2392,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+ 	}
+ 	appendSetting("GOOS", cfg.BuildContext.GOOS)
+-	if key, val := cfg.GetArchEnv(); key != "" && val != "" {
++	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
+ 		appendSetting(key, val)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index bda3fb4338..9d8c48f2b0 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -147,7 +147,8 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ // using the index, for instance because the index is disabled, or the package
+ // is not in a module.
+ func GetModule(modroot string) (*Module, error) {
+-	if !enabled || cache.DefaultDir() == "off" {
++	dir, _ := cache.DefaultDir()
++	if !enabled || dir == "off" {
+ 		return nil, errDisabled
+ 	}
+ 	if modroot == "" {
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index ac9d2721f5..a13070a91e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -837,7 +837,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Read testcache expiration time, if present.
+ 	// (We implement go clean -testcache by writing an expiration date
+ 	// instead of searching out and deleting test result cache entries.)
+-	if dir := cache.DefaultDir(); dir != "off" {
++	if dir, _ := cache.DefaultDir(); dir != "off" {
+ 		if data, _ := lockedfile.Read(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+ 			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
+ 				testCacheExpire = time.Unix(0, t)
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 04459d0990..90c61a9c30 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -46,7 +46,7 @@ import (
+ 	"cmd/internal/sys"
+ )
+ 
+-const defaultCFlags = "-O2 -g"
++const DefaultCFlags = "-O2 -g"
+ 
+ // actionList returns the list of actions in the dag rooted at root
+ // as visited in a depth-first post-order traversal.
+@@ -337,7 +337,7 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 		}
+ 
+ 		// GOARM, GOMIPS, etc.
+-		key, val := cfg.GetArchEnv()
++		key, val, _ := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+ 		if cfg.CleanGOEXPERIMENT != "" {
+@@ -1419,7 +1419,7 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 		}
+ 
+ 		// GOARM, GOMIPS, etc.
+-		key, val := cfg.GetArchEnv()
++		key, val, _ := cfg.GetArchEnv()
+ 		fmt.Fprintf(h, "%s=%s\n", key, val)
+ 
+ 		if cfg.CleanGOEXPERIMENT != "" {
+@@ -2460,13 +2460,13 @@ func (b *Builder) gccSupportsFlag(compiler []string, flag string) bool {
+ 
+ 	cmdArgs := str.StringList(compiler, flag)
+ 	if strings.HasPrefix(flag, "-Wl,") /* linker flag */ {
+-		ldflags, err := buildFlags("LDFLAGS", defaultCFlags, nil, checkLinkerFlags)
++		ldflags, err := buildFlags("LDFLAGS", DefaultCFlags, nil, checkLinkerFlags)
+ 		if err != nil {
+ 			return false
+ 		}
+ 		cmdArgs = append(cmdArgs, ldflags...)
+ 	} else { /* compiler flag, add "-c" */
+-		cflags, err := buildFlags("CFLAGS", defaultCFlags, nil, checkCompilerFlags)
++		cflags, err := buildFlags("CFLAGS", DefaultCFlags, nil, checkCompilerFlags)
+ 		if err != nil {
+ 			return false
+ 		}
+@@ -2707,16 +2707,16 @@ func (b *Builder) CFlags(p *load.Package) (cppflags, cflags, cxxflags, fflags, l
+ 	if cppflags, err = buildFlags("CPPFLAGS", "", p.CgoCPPFLAGS, checkCompilerFlags); err != nil {
+ 		return
+ 	}
+-	if cflags, err = buildFlags("CFLAGS", defaultCFlags, p.CgoCFLAGS, checkCompilerFlags); err != nil {
++	if cflags, err = buildFlags("CFLAGS", DefaultCFlags, p.CgoCFLAGS, checkCompilerFlags); err != nil {
+ 		return
+ 	}
+-	if cxxflags, err = buildFlags("CXXFLAGS", defaultCFlags, p.CgoCXXFLAGS, checkCompilerFlags); err != nil {
++	if cxxflags, err = buildFlags("CXXFLAGS", DefaultCFlags, p.CgoCXXFLAGS, checkCompilerFlags); err != nil {
+ 		return
+ 	}
+-	if fflags, err = buildFlags("FFLAGS", defaultCFlags, p.CgoFFLAGS, checkCompilerFlags); err != nil {
++	if fflags, err = buildFlags("FFLAGS", DefaultCFlags, p.CgoFFLAGS, checkCompilerFlags); err != nil {
+ 		return
+ 	}
+-	if ldflags, err = buildFlags("LDFLAGS", defaultCFlags, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
++	if ldflags, err = buildFlags("LDFLAGS", DefaultCFlags, p.CgoLDFLAGS, checkLinkerFlags); err != nil {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index 60817d9c3b..1fac8e3a45 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -114,7 +114,8 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
+ 	// Otherwise fall back to standard copy.
+ 
+ 	// If the source is in the build cache, we need to copy it.
+-	if strings.HasPrefix(src, cache.DefaultDir()) {
++	dir, _ := cache.DefaultDir()
++	if strings.HasPrefix(src, dir) {
+ 		return sh.CopyFile(dst, src, perm, force)
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+new file mode 100644
+index 0000000000..7b7b154dae
+--- /dev/null
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -0,0 +1,45 @@
++# Test query for non-defaults in the env
++
++env GOTOOLCHAIN=local
++env GOSUMDB=nodefault
++env GOPROXY=nodefault
++env GO111MODULE=auto
++env CGO_CFLAGS=nodefault
++env CGO_CPPFLAGS=nodefault
++
++go env -changed
++# linux output like GOTOOLCHAIN='local'
++# windows output like GOTOOLCHAIN=local
++stdout 'GOTOOLCHAIN=''?local''?'
++stdout 'GOSUMDB=''?nodefault''?'
++stdout 'GOPROXY=''?nodefault''?'
++stdout 'GO111MODULE=''?auto''?'
++stdout 'CGO_CFLAGS=''?nodefault''?'
++stdout 'CGO_CPPFLAGS=''?nodefault''?'
++
++go env -changed -json
++stdout '"GOTOOLCHAIN": "local"'
++stdout '"GOSUMDB": "nodefault"'
++stdout '"GOPROXY": "nodefault"'
++stdout '"GO111MODULE": "auto"'
++stdout '"CGO_CFLAGS": "nodefault"'
++stdout '"CGO_CPPFLAGS": "nodefault"'
++
++[GOOS:windows] env GOOS=linux
++[!GOOS:windows] env GOOS=windows
++[GOARCH:amd64] env GOARCH=arm64
++[!GOARCH:amd64] env GOARCH=amd64
++
++go env -changed GOOS
++[GOOS:windows] stdout 'set GOOS=linux'
++[!GOOS:windows] stdout 'GOOS=''windows'''
++go env -changed GOARCH
++[GOARCH:amd64] stdout 'set GOARCH=arm64|GOARCH=''arm64'''
++[!GOARCH:amd64] stdout 'set GOARCH=amd64|GOARCH=''amd64'''
++
++go env -changed -json GOOS
++[GOOS:windows] stdout '"GOOS": "linux"'
++[!GOOS:windows] stdout '"GOOS": "windows"'
++go env -changed -json GOARCH
++[GOARCH:amd64] stdout '"GOARCH": "arm64"'
++[!GOARCH:amd64] stdout '"GOARCH": "amd64"'
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9ce3700dc4..43c74cb99a 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -286,6 +286,7 @@ func (ctxt *Context) SrcDirs() []string {
+ // if set, or else the compiled code's GOARCH, GOOS, and GOROOT.
+ var Default Context = defaultContext()
+ 
++// Keep consistent with cmd/go/internal/cfg.defaultGOPATH.
+ func defaultGOPATH() string {
+ 	env := "HOME"
+ 	if runtime.GOOS == "windows" {

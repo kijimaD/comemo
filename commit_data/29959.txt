@@ -17,7 +17,101 @@ Date:   Mon Oct 17 14:17:46 2016 -0700
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/racewalk.go | 39 ++++++++++-----------------------
  test/fixedbugs/issue17449.go            | 34 ++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index 8f57ef33fe..c8ab6038aa 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -145,36 +145,21 @@ func instrumentnode(np **Node, init *Nodes, wr int, skip int) {
+ 		goto ret
+ 
+ 	case OBLOCK:
+-		var out []*Node
+ 		ls := n.List.Slice()
+-		for i := 0; i < len(ls); i++ {
+-			switch ls[i].Op {
+-			case OCALLFUNC, OCALLMETH, OCALLINTER:
+-				instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
+-				out = append(out, ls[i])
+-				// Scan past OAS nodes copying results off stack.
+-				// Those must not be instrumented, because the
+-				// instrumentation calls will smash the results.
+-				// The assignments are to temporaries, so they cannot
+-				// be involved in races and need not be instrumented.
+-				for i+1 < len(ls) && ls[i+1].Op == OAS && iscallret(ls[i+1].Right) {
+-					i++
+-					out = append(out, ls[i])
+-				}
+-			default:
+-				var outn Nodes
+-				outn.Set(out)
+-				instrumentnode(&ls[i], &outn, 0, 0)
+-				if ls[i].Op != OAS && ls[i].Op != OASWB && ls[i].Op != OAS2FUNC || ls[i].Ninit.Len() == 0 {
+-					out = append(outn.Slice(), ls[i])
+-				} else {
+-					// Splice outn onto end of ls[i].Ninit
+-					ls[i].Ninit.AppendNodes(&outn)
+-					out = append(out, ls[i])
+-				}
++		afterCall := false
++		for i := range ls {
++			op := ls[i].Op
++			// Scan past OAS nodes copying results off stack.
++			// Those must not be instrumented, because the
++			// instrumentation calls will smash the results.
++			// The assignments are to temporaries, so they cannot
++			// be involved in races and need not be instrumented.
++			if afterCall && op == OAS && iscallret(ls[i].Right) {
++				continue
+ 			}
++			instrumentnode(&ls[i], &ls[i].Ninit, 0, 0)
++			afterCall = (op == OCALLFUNC || op == OCALLMETH || op == OCALLINTER)
+ 		}
+-		n.List.Set(out)
+ 		goto ret
+ 
+ 	case ODEFER:
+diff --git a/test/fixedbugs/issue17449.go b/test/fixedbugs/issue17449.go
+new file mode 100644
+index 0000000000..23029178e8
+--- /dev/null
++++ b/test/fixedbugs/issue17449.go
+@@ -0,0 +1,34 @@
++// errorcheck -0 -race
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 17449: race instrumentation copies over previous instrumented nodes from parents block into child's Ninit block.
++// This code surfaces the duplication at compile time because of generated inline labels.
++
++package master
++
++type PriorityList struct {
++    elems []interface{}
++}
++
++func (x *PriorityList) Len() int { return len(x.elems) }
++
++func (l *PriorityList) remove(i int) interface{} {
++    elem := l.elems[i]
++    l.elems = append(l.elems[:i], l.elems[i+1:]...)
++    return elem
++}
++
++func (l *PriorityList) Next() interface{} {
++    return l.remove(l.Len() - 1)
++}
++
++var l *PriorityList
++
++func Foo() {
++    // It would fail here if instrumented code (including inline-label) was copied.
++    for elem := l.Next(); elem != nil; elem = l.Next() {
++    }
++}

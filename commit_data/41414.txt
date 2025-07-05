@@ -16,7 +16,30 @@ Date:   Tue Oct 1 12:52:16 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/go/build/doc.go                 | 1 +
  src/internal/goversion/goversion.go | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/build/doc.go b/src/go/build/doc.go
+index de793efa87..47dec5a05d 100644
+--- a/src/go/build/doc.go
++++ b/src/go/build/doc.go
+@@ -111,6 +111,7 @@
+ //	- "go1.11", from Go version 1.11 onward
+ //	- "go1.12", from Go version 1.12 onward
+ //	- "go1.13", from Go version 1.13 onward
++//	- "go1.14", from Go version 1.14 onward
+ //	- any additional words listed in ctxt.BuildTags
+ //
+ // There are no build tags for beta or minor releases.
+diff --git a/src/internal/goversion/goversion.go b/src/internal/goversion/goversion.go
+index 8f9c7c99c2..c5783337b3 100644
+--- a/src/internal/goversion/goversion.go
++++ b/src/internal/goversion/goversion.go
+@@ -10,4 +10,4 @@ package goversion
+ //
+ // When incrementing this, also add to the list at src/go/build/doc.go
+ // (search for "onward").
+-const Version = 13
++const Version = 14

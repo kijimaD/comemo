@@ -10,6 +10,20 @@ Date:   Sun Jun 2 12:10:58 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/180037
     Reviewed-by: Agniva De Sarker <agniva.quicksilver@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/ip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/ip.go b/src/net/ip.go
+index 9a6fda00e8..cf90c0cd54 100644
+--- a/src/net/ip.go
++++ b/src/net/ip.go
+@@ -565,7 +565,7 @@ func parseIPv6Zone(s string) (IP, string) {
+ 	return parseIPv6(s), zone
+ }
+ 
+-// parseIPv6Zone parses s as a literal IPv6 address described in RFC 4291
++// parseIPv6 parses s as a literal IPv6 address described in RFC 4291
+ // and RFC 5952.
+ func parseIPv6(s string) (ip IP) {
+ 	ip = make(IP, IPv6len)

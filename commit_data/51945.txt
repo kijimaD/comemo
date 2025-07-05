@@ -14,6 +14,25 @@ Date:   Mon Dec 20 14:12:02 2021 +0800
     Run-TryBot: Lee Baokun <bk@golangcn.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/codehost.go | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 4a0e2241e5..d8d4392baa 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -83,13 +83,6 @@ type RevInfo struct {
+ 	Tags    []string  // known tags for commit
+ }
+ 
+-// A FileRev describes the result of reading a file at a given revision.
+-type FileRev struct {
+-	Rev  string // requested revision
+-	Data []byte // file data
+-	Err  error  // error if any; os.IsNotExist(Err)==true if rev exists but file does not exist in that rev
+-}
+-
+ // UnknownRevisionError is an error equivalent to fs.ErrNotExist, but for a
+ // revision rather than a file.
+ type UnknownRevisionError struct {

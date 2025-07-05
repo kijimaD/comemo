@@ -10,6 +10,21 @@ Date:   Tue Jun 6 14:21:16 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/45013
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/const.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/math/const.go b/src/math/const.go
+index 951e9a2a4b..20b70653b4 100644
+--- a/src/math/const.go
++++ b/src/math/const.go
+@@ -4,8 +4,7 @@
+ 
+ // Package math provides basic constants and mathematical functions.
+ //
+-// Note that the package doesn't guarantee identical results of floating point operations on
+-// different architectures.
++// This package does not guarantee bit-identical results across architectures.
+ package math
+ 
+ // Mathematical constants.

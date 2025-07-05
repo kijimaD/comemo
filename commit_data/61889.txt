@@ -13,6 +13,21 @@ Date:   Wed Dec 11 08:59:04 2024 -0800
     Reviewed-by: Keith Randall <khr@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ssa/_gen/rulegen.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/rulegen.go b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+index b635631501..4374d3e153 100644
+--- a/src/cmd/compile/internal/ssa/_gen/rulegen.go
++++ b/src/cmd/compile/internal/ssa/_gen/rulegen.go
+@@ -5,7 +5,8 @@
+ // This program generates Go code that applies rewrite rules to a Value.
+ // The generated code implements a function of type func (v *Value) bool
+ // which reports whether if did something.
+-// Ideas stolen from Swift: http://www.hpl.hp.com/techreports/Compaq-DEC/WRL-2000-2.html
++// Ideas stolen from the Swift Java compiler:
++// https://bitsavers.org/pdf/dec/tech_reports/WRL-2000-2.pdf
+ 
+ package main
+ 

@@ -31,7 +31,7 @@ Date:   Fri Mar 18 16:52:30 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/20890
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/gsubr.go  |  2 +-
  src/cmd/compile/internal/gc/alg.go       | 22 +++++------
  src/cmd/compile/internal/gc/bexport.go   |  2 +-
@@ -55,3 +55,820 @@ Date:   Fri Mar 18 16:52:30 2016 -0700
  src/cmd/compile/internal/gc/walk.go      | 21 ++++++-----
  src/cmd/compile/internal/x86/gsubr.go    |  2 +-
  22 files changed, 129 insertions(+), 116 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index 788a9bc156..5c9f650ecd 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -112,7 +112,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	// A special case to make write barriers more efficient.
+ 	// Comparing the first field of a named struct can be done directly.
+ 	base := n1
+-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Right.Sym {
++	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Sym {
+ 		base = n1.Left
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 6ef99c8e18..4ee9de5c9c 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -242,7 +242,7 @@ func genhash(sym *Sym, t *Type) {
+ 			if algtype1(f.Type, nil) != AMEM {
+ 				hashel := hashfor(f.Type)
+ 				call := Nod(OCALL, hashel, nil)
+-				nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
++				nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 				na := Nod(OADDR, nx, nil)
+ 				na.Etype = 1 // no escape to heap
+ 				call.List.Append(na)
+@@ -258,7 +258,7 @@ func genhash(sym *Sym, t *Type) {
+ 			// h = hashel(&p.first, size, h)
+ 			hashel := hashmem(f.Type)
+ 			call := Nod(OCALL, hashel, nil)
+-			nx := Nod(OXDOT, np, newname(f.Sym)) // TODO: fields from other packages?
++			nx := NodSym(OXDOT, np, f.Sym) // TODO: fields from other packages?
+ 			na := Nod(OADDR, nx, nil)
+ 			na.Etype = 1 // no escape to heap
+ 			call.List.Append(na)
+@@ -436,7 +436,7 @@ func geneq(sym *Sym, t *Type) {
+ 
+ 			// Compare non-memory fields with field equality.
+ 			if algtype1(f.Type, nil) != AMEM {
+-				and(eqfield(np, nq, newname(f.Sym)))
++				and(eqfield(np, nq, f.Sym))
+ 				i++
+ 				continue
+ 			}
+@@ -449,11 +449,11 @@ func geneq(sym *Sym, t *Type) {
+ 			if s := fields[i:next]; len(s) <= 2 {
+ 				// Two or fewer fields: use plain field equality.
+ 				for _, f := range s {
+-					and(eqfield(np, nq, newname(f.Sym)))
++					and(eqfield(np, nq, f.Sym))
+ 				}
+ 			} else {
+ 				// More than two fields: use memequal.
+-				and(eqmem(np, nq, newname(f.Sym), size))
++				and(eqmem(np, nq, f.Sym, size))
+ 			}
+ 			i = next
+ 		}
+@@ -502,19 +502,19 @@ func geneq(sym *Sym, t *Type) {
+ 
+ // eqfield returns the node
+ // 	p.field == q.field
+-func eqfield(p *Node, q *Node, field *Node) *Node {
+-	nx := Nod(OXDOT, p, field)
+-	ny := Nod(OXDOT, q, field)
++func eqfield(p *Node, q *Node, field *Sym) *Node {
++	nx := NodSym(OXDOT, p, field)
++	ny := NodSym(OXDOT, q, field)
+ 	ne := Nod(OEQ, nx, ny)
+ 	return ne
+ }
+ 
+ // eqmem returns the node
+ // 	memequal(&p.field, &q.field [, size])
+-func eqmem(p *Node, q *Node, field *Node, size int64) *Node {
+-	nx := Nod(OADDR, Nod(OXDOT, p, field), nil)
++func eqmem(p *Node, q *Node, field *Sym, size int64) *Node {
++	nx := Nod(OADDR, NodSym(OXDOT, p, field), nil)
+ 	nx.Etype = 1 // does not escape
+-	ny := Nod(OADDR, Nod(OXDOT, q, field), nil)
++	ny := Nod(OADDR, NodSym(OXDOT, q, field), nil)
+ 	ny.Etype = 1 // does not escape
+ 	typecheck(&nx, Erv)
+ 	typecheck(&ny, Erv)
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index bf5b57757e..eea7df55a6 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -890,7 +890,7 @@ func (p *exporter) node(n *Node) {
+ 
+ 	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER, OXDOT:
+ 		p.node(n.Left)
+-		p.sym(n.Right.Sym)
++		p.sym(n.Sym)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		p.node(n.Left)
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 16d0e39c6d..1c8cb80b6a 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -658,7 +658,7 @@ func (p *importer) node() *Node {
+ 			obj.Used = true
+ 			return oldname(s)
+ 		}
+-		return Nod(OXDOT, obj, newname(sel))
++		return NodSym(OXDOT, obj, sel)
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		n.Left = p.node()
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 37eb77683a..b1e152b814 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -802,7 +802,7 @@ func cgen_wbptr(n, res *Node) {
+ 	}
+ 
+ 	wbVar := syslook("writeBarrier")
+-	wbEnabled := Nod(ODOT, wbVar, newname(wbVar.Type.Field(0).Sym))
++	wbEnabled := NodSym(ODOT, wbVar, wbVar.Type.Field(0).Sym)
+ 	wbEnabled = typecheck(&wbEnabled, Erv)
+ 	pbr := Thearch.Ginscmp(ONE, Types[TUINT8], wbEnabled, Nodintconst(0), -1)
+ 	Thearch.Gins(Thearch.Optoas(OAS, Types[Tptr]), &src, &dst)
+@@ -2440,11 +2440,6 @@ func cgen_callinter(n *Node, res *Node, proc int) {
+ 		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(i.Op, 0))
+ 	}
+ 
+-	f := i.Right // field
+-	if f.Op != ONAME {
+-		Fatalf("cgen_callinter: not ONAME %v", Oconv(f.Op, 0))
+-	}
+-
+ 	i = i.Left // interface
+ 
+ 	if !i.Addable {
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 10faf52a6f..4c97cad4bc 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -462,7 +462,7 @@ func walkclosure(func_ *Node, init *Nodes) *Node {
+ 	return clos
+ }
+ 
+-func typecheckpartialcall(fn *Node, sym *Node) {
++func typecheckpartialcall(fn *Node, sym *Sym) {
+ 	switch fn.Op {
+ 	case ODOTINTER, ODOTMETH:
+ 		break
+@@ -474,21 +474,21 @@ func typecheckpartialcall(fn *Node, sym *Node) {
+ 	// Create top-level function.
+ 	xfunc := makepartialcall(fn, fn.Type, sym)
+ 	fn.Func = xfunc.Func
+-	fn.Right = sym
++	fn.Right = newname(sym)
+ 	fn.Op = OCALLPART
+ 	fn.Type = xfunc.Type
+ }
+ 
+ var makepartialcall_gopkg *Pkg
+ 
+-func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
++func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 	var p string
+ 
+ 	rcvrtype := fn.Left.Type
+-	if exportname(meth.Sym.Name) {
+-		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Sym.Name)
++	if exportname(meth.Name) {
++		p = fmt.Sprintf("(%v).%s-fm", Tconv(rcvrtype, FmtLeft|FmtShort), meth.Name)
+ 	} else {
+-		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth.Sym, FmtLeft))
++		p = fmt.Sprintf("(%v).(%v)-fm", Tconv(rcvrtype, FmtLeft|FmtShort), Sconv(meth, FmtLeft))
+ 	}
+ 	basetype := rcvrtype
+ 	if Isptr[rcvrtype.Etype] {
+@@ -592,7 +592,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 		body = append(body, Nod(OAS, ptr, Nod(OADDR, cv, nil)))
+ 	}
+ 
+-	call := Nod(OCALL, Nod(OXDOT, ptr, meth), nil)
++	call := Nod(OCALL, NodSym(OXDOT, ptr, meth), nil)
+ 	call.List.Set(callargs)
+ 	call.Isddd = ddd
+ 	if t0.Results().NumFields() == 0 {
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 57698ce839..f2b566f79a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1432,7 +1432,7 @@ func (c *nowritebarrierrecChecker) visitcode(n *Node) {
+ func (c *nowritebarrierrecChecker) visitcall(n *Node) {
+ 	fn := n.Left
+ 	if n.Op == OCALLMETH {
+-		fn = n.Left.Right.Sym.Def
++		fn = n.Left.Sym.Def
+ 	}
+ 	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index c4e07dde18..19fc6330e2 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -131,7 +131,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
+ 		fn := n.Left
+ 		if n.Op == OCALLMETH {
+-			fn = n.Left.Right.Sym.Def
++			fn = n.Left.Sym.Def
+ 		}
+ 		if fn != nil && fn.Op == ONAME && fn.Class == PFUNC && fn.Name.Defn != nil {
+ 			m := v.visit(fn.Name.Defn)
+@@ -1421,7 +1421,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		indirect = fn.Op != ONAME || fn.Class != PFUNC
+ 
+ 	case OCALLMETH:
+-		fn = n.Left.Right.Sym.Def
++		fn = n.Left.Sym.Def
+ 		if fn != nil {
+ 			fntype = fn.Type
+ 		} else {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 39320d1f61..e82be44849 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1249,12 +1249,7 @@ func exprfmt(n *Node, prec int) string {
+ 		}
+ 		return ":"
+ 
+-	case OXDOT,
+-		ODOT,
+-		ODOTPTR,
+-		ODOTINTER,
+-		ODOTMETH,
+-		OCALLPART:
++	case OCALLPART:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+ 		if n.Right == nil || n.Right.Sym == nil {
+@@ -1264,6 +1259,16 @@ func exprfmt(n *Node, prec int) string {
+ 		f += fmt.Sprintf(".%v", Sconv(n.Right.Sym, FmtShort|FmtByte))
+ 		return f
+ 
++	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
++		var f string
++		f += exprfmt(n.Left, nprec)
++		if n.Sym == nil {
++			f += ".<nil>"
++			return f
++		}
++		f += fmt.Sprintf(".%v", Sconv(n.Sym, FmtShort|FmtByte))
++		return f
++
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		var f string
+ 		f += exprfmt(n.Left, nprec)
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 5f01d4d6da..7e192a864a 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -948,7 +948,7 @@ func cgen_callmeth(n *Node, proc int) {
+ 
+ 	n2 := *n
+ 	n2.Op = OCALLFUNC
+-	n2.Left = l.Right
++	n2.Left = newname(l.Sym)
+ 	n2.Left.Type = l.Type
+ 
+ 	if n2.Left.Op == ONAME {
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index ddaa3f26d9..d3bcb763bb 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -416,7 +416,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		// A special case to make write barriers more efficient.
+ 		// Taking the address of the first field of a named struct
+ 		// is the same as taking the address of the struct.
+-		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Right.Sym {
++		if n.Left.Type.Etype != TSTRUCT || n.Left.Type.Field(0).Sym != n.Sym {
+ 			Debug['h'] = 1
+ 			Dump("naddr", n)
+ 			Fatalf("naddr: bad %v %v", Oconv(n.Op, 0), Ctxt.Dconv(a))
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ebfeb9b157..0ef92534c9 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -220,6 +220,13 @@ func ishairy(n *Node, budget *int) bool {
+ 		ODCLTYPE, // can't print yet
+ 		ORETJMP:
+ 		return true
++
++	case ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
++		// These used to store the symbol name as an ONAME in
++		// the Right field, meaning that it cost one budget
++		// unit.  Stay compatible for now.
++		// TODO(iant): Remove this.
++		(*budget)--
+ 	}
+ 
+ 	(*budget)--
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index 4288570fbc..e7be3eef77 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -1793,7 +1793,7 @@ func (p *parser) new_dotname(obj *Node) *Node {
+ 		obj.Used = true
+ 		return oldname(s)
+ 	}
+-	return Nod(OXDOT, obj, newname(sel))
++	return NodSym(OXDOT, obj, sel)
+ }
+ 
+ func (p *parser) dotname() *Node {
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 28c689650f..bf7938a30c 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -226,27 +226,27 @@ func walkrange(n *Node) {
+ 		hit := prealloc[n]
+ 		hit.Type = th
+ 		n.Left = nil
+-		keyname := newname(th.Field(0).Sym) // depends on layout of iterator struct.  See reflect.go:hiter
+-		valname := newname(th.Field(1).Sym) // ditto
++		keysym := th.Field(0).Sym // depends on layout of iterator struct.  See reflect.go:hiter
++		valsym := th.Field(1).Sym // ditto
+ 
+ 		fn := syslook("mapiterinit")
+ 
+ 		substArgTypes(&fn, t.Key(), t.Type, th)
+ 		init = append(init, mkcall1(fn, nil, nil, typename(t), ha, Nod(OADDR, hit, nil)))
+-		n.Left = Nod(ONE, Nod(ODOT, hit, keyname), nodnil())
++		n.Left = Nod(ONE, NodSym(ODOT, hit, keysym), nodnil())
+ 
+ 		fn = syslook("mapiternext")
+ 		substArgTypes(&fn, th)
+ 		n.Right = mkcall1(fn, nil, nil, Nod(OADDR, hit, nil))
+ 
+-		key := Nod(ODOT, hit, keyname)
++		key := NodSym(ODOT, hit, keysym)
+ 		key = Nod(OIND, key, nil)
+ 		if v1 == nil {
+ 			body = nil
+ 		} else if v2 == nil {
+ 			body = []*Node{Nod(OAS, v1, key)}
+ 		} else {
+-			val := Nod(ODOT, hit, valname)
++			val := NodSym(ODOT, hit, valsym)
+ 			val = Nod(OIND, val, nil)
+ 			a := Nod(OAS2, nil, nil)
+ 			a.List.Set([]*Node{v1, v2})
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 7f0b98c180..63865177e0 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -574,10 +574,10 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 		case OARRAYLIT:
+ 			if value.Type.Bound < 0 {
+ 				if pass == 1 && ctxt != 0 {
+-					a = Nod(ODOT, var_, newname(index.Sym))
++					a = NodSym(ODOT, var_, index.Sym)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 2 && ctxt == 0 {
+-					a = Nod(ODOT, var_, newname(index.Sym))
++					a = NodSym(ODOT, var_, index.Sym)
+ 					slicelit(ctxt, value, a, init)
+ 				} else if pass == 3 {
+ 					break
+@@ -585,12 +585,12 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 				continue
+ 			}
+ 
+-			a = Nod(ODOT, var_, newname(index.Sym))
++			a = NodSym(ODOT, var_, index.Sym)
+ 			arraylit(ctxt, pass, value, a, init)
+ 			continue
+ 
+ 		case OSTRUCTLIT:
+-			a = Nod(ODOT, var_, newname(index.Sym))
++			a = NodSym(ODOT, var_, index.Sym)
+ 			structlit(ctxt, pass, value, a, init)
+ 			continue
+ 		}
+@@ -605,7 +605,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		// build list of var.field = expr
+ 		setlineno(value)
+-		a = Nod(ODOT, var_, newname(index.Sym))
++		a = NodSym(ODOT, var_, index.Sym)
+ 
+ 		a = Nod(OAS, a, value)
+ 		typecheck(&a, Etop)
+@@ -904,7 +904,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				a = Nodintconst(b)
+ 
+ 				a = Nod(OINDEX, vstat, a)
+-				a = Nod(ODOT, a, newname(syma))
++				a = NodSym(ODOT, a, syma)
+ 				a = Nod(OAS, a, index)
+ 				typecheck(&a, Etop)
+ 				walkexpr(&a, init)
+@@ -916,7 +916,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 				a = Nodintconst(b)
+ 
+ 				a = Nod(OINDEX, vstat, a)
+-				a = Nod(ODOT, a, newname(symb))
++				a = NodSym(ODOT, a, symb)
+ 				a = Nod(OAS, a, value)
+ 				typecheck(&a, Etop)
+ 				walkexpr(&a, init)
+@@ -935,11 +935,11 @@ func maplit(ctxt int, n *Node, var_ *Node, init *Nodes) {
+ 
+ 		a = Nod(OINDEX, vstat, index)
+ 		a.Bounded = true
+-		a = Nod(ODOT, a, newname(symb))
++		a = NodSym(ODOT, a, symb)
+ 
+ 		r := Nod(OINDEX, vstat, index)
+ 		r.Bounded = true
+-		r = Nod(ODOT, r, newname(syma))
++		r = NodSym(ODOT, r, syma)
+ 		r = Nod(OINDEX, var_, r)
+ 
+ 		r = Nod(OAS, r, a)
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 84dc29c25b..55ab138add 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -2326,16 +2326,14 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		if fn.Op != ODOTMETH {
+ 			Fatalf("OCALLMETH: n.Left not an ODOTMETH: %v", fn)
+ 		}
+-		if fn.Right.Op != ONAME {
+-			Fatalf("OCALLMETH: n.Left.Right not a ONAME: %v", fn.Right)
+-		}
+ 		if k == callNormal {
+-			sym = fn.Right.Sym
++			sym = fn.Sym
+ 			break
+ 		}
+-		n2 := *fn.Right
++		n2 := newname(fn.Sym)
+ 		n2.Class = PFUNC
+-		closure = s.expr(&n2)
++		n2.Lineno = fn.Lineno
++		closure = s.expr(n2)
+ 		// Note: receiver is already assigned in n.List, so we don't
+ 		// want to set it here.
+ 	case OCALLINTER:
+@@ -3967,14 +3965,14 @@ func AutoVar(v *ssa.Value) (*Node, int64) {
+ // fieldIdx finds the index of the field referred to by the ODOT node n.
+ func fieldIdx(n *Node) int {
+ 	t := n.Left.Type
+-	f := n.Right
++	f := n.Sym
+ 	if t.Etype != TSTRUCT {
+ 		panic("ODOT's LHS is not a struct")
+ 	}
+ 
+ 	var i int
+ 	for _, t1 := range t.Fields().Slice() {
+-		if t1.Sym != f.Sym {
++		if t1.Sym != f {
+ 			i++
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c7cac05499..411f7e0475 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -339,6 +339,14 @@ func Nod(op Op, nleft *Node, nright *Node) *Node {
+ 	return n
+ }
+ 
++// NodSym makes a Node with Op op and with the Left field set to left
++// and the Sym field set to sym. This is for ODOT and friends.
++func NodSym(op Op, left *Node, sym *Sym) *Node {
++	n := Nod(op, left, nil)
++	n.Sym = sym
++	return n
++}
++
+ func saveorignode(n *Node) {
+ 	if n.Orig != nil {
+ 		return
+@@ -1677,10 +1685,7 @@ func adddot(n *Node) *Node {
+ 		return n
+ 	}
+ 
+-	if n.Right.Op != ONAME {
+-		return n
+-	}
+-	s := n.Right.Sym
++	s := n.Sym
+ 	if s == nil {
+ 		return n
+ 	}
+@@ -1689,7 +1694,7 @@ func adddot(n *Node) *Node {
+ 	case path != nil:
+ 		// rebuild elided dots
+ 		for c := len(path) - 1; c >= 0; c-- {
+-			n.Left = Nod(ODOT, n.Left, newname(path[c].field.Sym))
++			n.Left = NodSym(ODOT, n.Left, path[c].field.Sym)
+ 			n.Left.Implicit = true
+ 		}
+ 	case ambig:
+@@ -1960,7 +1965,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ 		fn.Nbody.Append(n)
+ 	}
+ 
+-	dot := adddot(Nod(OXDOT, this.Left, newname(method.Sym)))
++	dot := adddot(NodSym(OXDOT, this.Left, method.Sym))
+ 
+ 	// generate call
+ 	if !instrumenting && Isptr[rcvr.Etype] && Isptr[methodrcvr.Etype] && method.Embedded != 0 && !isifacemethod(method.Type) {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 2f07988187..2a4e741297 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -595,14 +595,14 @@ func (s *typeSwitch) walk(sw *Node) {
+ 
+ 	if !isnilinter(cond.Right.Type) {
+ 		// Load type from itab.
+-		typ = Nod(ODOTPTR, typ, nil)
++		typ = NodSym(ODOTPTR, typ, nil)
+ 		typ.Type = Ptrto(Types[TUINT8])
+ 		typ.Typecheck = 1
+ 		typ.Xoffset = int64(Widthptr) // offset of _type in runtime.itab
+ 		typ.Bounded = true            // guaranteed not to fault
+ 	}
+ 	// Load hash from type.
+-	h := Nod(ODOTPTR, typ, nil)
++	h := NodSym(ODOTPTR, typ, nil)
+ 	h.Type = Types[TUINT32]
+ 	h.Typecheck = 1
+ 	h.Xoffset = int64(2 * Widthptr) // offset of hash in runtime._type
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 4d4189a772..d4a26c459b 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -249,11 +249,11 @@ const (
+ 	ODCLTYPE  // type Int int
+ 
+ 	ODELETE    // delete(Left, Right)
+-	ODOT       // Left.Right (Left is of struct type)
+-	ODOTPTR    // Left.Right (Left is of pointer to struct type)
+-	ODOTMETH   // Left.Right (Left is non-interface, Right is method name)
+-	ODOTINTER  // Left.Right (Left is interface, Right is method name)
+-	OXDOT      // Left.Right (before rewrite to one of the preceding)
++	ODOT       // Left.Sym (Left is of struct type)
++	ODOTPTR    // Left.Sym (Left is of pointer to struct type)
++	ODOTMETH   // Left.Sym (Left is non-interface, Right is method name)
++	ODOTINTER  // Left.Sym (Left is interface, Right is method name)
++	OXDOT      // Left.Sym (before rewrite to one of the preceding)
+ 	ODOTTYPE   // Left.Right or Left.Type (.Right during parsing, .Type once resolved)
+ 	ODOTTYPE2  // Left.Right or Left.Type (.Right during parsing, .Type once resolved; on rhs of OAS2DOTTYPE)
+ 	OEQ        // Left == Right
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e857943103..7e09912054 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -252,17 +252,22 @@ func typecheck1(np **Node, top int) {
+ 		*np = n
+ 	}()
+ 
+-	if n.Sym != nil {
+-		if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
+-			Yyerror("use of builtin %v not in function call", n.Sym)
+-			n.Type = nil
+-			return
+-		}
++	switch n.Op {
++	case OXDOT, ODOT, ODOTPTR, ODOTMETH, ODOTINTER:
++		// n.Sym is a field/method name, not a variable.
++	default:
++		if n.Sym != nil {
++			if n.Op == ONAME && n.Etype != 0 && top&Ecall == 0 {
++				Yyerror("use of builtin %v not in function call", n.Sym)
++				n.Type = nil
++				return
++			}
+ 
+-		typecheckdef(n)
+-		if n.Op == ONONAME {
+-			n.Type = nil
+-			return
++			typecheckdef(n)
++			if n.Op == ONONAME {
++				n.Type = nil
++				return
++			}
+ 		}
+ 	}
+ 
+@@ -819,11 +824,6 @@ OpSwitch:
+ 		typecheck(&n.Left, Erv|Etype)
+ 
+ 		defaultlit(&n.Left, nil)
+-		if n.Right.Op != ONAME {
+-			Yyerror("rhs of . must be a name") // impossible
+-			n.Type = nil
+-			return
+-		}
+ 
+ 		t := n.Left.Type
+ 		if t == nil {
+@@ -832,14 +832,14 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		r := n.Right
++		s := n.Sym
+ 
+ 		if n.Left.Op == OTYPE {
+ 			if !looktypedot(n, t, 0) {
+ 				if looktypedot(n, t, 1) {
+-					Yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Right.Sym)
++					Yyerror("%v undefined (cannot refer to unexported method %v)", n, n.Sym)
+ 				} else {
+-					Yyerror("%v undefined (type %v has no method %v)", n, t, n.Right.Sym)
++					Yyerror("%v undefined (type %v has no method %v)", n, t, n.Sym)
+ 				}
+ 				n.Type = nil
+ 				return
+@@ -856,7 +856,7 @@ OpSwitch:
+ 			if n.Name == nil {
+ 				n.Name = new(Name)
+ 			}
+-			n.Sym = n.Right.Sym
++			n.Right = newname(n.Sym)
+ 			n.Type = methodfunc(n.Type, n.Left.Type)
+ 			n.Xoffset = 0
+ 			n.Class = PFUNC
+@@ -874,7 +874,7 @@ OpSwitch:
+ 			checkwidth(t)
+ 		}
+ 
+-		if isblank(n.Right) {
++		if isblanksym(n.Sym) {
+ 			Yyerror("cannot refer to blank field or method")
+ 			n.Type = nil
+ 			return
+@@ -892,13 +892,13 @@ OpSwitch:
+ 
+ 			case lookdot(n, t, 1) != nil:
+ 				// Field or method matches by name, but it is not exported.
+-				Yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Right.Sym)
++				Yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Sym)
+ 
+ 			default:
+ 				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
+-					Yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Right.Sym, mt.Sym)
++					Yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Sym, mt.Sym)
+ 				} else {
+-					Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Right.Sym)
++					Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Sym)
+ 				}
+ 			}
+ 			n.Type = nil
+@@ -910,7 +910,7 @@ OpSwitch:
+ 			if top&Ecall != 0 {
+ 				ok |= Ecall
+ 			} else {
+-				typecheckpartialcall(n, r)
++				typecheckpartialcall(n, s)
+ 				ok |= Erv
+ 			}
+ 
+@@ -2392,7 +2392,7 @@ func lookdot1(errnode *Node, s *Sym, t *Type, fs *Fields, dostrcmp int) *Field {
+ }
+ 
+ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+-	s := n.Right.Sym
++	s := n.Sym
+ 
+ 	if t.Etype == TINTER {
+ 		f1 := lookdot1(n, s, t, t.Fields(), dostrcmp)
+@@ -2400,7 +2400,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 			return false
+ 		}
+ 
+-		n.Right = methodname(n.Right, t)
++		n.Sym = methodsym(n.Sym, t, 0)
+ 		n.Xoffset = f1.Width
+ 		n.Type = f1.Type
+ 		n.Op = ODOTINTER
+@@ -2426,7 +2426,7 @@ func looktypedot(n *Node, t *Type, dostrcmp int) bool {
+ 		return false
+ 	}
+ 
+-	n.Right = methodname(n.Right, t)
++	n.Sym = methodsym(n.Sym, t, 0)
+ 	n.Xoffset = f2.Width
+ 	n.Type = f2.Type
+ 	n.Op = ODOTMETH
+@@ -2450,7 +2450,7 @@ type typeSym struct {
+ var dotField = map[typeSym]*Field{}
+ 
+ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+-	s := n.Right.Sym
++	s := n.Sym
+ 
+ 	dowidth(t)
+ 	var f1 *Field
+@@ -2474,7 +2474,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			return f1
+ 		}
+ 		if f2 != nil {
+-			Yyerror("%v is both field and method", n.Right.Sym)
++			Yyerror("%v is both field and method", n.Sym)
+ 		}
+ 		if f1.Width == BADWIDTH {
+ 			Fatalf("lookdot badwidth %v %p", f1, f1)
+@@ -2516,7 +2516,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 				n.Left.Implicit = true
+ 				typecheck(&n.Left, Etype|Erv)
+ 			} else if tt.Etype == Tptr && tt.Type.Etype == Tptr && Eqtype(derefall(tt), derefall(rcvr)) {
+-				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Right, Nconv(n.Left, FmtLong))
++				Yyerror("calling method %v with receiver %v requires explicit dereference", n.Sym, Nconv(n.Left, FmtLong))
+ 				for tt.Etype == Tptr {
+ 					// Stop one level early for method with pointer receiver.
+ 					if rcvr.Etype == Tptr && tt.Type.Etype != Tptr {
+@@ -2545,7 +2545,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Field {
+ 			return nil
+ 		}
+ 
+-		n.Right = methodname(n.Right, n.Left.Type)
++		n.Sym = methodsym(n.Sym, n.Left.Type, 0)
+ 		n.Xoffset = f2.Width
+ 		n.Type = f2.Type
+ 
+@@ -3232,7 +3232,7 @@ func samesafeexpr(l *Node, r *Node) bool {
+ 		return l == r
+ 
+ 	case ODOT, ODOTPTR:
+-		return l.Right != nil && r.Right != nil && l.Right.Sym == r.Right.Sym && samesafeexpr(l.Left, r.Left)
++		return l.Sym != nil && r.Sym != nil && l.Sym == r.Sym && samesafeexpr(l.Left, r.Left)
+ 
+ 	case OIND:
+ 		return samesafeexpr(l.Left, r.Left)
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index e0e05c7a73..587914bcd1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -2480,12 +2480,17 @@ func varexpr(n *Node) bool {
+ 		OPAREN,
+ 		OANDAND,
+ 		OOROR,
+-		ODOT, // but not ODOTPTR
+ 		OCONV,
+ 		OCONVNOP,
+ 		OCONVIFACE,
+ 		ODOTTYPE:
+ 		return varexpr(n.Left) && varexpr(n.Right)
++
++	case ODOT: // but not ODOTPTR
++		// The original code always returned false for ODOT,
++		// because n.Right would be an ONAME with n.Class not set.
++		// TODO(iant): Fix this to remove "&& false".
++		return varexpr(n.Left) && false
+ 	}
+ 
+ 	// Be conservative.
+@@ -3234,8 +3239,8 @@ func walkcompare(np **Node, init *Nodes) {
+ 			if isblanksym(t1.Sym) {
+ 				continue
+ 			}
+-			li = Nod(OXDOT, l, newname(t1.Sym))
+-			ri = Nod(OXDOT, r, newname(t1.Sym))
++			li = NodSym(OXDOT, l, t1.Sym)
++			ri = NodSym(OXDOT, r, t1.Sym)
+ 			a = Nod(n.Op, li, ri)
+ 			if expr == nil {
+ 				expr = a
+@@ -3295,9 +3300,7 @@ func samecheap(a *Node, b *Node) bool {
+ 			return a == b
+ 
+ 		case ODOT, ODOTPTR:
+-			ar = a.Right
+-			br = b.Right
+-			if ar.Op != ONAME || br.Op != ONAME || ar.Sym != br.Sym {
++			if a.Sym != b.Sym {
+ 				return false
+ 			}
+ 
+@@ -3815,7 +3818,7 @@ func usefield(n *Node) {
+ 	case ODOT, ODOTPTR:
+ 		break
+ 	}
+-	if n.Right == nil {
++	if n.Sym == nil {
+ 		// No field name.  This DOTPTR was built by the compiler for access
+ 		// to runtime data structures.  Ignore.
+ 		return
+@@ -3825,9 +3828,9 @@ func usefield(n *Node) {
+ 	if Isptr[t.Etype] {
+ 		t = t.Type
+ 	}
+-	field := dotField[typeSym{t.Orig, n.Right.Sym}]
++	field := dotField[typeSym{t.Orig, n.Sym}]
+ 	if field == nil {
+-		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
++		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Sym)
+ 	}
+ 	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
+ 		return
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 2ed29e5a22..82281825a6 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -639,7 +639,7 @@ func ginscmp(op gc.Op, t *gc.Type, n1, n2 *gc.Node, likely int) *obj.Prog {
+ 	// A special case to make write barriers more efficient.
+ 	// Comparing the first field of a named struct can be done directly.
+ 	base := n1
+-	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Right.Sym {
++	if n1.Op == gc.ODOT && n1.Left.Type.Etype == gc.TSTRUCT && n1.Left.Type.Field(0).Sym == n1.Sym {
+ 		base = n1.Left
+ 	}
+ 

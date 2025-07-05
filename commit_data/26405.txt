@@ -13,6 +13,28 @@ Date:   Tue Jan 19 16:27:14 2016 +1300
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/race/testdata/issue12225_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/race/testdata/issue12225_test.go b/src/runtime/race/testdata/issue12225_test.go
+index 3b0b8ec289..0494493b2e 100644
+--- a/src/runtime/race/testdata/issue12225_test.go
++++ b/src/runtime/race/testdata/issue12225_test.go
+@@ -4,9 +4,16 @@
+ 
+ package race_test
+ 
++import "unsafe"
++
+ // golang.org/issue/12225
+ // The test is that this compiles at all.
+ 
++//go:noinline
++func convert(s string) []byte {
++	return []byte(s)
++}
++
+ func issue12225() {
+ 	println(*(*int)(unsafe.Pointer(&convert("")[0])))
+ 	println(*(*int)(unsafe.Pointer(&[]byte("")[0])))

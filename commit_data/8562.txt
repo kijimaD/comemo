@@ -7,6 +7,29 @@ Date:   Tue May 31 16:15:23 2011 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/4559059
-
+---
  src/pkg/net/server_test.go | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/server_test.go b/src/pkg/net/server_test.go
+index 107de3e1cc..36780d789d 100644
+--- a/src/pkg/net/server_test.go
++++ b/src/pkg/net/server_test.go
+@@ -92,10 +92,13 @@ func connect(t *testing.T, network, addr string, isEmpty bool) {
+ }
+ 
+ func doTest(t *testing.T, network, listenaddr, dialaddr string) {
+-	if listenaddr == "" {
+-		t.Logf("Test %s %s %s\n", network, "<nil>", dialaddr)
+-	} else {
+-		t.Logf("Test %s %s %s\n", network, listenaddr, dialaddr)
++	t.Logf("Test %q %q %q\n", network, listenaddr, dialaddr)
++	switch listenaddr {
++	case "", "0.0.0.0", "[::]", "[::ffff:0.0.0.0]":
++		if testing.Short() || avoidMacFirewall {
++			t.Logf("skip wildcard listen during short test")
++			return
++		}
+ 	}
+ 	listening := make(chan string)
+ 	done := make(chan int)

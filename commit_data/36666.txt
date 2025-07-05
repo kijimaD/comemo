@@ -19,7 +19,34 @@ Date:   Wed May 16 11:43:02 2018 +0200
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/cgo/gcc_freebsd_sigaction.c | 2 +-
  src/runtime/cgo/gcc_sigaction.c         | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_freebsd_sigaction.c b/src/runtime/cgo/gcc_freebsd_sigaction.c
+index d1bf3c0b52..98b122d75e 100644
+--- a/src/runtime/cgo/gcc_freebsd_sigaction.c
++++ b/src/runtime/cgo/gcc_freebsd_sigaction.c
+@@ -29,7 +29,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
+ 	int32_t ret;
+ 	struct sigaction act;
+ 	struct sigaction oldact;
+-	int i;
++	size_t i;
+ 
+ 	_cgo_tsan_acquire();
+ 
+diff --git a/src/runtime/cgo/gcc_sigaction.c b/src/runtime/cgo/gcc_sigaction.c
+index 05dee2affe..e510e359fe 100644
+--- a/src/runtime/cgo/gcc_sigaction.c
++++ b/src/runtime/cgo/gcc_sigaction.c
+@@ -33,7 +33,7 @@ x_cgo_sigaction(intptr_t signum, const go_sigaction_t *goact, go_sigaction_t *ol
+ 	int32_t ret;
+ 	struct sigaction act;
+ 	struct sigaction oldact;
+-	int i;
++	size_t i;
+ 
+ 	_cgo_tsan_acquire();
+ 

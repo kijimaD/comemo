@@ -11,8 +11,195 @@ Date:   Mon Apr 30 19:55:41 2018 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_darwin.go      |  5 +++
  src/runtime/sys_darwin_386.s   | 72 ++++++++++++++++++++++++++++++------------
  src/runtime/sys_darwin_amd64.s | 48 ++++++++++++++++------------
  3 files changed, 85 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index e278920767..6af52cbab3 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -86,6 +86,11 @@ func pthread_self_trampoline() pthread
+ //go:cgo_import_dynamic libc_pthread_kill pthread_kill "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_pthread_self pthread_self "/usr/lib/libSystem.B.dylib"
+ 
++//go:cgo_import_dynamic libc_open open "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_close close "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_read read "/usr/lib/libSystem.B.dylib"
++//go:cgo_import_dynamic libc_write write "/usr/lib/libSystem.B.dylib"
++
+ //go:cgo_import_dynamic libc_mmap mmap "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_munmap munmap "/usr/lib/libSystem.B.dylib"
+ //go:cgo_import_dynamic libc_madvise madvise "/usr/lib/libSystem.B.dylib"
+diff --git a/src/runtime/sys_darwin_386.s b/src/runtime/sys_darwin_386.s
+index 8dc4efc631..ea6116eb0a 100644
+--- a/src/runtime/sys_darwin_386.s
++++ b/src/runtime/sys_darwin_386.s
+@@ -29,35 +29,67 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-4
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),NOSPLIT,$0
+-	MOVL	$5, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$-1, AX
++TEXT runtime·open(SB),NOSPLIT,$0-16
++	MOVL	name+0(FP), AX		// arg 1 name
++	MOVL	mode+4(FP), CX		// arg 2 mode
++	MOVL	perm+8(FP), DX		// arg 3 perm
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$12, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	CALL	libc_open(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·closefd(SB),NOSPLIT,$0
+-	MOVL	$6, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$-1, AX
++TEXT runtime·closefd(SB),NOSPLIT,$0-8
++	MOVL	fd+0(FP), AX		// arg 1 fd
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$4, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	CALL	libc_close(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$0
+-	MOVL	$3, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$-1, AX
++TEXT runtime·read(SB),NOSPLIT,$0-16
++	MOVL	fd+0(FP), AX		// arg 1 fd
++	MOVL	p+4(FP), CX		// arg 2 buf
++	MOVL	n+8(FP), DX		// arg 3 count
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$12, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	CALL	libc_read(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$0
+-	MOVL	$4, AX
+-	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$-1, AX
++TEXT runtime·write(SB),NOSPLIT,$0-16
++	MOVL	fd+0(FP), AX		// arg 1 fd
++	MOVL	p+4(FP), CX		// arg 2 buf
++	MOVL	n+8(FP), DX		// arg 3 count
++	PUSHL	BP
++	MOVL	SP, BP
++	SUBL	$12, SP
++	ANDL	$~15, SP
++	MOVL	AX, 0(SP)
++	MOVL	CX, 4(SP)
++	MOVL	DX, 8(SP)
++	CALL	libc_write(SB)
++	MOVL	BP, SP
++	POPL	BP
+ 	MOVL	AX, ret+12(FP)
+ 	RET
+ 
+diff --git a/src/runtime/sys_darwin_amd64.s b/src/runtime/sys_darwin_amd64.s
+index 1fbc5c52d6..bf5a34a15e 100644
+--- a/src/runtime/sys_darwin_amd64.s
++++ b/src/runtime/sys_darwin_amd64.s
+@@ -32,45 +32,53 @@ TEXT runtime·exitThread(SB),NOSPLIT,$0-8
+ 	MOVL	$0xf1, 0xf1  // crash
+ 	RET
+ 
+-TEXT runtime·open(SB),NOSPLIT,$0
++TEXT runtime·open(SB),NOSPLIT,$0-20
+ 	MOVQ	name+0(FP), DI		// arg 1 pathname
+ 	MOVL	mode+8(FP), SI		// arg 2 flags
+ 	MOVL	perm+12(FP), DX		// arg 3 mode
+-	MOVL	$(0x2000000+5), AX	// syscall entry
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP // align stack
++	CALL	libc_open(SB)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·closefd(SB),NOSPLIT,$0
++TEXT runtime·closefd(SB),NOSPLIT,$0-12
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+-	MOVL	$(0x2000000+6), AX	// syscall entry
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP // align stack
++	CALL	libc_close(SB)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT runtime·read(SB),NOSPLIT,$0
++TEXT runtime·read(SB),NOSPLIT,$0-28
+ 	MOVL	fd+0(FP), DI		// arg 1 fd
+ 	MOVQ	p+8(FP), SI		// arg 2 buf
+ 	MOVL	n+16(FP), DX		// arg 3 count
+-	MOVL	$(0x2000000+3), AX	// syscall entry
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP // align stack
++	CALL	libc_read(SB)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 
+-TEXT runtime·write(SB),NOSPLIT,$0
++TEXT runtime·write(SB),NOSPLIT,$0-28
+ 	MOVQ	fd+0(FP), DI		// arg 1 fd
+ 	MOVQ	p+8(FP), SI		// arg 2 buf
+ 	MOVL	n+16(FP), DX		// arg 3 count
+-	MOVL	$(0x2000000+4), AX	// syscall entry
+-	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$-1, AX
++	PUSHQ	BP
++	MOVQ	SP, BP
++	ANDQ	$~15, SP // align stack
++	CALL	libc_write(SB)
++	MOVQ	BP, SP
++	POPQ	BP
+ 	MOVL	AX, ret+24(FP)
+ 	RET
+ 

@@ -19,7 +19,113 @@ Date:   Wed May 18 17:43:15 2016 -0700
     Change-Id: I7b11ebb2e1e082f0d604b88e544fe5ba967af1d7
     Reviewed-on: https://go-review.googlesource.com/23259
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/subr.go | 51 +++++++++++++++++++++----------------
  test/fixedbugs/issue14136.go        | 19 ++++++++++++++
  2 files changed, 48 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 3ce8bd16d2..6cfc610650 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -87,46 +87,53 @@ func linestr(line int32) string {
+ 	return Ctxt.Line(int(line))
+ }
+ 
+-func yyerrorl(line int32, format string, args ...interface{}) {
+-	adderr(line, format, args...)
+-
+-	hcrash()
+-	nerrors++
+-	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
+-		Flusherrors()
+-		fmt.Printf("%v: too many errors\n", linestr(line))
+-		errorexit()
+-	}
++// lasterror keeps track of the most recently issued error.
++// It is used to avoid multiple error messages on the same
++// line.
++var lasterror struct {
++	syntax int32  // line of last syntax error
++	other  int32  // line of last non-syntax error
++	msg    string // error message of last non-syntax error
+ }
+ 
+-var yyerror_lastsyntax int32
+-
+-func Yyerror(format string, args ...interface{}) {
++func yyerrorl(line int32, format string, args ...interface{}) {
+ 	msg := fmt.Sprintf(format, args...)
++
+ 	if strings.HasPrefix(msg, "syntax error") {
+ 		nsyntaxerrors++
+-
+-		// only one syntax error per line
+-		if yyerror_lastsyntax == lineno {
++		// only one syntax error per line, no matter what error
++		if lasterror.syntax == line {
+ 			return
+ 		}
+-		yyerror_lastsyntax = lineno
+-
+-		yyerrorl(lineno, "%s", msg)
+-		return
++		lasterror.syntax = line
++	} else {
++		// only one of multiple equal non-syntax errors per line
++		// (Flusherrors shows only one of them, so we filter them
++		// here as best as we can (they may not appear in order)
++		// so that we don't count them here and exit early, and
++		// then have nothing to show for.)
++		if lasterror.other == line && lasterror.msg == msg {
++			return
++		}
++		lasterror.other = line
++		lasterror.msg = msg
+ 	}
+ 
+-	adderr(lineno, "%s", msg)
++	adderr(line, "%s", msg)
+ 
+ 	hcrash()
+ 	nerrors++
+ 	if nsavederrors+nerrors >= 10 && Debug['e'] == 0 {
+ 		Flusherrors()
+-		fmt.Printf("%v: too many errors\n", linestr(lineno))
++		fmt.Printf("%v: too many errors\n", linestr(line))
+ 		errorexit()
+ 	}
+ }
+ 
++func Yyerror(format string, args ...interface{}) {
++	yyerrorl(lineno, format, args...)
++}
++
+ func Warn(fmt_ string, args ...interface{}) {
+ 	adderr(lineno, fmt_, args...)
+ 
+diff --git a/test/fixedbugs/issue14136.go b/test/fixedbugs/issue14136.go
+new file mode 100644
+index 0000000000..928a60bf6b
+--- /dev/null
++++ b/test/fixedbugs/issue14136.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that > 10 non-syntax errors on the same line
++// don't lead to early exit. Specifically, here test
++// that we see the initialization error for variable
++// s.
++
++package main
++
++type T struct{}
++
++func main() {
++	t := T{X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1, X: 1} // ERROR "unknown T field"
++	var s string = 1 // ERROR "cannot use 1"
++}

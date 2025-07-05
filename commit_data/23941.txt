@@ -11,7 +11,7 @@ Date:   Mon Jun 22 12:32:05 2015 -0400
     Change-Id: I670728cea28c045e6eaba1808c550ee2f34d16ff
     Reviewed-on: https://go-review.googlesource.com/11341
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/os1_linux.go       | 5 +++++
  src/runtime/sys_linux_386.s    | 6 ++++++
  src/runtime/sys_linux_amd64.s  | 6 ++++++
@@ -19,3 +19,111 @@ Date:   Mon Jun 22 12:32:05 2015 -0400
  src/runtime/sys_linux_arm64.s  | 6 ++++++
  src/runtime/sys_linux_ppc64x.s | 5 +++++
  6 files changed, 34 insertions(+)
+
+diff --git a/src/runtime/os1_linux.go b/src/runtime/os1_linux.go
+index 8aa0804860..e6942a9f79 100644
+--- a/src/runtime/os1_linux.go
++++ b/src/runtime/os1_linux.go
+@@ -197,6 +197,8 @@ func msigsave(mp *m) {
+ 	rtsigprocmask(_SIG_SETMASK, nil, smask, int32(unsafe.Sizeof(*smask)))
+ }
+ 
++func gettid() uint32
++
+ // Called to initialize a new m (including the bootstrap m).
+ // Called on the new thread, can not allocate memory.
+ func minit() {
+@@ -204,6 +206,9 @@ func minit() {
+ 	_g_ := getg()
+ 	signalstack(&_g_.m.gsignal.stack)
+ 
++	// for debuggers, in case cgo created the thread
++	_g_.m.procid = uint64(gettid())
++
+ 	// restore signal mask from m.sigmask and unblock essential signals
+ 	nmask := *(*sigset)(unsafe.Pointer(&_g_.m.sigmask))
+ 	for i := range sigtable {
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index f5cfb644c9..98a1a0ef6d 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -96,6 +96,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$8
+ 	CALL	*runtime·_vdso(SB)
+ 	RET
+ 
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	MOVL	$224, AX	// syscall - gettid
++	CALL	*runtime·_vdso(SB)
++	MOVL	AX, ret+0(FP)
++	RET
++
+ TEXT runtime·raise(SB),NOSPLIT,$12
+ 	MOVL	$224, AX	// syscall - gettid
+ 	CALL	*runtime·_vdso(SB)
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index f36ac8493b..8644a0b5fd 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -94,6 +94,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$16
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	MOVL	$186, AX	// syscall - gettid
++	SYSCALL
++	MOVL	AX, ret+0(FP)
++	RET
++
+ TEXT runtime·raise(SB),NOSPLIT,$0
+ 	MOVL	$186, AX	// syscall - gettid
+ 	SYSCALL
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index b68b81af3e..abdeb93e59 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -121,6 +121,12 @@ TEXT runtime·exit1(SB),NOSPLIT,$-4
+ 	MOVW	$1003, R1
+ 	MOVW	R0, (R1)	// fail hard
+ 
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	MOVW	$SYS_gettid, R7
++	SWI	$0
++	MOVW	R0, ret+0(FP)
++	RET
++
+ TEXT	runtime·raise(SB),NOSPLIT,$-4
+ 	MOVW	$SYS_gettid, R7
+ 	SWI	$0
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 0aca3a2010..6e5cdcdf33 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -136,6 +136,12 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	SVC
+ 	RET
+ 
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	MOVD	$SYS_gettid, R8
++	SVC
++	MOVW	R0, ret+0(FP)
++	RET
++
+ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	MOVD	$SYS_gettid, R8
+ 	SVC
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index 8cf1549964..01575f8042 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -121,6 +121,11 @@ TEXT runtime·usleep(SB),NOSPLIT,$16-4
+ 	SYSCALL	$SYS_newselect
+ 	RET
+ 
++TEXT runtime·gettid(SB),NOSPLIT,$0-4
++	SYSCALL	$SYS_gettid
++	MOVW	R3, ret+0(FP)
++	RET
++
+ TEXT runtime·raise(SB),NOSPLIT,$-8
+ 	SYSCALL	$SYS_gettid
+ 	MOVW	R3, R3	// arg 1 tid

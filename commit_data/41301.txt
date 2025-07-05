@@ -16,7 +16,7 @@ Date:   Tue Jul 30 17:48:11 2019 -0400
     Change-Id: If8f7ae4b43b7247076605b6429b7d03a1fd239c5
     Reviewed-on: https://go-review.googlesource.com/c/go/+/188238
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/internal/dwarf/dwarf.go             |  3 +++
  src/cmd/internal/obj/link.go                | 11 ++++++-----
  src/cmd/internal/obj/objfile.go             |  8 ++++----
@@ -25,3 +25,142 @@ Date:   Tue Jul 30 17:48:11 2019 -0400
  src/cmd/link/internal/sym/symkind.go        |  2 ++
  src/cmd/link/internal/sym/symkind_string.go |  9 +++++----
  7 files changed, 22 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 1f5786f1ad..3feb81a5b4 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -30,6 +30,9 @@ const RangePrefix = "go.range."
+ // IsStmtPrefix is the prefix for all the symbols containing DWARF is_stmt info for the line number table.
+ const IsStmtPrefix = "go.isstmt."
+ 
++// DebugLinesPrefix is the prefix for all the symbols containing DWARF debug_line information from the compiler.
++const DebugLinesPrefix = "go.debuglines."
++
+ // ConstInfoPrefix is the prefix for all symbols containing DWARF info
+ // entries that contain constants.
+ const ConstInfoPrefix = "go.constinfo."
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 17f1181c5e..4beb236bf2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -402,11 +402,12 @@ type FuncInfo struct {
+ 	Pcln     Pcln
+ 	InlMarks []InlMark
+ 
+-	dwarfInfoSym   *LSym
+-	dwarfLocSym    *LSym
+-	dwarfRangesSym *LSym
+-	dwarfAbsFnSym  *LSym
+-	dwarfIsStmtSym *LSym
++	dwarfInfoSym       *LSym
++	dwarfLocSym        *LSym
++	dwarfRangesSym     *LSym
++	dwarfAbsFnSym      *LSym
++	dwarfIsStmtSym     *LSym
++	dwarfDebugLinesSym *LSym
+ 
+ 	GCArgs       *LSym
+ 	GCLocals     *LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index a3281a99e4..65803ae29a 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -537,7 +537,7 @@ func isDwarf64(ctxt *Link) bool {
+ 	return ctxt.Headtype == objabi.Haix
+ }
+ 
+-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym *LSym) {
++func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym, dwarfIsStmtSym, dwarfDebugLines *LSym) {
+ 	if s.Type != objabi.STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+@@ -551,9 +551,9 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym,
+ 			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
+ 		}
+ 		s.Func.dwarfIsStmtSym = ctxt.LookupDerived(s, dwarf.IsStmtPrefix+s.Name)
+-
++		s.Func.dwarfDebugLinesSym = ctxt.LookupDerived(s, dwarf.DebugLinesPrefix+s.Name)
+ 	}
+-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfIsStmtSym
++	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym, s.Func.dwarfIsStmtSym, s.Func.dwarfDebugLinesSym
+ }
+ 
+ func (s *LSym) Len() int64 {
+@@ -577,7 +577,7 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+ // TEXT symbol 's'. The various DWARF symbols must already have been
+ // initialized in InitTextSym.
+ func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
+-	info, loc, ranges, absfunc, _ := ctxt.dwarfSym(s)
++	info, loc, ranges, absfunc, _, _ := ctxt.dwarfSym(s)
+ 	if info.Size != 0 {
+ 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+ 	}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 303fa469e4..ad08d15c1b 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -137,7 +137,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	info, loc, ranges, _, isstmt := ctxt.dwarfSym(s)
++	info, loc, ranges, _, isstmt, _ := ctxt.dwarfSym(s)
+ 	info.Type = objabi.SDWARFINFO
+ 	info.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	if loc != nil {
+diff --git a/src/cmd/internal/objabi/symkind.go b/src/cmd/internal/objabi/symkind.go
+index 16b4c535ed..0e763e4496 100644
+--- a/src/cmd/internal/objabi/symkind.go
++++ b/src/cmd/internal/objabi/symkind.go
+@@ -60,6 +60,7 @@ const (
+ 	SDWARFRANGE
+ 	SDWARFLOC
+ 	SDWARFMISC
++	SDWARFLINES
+ 	// ABI alias. An ABI alias symbol is an empty symbol with a
+ 	// single relocation with 0 size that references the native
+ 	// function implementation symbol.
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index dbc2750732..a3efced648 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -110,6 +110,7 @@ const (
+ 	SDWARFINFO
+ 	SDWARFRANGE
+ 	SDWARFLOC
++	SDWARFLINES
+ 	SDWARFMISC // Not really a section; informs/affects other DWARF section generation
+ 
+ 	// ABI aliases (these never appear in the output)
+@@ -130,6 +131,7 @@ var AbiSymKindToSymKind = [...]SymKind{
+ 	SDWARFINFO,
+ 	SDWARFRANGE,
+ 	SDWARFLOC,
++	SDWARFLINES,
+ 	SDWARFMISC,
+ 	SABIALIAS,
+ }
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 0e854c334e..9349ff6af5 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -58,13 +58,14 @@ func _() {
+ 	_ = x[SDWARFINFO-47]
+ 	_ = x[SDWARFRANGE-48]
+ 	_ = x[SDWARFLOC-49]
+-	_ = x[SDWARFMISC-50]
+-	_ = x[SABIALIAS-51]
++	_ = x[SDWARFLINES-50]
++	_ = x[SDWARFMISC-51]
++	_ = x[SABIALIAS-52]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFMISCSABIALIAS"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSMACHOPLTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSCONSTSDYNIMPORTSHOSTOBJSDWARFSECTSDWARFINFOSDWARFRANGESDWARFLOCSDWARFLINESSDWARFMISCSABIALIAS"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 320, 325, 337, 349, 366, 383, 392, 398, 408, 416, 426, 436, 447, 456, 466, 475}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 24, 31, 40, 47, 54, 61, 69, 79, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 320, 325, 337, 349, 366, 383, 392, 398, 408, 416, 426, 436, 447, 456, 467, 477, 486}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

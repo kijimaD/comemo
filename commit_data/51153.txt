@@ -16,6 +16,20 @@ Date:   Wed Dec 8 15:29:12 2021 -0500
     Trust: Heschi Kreinick <heschi@google.com>
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/api/goapi.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 0c61b1b489..a55e51cc9b 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -460,7 +460,7 @@ type listImports struct {
+ var listCache sync.Map // map[string]listImports, keyed by contextName
+ 
+ // listSem is a semaphore restricting concurrent invocations of 'go list'.
+-var listSem = make(chan semToken, runtime.GOMAXPROCS(0))
++var listSem = make(chan semToken, ((runtime.GOMAXPROCS(0)-1)/2)+1)
+ 
+ type semToken struct{}
+ 

@@ -19,8 +19,134 @@ Date:   Wed Dec 15 13:04:54 2021 -0800
     Reviewed-by: Dan Scales <danscales@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssagen/ssa.go | 57 +++++++++++++++++++---------------
  test/typeparam/issue50193.go           | 32 +++++++++++++++++++
  test/typeparam/issue50193.out          |  6 ++++
  3 files changed, 70 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 265ef1aab3..0b54925696 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -2446,6 +2446,38 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
+ 		return s.newValue1(op, tt, v)
+ 	}
+ 
++	if ft.IsComplex() && tt.IsComplex() {
++		var op ssa.Op
++		if ft.Size() == tt.Size() {
++			switch ft.Size() {
++			case 8:
++				op = ssa.OpRound32F
++			case 16:
++				op = ssa.OpRound64F
++			default:
++				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
++			}
++		} else if ft.Size() == 8 && tt.Size() == 16 {
++			op = ssa.OpCvt32Fto64F
++		} else if ft.Size() == 16 && tt.Size() == 8 {
++			op = ssa.OpCvt64Fto32F
++		} else {
++			s.Fatalf("weird complex conversion %v -> %v", ft, tt)
++		}
++		ftp := types.FloatForComplex(ft)
++		ttp := types.FloatForComplex(tt)
++		return s.newValue2(ssa.OpComplexMake, tt,
++			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, v)),
++			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, v)))
++	}
++
++	if tt.IsComplex() { // and ft is not complex
++		// Needed for generics support - can't happen in normal Go code.
++		et := types.FloatForComplex(tt)
++		v = s.conv(n, v, ft, et)
++		return s.newValue2(ssa.OpComplexMake, tt, v, s.zeroVal(et))
++	}
++
+ 	if ft.IsFloat() || tt.IsFloat() {
+ 		conv, ok := fpConvOpToSSA[twoTypes{s.concreteEtype(ft), s.concreteEtype(tt)}]
+ 		if s.config.RegSize == 4 && Arch.LinkArch.Family != sys.MIPS && !s.softFloat {
+@@ -2519,31 +2551,6 @@ func (s *state) conv(n ir.Node, v *ssa.Value, ft, tt *types.Type) *ssa.Value {
+ 		return nil
+ 	}
+ 
+-	if ft.IsComplex() && tt.IsComplex() {
+-		var op ssa.Op
+-		if ft.Size() == tt.Size() {
+-			switch ft.Size() {
+-			case 8:
+-				op = ssa.OpRound32F
+-			case 16:
+-				op = ssa.OpRound64F
+-			default:
+-				s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+-			}
+-		} else if ft.Size() == 8 && tt.Size() == 16 {
+-			op = ssa.OpCvt32Fto64F
+-		} else if ft.Size() == 16 && tt.Size() == 8 {
+-			op = ssa.OpCvt64Fto32F
+-		} else {
+-			s.Fatalf("weird complex conversion %v -> %v", ft, tt)
+-		}
+-		ftp := types.FloatForComplex(ft)
+-		ttp := types.FloatForComplex(tt)
+-		return s.newValue2(ssa.OpComplexMake, tt,
+-			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexReal, ftp, v)),
+-			s.newValueOrSfCall1(op, ttp, s.newValue1(ssa.OpComplexImag, ftp, v)))
+-	}
+-
+ 	s.Fatalf("unhandled OCONV %s -> %s", ft.Kind(), tt.Kind())
+ 	return nil
+ }
+diff --git a/test/typeparam/issue50193.go b/test/typeparam/issue50193.go
+new file mode 100644
+index 0000000000..8dc488244e
+--- /dev/null
++++ b/test/typeparam/issue50193.go
+@@ -0,0 +1,32 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"constraints"
++	"fmt"
++)
++
++func zero[T constraints.Complex]() T {
++	return T(0)
++}
++func pi[T constraints.Complex]() T {
++	return T(3.14)
++}
++func sqrtN1[T constraints.Complex]() T {
++	return T(-1i)
++}
++
++func main() {
++	fmt.Println(zero[complex128]())
++	fmt.Println(pi[complex128]())
++	fmt.Println(sqrtN1[complex128]())
++	fmt.Println(zero[complex64]())
++	fmt.Println(pi[complex64]())
++	fmt.Println(sqrtN1[complex64]())
++}
++
+diff --git a/test/typeparam/issue50193.out b/test/typeparam/issue50193.out
+new file mode 100644
+index 0000000000..68186222c7
+--- /dev/null
++++ b/test/typeparam/issue50193.out
+@@ -0,0 +1,6 @@
++(0+0i)
++(3.14+0i)
++(0-1i)
++(0+0i)
++(3.14+0i)
++(0-1i)

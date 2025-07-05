@@ -20,7 +20,60 @@ Date:   Wed Jun 13 10:04:49 2018 -0600
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      | 16 ++++++++++------
  src/math/big/int_test.go |  2 +-
  2 files changed, 11 insertions(+), 7 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index d46b5d8a86..47a288ab44 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -442,24 +442,28 @@ func (x *Int) BitLen() int {
+ }
+ 
+ // Exp sets z = x**y mod |m| (i.e. the sign of m is ignored), and returns z.
+-// If y <= 0, the result is 1 mod |m|; if m == nil or m == 0, z = x**y.
++// If m == nil or m == 0, z = x**y unless y <= 0 then z = 1.
+ //
+ // Modular exponentation of inputs of a particular size is not a
+ // cryptographically constant-time operation.
+ func (z *Int) Exp(x, y, m *Int) *Int {
+ 	// See Knuth, volume 2, section 4.6.3.
+-	var yWords nat
+-	if !y.neg {
+-		yWords = y.abs
++	xWords := x.abs
++	if y.neg {
++		if m == nil || len(m.abs) == 0 {
++			return z.SetInt64(1)
++		}
++		// for y < 0: x**y mod m == (x**(-1))**|y| mod m
++		xWords = new(Int).ModInverse(x, m).abs
+ 	}
+-	// y >= 0
++	yWords := y.abs
+ 
+ 	var mWords nat
+ 	if m != nil {
+ 		mWords = m.abs // m.abs may be nil for m == 0
+ 	}
+ 
+-	z.abs = z.abs.expNN(x.abs, yWords, mWords)
++	z.abs = z.abs.expNN(xWords, yWords, mWords)
+ 	z.neg = len(z.abs) > 0 && x.neg && len(yWords) > 0 && yWords[0]&1 == 1 // 0 has no sign
+ 	if z.neg && len(mWords) > 0 {
+ 		// make modulus result positive
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 111e2de573..9930ed016a 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -557,7 +557,7 @@ var expTests = []struct {
+ 	{"0x8000000000000000", "3", "6719", "5447"},
+ 	{"0x8000000000000000", "1000", "6719", "1603"},
+ 	{"0x8000000000000000", "1000000", "6719", "3199"},
+-	{"0x8000000000000000", "-1000000", "6719", "1"},
++	{"0x8000000000000000", "-1000000", "6719", "3663"}, // 3663 = ModInverse(3199, 6719) Issue #25865
+ 
+ 	{"0xffffffffffffffffffffffffffffffff", "0x12345678123456781234567812345678123456789", "0x01112222333344445555666677778889", "0x36168FA1DB3AAE6C8CE647E137F97A"},
+ 

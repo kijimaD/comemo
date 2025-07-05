@@ -14,9 +14,82 @@ Date:   Thu Mar 10 15:07:08 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/20554
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Run-TryBot: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/alg.go    | 4 ++++
  src/cmd/compile/internal/gc/go.go     | 9 +++++----
  src/cmd/compile/internal/gc/parser.go | 4 ++--
  src/cmd/compile/internal/gc/subr.go   | 2 ++
  4 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 4a080247d3..5126ebd3a5 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -280,6 +280,8 @@ func genhash(sym *Sym, t *Type) {
+ 	typecheck(&fn, Etop)
+ 	typechecklist(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
++	popdcl()
++	testdclstack()
+ 
+ 	// Disable safemode while compiling this code: the code we
+ 	// generate internally can refer to unsafe.Pointer.
+@@ -472,6 +474,8 @@ func geneq(sym *Sym, t *Type) {
+ 	typecheck(&fn, Etop)
+ 	typechecklist(fn.Nbody.Slice(), Etop)
+ 	Curfn = nil
++	popdcl()
++	testdclstack()
+ 
+ 	// Disable safemode while compiling this code: the code we
+ 	// generate internally can refer to unsafe.Pointer.
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 3d221e6049..4bf7385405 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -76,12 +76,13 @@ type Sym struct {
+ 	Pkg        *Pkg
+ 	Name       string // variable name
+ 	Def        *Node  // definition: ONAME OTYPE OPACK or OLITERAL
+-	Label      *Label // corresponding label (ephemeral)
+ 	Block      int32  // blocknumber to catch redeclaration
+ 	Lastlineno int32  // last declaration for diagnostic
+-	Origpkg    *Pkg   // original package for . import
+-	Lsym       *obj.LSym
+-	Fsym       *Sym // funcsym
++
++	Label   *Label // corresponding label (ephemeral)
++	Origpkg *Pkg   // original package for . import
++	Lsym    *obj.LSym
++	Fsym    *Sym // funcsym
+ }
+ 
+ type Label struct {
+diff --git a/src/cmd/compile/internal/gc/parser.go b/src/cmd/compile/internal/gc/parser.go
+index d61597e194..fa7e70c43f 100644
+--- a/src/cmd/compile/internal/gc/parser.go
++++ b/src/cmd/compile/internal/gc/parser.go
+@@ -2142,8 +2142,8 @@ func (p *parser) structdcl() []*Node {
+ 		typ := p.ntype()
+ 		tag := p.oliteral()
+ 
+-		if l := fields; len(l) == 0 || l[0].Sym.Name == "?" {
+-			// ? symbol, during import (list1(nil) == nil)
++		if len(fields) == 0 || fields[0].Sym.Name == "?" {
++			// ? symbol, during import
+ 			n := typ
+ 			if n.Op == OIND {
+ 				n = n.Left
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 96fca9493c..2933d90555 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -2030,6 +2030,8 @@ func genwrapper(rcvr *Type, method *Type, newnam *Sym, iface int) {
+ 
+ 	funcbody(fn)
+ 	Curfn = fn
++	popdcl()
++	testdclstack()
+ 
+ 	// wrappers where T is anonymous (struct or interface) can be duplicated.
+ 	if rcvr.Etype == TSTRUCT || rcvr.Etype == TINTER || Isptr[rcvr.Etype] && rcvr.Type.Etype == TSTRUCT {

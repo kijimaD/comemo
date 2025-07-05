@@ -7,7 +7,48 @@ Date:   Fri Aug 31 18:07:32 2012 -0400
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6492067
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 77f621953a..3da4bdb94f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -178,6 +178,7 @@ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
++Patrick Higgins <patrick.allen.higgens@gmail.com>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+@@ -206,6 +207,7 @@ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE'  Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Shawn Smith <shawnpsmith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index db288efe78..f4eb7860c6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -256,6 +256,7 @@ Paolo Giarrusso <p.giarrusso@gmail.com>
+ Pascal S. de Kloe <pascal@quies.net>
+ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
++Patrick Higgins <patrick.allen.higgens@gmail.com>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Paul Borman <borman@google.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+@@ -297,6 +298,7 @@ Sébastien Paolacci <sebastien.paolacci@gmail.com>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>
+ Sergio Luis O. B. Correia <sergio@larces.uece.br>
++Shawn Smith <shawnpsmith@gmail.com>
+ Shenghou Ma <minux.ma@gmail.com>
+ Spring Mc <heresy.mc@gmail.com>
+ Stefan Nilsson <snilsson@nada.kth.se> <trolleriprofessorn@gmail.com>

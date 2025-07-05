@@ -13,6 +13,21 @@ Date:   Mon Aug 23 19:13:35 2021 +0930
     Trust: Alexander Rakoczy <alex@golang.org>
     Run-TryBot: Alexander Rakoczy <alex@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/embed/embed.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/embed/embed.go b/src/embed/embed.go
+index 851cc216fc..5dcd7f227d 100644
+--- a/src/embed/embed.go
++++ b/src/embed/embed.go
+@@ -83,8 +83,7 @@
+ //
+ // The //go:embed directive can be used with both exported and unexported variables,
+ // depending on whether the package wants to make the data available to other packages.
+-// It can only be used with global variables at package scope,
+-// not with local variables.
++// It can only be used with variables at package scope, not with local variables.
+ //
+ // Patterns must not match files outside the package's module, such as ‘.git/*’ or symbolic links.
+ // Matches for empty directories are ignored. After that, each pattern in a //go:embed line

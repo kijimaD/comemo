@@ -10,9 +10,379 @@ Date:   Mon Mar 29 18:06:53 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/791041
-
+---
  src/cmd/godoc/doc.go   | 12 +++++---
  src/cmd/godoc/godoc.go | 28 +++++++++++++-----
  src/cmd/godoc/main.go  | 77 ++++++++++++++++++++++++++++++++++++++++----------
  src/pkg/go/doc/doc.go  | 61 +++++++++++++--------------------------
  4 files changed, 111 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/godoc/doc.go b/src/cmd/godoc/doc.go
+index d3333c9558..955ed35bf2 100644
+--- a/src/cmd/godoc/doc.go
++++ b/src/cmd/godoc/doc.go
+@@ -9,10 +9,14 @@ Godoc extracts and generates documentation for Go programs.
+ It has two modes.
+ 
+ Without the -http flag, it runs in command-line mode and prints plain text
+-documentation to standard output and exits.
++documentation to standard output and exits. If the -src flag is specified,
++godoc prints the exported interface of a package in Go source form, or the
++implementation of a specific exported language entity:
+ 
+-	godoc fmt
+-	godoc fmt Printf
++	godoc fmt                # documentation for package fmt
++	godoc fmt Printf         # documentation for fmt.Printf
++	godoc -src fmt           # fmt package interface in Go source form
++	godoc -src fmt Printf    # implementation of fmt.Printf
+ 
+ In command-line mode, the -q flag enables search queries against a godoc running
+ as a webserver. If no explicit server address is specified with the -server flag,
+@@ -38,7 +42,7 @@ The flags are:
+ 		single identifier (such as ToLower) or a qualified identifier
+ 		(such as math.Sin).
+ 	-src
+-		print exported source in command-line mode
++		print (exported) source in command-line mode
+ 	-tabwidth=4
+ 		width of tabs in units of spaces
+ 	-path=""
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 8490137eef..62265cf6a8 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -1150,6 +1150,14 @@ func serveFile(c *http.Conn, r *http.Request) {
+ const fakePkgFile = "doc.go"
+ const fakePkgName = "documentation"
+ 
++type PageInfoMode uint
++
++const (
++	exportsOnly PageInfoMode = 1 << iota // only keep exported stuff
++	genDoc                               // generate documentation
++	tryMode                              // don't log errors
++)
++
+ 
+ type PageInfo struct {
+ 	Dirname string          // directory containing the package
+@@ -1176,7 +1184,7 @@ type httpHandler struct {
+ // directory, PageInfo.PDoc and PageInfo.PExp are nil. If there are no sub-
+ // directories, PageInfo.Dirs is nil.
+ //
+-func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try bool) PageInfo {
++func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, mode PageInfoMode) PageInfo {
+ 	// filter function to select the desired .go files
+ 	filter := func(d *os.Dir) bool {
+ 		// If we are looking at cmd documentation, only accept
+@@ -1186,7 +1194,7 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try
+ 
+ 	// get package ASTs
+ 	pkgs, err := parser.ParseDir(abspath, filter, parser.ParseComments)
+-	if err != nil && !try {
++	if err != nil && mode&tryMode != 0 {
+ 		// TODO: errors should be shown instead of an empty directory
+ 		log.Stderrf("parser.parseDir: %s", err)
+ 	}
+@@ -1249,11 +1257,13 @@ func (h *httpHandler) getPageInfo(abspath, relpath, pkgname string, genAST, try
+ 	var past *ast.File
+ 	var pdoc *doc.PackageDoc
+ 	if pkg != nil {
+-		ast.PackageExports(pkg)
+-		if genAST {
+-			past = ast.MergePackageFiles(pkg, false)
+-		} else {
++		if mode&exportsOnly != 0 {
++			ast.PackageExports(pkg)
++		}
++		if mode&genDoc != 0 {
+ 			pdoc = doc.NewPackageDoc(pkg, pathutil.Clean(relpath)) // no trailing '/' in importpath
++		} else {
++			past = ast.MergePackageFiles(pkg, false)
+ 		}
+ 	}
+ 
+@@ -1284,7 +1294,11 @@ func (h *httpHandler) ServeHTTP(c *http.Conn, r *http.Request) {
+ 
+ 	relpath := r.URL.Path[len(h.pattern):]
+ 	abspath := absolutePath(relpath, h.fsRoot)
+-	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), r.FormValue("m") == "src", false)
++	mode := exportsOnly
++	if r.FormValue("m") != "src" {
++		mode |= genDoc
++	}
++	info := h.getPageInfo(abspath, relpath, r.FormValue("p"), mode)
+ 
+ 	if r.FormValue("f") == "text" {
+ 		contents := applyTemplate(packageText, "packageText", info)
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index 75afcad8de..0ab1898f61 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -9,7 +9,7 @@
+ //	http://godoc/		main landing page
+ //	http://godoc/doc/	serve from $GOROOT/doc - spec, mem, tutorial, etc.
+ //	http://godoc/src/	serve files from $GOROOT/src; .go gets pretty-printed
+-//	http://godoc/cmd/	serve documentation about commands (TODO)
++//	http://godoc/cmd/	serve documentation about commands
+ //	http://godoc/pkg/	serve documentation about packages
+ //				(idea is if you say import "compress/zlib", you go to
+ //				http://godoc/pkg/compress/zlib)
+@@ -27,16 +27,19 @@ package main
+ 
+ import (
+ 	"bytes"
++	_ "expvar" // to serve /debug/vars
+ 	"flag"
+ 	"fmt"
+-	_ "expvar" // to serve /debug/vars
++	"go/ast"
+ 	"http"
+ 	_ "http/pprof" // to serve /debug/pprof/*
+ 	"io"
+ 	"log"
+ 	"os"
+ 	pathutil "path"
++	"regexp"
+ 	"runtime"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -53,8 +56,8 @@ var (
+ 	serverAddr = flag.String("server", "", "webserver address for command line searches")
+ 
+ 	// layout control
+-	html   = flag.Bool("html", false, "print HTML in command-line mode")
+-	genAST = flag.Bool("src", false, "print exported source in command-line mode")
++	html    = flag.Bool("html", false, "print HTML in command-line mode")
++	srcMode = flag.Bool("src", false, "print (exported) source in command-line mode")
+ 
+ 	// command-line searches
+ 	query = flag.Bool("q", false, "arguments are considered search queries")
+@@ -188,6 +191,34 @@ func remoteSearch(query string) (res *http.Response, err os.Error) {
+ }
+ 
+ 
++// Does s look like a regular expression?
++func isRegexp(s string) bool {
++	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
++}
++
++
++// Make a regular expression of the form
++// names[0]|names[1]|...names[len(names)-1].
++// Returns nil if the regular expression is illegal.
++func makeRx(names []string) (rx *regexp.Regexp) {
++	if len(names) > 0 {
++		s := ""
++		for i, name := range names {
++			if i > 0 {
++				s += "|"
++			}
++			if isRegexp(name) {
++				s += name
++			} else {
++				s += "^" + name + "$" // must match exactly
++			}
++		}
++		rx, _ = regexp.Compile(s) // rx is nil if there's a compilation error
++	}
++	return
++}
++
++
+ func main() {
+ 	flag.Usage = usage
+ 	flag.Parse()
+@@ -250,12 +281,6 @@ func main() {
+ 		// Start indexing goroutine.
+ 		go indexer()
+ 
+-		// The server may have been restarted; always wait 1sec to
+-		// give the forking server a chance to shut down and release
+-		// the http port.
+-		// TODO(gri): Do we still need this?
+-		time.Sleep(1e9)
+-
+ 		// Start http server.
+ 		if err := http.ListenAndServe(*httpAddr, handler); err != nil {
+ 			log.Exitf("ListenAndServe %s: %v", *httpAddr, err)
+@@ -297,21 +322,43 @@ func main() {
+ 		relpath = relativePath(path)
+ 	}
+ 
++	var mode PageInfoMode
++	if *srcMode {
++		// only filter exports if we don't have explicit command-line filter arguments
++		if flag.NArg() == 1 {
++			mode |= exportsOnly
++		}
++	} else {
++		mode = exportsOnly | genDoc
++	}
+ 	// TODO(gri): Provide a mechanism (flag?) to select a package
+ 	//            if there are multiple packages in a directory.
+-	info := pkgHandler.getPageInfo(abspath, relpath, "", *genAST, true)
++	info := pkgHandler.getPageInfo(abspath, relpath, "", mode|tryMode)
+ 
+ 	if info.PAst == nil && info.PDoc == nil && info.Dirs == nil {
+ 		// try again, this time assume it's a command
+ 		if len(path) > 0 && path[0] != '/' {
+ 			abspath = absolutePath(path, cmdHandler.fsRoot)
+ 		}
+-		info = cmdHandler.getPageInfo(abspath, relpath, "", false, false)
++		info = cmdHandler.getPageInfo(abspath, relpath, "", mode)
+ 	}
+ 
+-	if info.PDoc != nil && flag.NArg() > 1 {
+-		args := flag.Args()
+-		info.PDoc.Filter(args[1:])
++	// If we have more than one argument, use the remaining arguments for filtering
++	if flag.NArg() > 1 {
++		args := flag.Args()[1:]
++		rx := makeRx(args)
++		if rx == nil {
++			log.Exitf("illegal regular expression from %v", args)
++		}
++
++		filter := func(s string) bool { return rx.MatchString(s) }
++		switch {
++		case info.PAst != nil:
++			ast.FilterFile(info.PAst, filter)
++			info.PAst.Doc = nil // don't show package comment in this case
++		case info.PDoc != nil:
++			info.PDoc.Filter(filter)
++		}
+ 	}
+ 
+ 	if err := packageText.Execute(info, os.Stdout); err != nil {
+diff --git a/src/pkg/go/doc/doc.go b/src/pkg/go/doc/doc.go
+index d7e404f14d..44947b63ac 100644
+--- a/src/pkg/go/doc/doc.go
++++ b/src/pkg/go/doc/doc.go
+@@ -10,7 +10,6 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"regexp"
+-	"strings"
+ 	"sort"
+ )
+ 
+@@ -563,38 +562,20 @@ func (doc *docReader) newDoc(importpath string, filenames []string) *PackageDoc
+ // ----------------------------------------------------------------------------
+ // Filtering by name
+ 
+-// Does s look like a regular expression?
+-func isRegexp(s string) bool {
+-	return strings.IndexAny(s, ".(|)*+?^$[]") >= 0
+-}
+-
+-
+-func match(s string, names []string) bool {
+-	for _, t := range names {
+-		if isRegexp(t) {
+-			if matched, _ := regexp.MatchString(t, s); matched {
+-				return true
+-			}
+-		}
+-		if s == t {
+-			return true
+-		}
+-	}
+-	return false
+-}
++type Filter func(string) bool
+ 
+ 
+-func matchDecl(d *ast.GenDecl, names []string) bool {
++func matchDecl(d *ast.GenDecl, f Filter) bool {
+ 	for _, d := range d.Specs {
+ 		switch v := d.(type) {
+ 		case *ast.ValueSpec:
+ 			for _, name := range v.Names {
+-				if match(name.Name(), names) {
++				if f(name.Name()) {
+ 					return true
+ 				}
+ 			}
+ 		case *ast.TypeSpec:
+-			if match(v.Name.Name(), names) {
++			if f(v.Name.Name()) {
+ 				return true
+ 			}
+ 		}
+@@ -603,10 +584,10 @@ func matchDecl(d *ast.GenDecl, names []string) bool {
+ }
+ 
+ 
+-func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
++func filterValueDocs(a []*ValueDoc, f Filter) []*ValueDoc {
+ 	w := 0
+ 	for _, vd := range a {
+-		if matchDecl(vd.Decl, names) {
++		if matchDecl(vd.Decl, f) {
+ 			a[w] = vd
+ 			w++
+ 		}
+@@ -615,10 +596,10 @@ func filterValueDocs(a []*ValueDoc, names []string) []*ValueDoc {
+ }
+ 
+ 
+-func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
++func filterFuncDocs(a []*FuncDoc, f Filter) []*FuncDoc {
+ 	w := 0
+ 	for _, fd := range a {
+-		if match(fd.Name, names) {
++		if f(fd.Name) {
+ 			a[w] = fd
+ 			w++
+ 		}
+@@ -627,18 +608,18 @@ func filterFuncDocs(a []*FuncDoc, names []string) []*FuncDoc {
+ }
+ 
+ 
+-func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
++func filterTypeDocs(a []*TypeDoc, f Filter) []*TypeDoc {
+ 	w := 0
+ 	for _, td := range a {
+ 		n := 0 // number of matches
+-		if matchDecl(td.Decl, names) {
++		if matchDecl(td.Decl, f) {
+ 			n = 1
+ 		} else {
+ 			// type name doesn't match, but we may have matching consts, vars, factories or methods
+-			td.Consts = filterValueDocs(td.Consts, names)
+-			td.Vars = filterValueDocs(td.Vars, names)
+-			td.Factories = filterFuncDocs(td.Factories, names)
+-			td.Methods = filterFuncDocs(td.Methods, names)
++			td.Consts = filterValueDocs(td.Consts, f)
++			td.Vars = filterValueDocs(td.Vars, f)
++			td.Factories = filterFuncDocs(td.Factories, f)
++			td.Methods = filterFuncDocs(td.Methods, f)
+ 			n += len(td.Consts) + len(td.Vars) + len(td.Factories) + len(td.Methods)
+ 		}
+ 		if n > 0 {
+@@ -650,15 +631,13 @@ func filterTypeDocs(a []*TypeDoc, names []string) []*TypeDoc {
+ }
+ 
+ 
+-// Filter eliminates information from d that is not
+-// about one of the given names.
++// Filter eliminates documentation for names that don't pass through the filter f.
+ // TODO: Recognize "Type.Method" as a name.
+-// TODO(r): maybe precompile the regexps.
+ //
+-func (p *PackageDoc) Filter(names []string) {
+-	p.Consts = filterValueDocs(p.Consts, names)
+-	p.Vars = filterValueDocs(p.Vars, names)
+-	p.Types = filterTypeDocs(p.Types, names)
+-	p.Funcs = filterFuncDocs(p.Funcs, names)
++func (p *PackageDoc) Filter(f Filter) {
++	p.Consts = filterValueDocs(p.Consts, f)
++	p.Vars = filterValueDocs(p.Vars, f)
++	p.Types = filterTypeDocs(p.Types, f)
++	p.Funcs = filterFuncDocs(p.Funcs, f)
+ 	p.Doc = "" // don't show top-level package doc
+ }

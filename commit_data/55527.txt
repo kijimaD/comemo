@@ -14,6 +14,28 @@ Date:   Tue Feb 14 00:15:43 2023 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index d75421c02f..4604cb65e4 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of January 19, 2022",
++	"Subtitle": "Version of February 14, 2023",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6027,7 +6027,7 @@ The following built-in functions are not permitted in statement context:
+ 
+ <pre>
+ append cap complex imag len make new real
+-unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice
++unsafe.Add unsafe.Alignof unsafe.Offsetof unsafe.Sizeof unsafe.Slice unsafe.SliceData unsafe.String unsafe.StringData
+ </pre>
+ 
+ <pre>

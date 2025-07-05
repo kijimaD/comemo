@@ -11,6 +11,28 @@ Date:   Tue May 30 12:11:04 2017 +0200
     Run-TryBot: Marcel van Lohuizen <mpvl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/testing/testing.go | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index aa620f42b8..7754d4e61f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -748,11 +748,12 @@ func tRunner(t *T, fn func(t *T)) {
+ 	t.finished = true
+ }
+ 
+-// Run runs f as a subtest of t called name. It reports whether f succeeded.
+-// Run will block until all its parallel subtests have completed.
++// Run runs f as a subtest of t called name. It reports whether f succeeded. Run
++// runs f in a separate goroutine and will block until all its parallel subtests
++// have completed.
+ //
+-// Run may be called simultaneously from multiple goroutines, but all such
+-// calls must happen before the outer test function for t returns.
++// Run may be called simultaneously from multiple goroutines, but all such calls
++// must happen before the outer test function for t returns.
+ func (t *T) Run(name string, f func(t *T)) bool {
+ 	atomic.StoreInt32(&t.hasSub, 1)
+ 	testName, ok := t.context.match.fullName(&t.common, name)

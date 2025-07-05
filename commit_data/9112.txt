@@ -13,7 +13,7 @@ Date:   Mon Jul 18 12:04:09 2011 -0400
     R=golang-dev, r, alex.brainman, robert.hencke
     CC=golang-dev
     https://golang.org/cl/4743043
-
+---
  src/cmd/5l/asm.c   | 41 +++++++---------------------
  src/cmd/5l/l.h     | 17 ------------
  src/cmd/5l/obj.c   |  1 -
@@ -31,3 +31,845 @@ Date:   Mon Jul 18 12:04:09 2011 -0400
  src/cmd/ld/macho.c | 10 +++----
  src/cmd/ld/pe.c    | 26 +++++++++---------
  16 files changed, 149 insertions(+), 196 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 15b7d974e7..b820cc7082 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -307,12 +307,12 @@ asmb(void)
+ 	Bflush(&bso);
+ 
+ 	sect = segtext.sect;
+-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+ 
+ 	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+-		seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
+ 
+@@ -320,12 +320,12 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+ 
+-	seek(cout, segdata.fileoff, 0);
++	cseek(segdata.fileoff);
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	/* output read-only data in text segment */
+ 	sect = segtext.sect->next;
+-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	datblk(sect->vaddr, sect->len);
+ 
+ 	if(iself) {
+@@ -369,13 +369,13 @@ asmb(void)
+ 			symo = rnd(symo, INITRND);
+ 			break;
+ 		}
+-		seek(cout, symo, 0);
++		cseek(symo);
+ 		if(iself) {
+ 			if(debug['v'])
+ 			       Bprint(&bso, "%5.2f elfsym\n", cputime());
+ 			asmelfsym();
+ 			cflush();
+-			ewrite(cout, elfstrdat, elfstrsize);
++			cwrite(elfstrdat, elfstrsize);
+ 
+ 			// if(debug['v'])
+ 			// 	Bprint(&bso, "%5.2f dwarf\n", cputime());
+@@ -389,7 +389,7 @@ asmb(void)
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f header\n", cputime());
+ 	Bflush(&bso);
+-	seek(cout, 0L, 0);
++	cseek(0L);
+ 	switch(HEADTYPE) {
+ 	case Hnoheader:	/* no header */
+ 		break;
+@@ -628,7 +628,7 @@ asmb(void)
+ 			pph->memsz = pph->filesz;
+ 		}
+ 
+-		seek(cout, 0, 0);
++		cseek(0);
+ 		a = 0;
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+@@ -649,16 +649,6 @@ asmb(void)
+ 	}
+ }
+ 
+-void
+-cput(int c)
+-{
+-	cbp[0] = c;
+-	cbp++;
+-	cbc--;
+-	if(cbc <= 0)
+-		cflush();
+-}
+-
+ /*
+ void
+ cput(int32 c)
+@@ -708,19 +698,6 @@ lput(int32 l)
+ 		cflush();
+ }
+ 
+-void
+-cflush(void)
+-{
+-	int n;
+-
+-	/* no bug if cbc < 0 since obuf(cbuf) followed by ibuf in buf! */
+-	n = sizeof(buf.cbuf) - cbc;
+-	if(n)
+-		ewrite(cout, buf.cbuf, n);
+-	cbp = buf.cbuf;
+-	cbc = sizeof(buf.cbuf);
+-}
+-
+ void
+ nopstat(char *f, Count *c)
+ {
+@@ -1442,7 +1419,7 @@ if(debug['G']) print("%ux: %s: arm %d\n", (uint32)(p->pc), p->from.sym->name, p-
+ 	out[5] = o6;
+ 	return;
+ 
+-#ifdef	NOTDEF
++#ifdef NOTDEF
+ 	v = p->pc;
+ 	switch(o->size) {
+ 	default:
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index dbd6b3cae0..e00f536a72 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -264,19 +264,6 @@ enum
+ 	MINLC	= 4,
+ };
+ 
+-EXTERN union
+-{
+-	struct
+-	{
+-		uchar	obuf[MAXIO];			/* output buffer */
+-		uchar	ibuf[MAXIO];			/* input buffer */
+-	} u;
+-	char	dbuf[1];
+-} buf;
+-
+-#define	cbuf	u.obuf
+-#define	xbuf	u.ibuf
+-
+ #ifndef COFFCVT
+ 
+ EXTERN	int32	HEADR;			/* length of header */
+@@ -286,10 +273,6 @@ EXTERN	int32	INITRND;		/* data round above text location */
+ EXTERN	int32	INITTEXT;		/* text location */
+ EXTERN	char*	INITENTRY;		/* entry point */
+ EXTERN	int32	autosize;
+-EXTERN	Biobuf	bso;
+-EXTERN	int	cbc;
+-EXTERN	uchar*	cbp;
+-EXTERN	int	cout;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+ EXTERN	Prog*	curp;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 15f4b89cac..93509054d4 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -84,7 +84,6 @@ main(int argc, char *argv[])
+ 	char *p;
+ 
+ 	Binit(&bso, 1, OWRITE);
+-	cout = -1;
+ 	listinit();
+ 	nerrors = 0;
+ 	outfile = "5.out";
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 581ec5a20b..09b5a414cb 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -712,12 +712,12 @@ asmb(void)
+ 	Bflush(&bso);
+ 
+ 	sect = segtext.sect;
+-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+ 
+ 	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+-		seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
+ 
+@@ -725,7 +725,7 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+ 
+-	seek(cout, segdata.fileoff, 0);
++	cseek(segdata.fileoff);
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	machlink = 0;
+@@ -785,14 +785,14 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+-		seek(cout, symo, 0);
++		cseek(symo);
+ 		switch(HEADTYPE) {
+ 		default:
+ 			if(iself) {
+-				seek(cout, symo, 0);
++				cseek(symo);
+ 				asmelfsym();
+ 				cflush();
+-				ewrite(cout, elfstrdat, elfstrsize);
++				cwrite(elfstrdat, elfstrsize);
+ 
+ 				if(debug['v'])
+ 				       Bprint(&bso, "%5.2f dwarf\n", cputime());
+@@ -813,7 +813,7 @@ asmb(void)
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f headr\n", cputime());
+ 	Bflush(&bso);
+-	seek(cout, 0L, 0);
++	cseek(0L);
+ 	switch(HEADTYPE) {
+ 	default:
+ 	case Hplan9x32:	/* plan9 */
+@@ -1063,7 +1063,7 @@ asmb(void)
+ 		pph->filesz = eh->phnum * eh->phentsize;
+ 		pph->memsz = pph->filesz;
+ 
+-		seek(cout, 0, 0);
++		cseek(0);
+ 		a = 0;
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+@@ -1079,25 +1079,6 @@ asmb(void)
+ 	cflush();
+ }
+ 
+-void
+-cflush(void)
+-{
+-	int n;
+-
+-	n = sizeof(buf.cbuf) - cbc;
+-	if(n)
+-		ewrite(cout, buf.cbuf, n);
+-	cbp = buf.cbuf;
+-	cbc = sizeof(buf.cbuf);
+-}
+-
+-/* Current position in file */
+-vlong
+-cpos(void)
+-{
+-	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+-}
+-
+ vlong
+ rnd(vlong v, vlong r)
+ {
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index ecdb5777b8..0435685855 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -46,10 +46,6 @@ enum
+ #define	P		((Prog*)0)
+ #define	S		((Sym*)0)
+ #define	TNAME		(cursym?cursym->name:noname)
+-#define	cput(c)\
+-	{ *cbp++ = c;\
+-	if(--cbc <= 0)\
+-		cflush(); }
+ 
+ typedef	struct	Adr	Adr;
+ typedef	struct	Prog	Prog;
+@@ -286,19 +282,6 @@ enum
+ 	Maxand	= 10,		/* in -a output width of the byte codes */
+ };
+ 
+-EXTERN union
+-{
+-	struct
+-	{
+-		char	obuf[MAXIO];			/* output buffer */
+-		uchar	ibuf[MAXIO];			/* input buffer */
+-	} u;
+-	char	dbuf[1];
+-} buf;
+-
+-#define	cbuf	u.obuf
+-#define	xbuf	u.ibuf
+-
+ #pragma	varargck	type	"A"	uint
+ #pragma	varargck	type	"D"	Adr*
+ #pragma	varargck	type	"I"	uchar*
+@@ -313,9 +296,6 @@ EXTERN	int32	INITRND;
+ EXTERN	vlong	INITTEXT;
+ EXTERN	vlong	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	Biobuf	bso;
+-EXTERN	int	cbc;
+-EXTERN	char*	cbp;
+ EXTERN	char*	pcstr;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+@@ -376,9 +356,7 @@ vlong	atolwhex(char*);
+ Prog*	brchain(Prog*);
+ Prog*	brloop(Prog*);
+ void	buildop(void);
+-void	cflush(void);
+ Prog*	copyp(Prog*);
+-vlong	cpos(void);
+ double	cputime(void);
+ void	datblk(int32, int32);
+ void	deadcode(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index d6467a5133..306a3edf1a 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -80,7 +80,6 @@ main(int argc, char *argv[])
+ 	int c;
+ 
+ 	Binit(&bso, 1, OWRITE);
+-	cout = -1;
+ 	listinit();
+ 	memset(debug, 0, sizeof(debug));
+ 	nerrors = 0;
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 82bff3e1ed..1832b3767b 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -673,12 +673,12 @@ asmb(void)
+ 	Bflush(&bso);
+ 
+ 	sect = segtext.sect;
+-	seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++	cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 	codeblk(sect->vaddr, sect->len);
+ 
+ 	/* output read-only data in text segment (rodata, gosymtab and pclntab) */
+ 	for(sect = sect->next; sect != nil; sect = sect->next) {
+-		seek(cout, sect->vaddr - segtext.vaddr + segtext.fileoff, 0);
++		cseek(sect->vaddr - segtext.vaddr + segtext.fileoff);
+ 		datblk(sect->vaddr, sect->len);
+ 	}
+ 
+@@ -686,7 +686,7 @@ asmb(void)
+ 		Bprint(&bso, "%5.2f datblk\n", cputime());
+ 	Bflush(&bso);
+ 
+-	seek(cout, segdata.fileoff, 0);
++	cseek(segdata.fileoff);
+ 	datblk(segdata.vaddr, segdata.filelen);
+ 
+ 	machlink = 0;
+@@ -743,7 +743,7 @@ asmb(void)
+ 			symo = rnd(symo, PEFILEALIGN);
+ 			break;
+ 		}
+-		seek(cout, symo, 0);
++		cseek(symo);
+ 		switch(HEADTYPE) {
+ 		default:
+ 			if(iself) {
+@@ -751,7 +751,7 @@ asmb(void)
+ 				       Bprint(&bso, "%5.2f elfsym\n", cputime());
+ 				asmelfsym();
+ 				cflush();
+-				ewrite(cout, elfstrdat, elfstrsize);
++				cwrite(elfstrdat, elfstrsize);
+ 
+ 				if(debug['v'])
+ 					Bprint(&bso, "%5.2f dwarf\n", cputime());
+@@ -782,7 +782,7 @@ asmb(void)
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f headr\n", cputime());
+ 	Bflush(&bso);
+-	seek(cout, 0L, 0);
++	cseek(0L);
+ 	switch(HEADTYPE) {
+ 	default:
+ 		if(iself)
+@@ -1138,7 +1138,7 @@ asmb(void)
+ 			pph->memsz = pph->filesz;
+ 		}
+ 
+-		seek(cout, 0, 0);
++		cseek(0);
+ 		a = 0;
+ 		a += elfwritehdr();
+ 		a += elfwritephdrs();
+@@ -1166,25 +1166,6 @@ s8put(char *n)
+ 		cput(name[i]);
+ }
+ 
+-void
+-cflush(void)
+-{
+-	int n;
+-
+-	n = sizeof(buf.cbuf) - cbc;
+-	if(n)
+-		ewrite(cout, buf.cbuf, n);
+-	cbp = buf.cbuf;
+-	cbc = sizeof(buf.cbuf);
+-}
+-
+-/* Current position in file */
+-vlong
+-cpos(void)
+-{
+-	return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
+-}
+-
+ int32
+ rnd(int32 v, int32 r)
+ {
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 65bee19737..94cbfc26ad 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -247,19 +247,6 @@ enum
+ 	Pb		= 0xfe,	/* byte operands */
+ };
+ 
+-EXTERN union
+-{
+-	struct
+-	{
+-		char	obuf[MAXIO];			/* output buffer */
+-		uchar	ibuf[MAXIO];			/* input buffer */
+-	} u;
+-	char	dbuf[1];
+-} buf;
+-
+-#define	cbuf	u.obuf
+-#define	xbuf	u.ibuf
+-
+ #pragma	varargck	type	"A"	int
+ #pragma	varargck	type	"D"	Adr*
+ #pragma	varargck	type	"I"	uchar*
+@@ -275,10 +262,7 @@ EXTERN	int32	INITRND;
+ EXTERN	int32	INITTEXT;
+ EXTERN	int32	INITDAT;
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	Biobuf	bso;
+ EXTERN	int32	casepc;
+-EXTERN	int	cbc;
+-EXTERN	char*	cbp;
+ EXTERN	char*	pcstr;
+ EXTERN	Auto*	curauto;
+ EXTERN	Auto*	curhist;
+diff --git a/src/cmd/8l/obj.c b/src/cmd/8l/obj.c
+index ce7b595182..a8e1c34a53 100644
+--- a/src/cmd/8l/obj.c
++++ b/src/cmd/8l/obj.c
+@@ -85,7 +85,6 @@ main(int argc, char *argv[])
+ 	int c;
+ 
+ 	Binit(&bso, 1, OWRITE);
+-	cout = -1;
+ 	listinit();
+ 	memset(debug, 0, sizeof(debug));
+ 	nerrors = 0;
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index f1132fc8bb..2153fdebd4 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -451,7 +451,7 @@ codeblk(int32 addr, int32 size)
+ 	uchar *q;
+ 
+ 	if(debug['a'])
+-		Bprint(&bso, "codeblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
++		Bprint(&bso, "codeblk [%#x,%#x) at offset %#llx\n", addr, addr+size, cpos());
+ 
+ 	blk(textp, addr, size);
+ 
+@@ -527,7 +527,7 @@ datblk(int32 addr, int32 size)
+ 	uchar *p, *ep;
+ 
+ 	if(debug['a'])
+-		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, seek(cout, 0, 1));
++		Bprint(&bso, "datblk [%#x,%#x) at offset %#llx\n", addr, addr+size, cpos());
+ 
+ 	blk(datap, addr, size);
+ 
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index 4ceb36d1f9..d02fff3c26 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1816,15 +1816,13 @@ flushunit(DWDie *dwinfo, vlong pc, vlong unitstart, int32 header_length)
+ 		cput(0);  // start extended opcode
+ 		uleb128put(1);
+ 		cput(DW_LNE_end_sequence);
+-		cflush();
+ 
+ 		here = cpos();
+-		seek(cout, unitstart, 0);
++		cseek(unitstart);
+ 		LPUT(here - unitstart - sizeof(int32));	 // unit_length
+ 		WPUT(3);  // dwarf version
+ 		LPUT(header_length); // header length starting here
+-		cflush();
+-		seek(cout, here, 0);
++		cseek(here);
+ 	}
+ }
+ 
+@@ -2105,17 +2103,14 @@ writeframes(void)
+ 		pad = rnd(fdesize, PtrSize) - fdesize;
+ 		strnput("", pad);
+ 		fdesize += pad;
+-		cflush();
+ 
+ 		// Emit the FDE header for real, Section 6.4.1.
+-		seek(cout, fdeo, 0);
++		cseek(fdeo);
+ 		LPUT(fdesize);
+ 		LPUT(0);
+ 		addrput(p->pc);
+ 		addrput(s->size);
+-
+-		cflush();
+-		seek(cout, fdeo + 4 + fdesize, 0);
++		cseek(fdeo + 4 + fdesize);
+ 	}
+ 
+ 	cflush();
+@@ -2151,14 +2146,12 @@ writeinfo(void)
+ 
+ 		putdie(compunit);
+ 
+-		cflush();
+ 		here = cpos();
+-		seek(cout, unitstart, 0);
++		cseek(unitstart);
+ 		LPUT(here - unitstart - 4);	// exclude the length field.
+-		cflush();
+-		seek(cout, here, 0);
++		cseek(here);
+ 	}
+-
++	cflush();
+ }
+ 
+ /*
+@@ -2213,12 +2206,10 @@ writepub(int (*ispub)(DWDie*))
+ 		}
+ 		LPUT(0);
+ 
+-		cflush();
+ 		here = cpos();
+-		seek(cout, sectionstart, 0);
++		cseek(sectionstart);
+ 		LPUT(here - sectionstart - 4);	// exclude the length field.
+-		cflush();
+-		seek(cout, here, 0);
++		cseek(here);
+ 
+ 	}
+ 
+@@ -2358,7 +2349,7 @@ dwarfemitdebugsections(void)
+ 	if (fwdcount > 0) {
+ 		if (debug['v'])
+ 			Bprint(&bso, "%5.2f dwarf pass 2.\n", cputime());
+-		seek(cout, infoo, 0);
++		cseek(infoo);
+ 		writeinfo();
+ 		if (fwdcount > 0) {
+ 			diag("dwarf: unresolved references after first dwarf info pass");
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index fc917b203b..9c72890d43 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -313,8 +313,8 @@ elfwriteinterp(void)
+ 		return 0;
+ 
+ 	n = strlen(interp)+1;
+-	seek(cout, ELFRESERVE-n, 0);
+-	ewrite(cout, interp, n);
++	cseek(ELFRESERVE-n);
++	cwrite(interp, n);
+ 	return n;
+ }
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index 77a62f5dec..ebc4b0bf7f 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -41,7 +41,7 @@ char	symname[]	= SYMDEF;
+ char	pkgname[]	= "__.PKGDEF";
+ char*	libdir[16];
+ int	nlibdir = 0;
+-int	cout = -1;
++static int	cout = -1;
+ 
+ char*	goroot;
+ char*	goarch;
+@@ -937,15 +937,6 @@ addsection(Segment *seg, char *name, int rwx)
+ 	return sect;
+ }
+ 
+-void
+-ewrite(int fd, void *buf, int n)
+-{
+-	if(write(fd, buf, n) < 0) {
+-		diag("write error: %r");
+-		errorexit();
+-	}
+-}
+-
+ void
+ pclntab(void)
+ {
+@@ -1359,3 +1350,71 @@ Yconv(Fmt *fp)
+ 
+ 	return 0;
+ }
++
++vlong coutpos;
++
++void
++cflush(void)
++{
++	int n;
++
++	if(cbpmax < cbp)
++		cbpmax = cbp;
++	n = cbpmax - buf.cbuf;
++	if(n) {
++		if(write(cout, buf.cbuf, n) != n) {
++			diag("write error: %r");
++			errorexit();
++		}
++		coutpos += n;
++	}
++	cbp = buf.cbuf;
++	cbc = sizeof(buf.cbuf);
++	cbpmax = cbp;
++}
++
++vlong
++cpos(void)
++{
++	return coutpos + cbp - buf.cbuf;
++}
++
++void
++cseek(vlong p)
++{
++	vlong start;
++	int delta;
++
++	if(cbpmax < cbp)
++		cbpmax = cbp;
++	start = coutpos;
++	if(start <= p && p <= start+(cbpmax - buf.cbuf)) {
++//print("cseek %lld in [%lld,%lld] (%lld)\n", p, start, start+sizeof(buf.cbuf), cpos());
++		delta = p - (start + cbp - buf.cbuf);
++		cbp += delta;
++		cbc -= delta;
++//print("now at %lld\n", cpos());
++		return;
++	}
++
++	cflush();
++	seek(cout, p, 0);
++	coutpos = p;
++}
++
++void
++cwrite(void *buf, int n)
++{
++	cflush();
++	if(write(cout, buf, n) != n) {
++		diag("write error: %r");
++		errorexit();
++	}
++	coutpos += n;
++}
++
++void
++cseekend(void)
++{
++	seek(cout, 0, 2);
++}
+diff --git a/src/cmd/ld/lib.h b/src/cmd/ld/lib.h
+index 3479871955..e2b9858cb0 100644
+--- a/src/cmd/ld/lib.h
++++ b/src/cmd/ld/lib.h
+@@ -102,7 +102,6 @@ struct Section
+ extern	char	symname[];
+ extern	char	*libdir[];
+ extern	int	nlibdir;
+-extern	int	cout;
+ 
+ EXTERN	char*	INITENTRY;
+ EXTERN	char*	thestring;
+@@ -169,7 +168,6 @@ void	mark(Sym *s);
+ void	mkfwd(void);
+ char*	expandpkg(char*, char*);
+ void	deadcode(void);
+-void	ewrite(int, void*, int);
+ Reloc*	addrel(Sym*);
+ void	codeblk(int32, int32);
+ void	datblk(int32, int32);
+@@ -279,3 +277,27 @@ int	headtype(char*);
+ 
+ int	Yconv(Fmt*);
+ #pragma	varargck	type	"Y"	Sym*
++
++// buffered output
++
++EXTERN	Biobuf	bso;
++
++EXTERN struct
++{
++	char	cbuf[MAXIO];	/* output buffer */
++} buf;
++
++EXTERN	int	cbc;
++EXTERN	char*	cbp;
++EXTERN	char*	cbpmax;
++
++#define	cput(c)\
++	{ *cbp++ = c;\
++	if(--cbc <= 0)\
++		cflush(); }
++
++void	cflush(void);
++vlong	cpos(void);
++void	cseek(vlong);
++void	cseekend(void);
++void	cwrite(void*, int);
+diff --git a/src/cmd/ld/macho.c b/src/cmd/ld/macho.c
+index 0b12ac17bf..70133d6651 100644
+--- a/src/cmd/ld/macho.c
++++ b/src/cmd/ld/macho.c
+@@ -506,12 +506,12 @@ domacholink(void)
+ 
+ 	if(size > 0) {
+ 		linkoff = rnd(HEADR+segtext.len, INITRND) + rnd(segdata.filelen, INITRND);
+-		seek(cout, linkoff, 0);
++		cseek(linkoff);
+ 
+-		ewrite(cout, s1->p, s1->size);
+-		ewrite(cout, s2->p, s2->size);
+-		ewrite(cout, s3->p, s3->size);
+-		ewrite(cout, s4->p, s4->size);
++		cwrite(s1->p, s1->size);
++		cwrite(s2->p, s2->size);
++		cwrite(s3->p, s3->size);
++		cwrite(s4->p, s4->size);
+ 	}
+ 
+ 	return rnd(size, INITRND);
+diff --git a/src/cmd/ld/pe.c b/src/cmd/ld/pe.c
+index 9ac0a50d89..d13801ac02 100644
+--- a/src/cmd/ld/pe.c
++++ b/src/cmd/ld/pe.c
+@@ -135,20 +135,20 @@ peinit(void)
+ static void
+ pewrite(void)
+ {
+-	seek(cout, 0, 0);
+-	ewrite(cout, dosstub, sizeof dosstub);
++	cseek(0);
++	cwrite(dosstub, sizeof dosstub);
+ 	strnput("PE", 4);
+ 	cflush();
+ 	// TODO: This code should not assume that the
+ 	// memory representation is little-endian or
+ 	// that the structs are packed identically to
+ 	// their file representation.
+-	ewrite(cout, &fh, sizeof fh);
++	cwrite(&fh, sizeof fh);
+ 	if(pe64)
+-		ewrite(cout, &oh64, sizeof oh64);
++		cwrite(&oh64, sizeof oh64);
+ 	else
+-		ewrite(cout, &oh, sizeof oh);
+-	ewrite(cout, sh, nsect * sizeof sh[0]);
++		cwrite(&oh, sizeof oh);
++	cwrite(sh, nsect * sizeof sh[0]);
+ }
+ 
+ static void
+@@ -227,7 +227,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+ 	n = 0;
+ 	for(d = dr; d != nil; d = d->next)
+ 		n++;
+-	seek(cout, fileoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1), 0);
++	cseek(fileoff + sizeof(IMAGE_IMPORT_DESCRIPTOR) * (n + 1));
+ 
+ 	// write dll names
+ 	for(d = dr; d != nil; d = d->next) {
+@@ -264,7 +264,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+ 
+ 	// write FirstThunks (allocated in .data section)
+ 	ftbase = dynamic->value - datsect->VirtualAddress - PEBASE;
+-	seek(cout, datsect->PointerToRawData + ftbase, 0);
++	cseek(datsect->PointerToRawData + ftbase);
+ 	for(d = dr; d != nil; d = d->next) {
+ 		for(m = d->ms; m != nil; m = m->next)
+ 			put(m->off);
+@@ -273,7 +273,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+ 	cflush();
+ 	
+ 	// finally write import descriptor table
+-	seek(cout, fileoff, 0);
++	cseek(fileoff);
+ 	for(d = dr; d != nil; d = d->next) {
+ 		lputl(isect->VirtualAddress + oftbase + d->thunkoff);
+ 		lputl(0);
+@@ -294,7 +294,7 @@ addimports(vlong fileoff, IMAGE_SECTION_HEADER *datsect)
+ 	dd[IMAGE_DIRECTORY_ENTRY_IAT].VirtualAddress = dynamic->value - PEBASE;
+ 	dd[IMAGE_DIRECTORY_ENTRY_IAT].Size = dynamic->size;
+ 
+-	seek(cout, 0, 2);
++	cseekend();
+ }
+ 
+ static int
+@@ -348,7 +348,7 @@ addexports(vlong fileoff)
+ 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].VirtualAddress = va;
+ 	dd[IMAGE_DIRECTORY_ENTRY_EXPORT].Size = sect->VirtualSize;
+ 
+-	seek(cout, fileoff, 0);
++	cseek(fileoff);
+ 	va_name = va + sizeof e + nexport*4;
+ 	va_addr = va + sizeof e;
+ 	va_na = va + sizeof e + nexport*8;
+@@ -385,7 +385,7 @@ addexports(vlong fileoff)
+ 	strnput("", sect->SizeOfRawData - size);
+ 	cflush();
+ 
+-	seek(cout, 0, 2);
++	cseekend();
+ }
+ 
+ void
+@@ -491,7 +491,7 @@ addpersrc(void)
+ 		p[2] = val>>16;
+ 		p[3] = val>>24;
+ 	}
+-	ewrite(cout, rsrcsym->p, rsrcsym->size);
++	cwrite(rsrcsym->p, rsrcsym->size);
+ 	strnput("", h->SizeOfRawData - rsrcsym->size);
+ 	cflush();
+ 

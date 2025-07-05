@@ -12,6 +12,21 @@ Date:   Tue Sep 27 16:22:29 2016 -0400
     Change-Id: I18fda76f8066110caef85fd33698de83d632e646
     Reviewed-on: https://go-review.googlesource.com/29931
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/encode.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 6ef4e45c1e..d3e0c85b9d 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -50,7 +50,8 @@ import (
+ // The angle brackets "<" and ">" are escaped to "\u003c" and "\u003e"
+ // to keep some browsers from misinterpreting JSON output as HTML.
+ // Ampersand "&" is also escaped to "\u0026" for the same reason.
+-// This escaping can be disabled using an Encoder with DisableHTMLEscaping.
++// This escaping can be disabled using an Encoder that had SetEscapeHTML(false)
++// called on it.
+ //
+ // Array and slice values encode as JSON arrays, except that
+ // []byte encodes as a base64-encoded string, and a nil slice

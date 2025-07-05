@@ -9,6 +9,26 @@ Date:   Sat Sep 2 10:36:01 2017 +0900
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/build.go | 8 +++++---
  1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index d6c7f0bcff..0395311ef6 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -3236,9 +3236,11 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
+ 		if cfg.BuildN || cfg.BuildX {
+ 			b.Showcmd(b.WorkDir, "touch trivial.c")
+ 		}
+-		src := filepath.Join(b.WorkDir, "trivial.c")
+-		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+-			return false
++		if !cfg.BuildN {
++			src := filepath.Join(b.WorkDir, "trivial.c")
++			if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
++				return false
++			}
+ 		}
+ 		b.flagCache = make(map[string]bool)
+ 	}

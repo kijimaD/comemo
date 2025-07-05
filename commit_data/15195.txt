@@ -16,7 +16,589 @@ Date:   Mon Feb 11 11:47:31 2013 +1100
     R=nigeltao, rsc, bradfitz
     CC=golang-dev
     https://golang.org/cl/7306054
-
+---
  src/pkg/exp/cookiejar/jar.go      | 181 ++++++++++++++++++++-
  src/pkg/exp/cookiejar/jar_test.go | 333 ++++++++++++++++++++++++++++++++++++++
  2 files changed, 508 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/cookiejar/jar.go b/src/pkg/exp/cookiejar/jar.go
+index dd9cc33e89..5c740f144c 100644
+--- a/src/pkg/exp/cookiejar/jar.go
++++ b/src/pkg/exp/cookiejar/jar.go
+@@ -6,6 +6,8 @@
+ package cookiejar
+ 
+ import (
++	"errors"
++	"fmt"
+ 	"net"
+ 	"net/http"
+ 	"net/url"
+@@ -90,6 +92,11 @@ type entry struct {
+ 	LastAccess time.Time
+ }
+ 
++// Id returns the domain;path;name triple of e as an id.
++func (e *entry) id() string {
++	return fmt.Sprintf("%s;%s;%s", e.Domain, e.Path, e.Name)
++}
++
+ // Cookies implements the Cookies method of the http.CookieJar interface.
+ //
+ // It returns an empty slice if the URL's scheme is not HTTP or HTTPS.
+@@ -144,18 +151,46 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+ 		return
+ 	}
+ 	key := jarKey(host, j.psList)
+-	if key == "" {
+-		return
+-	}
++	defPath := defaultPath(u.Path)
+ 
+ 	j.mu.Lock()
+ 	defer j.mu.Unlock()
+ 
+ 	submap := j.entries[key]
++	now := time.Now()
+ 
+ 	modified := false
+-	for _, _ = range cookies {
+-		// TODO: create, update or delete entries in submap
++	for _, cookie := range cookies {
++		e, remove, err := j.newEntry(cookie, now, defPath, host)
++		if err != nil {
++			continue
++		}
++		id := e.id()
++		if remove {
++			if submap != nil {
++				if _, ok := submap[id]; ok {
++					delete(submap, id)
++					modified = true
++				}
++			}
++			continue
++		}
++		if submap == nil {
++			submap = make(map[string]entry)
++		}
++
++		if old, ok := submap[id]; ok {
++			e.Creation = old.Creation
++		} else {
++			e.Creation = now
++		}
++		e.LastAccess = now
++		submap[id] = e
++		modified = true
++		// Make Creation and LastAccess strictly monotonic forcing
++		// deterministic behaviour during sorting.
++		// TODO: check if this is conforming to RFC 6265.
++		now = now.Add(1 * time.Nanosecond)
+ 	}
+ 
+ 	if modified {
+@@ -168,7 +203,7 @@ func (j *Jar) SetCookies(u *url.URL, cookies []*http.Cookie) {
+ }
+ 
+ // canonicalHost strips port from host if present and returns the canonicalized
+-// host name as defined by RFC 6265 section 5.1.2.
++// host name.
+ func canonicalHost(host string) (string, error) {
+ 	var err error
+ 	host = strings.ToLower(host)
+@@ -232,3 +267,137 @@ func jarKey(host string, psl PublicSuffixList) string {
+ func isIP(host string) bool {
+ 	return net.ParseIP(host) != nil
+ }
++
++// defaultPath returns the directory part of an URL's path according to
++// RFC 6265 section 5.1.4.
++func defaultPath(path string) string {
++	if len(path) == 0 || path[0] != '/' {
++		return "/" // Path is empty or malformed.
++	}
++
++	i := strings.LastIndex(path, "/") // Path starts with "/", so i != -1.
++	if i == 0 {
++		return "/" // Path has the form "/abc".
++	}
++	return path[:i] // Path is either of form "/abc/xyz" or "/abc/xyz/".
++}
++
++// newEntry creates an entry from a http.Cookie c. now is the current time and
++// is compared to c.Expires to determine deletion of c. defPath and host are the
++// default-path and the canonical host name of the URL c was received from.
++//
++// remove is whether the jar should delete this cookie, as it has already
++// expired with respect to now. In this case, e may be incomplete, but it will
++// be valid to call e.id (which depends on e's Name, Domain and Path).
++//
++// A malformed c.Domain will result in an error.
++func (j *Jar) newEntry(c *http.Cookie, now time.Time, defPath, host string) (e entry, remove bool, err error) {
++	e.Name = c.Name
++
++	if c.Path == "" || c.Path[0] != '/' {
++		e.Path = defPath
++	} else {
++		e.Path = c.Path
++	}
++
++	e.Domain, e.HostOnly, err = j.domainAndType(host, c.Domain)
++	if err != nil {
++		return e, false, err
++	}
++
++	// MaxAge takes precedence over Expires.
++	if c.MaxAge < 0 {
++		return e, true, nil
++	} else if c.MaxAge > 0 {
++		e.Expires = now.Add(time.Duration(c.MaxAge) * time.Second)
++		e.Persistent = true
++	} else {
++		if c.Expires.IsZero() {
++			e.Expires = endOfTime
++			e.Persistent = false
++		} else {
++			if c.Expires.Before(now) {
++				return e, true, nil
++			}
++			e.Expires = c.Expires
++			e.Persistent = true
++		}
++	}
++
++	e.Value = c.Value
++	e.Secure = c.Secure
++	e.HttpOnly = c.HttpOnly
++
++	return e, false, nil
++}
++
++var (
++	errIllegalDomain   = errors.New("cookiejar: illegal cookie domain attribute")
++	errMalformedDomain = errors.New("cookiejar: malformed cookie domain attribute")
++	errNoHostname      = errors.New("cookiejar: no host name available (IP only)")
++)
++
++// endOfTime is the time when session (non-persistent) cookies expire.
++// This instant is representable in most date/time formats (not just
++// Go's time.Time) and should be far enough in the future.
++var endOfTime = time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)
++
++// domainAndType determines the cookie's domain and hostOnly attribute.
++func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
++	if domain == "" {
++		// No domain attribute in the SetCookie header indicates a
++		// host cookie.
++		return host, true, nil
++	}
++
++	if isIP(host) {
++		// According to RFC 6265 domain-matching includes not being
++		// an IP address.
++		// TODO: This might be relaxed as in common browsers.
++		return "", false, errNoHostname
++	}
++
++	// From here on: If the cookie is valid, it is a domain cookie (with
++	// the one exception of a public suffix below).
++	// See RFC 6265 section 5.2.3.
++	if domain[0] == '.' {
++		domain = domain[1:]
++	}
++
++	if len(domain) == 0 || domain[0] == '.' {
++		// Received either "Domain=." or "Domain=..some.thing",
++		// both are illegal.
++		return "", false, errMalformedDomain
++	}
++	domain = strings.ToLower(domain)
++
++	if domain[len(domain)-1] == '.' {
++		// We received stuff like "Domain=www.example.com.".
++		// Browsers do handle such stuff (actually differently) but
++		// RFC 6265 seems to be clear here (e.g. section 4.1.2.3) in
++		// requiring a reject.  4.1.2.3 is not normative, but
++		// "Domain Matching" (5.1.3) and "Canonicalized Host Names"
++		// (5.1.2) are.
++		return "", false, errMalformedDomain
++	}
++
++	// See RFC 6265 section 5.3 #5.
++	if j.psList != nil {
++		if ps := j.psList.PublicSuffix(domain); ps != "" && !strings.HasSuffix(domain, "."+ps) {
++			if host == domain {
++				// This is the one exception in which a cookie
++				// with a domain attribute is a host cookie.
++				return host, true, nil
++			}
++			return "", false, errIllegalDomain
++		}
++	}
++
++	// The domain must domain-match host: www.mycompany.com cannot
++	// set cookies for .ourcompetitors.com.
++	if host != domain && !strings.HasSuffix(host, "."+domain) {
++		return "", false, errIllegalDomain
++	}
++
++	return domain, false, nil
++}
+diff --git a/src/pkg/exp/cookiejar/jar_test.go b/src/pkg/exp/cookiejar/jar_test.go
+index 14f4a08099..645c0a711d 100644
+--- a/src/pkg/exp/cookiejar/jar_test.go
++++ b/src/pkg/exp/cookiejar/jar_test.go
+@@ -5,8 +5,13 @@
+ package cookiejar
+ 
+ import (
++	"fmt"
++	"net/http"
++	"net/url"
++	"sort"
+ 	"strings"
+ 	"testing"
++	"time"
+ )
+ 
+ // testPSL implements PublicSuffixList with just two rules: "co.uk"
+@@ -23,6 +28,15 @@ func (testPSL) PublicSuffix(d string) string {
+ 	return d[strings.LastIndex(d, ".")+1:]
+ }
+ 
++// newTestJar creates an empty Jar with testPSL as the public suffix list.
++func newTestJar() *Jar {
++	jar, err := New(&Options{PublicSuffixList: testPSL{}})
++	if err != nil {
++		panic(err)
++	}
++	return jar
++}
++
+ var canonicalHostTests = map[string]string{
+ 	"www.example.com":         "www.example.com",
+ 	"WWW.EXAMPLE.COM":         "www.example.com",
+@@ -107,3 +121,322 @@ func TestIsIP(t *testing.T) {
+ 		}
+ 	}
+ }
++
++var defaultPathTests = map[string]string{
++	"/":           "/",
++	"/abc":        "/",
++	"/abc/":       "/abc",
++	"/abc/xyz":    "/abc",
++	"/abc/xyz/":   "/abc/xyz",
++	"/a/b/c.html": "/a/b",
++	"":            "/",
++	"strange":     "/",
++	"//":          "/",
++	"/a//b":       "/a/",
++	"/a/./b":      "/a/.",
++	"/a/../b":     "/a/..",
++}
++
++func TestDefaultPath(t *testing.T) {
++	for path, want := range defaultPathTests {
++		if got := defaultPath(path); got != want {
++			t.Errorf("%q: got %q, want %q", path, got, want)
++		}
++	}
++}
++
++var domainAndTypeTests = [...]struct {
++	host         string // host Set-Cookie header was received from
++	domain       string // domain attribute in Set-Cookie header
++	wantDomain   string // expected domain of cookie
++	wantHostOnly bool   // expected host-cookie flag
++	wantErr      error  // expected error
++}{
++	{"www.example.com", "", "www.example.com", true, nil},
++	{"127.0.0.1", "", "127.0.0.1", true, nil},
++	{"2001:4860:0:2001::68", "", "2001:4860:0:2001::68", true, nil},
++	{"www.example.com", "example.com", "example.com", false, nil},
++	{"www.example.com", ".example.com", "example.com", false, nil},
++	{"www.example.com", "www.example.com", "www.example.com", false, nil},
++	{"www.example.com", ".www.example.com", "www.example.com", false, nil},
++	{"foo.sso.example.com", "sso.example.com", "sso.example.com", false, nil},
++	{"bar.co.uk", "bar.co.uk", "bar.co.uk", false, nil},
++	{"foo.bar.co.uk", ".bar.co.uk", "bar.co.uk", false, nil},
++	{"127.0.0.1", "127.0.0.1", "", false, errNoHostname},
++	{"2001:4860:0:2001::68", "2001:4860:0:2001::68", "2001:4860:0:2001::68", false, errNoHostname},
++	{"www.example.com", ".", "", false, errMalformedDomain},
++	{"www.example.com", "..", "", false, errMalformedDomain},
++	{"www.example.com", "other.com", "", false, errIllegalDomain},
++	{"www.example.com", "com", "", false, errIllegalDomain},
++	{"www.example.com", ".com", "", false, errIllegalDomain},
++	{"foo.bar.co.uk", ".co.uk", "", false, errIllegalDomain},
++	{"127.www.0.0.1", "127.0.0.1", "", false, errIllegalDomain},
++	{"com", "", "com", true, nil},
++	{"com", "com", "com", true, nil},
++	{"com", ".com", "com", true, nil},
++	{"co.uk", "", "co.uk", true, nil},
++	{"co.uk", "co.uk", "co.uk", true, nil},
++	{"co.uk", ".co.uk", "co.uk", true, nil},
++}
++
++func TestDomainAndType(t *testing.T) {
++	jar := newTestJar()
++	for _, tc := range domainAndTypeTests {
++		domain, hostOnly, err := jar.domainAndType(tc.host, tc.domain)
++		if err != tc.wantErr {
++			t.Errorf("%q/%q: got %q error, want %q",
++				tc.host, tc.domain, err, tc.wantErr)
++			continue
++		}
++		if err != nil {
++			continue
++		}
++		if domain != tc.wantDomain || hostOnly != tc.wantHostOnly {
++			t.Errorf("%q/%q: got %q/%t want %q/%t",
++				tc.host, tc.domain, domain, hostOnly,
++				tc.wantDomain, tc.wantHostOnly)
++		}
++	}
++}
++
++// content yields the (non-expired) cookies of jar in the form
++// "name1=value1 name2=value2 ...".
++func (jar *Jar) content() string {
++	var cookies []string
++	now := time.Now().UTC()
++	for _, submap := range jar.entries {
++		for _, cookie := range submap {
++			if !cookie.Expires.After(now) {
++				continue
++			}
++			cookies = append(cookies, cookie.Name+"="+cookie.Value)
++		}
++	}
++	sort.Strings(cookies)
++	return strings.Join(cookies, " ")
++}
++
++// expiresIn creates an expires attribute delta seconds from now.
++func expiresIn(delta int) string {
++	t := time.Now().Round(time.Second).Add(time.Duration(delta) * time.Second)
++	return "expires=" + t.Format(time.RFC1123)
++}
++
++// mustParseURL parses s to an URL and panics on error.
++func mustParseURL(s string) *url.URL {
++	u, err := url.Parse(s)
++	if err != nil || u.Scheme == "" || u.Host == "" {
++		panic(fmt.Sprintf("Unable to parse URL %s.", s))
++	}
++	return u
++}
++
++// jarTest encapsulates the following actions on a jar:
++//   1. Perform SetCookies with fromURL and the cookies from setCookies.
++//   2. Check that the entries in the jar matches content.
++//   3. For each query in tests: Check that Cookies with toURL yields the
++//      cookies in want.
++type jarTest struct {
++	description string   // The description of what this test is supposed to test
++	fromURL     string   // The full URL of the request from which Set-Cookie headers where received
++	setCookies  []string // All the cookies received from fromURL
++	content     string   // The whole (non-expired) content of the jar
++	queries     []query  // Queries to test the Jar.Cookies method
++}
++
++// query contains one test of the cookies returned from Jar.Cookies.
++type query struct {
++	toURL string // the URL in the Cookies call
++	want  string // the expected list of cookies (order matters)
++}
++
++// run runs the jarTest.
++func (test jarTest) run(t *testing.T, jar *Jar) {
++	u := mustParseURL(test.fromURL)
++
++	// Populate jar with cookies.
++	setCookies := make([]*http.Cookie, len(test.setCookies))
++	for i, cs := range test.setCookies {
++		cookies := (&http.Response{Header: http.Header{"Set-Cookie": {cs}}}).Cookies()
++		if len(cookies) != 1 {
++			panic(fmt.Sprintf("Wrong cookie line %q: %#v", cs, cookies))
++		}
++		setCookies[i] = cookies[0]
++	}
++	jar.SetCookies(u, setCookies)
++
++	// Make sure jar content matches our expectations.
++	if got := jar.content(); got != test.content {
++		t.Errorf("Test %q Content\ngot  %q\nwant %q",
++			test.description, got, test.content)
++	}
++
++	// Test different calls to Cookies.
++	for _, query := range test.queries {
++		var s []string
++		for _, c := range jar.Cookies(mustParseURL(query.toURL)) {
++			s = append(s, c.Name+"="+c.Value)
++		}
++		got := strings.Join(s, " ")
++		if got != query.want {
++			// TODO: t.Errorf() once Cookies is implemented
++		}
++	}
++}
++
++// basicsTests contains fundamental tests. Each jarTest has to be performed on
++// a fresh, empty Jar.
++var basicsTests = [...]jarTest{
++	{
++		"Retrieval of a plain host cookie.",
++		"http://www.host.test/",
++		[]string{"A=a"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", "A=a"},
++			{"http://www.host.test/", "A=a"},
++			{"http://www.host.test/some/path", "A=a"},
++			{"https://www.host.test", "A=a"},
++			{"https://www.host.test/", "A=a"},
++			{"https://www.host.test/some/path", "A=a"},
++			{"ftp://www.host.test", ""},
++			{"ftp://www.host.test/", ""},
++			{"ftp://www.host.test/some/path", ""},
++			{"http://www.other.org", ""},
++			{"http://sibling.host.test", ""},
++			{"http://deep.www.host.test", ""},
++		},
++	},
++	{
++		"Secure cookies are not returned to http.",
++		"http://www.host.test/",
++		[]string{"A=a; secure"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", ""},
++			{"http://www.host.test/", ""},
++			{"http://www.host.test/some/path", ""},
++			{"https://www.host.test", "A=a"},
++			{"https://www.host.test/", "A=a"},
++			{"https://www.host.test/some/path", "A=a"},
++		},
++	},
++	{
++		"Explicit path.",
++		"http://www.host.test/",
++		[]string{"A=a; path=/some/path"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", ""},
++			{"http://www.host.test/", ""},
++			{"http://www.host.test/some", ""},
++			{"http://www.host.test/some/", ""},
++			{"http://www.host.test/some/path", "A=a"},
++			{"http://www.host.test/some/paths", ""},
++			{"http://www.host.test/some/path/foo", "A=a"},
++			{"http://www.host.test/some/path/foo/", "A=a"},
++		},
++	},
++	{
++		"Implicit path #1: path is a directory.",
++		"http://www.host.test/some/path/",
++		[]string{"A=a"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", ""},
++			{"http://www.host.test/", ""},
++			{"http://www.host.test/some", ""},
++			{"http://www.host.test/some/", ""},
++			{"http://www.host.test/some/path", "A=a"},
++			{"http://www.host.test/some/paths", ""},
++			{"http://www.host.test/some/path/foo", "A=a"},
++			{"http://www.host.test/some/path/foo/", "A=a"},
++		},
++	},
++	{
++		"Implicit path #2: path is not a directory.",
++		"http://www.host.test/some/path/index.html",
++		[]string{"A=a"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", ""},
++			{"http://www.host.test/", ""},
++			{"http://www.host.test/some", ""},
++			{"http://www.host.test/some/", ""},
++			{"http://www.host.test/some/path", "A=a"},
++			{"http://www.host.test/some/paths", ""},
++			{"http://www.host.test/some/path/foo", "A=a"},
++			{"http://www.host.test/some/path/foo/", "A=a"},
++		},
++	},
++	{
++		"Implicit path #3: no path in URL at all.",
++		"http://www.host.test",
++		[]string{"A=a"},
++		"A=a",
++		[]query{
++			{"http://www.host.test", "A=a"},
++			{"http://www.host.test/", "A=a"},
++			{"http://www.host.test/some/path", "A=a"},
++		},
++	},
++	{
++		"Cookies are sorted by path length.",
++		"http://www.host.test/",
++		[]string{
++			"A=a; path=/foo/bar",
++			"B=b; path=/foo/bar/baz/qux",
++			"C=c; path=/foo/bar/baz",
++			"D=d; path=/foo"},
++		"A=a B=b C=c D=d",
++		[]query{
++			{"http://www.host.test/foo/bar/baz/qux", "B=b C=c A=a D=d"},
++			{"http://www.host.test/foo/bar/baz/", "C=c A=a D=d"},
++			{"http://www.host.test/foo/bar", "A=a D=d"},
++		},
++	},
++	{
++		"Creation time determines sorting on same length paths.",
++		"http://www.host.test/",
++		[]string{
++			"A=a; path=/foo/bar",
++			"X=x; path=/foo/bar",
++			"Y=y; path=/foo/bar/baz/qux",
++			"B=b; path=/foo/bar/baz/qux",
++			"C=c; path=/foo/bar/baz",
++			"W=w; path=/foo/bar/baz",
++			"Z=z; path=/foo",
++			"D=d; path=/foo"},
++		"A=a B=b C=c D=d W=w X=x Y=y Z=z",
++		[]query{
++			{"http://www.host.test/foo/bar/baz/qux", "Y=y B=b C=c W=w A=a X=x Z=z D=d"},
++			{"http://www.host.test/foo/bar/baz/", "C=c W=w A=a X=x Z=z D=d"},
++			{"http://www.host.test/foo/bar", "A=a X=x Z=z D=d"},
++		},
++	},
++	{
++		"Sorting of same-name cookies.",
++		"http://www.host.test/",
++		[]string{
++			"A=1; path=/",
++			"A=2; path=/path",
++			"A=3; path=/quux",
++			"A=4; path=/path/foo",
++			"A=5; domain=.host.test; path=/path",
++			"A=6; domain=.host.test; path=/quux",
++			"A=7; domain=.host.test; path=/path/foo",
++		},
++		"A=1 A=2 A=3 A=4 A=5 A=6 A=7",
++		[]query{
++			{"http://www.host.test/path", "A=2 A=5 A=1"},
++			{"http://www.host.test/path/foo", "A=4 A=7 A=2 A=5 A=1"},
++		},
++	},
++}
++
++func TestBasics(t *testing.T) {
++	for _, test := range basicsTests {
++		jar := newTestJar()
++		test.run(t, jar)
++	}
++}

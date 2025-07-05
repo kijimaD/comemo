@@ -15,6 +15,23 @@ Date:   Mon Oct 24 20:47:31 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/os_darwin.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index fa5aca2f99..0dfe8778db 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -414,7 +414,10 @@ func semasleep1(ns int64) int32 {
+ 		if r == 0 {
+ 			break
+ 		}
+-		if r == _KERN_ABORTED { // interrupted
++		// Note: We don't know how this call (with no timeout) can get _KERN_OPERATION_TIMED_OUT,
++		// but it does reliably, though at a very low rate, on OS X 10.8, 10.9, 10.10, and 10.11.
++		// See golang.org/issue/17161.
++		if r == _KERN_ABORTED || r == _KERN_OPERATION_TIMED_OUT { // interrupted
+ 			continue
+ 		}
+ 		macherror(r, "semaphore_wait")

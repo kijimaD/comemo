@@ -19,6 +19,32 @@ Date:   Thu Aug 24 23:14:43 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/net/http/cgi/host.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/cgi/host.go b/src/net/http/cgi/host.go
+index 073952a7bd..a3fba4b413 100644
+--- a/src/net/http/cgi/host.go
++++ b/src/net/http/cgi/host.go
+@@ -35,7 +35,10 @@ import (
+ 
+ var trailingPort = regexp.MustCompile(`:([0-9]+)$`)
+ 
+-var osDefaultInheritEnv = func() []string {
++var osDefaultInheritEnv = getOSDefaultInheritEnv()
++
++// TODO(mdempsky): Revert CL 522935 after #62277 is fixed.
++func getOSDefaultInheritEnv() []string {
+ 	switch runtime.GOOS {
+ 	case "darwin", "ios":
+ 		return []string{"DYLD_LIBRARY_PATH"}
+@@ -51,7 +54,7 @@ var osDefaultInheritEnv = func() []string {
+ 		return []string{"SystemRoot", "COMSPEC", "PATHEXT", "WINDIR"}
+ 	}
+ 	return nil
+-}()
++}
+ 
+ // Handler runs an executable in a subprocess with a CGI environment.
+ type Handler struct {

@@ -22,7 +22,99 @@ Date:   Tue Sep 19 14:10:27 2023 -0400
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/abi_test.go         | 33 +++++++++++++++++++--------------
  src/runtime/pprof/pprof_test.go |  6 +++++-
  2 files changed, 24 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+index d7039e758a..4caee597c5 100644
+--- a/src/runtime/abi_test.go
++++ b/src/runtime/abi_test.go
+@@ -15,25 +15,34 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
++	"runtime/internal/atomic"
+ 	"strings"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var regConfirmRun chan int
++var regConfirmRun atomic.Int32
+ 
+ //go:registerparams
+-func regFinalizerPointer(v *Tint) (int, float32, [10]byte) {
+-	regConfirmRun <- *(*int)(v)
++func regFinalizerPointer(v *TintPointer) (int, float32, [10]byte) {
++	regConfirmRun.Store(int32(*(*int)(v.p)))
+ 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+ }
+ 
+ //go:registerparams
+ func regFinalizerIface(v Tinter) (int, float32, [10]byte) {
+-	regConfirmRun <- *(*int)(v.(*Tint))
++	regConfirmRun.Store(int32(*(*int)(v.(*TintPointer).p)))
+ 	return 5151, 4.0, [10]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
+ }
+ 
++// TintPointer has a pointer member to make sure that it isn't allocated by the
++// tiny allocator, so we know when its finalizer will run
++type TintPointer struct {
++	p *Tint
++}
++
++func (*TintPointer) m() {}
++
+ func TestFinalizerRegisterABI(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+@@ -87,10 +96,8 @@ func TestFinalizerRegisterABI(t *testing.T) {
+ 	for i := range tests {
+ 		test := &tests[i]
+ 		t.Run(test.name, func(t *testing.T) {
+-			regConfirmRun = make(chan int)
+-
+-			x := new(Tint)
+-			*x = (Tint)(test.confirmValue)
++			x := &TintPointer{p: new(Tint)}
++			*x.p = (Tint)(test.confirmValue)
+ 			runtime.SetFinalizer(x, test.fin)
+ 
+ 			runtime.KeepAlive(x)
+@@ -99,13 +106,11 @@ func TestFinalizerRegisterABI(t *testing.T) {
+ 			runtime.GC()
+ 			runtime.GC()
+ 
+-			select {
+-			case <-time.After(time.Second):
++			if !runtime.BlockUntilEmptyFinalizerQueue(int64(time.Second)) {
+ 				t.Fatal("finalizer failed to execute")
+-			case gotVal := <-regConfirmRun:
+-				if gotVal != test.confirmValue {
+-					t.Fatalf("wrong finalizer executed? got %d, want %d", gotVal, test.confirmValue)
+-				}
++			}
++			if got := int(regConfirmRun.Load()); got != test.confirmValue {
++				t.Fatalf("wrong finalizer executed? got %d, want %d", got, test.confirmValue)
+ 			}
+ 		})
+ 	}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 6b299e59bf..f57c1fed50 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1605,7 +1605,11 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 
+ 	// The finalizer goroutine should show up when it's running user code.
+ 	t.Run("finalizer present", func(t *testing.T) {
+-		obj := new(byte)
++		// T is a pointer type so it won't be allocated by the tiny
++		// allocator, which can lead to its finalizer not being called
++		// during this test
++		type T *byte
++		obj := new(T)
+ 		ch1, ch2 := make(chan int), make(chan int)
+ 		defer close(ch2)
+ 		runtime.SetFinalizer(obj, func(_ interface{}) {

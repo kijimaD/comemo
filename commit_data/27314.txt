@@ -11,7 +11,7 @@ Date:   Mon Mar 21 00:13:36 2016 +0100
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/zip_test.go      | 21 -------------------
  src/bufio/scan_test.go           |  4 ----
  src/bytes/bytes_test.go          | 26 ------------------------
@@ -36,3 +36,513 @@ Date:   Mon Mar 21 00:13:36 2016 +0100
  src/regexp/exec_test.go          |  2 --
  src/regexp/onepass_test.go       |  2 --
  23 files changed, 4 insertions(+), 211 deletions(-)
+
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index f785abf50a..3a3c915d34 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -366,27 +366,6 @@ func testZip64DirectoryRecordLength(buf *rleBuffer, t *testing.T) {
+ 	}
+ }
+ 
+-func testInvalidHeader(h *FileHeader, t *testing.T) {
+-	var buf bytes.Buffer
+-	z := NewWriter(&buf)
+-
+-	f, err := z.CreateHeader(h)
+-	if err != nil {
+-		t.Fatalf("error creating header: %v", err)
+-	}
+-	if _, err := f.Write([]byte("hi")); err != nil {
+-		t.Fatalf("error writing content: %v", err)
+-	}
+-	if err := z.Close(); err != nil {
+-		t.Fatalf("error closing zip writer: %v", err)
+-	}
+-
+-	b := buf.Bytes()
+-	if _, err = NewReader(bytes.NewReader(b), int64(len(b))); err != ErrFormat {
+-		t.Fatalf("got %v, expected ErrFormat", err)
+-	}
+-}
+-
+ func testValidHeader(h *FileHeader, t *testing.T) {
+ 	var buf bytes.Buffer
+ 	z := NewWriter(&buf)
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index d64d0b45d7..1bb1e88393 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -264,10 +264,6 @@ func testNoNewline(text string, lines []string, t *testing.T) {
+ 	}
+ }
+ 
+-var noNewlineLines = []string{
+-	"abcdefghijklmn\nopqrstuvwxyz",
+-}
+-
+ // Test that the line splitter handles a final line without a newline.
+ func TestScanLineNoNewline(t *testing.T) {
+ 	const text = "abcdefghijklmn\nopqrstuvwxyz"
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index f158098f9b..1be29d6cc6 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -47,32 +47,6 @@ type BinOpTest struct {
+ 	i int
+ }
+ 
+-var equalTests = []struct {
+-	a, b []byte
+-	i    int
+-}{
+-	{[]byte(""), []byte(""), 0},
+-	{[]byte("a"), []byte(""), 1},
+-	{[]byte(""), []byte("a"), -1},
+-	{[]byte("abc"), []byte("abc"), 0},
+-	{[]byte("ab"), []byte("abc"), -1},
+-	{[]byte("abc"), []byte("ab"), 1},
+-	{[]byte("x"), []byte("ab"), 1},
+-	{[]byte("ab"), []byte("x"), -1},
+-	{[]byte("x"), []byte("a"), 1},
+-	{[]byte("b"), []byte("x"), -1},
+-	// test runtime·memeq's chunked implementation
+-	{[]byte("abcdefgh"), []byte("abcdefgh"), 0},
+-	{[]byte("abcdefghi"), []byte("abcdefghi"), 0},
+-	{[]byte("abcdefghi"), []byte("abcdefghj"), -1},
+-	// nil tests
+-	{nil, nil, 0},
+-	{[]byte(""), nil, 0},
+-	{nil, []byte(""), 0},
+-	{[]byte("a"), nil, 1},
+-	{nil, []byte("a"), -1},
+-}
+-
+ func TestEqual(t *testing.T) {
+ 	for _, tt := range compareTests {
+ 		eql := Equal(tt.a, tt.b)
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index ef9e771343..5cb1ec990e 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -22,11 +22,6 @@ func maybeSkip(t *testing.T) {
+ 	}
+ }
+ 
+-const (
+-	dataDir = "testdata"
+-	binary  = "testdoc"
+-)
+-
+ type test struct {
+ 	name string
+ 	args []string // Arguments to "[go] doc".
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e663907e26..e20ec814c5 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -421,18 +421,6 @@ func (tg *testgoData) doGrepCount(match string, b *bytes.Buffer) int {
+ 	return c
+ }
+ 
+-// grepCountStdout returns the number of times a regexp is seen in
+-// standard output.
+-func (tg *testgoData) grepCountStdout(match string) int {
+-	return tg.doGrepCount(match, &tg.stdout)
+-}
+-
+-// grepCountStderr returns the number of times a regexp is seen in
+-// standard error.
+-func (tg *testgoData) grepCountStderr(match string) int {
+-	return tg.doGrepCount(match, &tg.stderr)
+-}
+-
+ // grepCountBoth returns the number of times a regexp is seen in both
+ // standard output and standard error.
+ func (tg *testgoData) grepCountBoth(match string) int {
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 694c14023b..a08cdeff05 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -650,50 +650,6 @@ um0ABj6y6koQOdjQK/W/7HW/lwLFCRsI3FU34oH7N4RDYiDK51ZLZer+bMEkkySh
+ NOsF/5oirpt9P/FlUQqmMGqz9IgcgA38corog14=
+ -----END CERTIFICATE-----`
+ 
+-const startComRootSHA256 = `-----BEGIN CERTIFICATE-----
+-MIIHhzCCBW+gAwIBAgIBLTANBgkqhkiG9w0BAQsFADB9MQswCQYDVQQGEwJJTDEW
+-MBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMiU2VjdXJlIERpZ2l0YWwg
+-Q2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3RhcnRDb20gQ2VydGlmaWNh
+-dGlvbiBBdXRob3JpdHkwHhcNMDYwOTE3MTk0NjM3WhcNMzYwOTE3MTk0NjM2WjB9
+-MQswCQYDVQQGEwJJTDEWMBQGA1UEChMNU3RhcnRDb20gTHRkLjErMCkGA1UECxMi
+-U2VjdXJlIERpZ2l0YWwgQ2VydGlmaWNhdGUgU2lnbmluZzEpMCcGA1UEAxMgU3Rh
+-cnRDb20gQ2VydGlmaWNhdGlvbiBBdXRob3JpdHkwggIiMA0GCSqGSIb3DQEBAQUA
+-A4ICDwAwggIKAoICAQDBiNsJvGxGfHiflXu1M5DycmLWwTYgIiRezul38kMKogZk
+-pMyONvg45iPwbm2xPN1yo4UcodM9tDMr0y+v/uqwQVlntsQGfQqedIXWeUyAN3rf
+-OQVSWff0G0ZDpNKFhdLDcfN1YjS6LIp/Ho/u7TTQEceWzVI9ujPW3U3eCztKS5/C
+-Ji/6tRYccjV3yjxd5srhJosaNnZcAdt0FCX+7bWgiA/deMotHweXMAEtcnn6RtYT
+-Kqi5pquDSR3l8u/d5AGOGAqPY1MWhWKpDhk6zLVmpsJrdAfkK+F2PrRt2PZE4XNi
+-HzvEvqBTViVsUQn3qqvKv3b9bZvzndu/PWa8DFaqr5hIlTpL36dYUNk4dalb6kMM
+-Av+Z6+hsTXBbKWWc3apdzK8BMewM69KN6Oqce+Zu9ydmDBpI125C4z/eIT574Q1w
+-+2OqqGwaVLRcJXrJosmLFqa7LH4XXgVNWG4SHQHuEhANxjJ/GP/89PrNbpHoNkm+
+-Gkhpi8KWTRoSsmkXwQqQ1vp5Iki/untp+HDH+no32NgN0nZPV/+Qt+OR0t3vwmC3
+-Zzrd/qqc8NSLf3Iizsafl7b4r4qgEKjZ+xjGtrVcUjyJthkqcwEKDwOzEmDyei+B
+-26Nu/yYwl/WL3YlXtq09s68rxbd2AvCl1iuahhQqcvbjM4xdCUsT37uMdBNSSwID
+-AQABo4ICEDCCAgwwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMCAQYwHQYD
+-VR0OBBYEFE4L7xqkQFulF2mHMMo0aEPQQa7yMB8GA1UdIwQYMBaAFE4L7xqkQFul
+-F2mHMMo0aEPQQa7yMIIBWgYDVR0gBIIBUTCCAU0wggFJBgsrBgEEAYG1NwEBATCC
+-ATgwLgYIKwYBBQUHAgEWImh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL3BvbGljeS5w
+-ZGYwNAYIKwYBBQUHAgEWKGh0dHA6Ly93d3cuc3RhcnRzc2wuY29tL2ludGVybWVk
+-aWF0ZS5wZGYwgc8GCCsGAQUFBwICMIHCMCcWIFN0YXJ0IENvbW1lcmNpYWwgKFN0
+-YXJ0Q29tKSBMdGQuMAMCAQEagZZMaW1pdGVkIExpYWJpbGl0eSwgcmVhZCB0aGUg
+-c2VjdGlvbiAqTGVnYWwgTGltaXRhdGlvbnMqIG9mIHRoZSBTdGFydENvbSBDZXJ0
+-aWZpY2F0aW9uIEF1dGhvcml0eSBQb2xpY3kgYXZhaWxhYmxlIGF0IGh0dHA6Ly93
+-d3cuc3RhcnRzc2wuY29tL3BvbGljeS5wZGYwEQYJYIZIAYb4QgEBBAQDAgAHMDgG
+-CWCGSAGG+EIBDQQrFilTdGFydENvbSBGcmVlIFNTTCBDZXJ0aWZpY2F0aW9uIEF1
+-dGhvcml0eTANBgkqhkiG9w0BAQsFAAOCAgEAjo/n3JR5fPGFf59Jb2vKXfuM/gTF
+-wWLRfUKKvFO3lANmMD+x5wqnUCBVJX92ehQN6wQOQOY+2IirByeDqXWmN3PH/UvS
+-Ta0XQMhGvjt/UfzDtgUx3M2FIk5xt/JxXrAaxrqTi3iSSoX4eA+D/i+tLPfkpLst
+-0OcNOrg+zvZ49q5HJMqjNTbOx8aHmNrs++myziebiMMEofYLWWivydsQD032ZGNc
+-pRJvkrKTlMeIFw6Ttn5ii5B/q06f/ON1FE8qMt9bDeD1e5MNq6HPh+GlBEXoPBKl
+-CcWw0bdT82AUuoVpaiF8H3VhFyAXe2w7QSlc4axa0c2Mm+tgHRns9+Ww2vl5GKVF
+-P0lDV9LdJNUso/2RjSe15esUBppMeyG7Oq0wBhjA2MFrLH9ZXF2RsXAiV+uKa0hK
+-1Q8p7MZAwC+ITGgBF3f0JBlPvfrhsiAhS90a2Cl9qrjeVOwhVYBsHvUwyKMQ5bLm
+-KhQxw4UtjJixhlpPiVktucf3HMiKf8CdBUrmQk9io20ppB+Fq9vlgcitKj1MXVuE
+-JnHEhV5xJMqlG2zYYdMa4FTbzrqpMrUi9nNBCV24F10OD5mQ1kfabwo6YigUZ4LZ
+-8dCAWZvLMdibD4x3TrVoivJs9iQOLWxwxXPR3hTQcY+203sC9uO41Alua551hDnm
+-fyWl8kgAwKQB2j8=
+------END CERTIFICATE-----`
+-
+ const smimeLeaf = `-----BEGIN CERTIFICATE-----
+ MIIFBjCCA+6gAwIBAgISESFvrjT8XcJTEe6rBlPptILlMA0GCSqGSIb3DQEBBQUA
+ MFQxCzAJBgNVBAYTAkJFMRkwFwYDVQQKExBHbG9iYWxTaWduIG52LXNhMSowKAYD
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 662c81d1e9..5b238bfc5c 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -51,7 +51,6 @@ type fakeDB struct {
+ 	name string
+ 
+ 	mu      sync.Mutex
+-	free    []*fakeConn
+ 	tables  map[string]*table
+ 	badConn bool
+ }
+@@ -76,12 +75,6 @@ type row struct {
+ 	cols []interface{} // must be same size as its table colname + coltype
+ }
+ 
+-func (r *row) clone() *row {
+-	nrow := &row{cols: make([]interface{}, len(r.cols))}
+-	copy(nrow.cols, r.cols)
+-	return nrow
+-}
+-
+ type fakeConn struct {
+ 	db *fakeDB // where to return ourselves to
+ 
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index a4557118f2..b8f167b3c7 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -111,8 +111,6 @@ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
+ 	return f, tab
+ }
+ 
+-var goarch = os.Getenv("O")
+-
+ func TestLineFromAline(t *testing.T) {
+ 	skipIfNotELF(t)
+ 
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index 9fa01d7bfc..519574e66d 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -603,10 +603,6 @@ type Bug1Elem struct {
+ 
+ type Bug1StructMap map[string]Bug1Elem
+ 
+-func bug1EncDec(in Bug1StructMap, out *Bug1StructMap) error {
+-	return nil
+-}
+-
+ func TestMapBug1(t *testing.T) {
+ 	in := make(Bug1StructMap)
+ 	in["val1"] = Bug1Elem{"elem1", 1}
+diff --git a/src/encoding/xml/xml_test.go b/src/encoding/xml/xml_test.go
+index 6b8d8e9b61..dad6ed98c1 100644
+--- a/src/encoding/xml/xml_test.go
++++ b/src/encoding/xml/xml_test.go
+@@ -184,8 +184,6 @@ const nonStrictInput = `
+ <tag>&0a;</tag>
+ `
+ 
+-var nonStringEntity = map[string]string{"": "oops!", "0a": "oops!"}
+-
+ var nonStrictTokens = []Token{
+ 	CharData("\n"),
+ 	StartElement{Name{"", "tag"}, []Attr{}},
+@@ -652,10 +650,6 @@ func TestDisallowedCharacters(t *testing.T) {
+ 	}
+ }
+ 
+-type procInstEncodingTest struct {
+-	expect, got string
+-}
+-
+ var procInstTests = []struct {
+ 	input  string
+ 	expect [2]string
+diff --git a/src/fmt/scan_test.go b/src/fmt/scan_test.go
+index c9a731b10c..364d4fb42a 100644
+--- a/src/fmt/scan_test.go
++++ b/src/fmt/scan_test.go
+@@ -78,12 +78,6 @@ var (
+ 	renamedComplex128Val renamedComplex128
+ )
+ 
+-type FloatTest struct {
+-	text string
+-	in   float64
+-	out  float64
+-}
+-
+ // Xs accepts any non-empty run of the verb character
+ type Xs string
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9bd3ec82bb..04523f8022 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -402,21 +402,6 @@ func allowed(pkg string) map[string]bool {
+ 	return m
+ }
+ 
+-var bools = []bool{false, true}
+-var geese = []string{"android", "darwin", "dragonfly", "freebsd", "linux", "nacl", "netbsd", "openbsd", "plan9", "solaris", "windows"}
+-var goarches = []string{"386", "amd64", "arm"}
+-
+-type osPkg struct {
+-	goos, pkg string
+-}
+-
+-// allowedErrors are the operating systems and packages known to contain errors
+-// (currently just "no Go source files")
+-var allowedErrors = map[osPkg]bool{
+-	osPkg{"windows", "log/syslog"}: true,
+-	osPkg{"plan9", "log/syslog"}:   true,
+-}
+-
+ // listStdPkgs returns the same list of packages as "go list std".
+ func listStdPkgs(goroot string) ([]string, error) {
+ 	// Based on cmd/go's matchPackages function.
+diff --git a/src/go/types/hilbert_test.go b/src/go/types/hilbert_test.go
+index cfd51b1d64..3b56a8204b 100644
+--- a/src/go/types/hilbert_test.go
++++ b/src/go/types/hilbert_test.go
+@@ -193,19 +193,6 @@ func (g *gen) printProduct(n int) {
+ 	g.p("}\n\n")
+ }
+ 
+-func (g *gen) mulRange(a, b int) {
+-	if a > b {
+-		g.p("1")
+-		return
+-	}
+-	for i := a; i <= b; i++ {
+-		if i > a {
+-			g.p("*")
+-		}
+-		g.p("%d", i)
+-	}
+-}
+-
+ func (g *gen) binomials(n int) {
+ 	g.p(`// Binomials
+ const (
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index 968a7b1837..d9ea1fdb51 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -1225,12 +1225,6 @@ var hypotSC = []float64{
+ 	NaN(),
+ }
+ 
+-var vfilogbSC = []float64{
+-	Inf(-1),
+-	0,
+-	Inf(1),
+-	NaN(),
+-}
+ var ilogbSC = []int{
+ 	MaxInt32,
+ 	MinInt32,
+@@ -1756,7 +1750,6 @@ func tolerance(a, b, e float64) bool {
+ 	}
+ 	return d < e
+ }
+-func kindaclose(a, b float64) bool { return tolerance(a, b, 1e-8) }
+ func close(a, b float64) bool      { return tolerance(a, b, 1e-14) }
+ func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
+ func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index ea8e82d0b6..7d2f69a751 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -158,21 +158,6 @@ var sumVW = []argVW{
+ 	{nat{585}, nat{314}, 271, 0},
+ }
+ 
+-var prodVW = []argVW{
+-	{},
+-	{nat{0}, nat{0}, 0, 0},
+-	{nat{0}, nat{_M}, 0, 0},
+-	{nat{0}, nat{0}, _M, 0},
+-	{nat{1}, nat{1}, 1, 0},
+-	{nat{22793}, nat{991}, 23, 0},
+-	{nat{0, 0, 0, 22793}, nat{0, 0, 0, 991}, 23, 0},
+-	{nat{0, 0, 0, 0}, nat{7893475, 7395495, 798547395, 68943}, 0, 0},
+-	{nat{0, 0, 0, 0}, nat{0, 0, 0, 0}, 894375984, 0},
+-	{nat{_M << 1 & _M}, nat{_M}, 1 << 1, _M >> (_W - 1)},
+-	{nat{_M << 7 & _M}, nat{_M}, 1 << 7, _M >> (_W - 7)},
+-	{nat{_M << 7 & _M, _M, _M, _M}, nat{_M, _M, _M, _M}, 1 << 7, _M >> (_W - 7)},
+-}
+-
+ var lshVW = []argVW{
+ 	{},
+ 	{nat{0}, nat{0}, 0, 0},
+diff --git a/src/math/cmplx/cmath_test.go b/src/math/cmplx/cmath_test.go
+index 18d9be8194..6b3468402f 100644
+--- a/src/math/cmplx/cmath_test.go
++++ b/src/math/cmplx/cmath_test.go
+@@ -21,6 +21,7 @@ var vc26 = []complex128{
+ 	(1.82530809168085506044576505 - 8.68592476857560136238589621i),
+ 	(-8.68592476857560136238589621 + 4.97901192488367350108546816i),
+ }
++
+ var vc = []complex128{
+ 	(4.9790119248836735e+00 + 7.7388724745781045e+00i),
+ 	(7.7388724745781045e+00 - 2.7688005719200159e-01i),
+@@ -448,8 +449,7 @@ func tolerance(a, b, e float64) bool {
+ 	}
+ 	return d < e
+ }
+-func soclose(a, b, e float64) bool { return tolerance(a, b, e) }
+-func veryclose(a, b float64) bool  { return tolerance(a, b, 4e-16) }
++func veryclose(a, b float64) bool { return tolerance(a, b, 4e-16) }
+ func alike(a, b float64) bool {
+ 	switch {
+ 	case a != a && b != b: // math.IsNaN(a) && math.IsNaN(b):
+diff --git a/src/net/conf_test.go b/src/net/conf_test.go
+index 86904bffde..f4659f407d 100644
+--- a/src/net/conf_test.go
++++ b/src/net/conf_test.go
+@@ -32,7 +32,6 @@ func TestConfHostLookupOrder(t *testing.T) {
+ 	tests := []struct {
+ 		name      string
+ 		c         *conf
+-		goos      string
+ 		hostTests []nssHostTest
+ 	}{
+ 		{
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index 94d55ab2f6..4c6d9e361f 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -35,9 +35,8 @@ func init() {
+ }
+ 
+ var (
+-	SetEnterRoundTripHook  = hookSetter(&testHookEnterRoundTrip)
+-	SetTestHookWaitResLoop = hookSetter(&testHookWaitResLoop)
+-	SetRoundTripRetried    = hookSetter(&testHookRoundTripRetried)
++	SetEnterRoundTripHook = hookSetter(&testHookEnterRoundTrip)
++	SetRoundTripRetried   = hookSetter(&testHookRoundTripRetried)
+ )
+ 
+ func SetReadLoopBeforeNextReadHook(f func()) {
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 69d78066cd..8524df6f31 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -24,7 +24,6 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -39,8 +38,6 @@ type wantRange struct {
+ 	start, end int64 // range [start,end)
+ }
+ 
+-var itoa = strconv.Itoa
+-
+ var ServeFileRangeTests = []struct {
+ 	r      string
+ 	code   int
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 38b317af7d..ffc6836e73 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -152,13 +152,6 @@ func (dss *dualStackServer) buildup(handler func(*dualStackServer, Listener)) er
+ 	return nil
+ }
+ 
+-func (dss *dualStackServer) putConn(c Conn) error {
+-	dss.cmu.Lock()
+-	dss.cs = append(dss.cs, c)
+-	dss.cmu.Unlock()
+-	return nil
+-}
+-
+ func (dss *dualStackServer) teardownNetwork(network string) error {
+ 	dss.lnmu.Lock()
+ 	for i := range dss.lns {
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 32dd782c3c..e5326a673a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -44,16 +44,12 @@ type pair struct {
+ 	s string
+ }
+ 
+-func isDigit(c uint8) bool { return '0' <= c && c <= '9' }
+-
+ func assert(t *testing.T, s, want string) {
+ 	if s != want {
+ 		t.Errorf("have %#q want %#q", s, want)
+ 	}
+ }
+ 
+-func typestring(i interface{}) string { return TypeOf(i).String() }
+-
+ var typeTests = []pair{
+ 	{struct{ x int }{}, "int"},
+ 	{struct{ x int8 }{}, "int8"},
+diff --git a/src/regexp/exec_test.go b/src/regexp/exec_test.go
+index 6ccf24e7e9..cfc1e147c1 100644
+--- a/src/regexp/exec_test.go
++++ b/src/regexp/exec_test.go
+@@ -675,8 +675,6 @@ const (
+ 	easy1  = "A[AB]B[BC]C[CD]D[DE]E[EF]F[FG]G[GH]H[HI]I[IJ]J$"
+ 	medium = "[XYZ]ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+ 	hard   = "[ -~]*ABCDEFGHIJKLMNOPQRSTUVWXYZ$"
+-	parens = "([ -~])*(A)(B)(C)(D)(E)(F)(G)(H)(I)(J)(K)(L)(M)" +
+-		"(N)(O)(P)(Q)(R)(S)(T)(U)(V)(W)(X)(Y)(Z)$"
+ )
+ 
+ func BenchmarkMatchEasy0_32(b *testing.B)   { benchmark(b, easy0, 32<<0) }
+diff --git a/src/regexp/onepass_test.go b/src/regexp/onepass_test.go
+index abab024f8c..f4e336c43b 100644
+--- a/src/regexp/onepass_test.go
++++ b/src/regexp/onepass_test.go
+@@ -133,8 +133,6 @@ func TestMergeRuneSet(t *testing.T) {
+ 	}
+ }
+ 
+-const noStr = `!`
+-
+ var onePass = &onePassProg{}
+ 
+ var onePassTests = []struct {

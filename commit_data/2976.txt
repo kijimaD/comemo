@@ -9,6 +9,20 @@ Date:   Thu Aug 13 15:14:41 2009 -0700
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=33209
     CL=33227
-
+---
  src/pkg/log/log.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 8fcd731900..c109efa834 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -184,7 +184,7 @@ func Exitf(format string, v ...) {
+ 	exit.Output(2, fmt.Sprintf(format, v))
+ }
+ 
+-// Crash is equivalent to Stderrf() followed by a call to panic().
++// Crash is equivalent to Stderr() followed by a call to panic().
+ func Crash(v ...) {
+ 	crash.Output(2, fmt.Sprintln(v))
+ }

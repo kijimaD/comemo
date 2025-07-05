@@ -16,7 +16,7 @@ Date:   Mon Dec 21 01:55:44 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/279302
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/abiutils_test.go |  1 +
  src/cmd/compile/internal/gc/align.go         | 29 +++++++++++++++-------------
  src/cmd/compile/internal/gc/main.go          |  1 +
@@ -26,3 +26,214 @@ Date:   Mon Dec 21 01:55:44 2020 -0500
  src/cmd/compile/internal/ir/name.go          | 18 +++++++++++++++++
  src/cmd/compile/internal/types/type.go       | 12 ++++++++++++
  8 files changed, 51 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/abiutils_test.go b/src/cmd/compile/internal/gc/abiutils_test.go
+index 16bd787bea..14bd7ff097 100644
+--- a/src/cmd/compile/internal/gc/abiutils_test.go
++++ b/src/cmd/compile/internal/gc/abiutils_test.go
+@@ -29,6 +29,7 @@ func TestMain(m *testing.M) {
+ 	thearch.LinkArch = &x86.Linkamd64
+ 	thearch.REGSP = x86.REGSP
+ 	thearch.MAXWIDTH = 1 << 50
++	MaxWidth = thearch.MAXWIDTH
+ 	base.Ctxt = obj.Linknew(thearch.LinkArch)
+ 	base.Ctxt.DiagFunc = base.Errorf
+ 	base.Ctxt.DiagFlush = base.FlushErrors
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 95a5dbef29..a9cf7fb50a 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -7,12 +7,14 @@ package gc
+ import (
+ 	"bytes"
+ 	"cmd/compile/internal/base"
+-	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
+ 	"fmt"
+ 	"sort"
+ )
+ 
++// MaxWidth is the maximum size of a value on the target architecture.
++var MaxWidth int64
++
+ // sizeCalculationDisabled indicates whether it is safe
+ // to calculate Types' widths and alignments. See dowidth.
+ var sizeCalculationDisabled bool
+@@ -84,7 +86,7 @@ func expandiface(t *types.Type) {
+ 
+ 	sort.Sort(methcmp(methods))
+ 
+-	if int64(len(methods)) >= thearch.MAXWIDTH/int64(Widthptr) {
++	if int64(len(methods)) >= MaxWidth/int64(Widthptr) {
+ 		base.ErrorfAt(typePos(t), "interface too large")
+ 	}
+ 	for i, m := range methods {
+@@ -118,8 +120,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			o = Rnd(o, int64(f.Type.Align))
+ 		}
+ 		f.Offset = o
+-		if n := ir.AsNode(f.Nname); n != nil {
+-			n := n.Name()
++		if f.Nname != nil {
+ 			// addrescapes has similar code to update these offsets.
+ 			// Usually addrescapes runs after widstruct,
+ 			// in which case we could drop this,
+@@ -127,12 +128,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			// NOTE(rsc): This comment may be stale.
+ 			// It's possible the ordering has changed and this is
+ 			// now the common case. I'm not sure.
+-			if n.Name().Stackcopy != nil {
+-				n.Name().Stackcopy.SetFrameOffset(o)
+-				n.SetFrameOffset(0)
+-			} else {
+-				n.SetFrameOffset(o)
+-			}
++			f.Nname.(types.VarObject).RecordFrameOffset(o)
+ 		}
+ 
+ 		w := f.Type.Width
+@@ -143,7 +139,7 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 			lastzero = o
+ 		}
+ 		o += w
+-		maxwidth := thearch.MAXWIDTH
++		maxwidth := MaxWidth
+ 		// On 32-bit systems, reflect tables impose an additional constraint
+ 		// that each field start offset must fit in 31 bits.
+ 		if maxwidth < 1<<32 {
+@@ -206,7 +202,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		}
+ 
+ 		*path = append(*path, t)
+-		if findTypeLoop(t.Obj().(*ir.Name).Ntype.Type(), path) {
++		if findTypeLoop(t.Obj().(types.TypeObject).TypeDefn(), path) {
+ 			return true
+ 		}
+ 		*path = (*path)[:len(*path)-1]
+@@ -419,7 +415,7 @@ func dowidth(t *types.Type) {
+ 
+ 		dowidth(t.Elem())
+ 		if t.Elem().Width != 0 {
+-			cap := (uint64(thearch.MAXWIDTH) - 1) / uint64(t.Elem().Width)
++			cap := (uint64(MaxWidth) - 1) / uint64(t.Elem().Width)
+ 			if uint64(t.NumElem()) > cap {
+ 				base.ErrorfAt(typePos(t), "type %L larger than address space", t)
+ 			}
+@@ -479,6 +475,13 @@ func dowidth(t *types.Type) {
+ 	resumecheckwidth()
+ }
+ 
++// CalcStructSize calculates the size of s,
++// filling in s.Width and s.Align,
++// even if size calculation is otherwise disabled.
++func CalcStructSize(s *types.Type) {
++	s.Width = widstruct(s, s, 0, 1) // sets align
++}
++
+ // when a type's width should be known, we call checkwidth
+ // to compute it.  during a declaration like
+ //
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index de2b3db36a..343ad9d1d9 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -208,6 +208,7 @@ func Main(archInit func(*Arch)) {
+ 
+ 	Widthptr = thearch.LinkArch.PtrSize
+ 	Widthreg = thearch.LinkArch.RegSize
++	MaxWidth = thearch.MAXWIDTH
+ 
+ 	Target = new(ir.Package)
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index dae9d79147..8f7aa8e4e7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -164,7 +164,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 
+ 		dowidth(n.Type())
+ 		w := n.Type().Width
+-		if w >= thearch.MAXWIDTH || w < 0 {
++		if w >= MaxWidth || w < 0 {
+ 			base.Fatalf("bad width")
+ 		}
+ 		if w == 0 && lastHasPtr {
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 615b8bdbf1..8e2c6f62e1 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -331,8 +331,7 @@ func deferstruct(stksize int64) *types.Type {
+ 	// build struct holding the above fields
+ 	s := types.NewStruct(types.NoPkg, fields)
+ 	s.SetNoalg(true)
+-	s.Width = widstruct(s, s, 0, 1)
+-	s.Align = uint8(Widthptr)
++	CalcStructSize(s)
+ 	return s
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index a845bc5d75..9ef2bd56eb 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1019,7 +1019,7 @@ func stataddr(n ir.Node) (name *ir.Name, offset int64, ok bool) {
+ 		}
+ 
+ 		// Check for overflow.
+-		if n.Type().Width != 0 && thearch.MAXWIDTH/n.Type().Width <= int64(l) {
++		if n.Type().Width != 0 && MaxWidth/n.Type().Width <= int64(l) {
+ 			break
+ 		}
+ 		offset += int64(l) * n.Type().Width
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index b0b33cccfa..64c60b93d8 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -147,6 +147,24 @@ func (n *Name) isExpr() {}
+ // Callers must use n.CloneName to make clear they intend to create a separate name.
+ func (n *Name) CloneName() *Name { c := *n; return &c }
+ 
++// TypeDefn returns the type definition for a named OTYPE.
++// That is, given "type T Defn", it returns Defn.
++// It is used by package types.
++func (n *Name) TypeDefn() *types.Type {
++	return n.Ntype.Type()
++}
++
++// RecordFrameOffset records the frame offset for the name.
++// It is used by package types when laying out function arguments.
++func (n *Name) RecordFrameOffset(offset int64) {
++	if n.Stackcopy != nil {
++		n.Stackcopy.SetFrameOffset(offset)
++		n.SetFrameOffset(0)
++	} else {
++		n.SetFrameOffset(offset)
++	}
++}
++
+ // NewNameAt returns a new ONAME Node associated with symbol s at position pos.
+ // The caller is responsible for setting Curfn.
+ func NewNameAt(pos src.XPos, sym *types.Sym) *Name {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 4d1d30133c..752c268fa2 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -20,6 +20,18 @@ type Object interface {
+ 	Type() *Type
+ }
+ 
++// A TypeObject is an Object representing a named type.
++type TypeObject interface {
++	Object
++	TypeDefn() *Type // for "type T Defn", returns Defn
++}
++
++// A VarObject is an Object representing a function argument, variable, or struct field.
++type VarObject interface {
++	Object
++	RecordFrameOffset(int64) // save frame offset
++}
++
+ //go:generate stringer -type EType -trimprefix T
+ 
+ // EType describes a kind of type.

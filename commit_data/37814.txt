@@ -9,6 +9,29 @@ Date:   Thu Aug 30 12:25:53 2018 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/example_test.go | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/src/net/http/example_test.go b/src/net/http/example_test.go
+index 53fb0bbb4e..f5c47d0bd4 100644
+--- a/src/net/http/example_test.go
++++ b/src/net/http/example_test.go
+@@ -159,3 +159,17 @@ func ExampleListenAndServe() {
+ 	http.HandleFunc("/hello", helloHandler)
+ 	log.Fatal(http.ListenAndServe(":8080", nil))
+ }
++
++func ExampleHandleFunc() {
++	h1 := func(w http.ResponseWriter, _ *http.Request) {
++		io.WriteString(w, "Hello from a HandleFunc #1!\n")
++	}
++	h2 := func(w http.ResponseWriter, _ *http.Request) {
++		io.WriteString(w, "Hello from a HandleFunc #2!\n")
++	}
++
++	http.HandleFunc("/", h1)
++	http.HandleFunc("/endpoint", h2)
++
++	log.Fatal(http.ListenAndServe(":8080", nil))
++}

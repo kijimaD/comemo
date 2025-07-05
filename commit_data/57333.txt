@@ -32,9 +32,84 @@ Date:   Thu Jun 15 17:25:08 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/link/internal/amd64/asm.go   |  2 +-
  src/cmd/link/internal/arm64/asm.go   | 10 ++++------
  src/cmd/link/internal/ld/data.go     |  8 +++++---
  src/cmd/link/internal/sym/symkind.go |  4 ++++
  4 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 0c5486bf53..f5a3786e2e 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -469,7 +469,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 	rs := r.Xsym
+ 	rt := r.Type
+ 
+-	if rt == objabi.R_PCREL || rt == objabi.R_GOTPCREL || rt == objabi.R_CALL || ldr.SymType(rs) == sym.SHOSTOBJ || ldr.SymType(s) == sym.SINITARR {
++	if !ldr.SymType(s).IsDWARF() {
+ 		if ldr.SymDynid(rs) < 0 {
+ 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+ 			return false
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 6e691dbe65..ee4349f422 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -557,9 +557,11 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 	siz := r.Size
+ 	xadd := r.Xadd
+ 
+-	if xadd != signext24(xadd) {
++	if xadd != signext24(xadd) && rt != objabi.R_ADDR {
+ 		// If the relocation target would overflow the addend, then target
+ 		// a linker-manufactured label symbol with a smaller addend instead.
++		// R_ADDR has full-width addend encoded in data content, so it doesn't
++		// use a label symbol.
+ 		label := ldr.Lookup(offsetLabelName(ldr, rs, xadd/machoRelocLimit*machoRelocLimit), ldr.SymVersion(rs))
+ 		if label != 0 {
+ 			xadd = ldr.SymValue(rs) + xadd - ldr.SymValue(label)
+@@ -577,11 +579,7 @@ func machoreloc1(arch *sys.Arch, out *ld.OutBuf, ldr *loader.Loader, s loader.Sy
+ 		}
+ 	}
+ 
+-	if rt == objabi.R_CALLARM64 ||
+-		rt == objabi.R_ARM64_PCREL_LDST8 || rt == objabi.R_ARM64_PCREL_LDST16 ||
+-		rt == objabi.R_ARM64_PCREL_LDST32 || rt == objabi.R_ARM64_PCREL_LDST64 ||
+-		rt == objabi.R_ADDRARM64 || rt == objabi.R_ARM64_GOTPCREL ||
+-		ldr.SymType(rs) == sym.SHOSTOBJ || ldr.SymType(s) == sym.SINITARR {
++	if !ldr.SymType(s).IsDWARF() {
+ 		if ldr.SymDynid(rs) < 0 {
+ 			ldr.Errorf(s, "reloc %d (%s) to non-macho symbol %s type=%d (%s)", rt, sym.RelocName(arch, rt), ldr.SymName(rs), ldr.SymType(rs), ldr.SymType(rs))
+ 			return false
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 21b2e9a9d4..95fc8b5a42 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -368,9 +368,11 @@ func (st *relocSymState) relocsym(s loader.Sym, P []byte) {
+ 						o = 0
+ 					}
+ 				} else if target.IsDarwin() {
+-					if ldr.SymType(rs) != sym.SHOSTOBJ && ldr.SymType(s) != sym.SINITARR {
+-						// ld-prime drops the offset in data for SINITARR. We need to use
+-						// symbol-targeted relocation. See also machoreloc1.
++					if ldr.SymType(s).IsDWARF() {
++						// We generally use symbol-targeted relocations.
++						// DWARF tools seem to only handle section-targeted relocations,
++						// so generate section-targeted relocations in DWARF sections.
++						// See also machoreloc1.
+ 						o += ldr.SymValue(rs)
+ 					}
+ 				} else if target.IsWindows() {
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 77dbf75a51..08cafb206b 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -184,3 +184,7 @@ var RelROMap = map[SymKind]SymKind{
+ func (t SymKind) IsData() bool {
+ 	return t == SDATA || t == SNOPTRDATA || t == SBSS || t == SNOPTRBSS
+ }
++
++func (t SymKind) IsDWARF() bool {
++	return t >= SDWARFSECT && t <= SDWARFLINES
++}

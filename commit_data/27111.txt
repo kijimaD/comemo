@@ -12,6 +12,20 @@ Date:   Fri Mar 11 10:21:51 2016 -0500
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/util.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 7b70d3c584..4c37f76ca9 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -406,7 +406,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 		if a.Index != REG_NONE {
+ 			str += fmt.Sprintf("(%v*%d)", Rconv(int(a.Index)), int(a.Scale))
+ 		}
+-		if p.As == ATYPE && a.Gotype != nil {
++		if p != nil && p.As == ATYPE && a.Gotype != nil {
+ 			str += fmt.Sprintf("%s", a.Gotype.Name)
+ 		}
+ 

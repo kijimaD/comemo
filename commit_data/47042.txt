@@ -18,9 +18,91 @@ Date:   Fri Feb 19 09:40:35 2021 -0800
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/typecheck/iimport.go | 12 ++++++++----
  test/fixedbugs/issue44335.dir/a.go            | 17 +++++++++++++++++
  test/fixedbugs/issue44335.dir/b.go            | 11 +++++++++++
  test/fixedbugs/issue44335.go                  |  7 +++++++
  4 files changed, 43 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/iimport.go b/src/cmd/compile/internal/typecheck/iimport.go
+index 7b5b113b15..29090a9178 100644
+--- a/src/cmd/compile/internal/typecheck/iimport.go
++++ b/src/cmd/compile/internal/typecheck/iimport.go
+@@ -986,15 +986,19 @@ func (r *importReader) node() ir.Node {
+ 		fn.ClosureVars = cvars
+ 		r.allClosureVars = append(r.allClosureVars, cvars...)
+ 
+-		fn.Dcl = r.readFuncDcls(fn)
+-		body := r.stmtList()
++		fn.Inl = &ir.Inline{}
++		// Read in the Dcls and Body of the closure after temporarily
++		// setting r.curfn to fn.
++		r.funcBody(fn)
++		fn.Dcl = fn.Inl.Dcl
++		fn.Body = fn.Inl.Body
++		fn.Inl = nil
++
+ 		ir.FinishCaptureNames(pos, r.curfn, fn)
+ 
+ 		clo := ir.NewClosureExpr(pos, fn)
+ 		fn.OClosure = clo
+ 
+-		fn.Body = body
+-
+ 		return clo
+ 
+ 	// case OPTRLIT:
+diff --git a/test/fixedbugs/issue44335.dir/a.go b/test/fixedbugs/issue44335.dir/a.go
+new file mode 100644
+index 0000000000..2c9c217813
+--- /dev/null
++++ b/test/fixedbugs/issue44335.dir/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file
++
++package a
++
++type W struct {
++	M func(string) string
++}
++
++func FM(m string) func(W) {
++	return func(pw W) {
++		pw.M = func(string) string {
++			return m
++		}
++	}
++}
+diff --git a/test/fixedbugs/issue44335.dir/b.go b/test/fixedbugs/issue44335.dir/b.go
+new file mode 100644
+index 0000000000..e72c2abc6a
+--- /dev/null
++++ b/test/fixedbugs/issue44335.dir/b.go
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package b
++
++import "./a"
++
++func F() {
++	a.FM("")
++}
+diff --git a/test/fixedbugs/issue44335.go b/test/fixedbugs/issue44335.go
+new file mode 100644
+index 0000000000..d406838588
+--- /dev/null
++++ b/test/fixedbugs/issue44335.go
+@@ -0,0 +1,7 @@
++// compiledir
++
++// Copyright 2021 The Go Authors. All rights reserved.  Use of this
++// source code is governed by a BSD-style license that can be found in
++// the LICENSE file.
++
++package ignored

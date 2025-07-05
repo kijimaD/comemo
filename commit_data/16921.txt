@@ -7,10 +7,225 @@ Date:   Tue Jul 30 14:22:14 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12050045
-
+---
  doc/codewalk/codewalk.js |  2 +-
  doc/godocs.js            | 63 ++++++++++++++++++++++++++++++++++++++++++++++++
  doc/root.html            |  2 +-
  lib/godoc/godoc.html     | 19 ++++++---------
  lib/godoc/package.html   | 50 --------------------------------------
  5 files changed, 72 insertions(+), 64 deletions(-)
+
+diff --git a/doc/codewalk/codewalk.js b/doc/codewalk/codewalk.js
+index eb4667ac0c..7bfcd39384 100644
+--- a/doc/codewalk/codewalk.js
++++ b/doc/codewalk/codewalk.js
+@@ -296,7 +296,7 @@ CodewalkViewer.prototype.updateHeight = function() {
+   this.sizer.height(codeHeight);
+ };
+ 
+-jQuery(document).ready(function() {
++window.initFuncs.push(function() {
+   var viewer = new CodewalkViewer(jQuery('#codewalk-main'));
+   viewer.selectFirstComment();
+   viewer.targetCommentLinksAtBlank();
+diff --git a/doc/godocs.js b/doc/godocs.js
+index d824510476..8003a1fe8c 100644
+--- a/doc/godocs.js
++++ b/doc/godocs.js
+@@ -163,6 +163,52 @@ function setupDropdownPlayground() {
+   $('#menu').css('min-width', '+=60');
+ }
+ 
++function setupInlinePlayground() {
++	'use strict';
++	// Set up playground when each element is toggled.
++	$('div.play').each(function (i, el) {
++		// Set up playground for this example.
++		var setup = function() {
++			var code = $('.code', el);
++			playground({
++				'codeEl':   code,
++				'outputEl': $('.output', el),
++				'runEl':    $('.run', el),
++				'fmtEl':    $('.fmt', el),
++				'shareEl':  $('.share', el),
++				'shareRedirect': 'http://play.golang.org/p/'
++			});
++
++			// Make the code textarea resize to fit content.
++			var resize = function() {
++				code.height(0);
++				var h = code[0].scrollHeight;
++				code.height(h+20); // minimize bouncing.
++				code.closest('.input').height(h);
++			};
++			code.on('keydown', resize);
++			code.on('keyup', resize);
++			code.keyup(); // resize now.
++		};
++		
++		// If example already visible, set up playground now.
++		if ($(el).is(':visible')) {
++			setup();
++			return;
++		}
++
++		// Otherwise, set up playground when example is expanded.
++		var built = false;
++		$(el).closest('.toggle').click(function() {
++			// Only set up once.
++			if (!built) {
++				setup();
++				built = true;
++			}
++		});
++	});
++}
++
+ // fixFocus tries to put focus to div#page so that keyboard navigation works.
+ function fixFocus() {
+   var page = $('div#page');
+@@ -186,6 +232,15 @@ function toggleHash() {
+     }
+ }
+ 
++function addPlusButtons() {
++  var po = document.createElement('script');
++  po.type = 'text/javascript';
++  po.async = true;
++  po.src = 'https://apis.google.com/js/plusone.js';
++  var s = document.getElementsByTagName('script')[0];
++  s.parentNode.insertBefore(po, s);
++}
++
+ $(document).ready(function() {
+   bindSearchEvents();
+   generateTOC();
+@@ -196,8 +251,16 @@ $(document).ready(function() {
+   bindToggleLinks(".examplesLink", "");
+   bindToggleLinks(".indexLink", "");
+   setupDropdownPlayground();
++  setupInlinePlayground();
+   fixFocus();
+   toggleHash();
++  addPlusButtons();
++
++  // godoc.html defines window.initFuncs in the <head> tag, and root.html and
++  // codewalk.js push their on-page-ready functions to the list.
++  // We execute those functions here, to avoid loading jQuery until the page
++  // content is loaded.
++  for (var i = 0; i < window.initFuncs.length; i++) window.initFuncs[i]();
+ });
+ 
+ })();
+diff --git a/doc/root.html b/doc/root.html
+index e2d53414e7..e952a76bb3 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -116,7 +116,7 @@ function feedLoaded(result) {
+ 	}
+ }
+ 
+-$(function() {
++window.initFuncs.push(function() {
+ 	// Set up playground.
+ 	playground({
+ 		"codeEl":        "#learn .code",
+diff --git a/lib/godoc/godoc.html b/lib/godoc/godoc.html
+index bd524c22f2..ccf5b6ed6a 100644
+--- a/lib/godoc/godoc.html
++++ b/lib/godoc/godoc.html
+@@ -8,14 +8,10 @@
+   <title>The Go Programming Language</title>
+ {{end}}
+ <link type="text/css" rel="stylesheet" href="/doc/style.css">
+-<script type="text/javascript" src="/doc/jquery.js"></script>
+-{{if .Playground}}
+-<script type="text/javascript" src="/doc/play/playground.js"></script>
+-{{end}}
+-<script type="text/javascript" src="/doc/godocs.js"></script>
+ {{if .SearchBox}}
+ <link rel="search" type="application/opensearchdescription+xml" title="godoc" href="/opensearch.xml" />
+ {{end}}
++<script type="text/javascript">window.initFuncs = [];</script>
+ </head>
+ <body>
+ 
+@@ -87,13 +83,12 @@ and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
+ </div><!-- .container -->
+ </div><!-- #page -->
+ 
++<script type="text/javascript" src="/doc/jquery.js"></script>
++{{if .Playground}}
++<script type="text/javascript" src="/doc/play/playground.js"></script>
++{{end}}
++<script type="text/javascript" src="/doc/godocs.js"></script>
++
+ </body>
+-<script type="text/javascript">
+-  (function() {
+-    var po = document.createElement('script'); po.type = 'text/javascript'; po.async = true;
+-    po.src = 'https://apis.google.com/js/plusone.js';
+-    var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(po, s);
+-  })();
+-</script>
+ </html>
+ 
+diff --git a/lib/godoc/package.html b/lib/godoc/package.html
+index d71e953ec5..8d28652fc3 100644
+--- a/lib/godoc/package.html
++++ b/lib/godoc/package.html
+@@ -224,53 +224,3 @@
+ 	<p>Need more packages? Take a look at the <a href="http://code.google.com/p/go-wiki/wiki/Projects">Go Projects wiki page</a>.</p>
+ 	{{end}}
+ {{end}}
+-
+-{{if $.Examples}}
+-<script>
+-$(document).ready(function() {
+-	'use strict';
+-	// Set up playground when each element is toggled.
+-	$('div.play').each(function (i, el) {
+-		// Set up playground for this example.
+-		var setup = function() {
+-			var code = $('.code', el);
+-			playground({
+-				'codeEl':   code,
+-				'outputEl': $('.output', el),
+-				'runEl':    $('.run', el),
+-				'fmtEl':    $('.fmt', el),
+-				'shareEl':  $('.share', el),
+-				'shareRedirect': 'http://play.golang.org/p/'
+-			});
+-
+-			// Make the code textarea resize to fit content.
+-			var resize = function() {
+-				code.height(0);
+-				var h = code[0].scrollHeight;
+-				code.height(h+20); // minimize bouncing.
+-				code.closest('.input').height(h);
+-			};
+-			code.on('keydown', resize);
+-			code.on('keyup', resize);
+-			code.keyup(); // resize now.
+-		};
+-		
+-		// If example already visible, set up playground now.
+-		if ($(el).is(':visible')) {
+-			setup();
+-			return;
+-		}
+-
+-		// Otherwise, set up playground when example is expanded.
+-		var built = false;
+-		$(el).closest('.toggle').click(function() {
+-			// Only set up once.
+-			if (!built) {
+-				setup();
+-				built = true;
+-			}
+-		});
+-	});
+-});
+-</script>
+-{{end}}

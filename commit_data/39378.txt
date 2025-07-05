@@ -14,6 +14,20 @@ Date:   Thu Feb 14 02:35:00 2019 +0000
     GitHub-Pull-Request: golang/go#30223
     Reviewed-on: https://go-review.googlesource.com/c/162541
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/fmt/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 2cb409b617..a7115809d3 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -217,7 +217,7 @@
+ 	description of the problem, as in these examples:
+ 
+ 		Wrong type or unknown verb: %!verb(type=value)
+-			Printf("%d", hi):          %!d(string=hi)
++			Printf("%d", "hi"):        %!d(string=hi)
+ 		Too many arguments: %!(EXTRA type=value)
+ 			Printf("hi", "guys"):      hi%!(EXTRA string=guys)
+ 		Too few arguments: %!verb(MISSING)

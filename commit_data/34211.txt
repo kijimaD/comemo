@@ -15,8 +15,174 @@ Date:   Tue Oct 10 23:04:48 2017 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/range.go  | 10 +++++-----
  src/cmd/compile/internal/gc/select.go | 27 ++++++++++-----------------
  src/cmd/compile/internal/gc/swt.go    |  7 +++----
  3 files changed, 18 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 1b423ed36c..aaf8641255 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -52,7 +52,7 @@ func typecheckrange(n *Node) {
+ 	toomany = 0
+ 	switch t.Etype {
+ 	default:
+-		yyerror("cannot range over %L", n.Right)
++		yyerrorl(n.Pos, "cannot range over %L", n.Right)
+ 		goto out
+ 
+ 	case TARRAY, TSLICE:
+@@ -65,7 +65,7 @@ func typecheckrange(n *Node) {
+ 
+ 	case TCHAN:
+ 		if !t.ChanDir().CanRecv() {
+-			yyerror("invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
++			yyerrorl(n.Pos, "invalid operation: range %v (receive from send-only type %v)", n.Right, n.Right.Type)
+ 			goto out
+ 		}
+ 
+@@ -81,7 +81,7 @@ func typecheckrange(n *Node) {
+ 	}
+ 
+ 	if n.List.Len() > 2 || toomany != 0 {
+-		yyerror("too many variables in range")
++		yyerrorl(n.Pos, "too many variables in range")
+ 	}
+ 
+ 	v1 = nil
+@@ -108,7 +108,7 @@ func typecheckrange(n *Node) {
+ 		if v1.Name != nil && v1.Name.Defn == n {
+ 			v1.Type = t1
+ 		} else if v1.Type != nil && assignop(t1, v1.Type, &why) == 0 {
+-			yyerror("cannot assign type %v to %L in range%s", t1, v1, why)
++			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t1, v1, why)
+ 		}
+ 		checkassign(n, v1)
+ 	}
+@@ -117,7 +117,7 @@ func typecheckrange(n *Node) {
+ 		if v2.Name != nil && v2.Name.Defn == n {
+ 			v2.Type = t2
+ 		} else if v2.Type != nil && assignop(t2, v2.Type, &why) == 0 {
+-			yyerror("cannot assign type %v to %L in range%s", t2, v2, why)
++			yyerrorl(n.Pos, "cannot assign type %v to %L in range%s", t2, v2, why)
+ 		}
+ 		checkassign(n, v2)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index 319d32b256..e99754c299 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -8,39 +8,32 @@ import "cmd/compile/internal/types"
+ 
+ // select
+ func typecheckselect(sel *Node) {
+-	var ncase *Node
+-	var n *Node
+-
+ 	var def *Node
+ 	lno := setlineno(sel)
+-	count := 0
+ 	typecheckslice(sel.Ninit.Slice(), Etop)
+-	for _, n1 := range sel.List.Slice() {
+-		count++
+-		ncase = n1
+-		setlineno(ncase)
++	for _, ncase := range sel.List.Slice() {
+ 		if ncase.Op != OXCASE {
++			setlineno(ncase)
+ 			Fatalf("typecheckselect %v", ncase.Op)
+ 		}
+ 
+ 		if ncase.List.Len() == 0 {
+ 			// default
+ 			if def != nil {
+-				yyerror("multiple defaults in select (first at %v)", def.Line())
++				yyerrorl(ncase.Pos, "multiple defaults in select (first at %v)", def.Line())
+ 			} else {
+ 				def = ncase
+ 			}
+ 		} else if ncase.List.Len() > 1 {
+-			yyerror("select cases cannot be lists")
++			yyerrorl(ncase.Pos, "select cases cannot be lists")
+ 		} else {
+ 			ncase.List.SetFirst(typecheck(ncase.List.First(), Etop))
+-			n = ncase.List.First()
++			n := ncase.List.First()
+ 			ncase.Left = n
+ 			ncase.List.Set(nil)
+-			setlineno(n)
+ 			switch n.Op {
+ 			default:
+-				yyerror("select case must be receive, send or assign recv")
++				yyerrorl(n.Pos, "select case must be receive, send or assign recv")
+ 
+ 			// convert x = <-c into OSELRECV(x, <-c).
+ 			// remove implicit conversions; the eventual assignment
+@@ -51,7 +44,7 @@ func typecheckselect(sel *Node) {
+ 				}
+ 
+ 				if n.Right.Op != ORECV {
+-					yyerror("select assignment must have receive on right hand side")
++					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
+ 					break
+ 				}
+ 
+@@ -60,7 +53,7 @@ func typecheckselect(sel *Node) {
+ 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+ 			case OAS2RECV:
+ 				if n.Rlist.First().Op != ORECV {
+-					yyerror("select assignment must have receive on right hand side")
++					yyerrorl(n.Pos, "select assignment must have receive on right hand side")
+ 					break
+ 				}
+ 
+@@ -72,7 +65,7 @@ func typecheckselect(sel *Node) {
+ 
+ 				// convert <-c into OSELRECV(N, <-c)
+ 			case ORECV:
+-				n = nod(OSELRECV, nil, n)
++				n = nodl(n.Pos, OSELRECV, nil, n)
+ 
+ 				n.SetTypecheck(1)
+ 				ncase.Left = n
+@@ -85,7 +78,7 @@ func typecheckselect(sel *Node) {
+ 		typecheckslice(ncase.Nbody.Slice(), Etop)
+ 	}
+ 
+-	sel.Xoffset = int64(count)
++	sel.Xoffset = int64(sel.List.Len())
+ 	lineno = lno
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 31d018b152..1f401f5356 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -393,7 +393,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		case 0:
+ 			// default
+ 			if def != nil {
+-				yyerror("more than one default case")
++				yyerrorl(n.Pos, "more than one default case")
+ 			}
+ 			// reuse original default case
+ 			n.Right = jmp
+@@ -673,14 +673,13 @@ func (s *typeSwitch) walk(sw *Node) {
+ 		return
+ 	}
+ 	if cond.Right == nil {
+-		setlineno(sw)
+-		yyerror("type switch must have an assignment")
++		yyerrorl(sw.Pos, "type switch must have an assignment")
+ 		return
+ 	}
+ 
+ 	cond.Right = walkexpr(cond.Right, &sw.Ninit)
+ 	if !cond.Right.Type.IsInterface() {
+-		yyerror("type switch must be on an interface")
++		yyerrorl(sw.Pos, "type switch must be on an interface")
+ 		return
+ 	}
+ 

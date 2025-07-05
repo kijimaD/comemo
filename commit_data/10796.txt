@@ -7,7 +7,67 @@ Date:   Wed Dec 14 17:17:25 2011 -0500
     R=golang-dev, edsrzf, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/5451087
-
+---
  src/pkg/net/smtp/auth.go      | 32 +++++++++++++++++++++++++++++++-
  src/pkg/net/smtp/smtp_test.go |  1 +
  2 files changed, 32 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/smtp/auth.go b/src/pkg/net/smtp/auth.go
+index 10a757fc64..6f0cde0d28 100644
+--- a/src/pkg/net/smtp/auth.go
++++ b/src/pkg/net/smtp/auth.go
+@@ -4,7 +4,11 @@
+ 
+ package smtp
+ 
+-import "errors"
++import (
++	"crypto/hmac"
++	"errors"
++	"fmt"
++)
+ 
+ // Auth is implemented by an SMTP authentication mechanism.
+ type Auth interface {
+@@ -65,3 +69,29 @@ func (a *plainAuth) Next(fromServer []byte, more bool) ([]byte, error) {
+ 	}
+ 	return nil, nil
+ }
++
++type cramMD5Auth struct {
++	username, secret string
++}
++
++// CRAMMD5Auth returns an Auth that implements the CRAM-MD5 authentication
++// mechanism as defined in RFC 2195.
++// The returned Auth uses the given username and secret to authenticate
++// to the server using the challenge-response mechanism.
++func CRAMMD5Auth(username, secret string) Auth {
++	return &cramMD5Auth{username, secret}
++}
++
++func (a *cramMD5Auth) Start(server *ServerInfo) (string, []byte, error) {
++	return "CRAM-MD5", nil, nil
++}
++
++func (a *cramMD5Auth) Next(fromServer []byte, more bool) ([]byte, error) {
++	if more {
++		d := hmac.NewMD5([]byte(a.secret))
++		d.Write(fromServer)
++		s := make([]byte, 0, d.Size())
++		return []byte(fmt.Sprintf("%s %x", a.username, d.Sum(s))), nil
++	}
++	return nil, nil
++}
+diff --git a/src/pkg/net/smtp/smtp_test.go b/src/pkg/net/smtp/smtp_test.go
+index d4e9c38bf4..ce88782053 100644
+--- a/src/pkg/net/smtp/smtp_test.go
++++ b/src/pkg/net/smtp/smtp_test.go
+@@ -23,6 +23,7 @@ type authTest struct {
+ var authTests = []authTest{
+ 	{PlainAuth("", "user", "pass", "testserver"), []string{}, "PLAIN", []string{"\x00user\x00pass"}},
+ 	{PlainAuth("foo", "bar", "baz", "testserver"), []string{}, "PLAIN", []string{"foo\x00bar\x00baz"}},
++	{CRAMMD5Auth("user", "pass"), []string{"<123456.1322876914@testserver>"}, "CRAM-MD5", []string{"", "user 287eb355114cf5c471c26a875f1ca4ae"}},
+ }
+ 
+ func TestAuth(t *testing.T) {

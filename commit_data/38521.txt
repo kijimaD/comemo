@@ -28,10 +28,299 @@ Date:   Wed Oct 31 09:34:10 2018 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go                | 65 ++++++++++++++++++++++-----------
  src/crypto/tls/handshake_client.go      | 39 ++++++++++++++++----
  src/crypto/tls/handshake_client_test.go |  6 +++
  src/crypto/tls/handshake_server.go      | 23 ++++++------
  src/crypto/tls/handshake_server_test.go | 11 ++++--
  5 files changed, 99 insertions(+), 45 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index d08b096b20..228c065344 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -39,9 +39,6 @@ const (
+ 	recordHeaderLen    = 5            // record header length
+ 	maxHandshake       = 65536        // maximum handshake we support (protocol max is 16 MB)
+ 	maxUselessRecords  = 5            // maximum number of consecutive non-advancing records
+-
+-	minVersion = VersionTLS10
+-	maxVersion = VersionTLS12
+ )
+ 
+ // TLS record types.
+@@ -714,18 +711,43 @@ func (c *Config) cipherSuites() []uint16 {
+ 	return s
+ }
+ 
+-func (c *Config) minVersion() uint16 {
+-	if c == nil || c.MinVersion == 0 {
+-		return minVersion
++var supportedVersions = []uint16{
++	VersionTLS12,
++	VersionTLS11,
++	VersionTLS10,
++	VersionSSL30,
++}
++
++func (c *Config) supportedVersions(isClient bool) []uint16 {
++	versions := make([]uint16, 0, len(supportedVersions))
++	for _, v := range supportedVersions {
++		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
++			continue
++		}
++		if c != nil && c.MaxVersion != 0 && v > c.MaxVersion {
++			continue
++		}
++		// TLS 1.0 is the minimum version supported as a client.
++		if isClient && v < VersionTLS10 {
++			continue
++		}
++		versions = append(versions, v)
+ 	}
+-	return c.MinVersion
++	return versions
+ }
+ 
+-func (c *Config) maxVersion() uint16 {
+-	if c == nil || c.MaxVersion == 0 {
+-		return maxVersion
++// supportedVersionsFromMax returns a list of supported versions derived from a
++// legacy maximum version value. Note that only versions supported by this
++// library are returned. Any newer peer will use supportedVersions anyway.
++func supportedVersionsFromMax(maxVersion uint16) []uint16 {
++	versions := make([]uint16, 0, len(supportedVersions))
++	for _, v := range supportedVersions {
++		if v > maxVersion {
++			continue
++		}
++		versions = append(versions, v)
+ 	}
+-	return c.MaxVersion
++	return versions
+ }
+ 
+ var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
+@@ -738,18 +760,17 @@ func (c *Config) curvePreferences() []CurveID {
+ }
+ 
+ // mutualVersion returns the protocol version to use given the advertised
+-// version of the peer.
+-func (c *Config) mutualVersion(vers uint16) (uint16, bool) {
+-	minVersion := c.minVersion()
+-	maxVersion := c.maxVersion()
+-
+-	if vers < minVersion {
+-		return 0, false
+-	}
+-	if vers > maxVersion {
+-		vers = maxVersion
++// versions of the peer. Priority is given to the peer preference order.
++func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
++	supportedVersions := c.supportedVersions(isClient)
++	for _, peerVersion := range peerVersions {
++		for _, v := range supportedVersions {
++			if v == peerVersion {
++				return v, true
++			}
++		}
+ 	}
+-	return vers, true
++	return 0, false
+ }
+ 
+ // getCertificate returns the best certificate for the given ClientHelloInfo,
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 322839caac..cfa7a75b79 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -43,13 +43,25 @@ func makeClientHello(config *Config) (*clientHelloMsg, error) {
+ 			nextProtosLength += 1 + l
+ 		}
+ 	}
+-
+ 	if nextProtosLength > 0xffff {
+ 		return nil, errors.New("tls: NextProtos values too large")
+ 	}
+ 
++	supportedVersions := config.supportedVersions(true)
++	if len(supportedVersions) == 0 {
++		return nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
++	}
++
++	clientHelloVersion := supportedVersions[0]
++	// The version at the beginning of the ClientHello was capped at TLS 1.2
++	// for compatibility reasons. The supported_versions extension is used
++	// to negotiate versions now. See RFC 8446, Section 4.2.1.
++	if clientHelloVersion > VersionTLS12 {
++		clientHelloVersion = VersionTLS12
++	}
++
+ 	hello := &clientHelloMsg{
+-		vers:                         config.maxVersion(),
++		vers:                         clientHelloVersion,
+ 		compressionMethods:           []uint8{compressionNone},
+ 		random:                       make([]byte, 32),
+ 		ocspStapling:                 true,
+@@ -60,6 +72,7 @@ func makeClientHello(config *Config) (*clientHelloMsg, error) {
+ 		nextProtoNeg:                 len(config.NextProtos) > 0,
+ 		secureRenegotiationSupported: true,
+ 		alpnProtocols:                config.NextProtos,
++		supportedVersions:            supportedVersions,
+ 	}
+ 	possibleCipherSuites := config.cipherSuites()
+ 	hello.cipherSuites = make([]uint16, 0, len(possibleCipherSuites))
+@@ -140,8 +153,14 @@ func (c *Conn) clientHandshake() error {
+ 				}
+ 			}
+ 
+-			versOk := candidateSession.vers >= c.config.minVersion() &&
+-				candidateSession.vers <= c.config.maxVersion()
++			versOk := false
++			for _, v := range c.config.supportedVersions(true) {
++				if v == candidateSession.vers {
++					versOk = true
++					break
++				}
++			}
++
+ 			if versOk && cipherSuiteOk {
+ 				session = candidateSession
+ 			}
+@@ -273,11 +292,15 @@ func (hs *clientHandshakeState) handshake() error {
+ }
+ 
+ func (hs *clientHandshakeState) pickTLSVersion() error {
+-	vers, ok := hs.c.config.mutualVersion(hs.serverHello.vers)
+-	if !ok || vers < VersionTLS10 {
+-		// TLS 1.0 is the minimum version supported as a client.
++	peerVersion := hs.serverHello.vers
++	if hs.serverHello.supportedVersion != 0 {
++		peerVersion = hs.serverHello.supportedVersion
++	}
++
++	vers, ok := hs.c.config.mutualVersion(true, []uint16{peerVersion})
++	if !ok {
+ 		hs.c.sendAlert(alertProtocolVersion)
+-		return fmt.Errorf("tls: server selected unsupported protocol version %x", hs.serverHello.vers)
++		return fmt.Errorf("tls: server selected unsupported protocol version %x", peerVersion)
+ 	}
+ 
+ 	hs.c.vers = vers
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 437aaed462..18c15340ea 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -279,6 +279,12 @@ func (test *clientTest) loadData() (flows [][]byte, err error) {
+ func (test *clientTest) run(t *testing.T, write bool) {
+ 	checkOpenSSLVersion(t)
+ 
++	// TODO(filippo): regenerate client tests all at once after CL 146217,
++	// RSA-PSS and client-side TLS 1.3 are landed.
++	if !write {
++		t.Skip("recorded client tests are out of date")
++	}
++
+ 	var clientConn, serverConn net.Conn
+ 	var recordingConn *recordingConn
+ 	var childProcess *exec.Cmd
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 2c916e853e..ae793e2dd4 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -135,14 +135,19 @@ func (hs *serverHandshakeState) readClientHello() (isResume bool, err error) {
+ 		}
+ 	}
+ 
+-	c.vers, ok = c.config.mutualVersion(hs.clientHello.vers)
++	clientVersions := hs.clientHello.supportedVersions
++	if len(hs.clientHello.supportedVersions) == 0 {
++		clientVersions = supportedVersionsFromMax(hs.clientHello.vers)
++	}
++	c.vers, ok = c.config.mutualVersion(false, clientVersions)
+ 	if !ok {
+ 		c.sendAlert(alertProtocolVersion)
+-		return false, fmt.Errorf("tls: client offered an unsupported, maximum protocol version of %x", hs.clientHello.vers)
++		return false, fmt.Errorf("tls: client offered only unsupported versions: %x", clientVersions)
+ 	}
+ 	c.haveVers = true
+ 
+ 	hs.hello = new(serverHelloMsg)
++	hs.hello.vers = c.vers
+ 
+ 	supportedCurve := false
+ 	preferredCurves := c.config.curvePreferences()
+@@ -179,7 +184,6 @@ Curves:
+ 		return false, errors.New("tls: client does not support uncompressed connections")
+ 	}
+ 
+-	hs.hello.vers = c.vers
+ 	hs.hello.random = make([]byte, 32)
+ 	_, err = io.ReadFull(c.config.rand(), hs.hello.random)
+ 	if err != nil {
+@@ -272,7 +276,7 @@ Curves:
+ 	for _, id := range hs.clientHello.cipherSuites {
+ 		if id == TLS_FALLBACK_SCSV {
+ 			// The client is doing a fallback connection.
+-			if hs.clientHello.vers < c.config.maxVersion() {
++			if hs.clientHello.vers < c.config.supportedVersions(false)[0] {
+ 				c.sendAlert(alertInappropriateFallback)
+ 				return false, errors.New("tls: client using inappropriate protocol fallback")
+ 			}
+@@ -762,19 +766,14 @@ func (hs *serverHandshakeState) setCipherSuite(id uint16, supportedCipherSuites
+ 	return false
+ }
+ 
+-// suppVersArray is the backing array of ClientHelloInfo.SupportedVersions
+-var suppVersArray = [...]uint16{VersionTLS12, VersionTLS11, VersionTLS10, VersionSSL30}
+-
+ func (hs *serverHandshakeState) clientHelloInfo() *ClientHelloInfo {
+ 	if hs.cachedClientHelloInfo != nil {
+ 		return hs.cachedClientHelloInfo
+ 	}
+ 
+-	var supportedVersions []uint16
+-	if hs.clientHello.vers > VersionTLS12 {
+-		supportedVersions = suppVersArray[:]
+-	} else if hs.clientHello.vers >= VersionSSL30 {
+-		supportedVersions = suppVersArray[VersionTLS12-hs.clientHello.vers:]
++	supportedVersions := hs.clientHello.supportedVersions
++	if len(hs.clientHello.supportedVersions) == 0 {
++		supportedVersions = supportedVersionsFromMax(hs.clientHello.vers)
+ 	}
+ 
+ 	hs.cachedClientHelloInfo = &ClientHelloInfo{
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 01de92d971..5aaa815279 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -104,8 +104,13 @@ func TestRejectBadProtocolVersion(t *testing.T) {
+ 		testClientHelloFailure(t, testConfig, &clientHelloMsg{
+ 			vers:   v,
+ 			random: make([]byte, 32),
+-		}, "unsupported, maximum protocol version")
++		}, "unsupported versions")
+ 	}
++	testClientHelloFailure(t, testConfig, &clientHelloMsg{
++		vers:              VersionTLS12,
++		supportedVersions: badProtocolVersions,
++		random:            make([]byte, 32),
++	}, "unsupported versions")
+ }
+ 
+ func TestNoSuiteOverlap(t *testing.T) {
+@@ -1289,11 +1294,11 @@ var getConfigForClientTests = []struct {
+ 		func(clientHello *ClientHelloInfo) (*Config, error) {
+ 			config := testConfig.Clone()
+ 			// Setting a maximum version of TLS 1.1 should cause
+-			// the handshake to fail.
++			// the handshake to fail, as the client MinVersion is TLS 1.2.
+ 			config.MaxVersion = VersionTLS11
+ 			return config, nil
+ 		},
+-		"version 301 when expecting version 302",
++		"client offered only unsupported versions",
+ 		nil,
+ 	},
+ 	{

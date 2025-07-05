@@ -9,7 +9,48 @@ Date:   Thu Apr 7 18:53:47 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4368057
-
+---
  src/cmd/gc/subr.c        |  5 +++--
  test/fixedbugs/bug327.go | 18 ++++++++++++++++++
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index b4c58d10d7..eb0fc3c624 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1889,8 +1889,9 @@ assignop(Type *src, Type *dst, char **why)
+ 		return OCONVNOP;
+ 	
+ 	// 2. src and dst have identical underlying types
+-	// and either src or dst is not a named type.
+-	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S))
++	// and either src or dst is not a named type or
++	// both are interface types.
++	if(eqtype(src->orig, dst->orig) && (src->sym == S || dst->sym == S || src->etype == TINTER))
+ 		return OCONVNOP;
+ 
+ 	// 3. dst is an interface type and src implements dst.
+diff --git a/test/fixedbugs/bug327.go b/test/fixedbugs/bug327.go
+new file mode 100644
+index 0000000000..10f309da4e
+--- /dev/null
++++ b/test/fixedbugs/bug327.go
+@@ -0,0 +1,18 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type (
++       a interface{}
++       b interface{}
++)
++
++func main() {
++       x := a(1)
++       z := b(x)
++       _ = z
++}

@@ -16,6 +16,70 @@ Date:   Wed Jun 14 17:16:59 2023 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/script_test.go | 20 ++------------------
  1 file changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index d0099888d9..624c5bf501 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -14,20 +14,18 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"flag"
+-	"fmt"
+-	"go/build"
+ 	"internal/testenv"
+ 	"internal/txtar"
+ 	"net/url"
+ 	"os"
+ 	"path/filepath"
+-	"regexp"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/gover"
+ 	"cmd/go/internal/script"
+ 	"cmd/go/internal/script/scripttest"
+ 	"cmd/go/internal/vcweb/vcstest"
+@@ -209,10 +207,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	version, err := goVersion()
+-	if err != nil {
+-		return nil, err
+-	}
+ 	env := []string{
+ 		pathEnvName() + "=" + testBin + string(filepath.ListSeparator) + os.Getenv(pathEnvName()),
+ 		homeEnvName() + "=/no-home",
+@@ -243,7 +237,7 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+ 		"GONOSUMDB=",
+ 		"GOVCS=*:all",
+ 		"devnull=" + os.DevNull,
+-		"goversion=" + version,
++		"goversion=" + gover.Local(),
+ 		"CMDGO_TEST_RUN_MAIN=true",
+ 		"HGRCPATH=",
+ 		"GOTOOLCHAIN=auto",
+@@ -281,16 +275,6 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+ 	return env, nil
+ }
+ 
+-// goVersion returns the current Go version.
+-func goVersion() (string, error) {
+-	tags := build.Default.ReleaseTags
+-	version := tags[len(tags)-1]
+-	if !regexp.MustCompile(`^go([1-9][0-9]*)\.(0|[1-9][0-9]*)$`).MatchString(version) {
+-		return "", fmt.Errorf("invalid go version %q", version)
+-	}
+-	return version[2:], nil
+-}
+-
+ var extraEnvKeys = []string{
+ 	"SYSTEMROOT",         // must be preserved on Windows to find DLLs; golang.org/issue/25210
+ 	"WINDIR",             // must be preserved on Windows to be able to run PowerShell command; golang.org/issue/30711

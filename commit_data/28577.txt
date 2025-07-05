@@ -11,6 +11,20 @@ Date:   Sun Jun 5 09:24:09 2016 -0700
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/asm_386.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index c18e588345..ea11b2b2fb 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -174,7 +174,7 @@ DATA	bad_proc_msg<>+0x00(SB)/8, $"This pro"
+ DATA	bad_proc_msg<>+0x08(SB)/8, $"gram can"
+ DATA	bad_proc_msg<>+0x10(SB)/8, $" only be"
+ DATA	bad_proc_msg<>+0x18(SB)/8, $" run on "
+-DATA	bad_proc_msg<>+0x20(SB)/8, $"processe"
++DATA	bad_proc_msg<>+0x20(SB)/8, $"processo"
+ DATA	bad_proc_msg<>+0x28(SB)/8, $"rs with "
+ DATA	bad_proc_msg<>+0x30(SB)/8, $"MMX supp"
+ DATA	bad_proc_msg<>+0x38(SB)/4, $"ort."

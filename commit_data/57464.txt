@@ -13,7 +13,45 @@ Date:   Thu Aug 10 01:51:17 2023 +0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/cmd/compile/internal/walk/walk.go |  2 ++
  test/fixedbugs/issue61908.go          | 16 ++++++++++++++++
  2 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 8e4aa985bb..21cccaacf8 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -275,8 +275,10 @@ func backingArrayPtrLen(n ir.Node) (ptr, length ir.Node) {
+ 	} else {
+ 		ptr.SetType(n.Type().Elem().PtrTo())
+ 	}
++	ptr.SetTypecheck(1)
+ 	length = ir.NewUnaryExpr(base.Pos, ir.OLEN, n)
+ 	length.SetType(types.Types[types.TINT])
++	length.SetTypecheck(1)
+ 	return ptr, length
+ }
+ 
+diff --git a/test/fixedbugs/issue61908.go b/test/fixedbugs/issue61908.go
+new file mode 100644
+index 0000000000..f5d3bce678
+--- /dev/null
++++ b/test/fixedbugs/issue61908.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(p []byte) int {
++	switch "" < string(p) {
++	case true:
++		return 0
++	default:
++		return 1
++	}
++}

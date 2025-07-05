@@ -9,7 +9,33 @@ Date:   Mon Oct 24 23:24:11 2016 +0000
     Change-Id: I02ad98068894e75d4e08e271fdd16cb420519460
     Reviewed-on: https://go-review.googlesource.com/31910
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/testing/quick/quick.go      | 2 ++
  src/text/tabwriter/tabwriter.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/testing/quick/quick.go b/src/testing/quick/quick.go
+index 798d41aa7d..cbf9584041 100644
+--- a/src/testing/quick/quick.go
++++ b/src/testing/quick/quick.go
+@@ -3,6 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package quick implements utility functions to help with black box testing.
++//
++// The package is frozen and not accepting new features.
+ package quick
+ 
+ import (
+diff --git a/src/text/tabwriter/tabwriter.go b/src/text/tabwriter/tabwriter.go
+index 796e1e8699..befcacf01b 100644
+--- a/src/text/tabwriter/tabwriter.go
++++ b/src/text/tabwriter/tabwriter.go
+@@ -8,6 +8,7 @@
+ // The package is using the Elastic Tabstops algorithm described at
+ // http://nickgravgaard.com/elastictabstops/index.html.
+ //
++// The package is frozen and not accepting new features.
+ package tabwriter
+ 
+ import (

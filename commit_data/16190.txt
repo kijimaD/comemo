@@ -7,6 +7,22 @@ Date:   Wed Apr 17 11:46:30 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8662045
-
+---
  src/pkg/go/token/token.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/go/token/token.go b/src/pkg/go/token/token.go
+index 84b6314d57..865f63f4a1 100644
+--- a/src/pkg/go/token/token.go
++++ b/src/pkg/go/token/token.go
+@@ -243,8 +243,8 @@ func (tok Token) String() string {
+ // A set of constants for precedence-based expression parsing.
+ // Non-operators have lowest precedence, followed by operators
+ // starting with precedence 1 up to unary operators. The highest
+-// precedence corresponds serves as "catch-all" precedence for
+-// selector, indexing, and other operator and delimiter tokens.
++// precedence serves as "catch-all" precedence for selector,
++// indexing, and other operator and delimiter tokens.
+ //
+ const (
+ 	LowestPrec  = 0 // non-operators

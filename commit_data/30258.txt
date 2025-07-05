@@ -14,7 +14,57 @@ Date:   Wed Oct 19 16:00:07 2016 -0400
     Change-Id: Ib188a60492c5cfb352814bf9b2bcb2941fb7d6c0
     Reviewed-on: https://go-review.googlesource.com/31570
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/proc.go     |  4 ++--
  src/runtime/runtime2.go | 16 ++++++++++++++++
  2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c77229b925..eb2532f3c3 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2175,8 +2175,8 @@ top:
+ func dropg() {
+ 	_g_ := getg()
+ 
+-	_g_.m.curg.m = nil
+-	_g_.m.curg = nil
++	setMNoWB(&_g_.m.curg.m, nil)
++	setGNoWB(&_g_.m.curg, nil)
+ }
+ 
+ func parkunlock_c(gp *g, lock unsafe.Pointer) bool {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 683156daf1..49f6e6f649 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -205,6 +205,14 @@ func (gp *guintptr) cas(old, new guintptr) bool {
+ 	return atomic.Casuintptr((*uintptr)(unsafe.Pointer(gp)), uintptr(old), uintptr(new))
+ }
+ 
++// setGNoWB performs *gp = new without a write barrier.
++// For times when it's impractical to use a guintptr.
++//go:nosplit
++//go:nowritebarrier
++func setGNoWB(gp **g, new *g) {
++	(*guintptr)(unsafe.Pointer(gp)).set(new)
++}
++
+ type puintptr uintptr
+ 
+ //go:nosplit
+@@ -221,6 +229,14 @@ func (mp muintptr) ptr() *m { return (*m)(unsafe.Pointer(mp)) }
+ //go:nosplit
+ func (mp *muintptr) set(m *m) { *mp = muintptr(unsafe.Pointer(m)) }
+ 
++// setMNoWB performs *mp = new without a write barrier.
++// For times when it's impractical to use an muintptr.
++//go:nosplit
++//go:nowritebarrier
++func setMNoWB(mp **m, new *m) {
++	(*muintptr)(unsafe.Pointer(mp)).set(new)
++}
++
+ type gobuf struct {
+ 	// The offsets of sp, pc, and g are known to (hard-coded in) libmach.
+ 	sp   uintptr

@@ -9,6 +9,25 @@ Date:   Mon Jan 14 15:25:42 2013 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/7098059
-
+---
  src/pkg/go/types/stmt.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/go/types/stmt.go b/src/pkg/go/types/stmt.go
+index f1d6704110..11a2e7196d 100644
+--- a/src/pkg/go/types/stmt.go
++++ b/src/pkg/go/types/stmt.go
+@@ -610,10 +610,10 @@ func (check *checker) stmt(s ast.Stmt) {
+ 		}
+ 
+ 		// There is only one object (lhs) associated with a lhs identifier, but that object
+-		// assumes different types for different clauses. Set it to nil when we are done so
+-		// that the type cannot be used by mistake.
++		// assumes different types for different clauses. Set it back to the type of the
++		// TypeSwitchGuard expression so that that variable always has a valid type.
+ 		if lhs != nil {
+-			lhs.Type = nil
++			lhs.Type = x.typ
+ 		}
+ 
+ 	case *ast.SelectStmt:

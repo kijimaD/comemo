@@ -13,6 +13,21 @@ Date:   Mon Aug 12 15:40:50 2019 -0400
     Change-Id: I0c9257ab61d53f3a47556882f7dfc8fc119be849
     Reviewed-on: https://go-review.googlesource.com/c/go/+/189942
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  misc/boring/build.release | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/misc/boring/build.release b/misc/boring/build.release
+index 46d3b82087..2256ff2e8f 100755
+--- a/misc/boring/build.release
++++ b/misc/boring/build.release
+@@ -63,9 +63,6 @@ export GO111MODULE=on
+ export GOBIN="$dir"
+ (cd "$dir"; go get golang.org/x/build/cmd/release)
+ 
+-# Workaround issue golang.org/issue/33443.
+-wget -q -O releaselet.go "https://raw.githubusercontent.com/golang/build/master/cmd/release/releaselet.go"
+-
+ # Build the release.
+ sha() {
+     if hash sha256sum 2>/dev/null; then

@@ -38,8 +38,140 @@ Date:   Thu Apr 29 11:47:18 2021 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/abi/abiutils.go       | 48 ++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/debug.go          |  6 ++++
  src/cmd/compile/internal/test/abiutils_test.go | 36 +++++++++++++++++++
  3 files changed, 90 insertions(+)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index e192adb5e1..cb8e9d7b0f 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -790,3 +790,51 @@ func (state *assignState) assignParamOrReturn(pt *types.Type, n types.Object, is
+ 		return state.stackAllocate(pt, n)
+ 	}
+ }
++
++// ComputePadding returns a list of "post element" padding values in
++// the case where we have a structure being passed in registers. Give
++// a param assignment corresponding to a struct, it returns a list of
++// contaning padding values for each field, e.g. the Kth element in
++// the list is the amount of padding between field K and the following
++// field. For things that are not struct (or structs without padding)
++// it returns a list of zeros. Example:
++//
++// type small struct {
++//   x uint16
++//   y uint8
++//   z int32
++//   w int32
++// }
++//
++// For this struct we would return a list [0, 1, 0, 0], meaning that
++// we have one byte of padding after the second field, and no bytes of
++// padding after any of the other fields. Input parameter "storage"
++// is with enough capacity to accommodate padding elements for
++// the architected register set in question.
++func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
++	nr := len(pa.Registers)
++	padding := storage[:nr]
++	for i := 0; i < nr; i++ {
++		padding[i] = 0
++	}
++	if pa.Type.Kind() != types.TSTRUCT || nr == 0 {
++		return padding
++	}
++	types := make([]*types.Type, 0, nr)
++	types = appendParamTypes(types, pa.Type)
++	if len(types) != nr {
++		panic("internal error")
++	}
++	off := int64(0)
++	for idx, t := range types {
++		ts := t.Size()
++		off += int64(ts)
++		if idx < len(types)-1 {
++			noff := align(off, types[idx+1])
++			if noff != off {
++				padding[idx] = uint64(noff - off)
++			}
++		}
++	}
++	return padding
++}
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 4401f56703..ee522f41ef 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -1391,6 +1391,8 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 			continue
+ 		}
+ 		rtypes, _ := inp.RegisterTypesAndOffsets()
++		padding := make([]uint64, 0, 32)
++		padding = inp.ComputePadding(padding)
+ 		for k, r := range inp.Registers {
+ 			reg := ObjRegForAbiReg(r, f.Config)
+ 			dwreg := ctxt.Arch.DWARFRegisters[reg]
+@@ -1404,6 +1406,10 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 				list = append(list, dwarf.DW_OP_piece)
+ 				ts := rtypes[k].Width
+ 				list = dwarf.AppendUleb128(list, uint64(ts))
++				if padding[k] > 0 {
++					list = append(list, dwarf.DW_OP_piece)
++					list = dwarf.AppendUleb128(list, padding[k])
++				}
+ 			}
+ 		}
+ 		// fill in length of location expression element
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index daff99a799..b752c48612 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/src"
++	"fmt"
+ 	"os"
+ 	"testing"
+ )
+@@ -359,3 +360,38 @@ func TestABINumParamRegs(t *testing.T) {
+ 	nrtest(t, a, 12)
+ 
+ }
++
++func TestABIUtilsComputePadding(t *testing.T) {
++	// type s1 { f1 int8; f2 int16; f3 struct{}; f4 int32; f5 int64 }
++	i8 := types.Types[types.TINT8]
++	i16 := types.Types[types.TINT16]
++	i32 := types.Types[types.TINT32]
++	i64 := types.Types[types.TINT64]
++	emptys := mkstruct([]*types.Type{})
++	s1 := mkstruct([]*types.Type{i8, i16, emptys, i32, i64})
++	// func (p1 int32, p2 s1, p3 emptys, p4 [1]int32)
++	a1 := types.NewArray(i32, 1)
++	ft := mkFuncType(nil, []*types.Type{i32, s1, emptys, a1}, []*types.Type{})
++
++	// Run abitest() just to document what we're expected to see.
++	exp := makeExpectedDump(`
++        IN 0: R{ I0 } spilloffset: 0 typ: int32
++        IN 1: R{ I1 I2 I3 I4 } spilloffset: 8 typ: struct { int8; int16; struct {}; int32; int64 }
++        IN 2: R{ } offset: 0 typ: struct {}
++        IN 3: R{ I5 } spilloffset: 24 typ: [1]int32
++        offsetToSpillArea: 0 spillAreaSize: 32
++`)
++	abitest(t, ft, exp)
++
++	// Analyze with full set of registers, then call ComputePadding
++	// on the second param, verifying the results.
++	regRes := configAMD64.ABIAnalyze(ft, false)
++	padding := make([]uint64, 32)
++	parm := regRes.InParams()[1]
++	padding = parm.ComputePadding(padding)
++	want := "[1 1 1 0]"
++	got := fmt.Sprintf("%+v", padding)
++	if got != want {
++		t.Errorf("padding mismatch: wanted %q got %q\n", got, want)
++	}
++}

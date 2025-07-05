@@ -9,8 +9,74 @@ Date:   Sun Mar 31 16:48:18 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8063044
-
+---
  src/pkg/net/unixsock.go       | 2 --
  src/pkg/net/unixsock_plan9.go | 8 +++-----
  src/pkg/net/unixsock_posix.go | 8 +++-----
  3 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 977ff91031..21a19eca2c 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Unix domain sockets
+-
+ package net
+ 
+ // UnixAddr represents the address of a Unix domain socket end point.
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 00a0be5b08..0390207f0f 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Unix domain sockets stubs for Plan 9
+-
+ package net
+ 
+ import (
+@@ -133,9 +131,9 @@ func (l *UnixListener) File() (*os.File, error) {
+ }
+ 
+ // ListenUnixgram listens for incoming Unix datagram packets addressed
+-// to the local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send packets with
+-// per-packet addressing.  The network net must be "unixgram".
++// to the local address laddr.  The network net must be "unixgram".
++// The returned connection's ReadFrom and WriteTo methods can be used
++// to receive and send packets with per-packet addressing.
+ func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index abdff09a8a..760d38f273 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -4,8 +4,6 @@
+ 
+ // +build darwin freebsd linux netbsd openbsd windows
+ 
+-// Unix domain sockets
+-
+ package net
+ 
+ import (
+@@ -344,9 +342,9 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
+ 
+ // ListenUnixgram listens for incoming Unix datagram packets addressed
+-// to the local address laddr.  The returned connection c's ReadFrom
+-// and WriteTo methods can be used to receive and send packets with
+-// per-packet addressing.  The network net must be "unixgram".
++// to the local address laddr.  The network net must be "unixgram".
++// The returned connection's ReadFrom and WriteTo methods can be used
++// to receive and send packets with per-packet addressing.
+ func ListenUnixgram(net string, laddr *UnixAddr) (*UnixConn, error) {
+ 	switch net {
+ 	case "unixgram":

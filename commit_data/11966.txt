@@ -7,7 +7,34 @@ Date:   Thu Feb 16 17:21:21 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5674069
-
+---
  misc/cgo/test/basic.go | 2 +-
  test/map.go            | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index 7aaae15222..cd6d881686 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -111,7 +111,7 @@ func testErrno(t *testing.T) {
+ 		t.Fatalf("C.fopen: should fail")
+ 	}
+ 	if err != os.ENOENT {
+-		t.Fatalf("C.fopen: unexpected error: ", err)
++		t.Fatalf("C.fopen: unexpected error: %v", err)
+ 	}
+ }
+ 
+diff --git a/test/map.go b/test/map.go
+index 215e56c7f6..8e1af0e9c4 100644
+--- a/test/map.go
++++ b/test/map.go
+@@ -487,7 +487,7 @@ func testbasic() {
+ 
+ 		mipM[i][i]++
+ 		if mipM[i][i] != (i+1)+1 {
+-			fmt.Printf("update mipM[%d][%d] = %i\n", i, i, mipM[i][i])
++			fmt.Printf("update mipM[%d][%d] = %d\n", i, i, mipM[i][i])
+ 		}
+ 	}
+ 

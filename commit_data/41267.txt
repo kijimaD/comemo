@@ -7,6 +7,20 @@ Date:   Wed Sep 18 23:45:58 2019 +0300
     Change-Id: I1ab0b5f713581b5f497878f222fa4ba3998a0ccd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/196179
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/internal/semver/semver.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/semver/semver.go b/src/cmd/go/internal/semver/semver.go
+index 122e612dd4..2988e3cf9c 100644
+--- a/src/cmd/go/internal/semver/semver.go
++++ b/src/cmd/go/internal/semver/semver.go
+@@ -107,7 +107,7 @@ func Build(v string) string {
+ }
+ 
+ // Compare returns an integer comparing two versions according to
+-// according to semantic version precedence.
++// semantic version precedence.
+ // The result will be 0 if v == w, -1 if v < w, or +1 if v > w.
+ //
+ // An invalid semantic version string is considered less than a valid one.

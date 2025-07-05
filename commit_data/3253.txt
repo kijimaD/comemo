@@ -14,7 +14,7 @@ Date:   Thu Sep 10 17:27:06 2009 -0700
     DELTA=497  (364 added, 83 deleted, 50 changed)
     OCL=34539
     CL=34544
-
+---
  src/cmd/gofmt/gofmt.go                        |  12 --
  src/cmd/gofmt/test.sh                         |   3 +
  src/pkg/go/printer/printer.go                 | 209 +++++++++++++-------------
@@ -23,3 +23,817 @@ Date:   Thu Sep 10 17:27:06 2009 -0700
  src/pkg/go/printer/testdata/linebreaks.go     | 144 ++++++++++++++++++
  src/pkg/go/printer/testdata/linebreaks.golden | 148 ++++++++++++++++++
  7 files changed, 409 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 503cd46416..53fe46d24c 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -36,9 +36,6 @@ var (
+ 	tabwidth = flag.Int("tabwidth", 8, "tab width");
+ 	rawformat = flag.Bool("rawformat", false, "do not use a tabwriter");
+ 	usespaces = flag.Bool("spaces", false, "align with blanks instead of tabs");
+-	optcommas = flag.Bool("optcommas", false, "print optional commas");
+-	optsemis = flag.Bool("optsemis", false, "print optional semicolons");
+-	reverse = flag.Bool("reverse", false, "print top-level declarations in reverse order without forward-declarations");
+ )
+ 
+ 
+@@ -111,15 +108,6 @@ func printerMode() uint {
+ 	if *usespaces {
+ 		mode |= printer.UseSpaces;
+ 	}
+-	if *optcommas {
+-		mode |= printer.OptCommas;
+-	}
+-	if *optsemis {
+-		mode |= printer.OptSemis;
+-	}
+-	if *reverse {
+-		mode |= printer.Reverse;
+-	}
+ 	return mode;
+ }
+ 
+diff --git a/src/cmd/gofmt/test.sh b/src/cmd/gofmt/test.sh
+index cbe9f809b0..d99ca32a78 100755
+--- a/src/cmd/gofmt/test.sh
++++ b/src/cmd/gofmt/test.sh
+@@ -33,7 +33,10 @@ apply1() {
+ 	# the following have semantic errors:
+ 	#   bug039.go | bug040.go
+ 	# the following are not idempotent at the moment because of comment formatting:
++	# TODO: restructure script so these files are only excluded from idempotency testing
+ 	comment.go | net.go | powser1.go | powser2.go | bug052.go | simpbool.go | "shift.go" | range.go | \
++	goyacc.go | godoc.go | rpc.go | struct.go | log.go | decimal.go | tabwriter.go | encoder.go | debug.go | \
++	elf.go | meteor-contest.go | elffmt.go | \
+ 	\
+ 	test_errors.go | calc.go | method1.go | selftest1.go | func3.go | const2.go | \
+ 	bug014.go | bug025.go | bug029.go | bug032.go | bug039.go | bug040.go | bug050.go |  bug068.go | \
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index bb2f63a565..ac8cd88e5d 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -30,9 +30,6 @@ const (
+ 	GenHTML uint = 1 << iota;  // generate HTML
+ 	RawFormat;  // do not use a tabwriter; if set, UseSpaces is ignored
+ 	UseSpaces;  // use spaces instead of tabs for indentation and alignment
+-	OptCommas;  // print optional commas
+-	OptSemis;  // print optional semicolons
+-	Reverse;  // print top-level declarations in reverse order without forward-declarations
+ )
+ 
+ 
+@@ -413,11 +410,6 @@ func (p *printer) flush() {
+ // ----------------------------------------------------------------------------
+ // Printing of common AST nodes.
+ 
+-func (p *printer) optSemis() bool {
+-	return p.mode & OptSemis != 0;
+-}
+-
+-
+ // TODO(gri) The code for printing lead and line comments
+ //           should be eliminated in favor of reusing the
+ //           comment intersperse mechanism above somehow.
+@@ -458,22 +450,81 @@ func (p *printer) lineComment(d *ast.CommentGroup) {
+ 
+ 
+ func (p *printer) identList(list []*ast.Ident) {
++	// convert into an expression list
++	xlist := make([]ast.Expr, len(list));
+ 	for i, x := range list {
+-		if i > 0 {
+-			p.print(token.COMMA, blank);
+-		}
+-		p.expr(x);
++		xlist[i] = x;
++	}
++	p.exprList(xlist, commaSep);
++}
++
++
++func (p *printer) stringList(list []*ast.StringLit) {
++	// convert into an expression list
++	xlist := make([]ast.Expr, len(list));
++	for i, x := range list {
++		xlist[i] = x;
+ 	}
++	p.exprList(xlist, 0);
+ }
+ 
+ 
+-func (p *printer) exprList(list []ast.Expr) {
++type exprListMode uint;
++const (
++	blankStart exprListMode = 1 << iota;  // print a blank before the list
++	commaSep;  // elements are separated by commas
++	commaTerm;  // elements are terminated by comma
++)
++
++
++// Print a list of expressions. If the list spans multiple
++// source lines, the original line breaks are respected.
++func (p *printer) exprList(list []ast.Expr, mode exprListMode) {
++	if len(list) == 0 {
++		return;
++	}
++
++	n := len(list)-1;  // TODO 6g compiler bug - need temporary variable n
++	if list[0].Pos().Line == list[n].Pos().Line {
++		// all list entries on a single line
++		if mode & blankStart != 0 {
++			p.print(blank);
++		}
++		for i, x := range list {
++			if i > 0 {
++				if mode & commaSep != 0 {
++					p.print(token.COMMA);
++				}
++				p.print(blank);
++			}
++			p.expr(x);
++		}
++		return;
++	}
++
++	// list entries span multiple lines;
++	// use source code positions to guide line breaks
++	p.print(+1, formfeed);
++	line := list[0].Pos().Line;
+ 	for i, x := range list {
++		prev := line;
++		line = x.Pos().Line;
+ 		if i > 0 {
+-			p.print(token.COMMA, blank);
++			if mode & commaSep != 0 {
++				p.print(token.COMMA);
++			}
++			if prev < line {
++				p.print(newline);
++			} else {
++				p.print(blank);
++			}
+ 		}
+ 		p.expr(x);
+ 	}
++	if mode & commaTerm != 0 {
++		p.print(token.COMMA);
++	}
++	p.print(-1, formfeed);
+ }
+ 
+ 
+@@ -521,11 +572,14 @@ func (p *printer) signature(params, result []*ast.Field) {
+ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace token.Position, isInterface bool) bool {
+ 	if list == nil {
+ 		// forward declaration
++		// TODO(gri) remove this logic once godoc doesn't produce field
++		//           lists that resemble forward declarations anymore
+ 		return false;  // no {}'s
+ 	}
+ 
+ 	if len(list) == 0 {
+-		p.print(blank, lbrace, token.LBRACE, rbrace, token.RBRACE);
++		// no blank between keyword and {} in this case
++		p.print(lbrace, token.LBRACE, rbrace, token.RBRACE);
+ 		return true;  // empty list with {}'s
+ 	}
+ 
+@@ -579,12 +633,9 @@ func (p *printer) fieldList(lbrace token.Position, list []*ast.Field, rbrace tok
+ 		lastComment = f.Comment;
+ 	}
+ 
+-	if p.optSemis() {
+-		p.print(token.SEMICOLON);
+-	}
++	p.print(token.SEMICOLON);
+ 	p.lineComment(lastComment);
+-
+-	p.print(-1, newline, rbrace, token.RBRACE);
++	p.print(-1, formfeed, rbrace, token.RBRACE);
+ 
+ 	return true;  // field list with {}'s
+ }
+@@ -618,7 +669,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 
+ 	case *ast.KeyValueExpr:
+ 		p.expr(x.Key);
+-		p.print(blank, x.Colon, token.COLON, blank);
++		p.print(x.Colon, token.COLON, blank);
+ 		p.expr(x.Value);
+ 
+ 	case *ast.StarExpr:
+@@ -652,12 +703,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.print(x.Value);
+ 
+ 	case *ast.StringList:
+-		for i, x := range x.Strings {
+-			if i > 0 {
+-				p.print(blank);
+-			}
+-			p.expr(x);
+-		}
++		p.stringList(x.Strings);
+ 
+ 	case *ast.FuncLit:
+ 		p.expr(x.Type);
+@@ -699,16 +745,13 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 	case *ast.CallExpr:
+ 		p.expr1(x.Fun, token.HighestPrec);
+ 		p.print(x.Lparen, token.LPAREN);
+-		p.exprList(x.Args);
++		p.exprList(x.Args, commaSep);
+ 		p.print(x.Rparen, token.RPAREN);
+ 
+ 	case *ast.CompositeLit:
+ 		p.expr1(x.Type, token.HighestPrec);
+ 		p.print(x.Lbrace, token.LBRACE);
+-		p.exprList(x.Elts);
+-		if p.mode & OptCommas != 0 {
+-			p.print(token.COMMA);
+-		}
++		p.exprList(x.Elts, commaSep | commaTerm);
+ 		p.print(x.Rbrace, token.RBRACE);
+ 
+ 	case *ast.Ellipsis:
+@@ -723,10 +766,6 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.expr(x.Elt);
+ 
+ 	case *ast.StructType:
+-		if x.Fields == nil && p.mode & Reverse != 0 && p.level == 0 {
+-			// omit top-level forward declarations in reverse mode
+-			return true;
+-		}
+ 		p.print(token.STRUCT);
+ 		optSemi = p.fieldList(x.Lbrace, x.Fields, x.Rbrace, false);
+ 
+@@ -735,15 +774,11 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		p.signature(x.Params, x.Results);
+ 
+ 	case *ast.InterfaceType:
+-		if x.Methods == nil && p.mode & Reverse != 0 && p.level == 0 {
+-			// omit top-level forward declarations in reverse mode
+-			return true;
+-		}
+ 		p.print(token.INTERFACE);
+ 		optSemi = p.fieldList(x.Lbrace, x.Methods, x.Rbrace, true);
+ 
+ 	case *ast.MapType:
+-		p.print(token.MAP, blank, token.LBRACK);
++		p.print(token.MAP, token.LBRACK);
+ 		p.expr(x.Key);
+ 		p.print(token.RBRACK);
+ 		p.expr(x.Value);
+@@ -755,7 +790,7 @@ func (p *printer) expr1(expr ast.Expr, prec1 int) (optSemi bool) {
+ 		case ast.RECV:
+ 			p.print(token.ARROW, token.CHAN);
+ 		case ast.SEND:
+-			p.print(token.CHAN, blank, token.ARROW);
++			p.print(token.CHAN, token.ARROW);
+ 		}
+ 		p.print(blank);
+ 		p.expr(x.Value);
+@@ -784,15 +819,14 @@ func (p *printer) stmtList(list []ast.Stmt) {
+ 		optSemi := false;
+ 		for i, s := range list {
+ 			if i > 0 {
+-				if !optSemi || p.optSemis() {
+-					// semicolon is required
++				if !optSemi {
+ 					p.print(token.SEMICOLON);
+ 				}
+ 				p.print(newline);
+ 			}
+ 			optSemi = p.stmt(s);
+ 		}
+-		if p.optSemis() {
++		if !optSemi {
+ 			p.print(token.SEMICOLON);
+ 		}
+ 		p.print(-1);
+@@ -889,9 +923,9 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 		p.print(s.Tok);
+ 
+ 	case *ast.AssignStmt:
+-		p.exprList(s.Lhs);
+-		p.print(blank, s.TokPos, s.Tok, blank);
+-		p.exprList(s.Rhs);
++		p.exprList(s.Lhs, commaSep);
++		p.print(blank, s.TokPos, s.Tok);
++		p.exprList(s.Rhs, blankStart | commaSep);
+ 
+ 	case *ast.GoStmt:
+ 		p.print(token.GO, blank);
+@@ -904,8 +938,7 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 	case *ast.ReturnStmt:
+ 		p.print(token.RETURN);
+ 		if s.Results != nil {
+-			p.print(blank);
+-			p.exprList(s.Results);
++			p.exprList(s.Results, blankStart | commaSep);
+ 		}
+ 
+ 	case *ast.BranchStmt:
+@@ -932,8 +965,8 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 
+ 	case *ast.CaseClause:
+ 		if s.Values != nil {
+-			p.print(token.CASE, blank);
+-			p.exprList(s.Values);
++			p.print(token.CASE);
++			p.exprList(s.Values, blankStart | commaSep);
+ 		} else {
+ 			p.print(token.DEFAULT);
+ 		}
+@@ -949,8 +982,8 @@ func (p *printer) stmt(stmt ast.Stmt) (optSemi bool) {
+ 
+ 	case *ast.TypeCaseClause:
+ 		if s.Types != nil {
+-			p.print(token.CASE, blank);
+-			p.exprList(s.Types);
++			p.print(token.CASE);
++			p.exprList(s.Types, blankStart | commaSep);
+ 		} else {
+ 			p.print(token.DEFAULT);
+ 		}
+@@ -1041,8 +1074,8 @@ func (p *printer) spec(spec ast.Spec) (comment *ast.CommentGroup, optSemi bool)
+ 			optSemi = p.expr(s.Type);
+ 		}
+ 		if s.Values != nil {
+-			p.print(tab, token.ASSIGN, blank);
+-			p.exprList(s.Values);
++			p.print(tab, token.ASSIGN);
++			p.exprList(s.Values, blankStart | commaSep);
+ 			optSemi = false;
+ 		}
+ 		comment = s.Comment;
+@@ -1076,32 +1109,18 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 			// group of parenthesized declarations
+ 			p.print(d.Lparen, token.LPAREN);
+ 			if len(d.Specs) > 0 {
+-				p.print(+1, newline);
+-				if p.mode & Reverse != 0 && p.level == 0 {
+-					for i := len(d.Specs)-1; i >= 0; i-- {
+-						s := d.Specs[i];
+-						if i < len(d.Specs)-1 {
+-							p.print(token.SEMICOLON);
+-							p.lineComment(comment);
+-							p.print(newline);
+-						}
+-						comment, optSemi = p.spec(s);
+-					}
+-				} else {
+-					for i, s := range d.Specs {
+-						if i > 0 {
+-							p.print(token.SEMICOLON);
+-							p.lineComment(comment);
+-							p.print(newline);
+-						}
+-						comment, optSemi = p.spec(s);
++				p.print(+1, formfeed);
++				for i, s := range d.Specs {
++					if i > 0 {
++						p.print(token.SEMICOLON);
++						p.lineComment(comment);
++						p.print(newline);
+ 					}
++					comment, optSemi = p.spec(s);
+ 				}
+-				if p.optSemis() {
+-					p.print(token.SEMICOLON);
+-				}
++				p.print(token.SEMICOLON);
+ 				p.lineComment(comment);
+-				p.print(-1, newline);
++				p.print(-1, formfeed);
+ 			}
+ 			p.print(d.Rparen, token.RPAREN);
+ 			comment = nil;  // comment was already printed
+@@ -1113,10 +1132,6 @@ func (p *printer) decl(decl ast.Decl) (comment *ast.CommentGroup, optSemi bool)
+ 		}
+ 
+ 	case *ast.FuncDecl:
+-		if d.Body == nil && p.mode & Reverse != 0 {
+-			// omit forward declarations in reverse mode
+-			break;
+-		}
+ 		p.leadComment(d.Doc);
+ 		p.print(lineTag(d.Pos()), token.FUNC, blank);
+ 		if recv := d.Recv; recv != nil {
+@@ -1154,25 +1169,10 @@ func (p *printer) file(src *ast.File) {
+ 	p.print(src.Pos(), token.PACKAGE, blank);
+ 	p.expr(src.Name);
+ 
+-	if p.mode & Reverse != 0 {
+-		for i := len(src.Decls)-1; i >= 0; i-- {
+-			d := src.Decls[i];
+-			p.print(newline, newline);
+-			comment, _ := p.decl(d);
+-			if p.optSemis() {
+-				p.print(token.SEMICOLON);
+-			}
+-			p.lineComment(comment);
+-		}
+-	} else {
+-		for _, d := range src.Decls {
+-			p.print(newline, newline);
+-			comment, _ := p.decl(d);
+-			if p.optSemis() {
+-				p.print(token.SEMICOLON);
+-			}
+-			p.lineComment(comment);
+-		}
++	for _, d := range src.Decls {
++		p.print(newline, newline);
++		comment, _ := p.decl(d);
++		p.lineComment(comment);
+ 	}
+ 
+ 	p.print(newline);
+@@ -1216,10 +1216,7 @@ func Fprint(output io.Writer, node interface{}, mode uint, tabwidth int) (int, o
+ 			comment, _ := p.decl(n);
+ 			p.lineComment(comment);  // no newline at end
+ 		case *ast.File:
+-			if mode & Reverse == 0 {
+-				// don't print comments in reverse mode
+-				p.comment = n.Comments;
+-			}
++			p.comment = n.Comments;
+ 			p.file(n);
+ 		default:
+ 			p.errors <- os.NewError("unsupported node type");
+diff --git a/src/pkg/go/printer/printer_test.go b/src/pkg/go/printer/printer_test.go
+index a7207ba244..ab0ae95089 100644
+--- a/src/pkg/go/printer/printer_test.go
++++ b/src/pkg/go/printer/printer_test.go
+@@ -101,6 +101,7 @@ type entry struct {
+ var data = []entry{
+ 	entry{ "source1.go", "golden1.go", false },
+ 	entry{ "source1.go", "golden1.x", true },
++	entry{ "linebreaks.go", "linebreaks.golden", false },
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/golden1.go b/src/pkg/go/printer/testdata/golden1.go
+index 59c3308762..7f9a15a7f4 100644
+--- a/src/pkg/go/printer/testdata/golden1.go
++++ b/src/pkg/go/printer/testdata/golden1.go
+@@ -11,13 +11,13 @@ import 	"fmt"	// fmt
+ const c0	= 0	// zero
+ const (
+ 	c1	= iota;	// c1
+-	c2	// c2
++	c2;	// c2
+ )
+ 
+ 
+ // The T type.
+ type T struct {
+-	a, b, c	int	// 3 fields
++	a, b, c	int;	// 3 fields
+ }
+ 
+ // This comment group should be separated
+@@ -32,12 +32,12 @@ var ()
+ 
+ // This comment SHOULD be associated with the next declaration.
+ func f0() {
+-	const pi			= 3.14;					// pi
+-	var s1 struct {}	/* an empty struct */	/* foo */
++	const pi		= 3.14;					// pi
++	var s1 struct{}	/* an empty struct */	/* foo */
+ 	// a struct constructor
+ 	// --------------------
+-	var s2 struct {}	= struct {}{};
+-	x := pi
++	var s2 struct{}	= struct{}{};
++	x := pi;
+ }
+ //
+ // NO SPACE HERE
+@@ -48,17 +48,17 @@ func f1() {
+ 	// 2
+ 	/* 3 */
+ 	/* 4 */
+-	f0()
++	f0();
+ }
+ 
+ func abs(x int) int {
+ 	if x < 0 {	// the tab printed before this comment's // must not affect the remaining lines
+-		return -x	// this statement should be properly indented
++		return -x;	// this statement should be properly indented
+ 	}
+-	return x
++	return x;
+ }
+ 
+-func typeswitch(x interface {}) {
++func typeswitch(x interface{}) {
+ 	switch v := x.(type) {
+ 	case bool, int, float:
+ 	case string:
+diff --git a/src/pkg/go/printer/testdata/linebreaks.go b/src/pkg/go/printer/testdata/linebreaks.go
+new file mode 100644
+index 0000000000..84dc53d012
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/linebreaks.go
+@@ -0,0 +1,144 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package linebreaks
++
++import (
++	"bytes";
++	"fmt";
++	"io";
++	"os";
++	"reflect";
++	"strings";
++	"testing";
++)
++
++type untarTest struct {
++	file string;
++	headers []*Header;
++}
++
++var untarTests = []*untarTest{
++	&untarTest{
++		file: "testdata/gnu.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244428340,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244436044,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++			},
++		},
++	},
++	&untarTest{
++		file: "testdata/star.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244592783,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++				Atime: 1244592783,
++				Ctime: 1244592783,
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244592783,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++				Atime: 1244592783,
++				Ctime: 1244592783,
++			},
++		},
++	},
++	&untarTest{
++		file: "testdata/v7.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0444,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244593104,
++				Typeflag: '\x00',
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0444,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244593104,
++				Typeflag: '\x00',
++			},
++		},
++	},
++}
++
++var facts = map[int] string {
++	0: "1",
++	1: "1",
++	2: "2",
++	10: "3628800",
++	20: "2432902008176640000",
++	100: "933262154439441526816992388562667004907159682643816214685929"
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000",
++}
++
++func TestReader(t *testing.T) {
++testLoop:
++	for i, test := range untarTests {
++		f, err := os.Open(test.file, os.O_RDONLY, 0444);
++		if err != nil {
++			t.Errorf("test %d: Unexpected error: %v", i, err);
++			continue
++		}
++		tr := NewReader(f);
++		for j, header := range test.headers {
++			hdr, err := tr.Next();
++			if err != nil || hdr == nil {
++				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
++				f.Close();
++				continue testLoop
++			}
++			if !reflect.DeepEqual(hdr, header) {
++				t.Errorf("test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
++					 i, j, *hdr, *header);
++			}
++		}
++		hdr, err := tr.Next();
++		if hdr != nil || err != nil {
++			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
++		}
++		f.Close();
++	}
++}
+diff --git a/src/pkg/go/printer/testdata/linebreaks.golden b/src/pkg/go/printer/testdata/linebreaks.golden
+new file mode 100644
+index 0000000000..cad0ed9141
+--- /dev/null
++++ b/src/pkg/go/printer/testdata/linebreaks.golden
+@@ -0,0 +1,148 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package linebreaks
++
++import (
++		"bytes";
++		"fmt";
++		"io";
++		"os";
++		"reflect";
++		"strings";
++		"testing";
++)
++
++type untarTest struct {
++	file	string;
++	headers	[]*Header;
++}
++
++var untarTests	= []*untarTest{
++	&untarTest{
++		file: "testdata/gnu.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244428340,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244436044,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++			},
++		},
++	},
++	&untarTest{
++		file: "testdata/star.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244592783,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++				Atime: 1244592783,
++				Ctime: 1244592783,
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0640,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244592783,
++				Typeflag: '0',
++				Uname: "dsymonds",
++				Gname: "eng",
++				Atime: 1244592783,
++				Ctime: 1244592783,
++			},
++		},
++	},
++	&untarTest{
++		file: "testdata/v7.tar",
++		headers: []*Header{
++			&Header{
++				Name: "small.txt",
++				Mode: 0444,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 5,
++				Mtime: 1244593104,
++				Typeflag: '\x00',
++			},
++			&Header{
++				Name: "small2.txt",
++				Mode: 0444,
++				Uid: 73025,
++				Gid: 5000,
++				Size: 11,
++				Mtime: 1244593104,
++				Typeflag: '\x00',
++			},
++		},
++	},
++}
++
++var facts	= map[int]string{
++	0: "1",
++	1: "1",
++	2: "2",
++	10: "3628800",
++	20: "2432902008176640000",
++	100:
++		"933262154439441526816992388562667004907159682643816214685929"
++		"638952175999932299156089414639761565182862536979208272237582"
++		"51185210916864000000000000000000000000"
++	,
++}
++
++func TestReader(t *testing.T) {
++
++testLoop:	for i, test := range untarTests {
++		f, err := os.Open(test.file, os.O_RDONLY, 0444);
++		if err != nil {
++			t.Errorf("test %d: Unexpected error: %v", i, err);
++			continue;
++		}
++		tr := NewReader(f);
++		for j, header := range test.headers {
++			hdr, err := tr.Next();
++			if err != nil || hdr == nil {
++				t.Errorf("test %d, entry %d: Didn't get entry: %v", i, j, err);
++				f.Close();
++				continue testLoop;
++			}
++			if !reflect.DeepEqual(hdr, header) {
++				t.Errorf(
++					"test %d, entry %d: Incorrect header:\nhave %+v\nwant %+v",
++					i, j, *hdr, *header
++				);
++			}
++		}
++		hdr, err := tr.Next();
++		if hdr != nil || err != nil {
++			t.Errorf("test %d: Unexpected entry or error: hdr=%v err=%v", i, err);
++		}
++		f.Close();
++	}
++}

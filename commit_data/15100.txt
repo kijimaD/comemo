@@ -7,6 +7,25 @@ Date:   Sat Feb 2 23:09:49 2013 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/7276048
-
+---
  src/cmd/gc/fmt.c | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/fmt.c b/src/cmd/gc/fmt.c
+index 53a200b4fe..bae66e0772 100644
+--- a/src/cmd/gc/fmt.c
++++ b/src/cmd/gc/fmt.c
+@@ -1672,11 +1672,11 @@ fmtinstallgo(void)
+ void
+ dumplist(char *s, NodeList *l)
+ {
+-	print("%s\n%+H\n", s, l);
++	print("%s%+H\n", s, l);
+ }
+ 
+ void
+ dump(char *s, Node *n)
+ {
+-	print("%s [%p]\n%+N\n", s, n, n);
++	print("%s [%p]%+N\n", s, n, n);
+ }

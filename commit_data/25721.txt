@@ -18,7 +18,43 @@ Date:   Mon Nov 16 23:16:00 2015 +0530
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  src/path/filepath/example_unix_test.go | 2 +-
  src/path/filepath/path.go              | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/path/filepath/example_unix_test.go b/src/path/filepath/example_unix_test.go
+index 27d85d15c6..893be1b198 100644
+--- a/src/path/filepath/example_unix_test.go
++++ b/src/path/filepath/example_unix_test.go
+@@ -35,7 +35,7 @@ func ExampleRel() {
+ 	// On Unix:
+ 	// "/a/b/c": "b/c" <nil>
+ 	// "/b/c": "../b/c" <nil>
+-	// "./b/c": "" Rel: can't make b/c relative to /a
++	// "./b/c": "" Rel: can't make ./b/c relative to /a
+ }
+ 
+ func ExampleSplit() {
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index 681fdfa09f..7164c070bb 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -270,7 +270,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 	baseSlashed := len(base) > 0 && base[0] == Separator
+ 	targSlashed := len(targ) > 0 && targ[0] == Separator
+ 	if baseSlashed != targSlashed || !sameWord(baseVol, targVol) {
+-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
++		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
+ 	}
+ 	// Position base[b0:bi] and targ[t0:ti] at the first differing elements.
+ 	bl := len(base)
+@@ -296,7 +296,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 		t0 = ti
+ 	}
+ 	if base[b0:bi] == ".." {
+-		return "", errors.New("Rel: can't make " + targ + " relative to " + base)
++		return "", errors.New("Rel: can't make " + targpath + " relative to " + basepath)
+ 	}
+ 	if b0 != bl {
+ 		// Base elements left. Must go up before going down.

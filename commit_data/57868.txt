@@ -12,6 +12,20 @@ Date:   Mon Aug 28 02:08:06 2023 +1000
     Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
     Reviewed-by: M Zhuo <mzh@golangcn.org>
     Run-TryBot: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/internal/obj/riscv/obj.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 36812833a9..f60abe4197 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -973,7 +973,7 @@ func Split32BitImmediate(imm int64) (low, high int64, err error) {
+ 
+ func regVal(r, min, max uint32) uint32 {
+ 	if r < min || r > max {
+-		panic(fmt.Sprintf("register out of range, want %d < %d < %d", min, r, max))
++		panic(fmt.Sprintf("register out of range, want %d <= %d <= %d", min, r, max))
+ 	}
+ 	return r - min
+ }

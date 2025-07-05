@@ -18,8 +18,128 @@ Date:   Fri Mar 4 14:49:52 2022 +0000
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  api/next.txt            |  2 ++
  src/net/url/url.go      | 23 ++++++++++++++++++++
  src/net/url/url_test.go | 56 +++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 81 insertions(+)
+
+diff --git a/api/next.txt b/api/next.txt
+index 23fd98a9ba..148cbffbfe 100644
+--- a/api/next.txt
++++ b/api/next.txt
+@@ -3,3 +3,5 @@ pkg encoding/binary, type AppendByteOrder interface, AppendUint16([]uint8, uint1
+ pkg encoding/binary, type AppendByteOrder interface, AppendUint32([]uint8, uint32) []uint8
+ pkg encoding/binary, type AppendByteOrder interface, AppendUint64([]uint8, uint64) []uint8
+ pkg encoding/binary, type AppendByteOrder interface, String() string
++pkg net/url, func JoinPath(string, ...string) (string, error)
++pkg net/url, method (*URL) JoinPath(...string) *URL
+diff --git a/src/net/url/url.go b/src/net/url/url.go
+index f31aa08b59..1571bf728b 100644
+--- a/src/net/url/url.go
++++ b/src/net/url/url.go
+@@ -13,6 +13,7 @@ package url
+ import (
+ 	"errors"
+ 	"fmt"
++	"path"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -1176,6 +1177,17 @@ func (u *URL) UnmarshalBinary(text []byte) error {
+ 	return nil
+ }
+ 
++// JoinPath returns a new URL with the provided path elements joined to
++// any existing path and the resulting path cleaned of any ./ or ../ elements.
++func (u *URL) JoinPath(elem ...string) *URL {
++	url := *u
++	if len(elem) > 0 {
++		elem = append([]string{u.Path}, elem...)
++		url.setPath(path.Join(elem...))
++	}
++	return &url
++}
++
+ // validUserinfo reports whether s is a valid userinfo string per RFC 3986
+ // Section 3.2.1:
+ //     userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+@@ -1216,3 +1228,14 @@ func stringContainsCTLByte(s string) bool {
+ 	}
+ 	return false
+ }
++
++// JoinPath returns a URL string with the provided path elements joined to
++// the existing path of base and the resulting path cleaned of any ./ or ../ elements.
++func JoinPath(base string, elem ...string) (result string, err error) {
++	url, err := Parse(base)
++	if err != nil {
++		return
++	}
++	result = url.JoinPath(elem...).String()
++	return
++}
+diff --git a/src/net/url/url_test.go b/src/net/url/url_test.go
+index 664757b832..84dba45c3c 100644
+--- a/src/net/url/url_test.go
++++ b/src/net/url/url_test.go
+@@ -2062,3 +2062,59 @@ func BenchmarkPathUnescape(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func TestJoinPath(t *testing.T) {
++	tests := []struct {
++		base string
++		elem []string
++		out  string
++	}{
++		{
++			base: "https://go.googlesource.com",
++			elem: []string{"go"},
++			out:  "https://go.googlesource.com/go",
++		},
++		{
++			base: "https://go.googlesource.com/a/b/c",
++			elem: []string{"../../../go"},
++			out:  "https://go.googlesource.com/go",
++		},
++		{
++			base: "https://go.googlesource.com/",
++			elem: []string{"./go"},
++			out:  "https://go.googlesource.com/go",
++		},
++		{
++			base: "https://go.googlesource.com//",
++			elem: []string{"/go"},
++			out:  "https://go.googlesource.com/go",
++		},
++		{
++			base: "https://go.googlesource.com//",
++			elem: []string{"/go", "a", "b", "c"},
++			out:  "https://go.googlesource.com/go/a/b/c",
++		},
++		{
++			base: "http://[fe80::1%en0]:8080/",
++			elem: []string{"/go"},
++		},
++	}
++	for _, tt := range tests {
++		wantErr := "nil"
++		if tt.out == "" {
++			wantErr = "non-nil error"
++		}
++		if out, err := JoinPath(tt.base, tt.elem...); out != tt.out || (err == nil) != (tt.out != "") {
++			t.Errorf("JoinPath(%q, %q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
++		}
++		var out string
++		u, err := Parse(tt.base)
++		if err == nil {
++			u = u.JoinPath(tt.elem...)
++			out = u.String()
++		}
++		if out != tt.out || (err == nil) != (tt.out != "") {
++			t.Errorf("Parse(%q).JoinPath(%q) = %q, %v, want %q, %v", tt.base, tt.elem, out, err, tt.out, wantErr)
++		}
++	}
++}

@@ -15,8 +15,328 @@ Date:   Tue Aug 30 11:42:30 2011 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/4957041
-
+---
  src/pkg/exp/template/html/context.go     | 36 +++++++++++++-
  src/pkg/exp/template/html/escape.go      | 78 ++++++++++++++++++++++++++---
  src/pkg/exp/template/html/escape_test.go | 84 +++++++++++++++++++++++++++++---
  3 files changed, 183 insertions(+), 15 deletions(-)
+
+diff --git a/src/pkg/exp/template/html/context.go b/src/pkg/exp/template/html/context.go
+index 5ef3b78146..d8fed15867 100644
+--- a/src/pkg/exp/template/html/context.go
++++ b/src/pkg/exp/template/html/context.go
+@@ -18,13 +18,14 @@ import (
+ type context struct {
+ 	state   state
+ 	delim   delim
++	urlPart urlPart
+ 	errLine int
+ 	errStr  string
+ }
+ 
+ // eq returns whether two contexts are equal.
+ func (c context) eq(d context) bool {
+-	return c.state == d.state && c.delim == d.delim && c.errLine == d.errLine && c.errStr == d.errStr
++	return c.state == d.state && c.delim == d.delim && c.urlPart == d.urlPart && c.errLine == d.errLine && c.errStr == d.errStr
+ }
+ 
+ // state describes a high-level HTML parser state.
+@@ -97,3 +98,36 @@ func (d delim) String() string {
+ 	}
+ 	return fmt.Sprintf("illegal delim %d", d)
+ }
++
++// urlPart identifies a part in an RFC 3986 hierarchical URL to allow different
++// encoding strategies.
++type urlPart uint8
++
++const (
++	// urlPartNone occurs when not in a URL, or possibly at the start:
++	// ^ in "^http://auth/path?k=v#frag".
++	urlPartNone urlPart = iota
++	// urlPartPreQuery occurs in the scheme, authority, or path; between the
++	// ^s in "h^ttp://auth/path^?k=v#frag".
++	urlPartPreQuery
++	// urlPartQueryOrFrag occurs in the query portion between the ^s in
++	// "http://auth/path?^k=v#frag^".
++	urlPartQueryOrFrag
++	// urlPartUnknown occurs due to joining of contexts both before and after
++	// the query separator.
++	urlPartUnknown
++)
++
++var urlPartNames = [...]string{
++	urlPartNone:        "urlPartNone",
++	urlPartPreQuery:    "urlPartPreQuery",
++	urlPartQueryOrFrag: "urlPartQueryOrFrag",
++	urlPartUnknown:     "urlPartUnknown",
++}
++
++func (u urlPart) String() string {
++	if int(u) < len(urlPartNames) {
++		return urlPartNames[u]
++	}
++	return fmt.Sprintf("illegal urlPart %d", u)
++}
+diff --git a/src/pkg/exp/template/html/escape.go b/src/pkg/exp/template/html/escape.go
+index 52d6323fae..e7de81c4c6 100644
+--- a/src/pkg/exp/template/html/escape.go
++++ b/src/pkg/exp/template/html/escape.go
+@@ -10,6 +10,7 @@ package html
+ import (
+ 	"bytes"
+ 	"fmt"
++	"html"
+ 	"os"
+ 	"strings"
+ 	"template"
+@@ -26,9 +27,15 @@ func Escape(t *template.Template) (*template.Template, os.Error) {
+ 	if c.state != stateText {
+ 		return nil, fmt.Errorf("%s ends in a non-text context: %v", t.Name(), c)
+ 	}
++	t.Funcs(funcMap)
+ 	return t, nil
+ }
+ 
++// funcMap maps command names to functions that render their inputs safe.
++var funcMap = template.FuncMap{
++	"exp_template_html_urlfilter": urlFilter,
++}
++
+ // escape escapes a template node.
+ func escape(c context, n parse.Node) context {
+ 	switch n := n.(type) {
+@@ -53,7 +60,22 @@ func escape(c context, n parse.Node) context {
+ func escapeAction(c context, n *parse.ActionNode) context {
+ 	sanitizer := "html"
+ 	if c.state == stateURL {
+-		sanitizer = "urlquery"
++		switch c.urlPart {
++		case urlPartNone:
++			sanitizer = "exp_template_html_urlfilter"
++		case urlPartQueryOrFrag:
++			sanitizer = "urlquery"
++		case urlPartPreQuery:
++			// The default "html" works here.
++		case urlPartUnknown:
++			return context{
++				state:   stateError,
++				errLine: n.Line,
++				errStr:  fmt.Sprintf("%s appears in an ambiguous URL context", n),
++			}
++		default:
++			panic(c.urlPart.String())
++		}
+ 	}
+ 	// If the pipe already ends with the sanitizer, do not interfere.
+ 	if m := len(n.Pipe.Cmds); m != 0 {
+@@ -84,6 +106,15 @@ func join(a, b context, line int, nodeName string) context {
+ 	if a.eq(b) {
+ 		return a
+ 	}
++
++	c := a
++	c.urlPart = b.urlPart
++	if c.eq(b) {
++		// The contexts differ only by urlPart.
++		c.urlPart = urlPartUnknown
++		return c
++	}
++
+ 	return context{
+ 		state:   stateError,
+ 		errLine: line,
+@@ -148,8 +179,15 @@ func escapeText(c context, s []byte) context {
+ 		i := bytes.IndexAny(s, delimEnds[c.delim])
+ 		if i == -1 {
+ 			// Remain inside the attribute.
+-			// TODO: Recurse to take into account grammars for
+-			// JS, CSS, URIs embedded in attrs once implemented.
++			// Decode the value so non-HTML rules can easily handle
++			//     <button onclick="alert(&quot;Hi!&quot;)">
++			// without having to entity decode token boundaries.
++			d := c.delim
++			c.delim = delimNone
++			c = escapeText(c, []byte(html.UnescapeString(string(s))))
++			if c.state != stateError {
++				c.delim = d
++			}
+ 			return c
+ 		}
+ 		if c.delim != delimSpaceOrTagEnd {
+@@ -249,10 +287,11 @@ func tAttr(c context, s []byte) (context, []byte) {
+ 
+ // tURL is the context transition function for the URL state.
+ func tURL(c context, s []byte) (context, []byte) {
+-	// TODO: Look for query and fragment boundaries within a URL so we
+-	// can %-encode actions in the query and fragment parts, HTML escape
+-	// actions elsewhere, and filter any actions at the start that might
+-	// inject a dangerous protocol such as "javascript:".
++	if bytes.IndexAny(s, "#?") >= 0 {
++		c.urlPart = urlPartQueryOrFrag
++	} else if c.urlPart == urlPartNone {
++		c.urlPart = urlPartPreQuery
++	}
+ 	return c, nil
+ }
+ 
+@@ -338,3 +377,28 @@ var urlAttr = map[string]bool{
+ 	"src":        true,
+ 	"usemap":     true,
+ }
++
++// urlFilter returns the HTML equivalent of its input unless it contains an
++// unsafe protocol in which case it defangs the entire URL.
++func urlFilter(args ...interface{}) string {
++	ok := false
++	var s string
++	if len(args) == 1 {
++		s, ok = args[0].(string)
++	}
++	if !ok {
++		s = fmt.Sprint(args...)
++	}
++	i := strings.IndexRune(s, ':')
++	if i >= 0 && strings.IndexRune(s[:i], '/') < 0 {
++		protocol := strings.ToLower(s[:i])
++		if protocol != "http" && protocol != "https" && protocol != "mailto" {
++			// Return a value that someone investigating a bug
++			// report can put into a search engine.
++			return "#ZgotmplZ"
++		}
++	}
++	// TODO: Once we handle <style>#id { background: url({{.Img}}) }</style>
++	// we will need to stop this from HTML escaping and pipeline sanitizers.
++	return template.HTMLEscapeString(s)
++}
+diff --git a/src/pkg/exp/template/html/escape_test.go b/src/pkg/exp/template/html/escape_test.go
+index 6bab507874..a911c7d835 100644
+--- a/src/pkg/exp/template/html/escape_test.go
++++ b/src/pkg/exp/template/html/escape_test.go
+@@ -83,14 +83,64 @@ func TestEscape(t *testing.T) {
+ 			// in the obsolete "mark" rule in an appendix in RFC 3986 so can be
+ 			// safely encoded.
+ 			"constant",
+-			`<a href="{{"'a<b'"}}">`,
+-			`<a href="'a%3Cb'">`,
++			`<a href="/search?q={{"'a<b'"}}">`,
++			`<a href="/search?q='a%3Cb'">`,
+ 		},
+ 		{
+ 			"multipleAttrs",
+ 			"<a b=1 c={{.H}}>",
+ 			"<a b=1 c=&lt;Hello&gt;>",
+ 		},
++		{
++			"urlStartRel",
++			`<a href='{{"/foo/bar?a=b&c=d"}}'>`,
++			`<a href='/foo/bar?a=b&amp;c=d'>`,
++		},
++		{
++			"urlStartAbsOk",
++			`<a href='{{"http://example.com/foo/bar?a=b&c=d"}}'>`,
++			`<a href='http://example.com/foo/bar?a=b&amp;c=d'>`,
++		},
++		{
++			"protocolRelativeURLStart",
++			`<a href='{{"//example.com:8000/foo/bar?a=b&c=d"}}'>`,
++			`<a href='//example.com:8000/foo/bar?a=b&amp;c=d'>`,
++		},
++		{
++			"pathRelativeURLStart",
++			`<a href="{{"/javascript:80/foo/bar"}}">`,
++			`<a href="/javascript:80/foo/bar">`,
++		},
++		{
++			"dangerousURLStart",
++			`<a href='{{"javascript:alert(%22pwned%22)"}}'>`,
++			`<a href='#ZgotmplZ'>`,
++		},
++		{
++			"urlPath",
++			`<a href='http://{{"javascript:80"}}/foo'>`,
++			`<a href='http://javascript:80/foo'>`,
++		},
++		{
++			"urlQuery",
++			`<a href='/search?q={{.H}}'>`,
++			`<a href='/search?q=%3CHello%3E'>`,
++		},
++		{
++			"urlFragment",
++			`<a href='/faq#{{.H}}'>`,
++			`<a href='/faq#%3CHello%3E'>`,
++		},
++		{
++			"urlBranch",
++			`<a href="{{if .F}}/foo?a=b{{else}}/bar{{end}}">`,
++			`<a href="/bar">`,
++		},
++		{
++			"urlBranchConflictMoot",
++			`<a href="{{if .T}}/foo?a={{else}}/bar#{{end}}{{.C}}">`,
++			`<a href="/foo?a=%3CCincinatti%3E">`,
++		},
+ 	}
+ 
+ 	for _, tc := range testCases {
+@@ -181,6 +231,10 @@ func TestErrors(t *testing.T) {
+ 			"<a b=1 c={{.H}}",
+ 			"z ends in a non-text context: {stateAttr delimSpaceOrTagEnd",
+ 		},
++		{
++			`<a href="{{if .F}}/foo?a={{else}}/bar/{{end}}{{.H}}">`,
++			"z:1: (action: [(command: [F=[H]])]) appears in an ambiguous URL context",
++		},
+ 	}
+ 
+ 	for _, tc := range testCases {
+@@ -242,7 +296,7 @@ func TestEscapeText(t *testing.T) {
+ 		},
+ 		{
+ 			`<a href=x`,
+-			context{state: stateURL, delim: delimSpaceOrTagEnd},
++			context{state: stateURL, delim: delimSpaceOrTagEnd, urlPart: urlPartPreQuery},
+ 		},
+ 		{
+ 			`<a href=x `,
+@@ -278,19 +332,35 @@ func TestEscapeText(t *testing.T) {
+ 		},
+ 		{
+ 			`<a HREF='http:`,
+-			context{state: stateURL, delim: delimSingleQuote},
++			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
+ 		},
+ 		{
+ 			`<a Href='/`,
+-			context{state: stateURL, delim: delimSingleQuote},
++			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
+ 		},
+ 		{
+ 			`<a href='"`,
+-			context{state: stateURL, delim: delimSingleQuote},
++			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
+ 		},
+ 		{
+ 			`<a href="'`,
+-			context{state: stateURL, delim: delimDoubleQuote},
++			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
++		},
++		{
++			`<a href='&apos;`,
++			context{state: stateURL, delim: delimSingleQuote, urlPart: urlPartPreQuery},
++		},
++		{
++			`<a href="&quot;`,
++			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
++		},
++		{
++			`<a href="&#34;`,
++			context{state: stateURL, delim: delimDoubleQuote, urlPart: urlPartPreQuery},
++		},
++		{
++			`<a href=&quot;`,
++			context{state: stateURL, delim: delimSpaceOrTagEnd, urlPart: urlPartPreQuery},
+ 		},
+ 		{
+ 			`<img alt="1">`,

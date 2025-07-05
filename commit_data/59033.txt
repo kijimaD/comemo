@@ -17,9 +17,168 @@ Date:   Fri Feb 2 18:26:06 2024 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/alias.go    | 37 ++++++++++++++++-------------
  src/cmd/compile/internal/types2/api_test.go |  6 +++++
  src/go/types/alias.go                       | 37 ++++++++++++++++-------------
  src/go/types/api_test.go                    |  6 +++++
  4 files changed, 54 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 2cc57721f9..06dfba1697 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -21,11 +21,14 @@ type Alias struct {
+ // NewAlias creates a new Alias type with the given type name and rhs.
+ // rhs must not be nil.
+ func NewAlias(obj *TypeName, rhs Type) *Alias {
+-	return (*Checker)(nil).newAlias(obj, rhs)
++	alias := (*Checker)(nil).newAlias(obj, rhs)
++	// Ensure that alias.actual is set (#65455).
++	unalias(alias)
++	return alias
+ }
+ 
+ func (a *Alias) Obj() *TypeName   { return a.obj }
+-func (a *Alias) Underlying() Type { return a.actual.Underlying() }
++func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+ // Type accessors
+@@ -36,24 +39,26 @@ func (a *Alias) String() string   { return TypeString(a, nil) }
+ // Consequently, the result is never an alias type.
+ func Unalias(t Type) Type {
+ 	if a0, _ := t.(*Alias); a0 != nil {
+-		if a0.actual != nil {
+-			return a0.actual
+-		}
+-		for a := a0; ; {
+-			t = a.fromRHS
+-			a, _ = t.(*Alias)
+-			if a == nil {
+-				break
+-			}
+-		}
+-		if t == nil {
+-			panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
+-		}
+-		a0.actual = t
++		return unalias(a0)
+ 	}
+ 	return t
+ }
+ 
++func unalias(a0 *Alias) Type {
++	if a0.actual != nil {
++		return a0.actual
++	}
++	var t Type
++	for a := a0; a != nil; a, _ = t.(*Alias) {
++		t = a.fromRHS
++	}
++	if t == nil {
++		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
++	}
++	a0.actual = t
++	return t
++}
++
+ // asNamed returns t as *Named if that is t's
+ // actual type. It returns nil otherwise.
+ func asNamed(t Type) *Named {
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index c70d914453..bacba71955 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2195,6 +2195,12 @@ func TestIssue61737(t *testing.T) {
+ 	iface.NumMethods() // unlike go/types, there is no Complete() method, so we complete implicitly
+ }
+ 
++func TestNewAlias_Issue65455(t *testing.T) {
++	obj := NewTypeName(nopos, nil, "A", nil)
++	alias := NewAlias(obj, Typ[Int])
++	alias.Underlying() // must not panic
++}
++
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+ 	f := mustParse(src)
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 8333a4d9c9..6043c0a984 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -23,11 +23,14 @@ type Alias struct {
+ // NewAlias creates a new Alias type with the given type name and rhs.
+ // rhs must not be nil.
+ func NewAlias(obj *TypeName, rhs Type) *Alias {
+-	return (*Checker)(nil).newAlias(obj, rhs)
++	alias := (*Checker)(nil).newAlias(obj, rhs)
++	// Ensure that alias.actual is set (#65455).
++	unalias(alias)
++	return alias
+ }
+ 
+ func (a *Alias) Obj() *TypeName   { return a.obj }
+-func (a *Alias) Underlying() Type { return a.actual.Underlying() }
++func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+ // Type accessors
+@@ -38,24 +41,26 @@ func (a *Alias) String() string   { return TypeString(a, nil) }
+ // Consequently, the result is never an alias type.
+ func Unalias(t Type) Type {
+ 	if a0, _ := t.(*Alias); a0 != nil {
+-		if a0.actual != nil {
+-			return a0.actual
+-		}
+-		for a := a0; ; {
+-			t = a.fromRHS
+-			a, _ = t.(*Alias)
+-			if a == nil {
+-				break
+-			}
+-		}
+-		if t == nil {
+-			panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
+-		}
+-		a0.actual = t
++		return unalias(a0)
+ 	}
+ 	return t
+ }
+ 
++func unalias(a0 *Alias) Type {
++	if a0.actual != nil {
++		return a0.actual
++	}
++	var t Type
++	for a := a0; a != nil; a, _ = t.(*Alias) {
++		t = a.fromRHS
++	}
++	if t == nil {
++		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
++	}
++	a0.actual = t
++	return t
++}
++
+ // asNamed returns t as *Named if that is t's
+ // actual type. It returns nil otherwise.
+ func asNamed(t Type) *Named {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 0dc5f35dff..52f0009804 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2196,6 +2196,12 @@ func TestIssue61737(t *testing.T) {
+ 	iface.Complete()
+ }
+ 
++func TestNewAlias_Issue65455(t *testing.T) {
++	obj := NewTypeName(nopos, nil, "A", nil)
++	alias := NewAlias(obj, Typ[Int])
++	alias.Underlying() // must not panic
++}
++
+ func TestIssue15305(t *testing.T) {
+ 	const src = "package p; func f() int16; var _ = f(undef)"
+ 	fset := token.NewFileSet()

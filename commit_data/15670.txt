@@ -7,7 +7,7 @@ Date:   Sun Mar 10 19:07:16 2013 -0700
     R=ken2, ken
     CC=golang-dev
     https://golang.org/cl/7483045
-
+---
  src/cmd/5l/asm.c  |  9 +++++----
  src/cmd/5l/l.h    |  3 +++
  src/cmd/6l/asm.c  | 10 ++++++----
@@ -18,3 +18,276 @@ Date:   Sun Mar 10 19:07:16 2013 -0700
  src/cmd/ld/elf.c  | 32 ++++++++------------------------
  src/cmd/ld/elf.h  |  2 +-
  9 files changed, 68 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 4afbedfc43..9ff25f1e12 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -240,12 +240,13 @@ adddynrel(Sym *s, Reloc *r)
+ }
+ 
+ int
+-elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
++elfreloc1(Reloc *r, vlong sectoff)
+ {
+-	USED(add);	// written to obj file by ../ld/data.c's reloc
+-
+-	LPUT(off);
++	int32 elfsym;
++	
++	LPUT(sectoff);
+ 
++	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+ 	default:
+ 		return -1;
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 78f99d873d..83c8b755c6 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -96,9 +96,12 @@ struct	Reloc
+ {
+ 	int32	off;
+ 	uchar	siz;
++	uchar	done;
+ 	int16	type;
+ 	int32	add;
++	int32	xadd;
+ 	Sym*	sym;
++	Sym*	xsym;
+ };
+ 
+ struct	Prog
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index d2c6f86d35..e1d114642a 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -284,10 +284,13 @@ adddynrel(Sym *s, Reloc *r)
+ }
+ 
+ int
+-elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
++elfreloc1(Reloc *r, vlong sectoff)
+ {
+-	VPUT(off);
++	int32 elfsym;
+ 
++	VPUT(sectoff);
++
++	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+ 	default:
+ 		return -1;
+@@ -306,11 +309,10 @@ elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
+ 			VPUT(R_X86_64_PC32 | (uint64)elfsym<<32);
+ 		else
+ 			return -1;
+-		add -= r->siz;
+ 		break;
+ 	}
+ 
+-	VPUT(add);
++	VPUT(r->xadd);
+ 	return 0;
+ }
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index a48639d7ae..1d6e55c97b 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -101,9 +101,12 @@ struct	Reloc
+ {
+ 	int32	off;
+ 	uchar	siz;
++	uchar	done;
+ 	int32	type;
+ 	int64	add;
++	int64	xadd;
+ 	Sym*	sym;
++	Sym*	xsym;
+ };
+ 
+ struct	Prog
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 9250aeeae3..9bd04ff1aa 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -270,12 +270,13 @@ adddynrel(Sym *s, Reloc *r)
+ }
+ 
+ int
+-elfreloc1(Reloc *r, vlong off, int32 elfsym, vlong add)
++elfreloc1(Reloc *r, vlong sectoff)
+ {
+-	USED(add);	// written to obj file by ../ld/data.c's reloc
++	int32 elfsym;
+ 
+-	LPUT(off);
++	LPUT(sectoff);
+ 
++	elfsym = r->xsym->elfsym;
+ 	switch(r->type) {
+ 	default:
+ 		return -1;
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 18a3de218d..980a7f830c 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -84,9 +84,12 @@ struct	Reloc
+ {
+ 	int32	off;
+ 	uchar	siz;
++	uchar	done;
+ 	int32	type;
+ 	int32	add;
++	int32	xadd;
+ 	Sym*	sym;
++	Sym*	xsym;
+ };
+ 
+ struct	Prog
+diff --git a/src/cmd/ld/data.c b/src/cmd/ld/data.c
+index e035942be7..ca6c5300bd 100644
+--- a/src/cmd/ld/data.c
++++ b/src/cmd/ld/data.c
+@@ -155,6 +155,7 @@ relocsym(Sym *s)
+ 	cursym = s;
+ 	memset(&p, 0, sizeof p);
+ 	for(r=s->r; r<s->r+s->nr; r++) {
++		r->done = 1;
+ 		off = r->off;
+ 		siz = r->siz;
+ 		if(off < 0 || off+siz > s->np) {
+@@ -181,31 +182,51 @@ relocsym(Sym *s)
+ 				diag("unknown reloc %d", r->type);
+ 			break;
+ 		case D_ADDR:
+-			o = symaddr(r->sym) + r->add;
+ 			if(isobj && r->sym->type != SCONST) {
++				r->done = 0;
++
++				// set up addend for eventual relocation via outer symbol.
++				rs = r->sym;
++				r->xadd = r->add;
++				while(rs->outer != nil) {
++					r->xadd += symaddr(rs) - symaddr(rs->outer);
++					rs = rs->outer;
++				}
++				r->xsym = rs;
++
+ 				if(thechar == '6')
+ 					o = 0;
+-				else {
+-					// set up addend for eventual relocation via outer symbol
+-					rs = r->sym;
+-					while(rs->outer != nil)
+-						rs = rs->outer;
+-					o -= symaddr(rs);
+-				}
++				else
++					o = r->xadd;
++				break;
+ 			}
++			o = symaddr(r->sym) + r->add;
+ 			break;
+ 		case D_PCREL:
+ 			// r->sym can be null when CALL $(constant) is transformed from absolute PC to relative PC call.
+-			o = 0;
+-			if(r->sym)
+-				o += symaddr(r->sym);
+-			o += r->add - (s->value + r->off + r->siz);
+-			if(isobj && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
++			if(isobj && r->sym && r->sym->type != SCONST && r->sym->sect != cursym->sect) {
++				r->done = 0;
++
++				// set up addend for eventual relocation via outer symbol.
++				rs = r->sym;
++				r->xadd = r->add;
++				while(rs->outer != nil) {
++					r->xadd += symaddr(rs) - symaddr(rs->outer);
++					rs = rs->outer;
++				}
++				r->xsym = rs;
++				r->xadd -= r->siz;
++
+ 				if(thechar == '6')
+ 					o = 0;
+ 				else
+-					o = r->add - r->siz;
++					o = r->xadd;
++				break;
+ 			}
++			o = 0;
++			if(r->sym)
++				o += symaddr(r->sym);
++			o += r->add - (s->value + r->off + r->siz);
+ 			break;
+ 		case D_SIZE:
+ 			o = r->sym->size + r->add;
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 9f7cb75fa9..50711a0ec1 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -805,10 +805,9 @@ elfshreloc(Section *sect)
+ void
+ elfrelocsect(Section *sect, Sym *first)
+ {
+-	Sym *sym, *rs;
++	Sym *sym;
+ 	int32 eaddr;
+ 	Reloc *r;
+-	int64 add;
+ 
+ 	// If main section is SHT_NOBITS, nothing to relocate.
+ 	// Also nothing to relocate in .shstrtab.
+@@ -834,30 +833,15 @@ elfrelocsect(Section *sect, Sym *first)
+ 		cursym = sym;
+ 		
+ 		for(r = sym->r; r < sym->r+sym->nr; r++) {
+-			// Ignore relocations handled by reloc already.
+-			switch(r->type) {
+-			case D_SIZE:
++			if(r->done)
++				continue;
++			if(r->xsym == nil) {
++				diag("missing xsym in relocation");
+ 				continue;
+-			case D_ADDR:
+-			case D_PCREL:
+-				if(r->sym->type == SCONST)
+-					continue;	// handled in data.c:/^relocsym
+-				if(r->type == D_PCREL && r->sym->sect == sym->sect)
+-					continue;	// handled in data.c:/^relocsym
+-				break;
+-			}
+-
+-			add = r->add;
+-			rs = r->sym;
+-			while(rs->outer != nil) {
+-				add += rs->value - rs->outer->value;
+-				rs = rs->outer;
+ 			}
+-				
+-			if(rs->elfsym == 0)
+-				diag("reloc %d to non-elf symbol %s (rs=%s) %d", r->type, r->sym->name, rs->name, rs->type);
+-
+-			if(elfreloc1(r, sym->value - sect->vaddr + r->off, rs->elfsym, add) < 0)
++			if(r->xsym->elfsym == 0)
++				diag("reloc %d to non-elf symbol %s (outer=%s) %d", r->type, r->sym->name, r->xsym->name, r->sym->type);
++			if(elfreloc1(r, sym->value+r->off - sect->vaddr) < 0)
+ 				diag("unsupported obj reloc %d/%d to %s", r->type, r->siz, r->sym->name);
+ 		}
+ 	}
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 3e22125b21..336fab4b4b 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -1005,7 +1005,7 @@ extern char linuxdynld[];
+ extern char freebsddynld[];
+ extern char netbsddynld[];
+ extern char openbsddynld[];
+-int	elfreloc1(Reloc*, vlong off, int32 elfsym, vlong add);
++int	elfreloc1(Reloc*, vlong sectoff);
+ 
+ EXTERN	int	elfstrsize;
+ EXTERN	char*	elfstrdat;

@@ -16,8 +16,146 @@ Date:   Fri Apr 7 13:49:51 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go  | 26 +++++++++++---------------
  src/runtime/mbitmap.go | 10 +++-------
  src/runtime/mheap.go   | 35 ++++++++++++++++++++++++++++-------
  3 files changed, 42 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 188b0453df..7517f1284e 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -397,16 +397,22 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 				return nil
+ 			}
+ 			if p == h.arena_end {
++				// The new reservation is contiguous
++				// with the old reservation.
+ 				h.arena_end = new_end
+ 				h.arena_reserved = reserved
+ 			} else if h.arena_start <= p && p+p_size-h.arena_start-1 <= _MaxMem {
++				// We were able to reserve more memory
++				// within the arena space, but it's
++				// not contiguous with our previous
++				// reservation. Skip over the unused
++				// address space.
++				//
+ 				// Keep everything page-aligned.
+ 				// Our pages are bigger than hardware pages.
+ 				h.arena_end = p + p_size
+ 				used := p + (-p & (_PageSize - 1))
+-				h.mapBits(used)
+-				h.mapSpans(used)
+-				h.arena_used = used
++				h.setArenaUsed(used, false)
+ 				h.arena_reserved = reserved
+ 			} else {
+ 				// We haven't added this allocation to
+@@ -422,12 +428,7 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 		// Keep taking from our reservation.
+ 		p := h.arena_used
+ 		sysMap(unsafe.Pointer(p), n, h.arena_reserved, &memstats.heap_sys)
+-		h.mapBits(p + n)
+-		h.mapSpans(p + n)
+-		h.arena_used = p + n
+-		if raceenabled {
+-			racemapshadow(unsafe.Pointer(p), n)
+-		}
++		h.setArenaUsed(p+n, true)
+ 
+ 		if p&(_PageSize-1) != 0 {
+ 			throw("misrounded allocation in MHeap_SysAlloc")
+@@ -460,15 +461,10 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 	p_end := p + p_size
+ 	p += -p & (_PageSize - 1)
+ 	if p+n > h.arena_used {
+-		h.mapBits(p + n)
+-		h.mapSpans(p + n)
+-		h.arena_used = p + n
++		h.setArenaUsed(p+n, true)
+ 		if p_end > h.arena_end {
+ 			h.arena_end = p_end
+ 		}
+-		if raceenabled {
+-			racemapshadow(unsafe.Pointer(p), n)
+-		}
+ 	}
+ 
+ 	if p&(_PageSize-1) != 0 {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index b48dbff7f6..e2add26b06 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -134,13 +134,9 @@ func subtract1(p *byte) *byte {
+ 	return (*byte)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) - 1))
+ }
+ 
+-// mHeap_MapBits is called each time arena_used is extended.
+-// It maps any additional bitmap memory needed for the new arena memory.
+-// It must be called with the expected new value of arena_used,
+-// *before* h.arena_used has been updated.
+-// Waiting to update arena_used until after the memory has been mapped
+-// avoids faults when other threads try access the bitmap immediately
+-// after observing the change to arena_used.
++// mapBits maps any additional bitmap memory needed for the new arena memory.
++//
++// Don't call this directly. Call mheap.setArenaUsed.
+ //
+ //go:nowritebarrier
+ func (h *mheap) mapBits(arena_used uintptr) {
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index d4a939830b..28d2846722 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -93,7 +93,7 @@ type mheap struct {
+ 	bitmap         uintptr // Points to one byte past the end of the bitmap
+ 	bitmap_mapped  uintptr
+ 	arena_start    uintptr
+-	arena_used     uintptr // always mHeap_Map{Bits,Spans} before updating
++	arena_used     uintptr // One byte past usable heap arena. Set with setArenaUsed.
+ 	arena_end      uintptr
+ 	arena_reserved bool
+ 
+@@ -435,14 +435,35 @@ func (h *mheap) init(spansStart, spansBytes uintptr) {
+ 	sp.cap = int(spansBytes / sys.PtrSize)
+ }
+ 
+-// mHeap_MapSpans makes sure that the spans are mapped
++// setArenaUsed extends the usable arena to address arena_used and
++// maps auxiliary VM regions for any newly usable arena space.
++//
++// racemap indicates that this memory should be managed by the race
++// detector. racemap should be true unless this is covering a VM hole.
++func (h *mheap) setArenaUsed(arena_used uintptr, racemap bool) {
++	// Map auxiliary structures *before* h.arena_used is updated.
++	// Waiting to update arena_used until after the memory has been mapped
++	// avoids faults when other threads try access these regions immediately
++	// after observing the change to arena_used.
++
++	// Map the bitmap.
++	h.mapBits(arena_used)
++
++	// Map spans array.
++	h.mapSpans(arena_used)
++
++	// Tell the race detector about the new heap memory.
++	if racemap && raceenabled {
++		racemapshadow(unsafe.Pointer(h.arena_used), arena_used-h.arena_used)
++	}
++
++	h.arena_used = arena_used
++}
++
++// mapSpans makes sure that the spans are mapped
+ // up to the new value of arena_used.
+ //
+-// It must be called with the expected new value of arena_used,
+-// *before* h.arena_used has been updated.
+-// Waiting to update arena_used until after the memory has been mapped
+-// avoids faults when other threads try access the bitmap immediately
+-// after observing the change to arena_used.
++// Don't call this directly. Call mheap.setArenaUsed.
+ func (h *mheap) mapSpans(arena_used uintptr) {
+ 	// Map spans array, PageSize at a time.
+ 	n := arena_used

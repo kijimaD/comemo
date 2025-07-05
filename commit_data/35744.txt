@@ -12,6 +12,29 @@ Date:   Tue Mar 6 14:30:26 2018 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/sys_linux_arm.s | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/sys_linux_arm.s b/src/runtime/sys_linux_arm.s
+index 2af9f29344..31923d36a4 100644
+--- a/src/runtime/sys_linux_arm.s
++++ b/src/runtime/sys_linux_arm.s
+@@ -221,7 +221,7 @@ TEXT runtime·walltime(SB),NOSPLIT,$0-12
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_curg(R1), R0
+ 
+-	CMP	R1, R0		// Only switch if on curg.
++	CMP	g, R0		// Only switch if on curg.
+ 	B.NE	noswitch
+ 
+ 	MOVW	m_g0(R1), R0
+@@ -266,7 +266,7 @@ TEXT runtime·nanotime(SB),NOSPLIT,$0-8
+ 	MOVW	g_m(g), R1
+ 	MOVW	m_curg(R1), R0
+ 
+-	CMP	R1, R0		// Only switch if on curg.
++	CMP	g, R0		// Only switch if on curg.
+ 	B.NE	noswitch
+ 
+ 	MOVW	m_g0(R1), R0

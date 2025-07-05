@@ -13,7 +13,64 @@ Date:   Sat Apr 4 22:51:15 2020 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/block.go | 24 +++++++++++++++---------
  src/cmd/compile/internal/ssa/html.go  |  3 +++
  2 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/block.go b/src/cmd/compile/internal/ssa/block.go
+index c1a734b20b..fedbc7af0e 100644
+--- a/src/cmd/compile/internal/ssa/block.go
++++ b/src/cmd/compile/internal/ssa/block.go
+@@ -124,15 +124,8 @@ func (b *Block) LongString() string {
+ 	if b.Aux != nil {
+ 		s += fmt.Sprintf(" {%s}", b.Aux)
+ 	}
+-	if t := b.Kind.AuxIntType(); t != "" {
+-		switch t {
+-		case "Int8":
+-			s += fmt.Sprintf(" [%v]", int8(b.AuxInt))
+-		case "UInt8":
+-			s += fmt.Sprintf(" [%v]", uint8(b.AuxInt))
+-		default:
+-			s += fmt.Sprintf(" [%v]", b.AuxInt)
+-		}
++	if t := b.AuxIntString(); t != "" {
++		s += fmt.Sprintf(" [%s]", t)
+ 	}
+ 	for _, c := range b.ControlValues() {
+ 		s += fmt.Sprintf(" %s", c)
+@@ -341,6 +334,19 @@ func (b *Block) LackingPos() bool {
+ 	return true
+ }
+ 
++func (b *Block) AuxIntString() string {
++	switch b.Kind.AuxIntType() {
++	case "Int8":
++		return fmt.Sprintf("%v", int8(b.AuxInt))
++	case "UInt8":
++		return fmt.Sprintf("%v", uint8(b.AuxInt))
++	default: // type specified but not implemented - print as int64
++		return fmt.Sprintf("%v", b.AuxInt)
++	case "": // no aux int type
++		return ""
++	}
++}
++
+ func (b *Block) Logf(msg string, args ...interface{})   { b.Func.Logf(msg, args...) }
+ func (b *Block) Log() bool                              { return b.Func.Log() }
+ func (b *Block) Fatalf(msg string, args ...interface{}) { b.Func.Fatalf(msg, args...) }
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index f39106f450..730ec6dd3f 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -1005,6 +1005,9 @@ func (b *Block) LongHTML() string {
+ 	if b.Aux != nil {
+ 		s += html.EscapeString(fmt.Sprintf(" {%v}", b.Aux))
+ 	}
++	if t := b.AuxIntString(); t != "" {
++		s += html.EscapeString(fmt.Sprintf(" [%v]", t))
++	}
+ 	for _, c := range b.ControlValues() {
+ 		s += fmt.Sprintf(" %s", c.HTML())
+ 	}

@@ -9,7 +9,7 @@ Date:   Fri Feb 16 15:54:55 2018 +0200
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/arch/arch.go     | 10 +++++++
  src/cmd/internal/obj/arm/a.out.go     | 20 +++++++++++++-
  src/cmd/internal/obj/arm/anames.go    |  1 +
@@ -22,3 +22,331 @@ Date:   Fri Feb 16 15:54:55 2018 +0200
  src/sync/atomic/asm_darwin_arm.s      | 14 +++-------
  src/sync/atomic/asm_plan9_arm.s       |  2 +-
  11 files changed, 108 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 5ee415028a..357ec757bc 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -205,6 +205,16 @@ func archArm() *Arch {
+ 		"R": true,
+ 	}
+ 
++	// special operands for DMB/DSB instructions
++	register["MB_SY"] = arm.REG_MB_SY
++	register["MB_ST"] = arm.REG_MB_ST
++	register["MB_ISH"] = arm.REG_MB_ISH
++	register["MB_ISHST"] = arm.REG_MB_ISHST
++	register["MB_NSH"] = arm.REG_MB_NSH
++	register["MB_NSHST"] = arm.REG_MB_NSHST
++	register["MB_OSH"] = arm.REG_MB_OSH
++	register["MB_OSHST"] = arm.REG_MB_OSHST
++
+ 	instructions := make(map[string]obj.As)
+ 	for i, s := range obj.Anames {
+ 		instructions[s] = obj.As(i)
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index 358f329b4f..02f9665502 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -86,7 +86,6 @@ const (
+ 	REG_CPSR // must be 2-aligned
+ 	REG_SPSR
+ 
+-	MAXREG
+ 	REGRET = REG_R0
+ 	/* compiler allocates R1 up as temps */
+ 	/* compiler allocates register variables R3 up */
+@@ -124,6 +123,22 @@ func init() {
+ 	f(REG_F0, REG_F15, 64, 2) // Use d0 through D15, aka S0, S2, ..., S30
+ }
+ 
++// Special registers, after subtracting obj.RBaseARM, bit 9 indicates
++// a special register and the low bits select the register.
++const (
++	REG_SPECIAL = obj.RBaseARM + 1<<9 + iota
++	REG_MB_SY
++	REG_MB_ST
++	REG_MB_ISH
++	REG_MB_ISHST
++	REG_MB_NSH
++	REG_MB_NSHST
++	REG_MB_OSH
++	REG_MB_OSHST
++
++	MAXREG
++)
++
+ const (
+ 	C_NONE = iota
+ 	C_REG
+@@ -135,6 +150,7 @@ const (
+ 	C_FREG
+ 	C_PSR
+ 	C_FCR
++	C_SPR /* REG_MB_SY */
+ 
+ 	C_RCON   /* 0xff rotated */
+ 	C_NCON   /* ~RCON */
+@@ -319,6 +335,8 @@ const (
+ 	ALDREXD
+ 	ASTREXD
+ 
++	ADMB
++
+ 	APLD
+ 
+ 	ACLZ
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index cb60eba824..86d35dec61 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -119,6 +119,7 @@ var Anames = []string{
+ 	"STREX",
+ 	"LDREXD",
+ 	"STREXD",
++	"DMB",
+ 	"PLD",
+ 	"CLZ",
+ 	"REV",
+diff --git a/src/cmd/internal/obj/arm/anames5.go b/src/cmd/internal/obj/arm/anames5.go
+index f2743b91d6..78fcd55f74 100644
+--- a/src/cmd/internal/obj/arm/anames5.go
++++ b/src/cmd/internal/obj/arm/anames5.go
+@@ -15,6 +15,7 @@ var cnames5 = []string{
+ 	"FREG",
+ 	"PSR",
+ 	"FCR",
++	"SPR",
+ 	"RCON",
+ 	"NCON",
+ 	"RCON2A",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 04c91faef5..ef4655357d 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -303,6 +303,9 @@ var optab = []Optab{
+ 	{AMOVHU, C_ADDR, C_NONE, C_REG, 93, 8, 0, LFROM | LPCREL, 4, C_PBIT | C_WBIT | C_UBIT},
+ 	{ALDREX, C_SOREG, C_NONE, C_REG, 77, 4, 0, 0, 0, 0},
+ 	{ASTREX, C_SOREG, C_REG, C_REG, 78, 4, 0, 0, 0, 0},
++	{ADMB, C_NONE, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
++	{ADMB, C_LCON, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
++	{ADMB, C_SPR, C_NONE, C_NONE, 110, 4, 0, 0, 0, 0},
+ 	{AMOVF, C_ZFCON, C_NONE, C_FREG, 80, 8, 0, 0, 0, 0},
+ 	{AMOVF, C_SFCON, C_NONE, C_FREG, 81, 4, 0, 0, 0, 0},
+ 	{ACMPF, C_FREG, C_FREG, C_NONE, 82, 8, 0, 0, 0, 0},
+@@ -331,6 +334,20 @@ var optab = []Optab{
+ 	{obj.AXXX, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0, 0, 0},
+ }
+ 
++var mbOp = []struct {
++	reg int16
++	enc uint32
++}{
++	{REG_MB_SY, 15},
++	{REG_MB_ST, 14},
++	{REG_MB_ISH, 11},
++	{REG_MB_ISHST, 10},
++	{REG_MB_NSH, 7},
++	{REG_MB_NSHST, 6},
++	{REG_MB_OSH, 3},
++	{REG_MB_OSHST, 2},
++}
++
+ var oprange [ALAST & obj.AMask][]Optab
+ 
+ var xcmp [C_GOK + 1][C_GOK + 1]bool
+@@ -1103,6 +1120,9 @@ func (c *ctxt5) aclass(a *obj.Addr) int {
+ 		if a.Reg == REG_CPSR || a.Reg == REG_SPSR {
+ 			return C_PSR
+ 		}
++		if a.Reg >= REG_SPECIAL {
++			return C_SPR
++		}
+ 		return C_GOK
+ 
+ 	case obj.TYPE_REGREG:
+@@ -1697,6 +1717,7 @@ func buildop(ctxt *obj.Link) {
+ 			ASTREX,
+ 			ALDREXD,
+ 			ASTREXD,
++			ADMB,
+ 			APLD,
+ 			AAND,
+ 			AMULA,
+@@ -2786,6 +2807,35 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			r = rt
+ 		}
+ 		o1 |= (uint32(rf)&15)<<8 | (uint32(r)&15)<<0 | (uint32(rt)&15)<<16
++
++	case 110: /* dmb [mbop | $con] */
++		o1 = 0xf57ff050
++		mbop := uint32(0)
++
++		switch c.aclass(&p.From) {
++		case C_SPR:
++			for _, f := range mbOp {
++				if f.reg == p.From.Reg {
++					mbop = f.enc
++					break
++				}
++			}
++		case C_RCON:
++			for _, f := range mbOp {
++				enc := uint32(c.instoffset)
++				if f.enc == enc {
++					mbop = enc
++					break
++				}
++			}
++		case C_NONE:
++			mbop = 0xf
++		}
++
++		if mbop == 0 {
++			c.ctxt.Diag("illegal mb option:\n%v", p)
++		}
++		o1 |= mbop
+ 	}
+ 
+ 	out[0] = o1
+diff --git a/src/cmd/internal/obj/arm/list5.go b/src/cmd/internal/obj/arm/list5.go
+index 6522f9aff8..a44e40a158 100644
+--- a/src/cmd/internal/obj/arm/list5.go
++++ b/src/cmd/internal/obj/arm/list5.go
+@@ -68,6 +68,23 @@ func rconv(r int) string {
+ 
+ 	case REG_SPSR:
+ 		return "SPSR"
++
++	case REG_MB_SY:
++		return "MB_SY"
++	case REG_MB_ST:
++		return "MB_ST"
++	case REG_MB_ISH:
++		return "MB_ISH"
++	case REG_MB_ISHST:
++		return "MB_ISHST"
++	case REG_MB_NSH:
++		return "MB_NSH"
++	case REG_MB_NSHST:
++		return "MB_NSHST"
++	case REG_MB_OSH:
++		return "MB_OSH"
++	case REG_MB_OSHST:
++		return "MB_OSHST"
+ 	}
+ 
+ 	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseARM)
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index c51e0f0b78..74b1001fc3 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -785,7 +785,7 @@ TEXT runtime·armPublicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+-	WORD $0xf57ff05e	// DMB ST
++	DMB	MB_ST
+ 	RET
+ 
+ // AES hashing not implemented for ARM
+diff --git a/src/runtime/internal/atomic/asm_arm.s b/src/runtime/internal/atomic/asm_arm.s
+index 5e2380e07b..f44d43fcfb 100644
+--- a/src/runtime/internal/atomic/asm_arm.s
++++ b/src/runtime/internal/atomic/asm_arm.s
+@@ -30,7 +30,7 @@ casl:
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+-	WORD	$0xf57ff05a	// dmb ishst
++	DMB	MB_ISHST
+ 
+ 	STREX	R3, (R1), R0
+ 	CMP	$0, R0
+@@ -40,7 +40,7 @@ casl:
+ 	MOVB	runtime·goarm(SB), R11
+ 	CMP	$7, R11
+ 	BLT	2(PC)
+-	WORD	$0xf57ff05b	// dmb ish
++	DMB	MB_ISH
+ 
+ 	MOVB	R0, ret+12(FP)
+ 	RET
+diff --git a/src/sync/atomic/asm_arm.s b/src/sync/atomic/asm_arm.s
+index d5bffcb946..432f1c09be 100644
+--- a/src/sync/atomic/asm_arm.s
++++ b/src/sync/atomic/asm_arm.s
+@@ -12,13 +12,13 @@
+ 	MOVB	runtime·goarm(SB), R11; \
+ 	CMP	$7, R11; \
+ 	BLT	2(PC); \
+-	WORD	$0xf57ff05a	// dmb ishst
++	DMB	MB_ISHST
+ 
+ #define DMB_ISH_7 \
+ 	MOVB	runtime·goarm(SB), R11; \
+ 	CMP	$7, R11; \
+ 	BLT	2(PC); \
+-	WORD	$0xf57ff05b	// dmb ish
++	DMB	MB_ISH
+ 
+ TEXT ·armCompareAndSwapUint32(SB),NOSPLIT,$0-13
+ 	MOVW	addr+0(FP), R1
+diff --git a/src/sync/atomic/asm_darwin_arm.s b/src/sync/atomic/asm_darwin_arm.s
+index 1de2988f9e..14aca14d21 100644
+--- a/src/sync/atomic/asm_darwin_arm.s
++++ b/src/sync/atomic/asm_darwin_arm.s
+@@ -6,12 +6,6 @@
+ 
+ // Darwin/ARM atomic operations.
+ 
+-#define DMB_ISHST_7 \
+-    WORD    $0xf57ff05a // dmb ishst
+-
+-#define DMB_ISH_7 \
+-    WORD    $0xf57ff05b // dmb ish
+-
+ TEXT ·CompareAndSwapInt32(SB),NOSPLIT,$0
+ 	B ·CompareAndSwapUint32(SB)
+ 
+@@ -64,11 +58,11 @@ TEXT ·LoadUint32(SB),NOSPLIT,$0-8
+ 	MOVW addr+0(FP), R1
+ load32loop:
+ 	LDREX (R1), R2		// loads R2
+-	DMB_ISHST_7
++	DMB MB_ISHST
+ 	STREX R2, (R1), R0	// stores R2
+ 	CMP $0, R0
+ 	BNE load32loop
+-	DMB_ISH_7
++	DMB MB_ISH
+ 	MOVW R2, val+4(FP)
+ 	RET
+ 
+@@ -92,11 +86,11 @@ TEXT ·StoreUint32(SB),NOSPLIT,$0-8
+ 	MOVW val+4(FP), R2
+ storeloop:
+ 	LDREX (R1), R4		// loads R4
+-	DMB_ISHST_7
++	DMB MB_ISHST
+ 	STREX R2, (R1), R0	// stores R2
+ 	CMP $0, R0
+ 	BNE storeloop
+-	DMB_ISH_7
++	DMB MB_ISH
+ 	RET
+ 
+ TEXT ·StoreInt64(SB),NOSPLIT,$0
+diff --git a/src/sync/atomic/asm_plan9_arm.s b/src/sync/atomic/asm_plan9_arm.s
+index 54fdeba5d8..0d99762083 100644
+--- a/src/sync/atomic/asm_plan9_arm.s
++++ b/src/sync/atomic/asm_plan9_arm.s
+@@ -8,7 +8,7 @@
+ 	MOVB	runtime·goarm(SB), R11; \
+ 	CMP	$7, R11; \
+ 	BLT	2(PC); \
+-	WORD	$0xf57ff05b	// dmb ish
++	DMB	MB_ISH
+ 
+ // Plan9/ARM atomic operations.
+ // TODO(minux): this only supports ARMv6K or higher.

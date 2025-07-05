@@ -19,7 +19,7 @@ Date:   Wed Nov 27 11:36:53 2024 -0800
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/assignments.go     | 30 ++++++++++++++++------
  src/cmd/compile/internal/types2/call.go            |  4 +--
  src/go/types/assignments.go                        | 30 ++++++++++++++++------
@@ -27,3 +27,196 @@ Date:   Wed Nov 27 11:36:53 2024 -0800
  .../types/testdata/fixedbugs/issue70150.go         |  4 +--
  .../types/testdata/fixedbugs/issue70526.go         | 13 ++++++++++
  6 files changed, 63 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 382ce2d1dd..ebe9ef11cb 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -295,7 +295,11 @@ func varTypes(list []*Var) (res []Type) {
+ // ti's are user-friendly string representations for the given types.
+ // If variadic is set and the last type is a slice, its string is of
+ // the form "...E" where E is the slice's element type.
+-func (check *Checker) typesSummary(list []Type, variadic bool) string {
++// If hasDots is set, the last argument string is of the form "T..."
++// where T is the last type.
++// Only one of variadic and hasDots may be set.
++func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
++	assert(!(variadic && hasDots))
+ 	var res []string
+ 	for i, t := range list {
+ 		var s string
+@@ -304,7 +308,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 			fallthrough // should not happen but be cautious
+ 		case !isValid(t):
+ 			s = "unknown type"
+-		case isUntyped(t):
++		case isUntyped(t): // => *Basic
+ 			if isNumeric(t) {
+ 				// Do not imply a specific type requirement:
+ 				// "have number, want float64" is better than
+@@ -316,12 +320,22 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 				// for compactness.
+ 				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
+ 			}
+-		case variadic && i == len(list)-1:
+-			s = check.sprintf("...%s", t.(*Slice).elem)
+-		}
+-		if s == "" {
++		default:
+ 			s = check.sprintf("%s", t)
+ 		}
++		// handle ... parameters/arguments
++		if i == len(list)-1 {
++			switch {
++			case variadic:
++				// In correct code, the parameter type is a slice, but be careful.
++				if t, _ := t.(*Slice); t != nil {
++					s = check.sprintf("%s", t.elem)
++				}
++				s = "..." + s
++			case hasDots:
++				s += "..."
++			}
++		}
+ 		res = append(res, s)
+ 	}
+ 	return "(" + strings.Join(res, ", ") + ")"
+@@ -359,8 +373,8 @@ func (check *Checker) returnError(at poser, lhs []*Var, rhs []*operand) {
+ 	}
+ 	err := check.newError(WrongResultCount)
+ 	err.addf(at, "%s return values", qualifier)
+-	err.addf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false))
+-	err.addf(nopos, "want %s", check.typesSummary(varTypes(lhs), false))
++	err.addf(nopos, "have %s", check.typesSummary(operandTypes(rhs), false, false))
++	err.addf(nopos, "want %s", check.typesSummary(varTypes(lhs), false, false))
+ 	err.report()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 8dbf9df33a..ae2ab5f984 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -530,8 +530,8 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		}
+ 		err := check.newError(WrongArgCount)
+ 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+-		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), ddd))
+-		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
++		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false, ddd))
++		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic, false))
+ 		err.report()
+ 		return
+ 	}
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 01a55d582f..20d400bf1e 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -298,7 +298,11 @@ func varTypes(list []*Var) (res []Type) {
+ // ti's are user-friendly string representations for the given types.
+ // If variadic is set and the last type is a slice, its string is of
+ // the form "...E" where E is the slice's element type.
+-func (check *Checker) typesSummary(list []Type, variadic bool) string {
++// If hasDots is set, the last argument string is of the form "T..."
++// where T is the last type.
++// Only one of variadic and hasDots may be set.
++func (check *Checker) typesSummary(list []Type, variadic, hasDots bool) string {
++	assert(!(variadic && hasDots))
+ 	var res []string
+ 	for i, t := range list {
+ 		var s string
+@@ -307,7 +311,7 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 			fallthrough // should not happen but be cautious
+ 		case !isValid(t):
+ 			s = "unknown type"
+-		case isUntyped(t):
++		case isUntyped(t): // => *Basic
+ 			if isNumeric(t) {
+ 				// Do not imply a specific type requirement:
+ 				// "have number, want float64" is better than
+@@ -319,12 +323,22 @@ func (check *Checker) typesSummary(list []Type, variadic bool) string {
+ 				// for compactness.
+ 				s = strings.Replace(t.(*Basic).name, "untyped ", "", -1)
+ 			}
+-		case variadic && i == len(list)-1:
+-			s = check.sprintf("...%s", t.(*Slice).elem)
+-		}
+-		if s == "" {
++		default:
+ 			s = check.sprintf("%s", t)
+ 		}
++		// handle ... parameters/arguments
++		if i == len(list)-1 {
++			switch {
++			case variadic:
++				// In correct code, the parameter type is a slice, but be careful.
++				if t, _ := t.(*Slice); t != nil {
++					s = check.sprintf("%s", t.elem)
++				}
++				s = "..." + s
++			case hasDots:
++				s += "..."
++			}
++		}
+ 		res = append(res, s)
+ 	}
+ 	return "(" + strings.Join(res, ", ") + ")"
+@@ -362,8 +376,8 @@ func (check *Checker) returnError(at positioner, lhs []*Var, rhs []*operand) {
+ 	}
+ 	err := check.newError(WrongResultCount)
+ 	err.addf(at, "%s return values", qualifier)
+-	err.addf(noposn, "have %s", check.typesSummary(operandTypes(rhs), false))
+-	err.addf(noposn, "want %s", check.typesSummary(varTypes(lhs), false))
++	err.addf(noposn, "have %s", check.typesSummary(operandTypes(rhs), false, false))
++	err.addf(noposn, "want %s", check.typesSummary(varTypes(lhs), false, false))
+ 	err.report()
+ }
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 6db746e408..200068b176 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -530,8 +530,8 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		}
+ 		err := check.newError(WrongArgCount)
+ 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+-		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), ddd))
+-		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
++		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), false, ddd))
++		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic, false))
+ 		err.report()
+ 		return
+ 	}
+diff --git a/src/internal/types/testdata/fixedbugs/issue70150.go b/src/internal/types/testdata/fixedbugs/issue70150.go
+index ea308cfddb..5baf4a6630 100644
+--- a/src/internal/types/testdata/fixedbugs/issue70150.go
++++ b/src/internal/types/testdata/fixedbugs/issue70150.go
+@@ -7,8 +7,8 @@ package p
+ func _() {
+ 	var values []int
+ 	vf(values /* ERROR "(variable of type []int) as string value" */)
+-	vf(values...) /* ERROR "have (...int)" */
+-	vf("ab", "cd", values /* ERROR "have (string, string, ...int)" */ ...)
++	vf(values...) /* ERROR "have ([]int...)\n\twant (string, ...int)" */
++	vf("ab", "cd", values /* ERROR "have (string, string, []int...)\n\twant (string, ...int)" */ ...)
+ }
+ 
+ func vf(method string, values ...int) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue70526.go b/src/internal/types/testdata/fixedbugs/issue70526.go
+new file mode 100644
+index 0000000000..56b20bfc3c
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue70526.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(...any)
++
++func _(x int, s []int) {
++	f(0, x /* ERROR "have (number, int...)\n\twant (...any)" */ ...)
++	f(0, s /* ERROR "have (number, []int...)\n\twant (...any)" */ ...)
++	f(0, 0 /* ERROR "have (number, number...)\n\twant (...any)" */ ...)
++}

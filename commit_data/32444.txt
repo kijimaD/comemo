@@ -34,8 +34,422 @@ Date:   Mon Apr 24 06:06:14 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 67 +++++++++++++------------
  src/cmd/compile/internal/gc/bimport.go | 68 +++++++++++++++++++------
  src/go/internal/gcimporter/bimport.go  | 90 ++++++++++++++++++++++++----------
  3 files changed, 155 insertions(+), 70 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 3637804a12..94d232bb2a 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -135,12 +135,13 @@ import (
+ const debugFormat = false // default: false
+ 
+ // Current export format version. Increase with each format change.
++// 5: improved position encoding efficiency (issue 20080, CL 41619)
+ // 4: type name objects support type aliases, uses aliasTag
+ // 3: Go1.8 encoding (same as version 2, aliasTag defined but never used)
+ // 2: removed unused bool in ODCL export (compiler only)
+ // 1: header format change (more regular), export package for _ struct fields
+ // 0: Go1.7 encoding
+-const exportVersion = 4
++const exportVersion = 5
+ 
+ // exportInlined enables the export of inlined function bodies and related
+ // dependencies. The compiler should work w/o any loss of functionality with
+@@ -164,10 +165,11 @@ type exporter struct {
+ 	out *bufio.Writer
+ 
+ 	// object -> index maps, indexed in order of serialization
+-	strIndex map[string]int
+-	pkgIndex map[*types.Pkg]int
+-	typIndex map[*types.Type]int
+-	funcList []*Func
++	strIndex  map[string]int
++	pathIndex map[string]int
++	pkgIndex  map[*types.Pkg]int
++	typIndex  map[*types.Type]int
++	funcList  []*Func
+ 
+ 	// position encoding
+ 	posInfoFormat bool
+@@ -185,6 +187,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 	p := exporter{
+ 		out:           out,
+ 		strIndex:      map[string]int{"": 0}, // empty string is mapped to 0
++		pathIndex:     map[string]int{"": 0}, // empty path is mapped to 0
+ 		pkgIndex:      make(map[*types.Pkg]int),
+ 		typIndex:      make(map[*types.Type]int),
+ 		posInfoFormat: true,
+@@ -416,7 +419,7 @@ func (p *exporter) pkg(pkg *types.Pkg) {
+ 
+ 	p.tag(packageTag)
+ 	p.string(pkg.Name)
+-	p.string(pkg.Path)
++	p.path(pkg.Path)
+ }
+ 
+ func unidealType(typ *types.Type, val Val) *types.Type {
+@@ -515,6 +518,11 @@ func (p *exporter) obj(sym *types.Sym) {
+ 	}
+ }
+ 
++// deltaNewFile is a magic line delta offset indicating a new file.
++// We use -64 because it is rare; see issue 20080 and CL 41619.
++// -64 is the smallest int that fits in a single byte as a varint.
++const deltaNewFile = -64
++
+ func (p *exporter) pos(n *Node) {
+ 	if !p.posInfoFormat {
+ 		return
+@@ -523,30 +531,39 @@ func (p *exporter) pos(n *Node) {
+ 	file, line := fileLine(n)
+ 	if file == p.prevFile {
+ 		// common case: write line delta
+-		// delta == 0 means different file or no line change
++		// delta == deltaNewFile means different file
++		// if the actual line delta is deltaNewFile,
++		// follow up with a negative int to indicate that.
++		// only non-negative ints can follow deltaNewFile
++		// when writing a new file.
+ 		delta := line - p.prevLine
+ 		p.int(delta)
+-		if delta == 0 {
++		if delta == deltaNewFile {
+ 			p.int(-1) // -1 means no file change
+ 		}
+ 	} else {
+ 		// different file
+-		p.int(0)
+-		// Encode filename as length of common prefix with previous
+-		// filename, followed by (possibly empty) suffix. Filenames
+-		// frequently share path prefixes, so this can save a lot
+-		// of space and make export data size less dependent on file
+-		// path length. The suffix is unlikely to be empty because
+-		// file names tend to end in ".go".
+-		n := commonPrefixLen(p.prevFile, file)
+-		p.int(n)           // n >= 0
+-		p.string(file[n:]) // write suffix only
++		p.int(deltaNewFile)
++		p.int(line) // line >= 0
++		p.path(file)
+ 		p.prevFile = file
+-		p.int(line)
+ 	}
+ 	p.prevLine = line
+ }
+ 
++func (p *exporter) path(s string) {
++	if i, ok := p.pathIndex[s]; ok {
++		p.index('p', i) // i >= 0
++		return
++	}
++	p.pathIndex[s] = len(p.pathIndex)
++	c := strings.Split(s, "/")
++	p.int(-len(c)) // -len(c) < 0
++	for _, x := range c {
++		p.string(x)
++	}
++}
++
+ func fileLine(n *Node) (file string, line int) {
+ 	if n != nil {
+ 		pos := Ctxt.PosTable.Pos(n.Pos)
+@@ -556,18 +573,6 @@ func fileLine(n *Node) (file string, line int) {
+ 	return
+ }
+ 
+-func commonPrefixLen(a, b string) int {
+-	if len(a) > len(b) {
+-		a, b = b, a
+-	}
+-	// len(a) <= len(b)
+-	i := 0
+-	for i < len(a) && a[i] == b[i] {
+-		i++
+-	}
+-	return i
+-}
+-
+ func isInlineable(n *Node) bool {
+ 	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
+ 		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 734c03083f..30ee31af55 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -32,6 +32,7 @@ type importer struct {
+ 
+ 	// object lists, in order of deserialization
+ 	strList       []string
++	pathList      []string
+ 	pkgList       []*types.Pkg
+ 	typList       []*types.Type
+ 	funcList      []*Node // nil entry means already declared
+@@ -57,10 +58,11 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 	defer func() { inimport = false }()
+ 
+ 	p := importer{
+-		in:      in,
+-		imp:     imp,
+-		version: -1,           // unknown version
+-		strList: []string{""}, // empty string is mapped to 0
++		in:       in,
++		imp:      imp,
++		version:  -1,           // unknown version
++		strList:  []string{""}, // empty string is mapped to 0
++		pathList: []string{""}, // empty path is mapped to 0
+ 	}
+ 
+ 	// read version info
+@@ -94,10 +96,10 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 5:
++	// case 6:
+ 	// 	...
+ 	//	fallthrough
+-	case 4, 3, 2, 1:
++	case 5, 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.bool()
+ 		p.posInfoFormat = p.bool()
+@@ -270,7 +272,12 @@ func (p *importer) pkg() *types.Pkg {
+ 
+ 	// read package data
+ 	name := p.string()
+-	path := p.string()
++	var path string
++	if p.version >= 5 {
++		path = p.path()
++	} else {
++		path = p.string()
++	}
+ 
+ 	// we should never see an empty package name
+ 	if name == "" {
+@@ -382,14 +389,27 @@ func (p *importer) pos() src.XPos {
+ 
+ 	file := p.prevFile
+ 	line := p.prevLine
+-	if delta := p.int(); delta != 0 {
+-		// line changed
+-		line += delta
+-	} else if n := p.int(); n >= 0 {
+-		// file changed
+-		file = p.prevFile[:n] + p.string()
++	delta := p.int()
++	line += delta
++	if p.version >= 5 {
++		if delta == deltaNewFile {
++			if n := p.int(); n >= 0 {
++				// file changed
++				file = p.path()
++				line = n
++			}
++		}
++	} else {
++		if delta == 0 {
++			if n := p.int(); n >= 0 {
++				// file changed
++				file = p.prevFile[:n] + p.string()
++				line = p.int()
++			}
++		}
++	}
++	if file != p.prevFile {
+ 		p.prevFile = file
+-		line = p.int()
+ 		p.posBase = src.NewFileBase(file, file)
+ 	}
+ 	p.prevLine = line
+@@ -399,6 +419,26 @@ func (p *importer) pos() src.XPos {
+ 	return xpos
+ }
+ 
++func (p *importer) path() string {
++	if p.debugFormat {
++		p.marker('p')
++	}
++	// if the path was seen before, i is its index (>= 0)
++	// (the empty string is at index 0)
++	i := p.rawInt64()
++	if i >= 0 {
++		return p.pathList[i]
++	}
++	// otherwise, i is the negative path length (< 0)
++	a := make([]string, -i)
++	for n := range a {
++		a[n] = p.string()
++	}
++	s := strings.Join(a, "/")
++	p.pathList = append(p.pathList, s)
++	return s
++}
++
+ func (p *importer) newtyp(etype types.EType) *types.Type {
+ 	t := types.New(etype)
+ 	if p.trackAllTypes {
+diff --git a/src/go/internal/gcimporter/bimport.go b/src/go/internal/gcimporter/bimport.go
+index fd6eae4666..2045f5517b 100644
+--- a/src/go/internal/gcimporter/bimport.go
++++ b/src/go/internal/gcimporter/bimport.go
+@@ -19,14 +19,15 @@ import (
+ )
+ 
+ type importer struct {
+-	imports map[string]*types.Package
+-	data    []byte
+-	path    string
+-	buf     []byte // for reading strings
+-	version int    // export format version
++	imports    map[string]*types.Package
++	data       []byte
++	importpath string
++	buf        []byte // for reading strings
++	version    int    // export format version
+ 
+ 	// object lists
+ 	strList       []string           // in order of appearance
++	pathList      []string           // in order of appearance
+ 	pkgList       []*types.Package   // in order of appearance
+ 	typList       []types.Type       // in order of appearance
+ 	interfaceList []*types.Interface // for delayed completion only
+@@ -60,13 +61,14 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 	}()
+ 
+ 	p := importer{
+-		imports: imports,
+-		data:    data,
+-		path:    path,
+-		version: -1,           // unknown version
+-		strList: []string{""}, // empty string is mapped to 0
+-		fset:    fset,
+-		files:   make(map[string]*token.File),
++		imports:    imports,
++		data:       data,
++		importpath: path,
++		version:    -1,           // unknown version
++		strList:    []string{""}, // empty string is mapped to 0
++		pathList:   []string{""}, // empty string is mapped to 0
++		fset:       fset,
++		files:      make(map[string]*token.File),
+ 	}
+ 
+ 	// read version info
+@@ -100,10 +102,10 @@ func BImportData(fset *token.FileSet, imports map[string]*types.Package, data []
+ 
+ 	// read version specific flags - extend as necessary
+ 	switch p.version {
+-	// case 5:
++	// case 6:
+ 	// 	...
+ 	//	fallthrough
+-	case 4, 3, 2, 1:
++	case 5, 4, 3, 2, 1:
+ 		p.debugFormat = p.rawStringln(p.rawByte()) == "debug"
+ 		p.trackAllTypes = p.int() != 0
+ 		p.posInfoFormat = p.int() != 0
+@@ -169,12 +171,17 @@ func (p *importer) pkg() *types.Package {
+ 
+ 	// otherwise, i is the package tag (< 0)
+ 	if i != packageTag {
+-		errorf("unexpected package tag %d", i)
++		errorf("unexpected package tag %d version %d", i, p.version)
+ 	}
+ 
+ 	// read package data
+ 	name := p.string()
+-	path := p.string()
++	var path string
++	if p.version >= 5 {
++		path = p.path()
++	} else {
++		path = p.string()
++	}
+ 
+ 	// we should never see an empty package name
+ 	if name == "" {
+@@ -189,7 +196,7 @@ func (p *importer) pkg() *types.Package {
+ 
+ 	// if the package was imported before, use that one; otherwise create a new one
+ 	if path == "" {
+-		path = p.path
++		path = p.importpath
+ 	}
+ 	pkg := p.imports[path]
+ 	if pkg == nil {
+@@ -283,6 +290,8 @@ func (p *importer) obj(tag int) {
+ 	}
+ }
+ 
++const deltaNewFile = -64 // see cmd/compile/internal/gc/bexport.go
++
+ func (p *importer) pos() token.Pos {
+ 	if !p.posInfoFormat {
+ 		return token.NoPos
+@@ -290,15 +299,26 @@ func (p *importer) pos() token.Pos {
+ 
+ 	file := p.prevFile
+ 	line := p.prevLine
+-	if delta := p.int(); delta != 0 {
+-		// line changed
+-		line += delta
+-	} else if n := p.int(); n >= 0 {
+-		// file changed
+-		file = p.prevFile[:n] + p.string()
+-		p.prevFile = file
+-		line = p.int()
++	delta := p.int()
++	line += delta
++	if p.version >= 5 {
++		if delta == deltaNewFile {
++			if n := p.int(); n >= 0 {
++				// file changed
++				file = p.path()
++				line = n
++			}
++		}
++	} else {
++		if delta == 0 {
++			if n := p.int(); n >= 0 {
++				// file changed
++				file = p.prevFile[:n] + p.string()
++				line = p.int()
++			}
++		}
+ 	}
++	p.prevFile = file
+ 	p.prevLine = line
+ 
+ 	// Synthesize a token.Pos
+@@ -776,6 +796,26 @@ func (p *importer) int64() int64 {
+ 	return p.rawInt64()
+ }
+ 
++func (p *importer) path() string {
++	if p.debugFormat {
++		p.marker('p')
++	}
++	// if the path was seen before, i is its index (>= 0)
++	// (the empty string is at index 0)
++	i := p.rawInt64()
++	if i >= 0 {
++		return p.pathList[i]
++	}
++	// otherwise, i is the negative path length (< 0)
++	a := make([]string, -i)
++	for n := range a {
++		a[n] = p.string()
++	}
++	s := strings.Join(a, "/")
++	p.pathList = append(p.pathList, s)
++	return s
++}
++
+ func (p *importer) string() string {
+ 	if p.debugFormat {
+ 		p.marker('s')

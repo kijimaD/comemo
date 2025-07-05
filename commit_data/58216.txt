@@ -11,7 +11,7 @@ Date:   Sat Oct 14 00:54:45 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/hash/adler32/adler32.go |  4 ++--
  src/hash/crc32/crc32.go     | 22 +++++++++++-----------
  src/hash/crc64/crc64.go     | 10 +++++-----
@@ -19,3 +19,283 @@ Date:   Sat Oct 14 00:54:45 2023 +0800
  src/hash/hash.go            |  6 +++---
  src/hash/maphash/maphash.go | 28 ++++++++++++++--------------
  6 files changed, 41 insertions(+), 41 deletions(-)
+
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 38d644d1ee..415af81dff 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -38,8 +38,8 @@ func (d *digest) Reset() { *d = 1 }
+ 
+ // New returns a new hash.Hash32 computing the Adler-32 checksum. Its
+ // Sum method will lay the value out in big-endian byte order. The
+-// returned Hash32 also implements encoding.BinaryMarshaler and
+-// encoding.BinaryUnmarshaler to marshal and unmarshal the internal
++// returned Hash32 also implements [encoding.BinaryMarshaler] and
++// [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New() hash.Hash32 {
+ 	d := new(digest)
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index e828089308..6d2421afab 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -97,7 +97,7 @@ func castagnoliInit() {
+ 	haveCastagnoli.Store(true)
+ }
+ 
+-// IEEETable is the table for the IEEE polynomial.
++// IEEETable is the table for the [IEEE] polynomial.
+ var IEEETable = simpleMakeTable(IEEE)
+ 
+ // ieeeTable8 is the slicing8Table for IEEE
+@@ -118,8 +118,8 @@ func ieeeInit() {
+ 	}
+ }
+ 
+-// MakeTable returns a Table constructed from the specified polynomial.
+-// The contents of this Table must not be modified.
++// MakeTable returns a [Table] constructed from the specified polynomial.
++// The contents of this [Table] must not be modified.
+ func MakeTable(poly uint32) *Table {
+ 	switch poly {
+ 	case IEEE:
+@@ -139,10 +139,10 @@ type digest struct {
+ 	tab *Table
+ }
+ 
+-// New creates a new hash.Hash32 computing the CRC-32 checksum using the
+-// polynomial represented by the Table. Its Sum method will lay the
++// New creates a new [hash.Hash32] computing the CRC-32 checksum using the
++// polynomial represented by the [Table]. Its Sum method will lay the
+ // value out in big-endian byte order. The returned Hash32 also
+-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+ // marshal and unmarshal the internal state of the hash.
+ func New(tab *Table) hash.Hash32 {
+ 	if tab == IEEETable {
+@@ -151,10 +151,10 @@ func New(tab *Table) hash.Hash32 {
+ 	return &digest{0, tab}
+ }
+ 
+-// NewIEEE creates a new hash.Hash32 computing the CRC-32 checksum using
+-// the IEEE polynomial. Its Sum method will lay the value out in
++// NewIEEE creates a new [hash.Hash32] computing the CRC-32 checksum using
++// the [IEEE] polynomial. Its Sum method will lay the value out in
+ // big-endian byte order. The returned Hash32 also implements
+-// encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to marshal
++// [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to marshal
+ // and unmarshal the internal state of the hash.
+ func NewIEEE() hash.Hash32 { return New(IEEETable) }
+ 
+@@ -242,11 +242,11 @@ func (d *digest) Sum(in []byte) []byte {
+ }
+ 
+ // Checksum returns the CRC-32 checksum of data
+-// using the polynomial represented by the Table.
++// using the polynomial represented by the [Table].
+ func Checksum(data []byte, tab *Table) uint32 { return Update(0, tab, data) }
+ 
+ // ChecksumIEEE returns the CRC-32 checksum of data
+-// using the IEEE polynomial.
++// using the [IEEE] polynomial.
+ func ChecksumIEEE(data []byte) uint32 {
+ 	ieeeOnce.Do(ieeeInit)
+ 	return updateIEEE(0, data)
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 26b2573c8e..1915ac6123 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -43,8 +43,8 @@ func buildSlicing8Tables() {
+ 	slicing8TableECMA = makeSlicingBy8Table(makeTable(ECMA))
+ }
+ 
+-// MakeTable returns a Table constructed from the specified polynomial.
+-// The contents of this Table must not be modified.
++// MakeTable returns a [Table] constructed from the specified polynomial.
++// The contents of this [Table] must not be modified.
+ func MakeTable(poly uint64) *Table {
+ 	buildSlicing8TablesOnce()
+ 	switch poly {
+@@ -93,9 +93,9 @@ type digest struct {
+ }
+ 
+ // New creates a new hash.Hash64 computing the CRC-64 checksum using the
+-// polynomial represented by the Table. Its Sum method will lay the
++// polynomial represented by the [Table]. Its Sum method will lay the
+ // value out in big-endian byte order. The returned Hash64 also
+-// implements encoding.BinaryMarshaler and encoding.BinaryUnmarshaler to
++// implements [encoding.BinaryMarshaler] and [encoding.BinaryUnmarshaler] to
+ // marshal and unmarshal the internal state of the hash.
+ func New(tab *Table) hash.Hash64 { return &digest{0, tab} }
+ 
+@@ -210,7 +210,7 @@ func (d *digest) Sum(in []byte) []byte {
+ }
+ 
+ // Checksum returns the CRC-64 checksum of data
+-// using the polynomial represented by the Table.
++// using the polynomial represented by the [Table].
+ func Checksum(data []byte, tab *Table) uint64 { return update(0, tab, data) }
+ 
+ // tableSum returns the ISO checksum of table t.
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index 0fce177cb3..e770f871d9 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -38,35 +38,35 @@ const (
+ 	prime128Shift   = 24
+ )
+ 
+-// New32 returns a new 32-bit FNV-1 hash.Hash.
++// New32 returns a new 32-bit FNV-1 [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New32() hash.Hash32 {
+ 	var s sum32 = offset32
+ 	return &s
+ }
+ 
+-// New32a returns a new 32-bit FNV-1a hash.Hash.
++// New32a returns a new 32-bit FNV-1a [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New32a() hash.Hash32 {
+ 	var s sum32a = offset32
+ 	return &s
+ }
+ 
+-// New64 returns a new 64-bit FNV-1 hash.Hash.
++// New64 returns a new 64-bit FNV-1 [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New64() hash.Hash64 {
+ 	var s sum64 = offset64
+ 	return &s
+ }
+ 
+-// New64a returns a new 64-bit FNV-1a hash.Hash.
++// New64a returns a new 64-bit FNV-1a [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New64a() hash.Hash64 {
+ 	var s sum64a = offset64
+ 	return &s
+ }
+ 
+-// New128 returns a new 128-bit FNV-1 hash.Hash.
++// New128 returns a new 128-bit FNV-1 [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New128() hash.Hash {
+ 	var s sum128
+@@ -75,7 +75,7 @@ func New128() hash.Hash {
+ 	return &s
+ }
+ 
+-// New128a returns a new 128-bit FNV-1a hash.Hash.
++// New128a returns a new 128-bit FNV-1a [hash.Hash].
+ // Its Sum method will lay the value out in big-endian byte order.
+ func New128a() hash.Hash {
+ 	var s sum128a
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index 62cf6a4518..82c81034ff 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -9,9 +9,9 @@ import "io"
+ 
+ // Hash is the common interface implemented by all hash functions.
+ //
+-// Hash implementations in the standard library (e.g. hash/crc32 and
+-// crypto/sha256) implement the encoding.BinaryMarshaler and
+-// encoding.BinaryUnmarshaler interfaces. Marshaling a hash implementation
++// Hash implementations in the standard library (e.g. [hash/crc32] and
++// [crypto/sha256]) implement the [encoding.BinaryMarshaler] and
++// [encoding.BinaryUnmarshaler] interfaces. Marshaling a hash implementation
+ // allows its internal state to be saved and used for additional processing
+ // later, without having to re-write the data previously written to the hash.
+ // The hash state may contain portions of the input in its original form,
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index c2e9e400b9..1e70a279f5 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -6,20 +6,20 @@
+ // These hash functions are intended to be used to implement hash tables or
+ // other data structures that need to map arbitrary strings or byte
+ // sequences to a uniform distribution on unsigned 64-bit integers.
+-// Each different instance of a hash table or data structure should use its own Seed.
++// Each different instance of a hash table or data structure should use its own [Seed].
+ //
+ // The hash functions are not cryptographically secure.
+ // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
+ package maphash
+ 
+ // A Seed is a random value that selects the specific hash function
+-// computed by a Hash. If two Hashes use the same Seeds, they
++// computed by a [Hash]. If two Hashes use the same Seeds, they
+ // will compute the same hash values for any given input.
+ // If two Hashes use different Seeds, they are very likely to compute
+ // distinct hash values for any given input.
+ //
+-// A Seed must be initialized by calling MakeSeed.
+-// The zero seed is uninitialized and not valid for use with Hash's SetSeed method.
++// A Seed must be initialized by calling [MakeSeed].
++// The zero seed is uninitialized and not valid for use with [Hash]'s SetSeed method.
+ //
+ // Each Seed value is local to a single process and cannot be serialized
+ // or otherwise recreated in a different process.
+@@ -122,7 +122,7 @@ func (h *Hash) initSeed() {
+ }
+ 
+ // WriteByte adds b to the sequence of bytes hashed by h.
+-// It never fails; the error result is for implementing io.ByteWriter.
++// It never fails; the error result is for implementing [io.ByteWriter].
+ func (h *Hash) WriteByte(b byte) error {
+ 	if h.n == len(h.buf) {
+ 		h.flush()
+@@ -133,7 +133,7 @@ func (h *Hash) WriteByte(b byte) error {
+ }
+ 
+ // Write adds b to the sequence of bytes hashed by h.
+-// It always writes all of b and never fails; the count and error result are for implementing io.Writer.
++// It always writes all of b and never fails; the count and error result are for implementing [io.Writer].
+ func (h *Hash) Write(b []byte) (int, error) {
+ 	size := len(b)
+ 	// Deal with bytes left over in h.buf.
+@@ -165,7 +165,7 @@ func (h *Hash) Write(b []byte) (int, error) {
+ }
+ 
+ // WriteString adds the bytes of s to the sequence of bytes hashed by h.
+-// It always writes all of s and never fails; the count and error result are for implementing io.StringWriter.
++// It always writes all of s and never fails; the count and error result are for implementing [io.StringWriter].
+ func (h *Hash) WriteString(s string) (int, error) {
+ 	// WriteString mirrors Write. See Write for comments.
+ 	size := len(s)
+@@ -196,10 +196,10 @@ func (h *Hash) Seed() Seed {
+ 	return h.seed
+ }
+ 
+-// SetSeed sets h to use seed, which must have been returned by MakeSeed
+-// or by another Hash's Seed method.
+-// Two Hash objects with the same seed behave identically.
+-// Two Hash objects with different seeds will very likely behave differently.
++// SetSeed sets h to use seed, which must have been returned by [MakeSeed]
++// or by another [Hash.Seed] method.
++// Two [Hash] objects with the same seed behave identically.
++// Two [Hash] objects with different seeds will very likely behave differently.
+ // Any bytes added to h before this call will be discarded.
+ func (h *Hash) SetSeed(seed Seed) {
+ 	if seed.s == 0 {
+@@ -230,7 +230,7 @@ func (h *Hash) flush() {
+ 
+ // Sum64 returns h's current 64-bit value, which depends on
+ // h's seed and the sequence of bytes added to h since the
+-// last call to Reset or SetSeed.
++// last call to [Hash.Reset] or [Hash.SetSeed].
+ //
+ // All bits of the Sum64 result are close to uniformly and
+ // independently distributed, so it can be safely reduced
+@@ -255,8 +255,8 @@ func MakeSeed() Seed {
+ }
+ 
+ // Sum appends the hash's current 64-bit value to b.
+-// It exists for implementing hash.Hash.
+-// For direct calls, it is more efficient to use Sum64.
++// It exists for implementing [hash.Hash].
++// For direct calls, it is more efficient to use [Hash.Sum64].
+ func (h *Hash) Sum(b []byte) []byte {
+ 	x := h.Sum64()
+ 	return append(b,

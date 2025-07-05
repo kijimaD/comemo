@@ -16,8 +16,44 @@ Date:   Tue Mar 29 15:03:09 2011 -0700
     R=gri, rsc1, iant2, rsc
     CC=golang-dev
     https://golang.org/cl/4332041
-
+---
  test/bugs/bug324.dir/main.go | 2 +-
  test/bugs/bug324.go          | 2 +-
  test/golden.out              | 4 +++-
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/test/bugs/bug324.dir/main.go b/test/bugs/bug324.dir/main.go
+index 37f2a59e44..4c1a18d9ca 100644
+--- a/test/bugs/bug324.dir/main.go
++++ b/test/bugs/bug324.dir/main.go
+@@ -40,7 +40,7 @@ func main() {
+ 	// x = px
+ 
+ 	// this assignment unexpectedly compiles and then executes
+-	x = px.(Exported)  // ERROR "does not implement"
++	x = px.(Exported)
+ 
+ 	// this is a legitimate call, but because of the previous assignment,
+ 	// it invokes the method private in p!
+diff --git a/test/bugs/bug324.go b/test/bugs/bug324.go
+index 8b4e292003..e188515d77 100644
+--- a/test/bugs/bug324.go
++++ b/test/bugs/bug324.go
+@@ -1,4 +1,4 @@
+-// $G $D/$F.dir/p.go && errchk $G $D/$F.dir/main.go
++// $G $D/$F.dir/p.go && $G $D/$F.dir/main.go && $L main.$A && ! ./$A.out || echo BUG: should fail
+ 
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/golden.out b/test/golden.out
+index d8e89e866d..f76db3e502 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -165,4 +165,6 @@ bugs/bug322.dir/main.go:32: implicit assignment of unexported field 'x' of lib.T
+ BUG: fails incorrectly
+ 
+ =========== bugs/bug324.go
+-BUG: errchk: command succeeded unexpectedly
++main.Implementation.private()
++p.Implementation.private()
++BUG: should fail

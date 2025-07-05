@@ -7,6 +7,19 @@ Date:   Wed Feb 9 12:34:50 2011 +1100
     R=golang-dev, r2
     CC=golang-dev
     https://golang.org/cl/4159041
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index a601bbe1e4..75936d637b 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -43,6 +43,7 @@ src/pkg/runtime/mkversion
+ src/pkg/runtime/runtime.acid.*
+ src/pkg/runtime/runtime_defs.go
+ src/pkg/runtime/version.go
++src/pkg/runtime/version_*.go
+ src/pkg/unicode/maketables
+ src/pkg/github.com/
+ src/pkg/*.googlecode.com/

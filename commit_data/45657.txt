@@ -28,7 +28,53 @@ Date:   Tue Nov 3 20:26:17 2020 +0000
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modfetch/codehost/vcs.go  |  2 +-
  src/cmd/go/testdata/script/mod_get_fossil.txt | 26 ++++++++++++++++++++++++++
  2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index ec97fc7e1b..e67ee94ad8 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -568,7 +568,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 
+ func fossilParseStat(rev, out string) (*RevInfo, error) {
+ 	for _, line := range strings.Split(out, "\n") {
+-		if strings.HasPrefix(line, "uuid:") {
++		if strings.HasPrefix(line, "uuid:") || strings.HasPrefix(line, "hash:") {
+ 			f := strings.Fields(line)
+ 			if len(f) != 5 || len(f[1]) != 40 || f[4] != "UTC" {
+ 				return nil, vcsErrorf("unexpected response from fossil info: %q", line)
+diff --git a/src/cmd/go/testdata/script/mod_get_fossil.txt b/src/cmd/go/testdata/script/mod_get_fossil.txt
+new file mode 100644
+index 0000000000..3482e68da1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_fossil.txt
+@@ -0,0 +1,26 @@
++[!net] skip
++[!exec:fossil] skip
++
++# Regression test for 'go get' to ensure repositories
++# provided by fossil v2.12 and up are able to be fetched
++# and parsed correctly.
++# Verifies golang.org/issue/42323.
++
++
++env GO111MODULE=on
++env GOPROXY=direct
++env GOSUMDB=off
++
++# 'go get' for the fossil repo will fail if fossil
++# is unable to determine your fossil user. Easiest
++# way to set it for use by 'go get' is specifying 
++# a any non-empty $USER; the value doesn't otherwise matter.
++env USER=fossiluser
++
++# Attempting to get the latest version of a fossil repo.
++go get vcs-test.golang.org/fossil/hello.fossil
++! stderr 'unexpected response from fossil info'
++grep 'vcs-test.golang.org/fossil/hello.fossil' go.mod
++
++-- go.mod --
++module x

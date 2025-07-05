@@ -10,7 +10,7 @@ Date:   Sun Sep 4 19:18:50 2022 +0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/testing/fuzz.go               |  4 ++--
  src/testing/helper_test.go        |  5 ++---
  src/testing/iotest/logger_test.go | 11 ++++++-----
@@ -18,3 +18,190 @@ Date:   Sun Sep 4 19:18:50 2022 +0800
  src/testing/iotest/writer_test.go |  4 ++--
  src/testing/sub_test.go           |  4 ++--
  6 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index e60ecadf25..87b60fc1bb 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -5,7 +5,6 @@
+ package testing
+ 
+ import (
+-	"bytes"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -14,6 +13,7 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"time"
+ )
+ 
+@@ -379,7 +379,7 @@ func (f *F) Fuzz(ff any) {
+ 			// fuzz worker. This would become very verbose, particularly during
+ 			// minimization. Return the error instead, and let the caller deal
+ 			// with the output.
+-			var buf bytes.Buffer
++			var buf strings.Builder
+ 			if ok := run(&buf, e); !ok {
+ 				return errors.New(buf.String())
+ 			}
+diff --git a/src/testing/helper_test.go b/src/testing/helper_test.go
+index 357a0798a1..fa1d2b6082 100644
+--- a/src/testing/helper_test.go
++++ b/src/testing/helper_test.go
+@@ -5,13 +5,12 @@
+ package testing
+ 
+ import (
+-	"bytes"
+ 	"regexp"
+ 	"strings"
+ )
+ 
+ func TestTBHelper(t *T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+ 	t1 := &T{
+ 		common: common{
+@@ -55,7 +54,7 @@ helperfuncs_test.go:67: 10
+ }
+ 
+ func TestTBHelperParallel(t *T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	ctx := newTestContext(1, newMatcher(regexp.MatchString, "", ""))
+ 	t1 := &T{
+ 		common: common{
+diff --git a/src/testing/iotest/logger_test.go b/src/testing/iotest/logger_test.go
+index fec4467cc6..7a7d0aa9f0 100644
+--- a/src/testing/iotest/logger_test.go
++++ b/src/testing/iotest/logger_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"log"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -32,12 +33,12 @@ func TestWriteLogger(t *testing.T) {
+ 		log.SetOutput(olw)
+ 	}()
+ 
+-	lOut := new(bytes.Buffer)
++	lOut := new(strings.Builder)
+ 	log.SetPrefix("lw: ")
+ 	log.SetOutput(lOut)
+ 	log.SetFlags(0)
+ 
+-	lw := new(bytes.Buffer)
++	lw := new(strings.Builder)
+ 	wl := NewWriteLogger("write:", lw)
+ 	if _, err := wl.Write([]byte("Hello, World!")); err != nil {
+ 		t.Fatalf("Unexpectedly failed to write: %v", err)
+@@ -64,7 +65,7 @@ func TestWriteLogger_errorOnWrite(t *testing.T) {
+ 		log.SetOutput(olw)
+ 	}()
+ 
+-	lOut := new(bytes.Buffer)
++	lOut := new(strings.Builder)
+ 	log.SetPrefix("lw: ")
+ 	log.SetOutput(lOut)
+ 	log.SetFlags(0)
+@@ -93,7 +94,7 @@ func TestReadLogger(t *testing.T) {
+ 		log.SetOutput(olw)
+ 	}()
+ 
+-	lOut := new(bytes.Buffer)
++	lOut := new(strings.Builder)
+ 	log.SetPrefix("lr: ")
+ 	log.SetOutput(lOut)
+ 	log.SetFlags(0)
+@@ -130,7 +131,7 @@ func TestReadLogger_errorOnRead(t *testing.T) {
+ 		log.SetOutput(olw)
+ 	}()
+ 
+-	lOut := new(bytes.Buffer)
++	lOut := new(strings.Builder)
+ 	log.SetPrefix("lr: ")
+ 	log.SetOutput(lOut)
+ 	log.SetFlags(0)
+diff --git a/src/testing/iotest/reader_test.go b/src/testing/iotest/reader_test.go
+index f149e74c74..1d222372ca 100644
+--- a/src/testing/iotest/reader_test.go
++++ b/src/testing/iotest/reader_test.go
+@@ -26,7 +26,7 @@ func TestOneByteReader_nonEmptyReader(t *testing.T) {
+ 
+ 	b = make([]byte, 3)
+ 	// Read from obr until EOF.
+-	got := new(bytes.Buffer)
++	got := new(strings.Builder)
+ 	for i := 0; ; i++ {
+ 		n, err = obr.Read(b)
+ 		if err != nil {
+@@ -77,7 +77,7 @@ func TestHalfReader_nonEmptyReader(t *testing.T) {
+ 	}
+ 	// non empty read buffer
+ 	b = make([]byte, 2)
+-	got := new(bytes.Buffer)
++	got := new(strings.Builder)
+ 	for i := 0; ; i++ {
+ 		n, err = hr.Read(b)
+ 		if err != nil {
+@@ -190,7 +190,7 @@ func TestDataErrReader_nonEmptyReader(t *testing.T) {
+ 	der := DataErrReader(buf)
+ 
+ 	b := make([]byte, 3)
+-	got := new(bytes.Buffer)
++	got := new(strings.Builder)
+ 	var n int
+ 	var err error
+ 	for {
+diff --git a/src/testing/iotest/writer_test.go b/src/testing/iotest/writer_test.go
+index 5aaa77cc74..2762513369 100644
+--- a/src/testing/iotest/writer_test.go
++++ b/src/testing/iotest/writer_test.go
+@@ -5,7 +5,7 @@
+ package iotest
+ 
+ import (
+-	"bytes"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -23,7 +23,7 @@ var truncateWriterTests = []struct {
+ 
+ func TestTruncateWriter(t *testing.T) {
+ 	for _, tt := range truncateWriterTests {
+-		buf := new(bytes.Buffer)
++		buf := new(strings.Builder)
+ 		tw := TruncateWriter(buf, tt.trunc)
+ 		n, err := tw.Write([]byte(tt.in))
+ 		if err != nil {
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index bb1715b23f..6d8badfbf8 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -477,7 +477,7 @@ func TestTRun(t *T) {
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *T) {
+ 			ctx := newTestContext(tc.maxPar, newMatcher(regexp.MatchString, "", ""))
+-			buf := &bytes.Buffer{}
++			buf := &strings.Builder{}
+ 			root := &T{
+ 				common: common{
+ 					signal:  make(chan bool),
+@@ -664,7 +664,7 @@ func TestBRun(t *T) {
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *T) {
+ 			var ok bool
+-			buf := &bytes.Buffer{}
++			buf := &strings.Builder{}
+ 			// This is almost like the Benchmark function, except that we override
+ 			// the benchtime and catch the failure result of the subbenchmark.
+ 			root := &B{

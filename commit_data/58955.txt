@@ -13,6 +13,24 @@ Date:   Wed Jan 24 21:27:41 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/debug/gosym/pclntab.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/gosym/pclntab.go b/src/debug/gosym/pclntab.go
+index 6592932622..1d5498e037 100644
+--- a/src/debug/gosym/pclntab.go
++++ b/src/debug/gosym/pclntab.go
+@@ -148,7 +148,11 @@ func (t *LineTable) LineToPC(line int, maxpc uint64) uint64 {
+ // NewLineTable returns a new PC/line table
+ // corresponding to the encoded data.
+ // Text must be the start address of the
+-// corresponding text segment.
++// corresponding text segment, with the exact
++// value stored in the 'runtime.text' symbol.
++// This value may differ from the start
++// address of the text segment if
++// binary was built with cgo enabled.
+ func NewLineTable(data []byte, text uint64) *LineTable {
+ 	return &LineTable{Data: data, PC: text, Line: 0, funcNames: make(map[uint32]string), strings: make(map[uint32]string)}
+ }

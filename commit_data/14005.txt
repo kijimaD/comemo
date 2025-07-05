@@ -9,7 +9,98 @@ Date:   Tue Oct 2 16:48:30 2012 -0700
     R=iant
     CC=golang-dev
     https://golang.org/cl/6597069
-
+---
  src/pkg/go/parser/parser.go     | 47 ++++++++++++++++++++++++++++++++++++-----
  src/pkg/go/parser/short_test.go | 12 +++++++----
  2 files changed, 50 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index d35a9410a6..9c1459f40c 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -1399,13 +1399,50 @@ func (p *parser) parseUnaryExpr(lhs bool) ast.Expr {
+ 		// channel type or receive expression
+ 		pos := p.pos
+ 		p.next()
+-		if p.tok == token.CHAN {
+-			p.next()
+-			value := p.parseType()
+-			return &ast.ChanType{Begin: pos, Dir: ast.RECV, Value: value}
+-		}
++
++		// If the next token is token.CHAN we still don't know if it
++		// is a channel type or a receive operation - we only know
++		// once we have found the end of the unary expression. There
++		// are two cases:
++		//
++		//   <- type  => (<-type) must be channel type
++		//   <- expr  => <-(expr) is a receive from an expression
++		//
++		// In the first case, the arrow must be re-associated with
++		// the channel type parsed already:
++		//
++		//   <- (chan type)    =>  (<-chan type)
++		//   <- (chan<- type)  =>  (<-chan (<-type))
+ 
+ 		x := p.parseUnaryExpr(false)
++
++		// determine which case we have
++		if typ, ok := x.(*ast.ChanType); ok {
++			// (<-type)
++
++			// re-associate position info and <-
++			arrow := true
++			for ok && arrow {
++				begin := typ.Begin
++				if typ.Dir == ast.RECV {
++					// error: (<-type) is (<-(<-chan T))
++					p.errorExpected(begin, "'chan'")
++				}
++				arrow = typ.Dir == ast.SEND
++				typ.Begin = pos
++				typ.Dir = ast.RECV
++				typ, ok = typ.Value.(*ast.ChanType)
++				// TODO(gri) ast.ChanType should store exact <- position
++				pos = begin // estimate (we don't have the exact position of <- for send channels)
++			}
++			if arrow {
++				p.errorExpected(pos, "'chan'")
++			}
++
++			return x
++		}
++
++		// <-(expr)
+ 		return &ast.UnaryExpr{OpPos: pos, Op: token.ARROW, X: p.checkExpr(x)}
+ 
+ 	case token.MUL:
+diff --git a/src/pkg/go/parser/short_test.go b/src/pkg/go/parser/short_test.go
+index 238492bf3f..d5856e4f95 100644
+--- a/src/pkg/go/parser/short_test.go
++++ b/src/pkg/go/parser/short_test.go
+@@ -13,8 +13,10 @@ var valids = []string{
+ 	`package p;`,
+ 	`package p; import "fmt"; func f() { fmt.Println("Hello, World!") };`,
+ 	`package p; func f() { if f(T{}) {} };`,
+-	`package p; func f() { _ = (<-chan int)(x) };`,
+-	`package p; func f() { _ = (<-chan <-chan int)(x) };`,
++	`package p; func f() { _ = <-chan int(nil) };`,
++	`package p; func f() { _ = (<-chan int)(nil) };`,
++	`package p; func f() { _ = (<-chan <-chan int)(nil) };`,
++	`package p; func f() { _ = <-chan <-chan <-chan <-chan <-int(nil) };`,
+ 	`package p; func f(func() func() func());`,
+ 	`package p; func f(...T);`,
+ 	`package p; func f(float, ...int);`,
+@@ -64,8 +66,10 @@ var invalids = []string{
+ 	`package p; var a = []int{[ /* ERROR "expected expression" */ ]int};`,
+ 	`package p; var a = ( /* ERROR "expected expression" */ []int);`,
+ 	`package p; var a = a[[ /* ERROR "expected expression" */ ]int:[]int];`,
+-	`package p; var a = <-  /* ERROR "expected expression" */ chan int;`,
+-	`package p; func f() { select { case _ <- chan  /* ERROR "expected expression" */ int: } };`,
++	`package p; var a = <- /* ERROR "expected expression" */ chan int;`,
++	`package p; func f() { select { case _ <- chan /* ERROR "expected expression" */ int: } };`,
++	`package p; func f() { _ = (<-<- /* ERROR "expected 'chan'" */ chan int)(nil) };`,
++	`package p; func f() { _ = (<-chan<-chan<-chan<-chan<-chan /* ERROR "expected 'chan'" */ <-int)(nil) };`,
+ }
+ 
+ func TestInvalid(t *testing.T) {

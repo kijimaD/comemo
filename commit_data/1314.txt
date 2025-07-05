@@ -12,9 +12,288 @@ Date:   Wed Dec 10 13:51:19 2008 -0800
     
     OCL=20915
     CL=20915
-
+---
  usr/gri/pretty/Makefile      |  2 +-
  usr/gri/pretty/htmlwriter.go | 69 --------------------------------------------
  usr/gri/pretty/printer.go    | 67 +++++++++++++++++++++++++-----------------
  usr/gri/pretty/test.sh       |  2 +-
  4 files changed, 43 insertions(+), 97 deletions(-)
+
+diff --git a/usr/gri/pretty/Makefile b/usr/gri/pretty/Makefile
+index d949329f07..50585fe102 100644
+--- a/usr/gri/pretty/Makefile
++++ b/usr/gri/pretty/Makefile
+@@ -37,7 +37,7 @@ parser.6:	 scanner.6 ast.6
+ 
+ platform.6:	 utils.6
+ 
+-printer.6:	 scanner.6 ast.6 htmlwriter.6
++printer.6:	 scanner.6 ast.6
+ 
+ %.6:	%.go
+ 	$(G) $(F) $<
+diff --git a/usr/gri/pretty/htmlwriter.go b/usr/gri/pretty/htmlwriter.go
+deleted file mode 100644
+index 0a65d108c9..0000000000
+--- a/usr/gri/pretty/htmlwriter.go
++++ /dev/null
+@@ -1,69 +0,0 @@
+-// Copyright 2009 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package htmlwriter
+-
+-import (
+-	"os";
+-	"io";
+-	"fmt";
+-)
+-
+-// Writer is a filter implementing the io.Write interface.
+-// It provides facilities to generate HTML tags and does
+-// HTML-escaping for text written through Write. Incoming
+-// text is assumed to be UTF-8 encoded.
+-
+-export type Writer struct {
+-	// TODO should not export any of the fields
+-	writer io.Write;
+-}
+-
+-
+-func (b *Writer) Init(writer io.Write) *Writer {
+-	b.writer = writer;
+-	return b;
+-}
+-
+-
+-/* export */ func (p *Writer) Write(buf *[]byte) (written int, err *os.Error) {
+-	i0 := 0;
+-	for i := i0; i < len(buf); i++ {
+-		var s string;
+-		switch buf[i] {
+-		case '<': s = "&lt;";
+-		case '&': s = "&amp;";
+-		default: continue;
+-		}
+-		// write HTML escape instead of buf[i]
+-		w1, e1 := p.writer.Write(buf[i0 : i]);
+-		if e1 != nil {
+-			return i0 + w1, e1;
+-		}
+-		w2, e2 := io.WriteString(p.writer, s);
+-		if e2 != nil {
+-			return i0 + w1 /* not w2! */, e2;
+-		}
+-		i0 = i + 1;
+-	}
+-	written, err = p.writer.Write(buf[i0 : len(buf)]);
+-	return len(buf), err;
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-// HTML-specific interface
+-
+-/* export */ func (p *Writer) Tag(s string) {
+-	// TODO proper error handling
+-	io.WriteString(p.writer, s);
+-}
+-
+-
+-// ----------------------------------------------------------------------------
+-//
+-
+-export func New(writer io.Write) *Writer {
+-	return new(Writer).Init(writer);
+-}
+diff --git a/usr/gri/pretty/printer.go b/usr/gri/pretty/printer.go
+index f8d29f0464..187bd6284d 100644
+--- a/usr/gri/pretty/printer.go
++++ b/usr/gri/pretty/printer.go
+@@ -11,7 +11,6 @@ import (
+ 	"tabwriter";
+ 	"flag";
+ 	"fmt";
+-	"htmlwriter";
+ 	Scanner "scanner";
+ 	AST "ast";
+ )
+@@ -57,7 +56,6 @@ const (
+ type Printer struct {
+ 	// output
+ 	text io.Write;
+-	tags *htmlwriter.Writer;
+ 	
+ 	// comments
+ 	comments *array.Array;  // the list of all comments
+@@ -94,10 +92,9 @@ func (P *Printer) NextComment() {
+ }
+ 
+ 
+-func (P *Printer) Init(text io.Write, tags *htmlwriter.Writer, comments *array.Array) {
++func (P *Printer) Init(text io.Write, comments *array.Array) {
+ 	// writers
+ 	P.text = text;
+-	P.tags = tags;
+ 	
+ 	// comments
+ 	P.comments = comments;
+@@ -111,6 +108,22 @@ func (P *Printer) Init(text io.Write, tags *htmlwriter.Writer, comments *array.A
+ // ----------------------------------------------------------------------------
+ // Printing support
+ 
++func HtmlEscape(s string) string {
++	if html.BVal() {
++		var esc string;
++		for i := 0; i < len(s); i++ {
++			switch s[i] {
++			case '<': esc = "&lt";
++			case '&': esc = "&amp";
++			default: continue;
++			}
++			return s[0 : i] + esc + HtmlEscape(s[i+1 : len(s)]);
++		}
++	}
++	return s;
++}
++
++
+ func (P *Printer) Printf(format string, s ...) {
+ 	n, err := fmt.fprintf(P.text, format, s);
+ 	if err != nil {
+@@ -135,7 +148,7 @@ func (P *Printer) Newline(n int) {
+ }
+ 
+ 
+-func (P *Printer) String(pos int, s string) {
++func (P *Printer) TaggedString(pos int, tag, s, endtag string) {
+ 	// use estimate for pos if we don't have one
+ 	if pos == 0 {
+ 		pos = P.lastpos;
+@@ -230,7 +243,7 @@ func (P *Printer) String(pos int, s string) {
+ 			if debug.BVal() {
+ 				P.Printf("[%d]", P.cpos);
+ 			}
+-			P.Printf("%s", ctext);
++			P.Printf("%s", HtmlEscape(ctext));
+ 
+ 			if ctext[1] == '/' {
+ 				//-style comments must end in newline
+@@ -276,7 +289,7 @@ func (P *Printer) String(pos int, s string) {
+ 	if debug.BVal() {
+ 		P.Printf("[%d]", pos);
+ 	}
+-	P.Printf("%s", s);
++	P.Printf("%s%s%s", tag, HtmlEscape(s), endtag);
+ 
+ 	// --------------------------------
+ 	// interpret state
+@@ -300,6 +313,11 @@ func (P *Printer) String(pos int, s string) {
+ }
+ 
+ 
++func (P *Printer) String(pos int, s string) {
++	P.TaggedString(pos, "", s, "");
++}
++
++
+ func (P *Printer) Token(pos int, tok int) {
+ 	P.String(pos, Scanner.TokenString(tok));
+ }
+@@ -316,36 +334,39 @@ func (P *Printer) Error(pos int, tok int, msg string) {
+ // HTML support
+ 
+ func (P *Printer) HtmlPrologue(title string) {
+-	if P.tags != nil {
+-		P.tags.Tag(
++	if html.BVal() {
++		P.TaggedString(0,
+ 			"<html>\n"
+ 			"<head>\n"
+ 			"	<META HTTP-EQUIV=\"Content-Type\" CONTENT=\"text/html; charset=UTF-8\">\n"
+-			"	<title>" + title + "</title>\n"
++			"	<title>" + HtmlEscape(title) + "</title>\n"
+ 			"	<style type=\"text/css\">\n"
+ 			"	</style>\n"
+ 			"</head>\n"
+ 			"<body>\n"
+-			"<pre>\n"
++			"<pre>\n",
++			"", ""
+ 		)
+ 	}
+ }
+ 
+ 
+ func (P *Printer) HtmlEpilogue() {
+-	if P.tags != nil {
+-		P.tags.Tag(
++	if html.BVal() {
++		P.TaggedString(0, 
+ 			"</pre>\n"
+ 			"</body>\n"
+-			"<html>\n"
++			"<html>\n",
++			"", ""
+ 		)
+ 	}
+ }
+ 
+ 
+ func (P *Printer) HtmlIdentifier(pos int, ident string) {
+-	if false && P.tags != nil {
+-		P.tags.Tag(`<a href="#` + ident + `">` + ident + `</a>`);
++	if html.BVal() {
++		// no need to HtmlEscape ident
++		P.TaggedString(pos, `<a href="#` + ident + `">`, ident, `</a>`);
+ 	} else {
+ 		P.String(pos, ident);
+ 	}
+@@ -632,14 +653,14 @@ func (P *Printer) ControlClause(s *AST.Stat) {
+ 			P.Stat(s.init);
+ 			P.separator = none;
+ 		}
+-		P.Printf(";");
++		P.String(0, ";");
+ 		P.separator = blank;
+ 		if s.expr != nil {
+ 			P.Expr(s.expr);
+ 			P.separator = none;
+ 		}
+ 		if s.tok == Scanner.FOR {
+-			P.Printf(";");
++			P.String(0, ";");
+ 			P.separator = blank;
+ 			if has_post {
+ 				P.Stat(s.post);
+@@ -838,14 +859,8 @@ export func Print(prog *AST.Program) {
+ 	if usetabs.BVal() {
+ 		padchar = '\t';
+ 	}
+-	var (
+-		text = tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
+-		tags *htmlwriter.Writer;
+-	)
+-	if html.BVal() {
+-		tags = htmlwriter.New(text);
+-	}
+-	P.Init(text, tags, prog.comments);
++	text := tabwriter.New(os.Stdout, int(tabwidth.IVal()), 1, padchar, true, html.BVal());
++	P.Init(text, prog.comments);
+ 
+ 	P.HtmlPrologue("<the source>");
+ 	P.Program(prog);
+diff --git a/usr/gri/pretty/test.sh b/usr/gri/pretty/test.sh
+index 3b8d6e6871..9fe43ba46f 100755
+--- a/usr/gri/pretty/test.sh
++++ b/usr/gri/pretty/test.sh
+@@ -23,7 +23,7 @@ apply1() {
+ 	#echo $1 $2
+ 	case `basename $F` in
+ 	# these files don't pass the idempotency test yet
+-	log.go | type.go | \
++	log.go | type.go | types_amd64_darwin.go | \
+ 	\
+ 	selftest1.go | func3.go | bug014.go | bug029.go | bug032.go | bug050.go | \
+ 	bug068.go | bug088.go | bug083.go | bug106.go | bug125.go ) ;;  # skip - files contain syntax errors

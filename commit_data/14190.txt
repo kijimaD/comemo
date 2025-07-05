@@ -9,7 +9,132 @@ Date:   Sun Oct 21 17:02:10 2012 -0400
     R=golang-dev, r, rsc
     CC=golang-dev
     https://golang.org/cl/6643043
-
+---
  src/pkg/reflect/all_test.go | 24 +++++++++++++++++++++++-
  src/pkg/reflect/value.go    | 28 ++++++++++++++++++++++++++--
  2 files changed, 49 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 5ddd6bef18..842b507507 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -2036,6 +2036,24 @@ func TestSmallNegativeInt(t *testing.T) {
+ 	}
+ }
+ 
++func TestIndex(t *testing.T) {
++	xs := []byte{1, 2, 3, 4, 5, 6, 7, 8}
++	v := ValueOf(xs).Index(3).Interface().(byte)
++	if v != xs[3] {
++		t.Errorf("xs.Index(3) = %v; expected %v", v, xs[3])
++	}
++	xa := [8]byte{10, 20, 30, 40, 50, 60, 70, 80}
++	v = ValueOf(xa).Index(2).Interface().(byte)
++	if v != xa[2] {
++		t.Errorf("xa.Index(2) = %v; expected %v", v, xa[2])
++	}
++	s := "0123456789"
++	v = ValueOf(s).Index(3).Interface().(byte)
++	if v != s[3] {
++		t.Errorf("s.Index(3) = %v; expected %v", v, s[3])
++	}
++}
++
+ func TestSlice(t *testing.T) {
+ 	xs := []int{1, 2, 3, 4, 5, 6, 7, 8}
+ 	v := ValueOf(xs).Slice(3, 5).Interface().([]int)
+@@ -2048,7 +2066,6 @@ func TestSlice(t *testing.T) {
+ 	if !DeepEqual(v[0:5], xs[3:]) {
+ 		t.Errorf("xs.Slice(3, 5)[0:5] = %v", v[0:5])
+ 	}
+-
+ 	xa := [8]int{10, 20, 30, 40, 50, 60, 70, 80}
+ 	v = ValueOf(&xa).Elem().Slice(2, 5).Interface().([]int)
+ 	if len(v) != 3 {
+@@ -2060,6 +2077,11 @@ func TestSlice(t *testing.T) {
+ 	if !DeepEqual(v[0:6], xa[2:]) {
+ 		t.Errorf("xs.Slice(2, 5)[0:6] = %v", v[0:6])
+ 	}
++	s := "0123456789"
++	vs := ValueOf(s).Slice(3, 5).Interface().(string)
++	if vs != s[3:5] {
++		t.Errorf("s.Slice(3, 5) = %q; expected %q", vs, s[3:5])
++	}
+ }
+ 
+ func TestVariadic(t *testing.T) {
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 74addd1953..be5d03504e 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -810,8 +810,10 @@ func (v Value) Float() float64 {
+ 	panic(&ValueError{"reflect.Value.Float", k})
+ }
+ 
++var uint8Type = TypeOf(uint8(0)).(*commonType)
++
+ // Index returns v's i'th element.
+-// It panics if v's Kind is not Array or Slice or i is out of range.
++// It panics if v's Kind is not Array, Slice, or String or i is out of range.
+ func (v Value) Index(i int) Value {
+ 	k := v.kind()
+ 	switch k {
+@@ -852,6 +854,15 @@ func (v Value) Index(i int) Value {
+ 		fl |= flag(typ.Kind()) << flagKindShift
+ 		val := unsafe.Pointer(s.Data + uintptr(i)*typ.size)
+ 		return Value{typ, val, fl}
++
++	case String:
++		fl := v.flag&flagRO | flag(Uint8<<flagKindShift)
++		s := (*StringHeader)(v.val)
++		if i < 0 || i >= s.Len {
++			panic("reflect: string index out of range")
++		}
++		val := *(*byte)(unsafe.Pointer(s.Data + uintptr(i)))
++		return Value{uint8Type, unsafe.Pointer(uintptr(val)), fl}
+ 	}
+ 	panic(&ValueError{"reflect.Value.Index", k})
+ }
+@@ -1437,7 +1448,7 @@ func (v Value) SetString(x string) {
+ }
+ 
+ // Slice returns a slice of v.
+-// It panics if v's Kind is not Array or Slice.
++// It panics if v's Kind is not Array, Slice, or String.
+ func (v Value) Slice(beg, end int) Value {
+ 	var (
+ 		cap  int
+@@ -1447,6 +1458,7 @@ func (v Value) Slice(beg, end int) Value {
+ 	switch k := v.kind(); k {
+ 	default:
+ 		panic(&ValueError{"reflect.Value.Slice", k})
++
+ 	case Array:
+ 		if v.flag&flagAddr == 0 {
+ 			panic("reflect.Value.Slice: slice of unaddressable array")
+@@ -1455,13 +1467,25 @@ func (v Value) Slice(beg, end int) Value {
+ 		cap = int(tt.len)
+ 		typ = (*sliceType)(unsafe.Pointer(toCommonType(tt.slice)))
+ 		base = v.val
++
+ 	case Slice:
+ 		typ = (*sliceType)(unsafe.Pointer(v.typ))
+ 		s := (*SliceHeader)(v.val)
+ 		base = unsafe.Pointer(s.Data)
+ 		cap = s.Cap
+ 
++	case String:
++		s := (*StringHeader)(v.val)
++		if beg < 0 || end < beg || end > s.Len {
++			panic("reflect.Value.Slice: string slice index out of bounds")
++		}
++		var x string
++		val := (*StringHeader)(unsafe.Pointer(&x))
++		val.Data = s.Data + uintptr(beg)
++		val.Len = end - beg
++		return Value{v.typ, unsafe.Pointer(&x), v.flag}
+ 	}
++
+ 	if beg < 0 || end < beg || end > cap {
+ 		panic("reflect.Value.Slice: slice index out of bounds")
+ 	}

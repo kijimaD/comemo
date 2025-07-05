@@ -20,7 +20,7 @@ Date:   Thu Jan 22 00:52:01 2015 -0500
     Change-Id: I4fb9a0e2b11a32f1d024b3c56fc3bd9ee458842c
     Reviewed-on: https://go-review.googlesource.com/3277
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/5g/galign.c   |  84 +++++++++++++++++
  src/cmd/5g/gg.h       |  57 ++++++++++--
  src/cmd/5g/opt.h      |  48 ----------
@@ -50,3 +50,3657 @@ Date:   Thu Jan 22 00:52:01 2015 -0500
  src/cmd/gc/subr.c     |   4 +-
  src/cmd/gc/walk.c     |  20 ++---
  28 files changed, 1103 insertions(+), 710 deletions(-)
+
+diff --git a/src/cmd/5g/galign.c b/src/cmd/5g/galign.c
+index b4c45da690..812ce5c7fc 100644
+--- a/src/cmd/5g/galign.c
++++ b/src/cmd/5g/galign.c
+@@ -44,6 +44,90 @@ betypeinit(void)
+ 	zprog.from.name = D_NONE;
+ 	zprog.from.reg = NREG;
+ 	zprog.to = zprog.from;
++	arch.zprog = zprog;
+ 
+ 	listinit5();
+ }
++
++void
++main(int argc, char **argv)
++{
++	arch.thechar = thechar;
++	arch.thestring = thestring;
++	arch.thelinkarch = thelinkarch;
++	arch.typedefs = typedefs;
++	arch.zprog = zprog;
++	arch.ACALL = ABL;
++	arch.ACHECKNIL = ACHECKNIL;
++	arch.ADATA = ADATA;
++	arch.AFUNCDATA = AFUNCDATA;
++	arch.AGLOBL = AGLOBL;
++	arch.AJMP = AB;
++	arch.ANAME = ANAME;
++	arch.ANOP = ANOP;
++	arch.APCDATA = APCDATA;
++	arch.ARET = ARET;
++	arch.ASIGNAME = ASIGNAME;
++	arch.ATEXT = ATEXT;
++	arch.ATYPE = ATYPE;
++	arch.AUNDEF = AUNDEF;
++	arch.AVARDEF = AVARDEF;
++	arch.AVARKILL = AVARKILL;
++	arch.D_AUTO = D_AUTO;
++	arch.D_BRANCH = D_BRANCH;
++	arch.D_NONE = D_NONE;
++	arch.D_PARAM = D_PARAM;
++	arch.MAXWIDTH = MAXWIDTH;
++	arch.afunclit = afunclit;
++	arch.anyregalloc = anyregalloc;
++	arch.betypeinit = betypeinit;
++	arch.bgen = bgen;
++	arch.cgen = cgen;
++	arch.cgen_asop = cgen_asop;
++	arch.cgen_call = cgen_call;
++	arch.cgen_callinter = cgen_callinter;
++	arch.cgen_ret = cgen_ret;
++	arch.clearfat = clearfat;
++	arch.clearp = clearp;
++	arch.defframe = defframe;
++	arch.dgostringptr = dgostringptr;
++	arch.dgostrlitptr = dgostrlitptr;
++	arch.dsname = dsname;
++	arch.dsymptr = dsymptr;
++	arch.dumpdata = dumpdata;
++	arch.dumpit = dumpit;
++	arch.excise = excise;
++	arch.expandchecks = expandchecks;
++	arch.fixautoused = fixautoused;
++	arch.gclean = gclean;
++	arch.gdata = gdata;
++	arch.gdatacomplex = gdatacomplex;
++	arch.gdatastring = gdatastring;
++	arch.ggloblnod = ggloblnod;
++	arch.ggloblsym = ggloblsym;
++	arch.ginit = ginit;
++	arch.gins = gins;
++	arch.ginscall = ginscall;
++	arch.gjmp = gjmp;
++	arch.gtrack = gtrack;
++	arch.gused = gused;
++	arch.igen = igen;
++	arch.isfat = isfat;
++	arch.linkarchinit = linkarchinit;
++	arch.markautoused = markautoused;
++	arch.naddr = naddr;
++	arch.newplist = newplist;
++	arch.nodarg = nodarg;
++	arch.patch = patch;
++	arch.proginfo = proginfo;
++	arch.regalloc = regalloc;
++	arch.regfree = regfree;
++	arch.regopt = regopt;
++	arch.regtyp = regtyp;
++	arch.sameaddr = sameaddr;
++	arch.smallindir = smallindir;
++	arch.stackaddr = stackaddr;
++	arch.unpatch = unpatch;
++	
++	gcmain(argc, argv);
++}
+diff --git a/src/cmd/5g/gg.h b/src/cmd/5g/gg.h
+index 00914bfa34..f5c795a63d 100644
+--- a/src/cmd/5g/gg.h
++++ b/src/cmd/5g/gg.h
+@@ -24,12 +24,6 @@ EXTERN	uchar	reg[REGALLOC_FMAX+1];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	newproc;
+-EXTERN	Node*	deferproc;
+-EXTERN	Node*	deferreturn;
+-EXTERN	Node*	panicindex;
+-EXTERN	Node*	panicslice;
+-EXTERN	Node*	throwreturn;
+ extern	long	unmappedzero;
+ 
+ /*
+@@ -121,3 +115,54 @@ void	datastring(char*, int, Addr*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
++
++void afunclit(Addr*, Node*);
++int anyregalloc(void);
++void betypeinit(void);
++void bgen(Node*, int, int, Prog*);
++void cgen(Node*, Node*);
++void cgen_asop(Node*);
++void cgen_call(Node*, int);
++void cgen_callinter(Node*, Node*, int);
++void cgen_ret(Node*);
++void clearfat(Node*);
++void clearp(Prog*);
++void defframe(Prog*);
++int dgostringptr(Sym*, int, char*);
++int dgostrlitptr(Sym*, int, Strlit*);
++int dsname(Sym*, int, char*, int);
++int dsymptr(Sym*, int, Sym*, int);
++void dumpdata(void);
++void dumpit(char*, Flow*, int);
++void excise(Flow*);
++void expandchecks(Prog*);
++void fixautoused(Prog*);
++void gclean(void);
++void	gdata(Node*, Node*, int);
++void	gdatacomplex(Node*, Mpcplx*);
++void	gdatastring(Node*, Strlit*);
++void	ggloblnod(Node *nam);
++void	ggloblsym(Sym *s, int32 width, int8 flags);
++void ginit(void);
++Prog*	gins(int, Node*, Node*);
++void	ginscall(Node*, int);
++Prog*	gjmp(Prog*);
++void gtrack(Sym*);
++void	gused(Node*);
++void	igen(Node*, Node*, Node*);
++int isfat(Type*);
++void linkarchinit(void);
++void markautoused(Prog*);
++void naddr(Node*, Addr*, int);
++Plist* newplist(void);
++Node* nodarg(Type*, int);
++void patch(Prog*, Prog*);
++void proginfo(ProgInfo*, Prog*);
++void regalloc(Node*, Type*, Node*);
++void regfree(Node*);
++void regopt(Prog*);
++int regtyp(Addr*);
++int sameaddr(Addr*, Addr*);
++int smallindir(Addr*, Addr*);
++int stackaddr(Addr*);
++Prog* unpatch(Prog*);
+diff --git a/src/cmd/5g/opt.h b/src/cmd/5g/opt.h
+index a606f1d310..64c83f1b5a 100644
+--- a/src/cmd/5g/opt.h
++++ b/src/cmd/5g/opt.h
+@@ -28,7 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	"../gc/popt.h"
+ 
+ #define	Z	N
+ #define	Adr	Addr
+@@ -180,53 +179,6 @@ int	BtoF(uint32);
+ /*
+  * prog.c
+  */
+-typedef struct ProgInfo ProgInfo;
+-struct ProgInfo
+-{
+-	uint32 flags; // the bits below
+-};
+-
+-enum
+-{
+-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+-	Pseudo = 1<<1,
+-	
+-	// There's nothing to say about the instruction,
+-	// but it's still okay to see.
+-	OK = 1<<2,
+-
+-	// Size of right-side write, or right-side read if no write.
+-	SizeB = 1<<3,
+-	SizeW = 1<<4,
+-	SizeL = 1<<5,
+-	SizeQ = 1<<6,
+-	SizeF = 1<<7, // float aka float32
+-	SizeD = 1<<8, // double aka float64
+-
+-	// Left side (Prog.from): address taken, read, write.
+-	LeftAddr = 1<<9,
+-	LeftRead = 1<<10,
+-	LeftWrite = 1<<11,
+-	
+-	// Register in middle (Prog.reg); only ever read.
+-	RegRead = 1<<12,
+-	CanRegRead = 1<<13,
+-	
+-	// Right side (Prog.to): address taken, read, write.
+-	RightAddr = 1<<14,
+-	RightRead = 1<<15,
+-	RightWrite = 1<<16,
+-
+-	// Instruction kinds
+-	Move = 1<<17, // straight move
+-	Conv = 1<<18, // size conversion
+-	Cjmp = 1<<19, // conditional jump
+-	Break = 1<<20, // breaks control flow (no fallthrough)
+-	Call = 1<<21, // function call
+-	Jump = 1<<22, // jump
+-	Skip = 1<<23, // data instruction
+-};
+-
+ void proginfo(ProgInfo*, Prog*);
+ 
+ // To allow use of AJMP and ACALL in ../gc/popt.c.
+diff --git a/src/cmd/6g/galign.c b/src/cmd/6g/galign.c
+index 5670e6fac8..a3c97a79a6 100644
+--- a/src/cmd/6g/galign.c
++++ b/src/cmd/6g/galign.c
+@@ -13,8 +13,12 @@ LinkArch*	thelinkarch = &linkamd64;
+ void
+ linkarchinit(void)
+ {
+-	if(strcmp(getgoarch(), "amd64p32") == 0)
++	if(strcmp(getgoarch(), "amd64p32") == 0) {
+ 		thelinkarch = &linkamd64p32;
++		arch.thelinkarch = thelinkarch;
++		thestring = "amd64p32";
++		arch.thestring = "amd64p32";
++	}
+ }
+ 
+ vlong MAXWIDTH = 1LL<<50;
+@@ -61,6 +65,90 @@ betypeinit(void)
+ 	zprog.from.index = D_NONE;
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
++	arch.zprog = zprog;
+ 
+ 	listinit6();
+ }
++
++void
++main(int argc, char **argv)
++{
++	arch.thechar = thechar;
++	arch.thestring = thestring;
++	arch.thelinkarch = thelinkarch;
++	arch.typedefs = typedefs;
++	arch.zprog = zprog;
++	arch.ACALL = ACALL;
++	arch.ACHECKNIL = ACHECKNIL;
++	arch.ADATA = ADATA;
++	arch.AFUNCDATA = AFUNCDATA;
++	arch.AGLOBL = AGLOBL;
++	arch.AJMP = AJMP;
++	arch.ANAME = ANAME;
++	arch.ANOP = ANOP;
++	arch.APCDATA = APCDATA;
++	arch.ARET = ARET;
++	arch.ASIGNAME = ASIGNAME;
++	arch.ATEXT = ATEXT;
++	arch.ATYPE = ATYPE;
++	arch.AUNDEF = AUNDEF;
++	arch.AVARDEF = AVARDEF;
++	arch.AVARKILL = AVARKILL;
++	arch.D_AUTO = D_AUTO;
++	arch.D_BRANCH = D_BRANCH;
++	arch.D_NONE = D_NONE;
++	arch.D_PARAM = D_PARAM;
++	arch.MAXWIDTH = MAXWIDTH;
++	arch.afunclit = afunclit;
++	arch.anyregalloc = anyregalloc;
++	arch.betypeinit = betypeinit;
++	arch.bgen = bgen;
++	arch.cgen = cgen;
++	arch.cgen_asop = cgen_asop;
++	arch.cgen_call = cgen_call;
++	arch.cgen_callinter = cgen_callinter;
++	arch.cgen_ret = cgen_ret;
++	arch.clearfat = clearfat;
++	arch.clearp = clearp;
++	arch.defframe = defframe;
++	arch.dgostringptr = dgostringptr;
++	arch.dgostrlitptr = dgostrlitptr;
++	arch.dsname = dsname;
++	arch.dsymptr = dsymptr;
++	arch.dumpdata = dumpdata;
++	arch.dumpit = dumpit;
++	arch.excise = excise;
++	arch.expandchecks = expandchecks;
++	arch.fixautoused = fixautoused;
++	arch.gclean = gclean;
++	arch.gdata = gdata;
++	arch.gdatacomplex = gdatacomplex;
++	arch.gdatastring = gdatastring;
++	arch.ggloblnod = ggloblnod;
++	arch.ggloblsym = ggloblsym;
++	arch.ginit = ginit;
++	arch.gins = gins;
++	arch.ginscall = ginscall;
++	arch.gjmp = gjmp;
++	arch.gtrack = gtrack;
++	arch.gused = gused;
++	arch.igen = igen;
++	arch.isfat = isfat;
++	arch.linkarchinit = linkarchinit;
++	arch.markautoused = markautoused;
++	arch.naddr = naddr;
++	arch.newplist = newplist;
++	arch.nodarg = nodarg;
++	arch.patch = patch;
++	arch.proginfo = proginfo;
++	arch.regalloc = regalloc;
++	arch.regfree = regfree;
++	arch.regopt = regopt;
++	arch.regtyp = regtyp;
++	arch.sameaddr = sameaddr;
++	arch.smallindir = smallindir;
++	arch.stackaddr = stackaddr;
++	arch.unpatch = unpatch;
++	
++	gcmain(argc, argv);
++}
+diff --git a/src/cmd/6g/gg.h b/src/cmd/6g/gg.h
+index fe69d5c968..97fd8818cf 100644
+--- a/src/cmd/6g/gg.h
++++ b/src/cmd/6g/gg.h
+@@ -16,13 +16,7 @@ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	newproc;
+-EXTERN	Node*	deferproc;
+-EXTERN	Node*	deferreturn;
+-EXTERN	Node*	panicindex;
+-EXTERN	Node*	panicslice;
+ EXTERN	Node*	panicdiv;
+-EXTERN	Node*	throwreturn;
+ extern	vlong	unmappedzero;
+ extern	int	addptr;
+ extern	int	cmpptr;
+@@ -120,3 +114,55 @@ void	datagostring(Strlit*, Addr*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
++
++void afunclit(Addr*, Node*);
++int anyregalloc(void);
++void betypeinit(void);
++void bgen(Node*, int, int, Prog*);
++void cgen(Node*, Node*);
++void cgen_asop(Node*);
++void cgen_call(Node*, int);
++void cgen_callinter(Node*, Node*, int);
++void cgen_ret(Node*);
++void clearfat(Node*);
++void clearp(Prog*);
++void defframe(Prog*);
++int dgostringptr(Sym*, int, char*);
++int dgostrlitptr(Sym*, int, Strlit*);
++int dsname(Sym*, int, char*, int);
++int dsymptr(Sym*, int, Sym*, int);
++void dumpdata(void);
++void dumpit(char*, Flow*, int);
++void excise(Flow*);
++void expandchecks(Prog*);
++void fixautoused(Prog*);
++void gclean(void);
++void	gdata(Node*, Node*, int);
++void	gdatacomplex(Node*, Mpcplx*);
++void	gdatastring(Node*, Strlit*);
++void	ggloblnod(Node *nam);
++void	ggloblsym(Sym *s, int32 width, int8 flags);
++void ginit(void);
++Prog*	gins(int, Node*, Node*);
++void	ginscall(Node*, int);
++Prog*	gjmp(Prog*);
++void gtrack(Sym*);
++void	gused(Node*);
++void	igen(Node*, Node*, Node*);
++int isfat(Type*);
++void linkarchinit(void);
++void markautoused(Prog*);
++void naddr(Node*, Addr*, int);
++Plist* newplist(void);
++Node* nodarg(Type*, int);
++void patch(Prog*, Prog*);
++void proginfo(ProgInfo*, Prog*);
++void regalloc(Node*, Type*, Node*);
++void regfree(Node*);
++void regopt(Prog*);
++int regtyp(Addr*);
++int sameaddr(Addr*, Addr*);
++int smallindir(Addr*, Addr*);
++int stackaddr(Addr*);
++Prog* unpatch(Prog*);
++
+diff --git a/src/cmd/6g/opt.h b/src/cmd/6g/opt.h
+index 493171ef82..fd8b5c30e5 100644
+--- a/src/cmd/6g/opt.h
++++ b/src/cmd/6g/opt.h
+@@ -28,7 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	"../gc/popt.h"
+ 
+ #define	Z	N
+ #define	Adr	Addr
+@@ -177,60 +176,5 @@ int	BtoF(uint32);
+ /*
+  * prog.c
+  */
+-typedef struct ProgInfo ProgInfo;
+-struct ProgInfo
+-{
+-	uint32 flags; // the bits below
+-	uint32 reguse; // registers implicitly used by this instruction
+-	uint32 regset; // registers implicitly set by this instruction
+-	uint32 regindex; // registers used by addressing mode
+-};
+-
+-enum
+-{
+-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+-	Pseudo = 1<<1,
+-	
+-	// There's nothing to say about the instruction,
+-	// but it's still okay to see.
+-	OK = 1<<2,
+-
+-	// Size of right-side write, or right-side read if no write.
+-	SizeB = 1<<3,
+-	SizeW = 1<<4,
+-	SizeL = 1<<5,
+-	SizeQ = 1<<6,
+-	SizeF = 1<<7, // float aka float32
+-	SizeD = 1<<8, // double aka float64
+-
+-	// Left side (Prog.from): address taken, read, write.
+-	LeftAddr = 1<<9,
+-	LeftRead = 1<<10,
+-	LeftWrite = 1<<11,
+-	
+-	// Right side (Prog.to): address taken, read, write.
+-	RightAddr = 1<<12,
+-	RightRead = 1<<13,
+-	RightWrite = 1<<14,
+-
+-	// Set, use, or kill of carry bit.
+-	// Kill means we never look at the carry bit after this kind of instruction.
+-	SetCarry = 1<<15,
+-	UseCarry = 1<<16,
+-	KillCarry = 1<<17,
+-
+-	// Instruction kinds
+-	Move = 1<<18, // straight move
+-	Conv = 1<<19, // size conversion
+-	Cjmp = 1<<20, // conditional jump
+-	Break = 1<<21, // breaks control flow (no fallthrough)
+-	Call = 1<<22, // function call
+-	Jump = 1<<23, // jump
+-	Skip = 1<<24, // data instruction
+-
+-	// Special cases for register use.
+-	ShiftCX = 1<<25, // possible shift by CX
+-	ImulAXDX = 1<<26, // possible multiply into DX:AX
+-};
+ 
+ void proginfo(ProgInfo*, Prog*);
+diff --git a/src/cmd/8g/galign.c b/src/cmd/8g/galign.c
+index a0eb349375..3c15f96c08 100644
+--- a/src/cmd/8g/galign.c
++++ b/src/cmd/8g/galign.c
+@@ -42,6 +42,90 @@ betypeinit(void)
+ 	zprog.from.index = D_NONE;
+ 	zprog.from.scale = 0;
+ 	zprog.to = zprog.from;
++	arch.zprog = zprog;
+ 
+ 	listinit8();
+ }
++
++void
++main(int argc, char **argv)
++{
++	arch.thechar = thechar;
++	arch.thestring = thestring;
++	arch.thelinkarch = thelinkarch;
++	arch.typedefs = typedefs;
++	arch.zprog = zprog;
++	arch.ACALL = ACALL;
++	arch.ACHECKNIL = ACHECKNIL;
++	arch.ADATA = ADATA;
++	arch.AFUNCDATA = AFUNCDATA;
++	arch.AGLOBL = AGLOBL;
++	arch.AJMP = AJMP;
++	arch.ANAME = ANAME;
++	arch.ANOP = ANOP;
++	arch.APCDATA = APCDATA;
++	arch.ARET = ARET;
++	arch.ASIGNAME = ASIGNAME;
++	arch.ATEXT = ATEXT;
++	arch.ATYPE = ATYPE;
++	arch.AUNDEF = AUNDEF;
++	arch.AVARDEF = AVARDEF;
++	arch.AVARKILL = AVARKILL;
++	arch.D_AUTO = D_AUTO;
++	arch.D_BRANCH = D_BRANCH;
++	arch.D_NONE = D_NONE;
++	arch.D_PARAM = D_PARAM;
++	arch.MAXWIDTH = MAXWIDTH;
++	arch.afunclit = afunclit;
++	arch.anyregalloc = anyregalloc;
++	arch.betypeinit = betypeinit;
++	arch.bgen = bgen;
++	arch.cgen = cgen;
++	arch.cgen_asop = cgen_asop;
++	arch.cgen_call = cgen_call;
++	arch.cgen_callinter = cgen_callinter;
++	arch.cgen_ret = cgen_ret;
++	arch.clearfat = clearfat;
++	arch.clearp = clearp;
++	arch.defframe = defframe;
++	arch.dgostringptr = dgostringptr;
++	arch.dgostrlitptr = dgostrlitptr;
++	arch.dsname = dsname;
++	arch.dsymptr = dsymptr;
++	arch.dumpdata = dumpdata;
++	arch.dumpit = dumpit;
++	arch.excise = excise;
++	arch.expandchecks = expandchecks;
++	arch.fixautoused = fixautoused;
++	arch.gclean = gclean;
++	arch.gdata = gdata;
++	arch.gdatacomplex = gdatacomplex;
++	arch.gdatastring = gdatastring;
++	arch.ggloblnod = ggloblnod;
++	arch.ggloblsym = ggloblsym;
++	arch.ginit = ginit;
++	arch.gins = gins;
++	arch.ginscall = ginscall;
++	arch.gjmp = gjmp;
++	arch.gtrack = gtrack;
++	arch.gused = gused;
++	arch.igen = igen;
++	arch.isfat = isfat;
++	arch.linkarchinit = linkarchinit;
++	arch.markautoused = markautoused;
++	arch.naddr = naddr;
++	arch.newplist = newplist;
++	arch.nodarg = nodarg;
++	arch.patch = patch;
++	arch.proginfo = proginfo;
++	arch.regalloc = regalloc;
++	arch.regfree = regfree;
++	arch.regopt = regopt;
++	arch.regtyp = regtyp;
++	arch.sameaddr = sameaddr;
++	arch.smallindir = smallindir;
++	arch.stackaddr = stackaddr;
++	arch.unpatch = unpatch;
++	
++	gcmain(argc, argv);
++}
+diff --git a/src/cmd/8g/gg.h b/src/cmd/8g/gg.h
+index 238f927656..d3535f5ff9 100644
+--- a/src/cmd/8g/gg.h
++++ b/src/cmd/8g/gg.h
+@@ -24,13 +24,7 @@ EXTERN	uchar	reg[D_NONE];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	newproc;
+-EXTERN	Node*	deferproc;
+-EXTERN	Node*	deferreturn;
+-EXTERN	Node*	panicindex;
+-EXTERN	Node*	panicslice;
+ EXTERN	Node*	panicdiv;
+-EXTERN	Node*	throwreturn;
+ extern	uint32	unmappedzero;
+ 
+ 
+@@ -133,3 +127,54 @@ void	datagostring(Strlit*, Addr*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
++
++void afunclit(Addr*, Node*);
++int anyregalloc(void);
++void betypeinit(void);
++void bgen(Node*, int, int, Prog*);
++void cgen(Node*, Node*);
++void cgen_asop(Node*);
++void cgen_call(Node*, int);
++void cgen_callinter(Node*, Node*, int);
++void cgen_ret(Node*);
++void clearfat(Node*);
++void clearp(Prog*);
++void defframe(Prog*);
++int dgostringptr(Sym*, int, char*);
++int dgostrlitptr(Sym*, int, Strlit*);
++int dsname(Sym*, int, char*, int);
++int dsymptr(Sym*, int, Sym*, int);
++void dumpdata(void);
++void dumpit(char*, Flow*, int);
++void excise(Flow*);
++void expandchecks(Prog*);
++void fixautoused(Prog*);
++void gclean(void);
++void	gdata(Node*, Node*, int);
++void	gdatacomplex(Node*, Mpcplx*);
++void	gdatastring(Node*, Strlit*);
++void	ggloblnod(Node *nam);
++void	ggloblsym(Sym *s, int32 width, int8 flags);
++void ginit(void);
++Prog*	gins(int, Node*, Node*);
++void	ginscall(Node*, int);
++Prog*	gjmp(Prog*);
++void gtrack(Sym*);
++void	gused(Node*);
++void	igen(Node*, Node*, Node*);
++int isfat(Type*);
++void linkarchinit(void);
++void markautoused(Prog*);
++void naddr(Node*, Addr*, int);
++Plist* newplist(void);
++Node* nodarg(Type*, int);
++void patch(Prog*, Prog*);
++void proginfo(ProgInfo*, Prog*);
++void regalloc(Node*, Type*, Node*);
++void regfree(Node*);
++void regopt(Prog*);
++int regtyp(Addr*);
++int sameaddr(Addr*, Addr*);
++int smallindir(Addr*, Addr*);
++int stackaddr(Addr*);
++Prog* unpatch(Prog*);
+diff --git a/src/cmd/8g/opt.h b/src/cmd/8g/opt.h
+index 5445f91275..d31cd26007 100644
+--- a/src/cmd/8g/opt.h
++++ b/src/cmd/8g/opt.h
+@@ -28,7 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	"../gc/popt.h"
+ 
+ #define	Z	N
+ #define	Adr	Addr
+@@ -195,60 +194,4 @@ int	BtoF(uint32);
+ /*
+  * prog.c
+  */
+-typedef struct ProgInfo ProgInfo;
+-struct ProgInfo
+-{
+-	uint32 flags; // the bits below
+-	uint32 reguse; // registers implicitly used by this instruction
+-	uint32 regset; // registers implicitly set by this instruction
+-	uint32 regindex; // registers used by addressing mode
+-};
+-
+-enum
+-{
+-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+-	Pseudo = 1<<1,
+-	
+-	// There's nothing to say about the instruction,
+-	// but it's still okay to see.
+-	OK = 1<<2,
+-
+-	// Size of right-side write, or right-side read if no write.
+-	SizeB = 1<<3,
+-	SizeW = 1<<4,
+-	SizeL = 1<<5,
+-	SizeQ = 1<<6,
+-	SizeF = 1<<7, // float aka float32
+-	SizeD = 1<<8, // double aka float64
+-
+-	// Left side (Prog.from): address taken, read, write.
+-	LeftAddr = 1<<9,
+-	LeftRead = 1<<10,
+-	LeftWrite = 1<<11,
+-	
+-	// Right side (Prog.to): address taken, read, write.
+-	RightAddr = 1<<12,
+-	RightRead = 1<<13,
+-	RightWrite = 1<<14,
+-
+-	// Set, use, or kill of carry bit.
+-	// Kill means we never look at the carry bit after this kind of instruction.
+-	SetCarry = 1<<15,
+-	UseCarry = 1<<16,
+-	KillCarry = 1<<17,
+-
+-	// Instruction kinds
+-	Move = 1<<18, // straight move
+-	Conv = 1<<19, // size conversion
+-	Cjmp = 1<<20, // conditional jump
+-	Break = 1<<21, // breaks control flow (no fallthrough)
+-	Call = 1<<22, // function call
+-	Jump = 1<<23, // jump
+-	Skip = 1<<24, // data instruction
+-
+-	// Special cases for register use.
+-	ShiftCX = 1<<25, // possible shift by CX
+-	ImulAXDX = 1<<26, // possible multiply into DX:AX
+-};
+-
+ void proginfo(ProgInfo*, Prog*);
+diff --git a/src/cmd/9g/galign.c b/src/cmd/9g/galign.c
+index 67514faa47..a4aa332282 100644
+--- a/src/cmd/9g/galign.c
++++ b/src/cmd/9g/galign.c
+@@ -14,10 +14,12 @@ void
+ linkarchinit(void)
+ {
+ 	thestring = getgoarch();
++	arch.thestring = thestring;
+ 	if(strcmp(thestring, "ppc64le") == 0)
+ 		thelinkarch = &linkppc64le;
+ 	else
+ 		thelinkarch = &linkppc64;
++	arch.thelinkarch = thelinkarch;
+ }
+ 
+ vlong MAXWIDTH = 1LL<<50;
+@@ -49,6 +51,90 @@ betypeinit(void)
+ 	zprog.from.reg = NREG;
+ 	zprog.to = zprog.from;
+ 	zprog.from3 = zprog.from;
++	arch.zprog = zprog;
+ 
+ 	listinit9();
+ }
++
++void
++main(int argc, char **argv)
++{
++	arch.thechar = thechar;
++	arch.thestring = thestring;
++	arch.thelinkarch = thelinkarch;
++	arch.typedefs = typedefs;
++	arch.zprog = zprog;
++	arch.ACALL = ABL;
++	arch.ACHECKNIL = ACHECKNIL;
++	arch.ADATA = ADATA;
++	arch.AFUNCDATA = AFUNCDATA;
++	arch.AGLOBL = AGLOBL;
++	arch.AJMP = ABR;
++	arch.ANAME = ANAME;
++	arch.ANOP = ANOP;
++	arch.APCDATA = APCDATA;
++	arch.ARET = ARETURN;
++	arch.ASIGNAME = ASIGNAME;
++	arch.ATEXT = ATEXT;
++	arch.ATYPE = ATYPE;
++	arch.AUNDEF = AUNDEF;
++	arch.AVARDEF = AVARDEF;
++	arch.AVARKILL = AVARKILL;
++	arch.D_AUTO = D_AUTO;
++	arch.D_BRANCH = D_BRANCH;
++	arch.D_NONE = D_NONE;
++	arch.D_PARAM = D_PARAM;
++	arch.MAXWIDTH = MAXWIDTH;
++	arch.afunclit = afunclit;
++	arch.anyregalloc = anyregalloc;
++	arch.betypeinit = betypeinit;
++	arch.bgen = bgen;
++	arch.cgen = cgen;
++	arch.cgen_asop = cgen_asop;
++	arch.cgen_call = cgen_call;
++	arch.cgen_callinter = cgen_callinter;
++	arch.cgen_ret = cgen_ret;
++	arch.clearfat = clearfat;
++	arch.clearp = clearp;
++	arch.defframe = defframe;
++	arch.dgostringptr = dgostringptr;
++	arch.dgostrlitptr = dgostrlitptr;
++	arch.dsname = dsname;
++	arch.dsymptr = dsymptr;
++	arch.dumpdata = dumpdata;
++	arch.dumpit = dumpit;
++	arch.excise = excise;
++	arch.expandchecks = expandchecks;
++	arch.fixautoused = fixautoused;
++	arch.gclean = gclean;
++	arch.gdata = gdata;
++	arch.gdatacomplex = gdatacomplex;
++	arch.gdatastring = gdatastring;
++	arch.ggloblnod = ggloblnod;
++	arch.ggloblsym = ggloblsym;
++	arch.ginit = ginit;
++	arch.gins = gins;
++	arch.ginscall = ginscall;
++	arch.gjmp = gjmp;
++	arch.gtrack = gtrack;
++	arch.gused = gused;
++	arch.igen = igen;
++	arch.isfat = isfat;
++	arch.linkarchinit = linkarchinit;
++	arch.markautoused = markautoused;
++	arch.naddr = naddr;
++	arch.newplist = newplist;
++	arch.nodarg = nodarg;
++	arch.patch = patch;
++	arch.proginfo = proginfo;
++	arch.regalloc = regalloc;
++	arch.regfree = regfree;
++	arch.regopt = regopt;
++	arch.regtyp = regtyp;
++	arch.sameaddr = sameaddr;
++	arch.smallindir = smallindir;
++	arch.stackaddr = stackaddr;
++	arch.unpatch = unpatch;
++	
++	gcmain(argc, argv);
++}
+diff --git a/src/cmd/9g/gg.h b/src/cmd/9g/gg.h
+index 703fbd0a87..ea9d52db8e 100644
+--- a/src/cmd/9g/gg.h
++++ b/src/cmd/9g/gg.h
+@@ -19,13 +19,7 @@ EXTERN	uchar	reg[NREG+NFREG];
+ EXTERN	int32	pcloc;		// instruction counter
+ EXTERN	Strlit	emptystring;
+ EXTERN	Prog	zprog;
+-EXTERN	Node*	newproc;
+-EXTERN	Node*	deferproc;
+-EXTERN	Node*	deferreturn;
+-EXTERN	Node*	panicindex;
+-EXTERN	Node*	panicslice;
+ EXTERN	Node*	panicdiv;
+-EXTERN	Node*	throwreturn;
+ extern	vlong	unmappedzero;
+ 
+ /*
+@@ -115,3 +109,55 @@ void	datagostring(Strlit*, Addr*);
+ void	listinit(void);
+ 
+ void	zaddr(Biobuf*, Addr*, int, int);
++
++void afunclit(Addr*, Node*);
++int anyregalloc(void);
++void betypeinit(void);
++void bgen(Node*, int, int, Prog*);
++void cgen(Node*, Node*);
++void cgen_asop(Node*);
++void cgen_call(Node*, int);
++void cgen_callinter(Node*, Node*, int);
++void cgen_ret(Node*);
++void clearfat(Node*);
++void clearp(Prog*);
++void defframe(Prog*);
++int dgostringptr(Sym*, int, char*);
++int dgostrlitptr(Sym*, int, Strlit*);
++int dsname(Sym*, int, char*, int);
++int dsymptr(Sym*, int, Sym*, int);
++void dumpdata(void);
++void dumpit(char*, Flow*, int);
++void excise(Flow*);
++void expandchecks(Prog*);
++void fixautoused(Prog*);
++void gclean(void);
++void	gdata(Node*, Node*, int);
++void	gdatacomplex(Node*, Mpcplx*);
++void	gdatastring(Node*, Strlit*);
++void	ggloblnod(Node *nam);
++void	ggloblsym(Sym *s, int32 width, int8 flags);
++void ginit(void);
++Prog*	gins(int, Node*, Node*);
++void	ginscall(Node*, int);
++Prog*	gjmp(Prog*);
++void gtrack(Sym*);
++void	gused(Node*);
++void	igen(Node*, Node*, Node*);
++int isfat(Type*);
++void linkarchinit(void);
++void markautoused(Prog*);
++void naddr(Node*, Addr*, int);
++Plist* newplist(void);
++Node* nodarg(Type*, int);
++void patch(Prog*, Prog*);
++void proginfo(ProgInfo*, Prog*);
++void regalloc(Node*, Type*, Node*);
++void regfree(Node*);
++void regopt(Prog*);
++int regtyp(Addr*);
++int sameaddr(Addr*, Addr*);
++int smallindir(Addr*, Addr*);
++int stackaddr(Addr*);
++Prog* unpatch(Prog*);
++
+diff --git a/src/cmd/9g/opt.h b/src/cmd/9g/opt.h
+index 6a07b268f2..ab586434cc 100644
+--- a/src/cmd/9g/opt.h
++++ b/src/cmd/9g/opt.h
+@@ -28,7 +28,6 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
+-#include	"../gc/popt.h"
+ 
+ #define	Z	N
+ #define	Adr	Addr
+@@ -170,59 +169,6 @@ int	BtoF(uint64);
+ /*
+  * prog.c
+  */
+-typedef struct ProgInfo ProgInfo;
+-struct ProgInfo
+-{
+-	uint32 flags; // the bits below
+-	uint64 reguse; // registers implicitly used by this instruction
+-	uint64 regset; // registers implicitly set by this instruction
+-	uint64 regindex; // registers used by addressing mode
+-};
+-
+-enum
+-{
+-	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
+-	Pseudo = 1<<1,
+-	
+-	// There's nothing to say about the instruction,
+-	// but it's still okay to see.
+-	OK = 1<<2,
+-
+-	// Size of right-side write, or right-side read if no write.
+-	SizeB = 1<<3,
+-	SizeW = 1<<4,
+-	SizeL = 1<<5,
+-	SizeQ = 1<<6,
+-	SizeF = 1<<7, // float aka float32
+-	SizeD = 1<<8, // double aka float64
+-
+-	// Left side (Prog.from): address taken, read, write.
+-	LeftAddr = 1<<9,
+-	LeftRead = 1<<10,
+-	LeftWrite = 1<<11,
+-
+-	// Register in middle (Prog.reg); only ever read.
+-	RegRead = 1<<12,
+-	CanRegRead = 1<<13,
+-
+-	// Right side (Prog.to): address taken, read, write.
+-	RightAddr = 1<<14,
+-	RightRead = 1<<15,
+-	RightWrite = 1<<16,
+-
+-	// Instruction updates whichever of from/to is type D_OREG
+-	PostInc = 1<<17,
+-
+-	// Instruction kinds
+-	Move = 1<<18, // straight move
+-	Conv = 1<<19, // size conversion
+-	Cjmp = 1<<20, // conditional jump
+-	Break = 1<<21, // breaks control flow (no fallthrough)
+-	Call = 1<<22, // function call
+-	Jump = 1<<23, // jump
+-	Skip = 1<<24, // data instruction
+-};
+-
+ void proginfo(ProgInfo*, Prog*);
+ 
+ // Many Power ISA arithmetic and logical instructions come in four
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 82c2273b23..e36df51f5d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -516,43 +516,18 @@ var deptab = []struct {
+ 		"anames9.c",
+ 	}},
+ 	{"cmd/gc", []string{
+-		"-cplx.c",
+-		"-pgen.c",
+-		"-plive.c",
+-		"-popt.c",
+-		"-y1.tab.c", // makefile dreg
+ 		"opnames.h",
+ 	}},
+ 	{"cmd/5g", []string{
+-		"../gc/cplx.c",
+-		"../gc/pgen.c",
+-		"../gc/plive.c",
+-		"../gc/popt.c",
+-		"../gc/popt.h",
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+ 	}},
+ 	{"cmd/6g", []string{
+-		"../gc/cplx.c",
+-		"../gc/pgen.c",
+-		"../gc/plive.c",
+-		"../gc/popt.c",
+-		"../gc/popt.h",
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+ 	}},
+ 	{"cmd/8g", []string{
+-		"../gc/cplx.c",
+-		"../gc/pgen.c",
+-		"../gc/plive.c",
+-		"../gc/popt.c",
+-		"../gc/popt.h",
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+ 	}},
+ 	{"cmd/9g", []string{
+-		"../gc/cplx.c",
+-		"../gc/pgen.c",
+-		"../gc/plive.c",
+-		"../gc/popt.c",
+-		"../gc/popt.h",
+ 		"$GOROOT/pkg/obj/${GOHOSTOS}_$GOHOSTARCH/libgc.a",
+ 	}},
+ 	{"cmd/5l", []string{
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index 57daaa9745..cf03994184 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -35,7 +35,7 @@ offmod(Type *t)
+ 			fatal("offmod: not TFIELD: %lT", f);
+ 		f->width = o;
+ 		o += widthptr;
+-		if(o >= MAXWIDTH) {
++		if(o >= arch.MAXWIDTH) {
+ 			yyerror("interface too large");
+ 			o = widthptr;
+ 		}
+@@ -86,7 +86,7 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ 		if(w == 0)
+ 			lastzero = o;
+ 		o += w;
+-		if(o >= MAXWIDTH) {
++		if(o >= arch.MAXWIDTH) {
+ 			yyerror("type %lT too large", errtype);
+ 			o = 8;  // small but nonzero
+ 		}
+@@ -260,7 +260,7 @@ dowidth(Type *t)
+ 
+ 			dowidth(t->type);
+ 			if(t->type->width != 0) {
+-				cap = (MAXWIDTH-1) / t->type->width;
++				cap = (arch.MAXWIDTH-1) / t->type->width;
+ 				if(t->bound > cap)
+ 					yyerror("type %lT larger than address space", t);
+ 			}
+@@ -613,15 +613,15 @@ typeinit(void)
+ 	simtype[TFUNC] = tptr;
+ 	simtype[TUNSAFEPTR] = tptr;
+ 
+-	/* pick up the backend typedefs */
+-	for(i=0; typedefs[i].name; i++) {
+-		s = lookup(typedefs[i].name);
+-		s1 = pkglookup(typedefs[i].name, builtinpkg);
++	/* pick up the backend arch.typedefs */
++	for(i=0; arch.typedefs[i].name; i++) {
++		s = lookup(arch.typedefs[i].name);
++		s1 = pkglookup(arch.typedefs[i].name, builtinpkg);
+ 
+-		etype = typedefs[i].etype;
++		etype = arch.typedefs[i].etype;
+ 		if(etype < 0 || etype >= nelem(types))
+ 			fatal("typeinit: %s bad etype", s->name);
+-		sameas = typedefs[i].sameas;
++		sameas = arch.typedefs[i].sameas;
+ 		if(sameas < 0 || sameas >= nelem(types))
+ 			fatal("typeinit: %s bad sameas", s->name);
+ 		simtype[etype] = sameas;
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 6f3dc93572..d3fb952558 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -4,7 +4,7 @@
+ 
+ #include <u.h>
+ #include <libc.h>
+-#include "gg.h"
++#include "go.h"
+ 
+ static	void	subnode(Node *nr, Node *ni, Node *nc);
+ static	void	minus(Node *nl, Node *res);
+@@ -78,8 +78,8 @@ complexmove(Node *f, Node *t)
+ 		subnode(&n1, &n2, f);
+ 		subnode(&n3, &n4, t);
+ 
+-		cgen(&n1, &n3);
+-		cgen(&n2, &n4);
++		arch.cgen(&n1, &n3);
++		arch.cgen(&n2, &n4);
+ 		break;
+ 	}
+ }
+@@ -151,9 +151,9 @@ complexgen(Node *n, Node *res)
+ 		if(res->addable) {
+ 			subnode(&n1, &n2, res);
+ 			tempname(&tmp, n1.type);
+-			cgen(n->left, &tmp);
+-			cgen(n->right, &n2);
+-			cgen(&tmp, &n1);
++			arch.cgen(n->left, &tmp);
++			arch.cgen(n->right, &n2);
++			arch.cgen(&tmp, &n1);
+ 			return;
+ 		}
+ 		break;
+@@ -168,10 +168,10 @@ complexgen(Node *n, Node *res)
+ 		}
+ 		subnode(&n1, &n2, nl);
+ 		if(n->op == OREAL) {
+-			cgen(&n1, res);
++			arch.cgen(&n1, res);
+ 			return;
+ 		}
+-		cgen(&n2, res);
++		arch.cgen(&n2, res);
+ 		return;
+ 	}
+ 
+@@ -191,9 +191,9 @@ complexgen(Node *n, Node *res)
+ 	}
+ 
+ 	if(!res->addable) {
+-		igen(res, &n1, N);
+-		cgen(n, &n1);
+-		regfree(&n1);
++		arch.igen(res, &n1, N);
++		arch.cgen(n, &n1);
++		arch.regfree(&n1);
+ 		return;
+ 	}
+ 	if(n->addable) {
+@@ -214,9 +214,9 @@ complexgen(Node *n, Node *res)
+ 	case OCALLFUNC:
+ 	case OCALLMETH:
+ 	case OCALLINTER:
+-		igen(n, &n1, res);
++		arch.igen(n, &n1, res);
+ 		complexmove(&n1, res);
+-		regfree(&n1);
++		arch.regfree(&n1);
+ 		return;
+ 
+ 	case OCONV:
+@@ -239,18 +239,18 @@ complexgen(Node *n, Node *res)
+ 	if(nr != N) {
+ 		if(nl->ullman > nr->ullman && !nl->addable) {
+ 			tempname(&tnl, nl->type);
+-			cgen(nl, &tnl);
++			arch.cgen(nl, &tnl);
+ 			nl = &tnl;
+ 		}
+ 		if(!nr->addable) {
+ 			tempname(&tnr, nr->type);
+-			cgen(nr, &tnr);
++			arch.cgen(nr, &tnr);
+ 			nr = &tnr;
+ 		}
+ 	}
+ 	if(!nl->addable) {
+ 		tempname(&tnl, nl->type);
+-		cgen(nl, &tnl);
++		arch.cgen(nl, &tnl);
+ 		nl = &tnl;
+ 	}
+ 
+@@ -289,18 +289,18 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
+ 	if(nr != N) {
+ 		if(nl->ullman > nr->ullman && !nl->addable) {
+ 			tempname(&tnl, nl->type);
+-			cgen(nl, &tnl);
++			arch.cgen(nl, &tnl);
+ 			nl = &tnl;
+ 		}
+ 		if(!nr->addable) {
+ 			tempname(&tnr, nr->type);
+-			cgen(nr, &tnr);
++			arch.cgen(nr, &tnr);
+ 			nr = &tnr;
+ 		}
+ 	}
+ 	if(!nl->addable) {
+ 		tempname(&tnl, nl->type);
+-		cgen(nl, &tnl);
++		arch.cgen(nl, &tnl);
+ 		nl = &tnl;
+ 	}
+ 
+@@ -331,7 +331,7 @@ complexbool(int op, Node *nl, Node *nr, int true, int likely, Prog *to)
+ 	if(op == ONE)
+ 		true = !true;
+ 
+-	bgen(&na, true, likely, to);
++	arch.bgen(&na, true, likely, to);
+ }
+ 
+ void
+@@ -387,7 +387,7 @@ minus(Node *nl, Node *res)
+ 	ra.op = OMINUS;
+ 	ra.left = nl;
+ 	ra.type = nl->type;
+-	cgen(&ra, res);
++	arch.cgen(&ra, res);
+ }
+ 
+ // build and execute tree
+@@ -424,14 +424,14 @@ complexadd(int op, Node *nl, Node *nr, Node *res)
+ 	ra.left = &n1;
+ 	ra.right = &n3;
+ 	ra.type = n1.type;
+-	cgen(&ra, &n5);
++	arch.cgen(&ra, &n5);
+ 
+ 	memset(&ra, 0, sizeof(ra));
+ 	ra.op = op;
+ 	ra.left = &n2;
+ 	ra.right = &n4;
+ 	ra.type = n2.type;
+-	cgen(&ra, &n6);
++	arch.cgen(&ra, &n6);
+ }
+ 
+ // build and execute tree
+@@ -467,7 +467,7 @@ complexmul(Node *nl, Node *nr, Node *res)
+ 	ra.left = &rm1;
+ 	ra.right = &rm2;
+ 	ra.type = rm1.type;
+-	cgen(&ra, &tmp);
++	arch.cgen(&ra, &tmp);
+ 
+ 	// imag part
+ 	memset(&rm1, 0, sizeof(rm1));
+@@ -487,8 +487,8 @@ complexmul(Node *nl, Node *nr, Node *res)
+ 	ra.left = &rm1;
+ 	ra.right = &rm2;
+ 	ra.type = rm1.type;
+-	cgen(&ra, &n6);
++	arch.cgen(&ra, &n6);
+ 
+ 	// tmp ->real part
+-	cgen(&tmp, &n5);
++	arch.cgen(&tmp, &n5);
+ }
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 241912c909..8685aa0def 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -538,7 +538,7 @@ dumpasmhdr(void)
+ 	b = Bopen(asmhdr, OWRITE);
+ 	if(b == nil)
+ 		fatal("open %s: %r", asmhdr);
+-	Bprint(b, "// generated by %cg -asmhdr from package %s\n\n", thechar, localpkg->name);
++	Bprint(b, "// generated by %cg -asmhdr from package %s\n\n", arch.thechar, localpkg->name);
+ 	for(l=asmlist; l; l=l->next) {
+ 		n = l->n;
+ 		if(isblanksym(n->sym))
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index c7c9fcdaff..20c17bd46a 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -265,7 +265,7 @@ gen(Node *n)
+ //dump("gen", n);
+ 
+ 	lno = setlineno(n);
+-	wasregalloc = anyregalloc();
++	wasregalloc = arch.anyregalloc();
+ 
+ 	if(n == N)
+ 		goto ret;
+@@ -304,8 +304,8 @@ gen(Node *n)
+ 
+ 		// if there are pending gotos, resolve them all to the current pc.
+ 		for(p1=lab->gotopc; p1; p1=p2) {
+-			p2 = unpatch(p1);
+-			patch(p1, pc);
++			p2 = arch.unpatch(p1);
++			arch.patch(p1, pc);
+ 		}
+ 		lab->gotopc = P;
+ 		if(lab->labelpc == P)
+@@ -332,9 +332,9 @@ gen(Node *n)
+ 		// of the label in the OLABEL case above.)
+ 		lab = newlab(n);
+ 		if(lab->labelpc != P)
+-			gjmp(lab->labelpc);
++			arch.gjmp(lab->labelpc);
+ 		else
+-			lab->gotopc = gjmp(lab->gotopc);
++			lab->gotopc = arch.gjmp(lab->gotopc);
+ 		break;
+ 
+ 	case OBREAK:
+@@ -349,14 +349,14 @@ gen(Node *n)
+ 				yyerror("invalid break label %S", n->left->sym);
+ 				break;
+ 			}
+-			gjmp(lab->breakpc);
++			arch.gjmp(lab->breakpc);
+ 			break;
+ 		}
+ 		if(breakpc == P) {
+ 			yyerror("break is not in a loop");
+ 			break;
+ 		}
+-		gjmp(breakpc);
++		arch.gjmp(breakpc);
+ 		break;
+ 
+ 	case OCONTINUE:
+@@ -371,20 +371,20 @@ gen(Node *n)
+ 				yyerror("invalid continue label %S", n->left->sym);
+ 				break;
+ 			}
+-			gjmp(lab->continpc);
++			arch.gjmp(lab->continpc);
+ 			break;
+ 		}
+ 		if(continpc == P) {
+ 			yyerror("continue is not in a loop");
+ 			break;
+ 		}
+-		gjmp(continpc);
++		arch.gjmp(continpc);
+ 		break;
+ 
+ 	case OFOR:
+ 		sbreak = breakpc;
+-		p1 = gjmp(P);			//		goto test
+-		breakpc = gjmp(P);		// break:	goto done
++		p1 = arch.gjmp(P);			//		goto test
++		breakpc = arch.gjmp(P);		// break:	goto done
+ 		scontin = continpc;
+ 		continpc = pc;
+ 
+@@ -394,11 +394,11 @@ gen(Node *n)
+ 			lab->continpc = continpc;
+ 		}
+ 		gen(n->nincr);				// contin:	incr
+-		patch(p1, pc);				// test:
+-		bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
++		arch.patch(p1, pc);				// test:
++		arch.bgen(n->ntest, 0, -1, breakpc);		//		if(!test) goto break
+ 		genlist(n->nbody);				//		body
+-		gjmp(continpc);
+-		patch(breakpc, pc);			// done:
++		arch.gjmp(continpc);
++		arch.patch(breakpc, pc);			// done:
+ 		continpc = scontin;
+ 		breakpc = sbreak;
+ 		if(lab) {
+@@ -408,29 +408,29 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OIF:
+-		p1 = gjmp(P);			//		goto test
+-		p2 = gjmp(P);			// p2:		goto else
+-		patch(p1, pc);				// test:
+-		bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
++		p1 = arch.gjmp(P);			//		goto test
++		p2 = arch.gjmp(P);			// p2:		goto else
++		arch.patch(p1, pc);				// test:
++		arch.bgen(n->ntest, 0, -n->likely, p2);		//		if(!test) goto p2
+ 		genlist(n->nbody);				//		then
+-		p3 = gjmp(P);			//		goto done
+-		patch(p2, pc);				// else:
++		p3 = arch.gjmp(P);			//		goto done
++		arch.patch(p2, pc);				// else:
+ 		genlist(n->nelse);				//		else
+-		patch(p3, pc);				// done:
++		arch.patch(p3, pc);				// done:
+ 		break;
+ 
+ 	case OSWITCH:
+ 		sbreak = breakpc;
+-		p1 = gjmp(P);			//		goto test
+-		breakpc = gjmp(P);		// break:	goto done
++		p1 = arch.gjmp(P);			//		goto test
++		breakpc = arch.gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+ 		if((lab = stmtlabel(n)) != L)
+ 			lab->breakpc = breakpc;
+ 
+-		patch(p1, pc);				// test:
++		arch.patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		switch(test) body
+-		patch(breakpc, pc);			// done:
++		arch.patch(breakpc, pc);			// done:
+ 		breakpc = sbreak;
+ 		if(lab != L)
+ 			lab->breakpc = P;
+@@ -438,23 +438,23 @@ gen(Node *n)
+ 
+ 	case OSELECT:
+ 		sbreak = breakpc;
+-		p1 = gjmp(P);			//		goto test
+-		breakpc = gjmp(P);		// break:	goto done
++		p1 = arch.gjmp(P);			//		goto test
++		breakpc = arch.gjmp(P);		// break:	goto done
+ 
+ 		// define break label
+ 		if((lab = stmtlabel(n)) != L)
+ 			lab->breakpc = breakpc;
+ 
+-		patch(p1, pc);				// test:
++		arch.patch(p1, pc);				// test:
+ 		genlist(n->nbody);				//		select() body
+-		patch(breakpc, pc);			// done:
++		arch.patch(breakpc, pc);			// done:
+ 		breakpc = sbreak;
+ 		if(lab != L)
+ 			lab->breakpc = P;
+ 		break;
+ 
+ 	case OASOP:
+-		cgen_asop(n);
++		arch.cgen_asop(n);
+ 		break;
+ 
+ 	case ODCL:
+@@ -472,11 +472,11 @@ gen(Node *n)
+ 		break;
+ 
+ 	case OCALLINTER:
+-		cgen_callinter(n, N, 0);
++		arch.cgen_callinter(n, N, 0);
+ 		break;
+ 
+ 	case OCALLFUNC:
+-		cgen_call(n, 0);
++		arch.cgen_call(n, 0);
+ 		break;
+ 
+ 	case OPROC:
+@@ -489,7 +489,7 @@ gen(Node *n)
+ 
+ 	case ORETURN:
+ 	case ORETJMP:
+-		cgen_ret(n);
++		arch.cgen_ret(n);
+ 		break;
+ 	
+ 	case OCHECKNIL:
+@@ -502,7 +502,7 @@ gen(Node *n)
+ 	}
+ 
+ ret:
+-	if(anyregalloc() != wasregalloc) {
++	if(arch.anyregalloc() != wasregalloc) {
+ 		dump("node", n);
+ 		fatal("registers left allocated");
+ 	}
+@@ -536,7 +536,7 @@ cgen_callmeth(Node *n, int proc)
+ 
+ 	if(n2.left->op == ONAME)
+ 		n2.left->class = PFUNC;
+-	cgen_call(&n2, proc);
++	arch.cgen_call(&n2, proc);
+ }
+ 
+ /*
+@@ -554,11 +554,11 @@ cgen_proc(Node *n, int proc)
+ 		break;
+ 
+ 	case OCALLINTER:
+-		cgen_callinter(n->left, N, proc);
++		arch.cgen_callinter(n->left, N, proc);
+ 		break;
+ 
+ 	case OCALLFUNC:
+-		cgen_call(n->left, proc);
++		arch.cgen_call(n->left, proc);
+ 		break;
+ 	}
+ 
+@@ -601,7 +601,7 @@ cgen_discard(Node *nr)
+ 	switch(nr->op) {
+ 	case ONAME:
+ 		if(!(nr->class & PHEAP) && nr->class != PEXTERN && nr->class != PFUNC && nr->class != PPARAMREF)
+-			gused(nr);
++			arch.gused(nr);
+ 		break;
+ 
+ 	// unary
+@@ -643,7 +643,7 @@ cgen_discard(Node *nr)
+ 	default:
+ 		tempname(&tmp, nr->type);
+ 		cgen_as(&tmp, nr);
+-		gused(&tmp);
++		arch.gused(&tmp);
+ 	}
+ }
+ 
+@@ -705,7 +705,7 @@ clearslim(Node *n)
+ 	}
+ 
+ 	ullmancalc(&z);
+-	cgen(&z, n);
++	arch.cgen(&z, n);
+ }
+ 
+ /*
+@@ -739,10 +739,10 @@ cgen_as(Node *nl, Node *nr)
+ 		tl = nl->type;
+ 		if(tl == T)
+ 			return;
+-		if(isfat(tl)) {
++		if(arch.isfat(tl)) {
+ 			if(nl->op == ONAME)
+ 				gvardef(nl);
+-			clearfat(nl);
++			arch.clearfat(nl);
+ 			return;
+ 		}
+ 		clearslim(nl);
+@@ -753,7 +753,7 @@ cgen_as(Node *nl, Node *nr)
+ 	if(tl == T)
+ 		return;
+ 
+-	cgen(nr, nl);
++	arch.cgen(nr, nl);
+ }
+ 
+ /*
+@@ -773,17 +773,17 @@ cgen_eface(Node *n, Node *res)
+ 	Node *tmp;
+ 
+ 	tmp = temp(types[tptr]);
+-	cgen(n->right, tmp);
++	arch.cgen(n->right, tmp);
+ 
+ 	gvardef(res);
+ 
+ 	dst = *res;
+ 	dst.type = types[tptr];
+ 	dst.xoffset += widthptr;
+-	cgen(tmp, &dst);
++	arch.cgen(tmp, &dst);
+ 
+ 	dst.xoffset -= widthptr;
+-	cgen(n->left, &dst);
++	arch.cgen(n->left, &dst);
+ }
+ 
+ /*
+@@ -824,7 +824,7 @@ cgen_slice(Node *n, Node *res)
+ 
+ 	if(isnil(n->left)) {
+ 		tempname(&src, n->left->type);
+-		cgen(n->left, &src);
++		arch.cgen(n->left, &src);
+ 	} else
+ 		src = *n->left;
+ 	if(n->op == OSLICE || n->op == OSLICE3 || n->op == OSLICESTR)
+@@ -833,11 +833,11 @@ cgen_slice(Node *n, Node *res)
+ 	if(n->op == OSLICEARR || n->op == OSLICE3ARR) {
+ 		if(!isptr[n->left->type->etype])
+ 			fatal("slicearr is supposed to work on pointer: %+N\n", n);
+-		cgen(&src, base);
++		arch.cgen(&src, base);
+ 		cgen_checknil(base);
+ 	} else {
+ 		src.type = types[tptr];
+-		cgen(&src, base);
++		arch.cgen(&src, base);
+ 	}
+ 	
+ 	// committed to the update
+@@ -846,9 +846,9 @@ cgen_slice(Node *n, Node *res)
+ 	// compute len and cap.
+ 	// len = n-i, cap = m-i, and offs = i*width.
+ 	// computing offs last lets the multiply overwrite i.
+-	cgen(len, tmplen);
++	arch.cgen(len, tmplen);
+ 	if(n->op != OSLICESTR)
+-		cgen(cap, tmpcap);
++		arch.cgen(cap, tmpcap);
+ 
+ 	// if new cap != 0 { base += add }
+ 	// This avoids advancing base past the end of the underlying array/string,
+@@ -857,40 +857,40 @@ cgen_slice(Node *n, Node *res)
+ 	// In essence we are replacing x[i:j:k] where i == j == k
+ 	// or x[i:j] where i == j == cap(x) with x[0:0:0].
+ 	if(offs != N) {
+-		p1 = gjmp(P);
+-		p2 = gjmp(P);
+-		patch(p1, pc);
++		p1 = arch.gjmp(P);
++		p2 = arch.gjmp(P);
++		arch.patch(p1, pc);
+ 
+ 		nodconst(&con, tmpcap->type, 0);
+ 		cmp = nod(OEQ, tmpcap, &con);
+ 		typecheck(&cmp, Erv);
+-		bgen(cmp, 1, -1, p2);
++		arch.bgen(cmp, 1, -1, p2);
+ 
+ 		add = nod(OADD, base, offs);
+ 		typecheck(&add, Erv);
+-		cgen(add, base);
++		arch.cgen(add, base);
+ 
+-		patch(p2, pc);
++		arch.patch(p2, pc);
+ 	}
+ 
+ 	// dst.array = src.array  [ + lo *width ]
+ 	dst = *res;
+ 	dst.xoffset += Array_array;
+ 	dst.type = types[tptr];
+-	cgen(base, &dst);
++	arch.cgen(base, &dst);
+ 
+ 	// dst.len = hi [ - lo ]
+ 	dst = *res;
+ 	dst.xoffset += Array_nel;
+ 	dst.type = types[simtype[TUINT]];
+-	cgen(tmplen, &dst);
++	arch.cgen(tmplen, &dst);
+ 
+ 	if(n->op != OSLICESTR) {
+ 		// dst.cap = cap [ - lo ]
+ 		dst = *res;
+ 		dst.xoffset += Array_cap;
+ 		dst.type = types[simtype[TUINT]];
+-		cgen(tmpcap, &dst);
++		arch.cgen(tmpcap, &dst);
+ 	}
+ }
+ 
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 3a1fdde82a..9f3f1b582c 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -67,8 +67,6 @@ enum
+ 	MaxStackVarSize = 10*1024*1024,
+ };
+ 
+-extern vlong	MAXWIDTH;
+-
+ /*
+  * note this is the representation
+  * of the compilers string literals,
+@@ -753,8 +751,6 @@ struct	Typedef
+ 	int	sameas;
+ };
+ 
+-extern	Typedef	typedefs[];
+-
+ typedef	struct	Sig	Sig;
+ struct	Sig
+ {
+@@ -975,9 +971,6 @@ EXTERN	int	widthreg;
+ EXTERN	Node*	typesw;
+ EXTERN	Node*	nblank;
+ 
+-extern	int	thechar;
+-extern	char*	thestring;
+-extern	LinkArch*	thelinkarch;
+ EXTERN	int  	use_sse;
+ 
+ EXTERN	char*	hunk;
+@@ -1293,7 +1286,6 @@ int	duint32(Sym *s, int off, uint32 v);
+ int	duint64(Sym *s, int off, uint64 v);
+ int	duint8(Sym *s, int off, uint8 v);
+ int	duintptr(Sym *s, int off, uint64 v);
+-int	dsname(Sym *s, int off, char *dat, int ndat);
+ void	dumpobj(void);
+ Sym*	stringsym(char*, int);
+ void	slicebytes(Node*, char*, int);
+@@ -1505,47 +1497,16 @@ EXTERN	Node*	nodfp;
+ EXTERN	int	disable_checknil;
+ EXTERN	vlong	zerosize;
+ 
+-int	anyregalloc(void);
+-void	betypeinit(void);
+-void	bgen(Node *n, int true, int likely, Prog *to);
+ void	checknil(Node*, NodeList**);
+-void	expandchecks(Prog*);
+-void	cgen(Node*, Node*);
+-void	cgen_asop(Node *n);
+-void	cgen_call(Node *n, int proc);
+-void	cgen_callinter(Node *n, Node *res, int proc);
+ void	cgen_checknil(Node*);
+-void	cgen_ret(Node *n);
+-void	clearfat(Node *n);
+ void	compile(Node*);
+-void	defframe(Prog*);
+-int	dgostringptr(Sym*, int off, char *str);
+-int	dgostrlitptr(Sym*, int off, Strlit*);
+-int	dstringptr(Sym *s, int off, char *str);
+-int	dsymptr(Sym *s, int off, Sym *x, int xoff);
+ int	duintxx(Sym *s, int off, uint64 v, int wid);
+-void	dumpdata(void);
+-void	fixautoused(Prog*);
+-void	gdata(Node*, Node*, int);
+-void	gdatacomplex(Node*, Mpcplx*);
+-void	gdatastring(Node*, Strlit*);
+-void	ggloblnod(Node *nam);
+-void	ggloblsym(Sym *s, int32 width, int8 flags);
+ void	gvardef(Node*);
+ void	gvarkill(Node*);
+-Prog*	gjmp(Prog*);
+-void	gused(Node*);
+ void	movelarge(NodeList*);
+-int	isfat(Type*);
+-void	linkarchinit(void);
+ void	liveness(Node*, Prog*, Sym*, Sym*);
+ void	twobitwalktype1(Type*, vlong*, Bvec*);
+-void	markautoused(Prog*);
+-Plist*	newplist(void);
+-Node*	nodarg(Type*, int);
+ void	nopout(Prog*);
+-void	patch(Prog*, Prog*);
+-Prog*	unpatch(Prog*);
+ 
+ #pragma	varargck	type	"B"	Mpint*
+ #pragma	varargck	type	"E"	int
+@@ -1571,3 +1532,207 @@ Prog*	unpatch(Prog*);
+  *	racewalk.c
+  */
+ void	racewalk(Node *fn);
++
++/*
++ *	flow.c
++ */
++typedef struct Flow Flow;
++typedef struct Graph Graph;
++
++struct Flow {
++	Prog*	prog;   	// actual instruction
++	Flow*	p1;     	// predecessors of this instruction: p1,
++	Flow*	p2;     	// and then p2 linked though p2link.
++	Flow*	p2link;
++	Flow*	s1;     	// successors of this instruction (at most two: s1 and s2).
++	Flow*	s2;
++	Flow*	link;   	// next instruction in function code
++	
++	int32	active;	// usable by client
++
++	int32	rpo;		// reverse post ordering
++	uint16	loop;		// x5 for every loop
++	uchar	refset;		// diagnostic generated
++};
++
++struct Graph
++{
++	Flow*	start;
++	int	num;
++	
++	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
++	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
++	Flow**	rpo;
++};
++
++void	fixjmp(Prog*);
++Graph*	flowstart(Prog*, int);
++void	flowrpo(Graph*);
++void	flowend(Graph*);
++void	mergetemp(Prog*);
++void	nilopt(Prog*);
++int	noreturn(Prog*);
++Flow*	uniqp(Flow*);
++Flow*	uniqs(Flow*);
++
++/*
++ *	interface to back end
++ */
++
++typedef struct ProgInfo ProgInfo;
++struct ProgInfo
++{
++	uint32 flags; // the bits below
++	uint64 reguse; // registers implicitly used by this instruction
++	uint64 regset; // registers implicitly set by this instruction
++	uint64 regindex; // registers used by addressing mode
++};
++
++enum
++{
++	// Pseudo-op, like TEXT, GLOBL, TYPE, PCDATA, FUNCDATA.
++	Pseudo = 1<<1,
++	
++	// There's nothing to say about the instruction,
++	// but it's still okay to see.
++	OK = 1<<2,
++
++	// Size of right-side write, or right-side read if no write.
++	SizeB = 1<<3,
++	SizeW = 1<<4,
++	SizeL = 1<<5,
++	SizeQ = 1<<6,
++	SizeF = 1<<7, // float aka float32
++	SizeD = 1<<8, // double aka float64
++
++	// Left side (Prog.from): address taken, read, write.
++	LeftAddr = 1<<9,
++	LeftRead = 1<<10,
++	LeftWrite = 1<<11,
++	
++	// Register in middle (Prog.reg); only ever read. (arm, ppc64)
++	RegRead = 1<<12,
++	CanRegRead = 1<<13,
++	
++	// Right side (Prog.to): address taken, read, write.
++	RightAddr = 1<<14,
++	RightRead = 1<<15,
++	RightWrite = 1<<16,
++
++	// Instruction kinds
++	Move = 1<<17, // straight move
++	Conv = 1<<18, // size conversion
++	Cjmp = 1<<19, // conditional jump
++	Break = 1<<20, // breaks control flow (no fallthrough)
++	Call = 1<<21, // function call
++	Jump = 1<<22, // jump
++	Skip = 1<<23, // data instruction
++
++	// Set, use, or kill of carry bit.
++	// Kill means we never look at the carry bit after this kind of instruction.
++	SetCarry = 1<<24,
++	UseCarry = 1<<25,
++	KillCarry = 1<<26,
++
++	// Special cases for register use. (amd64, 386)
++	ShiftCX = 1<<27, // possible shift by CX
++	ImulAXDX = 1<<28, // possible multiply into DX:AX
++
++	// Instruction updates whichever of from/to is type D_OREG. (ppc64)
++	PostInc = 1<<29,
++};
++
++typedef struct Arch Arch;
++
++struct Arch
++{
++	int thechar;
++	char *thestring;
++	LinkArch *thelinkarch;
++	Typedef *typedefs;
++	Prog zprog;
++	
++	int ACALL;
++	int ACHECKNIL;
++	int ADATA;
++	int AFUNCDATA;
++	int AGLOBL;
++	int AJMP;
++	int ANAME;
++	int ANOP;
++	int APCDATA;
++	int ARET;
++	int ASIGNAME;
++	int ATEXT;
++	int ATYPE;
++	int AUNDEF;
++	int AVARDEF;
++	int AVARKILL;
++	int D_AUTO;
++	int D_BRANCH;
++	int D_NONE;
++	int D_PARAM;
++	vlong MAXWIDTH;
++
++	void (*afunclit)(Addr*, Node*);
++	int (*anyregalloc)(void);
++	void (*betypeinit)(void);
++	void (*bgen)(Node*, int, int, Prog*);
++	void (*cgen)(Node*, Node*);
++	void (*cgen_asop)(Node*);
++	void (*cgen_call)(Node*, int);
++	void (*cgen_callinter)(Node*, Node*, int);
++	void (*cgen_ret)(Node*);
++	void (*clearfat)(Node*);
++	void (*clearp)(Prog*);
++	void (*defframe)(Prog*);
++	int (*dgostringptr)(Sym*, int, char*);
++	int (*dgostrlitptr)(Sym*, int, Strlit*);
++	int (*dsname)(Sym*, int, char*, int);
++	int (*dsymptr)(Sym*, int, Sym*, int);
++	void (*dumpdata)(void);
++	void (*dumpit)(char*, Flow*, int);
++	void (*excise)(Flow*);
++	void (*expandchecks)(Prog*);
++	void (*fixautoused)(Prog*);
++	void (*gclean)(void);
++	void	(*gdata)(Node*, Node*, int);
++	void	(*gdatacomplex)(Node*, Mpcplx*);
++	void	(*gdatastring)(Node*, Strlit*);
++	void	(*ggloblnod)(Node*);
++	void	(*ggloblsym)(Sym*, int32, int8);
++	void (*ginit)(void);
++	Prog*	(*gins)(int, Node*, Node*);
++	void	(*ginscall)(Node*, int);
++	Prog*	(*gjmp)(Prog*);
++	void (*gtrack)(Sym*);
++	void	(*gused)(Node*);
++	void	(*igen)(Node*, Node*, Node*);
++	int (*isfat)(Type*);
++	void (*linkarchinit)(void);
++	void (*markautoused)(Prog*);
++	void (*naddr)(Node*, Addr*, int);
++	Plist* (*newplist)(void);
++	Node* (*nodarg)(Type*, int);
++	void (*patch)(Prog*, Prog*);
++	void (*proginfo)(ProgInfo*, Prog*);
++	void (*regalloc)(Node*, Type*, Node*);
++	void (*regfree)(Node*);
++	void (*regopt)(Prog*);
++	int (*regtyp)(Addr*);
++	int (*sameaddr)(Addr*, Addr*);
++	int (*smallindir)(Addr*, Addr*);
++	int (*stackaddr)(Addr*);
++	Prog* (*unpatch)(Prog*);
++};
++
++EXTERN Arch arch;
++
++EXTERN Node *newproc;
++EXTERN Node *deferproc;
++EXTERN Node *deferreturn;
++EXTERN Node *panicindex;
++EXTERN Node *panicslice;
++EXTERN Node *throwreturn;
++
++int	gcmain(int, char**);
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 29fb2e1603..968eb174a4 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -91,7 +91,7 @@ enum
+ void
+ usage(void)
+ {
+-	print("usage: %cg [options] file.go...\n", thechar);
++	print("usage: %cg [options] file.go...\n", arch.thechar);
+ 	flagprint(1);
+ 	exits("usage");
+ }
+@@ -133,17 +133,17 @@ doversion(void)
+ 	p = expstring();
+ 	if(strcmp(p, "X:none") == 0)
+ 		p = "";
+-	print("%cg version %s%s%s\n", thechar, getgoversion(), *p ? " " : "", p);
++	print("%cg version %s%s%s\n", arch.thechar, getgoversion(), *p ? " " : "", p);
+ 	exits(0);
+ }
+ 
+ int
+-main(int argc, char *argv[])
++gcmain(int argc, char *argv[])
+ {
+ 	int i;
+ 	NodeList *l;
+ 	char *p;
+-
++	
+ #ifdef	SIGBUS	
+ 	signal(SIGBUS, fault);
+ 	signal(SIGSEGV, fault);
+@@ -154,15 +154,15 @@ main(int argc, char *argv[])
+ 	// Tell the FPU to handle all exceptions.
+ 	setfcr(FPPDBL|FPRNR);
+ #endif
+-	// Allow GOARCH=thestring or GOARCH=thestringsuffix,
++	// Allow GOARCH=arch.thestring or GOARCH=arch.thestringsuffix,
+ 	// but not other values.	
+ 	p = getgoarch();
+-	if(strncmp(p, thestring, strlen(thestring)) != 0)
+-		sysfatal("cannot use %cg with GOARCH=%s", thechar, p);
++	if(strncmp(p, arch.thestring, strlen(arch.thestring)) != 0)
++		sysfatal("cannot use %cg with GOARCH=%s", arch.thechar, p);
+ 	goarch = p;
+ 
+-	linkarchinit();
+-	ctxt = linknew(thelinkarch);
++	arch.linkarchinit();
++	ctxt = linknew(arch.thelinkarch);
+ 	ctxt->diag = yyerror;
+ 	ctxt->bso = &bstdout;
+ 	Binit(&bstdout, 1, OWRITE);
+@@ -260,7 +260,7 @@ main(int argc, char *argv[])
+ 	flagcount("wb", "enable write barrier", &use_writebarrier);
+ 	flagcount("x", "debug lexer", &debug['x']);
+ 	flagcount("y", "debug declarations in canned imports (with -d)", &debug['y']);
+-	if(thechar == '6')
++	if(arch.thechar == '6')
+ 		flagcount("largemodel", "generate code that assumes a large memory model", &flag_largemodel);
+ 
+ 	flagparse(&argc, &argv, usage);
+@@ -301,7 +301,7 @@ main(int argc, char *argv[])
+ 	if(debug['l'] <= 1)
+ 		debug['l'] = 1 - debug['l'];
+ 
+-	if(thechar == '8') {
++	if(arch.thechar == '8') {
+ 		p = getgo386();
+ 		if(strcmp(p, "387") == 0)
+ 			use_sse = 0;
+@@ -312,7 +312,7 @@ main(int argc, char *argv[])
+ 	}
+ 
+ 	fmtinstallgo();
+-	betypeinit();
++	arch.betypeinit();
+ 	if(widthptr == 0)
+ 		fatal("betypeinit failed");
+ 
+@@ -571,7 +571,7 @@ findpkg(Strlit *name)
+ 		snprint(namebuf, sizeof(namebuf), "%Z.a", name);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+-		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, thechar);
++		snprint(namebuf, sizeof(namebuf), "%Z.%c", name, arch.thechar);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+ 		return 0;
+@@ -593,7 +593,7 @@ findpkg(Strlit *name)
+ 		snprint(namebuf, sizeof(namebuf), "%s/%Z.a", p->dir, name);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+-		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, thechar);
++		snprint(namebuf, sizeof(namebuf), "%s/%Z.%c", p->dir, name, arch.thechar);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+ 	}
+@@ -610,7 +610,7 @@ findpkg(Strlit *name)
+ 		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.a", goroot, goos, goarch, suffixsep, suffix, name);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+-		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, thechar);
++		snprint(namebuf, sizeof(namebuf), "%s/pkg/%s_%s%s%s/%Z.%c", goroot, goos, goarch, suffixsep, suffix, name, arch.thechar);
+ 		if(access(namebuf, 0) >= 0)
+ 			return 1;
+ 	}
+@@ -2253,10 +2253,10 @@ lexfini(void)
+ 	}
+ 
+ 	// backend-specific builtin types (e.g. int).
+-	for(i=0; typedefs[i].name; i++) {
+-		s = lookup(typedefs[i].name);
++	for(i=0; arch.typedefs[i].name; i++) {
++		s = lookup(arch.typedefs[i].name);
+ 		if(s->def == N) {
+-			s->def = typenod(types[typedefs[i].etype]);
++			s->def = typenod(types[arch.typedefs[i].etype]);
+ 			s->origpkg = builtinpkg;
+ 		}
+ 	}
+@@ -2554,6 +2554,6 @@ mkpackage(char* pkgname)
+ 		p = strrchr(namebuf, '.');
+ 		if(p != nil)
+ 			*p = 0;
+-		outfile = smprint("%s.%c", namebuf, thechar);
++		outfile = smprint("%s.%c", namebuf, arch.thechar);
+ 	}
+ }
+diff --git a/src/cmd/gc/obj.c b/src/cmd/gc/obj.c
+index 7e4e97854a..a4d470615a 100644
+--- a/src/cmd/gc/obj.c
++++ b/src/cmd/gc/obj.c
+@@ -95,9 +95,9 @@ dumpobj(void)
+ 	externdcl = tmp;
+ 
+ 	zero = pkglookup("zerovalue", runtimepkg);
+-	ggloblsym(zero, zerosize, DUPOK|RODATA);
++	arch.ggloblsym(zero, zerosize, DUPOK|RODATA);
+ 
+-	dumpdata();
++	arch.dumpdata();
+ 	writeobj(ctxt, bout);
+ 
+ 	if(writearchive) {
+@@ -106,7 +106,7 @@ dumpobj(void)
+ 		if(size&1)
+ 			Bputc(bout, 0);
+ 		Bseek(bout, startobj - ArhdrSize, 0);
+-		snprint(namebuf, sizeof namebuf, "_go_.%c", thechar);
++		snprint(namebuf, sizeof namebuf, "_go_.%c", arch.thechar);
+ 		formathdr(arhdr, namebuf, size);
+ 		Bwrite(bout, arhdr, ArhdrSize);
+ 	}
+@@ -133,13 +133,13 @@ dumpglobls(void)
+ 			continue;
+ 		dowidth(n->type);
+ 
+-		ggloblnod(n);
++		arch.ggloblnod(n);
+ 	}
+ 	
+ 	for(l=funcsyms; l; l=l->next) {
+ 		n = l->n;
+-		dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
+-		ggloblsym(n->sym, widthptr, DUPOK|RODATA);
++		arch.dsymptr(n->sym, 0, n->sym->def->shortname->sym, 0);
++		arch.ggloblsym(n->sym, widthptr, DUPOK|RODATA);
+ 	}
+ 	
+ 	// Do not reprocess funcsyms on next dumpglobls call.
+@@ -250,7 +250,7 @@ stringsym(char *s, int len)
+ 	off = 0;
+ 	
+ 	// string header
+-	off = dsymptr(sym, off, sym, widthptr+widthint);
++	off = arch.dsymptr(sym, off, sym, widthptr+widthint);
+ 	off = duintxx(sym, off, len, widthint);
+ 	
+ 	// string data
+@@ -258,11 +258,11 @@ stringsym(char *s, int len)
+ 		m = 8;
+ 		if(m > len-n)
+ 			m = len-n;
+-		off = dsname(sym, off, s+n, m);
++		off = arch.dsname(sym, off, s+n, m);
+ 	}
+ 	off = duint8(sym, off, 0);  // terminating NUL for runtime
+ 	off = (off+widthptr-1)&~(widthptr-1);  // round to pointer alignment
+-	ggloblsym(sym, off, DUPOK|RODATA);
++	arch.ggloblsym(sym, off, DUPOK|RODATA);
+ 
+ 	return sym;	
+ }
+@@ -283,14 +283,14 @@ slicebytes(Node *nam, char *s, int len)
+ 		m = 8;
+ 		if(m > len-n)
+ 			m = len-n;
+-		off = dsname(sym, off, s+n, m);
++		off = arch.dsname(sym, off, s+n, m);
+ 	}
+-	ggloblsym(sym, off, NOPTR);
++	arch.ggloblsym(sym, off, NOPTR);
+ 	
+ 	if(nam->op != ONAME)
+ 		fatal("slicebytes %N", nam);
+ 	off = nam->xoffset;
+-	off = dsymptr(nam->sym, off, sym, 0);
++	off = arch.dsymptr(nam->sym, off, sym, 0);
+ 	off = duintxx(nam->sym, off, len, widthint);
+ 	duintxx(nam->sym, off, len, widthint);
+ }
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 259cec85a3..9e38da6709 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -9,9 +9,10 @@
+ #include	<u.h>
+ #include	<libc.h>
+ #include	"md5.h"
+-#include	"gg.h"
+-#include	"opt.h"
++#include	"go.h"
++//#include	"opt.h"
+ #include	"../../runtime/funcdata.h"
++#include	"../ld/textflag.h"
+ 
+ static void allocauto(Prog* p);
+ static void emitptrargsmap(void);
+@@ -29,7 +30,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ 	pnod = newname(sym);
+ 	pnod->class = PEXTERN;
+ 	nodconst(&nod, types[TINT32], funcdatakind);
+-	gins(AFUNCDATA, &nod, pnod);
++	arch.gins(arch.AFUNCDATA, &nod, pnod);
+ 	return sym;
+ }
+ 
+@@ -38,7 +39,7 @@ makefuncdatasym(char *namefmt, int64 funcdatakind)
+ // where a complete initialization (definition) of a variable begins.
+ // Since the liveness analysis can see initialization of single-word
+ // variables quite easy, gvardef is usually only called for multi-word
+-// or 'fat' variables, those satisfying isfat(n->type).
++// or 'fat' variables, those satisfying arch.isfat(n->type).
+ // However, gvardef is also called when a non-fat variable is initialized
+ // via a block move; the only time this happens is when you have
+ //	return f()
+@@ -102,20 +103,20 @@ gvardefx(Node *n, int as)
+ 	case PAUTO:
+ 	case PPARAM:
+ 	case PPARAMOUT:
+-		gins(as, N, n);
++		arch.gins(as, N, n);
+ 	}
+ }
+ 
+ void
+ gvardef(Node *n)
+ {
+-	gvardefx(n, AVARDEF);
++	gvardefx(n, arch.AVARDEF);
+ }
+ 
+ void
+ gvarkill(Node *n)
+ {
+-	gvardefx(n, AVARKILL);
++	gvardefx(n, arch.AVARKILL);
+ }
+ 
+ static void
+@@ -124,10 +125,10 @@ removevardef(Prog *firstp)
+ 	Prog *p;
+ 
+ 	for(p = firstp; p != P; p = p->link) {
+-		while(p->link != P && (p->link->as == AVARDEF || p->link->as == AVARKILL))
++		while(p->link != P && (p->link->as == arch.AVARDEF || p->link->as == arch.AVARKILL))
+ 			p->link = p->link->link;
+-		if(p->to.type == D_BRANCH)
+-			while(p->to.u.branch != P && (p->to.u.branch->as == AVARDEF || p->to.u.branch->as == AVARKILL))
++		if(p->to.type == arch.D_BRANCH)
++			while(p->to.u.branch != P && (p->to.u.branch->as == arch.AVARDEF || p->to.u.branch->as == arch.AVARKILL))
+ 				p->to.u.branch = p->to.u.branch->link;
+ 	}
+ }
+@@ -222,39 +223,39 @@ compile(Node *fn)
+ 	continpc = P;
+ 	breakpc = P;
+ 
+-	pl = newplist();
++	pl = arch.newplist();
+ 	pl->name = linksym(curfn->nname->sym);
+ 
+ 	setlineno(curfn);
+ 
+ 	nodconst(&nod1, types[TINT32], 0);
+-	ptxt = gins(ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
++	ptxt = arch.gins(arch.ATEXT, isblank(curfn->nname) ? N : curfn->nname, &nod1);
+ 	if(fn->dupok)
+-		ptxt->TEXTFLAG |= DUPOK;
++		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | DUPOK);
+ 	if(fn->wrapper)
+-		ptxt->TEXTFLAG |= WRAPPER;
++		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | WRAPPER);
+ 	if(fn->needctxt)
+-		ptxt->TEXTFLAG |= NEEDCTXT;
++		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | NEEDCTXT);
+ 	if(fn->nosplit)
+-		ptxt->TEXTFLAG |= NOSPLIT;
++		arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | NOSPLIT);
+ 
+ 	// Clumsy but important.
+ 	// See test/recover.go for test cases and src/reflect/value.go
+ 	// for the actual functions being considered.
+ 	if(myimportpath != nil && strcmp(myimportpath, "reflect") == 0) {
+ 		if(strcmp(curfn->nname->sym->name, "callReflect") == 0 || strcmp(curfn->nname->sym->name, "callMethod") == 0)
+-			ptxt->TEXTFLAG |= WRAPPER;
++			arch.thelinkarch->settextflag(ptxt, arch.thelinkarch->textflag(ptxt) | WRAPPER);
+ 	}	
+ 	
+-	afunclit(&ptxt->from, curfn->nname);
++	arch.afunclit(&ptxt->from, curfn->nname);
+ 
+-	ginit();
++	arch.ginit();
+ 
+ 	gcargs = makefuncdatasym("gcargs·%d", FUNCDATA_ArgsPointerMaps);
+ 	gclocals = makefuncdatasym("gclocals·%d", FUNCDATA_LocalsPointerMaps);
+ 
+ 	for(t=curfn->paramfld; t; t=t->down)
+-		gtrack(tracksym(t->type));
++		arch.gtrack(tracksym(t->type));
+ 
+ 	for(l=fn->dcl; l; l=l->next) {
+ 		n = l->n;
+@@ -265,7 +266,7 @@ compile(Node *fn)
+ 		case PPARAM:
+ 		case PPARAMOUT:
+ 			nodconst(&nod1, types[TUINTPTR], l->n->type->width);
+-			p = gins(ATYPE, l->n, &nod1);
++			p = arch.gins(arch.ATYPE, l->n, &nod1);
+ 			p->from.gotype = linksym(ngotype(l->n));
+ 			break;
+ 		}
+@@ -273,7 +274,7 @@ compile(Node *fn)
+ 
+ 	genlist(curfn->enter);
+ 	genlist(curfn->nbody);
+-	gclean();
++	arch.gclean();
+ 	checklabels();
+ 	if(nerrors != 0)
+ 		goto ret;
+@@ -281,30 +282,30 @@ compile(Node *fn)
+ 		lineno = curfn->endlineno;
+ 
+ 	if(curfn->type->outtuple != 0)
+-		ginscall(throwreturn, 0);
++		arch.ginscall(throwreturn, 0);
+ 
+-	ginit();
++	arch.ginit();
+ 	// TODO: Determine when the final cgen_ret can be omitted. Perhaps always?
+-	cgen_ret(nil);
++	arch.cgen_ret(nil);
+ 	if(hasdefer) {
+ 		// deferreturn pretends to have one uintptr argument.
+ 		// Reserve space for it so stack scanner is happy.
+ 		if(maxarg < widthptr)
+ 			maxarg = widthptr;
+ 	}
+-	gclean();
++	arch.gclean();
+ 	if(nerrors != 0)
+ 		goto ret;
+ 
+-	pc->as = ARET;	// overwrite AEND
++	pc->as = arch.ARET;	// overwrite AEND
+ 	pc->lineno = lineno;
+ 
+ 	fixjmp(ptxt);
+ 	if(!debug['N'] || debug['R'] || debug['P']) {
+-		regopt(ptxt);
++		arch.regopt(ptxt);
+ 		nilopt(ptxt);
+ 	}
+-	expandchecks(ptxt);
++	arch.expandchecks(ptxt);
+ 
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
+@@ -324,7 +325,7 @@ compile(Node *fn)
+ 	gcsymdup(gcargs);
+ 	gcsymdup(gclocals);
+ 
+-	defframe(ptxt);
++	arch.defframe(ptxt);
+ 
+ 	if(0)
+ 		frame(0);
+@@ -368,7 +369,7 @@ emitptrargsmap(void)
+ 		for(j = 0; j < bv->n; j += 32)
+ 			off = duint32(sym, off, bv->b[j/32]);
+ 	}
+-	ggloblsym(sym, off, RODATA);
++	arch.ggloblsym(sym, off, RODATA);
+ 	free(bv);
+ }
+ 
+@@ -434,7 +435,7 @@ allocauto(Prog* ptxt)
+ 		if (ll->n->class == PAUTO)
+ 			ll->n->used = 0;
+ 
+-	markautoused(ptxt);
++	arch.markautoused(ptxt);
+ 
+ 	listsort(&curfn->dcl, cmpstackvar);
+ 
+@@ -444,7 +445,7 @@ allocauto(Prog* ptxt)
+ 	if (n->class == PAUTO && n->op == ONAME && !n->used) {
+ 		// No locals used at all
+ 		curfn->dcl = nil;
+-		fixautoused(ptxt);
++		arch.fixautoused(ptxt);
+ 		return;
+ 	}
+ 
+@@ -465,13 +466,13 @@ allocauto(Prog* ptxt)
+ 
+ 		dowidth(n->type);
+ 		w = n->type->width;
+-		if(w >= MAXWIDTH || w < 0)
++		if(w >= arch.MAXWIDTH || w < 0)
+ 			fatal("bad width");
+ 		stksize += w;
+ 		stksize = rnd(stksize, n->type->align);
+ 		if(haspointers(n->type))
+ 			stkptrsize = stksize;
+-		if(thechar == '5' || thechar == '9')
++		if(arch.thechar == '5' || arch.thechar == '9')
+ 			stksize = rnd(stksize, widthptr);
+ 		if(stksize >= (1ULL<<31)) {
+ 			setlineno(curfn);
+@@ -482,7 +483,7 @@ allocauto(Prog* ptxt)
+ 	stksize = rnd(stksize, widthreg);
+ 	stkptrsize = rnd(stkptrsize, widthreg);
+ 
+-	fixautoused(ptxt);
++	arch.fixautoused(ptxt);
+ 
+ 	// The debug information needs accurate offsets on the symbols.
+ 	for(ll = curfn->dcl; ll != nil; ll=ll->next) {
+@@ -528,12 +529,12 @@ cgen_checknil(Node *n)
+ 		dump("checknil", n);
+ 		fatal("bad checknil");
+ 	}
+-	if(((thechar == '5' || thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
+-		regalloc(&reg, types[tptr], n);
+-		cgen(n, &reg);
+-		gins(ACHECKNIL, &reg, N);
+-		regfree(&reg);
++	if(((arch.thechar == '5' || arch.thechar == '9') && n->op != OREGISTER) || !n->addable || n->op == OLITERAL) {
++		arch.regalloc(&reg, types[tptr], n);
++		arch.cgen(n, &reg);
++		arch.gins(arch.ACHECKNIL, &reg, N);
++		arch.regfree(&reg);
+ 		return;
+ 	}
+-	gins(ACHECKNIL, n, N);
++	arch.gins(arch.ACHECKNIL, n, N);
+ }
+diff --git a/src/cmd/gc/plive.c b/src/cmd/gc/plive.c
+index 480f398711..3c8f66245f 100644
+--- a/src/cmd/gc/plive.c
++++ b/src/cmd/gc/plive.c
+@@ -15,8 +15,7 @@
+ 
+ #include <u.h>
+ #include <libc.h>
+-#include "gg.h"
+-#include "opt.h"
++#include "go.h"
+ #include "../ld/textflag.h"
+ #include "../../runtime/funcdata.h"
+ #include "../../runtime/mgc0.h"
+@@ -372,7 +371,7 @@ iscall(Prog *prog, LSym *name)
+ 		fatal("iscall: prog is nil");
+ 	if(name == nil)
+ 		fatal("iscall: function name is nil");
+-	if(prog->as != ACALL)
++	if(prog->as != arch.ACALL)
+ 		return 0;
+ 	return name == prog->to.sym;
+ }
+@@ -513,14 +512,14 @@ newcfg(Prog *firstp)
+ 	bb = newblock(firstp);
+ 	arrayadd(cfg, &bb);
+ 	for(p = firstp; p != P; p = p->link) {
+-		if(p->to.type == D_BRANCH) {
++		if(p->to.type == arch.D_BRANCH) {
+ 			if(p->to.u.branch == nil)
+ 				fatal("prog branch to nil");
+ 			if(p->to.u.branch->opt == nil) {
+ 				p->to.u.branch->opt = newblock(p->to.u.branch);
+ 				arrayadd(cfg, &p->to.u.branch->opt);
+ 			}
+-			if(p->as != AJMP && p->link != nil && p->link->opt == nil) {
++			if(p->as != arch.AJMP && p->link != nil && p->link->opt == nil) {
+ 				p->link->opt = newblock(p->link);
+ 				arrayadd(cfg, &p->link->opt);
+ 			}
+@@ -545,26 +544,20 @@ newcfg(Prog *firstp)
+ 
+ 			// Stop before an unreachable RET, to avoid creating
+ 			// unreachable control flow nodes.
+-			if(p->link != nil && p->link->as == ARET && p->link->mode == 1)
++			if(p->link != nil && p->link->as == arch.ARET && p->link->mode == 1)
+ 				break;
+ 
+ 			// Collect basic blocks with selectgo calls.
+ 			if(isselectgocall(p))
+ 				arrayadd(selectgo, &bb);
+ 		}
+-		if(bb->last->to.type == D_BRANCH)
++		if(bb->last->to.type == arch.D_BRANCH)
+ 			addedge(bb, bb->last->to.u.branch->opt);
+ 		if(bb->last->link != nil) {
+ 			// Add a fall-through when the instruction is
+ 			// not an unconditional control transfer.
+-			switch(bb->last->as) {
+-			case AJMP:
+-			case ARET:
+-			case AUNDEF:
+-				break;
+-			default:
++			if(bb->last->as != arch.AJMP && bb->last->as != arch.ARET && bb->last->as != arch.AUNDEF)
+ 				addedge(bb, bb->last->link->opt);
+-			}
+ 		}
+ 	}
+ 
+@@ -684,8 +677,8 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 	bvresetall(varkill);
+ 	bvresetall(avarinit);
+ 
+-	proginfo(&info, prog);
+-	if(prog->as == ARET) {
++	arch.proginfo(&info, prog);
++	if(prog->as == arch.ARET) {
+ 		// Return instructions implicitly read all the arguments.  For
+ 		// the sake of correctness, out arguments must be read.  For the
+ 		// sake of backtrace quality, we read in arguments as well.
+@@ -708,17 +701,17 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 				// If we added it to uevar too, we'd not see any kill
+ 				// and decide that the varible was live entry, which it is not.
+ 				// So only use uevar in the non-addrtaken case.
+-				// The p->to.type == D_NONE limits the bvset to
++				// The p->to.type == arch.D_NONE limits the bvset to
+ 				// non-tail-call return instructions; see note above
+ 				// the for loop for details.
+-				if(!node->addrtaken && prog->to.type == D_NONE)
++				if(!node->addrtaken && prog->to.type == arch.D_NONE)
+ 					bvset(uevar, i);
+ 				break;
+ 			}
+ 		}
+ 		return;
+ 	}
+-	if(prog->as == ATEXT) {
++	if(prog->as == arch.ATEXT) {
+ 		// A text instruction marks the entry point to a function and
+ 		// the definition point of all in arguments.
+ 		for(i = 0; i < arraylength(vars); i++) {
+@@ -751,7 +744,7 @@ progeffects(Prog *prog, Array *vars, Bvec *uevar, Bvec *varkill, Bvec *avarinit)
+ 					if(info.flags & (LeftRead | LeftAddr))
+ 						bvset(uevar, pos);
+ 					if(info.flags & LeftWrite)
+-						if(from->node != nil && !isfat(((Node*)(from->node))->type))
++						if(from->node != nil && !arch.isfat(((Node*)(from->node))->type))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -771,9 +764,9 @@ Next:
+ 				if(pos >= arraylength(vars) || *(Node**)arrayget(vars, pos) != to->node)
+ 					fatal("bad bookkeeping in liveness %N %d", to->node, pos);
+ 				if(((Node*)(to->node))->addrtaken) {
+-					if(prog->as != AVARKILL)
++					if(prog->as != arch.AVARKILL)
+ 						bvset(avarinit, pos);
+-					if(prog->as == AVARDEF || prog->as == AVARKILL)
++					if(prog->as == arch.AVARDEF || prog->as == arch.AVARKILL)
+ 						bvset(varkill, pos);
+ 				} else {
+ 					// RightRead is a read, obviously.
+@@ -787,7 +780,7 @@ Next:
+ 					if((info.flags & RightRead) || (info.flags & (RightAddr|RightWrite)) == RightAddr)
+ 						bvset(uevar, pos);
+ 					if(info.flags & RightWrite)
+-						if(to->node != nil && (!isfat(((Node*)(to->node))->type) || prog->as == AVARDEF))
++						if(to->node != nil && (!arch.isfat(((Node*)(to->node))->type) || prog->as == arch.AVARDEF))
+ 							bvset(varkill, pos);
+ 				}
+ 			}
+@@ -959,7 +952,7 @@ livenessprintblock(Liveness *lv, BasicBlock *bb)
+ 	print("\tprog:\n");
+ 	for(prog = bb->first;; prog = prog->link) {
+ 		print("\t\t%P", prog);
+-		if(prog->as == APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
++		if(prog->as == arch.APCDATA && prog->from.offset == PCDATA_StackMapIndex) {
+ 			pos = prog->to.offset;
+ 			live = *(Bvec**)arrayget(lv->livepointers, pos);
+ 			print(" ");
+@@ -1025,13 +1018,13 @@ checkparam(Node *fn, Prog *p, Node *n)
+ static void
+ checkprog(Node *fn, Prog *p)
+ {
+-	if(p->from.type == D_AUTO)
++	if(p->from.type == arch.D_AUTO)
+ 		checkauto(fn, p, p->from.node);
+-	if(p->from.type == D_PARAM)
++	if(p->from.type == arch.D_PARAM)
+ 		checkparam(fn, p, p->from.node);
+-	if(p->to.type == D_AUTO)
++	if(p->to.type == arch.D_AUTO)
+ 		checkauto(fn, p, p->to.node);
+-	if(p->to.type == D_PARAM)
++	if(p->to.type == arch.D_PARAM)
+ 		checkparam(fn, p, p->to.node);
+ }
+ 
+@@ -1051,15 +1044,8 @@ checkptxt(Node *fn, Prog *firstp)
+ 	for(p = firstp; p != P; p = p->link) {
+ 		if(0)
+ 			print("analyzing '%P'\n", p);
+-		switch(p->as) {
+-		case ADATA:
+-		case AGLOBL:
+-		case ANAME:
+-		case ASIGNAME:
+-		case ATYPE:
+-			continue;
+-		}
+-		checkprog(fn, p);
++		if(p->as != arch.ADATA && p->as != arch.AGLOBL && p->as != arch.ANAME && p->as != arch.ASIGNAME && p->as != arch.ATYPE)
++			checkprog(fn, p);
+ 	}
+ }
+ 
+@@ -1228,7 +1214,7 @@ unlinkedprog(int as)
+ 	Prog *p;
+ 
+ 	p = mal(sizeof(*p));
+-	clearp(p);
++	arch.clearp(p);
+ 	p->as = as;
+ 	return p;
+ }
+@@ -1243,10 +1229,10 @@ newpcdataprog(Prog *prog, int32 index)
+ 
+ 	nodconst(&from, types[TINT32], PCDATA_StackMapIndex);
+ 	nodconst(&to, types[TINT32], index);
+-	pcdata = unlinkedprog(APCDATA);
++	pcdata = unlinkedprog(arch.APCDATA);
+ 	pcdata->lineno = prog->lineno;
+-	naddr(&from, &pcdata->from, 0);
+-	naddr(&to, &pcdata->to, 0);
++	arch.naddr(&from, &pcdata->from, 0);
++	arch.naddr(&to, &pcdata->to, 0);
+ 	return pcdata;
+ }
+ 
+@@ -1255,7 +1241,7 @@ newpcdataprog(Prog *prog, int32 index)
+ static int
+ issafepoint(Prog *prog)
+ {
+-	return prog->as == ATEXT || prog->as == ACALL;
++	return prog->as == arch.ATEXT || prog->as == arch.ACALL;
+ }
+ 
+ // Initializes the sets for solving the live variables.  Visits all the
+@@ -1552,7 +1538,7 @@ livenessepilogue(Liveness *lv)
+ 		// walk backward, emit pcdata and populate the maps
+ 		pos = bb->lastbitmapindex;
+ 		if(pos < 0) {
+-			// the first block we encounter should have the ATEXT so
++			// the first block we encounter should have the arch.ATEXT so
+ 			// at no point should pos ever be less than zero.
+ 			fatal("livenessepilogue");
+ 		}
+@@ -1579,7 +1565,7 @@ livenessepilogue(Liveness *lv)
+ 				// Useful sanity check: on entry to the function,
+ 				// the only things that can possibly be live are the
+ 				// input parameters.
+-				if(p->as == ATEXT) {
++				if(p->as == arch.ATEXT) {
+ 					for(j = 0; j < liveout->n; j++) {
+ 						if(!bvget(liveout, j))
+ 							continue;
+@@ -1597,7 +1583,7 @@ livenessepilogue(Liveness *lv)
+ 				// Ambiguously live variables are zeroed immediately after
+ 				// function entry. Mark them live for all the non-entry bitmaps
+ 				// so that GODEBUG=gcdead=1 mode does not poison them.
+-				if(p->as == ACALL)
++				if(p->as == arch.ACALL)
+ 					bvor(locals, locals, ambig);
+ 
+ 				// Show live pointer bitmaps.
+@@ -1607,9 +1593,9 @@ livenessepilogue(Liveness *lv)
+ 				if(msg != nil) {
+ 					fmtstrinit(&fmt);
+ 					fmtprint(&fmt, "%L: live at ", p->lineno);
+-					if(p->as == ACALL && p->to.node)
++					if(p->as == arch.ACALL && p->to.node)
+ 						fmtprint(&fmt, "call to %s:", ((Node*)(p->to.node))->sym->name);
+-					else if(p->as == ACALL)
++					else if(p->as == arch.ACALL)
+ 						fmtprint(&fmt, "indirect call:");
+ 					else
+ 						fmtprint(&fmt, "entry to %s:", ((Node*)(p->from.node))->sym->name);
+@@ -1630,7 +1616,7 @@ livenessepilogue(Liveness *lv)
+ 
+ 				// Only CALL instructions need a PCDATA annotation.
+ 				// The TEXT instruction annotation is implicit.
+-				if(p->as == ACALL) {
++				if(p->as == arch.ACALL) {
+ 					if(isdeferreturn(p)) {
+ 						// runtime.deferreturn modifies its return address to return
+ 						// back to the CALL, not to the subsequent instruction.
+@@ -1773,7 +1759,7 @@ livenesscompact(Liveness *lv)
+ 	
+ 	// Rewrite PCDATA instructions to use new numbering.
+ 	for(p=lv->ptxt; p != P; p=p->link) {
+-		if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex) {
++		if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex) {
+ 			i = p->to.offset;
+ 			if(i >= 0)
+ 				p->to.offset = remap[i];
+@@ -1860,7 +1846,7 @@ livenessprintdebug(Liveness *lv)
+ 		// program listing, with individual effects listed
+ 		for(p = bb->first;; p = p->link) {
+ 			print("%P\n", p);
+-			if(p->as == APCDATA && p->from.offset == PCDATA_StackMapIndex)
++			if(p->as == arch.APCDATA && p->from.offset == PCDATA_StackMapIndex)
+ 				pcdata = p->to.offset;
+ 			progeffects(p, lv->vars, uevar, varkill, avarinit);
+ 			printed = 0;
+@@ -1937,7 +1923,7 @@ twobitwritesymbol(Array *arr, Sym *sym)
+ 		}
+ 	}
+ 	duint32(sym, 0, i); // number of bitmaps
+-	ggloblsym(sym, off, RODATA);
++	arch.ggloblsym(sym, off, RODATA);
+ }
+ 
+ static void
+diff --git a/src/cmd/gc/popt.c b/src/cmd/gc/popt.c
+index 6d12d20526..ee771aba6a 100644
+--- a/src/cmd/gc/popt.c
++++ b/src/cmd/gc/popt.c
+@@ -34,8 +34,7 @@
+ 
+ #include	<u.h>
+ #include	<libc.h>
+-#include	"gg.h"
+-#include	"opt.h"
++#include	"go.h"
+ 
+ // p is a call instruction. Does the call fail to return?
+ int
+@@ -82,7 +81,7 @@ chasejmp(Prog *p, int *jmploop)
+ 	int n;
+ 
+ 	n = 0;
+-	while(p != P && p->as == AJMP && p->to.type == D_BRANCH) {
++	while(p != P && p->as == arch.AJMP && p->to.type == arch.D_BRANCH) {
+ 		if(++n > 10) {
+ 			*jmploop = 1;
+ 			break;
+@@ -113,9 +112,9 @@ mark(Prog *firstp)
+ 		if(p->opt != dead)
+ 			break;
+ 		p->opt = alive;
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch)
++		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch)
+ 			mark(p->to.u.branch);
+-		if(p->as == AJMP || p->as == ARET || p->as == AUNDEF)
++		if(p->as == arch.AJMP || p->as == arch.ARET || p->as == arch.AUNDEF)
+ 			break;
+ 	}
+ }
+@@ -134,7 +133,7 @@ fixjmp(Prog *firstp)
+ 	for(p=firstp; p; p=p->link) {
+ 		if(debug['R'] && debug['v'])
+ 			print("%P\n", p);
+-		if(p->as != ACALL && p->to.type == D_BRANCH && p->to.u.branch && p->to.u.branch->as == AJMP) {
++		if(p->as != arch.ACALL && p->to.type == arch.D_BRANCH && p->to.u.branch && p->to.u.branch->as == arch.AJMP) {
+ 			p->to.u.branch = chasejmp(p->to.u.branch, &jmploop);
+ 			if(debug['R'] && debug['v'])
+ 				print("->%P\n", p);
+@@ -151,8 +150,8 @@ fixjmp(Prog *firstp)
+ 	last = nil;
+ 	for(p=firstp; p; p=p->link) {
+ 		if(p->opt == dead) {
+-			if(p->link == P && p->as == ARET && last && last->as != ARET) {
+-				// This is the final ARET, and the code so far doesn't have one.
++			if(p->link == P && p->as == arch.ARET && last && last->as != arch.ARET) {
++				// This is the final arch.ARET, and the code so far doesn't have one.
+ 				// Let it stay. The register allocator assumes that all live code in
+ 				// the function can be traversed by starting at all the RET instructions
+ 				// and following predecessor links. If we remove the final RET,
+@@ -177,7 +176,7 @@ fixjmp(Prog *firstp)
+ 	if(!jmploop) {
+ 		last = nil;
+ 		for(p=firstp; p; p=p->link) {
+-			if(p->as == AJMP && p->to.type == D_BRANCH && p->to.u.branch == p->link) {
++			if(p->as == arch.AJMP && p->to.type == arch.D_BRANCH && p->to.u.branch == p->link) {
+ 				if(debug['R'] && debug['v'])
+ 					print("del %P\n", p);
+ 				continue;
+@@ -233,7 +232,7 @@ flowstart(Prog *firstp, int size)
+ 	nf = 0;
+ 	for(p = firstp; p != P; p = p->link) {
+ 		p->opt = nil; // should be already, but just in case
+-		proginfo(&info, p);
++		arch.proginfo(&info, p);
+ 		if(info.flags & Skip)
+ 			continue;
+ 		p->opt = (void*)1;
+@@ -270,13 +269,13 @@ flowstart(Prog *firstp, int size)
+ 	// Fill in pred/succ information.
+ 	for(f = start; f != nil; f = f->link) {
+ 		p = f->prog;
+-		proginfo(&info, p);
++		arch.proginfo(&info, p);
+ 		if(!(info.flags & Break)) {
+ 			f1 = f->link;
+ 			f->s1 = f1;
+ 			f1->p1 = f;
+ 		}
+-		if(p->to.type == D_BRANCH) {
++		if(p->to.type == arch.D_BRANCH) {
+ 			if(p->to.u.branch == P)
+ 				fatal("pnil %P", p);
+ 			f1 = p->to.u.branch->opt;
+@@ -384,6 +383,10 @@ loophead(int32 *idom, Flow *r)
+ 	return 0;
+ }
+ 
++enum {
++	LOOP = 3,
++};
++
+ static void
+ loopmark(Flow **rpo2r, int32 head, Flow *r)
+ {
+@@ -584,7 +587,7 @@ mergetemp(Prog *firstp)
+ 	// single-use (that's why we have so many!).
+ 	for(r = (TempFlow*)g->start; r != nil; r = (TempFlow*)r->f.link) {
+ 		p = r->f.prog;
+-		proginfo(&info, p);
++		arch.proginfo(&info, p);
+ 
+ 		if(p->from.node != N && ((Node*)(p->from.node))->opt && p->to.node != N && ((Node*)(p->to.node))->opt)
+ 			fatal("double node %P", p);
+@@ -604,7 +607,7 @@ mergetemp(Prog *firstp)
+ 	}
+ 	
+ 	if(Debug > 1)
+-		dumpit("before", g->start, 0);
++		arch.dumpit("before", g->start, 0);
+ 	
+ 	nkill = 0;
+ 
+@@ -615,10 +618,10 @@ mergetemp(Prog *firstp)
+ 		// Used in only one instruction, which had better be a write.
+ 		if((r = v->use) != nil && r->uselink == nil) {
+ 			p = r->f.prog;
+-			proginfo(&info, p);
++			arch.proginfo(&info, p);
+ 			if(p->to.node == v->node && (info.flags & RightWrite) && !(info.flags & RightRead)) {
+-				p->as = ANOP;
+-				p->to = zprog.to;
++				p->as = arch.ANOP;
++				p->to = arch.zprog.to;
+ 				v->removed = 1;
+ 				if(Debug)
+ 					print("drop write-only %S\n", v->node->sym);
+@@ -632,9 +635,9 @@ mergetemp(Prog *firstp)
+ 		// no jumps to the next instruction. Happens mainly in 386 compiler.
+ 		if((r = v->use) != nil && r->f.link == &r->uselink->f && r->uselink->uselink == nil && uniqp(r->f.link) == &r->f) {
+ 			p = r->f.prog;
+-			proginfo(&info, p);
++			arch.proginfo(&info, p);
+ 			p1 = r->f.link->prog;
+-			proginfo(&info1, p1);
++			arch.proginfo(&info1, p1);
+ 			enum {
+ 				SizeAny = SizeB | SizeW | SizeL | SizeQ | SizeF | SizeD,
+ 			};
+@@ -642,7 +645,7 @@ mergetemp(Prog *firstp)
+ 			   !((info.flags|info1.flags) & (LeftAddr|RightAddr)) &&
+ 			   (info.flags & SizeAny) == (info1.flags & SizeAny)) {
+ 				p1->from = p->from;
+-				excise(&r->f);
++				arch.excise(&r->f);
+ 				v->removed = 1;
+ 				if(Debug)
+ 					print("drop immediate-use %S\n", v->node->sym);
+@@ -738,7 +741,7 @@ mergetemp(Prog *firstp)
+ 		}
+ 	
+ 		if(Debug > 1)
+-			dumpit("after", g->start, 0);
++			arch.dumpit("after", g->start, 0);
+ 	}
+ 
+ 	// Update node references to use merged temporaries.
+@@ -810,7 +813,7 @@ varkillwalk(TempVar *v, TempFlow *r0, uint32 gen)
+ 			v->end = p->pc;
+ 		if(v->start > p->pc)
+ 			v->start = p->pc;
+-		if(p->as == ARET || (p->as == AVARKILL && p->to.node == v->node))
++		if(p->as == arch.ARET || (p->as == arch.AVARKILL && p->to.node == v->node))
+ 			break;
+ 	}
+ 	
+@@ -856,16 +859,16 @@ nilopt(Prog *firstp)
+ 		return;
+ 
+ 	if(debug_checknil > 1 /* || strcmp(curfn->nname->sym->name, "f1") == 0 */)
+-		dumpit("nilopt", g->start, 0);
++		arch.dumpit("nilopt", g->start, 0);
+ 
+ 	ncheck = 0;
+ 	nkill = 0;
+ 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
+ 		p = r->f.prog;
+-		if(p->as != ACHECKNIL || !regtyp(&p->from))
++		if(p->as != arch.ACHECKNIL || !arch.regtyp(&p->from))
+ 			continue;
+ 		ncheck++;
+-		if(stackaddr(&p->from)) {
++		if(arch.stackaddr(&p->from)) {
+ 			if(debug_checknil && p->lineno > 1)
+ 				warnl(p->lineno, "removed nil check of SP address");
+ 			r->kill = 1;
+@@ -888,7 +891,7 @@ nilopt(Prog *firstp)
+ 	for(r = (NilFlow*)g->start; r != nil; r = (NilFlow*)r->f.link) {
+ 		if(r->kill) {
+ 			nkill++;
+-			excise(&r->f);
++			arch.excise(&r->f);
+ 		}
+ 	}
+ 
+@@ -907,13 +910,13 @@ nilwalkback(NilFlow *rcheck)
+ 	
+ 	for(r = rcheck; r != nil; r = (NilFlow*)uniqp(&r->f)) {
+ 		p = r->f.prog;
+-		proginfo(&info, p);
+-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
++		arch.proginfo(&info, p);
++		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
+ 			// Found initialization of value we're checking for nil.
+ 			// without first finding the check, so this one is unchecked.
+ 			return;
+ 		}
+-		if(r != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from)) {
++		if(r != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from)) {
+ 			rcheck->kill = 1;
+ 			return;
+ 		}
+@@ -934,11 +937,11 @@ nilwalkback(NilFlow *rcheck)
+ 		
+ 		// If same check, stop this loop but still check
+ 		// alternate predecessors up to this point.
+-		if(r1 != rcheck && p->as == ACHECKNIL && sameaddr(&p->from, &rcheck->f.prog->from))
++		if(r1 != rcheck && p->as == arch.ACHECKNIL && arch.sameaddr(&p->from, &rcheck->f.prog->from))
+ 			break;
+ 
+-		proginfo(&info, p);
+-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from)) {
++		arch.proginfo(&info, p);
++		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from)) {
+ 			// Found initialization of value we're checking for nil.
+ 			// without first finding the check, so this one is unchecked.
+ 			rcheck->kill = 0;
+@@ -948,8 +951,8 @@ nilwalkback(NilFlow *rcheck)
+ 		if(r1->f.p1 == nil && r1->f.p2 == nil) {
+ 			print("lost pred for %P\n", rcheck->f.prog);
+ 			for(r1=r0; r1!=nil; r1=(NilFlow*)r1->f.p1) {
+-				proginfo(&info, r1->f.prog);
+-				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
++				arch.proginfo(&info, r1->f.prog);
++				print("\t%P %d %d %D %D\n", r1->f.prog, info.flags&RightWrite, arch.sameaddr(&r1->f.prog->to, &rcheck->f.prog->from), &r1->f.prog->to, &rcheck->f.prog->from);
+ 			}
+ 			fatal("lost pred trail");
+ 		}
+@@ -978,25 +981,25 @@ nilwalkfwd(NilFlow *rcheck)
+ 	last = nil;
+ 	for(r = (NilFlow*)uniqs(&rcheck->f); r != nil; r = (NilFlow*)uniqs(&r->f)) {
+ 		p = r->f.prog;
+-		proginfo(&info, p);
++		arch.proginfo(&info, p);
+ 		
+-		if((info.flags & LeftRead) && smallindir(&p->from, &rcheck->f.prog->from)) {
++		if((info.flags & LeftRead) && arch.smallindir(&p->from, &rcheck->f.prog->from)) {
+ 			rcheck->kill = 1;
+ 			return;
+ 		}
+-		if((info.flags & (RightRead|RightWrite)) && smallindir(&p->to, &rcheck->f.prog->from)) {
++		if((info.flags & (RightRead|RightWrite)) && arch.smallindir(&p->to, &rcheck->f.prog->from)) {
+ 			rcheck->kill = 1;
+ 			return;
+ 		}
+ 		
+ 		// Stop if another nil check happens.
+-		if(p->as == ACHECKNIL)
++		if(p->as == arch.ACHECKNIL)
+ 			return;
+ 		// Stop if value is lost.
+-		if((info.flags & RightWrite) && sameaddr(&p->to, &rcheck->f.prog->from))
++		if((info.flags & RightWrite) && arch.sameaddr(&p->to, &rcheck->f.prog->from))
+ 			return;
+ 		// Stop if memory write.
+-		if((info.flags & RightWrite) && !regtyp(&p->to))
++		if((info.flags & RightWrite) && !arch.regtyp(&p->to))
+ 			return;
+ 		// Stop if we jump backward.
+ 		// This test is valid because all the NilFlow* are pointers into
+diff --git a/src/cmd/gc/popt.h b/src/cmd/gc/popt.h
+deleted file mode 100644
+index 8d5dfff1a7..0000000000
+--- a/src/cmd/gc/popt.h
++++ /dev/null
+@@ -1,46 +0,0 @@
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-typedef struct Flow Flow;
+-typedef struct Graph Graph;
+-
+-struct Flow {
+-	Prog*	prog;   	// actual instruction
+-	Flow*	p1;     	// predecessors of this instruction: p1,
+-	Flow*	p2;     	// and then p2 linked though p2link.
+-	Flow*	p2link;
+-	Flow*	s1;     	// successors of this instruction (at most two: s1 and s2).
+-	Flow*	s2;
+-	Flow*	link;   	// next instruction in function code
+-	
+-	int32	active;	// usable by client
+-
+-	int32	rpo;		// reverse post ordering
+-	uint16	loop;		// x5 for every loop
+-	uchar	refset;		// diagnostic generated
+-};
+-
+-struct Graph
+-{
+-	Flow*	start;
+-	int	num;
+-	
+-	// After calling flowrpo, rpo lists the flow nodes in reverse postorder,
+-	// and each non-dead Flow node f has g->rpo[f->rpo] == f.
+-	Flow**	rpo;
+-};
+-
+-void	fixjmp(Prog*);
+-Graph*	flowstart(Prog*, int);
+-void	flowrpo(Graph*);
+-void	flowend(Graph*);
+-void	mergetemp(Prog*);
+-void	nilopt(Prog*);
+-int	noreturn(Prog*);
+-int	regtyp(Addr*);
+-int	sameaddr(Addr*, Addr*);
+-int	smallindir(Addr*, Addr*);
+-int	stackaddr(Addr*);
+-Flow*	uniqp(Flow*);
+-Flow*	uniqs(Flow*);
+diff --git a/src/cmd/gc/reflect.c b/src/cmd/gc/reflect.c
+index fde473ac49..bc6c530939 100644
+--- a/src/cmd/gc/reflect.c
++++ b/src/cmd/gc/reflect.c
+@@ -523,15 +523,15 @@ dimportpath(Pkg *p)
+ 	n->xoffset = 0;
+ 	p->pathsym = n->sym;
+ 
+-	gdatastring(n, p->path);
+-	ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
++	arch.gdatastring(n, p->path);
++	arch.ggloblsym(n->sym, types[TSTRING]->width, DUPOK|RODATA);
+ }
+ 
+ static int
+ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ {
+ 	if(pkg == nil)
+-		return dgostringptr(s, ot, nil);
++		return arch.dgostringptr(s, ot, nil);
+ 
+ 	// Emit reference to go.importpath.""., which 6l will
+ 	// rewrite using the correct import path.  Every package
+@@ -541,11 +541,11 @@ dgopkgpath(Sym *s, int ot, Pkg *pkg)
+ 
+ 		if(ns == nil)
+ 			ns = pkglookup("importpath.\"\".", mkpkg(strlit("go")));
+-		return dsymptr(s, ot, ns, 0);
++		return arch.dsymptr(s, ot, ns, 0);
+ 	}
+ 
+ 	dimportpath(pkg);
+-	return dsymptr(s, ot, pkg->pathsym, 0);
++	return arch.dsymptr(s, ot, pkg->pathsym, 0);
+ }
+ 
+ /*
+@@ -565,7 +565,7 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 
+ 	// fill in *extraType pointer in header
+ 	off = rnd(off, widthptr);
+-	dsymptr(sym, ptroff, sym, off);
++	arch.dsymptr(sym, ptroff, sym, off);
+ 
+ 	n = 0;
+ 	for(a=m; a; a=a->link) {
+@@ -576,18 +576,18 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 	ot = off;
+ 	s = sym;
+ 	if(t->sym) {
+-		ot = dgostringptr(s, ot, t->sym->name);
++		ot = arch.dgostringptr(s, ot, t->sym->name);
+ 		if(t != types[t->etype] && t != errortype)
+ 			ot = dgopkgpath(s, ot, t->sym->pkg);
+ 		else
+-			ot = dgostringptr(s, ot, nil);
++			ot = arch.dgostringptr(s, ot, nil);
+ 	} else {
+-		ot = dgostringptr(s, ot, nil);
+-		ot = dgostringptr(s, ot, nil);
++		ot = arch.dgostringptr(s, ot, nil);
++		ot = arch.dgostringptr(s, ot, nil);
+ 	}
+ 
+ 	// slice header
+-	ot = dsymptr(s, ot, s, ot + widthptr + 2*widthint);
++	ot = arch.dsymptr(s, ot, s, ot + widthptr + 2*widthint);
+ 	ot = duintxx(s, ot, n, widthint);
+ 	ot = duintxx(s, ot, n, widthint);
+ 
+@@ -595,16 +595,16 @@ dextratype(Sym *sym, int off, Type *t, int ptroff)
+ 	for(a=m; a; a=a->link) {
+ 		// method
+ 		// ../../runtime/type.go:/method
+-		ot = dgostringptr(s, ot, a->name);
++		ot = arch.dgostringptr(s, ot, a->name);
+ 		ot = dgopkgpath(s, ot, a->pkg);
+-		ot = dsymptr(s, ot, dtypesym(a->mtype), 0);
+-		ot = dsymptr(s, ot, dtypesym(a->type), 0);
++		ot = arch.dsymptr(s, ot, dtypesym(a->mtype), 0);
++		ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+ 		if(a->isym)
+-			ot = dsymptr(s, ot, a->isym, 0);
++			ot = arch.dsymptr(s, ot, a->isym, 0);
+ 		else
+ 			ot = duintptr(s, ot, 0);
+ 		if(a->tsym)
+-			ot = dsymptr(s, ot, a->tsym, 0);
++			ot = arch.dsymptr(s, ot, a->tsym, 0);
+ 		else
+ 			ot = duintptr(s, ot, 0);
+ 	}
+@@ -792,17 +792,17 @@ dcommontype(Sym *s, int ot, Type *t)
+ 		i |= KindGCProg;
+ 	ot = duint8(s, ot, i);  // kind
+ 	if(algsym == S)
+-		ot = dsymptr(s, ot, algarray, alg*sizeofAlg);
++		ot = arch.dsymptr(s, ot, algarray, alg*sizeofAlg);
+ 	else
+-		ot = dsymptr(s, ot, algsym, 0);
++		ot = arch.dsymptr(s, ot, algsym, 0);
+ 	// gc
+ 	if(gcprog) {
+ 		gengcprog(t, &gcprog0, &gcprog1);
+ 		if(gcprog0 != S)
+-			ot = dsymptr(s, ot, gcprog0, 0);
++			ot = arch.dsymptr(s, ot, gcprog0, 0);
+ 		else
+ 			ot = duintptr(s, ot, 0);
+-		ot = dsymptr(s, ot, gcprog1, 0);
++		ot = arch.dsymptr(s, ot, gcprog1, 0);
+ 	} else {
+ 		gengcmask(t, gcmask);
+ 		x1 = 0;
+@@ -821,14 +821,14 @@ dcommontype(Sym *s, int ot, Type *t)
+ 			sbits->flags |= SymUniq;
+ 			for(i = 0; i < 2*widthptr; i++)
+ 				duint8(sbits, i, gcmask[i]);
+-			ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
++			arch.ggloblsym(sbits, 2*widthptr, DUPOK|RODATA);
+ 		}
+-		ot = dsymptr(s, ot, sbits, 0);
++		ot = arch.dsymptr(s, ot, sbits, 0);
+ 		ot = duintptr(s, ot, 0);
+ 	}
+ 	p = smprint("%-uT", t);
+ 	//print("dcommontype: %s\n", p);
+-	ot = dgostringptr(s, ot, p);	// string
++	ot = arch.dgostringptr(s, ot, p);	// string
+ 	free(p);
+ 
+ 	// skip pointer to extraType,
+@@ -837,8 +837,8 @@ dcommontype(Sym *s, int ot, Type *t)
+ 	// otherwise linker will assume 0.
+ 	ot += widthptr;
+ 
+-	ot = dsymptr(s, ot, sptr, 0);  // ptrto type
+-	ot = dsymptr(s, ot, zero, 0);  // ptr to zero value
++	ot = arch.dsymptr(s, ot, sptr, 0);  // ptrto type
++	ot = arch.dsymptr(s, ot, zero, 0);  // ptr to zero value
+ 	return ot;
+ }
+ 
+@@ -1068,15 +1068,15 @@ ok:
+ 			s2 = dtypesym(t2);
+ 			ot = dcommontype(s, ot, t);
+ 			xt = ot - 3*widthptr;
+-			ot = dsymptr(s, ot, s1, 0);
+-			ot = dsymptr(s, ot, s2, 0);
++			ot = arch.dsymptr(s, ot, s1, 0);
++			ot = arch.dsymptr(s, ot, s2, 0);
+ 			ot = duintptr(s, ot, t->bound);
+ 		} else {
+ 			// ../../runtime/type.go:/SliceType
+ 			s1 = dtypesym(t->type);
+ 			ot = dcommontype(s, ot, t);
+ 			xt = ot - 3*widthptr;
+-			ot = dsymptr(s, ot, s1, 0);
++			ot = arch.dsymptr(s, ot, s1, 0);
+ 		}
+ 		break;
+ 
+@@ -1085,7 +1085,7 @@ ok:
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+-		ot = dsymptr(s, ot, s1, 0);
++		ot = arch.dsymptr(s, ot, s1, 0);
+ 		ot = duintptr(s, ot, t->chan);
+ 		break;
+ 
+@@ -1106,21 +1106,21 @@ ok:
+ 
+ 		// two slice headers: in and out.
+ 		ot = rnd(ot, widthptr);
+-		ot = dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
++		ot = arch.dsymptr(s, ot, s, ot+2*(widthptr+2*widthint));
+ 		n = t->thistuple + t->intuple;
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+-		ot = dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
++		ot = arch.dsymptr(s, ot, s, ot+1*(widthptr+2*widthint)+n*widthptr);
+ 		ot = duintxx(s, ot, t->outtuple, widthint);
+ 		ot = duintxx(s, ot, t->outtuple, widthint);
+ 
+ 		// slice data
+ 		for(t1=getthisx(t)->type; t1; t1=t1->down, n++)
+-			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+ 		for(t1=getinargx(t)->type; t1; t1=t1->down, n++)
+-			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+ 		for(t1=getoutargx(t)->type; t1; t1=t1->down, n++)
+-			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
++			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
+ 		break;
+ 
+ 	case TINTER:
+@@ -1134,14 +1134,14 @@ ok:
+ 		// ../../runtime/type.go:/InterfaceType
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+-		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
++		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		for(a=m; a; a=a->link) {
+ 			// ../../runtime/type.go:/imethod
+-			ot = dgostringptr(s, ot, a->name);
++			ot = arch.dgostringptr(s, ot, a->name);
+ 			ot = dgopkgpath(s, ot, a->pkg);
+-			ot = dsymptr(s, ot, dtypesym(a->type), 0);
++			ot = arch.dsymptr(s, ot, dtypesym(a->type), 0);
+ 		}
+ 		break;
+ 
+@@ -1153,10 +1153,10 @@ ok:
+ 		s4 = dtypesym(hmap(t));
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+-		ot = dsymptr(s, ot, s1, 0);
+-		ot = dsymptr(s, ot, s2, 0);
+-		ot = dsymptr(s, ot, s3, 0);
+-		ot = dsymptr(s, ot, s4, 0);
++		ot = arch.dsymptr(s, ot, s1, 0);
++		ot = arch.dsymptr(s, ot, s2, 0);
++		ot = arch.dsymptr(s, ot, s3, 0);
++		ot = arch.dsymptr(s, ot, s4, 0);
+ 		if(t->down->width > MAXKEYSIZE) {
+ 			ot = duint8(s, ot, widthptr);
+ 			ot = duint8(s, ot, 1); // indirect
+@@ -1186,7 +1186,7 @@ ok:
+ 		s1 = dtypesym(t->type);
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+-		ot = dsymptr(s, ot, s1, 0);
++		ot = arch.dsymptr(s, ot, s1, 0);
+ 		break;
+ 
+ 	case TSTRUCT:
+@@ -1199,32 +1199,32 @@ ok:
+ 		}
+ 		ot = dcommontype(s, ot, t);
+ 		xt = ot - 3*widthptr;
+-		ot = dsymptr(s, ot, s, ot+widthptr+2*widthint);
++		ot = arch.dsymptr(s, ot, s, ot+widthptr+2*widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		ot = duintxx(s, ot, n, widthint);
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+ 			// ../../runtime/type.go:/structField
+ 			if(t1->sym && !t1->embedded) {
+-				ot = dgostringptr(s, ot, t1->sym->name);
++				ot = arch.dgostringptr(s, ot, t1->sym->name);
+ 				if(exportname(t1->sym->name))
+-					ot = dgostringptr(s, ot, nil);
++					ot = arch.dgostringptr(s, ot, nil);
+ 				else
+ 					ot = dgopkgpath(s, ot, t1->sym->pkg);
+ 			} else {
+-				ot = dgostringptr(s, ot, nil);
++				ot = arch.dgostringptr(s, ot, nil);
+ 				if(t1->type->sym != S && t1->type->sym->pkg == builtinpkg)
+ 					ot = dgopkgpath(s, ot, localpkg);
+ 				else
+-					ot = dgostringptr(s, ot, nil);
++					ot = arch.dgostringptr(s, ot, nil);
+ 			}
+-			ot = dsymptr(s, ot, dtypesym(t1->type), 0);
+-			ot = dgostrlitptr(s, ot, t1->note);
++			ot = arch.dsymptr(s, ot, dtypesym(t1->type), 0);
++			ot = arch.dgostrlitptr(s, ot, t1->note);
+ 			ot = duintptr(s, ot, t1->width);	// field offset
+ 		}
+ 		break;
+ 	}
+ 	ot = dextratype(s, ot, t, xt);
+-	ggloblsym(s, ot, dupok|RODATA);
++	arch.ggloblsym(s, ot, dupok|RODATA);
+ 
+ 	// generate typelink.foo pointing at s = type.foo.
+ 	// The linker will leave a table of all the typelinks for
+@@ -1237,8 +1237,8 @@ ok:
+ 		case TCHAN:
+ 		case TMAP:
+ 			slink = typelinksym(t);
+-			dsymptr(slink, 0, s, 0);
+-			ggloblsym(slink, widthptr, dupok|RODATA);
++			arch.dsymptr(slink, 0, s, 0);
++			arch.ggloblsym(slink, widthptr, dupok|RODATA);
+ 		}
+ 	}
+ 
+@@ -1330,18 +1330,18 @@ dalgsym(Type *t)
+ 		hashfunc = pkglookup(p, typepkg);
+ 		free(p);
+ 		ot = 0;
+-		ot = dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
++		ot = arch.dsymptr(hashfunc, ot, pkglookup("memhash_varlen", runtimepkg), 0);
+ 		ot = duintxx(hashfunc, ot, t->width, widthptr); // size encoded in closure
+-		ggloblsym(hashfunc, ot, DUPOK|RODATA);
++		arch.ggloblsym(hashfunc, ot, DUPOK|RODATA);
+ 
+ 		// make equality closure
+ 		p = smprint(".eqfunc%lld", t->width);
+ 		eqfunc = pkglookup(p, typepkg);
+ 		free(p);
+ 		ot = 0;
+-		ot = dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
++		ot = arch.dsymptr(eqfunc, ot, pkglookup("memequal_varlen", runtimepkg), 0);
+ 		ot = duintxx(eqfunc, ot, t->width, widthptr);
+-		ggloblsym(eqfunc, ot, DUPOK|RODATA);
++		arch.ggloblsym(eqfunc, ot, DUPOK|RODATA);
+ 	} else {
+ 		// generate an alg table specific to this type
+ 		s = typesymprefix(".alg", t);
+@@ -1354,16 +1354,16 @@ dalgsym(Type *t)
+ 		geneq(eq, t);
+ 
+ 		// make Go funcs (closures) for calling hash and equal from Go
+-		dsymptr(hashfunc, 0, hash, 0);
+-		ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
+-		dsymptr(eqfunc, 0, eq, 0);
+-		ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
++		arch.dsymptr(hashfunc, 0, hash, 0);
++		arch.ggloblsym(hashfunc, widthptr, DUPOK|RODATA);
++		arch.dsymptr(eqfunc, 0, eq, 0);
++		arch.ggloblsym(eqfunc, widthptr, DUPOK|RODATA);
+ 	}
+ 	// ../../runtime/alg.go:/typeAlg
+ 	ot = 0;
+-	ot = dsymptr(s, ot, hashfunc, 0);
+-	ot = dsymptr(s, ot, eqfunc, 0);
+-	ggloblsym(s, ot, DUPOK|RODATA);
++	ot = arch.dsymptr(s, ot, hashfunc, 0);
++	ot = arch.dsymptr(s, ot, eqfunc, 0);
++	arch.ggloblsym(s, ot, DUPOK|RODATA);
+ 	return s;
+ }
+ 
+@@ -1546,7 +1546,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
+ 	// Don't generate it if it's too large, runtime will unroll directly into GC bitmap.
+ 	if(size <= MaxGCMask) {
+ 		gc0 = typesymprefix(".gc", t);
+-		ggloblsym(gc0, size, DUPOK|NOPTR);
++		arch.ggloblsym(gc0, size, DUPOK|NOPTR);
+ 		*pgc0 = gc0;
+ 	}
+ 
+@@ -1556,7 +1556,7 @@ gengcprog(Type *t, Sym **pgc0, Sym **pgc1)
+ 	xoffset = 0;
+ 	gengcprog1(&g, t, &xoffset);
+ 	ot = proggenfini(&g);
+-	ggloblsym(gc1, ot, DUPOK|RODATA);
++	arch.ggloblsym(gc1, ot, DUPOK|RODATA);
+ 	*pgc1 = gc1;
+ }
+ 
+diff --git a/src/cmd/gc/sinit.c b/src/cmd/gc/sinit.c
+index 8c24c122d6..3d303eda09 100644
+--- a/src/cmd/gc/sinit.c
++++ b/src/cmd/gc/sinit.c
+@@ -302,13 +302,13 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 	case OLITERAL:
+ 		if(iszero(r))
+ 			return 1;
+-		gdata(l, r, l->type->width);
++		arch.gdata(l, r, l->type->width);
+ 		return 1;
+ 
+ 	case OADDR:
+ 		switch(r->left->op) {
+ 		case ONAME:
+-			gdata(l, r, l->type->width);
++			arch.gdata(l, r, l->type->width);
+ 			return 1;
+ 		}
+ 		break;
+@@ -322,7 +322,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 		case OSTRUCTLIT:
+ 		case OMAPLIT:
+ 			// copy pointer
+-			gdata(l, nod(OADDR, r->nname, N), l->type->width);
++			arch.gdata(l, nod(OADDR, r->nname, N), l->type->width);
+ 			return 1;
+ 		}
+ 		break;
+@@ -333,11 +333,11 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 			a = r->nname;
+ 			n1 = *l;
+ 			n1.xoffset = l->xoffset + Array_array;
+-			gdata(&n1, nod(OADDR, a, N), widthptr);
++			arch.gdata(&n1, nod(OADDR, a, N), widthptr);
+ 			n1.xoffset = l->xoffset + Array_nel;
+-			gdata(&n1, r->right, widthint);
++			arch.gdata(&n1, r->right, widthint);
+ 			n1.xoffset = l->xoffset + Array_cap;
+-			gdata(&n1, r->right, widthint);
++			arch.gdata(&n1, r->right, widthint);
+ 			return 1;
+ 		}
+ 		// fall through
+@@ -349,7 +349,7 @@ staticcopy(Node *l, Node *r, NodeList **out)
+ 			n1.xoffset = l->xoffset + e->xoffset;
+ 			n1.type = e->expr->type;
+ 			if(e->expr->op == OLITERAL)
+-				gdata(&n1, e->expr, n1.type->width);
++				arch.gdata(&n1, e->expr, n1.type->width);
+ 			else {
+ 				ll = nod(OXXX, N, N);
+ 				*ll = n1;
+@@ -394,14 +394,14 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 	case OLITERAL:
+ 		if(iszero(r))
+ 			return 1;
+-		gdata(l, r, l->type->width);
++		arch.gdata(l, r, l->type->width);
+ 		return 1;
+ 
+ 	case OADDR:
+ 		if(stataddr(&nam, r->left)) {
+ 			n1 = *r;
+ 			n1.left = &nam;
+-			gdata(l, &n1, l->type->width);
++			arch.gdata(l, &n1, l->type->width);
+ 			return 1;
+ 		}
+ 	
+@@ -417,7 +417,7 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 			// Init pointer.
+ 			a = staticname(r->left->type, 1);
+ 			r->nname = a;
+-			gdata(l, nod(OADDR, a, N), l->type->width);
++			arch.gdata(l, nod(OADDR, a, N), l->type->width);
+ 			// Init underlying literal.
+ 			if(!staticassign(a, r->left, out))
+ 				*out = list(*out, nod(OAS, a, r->left));
+@@ -444,11 +444,11 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 			r->nname = a;
+ 			n1 = *l;
+ 			n1.xoffset = l->xoffset + Array_array;
+-			gdata(&n1, nod(OADDR, a, N), widthptr);
++			arch.gdata(&n1, nod(OADDR, a, N), widthptr);
+ 			n1.xoffset = l->xoffset + Array_nel;
+-			gdata(&n1, r->right, widthint);
++			arch.gdata(&n1, r->right, widthint);
+ 			n1.xoffset = l->xoffset + Array_cap;
+-			gdata(&n1, r->right, widthint);
++			arch.gdata(&n1, r->right, widthint);
+ 			// Fall through to init underlying array.
+ 			l = a;
+ 		}
+@@ -462,7 +462,7 @@ staticassign(Node *l, Node *r, NodeList **out)
+ 			n1.xoffset = l->xoffset + e->xoffset;
+ 			n1.type = e->expr->type;
+ 			if(e->expr->op == OLITERAL)
+-				gdata(&n1, e->expr, n1.type->width);
++				arch.gdata(&n1, e->expr, n1.type->width);
+ 			else {
+ 				a = nod(OXXX, N, N);
+ 				*a = n1;
+@@ -1223,7 +1223,7 @@ stataddr(Node *nam, Node *n)
+ 		if(l < 0)
+ 			break;
+ 		// Check for overflow.
+-		if(n->type->width != 0 && MAXWIDTH/n->type->width <= l)
++		if(n->type->width != 0 && arch.MAXWIDTH/n->type->width <= l)
+ 			break;
+  		nam->xoffset += l*n->type->width;
+ 		nam->type = n->type;
+@@ -1303,16 +1303,16 @@ gen_as_init(Node *n)
+ 	case TPTR64:
+ 	case TFLOAT32:
+ 	case TFLOAT64:
+-		gdata(&nam, nr, nr->type->width);
++		arch.gdata(&nam, nr, nr->type->width);
+ 		break;
+ 
+ 	case TCOMPLEX64:
+ 	case TCOMPLEX128:
+-		gdatacomplex(&nam, nr->val.u.cval);
++		arch.gdatacomplex(&nam, nr->val.u.cval);
+ 		break;
+ 
+ 	case TSTRING:
+-		gdatastring(&nam, nr->val.u.sval);
++		arch.gdatastring(&nam, nr->val.u.sval);
+ 		break;
+ 	}
+ 
+@@ -1320,7 +1320,7 @@ yes:
+ 	return 1;
+ 
+ slice:
+-	gused(N); // in case the data is the dest of a goto
++	arch.gused(N); // in case the data is the dest of a goto
+ 	nl = nr;
+ 	if(nr == N || nr->op != OADDR)
+ 		goto no;
+@@ -1333,14 +1333,14 @@ slice:
+ 		goto no;
+ 
+ 	nam.xoffset += Array_array;
+-	gdata(&nam, nl, types[tptr]->width);
++	arch.gdata(&nam, nl, types[tptr]->width);
+ 
+ 	nam.xoffset += Array_nel-Array_array;
+ 	nodconst(&nod1, types[TINT], nr->type->bound);
+-	gdata(&nam, &nod1, widthint);
++	arch.gdata(&nam, &nod1, widthint);
+ 
+ 	nam.xoffset += Array_cap-Array_nel;
+-	gdata(&nam, &nod1, widthint);
++	arch.gdata(&nam, &nod1, widthint);
+ 
+ 	goto yes;
+ 
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 871f723fda..39d6d96bda 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -2121,10 +2121,10 @@ setmaxarg(Type *t, int32 extra)
+ 
+ 	dowidth(t);
+ 	w = t->argwid;
+-	if(w >= MAXWIDTH)
++	if(w >= arch.MAXWIDTH)
+ 		fatal("bad argwid %T", t);
+ 	w += extra;
+-	if(w >= MAXWIDTH)
++	if(w >= arch.MAXWIDTH)
+ 		fatal("bad argwid %d + %T", extra, t);
+ 	if(w > maxarg)
+ 		maxarg = w;
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 1d2dcf7447..3350a0dfe0 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -921,7 +921,7 @@ walkexpr(Node **np, NodeList **init)
+ 				l->class = PEXTERN;
+ 				l->xoffset = 0;
+ 				sym->def = l;
+-				ggloblsym(sym, widthptr, DUPOK|NOPTR);
++				arch.ggloblsym(sym, widthptr, DUPOK|NOPTR);
+ 			}
+ 			l = nod(OADDR, sym->def, N);
+ 			l->addable = 1;
+@@ -989,7 +989,7 @@ walkexpr(Node **np, NodeList **init)
+ 
+ 	case OCONV:
+ 	case OCONVNOP:
+-		if(thechar == '5') {
++		if(arch.thechar == '5') {
+ 			if(isfloat[n->left->type->etype]) {
+ 				if(n->type->etype == TINT64) {
+ 					n = mkcall("float64toint64", n->type, init, conv(n->left, types[TFLOAT64]));
+@@ -1579,7 +1579,7 @@ ascompatet(int op, NodeList *nl, Type **nr, int fp, NodeList **init)
+ 			l = tmp;
+ 		}
+ 
+-		a = nod(OAS, l, nodarg(r, fp));
++		a = nod(OAS, l, arch.nodarg(r, fp));
+ 		a = convas(a, init);
+ 		ullmancalc(a);
+ 		if(a->ullman >= UINF) {
+@@ -1632,7 +1632,7 @@ mkdotargslice(NodeList *lr0, NodeList *nn, Type *l, int fp, NodeList **init, Nod
+ 		walkexpr(&n, init);
+ 	}
+ 
+-	a = nod(OAS, nodarg(l, fp), n);
++	a = nod(OAS, arch.nodarg(l, fp), n);
+ 	nn = list(nn, convas(a, init));
+ 	return nn;
+ }
+@@ -1712,7 +1712,7 @@ ascompatte(int op, Node *call, int isddd, Type **nl, NodeList *lr, int fp, NodeL
+ 	if(r != N && lr->next == nil && r->type->etype == TSTRUCT && r->type->funarg) {
+ 		// optimization - can do block copy
+ 		if(eqtypenoname(r->type, *nl)) {
+-			a = nodarg(*nl, fp);
++			a = arch.nodarg(*nl, fp);
+ 			r = nod(OCONVNOP, r, N);
+ 			r->type = a->type;
+ 			nn = list1(convas(nod(OAS, a, r), init));
+@@ -1749,7 +1749,7 @@ loop:
+ 		// argument to a ddd parameter then it is
+ 		// passed thru unencapsulated
+ 		if(r != N && lr->next == nil && isddd && eqtype(l->type, r->type)) {
+-			a = nod(OAS, nodarg(l, fp), r);
++			a = nod(OAS, arch.nodarg(l, fp), r);
+ 			a = convas(a, init);
+ 			nn = list(nn, a);
+ 			goto ret;
+@@ -1774,7 +1774,7 @@ loop:
+ 		goto ret;
+ 	}
+ 
+-	a = nod(OAS, nodarg(l, fp), r);
++	a = nod(OAS, arch.nodarg(l, fp), r);
+ 	a = convas(a, init);
+ 	nn = list(nn, a);
+ 
+@@ -2527,7 +2527,7 @@ paramstoheap(Type **argin, int out)
+ 			// Defer might stop a panic and show the
+ 			// return values as they exist at the time of panic.
+ 			// Make sure to zero them on entry to the function.
+-			nn = list(nn, nod(OAS, nodarg(t, 1), N));
++			nn = list(nn, nod(OAS, arch.nodarg(t, 1), N));
+ 		}
+ 		if(v == N || !(v->class & PHEAP))
+ 			continue;
+@@ -3398,7 +3398,7 @@ walkrotate(Node **np)
+ 	Node *l, *r;
+ 	Node *n;
+ 
+-	if(thechar == '9')
++	if(arch.thechar == '9')
+ 		return;
+ 	
+ 	n = *np;
+@@ -3526,7 +3526,7 @@ walkdiv(Node **np, NodeList **init)
+ 	Magic m;
+ 
+ 	// TODO(minux)
+-	if(thechar == '9')
++	if(arch.thechar == '9')
+ 		return;
+ 
+ 	n = *np;

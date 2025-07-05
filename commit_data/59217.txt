@@ -13,6 +13,20 @@ Date:   Thu Feb 22 01:32:06 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/tls_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 42a0272f00..096b4ed227 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -211,7 +211,7 @@ func TestDialTimeout(t *testing.T) {
+ 			t.Logf("Listener accepted a connection from %s", lconn.RemoteAddr())
+ 			lconn.Close()
+ 		}
+-		// Close any spurious extra connecitions from the listener. (This is
++		// Close any spurious extra connections from the listener. (This is
+ 		// possible if there are, for example, stray Dial calls from other tests.)
+ 		for extraConn := range acceptc {
+ 			t.Logf("spurious extra connection from %s", extraConn.RemoteAddr())

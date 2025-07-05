@@ -16,7 +16,7 @@ Date:   Mon Jan 30 23:43:46 2012 -0500
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5601057
-
+---
  misc/dashboard/builder/Makefile      |  13 +-
  misc/goplay/Makefile                 |  11 +-
  src/Make.pkg                         | 244 ---------------------------------
@@ -193,3 +193,4929 @@ Date:   Mon Jan 30 23:43:46 2012 -0500
  src/run.bash                         |  92 +++++--------
  test/run                             |   2 +-
  175 files changed, 146 insertions(+), 3464 deletions(-)
+
+diff --git a/misc/dashboard/builder/Makefile b/misc/dashboard/builder/Makefile
+index f1d9c54972..abf3755ab6 100644
+--- a/misc/dashboard/builder/Makefile
++++ b/misc/dashboard/builder/Makefile
+@@ -2,13 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../src/Make.inc
++gobuilder: $(shell ls *.go)
++	go build -o $@ $^
+ 
+-TARG=gobuilder
+-GOFILES=\
+-	exec.go\
+-	http.go\
+-	main.go\
+-	package.go\
+-
+-include ../../../src/Make.cmd
++clean:
++	rm -f gobuilder
+diff --git a/misc/goplay/Makefile b/misc/goplay/Makefile
+index 28d0245119..a6db75ac3e 100644
+--- a/misc/goplay/Makefile
++++ b/misc/goplay/Makefile
+@@ -2,12 +2,5 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../src/Make.inc
+-
+-TARG=goplay
+-
+-GOFILES=\
+-	goplay.go\
+-
+-include ../../src/Make.cmd
+-
++goplay: goplay.go
++	go build goplay.go
+diff --git a/src/Make.pkg b/src/Make.pkg
+deleted file mode 100644
+index 7e11df660b..0000000000
+--- a/src/Make.pkg
++++ /dev/null
+@@ -1,244 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-all: package
+-package: _obj/$(TARG).a
+-testpackage: _test/$(TARG).a
+-
+-include $(QUOTED_GOROOT)/src/Make.common
+-
+-# The quietgcc wrapper is for our own source code
+-# while building the libraries, not arbitrary source code
+-# as encountered by cgo.
+-ifeq ($(HOST_CC),quietgcc)
+-HOST_CC:=gcc
+-endif
+-ifeq ($(HOST_LD),quietgcc)
+-HOST_LD:=gcc
+-endif
+-
+-# GNU Make 3.80 has a bug in lastword
+-# elem=$(lastword $(subst /, ,$(TARG)))
+-TARG_words=$(subst /, ,$(TARG))
+-elem=$(word $(words $(TARG_words)),$(TARG_words))
+-
+-ifeq ($(elem),$(TARG))
+-dir=
+-else
+-dir=$(patsubst %/$(elem),%,$(TARG))
+-endif
+-
+-pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+-
+-ifeq ($(TARGDIR),)
+-TARGDIR:=$(pkgdir)
+-endif
+-
+-INSTALLFILES+=$(TARGDIR)/$(TARG).a
+-
+-# The rest of the cgo rules are below, but these variable updates
+-# must be done here so they apply to the main rules.
+-ifdef CGOFILES
+-GOFILES+=$(patsubst %.go,_obj/%.cgo1.go,$(CGOFILES)) _obj/_cgo_gotypes.go
+-CGO_OFILES+=$(patsubst %.go,%.cgo2.o,$(CGOFILES)) _cgo_export.o
+-OFILES+=_cgo_defun.$O _cgo_import.$O $(CGO_OFILES)
+-endif
+-
+-ifdef SWIGFILES
+-GOFILES+=$(patsubst %.swig,_obj/%.go,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
+-OFILES+=$(patsubst %.swig,_obj/%_gc.$O,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
+-SWIG_PREFIX=$(subst /,-,$(TARG))
+-SWIG_SOS+=$(patsubst %.swig,_obj/$(SWIG_PREFIX)-%.so,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
+-INSTALLFILES+=$(patsubst %.swig,$(TARGDIR)/swig/$(SWIG_PREFIX)-%.so,$(patsubst %.swigcxx,%.swig,$(SWIGFILES)))
+-endif
+-
+-PREREQ+=$(patsubst %,%.make,$(DEPS))
+-
+-coverage:
+-	go test
+-	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+-
+-CLEANFILES+=*.so _obj _test _testmain.go *.exe _cgo* test.out build.out
+-
+-test:
+-	go test
+-
+-testshort:
+-	go test -test.short -test.timeout=2m
+-
+-bench:
+-	go test -test.bench=. -test.run="Do not run tests"
+-
+-nuke: clean
+-	rm -f $(TARGDIR)/$(TARG).a
+-
+-testpackage-clean:
+-	rm -f _test/$(TARG).a
+-
+-install: $(INSTALLFILES)
+-
+-$(TARGDIR)/$(TARG).a: _obj/$(TARG).a
+-	@mkdir -p $(TARGDIR)/$(dir)
+-	cp _obj/$(TARG).a "$@"
+-
+-_go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES)
+-
+-_gotest_.$O: $(GOFILES) $(GOTESTFILES) $(PREREQ)
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) -p $(TARG) -o $@ $(GOFILES) $(GOTESTFILES)
+-
+-_obj/$(TARG).a: _go_.$O $(OFILES)
+-	@mkdir -p _obj/$(dir)
+-	rm -f _obj/$(TARG).a
+-	"$(GOROOT)/bin/go-tool/pack" grc $@ _go_.$O $(OFILES)
+-
+-importpath:
+-	@echo $(TARG)
+-
+-dir:
+-	@echo $(dir)
+-
+-# To use cgo in a Go package, add a line
+-#
+-#	CGOFILES=x.go y.go
+-#
+-# to the main Makefile.  This signals that cgo should process x.go
+-# and y.go when building the package.
+-# There are three optional variables to set, CGO_CFLAGS, CGO_LDFLAGS,
+-# and CGO_DEPS, which specify compiler flags, linker flags, and linker
+-# dependencies to use when compiling (using gcc) the C support for
+-# x.go and y.go.
+-
+-# Cgo translates each x.go file listed in $(CGOFILES) into a basic
+-# translation of x.go, called _obj/x.cgo1.go. Additionally, three other
+-# files are created:
+-#
+-#	_obj/_cgo_gotypes.go	- declarations needed for all .go files in the package; imports "unsafe"
+-#	_obj/_cgo_defun.c	- C trampoline code to be compiled with 6c and linked into the package
+-#	_obj/x.cgo2.c	- C implementations compiled with gcc to create a dynamic library
+-#
+-
+-ifdef CGOFILES
+-_obj/_cgo_run: $(CGOFILES)
+-	@mkdir -p _obj
+-	CGOPKGPATH=$(dir) cgo -- $(CGO_CFLAGS) $(CGOFILES)
+-	touch _obj/_cgo_run
+-
+-# _CGO_CFLAGS and _CGO_LDFLAGS are defined via the evaluation of _cgo_flags.
+-# The include happens before the commands in the recipe run,
+-# so it cannot be done in the same recipe that runs cgo.
+-_obj/_load_cgo_flags: _obj/_cgo_run
+-	$(eval include _obj/_cgo_flags)
+-
+-# Include any previous flags in case cgo files are up to date.
+--include _obj/_cgo_flags
+-
+-# Ugly but necessary - cgo writes these files too.
+-_obj/_cgo_gotypes.go _obj/_cgo_export.c _obj/_cgo_export.h _obj/_cgo_main.c _obj/_cgo_defun.c: _obj/_load_cgo_flags
+-	@true
+-
+-_obj/%.cgo1.go _obj/%.cgo2.c: _obj/_cgo_defun.c
+-	@true
+-endif
+-
+-# Compile rules for gcc source files.
+-%.o: %.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $*.c
+-
+-%.o: _obj/%.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c -I_obj $(CGO_CFLAGS) $(_CGO_CFLAGS) $^
+-
+-# To find out which symbols are needed from external libraries
+-# and which libraries are needed, we build a simple a.out that
+-# links all the objects we just created and then use cgo -dynimport
+-# to inspect it.  That is, we make gcc tell us which dynamic symbols
+-# and libraries are involved, instead of duplicating gcc's logic ourselves.
+-# After main we have to define all the symbols that will be provided
+-# by Go code.  That's crosscall2 and any exported symbols.
+-
+-_cgo1_.o: _cgo_main.o $(CGO_OFILES) $(CGO_DEPS)
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -fPIC -O2 -o $@ $^ $(CGO_LDFLAGS) $(_CGO_LDFLAGS)
+-
+-_obj/_cgo_import.c: _cgo1_.o
+-	@mkdir -p _obj
+-	cgo -dynimport _cgo1_.o >$@_ && mv -f $@_ $@
+-
+-# The rules above added x.cgo1.go and _cgo_gotypes.go to $(GOFILES),
+-# added _cgo_defun.$O to $OFILES, and added the installed copy of
+-# package_x.so (built from x.cgo2.c) to $(INSTALLFILES).
+-
+-# Have to run gcc with the right size argument on hybrid 32/64 machines.
+-_CGO_CFLAGS_386=-m32
+-_CGO_CFLAGS_amd64=-m64
+-_CGO_LDFLAGS_freebsd=-shared -lpthread -lm
+-_CGO_LDFLAGS_linux=-shared -lpthread -lm
+-_CGO_LDFLAGS_darwin=-dynamiclib -Wl,-undefined,dynamic_lookup
+-_CGO_LDFLAGS_windows=-shared -lm -mthreads
+-
+-# Have to compile the runtime header.
+-RUNTIME_CFLAGS=-I$(pkgdir)
+-
+-# Compile _cgo_defun.c with 6c; needs access to the runtime headers.
+-_cgo_defun.$O: _obj/_cgo_defun.c
+-	$(CC) $(CFLAGS) $(RUNTIME_CFLAGS) -I . -o "$@" _obj/_cgo_defun.c
+-
+-# To use swig in a Go package, add a line
+-#
+-#	SWIGFILES=x.swig
+-#
+-# to the main Makefile.  This signals that SWIG should process the
+-#.swig file when building the package.
+-#
+-# To wrap C code, use an extension of .swig.  To wrap C++ code, use an
+-# extension of .swigcxx.
+-#
+-#	SWIGFILES=myclib.swig mycxxlib.swigcxx
+-
+-ifdef SWIGFILES
+-_obj/%._swig_run _obj/%.go _obj/%_gc.c _obj/%_wrap.c: %.swig
+-	@mkdir -p _obj
+-	swig -go -module $* -soname $(SWIG_PREFIX)-$*.so -o _obj/$*_wrap.c -outdir _obj $<
+-
+-_obj/%._swig_run _obj/%.go _obj/%_gc.c _obj/%_wrap.cxx: %.swigcxx
+-	@mkdir -p _obj
+-	swig -go -c++ -module $* -soname $(SWIG_PREFIX)-$*.so -o _obj/$*_wrap.cxx -outdir _obj $<
+-
+-_obj/%_gc.$O: _obj/%_gc.c
+-	$(CC) $(CFLAGS) -I . -I$(pkgdir) -o "$@" _obj/$*_gc.c
+-
+-_obj/%_wrap.o: _obj/%_wrap.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c $^ $(SWIG_CFLAGS)
+-
+-HOST_CXX=g++
+-
+-_obj/%_wrapcxx.o: _obj/%_wrap.cxx
+-	$(HOST_CXX) $(_CGO_CFLAGS_$(GOARCH)) -I . -g -fPIC -O2 -o $@ -c $^ $(SWIG_CXXFLAGS)
+-
+-_obj/$(SWIG_PREFIX)-%.so: _obj/%_wrap.o
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $^ $(SWIG_LDFLAGS) $(_CGO_LDFLAGS_$(GOOS)) $(_SWIG_LDFLAGS_$(GOOS))
+-
+-_obj/$(SWIG_PREFIX)-%.so: _obj/%_wrapcxx.o
+-	$(HOST_CXX) $(_CGO_CFLAGS_$(GOARCH)) -o $@ $^ $(SWIG_LDFLAGS) $(_CGO_LDFLAGS_$(GOOS)) $(_SWIG_LDFLAGS_$(GOOS))
+-
+-$(TARGDIR)/swig/$(SWIG_PREFIX)-%.so: _obj/$(SWIG_PREFIX)-%.so
+-	@mkdir -p $(TARGDIR)/swig
+-	cp $< "$@"
+-
+-all: $(SWIG_SOS)
+-
+-SWIG_RPATH=-r $(TARGDIR)/swig
+-
+-endif
+-
+-# Generic build rules.
+-# These come last so that the rules above can override them
+-# for more specific file names.
+-%.$O: %.c $(HFILES)
+-	$(CC) $(CFLAGS) -o "$@" $*.c
+-
+-%.$O: _obj/%.c $(HFILES)
+-	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
+-
+-%.$O: %.s $(HFILES)
+-	$(AS) $(AFLAGS) $*.s
+diff --git a/src/Make.tool b/src/Make.tool
+deleted file mode 100644
+index d7858f25d6..0000000000
+--- a/src/Make.tool
++++ /dev/null
+@@ -1,32 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-ifeq ($(GOOS),windows)
+-TARG:=$(TARG).exe
+-endif
+-
+-# Tools always go into $GOROOT/bin/go-tool
+-TOOLDIR=$(QUOTED_GOROOT)/bin/go-tool
+-
+-all: $(TARG)
+-
+-include $(QUOTED_GOROOT)/src/Make.common
+-
+-PREREQ+=$(patsubst %,%.make,$(DEPS))
+-
+-$(TARG): _go_.$O
+-	$(LD) $(LDIMPORTS) -o $@ _go_.$O
+-
+-_go_.$O: $(GOFILES) $(PREREQ)
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) -o $@ $(GOFILES)
+-
+-install: $(TOOLDIR)/$(TARG)
+-
+-$(TOOLDIR)/$(TARG): $(TARG)
+-	mkdir -p $(TOOLDIR) && cp -f $(TARG) $(TOOLDIR)
+-
+-CLEANFILES+=$(TARG) _test _testmain.go test.out build.out
+-
+-nuke: clean
+-	rm -f $(TOOLDIR)/$(TARG)
+diff --git a/src/buildscript/darwin_386.sh b/src/buildscript/darwin_386.sh
+index 529daa520f..362362e96d 100755
+--- a/src/buildscript/darwin_386.sh
++++ b/src/buildscript/darwin_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/darwin_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/darwin_386/go
+diff --git a/src/buildscript/darwin_amd64.sh b/src/buildscript/darwin_amd64.sh
+index 855f646417..443b22c77d 100755
+--- a/src/buildscript/darwin_amd64.sh
++++ b/src/buildscript/darwin_amd64.sh
+@@ -490,7 +490,7 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/darwin_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+ mkdir -p "$GOBIN"/
+diff --git a/src/buildscript/freebsd_386.sh b/src/buildscript/freebsd_386.sh
+index b6d20ce94b..014df07614 100755
+--- a/src/buildscript/freebsd_386.sh
++++ b/src/buildscript/freebsd_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/freebsd_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/freebsd_386/go
+diff --git a/src/buildscript/freebsd_amd64.sh b/src/buildscript/freebsd_amd64.sh
+index e069fcafd0..b9dd2be9cf 100755
+--- a/src/buildscript/freebsd_amd64.sh
++++ b/src/buildscript/freebsd_amd64.sh
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/freebsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/freebsd_amd64/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/freebsd_amd64/go
+diff --git a/src/buildscript/linux_386.sh b/src/buildscript/linux_386.sh
+index 0d755e845f..225c552678 100755
+--- a/src/buildscript/linux_386.sh
++++ b/src/buildscript/linux_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/linux_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_386/go
+diff --git a/src/buildscript/linux_amd64.sh b/src/buildscript/linux_amd64.sh
+index 9012529605..86f1fa2afa 100755
+--- a/src/buildscript/linux_amd64.sh
++++ b/src/buildscript/linux_amd64.sh
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/linux_amd64/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_amd64/go
+diff --git a/src/buildscript/linux_arm.sh b/src/buildscript/linux_arm.sh
+index 3a3570109a..547af540b4 100755
+--- a/src/buildscript/linux_arm.sh
++++ b/src/buildscript/linux_arm.sh
+@@ -494,8 +494,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/linux_arm/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/5g -o "$WORK"/cmd/go/_obj/_go_.5 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.5
+ "$GOROOT"/bin/go-tool/5l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/linux_arm/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/linux_arm/go
+diff --git a/src/buildscript/netbsd_386.sh b/src/buildscript/netbsd_386.sh
+index 556aaed64d..cf3cd83ece 100755
+--- a/src/buildscript/netbsd_386.sh
++++ b/src/buildscript/netbsd_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/netbsd_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/netbsd_386/go
+diff --git a/src/buildscript/netbsd_amd64.sh b/src/buildscript/netbsd_amd64.sh
+index 5b5a27a01c..af3ef019d0 100755
+--- a/src/buildscript/netbsd_amd64.sh
++++ b/src/buildscript/netbsd_amd64.sh
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/netbsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/netbsd_amd64/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/netbsd_amd64/go
+diff --git a/src/buildscript/openbsd_386.sh b/src/buildscript/openbsd_386.sh
+index 92fbcbbddb..02e0a02c9d 100755
+--- a/src/buildscript/openbsd_386.sh
++++ b/src/buildscript/openbsd_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/openbsd_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/openbsd_386/go
+diff --git a/src/buildscript/openbsd_amd64.sh b/src/buildscript/openbsd_amd64.sh
+index 0b3017bf66..7554508130 100755
+--- a/src/buildscript/openbsd_amd64.sh
++++ b/src/buildscript/openbsd_amd64.sh
+@@ -490,8 +490,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/openbsd_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/openbsd_amd64/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/openbsd_amd64/go
+diff --git a/src/buildscript/plan9_386.sh b/src/buildscript/plan9_386.sh
+index f400b8eee5..a125d583c0 100755
+--- a/src/buildscript/plan9_386.sh
++++ b/src/buildscript/plan9_386.sh
+@@ -491,8 +491,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/plan9_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/go_bootstrap
++mkdir -p "$GOBIN"/plan9_386/
++cp "$WORK"/cmd/go/_obj/a.out "$GOBIN"/plan9_386/go
+diff --git a/src/buildscript/windows_386.sh b/src/buildscript/windows_386.sh
+index 5ed83034d9..bdb1edeef6 100755
+--- a/src/buildscript/windows_386.sh
++++ b/src/buildscript/windows_386.sh
+@@ -493,8 +493,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_386/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/8g -o "$WORK"/cmd/go/_obj/_go_.8 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.8
+ "$GOROOT"/bin/go-tool/8l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe
++mkdir -p "$GOBIN"/windows_386/
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/windows_386/go.exe
+diff --git a/src/buildscript/windows_amd64.sh b/src/buildscript/windows_amd64.sh
+index 4607fde433..8aa512b3b5 100755
+--- a/src/buildscript/windows_amd64.sh
++++ b/src/buildscript/windows_amd64.sh
+@@ -492,8 +492,8 @@ cp "$WORK"/text/template.a "$GOROOT"/pkg/windows_amd64/text/template.a
+ 
+ mkdir -p "$WORK"/cmd/go/_obj/
+ cd "$GOROOT"/src/cmd/go
+-"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
++"$GOROOT"/bin/go-tool/6g -o "$WORK"/cmd/go/_obj/_go_.6 -p cmd/go -I "$WORK" ./bootstrap.go ./build.go ./clean.go ./fix.go ./fmt.go ./get.go ./help.go ./list.go ./main.go ./pkg.go ./root.go ./run.go ./test.go ./testflag.go ./tool.go ./vcs.go ./version.go ./vet.go
+ "$GOROOT"/bin/go-tool/pack grc "$WORK"/cmd/go.a "$WORK"/cmd/go/_obj/_go_.6
+ "$GOROOT"/bin/go-tool/6l -o "$WORK"/cmd/go/_obj/a.out.exe -L "$WORK" "$WORK"/cmd/go.a
+-mkdir -p "$GOBIN"/
+-cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/go_bootstrap.exe
++mkdir -p "$GOBIN"/windows_amd64/
++cp "$WORK"/cmd/go/_obj/a.out.exe "$GOBIN"/windows_amd64/go.exe
+diff --git a/src/clean.bash b/src/clean.bash
+index 4930c2533d..96fcaf795b 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -19,13 +19,20 @@ if [ "$1" != "--nopkg" ]; then
+ 	rm -rf "$GOROOT"/pkg/${GOOS}_$GOARCH
+ fi
+ rm -f "$GOROOT"/lib/*.a
+-for i in lib9 libbio libmach cmd pkg \
+-	../misc/cgo/gmp ../misc/cgo/stdio \
+-	../misc/cgo/life ../misc/cgo/test \
+-	../misc/dashboard/builder ../misc/goplay\
+-	../doc/codelab/wiki\
+-	../test/bench/shootout ../test/bench/garbage ../test/bench/go1
++for i in lib9 libbio libmach cmd
+ do
+ 	# Do not use gomake here. It may not be available.
+ 	$MAKE -C "$GOROOT/src/$i" clean
+ done
++
++if [ -x "$GOBIN/go" ]; then
++	go clean std || true  # go command might not know about clean
++	
++	# TODO: Make clean work in directories outside $GOPATH
++	true || go clean \
++		../misc/cgo/gmp ../misc/cgo/stdio \
++		../misc/cgo/life ../misc/cgo/test \
++		../misc/dashboard/builder ../misc/goplay\
++		../doc/codelab/wiki\
++		../test/bench/shootout ../test/bench/garbage ../test/bench/go1
++fi
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 103977f32c..31be2d12b7 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -20,8 +20,7 @@ DIRS=\
+ 	pack\
+ 	prof\
+ 	
+-# Clean applies to all directories, even for other architectures or 
+-# written in Go.
++# Clean applies to all directories, even for other architectures.
+ CLEANDIRS=\
+ 	$(DIRS)\
+ 	5a\
+@@ -36,12 +35,6 @@ CLEANDIRS=\
+ 	8c\
+ 	8g\
+ 	8l\
+-	cgo\
+-	godoc\
+-	fix\
+-	gofmt\
+-	vet\
+-	yacc\
+ 
+ install: $(patsubst %,%.install,$(DIRS))
+ clean: $(patsubst %,%.clean,$(CLEANDIRS))
+diff --git a/src/cmd/cgo/Makefile b/src/cmd/cgo/Makefile
+deleted file mode 100644
+index a3f034f7c8..0000000000
+--- a/src/cmd/cgo/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=cgo
+-GOFILES=\
+-	ast.go\
+-	gcc.go\
+-	godefs.go\
+-	main.go\
+-	out.go\
+-	util.go\
+-
+-include ../../Make.cmd
+diff --git a/src/cmd/fix/Makefile b/src/cmd/fix/Makefile
+deleted file mode 100644
+index a03c7e4bc1..0000000000
+--- a/src/cmd/fix/Makefile
++++ /dev/null
+@@ -1,53 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=gofix
+-GOFILES=\
+-	error.go\
+-	filepath.go\
+-	fix.go\
+-	go1pkgrename.go\
+-	googlecode.go\
+-	hashsum.go\
+-	hmacnew.go\
+-	htmlerr.go\
+-	httpfinalurl.go\
+-	httpfs.go\
+-	httpheaders.go\
+-	httpserver.go\
+-	httputil.go\
+-	imagecolor.go\
+-	imagenew.go\
+-	imagetiled.go\
+-	imageycbcr.go\
+-	iocopyn.go\
+-	main.go\
+-	mapdelete.go\
+-	math.go\
+-	netdial.go\
+-	netudpgroup.go\
+-	oserrorstring.go\
+-	osopen.go\
+-	procattr.go\
+-	reflect.go\
+-	signal.go\
+-	sorthelpers.go\
+-	sortslice.go\
+-	strconv.go\
+-	stringssplit.go\
+-	template.go\
+-	timefileinfo.go\
+-	typecheck.go\
+-	url.go\
+-	xmlapi.go\
+-
+-include ../../Make.tool
+-
+-test:
+-	gotest
+-
+-testshort:
+-	gotest -test.short
+diff --git a/src/cmd/go/Makefile b/src/cmd/go/Makefile
+deleted file mode 100644
+index 3e19d2e3dc..0000000000
+--- a/src/cmd/go/Makefile
++++ /dev/null
+@@ -1,26 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=go
+-GOFILES=\
+-	build.go\
+-	fix.go\
+-	get.go\
+-	fmt.go\
+-	help.go\
+-	http.go\
+-	list.go\
+-	main.go\
+-	pkg.go\
+-	run.go\
+-	test.go\
+-	testflag.go\
+-	tool.go\
+-	version.go\
+-	vet.go\
+-	vcs.go\
+-
+-include ../../Make.cmd
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+deleted file mode 100644
+index a8cf5d6aa3..0000000000
+--- a/src/cmd/godoc/Makefile
++++ /dev/null
+@@ -1,25 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=godoc
+-GOFILES=\
+-	codewalk.go\
+-	dirtrees.go\
+-	filesystem.go\
+-	format.go\
+-	godoc.go\
+-	httpzip.go\
+-	index.go\
+-	main.go\
+-	mapping.go\
+-	parser.go\
+-	snippet.go\
+-	spec.go\
+-	throttle.go\
+-	utils.go\
+-	zip.go\
+-
+-include ../../Make.cmd
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+deleted file mode 100644
+index dc5b060e65..0000000000
+--- a/src/cmd/gofmt/Makefile
++++ /dev/null
+@@ -1,19 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=gofmt
+-GOFILES=\
+-	gofmt.go\
+-	rewrite.go\
+-	simplify.go\
+-
+-include ../../Make.cmd
+-
+-test: $(TARG)
+-	./test.sh
+-
+-testshort:
+-	gotest -test.short
+diff --git a/src/cmd/vet/Makefile b/src/cmd/vet/Makefile
+index a69f0e3bea..2a35d1ae37 100644
+--- a/src/cmd/vet/Makefile
++++ b/src/cmd/vet/Makefile
+@@ -2,16 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
+-
+-TARG=vet
+-GOFILES=\
+-	main.go\
+-	method.go\
+-	print.go\
+-	structtag.go\
+-
+-include ../../Make.tool
+-
+-test testshort: $(TARG)
+-	../../../test/errchk $(TARG) -printfuncs='Warn:1,Warnf:1' print.go
++test testshort:
++	go build
++	../../../test/errchk ./vet -printfuncs='Warn:1,Warnf:1' print.go
+diff --git a/src/cmd/yacc/Makefile b/src/cmd/yacc/Makefile
+index 6ce9d54fbe..4d84891e31 100644
+--- a/src/cmd/yacc/Makefile
++++ b/src/cmd/yacc/Makefile
+@@ -2,17 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.inc
+-
+-TARG=yacc
+-GOFILES=\
+-	yacc.go\
+-
+-include ../../Make.tool
+-
+-units: yacc units.y
+-	./yacc -p units_ units.y
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) y.go
+-	$(LD) -o units y.$O
+-
+-CLEANFILES += units y.go y.output
++units: yacc.go units.y
++	go run yacc.go -p units_ units.y
++	go build -o units y.go
+diff --git a/src/env.bash b/src/env.bash
+index 487727b064..3ae4f256de 100644
+--- a/src/env.bash
++++ b/src/env.bash
+@@ -3,10 +3,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-# Disable use of makefiles during build.
+-# TODO: Remove this and the makefiles.
+-USE_GO_TOOL=true
+-
+ # If set to a Windows-style path convert to an MSYS-Unix 
+ # one using the built-in shell commands.   
+ if [[ "$GOROOT" == *:* ]]; then
+diff --git a/src/make.bash b/src/make.bash
+index b7b20bfd5b..2fdcb3b247 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -49,13 +49,15 @@ export CC
+ sed -e "s|@CC@|$CC|" < "$GOROOT"/src/quietgcc.bash > "$GOBIN"/quietgcc
+ chmod +x "$GOBIN"/quietgcc
+ 
++export GOMAKE="$GOROOT"/bin/go-tool/make
+ rm -f "$GOBIN"/gomake
++rm -f "$GOMAKE"
+ (
+ 	echo '#!/bin/sh'
+ 	echo 'export GOROOT=${GOROOT:-'$GOROOT_FINAL'}'
+ 	echo 'exec '$MAKE' "$@"'
+-) >"$GOBIN"/gomake
+-chmod +x "$GOBIN"/gomake
++) >"$GOMAKE"
++chmod +x "$GOMAKE"
+ 
+ # on Fedora 16 the selinux filesystem is mounted at /sys/fs/selinux,
+ # so loop through the possible selinux mount points
+@@ -78,18 +80,13 @@ do
+ 	fi
+ done
+ 
+-$USE_GO_TOOL ||
+-(
+-	cd "$GOROOT"/src/pkg;
+-	bash deps.bash	# do this here so clean.bash will work in the pkg directory
+-) || exit 1
+ bash "$GOROOT"/src/clean.bash
+ 
+ # pkg builds runtime/cgo and the Go programs in cmd.
+ for i in lib9 libbio libmach cmd
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+-	gomake -C $i install
++	"$GOMAKE" -C $i install
+ done
+ 
+ echo; echo; echo %%%% making runtime generated files %%%%; echo
+@@ -97,36 +94,33 @@ echo; echo; echo %%%% making runtime generated files %%%%; echo
+ (
+ 	cd "$GOROOT"/src/pkg/runtime
+ 	./autogen.sh
+-	gomake install; gomake clean # copy runtime.h to pkg directory
++	"$GOMAKE" install; "$GOMAKE" clean # copy runtime.h to pkg directory
+ ) || exit 1
+ 
+-if $USE_GO_TOOL; then
+-	echo
+-	echo '# Building go_bootstrap command from bootstrap script.'
+-	if ! ./buildscript/${GOOS}_$GOARCH.sh; then
+-		echo '# Bootstrap script failed.'
+-		if [ ! -x "$GOBIN/go" ]; then
+-			exit 1
+-		fi
+-		echo '# Regenerating bootstrap script using pre-existing go binary.'
+-		./buildscript.sh
+-		./buildscript/${GOOS}_$GOARCH.sh
++echo
++echo '# Building go_bootstrap command from bootstrap script.'
++if ! ./buildscript/${GOOS}_$GOARCH.sh; then
++	echo '# Bootstrap script failed.'
++	if [ ! -x "$GOBIN/go" ]; then
++		exit 1
+ 	fi
++	echo '# Regenerating bootstrap script using pre-existing go binary.'
++	./buildscript.sh
++	./buildscript/${GOOS}_$GOARCH.sh
++fi
+ 
+-	echo '# Building Go code.'
+-	go_bootstrap install -a -v std
+-	rm -f "$GOBIN/go_bootstrap"
++# Clean what clean.bash couldn't.
++go_bootstrap clean std
+ 
+-else
+-	echo; echo; echo %%%% making pkg %%%%; echo
+-	gomake -C pkg install
+-fi
++echo '# Building Go code.'
++go_bootstrap install -a -v std
++rm -f "$GOBIN/go_bootstrap"
+ 
+ # Print post-install messages.
+ # Implemented as a function so that all.bash can repeat the output
+ # after run.bash finishes running all the tests.
+ installed() {
+-	eval $(gomake --no-print-directory -f Make.inc go-env)
++	eval $("$GOMAKE" --no-print-directory -f Make.inc go-env)
+ 	echo
+ 	echo ---
+ 	echo Installed Go for $GOOS/$GOARCH in "$GOROOT".
+@@ -137,7 +131,6 @@ installed() {
+ 	*)
+ 		echo '***' "You need to add $GOBIN to your "'$PATH.' '***'
+ 	esac
+-	echo The compiler is $GC.
+ 	if [ "$(uname)" = "Darwin" ]; then
+ 		echo
+ 		echo On OS X the debuggers must be installed setgrp procmod.
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+deleted file mode 100644
+index cd9776d5a5..0000000000
+--- a/src/pkg/Makefile
++++ /dev/null
+@@ -1,259 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# After editing the DIRS= list or adding imports to any Go files
+-# in any of those directories, run:
+-#
+-#	./deps.bash
+-#
+-# to rebuild the dependency information in Make.deps.
+-
+-include ../Make.inc
+-
+-all: install
+-
+-DIRS=\
+-	archive/tar\
+-	archive/zip\
+-	bufio\
+-	bytes\
+-	compress/bzip2\
+-	compress/flate\
+-	compress/gzip\
+-	compress/lzw \
+-	compress/zlib\
+-	container/heap\
+-	container/list\
+-	container/ring\
+-	crypto\
+-	crypto/aes\
+-	crypto/cipher\
+-	crypto/des\
+-	crypto/dsa\
+-	crypto/ecdsa\
+-	crypto/elliptic\
+-	crypto/hmac\
+-	crypto/md5\
+-	crypto/rand\
+-	crypto/rc4\
+-	crypto/rsa\
+-	crypto/sha1\
+-	crypto/sha256\
+-	crypto/sha512\
+-	crypto/subtle\
+-	crypto/tls\
+-	crypto/x509\
+-	crypto/x509/pkix\
+-	database/sql\
+-	database/sql/driver\
+-	debug/dwarf\
+-	debug/macho\
+-	debug/elf\
+-	debug/gosym\
+-	debug/pe\
+-	encoding/ascii85\
+-	encoding/asn1\
+-	encoding/base32\
+-	encoding/base64\
+-	encoding/binary\
+-	encoding/csv\
+-	encoding/gob\
+-	encoding/hex\
+-	encoding/json\
+-	encoding/pem\
+-	encoding/xml\
+-	errors\
+-	exp/ebnf\
+-	exp/ebnflint\
+-	exp/gotype\
+-	exp/html\
+-	exp/norm\
+-	exp/terminal\
+-	exp/types\
+-	expvar\
+-	flag\
+-	fmt\
+-	go/ast\
+-	go/build\
+-	go/doc\
+-	go/parser\
+-	go/printer\
+-	go/scanner\
+-	go/token\
+-	hash\
+-	hash/adler32\
+-	hash/crc32\
+-	hash/crc64\
+-	hash/fnv\
+-	html\
+-	html/template\
+-	image\
+-	image/color\
+-	image/draw\
+-	image/gif\
+-	image/jpeg\
+-	image/png\
+-	index/suffixarray\
+-	io\
+-	io/ioutil\
+-	log\
+-	log/syslog\
+-	math\
+-	math/big\
+-	math/cmplx\
+-	math/rand\
+-	mime\
+-	mime/multipart\
+-	net\
+-	net/http\
+-	net/http/cgi\
+-	net/http/fcgi\
+-	net/http/pprof\
+-	net/http/httptest\
+-	net/http/httputil\
+-	net/mail\
+-	net/rpc\
+-	net/rpc/jsonrpc\
+-	net/smtp\
+-	net/textproto\
+-	net/url\
+-	old/netchan\
+-	old/regexp\
+-	old/template\
+-	os\
+-	os/exec\
+-	os/signal\
+-	os/user\
+-	path\
+-	path/filepath\
+-	reflect\
+-	regexp\
+-	regexp/syntax\
+-	runtime\
+-	runtime/cgo\
+-	runtime/debug\
+-	runtime/pprof\
+-	sort\
+-	strconv\
+-	strings\
+-	sync\
+-	sync/atomic\
+-	syscall\
+-	testing\
+-	testing/iotest\
+-	testing/quick\
+-	testing/script\
+-	text/scanner\
+-	text/tabwriter\
+-	text/template\
+-	text/template/parse\
+-	time\
+-	unicode\
+-	unicode/utf16\
+-	unicode/utf8\
+-	../cmd/cgo\
+-	../cmd/godoc\
+-	../cmd/fix\
+-	../cmd/gofmt\
+-	../cmd/vet\
+-	../cmd/yacc\
+-
+-ifeq ($(GOOS),linux)
+-DIRS+=\
+-	exp/inotify\
+-
+-endif
+-
+-ifeq ($(GOOS),plan9)
+-NOPLAN9BUILD=\
+-	os/signal\
+-
+-DIRS:=$(filter-out $(NOPLAN9BUILD),$(DIRS))
+-endif
+-
+-NOTEST+=\
+-	crypto\
+-	crypto/openpgp/errors\
+-	crypto/x509/pkix\
+-	exp/ebnflint\
+-	go/doc\
+-	hash\
+-	image/gif\
+-	net/http/pprof\
+-	net/http/httptest\
+-	runtime/cgo\
+-	syscall\
+-	testing\
+-	testing/iotest\
+-	../cmd/cgo\
+-	../cmd/godoc\
+-	../cmd/yacc\
+-
+-NOBENCH+=\
+-
+-# Disable tests that windows cannot run yet.
+-ifeq ($(GOOS),windows)
+-NOTEST+=os/signal    # no signals
+-NOTEST+=syslog       # no network
+-endif
+-
+-TEST=\
+-	$(filter-out $(NOTEST),$(DIRS))
+-
+-BENCH=\
+-	$(filter-out $(NOBENCH),$(TEST))
+-
+-CRAP:
+-	echo $(DIRS)
+-
+-clean.dirs: $(addsuffix .clean, $(DIRS))
+-install.dirs: $(addsuffix .install, $(DIRS))
+-nuke.dirs: $(addsuffix .nuke, $(DIRS))
+-test.dirs: $(addsuffix .test, $(TEST))
+-testshort.dirs: $(addsuffix .testshort, $(TEST))
+-bench.dirs: $(addsuffix .bench, $(BENCH))
+-
+-%.clean:
+-	+$(MAKE) -C $* clean
+-
+-%.install:
+-	+@echo install $*
+-	+@$(MAKE) -C $* install.clean >$*/build.out 2>&1 || (echo INSTALL FAIL $*; cat $*/build.out; exit 1)
+-
+-%.nuke:
+-	+$(MAKE) -C $* nuke
+-
+-%.test:
+-	+@echo test $*
+-	+@$(MAKE) -C $* test.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+-
+-%.testshort:
+-	+@echo test $*
+-	+@$(MAKE) -C $* testshort.clean >$*/test.out 2>&1 || (echo TEST FAIL $*; cat $*/test.out; exit 1)
+-
+-%.bench:
+-	+$(MAKE) -C $* bench	
+-
+-clean: clean.dirs
+-
+-install: install.dirs
+-
+-test:	test.dirs
+-
+-testshort: testshort.dirs
+-
+-bench:	bench.dirs ../../test/garbage.bench
+-
+-nuke: nuke.dirs
+-	rm -rf "$(GOROOT)"/pkg/*
+-
+-deps:
+-	./deps.bash
+-
+-echo-dirs:
+-	@echo $(DIRS)
+-
+--include Make.deps
+-
+-runtime/cgo.install: ../cmd/cgo.install
+diff --git a/src/pkg/archive/tar/Makefile b/src/pkg/archive/tar/Makefile
+deleted file mode 100644
+index 8897e883eb..0000000000
+--- a/src/pkg/archive/tar/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=archive/tar
+-GOFILES=\
+-	common.go\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/archive/zip/Makefile b/src/pkg/archive/zip/Makefile
+deleted file mode 100644
+index 9071690f0a..0000000000
+--- a/src/pkg/archive/zip/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=archive/zip
+-GOFILES=\
+-	reader.go\
+-	struct.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/bufio/Makefile b/src/pkg/bufio/Makefile
+deleted file mode 100644
+index 85430e8e81..0000000000
+--- a/src/pkg/bufio/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=bufio
+-GOFILES=\
+-	bufio.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/bytes/Makefile b/src/pkg/bytes/Makefile
+deleted file mode 100644
+index 03395c7a4c..0000000000
+--- a/src/pkg/bytes/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=bytes
+-GOFILES=\
+-	buffer.go\
+-	bytes.go\
+-	bytes_decl.go\
+-
+-OFILES=\
+-	asm_$(GOARCH).$O\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/compress/bzip2/Makefile b/src/pkg/compress/bzip2/Makefile
+deleted file mode 100644
+index a4bceef161..0000000000
+--- a/src/pkg/compress/bzip2/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=compress/bzip2
+-GOFILES=\
+-	bit_reader.go\
+-	bzip2.go\
+-	huffman.go\
+-	move_to_front.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/compress/flate/Makefile b/src/pkg/compress/flate/Makefile
+deleted file mode 100644
+index 04fcb6b26e..0000000000
+--- a/src/pkg/compress/flate/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=compress/flate
+-GOFILES=\
+-	deflate.go\
+-	huffman_bit_writer.go\
+-	huffman_code.go\
+-	inflate.go\
+-	reverse_bits.go\
+-	token.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/compress/gzip/Makefile b/src/pkg/compress/gzip/Makefile
+deleted file mode 100644
+index b671fc72c0..0000000000
+--- a/src/pkg/compress/gzip/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=compress/gzip
+-GOFILES=\
+-	gunzip.go\
+-	gzip.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/compress/lzw/Makefile b/src/pkg/compress/lzw/Makefile
+deleted file mode 100644
+index 28f5e6abcb..0000000000
+--- a/src/pkg/compress/lzw/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=compress/lzw
+-GOFILES=\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/compress/zlib/Makefile b/src/pkg/compress/zlib/Makefile
+deleted file mode 100644
+index 791072d349..0000000000
+--- a/src/pkg/compress/zlib/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=compress/zlib
+-GOFILES=\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/container/heap/Makefile b/src/pkg/container/heap/Makefile
+deleted file mode 100644
+index 4291d11223..0000000000
+--- a/src/pkg/container/heap/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=container/heap
+-GOFILES=\
+-	heap.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/container/list/Makefile b/src/pkg/container/list/Makefile
+deleted file mode 100644
+index 7fcd5f99ae..0000000000
+--- a/src/pkg/container/list/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=container/list
+-GOFILES=\
+-	list.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/container/ring/Makefile b/src/pkg/container/ring/Makefile
+deleted file mode 100644
+index fb0900774a..0000000000
+--- a/src/pkg/container/ring/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=container/ring
+-GOFILES=\
+-	ring.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/Makefile b/src/pkg/crypto/Makefile
+deleted file mode 100644
+index 738a520623..0000000000
+--- a/src/pkg/crypto/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=crypto
+-GOFILES=\
+-	crypto.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/crypto/aes/Makefile b/src/pkg/crypto/aes/Makefile
+deleted file mode 100644
+index 9dc846ee3a..0000000000
+--- a/src/pkg/crypto/aes/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/aes
+-GOFILES=\
+-	block.go\
+-	cipher.go\
+-	const.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/cipher/Makefile b/src/pkg/crypto/cipher/Makefile
+deleted file mode 100644
+index 8f61cf20b2..0000000000
+--- a/src/pkg/crypto/cipher/Makefile
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/cipher
+-GOFILES=\
+-	cbc.go\
+-	cfb.go\
+-	cipher.go\
+-	ctr.go\
+-	io.go\
+-	ocfb.go\
+-	ofb.go
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/des/Makefile b/src/pkg/crypto/des/Makefile
+deleted file mode 100644
+index 94b0fc0fa7..0000000000
+--- a/src/pkg/crypto/des/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/des
+-GOFILES=\
+-	block.go\
+-	cipher.go\
+-	const.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/dsa/Makefile b/src/pkg/crypto/dsa/Makefile
+deleted file mode 100644
+index fa89d4ab29..0000000000
+--- a/src/pkg/crypto/dsa/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/dsa
+-GOFILES=\
+-	dsa.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/ecdsa/Makefile b/src/pkg/crypto/ecdsa/Makefile
+deleted file mode 100644
+index 0af24c2f23..0000000000
+--- a/src/pkg/crypto/ecdsa/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/ecdsa
+-GOFILES=\
+-	ecdsa.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/elliptic/Makefile b/src/pkg/crypto/elliptic/Makefile
+deleted file mode 100644
+index b38af4d5a2..0000000000
+--- a/src/pkg/crypto/elliptic/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/elliptic
+-GOFILES=\
+-	elliptic.go\
+-	p224.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/hmac/Makefile b/src/pkg/crypto/hmac/Makefile
+deleted file mode 100644
+index cc69abf608..0000000000
+--- a/src/pkg/crypto/hmac/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/hmac
+-GOFILES=\
+-	hmac.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/md5/Makefile b/src/pkg/crypto/md5/Makefile
+deleted file mode 100644
+index 5cde3e6d67..0000000000
+--- a/src/pkg/crypto/md5/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/md5
+-GOFILES=\
+-	md5.go\
+-	md5block.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/rand/Makefile b/src/pkg/crypto/rand/Makefile
+deleted file mode 100644
+index d1a3d45e8c..0000000000
+--- a/src/pkg/crypto/rand/Makefile
++++ /dev/null
+@@ -1,30 +0,0 @@
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/rand
+-
+-GOFILES=\
+-	rand.go\
+-	util.go\
+-
+-GOFILES_freebsd=\
+-	rand_unix.go\
+-
+-GOFILES_darwin=\
+-	rand_unix.go\
+-
+-GOFILES_linux=\
+-	rand_unix.go\
+-
+-GOFILES_openbsd=\
+-	rand_unix.go\
+-
+-GOFILES_windows=\
+-	rand_windows.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/rc4/Makefile b/src/pkg/crypto/rc4/Makefile
+deleted file mode 100644
+index 50a3b7972a..0000000000
+--- a/src/pkg/crypto/rc4/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/rc4
+-GOFILES=\
+-	rc4.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/rsa/Makefile b/src/pkg/crypto/rsa/Makefile
+deleted file mode 100644
+index ff26ca6f2e..0000000000
+--- a/src/pkg/crypto/rsa/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/rsa
+-GOFILES=\
+-	rsa.go\
+-	pkcs1v15.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/sha1/Makefile b/src/pkg/crypto/sha1/Makefile
+deleted file mode 100644
+index 81ac38c0b2..0000000000
+--- a/src/pkg/crypto/sha1/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/sha1
+-GOFILES=\
+-	sha1.go\
+-	sha1block.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/sha256/Makefile b/src/pkg/crypto/sha256/Makefile
+deleted file mode 100644
+index 97fe4d8e66..0000000000
+--- a/src/pkg/crypto/sha256/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/sha256
+-GOFILES=\
+-	sha256.go\
+-	sha256block.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/sha512/Makefile b/src/pkg/crypto/sha512/Makefile
+deleted file mode 100644
+index 2f7633fa32..0000000000
+--- a/src/pkg/crypto/sha512/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/sha512
+-GOFILES=\
+-	sha512.go\
+-	sha512block.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/subtle/Makefile b/src/pkg/crypto/subtle/Makefile
+deleted file mode 100644
+index 08d8bbfa06..0000000000
+--- a/src/pkg/crypto/subtle/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/subtle
+-GOFILES=\
+-	constant_time.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/tls/Makefile b/src/pkg/crypto/tls/Makefile
+deleted file mode 100644
+index 5cda149ddc..0000000000
+--- a/src/pkg/crypto/tls/Makefile
++++ /dev/null
+@@ -1,39 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/tls
+-GOFILES=\
+-	alert.go\
+-	cipher_suites.go\
+-	common.go\
+-	conn.go\
+-	handshake_client.go\
+-	handshake_messages.go\
+-	handshake_server.go\
+-	key_agreement.go\
+-	prf.go\
+-	tls.go\
+-
+-ifeq ($(CGO_ENABLED),1)
+-CGOFILES_darwin=\
+-	root_darwin.go
+-else
+-GOFILES_darwin+=root_stub.go
+-endif
+-
+-GOFILES_freebsd+=root_unix.go
+-GOFILES_linux+=root_unix.go
+-GOFILES_netbsd+=root_unix.go
+-GOFILES_openbsd+=root_unix.go
+-GOFILES_plan9+=root_stub.go
+-GOFILES_windows+=root_windows.go
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-ifneq ($(CGOFILES_$(GOOS)),)
+-CGOFILES+=$(CGOFILES_$(GOOS))
+-endif
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/x509/Makefile b/src/pkg/crypto/x509/Makefile
+deleted file mode 100644
+index 91d1052c0d..0000000000
+--- a/src/pkg/crypto/x509/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=crypto/x509
+-GOFILES=\
+-	cert_pool.go\
+-	pkcs1.go\
+-	pkcs8.go\
+-	verify.go\
+-	x509.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/crypto/x509/pkix/Makefile b/src/pkg/crypto/x509/pkix/Makefile
+deleted file mode 100644
+index e29b74c013..0000000000
+--- a/src/pkg/crypto/x509/pkix/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=crypto/x509/pkix
+-GOFILES=\
+-	pkix.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/database/sql/Makefile b/src/pkg/database/sql/Makefile
+deleted file mode 100644
+index b8dd59a7f1..0000000000
+--- a/src/pkg/database/sql/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=database/sql
+-GOFILES=\
+-	convert.go\
+-	sql.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/database/sql/driver/Makefile b/src/pkg/database/sql/driver/Makefile
+deleted file mode 100644
+index 564aaa6899..0000000000
+--- a/src/pkg/database/sql/driver/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=database/sql/driver
+-GOFILES=\
+-	driver.go\
+-	types.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/debug/dwarf/Makefile b/src/pkg/debug/dwarf/Makefile
+deleted file mode 100644
+index c4203188e0..0000000000
+--- a/src/pkg/debug/dwarf/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=debug/dwarf
+-GOFILES=\
+-	buf.go\
+-	const.go\
+-	entry.go\
+-	open.go\
+-	type.go\
+-	unit.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/debug/elf/Makefile b/src/pkg/debug/elf/Makefile
+deleted file mode 100644
+index dd431f653c..0000000000
+--- a/src/pkg/debug/elf/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=debug/elf
+-GOFILES=\
+-	elf.go\
+-	file.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/debug/macho/Makefile b/src/pkg/debug/macho/Makefile
+deleted file mode 100644
+index 5fbbf1efe5..0000000000
+--- a/src/pkg/debug/macho/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=debug/macho
+-GOFILES=\
+-	macho.go\
+-	file.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/debug/pe/Makefile b/src/pkg/debug/pe/Makefile
+deleted file mode 100644
+index 998e6a4182..0000000000
+--- a/src/pkg/debug/pe/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=debug/pe
+-GOFILES=\
+-	pe.go\
+-	file.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/ascii85/Makefile b/src/pkg/encoding/ascii85/Makefile
+deleted file mode 100644
+index 412383efd5..0000000000
+--- a/src/pkg/encoding/ascii85/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/ascii85
+-GOFILES=\
+-	ascii85.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/asn1/Makefile b/src/pkg/encoding/asn1/Makefile
+deleted file mode 100644
+index 1c046dc369..0000000000
+--- a/src/pkg/encoding/asn1/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/asn1
+-GOFILES=\
+-	asn1.go\
+-	common.go\
+-	marshal.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/base32/Makefile b/src/pkg/encoding/base32/Makefile
+deleted file mode 100644
+index c0e85b6448..0000000000
+--- a/src/pkg/encoding/base32/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include $(GOROOT)/src/Make.inc
+-
+-TARG=encoding/base32
+-GOFILES=\
+-	base32.go\
+-
+-include $(GOROOT)/src/Make.pkg
+diff --git a/src/pkg/encoding/base64/Makefile b/src/pkg/encoding/base64/Makefile
+deleted file mode 100644
+index 2f54ed8395..0000000000
+--- a/src/pkg/encoding/base64/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/base64
+-GOFILES=\
+-	base64.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/binary/Makefile b/src/pkg/encoding/binary/Makefile
+deleted file mode 100644
+index 3246f5a387..0000000000
+--- a/src/pkg/encoding/binary/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/binary
+-GOFILES=\
+-	binary.go\
+-        varint.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/csv/Makefile b/src/pkg/encoding/csv/Makefile
+deleted file mode 100644
+index 9e04c5b90d..0000000000
+--- a/src/pkg/encoding/csv/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/csv
+-GOFILES=\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/gob/Makefile b/src/pkg/encoding/gob/Makefile
+index 3847edb20b..3de845efcd 100644
+--- a/src/pkg/encoding/gob/Makefile
++++ b/src/pkg/encoding/gob/Makefile
+@@ -2,24 +2,8 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.inc
++# Help for debugging.
++dump:	dump.go
++	go clean -i  # remove installed copy
++	go build -t gob-debug -o dump dump.go
+ 
+-TARG=encoding/gob
+-GOFILES=\
+-	decode.go\
+-	decoder.go\
+-	doc.go\
+-	encode.go\
+-	encoder.go\
+-	error.go\
+-	type.go\
+-
+-include ../../../Make.pkg
+-
+-# Help for debugging. Requires adding debug.go to the gob package as well.
+-
+-dump:	dump.$O
+-	$(LD) -o dump $<
+-
+-dump.$O:	dump.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) $<
+diff --git a/src/pkg/encoding/gob/debug.go b/src/pkg/encoding/gob/debug.go
+index 6dc7fc9aca..b54ef46f52 100644
+--- a/src/pkg/encoding/gob/debug.go
++++ b/src/pkg/encoding/gob/debug.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Delete the next line to include this file in the gob package.
+-// +build ignore
++// Delete the next line to include in the gob package.
++// +build gob-debug
+ 
+ package gob
+ 
+diff --git a/src/pkg/encoding/hex/Makefile b/src/pkg/encoding/hex/Makefile
+deleted file mode 100644
+index 22049f43b6..0000000000
+--- a/src/pkg/encoding/hex/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/hex
+-GOFILES=\
+-	hex.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/json/Makefile b/src/pkg/encoding/json/Makefile
+deleted file mode 100644
+index 37223e75e9..0000000000
+--- a/src/pkg/encoding/json/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/json
+-GOFILES=\
+-	decode.go\
+-	encode.go\
+-	indent.go\
+-	scanner.go\
+-	stream.go\
+-	tags.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/pem/Makefile b/src/pkg/encoding/pem/Makefile
+deleted file mode 100644
+index 527670380b..0000000000
+--- a/src/pkg/encoding/pem/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/pem
+-GOFILES=\
+-	pem.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/encoding/xml/Makefile b/src/pkg/encoding/xml/Makefile
+deleted file mode 100644
+index ca84c211e8..0000000000
+--- a/src/pkg/encoding/xml/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=encoding/xml
+-
+-GOFILES=\
+-	marshal.go\
+-	read.go\
+-	typeinfo.go\
+-	xml.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/errors/Makefile b/src/pkg/errors/Makefile
+deleted file mode 100644
+index 05b4de5937..0000000000
+--- a/src/pkg/errors/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=errors
+-GOFILES=\
+-	errors.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/exp/ebnf/Makefile b/src/pkg/exp/ebnf/Makefile
+deleted file mode 100644
+index 844de675cb..0000000000
+--- a/src/pkg/exp/ebnf/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/ebnf
+-GOFILES=\
+-	ebnf.go\
+-	parser.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/ebnflint/Makefile b/src/pkg/exp/ebnflint/Makefile
+deleted file mode 100644
+index 2057b07d58..0000000000
+--- a/src/pkg/exp/ebnflint/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=ebnflint
+-GOFILES=\
+-	ebnflint.go\
+-
+-include ../../../Make.cmd
+-
+-test: $(TARG)
+-	$(TARG) -start="SourceFile" "$(GOROOT)"/doc/go_spec.html
+-
+diff --git a/src/pkg/exp/gotype/Makefile b/src/pkg/exp/gotype/Makefile
+deleted file mode 100644
+index 230242c582..0000000000
+--- a/src/pkg/exp/gotype/Makefile
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=gotype
+-GOFILES=\
+-	gotype.go\
+-
+-include ../../../Make.cmd
+-
+-test:
+-	gotest
+-
+-testshort:
+-	gotest -test.short
+diff --git a/src/pkg/exp/html/Makefile b/src/pkg/exp/html/Makefile
+deleted file mode 100644
+index 3ba6a0dee9..0000000000
+--- a/src/pkg/exp/html/Makefile
++++ /dev/null
+@@ -1,20 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=html
+-GOFILES=\
+-	const.go\
+-	doc.go\
+-	doctype.go\
+-	entity.go\
+-	escape.go\
+-	foreign.go\
+-	node.go\
+-	parse.go\
+-	render.go\
+-	token.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/inotify/Makefile b/src/pkg/exp/inotify/Makefile
+deleted file mode 100644
+index 1e822fb8f0..0000000000
+--- a/src/pkg/exp/inotify/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/inotify
+-
+-GOFILES_linux=\
+-	inotify_linux.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/norm/Makefile b/src/pkg/exp/norm/Makefile
+index b4faa249ac..f278eb02f9 100644
+--- a/src/pkg/exp/norm/Makefile
++++ b/src/pkg/exp/norm/Makefile
+@@ -2,33 +2,14 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.inc
+-
+-TARG=exp/norm
+-GOFILES=\
+-	composition.go\
+-	input.go\
+-	forminfo.go\
+-	normalize.go\
+-	readwriter.go\
+-	tables.go\
+-	trie.go\
+-
+-include ../../../Make.pkg
+-
+-CLEANFILES+=maketables maketesttables
+-
+ maketables: maketables.go triegen.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go triegen.go
+-	$(LD) -o maketables maketables.$O
++	go build $^
+ 
+ maketesttables: maketesttables.go triegen.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) maketesttables.go triegen.go
+-	$(LD) -o maketesttables maketesttables.$O
++	go build $^
+ 
+ normregtest: normregtest.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) normregtest.go
+-	$(LD) -o normregtest normregtest.$O
++	go build $^
+ 
+ tables:	maketables
+ 	./maketables > tables.go
+@@ -38,10 +19,6 @@ trietesttables: maketesttables
+ 	./maketesttables > triedata_test.go
+ 	gofmt -w triedata_test.go
+ 
+-# Build (but do not run) maketables during testing,
+-# just to make sure it still compiles.
+-testshort: maketables maketesttables
+-
+ # Downloads from www.unicode.org, so not part
+ # of standard test scripts.
+ test: testtables regtest
+diff --git a/src/pkg/exp/proxy/Makefile b/src/pkg/exp/proxy/Makefile
+deleted file mode 100644
+index 7067de1707..0000000000
+--- a/src/pkg/exp/proxy/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/proxy
+-GOFILES=\
+-	direct.go\
+-	per_host.go\
+-	proxy.go\
+-	socks5.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/terminal/Makefile b/src/pkg/exp/terminal/Makefile
+deleted file mode 100644
+index 7f702efe36..0000000000
+--- a/src/pkg/exp/terminal/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/terminal
+-GOFILES=\
+-	terminal.go\
+-
+-ifeq ($(GOOS),linux)
+-GOFILES+=\
+-	util.go
+-endif
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/types/Makefile b/src/pkg/exp/types/Makefile
+deleted file mode 100644
+index e8fec9f3ef..0000000000
+--- a/src/pkg/exp/types/Makefile
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/types
+-GOFILES=\
+-	check.go\
+-	const.go\
+-	exportdata.go\
+-	gcimporter.go\
+-	types.go\
+-	universe.go\
+-
+-include ../../../Make.pkg
+-
+-CLEANFILES+=testdata/exports.[$(OS)]
+diff --git a/src/pkg/exp/utf8string/Makefile b/src/pkg/exp/utf8string/Makefile
+deleted file mode 100644
+index 49c192861c..0000000000
+--- a/src/pkg/exp/utf8string/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/utf8string
+-GOFILES=\
+-	string.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/exp/winfsnotify/Makefile b/src/pkg/exp/winfsnotify/Makefile
+deleted file mode 100644
+index f0fe096d99..0000000000
+--- a/src/pkg/exp/winfsnotify/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=exp/winfsnotify
+-GOFILES=\
+-	winfsnotify.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/expvar/Makefile b/src/pkg/expvar/Makefile
+deleted file mode 100644
+index 5619630d17..0000000000
+--- a/src/pkg/expvar/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=expvar
+-GOFILES=\
+-	expvar.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/flag/Makefile b/src/pkg/flag/Makefile
+deleted file mode 100644
+index 3408ca4745..0000000000
+--- a/src/pkg/flag/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=flag
+-GOFILES=\
+-	flag.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/fmt/Makefile b/src/pkg/fmt/Makefile
+deleted file mode 100644
+index 44b48bc67d..0000000000
+--- a/src/pkg/fmt/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=fmt
+-GOFILES=\
+-	doc.go\
+-	format.go\
+-	print.go\
+-	scan.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/go/ast/Makefile b/src/pkg/go/ast/Makefile
+deleted file mode 100644
+index 30c386cd84..0000000000
+--- a/src/pkg/go/ast/Makefile
++++ /dev/null
+@@ -1,17 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/ast
+-GOFILES=\
+-	ast.go\
+-	filter.go\
+-	import.go\
+-	print.go\
+-	resolve.go\
+-	scope.go\
+-	walk.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/go/build/Makefile b/src/pkg/go/build/Makefile
+index 68c731749a..c7ef6542e5 100644
+--- a/src/pkg/go/build/Makefile
++++ b/src/pkg/go/build/Makefile
+@@ -2,19 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.inc
+-
+-TARG=go/build
+-GOFILES=\
+-	build.go\
+-	dir.go\
+-	path.go\
+-	syslist.go\
+-
+-CLEANFILES+=pkgtest/_obj cmdtest/_obj cgotest/_obj
+-
+-include ../../../Make.pkg
+-
+ syslist.go: ../../../Make.inc Makefile
+ 	echo '// Generated automatically by make.' >$@
+ 	echo 'package build' >>$@
+diff --git a/src/pkg/go/doc/Makefile b/src/pkg/go/doc/Makefile
+index ac2eeb9627..ca4948f91c 100644
+--- a/src/pkg/go/doc/Makefile
++++ b/src/pkg/go/doc/Makefile
+@@ -2,21 +2,6 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../../Make.inc
+-
+-TARG=go/doc
+-GOFILES=\
+-	comment.go\
+-	doc.go\
+-	example.go\
+-	exports.go\
+-	filter.go\
+-	reader.go\
+-
+-include ../../../Make.pkg
+-
+ # Script to test heading detection heuristic
+-CLEANFILES+=headscan
+ headscan: headscan.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) headscan.go
+-	$(LD) -o headscan headscan.$(O)
++	go build headscan.go
+diff --git a/src/pkg/go/parser/Makefile b/src/pkg/go/parser/Makefile
+deleted file mode 100644
+index d301f41eb1..0000000000
+--- a/src/pkg/go/parser/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/parser
+-GOFILES=\
+-	interface.go\
+-	parser.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/go/printer/Makefile b/src/pkg/go/printer/Makefile
+deleted file mode 100644
+index 6a71efc935..0000000000
+--- a/src/pkg/go/printer/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/printer
+-GOFILES=\
+-	printer.go\
+-	nodes.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/go/scanner/Makefile b/src/pkg/go/scanner/Makefile
+deleted file mode 100644
+index 453faac005..0000000000
+--- a/src/pkg/go/scanner/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/scanner
+-GOFILES=\
+-	errors.go\
+-	scanner.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/go/token/Makefile b/src/pkg/go/token/Makefile
+deleted file mode 100644
+index b13b0442be..0000000000
+--- a/src/pkg/go/token/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=go/token
+-GOFILES=\
+-	position.go\
+-	serialize.go\
+-	token.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/hash/Makefile b/src/pkg/hash/Makefile
+deleted file mode 100644
+index 56071cb339..0000000000
+--- a/src/pkg/hash/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=hash
+-GOFILES=\
+-	hash.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/hash/adler32/Makefile b/src/pkg/hash/adler32/Makefile
+deleted file mode 100644
+index 38ce537ba3..0000000000
+--- a/src/pkg/hash/adler32/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=hash/adler32
+-GOFILES=\
+-	adler32.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/hash/crc32/Makefile b/src/pkg/hash/crc32/Makefile
+deleted file mode 100644
+index af8a64cf21..0000000000
+--- a/src/pkg/hash/crc32/Makefile
++++ /dev/null
+@@ -1,20 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=hash/crc32
+-
+-ifeq ($(GOARCH), amd64)
+-	ARCH_GOFILES=crc32_amd64.go
+-	OFILES=crc32_amd64.6
+-else
+-	ARCH_GOFILES=crc32_generic.go
+-endif
+-
+-GOFILES=\
+-	crc32.go\
+-	$(ARCH_GOFILES)
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/hash/crc64/Makefile b/src/pkg/hash/crc64/Makefile
+deleted file mode 100644
+index 5f6c3de69a..0000000000
+--- a/src/pkg/hash/crc64/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=hash/crc64
+-GOFILES=\
+-	crc64.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/hash/fnv/Makefile b/src/pkg/hash/fnv/Makefile
+deleted file mode 100644
+index 4c8a4ecf03..0000000000
+--- a/src/pkg/hash/fnv/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=hash/fnv
+-GOFILES=\
+-	fnv.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/html/Makefile b/src/pkg/html/Makefile
+deleted file mode 100644
+index 1b18358a78..0000000000
+--- a/src/pkg/html/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=html
+-GOFILES=\
+-	entity.go\
+-	escape.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/html/template/Makefile b/src/pkg/html/template/Makefile
+deleted file mode 100644
+index d27601a33b..0000000000
+--- a/src/pkg/html/template/Makefile
++++ /dev/null
+@@ -1,23 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=html/template
+-GOFILES=\
+-	attr.go\
+-	clone.go\
+-	content.go\
+-	context.go\
+-	css.go\
+-	doc.go\
+-	error.go\
+-	escape.go\
+-	html.go\
+-	js.go\
+-	template.go\
+-	transition.go\
+-	url.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/image/Makefile b/src/pkg/image/Makefile
+deleted file mode 100644
+index 7c995d98b8..0000000000
+--- a/src/pkg/image/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=image
+-GOFILES=\
+-	format.go\
+-	geom.go\
+-	image.go\
+-	names.go\
+-	ycbcr.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/image/color/Makefile b/src/pkg/image/color/Makefile
+deleted file mode 100644
+index 94b4e39aef..0000000000
+--- a/src/pkg/image/color/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=image/color
+-GOFILES=\
+-	color.go\
+-	ycbcr.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/image/draw/Makefile b/src/pkg/image/draw/Makefile
+deleted file mode 100644
+index 2ba6e7b51d..0000000000
+--- a/src/pkg/image/draw/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=image/draw
+-GOFILES=\
+-	draw.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/image/gif/Makefile b/src/pkg/image/gif/Makefile
+deleted file mode 100644
+index e89a713617..0000000000
+--- a/src/pkg/image/gif/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=image/gif
+-GOFILES=\
+-	reader.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/image/jpeg/Makefile b/src/pkg/image/jpeg/Makefile
+deleted file mode 100644
+index d9d830f2ff..0000000000
+--- a/src/pkg/image/jpeg/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=image/jpeg
+-GOFILES=\
+-	fdct.go\
+-	huffman.go\
+-	idct.go\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/image/png/Makefile b/src/pkg/image/png/Makefile
+deleted file mode 100644
+index 4101f77e1b..0000000000
+--- a/src/pkg/image/png/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=image/png
+-GOFILES=\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/index/suffixarray/Makefile b/src/pkg/index/suffixarray/Makefile
+deleted file mode 100644
+index 297c4279f9..0000000000
+--- a/src/pkg/index/suffixarray/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=index/suffixarray
+-GOFILES=\
+-	qsufsort.go\
+-	suffixarray.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/io/Makefile b/src/pkg/io/Makefile
+deleted file mode 100644
+index 9786002f09..0000000000
+--- a/src/pkg/io/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=io
+-GOFILES=\
+-	io.go\
+-	multi.go\
+-	pipe.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/io/ioutil/Makefile b/src/pkg/io/ioutil/Makefile
+deleted file mode 100644
+index d406d4b7dd..0000000000
+--- a/src/pkg/io/ioutil/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=io/ioutil
+-GOFILES=\
+-	ioutil.go\
+-	tempfile.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/log/Makefile b/src/pkg/log/Makefile
+deleted file mode 100644
+index da72216af0..0000000000
+--- a/src/pkg/log/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=log
+-GOFILES=\
+-	log.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/log/syslog/Makefile b/src/pkg/log/syslog/Makefile
+deleted file mode 100644
+index 225307cf98..0000000000
+--- a/src/pkg/log/syslog/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=log/syslog
+-GOFILES=\
+-	syslog.go\
+-	syslog_unix.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/math/Makefile b/src/pkg/math/Makefile
+deleted file mode 100644
+index d70cba79d3..0000000000
+--- a/src/pkg/math/Makefile
++++ /dev/null
+@@ -1,77 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=math
+-
+-OFILES=\
+-	abs_$(GOARCH).$O\
+-	asin_$(GOARCH).$O\
+-	atan_$(GOARCH).$O\
+-	atan2_$(GOARCH).$O\
+-	dim_$(GOARCH).$O\
+-	exp_$(GOARCH).$O\
+-	exp2_$(GOARCH).$O\
+-	expm1_$(GOARCH).$O\
+-	floor_$(GOARCH).$O\
+-	frexp_$(GOARCH).$O\
+-	hypot_$(GOARCH).$O\
+-	ldexp_$(GOARCH).$O\
+-	log_$(GOARCH).$O\
+-	log10_$(GOARCH).$O\
+-	log1p_$(GOARCH).$O\
+-	mod_$(GOARCH).$O\
+-	modf_$(GOARCH).$O\
+-	remainder_$(GOARCH).$O\
+-	sin_$(GOARCH).$O\
+-	sincos_$(GOARCH).$O\
+-	sqrt_$(GOARCH).$O\
+-	tan_$(GOARCH).$O\
+-
+-GOFILES=\
+-	abs.go\
+-	acosh.go\
+-	asin.go\
+-	asinh.go\
+-	atan.go\
+-	atanh.go\
+-	atan2.go\
+-	bits.go\
+-	cbrt.go\
+-	const.go\
+-	copysign.go\
+-	dim.go\
+-	erf.go\
+-	exp.go\
+-	expm1.go\
+-	floor.go\
+-	frexp.go\
+-	gamma.go\
+-	hypot.go\
+-	j0.go\
+-	j1.go\
+-	jn.go\
+-	lgamma.go\
+-	ldexp.go\
+-	log.go\
+-	log10.go\
+-	log1p.go\
+-	logb.go\
+-	mod.go\
+-	modf.go\
+-	nextafter.go\
+-	pow.go\
+-	pow10.go\
+-	remainder.go\
+-	signbit.go\
+-	sin.go\
+-	sincos.go\
+-	sinh.go\
+-	sqrt.go\
+-	tan.go\
+-	tanh.go\
+-	unsafe.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/math/big/Makefile b/src/pkg/math/big/Makefile
+deleted file mode 100644
+index 1ba0818125..0000000000
+--- a/src/pkg/math/big/Makefile
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=math/big
+-GOFILES=\
+-	arith.go\
+-	arith_decl.go\
+-	int.go\
+-	nat.go\
+-	rat.go\
+-
+-OFILES=\
+-	arith_$(GOARCH).$O\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/math/cmplx/Makefile b/src/pkg/math/cmplx/Makefile
+deleted file mode 100644
+index b6e8aa334e..0000000000
+--- a/src/pkg/math/cmplx/Makefile
++++ /dev/null
+@@ -1,25 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=math/cmplx
+-
+-GOFILES=\
+-	abs.go\
+-	asin.go\
+-	conj.go\
+-	exp.go\
+-	isinf.go\
+-	isnan.go\
+-	log.go\
+-	phase.go\
+-	polar.go\
+-	pow.go\
+-	rect.go\
+-	sin.go\
+-	sqrt.go\
+-	tan.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/math/rand/Makefile b/src/pkg/math/rand/Makefile
+deleted file mode 100644
+index d2903d59b3..0000000000
+--- a/src/pkg/math/rand/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=math/rand
+-GOFILES=\
+-	exp.go\
+-	normal.go\
+-	rand.go\
+-	rng.go\
+-	zipf.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/mime/Makefile b/src/pkg/mime/Makefile
+deleted file mode 100644
+index 38d809c1c1..0000000000
+--- a/src/pkg/mime/Makefile
++++ /dev/null
+@@ -1,36 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=mime
+-GOFILES=\
+-	grammar.go\
+-	mediatype.go\
+-	type.go\
+-
+-GOFILES_freebsd=\
+-	type_unix.go
+-
+-GOFILES_darwin=\
+-	type_unix.go
+-
+-GOFILES_linux=\
+-	type_unix.go
+-
+-GOFILES_netbsd=\
+-	type_unix.go
+-
+-GOFILES_openbsd=\
+-	type_unix.go
+-
+-GOFILES_plan9=\
+-	type_unix.go
+-
+-GOFILES_windows=\
+-	type_windows.go
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/mime/multipart/Makefile b/src/pkg/mime/multipart/Makefile
+deleted file mode 100644
+index de1a439f2a..0000000000
+--- a/src/pkg/mime/multipart/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=mime/multipart
+-GOFILES=\
+-	formdata.go\
+-	multipart.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/Makefile b/src/pkg/net/Makefile
+deleted file mode 100644
+index a02798c73e..0000000000
+--- a/src/pkg/net/Makefile
++++ /dev/null
+@@ -1,207 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=net
+-GOFILES=\
+-	dial.go\
+-	dnsclient.go\
+-	dnsmsg.go\
+-	doc.go\
+-	hosts.go\
+-	interface.go\
+-	ip.go\
+-	iprawsock.go\
+-	ipsock.go\
+-	net.go\
+-	parse.go\
+-	pipe.go\
+-	tcpsock.go\
+-	udpsock.go\
+-	unixsock.go\
+-
+-GOFILES_darwin=\
+-	dnsclient_unix.go\
+-	dnsconfig.go\
+-	fd.go\
+-	fd_$(GOOS).go\
+-	file.go\
+-	interface_bsd.go\
+-	interface_darwin.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_unix.go\
+-	newpollserver.go\
+-	port.go\
+-	sendfile_stub.go\
+-	sock.go\
+-	sock_bsd.go\
+-	sockopt.go\
+-	sockopt_bsd.go\
+-	sockoptip.go\
+-	sockoptip_bsd.go\
+-	sockoptip_darwin.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-
+-ifeq ($(CGO_ENABLED),1)
+-CGOFILES_darwin=\
+-	cgo_bsd.go\
+-	cgo_unix.go
+-else
+-GOFILES_darwin+=cgo_stub.go
+-endif
+-
+-GOFILES_freebsd=\
+-	dnsclient_unix.go\
+-	dnsconfig.go\
+-	fd.go\
+-	fd_$(GOOS).go\
+-	file.go\
+-	interface_bsd.go\
+-	interface_freebsd.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_unix.go\
+-	newpollserver.go\
+-	port.go\
+-	sendfile_stub.go\
+-	sock.go\
+-	sock_bsd.go\
+-	sockopt.go\
+-	sockopt_bsd.go\
+-	sockoptip.go\
+-	sockoptip_bsd.go\
+-	sockoptip_freebsd.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-
+-ifeq ($(CGO_ENABLED),1)
+-CGOFILES_freebsd=\
+-	cgo_bsd.go\
+-	cgo_unix.go
+-else
+-GOFILES_freebsd+=cgo_stub.go
+-endif
+-
+-GOFILES_linux=\
+-	dnsclient_unix.go\
+-	dnsconfig.go\
+-	fd.go\
+-	fd_$(GOOS).go\
+-	file.go\
+-	interface_linux.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_unix.go\
+-	newpollserver.go\
+-	port.go\
+-	sendfile_linux.go\
+-	sock.go\
+-	sock_linux.go\
+-	sockopt.go\
+-	sockopt_linux.go\
+-	sockoptip.go\
+-	sockoptip_linux.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-
+-ifeq ($(CGO_ENABLED),1)
+-CGOFILES_linux=\
+-	cgo_linux.go\
+-	cgo_unix.go
+-else
+-GOFILES_linux+=cgo_stub.go
+-endif
+-
+-GOFILES_netbsd=\
+-	dnsclient_unix.go\
+-	dnsconfig.go\
+-	fd.go\
+-	fd_$(GOOS).go\
+-	file.go\
+-	interface_bsd.go\
+-	interface_netbsd.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_unix.go\
+-	newpollserver.go\
+-	port.go\
+-	sendfile_stub.go\
+-	sock.go\
+-	sock_bsd.go\
+-	sockopt.go\
+-	sockopt_bsd.go\
+-	sockoptip.go\
+-	sockoptip_bsd.go\
+-	sockoptip_netbsd.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-	cgo_stub.go\
+-
+-GOFILES_openbsd=\
+-	dnsclient_unix.go\
+-	dnsconfig.go\
+-	fd.go\
+-	fd_$(GOOS).go\
+-	file.go\
+-	interface_bsd.go\
+-	interface_openbsd.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_unix.go\
+-	newpollserver.go\
+-	port.go\
+-	sendfile_stub.go\
+-	sock.go\
+-	sock_bsd.go\
+-	sockopt.go\
+-	sockopt_bsd.go\
+-	sockoptip.go\
+-	sockoptip_bsd.go\
+-	sockoptip_openbsd.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-	cgo_stub.go\
+-
+-GOFILES_plan9=\
+-	file_plan9.go\
+-	interface_stub.go\
+-	iprawsock_plan9.go\
+-	ipsock_plan9.go\
+-	lookup_plan9.go\
+-	tcpsock_plan9.go\
+-	udpsock_plan9.go\
+-	unixsock_plan9.go\
+-
+-GOFILES_windows=\
+-	fd_$(GOOS).go\
+-	file_windows.go\
+-	interface_windows.go\
+-	iprawsock_posix.go\
+-	ipsock_posix.go\
+-	lookup_windows.go\
+-	sendfile_windows.go\
+-	sock.go\
+-	sock_windows.go\
+-	sockopt.go\
+-	sockopt_windows.go\
+-	sockoptip.go\
+-	sockoptip_windows.go\
+-	tcpsock_posix.go\
+-	udpsock_posix.go\
+-	unixsock_posix.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-ifneq ($(CGOFILES_$(GOOS)),)
+-CGOFILES+=$(CGOFILES_$(GOOS))
+-endif
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/net/http/Makefile b/src/pkg/net/http/Makefile
+deleted file mode 100644
+index 5c351b0c40..0000000000
+--- a/src/pkg/net/http/Makefile
++++ /dev/null
+@@ -1,25 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/http
+-GOFILES=\
+-	chunked.go\
+-	client.go\
+-	cookie.go\
+-	filetransport.go\
+-	fs.go\
+-	header.go\
+-	jar.go\
+-	lex.go\
+-	request.go\
+-	response.go\
+-	server.go\
+-	sniff.go\
+-	status.go\
+-	transfer.go\
+-	transport.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/http/cgi/Makefile b/src/pkg/net/http/cgi/Makefile
+deleted file mode 100644
+index 0d6be0180d..0000000000
+--- a/src/pkg/net/http/cgi/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/http/cgi
+-GOFILES=\
+-	child.go\
+-	host.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/http/fcgi/Makefile b/src/pkg/net/http/fcgi/Makefile
+deleted file mode 100644
+index 9a75f1a80c..0000000000
+--- a/src/pkg/net/http/fcgi/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/http/fcgi
+-GOFILES=\
+-	child.go\
+-	fcgi.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/http/httptest/Makefile b/src/pkg/net/http/httptest/Makefile
+deleted file mode 100644
+index 3bb445419e..0000000000
+--- a/src/pkg/net/http/httptest/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/http/httptest
+-GOFILES=\
+-	recorder.go\
+-	server.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/http/httputil/Makefile b/src/pkg/net/http/httputil/Makefile
+deleted file mode 100644
+index 8bfc7a022b..0000000000
+--- a/src/pkg/net/http/httputil/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/http/httputil
+-GOFILES=\
+-	chunked.go\
+-	dump.go\
+-	persist.go\
+-	reverseproxy.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/http/pprof/Makefile b/src/pkg/net/http/pprof/Makefile
+deleted file mode 100644
+index b78fce8e41..0000000000
+--- a/src/pkg/net/http/pprof/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/http/pprof
+-GOFILES=\
+-	pprof.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/mail/Makefile b/src/pkg/net/mail/Makefile
+deleted file mode 100644
+index acb1c2a6de..0000000000
+--- a/src/pkg/net/mail/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/mail
+-GOFILES=\
+-	message.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/rpc/Makefile b/src/pkg/net/rpc/Makefile
+deleted file mode 100644
+index 0e6c9846bf..0000000000
+--- a/src/pkg/net/rpc/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/rpc
+-GOFILES=\
+-	client.go\
+-	debug.go\
+-	server.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/rpc/jsonrpc/Makefile b/src/pkg/net/rpc/jsonrpc/Makefile
+deleted file mode 100644
+index c5ea5373d8..0000000000
+--- a/src/pkg/net/rpc/jsonrpc/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=net/rpc/jsonrpc
+-GOFILES=\
+-	client.go\
+-	server.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/net/smtp/Makefile b/src/pkg/net/smtp/Makefile
+deleted file mode 100644
+index d9812d5cb7..0000000000
+--- a/src/pkg/net/smtp/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/smtp
+-GOFILES=\
+-	auth.go\
+-	smtp.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/textproto/Makefile b/src/pkg/net/textproto/Makefile
+deleted file mode 100644
+index cadf3ab697..0000000000
+--- a/src/pkg/net/textproto/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/textproto
+-GOFILES=\
+-	header.go\
+-	pipeline.go\
+-	reader.go\
+-	textproto.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/net/url/Makefile b/src/pkg/net/url/Makefile
+deleted file mode 100644
+index bef0647a4b..0000000000
+--- a/src/pkg/net/url/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=net/url
+-GOFILES=\
+-	url.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/old/netchan/Makefile b/src/pkg/old/netchan/Makefile
+deleted file mode 100644
+index c8f4125252..0000000000
+--- a/src/pkg/old/netchan/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=old/netchan
+-GOFILES=\
+-	common.go\
+-	export.go\
+-	import.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/old/regexp/Makefile b/src/pkg/old/regexp/Makefile
+deleted file mode 100644
+index ccf99d199f..0000000000
+--- a/src/pkg/old/regexp/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=old/regexp
+-GOFILES=\
+-	regexp.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/old/template/Makefile b/src/pkg/old/template/Makefile
+deleted file mode 100644
+index 5772cb4aa8..0000000000
+--- a/src/pkg/old/template/Makefile
++++ /dev/null
+@@ -1,14 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=old/template
+-GOFILES=\
+-	doc.go\
+-	execute.go\
+-	format.go\
+-	parse.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/os/Makefile b/src/pkg/os/Makefile
+deleted file mode 100644
+index ca83ff1a99..0000000000
+--- a/src/pkg/os/Makefile
++++ /dev/null
+@@ -1,92 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=os
+-GOFILES=\
+-	doc.go\
+-	error.go\
+-	env.go\
+-	exec.go\
+-	file.go\
+-	getwd.go\
+-	path.go\
+-	proc.go\
+-	stat_$(GOOS).go\
+-	time.go\
+-	types.go\
+-
+-GOFILES_freebsd=\
+-	dir_unix.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_unix.go\
+-	path_unix.go\
+-	sys_bsd.go\
+-	exec_posix.go\
+-	exec_unix.go\
+-
+-GOFILES_darwin=\
+-	dir_unix.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_unix.go\
+-	path_unix.go\
+-	sys_bsd.go\
+-	exec_posix.go\
+-	exec_unix.go\
+-
+-GOFILES_linux=\
+-	dir_unix.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_unix.go\
+-	path_unix.go\
+-	sys_linux.go\
+-	exec_posix.go\
+-	exec_unix.go\
+-
+-GOFILES_netbsd=\
+-	dir_unix.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_unix.go\
+-	path_unix.go\
+-	sys_bsd.go\
+-	exec_posix.go\
+-	exec_unix.go\
+-
+-GOFILES_openbsd=\
+-	dir_unix.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_unix.go\
+-	path_unix.go\
+-	sys_bsd.go\
+-	exec_posix.go\
+-	exec_unix.go\
+-
+-GOFILES_windows=\
+-	dir_windows.go\
+-	error_posix.go\
+-	file_posix.go\
+-	file_windows.go\
+-	path_windows.go\
+-	sys_windows.go\
+-	exec_posix.go\
+-	exec_windows.go\
+-
+-GOFILES_plan9=\
+-	dir_plan9.go\
+-	error_plan9.go\
+-	file_plan9.go\
+-	path_plan9.go\
+-	sys_plan9.go\
+-	exec_plan9.go\
+-	str.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/os/exec/Makefile b/src/pkg/os/exec/Makefile
+deleted file mode 100644
+index e67dfba9fe..0000000000
+--- a/src/pkg/os/exec/Makefile
++++ /dev/null
+@@ -1,34 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=os/exec
+-GOFILES=\
+-	exec.go\
+-
+-GOFILES_freebsd=\
+-	lp_unix.go\
+-
+-GOFILES_darwin=\
+-	lp_unix.go\
+-
+-GOFILES_linux=\
+-	lp_unix.go\
+-
+-GOFILES_netbsd=\
+-	lp_unix.go\
+-
+-GOFILES_openbsd=\
+-	lp_unix.go\
+-
+-GOFILES_windows=\
+-	lp_windows.go\
+-
+-GOFILES_plan9=\
+-	lp_plan9.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/os/signal/Makefile b/src/pkg/os/signal/Makefile
+deleted file mode 100644
+index 26f58760e2..0000000000
+--- a/src/pkg/os/signal/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=os/signal
+-GOFILES=\
+-	signal.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/os/user/Makefile b/src/pkg/os/user/Makefile
+deleted file mode 100644
+index c3617c20fc..0000000000
+--- a/src/pkg/os/user/Makefile
++++ /dev/null
+@@ -1,33 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=os/user
+-GOFILES=\
+-	user.go\
+-
+-GOFILES_windows=\
+-	lookup_windows.go
+-
+-ifeq ($(CGO_ENABLED),1)
+-CGOFILES_linux=\
+-	lookup_unix.go
+-CGOFILES_freebsd=\
+-	lookup_unix.go
+-CGOFILES_darwin=\
+-	lookup_unix.go
+-endif
+-
+-ifneq ($(CGOFILES_$(GOOS)),)
+-CGOFILES+=$(CGOFILES_$(GOOS))
+-else
+-ifneq ($(GOOS),windows)
+-GOFILES+=lookup_stubs.go
+-endif
+-endif
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/path/Makefile b/src/pkg/path/Makefile
+deleted file mode 100644
+index a7e05714a9..0000000000
+--- a/src/pkg/path/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=path
+-GOFILES=\
+-	match.go\
+-	path.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/path/filepath/Makefile b/src/pkg/path/filepath/Makefile
+deleted file mode 100644
+index 7f8ea308c7..0000000000
+--- a/src/pkg/path/filepath/Makefile
++++ /dev/null
+@@ -1,35 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=path/filepath
+-GOFILES=\
+-	match.go\
+-	path.go\
+-
+-GOFILES_freebsd=\
+-	path_unix.go
+-
+-GOFILES_darwin=\
+-	path_unix.go
+-
+-GOFILES_linux=\
+-	path_unix.go
+-
+-GOFILES_netbsd=\
+-	path_unix.go
+-
+-GOFILES_openbsd=\
+-	path_unix.go
+-
+-GOFILES_plan9=\
+-	path_plan9.go
+-
+-GOFILES_windows=\
+-	path_windows.go
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 11b636cac7..5b0630fdc9 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -635,11 +635,11 @@ func TestEvalSymlinks(t *testing.T) {
+ var abstests = []string{
+ 	"../AUTHORS",
+ 	"pkg/../../AUTHORS",
+-	"Make.pkg",
+-	"pkg/Makefile",
++	"Make.inc",
++	"pkg/math",
+ 	".",
+-	"$GOROOT/src/Make.pkg",
+-	"$GOROOT/src/../src/Make.pkg",
++	"$GOROOT/src/Make.inc",
++	"$GOROOT/src/../src/Make.inc",
+ 	"$GOROOT/misc/cgo",
+ 	"$GOROOT",
+ }
+diff --git a/src/pkg/reflect/Makefile b/src/pkg/reflect/Makefile
+deleted file mode 100644
+index b946449a3a..0000000000
+--- a/src/pkg/reflect/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=reflect
+-GOFILES=\
+-	deepequal.go\
+-	type.go\
+-	value.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/regexp/Makefile b/src/pkg/regexp/Makefile
+deleted file mode 100644
+index 60406c7731..0000000000
+--- a/src/pkg/regexp/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=regexp
+-GOFILES=\
+-	exec.go\
+-	regexp.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/regexp/syntax/Makefile b/src/pkg/regexp/syntax/Makefile
+deleted file mode 100644
+index 0b3764ea7b..0000000000
+--- a/src/pkg/regexp/syntax/Makefile
++++ /dev/null
+@@ -1,16 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=regexp/syntax
+-GOFILES=\
+-	compile.go\
+-	parse.go\
+-	perl_groups.go\
+-	prog.go\
+-	regexp.go\
+-	simplify.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 50d0515e2a..2cded8b473 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -4,103 +4,6 @@
+ 
+ include ../../Make.inc
+ 
+-TARG=runtime
+-
+-GOFILES=\
+-	debug.go\
+-	error.go\
+-	extern.go\
+-	mem.go\
+-	sig.go\
+-	softfloat64.go\
+-	type.go\
+-	zgoarch_$(GOARCH).go\
+-	zgoos_$(GOOS).go\
+-	zruntime_defs_$(GOOS)_$(GOARCH).go\
+-	zversion.go\
+-
+-OFILES_darwin=\
+-	lock_sema.$O\
+-
+-OFILES_freebsd=\
+-	lock_futex.$O\
+-
+-OFILES_linux=\
+-	lock_futex.$O\
+-
+-OFILES_netbsd=\
+-	lock_sema.$O\
+-
+-OFILES_openbsd=\
+-	lock_sema.$O\
+-
+-OFILES_plan9=\
+-	lock_sema.$O\
+-
+-OFILES_windows=\
+-	callback_windows_$(GOARCH).$O\
+-	lock_sema.$O\
+-	zsyscall_windows_$(GOARCH).$O\
+-
+-# 386-specific object files
+-OFILES_386=\
+-	vlop_386.$O\
+-	vlrt_386.$O\
+-	traceback_x86.$O\
+-
+-# amd64-specific object files
+-OFILES_amd64=\
+-	traceback_x86.$O\
+-
+-# arm-specific object files
+-OFILES_arm=\
+-	memset_arm.$O\
+-	softfloat_arm.$O\
+-	vlop_arm.$O\
+-	vlrt_arm.$O\
+-	traceback_arm.$O\
+-
+-OFILES=\
+-	$(OFILES_$(GOARCH))\
+-	$(OFILES_$(GOOS))\
+-	alg.$O\
+-	asm_$(GOARCH).$O\
+-	atomic_$(GOARCH).$O\
+-	cgocall.$O\
+-	chan.$O\
+-	closure_$(GOARCH).$O\
+-	complex.$O\
+-	cpuprof.$O\
+-	float.$O\
+-	hashmap.$O\
+-	iface.$O\
+-	mcache.$O\
+-	mcentral.$O\
+-	mem_$(GOOS).$O\
+-	memmove_$(GOARCH).$O\
+-	mfinal.$O\
+-	mfixalloc.$O\
+-	mgc0.$O\
+-	mheap.$O\
+-	msize.$O\
+-	print.$O\
+-	proc.$O\
+-	rt0_$(GOOS)_$(GOARCH).$O\
+-	rune.$O\
+-	runtime.$O\
+-	signal_$(GOOS)_$(GOARCH).$O\
+-	slice.$O\
+-	symtab.$O\
+-	sys_$(GOOS)_$(GOARCH).$O\
+-	thread_$(GOOS).$O\
+-	zmalloc_$(GOARCH).$O\
+-	zmprof_$(GOARCH).$O\
+-	zruntime1_$(GOARCH).$O\
+-	zsema_$(GOARCH).$O\
+-	zsigqueue_$(GOARCH).$O\
+-	zstring_$(GOARCH).$O\
+-	ztime_$(GOARCH).$O\
+-
+ AUTOHFILES=\
+ 	arch_GOARCH.h\
+ 	os_GOOS.h\
+@@ -108,32 +11,17 @@ AUTOHFILES=\
+ 	defs_GOOS_GOARCH.h\
+ 	zasm_GOOS_GOARCH.h\
+ 
+-HFILES=\
+-	cgocall.h\
+-	runtime.h\
+-	hashmap.h\
+-	malloc.h\
+-	stack.h\
+-	$(AUTOHFILES)\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
++all:
++	@echo use make install, make clean
+ 
+-# For use by cgo.
+-INSTALLFILES=$(pkgdir)/runtime.h $(pkgdir)/cgocall.h
+-
+-# Go tool will do this for package runtime.
+-AFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
+-CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
+-
+-# special, out of the way compiler flag that means "add runtime metadata to output"
+-GC+= -+
+-
+-include ../../Make.pkg
++pkgdir=$(QUOTED_GOROOT)/pkg/$(GOOS)_$(GOARCH)
+ 
+ $(pkgdir)/%.h: %.h
+ 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
+ 	cp $< "$@"
+ 
++install: $(pkgdir)/runtime.h $(pkgdir)/cgocall.h
++
+ clean: clean-local
+ 
+ clean-local:
+diff --git a/src/pkg/runtime/cgo/Makefile b/src/pkg/runtime/cgo/Makefile
+deleted file mode 100644
+index 05c7ebae76..0000000000
+--- a/src/pkg/runtime/cgo/Makefile
++++ /dev/null
+@@ -1,60 +0,0 @@
+-# Copyright 2010 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=runtime/cgo
+-
+-GOFILES=\
+-	cgo.go\
+-
+-ifeq ($(CGO_ENABLED),1)
+-
+-# Unwarranted chumminess with Make.pkg's cgo rules.
+-# Do not try this at home.
+-CGO_OFILES=\
+-	gcc_$(GOARCH).o\
+-	gcc_$(GOOS)_$(GOARCH).o\
+-	gcc_util.o\
+-
+-ifeq ($(GOOS),windows)
+-CGO_LDFLAGS=-lm -mthreads
+-else
+-CGO_LDFLAGS=-lpthread
+-CGO_OFILES+=gcc_setenv.o\
+-
+-endif
+-
+-OFILES=\
+-	iscgo.$O\
+-	callbacks.$O\
+-	_cgo_import.$O\
+-	$(CGO_OFILES)\
+-
+-ifeq ($(GOOS),freebsd)
+-OFILES+=\
+-	freebsd.$O\
+-
+-endif
+-
+-endif
+-
+-include ../../../Make.pkg
+-
+-ifeq ($(CGO_ENABLED),1)
+-_cgo_defun.c:
+-	echo >$@
+-
+-_cgo_main.c:
+-	echo 'int main() { return 0; }' >$@
+-endif
+-
+-gcc_$(GOARCH).o: gcc_$(GOARCH).S
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
+-
+-gcc_$(GOOS)_$(GOARCH).o: gcc_$(GOOS)_$(GOARCH).c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
+-
+-gcc_%.o: gcc_%.c
+-	$(HOST_CC) $(_CGO_CFLAGS_$(GOARCH)) -g -O2 -fPIC -o $@ -c $^
+diff --git a/src/pkg/runtime/debug/Makefile b/src/pkg/runtime/debug/Makefile
+deleted file mode 100644
+index 885f66aca5..0000000000
+--- a/src/pkg/runtime/debug/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=runtime/debug
+-GOFILES=\
+-	stack.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/runtime/pprof/Makefile b/src/pkg/runtime/pprof/Makefile
+deleted file mode 100644
+index 8bccc0cc09..0000000000
+--- a/src/pkg/runtime/pprof/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2010 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=runtime/pprof
+-GOFILES=\
+-	pprof.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/sort/Makefile b/src/pkg/sort/Makefile
+deleted file mode 100644
+index 9deaabfec1..0000000000
+--- a/src/pkg/sort/Makefile
++++ /dev/null
+@@ -1,12 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=sort
+-GOFILES=\
+-	search.go\
+-	sort.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/strconv/Makefile b/src/pkg/strconv/Makefile
+deleted file mode 100644
+index f4e4dfb533..0000000000
+--- a/src/pkg/strconv/Makefile
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=strconv
+-GOFILES=\
+-	atob.go\
+-	atof.go\
+-	atoi.go\
+-	decimal.go\
+-	extfloat.go\
+-	ftoa.go\
+-	itoa.go\
+-	quote.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/strings/Makefile b/src/pkg/strings/Makefile
+deleted file mode 100644
+index 872bb43fac..0000000000
+--- a/src/pkg/strings/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=strings
+-GOFILES=\
+-	reader.go\
+-	replace.go\
+-	strings.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/sync/Makefile b/src/pkg/sync/Makefile
+deleted file mode 100644
+index e8a7662267..0000000000
+--- a/src/pkg/sync/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=sync
+-GOFILES=\
+-	cond.go\
+-	mutex.go\
+-	once.go \
+-	rwmutex.go\
+-	waitgroup.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/sync/atomic/Makefile b/src/pkg/sync/atomic/Makefile
+deleted file mode 100644
+index 38d8998c09..0000000000
+--- a/src/pkg/sync/atomic/Makefile
++++ /dev/null
+@@ -1,18 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=sync/atomic
+-GOFILES=\
+-	doc.go\
+-
+-OFILES=\
+-	asm_$(GOARCH).$O\
+-
+-ifeq ($(GOARCH),arm)
+-OFILES+=asm_$(GOOS)_$(GOARCH).$O
+-endif
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+deleted file mode 100644
+index 8bee987eaa..0000000000
+--- a/src/pkg/syscall/Makefile
++++ /dev/null
+@@ -1,90 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=syscall
+-GOFILES=\
+-	str.go\
+-	syscall.go\
+-	syscall_$(GOOS).go\
+-	syscall_$(GOOS)_$(GOARCH).go\
+-	zerrors_$(GOOS)_$(GOARCH).go\
+-	zsyscall_$(GOOS)_$(GOARCH).go\
+-	zsysnum_$(GOOS)_$(GOARCH).go\
+-	ztypes_$(GOOS)_$(GOARCH).go\
+-
+-GOFILES_darwin=\
+-	bpf_bsd.go\
+-	env_unix.go\
+-	exec_bsd.go\
+-	exec_unix.go\
+-	route_bsd.go\
+-	route_darwin.go\
+-	sockcmsg_unix.go\
+-	syscall_bsd.go\
+-	syscall_unix.go\
+-
+-GOFILES_freebsd=\
+-	bpf_bsd.go\
+-	env_unix.go\
+-	exec_bsd.go\
+-	exec_unix.go\
+-	route_bsd.go\
+-	route_freebsd.go\
+-	sockcmsg_unix.go\
+-	syscall_bsd.go\
+-	syscall_unix.go\
+-
+-GOFILES_linux=\
+-	env_unix.go\
+-	exec_unix.go\
+-	exec_linux.go\
+-	lsf_linux.go\
+-	netlink_linux.go\
+-	sockcmsg_linux.go\
+-	sockcmsg_unix.go\
+-	syscall_unix.go\
+-
+-GOFILES_netbsd=\
+-	bpf_bsd.go\
+-	env_unix.go\
+-	exec_bsd.go\
+-	exec_unix.go\
+-	route_bsd.go\
+-	route_netbsd.go\
+-	sockcmsg_unix.go\
+-	syscall_bsd.go\
+-	syscall_unix.go\
+-
+-GOFILES_openbsd=\
+-	bpf_bsd.go\
+-	env_unix.go\
+-	exec_bsd.go\
+-	exec_unix.go\
+-	route_bsd.go\
+-	route_openbsd.go\
+-	sockcmsg_unix.go\
+-	syscall_bsd.go\
+-	syscall_unix.go\
+-	zsysctl_openbsd.go\
+-
+-GOFILES_plan9=\
+-	env_plan9.go\
+-	exec_plan9.go\
+-
+-GOFILES_windows=\
+-	dll_windows.go\
+-	env_windows.go\
+-	exec_windows.go\
+-	security_windows.go\
+-	zerrors_windows.go\
+-	ztypes_windows.go\
+-
+-OFILES=\
+-	asm_$(GOOS)_$(GOARCH).$O\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/testing/Makefile b/src/pkg/testing/Makefile
+deleted file mode 100644
+index a0c1232e36..0000000000
+--- a/src/pkg/testing/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=testing
+-GOFILES=\
+-	benchmark.go\
+-	example.go\
+-	testing.go\
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/testing/iotest/Makefile b/src/pkg/testing/iotest/Makefile
+deleted file mode 100644
+index 43a047cc97..0000000000
+--- a/src/pkg/testing/iotest/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=testing/iotest
+-GOFILES=\
+-	logger.go\
+-	reader.go\
+-	writer.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/testing/quick/Makefile b/src/pkg/testing/quick/Makefile
+deleted file mode 100644
+index 6d3b736b01..0000000000
+--- a/src/pkg/testing/quick/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=testing/quick
+-GOFILES=\
+-	quick.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/testing/script/Makefile b/src/pkg/testing/script/Makefile
+deleted file mode 100644
+index 9388d972bc..0000000000
+--- a/src/pkg/testing/script/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=testing/script
+-GOFILES=\
+-	script.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/text/scanner/Makefile b/src/pkg/text/scanner/Makefile
+deleted file mode 100644
+index c0f28dc944..0000000000
+--- a/src/pkg/text/scanner/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=text/scanner
+-GOFILES=\
+-	scanner.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/text/tabwriter/Makefile b/src/pkg/text/tabwriter/Makefile
+deleted file mode 100644
+index ba1bf57953..0000000000
+--- a/src/pkg/text/tabwriter/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=text/tabwriter
+-GOFILES=\
+-	tabwriter.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/text/template/Makefile b/src/pkg/text/template/Makefile
+deleted file mode 100644
+index 0e83114d2c..0000000000
+--- a/src/pkg/text/template/Makefile
++++ /dev/null
+@@ -1,15 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=text/template
+-GOFILES=\
+-	doc.go\
+-	exec.go\
+-	funcs.go\
+-	helper.go\
+-	template.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/text/template/parse/Makefile b/src/pkg/text/template/parse/Makefile
+deleted file mode 100644
+index 75cade83e0..0000000000
+--- a/src/pkg/text/template/parse/Makefile
++++ /dev/null
+@@ -1,13 +0,0 @@
+-# Copyright 2011 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../../Make.inc
+-
+-TARG=text/template/parse
+-GOFILES=\
+-	lex.go\
+-	node.go\
+-	parse.go\
+-
+-include ../../../../Make.pkg
+diff --git a/src/pkg/time/Makefile b/src/pkg/time/Makefile
+deleted file mode 100644
+index 9f61329d38..0000000000
+--- a/src/pkg/time/Makefile
++++ /dev/null
+@@ -1,45 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../Make.inc
+-
+-TARG=time
+-GOFILES=\
+-	format.go\
+-	sleep.go\
+-	tick.go\
+-	time.go\
+-	zoneinfo.go\
+-
+-GOFILES_freebsd=\
+-	sys_unix.go\
+-	zoneinfo_unix.go\
+-
+-GOFILES_darwin=\
+-	sys_unix.go\
+-	zoneinfo_unix.go\
+-
+-GOFILES_linux=\
+-	sys_unix.go\
+-	zoneinfo_unix.go\
+-
+-GOFILES_netbsd=\
+-	sys_unix.go\
+-	zoneinfo_unix.go\
+-
+-GOFILES_openbsd=\
+-	sys_unix.go\
+-	zoneinfo_unix.go\
+-
+-GOFILES_windows=\
+-	sys_windows.go\
+-	zoneinfo_windows.go\
+-
+-GOFILES_plan9=\
+-	sys_plan9.go\
+-	zoneinfo_plan9.go\
+-
+-GOFILES+=$(GOFILES_$(GOOS))
+-
+-include ../../Make.pkg
+diff --git a/src/pkg/unicode/Makefile b/src/pkg/unicode/Makefile
+index 4472a6c67e..91eb3c45da 100644
+--- a/src/pkg/unicode/Makefile
++++ b/src/pkg/unicode/Makefile
+@@ -4,33 +4,15 @@
+ 
+ include ../../Make.inc
+ 
+-TARG=unicode
+-GOFILES=\
+-	casetables.go\
+-	digit.go\
+-	graphic.go\
+-	letter.go\
+-	tables.go\
+-
+-include ../../Make.pkg
+-
+-CLEANFILES+=maketables
+-
+ maketables: maketables.go
+-	$(GC) $(GCFLAGS) $(GCIMPORTS) maketables.go
+-	$(LD) -o maketables maketables.$O
++	go build maketables.go
+ 
+ tables:	maketables
+ 	./maketables --tables=all > tables.go
+ 	gofmt -w tables.go
+ 
+-# Build (but do not run) maketables during testing,
+-# just to make sure it still compiles.
+-test: maketables
+-testshort: maketables
+-
+ # Downloads from www.unicode.org, so not part
+ # of standard test scripts.
+ testtables: maketables
+-	@echo '***' Be sure to make tables and make install first
++	@echo '***' Be sure to make tables and go install first
+ 	./maketables -test
+diff --git a/src/pkg/unicode/utf16/Makefile b/src/pkg/unicode/utf16/Makefile
+deleted file mode 100644
+index f64b3c86ed..0000000000
+--- a/src/pkg/unicode/utf16/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=unicode/utf16
+-GOFILES=\
+-	utf16.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/pkg/unicode/utf8/Makefile b/src/pkg/unicode/utf8/Makefile
+deleted file mode 100644
+index b6c36f07b2..0000000000
+--- a/src/pkg/unicode/utf8/Makefile
++++ /dev/null
+@@ -1,11 +0,0 @@
+-# Copyright 2009 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-include ../../../Make.inc
+-
+-TARG=unicode/utf8
+-GOFILES=\
+-	utf8.go\
+-
+-include ../../../Make.pkg
+diff --git a/src/run.bash b/src/run.bash
+index 3343bf9505..f182922864 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -31,111 +31,91 @@ xcd() {
+ }
+ 
+ if $rebuild; then
+-	if $USE_GO_TOOL; then
+-		echo
+-		echo '# Package builds'
+-		time go install -a -v std
+-	else
+-		(xcd pkg
+-			gomake clean
+-			time gomake install
+-		) || exit $?
+-	fi
+-fi
+-
+-if $USE_GO_TOOL; then
+ 	echo
+-	echo '# Package tests'
+-	time go test std -short
+-else
+-	(xcd pkg
+-	gomake testshort
+-	) || exit $?
++	echo '# Package builds'
++	time go install -a -v std
+ fi
+ 
+-if $USE_GO_TOOL; then
+-	echo
+-	echo '# runtime -cpu=1,2,4'
+-	go test runtime -short -cpu=1,2,4
+-else
+-	(xcd pkg/runtime;
+-	go test -short -cpu=1,2,4
+-	) || exit $?
+-fi
++echo
++echo '# Package tests'
++time go test std -short
+ 
+-if $USE_GO_TOOL; then
+-	echo
+-	echo '# sync -cpu=10'
+-	go test sync -short -cpu=10
+-else
+-	(xcd pkg/sync;
+-	GOMAXPROCS=10 gomake testshort
+-	) || exit $?
+-fi
++echo
++echo '# runtime -cpu=1,2,4'
++go test runtime -short -cpu=1,2,4
+ 
+-if $USE_GO_TOOL; then
+-	echo
+-	echo '# Build bootstrap scripts'
+-	./buildscript.sh
+-fi
++echo
++echo '# sync -cpu=10'
++go test sync -short -cpu=10
+ 
+-(xcd pkg/exp/ebnflint
+-time gomake test
+-) || exit $?
++echo
++echo '# Build bootstrap scripts'
++./buildscript.sh
++
++BROKEN=true
+ 
++$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ (xcd ../misc/cgo/stdio
+-gomake clean
++"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 
++$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/life
+-gomake clean
++"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 
++$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ (xcd ../misc/cgo/test
+-gomake clean
+-gomake test
++"$GOMAKE" clean
++gotest
+ ) || exit $?
+ 
++$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
+ [ "$GOHOSTOS" == darwin ] ||
+ (xcd ../misc/cgo/testso
+-gomake clean
++"$GOMAKE" clean
+ ./test.bash
+ ) || exit $?
+ 
++$BROKEN ||
+ (xcd ../doc/progs
+ time ./run
+ ) || exit $?
+ 
++$BROKEN ||
+ [ "$GOARCH" == arm ] ||  # uses network, fails under QEMU
+ (xcd ../doc/codelab/wiki
+-gomake clean
+-gomake
+-gomake test
++"$GOMAKE" clean
++"$GOMAKE"
++"$GOMAKE" test
+ ) || exit $?
+ 
++$BROKEN ||
+ for i in ../misc/dashboard/builder ../misc/goplay
+ do
+ 	(xcd $i
+-	gomake clean
+-	gomake
++	"$GOMAKE" clean
++	"$GOMAKE"
+ 	) || exit $?
+ done
+ 
++$BROKEN ||
+ [ "$GOARCH" == arm ] ||
+ (xcd ../test/bench/shootout
+ ./timing.sh -test
+ ) || exit $?
+ 
++$BROKEN ||
+ (xcd ../test/bench/go1
+-gomake test
++"$GOMAKE" test
+ ) || exit $?
+ 
+ (xcd ../test
+diff --git a/test/run b/test/run
+index bd18cefe45..4a9be1207f 100755
+--- a/test/run
++++ b/test/run
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-eval $(gomake --no-print-directory -f ../src/Make.inc go-env)
++eval $(../bin/go-tool/make --no-print-directory -f ../src/Make.inc go-env)
+ 
+ export E=
+ 

@@ -22,8 +22,75 @@ Date:   Wed Nov 29 19:17:22 2023 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/runtime/os_windows.go  |  2 +-
  src/runtime/preempt.go     | 15 +++++++++++++--
  src/runtime/signal_unix.go |  2 +-
  3 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 7e9bbd04f2..50f61c1d54 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1298,7 +1298,7 @@ func preemptM(mp *m) {
+ 	// Does it want a preemption and is it safe to preempt?
+ 	gp := gFromSP(mp, c.sp())
+ 	if gp != nil && wantAsyncPreempt(gp) {
+-		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
++		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr(), panicking.Load() != 0); ok {
+ 			// Inject call to asyncPreempt
+ 			targetPC := abi.FuncPCABI0(asyncPreempt)
+ 			switch GOARCH {
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 82d85cd707..aedf7f3ff5 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -359,7 +359,11 @@ func wantAsyncPreempt(gp *g) bool {
+ // In some cases the PC is safe for asynchronous preemption but it
+ // also needs to adjust the resumption PC. The new PC is returned in
+ // the second result.
+-func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
++//
++// If noResume is true, we know we're not going to resume execution
++// on this goroutine (as we're crashing), and thus we can preempt
++// more aggressively.
++func isAsyncSafePoint(gp *g, pc, sp, lr uintptr, noResume bool) (bool, uintptr) {
+ 	mp := gp.m
+ 
+ 	// Only user Gs can have safe-points. We check this first
+@@ -370,7 +374,7 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	}
+ 
+ 	// Check M state.
+-	if mp.p == 0 || !canPreemptM(mp) {
++	if mp.p == 0 || (!canPreemptM(mp) && !noResume) {
+ 		return false, 0
+ 	}
+ 
+@@ -385,6 +389,13 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 		// Not Go code.
+ 		return false, 0
+ 	}
++	if noResume && f.flag&abi.FuncFlagAsm == 0 {
++		// We're not going to resume execution and not going to scan the
++		// stack for GC, so we don't care whether it is a safe point, and
++		// also don't care the resumption PC.
++		// TODO: maybe we can preempt non-SPWRITE assembly functions?
++		return true, pc
++	}
+ 	if (GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le") && lr == pc+8 && funcspdelta(f, pc) == 0 {
+ 		// We probably stopped at a half-executed CALL instruction,
+ 		// where the LR is updated but the PC has not. If we preempt
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index 84391d58ed..78e71c9086 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -342,7 +342,7 @@ func doSigPreempt(gp *g, ctxt *sigctxt) {
+ 	// Check if this G wants to be preempted and is safe to
+ 	// preempt.
+ 	if wantAsyncPreempt(gp) {
+-		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr()); ok {
++		if ok, newpc := isAsyncSafePoint(gp, ctxt.sigpc(), ctxt.sigsp(), ctxt.siglr(), panicking.Load() != 0); ok {
+ 			// Adjust the PC and inject a call to asyncPreempt.
+ 			ctxt.pushCall(abi.FuncPCABI0(asyncPreempt), newpc)
+ 		}

@@ -11,6 +11,22 @@ Date:   Tue Apr 23 14:06:12 2019 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/subr.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index fc60eeb043..f3ec21c7cb 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -159,9 +159,7 @@ func yyerror(format string, args ...interface{}) {
+ }
+ 
+ func Warn(fmt_ string, args ...interface{}) {
+-	adderr(lineno, fmt_, args...)
+-
+-	hcrash()
++	Warnl(lineno, fmt_, args...)
+ }
+ 
+ func Warnl(line src.XPos, fmt_ string, args ...interface{}) {

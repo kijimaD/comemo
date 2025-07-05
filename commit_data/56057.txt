@@ -20,7 +20,34 @@ Date:   Wed Mar 29 13:13:19 2023 -0400
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/modload/query_test.go | 1 +
  src/cmd/go/testdata/script/test_flags.txt | 3 +--
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/query_test.go b/src/cmd/go/internal/modload/query_test.go
+index fe9ae9f93f..93f8f0d00d 100644
+--- a/src/cmd/go/internal/modload/query_test.go
++++ b/src/cmd/go/internal/modload/query_test.go
+@@ -55,6 +55,7 @@ func testMain(m *testing.M) (err error) {
+ 	os.Setenv("GOPATH", dir)
+ 	cfg.BuildContext.GOPATH = dir
+ 	cfg.GOMODCACHE = filepath.Join(dir, "pkg/mod")
++	cfg.SumdbDir = filepath.Join(dir, "pkg/sumdb")
+ 	m.Run()
+ 	return nil
+ }
+diff --git a/src/cmd/go/testdata/script/test_flags.txt b/src/cmd/go/testdata/script/test_flags.txt
+index 63385e6997..3f7964b0a7 100644
+--- a/src/cmd/go/testdata/script/test_flags.txt
++++ b/src/cmd/go/testdata/script/test_flags.txt
+@@ -15,8 +15,7 @@ stdout '\Aok\s+example.com/x\s+[0-9.s]+\n\z'
+ # Even though ./x looks like a package path, the real package should be
+ # the implicit '.'.
+ ! go test --answer=42 ./x
+-stderr '^no Go files in .+$'
+-! stderr '/x'
++stderr '^no Go files in '$PWD'$'
+ 
+ # However, *flags* that appear after unrecognized flags should still be
+ # interpreted as flags, under the (possibly-erroneous) assumption that

@@ -22,6 +22,26 @@ Date:   Tue Sep 6 17:48:26 2022 -0700
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/os/os_test.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3f75f28938..45d3aa6b5e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -314,12 +314,8 @@ func TestReadClosed(t *testing.T) {
+ 	_, err = file.Read(b)
+ 
+ 	e, ok := err.(*PathError)
+-	if !ok {
+-		t.Fatalf("Read: %T(%v), want PathError", e, e)
+-	}
+-
+-	if e.Err != ErrClosed {
+-		t.Errorf("Read: %v, want PathError(ErrClosed)", e)
++	if !ok || e.Err != ErrClosed {
++		t.Fatalf("Read: got %T(%v), want %T(%v)", err, err, e, ErrClosed)
+ 	}
+ }
+ 

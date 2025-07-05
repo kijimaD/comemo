@@ -8,6 +8,26 @@ Date:   Fri May 7 13:30:13 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1164041
-
+---
  src/pkg/gob/encoder.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/gob/encoder.go b/src/pkg/gob/encoder.go
+index 308c58d303..3d217e2720 100644
+--- a/src/pkg/gob/encoder.go
++++ b/src/pkg/gob/encoder.go
+@@ -173,8 +173,12 @@ func (enc *Encoder) Encode(e interface{}) os.Error {
+ 	encodeInt(enc.state, int64(enc.sent[rt]))
+ 
+ 	// Encode the object.
+-	encode(enc.state.b, e)
+-	enc.send()
++	err := encode(enc.state.b, e)
++	if err != nil {
++		enc.setError(err)
++	} else {
++		enc.send()
++	}
+ 
+ 	return enc.state.err
+ }

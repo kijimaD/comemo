@@ -8,6 +8,45 @@ Date:   Fri Sep 7 09:11:39 2012 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6501103
-
+---
  doc/go_faq.html | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 8264e1940a..ea6edc37e9 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1220,8 +1220,9 @@ but <code>v</code> may have been modified since the goroutine was launched.
+ </p>
+ 
+ <p>
+-To bind the value of <code>v</code> to each closure as they are launched, one
+-could modify the inner loop to read:
++To bind the current value of <code>v</code> to each closure as it is launched, one
++must modify the inner loop to create a new variable each iteration.
++One way is to pass the variable as an argument to the closure:
+ </p>
+ 
+ <pre>
+@@ -1239,6 +1240,21 @@ anonymous function. That value is then accessible inside the function as
+ the variable <code>u</code>.
+ </p>
+ 
++<p>
++Even easier is just to create a new variable, using a declaration style that may
++seem odd but works fine in Go:
++</p>
++
++<pre>
++    for _, v := range values {
++        <b>v := v</b> // create a new 'v'.
++        go func() {
++            fmt.Println(<b>v</b>)
++            done &lt;- true
++        }()
++    }
++</pre>
++
+ <h2 id="Control_flow">Control flow</h2>
+ 
+ <h3 id="Does_Go_have_a_ternary_form">

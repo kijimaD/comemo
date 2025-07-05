@@ -13,7 +13,63 @@ Date:   Wed Mar 6 17:23:56 2019 -0800
     Change-Id: I300bdd095836595426a1478d68da179f39e5531a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/165861
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/mpfloat.go | 27 +++++----------------------
  src/cmd/compile/internal/gc/mpint.go   |  5 +----
  2 files changed, 6 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/mpfloat.go b/src/cmd/compile/internal/gc/mpfloat.go
+index c1bbd3c1b4..0379075406 100644
+--- a/src/cmd/compile/internal/gc/mpfloat.go
++++ b/src/cmd/compile/internal/gc/mpfloat.go
+@@ -188,28 +188,11 @@ func (a *Mpflt) SetString(as string) {
+ 		as = as[1:]
+ 	}
+ 
+-	// Currently, Val.Parse below (== math/big.Float.Parse) does not
+-	// handle the 0o-octal prefix which can appear with octal integers
+-	// with 'i' suffix, which end up here as imaginary components of
+-	// complex numbers. Handle explicitly for now.
+-	// TODO(gri) remove once Float.Parse can handle octals (it handles 0b/0B)
+-	var f *big.Float
+-	if strings.HasPrefix(as, "0o") || strings.HasPrefix(as, "0O") {
+-		x, ok := new(big.Int).SetString(as[2:], 8)
+-		if !ok {
+-			yyerror("malformed constant: %s", as)
+-			a.Val.SetFloat64(0)
+-			return
+-		}
+-		f = a.Val.SetInt(x)
+-	} else {
+-		var err error
+-		f, _, err = a.Val.Parse(as, 0)
+-		if err != nil {
+-			yyerror("malformed constant: %s (%v)", as, err)
+-			a.Val.SetFloat64(0)
+-			return
+-		}
++	f, _, err := a.Val.Parse(as, 0)
++	if err != nil {
++		yyerror("malformed constant: %s (%v)", as, err)
++		a.Val.SetFloat64(0)
++		return
+ 	}
+ 
+ 	if f.IsInf() {
+diff --git a/src/cmd/compile/internal/gc/mpint.go b/src/cmd/compile/internal/gc/mpint.go
+index e06f39f8d9..81b60dd278 100644
+--- a/src/cmd/compile/internal/gc/mpint.go
++++ b/src/cmd/compile/internal/gc/mpint.go
+@@ -282,11 +282,8 @@ func (a *Mpint) SetInt64(c int64) {
+ }
+ 
+ func (a *Mpint) SetString(as string) {
+-	// TODO(gri) remove this code once math/big.Int.SetString can handle 0o-octals and separators
++	// TODO(gri) remove this code once math/big.Int.SetString can handle separators
+ 	as = strings.Replace(as, "_", "", -1) // strip separators
+-	if len(as) >= 2 && as[0] == '0' && (as[1] == 'o' || as[1] == 'O') {
+-		as = "0" + as[2:]
+-	}
+ 
+ 	_, ok := a.Val.SetString(as, 0)
+ 	if !ok {

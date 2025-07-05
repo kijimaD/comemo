@@ -8,8 +8,87 @@ Date:   Tue Sep 16 20:51:50 2008 -0700
     R=r
     OCL=15418
     CL=15418
-
+---
  src/cmd/gc/go.h   |  2 ++
  src/cmd/gc/go.y   |  2 +-
  src/cmd/gc/walk.c | 34 ++++++++++++++++++++++++++++++++++
  3 files changed, 37 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1d776d4813..639aa9236d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -702,6 +702,8 @@ Node*	reorder4(Node*);
+ Node*	structlit(Node*);
+ Node*	arraylit(Node*);
+ Node*	maplit(Node*);
++Node*	selectas(Node*, Node*);
++Node*	old2new(Node*, Type*);
+ 
+ /*
+  *	const.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 8204b6d21d..15b0b8bd54 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -427,7 +427,7 @@ complex_stmt:
+ 		// right will point to next case
+ 		// done in casebody()
+ 		poptodcl();
+-		$$ = nod(OAS, colas($2, $4), $4);
++		$$ = nod(OAS, selectas($2,$4), $4);
+ 		$$ = nod(OXCASE, $$, N);
+ 	}
+ |	LDEFAULT ':'
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 503f9260e5..7349915b2f 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1232,6 +1232,30 @@ out:
+ 	return r;
+ }
+ 
++Node*
++selectas(Node *name, Node *expr)
++{
++	Node *a;
++	Type *t;
++
++	if(expr == N || expr->op != ORECV)
++		goto bad;
++	t = expr->left->type;
++	if(t == T)
++		goto bad;
++	if(isptr[t->etype])
++		t = t->type;
++	if(t == T)
++		goto bad;
++	if(t->etype != TCHAN)
++		goto bad;
++	a = old2new(name, t->type);
++	return a;
++
++bad:
++	return name;
++}
++
+ void
+ walkselect(Node *sel)
+ {
+@@ -1270,6 +1294,16 @@ walkselect(Node *sel)
+ 				yyerror("select cases must be send or recv");
+ 				break;
+ 
++			case OAS:
++				// convert new syntax (a=recv(chan)) to (recv(a,chan))
++				if(n->left->right == N || n->left->right->op != ORECV) {
++					yyerror("select cases must be send or recv");
++					break;
++				}
++				n->left->right->right = n->left->right->left;
++				n->left->right->left = n->left->left;
++				n->left = n->left->right;
++
+ 			case OSEND:
+ 			case ORECV:
+ 				if(oc != N) {

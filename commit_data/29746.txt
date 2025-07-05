@@ -24,7 +24,7 @@ Date:   Tue Oct 4 15:35:28 2016 -0400
     Change-Id: Iff2a16f52004ba498720034e354be9771b10cac4
     Reviewed-on: https://go-review.googlesource.com/30291
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/s390x.s    |  36 +++++++
  src/cmd/compile/internal/s390x/prog.go       |   3 +
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  28 +++---
@@ -33,3 +33,398 @@ Date:   Tue Oct 4 15:35:28 2016 -0400
  src/cmd/internal/obj/s390x/anames.go         |   7 +-
  src/cmd/internal/obj/s390x/asmz.go           | 137 ++++++++++++---------------
  7 files changed, 125 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 5fc7a8e9b5..dbf4cf2c09 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -108,6 +108,42 @@ TEXT main·foo(SB),7,$16-0 // TEXT main.foo(SB), 7, $16-0
+ 	NEGW	R1, R2                // b9130021
+ 	FLOGR	R2, R2                // b9830022
+ 
++	AND	R1, R2                // b9800021
++	AND	R1, R2, R3            // b9e42031
++	AND	$-2, R1               // a517fffe
++	AND	$-65536, R1           // c01bffff0000
++	AND	$1, R1                // c0a100000001b980001a
++	ANDW	R1, R2                // 1421
++	ANDW	R1, R2, R3            // b9f42031
++	ANDW	$1, R1                // c01b00000001
++	ANDW	$131071, R1           // a5160001
++	ANDW	$65536, R1            // c01b00010000
++	ANDW	$-2, R1               // a517fffe
++	OR	R1, R2                // b9810021
++	OR	R1, R2, R3            // b9e62031
++	OR	$1, R1                // a51b0001
++	OR	$131071, R1           // c01d0001ffff
++	OR	$65536, R1            // c01d00010000
++	OR	$-2, R1               // c0a1fffffffeb981001a
++	ORW	R1, R2                // 1621
++	ORW	R1, R2, R3            // b9f62031
++	ORW	$1, R1                // a51b0001
++	ORW	$131071, R1           // c01d0001ffff
++	ORW	$65536, R1            // a51a0001
++	ORW	$-2, R1               // c01dfffffffe
++	XOR	R1, R2                // b9820021
++	XOR	R1, R2, R3            // b9e72031
++	XOR	$1, R1                // c01700000001
++	XOR	$131071, R1           // c0170001ffff
++	XOR	$65536, R1            // c01700010000
++	XOR	$-2, R1               // c0a1fffffffeb982001a
++	XORW	R1, R2                // 1721
++	XORW	R1, R2, R3            // b9f72031
++	XORW	$1, R1                // c01700000001
++	XORW	$131071, R1           // c0170001ffff
++	XORW	$65536, R1            // c01700010000
++	XORW	$-2, R1               // c017fffffffe
++
+ 	LAA	R1, R2, 524287(R3)    // eb213fff7ff8
+ 	LAAG	R4, R5, -524288(R6)   // eb54600080e8
+ 	LAAL	R7, R8, 8192(R9)      // eb87900002fa
+diff --git a/src/cmd/compile/internal/s390x/prog.go b/src/cmd/compile/internal/s390x/prog.go
+index 055dd436e9..9e974e9125 100644
+--- a/src/cmd/compile/internal/s390x/prog.go
++++ b/src/cmd/compile/internal/s390x/prog.go
+@@ -41,8 +41,11 @@ var progtable = [s390x.ALAST & obj.AMask]gc.ProgInfo{
+ 	s390x.ANEG & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.ANEGW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AAND & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AANDW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AOR & obj.AMask:     {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AORW & obj.AMask:    {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AXOR & obj.AMask:    {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
++	s390x.AXORW & obj.AMask:   {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AMULLD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AMULLW & obj.AMask:  {Flags: gc.SizeL | gc.LeftRead | gc.RegRead | gc.RightWrite},
+ 	s390x.AMULHD & obj.AMask:  {Flags: gc.SizeQ | gc.LeftRead | gc.RegRead | gc.RightWrite},
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index d9b3593c5c..39c41593b9 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -208,20 +208,20 @@ func init() {
+ 		{name: "MODDU", argLength: 2, reg: gp21, asm: "MODDU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+ 		{name: "MODWU", argLength: 2, reg: gp21, asm: "MODWU", resultInArg0: true, clobberFlags: true}, // arg0 % arg1
+ 
+-		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                      // arg0 & arg1
+-		{name: "ANDW", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                     // arg0 & arg1
+-		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 & auxint
+-		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
+-
+-		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                      // arg0 | arg1
+-		{name: "ORW", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                     // arg0 | arg1
+-		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 | auxint
+-		{name: "ORWconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 | auxint
+-
+-		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                      // arg0 ^ arg1
+-		{name: "XORW", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                     // arg0 ^ arg1
+-		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", resultInArg0: true, clobberFlags: true},  // arg0 ^ auxint
+-		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 ^ auxint
++		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true, clobberFlags: true},                       // arg0 & arg1
++		{name: "ANDW", argLength: 2, reg: gp21, asm: "ANDW", commutative: true, clobberFlags: true},                     // arg0 & arg1
++		{name: "ANDconst", argLength: 1, reg: gp11, asm: "AND", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 & auxint
++		{name: "ANDWconst", argLength: 1, reg: gp11, asm: "ANDW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 & auxint
++
++		{name: "OR", argLength: 2, reg: gp21, asm: "OR", commutative: true, clobberFlags: true},                       // arg0 | arg1
++		{name: "ORW", argLength: 2, reg: gp21, asm: "ORW", commutative: true, clobberFlags: true},                     // arg0 | arg1
++		{name: "ORconst", argLength: 1, reg: gp11, asm: "OR", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 | auxint
++		{name: "ORWconst", argLength: 1, reg: gp11, asm: "ORW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 | auxint
++
++		{name: "XOR", argLength: 2, reg: gp21, asm: "XOR", commutative: true, clobberFlags: true},                       // arg0 ^ arg1
++		{name: "XORW", argLength: 2, reg: gp21, asm: "XORW", commutative: true, clobberFlags: true},                     // arg0 ^ arg1
++		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", resultInArg0: true, clobberFlags: true},   // arg0 ^ auxint
++		{name: "XORWconst", argLength: 1, reg: gp11, asm: "XORW", aux: "Int32", resultInArg0: true, clobberFlags: true}, // arg0 ^ auxint
+ 
+ 		{name: "CMP", argLength: 2, reg: gp2flags, asm: "CMP", typ: "Flags"},   // arg0 compare to arg1
+ 		{name: "CMPW", argLength: 2, reg: gp2flags, asm: "CMPW", typ: "Flags"}, // arg0 compare to arg1
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0003059767..b382157922 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -16023,7 +16023,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		clobberFlags: true,
+-		asm:          s390x.AAND,
++		asm:          s390x.AANDW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -16056,7 +16056,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          s390x.AAND,
++		asm:          s390x.AANDW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -16087,7 +16087,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		clobberFlags: true,
+-		asm:          s390x.AOR,
++		asm:          s390x.AORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -16120,7 +16120,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          s390x.AOR,
++		asm:          s390x.AORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -16151,7 +16151,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       2,
+ 		commutative:  true,
+ 		clobberFlags: true,
+-		asm:          s390x.AXOR,
++		asm:          s390x.AXORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+@@ -16184,7 +16184,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen:       1,
+ 		resultInArg0: true,
+ 		clobberFlags: true,
+-		asm:          s390x.AXOR,
++		asm:          s390x.AXORW,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
+diff --git a/src/cmd/internal/obj/s390x/a.out.go b/src/cmd/internal/obj/s390x/a.out.go
+index b6d1975c79..4c4a2320e7 100644
+--- a/src/cmd/internal/obj/s390x/a.out.go
++++ b/src/cmd/internal/obj/s390x/a.out.go
+@@ -260,12 +260,11 @@ const (
+ 
+ 	// integer bitwise
+ 	AAND
+-	AANDN
+-	ANAND
+-	ANOR
++	AANDW
+ 	AOR
+-	AORN
++	AORW
+ 	AXOR
++	AXORW
+ 	ASLW
+ 	ASLD
+ 	ASRW
+diff --git a/src/cmd/internal/obj/s390x/anames.go b/src/cmd/internal/obj/s390x/anames.go
+index 589206f3ae..eb1576e21c 100644
+--- a/src/cmd/internal/obj/s390x/anames.go
++++ b/src/cmd/internal/obj/s390x/anames.go
+@@ -51,12 +51,11 @@ var Anames = []string{
+ 	"MOVDNE",
+ 	"FLOGR",
+ 	"AND",
+-	"ANDN",
+-	"NAND",
+-	"NOR",
++	"ANDW",
+ 	"OR",
+-	"ORN",
++	"ORW",
+ 	"XOR",
++	"XORW",
+ 	"SLW",
+ 	"SLD",
+ 	"SRW",
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 0627fd1e20..3bfff61374 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -162,10 +162,9 @@ var optab = []Optab{
+ 	Optab{AAND, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
+ 	Optab{AAND, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
+ 	Optab{AAND, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
+-	Optab{AOR, C_REG, C_REG, C_NONE, C_REG, 6, 0},
+-	Optab{AOR, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
+-	Optab{AOR, C_LCON, C_NONE, C_NONE, C_REG, 23, 0},
+-	Optab{AOR, C_LCON, C_REG, C_NONE, C_REG, 23, 0},
++	Optab{AANDW, C_REG, C_REG, C_NONE, C_REG, 6, 0},
++	Optab{AANDW, C_REG, C_NONE, C_NONE, C_REG, 6, 0},
++	Optab{AANDW, C_LCON, C_NONE, C_NONE, C_REG, 24, 0},
+ 	Optab{ASLD, C_REG, C_NONE, C_NONE, C_REG, 7, 0},
+ 	Optab{ASLD, C_REG, C_REG, C_NONE, C_REG, 7, 0},
+ 	Optab{ASLD, C_SCON, C_REG, C_NONE, C_REG, 7, 0},
+@@ -393,7 +392,7 @@ func spanz(ctxt *obj.Link, cursym *obj.LSym) {
+ 	ctxt.Cursym = cursym
+ 	ctxt.Autosize = int32(p.To.Offset)
+ 
+-	if oprange[AANDN&obj.AMask] == nil {
++	if oprange[AORW&obj.AMask] == nil {
+ 		buildop(ctxt)
+ 	}
+ 
+@@ -838,11 +837,6 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ASTMY, r)
+ 		case ALMG:
+ 			opset(ALMY, r)
+-		case AAND:
+-			opset(AANDN, r)
+-			opset(ANAND, r)
+-			opset(ANOR, r)
+-			opset(AORN, r)
+ 		case AADDME:
+ 			opset(AADDZE, r)
+ 			opset(ASUBME, r)
+@@ -888,8 +882,12 @@ func buildop(ctxt *obj.Link) {
+ 		case AFCMPO:
+ 			opset(AFCMPU, r)
+ 			opset(ACEBR, r)
+-		case AOR:
++		case AAND:
++			opset(AOR, r)
+ 			opset(AXOR, r)
++		case AANDW:
++			opset(AORW, r)
++			opset(AXORW, r)
+ 		case ASLD:
+ 			opset(ASRD, r)
+ 			opset(ASLW, r)
+@@ -2767,74 +2765,35 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 		zI(op_SVC, 0, asm)
+ 
+ 	case 6: // logical op reg [reg] reg
+-		if p.To.Reg == 0 {
+-			ctxt.Diag("literal operation on R0\n%v", p)
+-		}
+-
++		var oprr, oprre, oprrf uint32
+ 		switch p.As {
+-		case AAND, AOR, AXOR:
+-			var opcode1, opcode2 uint32
+-			switch p.As {
+-			default:
+-			case AAND:
+-				opcode1 = op_NGR
+-				opcode2 = op_NGRK
+-			case AOR:
+-				opcode1 = op_OGR
+-				opcode2 = op_OGRK
+-			case AXOR:
+-				opcode1 = op_XGR
+-				opcode2 = op_XGRK
+-			}
+-
+-			r := int(p.Reg)
+-			if r == 0 {
+-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+-			} else {
+-				zRRF(opcode2, uint32(r), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+-			}
+-
+-		case AANDN, AORN:
+-			var opcode1, opcode2 uint32
+-			switch p.As {
+-			default:
+-			case AANDN:
+-				opcode1 = op_NGR
+-				opcode2 = op_NGRK
+-			case AORN:
+-				opcode1 = op_OGR
+-				opcode2 = op_OGRK
+-			}
+-
+-			r := int(p.Reg)
+-			if r == 0 {
+-				zRRE(op_LCGR, uint32(p.To.Reg), uint32(p.To.Reg), asm)
+-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+-			} else {
+-				zRRE(op_LCGR, REGTMP, uint32(r), asm)
+-				zRRF(opcode2, REGTMP, 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+-			}
+-
+-		case ANAND, ANOR:
+-			var opcode1, opcode2 uint32
+-			switch p.As {
+-			default:
+-			case ANAND:
+-				opcode1 = op_NGR
+-				opcode2 = op_NGRK
+-			case ANOR:
+-				opcode1 = op_OGR
+-				opcode2 = op_OGRK
+-			}
+-
+-			r := int(p.Reg)
+-			if r == 0 {
+-				zRRE(opcode1, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++		case AAND:
++			oprre = op_NGR
++			oprrf = op_NGRK
++		case AANDW:
++			oprr = op_NR
++			oprrf = op_NRK
++		case AOR:
++			oprre = op_OGR
++			oprrf = op_OGRK
++		case AORW:
++			oprr = op_OR
++			oprrf = op_ORK
++		case AXOR:
++			oprre = op_XGR
++			oprrf = op_XGRK
++		case AXORW:
++			oprr = op_XR
++			oprrf = op_XRK
++		}
++		if p.Reg == 0 {
++			if oprr != 0 {
++				zRR(oprr, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			} else {
+-				zRRF(opcode2, uint32(r), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
++				zRRE(oprre, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 			}
+-
+-			zRRE(op_LCGR, uint32(p.To.Reg), uint32(p.To.Reg), asm)
++		} else {
++			zRRF(oprrf, uint32(p.Reg), 0, uint32(p.To.Reg), uint32(p.From.Reg), asm)
+ 		}
+ 
+ 	case 7: // shift/rotate reg [reg] reg
+@@ -3043,7 +3002,8 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRIE(_d, oprie, uint32(p.To.Reg), uint32(r), uint32(v), 0, 0, 0, 0, asm)
+ 		}
+ 
+-	case 23: // logical op $constant [reg] reg
++	case 23: // 64-bit logical op $constant [reg] reg
++		// TODO(mundaym): remove the optional register and merge with case 24.
+ 		v := vregoff(ctxt, &p.From)
+ 		var opcode uint32
+ 		r := p.Reg
+@@ -3095,6 +3055,29 @@ func asmout(ctxt *obj.Link, asm *[]byte) {
+ 			zRRF(opcode, uint32(r), 0, uint32(p.To.Reg), REGTMP, asm)
+ 		}
+ 
++	case 24: // 32-bit logical op $constant reg
++		v := vregoff(ctxt, &p.From)
++		switch p.As {
++		case AANDW:
++			if uint32(v&0xffff0000) == 0xffff0000 {
++				zRI(op_NILL, uint32(p.To.Reg), uint32(v), asm)
++			} else if uint32(v&0x0000ffff) == 0x0000ffff {
++				zRI(op_NILH, uint32(p.To.Reg), uint32(v)>>16, asm)
++			} else {
++				zRIL(_a, op_NILF, uint32(p.To.Reg), uint32(v), asm)
++			}
++		case AORW:
++			if uint32(v&0xffff0000) == 0 {
++				zRI(op_OILL, uint32(p.To.Reg), uint32(v), asm)
++			} else if uint32(v&0x0000ffff) == 0 {
++				zRI(op_OILH, uint32(p.To.Reg), uint32(v)>>16, asm)
++			} else {
++				zRIL(_a, op_OILF, uint32(p.To.Reg), uint32(v), asm)
++			}
++		case AXORW:
++			zRIL(_a, op_XILF, uint32(p.To.Reg), uint32(v), asm)
++		}
++
+ 	case 26: // MOVD $offset(base)(index), reg
+ 		v := regoff(ctxt, &p.From)
+ 		r := p.From.Reg

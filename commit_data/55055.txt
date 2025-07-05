@@ -18,8 +18,95 @@ Date:   Fri Dec 9 10:55:28 2022 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/ARM64.rules |  4 +--
  src/cmd/compile/internal/ssa/rewriteARM64.go  |  6 ++--
  test/fixedbugs/issue57184.go                  | 40 +++++++++++++++++++++++++++
  3 files changed, 45 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 727204d80a..0c5a2e66a8 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -342,9 +342,9 @@
+ (FCMPD x (FMOVDconst [0])) => (FCMPD0 x)
+ (FCMPD (FMOVDconst [0]) x) => (InvertFlags (FCMPD0 x))
+ 
+-// CSEL needs a flag-generating argument. Synthesize a CMPW if necessary.
++// CSEL needs a flag-generating argument. Synthesize a TSTW if necessary.
+ (CondSelect x y boolval) && flagArg(boolval) != nil => (CSEL [boolval.Op] x y flagArg(boolval))
+-(CondSelect x y boolval) && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (CMPWconst [0] boolval))
++(CondSelect x y boolval) && flagArg(boolval) == nil => (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
+ 
+ (OffPtr [off] ptr:(SP)) && is32Bit(off) => (MOVDaddr [int32(off)] ptr)
+ (OffPtr [off] ptr) => (ADDconst [off] ptr)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index d7386729e7..e82a49c331 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -23561,7 +23561,7 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
+ 	}
+ 	// match: (CondSelect x y boolval)
+ 	// cond: flagArg(boolval) == nil
+-	// result: (CSEL [OpARM64NotEqual] x y (CMPWconst [0] boolval))
++	// result: (CSEL [OpARM64NotEqual] x y (TSTWconst [1] boolval))
+ 	for {
+ 		x := v_0
+ 		y := v_1
+@@ -23571,8 +23571,8 @@ func rewriteValueARM64_OpCondSelect(v *Value) bool {
+ 		}
+ 		v.reset(OpARM64CSEL)
+ 		v.AuxInt = opToAuxInt(OpARM64NotEqual)
+-		v0 := b.NewValue0(v.Pos, OpARM64CMPWconst, types.TypeFlags)
+-		v0.AuxInt = int32ToAuxInt(0)
++		v0 := b.NewValue0(v.Pos, OpARM64TSTWconst, types.TypeFlags)
++		v0.AuxInt = int32ToAuxInt(1)
+ 		v0.AddArg(boolval)
+ 		v.AddArg3(x, y, v0)
+ 		return true
+diff --git a/test/fixedbugs/issue57184.go b/test/fixedbugs/issue57184.go
+new file mode 100644
+index 0000000000..1384b50be8
+--- /dev/null
++++ b/test/fixedbugs/issue57184.go
+@@ -0,0 +1,40 @@
++// run
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"log"
++	"reflect"
++	"sort"
++)
++
++func main() {
++	const length = 257
++	x := make([]int64, length)
++	for i := 0; i < length; i++ {
++		x[i] = int64(i) * 27644437 % int64(length)
++	}
++
++	isLessStatic := func(i, j int) bool {
++		return x[i] < x[j]
++	}
++
++	isLessReflect := reflect.MakeFunc(reflect.TypeOf(isLessStatic), func(args []reflect.Value) []reflect.Value {
++		i := args[0].Int()
++		j := args[1].Int()
++		b := x[i] < x[j]
++		return []reflect.Value{reflect.ValueOf(b)}
++	}).Interface().(func(i, j int) bool)
++
++	sort.SliceStable(x, isLessReflect)
++
++	for i := 0; i < length-1; i++ {
++		if x[i] >= x[i+1] {
++			log.Fatalf("not sorted! (length=%v, idx=%v)\n%v\n", length, i, x)
++		}
++	}
++}

@@ -11,6 +11,20 @@ Date:   Wed May 12 13:08:16 2021 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/319291
     Trust: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/abi-internal.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/abi-internal.md b/src/cmd/compile/abi-internal.md
+index f901e707be..1ae3c2538f 100644
+--- a/src/cmd/compile/abi-internal.md
++++ b/src/cmd/compile/abi-internal.md
+@@ -402,7 +402,7 @@ without corrupting arguments or results.
+ Special-purpose registers are as follows:
+ 
+ | Register | Call meaning | Return meaning | Body meaning |
+-| --- | --- | --- |
++| --- | --- | --- | --- |
+ | RSP | Stack pointer | Same | Same |
+ | RBP | Frame pointer | Same | Same |
+ | RDX | Closure context pointer | Scratch | Scratch |

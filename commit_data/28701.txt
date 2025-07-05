@@ -12,6 +12,20 @@ Date:   Tue Jun 28 17:23:01 2016 -0700
     Change-Id: Id81907b625221895aa5c85b9853f7c185efd8f4b
     Reviewed-on: https://go-review.googlesource.com/24571
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/proc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index a0fddd0052..2c0b3df167 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3826,7 +3826,7 @@ func schedtrace(detailed bool) {
+ 		if lockedg != nil {
+ 			id3 = lockedg.goid
+ 		}
+-		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", getg().m.blocked, " lockedg=", id3, "\n")
++		print("  M", mp.id, ": p=", id1, " curg=", id2, " mallocing=", mp.mallocing, " throwing=", mp.throwing, " preemptoff=", mp.preemptoff, ""+" locks=", mp.locks, " dying=", mp.dying, " helpgc=", mp.helpgc, " spinning=", mp.spinning, " blocked=", mp.blocked, " lockedg=", id3, "\n")
+ 	}
+ 
+ 	lock(&allglock)

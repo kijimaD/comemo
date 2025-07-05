@@ -12,7 +12,7 @@ Date:   Mon Jul 29 22:22:34 2013 +0400
     R=rsc
     CC=golang-dev
     https://golang.org/cl/11575044
-
+---
  misc/cgo/test/callback.go     |  1 +
  src/pkg/runtime/asm_amd64.s   | 17 +++++----
  src/pkg/runtime/cgocall.c     | 41 +++++++++++++++-------
@@ -31,3 +31,992 @@ Date:   Mon Jul 29 22:22:34 2013 +0400
  src/pkg/runtime/runtime.h     | 47 +++++++++++++------------
  src/pkg/runtime/stack.c       |  2 ++
  17 files changed, 289 insertions(+), 184 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index 77780e84d7..838105155a 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -151,6 +151,7 @@ func testCallbackCallers(t *testing.T) {
+ 	n := 0
+ 	name := []string{
+ 		"test.goCallback",
++		"runtime.cgocallbackg1",
+ 		"runtime.cgocallbackg",
+ 		"runtime.cgocallback_gofunc",
+ 		"runtime.asmcgocall",
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index e7cef02329..612bbfe7c8 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -325,41 +325,40 @@ TEXT runtime·morestack11(SB),7,$0
+ // subcases of morestack01
+ // with const of 8,16,...48
+ TEXT runtime·morestack8(SB),7,$0
+-	PUSHQ	$1
++	MOVQ	$1, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack16(SB),7,$0
+-	PUSHQ	$2
++	MOVQ	$2, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack24(SB),7,$0
+-	PUSHQ	$3
++	MOVQ	$3, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack32(SB),7,$0
+-	PUSHQ	$4
++	MOVQ	$4, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack40(SB),7,$0
+-	PUSHQ	$5
++	MOVQ	$5, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack48(SB),7,$0
+-	PUSHQ	$6
++	MOVQ	$6, R8
+ 	MOVQ	$morestack<>(SB), AX
+ 	JMP	AX
+ 
+ TEXT morestack<>(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+-	POPQ	AX
+-	SHLQ	$35, AX
+-	MOVQ	AX, m_moreframesize(BX)
++	SHLQ	$35, R8
++	MOVQ	R8, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/pkg/runtime/cgocall.c b/src/pkg/runtime/cgocall.c
+index 888e09c561..07aef495cf 100644
+--- a/src/pkg/runtime/cgocall.c
++++ b/src/pkg/runtime/cgocall.c
+@@ -255,22 +255,39 @@ struct CallbackArgs
+ #define CBARGS (CallbackArgs*)((byte*)m->g0->sched.sp+4*sizeof(void*))
+ #endif
+ 
++void runtime·cgocallbackg1(void);
++
++#pragma textflag 7
+ void
+ runtime·cgocallbackg(void)
+ {
+-	Defer d;
+-	CallbackArgs *cb;
++	if(g != m->curg) {
++		runtime·prints("runtime: bad g in cgocallback");
++		runtime·exit(2);
++	}
+ 
+ 	if(m->racecall) {
+-		cb = CBARGS;
+-		reflect·call(cb->fn, cb->arg, cb->argsize);
+-		return;
++		// We were not in syscall, so no need to call runtime·exitsyscall.
++		// However we must set m->locks for the following reason.
++		// Race detector runtime makes __tsan_symbolize cgo callback
++		// holding internal mutexes. The mutexes are not cooperative with Go scheduler.
++		// So if we deschedule a goroutine that holds race detector internal mutex
++		// (e.g. preempt it), another goroutine will deadlock trying to acquire the same mutex.
++		m->locks++;
++		runtime·cgocallbackg1();
++		m->locks--;
++	} else {
++		runtime·exitsyscall();	// coming out of cgo call
++		runtime·cgocallbackg1();
++		runtime·entersyscall();	// going back to cgo call
+ 	}
++}
+ 
+-	if(g != m->curg)
+-		runtime·throw("runtime: bad g in cgocallback");
+-
+-	runtime·exitsyscall();	// coming out of cgo call
++void
++runtime·cgocallbackg1(void)
++{
++	CallbackArgs *cb;
++	Defer d;
+ 
+ 	if(m->needextram) {
+ 		m->needextram = 0;
+@@ -286,14 +303,14 @@ runtime·cgocallbackg(void)
+ 	d.free = false;
+ 	g->defer = &d;
+ 
+-	if(raceenabled)
++	if(raceenabled && !m->racecall)
+ 		runtime·raceacquire(&cgosync);
+ 
+ 	// Invoke callback.
+ 	cb = CBARGS;
+ 	reflect·call(cb->fn, cb->arg, cb->argsize);
+ 
+-	if(raceenabled)
++	if(raceenabled && !m->racecall)
+ 		runtime·racereleasemerge(&cgosync);
+ 
+ 	// Pop defer.
+@@ -302,8 +319,6 @@ runtime·cgocallbackg(void)
+ 	if(g->defer != &d || d.fn != &unwindmf)
+ 		runtime·throw("runtime: bad defer entry in cgocallback");
+ 	g->defer = d.link;
+-
+-	runtime·entersyscall();	// going back to cgo call
+ }
+ 
+ static void
+diff --git a/src/pkg/runtime/futex_test.go b/src/pkg/runtime/futex_test.go
+index 51f4d0f120..7f3e55c989 100644
+--- a/src/pkg/runtime/futex_test.go
++++ b/src/pkg/runtime/futex_test.go
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Futex is only available on Linux and FreeBSD.
++// The race detector emits calls to split stack functions so it breaks the test.
+ // +build linux freebsd
++// +build !race
+ 
+ package runtime_test
+ 
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 2265607000..4fabc76944 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -83,7 +83,11 @@ runtime·lock(Lock *l)
+ 		if(v == MUTEX_UNLOCKED)
+ 			return;
+ 		wait = MUTEX_SLEEPING;
++		if(m->profilehz > 0)
++			runtime·setprof(false);
+ 		runtime·futexsleep((uint32*)&l->key, MUTEX_SLEEPING, -1);
++		if(m->profilehz > 0)
++			runtime·setprof(true);
+ 	}
+ }
+ 
+@@ -122,6 +126,8 @@ runtime·notewakeup(Note *n)
+ void
+ runtime·notesleep(Note *n)
+ {
++	if(g != m->g0)
++		runtime·throw("notesleep not on g0");
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 	while(runtime·atomicload((uint32*)&n->key) == 0)
+@@ -130,21 +136,21 @@ runtime·notesleep(Note *n)
+ 		runtime·setprof(true);
+ }
+ 
+-bool
+-runtime·notetsleep(Note *n, int64 ns)
++#pragma textflag 7
++static bool
++notetsleep(Note *n, int64 ns)
+ {
+ 	int64 deadline, now;
+ 
+ 	if(ns < 0) {
+-		runtime·notesleep(n);
++		while(runtime·atomicload((uint32*)&n->key) == 0)
++			runtime·futexsleep((uint32*)&n->key, 0, -1);
+ 		return true;
+ 	}
+ 
+ 	if(runtime·atomicload((uint32*)&n->key) != 0)
+ 		return true;
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+ 		runtime·futexsleep((uint32*)&n->key, 0, ns);
+@@ -155,11 +161,28 @@ runtime·notetsleep(Note *n, int64 ns)
+ 			break;
+ 		ns = deadline - now;
+ 	}
++	return runtime·atomicload((uint32*)&n->key) != 0;
++}
++
++bool
++runtime·notetsleep(Note *n, int64 ns)
++{
++	bool res;
++
++	if(g != m->g0 && !m->gcing)
++		runtime·throw("notetsleep not on g0");
++
++	if(m->profilehz > 0)
++		runtime·setprof(false);
++	res = notetsleep(n, ns);
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(true);
+-	return runtime·atomicload((uint32*)&n->key) != 0;
++	return res;
+ }
+ 
++// same as runtime·notetsleep, but called on user g (not g0)
++// does not need to call runtime·setprof, because entersyscallblock does it
++// calls only nosplit functions between entersyscallblock/exitsyscall
+ bool
+ runtime·notetsleepg(Note *n, int64 ns)
+ {
+@@ -167,8 +190,9 @@ runtime·notetsleepg(Note *n, int64 ns)
+ 
+ 	if(g == m->g0)
+ 		runtime·throw("notetsleepg on g0");
++
+ 	runtime·entersyscallblock();
+-	res = runtime·notetsleep(n, ns);
++	res = notetsleep(n, ns);
+ 	runtime·exitsyscall();
+ 	return res;
+ }
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index da5d24a423..ea7af1f91a 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -81,7 +81,11 @@ unlocked:
+ 			}
+ 			if(v&LOCKED) {
+ 				// Queued.  Wait.
++				if(m->profilehz > 0)
++					runtime·setprof(false);
+ 				runtime·semasleep(-1);
++				if(m->profilehz > 0)
++					runtime·setprof(true);
+ 				i = 0;
+ 			}
+ 		}
+@@ -149,6 +153,9 @@ runtime·notewakeup(Note *n)
+ void
+ runtime·notesleep(Note *n)
+ {
++	if(g != m->g0)
++		runtime·throw("notesleep not on g0");
++
+ 	if(m->waitsema == 0)
+ 		m->waitsema = runtime·semacreate();
+ 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup)
+@@ -164,19 +171,13 @@ runtime·notesleep(Note *n)
+ 		runtime·setprof(true);
+ }
+ 
+-bool
+-runtime·notetsleep(Note *n, int64 ns)
++#pragma textflag 7
++static bool
++notetsleep(Note *n, int64 ns, int64 deadline, M *mp)
+ {
+-	M *mp;
+-	int64 deadline, now;
+-
+-	if(ns < 0) {
+-		runtime·notesleep(n);
+-		return true;
+-	}
+-
+-	if(m->waitsema == 0)
+-		m->waitsema = runtime·semacreate();
++	// Conceptually, deadline and mp are local variables.
++	// They are passed as arguments so that the space for them
++	// does not count against our nosplit stack sequence.
+ 
+ 	// Register for wakeup on n->waitm.
+ 	if(!runtime·casp((void**)&n->key, nil, m)) {  // must be LOCKED (got wakeup already)
+@@ -185,31 +186,28 @@ runtime·notetsleep(Note *n, int64 ns)
+ 		return true;
+ 	}
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
++	if(ns < 0) {
++		// Queued.  Sleep.
++		runtime·semasleep(-1);
++		return true;
++	}
++
+ 	deadline = runtime·nanotime() + ns;
+ 	for(;;) {
+ 		// Registered.  Sleep.
+ 		if(runtime·semasleep(ns) >= 0) {
+ 			// Acquired semaphore, semawakeup unregistered us.
+ 			// Done.
+-			if(m->profilehz > 0)
+-				runtime·setprof(true);
+ 			return true;
+ 		}
+ 
+ 		// Interrupted or timed out.  Still registered.  Semaphore not acquired.
+-		now = runtime·nanotime();
+-		if(now >= deadline)
++		ns = deadline - runtime·nanotime();
++		if(ns <= 0)
+ 			break;
+-
+ 		// Deadline hasn't arrived.  Keep sleeping.
+-		ns = deadline - now;
+ 	}
+ 
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+-
+ 	// Deadline arrived.  Still registered.  Semaphore not acquired.
+ 	// Want to give up and return, but have to unregister first,
+ 	// so that any notewakeup racing with the return does not
+@@ -226,12 +224,33 @@ runtime·notetsleep(Note *n, int64 ns)
+ 			if(runtime·semasleep(-1) < 0)
+ 				runtime·throw("runtime: unable to acquire - semaphore out of sync");
+ 			return true;
+-		} else {
++		} else
+ 			runtime·throw("runtime: unexpected waitm - semaphore out of sync");
+-		}
+ 	}
+ }
+ 
++bool
++runtime·notetsleep(Note *n, int64 ns)
++{
++	bool res;
++
++	if(g != m->g0 && !m->gcing)
++		runtime·throw("notetsleep not on g0");
++
++	if(m->waitsema == 0)
++		m->waitsema = runtime·semacreate();
++
++	if(m->profilehz > 0)
++		runtime·setprof(false);
++	res = notetsleep(n, ns, 0, nil);
++	if(m->profilehz > 0)
++		runtime·setprof(true);
++	return res;
++}
++
++// same as runtime·notetsleep, but called on user g (not g0)
++// does not need to call runtime·setprof, because entersyscallblock does it
++// calls only nosplit functions between entersyscallblock/exitsyscall
+ bool
+ runtime·notetsleepg(Note *n, int64 ns)
+ {
+@@ -239,8 +258,12 @@ runtime·notetsleepg(Note *n, int64 ns)
+ 
+ 	if(g == m->g0)
+ 		runtime·throw("notetsleepg on g0");
++
++	if(m->waitsema == 0)
++		m->waitsema = runtime·semacreate();
++
+ 	runtime·entersyscallblock();
+-	res = runtime·notetsleep(n, ns);
++	res = notetsleep(n, ns, 0, nil);
+ 	runtime·exitsyscall();
+ 	return res;
+ }
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index 2a34f20a5d..db44e74cfb 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -22,19 +22,6 @@ unimplemented(int8 *name)
+ 	*(int32*)1231 = 1231;
+ }
+ 
+-int32
+-runtime·semasleep(int64 ns)
+-{
+-	int32 v;
+-
+-	if(m->profilehz > 0)
+-		runtime·setprof(false);
+-	v = runtime·mach_semacquire(m->waitsema, ns);
+-	if(m->profilehz > 0)
+-		runtime·setprof(true);
+-	return v;
+-}
+-
+ void
+ runtime·semawakeup(M *mp)
+ {
+@@ -155,10 +142,15 @@ runtime·unminit(void)
+ // Mach IPC, to get at semaphores
+ // Definitions are in /usr/include/mach on a Mac.
+ 
++#pragma textflag 7
+ static void
+ macherror(int32 r, int8 *fn)
+ {
+-	runtime·printf("mach error %s: %d\n", fn, r);
++	runtime·prints("mach error ");
++	runtime·prints(fn);
++	runtime·prints(": ");
++	runtime·printint(r);
++	runtime·prints("\n");
+ 	runtime·throw("mach error");
+ }
+ 
+@@ -405,25 +397,22 @@ int32 runtime·mach_semaphore_timedwait(uint32 sema, uint32 sec, uint32 nsec);
+ int32 runtime·mach_semaphore_signal(uint32 sema);
+ int32 runtime·mach_semaphore_signal_all(uint32 sema);
+ 
++#pragma textflag 7
+ int32
+-runtime·mach_semacquire(uint32 sem, int64 ns)
++runtime·semasleep(int64 ns)
+ {
+-	int32 r;
+-	int64 secs;
++	int32 r, secs, nsecs;
+ 
+ 	if(ns >= 0) {
+-		secs = ns/1000000000LL;
+-		// Avoid overflow
+-		if(secs > 1LL<<30)
+-			secs = 1LL<<30;
+-		r = runtime·mach_semaphore_timedwait(sem, secs, ns%1000000000LL);
++		secs = runtime·timediv(ns, 1000000000, &nsecs);
++		r = runtime·mach_semaphore_timedwait(m->waitsema, secs, nsecs);
+ 		if(r == KERN_ABORTED || r == KERN_OPERATION_TIMED_OUT)
+ 			return -1;
+ 		if(r != 0)
+ 			macherror(r, "semaphore_wait");
+ 		return 0;
+ 	}
+-	while((r = runtime·mach_semaphore_wait(sem)) != 0) {
++	while((r = runtime·mach_semaphore_wait(m->waitsema)) != 0) {
+ 		if(r == KERN_ABORTED)	// interrupted
+ 			continue;
+ 		macherror(r, "semaphore_wait");
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index c513c0a1f8..7987a58340 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -41,29 +41,26 @@ getncpu(void)
+ // FreeBSD's umtx_op syscall is effectively the same as Linux's futex, and
+ // thus the code is largely similar. See linux/thread.c and lock_futex.c for comments.
+ 
++#pragma textflag 7
+ void
+ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
+ 	int32 ret;
+-	Timespec ts, *tsp;
+-	int64 secs;
+-
+-	if(ns < 0)
+-		tsp = nil;
+-	else {
+-		secs = ns / 1000000000LL;
+-		// Avoid overflow
+-		if(secs > 1LL<<30)
+-			secs = 1LL<<30;
+-		ts.tv_sec = secs;
+-		ts.tv_nsec = ns % 1000000000LL;
+-		tsp = &ts;
+-	}
++	Timespec ts;
+ 
+-	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, tsp);
++	if(ns < 0) {
++		ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, nil);
++		if(ret >= 0 || ret == -EINTR)
++			return;
++		goto fail;
++	}
++	ts.tv_nsec = 0;
++	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
++	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, &ts);
+ 	if(ret >= 0 || ret == -EINTR)
+ 		return;
+ 
++fail:
+ 	runtime·printf("umtx_wait addr=%p val=%d ret=%d\n", addr, val, ret);
+ 	*(int32*)0x1005 = 0x1005;
+ }
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index b27239d46f..038208b60c 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -32,30 +32,25 @@ enum
+ //	if(*addr == val) sleep
+ // Might be woken up spuriously; that's allowed.
+ // Don't sleep longer than ns; ns < 0 means forever.
++#pragma textflag 7
+ void
+ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ {
+-	Timespec ts, *tsp;
+-	int64 secs;
+-
+-	if(ns < 0)
+-		tsp = nil;
+-	else {
+-		secs = ns/1000000000LL;
+-		// Avoid overflow
+-		if(secs > 1LL<<30)
+-			secs = 1LL<<30;
+-		ts.tv_sec = secs;
+-		ts.tv_nsec = ns%1000000000LL;
+-		tsp = &ts;
+-	}
++	Timespec ts;
+ 
+ 	// Some Linux kernels have a bug where futex of
+ 	// FUTEX_WAIT returns an internal error code
+ 	// as an errno.  Libpthread ignores the return value
+ 	// here, and so can we: as it says a few lines up,
+ 	// spurious wakeups are allowed.
+-	runtime·futex(addr, FUTEX_WAIT, val, tsp, nil, 0);
++
++	if(ns < 0) {
++		runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
++		return;
++	}
++	ts.tv_nsec = 0;
++	ts.tv_sec = runtime·timediv(ns, 1000000000LL, (int32*)&ts.tv_nsec);
++	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
+ }
+ 
+ // If any procs are sleeping on addr, wake up at most cnt.
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index f53855c255..d6e573c3d5 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -62,6 +62,7 @@ runtime·semacreate(void)
+ 	return 1;
+ }
+ 
++#pragma textflag 7
+ int32
+ runtime·semasleep(int64 ns)
+ {
+@@ -94,8 +95,8 @@ runtime·semasleep(int64 ns)
+ 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+ 			} else {
+ 				ns += runtime·nanotime();
+-				ts.tv_sec = ns/1000000000LL;
+-				ts.tv_nsec = ns%1000000000LL;
++				ts.tv_nsec = 0;
++				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)ts.tv_nsec);
+ 				// TODO(jsing) - potential deadlock!
+ 				// See above for details.
+ 				runtime·atomicstore(&m->waitsemalock, 0);
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 4c196e80b0..7468d01380 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -59,11 +59,11 @@ runtime·semacreate(void)
+ 	return 1;
+ }
+ 
++#pragma textflag 7
+ int32
+ runtime·semasleep(int64 ns)
+ {
+ 	Timespec ts;
+-	int64 secs;
+ 
+ 	// spin-mutex lock
+ 	while(runtime·xchg(&m->waitsemalock, 1))
+@@ -78,12 +78,8 @@ runtime·semasleep(int64 ns)
+ 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
+ 			else {
+ 				ns += runtime·nanotime();
+-				secs = ns/1000000000LL;
+-				// Avoid overflow
+-				if(secs >= 1LL<<31)
+-					secs = (1LL<<31) - 1;
+-				ts.tv_sec = secs;
+-				ts.tv_nsec = ns%1000000000LL;
++				ts.tv_nsec = 0;
++				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)ts.tv_nsec);
+ 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
+ 			}
+ 			// reacquire lock
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index d64c463994..d97e5bc339 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -260,6 +260,7 @@ runtime·semacreate(void)
+ 	return 1;
+ }
+ 
++#pragma textflag 7
+ int32
+ runtime·semasleep(int64 ns)
+ {
+@@ -267,10 +268,7 @@ runtime·semasleep(int64 ns)
+ 	int32 ms;
+ 
+ 	if(ns >= 0) {
+-		if(ns/1000000 > 0x7fffffffll)
+-			ms = 0x7fffffff;
+-		else
+-			ms = ns/1000000;
++		ms = runtime·timediv(ns, 1000000, nil);
+ 		ret = runtime·plan9_tsemacquire(&m->waitsemacount, ms);
+ 		if(ret == 1)
+ 			return 0;  // success
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 5dcbd2c1e1..d2ce9f8d11 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -164,21 +164,19 @@ runtime·write(int32 fd, void *buf, int32 n)
+ 
+ #define INFINITE ((uintptr)0xFFFFFFFF)
+ 
++#pragma textflag 7
+ int32
+ runtime·semasleep(int64 ns)
+ {
+-	uintptr ms;
+-
++	// store ms in ns to save stack space
+ 	if(ns < 0)
+-		ms = INFINITE;
+-	else if(ns/1000000 > 0x7fffffffLL)
+-		ms = 0x7fffffff;
++		ns = INFINITE;
+ 	else {
+-		ms = ns/1000000;
+-		if(ms == 0)
+-			ms = 1;
++		ns = runtime·timediv(ns, 1000000, nil);
++		if(ns == 0)
++			ns = 1;
+ 	}
+-	if(runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, ms) != 0)
++	if(runtime·stdcall(runtime·WaitForSingleObject, 2, m->waitsema, (uintptr)ns) != 0)
+ 		return -1;  // timeout
+ 	return 0;
+ }
+@@ -237,6 +235,7 @@ runtime·unminit(void)
+ 	runtime·remove_exception_handler();
+ }
+ 
++#pragma textflag 7
+ int64
+ runtime·nanotime(void)
+ {
+@@ -266,13 +265,11 @@ time·now(int64 sec, int32 usec)
+ void *
+ runtime·stdcall(void *fn, int32 count, ...)
+ {
+-	WinCall c;
+-
+-	c.fn = fn;
+-	c.n = count;
+-	c.args = (uintptr*)&count + 1;
+-	runtime·asmcgocall(runtime·asmstdcall, &c);
+-	return (void*)c.r1;
++	m->wincall.fn = fn;
++	m->wincall.n = count;
++	m->wincall.args = (uintptr*)&count + 1;
++	runtime·asmcgocall(runtime·asmstdcall, &m->wincall);
++	return (void*)m->wincall.r1;
+ }
+ 
+ extern void runtime·usleep1(uint32);
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 6e3c274560..0f44f6b981 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -110,6 +110,7 @@ static void pidleput(P*);
+ static void injectglist(G*);
+ static void preemptall(void);
+ static void preemptone(P*);
++static bool exitsyscallfast(void);
+ 
+ // The bootstrap sequence is:
+ //
+@@ -1379,6 +1380,10 @@ save(void *pc, uintptr sp)
+ void
+ ·entersyscall(int32 dummy)
+ {
++	// Disable preemption because during this function g is in Gsyscall status,
++	// but can have inconsistent g->sched, do not let GC observe it.
++	m->locks++;
++
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 
+@@ -1417,6 +1422,12 @@ void
+ 		runtime·unlock(&runtime·sched);
+ 		save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+ 	}
++
++	// Goroutines must not split stacks in Gsyscall status (it would corrupt g->sched).
++	// We set stackguard to StackPreempt so that first split stack check calls morestack.
++	// Morestack detects this case and throws.
++	g->stackguard0 = StackPreempt;
++	m->locks--;
+ }
+ 
+ // The same as runtime·entersyscall(), but with a hint that the syscall is blocking.
+@@ -1426,6 +1437,8 @@ void
+ {
+ 	P *p;
+ 
++	m->locks++;  // see comment in entersyscall
++
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 
+@@ -1449,56 +1462,48 @@ void
+ 
+ 	// Resave for traceback during blocked call.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
++
++	g->stackguard0 = StackPreempt;  // see comment in entersyscall
++	m->locks--;
+ }
+ 
+ // The goroutine g exited its system call.
+ // Arrange for it to run on a cpu again.
+ // This is called only from the go syscall library, not
+ // from the low-level system calls used by the runtime.
++#pragma textflag 7
+ void
+ runtime·exitsyscall(void)
+ {
+-	P *p;
++	m->locks++;  // see comment in entersyscall
+ 
+ 	// Check whether the profiler needs to be turned on.
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(true);
+ 
+-	// Try to re-acquire the last P.
+-	if(m->p && m->p->status == Psyscall && runtime·cas(&m->p->status, Psyscall, Prunning)) {
++	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
++		inclocked(-1);
++
++	if(exitsyscallfast()) {
+ 		// There's a cpu for us, so we can run.
+-		m->mcache = m->p->mcache;
+-		m->p->m = m;
+ 		m->p->tick++;
+ 		g->status = Grunning;
+ 		// Garbage collector isn't running (since we are),
+ 		// so okay to clear gcstack and gcsp.
+ 		g->gcstack = (uintptr)nil;
+ 		g->gcsp = (uintptr)nil;
+-		if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
++		m->locks--;
++		if(g->preempt) {
++			// restore the preemption request in case we've cleared it in newstack
+ 			g->stackguard0 = StackPreempt;
++		} else {
++			// otherwise restore the real stackguard, we've spoiled it in entersyscall/entersyscallblock
++			g->stackguard0 = g->stackguard;
++		}
+ 		return;
+ 	}
+ 
+-	if(g->isbackground)  // do not consider blocked scavenger for deadlock detection
+-		inclocked(-1);
+-	// Try to get any other idle P.
+-	m->p = nil;
+-	if(runtime·sched.pidle) {
+-		runtime·lock(&runtime·sched);
+-		p = pidleget();
+-		runtime·unlock(&runtime·sched);
+-		if(p) {
+-			acquirep(p);
+-			m->p->tick++;
+-			g->status = Grunning;
+-			g->gcstack = (uintptr)nil;
+-			g->gcsp = (uintptr)nil;
+-			if(g->preempt)  // restore the preemption request in case we've cleared it in newstack
+-				g->stackguard0 = StackPreempt;
+-			return;
+-		}
+-	}
++	m->locks--;
+ 
+ 	// Call the scheduler.
+ 	runtime·mcall(exitsyscall0);
+@@ -1513,6 +1518,33 @@ runtime·exitsyscall(void)
+ 	g->gcsp = (uintptr)nil;
+ }
+ 
++#pragma textflag 7
++static bool
++exitsyscallfast(void)
++{
++	P *p;
++
++	// Try to re-acquire the last P.
++	if(m->p && m->p->status == Psyscall && runtime·cas(&m->p->status, Psyscall, Prunning)) {
++		// There's a cpu for us, so we can run.
++		m->mcache = m->p->mcache;
++		m->p->m = m;
++		return true;
++	}
++	// Try to get any other idle P.
++	m->p = nil;
++	if(runtime·sched.pidle) {
++		runtime·lock(&runtime·sched);
++		p = pidleget();
++		runtime·unlock(&runtime·sched);
++		if(p) {
++			acquirep(p);
++			return true;
++		}
++	}
++	return false;
++}
++
+ // runtime·exitsyscall slow path on g0.
+ // Failed to acquire P, enqueue gp as runnable.
+ static void
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index 9b5f6c8ca3..03a9daf4c2 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -220,6 +220,9 @@ runtime·check(void)
+ 	if(offsetof(struct y1, y) != 1) runtime·throw("bad offsetof y1.y");
+ 	if(sizeof(struct y1) != 2) runtime·throw("bad sizeof y1");
+ 
++	if(runtime·timediv(12345LL*1000000000+54321, 1000000000, &e) != 12345 || e != 54321)
++		runtime·throw("bad timediv");
++
+ 	uint32 z;
+ 	z = 1;
+ 	if(!runtime·cas(&z, 1, 2))
+@@ -407,3 +410,30 @@ runtime·parsedebugvars(void)
+ 		p++;
+ 	}
+ }
++
++// Poor mans 64-bit division.
++// This is a very special function, do not use it if you are not sure what you are doing.
++// int64 division is lowered into _divv() call on 386, which does not fit into nosplit functions.
++// Handles overflow in a time-specific manner.
++#pragma textflag 7
++int32
++runtime·timediv(int64 v, int32 div, int32 *rem)
++{
++	int32 res, bit;
++
++	if(v >= div*0x7fffffffLL) {
++		if(rem != nil)
++			*rem = 0;
++		return 0x7fffffff;
++	}
++	res = 0;
++	for(bit = 0x40000000; bit != 0; bit >>= 1) {
++		if(v >= (int64)bit*div) {
++			v -= (int64)bit*div;
++			res += bit;
++		}
++	}
++	if(rem != nil)
++		*rem = v;
++	return res;
++}
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index a5a425b575..dfd88e001e 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -222,6 +222,29 @@ struct	GCStats
+ 	uint64	nosyield;
+ 	uint64	nsleep;
+ };
++
++struct	WinCall
++{
++	void	(*fn)(void*);
++	uintptr	n;	// number of parameters
++	void*	args;	// parameters
++	uintptr	r1;	// return values
++	uintptr	r2;
++	uintptr	err;	// error number
++};
++struct	SEH
++{
++	void*	prev;
++	void*	handler;
++};
++// describes how to handle callback
++struct	WinCallbackContext
++{
++	void*	gobody;		// Go function to call
++	uintptr	argsize;	// callback arguments size (in bytes)
++	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
++};
++
+ struct	G
+ {
+ 	// stackguard0 can be set to StackPreempt as opposed to stackguard
+@@ -327,6 +350,7 @@ struct	M
+ 
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
++	WinCall	wincall;
+ #endif
+ #ifdef GOOS_plan9
+ 	int8*		notesig;
+@@ -432,28 +456,6 @@ struct	Itab
+ 	void	(*fun[])(void);
+ };
+ 
+-struct	WinCall
+-{
+-	void	(*fn)(void*);
+-	uintptr	n;	// number of parameters
+-	void*	args;	// parameters
+-	uintptr	r1;	// return values
+-	uintptr	r2;
+-	uintptr	err;	// error number
+-};
+-struct	SEH
+-{
+-	void*	prev;
+-	void*	handler;
+-};
+-// describes how to handle callback
+-struct	WinCallbackContext
+-{
+-	void*	gobody;		// Go function to call
+-	uintptr	argsize;	// callback arguments size (in bytes)
+-	uintptr	restorestack;	// adjust stack on return by (in bytes) (386 only)
+-};
+-
+ #ifdef GOOS_windows
+ enum {
+    Windows = 1
+@@ -816,6 +818,7 @@ int32	runtime·gcount(void);
+ void	runtime·mcall(void(*)(G*));
+ uint32	runtime·fastrand1(void);
+ void	runtime·rewindmorestack(Gobuf*);
++int32	runtime·timediv(int64, int32, int32*);
+ 
+ void runtime·setmg(M*, G*);
+ void runtime·newextram(void);
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index dda65f9463..b959eb316d 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -246,6 +246,8 @@ runtime·newstack(void)
+ 			runtime·throw("runtime: preempt g0");
+ 		if(oldstatus == Grunning && m->p == nil)
+ 			runtime·throw("runtime: g is running but p is not");
++		if(oldstatus == Gsyscall && m->locks == 0)
++			runtime·throw("runtime: stack split during syscall");
+ 		// Be conservative about where we preempt.
+ 		// We are interested in preempting user Go code, not runtime code.
+ 		if(oldstatus != Grunning || m->locks || m->mallocing || m->gcing || m->p->status != Prunning) {

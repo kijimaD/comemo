@@ -24,7 +24,34 @@ Date:   Fri May 8 11:00:17 2015 -0700
     Change-Id: I189c80a5d99101ee72d8c9c3a4639c07e640cbd8
     Reviewed-on: https://go-review.googlesource.com/9846
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/testing/example.go | 2 +-
  src/testing/testing.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/example.go b/src/testing/example.go
+index 61339a6465..30baf27030 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -43,7 +43,7 @@ func RunExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 
+ func runExample(eg InternalExample) (ok bool) {
+ 	if *chatty {
+-		fmt.Printf("=== RUN: %s\n", eg.Name)
++		fmt.Printf("=== RUN   %s\n", eg.Name)
+ 	}
+ 
+ 	// Capture stdout.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 280d76a1aa..35ab82d421 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -557,7 +557,7 @@ func RunTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 			}
+ 			t.self = t
+ 			if *chatty {
+-				fmt.Printf("=== RUN %s\n", t.name)
++				fmt.Printf("=== RUN   %s\n", t.name)
+ 			}
+ 			go tRunner(t, &tests[i])
+ 			out := (<-t.signal).(*T)

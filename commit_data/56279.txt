@@ -21,7 +21,53 @@ Date:   Wed Apr 12 10:07:07 2023 +0000
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/handshake_client_test.go  | 21 +++++++++++++++++++++
  src/crypto/tls/handshake_client_tls13.go |  2 +-
  2 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 749c9fc954..22be38faff 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -1028,6 +1028,27 @@ func testResumption(t *testing.T, version uint16) {
+ 	deleteTicket()
+ 	testResumeState("WithoutSessionTicket", false)
+ 
++	// In TLS 1.3, HelloRetryRequest is sent after incorrect key share.
++	// See https://www.rfc-editor.org/rfc/rfc8446#page-14.
++	if version == VersionTLS13 {
++		deleteTicket()
++		serverConfig = &Config{
++			// Use a different curve than the client to force a HelloRetryRequest.
++			CurvePreferences: []CurveID{CurveP521, CurveP384, CurveP256},
++			MaxVersion:       version,
++			Certificates:     testConfig.Certificates,
++		}
++		testResumeState("InitialHandshake", false)
++		testResumeState("WithHelloRetryRequest", true)
++
++		// Reset serverConfig back.
++		serverConfig = &Config{
++			MaxVersion:   version,
++			CipherSuites: []uint16{TLS_RSA_WITH_RC4_128_SHA, TLS_ECDHE_RSA_WITH_RC4_128_SHA},
++			Certificates: testConfig.Certificates,
++		}
++	}
++
+ 	// Session resumption should work when using client certificates
+ 	deleteTicket()
+ 	serverConfig.ClientCAs = rootCAs
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index fefba01a06..4a8661085e 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -259,7 +259,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 			transcript := hs.suite.hash.New()
+ 			transcript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
+ 			transcript.Write(chHash)
+-			if err := transcriptMsg(hs.serverHello, hs.transcript); err != nil {
++			if err := transcriptMsg(hs.serverHello, transcript); err != nil {
+ 				return err
+ 			}
+ 			helloBytes, err := hs.hello.marshalWithoutBinders()

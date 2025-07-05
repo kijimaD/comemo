@@ -9,7 +9,7 @@ Date:   Wed May 30 15:10:54 2012 +1000
     R=golang-dev, kardianos, rsc
     CC=golang-dev, hectorchu, vcc.163
     https://golang.org/cl/6245063
-
+---
  src/cmd/dist/buildruntime.c         |   2 +
  src/pkg/runtime/crash_cgo_test.go   |  15 ++++++
  src/pkg/runtime/crash_test.go       | 100 ++++++++++++++++++++++++++++++++++++
@@ -21,3 +21,324 @@ Date:   Wed May 30 15:10:54 2012 +1000
  src/pkg/runtime/sys_windows_amd64.s |   7 ++-
  src/pkg/runtime/thread_windows.c    |   1 +
  10 files changed, 159 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/dist/buildruntime.c b/src/cmd/dist/buildruntime.c
+index 454d594e5d..d3ab197461 100644
+--- a/src/cmd/dist/buildruntime.c
++++ b/src/cmd/dist/buildruntime.c
+@@ -227,6 +227,8 @@ ok:
+ 				aggr = "gobuf";
+ 			else if(streq(fields.p[1], "WinCall"))
+ 				aggr = "wincall";
++			else if(streq(fields.p[1], "SEH"))
++				aggr = "seh";
+ 		}
+ 		if(hasprefix(lines.p[i], "}"))
+ 			aggr = nil;
+diff --git a/src/pkg/runtime/crash_cgo_test.go b/src/pkg/runtime/crash_cgo_test.go
+new file mode 100644
+index 0000000000..91c4bdb035
+--- /dev/null
++++ b/src/pkg/runtime/crash_cgo_test.go
+@@ -0,0 +1,15 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build cgo
++
++package runtime_test
++
++import (
++	"testing"
++)
++
++func TestCgoCrashHandler(t *testing.T) {
++	testCrashHandler(t, &crashTest{Cgo: true})
++}
+diff --git a/src/pkg/runtime/crash_test.go b/src/pkg/runtime/crash_test.go
+new file mode 100644
+index 0000000000..bc6b89feed
+--- /dev/null
++++ b/src/pkg/runtime/crash_test.go
+@@ -0,0 +1,100 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"io/ioutil"
++	"os"
++	"os/exec"
++	"path/filepath"
++	"testing"
++	"text/template"
++)
++
++type crashTest struct {
++	Cgo bool
++}
++
++// This test is a separate program, because it is testing
++// both main (m0) and non-main threads (m).
++
++func testCrashHandler(t *testing.T, ct *crashTest) {
++	st := template.Must(template.New("crashSource").Parse(crashSource))
++
++	dir, err := ioutil.TempDir("", "go-build")
++	if err != nil {
++		t.Fatalf("failed to create temp directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	src := filepath.Join(dir, "main.go")
++	f, err := os.Create(src)
++	if err != nil {
++		t.Fatalf("failed to create %v: %v", src, err)
++	}
++	err = st.Execute(f, ct)
++	if err != nil {
++		f.Close()
++		t.Fatalf("failed to execute template: %v", err)
++	}
++	f.Close()
++
++	got, err := exec.Command("go", "run", src).CombinedOutput()
++	if err != nil {
++		t.Fatalf("program exited with error: %v\n%v", err, string(got))
++	}
++	want := "main: recovered done\nnew-thread: recovered done\nsecond-new-thread: recovered done\nmain-again: recovered done\n"
++	if string(got) != string(want) {
++		t.Fatalf("expected %q, but got %q", string(want), string(got))
++	}
++}
++
++func TestCrashHandler(t *testing.T) {
++	testCrashHandler(t, &crashTest{Cgo: false})
++}
++
++const crashSource = `
++package main
++
++import (
++	"fmt"
++	"runtime"
++)
++
++{{if .Cgo}}
++import "C"
++{{end}}
++
++func test(name string) {
++	defer func() {
++		if x := recover(); x != nil {
++			fmt.Printf(" recovered")
++		}
++		fmt.Printf(" done\n")
++	}()
++	fmt.Printf("%s:", name)
++	var s *string
++	_ = *s
++	fmt.Print("SHOULD NOT BE HERE")
++}
++
++func testInNewThread(name string) {
++	c := make(chan bool)
++	go func() {
++		runtime.LockOSThread()
++		test(name)
++		c <- true
++	}()
++	<-c
++}
++
++func main() {
++	runtime.LockOSThread()
++	test("main")
++	testInNewThread("new-thread")
++	testInNewThread("second-new-thread")
++	test("main-again")
++}
++`
+diff --git a/src/pkg/runtime/os_windows.h b/src/pkg/runtime/os_windows.h
+index 9d387b7ad6..e8962265d5 100644
+--- a/src/pkg/runtime/os_windows.h
++++ b/src/pkg/runtime/os_windows.h
+@@ -28,5 +28,7 @@ uint32 runtime·ctrlhandler(uint32 type);
+ byte *runtime·compilecallback(Eface fn, bool cleanstack);
+ void *runtime·callbackasm(void);
+ 
++void runtime·install_exception_handler(void);
++
+ // TODO(brainman): should not need those
+ #define	NSIG	65
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 81decd6bf8..fbc262904b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -758,6 +758,11 @@ runtime·starttheworld(void)
+ void
+ runtime·mstart(void)
+ {
++	// It is used by windows-386 only. Unfortunately, seh needs
++	// to be located on os stack, and mstart runs on os stack
++	// for both m0 and m.
++	SEH seh;
++
+ 	if(g != m->g0)
+ 		runtime·throw("bad runtime·mstart");
+ 
+@@ -766,6 +771,7 @@ runtime·mstart(void)
+ 	// so other calls can reuse this stack space.
+ 	runtime·gosave(&m->g0->sched);
+ 	m->g0->sched.pc = (void*)-1;  // make sure it is never used
++	m->seh = &seh;
+ 	runtime·asminit();
+ 	runtime·minit();
+ 
+@@ -775,6 +781,10 @@ runtime·mstart(void)
+ 		runtime·initsig();
+ 
+ 	schedule(nil);
++
++	// TODO(brainman): This point is never reached, because scheduler
++	// does not release os threads at the moment. But once this path
++	// is enabled, we must remove our seh here.
+ }
+ 
+ // When running with cgo, we call libcgo_thread_start
+diff --git a/src/pkg/runtime/rt0_windows_386.s b/src/pkg/runtime/rt0_windows_386.s
+index 3b023de2f6..a06aa787e2 100644
+--- a/src/pkg/runtime/rt0_windows_386.s
++++ b/src/pkg/runtime/rt0_windows_386.s
+@@ -3,11 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ TEXT _rt0_386_windows(SB),7,$0
+-	// Set up SEH frame for bootstrap m
+-	PUSHL	$runtime·sigtramp(SB)
+-	PUSHL	0(FS)
+-	MOVL	SP, 0(FS)
+-
+ 	JMP	_rt0_386(SB)
+ 
+ DATA  runtime·iswindows(SB)/4, $1
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 665d477f7d..8a7c9c68a5 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -69,6 +69,7 @@ typedef	struct	Hchan		Hchan;
+ typedef	struct	Complex64	Complex64;
+ typedef	struct	Complex128	Complex128;
+ typedef	struct	WinCall		WinCall;
++typedef	struct	SEH		SEH;
+ typedef	struct	Timers		Timers;
+ typedef	struct	Timer		Timer;
+ typedef struct	GCStats		GCStats;
+@@ -262,6 +263,7 @@ struct	M
+ #ifdef GOOS_windows
+ 	void*	thread;		// thread handle
+ #endif
++	SEH*	seh;
+ 	uintptr	end[];
+ };
+ 
+@@ -316,6 +318,11 @@ struct	WinCall
+ 	uintptr	r2;
+ 	uintptr	err;	// error number
+ };
++struct	SEH
++{
++	void*	prev;
++	void*	handler;
++};
+ 
+ #ifdef GOOS_windows
+ enum {
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index d5646bfea1..ab6d7f2209 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -243,11 +243,6 @@ TEXT runtime·tstart(SB),7,$0
+ 	MOVL	newm+4(SP), CX		// m
+ 	MOVL	m_g0(CX), DX		// g
+ 
+-	// Set up SEH frame
+-	PUSHL	$runtime·sigtramp(SB)
+-	PUSHL	0(FS)
+-	MOVL	SP, 0(FS)
+-
+ 	// Layout new m scheduler stack on os stack.
+ 	MOVL	SP, AX
+ 	MOVL	AX, g_stackbase(DX)
+@@ -267,11 +262,6 @@ TEXT runtime·tstart(SB),7,$0
+ 
+ 	CALL	runtime·mstart(SB)
+ 
+-	// Pop SEH frame
+-	MOVL	0(FS), SP
+-	POPL	0(FS)
+-	POPL	CX
+-
+ 	RET
+ 
+ // uint32 tstart_stdcall(M *newm);
+@@ -296,3 +286,20 @@ TEXT runtime·setldt(SB),7,$0
+ 	MOVL	address+4(FP), CX
+ 	MOVL	CX, 0x14(FS)
+ 	RET
++
++// void install_exception_handler()
++TEXT runtime·install_exception_handler(SB),7,$0
++	get_tls(CX)
++	MOVL	m(CX), CX		// m
++
++	// Set up SEH frame
++	MOVL	m_seh(CX), DX
++	MOVL	$runtime·sigtramp(SB), AX
++	MOVL	AX, seh_handler(DX)
++	MOVL	0(FS), AX
++	MOVL	AX, seh_prev(DX)
++
++	// Install it
++	MOVL	DX, 0(FS)
++
++	RET
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 11909cda27..b2b8de5025 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -328,7 +328,6 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 	// Someday the convention will be D is always cleared.
+ 	CLD
+ 
+-	CALL	runtime·setstacklimits(SB)
+ 	CALL	runtime·stackcheck(SB)	// clobbers AX,CX
+ 	CALL	runtime·mstart(SB)
+ 
+@@ -337,6 +336,10 @@ TEXT runtime·tstart_stdcall(SB),7,$0
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),7,$0
+-	CALL	runtime·setstacklimits(SB)
+ 	MOVQ	DI, 0x28(GS)
+ 	RET
++
++// void install_exception_handler()
++TEXT runtime·install_exception_handler(SB),7,$0
++	CALL	runtime·setstacklimits(SB)
++	RET
+diff --git a/src/pkg/runtime/thread_windows.c b/src/pkg/runtime/thread_windows.c
+index f684d37335..5f893c1613 100644
+--- a/src/pkg/runtime/thread_windows.c
++++ b/src/pkg/runtime/thread_windows.c
+@@ -208,6 +208,7 @@ runtime·newosproc(M *m, G *g, void *stk, void (*fn)(void))
+ void
+ runtime·minit(void)
+ {
++	runtime·install_exception_handler();
+ }
+ 
+ int64

@@ -15,7 +15,61 @@ Date:   Wed May 1 14:52:57 2019 +0200
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
-
+---
  src/encoding/json/decode.go      |  7 ++++---
  src/encoding/json/decode_test.go | 10 ++++++++++
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 2b135f0da5..360fc69d04 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -416,8 +416,9 @@ func (d *decodeState) valueQuoted() interface{} {
+ 
+ // indirect walks down v allocating pointers as needed,
+ // until it gets to a non-pointer.
+-// if it encounters an Unmarshaler, indirect stops and returns that.
+-// if decodingNull is true, indirect stops at the last pointer so it can be set to nil.
++// If it encounters an Unmarshaler, indirect stops and returns that.
++// If decodingNull is true, indirect stops at the first settable pointer so it
++// can be set to nil.
+ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnmarshaler, reflect.Value) {
+ 	// Issue #24153 indicates that it is generally not a guaranteed property
+ 	// that you may round-trip a reflect.Value by calling Value.Addr().Elem()
+@@ -456,7 +457,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 			break
+ 		}
+ 
+-		if v.Elem().Kind() != reflect.Ptr && decodingNull && v.CanSet() {
++		if decodingNull && v.CanSet() {
+ 			break
+ 		}
+ 
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 72d384a80f..489f8674d0 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -401,6 +401,11 @@ type B struct {
+ 	B bool `json:",string"`
+ }
+ 
++type DoublePtr struct {
++	I **int
++	J **int
++}
++
+ var unmarshalTests = []unmarshalTest{
+ 	// basic types
+ 	{in: `true`, ptr: new(bool), out: true},
+@@ -656,6 +661,11 @@ var unmarshalTests = []unmarshalTest{
+ 		err:                   fmt.Errorf("json: unknown field \"X\""),
+ 		disallowUnknownFields: true,
+ 	},
++	{
++		in:  `{"I": 0, "I": null, "J": null}`,
++		ptr: new(DoublePtr),
++		out: DoublePtr{I: nil, J: nil},
++	},
+ 
+ 	// invalid UTF-8 is coerced to valid UTF-8.
+ 	{

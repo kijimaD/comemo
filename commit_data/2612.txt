@@ -9,7 +9,61 @@ Date:   Mon Jul 6 23:33:17 2009 -0700
     R=ken
     OCL=31244
     CL=31244
-
+---
  src/cmd/gc/const.c | 15 +++++++++++----
  src/cmd/gc/walk.c  |  2 +-
  2 files changed, 12 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/gc/const.c b/src/cmd/gc/const.c
+index d45e6136a1..a0a0806791 100644
+--- a/src/cmd/gc/const.c
++++ b/src/cmd/gc/const.c
+@@ -345,6 +345,8 @@ evconst(Node *n)
+ 		// right must be unsigned.
+ 		// left can be ideal.
+ 		defaultlit(nr, types[TUINT]);
++		if(nr->type && (issigned[nr->type->etype] || !isint[nr->type->etype]))
++			goto illegal;
+ 		break;
+ 	}
+ 
+@@ -367,9 +369,11 @@ evconst(Node *n)
+ 	switch(TUP(n->op, v.ctype)) {
+ 	default:
+ 	illegal:
+-		yyerror("illegal constant expression %T %O %T",
+-			nl->type, n->op, nr->type);
+-		n->diag = 1;
++		if(!n->diag) {
++			yyerror("illegal constant expression: %T %O %T",
++				nl->type, n->op, nr->type);
++			n->diag = 1;
++		}
+ 		return;
+ 
+ 	case TUP(OADD, CTINT):
+@@ -551,7 +555,10 @@ unary:
+ 
+ 	switch(TUP(n->op, v.ctype)) {
+ 	default:
+-		yyerror("illegal constant expression %O %T", n->op, nl->type);
++		if(!n->diag) {
++			yyerror("illegal constant expression %O %T", n->op, nl->type);
++			n->diag = 1;
++		}
+ 		return;
+ 
+ 	case TUP(OPLUS, CTINT):
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 398d61ec69..e0617259f4 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -704,7 +704,7 @@ loop:
+ 		defaultlit(n->right, types[TUINT]);
+ 		if(n->left->type == T || n->right->type == T)
+ 			goto ret;
+-		if(issigned[n->right->type->etype])
++		if(issigned[n->right->type->etype] || !isint[n->right->type->etype])
+ 			goto badt;
+ 		// check of n->left->type happens in second switch.
+ 		break;

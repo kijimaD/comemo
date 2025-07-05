@@ -17,6 +17,29 @@ Date:   Tue Mar 21 10:15:14 2017 -0700
     Change-Id: I4e9ffabdb4058f7cdcc4663b540f5a5a692daf8b
     Reviewed-on: https://go-review.googlesource.com/38400
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/plive.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b3cecdf894..8b8882ac55 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -186,6 +186,17 @@ func (lv *Liveness) valueEffects(v *ssa.Value) (pos int32, effect liveEffect) {
+ 		return -1, 0
+ 	}
+ 
++	// AllocFrame has dropped unused variables from
++	// lv.fn.Func.Dcl, but they might still be referenced by
++	// OpVarFoo pseudo-ops. Ignore them to prevent "lost track of
++	// variable" ICEs (issue 19632).
++	switch v.Op {
++	case ssa.OpVarDef, ssa.OpVarKill, ssa.OpVarLive, ssa.OpKeepAlive:
++		if !n.Used() {
++			return -1, 0
++		}
++	}
++
+ 	pos = liveIndex(n, lv.vars)
+ 	if pos < 0 {
+ 		return -1, 0

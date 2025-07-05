@@ -18,7 +18,83 @@ Date:   Fri Dec 11 16:45:39 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Trust: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/build.go          | 26 +++++++++++++++++++++++++-
  src/cmd/go/testdata/script/mod_outside.txt |  5 ++++-
  2 files changed, 29 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 1f99ed6e07..7f2617cf1c 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -583,8 +583,31 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 			return
+ 		}
+ 	}
++
+ 	BuildInit()
+ 	pkgs := load.PackagesAndErrors(ctx, args)
++	if cfg.ModulesEnabled && !modload.HasModRoot() {
++		haveErrors := false
++		allMissingErrors := true
++		for _, pkg := range pkgs {
++			if pkg.Error == nil {
++				continue
++			}
++			haveErrors = true
++			if missingErr := (*modload.ImportMissingError)(nil); !errors.As(pkg.Error, &missingErr) {
++				allMissingErrors = false
++				break
++			}
++		}
++		if haveErrors && allMissingErrors {
++			latestArgs := make([]string, len(args))
++			for i := range args {
++				latestArgs[i] = args[i] + "@latest"
++			}
++			hint := strings.Join(latestArgs, " ")
++			base.Fatalf("go install: version is required when current directory is not in a module\n\tTry 'go install %s' to install the latest version", hint)
++		}
++	}
+ 	load.CheckPackageErrors(pkgs)
+ 	if cfg.BuildI {
+ 		allGoroot := true
+@@ -598,6 +621,7 @@ func runInstall(ctx context.Context, cmd *base.Command, args []string) {
+ 			fmt.Fprint(os.Stderr, "go install: -i flag is deprecated\n")
+ 		}
+ 	}
++
+ 	InstallPackages(ctx, args, pkgs)
+ }
+ 
+@@ -815,7 +839,7 @@ func installOutsideModule(ctx context.Context, args []string) {
+ 
+ 	// Load packages for all arguments. Ignore non-main packages.
+ 	// Print a warning if an argument contains "..." and matches no main packages.
+-	// PackagesForBuild already prints warnings for patterns that don't match any
++	// PackagesAndErrors already prints warnings for patterns that don't match any
+ 	// packages, so be careful not to double print.
+ 	matchers := make([]func(string) bool, len(patterns))
+ 	for i, p := range patterns {
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+index 28379ab40d..8f01b5d242 100644
+--- a/src/cmd/go/testdata/script/mod_outside.txt
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -189,13 +189,16 @@ exists $GOPATH/bin/printversion$GOEXE
+ 
+ # 'go install' should fail if a package argument must be resolved to a module.
+ ! go install example.com/printversion
+-stderr 'no required module provides package example.com/printversion: working directory is not part of a module'
++stderr '^go install: version is required when current directory is not in a module\n\tTry ''go install example.com/printversion@latest'' to install the latest version$'
+ 
+ # 'go install' should fail if a source file imports a package that must be
+ # resolved to a module.
+ ! go install ./needmod/needmod.go
+ stderr 'needmod[/\\]needmod.go:10:2: no required module provides package example.com/version: working directory is not part of a module'
+ 
++# 'go install' should succeed with a package in GOROOT.
++go install cmd/addr2line
++! stderr .
+ 
+ # 'go run' with a verison should fail due to syntax.
+ ! go run example.com/printversion@v1.0.0

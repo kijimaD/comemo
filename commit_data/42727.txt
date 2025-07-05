@@ -11,7 +11,37 @@ Date:   Thu Feb 6 11:18:22 2020 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/218297
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  doc/go1.14.html             | 4 ++++
  src/hash/maphash/maphash.go | 3 +++
  2 files changed, 7 insertions(+)
+
+diff --git a/doc/go1.14.html b/doc/go1.14.html
+index 5f73666161..d5ad07754a 100644
+--- a/doc/go1.14.html
++++ b/doc/go1.14.html
+@@ -616,6 +616,10 @@ appropriately.)
+     <p>
+       The hash functions are collision-resistant but not cryptographically secure.
+     </p>
++    <p>
++      The hash value of a given byte sequence is consistent within a
++      single process, but will be different in different processes.
++    </p>
+   </dd>
+ </dl><!-- hash/maphash -->
+ 
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 3f406e9db6..3c0fc3628a 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -9,6 +9,9 @@
+ //
+ // The hash functions are collision-resistant but not cryptographically secure.
+ // (See crypto/sha256 and crypto/sha512 for cryptographic use.)
++//
++// The hash value of a given byte sequence is consistent within a
++// single process, but will be different in different processes.
+ package maphash
+ 
+ import "unsafe"

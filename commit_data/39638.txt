@@ -13,6 +13,17 @@ Date:   Mon Mar 11 10:41:50 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/testdata/script/list_test_err.txt | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/list_test_err.txt b/src/cmd/go/testdata/script/list_test_err.txt
+index 42805c9882..a174b5e9ad 100644
+--- a/src/cmd/go/testdata/script/list_test_err.txt
++++ b/src/cmd/go/testdata/script/list_test_err.txt
+@@ -1,3 +1,5 @@
++env GO111MODULE=off
++
+ # issue 28491: errors in test source files should not prevent
+ # "go list -test" from returning useful information.
+ 

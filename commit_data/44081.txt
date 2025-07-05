@@ -28,8 +28,58 @@ Date:   Thu Apr 30 22:35:35 2020 -0400
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/crypto/x509/verify.go      |  4 ++--
  src/crypto/x509/verify_test.go |  2 +-
  src/crypto/x509/x509_test.go   | 10 +++++++++-
  3 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index a9516fc375..a058f349c5 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -940,8 +940,8 @@ func validHostname(host string, isPattern bool) bool {
+ 			if c == '-' && j != 0 {
+ 				continue
+ 			}
+-			if c == '_' || c == ':' {
+-				// Not valid characters in hostnames, but commonly
++			if c == '_' {
++				// Not a valid character in hostnames, but commonly
+ 				// found in deployments outside the WebPKI.
+ 				continue
+ 			}
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 18271540c7..650b2d2fc6 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -2004,7 +2004,7 @@ func TestValidHostname(t *testing.T) {
+ 		{host: "foo.*.example.com"},
+ 		{host: "exa_mple.com", validInput: true, validPattern: true},
+ 		{host: "foo,bar"},
+-		{host: "project-dev:us-central1:main", validInput: true, validPattern: true},
++		{host: "project-dev:us-central1:main"},
+ 	}
+ 	for _, tt := range tests {
+ 		if got := validHostnamePattern(tt.host); got != tt.validPattern {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d69c8ba72e..7e001471dd 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -376,7 +376,15 @@ var matchHostnamesTests = []matchHostnamesTest{
+ 	{"*.com", "example.com", true},
+ 	{"*.com", "example.com.", true},
+ 	{"foo:bar", "foo:bar", true},
+-	{"*.foo:bar", "xxx.foo:bar", true},
++	{"*.foo:bar", "xxx.foo:bar", false},
++	{"*.2.3.4", "1.2.3.4", false},
++	{"*.2.3.4", "[1.2.3.4]", false},
++	{"*:4860:4860::8888", "2001:4860:4860::8888", false},
++	{"*:4860:4860::8888", "[2001:4860:4860::8888]", false},
++	{"2001:4860:4860::8888", "2001:4860:4860::8888", false},
++	{"2001:4860:4860::8888", "[2001:4860:4860::8888]", false},
++	{"[2001:4860:4860::8888]", "2001:4860:4860::8888", false},
++	{"[2001:4860:4860::8888]", "[2001:4860:4860::8888]", false},
+ }
+ 
+ func TestMatchHostnames(t *testing.T) {

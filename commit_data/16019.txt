@@ -7,7 +7,34 @@ Date:   Sat Mar 30 09:22:11 2013 -0700
     R=golang-dev, bradfitz, minux.ma
     CC=golang-dev
     https://golang.org/cl/8193043
-
+---
  src/pkg/os/exec/exec_test.go   | 2 +-
  src/pkg/syscall/passfd_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/os/exec/exec_test.go b/src/pkg/os/exec/exec_test.go
+index dfcf4be231..2467d29a11 100644
+--- a/src/pkg/os/exec/exec_test.go
++++ b/src/pkg/os/exec/exec_test.go
+@@ -25,7 +25,7 @@ func helperCommand(s ...string) *Cmd {
+ 	cs := []string{"-test.run=TestHelperProcess", "--"}
+ 	cs = append(cs, s...)
+ 	cmd := Command(os.Args[0], cs...)
+-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
++	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+ 	return cmd
+ }
+ 
+diff --git a/src/pkg/syscall/passfd_test.go b/src/pkg/syscall/passfd_test.go
+index a0e5909507..e16debae19 100644
+--- a/src/pkg/syscall/passfd_test.go
++++ b/src/pkg/syscall/passfd_test.go
+@@ -49,7 +49,7 @@ func TestPassFD(t *testing.T) {
+ 	defer readFile.Close()
+ 
+ 	cmd := exec.Command(os.Args[0], "-test.run=^TestPassFD$", "--", tempDir)
+-	cmd.Env = append([]string{"GO_WANT_HELPER_PROCESS=1"}, os.Environ()...)
++	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+ 	cmd.ExtraFiles = []*os.File{writeFile}
+ 
+ 	out, err := cmd.CombinedOutput()

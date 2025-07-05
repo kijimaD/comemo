@@ -12,7 +12,116 @@ Date:   Tue Nov 6 22:53:57 2012 +0100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6815088
-
+---
  src/cmd/6g/cgen.c           | 21 +++++++++++++++++++--
  test/fixedbugs/issue4348.go | 28 ++++++++++++++++++++++++++++
  2 files changed, 47 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index 53d4e1e248..751a5b7f13 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -566,6 +566,7 @@ agenr(Node *n, Node *a, Node *res)
+ 	Type *t;
+ 	uint32 w;
+ 	uint64 v;
++	int freelen;
+ 
+ 	if(debug['g']) {
+ 		dump("\nagenr-n", n);
+@@ -576,6 +577,7 @@ agenr(Node *n, Node *a, Node *res)
+ 
+ 	switch(n->op) {
+ 	case OINDEX:
++		freelen = 0;
+ 		w = n->type->width;
+ 		// Generate the non-addressable child first.
+ 		if(nr->addable)
+@@ -587,6 +589,7 @@ agenr(Node *n, Node *a, Node *res)
+ 					agenr(nl, &n3, res);
+ 				} else {
+ 					igen(nl, &nlen, res);
++					freelen = 1;
+ 					nlen.type = types[tptr];
+ 					nlen.xoffset += Array_array;
+ 					regalloc(&n3, types[tptr], res);
+@@ -612,6 +615,7 @@ agenr(Node *n, Node *a, Node *res)
+ 					nl = &tmp2;
+ 				}
+ 				igen(nl, &nlen, res);
++				freelen = 1;
+ 				nlen.type = types[tptr];
+ 				nlen.xoffset += Array_array;
+ 				regalloc(&n3, types[tptr], res);
+@@ -651,7 +655,14 @@ agenr(Node *n, Node *a, Node *res)
+ 			if(isslice(nl->type) || nl->type->etype == TSTRING) {
+ 				if(!debug['B'] && !n->bounded) {
+ 					nodconst(&n2, types[simtype[TUINT]], v);
+-					gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &n2);
++					if(smallintconst(nr)) {
++						gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &n2);
++					} else {
++						regalloc(&tmp, types[simtype[TUINT]], N);
++						gmove(&n2, &tmp);
++						gins(optoas(OCMP, types[simtype[TUINT]]), &nlen, &tmp);
++						regfree(&tmp);
++					}
+ 					p1 = gbranch(optoas(OGT, types[simtype[TUINT]]), T, +1);
+ 					ginscall(panicindex, -1);
+ 					patch(p1, pc);
+@@ -690,6 +701,12 @@ agenr(Node *n, Node *a, Node *res)
+ 				}
+ 			} else {
+ 				nodconst(&nlen, t, nl->type->bound);
++				if(!smallintconst(&nlen)) {
++					regalloc(&n5, t, N);
++					gmove(&nlen, &n5);
++					nlen = n5;
++					freelen = 1;
++				}
+ 			}
+ 			gins(optoas(OCMP, t), &n2, &nlen);
+ 			p1 = gbranch(optoas(OLT, t), T, +1);
+@@ -721,7 +738,7 @@ agenr(Node *n, Node *a, Node *res)
+ 	indexdone:
+ 		*a = n3;
+ 		regfree(&n2);
+-		if(!isconst(nl, CTSTR) && !isfixedarray(nl->type))
++		if(freelen)
+ 			regfree(&nlen);
+ 		break;
+ 
+diff --git a/test/fixedbugs/issue4348.go b/test/fixedbugs/issue4348.go
+new file mode 100644
+index 0000000000..c86964754c
+--- /dev/null
++++ b/test/fixedbugs/issue4348.go
+@@ -0,0 +1,28 @@
++// compile
++
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 4238. After switch to 64-bit ints the compiler generates
++// illegal instructions when using large array bounds or indexes.
++
++package main
++
++// 1<<32 on a 64-bit machine, 1 otherwise.
++const LARGE = ^uint(0)>>32 + 1
++
++func A() int {
++	var a []int
++	return a[LARGE]
++}
++
++func B(i int) int {
++	var b [LARGE]int
++	return b[i]
++}
++
++func main() {
++	n := A()
++	B(n)
++}

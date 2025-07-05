@@ -10,6 +10,25 @@ Date:   Wed Jan 28 22:39:57 2015 -0500
     Change-Id: I437095bee7cb2143aa37c91cf786f3a3581ae7b9
     Reviewed-on: https://go-review.googlesource.com/3513
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/liblink/sym.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index 35b88f44a2..079f600aa9 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -44,12 +44,12 @@ static struct {
+ 	char *name;
+ 	int val;
+ } headers[] = {
+-	{"android",	Hlinux},
+ 	{"darwin",	Hdarwin},
+ 	{"dragonfly",	Hdragonfly},
+ 	{"elf",		Helf},
+ 	{"freebsd",	Hfreebsd},
+ 	{"linux",	Hlinux},
++	{"android",	Hlinux}, // must be after "linux" entry or else headstr(Hlinux) == "android"
+ 	{"nacl",		Hnacl},
+ 	{"netbsd",	Hnetbsd},
+ 	{"openbsd",	Hopenbsd},

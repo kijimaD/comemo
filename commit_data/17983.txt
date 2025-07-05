@@ -7,6 +7,19 @@ Date:   Thu Dec 12 19:01:50 2013 -0800
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/40690048
-
+---
  .hgignore | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/.hgignore b/.hgignore
+index b615b8d975..2f11d9c233 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -41,7 +41,6 @@ src/cmd/gc/mkbuiltin1
+ src/cmd/gc/opnames.h
+ src/cmd/gc/y.output
+ src/cmd/go/zdefaultcc.go
+-src/liblink/anames?.c
+ src/pkg/go/doc/headscan
+ src/pkg/runtime/goc2c
+ src/pkg/runtime/mkversion

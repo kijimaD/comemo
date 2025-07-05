@@ -9,6 +9,26 @@ Date:   Fri Mar 27 10:19:17 2015 +0100
     Change-Id: I5b0005b308e83954a495f06d27b7d8d30e813820
     Reviewed-on: https://go-review.googlesource.com/8193
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/tcp_test.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/net/tcp_test.go b/src/net/tcp_test.go
+index 36d4445a6e..f9a340d2d3 100644
+--- a/src/net/tcp_test.go
++++ b/src/net/tcp_test.go
+@@ -494,13 +494,11 @@ func TestTCPConcurrentAccept(t *testing.T) {
+ 
+ func TestTCPReadWriteAllocs(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "nacl", "windows", "darwin", "dragonfly":
++	case "nacl", "windows":
+ 		// NaCl needs to allocate pseudo file descriptor
+ 		// stuff. See syscall/fd_nacl.go.
+ 		// Windows uses closures and channels for IO
+ 		// completion port-based netpoll. See fd_windows.go.
+-		// Darwin is unreliable for unknown reasons (issue 8859).
+-		// Dragonfly also unreliable (lumped into issue 8859).
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 

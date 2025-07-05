@@ -21,6 +21,21 @@ Date:   Fri Aug 11 19:46:45 2017 +0200
     Reviewed-on: https://go-review.googlesource.com/55032
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/signal_unix.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index e087e145aa..a6385a0a5e 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -398,6 +398,9 @@ func dieFromSignal(sig uint32) {
+ 	// First, try any signal handler installed before the runtime
+ 	// initialized.
+ 	fn := atomic.Loaduintptr(&fwdSig[sig])
++	// On Darwin, sigtramp is called even for non-Go signal handlers.
++	// Mark the signal as unhandled to ensure it is forwarded.
++	atomic.Store(&handlingSig[sig], 0)
+ 	setsig(sig, fn)
+ 	raise(sig)
+ 

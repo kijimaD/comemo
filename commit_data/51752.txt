@@ -17,10 +17,111 @@ Date:   Fri Oct 22 14:36:06 2021 +0800
     Reviewed-by: Joel Sing <joel@sing.id.au>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/riscv64/ssa.go        | 2 +-
  src/cmd/compile/internal/ssa/gen/RISCV64Ops.go | 4 ++--
  src/cmd/compile/internal/ssa/opGen.go          | 4 ++--
  src/cmd/internal/obj/riscv/cpu.go              | 6 +++---
  src/internal/bytealg/equal_riscv64.s           | 2 +-
  5 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 1359b6a0c3..fc52e9427d 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -648,7 +648,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 
+ 	case ssa.OpRISCV64LoweredGetClosurePtr:
+-		// Closure pointer is S4 (riscv.REG_CTXT).
++		// Closure pointer is S10 (riscv.REG_CTXT).
+ 		ssagen.CheckLoweredGetClosurePtr(v)
+ 
+ 	case ssa.OpRISCV64LoweredGetCallerSP:
+diff --git a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+index 076919773b..09a8bb38c9 100644
+--- a/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/RISCV64Ops.go
+@@ -26,7 +26,7 @@ import (
+ 
+ const (
+ 	riscv64REG_G    = 27
+-	riscv64REG_CTXT = 20
++	riscv64REG_CTXT = 26
+ 	riscv64REG_LR   = 1
+ 	riscv64REG_SP   = 2
+ 	riscv64REG_GP   = 3
+@@ -115,7 +115,7 @@ func init() {
+ 		panic("Too many RISCV64 registers")
+ 	}
+ 
+-	regCtxt := regNamed["X20"]
++	regCtxt := regNamed["X26"]
+ 	callerSave := gpMask | fpMask | regNamed["g"]
+ 
+ 	var (
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 81fe5d4c23..6f0eb45014 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -28898,7 +28898,7 @@ var opcodeTable = [...]opInfo{
+ 		call:    true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+-				{1, 524288},     // X20
++				{1, 33554432},   // X26
+ 				{0, 1006632946}, // SP X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
+ 			},
+ 			clobbers: 9223372035781033968, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 g X28 X29 X30 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+@@ -29189,7 +29189,7 @@ var opcodeTable = [...]opInfo{
+ 		argLen: 0,
+ 		reg: regInfo{
+ 			outputs: []outputInfo{
+-				{0, 524288}, // X20
++				{0, 33554432}, // X26
+ 			},
+ 		},
+ 	},
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index d9434e7415..8c2daf6e5b 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -125,13 +125,13 @@ const (
+ 	REG_A7   = REG_X17
+ 	REG_S2   = REG_X18
+ 	REG_S3   = REG_X19
+-	REG_S4   = REG_X20 // aka REG_CTXT
++	REG_S4   = REG_X20
+ 	REG_S5   = REG_X21
+ 	REG_S6   = REG_X22
+ 	REG_S7   = REG_X23
+ 	REG_S8   = REG_X24
+ 	REG_S9   = REG_X25
+-	REG_S10  = REG_X26
++	REG_S10  = REG_X26 // aka REG_CTXT
+ 	REG_S11  = REG_X27 // aka REG_G
+ 	REG_T3   = REG_X28
+ 	REG_T4   = REG_X29
+@@ -139,8 +139,8 @@ const (
+ 	REG_T6   = REG_X31 // aka REG_TMP
+ 
+ 	// Go runtime register names.
++	REG_CTXT = REG_S10 // Context for closures.
+ 	REG_G    = REG_S11 // G pointer.
+-	REG_CTXT = REG_S4  // Context for closures.
+ 	REG_LR   = REG_RA  // Link register.
+ 	REG_TMP  = REG_T6  // Reserved for assembler use.
+ 
+diff --git a/src/internal/bytealg/equal_riscv64.s b/src/internal/bytealg/equal_riscv64.s
+index 959a996f81..5dd13beb55 100644
+--- a/src/internal/bytealg/equal_riscv64.s
++++ b/src/internal/bytealg/equal_riscv64.s
+@@ -5,7 +5,7 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
+-#define	CTXT	S4
++#define	CTXT	S10
+ 
+ // func memequal(a, b unsafe.Pointer, size uintptr) bool
+ TEXT runtime·memequal(SB),NOSPLIT|NOFRAME,$0-25

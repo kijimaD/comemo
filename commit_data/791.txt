@@ -11,6 +11,23 @@ Date:   Wed Oct 1 17:01:42 2008 -0700
     DELTA=22  (11 added, 11 deleted, 0 changed)
     OCL=16284
     CL=16336
-
+---
  test/{fixedbugs => bugs}/bug046.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug046.go b/test/bugs/bug046.go
+similarity index 81%
+rename from test/fixedbugs/bug046.go
+rename to test/bugs/bug046.go
+index fd16e0f483..ba08f790e2 100644
+--- a/test/fixedbugs/bug046.go
++++ b/test/bugs/bug046.go
+@@ -8,7 +8,7 @@ package main
+ 
+ type T *struct {}
+ 
+-func (x T) M () {}  // not clear why this shouldn't work
++func (x T) M () {}  // ERROR "pointer"
+ 
+ /*
+ bug046.go:7: illegal <this> pointer

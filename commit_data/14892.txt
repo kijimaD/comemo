@@ -7,10 +7,97 @@ Date:   Tue Jan 15 19:25:16 2013 +1100
     R=dsymonds
     CC=golang-dev
     https://golang.org/cl/7094058
-
+---
  doc/articles/c_go_cgo.html           | 4 ++--
  doc/articles/go_command.html         | 2 +-
  doc/articles/laws_of_reflection.html | 2 +-
  doc/code.html                        | 4 ++--
  doc/go_faq.html                      | 4 ++--
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/doc/articles/c_go_cgo.html b/doc/articles/c_go_cgo.html
+index ac6bb29a2f..967f57e784 100644
+--- a/doc/articles/c_go_cgo.html
++++ b/doc/articles/c_go_cgo.html
+@@ -149,9 +149,9 @@ is more complex than a single function call), as in this rewrite of
+ </p>
+ 
+ <p>
+-To build cgo packages, just use <a href="/cmd/go/#Compile_packages_and_dependencies">"
++To build cgo packages, just use <a href="/cmd/go/#hdr-Compile_packages_and_dependencies">"
+ <code>go build</code>"</a> or
+-<a href="/cmd/go/#Compile_and_install_packages_and_dependencies">"<code>go install</code>
++<a href="/cmd/go/#hdr-Compile_and_install_packages_and_dependencies">"<code>go install</code>
+ "</a> as usual. The go tool recognizes the special <code>"C"</code> import and automatically
+ uses cgo for those files.
+ </p>
+diff --git a/doc/articles/go_command.html b/doc/articles/go_command.html
+index e72e7acd80..fddca41e23 100644
+--- a/doc/articles/go_command.html
++++ b/doc/articles/go_command.html
+@@ -48,7 +48,7 @@ had to be installed in certain places, under certain names, using certain build
+ tools, in order to be used. That's understandable: that's the way it works in
+ most other languages. Over the last few years we consistently reminded people
+ about the <code>goinstall</code> command
+-(now replaced by <a href="/cmd/go/#Download_and_install_packages_and_dependencies"><code>go get</code></a>)
++(now replaced by <a href="/cmd/go/#hdr-Download_and_install_packages_and_dependencies"><code>go get</code></a>)
+ and its conventions: first, that the import path is derived in a known way from
+ the URL of the source code; second, that the place to store the sources in
+ the local file system is derived in a known way from the import path; third,
+diff --git a/doc/articles/laws_of_reflection.html b/doc/articles/laws_of_reflection.html
+index 826a054f2e..81f6697ce5 100644
+--- a/doc/articles/laws_of_reflection.html
++++ b/doc/articles/laws_of_reflection.html
+@@ -213,7 +213,7 @@ type: float64
+ You might be wondering where the interface is here, since the program looks
+ like it's passing the <code>float64</code> variable <code>x</code>, not an
+ interface value, to <code>reflect.TypeOf</code>. But it's there; as
+-<a href="/pkg/reflect/#Type.TypeOf">godoc reports</a>, the signature of
++<a href="/pkg/reflect/#TypeOf">godoc reports</a>, the signature of
+ <code>reflect.TypeOf</code> includes an empty interface:
+ </p>
+ 
+diff --git a/doc/code.html b/doc/code.html
+index 096f5bfc9e..3ebb0bc9f9 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -406,7 +406,7 @@ ok  	example/newmath 0.165s
+ </pre>
+ 
+ <p>
+-Run <code><a href="/cmd/go/#Test_packages">go help test</a></code> and see the
++Run <code><a href="/cmd/go/#hdr-Test_packages">go help test</a></code> and see the
+ <a href="/pkg/testing/">testing package documentation</a> for more detail.
+ </p>
+ 
+@@ -486,7 +486,7 @@ is a list of external Go projects including programs and libraries.
+ 
+ <p>
+ For more information on using remote repositories with the <code>go</code> command, see
+-<code><a href="/cmd/go/#Remote_import_path_syntax">go help remote</a></code>.
++<code><a href="/cmd/go/#hdr-Remote_import_path_syntax">go help remote</a></code>.
+ </p>
+ 
+ 
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index 69296bc27b..ab37696f0f 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -1263,7 +1263,7 @@ each closure shares that single variable. When the closure runs, it prints the
+ value of <code>v</code> at the time <code>fmt.Println</code> is executed,
+ but <code>v</code> may have been modified since the goroutine was launched. 
+ To help detect this and other problems before they happen, run
+-<a href="http://golang.org/cmd/go/#Run_go_tool_vet_on_packages"><code>go vet</code></a>.
++<a href="http://golang.org/cmd/go/#hdr-Run_go_tool_vet_on_packages"><code>go vet</code></a>.
+ </p>
+ 
+ <p>
+@@ -1359,7 +1359,7 @@ builds a test binary, and runs it.
+ 
+ <p>See the <a href="/doc/code.html">How to Write Go Code</a> document,
+ the <a href="/pkg/testing/"><code>testing</code></a> package
+-and the <a href="/cmd/go/#Test_packages"><code>go test</code></a> subcommand for more details.
++and the <a href="/cmd/go/#hdr-Test_packages"><code>go test</code></a> subcommand for more details.
+ </p>
+ 
+ <h3 id="testing_framework">

@@ -9,6 +9,28 @@ Date:   Fri Oct 14 10:07:27 2011 -0700
     R=golang-dev, rsc, krautz
     CC=golang-dev
     https://golang.org/cl/5276048
-
+---
  src/pkg/net/ipraw_test.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/ipraw_test.go b/src/pkg/net/ipraw_test.go
+index 7f8c7b841e..6894ce656d 100644
+--- a/src/pkg/net/ipraw_test.go
++++ b/src/pkg/net/ipraw_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"os"
+-	"runtime"
+ 	"testing"
+ )
+ 
+@@ -65,7 +64,7 @@ var dsthost = flag.String("dsthost", "127.0.0.1", "Destination for the ICMP ECHO
+ 
+ // test (raw) IP socket using ICMP
+ func TestICMP(t *testing.T) {
+-	if runtime.GOOS != "windows" && os.Getuid() != 0 {
++	if os.Getuid() != 0 {
+ 		t.Logf("test disabled; must be root")
+ 		return
+ 	}

@@ -10,9 +10,165 @@ Date:   Fri Mar 21 11:14:38 2014 -0400
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/72080044
-
+---
  src/pkg/crypto/tls/generate_cert.go   |  6 -----
  src/pkg/encoding/asn1/asn1.go         |  8 ++++--
  src/pkg/encoding/asn1/marshal.go      | 49 ++++++++++++++++++++++++++++++++---
  src/pkg/encoding/asn1/marshal_test.go |  9 +++++++
  4 files changed, 61 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index 1b4830c725..5c6d8396d5 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -58,12 +58,6 @@ func main() {
+ 
+ 	notAfter := notBefore.Add(*validFor)
+ 
+-	// end of ASN.1 time
+-	endOfTime := time.Date(2049, 12, 31, 23, 59, 59, 0, time.UTC)
+-	if notAfter.After(endOfTime) {
+-		notAfter = endOfTime
+-	}
+-
+ 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+ 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
+ 	if err != nil {
+diff --git a/src/pkg/encoding/asn1/asn1.go b/src/pkg/encoding/asn1/asn1.go
+index 7a3c3797c8..ec7f91c1bb 100644
+--- a/src/pkg/encoding/asn1/asn1.go
++++ b/src/pkg/encoding/asn1/asn1.go
+@@ -465,11 +465,15 @@ func parseSequenceOf(bytes []byte, sliceType reflect.Type, elemType reflect.Type
+ 		if err != nil {
+ 			return
+ 		}
+-		// We pretend that various other string types are PRINTABLE STRINGs
+-		// so that a sequence of them can be parsed into a []string.
+ 		switch t.tag {
+ 		case tagIA5String, tagGeneralString, tagT61String, tagUTF8String:
++			// We pretend that various other string types are
++			// PRINTABLE STRINGs so that a sequence of them can be
++			// parsed into a []string.
+ 			t.tag = tagPrintableString
++		case tagGeneralizedTime, tagUTCTime:
++			// Likewise, both time types are treated the same.
++			t.tag = tagUTCTime
+ 		}
+ 
+ 		if t.class != classUniversal || t.isCompound != compoundType || t.tag != expectedTag {
+diff --git a/src/pkg/encoding/asn1/marshal.go b/src/pkg/encoding/asn1/marshal.go
+index da50cf25e8..e26fe59b30 100644
+--- a/src/pkg/encoding/asn1/marshal.go
++++ b/src/pkg/encoding/asn1/marshal.go
+@@ -295,8 +295,23 @@ func marshalTwoDigits(out *forkableWriter, v int) (err error) {
+ 	return out.WriteByte(byte('0' + v%10))
+ }
+ 
++func marshalFourDigits(out *forkableWriter, v int) (err error) {
++	var bytes [4]byte
++	for i := range bytes {
++		bytes[3-i] = '0' + byte(v%10)
++		v /= 10
++	}
++	_, err = out.Write(bytes[:])
++	return
++}
++
++func outsideUTCRange(t time.Time) bool {
++	year := t.Year()
++	return year < 1950 || year >= 2050
++}
++
+ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+-	year, month, day := t.Date()
++	year := t.Year()
+ 
+ 	switch {
+ 	case 1950 <= year && year < 2000:
+@@ -310,6 +325,24 @@ func marshalUTCTime(out *forkableWriter, t time.Time) (err error) {
+ 		return
+ 	}
+ 
++	return marshalTimeCommon(out, t)
++}
++
++func marshalGeneralizedTime(out *forkableWriter, t time.Time) (err error) {
++	year := t.Year()
++	if year < 0 || year > 9999 {
++		return StructuralError{"cannot represent time as GeneralizedTime"}
++	}
++	if err = marshalFourDigits(out, year); err != nil {
++		return
++	}
++
++	return marshalTimeCommon(out, t)
++}
++
++func marshalTimeCommon(out *forkableWriter, t time.Time) (err error) {
++	_, month, day := t.Date()
++
+ 	err = marshalTwoDigits(out, int(month))
+ 	if err != nil {
+ 		return
+@@ -378,7 +411,12 @@ func stripTagAndLength(in []byte) []byte {
+ func marshalBody(out *forkableWriter, value reflect.Value, params fieldParameters) (err error) {
+ 	switch value.Type() {
+ 	case timeType:
+-		return marshalUTCTime(out, value.Interface().(time.Time))
++		t := value.Interface().(time.Time)
++		if outsideUTCRange(t) {
++			return marshalGeneralizedTime(out, t)
++		} else {
++			return marshalUTCTime(out, t)
++		}
+ 	case bitStringType:
+ 		return marshalBitString(out, value.Interface().(BitString))
+ 	case objectIdentifierType:
+@@ -504,7 +542,8 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		return StructuralError{"explicit string type given to non-string member"}
+ 	}
+ 
+-	if tag == tagPrintableString {
++	switch tag {
++	case tagPrintableString:
+ 		if params.stringType == 0 {
+ 			// This is a string without an explicit string type. We'll use
+ 			// a PrintableString if the character set in the string is
+@@ -521,6 +560,10 @@ func marshalField(out *forkableWriter, v reflect.Value, params fieldParameters)
+ 		} else {
+ 			tag = params.stringType
+ 		}
++	case tagUTCTime:
++		if outsideUTCRange(v.Interface().(time.Time)) {
++			tag = tagGeneralizedTime
++		}
+ 	}
+ 
+ 	if params.set {
+diff --git a/src/pkg/encoding/asn1/marshal_test.go b/src/pkg/encoding/asn1/marshal_test.go
+index 763c86da23..a15acbed01 100644
+--- a/src/pkg/encoding/asn1/marshal_test.go
++++ b/src/pkg/encoding/asn1/marshal_test.go
+@@ -67,6 +67,14 @@ type marshalTest struct {
+ 	out string // hex encoded
+ }
+ 
++func farFuture() time.Time {
++	t, err := time.Parse(time.RFC3339, "2100-04-05T12:01:01Z")
++	if err != nil {
++		panic(err)
++	}
++	return t
++}
++
+ var marshalTests = []marshalTest{
+ 	{10, "02010a"},
+ 	{127, "02017f"},
+@@ -83,6 +91,7 @@ var marshalTests = []marshalTest{
+ 	{time.Unix(0, 0).UTC(), "170d3730303130313030303030305a"},
+ 	{time.Unix(1258325776, 0).UTC(), "170d3039313131353232353631365a"},
+ 	{time.Unix(1258325776, 0).In(PST), "17113039313131353134353631362d30383030"},
++	{farFuture(), "180f32313030303430353132303130315a"},
+ 	{BitString{[]byte{0x80}, 1}, "03020780"},
+ 	{BitString{[]byte{0x81, 0xf0}, 12}, "03030481f0"},
+ 	{ObjectIdentifier([]int{1, 2, 3, 4}), "06032a0304"},

@@ -8,6 +8,20 @@ Date:   Tue Dec 16 18:09:38 2014 +1100
     Reviewed-on: https://go-review.googlesource.com/1633
     Reviewed-by: Minux Ma <minux@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/type.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index ededbef77d..26285da674 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1908,7 +1908,7 @@ func (bv *bitVector) append2(bits uint8) {
+ 
+ func addTypeBits(bv *bitVector, offset *uintptr, t *rtype) {
+ 	*offset = align(*offset, uintptr(t.align))
+-	if t.kind&kindNoPointers != 0 {
++	if !t.pointers() {
+ 		*offset += t.size
+ 		return
+ 	}

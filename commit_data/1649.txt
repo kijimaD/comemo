@@ -7,6 +7,20 @@ Date:   Mon Feb 9 10:20:15 2009 -0800
     R=gri
     OCL=24678
     CL=24678
-
+---
  src/lib/os/dir_amd64_darwin.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/os/dir_amd64_darwin.go b/src/lib/os/dir_amd64_darwin.go
+index 26716029e2..72879f8d91 100644
+--- a/src/lib/os/dir_amd64_darwin.go
++++ b/src/lib/os/dir_amd64_darwin.go
+@@ -26,7 +26,7 @@ func Readdirnames(fd *FD, count int) (names []string, err *os.Error) {
+ 		if count == 0 {
+ 			break
+ 		}
+-		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], len(buf), &base);
++		ret, err2 := syscall.Getdirentries(fd.fd, &buf[0], int64(len(buf)), &base);
+ 		if ret < 0 || err2 != 0 {
+ 			return names, os.ErrnoToError(err2)
+ 		}

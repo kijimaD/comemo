@@ -7,6 +7,29 @@ Date:   Mon May 11 18:02:27 2015 +0900
     Change-Id: I9b058472f5b4943db6e6f1c1243411ce61624c18
     Reviewed-on: https://go-review.googlesource.com/9916
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/fd_unix.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 64e94fecf8..f2d7b348bf 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -225,7 +225,7 @@ func (fd *netFD) Read(p []byte) (n int, err error) {
+ 		return 0, err
+ 	}
+ 	for {
+-		n, err = syscall.Read(int(fd.sysfd), p)
++		n, err = syscall.Read(fd.sysfd, p)
+ 		if err != nil {
+ 			n = 0
+ 			if err == syscall.EAGAIN {
+@@ -307,7 +307,7 @@ func (fd *netFD) Write(p []byte) (nn int, err error) {
+ 	}
+ 	for {
+ 		var n int
+-		n, err = syscall.Write(int(fd.sysfd), p[nn:])
++		n, err = syscall.Write(fd.sysfd, p[nn:])
+ 		if n > 0 {
+ 			nn += n
+ 		}

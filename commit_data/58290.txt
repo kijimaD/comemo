@@ -11,6 +11,29 @@ Date:   Tue Oct 17 23:24:20 2023 -0700
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
-
+---
  src/testing/slogtest/slogtest.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index e60e8438d4..6f08180df5 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -216,6 +216,17 @@ var cases = []testCase{
+ 			inGroup("G", hasAttr("b", "v2")),
+ 		},
+ 	},
++	{
++		name:        "empty-PC",
++		explanation: withSource("a Handler should not output SourceKey if the PC is zero"),
++		f: func(l *slog.Logger) {
++			l.Info("message")
++		},
++		mod: func(r *slog.Record) { r.PC = 0 },
++		checks: []check{
++			missingKey(slog.SourceKey),
++		},
++	},
+ }
+ 
+ // TestHandler tests a [slog.Handler].

@@ -30,9 +30,92 @@ Date:   Thu Feb 25 19:15:04 2021 +0000
     Trust: Emmanuel Odeke <emmanuel@orijtech.com>
     Run-TryBot: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/database/sql/driver/driver.go |  3 +++
  src/database/sql/fakedb_test.go   |  9 +++++++++
  src/database/sql/sql.go           |  6 ++++++
  src/database/sql/sql_test.go      | 11 ++++++++++-
  4 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index 5bbcf20db2..f09396175a 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -115,6 +115,9 @@ type DriverContext interface {
+ // DriverContext's OpenConnector method, to allow drivers
+ // access to context and to avoid repeated parsing of driver
+ // configuration.
++//
++// If a Connector implements io.Closer, the sql package's DB.Close
++// method will call Close and return error (if any).
+ type Connector interface {
+ 	// Connect returns a connection to the database.
+ 	// Connect may return a cached connection (one previously
+diff --git a/src/database/sql/fakedb_test.go b/src/database/sql/fakedb_test.go
+index 7605a2a6d2..1bfd1118aa 100644
+--- a/src/database/sql/fakedb_test.go
++++ b/src/database/sql/fakedb_test.go
+@@ -56,6 +56,7 @@ type fakeConnector struct {
+ 	name string
+ 
+ 	waiter func(context.Context)
++	closed bool
+ }
+ 
+ func (c *fakeConnector) Connect(context.Context) (driver.Conn, error) {
+@@ -68,6 +69,14 @@ func (c *fakeConnector) Driver() driver.Driver {
+ 	return fdriver
+ }
+ 
++func (c *fakeConnector) Close() error {
++	if c.closed {
++		return errors.New("fakedb: connector is closed")
++	}
++	c.closed = true
++	return nil
++}
++
+ type fakeDriverCtx struct {
+ 	fakeDriver
+ }
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index 726aadb899..37bcb0d091 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -850,6 +850,12 @@ func (db *DB) Close() error {
+ 		}
+ 	}
+ 	db.stop()
++	if c, ok := db.connector.(io.Closer); ok {
++		err1 := c.Close()
++		if err1 != nil {
++			err = err1
++		}
++	}
+ 	return err
+ }
+ 
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index 99bfd62491..c06e565ea9 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -4059,9 +4059,18 @@ func TestOpenConnector(t *testing.T) {
+ 	}
+ 	defer db.Close()
+ 
+-	if _, is := db.connector.(*fakeConnector); !is {
++	c, ok := db.connector.(*fakeConnector)
++	if !ok {
+ 		t.Fatal("not using *fakeConnector")
+ 	}
++
++	if err := db.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	if !c.closed {
++		t.Fatal("connector is not closed")
++	}
+ }
+ 
+ type ctxOnlyDriver struct {

@@ -7,10 +7,99 @@ Date:   Sun Dec 12 20:27:29 2010 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/3601041
-
+---
  src/pkg/asn1/asn1.go        | 4 ++--
  src/pkg/json/decode.go      | 2 +-
  src/pkg/reflect/all_test.go | 2 +-
  src/pkg/reflect/value.go    | 6 +++---
  src/pkg/xml/read.go         | 2 +-
  5 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/pkg/asn1/asn1.go b/src/pkg/asn1/asn1.go
+index b26eb0987d..d06b1d4d77 100644
+--- a/src/pkg/asn1/asn1.go
++++ b/src/pkg/asn1/asn1.go
+@@ -591,7 +591,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		sliceValue := v.(*reflect.SliceValue)
+ 		sliceValue.Set(reflect.MakeSlice(sliceValue.Type().(*reflect.SliceType), len(newSlice), len(newSlice)))
+ 		if err1 == nil {
+-			reflect.ArrayCopy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue))
++			reflect.Copy(sliceValue, reflect.NewValue(newSlice).(reflect.ArrayOrSliceValue))
+ 		}
+ 		err = err1
+ 		return
+@@ -683,7 +683,7 @@ func parseField(v reflect.Value, bytes []byte, initOffset int, params fieldParam
+ 		sliceType := fieldType.(*reflect.SliceType)
+ 		if sliceType.Elem().Kind() == reflect.Uint8 {
+ 			val.Set(reflect.MakeSlice(sliceType, len(innerBytes), len(innerBytes)))
+-			reflect.ArrayCopy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
++			reflect.Copy(val, reflect.NewValue(innerBytes).(reflect.ArrayOrSliceValue))
+ 			return
+ 		}
+ 		newSlice, err1 := parseSequenceOf(innerBytes, sliceType, sliceType.Elem())
+diff --git a/src/pkg/json/decode.go b/src/pkg/json/decode.go
+index 85d56bbe16..c704cacbd2 100644
+--- a/src/pkg/json/decode.go
++++ b/src/pkg/json/decode.go
+@@ -344,7 +344,7 @@ func (d *decodeState) array(v reflect.Value) {
+ 				newcap = 4
+ 			}
+ 			newv := reflect.MakeSlice(sv.Type().(*reflect.SliceType), sv.Len(), newcap)
+-			reflect.ArrayCopy(newv, sv)
++			reflect.Copy(newv, sv)
+ 			sv.Set(newv)
+ 		}
+ 		if i >= av.Len() && sv != nil {
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index e745ab8afb..aa831f3365 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -513,7 +513,7 @@ func TestCopyArray(t *testing.T) {
+ 	ab := vb.(*PtrValue).Elem().(*SliceValue)
+ 	for tocopy := 1; tocopy <= 7; tocopy++ {
+ 		aa.SetLen(tocopy)
+-		ArrayCopy(ab, aa)
++		Copy(ab, aa)
+ 		aa.SetLen(8)
+ 		for i := 0; i < tocopy; i++ {
+ 			if a[i] != b[i] {
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index c0126fd342..a80112d342 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -400,11 +400,11 @@ type ArrayOrSliceValue interface {
+ 	addr() addr
+ }
+ 
+-// ArrayCopy copies the contents of src into dst until either
++// Copy copies the contents of src into dst until either
+ // dst has been filled or src has been exhausted.
+ // It returns the number of elements copied.
+ // The arrays dst and src must have the same element type.
+-func ArrayCopy(dst, src ArrayOrSliceValue) int {
++func Copy(dst, src ArrayOrSliceValue) int {
+ 	// TODO: This will have to move into the runtime
+ 	// once the real gc goes in.
+ 	de := dst.Type().(ArrayOrSliceType).Elem()
+@@ -439,7 +439,7 @@ func (v *ArrayValue) Set(x *ArrayValue) {
+ 		panic(cannotSet)
+ 	}
+ 	typesMustMatch(v.typ, x.typ)
+-	ArrayCopy(v, x)
++	Copy(v, x)
+ }
+ 
+ // Set sets v to the value x.
+diff --git a/src/pkg/xml/read.go b/src/pkg/xml/read.go
+index 1999ebcb88..9175659b23 100644
+--- a/src/pkg/xml/read.go
++++ b/src/pkg/xml/read.go
+@@ -233,7 +233,7 @@ func (p *Parser) unmarshal(val reflect.Value, start *StartElement) os.Error {
+ 				ncap = 4
+ 			}
+ 			new := reflect.MakeSlice(typ, n, ncap)
+-			reflect.ArrayCopy(new, v)
++			reflect.Copy(new, v)
+ 			v.Set(new)
+ 		}
+ 		v.SetLen(n + 1)

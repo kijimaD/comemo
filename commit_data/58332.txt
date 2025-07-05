@@ -15,6 +15,20 @@ Date:   Sun Oct 29 02:11:19 2023 +0000
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/cmd/compile/internal/ssa/lca.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/lca.go b/src/cmd/compile/internal/ssa/lca.go
+index 90daebe44f..6e7ad96d29 100644
+--- a/src/cmd/compile/internal/ssa/lca.go
++++ b/src/cmd/compile/internal/ssa/lca.go
+@@ -106,7 +106,7 @@ func (lca *lcaRange) find(a, b *Block) *Block {
+ 	if a == b {
+ 		return a
+ 	}
+-	// Find the positions of a and bin the Euler tour.
++	// Find the positions of a and b in the Euler tour.
+ 	p1 := lca.blocks[a.ID].pos
+ 	p2 := lca.blocks[b.ID].pos
+ 	if p1 > p2 {

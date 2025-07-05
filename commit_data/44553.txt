@@ -18,7 +18,7 @@ Date:   Thu Jul 30 19:17:48 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/internal/{goobj => archive}/goobj_test.go         | 0
  src/cmd/internal/{goobj => archive}/read.go               | 0
  src/cmd/internal/{goobj => archive}/readnew.go            | 0
@@ -31,3 +31,57 @@ Date:   Thu Jul 30 19:17:48 2020 -0400
  src/cmd/internal/{goobj => archive}/testdata/mycgo/go2.go | 0
  src/cmd/internal/objfile/goobj.go                         | 2 +-
  11 files changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj/goobj_test.go b/src/cmd/internal/archive/goobj_test.go
+similarity index 100%
+rename from src/cmd/internal/goobj/goobj_test.go
+rename to src/cmd/internal/archive/goobj_test.go
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/archive/read.go
+similarity index 100%
+rename from src/cmd/internal/goobj/read.go
+rename to src/cmd/internal/archive/read.go
+diff --git a/src/cmd/internal/goobj/readnew.go b/src/cmd/internal/archive/readnew.go
+similarity index 100%
+rename from src/cmd/internal/goobj/readnew.go
+rename to src/cmd/internal/archive/readnew.go
+diff --git a/src/cmd/internal/goobj/testdata/go1.go b/src/cmd/internal/archive/testdata/go1.go
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/go1.go
+rename to src/cmd/internal/archive/testdata/go1.go
+diff --git a/src/cmd/internal/goobj/testdata/go2.go b/src/cmd/internal/archive/testdata/go2.go
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/go2.go
+rename to src/cmd/internal/archive/testdata/go2.go
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/c1.c b/src/cmd/internal/archive/testdata/mycgo/c1.c
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/mycgo/c1.c
+rename to src/cmd/internal/archive/testdata/mycgo/c1.c
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/c2.c b/src/cmd/internal/archive/testdata/mycgo/c2.c
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/mycgo/c2.c
+rename to src/cmd/internal/archive/testdata/mycgo/c2.c
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go.go b/src/cmd/internal/archive/testdata/mycgo/go.go
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/mycgo/go.go
+rename to src/cmd/internal/archive/testdata/mycgo/go.go
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go1.go b/src/cmd/internal/archive/testdata/mycgo/go1.go
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/mycgo/go1.go
+rename to src/cmd/internal/archive/testdata/mycgo/go1.go
+diff --git a/src/cmd/internal/goobj/testdata/mycgo/go2.go b/src/cmd/internal/archive/testdata/mycgo/go2.go
+similarity index 100%
+rename from src/cmd/internal/goobj/testdata/mycgo/go2.go
+rename to src/cmd/internal/archive/testdata/mycgo/go2.go
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index e1c2fd5d5c..a7e45b9ecb 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -7,7 +7,7 @@
+ package objfile
+ 
+ import (
+-	"cmd/internal/goobj"
++	goobj "cmd/internal/archive"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"debug/dwarf"

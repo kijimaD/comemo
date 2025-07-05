@@ -9,7 +9,7 @@ Date:   Fri Jun 26 20:28:41 2009 -0700
     DELTA=35  (7 added, 7 deleted, 21 changed)
     OCL=30818
     CL=30821
-
+---
  src/cmd/gobuild/gobuild.go |  8 ++++----
  src/cmd/gobuild/util.go    |  7 +++----
  src/cmd/godoc/godoc.go     |  5 ++---
@@ -19,3 +19,163 @@ Date:   Fri Jun 26 20:28:41 2009 -0700
  src/pkg/time/zoneinfo.go   |  2 +-
  test/env.go                |  4 ++--
  8 files changed, 23 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/gobuild/gobuild.go b/src/cmd/gobuild/gobuild.go
+index a6497425cc..6dce9d576f 100644
+--- a/src/cmd/gobuild/gobuild.go
++++ b/src/cmd/gobuild/gobuild.go
+@@ -111,13 +111,13 @@ func (a FileArray) Swap(i, j int) {
+ // If current directory is under $GOROOT/src/pkg, return the
+ // path relative to there.  Otherwise return "".
+ func PkgDir() string {
+-	goroot, err := os.Getenv("GOROOT");
+-	if err != nil || goroot == "" {
++	goroot := os.Getenv("GOROOT");
++	if goroot == "" {
+ 		return ""
+ 	}
+ 	srcroot := path.Clean(goroot + "/src/pkg/");
+-	pwd, err1 := os.Getenv("PWD");	// TODO(rsc): real pwd
+-	if err1 != nil || pwd == "" {
++	pwd := os.Getenv("PWD");	// TODO(rsc): real pwd
++	if pwd == "" {
+ 		return ""
+ 	}
+ 	if pwd == srcroot {
+diff --git a/src/cmd/gobuild/util.go b/src/cmd/gobuild/util.go
+index 4bcf97a5a6..99539f76de 100644
+--- a/src/cmd/gobuild/util.go
++++ b/src/cmd/gobuild/util.go
+@@ -45,9 +45,8 @@ func fatal(format string, args ...) {
+ }
+ 
+ func init() {
+-	var err os.Error;
+-	goarch, err = os.Getenv("GOARCH");
+-	goos, err = os.Getenv("GOOS");
++	goarch = os.Getenv("GOARCH");
++	goos = os.Getenv("GOOS");
+ 
+ 	var ok bool;
+ 	theChar, ok = theChars[goarch];
+@@ -64,7 +63,7 @@ func init() {
+ 
+ 	for i, v := range binaries {
+ 		var s string;
+-		if s, err = exec.LookPath(v); err != nil {
++		if s, err := exec.LookPath(v); err != nil {
+ 			fatal("cannot find binary %s", v);
+ 		}
+ 		bin[v] = s;
+diff --git a/src/cmd/godoc/godoc.go b/src/cmd/godoc/godoc.go
+index 12a21b6e20..4e684aa6ee 100644
+--- a/src/cmd/godoc/godoc.go
++++ b/src/cmd/godoc/godoc.go
+@@ -97,9 +97,8 @@ var (
+ 
+ 
+ func init() {
+-	var err os.Error;
+-	goroot, err = os.Getenv("GOROOT");
+-	if err != nil {
++	goroot = os.Getenv("GOROOT");
++	if goroot != "" {
+ 		goroot = "/home/r/go-release/go";
+ 	}
+ 	flag.StringVar(&goroot, "goroot", goroot, "Go root directory");
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 7ddb98b508..a50f9dc13a 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -208,12 +208,7 @@ func LookPath(file string) (string, os.Error) {
+ 		}
+ 		return "", os.ENOENT;
+ 	}
+-	pathenv, err := os.Getenv("PATH");
+-	if err != nil {
+-		// Unix shell semantics: no $PATH means assume PATH=""
+-		// (equivalent to PATH=".").
+-		pathenv = "";
+-	}
++	pathenv := os.Getenv("PATH");
+ 	for i, dir := range strings.Split(pathenv, ":", 0) {
+ 		if dir == "" {
+ 			// Unix shell semantics: path element "" means "."
+diff --git a/src/pkg/os/env.go b/src/pkg/os/env.go
+index 4dbc2a4883..3bd0fa9fea 100644
+--- a/src/pkg/os/env.go
++++ b/src/pkg/os/env.go
+@@ -29,9 +29,9 @@ func copyenv() {
+ 	}
+ }
+ 
+-// Getenv retrieves the value of the environment variable named by the key.
++// Getenverror retrieves the value of the environment variable named by the key.
+ // It returns the value and an error, if any.
+-func Getenv(key string) (value string, err Error) {
++func Getenverror(key string) (value string, err Error) {
+ 	once.Do(copyenv);
+ 
+ 	if len(key) == 0 {
+@@ -44,6 +44,13 @@ func Getenv(key string) (value string, err Error) {
+ 	return v, nil;
+ }
+ 
++// Getenv retrieves the value of the environment variable named by the key.
++// It returns the value, which will be empty if the variable is not present.
++func Getenv(key string) string {
++	v, _ := Getenverror(key);
++	return v;
++}
++
+ // Setenv sets the value of the environment variable named by the key.
+ // It returns an Error, if any.
+ func Setenv(key, value string) Error {
+diff --git a/src/pkg/os/getwd.go b/src/pkg/os/getwd.go
+index cbc6134a7d..5b1b4e2e28 100644
+--- a/src/pkg/os/getwd.go
++++ b/src/pkg/os/getwd.go
+@@ -28,7 +28,7 @@ func Getwd() (string, Error) {
+ 
+ 	// Clumsy but widespread kludge:
+ 	// if $PWD is set and matches ".", use it.
+-	pwd, _ := Getenv("PWD");
++	pwd:= Getenv("PWD");
+ 	if len(pwd) > 0 && pwd[0] == '/' {
+ 		d, err := Stat(pwd);
+ 		if err == nil && d.Dev == dot.Dev && d.Ino == dot.Ino {
+diff --git a/src/pkg/time/zoneinfo.go b/src/pkg/time/zoneinfo.go
+index e2102f1ded..a4717c445c 100644
+--- a/src/pkg/time/zoneinfo.go
++++ b/src/pkg/time/zoneinfo.go
+@@ -212,7 +212,7 @@ func setupZone() {
+ 	// $TZ="" means use UTC.
+ 	// $TZ="foo" means use /usr/share/zoneinfo/foo.
+ 
+-	tz, err := os.Getenv("TZ");
++	tz, err := os.Getenverror("TZ");
+ 	var ok bool;
+ 	switch {
+ 	case err == os.ENOENV:
+diff --git a/test/env.go b/test/env.go
+index db76ee49f3..2cf9ddf381 100644
+--- a/test/env.go
++++ b/test/env.go
+@@ -9,7 +9,7 @@ package main
+ import os "os"
+ 
+ func main() {
+-	ga, e0 := os.Getenv("GOARCH");
++	ga, e0 := os.Getenverror("GOARCH");
+ 	if e0 != nil {
+ 		print("$GOARCH: ", e0.String(), "\n");
+ 		os.Exit(1);
+@@ -18,7 +18,7 @@ func main() {
+ 		print("$GOARCH=", ga, "\n");
+ 		os.Exit(1);
+ 	}
+-	xxx, e1 := os.Getenv("DOES_NOT_EXIST");
++	xxx, e1 := os.Getenverror("DOES_NOT_EXIST");
+ 	if e1 != os.ENOENV {
+ 		print("$DOES_NOT_EXIST=", xxx, "; err = ", e1.String(), "\n");
+ 		os.Exit(1);

@@ -7,6 +7,38 @@ Date:   Sun Mar 6 17:05:12 2011 -0500
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4266044
-
+---
  src/pkg/websocket/websocket_test.go | 11 ++++-------
  1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/websocket/websocket_test.go b/src/pkg/websocket/websocket_test.go
+index 204a9de1e1..14d708a3ba 100644
+--- a/src/pkg/websocket/websocket_test.go
++++ b/src/pkg/websocket/websocket_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"http"
++	"http/httptest"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -22,15 +23,11 @@ var once sync.Once
+ func echoServer(ws *Conn) { io.Copy(ws, ws) }
+ 
+ func startServer() {
+-	l, e := net.Listen("tcp", "127.0.0.1:0") // any available address
+-	if e != nil {
+-		log.Fatalf("net.Listen tcp :0 %v", e)
+-	}
+-	serverAddr = l.Addr().String()
+-	log.Print("Test WebSocket server listening on ", serverAddr)
+ 	http.Handle("/echo", Handler(echoServer))
+ 	http.Handle("/echoDraft75", Draft75Handler(echoServer))
+-	go http.Serve(l, nil)
++	server := httptest.NewServer(nil)
++	serverAddr = server.Listener.Addr().String()
++	log.Print("Test WebSocket server listening on ", serverAddr)
+ }
+ 
+ // Test the getChallengeResponse function with values from section

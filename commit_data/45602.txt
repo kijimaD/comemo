@@ -13,6 +13,23 @@ Date:   Wed Oct 28 23:49:54 2020 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/modload/load.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index f9c468c8b2..0a84a1765a 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -520,9 +520,10 @@ func ImportFromFiles(ctx context.Context, gofiles []string) {
+ // DirImportPath returns the effective import path for dir,
+ // provided it is within the main module, or else returns ".".
+ func DirImportPath(dir string) string {
+-	if modRoot == "" {
++	if !HasModRoot() {
+ 		return "."
+ 	}
++	LoadModFile(context.TODO())
+ 
+ 	if !filepath.IsAbs(dir) {
+ 		dir = filepath.Join(base.Cwd, dir)

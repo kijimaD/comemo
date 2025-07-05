@@ -14,9 +14,141 @@ Date:   Wed Nov 9 19:16:39 2022 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/validtype.go       | 29 ++++++++++++++++++---
  src/go/types/validtype.go                          | 29 ++++++++++++++++++---
  .../types/testdata/fixedbugs/issue49043.go         |  2 +-
  .../types/testdata/fixedbugs/issue56665.go         | 30 ++++++++++++++++++++++
  4 files changed, 81 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/validtype.go b/src/cmd/compile/internal/types2/validtype.go
+index 99fdebc978..b0ebc02560 100644
+--- a/src/cmd/compile/internal/types2/validtype.go
++++ b/src/cmd/compile/internal/types2/validtype.go
+@@ -76,11 +76,32 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
+ 		// embedded in itself, indicating an invalid recursive type.
+ 		for _, e := range nest {
+ 			if Identical(e, t) {
+-				// t cannot be in an imported package otherwise that package
+-				// would have reported a type cycle and couldn't have been
+-				// imported in the first place.
++				// We have a cycle. If t != t.Origin() then t is an instance of
++				// the generic type t.Origin(). Because t is in the nest, t must
++				// occur within the definition (RHS) of the generic type t.Origin(),
++				// directly or indirectly, after expansion of the RHS.
++				// Therefore t.Origin() must be invalid, no matter how it is
++				// instantiated since the instantiation t of t.Origin() happens
++				// inside t.Origin()'s RHS and thus is always the same and always
++				// present.
++				// Therefore we can mark the underlying of both t and t.Origin()
++				// as invalid. If t is not an instance of a generic type, t and
++				// t.Origin() are the same.
++				// Furthermore, because we check all types in a package for validity
++				// before type checking is complete, any exported type that is invalid
++				// will have an invalid underlying type and we can't reach here with
++				// such a type (invalid types are excluded above).
++				// Thus, if we reach here with a type t, both t and t.Origin() (if
++				// different in the first place) must be from the current package;
++				// they cannot have been imported.
++				// Therefore it is safe to change their underlying types; there is
++				// no chance for a race condition (the types of the current package
++				// are not yet available to other goroutines).
+ 				assert(t.obj.pkg == check.pkg)
+-				t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
++				assert(t.Origin().obj.pkg == check.pkg)
++				t.underlying = Typ[Invalid]
++				t.Origin().underlying = Typ[Invalid]
++
+ 				// Find the starting point of the cycle and report it.
+ 				// Because each type in nest must also appear in path (see invariant below),
+ 				// type t must be in path since it was found in nest. But not every type in path
+diff --git a/src/go/types/validtype.go b/src/go/types/validtype.go
+index 467a7fe5f5..d62c3983f0 100644
+--- a/src/go/types/validtype.go
++++ b/src/go/types/validtype.go
+@@ -76,11 +76,32 @@ func (check *Checker) validType0(typ Type, nest, path []*Named) bool {
+ 		// embedded in itself, indicating an invalid recursive type.
+ 		for _, e := range nest {
+ 			if Identical(e, t) {
+-				// t cannot be in an imported package otherwise that package
+-				// would have reported a type cycle and couldn't have been
+-				// imported in the first place.
++				// We have a cycle. If t != t.Origin() then t is an instance of
++				// the generic type t.Origin(). Because t is in the nest, t must
++				// occur within the definition (RHS) of the generic type t.Origin(),
++				// directly or indirectly, after expansion of the RHS.
++				// Therefore t.Origin() must be invalid, no matter how it is
++				// instantiated since the instantiation t of t.Origin() happens
++				// inside t.Origin()'s RHS and thus is always the same and always
++				// present.
++				// Therefore we can mark the underlying of both t and t.Origin()
++				// as invalid. If t is not an instance of a generic type, t and
++				// t.Origin() are the same.
++				// Furthermore, because we check all types in a package for validity
++				// before type checking is complete, any exported type that is invalid
++				// will have an invalid underlying type and we can't reach here with
++				// such a type (invalid types are excluded above).
++				// Thus, if we reach here with a type t, both t and t.Origin() (if
++				// different in the first place) must be from the current package;
++				// they cannot have been imported.
++				// Therefore it is safe to change their underlying types; there is
++				// no chance for a race condition (the types of the current package
++				// are not yet available to other goroutines).
+ 				assert(t.obj.pkg == check.pkg)
+-				t.underlying = Typ[Invalid] // t is in the current package (no race possibility)
++				assert(t.Origin().obj.pkg == check.pkg)
++				t.underlying = Typ[Invalid]
++				t.Origin().underlying = Typ[Invalid]
++
+ 				// Find the starting point of the cycle and report it.
+ 				// Because each type in nest must also appear in path (see invariant below),
+ 				// type t must be in path since it was found in nest. But not every type in path
+diff --git a/src/internal/types/testdata/fixedbugs/issue49043.go b/src/internal/types/testdata/fixedbugs/issue49043.go
+index 8fe8629feb..3971cf89df 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49043.go
++++ b/src/internal/types/testdata/fixedbugs/issue49043.go
+@@ -7,7 +7,7 @@ package p
+ // The example from the issue.
+ type (
+ 	N[P any] M /* ERROR invalid recursive type */ [P]
+-	M[P any] N /* ERROR invalid recursive type */ [P]
++	M[P any] N[P]
+ )
+ 
+ // A slightly more complicated case.
+diff --git a/src/internal/types/testdata/fixedbugs/issue56665.go b/src/internal/types/testdata/fixedbugs/issue56665.go
+new file mode 100644
+index 0000000000..11786b93fd
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue56665.go
+@@ -0,0 +1,30 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Example from the issue:
++type A[T any] interface {
++	*T
++}
++
++type B[T any] interface {
++	B /* ERROR invalid recursive type */ [*T]
++}
++
++type C[T any, U B[U]] interface {
++	*T
++}
++
++// Simplified reproducer:
++type X[T any] interface {
++	X /* ERROR invalid recursive type */ [*T]
++}
++
++var _ X[int]
++
++// A related example that doesn't go through interfaces.
++type A2[P any] [10]A2 /* ERROR invalid recursive type */ [*P]
++
++var _ A2[int]

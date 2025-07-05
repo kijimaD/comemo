@@ -11,6 +11,21 @@ Date:   Mon Oct 15 13:23:09 2018 -0400
     Reviewed-by: Rob Pike <r@golang.org>
     Run-TryBot: Rob Pike <r@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/text/template/parse/parse.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index cb9b44e9da..efdad3297c 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -148,9 +148,6 @@ func (t *Tree) ErrorContext(n Node) (location, context string) {
+ 	}
+ 	lineNum := 1 + strings.Count(text, "\n")
+ 	context = n.String()
+-	if len(context) > 20 {
+-		context = fmt.Sprintf("%.20s...", context)
+-	}
+ 	return fmt.Sprintf("%s:%d:%d", tree.ParseName, lineNum, byteNum), context
+ }
+ 

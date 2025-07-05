@@ -17,6 +17,29 @@ Date:   Tue Jan 11 10:22:40 2022 +0100
     Reviewed-by: Katie Hockman <katie@golang.org>
     Trust: Katie Hockman <katie@golang.org>
     Run-TryBot: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_test_race.txt | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_test_race.txt b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+index 0bbc1fdd7d..9d39cd684e 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_test_race.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_test_race.txt
+@@ -4,8 +4,9 @@
+ 
+ [short] skip
+ [!fuzz] skip
++[!race] skip
+ 
+-# Test with coverage instrumentation enbaled (-fuzz) and race instrumentation
++# Test with coverage instrumentation enabled (-fuzz) and race instrumentation
+ # but without actually fuzzing the target (by using a non-matching pattern)
+ go test -fuzz=xxx -race -v
+ ! stderr 'race detected during execution of test'
+@@ -35,4 +36,4 @@ func FuzzRace(f *testing.F) {
+ 	f.Fuzz(func(t *testing.T, i int) {
+ 		t.Parallel()
+ 	})
+-}
+\ No newline at end of file
++}

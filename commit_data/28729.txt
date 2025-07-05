@@ -21,7 +21,7 @@ Date:   Tue Jun 28 14:19:27 2016 -0700
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go   | 60 ++++++++++++++++++++----
  src/cmd/compile/internal/gc/lex.go   | 14 ++++++
  src/cmd/compile/internal/gc/order.go |  8 +++-
@@ -31,3 +31,420 @@ Date:   Tue Jun 28 14:19:27 2016 -0700
  test/uintptrescapes.go               |  9 ++++
  test/uintptrescapes2.go              | 31 ++++++++++++
  8 files changed, 259 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index d7365daaea..90ad75cbea 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -1551,10 +1551,12 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	}
+ 
+ 	var src *Node
++	note := ""
+ 	i := 0
+ 	lls := ll.Slice()
+ 	for t, it := IterFields(fntype.Params()); i < len(lls); i++ {
+ 		src = lls[i]
++		note = t.Note
+ 		if t.Isddd && !n.Isddd {
+ 			// Introduce ODDDARG node to represent ... allocation.
+ 			src = Nod(ODDDARG, nil, nil)
+@@ -1566,7 +1568,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		if haspointers(t.Type) {
+-			if escassignfromtag(e, t.Note, nE.Escretval, src) == EscNone && up.Op != ODEFER && up.Op != OPROC {
++			if escassignfromtag(e, note, nE.Escretval, src) == EscNone && up.Op != ODEFER && up.Op != OPROC {
+ 				a := src
+ 				for a.Op == OCONVNOP {
+ 					a = a.Left
+@@ -1596,14 +1598,24 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 			// This occurs when function parameter type Isddd and n not Isddd
+ 			break
+ 		}
++
++		if note == uintptrEscapesTag {
++			escassignSinkNilWhy(e, src, src, "escaping uintptr")
++		}
++
+ 		t = it.Next()
+ 	}
+ 
++	// Store arguments into slice for ... arg.
+ 	for ; i < len(lls); i++ {
+ 		if Debug['m'] > 3 {
+ 			fmt.Printf("%v::esccall:: ... <- %v\n", linestr(lineno), Nconv(lls[i], FmtShort))
+ 		}
+-		escassignNilWhy(e, src, lls[i], "arg to ...") // args to slice
++		if note == uintptrEscapesTag {
++			escassignSinkNilWhy(e, src, lls[i], "arg to uintptrescapes ...")
++		} else {
++			escassignNilWhy(e, src, lls[i], "arg to ...")
++		}
+ 	}
+ }
+ 
+@@ -1963,9 +1975,20 @@ recurse:
+ // lets us take the address below to get a *string.
+ var unsafeUintptrTag = "unsafe-uintptr"
+ 
++// This special tag is applied to uintptr parameters of functions
++// marked go:uintptrescapes.
++const uintptrEscapesTag = "uintptr-escapes"
++
+ func esctag(e *EscState, func_ *Node) {
+ 	func_.Esc = EscFuncTagged
+ 
++	name := func(s *Sym, narg int) string {
++		if s != nil {
++			return s.Name
++		}
++		return fmt.Sprintf("arg#%d", narg)
++	}
++
+ 	// External functions are assumed unsafe,
+ 	// unless //go:noescape is given before the declaration.
+ 	if func_.Nbody.Len() == 0 {
+@@ -1988,13 +2011,7 @@ func esctag(e *EscState, func_ *Node) {
+ 			narg++
+ 			if t.Type.Etype == TUINTPTR {
+ 				if Debug['m'] != 0 {
+-					var name string
+-					if t.Sym != nil {
+-						name = t.Sym.Name
+-					} else {
+-						name = fmt.Sprintf("arg#%d", narg)
+-					}
+-					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name)
++					Warnl(func_.Lineno, "%v assuming %v is unsafe uintptr", funcSym(func_), name(t.Sym, narg))
+ 				}
+ 				t.Note = unsafeUintptrTag
+ 			}
+@@ -2003,6 +2020,27 @@ func esctag(e *EscState, func_ *Node) {
+ 		return
+ 	}
+ 
++	if func_.Func.Pragma&UintptrEscapes != 0 {
++		narg := 0
++		for _, t := range func_.Type.Params().Fields().Slice() {
++			narg++
++			if t.Type.Etype == TUINTPTR {
++				if Debug['m'] != 0 {
++					Warnl(func_.Lineno, "%v marking %v as escaping uintptr", funcSym(func_), name(t.Sym, narg))
++				}
++				t.Note = uintptrEscapesTag
++			}
++
++			if t.Isddd && t.Type.Elem().Etype == TUINTPTR {
++				// final argument is ...uintptr.
++				if Debug['m'] != 0 {
++					Warnl(func_.Lineno, "%v marking %v as escaping ...uintptr", funcSym(func_), name(t.Sym, narg))
++				}
++				t.Note = uintptrEscapesTag
++			}
++		}
++	}
++
+ 	savefn := Curfn
+ 	Curfn = func_
+ 
+@@ -2015,7 +2053,9 @@ func esctag(e *EscState, func_ *Node) {
+ 		case EscNone, // not touched by escflood
+ 			EscReturn:
+ 			if haspointers(ln.Type) { // don't bother tagging for scalars
+-				ln.Name.Param.Field.Note = mktag(int(ln.Esc))
++				if ln.Name.Param.Field.Note != uintptrEscapesTag {
++					ln.Name.Param.Field.Note = mktag(int(ln.Esc))
++				}
+ 			}
+ 
+ 		case EscHeap, // touched by escflood, moved to heap
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 8608a6229c..f38819d156 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -72,6 +72,7 @@ const (
+ 	Nowritebarrier           // emit compiler error instead of write barrier
+ 	Nowritebarrierrec        // error on write barrier in this or recursive callees
+ 	CgoUnsafeArgs            // treat a pointer to one arg as a pointer to them all
++	UintptrEscapes           // pointers converted to uintptr escape
+ )
+ 
+ type lexer struct {
+@@ -930,6 +931,19 @@ func (l *lexer) getlinepragma() rune {
+ 			l.pragma |= Nowritebarrierrec | Nowritebarrier // implies Nowritebarrier
+ 		case "go:cgo_unsafe_args":
+ 			l.pragma |= CgoUnsafeArgs
++		case "go:uintptrescapes":
++			// For the next function declared in the file
++			// any uintptr arguments may be pointer values
++			// converted to uintptr. This directive
++			// ensures that the referenced allocated
++			// object, if any, is retained and not moved
++			// until the call completes, even though from
++			// the types alone it would appear that the
++			// object is no longer needed during the
++			// call. The conversion to uintptr must appear
++			// in the argument list.
++			// Used in syscall/dll_windows.go.
++			l.pragma |= UintptrEscapes
+ 		}
+ 		return c
+ 	}
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index da334a1558..f3b102829b 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -373,7 +373,7 @@ func ordercall(n *Node, order *Order) {
+ 			if t == nil {
+ 				break
+ 			}
+-			if t.Note == unsafeUintptrTag {
++			if t.Note == unsafeUintptrTag || t.Note == uintptrEscapesTag {
+ 				xp := n.List.Addr(i)
+ 				for (*xp).Op == OCONVNOP && !(*xp).Type.IsPtr() {
+ 					xp = &(*xp).Left
+@@ -385,7 +385,11 @@ func ordercall(n *Node, order *Order) {
+ 					*xp = x
+ 				}
+ 			}
+-			t = it.Next()
++			next := it.Next()
++			if next == nil && t.Isddd && t.Note == uintptrEscapesTag {
++				next = t
++			}
++			t = next
+ 		}
+ 	}
+ }
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 944571c3b0..e5638480b7 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -130,6 +130,8 @@ func (p *Proc) Addr() uintptr {
+ 	return p.addr
+ }
+ 
++//go:uintptrescapes
++
+ // Call executes procedure p with arguments a. It will panic, if more than 15 arguments
+ // are supplied.
+ //
+@@ -288,6 +290,8 @@ func (p *LazyProc) Addr() uintptr {
+ 	return p.proc.Addr()
+ }
+ 
++//go:uintptrescapes
++
+ // Call executes procedure p with arguments a. It will panic, if more than 15 arguments
+ // are supplied.
+ //
+diff --git a/test/uintptrescapes.dir/a.go b/test/uintptrescapes.dir/a.go
+new file mode 100644
+index 0000000000..29c8340968
+--- /dev/null
++++ b/test/uintptrescapes.dir/a.go
+@@ -0,0 +1,54 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++import (
++	"unsafe"
++)
++
++func recurse(i int, s []byte) byte {
++	s[0] = byte(i)
++	if i == 0 {
++		return s[i]
++	} else {
++		var a [1024]byte
++		r := recurse(i-1, a[:])
++		return r + a[0]
++	}
++}
++
++//go:uintptrescapes
++func F1(a uintptr) {
++	var s [16]byte
++	recurse(4096, s[:])
++	*(*int)(unsafe.Pointer(a)) = 42
++}
++
++//go:uintptrescapes
++func F2(a ...uintptr) {
++	var s [16]byte
++	recurse(4096, s[:])
++	*(*int)(unsafe.Pointer(a[0])) = 42
++}
++
++type t struct{}
++
++func GetT() *t {
++	return &t{}
++}
++
++//go:uintptrescapes
++func (*t) M1(a uintptr) {
++	var s [16]byte
++	recurse(4096, s[:])
++	*(*int)(unsafe.Pointer(a)) = 42
++}
++
++//go:uintptrescapes
++func (*t) M2(a ...uintptr) {
++	var s [16]byte
++	recurse(4096, s[:])
++	*(*int)(unsafe.Pointer(a[0])) = 42
++}
+diff --git a/test/uintptrescapes.dir/main.go b/test/uintptrescapes.dir/main.go
+new file mode 100644
+index 0000000000..afda6218ad
+--- /dev/null
++++ b/test/uintptrescapes.dir/main.go
+@@ -0,0 +1,91 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"sync"
++	"unsafe"
++
++	"./a"
++)
++
++func F1() int {
++	var buf [1024]int
++	a.F1(uintptr(unsafe.Pointer(&buf[0])))
++	return buf[0]
++}
++
++func F2() int {
++	var buf [1024]int
++	a.F2(uintptr(unsafe.Pointer(&buf[0])))
++	return buf[0]
++}
++
++var t = a.GetT()
++
++func M1() int {
++	var buf [1024]int
++	t.M1(uintptr(unsafe.Pointer(&buf[0])))
++	return buf[0]
++}
++
++func M2() int {
++	var buf [1024]int
++	t.M2(uintptr(unsafe.Pointer(&buf[0])))
++	return buf[0]
++}
++
++func main() {
++	// Use different goroutines to force stack growth.
++	var wg sync.WaitGroup
++	wg.Add(4)
++	c := make(chan bool, 4)
++
++	go func() {
++		defer wg.Done()
++		b := F1()
++		if b != 42 {
++			fmt.Printf("F1: got %d, expected 42\n", b)
++			c <- false
++		}
++	}()
++
++	go func() {
++		defer wg.Done()
++		b := F2()
++		if b != 42 {
++			fmt.Printf("F2: got %d, expected 42\n", b)
++			c <- false
++		}
++	}()
++
++	go func() {
++		defer wg.Done()
++		b := M1()
++		if b != 42 {
++			fmt.Printf("M1: got %d, expected 42\n", b)
++			c <- false
++		}
++	}()
++
++	go func() {
++		defer wg.Done()
++		b := M2()
++		if b != 42 {
++			fmt.Printf("M2: got %d, expected 42\n", b)
++			c <- false
++		}
++	}()
++
++	wg.Wait()
++
++	select {
++	case <-c:
++		os.Exit(1)
++	default:
++	}
++}
+diff --git a/test/uintptrescapes.go b/test/uintptrescapes.go
+new file mode 100644
+index 0000000000..554bb76422
+--- /dev/null
++++ b/test/uintptrescapes.go
+@@ -0,0 +1,9 @@
++// rundir
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that the go:uintptrescapes comment works as expected.
++
++package ignored
+diff --git a/test/uintptrescapes2.go b/test/uintptrescapes2.go
+new file mode 100644
+index 0000000000..7ff676db14
+--- /dev/null
++++ b/test/uintptrescapes2.go
+@@ -0,0 +1,31 @@
++// errorcheck -0 -m -live
++
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test escape analysis and liveness inferred for uintptrescapes functions.
++
++package p
++
++import (
++	"unsafe"
++)
++
++//go:uintptrescapes
++//go:noinline
++func F1(a uintptr) {} // ERROR "escaping uintptr"
++
++//go:uintptrescapes
++//go:noinline
++func F2(a ...uintptr) {} // ERROR "escaping ...uintptr" "live at entry" "a does not escape"
++
++func G() {
++	var t int // ERROR "moved to heap"
++	F1(uintptr(unsafe.Pointer(&t))) // ERROR "live at call to F1: autotmp" "&t escapes to heap"
++}
++
++func H() {
++	var v int // ERROR "moved to heap"
++	F2(0, 1, uintptr(unsafe.Pointer(&v)), 2) // ERROR "live at call to newobject: autotmp" "live at call to F2: autotmp" "escapes to heap"
++}

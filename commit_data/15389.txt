@@ -9,6 +9,19 @@ Date:   Fri Feb 22 15:32:54 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/7376049
-
+---
  src/cmd/gc/pgen.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/gc/pgen.c b/src/cmd/gc/pgen.c
+index 38589d55d2..f4894e468e 100644
+--- a/src/cmd/gc/pgen.c
++++ b/src/cmd/gc/pgen.c
+@@ -135,6 +135,7 @@ compile(Node *fn)
+ 	oldstksize = stksize;
+ 	allocauto(ptxt);
+ 
++	plocals->to.type = D_CONST;
+ 	plocals->to.offset = stksize;
+ 
+ 	if(0)

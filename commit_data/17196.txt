@@ -11,7 +11,63 @@ Date:   Tue Aug 13 11:04:09 2013 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12541053
-
+---
  src/pkg/io/pipe.go      |  4 ++++
  src/pkg/io/pipe_test.go | 32 ++++++++++++++++++++++++++++++++
  2 files changed, 36 insertions(+)
+
+diff --git a/src/pkg/io/pipe.go b/src/pkg/io/pipe.go
+index f3f0f17570..f65354a7f2 100644
+--- a/src/pkg/io/pipe.go
++++ b/src/pkg/io/pipe.go
+@@ -74,6 +74,10 @@ func (p *pipe) write(b []byte) (n int, err error) {
+ 
+ 	p.l.Lock()
+ 	defer p.l.Unlock()
++	if p.werr != nil {
++		err = ErrClosedPipe
++		return
++	}
+ 	p.data = b
+ 	p.rwait.Signal()
+ 	for {
+diff --git a/src/pkg/io/pipe_test.go b/src/pkg/io/pipe_test.go
+index 7718151b0e..b16e653069 100644
+--- a/src/pkg/io/pipe_test.go
++++ b/src/pkg/io/pipe_test.go
+@@ -268,3 +268,35 @@ func TestWriteNil(t *testing.T) {
+ 	ReadFull(r, b[0:2])
+ 	r.Close()
+ }
++
++func TestWriteAfterWriterClose(t *testing.T) {
++	r, w := Pipe()
++
++	done := make(chan bool)
++	var writeErr error
++	go func() {
++		_, err := w.Write([]byte("hello"))
++		if err != nil {
++			t.Errorf("got error: %q; expected none", err)
++		}
++		w.Close()
++		_, writeErr = w.Write([]byte("world"))
++		done <- true
++	}()
++
++	buf := make([]byte, 100)
++	var result string
++	n, err := ReadFull(r, buf)
++	if err != nil && err != ErrUnexpectedEOF {
++		t.Fatalf("got: %q; want: %q", err, ErrUnexpectedEOF)
++	}
++	result = string(buf[0:n])
++	<-done
++
++	if result != "hello" {
++		t.Errorf("got: %q; want: %q", result, "hello")
++	}
++	if writeErr != ErrClosedPipe {
++		t.Errorf("got: %q; want: %q", writeErr, ErrClosedPipe)
++	}
++}

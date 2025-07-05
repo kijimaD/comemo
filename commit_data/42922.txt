@@ -12,8 +12,168 @@ Date:   Mon Feb 24 20:47:25 2020 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/benchmark/bench.go      | 41 +++++++++++++++++++++++----
  src/cmd/link/internal/benchmark/bench_test.go | 23 +++++++++++++++
  src/cmd/link/internal/ld/main.go              |  7 +++--
  3 files changed, 62 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/link/internal/benchmark/bench.go b/src/cmd/link/internal/benchmark/bench.go
+index 8f23bf82fd..52f98269a1 100644
+--- a/src/cmd/link/internal/benchmark/bench.go
++++ b/src/cmd/link/internal/benchmark/bench.go
+@@ -12,7 +12,9 @@ package benchmark
+ import (
+ 	"fmt"
+ 	"io"
++	"os"
+ 	"runtime"
++	"runtime/pprof"
+ 	"time"
+ 	"unicode"
+ )
+@@ -25,9 +27,11 @@ const (
+ )
+ 
+ type Metrics struct {
+-	gc      Flags
+-	marks   []*mark
+-	curMark *mark
++	gc        Flags
++	marks     []*mark
++	curMark   *mark
++	filebase  string
++	pprofFile *os.File
+ }
+ 
+ type mark struct {
+@@ -41,7 +45,8 @@ type mark struct {
+ // Typical usage should look like:
+ //
+ // func main() {
+-//   bench := benchmark.New(benchmark.GC)
++//   filename := "" // Set to enable per-phase pprof file output.
++//   bench := benchmark.New(benchmark.GC, filename)
+ //   defer bench.Report(os.Stdout)
+ //   // etc
+ //   bench.Start("foo")
+@@ -63,11 +68,11 @@ type mark struct {
+ //    bench.Start("foo")
+ //    // etc.
+ //  }
+-func New(gc Flags) *Metrics {
++func New(gc Flags, filebase string) *Metrics {
+ 	if gc == GC {
+ 		runtime.GC()
+ 	}
+-	return &Metrics{gc: gc}
++	return &Metrics{gc: gc, filebase: filebase}
+ }
+ 
+ // Report reports the metrics.
+@@ -110,6 +115,16 @@ func (m *Metrics) Start(name string) {
+ 	m.closeMark()
+ 	m.curMark = &mark{name: name}
+ 	// Unlikely we need to a GC here, as one was likely just done in closeMark.
++	if m.shouldPProf() {
++		f, err := os.Create(makePProfFilename(m.filebase, name))
++		if err != nil {
++			panic(err)
++		}
++		m.pprofFile = f
++		if err = pprof.StartCPUProfile(m.pprofFile); err != nil {
++			panic(err)
++		}
++	}
+ 	runtime.ReadMemStats(&m.curMark.startM)
+ 	m.curMark.startT = time.Now()
+ }
+@@ -124,10 +139,20 @@ func (m *Metrics) closeMark() {
+ 		runtime.GC()
+ 		runtime.ReadMemStats(&m.curMark.gcM)
+ 	}
++	if m.shouldPProf() {
++		pprof.StopCPUProfile()
++		m.pprofFile.Close()
++		m.pprofFile = nil
++	}
+ 	m.marks = append(m.marks, m.curMark)
+ 	m.curMark = nil
+ }
+ 
++// shouldPProf returns true if we should be doing pprof runs.
++func (m *Metrics) shouldPProf() bool {
++	return m != nil && len(m.filebase) > 0
++}
++
+ // makeBenchString makes a benchmark string consumable by Go's benchmarking tools.
+ func makeBenchString(name string) string {
+ 	needCap := true
+@@ -145,3 +170,7 @@ func makeBenchString(name string) string {
+ 	}
+ 	return string(ret)
+ }
++
++func makePProfFilename(filebase, name string) string {
++	return fmt.Sprintf("%s_%s.profile", filebase, makeBenchString(name))
++}
+diff --git a/src/cmd/link/internal/benchmark/bench_test.go b/src/cmd/link/internal/benchmark/bench_test.go
+index 0448afb4d7..48d4d74046 100644
+--- a/src/cmd/link/internal/benchmark/bench_test.go
++++ b/src/cmd/link/internal/benchmark/bench_test.go
+@@ -22,6 +22,29 @@ func TestMakeBenchString(t *testing.T) {
+ 	}
+ }
+ 
++func TestPProfFlag(t *testing.T) {
++	tests := []struct {
++		name string
++		want bool
++	}{
++		{"", false},
++		{"foo", true},
++	}
++	for i, test := range tests {
++		b := New(GC, test.name)
++		if v := b.shouldPProf(); test.want != v {
++			t.Errorf("test[%d] shouldPProf() == %v, want %v", i, v, test.want)
++		}
++	}
++}
++
++func TestPProfNames(t *testing.T) {
++	want := "foo_BenchmarkTest.profile"
++	if v := makePProfFilename("foo", "test"); v != want {
++		t.Errorf("makePProfFilename() == %q, want %q", v, want)
++	}
++}
++
+ // Ensure that public APIs work with a nil Metrics object.
+ func TestNilBenchmarkObject(t *testing.T) {
+ 	var b *Metrics
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index d791950202..5d27284aa1 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -98,7 +98,8 @@ var (
+ 	memprofile     = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 
+-	benchmarkFlag = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
++	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
++	benchmarkFileFlag = flag.String("benchmarkprofile", "", "set to enable per-phase pprof profiling")
+ )
+ 
+ // Main is the main entry point for the linker code.
+@@ -177,9 +178,9 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	var bench *benchmark.Metrics
+ 	if len(*benchmarkFlag) != 0 {
+ 		if *benchmarkFlag == "mem" {
+-			bench = benchmark.New(benchmark.GC)
++			bench = benchmark.New(benchmark.GC, *benchmarkFileFlag)
+ 		} else if *benchmarkFlag == "cpu" {
+-			bench = benchmark.New(benchmark.NoGC)
++			bench = benchmark.New(benchmark.NoGC, *benchmarkFileFlag)
+ 		} else {
+ 			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
+ 			usage()

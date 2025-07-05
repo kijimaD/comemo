@@ -22,9 +22,166 @@ Date:   Thu Oct 7 15:53:32 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  .../types2/testdata/fixedbugs/issue48619.go2       | 18 ++++++++-------
  .../types2/testdata/fixedbugs/issue48656.go2       | 11 +++++----
  .../types2/testdata/fixedbugs/issue48695.go2       | 14 ++++++++++++
  src/cmd/compile/internal/types2/unify.go           | 26 +++-------------------
  4 files changed, 32 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
+index 24650a3a70..870bacd0bd 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48619.go2
+@@ -2,21 +2,23 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// This issue has been re-opened.
++
+ package p
+ 
+ func f[P any](a, _ P) {
+-	var x int
+-	f(a, x /* ERROR type int of x does not match P */)
+-	f(x, a /* ERROR type P of a does not match inferred type int for P */)
++	// var x int
++	// f(a, x /* ERROR type int of x does not match P */)
++	// f(x, a /* ERROR type P of a does not match inferred type int for P */)
+ }
+ 
+ func g[P any](a, b P) {
+-	g(a, b)
+-	g(&a, &b)
+-	g([]P{}, []P{})
++	// g(a, b)
++	// g(&a, &b)
++	// g([]P{}, []P{})
+ }
+ 
+ func h[P any](a, b P) {
+-	h(&a, &b)
+-	h([]P{a}, []P{b})
++	// h(&a, &b)
++	// h([]P{a}, []P{b})
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
+index 7d292e0cc4..652f8ce37a 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48656.go2
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
++// This issue is still open.
+ 
+-// TODO(gri) Still need better error positions and message here.
+-//           But this doesn't crash anymore.
++package p
+ 
+-func f[P /* ERROR does not match \*Q */ interface{*Q}, Q any](p P, q Q) {
+-	_ = f[P]
+-        _ = f[/* ERROR cannot infer P */ *P]
++func f[P *Q, Q any](p P, q Q) {
++	// _ = f[P]
++        // _ = f[/* ERROR cannot infer P */ *P]
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go2
+new file mode 100644
+index 0000000000..9f4a76851d
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48695.go2
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func g[P ~func(T) P, T any](P) {}
++
++func _() {
++	type F func(int) F
++	var f F
++	g(f)
++	_ = g[F]
++}
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index ee41264116..a252c5e1a5 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -63,10 +63,6 @@ func (u *unifier) unify(x, y Type) bool {
+ type tparamsList struct {
+ 	unifier *unifier
+ 	tparams []*TypeParam
+-	// For each tparams element, there is a corresponding mask bit in masks.
+-	// If set, the corresponding type parameter is masked and doesn't appear
+-	// as a type parameter with tparamsList.index.
+-	masks []bool
+ 	// For each tparams element, there is a corresponding type slot index in indices.
+ 	// index  < 0: unifier.types[-index-1] == nil
+ 	// index == 0: no type slot allocated yet
+@@ -107,14 +103,9 @@ func (d *tparamsList) init(tparams []*TypeParam) {
+ 		}
+ 	}
+ 	d.tparams = tparams
+-	d.masks = make([]bool, len(tparams))
+ 	d.indices = make([]int, len(tparams))
+ }
+ 
+-// mask and unmask permit the masking/unmasking of the i'th type parameter of d.
+-func (d *tparamsList) mask(i int)   { d.masks[i] = true }
+-func (d *tparamsList) unmask(i int) { d.masks[i] = false }
+-
+ // join unifies the i'th type parameter of x with the j'th type parameter of y.
+ // If both type parameters already have a type associated with them and they are
+ // not joined, join fails and returns false.
+@@ -158,13 +149,11 @@ func (u *unifier) join(i, j int) bool {
+ 	return true
+ }
+ 
+-// If typ is an unmasked type parameter of d, index returns the type parameter index.
++// If typ is a type parameter of d, index returns the type parameter index.
+ // Otherwise, the result is < 0.
+ func (d *tparamsList) index(typ Type) int {
+ 	if tpar, ok := typ.(*TypeParam); ok {
+-		if i := tparamIndex(d.tparams, tpar); i >= 0 && !d.masks[i] {
+-			return i
+-		}
++		return tparamIndex(d.tparams, tpar)
+ 	}
+ 	return -1
+ }
+@@ -257,7 +246,7 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 		}
+ 	}
+ 
+-	// Cases where at least one of x or y is an (unmasked) type parameter.
++	// Cases where at least one of x or y is a type parameter.
+ 	switch i, j := u.x.index(x), u.y.index(y); {
+ 	case i >= 0 && j >= 0:
+ 		// both x and y are type parameters
+@@ -270,12 +259,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 	case i >= 0:
+ 		// x is a type parameter, y is not
+ 		if tx := u.x.at(i); tx != nil {
+-			// The inferred type tx may be or contain x again but we don't
+-			// want to "unpack" it again when unifying tx with y: tx is the
+-			// inferred type. Mask type parameter x for this recursion, so
+-			// that subsequent encounters treat x like an ordinary type.
+-			u.x.mask(i)
+-			defer u.x.unmask(i)
+ 			return u.nifyEq(tx, y, p)
+ 		}
+ 		// otherwise, infer type from y
+@@ -285,9 +268,6 @@ func (u *unifier) nify(x, y Type, p *ifacePair) bool {
+ 	case j >= 0:
+ 		// y is a type parameter, x is not
+ 		if ty := u.y.at(j); ty != nil {
+-			// see comment above
+-			u.y.mask(j)
+-			defer u.y.unmask(j)
+ 			return u.nifyEq(x, ty, p)
+ 		}
+ 		// otherwise, infer type from x

@@ -14,6 +14,20 @@ Date:   Sun Oct 16 11:13:37 2016 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/tool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/tool.go b/src/cmd/go/tool.go
+index b829037ec5..38110cfd3f 100644
+--- a/src/cmd/go/tool.go
++++ b/src/cmd/go/tool.go
+@@ -60,7 +60,7 @@ func tool(toolName string) string {
+ 		} else {
+ 			fmt.Fprintf(os.Stderr, "go tool: no such tool %q\n", toolName)
+ 		}
+-		setExitStatus(3)
++		setExitStatus(2)
+ 		exit()
+ 	}
+ 	return toolPath

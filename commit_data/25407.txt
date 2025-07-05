@@ -14,7 +14,85 @@ Date:   Tue Oct 27 18:30:20 2015 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/httptest/server.go      | 20 +++++++++++++++++++-
  src/net/http/httptest/server_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/httptest/server.go b/src/net/http/httptest/server.go
+index b5f1149259..4a45b2b940 100644
+--- a/src/net/http/httptest/server.go
++++ b/src/net/http/httptest/server.go
+@@ -150,7 +150,25 @@ func (s *Server) Close() {
+ 		s.Listener.Close()
+ 		s.Config.SetKeepAlivesEnabled(false)
+ 		for c, st := range s.conns {
+-			if st == http.StateIdle {
++			// Force-close any idle connections (those between
++			// requests) and new connections (those which connected
++			// but never sent a request). StateNew connections are
++			// super rare and have only been seen (in
++			// previously-flaky tests) in the case of
++			// socket-late-binding races from the http Client
++			// dialing this server and then getting an idle
++			// connection before the dial completed.  There is thus
++			// a connected connection in StateNew with no
++			// associated Request. We only close StateIdle and
++			// StateNew because they're not doing anything. It's
++			// possible StateNew is about to do something in a few
++			// milliseconds, but a previous CL to check again in a
++			// few milliseconds wasn't liked (early versions of
++			// https://golang.org/cl/15151) so now we just
++			// forcefully close StateNew. The docs for Server.Close say
++			// we wait for "oustanding requests", so we don't close things
++			// in StateActive.
++			if st == http.StateIdle || st == http.StateNew {
+ 				s.closeConn(c)
+ 			}
+ 		}
+diff --git a/src/net/http/httptest/server_test.go b/src/net/http/httptest/server_test.go
+index 90901ceb76..6ffc671e57 100644
+--- a/src/net/http/httptest/server_test.go
++++ b/src/net/http/httptest/server_test.go
+@@ -5,7 +5,9 @@
+ package httptest
+ 
+ import (
++	"bufio"
+ 	"io/ioutil"
++	"net"
+ 	"net/http"
+ 	"testing"
+ )
+@@ -54,3 +56,31 @@ func TestGetAfterClose(t *testing.T) {
+ 		t.Fatalf("Unexected response after close: %v, %v, %s", res.Status, res.Header, body)
+ 	}
+ }
++
++func TestServerCloseBlocking(t *testing.T) {
++	ts := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Write([]byte("hello"))
++	}))
++	dial := func() net.Conn {
++		c, err := net.Dial("tcp", ts.Listener.Addr().String())
++		if err != nil {
++			t.Fatal(err)
++		}
++		return c
++	}
++
++	// Keep one connection in StateNew (connected, but not sending anything)
++	cnew := dial()
++	defer cnew.Close()
++
++	// Keep one connection in StateIdle (idle after a request)
++	cidle := dial()
++	defer cidle.Close()
++	cidle.Write([]byte("HEAD / HTTP/1.1\r\nHost: foo\r\n\r\n"))
++	_, err := http.ReadResponse(bufio.NewReader(cidle), nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	ts.Close() // test we don't hang here forever.
++}

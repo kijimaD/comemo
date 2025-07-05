@@ -48,7 +48,209 @@ Date:   Fri May 8 15:57:25 2020 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/cert_pool.go   | 58 +++++++++++++++++++++++----------------
  src/crypto/x509/verify_test.go | 62 ++++++++++++++++++++++++++++++------------
  2 files changed, 79 insertions(+), 41 deletions(-)
+
+diff --git a/src/crypto/x509/cert_pool.go b/src/crypto/x509/cert_pool.go
+index 59ec4b6894..167390da9f 100644
+--- a/src/crypto/x509/cert_pool.go
++++ b/src/crypto/x509/cert_pool.go
+@@ -5,6 +5,7 @@
+ package x509
+ 
+ import (
++	"bytes"
+ 	"encoding/pem"
+ 	"errors"
+ 	"runtime"
+@@ -12,29 +13,21 @@ import (
+ 
+ // CertPool is a set of certificates.
+ type CertPool struct {
+-	bySubjectKeyId map[string][]int
+-	byName         map[string][]int
+-	certs          []*Certificate
++	byName map[string][]int
++	certs  []*Certificate
+ }
+ 
+ // NewCertPool returns a new, empty CertPool.
+ func NewCertPool() *CertPool {
+ 	return &CertPool{
+-		bySubjectKeyId: make(map[string][]int),
+-		byName:         make(map[string][]int),
++		byName: make(map[string][]int),
+ 	}
+ }
+ 
+ func (s *CertPool) copy() *CertPool {
+ 	p := &CertPool{
+-		bySubjectKeyId: make(map[string][]int, len(s.bySubjectKeyId)),
+-		byName:         make(map[string][]int, len(s.byName)),
+-		certs:          make([]*Certificate, len(s.certs)),
+-	}
+-	for k, v := range s.bySubjectKeyId {
+-		indexes := make([]int, len(v))
+-		copy(indexes, v)
+-		p.bySubjectKeyId[k] = indexes
++		byName: make(map[string][]int, len(s.byName)),
++		certs:  make([]*Certificate, len(s.certs)),
+ 	}
+ 	for k, v := range s.byName {
+ 		indexes := make([]int, len(v))
+@@ -70,19 +63,42 @@ func SystemCertPool() (*CertPool, error) {
+ }
+ 
+ // findPotentialParents returns the indexes of certificates in s which might
+-// have signed cert. The caller must not modify the returned slice.
++// have signed cert.
+ func (s *CertPool) findPotentialParents(cert *Certificate) []int {
+ 	if s == nil {
+ 		return nil
+ 	}
+ 
+-	var candidates []int
+-	if len(cert.AuthorityKeyId) > 0 {
+-		candidates = s.bySubjectKeyId[string(cert.AuthorityKeyId)]
++	// consider all candidates where cert.Issuer matches cert.Subject.
++	// when picking possible candidates the list is built in the order
++	// of match plausibility as to save cycles in buildChains:
++	//   AKID and SKID match
++	//   AKID present, SKID missing / AKID missing, SKID present
++	//   AKID and SKID don't match
++	var matchingKeyID, oneKeyID, mismatchKeyID []int
++	for _, c := range s.byName[string(cert.RawIssuer)] {
++		candidate := s.certs[c]
++		kidMatch := bytes.Equal(candidate.SubjectKeyId, cert.AuthorityKeyId)
++		switch {
++		case kidMatch:
++			matchingKeyID = append(matchingKeyID, c)
++		case (len(candidate.SubjectKeyId) == 0 && len(cert.AuthorityKeyId) > 0) ||
++			(len(candidate.SubjectKeyId) > 0 && len(cert.AuthorityKeyId) == 0):
++			oneKeyID = append(oneKeyID, c)
++		default:
++			mismatchKeyID = append(mismatchKeyID, c)
++		}
+ 	}
+-	if len(candidates) == 0 {
+-		candidates = s.byName[string(cert.RawIssuer)]
++
++	found := len(matchingKeyID) + len(oneKeyID) + len(mismatchKeyID)
++	if found == 0 {
++		return nil
+ 	}
++	candidates := make([]int, 0, found)
++	candidates = append(candidates, matchingKeyID...)
++	candidates = append(candidates, oneKeyID...)
++	candidates = append(candidates, mismatchKeyID...)
++
+ 	return candidates
+ }
+ 
+@@ -115,10 +131,6 @@ func (s *CertPool) AddCert(cert *Certificate) {
+ 	n := len(s.certs)
+ 	s.certs = append(s.certs, cert)
+ 
+-	if len(cert.SubjectKeyId) > 0 {
+-		keyId := string(cert.SubjectKeyId)
+-		s.bySubjectKeyId[keyId] = append(s.bySubjectKeyId[keyId], n)
+-	}
+ 	name := string(cert.RawSubject)
+ 	s.byName[name] = append(s.byName[name], n)
+ }
+diff --git a/src/crypto/x509/verify_test.go b/src/crypto/x509/verify_test.go
+index 76d1ab9a47..c7a715bbcb 100644
+--- a/src/crypto/x509/verify_test.go
++++ b/src/crypto/x509/verify_test.go
+@@ -284,18 +284,6 @@ var verifyTests = []verifyTest{
+ 
+ 		errorCallback: expectHostnameError("certificate is valid for"),
+ 	},
+-	{
+-		// The issuer name in the leaf doesn't exactly match the
+-		// subject name in the root. Go does not perform
+-		// canonicalization and so should reject this. See issue 14955.
+-		name:        "IssuerSubjectMismatch",
+-		leaf:        issuerSubjectMatchLeaf,
+-		roots:       []string{issuerSubjectMatchRoot},
+-		currentTime: 1475787715,
+-		systemSkip:  true, // does not chain to a system root
+-
+-		errorCallback: expectSubjectIssuerMismatcthError,
+-	},
+ 	{
+ 		// An X.509 v1 certificate should not be accepted as an
+ 		// intermediate.
+@@ -430,6 +418,20 @@ var verifyTests = []verifyTest{
+ 			{"Acme LLC", "Acme Co"},
+ 		},
+ 	},
++	{
++		// When there are two parents, one with a incorrect subject but matching SKID
++		// and one with a correct subject but missing SKID, the latter should be
++		// considered as a possible parent.
++		leaf:        leafMatchingAKIDMatchingIssuer,
++		roots:       []string{rootMatchingSKIDMismatchingSubject, rootMismatchingSKIDMatchingSubject},
++		currentTime: 1550000000,
++		dnsName:     "example",
++		systemSkip:  true,
++
++		expectedChains: [][]string{
++			{"Leaf", "Root B"},
++		},
++	},
+ }
+ 
+ func expectHostnameError(msg string) func(*testing.T, error) {
+@@ -474,12 +476,6 @@ func expectHashError(t *testing.T, err error) {
+ 	}
+ }
+ 
+-func expectSubjectIssuerMismatcthError(t *testing.T, err error) {
+-	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != NameMismatch {
+-		t.Fatalf("error was not a NameMismatch: %v", err)
+-	}
+-}
+-
+ func expectNameConstraintsError(t *testing.T, err error) {
+ 	if inval, ok := err.(CertificateInvalidError); !ok || inval.Reason != CANotAuthorizedForThisName {
+ 		t.Fatalf("error was not a CANotAuthorizedForThisName: %v", err)
+@@ -1615,6 +1611,36 @@ ssWvTAveakIwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNHADBEAiBk
+ ZZMqeJS7JldLx91sPUArY5A=
+ -----END CERTIFICATE-----`
+ 
++const rootMatchingSKIDMismatchingSubject = `-----BEGIN CERTIFICATE-----
++MIIBQjCB6aADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQTAe
++Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
++QTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABPK4p1uXq2aAeDtKDHIokg2rTcPM
++2gq3N9Y96wiW6/7puBK1+INEW//cO9x6FpzkcsHw/TriAqy4sck/iDAvf9WjMjAw
++MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAMBgNVHQ4EBQQDAQID
++MAoGCCqGSM49BAMCA0gAMEUCIQDgtAp7iVHxMnKxZPaLQPC+Tv2r7+DJc88k2SKH
++MPs/wQIgFjjNvBoQEl7vSHTcRGCCcFMdlN4l0Dqc9YwGa9fyrQs=
++-----END CERTIFICATE-----`
++
++const rootMismatchingSKIDMatchingSubject = `-----BEGIN CERTIFICATE-----
++MIIBNDCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
++Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMBExDzANBgNVBAMTBlJvb3Qg
++QjBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABI1YRFcIlkWzm9BdEVrIsEQJ2dT6
++qiW8/WV9GoIhmDtX9SEDHospc0Cgm+TeD2QYW2iMrS5mvNe4GSw0Jezg/bOjJDAi
++MA8GA1UdJQQIMAYGBFUdJQAwDwYDVR0TAQH/BAUwAwEB/zAKBggqhkjOPQQDAgNI
++ADBFAiEAukWOiuellx8bugRiwCS5XQ6IOJ1SZcjuZxj76WojwxkCIHqa71qNw8FM
++DtA5yoL9M2pDFF6ovFWnaCe+KlzSwAW/
++-----END CERTIFICATE-----`
++
++const leafMatchingAKIDMatchingIssuer = `-----BEGIN CERTIFICATE-----
++MIIBNTCB26ADAgECAgEAMAoGCCqGSM49BAMCMBExDzANBgNVBAMTBlJvb3QgQjAe
++Fw0wOTExMTAyMzAwMDBaFw0xOTExMDgyMzAwMDBaMA8xDTALBgNVBAMTBExlYWYw
++WTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASNWERXCJZFs5vQXRFayLBECdnU+qol
++vP1lfRqCIZg7V/UhAx6LKXNAoJvk3g9kGFtojK0uZrzXuBksNCXs4P2zoyYwJDAO
++BgNVHSMEBzAFgAMBAgMwEgYDVR0RBAswCYIHZXhhbXBsZTAKBggqhkjOPQQDAgNJ
++ADBGAiEAnV9XV7a4h0nfJB8pWv+pBUXRlRFA2uZz3mXEpee8NYACIQCWa+wL70GL
++ePBQCV1F9sE2q4ZrnsT9TZoNrSe/bMDjzA==
++-----END CERTIFICATE-----`
++
+ var unknownAuthorityErrorTests = []struct {
+ 	cert     string
+ 	expected string

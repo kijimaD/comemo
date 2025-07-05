@@ -12,7 +12,57 @@ Date:   Tue Dec 13 00:12:19 2016 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/client.go    | 7 ++++++-
  src/net/http/transport.go | 6 +++---
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index fe2b0196ef..7deccff587 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -274,6 +274,11 @@ func send(ireq *Request, rt RoundTripper, deadline time.Time) (*Response, error)
+ // setRequestCancel sets the Cancel field of req, if deadline is
+ // non-zero. The RoundTripper's type is used to determine whether the legacy
+ // CancelRequest behavior should be used.
++//
++// As background, there are three ways to cancel a request:
++// First was Transport.CancelRequest. (deprecated)
++// Second was Request.Cancel (this mechanism).
++// Third was Request.Context.
+ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTimer func(), didTimeout func() bool) {
+ 	if deadline.IsZero() {
+ 		return nop, alwaysFalse
+@@ -285,7 +290,7 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
+ 	req.Cancel = cancel
+ 
+ 	doCancel := func() {
+-		// The new way:
++		// The newer way (the second way in the func comment):
+ 		close(cancel)
+ 
+ 		// The legacy compatibility way, used only
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f2743efdd7..571943d6e5 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -923,6 +923,9 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
+ 		// value.
+ 		select {
+ 		case <-req.Cancel:
++			// It was an error due to cancelation, so prioritize that
++			// error value. (Issue 16049)
++			return nil, errRequestCanceledConn
+ 		case <-req.Context().Done():
+ 			return nil, req.Context().Err()
+ 		case err := <-cancelc:
+@@ -935,9 +938,6 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (*persistC
+ 			// return the original error message:
+ 			return nil, v.err
+ 		}
+-		// It was an error due to cancelation, so prioritize that
+-		// error value. (Issue 16049)
+-		return nil, errRequestCanceledConn
+ 	case pc := <-idleConnCh:
+ 		// Another request finished first and its net.Conn
+ 		// became available before our dial. Or somebody

@@ -12,7 +12,121 @@ Date:   Fri Mar 20 17:02:47 2020 -0400
     Change-Id: I9514b62a676916cc383b8afa389489fe7b8fa2bf
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224625
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/main.go | 52 ++++++++++++++++++++++++++++++++++++++++
  src/cmd/link/link_test.go        | 24 +++++++++++++++++++
  2 files changed, 76 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 1d2a764db9..af1f6d763d 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -39,6 +39,7 @@ import (
+ 	"flag"
+ 	"log"
+ 	"os"
++	"os/exec"
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"strings"
+@@ -98,6 +99,8 @@ var (
+ 
+ 	benchmarkFlag     = flag.String("benchmark", "", "set to 'mem' or 'cpu' to enable phase benchmarking")
+ 	benchmarkFileFlag = flag.String("benchmarkprofile", "", "emit phase profiles to `base`_phase.{cpu,mem}prof")
++
++	flagGo115Newobj = flag.Bool("go115newobj", true, "use new object file format")
+ )
+ 
+ // Main is the main entry point for the linker code.
+@@ -137,6 +140,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 
+ 	objabi.Flagparse(usage)
+ 
++	if !*flagGo115Newobj {
++		oldlink()
++	}
++
+ 	switch *flagHeadType {
+ 	case "":
+ 	case "windowsgui":
+@@ -401,3 +408,48 @@ func startProfile() {
+ 		})
+ 	}
+ }
++
++// Invoke the old linker and exit.
++func oldlink() {
++	linker := os.Args[0]
++	if strings.HasSuffix(linker, "link") {
++		linker = linker[:len(linker)-4] + "oldlink"
++	} else if strings.HasSuffix(linker, "link.exe") {
++		linker = linker[:len(linker)-8] + "oldlink.exe"
++	} else {
++		log.Fatal("cannot find oldlink. arg0=", linker)
++	}
++
++	// Copy args, filter out -go115newobj flag
++	args := make([]string, 0, len(os.Args)-1)
++	skipNext := false
++	for i, a := range os.Args {
++		if i == 0 {
++			continue // skip arg0
++		}
++		if skipNext {
++			skipNext = false
++			continue
++		}
++		if a == "-go115newobj" {
++			skipNext = true
++			continue
++		}
++		if strings.HasPrefix(a, "-go115newobj=") {
++			continue
++		}
++		args = append(args, a)
++	}
++
++	cmd := exec.Command(linker, args...)
++	cmd.Stdout = os.Stdout
++	cmd.Stderr = os.Stderr
++	err := cmd.Run()
++	if err == nil {
++		os.Exit(0)
++	}
++	if _, ok := err.(*exec.ExitError); ok {
++		os.Exit(2) // would be nice to use ExitError.ExitCode(), but that is too new
++	}
++	log.Fatal("invoke oldlink failed:", err)
++}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 4f792bd1f1..5e19cb5de1 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -447,3 +447,27 @@ func TestStrictDup(t *testing.T) {
+ 		t.Errorf("unexpected output:\n%s", out)
+ 	}
+ }
++
++func TestOldLink(t *testing.T) {
++	// Test that old object file format still works.
++	// TODO(go115newobj): delete.
++
++	testenv.MustHaveGoBuild(t)
++
++	tmpdir, err := ioutil.TempDir("", "TestOldLink")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmpdir)
++
++	src := filepath.Join(tmpdir, "main.go")
++	err = ioutil.WriteFile(src, []byte("package main; func main(){}\n"), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	cmd := exec.Command(testenv.GoToolPath(t), "run", "-gcflags=all=-go115newobj=false", "-asmflags=all=-go115newobj=false", "-ldflags=-go115newobj=false", src)
++	if out, err := cmd.CombinedOutput(); err != nil {
++		t.Errorf("%v: %v:\n%s", cmd.Args, err, out)
++	}
++}

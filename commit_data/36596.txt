@@ -13,7 +13,84 @@ Date:   Tue May 8 08:53:21 2018 -0700
     Reviewed-on: https://go-review.googlesource.com/112158
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  2 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 52 ++++++++++++++++++++++++++
  2 files changed, 53 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 0f11b2ef50..6225f1ebc8 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -859,7 +859,7 @@
+ (If (ConstBool [c]) yes no) && c == 0 -> (First nil no yes)
+ 
+ // Get rid of Convert ops for pointer arithmetic on unsafe.Pointer.
+-(Convert (Add64 (Convert ptr mem) off) mem) -> (Add64 ptr off)
++(Convert (Add(64|32) (Convert ptr mem) off) mem) -> (Add(64|32) ptr off)
+ (Convert (Convert ptr mem) mem) -> ptr
+ 
+ // Decompose compound argument values
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 5bfad8e05b..1f89b2156e 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -7489,6 +7489,58 @@ func rewriteValuegeneric_OpConvert_0(v *Value) bool {
+ 		v.AddArg(off)
+ 		return true
+ 	}
++	// match: (Convert (Add32 (Convert ptr mem) off) mem)
++	// cond:
++	// result: (Add32 ptr off)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd32 {
++			break
++		}
++		_ = v_0.Args[1]
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpConvert {
++			break
++		}
++		_ = v_0_0.Args[1]
++		ptr := v_0_0.Args[0]
++		mem := v_0_0.Args[1]
++		off := v_0.Args[1]
++		if mem != v.Args[1] {
++			break
++		}
++		v.reset(OpAdd32)
++		v.AddArg(ptr)
++		v.AddArg(off)
++		return true
++	}
++	// match: (Convert (Add32 off (Convert ptr mem)) mem)
++	// cond:
++	// result: (Add32 ptr off)
++	for {
++		_ = v.Args[1]
++		v_0 := v.Args[0]
++		if v_0.Op != OpAdd32 {
++			break
++		}
++		_ = v_0.Args[1]
++		off := v_0.Args[0]
++		v_0_1 := v_0.Args[1]
++		if v_0_1.Op != OpConvert {
++			break
++		}
++		_ = v_0_1.Args[1]
++		ptr := v_0_1.Args[0]
++		mem := v_0_1.Args[1]
++		if mem != v.Args[1] {
++			break
++		}
++		v.reset(OpAdd32)
++		v.AddArg(ptr)
++		v.AddArg(off)
++		return true
++	}
+ 	// match: (Convert (Convert ptr mem) mem)
+ 	// cond:
+ 	// result: ptr

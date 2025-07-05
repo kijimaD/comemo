@@ -11,7 +11,58 @@ Date:   Wed Apr 25 14:33:33 2012 +1000
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/6048047
-
+---
  src/pkg/encoding/json/encode.go      | 9 ++++++---
  src/pkg/encoding/json/tagkey_test.go | 5 +++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index 14957b8487..842672c397 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -17,6 +17,7 @@ import (
+ 	"runtime"
+ 	"sort"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ 	"unicode"
+ 	"unicode/utf8"
+@@ -415,9 +416,11 @@ func isValidTag(s string) bool {
+ 		return false
+ 	}
+ 	for _, c := range s {
+-		switch c {
+-		case '$', '-', '_', '/', '%':
+-			// Acceptable
++		switch {
++		case strings.ContainsRune("!#$%&()*+-./:<=>?@[]^_{|}~", c):
++			// Backslash and quote chars are reserved, but
++			// otherwise any punctuation chars are allowed
++			// in a tag name.
+ 		default:
+ 			if !unicode.IsLetter(c) && !unicode.IsDigit(c) {
+ 				return false
+diff --git a/src/pkg/encoding/json/tagkey_test.go b/src/pkg/encoding/json/tagkey_test.go
+index bba5730353..da8b12bd8f 100644
+--- a/src/pkg/encoding/json/tagkey_test.go
++++ b/src/pkg/encoding/json/tagkey_test.go
+@@ -40,6 +40,10 @@ type percentSlashTag struct {
+ 	V string `json:"text/html%"` // http://golang.org/issue/2718
+ }
+ 
++type punctuationTag struct {
++	V string `json:"!#$%&()*+-./:<=>?@[]^_{|}~"` // http://golang.org/issue/3546
++}
++
+ type emptyTag struct {
+ 	W string
+ }
+@@ -73,6 +77,7 @@ var structTagObjectKeyTests = []struct {
+ 	{badFormatTag{"Orfevre"}, "Orfevre", "Y"},
+ 	{badCodeTag{"Reliable Man"}, "Reliable Man", "Z"},
+ 	{percentSlashTag{"brut"}, "brut", "text/html%"},
++	{punctuationTag{"Union Rags"}, "Union Rags", "!#$%&()*+-./:<=>?@[]^_{|}~"},
+ }
+ 
+ func TestStructTagObjectKey(t *testing.T) {

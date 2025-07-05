@@ -12,8 +12,84 @@ Date:   Wed Sep 19 07:04:12 2012 +0900
     R=golang-dev, bsiegert, bradfitz, rsc
     CC=golang-dev
     https://golang.org/cl/6475062
-
+---
  src/cmd/api/goapi.go                       | 26 +++++++++++++++++++++++---
  src/cmd/api/testdata/src/pkg/p3/golden.txt |  3 +++
  src/cmd/api/testdata/src/pkg/p3/p3.go      |  6 ++++++
  3 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index a7485e0447..ad2c5770a0 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -1017,18 +1017,38 @@ func (w *Walker) walkFuncDecl(f *ast.FuncDecl) {
+ 
+ func (w *Walker) funcSigString(ft *ast.FuncType) string {
+ 	var b bytes.Buffer
++	writeField := func(b *bytes.Buffer, f *ast.Field) {
++		if n := len(f.Names); n > 1 {
++			for i := 0; i < n; i++ {
++				if i > 0 {
++					b.WriteString(", ")
++				}
++				b.WriteString(w.nodeString(w.namelessType(f.Type)))
++			}
++		} else {
++			b.WriteString(w.nodeString(w.namelessType(f.Type)))
++		}
++	}
+ 	b.WriteByte('(')
+ 	if ft.Params != nil {
+ 		for i, f := range ft.Params.List {
+ 			if i > 0 {
+ 				b.WriteString(", ")
+ 			}
+-			b.WriteString(w.nodeString(w.namelessType(f.Type)))
++			writeField(&b, f)
+ 		}
+ 	}
+ 	b.WriteByte(')')
+ 	if ft.Results != nil {
+-		if nr := len(ft.Results.List); nr > 0 {
++		nr := 0
++		for _, f := range ft.Results.List {
++			if n := len(f.Names); n > 1 {
++				nr += n
++			} else {
++				nr++
++			}
++		}
++		if nr > 0 {
+ 			b.WriteByte(' ')
+ 			if nr > 1 {
+ 				b.WriteByte('(')
+@@ -1037,7 +1057,7 @@ func (w *Walker) funcSigString(ft *ast.FuncType) string {
+ 				if i > 0 {
+ 					b.WriteString(", ")
+ 				}
+-				b.WriteString(w.nodeString(w.namelessType(f.Type)))
++				writeField(&b, f)
+ 			}
+ 			if nr > 1 {
+ 				b.WriteByte(')')
+diff --git a/src/cmd/api/testdata/src/pkg/p3/golden.txt b/src/cmd/api/testdata/src/pkg/p3/golden.txt
+new file mode 100644
+index 0000000000..579692fe67
+--- /dev/null
++++ b/src/cmd/api/testdata/src/pkg/p3/golden.txt
+@@ -0,0 +1,3 @@
++pkg p3, method (*ThirdBase) GoodPlayer() (int, int, int)
++pkg p3, func BadHop(int, int, int) (bool, bool, *ThirdBase, *ThirdBase, error)
++pkg p3, type ThirdBase struct
+diff --git a/src/cmd/api/testdata/src/pkg/p3/p3.go b/src/cmd/api/testdata/src/pkg/p3/p3.go
+new file mode 100644
+index 0000000000..1b2b1a4262
+--- /dev/null
++++ b/src/cmd/api/testdata/src/pkg/p3/p3.go
+@@ -0,0 +1,6 @@
++package p3
++
++type ThirdBase struct{}
++
++func (tb *ThirdBase) GoodPlayer() (i, j, k int)
++func BadHop(i, j, k int) (l, m bool, n, o *ThirdBase, err error)

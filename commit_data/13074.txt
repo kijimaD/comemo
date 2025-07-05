@@ -12,10 +12,208 @@ Date:   Tue May 15 12:53:57 2012 -0400
     R=golang-dev, bradfitz, r
     CC=golang-dev
     https://golang.org/cl/6211053
-
+---
  src/cmd/go/build.go |  5 +++++
  src/cmd/go/doc.go   | 15 ++++++++++++---
  src/cmd/go/fmt.go   | 21 ++++++++++++++++++---
  src/cmd/go/main.go  | 12 ++++++++++--
  src/cmd/go/vet.go   |  9 ++++++++-
  5 files changed, 53 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2b9995d1c6..a68696c00d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -152,6 +152,11 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.Var(buildCompiler{}, "compiler", "")
+ }
+ 
++func addBuildFlagsNX(cmd *Command) {
++	cmd.Flag.BoolVar(&buildN, "n", false, "")
++	cmd.Flag.BoolVar(&buildX, "x", false, "")
++}
++
+ type stringsFlag []string
+ 
+ func (v *stringsFlag) Set(s string) error {
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 32ede39649..a39534a996 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -145,7 +145,7 @@ Run godoc on package sources
+ 
+ Usage:
+ 
+-	go doc [packages]
++	go doc [-n] [-x] [packages]
+ 
+ Doc runs the godoc command on the packages named by the
+ import paths.
+@@ -153,6 +153,9 @@ import paths.
+ For more about godoc, see 'godoc godoc'.
+ For more about specifying packages, see 'go help packages'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ To run godoc with specific options, run godoc itself.
+ 
+ See also: go fix, go fmt, go vet.
+@@ -192,7 +195,7 @@ Run gofmt on package sources
+ 
+ Usage:
+ 
+-	go fmt [packages]
++	go fmt [-n] [-x] [packages]
+ 
+ Fmt runs the command 'gofmt -l -w' on the packages named
+ by the import paths.  It prints the names of the files that are modified.
+@@ -200,6 +203,9 @@ by the import paths.  It prints the names of the files that are modified.
+ For more about gofmt, see 'godoc gofmt'.
+ For more about specifying packages, see 'go help packages'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ To run gofmt with specific options, run gofmt itself.
+ 
+ See also: go doc, go fix, go vet.
+@@ -414,7 +420,7 @@ Run go tool vet on packages
+ 
+ Usage:
+ 
+-	go vet [packages]
++	go vet [-n] [-x] [packages]
+ 
+ Vet runs the Go vet command on the packages named by the import paths.
+ 
+@@ -423,6 +429,9 @@ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ See also: go fmt, go fix.
+ 
+ 
+diff --git a/src/cmd/go/fmt.go b/src/cmd/go/fmt.go
+index cea9b0a512..b1aba32f3f 100644
+--- a/src/cmd/go/fmt.go
++++ b/src/cmd/go/fmt.go
+@@ -4,9 +4,14 @@
+ 
+ package main
+ 
++func init() {
++	addBuildFlagsNX(cmdFmt)
++	addBuildFlagsNX(cmdDoc)
++}
++
+ var cmdFmt = &Command{
+ 	Run:       runFmt,
+-	UsageLine: "fmt [packages]",
++	UsageLine: "fmt [-n] [-x] [packages]",
+ 	Short:     "run gofmt on package sources",
+ 	Long: `
+ Fmt runs the command 'gofmt -l -w' on the packages named
+@@ -15,6 +20,9 @@ by the import paths.  It prints the names of the files that are modified.
+ For more about gofmt, see 'godoc gofmt'.
+ For more about specifying packages, see 'go help packages'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ To run gofmt with specific options, run gofmt itself.
+ 
+ See also: go doc, go fix, go vet.
+@@ -32,7 +40,7 @@ func runFmt(cmd *Command, args []string) {
+ 
+ var cmdDoc = &Command{
+ 	Run:       runDoc,
+-	UsageLine: "doc [packages]",
++	UsageLine: "doc [-n] [-x] [packages]",
+ 	Short:     "run godoc on package sources",
+ 	Long: `
+ Doc runs the godoc command on the packages named by the
+@@ -41,6 +49,9 @@ import paths.
+ For more about godoc, see 'godoc godoc'.
+ For more about specifying packages, see 'go help packages'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ To run godoc with specific options, run godoc itself.
+ 
+ See also: go fix, go fmt, go vet.
+@@ -53,6 +64,10 @@ func runDoc(cmd *Command, args []string) {
+ 			errorf("go doc: cannot use package file list")
+ 			continue
+ 		}
+-		run("godoc", pkg.Dir)
++		if pkg.local {
++			run("godoc", pkg.Dir)
++		} else {
++			run("godoc", pkg.ImportPath)
++		}
+ 	}
+ }
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 93a4124288..a17082c2b4 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -144,8 +144,9 @@ func main() {
+ 		}
+ 	}
+ 
+-	fmt.Fprintf(os.Stderr, "Unknown command %#q\n\n", args[0])
+-	usage()
++	fmt.Fprintf(os.Stderr, "go: unknown subcommand %#q\nRun 'go help' for usage.\n", args[0])
++	setExitStatus(2)
++	exit()
+ }
+ 
+ var usageTemplate = `Go is a tool for managing Go source code.
+@@ -339,6 +340,13 @@ func exitIfErrors() {
+ 
+ func run(cmdargs ...interface{}) {
+ 	cmdline := stringList(cmdargs...)
++	if buildN || buildV {
++		fmt.Printf("%s\n", strings.Join(cmdline, " "))
++		if buildN {
++			return
++		}
++	}
++
+ 	cmd := exec.Command(cmdline[0], cmdline[1:]...)
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+diff --git a/src/cmd/go/vet.go b/src/cmd/go/vet.go
+index a672b99108..eb0b89ccad 100644
+--- a/src/cmd/go/vet.go
++++ b/src/cmd/go/vet.go
+@@ -4,9 +4,13 @@
+ 
+ package main
+ 
++func init() {
++	addBuildFlagsNX(cmdVet)
++}
++
+ var cmdVet = &Command{
+ 	Run:       runVet,
+-	UsageLine: "vet [packages]",
++	UsageLine: "vet [-n] [-x] [packages]",
+ 	Short:     "run go tool vet on packages",
+ 	Long: `
+ Vet runs the Go vet command on the packages named by the import paths.
+@@ -16,6 +20,9 @@ For more about specifying packages, see 'go help packages'.
+ 
+ To run the vet tool with specific options, run 'go tool vet'.
+ 
++The -n flag prints commands that would be executed.
++The -x flag prints commands as they are executed.
++
+ See also: go fmt, go fix.
+ 	`,
+ }

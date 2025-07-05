@@ -11,6 +11,41 @@ Date:   Thu May 23 10:28:58 2024 -0400
     Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/go/internal/telemetrystats/version_unix.go | 11 ++++++++---
  1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/telemetrystats/version_unix.go b/src/cmd/go/internal/telemetrystats/version_unix.go
+index 952f27e2b3..fbf4292312 100644
+--- a/src/cmd/go/internal/telemetrystats/version_unix.go
++++ b/src/cmd/go/internal/telemetrystats/version_unix.go
+@@ -33,13 +33,15 @@ func incrementVersionCounters() {
+ 		return
+ 	}
+ 	major, minor, ok := majorMinor(convert(v.Release[:]))
++	if runtime.GOOS == "aix" {
++		major, minor, ok = convert(v.Version[:]), convert(v.Release[:]), ok
++	}
+ 	if !ok {
+ 		telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:unknown-bad-format", runtime.GOOS))
+ 		return
+ 	}
+ 	telemetry.Inc(fmt.Sprintf("go/platform/host/%s/major-version:%s", runtime.GOOS, major))
+ 	telemetry.Inc(fmt.Sprintf("go/platform/host/%s/version:%s-%s", runtime.GOOS, major, minor))
+-
+ }
+ 
+ func majorMinor(v string) (string, string, bool) {
+@@ -49,7 +51,10 @@ func majorMinor(v string) (string, string, bool) {
+ 	}
+ 	major := v[:firstDot]
+ 	v = v[firstDot+len("."):]
+-	secondDot := strings.Index(v, ".")
+-	minor := v[:secondDot]
++	endMinor := strings.IndexAny(v, ".-_")
++	if endMinor < 0 {
++		endMinor = len(v)
++	}
++	minor := v[:endMinor]
+ 	return major, minor, true
+ }

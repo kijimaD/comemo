@@ -8,7 +8,7 @@ Date:   Tue Apr 20 17:03:25 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/904046
-
+---
  src/pkg/runtime/Makefile                           | 8 ++++----
  src/pkg/runtime/{cgo2c.c => goc2c.c}               | 0
  src/pkg/runtime/{malloc.cgo => malloc.goc}         | 0
@@ -20,3 +20,71 @@ Date:   Tue Apr 20 17:03:25 2010 -0700
  src/pkg/runtime/{sigqueue.cgo => sigqueue.goc}     | 0
  src/pkg/runtime/{string.cgo => string.goc}         | 0
  10 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 3ce8ba2422..f7da0251e5 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -114,13 +114,13 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f cgo2c mkversion version.go */asm.h runtime.acid.*
++	rm -f goc2c mkversion version.go */asm.h runtime.acid.*
+ 
+ $(GOARCH)/asm.h: mkasmh.sh runtime.acid.$(GOARCH)
+ 	./mkasmh.sh >$@.x
+ 	mv -f $@.x $@
+ 
+-cgo2c: cgo2c.c
++goc2c: goc2c.c
+ 	$(QUOTED_GOBIN)/quietgcc -o $@ $<
+ 
+ mkversion: mkversion.c
+@@ -129,8 +129,8 @@ mkversion: mkversion.c
+ version.go: mkversion
+ 	./mkversion >version.go
+ 
+-%.c:	%.cgo cgo2c
+-	./cgo2c $< > $@.tmp
++%.c:	%.goc goc2c
++	./goc2c $< > $@.tmp
+ 	mv -f $@.tmp $@
+ 
+ %.$O:	$(GOARCH)/%.c
+diff --git a/src/pkg/runtime/cgo2c.c b/src/pkg/runtime/goc2c.c
+similarity index 100%
+rename from src/pkg/runtime/cgo2c.c
+rename to src/pkg/runtime/goc2c.c
+diff --git a/src/pkg/runtime/malloc.cgo b/src/pkg/runtime/malloc.goc
+similarity index 100%
+rename from src/pkg/runtime/malloc.cgo
+rename to src/pkg/runtime/malloc.goc
+diff --git a/src/pkg/runtime/mingw/syscall.cgo b/src/pkg/runtime/mingw/syscall.goc
+similarity index 100%
+rename from src/pkg/runtime/mingw/syscall.cgo
+rename to src/pkg/runtime/mingw/syscall.goc
+diff --git a/src/pkg/runtime/mprof.cgo b/src/pkg/runtime/mprof.goc
+similarity index 100%
+rename from src/pkg/runtime/mprof.cgo
+rename to src/pkg/runtime/mprof.goc
+diff --git a/src/pkg/runtime/reflect.cgo b/src/pkg/runtime/reflect.goc
+similarity index 100%
+rename from src/pkg/runtime/reflect.cgo
+rename to src/pkg/runtime/reflect.goc
+diff --git a/src/pkg/runtime/runtime1.cgo b/src/pkg/runtime/runtime1.goc
+similarity index 100%
+rename from src/pkg/runtime/runtime1.cgo
+rename to src/pkg/runtime/runtime1.goc
+diff --git a/src/pkg/runtime/sema.cgo b/src/pkg/runtime/sema.goc
+similarity index 100%
+rename from src/pkg/runtime/sema.cgo
+rename to src/pkg/runtime/sema.goc
+diff --git a/src/pkg/runtime/sigqueue.cgo b/src/pkg/runtime/sigqueue.goc
+similarity index 100%
+rename from src/pkg/runtime/sigqueue.cgo
+rename to src/pkg/runtime/sigqueue.goc
+diff --git a/src/pkg/runtime/string.cgo b/src/pkg/runtime/string.goc
+similarity index 100%
+rename from src/pkg/runtime/string.cgo
+rename to src/pkg/runtime/string.goc

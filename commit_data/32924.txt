@@ -11,9 +11,73 @@ Date:   Wed Jun 14 18:29:49 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/os/file.go         | 13 +++++++++++++
  src/os/file_plan9.go   |  3 +--
  src/os/file_unix.go    |  3 +--
  src/os/file_windows.go |  3 +--
  4 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index c5db78fe2e..876bffde6d 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -279,3 +279,16 @@ func (f *File) wrapErr(op string, err error) error {
+ 	}
+ 	return &PathError{op, f.name, err}
+ }
++
++// TempDir returns the default directory to use for temporary files.
++//
++// On Unix systems, it returns $TMPDIR if non-empty, else /tmp.
++// On Windows, it uses GetTempPath, returning the first non-empty
++// value from %TMP%, %TEMP%, %USERPROFILE%, or the Windows directory.
++// On Plan 9, it returns /tmp.
++//
++// The directory is neither guaranteed to exist nor have accessible
++// permissions.
++func TempDir() string {
++	return tempDir()
++}
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index 97acb5878d..d0d230ba66 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -478,8 +478,7 @@ func (f *File) Chown(uid, gid int) error {
+ 	return &PathError{"chown", f.name, syscall.EPLAN9}
+ }
+ 
+-// TempDir returns the default directory to use for temporary files.
+-func TempDir() string {
++func tempDir() string {
+ 	return "/tmp"
+ }
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index 7f5c84f4bd..8b600d80b9 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -294,8 +294,7 @@ func Remove(name string) error {
+ 	return &PathError{"remove", name, e}
+ }
+ 
+-// TempDir returns the default directory to use for temporary files.
+-func TempDir() string {
++func tempDir() string {
+ 	dir := Getenv("TMPDIR")
+ 	if dir == "" {
+ 		if runtime.GOOS == "android" {
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 3e916ae9b2..93b6c135c7 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -325,8 +325,7 @@ func Pipe() (r *File, w *File, err error) {
+ 	return newFile(p[0], "|0", "file"), newFile(p[1], "|1", "file"), nil
+ }
+ 
+-// TempDir returns the default directory to use for temporary files.
+-func TempDir() string {
++func tempDir() string {
+ 	n := uint32(syscall.MAX_PATH)
+ 	for {
+ 		b := make([]uint16, n)

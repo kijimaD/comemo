@@ -10,6 +10,21 @@ Date:   Sat May 30 15:19:56 2015 +0300
     Change-Id: I3959132600ecc554988524ede73a7f6e8eac8353
     Reviewed-on: https://go-review.googlesource.com/10551
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  doc/go1.5.txt | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/doc/go1.5.txt b/doc/go1.5.txt
+index f2ceb1d56b..fc410c9001 100644
+--- a/doc/go1.5.txt
++++ b/doc/go1.5.txt
+@@ -146,3 +146,9 @@ ARM assembly syntax has had some features removed.
+ 	
+ Also expression evaluation now uses uint64s instead of signed integers and the
+ precedence of operators is now Go-like rather than C-like.
++
++Standard library hardening
++35 bugs found by randomized testing with go-fuzz (https://github.com/dvyukov/go-fuzz)
++were fixed in fmt, archive/zip, archive/tar, encoding/gob, image/jpeg, image/png,
++image/gif, compress/flate, text/template, html/template. The fixes harden implementation
++against incorrect and malicious inputs.

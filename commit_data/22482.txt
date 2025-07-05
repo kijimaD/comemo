@@ -25,6 +25,20 @@ Date:   Tue Mar 17 10:18:30 2015 -0400
     Change-Id: Id0cf9553969f587addd462f2239dafca1cf371fa
     Reviewed-on: https://go-review.googlesource.com/7663
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/runtime1.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index ae30adb2fc..21b9b1a2b6 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -80,7 +80,7 @@ func goenvs_unix() {
+ 
+ 	envs = make([]string, n)
+ 	for i := int32(0); i < n; i++ {
+-		envs[i] = gostringnocopy(argv_index(argv, argc+1+i))
++		envs[i] = gostring(argv_index(argv, argc+1+i))
+ 	}
+ }
+ 

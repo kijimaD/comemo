@@ -6,7 +6,7 @@ Date:   Tue Jul 8 17:19:17 2008 -0700
     more on go statement
     
     SVN=126421
-
+---
  src/cmd/6g/gen.c        | 38 +++++++++++++++++++++++++++++++++++---
  src/cmd/gc/dcl.c        | 12 ++++++------
  src/cmd/gc/export.c     |  2 +-
@@ -18,3 +18,365 @@ Date:   Tue Jul 8 17:19:17 2008 -0700
  src/runtime/runtime.c   | 13 +++++++++++++
  src/runtime/runtime.h   | 23 +++++++++++++++++++++++
  10 files changed, 136 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/6g/gen.c b/src/cmd/6g/gen.c
+index 9da3dc608e..a7a5dc0201 100644
+--- a/src/cmd/6g/gen.c
++++ b/src/cmd/6g/gen.c
+@@ -566,14 +566,46 @@ genpanic(void)
+ 	p->to.type = D_INDIR+D_AX;
+ }
+ 
++int
++argsize(Type *t)
++{
++	Iter save;
++	Type *fp;
++	int w, x;
++
++	w = 0;
++
++	fp = structfirst(&save, getoutarg(t));
++	while(fp != T) {
++		x = fp->width + fp->type->width;
++		if(x > w)
++			w = x;
++		fp = structnext(&save);
++	}
++
++	fp = funcfirst(&save, t);
++	while(fp != T) {
++		x = fp->width + fp->type->width;
++		if(x > w)
++			w = x;
++		fp = structnext(&save);
++	}
++
++	w = (w+7) & ~7;
++	return w;
++}
++
+ void
+ ginscall(Node *f, int proc)
+ {
+-	Node regax;
++	Node reg, con;
+ 
+ 	if(proc) {
+-		nodreg(&regax, types[TINT64], D_AX);
+-		gins(ALEAQ, f, &regax);
++		nodreg(&reg, types[TINT64], D_AX);
++		gins(ALEAQ, f, &reg);
++		nodreg(&reg, types[TINT64], D_BX);
++		nodconst(&con, types[TINT32], argsize(f->type));
++		gins(AMOVL, &con, &reg);
+ 		gins(ACALL, N, newproc);
+ 		return;
+ 	}
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 9f0c715cf5..54a3fadb04 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -144,7 +144,7 @@ funcnam(Type *t, char *nam)
+ 
+ 	if(nam == nil) {
+ 		vargen++;
+-		snprint(buf, sizeof(buf), "_f%.3ld", vargen);
++		snprint(buf, sizeof(buf), "_f%s_%.3ld", filename, vargen);
+ 		nam = buf;
+ 	}
+ 
+@@ -153,7 +153,7 @@ funcnam(Type *t, char *nam)
+ 
+ 	if(t->thistuple > 0) {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_t%s%.3ld", nam, vargen);
++		snprint(namebuf, sizeof(namebuf), "_t%s_%.3ld", filename, vargen);
+ 		s = lookup(namebuf);
+ 		addtyp(newtype(s), t->type, PEXTERN);
+ 		n = newname(s);
+@@ -162,7 +162,7 @@ funcnam(Type *t, char *nam)
+ 	}
+ 	if(t->outtuple > 0) {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_o%s%.3ld", nam, vargen);
++		snprint(namebuf, sizeof(namebuf), "_o%s_%.3ld", filename, vargen);
+ 		s = lookup(namebuf);
+ 		addtyp(newtype(s), t->type->down, PEXTERN);
+ 		n = newname(s);
+@@ -171,7 +171,7 @@ funcnam(Type *t, char *nam)
+ 	}
+ 	if(t->intuple > 0) {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_i%s%.3ld", nam, vargen);
++		snprint(namebuf, sizeof(namebuf), "_i%s_%.3ld", filename, vargen);
+ 		s = lookup(namebuf);
+ 		addtyp(newtype(s), t->type->down->down, PEXTERN);
+ 		n = newname(s);
+@@ -451,7 +451,7 @@ loop:
+ 		f->nname = n->left;
+ 	} else {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_e%.3ld", vargen);
++		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, vargen);
+ 		f->nname = newname(lookup(namebuf));
+ 	}
+ 	f->sym = f->nname->sym;
+@@ -632,7 +632,7 @@ addvar(Node *n, Type *t, int ctxt)
+ 
+ 	if(ot->etype == TSTRUCT && ot->vargen == 0) {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_s%.3ld", vargen);
++		snprint(namebuf, sizeof(namebuf), "_s%s_%.3ld", filename, vargen);
+ 		s = lookup(namebuf);
+ 		addtyp(newtype(s), ot, PEXTERN);
+ 	}
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 2ec84908e4..e2ecf6c37c 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -54,7 +54,7 @@ reexport(Type *t)
+ 	s = t->sym;
+ 	if(s == S/* || s->name[0] == '_'*/) {
+ 		exportgen++;
+-		snprint(namebuf, sizeof(namebuf), "_e%.3ld", exportgen);
++		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, exportgen);
+ 		s = lookup(namebuf);
+ 		s->lexical = LATYPE;
+ 		s->otype = t;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 7f5b3829de..e039db7d66 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -370,6 +370,7 @@ EXTERN	Sym*	pkgmyname;	// my name for package
+ EXTERN	Sym*	pkgimportname;	// package name from imported package
+ EXTERN	int	tptr;		// either TPTR32 or TPTR64
+ extern	char*	sysimport;
++EXTERN	char*	filename;	// name to uniqify names
+ 
+ EXTERN	Type*	types[NTYPE];
+ EXTERN	uchar	isptr[NTYPE];
+@@ -422,6 +423,7 @@ int	yyparse(void);
+  *	lex.c
+  */
+ int	mainlex(int, char*[]);
++void	setfilename(char*);
+ void	importfile(Val*);
+ void	cannedimports(void);
+ void	unimportfile();
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index eec8d0febb..20cd642b93 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -57,6 +57,7 @@ mainlex(int argc, char *argv[])
+ 	block = 1;
+ 	blockgen = 1;
+ 
++	setfilename(argv[0]);
+ 	infile = argv[0];
+ 	linehist(infile, 0);
+ 
+@@ -108,6 +109,21 @@ usage:
+ 	return 0;
+ }
+ 
++void
++setfilename(char *file)
++{
++	char *p;
++
++	p = strrchr(file, '/');
++	if(p != nil)
++		file = p+1;
++	strncpy(namebuf, file, sizeof(namebuf));
++	p = strchr(namebuf, '.');
++	if(p != nil)
++		*p = 0;
++	filename = strdup(namebuf);
++}
++
+ void
+ importfile(Val *f)
+ {
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index a92358cc8d..242233d20b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -1078,7 +1078,6 @@ ascompatte(int op, Type **nl, Node **nr, int fp)
+ 	l = structfirst(&savel, nl);
+ 	r = listfirst(&saver, nr);
+ 	nn = N;
+-
+ loop:
+ 	if(l == T || r == N) {
+ 		if(l != T || r != N)
+diff --git a/src/runtime/rt0_amd64.s b/src/runtime/rt0_amd64.s
+index edc40dfe10..13883ebff9 100644
+--- a/src/runtime/rt0_amd64.s
++++ b/src/runtime/rt0_amd64.s
+@@ -14,9 +14,10 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	MOVQ	AX, 16(SP)
+ 	MOVQ	BX, 24(SP)
+ 
+-	// allocate the per-user block
++	// allocate the per-user and per-mach blocks
+ 
+ 	LEAQ	peruser<>(SB), R15	// dedicated u. register
++	LEAQ	permach<>(SB), R14	// dedicated m. register
+ 
+ 	LEAQ	(-4096+104+4*8)(SP), AX
+ 	MOVQ	AX, 0(R15)		// 0(R15) is stack limit (w 104b guard)
+@@ -26,11 +27,11 @@ TEXT	_rt0_amd64(SB),7,$-8
+ 	CALL	mal(SB)
+ 
+ 	LEAQ	104(AX), BX
+-	MOVQ	BX, 16(R15)		// 16(R15) is limit of istack (w 104b guard)
++	MOVQ	BX, 0(R14)		// 0(R14) is limit of istack (w 104b guard)
+ 
+ 	ADDQ	0(SP), AX
+ 	LEAQ	(-4*8)(AX), BX
+-	MOVQ	BX, 24(R15)		// 24(R15) is base of istack (w auto*4)
++	MOVQ	BX, 8(R14)		// 8(R14) is base of istack (w auto*4)
+ 
+ 	CALL	check(SB)
+ 
+@@ -75,7 +76,7 @@ TEXT	_rt0_amd64(SB),7,$-8
+ TEXT	_morestack(SB), 7, $0
+ 	// save stuff on interrupt stack
+ 
+-	MOVQ	24(R15), BX		// istack
++	MOVQ	8(R14), BX		// istack
+ 	MOVQ	SP, 8(BX)		// old SP
+ 	MOVQ	AX, 16(BX)		// magic number
+ 	MOVQ	0(R15), AX		// old limit
+@@ -84,7 +85,7 @@ TEXT	_morestack(SB), 7, $0
+ 	// switch and set up new limit
+ 
+ 	MOVQ	BX, SP
+-	MOVQ	16(R15), AX		// istack limit
++	MOVQ	0(R14), AX		// istack limit
+ 	MOVQ	AX, 0(R15)
+ 
+ 	// allocate a new stack max of request and 4k
+@@ -180,9 +181,33 @@ TEXT _endmorestack(SB), 7, $-8
+ 	RET
+ 
+ // call a subroutine in a new coroutine
+-// argument list is on the stack addr of fn is in AX
++// argument list is on the stack
++// addr of fn is in AX
+ TEXT	sys·_newproc(SB), 7, $0
+-	JMP	AX
++	// save stuff on interrupt stack
++
++	MOVQ	8(R14), CX		// istack
++	MOVQ	AX, 0(CX)		// fn pointer
++	MOVQ	BX, 8(CX)		// arg size
++	MOVQ	SP, 16(CX)		// old SP
++	MOVQ	0(R15), AX		// old limit
++	MOVQ	AX, 24(CX)
++
++	// switch and set up new limit
++
++	MOVQ	CX, SP
++	MOVQ	0(R14), AX		// istack limit
++	MOVQ	AX, 0(R15)
++
++	CALL	_newproc(SB)
++
++	// restore old SP and limit
++
++	MOVQ	24(SP), AX		// old limit
++	MOVQ	AX, 0(R15)
++	MOVQ	16(SP), AX		// old SP
++	MOVQ	AX, SP
++
+ 	RET
+ 
+ TEXT	FLUSH(SB),7,$-8
+@@ -192,4 +217,5 @@ TEXT	getu(SB),7,$-8
+ 	MOVQ	R15, AX
+ 	RET
+ 
++GLOBL	permach<>(SB),$64
+ GLOBL	peruser<>(SB),$64
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index 795285d7de..632ca9f15f 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -8,13 +8,13 @@ extern int32	debug;
+ 
+ static int8 spmark[] = "\xa7\xf1\xd9\x2a\x82\xc8\xd8\xfe";
+ 
+-typedef struct U U;
+-struct U {
+-	uint8*	stackguard;
+-	uint8*	stackbase;
+-	uint8*	istackguard;
+-	uint8*	istackbase;
+-};
++//typedef struct U U;
++//struct U {
++//	uint8*	stackguard;
++//	uint8*	stackbase;
++//	uint8*	istackguard;
++//	uint8*	istackbase;
++//};
+ 
+ typedef struct Stktop Stktop;
+ struct Stktop {
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index c4ff5f245d..9d79fa5312 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -570,3 +570,16 @@ check(void)
+ //	prints(1"check ok\n");
+ 	initsig();
+ }
++
++void
++_newproc(byte* fn, int32 siz, byte* args)
++{
++	prints("_newproc fn=");
++	sys·printpointer(fn);
++	prints("; siz=");
++	sys·printint(siz);
++	prints("; args=");
++	sys·printpointer(args);
++	prints("\n");
++	dump(args, 32);
++}
+diff --git a/src/runtime/runtime.h b/src/runtime/runtime.h
+index 14e8f177be..ff9a4e57b6 100644
+--- a/src/runtime/runtime.h
++++ b/src/runtime/runtime.h
+@@ -61,6 +61,29 @@ struct	Map
+ 	int32	unused;
+ 	void	(*fun[])(void);
+ };
++typedef	struct	U		U;
++struct	U
++{
++	byte*	stackguard;	// must not move
++	byte*	stackbase;	// must not move
++	U*	ufor;		// dbl ll of all u
++	U*	ubak;
++	U*	runqfor;	// dbl ll of runnable
++	U*	runqbak;
++};
++typedef	struct	M		M;
++struct	M
++{
++	byte*	istackguard;	// must not move
++	byte*	istackbase;	// must not move
++};
++
++/*
++ * global variables
++ */
++U*	allu;
++M*	allm;
++U*	runq;
+ 
+ /*
+  * defined constants

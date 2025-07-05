@@ -7,7 +7,7 @@ Date:   Sat Sep 12 13:26:57 2015 -0700
     Change-Id: Iec61ca1bdc064c29ceca6d47f600d5643d0a64dd
     Reviewed-on: https://go-review.googlesource.com/14533
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 10 +++++++++-
  src/cmd/compile/internal/ssa/gen/AMD64.rules   |  2 ++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go   |  2 ++
@@ -15,3 +15,155 @@ Date:   Sat Sep 12 13:26:57 2015 -0700
  src/cmd/compile/internal/ssa/opGen.go          | 18 ++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go   | 16 ++++++++++++++++
  6 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7086a4f84a..a0bd07d681 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -988,6 +988,8 @@ var opToSSA = map[opAndType]ssa.Op{
+ 	opAndType{OLROT, TUINT16}: ssa.OpLrot16,
+ 	opAndType{OLROT, TUINT32}: ssa.OpLrot32,
+ 	opAndType{OLROT, TUINT64}: ssa.OpLrot64,
++
++	opAndType{OSQRT, TFLOAT64}: ssa.OpSqrt,
+ }
+ 
+ func (s *state) concreteEtype(t *Type) uint8 {
+@@ -1643,7 +1645,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 				s.newValue1(negop, tp, s.newValue1(ssa.OpComplexImag, tp, a)))
+ 		}
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+-	case ONOT, OCOM:
++	case ONOT, OCOM, OSQRT:
+ 		a := s.expr(n.Left)
+ 		return s.newValue1(s.ssaOp(n.Op, n.Type), a.Type, a)
+ 	case OIMAG, OREAL:
+@@ -3325,6 +3327,12 @@ func (s *genState) genValue(v *ssa.Value) {
+ 		p := Prog(v.Op.Asm())
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = r
++	case ssa.OpAMD64SQRTSD:
++		p := Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = regnum(v.Args[0])
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = regnum(v)
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	case ssa.OpAMD64SETEQ, ssa.OpAMD64SETNE,
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index cba16eadc7..0591e8f8ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -89,6 +89,8 @@
+ (Com16 x) -> (NOTW x)
+ (Com8 x) -> (NOTB x)
+ 
++(Sqrt x) -> (SQRTSD x)
++
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+ (SignExt8to16 x) -> (MOVBQSX x)
+ (SignExt8to32 x) -> (MOVBQSX x)
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 0eee551f32..d5bd5b38e0 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -307,6 +307,8 @@ func init() {
+ 		{name: "NOTW", reg: gp11, asm: "NOTW"}, // ^arg0
+ 		{name: "NOTB", reg: gp11, asm: "NOTB"}, // ^arg0
+ 
++		{name: "SQRTSD", reg: fp11, asm: "SQRTSD"}, // sqrt(arg0)
++
+ 		{name: "SBBQcarrymask", reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 		{name: "SBBLcarrymask", reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+ 		// Note: SBBW and SBBB are subsumed by SBBL
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index a9497644e8..dcaff959c3 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -232,6 +232,8 @@ var genericOps = []opData{
+ 	{name: "Com32"},
+ 	{name: "Com64"},
+ 
++	{name: "Sqrt"}, // sqrt(arg0), float64 only
++
+ 	// Data movement
+ 	{name: "Phi"},  // select an argument based on which predecessor block we came from
+ 	{name: "Copy"}, // output = arg0
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7918c209a4..f7f1ca3068 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -203,6 +203,7 @@ const (
+ 	OpAMD64NOTL
+ 	OpAMD64NOTW
+ 	OpAMD64NOTB
++	OpAMD64SQRTSD
+ 	OpAMD64SBBQcarrymask
+ 	OpAMD64SBBLcarrymask
+ 	OpAMD64SETEQ
+@@ -448,6 +449,7 @@ const (
+ 	OpCom16
+ 	OpCom32
+ 	OpCom64
++	OpSqrt
+ 	OpPhi
+ 	OpCopy
+ 	OpConstBool
+@@ -2361,6 +2363,18 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name: "SQRTSD",
++		asm:  x86.ASQRTSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++			outputs: []regMask{
++				4294901760, // .X0 .X1 .X2 .X3 .X4 .X5 .X6 .X7 .X8 .X9 .X10 .X11 .X12 .X13 .X14 .X15
++			},
++		},
++	},
+ 	{
+ 		name: "SBBQcarrymask",
+ 		asm:  x86.ASBBQ,
+@@ -3809,6 +3823,10 @@ var opcodeTable = [...]opInfo{
+ 		name:    "Com64",
+ 		generic: true,
+ 	},
++	{
++		name:    "Sqrt",
++		generic: true,
++	},
+ 	{
+ 		name:    "Phi",
+ 		generic: true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 7917d8d971..cb6405d44d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -9391,6 +9391,22 @@ func rewriteValueAMD64(v *Value, config *Config) bool {
+ 		goto endcef6d6001d3f25cf5dacee11a46e5c8c
+ 	endcef6d6001d3f25cf5dacee11a46e5c8c:
+ 		;
++	case OpSqrt:
++		// match: (Sqrt x)
++		// cond:
++		// result: (SQRTSD x)
++		{
++			x := v.Args[0]
++			v.Op = OpAMD64SQRTSD
++			v.AuxInt = 0
++			v.Aux = nil
++			v.resetArgs()
++			v.AddArg(x)
++			return true
++		}
++		goto end72f79ca9ec139e15856aaa03338cf543
++	end72f79ca9ec139e15856aaa03338cf543:
++		;
+ 	case OpStaticCall:
+ 		// match: (StaticCall [argwid] {target} mem)
+ 		// cond:

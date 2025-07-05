@@ -111,7 +111,7 @@ Date:   Thu Dec 12 17:18:12 2013 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/41520044
-
+---
  test/const1.go               |  8 +++----
  test/fixedbugs/bug462.go     |  2 +-
  test/fixedbugs/issue3705.go  |  2 +-
@@ -138,3 +138,529 @@ Date:   Thu Dec 12 17:18:12 2013 -0800
  test/syntax/semi4.go         |  2 +-
  test/typecheck.go            |  4 ++--
  25 files changed, 106 insertions(+), 106 deletions(-)
+
+diff --git a/test/const1.go b/test/const1.go
+index a170ce9e76..58bddee7e0 100644
+--- a/test/const1.go
++++ b/test/const1.go
+@@ -88,7 +88,7 @@ func main() {
+ }
+ 
+ const ptr = nil // ERROR "const.*nil"
+-const _ = string([]byte(nil)) // ERROR "is not a constant"
+-const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a constant"
+-const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil"
+-const _ = (*int)(nil) // ERROR "cannot be nil"
++const _ = string([]byte(nil)) // ERROR "is not a? ?constant"
++const _ = uintptr(unsafe.Pointer((*int)(nil))) // ERROR "is not a? ?constant"
++const _ = unsafe.Pointer((*int)(nil)) // ERROR "cannot be nil|invalid constant type"
++const _ = (*int)(nil) // ERROR "cannot be nil|invalid constant type"
+diff --git a/test/fixedbugs/bug462.go b/test/fixedbugs/bug462.go
+index 6434255c8d..1a23ad064d 100644
+--- a/test/fixedbugs/bug462.go
++++ b/test/fixedbugs/bug462.go
+@@ -14,6 +14,6 @@ type T struct {
+ 
+ func main() {
+ 	_ = T {
+-		os.File: 1, // ERROR "unknown T field"
++		os.File: 1, // ERROR "unknown T? ?field"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue3705.go b/test/fixedbugs/issue3705.go
+index c19bcea1cc..64ef38b10d 100644
+--- a/test/fixedbugs/issue3705.go
++++ b/test/fixedbugs/issue3705.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-func init() // ERROR "missing function body"
++func init() // ERROR "missing function body|cannot declare init"
+diff --git a/test/fixedbugs/issue4251.go b/test/fixedbugs/issue4251.go
+index 4adec2babb..3668d4c89a 100644
+--- a/test/fixedbugs/issue4251.go
++++ b/test/fixedbugs/issue4251.go
+@@ -9,13 +9,13 @@
+ package p
+ 
+ func F1(s []byte) []byte {
+-	return s[2:1]		// ERROR "invalid slice index"
++	return s[2:1]		// ERROR "invalid slice index|inverted slice range"
+ }
+ 
+ func F2(a [10]byte) []byte {
+-	return a[2:1]		// ERROR "invalid slice index"
++	return a[2:1]		// ERROR "invalid slice index|inverted slice range"
+ }
+ 
+ func F3(s string) string {
+-	return s[2:1]		// ERROR "invalid slice index"
++	return s[2:1]		// ERROR "invalid slice index|inverted slice range"
+ }
+diff --git a/test/fixedbugs/issue4405.go b/test/fixedbugs/issue4405.go
+index c0d8085598..b8458d7764 100644
+--- a/test/fixedbugs/issue4405.go
++++ b/test/fixedbugs/issue4405.go
+@@ -8,8 +8,8 @@ package p
+ 
+ const (
+ 	_ = iota
+-	_ // ERROR "illegal character"
+-	_  // ERROR "illegal character"
+-	_  // ERROR "illegal character"
+-	_  // ERROR "illegal character"
++	_ // ERROR "illegal character|invalid character"
++	_  // ERROR "illegal character|invalid character"
++	_  // ERROR "illegal character|invalid character"
++	_  // ERROR "illegal character|invalid character"
+ )
+diff --git a/test/fixedbugs/issue4429.go b/test/fixedbugs/issue4429.go
+index 8a93b02045..6822760ef8 100644
+--- a/test/fixedbugs/issue4429.go
++++ b/test/fixedbugs/issue4429.go
+@@ -12,5 +12,5 @@ type a struct {
+ 
+ func main() {
+   av := a{};
+-  *a(av); // ERROR "invalid indirect"
++  _ = *a(av); // ERROR "invalid indirect|expected pointer"
+ }
+diff --git a/test/fixedbugs/issue4517d.go b/test/fixedbugs/issue4517d.go
+index f601db66ff..3d727d433e 100644
+--- a/test/fixedbugs/issue4517d.go
++++ b/test/fixedbugs/issue4517d.go
+@@ -6,4 +6,4 @@
+ 
+ package p
+ 
+-import init "fmt" // ERROR "cannot import package as init - init must be a func"
++import init "fmt" // ERROR "cannot import package as init"
+diff --git a/test/fixedbugs/issue4545.go b/test/fixedbugs/issue4545.go
+index 501caadb0f..c37ccef7cb 100644
+--- a/test/fixedbugs/issue4545.go
++++ b/test/fixedbugs/issue4545.go
+@@ -13,7 +13,7 @@ import "fmt"
+ 
+ func main() {
+ 	var s uint
+-	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation|non-integer type"
++	fmt.Println(1.0 + 1<<s) // ERROR "invalid operation|non-integer type|incompatible type"
+ 	x := 1.0 + 1<<s         // ERROR "invalid operation|non-integer type"
+ 	_ = x
+ }
+diff --git a/test/fixedbugs/issue4610.go b/test/fixedbugs/issue4610.go
+index bc6bfe7906..d56c6d3e8c 100644
+--- a/test/fixedbugs/issue4610.go
++++ b/test/fixedbugs/issue4610.go
+@@ -12,6 +12,6 @@ type bar struct {
+ 
+ func main() {
+ 	var foo bar
+-	_ = &foo{} // ERROR "is not a type"
+-}
++	_ = &foo{} // ERROR "is not a type|expected .;."
++} // GCCGO_ERROR "expected declaration"
+ 
+diff --git a/test/fixedbugs/issue4654.go b/test/fixedbugs/issue4654.go
+index 170594e4b8..d3f582b20c 100644
+--- a/test/fixedbugs/issue4654.go
++++ b/test/fixedbugs/issue4654.go
+@@ -12,32 +12,32 @@ package p
+ import "unsafe"
+ 
+ func f() {
+-	defer int(0) // ERROR "defer requires function call, not conversion"
+-	go string([]byte("abc")) // ERROR "go requires function call, not conversion"
++	defer int(0) // ERROR "defer requires function call, not conversion|is not used"
++	go string([]byte("abc")) // ERROR "go requires function call, not conversion|is not used"
+ 	
+ 	var c complex128
+ 	var f float64
+ 	var t struct {X int}
+ 
+ 	var x []int
+-	defer append(x, 1) // ERROR "defer discards result of append"
+-	defer cap(x) // ERROR "defer discards result of cap"
+-	defer complex(1, 2) // ERROR "defer discards result of complex"
+-	defer complex(f, 1) // ERROR "defer discards result of complex"
+-	defer imag(1i) // ERROR "defer discards result of imag"
+-	defer imag(c) // ERROR "defer discards result of imag"
+-	defer len(x) // ERROR "defer discards result of len"
+-	defer make([]int, 1) // ERROR "defer discards result of make"
+-	defer make(chan bool) // ERROR "defer discards result of make"
+-	defer make(map[string]int) // ERROR "defer discards result of make"
+-	defer new(int) // ERROR "defer discards result of new"
+-	defer real(1i) // ERROR "defer discards result of real"
+-	defer real(c) // ERROR "defer discards result of real"
+-	defer append(x, 1) // ERROR "defer discards result of append"
+-	defer append(x, 1) // ERROR "defer discards result of append"
+-	defer unsafe.Alignof(t.X) // ERROR "defer discards result of unsafe.Alignof"
+-	defer unsafe.Offsetof(t.X) // ERROR "defer discards result of unsafe.Offsetof"
+-	defer unsafe.Sizeof(t) // ERROR "defer discards result of unsafe.Sizeof"
++	defer append(x, 1) // ERROR "defer discards result of append|is not used"
++	defer cap(x) // ERROR "defer discards result of cap|is not used"
++	defer complex(1, 2) // ERROR "defer discards result of complex|is not used"
++	defer complex(f, 1) // ERROR "defer discards result of complex|is not used"
++	defer imag(1i) // ERROR "defer discards result of imag|is not used"
++	defer imag(c) // ERROR "defer discards result of imag|is not used"
++	defer len(x) // ERROR "defer discards result of len|is not used"
++	defer make([]int, 1) // ERROR "defer discards result of make|is not used"
++	defer make(chan bool) // ERROR "defer discards result of make|is not used"
++	defer make(map[string]int) // ERROR "defer discards result of make|is not used"
++	defer new(int) // ERROR "defer discards result of new|is not used"
++	defer real(1i) // ERROR "defer discards result of real|is not used"
++	defer real(c) // ERROR "defer discards result of real|is not used"
++	defer append(x, 1) // ERROR "defer discards result of append|is not used"
++	defer append(x, 1) // ERROR "defer discards result of append|is not used"
++	defer unsafe.Alignof(t.X) // ERROR "defer discards result of unsafe.Alignof|is not used"
++	defer unsafe.Offsetof(t.X) // ERROR "defer discards result of unsafe.Offsetof|is not used"
++	defer unsafe.Sizeof(t) // ERROR "defer discards result of unsafe.Sizeof|is not used"
+ 	
+ 	defer copy(x, x) // ok
+ 	m := make(map[int]int)
+@@ -47,8 +47,8 @@ func f() {
+ 	defer println(1) // ok
+ 	defer recover() // ok
+ 
+-	int(0) // ERROR "int\(0\) evaluated but not used"
+-	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used"
++	int(0) // ERROR "int\(0\) evaluated but not used|is not used"
++	string([]byte("abc")) // ERROR "string\(.*\) evaluated but not used|is not used"
+ 
+ 	append(x, 1) // ERROR "not used"
+ 	cap(x) // ERROR "not used"
+diff --git a/test/fixedbugs/issue4776.go b/test/fixedbugs/issue4776.go
+index c38dc09b12..13781af1f3 100644
+--- a/test/fixedbugs/issue4776.go
++++ b/test/fixedbugs/issue4776.go
+@@ -6,5 +6,5 @@
+ 
+ // Issue 4776: missing package declaration error should be fatal.
+ 
+-type MyInt int32 // ERROR "package statement must be first"
++type MyInt int32 // ERROR "package statement must be first|package clause"
+ 
+diff --git a/test/fixedbugs/issue4813.go b/test/fixedbugs/issue4813.go
+index 20dc58795a..f560b2fac9 100644
+--- a/test/fixedbugs/issue4813.go
++++ b/test/fixedbugs/issue4813.go
+@@ -28,25 +28,25 @@ var (
+ var (
+ 	a1 = A[i]
+ 	a2 = A[f]
+-	a3 = A[f2] // ERROR "truncated"
++	a3 = A[f2] // ERROR "truncated|must be integer"
+ 	a4 = A[c]
+-	a5 = A[c2] // ERROR "truncated"
++	a5 = A[c2] // ERROR "truncated|must be integer"
+ 	a6 = A[vf] // ERROR "non-integer|must be integer"
+ 	a7 = A[vc] // ERROR "non-integer|must be integer"
+ 
+ 	s1 = S[i]
+ 	s2 = S[f]
+-	s3 = S[f2] // ERROR "truncated"
++	s3 = S[f2] // ERROR "truncated|must be integer"
+ 	s4 = S[c]
+-	s5 = S[c2] // ERROR "truncated"
++	s5 = S[c2] // ERROR "truncated|must be integer"
+ 	s6 = S[vf] // ERROR "non-integer|must be integer"
+ 	s7 = S[vc] // ERROR "non-integer|must be integer"
+ 
+ 	t1 = T[i]
+ 	t2 = T[f]
+-	t3 = T[f2] // ERROR "truncated"
++	t3 = T[f2] // ERROR "truncated|must be integer"
+ 	t4 = T[c]
+-	t5 = T[c2] // ERROR "truncated"
++	t5 = T[c2] // ERROR "truncated|must be integer"
+ 	t6 = T[vf] // ERROR "non-integer|must be integer"
+ 	t7 = T[vc] // ERROR "non-integer|must be integer"
+ )
+diff --git a/test/fixedbugs/issue4847.go b/test/fixedbugs/issue4847.go
+index a99e801294..91a6568f27 100644
+--- a/test/fixedbugs/issue4847.go
++++ b/test/fixedbugs/issue4847.go
+@@ -19,6 +19,6 @@ func matchList(s *S) E { return matcher(matchAnyFn)(s) }
+ 
+ var foo = matcher(matchList)
+ 
+-var matchAny = matcher(matchList) // ERROR "initialization loop"
++var matchAny = matcher(matchList) // ERROR "initialization loop|depends upon itself"
+ 
+ func matchAnyFn(s *S) (err E) { return matchAny(s) }
+diff --git a/test/fixedbugs/issue5089.go b/test/fixedbugs/issue5089.go
+index 14d6bde989..81b9f0521f 100644
+--- a/test/fixedbugs/issue5089.go
++++ b/test/fixedbugs/issue5089.go
+@@ -8,8 +8,8 @@
+ 
+ package p
+ 
+-import "bufio"
++import "bufio"	// GCCGO_ERROR "previous"
+ 
+-func (b *bufio.Reader) Buffered() int { // ERROR "non-local"
++func (b *bufio.Reader) Buffered() int { // ERROR "non-local|redefinition"
+ 	return -1
+ }
+diff --git a/test/fixedbugs/issue5172.go b/test/fixedbugs/issue5172.go
+index 2dd542a5db..a6acbd3db7 100644
+--- a/test/fixedbugs/issue5172.go
++++ b/test/fixedbugs/issue5172.go
+@@ -14,6 +14,6 @@ type foo struct {
+ 
+ func main() {
+ 	var f foo
+-	go f.bar()
+-	defer f.bar()
++	go f.bar()	// GCCGO_ERROR "undefined"
++	defer f.bar()	// GCCGO_ERROR "undefined"
+ }
+diff --git a/test/fixedbugs/issue5358.go b/test/fixedbugs/issue5358.go
+index 75aa9533d2..c2b1da9e0e 100644
+--- a/test/fixedbugs/issue5358.go
++++ b/test/fixedbugs/issue5358.go
+@@ -13,5 +13,5 @@ func f(x int, y ...int) {}
+ func g() (int, []int)
+ 
+ func main() {
+-	f(g()) // ERROR "as type int in"
++	f(g()) // ERROR "as type int in|incompatible type"
+ }
+diff --git a/test/fixedbugs/issue5581.go b/test/fixedbugs/issue5581.go
+index 8c2d597294..36a4ad671d 100644
+--- a/test/fixedbugs/issue5581.go
++++ b/test/fixedbugs/issue5581.go
+@@ -26,7 +26,7 @@ type Foo struct {
+ 
+ type Bar struct {
+ 	A *Foo
+-	B chan Blah // ERROR "undefined: Blah"
++	B chan Blah // ERROR "undefined.*Blah"
+ }
+ 
+ func main() {
+diff --git a/test/funcdup.go b/test/funcdup.go
+index 706dd63ca1..d15d685792 100644
+--- a/test/funcdup.go
++++ b/test/funcdup.go
+@@ -7,21 +7,21 @@
+ package p
+ 
+ type T interface {
+-	F1(i int) (i int) // ERROR "duplicate argument i"
+-	F2(i, i int) // ERROR "duplicate argument i"
+-	F3() (i, i int) // ERROR "duplicate argument i"
++	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
++	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous"
++	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
+ }
+ 
+-type T1 func(i, i int) // ERROR "duplicate argument i"
+-type T2 func(i int) (i int) // ERROR "duplicate argument i"
+-type T3 func() (i, i int) // ERROR "duplicate argument i"
++type T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous"
++type T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
++type T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
+ 
+ type R struct{}
+ 
+-func (i *R) F1(i int)         {} // ERROR "duplicate argument i"
+-func (i *R) F2() (i int)      {return 0} // ERROR "duplicate argument i"
+-func (i *R) F3(j int) (j int) {return 0} // ERROR "duplicate argument j"
++func (i *R) F1(i int)         {} // ERROR "duplicate argument i|redefinition|previous"
++func (i *R) F2() (i int)      {return 0} // ERROR "duplicate argument i|redefinition|previous"
++func (i *R) F3(j int) (j int) {return 0} // ERROR "duplicate argument j|redefinition|previous"
+ 
+-func F1(i, i int)      {} // ERROR "duplicate argument i"
+-func F2(i int) (i int) {return 0} // ERROR "duplicate argument i"
+-func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i"
++func F1(i, i int)      {} // ERROR "duplicate argument i|redefinition|previous"
++func F2(i int) (i int) {return 0} // ERROR "duplicate argument i|redefinition|previous"
++func F3() (i, i int)   {return 0, 0} // ERROR "duplicate argument i|redefinition|previous"
+diff --git a/test/funcdup2.go b/test/funcdup2.go
+index aeb5f7eb61..1db1a396b2 100644
+--- a/test/funcdup2.go
++++ b/test/funcdup2.go
+@@ -7,11 +7,11 @@
+ package p
+ 
+ var T interface {
+-	F1(i int) (i int) // ERROR "duplicate argument i"
+-	F2(i, i int) // ERROR "duplicate argument i"
+-	F3() (i, i int) // ERROR "duplicate argument i"
++	F1(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
++	F2(i, i int) // ERROR "duplicate argument i|redefinition|previous"
++	F3() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
+ }
+ 
+-var T1 func(i, i int) // ERROR "duplicate argument i"
+-var T2 func(i int) (i int) // ERROR "duplicate argument i"
+-var T3 func() (i, i int) // ERROR "duplicate argument i"
++var T1 func(i, i int) // ERROR "duplicate argument i|redefinition|previous"
++var T2 func(i int) (i int) // ERROR "duplicate argument i|redefinition|previous"
++var T3 func() (i, i int) // ERROR "duplicate argument i|redefinition|previous"
+diff --git a/test/slice3err.go b/test/slice3err.go
+index 906b007035..83fb39be4c 100644
+--- a/test/slice3err.go
++++ b/test/slice3err.go
+@@ -54,58 +54,58 @@ func f() {
+ 
+ 	// check invalid indices
+ 	_ = array[1:2]
+-	_ = array[2:1] // ERROR "invalid slice index"
++	_ = array[2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = array[2:2]
+ 	_ = array[i:1]
+ 	_ = array[1:j]
+ 	_ = array[1:2:3]
+-	_ = array[1:3:2] // ERROR "invalid slice index"
+-	_ = array[2:1:3] // ERROR "invalid slice index"
+-	_ = array[2:3:1] // ERROR "invalid slice index"
+-	_ = array[3:1:2] // ERROR "invalid slice index"
+-	_ = array[3:2:1] // ERROR "invalid slice index"
++	_ = array[1:3:2] // ERROR "invalid slice index|inverted slice"
++	_ = array[2:1:3] // ERROR "invalid slice index|inverted slice"
++	_ = array[2:3:1] // ERROR "invalid slice index|inverted slice"
++	_ = array[3:1:2] // ERROR "invalid slice index|inverted slice"
++	_ = array[3:2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = array[i:1:2]
+-	_ = array[i:2:1] // ERROR "invalid slice index"
++	_ = array[i:2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = array[1:j:2]
+ 	_ = array[2:j:1] // ERROR "invalid slice index"
+ 	_ = array[1:2:k]
+-	_ = array[2:1:k] // ERROR "invalid slice index"
++	_ = array[2:1:k] // ERROR "invalid slice index|inverted slice"
+ 	
+ 	_ = slice[1:2]
+-	_ = slice[2:1] // ERROR "invalid slice index"
++	_ = slice[2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = slice[2:2]
+ 	_ = slice[i:1]
+ 	_ = slice[1:j]
+ 	_ = slice[1:2:3]
+-	_ = slice[1:3:2] // ERROR "invalid slice index"
+-	_ = slice[2:1:3] // ERROR "invalid slice index"
+-	_ = slice[2:3:1] // ERROR "invalid slice index"
+-	_ = slice[3:1:2] // ERROR "invalid slice index"
+-	_ = slice[3:2:1] // ERROR "invalid slice index"
++	_ = slice[1:3:2] // ERROR "invalid slice index|inverted slice"
++	_ = slice[2:1:3] // ERROR "invalid slice index|inverted slice"
++	_ = slice[2:3:1] // ERROR "invalid slice index|inverted slice"
++	_ = slice[3:1:2] // ERROR "invalid slice index|inverted slice"
++	_ = slice[3:2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = slice[i:1:2]
+-	_ = slice[i:2:1] // ERROR "invalid slice index"
++	_ = slice[i:2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = slice[1:j:2]
+ 	_ = slice[2:j:1] // ERROR "invalid slice index"
+ 	_ = slice[1:2:k]
+-	_ = slice[2:1:k] // ERROR "invalid slice index"
++	_ = slice[2:1:k] // ERROR "invalid slice index|inverted slice"
+ 	
+ 	_ = str[1:2]
+-	_ = str[2:1] // ERROR "invalid slice index"
++	_ = str[2:1] // ERROR "invalid slice index|inverted slice"
+ 	_ = str[2:2]
+ 	_ = str[i:1]
+ 	_ = str[1:j]
+ 
+ 	// check out of bounds indices on array
+-	_ = array[11:11] // ERROR "out of bounds for 10-element array"
+-	_ = array[11:12] // ERROR "out of bounds for 10-element array"
+-	_ = array[11:] // ERROR "out of bounds for 10-element array"
+-	_ = array[:11] // ERROR "out of bounds for 10-element array"
+-	_ = array[1:11] // ERROR "out of bounds for 10-element array"
+-	_ = array[1:11:12] // ERROR "out of bounds for 10-element array"
+-	_ = array[1:2:11] // ERROR "out of bounds for 10-element array"
+-	_ = array[1:11:3] // ERROR "out of bounds for 10-element array"
+-	_ = array[11:2:3] // ERROR "out of bounds for 10-element array"
+-	_ = array[11:12:13] // ERROR "out of bounds for 10-element array"
++	_ = array[11:11] // ERROR "out of bounds"
++	_ = array[11:12] // ERROR "out of bounds"
++	_ = array[11:] // ERROR "out of bounds"
++	_ = array[:11] // ERROR "out of bounds"
++	_ = array[1:11] // ERROR "out of bounds"
++	_ = array[1:11:12] // ERROR "out of bounds"
++	_ = array[1:2:11] // ERROR "out of bounds"
++	_ = array[1:11:3] // ERROR "out of bounds|invalid slice index"
++	_ = array[11:2:3] // ERROR "out of bounds|inverted slice|invalid slice index"
++	_ = array[11:12:13] // ERROR "out of bounds"
+ 
+ 	// slice bounds not checked
+ 	_ = slice[11:11]
+@@ -116,6 +116,6 @@ func f() {
+ 	_ = slice[1:11:12]
+ 	_ = slice[1:2:11]
+ 	_ = slice[1:11:3] // ERROR "invalid slice index"
+-	_ = slice[11:2:3] // ERROR "invalid slice index"
++	_ = slice[11:2:3] // ERROR "invalid slice index|inverted slice"
+ 	_ = slice[11:12:13]
+ }
+diff --git a/test/syntax/semi1.go b/test/syntax/semi1.go
+index cc30f26546..6e0428121f 100644
+--- a/test/syntax/semi1.go
++++ b/test/syntax/semi1.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	if x; y		// ERROR "missing { after if clause|undefined"
++	if x; y		// ERROR "missing .*{.* after if clause|undefined"
+ 	{
+ 		z	// GCCGO_ERROR "undefined"
+ 
+diff --git a/test/syntax/semi2.go b/test/syntax/semi2.go
+index 61b8bf6d4f..23d7bd0ee8 100644
+--- a/test/syntax/semi2.go
++++ b/test/syntax/semi2.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	switch x; y	// ERROR "missing { after switch clause|undefined"
++	switch x; y	// ERROR "missing .*{.* after switch clause|undefined"
+ 	{
+ 		z
+ 
+diff --git a/test/syntax/semi3.go b/test/syntax/semi3.go
+index bb87520c52..ca070d8a57 100644
+--- a/test/syntax/semi3.go
++++ b/test/syntax/semi3.go
+@@ -7,7 +7,7 @@
+ package main
+ 
+ func main() {
+-	for x; y; z	// ERROR "missing { after for clause|undefined"
++	for x; y; z	// ERROR "missing .*{.* after for clause|undefined"
+ 	{
+ 		z	// GCCGO_ERROR "undefined"
+ 
+diff --git a/test/syntax/semi4.go b/test/syntax/semi4.go
+index 00fa3f575f..99c2d22561 100644
+--- a/test/syntax/semi4.go
++++ b/test/syntax/semi4.go
+@@ -8,7 +8,7 @@ package main
+ 
+ func main() {
+ 	for x		// GCCGO_ERROR "undefined"
+-	{		// ERROR "missing { after for clause"
++	{		// ERROR "missing .*{.* after for clause"
+ 		z	// GCCGO_ERROR "undefined"
+ 
+ 
+diff --git a/test/typecheck.go b/test/typecheck.go
+index 239ceacc69..a2ad91ff4c 100644
+--- a/test/typecheck.go
++++ b/test/typecheck.go
+@@ -13,6 +13,6 @@ func mine(int b) int {	// ERROR "undefined.*b"
+ }
+ 
+ func main() {
+-	mine()
+-	c = mine()	// ERROR "undefined.*c" "cannot assign to c"
++	mine()		// GCCGO_ERROR "not enough arguments"
++	c = mine()	// ERROR "undefined.*c|not enough arguments" "cannot assign to c"
+ }

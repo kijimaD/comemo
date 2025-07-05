@@ -9,7 +9,32 @@ Date:   Tue May 14 15:31:46 2013 -0700
     R=gobot
     CC=golang-dev
     https://golang.org/cl/9419045
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index c21dce7e5c..b9589f6336 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -13,6 +13,7 @@ Adrian Nos <nos.adrian@gmail.com>
+ Adrian O'Grady <elpollouk@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Albert Strasheim <fullung@gmail.com>
++Alberto García Hierro <alberto@garciahierro.com> <alberto.garcia.hierro@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alexander Orlov <alexander.orlov@loxal.net>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 6298dc8285..e951a334d6 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -39,6 +39,7 @@ Adrian O'Grady <elpollouk@gmail.com>
+ Akshat Kumar <seed@mail.nanosouffle.net>
+ Alan Donovan <adonovan@google.com>
+ Albert Strasheim <fullung@gmail.com>
++Alberto García Hierro <alberto@garciahierro.com> <alberto.garcia.hierro@gmail.com>
+ Aleksandar Dezelin <dezelin@gmail.com>
+ Alex Brainman <alex.brainman@gmail.com>
+ Alex Bramley <abramley@google.com>

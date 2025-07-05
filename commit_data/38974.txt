@@ -12,7 +12,54 @@ Date:   Fri Dec 14 05:03:37 2018 +1100
     Change-Id: Icdd95222346239fcc04b95ae0fcefae09b7aa044
     Reviewed-on: https://go-review.googlesource.com/c/154077
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/defs_openbsd_arm.go   | 12 ++++++++----
  src/runtime/signal_openbsd_arm.go |  4 ++--
  2 files changed, 10 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/defs_openbsd_arm.go b/src/runtime/defs_openbsd_arm.go
+index bfccf5772e..59f9410e1d 100644
+--- a/src/runtime/defs_openbsd_arm.go
++++ b/src/runtime/defs_openbsd_arm.go
+@@ -114,13 +114,17 @@ type sigcontext struct {
+ 	sc_usr_lr uint32
+ 	sc_svc_lr uint32
+ 	sc_pc     uint32
++	sc_fpused uint32
++	sc_fpscr  uint32
++	sc_fpreg  [32]uint64
+ }
+ 
+ type siginfo struct {
+-	si_signo int32
+-	si_code  int32
+-	si_errno int32
+-	_data    [116]byte
++	si_signo  int32
++	si_code   int32
++	si_errno  int32
++	pad_cgo_0 [4]byte
++	_data     [120]byte
+ }
+ 
+ type stackt struct {
+diff --git a/src/runtime/signal_openbsd_arm.go b/src/runtime/signal_openbsd_arm.go
+index 97bb13b4f3..f796550e60 100644
+--- a/src/runtime/signal_openbsd_arm.go
++++ b/src/runtime/signal_openbsd_arm.go
+@@ -45,7 +45,7 @@ func (c *sigctxt) oldmask() uint32 { return 0 }
+ 
+ func (c *sigctxt) sigcode() uint32 { return uint32(c.info.si_code) }
+ func (c *sigctxt) sigaddr() uint32 {
+-	return *(*uint32)(add(unsafe.Pointer(c.info), 12))
++	return *(*uint32)(add(unsafe.Pointer(c.info), 16))
+ }
+ 
+ func (c *sigctxt) set_pc(x uint32)  { c.regs().sc_pc = x }
+@@ -55,5 +55,5 @@ func (c *sigctxt) set_r10(x uint32) { c.regs().sc_r10 = x }
+ 
+ func (c *sigctxt) set_sigcode(x uint32) { c.info.si_code = int32(x) }
+ func (c *sigctxt) set_sigaddr(x uint32) {
+-	*(*uint32)(add(unsafe.Pointer(c.info), 12)) = x
++	*(*uint32)(add(unsafe.Pointer(c.info), 16)) = x
+ }

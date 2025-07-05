@@ -8,6 +8,20 @@ Date:   Mon Jul 12 16:31:51 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1819041
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 452acfc760..7b93001626 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -35,7 +35,7 @@ enum
+ void
+ usage(void)
+ {
+-	print("usage: %cg [flags] file.go...\n");
++	print("gc: usage: %cg [flags] file.go...\n", thechar);
+ 	print("flags:\n");
+ 	// -A is allow use of "any" type, for bootstrapping
+ 	print("  -I DIR search for packages in DIR\n");

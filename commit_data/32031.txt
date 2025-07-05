@@ -22,8 +22,86 @@ Date:   Mon Mar 27 15:58:14 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go  |  8 +++++---
  src/cmd/link/internal/ld/main.go | 15 ++++++++++++++-
  src/cmd/link/internal/ld/pe.go   |  2 +-
  3 files changed, 20 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a84a1c14ac..376f64770e 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1026,9 +1026,11 @@ func (l *Link) hostlink() {
+ 	case obj.Hopenbsd:
+ 		argv = append(argv, "-Wl,-nopie")
+ 	case obj.Hwindows:
+-		argv = append(argv, "-mconsole")
+-	case obj.Hwindowsgui:
+-		argv = append(argv, "-mwindows")
++		if windowsgui {
++			argv = append(argv, "-mwindows")
++		} else {
++			argv = append(argv, "-mconsole")
++		}
+ 	}
+ 
+ 	switch Buildmode {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 2fd92f6726..a8302173ac 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -44,12 +44,12 @@ import (
+ 
+ var (
+ 	pkglistfornote []byte
++	windowsgui     bool // writes a "GUI binary" instead of a "console binary"
+ )
+ 
+ func init() {
+ 	flag.Var(&Linkmode, "linkmode", "set link `mode`")
+ 	flag.Var(&Buildmode, "buildmode", "set build `mode`")
+-	flag.Var(&Headtype, "H", "set header `type`")
+ 	flag.Var(&rpath, "r", "set the ELF dynamic linker search `path` to dir1:dir2:...")
+ }
+ 
+@@ -88,6 +88,7 @@ var (
+ 	flagInterpreter = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	FlagDebugTramp  = flag.Int("debugtramp", 0, "debug trampolines")
+ 
++	flagHeadtype    = flag.String("H", "", "set header `type`")
+ 	FlagRound       = flag.Int("R", -1, "set address rounding `quantum`")
+ 	FlagTextAddr    = flag.Int64("T", -1, "set text segment `address`")
+ 	FlagDataAddr    = flag.Int64("D", -1, "set data segment `address`")
+@@ -124,6 +125,18 @@ func Main() {
+ 
+ 	obj.Flagparse(usage)
+ 
++	switch *flagHeadtype {
++	case "":
++	case "windowsgui":
++		Headtype = obj.Hwindows
++		windowsgui = true
++	default:
++		if err := Headtype.Set(*flagHeadtype); err != nil {
++			Errorf(nil, "%v", err)
++			usage()
++		}
++	}
++
+ 	startProfile()
+ 	if Buildmode == BuildmodeUnset {
+ 		Buildmode = BuildmodeExe
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 79e7890a38..a9d14c390f 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1292,7 +1292,7 @@ func Asmbpe(ctxt *Link) {
+ 	oh.SizeOfImage = uint32(nextsectoff)
+ 	oh64.SizeOfHeaders = uint32(PEFILEHEADR)
+ 	oh.SizeOfHeaders = uint32(PEFILEHEADR)
+-	if Headtype == obj.Hwindowsgui {
++	if windowsgui {
+ 		oh64.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
+ 		oh.Subsystem = IMAGE_SUBSYSTEM_WINDOWS_GUI
+ 	} else {

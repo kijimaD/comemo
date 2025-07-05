@@ -16,6 +16,19 @@ Date:   Sun Nov 9 20:21:03 2014 -0500
     R=dneil, r
     CC=golang-codereviews
     https://golang.org/cl/169260043
-
+---
  src/runtime/sema.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/sema.go b/src/runtime/sema.go
+index a42a29988a..d2a028c01b 100644
+--- a/src/runtime/sema.go
++++ b/src/runtime/sema.go
+@@ -259,6 +259,7 @@ func syncsemrelease(s *syncSema, n uint32) {
+ 		}
+ 		s.tail = w
+ 		goparkunlock(&s.lock, "semarelease")
++		releaseSudog(w)
+ 	} else {
+ 		unlock(&s.lock)
+ 	}

@@ -11,7 +11,55 @@ Date:   Sun Aug 23 23:53:04 2020 +0100
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/testing_issue40908.txt | 21 +++++++++++++++++++++
  src/testing/testing.go                            |  4 ++++
  2 files changed, 25 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/testing_issue40908.txt b/src/cmd/go/testdata/script/testing_issue40908.txt
+new file mode 100644
+index 0000000000..4939de080c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/testing_issue40908.txt
+@@ -0,0 +1,21 @@
++[short] skip
++[!race] skip
++
++go test -race testrace
++
++-- testrace/race_test.go --
++package testrace
++
++import "testing"
++
++func TestRace(t *testing.T) {
++	helperDone := make(chan struct{})
++	go func() {
++		t.Logf("Something happened before cleanup.")
++		close(helperDone)
++	}()
++
++	t.Cleanup(func() {
++		<-helperDone
++	})
++}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 6fc8c4fa9f..bf83df8863 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -860,11 +860,15 @@ func (c *common) Cleanup(f func()) {
+ 	c.cleanup = func() {
+ 		if oldCleanup != nil {
+ 			defer func() {
++				c.mu.Lock()
+ 				c.cleanupPc = oldCleanupPc
++				c.mu.Unlock()
+ 				oldCleanup()
+ 			}()
+ 		}
++		c.mu.Lock()
+ 		c.cleanupName = callerName(0)
++		c.mu.Unlock()
+ 		f()
+ 	}
+ 	var pc [maxStackLen]uintptr

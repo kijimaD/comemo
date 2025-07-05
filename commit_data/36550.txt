@@ -34,6 +34,30 @@ Date:   Thu May 3 10:13:31 2018 +0200
     Change-Id: I46380b1e1b4bf47db7bc7b3d313f00c4e4c11ea3
     Reviewed-on: https://go-review.googlesource.com/111176
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os_linux.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index a4992343b5..68f99de115 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -415,10 +415,14 @@ func (c *sigctxt) fixsigcode(sig uint32) {
+ //go:nosplit
+ func sysSigaction(sig uint32, new, old *sigactiont) {
+ 	if rt_sigaction(uintptr(sig), new, old, unsafe.Sizeof(sigactiont{}.sa_mask)) != 0 {
+-		// Use system stack to avoid split stack overflow on ppc64/ppc64le.
+-		systemstack(func() {
+-			throw("sigaction failed")
+-		})
++		// Workaround for bug in Qemu user mode emulation. (qemu
++		// rejects rt_sigaction of signal 64, SIGRTMAX).
++		if sig != 64 {
++			// Use system stack to avoid split stack overflow on ppc64/ppc64le.
++			systemstack(func() {
++				throw("sigaction failed")
++			})
++		}
+ 	}
+ }
+ 

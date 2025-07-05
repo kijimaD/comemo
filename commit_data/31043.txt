@@ -11,7 +11,68 @@ Date:   Sun Jan 15 20:39:10 2017 -0500
     Run-TryBot: Minux Ma <minux@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s | 10 +++++-----
  src/vendor/golang_org/x/crypto/poly1305/sum_arm.s   | 14 +++++++-------
  2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s b/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s
+index bc75c61afc..2edae63828 100644
+--- a/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s
++++ b/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s
+@@ -54,9 +54,9 @@
+ 	ADCQ  t3, h1;                  \
+ 	ADCQ  $0, h2
+ 
+-DATA poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
+-DATA poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
+-GLOBL poly1305Mask<>(SB), RODATA, $16
++DATA ·poly1305Mask<>+0x00(SB)/8, $0x0FFFFFFC0FFFFFFF
++DATA ·poly1305Mask<>+0x08(SB)/8, $0x0FFFFFFC0FFFFFFC
++GLOBL ·poly1305Mask<>(SB), RODATA, $16
+ 
+ // func poly1305(out *[16]byte, m *byte, mlen uint64, key *[32]key)
+ TEXT ·poly1305(SB), $0-32
+@@ -67,8 +67,8 @@ TEXT ·poly1305(SB), $0-32
+ 
+ 	MOVQ 0(AX), R11
+ 	MOVQ 8(AX), R12
+-	ANDQ poly1305Mask<>(SB), R11   // r0
+-	ANDQ poly1305Mask<>+8(SB), R12 // r1
++	ANDQ ·poly1305Mask<>(SB), R11   // r0
++	ANDQ ·poly1305Mask<>+8(SB), R12 // r1
+ 	XORQ R8, R8                    // h0
+ 	XORQ R9, R9                    // h1
+ 	XORQ R10, R10                  // h2
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_arm.s b/src/vendor/golang_org/x/crypto/poly1305/sum_arm.s
+index 93167b2712..f70b4ac484 100644
+--- a/src/vendor/golang_org/x/crypto/poly1305/sum_arm.s
++++ b/src/vendor/golang_org/x/crypto/poly1305/sum_arm.s
+@@ -9,12 +9,12 @@
+ // This code was translated into a form compatible with 5a from the public
+ // domain source by Andrew Moon: github.com/floodyberry/poly1305-opt/blob/master/app/extensions/poly1305.
+ 
+-DATA poly1305_init_constants_armv6<>+0x00(SB)/4, $0x3ffffff
+-DATA poly1305_init_constants_armv6<>+0x04(SB)/4, $0x3ffff03
+-DATA poly1305_init_constants_armv6<>+0x08(SB)/4, $0x3ffc0ff
+-DATA poly1305_init_constants_armv6<>+0x0c(SB)/4, $0x3f03fff
+-DATA poly1305_init_constants_armv6<>+0x10(SB)/4, $0x00fffff
+-GLOBL poly1305_init_constants_armv6<>(SB), 8, $20
++DATA ·poly1305_init_constants_armv6<>+0x00(SB)/4, $0x3ffffff
++DATA ·poly1305_init_constants_armv6<>+0x04(SB)/4, $0x3ffff03
++DATA ·poly1305_init_constants_armv6<>+0x08(SB)/4, $0x3ffc0ff
++DATA ·poly1305_init_constants_armv6<>+0x0c(SB)/4, $0x3f03fff
++DATA ·poly1305_init_constants_armv6<>+0x10(SB)/4, $0x00fffff
++GLOBL ·poly1305_init_constants_armv6<>(SB), 8, $20
+ 
+ // Warning: the linker may use R11 to synthesize certain instructions. Please
+ // take care and verify that no synthetic instructions use it.
+@@ -27,7 +27,7 @@ TEXT poly1305_init_ext_armv6<>(SB), NOSPLIT, $0
+ 	ADD       $4, R13, R8
+ 	MOVM.IB   [R4-R7], (R8)
+ 	MOVM.IA.W (R1), [R2-R5]
+-	MOVW      $poly1305_init_constants_armv6<>(SB), R7
++	MOVW      $·poly1305_init_constants_armv6<>(SB), R7
+ 	MOVW      R2, R8
+ 	MOVW      R2>>26, R9
+ 	MOVW      R3>>20, g

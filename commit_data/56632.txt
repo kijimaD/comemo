@@ -20,7 +20,7 @@ Date:   Wed Apr 26 12:16:26 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/cgo/internal/testcarchive/carchive_test.go | 29 ++++++++-
  src/cmd/cgo/internal/testcshared/cshared_test.go   | 70 +++++++++++++++-------
  .../cgo/internal/testerrors/argposition_test.go    |  4 ++
@@ -46,3 +46,944 @@ Date:   Wed Apr 26 12:16:26 2023 -0400
  src/internal/platform/supported.go                 |  2 -
  src/internal/testenv/testenv.go                    |  9 +++
  24 files changed, 197 insertions(+), 148 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index a92ec46c1a..a367bca2f1 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -461,6 +461,8 @@ func checkELFArchiveObject(t *testing.T, arname string, off int64, obj io.Reader
+ 
+ func TestInstall(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	if !testWork {
+ 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+@@ -504,6 +506,8 @@ func TestEarlySignalHandler(t *testing.T) {
+ 		t.Skip("skipping signal test on Windows")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	if !testWork {
+ 		defer func() {
+@@ -643,6 +647,9 @@ func checkSignalForwardingTest(t *testing.T) {
+ 	case "windows":
+ 		t.Skip("skipping signal test on Windows")
+ 	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ }
+ 
+ // buildSignalForwardingTest builds the executable used by the various
+@@ -772,6 +779,8 @@ func TestOsSignal(t *testing.T) {
+ 		t.Skip("skipping signal test on Windows")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	if !testWork {
+ 		defer func() {
+@@ -811,6 +820,8 @@ func TestSigaltstack(t *testing.T) {
+ 		t.Skip("skipping signal test on Windows")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	if !testWork {
+ 		defer func() {
+@@ -860,10 +871,10 @@ func TestExtar(t *testing.T) {
+ 	if runtime.Compiler == "gccgo" {
+ 		t.Skip("skipping -extar test when using gccgo")
+ 	}
+-	if runtime.GOOS == "ios" {
+-		t.Skip("shell scripts are not executable on iOS hosts")
+-	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
++	testenv.MustHaveExecPath(t, "bash") // This test uses a bash script
+ 
+ 	if !testWork {
+ 		defer func() {
+@@ -907,6 +918,8 @@ func TestPIE(t *testing.T) {
+ 		t.Skipf("skipping PIE test on %s", GOOS)
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	libgoa := "libgo.a"
+ 	if runtime.Compiler == "gccgo" {
+@@ -1002,6 +1015,8 @@ func TestSIGPROF(t *testing.T) {
+ 		t.Skipf("skipping SIGPROF test on %s; see https://golang.org/issue/19320", GOOS)
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	t.Parallel()
+ 
+@@ -1116,6 +1131,9 @@ func TestCompileWithoutShared(t *testing.T) {
+ // Test that installing a second time recreates the header file.
+ func TestCachedInstall(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
++
+ 	if !testWork {
+ 		defer os.RemoveAll(filepath.Join(GOPATH, "pkg"))
+ 	}
+@@ -1156,6 +1174,9 @@ func TestCachedInstall(t *testing.T) {
+ // Issue 35294.
+ func TestManyCalls(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
++
+ 	t.Parallel()
+ 
+ 	if !testWork {
+@@ -1215,6 +1236,8 @@ func TestPreemption(t *testing.T) {
+ 		t.Skip("skipping asynchronous preemption test with gccgo")
+ 	}
+ 	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-archive")
+ 
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/cgo/internal/testcshared/cshared_test.go b/src/cmd/cgo/internal/testcshared/cshared_test.go
+index 2b57249817..fbbe66662f 100644
+--- a/src/cmd/cgo/internal/testcshared/cshared_test.go
++++ b/src/cmd/cgo/internal/testcshared/cshared_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"encoding/binary"
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -50,6 +51,11 @@ func testMain(m *testing.M) int {
+ 			os.Exit(0)
+ 		}
+ 	}
++	if !testenv.HasGoBuild() {
++		// Checking for "go build" is a proxy for whether or not we can run "go env".
++		fmt.Printf("SKIP - no go build")
++		os.Exit(0)
++	}
+ 
+ 	GOOS = goEnv("GOOS")
+ 	GOARCH = goEnv("GOARCH")
+@@ -390,6 +396,10 @@ var (
+ )
+ 
+ func createHeadersOnce(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
+ 	headersOnce.Do(func() {
+ 		headersErr = createHeaders()
+ 	})
+@@ -413,6 +423,9 @@ func cleanupAndroid() {
+ 
+ // test0: exported symbols in shared lib are accessible.
+ func TestExportedSymbols(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveExec(t)
++
+ 	t.Parallel()
+ 
+ 	cmd := "testp0"
+@@ -516,6 +529,10 @@ func TestNumberOfExportedFunctions(t *testing.T) {
+ 	if GOOS != "windows" {
+ 		t.Skip("skipping windows only test")
+ 	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
+ 	t.Parallel()
+ 
+ 	t.Run("OnlyExported", func(t *testing.T) {
+@@ -528,12 +545,13 @@ func TestNumberOfExportedFunctions(t *testing.T) {
+ 
+ // test1: shared library can be dynamically loaded and exported symbols are accessible.
+ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
+-	t.Parallel()
+-
+ 	if GOOS == "windows" {
+-		t.Logf("Skipping on %s", GOOS)
+-		return
++		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveExec(t)
++
++	t.Parallel()
+ 
+ 	cmd := "testp1"
+ 	bin := cmdToRun(cmd)
+@@ -557,12 +575,14 @@ func TestExportedSymbolsWithDynamicLoad(t *testing.T) {
+ 
+ // test2: tests libgo2 which does not export any functions.
+ func TestUnexportedSymbols(t *testing.T) {
+-	t.Parallel()
+-
+ 	if GOOS == "windows" {
+-		t.Logf("Skipping on %s", GOOS)
+-		return
++		t.Skipf("Skipping on %s", GOOS)
+ 	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
++	t.Parallel()
+ 
+ 	cmd := "testp2"
+ 	bin := cmdToRun(cmd)
+@@ -597,6 +617,9 @@ func TestUnexportedSymbols(t *testing.T) {
+ 
+ // test3: tests main.main is exported on android.
+ func TestMainExportedOnAndroid(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveExec(t)
++
+ 	t.Parallel()
+ 
+ 	switch GOOS {
+@@ -624,6 +647,13 @@ func TestMainExportedOnAndroid(t *testing.T) {
+ }
+ 
+ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
++	if GOOS == "windows" {
++		t.Skipf("Skipping on %s", GOOS)
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
+ 	libname := pkgname + ".a"
+ 	run(t,
+ 		nil,
+@@ -655,34 +685,25 @@ func testSignalHandlers(t *testing.T, pkgname, cfile, cmd string) {
+ // test4: test signal handlers
+ func TestSignalHandlers(t *testing.T) {
+ 	t.Parallel()
+-	if GOOS == "windows" {
+-		t.Logf("Skipping on %s", GOOS)
+-		return
+-	}
+ 	testSignalHandlers(t, "./libgo4", "main4.c", "testp4")
+ }
+ 
+ // test5: test signal handlers with os/signal.Notify
+ func TestSignalHandlersWithNotify(t *testing.T) {
+ 	t.Parallel()
+-	if GOOS == "windows" {
+-		t.Logf("Skipping on %s", GOOS)
+-		return
+-	}
+ 	testSignalHandlers(t, "./libgo5", "main5.c", "testp5")
+ }
+ 
+ func TestPIE(t *testing.T) {
+-	t.Parallel()
+-
+ 	switch GOOS {
+ 	case "linux", "android":
+ 		break
+ 	default:
+-		t.Logf("Skipping on %s", GOOS)
+-		return
++		t.Skipf("Skipping on %s", GOOS)
+ 	}
+ 
++	t.Parallel()
++
+ 	createHeadersOnce(t)
+ 
+ 	f, err := elf.Open(libgoname)
+@@ -717,6 +738,10 @@ func TestPIE(t *testing.T) {
+ 
+ // Test that installing a second time recreates the header file.
+ func TestCachedInstall(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
+ 	tmpdir, err := os.MkdirTemp("", "cshared")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -817,6 +842,9 @@ func TestGo2C2Go(t *testing.T) {
+ 	case "android":
+ 		t.Skip("test fails on android; issue 29087")
+ 	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
+ 
+ 	t.Parallel()
+ 
+@@ -866,6 +894,8 @@ func TestGo2C2Go(t *testing.T) {
+ }
+ 
+ func TestIssue36233(t *testing.T) {
++	testenv.MustHaveCGO(t)
++
+ 	t.Parallel()
+ 
+ 	// Test that the export header uses GoComplex64 and GoComplex128
+diff --git a/src/cmd/cgo/internal/testerrors/argposition_test.go b/src/cmd/cgo/internal/testerrors/argposition_test.go
+index dd26663df2..0876dc4caf 100644
+--- a/src/cmd/cgo/internal/testerrors/argposition_test.go
++++ b/src/cmd/cgo/internal/testerrors/argposition_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/ast"
+ 	"go/parser"
+ 	"go/token"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -65,6 +66,9 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
+ }
+ 
+ func TestArgumentsPositions(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveExec(t)
++
+ 	testdata, err := filepath.Abs("testdata")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/cgo/internal/testerrors/badsym_test.go b/src/cmd/cgo/internal/testerrors/badsym_test.go
+index bc3ba2b489..6c87977bd1 100644
+--- a/src/cmd/cgo/internal/testerrors/badsym_test.go
++++ b/src/cmd/cgo/internal/testerrors/badsym_test.go
+@@ -6,6 +6,8 @@ package errorstest
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/quoted"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -39,6 +41,9 @@ func main() {
+ `
+ 
+ func TestBadSymbol(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
+ 	dir := t.TempDir()
+ 
+ 	mkdir := func(base string) string {
+@@ -167,7 +172,14 @@ func TestBadSymbol(t *testing.T) {
+ }
+ 
+ func cCompilerCmd(t *testing.T) []string {
+-	cc := []string{goEnv(t, "CC")}
++	cc, err := quoted.Split(goEnv(t, "CC"))
++	if err != nil {
++		t.Skipf("parsing go env CC: %s", err)
++	}
++	if len(cc) == 0 {
++		t.Skipf("no C compiler")
++	}
++	testenv.MustHaveExecPath(t, cc[0])
+ 
+ 	out := goEnv(t, "GOGCCFLAGS")
+ 	quote := '\000'
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 5147e51aa1..486530e186 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -24,6 +24,7 @@ func path(file string) string {
+ func check(t *testing.T, file string) {
+ 	t.Run(file, func(t *testing.T) {
+ 		testenv.MustHaveGoBuild(t)
++		testenv.MustHaveCGO(t)
+ 		t.Parallel()
+ 
+ 		contents, err := os.ReadFile(path(file))
+@@ -91,6 +92,8 @@ func expect(t *testing.T, file string, errors []*regexp.Regexp) {
+ }
+ 
+ func sizeofLongDouble(t *testing.T) int {
++	testenv.MustHaveGoRun(t)
++	testenv.MustHaveCGO(t)
+ 	cmd := exec.Command("go", "run", path("long_double_size.go"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -137,6 +140,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
+ 		cflags := cflags
+ 		t.Run(cflags, func(t *testing.T) {
+ 			testenv.MustHaveGoBuild(t)
++			testenv.MustHaveCGO(t)
+ 			t.Parallel()
+ 
+ 			cmd := exec.Command("go", "build", path("issue14669.go"))
+@@ -150,6 +154,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
+ }
+ 
+ func TestMallocCrashesOnNil(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoRun(t)
+ 	t.Parallel()
+ 
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 24851cbf35..149445899f 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -10,9 +10,11 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"sync/atomic"
+ 	"testing"
+@@ -434,6 +436,13 @@ var ptrTests = []ptrTest{
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	if runtime.GOOS == "windows" {
++		// TODO: Skip just the cases that fail?
++		t.Skipf("some tests fail to build on %s", runtime.GOOS)
++	}
++
+ 	var gopath string
+ 	var dir string
+ 	if *tmp != "" {
+diff --git a/src/cmd/cgo/internal/testfortran/fortran_test.go b/src/cmd/cgo/internal/testfortran/fortran_test.go
+index fa4f0e6049..eaa36ac7f9 100644
+--- a/src/cmd/cgo/internal/testfortran/fortran_test.go
++++ b/src/cmd/cgo/internal/testfortran/fortran_test.go
+@@ -17,6 +17,7 @@ import (
+ 
+ func TestFortran(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
++	testenv.MustHaveCGO(t)
+ 
+ 	// Find the FORTRAN compiler.
+ 	fc := os.Getenv("FC")
+diff --git a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+index 7b149ffe20..8138b7fa3d 100644
+--- a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
++++ b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+@@ -32,6 +32,7 @@ var filePrefixes = []string{
+ 
+ func TestGoDefs(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
++	testenv.MustHaveCGO(t)
+ 
+ 	testdata, err := filepath.Abs("testdata")
+ 	if err != nil {
+diff --git a/src/cmd/cgo/internal/testlife/life_test.go b/src/cmd/cgo/internal/testlife/life_test.go
+index e6b371fe7c..7beeaa9823 100644
+--- a/src/cmd/cgo/internal/testlife/life_test.go
++++ b/src/cmd/cgo/internal/testlife/life_test.go
+@@ -46,10 +46,8 @@ func testMain(m *testing.M) int {
+ 
+ // TestTestRun runs a test case for cgo //export.
+ func TestTestRun(t *testing.T) {
+-	if os.Getenv("GOOS") == "android" {
+-		t.Skip("the go tool runs with CGO_ENABLED=0 on the android device")
+-	}
+ 	testenv.MustHaveGoRun(t)
++	testenv.MustHaveCGO(t)
+ 
+ 	cmd := exec.Command("go", "run", "main.go")
+ 	got, err := cmd.CombinedOutput()
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 84ea839a2f..e211a96304 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -9,10 +9,13 @@ import (
+ 	"context"
+ 	"flag"
+ 	"fmt"
++	"internal/platform"
++	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -44,6 +47,17 @@ func prettyPrintf(format string, args ...interface{}) {
+ }
+ 
+ func testMain(m *testing.M) int {
++	// TODO: Move all of this initialization stuff into a sync.Once that each
++	// test can use, where we can properly t.Skip.
++	if !platform.BuildModeSupported(runtime.Compiler, "plugin", runtime.GOOS, runtime.GOARCH) {
++		fmt.Printf("SKIP - plugin build mode not supported\n")
++		os.Exit(0)
++	}
++	if !testenv.HasCGO() {
++		fmt.Printf("SKIP - cgo not supported\n")
++		os.Exit(0)
++	}
++
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 9bf48915e2..7db356244a 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -8,11 +8,15 @@ package sanitizers_test
+ 
+ import (
+ 	"fmt"
++	"internal/platform"
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestASAN(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -22,7 +26,7 @@ func TestASAN(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// The asan tests require support for the -asan option.
+-	if !aSanSupported(goos, goarch) {
++	if !platform.ASanSupported(goos, goarch) {
+ 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+ 	}
+ 	// The current implementation is only compatible with the ASan library from version
+@@ -102,6 +106,8 @@ func TestASAN(t *testing.T) {
+ }
+ 
+ func TestASANLinkerX(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
+ 	// Test ASAN with linker's -X flag (see issue 56175).
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+@@ -112,7 +118,7 @@ func TestASANLinkerX(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// The asan tests require support for the -asan option.
+-	if !aSanSupported(goos, goarch) {
++	if !platform.ASanSupported(goos, goarch) {
+ 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+ 	}
+ 	if !compilerRequiredAsanVersion(goos, goarch) {
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 5facb37e68..6eb5a64f9b 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -562,27 +562,3 @@ func hangProneCmd(name string, arg ...string) *exec.Cmd {
+ 	}
+ 	return cmd
+ }
+-
+-// mSanSupported is a copy of the function cmd/internal/sys.MSanSupported,
+-// because the internal package can't be used here.
+-func mSanSupported(goos, goarch string) bool {
+-	switch goos {
+-	case "linux":
+-		return goarch == "amd64" || goarch == "arm64"
+-	case "freebsd":
+-		return goarch == "amd64"
+-	default:
+-		return false
+-	}
+-}
+-
+-// aSanSupported is a copy of the function cmd/internal/sys.ASanSupported,
+-// because the internal package can't be used here.
+-func aSanSupported(goos, goarch string) bool {
+-	switch goos {
+-	case "linux":
+-		return goarch == "amd64" || goarch == "arm64" || goarch == "riscv64" || goarch == "ppc64le"
+-	default:
+-		return false
+-	}
+-}
+diff --git a/src/cmd/cgo/internal/testsanitizers/cshared_test.go b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+index 5a8e93d101..f26c50a621 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cshared_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+@@ -8,12 +8,18 @@ package sanitizers_test
+ 
+ import (
+ 	"fmt"
++	"internal/platform"
++	"internal/testenv"
+ 	"os"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestShared(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "c-shared")
++
+ 	t.Parallel()
+ 	requireOvercommit(t)
+ 
+@@ -50,7 +56,7 @@ func TestShared(t *testing.T) {
+ 		tc := tc
+ 		name := strings.TrimSuffix(tc.src, ".go")
+ 		//The memory sanitizer tests require support for the -msan option.
+-		if tc.sanitizer == "memory" && !mSanSupported(GOOS, GOARCH) {
++		if tc.sanitizer == "memory" && !platform.MSanSupported(GOOS, GOARCH) {
+ 			t.Logf("skipping %s test on %s/%s; -msan option is not supported.", name, GOOS, GOARCH)
+ 			continue
+ 		}
+diff --git a/src/cmd/cgo/internal/testsanitizers/msan_test.go b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+index a05c545d2a..1a22b5246c 100644
+--- a/src/cmd/cgo/internal/testsanitizers/msan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+@@ -7,6 +7,7 @@
+ package sanitizers_test
+ 
+ import (
++	"internal/platform"
+ 	"strings"
+ 	"testing"
+ )
+@@ -21,7 +22,7 @@ func TestMSAN(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	// The msan tests require support for the -msan option.
+-	if !mSanSupported(goos, goarch) {
++	if !platform.MSanSupported(goos, goarch) {
+ 		t.Skipf("skipping on %s/%s; -msan option is not supported.", goos, goarch)
+ 	}
+ 
+diff --git a/src/cmd/cgo/internal/testsanitizers/tsan_test.go b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+index 6f70ebfef5..8e758e6ea7 100644
+--- a/src/cmd/cgo/internal/testsanitizers/tsan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+@@ -7,11 +7,15 @@
+ package sanitizers_test
+ 
+ import (
++	"internal/testenv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+ func TestTSAN(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveCGO(t)
++
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 34cf3f3141..05e87b9d50 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -12,6 +12,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"go/build"
++	"internal/platform"
++	"internal/testenv"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -91,6 +93,17 @@ func goCmd(t *testing.T, args ...string) string {
+ 
+ // TestMain calls testMain so that the latter can use defer (TestMain exits with os.Exit).
+ func testMain(m *testing.M) (int, error) {
++	// TODO: Move all of this initialization stuff into a sync.Once that each
++	// test can use, where we can properly t.Skip.
++	if !platform.BuildModeSupported(runtime.Compiler, "shared", runtime.GOOS, runtime.GOARCH) {
++		fmt.Printf("SKIP - shared build mode not supported\n")
++		os.Exit(0)
++	}
++	if !testenv.HasCGO() {
++		fmt.Printf("SKIP - cgo not supported\n")
++		os.Exit(0)
++	}
++
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+ 		log.Fatal(err)
+@@ -531,6 +544,7 @@ func TestTrivialPIE(t *testing.T) {
+ 	if strings.HasSuffix(os.Getenv("GO_BUILDER_NAME"), "-alpine") {
+ 		t.Skip("skipping on alpine until issue #54354 resolved")
+ 	}
++	testenv.MustHaveBuildMode(t, "pie")
+ 	name := "trivial_pie"
+ 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./trivial")
+ 	defer os.Remove(name)
+@@ -539,6 +553,8 @@ func TestTrivialPIE(t *testing.T) {
+ }
+ 
+ func TestCgoPIE(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveBuildMode(t, "pie")
+ 	name := "cgo_pie"
+ 	goCmd(t, "build", "-buildmode=pie", "-o="+name, "./execgo")
+ 	defer os.Remove(name)
+diff --git a/src/cmd/cgo/internal/testso/noso_test.go b/src/cmd/cgo/internal/testso/noso_test.go
+deleted file mode 100644
+index 45b13e1928..0000000000
+--- a/src/cmd/cgo/internal/testso/noso_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !cgo
+-
+-package so_test
+-
+-// Nothing to test.
+diff --git a/src/cmd/cgo/internal/testso/so_test.go b/src/cmd/cgo/internal/testso/so_test.go
+index 5c460d21b6..a2cd056c45 100644
+--- a/src/cmd/cgo/internal/testso/so_test.go
++++ b/src/cmd/cgo/internal/testso/so_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
+-
+ package so_test
+ 
+ import (
++	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -16,25 +15,13 @@ import (
+ 	"testing"
+ )
+ 
+-func requireTestSOSupported(t *testing.T) {
+-	t.Helper()
+-	switch runtime.GOARCH {
+-	case "arm64":
+-		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-			t.Skip("No exec facility on iOS.")
+-		}
+-	case "ppc64":
+-		if runtime.GOOS == "linux" {
+-			t.Skip("External linking not implemented on linux/ppc64 (issue #8912).")
+-		}
+-	}
+-	if runtime.GOOS == "android" {
+-		t.Skip("No exec facility on Android.")
+-	}
+-}
+-
+ func TestSO(t *testing.T) {
+-	requireTestSOSupported(t)
++	if runtime.GOOS == "ios" {
++		t.Skip("iOS disallows dynamic loading of user libraries")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveExec(t)
++	testenv.MustHaveCGO(t)
+ 
+ 	GOPATH, err := os.MkdirTemp("", "cgosotest")
+ 	if err != nil {
+diff --git a/src/cmd/cgo/internal/testsovar/noso_test.go b/src/cmd/cgo/internal/testsovar/noso_test.go
+deleted file mode 100644
+index 45b13e1928..0000000000
+--- a/src/cmd/cgo/internal/testsovar/noso_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !cgo
+-
+-package so_test
+-
+-// Nothing to test.
+diff --git a/src/cmd/cgo/internal/testsovar/so_test.go b/src/cmd/cgo/internal/testsovar/so_test.go
+index 5c460d21b6..a2cd056c45 100644
+--- a/src/cmd/cgo/internal/testsovar/so_test.go
++++ b/src/cmd/cgo/internal/testsovar/so_test.go
+@@ -2,11 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build cgo
+-
+ package so_test
+ 
+ import (
++	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -16,25 +15,13 @@ import (
+ 	"testing"
+ )
+ 
+-func requireTestSOSupported(t *testing.T) {
+-	t.Helper()
+-	switch runtime.GOARCH {
+-	case "arm64":
+-		if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-			t.Skip("No exec facility on iOS.")
+-		}
+-	case "ppc64":
+-		if runtime.GOOS == "linux" {
+-			t.Skip("External linking not implemented on linux/ppc64 (issue #8912).")
+-		}
+-	}
+-	if runtime.GOOS == "android" {
+-		t.Skip("No exec facility on Android.")
+-	}
+-}
+-
+ func TestSO(t *testing.T) {
+-	requireTestSOSupported(t)
++	if runtime.GOOS == "ios" {
++		t.Skip("iOS disallows dynamic loading of user libraries")
++	}
++	testenv.MustHaveGoBuild(t)
++	testenv.MustHaveExec(t)
++	testenv.MustHaveCGO(t)
+ 
+ 	GOPATH, err := os.MkdirTemp("", "cgosotest")
+ 	if err != nil {
+diff --git a/src/cmd/cgo/internal/teststdio/stdio_test.go b/src/cmd/cgo/internal/teststdio/stdio_test.go
+index fad367e30c..f191c50a42 100644
+--- a/src/cmd/cgo/internal/teststdio/stdio_test.go
++++ b/src/cmd/cgo/internal/teststdio/stdio_test.go
+@@ -48,9 +48,7 @@ func testMain(m *testing.M) int {
+ // TestTestRun runs a cgo test that doesn't depend on non-standard libraries.
+ func TestTestRun(t *testing.T) {
+ 	testenv.MustHaveGoRun(t)
+-	if os.Getenv("GOOS") == "android" {
+-		t.Skip("subpackage stdio is not available on android")
+-	}
++	testenv.MustHaveCGO(t)
+ 
+ 	for _, file := range [...]string{
+ 		"chain.go",
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b6775cacbb..9fed4b9e20 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -847,40 +847,22 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	const cgoHeading = "Testing cgo"
+-	if t.cgoEnabled && !t.iOS() {
+-		// Disabled on iOS. golang.org/issue/15919
+-		t.registerTest("cgo_teststdio", cgoHeading, &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
+-		t.registerTest("cgo_testlife", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
+-		if goos != "android" {
+-			t.registerTest("cgo_testfortran", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
+-		}
+-	}
++	t.registerTest("cgo_teststdio", cgoHeading, &goTest{pkg: "cmd/cgo/internal/teststdio", timeout: 5 * time.Minute})
++	t.registerTest("cgo_testlife", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testlife", timeout: 5 * time.Minute})
++	t.registerTest("cgo_testfortran", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testfortran", timeout: 5 * time.Minute})
+ 	if t.cgoEnabled {
+ 		t.registerCgoTests(cgoHeading)
+ 	}
+ 
+-	if t.cgoEnabled {
+-		t.registerTest("cgo_testgodefs", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
+-
+-		t.registerTest("cgo_testso", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
+-		t.registerTest("cgo_testsovar", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
+-		if t.supportedBuildmode("c-archive") {
+-			t.registerTest("cgo_testcarchive", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
+-		}
+-		if t.supportedBuildmode("c-shared") {
+-			t.registerTest("cgo_testcshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
+-		}
+-		if t.supportedBuildmode("shared") {
+-			t.registerTest("cgo_testshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
+-		}
+-		if t.supportedBuildmode("plugin") {
+-			t.registerTest("cgo_testplugin", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
+-		}
+-		t.registerTest("cgo_testsanitizers", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
+-		if t.hasBash() && goos != "android" && !t.iOS() && gohostos != "windows" {
+-			t.registerTest("cgo_errors", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
+-		}
+-	}
++	t.registerTest("cgo_testgodefs", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testgodefs", timeout: 5 * time.Minute})
++	t.registerTest("cgo_testso", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testso", timeout: 600 * time.Second})
++	t.registerTest("cgo_testsovar", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsovar", timeout: 600 * time.Second})
++	t.registerTest("cgo_testcarchive", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcarchive", timeout: 5 * time.Minute})
++	t.registerTest("cgo_testcshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testcshared", timeout: 5 * time.Minute})
++	t.registerTest("cgo_testshared", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testshared", timeout: 600 * time.Second})
++	t.registerTest("cgo_testplugin", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testplugin", timeout: 600 * time.Second})
++	t.registerTest("cgo_testsanitizers", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testsanitizers", timeout: 5 * time.Minute})
++	t.registerTest("cgo_errors", cgoHeading, &goTest{pkg: "cmd/cgo/internal/testerrors", timeout: 5 * time.Minute})
+ 
+ 	if goos != "android" && !t.iOS() {
+ 		// Only start multiple test dir shards on builders,
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index 1287838edb..e762bb304e 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -24,7 +24,6 @@ func RaceDetectorSupported(goos, goarch string) bool {
+ 
+ // MSanSupported reports whether goos/goarch supports the memory
+ // sanitizer option.
+-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
+ func MSanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+@@ -38,7 +37,6 @@ func MSanSupported(goos, goarch string) bool {
+ 
+ // ASanSupported reports whether goos/goarch supports the address
+ // sanitizer option.
+-// There is a copy of this function in misc/cgo/testsanitizers/cc_test.go.
+ func ASanSupported(goos, goarch string) bool {
+ 	switch goos {
+ 	case "linux":
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index 70606242d6..31b58ddba7 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -371,6 +371,15 @@ func MustInternalLink(t testing.TB, withCgo bool) {
+ 	}
+ }
+ 
++// MustHaveBuildMode reports whether the current system can build programs in
++// the given build mode.
++// If not, MustHaveBuildMode calls t.Skip with an explanation.
++func MustHaveBuildMode(t testing.TB, buildmode string) {
++	if !platform.BuildModeSupported(runtime.Compiler, buildmode, runtime.GOOS, runtime.GOARCH) {
++		t.Skipf("skipping test: build mode %s on %s/%s is not supported by the %s compiler", buildmode, runtime.GOOS, runtime.GOARCH, runtime.Compiler)
++	}
++}
++
+ // HasSymlink reports whether the current system can use os.Symlink.
+ func HasSymlink() bool {
+ 	ok, _ := hasSymlink()

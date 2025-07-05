@@ -10,6 +10,19 @@ Date:   Fri Jul 19 17:45:34 2013 +0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/11569043
-
+---
  src/pkg/runtime/proc.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index fe32f2c28b..18ddce8018 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2098,6 +2098,7 @@ sysmon(void)
+ 		lastpoll = runtime·atomicload64(&runtime·sched.lastpoll);
+ 		now = runtime·nanotime();
+ 		if(lastpoll != 0 && lastpoll + 10*1000*1000 > now) {
++			runtime·cas64(&runtime·sched.lastpoll, lastpoll, now);
+ 			gp = runtime·netpoll(false);  // non-blocking
+ 			injectglist(gp);
+ 		}

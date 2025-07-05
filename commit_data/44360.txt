@@ -25,7 +25,7 @@ Date:   Fri Jun 12 09:35:42 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/237678
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/arm/asm.go              |  1 +
  src/cmd/link/internal/ld/data.go              | 22 ++++--------
  src/cmd/link/internal/ld/dwarf.go             | 52 ++++++++++++---------------
@@ -40,3 +40,686 @@ Date:   Fri Jun 12 09:35:42 2020 -0400
  src/cmd/link/internal/loader/symbolbuilder.go | 19 ++--------
  src/cmd/link/internal/ppc64/asm.go            |  4 +--
  13 files changed, 41 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 1f78f76255..ea71d11356 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -387,6 +387,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 				oName := ldr.SymName(rs)
+ 				name := oName + fmt.Sprintf("%+d-tramp%d", offset, i)
+ 				tramp = ldr.LookupOrCreateSym(name, int(ldr.SymVersion(rs)))
++				ldr.SetAttrReachable(tramp, true)
+ 				if ldr.SymType(tramp) == sym.SDYNIMPORT {
+ 					// don't reuse trampoline defined in other module
+ 					continue
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 8fec08bee5..73003179ab 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -740,15 +740,14 @@ func (ctxt *Link) windynrelocsyms() {
+ 		return
+ 	}
+ 
+-	rel := ctxt.loader.LookupOrCreateSym(".rel", 0)
+-	relu := ctxt.loader.MakeSymbolUpdater(rel)
+-	relu.SetType(sym.STEXT)
++	rel := ctxt.loader.CreateSymForUpdate(".rel", 0)
++	rel.SetType(sym.STEXT)
+ 
+ 	for _, s := range ctxt.Textp {
+-		windynrelocsym(ctxt, relu, s)
++		windynrelocsym(ctxt, rel, s)
+ 	}
+ 
+-	ctxt.Textp = append(ctxt.Textp, rel)
++	ctxt.Textp = append(ctxt.Textp, rel.Sym())
+ }
+ 
+ func dynrelocsym(ctxt *Link, s loader.Sym) {
+@@ -1042,9 +1041,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	}
+ 
+ 	p := fmt.Sprintf("%s.str", name)
+-	sp := l.LookupOrCreateSym(p, 0)
+-	sbld := l.MakeSymbolUpdater(sp)
+-
++	sbld := l.CreateSymForUpdate(p, 0)
+ 	sbld.Addstring(value)
+ 	sbld.SetType(sym.SRODATA)
+ 
+@@ -1052,7 +1049,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	bld.SetData(make([]byte, 0, arch.PtrSize*2))
+ 	bld.SetReadOnly(false)
+ 	bld.SetRelocs(nil)
+-	bld.AddAddrPlus(arch, sp, 0)
++	bld.AddAddrPlus(arch, sbld.Sym(), 0)
+ 	bld.AddUint(arch, uint64(len(value)))
+ }
+ 
+@@ -1069,7 +1066,6 @@ func addgostring(ctxt *Link, ldr *loader.Loader, s *loader.SymbolBuilder, symnam
+ 	if sdata.Type() != sym.Sxxx {
+ 		ctxt.Errorf(s.Sym(), "duplicate symname in addgostring: %s", symname)
+ 	}
+-	sdata.SetReachable(true)
+ 	sdata.SetLocal(true)
+ 	sdata.SetType(sym.SRODATA)
+ 	sdata.SetSize(int64(len(str)))
+@@ -1126,8 +1122,7 @@ type GCProg struct {
+ 
+ func (p *GCProg) Init(ctxt *Link, name string) {
+ 	p.ctxt = ctxt
+-	symIdx := ctxt.loader.LookupOrCreateSym(name, 0)
+-	p.sym = ctxt.loader.MakeSymbolUpdater(symIdx)
++	p.sym = ctxt.loader.CreateSymForUpdate(name, 0)
+ 	p.w.Init(p.writeByte())
+ 	if debugGCProg {
+ 		fmt.Fprintf(os.Stderr, "ld: start GCProg %s\n", name)
+@@ -2059,7 +2054,6 @@ func (ctxt *Link) textbuildid() {
+ 
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate("go.buildid", 0)
+-	s.SetReachable(true)
+ 	// The \xff is invalid UTF-8, meant to make it less likely
+ 	// to find one of these accidentally.
+ 	data := "\xff Go build ID: " + strconv.Quote(*flagBuildid) + "\n \xff"
+@@ -2083,7 +2077,6 @@ func (ctxt *Link) buildinfo() {
+ 
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate(".go.buildinfo", 0)
+-	s.SetReachable(true)
+ 	// On AIX, .go.buildinfo must be in the symbol table as
+ 	// it has relocations.
+ 	s.SetNotInSymbolTable(!ctxt.IsAIX())
+@@ -2231,7 +2224,6 @@ func assignAddress(ctxt *Link, sect *sym.Section, n int, s loader.Sym, va uint64
+ 
+ 		// Create a symbol for the start of the secondary text sections
+ 		ntext := ldr.CreateSymForUpdate(fmt.Sprintf("runtime.text.%d", n), 0)
+-		ntext.SetReachable(true)
+ 		ntext.SetSect(sect)
+ 		if ctxt.IsAIX() {
+ 			// runtime.text.X must be a real symbol on AIX.
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d55148d9aa..139a248253 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -216,11 +216,10 @@ func (dsi *dwarfSecInfo) subSyms() []loader.Sym {
+ var dwarfp []dwarfSecInfo
+ 
+ func (d *dwctxt) writeabbrev() dwarfSecInfo {
+-	abrvs := d.ldr.LookupOrCreateSym(".debug_abbrev", 0)
+-	u := d.ldr.MakeSymbolUpdater(abrvs)
+-	u.SetType(sym.SDWARFSECT)
+-	u.AddBytes(dwarf.GetAbbrev())
+-	return dwarfSecInfo{syms: []loader.Sym{abrvs}}
++	abrvs := d.ldr.CreateSymForUpdate(".debug_abbrev", 0)
++	abrvs.SetType(sym.SDWARFSECT)
++	abrvs.AddBytes(dwarf.GetAbbrev())
++	return dwarfSecInfo{syms: []loader.Sym{abrvs.Sym()}}
+ }
+ 
+ var dwtypes dwarf.DWDie
+@@ -1624,13 +1623,12 @@ func (d *dwctxt) writegdbscript() dwarfSecInfo {
+ 		return dwarfSecInfo{}
+ 	}
+ 
+-	gs := d.ldr.LookupOrCreateSym(".debug_gdb_scripts", 0)
+-	u := d.ldr.MakeSymbolUpdater(gs)
+-	u.SetType(sym.SDWARFSECT)
++	gs := d.ldr.CreateSymForUpdate(".debug_gdb_scripts", 0)
++	gs.SetType(sym.SDWARFSECT)
+ 
+-	u.AddUint8(1) // magic 1 byte?
+-	u.Addstring(gdbscript)
+-	return dwarfSecInfo{syms: []loader.Sym{gs}}
++	gs.AddUint8(1) // magic 1 byte?
++	gs.Addstring(gdbscript)
++	return dwarfSecInfo{syms: []loader.Sym{gs.Sym()}}
+ }
+ 
+ // FIXME: might be worth looking replacing this map with a function
+@@ -1969,17 +1967,13 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
+ 
+ 	// Create .debug_line and .debug_ranges section symbols
+-	debugLine := d.ldr.LookupOrCreateSym(".debug_line", 0)
+-	dlu := d.ldr.MakeSymbolUpdater(debugLine)
+-	dlu.SetType(sym.SDWARFSECT)
+-	d.ldr.SetAttrReachable(debugLine, true)
+-	dwarfp = append(dwarfp, dwarfSecInfo{syms: []loader.Sym{debugLine}})
++	debugLine := d.ldr.CreateSymForUpdate(".debug_line", 0)
++	debugLine.SetType(sym.SDWARFSECT)
++	dwarfp = append(dwarfp, dwarfSecInfo{syms: []loader.Sym{debugLine.Sym()}})
+ 	linesec := &dwarfp[len(dwarfp)-1]
+ 
+-	debugRanges := d.ldr.LookupOrCreateSym(".debug_ranges", 0)
+-	dru := d.ldr.MakeSymbolUpdater(debugRanges)
+-	dru.SetType(sym.SDWARFRANGE)
+-	d.ldr.SetAttrReachable(debugRanges, true)
++	debugRanges := d.ldr.CreateSymForUpdate(".debug_ranges", 0)
++	debugRanges.SetType(sym.SDWARFRANGE)
+ 
+ 	// Write per-package line and range tables and start their CU DIEs.
+ 	for _, u := range d.linkctxt.compUnits {
+@@ -1989,7 +1983,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 		}
+ 		linesec.syms = d.writelines(u, linesec.syms)
+ 		base := loader.Sym(u.Textp[0])
+-		d.writepcranges(u, base, u.PCs, debugRanges)
++		d.writepcranges(u, base, u.PCs, debugRanges.Sym())
+ 	}
+ 
+ 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
+@@ -1998,12 +1992,12 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 	reversetree(&dwtypes.Child)
+ 	movetomodule(d.linkctxt, &dwtypes)
+ 
+-	infoSym := d.ldr.LookupOrCreateSym(".debug_info", 0)
++	infoSym := d.ldr.CreateSymForUpdate(".debug_info", 0)
+ 
+-	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), infoSym)
++	infoSec := d.writeinfo(d.linkctxt.compUnits, abbrevSec.secSym(), infoSym.Sym())
+ 
+-	frameSym := d.ldr.LookupOrCreateSym(".debug_frame", 0)
+-	frameSec := d.writeframes(frameSym)
++	frameSym := d.ldr.CreateSymForUpdate(".debug_frame", 0)
++	frameSec := d.writeframes(frameSym.Sym())
+ 
+ 	dwarfp = append(dwarfp, frameSec)
+ 	gdbScriptSec := d.writegdbscript()
+@@ -2011,14 +2005,13 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 		dwarfp = append(dwarfp, gdbScriptSec)
+ 	}
+ 	dwarfp = append(dwarfp, infoSec)
+-	locSym := d.ldr.LookupOrCreateSym(".debug_loc", 0)
+-	d.ldr.SetAttrReachable(locSym, true)
+-	locSec := d.collectlocs(locSym)
++	locSym := d.ldr.CreateSymForUpdate(".debug_loc", 0)
++	locSec := d.collectlocs(locSym.Sym())
+ 	if locSec.secSym() != 0 {
+ 		dwarfp = append(dwarfp, locSec)
+ 	}
+ 
+-	rsyms := []loader.Sym{debugRanges}
++	rsyms := []loader.Sym{debugRanges.Sym()}
+ 	for _, unit := range d.linkctxt.compUnits {
+ 		for _, s := range unit.RangeSyms {
+ 			rsyms = append(rsyms, loader.Sym(s))
+@@ -2145,7 +2138,6 @@ func dwarfcompress(ctxt *Link) {
+ 			sect.Align = 1
+ 			sect.Length = uint64(len(z.compressed))
+ 			newSym := ldr.CreateSymForUpdate(compressedSegName, 0)
+-			newSym.SetReachable(true)
+ 			newSym.SetData(z.compressed)
+ 			newSym.SetSize(int64(len(z.compressed)))
+ 			ldr.SetSymSect(newSym.Sym(), sect)
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index f5a57cb96e..80612c4684 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1036,7 +1036,6 @@ func elfdynhash(ctxt *Link) {
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate(".hash", 0)
+ 	s.SetType(sym.SELFROSECT)
+-	s.SetReachable(true)
+ 
+ 	i := nsym
+ 	nbucket := 1
+@@ -1434,7 +1433,6 @@ func elfEmitReloc(ctxt *Link) {
+ func addgonote(ctxt *Link, sectionName string, tag uint32, desc []byte) {
+ 	ldr := ctxt.loader
+ 	s := ldr.CreateSymForUpdate(sectionName, 0)
+-	s.SetReachable(true)
+ 	s.SetType(sym.SELFROSECT)
+ 	// namesz
+ 	s.AddUint32(ctxt.Arch, uint32(len(ELF_NOTE_GO_NAME)))
+@@ -1463,7 +1461,6 @@ func (ctxt *Link) doelf() {
+ 	shstrtab := ldr.CreateSymForUpdate(".shstrtab", 0)
+ 
+ 	shstrtab.SetType(sym.SELFROSECT)
+-	shstrtab.SetReachable(true)
+ 
+ 	shstrtab.Addstring("")
+ 	shstrtab.Addstring(".text")
+@@ -1577,7 +1574,6 @@ func (ctxt *Link) doelf() {
+ 		dynsym := ldr.CreateSymForUpdate(".dynsym", 0)
+ 
+ 		dynsym.SetType(sym.SELFROSECT)
+-		dynsym.SetReachable(true)
+ 		if elf64 {
+ 			dynsym.SetSize(dynsym.Size() + ELF64SYMSIZE)
+ 		} else {
+@@ -1588,39 +1584,32 @@ func (ctxt *Link) doelf() {
+ 		dynstr := ldr.CreateSymForUpdate(".dynstr", 0)
+ 
+ 		dynstr.SetType(sym.SELFROSECT)
+-		dynstr.SetReachable(true)
+ 		if dynstr.Size() == 0 {
+ 			dynstr.Addstring("")
+ 		}
+ 
+ 		/* relocation table */
+ 		s := ldr.CreateSymForUpdate(elfRelType, 0)
+-		s.SetReachable(true)
+ 		s.SetType(sym.SELFROSECT)
+ 
+ 		/* global offset table */
+ 		got := ldr.CreateSymForUpdate(".got", 0)
+-		got.SetReachable(true)
+ 		got.SetType(sym.SELFGOT) // writable
+ 
+ 		/* ppc64 glink resolver */
+ 		if ctxt.IsPPC64() {
+ 			s := ldr.CreateSymForUpdate(".glink", 0)
+-			s.SetReachable(true)
+ 			s.SetType(sym.SELFRXSECT)
+ 		}
+ 
+ 		/* hash */
+ 		hash := ldr.CreateSymForUpdate(".hash", 0)
+-		hash.SetReachable(true)
+ 		hash.SetType(sym.SELFROSECT)
+ 
+ 		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
+-		gotplt.SetReachable(true)
+ 		gotplt.SetType(sym.SELFSECT) // writable
+ 
+ 		plt := ldr.CreateSymForUpdate(".plt", 0)
+-		plt.SetReachable(true)
+ 		if ctxt.IsPPC64() {
+ 			// In the ppc64 ABI, .plt is a data section
+ 			// written by the dynamic linker.
+@@ -1630,20 +1619,16 @@ func (ctxt *Link) doelf() {
+ 		}
+ 
+ 		s = ldr.CreateSymForUpdate(elfRelType+".plt", 0)
+-		s.SetReachable(true)
+ 		s.SetType(sym.SELFROSECT)
+ 
+ 		s = ldr.CreateSymForUpdate(".gnu.version", 0)
+-		s.SetReachable(true)
+ 		s.SetType(sym.SELFROSECT)
+ 
+ 		s = ldr.CreateSymForUpdate(".gnu.version_r", 0)
+-		s.SetReachable(true)
+ 		s.SetType(sym.SELFROSECT)
+ 
+ 		/* define dynamic elf table */
+ 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
+-		dynamic.SetReachable(true)
+ 		dynamic.SetType(sym.SELFSECT) // writable
+ 
+ 		if ctxt.IsS390X() {
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a747cde43f..ed59e6af27 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2381,7 +2381,6 @@ func (ctxt *Link) xdefine(p string, t sym.SymKind, v int64) {
+ 	s := ldr.CreateSymForUpdate(p, 0)
+ 	s.SetType(t)
+ 	s.SetValue(v)
+-	s.SetReachable(true)
+ 	s.SetSpecial(true)
+ 	s.SetLocal(true)
+ }
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index a5f776ebff..81f1a2d40b 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -585,11 +585,9 @@ const (
+ // a given text symbols is a container (outer sym).
+ func (ctxt *Link) findfunctab(container loader.Bitmap) {
+ 	ldr := ctxt.loader
+-	tsym := ldr.LookupOrCreateSym("runtime.findfunctab", 0)
+-	t := ldr.MakeSymbolUpdater(tsym)
++	t := ldr.CreateSymForUpdate("runtime.findfunctab", 0)
+ 	t.SetType(sym.SRODATA)
+-	ldr.SetAttrReachable(tsym, true)
+-	ldr.SetAttrLocal(tsym, true)
++	ldr.SetAttrLocal(t.Sym(), true)
+ 
+ 	// find min and max address
+ 	min := ldr.SymValue(ctxt.Textp[0])
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index f0211e12ac..08849ff380 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1006,13 +1006,11 @@ func Peinit(ctxt *Link) {
+ 	if ctxt.LinkMode == LinkInternal {
+ 		// some mingw libs depend on this symbol, for example, FindPESectionByName
+ 		for _, name := range [2]string{"__image_base__", "_image_base__"} {
+-			s := ctxt.loader.LookupOrCreateSym(name, 0)
+-			sb := ctxt.loader.MakeSymbolUpdater(s)
++			sb := ctxt.loader.CreateSymForUpdate(name, 0)
+ 			sb.SetType(sym.SDATA)
+ 			sb.SetValue(PEBASE)
+-			ctxt.loader.SetAttrReachable(s, true)
+-			ctxt.loader.SetAttrSpecial(s, true)
+-			ctxt.loader.SetAttrLocal(s, true)
++			ctxt.loader.SetAttrSpecial(sb.Sym(), true)
++			ctxt.loader.SetAttrLocal(sb.Sym(), true)
+ 		}
+ 	}
+ 
+@@ -1110,14 +1108,12 @@ func initdynimport(ctxt *Link) *Dll {
+ 					dynName += fmt.Sprintf("@%d", m.argsize)
+ 				}
+ 				dynSym := ldr.CreateSymForUpdate(dynName, 0)
+-				dynSym.SetReachable(true)
+ 				dynSym.SetType(sym.SHOSTOBJ)
+ 				sb.AddReloc(loader.Reloc{Sym: dynSym.Sym(), Type: objabi.R_ADDR, Off: 0, Size: uint8(ctxt.Arch.PtrSize)})
+ 			}
+ 		}
+ 	} else {
+ 		dynamic := ldr.CreateSymForUpdate(".windynamic", 0)
+-		dynamic.SetReachable(true)
+ 		dynamic.SetType(sym.SWINDOWS)
+ 		for d := dr; d != nil; d = d.next {
+ 			for m = d.ms; m != nil; m = m.next {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 577c24e432..1c70a94e1a 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -345,7 +345,6 @@ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
+ 	ldr := ctxt.loader
+ 	t := ldr.CreateSymForUpdate("runtime.textsectionmap", 0)
+ 	t.SetType(sym.SRODATA)
+-	t.SetReachable(true)
+ 	nsections := int64(0)
+ 
+ 	for _, sect := range Segtext.Sections {
+@@ -434,13 +433,11 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 	s := ldr.CreateSymForUpdate("runtime.gcdata", 0)
+ 	s.SetType(sym.SRODATA)
+ 	s.SetSize(0)
+-	s.SetReachable(true)
+ 	ctxt.xdefine("runtime.egcdata", sym.SRODATA, 0)
+ 
+ 	s = ldr.CreateSymForUpdate("runtime.gcbss", 0)
+ 	s.SetType(sym.SRODATA)
+ 	s.SetSize(0)
+-	s.SetReachable(true)
+ 	ctxt.xdefine("runtime.egcbss", sym.SRODATA, 0)
+ 
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+@@ -450,19 +447,16 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			s = ldr.CreateSymForUpdate("type.*", 0)
+ 			s.SetType(sym.STYPE)
+ 			s.SetSize(0)
+-			s.SetReachable(true)
+ 			symtype = s.Sym()
+ 
+ 			s = ldr.CreateSymForUpdate("typerel.*", 0)
+ 			s.SetType(sym.STYPERELRO)
+ 			s.SetSize(0)
+-			s.SetReachable(true)
+ 			symtyperel = s.Sym()
+ 		} else {
+ 			s = ldr.CreateSymForUpdate("type.*", 0)
+ 			s.SetType(sym.STYPE)
+ 			s.SetSize(0)
+-			s.SetReachable(true)
+ 			symtype = s.Sym()
+ 			symtyperel = s.Sym()
+ 		}
+@@ -473,7 +467,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 		s.SetType(t)
+ 		s.SetSize(0)
+ 		s.SetLocal(true)
+-		s.SetReachable(true)
+ 		return s.Sym()
+ 	}
+ 	var (
+@@ -497,7 +490,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 	symt := ldr.CreateSymForUpdate("runtime.symtab", 0)
+ 	symt.SetType(sym.SSYMTAB)
+ 	symt.SetSize(0)
+-	symt.SetReachable(true)
+ 	symt.SetLocal(true)
+ 
+ 	nitablinks := 0
+@@ -580,7 +572,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 
+ 	if ctxt.BuildMode == BuildModeShared {
+ 		abihashgostr := ldr.CreateSymForUpdate("go.link.abihash."+filepath.Base(*flagOutfile), 0)
+-		abihashgostr.SetReachable(true)
+ 		abihashgostr.SetType(sym.SRODATA)
+ 		hashsym := ldr.LookupOrCreateSym("go.link.abihashbytes", 0)
+ 		abihashgostr.AddAddr(ctxt.Arch, hashsym)
+@@ -589,12 +580,10 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 	if ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+ 		for _, l := range ctxt.Library {
+ 			s := ldr.CreateSymForUpdate("go.link.pkghashbytes."+l.Pkg, 0)
+-			s.SetReachable(true)
+ 			s.SetType(sym.SRODATA)
+ 			s.SetSize(int64(len(l.Fingerprint)))
+ 			s.SetData(l.Fingerprint[:])
+ 			str := ldr.CreateSymForUpdate("go.link.pkghash."+l.Pkg, 0)
+-			str.SetReachable(true)
+ 			str.SetType(sym.SRODATA)
+ 			str.AddAddr(ctxt.Arch, s.Sym())
+ 			str.AddUint(ctxt.Arch, uint64(len(l.Fingerprint)))
+@@ -690,7 +679,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 		addgostring(ctxt, ldr, moduledata, "go.link.thispluginpath", objabi.PathToPrefix(*flagPluginPath))
+ 
+ 		pkghashes := ldr.CreateSymForUpdate("go.link.pkghashes", 0)
+-		pkghashes.SetReachable(true)
+ 		pkghashes.SetLocal(true)
+ 		pkghashes.SetType(sym.SRODATA)
+ 
+@@ -724,7 +712,6 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 		addgostring(ctxt, ldr, moduledata, "go.link.thismodulename", thismodulename)
+ 
+ 		modulehashes := ldr.CreateSymForUpdate("go.link.abihashes", 0)
+-		modulehashes.SetReachable(true)
+ 		modulehashes.SetLocal(true)
+ 		modulehashes.SetType(sym.SRODATA)
+ 
+diff --git a/src/cmd/link/internal/ld/typelink.go b/src/cmd/link/internal/ld/typelink.go
+index 483a122fb5..4bb43c2fef 100644
+--- a/src/cmd/link/internal/ld/typelink.go
++++ b/src/cmd/link/internal/ld/typelink.go
+@@ -37,7 +37,6 @@ func (ctxt *Link) typelink() {
+ 
+ 	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
+ 	tl.SetType(sym.STYPELINK)
+-	ldr.SetAttrReachable(tl.Sym(), true)
+ 	ldr.SetAttrLocal(tl.Sym(), true)
+ 	tl.SetSize(int64(4 * len(typelinks)))
+ 	tl.Grow(tl.Size())
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index 563fe49fc2..e5ed847b54 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -1173,12 +1173,12 @@ func (f *xcoffFile) adddynimpsym(ctxt *Link, s loader.Sym) {
+ 	}
+ 
+ 	sb := ldr.MakeSymbolUpdater(s)
++	sb.SetReachable(true)
+ 	sb.SetType(sym.SXCOFFTOC)
+ 
+ 	// Create new dynamic symbol
+ 	extsym := ldr.CreateSymForUpdate(ldr.SymExtname(s), 0)
+ 	extsym.SetType(sym.SDYNIMPORT)
+-	extsym.SetReachable(true)
+ 	extsym.SetDynimplib(ldr.SymDynimplib(s))
+ 	extsym.SetExtname(ldr.SymExtname(s))
+ 	extsym.SetDynimpvers(ldr.SymDynimpvers(s))
+@@ -1279,7 +1279,6 @@ func (ctxt *Link) doxcoff() {
+ 	// TOC
+ 	toc := ldr.CreateSymForUpdate("TOC", 0)
+ 	toc.SetType(sym.SXCOFFTOC)
+-	toc.SetReachable(true)
+ 	toc.SetVisibilityHidden(true)
+ 
+ 	// Add entry point to .loader symbols.
+@@ -1330,6 +1329,7 @@ func (ctxt *Link) doxcoff() {
+ 				ldr.SetSymExtname(s, "."+name)
+ 
+ 				desc := ldr.MakeSymbolUpdater(ldr.CreateExtSym(name, 0))
++				desc.SetReachable(true)
+ 				desc.SetType(sym.SNOPTRDATA)
+ 				desc.AddAddr(ctxt.Arch, s)
+ 				desc.AddAddr(ctxt.Arch, toc.Sym())
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index 8805a1ee16..cf905492ed 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -210,11 +210,6 @@ func TestAddMaterializedSymbol(t *testing.T) {
+ 	if 0 != es1val {
+ 		t.Errorf("expected IsReflectMethod(es1) value of 0, got %v", irm)
+ 	}
+-
+-	// Writing data to a materialized symbol should mark it reachable.
+-	if !sb1.Reachable() || !sb2.Reachable() {
+-		t.Fatalf("written-to materialized symbols should be reachable")
+-	}
+ }
+ 
+ func sameRelocSlice(s1 *Relocs, s2 []Reloc) bool {
+@@ -347,9 +342,6 @@ func TestAddDataMethods(t *testing.T) {
+ 			t.Errorf("testing Loader.%s: expected data %v got %v",
+ 				tp.which, tp.expData, ldr.Data(mi))
+ 		}
+-		if !ldr.AttrReachable(mi) {
+-			t.Fatalf("testing Loader.%s: sym updated should be reachable", tp.which)
+-		}
+ 		relocs := ldr.Relocs(mi)
+ 		if !sameRelocSlice(&relocs, tp.expRel) {
+ 			t.Fatalf("testing Loader.%s: got relocslice %+v wanted %+v",
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index b6e07dbe4a..9713a282b1 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -54,7 +54,9 @@ func (l *Loader) MakeSymbolUpdater(symIdx Sym) *SymbolBuilder {
+ // returns a CreateSymForUpdate for update. If the symbol already
+ // exists, it will update in-place.
+ func (l *Loader) CreateSymForUpdate(name string, version int) *SymbolBuilder {
+-	return l.MakeSymbolUpdater(l.LookupOrCreateSym(name, version))
++	s := l.LookupOrCreateSym(name, version)
++	l.SetAttrReachable(s, true)
++	return l.MakeSymbolUpdater(s)
+ }
+ 
+ // Getters for properties of the symbol we're working on.
+@@ -105,7 +107,6 @@ func (sb *SymbolBuilder) SetNotInSymbolTable(value bool) {
+ func (sb *SymbolBuilder) SetSect(sect *sym.Section) { sb.l.SetSymSect(sb.symIdx, sect) }
+ 
+ func (sb *SymbolBuilder) AddBytes(data []byte) {
+-	sb.setReachable()
+ 	if sb.kind == 0 {
+ 		sb.kind = sym.SDATA
+ 	}
+@@ -248,7 +249,6 @@ func (sb *SymbolBuilder) AddUint8(v uint8) int64 {
+ 	if sb.kind == 0 {
+ 		sb.kind = sym.SDATA
+ 	}
+-	sb.setReachable()
+ 	sb.size++
+ 	sb.data = append(sb.data, v)
+ 	return off
+@@ -256,7 +256,6 @@ func (sb *SymbolBuilder) AddUint8(v uint8) int64 {
+ 
+ func (sb *SymbolBuilder) AddUintXX(arch *sys.Arch, v uint64, wid int) int64 {
+ 	off := sb.size
+-	sb.setReachable()
+ 	sb.setUintXX(arch, off, v, int64(wid))
+ 	return off
+ }
+@@ -301,22 +300,18 @@ func (sb *SymbolBuilder) AddUint(arch *sys.Arch, v uint64) int64 {
+ }
+ 
+ func (sb *SymbolBuilder) SetUint8(arch *sys.Arch, r int64, v uint8) int64 {
+-	sb.setReachable()
+ 	return sb.setUintXX(arch, r, uint64(v), 1)
+ }
+ 
+ func (sb *SymbolBuilder) SetUint16(arch *sys.Arch, r int64, v uint16) int64 {
+-	sb.setReachable()
+ 	return sb.setUintXX(arch, r, uint64(v), 2)
+ }
+ 
+ func (sb *SymbolBuilder) SetUint32(arch *sys.Arch, r int64, v uint32) int64 {
+-	sb.setReachable()
+ 	return sb.setUintXX(arch, r, uint64(v), 4)
+ }
+ 
+ func (sb *SymbolBuilder) SetUint(arch *sys.Arch, r int64, v uint64) int64 {
+-	sb.setReachable()
+ 	return sb.setUintXX(arch, r, v, int64(arch.PtrSize))
+ }
+ 
+@@ -324,7 +319,6 @@ func (sb *SymbolBuilder) SetAddrPlus(arch *sys.Arch, off int64, tgt Sym, add int
+ 	if sb.Type() == 0 {
+ 		sb.SetType(sym.SDATA)
+ 	}
+-	sb.setReachable()
+ 	if off+int64(arch.PtrSize) > sb.size {
+ 		sb.size = off + int64(arch.PtrSize)
+ 		sb.Grow(sb.size)
+@@ -344,7 +338,6 @@ func (sb *SymbolBuilder) SetAddr(arch *sys.Arch, off int64, tgt Sym) int64 {
+ }
+ 
+ func (sb *SymbolBuilder) Addstring(str string) int64 {
+-	sb.setReachable()
+ 	if sb.kind == 0 {
+ 		sb.kind = sym.SNOPTRDATA
+ 	}
+@@ -382,17 +375,14 @@ func (sb *SymbolBuilder) addSymRef(tgt Sym, add int64, typ objabi.RelocType, rsi
+ // Add a symbol reference (relocation) with given type, addend, and size
+ // (the most generic form).
+ func (sb *SymbolBuilder) AddSymRef(arch *sys.Arch, tgt Sym, add int64, typ objabi.RelocType, rsize int) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, add, typ, rsize)
+ }
+ 
+ func (sb *SymbolBuilder) AddAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, add, objabi.R_ADDR, arch.PtrSize)
+ }
+ 
+ func (sb *SymbolBuilder) AddAddrPlus4(arch *sys.Arch, tgt Sym, add int64) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, add, objabi.R_ADDR, 4)
+ }
+ 
+@@ -401,17 +391,14 @@ func (sb *SymbolBuilder) AddAddr(arch *sys.Arch, tgt Sym) int64 {
+ }
+ 
+ func (sb *SymbolBuilder) AddPCRelPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, add, objabi.R_PCREL, 4)
+ }
+ 
+ func (sb *SymbolBuilder) AddCURelativeAddrPlus(arch *sys.Arch, tgt Sym, add int64) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, add, objabi.R_ADDRCUOFF, arch.PtrSize)
+ }
+ 
+ func (sb *SymbolBuilder) AddSize(arch *sys.Arch, tgt Sym) int64 {
+-	sb.setReachable()
+ 	return sb.addSymRef(tgt, 0, objabi.R_SIZE, arch.PtrSize)
+ }
+ 
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index ed086f0e2f..6e2aac0d20 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -749,7 +749,6 @@ func gentramp(ctxt *ld.Link, ldr *loader.Loader, tramp *loader.SymbolBuilder, ta
+ 
+ 		toctramp := ldr.CreateSymForUpdate("TOC."+ldr.SymName(tramp.Sym()), 0)
+ 		toctramp.SetType(sym.SXCOFFTOC)
+-		toctramp.SetReachable(true)
+ 		toctramp.AddAddrPlus(ctxt.Arch, target, offset)
+ 
+ 		r := loader.Reloc{
+@@ -1027,8 +1026,7 @@ func addpltsym(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym) {
+ 
+ // Generate the glink resolver stub if necessary and return the .glink section
+ func ensureglinkresolver(ctxt *ld.Link, ldr *loader.Loader) *loader.SymbolBuilder {
+-	gs := ldr.LookupOrCreateSym(".glink", 0)
+-	glink := ldr.MakeSymbolUpdater(gs)
++	glink := ldr.CreateSymForUpdate(".glink", 0)
+ 	if glink.Size() != 0 {
+ 		return glink
+ 	}

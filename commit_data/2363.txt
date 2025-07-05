@@ -9,9 +9,175 @@ Date:   Tue Jun 2 18:03:47 2009 -0700
     DELTA=22  (3 added, 1 deleted, 18 changed)
     OCL=29780
     CL=29782
-
+---
  src/lib/datafmt/datafmt.go      | 11 +++++------
  src/lib/datafmt/datafmt_test.go |  6 +++---
  src/lib/datafmt/parser.go       |  9 ++++++---
  usr/gri/pretty/ast.txt          | 14 +++++++-------
  4 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/lib/datafmt/datafmt.go b/src/lib/datafmt/datafmt.go
+index baeb3ac411..7e02424799 100644
+--- a/src/lib/datafmt/datafmt.go
++++ b/src/lib/datafmt/datafmt.go
+@@ -78,10 +78,10 @@
+ 
+ 	A field operand is a field name optionally followed by an alternate
+ 	rule name. The field name may be an identifier or one of the special
+-	names ^ or *.
++	names @ or *.
+ 
+ 		Field       = FieldName [ ":" RuleName ] .
+-		FieldName   = identifier | "^" | "*" .
++		FieldName   = identifier | "@" | "*" .
+ 
+ 	If the field name is an identifier, the current value must be a struct,
+ 	and there must be a field with that name in the struct. The same lookup
+@@ -91,8 +91,7 @@
+ 	and an error message is returned. (TODO consider changing the semantics
+ 	such that if a field is not found, it evaluates to nil).
+ 
+-	The special name '^' denotes the current value. (TODO see if ^ can
+-	change to @ or be eliminated).
++	The special name '@' denotes the current value.
+ 
+ 	The meaning of the special name '*' depends on the type of the current
+ 	value:
+@@ -252,7 +251,7 @@ type (
+ 	literal [][]byte;  // a list of string segments, possibly starting with '%'
+ 
+ 	field struct {
+-		fieldName string;  // including "^", "*"
++		fieldName string;  // including "@", "*"
+ 		ruleName string;  // "" if no rule name specified
+ 	};
+ 
+@@ -587,7 +586,7 @@ func (s *State) eval(fexpr expr, value reflect.Value, index int) bool {
+ 	case *field:
+ 		// determine field value
+ 		switch t.fieldName {
+-		case "^":
++		case "@":
+ 			// field value is current value
+ 
+ 		case "*":
+diff --git a/src/lib/datafmt/datafmt_test.go b/src/lib/datafmt/datafmt_test.go
+index fcacc80f16..74c87aee86 100644
+--- a/src/lib/datafmt/datafmt_test.go
++++ b/src/lib/datafmt/datafmt_test.go
+@@ -76,10 +76,10 @@ func TestCustomFormatters(t *testing.T) {
+ 	f = parse(t, ``, fmap1);
+ 	verify(t, f, `even odd even odd `, 0, 1, 2, 3);
+ 
+-	f = parse(t, `/ =^:blank; float="#"`, fmap1);
++	f = parse(t, `/ =@:blank; float="#"`, fmap1);
+ 	verify(t, f, `# # #`, 0.0, 1.0, 2.0);
+ 
+-	f = parse(t, `float=^:nil`, fmap1);
++	f = parse(t, `float=@:nil`, fmap1);
+ 	verify(t, f, ``, 0.0, 1.0, 2.0);
+ 
+ 	// TODO needs more tests
+@@ -212,7 +212,7 @@ func TestDefaultRule(t *testing.T) {
+ 	check(t, `default="%v"`, `42foo3.14`, 42, "foo", 3.14);
+ 	check(t, `default="%v"; int="%x"`, `abcdef`, 10, 11, 12, 13, 14, 15);
+ 	check(t, `default="%v"; int="%x"`, `ab**ef`, 10, 11, "**", 14, 15);
+-	check(t, `default="%x"; int=^:default`, `abcdef`, 10, 11, 12, 13, 14, 15);
++	check(t, `default="%x"; int=@:default`, `abcdef`, 10, 11, 12, 13, 14, 15);
+ }
+ 
+ 
+diff --git a/src/lib/datafmt/parser.go b/src/lib/datafmt/parser.go
+index 89fc3cdec7..3fe89f9151 100644
+--- a/src/lib/datafmt/parser.go
++++ b/src/lib/datafmt/parser.go
+@@ -86,7 +86,7 @@ func (p *parser) next() {
+ 
+ func (p *parser) init(src []byte) {
+ 	p.errors.Init(0);
+-	p.scanner.Init(src, p, 0);
++	p.scanner.Init(src, p, scanner.AllowIllegalChars);  // return '@' as token.ILLEGAL w/o error message
+ 	p.next();  // initializes pos, tok, lit
+ 	p.packs = make(map [string] string);
+ 	p.rules = make(map [string] expr);
+@@ -231,8 +231,11 @@ func (p *parser) parseLiteral() literal {
+ func (p *parser) parseField() expr {
+ 	var fname string;
+ 	switch p.tok {
+-	case token.XOR:
+-		fname = "^";
++	case token.ILLEGAL:
++		if string(p.lit) != "@" {
++			return nil;
++		}
++		fname = "@";
+ 		p.next();
+ 	case token.MUL:
+ 		fname = "*";
+diff --git a/usr/gri/pretty/ast.txt b/usr/gri/pretty/ast.txt
+index b51146c5c1..e4c257309d 100644
+--- a/usr/gri/pretty/ast.txt
++++ b/usr/gri/pretty/ast.txt
+@@ -44,7 +44,7 @@ ast.Decl =
+ // Tokens and comments
+ 
+ token.Token =
+-	^:string;
++	@:string;
+ 
+ ast.Comment =
+ 	// TODO this doesn't indent properly after //-style comments because
+@@ -87,7 +87,7 @@ ast.StringList =
+ 	{Strings / "\n"};
+ 
+ ast.FuncLit =
+-	Type " " Body ^:clearOptSemi;  // no optional ; after a func literal body
++	Type " " Body @:clearOptSemi;  // no optional ; after a func literal body
+ 
+ ast.CompositeLit =
+ 	Type "{" {Elts / ", "} "}";
+@@ -139,7 +139,7 @@ funcSignature =
+ 	*:signature;
+ 
+ ast.FuncType =
+-	[Position:isValidPos "func"] ^:signature;
++	[Position:isValidPos "func"] @:signature;
+ 
+ ast.InterfaceType =
+ 	"interface"
+@@ -201,7 +201,7 @@ ast.BranchStmt =
+ 	Tok [" " Label];
+ 
+ stmtList =
+-	{^ / ^:optSemi "\n"};
++	{@ / @:optSemi "\n"};
+ 
+ blockStmt =  // like ast.BlockStmt but w/o indentation
+ 	"{"
+@@ -210,7 +210,7 @@ blockStmt =  // like ast.BlockStmt but w/o indentation
+ 		List:stmtList
+ 	"\n"
+ 	]
+-	"}" ^:setOptSemi;
++	"}" @:setOptSemi;
+ 
+ blockStmtPtr =
+ 	*:blockStmt;
+@@ -222,7 +222,7 @@ ast.BlockStmt =
+ 		List:stmtList
+ 	) "\n"
+ 	]
+-	"}" ^:setOptSemi;
++	"}" @:setOptSemi;
+ 
+ ast.IfStmt =
+ 	"if " [Init "; "] [Cond " "] Body [" else " Else];
+@@ -315,7 +315,7 @@ ast.GenDecl =
+ 			{Specs / ";\n"}
+ 		) "\n"
+ 		]
+-		")" ^:setOptSemi
++		")" @:setOptSemi
+ 	|	{Specs / ";\n"}
+ 	);
+ 

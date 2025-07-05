@@ -10,6 +10,23 @@ Date:   Mon Apr 12 17:30:36 2021 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/cmd/link/internal/ld/config.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/config.go b/src/cmd/link/internal/ld/config.go
+index 291b28e11c..9228962fb3 100644
+--- a/src/cmd/link/internal/ld/config.go
++++ b/src/cmd/link/internal/ld/config.go
+@@ -199,7 +199,10 @@ func mustLinkExternal(ctxt *Link) (res bool, reason string) {
+ 	if iscgo && ctxt.Arch.InFamily(sys.MIPS64, sys.MIPS, sys.PPC64, sys.RISCV64) {
+ 		return true, objabi.GOARCH + " does not support internal cgo"
+ 	}
+-	if iscgo && objabi.GOOS == "android" {
++	if iscgo && (objabi.GOOS == "android" || objabi.GOOS == "dragonfly") {
++		// It seems that on Dragonfly thread local storage is
++		// set up by the dynamic linker, so internal cgo linking
++		// doesn't work. Test case is "go test runtime/cgo".
+ 		return true, objabi.GOOS + " does not support internal cgo"
+ 	}
+ 

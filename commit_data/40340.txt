@@ -18,6 +18,20 @@ Date:   Thu May 2 13:36:10 2019 -0400
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/numberlines.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/numberlines.go b/src/cmd/compile/internal/ssa/numberlines.go
+index ef5e133206..9bdb357d35 100644
+--- a/src/cmd/compile/internal/ssa/numberlines.go
++++ b/src/cmd/compile/internal/ssa/numberlines.go
+@@ -149,7 +149,7 @@ func numberLines(f *Func) {
+ 		} else {
+ 			for _, p := range b.Preds {
+ 				pbi := p.Block().ID
+-				if endlines[pbi] != firstPos {
++				if endlines[pbi].Line() != firstPos.Line() || !endlines[pbi].SameFile(firstPos) {
+ 					b.Values[firstPosIndex].Pos = firstPos.WithIsStmt()
+ 					break
+ 				}

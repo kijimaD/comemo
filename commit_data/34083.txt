@@ -13,7 +13,38 @@ Date:   Mon Oct 2 17:31:43 2017 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/writebarrier.go | 2 +-
  src/cmd/compile/internal/types/type.go       | 4 ++--
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 0daff45b43..129a06eecb 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -17,7 +17,7 @@ func needwb(v *Value) bool {
+ 	if !ok {
+ 		v.Fatalf("store aux is not a type: %s", v.LongString())
+ 	}
+-	if !t.HasPointer() {
++	if !t.HasHeapPointer() {
+ 		return false
+ 	}
+ 	if IsStackAddr(v.Args[0]) {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 7033dd2b9a..92b5d2da95 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1391,10 +1391,10 @@ func Haspointers(t *Type) bool {
+ 	return true
+ }
+ 
+-// HasPointer returns whether t contains heap pointer.
++// HasHeapPointer returns whether t contains a heap pointer.
+ // This is used for write barrier insertion, so we ignore
+ // pointers to go:notinheap types.
+-func (t *Type) HasPointer() bool {
++func (t *Type) HasHeapPointer() bool {
+ 	if t.IsPtr() && t.Elem().NotInHeap() {
+ 		return false
+ 	}

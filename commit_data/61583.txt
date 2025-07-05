@@ -11,7 +11,173 @@ Date:   Wed Nov 6 14:03:58 2024 +0100
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/internal/fips/aes/gcm/cmac.go      | 77 +++++++++++++++++++++++++++
  src/crypto/internal/fips/aes/gcm/cmac_test.go | 76 ++++++++++++++++++++++++++
  2 files changed, 153 insertions(+)
+
+diff --git a/src/crypto/internal/fips/aes/gcm/cmac.go b/src/crypto/internal/fips/aes/gcm/cmac.go
+new file mode 100644
+index 0000000000..df87c31e4d
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/cmac.go
+@@ -0,0 +1,77 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm
++
++import (
++	"crypto/internal/fips"
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/subtle"
++)
++
++// CMAC implements the CMAC mode from NIST SP 800-38B.
++//
++// It is optimized for use in Counter KDF (SP 800-108r1) and XAES-256-GCM
++// (https://c2sp.org/XAES-256-GCM), rather than for exposing it to applications
++// as a stand-alone MAC.
++type CMAC struct {
++	b  aes.Block
++	k1 [aes.BlockSize]byte
++	k2 [aes.BlockSize]byte
++}
++
++func NewCMAC(b *aes.Block) *CMAC {
++	c := &CMAC{b: *b}
++	c.deriveSubkeys()
++	return c
++}
++
++func (c *CMAC) deriveSubkeys() {
++	c.b.Encrypt(c.k1[:], c.k1[:])
++	msb := shiftLeft(&c.k1)
++	c.k1[len(c.k1)-1] ^= msb * 0b10000111
++
++	c.k2 = c.k1
++	msb = shiftLeft(&c.k2)
++	c.k2[len(c.k2)-1] ^= msb * 0b10000111
++}
++
++func (c *CMAC) MAC(m []byte) [aes.BlockSize]byte {
++	fips.RecordApproved()
++	_ = c.b // Hoist the nil check out of the loop.
++	var x [aes.BlockSize]byte
++	if len(m) == 0 {
++		// Special-cased as a single empty partial final block.
++		x = c.k2
++		x[len(m)] ^= 0b10000000
++		c.b.Encrypt(x[:], x[:])
++		return x
++	}
++	for len(m) >= aes.BlockSize {
++		subtle.XORBytes(x[:], m[:aes.BlockSize], x[:])
++		if len(m) == aes.BlockSize {
++			// Final complete block.
++			subtle.XORBytes(x[:], c.k1[:], x[:])
++		}
++		c.b.Encrypt(x[:], x[:])
++		m = m[aes.BlockSize:]
++	}
++	if len(m) > 0 {
++		// Final incomplete block.
++		subtle.XORBytes(x[:], m, x[:])
++		subtle.XORBytes(x[:], c.k2[:], x[:])
++		x[len(m)] ^= 0b10000000
++		c.b.Encrypt(x[:], x[:])
++	}
++	return x
++}
++
++// shiftLeft sets x to x << 1, and returns MSB₁(x).
++func shiftLeft(x *[aes.BlockSize]byte) byte {
++	var msb byte
++	for i := len(x) - 1; i >= 0; i-- {
++		msb, x[i] = x[i]>>7, x[i]<<1|msb
++	}
++	return msb
++}
+diff --git a/src/crypto/internal/fips/aes/gcm/cmac_test.go b/src/crypto/internal/fips/aes/gcm/cmac_test.go
+new file mode 100644
+index 0000000000..52b7a42c76
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm/cmac_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gcm_test
++
++import (
++	"bytes"
++	"crypto/internal/cryptotest"
++	"crypto/internal/fips/aes"
++	"crypto/internal/fips/aes/gcm"
++	"encoding/hex"
++	"strings"
++	"testing"
++)
++
++var sink byte
++
++func TestAllocations(t *testing.T) {
++	cryptotest.SkipTestAllocations(t)
++	if allocs := testing.AllocsPerRun(10, func() {
++		b, err := aes.New(make([]byte, 16))
++		if err != nil {
++			t.Fatal(err)
++		}
++		c := gcm.NewCMAC(b)
++		sink ^= c.MAC(make([]byte, 16))[0]
++	}); allocs > 0 {
++		t.Errorf("expected zero allocations, got %0.1f", allocs)
++	}
++}
++
++func TestCMAC(t *testing.T) {
++	// https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Standards-and-Guidelines/documents/examples/AES_CMAC.pdf
++	key := "2B7E1516 28AED2A6 ABF71588 09CF4F3C"
++	tests := []struct {
++		in, out string
++	}{
++		{
++			"",
++			"BB1D6929 E9593728 7FA37D12 9B756746",
++		},
++		{
++			"6BC1BEE2 2E409F96 E93D7E11 7393172A",
++			"070A16B4 6B4D4144 F79BDD9D D04A287C",
++		},
++		{
++			"6BC1BEE2 2E409F96 E93D7E11 7393172A AE2D8A57",
++			"7D85449E A6EA19C8 23A7BF78 837DFADE",
++		},
++	}
++
++	b, err := aes.New(decodeHex(t, key))
++	if err != nil {
++		t.Fatal(err)
++	}
++	c := gcm.NewCMAC(b)
++	for i, test := range tests {
++		in := decodeHex(t, test.in)
++		out := decodeHex(t, test.out)
++		got := c.MAC(in)
++		if !bytes.Equal(got[:], out) {
++			t.Errorf("test %d: got %x, want %x", i, got, out)
++		}
++	}
++}
++
++func decodeHex(t *testing.T, s string) []byte {
++	t.Helper()
++	s = strings.ReplaceAll(s, " ", "")
++	b, err := hex.DecodeString(s)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return b
++}

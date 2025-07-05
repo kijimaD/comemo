@@ -21,6 +21,35 @@ Date:   Tue Sep 21 12:18:38 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/symtab.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 87b4eeb220..6236643ceb 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -273,7 +273,22 @@ func (f *Func) raw() *_func {
+ 
+ func (f *Func) funcInfo() funcInfo {
+ 	fn := f.raw()
+-	return funcInfo{fn, findmoduledatap(fn.entry)}
++	// Find the module containing fn. fn is located in the pclntable.
++	// The unsafe.Pointer to uintptr conversions and arithmetic
++	// are safe because we are working with module addresses.
++	ptr := uintptr(unsafe.Pointer(fn))
++	var mod *moduledata
++	for datap := &firstmoduledata; datap != nil; datap = datap.next {
++		if len(datap.pclntable) == 0 {
++			continue
++		}
++		base := uintptr(unsafe.Pointer(&datap.pclntable[0]))
++		if base <= ptr && ptr < base+uintptr(len(datap.pclntable)) {
++			mod = datap
++			break
++		}
++	}
++	return funcInfo{fn, mod}
+ }
+ 
+ // PCDATA and FUNCDATA table indexes.

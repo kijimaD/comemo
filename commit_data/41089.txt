@@ -20,6 +20,30 @@ Date:   Tue Sep 3 09:28:17 2019 -0400
     Change-Id: I6496de9d92fb8546048abf139cf10546a47e314b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/192997
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.13.html | 12 ------------
  1 file changed, 12 deletions(-)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index 39c00150f6..4ca64ad13a 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -151,18 +151,6 @@ Do not send CLs removing the interior tags from such phrases.
+   build tag.
+ </p>
+ 
+-<h3 id="netbsd">NetBSD</h3>
+-
+-<p><!--CL 155739 -->
+-  Go now supports NetBSD on arm64.
+-</p>
+-
+-<h3 id="openbsd">OpenBSD</h3>
+-
+-<p><!--CL 174125 -->
+-  Go now supports OpenBSD on arm64.
+-</p>
+-
+ <h3 id="windows">Windows</h3>
+ 
+ <p><!-- CL 178977 -->

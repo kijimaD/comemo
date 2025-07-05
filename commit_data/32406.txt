@@ -18,7 +18,43 @@ Date:   Sat Apr 22 17:35:28 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/types/sizeof_test.go | 2 +-
  src/cmd/compile/internal/types/sym.go         | 6 +-----
  2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/sizeof_test.go b/src/cmd/compile/internal/types/sizeof_test.go
+index d31e169b00..04e2f01e92 100644
+--- a/src/cmd/compile/internal/types/sizeof_test.go
++++ b/src/cmd/compile/internal/types/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Sym{}, 56, 96},
++		{Sym{}, 52, 88},
+ 		{Type{}, 52, 88},
+ 		{Map{}, 20, 40},
+ 		{Forward{}, 20, 32},
+diff --git a/src/cmd/compile/internal/types/sym.go b/src/cmd/compile/internal/types/sym.go
+index e316e99ce7..d9b6d92abe 100644
+--- a/src/cmd/compile/internal/types/sym.go
++++ b/src/cmd/compile/internal/types/sym.go
+@@ -31,7 +31,6 @@ type Sym struct {
+ 	flags   bitset8
+ 	Label   *Node // corresponding label (ephemeral)
+ 	Origpkg *Pkg  // original package for . import
+-	lsym    *obj.LSym
+ }
+ 
+ const (
+@@ -78,8 +77,5 @@ func (sym *Sym) Linksym() *obj.LSym {
+ 	if sym == nil {
+ 		return nil
+ 	}
+-	if sym.lsym == nil {
+-		sym.lsym = Ctxt.Lookup(sym.LinksymName())
+-	}
+-	return sym.lsym
++	return Ctxt.Lookup(sym.LinksymName())
+ }

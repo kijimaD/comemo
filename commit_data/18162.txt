@@ -8,8 +8,164 @@ Date:   Sat Jan 4 08:43:17 2014 -0800
     R=dvyukov, dave, khr
     CC=golang-codereviews
     https://golang.org/cl/41660045
-
+---
  src/pkg/runtime/hashmap.c | 45 +++++++++------------------------------------
  src/pkg/runtime/race.c    | 26 ++++++++++++++++++++++++++
  src/pkg/runtime/race.h    |  2 ++
  3 files changed, 37 insertions(+), 36 deletions(-)
+
+diff --git a/src/pkg/runtime/hashmap.c b/src/pkg/runtime/hashmap.c
+index 410ce53c73..101c4281f6 100644
+--- a/src/pkg/runtime/hashmap.c
++++ b/src/pkg/runtime/hashmap.c
+@@ -998,10 +998,7 @@ runtime·mapaccess1(MapType *t, Hmap *h, byte *ak, byte *av)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess1);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess1);
+-		else
+-			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess1);
++		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapaccess1);
+ 	}
+ 	if(h == nil || h->count == 0) {
+ 		av = t->elem->zero;
+@@ -1032,10 +1029,7 @@ runtime·mapaccess2(MapType *t, Hmap *h, byte *ak, byte *av, bool pres)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), runtime·mapaccess2);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapaccess2);
+-		else
+-			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapaccess2);
++		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapaccess2);
+ 	}
+ 
+ 	if(h == nil || h->count == 0) {
+@@ -1073,10 +1067,7 @@ reflect·mapaccess(MapType *t, Hmap *h, byte *key, byte *val)
+ {
+ 	if(raceenabled && h != nil) {
+ 		runtime·racereadpc(h, runtime·getcallerpc(&t), reflect·mapaccess);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapaccess);
+-		else
+-			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapaccess);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapaccess);
+ 	}
+ 	val = hash_lookup(t, h, &key);
+ 	FLUSH(&val);
+@@ -1092,14 +1083,8 @@ runtime·mapassign1(MapType *t, Hmap *h, byte *ak, byte *av)
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapassign1);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapassign1);
+-		else
+-			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapassign1);
+-		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
+-			runtime·racereadrangepc(av, t->elem->size, runtime·getcallerpc(&t), runtime·mapassign1);
+-		else
+-			runtime·racereadpc(av, runtime·getcallerpc(&t), runtime·mapassign1);
++		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapassign1);
++		runtime·racereadobjectpc(av, t->elem, runtime·getcallerpc(&t), runtime·mapassign1);
+ 	}
+ 
+ 	hash_insert(t, h, ak, av);
+@@ -1125,10 +1110,7 @@ runtime·mapdelete(MapType *t, Hmap *h, byte *ak)
+ 
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), runtime·mapdelete);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(ak, t->key->size, runtime·getcallerpc(&t), runtime·mapdelete);
+-		else
+-			runtime·racereadpc(ak, runtime·getcallerpc(&t), runtime·mapdelete);
++		runtime·racereadobjectpc(ak, t->key, runtime·getcallerpc(&t), runtime·mapdelete);
+ 	}
+ 
+ 	hash_remove(t, h, ak);
+@@ -1151,14 +1133,8 @@ reflect·mapassign(MapType *t, Hmap *h, byte *key, byte *val)
+ 		runtime·panicstring("assignment to entry in nil map");
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapassign);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapassign);
+-		else
+-			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapassign);
+-		if(t->elem->kind == KindArray || t->elem->kind == KindStruct)
+-			runtime·racereadrangepc(val, t->elem->size, runtime·getcallerpc(&t), reflect·mapassign);
+-		else
+-			runtime·racereadpc(val, runtime·getcallerpc(&t), reflect·mapassign);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapassign);
++		runtime·racereadobjectpc(val, t->elem, runtime·getcallerpc(&t), reflect·mapassign);
+ 	}
+ 
+ 	hash_insert(t, h, key, val);
+@@ -1183,10 +1159,7 @@ reflect·mapdelete(MapType *t, Hmap *h, byte *key)
+ 		runtime·panicstring("delete from nil map");
+ 	if(raceenabled) {
+ 		runtime·racewritepc(h, runtime·getcallerpc(&t), reflect·mapdelete);
+-		if(t->key->kind == KindArray || t->key->kind == KindStruct)
+-			runtime·racereadrangepc(key, t->key->size, runtime·getcallerpc(&t), reflect·mapdelete);
+-		else
+-			runtime·racereadpc(key, runtime·getcallerpc(&t), reflect·mapdelete);
++		runtime·racereadobjectpc(key, t->key, runtime·getcallerpc(&t), reflect·mapdelete);
+ 	}
+ 	hash_remove(t, h, key);
+ 
+diff --git a/src/pkg/runtime/race.c b/src/pkg/runtime/race.c
+index 6ee55beff4..8e26a64378 100644
+--- a/src/pkg/runtime/race.c
++++ b/src/pkg/runtime/race.c
+@@ -9,6 +9,8 @@
+ #include "arch_GOARCH.h"
+ #include "malloc.h"
+ #include "race.h"
++#include "type.h"
++#include "typekind.h"
+ #include "../../cmd/ld/textflag.h"
+ 
+ void runtime∕race·Initialize(uintptr *racectx);
+@@ -280,6 +282,30 @@ runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc)
+ 	rangeaccess(addr, sz, (uintptr)callpc, (uintptr)pc, false);
+ }
+ 
++void
++runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc)
++{
++	uint8 kind;
++
++	kind = t->kind & ~KindNoPointers;
++	if(kind == KindArray || kind == KindStruct)
++		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, true);
++	else
++		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, true);
++}
++
++void
++runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc)
++{
++	uint8 kind;
++
++	kind = t->kind & ~KindNoPointers;
++	if(kind == KindArray || kind == KindStruct)
++		rangeaccess(addr, t->size, (uintptr)callpc, (uintptr)pc, false);
++	else
++		memoryaccess(addr, (uintptr)callpc, (uintptr)pc, false);
++}
++
+ void
+ runtime·raceacquire(void *addr)
+ {
+diff --git a/src/pkg/runtime/race.h b/src/pkg/runtime/race.h
+index f7aa99dc2a..5234656637 100644
+--- a/src/pkg/runtime/race.h
++++ b/src/pkg/runtime/race.h
+@@ -24,6 +24,8 @@ void	runtime·racewritepc(void *addr, void *callpc, void *pc);
+ void	runtime·racereadpc(void *addr, void *callpc, void *pc);
+ void	runtime·racewriterangepc(void *addr, uintptr sz, void *callpc, void *pc);
+ void	runtime·racereadrangepc(void *addr, uintptr sz, void *callpc, void *pc);
++void	runtime·racereadobjectpc(void *addr, Type *t, void *callpc, void *pc);
++void	runtime·racewriteobjectpc(void *addr, Type *t, void *callpc, void *pc);
+ void	runtime·racefingo(void);
+ void	runtime·raceacquire(void *addr);
+ void	runtime·raceacquireg(G *gp, void *addr);

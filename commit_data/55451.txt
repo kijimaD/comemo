@@ -14,7 +14,34 @@ Date:   Thu Feb 2 14:20:16 2023 +0800
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go                     | 2 +-
  src/cmd/go/testdata/script/build_gcflags_order.txt | 2 ++
  2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index ded751f4d4..1193a5bbfd 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -169,7 +169,7 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	}
+ 	// Add -c=N to use concurrent backend compilation, if possible.
+ 	if c := gcBackendConcurrency(gcflags); c > 1 {
+-		gcflags = append(gcflags, fmt.Sprintf("-c=%d", c))
++		defaultGcFlags = append(defaultGcFlags, fmt.Sprintf("-c=%d", c))
+ 	}
+ 
+ 	args := []any{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", a.trimpath(), defaultGcFlags, gcflags}
+diff --git a/src/cmd/go/testdata/script/build_gcflags_order.txt b/src/cmd/go/testdata/script/build_gcflags_order.txt
+index 0ffe1570f6..3725c89eb3 100644
+--- a/src/cmd/go/testdata/script/build_gcflags_order.txt
++++ b/src/cmd/go/testdata/script/build_gcflags_order.txt
+@@ -4,6 +4,8 @@
+ cd m
+ go build -n -gcflags=-lang=go1.17
+ stderr ' -lang=go1.16.* -lang=go1.17'
++! go build -gcflags='-c 0'
++stderr 'compile: -c must be at least 1, got 0'
+ 
+ -- m/go.mod --
+ module example.com

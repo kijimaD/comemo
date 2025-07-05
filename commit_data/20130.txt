@@ -10,9 +10,162 @@ Date:   Tue Aug 19 14:59:56 2014 +1000
     R=golang-codereviews, rsc, bradfitz, r
     CC=golang-codereviews
     https://golang.org/cl/127740043
-
+---
  src/pkg/os/file_windows.go      |  6 +++--
  src/pkg/os/os_windows_test.go   | 54 +++++++++++++++++++++++++++++++++++++++++
  src/pkg/os/stat_windows.go      |  6 +++--
  src/pkg/syscall/exec_windows.go | 15 ++++++------
  4 files changed, 69 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/os/file_windows.go b/src/pkg/os/file_windows.go
+index d3aa03b2fb..e78d4abf64 100644
+--- a/src/pkg/os/file_windows.go
++++ b/src/pkg/os/file_windows.go
+@@ -117,8 +117,10 @@ func openDir(name string) (file *File, err error) {
+ 	}
+ 	d.path = name
+ 	if !isAbs(d.path) {
+-		cwd, _ := Getwd()
+-		d.path = cwd + `\` + d.path
++		d.path, e = syscall.FullPath(d.path)
++		if e != nil {
++			return nil, e
++		}
+ 	}
+ 	f := newFile(r, name)
+ 	f.dirinfo = d
+diff --git a/src/pkg/os/os_windows_test.go b/src/pkg/os/os_windows_test.go
+index af7332f0f2..fd96713eac 100644
+--- a/src/pkg/os/os_windows_test.go
++++ b/src/pkg/os/os_windows_test.go
+@@ -5,6 +5,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"syscall"
++	"testing"
+ )
+ 
+ func init() {
+@@ -25,3 +26,56 @@ func init() {
+ 		supportsSymlinks = false
+ 	}
+ }
++
++func TestSameWindowsFile(t *testing.T) {
++	temp, err := ioutil.TempDir("", "TestSameWindowsFile")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(temp)
++
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = os.Chdir(temp)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.Chdir(wd)
++
++	f, err := os.Create("a")
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Close()
++
++	ia1, err := os.Stat("a")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	path, err := filepath.Abs("a")
++	if err != nil {
++		t.Fatal(err)
++	}
++	ia2, err := os.Stat(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !os.SameFile(ia1, ia2) {
++		t.Errorf("files should be same")
++	}
++
++	p := filepath.VolumeName(path) + filepath.Base(path)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ia3, err := os.Stat(p)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !os.SameFile(ia1, ia3) {
++		t.Errorf("files should be same")
++	}
++}
+diff --git a/src/pkg/os/stat_windows.go b/src/pkg/os/stat_windows.go
+index 3222060448..f396c1db31 100644
+--- a/src/pkg/os/stat_windows.go
++++ b/src/pkg/os/stat_windows.go
+@@ -87,8 +87,10 @@ func Lstat(name string) (fi FileInfo, err error) {
+ 	}
+ 	fs.path = name
+ 	if !isAbs(fs.path) {
+-		cwd, _ := Getwd()
+-		fs.path = cwd + `\` + fs.path
++		fs.path, e = syscall.FullPath(fs.path)
++		if e != nil {
++			return nil, e
++		}
+ 	}
+ 	return fs, nil
+ }
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 82abc0715e..936aeb577b 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -129,9 +129,8 @@ func SetNonblock(fd Handle, nonblocking bool) (err error) {
+ 	return nil
+ }
+ 
+-// getFullPath retrieves the full path of the specified file.
+-// Just a wrapper for Windows GetFullPathName api.
+-func getFullPath(name string) (path string, err error) {
++// FullPath retrieves the full path of the specified file.
++func FullPath(name string) (path string, err error) {
+ 	p, err := UTF16PtrFromString(name)
+ 	if err != nil {
+ 		return "", err
+@@ -160,7 +159,7 @@ func isSlash(c uint8) bool {
+ }
+ 
+ func normalizeDir(dir string) (name string, err error) {
+-	ndir, err := getFullPath(dir)
++	ndir, err := FullPath(dir)
+ 	if err != nil {
+ 		return "", err
+ 	}
+@@ -199,9 +198,9 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
+ 				return "", err
+ 			}
+ 			if volToUpper(int(p[0])) == volToUpper(int(d[0])) {
+-				return getFullPath(d + "\\" + p[2:])
++				return FullPath(d + "\\" + p[2:])
+ 			} else {
+-				return getFullPath(p)
++				return FullPath(p)
+ 			}
+ 		}
+ 	} else {
+@@ -211,9 +210,9 @@ func joinExeDirAndFName(dir, p string) (name string, err error) {
+ 			return "", err
+ 		}
+ 		if isSlash(p[0]) {
+-			return getFullPath(d[:2] + p)
++			return FullPath(d[:2] + p)
+ 		} else {
+-			return getFullPath(d + "\\" + p)
++			return FullPath(d + "\\" + p)
+ 		}
+ 	}
+ 	// we shouldn't be here

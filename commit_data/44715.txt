@@ -12,7 +12,7 @@ Date:   Sun Apr 12 21:28:41 2020 +0200
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/proxy_test.go                         | 17 +++++------------
  src/cmd/go/testdata/script/mod_download.txt      |  1 -
  src/cmd/go/testdata/script/mod_download_json.txt |  1 -
@@ -20,3 +20,117 @@ Date:   Sun Apr 12 21:28:41 2020 +0200
  src/cmd/go/testdata/script/mod_get_moved.txt     |  1 -
  src/cmd/go/testdata/script/mod_query_exclude.txt |  1 -
  6 files changed, 5 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 7f58fb8ce4..42972f5b2a 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -91,7 +91,7 @@ func readModList() {
+ 		encPath := strings.ReplaceAll(name[:i], "_", "/")
+ 		path, err := module.UnescapePath(encPath)
+ 		if err != nil {
+-			if encPath != "example.com/invalidpath/v1" {
++			if testing.Verbose() && encPath != "example.com/invalidpath/v1" {
+ 				fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 			}
+ 			continue
+@@ -137,13 +137,6 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
+-	// /mod/quiet/ does not print errors.
+-	quiet := false
+-	if strings.HasPrefix(path, "quiet/") {
+-		path = path[len("quiet/"):]
+-		quiet = true
+-	}
+-
+ 	// Next element may opt into special behavior.
+ 	if j := strings.Index(path, "/"); j >= 0 {
+ 		n, err := strconv.Atoi(path[:j])
+@@ -220,7 +213,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		enc := path[:i]
+ 		modPath, err := module.UnescapePath(enc)
+ 		if err != nil {
+-			if !quiet {
++			if testing.Verbose() {
+ 				fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 			}
+ 			http.NotFound(w, r)
+@@ -273,7 +266,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 	enc, file := path[:i], path[i+len("/@v/"):]
+ 	path, err := module.UnescapePath(enc)
+ 	if err != nil {
+-		if !quiet {
++		if testing.Verbose() {
+ 			fmt.Fprintf(os.Stderr, "go proxy_test: %v\n", err)
+ 		}
+ 		http.NotFound(w, r)
+@@ -339,7 +332,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 
+ 	a, err := readArchive(path, vers)
+ 	if err != nil {
+-		if !quiet {
++		if testing.Verbose() {
+ 			fmt.Fprintf(os.Stderr, "go proxy: no archive %s %s: %v\n", path, vers, err)
+ 		}
+ 		if errors.Is(err, os.ErrNotExist) {
+@@ -393,7 +386,7 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		}).(cached)
+ 
+ 		if c.err != nil {
+-			if !quiet {
++			if testing.Verbose() {
+ 				fmt.Fprintf(os.Stderr, "go proxy: %v\n", c.err)
+ 			}
+ 			http.Error(w, c.err.Error(), 500)
+diff --git a/src/cmd/go/testdata/script/mod_download.txt b/src/cmd/go/testdata/script/mod_download.txt
+index 3573928a93..bb5c4627db 100644
+--- a/src/cmd/go/testdata/script/mod_download.txt
++++ b/src/cmd/go/testdata/script/mod_download.txt
+@@ -1,5 +1,4 @@
+ env GO111MODULE=on
+-env GOPROXY=$GOPROXY/quiet
+ 
+ # download with version should print nothing
+ go mod download rsc.io/quote@v1.5.0
+diff --git a/src/cmd/go/testdata/script/mod_download_json.txt b/src/cmd/go/testdata/script/mod_download_json.txt
+index 01c35dd993..26291681ce 100644
+--- a/src/cmd/go/testdata/script/mod_download_json.txt
++++ b/src/cmd/go/testdata/script/mod_download_json.txt
+@@ -1,5 +1,4 @@
+ env GO111MODULE=on
+-env GOPROXY=$GOPROXY/quiet
+ env GOSUMDB=$sumdb' '$proxy/sumdb-wrong
+ 
+ # download -json with version should print JSON on sumdb failure
+diff --git a/src/cmd/go/testdata/script/mod_get_commit.txt b/src/cmd/go/testdata/script/mod_get_commit.txt
+index d108242c70..857740ae6c 100644
+--- a/src/cmd/go/testdata/script/mod_get_commit.txt
++++ b/src/cmd/go/testdata/script/mod_get_commit.txt
+@@ -1,5 +1,4 @@
+ env GO111MODULE=on
+-env GOPROXY=$GOPROXY/quiet
+ [short] skip
+ 
+ # @commit should resolve
+diff --git a/src/cmd/go/testdata/script/mod_get_moved.txt b/src/cmd/go/testdata/script/mod_get_moved.txt
+index edc41cf948..b46ec8e8b6 100644
+--- a/src/cmd/go/testdata/script/mod_get_moved.txt
++++ b/src/cmd/go/testdata/script/mod_get_moved.txt
+@@ -1,5 +1,4 @@
+ env GO111MODULE=on
+-env GOPROXY=$GOPROXY/quiet
+ [short] skip
+ 
+ # A 'go get' that worked at a previous version should continue to work at that version,
+diff --git a/src/cmd/go/testdata/script/mod_query_exclude.txt b/src/cmd/go/testdata/script/mod_query_exclude.txt
+index 1ae0d17844..a64a8e1086 100644
+--- a/src/cmd/go/testdata/script/mod_query_exclude.txt
++++ b/src/cmd/go/testdata/script/mod_query_exclude.txt
+@@ -1,5 +1,4 @@
+ env GO111MODULE=on
+-env GOPROXY=$GOPROXY/quiet
+ 
+ # get excluded version
+ cp go.mod1 go.mod

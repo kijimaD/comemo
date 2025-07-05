@@ -9,6 +9,28 @@ Date:   Fri Jun 2 17:07:33 2017 +0200
     Change-Id: Ic84517053ced7794006f6fc65e6f249e97d6cf35
     Reviewed-on: https://go-review.googlesource.com/44691
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/bytes/buffer.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index b241170e5d..20e42bbbbc 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -441,10 +441,12 @@ func (b *Buffer) ReadString(delim byte) (line string, err error) {
+ 	return string(slice), err
+ }
+ 
+-// NewBuffer creates and initializes a new Buffer using buf as its initial
+-// contents. It is intended to prepare a Buffer to read existing data. It
+-// can also be used to size the internal buffer for writing. To do that,
+-// buf should have the desired capacity but a length of zero.
++// NewBuffer creates and initializes a new Buffer using buf as its
++// initial contents. The new Buffer takes ownership of buf, and the
++// caller should not use buf after this call. NewBuffer is intended to
++// prepare a Buffer to read existing data. It can also be used to size
++// the internal buffer for writing. To do that, buf should have the
++// desired capacity but a length of zero.
+ //
+ // In most cases, new(Buffer) (or just declaring a Buffer variable) is
+ // sufficient to initialize a Buffer.

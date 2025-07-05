@@ -12,7 +12,86 @@ Date:   Tue Jul 11 17:42:53 2023 -0700
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/runtime/coverage/apis.go |  8 +-------
  src/runtime/coverage/emit.go | 17 ++---------------
  2 files changed, 3 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/coverage/apis.go b/src/runtime/coverage/apis.go
+index 05da345ede..15ba04a86f 100644
+--- a/src/runtime/coverage/apis.go
++++ b/src/runtime/coverage/apis.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"internal/coverage"
+ 	"io"
+-	"reflect"
+ 	"sync/atomic"
+ 	"unsafe"
+ )
+@@ -158,13 +157,8 @@ func ClearCounters() error {
+ 	// inconsistency when reading the counter array from the thread
+ 	// running ClearCounters.
+ 
+-	var sd []atomic.Uint32
+-
+-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+ 	for _, c := range cl {
+-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
+-		bufHdr.Len = int(c.Len)
+-		bufHdr.Cap = int(c.Len)
++		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
+ 		for i := 0; i < len(sd); i++ {
+ 			// Skip ahead until the next non-zero value.
+ 			sdi := sd[i].Load()
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index bb0c6fb6a2..d18e69053d 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -14,7 +14,6 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
+ 	"strconv"
+ 	"sync/atomic"
+@@ -447,26 +446,16 @@ func (s *emitState) needMetaDataFile() bool {
+ func writeMetaData(w io.Writer, metalist []rtcov.CovMetaBlob, cmode coverage.CounterMode, gran coverage.CounterGranularity, finalHash [16]byte) error {
+ 	mfw := encodemeta.NewCoverageMetaFileWriter("<io.Writer>", w)
+ 
+-	// Note: "sd" is re-initialized on each iteration of the loop
+-	// below, and would normally be declared inside the loop, but
+-	// placed here escape analysis since we capture it in bufHdr.
+-	var sd []byte
+-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+-
+ 	var blobs [][]byte
+ 	for _, e := range metalist {
+-		bufHdr.Data = uintptr(unsafe.Pointer(e.P))
+-		bufHdr.Len = int(e.Len)
+-		bufHdr.Cap = int(e.Len)
++		sd := unsafe.Slice(e.P, int(e.Len))
+ 		blobs = append(blobs, sd)
+ 	}
+ 	return mfw.Write(finalHash, blobs, cmode, gran)
+ }
+ 
+ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+-	var sd []atomic.Uint32
+ 	var tcounters []uint32
+-	bufHdr := (*reflect.SliceHeader)(unsafe.Pointer(&sd))
+ 
+ 	rdCounters := func(actrs []atomic.Uint32, ctrs []uint32) []uint32 {
+ 		ctrs = ctrs[:0]
+@@ -478,9 +467,7 @@ func (s *emitState) VisitFuncs(f encodecounter.CounterVisitorFn) error {
+ 
+ 	dpkg := uint32(0)
+ 	for _, c := range s.counterlist {
+-		bufHdr.Data = uintptr(unsafe.Pointer(c.Counters))
+-		bufHdr.Len = int(c.Len)
+-		bufHdr.Cap = int(c.Len)
++		sd := unsafe.Slice((*atomic.Uint32)(unsafe.Pointer(c.Counters)), int(c.Len))
+ 		for i := 0; i < len(sd); i++ {
+ 			// Skip ahead until the next non-zero value.
+ 			sdi := sd[i].Load()

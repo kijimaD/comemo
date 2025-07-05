@@ -9,8 +9,86 @@ Date:   Fri Mar 15 00:35:09 2013 -0400
     R=golang-dev, rsc, mtj
     CC=golang-dev
     https://golang.org/cl/7841043
-
+---
  src/cmd/gc/swt.c |  4 ++++
  test/switch.go   |  9 ---------
  test/switch4.go  | 36 ++++++++++++++++++++++++++++++++++++
  3 files changed, 40 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index a497b86222..5fba731402 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -322,6 +322,10 @@ casebody(Node *sw, Node *typeswvar)
+ 				setlineno(last);
+ 				yyerror("cannot fallthrough in type switch");
+ 			}
++			if(l->next == nil) {
++				setlineno(last);
++				yyerror("cannot fallthrough final case in switch");
++			}
+ 			last->op = OFALL;
+ 		} else
+ 			stat = list(stat, br);
+diff --git a/test/switch.go b/test/switch.go
+index bcbde68e46..5e1d85bb68 100644
+--- a/test/switch.go
++++ b/test/switch.go
+@@ -392,15 +392,6 @@ func main() {
+ 	}
+ 	assert(count == 2, "fail")
+ 
+-	// fallthrough in final case.
+-	count = 0
+-	switch i5 {
+-	case 5:
+-		count++
+-		fallthrough
+-	}
+-	assert(count == 1, "fail")
+-
+ 	i := 0
+ 	switch x := 5; {
+ 	case i < x:
+diff --git a/test/switch4.go b/test/switch4.go
+new file mode 100644
+index 0000000000..f38efe68c6
+--- /dev/null
++++ b/test/switch4.go
+@@ -0,0 +1,36 @@
++// errorcheck
++
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that erroneous switch statements are detected by the compiler.
++// Does not compile.
++
++package main
++
++type I interface {
++	M()
++}
++
++func bad() {
++
++	i5 := 5
++	switch i5 {
++	case 5:
++		fallthrough // ERROR "cannot fallthrough final case in switch"
++	}
++}
++
++func good() {
++	var i interface{}
++	var s string
++
++	switch i {
++	case s:
++	}
++
++	switch s {
++	case i:
++	}
++}

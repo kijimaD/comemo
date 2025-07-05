@@ -18,7 +18,43 @@ Date:   Tue Jun 27 12:58:32 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  6 +++---
  test/fixedbugs/issue20813.go             | 11 +++++++++++
  2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index bff278b7ae..795bdcdd35 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3288,10 +3288,10 @@ func checkassign(stmt *Node, n *Node) {
+ 
+ 	if n.Op == ODOT && n.Left.Op == OINDEXMAP {
+ 		yyerror("cannot assign to struct field %v in map", n)
+-		return
++	} else {
++		yyerror("cannot assign to %v", n)
+ 	}
+-
+-	yyerror("cannot assign to %v", n)
++	n.Type = nil
+ }
+ 
+ func checkassignlist(stmt *Node, l Nodes) {
+diff --git a/test/fixedbugs/issue20813.go b/test/fixedbugs/issue20813.go
+new file mode 100644
+index 0000000000..b931aea592
+--- /dev/null
++++ b/test/fixedbugs/issue20813.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() {
++	1 = 2 // ERROR "cannot assign to 1"
++}

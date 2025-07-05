@@ -14,6 +14,19 @@ Date:   Sun Apr 26 13:19:32 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
-
+---
  src/cmd/link/internal/loader/loader.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 5d62690f82..30121d4cba 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1276,6 +1276,7 @@ func (l *Loader) DynidSyms() []Sym {
+ 	for s := range l.dynid {
+ 		sl = append(sl, s)
+ 	}
++	sort.Slice(sl, func(i, j int) bool { return sl[i] < sl[j] })
+ 	return sl
+ }
+ 

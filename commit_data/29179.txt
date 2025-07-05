@@ -9,7 +9,32 @@ Date:   Tue Aug 30 11:33:18 2016 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/type.go      | 1 -
  src/cmd/compile/internal/gc/typecheck.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/type.go b/src/cmd/compile/internal/gc/type.go
+index 3810bb878e..12cb3b5993 100644
+--- a/src/cmd/compile/internal/gc/type.go
++++ b/src/cmd/compile/internal/gc/type.go
+@@ -153,7 +153,6 @@ type Type struct {
+ 	Etype      EType // kind of type
+ 	Noalg      bool  // suppress hash and eq algorithm generation
+ 	Trecur     uint8 // to detect loops
+-	Printed    bool  // prevent duplicate export printing
+ 	Local      bool  // created in this file
+ 	Deferwidth bool
+ 	Broke      bool  // broken type definition.
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 0bda4e046b..c97b33d91b 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3492,7 +3492,6 @@ func copytype(n *Node, t *Type) {
+ 	t.methods = Fields{}
+ 	t.allMethods = Fields{}
+ 	t.Nod = nil
+-	t.Printed = false
+ 	t.Deferwidth = false
+ 
+ 	// Update nodes waiting on this type.

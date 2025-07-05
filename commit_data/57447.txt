@@ -16,7 +16,35 @@ Date:   Mon Jul 31 11:13:35 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/internal/syscall/unix/asm_darwin.s        | 1 -
  src/internal/syscall/unix/getentropy_darwin.s | 9 +++++++++
  2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 8662c2846f..10d16ce87f 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -4,7 +4,6 @@
+ 
+ #include "textflag.h"
+ 
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0; JMP libc_getentropy(SB)
+ TEXT ·libc_getaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getaddrinfo(SB)
+ TEXT ·libc_freeaddrinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_freeaddrinfo(SB)
+ TEXT ·libc_getnameinfo_trampoline(SB),NOSPLIT,$0-0; JMP libc_getnameinfo(SB)
+diff --git a/src/internal/syscall/unix/getentropy_darwin.s b/src/internal/syscall/unix/getentropy_darwin.s
+new file mode 100644
+index 0000000000..f41e0fe97b
+--- /dev/null
++++ b/src/internal/syscall/unix/getentropy_darwin.s
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin && !ios
++
++#include "textflag.h"
++
++TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0; JMP libc_getentropy(SB)

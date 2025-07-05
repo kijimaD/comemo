@@ -7,7 +7,45 @@ Date:   Fri Feb 27 09:08:35 2015 -0500
     Change-Id: I8b18dc840425b72d7172a35cb0ba004bd156492d
     Reviewed-on: https://go-review.googlesource.com/6252
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/crypto/x509/root_darwin_test.go | 9 ++++++++-
  src/crypto/x509/x509_test.go        | 4 ++++
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/root_darwin_test.go b/src/crypto/x509/root_darwin_test.go
+index 2e97b95b54..e4718d0e33 100644
+--- a/src/crypto/x509/root_darwin_test.go
++++ b/src/crypto/x509/root_darwin_test.go
+@@ -4,9 +4,16 @@
+ 
+ package x509
+ 
+-import "testing"
++import (
++	"runtime"
++	"testing"
++)
+ 
+ func TestSystemRoots(t *testing.T) {
++	if runtime.GOARCH == "arm" {
++		t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++
+ 	sysRoots := systemRootsPool()         // actual system roots
+ 	execRoots, err := execSecurityRoots() // non-cgo roots
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 6414488bd7..b74cbaba1e 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -829,6 +829,10 @@ func TestImports(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "android", "nacl":
+ 		t.Skipf("skipping on %s", runtime.GOOS)
++	case "darwin":
++		if runtime.GOARCH == "arm" {
++			t.Skipf("skipping on %s/%s", runtime.GOOS, runtime.GOARCH)
++		}
+ 	}
+ 
+ 	if err := exec.Command("go", "run", "x509_test_import.go").Run(); err != nil {

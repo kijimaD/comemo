@@ -9,6 +9,20 @@ Date:   Sun Nov 13 22:00:38 2016 +0100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 6b450d41e3..7d1285f545 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2470,7 +2470,7 @@ func TestClientWriteShutdown(t *testing.T) {
+ 	}
+ 	err = conn.(*net.TCPConn).CloseWrite()
+ 	if err != nil {
+-		t.Fatalf("Dial: %v", err)
++		t.Fatalf("CloseWrite: %v", err)
+ 	}
+ 	donec := make(chan bool)
+ 	go func() {

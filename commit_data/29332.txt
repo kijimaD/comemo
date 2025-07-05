@@ -13,7 +13,7 @@ Date:   Fri Sep 9 08:13:16 2016 -0400
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/asm/internal/asm/operand_test.go  |  5 ++---
  src/cmd/asm/main.go                       |  4 ++--
  src/cmd/compile/internal/amd64/cgen.go    |  2 +-
@@ -49,3 +49,919 @@ Date:   Fri Sep 9 08:13:16 2016 -0400
  src/cmd/link/internal/ppc64/obj.go        |  2 +-
  src/cmd/link/main.go                      |  4 ++--
  34 files changed, 88 insertions(+), 139 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/operand_test.go b/src/cmd/asm/internal/asm/operand_test.go
+index a8d8f5f34f..590fbc112e 100644
+--- a/src/cmd/asm/internal/asm/operand_test.go
++++ b/src/cmd/asm/internal/asm/operand_test.go
+@@ -5,7 +5,6 @@
+ package asm
+ 
+ import (
+-	"os"
+ 	"testing"
+ 
+ 	"cmd/asm/internal/arch"
+@@ -16,8 +15,8 @@ import (
+ // A simple in-out test: Do we print what we parse?
+ 
+ func setArch(goarch string) (*arch.Arch, *obj.Link) {
+-	os.Setenv("GOOS", "linux") // obj can handle this OS for all architectures.
+-	os.Setenv("GOARCH", goarch)
++	obj.GOOS = "linux" // obj can handle this OS for all architectures.
++	obj.GOARCH = goarch
+ 	architecture := arch.Set(goarch)
+ 	if architecture == nil {
+ 		panic("asm: unrecognized architecture " + goarch)
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 0959732728..92428fc811 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -24,7 +24,7 @@ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("asm: ")
+ 
+-	GOARCH := obj.Getgoarch()
++	GOARCH := obj.GOARCH
+ 
+ 	architecture := arch.Set(GOARCH)
+ 	if architecture == nil {
+@@ -51,7 +51,7 @@ func main() {
+ 	defer bio.MustClose(out)
+ 	buf := bufio.NewWriter(bio.MustWriter(out))
+ 
+-	fmt.Fprintf(buf, "go object %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion())
++	fmt.Fprintf(buf, "go object %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version)
+ 	fmt.Fprintf(buf, "!\n")
+ 
+ 	var ok, diag bool
+diff --git a/src/cmd/compile/internal/amd64/cgen.go b/src/cmd/compile/internal/amd64/cgen.go
+index 4b00003018..1fdb8072ec 100644
+--- a/src/cmd/compile/internal/amd64/cgen.go
++++ b/src/cmd/compile/internal/amd64/cgen.go
+@@ -80,7 +80,7 @@ func blockcopy(n, ns *gc.Node, osrc, odst, w int64) {
+ 		gins(x86.ACLD, nil, nil)
+ 	} else {
+ 		// normal direction
+-		if q > 128 || (gc.Nacl && q >= 4) || (obj.Getgoos() == "plan9" && q >= 4) {
++		if q > 128 || (gc.Nacl && q >= 4) || (obj.GOOS == "plan9" && q >= 4) {
+ 			gconreg(movptr, q, x86.REG_CX)
+ 			gins(x86.AREP, nil, nil)   // repeat
+ 			gins(x86.AMOVSQ, nil, nil) // MOVQ *(SI)+,*(DI)+
+diff --git a/src/cmd/compile/internal/amd64/galign.go b/src/cmd/compile/internal/amd64/galign.go
+index 42915340a0..b7ce5a01e5 100644
+--- a/src/cmd/compile/internal/amd64/galign.go
++++ b/src/cmd/compile/internal/amd64/galign.go
+@@ -18,17 +18,17 @@ var (
+ )
+ 
+ func betypeinit() {
+-	if obj.Getgoarch() == "amd64p32" {
++	if obj.GOARCH == "amd64p32" {
+ 		addptr = x86.AADDL
+ 		movptr = x86.AMOVL
+ 		leaptr = x86.ALEAL
+ 		cmpptr = x86.ACMPL
+ 	}
+ 
+-	if gc.Ctxt.Flag_dynlink || obj.Getgoos() == "nacl" {
++	if gc.Ctxt.Flag_dynlink || obj.GOOS == "nacl" {
+ 		resvd = append(resvd, x86.REG_R15)
+ 	}
+-	if gc.Ctxt.Framepointer_enabled || obj.Getgoos() == "nacl" {
++	if gc.Ctxt.Framepointer_enabled || obj.GOOS == "nacl" {
+ 		resvd = append(resvd, x86.REG_BP)
+ 	}
+ 	gc.Thearch.ReservedRegs = resvd
+@@ -36,7 +36,7 @@ func betypeinit() {
+ 
+ func Main() {
+ 	gc.Thearch.LinkArch = &x86.Linkamd64
+-	if obj.Getgoarch() == "amd64p32" {
++	if obj.GOARCH == "amd64p32" {
+ 		gc.Thearch.LinkArch = &x86.Linkamd64p32
+ 	}
+ 	gc.Thearch.REGSP = x86.REGSP
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 7dcb49bc26..3a8e21f8ee 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -11,7 +11,7 @@ import (
+ )
+ 
+ // no floating point in note handlers on Plan 9
+-var isPlan9 = obj.Getgoos() == "plan9"
++var isPlan9 = obj.GOOS == "plan9"
+ 
+ func defframe(ptxt *obj.Prog) {
+ 	// fill in argument size, stack size
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index 39c5dc8927..e7a0b8aeca 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -66,7 +66,7 @@ func defframe(ptxt *obj.Prog) {
+ 	zerorange(p, int64(frame), lo, hi)
+ }
+ 
+-var darwin = obj.Getgoos() == "darwin"
++var darwin = obj.GOOS == "darwin"
+ 
+ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64) *obj.Prog {
+ 	cnt := hi - lo
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 76bfdff4aa..42dfbdc773 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -26,9 +26,6 @@ import (
+ var imported_unsafe bool
+ 
+ var (
+-	goos    string
+-	goarch  string
+-	goroot  string
+ 	buildid string
+ 
+ 	flag_newparser bool
+@@ -89,7 +86,7 @@ func doversion() {
+ 	if p != "" {
+ 		sep = " "
+ 	}
+-	fmt.Printf("compile version %s%s%s\n", obj.Getgoversion(), sep, p)
++	fmt.Printf("compile version %s%s%s\n", obj.Version, sep, p)
+ 	os.Exit(0)
+ }
+ 
+@@ -108,8 +105,6 @@ func Main() {
+ 
+ 	defer hidePanic()
+ 
+-	goarch = obj.Getgoarch()
+-
+ 	Ctxt = obj.Linknew(Thearch.LinkArch)
+ 	Ctxt.DiagFunc = Yyerror
+ 	bstdout = bufio.NewWriter(os.Stdout)
+@@ -151,10 +146,7 @@ func Main() {
+ 	mappkg.Name = "go.map"
+ 	mappkg.Prefix = "go.map"
+ 
+-	goroot = obj.Getgoroot()
+-	goos = obj.Getgoos()
+-
+-	Nacl = goos == "nacl"
++	Nacl = obj.GOOS == "nacl"
+ 	if Nacl {
+ 		flag_largemodel = true
+ 	}
+@@ -533,7 +525,7 @@ func writebench(filename string) error {
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	fmt.Fprintln(&buf, "commit:", obj.Getgoversion())
++	fmt.Fprintln(&buf, "commit:", obj.Version)
+ 	fmt.Fprintln(&buf, "goos:", runtime.GOOS)
+ 	fmt.Fprintln(&buf, "goarch:", runtime.GOARCH)
+ 	timings.Write(&buf, "BenchmarkCompile:"+myimportpath+":")
+@@ -656,7 +648,7 @@ func findpkg(name string) (file string, ok bool) {
+ 		}
+ 	}
+ 
+-	if goroot != "" {
++	if obj.GOROOT != "" {
+ 		suffix := ""
+ 		suffixsep := ""
+ 		if flag_installsuffix != "" {
+@@ -670,11 +662,11 @@ func findpkg(name string) (file string, ok bool) {
+ 			suffix = "msan"
+ 		}
+ 
+-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", goroot, goos, goarch, suffixsep, suffix, name)
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.a", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
+ 		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+-		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", goroot, goos, goarch, suffixsep, suffix, name)
++		file = fmt.Sprintf("%s/pkg/%s_%s%s%s/%s.o", obj.GOROOT, obj.GOOS, obj.GOARCH, suffixsep, suffix, name)
+ 		if _, err := os.Stat(file); err == nil {
+ 			return file, true
+ 		}
+@@ -814,7 +806,7 @@ func importfile(f *Val, indent []byte) {
+ 			errorexit()
+ 		}
+ 
+-		q := fmt.Sprintf("%s %s %s %s", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
++		q := fmt.Sprintf("%s %s %s %s", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
+ 		if p[10:] != q {
+ 			Yyerror("import %s: object is [%s] expected [%s]", file, p[10:], q)
+ 			errorexit()
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 4748bcb8b6..e74fa7c577 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -68,7 +68,7 @@ func dumpobj1(outfile string, mode int) {
+ 	}
+ 
+ 	printheader := func() {
+-		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.Getgoos(), obj.Getgoarch(), obj.Getgoversion(), obj.Expstring())
++		fmt.Fprintf(bout, "go object %s %s %s %s\n", obj.GOOS, obj.GOARCH, obj.Version, obj.Expstring())
+ 		if buildid != "" {
+ 			fmt.Fprintf(bout, "build id %q\n", buildid)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 054f6a14ce..8e6634c9f0 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -155,7 +155,7 @@ func Fatalf(fmt_ string, args ...interface{}) {
+ 	fmt.Printf("\n")
+ 
+ 	// If this is a released compiler version, ask for a bug report.
+-	if strings.HasPrefix(obj.Getgoversion(), "release") {
++	if strings.HasPrefix(obj.Version, "release") {
+ 		fmt.Printf("\n")
+ 		fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+ 		fmt.Printf("https://golang.org/issue/new\n")
+diff --git a/src/cmd/compile/internal/mips64/galign.go b/src/cmd/compile/internal/mips64/galign.go
+index ca8b1ccc00..8abe651128 100644
+--- a/src/cmd/compile/internal/mips64/galign.go
++++ b/src/cmd/compile/internal/mips64/galign.go
+@@ -16,7 +16,7 @@ func betypeinit() {
+ 
+ func Main() {
+ 	gc.Thearch.LinkArch = &mips.Linkmips64
+-	if obj.Getgoarch() == "mips64le" {
++	if obj.GOARCH == "mips64le" {
+ 		gc.Thearch.LinkArch = &mips.Linkmips64le
+ 	}
+ 	gc.Thearch.REGSP = mips.REGSP
+diff --git a/src/cmd/compile/internal/ppc64/galign.go b/src/cmd/compile/internal/ppc64/galign.go
+index 4c984d81c2..a3fab794e6 100644
+--- a/src/cmd/compile/internal/ppc64/galign.go
++++ b/src/cmd/compile/internal/ppc64/galign.go
+@@ -19,7 +19,7 @@ func betypeinit() {
+ 
+ func Main() {
+ 	gc.Thearch.LinkArch = &ppc64.Linkppc64
+-	if obj.Getgoarch() == "ppc64le" {
++	if obj.GOARCH == "ppc64le" {
+ 		gc.Thearch.LinkArch = &ppc64.Linkppc64le
+ 	}
+ 	gc.Thearch.REGSP = ppc64.REGSP
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 37c2945988..743ff29138 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -182,7 +182,7 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.fpRegMask = fpRegMaskARM64
+ 		c.FPReg = framepointerRegARM64
+ 		c.hasGReg = true
+-		c.noDuffDevice = obj.Getgoos() == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
++		c.noDuffDevice = obj.GOOS == "darwin" // darwin linker cannot handle BR26 reloc with non-zero addend
+ 	case "ppc64le":
+ 		c.IntSize = 8
+ 		c.PtrSize = 8
+@@ -211,11 +211,11 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 	}
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+-	c.nacl = obj.Getgoos() == "nacl"
++	c.nacl = obj.GOOS == "nacl"
+ 
+ 	// Don't use Duff's device on Plan 9 AMD64, because floating
+ 	// point operations are not allowed in note handler.
+-	if obj.Getgoos() == "plan9" && arch == "amd64" {
++	if obj.GOOS == "plan9" && arch == "amd64" {
+ 		c.noDuffDevice = true
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/x86/galign.go b/src/cmd/compile/internal/x86/galign.go
+index a28b28742d..9fb4712e92 100644
+--- a/src/cmd/compile/internal/x86/galign.go
++++ b/src/cmd/compile/internal/x86/galign.go
+@@ -24,7 +24,7 @@ func Main() {
+ 	gc.Thearch.REGRETURN = x86.REG_AX
+ 	gc.Thearch.REGMIN = x86.REG_AX
+ 	gc.Thearch.REGMAX = x86.REG_DI
+-	switch v := obj.Getgo386(); v {
++	switch v := obj.GO386; v {
+ 	case "387":
+ 		gc.Thearch.FREGMIN = x86.REG_F0
+ 		gc.Thearch.FREGMAX = x86.REG_F7
+diff --git a/src/cmd/compile/main.go b/src/cmd/compile/main.go
+index 8b8161efd1..892383f3cc 100644
+--- a/src/cmd/compile/main.go
++++ b/src/cmd/compile/main.go
+@@ -23,9 +23,9 @@ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("compile: ")
+ 
+-	switch obj.Getgoarch() {
++	switch obj.GOARCH {
+ 	default:
+-		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.Getgoarch())
++		fmt.Fprintf(os.Stderr, "compile: unknown architecture %q\n", obj.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+ 		x86.Main()
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 2b561c4dd9..be88a87530 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -2794,7 +2794,7 @@ func omvl(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, dr int) uint32 {
+ 
+ func chipzero5(ctxt *obj.Link, e float64) int {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if ctxt.Goarm < 7 || e != 0 {
++	if obj.GOARM < 7 || e != 0 {
+ 		return -1
+ 	}
+ 	return 0
+@@ -2802,7 +2802,7 @@ func chipzero5(ctxt *obj.Link, e float64) int {
+ 
+ func chipfloat5(ctxt *obj.Link, e float64) int {
+ 	// We use GOARM=7 to gate the use of VFPv3 vmov (imm) instructions.
+-	if ctxt.Goarm < 7 {
++	if obj.GOARM < 7 {
+ 		return -1
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 4ffe3c6138..beb845f2cd 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -66,7 +66,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 				ctxt.Diag("%v: TLS MRC instruction must write to R0 as it might get translated into a BL instruction", p.Line())
+ 			}
+ 
+-			if ctxt.Goarm < 7 {
++			if obj.GOARM < 7 {
+ 				// Replace it with BL runtime.read_tls_fallback(SB) for ARM CPUs that lack the tls extension.
+ 				if progedit_tlsfallback == nil {
+ 					progedit_tlsfallback = obj.Linklookup(ctxt, "runtime.read_tls_fallback", 0)
+@@ -626,7 +626,7 @@ func isfloatreg(a *obj.Addr) bool {
+ }
+ 
+ func softfloat(ctxt *obj.Link, cursym *obj.LSym) {
+-	if ctxt.Goarm > 5 {
++	if obj.GOARM > 5 {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index e3de1091fe..ef1165d10b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -625,7 +625,6 @@ const (
+ // Link holds the context for writing object code from a compiler
+ // to be linker input or for reading that input into the linker.
+ type Link struct {
+-	Goarm         int32
+ 	Headtype      HeadType
+ 	Arch          *LinkArch
+ 	Debugasm      int32
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 3c0da30621..f8d61cd1c2 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -567,7 +567,7 @@ func gendwarf(ctxt *Link, text []*LSym) []*LSym {
+ 				if ctxt.FixedFrameSize() == 0 {
+ 					offs -= int32(ctxt.Arch.PtrSize)
+ 				}
+-				if Framepointer_enabled(Getgoos(), Getgoarch()) {
++				if Framepointer_enabled(GOOS, GOARCH) {
+ 					offs -= int32(ctxt.Arch.PtrSize)
+ 				}
+ 
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 8aa2436085..c2ddf6b283 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -32,7 +32,6 @@
+ package obj
+ 
+ import (
+-	"cmd/internal/sys"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -43,7 +42,7 @@ func Linknew(arch *LinkArch) *Link {
+ 	ctxt.Hash = make(map[SymVer]*LSym)
+ 	ctxt.Arch = arch
+ 	ctxt.Version = HistVersion
+-	ctxt.Goroot = Getgoroot()
++	ctxt.Goroot = GOROOT
+ 	ctxt.Goroot_final = os.Getenv("GOROOT_FINAL")
+ 
+ 	var buf string
+@@ -54,22 +53,17 @@ func Linknew(arch *LinkArch) *Link {
+ 	buf = filepath.ToSlash(buf)
+ 	ctxt.Pathname = buf
+ 
+-	ctxt.LineHist.GOROOT = ctxt.Goroot
++	ctxt.LineHist.GOROOT = GOROOT
+ 	ctxt.LineHist.GOROOT_FINAL = ctxt.Goroot_final
+ 	ctxt.LineHist.Dir = ctxt.Pathname
+ 
+-	ctxt.Headtype.Set(Getgoos())
++	ctxt.Headtype.Set(GOOS)
+ 	if ctxt.Headtype < 0 {
+-		log.Fatalf("unknown goos %s", Getgoos())
+-	}
+-
+-	// On arm, record goarm.
+-	if ctxt.Arch.Family == sys.ARM {
+-		ctxt.Goarm = Getgoarm()
++		log.Fatalf("unknown goos %s", GOOS)
+ 	}
+ 
+ 	ctxt.Flag_optimize = true
+-	ctxt.Framepointer_enabled = Framepointer_enabled(Getgoos(), arch.Name)
++	ctxt.Framepointer_enabled = Framepointer_enabled(GOOS, arch.Name)
+ 	return ctxt
+ }
+ 
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 101e0ea3c6..6270a8b8bb 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -31,19 +31,16 @@ func envOr(key, value string) string {
+ 	return value
+ }
+ 
+-func Getgoroot() string {
+-	return envOr("GOROOT", defaultGOROOT)
+-}
+-
+-func Getgoarch() string {
+-	return envOr("GOARCH", defaultGOARCH)
+-}
+-
+-func Getgoos() string {
+-	return envOr("GOOS", defaultGOOS)
+-}
++var (
++	GOROOT  = envOr("GOROOT", defaultGOROOT)
++	GOARCH  = envOr("GOARCH", defaultGOARCH)
++	GOOS    = envOr("GOOS", defaultGOOS)
++	GO386   = envOr("GO386", defaultGO386)
++	GOARM   = goarm()
++	Version = version
++)
+ 
+-func Getgoarm() int32 {
++func goarm() int {
+ 	switch v := envOr("GOARM", defaultGOARM); v {
+ 	case "5":
+ 		return 5
+@@ -57,19 +54,10 @@ func Getgoarm() int32 {
+ 	panic("unreachable")
+ }
+ 
+-func Getgo386() string {
+-	// Validated by cmd/compile.
+-	return envOr("GO386", defaultGO386)
+-}
+-
+ func Getgoextlinkenabled() string {
+ 	return envOr("GO_EXTLINK_ENABLED", defaultGO_EXTLINK_ENABLED)
+ }
+ 
+-func Getgoversion() string {
+-	return version
+-}
+-
+ func (p *Prog) Line() string {
+ 	return p.Ctxt.LineHist.LineString(int(p.Lineno))
+ }
+@@ -287,7 +275,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 	case TYPE_SHIFT:
+ 		v := int(a.Offset)
+ 		ops := "<<>>->@>"
+-		switch goarch := Getgoarch(); goarch {
++		switch GOARCH {
+ 		case "arm":
+ 			op := ops[((v>>5)&3)<<1:]
+ 			if v&(1<<4) != 0 {
+@@ -302,7 +290,7 @@ func Dconv(p *Prog, a *Addr) string {
+ 			op := ops[((v>>22)&3)<<1:]
+ 			str = fmt.Sprintf("R%d%c%c%d", (v>>16)&31, op[0], op[1], (v>>10)&63)
+ 		default:
+-			panic("TYPE_SHIFT is not supported on " + goarch)
++			panic("TYPE_SHIFT is not supported on " + GOARCH)
+ 		}
+ 
+ 	case TYPE_REGREG:
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 13bee85b35..88a094f117 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2152,7 +2152,7 @@ func instinit() {
+ 	}
+ }
+ 
+-var isAndroid = (obj.Getgoos() == "android")
++var isAndroid = (obj.GOOS == "android")
+ 
+ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
+ 	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index 384de89841..ba02910812 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -47,7 +47,7 @@ func Main() {
+ 
+ func linkarchinit() {
+ 	ld.SysArch = sys.ArchAMD64
+-	if obj.Getgoarch() == "amd64p32" {
++	if obj.GOARCH == "amd64p32" {
+ 		ld.SysArch = sys.ArchAMD64P32
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 282630b87e..ba5f2ef759 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -165,7 +165,7 @@ func readArmap(filename string, f *bio.Reader, arhdr ArHdr) archiveMap {
+ 
+ 		// For Mach-O and PE/386 files we strip a leading
+ 		// underscore from the symbol name.
+-		if goos == "darwin" || (goos == "windows" && goarch == "386") {
++		if obj.GOOS == "darwin" || (obj.GOOS == "windows" && obj.GOARCH == "386") {
+ 			if name[0] == '_' && len(name) > 1 {
+ 				name = name[1:]
+ 			}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index da2ca358f7..4c40b66d33 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -399,7 +399,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			}
+ 
+ 		case obj.R_TLS_LE:
+-			isAndroidX86 := goos == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
++			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+ 
+ 			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
+ 				r.Done = 0
+@@ -433,7 +433,7 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 			}
+ 
+ 		case obj.R_TLS_IE:
+-			isAndroidX86 := goos == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
++			isAndroidX86 := obj.GOOS == "android" && (SysArch.InFamily(sys.AMD64, sys.I386))
+ 
+ 			if Linkmode == LinkExternal && Iself && Headtype != obj.Hopenbsd && !isAndroidX86 {
+ 				r.Done = 0
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 27e5a19a7a..c8aa6ee0ce 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -223,7 +223,7 @@ func (d *deadcodepass) init() {
+ 
+ 	if SysArch.Family == sys.ARM {
+ 		// mark some functions that are only referenced after linker code editing
+-		if d.ctxt.Goarm == 5 {
++		if obj.GOARM == 5 {
+ 			names = append(names, "_sfloat")
+ 		}
+ 		names = append(names, "runtime.read_tls_fallback")
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 54f169ec2a..8e2a3e08fd 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -197,8 +197,6 @@ var (
+ 	Segdwarf  Segment
+ )
+ 
+-/* set by call to mywhatsys() */
+-
+ /* whence for ldpkg */
+ const (
+ 	FileObj = 0 + iota
+@@ -237,9 +235,6 @@ var (
+ 	// Set if we see an object compiled by the host compiler that is not
+ 	// from a package that is known to support internal linking mode.
+ 	externalobj = false
+-	goroot      string
+-	goarch      string
+-	goos        string
+ 	theline     string
+ )
+ 
+@@ -262,7 +257,6 @@ func mayberemoveoutfile() {
+ 
+ func libinit(ctxt *Link) {
+ 	Funcalign = Thearch.Funcalign
+-	mywhatsys() // get goroot, goarch, goos
+ 
+ 	// add goroot to the end of the libdir list.
+ 	suffix := ""
+@@ -279,7 +273,7 @@ func libinit(ctxt *Link) {
+ 		suffix = "msan"
+ 	}
+ 
+-	Lflag(ctxt, filepath.Join(goroot, "pkg", fmt.Sprintf("%s_%s%s%s", goos, goarch, suffixsep, suffix)))
++	Lflag(ctxt, filepath.Join(obj.GOROOT, "pkg", fmt.Sprintf("%s_%s%s%s", obj.GOOS, obj.GOARCH, suffixsep, suffix)))
+ 
+ 	mayberemoveoutfile()
+ 	f, err := os.OpenFile(*flagOutfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0775)
+@@ -293,9 +287,9 @@ func libinit(ctxt *Link) {
+ 	if *flagEntrySymbol == "" {
+ 		switch Buildmode {
+ 		case BuildmodeCShared, BuildmodeCArchive:
+-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s_lib", obj.GOARCH, obj.GOOS)
+ 		case BuildmodeExe, BuildmodePIE:
+-			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
++			*flagEntrySymbol = fmt.Sprintf("_rt0_%s_%s", obj.GOARCH, obj.GOOS)
+ 		case BuildmodeShared:
+ 			// No *flagEntrySymbol for -buildmode=shared
+ 		default:
+@@ -446,7 +440,7 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 
+ 		// Force external linking for android.
+-		if goos == "android" {
++		if obj.GOOS == "android" {
+ 			Linkmode = LinkExternal
+ 		}
+ 
+@@ -474,7 +468,7 @@ func (ctxt *Link) loadlib() {
+ 	// cmd/7l doesn't support cgo internal linking
+ 	// This is https://golang.org/issue/10373.
+ 	// mips64x doesn't support cgo internal linking either (golang.org/issue/14449)
+-	if iscgo && (goarch == "arm64" || goarch == "mips64" || goarch == "mips64le") {
++	if iscgo && (obj.GOARCH == "arm64" || obj.GOARCH == "mips64" || obj.GOARCH == "mips64le") {
+ 		Linkmode = LinkExternal
+ 	}
+ 
+@@ -543,10 +537,10 @@ func (ctxt *Link) loadlib() {
+ 			s := Linklookup(ctxt, "runtime.goarm", 0)
+ 			s.Type = obj.SRODATA
+ 			s.Size = 0
+-			Adduint8(ctxt, s, uint8(ctxt.Goarm))
++			Adduint8(ctxt, s, uint8(obj.GOARM))
+ 		}
+ 
+-		if obj.Framepointer_enabled(obj.Getgoos(), obj.Getgoarch()) {
++		if obj.Framepointer_enabled(obj.GOOS, obj.GOARCH) {
+ 			s := Linklookup(ctxt, "runtime.framepointer_enabled", 0)
+ 			s.Type = obj.SRODATA
+ 			s.Size = 0
+@@ -1062,7 +1056,7 @@ func (l *Link) hostlink() {
+ 	// only want to do this when producing a Windows output file
+ 	// on a Windows host.
+ 	outopt := *flagOutfile
+-	if goos == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
++	if obj.GOOS == "windows" && runtime.GOOS == "windows" && filepath.Ext(outopt) == "" {
+ 		outopt += "."
+ 	}
+ 	argv = append(argv, "-o")
+@@ -1278,8 +1272,8 @@ func ldobj(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string, file
+ 		return nil
+ 	}
+ 
+-	// First, check that the basic goos, goarch, and version match.
+-	t := fmt.Sprintf("%s %s %s ", goos, obj.Getgoarch(), obj.Getgoversion())
++	// First, check that the basic GOOS, GOARCH, and Version match.
++	t := fmt.Sprintf("%s %s %s ", obj.GOOS, obj.GOARCH, obj.Version)
+ 
+ 	line = strings.TrimRight(line, "\n")
+ 	if !strings.HasPrefix(line[10:]+" ", t) && !*flagF {
+@@ -1503,12 +1497,6 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, gcdataAddresses: gcdataAddresses})
+ }
+ 
+-func mywhatsys() {
+-	goroot = obj.Getgoroot()
+-	goos = obj.Getgoos()
+-	goarch = obj.Getgoarch()
+-}
+-
+ // Copied from ../gc/subr.c:/^pathtoprefix; must stay in sync.
+ /*
+  * Convert raw string to the prefix that will be used in the symbol table.
+@@ -1822,7 +1810,7 @@ func usage() {
+ }
+ 
+ func doversion() {
+-	Exitf("version %s", obj.Getgoversion())
++	Exitf("version %s", obj.Version)
+ }
+ 
+ func genasmsym(ctxt *Link, put func(*Link, *Symbol, string, int, int64, int64, int, *Symbol)) {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 836d7748a7..3ea990ae00 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -160,12 +160,10 @@ type Shlib struct {
+ }
+ 
+ type Link struct {
+-	Goarm     int32
+ 	Arch      *sys.Arch
+ 	Debugvlog int
+ 	Bso       *bufio.Writer
+ 	Windows   int32
+-	Goroot    string
+ 
+ 	// Symbol lookup based on name and indexed by version.
+ 	Hash []map[string]*Symbol
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index c169944d1d..d5eeb73bd1 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -111,7 +111,7 @@ func Main() {
+ 	}
+ 
+ 	// TODO(matloob): define these above and then check flag values here
+-	if SysArch.Family == sys.AMD64 && obj.Getgoos() == "plan9" {
++	if SysArch.Family == sys.AMD64 && obj.GOOS == "plan9" {
+ 		flag.BoolVar(&Flag8, "8", false, "use 64-bit addresses in symbol table")
+ 	}
+ 	obj.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF", addbuildinfo)
+@@ -144,7 +144,7 @@ func Main() {
+ 	libinit(ctxt) // creates outfile
+ 
+ 	if Headtype == obj.Hunknown {
+-		Headtype.Set(obj.Getgoos())
++		Headtype.Set(obj.GOOS)
+ 	}
+ 
+ 	ctxt.computeTLSOffset()
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 00741d672a..6025f38f96 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -374,7 +374,7 @@ func (ctxt *Link) pclntab() {
+ func expandGoroot(s string) string {
+ 	const n = len("$GOROOT")
+ 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
+-		root := goroot
++		root := obj.GOROOT
+ 		if final := os.Getenv("GOROOT_FINAL"); final != "" {
+ 			root = final
+ 		}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 591a5f47d0..7888cbd2cf 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -876,9 +876,9 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	sectoff := ctors.VirtualAddress
+ 	Lputl(sectoff)
+ 	Lputl(uint32(dottext.Dynid))
+-	switch obj.Getgoarch() {
++	switch obj.GOARCH {
+ 	default:
+-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
++		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+ 		Wputl(IMAGE_REL_I386_DIR32)
+@@ -1097,9 +1097,9 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+ 	// However, the entire Go runtime is initialized from just one function, so it is unlikely
+ 	// that this will need to grow in the future.
+ 	var size int
+-	switch obj.Getgoarch() {
++	switch obj.GOARCH {
+ 	default:
+-		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.Getgoarch())
++		fmt.Fprintf(os.Stderr, "link: unknown architecture for PE: %q\n", obj.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+ 		size = 4
+@@ -1116,7 +1116,7 @@ func addinitarray(ctxt *Link) (c *IMAGE_SECTION_HEADER) {
+ 	init_entry := Linklookup(ctxt, *flagEntrySymbol, 0)
+ 	addr := uint64(init_entry.Value) - init_entry.Sect.Vaddr
+ 
+-	switch obj.Getgoarch() {
++	switch obj.GOARCH {
+ 	case "386":
+ 		Lputl(uint32(addr))
+ 	case "amd64":
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index bf27707718..b61e120afe 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -47,17 +47,10 @@ func linknew(arch *sys.Arch) *Link {
+ 		},
+ 		Allsym: make([]*Symbol, 0, 100000),
+ 		Arch:   arch,
+-		Goroot: obj.Getgoroot(),
+ 	}
+ 
+-	p := obj.Getgoarch()
+-	if p != arch.Name {
+-		log.Fatalf("invalid goarch %s (want %s)", p, arch.Name)
+-	}
+-
+-	// On arm, record goarm.
+-	if ctxt.Arch.Family == sys.ARM {
+-		ctxt.Goarm = obj.Getgoarm()
++	if obj.GOARCH != arch.Name {
++		log.Fatalf("invalid obj.GOARCH %s (want %s)", obj.GOARCH, arch.Name)
+ 	}
+ 
+ 	return ctxt
+@@ -83,7 +76,7 @@ func (ctxt *Link) computeTLSOffset() {
+ 		obj.Hopenbsd,
+ 		obj.Hdragonfly,
+ 		obj.Hsolaris:
+-		if obj.Getgoos() == "android" {
++		if obj.GOOS == "android" {
+ 			switch ctxt.Arch.Family {
+ 			case sys.AMD64:
+ 				// Android/amd64 constant - offset from 0(FS) to our TLS slot.
+@@ -194,10 +187,8 @@ const (
+ )
+ 
+ func (mode *BuildMode) Set(s string) error {
+-	goos := obj.Getgoos()
+-	goarch := obj.Getgoarch()
+ 	badmode := func() error {
+-		return fmt.Errorf("buildmode %s not supported on %s/%s", s, goos, goarch)
++		return fmt.Errorf("buildmode %s not supported on %s/%s", s, obj.GOOS, obj.GOARCH)
+ 	}
+ 	switch s {
+ 	default:
+@@ -205,17 +196,17 @@ func (mode *BuildMode) Set(s string) error {
+ 	case "exe":
+ 		*mode = BuildmodeExe
+ 	case "pie":
+-		switch goos {
++		switch obj.GOOS {
+ 		case "android", "linux":
+ 		default:
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodePIE
+ 	case "c-archive":
+-		switch goos {
++		switch obj.GOOS {
+ 		case "darwin", "linux":
+ 		case "windows":
+-			switch goarch {
++			switch obj.GOARCH {
+ 			case "amd64", "386":
+ 			default:
+ 				return badmode()
+@@ -225,16 +216,16 @@ func (mode *BuildMode) Set(s string) error {
+ 		}
+ 		*mode = BuildmodeCArchive
+ 	case "c-shared":
+-		switch goarch {
++		switch obj.GOARCH {
+ 		case "386", "amd64", "arm", "arm64":
+ 		default:
+ 			return badmode()
+ 		}
+ 		*mode = BuildmodeCShared
+ 	case "shared":
+-		switch goos {
++		switch obj.GOOS {
+ 		case "linux":
+-			switch goarch {
++			switch obj.GOARCH {
+ 			case "386", "amd64", "arm", "arm64", "ppc64le", "s390x":
+ 			default:
+ 				return badmode()
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 583a78a98f..8e7bcef8ec 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -46,7 +46,7 @@ func Main() {
+ }
+ 
+ func linkarchinit() {
+-	if obj.Getgoarch() == "mips64le" {
++	if obj.GOARCH == "mips64le" {
+ 		ld.SysArch = sys.ArchMIPS64LE
+ 	} else {
+ 		ld.SysArch = sys.ArchMIPS64
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index 8ebc0da446..be99ac39ff 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -46,7 +46,7 @@ func Main() {
+ }
+ 
+ func linkarchinit() {
+-	if obj.Getgoarch() == "ppc64le" {
++	if obj.GOARCH == "ppc64le" {
+ 		ld.SysArch = sys.ArchPPC64LE
+ 	} else {
+ 		ld.SysArch = sys.ArchPPC64
+diff --git a/src/cmd/link/main.go b/src/cmd/link/main.go
+index f92e02eac3..fd7ea093d3 100644
+--- a/src/cmd/link/main.go
++++ b/src/cmd/link/main.go
+@@ -18,9 +18,9 @@ import (
+ )
+ 
+ func main() {
+-	switch obj.Getgoarch() {
++	switch obj.GOARCH {
+ 	default:
+-		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", obj.Getgoarch())
++		fmt.Fprintf(os.Stderr, "link: unknown architecture %q\n", obj.GOARCH)
+ 		os.Exit(2)
+ 	case "386":
+ 		x86.Main()

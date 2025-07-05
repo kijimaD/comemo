@@ -11,6 +11,24 @@ Date:   Wed Feb 18 14:58:13 2015 +1300
     Reviewed-on: https://go-review.googlesource.com/5110
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/debug/gosym/pclntab_test.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/debug/gosym/pclntab_test.go b/src/debug/gosym/pclntab_test.go
+index 1415fac276..6855a65bbe 100644
+--- a/src/debug/gosym/pclntab_test.go
++++ b/src/debug/gosym/pclntab_test.go
+@@ -84,7 +84,11 @@ func crack(file string, t *testing.T) (*elf.File, *Table) {
+ }
+ 
+ func parse(file string, f *elf.File, t *testing.T) (*elf.File, *Table) {
+-	symdat, err := f.Section(".gosymtab").Data()
++	s := f.Section(".gosymtab")
++	if s == nil {
++		t.Skip("no .gosymtab section")
++	}
++	symdat, err := s.Data()
+ 	if err != nil {
+ 		f.Close()
+ 		t.Fatalf("reading %s gosymtab: %v", file, err)

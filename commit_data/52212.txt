@@ -12,8 +12,52 @@ Date:   Wed Feb 16 21:00:04 2022 +0000
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/mime/testdata/test.types.globs2 | 2 ++
  src/mime/type_unix.go               | 6 +++---
  src/mime/type_unix_test.go          | 2 ++
  3 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/mime/testdata/test.types.globs2 b/src/mime/testdata/test.types.globs2
+index cb5b7899b0..fd9df7078b 100644
+--- a/src/mime/testdata/test.types.globs2
++++ b/src/mime/testdata/test.types.globs2
+@@ -6,4 +6,6 @@
+ # mime package test for globs2
+ 50:document/test:*.t3
+ 50:example/test:*.t4
++50:text/plain:*,v
++50:application/x-trash:*~
+ 30:example/do-not-use:*.t4
+diff --git a/src/mime/type_unix.go b/src/mime/type_unix.go
+index 52579c56b9..e297ecf5c1 100644
+--- a/src/mime/type_unix.go
++++ b/src/mime/type_unix.go
+@@ -40,11 +40,11 @@ func loadMimeGlobsFile(filename string) error {
+ 
+ 	scanner := bufio.NewScanner(f)
+ 	for scanner.Scan() {
+-		// Each line should be of format: weight:mimetype:*.ext
++		// Each line should be of format: weight:mimetype:*.ext[:morefields...]
+ 		fields := strings.Split(scanner.Text(), ":")
+-		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 2 {
++		if len(fields) < 3 || len(fields[0]) < 1 || len(fields[2]) < 3 {
+ 			continue
+-		} else if fields[0][0] == '#' || fields[2][0] != '*' {
++		} else if fields[0][0] == '#' || fields[2][0] != '*' || fields[2][1] != '.' {
+ 			continue
+ 		}
+ 
+diff --git a/src/mime/type_unix_test.go b/src/mime/type_unix_test.go
+index 6bb408566c..ab14ae6f80 100644
+--- a/src/mime/type_unix_test.go
++++ b/src/mime/type_unix_test.go
+@@ -27,6 +27,8 @@ func TestTypeByExtensionUNIX(t *testing.T) {
+ 		".t3":  "document/test",
+ 		".t4":  "example/test",
+ 		".png": "image/png",
++		",v":   "",
++		"~":    "",
+ 	}
+ 
+ 	for ext, want := range typeTests {

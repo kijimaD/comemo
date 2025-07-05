@@ -19,8 +19,62 @@ Date:   Tue Jun 26 15:57:35 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/mime/multipart/formdata.go      |  2 +-
  src/mime/multipart/formdata_test.go |  7 ++-----
  src/mime/multipart/multipart.go     | 10 ----------
  3 files changed, 3 insertions(+), 16 deletions(-)
+
+diff --git a/src/mime/multipart/formdata.go b/src/mime/multipart/formdata.go
+index 22e2c8d323..832d0ad693 100644
+--- a/src/mime/multipart/formdata.go
++++ b/src/mime/multipart/formdata.go
+@@ -58,7 +58,7 @@ func (r *Reader) readForm(maxMemory int64) (_ *Form, err error) {
+ 
+ 		var b bytes.Buffer
+ 
+-		if !p.hasFileName() {
++		if filename == "" {
+ 			// value, store as string in memory
+ 			n, err := io.CopyN(&b, p, maxValueBytes+1)
+ 			if err != nil && err != io.EOF {
+diff --git a/src/mime/multipart/formdata_test.go b/src/mime/multipart/formdata_test.go
+index 5e3c3330f3..2d6a830cb6 100644
+--- a/src/mime/multipart/formdata_test.go
++++ b/src/mime/multipart/formdata_test.go
+@@ -47,12 +47,9 @@ func TestReadFormWithNamelessFile(t *testing.T) {
+ 	}
+ 	defer f.RemoveAll()
+ 
+-	fd := testFile(t, f.File["hiddenfile"][0], "", filebContents)
+-	if _, ok := fd.(sectionReadCloser); !ok {
+-		t.Errorf("file has unexpected underlying type %T", fd)
++	if g, e := f.Value["hiddenfile"][0], filebContents; g != e {
++		t.Errorf("hiddenfile value = %q, want %q", g, e)
+ 	}
+-	fd.Close()
+-
+ }
+ 
+ func TestReadFormWithTextContentType(t *testing.T) {
+diff --git a/src/mime/multipart/multipart.go b/src/mime/multipart/multipart.go
+index b1b78ecb9a..0993fb7e91 100644
+--- a/src/mime/multipart/multipart.go
++++ b/src/mime/multipart/multipart.go
+@@ -81,16 +81,6 @@ func (p *Part) FileName() string {
+ 	return p.dispositionParams["filename"]
+ }
+ 
+-// hasFileName determines if a (empty or otherwise)
+-// filename parameter was included in the Content-Disposition header
+-func (p *Part) hasFileName() bool {
+-	if p.dispositionParams == nil {
+-		p.parseContentDisposition()
+-	}
+-	_, ok := p.dispositionParams["filename"]
+-	return ok
+-}
+-
+ func (p *Part) parseContentDisposition() {
+ 	v := p.Header.Get("Content-Disposition")
+ 	var err error

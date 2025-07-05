@@ -11,7 +11,7 @@ Date:   Fri Jan 11 22:00:48 2013 +0100
     R=golang-dev, bradfitz, iant
     CC=golang-dev
     https://golang.org/cl/7064067
-
+---
  test/dwarf/{ => dwarf.dir}/main.go |  0
  test/dwarf/{ => dwarf.dir}/z1.go   |  0
  test/dwarf/{ => dwarf.dir}/z10.go  |  0
@@ -36,3 +36,204 @@ Date:   Fri Jan 11 22:00:48 2013 +0100
  test/dwarf/dwarf.go                | 10 +++++++
  test/run.go                        | 60 +++++++++++++-------------------------
  23 files changed, 30 insertions(+), 40 deletions(-)
+
+diff --git a/test/dwarf/main.go b/test/dwarf/dwarf.dir/main.go
+similarity index 100%
+rename from test/dwarf/main.go
+rename to test/dwarf/dwarf.dir/main.go
+diff --git a/test/dwarf/z1.go b/test/dwarf/dwarf.dir/z1.go
+similarity index 100%
+rename from test/dwarf/z1.go
+rename to test/dwarf/dwarf.dir/z1.go
+diff --git a/test/dwarf/z10.go b/test/dwarf/dwarf.dir/z10.go
+similarity index 100%
+rename from test/dwarf/z10.go
+rename to test/dwarf/dwarf.dir/z10.go
+diff --git a/test/dwarf/z11.go b/test/dwarf/dwarf.dir/z11.go
+similarity index 100%
+rename from test/dwarf/z11.go
+rename to test/dwarf/dwarf.dir/z11.go
+diff --git a/test/dwarf/z12.go b/test/dwarf/dwarf.dir/z12.go
+similarity index 100%
+rename from test/dwarf/z12.go
+rename to test/dwarf/dwarf.dir/z12.go
+diff --git a/test/dwarf/z13.go b/test/dwarf/dwarf.dir/z13.go
+similarity index 100%
+rename from test/dwarf/z13.go
+rename to test/dwarf/dwarf.dir/z13.go
+diff --git a/test/dwarf/z14.go b/test/dwarf/dwarf.dir/z14.go
+similarity index 100%
+rename from test/dwarf/z14.go
+rename to test/dwarf/dwarf.dir/z14.go
+diff --git a/test/dwarf/z15.go b/test/dwarf/dwarf.dir/z15.go
+similarity index 100%
+rename from test/dwarf/z15.go
+rename to test/dwarf/dwarf.dir/z15.go
+diff --git a/test/dwarf/z16.go b/test/dwarf/dwarf.dir/z16.go
+similarity index 100%
+rename from test/dwarf/z16.go
+rename to test/dwarf/dwarf.dir/z16.go
+diff --git a/test/dwarf/z17.go b/test/dwarf/dwarf.dir/z17.go
+similarity index 100%
+rename from test/dwarf/z17.go
+rename to test/dwarf/dwarf.dir/z17.go
+diff --git a/test/dwarf/z18.go b/test/dwarf/dwarf.dir/z18.go
+similarity index 100%
+rename from test/dwarf/z18.go
+rename to test/dwarf/dwarf.dir/z18.go
+diff --git a/test/dwarf/z19.go b/test/dwarf/dwarf.dir/z19.go
+similarity index 100%
+rename from test/dwarf/z19.go
+rename to test/dwarf/dwarf.dir/z19.go
+diff --git a/test/dwarf/z2.go b/test/dwarf/dwarf.dir/z2.go
+similarity index 100%
+rename from test/dwarf/z2.go
+rename to test/dwarf/dwarf.dir/z2.go
+diff --git a/test/dwarf/z20.go b/test/dwarf/dwarf.dir/z20.go
+similarity index 100%
+rename from test/dwarf/z20.go
+rename to test/dwarf/dwarf.dir/z20.go
+diff --git a/test/dwarf/z3.go b/test/dwarf/dwarf.dir/z3.go
+similarity index 100%
+rename from test/dwarf/z3.go
+rename to test/dwarf/dwarf.dir/z3.go
+diff --git a/test/dwarf/z4.go b/test/dwarf/dwarf.dir/z4.go
+similarity index 100%
+rename from test/dwarf/z4.go
+rename to test/dwarf/dwarf.dir/z4.go
+diff --git a/test/dwarf/z5.go b/test/dwarf/dwarf.dir/z5.go
+similarity index 100%
+rename from test/dwarf/z5.go
+rename to test/dwarf/dwarf.dir/z5.go
+diff --git a/test/dwarf/z6.go b/test/dwarf/dwarf.dir/z6.go
+similarity index 100%
+rename from test/dwarf/z6.go
+rename to test/dwarf/dwarf.dir/z6.go
+diff --git a/test/dwarf/z7.go b/test/dwarf/dwarf.dir/z7.go
+similarity index 100%
+rename from test/dwarf/z7.go
+rename to test/dwarf/dwarf.dir/z7.go
+diff --git a/test/dwarf/z8.go b/test/dwarf/dwarf.dir/z8.go
+similarity index 100%
+rename from test/dwarf/z8.go
+rename to test/dwarf/dwarf.dir/z8.go
+diff --git a/test/dwarf/z9.go b/test/dwarf/dwarf.dir/z9.go
+similarity index 100%
+rename from test/dwarf/z9.go
+rename to test/dwarf/dwarf.dir/z9.go
+diff --git a/test/dwarf/dwarf.go b/test/dwarf/dwarf.go
+new file mode 100644
+index 0000000000..32dd7d3d57
+--- /dev/null
++++ b/test/dwarf/dwarf.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// See issue 2241 and issue 1878: dwarf include stack size
++// issues in linker.
++
++package ignored
+diff --git a/test/run.go b/test/run.go
+index 3bc22e8cde..c870e79572 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -292,7 +292,7 @@ func goDirPackages(longdir string) ([][]string, error) {
+ 	}
+ 	return pkgs, nil
+ }
+-		
++
+ // run runs a test.
+ func (t *test) run() {
+ 	defer close(t.donec)
+@@ -459,31 +459,32 @@ func (t *test) run() {
+ 		// Compile all files in the directory in lexicographic order.
+ 		// then link as if the last file is the main package and run it
+ 		longdir := filepath.Join(cwd, t.goDirName())
+-		files, err := goDirFiles(longdir)
++		pkgs, err := goDirPackages(longdir)
+ 		if err != nil {
+ 			t.err = err
+ 			return
+ 		}
+-		var gofile os.FileInfo
+-		for _, gofile = range files {
+-			_, err := compileInDir(runcmd, longdir, gofile.Name())
++		for i, gofiles := range pkgs {
++			_, err := compileInDir(runcmd, longdir, gofiles...)
+ 			if err != nil {
+ 				t.err = err
+ 				return
+ 			}
+-		}
+-		err = linkFile(runcmd, gofile.Name())
+-		if err != nil {
+-			t.err = err
+-			return
+-		}
+-		out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
+-		if err != nil {
+-			t.err = err
+-			return
+-		}
+-		if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
+-			t.err = fmt.Errorf("incorrect output\n%s", out)
++			if i == len(pkgs)-1 {
++				err = linkFile(runcmd, gofiles[0])
++				if err != nil {
++					t.err = err
++					return
++				}
++				out, err := runcmd(append([]string{filepath.Join(t.tempDir, "a.exe")}, args...)...)
++				if err != nil {
++					t.err = err
++					return
++				}
++				if strings.Replace(string(out), "\r\n", "\n", -1) != t.expectedOutput() {
++					t.err = fmt.Errorf("incorrect output\n%s", out)
++				}
++			}
+ 		}
+ 
+ 	case "build":
+@@ -603,7 +604,7 @@ func (t *test) errorCheck(outStr string, fullshort ...string) (err error) {
+ 			out[i] = strings.Replace(out[i], full, short, -1)
+ 		}
+ 	}
+-	
++
+ 	var want []wantedError
+ 	for j := 0; j < len(fullshort); j += 2 {
+ 		full, short := fullshort[j], fullshort[j+1]
+@@ -726,27 +727,6 @@ var skipOkay = map[string]bool{
+ 	"rotate.go":              true,
+ 	"sigchld.go":             true,
+ 	"sinit.go":               true,
+-	"dwarf/main.go":          true,
+-	"dwarf/z1.go":            true,
+-	"dwarf/z10.go":           true,
+-	"dwarf/z11.go":           true,
+-	"dwarf/z12.go":           true,
+-	"dwarf/z13.go":           true,
+-	"dwarf/z14.go":           true,
+-	"dwarf/z15.go":           true,
+-	"dwarf/z16.go":           true,
+-	"dwarf/z17.go":           true,
+-	"dwarf/z18.go":           true,
+-	"dwarf/z19.go":           true,
+-	"dwarf/z2.go":            true,
+-	"dwarf/z20.go":           true,
+-	"dwarf/z3.go":            true,
+-	"dwarf/z4.go":            true,
+-	"dwarf/z5.go":            true,
+-	"dwarf/z6.go":            true,
+-	"dwarf/z7.go":            true,
+-	"dwarf/z8.go":            true,
+-	"dwarf/z9.go":            true,
+ 	"fixedbugs/bug248.go":    true, // combines errorcheckdir and rundir in the same dir.
+ 	"fixedbugs/bug302.go":    true, // tests both .$O and .a imports.
+ 	"fixedbugs/bug313.go":    true, // errorcheckdir with failures in the middle.

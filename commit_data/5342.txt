@@ -7,7 +7,53 @@ Date:   Mon Apr 26 10:01:13 2010 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/982043
-
+---
  src/pkg/template/template.go      | 2 +-
  src/pkg/template/template_test.go | 7 +++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/template/template.go b/src/pkg/template/template.go
+index 2bf21610b9..d15db7f8b8 100644
+--- a/src/pkg/template/template.go
++++ b/src/pkg/template/template.go
+@@ -596,7 +596,7 @@ func (st *state) findVar(s string) reflect.Value {
+ 			return nil
+ 		}
+ 		if intf, ok := data.(*reflect.InterfaceValue); ok {
+-			data = intf.Elem()
++			data = reflect.Indirect(intf.Elem())
+ 		}
+ 
+ 		switch typ := data.Type().(type) {
+diff --git a/src/pkg/template/template_test.go b/src/pkg/template/template_test.go
+index 39c43e3e2d..a6267bfccf 100644
+--- a/src/pkg/template/template_test.go
++++ b/src/pkg/template/template_test.go
+@@ -48,6 +48,7 @@ type S struct {
+ 	stringmap     map[string]string
+ 	bytes         []byte
+ 	iface         interface{}
++	ifaceptr      interface{}
+ }
+ 
+ func (s *S) pointerMethod() string { return "ptrmethod!" }
+@@ -385,6 +386,11 @@ var tests = []*Test{
+ 
+ 		out: "[1 2 3]",
+ 	},
++	&Test{
++		in: "{.section ifaceptr}{item} {value}{.end}",
++
++		out: "Item Value",
++	},
+ }
+ 
+ func TestAll(t *testing.T) {
+@@ -423,6 +429,7 @@ func testAll(t *testing.T, parseFunc func(*Test) (*Template, os.Error)) {
+ 	s.stringmap["stringkey2"] = "stringresult"
+ 	s.bytes = []byte("hello")
+ 	s.iface = []int{1, 2, 3}
++	s.ifaceptr = &T{"Item", "Value"}
+ 
+ 	var buf bytes.Buffer
+ 	for _, test := range tests {

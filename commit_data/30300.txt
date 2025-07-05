@@ -20,7 +20,43 @@ Date:   Sun Oct 30 21:19:59 2016 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/symtab.go | 9 +++++++++
  src/runtime/type.go   | 4 +++-
  2 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 98b5f900e6..d69f610ebb 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -222,6 +222,15 @@ type modulehash struct {
+ 	runtimehash  *string
+ }
+ 
++// pinnedTypemaps are the map[typeOff]*_type from the moduledata objects.
++//
++// These typemap objects are allocated at run time on the heap, but the
++// only direct reference to them is in the moduledata, created by the
++// linker and marked SNOPTRDATA so it is ignored by the GC.
++//
++// To make sure the map isn't collected, we keep a second reference here.
++var pinnedTypemaps []map[typeOff]*_type
++
+ var firstmoduledata moduledata  // linker symbol
+ var lastmoduledatap *moduledata // linker symbol
+ 
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 7f7849d5a0..cacf880e9e 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -497,7 +497,9 @@ func typelinksinit() {
+ 			// If any of this module's typelinks match a type from a
+ 			// prior module, prefer that prior type by adding the offset
+ 			// to this module's typemap.
+-			md.typemap = make(map[typeOff]*_type, len(md.typelinks))
++			tm := make(map[typeOff]*_type, len(md.typelinks))
++			pinnedTypemaps = append(pinnedTypemaps, tm)
++			md.typemap = tm
+ 			for _, tl := range md.typelinks {
+ 				t := (*_type)(unsafe.Pointer(md.types + uintptr(tl)))
+ 				for _, candidate := range typehash[t.hash] {

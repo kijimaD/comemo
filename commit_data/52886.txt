@@ -12,8 +12,32 @@ Date:   Wed Jun 8 18:08:30 2022 -0400
     Run-TryBot: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  api/next/35044.txt | 2 +-
  api/next/46059.txt | 1 -
  api/next/50062.txt | 2 +-
  3 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/35044.txt b/api/next/35044.txt
+index 0ed6f2e4d0..5eb6381f92 100644
+--- a/api/next/35044.txt
++++ b/api/next/35044.txt
+@@ -1 +1 @@
+-pkg crypto/x509, method (*CertPool) Clone() *CertPool #35044
+\ No newline at end of file
++pkg crypto/x509, method (*CertPool) Clone() *CertPool #35044
+diff --git a/api/next/46059.txt b/api/next/46059.txt
+index 3cc44966a2..4c82f79f23 100644
+--- a/api/next/46059.txt
++++ b/api/next/46059.txt
+@@ -1,2 +1 @@
+ pkg net/url, type URL struct, OmitHost bool #46059
+-
+diff --git a/api/next/50062.txt b/api/next/50062.txt
+index 0a5efcc70b..31d7d2c641 100644
+--- a/api/next/50062.txt
++++ b/api/next/50062.txt
+@@ -1 +1 @@
+-pkg time, method (Time) ZoneBounds() (Time, Time) #50062
+\ No newline at end of file
++pkg time, method (Time) ZoneBounds() (Time, Time) #50062

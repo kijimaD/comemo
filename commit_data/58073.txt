@@ -15,7 +15,7 @@ Date:   Tue Sep 26 05:38:14 2023 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/go/internal/script/engine.go                        | 2 +-
  src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt    | 2 +-
  src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt | 2 +-
@@ -23,3 +23,90 @@ Date:   Tue Sep 26 05:38:14 2023 +0000
  src/crypto/internal/edwards25519/field/fe_generic.go        | 2 +-
  src/encoding/xml/marshal.go                                 | 2 +-
  6 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/script/engine.go b/src/cmd/go/internal/script/engine.go
+index 43054a279b..ba821712e5 100644
+--- a/src/cmd/go/internal/script/engine.go
++++ b/src/cmd/go/internal/script/engine.go
+@@ -322,7 +322,7 @@ type command struct {
+ 	background bool     // command should run in background (ends with a trailing &)
+ }
+ 
+-// A expectedStatus describes the expected outcome of a command.
++// An expectedStatus describes the expected outcome of a command.
+ // Script execution halts when a command does not match its expected status.
+ type expectedStatus string
+ 
+diff --git a/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+index 01217aed52..d69f6e031b 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_limit_dup_entry.txt
+@@ -4,7 +4,7 @@ env GOCACHE=$WORK/cache
+ 
+ # FuzzA attempts to cause the mutator to create duplicate inputs that generate
+ # new coverage. Previously this would trigger a corner case when the fuzzer
+-# had a execution limit, causing it to deadlock and sit in the coordinator
++# had an execution limit, causing it to deadlock and sit in the coordinator
+ # loop indefinitely, failing to exit once the limit had been exhausted.
+ 
+ go test -fuzz=FuzzA -fuzztime=100x -parallel=1
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt b/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
+index 1279f6e9ac..c8af9be2d4 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize_dirty_cov.txt
+@@ -1,6 +1,6 @@
+ # Test that minimization doesn't use dirty coverage snapshots when it
+ # is unable to actually minimize the input. We do this by checking that
+-# a expected value appears in the cache. If a dirty coverage map is used
++# an expected value appears in the cache. If a dirty coverage map is used
+ # (i.e. the coverage map generated during the last minimization step,
+ # rather than the map provided with the initial input) then this value
+ # is unlikely to appear in the cache, since the map generated during
+diff --git a/src/crypto/ecdh/ecdh.go b/src/crypto/ecdh/ecdh.go
+index b86f521787..b21b5697d0 100644
+--- a/src/crypto/ecdh/ecdh.go
++++ b/src/crypto/ecdh/ecdh.go
+@@ -44,7 +44,7 @@ type Curve interface {
+ 	// selected public keys can cause ECDH to return an error.
+ 	NewPublicKey(key []byte) (*PublicKey, error)
+ 
+-	// ecdh performs a ECDH exchange and returns the shared secret. It's exposed
++	// ecdh performs an ECDH exchange and returns the shared secret. It's exposed
+ 	// as the PrivateKey.ECDH method.
+ 	//
+ 	// The private method also allow us to expand the ECDH interface with more
+@@ -114,7 +114,7 @@ type PrivateKey struct {
+ 	publicKeyOnce sync.Once
+ }
+ 
+-// ECDH performs a ECDH exchange and returns the shared secret. The PrivateKey
++// ECDH performs an ECDH exchange and returns the shared secret. The PrivateKey
+ // and PublicKey must use the same curve.
+ //
+ // For NIST curves, this performs ECDH as specified in SEC 1, Version 2.0,
+diff --git a/src/crypto/internal/edwards25519/field/fe_generic.go b/src/crypto/internal/edwards25519/field/fe_generic.go
+index 3582df8b22..86f5fd9553 100644
+--- a/src/crypto/internal/edwards25519/field/fe_generic.go
++++ b/src/crypto/internal/edwards25519/field/fe_generic.go
+@@ -156,7 +156,7 @@ func feMulGeneric(v, a, b *Element) {
+ 	rr4 := r4.lo&maskLow51Bits + c3
+ 
+ 	// Now all coefficients fit into 64-bit registers but are still too large to
+-	// be passed around as a Element. We therefore do one last carry chain,
++	// be passed around as an Element. We therefore do one last carry chain,
+ 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
+ 	*v = Element{rr0, rr1, rr2, rr3, rr4}
+ 	v.carryPropagate()
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index c2931a534b..7c52dd6d99 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -543,7 +543,7 @@ func (p *printer) marshalValue(val reflect.Value, finfo *fieldInfo, startTemplat
+ 		}
+ 	}
+ 
+-	// If a empty name was found, namespace is overridden with an empty space
++	// If an empty name was found, namespace is overridden with an empty space
+ 	if tinfo.xmlname != nil && start.Name.Space == "" &&
+ 		tinfo.xmlname.xmlns == "" && tinfo.xmlname.name == "" &&
+ 		len(p.tags) != 0 && p.tags[len(p.tags)-1].Space != "" {

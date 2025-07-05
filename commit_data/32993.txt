@@ -17,6 +17,38 @@ Date:   Wed Jun 21 16:32:19 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/get/vcs.go | 17 +++++++++++------
  1 file changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/get/vcs.go b/src/cmd/go/internal/get/vcs.go
+index c656debf8a..71d0b51344 100644
+--- a/src/cmd/go/internal/get/vcs.go
++++ b/src/cmd/go/internal/get/vcs.go
+@@ -302,15 +302,20 @@ func svnRemoteRepo(vcsSvn *vcsCmd, rootDir string) (remoteRepo string, err error
+ 	out := string(outb)
+ 
+ 	// Expect:
+-	// ...
+-	// Repository Root: <URL>
+-	// ...
+-
+-	i := strings.Index(out, "\nRepository Root: ")
++	//
++	//	 ...
++	// 	URL: <URL>
++	// 	...
++	//
++	// Note that we're not using the Repository Root line,
++	// because svn allows checking out subtrees.
++	// The URL will be the URL of the subtree (what we used with 'svn co')
++	// while the Repository Root may be a much higher parent.
++	i := strings.Index(out, "\nURL: ")
+ 	if i < 0 {
+ 		return "", fmt.Errorf("unable to parse output of svn info")
+ 	}
+-	out = out[i+len("\nRepository Root: "):]
++	out = out[i+len("\nURL: "):]
+ 	i = strings.Index(out, "\n")
+ 	if i < 0 {
+ 		return "", fmt.Errorf("unable to parse output of svn info")

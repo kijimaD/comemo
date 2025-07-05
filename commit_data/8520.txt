@@ -11,7 +11,63 @@ Date:   Fri May 27 11:06:53 2011 -0700
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4556063
-
+---
  src/pkg/http/reverseproxy.go      |  4 ++++
  src/pkg/http/reverseproxy_test.go | 14 +++++++++++++-
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/http/reverseproxy.go b/src/pkg/http/reverseproxy.go
+index e4ce1e34c7..9a9e21599b 100644
+--- a/src/pkg/http/reverseproxy.go
++++ b/src/pkg/http/reverseproxy.go
+@@ -92,6 +92,10 @@ func (p *ReverseProxy) ServeHTTP(rw ResponseWriter, req *Request) {
+ 		}
+ 	}
+ 
++	for _, cookie := range res.SetCookie {
++		SetCookie(rw, cookie)
++	}
++
+ 	rw.WriteHeader(res.StatusCode)
+ 
+ 	if res.Body != nil {
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index 162000eceb..d7bcde90d3 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -20,7 +20,11 @@ func TestReverseProxy(t *testing.T) {
+ 		if r.Header.Get("X-Forwarded-For") == "" {
+ 			t.Errorf("didn't get X-Forwarded-For header")
+ 		}
++		if g, e := r.Host, "some-name"; g != e {
++			t.Errorf("backend got Host header %q, want %q", g, e)
++		}
+ 		w.Header().Set("X-Foo", "bar")
++		SetCookie(w, &Cookie{Name: "flavor", Value: "chocolateChip"})
+ 		w.WriteHeader(backendStatus)
+ 		w.Write([]byte(backendResponse))
+ 	}))
+@@ -33,7 +37,9 @@ func TestReverseProxy(t *testing.T) {
+ 	frontend := httptest.NewServer(proxyHandler)
+ 	defer frontend.Close()
+ 
+-	res, err := Get(frontend.URL)
++	getReq, _ := NewRequest("GET", frontend.URL, nil)
++	getReq.Host = "some-name"
++	res, err := DefaultClient.Do(getReq)
+ 	if err != nil {
+ 		t.Fatalf("Get: %v", err)
+ 	}
+@@ -43,6 +49,12 @@ func TestReverseProxy(t *testing.T) {
+ 	if g, e := res.Header.Get("X-Foo"), "bar"; g != e {
+ 		t.Errorf("got X-Foo %q; expected %q", g, e)
+ 	}
++	if g, e := len(res.SetCookie), 1; g != e {
++		t.Fatalf("got %d SetCookies, want %d", g, e)
++	}
++	if cookie := res.SetCookie[0]; cookie.Name != "flavor" {
++		t.Errorf("unexpected cookie %q", cookie.Name)
++	}
+ 	bodyBytes, _ := ioutil.ReadAll(res.Body)
+ 	if g, e := string(bodyBytes), backendResponse; g != e {
+ 		t.Errorf("got body %q; expected %q", g, e)

@@ -9,6 +9,30 @@ Date:   Thu Jan 17 14:49:30 2019 -0800
     Change-Id: I267c2c3ba3964e96903954affc248d0c52c4916c
     Reviewed-on: https://go-review.googlesource.com/c/158397
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/big/ratconv.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/math/big/ratconv.go b/src/math/big/ratconv.go
+index 157d8d006d..5656280e84 100644
+--- a/src/math/big/ratconv.go
++++ b/src/math/big/ratconv.go
+@@ -38,8 +38,8 @@ func (z *Rat) Scan(s fmt.ScanState, ch rune) error {
+ }
+ 
+ // SetString sets z to the value of s and returns z and a boolean indicating
+-// success. s can be given as a fraction "a/b" or as a floating-point number
+-// optionally followed by an exponent. The entire string (not just a prefix)
++// success. s can be given as a fraction "a/b" or as a decimal floating-point
++// number optionally followed by an exponent. The entire string (not just a prefix)
+ // must be valid for success. If the operation failed, the value of z is
+ // undefined but the returned value is nil.
+ func (z *Rat) SetString(s string) (*Rat, bool) {
+@@ -78,6 +78,7 @@ func (z *Rat) SetString(s string) (*Rat, bool) {
+ 	}
+ 
+ 	// mantissa
++	// TODO(gri) allow other bases besides 10 for mantissa and exponent? (issue #29799)
+ 	var ecorr int
+ 	z.a.abs, _, ecorr, err = z.a.abs.scan(r, 10, true)
+ 	if err != nil {

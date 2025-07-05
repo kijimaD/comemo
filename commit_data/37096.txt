@@ -17,7 +17,7 @@ Date:   Wed Jun 27 17:36:24 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/rand/rand_js.go   |   4 +-
  src/net/http/roundtrip_js.go |   8 +++-
  src/syscall/fs_js.go         |  16 +++++--
@@ -25,3 +25,280 @@ Date:   Wed Jun 27 17:36:24 2018 +0200
  src/syscall/js/js_test.go    |  22 +++++++++
  src/syscall/js/typedarray.go | 103 +++++++++++++++++++++++++++++++++++++++++++
  6 files changed, 160 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/rand/rand_js.go
+index 89247693a7..bb213963fd 100644
+--- a/src/crypto/rand/rand_js.go
++++ b/src/crypto/rand/rand_js.go
+@@ -20,6 +20,8 @@ var jsCrypto = js.Global().Get("crypto")
+ type reader struct{}
+ 
+ func (r *reader) Read(b []byte) (int, error) {
+-	jsCrypto.Call("getRandomValues", b)
++	a := js.TypedArrayOf(b)
++	jsCrypto.Call("getRandomValues", a)
++	a.Release()
+ 	return len(b), nil
+ }
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index c183f87fff..1e6f83a666 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -166,7 +166,9 @@ func (r *streamReader) Read(p []byte) (n int, err error) {
+ 				return
+ 			}
+ 			value := make([]byte, result.Get("value").Get("byteLength").Int())
+-			js.ValueOf(value).Call("set", result.Get("value"))
++			a := js.TypedArrayOf(value)
++			a.Call("set", result.Get("value"))
++			a.Release()
+ 			bCh <- value
+ 		})
+ 		defer success.Close()
+@@ -227,7 +229,9 @@ func (r *arrayReader) Read(p []byte) (n int, err error) {
+ 			// Wrap the input ArrayBuffer with a Uint8Array
+ 			uint8arrayWrapper := js.Global().Get("Uint8Array").New(args[0])
+ 			value := make([]byte, uint8arrayWrapper.Get("byteLength").Int())
+-			js.ValueOf(value).Call("set", uint8arrayWrapper)
++			a := js.TypedArrayOf(value)
++			a.Call("set", uint8arrayWrapper)
++			a.Release()
+ 			bCh <- value
+ 		})
+ 		defer success.Close()
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 64b7b8a1ad..36e9140759 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -374,7 +374,9 @@ func Read(fd int, b []byte) (int, error) {
+ 		return n, err
+ 	}
+ 
+-	n, err := fsCall("readSync", fd, b, 0, len(b))
++	a := js.TypedArrayOf(b)
++	n, err := fsCall("readSync", fd, a, 0, len(b))
++	a.Release()
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -395,7 +397,9 @@ func Write(fd int, b []byte) (int, error) {
+ 		return n, err
+ 	}
+ 
+-	n, err := fsCall("writeSync", fd, b, 0, len(b))
++	a := js.TypedArrayOf(b)
++	n, err := fsCall("writeSync", fd, a, 0, len(b))
++	a.Release()
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -405,7 +409,9 @@ func Write(fd int, b []byte) (int, error) {
+ }
+ 
+ func Pread(fd int, b []byte, offset int64) (int, error) {
+-	n, err := fsCall("readSync", fd, b, 0, len(b), offset)
++	a := js.TypedArrayOf(b)
++	n, err := fsCall("readSync", fd, a, 0, len(b), offset)
++	a.Release()
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -413,7 +419,9 @@ func Pread(fd int, b []byte, offset int64) (int, error) {
+ }
+ 
+ func Pwrite(fd int, b []byte, offset int64) (int, error) {
+-	n, err := fsCall("writeSync", fd, b, 0, len(b), offset)
++	a := js.TypedArrayOf(b)
++	n, err := fsCall("writeSync", fd, a, 0, len(b), offset)
++	a.Release()
+ 	if err != nil {
+ 		return 0, err
+ 	}
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index 8217c24c5e..a7b1ed8d29 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -81,13 +81,23 @@ func Global() Value {
+ 	return valueGlobal
+ }
+ 
+-var uint8Array = valueGlobal.Get("Uint8Array")
+-
+-// ValueOf returns x as a JavaScript value.
++// ValueOf returns x as a JavaScript value:
++//
++//  | Go                    | JavaScript            |
++//  | --------------------- | --------------------- |
++//  | js.Value              | [its value]           |
++//  | js.TypedArray         | [typed array]         |
++//  | js.Callback           | function              |
++//  | nil                   | null                  |
++//  | bool                  | boolean               |
++//  | integers and floats   | number                |
++//  | string                | string                |
+ func ValueOf(x interface{}) Value {
+ 	switch x := x.(type) {
+ 	case Value:
+ 		return x
++	case TypedArray:
++		return x.Value
+ 	case Callback:
+ 		return x.enqueueFn
+ 	case nil:
+@@ -128,13 +138,8 @@ func ValueOf(x interface{}) Value {
+ 		return floatValue(x)
+ 	case string:
+ 		return makeValue(stringVal(x))
+-	case []byte:
+-		if len(x) == 0 {
+-			return uint8Array.New(memory.Get("buffer"), 0, 0)
+-		}
+-		return uint8Array.New(memory.Get("buffer"), unsafe.Pointer(&x[0]), len(x))
+ 	default:
+-		panic("invalid value")
++		panic("ValueOf: invalid value")
+ 	}
+ }
+ 
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index c96ad82850..0aaa65d054 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -109,6 +109,28 @@ func TestObject(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypedArrayOf(t *testing.T) {
++	testTypedArrayOf(t, "[]int8", []int8{0, -42, 0}, -42)
++	testTypedArrayOf(t, "[]int16", []int16{0, -42, 0}, -42)
++	testTypedArrayOf(t, "[]int32", []int32{0, -42, 0}, -42)
++	testTypedArrayOf(t, "[]uint8", []uint8{0, 42, 0}, 42)
++	testTypedArrayOf(t, "[]uint16", []uint16{0, 42, 0}, 42)
++	testTypedArrayOf(t, "[]uint32", []uint32{0, 42, 0}, 42)
++	testTypedArrayOf(t, "[]float32", []float32{0, -42.5, 0}, -42.5)
++	testTypedArrayOf(t, "[]float64", []float64{0, -42.5, 0}, -42.5)
++}
++
++func testTypedArrayOf(t *testing.T, name string, slice interface{}, want float64) {
++	t.Run(name, func(t *testing.T) {
++		a := js.TypedArrayOf(slice)
++		got := a.Index(1).Float()
++		a.Release()
++		if got != want {
++			t.Errorf("got %#v, want %#v", got, want)
++		}
++	})
++}
++
+ func TestNaN(t *testing.T) {
+ 	want := js.ValueOf(math.NaN())
+ 	got := dummys.Get("NaN")
+diff --git a/src/syscall/js/typedarray.go b/src/syscall/js/typedarray.go
+new file mode 100644
+index 0000000000..e824197258
+--- /dev/null
++++ b/src/syscall/js/typedarray.go
+@@ -0,0 +1,103 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package js
++
++import (
++	"sync"
++	"unsafe"
++)
++
++var (
++	int8Array    = Global().Get("Int8Array")
++	int16Array   = Global().Get("Int16Array")
++	int32Array   = Global().Get("Int32Array")
++	uint8Array   = Global().Get("Uint8Array")
++	uint16Array  = Global().Get("Uint16Array")
++	uint32Array  = Global().Get("Uint32Array")
++	float32Array = Global().Get("Float32Array")
++	float64Array = Global().Get("Float64Array")
++)
++
++// TypedArray represents a JavaScript typed array.
++type TypedArray struct {
++	Value
++}
++
++// Release frees up resources allocated for the typed array.
++// The typed array and its buffer must not be accessed after calling Release.
++func (a TypedArray) Release() {
++	openTypedArraysMutex.Lock()
++	delete(openTypedArrays, a)
++	openTypedArraysMutex.Unlock()
++}
++
++var (
++	openTypedArraysMutex sync.Mutex
++	openTypedArrays      = make(map[TypedArray]interface{})
++)
++
++// TypedArrayOf returns a JavaScript typed array backed by the slice's underlying array.
++// It can be passed to functions of this package that accept interface{}, for example Value.Set and Value.Call.
++//
++// The supported types are []int8, []int16, []int32, []uint8, []uint16, []uint32, []float32 and []float64.
++// Passing an unsupported value causes a panic.
++//
++// TypedArray.Release must be called to free up resources when the typed array will not be used any more.
++func TypedArrayOf(slice interface{}) TypedArray {
++	a := TypedArray{typedArrayOf(slice)}
++	openTypedArraysMutex.Lock()
++	openTypedArrays[a] = slice
++	openTypedArraysMutex.Unlock()
++	return a
++}
++
++func typedArrayOf(slice interface{}) Value {
++	switch slice := slice.(type) {
++	case []int8:
++		if len(slice) == 0 {
++			return int8Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return int8Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []int16:
++		if len(slice) == 0 {
++			return int16Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return int16Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []int32:
++		if len(slice) == 0 {
++			return int32Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return int32Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []uint8:
++		if len(slice) == 0 {
++			return uint8Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return uint8Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []uint16:
++		if len(slice) == 0 {
++			return uint16Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return uint16Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []uint32:
++		if len(slice) == 0 {
++			return uint32Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return uint32Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []float32:
++		if len(slice) == 0 {
++			return float32Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return float32Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	case []float64:
++		if len(slice) == 0 {
++			return float64Array.New(memory.Get("buffer"), 0, 0)
++		}
++		return float64Array.New(memory.Get("buffer"), unsafe.Pointer(&slice[0]), len(slice))
++	default:
++		panic("TypedArrayOf: not a supported slice")
++	}
++}

@@ -33,7 +33,43 @@ Date:   Tue Dec 20 12:02:39 2016 +0300
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/io/pipe.go      |  1 +
  src/io/pipe_test.go | 12 ++++++++++++
  2 files changed, 13 insertions(+)
+
+diff --git a/src/io/pipe.go b/src/io/pipe.go
+index 6145872391..b6e7755f64 100644
+--- a/src/io/pipe.go
++++ b/src/io/pipe.go
+@@ -85,6 +85,7 @@ func (p *pipe) write(b []byte) (n int, err error) {
+ 		}
+ 		if p.werr != nil {
+ 			err = ErrClosedPipe
++			break
+ 		}
+ 		p.wwait.Wait()
+ 	}
+diff --git a/src/io/pipe_test.go b/src/io/pipe_test.go
+index b16e653069..95930e86a4 100644
+--- a/src/io/pipe_test.go
++++ b/src/io/pipe_test.go
+@@ -247,6 +247,18 @@ func TestPipeWriteClose(t *testing.T) {
+ 	}
+ }
+ 
++// Test close on Write side during Write.
++func TestPipeWriteClose2(t *testing.T) {
++	c := make(chan int, 1)
++	_, w := Pipe()
++	go delayClose(t, w, c, pipeTest{})
++	n, err := w.Write(make([]byte, 64))
++	<-c
++	if n != 0 || err != ErrClosedPipe {
++		t.Errorf("write to closed pipe: %v, %v want %v, %v", n, err, 0, ErrClosedPipe)
++	}
++}
++
+ func TestWriteEmpty(t *testing.T) {
+ 	r, w := Pipe()
+ 	go func() {

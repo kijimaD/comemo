@@ -63,7 +63,7 @@ Date:   Wed Jan 8 11:16:48 2025 +0100
     Reviewed-by: David Chase <drchase@google.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/ecdsa/ecdsa.go                      |  26 +++-
  src/crypto/ed25519/ed25519.go                  |  23 ++--
  src/crypto/ed25519/ed25519_test.go             |   4 +-
@@ -71,3 +71,375 @@ Date:   Wed Jan 8 11:16:48 2025 +0100
  src/crypto/internal/fips140cache/cache_test.go | 167 +++++++++++++++++++++++++
  src/go/build/deps_test.go                      |   1 +
  6 files changed, 259 insertions(+), 14 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index cb308b41e9..5e670c5081 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -23,6 +23,7 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/fips140/ecdsa"
++	"crypto/internal/fips140cache"
+ 	"crypto/internal/fips140hash"
+ 	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+@@ -238,9 +239,6 @@ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Rea
+ 	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
+ 		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
+ 	}
+-	// privateKeyToFIPS is very slow in FIPS mode because it performs a
+-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
+-	// it or attach it to the PrivateKey.
+ 	k, err := privateKeyToFIPS(c, priv)
+ 	if err != nil {
+ 		return nil, err
+@@ -401,12 +399,32 @@ func publicKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], pub *PublicKey) (*ecds
+ 	return ecdsa.NewPublicKey(c, Q)
+ }
+ 
++var privateKeyCache fips140cache.Cache[PrivateKey, ecdsa.PrivateKey]
++
+ func privateKeyToFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey) (*ecdsa.PrivateKey, error) {
+ 	Q, err := pointFromAffine(priv.Curve, priv.X, priv.Y)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
++	return privateKeyCache.Get(priv, func() (*ecdsa.PrivateKey, error) {
++		return ecdsa.NewPrivateKey(c, priv.D.Bytes(), Q)
++	}, func(k *ecdsa.PrivateKey) bool {
++		return subtle.ConstantTimeCompare(k.PublicKey().Bytes(), Q) == 1 &&
++			leftPadBytesEqual(k.Bytes(), priv.D.Bytes())
++	})
++}
++
++func leftPadBytesEqual(a, b []byte) bool {
++	if len(a) < len(b) {
++		a, b = b, a
++	}
++	if len(a) > len(b) {
++		x := make([]byte, 0, 66 /* enough for a P-521 private key */)
++		x = append(x, make([]byte, len(a)-len(b))...)
++		x = append(x, b...)
++		b = x
++	}
++	return subtle.ConstantTimeCompare(a, b) == 1
+ }
+ 
+ // pointFromAffine is used to convert the PublicKey to a nistec SetBytes input.
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index c1f8ff784e..0e26813958 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -18,6 +18,7 @@ package ed25519
+ import (
+ 	"crypto"
+ 	"crypto/internal/fips140/ed25519"
++	"crypto/internal/fips140cache"
+ 	"crypto/internal/fips140only"
+ 	cryptorand "crypto/rand"
+ 	"crypto/subtle"
+@@ -78,6 +79,10 @@ func (priv PrivateKey) Seed() []byte {
+ 	return append(make([]byte, 0, SeedSize), priv[:SeedSize]...)
+ }
+ 
++// privateKeyCache uses a pointer to the first byte of underlying storage as a
++// key, because [PrivateKey] is a slice header passed around by value.
++var privateKeyCache fips140cache.Cache[byte, ed25519.PrivateKey]
++
+ // Sign signs the given message with priv. rand is ignored and can be nil.
+ //
+ // If opts.HashFunc() is [crypto.SHA512], the pre-hashed variant Ed25519ph is used
+@@ -88,10 +93,11 @@ func (priv PrivateKey) Seed() []byte {
+ // A value of type [Options] can be used as opts, or crypto.Hash(0) or
+ // crypto.SHA512 directly to select plain Ed25519 or Ed25519ph, respectively.
+ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
+-	// NewPrivateKey is very slow in FIPS mode because it performs a
+-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
+-	// it or attach it to the PrivateKey.
+-	k, err := ed25519.NewPrivateKey(priv)
++	k, err := privateKeyCache.Get(&priv[0], func() (*ed25519.PrivateKey, error) {
++		return ed25519.NewPrivateKey(priv)
++	}, func(k *ed25519.PrivateKey) bool {
++		return subtle.ConstantTimeCompare(priv, k.Bytes()) == 1
++	})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -180,10 +186,11 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
+ }
+ 
+ func sign(signature []byte, privateKey PrivateKey, message []byte) {
+-	// NewPrivateKey is very slow in FIPS mode because it performs a
+-	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
+-	// it or attach it to the PrivateKey.
+-	k, err := ed25519.NewPrivateKey(privateKey)
++	k, err := privateKeyCache.Get(&privateKey[0], func() (*ed25519.PrivateKey, error) {
++		return ed25519.NewPrivateKey(privateKey)
++	}, func(k *ed25519.PrivateKey) bool {
++		return subtle.ConstantTimeCompare(privateKey, k.Bytes()) == 1
++	})
+ 	if err != nil {
+ 		panic("ed25519: bad private key: " + err.Error())
+ 	}
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 87d0132df1..c8a23e3246 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -369,10 +369,10 @@ func TestMalleability(t *testing.T) {
+ 
+ func TestAllocations(t *testing.T) {
+ 	cryptotest.SkipTestAllocations(t)
++	seed := make([]byte, SeedSize)
++	priv := NewKeyFromSeed(seed)
+ 	if allocs := testing.AllocsPerRun(100, func() {
+-		seed := make([]byte, SeedSize)
+ 		message := []byte("Hello, world!")
+-		priv := NewKeyFromSeed(seed)
+ 		pub := priv.Public().(PublicKey)
+ 		signature := Sign(priv, message)
+ 		if !Verify(pub, message, signature) {
+diff --git a/src/crypto/internal/fips140cache/cache.go b/src/crypto/internal/fips140cache/cache.go
+new file mode 100644
+index 0000000000..bfa588b147
+--- /dev/null
++++ b/src/crypto/internal/fips140cache/cache.go
+@@ -0,0 +1,52 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fips140cache provides a weak map that associates the lifetime of
++// values with the lifetime of keys.
++//
++// It can be used to associate a precomputed value (such as an internal/fips140
++// PrivateKey value, which in FIPS 140-3 mode may have required an expensive
++// pairwise consistency test) with a type that doesn't have private fields (such
++// as an ed25519.PrivateKey), or that can't be safely modified because it may be
++// concurrently copied (such as an ecdsa.PrivateKey).
++package fips140cache
++
++import (
++	"runtime"
++	"sync"
++	"weak"
++)
++
++type Cache[K, V any] struct {
++	m sync.Map
++}
++
++// Get returns the result of new, for an associated key k.
++//
++// If Get was called with k before and didn't return an error, Get may return
++// the same value it returned from the previous call if check returns true on
++// it. If check returns false, Get will call new again and return the result.
++//
++// The cache is evicted some time after k becomes unreachable.
++func (c *Cache[K, V]) Get(k *K, new func() (*V, error), check func(*V) bool) (*V, error) {
++	p := weak.Make(k)
++	if cached, ok := c.m.Load(p); ok {
++		v := cached.(*V)
++		if check(v) {
++			return v, nil
++		}
++	}
++	v, err := new()
++	if err != nil {
++		return nil, err
++	}
++	if _, present := c.m.Swap(p, v); !present {
++		runtime.AddCleanup(k, c.evict, p)
++	}
++	return v, nil
++}
++
++func (c *Cache[K, V]) evict(p weak.Pointer[K]) {
++	c.m.Delete(p)
++}
+diff --git a/src/crypto/internal/fips140cache/cache_test.go b/src/crypto/internal/fips140cache/cache_test.go
+new file mode 100644
+index 0000000000..5f91397279
+--- /dev/null
++++ b/src/crypto/internal/fips140cache/cache_test.go
+@@ -0,0 +1,167 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips140cache
++
++import (
++	"context"
++	"errors"
++	"runtime"
++	"sync"
++	"testing"
++	"time"
++)
++
++func TestCache(t *testing.T) {
++	c := new(Cache[key, value])
++	checkTrue := func(*value) bool { return true }
++	checkFalse := func(*value) bool { return false }
++	newNotCalled := func() (*value, error) {
++		t.Helper()
++		t.Fatal("new called")
++		return nil, nil
++	}
++
++	k1 := newKey()
++	v1 := &value{}
++
++	v, err := c.Get(k1, func() (*value, error) { return v1, nil }, checkTrue)
++	expectValue(t, v, err, v1)
++
++	// Cached value is returned if check is true.
++	v, err = c.Get(k1, newNotCalled, checkTrue)
++	expectValue(t, v, err, v1)
++
++	// New value is returned and cached if check is false.
++	v2 := &value{}
++	v, err = c.Get(k1, func() (*value, error) { return v2, nil }, checkFalse)
++	expectValue(t, v, err, v2)
++	v, err = c.Get(k1, newNotCalled, checkTrue)
++	expectValue(t, v, err, v2)
++	expectMapSize(t, c, 1)
++
++	// Cache is evicted when key becomes unreachable.
++	waitUnreachable(t, &k1)
++	expectMapSize(t, c, 0)
++
++	// Value is not cached if new returns an error.
++	k2 := newKey()
++	err1 := errors.New("error")
++	_, err = c.Get(k2, func() (*value, error) { return nil, err1 }, checkTrue)
++	if err != err1 {
++		t.Errorf("got %v, want %v", err, err1)
++	}
++	expectMapSize(t, c, 0)
++
++	// Value is not replaced if check is false and new returns an error.
++	v, err = c.Get(k2, func() (*value, error) { return v1, nil }, checkTrue)
++	expectValue(t, v, err, v1)
++	_, err = c.Get(k2, func() (*value, error) { return v2, err1 }, checkFalse)
++	if err != err1 {
++		t.Errorf("got %v, want %v", err, err1)
++	}
++	v, err = c.Get(k2, newNotCalled, checkTrue)
++	expectValue(t, v, err, v1)
++	expectMapSize(t, c, 1)
++
++	// Cache is evicted for keys used only once.
++	k3 := newKey()
++	v, err = c.Get(k3, func() (*value, error) { return v1, nil }, checkTrue)
++	expectValue(t, v, err, v1)
++	expectMapSize(t, c, 2)
++	waitUnreachable(t, &k2)
++	waitUnreachable(t, &k3)
++	expectMapSize(t, c, 0)
++
++	// When two goroutines race, the returned value may be the new or old one,
++	// but the map must shrink to 0.
++	keys := make([]*key, 100)
++	for i := range keys {
++		keys[i] = newKey()
++		v1, v2 := &value{}, &value{}
++		start := make(chan struct{})
++		var wg sync.WaitGroup
++		wg.Add(2)
++		go func() {
++			<-start
++			v, err := c.Get(keys[i], func() (*value, error) { return v1, nil }, checkTrue)
++			expectValue(t, v, err, v1, v2)
++			wg.Done()
++		}()
++		go func() {
++			<-start
++			v, err := c.Get(keys[i], func() (*value, error) { return v2, nil }, checkTrue)
++			expectValue(t, v, err, v1, v2)
++			wg.Done()
++		}()
++		close(start)
++		wg.Wait()
++		v3 := &value{}
++		v, err := c.Get(keys[i], func() (*value, error) { return v3, nil }, checkTrue)
++		expectValue(t, v, err, v1, v2)
++	}
++	for i := range keys {
++		waitUnreachable(t, &keys[i])
++	}
++	expectMapSize(t, c, 0)
++}
++
++type key struct {
++	_ *int
++}
++
++type value struct {
++	_ *int
++}
++
++// newKey allocates a key value on the heap.
++//
++//go:noinline
++func newKey() *key {
++	return &key{}
++}
++
++func expectValue(t *testing.T, v *value, err error, want ...*value) {
++	t.Helper()
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, w := range want {
++		if v == w {
++			return
++		}
++	}
++	t.Errorf("got %p, want %p", v, want)
++}
++
++func expectMapSize(t *testing.T, c *Cache[key, value], want int) {
++	t.Helper()
++	var size int
++	// Loop a few times because the AddCleanup might not be done yet.
++	for range 10 {
++		size = 0
++		c.m.Range(func(_, _ any) bool {
++			size++
++			return true
++		})
++		if size == want {
++			return
++		}
++		time.Sleep(100 * time.Millisecond)
++	}
++	t.Errorf("got %d, want %d", size, want)
++}
++
++func waitUnreachable(t *testing.T, k **key) {
++	ctx, cancel := context.WithCancel(t.Context())
++	defer cancel()
++	runtime.AddCleanup(*k, func(_ *int) { cancel() }, nil)
++	*k = nil
++	for ctx.Err() == nil {
++		runtime.GC()
++	}
++	if ctx.Err() != context.Canceled {
++		t.Fatal(ctx.Err())
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 7e8dca3b3b..3a81f5a8ca 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -560,6 +560,7 @@ var depsRules = `
+ 
+ 	CRYPTO, FMT, math/big
+ 	< crypto/internal/boring/bbig
++	< crypto/internal/fips140cache
+ 	< crypto/rand
+ 	< crypto/ed25519 # depends on crypto/rand.Reader
+ 	< encoding/asn1

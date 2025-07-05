@@ -20,6 +20,22 @@ Date:   Mon Apr 18 18:50:31 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4437054
-
+---
  src/cmd/5c/swt.c | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index d45aabc5e6..431f048173 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -665,7 +665,9 @@ align(int32 i, Type *t, int op, int32 *maxalign)
+ 
+ 	case Aarg2:	/* width of a parameter */
+ 		o += t->width;
+-		w = SZ_LONG;
++		w = t->width;
++		if(w > SZ_LONG)
++			w = SZ_LONG;
+ 		break;
+ 
+ 	case Aaut3:	/* total align of automatic */

@@ -7,6 +7,20 @@ Date:   Mon Feb 20 13:57:14 2012 +0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5685051
-
+---
  src/cmd/cc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/lex.c b/src/cmd/cc/lex.c
+index 9fb2f9e4d5..8aeb1a3347 100644
+--- a/src/cmd/cc/lex.c
++++ b/src/cmd/cc/lex.c
+@@ -112,7 +112,7 @@ main(int argc, char *argv[])
+ 
+ 	case 'l':			/* for little-endian mips */
+ 		if(thechar != 'v'){
+-			print("can only use -l with vc");
++			print("can only use -l with vc\n");
+ 			errorexit();
+ 		}
+ 		thechar = '0';

@@ -8,7 +8,93 @@ Date:   Thu Aug 11 14:36:51 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4869042
-
+---
  src/pkg/exp/template/exec.go      | 13 +++++++------
  src/pkg/exp/template/exec_test.go | 21 +++++++++++++++++++++
  2 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec.go b/src/pkg/exp/template/exec.go
+index dafdaee914..2f3235303a 100644
+--- a/src/pkg/exp/template/exec.go
++++ b/src/pkg/exp/template/exec.go
+@@ -425,7 +425,8 @@ func methodByName(receiver reflect.Value, name string) (reflect.Value, bool) {
+ }
+ 
+ var (
+-	osErrorType = reflect.TypeOf(new(os.Error)).Elem()
++	osErrorType     = reflect.TypeOf((*os.Error)(nil)).Elem()
++	fmtStringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+ )
+ 
+ // evalCall executes a function or method call. If it's a method, fun already has the receiver bound, so
+@@ -625,13 +626,13 @@ func (s *state) printValue(n parse.Node, v reflect.Value) {
+ 	}
+ 	switch v.Kind() {
+ 	case reflect.Ptr:
+-		var isNil bool
+-		if v, isNil = indirect(v); isNil {
+-			fmt.Fprint(s.wr, "<nil>")
+-			return
+-		}
++		v, _ = indirect(v) // fmt.Fprint handles nil.
+ 	case reflect.Chan, reflect.Func, reflect.Interface:
+ 		s.errorf("can't print %s of type %s", n, v.Type())
+ 	}
++	// If it's a value but the pointer implements Stringer, use the pointer.
++	if v.Kind() != reflect.Ptr && v.CanAddr() && reflect.PtrTo(v.Type()).Implements(fmtStringerType) {
++		v = v.Addr()
++	}
+ 	fmt.Fprint(s.wr, v.Interface())
+ }
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 4013f2ef49..18dbcee3ea 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -28,6 +28,9 @@ type T struct {
+ 	ComplexZero float64
+ 	// Nested structs.
+ 	U *U
++	// Struct with String method.
++	V0     V
++	V1, V2 *V
+ 	// Slices
+ 	SI      []int
+ 	SIEmpty []int
+@@ -57,12 +60,25 @@ type U struct {
+ 	V string
+ }
+ 
++type V struct {
++	j int
++}
++
++func (v *V) String() string {
++	if v == nil {
++		return "nilV"
++	}
++	return fmt.Sprintf("<%d>", v.j)
++}
++
+ var tVal = &T{
+ 	True:   true,
+ 	I:      17,
+ 	U16:    16,
+ 	X:      "x",
+ 	U:      &U{"v"},
++	V0:     V{6666},
++	V1:     &V{7777}, // leave V2 as nil
+ 	SI:     []int{3, 4, 5},
+ 	SB:     []bool{true, false},
+ 	MSI:    map[string]int{"one": 1, "two": 2, "three": 3},
+@@ -212,6 +228,11 @@ var execTests = []execTest{
+ 	{"$.U.V", "{{$.U.V}}", "v", tVal, true},
+ 	{"declare in action", "{{$x := $.U.V}}{{$x}}", "v", tVal, true},
+ 
++	// Type with String method.
++	{"V{6666}.String()", "-{{.V0}}-", "-<6666>-", tVal, true},
++	{"&V{7777}.String()", "-{{.V1}}-", "-<7777>-", tVal, true},
++	{"(*V)(nil).String()", "-{{.V2}}-", "-nilV-", tVal, true},
++
+ 	// Pointers.
+ 	{"*int", "{{.PI}}", "23", tVal, true},
+ 	{"*[]int", "{{.PSI}}", "[21 22 23]", tVal, true},

@@ -11,6 +11,21 @@ Date:   Fri Apr 28 10:52:10 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index e6c745ef8c..8cb5867c1e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2240,6 +2240,9 @@ func TestTestRaceInstall(t *testing.T) {
+ 	if !canRace {
+ 		t.Skip("no race detector")
+ 	}
++	if testing.Short() && testenv.Builder() == "" {
++		t.Skip("don't rebuild the standard library in short mode")
++	}
+ 
+ 	tg := testgo(t)
+ 	defer tg.cleanup()

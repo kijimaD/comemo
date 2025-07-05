@@ -7,7 +7,7 @@ Date:   Tue Nov 3 17:32:08 2009 -0800
     R=rsc
     CC=go-dev
     http://go/go-review/1017021
-
+---
  src/pkg/crypto/rsa/pkcs1v15_test.go      |  2 +-
  src/pkg/encoding/ascii85/ascii85.go      | 14 +++++++-------
  src/pkg/encoding/ascii85/ascii85_test.go |  6 +++---
@@ -19,3 +19,389 @@ Date:   Tue Nov 3 17:32:08 2009 -0800
  src/pkg/encoding/hex/hex_test.go         |  4 ++--
  src/pkg/encoding/pem/pem.go              |  2 +-
  10 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/src/pkg/crypto/rsa/pkcs1v15_test.go b/src/pkg/crypto/rsa/pkcs1v15_test.go
+index a062bc490e..b2cdc26602 100644
+--- a/src/pkg/crypto/rsa/pkcs1v15_test.go
++++ b/src/pkg/crypto/rsa/pkcs1v15_test.go
+@@ -17,7 +17,7 @@ import (
+ 
+ func decodeBase64(in string) []byte {
+ 	out := make([]byte, base64.StdEncoding.DecodedLen(len(in)));
+-	n, err := base64.StdEncoding.Decode(strings.Bytes(in), out);
++	n, err := base64.StdEncoding.Decode(out, strings.Bytes(in));
+ 	if err != nil {
+ 		return nil;
+ 	}
+diff --git a/src/pkg/encoding/ascii85/ascii85.go b/src/pkg/encoding/ascii85/ascii85.go
+index 20cdccfd03..16f7b9a345 100644
+--- a/src/pkg/encoding/ascii85/ascii85.go
++++ b/src/pkg/encoding/ascii85/ascii85.go
+@@ -26,7 +26,7 @@ import (
+ //
+ // Often, ascii85-encoded data is wrapped in <~ and ~> symbols.
+ // Encode does not add these.
+-func Encode(src, dst []byte) int {
++func Encode(dst, src []byte) int {
+ 	if len(src) == 0 {
+ 		return 0;
+ 	}
+@@ -122,7 +122,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 4 {
+ 			return;
+ 		}
+-		nout := Encode(&e.buf, &e.out);
++		nout := Encode(&e.out, &e.buf);
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err;
+ 		}
+@@ -137,7 +137,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		}
+ 		nn -= nn%4;
+ 		if nn > 0 {
+-			nout := Encode(p[0:nn], &e.out);
++			nout := Encode(&e.out, p[0:nn]);
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err;
+ 			}
+@@ -160,7 +160,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(e.buf[0:e.nbuf], &e.out);
++		nout := Encode(&e.out, e.buf[0:e.nbuf]);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+@@ -178,7 +178,7 @@ func (e CorruptInputError) String() string {
+ }
+ 
+ // Decode decodes src into dst, returning both the number
+-// of bytes consumed from src and the number written to dst.
++// of bytes written to dst and the number consumed from src.
+ // If src contains invalid ascii85 data, Decode will return the
+ // number of bytes successfully written and a CorruptInputError.
+ // Decode ignores space and control characters in src.
+@@ -191,7 +191,7 @@ func (e CorruptInputError) String() string {
+ //
+ // NewDecoder wraps an io.Reader interface around Decode.
+ //
+-func Decode(src, dst []byte, flush bool) (nsrc, ndst int, err os.Error) {
++func Decode(dst, src []byte, flush bool) (ndst, nsrc int, err os.Error) {
+ 	var v uint32;
+ 	var nb int;
+ 	for i, b := range src {
+@@ -282,7 +282,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		// Decode leftover input from last read.
+ 		var nn, nsrc, ndst int;
+ 		if d.nbuf > 0 {
+-			nsrc, ndst, d.err = Decode(d.buf[0:d.nbuf], &d.outbuf, d.readErr != nil);
++			ndst, nsrc, d.err = Decode(&d.outbuf, d.buf[0:d.nbuf], d.readErr != nil);
+ 			if ndst > 0 {
+ 				d.out = d.outbuf[0:ndst];
+ 				d.nbuf = bytes.Copy(&d.buf, d.buf[nsrc:d.nbuf]);
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 0264333abd..6c3f9c87a9 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -61,7 +61,7 @@ func strip85(s string) string {
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		buf := make([]byte, MaxEncodedLen(len(p.decoded)));
+-		n := Encode(strings.Bytes(p.decoded), buf);
++		n := Encode(buf, strings.Bytes(p.decoded));
+ 		buf = buf[0:n];
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, strip85(string(buf)), strip85(p.encoded));
+ 	}
+@@ -100,7 +100,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, 4*len(p.encoded));
+-		nsrc, ndst, err := Decode(strings.Bytes(p.encoded), dbuf, true);
++		ndst, nsrc, err := Decode(dbuf, strings.Bytes(p.encoded), true);
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+ 		testEqual(t, "Decode(%q) = nsrc %v, want %v", p.encoded, nsrc, len(p.encoded));
+ 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
+@@ -149,7 +149,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, 4*len(e.e));
+-		_, _, err := Decode(strings.Bytes(e.e), dbuf, true);
++		_, _, err := Decode(dbuf, strings.Bytes(e.e), true);
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+diff --git a/src/pkg/encoding/base64/base64.go b/src/pkg/encoding/base64/base64.go
+index b4daee3cc1..9079f74fe1 100644
+--- a/src/pkg/encoding/base64/base64.go
++++ b/src/pkg/encoding/base64/base64.go
+@@ -61,7 +61,7 @@ var URLEncoding = NewEncoding(encodeURL)
+ // The encoding pads the output to a multiple of 4 bytes,
+ // so Encode is not appropriate for use on individual blocks
+ // of a large data stream.  Use NewEncoder() instead.
+-func (enc *Encoding) Encode(src, dst []byte) {
++func (enc *Encoding) Encode(dst, src []byte) {
+ 	if len(src) == 0 {
+ 		return;
+ 	}
+@@ -133,7 +133,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 3 {
+ 			return;
+ 		}
+-		e.enc.Encode(&e.buf, &e.out);
++		e.enc.Encode(&e.out, &e.buf);
+ 		if _, e.err = e.w.Write(e.out[0:4]); e.err != nil {
+ 			return n, e.err;
+ 		}
+@@ -148,7 +148,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		}
+ 		nn -= nn%3;
+ 		if nn > 0 {
+-			e.enc.Encode(p[0:nn], &e.out);
++			e.enc.Encode(&e.out, p[0:nn]);
+ 			if _, e.err = e.w.Write(e.out[0 : nn/3*4]); e.err != nil {
+ 				return n, e.err;
+ 			}
+@@ -171,7 +171,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		e.enc.Encode(e.buf[0 : e.nbuf], &e.out);
++		e.enc.Encode(&e.out, e.buf[0 : e.nbuf]);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:4]);
+ 	}
+@@ -207,7 +207,7 @@ func (e CorruptInputError) String() string {
+ // indicates if end-of-message padding was encountered and thus any
+ // additional data is an error.  decode also assumes len(src)%4==0,
+ // since it is meant for internal use.
+-func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
++func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err os.Error) {
+ 	for i := 0; i < len(src)/4 && !end; i++ {
+ 		// Decode quantum using the base64 alphabet
+ 		var dbuf [4]byte;
+@@ -254,12 +254,12 @@ func (enc *Encoding) decode(src, dst []byte) (n int, end bool, err os.Error) {
+ // DecodedLen(len(src)) bytes to dst and returns the number of bytes
+ // written.  If src contains invalid base64 data, it will return the
+ // number of bytes successfully written and CorruptInputError.
+-func (enc *Encoding) Decode(src, dst []byte) (n int, err os.Error) {
++func (enc *Encoding) Decode(dst, src []byte) (n int, err os.Error) {
+ 	if len(src)%4 != 0 {
+ 		return 0, CorruptInputError(len(src)/4*4);
+ 	}
+ 
+-	n, _, err = enc.decode(src, dst);
++	n, _, err = enc.decode(dst, src);
+ 	return;
+ }
+ 
+@@ -304,12 +304,12 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 	nr := d.nbuf / 4 * 4;
+ 	nw := d.nbuf / 4 * 3;
+ 	if nw > len(p) {
+-		nw, d.end, d.err = d.enc.decode(d.buf[0:nr], &d.outbuf);
++		nw, d.end, d.err = d.enc.decode(&d.outbuf, d.buf[0:nr]);
+ 		d.out = d.outbuf[0:nw];
+ 		n = bytes.Copy(p, d.out);
+ 		d.out = d.out[n:len(d.out)];
+ 	} else {
+-		n, d.end, d.err = d.enc.decode(d.buf[0:nr], p);
++		n, d.end, d.err = d.enc.decode(p, d.buf[0:nr]);
+ 	}
+ 	d.nbuf -= nr;
+ 	for i := 0; i < d.nbuf; i++ {
+diff --git a/src/pkg/encoding/base64/base64_test.go b/src/pkg/encoding/base64/base64_test.go
+index 54d2326f58..8cd7e875fe 100644
+--- a/src/pkg/encoding/base64/base64_test.go
++++ b/src/pkg/encoding/base64/base64_test.go
+@@ -62,7 +62,7 @@ func testEqual(t *testing.T, msg string, args ...) bool {
+ func TestEncode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		buf := make([]byte, StdEncoding.EncodedLen(len(p.decoded)));
+-		StdEncoding.Encode(strings.Bytes(p.decoded), buf);
++		StdEncoding.Encode(buf, strings.Bytes(p.decoded));
+ 		testEqual(t, "Encode(%q) = %q, want %q", p.decoded, string(buf), p.encoded);
+ 	}
+ }
+@@ -100,7 +100,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range pairs {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(p.encoded)));
+-		count, end, err := StdEncoding.decode(strings.Bytes(p.encoded), dbuf);
++		count, end, err := StdEncoding.decode(dbuf, strings.Bytes(p.encoded));
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+ 		testEqual(t, "Decode(%q) = length %v, want %v", p.encoded, count, len(p.decoded));
+ 		if len(p.encoded) > 0 {
+@@ -157,7 +157,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, StdEncoding.DecodedLen(len(e.e)));
+-		_, err := StdEncoding.Decode(strings.Bytes(e.e), dbuf);
++		_, err := StdEncoding.Decode(dbuf, strings.Bytes(e.e));
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+diff --git a/src/pkg/encoding/git85/git.go b/src/pkg/encoding/git85/git.go
+index 2dcd4d8772..209480ee60 100644
+--- a/src/pkg/encoding/git85/git.go
++++ b/src/pkg/encoding/git85/git.go
+@@ -48,7 +48,7 @@ var decode = [256]uint8{
+ //
+ // The encoding splits src into chunks of at most 52 bytes
+ // and encodes each chunk on its own line.
+-func Encode(src, dst []byte) int {
++func Encode(dst, src []byte) int {
+ 	ndst := 0;
+ 	for len(src) > 0 {
+ 		n := len(src);
+@@ -96,7 +96,7 @@ var newline = []byte{'\n'}
+ //
+ // If Decode encounters invalid input, it returns a CorruptInputError.
+ //
+-func Decode(src, dst []byte) (n int, err os.Error) {
++func Decode(dst, src []byte) (n int, err os.Error) {
+ 	ndst := 0;
+ 	nsrc := 0;
+ 	for nsrc < len(src) {
+@@ -181,7 +181,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 		if e.nbuf < 52 {
+ 			return;
+ 		}
+-		nout := Encode(&e.buf, &e.out);
++		nout := Encode(&e.out, &e.buf);
+ 		if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 			return n, e.err;
+ 		}
+@@ -195,7 +195,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ 			nn = len(p)/52 * 52;
+ 		}
+ 		if nn > 0 {
+-			nout := Encode(p[0:nn], &e.out);
++			nout := Encode(&e.out, p[0:nn]);
+ 			if _, e.err = e.w.Write(e.out[0:nout]); e.err != nil {
+ 				return n, e.err;
+ 			}
+@@ -216,7 +216,7 @@ func (e *encoder) Write(p []byte) (n int, err os.Error) {
+ func (e *encoder) Close() os.Error {
+ 	// If there's anything left in the buffer, flush it out
+ 	if e.err == nil && e.nbuf > 0 {
+-		nout := Encode(e.buf[0:e.nbuf], &e.out);
++		nout := Encode(&e.out, e.buf[0:e.nbuf]);
+ 		e.nbuf = 0;
+ 		_, e.err = e.w.Write(e.out[0:nout]);
+ 	}
+@@ -271,7 +271,7 @@ func (d *decoder) Read(p []byte) (n int, err os.Error) {
+ 		if nl < 0 {
+ 			continue;
+ 		}
+-		nn, d.err = Decode(d.buf[0:nl+1], &d.outbuf);
++		nn, d.err = Decode(&d.outbuf, d.buf[0:nl+1]);
+ 		if e, ok := d.err.(CorruptInputError); ok {
+ 			d.err = CorruptInputError(int64(e)+d.off);
+ 		}
+diff --git a/src/pkg/encoding/git85/git_test.go b/src/pkg/encoding/git85/git_test.go
+index e83e941f15..933b2df575 100644
+--- a/src/pkg/encoding/git85/git_test.go
++++ b/src/pkg/encoding/git85/git_test.go
+@@ -65,7 +65,7 @@ var gitBigtest = gitPairs[len(gitPairs)-1];
+ func TestEncode(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		buf := make([]byte, EncodedLen(len(p.decoded)));
+-		n := Encode(strings.Bytes(p.decoded), buf);
++		n := Encode(buf, strings.Bytes(p.decoded));
+ 		if n != len(buf) {
+ 			t.Errorf("EncodedLen does not agree with Encode");
+ 		}
+@@ -107,7 +107,7 @@ func TestEncoderBuffering(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, p := range gitPairs {
+ 		dbuf := make([]byte, 4*len(p.encoded));
+-		ndst, err := Decode(strings.Bytes(p.encoded), dbuf);
++		ndst, err := Decode(dbuf, strings.Bytes(p.encoded));
+ 		testEqual(t, "Decode(%q) = error %v, want %v", p.encoded, err, os.Error(nil));
+ 		testEqual(t, "Decode(%q) = ndst %v, want %v", p.encoded, ndst, len(p.decoded));
+ 		testEqual(t, "Decode(%q) = %q, want %q", p.encoded, string(dbuf[0:ndst]), p.decoded);
+@@ -155,7 +155,7 @@ func TestDecodeCorrupt(t *testing.T) {
+ 
+ 	for _, e := range examples {
+ 		dbuf := make([]byte, 2*len(e.e));
+-		_, err := Decode(strings.Bytes(e.e), dbuf);
++		_, err := Decode(dbuf, strings.Bytes(e.e));
+ 		switch err := err.(type) {
+ 		case CorruptInputError:
+ 			testEqual(t, "Corruption in %q at offset %v, want %v", e.e, int(err), e.p);
+diff --git a/src/pkg/encoding/hex/hex.go b/src/pkg/encoding/hex/hex.go
+index 32ec42e245..77aa133055 100644
+--- a/src/pkg/encoding/hex/hex.go
++++ b/src/pkg/encoding/hex/hex.go
+@@ -22,7 +22,7 @@ func EncodedLen(n int) int {
+ // bytes of dst.  As a convenience, it returns the number
+ // of bytes written to dst, but this value is always EncodedLen(len(src)).
+ // Encode implements hexadecimal encoding.
+-func Encode(src, dst []byte) int {
++func Encode(dst, src []byte) int {
+ 	for i, v := range src {
+ 		dst[i*2] = hextable[v>>4];
+ 		dst[i*2 + 1] = hextable[v&0x0f];
+@@ -55,7 +55,7 @@ func DecodedLen(x int) int {
+ //
+ // If Decode encounters invalid input, it returns an OddLengthInputError or an
+ // InvalidHexCharError.
+-func Decode(src, dst []byte) (int, os.Error) {
++func Decode(dst, src []byte) (int, os.Error) {
+ 	if len(src)%2 == 1 {
+ 		return 0, OddLengthInputError{};
+ 	}
+@@ -92,7 +92,7 @@ func fromHexChar(c byte) (byte, bool) {
+ // EncodeToString returns the hexadecimal encoding of src.
+ func EncodeToString(src []byte) string {
+ 	dst := make([]byte, EncodedLen(len(src)));
+-	Encode(src, dst);
++	Encode(dst, src);
+ 	return string(dst);
+ }
+ 
+@@ -100,7 +100,7 @@ func EncodeToString(src []byte) string {
+ func DecodeString(s string) ([]byte, os.Error) {
+ 	src := strings.Bytes(s);
+ 	dst := make([]byte, DecodedLen(len(src)));
+-	_, err := Decode(src, dst);
++	_, err := Decode(dst, src);
+ 	if err != nil {
+ 		return nil, err;
+ 	}
+diff --git a/src/pkg/encoding/hex/hex_test.go b/src/pkg/encoding/hex/hex_test.go
+index 8d976f6836..e9006e22df 100644
+--- a/src/pkg/encoding/hex/hex_test.go
++++ b/src/pkg/encoding/hex/hex_test.go
+@@ -39,7 +39,7 @@ var encodeTests = []encodeTest{
+ func TestEncode(t *testing.T) {
+ 	for i, test := range encodeTests {
+ 		dst := make([]byte, EncodedLen(len(test.in)));
+-		n := Encode(test.in, dst);
++		n := Encode(dst, test.in);
+ 		if n != len(dst) {
+ 			t.Errorf("#%d: bad return value: got: %d want: %d", i, n, len(dst));
+ 		}
+@@ -85,7 +85,7 @@ var decodeTests = []decodeTest{
+ func TestDecode(t *testing.T) {
+ 	for i, test := range decodeTests {
+ 		dst := make([]byte, DecodedLen(len(test.in)));
+-		n, err := Decode(test.in, dst);
++		n, err := Decode(dst, test.in);
+ 		if err == nil && n != len(dst) {
+ 			t.Errorf("#%d: bad return value: got:%d want:%d", i, n, len(dst));
+ 		}
+diff --git a/src/pkg/encoding/pem/pem.go b/src/pkg/encoding/pem/pem.go
+index c1c4600e3e..c33c39b759 100644
+--- a/src/pkg/encoding/pem/pem.go
++++ b/src/pkg/encoding/pem/pem.go
+@@ -122,7 +122,7 @@ func Decode(data []byte) (p *Block, rest []byte) {
+ 	base64Data := removeWhitespace(rest[0:i]);
+ 
+ 	p.Bytes = make([]byte, base64.StdEncoding.DecodedLen(len(base64Data)));
+-	n, err := base64.StdEncoding.Decode(base64Data, p.Bytes);
++	n, err := base64.StdEncoding.Decode(p.Bytes, base64Data);
+ 	if err != nil {
+ 		goto Error;
+ 	}

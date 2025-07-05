@@ -7,7 +7,34 @@ Date:   Mon Jan 9 18:45:59 2012 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5528061
-
+---
  src/pkg/runtime/extern.go    | 3 +++
  src/pkg/runtime/runtime1.goc | 4 ++++
  2 files changed, 7 insertions(+)
+
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index ea36355e66..e86da01732 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -107,6 +107,9 @@ func (f *Func) FileLine(pc uintptr) (file string, line int) {
+ // mid returns the current os thread (m) id.
+ func mid() uint32
+ 
++// NumCPU returns the number of CPUs on the local machine.
++func NumCPU() int
++
+ // Semacquire waits until *s > 0 and then atomically decrements it.
+ // It is intended as a simple sleep primitive for use by the synchronization
+ // library and should not be used directly.
+diff --git a/src/pkg/runtime/runtime1.goc b/src/pkg/runtime/runtime1.goc
+index da2d0c5720..667131c1ee 100644
+--- a/src/pkg/runtime/runtime1.goc
++++ b/src/pkg/runtime/runtime1.goc
+@@ -8,3 +8,7 @@ package runtime
+ func GOMAXPROCS(n int32) (ret int32) {
+ 	ret = runtime·gomaxprocsfunc(n);
+ }
++
++func NumCPU() (ret int32) {
++	ret = runtime·ncpu;
++}

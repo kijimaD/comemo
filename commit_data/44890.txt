@@ -16,10 +16,185 @@ Date:   Sat Sep 12 01:57:27 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/order.go             | 14 +++-----
  src/cmd/compile/internal/gc/ssa.go               |  2 ++
  src/cmd/compile/internal/gc/syntax.go            |  4 +--
  test/fixedbugs/{issue24491.go => issue24491a.go} | 11 +++++-
  test/fixedbugs/issue24491b.go                    | 46 ++++++++++++++++++++++++
  5 files changed, 63 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 412f073a8d..341f4ee66f 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -288,20 +288,13 @@ func (o *Order) popTemp(mark ordermarker) {
+ 	o.temp = o.temp[:mark]
+ }
+ 
+-// cleanTempNoPop emits VARKILL and if needed VARLIVE instructions
+-// to *out for each temporary above the mark on the temporary stack.
++// cleanTempNoPop emits VARKILL instructions to *out
++// for each temporary above the mark on the temporary stack.
+ // It does not pop the temporaries from the stack.
+ func (o *Order) cleanTempNoPop(mark ordermarker) []*Node {
+ 	var out []*Node
+ 	for i := len(o.temp) - 1; i >= int(mark); i-- {
+ 		n := o.temp[i]
+-		if n.Name.Keepalive() {
+-			n.Name.SetKeepalive(false)
+-			n.Name.SetAddrtaken(true) // ensure SSA keeps the n variable
+-			live := nod(OVARLIVE, n, nil)
+-			live = typecheck(live, ctxStmt)
+-			out = append(out, live)
+-		}
+ 		kill := nod(OVARKILL, n, nil)
+ 		kill = typecheck(kill, ctxStmt)
+ 		out = append(out, kill)
+@@ -500,8 +493,9 @@ func (o *Order) call(n *Node) {
+ 		// still alive when we pop the temp stack.
+ 		if arg.Op == OCONVNOP && arg.Left.Type.IsUnsafePtr() {
+ 			x := o.copyExpr(arg.Left, arg.Left.Type, false)
+-			x.Name.SetKeepalive(true)
+ 			arg.Left = x
++			x.Name.SetAddrtaken(true) // ensure SSA keeps the x variable
++			n.Nbody.Append(typecheck(nod(OVARLIVE, x, nil), ctxStmt))
+ 			n.SetNeedsWrapper(true)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 89644cd3f2..3bdb5b0b9f 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4498,6 +4498,8 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		call.AuxInt = stksize // Call operations carry the argsize of the callee along with them
+ 	}
+ 	s.vars[&memVar] = call
++	// Insert OVARLIVE nodes
++	s.stmtList(n.Nbody)
+ 
+ 	// Finish block for defers
+ 	if k == callDefer || k == callDeferStack {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 5580f789c5..9592b7484c 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -374,7 +374,6 @@ const (
+ 	nameReadonly
+ 	nameByval                 // is the variable captured by value or by reference
+ 	nameNeedzero              // if it contains pointers, needs to be zeroed on function entry
+-	nameKeepalive             // mark value live across unknown assembly call
+ 	nameAutoTemp              // is the variable a temporary (implies no dwarf info. reset if escapes to heap)
+ 	nameUsed                  // for variable declared and not used error
+ 	nameIsClosureVar          // PAUTOHEAP closure pseudo-variable; original at n.Name.Defn
+@@ -391,7 +390,6 @@ func (n *Name) Captured() bool              { return n.flags&nameCaptured != 0 }
+ func (n *Name) Readonly() bool              { return n.flags&nameReadonly != 0 }
+ func (n *Name) Byval() bool                 { return n.flags&nameByval != 0 }
+ func (n *Name) Needzero() bool              { return n.flags&nameNeedzero != 0 }
+-func (n *Name) Keepalive() bool             { return n.flags&nameKeepalive != 0 }
+ func (n *Name) AutoTemp() bool              { return n.flags&nameAutoTemp != 0 }
+ func (n *Name) Used() bool                  { return n.flags&nameUsed != 0 }
+ func (n *Name) IsClosureVar() bool          { return n.flags&nameIsClosureVar != 0 }
+@@ -407,7 +405,6 @@ func (n *Name) SetCaptured(b bool)              { n.flags.set(nameCaptured, b) }
+ func (n *Name) SetReadonly(b bool)              { n.flags.set(nameReadonly, b) }
+ func (n *Name) SetByval(b bool)                 { n.flags.set(nameByval, b) }
+ func (n *Name) SetNeedzero(b bool)              { n.flags.set(nameNeedzero, b) }
+-func (n *Name) SetKeepalive(b bool)             { n.flags.set(nameKeepalive, b) }
+ func (n *Name) SetAutoTemp(b bool)              { n.flags.set(nameAutoTemp, b) }
+ func (n *Name) SetUsed(b bool)                  { n.flags.set(nameUsed, b) }
+ func (n *Name) SetIsClosureVar(b bool)          { n.flags.set(nameIsClosureVar, b) }
+@@ -707,6 +704,7 @@ const (
+ 	// Prior to walk, they are: Left(List), where List is all regular arguments.
+ 	// After walk, List is a series of assignments to temporaries,
+ 	// and Rlist is an updated set of arguments.
++	// Nbody is all OVARLIVE nodes that are attached to OCALLxxx.
+ 	// TODO(josharian/khr): Use Ninit instead of List for the assignments to temporaries. See CL 114797.
+ 	OCALLFUNC  // Left(List/Rlist) (function call f(args))
+ 	OCALLMETH  // Left(List/Rlist) (direct method call x.Method(args))
+diff --git a/test/fixedbugs/issue24491.go b/test/fixedbugs/issue24491a.go
+similarity index 85%
+rename from test/fixedbugs/issue24491.go
+rename to test/fixedbugs/issue24491a.go
+index 4703368793..148134d187 100644
+--- a/test/fixedbugs/issue24491.go
++++ b/test/fixedbugs/issue24491a.go
+@@ -23,12 +23,18 @@ func setup() unsafe.Pointer {
+ 
+ //go:noinline
+ //go:uintptrescapes
+-func test(s string, p uintptr) {
++func test(s string, p uintptr) int {
+ 	runtime.GC()
+ 	if *(*string)(unsafe.Pointer(p)) != "ok" {
+ 		panic(s + " return unexpected result")
+ 	}
+ 	done <- true
++	return 0
++}
++
++//go:noinline
++func f() int {
++	return test("return", uintptr(setup()))
+ }
+ 
+ func main() {
+@@ -42,4 +48,7 @@ func main() {
+ 		defer test("defer", uintptr(setup()))
+ 	}()
+ 	<-done
++
++	f()
++	<-done
+ }
+diff --git a/test/fixedbugs/issue24491b.go b/test/fixedbugs/issue24491b.go
+new file mode 100644
+index 0000000000..5f4a2f233e
+--- /dev/null
++++ b/test/fixedbugs/issue24491b.go
+@@ -0,0 +1,46 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This test makes sure unsafe-uintptr arguments are not
++// kept alive longer than expected.
++
++package main
++
++import (
++	"runtime"
++	"sync/atomic"
++	"unsafe"
++)
++
++var done uint32
++
++func setup() unsafe.Pointer {
++	s := "ok"
++	runtime.SetFinalizer(&s, func(p *string) { atomic.StoreUint32(&done, 1) })
++	return unsafe.Pointer(&s)
++}
++
++//go:noinline
++//go:uintptrescapes
++func before(p uintptr) int {
++	runtime.GC()
++	if atomic.LoadUint32(&done) != 0 {
++		panic("GC early")
++	}
++	return 0
++}
++
++func after() int {
++	runtime.GC()
++	if atomic.LoadUint32(&done) == 0 {
++		panic("GC late")
++	}
++	return 0
++}
++
++func main() {
++	_ = before(uintptr(setup())) + after()
++}

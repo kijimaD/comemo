@@ -22,7 +22,44 @@ Date:   Thu Oct 10 10:48:00 2019 +0000
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/encoding/json/indent.go       | 2 +-
  src/encoding/json/scanner_test.go | 5 +++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/indent.go b/src/encoding/json/indent.go
+index fba19548c9..06adfc1263 100644
+--- a/src/encoding/json/indent.go
++++ b/src/encoding/json/indent.go
+@@ -28,7 +28,7 @@ func compact(dst *bytes.Buffer, src []byte, escape bool) error {
+ 			start = i + 1
+ 		}
+ 		// Convert U+2028 and U+2029 (E2 80 A8 and E2 80 A9).
+-		if c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
++		if escape && c == 0xE2 && i+2 < len(src) && src[i+1] == 0x80 && src[i+2]&^1 == 0xA8 {
+ 			if start < i {
+ 				dst.Write(src[start:i])
+ 			}
+diff --git a/src/encoding/json/scanner_test.go b/src/encoding/json/scanner_test.go
+index 6cdbe7d301..3737516a45 100644
+--- a/src/encoding/json/scanner_test.go
++++ b/src/encoding/json/scanner_test.go
+@@ -48,6 +48,7 @@ var examples = []example{
+ 	{`[1,2,3]`, "[\n\t1,\n\t2,\n\t3\n]"},
+ 	{`{"x":1}`, "{\n\t\"x\": 1\n}"},
+ 	{ex1, ex1i},
++	{"{\"\":\"<>&\u2028\u2029\"}", "{\n\t\"\": \"<>&\u2028\u2029\"\n}"}, // See golang.org/issue/34070
+ }
+ 
+ var ex1 = `[true,false,null,"x",1,1.5,0,-5e+2]`
+@@ -89,8 +90,8 @@ func TestCompactSeparators(t *testing.T) {
+ 	tests := []struct {
+ 		in, compact string
+ 	}{
+-		{"{\"\u2028\": 1}", `{"\u2028":1}`},
+-		{"{\"\u2029\" :2}", `{"\u2029":2}`},
++		{"{\"\u2028\": 1}", "{\"\u2028\":1}"},
++		{"{\"\u2029\" :2}", "{\"\u2029\":2}"},
+ 	}
+ 	for _, tt := range tests {
+ 		var buf bytes.Buffer

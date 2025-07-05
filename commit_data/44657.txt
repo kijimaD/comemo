@@ -11,7 +11,108 @@ Date:   Thu May 7 20:48:37 2020 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/rawconn_unix_test.go    | 20 ++++----------------
  src/net/rawconn_windows_test.go | 20 ++++----------------
  2 files changed, 8 insertions(+), 32 deletions(-)
+
+diff --git a/src/net/rawconn_unix_test.go b/src/net/rawconn_unix_test.go
+index a71b6f3041..0194ba67c8 100644
+--- a/src/net/rawconn_unix_test.go
++++ b/src/net/rawconn_unix_test.go
+@@ -24,10 +24,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
+ 	if err != nil {
+ 		return n, err
+ 	}
+-	if operr != nil {
+-		return n, operr
+-	}
+-	return n, nil
++	return n, operr
+ }
+ 
+ func writeRawConn(c syscall.RawConn, b []byte) error {
+@@ -42,10 +39,7 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }
+ 
+ func controlRawConn(c syscall.RawConn, addr Addr) error {
+@@ -87,10 +81,7 @@ func controlRawConn(c syscall.RawConn, addr Addr) error {
+ 	if err := c.Control(fn); err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }
+ 
+ func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
+@@ -120,8 +111,5 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
+ 	if err := c.Control(fn); err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }
+diff --git a/src/net/rawconn_windows_test.go b/src/net/rawconn_windows_test.go
+index 2774c97e5c..5febf08f77 100644
+--- a/src/net/rawconn_windows_test.go
++++ b/src/net/rawconn_windows_test.go
+@@ -26,10 +26,7 @@ func readRawConn(c syscall.RawConn, b []byte) (int, error) {
+ 	if err != nil {
+ 		return n, err
+ 	}
+-	if operr != nil {
+-		return n, operr
+-	}
+-	return n, nil
++	return n, operr
+ }
+ 
+ func writeRawConn(c syscall.RawConn, b []byte) error {
+@@ -45,10 +42,7 @@ func writeRawConn(c syscall.RawConn, b []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }
+ 
+ func controlRawConn(c syscall.RawConn, addr Addr) error {
+@@ -92,10 +86,7 @@ func controlRawConn(c syscall.RawConn, addr Addr) error {
+ 	if err := c.Control(fn); err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }
+ 
+ func controlOnConnSetup(network string, address string, c syscall.RawConn) error {
+@@ -121,8 +112,5 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
+ 	if err := c.Control(fn); err != nil {
+ 		return err
+ 	}
+-	if operr != nil {
+-		return operr
+-	}
+-	return nil
++	return operr
+ }

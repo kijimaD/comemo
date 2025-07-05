@@ -51,6 +51,37 @@ Date:   Wed Mar 27 21:46:12 2024 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/runtime/time.go | 12 +++++++++++-
  1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 42f629d168..b696c837ab 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -891,7 +891,7 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
+ 
+ 	ts.lock()
+ 	if len(ts.heap) > 0 {
+-		ts.adjust(now, force)
++		ts.adjust(now, false)
+ 		for len(ts.heap) > 0 {
+ 			// Note that runtimer may temporarily unlock ts.
+ 			if tw := ts.run(now); tw != 0 {
+@@ -902,6 +902,16 @@ func (ts *timers) check(now int64) (rnow, pollUntil int64, ran bool) {
+ 			}
+ 			ran = true
+ 		}
++
++		// Note: Delaying the forced adjustment until after the ts.run
++		// (as opposed to calling ts.adjust(now, force) above)
++		// is significantly faster under contention, such as in
++		// package time's BenchmarkTimerAdjust10000,
++		// though we do not fully understand why.
++		force = ts == &getg().m.p.ptr().timers && int(ts.zombies.Load()) > int(ts.len.Load())/4
++		if force {
++			ts.adjust(now, true)
++		}
+ 	}
+ 	ts.unlock()
+ 

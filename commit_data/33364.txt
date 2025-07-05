@@ -16,7 +16,107 @@ Date:   Mon Aug 14 23:02:56 2017 +0900
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go             | 49 +++++++++++++++++++++++++++++++++++++++
  src/cmd/go/internal/work/build.go | 17 ++++++++++----
  2 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 2006283ea1..56b9b07889 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -4389,3 +4389,52 @@ func TestBuildmodePIE(t *testing.T) {
+ 		t.Errorf("got %q; want %q", out, "hello")
+ 	}
+ }
++
++func TestExecBuildX(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
++	if runtime.GOOS == "plan9" || runtime.GOOS == "windows" {
++		t.Skipf("skipping because unix shell is not supported on %s", runtime.GOOS)
++	}
++
++	tg := testgo(t)
++	defer tg.cleanup()
++
++	tg.tempFile("main.go", `package main; import "C"; func main() { print("hello") }`)
++	src := tg.path("main.go")
++	obj := tg.path("main")
++	tg.run("build", "-x", "-o", obj, src)
++	sh := tg.path("test.sh")
++	err := ioutil.WriteFile(sh, []byte(tg.getStderr()), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	out, err := exec.Command(obj).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(out) != "hello" {
++		t.Fatalf("got %q; want %q", out, "hello")
++	}
++
++	err = os.Remove(obj)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	out, err = exec.Command("/bin/sh", sh).CombinedOutput()
++	if err != nil {
++		t.Fatalf("/bin/sh %s: %v\n%s", sh, err, out)
++	}
++
++	out, err = exec.Command(obj).CombinedOutput()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if string(out) != "hello" {
++		t.Fatalf("got %q; want %q", out, "hello")
++	}
++}
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 53afebe8cc..400186307e 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -1963,9 +1963,15 @@ func (b *Builder) runOut(dir string, desc string, env []string, cmdargs ...inter
+ 	cmdline := str.StringList(cmdargs...)
+ 	if cfg.BuildN || cfg.BuildX {
+ 		var envcmdline string
+-		for i := range env {
+-			envcmdline += env[i]
+-			envcmdline += " "
++		for _, e := range env {
++			if j := strings.IndexByte(e, '='); j != -1 {
++				if strings.ContainsRune(e[j+1:], '\'') {
++					envcmdline += fmt.Sprintf("%s=%q", e[:j], e[j+1:])
++				} else {
++					envcmdline += fmt.Sprintf("%s='%s'", e[:j], e[j+1:])
++				}
++				envcmdline += " "
++			}
+ 		}
+ 		envcmdline += joinUnambiguously(cmdline)
+ 		b.Showcmd(dir, "%s", envcmdline)
+@@ -2416,7 +2422,7 @@ func (gcToolchain) pack(b *Builder, p *load.Package, objDir, afile string, ofile
+ 	}
+ 
+ 	if cfg.BuildN || cfg.BuildX {
+-		cmdline := str.StringList("pack", "r", absAfile, absOfiles)
++		cmdline := str.StringList(base.Tool("pack"), "r", absAfile, absOfiles)
+ 		b.Showcmd(p.Dir, "%s # internal", joinUnambiguously(cmdline))
+ 	}
+ 	if cfg.BuildN {
+@@ -3220,6 +3226,9 @@ func (b *Builder) gccSupportsFlag(flag string) bool {
+ 		return b
+ 	}
+ 	if b.flagCache == nil {
++		if cfg.BuildN || cfg.BuildX {
++			b.Showcmd(b.WorkDir, "touch trivial.c")
++		}
+ 		src := filepath.Join(b.WorkDir, "trivial.c")
+ 		if err := ioutil.WriteFile(src, []byte{}, 0666); err != nil {
+ 			return false

@@ -8,6 +8,20 @@ Date:   Thu Nov 20 15:22:32 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=19723
     CL=19727
-
+---
  src/cmd/gotest/gotest | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 9bf7270bff..988e6f4eec 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -55,7 +55,7 @@ trap "rm -f _testmain.go _testmain.6" 0 1 2 3 14 15
+ 	# test array
+ 	echo
+ 	echo 'var tests = &[]testing.Test {'
+-	for i in $(6nm $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
++	for i in $(6nm -s $ofiles | grep ' T .*·Test' | sed 's/.* //; s/·/./')
+ 	do
+ 		echo '	testing.Test{ "'$i'", &'$i' },'
+ 	done

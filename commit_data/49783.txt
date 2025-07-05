@@ -12,7 +12,7 @@ Date:   Fri Sep 10 10:00:00 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/testdata/script/test_fuzz.txt           | 12 ++++----
  src/cmd/go/testdata/script/test_fuzz_fuzztime.txt  |  2 +-
  src/cmd/go/testdata/script/test_fuzz_minimize.txt  |  4 +--
@@ -21,3 +21,238 @@ Date:   Fri Sep 10 10:00:00 2021 -0400
  src/cmd/go/testdata/script/test_fuzz_parallel.txt  |  2 +-
  src/testing/fuzz.go                                |  4 +--
  7 files changed, 30 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz.txt b/src/cmd/go/testdata/script/test_fuzz.txt
+index a25f0fba3f..3f825c1bc3 100644
+--- a/src/cmd/go/testdata/script/test_fuzz.txt
++++ b/src/cmd/go/testdata/script/test_fuzz.txt
+@@ -445,20 +445,20 @@ func FuzzWrongType(f *testing.F) {
+     f.Fuzz(func(t *testing.T, b []byte) {})
+ }
+ 
+--- corpustesting/testdata/corpus/FuzzFail/1 --
++-- corpustesting/testdata/fuzz/FuzzFail/1 --
+ go test fuzz v1
+ []byte("12345")
+--- corpustesting/testdata/corpus/FuzzPass/1 --
++-- corpustesting/testdata/fuzz/FuzzPass/1 --
+ go test fuzz v1
+ []byte("00000")
+--- corpustesting/testdata/corpus/FuzzPassString/1 --
++-- corpustesting/testdata/fuzz/FuzzPassString/1 --
+ go test fuzz v1
+ string("hello")
+--- corpustesting/testdata/corpus/FuzzPanic/1 --
++-- corpustesting/testdata/fuzz/FuzzPanic/1 --
+ malformed
+--- corpustesting/testdata/corpus/FuzzInNestedDir/anotherdir/1 --
++-- corpustesting/testdata/fuzz/FuzzInNestedDir/anotherdir/1 --
+ go test fuzz v1
+ []byte("12345")
+--- corpustesting/testdata/corpus/FuzzWrongType/1 --
++-- corpustesting/testdata/fuzz/FuzzWrongType/1 --
+ go test fuzz v1
+ int("00000")
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+index 5eb8c86708..7d644b4d13 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_fuzztime.txt
+@@ -14,7 +14,7 @@ go test -c
+ exec ./fuzz.test$GOEXE -test.timeout=10ms -test.fuzz=FuzzFast -test.fuzztime=5s -test.parallel=1 -test.fuzzcachedir=$WORK/cache
+ 
+ # Timeout should not cause inputs to be written as crashers.
+-! exists testdata/corpus
++! exists testdata/fuzz
+ 
+ # When we use fuzztime with an "x" suffix, it runs a specific number of times.
+ # This fuzz function creates a file with a unique name ($pid.$count) on each run.
+diff --git a/src/cmd/go/testdata/script/test_fuzz_minimize.txt b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+index 473d63ebfa..002aca009b 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_minimize.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_minimize.txt
+@@ -39,7 +39,7 @@ go clean -fuzzcache
+ # crash will still be logged and written to testdata.
+ ! go test -fuzz=FuzzMinimizerRecoverable -run=FuzzMinimizerRecoverable -fuzztime=100x -fuzzminimizetime=1x minimizer_test.go
+ ! stdout '^ok'
+-stdout 'testdata[/\\]corpus[/\\]FuzzMinimizerRecoverable[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzMinimizerRecoverable[/\\]'
+ ! stdout 'got the minimum size!'  # it shouldn't have had enough time to minimize it
+ stdout FAIL
+ 
+@@ -121,7 +121,7 @@ func main() {
+ 	}
+ 
+ 	// Open the file in testdata (there should only be one)
+-	dir := fmt.Sprintf("testdata/corpus/%s", target)
++	dir := fmt.Sprintf("testdata/fuzz/%s", target)
+ 	files, err := ioutil.ReadDir(dir)
+ 	if err != nil {
+ 		fmt.Fprintln(os.Stderr, err)
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+index 92a52ccdea..1b8b79b3dd 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutate_crash.txt
+@@ -14,89 +14,89 @@ go test
+ 
+ # Running the fuzzer should find a crashing input quickly.
+ ! go test -fuzz=FuzzWithBug -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithBug[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzWithBug
+ 
+ # Now, the failing bytes should have been added to the seed corpus for
+ # the target, and should fail when run without fuzzing.
+ ! go test
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithBug[/\\][a-f0-9]{64}'
+ stdout 'this input caused a crash!'
+ 
+ ! go test -run=FuzzWithNilPanic -fuzz=FuzzWithNilPanic -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithNilPanic[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithNilPanic[/\\]'
+ stdout 'runtime.Goexit'
+ go run check_testdata.go FuzzWithNilPanic
+ 
+ ! go test -run=FuzzWithFail -fuzz=FuzzWithFail -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithFail[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithFail[/\\]'
+ go run check_testdata.go FuzzWithFail
+ 
+ ! go test -run=FuzzWithLogFail -fuzz=FuzzWithLogFail -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithLogFail[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithLogFail[/\\]'
+ stdout 'logged something'
+ go run check_testdata.go FuzzWithLogFail
+ 
+ ! go test -run=FuzzWithErrorf -fuzz=FuzzWithErrorf -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithErrorf[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithErrorf[/\\]'
+ stdout 'errorf was called here'
+ go run check_testdata.go FuzzWithErrorf
+ 
+ ! go test -run=FuzzWithFatalf -fuzz=FuzzWithFatalf -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithFatalf[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithFatalf[/\\]'
+ stdout 'fatalf was called here'
+ go run check_testdata.go FuzzWithFatalf
+ 
+ ! go test -run=FuzzWithBadExit -fuzz=FuzzWithBadExit -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithBadExit[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithBadExit[/\\]'
+ stdout 'unexpectedly'
+ go run check_testdata.go FuzzWithBadExit
+ 
+ # Running the fuzzer should find a crashing input quickly for fuzzing two types.
+ ! go test -run=FuzzWithTwoTypes -fuzz=FuzzWithTwoTypes -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzWithTwoTypes[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzWithTwoTypes[/\\]'
+ stdout 'these inputs caused a crash!'
+ go run check_testdata.go FuzzWithTwoTypes
+ 
+ # Running the fuzzer should find a crashing input quickly for an integer.
+ ! go test -run=FuzzInt -fuzz=FuzzInt -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzInt[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzInt[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzInt
+ 
+ ! go test -run=FuzzUint -fuzz=FuzzUint -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzUint[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzUint[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzUint
+ 
+ # Running the fuzzer should find a crashing input quickly for a bool.
+ ! go test -run=FuzzBool -fuzz=FuzzBool -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzBool[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzBool[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzBool
+ 
+ # Running the fuzzer should find a crashing input quickly for a float.
+ ! go test -run=FuzzFloat -fuzz=FuzzFloat -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzFloat[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzFloat[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzFloat
+ 
+ # Running the fuzzer should find a crashing input quickly for a byte.
+ ! go test -run=FuzzByte -fuzz=FuzzByte -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzByte[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzByte[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzByte
+ 
+ # Running the fuzzer should find a crashing input quickly for a rune.
+ ! go test -run=FuzzRune -fuzz=FuzzRune -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzRune[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzRune[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzRune
+ 
+ # Running the fuzzer should find a crashing input quickly for a string.
+ ! go test -run=FuzzString -fuzz=FuzzString -fuzztime=100x -fuzzminimizetime=1000x
+-stdout 'testdata[/\\]corpus[/\\]FuzzString[/\\]'
++stdout 'testdata[/\\]fuzz[/\\]FuzzString[/\\]'
+ stdout 'this input caused a crash!'
+ go run check_testdata.go FuzzString
+ 
+@@ -263,7 +263,7 @@ import (
+ 
+ func main() {
+ 	target := os.Args[1]
+-	dir := filepath.Join("testdata/corpus", target)
++	dir := filepath.Join("testdata/fuzz", target)
+ 
+ 	files, err := ioutil.ReadDir(dir)
+ 	if err != nil {
+diff --git a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+index a67bf63c0b..1568757de7 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_non_crash_signal.txt
+@@ -15,7 +15,7 @@ stdout 'fuzzing process terminated by unexpected signal; no crash will be record
+ # FuzzCrash sends itself a signal that looks like a crash.
+ # We should save a crasher.
+ ! go test -fuzz=FuzzCrash
+-exists testdata/corpus/FuzzCrash
++exists testdata/fuzz/FuzzCrash
+ stdout 'fuzzing process terminated unexpectedly'
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/test_fuzz_parallel.txt b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+index d9f6cc720b..a49f30a27f 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_parallel.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_parallel.txt
+@@ -13,7 +13,7 @@ go test -run=FuzzSeed
+ # TODO(jayconrod): check for the string "after T.Parallel". It's not printed
+ # by 'go test', so we can't distinguish that crasher from some other panic.
+ ! go test -run=FuzzMutate -fuzz=FuzzMutate
+-exists testdata/corpus/FuzzMutate
++exists testdata/fuzz/FuzzMutate
+ 
+ -- go.mod --
+ module fuzz_parallel
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index e567f7d9f4..975aa87eab 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -34,7 +34,7 @@ var (
+ 
+ 	// corpusDir is the parent directory of the target's seed corpus within
+ 	// the package.
+-	corpusDir = "testdata/corpus"
++	corpusDir = "testdata/fuzz"
+ )
+ 
+ // fuzzWorkerExitCode is used as an exit code by fuzz worker processes after an internal error.
+@@ -419,7 +419,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 			fmt.Fprintf(f.w, "%v\n", err)
+ 			if crashErr, ok := err.(fuzzCrashError); ok {
+ 				crashName := crashErr.CrashName()
+-				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join("testdata/corpus", f.name, crashName))
++				fmt.Fprintf(f.w, "Crash written to %s\n", filepath.Join(corpusDir, f.name, crashName))
+ 				fmt.Fprintf(f.w, "To re-run:\ngo test %s -run=%s/%s\n", f.fuzzContext.importPath(), f.name, crashName)
+ 			}
+ 		}

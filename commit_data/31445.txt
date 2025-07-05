@@ -12,6 +12,20 @@ Date:   Mon Feb 20 22:55:51 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/vet/all/whitelist/windows.txt | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/vet/all/whitelist/windows.txt b/src/cmd/vet/all/whitelist/windows.txt
+index e80a92fa71..2c101aeb98 100644
+--- a/src/cmd/vet/all/whitelist/windows.txt
++++ b/src/cmd/vet/all/whitelist/windows.txt
+@@ -1,5 +1,7 @@
+ // windows-specific vet whitelist. See readme.txt for details.
+ 
+-path/filepath/path_windows_test.go: possible formatting directive in Fatal call
++// Issue 18609
++crypto/x509/root_windows.go: unreachable code
++
+ runtime/sys_windows_ARCHSUFF.s: [GOARCH] sigtramp: function sigtramp missing Go declaration
+ runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)

@@ -16,6 +16,22 @@ Date:   Wed Mar 7 23:03:24 2018 +0100
     Change-Id: Ibb38fcd3e0ed1a791782145d3f2866f12117c6fe
     Reviewed-on: https://go-review.googlesource.com/99275
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0e44004cb1..d66ac20aa4 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -3235,6 +3235,10 @@ func TestGoVetWithOnlyTestFiles(t *testing.T) {
+ 
+ // Issue 24193.
+ func TestVetWithOnlyCgoFiles(t *testing.T) {
++	if !canCgo {
++		t.Skip("skipping because cgo not enabled")
++	}
++
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+ 	tg.parallel()

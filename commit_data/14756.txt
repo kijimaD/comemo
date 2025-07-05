@@ -13,9 +13,198 @@ Date:   Fri Dec 28 10:40:36 2012 -0800
     R=adonovan
     CC=golang-dev
     https://golang.org/cl/6994047
-
+---
  src/pkg/exp/types/check.go           |  2 ++
  src/pkg/exp/types/expr.go            | 23 ++++++++++++--------
  src/pkg/exp/types/testdata/expr3.src | 18 ++++++++++++++++
  src/pkg/go/parser/parser.go          | 42 ++++++++++++++++++++++++++++++------
  4 files changed, 69 insertions(+), 16 deletions(-)
+
+diff --git a/src/pkg/exp/types/check.go b/src/pkg/exp/types/check.go
+index 3708a0af62..db02e03cd7 100644
+--- a/src/pkg/exp/types/check.go
++++ b/src/pkg/exp/types/check.go
+@@ -23,6 +23,7 @@ type checker struct {
+ 	files []*ast.File
+ 
+ 	// lazily initialized
++	pkgscope  *ast.Scope
+ 	firsterr  error
+ 	initexprs map[*ast.ValueSpec][]ast.Expr // "inherited" initialization expressions for constant declarations
+ 	funclist  []function                    // list of functions/methods with correct signatures and non-empty bodies
+@@ -406,6 +407,7 @@ func check(ctxt *Context, fset *token.FileSet, files map[string]*ast.File) (pkg
+ 			check.err(err)
+ 		}
+ 	}
++	check.pkgscope = pkg.Scope
+ 
+ 	// determine missing constant initialization expressions
+ 	// and associate methods with types
+diff --git a/src/pkg/exp/types/expr.go b/src/pkg/exp/types/expr.go
+index 6e31323cb6..bf3be532a3 100644
+--- a/src/pkg/exp/types/expr.go
++++ b/src/pkg/exp/types/expr.go
+@@ -507,8 +507,19 @@ func (check *checker) index(index ast.Expr, length int64, iota int) int64 {
+ 	return i
+ }
+ 
++// compositeLitKey resolves unresolved composite literal keys.
++// For details, see comment in go/parser/parser.go, method parseElement.
++func (check *checker) compositeLitKey(key ast.Expr) {
++	if ident, ok := key.(*ast.Ident); ok && ident.Obj == nil {
++		ident.Obj = check.pkgscope.Lookup(ident.Name)
++		if ident.Obj == nil {
++			check.errorf(ident.Pos(), "undeclared name: %s", ident.Name)
++		}
++	}
++}
++
+ // indexElts checks the elements (elts) of an array or slice composite literal
+-// against the literals element type (typ), and the element indices against
++// against the literal's element type (typ), and the element indices against
+ // the literal length if known (length >= 0). It returns the length of the
+ // literal (maximum index value + 1).
+ //
+@@ -520,6 +531,7 @@ func (check *checker) indexedElts(elts []ast.Expr, typ Type, length int64, iota
+ 		validIndex := false
+ 		eval := e
+ 		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++			check.compositeLitKey(kv.Key)
+ 			if i := check.index(kv.Key, length, iota); i >= 0 {
+ 				index = i
+ 				validIndex = true
+@@ -714,14 +726,6 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 		}
+ 
+ 	case *ast.CompositeLit:
+-		// TODO(gri) Known bug: The parser doesn't resolve composite literal keys
+-		//           because it cannot know the type of the literal and therefore
+-		//           cannot know if a key is a struct field or not. Consequently,
+-		//           if a key is an identifier, it is unresolved and thus has no
+-		//           ast.Objects associated with it. At the moment, the respective
+-		//           error message is not issued because the type-checker doesn't
+-		//           resolve the identifier, and because it assumes that the parser
+-		//           did the resolution.
+ 		typ := hint
+ 		openArray := false
+ 		if e.Type != nil {
+@@ -827,6 +831,7 @@ func (check *checker) rawExpr(x *operand, e ast.Expr, hint Type, iota int, cycle
+ 					check.errorf(e.Pos(), "missing key in map literal")
+ 					continue
+ 				}
++				check.compositeLitKey(kv.Key)
+ 				check.expr(x, kv.Key, nil, iota)
+ 				if !x.isAssignable(utyp.Key) {
+ 					check.errorf(x.pos(), "cannot use %s as %s key in map literal", x, utyp.Key)
+diff --git a/src/pkg/exp/types/testdata/expr3.src b/src/pkg/exp/types/testdata/expr3.src
+index 35905c4972..519e3f567a 100644
+--- a/src/pkg/exp/types/testdata/expr3.src
++++ b/src/pkg/exp/types/testdata/expr3.src
+@@ -246,8 +246,17 @@ func slice_literals() {
+ 	_ = S0{2.0}
+ 	_ = S0{2.1 /* ERROR "cannot use" */ }
+ 	_ = S0{"foo" /* ERROR "cannot use" */ }
++
++	// indices must be resolved correctly
++	// (for details, see comment in go/parser/parser.go, method parseElement)
++	index1 := 1
++	_ = S0{index1: 1}
++	_ = S0{index2: 2}
++	_ = S0{index3 /* ERROR "undeclared name" */ : 3}
+ }
+ 
++var index2 int = 2
++
+ func map_literals() {
+ 	type M0 map[string]int
+ 
+@@ -256,8 +265,17 @@ func map_literals() {
+ 	_ = M0{1 /* ERROR "cannot use .* as string key" */ : 2}
+ 	_ = M0{"foo": "bar" /* ERROR "cannot use .* as int value" */ }
+ 	_ = M0{"foo": 1, "bar": 2, "foo" /* ERROR "duplicate key" */ : 3 }
++
++	// map keys must be resolved correctly
++	// (for detials, see comment in go/parser/parser.go, method parseElement)
++	key1 := "foo"
++	_ = M0{key1: 1}
++	_ = M0{key2: 2}
++	_ = M0{key3 /* ERROR "undeclared name" */ : 2}
+ }
+ 
++var key2 string = "bar"
++
+ type I interface {
+ 	m()
+ }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index ad65a7bf21..cf94e00653 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -162,7 +162,12 @@ func (p *parser) shortVarDecl(decl *ast.AssignStmt, list []ast.Expr) {
+ // internal consistency.
+ var unresolved = new(ast.Object)
+ 
+-func (p *parser) resolve(x ast.Expr) {
++// If x is an identifier, tryResolve attempts to resolve x by looking up
++// the object it denotes. If no object is found and collectUnresolved is
++// set, x is marked as unresolved and collected in the list of unresolved
++// identifiers.
++//
++func (p *parser) tryResolve(x ast.Expr, collectUnresolved bool) {
+ 	// nothing to do if x is not an identifier or the blank identifier
+ 	ident, _ := x.(*ast.Ident)
+ 	if ident == nil {
+@@ -183,8 +188,14 @@ func (p *parser) resolve(x ast.Expr) {
+ 	// must be found either in the file scope, package scope
+ 	// (perhaps in another file), or universe scope --- collect
+ 	// them so that they can be resolved later
+-	ident.Obj = unresolved
+-	p.unresolved = append(p.unresolved, ident)
++	if collectUnresolved {
++		ident.Obj = unresolved
++		p.unresolved = append(p.unresolved, ident)
++	}
++}
++
++func (p *parser) resolve(x ast.Expr) {
++	p.tryResolve(x, true)
+ }
+ 
+ // ----------------------------------------------------------------------------
+@@ -1189,15 +1200,32 @@ func (p *parser) parseElement(keyOk bool) ast.Expr {
+ 		return p.parseLiteralValue(nil)
+ 	}
+ 
+-	// The parser cannot resolve a key expression because it does not know
+-	// what the composite literal type is: if we have an array/slice index
+-	// or map key, we want to resolve, but if we have a struct field name
+-	// we cannot. Leave this to type-checking phase.
++	// Because the parser doesn't know the composite literal type, it cannot
++	// know if a key that's an identifier is a struct field name or a name
++	// denoting a value. The former is not resolved by the parser or the
++	// resolver.
++	//
++	// Instead, _try_ to resolve such a key if possible. If it resolves,
++	// it a) has correctly resolved, or b) incorrectly resolved because
++	// the key is a struct field with a name matching another identifier.
++	// In the former case we are done, and in the latter case we don't
++	// care because the type checker will do a separate field lookup.
++	//
++	// If the key does not resolve, it must a) be defined at the top-
++	// level in another file of the same package or be undeclared, or
++	// b) it is a struct field. In the former case, the type checker
++	// can do a top-level lookup, and in the latter case it will do a
++	// separate field lookup.
+ 	x := p.checkExpr(p.parseExpr(keyOk))
+ 	if keyOk {
+ 		if p.tok == token.COLON {
+ 			colon := p.pos
+ 			p.next()
++			// Try to resolve the key but don't collect it
++			// as unresolved identifier if it fails so that
++			// we don't get (possibly false) errors about
++			// undeclared names.
++			p.tryResolve(x, false)
+ 			return &ast.KeyValueExpr{Key: x, Colon: colon, Value: p.parseElement(false)}
+ 		}
+ 		p.resolve(x) // not a key

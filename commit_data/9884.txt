@@ -35,7 +35,7 @@ Date:   Thu Oct 6 18:42:51 2011 +0300
     R=golang-dev, cw, rsc
     CC=golang-dev
     https://golang.org/cl/4963057
-
+---
  src/pkg/runtime/386/arch.h        |   3 +-
  src/pkg/runtime/amd64/arch.h      |   3 +-
  src/pkg/runtime/amd64/traceback.c |   1 +
@@ -69,3 +69,1090 @@ Date:   Thu Oct 6 18:42:51 2011 +0300
  test/mallocfin.go                 |  10 ++
  test/mallocrep.go                 |   1 +
  32 files changed, 359 insertions(+), 159 deletions(-)
+
+diff --git a/src/pkg/runtime/386/arch.h b/src/pkg/runtime/386/arch.h
+index d95c7aa810..a0798f99e9 100644
+--- a/src/pkg/runtime/386/arch.h
++++ b/src/pkg/runtime/386/arch.h
+@@ -1,3 +1,4 @@
+ enum {
+-	thechar = '8'
++	thechar = '8',
++	CacheLineSize = 64
+ };
+diff --git a/src/pkg/runtime/amd64/arch.h b/src/pkg/runtime/amd64/arch.h
+index fe10fd89f9..dd1cfc18d1 100644
+--- a/src/pkg/runtime/amd64/arch.h
++++ b/src/pkg/runtime/amd64/arch.h
+@@ -1,3 +1,4 @@
+ enum {
+-	thechar = '6'
++	thechar = '6',
++	CacheLineSize = 64
+ };
+diff --git a/src/pkg/runtime/amd64/traceback.c b/src/pkg/runtime/amd64/traceback.c
+index c03a6f7cc1..fc9021e40e 100644
+--- a/src/pkg/runtime/amd64/traceback.c
++++ b/src/pkg/runtime/amd64/traceback.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ static uintptr isclosureentry(uintptr);
+diff --git a/src/pkg/runtime/arm/arch.h b/src/pkg/runtime/arm/arch.h
+index 3ddb626ddd..c1a7a0f379 100644
+--- a/src/pkg/runtime/arm/arch.h
++++ b/src/pkg/runtime/arm/arch.h
+@@ -1,3 +1,4 @@
+ enum {
+-	thechar = '5'
++	thechar = '5',
++	CacheLineSize = 32
+ };
+diff --git a/src/pkg/runtime/arm/traceback.c b/src/pkg/runtime/arm/traceback.c
+index 63528104c6..0319cdc9b6 100644
+--- a/src/pkg/runtime/arm/traceback.c
++++ b/src/pkg/runtime/arm/traceback.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ void runtime·deferproc(void);
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 74b795b7ee..b7cf134384 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -49,6 +49,7 @@
+ // in the situation when normally the goroutine "owns" handoff.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ enum
+diff --git a/src/pkg/runtime/darwin/mem.c b/src/pkg/runtime/darwin/mem.c
+index 935c032bc0..2fbd7a0c47 100644
+--- a/src/pkg/runtime/darwin/mem.c
++++ b/src/pkg/runtime/darwin/mem.c
+@@ -1,4 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
++#include "arch.h"
+ #include "defs.h"
+ #include "os.h"
+ #include "malloc.h"
+diff --git a/src/pkg/runtime/extern.go b/src/pkg/runtime/extern.go
+index 9da3423c61..7c986daee6 100644
+--- a/src/pkg/runtime/extern.go
++++ b/src/pkg/runtime/extern.go
+@@ -131,8 +131,8 @@ func Semrelease(s *uint32)
+ // The argument x must be a pointer to an object allocated by
+ // calling new or by taking the address of a composite literal.
+ // The argument f must be a function that takes a single argument
+-// of x's type and returns no arguments.  If either of these is not
+-// true, SetFinalizer aborts the program.
++// of x's type and can have arbitrary ignored return values.
++// If either of these is not true, SetFinalizer aborts the program.
+ //
+ // Finalizers are run in dependency order: if A points at B, both have
+ // finalizers, and they are otherwise unreachable, only the finalizer
+@@ -156,9 +156,6 @@ func Semrelease(s *uint32)
+ // A single goroutine runs all finalizers for a program, sequentially.
+ // If a finalizer must run for a long time, it should do so by starting
+ // a new goroutine.
+-//
+-// TODO(rsc): allow f to have (ignored) return values
+-//
+ func SetFinalizer(x, f interface{})
+ 
+ func getgoroot() string
+diff --git a/src/pkg/runtime/freebsd/mem.c b/src/pkg/runtime/freebsd/mem.c
+index 07abf2cfe0..b69bbdc6ec 100644
+--- a/src/pkg/runtime/freebsd/mem.c
++++ b/src/pkg/runtime/freebsd/mem.c
+@@ -1,4 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
++#include "arch.h"
+ #include "defs.h"
+ #include "os.h"
+ #include "malloc.h"
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 000f834cf3..940df80571 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "type.h"
+ #include "malloc.h"
+ 
+diff --git a/src/pkg/runtime/linux/mem.c b/src/pkg/runtime/linux/mem.c
+index 6c5c908cc5..fe18e14483 100644
+--- a/src/pkg/runtime/linux/mem.c
++++ b/src/pkg/runtime/linux/mem.c
+@@ -1,4 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
++#include "arch.h"
+ #include "defs.h"
+ #include "os.h"
+ #include "malloc.h"
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index 6d2f65b3c9..a22b0e737d 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -8,6 +8,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "arch.h"
+ #include "stack.h"
+ #include "malloc.h"
+ #include "defs.h"
+@@ -85,7 +86,7 @@ runtime·mallocgc(uintptr size, uint32 flag, int32 dogc, int32 zeroed)
+ 				rate = 0x3fffffff;
+ 			m->mcache->next_sample = runtime·fastrand1() % (2*rate);
+ 		profile:
+-			runtime·setblockspecial(v);
++			runtime·setblockspecial(v, true);
+ 			runtime·MProf_Malloc(v, size);
+ 		}
+ 	}
+@@ -457,8 +458,7 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 
+ 	if(obj.type == nil) {
+ 		runtime·printf("runtime.SetFinalizer: first argument is nil interface\n");
+-	throw:
+-		runtime·throw("runtime.SetFinalizer");
++		goto throw;
+ 	}
+ 	if(obj.type->kind != KindPtr) {
+ 		runtime·printf("runtime.SetFinalizer: first argument is %S, not pointer\n", *obj.type->string);
+@@ -470,11 +470,8 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 	}
+ 	nret = 0;
+ 	if(finalizer.type != nil) {
+-		if(finalizer.type->kind != KindFunc) {
+-		badfunc:
+-			runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S)\n", *finalizer.type->string, *obj.type->string);
+-			goto throw;
+-		}
++		if(finalizer.type->kind != KindFunc)
++			goto badfunc;
+ 		ft = (FuncType*)finalizer.type;
+ 		if(ft->dotdotdot || ft->in.len != 1 || *(Type**)ft->in.array != obj.type)
+ 			goto badfunc;
+@@ -486,11 +483,16 @@ func SetFinalizer(obj Eface, finalizer Eface) {
+ 			nret += t->size;
+ 		}
+ 		nret = (nret + sizeof(void*)-1) & ~(sizeof(void*)-1);
+-
+-		if(runtime·getfinalizer(obj.data, 0)) {
+-			runtime·printf("runtime.SetFinalizer: finalizer already set\n");
+-			goto throw;
+-		}
+ 	}
+-	runtime·addfinalizer(obj.data, finalizer.data, nret);
++	
++	if(!runtime·addfinalizer(obj.data, finalizer.data, nret)) {
++		runtime·printf("runtime.SetFinalizer: finalizer already set\n");
++		goto throw;
++	}
++	return;
++
++badfunc:
++	runtime·printf("runtime.SetFinalizer: second argument is %S, not func(%S)\n", *finalizer.type->string, *obj.type->string);
++throw:
++	runtime·throw("runtime.SetFinalizer");
+ }
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index eb3bba3431..7731e66a15 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -362,11 +362,11 @@ struct MHeap
+ 
+ 	// central free lists for small size classes.
+ 	// the union makes sure that the MCentrals are
+-	// spaced 64 bytes apart, so that each MCentral.Lock
++	// spaced CacheLineSize bytes apart, so that each MCentral.Lock
+ 	// gets its own cache line.
+ 	union {
+ 		MCentral;
+-		byte pad[64];
++		byte pad[CacheLineSize];
+ 	} central[NumSizeClasses];
+ 
+ 	FixAlloc spanalloc;	// allocator for Span*
+@@ -394,7 +394,7 @@ int32	runtime·checking;
+ void	runtime·markspan(void *v, uintptr size, uintptr n, bool leftover);
+ void	runtime·unmarkspan(void *v, uintptr size);
+ bool	runtime·blockspecial(void*);
+-void	runtime·setblockspecial(void*);
++void	runtime·setblockspecial(void*, bool);
+ void	runtime·purgecachedstats(M*);
+ 
+ enum
+@@ -419,13 +419,5 @@ enum {
+ };
+ extern int32 runtime·malloc_profile;
+ 
+-typedef struct Finalizer Finalizer;
+-struct Finalizer
+-{
+-	Finalizer *next;	// for use by caller of getfinalizer
+-	void (*fn)(void*);
+-	void *arg;
+-	int32 nret;
+-};
+-
+-Finalizer*	runtime·getfinalizer(void*, bool);
++bool	runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret);
++void	runtime·walkfintab(void (*fn)(void*));
+diff --git a/src/pkg/runtime/mcache.c b/src/pkg/runtime/mcache.c
+index 711e938fc5..b6e1c507a6 100644
+--- a/src/pkg/runtime/mcache.c
++++ b/src/pkg/runtime/mcache.c
+@@ -7,6 +7,7 @@
+ // See malloc.h for an overview.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ void*
+diff --git a/src/pkg/runtime/mcentral.c b/src/pkg/runtime/mcentral.c
+index 29b03b58f8..8463d4eb88 100644
+--- a/src/pkg/runtime/mcentral.c
++++ b/src/pkg/runtime/mcentral.c
+@@ -15,6 +15,7 @@
+ // so that it is faster to move those lists between MCaches and MCentrals.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ static bool MCentral_Grow(MCentral *c);
+diff --git a/src/pkg/runtime/mfinal.c b/src/pkg/runtime/mfinal.c
+index f3138145b4..efb42e1fbd 100644
+--- a/src/pkg/runtime/mfinal.c
++++ b/src/pkg/runtime/mfinal.c
+@@ -3,12 +3,17 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+-// Lock to protect finalizer data structures.
+-// Cannot reuse mheap.Lock because the finalizer
+-// maintenance requires allocation.
+-static Lock finlock;
++enum { debug = 0 };
++
++typedef struct Fin Fin;
++struct Fin
++{
++	void (*fn)(void*);
++	int32 nret;
++};
+ 
+ // Finalizer hash table.  Direct hash, linear scan, at most 3/4 full.
+ // Table size is power of 3 so that hash can be key % max.
+@@ -20,15 +25,24 @@ static Lock finlock;
+ typedef struct Fintab Fintab;
+ struct Fintab
+ {
++	Lock;
+ 	void **key;
+-	Finalizer **val;
++	Fin *val;
+ 	int32 nkey;	// number of non-nil entries in key
+ 	int32 ndead;	// number of dead (-1) entries in key
+ 	int32 max;	// size of key, val allocations
+ };
+ 
++#define TABSZ 17
++#define TAB(p) (&fintab[((uintptr)(p)>>3)%TABSZ])
++
++static struct {
++	Fintab;
++	uint8 pad[CacheLineSize - sizeof(Fintab)];	
++} fintab[TABSZ];
++
+ static void
+-addfintab(Fintab *t, void *k, Finalizer *v)
++addfintab(Fintab *t, void *k, void (*fn)(void*), int32 nret)
+ {
+ 	int32 i, j;
+ 
+@@ -51,29 +65,31 @@ addfintab(Fintab *t, void *k, Finalizer *v)
+ 
+ ret:
+ 	t->key[i] = k;
+-	t->val[i] = v;
++	t->val[i].fn = fn;
++	t->val[i].nret = nret;
+ }
+ 
+-static Finalizer*
+-lookfintab(Fintab *t, void *k, bool del)
++static bool
++lookfintab(Fintab *t, void *k, bool del, Fin *f)
+ {
+ 	int32 i, j;
+-	Finalizer *v;
+ 
+ 	if(t->max == 0)
+-		return nil;
++		return false;
+ 	i = (uintptr)k % (uintptr)t->max;
+ 	for(j=0; j<t->max; j++) {
+ 		if(t->key[i] == nil)
+-			return nil;
++			return false;
+ 		if(t->key[i] == k) {
+-			v = t->val[i];
++			if(f)
++				*f = t->val[i];
+ 			if(del) {
+ 				t->key[i] = (void*)-1;
+-				t->val[i] = nil;
++				t->val[i].fn = nil;
++				t->val[i].nret = 0;
+ 				t->ndead++;
+ 			}
+-			return v;
++			return true;
+ 		}
+ 		if(++i == t->max)
+ 			i = 0;
+@@ -81,88 +97,100 @@ lookfintab(Fintab *t, void *k, bool del)
+ 
+ 	// cannot happen - table is known to be non-full
+ 	runtime·throw("finalizer table inconsistent");
+-	return nil;
++	return false;
+ }
+ 
+-static Fintab fintab;
+-
+-// add finalizer; caller is responsible for making sure not already in table
+-void
+-runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
++static void
++resizefintab(Fintab *tab)
+ {
+ 	Fintab newtab;
++	void *k;
+ 	int32 i;
+-	byte *base;
+-	Finalizer *e;
++
++	runtime·memclr((byte*)&newtab, sizeof newtab);
++	newtab.max = tab->max;
++	if(newtab.max == 0)
++		newtab.max = 3*3*3;
++	else if(tab->ndead < tab->nkey/2) {
++		// grow table if not many dead values.
++		// otherwise just rehash into table of same size.
++		newtab.max *= 3;
++	}
+ 	
+-	e = nil;
+-	if(f != nil) {
+-		e = runtime·mal(sizeof *e);
+-		e->fn = f;
+-		e->nret = nret;
++	newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
++	newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
++	
++	for(i=0; i<tab->max; i++) {
++		k = tab->key[i];
++		if(k != nil && k != (void*)-1)
++			addfintab(&newtab, k, tab->val[i].fn, tab->val[i].nret);
+ 	}
++	
++	runtime·free(tab->key);
++	runtime·free(tab->val);
++	
++	tab->key = newtab.key;
++	tab->val = newtab.val;
++	tab->nkey = newtab.nkey;
++	tab->ndead = newtab.ndead;
++	tab->max = newtab.max;
++}
+ 
+-	runtime·lock(&finlock);
+-	if(!runtime·mlookup(p, &base, nil, nil) || p != base) {
+-		runtime·unlock(&finlock);
+-		runtime·throw("addfinalizer on invalid pointer");
++bool
++runtime·addfinalizer(void *p, void (*f)(void*), int32 nret)
++{
++	Fintab *tab;
++	byte *base;
++	
++	if(debug) {
++		if(!runtime·mlookup(p, &base, nil, nil) || p != base)
++			runtime·throw("addfinalizer on invalid pointer");
+ 	}
++	
++	tab = TAB(p);
++	runtime·lock(tab);
+ 	if(f == nil) {
+-		lookfintab(&fintab, p, 1);
+-		runtime·unlock(&finlock);
+-		return;
++		if(lookfintab(tab, p, true, nil))
++			runtime·setblockspecial(p, false);
++		runtime·unlock(tab);
++		return true;
+ 	}
+ 
+-	if(lookfintab(&fintab, p, 0)) {
+-		runtime·unlock(&finlock);
+-		runtime·throw("double finalizer");
++	if(lookfintab(tab, p, false, nil)) {
++		runtime·unlock(tab);
++		return false;
+ 	}
+-	runtime·setblockspecial(p);
+ 
+-	if(fintab.nkey >= fintab.max/2+fintab.max/4) {
++	if(tab->nkey >= tab->max/2+tab->max/4) {
+ 		// keep table at most 3/4 full:
+ 		// allocate new table and rehash.
+-
+-		runtime·memclr((byte*)&newtab, sizeof newtab);
+-		newtab.max = fintab.max;
+-		if(newtab.max == 0)
+-			newtab.max = 3*3*3;
+-		else if(fintab.ndead < fintab.nkey/2) {
+-			// grow table if not many dead values.
+-			// otherwise just rehash into table of same size.
+-			newtab.max *= 3;
+-		}
+-
+-		newtab.key = runtime·mallocgc(newtab.max*sizeof newtab.key[0], FlagNoPointers, 0, 1);
+-		newtab.val = runtime·mallocgc(newtab.max*sizeof newtab.val[0], 0, 0, 1);
+-
+-		for(i=0; i<fintab.max; i++) {
+-			void *k;
+-
+-			k = fintab.key[i];
+-			if(k != nil && k != (void*)-1)
+-				addfintab(&newtab, k, fintab.val[i]);
+-		}
+-		runtime·free(fintab.key);
+-		runtime·free(fintab.val);
+-		fintab = newtab;
++		resizefintab(tab);
+ 	}
+ 
+-	addfintab(&fintab, p, e);
+-	runtime·unlock(&finlock);
++	addfintab(tab, p, f, nret);
++	runtime·setblockspecial(p, true);
++	runtime·unlock(tab);
++	return true;
+ }
+ 
+ // get finalizer; if del, delete finalizer.
+-// caller is responsible for updating RefHasFinalizer bit.
+-Finalizer*
+-runtime·getfinalizer(void *p, bool del)
++// caller is responsible for updating RefHasFinalizer (special) bit.
++bool
++runtime·getfinalizer(void *p, bool del, void (**fn)(void*), int32 *nret)
+ {
+-	Finalizer *f;
++	Fintab *tab;
++	bool res;
++	Fin f;
+ 	
+-	runtime·lock(&finlock);
+-	f = lookfintab(&fintab, p, del);
+-	runtime·unlock(&finlock);
+-	return f;
++	tab = TAB(p);
++	runtime·lock(tab);
++	res = lookfintab(tab, p, del, &f);
++	runtime·unlock(tab);
++	if(res==false)
++		return false;
++	*fn = f.fn;
++	*nret = f.nret;
++	return true;
+ }
+ 
+ void
+@@ -170,12 +198,15 @@ runtime·walkfintab(void (*fn)(void*))
+ {
+ 	void **key;
+ 	void **ekey;
++	int32 i;
+ 
+-	runtime·lock(&finlock);
+-	key = fintab.key;
+-	ekey = key + fintab.max;
+-	for(; key < ekey; key++)
+-		if(*key != nil && *key != ((void*)-1))
+-			fn(*key);
+-	runtime·unlock(&finlock);
++	for(i=0; i<TABSZ; i++) {
++		runtime·lock(&fintab[i]);
++		key = fintab[i].key;
++		ekey = key + fintab[i].max;
++		for(; key < ekey; key++)
++			if(*key != nil && *key != ((void*)-1))
++				fn(*key);
++		runtime·unlock(&fintab[i]);
++	}
+ }
+diff --git a/src/pkg/runtime/mfinal_test.go b/src/pkg/runtime/mfinal_test.go
+new file mode 100644
+index 0000000000..de632717a5
+--- /dev/null
++++ b/src/pkg/runtime/mfinal_test.go
+@@ -0,0 +1,64 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"sync"
++	"sync/atomic"
++	"testing"
++)
++
++func fin(v *int) {
++}
++
++func BenchmarkFinalizer(b *testing.B) {
++	const CallsPerSched = 1000
++	procs := runtime.GOMAXPROCS(-1)
++	N := int32(b.N / CallsPerSched)
++	var wg sync.WaitGroup
++	wg.Add(procs)
++	for p := 0; p < procs; p++ {
++		go func() {
++			var data [CallsPerSched]*int
++			for i := 0; i < CallsPerSched; i++ {
++				data[i] = new(int)
++			}
++			for atomic.AddInt32(&N, -1) >= 0 {
++				runtime.Gosched()
++				for i := 0; i < CallsPerSched; i++ {
++					runtime.SetFinalizer(data[i], fin)
++				}
++				for i := 0; i < CallsPerSched; i++ {
++					runtime.SetFinalizer(data[i], nil)
++				}
++			}
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
++
++func BenchmarkFinalizerRun(b *testing.B) {
++	const CallsPerSched = 1000
++	procs := runtime.GOMAXPROCS(-1)
++	N := int32(b.N / CallsPerSched)
++	var wg sync.WaitGroup
++	wg.Add(procs)
++	for p := 0; p < procs; p++ {
++		go func() {
++			for atomic.AddInt32(&N, -1) >= 0 {
++				runtime.Gosched()
++				for i := 0; i < CallsPerSched; i++ {
++					v := new(int)
++					runtime.SetFinalizer(v, fin)
++				}
++				runtime.GC()
++			}
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index ab9df3196e..497b5bf132 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -7,6 +7,7 @@
+ // See malloc.h for overview.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ // Initialize f to allocate objects of the given size,
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 37a495dd2c..797d011064 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -5,6 +5,7 @@
+ // Garbage collector.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ #include "stack.h"
+ 
+@@ -67,12 +68,33 @@ struct Workbuf
+ 	byte *obj[512-2];
+ };
+ 
++typedef struct Finalizer Finalizer;
++struct Finalizer
++{
++	void (*fn)(void*);
++	void *arg;
++	int32 nret;
++};
++
++typedef struct FinBlock FinBlock;
++struct FinBlock
++{
++	FinBlock *alllink;
++	FinBlock *next;
++	int32 cnt;
++	int32 cap;
++	Finalizer fin[1];
++};
++
+ extern byte data[];
+ extern byte etext[];
+ extern byte end[];
+ 
+ static G *fing;
+-static Finalizer *finq;
++static FinBlock *finq; // list of finalizers that are to be executed
++static FinBlock *finc; // cache of free blocks
++static FinBlock *allfin; // list of all blocks
++static Lock finlock;
+ static int32 fingwait;
+ 
+ static void runfinq(void);
+@@ -651,6 +673,7 @@ static void
+ mark(void (*scan)(byte*, int64))
+ {
+ 	G *gp;
++	FinBlock *fb;
+ 
+ 	// mark data+bss.
+ 	// skip runtime·mheap itself, which has no interesting pointers
+@@ -685,11 +708,50 @@ mark(void (*scan)(byte*, int64))
+ 	else
+ 		runtime·walkfintab(markfin);
+ 
++	for(fb=allfin; fb; fb=fb->alllink)
++		scanblock((byte*)fb->fin, fb->cnt*sizeof(fb->fin[0]));
++
+ 	// in multiproc mode, join in the queued work.
+ 	scan(nil, 0);
+ }
+ 
+-// Sweep frees or calls finalizers for blocks not marked in the mark phase.
++static bool
++handlespecial(byte *p, uintptr size)
++{
++	void (*fn)(void*);
++	int32 nret;
++	FinBlock *block;
++	Finalizer *f;
++	
++	if(!runtime·getfinalizer(p, true, &fn, &nret)) {
++		runtime·setblockspecial(p, false);
++		runtime·MProf_Free(p, size);
++		return false;
++	}
++
++	runtime·lock(&finlock);
++	if(finq == nil || finq->cnt == finq->cap) {
++		if(finc == nil) {
++			finc = runtime·SysAlloc(PageSize);
++			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
++			finc->alllink = allfin;
++			allfin = finc;
++		}
++		block = finc;
++		finc = block->next;
++		block->next = finq;
++		finq = block;
++	}
++	f = &finq->fin[finq->cnt];
++	finq->cnt++;
++	f->fn = fn;
++	f->nret = nret;
++	f->arg = p;
++	runtime·unlock(&finlock); 
++	return true;
++}
++
++// Sweep frees or collects finalizers for blocks not marked in the mark phase.
+ // It clears the mark bits in preparation for the next GC round.
+ static void
+ sweep(void)
+@@ -699,7 +761,6 @@ sweep(void)
+ 	uintptr size;
+ 	byte *p;
+ 	MCache *c;
+-	Finalizer *f;
+ 	byte *arena_start;
+ 
+ 	arena_start = runtime·mheap.arena_start;
+@@ -750,21 +811,12 @@ sweep(void)
+ 				continue;
+ 			}
+ 
++			// Special means it has a finalizer or is being profiled.
++			// In DebugMark mode, the bit has been coopted so
++			// we have to assume all blocks are special.
+ 			if(DebugMark || (bits & bitSpecial) != 0) {
+-				// Special means it has a finalizer or is being profiled.
+-				// In DebugMark mode, the bit has been coopted so
+-				// we have to assume all blocks are special.
+-				f = runtime·getfinalizer(p, 1);
+-				if(f != nil) {
+-					f->arg = p;
+-					for(;;) {
+-						f->next = finq;
+-						if(runtime·casp(&finq, f->next, f))
+-							break;
+-					}
++				if(handlespecial(p, size))
+ 					continue;
+-				}
+-				runtime·MProf_Free(p, size);
+ 			}
+ 
+ 			// Mark freed; restore block boundary bit.
+@@ -864,7 +916,6 @@ runtime·gc(int32 force)
+ 	int64 t0, t1, t2, t3;
+ 	uint64 heap0, heap1, obj0, obj1;
+ 	byte *p;
+-	Finalizer *fp;
+ 	bool extra;
+ 
+ 	// The gc is turned off (via enablegc) until
+@@ -945,8 +996,7 @@ runtime·gc(int32 force)
+ 	m->gcing = 0;
+ 
+ 	m->locks++;	// disable gc during the mallocs in newproc
+-	fp = finq;
+-	if(fp != nil) {
++	if(finq != nil) {
+ 		// kick off or wake up goroutine to run queued finalizers
+ 		if(fing == nil)
+ 			fing = runtime·newproc1((byte*)runfinq, nil, 0, 0, runtime·gc);
+@@ -987,8 +1037,8 @@ runtime·gc(int32 force)
+ 	// the maximum number of procs.
+ 	runtime·starttheworld(extra);
+ 
+-	// give the queued finalizers, if any, a chance to run
+-	if(fp != nil)
++	// give the queued finalizers, if any, a chance to run	
++	if(finq != nil)	
+ 		runtime·gosched();
+ 
+ 	if(gctrace > 1 && !force)
+@@ -1014,9 +1064,13 @@ runtime·UpdateMemStats(void)
+ static void
+ runfinq(void)
+ {
+-	Finalizer *f, *next;
++	Finalizer *f;
++	FinBlock *fb, *next;
+ 	byte *frame;
++	uint32 framesz, framecap, i;
+ 
++	frame = nil;
++	framecap = 0;
+ 	for(;;) {
+ 		// There's no need for a lock in this section
+ 		// because it only conflicts with the garbage
+@@ -1024,25 +1078,34 @@ runfinq(void)
+ 		// runs when everyone else is stopped, and
+ 		// runfinq only stops at the gosched() or
+ 		// during the calls in the for loop.
+-		f = finq;
++		fb = finq;
+ 		finq = nil;
+-		if(f == nil) {
++		if(fb == nil) {
+ 			fingwait = 1;
+ 			g->status = Gwaiting;
+ 			g->waitreason = "finalizer wait";
+ 			runtime·gosched();
+ 			continue;
+ 		}
+-		for(; f; f=next) {
+-			next = f->next;
+-			frame = runtime·mal(sizeof(uintptr) + f->nret);
+-			*(void**)frame = f->arg;
+-			reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
+-			runtime·free(frame);
+-			f->fn = nil;
+-			f->arg = nil;
+-			f->next = nil;
+-			runtime·free(f);
++		for(; fb; fb=next) {
++			next = fb->next;
++			for(i=0; i<fb->cnt; i++) {
++				f = &fb->fin[i];
++				framesz = sizeof(uintptr) + f->nret;
++				if(framecap < framesz) {
++					runtime·free(frame);
++					frame = runtime·mal(framesz);
++					framecap = framesz;
++				}
++				*(void**)frame = f->arg;
++				runtime·setblockspecial(f->arg, false);
++				reflect·call((byte*)f->fn, frame, sizeof(uintptr) + f->nret);
++				f->fn = nil;
++				f->arg = nil;
++			}
++			fb->cnt = 0;
++			fb->next = finc;
++			finc = fb;
+ 		}
+ 		runtime·gc(1);	// trigger another gc to clean up the finalized objects, if possible
+ 	}
+@@ -1203,7 +1266,7 @@ runtime·blockspecial(void *v)
+ }
+ 
+ void
+-runtime·setblockspecial(void *v)
++runtime·setblockspecial(void *v, bool s)
+ {
+ 	uintptr *b, off, shift, bits, obits;
+ 
+@@ -1216,7 +1279,10 @@ runtime·setblockspecial(void *v)
+ 
+ 	for(;;) {
+ 		obits = *b;
+-		bits = obits | (bitSpecial<<shift);
++		if(s)
++			bits = obits | (bitSpecial<<shift);
++		else
++			bits = obits & ~(bitSpecial<<shift);
+ 		if(runtime·singleproc) {
+ 			*b = bits;
+ 			break;
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index 7d24a6540d..ed2b248de6 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -13,6 +13,7 @@
+ // and heapmap(i) == span for all s->start <= i < s->start+s->npages.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ static MSpan *MHeap_AllocLocked(MHeap*, uintptr, int32);
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 517f96a319..57923b846c 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -7,6 +7,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ #include "defs.h"
+ #include "type.h"
+diff --git a/src/pkg/runtime/msize.c b/src/pkg/runtime/msize.c
+index 770ef38cef..5e4735a744 100644
+--- a/src/pkg/runtime/msize.c
++++ b/src/pkg/runtime/msize.c
+@@ -26,6 +26,7 @@
+ // TODO(rsc): Compute max waste for any given size.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ int32 runtime·class_to_size[NumSizeClasses];
+diff --git a/src/pkg/runtime/openbsd/mem.c b/src/pkg/runtime/openbsd/mem.c
+index 46b6b07ee5..dea5038771 100644
+--- a/src/pkg/runtime/openbsd/mem.c
++++ b/src/pkg/runtime/openbsd/mem.c
+@@ -1,4 +1,9 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #include "runtime.h"
++#include "arch.h"
+ #include "defs.h"
+ #include "os.h"
+ #include "malloc.h"
+diff --git a/src/pkg/runtime/openbsd/os.h b/src/pkg/runtime/openbsd/os.h
+index 4a8a14fb4d..cf35402cac 100644
+--- a/src/pkg/runtime/openbsd/os.h
++++ b/src/pkg/runtime/openbsd/os.h
+@@ -1,3 +1,7 @@
++// Copyright 2010 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ #define SIG_DFL ((void*)0)
+ #define SIG_IGN ((void*)1)
+ 
+diff --git a/src/pkg/runtime/plan9/mem.c b/src/pkg/runtime/plan9/mem.c
+index e7347d9ecf..af8b9f14e7 100644
+--- a/src/pkg/runtime/plan9/mem.c
++++ b/src/pkg/runtime/plan9/mem.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ #include "os.h"
+ 
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 63f7d65dfb..e3ec197757 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -490,8 +490,7 @@ uintptr	runtime·nohash(uint32, void*);
+ uint32	runtime·noequal(uint32, void*, void*);
+ void*	runtime·malloc(uintptr size);
+ void	runtime·free(void *v);
+-void	runtime·addfinalizer(void*, void(*fn)(void*), int32);
+-void	runtime·walkfintab(void (*fn)(void*));
++bool	runtime·addfinalizer(void*, void(*fn)(void*), int32);
+ void	runtime·runpanic(Panic*);
+ void*	runtime·getcallersp(void*);
+ int32	runtime·mcount(void);
+diff --git a/src/pkg/runtime/sema.goc b/src/pkg/runtime/sema.goc
+index d202a9d0a5..9f3f4a2b39 100644
+--- a/src/pkg/runtime/sema.goc
++++ b/src/pkg/runtime/sema.goc
+@@ -19,6 +19,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "arch.h"
+ 
+ typedef struct Sema Sema;
+ struct Sema
+@@ -45,11 +46,7 @@ struct SemaRoot
+ static union
+ {
+ 	SemaRoot;
+-	// Modern processors tend to have 64-byte cache lines,
+-	// potentially with 128-byte effective cache line size for reading.
+-	// While there are hypothetical architectures
+-	// with 16-4096 byte cache lines, 128 looks like a good compromise.
+-	uint8 pad[128];
++	uint8 pad[CacheLineSize];
+ } semtable[SEMTABLESZ];
+ 
+ static SemaRoot*
+diff --git a/src/pkg/runtime/slice.c b/src/pkg/runtime/slice.c
+index 70534279b5..6e7af9d938 100644
+--- a/src/pkg/runtime/slice.c
++++ b/src/pkg/runtime/slice.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "type.h"
+ #include "malloc.h"
+ 
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 322706c0c4..8c59bdd337 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -4,6 +4,7 @@
+ 
+ package runtime
+ #include "runtime.h"
++#include "arch.h"
+ #include "malloc.h"
+ 
+ String	runtime·emptystring;
+diff --git a/src/pkg/runtime/windows/mem.c b/src/pkg/runtime/windows/mem.c
+index 5d2291fa32..f95a1a9825 100644
+--- a/src/pkg/runtime/windows/mem.c
++++ b/src/pkg/runtime/windows/mem.c
+@@ -3,6 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "runtime.h"
++#include "arch.h"
+ #include "os.h"
+ #include "defs.h"
+ #include "malloc.h"
+diff --git a/test/mallocfin.go b/test/mallocfin.go
+index dc6d74bad6..ff62392473 100644
+--- a/test/mallocfin.go
++++ b/test/mallocfin.go
+@@ -47,18 +47,28 @@ func finalB(b *B) {
+ 	nfinal++
+ }
+ 
++func nofinalB(b *B) {
++	panic("nofinalB run")
++}
++
+ func main() {
+ 	runtime.GOMAXPROCS(4)
+ 	for i = 0; i < N; i++ {
+ 		b := &B{i}
+ 		a := &A{b, i}
++		c := new(B)
++		runtime.SetFinalizer(c, nofinalB)
+ 		runtime.SetFinalizer(b, finalB)
+ 		runtime.SetFinalizer(a, finalA)
++		runtime.SetFinalizer(c, nil)
+ 	}
+ 	for i := 0; i < N; i++ {
+ 		runtime.GC()
+ 		runtime.Gosched()
+ 		time.Sleep(1e6)
++		if nfinal >= N*8/10 {
++			break
++		}
+ 	}
+ 	if nfinal < N*8/10 {
+ 		println("not enough finalizing:", nfinal, "/", N)
+diff --git a/test/mallocrep.go b/test/mallocrep.go
+index 9f47e52e2b..cffcd1638f 100644
+--- a/test/mallocrep.go
++++ b/test/mallocrep.go
+@@ -33,6 +33,7 @@ func bigger() {
+ 
+ func main() {
+ 	runtime.GC()               // clean up garbage from init
++	runtime.UpdateMemStats()   // first call can do some allocations
+ 	runtime.MemProfileRate = 0 // disable profiler
+ 	runtime.MemStats.Alloc = 0 // ignore stacks
+ 	flag.Parse()

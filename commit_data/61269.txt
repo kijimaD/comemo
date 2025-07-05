@@ -16,7 +16,58 @@ Date:   Wed Oct 23 17:27:44 2024 -0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/cgo/internal/testerrors/ptr_test.go | 17 +++++++++++++++++
  src/runtime/cgocall.go                      | 11 +++++++++++
  2 files changed, 28 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 4f8a0ee583..9a8187f55f 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -472,6 +472,23 @@ var ptrTests = []ptrTest{
+ 		body:    `s := struct { a [4]byte; p *int }{p: new(int)}; C.f43(unsafe.Pointer(unsafe.SliceData(s.a[:])))`,
+ 		fail:    false,
+ 	},
++	{
++		// Passing the address of an element of a pointer-to-array.
++		name:    "arraypointer",
++		c:       `void f44(void* p) {}`,
++		imports: []string{"unsafe"},
++		body:    `a := new([10]byte); C.f44(unsafe.Pointer(&a[0]))`,
++		fail:    false,
++	},
++	{
++		// Passing the address of an element of a pointer-to-array
++		// that contains a Go pointer.
++		name:    "arraypointer2",
++		c:       `void f45(void** p) {}`,
++		imports: []string{"unsafe"},
++		body:    `i := 0; a := &[2]unsafe.Pointer{nil, unsafe.Pointer(&i)}; C.f45(&a[0])`,
++		fail:    true,
++	},
+ }
+ 
+ func TestPointerChecks(t *testing.T) {
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 54ce0e8dfc..18a1004118 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -563,6 +563,17 @@ func cgoCheckPointer(ptr any, arg any) {
+ 			ep = aep
+ 			t = ep._type
+ 			top = false
++		case abi.Pointer:
++			// The Go code is indexing into a pointer to an array,
++			// and we have been passed the pointer-to-array.
++			// Check the array rather than the pointer.
++			pt := (*abi.PtrType)(unsafe.Pointer(aep._type))
++			t = pt.Elem
++			if t.Kind_&abi.KindMask != abi.Array {
++				throw("can't happen")
++			}
++			ep = aep
++			top = false
+ 		default:
+ 			throw("can't happen")
+ 		}

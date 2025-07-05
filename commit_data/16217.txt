@@ -7,6 +7,20 @@ Date:   Mon Apr 22 22:09:11 2013 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/8889045
-
+---
  src/pkg/time/format.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/format.go b/src/pkg/time/format.go
+index 22bc1bfe0b..7fe0402312 100644
+--- a/src/pkg/time/format.go
++++ b/src/pkg/time/format.go
+@@ -373,7 +373,7 @@ func (t Time) String() string {
+ // time,
+ //	Mon Jan 2 15:04:05 -0700 MST 2006
+ // would be displayed if it were the value; it serves as an example of the
+-// desired output. The same display rules will then be aplied to the time
++// desired output. The same display rules will then be applied to the time
+ // value.
+ // Predefined layouts ANSIC, UnixDate, RFC3339 and others describe standard
+ // and convenient representations of the reference time. For more information

@@ -18,7 +18,79 @@ Date:   Thu Jan 11 14:23:01 2018 -0500
     Reviewed-on: https://go-review.googlesource.com/87479
     Reviewed-by: Alexandru Moșoi <alexandru@mosoi.ro>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 13 +++++++++++++
  test/prove.go                         | 25 +++++++++++++++++++++++--
  2 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 172d210216..10a16917b6 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -248,6 +248,16 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 				lim.min = c
+ 				lim.max = c
+ 			}
++			if lim.min >= 0 {
++				// int(x) >= 0 && int(x) >= N  ⇒  uint(x) >= N
++				lim.umin = uint64(lim.min)
++			}
++			if lim.max != noLimit.max && old.min >= 0 && lim.max >= 0 {
++				// 0 <= int(x) <= N  ⇒  0 <= uint(x) <= N
++				// This is for a max update, so the lower bound
++				// comes from what we already know (old).
++				lim.umax = uint64(lim.max)
++			}
+ 		case unsigned:
+ 			var uc uint64
+ 			switch w.Op {
+@@ -281,6 +291,9 @@ func (ft *factsTable) update(parent *Block, v, w *Value, d domain, r relation) {
+ 				lim.umin = uc
+ 				lim.umax = uc
+ 			}
++			// We could use the contrapositives of the
++			// signed implications to derive signed facts,
++			// but it turns out not to matter.
+ 		}
+ 		ft.limitStack = append(ft.limitStack, limitFact{v.ID, old})
+ 		lim = old.intersect(lim)
+diff --git a/test/prove.go b/test/prove.go
+index 2f4fa5d308..13e18cd728 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -479,12 +479,33 @@ func sm1(b []int, x int) {
+ 	// Test constant argument to slicemask.
+ 	useSlice(b[2:8]) // ERROR "Proved slicemask not needed$"
+ 	// Test non-constant argument with known limits.
+-	// Right now prove only uses the unsigned limit.
+-	if uint(cap(b)) > 10 {
++	if cap(b) > 10 {
+ 		useSlice(b[2:]) // ERROR "Proved slicemask not needed$"
+ 	}
+ }
+ 
++func lim1(x, y, z int) {
++	// Test relations between signed and unsigned limits.
++	if x > 5 {
++		if uint(x) > 5 { // ERROR "Proved Greater64U$"
++			return
++		}
++	}
++	if y >= 0 && y < 4 {
++		if uint(y) > 4 { // ERROR "Disproved Greater64U$"
++			return
++		}
++		if uint(y) < 5 { // ERROR "Proved Less64U$"
++			return
++		}
++	}
++	if z < 4 {
++		if uint(z) > 4 { // Not provable without disjunctions.
++			return
++		}
++	}
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

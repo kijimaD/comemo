@@ -7,7 +7,97 @@ Date:   Wed Apr 21 17:12:36 2010 -0700
     R=rsc, gri
     CC=golang-dev
     https://golang.org/cl/967041
-
+---
  src/pkg/big/int_test.go | 24 +++++++++++++++++++-----
  src/pkg/big/nat_test.go | 31 ++++++++++++++++++++++++++++++-
  2 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/big/int_test.go b/src/pkg/big/int_test.go
+index 1e9c0e000c..914a631e51 100644
+--- a/src/pkg/big/int_test.go
++++ b/src/pkg/big/int_test.go
+@@ -151,22 +151,36 @@ var fromStringTests = []fromStringTest{
+ 	fromStringTest{"0x10", 0, 16, true},
+ 	fromStringTest{in: "0x10", base: 16, ok: false},
+ 	fromStringTest{"-0x10", 0, -16, true},
++	fromStringTest{"00", 0, 0, true},
++	fromStringTest{"0", 8, 0, true},
++	fromStringTest{"07", 0, 7, true},
++	fromStringTest{"7", 8, 7, true},
++	fromStringTest{in: "08", ok: false},
++	fromStringTest{in: "8", base: 8, ok: false},
++	fromStringTest{"023", 0, 19, true},
++	fromStringTest{"23", 8, 19, true},
+ }
+ 
+ 
+ func TestSetString(t *testing.T) {
++	n2 := new(Int)
+ 	for i, test := range fromStringTests {
+-		n, ok := new(Int).SetString(test.in, test.base)
+-		if ok != test.ok {
++		n1, ok1 := new(Int).SetString(test.in, test.base)
++		n2, ok2 := n2.SetString(test.in, test.base)
++		expected := new(Int).New(test.out)
++		if ok1 != test.ok || ok2 != test.ok {
+ 			t.Errorf("#%d (input '%s') ok incorrect (should be %t)", i, test.in, test.ok)
+ 			continue
+ 		}
+-		if !ok {
++		if !ok1 || !ok2 {
+ 			continue
+ 		}
+ 
+-		if n.Cmp(new(Int).New(test.out)) != 0 {
+-			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n, test.out)
++		if n1.Cmp(expected) != 0 {
++			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n1, test.out)
++		}
++		if n2.Cmp(expected) != 0 {
++			t.Errorf("#%d (input '%s') got: %s want: %d\n", i, test.in, n2, test.out)
+ 		}
+ 	}
+ }
+diff --git a/src/pkg/big/nat_test.go b/src/pkg/big/nat_test.go
+index 8a06175789..9c89504d78 100644
+--- a/src/pkg/big/nat_test.go
++++ b/src/pkg/big/nat_test.go
+@@ -6,8 +6,37 @@ package big
+ 
+ import "testing"
+ 
++type cmpTest struct {
++	x, y []Word
++	r    int
++}
++
++
++var cmpTests = []cmpTest{
++	cmpTest{nil, nil, 0},
++	cmpTest{nil, []Word{}, 0},
++	cmpTest{[]Word{}, nil, 0},
++	cmpTest{[]Word{}, []Word{}, 0},
++	cmpTest{[]Word{0}, []Word{0}, 0},
++	cmpTest{[]Word{0}, []Word{1}, -1},
++	cmpTest{[]Word{1}, []Word{0}, 1},
++	cmpTest{[]Word{1}, []Word{1}, 0},
++	cmpTest{[]Word{0, _M}, []Word{1}, 1},
++	cmpTest{[]Word{1}, []Word{0, _M}, -1},
++	cmpTest{[]Word{1, _M}, []Word{0, _M}, 1},
++	cmpTest{[]Word{0, _M}, []Word{1, _M}, -1},
++	cmpTest{[]Word{16, 571956, 8794, 68}, []Word{837, 9146, 1, 754489}, -1},
++	cmpTest{[]Word{34986, 41, 105, 1957}, []Word{56, 7458, 104, 1957}, 1},
++}
++
++
+ func TestCmpNN(t *testing.T) {
+-	// TODO(gri) write this test - all other tests depends on it
++	for i, a := range cmpTests {
++		r := cmpNN(a.x, a.y)
++		if r != a.r {
++			t.Errorf("#%d got r = %v; want %v", i, r, a.r)
++		}
++	}
+ }
+ 
+ 

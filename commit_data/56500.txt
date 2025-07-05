@@ -10,7 +10,46 @@ Date:   Tue May 9 20:02:24 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go  | 4 ++--
  src/runtime/trace.go | 5 +++++
  2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3df0f84b3f..2c8750a5fe 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2501,7 +2501,7 @@ func handoffp(pp *p) {
+ 		return
+ 	}
+ 	// if there's trace work to do, start it straight away
+-	if (traceEnabled() || trace.shutdown) && traceReaderAvailable() != nil {
++	if (traceEnabled() || traceShuttingDown()) && traceReaderAvailable() != nil {
+ 		startm(pp, false, false)
+ 		return
+ 	}
+@@ -2747,7 +2747,7 @@ top:
+ 	now, pollUntil, _ := checkTimers(pp, 0)
+ 
+ 	// Try to schedule the trace reader.
+-	if traceEnabled() || trace.shutdown {
++	if traceEnabled() || traceShuttingDown() {
+ 		gp := traceReader()
+ 		if gp != nil {
+ 			casgstatus(gp, _Gwaiting, _Grunnable)
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 64314f62e8..a89c407a8a 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -211,6 +211,11 @@ func traceEnabled() bool {
+ 	return trace.enabled
+ }
+ 
++// traceShuttingDown returns true if the trace is currently shutting down.
++func traceShuttingDown() bool {
++	return trace.shutdown
++}
++
+ // StartTrace enables tracing for the current process.
+ // While tracing, the data will be buffered and available via ReadTrace.
+ // StartTrace returns an error if tracing is already enabled.

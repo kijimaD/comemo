@@ -22,7 +22,7 @@ Date:   Wed Mar 25 16:31:38 2009 -0700
     DELTA=1052  (392 added, 328 deleted, 332 changed)
     OCL=26757
     CL=26761
-
+---
  src/cmd/5a/Makefile        |  42 +++++++++++++++++
  src/cmd/5a/a.h             |  48 ++++++-------------
  src/cmd/5a/a.y             |   4 +-
@@ -49,3 +49,2421 @@ Date:   Wed Mar 25 16:31:38 2009 -0700
  src/cmd/clean.bash         |   2 +-
  src/cmd/make5.bash         |  22 +++++++++
  25 files changed, 476 insertions(+), 355 deletions(-)
+
+diff --git a/src/cmd/5a/Makefile b/src/cmd/5a/Makefile
+new file mode 100644
+index 0000000000..d9e91a03a6
+--- /dev/null
++++ b/src/cmd/5a/Makefile
+@@ -0,0 +1,42 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=\
++	5a\
++
++HFILES=\
++	a.h\
++	y.tab.h\
++	../5l/5.out.h\
++	compat.h\
++
++OFILES=\
++	y.tab.$O\
++	lex.$O\
++	compat.$O\
++#	../5l/enam.$O\
++
++YFILES=\
++	a.y\
++
++$(TARG): $(OFILES)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++lex.$O:	../cc/macbody ../cc/lexbody
++
++y.tab.h: $(YFILES)
++	bison -y $(YFLAGS) $(YFILES)
++
++y.tab.c: y.tab.h
++	test -f y.tab.c && touch y.tab.c
++
++clean:
++	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out y.tab.h y.tab.c
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/5a/a.h b/src/cmd/5a/a.h
+index c93b731219..939ae563e4 100644
+--- a/src/cmd/5a/a.h
++++ b/src/cmd/5a/a.h
+@@ -30,7 +30,8 @@
+ 
+ #include <lib9.h>
+ #include <bio.h>
+-#include "../5c/5.out.h"
++#include "../5l/5.out.h"
++#include "compat.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -59,7 +60,7 @@ struct	Sym
+ {
+ 	Sym*	link;
+ 	char*	macro;
+-	long	value;
++	int32	value;
+ 	ushort	type;
+ 	char	*name;
+ 	char	sym;
+@@ -91,7 +92,7 @@ EXTERN	struct
+ struct	Gen
+ {
+ 	Sym*	sym;
+-	long	offset;
++	int32	offset;
+ 	short	type;
+ 	short	reg;
+ 	short	name;
+@@ -103,8 +104,8 @@ struct	Hist
+ {
+ 	Hist*	link;
+ 	char*	name;
+-	long	line;
+-	long	offset;
++	int32	line;
++	int32	offset;
+ };
+ #define	H	((Hist*)0)
+ 
+@@ -130,25 +131,25 @@ EXTERN	char*	include[NINCLUDE];
+ EXTERN	Io*	iofree;
+ EXTERN	Io*	ionext;
+ EXTERN	Io*	iostack;
+-EXTERN	long	lineno;
++EXTERN	int32	lineno;
+ EXTERN	int	nerrors;
+-EXTERN	long	nhunk;
++EXTERN	int32	nhunk;
+ EXTERN	int	ninclude;
+ EXTERN	Gen	nullgen;
+ EXTERN	char*	outfile;
+ EXTERN	int	pass;
+ EXTERN	char*	pathname;
+-EXTERN	long	pc;
++EXTERN	int32	pc;
+ EXTERN	int	peekc;
+ EXTERN	int	sym;
+ EXTERN	char	symb[NSYMB];
+ EXTERN	int	thechar;
+ EXTERN	char*	thestring;
+-EXTERN	long	thunk;
++EXTERN	int32	thunk;
+ EXTERN	Biobuf	obuf;
+ 
+-void*	alloc(long);
+-void*	allocn(void*, long, long);
++void*	alloc(int32);
++void*	allocn(void*, int32, int32);
+ void	errorexit(void);
+ void	pushio(void);
+ void	newio(void);
+@@ -156,7 +157,7 @@ void	newfile(char*, int);
+ Sym*	slookup(char*);
+ Sym*	lookup(void);
+ void	syminit(Sym*);
+-long	yylex(void);
++int32	yylex(void);
+ int	getc(void);
+ int	getnsc(void);
+ void	unget(int);
+@@ -182,31 +183,10 @@ void	macif(int);
+ void	macend(void);
+ void	outhist(void);
+ void	dodefine(char*);
+-void	prfile(long);
++void	prfile(int32);
+ void	linehist(char*, int);
+ void	gethunk(void);
+ void	yyerror(char*, ...);
+ int	yyparse(void);
+ void	setinclude(char*);
+ int	assemble(char*);
+-
+-/*
+- *	system-dependent stuff from ../cc/compat.c
+- */
+-
+-enum				/* keep in synch with ../cc/cc.h */
+-{
+-	Plan9	= 1<<0,
+-	Unix	= 1<<1,
+-	Windows	= 1<<2,
+-};
+-int	mywait(int*);
+-int	mycreat(char*, int);
+-int	systemtype(int);
+-int	pathchar(void);
+-char*	mygetwd(char*, int);
+-int	myexec(char*, char*[]);
+-int	mydup(int, int);
+-int	myfork(void);
+-int	mypipe(int*);
+-void*	mysbrk(ulong);
+diff --git a/src/cmd/5a/a.y b/src/cmd/5a/a.y
+index b41f9b65db..a1de1ea5a4 100644
+--- a/src/cmd/5a/a.y
++++ b/src/cmd/5a/a.y
+@@ -34,7 +34,7 @@
+ %union
+ {
+ 	Sym	*sym;
+-	long	lval;
++	int32	lval;
+ 	double	dval;
+ 	char	sval[8];
+ 	Gen	gen;
+@@ -288,7 +288,7 @@ inst:
+ /*
+  * MULA hi,lo,r1,r2
+  */
+-|	LTYPEN cond reg ',' reg ',' reg ',' spreg 
++|	LTYPEN cond reg ',' reg ',' reg ',' spreg
+ 	{
+ 		$7.type = D_REGREG;
+ 		$7.offset = $9;
+diff --git a/src/cmd/5a/lex.c b/src/cmd/5a/lex.c
+index 8ca10249e7..fc17b9770f 100644
+--- a/src/cmd/5a/lex.c
++++ b/src/cmd/5a/lex.c
+@@ -444,9 +444,9 @@ cinit(void)
+ 	}
+ 
+ 	pathname = allocn(pathname, 0, 100);
+-	if(mygetwd(pathname, 99) == 0) {
++	if(getwd(pathname, 99) == 0) {
+ 		pathname = allocn(pathname, 100, 900);
+-		if(mygetwd(pathname, 999) == 0)
++		if(getwd(pathname, 999) == 0)
+ 			strcpy(pathname, "/???");
+ 	}
+ }
+@@ -492,7 +492,7 @@ zname(char *n, int t, int s)
+ void
+ zaddr(Gen *a, int s)
+ {
+-	long l;
++	int32 l;
+ 	int i;
+ 	char *n;
+ 	Ieee e;
+diff --git a/src/cmd/5c/Makefile b/src/cmd/5c/Makefile
+new file mode 100644
+index 0000000000..1aabef754f
+--- /dev/null
++++ b/src/cmd/5c/Makefile
+@@ -0,0 +1,38 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=\
++	5c\
++
++HFILES=\
++	gc.h\
++	../5l/5.out.h\
++	../cc/cc.h\
++
++OFILES=\
++	cgen.$O\
++	list.$O\
++	sgen.$O\
++	swt.$O\
++	txt.$O\
++	mul.$O\
++	reg.$O\
++	peep.$O\
++	../5l/enam.$O\
++
++LIB=\
++	../cc/cc.a$O
++
++$(TARG): $(OFILES) $(LIB)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) $(LIB) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/5c/cgen.c b/src/cmd/5c/cgen.c
+index 7e1012e0c1..fd2dd0f271 100644
+--- a/src/cmd/5c/cgen.c
++++ b/src/cmd/5c/cgen.c
+@@ -37,7 +37,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 	Prog *p1;
+ 	Node nod, nod1, nod2, nod3, nod4;
+ 	int o, t;
+-	long v, curs;
++	int32 v, curs;
+ 
+ 	if(debug['g']) {
+ 		prtree(nn, "cgen lhs");
+@@ -475,7 +475,7 @@ cgen(Node *n, Node *nn, int inrel)
+ 				diag(n, "DOT and no offset");
+ 				break;
+ 			}
+-			nod.xoffset += (long)r->vconst;
++			nod.xoffset += (int32)r->vconst;
+ 			nod.type = n->type;
+ 			cgen(&nod, nn, 0);
+ 		}
+@@ -590,7 +590,7 @@ void
+ reglcgen(Node *t, Node *n, Node *nn)
+ {
+ 	Node *r;
+-	long v;
++	int32 v;
+ 
+ 	regialloc(t, n, nn);
+ 	if(n->op == OIND) {
+@@ -705,7 +705,7 @@ boolgen(Node *n, int true, Node *nn)
+ 	int o;
+ 	Prog *p1, *p2;
+ 	Node *l, *r, nod, nod1;
+-	long curs;
++	int32 curs;
+ 
+ 	if(debug['g']) {
+ 		prtree(nn, "boolgen lhs");
+@@ -864,12 +864,12 @@ boolgen(Node *n, int true, Node *nn)
+ }
+ 
+ void
+-sugen(Node *n, Node *nn, long w)
++sugen(Node *n, Node *nn, int32 w)
+ {
+ 	Prog *p1;
+ 	Node nod0, nod1, nod2, nod3, nod4, *l, *r;
+ 	Type *t;
+-	long pc1;
++	int32 pc1;
+ 	int i, m, c;
+ 
+ 	if(n == Z || n->type == T)
+@@ -929,7 +929,7 @@ sugen(Node *n, Node *nn, long w)
+ 				diag(n, "DOT and no offset");
+ 				break;
+ 			}
+-			nod1.xoffset += (long)r->vconst;
++			nod1.xoffset += (int32)r->vconst;
+ 			nod1.type = n->type;
+ 			sugen(&nod1, nn, w);
+ 		}
+diff --git a/src/cmd/5c/gc.h b/src/cmd/5c/gc.h
+index c62b091c12..4ddff6d9a2 100644
+--- a/src/cmd/5c/gc.h
++++ b/src/cmd/5c/gc.h
+@@ -29,7 +29,7 @@
+ // THE SOFTWARE.
+ 
+ #include	"../cc/cc.h"
+-#include	"../5c/5.out.h"
++#include	"../5l/5.out.h"
+ 
+ /*
+  * 5c/arm
+@@ -60,7 +60,7 @@ typedef	struct	Rgn	Rgn;
+ 
+ struct	Adr
+ {
+-	long	offset;
++	int32	offset;
+ 	double	dval;
+ 	char	sval[NSNAME];
+ 	Ieee	ieee;
+@@ -79,7 +79,7 @@ struct	Prog
+ 	Adr	from;
+ 	Adr	to;
+ 	Prog*	link;
+-	long	lineno;
++	int32	lineno;
+ 	char	as;
+ 	char	reg;
+ 	uchar	scond;
+@@ -89,21 +89,21 @@ struct	Prog
+ struct	Case
+ {
+ 	Case*	link;
+-	long	val;
+-	long	label;
++	int32	val;
++	int32	label;
+ 	char	def;
+ };
+ #define	C	((Case*)0)
+ 
+ struct	C1
+ {
+-	long	val;
+-	long	label;
++	int32	val;
++	int32	label;
+ };
+ 
+ struct	Multab
+ {
+-	long	val;
++	int32	val;
+ 	char	code[20];
+ };
+ 
+@@ -115,7 +115,7 @@ struct	Hintab
+ 
+ struct	Var
+ {
+-	long	offset;
++	int32	offset;
+ 	Sym*	sym;
+ 	char	name;
+ 	char	etype;
+@@ -123,8 +123,8 @@ struct	Var
+ 
+ struct	Reg
+ {
+-	long	pc;
+-	long	rpo;		/* reverse post ordering */
++	int32	pc;
++	int32	rpo;		/* reverse post ordering */
+ 
+ 	Bits	set;
+ 	Bits	use1;
+@@ -137,12 +137,12 @@ struct	Reg
+ 	Bits	regdiff;
+ 	Bits	act;
+ 
+-	long	regu;
+-	long	loop;		/* could be shorter */
++	int32	regu;
++	int32	loop;		/* could be shorter */
+ 
+ 	
+ 	Reg*	log5;
+-	long	active;
++	int32	active;
+ 
+ 	Reg*	p1;
+ 	Reg*	p2;
+@@ -163,16 +163,16 @@ struct	Rgn
+ 	short	regno;
+ };
+ 
+-EXTERN	long	breakpc;
++EXTERN	int32	breakpc;
+ EXTERN	Case*	cases;
+ EXTERN	Node	constnode;
+ EXTERN	Node	fconstnode;
+-EXTERN	long	continpc;
+-EXTERN	long	curarg;
+-EXTERN	long	cursafe;
++EXTERN	int32	continpc;
++EXTERN	int32	curarg;
++EXTERN	int32	cursafe;
+ EXTERN	Prog*	firstp;
+ EXTERN	Prog*	lastp;
+-EXTERN	long	maxargsafe;
++EXTERN	int32	maxargsafe;
+ EXTERN	int	mnstring;
+ EXTERN	Multab	multab[20];
+ EXTERN	int	retok;
+@@ -180,18 +180,18 @@ EXTERN	int	hintabsize;
+ EXTERN	Node*	nodrat;
+ EXTERN	Node*	nodret;
+ EXTERN	Node*	nodsafe;
+-EXTERN	long	nrathole;
+-EXTERN	long	nstring;
++EXTERN	int32	nrathole;
++EXTERN	int32	nstring;
+ EXTERN	Prog*	p;
+-EXTERN	long	pc;
++EXTERN	int32	pc;
+ EXTERN	Node	regnode;
+ EXTERN	char	string[NSNAME];
+ EXTERN	Sym*	symrathole;
+ EXTERN	Node	znode;
+ EXTERN	Prog	zprog;
+ EXTERN	char	reg[NREG+NFREG];
+-EXTERN	long	exregoffset;
+-EXTERN	long	exfregoffset;
++EXTERN	int32	exregoffset;
++EXTERN	int32	exfregoffset;
+ EXTERN	int	suppress;
+ 
+ #define	BLOAD(r)	band(bnot(r->refbehind), r->refahead)
+@@ -216,8 +216,8 @@ EXTERN	Bits	params;
+ EXTERN	Bits	consts;
+ EXTERN	Bits	addrs;
+ 
+-EXTERN	long	regbits;
+-EXTERN	long	exregbits;
++EXTERN	int32	regbits;
++EXTERN	int32	exregbits;
+ 
+ EXTERN	int	change;
+ 
+@@ -226,9 +226,9 @@ EXTERN	Reg*	lastr;
+ EXTERN	Reg	zreg;
+ EXTERN	Reg*	freer;
+ EXTERN	Var	var[NVAR];
+-EXTERN	long*	idom;
++EXTERN	int32*	idom;
+ EXTERN	Reg**	rpo2r;
+-EXTERN	long	maxnr;
++EXTERN	int32	maxnr;
+ 
+ extern	char*	anames[];
+ extern	Hintab	hintab[];
+@@ -251,7 +251,7 @@ void	reglcgen(Node*, Node*, Node*);
+ void	lcgen(Node*, Node*);
+ void	bcgen(Node*, int);
+ void	boolgen(Node*, int, Node*);
+-void	sugen(Node*, Node*, long);
++void	sugen(Node*, Node*, int32);
+ void	layout(Node*, Node*, int, int, Node*);
+ 
+ /*
+@@ -262,7 +262,7 @@ void	gclean(void);
+ void	nextpc(void);
+ void	gargs(Node*, Node*, Node*);
+ void	garg1(Node*, Node*, Node*, int, Node**);
+-Node*	nodconst(long);
++Node*	nodconst(int32);
+ Node*	nod32const(vlong);
+ Node*	nodfconst(double);
+ void	nodreg(Node*, Node*, int);
+@@ -285,9 +285,9 @@ void	gins(int a, Node*, Node*);
+ void	gopcode(int, Node*, Node*, Node*);
+ int	samaddr(Node*, Node*);
+ void	gbranch(int);
+-void	patch(Prog*, long);
++void	patch(Prog*, int32);
+ int	sconst(Node*);
+-int	sval(long);
++int	sval(int32);
+ void	gpseudo(int, Sym*, Node*);
+ 
+ /*
+@@ -295,16 +295,13 @@ void	gpseudo(int, Sym*, Node*);
+  */
+ int	swcmp(const void*, const void*);
+ void	doswit(Node*);
+-void	swit1(C1*, int, long, Node*, Node*);
++void	swit1(C1*, int, int32, Node*, Node*);
+ void	cas(void);
+ void	bitload(Node*, Node*, Node*, Node*, Node*);
+ void	bitstore(Node*, Node*, Node*, Node*, Node*);
+-long	outstring(char*, long);
+ int	mulcon(Node*, Node*);
+-Multab*	mulcon0(long);
++Multab*	mulcon0(int32);
+ void	nullwarn(Node*, Node*);
+-void	sextern(Sym*, Node*, long, long);
+-void	gextern(Sym*, Node*, long, long);
+ void	outcode(void);
+ void	ieeedtod(Ieee*, double);
+ 
+@@ -329,12 +326,12 @@ void	regopt(Prog*);
+ void	addmove(Reg*, int, int, int);
+ Bits	mkvar(Adr*, int);
+ void	prop(Reg*, Bits, Bits);
+-void	loopit(Reg*, long);
++void	loopit(Reg*, int32);
+ void	synch(Reg*, Bits);
+-ulong	allreg(ulong, Rgn*);
++uint32	allreg(uint32, Rgn*);
+ void	paint1(Reg*, int);
+-ulong	paint2(Reg*, int);
+-void	paint3(Reg*, int, long, int);
++uint32	paint2(Reg*, int);
++void	paint3(Reg*, int, int32, int);
+ void	addreg(Adr*, int);
+ 
+ /*
+@@ -360,10 +357,10 @@ int	copyau1(Prog*, Adr*);
+ int	copysub(Adr*, Adr*, Adr*, int);
+ int	copysub1(Prog*, Adr*, Adr*, int);
+ 
+-long	RtoB(int);
+-long	FtoB(int);
+-int	BtoR(long);
+-int	BtoF(long);
++int32	RtoB(int);
++int32	FtoB(int);
++int	BtoR(int32);
++int	BtoF(int32);
+ 
+ void	predicate(void); 
+ int	isbranch(Prog *); 
+diff --git a/src/cmd/5c/mul.c b/src/cmd/5c/mul.c
+index 133ffa2d37..121f67d5b5 100644
+--- a/src/cmd/5c/mul.c
++++ b/src/cmd/5c/mul.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #include "gc.h"
+ 
+ /*
+@@ -42,15 +43,15 @@
+ 
+ static  int	maxmulops = 3;	/* max # of ops to replace mul with */
+ static	int	multabp;
+-static	long	mulval;
++static	int32	mulval;
+ static	char*	mulcp;
+-static	long	valmax;
++static	int32	valmax;
+ static	int	shmax;
+ 
+ static int	docode(char *hp, char *cp, int r0, int r1);
+ static int	gen1(int len);
+-static int	gen2(int len, long r1);
+-static int	gen3(int len, long r0, long r1, int flag);
++static int	gen2(int len, int32 r1);
++static int	gen3(int len, int32 r0, int32 r1, int flag);
+ enum
+ {
+ 	SR1	= 1<<0,		/* r1 has been shifted */
+@@ -60,7 +61,7 @@ enum
+ };
+ 
+ Multab*
+-mulcon0(long v)
++mulcon0(int32 v)
+ {
+ 	int a1, a2, g;
+ 	Multab *m, *m1;
+@@ -265,7 +266,7 @@ gen1(int len)
+ }
+ 
+ static int
+-gen2(int len, long r1)
++gen2(int len, int32 r1)
+ {
+ 	int i;
+ 
+@@ -315,10 +316,10 @@ out:
+ }
+ 
+ static int
+-gen3(int len, long r0, long r1, int flag)
++gen3(int len, int32 r0, int32 r1, int flag)
+ {
+ 	int i, f1, f2;
+-	long x;
++	int32 x;
+ 
+ 	if(r0 <= 0 ||
+ 	   r0 >= r1 ||
+diff --git a/src/cmd/5c/reg.c b/src/cmd/5c/reg.c
+index eb8341d831..a1508b91aa 100644
+--- a/src/cmd/5c/reg.c
++++ b/src/cmd/5c/reg.c
+@@ -28,6 +28,7 @@
+ // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ // THE SOFTWARE.
+ 
++
+ #include "gc.h"
+ 
+ void	addsplits(void);
+@@ -68,13 +69,13 @@ regopt(Prog *p)
+ 	Reg *r, *r1, *r2;
+ 	Prog *p1;
+ 	int i, z;
+-	long initpc, val, npc;
+-	ulong vreg;
++	int32 initpc, val, npc;
++	uint32 vreg;
+ 	Bits bit;
+ 	struct
+ 	{
+-		long	m;
+-		long	c;
++		int32	m;
++		int32	c;
+ 		Reg*	p;
+ 	} log5[6], *lp;
+ 
+@@ -583,7 +584,7 @@ mkvar(Adr *a, int docon)
+ {
+ 	Var *v;
+ 	int i, t, n, et, z;
+-	long o;
++	int32 o;
+ 	Bits bit;
+ 	Sym *s;
+ 
+@@ -733,8 +734,8 @@ prop(Reg *r, Bits ref, Bits cal)
+  *	such a node is a loop head.
+  *	recursively, all preds with a greater rpo number are in the loop
+  */
+-long
+-postorder(Reg *r, Reg **rpo2r, long n)
++int32
++postorder(Reg *r, Reg **rpo2r, int32 n)
+ {
+ 	Reg *r1;
+ 
+@@ -750,10 +751,10 @@ postorder(Reg *r, Reg **rpo2r, long n)
+ 	return n;
+ }
+ 
+-long
+-rpolca(long *idom, long rpo1, long rpo2)
++int32
++rpolca(int32 *idom, int32 rpo1, int32 rpo2)
+ {
+-	long t;
++	int32 t;
+ 
+ 	if(rpo1 == -1)
+ 		return rpo2;
+@@ -774,7 +775,7 @@ rpolca(long *idom, long rpo1, long rpo2)
+ }
+ 
+ int
+-doms(long *idom, long r, long s)
++doms(int32 *idom, int32 r, int32 s)
+ {
+ 	while(s > r)
+ 		s = idom[s];
+@@ -782,9 +783,9 @@ doms(long *idom, long r, long s)
+ }
+ 
+ int
+-loophead(long *idom, Reg *r)
++loophead(int32 *idom, Reg *r)
+ {
+-	long src;
++	int32 src;
+ 
+ 	src = r->rpo;
+ 	if(r->p1 != R && doms(idom, src, r->p1->rpo))
+@@ -796,7 +797,7 @@ loophead(long *idom, Reg *r)
+ }
+ 
+ void
+-loopmark(Reg **rpo2r, long head, Reg *r)
++loopmark(Reg **rpo2r, int32 head, Reg *r)
+ {
+ 	if(r->rpo < head || r->active == head)
+ 		return;
+@@ -809,14 +810,14 @@ loopmark(Reg **rpo2r, long head, Reg *r)
+ }
+ 
+ void
+-loopit(Reg *r, long nr)
++loopit(Reg *r, int32 nr)
+ {
+ 	Reg *r1;
+-	long i, d, me;
++	int32 i, d, me;
+ 
+ 	if(nr > maxnr) {
+ 		rpo2r = alloc(nr * sizeof(Reg*));
+-		idom = alloc(nr * sizeof(long));
++		idom = alloc(nr * sizeof(int32));
+ 		maxnr = nr;
+ 	}
+ 	d = postorder(r, rpo2r, 0);
+@@ -878,8 +879,8 @@ synch(Reg *r, Bits dif)
+ 	}
+ }
+ 
+-ulong
+-allreg(ulong b, Rgn *r)
++uint32
++allreg(uint32 b, Rgn *r)
+ {
+ 	Var *v;
+ 	int i;
+@@ -928,7 +929,7 @@ paint1(Reg *r, int bn)
+ 	Reg *r1;
+ 	Prog *p;
+ 	int z;
+-	ulong bb;
++	uint32 bb;
+ 
+ 	z = bn/32;
+ 	bb = 1L<<(bn%32);
+@@ -999,12 +1000,12 @@ paint1(Reg *r, int bn)
+ 	}
+ }
+ 
+-ulong
++uint32
+ paint2(Reg *r, int bn)
+ {
+ 	Reg *r1;
+ 	int z;
+-	ulong bb, vreg;
++	uint32 bb, vreg;
+ 
+ 	z = bn/32;
+ 	bb = 1L << (bn%32);
+@@ -1051,12 +1052,12 @@ paint2(Reg *r, int bn)
+ }
+ 
+ void
+-paint3(Reg *r, int bn, long rb, int rn)
++paint3(Reg *r, int bn, int32 rb, int rn)
+ {
+ 	Reg *r1;
+ 	Prog *p;
+ 	int z;
+-	ulong bb;
++	uint32 bb;
+ 
+ 	z = bn/32;
+ 	bb = 1L << (bn%32);
+@@ -1142,7 +1143,7 @@ addreg(Adr *a, int rn)
+  *	...	...
+  *	10	R10
+  */
+-long
++int32
+ RtoB(int r)
+ {
+ 
+@@ -1152,7 +1153,7 @@ RtoB(int r)
+ }
+ 
+ int
+-BtoR(long b)
++BtoR(int32 b)
+ {
+ 	b &= 0x07fcL;
+ 	if(b == 0)
+@@ -1167,7 +1168,7 @@ BtoR(long b)
+  *	...	...
+  *	23	F7
+  */
+-long
++int32
+ FtoB(int f)
+ {
+ 
+@@ -1177,7 +1178,7 @@ FtoB(int f)
+ }
+ 
+ int
+-BtoF(long b)
++BtoF(int32 b)
+ {
+ 
+ 	b &= 0xfc0000L;
+diff --git a/src/cmd/5c/sgen.c b/src/cmd/5c/sgen.c
+index 3b7c8ee809..b7f61bb7ea 100644
+--- a/src/cmd/5c/sgen.c
++++ b/src/cmd/5c/sgen.c
+@@ -92,7 +92,7 @@ codgen(Node *n, Node *nn)
+ void
+ supgen(Node *n)
+ {
+-	long spc;
++	int32 spc;
+ 	Prog *sp;
+ 
+ 	if(n == Z)
+@@ -113,7 +113,7 @@ gen(Node *n)
+ 	Node *l, nod;
+ 	Prog *sp, *spc, *spb;
+ 	Case *cn;
+-	long sbc, scc;
++	int32 sbc, scc;
+ 	int o, f;
+ 
+ loop:
+diff --git a/src/cmd/5c/swt.c b/src/cmd/5c/swt.c
+index f874a9cd6c..a32e3a192f 100644
+--- a/src/cmd/5c/swt.c
++++ b/src/cmd/5c/swt.c
+@@ -47,7 +47,7 @@ doswit(Node *n)
+ {
+ 	Case *c;
+ 	C1 *q, *iq;
+-	long def, nc, i;
++	int32 def, nc, i;
+ 	Node tn;
+ 
+ 	def = 0;
+@@ -86,11 +86,11 @@ doswit(Node *n)
+ }
+ 
+ void
+-swit1(C1 *q, int nc, long def, Node *n, Node *tn)
++swit1(C1 *q, int nc, int32 def, Node *n, Node *tn)
+ {
+ 	C1 *r;
+ 	int i;
+-	long v;
++	int32 v;
+ 	Prog *sp;
+ 
+ 	if(nc >= 3) {
+@@ -166,7 +166,7 @@ void
+ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ {
+ 	int sh;
+-	long v;
++	int32 v;
+ 	Node *l;
+ 
+ 	/*
+@@ -204,7 +204,7 @@ bitload(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ void
+ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ {
+-	long v;
++	int32 v;
+ 	Node nod, *l;
+ 	int sh;
+ 
+@@ -234,10 +234,10 @@ bitstore(Node *b, Node *n1, Node *n2, Node *n3, Node *nn)
+ 	regfree(n3);
+ }
+ 
+-long
+-outstring(char *s, long n)
++int32
++outstring(char *s, int32 n)
+ {
+-	long r;
++	int32 r;
+ 
+ 	if(suppress)
+ 		return nstring;
+@@ -259,12 +259,12 @@ outstring(char *s, long n)
+ 	return r;
+ }
+ 
+-long
+-outlstring(ushort *s, long n)
++int32
++outlstring(ushort *s, int32 n)
+ {
+ 	char buf[2];
+ 	int c;
+-	long r;
++	int32 r;
+ 
+ 	if(suppress)
+ 		return nstring;
+@@ -291,7 +291,7 @@ mulcon(Node *n, Node *nn)
+ {
+ 	Node *l, *r, nod1, nod2;
+ 	Multab *m;
+-	long v, vs;
++	int32 v, vs;
+ 	int o;
+ 	char code[sizeof(m->code)+2], *p;
+ 
+@@ -391,9 +391,9 @@ nullwarn(Node *l, Node *r)
+ }
+ 
+ void
+-sextern(Sym *s, Node *a, long o, long w)
++sextern(Sym *s, Node *a, int32 o, int32 w)
+ {
+-	long e, lw;
++	int32 e, lw;
+ 
+ 	for(e=0; e<w; e+=NSNAME) {
+ 		lw = NSNAME;
+@@ -408,7 +408,7 @@ sextern(Sym *s, Node *a, long o, long w)
+ }
+ 
+ void
+-gextern(Sym *s, Node *a, long o, long w)
++gextern(Sym *s, Node *a, int32 o, int32 w)
+ {
+ 
+ 	if(a->op == OCONST && typev[a->type->etype]) {
+@@ -600,7 +600,7 @@ void
+ zname(Biobuf *b, Sym *s, int t)
+ {
+ 	char *n, bf[7];
+-	ulong sig;
++	uint32 sig;
+ 
+ 	n = s->name;
+ 	if(debug['T'] && t == D_EXTERN && s->sig != SIGDONE && s->type != types[TENUM] && s != symrathole){
+@@ -627,7 +627,7 @@ zname(Biobuf *b, Sym *s, int t)
+ char*
+ zaddr(char *bp, Adr *a, int s)
+ {
+-	long l;
++	int32 l;
+ 	Ieee e;
+ 
+ 	bp[0] = a->type;
+@@ -707,13 +707,13 @@ ieeedtod(Ieee *ieee, double native)
+ 	fr = modf(fr*f, &ho);
+ 	ieee->l = ho;
+ 	ieee->l <<= 16;
+-	ieee->l |= (long)(fr*f);
++	ieee->l |= (int32)(fr*f);
+ }
+ 
+-long
+-align(long i, Type *t, int op)
++int32
++align(int32 i, Type *t, int op)
+ {
+-	long o;
++	int32 o;
+ 	Type *v;
+ 	int w;
+ 
+@@ -771,16 +771,16 @@ align(long i, Type *t, int op)
+ 		w = SZ_LONG;	/* because of a pun in cc/dcl.c:contig() */
+ 		break;
+ 	}
+-	o = round(o, w);
++	o = xround(o, w);
+ 	if(debug['A'])
+ 		print("align %s %ld %T = %ld\n", bnames[op], i, t, o);
+ 	return o;
+ }
+ 
+-long
+-maxround(long max, long v)
++int32
++maxround(int32 max, int32 v)
+ {
+-	v = round(v, SZ_LONG);
++	v = xround(v, SZ_LONG);
+ 	if(v > max)
+ 		return v;
+ 	return max;
+diff --git a/src/cmd/5c/txt.c b/src/cmd/5c/txt.c
+index 319f65627b..882484f48e 100644
+--- a/src/cmd/5c/txt.c
++++ b/src/cmd/5c/txt.c
+@@ -165,7 +165,7 @@ nextpc(void)
+ void
+ gargs(Node *n, Node *tn1, Node *tn2)
+ {
+-	long regs;
++	int32 regs;
+ 	Node fnxargs[20], *fnxp;
+ 
+ 	regs = cursafe;
+@@ -235,7 +235,7 @@ garg1(Node *n, Node *tn1, Node *tn2, int f, Node **fnxp)
+ }
+ 
+ Node*
+-nodconst(long v)
++nodconst(int32 v)
+ {
+ 	constnode.vconst = v;
+ 	return &constnode;
+@@ -455,7 +455,7 @@ raddr(Node *n, Prog *p)
+ void
+ naddr(Node *n, Adr *a)
+ {
+-	long v;
++	int32 v;
+ 
+ 	a->type = D_NONE;
+ 	if(n == Z)
+@@ -1148,7 +1148,7 @@ gbranch(int o)
+ }
+ 
+ void
+-patch(Prog *op, long pc)
++patch(Prog *op, int32 pc)
+ {
+ 
+ 	op->to.offset = pc;
+@@ -1165,7 +1165,7 @@ gpseudo(int a, Sym *s, Node *n)
+ 	p->from.sym = s;
+ 	p->from.name = D_EXTERN;
+ 	if(a == ATEXT)
+-		p->reg = (profileflg ? 0 : NOPROF);
++		p->reg = textflag;
+ 	if(s->class == CSTATIC)
+ 		p->from.name = D_STATIC;
+ 	naddr(n, &p->to);
+@@ -1195,7 +1195,7 @@ sconst(Node *n)
+ }
+ 
+ int
+-sval(long v)
++sval(int32 v)
+ {
+ 	int i;
+ 
+@@ -1204,15 +1204,15 @@ sval(long v)
+ 			return 1;
+ 		if((~v & ~0xff) == 0)
+ 			return 1;
+-		v = (v<<2) | ((ulong)v>>30);
++		v = (v<<2) | ((uint32)v>>30);
+ 	}
+ 	return 0;
+ }
+ 
+-long
++int32
+ exreg(Type *t)
+ {
+-	long o;
++	int32 o;
+ 
+ 	if(typechlp[t->etype]) {
+ 		if(exregoffset <= REGEXT-4)
+@@ -1255,7 +1255,7 @@ schar	ewidth[NTYPE] =
+ 	SZ_INT,		/* [TENUM] */
+ };
+ 
+-long	ncast[NTYPE] =
++int32	ncast[NTYPE] =
+ {
+ 	0,				/* [TXXX] */
+ 	BCHAR|BUCHAR,			/* [TCHAR] */
+diff --git a/src/cmd/5c/5.out.h b/src/cmd/5l/5.out.h
+similarity index 98%
+rename from src/cmd/5c/5.out.h
+rename to src/cmd/5l/5.out.h
+index 8050cd5ece..cec70b729f 100644
+--- a/src/cmd/5c/5.out.h
++++ b/src/cmd/5l/5.out.h
+@@ -220,8 +220,8 @@ enum	as
+ typedef	struct	ieee	Ieee;
+ struct	ieee
+ {
+-	long	l;	/* contains ls-man	0xffffffff */
+-	long	h;	/* contains sign	0x80000000
++	int32	l;	/* contains ls-man	0xffffffff */
++	int32	h;	/* contains sign	0x80000000
+ 				    exp		0x7ff00000
+ 				    ms-man	0x000fffff */
+ };
+diff --git a/src/cmd/5l/Makefile b/src/cmd/5l/Makefile
+new file mode 100644
+index 0000000000..a70841f29e
+--- /dev/null
++++ b/src/cmd/5l/Makefile
+@@ -0,0 +1,40 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../Make.conf
++
++TARG=\
++	5l\
++
++OFILES=\
++	asm.$O\
++	compat.$O\
++	enam.$O\
++	list.$O\
++	noop.$O\
++	obj.$O\
++	optab.$O\
++	pass.$O\
++	thumb.$O\
++	span.$O\
++#	go.$O\
++
++HFILES=\
++	l.h\
++	../5l/5.out.h\
++
++
++$(TARG): $(OFILES)
++	$(LD) -o $(TARG) -L$(GOROOT)/lib $(OFILES) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++enam.c: 5.out.h
++	sh mkenam
++
++clean:
++	rm -f $(OFILES) $(TARG) *.5 enam.c 5.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index e5392870a9..214c9adfd4 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -30,11 +30,11 @@
+ 
+ #include	"l.h"
+ 
+-long	OFFSET;
++int32	OFFSET;
+ 
+ static Prog *PP;
+ 
+-long
++int32
+ entryvalue(void)
+ {
+ 	char *a;
+@@ -63,7 +63,7 @@ void
+ asmb(void)
+ {
+ 	Prog *p;
+-	long t, etext;
++	int32 t, etext;
+ 	Optab *o;
+ 
+ 	if(debug['v'])
+@@ -286,7 +286,7 @@ cput(int c)
+ 
+ /*
+ void
+-cput(long c)
++cput(int32 c)
+ {
+ 	*cbp++ = c;
+ 	if(--cbc <= 0)
+@@ -295,7 +295,7 @@ cput(long c)
+ */
+ 
+ void
+-wput(long l)
++wput(int32 l)
+ {
+ 
+ 	cbp[0] = l>>8;
+@@ -307,7 +307,7 @@ wput(long l)
+ }
+ 
+ void
+-hput(long l)
++hput(int32 l)
+ {
+ 
+ 	cbp[0] = l>>8;
+@@ -319,7 +319,7 @@ hput(long l)
+ }
+ 
+ void
+-lput(long l)
++lput(int32 l)
+ {
+ 
+ 	cbp[0] = l>>24;
+@@ -333,7 +333,7 @@ lput(long l)
+ }
+ 
+ void
+-lputl(long l)
++lputl(int32 l)
+ {
+ 
+ 	cbp[3] = l>>24;
+@@ -437,7 +437,7 @@ asmsym(void)
+ }
+ 
+ void
+-putsymb(char *s, int t, long v, int ver)
++putsymb(char *s, int t, int32 v, int ver)
+ {
+ 	int i, f;
+ 
+@@ -486,9 +486,9 @@ putsymb(char *s, int t, long v, int ver)
+ void
+ asmlc(void)
+ {
+-	long oldpc, oldlc;
++	int32 oldpc, oldlc;
+ 	Prog *p;
+-	long v, s;
++	int32 v, s;
+ 
+ 	oldpc = INITTEXT;
+ 	oldlc = 0;
+@@ -565,7 +565,7 @@ asmlc(void)
+ }
+ 
+ static void
+-outt(long f, long l)
++outt(int32 f, int32 l)
+ {
+ 	if(debug['L'])
+ 		Bprint(&bso, "tmap: %lux-%lux\n", f, l);
+@@ -576,7 +576,7 @@ outt(long f, long l)
+ void
+ asmthumbmap(void)
+ {
+-	long pc, lastt;
++	int32 pc, lastt;
+ 	Prog *p;
+ 
+ 	if(!seenthumb)
+@@ -616,12 +616,12 @@ asmthumbmap(void)
+ }
+ 
+ void
+-datblk(long s, long n, int str)
++datblk(int32 s, int32 n, int str)
+ {
+ 	Sym *v;
+ 	Prog *p;
+ 	char *cast;
+-	long a, l, fl, j, d;
++	int32 a, l, fl, j, d;
+ 	int i, c;
+ 
+ 	memset(buf.dbuf, 0, n+100);
+@@ -747,7 +747,7 @@ datblk(long s, long n, int str)
+ void
+ asmout(Prog *p, Optab *o)
+ {
+-	long o1, o2, o3, o4, o5, o6, v;
++	int32 o1, o2, o3, o4, o5, o6, v;
+ 	int r, rf, rt, rt2;
+ 	Sym *s;
+ 
+@@ -759,7 +759,7 @@ PP = p;
+ 	o5 = 0;
+ 	o6 = 0;
+ 	armsize += o->size;
+-if(debug['P']) print("%ulx: %P	type %d\n", (ulong)(p->pc), p, o->type);
++if(debug['P']) print("%ulx: %P	type %d\n", (uint32)(p->pc), p, o->type);
+ 	switch(o->type) {
+ 	default:
+ 		diag("unknown asm %d", o->type);
+@@ -767,7 +767,7 @@ if(debug['P']) print("%ulx: %P	type %d\n", (ulong)(p->pc), p, o->type);
+ 		break;
+ 
+ 	case 0:		/* pseudo ops */
+-if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
++if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (uint32)(p->pc), p->from.sym->name, p->from.sym->thumb, p->from.sym->foreign, p->from.sym->fnptr, p->from.sym->used);
+ 		break;
+ 
+ 	case 1:		/* op R,[R],R */
+@@ -832,7 +832,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
+ 			s = p->to.sym;
+ 			if(s->type != SUNDEF)
+ 				diag("bad branch sym type");
+-			v = (ulong)s->value >> (Roffset-2);
++			v = (uint32)s->value >> (Roffset-2);
+ 			dynreloc(s, p->pc, 0);
+ 		}
+ 		else if(p->cond != P)
+@@ -1209,7 +1209,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
+ 		o1 = ofsr(p->as, p->to.reg, v, r, p->scond, p) | (1<<20);
+ 		break;
+ 
+-	case 52:	/* floating point store, long offset UGLY */
++	case 52:	/* floating point store, int32 offset UGLY */
+ 		o1 = omvl(p, &p->to, REGTMP);
+ 		if(!o1)
+ 			break;
+@@ -1220,7 +1220,7 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
+ 		o3 = ofsr(p->as, p->from.reg, 0, REGTMP, p->scond, p);
+ 		break;
+ 
+-	case 53:	/* floating point load, long offset UGLY */
++	case 53:	/* floating point load, int32 offset UGLY */
+ 		o1 = omvl(p, &p->from, REGTMP);
+ 		if(!o1)
+ 			break;
+@@ -1547,10 +1547,10 @@ if(debug['G']) print("%ulx: %s: arm %d %d %d %d\n", (ulong)(p->pc), p->from.sym-
+ 	}
+ }
+ 
+-long
++int32
+ oprrr(int a, int sc)
+ {
+-	long o;
++	int32 o;
+ 
+ 	o = (sc & C_SCOND) << 28;
+ 	if(sc & C_SBIT)
+@@ -1612,7 +1612,7 @@ oprrr(int a, int sc)
+ 	return 0;
+ }
+ 
+-long
++int32
+ opbra(int a, int sc)
+ {
+ 
+@@ -1647,10 +1647,10 @@ opbra(int a, int sc)
+ 	return 0;
+ }
+ 
+-long
+-olr(long v, int b, int r, int sc)
++int32
++olr(int32 v, int b, int r, int sc)
+ {
+-	long o;
++	int32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		diag(".S on LDR/STR instruction");
+@@ -1674,10 +1674,10 @@ olr(long v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-long
+-olhr(long v, int b, int r, int sc)
++int32
++olhr(int32 v, int b, int r, int sc)
+ {
+-	long o;
++	int32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		diag(".S on LDRH/STRH instruction");
+@@ -1699,10 +1699,10 @@ olhr(long v, int b, int r, int sc)
+ 	return o;
+ }
+ 
+-long
+-osr(int a, int r, long v, int b, int sc)
++int32
++osr(int a, int r, int32 v, int b, int sc)
+ {
+-	long o;
++	int32 o;
+ 
+ 	o = olr(v, b, r, sc) ^ (1<<20);
+ 	if(a != AMOVW)
+@@ -1710,46 +1710,46 @@ osr(int a, int r, long v, int b, int sc)
+ 	return o;
+ }
+ 
+-long
+-oshr(int r, long v, int b, int sc)
++int32
++oshr(int r, int32 v, int b, int sc)
+ {
+-	long o;
++	int32 o;
+ 
+ 	o = olhr(v, b, r, sc) ^ (1<<20);
+ 	return o;
+ }
+ 	
+ 
+-long
++int32
+ osrr(int r, int i, int b, int sc)
+ {
+ 
+ 	return olr(i, b, r, sc) ^ ((1<<25) | (1<<20));
+ }
+ 
+-long
++int32
+ oshrr(int r, int i, int b, int sc)
+ {
+ 	return olhr(i, b, r, sc) ^ ((1<<22) | (1<<20));
+ }
+ 
+-long
++int32
+ olrr(int i, int b, int r, int sc)
+ {
+ 
+ 	return olr(i, b, r, sc) ^ (1<<25);
+ }
+ 
+-long
++int32
+ olhrr(int i, int b, int r, int sc)
+ {
+ 	return olhr(i, b, r, sc) ^ (1<<22);
+ }
+ 
+-long
+-ofsr(int a, int r, long v, int b, int sc, Prog *p)
++int32
++ofsr(int a, int r, int32 v, int b, int sc, Prog *p)
+ {
+-	long o;
++	int32 o;
+ 
+ 	if(sc & C_SBIT)
+ 		diag(".S on FLDR/FSTR instruction");
+@@ -1783,10 +1783,10 @@ ofsr(int a, int r, long v, int b, int sc, Prog *p)
+ 	return o;
+ }
+ 
+-long
++int32
+ omvl(Prog *p, Adr *a, int dr)
+ {	
+-	long v, o1;
++	int32 v, o1;
+ 	if(!p->cond) {
+ 		aclass(a);
+ 		v = immrot(~instoffset);
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 9e62a176ed..dc578f5f9c 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -30,7 +30,7 @@
+ 
+ #include	<lib9.h>
+ #include	<bio.h>
+-#include	"../5c/5.out.h"
++#include	"../5l/5.out.h"
+ 
+ #ifndef	EXTERN
+ #define	EXTERN	extern
+@@ -58,7 +58,7 @@ struct	Adr
+ {
+ 	union
+ 	{
+-		long	u0offset;
++		int32	u0offset;
+ 		char*	u0sval;
+ 		Ieee*	u0ieee;
+ 	} u0;
+@@ -86,13 +86,13 @@ struct	Prog
+ 	Adr	to;
+ 	union
+ 	{
+-		long	u0regused;
++		int32	u0regused;
+ 		Prog*	u0forwd;
+ 	} u0;
+ 	Prog*	cond;
+ 	Prog*	link;
+-	long	pc;
+-	long	line;
++	int32	pc;
++	int32	line;
+ 	uchar	mark;
+ 	uchar	optab;
+ 	uchar	as;
+@@ -112,8 +112,8 @@ struct	Sym
+ 	short	frame;
+ 	uchar	subtype;
+ 	ushort	file;
+-	long	value;
+-	long	sig;
++	int32	value;
++	int32	sig;
+ 	uchar	used;
+ 	uchar	thumb;	// thumb code
+ 	uchar	foreign;	// called by arm if thumb, by thumb if arm
+@@ -128,7 +128,7 @@ struct	Autom
+ {
+ 	Sym*	asym;
+ 	Auto*	link;
+-	long	aoffset;
++	int32	aoffset;
+ 	short	type;
+ };
+ struct	Optab
+@@ -149,8 +149,8 @@ struct	Oprang
+ };
+ struct	Count
+ {
+-	long	count;
+-	long	outof;
++	int32	count;
++	int32	outof;
+ };
+ struct	Use
+ {
+@@ -275,15 +275,15 @@ EXTERN union
+ 
+ #ifndef COFFCVT
+ 
+-EXTERN	long	HEADR;			/* length of header */
++EXTERN	int32	HEADR;			/* length of header */
+ EXTERN	int	HEADTYPE;		/* type of header */
+-EXTERN	long	INITDAT;		/* data location */
+-EXTERN	long	INITRND;		/* data round above text location */
+-EXTERN	long	INITTEXT;		/* text location */
++EXTERN	int32	INITDAT;		/* data location */
++EXTERN	int32	INITRND;		/* data round above text location */
++EXTERN	int32	INITTEXT;		/* text location */
+ EXTERN	char*	INITENTRY;		/* entry point */
+-EXTERN	long	autosize;
++EXTERN	int32	autosize;
+ EXTERN	Biobuf	bso;
+-EXTERN	long	bsssize;
++EXTERN	int32	bsssize;
+ EXTERN	int	cbc;
+ EXTERN	uchar*	cbp;
+ EXTERN	int	cout;
+@@ -292,7 +292,7 @@ EXTERN	Auto*	curhist;
+ EXTERN	Prog*	curp;
+ EXTERN	Prog*	curtext;
+ EXTERN	Prog*	datap;
+-EXTERN	long	datsize;
++EXTERN	int32	datsize;
+ EXTERN	char	debug[128];
+ EXTERN	Prog*	etextp;
+ EXTERN	Prog*	firstp;
+@@ -312,21 +312,21 @@ EXTERN	char	inuxi1[1];
+ EXTERN	char	inuxi2[2];
+ EXTERN	char	inuxi4[4];
+ EXTERN	Prog*	lastp;
+-EXTERN	long	lcsize;
++EXTERN	int32	lcsize;
+ EXTERN	char	literal[32];
+ EXTERN	int	nerrors;
+-EXTERN	long	nhunk;
+-EXTERN	long	instoffset;
++EXTERN	int32	nhunk;
++EXTERN	int32	instoffset;
+ EXTERN	Opcross	opcross[8];
+ EXTERN	Oprang	oprange[ALAST];
+ EXTERN	Oprang	thumboprange[ALAST];
+ EXTERN	char*	outfile;
+-EXTERN	long	pc;
++EXTERN	int32	pc;
+ EXTERN	uchar	repop[ALAST];
+-EXTERN	long	symsize;
++EXTERN	int32	symsize;
+ EXTERN	Prog*	textp;
+-EXTERN	long	textsize;
+-EXTERN	long	thunk;
++EXTERN	int32	textsize;
++EXTERN	int32	thunk;
+ EXTERN	int	version;
+ EXTERN	char	xcmp[C_GOK+1][C_GOK+1];
+ EXTERN	Prog	zprg;
+@@ -373,7 +373,7 @@ int	Pconv(Fmt*);
+ int	Sconv(Fmt*);
+ int	aclass(Adr*);
+ int	thumbaclass(Adr*, Prog*);
+-void	addhist(long, int);
++void	addhist(int32, int);
+ void	append(Prog*, Prog*);
+ void	asmb(void);
+ void	asmdyn(void);
+@@ -382,87 +382,87 @@ void	asmthumbmap(void);
+ void	asmout(Prog*, Optab*);
+ void	thumbasmout(Prog*, Optab*);
+ void	asmsym(void);
+-long	atolwhex(char*);
++int32	atolwhex(char*);
+ Prog*	brloop(Prog*);
+ void	buildop(void);
+ void	thumbbuildop(void);
+ void	buildrep(int, int);
+ void	cflush(void);
+-void	ckoff(Sym*, long);
++void	ckoff(Sym*, int32);
+ int	chipfloat(Ieee*);
+ int	cmp(int, int);
+ int	compound(Prog*);
+ double	cputime(void);
+-void	datblk(long, long, int);
++void	datblk(int32, int32, int);
+ void	diag(char*, ...);
+ void	divsig(void);
+ void	dodata(void);
+ void	doprof1(void);
+ void	doprof2(void);
+-void	dynreloc(Sym*, long, int);
+-long	entryvalue(void);
++void	dynreloc(Sym*, int32, int);
++int32	entryvalue(void);
+ void	errorexit(void);
+ void	exchange(Prog*);
+ void	export(void);
+-int	find1(long, int);
++int	find1(int32, int);
+ void	follow(void);
+ void	gethunk(void);
+ void	histtoauto(void);
+ void	hputl(int);
+ double	ieeedtod(Ieee*);
+-long	ieeedtof(Ieee*);
++int32	ieeedtof(Ieee*);
+ void	import(void);
+ int	isnop(Prog*);
+-void	ldobj(int, long, char*);
++void	ldobj(int, int32, char*);
+ void	loadlib(void);
+ void	listinit(void);
+ Sym*	lookup(char*, int);
+ void	cput(int);
+-void	hput(long);
+-void	lput(long);
+-void	lputl(long);
++void	hput(int32);
++void	lput(int32);
++void	lputl(int32);
+ void	mkfwd(void);
+-void*	mysbrk(ulong);
++void*	mysbrk(uint32);
+ void	names(void);
+ void	nocache(Prog*);
+ void	nuxiinit(void);
+ void	objfile(char*);
+ int	ocmp(const void*, const void*);
+-long	opirr(int);
++int32	opirr(int);
+ Optab*	oplook(Prog*);
+-long	oprrr(int, int);
+-long	olr(long, int, int, int);
+-long	olhr(long, int, int, int);
+-long	olrr(int, int, int, int);
+-long	olhrr(int, int, int, int);
+-long	osr(int, int, long, int, int);
+-long	oshr(int, long, int, int);
+-long	ofsr(int, int, long, int, int, Prog*);
+-long	osrr(int, int, int, int);
+-long	oshrr(int, int, int, int);
+-long	omvl(Prog*, Adr*, int);
++int32	oprrr(int, int);
++int32	olr(int32, int, int, int);
++int32	olhr(int32, int, int, int);
++int32	olrr(int, int, int, int);
++int32	olhrr(int, int, int, int);
++int32	osr(int, int, int32, int, int);
++int32	oshr(int, int32, int, int);
++int32	ofsr(int, int, int32, int, int, Prog*);
++int32	osrr(int, int, int, int);
++int32	oshrr(int, int, int, int);
++int32	omvl(Prog*, Adr*, int);
+ void	patch(void);
+ void	prasm(Prog*);
+ void	prepend(Prog*, Prog*);
+ Prog*	prg(void);
+ int	pseudo(Prog*);
+-void	putsymb(char*, int, long, int);
++void	putsymb(char*, int, int32, int);
+ void	readundefs(char*, int);
+-long	regoff(Adr*);
++int32	regoff(Adr*);
+ int	relinv(int);
+-long	rnd(long, long);
++int32	rnd(int32, int32);
+ void	span(void);
+ void	strnput(char*, int);
+ void	undef(void);
+ void	undefsym(Sym*);
+-void	wput(long);
+-void	xdefine(char*, int, long);
++void	wput(int32);
++void	xdefine(char*, int, int32);
+ void	xfol(Prog*);
+ void	zerosig(char*);
+ void	noops(void);
+-long	immrot(ulong);
+-long	immaddr(long);
+-long	opbra(int, int);
++int32	immrot(uint32);
++int32	immaddr(int32);
++int32	opbra(int, int);
+ int	brextra(Prog*);
+ int	isbranch(Prog*);
+ int	fnpinc(Sym *);
+diff --git a/src/cmd/5l/list.c b/src/cmd/5l/list.c
+index 29286ad529..5375829185 100644
+--- a/src/cmd/5l/list.c
++++ b/src/cmd/5l/list.c
+@@ -156,7 +156,7 @@ Dconv(Fmt *fp)
+ 	char str[STRINGSZ];
+ 	char *op;
+ 	Adr *a;
+-	long v;
++	int32 v;
+ 
+ 	a = va_arg(fp->args, Adr*);
+ 	switch(a->type) {
+@@ -335,7 +335,7 @@ Sconv(Fmt *fp)
+ 
+ 	a = va_arg(fp->args, char*);
+ 	p = str;
+-	for(i=0; i<sizeof(long); i++) {
++	for(i=0; i<sizeof(int32); i++) {
+ 		c = a[i] & 0xff;
+ 		if(c >= 'a' && c <= 'z' ||
+ 		   c >= 'A' && c <= 'Z' ||
+diff --git a/src/cmd/5c/mkenam b/src/cmd/5l/mkenam
+similarity index 98%
+rename from src/cmd/5c/mkenam
+rename to src/cmd/5l/mkenam
+index 565e7e7f4a..265cb99888 100644
+--- a/src/cmd/5c/mkenam
++++ b/src/cmd/5l/mkenam
+@@ -28,7 +28,7 @@
+ # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ # THE SOFTWARE.
+ 
+-ed - ../5c/5.out.h <<'!'
++ed - ../5l/5.out.h <<'!'
+ v/^	A/d
+ ,s/^	A/	"/
+ g/ .*$/s///
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 00857a46c1..e3207ab46a 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -66,7 +66,7 @@ fnret(Prog *q, int rs, int foreign, Prog *p)
+ }
+ 
+ static Prog *
+-aword(long w, Prog *p)
++aword(int32 w, Prog *p)
+ {
+ 	Prog *q;
+ 
+@@ -83,7 +83,7 @@ aword(long w, Prog *p)
+ }
+ 
+ static Prog *
+-adword(long w1, long w2, Prog *p)
++adword(int32 w1, int32 w2, Prog *p)
+ {
+ 	Prog *q;
+ 
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 5c28b70087..275c3fe6e2 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -321,7 +321,7 @@ void
+ loadlib(void)
+ {
+ 	int i;
+-	long h;
++	int32 h;
+ 	Sym *s;
+ 
+ loop:
+@@ -354,7 +354,7 @@ errorexit(void)
+ void
+ objfile(char *file)
+ {
+-	long off, esym, cnt, l;
++	int32 off, esym, cnt, l;
+ 	int f, work;
+ 	Sym *s;
+ 	char magbuf[SARMAG];
+@@ -464,7 +464,7 @@ int
+ zaddr(uchar *p, Adr *a, Sym *h[])
+ {
+ 	int i, c;
+-	long l;
++	int32 l;
+ 	Sym *s;
+ 	Auto *u;
+ 
+@@ -649,7 +649,7 @@ addlib(char *obj)
+ }
+ 
+ void
+-addhist(long line, int type)
++addhist(int32 line, int type)
+ {
+ 	Auto *u;
+ 	Sym *s;
+@@ -752,14 +752,14 @@ readsome(int f, uchar *buf, uchar *good, uchar *stop, int max)
+ static void puntfp(Prog *);
+ 
+ void
+-ldobj(int f, long c, char *pn)
++ldobj(int f, int32 c, char *pn)
+ {
+-	long ipc;
++	int32 ipc;
+ 	Prog *p, *t;
+ 	uchar *bloc, *bsize, *stop;
+ 	Sym *h[NSYM], *s, *di;
+ 	int v, o, r, skip;
+-	ulong sig;
++	uint32 sig;
+ 	static int files;
+ 	static char **filen;
+ 	char **nfilen;
+@@ -1153,7 +1153,7 @@ lookup(char *symb, int v)
+ {
+ 	Sym *s;
+ 	char *p;
+-	long h;
++	int32 h;
+ 	int c, l;
+ 
+ 	h = v;
+@@ -1207,7 +1207,7 @@ void
+ gethunk(void)
+ {
+ 	char *h;
+-	long nh;
++	int32 nh;
+ 
+ 	nh = NHUNK;
+ 	if(thunk >= 5L*NHUNK) {
+@@ -1229,7 +1229,7 @@ void
+ doprof1(void)
+ {
+ 	Sym *s;
+-	long n;
++	int32 n;
+ 	Prog *p, *q;
+ 
+ 	if(debug['v'])
+@@ -1448,7 +1448,7 @@ nuxiinit(void)
+ }
+ 
+ int
+-find1(long l, int c)
++find1(int32 l, int c)
+ {
+ 	char *p;
+ 	int i;
+@@ -1460,11 +1460,11 @@ find1(long l, int c)
+ 	return 0;
+ }
+ 
+-long
++int32
+ ieeedtof(Ieee *ieeep)
+ {
+ 	int exp;
+-	long v;
++	int32 v;
+ 
+ 	if(ieeep->h == 0)
+ 		return 0;
+diff --git a/src/cmd/5l/pass.c b/src/cmd/5l/pass.c
+index 7d08e5c15c..8bd6a5c416 100644
+--- a/src/cmd/5l/pass.c
++++ b/src/cmd/5l/pass.c
+@@ -36,7 +36,7 @@ dodata(void)
+ 	int i, t;
+ 	Sym *s;
+ 	Prog *p;
+-	long orig, v;
++	int32 orig, v;
+ 
+ 	if(debug['v'])
+ 		Bprint(&bso, "%5.2f dodata\n", cputime());
+@@ -316,7 +316,7 @@ loop:
+ void
+ patch(void)
+ {
+-	long c, vexit;
++	int32 c, vexit;
+ 	Prog *p, *q;
+ 	Sym *s, *s1;
+ 	int a;
+@@ -410,7 +410,7 @@ void
+ mkfwd(void)
+ {
+ 	Prog *p;
+-	long dwn[LOG], cnt[LOG], i;
++	int32 dwn[LOG], cnt[LOG], i;
+ 	Prog *lst[LOG];
+ 
+ 	for(i=0; i<LOG; i++) {
+@@ -458,10 +458,10 @@ brloop(Prog *p)
+ 	return P;
+ }
+ 
+-long
++int32
+ atolwhex(char *s)
+ {
+-	long n;
++	int32 n;
+ 	int f;
+ 
+ 	n = 0;
+@@ -498,10 +498,10 @@ atolwhex(char *s)
+ 	return n;
+ }
+ 
+-long
+-rnd(long v, long r)
++int32
++rnd(int32 v, int32 r)
+ {
+-	long c;
++	int32 c;
+ 
+ 	if(r <= 0)
+ 		return v;
+@@ -849,7 +849,7 @@ import(void)
+ }
+ 
+ void
+-ckoff(Sym *s, long v)
++ckoff(Sym *s, int32 v)
+ {
+ 	if(v < 0 || v >= 1<<Roffset)
+ 		diag("relocation offset %ld for %s out of range", v, s->name);
+@@ -917,13 +917,13 @@ export(void)
+ 		Bprint(&bso, "EXPORT: %s sig=%lux t=%d\n", s->name, s->sig, s->type);
+ 
+ 		/* signature */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
++		p = newdata(et, off, sizeof(int32), D_EXTERN);
++		off += sizeof(int32);
+ 		p->to.offset = s->sig;
+ 
+ 		/* address */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
++		p = newdata(et, off, sizeof(int32), D_EXTERN);
++		off += sizeof(int32);
+ 		p->to.name = D_EXTERN;
+ 		p->to.sym = s;
+ 
+@@ -945,8 +945,8 @@ export(void)
+ 		}
+ 
+ 		/* name */
+-		p = newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
++		p = newdata(et, off, sizeof(int32), D_EXTERN);
++		off += sizeof(int32);
+ 		p->to.name = D_STATIC;
+ 		p->to.sym = str;
+ 		p->to.offset = sv-n;
+@@ -960,8 +960,8 @@ export(void)
+ 	}
+ 
+ 	for(i = 0; i < 3; i++){
+-		newdata(et, off, sizeof(long), D_EXTERN);
+-		off += sizeof(long);
++		newdata(et, off, sizeof(int32), D_EXTERN);
++		off += sizeof(int32);
+ 	}
+ 	et->value = off;
+ 	if(sv == 0)
+diff --git a/src/cmd/5l/span.c b/src/cmd/5l/span.c
+index f0b7b4f17c..c60b5478cc 100644
+--- a/src/cmd/5l/span.c
++++ b/src/cmd/5l/span.c
+@@ -31,9 +31,9 @@
+ #include	"l.h"
+ 
+ static struct {
+-	ulong	start;
+-	ulong	size;
+-	ulong	extra;
++	uint32	start;
++	uint32	size;
++	uint32	extra;
+ } pool;
+ 
+ int	checkpool(Prog*, int);
+@@ -140,11 +140,11 @@ scan(Prog *op, Prog *p, int c)
+ }
+ 
+ /* size of a case statement including jump table */
+-static long
++static int32
+ casesz(Prog *p)
+ {
+ 	int jt = 0;
+-	long n = 0;
++	int32 n = 0;
+ 	Optab *o;
+ 
+ 	for( ; p != P; p = p->link){
+@@ -165,7 +165,7 @@ span(void)
+ 	Sym *setext, *s;
+ 	Optab *o;
+ 	int m, bflag, i;
+-	long c, otxt, v;
++	int32 c, otxt, v;
+ 	int lastthumb = -1;
+ 
+ 	if(debug['v'])
+@@ -517,7 +517,7 @@ addpool(Prog *p, Adr *a)
+ }
+ 
+ void
+-xdefine(char *p, int t, long v)
++xdefine(char *p, int t, int32 v)
+ {
+ 	Sym *s;
+ 
+@@ -528,7 +528,7 @@ xdefine(char *p, int t, long v)
+ 	}
+ }
+ 
+-long
++int32
+ regoff(Adr *a)
+ {
+ 
+@@ -537,8 +537,8 @@ regoff(Adr *a)
+ 	return instoffset;
+ }
+ 
+-long
+-immrot(ulong v)
++int32
++immrot(uint32 v)
+ {
+ 	int i;
+ 
+@@ -550,8 +550,8 @@ immrot(ulong v)
+ 	return 0;
+ }
+ 
+-long
+-immaddr(long v)
++int32
++immaddr(int32 v)
+ {
+ 	if(v >= 0 && v <= 0xfff)
+ 		return (v & 0xfff) |
+@@ -564,13 +564,13 @@ immaddr(long v)
+ }
+ 
+ int
+-immfloat(long v)
++immfloat(int32 v)
+ {
+ 	return (v & 0xC03) == 0;	/* offset will fit in floating-point load/store */
+ }
+ 
+ int
+-immhalf(long v)
++immhalf(int32 v)
+ {
+ 	if(v >= 0 && v <= 0xff)
+ 		return v|
+@@ -1151,7 +1151,7 @@ struct Reloc
+ 	int n;
+ 	int t;
+ 	uchar *m;
+-	ulong *a;
++	uint32 *a;
+ };
+ 
+ Reloc rels;
+@@ -1161,26 +1161,26 @@ grow(Reloc *r)
+ {
+ 	int t;
+ 	uchar *m, *nm;
+-	ulong *a, *na;
++	uint32 *a, *na;
+ 
+ 	t = r->t;
+ 	r->t += 64;
+ 	m = r->m;
+ 	a = r->a;
+ 	r->m = nm = malloc(r->t*sizeof(uchar));
+-	r->a = na = malloc(r->t*sizeof(ulong));
++	r->a = na = malloc(r->t*sizeof(uint32));
+ 	memmove(nm, m, t*sizeof(uchar));
+-	memmove(na, a, t*sizeof(ulong));
++	memmove(na, a, t*sizeof(uint32));
+ 	free(m);
+ 	free(a);
+ }
+ 
+ void
+-dynreloc(Sym *s, long v, int abs)
++dynreloc(Sym *s, int32 v, int abs)
+ {
+ 	int i, k, n;
+ 	uchar *m;
+-	ulong *a;
++	uint32 *a;
+ 	Reloc *r;
+ 
+ 	if(v&3)
+@@ -1228,7 +1228,7 @@ asmdyn()
+ {
+ 	int i, n, t, c;
+ 	Sym *s;
+-	ulong la, ra, *a;
++	uint32 la, ra, *a;
+ 	vlong off;
+ 	uchar *m;
+ 	Reloc *r;
+diff --git a/src/cmd/5l/thumb.c b/src/cmd/5l/thumb.c
+index e7ddbe5363..97292f640d 100644
+--- a/src/cmd/5l/thumb.c
++++ b/src/cmd/5l/thumb.c
+@@ -30,13 +30,13 @@
+ 
+ #include "l.h"
+ 
+-static long thumboprr(int);
+-static long thumboprrr(int, int);
+-static long thumbopirr(int , int);
+-static long thumbopri(int);
+-static long thumbophh(int);
+-static long thumbopbra(int);
+-static long thumbopmv(int, int);
++static int32 thumboprr(int);
++static int32 thumboprrr(int, int);
++static int32 thumbopirr(int , int);
++static int32 thumbopri(int);
++static int32 thumbophh(int);
++static int32 thumbopbra(int);
++static int32 thumbopmv(int, int);
+ static void lowreg(Prog *, int);
+ static void mult(Prog *, int, int);
+ static void numr(Prog *, int, int, int);
+@@ -327,7 +327,7 @@ thumbaclass(Adr *a, Prog *p)
+ 				v += e;
+ 				va += e;
+ 				instoffset += e;
+-			}		
++			}
+ #endif
+ 			if(v >= -4194304 && v <= 4194302)
+ 				return C_SBRA;
+@@ -528,7 +528,7 @@ brextra(Prog *p)
+ 
+ #define high(r)	((r)>=8)
+ 
+-static long
++static int32
+ mv(Prog *p, int r, int off)
+ {
+ 	int v, o;
+@@ -552,7 +552,7 @@ mv(Prog *p, int r, int off)
+ }
+ 
+ static void
+-mvcon(Prog *p, int r, int c, long *o1, long *o2)
++mvcon(Prog *p, int r, int c, int32 *o1, int32 *o2)
+ {
+ 	int op = 0, n = 0;
+ 
+@@ -593,7 +593,7 @@ mvcon(Prog *p, int r, int c, long *o1, long *o2)
+ 	}
+ }
+ 
+-static long
++static int32
+ mvlh(int rs, int rd)
+ {
+ 	int o = 0x46<<8;
+@@ -676,14 +676,14 @@ thumbbuildop()
+ void
+ thumbasmout(Prog *p, Optab *o)
+ {
+-	long o1, o2, o3, o4, o5, o6, o7, v;
++	int32 o1, o2, o3, o4, o5, o6, o7, v;
+ 	int r, rf, rt;
+ 
+ 	rf = p->from.reg;
+ 	rt = p->to.reg;
+ 	r = p->reg;
+ 	o1 = o2 = o3 = o4 = o5 = o6 = o7 = 0;
+-if(debug['P']) print("%ulx: %P	type %d %d\n", (ulong)(p->pc), p, o->type, p->align);
++if(debug['P']) print("%ulx: %P	type %d %d\n", (uint32)(p->pc), p, o->type, p->align);
+ 	opcount[o->type] += o->size;
+ 	switch(o->type) {
+ 	default:
+@@ -691,7 +691,7 @@ if(debug['P']) print("%ulx: %P	type %d %d\n", (ulong)(p->pc), p, o->type, p->ali
+ 		prasm(p);
+ 		break;
+ 	case 0:		/* pseudo ops */
+-if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
++if(debug['G']) print("%ulx: %s: thumb\n", (uint32)(p->pc), p->from.sym->name);
+ 		break;
+ 	case 1:		/* op R, -, R or op R, R, - */
+ 		o1 = thumboprr(p->as);
+@@ -735,7 +735,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
+ 		break;
+ 	case 5:		/* add/sub/mov $I, -, R or cmp $I, R, - */
+ 		thumbaclass(&p->from, p);
+-		o1 = thumbopri(p->as);	
++		o1 = thumbopri(p->as);
+ 		if(rt == NREG)
+ 			rt = r;
+ 		numr(p, instoffset, 0, 255);
+@@ -1077,7 +1077,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
+ 		break;
+ 	case 42:		/* Bcc GBRA */
+ 		thumbaclass(&p->to, p);
+-		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (6>>1);		// bccnot 
++		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (6>>1);		// bccnot
+ 		// ab lbra
+ 		o2 = (0x9<<11) | (REGTMPT<<8);	// mov 0(pc), r7
+ 		o3 = mvlh(REGTMPT, REGPC);		// mov r7, pc
+@@ -1119,7 +1119,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
+ 		break;
+ 	case 46:		/* Bcc LBRA */
+ 		thumbaclass(&p->to, p);
+-		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (0>>1);		// bccnot 
++		o1 = (0xd<<12) | thumbopbra(relinv(p->as)) | (0>>1);		// bccnot
+ 		// ab lbra
+ 		instoffset -= 2;
+ 		numr(p, instoffset, -2048, 2046);
+@@ -1242,7 +1242,7 @@ if(debug['G']) print("%ulx: %s: thumb\n", (ulong)(p->pc), p->from.sym->name);
+ 	}
+ }
+ 
+-static long
++static int32
+ thumboprr(int a)
+ {
+ 	switch(a) {
+@@ -1267,7 +1267,7 @@ thumboprr(int a)
+ 	return 0;
+ }
+ 
+-static long
++static int32
+ thumbopirr(int a, int ld)
+ {
+ 	if(ld)
+@@ -1281,8 +1281,8 @@ thumbopirr(int a, int ld)
+ 	}
+ 	return 0;
+ }
+-	
+-static long
++
++static int32
+ thumboprrr(int a, int ld)
+ {
+ 	if(ld){
+@@ -1308,7 +1308,7 @@ thumboprrr(int a, int ld)
+ 	return 0;
+ }
+ 
+-static long
++static int32
+ thumbopri(int a)
+ {
+ 	switch(a) {
+@@ -1325,7 +1325,7 @@ thumbopri(int a)
+ 	return 0;
+ }
+ 
+-static long
++static int32
+ thumbophh(int a)
+ {
+ 	switch(a) {
+@@ -1338,7 +1338,7 @@ thumbophh(int a)
+ 	return 0;
+ }
+ 
+-static long
++static int32
+ thumbopbra(int a)
+ {
+ 	switch(a) {
+@@ -1364,7 +1364,7 @@ thumbopbra(int a)
+ 	return 0;
+ }
+ 
+-static long
++static int32
+ thumbopmv(int a, int ld)
+ {
+ 	switch(a) {
+@@ -1379,7 +1379,7 @@ thumbopmv(int a, int ld)
+ 	return 0;
+ }
+ 
+-static void 
++static void
+ lowreg(Prog *p, int r)
+ {
+ 	if(high(r))
+@@ -1393,14 +1393,14 @@ mult(Prog *p, int n, int m)
+ 		diag("%d not M(%d) [%P]", n, m, p);
+ }
+ 
+-static void 
++static void
+ numr(Prog *p, int n, int min, int max)
+ {
+ 	if(n < min || n > max)
+ 		diag("%d not in %d-%d [%P]", n, min, max, p);
+ }
+ 
+-static void 
++static void
+ regis(Prog *p, int r, int r1, int r2)
+ {
+ 	if(r != r1 && r != r2)
+@@ -1432,7 +1432,7 @@ thumbcount()
+ 		print("%d:	%d %d %d%%\n", i, opcount[i], c, (opcount[i]*100+t/2)/t);
+ 	}
+ }
+-	
++
+ char *op1[] = { "lsl", "lsr", "asr" };
+ char *op2[] = { "add", "sub" };
+ char *op3[] = { "movw", "cmp", "add", "sub" };
+@@ -1513,7 +1513,7 @@ lhreg(int r, int lh)
+ 		sprint(s[i], "r%d", r+8);
+ 	return s[i];
+ }
+-	
++
+ static void
+ illegal(int i, int pc)
+ {
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 9b3467ae4a..5b541bca11 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -3,7 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-for i in cc 6l 6a 6c 8l 8a 8c gc 6g ar db nm acid cov gobuild prof gotest
++for i in cc 6l 6a 6c 8l 8a 8c 5l 5a 5c gc 6g ar db nm acid cov gobuild prof gotest
+ do
+ 	cd $i
+ 	make clean
+diff --git a/src/cmd/make5.bash b/src/cmd/make5.bash
+new file mode 100644
+index 0000000000..ac595fa5ee
+--- /dev/null
++++ b/src/cmd/make5.bash
+@@ -0,0 +1,22 @@
++# Copyright 2009 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++#!/bin/bash
++
++set -e
++
++bash clean.bash
++
++cd 5l
++bash mkenam
++make enam.o
++cd ..
++
++for i in cc 5l 5a 5c gc ar db nm acid cov gobuild prof gotest
++do
++	echo; echo; echo %%%% making $i %%%%; echo
++	cd $i
++	make install
++	cd ..
++done

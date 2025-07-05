@@ -9,6 +9,21 @@ Date:   Mon Sep 23 16:05:36 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13843043
-
+---
  src/pkg/runtime/pprof/pprof_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof_test.go b/src/pkg/runtime/pprof/pprof_test.go
+index 419178415a..d4f9f633bc 100644
+--- a/src/pkg/runtime/pprof/pprof_test.go
++++ b/src/pkg/runtime/pprof/pprof_test.go
+@@ -58,7 +58,8 @@ func parseProfile(t *testing.T, bytes []byte, f func(uintptr, []uintptr)) {
+ 	val := *(*[]uintptr)(unsafe.Pointer(&bytes))
+ 	val = val[:l]
+ 
+-	if l < 13 {
++	// 5 for the header, 2 for the per-sample header on at least one sample, 3 for the trailer.
++	if l < 5+2+3 {
+ 		t.Logf("profile too short: %#x", val)
+ 		if badOS[runtime.GOOS] {
+ 			t.Skipf("ignoring failure on %s; see golang.org/issue/6047", runtime.GOOS)

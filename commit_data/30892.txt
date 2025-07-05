@@ -15,10 +15,77 @@ Date:   Wed Dec 14 14:48:58 2016 -0500
     Change-Id: I7fa4d2dede75033d9a428f24c1837a4613bd2639
     Reviewed-on: https://go-review.googlesource.com/34391
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.8.html       | 2 +-
  doc/go1.8.txt        | 1 -
  src/cmd/dist/test.go | 3 +--
  src/cmd/go/build.go  | 3 +--
  src/plugin/plugin.go | 2 +-
  5 files changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/doc/go1.8.html b/doc/go1.8.html
+index d93ce9a779..1ea0188af1 100644
+--- a/doc/go1.8.html
++++ b/doc/go1.8.html
+@@ -417,7 +417,7 @@ version of gccgo.
+   plugins written in Go, and a
+   new <a href="/pkg/plugin/"><code>plugin</code></a> package for
+   loading such plugins at run time. Plugin support is only currently
+-  available on Linux and macOS.
++  available on Linux.
+ </p>
+ 
+ <h2 id="runtime">Runtime</h2>
+diff --git a/doc/go1.8.txt b/doc/go1.8.txt
+index e66ad387f3..caa9a728f8 100644
+--- a/doc/go1.8.txt
++++ b/doc/go1.8.txt
+@@ -29,7 +29,6 @@ cmd/link: fix -buildmode=pie / -linkshared combination (CL 28996)
+ cmd/link: for -buildmode=exe pass -no-pie to external linker (CL 33106)
+ cmd/link: insert trampolines for too-far jumps on ARM (CL 29397)
+ cmd/link: non-executable stack support for Solaris (CL 24142)
+-cmd/link: plugin support on darwin/amd64 (CL 29394)
+ cmd/link: put text at address 0x1000000 on darwin/amd64 (CL 32185)
+ cmd/link: remove the -shared flag (CL 28852)
+ cmd/link: split large elf text sections on ppc64x (CL 27790)
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 1d5c9cee49..a552966b30 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -786,8 +786,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ 		// linux-arm64 is missing because it causes the external linker
+ 		// to crash, see https://golang.org/issue/17138
+ 		switch pair {
+-		case "linux-386", "linux-amd64", "linux-arm",
+-			"darwin-amd64":
++		case "linux-386", "linux-amd64", "linux-arm":
+ 			return true
+ 		}
+ 		return false
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 8eaa768f38..98a650918a 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -413,8 +413,7 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/amd64", "linux/arm", "linux/arm64", "linux/386",
+-				"android/amd64", "android/arm", "android/arm64", "android/386",
+-				"darwin/amd64":
++				"android/amd64", "android/arm", "android/arm64", "android/386":
+ 			default:
+ 				fatalf("-buildmode=plugin not supported on %s\n", platform)
+ 			}
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index 5c822bd9ba..b86099a4f6 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -4,7 +4,7 @@
+ 
+ // Package plugin implements loading and symbol resolution of Go plugins.
+ //
+-// Currently plugins only work on Linux and Darwin.
++// Currently plugins only work on Linux.
+ //
+ // A plugin is a Go main package with exported functions and variables that
+ // has been built with:

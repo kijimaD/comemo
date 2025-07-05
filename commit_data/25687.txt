@@ -7,7 +7,7 @@ Date:   Thu Aug 27 21:09:46 2015 +1200
     Change-Id: I6ca9406207e40c7c2c661075ccfe57b6600235cf
     Reviewed-on: https://go-review.googlesource.com/13997
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/arm64/a.out.go   |   3 +
  src/cmd/internal/obj/arm64/anames7.go |   1 +
  src/cmd/internal/obj/arm64/asm7.go    |  14 ++++
@@ -16,3 +16,288 @@ Date:   Thu Aug 27 21:09:46 2015 +1200
  src/cmd/link/internal/arm64/asm.go    |  11 +++-
  src/cmd/link/internal/ld/elf.go       |   6 ++
  7 files changed, 156 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 06c4ea552d..d3e1e5ecbb 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -322,6 +322,9 @@ const (
+ 
+ 	C_ADDR // TODO(aram): explain difference from C_VCONADDR
+ 
++	// The GOT slot for a symbol in -dynlink mode.
++	C_GOTADDR
++
+ 	// TLS "var" in local exec mode: will become a constant offset from
+ 	// thread local base that is ultimately chosen by the program linker.
+ 	C_TLS_LE
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index f9df74ff89..2d17d17162 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -55,6 +55,7 @@ var cnames7 = []string{
+ 	"UOREG64K",
+ 	"LOREG",
+ 	"ADDR",
++	"GOTADDR",
+ 	"TLS_LE",
+ 	"TLS_IE",
+ 	"ROFF",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 243ff89817..38fe3ee92d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -270,6 +270,7 @@ var optab = []Optab{
+ 	{AMOVH, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
+ 	{AMOVW, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
+ 	{AMOVD, C_ADDR, C_NONE, C_REG, 65, 12, 0, 0, 0},
++	{AMOVD, C_GOTADDR, C_NONE, C_REG, 71, 8, 0, 0, 0},
+ 	{AMOVD, C_TLS_LE, C_NONE, C_REG, 69, 4, 0, 0, 0},
+ 	{AMOVD, C_TLS_IE, C_NONE, C_REG, 70, 8, 0, 0, 0},
+ 	{AMUL, C_REG, C_REG, C_REG, 15, 4, 0, 0, 0},
+@@ -981,6 +982,9 @@ func aclass(ctxt *obj.Link, a *obj.Addr) int {
+ 			}
+ 			return C_LEXT
+ 
++		case obj.NAME_GOTREF:
++			return C_GOTADDR
++
+ 		case obj.NAME_AUTO:
+ 			ctxt.Instoffset = int64(ctxt.Autosize) + a.Offset
+ 			return autoclass(ctxt.Instoffset)
+@@ -2789,6 +2793,16 @@ func asmout(ctxt *obj.Link, p *obj.Prog, o *Optab, out []uint32) {
+ 			ctxt.Diag("invalid offset on MOVW $tlsvar")
+ 		}
+ 
++	case 71: /* movd sym@GOT, reg -> adrp REGTMP, #0; ldr reg, [REGTMP, #0] + relocs */
++		o1 = ADR(1, 0, REGTMP)
++		o2 = olsr12u(ctxt, int32(opldr12(ctxt, AMOVD)), 0, REGTMP, int(p.To.Reg))
++		rel := obj.Addrel(ctxt.Cursym)
++		rel.Off = int32(ctxt.Pc)
++		rel.Siz = 8
++		rel.Sym = p.From.Sym
++		rel.Add = 0
++		rel.Type = obj.R_ARM64_GOTPCREL
++
+ 	// This is supposed to be something that stops execution.
+ 	// It's not supposed to be reached, ever, but if it is, we'd
+ 	// like to be able to tell how we got there.  Assemble as
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index f6f8c71295..39330c6c12 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -250,6 +250,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 4
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
++			p.From.Sym.Local = true
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -262,6 +263,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 			s.Size = 8
+ 			p.From.Type = obj.TYPE_MEM
+ 			p.From.Sym = s
++			p.From.Sym.Local = true
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
+@@ -287,6 +289,121 @@ func progedit(ctxt *obj.Link, p *obj.Prog) {
+ 
+ 		break
+ 	}
++
++	if ctxt.Flag_dynlink {
++		rewriteToUseGot(ctxt, p)
++	}
++}
++
++// Rewrite p, if necessary, to access global data via the global offset table.
++func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog) {
++	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
++		//     ADUFFxxx $offset
++		// becomes
++		//     MOVD runtime.duffxxx@GOT, REGTMP
++		//     ADD $offset, REGTMP
++		//     CALL REGTMP
++		var sym *obj.LSym
++		if p.As == obj.ADUFFZERO {
++			sym = obj.Linklookup(ctxt, "runtime.duffzero", 0)
++		} else {
++			sym = obj.Linklookup(ctxt, "runtime.duffcopy", 0)
++		}
++		offset := p.To.Offset
++		p.As = AMOVD
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_GOTREF
++		p.From.Sym = sym
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REGTMP
++		p.To.Name = obj.NAME_NONE
++		p.To.Offset = 0
++		p.To.Sym = nil
++		p1 := obj.Appendp(ctxt, p)
++		p1.As = AADD
++		p1.From.Type = obj.TYPE_CONST
++		p1.From.Offset = offset
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = REGTMP
++		p2 := obj.Appendp(ctxt, p1)
++		p2.As = obj.ACALL
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = REGTMP
++	}
++
++	// We only care about global data: NAME_EXTERN means a global
++	// symbol in the Go sense, and p.Sym.Local is true for a few
++	// internally defined symbols.
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++		// MOVD $sym, Rx becomes MOVD sym@GOT, Rx
++		// MOVD $sym+<off>, Rx becomes MOVD sym@GOT, Rx; ADD <off>, Rx
++		if p.As != AMOVD {
++			ctxt.Diag("do not know how to handle TYPE_ADDR in %v with -dynlink", p)
++		}
++		if p.To.Type != obj.TYPE_REG {
++			ctxt.Diag("do not know how to handle LEAQ-type insn to non-register in %v with -dynlink", p)
++		}
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_GOTREF
++		if p.From.Offset != 0 {
++			q := obj.Appendp(ctxt, p)
++			q.As = AADD
++			q.From.Type = obj.TYPE_CONST
++			q.From.Offset = p.From.Offset
++			q.To = p.To
++			p.From.Offset = 0
++		}
++	}
++	if p.From3 != nil && p.From3.Name == obj.NAME_EXTERN {
++		ctxt.Diag("don't know how to handle %v with -dynlink", p)
++	}
++	var source *obj.Addr
++	// MOVx sym, Ry becomes MOVD sym@GOT, REGTMP; MOVx (REGTMP), Ry
++	// MOVx Ry, sym becomes MOVD sym@GOT, REGTMP; MOVD Ry, (REGTMP)
++	// An addition may be inserted between the two MOVs if there is an offset.
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
++		}
++		source = &p.From
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local {
++		source = &p.To
++	} else {
++		return
++	}
++	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
++		return
++	}
++	if source.Sym.Type == obj.STLSBSS {
++		return
++	}
++	if source.Type != obj.TYPE_MEM {
++		ctxt.Diag("don't know how to handle %v with -dynlink", p)
++	}
++	p1 := obj.Appendp(ctxt, p)
++	p2 := obj.Appendp(ctxt, p1)
++	p1.As = AMOVD
++	p1.From.Type = obj.TYPE_MEM
++	p1.From.Sym = source.Sym
++	p1.From.Name = obj.NAME_GOTREF
++	p1.To.Type = obj.TYPE_REG
++	p1.To.Reg = REGTMP
++
++	p2.As = p.As
++	p2.From = p.From
++	p2.To = p.To
++	if p.From.Name == obj.NAME_EXTERN {
++		p2.From.Reg = REGTMP
++		p2.From.Name = obj.NAME_NONE
++		p2.From.Sym = nil
++	} else if p.To.Name == obj.NAME_EXTERN {
++		p2.To.Reg = REGTMP
++		p2.To.Name = obj.NAME_NONE
++		p2.To.Sym = nil
++	} else {
++		return
++	}
++	obj.Nopout(p)
+ }
+ 
+ func follow(ctxt *obj.Link, s *obj.LSym) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index d6c4be13cc..511e4098d0 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -410,6 +410,8 @@ const (
+ 	// the referenced symbol into the immediate field of the first instruction and the
+ 	// low 16 bits into that of the second instruction.
+ 	R_ADDRPOWER
++	// R_ADDRARM64 relocates an adrp, add pair to compute the address of the
++	// referenced symbol.
+ 	R_ADDRARM64
+ 	// R_ADDRMIPS (only used on mips64) resolves to a 32-bit external address,
+ 	// by loading the address into a register with two instructions (lui, ori).
+@@ -467,6 +469,10 @@ const (
+ 	// referenced (thread local) symbol from the GOT.
+ 	R_ARM64_TLS_IE
+ 
++	// R_ARM64_GOTPCREL relocates an adrp, ld64 pair to compute the address of the GOT
++	// slot of the referenced symbol.
++	R_ARM64_GOTPCREL
++
+ 	// PPC64.
+ 
+ 	// R_POWER_TLS_LE is used to implement the "local exec" model for tls
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 2b1f4d52c5..844a363d7a 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -133,6 +133,12 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 		ld.Thearch.Vput(uint64(sectoff + 4))
+ 		ld.Thearch.Vput(ld.R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC | uint64(elfsym)<<32)
+ 
++	case obj.R_ARM64_GOTPCREL:
++		ld.Thearch.Vput(ld.R_AARCH64_ADR_GOT_PAGE | uint64(elfsym)<<32)
++		ld.Thearch.Vput(uint64(r.Xadd))
++		ld.Thearch.Vput(uint64(sectoff + 4))
++		ld.Thearch.Vput(ld.R_AARCH64_LD64_GOT_LO12_NC | uint64(elfsym)<<32)
++
+ 	case obj.R_CALLARM64:
+ 		if r.Siz != 4 {
+ 			return -1
+@@ -235,7 +241,8 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 		default:
+ 			return -1
+ 
+-		case obj.R_ADDRARM64:
++		case obj.R_ADDRARM64,
++			obj.R_ARM64_GOTPCREL:
+ 			r.Done = 0
+ 
+ 			// set up addend for eventual relocation via outer symbol.
+@@ -246,7 +253,7 @@ func archreloc(r *ld.Reloc, s *ld.LSym, val *int64) int {
+ 				rs = rs.Outer
+ 			}
+ 
+-			if rs.Type != obj.SHOSTOBJ && rs.Sect == nil {
++			if rs.Type != obj.SHOSTOBJ && rs.Type != obj.SDYNIMPORT && rs.Sect == nil {
+ 				ld.Diag("missing section for %s", rs.Name)
+ 			}
+ 			r.Xsym = rs
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index a2ce0ab9e2..a34cf3cac8 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -372,6 +372,12 @@ const (
+ 	R_AARCH64_CALL26                      = 283
+ 	R_AARCH64_ADR_PREL_PG_HI21            = 275
+ 	R_AARCH64_ADD_ABS_LO12_NC             = 277
++	R_AARCH64_LDST8_ABS_LO12_NC           = 278
++	R_AARCH64_LDST16_ABS_LO12_NC          = 284
++	R_AARCH64_LDST32_ABS_LO12_NC          = 285
++	R_AARCH64_LDST64_ABS_LO12_NC          = 286
++	R_AARCH64_ADR_GOT_PAGE                = 311
++	R_AARCH64_LD64_GOT_LO12_NC            = 312
+ 	R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21   = 541
+ 	R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC = 542
+ 	R_AARCH64_TLSLE_MOVW_TPREL_G0         = 547

@@ -11,8 +11,76 @@ Date:   Wed Feb 20 13:50:08 2019 -0500
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/tls/common.go   | 8 ++++----
  src/crypto/tls/tls.go      | 9 ++-------
  src/crypto/tls/tls_test.go | 7 -------
  3 files changed, 6 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index d9f2d92512..7bc2e674f9 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -776,7 +776,7 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 		if isClient && v < VersionTLS10 {
+ 			continue
+ 		}
+-		// TLS 1.3 is opt-in in Go 1.12.
++		// TLS 1.3 is opt-out in Go 1.13.
+ 		if v == VersionTLS13 && !isTLS13Supported() {
+ 			continue
+ 		}
+@@ -791,11 +791,11 @@ var tls13Support struct {
+ 	cached bool
+ }
+ 
+-// isTLS13Supported returns whether the program opted into TLS 1.3 via
+-// GODEBUG=tls13=1. It's cached after the first execution.
++// isTLS13Supported returns whether the program enabled TLS 1.3 by not opting
++// out with GODEBUG=tls13=0. It's cached after the first execution.
+ func isTLS13Supported() bool {
+ 	tls13Support.Do(func() {
+-		tls13Support.cached = goDebugString("tls13") == "1"
++		tls13Support.cached = goDebugString("tls13") != "0"
+ 	})
+ 	return tls13Support.cached
+ }
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 578035cf73..35820745ec 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -5,14 +5,9 @@
+ // Package tls partially implements TLS 1.2, as specified in RFC 5246,
+ // and TLS 1.3, as specified in RFC 8446.
+ //
+-// TLS 1.3 is available only on an opt-in basis in Go 1.12. To enable
++// TLS 1.3 is available on an opt-out basis in Go 1.13. To disable
+ // it, set the GODEBUG environment variable (comma-separated key=value
+-// options) such that it includes "tls13=1". To enable it from within
+-// the process, set the environment variable before any use of TLS:
+-//
+-//     func init() {
+-//         os.Setenv("GODEBUG", os.Getenv("GODEBUG")+",tls13=1")
+-//     }
++// options) such that it includes "tls13=0".
+ package tls
+ 
+ // BUG(agl): The crypto/tls package only implements some countermeasures
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 9c26769b09..0a3aeeff73 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -23,13 +23,6 @@ import (
+ 	"time"
+ )
+ 
+-func init() {
+-	// TLS 1.3 is opt-in for Go 1.12, but we want to run most tests with it enabled.
+-	// TestTLS13Switch below tests the disabled behavior. See Issue 30055.
+-	tls13Support.Do(func() {}) // defuse the sync.Once
+-	tls13Support.cached = true
+-}
+-
+ var rsaCertPEM = `-----BEGIN CERTIFICATE-----
+ MIIB0zCCAX2gAwIBAgIJAI/M7BYjwB+uMA0GCSqGSIb3DQEBBQUAMEUxCzAJBgNV
+ BAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX

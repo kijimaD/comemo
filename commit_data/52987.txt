@@ -21,6 +21,55 @@ Date:   Tue Jun 21 07:56:25 2022 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/writer.go | 23 +----------------------
  1 file changed, 1 insertion(+), 22 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index e2d2aba072..e773b8973d 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -179,7 +179,7 @@ type writerDict struct {
+ // A derivedInfo represents a reference to an encoded generic Go type.
+ type derivedInfo struct {
+ 	idx    pkgbits.Index
+-	needed bool
++	needed bool // TODO(mdempsky): Remove; will break x/tools importer
+ }
+ 
+ // A typeInfo represents a reference to an encoded Go type.
+@@ -1362,13 +1362,6 @@ func (w *writer) expr(expr syntax.Expr) {
+ 	targs := inst.TypeArgs
+ 
+ 	if tv, ok := w.p.info.Types[expr]; ok {
+-		// TODO(mdempsky): Be more judicious about which types are marked as "needed".
+-		if inst.Type != nil {
+-			w.needType(inst.Type)
+-		} else {
+-			w.needType(tv.Type)
+-		}
+-
+ 		if tv.IsType() {
+ 			w.p.fatalf(expr, "unexpected type expression %v", syntax.String(expr))
+ 		}
+@@ -1714,20 +1707,6 @@ func (w *writer) op(op ir.Op) {
+ 	w.Len(int(op))
+ }
+ 
+-func (w *writer) needType(typ types2.Type) {
+-	// Decompose tuple into component element types.
+-	if typ, ok := typ.(*types2.Tuple); ok {
+-		for i := 0; i < typ.Len(); i++ {
+-			w.needType(typ.At(i).Type())
+-		}
+-		return
+-	}
+-
+-	if info := w.p.typIdx(typ, w.dict); info.derived {
+-		w.dict.derived[info.idx].needed = true
+-	}
+-}
+-
+ // @@@ Package initialization
+ 
+ // Caution: This code is still clumsy, because toolstash -cmp is

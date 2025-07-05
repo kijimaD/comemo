@@ -11,6 +11,24 @@ Date:   Mon Oct 7 09:12:17 2013 -0700
     R=golang-dev, dave, iant
     CC=golang-dev
     https://golang.org/cl/14454044
-
+---
  src/pkg/os/user/user_test.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/os/user/user_test.go b/src/pkg/os/user/user_test.go
+index 0421894bac..9d9420e809 100644
+--- a/src/pkg/os/user/user_test.go
++++ b/src/pkg/os/user/user_test.go
+@@ -13,12 +13,6 @@ func check(t *testing.T) {
+ 	if !implemented {
+ 		t.Skip("user: not implemented; skipping tests")
+ 	}
+-	switch runtime.GOOS {
+-	case "linux", "freebsd", "darwin", "windows", "plan9":
+-		// test supported
+-	default:
+-		t.Skipf("user: Lookup not implemented on %q; skipping test", runtime.GOOS)
+-	}
+ }
+ 
+ func TestCurrent(t *testing.T) {

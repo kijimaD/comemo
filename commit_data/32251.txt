@@ -17,7 +17,7 @@ Date:   Fri Apr 14 23:20:20 2017 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/vendor/golang_org/x/net/lif/address.go         |  4 +-
  src/vendor/golang_org/x/net/lif/binary.go          | 49 +++++++++++++++++++++-
  src/vendor/golang_org/x/net/lif/link.go            | 12 ++++--
@@ -25,3 +25,182 @@ Date:   Fri Apr 14 23:20:20 2017 +0200
  .../golang_org/x/net/lif/sys_solaris_amd64.s       |  3 --
  src/vendor/golang_org/x/net/lif/syscall.go         |  5 ---
  6 files changed, 79 insertions(+), 15 deletions(-)
+
+diff --git a/src/vendor/golang_org/x/net/lif/address.go b/src/vendor/golang_org/x/net/lif/address.go
+index f9b34aed03..afb957fd8e 100644
+--- a/src/vendor/golang_org/x/net/lif/address.go
++++ b/src/vendor/golang_org/x/net/lif/address.go
+@@ -67,7 +67,7 @@ func Addrs(af int, name string) ([]Addr, error) {
+ 				continue
+ 			}
+ 			sa := (*sockaddrStorage)(unsafe.Pointer(&lifr.Lifru[0]))
+-			l := int(littleEndian.Uint32(lifr.Lifru1[:4]))
++			l := int(nativeEndian.Uint32(lifr.Lifru1[:4]))
+ 			if l == 0 {
+ 				continue
+ 			}
+@@ -77,7 +77,7 @@ func Addrs(af int, name string) ([]Addr, error) {
+ 				copy(a.IP[:], lifr.Lifru[4:8])
+ 				as = append(as, a)
+ 			case sysAF_INET6:
+-				a := &Inet6Addr{PrefixLen: l, ZoneID: int(littleEndian.Uint32(lifr.Lifru[24:28]))}
++				a := &Inet6Addr{PrefixLen: l, ZoneID: int(nativeEndian.Uint32(lifr.Lifru[24:28]))}
+ 				copy(a.IP[:], lifr.Lifru[8:24])
+ 				as = append(as, a)
+ 			}
+diff --git a/src/vendor/golang_org/x/net/lif/binary.go b/src/vendor/golang_org/x/net/lif/binary.go
+index aade9eafa2..738a94f422 100644
+--- a/src/vendor/golang_org/x/net/lif/binary.go
++++ b/src/vendor/golang_org/x/net/lif/binary.go
+@@ -12,7 +12,10 @@ package lif
+ // library. Therefore the package set used in the package must be the
+ // same as net package.
+ 
+-var littleEndian binaryLittleEndian
++var (
++	littleEndian binaryLittleEndian
++	bigEndian    binaryBigEndian
++)
+ 
+ type binaryByteOrder interface {
+ 	Uint16([]byte) uint16
+@@ -66,3 +69,47 @@ func (binaryLittleEndian) PutUint64(b []byte, v uint64) {
+ 	b[6] = byte(v >> 48)
+ 	b[7] = byte(v >> 56)
+ }
++
++type binaryBigEndian struct{}
++
++func (binaryBigEndian) Uint16(b []byte) uint16 {
++	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint16(b[1]) | uint16(b[0])<<8
++}
++
++func (binaryBigEndian) PutUint16(b []byte, v uint16) {
++	_ = b[1] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 8)
++	b[1] = byte(v)
++}
++
++func (binaryBigEndian) Uint32(b []byte) uint32 {
++	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
++}
++
++func (binaryBigEndian) PutUint32(b []byte, v uint32) {
++	_ = b[3] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 24)
++	b[1] = byte(v >> 16)
++	b[2] = byte(v >> 8)
++	b[3] = byte(v)
++}
++
++func (binaryBigEndian) Uint64(b []byte) uint64 {
++	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
++	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++}
++
++func (binaryBigEndian) PutUint64(b []byte, v uint64) {
++	_ = b[7] // early bounds check to guarantee safety of writes below
++	b[0] = byte(v >> 56)
++	b[1] = byte(v >> 48)
++	b[2] = byte(v >> 40)
++	b[3] = byte(v >> 32)
++	b[4] = byte(v >> 24)
++	b[5] = byte(v >> 16)
++	b[6] = byte(v >> 8)
++	b[7] = byte(v)
++}
+diff --git a/src/vendor/golang_org/x/net/lif/link.go b/src/vendor/golang_org/x/net/lif/link.go
+index 76fa6c6875..fce6b2147f 100644
+--- a/src/vendor/golang_org/x/net/lif/link.go
++++ b/src/vendor/golang_org/x/net/lif/link.go
+@@ -31,15 +31,15 @@ func (ll *Link) fetch(s uintptr) {
+ 	}
+ 	ioc := int64(sysSIOCGLIFINDEX)
+ 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
+-		ll.Index = int(littleEndian.Uint32(lifr.Lifru[:4]))
++		ll.Index = int(nativeEndian.Uint32(lifr.Lifru[:4]))
+ 	}
+ 	ioc = int64(sysSIOCGLIFFLAGS)
+ 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
+-		ll.Flags = int(littleEndian.Uint64(lifr.Lifru[:8]))
++		ll.Flags = int(nativeEndian.Uint64(lifr.Lifru[:8]))
+ 	}
+ 	ioc = int64(sysSIOCGLIFMTU)
+ 	if err := ioctl(s, uintptr(ioc), unsafe.Pointer(&lifr)); err == nil {
+-		ll.MTU = int(littleEndian.Uint32(lifr.Lifru[:4]))
++		ll.MTU = int(nativeEndian.Uint32(lifr.Lifru[:4]))
+ 	}
+ 	switch ll.Type {
+ 	case sysIFT_IPV4, sysIFT_IPV6, sysIFT_6TO4:
+@@ -84,7 +84,11 @@ func links(eps []endpoint, name string) ([]Link, error) {
+ 		b := make([]byte, lifn.Count*sizeofLifreq)
+ 		lifc.Family = uint16(ep.af)
+ 		lifc.Len = lifn.Count * sizeofLifreq
+-		littleEndian.PutUint64(lifc.Lifcu[:], uint64(uintptr(unsafe.Pointer(&b[0]))))
++		if len(lifc.Lifcu) == 8 {
++			nativeEndian.PutUint64(lifc.Lifcu[:], uint64(uintptr(unsafe.Pointer(&b[0]))))
++		} else {
++			nativeEndian.PutUint32(lifc.Lifcu[:], uint32(uintptr(unsafe.Pointer(&b[0]))))
++		}
+ 		ioc = int64(sysSIOCGLIFCONF)
+ 		if err := ioctl(ep.s, uintptr(ioc), unsafe.Pointer(&lifc)); err != nil {
+ 			continue
+diff --git a/src/vendor/golang_org/x/net/lif/sys.go b/src/vendor/golang_org/x/net/lif/sys.go
+new file mode 100644
+index 0000000000..c896041b7b
+--- /dev/null
++++ b/src/vendor/golang_org/x/net/lif/sys.go
+@@ -0,0 +1,21 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build solaris
++
++package lif
++
++import "unsafe"
++
++var nativeEndian binaryByteOrder
++
++func init() {
++	i := uint32(1)
++	b := (*[4]byte)(unsafe.Pointer(&i))
++	if b[0] == 1 {
++		nativeEndian = littleEndian
++	} else {
++		nativeEndian = bigEndian
++	}
++}
+diff --git a/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s b/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
+index 1ebca37391..39d76af794 100644
+--- a/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
++++ b/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
+@@ -6,6 +6,3 @@
+ 
+ TEXT ·sysvicall6(SB),NOSPLIT,$0-88
+ 	JMP	syscall·sysvicall6(SB)
+-
+-TEXT ·keepAlive(SB),NOSPLIT,$0
+-	RET
+diff --git a/src/vendor/golang_org/x/net/lif/syscall.go b/src/vendor/golang_org/x/net/lif/syscall.go
+index 5fe073620a..aadab2e14b 100644
+--- a/src/vendor/golang_org/x/net/lif/syscall.go
++++ b/src/vendor/golang_org/x/net/lif/syscall.go
+@@ -19,13 +19,8 @@ var procIoctl uintptr
+ 
+ func sysvicall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (uintptr, uintptr, syscall.Errno)
+ 
+-// TODO: replace with runtime.KeepAlive when available
+-//go:noescape
+-func keepAlive(p unsafe.Pointer)
+-
+ func ioctl(s, ioc uintptr, arg unsafe.Pointer) error {
+ 	_, _, errno := sysvicall6(uintptr(unsafe.Pointer(&procIoctl)), 3, s, ioc, uintptr(arg), 0, 0, 0)
+-	keepAlive(arg)
+ 	if errno != 0 {
+ 		return error(errno)
+ 	}

@@ -9,6 +9,19 @@ Date:   Mon Mar 21 14:18:12 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4291057
-
+---
  src/cmd/goinstall/doc.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/goinstall/doc.go b/src/cmd/goinstall/doc.go
+index 17cc069692..15845b5745 100644
+--- a/src/cmd/goinstall/doc.go
++++ b/src/cmd/goinstall/doc.go
+@@ -14,6 +14,7 @@ Usage:
+ 
+ Flags and default settings:
+         -a=false          install all previously installed packages
++	-clean=false      clean the package directory before installing
+ 	-dashboard=true   tally public packages on godashboard.appspot.com
+ 	-log=true         log installed packages to $GOROOT/goinstall.log for use by -a
+ 	-u=false          update already-downloaded packages

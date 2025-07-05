@@ -19,7 +19,7 @@ Date:   Thu Feb 18 21:19:03 2016 +1030
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/fortran/answer.f90      |  9 +++++
  misc/cgo/fortran/fortran.go      | 12 +++++++
  misc/cgo/fortran/fortran_test.go | 13 ++++++++
@@ -32,3 +32,446 @@ Date:   Thu Feb 18 21:19:03 2016 +1030
  src/make.bash                    |  3 ++
  src/make.bat                     |  3 ++
  11 files changed, 143 insertions(+), 19 deletions(-)
+
+diff --git a/misc/cgo/fortran/answer.f90 b/misc/cgo/fortran/answer.f90
+new file mode 100644
+index 0000000000..6b29d78da1
+--- /dev/null
++++ b/misc/cgo/fortran/answer.f90
+@@ -0,0 +1,9 @@
++! Copyright 2016 The Go Authors.  All rights reserved.
++! Use of this source code is governed by a BSD-style
++! license that can be found in the LICENSE file.
++
++function the_answer() result(j) bind(C)
++  use iso_c_binding, only: c_int
++  integer(c_int) :: j ! output
++  j = 42
++end function the_answer
+diff --git a/misc/cgo/fortran/fortran.go b/misc/cgo/fortran/fortran.go
+new file mode 100644
+index 0000000000..8d008b48c8
+--- /dev/null
++++ b/misc/cgo/fortran/fortran.go
+@@ -0,0 +1,12 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fortran
++
++// int the_answer();
++import "C"
++
++func TheAnswer() int {
++	return int(C.the_answer())
++}
+diff --git a/misc/cgo/fortran/fortran_test.go b/misc/cgo/fortran/fortran_test.go
+new file mode 100644
+index 0000000000..a7ba64850a
+--- /dev/null
++++ b/misc/cgo/fortran/fortran_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2016 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fortran
++
++import "testing"
++
++func TestFortran(t *testing.T) {
++	if a := TheAnswer(); a != 42 {
++		t.Errorf("Unexpected result for The Answer. Got: %d Want: 42", a)
++	}
++}
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 90c2584c7f..58be391573 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -31,9 +31,9 @@ See $GOROOT/misc/cgo/stdio and $GOROOT/misc/cgo/gmp for examples.  See
+ "C? Go? Cgo!" for an introduction to using cgo:
+ https://golang.org/doc/articles/c_go_cgo.html.
+ 
+-CFLAGS, CPPFLAGS, CXXFLAGS and LDFLAGS may be defined with pseudo #cgo
+-directives within these comments to tweak the behavior of the C or C++
+-compiler.  Values defined in multiple directives are concatenated
++CFLAGS, CPPFLAGS, CXXFLAGS, FFLAGS and LDFLAGS may be defined with pseudo
++#cgo directives within these comments to tweak the behavior of the C, C++
++or Fortran compiler.  Values defined in multiple directives are concatenated
+ together.  The directive can include a list of build constraints limiting its
+ effect to systems satisfying one of the constraints
+ (see https://golang.org/pkg/go/build/#hdr-Build_Constraints for details about the constraint syntax).
+@@ -53,7 +53,7 @@ For example:
+ 	// #include <png.h>
+ 	import "C"
+ 
+-When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS and
++When building, the CGO_CFLAGS, CGO_CPPFLAGS, CGO_CXXFLAGS, CGO_FFLAGS and
+ CGO_LDFLAGS environment variables are added to the flags derived from
+ these directives.  Package-specific flags should be set using the
+ directives, not the environment variables, so that builds work in
+@@ -62,10 +62,11 @@ unmodified environments.
+ All the cgo CPPFLAGS and CFLAGS directives in a package are concatenated and
+ used to compile C files in that package.  All the CPPFLAGS and CXXFLAGS
+ directives in a package are concatenated and used to compile C++ files in that
+-package.  All the LDFLAGS directives in any package in the program are
+-concatenated and used at link time.  All the pkg-config directives are
+-concatenated and sent to pkg-config simultaneously to add to each appropriate
+-set of command-line flags.
++package.  All the CPPFLAGS and FFLAGS directives in a package are concatenated
++and used to compile Fortran files in that package.  All the LDFLAGS directives
++in any package in the program are concatenated and used at link time.  All the
++pkg-config directives are concatenated and sent to pkg-config simultaneously
++to add to each appropriate set of command-line flags.
+ 
+ When the cgo directives are parsed, any occurrence of the string ${SRCDIR}
+ will be replaced by the absolute path to the directory containing the source
+@@ -83,7 +84,8 @@ When the Go tool sees that one or more Go files use the special import
+ "C", it will look for other non-Go files in the directory and compile
+ them as part of the Go package.  Any .c, .s, or .S files will be
+ compiled with the C compiler.  Any .cc, .cpp, or .cxx files will be
+-compiled with the C++ compiler.  Any .h, .hh, .hpp, or .hxx files will
++compiled with the C++ compiler.  Any .f, .F, .for or .f90 files will be
++compiled with the fortran compiler. Any .h, .hh, .hpp, or .hxx files will
+ not be compiled separately, but, if these header files are changed,
+ the C and C++ files will be recompiled.  The default C and C++
+ compilers may be changed by the CC and CXX environment variables,
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 36c829d1b9..f23eb6299f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -441,6 +441,20 @@ func (t *tester) registerTests() {
+ 				return nil
+ 			},
+ 		})
++		fortran := os.Getenv("FC")
++		if fortran == "" {
++			fortran, _ = exec.LookPath("gfortran")
++		}
++		if fortran != "" {
++			t.tests = append(t.tests, distTest{
++				name:    "cgo_fortran",
++				heading: "../misc/cgo/fortran",
++				fn: func(dt *distTest) error {
++					t.addCmd(dt, "misc/cgo/fortran", "go", "test")
++					return nil
++				},
++			})
++		}
+ 	}
+ 	if t.cgoEnabled && t.goos != "android" && !t.iOS() {
+ 		// TODO(crawshaw): reenable on android and iOS
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e65aee4a27..89ab1c0dd4 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1348,6 +1348,11 @@ func (b *builder) build(a *action) (err error) {
+ 		return fmt.Errorf("can't build package %s because it contains Objective-C files (%s) but it's not using cgo nor SWIG",
+ 			a.p.ImportPath, strings.Join(a.p.MFiles, ","))
+ 	}
++	// Same as above for Fortran files
++	if len(a.p.FFiles) > 0 && !a.p.usesCgo() && !a.p.usesSwig() {
++		return fmt.Errorf("can't build package %s because it contains Fortran files (%s) but it's not using cgo nor SWIG",
++			a.p.ImportPath, strings.Join(a.p.FFiles, ","))
++	}
+ 	defer func() {
+ 		if err != nil && err != errPrintedOutput {
+ 			err = fmt.Errorf("go build %s: %v", a.p.ImportPath, err)
+@@ -1437,7 +1442,7 @@ func (b *builder) build(a *action) (err error) {
+ 		if a.cgo != nil && a.cgo.target != "" {
+ 			cgoExe = a.cgo.target
+ 		}
+-		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, cxxfiles, a.p.MFiles)
++		outGo, outObj, err := b.cgo(a.p, cgoExe, obj, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, cxxfiles, a.p.MFiles, a.p.FFiles)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -2272,7 +2277,7 @@ func (gcToolchain) gc(b *builder, p *Package, archive, obj string, asmhdr bool,
+ 	// so that it can give good error messages about forward declarations.
+ 	// Exceptions: a few standard packages have forward declarations for
+ 	// pieces supplied behind-the-scenes by package runtime.
+-	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
++	extFiles := len(p.CgoFiles) + len(p.CFiles) + len(p.CXXFiles) + len(p.MFiles) + len(p.FFiles) + len(p.SFiles) + len(p.SysoFiles) + len(p.SwigFiles) + len(p.SwigCXXFiles)
+ 	if p.Standard {
+ 		switch p.ImportPath {
+ 		case "bytes", "net", "os", "runtime/pprof", "sync", "time":
+@@ -2623,6 +2628,7 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions
+ 	usesCgo := false
+ 	cxx := len(root.p.CXXFiles) > 0 || len(root.p.SwigCXXFiles) > 0
+ 	objc := len(root.p.MFiles) > 0
++	fortran := len(root.p.FFiles) > 0
+ 
+ 	actionsSeen := make(map[*action]bool)
+ 	// Make a pre-order depth-first traversal of the action graph, taking note of
+@@ -2697,6 +2703,9 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions
+ 		if len(a.p.MFiles) > 0 {
+ 			objc = true
+ 		}
++		if len(a.p.FFiles) > 0 {
++			fortran = true
++		}
+ 	}
+ 
+ 	ldflags = append(ldflags, "-Wl,--whole-archive")
+@@ -2768,6 +2777,17 @@ func (tools gccgoToolchain) ld(b *builder, root *action, out string, allactions
+ 		if objc {
+ 			ldflags = append(ldflags, "-lobjc")
+ 		}
++		if fortran {
++			fc := os.Getenv("FC")
++			if fc == "" {
++				fc = "gfortran"
++			}
++			// support gfortran out of the box and let others pass the correct link options
++			// via CGO_LDFLAGS
++			if strings.Contains(fc, "gfortran") {
++				ldflags = append(ldflags, "-lgfortran")
++			}
++		}
+ 	}
+ 
+ 	if err := b.run(".", root.p.ImportPath, nil, tools.linker(), "-o", out, ofiles, ldflags, buildGccgoflags); err != nil {
+@@ -2862,6 +2882,11 @@ func (b *builder) gxx(p *Package, out string, flags []string, cxxfile string) er
+ 	return b.ccompile(p, out, flags, cxxfile, b.gxxCmd(p.Dir))
+ }
+ 
++// gfortran runs the gfortran Fortran compiler to create an object from a single Fortran file.
++func (b *builder) gfortran(p *Package, out string, flags []string, ffile string) error {
++	return b.ccompile(p, out, flags, ffile, b.gfortranCmd(p.Dir))
++}
++
+ // ccompile runs the given C or C++ compiler and creates an object from a single source file.
+ func (b *builder) ccompile(p *Package, out string, flags []string, file string, compiler []string) error {
+ 	file = mkAbs(p.Dir, file)
+@@ -2891,6 +2916,11 @@ func (b *builder) gxxCmd(objdir string) []string {
+ 	return b.ccompilerCmd("CXX", defaultCXX, objdir)
+ }
+ 
++// gfortranCmd returns a gfortran command line prefix.
++func (b *builder) gfortranCmd(objdir string) []string {
++	return b.ccompilerCmd("FC", "gfortran", objdir)
++}
++
+ // ccompilerCmd returns a command line prefix for the given environment
+ // variable and using the default command when the variable is empty.
+ func (b *builder) ccompilerCmd(envvar, defcmd, objdir string) []string {
+@@ -3009,8 +3039,8 @@ func envList(key, def string) []string {
+ 	return strings.Fields(v)
+ }
+ 
+-// Return the flags to use when invoking the C or C++ compilers, or cgo.
+-func (b *builder) cflags(p *Package, def bool) (cppflags, cflags, cxxflags, ldflags []string) {
++// Return the flags to use when invoking the C, C++ or Fortran compilers, or cgo.
++func (b *builder) cflags(p *Package, def bool) (cppflags, cflags, cxxflags, fflags, ldflags []string) {
+ 	var defaults string
+ 	if def {
+ 		defaults = "-g -O2"
+@@ -3019,15 +3049,16 @@ func (b *builder) cflags(p *Package, def bool) (cppflags, cflags, cxxflags, ldfl
+ 	cppflags = stringList(envList("CGO_CPPFLAGS", ""), p.CgoCPPFLAGS)
+ 	cflags = stringList(envList("CGO_CFLAGS", defaults), p.CgoCFLAGS)
+ 	cxxflags = stringList(envList("CGO_CXXFLAGS", defaults), p.CgoCXXFLAGS)
++	fflags = stringList(envList("CGO_FFLAGS", defaults), p.CgoFFLAGS)
+ 	ldflags = stringList(envList("CGO_LDFLAGS", defaults), p.CgoLDFLAGS)
+ 	return
+ }
+ 
+ var cgoRe = regexp.MustCompile(`[/\\:]`)
+ 
+-func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles []string) (outGo, outObj []string, err error) {
+-	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoLDFLAGS := b.cflags(p, true)
+-	_, cgoexeCFLAGS, _, _ := b.cflags(p, false)
++func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofiles, gccfiles, gxxfiles, mfiles, ffiles []string) (outGo, outObj []string, err error) {
++	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, cgoFFLAGS, cgoLDFLAGS := b.cflags(p, true)
++	_, cgoexeCFLAGS, _, _, _ := b.cflags(p, false)
+ 	cgoCPPFLAGS = append(cgoCPPFLAGS, pcCFLAGS...)
+ 	cgoLDFLAGS = append(cgoLDFLAGS, pcLDFLAGS...)
+ 	// If we are compiling Objective-C code, then we need to link against libobjc
+@@ -3035,6 +3066,19 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		cgoLDFLAGS = append(cgoLDFLAGS, "-lobjc")
+ 	}
+ 
++	// Likewise for Fortran, except there are many Fortran compilers.
++	// Support gfortran out of the box and let others pass the correct link options
++	// via CGO_LDFLAGS
++	if len(ffiles) > 0 {
++		fc := os.Getenv("FC")
++		if fc == "" {
++			fc = "gfortran"
++		}
++		if strings.Contains(fc, "gfortran") {
++			cgoLDFLAGS = append(cgoLDFLAGS, "-lgfortran")
++		}
++	}
++
+ 	if buildMSan && p.ImportPath != "runtime/cgo" {
+ 		cgoCFLAGS = append([]string{"-fsanitize=memory"}, cgoCFLAGS...)
+ 		cgoLDFLAGS = append([]string{"-fsanitize=memory"}, cgoLDFLAGS...)
+@@ -3202,6 +3246,17 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, pcCFLAGS, pcLDFLAGS, cgofi
+ 		outObj = append(outObj, ofile)
+ 	}
+ 
++	fflags := stringList(cgoCPPFLAGS, cgoFFLAGS)
++	for _, file := range ffiles {
++		// Append .o to the file, just in case the pkg has file.c and file.f
++		ofile := obj + cgoRe.ReplaceAllString(file, "_") + ".o"
++		if err := b.gfortran(p, ofile, fflags, file); err != nil {
++			return nil, nil, err
++		}
++		linkobj = append(linkobj, ofile)
++		outObj = append(outObj, ofile)
++	}
++
+ 	linkobj = append(linkobj, p.SysoFiles...)
+ 	dynobj := obj + "_cgo_.o"
+ 	pie := (goarch == "arm" && goos == "linux") || goos == "android"
+@@ -3395,7 +3450,7 @@ func (b *builder) swigIntSize(obj string) (intsize string, err error) {
+ 
+ // Run SWIG on one SWIG input file.
+ func (b *builder) swigOne(p *Package, file, obj string, pcCFLAGS []string, cxx bool, intgosize string) (outGo, outC string, err error) {
+-	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _ := b.cflags(p, true)
++	cgoCPPFLAGS, cgoCFLAGS, cgoCXXFLAGS, _, _ := b.cflags(p, true)
+ 	var cflags []string
+ 	if cxx {
+ 		cflags = stringList(cgoCPPFLAGS, pcCFLAGS, cgoCXXFLAGS)
+diff --git a/src/cmd/go/list.go b/src/cmd/go/list.go
+index 8f741a636b..d2f1265985 100644
+--- a/src/cmd/go/list.go
++++ b/src/cmd/go/list.go
+@@ -51,6 +51,7 @@ syntax of package template.  The default output is equivalent to -f
+         CXXFiles       []string // .cc, .cxx and .cpp source files
+         MFiles         []string // .m source files
+         HFiles         []string // .h, .hh, .hpp and .hxx source files
++        FFiles         []string // .f, .F, .for and .f90 Fortran source files
+         SFiles         []string // .s source files
+         SwigFiles      []string // .swig files
+         SwigCXXFiles   []string // .swigcxx files
+@@ -60,6 +61,7 @@ syntax of package template.  The default output is equivalent to -f
+         CgoCFLAGS    []string // cgo: flags for C compiler
+         CgoCPPFLAGS  []string // cgo: flags for C preprocessor
+         CgoCXXFLAGS  []string // cgo: flags for C++ compiler
++        CgoFFLAGS    []string // cgo: flags for Fortran compiler
+         CgoLDFLAGS   []string // cgo: flags for linker
+         CgoPkgConfig []string // cgo: pkg-config names
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 6b5ead2b8c..f9988bf2d7 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -50,6 +50,7 @@ type Package struct {
+ 	CXXFiles       []string `json:",omitempty"` // .cc, .cpp and .cxx source files
+ 	MFiles         []string `json:",omitempty"` // .m source files
+ 	HFiles         []string `json:",omitempty"` // .h, .hh, .hpp and .hxx source files
++	FFiles         []string `json:",omitempty"` // .f, .F, .for and .f90 Fortran source files
+ 	SFiles         []string `json:",omitempty"` // .s source files
+ 	SwigFiles      []string `json:",omitempty"` // .swig files
+ 	SwigCXXFiles   []string `json:",omitempty"` // .swigcxx files
+@@ -59,6 +60,7 @@ type Package struct {
+ 	CgoCFLAGS    []string `json:",omitempty"` // cgo: flags for C compiler
+ 	CgoCPPFLAGS  []string `json:",omitempty"` // cgo: flags for C preprocessor
+ 	CgoCXXFLAGS  []string `json:",omitempty"` // cgo: flags for C++ compiler
++	CgoFFLAGS    []string `json:",omitempty"` // cgo: flags for Fortran compiler
+ 	CgoLDFLAGS   []string `json:",omitempty"` // cgo: flags for linker
+ 	CgoPkgConfig []string `json:",omitempty"` // cgo: pkg-config names
+ 
+@@ -161,6 +163,7 @@ func (p *Package) copyBuild(pp *build.Package) {
+ 	p.CXXFiles = pp.CXXFiles
+ 	p.MFiles = pp.MFiles
+ 	p.HFiles = pp.HFiles
++	p.FFiles = pp.FFiles
+ 	p.SFiles = pp.SFiles
+ 	p.SwigFiles = pp.SwigFiles
+ 	p.SwigCXXFiles = pp.SwigCXXFiles
+@@ -909,6 +912,7 @@ func (p *Package) load(stk *importStack, bp *build.Package, err error) *Package
+ 		p.CXXFiles,
+ 		p.MFiles,
+ 		p.HFiles,
++		p.FFiles,
+ 		p.SFiles,
+ 		p.SysoFiles,
+ 		p.SwigFiles,
+@@ -1495,7 +1499,7 @@ func isStale(p *Package) bool {
+ 	// to test for write access, and then skip GOPATH roots we don't have write
+ 	// access to. But hopefully we can just use the mtimes always.
+ 
+-	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
++	srcs := stringList(p.GoFiles, p.CFiles, p.CXXFiles, p.MFiles, p.HFiles, p.FFiles, p.SFiles, p.CgoFiles, p.SysoFiles, p.SwigFiles, p.SwigCXXFiles)
+ 	for _, src := range srcs {
+ 		if olderThan(filepath.Join(p.Dir, src)) {
+ 			return true
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index e524925d0d..0835c1e3c0 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -358,6 +358,7 @@ type Package struct {
+ 	CXXFiles       []string // .cc, .cpp and .cxx source files
+ 	MFiles         []string // .m (Objective-C) source files
+ 	HFiles         []string // .h, .hh, .hpp and .hxx source files
++	FFiles         []string // .f, .F, .for and .f90 Fortran source files
+ 	SFiles         []string // .s source files
+ 	SwigFiles      []string // .swig files
+ 	SwigCXXFiles   []string // .swigcxx files
+@@ -367,6 +368,7 @@ type Package struct {
+ 	CgoCFLAGS    []string // Cgo CFLAGS directives
+ 	CgoCPPFLAGS  []string // Cgo CPPFLAGS directives
+ 	CgoCXXFLAGS  []string // Cgo CXXFLAGS directives
++	CgoFFLAGS    []string // Cgo FFLAGS directives
+ 	CgoLDFLAGS   []string // Cgo LDFLAGS directives
+ 	CgoPkgConfig []string // Cgo pkg-config directives
+ 
+@@ -703,6 +705,9 @@ Found:
+ 		case ".h", ".hh", ".hpp", ".hxx":
+ 			p.HFiles = append(p.HFiles, name)
+ 			continue
++		case ".f", ".F", ".for", ".f90":
++			p.FFiles = append(p.FFiles, name)
++			continue
+ 		case ".s":
+ 			p.SFiles = append(p.SFiles, name)
+ 			continue
+@@ -1017,7 +1022,7 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
+ 	}
+ 
+ 	switch ext {
+-	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".S", ".swig", ".swigcxx":
++	case ".go", ".c", ".cc", ".cxx", ".cpp", ".m", ".s", ".h", ".hh", ".hpp", ".hxx", ".f", ".F", ".f90", ".S", ".swig", ".swigcxx":
+ 		// tentatively okay - read to make sure
+ 	case ".syso":
+ 		// binary, no reading
+@@ -1208,6 +1213,8 @@ func (ctxt *Context) saveCgo(filename string, di *Package, cg *ast.CommentGroup)
+ 			di.CgoCPPFLAGS = append(di.CgoCPPFLAGS, args...)
+ 		case "CXXFLAGS":
+ 			di.CgoCXXFLAGS = append(di.CgoCXXFLAGS, args...)
++		case "FFLAGS":
++			di.CgoFFLAGS = append(di.CgoFFLAGS, args...)
+ 		case "LDFLAGS":
+ 			di.CgoLDFLAGS = append(di.CgoLDFLAGS, args...)
+ 		case "pkg-config":
+diff --git a/src/make.bash b/src/make.bash
+index 2531ca4bb3..21cc29730d 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -44,6 +44,9 @@
+ # This is used by cgo. Default is CXX, or, if that is not set, 
+ # "g++" or "clang++".
+ #
++# FC: Command line to run to compile Fortran code for GOARCH.
++# This is used by cgo. Default is "gfortran".
++#
+ # GO_DISTFLAGS: extra flags to provide to "dist bootstrap".
+ 
+ set -e
+diff --git a/src/make.bat b/src/make.bat
+index 0efdcc576c..a64777ee91 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -31,6 +31,9 @@
+ ::
+ :: CC_FOR_TARGET: Command line to run compile C code for GOARCH.
+ :: This is used by cgo. Default is CC.
++::
++:: FC: Command line to run to compile Fortran code.
++:: This is used by cgo. Default is "gfortran".
+ 
+ @echo off
+ 

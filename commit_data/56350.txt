@@ -19,6 +19,24 @@ Date:   Mon May 1 12:47:15 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/lib.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 5b6575b3fb..03b13da37a 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1905,7 +1905,11 @@ func (ctxt *Link) hostlink() {
+ 		stripCmd := strings.TrimSuffix(string(out), "\n")
+ 
+ 		dsym := filepath.Join(*flagTmpdir, "go.dwarf")
+-		if out, err := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym).CombinedOutput(); err != nil {
++		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
++		// dsymutil may not clean up its temp directory at exit.
++		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
++		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
++		if out, err := cmd.CombinedOutput(); err != nil {
+ 			Exitf("%s: running dsymutil failed: %v\n%s", os.Args[0], err, out)
+ 		}
+ 		// Remove STAB (symbolic debugging) symbols after we are done with them (by dsymutil).

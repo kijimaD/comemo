@@ -13,8 +13,94 @@ Date:   Thu Jul 23 14:17:07 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/12580
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/closure.go | 15 +++++++++------
  src/cmd/compile/internal/gc/walk.go    |  4 ++--
  test/fixedbugs/issue11750.go           | 20 ++++++++++++++++++++
  3 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 65f77d9079..a0dfa0bb0f 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -301,17 +301,18 @@ func transformclosure(xfunc *Node) {
+ 		//	func(a int, byval int, &byref *int) {
+ 		//		println(byval)
+ 		//		(*&byref)++
+-		//	}(42, byval, &byref)
++		//	}(byval, &byref, 42)
+ 
+ 		// f is ONAME of the actual function.
+ 		f := xfunc.Func.Nname
+ 
+-		// Get pointer to input arguments and rewind to the end.
+-		// We are going to append captured variables to input args.
++		// Get pointer to input arguments.
++		// We are going to insert captured variables before input args.
+ 		param := &getinargx(f.Type).Type
++		original_args := *param // old input args
++		original_dcl := xfunc.Func.Dcl
++		xfunc.Func.Dcl = nil
+ 
+-		for ; *param != nil; param = &(*param).Down {
+-		}
+ 		var v *Node
+ 		var addr *Node
+ 		var fld *Type
+@@ -343,12 +344,14 @@ func transformclosure(xfunc *Node) {
+ 			fld.Type = fld.Nname.Type
+ 			fld.Sym = fld.Nname.Sym
+ 
+-			// Declare the new param and append it to input arguments.
++			// Declare the new param and add it the first part of the input arguments.
+ 			xfunc.Func.Dcl = list(xfunc.Func.Dcl, fld.Nname)
+ 
+ 			*param = fld
+ 			param = &fld.Down
+ 		}
++		*param = original_args
++		xfunc.Func.Dcl = concat(xfunc.Func.Dcl, original_dcl)
+ 
+ 		// Recalculate param offsets.
+ 		if f.Type.Width > 0 {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index d89d25efdd..91c0a47b2a 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -609,8 +609,8 @@ func walkexpr(np **Node, init **NodeList) {
+ 			// Transform direct call of a closure to call of a normal function.
+ 			// transformclosure already did all preparation work.
+ 
+-			// Append captured variables to argument list.
+-			n.List = concat(n.List, n.Left.Func.Enter)
++			// Prepend captured variables to argument list.
++			n.List = concat(n.Left.Func.Enter, n.List)
+ 
+ 			n.Left.Func.Enter = nil
+ 
+diff --git a/test/fixedbugs/issue11750.go b/test/fixedbugs/issue11750.go
+new file mode 100644
+index 0000000000..5e6fe607fa
+--- /dev/null
++++ b/test/fixedbugs/issue11750.go
+@@ -0,0 +1,20 @@
++// compile
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 11750: mkdotargslice: typecheck failed
++
++package main
++
++func main() {
++	fn := func(names string) {
++
++	}
++	func(names ...string) {
++		for _, name := range names {
++			fn(name)
++		}
++	}("one", "two")
++}

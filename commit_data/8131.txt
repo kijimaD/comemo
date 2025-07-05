@@ -10,7 +10,101 @@ Date:   Fri Apr 15 19:17:16 2011 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/4439045
-
+---
  src/cmd/gc/cplx.c        | 19 +++---------------
  test/fixedbugs/bug329.go | 50 ------------------------------------------------
  2 files changed, 3 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/gc/cplx.c b/src/cmd/gc/cplx.c
+index 6eb220db9f..3ec9fe5a2c 100644
+--- a/src/cmd/gc/cplx.c
++++ b/src/cmd/gc/cplx.c
+@@ -21,7 +21,7 @@ void
+ complexmove(Node *f, Node *t)
+ {
+ 	int ft, tt;
+-	Node n1, n2, n3, n4, t3, t4;
++	Node n1, n2, n3, n4;
+ 
+ 	if(debug['g']) {
+ 		dump("\ncomplexmove-f", f);
+@@ -54,21 +54,8 @@ complexmove(Node *f, Node *t)
+ 		subnode(&n1, &n2, f);
+ 		subnode(&n3, &n4, t);
+ 
+-		// Copy fully into registers before doing stores,
+-		// in case the source and destination overlap.
+-		// Might be picking up a complex128 from one
+-		// location on the stack and writing it 8 bytes
+-		// (half a complex128) later, in which case the
+-		// first write would smash the source for the second read.
+-		regalloc(&t3, types[tt+TFLOAT64-TCOMPLEX128], N);
+-		regalloc(&t4, types[tt+TFLOAT64-TCOMPLEX128], N);
+-		cgen(&n1, &t3);
+-		cgen(&n2, &t4);
+-
+-		cgen(&t3, &n3);
+-		cgen(&t4, &n4);
+-		regfree(&t3);
+-		regfree(&t4);
++		cgen(&n1, &n3);
++		cgen(&n2, &n4);
+ 		break;
+ 	}
+ }
+diff --git a/test/fixedbugs/bug329.go b/test/fixedbugs/bug329.go
+deleted file mode 100644
+index ea379c34e5..0000000000
+--- a/test/fixedbugs/bug329.go
++++ /dev/null
+@@ -1,50 +0,0 @@
+-// $G $D/$F.go && $L $F.$A && ./$A.out
+-
+-// Copyright 2011 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test that when moving a complex128 returned by one function
+-// into the argument position for another function, the right thing
+-// happens, even when the two positions half-overlap.
+-
+-package main
+-
+-type Value struct {
+-	X interface{}
+-	Y int
+-}
+-
+-type Struct struct {
+-	X complex128
+-}
+-
+-const magic = 1+2i
+-
+-func (Value) Complex(x complex128) {
+-	if x != magic {
+-		println(x)
+-		panic("bad complex magic")
+-	}
+-}
+-
+-func f(x *byte, y, z int) complex128 {
+-	return magic
+-}
+-
+-func (Value) Struct(x Struct) {
+-	if x.X != magic {
+-		println(x.X)
+-		panic("bad struct magic")
+-	}
+-}
+-
+-func f1(x *byte, y, z int) Struct {
+-	return Struct{magic}
+-}
+-
+-func main() {
+-	var v Value
+-	v.Struct(f1(nil, 0, 0))  // ok
+-	v.Complex(f(nil, 0, 0))  // used to fail
+-}

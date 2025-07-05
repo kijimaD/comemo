@@ -18,7 +18,202 @@ Date:   Thu Jan 17 16:53:41 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/exec_linux.go      | 98 ++++++++++++++++++++++++++++++++++--------
  src/syscall/exec_linux_test.go | 43 ++++++++++++++++++
  2 files changed, 122 insertions(+), 19 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index ec8f296bca..3493f4b32b 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -82,10 +82,13 @@ func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr
+ 
+ 	if sys.UidMappings != nil || sys.GidMappings != nil {
+ 		Close(p[0])
+-		err := writeUidGidMappings(pid, sys)
+ 		var err2 Errno
+-		if err != nil {
+-			err2 = err.(Errno)
++		// uid/gid mappings will be written after fork and unshare(2) for user
++		// namespaces.
++		if sys.Unshareflags&CLONE_NEWUSER == 0 {
++			if err := writeUidGidMappings(pid, sys); err != nil {
++				err2 = err.(Errno)
++			}
+ 		}
+ 		RawSyscall(SYS_WRITE, uintptr(p[1]), uintptr(unsafe.Pointer(&err2)), unsafe.Sizeof(err2))
+ 		Close(p[1])
+@@ -142,12 +145,32 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 	// Declare all variables at top in case any
+ 	// declarations require heap allocation (e.g., err1).
+ 	var (
+-		err2   Errno
+-		nextfd int
+-		i      int
+-		caps   caps
++		err2                      Errno
++		nextfd                    int
++		i                         int
++		caps                      caps
++		fd1                       uintptr
++		puid, psetgroups, pgid    []byte
++		uidmap, setgroups, gidmap []byte
+ 	)
+ 
++	if sys.UidMappings != nil {
++		puid = []byte("/proc/self/uid_map\000")
++		uidmap = formatIDMappings(sys.UidMappings)
++	}
++
++	if sys.GidMappings != nil {
++		psetgroups = []byte("/proc/self/setgroups\000")
++		pgid = []byte("/proc/self/gid_map\000")
++
++		if sys.GidMappingsEnableSetgroups {
++			setgroups = []byte("allow\000")
++		} else {
++			setgroups = []byte("deny\000")
++		}
++		gidmap = formatIDMappings(sys.GidMappings)
++	}
++
+ 	// Record parent PID so child can test if it has died.
+ 	ppid, _ := rawSyscallNoError(SYS_GETPID, 0, 0, 0)
+ 
+@@ -264,6 +287,46 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		if err1 != 0 {
+ 			goto childerror
+ 		}
++
++		if sys.Unshareflags&CLONE_NEWUSER != 0 && sys.GidMappings != nil {
++			dirfd := int(_AT_FDCWD)
++			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&psetgroups[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
++				goto childerror
++			}
++			r1, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&setgroups[0])), uintptr(len(setgroups)))
++			if err1 != 0 {
++				goto childerror
++			}
++			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++				goto childerror
++			}
++
++			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&pgid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
++				goto childerror
++			}
++			r1, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&gidmap[0])), uintptr(len(gidmap)))
++			if err1 != 0 {
++				goto childerror
++			}
++			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++				goto childerror
++			}
++		}
++
++		if sys.Unshareflags&CLONE_NEWUSER != 0 && sys.UidMappings != nil {
++			dirfd := int(_AT_FDCWD)
++			if fd1, _, err1 = RawSyscall6(SYS_OPENAT, uintptr(dirfd), uintptr(unsafe.Pointer(&puid[0])), uintptr(O_WRONLY), 0, 0, 0); err1 != 0 {
++				goto childerror
++			}
++			r1, _, err1 = RawSyscall(SYS_WRITE, uintptr(fd1), uintptr(unsafe.Pointer(&uidmap[0])), uintptr(len(uidmap)))
++			if err1 != 0 {
++				goto childerror
++			}
++			if _, _, err1 = RawSyscall(SYS_CLOSE, uintptr(fd1), 0, 0); err1 != 0 {
++				goto childerror
++			}
++		}
++
+ 		// The unshare system call in Linux doesn't unshare mount points
+ 		// mounted with --shared. Systemd mounts / with --shared. For a
+ 		// long discussion of the pros and cons of this see debian bug 739593.
+@@ -480,25 +543,22 @@ func forkExecPipe(p []int) (err error) {
+ 	return
+ }
+ 
+-// writeIDMappings writes the user namespace User ID or Group ID mappings to the specified path.
+-func writeIDMappings(path string, idMap []SysProcIDMap) error {
+-	fd, err := Open(path, O_RDWR, 0)
+-	if err != nil {
+-		return err
+-	}
+-
+-	data := ""
++func formatIDMappings(idMap []SysProcIDMap) []byte {
++	var data []byte
+ 	for _, im := range idMap {
+-		data = data + itoa(im.ContainerID) + " " + itoa(im.HostID) + " " + itoa(im.Size) + "\n"
++		data = append(data, []byte(itoa(im.ContainerID)+" "+itoa(im.HostID)+" "+itoa(im.Size)+"\n")...)
+ 	}
++	return data
++}
+ 
+-	bytes, err := ByteSliceFromString(data)
++// writeIDMappings writes the user namespace User ID or Group ID mappings to the specified path.
++func writeIDMappings(path string, idMap []SysProcIDMap) error {
++	fd, err := Open(path, O_RDWR, 0)
+ 	if err != nil {
+-		Close(fd)
+ 		return err
+ 	}
+ 
+-	if _, err := Write(fd, bytes); err != nil {
++	if _, err := Write(fd, formatIDMappings(idMap)); err != nil {
+ 		Close(fd)
+ 		return err
+ 	}
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 826487b676..09ced3b0e0 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -434,6 +434,49 @@ func TestUnshareMountNameSpaceChroot(t *testing.T) {
+ 	}
+ }
+ 
++func TestUnshareUidGidMappingHelper(*testing.T) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		return
++	}
++	defer os.Exit(0)
++	if err := syscall.Chroot(os.TempDir()); err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(2)
++	}
++}
++
++// Test for Issue 29789: unshare fails when uid/gid mapping is specified
++func TestUnshareUidGidMapping(t *testing.T) {
++	if os.Getuid() == 0 {
++		t.Skip("test exercises unprivileged user namespace, fails with privileges")
++	}
++	checkUserNS(t)
++	cmd := exec.Command(os.Args[0], "-test.run=TestUnshareUidGidMappingHelper")
++	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		Unshareflags:               syscall.CLONE_NEWNS | syscall.CLONE_NEWUSER,
++		GidMappingsEnableSetgroups: false,
++		UidMappings: []syscall.SysProcIDMap{
++			{
++				ContainerID: 0,
++				HostID:      syscall.Getuid(),
++				Size:        1,
++			},
++		},
++		GidMappings: []syscall.SysProcIDMap{
++			{
++				ContainerID: 0,
++				HostID:      syscall.Getgid(),
++				Size:        1,
++			},
++		},
++	}
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("Cmd failed with err %v, output: %s", err, out)
++	}
++}
++
+ type capHeader struct {
+ 	version uint32
+ 	pid     int32

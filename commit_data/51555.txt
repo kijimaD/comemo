@@ -21,6 +21,29 @@ Date:   Fri Feb 11 11:32:11 2022 -0500
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/crash_cgo_test.go | 10 ++++------
  1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 8c250f72d6..c9c9406a15 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -626,13 +626,11 @@ func TestSegv(t *testing.T) {
+ 					// a VDSO call via asmcgocall.
+ 					testenv.SkipFlaky(t, 50504)
+ 				}
+-				if testenv.Builder() == "linux-mips64le-mengzhuo" && strings.Contains(got, "runtime: unknown pc") {
+-					// Runtime sometimes throw "unknown pc" when generating the traceback.
+-					// Curiously, that doesn't seem to happen on the linux-mips64le-rtrk
+-					// builder.
+-					testenv.SkipFlaky(t, 50605)
+-				}
+ 			}
++			if test == "SegvInCgo" && strings.Contains(got, "runtime: unknown pc") {
++				testenv.SkipFlaky(t, 50979)
++			}
++
+ 			nowant := "runtime: "
+ 			if strings.Contains(got, nowant) {
+ 				t.Errorf("unexpectedly saw %q in output", nowant)

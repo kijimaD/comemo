@@ -13,7 +13,7 @@ Date:   Mon Mar 19 09:16:25 2018 +0300
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/conf.go           |  2 +-
  src/net/dnsclient_unix.go |  4 ++--
  src/net/lookup.go         |  3 +++
@@ -21,3 +21,156 @@ Date:   Mon Mar 19 09:16:25 2018 +0300
  src/net/lookup_unix.go    | 12 ++++++------
  src/net/lookup_windows.go |  2 +-
  6 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 2c21331a00..d4bd56cc58 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -126,7 +126,7 @@ func (c *conf) hostLookupOrder(r *Resolver, hostname string) (ret hostLookupOrde
+ 		}()
+ 	}
+ 	fallbackOrder := hostLookupCgo
+-	if c.netGo || (r != nil && r.PreferGo) {
++	if c.netGo || r.preferGo() {
+ 		fallbackOrder = hostLookupFilesDNS
+ 	}
+ 	if c.forceCgoLookupHost || c.resolv.unknownOpt || c.goos == "android" {
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 7ca5d6027b..835957a37c 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -377,7 +377,7 @@ func (r *Resolver) lookup(ctx context.Context, name string, qtype dnsmessage.Typ
+ 		if err == nil {
+ 			break
+ 		}
+-		if nerr, ok := err.(Error); ok && nerr.Temporary() && r.StrictErrors {
++		if nerr, ok := err.(Error); ok && nerr.Temporary() && r.strictErrors() {
+ 			// If we hit a temporary error with StrictErrors enabled,
+ 			// stop immediately instead of trying more names.
+ 			break
+@@ -565,7 +565,7 @@ func (r *Resolver) goLookupIPCNAMEOrder(ctx context.Context, name string, order
+ 		for range qtypes {
+ 			racer := <-lane
+ 			if racer.error != nil {
+-				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.StrictErrors {
++				if nerr, ok := racer.error.(Error); ok && nerr.Temporary() && r.strictErrors() {
+ 					// This error will abort the nameList loop.
+ 					hitStrictError = true
+ 					lastErr = racer.error
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index dffbc016b2..000f4a31ae 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -137,6 +137,9 @@ type Resolver struct {
+ 	// TODO(bradfitz): Timeout time.Duration?
+ }
+ 
++func (r *Resolver) preferGo() bool     { return r != nil && r.PreferGo }
++func (r *Resolver) strictErrors() bool { return r != nil && r.StrictErrors }
++
+ // LookupHost looks up the given host using the local resolver.
+ // It returns a slice of that host's addresses.
+ func LookupHost(host string) (addrs []string, err error) {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index 481c6d40ae..ca1d804d50 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -814,3 +814,27 @@ func TestLookupContextCancel(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ }
++
++// Issue 24330: treat the nil *Resolver like a zero value. Verify nothing
++// crashes if nil is used.
++func TestNilResolverLookup(t *testing.T) {
++	if testenv.Builder() == "" {
++		testenv.MustHaveExternalNetwork(t)
++	}
++	if runtime.GOOS == "nacl" {
++		t.Skip("skip on nacl")
++	}
++	var r *Resolver = nil
++	ctx := context.Background()
++
++	// Don't care about the results, just that nothing panics:
++	r.LookupAddr(ctx, "8.8.8.8")
++	r.LookupCNAME(ctx, "google.com")
++	r.LookupHost(ctx, "google.com")
++	r.LookupIPAddr(ctx, "google.com")
++	r.LookupMX(ctx, "gmail.com")
++	r.LookupNS(ctx, "google.com")
++	r.LookupPort(ctx, "tcp", "smtp")
++	r.LookupSRV(ctx, "service", "proto", "name")
++	r.LookupTXT(ctx, "gmail.com")
++}
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index 8e77b8c705..0cf4c99e0c 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -61,7 +61,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
+ 	// addresses, which Dial will use without a DNS lookup.
+ 	var c Conn
+ 	var err error
+-	if r.Dial != nil {
++	if r != nil && r.Dial != nil {
+ 		c, err = r.Dial(ctx, network, server)
+ 	} else {
+ 		var d Dialer
+@@ -75,7 +75,7 @@ func (r *Resolver) dial(ctx context.Context, network, server string) (Conn, erro
+ 
+ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string, err error) {
+ 	order := systemConf().hostLookupOrder(r, host)
+-	if !r.PreferGo && order == hostLookupCgo {
++	if !r.preferGo() && order == hostLookupCgo {
+ 		if addrs, err, ok := cgoLookupHost(ctx, host); ok {
+ 			return addrs, err
+ 		}
+@@ -86,7 +86,7 @@ func (r *Resolver) lookupHost(ctx context.Context, host string) (addrs []string,
+ }
+ 
+ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, err error) {
+-	if r.PreferGo {
++	if r.preferGo() {
+ 		return r.goLookupIP(ctx, host)
+ 	}
+ 	order := systemConf().hostLookupOrder(r, host)
+@@ -102,7 +102,7 @@ func (r *Resolver) lookupIP(ctx context.Context, host string) (addrs []IPAddr, e
+ }
+ 
+ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+-	if !r.PreferGo && systemConf().canUseCgo() {
++	if !r.preferGo() && systemConf().canUseCgo() {
+ 		if port, err, ok := cgoLookupPort(ctx, network, service); ok {
+ 			if err != nil {
+ 				// Issue 18213: if cgo fails, first check to see whether we
+@@ -118,7 +118,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int
+ }
+ 
+ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (string, error) {
+-	if !r.PreferGo && systemConf().canUseCgo() {
++	if !r.preferGo() && systemConf().canUseCgo() {
+ 		if cname, err, ok := cgoLookupCNAME(ctx, name); ok {
+ 			return cname, err
+ 		}
+@@ -308,7 +308,7 @@ func (r *Resolver) lookupTXT(ctx context.Context, name string) ([]string, error)
+ }
+ 
+ func (r *Resolver) lookupAddr(ctx context.Context, addr string) ([]string, error) {
+-	if !r.PreferGo && systemConf().canUseCgo() {
++	if !r.preferGo() && systemConf().canUseCgo() {
+ 		if ptrs, err, ok := cgoLookupPTR(ctx, addr); ok {
+ 			return ptrs, err
+ 		}
+diff --git a/src/net/lookup_windows.go b/src/net/lookup_windows.go
+index ac1f9b431a..2e6f40d048 100644
+--- a/src/net/lookup_windows.go
++++ b/src/net/lookup_windows.go
+@@ -136,7 +136,7 @@ func (r *Resolver) lookupIP(ctx context.Context, name string) ([]IPAddr, error)
+ }
+ 
+ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (int, error) {
+-	if r.PreferGo {
++	if r.preferGo() {
+ 		return lookupPortMap(network, service)
+ 	}
+ 

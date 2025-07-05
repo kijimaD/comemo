@@ -14,6 +14,20 @@ Date:   Fri Jun 16 15:58:03 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/internal/moddeps/moddeps_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index af3f99b801..ae890b66cb 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -504,7 +504,7 @@ func findGorootModules(t *testing.T) []gorootModule {
+ 		knownGOROOTModules := [...]string{
+ 			"std",
+ 			"cmd",
+-			"misc",
++			// The "misc" module sometimes exists, but cmd/distpack intentionally removes it.
+ 		}
+ 		var seen = make(map[string]bool) // Key is module path.
+ 		for _, m := range goroot.modules {

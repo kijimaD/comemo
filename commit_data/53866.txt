@@ -11,6 +11,36 @@ Date:   Sat Sep 3 07:14:29 2022 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/net/http/triv.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/triv.go b/src/net/http/triv.go
+index 9bf0caa37f..4c2160bbc3 100644
+--- a/src/net/http/triv.go
++++ b/src/net/http/triv.go
+@@ -7,7 +7,6 @@
+ package main
+ 
+ import (
+-	"bytes"
+ 	"expvar"
+ 	"flag"
+ 	"fmt"
+@@ -17,6 +16,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"strconv"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -49,7 +49,7 @@ func (ctr *Counter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+ 	case "GET":
+ 		ctr.n++
+ 	case "POST":
+-		buf := new(bytes.Buffer)
++		var buf strings.Builder
+ 		io.Copy(buf, req.Body)
+ 		body := buf.String()
+ 		if n, err := strconv.Atoi(body); err != nil {

@@ -22,7 +22,60 @@ Date:   Mon Mar 20 09:56:50 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/main.go |  3 +++
  src/cmd/go/internal/work/build.go   | 20 ++++++++++++++++++--
  2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 8037096832..975bc579ba 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -268,6 +268,9 @@ func Main(archInit func(*Arch)) {
+ 	} else if flag_race || flag_msan {
+ 		instrumenting = true
+ 	}
++	if compiling_runtime && Debug['N'] != 0 {
++		log.Fatal("cannot disable optimizations while compiling runtime")
++	}
+ 
+ 	// parse -d argument
+ 	if debugstr != "" {
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 7b07112508..c09d8d3513 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -2176,7 +2176,8 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
+ 	if p.Name == "main" {
+ 		gcargs[1] = "main"
+ 	}
+-	if p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
++	compilingRuntime := p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal"))
++	if compilingRuntime {
+ 		// runtime compiles with a special gc flag to emit
+ 		// additional reflect type data.
+ 		gcargs = append(gcargs, "-+")
+@@ -2211,7 +2212,22 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, obj string, asmhdr b
+ 		}
+ 	}
+ 
+-	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, buildGcflags, gcargs, "-D", p.Internal.LocalPrefix, importArgs}
++	gcflags := buildGcflags
++	if compilingRuntime {
++		// Remove -N, if present.
++		// It is not possible to build the runtime with no optimizations,
++		// because the compiler cannot eliminate enough write barriers.
++		gcflags = make([]string, len(buildGcflags))
++		copy(gcflags, buildGcflags)
++		for i := 0; i < len(gcflags); i++ {
++			if gcflags[i] == "-N" {
++				copy(gcflags[i:], gcflags[i+1:])
++				gcflags = gcflags[:len(gcflags)-1]
++				i--
++			}
++		}
++	}
++	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix, importArgs}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+ 	}

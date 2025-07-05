@@ -13,9 +13,315 @@ Date:   Thu Feb 11 20:43:15 2016 -0600
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |   8 ++
  src/cmd/compile/internal/ssa/rewrite.go        |  46 +++++++++--
  src/cmd/compile/internal/ssa/rewrite_test.go   | 102 +++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewritegeneric.go | 100 ++++++++++++++++++++++++
  4 files changed, 251 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index cf1bb76735..3971794d1a 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -320,6 +320,14 @@
+ (Neg32 (Sub32 x y)) -> (Sub32 y x)
+ (Neg64 (Sub64 x y)) -> (Sub64 y x)
+ 
++// Rewrite AND of consts as shifts if possible, slightly faster for 32/64 bit operands
++// leading zeros can be shifted left, then right
++(And64 <t> (Const64 [y]) x) && nlz(y) + nto(y) == 64 -> (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
++(And32 <t> (Const32 [y]) x) && nlz(int64(int32(y))) + nto(int64(int32(y))) == 64 -> (Rsh32Ux32 (Lsh32x32 <t> x (Const32 <t> [nlz(int64(int32(y)))-32])) (Const32 <t> [nlz(int64(int32(y)))-32]))
++// trailing zeros can be shifted right, then left
++(And64 <t> (Const64 [y]) x) && nlo(y) + ntz(y) == 64 -> (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
++(And32 <t> (Const32 [y]) x) && nlo(int64(int32(y))) + ntz(int64(int32(y))) == 64 -> (Lsh32x32 (Rsh32Ux32 <t> x (Const32 <t> [ntz(int64(int32(y)))])) (Const32 <t> [ntz(int64(int32(y)))]))
++
+ // simplifications often used for lengths.  e.g. len(s[i:i+5])==5
+ (Sub64 (Add64 x y) x) -> y
+ (Sub64 (Add64 x y) y) -> x
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 7dd0d2e5d5..69a463d4de 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -148,14 +148,50 @@ func inBounds64(idx, len int64) bool      { return idx >= 0 && idx < len }
+ func sliceInBounds32(idx, len int64) bool { return int32(idx) >= 0 && int32(idx) <= int32(len) }
+ func sliceInBounds64(idx, len int64) bool { return idx >= 0 && idx <= len }
+ 
+-// log2 returns logarithm in base of n.
+-// expects n to be a power of 2.
++// nlz returns the number of leading zeros.
++func nlz(x int64) int64 {
++	// log2(0) == 1, so nlz(0) == 64
++	return 63 - log2(x)
++}
++
++// ntz returns the number of trailing zeros.
++func ntz(x int64) int64 {
++	return 64 - nlz(^x&(x-1))
++}
++
++// nlo returns the number of leading ones.
++func nlo(x int64) int64 {
++	return nlz(^x)
++}
++
++// nto returns the number of trailing ones.
++func nto(x int64) int64 {
++	return ntz(^x)
++}
++
++// log2 returns logarithm in base of uint64(n), with log2(0) = -1.
+ func log2(n int64) (l int64) {
+-	for n > 1 {
++	l = -1
++	x := uint64(n)
++	for ; x >= 0x8000; x >>= 16 {
++		l += 16
++	}
++	if x >= 0x80 {
++		x >>= 8
++		l += 8
++	}
++	if x >= 0x8 {
++		x >>= 4
++		l += 4
++	}
++	if x >= 0x2 {
++		x >>= 2
++		l += 2
++	}
++	if x >= 0x1 {
+ 		l++
+-		n >>= 1
+ 	}
+-	return l
++	return
+ }
+ 
+ // isPowerOfTwo reports whether n is a power of 2.
+diff --git a/src/cmd/compile/internal/ssa/rewrite_test.go b/src/cmd/compile/internal/ssa/rewrite_test.go
+new file mode 100644
+index 0000000000..b786df887b
+--- /dev/null
++++ b/src/cmd/compile/internal/ssa/rewrite_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ssa
++
++import "testing"
++
++// TestNlzNto tests nlz/nto of the same number which is used in some of
++// the rewrite rules.
++func TestNlzNto(t *testing.T) {
++	// construct the bit pattern 000...111, nlz(x) + nto(0) = 64
++	var x int64
++	for i := int64(0); i < 64; i++ {
++		if got := nto(x); got != i {
++			t.Errorf("expected nto(0x%X) = %d, got %d", x, i, got)
++		}
++		if got := nlz(x); got != 64-i {
++			t.Errorf("expected nlz(0x%X) = %d, got %d", x, 64-i, got)
++		}
++		x = (x << 1) | 1
++	}
++
++	x = 0
++	// construct the bit pattern 000...111, with bit 33 set as well.
++	for i := int64(0); i < 64; i++ {
++		tx := x | (1 << 32)
++		// nto should be the the number of bits we've shifted on, with an extra bit
++		// at iter 32
++		ntoExp := i
++		if ntoExp == 32 {
++			ntoExp = 33
++		}
++		if got := nto(tx); got != ntoExp {
++			t.Errorf("expected nto(0x%X) = %d, got %d", tx, ntoExp, got)
++		}
++
++		// sinec bit 33 is set, nlz can be no greater than 31
++		nlzExp := 64 - i
++		if nlzExp > 31 {
++			nlzExp = 31
++		}
++		if got := nlz(tx); got != nlzExp {
++			t.Errorf("expected nlz(0x%X) = %d, got %d", tx, nlzExp, got)
++		}
++		x = (x << 1) | 1
++	}
++
++}
++
++func TestNlz(t *testing.T) {
++	var nlzTests = []struct {
++		v   int64
++		exp int64
++	}{{0x00, 64},
++		{0x01, 63},
++		{0x0F, 60},
++		{0xFF, 56},
++		{0xffffFFFF, 32},
++		{-0x01, 0}}
++
++	for _, tc := range nlzTests {
++		if got := nlz(tc.v); got != tc.exp {
++			t.Errorf("expected nlz(0x%X) = %d, got %d", tc.v, tc.exp, got)
++		}
++	}
++}
++
++func TestNto(t *testing.T) {
++	var ntoTests = []struct {
++		v   int64
++		exp int64
++	}{{0x00, 0},
++		{0x01, 1},
++		{0x0F, 4},
++		{0xFF, 8},
++		{0xffffFFFF, 32},
++		{-0x01, 64}}
++
++	for _, tc := range ntoTests {
++		if got := nto(tc.v); got != tc.exp {
++			t.Errorf("expected nto(0x%X) = %d, got %d", tc.v, tc.exp, got)
++		}
++	}
++}
++
++func TestLog2(t *testing.T) {
++	var log2Tests = []struct {
++		v   int64
++		exp int64
++	}{{0, -1}, // nlz expects log2(0) == -1
++		{1, 0},
++		{2, 1},
++		{4, 2},
++		{1024, 10}}
++
++	for _, tc := range log2Tests {
++		if got := log2(tc.v); got != tc.exp {
++			t.Errorf("expected log2(%d) = %d, got %d", tc.v, tc.exp, got)
++		}
++	}
++}
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 0d905235e9..72b3553c30 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -676,6 +676,56 @@ func rewriteValuegeneric_OpAnd32(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (And32 <t> (Const32 [y]) x)
++	// cond: nlz(int64(int32(y))) + nto(int64(int32(y))) == 64
++	// result: (Rsh32Ux32 (Lsh32x32 <t> x (Const32 <t> [nlz(int64(int32(y)))-32])) (Const32 <t> [nlz(int64(int32(y)))-32]))
++	for {
++		t := v.Type
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		y := v.Args[0].AuxInt
++		x := v.Args[1]
++		if !(nlz(int64(int32(y)))+nto(int64(int32(y))) == 64) {
++			break
++		}
++		v.reset(OpRsh32Ux32)
++		v0 := b.NewValue0(v.Line, OpLsh32x32, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Line, OpConst32, t)
++		v1.AuxInt = nlz(int64(int32(y))) - 32
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpConst32, t)
++		v2.AuxInt = nlz(int64(int32(y))) - 32
++		v.AddArg(v2)
++		return true
++	}
++	// match: (And32 <t> (Const32 [y]) x)
++	// cond: nlo(int64(int32(y))) + ntz(int64(int32(y))) == 64
++	// result: (Lsh32x32 (Rsh32Ux32 <t> x (Const32 <t> [ntz(int64(int32(y)))])) (Const32 <t> [ntz(int64(int32(y)))]))
++	for {
++		t := v.Type
++		if v.Args[0].Op != OpConst32 {
++			break
++		}
++		y := v.Args[0].AuxInt
++		x := v.Args[1]
++		if !(nlo(int64(int32(y)))+ntz(int64(int32(y))) == 64) {
++			break
++		}
++		v.reset(OpLsh32x32)
++		v0 := b.NewValue0(v.Line, OpRsh32Ux32, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Line, OpConst32, t)
++		v1.AuxInt = ntz(int64(int32(y)))
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpConst32, t)
++		v2.AuxInt = ntz(int64(int32(y)))
++		v.AddArg(v2)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAnd64(v *Value, config *Config) bool {
+@@ -744,6 +794,56 @@ func rewriteValuegeneric_OpAnd64(v *Value, config *Config) bool {
+ 		v.AuxInt = 0
+ 		return true
+ 	}
++	// match: (And64 <t> (Const64 [y]) x)
++	// cond: nlz(y) + nto(y) == 64
++	// result: (Rsh64Ux64 (Lsh64x64 <t> x (Const64 <t> [nlz(y)])) (Const64 <t> [nlz(y)]))
++	for {
++		t := v.Type
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		y := v.Args[0].AuxInt
++		x := v.Args[1]
++		if !(nlz(y)+nto(y) == 64) {
++			break
++		}
++		v.reset(OpRsh64Ux64)
++		v0 := b.NewValue0(v.Line, OpLsh64x64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Line, OpConst64, t)
++		v1.AuxInt = nlz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = nlz(y)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (And64 <t> (Const64 [y]) x)
++	// cond: nlo(y) + ntz(y) == 64
++	// result: (Lsh64x64 (Rsh64Ux64 <t> x (Const64 <t> [ntz(y)])) (Const64 <t> [ntz(y)]))
++	for {
++		t := v.Type
++		if v.Args[0].Op != OpConst64 {
++			break
++		}
++		y := v.Args[0].AuxInt
++		x := v.Args[1]
++		if !(nlo(y)+ntz(y) == 64) {
++			break
++		}
++		v.reset(OpLsh64x64)
++		v0 := b.NewValue0(v.Line, OpRsh64Ux64, t)
++		v0.AddArg(x)
++		v1 := b.NewValue0(v.Line, OpConst64, t)
++		v1.AuxInt = ntz(y)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		v2 := b.NewValue0(v.Line, OpConst64, t)
++		v2.AuxInt = ntz(y)
++		v.AddArg(v2)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpAnd8(v *Value, config *Config) bool {

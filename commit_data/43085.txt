@@ -21,7 +21,7 @@ Date:   Fri Nov 1 18:12:27 2019 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/escape.go   |  2 +-
  src/cmd/compile/internal/gc/iexport.go  |  2 +-
  src/cmd/compile/internal/gc/iimport.go  |  2 +-
@@ -31,3 +31,151 @@ Date:   Fri Nov 1 18:12:27 2019 +0700
  src/cmd/compile/internal/gc/ssa.go      |  2 +-
  src/cmd/compile/internal/gc/universe.go | 10 +++++-----
  8 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/escape.go b/src/cmd/compile/internal/gc/escape.go
+index 76c91ba2d2..8edaf54a75 100644
+--- a/src/cmd/compile/internal/gc/escape.go
++++ b/src/cmd/compile/internal/gc/escape.go
+@@ -1371,7 +1371,7 @@ func (e *Escape) finish(fns []*Node) {
+ 		fn.Esc = EscFuncTagged
+ 
+ 		narg := 0
+-		for _, fs := range types.RecvsParams {
++		for _, fs := range &types.RecvsParams {
+ 			for _, f := range fs(fn.Type).Fields().Slice() {
+ 				narg++
+ 				f.Note = e.paramTag(fn, narg, f)
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 259b70a69f..7ee0876e8b 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -954,7 +954,7 @@ func (w *exportWriter) funcExt(n *Node) {
+ 	w.symIdx(n.Sym)
+ 
+ 	// Escape analysis.
+-	for _, fs := range types.RecvsParams {
++	for _, fs := range &types.RecvsParams {
+ 		for _, f := range fs(n.Type).FieldSlice() {
+ 			w.string(f.Note)
+ 		}
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 824648acb6..f99b70ae27 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -660,7 +660,7 @@ func (r *importReader) funcExt(n *Node) {
+ 	r.symIdx(n.Sym)
+ 
+ 	// Escape analysis.
+-	for _, fs := range types.RecvsParams {
++	for _, fs := range &types.RecvsParams {
+ 		for _, f := range fs(n.Type).FieldSlice() {
+ 			f.Note = r.string()
+ 		}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index fad2bdfcd4..18a210baa4 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -1071,7 +1071,7 @@ func loadsys() {
+ 	typecheckok = true
+ 
+ 	typs := runtimeTypes()
+-	for _, d := range runtimeDecls {
++	for _, d := range &runtimeDecls {
+ 		sym := Runtimepkg.Lookup(d.name)
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+@@ -1374,7 +1374,7 @@ var concurrentFlagOK = [256]bool{
+ }
+ 
+ func concurrentBackendAllowed() bool {
+-	for i, x := range Debug {
++	for i, x := range &Debug {
+ 		if x != 0 && !concurrentFlagOK[i] {
+ 			return false
+ 		}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index b6713ba685..b956a7d13c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -646,7 +646,7 @@ func (p *noder) expr(expr syntax.Expr) *Node {
+ 		}
+ 		n := p.nod(expr, op, p.expr(expr.X), nil)
+ 		var index [3]*Node
+-		for i, x := range expr.Index {
++		for i, x := range &expr.Index {
+ 			if x != nil {
+ 				index[i] = p.expr(x)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b3262018b4..f8f7de0a95 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -419,7 +419,7 @@ func (lv *Liveness) regEffects(v *ssa.Value) (uevar, kill liveRegMask) {
+ 			if v.Type.Etype != types.TTUPLE {
+ 				v.Fatalf("location pair %s has non-tuple type %v", loc, v.Type)
+ 			}
+-			for i, loc1 := range loc {
++			for i, loc1 := range &loc {
+ 				if loc1 == nil {
+ 					continue
+ 				}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 34adeabae1..ddd40010e5 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3216,7 +3216,7 @@ func init() {
+ 	var p4 []*sys.Arch
+ 	var p8 []*sys.Arch
+ 	var lwatomics []*sys.Arch
+-	for _, a := range sys.Archs {
++	for _, a := range &sys.Archs {
+ 		all = append(all, a)
+ 		if a.PtrSize == 4 {
+ 			p4 = append(p4, a)
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index 9f4e4d9680..d1072997f1 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -66,7 +66,7 @@ var builtinFuncs = [...]struct {
+ // isBuiltinFuncName reports whether name matches a builtin function
+ // name.
+ func isBuiltinFuncName(name string) bool {
+-	for _, fn := range builtinFuncs {
++	for _, fn := range &builtinFuncs {
+ 		if fn.name == name {
+ 			return true
+ 		}
+@@ -92,7 +92,7 @@ func initUniverse() {
+ 
+ // lexinit initializes known symbols and the basic types.
+ func lexinit() {
+-	for _, s := range basicTypes {
++	for _, s := range &basicTypes {
+ 		etype := s.etype
+ 		if int(etype) >= len(types.Types) {
+ 			Fatalf("lexinit: %s bad etype", s.name)
+@@ -111,13 +111,13 @@ func lexinit() {
+ 		asNode(s2.Def).Name = new(Name)
+ 	}
+ 
+-	for _, s := range builtinFuncs {
++	for _, s := range &builtinFuncs {
+ 		s2 := builtinpkg.Lookup(s.name)
+ 		s2.Def = asTypesNode(newname(s2))
+ 		asNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+-	for _, s := range unsafeFuncs {
++	for _, s := range &unsafeFuncs {
+ 		s2 := unsafepkg.Lookup(s.name)
+ 		s2.Def = asTypesNode(newname(s2))
+ 		asNode(s2.Def).SetSubOp(s.op)
+@@ -402,7 +402,7 @@ func lexinit1() {
+ 	dowidth(types.Runetype)
+ 
+ 	// backend-dependent builtin types (e.g. int).
+-	for _, s := range typedefs {
++	for _, s := range &typedefs {
+ 		s1 := builtinpkg.Lookup(s.name)
+ 
+ 		sameas := s.sameas32

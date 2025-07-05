@@ -13,6 +13,32 @@ Date:   Thu Sep 5 15:43:32 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/test.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/misc/cgo/test/test.go b/misc/cgo/test/test.go
+index 4286fb9cdb..0a26bfb5cf 100644
+--- a/misc/cgo/test/test.go
++++ b/misc/cgo/test/test.go
+@@ -1950,11 +1950,20 @@ func test27660(t *testing.T) {
+ 			// increase the likelihood that the race described in #27660
+ 			// results in corruption of ThreadSanitizer's internal state
+ 			// and thus an assertion failure or segfault.
++			i := 0
+ 			for ctx.Err() == nil {
+ 				j := rand.Intn(100)
+ 				locks[j].Lock()
+ 				ints[j]++
+ 				locks[j].Unlock()
++				// needed for gccgo, to avoid creation of an
++				// unpreemptible "fast path" in this loop. Choice
++				// of (1<<24) is somewhat arbitrary.
++				if i%(1<<24) == 0 {
++					runtime.Gosched()
++				}
++				i++
++
+ 			}
+ 		}()
+ 		time.Sleep(time.Millisecond)

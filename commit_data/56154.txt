@@ -19,6 +19,19 @@ Date:   Wed Apr 12 21:42:29 2023 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     TryBot-Bypass: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/testdata/script/list_goroot_symlink.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/testdata/script/list_goroot_symlink.txt b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+index 40c9943065..1a34127eb9 100644
+--- a/src/cmd/go/testdata/script/list_goroot_symlink.txt
++++ b/src/cmd/go/testdata/script/list_goroot_symlink.txt
+@@ -6,6 +6,7 @@
+ 
+ [short] skip 'copies the cmd/go binary'
+ [!symlink] skip 'tests symlink-specific behavior'
++[GOOS:darwin] skip 'Lstat on darwin does not conform to POSIX pathname resolution; see #59586'
+ 
+ # Ensure that the relative path to $WORK/lib/goroot/src from $PWD is a different
+ # number of ".." hops than the relative path to it from $WORK/share/goroot/src.

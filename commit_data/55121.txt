@@ -16,7 +16,7 @@ Date:   Tue Jan 3 17:05:53 2023 -0800
     Run-TryBot: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 37 +++++++++++++++++++---
  src/go/types/instantiate.go                        | 37 +++++++++++++++++++---
  .../types/testdata/fixedbugs/issue40350.go         |  2 +-
@@ -24,3 +24,179 @@ Date:   Tue Jan 3 17:05:53 2023 -0800
  .../types/testdata/fixedbugs/issue57486.go         |  2 +-
  .../types/testdata/fixedbugs/issue57500.go         | 16 ++++++++++
  6 files changed, 88 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index f028161118..8193682993 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -324,14 +324,43 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return false
+ 	}) {
+ 		if cause != nil {
+-			if alt != nil {
+-				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
+-			} else {
+-				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
++			var detail string
++			switch {
++			case alt != nil:
++				detail = check.sprintf("possibly missing ~ for %s in %s", alt, T)
++			case mentions(Ti, V):
++				detail = check.sprintf("%s mentions %s, but %s is not in the type set of %s", T, V, V, T)
++			default:
++				detail = check.sprintf("%s missing in %s", V, Ti.typeSet().terms)
+ 			}
++			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+ 		}
+ 		return false
+ 	}
+ 
+ 	return checkComparability()
+ }
++
++// mentions reports whether type T "mentions" typ in an (embedded) element or term
++// of T (whether typ is in the type set of T or not). For better error messages.
++func mentions(T, typ Type) bool {
++	switch T := T.(type) {
++	case *Interface:
++		for _, e := range T.embeddeds {
++			if mentions(e, typ) {
++				return true
++			}
++		}
++	case *Union:
++		for _, t := range T.terms {
++			if mentions(t.typ, typ) {
++				return true
++			}
++		}
++	default:
++		if Identical(T, typ) {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 9f565c326b..2cf48c17d2 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -324,14 +324,43 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		return false
+ 	}) {
+ 		if cause != nil {
+-			if alt != nil {
+-				*cause = check.sprintf("%s does not %s %s (possibly missing ~ for %s in constraint %s)", V, verb, T, alt, T)
+-			} else {
+-				*cause = check.sprintf("%s does not %s %s (%s missing in %s)", V, verb, T, V, Ti.typeSet().terms)
++			var detail string
++			switch {
++			case alt != nil:
++				detail = check.sprintf("possibly missing ~ for %s in %s", alt, T)
++			case mentions(Ti, V):
++				detail = check.sprintf("%s mentions %s, but %s is not in the type set of %s", T, V, V, T)
++			default:
++				detail = check.sprintf("%s missing in %s", V, Ti.typeSet().terms)
+ 			}
++			*cause = check.sprintf("%s does not %s %s (%s)", V, verb, T, detail)
+ 		}
+ 		return false
+ 	}
+ 
+ 	return checkComparability()
+ }
++
++// mentions reports whether type T "mentions" typ in an (embedded) element or term
++// of T (whether typ is in the type set of T or not). For better error messages.
++func mentions(T, typ Type) bool {
++	switch T := T.(type) {
++	case *Interface:
++		for _, e := range T.embeddeds {
++			if mentions(e, typ) {
++				return true
++			}
++		}
++	case *Union:
++		for _, t := range T.terms {
++			if mentions(t.typ, typ) {
++				return true
++			}
++		}
++	default:
++		if Identical(T, typ) {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue40350.go b/src/internal/types/testdata/fixedbugs/issue40350.go
+index 96ad1678d4..08eb426410 100644
+--- a/src/internal/types/testdata/fixedbugs/issue40350.go
++++ b/src/internal/types/testdata/fixedbugs/issue40350.go
+@@ -12,5 +12,5 @@ type number interface {
+ func f[T number]() {}
+ 
+ func _() {
+-	_ = f[int /* ERROR int does not satisfy number \(int missing in float64 \| ~int32\)*/]
++	_ = f[int /* ERROR int does not satisfy number \(number mentions int, but int is not in the type set of number\)*/]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49179.go b/src/internal/types/testdata/fixedbugs/issue49179.go
+index 468d83edbe..2ddfa3312d 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49179.go
++++ b/src/internal/types/testdata/fixedbugs/issue49179.go
+@@ -13,11 +13,11 @@ type myFloat float64
+ 
+ func _() {
+ 	_ = f1[int]
+-	_ = f1[myInt /* ERROR possibly missing ~ for int in constraint int \| string */]
++	_ = f1[myInt /* ERROR possibly missing ~ for int in int \| string */]
+ 	_ = f2[myInt]
+-	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in constraint ~int \| string \| float64 */]
++	_ = f2[myFloat /* ERROR possibly missing ~ for float64 in ~int \| string \| float64 */]
+ 	var x myInt
+-	f3 /* ERROR myInt does not satisfy int \(possibly missing ~ for int in constraint int\) */ (x)
++	f3 /* ERROR myInt does not satisfy int \(possibly missing ~ for int in int\) */ (x)
+ }
+ 
+ // test case from the issue
+@@ -33,5 +33,5 @@ func Map[S SliceConstraint[E], E any](s S, f func(E) E) S {
+ type MySlice []int
+ 
+ func f(s MySlice) {
+-	Map[MySlice /* ERROR MySlice does not satisfy SliceConstraint\[int\] \(possibly missing ~ for \[\]int in constraint SliceConstraint\[int\]\) */, int](s, nil)
++	Map[MySlice /* ERROR MySlice does not satisfy SliceConstraint\[int\] \(possibly missing ~ for \[\]int in SliceConstraint\[int\]\) */, int](s, nil)
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57486.go b/src/internal/types/testdata/fixedbugs/issue57486.go
+index f6ba1b60b8..43ba1b0440 100644
+--- a/src/internal/types/testdata/fixedbugs/issue57486.go
++++ b/src/internal/types/testdata/fixedbugs/issue57486.go
+@@ -24,6 +24,6 @@ func F1[V [2]any](v V) {
+ 
+ func F2[V [2]any](v V) {
+ 	_ = G2[V /* ERROR "V does not satisfy C2" */]
+-	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(\[2\]any missing in int\)" */ 2]any]
++	_ = G2[[ /* ERROR "\[2\]any does not satisfy C2 \(C2 mentions \[2\]any, but \[2\]any is not in the type set of C2\)" */ 2]any]
+ 	_ = G2[int]
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue57500.go b/src/internal/types/testdata/fixedbugs/issue57500.go
+new file mode 100644
+index 0000000000..abdcb5ea35
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue57500.go
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type C interface {
++	comparable
++	[2]any | int
++}
++
++func f[T C]() {}
++
++func _() {
++	_ = f[[ /* ERROR \[2\]any does not satisfy C \(C mentions \[2\]any, but \[2\]any is not in the type set of C\) */ 2]any]
++}

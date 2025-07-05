@@ -7,6 +7,19 @@ Date:   Fri Sep 28 14:19:31 2012 -0700
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/6569078
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index ac2d3f77d5..fa2030bd65 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -268,6 +268,7 @@ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
+ Paul Borman <borman@google.com>
++Paul Chang <paulchang@google.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>

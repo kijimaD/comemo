@@ -7,7 +7,42 @@ Date:   Mon Feb 4 16:03:41 2013 +1100
     R=golang-dev, bradfitz, dave
     CC=golang-dev
     https://golang.org/cl/7273046
-
+---
  src/pkg/net/fd_windows.go        | 7 +------
  src/pkg/net/interface_windows.go | 2 +-
  2 files changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 0bf361d443..2f9abcda76 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -619,15 +619,10 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (*netFD, error) {
+ 	defer fd.decref()
+ 
+ 	// Get new socket.
+-	// See ../syscall/exec_unix.go for description of ForkLock.
+-	syscall.ForkLock.RLock()
+-	s, err := syscall.Socket(fd.family, fd.sotype, 0)
++	s, err := sysSocket(fd.family, fd.sotype, 0)
+ 	if err != nil {
+-		syscall.ForkLock.RUnlock()
+ 		return nil, &OpError{"socket", fd.net, fd.laddr, err}
+ 	}
+-	syscall.CloseOnExec(s)
+-	syscall.ForkLock.RUnlock()
+ 
+ 	// Associate our new socket with IOCP.
+ 	onceStartServer.Do(startServer)
+diff --git a/src/pkg/net/interface_windows.go b/src/pkg/net/interface_windows.go
+index 4368b33062..c7a3eac2a7 100644
+--- a/src/pkg/net/interface_windows.go
++++ b/src/pkg/net/interface_windows.go
+@@ -38,7 +38,7 @@ func getAdapterList() (*syscall.IpAdapterInfo, error) {
+ }
+ 
+ func getInterfaceList() ([]syscall.InterfaceInfo, error) {
+-	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
++	s, err := sysSocket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("Socket", err)
+ 	}

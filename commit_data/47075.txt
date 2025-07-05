@@ -11,7 +11,7 @@ Date:   Thu Nov 12 17:42:58 2020 -0500
     Reviewed-by: Than McIntosh <thanm@google.com>
     Trust: David Chase <drchase@google.com>
     Trust: Matthew Dempsky <mdempsky@google.com>
-
+---
  misc/cgo/test/testdata/issue9400/asm_386.s     | 2 +-
  misc/cgo/test/testdata/issue9400/asm_amd64x.s  | 2 +-
  misc/cgo/test/testdata/issue9400/asm_arm.s     | 2 +-
@@ -26,3 +26,175 @@ Date:   Thu Nov 12 17:42:58 2020 -0500
  src/cmd/dist/util_gc.go                        | 4 ++--
  src/cmd/go/testdata/script/build_overlay.txt   | 2 +-
  13 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/misc/cgo/test/testdata/issue9400/asm_386.s b/misc/cgo/test/testdata/issue9400/asm_386.s
+index 7f158b5c39..96b8b60c10 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_386.s
++++ b/misc/cgo/test/testdata/issue9400/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_amd64x.s b/misc/cgo/test/testdata/issue9400/asm_amd64x.s
+index 48b86190a5..99509bce5e 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_amd64x.s
++++ b/misc/cgo/test/testdata/issue9400/asm_amd64x.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build amd64 amd64p32
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_arm.s b/misc/cgo/test/testdata/issue9400/asm_arm.s
+index 96c278520f..cc92856c2f 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_arm.s
++++ b/misc/cgo/test/testdata/issue9400/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_arm64.s b/misc/cgo/test/testdata/issue9400/asm_arm64.s
+index 2ebbfcca3b..2565793f9a 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_arm64.s
++++ b/misc/cgo/test/testdata/issue9400/asm_arm64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_mips64x.s b/misc/cgo/test/testdata/issue9400/asm_mips64x.s
+index 63dc90605e..693231ddfe 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_mips64x.s
++++ b/misc/cgo/test/testdata/issue9400/asm_mips64x.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build mips64 mips64le
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_mipsx.s b/misc/cgo/test/testdata/issue9400/asm_mipsx.s
+index 7a92735194..63261bbf9d 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_mipsx.s
++++ b/misc/cgo/test/testdata/issue9400/asm_mipsx.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build mips mipsle
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_ppc64x.s b/misc/cgo/test/testdata/issue9400/asm_ppc64x.s
+index c88ec3b21e..b5613fb6ec 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_ppc64x.s
++++ b/misc/cgo/test/testdata/issue9400/asm_ppc64x.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build ppc64 ppc64le
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_riscv64.s b/misc/cgo/test/testdata/issue9400/asm_riscv64.s
+index 20fcc0066d..244dadac35 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_riscv64.s
++++ b/misc/cgo/test/testdata/issue9400/asm_riscv64.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // +build riscv64
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/test/testdata/issue9400/asm_s390x.s b/misc/cgo/test/testdata/issue9400/asm_s390x.s
+index fc9ad724c1..4856492958 100644
+--- a/misc/cgo/test/testdata/issue9400/asm_s390x.s
++++ b/misc/cgo/test/testdata/issue9400/asm_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/testshared/testdata/depBase/asm.s b/misc/cgo/testshared/testdata/depBase/asm.s
+index a8acf77f0b..0f1111f392 100644
+--- a/misc/cgo/testshared/testdata/depBase/asm.s
++++ b/misc/cgo/testshared/testdata/depBase/asm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ #include "textflag.h"
+ 
+diff --git a/misc/cgo/testshared/testdata/depBase/stubs.go b/misc/cgo/testshared/testdata/depBase/stubs.go
+index 04534f38dd..c77953803b 100644
+--- a/misc/cgo/testshared/testdata/depBase/stubs.go
++++ b/misc/cgo/testshared/testdata/depBase/stubs.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !gccgo
++// +build gc
+ 
+ package depBase
+ 
+diff --git a/src/cmd/dist/util_gc.go b/src/cmd/dist/util_gc.go
+index 2db6d3a25e..875784d383 100644
+--- a/src/cmd/dist/util_gc.go
++++ b/src/cmd/dist/util_gc.go
+@@ -2,8 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !gccgo
+-// +build !gccgo
++//go:build gc
++// +build gc
+ 
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index b11cd96014..2932b94e6c 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -238,7 +238,7 @@ void say_hello();
+ 
+ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+ -- m/overlay/asm_gc.s --
+-// +build !gccgo
++// +build gc
+ 
+ TEXT ·foo(SB),0,$0
+ 	RET

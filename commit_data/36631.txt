@@ -21,6 +21,20 @@ Date:   Sun Mar 25 16:58:27 2018 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index ec7b526150..142ec027d8 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1098,7 +1098,7 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
+ 			select {
+ 			default:
+ 			case ret, ok := <-req:
+-				if ok {
++				if ok && ret.conn != nil {
+ 					db.putConn(ret.conn, ret.err, false)
+ 				}
+ 			}

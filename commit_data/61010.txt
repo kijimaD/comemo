@@ -17,10 +17,251 @@ Date:   Fri Apr 12 01:18:29 2024 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/99-minor/archive/66831.md |  2 +
  src/archive/tar/writer.go                   |  8 +++-
  src/archive/tar/writer_test.go              | 57 ++++++++++++++++++++---------
  src/archive/zip/writer.go                   |  7 +++-
  src/archive/zip/writer_test.go              | 23 +++++-------
  5 files changed, 63 insertions(+), 34 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/archive/66831.md b/doc/next/6-stdlib/99-minor/archive/66831.md
+new file mode 100644
+index 0000000000..cc72014dc9
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/archive/66831.md
+@@ -0,0 +1,2 @@
++The `(*Writer).AddFS` implementations in both `archive/zip` and `archive/tar`
++now write a directory header for an empty directory.
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 2089f16ceb..dcefc2a8f8 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -413,7 +413,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if d.IsDir() {
++		if name == "." {
+ 			return nil
+ 		}
+ 		info, err := d.Info()
+@@ -421,7 +421,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 			return err
+ 		}
+ 		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
+-		if !info.Mode().IsRegular() {
++		if !d.IsDir() && !info.Mode().IsRegular() {
+ 			return errors.New("tar: cannot add non-regular file")
+ 		}
+ 		h, err := FileInfoHeader(info, "")
+@@ -432,6 +432,9 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 		if err := tw.WriteHeader(h); err != nil {
+ 			return err
+ 		}
++		if d.IsDir() {
++			return nil
++		}
+ 		f, err := fsys.Open(name)
+ 		if err != nil {
+ 			return err
+@@ -668,6 +671,7 @@ func (sw *sparseFileWriter) ReadFrom(r io.Reader) (n int64, err error) {
+ func (sw sparseFileWriter) logicalRemaining() int64 {
+ 	return sw.sp[len(sw.sp)-1].endOffset() - sw.pos
+ }
++
+ func (sw sparseFileWriter) physicalRemaining() int64 {
+ 	return sw.fw.physicalRemaining()
+ }
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 9542abe3e7..2a01915d36 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"path"
+ 	"slices"
++	"sort"
+ 	"strings"
+ 	"testing"
+ 	"testing/fstest"
+@@ -1338,29 +1339,40 @@ func TestFileWriter(t *testing.T) {
+ 
+ func TestWriterAddFS(t *testing.T) {
+ 	fsys := fstest.MapFS{
++		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
+ 		"file.go":              {Data: []byte("hello")},
+ 		"subfolder/another.go": {Data: []byte("world")},
++		// Notably missing here is the "subfolder" directory. This makes sure even
++		// if we don't have a subfolder directory listed.
+ 	}
+ 	var buf bytes.Buffer
+ 	tw := NewWriter(&buf)
+ 	if err := tw.AddFS(fsys); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if err := tw.Close(); err != nil {
++		t.Fatal(err)
++	}
++
++	// Add subfolder into fsys to match what we'll read from the tar.
++	fsys["subfolder"] = &fstest.MapFile{Mode: 0o555 | os.ModeDir}
+ 
+ 	// Test that we can get the files back from the archive
+ 	tr := NewReader(&buf)
+ 
+-	entries, err := fsys.ReadDir(".")
+-	if err != nil {
+-		t.Fatal(err)
++	names := make([]string, 0, len(fsys))
++	for name := range fsys {
++		names = append(names, name)
+ 	}
++	sort.Strings(names)
+ 
+-	var curfname string
+-	for _, entry := range entries {
+-		curfname = entry.Name()
+-		if entry.IsDir() {
+-			curfname += "/"
+-			continue
++	entriesLeft := len(fsys)
++	for _, name := range names {
++		entriesLeft--
++
++		entryInfo, err := fsys.Stat(name)
++		if err != nil {
++			t.Fatalf("getting entry info error: %v", err)
+ 		}
+ 		hdr, err := tr.Next()
+ 		if err == io.EOF {
+@@ -1370,22 +1382,33 @@ func TestWriterAddFS(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 
+-		data, err := io.ReadAll(tr)
+-		if err != nil {
+-			t.Fatal(err)
++		if hdr.Name != name {
++			t.Errorf("test fs has filename %v; archive header has %v",
++				name, hdr.Name)
+ 		}
+ 
+-		if hdr.Name != curfname {
+-			t.Fatalf("got filename %v, want %v",
+-				curfname, hdr.Name)
++		if entryInfo.Mode() != hdr.FileInfo().Mode() {
++			t.Errorf("%s: test fs has mode %v; archive header has %v",
++				name, entryInfo.Mode(), hdr.FileInfo().Mode())
++		}
++
++		if entryInfo.IsDir() {
++			continue
+ 		}
+ 
+-		origdata := fsys[curfname].Data
++		data, err := io.ReadAll(tr)
++		if err != nil {
++			t.Fatal(err)
++		}
++		origdata := fsys[name].Data
+ 		if string(data) != string(origdata) {
+-			t.Fatalf("got file content %v, want %v",
++			t.Fatalf("test fs has file content %v; archive header has %v",
+ 				data, origdata)
+ 		}
+ 	}
++	if entriesLeft > 0 {
++		t.Fatalf("not all entries are in the archive")
++	}
+ }
+ 
+ func TestWriterAddFSNonRegularFiles(t *testing.T) {
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 1380740a95..cbe5ba2627 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -505,14 +505,14 @@ func (w *Writer) AddFS(fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if d.IsDir() {
++		if name == "." {
+ 			return nil
+ 		}
+ 		info, err := d.Info()
+ 		if err != nil {
+ 			return err
+ 		}
+-		if !info.Mode().IsRegular() {
++		if !d.IsDir() && !info.Mode().IsRegular() {
+ 			return errors.New("zip: cannot add non-regular file")
+ 		}
+ 		h, err := FileInfoHeader(info)
+@@ -525,6 +525,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
++		if d.IsDir() {
++			return nil
++		}
+ 		f, err := fsys.Open(name)
+ 		if err != nil {
+ 			return err
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index bd33a07c3c..27a99b6b3a 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -108,7 +108,7 @@ func TestWriter(t *testing.T) {
+ 
+ // TestWriterComment is test for EOCD comment read/write.
+ func TestWriterComment(t *testing.T) {
+-	var tests = []struct {
++	tests := []struct {
+ 		comment string
+ 		ok      bool
+ 	}{
+@@ -158,7 +158,7 @@ func TestWriterComment(t *testing.T) {
+ }
+ 
+ func TestWriterUTF8(t *testing.T) {
+-	var utf8Tests = []struct {
++	utf8Tests := []struct {
+ 		name    string
+ 		comment string
+ 		nonUTF8 bool
+@@ -619,26 +619,23 @@ func TestWriterAddFS(t *testing.T) {
+ 	buf := new(bytes.Buffer)
+ 	w := NewWriter(buf)
+ 	tests := []WriteTest{
+-		{
+-			Name: "file.go",
+-			Data: []byte("hello"),
+-			Mode: 0644,
+-		},
+-		{
+-			Name: "subfolder/another.go",
+-			Data: []byte("world"),
+-			Mode: 0644,
+-		},
++		{Name: "emptyfolder", Mode: 0o755 | os.ModeDir},
++		{Name: "file.go", Data: []byte("hello"), Mode: 0644},
++		{Name: "subfolder/another.go", Data: []byte("world"), Mode: 0644},
++		// Notably missing here is the "subfolder" directory. This makes sure even
++		// if we don't have a subfolder directory listed.
+ 	}
+ 	err := w.AddFS(writeTestsToFS(tests))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-
+ 	if err := w.Close(); err != nil {
+ 		t.Fatal(err)
+ 	}
+ 
++	// Add subfolder into fsys to match what we'll read from the tar.
++	tests = append(tests[:2:2], WriteTest{Name: "subfolder", Mode: 0o555 | os.ModeDir}, tests[2])
++
+ 	// read it back
+ 	r, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
+ 	if err != nil {

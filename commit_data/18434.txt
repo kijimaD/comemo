@@ -10,7 +10,7 @@ Date:   Sun Feb 9 16:45:38 2014 -0500
     R=golang-codereviews, iant, dave
     CC=golang-codereviews
     https://golang.org/cl/54210050
-
+---
  include/link.h     |  1 +
  src/cmd/5l/asm.c   |  1 +
  src/cmd/6l/asm.c   |  4 ++++
@@ -23,3 +23,239 @@ Date:   Sun Feb 9 16:45:38 2014 -0500
  src/liblink/obj6.c |  6 ++++--
  src/liblink/sym.c  |  2 ++
  11 files changed, 45 insertions(+), 13 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index 32d158428d..e040e203f8 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -451,6 +451,7 @@ enum {
+ 	Hnetbsd,
+ 	Hopenbsd,
+ 	Hplan9,
++	Hsolaris,
+ 	Hwindows,
+ };
+ 
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 85600cabf6..096d321cb9 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -41,6 +41,7 @@ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "XXX";
+ char netbsddynld[] = "/libexec/ld.elf_so";
+ char dragonflydynld[] = "XXX";
++char solarisdynld[] = "XXX";
+ 
+ static int
+ needlib(char *name)
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index 084e2cc6a7..813bdc8485 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -44,6 +44,7 @@ char freebsddynld[] = "/libexec/ld-elf.so.1";
+ char openbsddynld[] = "/usr/libexec/ld.so";
+ char netbsddynld[] = "/libexec/ld.elf_so";
+ char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
++char solarisdynld[] = "/lib/amd64/ld.so.1";
+ 
+ char	zeroes[32];
+ 
+@@ -645,6 +646,7 @@ asmb(void)
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hdragonfly:
++	case Hsolaris:
+ 		debug['8'] = 1;	/* 64-bit addresses */
+ 		break;
+ 	case Hwindows:
+@@ -674,6 +676,7 @@ asmb(void)
+ 		case Hnetbsd:
+ 		case Hopenbsd:
+ 		case Hdragonfly:
++		case Hsolaris:
+ 			symo = rnd(HEADR+segtext.len, INITRND)+rnd(segrodata.len, INITRND)+segdata.filelen;
+ 			symo = rnd(symo, INITRND);
+ 			break;
+@@ -754,6 +757,7 @@ asmb(void)
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hdragonfly:
++	case Hsolaris:
+ 		asmbelf(symo);
+ 		break;
+ 	case Hwindows:
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index a2f1465748..92c0c747a0 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -65,6 +65,7 @@ archinit(void)
+ 	case Hlinux:
+ 	case Hnetbsd:
+ 	case Hopenbsd:
++	case Hsolaris:
+ 		break;
+ 	}
+ 	ctxt->linkmode = linkmode;
+@@ -106,6 +107,7 @@ archinit(void)
+ 	case Hnetbsd:		/* netbsd */
+ 	case Hopenbsd:		/* openbsd */
+ 	case Hdragonfly:	/* dragonfly */
++	case Hsolaris:		/* solaris */
+ 		elfinit();
+ 		HEADR = ELFRESERVE;
+ 		if(INITTEXT == -1)
+diff --git a/src/cmd/8l/asm.c b/src/cmd/8l/asm.c
+index 46e8e47ecd..03f9e95c9b 100644
+--- a/src/cmd/8l/asm.c
++++ b/src/cmd/8l/asm.c
+@@ -42,6 +42,7 @@ char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ char openbsddynld[] = "/usr/libexec/ld.so";
+ char netbsddynld[] = "/usr/libexec/ld.elf_so";
+ char dragonflydynld[] = "/usr/libexec/ld-elf.so.2";
++char solarisdynld[] = "/lib/ld.so.1";
+ 
+ static int
+ needlib(char *name)
+diff --git a/src/cmd/ld/doc.go b/src/cmd/ld/doc.go
+index 064a7dfb5f..8135bd549c 100644
+--- a/src/cmd/ld/doc.go
++++ b/src/cmd/ld/doc.go
+@@ -43,6 +43,8 @@ Options new in this version:
+ 		Write NetBSD ELF binaries (default when $GOOS is netbsd)
+ 	-H openbsd    (only in 6l/8l)
+ 		Write OpenBSD ELF binaries (default when $GOOS is openbsd)
++	-H solaris    (only in 6l)
++		Write Solaris ELF binaries (default when $GOOS is solaris)
+ 	-H windows    (only in 6l/8l)
+ 		Write Windows PE32+ Console binaries (default when $GOOS is windows)
+ 	-H windowsgui (only in 6l/8l)
+diff --git a/src/cmd/ld/elf.c b/src/cmd/ld/elf.c
+index 3b8bfb0057..dd992e4204 100644
+--- a/src/cmd/ld/elf.c
++++ b/src/cmd/ld/elf.c
+@@ -677,6 +677,23 @@ elfdynhash(void)
+ 		elfwritedynent(s, DT_VERNEEDNUM, nfile);
+ 		elfwritedynentsym(s, DT_VERSYM, linklookup(ctxt, ".gnu.version", 0));
+ 	}
++
++	if(thechar == '6') {
++		sy = linklookup(ctxt, ".rela.plt", 0);
++		if(sy->size > 0) {
++			elfwritedynent(s, DT_PLTREL, DT_RELA);
++			elfwritedynentsymsize(s, DT_PLTRELSZ, sy);
++			elfwritedynentsym(s, DT_JMPREL, sy);
++		}
++	} else {
++		sy = linklookup(ctxt, ".rel.plt", 0);
++		if(sy->size > 0) {
++			elfwritedynent(s, DT_PLTREL, DT_REL);
++			elfwritedynentsymsize(s, DT_PLTRELSZ, sy);
++			elfwritedynentsym(s, DT_JMPREL, sy);
++		}
++	}
++
+ 	elfwritedynent(s, DT_NULL, 0);
+ }
+ 
+@@ -1058,16 +1075,10 @@ doelf(void)
+ 		
+ 		elfwritedynentsym(s, DT_PLTGOT, linklookup(ctxt, ".got.plt", 0));
+ 
+-		if(thechar == '6') {
+-			elfwritedynent(s, DT_PLTREL, DT_RELA);
+-			elfwritedynentsymsize(s, DT_PLTRELSZ, linklookup(ctxt, ".rela.plt", 0));
+-			elfwritedynentsym(s, DT_JMPREL, linklookup(ctxt, ".rela.plt", 0));
+-		} else {
+-			elfwritedynent(s, DT_PLTREL, DT_REL);
+-			elfwritedynentsymsize(s, DT_PLTRELSZ, linklookup(ctxt, ".rel.plt", 0));
+-			elfwritedynentsym(s, DT_JMPREL, linklookup(ctxt, ".rel.plt", 0));
+-		}
+-		
++		// Solaris dynamic linker can't handle an empty .rela.plt if
++		// DT_JMPREL is emitted so we have to defer generation of DT_PLTREL,
++		// DT_PLTRELSZ, and DT_JMPREL dynamic entries until after we know the
++		// size of .rel(a).plt section.
+ 		elfwritedynent(s, DT_DEBUG, 0);
+ 
+ 		// Do not write DT_NULL.  elfdynhash will finish it.
+@@ -1192,6 +1203,9 @@ asmbelf(vlong symo)
+ 			case Hdragonfly:
+ 				interpreter = dragonflydynld;
+ 				break;
++			case Hsolaris:
++				interpreter = solarisdynld;
++				break;
+ 			}
+ 		}
+ 		resoff -= elfinterp(sh, startva, resoff, interpreter);
+diff --git a/src/cmd/ld/elf.h b/src/cmd/ld/elf.h
+index 76085c7c6e..e84d996f25 100644
+--- a/src/cmd/ld/elf.h
++++ b/src/cmd/ld/elf.h
+@@ -1010,6 +1010,7 @@ extern char freebsddynld[];
+ extern char netbsddynld[];
+ extern char openbsddynld[];
+ extern char dragonflydynld[];
++extern char solarisdynld[];
+ int	elfreloc1(Reloc*, vlong sectoff);
+ void	putelfsectionsyms(void);
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index e092b005bc..eb02ae5e8c 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -259,7 +259,9 @@ loadlib(void)
+ 	//
+ 	// Exception: on OS X, programs such as Shark only work with dynamic
+ 	// binaries, so leave it enabled on OS X (Mach-O) binaries.
+-	if(!flag_shared && !havedynamic && HEADTYPE != Hdarwin)
++	// Also leave it enabled on Solaris which doesn't support
++	// statically linked binaries.
++	if(!flag_shared && !havedynamic && HEADTYPE != Hdarwin && HEADTYPE != Hsolaris)
+ 		debug['d'] = 1;
+ 	
+ 	importcycles();
+diff --git a/src/liblink/obj6.c b/src/liblink/obj6.c
+index 6bb65a2869..e8967f3ec7 100644
+--- a/src/liblink/obj6.c
++++ b/src/liblink/obj6.c
+@@ -137,7 +137,8 @@ progedit(Link *ctxt, Prog *p)
+ 	}
+ 	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
+ 	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
+-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly) {
++	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
++	|| ctxt->headtype == Hsolaris) {
+ 		// ELF uses FS instead of GS.
+ 		if(p->from.type == D_INDIR+D_GS)
+ 			p->from.type = D_INDIR+D_FS;
+@@ -577,7 +578,8 @@ load_g_cx(Link *ctxt, Prog *p)
+ 	p->as = AMOVQ;
+ 	if(ctxt->headtype == Hlinux || ctxt->headtype == Hfreebsd
+ 	|| ctxt->headtype == Hopenbsd || ctxt->headtype == Hnetbsd
+-	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly)
++	|| ctxt->headtype == Hplan9 || ctxt->headtype == Hdragonfly
++	|| ctxt->headtype == Hsolaris)
+ 		// ELF uses FS
+ 		p->from.type = D_INDIR+D_FS;
+ 	else
+diff --git a/src/liblink/sym.c b/src/liblink/sym.c
+index e2527da3a7..7ff64350df 100644
+--- a/src/liblink/sym.c
++++ b/src/liblink/sym.c
+@@ -52,6 +52,7 @@ static struct {
+ 	"netbsd",	Hnetbsd,
+ 	"openbsd",	Hopenbsd,
+ 	"plan9",	Hplan9,
++	"solaris",	Hsolaris,
+ 	"windows",	Hwindows,
+ 	"windowsgui",	Hwindows,
+ 	0, 0
+@@ -129,6 +130,7 @@ linknew(LinkArch *arch)
+ 	case Hnetbsd:
+ 	case Hopenbsd:
+ 	case Hdragonfly:
++	case Hsolaris:
+ 		/*
+ 		 * ELF uses TLS offset negative from FS.
+ 		 * Translate 0(FS) and 8(FS) into -16(FS) and -8(FS).

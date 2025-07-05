@@ -15,9 +15,115 @@ Date:   Mon Sep 24 14:59:09 2012 -0400
     R=ken, dave
     CC=golang-dev
     https://golang.org/cl/6554076
-
+---
  src/cmd/5l/l.h         |  1 +
  src/cmd/6l/l.h         |  1 +
  src/cmd/8l/l.h         |  1 +
  src/cmd/ld/decodesym.c | 16 ++++++++--------
  4 files changed, 11 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5l/l.h b/src/cmd/5l/l.h
+index 17598d720c..68b6478581 100644
+--- a/src/cmd/5l/l.h
++++ b/src/cmd/5l/l.h
+@@ -37,6 +37,7 @@ enum
+ {
+ 	thechar = '5',
+ 	PtrSize = 4,
++	IntSize = 4,
+ 	FuncAlign = 4  // single-instruction alignment
+ };
+ 
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 4e271c31fe..408107f2cd 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -41,6 +41,7 @@ enum
+ {
+ 	thechar = '6',
+ 	PtrSize = 8,
++	IntSize = 4,
+ 	
+ 	// Loop alignment constants:
+ 	// want to align loop entry to LoopAlign-byte boundary,
+diff --git a/src/cmd/8l/l.h b/src/cmd/8l/l.h
+index 75f1c070ea..87b93c58fa 100644
+--- a/src/cmd/8l/l.h
++++ b/src/cmd/8l/l.h
+@@ -41,6 +41,7 @@ enum
+ {
+ 	thechar = '8',
+ 	PtrSize = 4,
++	IntSize = 4,
+ 	FuncAlign = 16
+ };
+ 
+diff --git a/src/cmd/ld/decodesym.c b/src/cmd/ld/decodesym.c
+index f3f91c34d8..347835f8ca 100644
+--- a/src/cmd/ld/decodesym.c
++++ b/src/cmd/ld/decodesym.c
+@@ -138,13 +138,13 @@ decodetype_funcdotdotdot(Sym *s)
+ int
+ decodetype_funcincount(Sym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize+2*PtrSize, 4);
++	return decode_inuxi(s->p + CommonSize+2*PtrSize, IntSize);
+ }
+ 
+ int
+ decodetype_funcoutcount(Sym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize+3*PtrSize + 2*4, 4);
++	return decode_inuxi(s->p + CommonSize+3*PtrSize + 2*IntSize, IntSize);
+ }
+ 
+ Sym*
+@@ -163,7 +163,7 @@ decodetype_funcouttype(Sym *s, int i)
+ {
+ 	Reloc *r;
+ 
+-	r = decode_reloc(s, CommonSize + 2*PtrSize + 2*4);
++	r = decode_reloc(s, CommonSize + 2*PtrSize + 2*IntSize);
+ 	if (r == nil)
+ 		return nil;
+ 	return decode_reloc_sym(r->sym, r->add + i * PtrSize);
+@@ -173,7 +173,7 @@ decodetype_funcouttype(Sym *s, int i)
+ int
+ decodetype_structfieldcount(Sym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize, 4);
++	return decode_inuxi(s->p + CommonSize + PtrSize, IntSize);
+ }
+ 
+ enum {
+@@ -186,7 +186,7 @@ decodetype_structfieldname(Sym *s, int i)
+ 	Reloc *r;
+ 
+ 	// go.string."foo"  0x28 / 0x40
+-	s = decode_reloc_sym(s, CommonSize + PtrSize + 2*4 + i*StructFieldSize);
++	s = decode_reloc_sym(s, CommonSize + PtrSize + 2*IntSize + i*StructFieldSize);
+ 	if (s == nil)			// embedded structs have a nil name.
+ 		return nil;
+ 	r = decode_reloc(s, 0);		// s has a pointer to the string data at offset 0
+@@ -198,18 +198,18 @@ decodetype_structfieldname(Sym *s, int i)
+ Sym*
+ decodetype_structfieldtype(Sym *s, int i)
+ {
+-	return decode_reloc_sym(s, CommonSize + PtrSize + 2*4 + i*StructFieldSize + 2*PtrSize);
++	return decode_reloc_sym(s, CommonSize + PtrSize + 2*IntSize + i*StructFieldSize + 2*PtrSize);
+ }
+ 
+ vlong
+ decodetype_structfieldoffs(Sym *s, int i)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize + 2*4 + i*StructFieldSize + 4*PtrSize, 4);
++	return decode_inuxi(s->p + CommonSize + PtrSize + 2*IntSize + i*StructFieldSize + 4*PtrSize, IntSize);
+ }
+ 
+ // InterfaceTYpe.methods.len
+ vlong
+ decodetype_ifacemethodcount(Sym *s)
+ {
+-	return decode_inuxi(s->p + CommonSize + PtrSize, 4);
++	return decode_inuxi(s->p + CommonSize + PtrSize, IntSize);
+ }

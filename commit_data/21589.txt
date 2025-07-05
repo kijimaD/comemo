@@ -9,6 +9,20 @@ Date:   Mon Jan 19 17:19:46 2015 +0900
     Change-Id: I0e98dd68cbc68fcc6bcec15c5b33f20b6a861ec6
     Reviewed-on: https://go-review.googlesource.com/3025
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/main.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9bf227925b..f3dfc8824f 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -153,7 +153,7 @@ func main() {
+ 	}
+ 
+ 	for _, cmd := range commands {
+-		if cmd.Name() == args[0] && cmd.Run != nil {
++		if cmd.Name() == args[0] && cmd.Runnable() {
+ 			cmd.Flag.Usage = func() { cmd.Usage() }
+ 			if cmd.CustomFlags {
+ 				args = args[1:]

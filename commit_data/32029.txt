@@ -9,7 +9,7 @@ Date:   Thu Mar 30 13:19:18 2017 -0700
     Change-Id: I4095aa030da4227540badd6724bbf50b728fbe93
     Reviewed-on: https://go-review.googlesource.com/38990
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/alg.go      | 14 +++++++-------
  src/cmd/compile/internal/gc/closure.go  |  2 +-
  src/cmd/compile/internal/gc/dcl.go      | 12 ++++++------
@@ -21,3 +21,423 @@ Date:   Thu Mar 30 13:19:18 2017 -0700
  src/cmd/compile/internal/gc/universe.go | 26 +++++++++++++-------------
  src/cmd/compile/internal/gc/walk.go     |  4 ++--
  10 files changed, 49 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/alg.go b/src/cmd/compile/internal/gc/alg.go
+index 945f0f93f5..a2ec81569d 100644
+--- a/src/cmd/compile/internal/gc/alg.go
++++ b/src/cmd/compile/internal/gc/alg.go
+@@ -329,19 +329,19 @@ func hashfor(t *Type) *Node {
+ 	case AMEM:
+ 		Fatalf("hashfor with AMEM type")
+ 	case AINTER:
+-		sym = Pkglookup("interhash", Runtimepkg)
++		sym = Runtimepkg.Lookup("interhash")
+ 	case ANILINTER:
+-		sym = Pkglookup("nilinterhash", Runtimepkg)
++		sym = Runtimepkg.Lookup("nilinterhash")
+ 	case ASTRING:
+-		sym = Pkglookup("strhash", Runtimepkg)
++		sym = Runtimepkg.Lookup("strhash")
+ 	case AFLOAT32:
+-		sym = Pkglookup("f32hash", Runtimepkg)
++		sym = Runtimepkg.Lookup("f32hash")
+ 	case AFLOAT64:
+-		sym = Pkglookup("f64hash", Runtimepkg)
++		sym = Runtimepkg.Lookup("f64hash")
+ 	case ACPLX64:
+-		sym = Pkglookup("c64hash", Runtimepkg)
++		sym = Runtimepkg.Lookup("c64hash")
+ 	case ACPLX128:
+-		sym = Pkglookup("c128hash", Runtimepkg)
++		sym = Runtimepkg.Lookup("c128hash")
+ 	default:
+ 		sym = typesymprefix(".hash", t)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index 00518966f9..f2efa2165d 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -560,7 +560,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Sym) *Node {
+ 		spkg = makepartialcall_gopkg
+ 	}
+ 
+-	sym := Pkglookup(p, spkg)
++	sym := spkg.Lookup(p)
+ 
+ 	if sym.Uniq() {
+ 		return sym.Def
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index 328a65dc0e..a514aa606a 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -61,7 +61,7 @@ func pushdcl(s *Sym) *Sym {
+ func popdcl() {
+ 	d := dclstack
+ 	for ; d != nil && d.Name != ""; d = d.Link {
+-		s := Pkglookup(d.Name, d.Pkg)
++		s := d.Pkg.Lookup(d.Name)
+ 		lno := s.Lastlineno
+ 		dcopy(s, d)
+ 		d.Lastlineno = lno
+@@ -91,7 +91,7 @@ func dumpdclstack() {
+ 	for d := dclstack; d != nil; d = d.Link {
+ 		fmt.Printf("%6d  %p", i, d)
+ 		if d.Name != "" {
+-			fmt.Printf("  '%s'  %v\n", d.Name, Pkglookup(d.Name, d.Pkg))
++			fmt.Printf("  '%s'  %v\n", d.Name, d.Pkg.Lookup(d.Name))
+ 		} else {
+ 			fmt.Printf("  ---\n")
+ 		}
+@@ -860,9 +860,9 @@ func embedded(s *Sym, pkg *Pkg) *Node {
+ 		n = newname(lookup(name))
+ 	} else if s.Pkg == builtinpkg {
+ 		// The name of embedded builtins belongs to pkg.
+-		n = newname(Pkglookup(name, pkg))
++		n = newname(pkg.Lookup(name))
+ 	} else {
+-		n = newname(Pkglookup(name, s.Pkg))
++		n = newname(s.Pkg.Lookup(name))
+ 	}
+ 	n = nod(ODCLFIELD, n, oldname(s))
+ 	n.Embedded = 1
+@@ -1015,7 +1015,7 @@ func methodsym(nsym *Sym, t0 *Type, iface int) *Sym {
+ 		spkg = methodsym_toppkg
+ 	}
+ 
+-	s = Pkglookup(p, spkg)
++	s = spkg.Lookup(p)
+ 
+ 	return s
+ 
+@@ -1046,7 +1046,7 @@ func methodname(s *Sym, recv *Type) *Sym {
+ 		p = fmt.Sprintf("%v.%v", tsym, s)
+ 	}
+ 
+-	s = Pkglookup(p, tsym.Pkg)
++	s = tsym.Pkg.Lookup(p)
+ 
+ 	return s
+ }
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index bfc1b0a1a4..0429c0c9e7 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func Sysfunc(name string) *obj.LSym {
+-	return Linksym(Pkglookup(name, Runtimepkg))
++	return Linksym(Runtimepkg.Lookup(name))
+ }
+ 
+ // addrescapes tags node n as having had its address taken
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a676597911..f59d3cd41d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -727,7 +727,7 @@ func loadsys() {
+ 
+ 	typs := runtimeTypes()
+ 	for _, d := range runtimeDecls {
+-		sym := Pkglookup(d.name, Runtimepkg)
++		sym := Runtimepkg.Lookup(d.name)
+ 		typ := typs[d.typ]
+ 		switch d.tag {
+ 		case funcTag:
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index 6ecb332242..c17f578898 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -147,7 +147,7 @@ func dumpobj1(outfile string, mode int) {
+ 	externdcl = tmp
+ 
+ 	if zerosize > 0 {
+-		zero := Pkglookup("zero", mappkg)
++		zero := mappkg.Lookup("zero")
+ 		ggloblsym(zero, int32(zerosize), obj.DUPOK|obj.RODATA)
+ 	}
+ 
+@@ -318,7 +318,7 @@ var slicebytes_gen int
+ func slicebytes(nam *Node, s string, len int) {
+ 	slicebytes_gen++
+ 	symname := fmt.Sprintf(".gobytes.%d", slicebytes_gen)
+-	sym := Pkglookup(symname, localpkg)
++	sym := localpkg.Lookup(symname)
+ 	sym.Def = newname(sym)
+ 
+ 	off := dsname(sym, 0, s)
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 6ce148b854..1da20b67a1 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -790,7 +790,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 
+ 	sizeofAlg := 2 * Widthptr
+ 	if dcommontype_algarray == nil {
+-		dcommontype_algarray = Pkglookup("algarray", Runtimepkg)
++		dcommontype_algarray = Runtimepkg.Lookup("algarray")
+ 	}
+ 	dowidth(t)
+ 	alg := algtype(t)
+@@ -912,18 +912,18 @@ func typesym(t *Type) *Sym {
+ 		name = "noalg." + name
+ 	}
+ 
+-	return Pkglookup(name, typepkg)
++	return typepkg.Lookup(name)
+ }
+ 
+ // tracksym returns the symbol for tracking use of field/method f, assumed
+ // to be a member of struct/interface type t.
+ func tracksym(t *Type, f *Field) *Sym {
+-	return Pkglookup(t.ShortString()+"."+f.Sym.Name, trackpkg)
++	return trackpkg.Lookup(t.ShortString() + "." + f.Sym.Name)
+ }
+ 
+ func typesymprefix(prefix string, t *Type) *Sym {
+ 	p := prefix + "." + t.ShortString()
+-	s := Pkglookup(p, typepkg)
++	s := typepkg.Lookup(p)
+ 
+ 	//print("algsym: %s -> %+S\n", p, s);
+ 
+@@ -961,7 +961,7 @@ func itabname(t, itype *Type) *Node {
+ 	if t == nil || (t.IsPtr() && t.Elem() == nil) || t.IsUntyped() || !itype.IsInterface() || itype.IsEmptyInterface() {
+ 		Fatalf("itabname(%v, %v)", t, itype)
+ 	}
+-	s := Pkglookup(t.ShortString()+","+itype.ShortString(), itabpkg)
++	s := itabpkg.Lookup(t.ShortString() + "," + itype.ShortString())
+ 	if s.Def == nil {
+ 		n := newname(s)
+ 		n.Type = Types[TUINT8]
+@@ -1457,7 +1457,7 @@ func dumptypestructs() {
+ 		// method functions. None are allocated on heap, so we can use obj.NOPTR.
+ 		ggloblsym(i.sym, int32(o), int16(obj.DUPOK|obj.NOPTR))
+ 
+-		ilink := Pkglookup(i.t.ShortString()+","+i.itype.ShortString(), itablinkpkg)
++		ilink := itablinkpkg.Lookup(i.t.ShortString() + "," + i.itype.ShortString())
+ 		dsymptr(ilink, 0, i.sym, 0)
+ 		ggloblsym(ilink, int32(Widthptr), int16(obj.DUPOK|obj.RODATA))
+ 	}
+@@ -1549,7 +1549,7 @@ func dalgsym(t *Type) *Sym {
+ 		// we use one algorithm table for all AMEM types of a given size
+ 		p := fmt.Sprintf(".alg%d", t.Width)
+ 
+-		s = Pkglookup(p, typepkg)
++		s = typepkg.Lookup(p)
+ 
+ 		if s.AlgGen() {
+ 			return s
+@@ -1559,20 +1559,20 @@ func dalgsym(t *Type) *Sym {
+ 		// make hash closure
+ 		p = fmt.Sprintf(".hashfunc%d", t.Width)
+ 
+-		hashfunc = Pkglookup(p, typepkg)
++		hashfunc = typepkg.Lookup(p)
+ 
+ 		ot := 0
+-		ot = dsymptr(hashfunc, ot, Pkglookup("memhash_varlen", Runtimepkg), 0)
++		ot = dsymptr(hashfunc, ot, Runtimepkg.Lookup("memhash_varlen"), 0)
+ 		ot = duintxx(hashfunc, ot, uint64(t.Width), Widthptr) // size encoded in closure
+ 		ggloblsym(hashfunc, int32(ot), obj.DUPOK|obj.RODATA)
+ 
+ 		// make equality closure
+ 		p = fmt.Sprintf(".eqfunc%d", t.Width)
+ 
+-		eqfunc = Pkglookup(p, typepkg)
++		eqfunc = typepkg.Lookup(p)
+ 
+ 		ot = 0
+-		ot = dsymptr(eqfunc, ot, Pkglookup("memequal_varlen", Runtimepkg), 0)
++		ot = dsymptr(eqfunc, ot, Runtimepkg.Lookup("memequal_varlen"), 0)
+ 		ot = duintxx(eqfunc, ot, uint64(t.Width), Widthptr)
+ 		ggloblsym(eqfunc, int32(ot), obj.DUPOK|obj.RODATA)
+ 	} else {
+@@ -1659,7 +1659,7 @@ func dgcptrmask(t *Type) *Sym {
+ 	fillptrmask(t, ptrmask)
+ 	p := fmt.Sprintf("gcbits.%x", ptrmask)
+ 
+-	sym := Pkglookup(p, Runtimepkg)
++	sym := Runtimepkg.Lookup(p)
+ 	if !sym.Uniq() {
+ 		sym.SetUniq(true)
+ 		for i, x := range ptrmask {
+@@ -1809,7 +1809,7 @@ func zeroaddr(size int64) *Node {
+ 	if zerosize < size {
+ 		zerosize = size
+ 	}
+-	s := Pkglookup("zero", mappkg)
++	s := mappkg.Lookup("zero")
+ 	if s.Def == nil {
+ 		x := newname(s)
+ 		x.Type = Types[TUINT8]
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index c013ad02f3..23fb5df659 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -285,15 +285,11 @@ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
+ 	return pkg.Lookup(str)
+ }
+ 
+-func Pkglookup(name string, pkg *Pkg) *Sym {
+-	return pkg.Lookup(name)
+-}
+-
+ func restrictlookup(name string, pkg *Pkg) *Sym {
+ 	if !exportname(name) && pkg != localpkg {
+ 		yyerror("cannot refer to unexported name %s.%s", pkg.Name, name)
+ 	}
+-	return Pkglookup(name, pkg)
++	return pkg.Lookup(name)
+ }
+ 
+ // find all the exported symbols in package opkg
+@@ -1116,7 +1112,7 @@ func (n *Node) labeledControl() *Node {
+ }
+ 
+ func syslook(name string) *Node {
+-	s := Pkglookup(name, Runtimepkg)
++	s := Runtimepkg.Lookup(name)
+ 	if s == nil || s.Def == nil {
+ 		Fatalf("syslook: can't find runtime.%s", name)
+ 	}
+@@ -1833,7 +1829,7 @@ func genwrapper(rcvr *Type, method *Field, newnam *Sym, iface int) {
+ }
+ 
+ func hashmem(t *Type) *Node {
+-	sym := Pkglookup("memhash", Runtimepkg)
++	sym := Runtimepkg.Lookup("memhash")
+ 
+ 	n := newname(sym)
+ 	n.Class = PFUNC
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index e797a062b6..fea0103b33 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -85,7 +85,7 @@ func lexinit() {
+ 		if int(etype) >= len(Types) {
+ 			Fatalf("lexinit: %s bad etype", s.name)
+ 		}
+-		s2 := Pkglookup(s.name, builtinpkg)
++		s2 := builtinpkg.Lookup(s.name)
+ 		t := Types[etype]
+ 		if t == nil {
+ 			t = typ(etype)
+@@ -101,13 +101,13 @@ func lexinit() {
+ 
+ 	for _, s := range builtinFuncs {
+ 		// TODO(marvin): Fix Node.EType type union.
+-		s2 := Pkglookup(s.name, builtinpkg)
++		s2 := builtinpkg.Lookup(s.name)
+ 		s2.Def = newname(s2)
+ 		s2.Def.Etype = EType(s.op)
+ 	}
+ 
+ 	for _, s := range unsafeFuncs {
+-		s2 := Pkglookup(s.name, unsafepkg)
++		s2 := unsafepkg.Lookup(s.name)
+ 		s2.Def = newname(s2)
+ 		s2.Def.Etype = EType(s.op)
+ 	}
+@@ -116,13 +116,13 @@ func lexinit() {
+ 	idealbool = typ(TBOOL)
+ 	Types[TANY] = typ(TANY)
+ 
+-	s := Pkglookup("true", builtinpkg)
++	s := builtinpkg.Lookup("true")
+ 	s.Def = nodbool(true)
+ 	s.Def.Sym = lookup("true")
+ 	s.Def.Name = new(Name)
+ 	s.Def.Type = idealbool
+ 
+-	s = Pkglookup("false", builtinpkg)
++	s = builtinpkg.Lookup("false")
+ 	s.Def = nodbool(false)
+ 	s.Def.Sym = lookup("false")
+ 	s.Def.Name = new(Name)
+@@ -135,21 +135,21 @@ func lexinit() {
+ 	s.Def.Type = Types[TBLANK]
+ 	nblank = s.Def
+ 
+-	s = Pkglookup("_", builtinpkg)
++	s = builtinpkg.Lookup("_")
+ 	s.Block = -100
+ 	s.Def = newname(s)
+ 	Types[TBLANK] = typ(TBLANK)
+ 	s.Def.Type = Types[TBLANK]
+ 
+ 	Types[TNIL] = typ(TNIL)
+-	s = Pkglookup("nil", builtinpkg)
++	s = builtinpkg.Lookup("nil")
+ 	var v Val
+ 	v.U = new(NilVal)
+ 	s.Def = nodlit(v)
+ 	s.Def.Sym = s
+ 	s.Def.Name = new(Name)
+ 
+-	s = Pkglookup("iota", builtinpkg)
++	s = builtinpkg.Lookup("iota")
+ 	s.Def = nod(OIOTA, nil, nil)
+ 	s.Def.Sym = s
+ 	s.Def.Name = new(Name)
+@@ -172,7 +172,7 @@ func typeinit() {
+ 
+ 	t := typ(TUNSAFEPTR)
+ 	Types[TUNSAFEPTR] = t
+-	t.Sym = Pkglookup("Pointer", unsafepkg)
++	t.Sym = unsafepkg.Lookup("Pointer")
+ 	t.Sym.Def = typenod(t)
+ 	t.Sym.Def.Name = new(Name)
+ 	dowidth(Types[TUNSAFEPTR])
+@@ -384,7 +384,7 @@ func makeErrorInterface() *Type {
+ 
+ func lexinit1() {
+ 	// error type
+-	s := Pkglookup("error", builtinpkg)
++	s := builtinpkg.Lookup("error")
+ 	errortype = makeErrorInterface()
+ 	errortype.Sym = s
+ 	// TODO: If we can prove that it's safe to set errortype.Orig here
+@@ -402,14 +402,14 @@ func lexinit1() {
+ 	// type aliases, albeit at the cost of having to deal with it everywhere).
+ 
+ 	// byte alias
+-	s = Pkglookup("byte", builtinpkg)
++	s = builtinpkg.Lookup("byte")
+ 	bytetype = typ(TUINT8)
+ 	bytetype.Sym = s
+ 	s.Def = typenod(bytetype)
+ 	s.Def.Name = new(Name)
+ 
+ 	// rune alias
+-	s = Pkglookup("rune", builtinpkg)
++	s = builtinpkg.Lookup("rune")
+ 	runetype = typ(TINT32)
+ 	runetype.Sym = s
+ 	s.Def = typenod(runetype)
+@@ -417,7 +417,7 @@ func lexinit1() {
+ 
+ 	// backend-dependent builtin types (e.g. int).
+ 	for _, s := range typedefs {
+-		s1 := Pkglookup(s.name, builtinpkg)
++		s1 := builtinpkg.Lookup(s.name)
+ 
+ 		sameas := s.sameas32
+ 		if *s.width == 8 {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index ce06325626..2fb14caba1 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -868,10 +868,10 @@ opswitch:
+ 		}
+ 
+ 		if staticbytes == nil {
+-			staticbytes = newname(Pkglookup("staticbytes", Runtimepkg))
++			staticbytes = newname(Runtimepkg.Lookup("staticbytes"))
+ 			staticbytes.Class = PEXTERN
+ 			staticbytes.Type = typArray(Types[TUINT8], 256)
+-			zerobase = newname(Pkglookup("zerobase", Runtimepkg))
++			zerobase = newname(Runtimepkg.Lookup("zerobase"))
+ 			zerobase.Class = PEXTERN
+ 			zerobase.Type = Types[TUINTPTR]
+ 		}

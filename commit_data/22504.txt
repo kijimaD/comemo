@@ -20,8 +20,187 @@ Date:   Tue Mar 17 15:14:31 2015 -0700
     Change-Id: Ie9798c3e85432bb8e0f2c723afc376e233639df7
     Reviewed-on: https://go-review.googlesource.com/7697
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/internal/gc/walk.go | 28 +++++++++++++++++++++++++++-
  src/runtime/iface.go        | 33 +++++++++++++--------------------
  src/runtime/iface_test.go   | 43 +++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 83 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index e55b41581c..1626c11e45 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -869,6 +869,32 @@ func walkexpr(np **Node, init **NodeList) {
+ 			oktype = ok.Type
+ 		}
+ 
++		fromKind := type2IET(from.Type)
++		toKind := type2IET(t)
++
++		// Avoid runtime calls in a few cases of the form _, ok := i.(T).
++		// This is faster and shorter and allows the corresponding assertX2X2
++		// routines to skip nil checks on their last argument.
++		if isblank(n.List.N) {
++			var fast *Node
++			switch {
++			case fromKind == "E" && toKind == "T":
++				tab := Nod(OITAB, from, nil) // type:eface::tab:iface
++				typ := Nod(OCONVNOP, typename(t), nil)
++				typ.Type = Ptrto(Types[TUINTPTR])
++				fast = Nod(OEQ, tab, typ)
++			case fromKind == "I" && toKind == "E",
++				fromKind == "E" && toKind == "E":
++				tab := Nod(OITAB, from, nil)
++				fast = Nod(ONE, tab, nodnil())
++			}
++			if fast != nil {
++				n = Nod(OAS, ok, fast)
++				typecheck(&n, Etop)
++				goto ret
++			}
++		}
++
+ 		var resptr *Node // &res
+ 		if isblank(n.List.N) {
+ 			resptr = nodnil()
+@@ -877,7 +903,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		}
+ 		resptr.Etype = 1 // addr does not escape
+ 
+-		buf := "assert" + type2IET(from.Type) + "2" + type2IET(t) + "2"
++		buf := "assert" + fromKind + "2" + toKind + "2"
+ 		fn := syslook(buf, 1)
+ 		substArgTypes(fn, from.Type, t)
+ 		call := mkcall1(fn, oktype, init, typename(t), from, resptr)
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 811a31bcd9..d94c3919c8 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -219,20 +219,17 @@ func assertE2T(t *_type, e interface{}, r unsafe.Pointer) {
+ 	}
+ }
+ 
++// The compiler ensures that r is non-nil.
+ func assertE2T2(t *_type, e interface{}, r unsafe.Pointer) bool {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if ep._type != t {
+-		if r != nil {
+-			memclr(r, uintptr(t.size))
+-		}
++		memclr(r, uintptr(t.size))
+ 		return false
+ 	}
+-	if r != nil {
+-		if isDirectIface(t) {
+-			writebarrierptr((*uintptr)(r), uintptr(ep.data))
+-		} else {
+-			typedmemmove(t, r, ep.data)
+-		}
++	if isDirectIface(t) {
++		writebarrierptr((*uintptr)(r), uintptr(ep.data))
++	} else {
++		typedmemmove(t, r, ep.data)
+ 	}
+ 	return true
+ }
+@@ -262,17 +259,16 @@ func assertI2E(inter *interfacetype, i fInterface, r *interface{}) {
+ 	return
+ }
+ 
++// The compiler ensures that r is non-nil.
+ func assertI2E2(inter *interfacetype, i fInterface, r *interface{}) bool {
+ 	ip := (*iface)(unsafe.Pointer(&i))
+ 	tab := ip.tab
+ 	if tab == nil {
+ 		return false
+ 	}
+-	if r != nil {
+-		rp := (*eface)(unsafe.Pointer(r))
+-		rp._type = tab._type
+-		rp.data = ip.data
+-	}
++	rp := (*eface)(unsafe.Pointer(r))
++	rp._type = tab._type
++	rp.data = ip.data
+ 	return true
+ }
+ 
+@@ -386,17 +382,14 @@ func assertE2E(inter *interfacetype, e interface{}, r *interface{}) {
+ 	*r = e
+ }
+ 
++// The compiler ensures that r is non-nil.
+ func assertE2E2(inter *interfacetype, e interface{}, r *interface{}) bool {
+ 	ep := (*eface)(unsafe.Pointer(&e))
+ 	if ep._type == nil {
+-		if r != nil {
+-			*r = nil
+-		}
++		*r = nil
+ 		return false
+ 	}
+-	if r != nil {
+-		*r = e
+-	}
++	*r = e
+ 	return true
+ }
+ 
+diff --git a/src/runtime/iface_test.go b/src/runtime/iface_test.go
+index bfeb94b8aa..f632a65629 100644
+--- a/src/runtime/iface_test.go
++++ b/src/runtime/iface_test.go
+@@ -37,6 +37,7 @@ var (
+ 	ts TS
+ 	tm TM
+ 	tl TL
++	ok bool
+ )
+ 
+ // Issue 9370
+@@ -178,3 +179,45 @@ func BenchmarkAssertE2E(b *testing.B) {
+ 		e_ = e
+ 	}
+ }
++
++func BenchmarkAssertE2T2(b *testing.B) {
++	e = tm
++	for i := 0; i < b.N; i++ {
++		tm, ok = e.(TM)
++	}
++}
++
++func BenchmarkAssertE2T2Blank(b *testing.B) {
++	e = tm
++	for i := 0; i < b.N; i++ {
++		_, ok = e.(TM)
++	}
++}
++
++func BenchmarkAssertI2E2(b *testing.B) {
++	i1 = tm
++	for i := 0; i < b.N; i++ {
++		e, ok = i1.(interface{})
++	}
++}
++
++func BenchmarkAssertI2E2Blank(b *testing.B) {
++	i1 = tm
++	for i := 0; i < b.N; i++ {
++		_, ok = i1.(interface{})
++	}
++}
++
++func BenchmarkAssertE2E2(b *testing.B) {
++	e = tm
++	for i := 0; i < b.N; i++ {
++		e_, ok = e.(interface{})
++	}
++}
++
++func BenchmarkAssertE2E2Blank(b *testing.B) {
++	e = tm
++	for i := 0; i < b.N; i++ {
++		_, ok = e.(interface{})
++	}
++}

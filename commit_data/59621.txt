@@ -14,7 +14,34 @@ Date:   Sat Mar 30 04:14:55 2024 +0000
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Keith Randall <khr@golang.org>
     Auto-Submit: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/config.go     | 2 +-
  src/cmd/compile/internal/ssa/debug_test.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index debcf1a0f4..d674cca009 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -130,7 +130,7 @@ type Logger interface {
+ 	// some logging calls account for more than a few heap allocations.
+ 	Log() bool
+ 
+-	// Fatal reports a compiler error and exits.
++	// Fatalf reports a compiler error and exits.
+ 	Fatalf(pos src.XPos, msg string, args ...interface{})
+ 
+ 	// Warnl writes compiler messages in the form expected by "errorcheck" tests
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 2effed855c..2f21aca784 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -192,7 +192,7 @@ func skipSubTest(t *testing.T, tag string, basename string, gcflags string, coun
+ 		if *force {
+ 			testNexting(t, basename, tag, gcflags, count, moreargs...)
+ 		} else {
+-			t.Skip("skipping flaky test becaused not forced (-f)")
++			t.Skip("skipping flaky test because not forced (-f)")
+ 		}
+ 	})
+ }

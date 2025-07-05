@@ -17,6 +17,22 @@ Date:   Sun Mar 29 14:21:12 2020 +0200
     Change-Id: Iaea94acc5b60bb9a5021c9fb7e4a1e2e5244435e
     Reviewed-on: https://go-review.googlesource.com/c/go/+/226338
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewrite.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 878b15eeee..51dba5eb71 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -990,7 +990,9 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 		OpAMD64ORLload, OpAMD64XORLload, OpAMD64CVTTSD2SL,
+ 		OpAMD64ADDL, OpAMD64ADDLconst, OpAMD64SUBL, OpAMD64SUBLconst,
+ 		OpAMD64ANDL, OpAMD64ANDLconst, OpAMD64ORL, OpAMD64ORLconst,
+-		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL:
++		OpAMD64XORL, OpAMD64XORLconst, OpAMD64NEGL, OpAMD64NOTL,
++		OpAMD64SHRL, OpAMD64SHRLconst, OpAMD64SARL, OpAMD64SARLconst,
++		OpAMD64SHLL, OpAMD64SHLLconst:
+ 		return true
+ 	case OpArg:
+ 		return x.Type.Width == 4

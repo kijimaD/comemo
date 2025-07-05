@@ -12,9 +12,290 @@ Date:   Wed Jul 17 12:53:47 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/mvs/mvs.go                   | 17 +++--
  src/cmd/go/internal/mvs/mvs_test.go              | 28 +++++---
  src/cmd/go/testdata/script/mod_indirect.txt      | 81 ++++++++++++++++++++++++
  src/cmd/go/testdata/script/mod_indirect_main.txt | 65 +++++++++++++++++++
  4 files changed, 174 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 568efbd8b2..f9292a05e8 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -216,8 +216,8 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
+ 		}
+ 	}
+ 
+-	// Construct the list by traversing the graph again, replacing older
+-	// modules with required minimum versions.
++	// The final list is the minimum version of each module found in the graph.
++
+ 	if v := min[target.Path]; v != target.Version {
+ 		// TODO(jayconrod): there is a special case in modload.mvsReqs.Max
+ 		// that prevents us from selecting a newer version of a module
+@@ -228,19 +228,18 @@ func buildList(target module.Version, reqs Reqs, upgrade func(module.Version) (m
+ 	}
+ 
+ 	list := []module.Version{target}
+-	listed := map[string]bool{target.Path: true}
+-	for i := 0; i < len(list); i++ {
+-		n := modGraph[list[i]]
++	for path, vers := range min {
++		if path != target.Path {
++			list = append(list, module.Version{Path: path, Version: vers})
++		}
++
++		n := modGraph[module.Version{Path: path, Version: vers}]
+ 		required := n.required
+ 		for _, r := range required {
+ 			v := min[r.Path]
+ 			if r.Path != target.Path && reqs.Max(v, r.Version) != v {
+ 				panic(fmt.Sprintf("mistake: version %q does not satisfy requirement %+v", v, r)) // TODO: Don't panic.
+ 			}
+-			if !listed[r.Path] {
+-				list = append(list, module.Version{Path: r.Path, Version: v})
+-				listed[r.Path] = true
+-			}
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/internal/mvs/mvs_test.go b/src/cmd/go/internal/mvs/mvs_test.go
+index cab4bb241b..ea27966991 100644
+--- a/src/cmd/go/internal/mvs/mvs_test.go
++++ b/src/cmd/go/internal/mvs/mvs_test.go
+@@ -29,7 +29,7 @@ D5: E2
+ G1: C4
+ A2: B1 C4 D4
+ build A: A B1 C2 D4 E2 F1
+-upgrade* A: A B1 C4 D5 E2 G1
++upgrade* A: A B1 C4 D5 E2 F1 G1
+ upgrade A C4: A B1 C4 D4 E2 F1 G1
+ downgrade A2 D2: A2 C4 D2
+ 
+@@ -38,7 +38,7 @@ A: B1 C2
+ B1: D3
+ C2: B2
+ B2:
+-build A: A B2 C2
++build A: A B2 C2 D3
+ 
+ # Cross-dependency between D and E.
+ # No matter how it arises, should get result of merging all build lists via max,
+@@ -157,7 +157,18 @@ D1: E2
+ E1: D2
+ build A: A B C D2 E2
+ 
+-# Upgrade from B1 to B2 should drop the transitive dep on D.
++# golang.org/issue/31248:
++# Even though we select X2, the requirement on I1
++# via X1 should be preserved.
++name: cross8
++M: A1 B1
++A1: X1
++B1: X2
++X1: I1
++X2: 
++build M: M A1 B1 I1 X2
++
++# Upgrade from B1 to B2 should not drop the transitive dep on D.
+ name: drop
+ A: B1 C1
+ B1: D1
+@@ -165,14 +176,14 @@ B2:
+ C2:
+ D2:
+ build A: A B1 C1 D1
+-upgrade* A: A B2 C2
++upgrade* A: A B2 C2 D2
+ 
+ name: simplify
+ A: B1 C1
+ B1: C2
+ C1: D1
+ C2:
+-build A: A B1 C2
++build A: A B1 C2 D1
+ 
+ name: up1
+ A: B1 C1
+@@ -254,8 +265,9 @@ build A: A B1
+ upgrade A B2: A B2
+ upgrade* A: A B3
+ 
++# golang.org/issue/29773:
+ # Requirements of older versions of the target
+-# must not be carried over.
++# must be carried over.
+ name: cycle2
+ A: B1
+ A1: C1
+@@ -265,8 +277,8 @@ B2: A2
+ C1: A2
+ C2:
+ D2:
+-build A: A B1
+-upgrade* A: A B2
++build A: A B1 C1 D1
++upgrade* A: A B2 C2 D2
+ 
+ # Requirement minimization.
+ 
+diff --git a/src/cmd/go/testdata/script/mod_indirect.txt b/src/cmd/go/testdata/script/mod_indirect.txt
+new file mode 100644
+index 0000000000..87a3f0b10f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_indirect.txt
+@@ -0,0 +1,81 @@
++env GO111MODULE=on
++
++# golang.org/issue/31248: module requirements imposed by dependency versions
++# older than the selected version must still be taken into account.
++
++env GOFLAGS=-mod=readonly
++
++# Indirect dependencies required via older-than-selected versions must exist in
++# the module graph, but do not need to be listed explicitly in the go.mod file
++# (since they are implied).
++go mod graph
++stdout i@v0.1.0
++
++# The modules must also appear in the build list, not just the graph.
++go list -m all
++stdout '^i v0.1.0'
++
++# The packages provided by those dependencies must resolve.
++go list all
++stdout '^i$'
++
++-- go.mod --
++module main
++
++go 1.13
++
++require (
++	a v0.0.0
++	b v0.0.0
++	c v0.0.0
++)
++
++// Apply replacements so that the test can be self-contained.
++// (It's easier to see all of the modules here than to go
++// rooting around in testdata/mod.)
++replace (
++	a => ./a
++	b => ./b
++	c => ./c
++	x v0.1.0 => ./x1
++	x v0.2.0 => ./x2
++	i => ./i
++)
++-- main.go --
++package main
++
++import (
++	_ "a"
++	_ "b"
++	_ "c"
++)
++
++func main() {}
++-- a/go.mod --
++module a
++go 1.13
++require x v0.1.0
++-- a/a.go --
++package a
++-- b/go.mod --
++module b
++go 1.13
++require x v0.2.0
++-- b/b.go --
++package b
++-- c/go.mod --
++module c
++go 1.13
++-- c/c.go --
++package c
++import _ "i"
++-- x1/go.mod --
++module x
++go1.13
++require i v0.1.0
++-- x2/go.mod --
++module x
++go1.13
++-- i/go.mod --
++-- i/i.go --
++package i
+diff --git a/src/cmd/go/testdata/script/mod_indirect_main.txt b/src/cmd/go/testdata/script/mod_indirect_main.txt
+new file mode 100644
+index 0000000000..eeb93f1913
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_indirect_main.txt
+@@ -0,0 +1,65 @@
++env GO111MODULE=on
++
++# Regression test for golang.org/issue/29773: 'go list -m' was not following
++# dependencies through older versions of the main module.
++
++go list -f '{{with .Module}}{{.Path}}{{with .Version}} {{.}}{{end}}{{end}}' all
++cmp stdout pkgmods.txt
++
++go list -m all
++cmp stdout mods.txt
++
++go mod graph
++cmp stdout graph.txt
++
++-- go.mod --
++module golang.org/issue/root
++
++go 1.12
++
++replace (
++	golang.org/issue/mirror v0.1.0 => ./mirror-v0.1.0
++	golang.org/issue/pkg v0.1.0 => ./pkg-v0.1.0
++	golang.org/issue/root v0.1.0 => ./root-v0.1.0
++)
++
++require golang.org/issue/mirror v0.1.0
++
++-- root.go --
++package root
++
++import _ "golang.org/issue/mirror"
++
++-- mirror-v0.1.0/go.mod --
++module golang.org/issue/mirror
++
++require golang.org/issue/root v0.1.0
++
++-- mirror-v0.1.0/mirror.go --
++package mirror
++
++import _ "golang.org/issue/pkg"
++
++-- pkg-v0.1.0/go.mod --
++module golang.org/issue/pkg
++
++-- pkg-v0.1.0/pkg.go --
++package pkg
++
++-- root-v0.1.0/go.mod --
++module golang.org/issue/root
++
++require golang.org/issue/pkg v0.1.0
++
++-- pkgmods.txt --
++golang.org/issue/mirror v0.1.0
++golang.org/issue/pkg v0.1.0
++golang.org/issue/root
++-- mods.txt --
++golang.org/issue/root
++golang.org/issue/mirror v0.1.0 => ./mirror-v0.1.0
++golang.org/issue/pkg v0.1.0 => ./pkg-v0.1.0
++-- graph.txt --
++golang.org/issue/root golang.org/issue/mirror@v0.1.0
++golang.org/issue/mirror@v0.1.0 golang.org/issue/root@v0.1.0
++golang.org/issue/root@v0.1.0 golang.org/issue/pkg@v0.1.0

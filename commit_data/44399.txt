@@ -12,6 +12,24 @@ Date:   Thu Jun 25 01:15:42 2020 -0400
     Change-Id: I844e716eb61c193ef78d29cb0b4a3ef790bb3320
     Reviewed-on: https://go-review.googlesource.com/c/go/+/239857
     Reviewed-by: David du Colombier <0intro@gmail.com>
-
+---
  src/os/file_plan9.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index ac68cf7fed..eb158905ab 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -233,10 +233,10 @@ func (f *File) Sync() error {
+ 	var buf [syscall.STATFIXLEN]byte
+ 	n, err := d.Marshal(buf[:])
+ 	if err != nil {
+-		return NewSyscallError("fsync", err)
++		return &PathError{"sync", f.name, err}
+ 	}
+ 	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
+-		return NewSyscallError("fsync", err)
++		return &PathError{"sync", f.name, err}
+ 	}
+ 	return nil
+ }

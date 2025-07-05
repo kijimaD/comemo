@@ -9,7 +9,7 @@ Date:   Sun Apr 10 08:48:55 2016 +0200
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/bufio/bufio.go                 | 2 +-
  src/cmd/compile/internal/gc/fmt.go | 2 +-
  src/encoding/asn1/asn1.go          | 2 +-
@@ -19,3 +19,130 @@ Date:   Sun Apr 10 08:48:55 2016 +0200
  src/html/template/css.go           | 2 +-
  src/net/http/cookiejar/punycode.go | 2 +-
  8 files changed, 11 insertions(+), 10 deletions(-)
+
+diff --git a/src/bufio/bufio.go b/src/bufio/bufio.go
+index d2ccc74f52..3b30b8b80c 100644
+--- a/src/bufio/bufio.go
++++ b/src/bufio/bufio.go
+@@ -266,7 +266,7 @@ func (b *Reader) ReadRune() (r rune, size int, err error) {
+ 		return 0, 0, b.readErr()
+ 	}
+ 	r, size = rune(b.buf[b.r]), 1
+-	if r >= 0x80 {
++	if r >= utf8.RuneSelf {
+ 		r, size = utf8.DecodeRune(b.buf[b.r:b.w])
+ 	}
+ 	b.r += size
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 19f109055d..41d696574c 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -337,7 +337,7 @@ func Vconv(v Val, flag FmtFlag) string {
+ 
+ 	case CTRUNE:
+ 		x := v.U.(*Mpint).Int64()
+-		if ' ' <= x && x < 0x80 && x != '\\' && x != '\'' {
++		if ' ' <= x && x < utf8.RuneSelf && x != '\\' && x != '\'' {
+ 			return fmt.Sprintf("'%c'", int(x))
+ 		}
+ 		if 0 <= x && x < 1<<16 {
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index bd2c96d887..2b5ad08551 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -393,7 +393,7 @@ func isPrintable(b byte) bool {
+ // byte slice and returns it.
+ func parseIA5String(bytes []byte) (ret string, err error) {
+ 	for _, b := range bytes {
+-		if b >= 0x80 {
++		if b >= utf8.RuneSelf {
+ 			err = SyntaxError{"IA5String contains invalid character"}
+ 			return
+ 		}
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index e61d564fa3..04a41a6c2e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1266,7 +1266,7 @@ func safeCgoName(s string, spaces bool) bool {
+ 		safe = safe[len(safeSpaces):]
+ 	}
+ 	for i := 0; i < len(s); i++ {
+-		if c := s[i]; c < 0x80 && bytes.IndexByte(safe, c) < 0 {
++		if c := s[i]; c < utf8.RuneSelf && bytes.IndexByte(safe, c) < 0 {
+ 			return false
+ 		}
+ 	}
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index d411c1980e..29b8cdc786 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"errors"
+ 	"io"
++	"unicode/utf8"
+ )
+ 
+ type importReader struct {
+@@ -20,7 +21,7 @@ type importReader struct {
+ }
+ 
+ func isIdent(c byte) bool {
+-	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= 0x80
++	return 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' || c == '_' || c >= utf8.RuneSelf
+ }
+ 
+ var (
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 4041d9aa47..ce660c71d5 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -64,7 +64,7 @@ func (s *Scanner) next() {
+ 		switch {
+ 		case r == 0:
+ 			s.error(s.offset, "illegal character NUL")
+-		case r >= 0x80:
++		case r >= utf8.RuneSelf:
+ 			// not ASCII
+ 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
+ 			if r == utf8.RuneError && w == 1 {
+@@ -255,11 +255,11 @@ func (s *Scanner) findLineEnd() bool {
+ }
+ 
+ func isLetter(ch rune) bool {
+-	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= 0x80 && unicode.IsLetter(ch)
++	return 'a' <= ch && ch <= 'z' || 'A' <= ch && ch <= 'Z' || ch == '_' || ch >= utf8.RuneSelf && unicode.IsLetter(ch)
+ }
+ 
+ func isDigit(ch rune) bool {
+-	return '0' <= ch && ch <= '9' || ch >= 0x80 && unicode.IsDigit(ch)
++	return '0' <= ch && ch <= '9' || ch >= utf8.RuneSelf && unicode.IsDigit(ch)
+ }
+ 
+ func (s *Scanner) scanIdentifier() string {
+diff --git a/src/html/template/css.go b/src/html/template/css.go
+index 4c27cce85a..9154d8636d 100644
+--- a/src/html/template/css.go
++++ b/src/html/template/css.go
+@@ -243,7 +243,7 @@ func cssValueFilter(args ...interface{}) string {
+ 				return filterFailsafe
+ 			}
+ 		default:
+-			if c < 0x80 && isCSSNmchar(rune(c)) {
++			if c < utf8.RuneSelf && isCSSNmchar(rune(c)) {
+ 				id = append(id, c)
+ 			}
+ 		}
+diff --git a/src/net/http/cookiejar/punycode.go b/src/net/http/cookiejar/punycode.go
+index ea7ceb5ef3..a9cc666e8c 100644
+--- a/src/net/http/cookiejar/punycode.go
++++ b/src/net/http/cookiejar/punycode.go
+@@ -37,7 +37,7 @@ func encode(prefix, s string) (string, error) {
+ 	delta, n, bias := int32(0), initialN, initialBias
+ 	b, remaining := int32(0), int32(0)
+ 	for _, r := range s {
+-		if r < 0x80 {
++		if r < utf8.RuneSelf {
+ 			b++
+ 			output = append(output, byte(r))
+ 		} else {

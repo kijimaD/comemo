@@ -7,6 +7,18 @@ Date:   Thu Jul 14 11:48:23 2011 -0700
     R=bradfitz
     CC=golang-dev
     https://golang.org/cl/4733041
-
+---
  src/cmd/godoc/Makefile | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/godoc/Makefile b/src/cmd/godoc/Makefile
+index 06a18be707..69341fa4e6 100644
+--- a/src/cmd/godoc/Makefile
++++ b/src/cmd/godoc/Makefile
+@@ -18,5 +18,6 @@ GOFILES=\
+ 	snippet.go\
+ 	spec.go\
+ 	utils.go\
++	zip.go\
+ 
+ include ../../Make.cmd

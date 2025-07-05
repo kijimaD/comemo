@@ -10,6 +10,25 @@ Date:   Wed Jan 6 11:23:03 2016 -0500
     Reviewed-on: https://go-review.googlesource.com/18314
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/time/format.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 552887609b..fc2136a3f6 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -44,6 +44,13 @@ import "errors"
+ //
+ // The executable example for time.Format demonstrates the working
+ // of the layout string in detail and is a good reference.
++//
++// Note that the RFC822, RFC850, and RFC1123 formats should be applied
++// only to local times. Applying them to UTC times will use "UTC" as the
++// time zone abbreviation, while strictly speaking those RFCs require the
++// use of "GMT" in that case.
++// In general RFC1123Z should be used instead of RFC1123 for servers
++// that insist on that format, and RFC3339 should be preferred for new protocols.
+ const (
+ 	ANSIC       = "Mon Jan _2 15:04:05 2006"
+ 	UnixDate    = "Mon Jan _2 15:04:05 MST 2006"

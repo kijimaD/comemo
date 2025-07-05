@@ -17,7 +17,7 @@ Date:   Fri May 31 14:14:00 2019 -0400
     Change-Id: I6dceae6f10a5185870537de730b36292271ad124
     Reviewed-on: https://go-review.googlesource.com/c/go/+/179898
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/imports/tags.go         | 15 ++++++++++
  src/cmd/go/internal/modcmd/vendor.go        |  4 +--
  src/cmd/go/internal/modget/get.go           | 26 +++++++++--------
@@ -25,3 +25,298 @@ Date:   Fri May 31 14:14:00 2019 -0400
  src/cmd/go/internal/modload/query.go        |  3 +-
  src/cmd/go/testdata/script/mod_get_tags.txt | 44 +++++++++++++++++++++++++++++
  6 files changed, 94 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/go/internal/imports/tags.go b/src/cmd/go/internal/imports/tags.go
+index 1c22a472b8..14b4e21a02 100644
+--- a/src/cmd/go/internal/imports/tags.go
++++ b/src/cmd/go/internal/imports/tags.go
+@@ -8,6 +8,9 @@ import "cmd/go/internal/cfg"
+ 
+ var tags map[string]bool
+ 
++// Tags returns a set of build tags that are true for the target platform.
++// It includes GOOS, GOARCH, the compiler, possibly "cgo",
++// release tags like "go1.13", and user-specified build tags.
+ func Tags() map[string]bool {
+ 	if tags == nil {
+ 		tags = loadTags()
+@@ -32,3 +35,15 @@ func loadTags() map[string]bool {
+ 	}
+ 	return tags
+ }
++
++var anyTags map[string]bool
++
++// AnyTags returns a special set of build tags that satisfy nearly all
++// build tag expressions. Only "ignore" and malformed build tag requirements
++// are considered false.
++func AnyTags() map[string]bool {
++	if anyTags == nil {
++		anyTags = map[string]bool{"*": true}
++	}
++	return anyTags
++}
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 44cabd5dea..75513f1d9c 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -166,8 +166,6 @@ func matchMetadata(dir string, info os.FileInfo) bool {
+ 	return false
+ }
+ 
+-var anyTagsExceptIgnore = map[string]bool{"*": true}
+-
+ // matchPotentialSourceFile reports whether info may be relevant to a build operation.
+ func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+ 	if strings.HasSuffix(info.Name(), "_test.go") {
+@@ -181,7 +179,7 @@ func matchPotentialSourceFile(dir string, info os.FileInfo) bool {
+ 		defer f.Close()
+ 
+ 		content, err := imports.ReadImports(f, false, nil)
+-		if err == nil && !imports.ShouldBuild(content, anyTagsExceptIgnore) {
++		if err == nil && !imports.ShouldBuild(content, imports.AnyTags()) {
+ 			// The file is explicitly tagged "ignore", so it can't affect the build.
+ 			// Leave it out.
+ 			return false
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index e2c4c105dd..2d5eb03cd8 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/get"
++	"cmd/go/internal/imports"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+@@ -446,9 +447,8 @@ func runGet(cmd *base.Command, args []string) {
+ 			// Don't load packages if pkgPatterns is empty. Both
+ 			// modload.ImportPathsQuiet and ModulePackages convert an empty list
+ 			// of patterns to []string{"."}, which is not what we want.
+-			matches = modload.ImportPathsQuiet(pkgPatterns)
++			matches = modload.ImportPathsQuiet(pkgPatterns, imports.AnyTags())
+ 			seenPkgs = make(map[string]bool)
+-			install = make([]string, 0, len(pkgPatterns))
+ 			for i, match := range matches {
+ 				arg := pkgGets[i]
+ 
+@@ -462,7 +462,6 @@ func runGet(cmd *base.Command, args []string) {
+ 					continue
+ 				}
+ 
+-				install = append(install, arg.path)
+ 				allStd := true
+ 				for _, pkg := range match.Pkgs {
+ 					if !seenPkgs[pkg] {
+@@ -513,7 +512,11 @@ func runGet(cmd *base.Command, args []string) {
+ 		}
+ 		prevBuildList = buildList
+ 	}
+-	search.WarnUnmatched(matches) // don't warn on every iteration
++	if !*getD {
++		// Only print warnings after the last iteration,
++		// and only if we aren't going to build.
++		search.WarnUnmatched(matches)
++	}
+ 
+ 	// Handle downgrades.
+ 	var down []module.Version
+@@ -606,16 +609,17 @@ func runGet(cmd *base.Command, args []string) {
+ 
+ 	// If -d was specified, we're done after the module work.
+ 	// We've already downloaded modules by loading packages above.
+-	// Otherwise, we need to build and install the packages matched
+-	// by command line arguments.
+-	// Note that 'go get -u' without any arguments results in
+-	// len(install) == 1 if there's a package in the current directory.
+-	// search.CleanPatterns returns "." for empty args.
+-	if *getD || len(install) == 0 {
++	// Otherwise, we need to build and install the packages matched by
++	// command line arguments. This may be a different set of packages,
++	// since we only build packages for the target platform.
++	// Note that 'go get -u' without arguments is equivalent to
++	// 'go get -u .', so we'll typically build the package in the current
++	// directory.
++	if *getD || len(pkgPatterns) == 0 {
+ 		return
+ 	}
+ 	work.BuildInit()
+-	pkgs := load.PackagesForBuild(install)
++	pkgs := load.PackagesForBuild(pkgPatterns)
+ 	work.InstallPackages(install, pkgs)
+ }
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 022b3f3a4f..f05975d331 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -51,15 +51,19 @@ var buildList []module.Version
+ var loaded *loader
+ 
+ // ImportPaths returns the set of packages matching the args (patterns),
+-// adding modules to the build list as needed to satisfy new imports.
++// on the target platform. Modules may be added to the build list
++// to satisfy new imports.
+ func ImportPaths(patterns []string) []*search.Match {
+-	matches := ImportPathsQuiet(patterns)
++	matches := ImportPathsQuiet(patterns, imports.Tags())
+ 	search.WarnUnmatched(matches)
+ 	return matches
+ }
+ 
+-// ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+-func ImportPathsQuiet(patterns []string) []*search.Match {
++// ImportPathsQuiet is like ImportPaths but does not warn about patterns with
++// no matches. It also lets the caller specify a set of build tags to match
++// packages. The build tags should typically be imports.Tags() or
++// imports.AnyTags(); a nil map has no special meaning.
++func ImportPathsQuiet(patterns []string, tags map[string]bool) []*search.Match {
+ 	var fsDirs [][]string
+ 	updateMatches := func(matches []*search.Match, iterating bool) {
+ 		for i, m := range matches {
+@@ -179,7 +183,7 @@ func ImportPathsQuiet(patterns []string) []*search.Match {
+ 		})
+ 	}
+ 
+-	loaded = newLoader()
++	loaded = newLoader(tags)
+ 	loaded.load(func() []string {
+ 		var roots []string
+ 		updateMatches(matches, true)
+@@ -258,12 +262,13 @@ func warnPattern(pattern string, list []string) []string {
+ func ImportFromFiles(gofiles []string) {
+ 	InitMod()
+ 
+-	imports, testImports, err := imports.ScanFiles(gofiles, imports.Tags())
++	tags := imports.Tags()
++	imports, testImports, err := imports.ScanFiles(gofiles, tags)
+ 	if err != nil {
+ 		base.Fatalf("go: %v", err)
+ 	}
+ 
+-	loaded = newLoader()
++	loaded = newLoader(tags)
+ 	loaded.load(func() []string {
+ 		var roots []string
+ 		roots = append(roots, imports...)
+@@ -312,7 +317,7 @@ func LoadBuildList() []module.Version {
+ }
+ 
+ func ReloadBuildList() []module.Version {
+-	loaded = newLoader()
++	loaded = newLoader(imports.Tags())
+ 	loaded.load(func() []string { return nil })
+ 	return buildList
+ }
+@@ -338,9 +343,8 @@ func LoadVendor() []string {
+ func loadAll(testAll bool) []string {
+ 	InitMod()
+ 
+-	loaded = newLoader()
++	loaded = newLoader(imports.AnyTags())
+ 	loaded.isALL = true
+-	loaded.tags = anyTags
+ 	loaded.testAll = testAll
+ 	if !testAll {
+ 		loaded.testRoots = true
+@@ -359,15 +363,11 @@ func loadAll(testAll bool) []string {
+ 	return paths
+ }
+ 
+-// anyTags is a special tags map that satisfies nearly all build tag expressions.
+-// Only "ignore" and malformed build tag requirements are considered false.
+-var anyTags = map[string]bool{"*": true}
+-
+ // TargetPackages returns the list of packages in the target (top-level) module
+ // matching pattern, which may be relative to the working directory, under all
+ // build tag settings.
+ func TargetPackages(pattern string) []string {
+-	return matchPackages(pattern, anyTags, false, []module.Version{Target})
++	return matchPackages(pattern, imports.AnyTags(), false, []module.Version{Target})
+ }
+ 
+ // BuildList returns the module build list,
+@@ -510,9 +510,9 @@ type loader struct {
+ // LoadTests controls whether the loaders load tests of the root packages.
+ var LoadTests bool
+ 
+-func newLoader() *loader {
++func newLoader(tags map[string]bool) *loader {
+ 	ld := new(loader)
+-	ld.tags = imports.Tags()
++	ld.tags = tags
+ 	ld.testRoots = LoadTests
+ 
+ 	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 218d18373a..5e34bb5e17 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -12,6 +12,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 
++	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/search"
+@@ -265,7 +266,7 @@ func QueryPattern(pattern, query string, allowed func(module.Version) bool) ([]Q
+ 	if i := strings.Index(pattern, "..."); i >= 0 {
+ 		base = pathpkg.Dir(pattern[:i+3])
+ 		match = func(m module.Version, root string, isLocal bool) []string {
+-			return matchPackages(pattern, anyTags, false, []module.Version{m})
++			return matchPackages(pattern, imports.AnyTags(), false, []module.Version{m})
+ 		}
+ 	} else {
+ 		match = func(m module.Version, root string, isLocal bool) []string {
+diff --git a/src/cmd/go/testdata/script/mod_get_tags.txt b/src/cmd/go/testdata/script/mod_get_tags.txt
+new file mode 100644
+index 0000000000..603c76983f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_tags.txt
+@@ -0,0 +1,44 @@
++env GO111MODULE=on
++
++[short] skip
++
++# get should add modules needed to build packages, even if those
++# dependencies are in sources excluded by build tags.
++# All build tags are considered true except "ignore".
++go mod init m
++go get -d .
++go list -m all
++stdout 'example.com/version v1.1.0'
++stdout 'rsc.io/quote v1.5.2'
++
++[short] skip
++
++# Packages that are only imported in excluded files should not be built.
++go get -x .
++stderr 'compile.* -p m '
++! stderr 'compile.* -p example.com/version '
++! stderr 'compile.* -p rsc.io/quote '
++
++-- empty.go --
++package m
++
++-- excluded.go --
++// +build windows,mips
++
++package m
++
++import _ "example.com/version"
++
++-- tools.go --
++// +build tools
++
++package tools
++
++import _ "rsc.io/quote"
++
++-- ignore.go --
++// +build ignore
++
++package ignore
++
++import _ "example.com/doesnotexist"

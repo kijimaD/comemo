@@ -30,6 +30,19 @@ Date:   Wed Aug 30 04:19:35 2023 -0700
     Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     Auto-Submit: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/ir/name.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 28574fa7ab..2d780bdaf7 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -139,6 +139,7 @@ func NewConstAt(pos src.XPos, sym *types.Sym, typ *types.Type, val constant.Valu
+ 	}
+ 	n := newNameAt(pos, OLITERAL, sym)
+ 	n.SetType(typ)
++	n.SetTypecheck(1)
+ 	n.SetVal(val)
+ 	return n
+ }

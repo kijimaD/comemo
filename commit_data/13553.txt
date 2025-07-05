@@ -12,9 +12,566 @@ Date:   Wed Aug 1 14:45:35 2012 +1000
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/6443070
-
+---
  src/pkg/exp/html/parse_test.go                 |  17 ++
  src/pkg/exp/html/testlogs/scriptdata01.dat.log |  16 +-
  src/pkg/exp/html/testlogs/tests16.dat.log      | 136 ++++++-------
  src/pkg/exp/html/token.go                      | 263 +++++++++++++++++++++++--
  4 files changed, 336 insertions(+), 96 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse_test.go b/src/pkg/exp/html/parse_test.go
+index 18389b27d6..2e8dfbf107 100644
+--- a/src/pkg/exp/html/parse_test.go
++++ b/src/pkg/exp/html/parse_test.go
+@@ -389,6 +389,23 @@ var renderTestBlacklist = map[string]bool{
+ 	// A <plaintext> element is reparented, putting it before a table.
+ 	// A <plaintext> element can't have anything after it in HTML.
+ 	`<table><plaintext><td>`: true,
++	// A script that ends at EOF may escape its own closing tag when rendered.
++	`<!doctype html><script><!--<script `:          true,
++	`<!doctype html><script><!--<script <a`:        true,
++	`<!doctype html><script><!--<script </script`:  true,
++	`<!doctype html><script><!--<script </scripta`: true,
++	`<!doctype html><script><!--<script -`:         true,
++	`<!doctype html><script><!--<script -a`:        true,
++	`<!doctype html><script><!--<script --`:        true,
++	`<!doctype html><script><!--<script --a`:       true,
++	`<script><!--<script `:                         true,
++	`<script><!--<script <a`:                       true,
++	`<script><!--<script </script`:                 true,
++	`<script><!--<script </scripta`:                true,
++	`<script><!--<script -`:                        true,
++	`<script><!--<script -a`:                       true,
++	`<script><!--<script --`:                       true,
++	`<script><!--<script --a`:                      true,
+ }
+ 
+ func TestNodeConsistency(t *testing.T) {
+diff --git a/src/pkg/exp/html/testlogs/scriptdata01.dat.log b/src/pkg/exp/html/testlogs/scriptdata01.dat.log
+index 85b9284d51..ff74927df4 100644
+--- a/src/pkg/exp/html/testlogs/scriptdata01.dat.log
++++ b/src/pkg/exp/html/testlogs/scriptdata01.dat.log
+@@ -14,13 +14,13 @@ PASS "FOO<script>'<!-->'</script>BAR"
+ PASS "FOO<script>'<!-->'</script>BAR"
+ PASS "FOO<script>'<!-- potato'</script>BAR"
+ PASS "FOO<script>'<!-- <sCrIpt'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt>'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt>'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --'</script>BAR"
+ PASS "FOO<script>'<!-- <sCrIpt> -->'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --!>'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -- >'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt '</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> --!>'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt> -- >'</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt '</script>BAR"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR"
+ PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt\\'</script>BAR"
+-FAIL "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR</script>QUX"
++PASS "FOO<script type=\"text/plain\">'<!-- <sCrIpt/'</script>BAR</script>QUX"
+diff --git a/src/pkg/exp/html/testlogs/tests16.dat.log b/src/pkg/exp/html/testlogs/tests16.dat.log
+index 670e6c39af..4f1e211962 100644
+--- a/src/pkg/exp/html/testlogs/tests16.dat.log
++++ b/src/pkg/exp/html/testlogs/tests16.dat.log
+@@ -1,19 +1,19 @@
+ PASS "<!doctype html><script>"
+ PASS "<!doctype html><script>a"
+-PARSE "<!doctype html><script><"
+-PARSE "<!doctype html><script></"
+-PARSE "<!doctype html><script></S"
+-PARSE "<!doctype html><script></SC"
+-PARSE "<!doctype html><script></SCR"
+-PARSE "<!doctype html><script></SCRI"
+-PARSE "<!doctype html><script></SCRIP"
++PASS "<!doctype html><script><"
++PASS "<!doctype html><script></"
++PASS "<!doctype html><script></S"
++PASS "<!doctype html><script></SC"
++PASS "<!doctype html><script></SCR"
++PASS "<!doctype html><script></SCRI"
++PASS "<!doctype html><script></SCRIP"
+ PASS "<!doctype html><script></SCRIPT"
+ PASS "<!doctype html><script></SCRIPT "
+-PARSE "<!doctype html><script></s"
+-PARSE "<!doctype html><script></sc"
+-PARSE "<!doctype html><script></scr"
+-PARSE "<!doctype html><script></scri"
+-PARSE "<!doctype html><script></scrip"
++PASS "<!doctype html><script></s"
++PASS "<!doctype html><script></sc"
++PASS "<!doctype html><script></scr"
++PASS "<!doctype html><script></scri"
++PASS "<!doctype html><script></scrip"
+ PASS "<!doctype html><script></script"
+ PASS "<!doctype html><script></script "
+ PASS "<!doctype html><script><!"
+@@ -22,9 +22,9 @@ PASS "<!doctype html><script><!-"
+ PASS "<!doctype html><script><!-a"
+ PASS "<!doctype html><script><!--"
+ PASS "<!doctype html><script><!--a"
+-PARSE "<!doctype html><script><!--<"
++PASS "<!doctype html><script><!--<"
+ PASS "<!doctype html><script><!--<a"
+-PARSE "<!doctype html><script><!--</"
++PASS "<!doctype html><script><!--</"
+ PASS "<!doctype html><script><!--</script"
+ PASS "<!doctype html><script><!--</script "
+ PASS "<!doctype html><script><!--<s"
+@@ -36,16 +36,16 @@ PARSE "<!doctype html><script><!--<script </"
+ PARSE "<!doctype html><script><!--<script </s"
+ PASS "<!doctype html><script><!--<script </script"
+ PASS "<!doctype html><script><!--<script </scripta"
+-FAIL "<!doctype html><script><!--<script </script "
+-FAIL "<!doctype html><script><!--<script </script>"
+-FAIL "<!doctype html><script><!--<script </script/"
+-FAIL "<!doctype html><script><!--<script </script <"
+-FAIL "<!doctype html><script><!--<script </script <a"
+-FAIL "<!doctype html><script><!--<script </script </"
+-FAIL "<!doctype html><script><!--<script </script </script"
+-FAIL "<!doctype html><script><!--<script </script </script "
+-FAIL "<!doctype html><script><!--<script </script </script/"
+-FAIL "<!doctype html><script><!--<script </script </script>"
++PASS "<!doctype html><script><!--<script </script "
++PASS "<!doctype html><script><!--<script </script>"
++PASS "<!doctype html><script><!--<script </script/"
++PASS "<!doctype html><script><!--<script </script <"
++PASS "<!doctype html><script><!--<script </script <a"
++PASS "<!doctype html><script><!--<script </script </"
++PASS "<!doctype html><script><!--<script </script </script"
++PASS "<!doctype html><script><!--<script </script </script "
++PASS "<!doctype html><script><!--<script </script </script/"
++PASS "<!doctype html><script><!--<script </script </script>"
+ PASS "<!doctype html><script><!--<script -"
+ PASS "<!doctype html><script><!--<script -a"
+ PARSE "<!doctype html><script><!--<script -<"
+@@ -53,23 +53,23 @@ PASS "<!doctype html><script><!--<script --"
+ PASS "<!doctype html><script><!--<script --a"
+ PARSE "<!doctype html><script><!--<script --<"
+ PASS "<!doctype html><script><!--<script -->"
+-PARSE "<!doctype html><script><!--<script --><"
+-PARSE "<!doctype html><script><!--<script --></"
++PASS "<!doctype html><script><!--<script --><"
++PASS "<!doctype html><script><!--<script --></"
+ PASS "<!doctype html><script><!--<script --></script"
+ PASS "<!doctype html><script><!--<script --></script "
+ PASS "<!doctype html><script><!--<script --></script/"
+ PASS "<!doctype html><script><!--<script --></script>"
+ PASS "<!doctype html><script><!--<script><\\/script>--></script>"
+ PASS "<!doctype html><script><!--<script></scr'+'ipt>--></script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script></script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script>--><!--</script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script>-- ></script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script>- -></script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script>- - ></script>"
+-FAIL "<!doctype html><script><!--<script></script><script></script>-></script>"
+-FAIL "<!doctype html><script><!--<script>--!></script>X"
++PASS "<!doctype html><script><!--<script></script><script></script></script>"
++PASS "<!doctype html><script><!--<script></script><script></script>--><!--</script>"
++PASS "<!doctype html><script><!--<script></script><script></script>-- ></script>"
++PASS "<!doctype html><script><!--<script></script><script></script>- -></script>"
++PASS "<!doctype html><script><!--<script></script><script></script>- - ></script>"
++PASS "<!doctype html><script><!--<script></script><script></script>-></script>"
++PASS "<!doctype html><script><!--<script>--!></script>X"
+ PASS "<!doctype html><script><!--<scr'+'ipt></script>--></script>"
+-FAIL "<!doctype html><script><!--<script></scr'+'ipt></script>X"
++PASS "<!doctype html><script><!--<script></scr'+'ipt></script>X"
+ PASS "<!doctype html><style><!--<style></style>--></style>"
+ PASS "<!doctype html><style><!--</style>X"
+ PASS "<!doctype html><style><!--...</style>...--></style>"
+@@ -96,20 +96,20 @@ PASS "<!doctype html><xmp><!--<xmp></xmp>--></xmp>"
+ PASS "<!doctype html><noembed><!--<noembed></noembed>--></noembed>"
+ PASS "<script>"
+ PASS "<script>a"
+-PARSE "<script><"
+-PARSE "<script></"
+-PARSE "<script></S"
+-PARSE "<script></SC"
+-PARSE "<script></SCR"
+-PARSE "<script></SCRI"
+-PARSE "<script></SCRIP"
++PASS "<script><"
++PASS "<script></"
++PASS "<script></S"
++PASS "<script></SC"
++PASS "<script></SCR"
++PASS "<script></SCRI"
++PASS "<script></SCRIP"
+ PASS "<script></SCRIPT"
+ PASS "<script></SCRIPT "
+-PARSE "<script></s"
+-PARSE "<script></sc"
+-PARSE "<script></scr"
+-PARSE "<script></scri"
+-PARSE "<script></scrip"
++PASS "<script></s"
++PASS "<script></sc"
++PASS "<script></scr"
++PASS "<script></scri"
++PASS "<script></scrip"
+ PASS "<script></script"
+ PASS "<script></script "
+ PASS "<script><!"
+@@ -118,9 +118,9 @@ PASS "<script><!-"
+ PASS "<script><!-a"
+ PASS "<script><!--"
+ PASS "<script><!--a"
+-PARSE "<script><!--<"
++PASS "<script><!--<"
+ PASS "<script><!--<a"
+-PARSE "<script><!--</"
++PASS "<script><!--</"
+ PASS "<script><!--</script"
+ PASS "<script><!--</script "
+ PASS "<script><!--<s"
+@@ -132,38 +132,38 @@ PARSE "<script><!--<script </"
+ PARSE "<script><!--<script </s"
+ PASS "<script><!--<script </script"
+ PASS "<script><!--<script </scripta"
+-FAIL "<script><!--<script </script "
+-FAIL "<script><!--<script </script>"
+-FAIL "<script><!--<script </script/"
+-FAIL "<script><!--<script </script <"
+-FAIL "<script><!--<script </script <a"
+-FAIL "<script><!--<script </script </"
+-FAIL "<script><!--<script </script </script"
+-FAIL "<script><!--<script </script </script "
+-FAIL "<script><!--<script </script </script/"
+-FAIL "<script><!--<script </script </script>"
++PASS "<script><!--<script </script "
++PASS "<script><!--<script </script>"
++PASS "<script><!--<script </script/"
++PASS "<script><!--<script </script <"
++PASS "<script><!--<script </script <a"
++PASS "<script><!--<script </script </"
++PASS "<script><!--<script </script </script"
++PASS "<script><!--<script </script </script "
++PASS "<script><!--<script </script </script/"
++PASS "<script><!--<script </script </script>"
+ PASS "<script><!--<script -"
+ PASS "<script><!--<script -a"
+ PASS "<script><!--<script --"
+ PASS "<script><!--<script --a"
+ PASS "<script><!--<script -->"
+-PARSE "<script><!--<script --><"
+-PARSE "<script><!--<script --></"
++PASS "<script><!--<script --><"
++PASS "<script><!--<script --></"
+ PASS "<script><!--<script --></script"
+ PASS "<script><!--<script --></script "
+ PASS "<script><!--<script --></script/"
+ PASS "<script><!--<script --></script>"
+ PASS "<script><!--<script><\\/script>--></script>"
+ PASS "<script><!--<script></scr'+'ipt>--></script>"
+-FAIL "<script><!--<script></script><script></script></script>"
+-FAIL "<script><!--<script></script><script></script>--><!--</script>"
+-FAIL "<script><!--<script></script><script></script>-- ></script>"
+-FAIL "<script><!--<script></script><script></script>- -></script>"
+-FAIL "<script><!--<script></script><script></script>- - ></script>"
+-FAIL "<script><!--<script></script><script></script>-></script>"
+-FAIL "<script><!--<script>--!></script>X"
++PASS "<script><!--<script></script><script></script></script>"
++PASS "<script><!--<script></script><script></script>--><!--</script>"
++PASS "<script><!--<script></script><script></script>-- ></script>"
++PASS "<script><!--<script></script><script></script>- -></script>"
++PASS "<script><!--<script></script><script></script>- - ></script>"
++PASS "<script><!--<script></script><script></script>-></script>"
++PASS "<script><!--<script>--!></script>X"
+ PASS "<script><!--<scr'+'ipt></script>--></script>"
+-FAIL "<script><!--<script></scr'+'ipt></script>X"
++PASS "<script><!--<script></scr'+'ipt></script>X"
+ PASS "<style><!--<style></style>--></style>"
+ PASS "<style><!--</style>X"
+ PASS "<style><!--...</style>...--></style>"
+diff --git a/src/pkg/exp/html/token.go b/src/pkg/exp/html/token.go
+index 7e431c21ef..7ee0efc669 100644
+--- a/src/pkg/exp/html/token.go
++++ b/src/pkg/exp/html/token.go
+@@ -241,6 +241,12 @@ func (z *Tokenizer) skipWhiteSpace() {
+ // readRawOrRCDATA reads until the next "</foo>", where "foo" is z.rawTag and
+ // is typically something like "script" or "textarea".
+ func (z *Tokenizer) readRawOrRCDATA() {
++	if z.rawTag == "script" {
++		z.readScript()
++		z.textIsRaw = true
++		z.rawTag = ""
++		return
++	}
+ loop:
+ 	for {
+ 		c := z.readByte()
+@@ -257,27 +263,8 @@ loop:
+ 		if c != '/' {
+ 			continue loop
+ 		}
+-		for i := 0; i < len(z.rawTag); i++ {
+-			c = z.readByte()
+-			if z.err != nil {
+-				break loop
+-			}
+-			if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
+-				continue loop
+-			}
+-		}
+-		c = z.readByte()
+-		if z.err != nil {
+-			break loop
+-		}
+-		switch c {
+-		case ' ', '\n', '\r', '\t', '\f', '/', '>':
+-			// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
+-			z.raw.end -= 3 + len(z.rawTag)
++		if z.readRawEndTag() || z.err != nil {
+ 			break loop
+-		case '<':
+-			// Step back one, to catch "</foo</foo>".
+-			z.raw.end--
+ 		}
+ 	}
+ 	z.data.end = z.raw.end
+@@ -286,6 +273,242 @@ loop:
+ 	z.rawTag = ""
+ }
+ 
++// readRawEndTag attempts to read a tag like "</foo>", where "foo" is z.rawTag.
++// If it succeeds, it backs up the input position to reconsume the tag and 
++// returns true. Otherwise it returns false. The opening "</" has already been
++// consumed.
++func (z *Tokenizer) readRawEndTag() bool {
++	for i := 0; i < len(z.rawTag); i++ {
++		c := z.readByte()
++		if z.err != nil {
++			return false
++		}
++		if c != z.rawTag[i] && c != z.rawTag[i]-('a'-'A') {
++			z.raw.end--
++			return false
++		}
++	}
++	c := z.readByte()
++	if z.err != nil {
++		return false
++	}
++	switch c {
++	case ' ', '\n', '\r', '\t', '\f', '/', '>':
++		// The 3 is 2 for the leading "</" plus 1 for the trailing character c.
++		z.raw.end -= 3 + len(z.rawTag)
++		return true
++	}
++	z.raw.end--
++	return false
++}
++
++// readScript reads until the next </script> tag, following the byzantine
++// rules for escaping/hiding the closing tag.
++func (z *Tokenizer) readScript() {
++	defer func() {
++		z.data.end = z.raw.end
++	}()
++	var c byte
++
++scriptData:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	if c == '<' {
++		goto scriptDataLessThanSign
++	}
++	goto scriptData
++
++scriptDataLessThanSign:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '/':
++		goto scriptDataEndTagOpen
++	case '!':
++		goto scriptDataEscapeStart
++	}
++	z.raw.end--
++	goto scriptData
++
++scriptDataEndTagOpen:
++	if z.readRawEndTag() || z.err != nil {
++		return
++	}
++	goto scriptData
++
++scriptDataEscapeStart:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	if c == '-' {
++		goto scriptDataEscapeStartDash
++	}
++	z.raw.end--
++	goto scriptData
++
++scriptDataEscapeStartDash:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	if c == '-' {
++		goto scriptDataEscapedDashDash
++	}
++	z.raw.end--
++	goto scriptData
++
++scriptDataEscaped:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataEscapedDash
++	case '<':
++		goto scriptDataEscapedLessThanSign
++	}
++	goto scriptDataEscaped
++
++scriptDataEscapedDash:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataEscapedDashDash
++	case '<':
++		goto scriptDataEscapedLessThanSign
++	}
++	goto scriptDataEscaped
++
++scriptDataEscapedDashDash:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataEscapedDashDash
++	case '<':
++		goto scriptDataEscapedLessThanSign
++	case '>':
++		goto scriptData
++	}
++	goto scriptDataEscaped
++
++scriptDataEscapedLessThanSign:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	if c == '/' {
++		goto scriptDataEscapedEndTagOpen
++	}
++	if 'a' <= c && c <= 'z' || 'A' <= c && c <= 'Z' {
++		goto scriptDataDoubleEscapeStart
++	}
++	z.raw.end--
++	goto scriptData
++
++scriptDataEscapedEndTagOpen:
++	if z.readRawEndTag() || z.err != nil {
++		return
++	}
++	goto scriptDataEscaped
++
++scriptDataDoubleEscapeStart:
++	z.raw.end--
++	for i := 0; i < len("script"); i++ {
++		c = z.readByte()
++		if z.err != nil {
++			return
++		}
++		if c != "script"[i] && c != "SCRIPT"[i] {
++			z.raw.end--
++			goto scriptDataEscaped
++		}
++	}
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case ' ', '\n', '\r', '\t', '\f', '/', '>':
++		goto scriptDataDoubleEscaped
++	}
++	z.raw.end--
++	goto scriptDataEscaped
++
++scriptDataDoubleEscaped:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataDoubleEscapedDash
++	case '<':
++		goto scriptDataDoubleEscapedLessThanSign
++	}
++	goto scriptDataDoubleEscaped
++
++scriptDataDoubleEscapedDash:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataDoubleEscapedDashDash
++	case '<':
++		goto scriptDataDoubleEscapedLessThanSign
++	}
++	goto scriptDataDoubleEscaped
++
++scriptDataDoubleEscapedDashDash:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	switch c {
++	case '-':
++		goto scriptDataDoubleEscapedDashDash
++	case '<':
++		goto scriptDataDoubleEscapedLessThanSign
++	case '>':
++		goto scriptData
++	}
++	goto scriptDataDoubleEscaped
++
++scriptDataDoubleEscapedLessThanSign:
++	c = z.readByte()
++	if z.err != nil {
++		return
++	}
++	if c == '/' {
++		goto scriptDataDoubleEscapeEnd
++	}
++	z.raw.end--
++	goto scriptDataDoubleEscaped
++
++scriptDataDoubleEscapeEnd:
++	if z.readRawEndTag() {
++		z.raw.end += len("</script>")
++		goto scriptDataEscaped
++	}
++	if z.err != nil {
++		return
++	}
++	goto scriptDataDoubleEscaped
++}
++
+ // readComment reads the next comment token starting with "<!--". The opening
+ // "<!--" has already been consumed.
+ func (z *Tokenizer) readComment() {

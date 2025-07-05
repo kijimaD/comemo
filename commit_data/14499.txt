@@ -9,10 +9,821 @@ Date:   Mon Nov 26 15:26:46 2012 -0800
     R=seed, rsc, rminnich, mirtchovski, dave
     CC=golang-dev, lucio.dere
     https://golang.org/cl/6157045
-
+---
  src/pkg/os/dir_plan9.go       | 259 +++++-------------------------------------
  src/pkg/os/file_plan9.go      |  92 ++++++++++-----
  src/pkg/os/stat_plan9.go      |  36 +++---
  src/pkg/syscall/dir_plan9.go  | 205 +++++++++++++++++++++++++++++++++
  src/pkg/syscall/exec_plan9.go |  20 +---
  5 files changed, 322 insertions(+), 290 deletions(-)
+
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index 060c0b2e8f..8195c02a46 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -5,15 +5,11 @@
+ package os
+ 
+ import (
+-	"errors"
+ 	"io"
+ 	"syscall"
+ )
+ 
+-var errShortStat = errors.New("short stat message")
+-var errBadStat = errors.New("bad stat message format")
+-
+-func (file *File) readdir(n int) (fi []FileInfo, err error) {
++func (file *File) readdir(n int) ([]FileInfo, error) {
+ 	// If this file has no dirinfo, create one.
+ 	if file.dirinfo == nil {
+ 		file.dirinfo = new(dirInfo)
+@@ -24,44 +20,47 @@ func (file *File) readdir(n int) (fi []FileInfo, err error) {
+ 		size = 100
+ 		n = -1
+ 	}
+-	result := make([]FileInfo, 0, size) // Empty with room to grow.
++	fi := make([]FileInfo, 0, size) // Empty with room to grow.
+ 	for n != 0 {
+-		// Refill the buffer if necessary
++		// Refill the buffer if necessary.
+ 		if d.bufp >= d.nbuf {
+-			d.bufp = 0
+-			var e error
+-			d.nbuf, e = file.Read(d.buf[:])
+-			if e != nil && e != io.EOF {
+-				return result, &PathError{"readdir", file.name, e}
+-			}
+-			if e == io.EOF {
+-				break
++			nb, err := file.Read(d.buf[:])
++
++			// Update the buffer state before checking for errors.
++			d.bufp, d.nbuf = 0, nb
++
++			if err != nil {
++				if err == io.EOF {
++					break
++				}
++				return fi, &PathError{"readdir", file.name, err}
+ 			}
+-			if d.nbuf < syscall.STATFIXLEN {
+-				return result, &PathError{"readdir", file.name, errShortStat}
++			if nb < syscall.STATFIXLEN {
++				return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
+ 			}
+ 		}
+ 
+-		// Get a record from buffer
+-		m, _ := gbit16(d.buf[d.bufp:])
+-		m += 2
++		// Get a record from the buffer.
++		b := d.buf[d.bufp:]
++		m := int(uint16(b[0])|uint16(b[1])<<8) + 2
+ 		if m < syscall.STATFIXLEN {
+-			return result, &PathError{"readdir", file.name, errShortStat}
++			return fi, &PathError{"readdir", file.name, syscall.ErrShortStat}
+ 		}
+-		dir, e := unmarshalDir(d.buf[d.bufp : d.bufp+int(m)])
+-		if e != nil {
+-			return result, &PathError{"readdir", file.name, e}
++
++		dir, err := syscall.UnmarshalDir(b[:m])
++		if err != nil {
++			return fi, &PathError{"readdir", file.name, err}
+ 		}
+-		result = append(result, fileInfoFromStat(dir))
++		fi = append(fi, fileInfoFromStat(dir))
+ 
+-		d.bufp += int(m)
++		d.bufp += m
+ 		n--
+ 	}
+ 
+-	if n >= 0 && len(result) == 0 {
+-		return result, io.EOF
++	if n >= 0 && len(fi) == 0 {
++		return fi, io.EOF
+ 	}
+-	return result, nil
++	return fi, nil
+ }
+ 
+ func (file *File) readdirnames(n int) (names []string, err error) {
+@@ -72,205 +71,3 @@ func (file *File) readdirnames(n int) (names []string, err error) {
+ 	}
+ 	return
+ }
+-
+-type dir struct {
+-	// system-modified data
+-	Type uint16 // server type
+-	Dev  uint32 // server subtype
+-	// file data
+-	Qid    qid    // unique id from server
+-	Mode   uint32 // permissions
+-	Atime  uint32 // last read time
+-	Mtime  uint32 // last write time
+-	Length uint64 // file length
+-	Name   string // last element of path
+-	Uid    string // owner name
+-	Gid    string // group name
+-	Muid   string // last modifier name
+-}
+-
+-type qid struct {
+-	Path uint64 // the file server's unique identification for the file
+-	Vers uint32 // version number for given Path
+-	Type uint8  // the type of the file (syscall.QTDIR for example)
+-}
+-
+-var nullDir = dir{
+-	^uint16(0),
+-	^uint32(0),
+-	qid{^uint64(0), ^uint32(0), ^uint8(0)},
+-	^uint32(0),
+-	^uint32(0),
+-	^uint32(0),
+-	^uint64(0),
+-	"",
+-	"",
+-	"",
+-	"",
+-}
+-
+-// Null assigns members of d with special "don't care" values indicating
+-// they should not be written by syscall.Wstat.
+-func (d *dir) Null() {
+-	*d = nullDir
+-}
+-
+-// pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
+-func pdir(b []byte, d *dir) []byte {
+-	n := len(b)
+-	b = pbit16(b, 0) // length, filled in later
+-	b = pbit16(b, d.Type)
+-	b = pbit32(b, d.Dev)
+-	b = pqid(b, d.Qid)
+-	b = pbit32(b, d.Mode)
+-	b = pbit32(b, d.Atime)
+-	b = pbit32(b, d.Mtime)
+-	b = pbit64(b, d.Length)
+-	b = pstring(b, d.Name)
+-	b = pstring(b, d.Uid)
+-	b = pstring(b, d.Gid)
+-	b = pstring(b, d.Muid)
+-	pbit16(b[0:n], uint16(len(b)-(n+2)))
+-	return b
+-}
+-
+-// unmarshalDir reads a 9P Stat message from a 9P protocol message stored in b,
+-// returning the corresponding dir struct.
+-func unmarshalDir(b []byte) (d *dir, err error) {
+-	n := uint16(0)
+-	n, b = gbit16(b)
+-
+-	if int(n) != len(b) {
+-		return nil, errBadStat
+-	}
+-
+-	d = new(dir)
+-	d.Type, b = gbit16(b)
+-	d.Dev, b = gbit32(b)
+-	d.Qid, b = gqid(b)
+-	d.Mode, b = gbit32(b)
+-	d.Atime, b = gbit32(b)
+-	d.Mtime, b = gbit32(b)
+-	d.Length, b = gbit64(b)
+-	d.Name, b = gstring(b)
+-	d.Uid, b = gstring(b)
+-	d.Gid, b = gstring(b)
+-	d.Muid, b = gstring(b)
+-
+-	if len(b) != 0 {
+-		return nil, errBadStat
+-	}
+-
+-	return d, nil
+-}
+-
+-// gqid reads the qid part of a 9P Stat message from a 9P protocol message stored in b,
+-// returning the corresponding qid struct and the remaining slice of b.
+-func gqid(b []byte) (qid, []byte) {
+-	var q qid
+-	q.Path, b = gbit64(b)
+-	q.Vers, b = gbit32(b)
+-	q.Type, b = gbit8(b)
+-	return q, b
+-}
+-
+-// pqid appends a qid struct q to a 9P message b.
+-func pqid(b []byte, q qid) []byte {
+-	b = pbit64(b, q.Path)
+-	b = pbit32(b, q.Vers)
+-	b = pbit8(b, q.Type)
+-	return b
+-}
+-
+-// gbit8 reads a byte-sized numeric value from a 9P protocol message stored in b,
+-// returning the value and the remaining slice of b.
+-func gbit8(b []byte) (uint8, []byte) {
+-	return uint8(b[0]), b[1:]
+-}
+-
+-// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
+-// returning the value and the remaining slice of b.
+-func gbit16(b []byte) (uint16, []byte) {
+-	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+-}
+-
+-// gbit32 reads a 32-bit numeric value from a 9P protocol message stored in b,
+-// returning the value and the remaining slice of b.
+-func gbit32(b []byte) (uint32, []byte) {
+-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
+-}
+-
+-// gbit64 reads a 64-bit numeric value from a 9P protocol message stored in b,
+-// returning the value and the remaining slice of b.
+-func gbit64(b []byte) (uint64, []byte) {
+-	lo, b := gbit32(b)
+-	hi, b := gbit32(b)
+-	return uint64(hi)<<32 | uint64(lo), b
+-}
+-
+-// gstring reads a string from a 9P protocol message stored in b,
+-// returning the value as a Go string and the remaining slice of b.
+-func gstring(b []byte) (string, []byte) {
+-	n, b := gbit16(b)
+-	return string(b[0:n]), b[n:]
+-}
+-
+-// pbit8 appends a byte-sized numeric value x to a 9P message b.
+-func pbit8(b []byte, x uint8) []byte {
+-	n := len(b)
+-	if n+1 > cap(b) {
+-		nb := make([]byte, n, 100+2*cap(b))
+-		copy(nb, b)
+-		b = nb
+-	}
+-	b = b[0 : n+1]
+-	b[n] = x
+-	return b
+-}
+-
+-// pbit16 appends a 16-bit numeric value x to a 9P message b.
+-func pbit16(b []byte, x uint16) []byte {
+-	n := len(b)
+-	if n+2 > cap(b) {
+-		nb := make([]byte, n, 100+2*cap(b))
+-		copy(nb, b)
+-		b = nb
+-	}
+-	b = b[0 : n+2]
+-	b[n] = byte(x)
+-	b[n+1] = byte(x >> 8)
+-	return b
+-}
+-
+-// pbit32 appends a 32-bit numeric value x to a 9P message b.
+-func pbit32(b []byte, x uint32) []byte {
+-	n := len(b)
+-	if n+4 > cap(b) {
+-		nb := make([]byte, n, 100+2*cap(b))
+-		copy(nb, b)
+-		b = nb
+-	}
+-	b = b[0 : n+4]
+-	b[n] = byte(x)
+-	b[n+1] = byte(x >> 8)
+-	b[n+2] = byte(x >> 16)
+-	b[n+3] = byte(x >> 24)
+-	return b
+-}
+-
+-// pbit64 appends a 64-bit numeric value x to a 9P message b.
+-func pbit64(b []byte, x uint64) []byte {
+-	b = pbit32(b, uint32(x))
+-	b = pbit32(b, uint32(x>>32))
+-	return b
+-}
+-
+-// pstring appends a Go string s to a 9P message b.
+-func pstring(b []byte, s string) []byte {
+-	if len(s) >= 1<<16 {
+-		panic(errors.New("string too long"))
+-	}
+-	b = pbit16(b, uint16(len(s)))
+-	b = append(b, s...)
+-	return b
+-}
+diff --git a/src/pkg/os/file_plan9.go b/src/pkg/os/file_plan9.go
+index db366a07cc..fb2f2347d7 100644
+--- a/src/pkg/os/file_plan9.go
++++ b/src/pkg/os/file_plan9.go
+@@ -169,13 +169,18 @@ func (f *File) Stat() (fi FileInfo, err error) {
+ // It does not change the I/O offset.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Truncate(size int64) error {
+-	var d dir
+-	d.Null()
++	var d syscall.Dir
+ 
+-	d.Length = uint64(size)
++	d.Null()
++	d.Length = size
+ 
+-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
+-		return &PathError{"truncate", f.name, e}
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"truncate", f.name, err}
++	}
++	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
++		return &PathError{"truncate", f.name, err}
+ 	}
+ 	return nil
+ }
+@@ -185,7 +190,7 @@ const chmodMask = uint32(syscall.DMAPPEND | syscall.DMEXCL | syscall.DMTMP | Mod
+ // Chmod changes the mode of the file to mode.
+ // If there is an error, it will be of type *PathError.
+ func (f *File) Chmod(mode FileMode) error {
+-	var d dir
++	var d syscall.Dir
+ 
+ 	odir, e := dirstat(f)
+ 	if e != nil {
+@@ -193,8 +198,14 @@ func (f *File) Chmod(mode FileMode) error {
+ 	}
+ 	d.Null()
+ 	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
+-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
+-		return &PathError{"chmod", f.name, e}
++
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"chmod", f.name, err}
++	}
++	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
++		return &PathError{"chmod", f.name, err}
+ 	}
+ 	return nil
+ }
+@@ -206,12 +217,16 @@ func (f *File) Sync() (err error) {
+ 	if f == nil {
+ 		return ErrInvalid
+ 	}
+-
+-	var d dir
++	var d syscall.Dir
+ 	d.Null()
+ 
+-	if e := syscall.Fwstat(f.fd, pdir(nil, &d)); e != nil {
+-		return NewSyscallError("fsync", e)
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return NewSyscallError("fsync", err)
++	}
++	if err = syscall.Fwstat(f.fd, buf[:n]); err != nil {
++		return NewSyscallError("fsync", err)
+ 	}
+ 	return nil
+ }
+@@ -253,13 +268,18 @@ func (f *File) seek(offset int64, whence int) (ret int64, err error) {
+ // If the file is a symbolic link, it changes the size of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Truncate(name string, size int64) error {
+-	var d dir
+-	d.Null()
++	var d syscall.Dir
+ 
+-	d.Length = uint64(size)
++	d.Null()
++	d.Length = size
+ 
+-	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
+-		return &PathError{"truncate", name, e}
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"truncate", name, err}
++	}
++	if err = syscall.Wstat(name, buf[:n]); err != nil {
++		return &PathError{"truncate", name, err}
+ 	}
+ 	return nil
+ }
+@@ -275,13 +295,18 @@ func Remove(name string) error {
+ 
+ // Rename renames a file.
+ func Rename(oldname, newname string) error {
+-	var d dir
+-	d.Null()
++	var d syscall.Dir
+ 
++	d.Null()
+ 	d.Name = newname
+ 
+-	if e := syscall.Wstat(oldname, pdir(nil, &d)); e != nil {
+-		return &PathError{"rename", oldname, e}
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"rename", oldname, err}
++	}
++	if err = syscall.Wstat(oldname, buf[:n]); err != nil {
++		return &PathError{"rename", oldname, err}
+ 	}
+ 	return nil
+ }
+@@ -290,7 +315,7 @@ func Rename(oldname, newname string) error {
+ // If the file is a symbolic link, it changes the mode of the link's target.
+ // If there is an error, it will be of type *PathError.
+ func Chmod(name string, mode FileMode) error {
+-	var d dir
++	var d syscall.Dir
+ 
+ 	odir, e := dirstat(name)
+ 	if e != nil {
+@@ -298,8 +323,14 @@ func Chmod(name string, mode FileMode) error {
+ 	}
+ 	d.Null()
+ 	d.Mode = odir.Mode&^chmodMask | syscallMode(mode)&chmodMask
+-	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
+-		return &PathError{"chmod", name, e}
++
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"chmod", name, err}
++	}
++	if err = syscall.Wstat(name, buf[:n]); err != nil {
++		return &PathError{"chmod", name, err}
+ 	}
+ 	return nil
+ }
+@@ -311,14 +342,19 @@ func Chmod(name string, mode FileMode) error {
+ // less precise time unit.
+ // If there is an error, it will be of type *PathError.
+ func Chtimes(name string, atime time.Time, mtime time.Time) error {
+-	var d dir
+-	d.Null()
++	var d syscall.Dir
+ 
++	d.Null()
+ 	d.Atime = uint32(atime.Unix())
+ 	d.Mtime = uint32(mtime.Unix())
+ 
+-	if e := syscall.Wstat(name, pdir(nil, &d)); e != nil {
+-		return &PathError{"chtimes", name, e}
++	var buf [syscall.STATFIXLEN]byte
++	n, err := d.Marshal(buf[:])
++	if err != nil {
++		return &PathError{"chtimes", name, err}
++	}
++	if err = syscall.Wstat(name, buf[:n]); err != nil {
++		return &PathError{"chtimes", name, err}
+ 	}
+ 	return nil
+ }
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index b3dd188343..6822cc019e 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -10,12 +10,12 @@ import (
+ )
+ 
+ func sameFile(sys1, sys2 interface{}) bool {
+-	a := sys1.(*dir)
+-	b := sys2.(*dir)
++	a := sys1.(*syscall.Dir)
++	b := sys2.(*syscall.Dir)
+ 	return a.Qid.Path == b.Qid.Path && a.Type == b.Type && a.Dev == b.Dev
+ }
+ 
+-func fileInfoFromStat(d *dir) FileInfo {
++func fileInfoFromStat(d *syscall.Dir) FileInfo {
+ 	fs := &fileStat{
+ 		name:    d.Name,
+ 		size:    int64(d.Length),
+@@ -39,7 +39,7 @@ func fileInfoFromStat(d *dir) FileInfo {
+ }
+ 
+ // arg is an open *File or a path string.
+-func dirstat(arg interface{}) (d *dir, err error) {
++func dirstat(arg interface{}) (*syscall.Dir, error) {
+ 	var name string
+ 
+ 	// This is big enough for most stat messages
+@@ -50,36 +50,40 @@ func dirstat(arg interface{}) (d *dir, err error) {
+ 		buf := make([]byte, size)
+ 
+ 		var n int
++		var err error
+ 		switch a := arg.(type) {
+ 		case *File:
+ 			name = a.name
+ 			n, err = syscall.Fstat(a.fd, buf)
+ 		case string:
+ 			name = a
+-			n, err = syscall.Stat(name, buf)
++			n, err = syscall.Stat(a, buf)
++		default:
++			panic("phase error in dirstat")
+ 		}
+ 		if err != nil {
+ 			return nil, &PathError{"stat", name, err}
+ 		}
+ 		if n < syscall.STATFIXLEN {
+-			return nil, &PathError{"stat", name, errShortStat}
++			return nil, &PathError{"stat", name, syscall.ErrShortStat}
+ 		}
+ 
+ 		// Pull the real size out of the stat message.
+-		s, _ := gbit16(buf)
+-		size = int(s)
++		size = int(uint16(buf[0]) | uint16(buf[1])<<8)
+ 
+ 		// If the stat message is larger than our buffer we will
+ 		// go around the loop and allocate one that is big enough.
+-		if size <= n {
+-			d, err = unmarshalDir(buf[:n])
+-			if err != nil {
+-				return nil, &PathError{"stat", name, err}
+-			}
+-			return
++		if size > n {
++			continue
+ 		}
++
++		d, err := syscall.UnmarshalDir(buf[:n])
++		if err != nil {
++			return nil, &PathError{"stat", name, err}
++		}
++		return d, nil
+ 	}
+-	return nil, &PathError{"stat", name, errBadStat}
++	return nil, &PathError{"stat", name, syscall.ErrBadStat}
+ }
+ 
+ // Stat returns a FileInfo describing the named file.
+@@ -102,5 +106,5 @@ func Lstat(name string) (fi FileInfo, err error) {
+ 
+ // For testing.
+ func atime(fi FileInfo) time.Time {
+-	return time.Unix(int64(fi.Sys().(*dir).Atime), 0)
++	return time.Unix(int64(fi.Sys().(*syscall.Dir).Atime), 0)
+ }
+diff --git a/src/pkg/syscall/dir_plan9.go b/src/pkg/syscall/dir_plan9.go
+new file mode 100644
+index 0000000000..eee8be44a3
+--- /dev/null
++++ b/src/pkg/syscall/dir_plan9.go
+@@ -0,0 +1,205 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Plan 9 directory marshalling. See intro(5).
++
++package syscall
++
++import "errors"
++
++var (
++	ErrShortStat = errors.New("stat buffer too short")
++	ErrBadStat   = errors.New("malformed stat buffer")
++)
++
++// A Qid represents a 9P server's unique identification for a file.
++type Qid struct {
++	Path uint64 // the file server's unique identification for the file
++	Vers uint32 // version number for given Path
++	Type uint8  // the type of the file (syscall.QTDIR for example)
++}
++
++// A Dir contains the metadata for a file.
++type Dir struct {
++	// system-modified data
++	Type uint16 // server type
++	Dev  uint32 // server subtype
++
++	// file data
++	Qid    Qid    // unique id from server
++	Mode   uint32 // permissions
++	Atime  uint32 // last read time
++	Mtime  uint32 // last write time
++	Length int64  // file length
++	Name   string // last element of path
++	Uid    string // owner name
++	Gid    string // group name
++	Muid   string // last modifier name
++}
++
++var nullDir = Dir{
++	Type: ^uint16(0),
++	Dev:  ^uint32(0),
++	Qid: Qid{
++		Path: ^uint64(0),
++		Vers: ^uint32(0),
++		Type: ^uint8(0),
++	},
++	Mode:   ^uint32(0),
++	Atime:  ^uint32(0),
++	Mtime:  ^uint32(0),
++	Length: ^int64(0),
++}
++
++// Null assigns special "don't touch" values to members of d to
++// avoid modifiying them during syscall.Wstat.
++func (d *Dir) Null() { *d = nullDir }
++
++// Marshal encodes a 9P stat message corresponding to d into b
++//
++// If there isn't enough space in b for a stat message, ErrShortStat is returned.
++func (d *Dir) Marshal(b []byte) (n int, err error) {
++	n = STATFIXLEN + len(d.Name) + len(d.Uid) + len(d.Gid) + len(d.Muid)
++	if n > len(b) {
++		return n, ErrShortStat
++	}
++
++	b = pbit16(b, uint16(n)-2)
++	b = pbit16(b, d.Type)
++	b = pbit32(b, d.Dev)
++	b = pbit64(b, d.Qid.Path)
++	b = pbit32(b, d.Qid.Vers)
++	b = pbit8(b, d.Qid.Type)
++	b = pbit32(b, d.Mode)
++	b = pbit32(b, d.Atime)
++	b = pbit32(b, d.Mtime)
++	b = pbit64(b, uint64(d.Length))
++	b = pstring(b, d.Name)
++	b = pstring(b, d.Uid)
++	b = pstring(b, d.Gid)
++	b = pstring(b, d.Muid)
++
++	return n, nil
++}
++
++// UnmarshalDir decodes a single 9P stat message from b and returns the resulting Dir.
++//
++// If b is too small to hold a valid stat message, ErrShortStat is returned.
++//
++// If the stat message itself is invalid, ErrBadStat is returned.
++func UnmarshalDir(b []byte) (*Dir, error) {
++	if len(b) < STATFIXLEN {
++		return nil, ErrShortStat
++	}
++	size, buf := gbit16(b)
++	if len(b) != int(size)+2 {
++		return nil, ErrBadStat
++	}
++	b = buf
++
++	var d Dir
++	d.Type, b = gbit16(b)
++	d.Dev, b = gbit32(b)
++	d.Qid.Path, b = gbit64(b)
++	d.Qid.Vers, b = gbit32(b)
++	d.Qid.Type, b = gbit8(b)
++	d.Mode, b = gbit32(b)
++	d.Atime, b = gbit32(b)
++	d.Mtime, b = gbit32(b)
++
++	n, b := gbit64(b)
++	d.Length = int64(n)
++
++	var ok bool
++	if d.Name, b, ok = gstring(b); !ok {
++		return nil, ErrBadStat
++	}
++	if d.Uid, b, ok = gstring(b); !ok {
++		return nil, ErrBadStat
++	}
++	if d.Gid, b, ok = gstring(b); !ok {
++		return nil, ErrBadStat
++	}
++	if d.Muid, b, ok = gstring(b); !ok {
++		return nil, ErrBadStat
++	}
++
++	return &d, nil
++}
++
++// pbit8 copies the 8-bit number v to b and returns the remaining slice of b.
++func pbit8(b []byte, v uint8) []byte {
++	b[0] = byte(v)
++	return b[1:]
++}
++
++// pbit16 copies the 16-bit number v to b in little-endian order and returns the remaining slice of b.
++func pbit16(b []byte, v uint16) []byte {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	return b[2:]
++}
++
++// pbit32 copies the 32-bit number v to b in little-endian order and returns the remaining slice of b.
++func pbit32(b []byte, v uint32) []byte {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++	return b[4:]
++}
++
++// pbit64 copies the 64-bit number v to b in little-endian order and returns the remaining slice of b.
++func pbit64(b []byte, v uint64) []byte {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++	b[4] = byte(v >> 32)
++	b[5] = byte(v >> 40)
++	b[6] = byte(v >> 48)
++	b[7] = byte(v >> 56)
++	return b[8:]
++}
++
++// pstring copies the string s to b, prepending it with a 16-bit length in little-endian order, and
++// returning the remaining slice of b..
++func pstring(b []byte, s string) []byte {
++	b = pbit16(b, uint16(len(s)))
++	n := copy(b, s)
++	return b[n:]
++}
++
++// gbit8 reads an 8-bit number from b and returns it with the remaining slice of b.
++func gbit8(b []byte) (uint8, []byte) {
++	return uint8(b[0]), b[1:]
++}
++
++// gbit16 reads a 16-bit number in little-endian order from b and returns it with the remaining slice of b.
++func gbit16(b []byte) (uint16, []byte) {
++	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
++}
++
++// gbit32 reads a 32-bit number in little-endian order from b and returns it with the remaining slice of b.
++func gbit32(b []byte) (uint32, []byte) {
++	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, b[4:]
++}
++
++// gbit64 reads a 64-bit number in little-endian order from b and returns it with the remaining slice of b.
++func gbit64(b []byte) (uint64, []byte) {
++	lo := uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
++	hi := uint32(b[4]) | uint32(b[5])<<8 | uint32(b[6])<<16 | uint32(b[7])<<24
++	return uint64(lo) | uint64(hi)<<32, b[8:]
++}
++
++// gstring reads a string from b, prefixed with a 16-bit length in little-endian order.
++// It returns the string with the remaining slice of b and a boolean. If the length is
++// greater than the number of bytes in b, the boolean will be false.
++func gstring(b []byte) (string, []byte, bool) {
++	n, b := gbit16(b)
++	if int(n) > len(b) {
++		return "", b, false
++	}
++	return string(b[:n]), b[n:], true
++}
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index 1425e100be..26531514ad 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -88,19 +88,6 @@ func SlicePtrFromStrings(ss []string) ([]*byte, error) {
+ 	return bb, nil
+ }
+ 
+-// gbit16 reads a 16-bit numeric value from a 9P protocol message stored in b,
+-// returning the value and the remaining slice of b.
+-func gbit16(b []byte) (uint16, []byte) {
+-	return uint16(b[0]) | uint16(b[1])<<8, b[2:]
+-}
+-
+-// gstring reads a string from a 9P protocol message stored in b,
+-// returning the value as a Go string and the remaining slice of b.
+-func gstring(b []byte) (string, []byte) {
+-	n, b := gbit16(b)
+-	return string(b[0:n]), b[n:]
+-}
+-
+ // readdirnames returns the names of files inside the directory represented by dirfd.
+ func readdirnames(dirfd int) (names []string, err error) {
+ 	names = make([]string, 0, 100)
+@@ -119,10 +106,13 @@ func readdirnames(dirfd int) (names []string, err error) {
+ 			m += 2
+ 
+ 			if m < STATFIXLEN {
+-				return nil, NewError("malformed stat buffer")
++				return nil, ErrBadStat
+ 			}
+ 
+-			s, _ := gstring(buf[i+41:])
++			s, _, ok := gstring(buf[i+41:])
++			if !ok {
++				return nil, ErrBadStat
++			}
+ 			names = append(names, s)
+ 			i += int(m)
+ 		}

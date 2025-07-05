@@ -17,10 +17,457 @@ Date:   Tue Jan 27 10:04:11 2015 +0100
     Change-Id: I5d07213364ca915c25612deea390507c19461758
     Reviewed-on: https://go-review.googlesource.com/4111
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/reflect/all_test.go    | 243 ++++++++++++++++++++++++++++++++++++++++++---
  src/reflect/export_test.go |   1 -
  src/reflect/type.go        |  88 ++++++++++++----
  src/reflect/value.go       |   6 ++
  src/runtime/alg.go         |   2 +
  5 files changed, 307 insertions(+), 33 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 8abce526d9..877b2efd84 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -15,6 +15,7 @@ import (
+ 	. "reflect"
+ 	"runtime"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -3388,26 +3389,242 @@ func checkSameType(t *testing.T, x, y interface{}) {
+ }
+ 
+ func TestArrayOf(t *testing.T) {
+-	// TODO(rsc): Finish ArrayOf and enable-test.
+-	t.Skip("ArrayOf is not finished (and not exported)")
+-
+ 	// check construction and use of type not in binary
+-	type T int
+-	at := ArrayOf(10, TypeOf(T(1)))
+-	v := New(at).Elem()
+-	for i := 0; i < v.Len(); i++ {
+-		v.Index(i).Set(ValueOf(T(i)))
+-	}
+-	s := fmt.Sprint(v.Interface())
+-	want := "[0 1 2 3 4 5 6 7 8 9]"
+-	if s != want {
+-		t.Errorf("constructed array = %s, want %s", s, want)
++	for _, table := range []struct {
++		n          int
++		value      func(i int) interface{}
++		comparable bool
++		want       string
++	}{
++		{
++			n:          0,
++			value:      func(i int) interface{} { type Tint int; return Tint(i) },
++			comparable: true,
++			want:       "[]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tint int; return Tint(i) },
++			comparable: true,
++			want:       "[0 1 2 3 4 5 6 7 8 9]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tfloat float64; return Tfloat(i) },
++			comparable: true,
++			want:       "[0 1 2 3 4 5 6 7 8 9]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tstring string; return Tstring(strconv.Itoa(i)) },
++			comparable: true,
++			want:       "[0 1 2 3 4 5 6 7 8 9]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tstruct struct{ V int }; return Tstruct{i} },
++			comparable: true,
++			want:       "[{0} {1} {2} {3} {4} {5} {6} {7} {8} {9}]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tint int; return []Tint{Tint(i)} },
++			comparable: false,
++			want:       "[[0] [1] [2] [3] [4] [5] [6] [7] [8] [9]]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tint int; return [1]Tint{Tint(i)} },
++			comparable: true,
++			want:       "[[0] [1] [2] [3] [4] [5] [6] [7] [8] [9]]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tstruct struct{ V [1]int }; return Tstruct{[1]int{i}} },
++			comparable: true,
++			want:       "[{[0]} {[1]} {[2]} {[3]} {[4]} {[5]} {[6]} {[7]} {[8]} {[9]}]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type Tstruct struct{ V []int }; return Tstruct{[]int{i}} },
++			comparable: false,
++			want:       "[{[0]} {[1]} {[2]} {[3]} {[4]} {[5]} {[6]} {[7]} {[8]} {[9]}]",
++		},
++		{
++			n:          10,
++			value:      func(i int) interface{} { type TstructUV struct{ U, V int }; return TstructUV{i, i} },
++			comparable: true,
++			want:       "[{0 0} {1 1} {2 2} {3 3} {4 4} {5 5} {6 6} {7 7} {8 8} {9 9}]",
++		},
++		{
++			n: 10,
++			value: func(i int) interface{} {
++				type TstructUV struct {
++					U int
++					V float64
++				}
++				return TstructUV{i, float64(i)}
++			},
++			comparable: true,
++			want:       "[{0 0} {1 1} {2 2} {3 3} {4 4} {5 5} {6 6} {7 7} {8 8} {9 9}]",
++		},
++	} {
++		at := ArrayOf(table.n, TypeOf(table.value(0)))
++		v := New(at).Elem()
++		vok := New(at).Elem()
++		vnot := New(at).Elem()
++		for i := 0; i < v.Len(); i++ {
++			v.Index(i).Set(ValueOf(table.value(i)))
++			vok.Index(i).Set(ValueOf(table.value(i)))
++			j := i
++			if i+1 == v.Len() {
++				j = i + 1
++			}
++			vnot.Index(i).Set(ValueOf(table.value(j))) // make it differ only by last element
++		}
++		s := fmt.Sprint(v.Interface())
++		if s != table.want {
++			t.Errorf("constructed array = %s, want %s", s, table.want)
++		}
++
++		if table.comparable != at.Comparable() {
++			t.Errorf("constructed array (%#v) is comparable=%v, want=%v", v.Interface(), at.Comparable(), table.comparable)
++		}
++		if table.comparable {
++			if table.n > 0 {
++				if DeepEqual(vnot.Interface(), v.Interface()) {
++					t.Errorf(
++						"arrays (%#v) compare ok (but should not)",
++						v.Interface(),
++					)
++				}
++			}
++			if !DeepEqual(vok.Interface(), v.Interface()) {
++				t.Errorf(
++					"arrays (%#v) compare NOT-ok (but should)",
++					v.Interface(),
++				)
++			}
++		}
+ 	}
+ 
+ 	// check that type already in binary is found
++	type T int
+ 	checkSameType(t, Zero(ArrayOf(5, TypeOf(T(1)))).Interface(), [5]T{})
+ }
+ 
++func TestArrayOfGC(t *testing.T) {
++	type T *uintptr
++	tt := TypeOf(T(nil))
++	const n = 100
++	var x []interface{}
++	for i := 0; i < n; i++ {
++		v := New(ArrayOf(n, tt)).Elem()
++		for j := 0; j < v.Len(); j++ {
++			p := new(uintptr)
++			*p = uintptr(i*n + j)
++			v.Index(j).Set(ValueOf(p).Convert(tt))
++		}
++		x = append(x, v.Interface())
++	}
++	runtime.GC()
++
++	for i, xi := range x {
++		v := ValueOf(xi)
++		for j := 0; j < v.Len(); j++ {
++			k := v.Index(j).Elem().Interface()
++			if k != uintptr(i*n+j) {
++				t.Errorf("lost x[%d][%d] = %d, want %d", i, j, k, i*n+j)
++			}
++		}
++	}
++}
++
++func TestArrayOfAlg(t *testing.T) {
++	at := ArrayOf(6, TypeOf(byte(0)))
++	v1 := New(at).Elem()
++	v2 := New(at).Elem()
++	if v1.Interface() != v1.Interface() {
++		t.Errorf("constructed array %v not equal to itself", v1.Interface())
++	}
++	v1.Index(5).Set(ValueOf(byte(1)))
++	if i1, i2 := v1.Interface(), v2.Interface(); i1 == i2 {
++		t.Errorf("constructed arrays %v and %v should not be equal", i1, i2)
++	}
++
++	at = ArrayOf(6, TypeOf([]int(nil)))
++	v1 = New(at).Elem()
++	shouldPanic(func() { _ = v1.Interface() == v1.Interface() })
++}
++
++func TestArrayOfGenericAlg(t *testing.T) {
++	at1 := ArrayOf(5, TypeOf(string("")))
++	at := ArrayOf(6, at1)
++	v1 := New(at).Elem()
++	v2 := New(at).Elem()
++	if v1.Interface() != v1.Interface() {
++		t.Errorf("constructed array %v not equal to itself", v1.Interface())
++	}
++
++	v1.Index(0).Index(0).Set(ValueOf("abc"))
++	v2.Index(0).Index(0).Set(ValueOf("efg"))
++	if i1, i2 := v1.Interface(), v2.Interface(); i1 == i2 {
++		t.Errorf("constructed arrays %v and %v should not be equal", i1, i2)
++	}
++
++	v1.Index(0).Index(0).Set(ValueOf("abc"))
++	v2.Index(0).Index(0).Set(ValueOf((v1.Index(0).Index(0).String() + " ")[:3]))
++	if i1, i2 := v1.Interface(), v2.Interface(); i1 != i2 {
++		t.Errorf("constructed arrays %v and %v should be equal", i1, i2)
++	}
++
++	// Test hash
++	m := MakeMap(MapOf(at, TypeOf(int(0))))
++	m.SetMapIndex(v1, ValueOf(1))
++	if i1, i2 := v1.Interface(), v2.Interface(); !m.MapIndex(v2).IsValid() {
++		t.Errorf("constructed arrays %v and %v have different hashes", i1, i2)
++	}
++}
++
++func TestArrayOfDirectIface(t *testing.T) {
++	{
++		type T [1]*byte
++		i1 := Zero(TypeOf(T{})).Interface()
++		v1 := ValueOf(&i1).Elem()
++		p1 := v1.InterfaceData()[1]
++
++		i2 := Zero(ArrayOf(1, PtrTo(TypeOf(int8(0))))).Interface()
++		v2 := ValueOf(&i2).Elem()
++		p2 := v2.InterfaceData()[1]
++
++		if p1 != 0 {
++			t.Errorf("got p1=%v. want=%v", p1, nil)
++		}
++
++		if p2 != 0 {
++			t.Errorf("got p2=%v. want=%v", p2, nil)
++		}
++	}
++	{
++		type T [0]*byte
++		i1 := Zero(TypeOf(T{})).Interface()
++		v1 := ValueOf(&i1).Elem()
++		p1 := v1.InterfaceData()[1]
++
++		i2 := Zero(ArrayOf(0, PtrTo(TypeOf(int8(0))))).Interface()
++		v2 := ValueOf(&i2).Elem()
++		p2 := v2.InterfaceData()[1]
++
++		if p1 == 0 {
++			t.Errorf("got p1=%v. want=not-%v", p1, nil)
++		}
++
++		if p2 == 0 {
++			t.Errorf("got p2=%v. want=not-%v", p2, nil)
++		}
++	}
++}
++
+ func TestSliceOf(t *testing.T) {
+ 	// check construction and use of type not in binary
+ 	type T int
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 879c2b2abe..c89e9c1298 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -15,7 +15,6 @@ func IsRO(v Value) bool {
+ 	return v.flag&flagRO != 0
+ }
+ 
+-var ArrayOf = arrayOf
+ var CallGC = &callGC
+ 
+ const PtrSize = ptrSize
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index ef4e548d5c..04485235aa 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -262,11 +262,11 @@ type rtype struct {
+ // a copy of runtime.typeAlg
+ type typeAlg struct {
+ 	// function for hashing objects of this type
+-	// (ptr to object, size, seed) -> hash
+-	hash func(unsafe.Pointer, uintptr, uintptr) uintptr
++	// (ptr to object, seed) -> hash
++	hash func(unsafe.Pointer, uintptr) uintptr
+ 	// function for comparing objects of this type
+-	// (ptr to object A, ptr to object B, size) -> ==?
+-	equal func(unsafe.Pointer, unsafe.Pointer, uintptr) bool
++	// (ptr to object A, ptr to object B) -> ==?
++	equal func(unsafe.Pointer, unsafe.Pointer) bool
+ }
+ 
+ // Method on non-interface type
+@@ -1878,26 +1878,24 @@ func SliceOf(t Type) Type {
+ //
+ // If the resulting type would be larger than the available address space,
+ // ArrayOf panics.
+-//
+-// TODO(rsc): Unexported for now. Export once the alg field is set correctly
+-// for the type. This may require significant work.
+-//
+-// TODO(rsc): TestArrayOf is also disabled. Re-enable.
+-func arrayOf(count int, elem Type) Type {
++func ArrayOf(count int, elem Type) Type {
+ 	typ := elem.(*rtype)
++	// call SliceOf here as it calls cacheGet/cachePut.
++	// ArrayOf also calls cacheGet/cachePut and thus may modify the state of
++	// the lookupCache mutex.
+ 	slice := SliceOf(elem)
+ 
+ 	// Look in cache.
+ 	ckey := cacheKey{Array, typ, nil, uintptr(count)}
+-	if slice := cacheGet(ckey); slice != nil {
+-		return slice
++	if array := cacheGet(ckey); array != nil {
++		return array
+ 	}
+ 
+ 	// Look in known types.
+ 	s := "[" + strconv.Itoa(count) + "]" + *typ.string
+ 	for _, tt := range typesByString(s) {
+-		slice := (*sliceType)(unsafe.Pointer(tt))
+-		if slice.elem == typ {
++		array := (*arrayType)(unsafe.Pointer(tt))
++		if array.elem == typ {
+ 			return cachePut(ckey, tt)
+ 		}
+ 	}
+@@ -1907,7 +1905,6 @@ func arrayOf(count int, elem Type) Type {
+ 	prototype := *(**arrayType)(unsafe.Pointer(&iarray))
+ 	array := new(arrayType)
+ 	*array = *prototype
+-	// TODO: Set extra kind bits correctly.
+ 	array.string = &s
+ 	array.hash = fnv1(typ.hash, '[')
+ 	for n := uint32(count); n > 0; n >>= 8 {
+@@ -1922,15 +1919,68 @@ func arrayOf(count int, elem Type) Type {
+ 	array.size = typ.size * uintptr(count)
+ 	array.align = typ.align
+ 	array.fieldAlign = typ.fieldAlign
+-	// TODO: array.alg
+-	// TODO: array.gc
+-	// TODO:
+ 	array.uncommonType = nil
+ 	array.ptrToThis = nil
+-	array.zero = unsafe.Pointer(&make([]byte, array.size)[0])
++	if array.size > 0 {
++		zero := make([]byte, array.size)
++		array.zero = unsafe.Pointer(&zero[0])
++	}
+ 	array.len = uintptr(count)
+ 	array.slice = slice.(*rtype)
+ 
++	var gc gcProg
++	// TODO(sbinet): count could be possibly very large.
++	// use insArray directives from ../runtime/mbitmap.go.
++	for i := 0; i < count; i++ {
++		gc.appendProg(typ)
++	}
++
++	var hasPtr bool
++	array.gc[0], hasPtr = gc.finalize()
++	if !hasPtr {
++		array.kind |= kindNoPointers
++	} else {
++		array.kind &^= kindNoPointers
++	}
++
++	etyp := typ.common()
++	esize := etyp.Size()
++	ealg := etyp.alg
++
++	array.alg = new(typeAlg)
++	if ealg.equal != nil {
++		eequal := ealg.equal
++		array.alg.equal = func(p, q unsafe.Pointer) bool {
++			for i := 0; i < count; i++ {
++				pi := arrayAt(p, i, esize)
++				qi := arrayAt(q, i, esize)
++				if !eequal(pi, qi) {
++					return false
++				}
++
++			}
++			return true
++		}
++	}
++	if ealg.hash != nil {
++		ehash := ealg.hash
++		array.alg.hash = func(ptr unsafe.Pointer, seed uintptr) uintptr {
++			o := seed
++			for i := 0; i < count; i++ {
++				o = ehash(arrayAt(ptr, i, esize), o)
++			}
++			return o
++		}
++	}
++
++	switch {
++	case count == 1 && !ifaceIndir(typ):
++		// array of 1 direct iface type can be direct
++		array.kind |= kindDirectIface
++	default:
++		array.kind &^= kindDirectIface
++	}
++
+ 	return cachePut(ckey, &array.rtype)
+ }
+ 
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 0b22efb027..1ea2608197 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1767,6 +1767,12 @@ func typesMustMatch(what string, t1, t2 Type) {
+ 	}
+ }
+ 
++// arrayAt returns the i-th element of p, a C-array whose elements are
++// eltSize wide (in bytes).
++func arrayAt(p unsafe.Pointer, i int, eltSize uintptr) unsafe.Pointer {
++	return unsafe.Pointer(uintptr(p) + uintptr(i)*eltSize)
++}
++
+ // grow grows the slice s so that it can hold extra more values, allocating
+ // more capacity if needed. It also returns the old and new slice lengths.
+ func grow(s Value, extra int) (Value, int, int) {
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index f24ebd1fb2..c666836a53 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -38,6 +38,8 @@ const (
+ 	alg_max
+ )
+ 
++// typeAlg is also copied/used in reflect/type.go.
++// keep them in sync.
+ type typeAlg struct {
+ 	// function for hashing objects of this type
+ 	// (ptr to object, seed) -> hash

@@ -11,7 +11,39 @@ Date:   Mon Sep 7 12:14:30 2020 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/compile/internal/gc/fmt.go |  3 ++-
  test/fixedbugs/issue41247.go       | 11 +++++++++++
  2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d6cc9fa4cf..866cd0a714 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1616,7 +1616,8 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			}
+ 			n1.exprfmt(s, nprec, mode)
+ 		}
+-
++	case ODDD:
++		mode.Fprintf(s, "...")
+ 	default:
+ 		mode.Fprintf(s, "<node %v>", n.Op)
+ 	}
+diff --git a/test/fixedbugs/issue41247.go b/test/fixedbugs/issue41247.go
+new file mode 100644
+index 0000000000..2df919c9e6
+--- /dev/null
++++ b/test/fixedbugs/issue41247.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f() [2]int {
++	return [...]int{2: 0} // ERROR "cannot use \[\.\.\.\]int literal \(type \[3\]int\)"
++}

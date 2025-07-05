@@ -7,7 +7,60 @@ Date:   Tue Aug 3 17:05:00 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1847050
-
+---
  src/pkg/json/decode_test.go | 10 +++++++++-
  src/pkg/json/scanner.go     |  6 ++----
  2 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/pkg/json/decode_test.go b/src/pkg/json/decode_test.go
+index d5ab29ca64..0aa269743f 100644
+--- a/src/pkg/json/decode_test.go
++++ b/src/pkg/json/decode_test.go
+@@ -37,6 +37,9 @@ var unmarshalTests = []unmarshalTest{
+ 	unmarshalTest{"null", new(interface{}), nil, nil},
+ 	unmarshalTest{`{"X": [1,2,3], "Y": 4}`, new(T), T{Y: 4}, &UnmarshalTypeError{"array", reflect.Typeof("")}},
+ 
++	// syntax errors
++	unmarshalTest{`{"X": "foo", "Y"}`, nil, nil, SyntaxError("invalid character '}' after object key")},
++
+ 	// composite tests
+ 	unmarshalTest{allValueIndent, new(All), allValue, nil},
+ 	unmarshalTest{allValueCompact, new(All), allValue, nil},
+@@ -75,7 +78,12 @@ func TestUnmarshal(t *testing.T) {
+ 	for i, tt := range unmarshalTests {
+ 		in := []byte(tt.in)
+ 		if err := checkValid(in, &scan); err != nil {
+-			t.Errorf("#%d: checkValid: %v", i, err)
++			if !reflect.DeepEqual(err, tt.err) {
++				t.Errorf("#%d: checkValid: %v", i, err)
++				continue
++			}
++		}
++		if tt.ptr == nil {
+ 			continue
+ 		}
+ 		// v = new(right-type)
+diff --git a/src/pkg/json/scanner.go b/src/pkg/json/scanner.go
+index 27c5ffb7a4..584231ef00 100644
+--- a/src/pkg/json/scanner.go
++++ b/src/pkg/json/scanner.go
+@@ -251,6 +251,8 @@ func stateBeginStringOrEmpty(s *scanner, c int) int {
+ 		return scanSkipSpace
+ 	}
+ 	if c == '}' {
++		n := len(s.parseState)
++		s.parseState[n-1] = parseObjectValue
+ 		return stateEndValue(s, c)
+ 	}
+ 	return stateBeginString(s, c)
+@@ -289,10 +291,6 @@ func stateEndValue(s *scanner, c int) int {
+ 			s.step = stateBeginValue
+ 			return scanObjectKey
+ 		}
+-		if c == '}' {
+-			s.popParseState()
+-			return scanEndObject
+-		}
+ 		return s.error(c, "after object key")
+ 	case parseObjectValue:
+ 		if c == ',' {

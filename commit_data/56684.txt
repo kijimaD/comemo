@@ -21,7 +21,47 @@ Date:   Thu May 18 14:46:20 2023 +0200
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/runtime/export_windows_test.go      | 11 ++++++++---
  src/runtime/runtime-seh_windows_test.go |  4 ++--
  2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 8e7662da6e..cf0db576b8 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -29,10 +29,15 @@ func (c ContextStub) GetPC() uintptr {
+ 	return c.ip()
+ }
+ 
+-func NewContextStub() ContextStub {
++func NewContextStub() *ContextStub {
+ 	var ctx context
+ 	ctx.set_ip(getcallerpc())
+ 	ctx.set_sp(getcallersp())
+-	ctx.set_fp(getfp())
+-	return ContextStub{ctx}
++	fp := getfp()
++	// getfp is not implemented on windows/386 and windows/arm,
++	// in which case it returns 0.
++	if fp != 0 {
++		ctx.set_fp(*(*uintptr)(unsafe.Pointer(fp)))
++	}
++	return &ContextStub{ctx}
+ }
+diff --git a/src/runtime/runtime-seh_windows_test.go b/src/runtime/runtime-seh_windows_test.go
+index c8a4a593b9..27e4f49741 100644
+--- a/src/runtime/runtime-seh_windows_test.go
++++ b/src/runtime/runtime-seh_windows_test.go
+@@ -78,9 +78,9 @@ func sehCallers() []uintptr {
+ 		if fn == 0 {
+ 			break
+ 		}
+-		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(&ctx)), nil, &frame, nil)
+-		n++
+ 		pcs[i] = ctx.GetPC()
++		n++
++		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(ctx)), nil, &frame, nil)
+ 	}
+ 	return pcs[:n]
+ }

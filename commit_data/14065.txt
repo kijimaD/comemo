@@ -10,7 +10,39 @@ Date:   Sun Oct 7 21:46:10 2012 +0200
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6615058
-
+---
  src/cmd/gc/align.c | 7 +++++--
  src/cmd/gc/go.h    | 2 +-
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/align.c b/src/cmd/gc/align.c
+index d9d4df316f..118af7e162 100644
+--- a/src/cmd/gc/align.c
++++ b/src/cmd/gc/align.c
+@@ -54,8 +54,11 @@ widstruct(Type *errtype, Type *t, vlong o, int flag)
+ 	for(f=t->type; f!=T; f=f->down) {
+ 		if(f->etype != TFIELD)
+ 			fatal("widstruct: not TFIELD: %lT", f);
+-		if(f->type == T)
+-			break;
++		if(f->type == T) {
++			// broken field, just skip it so that other valid fields
++			// get a width.
++			continue;
++		}
+ 		dowidth(f->type);
+ 		if(f->type->align > maxalign)
+ 			maxalign = f->type->align;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index f6bf8ef8c2..eb2345d6da 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -146,7 +146,7 @@ struct	Type
+ 	uchar	copyany;
+ 	uchar	local;		// created in this file
+ 	uchar	deferwidth;
+-	uchar	broke;
++	uchar	broke;  	// broken type definition.
+ 	uchar	isddd;		// TFIELD is ... argument
+ 	uchar	align;
+ 

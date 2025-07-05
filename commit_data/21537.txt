@@ -30,8 +30,83 @@ Date:   Tue Jan 13 20:12:50 2015 +0300
     Change-Id: I9405f627a4d37bd6b99d5670d4328744aeebfc7a
     Reviewed-on: https://go-review.googlesource.com/2750
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/crash_test.go | 28 ++++++++++++++++++++++++++++
  src/runtime/netpoll.go    | 10 +++++++++-
  src/runtime/proc1.go      |  2 +-
  3 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 24fe338b91..43cea9008a 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -526,3 +526,31 @@ func TestRecoverBeforePanicAfterGoexit(t *testing.T) {
+ 	}()
+ 	runtime.Goexit()
+ }
++
++func TestNetpollDeadlock(t *testing.T) {
++	output := executeTest(t, netpollDeadlockSource, nil)
++	want := "done\n"
++	if !strings.HasSuffix(output, want) {
++		t.Fatalf("output does not start with %q:\n%s", want, output)
++	}
++}
++
++const netpollDeadlockSource = `
++package main
++import (
++	"fmt"
++	"net"
++)
++func init() {
++	fmt.Println("dialing")
++	c, err := net.Dial("tcp", "localhost:14356")
++	if err == nil {
++		c.Close()
++	} else {
++		fmt.Println("error: ", err)
++	}
++}
++func main() {
++	fmt.Println("done")
++}
++`
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 0bd372319a..3ef4506491 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -69,11 +69,19 @@ type pollCache struct {
+ 	// seq is incremented when deadlines are changed or descriptor is reused.
+ }
+ 
+-var pollcache pollCache
++var (
++	netpollInited uint32
++	pollcache pollCache
++)
+ 
+ //go:linkname net_runtime_pollServerInit net.runtime_pollServerInit
+ func net_runtime_pollServerInit() {
+ 	netpollinit()
++	atomicstore(&netpollInited, 1)
++}
++
++func netpollinited() bool {
++	return atomicload(&netpollInited) != 0
+ }
+ 
+ //go:linkname net_runtime_pollOpen net.runtime_pollOpen
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 22ea7a9d27..6fa407f0ce 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1338,7 +1338,7 @@ stop:
+ 	}
+ 
+ 	// poll network
+-	if xchg64(&sched.lastpoll, 0) != 0 {
++	if netpollinited() && xchg64(&sched.lastpoll, 0) != 0 {
+ 		if _g_.m.p != nil {
+ 			throw("findrunnable: netpoll with p")
+ 		}

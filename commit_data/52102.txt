@@ -21,6 +21,41 @@ Date:   Fri Apr 1 14:54:39 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/internal/envcmd/env.go | 20 ++++++++++++++------
  1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index fcabc8d1c7..aab21af855 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -184,15 +184,23 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 	}
+ 	cmd := b.GccCmd(".", "")
+ 
++	join := func(s []string) string {
++		q, err := quoted.Join(s)
++		if err != nil {
++			return strings.Join(s, " ")
++		}
++		return q
++	}
++
+ 	return []cfg.EnvVar{
+ 		// Note: Update the switch in runEnv below when adding to this list.
+-		{Name: "CGO_CFLAGS", Value: strings.Join(cflags, " ")},
+-		{Name: "CGO_CPPFLAGS", Value: strings.Join(cppflags, " ")},
+-		{Name: "CGO_CXXFLAGS", Value: strings.Join(cxxflags, " ")},
+-		{Name: "CGO_FFLAGS", Value: strings.Join(fflags, " ")},
+-		{Name: "CGO_LDFLAGS", Value: strings.Join(ldflags, " ")},
++		{Name: "CGO_CFLAGS", Value: join(cflags)},
++		{Name: "CGO_CPPFLAGS", Value: join(cppflags)},
++		{Name: "CGO_CXXFLAGS", Value: join(cxxflags)},
++		{Name: "CGO_FFLAGS", Value: join(fflags)},
++		{Name: "CGO_LDFLAGS", Value: join(ldflags)},
+ 		{Name: "PKG_CONFIG", Value: b.PkgconfigCmd()},
+-		{Name: "GOGCCFLAGS", Value: strings.Join(cmd[3:], " ")},
++		{Name: "GOGCCFLAGS", Value: join(cmd[3:])},
+ 	}
+ }
+ 

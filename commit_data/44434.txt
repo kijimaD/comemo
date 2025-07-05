@@ -7,6 +7,57 @@ Date:   Sun Jul 5 14:25:03 2020 +0200
     Change-Id: I1dc6871bdab7f3048eacd6738fdcfa64b8700c8a
     Reviewed-on: https://go-review.googlesource.com/c/go/+/240998
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.15.html | 18 ++++++++++--------
  1 file changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index fb746be01c..0d185de8f9 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -34,9 +34,9 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="darwin">Darwin</h3>
+ 
+ <p>
+-  As <a href="go1.14#darwin">announced</a> in the Go 1.14 release notes,
+-  Go 1.15 now requires macOS 10.12 Sierra or later;
+-  support for previous versions has been discontinued.
++  As <a href="go1.14#darwin">announced</a> in the Go 1.14 release
++  notes, Go 1.15 requires macOS 10.12 Sierra or later; support for
++  previous versions has been discontinued.
+ </p>
+ 
+ <p> <!-- golang.org/issue/37610, golang.org/issue/37611, CL 227582, and CL 227198  -->
+@@ -50,9 +50,9 @@ Do not send CLs removing the interior tags from such phrases.
+ <h3 id="windows">Windows</h3>
+ 
+ <p> <!-- CL 214397 and CL 230217 -->
+-  Go 1.15 now generates Windows ASLR executables when <code>-buildmode=pie</code>
+-  cmd/link flag is provided. Go command uses <code>-buildmode=pie</code> by default
+-  on Windows.
++  Go now generates Windows ASLR executables when <code>-buildmode=pie</code>
++  cmd/link flag is provided. Go command uses <code>-buildmode=pie</code>
++  by default on Windows.
+ </p>
+ 
+ <p><!-- CL 227003 -->
+@@ -177,7 +177,8 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <p>
+-  This new vet check is enabled by default when using <code>go test</code>.
++  This new vet check is enabled by default when
++  using <code>go</code> <code>test</code>.
+ </p>
+ 
+ <p>
+@@ -205,7 +206,8 @@ Do not send CLs removing the interior tags from such phrases.
+ </p>
+ 
+ <p>
+-  This new vet check is enabled by default when using <code>go test</code>.
++  This new vet check is enabled by default when
++  using <code>go</code> <code>test</code>.
+ </p>
+ 
+ <p>

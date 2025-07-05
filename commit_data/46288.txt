@@ -14,7 +14,46 @@ Date:   Mon Dec 21 01:14:36 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go | 8 +-------
  src/cmd/internal/obj/link.go         | 6 ++++++
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 79ca669dfb..ddb431d5ab 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -321,15 +321,9 @@ func ggloblsym(s *obj.LSym, width int32, flags int16) {
+ }
+ 
+ func Addrconst(a *obj.Addr, v int64) {
+-	a.Sym = nil
+-	a.Type = obj.TYPE_CONST
+-	a.Offset = v
++	a.SetConst(v)
+ }
+ 
+ func Patch(p *obj.Prog, to *obj.Prog) {
+-	if p.To.Type != obj.TYPE_BRANCH {
+-		base.Fatalf("patch: not a branch")
+-	}
+ 	p.To.SetTarget(to)
+-	p.To.Offset = to.Pc
+ }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index eaebfaf4b6..7b5c990a5d 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -250,6 +250,12 @@ func (a *Addr) SetTarget(t *Prog) {
+ 	a.Val = t
+ }
+ 
++func (a *Addr) SetConst(v int64) {
++	a.Sym = nil
++	a.Type = TYPE_CONST
++	a.Offset = v
++}
++
+ // Prog describes a single machine instruction.
+ //
+ // The general instruction form is:

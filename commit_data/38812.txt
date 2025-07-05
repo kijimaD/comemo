@@ -22,7 +22,7 @@ Date:   Mon Nov 5 15:01:53 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/api/goapi.go                               |  7 +----
  src/cmd/go/go_test.go                              | 16 ------------
  src/cmd/go/internal/load/pkg.go                    | 14 ----------
@@ -220,3 +220,1747 @@ Date:   Mon Nov 5 15:01:53 2018 -0500
  src/net/lookup_unix.go                             |  2 +-
  src/net/pipe_test.go                               |  2 +-
  196 files changed, 148 insertions(+), 152 deletions(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 9698f25b51..02dfa7c841 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -442,13 +442,8 @@ func (w *Walker) Import(name string) (*types.Package, error) {
+ 	}
+ 	w.imported[name] = &importing
+ 
+-	root := w.root
+-	if strings.HasPrefix(name, "golang_org/x/") {
+-		root = filepath.Join(root, "vendor")
+-	}
+-
+ 	// Determine package files.
+-	dir := filepath.Join(root, filepath.FromSlash(name))
++	dir := filepath.Join(w.root, filepath.FromSlash(name))
+ 	if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+ 		log.Fatalf("no source in tree for import %q: %v", name, err)
+ 	}
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f956ecb916..6c31f98415 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1207,22 +1207,6 @@ func TestImportCycle(t *testing.T) {
+ 	tg.run("list", "-e", "-json", "selfimport")
+ }
+ 
+-func TestListImportMap(t *testing.T) {
+-	skipIfGccgo(t, "gccgo does not have standard packages")
+-	tg := testgo(t)
+-	defer tg.cleanup()
+-	tg.parallel()
+-	tg.run("list", "-f", "{{.ImportPath}}: {{.ImportMap}}", "net", "fmt")
+-	tg.grepStdout(`^net: map\[(.* )?golang_org/x/net/dns/dnsmessage:vendor/golang_org/x/net/dns/dnsmessage.*\]`, "net/http should have rewritten dnsmessage import")
+-	tg.grepStdout(`^fmt: map\[\]`, "fmt should have no rewritten imports")
+-	tg.run("list", "-deps", "-test", "-f", "{{.ImportPath}} MAP: {{.ImportMap}}\n{{.ImportPath}} IMPORT: {{.Imports}}", "fmt")
+-	tg.grepStdout(`^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]`, "flag [fmt.test] should import fmt [fmt.test] as fmt")
+-	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
+-	tg.grepStdout(`^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]`, "fmt.test should import testing [fmt.test] as testing")
+-	tg.grepStdoutNot(`^fmt\.test MAP: map\[(.* )?os:`, "fmt.test should not import a modified os")
+-	tg.grepStdout(`^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]`, "wrong imports for fmt.test")
+-}
+-
+ // cmd/go: custom import path checking should not apply to Go packages without import comment.
+ func TestIssue10952(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ae738c6a12..a64bab1479 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1051,20 +1051,6 @@ func disallowVendor(srcDir string, importer *Package, importerPath, path string,
+ 		return p
+ 	}
+ 
+-	// Modules must not import vendor packages in the standard library,
+-	// but the usual vendor visibility check will not catch them
+-	// because the module loader presents them with an ImportPath starting
+-	// with "golang_org/" instead of "vendor/".
+-	if p.Standard && !importer.Standard && strings.HasPrefix(p.ImportPath, "golang_org") {
+-		perr := *p
+-		perr.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         "use of vendored package " + path + " not allowed",
+-		}
+-		perr.Incomplete = true
+-		return &perr
+-	}
+-
+ 	if perr := disallowVendorVisibility(srcDir, p, stk); perr != p {
+ 		return perr
+ 	}
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 44c2a23726..ba2052d3cd 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -58,9 +58,6 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 
+ 	// Is the package in the standard library?
+ 	if search.IsStandardImportPath(path) {
+-		if strings.HasPrefix(path, "golang_org/") {
+-			return module.Version{}, filepath.Join(cfg.GOROOT, "src/vendor", path), nil
+-		}
+ 		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+ 			dir := filepath.Join(cfg.GOROOT, "src", path)
+ 			return module.Version{}, dir, nil
+diff --git a/src/cmd/go/testdata/script/list_importmap.txt b/src/cmd/go/testdata/script/list_importmap.txt
+new file mode 100644
+index 0000000000..a42dc47f24
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_importmap.txt
+@@ -0,0 +1,25 @@
++# gccgo does not have standard packages.
++[gccgo] skip
++
++# fmt should have no rewritten imports.
++# The import from a/b should map c/d to a's vendor directory.
++go list -f '{{.ImportPath}}: {{.ImportMap}}' fmt a/b
++stdout 'fmt: map\[\]'
++stdout 'a/b: map\[c/d:a/vendor/c/d\]'
++
++# flag [fmt.test] should import fmt [fmt.test] as fmt
++# fmt.test should import testing [fmt.test] as testing
++# fmt.test should not import a modified os
++go list -deps -test -f '{{.ImportPath}} MAP: {{.ImportMap}}{{"\n"}}{{.ImportPath}} IMPORT: {{.Imports}}' fmt
++stdout '^flag \[fmt\.test\] MAP: map\[fmt:fmt \[fmt\.test\]\]'
++stdout '^fmt\.test MAP: map\[(.* )?testing:testing \[fmt\.test\]'
++! stdout '^fmt\.test MAP: map\[(.* )?os:'
++stdout '^fmt\.test IMPORT: \[fmt \[fmt\.test\] fmt_test \[fmt\.test\] os testing \[fmt\.test\] testing/internal/testdeps \[fmt\.test\]\]'
++
++
++-- a/b/b.go --
++package b
++
++import _ "c/d"
++-- a/vendor/c/d/d.go --
++package d
+diff --git a/src/cmd/go/testdata/script/list_std.txt b/src/cmd/go/testdata/script/list_std.txt
+index a63d74db12..046bec6ac5 100644
+--- a/src/cmd/go/testdata/script/list_std.txt
++++ b/src/cmd/go/testdata/script/list_std.txt
+@@ -8,5 +8,5 @@ go list -f '{{if not .Standard}}{{.ImportPath}}{{end}}' ./...
+ 
+ # our vendored packages should be reported as standard
+ go list std cmd
+-stdout golang_org/x/net/http2/hpack
++stdout internal/x/net/http2/hpack
+ stdout cmd/vendor/golang\.org/x/arch/x86/x86asm
+diff --git a/src/cmd/go/testdata/script/mod_internal.txt b/src/cmd/go/testdata/script/mod_internal.txt
+index e5f5a1205e..5a47c3fa44 100644
+--- a/src/cmd/go/testdata/script/mod_internal.txt
++++ b/src/cmd/go/testdata/script/mod_internal.txt
+@@ -18,15 +18,6 @@ stderr 'use of internal package golang.org/x/.* not allowed'
+ ! go build ./fromstd
+ stderr 'use of internal package internal/testenv not allowed'
+ 
+-# Packages found via standard-library vendoring should not leak.
+-! go build ./fromstdvendor
+-stderr 'use of vendored package golang_org/x/net/http/httpguts not allowed'
+-
+-env GO111MODULE=off
+-! go build ./fromstdvendor
+-stderr 'cannot find package "golang_org/x/net/http/httpguts" in any of:'
+-env GO111MODULE=on
+-
+ # Dependencies should be able to use their own internal modules...
+ rm go.mod
+ go mod init golang.org/notx
+@@ -83,10 +74,6 @@ import _ "golang.org/notx/useinternal"
+ package fromstd
+ import _ "internal/testenv"
+ 
+--- fromstdvendor/useinternal.go --
+-package fromstdvendor
+-import _ "golang_org/x/net/http/httpguts"
+-
+ -- replace/golang.org/notx/internal/go.mod --
+ module golang.org/x/internal
+ 
+diff --git a/src/cmd/go/testdata/script/mod_std_vendor.txt b/src/cmd/go/testdata/script/mod_std_vendor.txt
+index 36d4ffca9e..7aa1bc353b 100644
+--- a/src/cmd/go/testdata/script/mod_std_vendor.txt
++++ b/src/cmd/go/testdata/script/mod_std_vendor.txt
+@@ -4,7 +4,7 @@ go list -f '{{.TestImports}}'
+ stdout net/http # from .TestImports
+ 
+ go list -test -f '{{.Deps}}'
+-stdout golang_org/x/crypto # dep of .TestImports
++stdout internal/x/crypto # dep of .TestImports
+ 
+ -- go.mod --
+ module m
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 26e14c9924..ecb4db290a 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -14,8 +14,8 @@ import (
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+ 	"crypto/x509"
+-	"golang_org/x/crypto/chacha20poly1305"
+ 	"hash"
++	"internal/x/crypto/chacha20poly1305"
+ )
+ 
+ // a keyAgreement implements the client and server side of a TLS key agreement
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index f86cc4b9b0..c0e049b16f 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -6,7 +6,7 @@ package tls
+ 
+ import (
+ 	"fmt"
+-	"golang_org/x/crypto/cryptobyte"
++	"internal/x/crypto/cryptobyte"
+ 	"strings"
+ )
+ 
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+index 310d92e2c5..2cfc226d7f 100644
+--- a/src/crypto/tls/key_schedule.go
++++ b/src/crypto/tls/key_schedule.go
+@@ -8,10 +8,10 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/hmac"
+ 	"errors"
+-	"golang_org/x/crypto/cryptobyte"
+-	"golang_org/x/crypto/curve25519"
+-	"golang_org/x/crypto/hkdf"
+ 	"hash"
++	"internal/x/crypto/cryptobyte"
++	"internal/x/crypto/curve25519"
++	"internal/x/crypto/hkdf"
+ 	"io"
+ 	"math/big"
+ )
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index 7f804ee571..9560176259 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -12,7 +12,7 @@ import (
+ 	"crypto/sha256"
+ 	"crypto/subtle"
+ 	"errors"
+-	"golang_org/x/crypto/cryptobyte"
++	"internal/x/crypto/cryptobyte"
+ 	"io"
+ )
+ 
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index b0d366c245..d8587aba92 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -24,8 +24,8 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
+-	"golang_org/x/crypto/cryptobyte"
+-	cryptobyte_asn1 "golang_org/x/crypto/cryptobyte/asn1"
++	"internal/x/crypto/cryptobyte"
++	cryptobyte_asn1 "internal/x/crypto/cryptobyte/asn1"
+ 	"io"
+ 	"math/big"
+ 	"net"
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index 091443f646..db8b12eabf 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -351,12 +351,16 @@ func TestImportDirNotExist(t *testing.T) {
+ func TestImportVendor(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+-	ctxt.GOPATH = ""
+-	p, err := ctxt.Import("golang_org/x/net/http2/hpack", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
++	p, err := ctxt.Import("c/d", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
+ 	if err != nil {
+-		t.Fatalf("cannot find vendored golang_org/x/net/http2/hpack from net/http directory: %v", err)
++		t.Fatalf("cannot find vendored c/d from testdata src/a/b directory: %v", err)
+ 	}
+-	want := "vendor/golang_org/x/net/http2/hpack"
++	want := "a/vendor/c/d"
+ 	if p.ImportPath != want {
+ 		t.Fatalf("Import succeeded but found %q, want %q", p.ImportPath, want)
+ 	}
+@@ -365,8 +369,12 @@ func TestImportVendor(t *testing.T) {
+ func TestImportVendorFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+-	ctxt.GOPATH = ""
+-	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
++	p, err := ctxt.Import("x.com/y/z", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
+ 	if err == nil {
+ 		t.Fatalf("found made-up package x.com/y/z in %s", p.Dir)
+ 	}
+@@ -380,9 +388,13 @@ func TestImportVendorFailure(t *testing.T) {
+ func TestImportVendorParentFailure(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t) // really must just have source
+ 	ctxt := Default
+-	ctxt.GOPATH = ""
+-	// This import should fail because the vendor/golang.org/x/net/http2 directory has no source code.
+-	p, err := ctxt.Import("golang_org/x/net/http2", filepath.Join(ctxt.GOROOT, "src/net/http"), 0)
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ctxt.GOPATH = filepath.Join(wd, "testdata/withvendor")
++	// This import should fail because the vendor/c directory has no source code.
++	p, err := ctxt.Import("c", filepath.Join(ctxt.GOPATH, "src/a/b"), 0)
+ 	if err == nil {
+ 		t.Fatalf("found empty parent in %s", p.Dir)
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4654a8d9ed..7251274756 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -320,7 +320,7 @@ var pkgDeps = map[string][]string{
+ 		"context", "math/rand", "os", "reflect", "sort", "syscall", "time",
+ 		"internal/nettrace", "internal/poll", "internal/syscall/unix",
+ 		"internal/syscall/windows", "internal/singleflight", "internal/race",
+-		"golang_org/x/net/dns/dnsmessage", "golang_org/x/net/lif", "golang_org/x/net/route",
++		"internal/x/net/dns/dnsmessage", "internal/x/net/lif", "internal/x/net/route",
+ 	},
+ 
+ 	// NET enables use of basic network-related packages.
+@@ -357,9 +357,9 @@ var pkgDeps = map[string][]string{
+ 		"crypto/sha1",
+ 		"crypto/sha256",
+ 		"crypto/sha512",
+-		"golang_org/x/crypto/chacha20poly1305",
+-		"golang_org/x/crypto/curve25519",
+-		"golang_org/x/crypto/poly1305",
++		"internal/x/crypto/chacha20poly1305",
++		"internal/x/crypto/curve25519",
++		"internal/x/crypto/poly1305",
+ 	},
+ 
+ 	// Random byte, number generation.
+@@ -387,13 +387,13 @@ var pkgDeps = map[string][]string{
+ 
+ 	// SSL/TLS.
+ 	"crypto/tls": {
+-		"L4", "CRYPTO-MATH", "OS", "golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/hkdf",
++		"L4", "CRYPTO-MATH", "OS", "internal/x/crypto/cryptobyte", "internal/x/crypto/hkdf",
+ 		"container/list", "crypto/x509", "encoding/pem", "net", "syscall",
+ 	},
+ 	"crypto/x509": {
+ 		"L4", "CRYPTO-MATH", "OS", "CGO",
+ 		"crypto/x509/pkix", "encoding/pem", "encoding/hex", "net", "os/user", "syscall", "net/url",
+-		"golang_org/x/crypto/cryptobyte", "golang_org/x/crypto/cryptobyte/asn1",
++		"internal/x/crypto/cryptobyte", "internal/x/crypto/cryptobyte/asn1",
+ 	},
+ 	"crypto/x509/pkix": {"L4", "CRYPTO-MATH", "encoding/hex"},
+ 
+@@ -409,12 +409,12 @@ var pkgDeps = map[string][]string{
+ 		"context",
+ 		"crypto/rand",
+ 		"crypto/tls",
+-		"golang_org/x/net/http/httpguts",
+-		"golang_org/x/net/http/httpproxy",
+-		"golang_org/x/net/http2/hpack",
+-		"golang_org/x/net/idna",
+-		"golang_org/x/text/unicode/norm",
+-		"golang_org/x/text/width",
++		"internal/x/net/http/httpguts",
++		"internal/x/net/http/httpproxy",
++		"internal/x/net/http2/hpack",
++		"internal/x/net/idna",
++		"internal/x/text/unicode/norm",
++		"internal/x/text/width",
+ 		"internal/nettrace",
+ 		"mime/multipart",
+ 		"net/http/httptrace",
+@@ -432,9 +432,9 @@ var pkgDeps = map[string][]string{
+ 	"net/http/fcgi":      {"L4", "NET", "OS", "context", "net/http", "net/http/cgi"},
+ 	"net/http/httptest": {
+ 		"L4", "NET", "OS", "crypto/tls", "flag", "net/http", "net/http/internal", "crypto/x509",
+-		"golang_org/x/net/http/httpguts",
++		"internal/x/net/http/httpguts",
+ 	},
+-	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal", "golang_org/x/net/http/httpguts"},
++	"net/http/httputil": {"L4", "NET", "OS", "context", "net/http", "net/http/internal", "internal/x/net/http/httpguts"},
+ 	"net/http/pprof":    {"L4", "OS", "html/template", "net/http", "runtime/pprof", "runtime/trace"},
+ 	"net/rpc":           {"L4", "NET", "encoding/gob", "html/template", "net/http"},
+ 	"net/rpc/jsonrpc":   {"L4", "NET", "encoding/json", "net/rpc"},
+@@ -485,7 +485,7 @@ func listStdPkgs(goroot string) ([]string, error) {
+ 		}
+ 
+ 		name := filepath.ToSlash(path[len(src):])
+-		if name == "builtin" || name == "cmd" || strings.Contains(name, "golang_org") {
++		if name == "builtin" || name == "cmd" || strings.Contains(name, "internal/x/") {
+ 			return filepath.SkipDir
+ 		}
+ 
+diff --git a/src/go/build/testdata/withvendor/src/a/b/b.go b/src/go/build/testdata/withvendor/src/a/b/b.go
+new file mode 100644
+index 0000000000..4405d547a6
+--- /dev/null
++++ b/src/go/build/testdata/withvendor/src/a/b/b.go
+@@ -0,0 +1,3 @@
++package b
++
++import _ "c/d"
+diff --git a/src/go/build/testdata/withvendor/src/a/vendor/c/d/d.go b/src/go/build/testdata/withvendor/src/a/vendor/c/d/d.go
+new file mode 100644
+index 0000000000..142fb423f6
+--- /dev/null
++++ b/src/go/build/testdata/withvendor/src/a/vendor/c/d/d.go
+@@ -0,0 +1 @@
++package d
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index b9caa90fc5..b84672610c 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -99,7 +99,7 @@ var importedObjectTests = []struct {
+ 	{"math.Pi", "const Pi untyped float"},
+ 	{"math.Sin", "func Sin(x float64) float64"},
+ 	{"math/big.Int", "type Int struct{neg bool; abs nat}"},
+-	{"golang_org/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
++	{"internal/x/text/unicode/norm.MaxSegmentSize", "const MaxSegmentSize untyped int"},
+ }
+ 
+ func TestImportedTypes(t *testing.T) {
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305.go
+similarity index 97%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305.go
+index e28f49d12f..80789a1212 100644
+--- a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305.go
++++ b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package chacha20poly1305 implements the ChaCha20-Poly1305 AEAD as specified in RFC 7539.
+-package chacha20poly1305 // import "golang.org/x/crypto/chacha20poly1305"
++package chacha20poly1305
+ 
+ import (
+ 	"crypto/cipher"
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_amd64.go
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+similarity index 96%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+index 56e4f0e782..a77ab35f67 100644
+--- a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
++++ b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_generic.go
+@@ -7,8 +7,8 @@ package chacha20poly1305
+ import (
+ 	"encoding/binary"
+ 
+-	"golang_org/x/crypto/internal/chacha20"
+-	"golang_org/x/crypto/poly1305"
++	"internal/x/crypto/internal/chacha20"
++	"internal/x/crypto/poly1305"
+ )
+ 
+ func roundTo16(n int) int {
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_noasm.go
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_test.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_test.go
+diff --git a/src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go b/src/internal/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
+rename to src/internal/x/crypto/chacha20poly1305/chacha20poly1305_vectors_test.go
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1.go b/src/internal/x/crypto/cryptobyte/asn1.go
+similarity index 99%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/asn1.go
+rename to src/internal/x/crypto/cryptobyte/asn1.go
+index 08314b47d1..2d40680ddd 100644
+--- a/src/vendor/golang_org/x/crypto/cryptobyte/asn1.go
++++ b/src/internal/x/crypto/cryptobyte/asn1.go
+@@ -11,7 +11,7 @@ import (
+ 	"reflect"
+ 	"time"
+ 
+-	"golang_org/x/crypto/cryptobyte/asn1"
++	"internal/x/crypto/cryptobyte/asn1"
+ )
+ 
+ // This file contains ASN.1-related methods for String and Builder.
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go b/src/internal/x/crypto/cryptobyte/asn1/asn1.go
+similarity index 96%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go
+rename to src/internal/x/crypto/cryptobyte/asn1/asn1.go
+index cda8e3edfd..90ef6a241d 100644
+--- a/src/vendor/golang_org/x/crypto/cryptobyte/asn1/asn1.go
++++ b/src/internal/x/crypto/cryptobyte/asn1/asn1.go
+@@ -4,7 +4,7 @@
+ 
+ // Package asn1 contains supporting types for parsing and building ASN.1
+ // messages with the cryptobyte package.
+-package asn1 // import "golang.org/x/crypto/cryptobyte/asn1"
++package asn1
+ 
+ // Tag represents an ASN.1 identifier octet, consisting of a tag number
+ // (indicating a type) and class (such as context-specific or constructed).
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go b/src/internal/x/crypto/cryptobyte/asn1_test.go
+similarity index 99%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go
+rename to src/internal/x/crypto/cryptobyte/asn1_test.go
+index f7762880ca..ca28e3bcfb 100644
+--- a/src/vendor/golang_org/x/crypto/cryptobyte/asn1_test.go
++++ b/src/internal/x/crypto/cryptobyte/asn1_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"golang_org/x/crypto/cryptobyte/asn1"
++	"internal/x/crypto/cryptobyte/asn1"
+ )
+ 
+ type readASN1Test struct {
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/builder.go b/src/internal/x/crypto/cryptobyte/builder.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/builder.go
+rename to src/internal/x/crypto/cryptobyte/builder.go
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/cryptobyte_test.go b/src/internal/x/crypto/cryptobyte/cryptobyte_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/cryptobyte_test.go
+rename to src/internal/x/crypto/cryptobyte/cryptobyte_test.go
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/example_test.go b/src/internal/x/crypto/cryptobyte/example_test.go
+similarity index 98%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/example_test.go
+rename to src/internal/x/crypto/cryptobyte/example_test.go
+index 056c23014a..5b50025318 100644
+--- a/src/vendor/golang_org/x/crypto/cryptobyte/example_test.go
++++ b/src/internal/x/crypto/cryptobyte/example_test.go
+@@ -8,8 +8,8 @@ import (
+ 	"errors"
+ 	"fmt"
+ 
+-	"golang_org/x/crypto/cryptobyte"
+-	"golang_org/x/crypto/cryptobyte/asn1"
++	"internal/x/crypto/cryptobyte"
++	"internal/x/crypto/cryptobyte/asn1"
+ )
+ 
+ func ExampleString_lengthPrefixed() {
+diff --git a/src/vendor/golang_org/x/crypto/cryptobyte/string.go b/src/internal/x/crypto/cryptobyte/string.go
+similarity index 98%
+rename from src/vendor/golang_org/x/crypto/cryptobyte/string.go
+rename to src/internal/x/crypto/cryptobyte/string.go
+index 39bf98aeea..bd2ed2e207 100644
+--- a/src/vendor/golang_org/x/crypto/cryptobyte/string.go
++++ b/src/internal/x/crypto/cryptobyte/string.go
+@@ -15,7 +15,7 @@
+ //
+ // See the documentation and examples for the Builder and String types to get
+ // started.
+-package cryptobyte // import "golang.org/x/crypto/cryptobyte"
++package cryptobyte
+ 
+ // String represents a string of bytes. It provides methods for parsing
+ // fixed-length and length-prefixed values from it.
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/const_amd64.h b/src/internal/x/crypto/curve25519/const_amd64.h
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/const_amd64.h
+rename to src/internal/x/crypto/curve25519/const_amd64.h
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/const_amd64.s b/src/internal/x/crypto/curve25519/const_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/const_amd64.s
+rename to src/internal/x/crypto/curve25519/const_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/cswap_amd64.s b/src/internal/x/crypto/curve25519/cswap_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/cswap_amd64.s
+rename to src/internal/x/crypto/curve25519/cswap_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/curve25519.go b/src/internal/x/crypto/curve25519/curve25519.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/curve25519.go
+rename to src/internal/x/crypto/curve25519/curve25519.go
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/curve25519_test.go b/src/internal/x/crypto/curve25519/curve25519_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/curve25519_test.go
+rename to src/internal/x/crypto/curve25519/curve25519_test.go
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/doc.go b/src/internal/x/crypto/curve25519/doc.go
+similarity index 94%
+rename from src/vendor/golang_org/x/crypto/curve25519/doc.go
+rename to src/internal/x/crypto/curve25519/doc.go
+index da9b10d9c1..076a8d4f10 100644
+--- a/src/vendor/golang_org/x/crypto/curve25519/doc.go
++++ b/src/internal/x/crypto/curve25519/doc.go
+@@ -4,7 +4,7 @@
+ 
+ // Package curve25519 provides an implementation of scalar multiplication on
+ // the elliptic curve known as curve25519. See https://cr.yp.to/ecdh.html
+-package curve25519 // import "golang.org/x/crypto/curve25519"
++package curve25519
+ 
+ // basePoint is the x coordinate of the generator of the curve.
+ var basePoint = [32]byte{9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s b/src/internal/x/crypto/curve25519/freeze_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/freeze_amd64.s
+rename to src/internal/x/crypto/curve25519/freeze_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s b/src/internal/x/crypto/curve25519/ladderstep_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/ladderstep_amd64.s
+rename to src/internal/x/crypto/curve25519/ladderstep_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/mont25519_amd64.go b/src/internal/x/crypto/curve25519/mont25519_amd64.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/mont25519_amd64.go
+rename to src/internal/x/crypto/curve25519/mont25519_amd64.go
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s b/src/internal/x/crypto/curve25519/mul_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/mul_amd64.s
+rename to src/internal/x/crypto/curve25519/mul_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/curve25519/square_amd64.s b/src/internal/x/crypto/curve25519/square_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/curve25519/square_amd64.s
+rename to src/internal/x/crypto/curve25519/square_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/example_test.go b/src/internal/x/crypto/hkdf/example_test.go
+similarity index 97%
+rename from src/vendor/golang_org/x/crypto/hkdf/example_test.go
+rename to src/internal/x/crypto/hkdf/example_test.go
+index 1fd140a324..3b68a40810 100644
+--- a/src/vendor/golang_org/x/crypto/hkdf/example_test.go
++++ b/src/internal/x/crypto/hkdf/example_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"golang_org/x/crypto/hkdf"
++	"internal/x/crypto/hkdf"
+ )
+ 
+ // Usage example that expands one master secret into three other
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/hkdf.go b/src/internal/x/crypto/hkdf/hkdf.go
+similarity index 98%
+rename from src/vendor/golang_org/x/crypto/hkdf/hkdf.go
+rename to src/internal/x/crypto/hkdf/hkdf.go
+index dda3f143be..c9077658e6 100644
+--- a/src/vendor/golang_org/x/crypto/hkdf/hkdf.go
++++ b/src/internal/x/crypto/hkdf/hkdf.go
+@@ -8,7 +8,7 @@
+ // HKDF is a cryptographic key derivation function (KDF) with the goal of
+ // expanding limited input keying material into one or more cryptographically
+ // strong secret keys.
+-package hkdf // import "golang.org/x/crypto/hkdf"
++package hkdf
+ 
+ import (
+ 	"crypto/hmac"
+diff --git a/src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go b/src/internal/x/crypto/hkdf/hkdf_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/hkdf/hkdf_test.go
+rename to src/internal/x/crypto/hkdf/hkdf_test.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/asm_s390x.s b/src/internal/x/crypto/internal/chacha20/asm_s390x.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/asm_s390x.s
+rename to src/internal/x/crypto/internal/chacha20/asm_s390x.s
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/chacha_generic.go b/src/internal/x/crypto/internal/chacha20/chacha_generic.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/chacha_generic.go
+rename to src/internal/x/crypto/internal/chacha20/chacha_generic.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/chacha_noasm.go b/src/internal/x/crypto/internal/chacha20/chacha_noasm.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/chacha_noasm.go
+rename to src/internal/x/crypto/internal/chacha20/chacha_noasm.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/chacha_s390x.go b/src/internal/x/crypto/internal/chacha20/chacha_s390x.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/chacha_s390x.go
+rename to src/internal/x/crypto/internal/chacha20/chacha_s390x.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/chacha_test.go b/src/internal/x/crypto/internal/chacha20/chacha_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/chacha_test.go
+rename to src/internal/x/crypto/internal/chacha20/chacha_test.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/vectors_test.go b/src/internal/x/crypto/internal/chacha20/vectors_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/vectors_test.go
+rename to src/internal/x/crypto/internal/chacha20/vectors_test.go
+diff --git a/src/vendor/golang_org/x/crypto/internal/chacha20/xor.go b/src/internal/x/crypto/internal/chacha20/xor.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/internal/chacha20/xor.go
+rename to src/internal/x/crypto/internal/chacha20/xor.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/poly1305.go b/src/internal/x/crypto/poly1305/poly1305.go
+similarity index 95%
+rename from src/vendor/golang_org/x/crypto/poly1305/poly1305.go
+rename to src/internal/x/crypto/poly1305/poly1305.go
+index f562fa5712..6d6be9a640 100644
+--- a/src/vendor/golang_org/x/crypto/poly1305/poly1305.go
++++ b/src/internal/x/crypto/poly1305/poly1305.go
+@@ -17,7 +17,7 @@ used with a fixed key in order to generate one-time keys from an nonce.
+ However, in this package AES isn't used and the one-time key is specified
+ directly.
+ */
+-package poly1305 // import "golang.org/x/crypto/poly1305"
++package poly1305
+ 
+ import "crypto/subtle"
+ 
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/poly1305_test.go b/src/internal/x/crypto/poly1305/poly1305_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/poly1305_test.go
+rename to src/internal/x/crypto/poly1305/poly1305_test.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.go b/src/internal/x/crypto/poly1305/sum_amd64.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_amd64.go
+rename to src/internal/x/crypto/poly1305/sum_amd64.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s b/src/internal/x/crypto/poly1305/sum_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_amd64.s
+rename to src/internal/x/crypto/poly1305/sum_amd64.s
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_arm.go b/src/internal/x/crypto/poly1305/sum_arm.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_arm.go
+rename to src/internal/x/crypto/poly1305/sum_arm.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_arm.s b/src/internal/x/crypto/poly1305/sum_arm.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_arm.s
+rename to src/internal/x/crypto/poly1305/sum_arm.s
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_noasm.go b/src/internal/x/crypto/poly1305/sum_noasm.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_noasm.go
+rename to src/internal/x/crypto/poly1305/sum_noasm.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_ref.go b/src/internal/x/crypto/poly1305/sum_ref.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_ref.go
+rename to src/internal/x/crypto/poly1305/sum_ref.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_s390x.go b/src/internal/x/crypto/poly1305/sum_s390x.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_s390x.go
+rename to src/internal/x/crypto/poly1305/sum_s390x.go
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_s390x.s b/src/internal/x/crypto/poly1305/sum_s390x.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_s390x.s
+rename to src/internal/x/crypto/poly1305/sum_s390x.s
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/sum_vmsl_s390x.s b/src/internal/x/crypto/poly1305/sum_vmsl_s390x.s
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/sum_vmsl_s390x.s
+rename to src/internal/x/crypto/poly1305/sum_vmsl_s390x.s
+diff --git a/src/vendor/golang_org/x/crypto/poly1305/vectors_test.go b/src/internal/x/crypto/poly1305/vectors_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/crypto/poly1305/vectors_test.go
+rename to src/internal/x/crypto/poly1305/vectors_test.go
+diff --git a/src/internal/x/fiximports.bash b/src/internal/x/fiximports.bash
+new file mode 100755
+index 0000000000..ec72643b63
+--- /dev/null
++++ b/src/internal/x/fiximports.bash
+@@ -0,0 +1,6 @@
++#!/bin/bash
++
++# To fix import paths when importing new snapshots from the golang.org/x
++# repositories, run this script in the current directory.
++
++sed -i 's,"golang\.org/x,"internal/x,g' $(grep -lr 'golang.org')
+diff --git a/src/vendor/golang_org/x/net/dns/dnsmessage/example_test.go b/src/internal/x/net/dns/dnsmessage/example_test.go
+similarity index 98%
+rename from src/vendor/golang_org/x/net/dns/dnsmessage/example_test.go
+rename to src/internal/x/net/dns/dnsmessage/example_test.go
+index a1bb5b7b1b..8453c23048 100644
+--- a/src/vendor/golang_org/x/net/dns/dnsmessage/example_test.go
++++ b/src/internal/x/net/dns/dnsmessage/example_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"net"
+ 	"strings"
+ 
+-	"golang_org/x/net/dns/dnsmessage"
++	"internal/x/net/dns/dnsmessage"
+ )
+ 
+ func mustNewName(name string) dnsmessage.Name {
+diff --git a/src/vendor/golang_org/x/net/dns/dnsmessage/message.go b/src/internal/x/net/dns/dnsmessage/message.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/dns/dnsmessage/message.go
+rename to src/internal/x/net/dns/dnsmessage/message.go
+diff --git a/src/vendor/golang_org/x/net/dns/dnsmessage/message_test.go b/src/internal/x/net/dns/dnsmessage/message_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/dns/dnsmessage/message_test.go
+rename to src/internal/x/net/dns/dnsmessage/message_test.go
+diff --git a/src/vendor/golang_org/x/net/http/httpguts/guts.go b/src/internal/x/net/http/httpguts/guts.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http/httpguts/guts.go
+rename to src/internal/x/net/http/httpguts/guts.go
+diff --git a/src/vendor/golang_org/x/net/http/httpguts/httplex.go b/src/internal/x/net/http/httpguts/httplex.go
+similarity index 99%
+rename from src/vendor/golang_org/x/net/http/httpguts/httplex.go
+rename to src/internal/x/net/http/httpguts/httplex.go
+index 9337435174..7f3cdd8bd2 100644
+--- a/src/vendor/golang_org/x/net/http/httpguts/httplex.go
++++ b/src/internal/x/net/http/httpguts/httplex.go
+@@ -9,7 +9,7 @@ import (
+ 	"strings"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/net/idna"
++	"internal/x/net/idna"
+ )
+ 
+ var isTokenTable = [127]bool{
+diff --git a/src/vendor/golang_org/x/net/http/httpguts/httplex_test.go b/src/internal/x/net/http/httpguts/httplex_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http/httpguts/httplex_test.go
+rename to src/internal/x/net/http/httpguts/httplex_test.go
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/export_test.go b/src/internal/x/net/http/httpproxy/export_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http/httpproxy/export_test.go
+rename to src/internal/x/net/http/httpproxy/export_test.go
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/proxy.go b/src/internal/x/net/http/httpproxy/proxy.go
+similarity index 99%
+rename from src/vendor/golang_org/x/net/http/httpproxy/proxy.go
+rename to src/internal/x/net/http/httpproxy/proxy.go
+index 0409f4340c..d394784139 100644
+--- a/src/vendor/golang_org/x/net/http/httpproxy/proxy.go
++++ b/src/internal/x/net/http/httpproxy/proxy.go
+@@ -19,7 +19,7 @@ import (
+ 	"strings"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/net/idna"
++	"internal/x/net/idna"
+ )
+ 
+ // Config holds configuration for HTTP proxy settings. See
+diff --git a/src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go b/src/internal/x/net/http/httpproxy/proxy_test.go
+similarity index 99%
+rename from src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go
+rename to src/internal/x/net/http/httpproxy/proxy_test.go
+index 8791f64bcd..cf0589dba9 100644
+--- a/src/vendor/golang_org/x/net/http/httpproxy/proxy_test.go
++++ b/src/internal/x/net/http/httpproxy/proxy_test.go
+@@ -13,7 +13,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	"golang_org/x/net/http/httpproxy"
++	"internal/x/net/http/httpproxy"
+ )
+ 
+ // setHelper calls t.Helper() for Go 1.9+ (see go19_test.go) and does nothing otherwise.
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/encode.go b/src/internal/x/net/http2/hpack/encode.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/encode.go
+rename to src/internal/x/net/http2/hpack/encode.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/encode_test.go b/src/internal/x/net/http2/hpack/encode_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/encode_test.go
+rename to src/internal/x/net/http2/hpack/encode_test.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/hpack.go b/src/internal/x/net/http2/hpack/hpack.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/hpack.go
+rename to src/internal/x/net/http2/hpack/hpack.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/hpack_test.go b/src/internal/x/net/http2/hpack/hpack_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/hpack_test.go
+rename to src/internal/x/net/http2/hpack/hpack_test.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/huffman.go b/src/internal/x/net/http2/hpack/huffman.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/huffman.go
+rename to src/internal/x/net/http2/hpack/huffman.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/tables.go b/src/internal/x/net/http2/hpack/tables.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/tables.go
+rename to src/internal/x/net/http2/hpack/tables.go
+diff --git a/src/vendor/golang_org/x/net/http2/hpack/tables_test.go b/src/internal/x/net/http2/hpack/tables_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/http2/hpack/tables_test.go
+rename to src/internal/x/net/http2/hpack/tables_test.go
+diff --git a/src/vendor/golang_org/x/net/idna/idna.go b/src/internal/x/net/idna/idna.go
+similarity index 99%
+rename from src/vendor/golang_org/x/net/idna/idna.go
+rename to src/internal/x/net/idna/idna.go
+index 9fd0334cd9..7f2471e70e 100644
+--- a/src/vendor/golang_org/x/net/idna/idna.go
++++ b/src/internal/x/net/idna/idna.go
+@@ -13,16 +13,16 @@
+ // UTS #46 is defined in http://www.unicode.org/reports/tr46.
+ // See http://unicode.org/cldr/utility/idna.jsp for a visualization of the
+ // differences between these two standards.
+-package idna // import "golang_org/x/text/internal/export/idna"
++package idna
+ 
+ import (
+ 	"fmt"
+ 	"strings"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/text/secure/bidirule"
+-	"golang_org/x/text/unicode/bidi"
+-	"golang_org/x/text/unicode/norm"
++	"internal/x/text/secure/bidirule"
++	"internal/x/text/unicode/bidi"
++	"internal/x/text/unicode/norm"
+ )
+ 
+ // NOTE: Unlike common practice in Go APIs, the functions will return a
+diff --git a/src/vendor/golang_org/x/net/idna/punycode.go b/src/internal/x/net/idna/punycode.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/idna/punycode.go
+rename to src/internal/x/net/idna/punycode.go
+diff --git a/src/vendor/golang_org/x/net/idna/punycode_test.go b/src/internal/x/net/idna/punycode_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/idna/punycode_test.go
+rename to src/internal/x/net/idna/punycode_test.go
+diff --git a/src/vendor/golang_org/x/net/idna/tables.go b/src/internal/x/net/idna/tables.go
+similarity index 99%
+rename from src/vendor/golang_org/x/net/idna/tables.go
+rename to src/internal/x/net/idna/tables.go
+index a470c5a3e2..41cf9c13d2 100644
+--- a/src/vendor/golang_org/x/net/idna/tables.go
++++ b/src/internal/x/net/idna/tables.go
+@@ -1,6 +1,6 @@
+ // Code generated by running "go generate" in golang.org/x/text. DO NOT EDIT.
+ 
+-// Code generated by running "go generate" in golang_org/x/text. DO NOT EDIT.
++// Code generated by running "go generate" in internal/x/text. DO NOT EDIT.
+ 
+ package idna
+ 
+diff --git a/src/vendor/golang_org/x/net/idna/trie.go b/src/internal/x/net/idna/trie.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/idna/trie.go
+rename to src/internal/x/net/idna/trie.go
+diff --git a/src/vendor/golang_org/x/net/idna/trieval.go b/src/internal/x/net/idna/trieval.go
+similarity index 97%
+rename from src/vendor/golang_org/x/net/idna/trieval.go
+rename to src/internal/x/net/idna/trieval.go
+index 5f4e5f2e74..bf57260034 100644
+--- a/src/vendor/golang_org/x/net/idna/trieval.go
++++ b/src/internal/x/net/idna/trieval.go
+@@ -1,6 +1,6 @@
+ // Code generated by running "go generate" in golang.org/x/text. DO NOT EDIT.
+ 
+-// Code generated by running "go generate" in golang_org/x/text. DO NOT EDIT.
++// Code generated by running "go generate" in internal/x/text. DO NOT EDIT.
+ 
+ package idna
+ 
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_bsd.go b/src/internal/x/net/internal/nettest/helper_bsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_bsd.go
+rename to src/internal/x/net/internal/nettest/helper_bsd.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go b/src/internal/x/net/internal/nettest/helper_nobsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_nobsd.go
+rename to src/internal/x/net/internal/nettest/helper_nobsd.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_posix.go b/src/internal/x/net/internal/nettest/helper_posix.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_posix.go
+rename to src/internal/x/net/internal/nettest/helper_posix.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_stub.go b/src/internal/x/net/internal/nettest/helper_stub.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_stub.go
+rename to src/internal/x/net/internal/nettest/helper_stub.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_unix.go b/src/internal/x/net/internal/nettest/helper_unix.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_unix.go
+rename to src/internal/x/net/internal/nettest/helper_unix.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/helper_windows.go b/src/internal/x/net/internal/nettest/helper_windows.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/helper_windows.go
+rename to src/internal/x/net/internal/nettest/helper_windows.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/interface.go b/src/internal/x/net/internal/nettest/interface.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/interface.go
+rename to src/internal/x/net/internal/nettest/interface.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/rlimit.go b/src/internal/x/net/internal/nettest/rlimit.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/internal/nettest/rlimit.go
+rename to src/internal/x/net/internal/nettest/rlimit.go
+diff --git a/src/vendor/golang_org/x/net/internal/nettest/stack.go b/src/internal/x/net/internal/nettest/stack.go
+similarity index 98%
+rename from src/vendor/golang_org/x/net/internal/nettest/stack.go
+rename to src/internal/x/net/internal/nettest/stack.go
+index 3b8a01e9bb..1a545e21ab 100644
+--- a/src/vendor/golang_org/x/net/internal/nettest/stack.go
++++ b/src/internal/x/net/internal/nettest/stack.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package nettest provides utilities for network testing.
+-package nettest // import "golang.org/x/net/internal/nettest"
++package nettest
+ 
+ import (
+ 	"fmt"
+diff --git a/src/vendor/golang_org/x/net/lif/address.go b/src/internal/x/net/lif/address.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/address.go
+rename to src/internal/x/net/lif/address.go
+diff --git a/src/vendor/golang_org/x/net/lif/address_test.go b/src/internal/x/net/lif/address_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/address_test.go
+rename to src/internal/x/net/lif/address_test.go
+diff --git a/src/vendor/golang_org/x/net/lif/binary.go b/src/internal/x/net/lif/binary.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/binary.go
+rename to src/internal/x/net/lif/binary.go
+diff --git a/src/vendor/golang_org/x/net/lif/defs_solaris.go b/src/internal/x/net/lif/defs_solaris.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/defs_solaris.go
+rename to src/internal/x/net/lif/defs_solaris.go
+diff --git a/src/vendor/golang_org/x/net/lif/lif.go b/src/internal/x/net/lif/lif.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/lif.go
+rename to src/internal/x/net/lif/lif.go
+diff --git a/src/vendor/golang_org/x/net/lif/link.go b/src/internal/x/net/lif/link.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/link.go
+rename to src/internal/x/net/lif/link.go
+diff --git a/src/vendor/golang_org/x/net/lif/link_test.go b/src/internal/x/net/lif/link_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/link_test.go
+rename to src/internal/x/net/lif/link_test.go
+diff --git a/src/vendor/golang_org/x/net/lif/sys.go b/src/internal/x/net/lif/sys.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/sys.go
+rename to src/internal/x/net/lif/sys.go
+diff --git a/src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s b/src/internal/x/net/lif/sys_solaris_amd64.s
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/sys_solaris_amd64.s
+rename to src/internal/x/net/lif/sys_solaris_amd64.s
+diff --git a/src/vendor/golang_org/x/net/lif/syscall.go b/src/internal/x/net/lif/syscall.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/syscall.go
+rename to src/internal/x/net/lif/syscall.go
+diff --git a/src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go b/src/internal/x/net/lif/zsys_solaris_amd64.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/lif/zsys_solaris_amd64.go
+rename to src/internal/x/net/lif/zsys_solaris_amd64.go
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest.go b/src/internal/x/net/nettest/conntest.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/nettest/conntest.go
+rename to src/internal/x/net/nettest/conntest.go
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest_go16.go b/src/internal/x/net/nettest/conntest_go16.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/nettest/conntest_go16.go
+rename to src/internal/x/net/nettest/conntest_go16.go
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest_go17.go b/src/internal/x/net/nettest/conntest_go17.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/nettest/conntest_go17.go
+rename to src/internal/x/net/nettest/conntest_go17.go
+diff --git a/src/vendor/golang_org/x/net/nettest/conntest_test.go b/src/internal/x/net/nettest/conntest_test.go
+similarity index 97%
+rename from src/vendor/golang_org/x/net/nettest/conntest_test.go
+rename to src/internal/x/net/nettest/conntest_test.go
+index ae8426a05c..e14df0e6fb 100644
+--- a/src/vendor/golang_org/x/net/nettest/conntest_test.go
++++ b/src/internal/x/net/nettest/conntest_test.go
+@@ -12,7 +12,7 @@ import (
+ 	"runtime"
+ 	"testing"
+ 
+-	"golang_org/x/net/internal/nettest"
++	"internal/x/net/internal/nettest"
+ )
+ 
+ func TestTestConn(t *testing.T) {
+diff --git a/src/vendor/golang_org/x/net/route/address.go b/src/internal/x/net/route/address.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/address.go
+rename to src/internal/x/net/route/address.go
+diff --git a/src/vendor/golang_org/x/net/route/address_darwin_test.go b/src/internal/x/net/route/address_darwin_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/address_darwin_test.go
+rename to src/internal/x/net/route/address_darwin_test.go
+diff --git a/src/vendor/golang_org/x/net/route/address_test.go b/src/internal/x/net/route/address_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/address_test.go
+rename to src/internal/x/net/route/address_test.go
+diff --git a/src/vendor/golang_org/x/net/route/binary.go b/src/internal/x/net/route/binary.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/binary.go
+rename to src/internal/x/net/route/binary.go
+diff --git a/src/vendor/golang_org/x/net/route/defs_darwin.go b/src/internal/x/net/route/defs_darwin.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/defs_darwin.go
+rename to src/internal/x/net/route/defs_darwin.go
+diff --git a/src/vendor/golang_org/x/net/route/defs_dragonfly.go b/src/internal/x/net/route/defs_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/defs_dragonfly.go
+rename to src/internal/x/net/route/defs_dragonfly.go
+diff --git a/src/vendor/golang_org/x/net/route/defs_freebsd.go b/src/internal/x/net/route/defs_freebsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/defs_freebsd.go
+rename to src/internal/x/net/route/defs_freebsd.go
+diff --git a/src/vendor/golang_org/x/net/route/defs_netbsd.go b/src/internal/x/net/route/defs_netbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/defs_netbsd.go
+rename to src/internal/x/net/route/defs_netbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/defs_openbsd.go b/src/internal/x/net/route/defs_openbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/defs_openbsd.go
+rename to src/internal/x/net/route/defs_openbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/empty.s b/src/internal/x/net/route/empty.s
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/empty.s
+rename to src/internal/x/net/route/empty.s
+diff --git a/src/vendor/golang_org/x/net/route/interface.go b/src/internal/x/net/route/interface.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface.go
+rename to src/internal/x/net/route/interface.go
+diff --git a/src/vendor/golang_org/x/net/route/interface_announce.go b/src/internal/x/net/route/interface_announce.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface_announce.go
+rename to src/internal/x/net/route/interface_announce.go
+diff --git a/src/vendor/golang_org/x/net/route/interface_classic.go b/src/internal/x/net/route/interface_classic.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface_classic.go
+rename to src/internal/x/net/route/interface_classic.go
+diff --git a/src/vendor/golang_org/x/net/route/interface_freebsd.go b/src/internal/x/net/route/interface_freebsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface_freebsd.go
+rename to src/internal/x/net/route/interface_freebsd.go
+diff --git a/src/vendor/golang_org/x/net/route/interface_multicast.go b/src/internal/x/net/route/interface_multicast.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface_multicast.go
+rename to src/internal/x/net/route/interface_multicast.go
+diff --git a/src/vendor/golang_org/x/net/route/interface_openbsd.go b/src/internal/x/net/route/interface_openbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/interface_openbsd.go
+rename to src/internal/x/net/route/interface_openbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/message.go b/src/internal/x/net/route/message.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/message.go
+rename to src/internal/x/net/route/message.go
+diff --git a/src/vendor/golang_org/x/net/route/message_darwin_test.go b/src/internal/x/net/route/message_darwin_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/message_darwin_test.go
+rename to src/internal/x/net/route/message_darwin_test.go
+diff --git a/src/vendor/golang_org/x/net/route/message_freebsd_test.go b/src/internal/x/net/route/message_freebsd_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/message_freebsd_test.go
+rename to src/internal/x/net/route/message_freebsd_test.go
+diff --git a/src/vendor/golang_org/x/net/route/message_test.go b/src/internal/x/net/route/message_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/message_test.go
+rename to src/internal/x/net/route/message_test.go
+diff --git a/src/vendor/golang_org/x/net/route/route.go b/src/internal/x/net/route/route.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/route.go
+rename to src/internal/x/net/route/route.go
+diff --git a/src/vendor/golang_org/x/net/route/route_classic.go b/src/internal/x/net/route/route_classic.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/route_classic.go
+rename to src/internal/x/net/route/route_classic.go
+diff --git a/src/vendor/golang_org/x/net/route/route_openbsd.go b/src/internal/x/net/route/route_openbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/route_openbsd.go
+rename to src/internal/x/net/route/route_openbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/route_test.go b/src/internal/x/net/route/route_test.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/route_test.go
+rename to src/internal/x/net/route/route_test.go
+diff --git a/src/vendor/golang_org/x/net/route/sys.go b/src/internal/x/net/route/sys.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys.go
+rename to src/internal/x/net/route/sys.go
+diff --git a/src/vendor/golang_org/x/net/route/sys_darwin.go b/src/internal/x/net/route/sys_darwin.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys_darwin.go
+rename to src/internal/x/net/route/sys_darwin.go
+diff --git a/src/vendor/golang_org/x/net/route/sys_dragonfly.go b/src/internal/x/net/route/sys_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys_dragonfly.go
+rename to src/internal/x/net/route/sys_dragonfly.go
+diff --git a/src/vendor/golang_org/x/net/route/sys_freebsd.go b/src/internal/x/net/route/sys_freebsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys_freebsd.go
+rename to src/internal/x/net/route/sys_freebsd.go
+diff --git a/src/vendor/golang_org/x/net/route/sys_netbsd.go b/src/internal/x/net/route/sys_netbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys_netbsd.go
+rename to src/internal/x/net/route/sys_netbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/sys_openbsd.go b/src/internal/x/net/route/sys_openbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/sys_openbsd.go
+rename to src/internal/x/net/route/sys_openbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/syscall.go b/src/internal/x/net/route/syscall.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/syscall.go
+rename to src/internal/x/net/route/syscall.go
+diff --git a/src/vendor/golang_org/x/net/route/syscall_go1_11_darwin.go b/src/internal/x/net/route/syscall_go1_11_darwin.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/syscall_go1_11_darwin.go
+rename to src/internal/x/net/route/syscall_go1_11_darwin.go
+diff --git a/src/vendor/golang_org/x/net/route/syscall_go1_12_darwin.go b/src/internal/x/net/route/syscall_go1_12_darwin.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/syscall_go1_12_darwin.go
+rename to src/internal/x/net/route/syscall_go1_12_darwin.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_darwin.go b/src/internal/x/net/route/zsys_darwin.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_darwin.go
+rename to src/internal/x/net/route/zsys_darwin.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_dragonfly.go b/src/internal/x/net/route/zsys_dragonfly.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_dragonfly.go
+rename to src/internal/x/net/route/zsys_dragonfly.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_freebsd_386.go b/src/internal/x/net/route/zsys_freebsd_386.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_freebsd_386.go
+rename to src/internal/x/net/route/zsys_freebsd_386.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_freebsd_amd64.go b/src/internal/x/net/route/zsys_freebsd_amd64.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_freebsd_amd64.go
+rename to src/internal/x/net/route/zsys_freebsd_amd64.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_freebsd_arm.go b/src/internal/x/net/route/zsys_freebsd_arm.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_freebsd_arm.go
+rename to src/internal/x/net/route/zsys_freebsd_arm.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_netbsd.go b/src/internal/x/net/route/zsys_netbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_netbsd.go
+rename to src/internal/x/net/route/zsys_netbsd.go
+diff --git a/src/vendor/golang_org/x/net/route/zsys_openbsd.go b/src/internal/x/net/route/zsys_openbsd.go
+similarity index 100%
+rename from src/vendor/golang_org/x/net/route/zsys_openbsd.go
+rename to src/internal/x/net/route/zsys_openbsd.go
+diff --git a/src/vendor/golang_org/x/text/secure/bidirule/bidirule.go b/src/internal/x/text/secure/bidirule/bidirule.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/secure/bidirule/bidirule.go
+rename to src/internal/x/text/secure/bidirule/bidirule.go
+index c3ca2bc6fe..87e656a37d 100644
+--- a/src/vendor/golang_org/x/text/secure/bidirule/bidirule.go
++++ b/src/internal/x/text/secure/bidirule/bidirule.go
+@@ -14,8 +14,8 @@ import (
+ 	"errors"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/text/transform"
+-	"golang_org/x/text/unicode/bidi"
++	"internal/x/text/transform"
++	"internal/x/text/unicode/bidi"
+ )
+ 
+ // This file contains an implementation of RFC 5893: Right-to-Left Scripts for
+diff --git a/src/vendor/golang_org/x/text/secure/doc.go b/src/internal/x/text/secure/doc.go
+similarity index 85%
+rename from src/vendor/golang_org/x/text/secure/doc.go
+rename to src/internal/x/text/secure/doc.go
+index 5eb60b94bf..6151b79d6e 100644
+--- a/src/vendor/golang_org/x/text/secure/doc.go
++++ b/src/internal/x/text/secure/doc.go
+@@ -5,4 +5,4 @@
+ // license that can be found in the LICENSE file.
+ 
+ // secure is a repository of text security related packages.
+-package secure // import "golang_org/x/text/secure"
++package secure
+diff --git a/src/vendor/golang_org/x/text/transform/examples_test.go b/src/internal/x/text/transform/examples_test.go
+similarity index 92%
+rename from src/vendor/golang_org/x/text/transform/examples_test.go
+rename to src/internal/x/text/transform/examples_test.go
+index 1323d9bec0..8d2fbb2171 100644
+--- a/src/vendor/golang_org/x/text/transform/examples_test.go
++++ b/src/internal/x/text/transform/examples_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"fmt"
+ 	"unicode"
+ 
+-	"golang_org/x/text/transform"
+-	"golang_org/x/text/unicode/norm"
++	"internal/x/text/transform"
++	"internal/x/text/unicode/norm"
+ )
+ 
+ func ExampleRemoveFunc() {
+diff --git a/src/vendor/golang_org/x/text/transform/transform.go b/src/internal/x/text/transform/transform.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/transform/transform.go
+rename to src/internal/x/text/transform/transform.go
+index 9ddfa80cf3..7b6b55e019 100644
+--- a/src/vendor/golang_org/x/text/transform/transform.go
++++ b/src/internal/x/text/transform/transform.go
+@@ -8,7 +8,7 @@
+ // bytes passing through as well as various transformations. Example
+ // transformations provided by other packages include normalization and
+ // conversion between character sets.
+-package transform // import "golang_org/x/text/transform"
++package transform
+ 
+ import (
+ 	"bytes"
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/bidi.go b/src/internal/x/text/unicode/bidi/bidi.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/unicode/bidi/bidi.go
+rename to src/internal/x/text/unicode/bidi/bidi.go
+index e691ae8694..4542171736 100644
+--- a/src/vendor/golang_org/x/text/unicode/bidi/bidi.go
++++ b/src/internal/x/text/unicode/bidi/bidi.go
+@@ -10,7 +10,7 @@
+ //
+ // NOTE: UNDER CONSTRUCTION. This API may change in backwards incompatible ways
+ // and without notice.
+-package bidi // import "golang_org/x/text/unicode/bidi"
++package bidi
+ 
+ // TODO:
+ // The following functionality would not be hard to implement, but hinges on
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/bracket.go b/src/internal/x/text/unicode/bidi/bracket.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/bidi/bracket.go
+rename to src/internal/x/text/unicode/bidi/bracket.go
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/core.go b/src/internal/x/text/unicode/bidi/core.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/bidi/core.go
+rename to src/internal/x/text/unicode/bidi/core.go
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/example_test.go b/src/internal/x/text/unicode/bidi/example_test.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/unicode/bidi/example_test.go
+rename to src/internal/x/text/unicode/bidi/example_test.go
+index e1739598d4..56c5c4a121 100644
+--- a/src/vendor/golang_org/x/text/unicode/bidi/example_test.go
++++ b/src/internal/x/text/unicode/bidi/example_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 
+-	"golang_org/x/text/bidi"
++	"internal/x/text/bidi"
+ )
+ 
+ func foo() {
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/prop.go b/src/internal/x/text/unicode/bidi/prop.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/bidi/prop.go
+rename to src/internal/x/text/unicode/bidi/prop.go
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/tables.go b/src/internal/x/text/unicode/bidi/tables.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/unicode/bidi/tables.go
+rename to src/internal/x/text/unicode/bidi/tables.go
+index fb2229efa8..c9c45c625f 100644
+--- a/src/vendor/golang_org/x/text/unicode/bidi/tables.go
++++ b/src/internal/x/text/unicode/bidi/tables.go
+@@ -1,6 +1,6 @@
+ // Code generated by running "go generate" in golang.org/x/text. DO NOT EDIT.
+ 
+-// Code generated by running "go generate" in golang_org/x/text. DO NOT EDIT.
++// Code generated by running "go generate" in internal/x/text. DO NOT EDIT.
+ 
+ package bidi
+ 
+diff --git a/src/vendor/golang_org/x/text/unicode/bidi/trieval.go b/src/internal/x/text/unicode/bidi/trieval.go
+similarity index 95%
+rename from src/vendor/golang_org/x/text/unicode/bidi/trieval.go
+rename to src/internal/x/text/unicode/bidi/trieval.go
+index c3f0e21f3e..e59d249c75 100644
+--- a/src/vendor/golang_org/x/text/unicode/bidi/trieval.go
++++ b/src/internal/x/text/unicode/bidi/trieval.go
+@@ -1,6 +1,6 @@
+ // Code generated by running "go generate" in golang.org/x/text. DO NOT EDIT.
+ 
+-// Code generated by running "go generate" in golang_org/x/text. DO NOT EDIT.
++// Code generated by running "go generate" in internal/x/text. DO NOT EDIT.
+ 
+ package bidi
+ 
+diff --git a/src/vendor/golang_org/x/text/unicode/doc.go b/src/internal/x/text/unicode/doc.go
+similarity index 84%
+rename from src/vendor/golang_org/x/text/unicode/doc.go
+rename to src/internal/x/text/unicode/doc.go
+index 55a6775d59..4f7e9f5a43 100644
+--- a/src/vendor/golang_org/x/text/unicode/doc.go
++++ b/src/internal/x/text/unicode/doc.go
+@@ -5,6 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ // unicode holds packages with implementations of Unicode standards that are
+-// mostly used as building blocks for other packages in golang_org/x/text,
++// mostly used as building blocks for other packages in internal/x/text,
+ // layout engines, or are otherwise more low-level in nature.
+ package unicode
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/composition.go b/src/internal/x/text/unicode/norm/composition.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/composition.go
+rename to src/internal/x/text/unicode/norm/composition.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/example_iter_test.go b/src/internal/x/text/unicode/norm/example_iter_test.go
+similarity index 98%
+rename from src/vendor/golang_org/x/text/unicode/norm/example_iter_test.go
+rename to src/internal/x/text/unicode/norm/example_iter_test.go
+index aed6c16fbb..fb0e52410b 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/example_iter_test.go
++++ b/src/internal/x/text/unicode/norm/example_iter_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/text/unicode/norm"
++	"internal/x/text/unicode/norm"
+ )
+ 
+ // EqualSimple uses a norm.Iter to compare two non-normalized
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/example_test.go b/src/internal/x/text/unicode/norm/example_test.go
+similarity index 94%
+rename from src/vendor/golang_org/x/text/unicode/norm/example_test.go
+rename to src/internal/x/text/unicode/norm/example_test.go
+index 72e72c9d34..a9904400df 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/example_test.go
++++ b/src/internal/x/text/unicode/norm/example_test.go
+@@ -9,7 +9,7 @@ package norm_test
+ import (
+ 	"fmt"
+ 
+-	"golang_org/x/text/unicode/norm"
++	"internal/x/text/unicode/norm"
+ )
+ 
+ func ExampleForm_NextBoundary() {
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/forminfo.go b/src/internal/x/text/unicode/norm/forminfo.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/forminfo.go
+rename to src/internal/x/text/unicode/norm/forminfo.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/input.go b/src/internal/x/text/unicode/norm/input.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/input.go
+rename to src/internal/x/text/unicode/norm/input.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/iter.go b/src/internal/x/text/unicode/norm/iter.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/iter.go
+rename to src/internal/x/text/unicode/norm/iter.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/normalize.go b/src/internal/x/text/unicode/norm/normalize.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/unicode/norm/normalize.go
+rename to src/internal/x/text/unicode/norm/normalize.go
+index 4de4ed6ed0..791c39b1c4 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/normalize.go
++++ b/src/internal/x/text/unicode/norm/normalize.go
+@@ -7,12 +7,12 @@
+ // Note: the file data_test.go that is generated should not be checked in.
+ 
+ // Package norm contains types and functions for normalizing Unicode strings.
+-package norm // import "golang_org/x/text/unicode/norm"
++package norm
+ 
+ import (
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/text/transform"
++	"internal/x/text/transform"
+ )
+ 
+ // A Form denotes a canonical representation of Unicode code points.
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/readwriter.go b/src/internal/x/text/unicode/norm/readwriter.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/readwriter.go
+rename to src/internal/x/text/unicode/norm/readwriter.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/tables.go b/src/internal/x/text/unicode/norm/tables.go
+similarity index 99%
+rename from src/vendor/golang_org/x/text/unicode/norm/tables.go
+rename to src/internal/x/text/unicode/norm/tables.go
+index d6466836ce..2dd61adf63 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/tables.go
++++ b/src/internal/x/text/unicode/norm/tables.go
+@@ -1,6 +1,6 @@
+ // Code generated by running "go generate" in golang.org/x/text. DO NOT EDIT.
+ 
+-// Code generated by running "go generate" in golang_org/x/text. DO NOT EDIT.
++// Code generated by running "go generate" in internal/x/text. DO NOT EDIT.
+ 
+ package norm
+ 
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/transform.go b/src/internal/x/text/unicode/norm/transform.go
+similarity index 98%
+rename from src/vendor/golang_org/x/text/unicode/norm/transform.go
+rename to src/internal/x/text/unicode/norm/transform.go
+index 73869a5a1c..7837cb96a4 100644
+--- a/src/vendor/golang_org/x/text/unicode/norm/transform.go
++++ b/src/internal/x/text/unicode/norm/transform.go
+@@ -9,7 +9,7 @@ package norm
+ import (
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/text/transform"
++	"internal/x/text/transform"
+ )
+ 
+ // Reset implements the Reset method of the transform.Transformer interface.
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/trie.go b/src/internal/x/text/unicode/norm/trie.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/trie.go
+rename to src/internal/x/text/unicode/norm/trie.go
+diff --git a/src/vendor/golang_org/x/text/unicode/norm/triegen.go b/src/internal/x/text/unicode/norm/triegen.go
+similarity index 100%
+rename from src/vendor/golang_org/x/text/unicode/norm/triegen.go
+rename to src/internal/x/text/unicode/norm/triegen.go
+diff --git a/src/net/dnsclient.go b/src/net/dnsclient.go
+index 2c47bc4130..4fdf60ff4e 100644
+--- a/src/net/dnsclient.go
++++ b/src/net/dnsclient.go
+@@ -8,7 +8,7 @@ import (
+ 	"math/rand"
+ 	"sort"
+ 
+-	"golang_org/x/net/dns/dnsmessage"
++	"internal/x/net/dns/dnsmessage"
+ )
+ 
+ // reverseaddr returns the in-addr.arpa. or ip6.arpa. hostname of the IP
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 73630faa49..86ce92dc43 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -23,7 +23,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang_org/x/net/dns/dnsmessage"
++	"internal/x/net/dns/dnsmessage"
+ )
+ 
+ var (
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 7dccb6b8ec..be04a44c14 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -20,7 +20,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"golang_org/x/net/dns/dnsmessage"
++	"internal/x/net/dns/dnsmessage"
+ )
+ 
+ var goResolver = Resolver{PreferGo: true}
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 12cf65f109..1a97b01db8 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -44,9 +44,9 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
+-	"golang_org/x/net/http2/hpack"
+-	"golang_org/x/net/idna"
++	"internal/x/net/http/httpguts"
++	"internal/x/net/http2/hpack"
++	"internal/x/net/idna"
+ )
+ 
+ // A list of the possible cipher suite ids. Taken from
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 30d1a52b63..624b2cfe69 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -11,7 +11,7 @@ import (
+ 	"time"
+ 	"unicode/utf8"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // maxInt64 is the effective "infinite" value for the Server and
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 67f90b8376..f2c3c0757b 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -12,7 +12,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // ResponseRecorder is an implementation of http.ResponseWriter that
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index e9552a2256..f0607a68ea 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -18,7 +18,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // ReverseProxy is an HTTP Handler that takes an incoming request and
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index d994e81d23..fb058f9fbf 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -26,7 +26,7 @@ import (
+ 	"strings"
+ 	"sync"
+ 
+-	"golang_org/x/net/idna"
++	"internal/x/net/idna"
+ )
+ 
+ const (
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index b3ca56c419..f906ce829b 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -12,7 +12,7 @@ import (
+ 	"crypto/tls"
+ 	"errors"
+ 	"fmt"
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ 	"io"
+ 	"net/textproto"
+ 	"net/url"
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index cf03b09f84..97ed59e9fd 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -29,7 +29,7 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // Errors used by the HTTP server.
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 3eb9f0da91..e8a93e9137 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -21,7 +21,7 @@ import (
+ 	"sync"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // ErrLineTooLong is returned when reading request or response bodies
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index ad0201d554..f30ad2151c 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -30,8 +30,8 @@ import (
+ 	"sync/atomic"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
+-	"golang_org/x/net/http/httpproxy"
++	"internal/x/net/http/httpguts"
++	"internal/x/net/http/httpproxy"
+ )
+ 
+ // DefaultTransport is the default implementation of Transport and is
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 1021ce5aa2..6e075847dd 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -42,7 +42,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"golang_org/x/net/http/httpguts"
++	"internal/x/net/http/httpguts"
+ )
+ 
+ // TODO: test 5 pipelined requests with responses: 1) OK, 2) OK, Connection: Close
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 35b1c26815..77372964b1 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -9,7 +9,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang_org/x/net/route"
++	"internal/x/net/route"
+ )
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+diff --git a/src/net/interface_bsdvar.go b/src/net/interface_bsdvar.go
+index 0b84ca37d4..818fafe970 100644
+--- a/src/net/interface_bsdvar.go
++++ b/src/net/interface_bsdvar.go
+@@ -9,7 +9,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang_org/x/net/route"
++	"internal/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index 2ec8e1cc6e..6a6b3a5818 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang_org/x/net/route"
++	"internal/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 8a7d6f67c0..8eee2aa031 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang_org/x/net/route"
++	"internal/x/net/route"
+ )
+ 
+ func interfaceMessages(ifindex int) ([]route.Message, error) {
+diff --git a/src/net/interface_solaris.go b/src/net/interface_solaris.go
+index dc8ffbfcb8..868d4174ed 100644
+--- a/src/net/interface_solaris.go
++++ b/src/net/interface_solaris.go
+@@ -7,7 +7,7 @@ package net
+ import (
+ 	"syscall"
+ 
+-	"golang_org/x/net/lif"
++	"internal/x/net/lif"
+ )
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+diff --git a/src/net/lookup_unix.go b/src/net/lookup_unix.go
+index bef9dcfe14..6543f121a7 100644
+--- a/src/net/lookup_unix.go
++++ b/src/net/lookup_unix.go
+@@ -12,7 +12,7 @@ import (
+ 	"sync"
+ 	"syscall"
+ 
+-	"golang_org/x/net/dns/dnsmessage"
++	"internal/x/net/dns/dnsmessage"
+ )
+ 
+ var onceReadProtocols sync.Once
+diff --git a/src/net/pipe_test.go b/src/net/pipe_test.go
+index 84a71b756b..53ddc16313 100644
+--- a/src/net/pipe_test.go
++++ b/src/net/pipe_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ 	"time"
+ 
+-	"golang_org/x/net/nettest"
++	"internal/x/net/nettest"
+ )
+ 
+ func TestPipe(t *testing.T) {

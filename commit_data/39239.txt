@@ -10,6 +10,20 @@ Date:   Tue Feb 5 10:05:10 2019 +0000
     Reviewed-on: https://go-review.googlesource.com/c/160829
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/codewalk/codewalk.js | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/codewalk/codewalk.js b/doc/codewalk/codewalk.js
+index abc59373a0..4f59a8fc89 100644
+--- a/doc/codewalk/codewalk.js
++++ b/doc/codewalk/codewalk.js
+@@ -276,7 +276,7 @@ CodewalkViewer.prototype.changeSelectedComment = function(target) {
+   }
+ 
+   // Force original file even if user hasn't changed comments since they may
+-  // have nagivated away from it within the iframe without us knowing.
++  // have navigated away from it within the iframe without us knowing.
+   this.navigateToCode(currentFile);
+ };
+ 

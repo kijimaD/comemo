@@ -12,6 +12,19 @@ Date:   Wed Apr 10 21:00:41 2024 +0800
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Jes Cok <xigua67damn@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  doc/next/6-stdlib/99-minor/sync/61696.md | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/sync/61696.md b/doc/next/6-stdlib/99-minor/sync/61696.md
+index d138533597..59584301f3 100644
+--- a/doc/next/6-stdlib/99-minor/sync/61696.md
++++ b/doc/next/6-stdlib/99-minor/sync/61696.md
+@@ -1,4 +1,2 @@
+-The [`(*sync.Map) Clear()`](/pkg/sync#Map.Clear) method deletes
+-all the entries, resulting in an empty map
+-([#61696](https://github.com/golang/go/issues/61696)).
+-It is analogous to `clear`.
+\ No newline at end of file
++The [Map.Clear] method deletes all the entries, resulting in
++an empty [Map]. It is analogous to `clear`.

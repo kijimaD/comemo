@@ -11,10 +11,76 @@ Date:   Wed Sep 6 15:14:28 2023 +0300
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: qiulaidongfeng <2645477756@qq.com>
-
+---
  src/crypto/sha1/fallback_test.go   | 2 +-
  src/crypto/sha512/fallback_test.go | 2 +-
  src/database/sql/sql_test.go       | 2 +-
  src/math/big/arith_s390x_test.go   | 2 +-
  src/net/http/response_test.go      | 2 +-
  5 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/sha1/fallback_test.go b/src/crypto/sha1/fallback_test.go
+index 45d1f57d39..aa1d413f2f 100644
+--- a/src/crypto/sha1/fallback_test.go
++++ b/src/crypto/sha1/fallback_test.go
+@@ -16,7 +16,7 @@ import (
+ // implementation cannot be used.
+ // See also TestBlockGeneric.
+ func TestGenericPath(t *testing.T) {
+-	if useAsm == false {
++	if !useAsm {
+ 		t.Skipf("assembly implementation unavailable")
+ 	}
+ 	useAsm = false
+diff --git a/src/crypto/sha512/fallback_test.go b/src/crypto/sha512/fallback_test.go
+index db5b13c38c..ac0c2c3c76 100644
+--- a/src/crypto/sha512/fallback_test.go
++++ b/src/crypto/sha512/fallback_test.go
+@@ -16,7 +16,7 @@ import (
+ // implementation cannot be used.
+ // See also TestBlockGeneric.
+ func TestGenericPath(t *testing.T) {
+-	if useAsm == false {
++	if !useAsm {
+ 		t.Skipf("assembly implementation unavailable")
+ 	}
+ 	useAsm = false
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index f1c946d4e4..c38a348ab4 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -3769,7 +3769,7 @@ func TestIssue18719(t *testing.T) {
+ 		cancel()
+ 
+ 		// Wait for the context to cancel and tx to rollback.
+-		for tx.isDone() == false {
++		for !tx.isDone() {
+ 			time.Sleep(pollDuration)
+ 		}
+ 	}
+diff --git a/src/math/big/arith_s390x_test.go b/src/math/big/arith_s390x_test.go
+index 8375ddbdd4..093984b397 100644
+--- a/src/math/big/arith_s390x_test.go
++++ b/src/math/big/arith_s390x_test.go
+@@ -15,7 +15,7 @@ import (
+ // vector-capable machine
+ 
+ func TestFunVVnovec(t *testing.T) {
+-	if hasVX == true {
++	if hasVX {
+ 		for _, a := range sumVV {
+ 			arg := a
+ 			testFunVV(t, "addVV_novec", addVV_novec, arg)
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index ddd318084d..f3425c3c20 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -849,7 +849,7 @@ func TestReadResponseErrors(t *testing.T) {
+ 	type testCase struct {
+ 		name    string // optional, defaults to in
+ 		in      string
+-		wantErr any // nil, err value, or string substring
++		wantErr any // nil, err value, bool value, or string substring
+ 	}
+ 
+ 	status := func(s string, wantErr any) testCase {

@@ -35,7 +35,7 @@ Date:   Thu Nov 8 10:29:40 2018 -0500
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/clean/clean.go                 |   5 +-
  src/cmd/go/internal/envcmd/env.go                  |   6 +-
  src/cmd/go/internal/load/pkg.go                    |   4 +-
@@ -59,3 +59,1054 @@ Date:   Thu Nov 8 10:29:40 2018 -0500
  src/cmd/go/testdata/script/mod_nomod.txt           |   2 +-
  src/cmd/go/testdata/script/mod_outside.txt         | 214 +++++++++++++++++++++
  22 files changed, 511 insertions(+), 106 deletions(-)
+
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 96fd653b74..32cc80736d 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -105,10 +105,7 @@ func init() {
+ }
+ 
+ func runClean(cmd *base.Command, args []string) {
+-	if len(args) == 0 && modload.Failed() {
+-		// Don't try to clean current directory,
+-		// which will cause modload to base.Fatalf.
+-	} else {
++	if len(args) > 0 || !modload.Enabled() || modload.HasModRoot() {
+ 		for _, pkg := range load.PackagesAndErrors(args) {
+ 			clean(pkg)
+ 		}
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 85a42e0519..ae98d3999a 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -115,8 +115,10 @@ func findEnv(env []cfg.EnvVar, name string) string {
+ // ExtraEnvVars returns environment variables that should not leak into child processes.
+ func ExtraEnvVars() []cfg.EnvVar {
+ 	gomod := ""
+-	if modload.Init(); modload.ModRoot != "" {
+-		gomod = filepath.Join(modload.ModRoot, "go.mod")
++	if modload.HasModRoot() {
++		gomod = filepath.Join(modload.ModRoot(), "go.mod")
++	} else if modload.Enabled() {
++		gomod = os.DevNull
+ 	}
+ 	return []cfg.EnvVar{
+ 		{Name: "GOMOD", Value: gomod},
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index a64bab1479..72a3d70607 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1515,7 +1515,9 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	}
+ 
+ 	if cfg.ModulesEnabled {
+-		p.Module = ModPackageModuleInfo(p.ImportPath)
++		if !p.Internal.CmdlineFiles {
++			p.Module = ModPackageModuleInfo(p.ImportPath)
++		}
+ 		if p.Name == "main" {
+ 			p.Internal.BuildInfo = ModPackageBuildInfo(p.ImportPath, p.Deps)
+ 		}
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 875bad78dc..f13fe24993 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -157,8 +157,7 @@ func runEdit(cmd *base.Command, args []string) {
+ 	if len(args) == 1 {
+ 		gomod = args[0]
+ 	} else {
+-		modload.MustInit()
+-		gomod = filepath.Join(modload.ModRoot, "go.mod")
++		gomod = filepath.Join(modload.ModRoot(), "go.mod")
+ 	}
+ 
+ 	if *editModule != "" {
+diff --git a/src/cmd/go/internal/modcmd/vendor.go b/src/cmd/go/internal/modcmd/vendor.go
+index 7bd1d0b571..b70f25cec3 100644
+--- a/src/cmd/go/internal/modcmd/vendor.go
++++ b/src/cmd/go/internal/modcmd/vendor.go
+@@ -43,7 +43,7 @@ func runVendor(cmd *base.Command, args []string) {
+ 	}
+ 	pkgs := modload.LoadVendor()
+ 
+-	vdir := filepath.Join(modload.ModRoot, "vendor")
++	vdir := filepath.Join(modload.ModRoot(), "vendor")
+ 	if err := os.RemoveAll(vdir); err != nil {
+ 		base.Fatalf("go mod vendor: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index c2e134c2d6..2bfe6d3bb2 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -281,8 +281,8 @@ func runGet(cmd *base.Command, args []string) {
+ 				base.Errorf("go get %s: %v", arg, err)
+ 				continue
+ 			}
+-			if !str.HasFilePathPrefix(abs, modload.ModRoot) {
+-				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot)
++			if !str.HasFilePathPrefix(abs, modload.ModRoot()) {
++				base.Errorf("go get %s: directory %s is outside module root %s", arg, abs, modload.ModRoot())
+ 				continue
+ 			}
+ 			// TODO: Check if abs is inside a nested module.
+diff --git a/src/cmd/go/internal/modload/build.go b/src/cmd/go/internal/modload/build.go
+index 7606806908..b4856a9419 100644
+--- a/src/cmd/go/internal/modload/build.go
++++ b/src/cmd/go/internal/modload/build.go
+@@ -98,8 +98,8 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 			Path:    m.Path,
+ 			Version: m.Version,
+ 			Main:    true,
+-			Dir:     ModRoot,
+-			GoMod:   filepath.Join(ModRoot, "go.mod"),
++			Dir:     ModRoot(),
++			GoMod:   filepath.Join(ModRoot(), "go.mod"),
+ 		}
+ 		if modFile.Go != nil {
+ 			info.GoVersion = modFile.Go.Version
+@@ -117,7 +117,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 	}
+ 
+ 	if cfg.BuildMod == "vendor" {
+-		info.Dir = filepath.Join(ModRoot, "vendor", m.Path)
++		info.Dir = filepath.Join(ModRoot(), "vendor", m.Path)
+ 		return info
+ 	}
+ 
+@@ -171,7 +171,7 @@ func moduleInfo(m module.Version, fromBuildList bool) *modinfo.ModulePublic {
+ 		if filepath.IsAbs(r.Path) {
+ 			info.Replace.Dir = r.Path
+ 		} else {
+-			info.Replace.Dir = filepath.Join(ModRoot, r.Path)
++			info.Replace.Dir = filepath.Join(ModRoot(), r.Path)
+ 		}
+ 	}
+ 	complete(info.Replace)
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index ba2052d3cd..96e546d6df 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -67,8 +67,8 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+ 	if cfg.BuildMod == "vendor" {
+-		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot, true)
+-		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot, "vendor"), false)
++		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot(), true)
++		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
+ 		if mainOK && vendorOK {
+ 			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
+ 		}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index baefea88c5..97c48be00e 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -26,16 +26,17 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime/debug"
+ 	"strconv"
+ 	"strings"
+ )
+ 
+ var (
+-	cwd            string
++	cwd            string // TODO(bcmills): Is this redundant with base.Cwd?
+ 	MustUseModules = mustUseModules()
+ 	initialized    bool
+ 
+-	ModRoot     string
++	modRoot     string
+ 	modFile     *modfile.File
+ 	modFileData []byte
+ 	excluded    map[module.Version]bool
+@@ -56,11 +57,15 @@ var (
+ // To make permanent changes to the require statements
+ // in go.mod, edit it before calling ImportPaths or LoadBuildList.
+ func ModFile() *modfile.File {
++	Init()
++	if modFile == nil {
++		die()
++	}
+ 	return modFile
+ }
+ 
+ func BinDir() string {
+-	MustInit()
++	Init()
+ 	return filepath.Join(gopath, "bin")
+ }
+ 
+@@ -76,6 +81,10 @@ func mustUseModules() bool {
+ 
+ var inGOPATH bool // running in GOPATH/src
+ 
++// Init determines whether module mode is enabled, locates the root of the
++// current module (if any), sets environment variables for Git subprocesses, and
++// configures the cfg, codehost, load, modfetch, and search packages for use
++// with modules.
+ func Init() {
+ 	if initialized {
+ 		return
+@@ -141,6 +150,9 @@ func Init() {
+ 	}
+ 
+ 	if inGOPATH && !MustUseModules {
++		if CmdModInit {
++			die() // Don't init a module that we're just going to ignore.
++		}
+ 		// No automatic enabling in GOPATH.
+ 		if root, _ := FindModuleRoot(cwd, "", false); root != "" {
+ 			cfg.GoModInGOPATH = filepath.Join(root, "go.mod")
+@@ -150,26 +162,54 @@ func Init() {
+ 
+ 	if CmdModInit {
+ 		// Running 'go mod init': go.mod will be created in current directory.
+-		ModRoot = cwd
++		modRoot = cwd
+ 	} else {
+-		ModRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
+-		if !MustUseModules {
+-			if ModRoot == "" {
+-				return
+-			}
+-			if search.InDir(ModRoot, os.TempDir()) == "." {
+-				// If you create /tmp/go.mod for experimenting,
+-				// then any tests that create work directories under /tmp
+-				// will find it and get modules when they're not expecting them.
+-				// It's a bit of a peculiar thing to disallow but quite mysterious
+-				// when it happens. See golang.org/issue/26708.
+-				ModRoot = ""
+-				fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
++		modRoot, _ = FindModuleRoot(cwd, "", MustUseModules)
++		if modRoot == "" {
++			if !MustUseModules {
++				// GO111MODULE is 'auto' (or unset), and we can't find a module root.
++				// Stay in GOPATH mode.
+ 				return
+ 			}
++		} else if search.InDir(modRoot, os.TempDir()) == "." {
++			// If you create /tmp/go.mod for experimenting,
++			// then any tests that create work directories under /tmp
++			// will find it and get modules when they're not expecting them.
++			// It's a bit of a peculiar thing to disallow but quite mysterious
++			// when it happens. See golang.org/issue/26708.
++			modRoot = ""
++			fmt.Fprintf(os.Stderr, "go: warning: ignoring go.mod in system temp root %v\n", os.TempDir())
+ 		}
+ 	}
+ 
++	// We're in module mode. Install the hooks to make it work.
++
++	if c := cache.Default(); c == nil {
++		// With modules, there are no install locations for packages
++		// other than the build cache.
++		base.Fatalf("go: cannot use modules with build cache disabled")
++	}
++
++	list := filepath.SplitList(cfg.BuildContext.GOPATH)
++	if len(list) == 0 || list[0] == "" {
++		base.Fatalf("missing $GOPATH")
++	}
++	gopath = list[0]
++	if _, err := os.Stat(filepath.Join(gopath, "go.mod")); err == nil {
++		base.Fatalf("$GOPATH/go.mod exists but should not")
++	}
++
++	oldSrcMod := filepath.Join(list[0], "src/mod")
++	pkgMod := filepath.Join(list[0], "pkg/mod")
++	infoOld, errOld := os.Stat(oldSrcMod)
++	_, errMod := os.Stat(pkgMod)
++	if errOld == nil && infoOld.IsDir() && errMod != nil && os.IsNotExist(errMod) {
++		os.Rename(oldSrcMod, pkgMod)
++	}
++
++	modfetch.PkgMod = pkgMod
++	codehost.WorkRoot = filepath.Join(pkgMod, "cache/vcs")
++
+ 	cfg.ModulesEnabled = true
+ 	load.ModBinDir = BinDir
+ 	load.ModLookup = Lookup
+@@ -180,7 +220,35 @@ func Init() {
+ 	load.ModImportFromFiles = ImportFromFiles
+ 	load.ModDirImportPath = DirImportPath
+ 
+-	search.SetModRoot(ModRoot)
++	if modRoot == "" {
++		// We're in module mode, but not inside a module.
++		//
++		// If the command is 'go get' or 'go list' and all of the args are in the
++		// same existing module, we could use that module's download directory in
++		// the module cache as the module root, applying any replacements and/or
++		// exclusions specified by that module. However, that would leave us in a
++		// strange state: we want 'go get' to be consistent with 'go list', and 'go
++		// list' should be able to operate on multiple modules. Moreover, the 'get'
++		// target might specify relative file paths (e.g. in the same repository) as
++		// replacements, and we would not be able to apply those anyway: we would
++		// need to either error out or ignore just those replacements, when a build
++		// from an empty module could proceed without error.
++		//
++		// Instead, we'll operate as though we're in some ephemeral external module,
++		// ignoring all replacements and exclusions uniformly.
++
++		// Normally we check sums using the go.sum file from the main module, but
++		// without a main module we do not have an authoritative go.sum file.
++		//
++		// TODO(bcmills): In Go 1.13, check sums when outside the main module.
++		//
++		// One possible approach is to merge the go.sum files from all of the
++		// modules we download: that doesn't protect us against bad top-level
++		// modules, but it at least ensures consistency for transitive dependencies.
++	} else {
++		modfetch.GoSumFile = filepath.Join(modRoot, "go.sum")
++		search.SetModRoot(modRoot)
++	}
+ }
+ 
+ func init() {
+@@ -193,38 +261,41 @@ func init() {
+ }
+ 
+ // Enabled reports whether modules are (or must be) enabled.
+-// If modules must be enabled but are not, Enabled returns true
++// If modules are enabled but there is no main module, Enabled returns true
+ // and then the first use of module information will call die
+-// (usually through InitMod and MustInit).
++// (usually through MustModRoot).
+ func Enabled() bool {
+-	if !initialized {
+-		panic("go: Enabled called before Init")
+-	}
+-	return ModRoot != "" || MustUseModules
++	Init()
++	return modRoot != "" || MustUseModules
+ }
+ 
+-// MustInit calls Init if needed and checks that
+-// modules are enabled and the main module has been found.
+-// If not, MustInit calls base.Fatalf with an appropriate message.
+-func MustInit() {
+-	if Init(); ModRoot == "" {
++// ModRoot returns the root of the main module.
++// It calls base.Fatalf if there is no main module.
++func ModRoot() string {
++	if !HasModRoot() {
+ 		die()
+ 	}
+-	if c := cache.Default(); c == nil {
+-		// With modules, there are no install locations for packages
+-		// other than the build cache.
+-		base.Fatalf("go: cannot use modules with build cache disabled")
+-	}
++	return modRoot
+ }
+ 
+-// Failed reports whether module loading failed.
+-// If Failed returns true, then any use of module information will call die.
+-func Failed() bool {
++// HasModRoot reports whether a main module is present.
++// HasModRoot may return false even if Enabled returns true: for example, 'get'
++// does not require a main module.
++func HasModRoot() bool {
+ 	Init()
+-	return cfg.ModulesEnabled && ModRoot == ""
++	return modRoot != ""
+ }
+ 
++// printStackInDie causes die to print a stack trace.
++//
++// It is enabled by the testgo tag, and helps to diagnose paths that
++// unexpectedly require a main module.
++var printStackInDie = false
++
+ func die() {
++	if printStackInDie {
++		debug.PrintStack()
++	}
+ 	if os.Getenv("GO111MODULE") == "off" {
+ 		base.Fatalf("go: modules disabled by GO111MODULE=off; see 'go help modules'")
+ 	}
+@@ -234,33 +305,20 @@ func die() {
+ 	base.Fatalf("go: cannot find main module; see 'go help modules'")
+ }
+ 
++// InitMod sets Target and, if there is a main module, parses the initial build
++// list from its go.mod file, creating and populating that file if needed.
+ func InitMod() {
+-	MustInit()
+-	if modFile != nil {
++	if len(buildList) > 0 {
+ 		return
+ 	}
+ 
+-	list := filepath.SplitList(cfg.BuildContext.GOPATH)
+-	if len(list) == 0 || list[0] == "" {
+-		base.Fatalf("missing $GOPATH")
+-	}
+-	gopath = list[0]
+-	if _, err := os.Stat(filepath.Join(gopath, "go.mod")); err == nil {
+-		base.Fatalf("$GOPATH/go.mod exists but should not")
+-	}
+-
+-	oldSrcMod := filepath.Join(list[0], "src/mod")
+-	pkgMod := filepath.Join(list[0], "pkg/mod")
+-	infoOld, errOld := os.Stat(oldSrcMod)
+-	_, errMod := os.Stat(pkgMod)
+-	if errOld == nil && infoOld.IsDir() && errMod != nil && os.IsNotExist(errMod) {
+-		os.Rename(oldSrcMod, pkgMod)
++	Init()
++	if modRoot == "" {
++		Target = module.Version{Path: "main"}
++		buildList = []module.Version{Target}
++		return
+ 	}
+ 
+-	modfetch.PkgMod = pkgMod
+-	modfetch.GoSumFile = filepath.Join(ModRoot, "go.sum")
+-	codehost.WorkRoot = filepath.Join(pkgMod, "cache/vcs")
+-
+ 	if CmdModInit {
+ 		// Running go mod init: do legacy module conversion
+ 		legacyModInit()
+@@ -269,7 +327,7 @@ func InitMod() {
+ 		return
+ 	}
+ 
+-	gomod := filepath.Join(ModRoot, "go.mod")
++	gomod := filepath.Join(modRoot, "go.mod")
+ 	data, err := ioutil.ReadFile(gomod)
+ 	if err != nil {
+ 		if os.IsNotExist(err) {
+@@ -291,7 +349,7 @@ func InitMod() {
+ 
+ 	if len(f.Syntax.Stmt) == 0 || f.Module == nil {
+ 		// Empty mod file. Must add module path.
+-		path, err := FindModulePath(ModRoot)
++		path, err := FindModulePath(modRoot)
+ 		if err != nil {
+ 			base.Fatalf("go: %v", err)
+ 		}
+@@ -329,7 +387,7 @@ func Allowed(m module.Version) bool {
+ 
+ func legacyModInit() {
+ 	if modFile == nil {
+-		path, err := FindModulePath(ModRoot)
++		path, err := FindModulePath(modRoot)
+ 		if err != nil {
+ 			base.Fatalf("go: %v", err)
+ 		}
+@@ -341,7 +399,7 @@ func legacyModInit() {
+ 	addGoStmt()
+ 
+ 	for _, name := range altConfigs {
+-		cfg := filepath.Join(ModRoot, name)
++		cfg := filepath.Join(modRoot, name)
+ 		data, err := ioutil.ReadFile(cfg)
+ 		if err == nil {
+ 			convert := modconv.Converters[name]
+@@ -566,6 +624,11 @@ func WriteGoMod() {
+ 		return
+ 	}
+ 
++	// If we aren't in a module, we don't have anywhere to write a go.mod file.
++	if modRoot == "" {
++		return
++	}
++
+ 	if loaded != nil {
+ 		reqs := MinReqs()
+ 		min, err := reqs.Required(Target)
+@@ -604,7 +667,7 @@ func WriteGoMod() {
+ 	unlock := modfetch.SideLock()
+ 	defer unlock()
+ 
+-	file := filepath.Join(ModRoot, "go.mod")
++	file := filepath.Join(modRoot, "go.mod")
+ 	old, err := ioutil.ReadFile(file)
+ 	if !bytes.Equal(old, modFileData) {
+ 		if bytes.Equal(old, new) {
+diff --git a/src/cmd/go/internal/modload/list.go b/src/cmd/go/internal/modload/list.go
+index 69a832de1d..2f1a3c24d2 100644
+--- a/src/cmd/go/internal/modload/list.go
++++ b/src/cmd/go/internal/modload/list.go
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePublic {
+-	mods := listModules(args)
++	mods := listModules(args, listVersions)
+ 	if listU || listVersions {
+ 		var work par.Work
+ 		for _, m := range mods {
+@@ -39,7 +39,7 @@ func ListModules(args []string, listU, listVersions bool) []*modinfo.ModulePubli
+ 	return mods
+ }
+ 
+-func listModules(args []string) []*modinfo.ModulePublic {
++func listModules(args []string, listVersions bool) []*modinfo.ModulePublic {
+ 	LoadBuildList()
+ 	if len(args) == 0 {
+ 		return []*modinfo.ModulePublic{moduleInfo(buildList[0], true)}
+@@ -83,6 +83,10 @@ func listModules(args []string) []*modinfo.ModulePublic {
+ 		}
+ 		matched := false
+ 		for i, m := range buildList {
++			if i == 0 && !HasModRoot() {
++				// The root module doesn't actually exist: omit it.
++				continue
++			}
+ 			if match(m.Path) {
+ 				matched = true
+ 				if !matchedBuildList[i] {
+@@ -93,6 +97,16 @@ func listModules(args []string) []*modinfo.ModulePublic {
+ 		}
+ 		if !matched {
+ 			if literal {
++				if listVersions {
++					// Don't make the user provide an explicit '@latest' when they're
++					// explicitly asking what the available versions are.
++					// Instead, resolve the module, even if it isn't an existing dependency.
++					info, err := Query(arg, "latest", nil)
++					if err == nil {
++						mods = append(mods, moduleInfo(module.Version{Path: arg, Version: info.Version}, false))
++						continue
++					}
++				}
+ 				mods = append(mods, &modinfo.ModulePublic{
+ 					Path: arg,
+ 					Error: &modinfo.ModuleError{
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 3b8c0b6435..dd1a370825 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -101,10 +101,10 @@ func ImportPaths(patterns []string) []*search.Match {
+ 					// Note: The checks for @ here are just to avoid misinterpreting
+ 					// the module cache directories (formerly GOPATH/src/mod/foo@v1.5.2/bar).
+ 					// It's not strictly necessary but helpful to keep the checks.
+-					if dir == ModRoot {
++					if modRoot != "" && dir == modRoot {
+ 						pkg = Target.Path
+-					} else if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) && !strings.Contains(dir[len(ModRoot):], "@") {
+-						suffix := filepath.ToSlash(dir[len(ModRoot):])
++					} else if modRoot != "" && strings.HasPrefix(dir, modRoot+string(filepath.Separator)) && !strings.Contains(dir[len(modRoot):], "@") {
++						suffix := filepath.ToSlash(dir[len(modRoot):])
+ 						if strings.HasPrefix(suffix, "/vendor/") {
+ 							// TODO getmode vendor check
+ 							pkg = strings.TrimPrefix(suffix, "/vendor/")
+@@ -118,6 +118,7 @@ func ImportPaths(patterns []string) []*search.Match {
+ 					} else {
+ 						pkg = ""
+ 						if !iterating {
++							ModRoot()
+ 							base.Errorf("go: directory %s outside available modules", base.ShortPath(dir))
+ 						}
+ 					}
+@@ -251,17 +252,21 @@ func ImportFromFiles(gofiles []string) {
+ // DirImportPath returns the effective import path for dir,
+ // provided it is within the main module, or else returns ".".
+ func DirImportPath(dir string) string {
++	if modRoot == "" {
++		return "."
++	}
++
+ 	if !filepath.IsAbs(dir) {
+ 		dir = filepath.Join(cwd, dir)
+ 	} else {
+ 		dir = filepath.Clean(dir)
+ 	}
+ 
+-	if dir == ModRoot {
++	if dir == modRoot {
+ 		return Target.Path
+ 	}
+-	if strings.HasPrefix(dir, ModRoot+string(filepath.Separator)) {
+-		suffix := filepath.ToSlash(dir[len(ModRoot):])
++	if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
++		suffix := filepath.ToSlash(dir[len(modRoot):])
+ 		if strings.HasPrefix(suffix, "/vendor/") {
+ 			return strings.TrimPrefix(suffix, "/vendor/")
+ 		}
+@@ -810,7 +815,7 @@ func WhyDepth(path string) int {
+ // a module.Version with Path == "".
+ func Replacement(mod module.Version) module.Version {
+ 	if modFile == nil {
+-		// Happens during testing.
++		// Happens during testing and if invoking 'go get' or 'go list' outside a module.
+ 		return module.Version{}
+ 	}
+ 
+@@ -887,7 +892,7 @@ func readVendorList() {
+ 	vendorOnce.Do(func() {
+ 		vendorList = nil
+ 		vendorMap = make(map[string]module.Version)
+-		data, _ := ioutil.ReadFile(filepath.Join(ModRoot, "vendor/modules.txt"))
++		data, _ := ioutil.ReadFile(filepath.Join(ModRoot(), "vendor/modules.txt"))
+ 		var m module.Version
+ 		for _, line := range strings.Split(string(data), "\n") {
+ 			if strings.HasPrefix(line, "# ") {
+@@ -917,7 +922,7 @@ func (r *mvsReqs) modFileToList(f *modfile.File) []module.Version {
+ 
+ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 	if mod == Target {
+-		if modFile.Go != nil {
++		if modFile != nil && modFile.Go != nil {
+ 			r.versions.LoadOrStore(mod, modFile.Go.Version)
+ 		}
+ 		var list []module.Version
+@@ -937,7 +942,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 			// TODO: need to slip the new version into the tags list etc.
+ 			dir := repl.Path
+ 			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot, dir)
++				dir = filepath.Join(ModRoot(), dir)
+ 			}
+ 			gomod := filepath.Join(dir, "go.mod")
+ 			data, err := ioutil.ReadFile(gomod)
+@@ -1052,13 +1057,13 @@ func (*mvsReqs) next(m module.Version) (module.Version, error) {
+ 
+ func fetch(mod module.Version) (dir string, isLocal bool, err error) {
+ 	if mod == Target {
+-		return ModRoot, true, nil
++		return ModRoot(), true, nil
+ 	}
+ 	if r := Replacement(mod); r.Path != "" {
+ 		if r.Version == "" {
+ 			dir = r.Path
+ 			if !filepath.IsAbs(dir) {
+-				dir = filepath.Join(ModRoot, dir)
++				dir = filepath.Join(ModRoot(), dir)
+ 			}
+ 			return dir, true, nil
+ 		}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 4071341313..0856486c21 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -210,14 +210,16 @@ func matchSemverPrefix(p, v string) bool {
+ // If the path is in the main module and the query is "latest",
+ // QueryPackage returns Target as the version.
+ func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
+-	if _, ok := dirInModule(path, Target.Path, ModRoot, true); ok {
+-		if query != "latest" {
+-			return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
+-		}
+-		if !allowed(Target) {
+-			return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
++	if HasModRoot() {
++		if _, ok := dirInModule(path, Target.Path, modRoot, true); ok {
++			if query != "latest" {
++				return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
++			}
++			if !allowed(Target) {
++				return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
++			}
++			return Target, &modfetch.RevInfo{Version: Target.Version}, nil
+ 		}
+-		return Target, &modfetch.RevInfo{Version: Target.Version}, nil
+ 	}
+ 
+ 	finalErr := errMissing
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 24825cc35d..7d8852d01d 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -118,7 +118,10 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 		}
+ 		var root string
+ 		if mod.Version == "" {
+-			root = ModRoot
++			if !HasModRoot() {
++				continue // If there is no main module, we can't search in it.
++			}
++			root = ModRoot()
+ 		} else {
+ 			var err error
+ 			root, _, err = fetch(mod)
+diff --git a/src/cmd/go/internal/modload/testgo.go b/src/cmd/go/internal/modload/testgo.go
+new file mode 100644
+index 0000000000..6cfba0c68f
+--- /dev/null
++++ b/src/cmd/go/internal/modload/testgo.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package modload
++
++func init() {
++	printStackInDie = true
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_printversion_v0.1.0.txt b/src/cmd/go/testdata/mod/example.com_printversion_v0.1.0.txt
+new file mode 100644
+index 0000000000..bae8b13d47
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_printversion_v0.1.0.txt
+@@ -0,0 +1,27 @@
++example.com/printversion v0.1.0
++
++-- .mod --
++module example.com/printversion
++-- .info --
++{"Version":"v0.1.0"}
++-- README.txt --
++There is no go.mod file for this version of the module.
++-- printversion.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime/debug"
++
++	_ "example.com/version"
++)
++
++func main() {
++	info, _ := debug.ReadBuildInfo()
++	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
++	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
++	for _, m := range info.Deps {
++		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
++	}
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_printversion_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_printversion_v1.0.0.txt
+new file mode 100644
+index 0000000000..246741821a
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_printversion_v1.0.0.txt
+@@ -0,0 +1,35 @@
++example.com/printversion v1.0.0
++
++-- .mod --
++module example.com/printversion
++
++require example.com/version v1.0.0
++replace example.com/version v1.0.0 => ../oops v0.0.0
++exclude example.com/version v1.1.0
++-- .info --
++{"Version":"v1.0.0"}
++-- go.mod --
++module example.com/printversion
++
++require example.com/version v1.0.0
++replace example.com/version v1.0.0 => ../oops v0.0.0
++exclude example.com/version v1.0.1
++-- printversion.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime/debug"
++
++	_ "example.com/version"
++)
++
++func main() {
++	info, _ := debug.ReadBuildInfo()
++	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
++	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
++	for _, m := range info.Deps {
++		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
++	}
++}
+diff --git a/src/cmd/go/testdata/mod/example.com_version_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_version_v1.0.0.txt
+new file mode 100644
+index 0000000000..d8c45b527e
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_version_v1.0.0.txt
+@@ -0,0 +1,11 @@
++example.com/version v1.0.0
++written by hand
++
++-- .mod --
++module example.com/version
++-- .info --
++{"Version":"v1.0.0"}
++-- version.go --
++package version
++
++const V = "v1.0.0"
+diff --git a/src/cmd/go/testdata/mod/example.com_version_v1.0.1.txt b/src/cmd/go/testdata/mod/example.com_version_v1.0.1.txt
+new file mode 100644
+index 0000000000..3bfdb0e4cd
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_version_v1.0.1.txt
+@@ -0,0 +1,11 @@
++example.com/version v1.0.1
++written by hand
++
++-- .mod --
++module example.com/version
++-- .info --
++{"Version":"v1.0.1"}
++-- version.go --
++package version
++
++const V = "v1.0.1"
+diff --git a/src/cmd/go/testdata/mod/example.com_version_v1.1.0.txt b/src/cmd/go/testdata/mod/example.com_version_v1.1.0.txt
+new file mode 100644
+index 0000000000..8109a9acc9
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_version_v1.1.0.txt
+@@ -0,0 +1,11 @@
++example.com/version v1.1.0
++written by hand
++
++-- .mod --
++module example.com/version
++-- .info --
++{"Version":"v1.1.0"}
++-- version.go --
++package version
++
++const V = "v1.1.0"
+diff --git a/src/cmd/go/testdata/script/mod_enabled.txt b/src/cmd/go/testdata/script/mod_enabled.txt
+index 8eef870b02..1de4719d53 100644
+--- a/src/cmd/go/testdata/script/mod_enabled.txt
++++ b/src/cmd/go/testdata/script/mod_enabled.txt
+@@ -38,7 +38,7 @@ stdout z[/\\]go.mod
+ 
+ cd $GOPATH/src/x/y
+ go env GOMOD
+-! stdout .
++stdout 'NUL|/dev/null'
+ ! go list -m
+ stderr 'cannot find main module'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_nomod.txt b/src/cmd/go/testdata/script/mod_nomod.txt
+index 640d5a3631..7e0f55a602 100644
+--- a/src/cmd/go/testdata/script/mod_nomod.txt
++++ b/src/cmd/go/testdata/script/mod_nomod.txt
+@@ -16,7 +16,7 @@ go mod edit -json x.mod
+ ! go get
+ ! go install
+ ! go list
+-! go run x.go
++! go run
+ ! go test
+ ! go vet
+ 
+diff --git a/src/cmd/go/testdata/script/mod_outside.txt b/src/cmd/go/testdata/script/mod_outside.txt
+new file mode 100644
+index 0000000000..cc99ed6b00
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_outside.txt
+@@ -0,0 +1,214 @@
++env GO111MODULE=on
++
++# This script tests commands in module mode outside of any module.
++#
++# First, ensure that we really are in module mode, and that we really don't have
++# a go.mod file.
++go env GOMOD
++stdout 'NUL|/dev/null'
++
++
++# 'go list' without arguments implicitly operates on the current directory,
++# which is not in a module.
++! go list
++stderr 'cannot find main module'
++! go list -m
++stderr 'cannot find main module'
++# 'go list' in the working directory should fail even if there is a a 'package
++# main' present: without a main module, we do not know its package path.
++! go list ./foo
++stderr 'cannot find main module'
++
++# 'go list all' lists the transitive import graph of the main module,
++# which is empty if there is no main module.
++go list all
++! stdout .
++stderr 'warning: "all" matched no packages'
++go list -m all
++stderr 'warning: pattern "all" matched no module dependencies'
++
++# 'go list' on standard-library packages should work, since they do not depend
++# on the contents of any module.
++go list -deps cmd
++stdout '^fmt$'
++stdout '^cmd/go$'
++
++go list $GOROOT/src/fmt
++stdout '^fmt$'
++
++
++# 'go list -m' with an explicit version should resolve that version.
++go list -m example.com/version@latest
++stdout 'example.com/version v1.1.0'
++
++# 'go list -m -versions' should succeed even without an explicit version.
++go list -m -versions example.com/version
++stdout 'v1.0.0\s+v1.0.1\s+v1.1.0'
++
++# 'go list -m <mods> all' does not include the dependencies of <mods> in the computation of 'all'.
++go list -m example.com/printversion@v1.0.0 all
++stdout 'example.com/printversion v1.0.0'
++stderr 'warning: pattern "all" matched no module dependencies'
++! stdout 'example.com/version'
++
++
++# 'go clean' should skip the current directory if it isn't in a module.
++go clean -n
++! stdout .
++! stderr .
++
++# 'go mod graph' should not display anything, since there are no active modules.
++go mod graph
++! stdout .
++! stderr .
++
++# 'go mod why' should report that nothing is a dependency.
++go mod why -m example.com/version
++stdout 'does not need'
++
++
++# 'go mod edit', 'go mod tidy', and 'go mod fmt' should fail:
++# there is no go.mod file to edit.
++! go mod tidy
++stderr 'cannot find main module'
++! go mod edit -fmt
++stderr 'cannot find main module'
++! go mod edit -require example.com/version@v1.0.0
++stderr 'cannot find main module'
++
++
++# 'go mod download' should download exactly the requested module without dependencies.
++rm -r $GOPATH/pkg/mod/cache/download/example.com
++go mod download example.com/printversion@v1.0.0
++exists $GOPATH/pkg/mod/cache/download/example.com/printversion/@v/v1.0.0.zip
++! exists $GOPATH/pkg/mod/cache/download/example.com/version/@v/v1.0.0.zip
++
++# 'go mod vendor' should fail: it starts by clearing the existing vendor
++# directory, and we don't know where that is.
++! go mod vendor
++stderr 'cannot find main module'
++
++# 'go mod verify' should succeed: we have no modules to verify.
++go mod verify
++stdout 'all modules verified'
++! stderr .
++
++
++# 'go get' without arguments implicitly operates on the main module, and thus
++# should fail.
++! go get
++stderr 'cannot find main module'
++! go get -u
++stderr 'cannot find main module'
++! go get -u ./foo
++stderr 'cannot find main module'
++
++# 'go get -u all' upgrades the transitive import graph of the main module,
++# which is empty.
++go get -u all
++! stdout .
++stderr 'warning: "all" matched no packages'
++
++# 'go get -m' should check the proposed module graph for consistency,
++# even though it will not be saved anywhere.
++! go get -m example.com/printversion@v1.0.0 example.com/version@none
++stderr 'inconsistent versions'
++
++# 'go get -d' should download and extract the source code needed to build the requested version.
++rm -r $GOPATH/pkg/mod/example.com
++go get -d example.com/printversion@v1.0.0
++exists $GOPATH/pkg/mod/example.com/printversion@v1.0.0
++exists $GOPATH/pkg/mod/example.com/version@v1.0.0
++
++
++# 'go build' without arguments implicitly operates on the current directory, and should fail.
++cd foo
++! go build
++stderr 'cannot find main module'
++cd ..
++
++# 'go build' of a non-module directory should fail too.
++! go build ./foo
++stderr 'cannot find main module'
++
++# However, 'go build' should succeed for standard-library packages.
++go build -n fmt
++
++
++# TODO(golang.org/issue/28992): 'go doc' should document the latest version.
++# For now it does not.
++! go doc example.com/version
++stderr 'no such package'
++
++# 'go install' with a version should fail due to syntax.
++! go install example.com/printversion@v1.0.0
++stderr 'can only use path@version syntax with'
++
++
++# The remainder of the test checks dependencies by linking and running binaries.
++[short] stop
++
++# 'go get' of a binary without a go.mod should install the requested version,
++# resolving outside dependencies to the latest available versions.
++go get example.com/printversion@v0.1.0
++exec ../bin/printversion
++stdout 'path is example.com/printversion'
++stdout 'main is example.com/printversion v0.1.0'
++stdout 'using example.com/version v1.1.0'
++
++# 'go get' of a versioned binary should build and install the latest version
++# using its minimal module requirements, ignoring replacements and exclusions.
++go get example.com/printversion
++exec ../bin/printversion
++stdout 'path is example.com/printversion'
++stdout 'main is example.com/printversion v1.0.0'
++stdout 'using example.com/version v1.0.0'
++
++# 'go get -u=patch' should patch dependencies before installing,
++# again ignoring replacements and exclusions.
++go get -u=patch example.com/printversion@v1.0.0
++exec ../bin/printversion
++stdout 'path is example.com/printversion'
++stdout 'main is example.com/printversion v1.0.0'
++stdout 'using example.com/version v1.0.1'
++
++# 'go install' without a version should install the latest version
++# using its minimal module requirements.
++go install example.com/printversion
++exec ../bin/printversion
++stdout 'path is example.com/printversion'
++stdout 'main is example.com/printversion v1.0.0'
++stdout 'using example.com/version v1.0.0'
++
++# 'go run' should use 'main' as the effective module and import path.
++go run ./foo/foo.go
++stdout 'path is \.$'
++stdout 'main is main \(devel\)'
++stdout 'using example.com/version v1.1.0'
++
++
++-- README.txt --
++There is no go.mod file in the working directory.
++
++-- foo/foo.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"runtime/debug"
++
++	_ "example.com/version"
++)
++
++func main() {
++	info, ok := debug.ReadBuildInfo()
++	if !ok {
++		panic("missing build info")
++	}
++	fmt.Fprintf(os.Stdout, "path is %s\n", info.Path)
++	fmt.Fprintf(os.Stdout, "main is %s %s\n", info.Main.Path, info.Main.Version)
++	for _, m := range info.Deps {
++		fmt.Fprintf(os.Stdout, "using %s %s\n", m.Path, m.Version)
++	}
++}

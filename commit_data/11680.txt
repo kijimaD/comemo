@@ -7,10 +7,185 @@ Date:   Wed Feb 8 11:41:47 2012 +1100
     R=r
     CC=golang-dev
     https://golang.org/cl/5636045
-
+---
  doc/go1.html                   |  5 +----
  doc/go1.tmpl                   |  5 +----
  src/cmd/fix/imagetiled.go      | 40 ----------------------------------------
  src/cmd/fix/imagetiled_test.go | 41 -----------------------------------------
  src/pkg/image/names.go         | 27 ---------------------------
  5 files changed, 2 insertions(+), 116 deletions(-)
+
+diff --git a/doc/go1.html b/doc/go1.html
+index 59ff009642..ae91caac61 100644
+--- a/doc/go1.html
++++ b/doc/go1.html
+@@ -1115,9 +1115,7 @@ packages.
+ The old <code>image.ColorImage</code> type is still in the <code>image</code>
+ package but has been renamed
+ <a href="/pkg/image/#Uniform"><code>image.Uniform</code></a>,
+-while <code>image.Tiled</code>
+-has been renamed
+-<a href="/pkg/image/#Repeated"><code>image.Repeated</code></a>.
++while <code>image.Tiled</code> has been removed.
+ </p>
+ 
+ <p>
+@@ -1178,7 +1176,6 @@ This table lists the renamings.
+ <td colspan="2"><hr></td>
+ </tr>
+ <tr><td>image.ColorImage</td> <td>image.Uniform</td></tr>
+-<tr><td>image.Tiled</td> <td>image.Repeated</td></tr>
+ </table>
+ 
+ <p>
+diff --git a/doc/go1.tmpl b/doc/go1.tmpl
+index d43ebf7a68..cf93181119 100644
+--- a/doc/go1.tmpl
++++ b/doc/go1.tmpl
+@@ -1018,9 +1018,7 @@ packages.
+ The old <code>image.ColorImage</code> type is still in the <code>image</code>
+ package but has been renamed
+ <a href="/pkg/image/#Uniform"><code>image.Uniform</code></a>,
+-while <code>image.Tiled</code>
+-has been renamed
+-<a href="/pkg/image/#Repeated"><code>image.Repeated</code></a>.
++while <code>image.Tiled</code> has been removed.
+ </p>
+ 
+ <p>
+@@ -1081,7 +1079,6 @@ This table lists the renamings.
+ <td colspan="2"><hr></td>
+ </tr>
+ <tr><td>image.ColorImage</td> <td>image.Uniform</td></tr>
+-<tr><td>image.Tiled</td> <td>image.Repeated</td></tr>
+ </table>
+ 
+ <p>
+diff --git a/src/cmd/fix/imagetiled.go b/src/cmd/fix/imagetiled.go
+deleted file mode 100644
+index d8f3f79806..0000000000
+--- a/src/cmd/fix/imagetiled.go
++++ /dev/null
+@@ -1,40 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-import (
+-	"go/ast"
+-)
+-
+-func init() {
+-	register(imagetiledFix)
+-}
+-
+-var imagetiledFix = fix{
+-	"imagetiled",
+-	"2012-01-10",
+-	imagetiled,
+-	`Rename image.Tiled to image.Repeated.
+-
+-http://codereview.appspot.com/5530062
+-`,
+-}
+-
+-func imagetiled(f *ast.File) bool {
+-	if !imports(f, "image") {
+-		return false
+-	}
+-
+-	fixed := false
+-	walk(f, func(n interface{}) {
+-		s, ok := n.(*ast.SelectorExpr)
+-		if !ok || !isTopName(s.X, "image") || s.Sel.String() != "Tiled" {
+-			return
+-		}
+-		s.Sel = &ast.Ident{Name: "Repeated"}
+-		fixed = true
+-	})
+-	return fixed
+-}
+diff --git a/src/cmd/fix/imagetiled_test.go b/src/cmd/fix/imagetiled_test.go
+deleted file mode 100644
+index 98a9c0a8d2..0000000000
+--- a/src/cmd/fix/imagetiled_test.go
++++ /dev/null
+@@ -1,41 +0,0 @@
+-// Copyright 2012 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main
+-
+-func init() {
+-	addTestCases(imagetiledTests, imagetiled)
+-}
+-
+-var imagetiledTests = []testCase{
+-	{
+-		Name: "imagetiled.0",
+-		In: `package main
+-
+-import (
+-	"foo"
+-	"image"
+-)
+-
+-var (
+-	_ foo.Tiled
+-	_ image.RGBA
+-	_ image.Tiled
+-)
+-`,
+-		Out: `package main
+-
+-import (
+-	"foo"
+-	"image"
+-)
+-
+-var (
+-	_ foo.Tiled
+-	_ image.RGBA
+-	_ image.Repeated
+-)
+-`,
+-	},
+-}
+diff --git a/src/pkg/image/names.go b/src/pkg/image/names.go
+index 04616a5878..55f634c17c 100644
+--- a/src/pkg/image/names.go
++++ b/src/pkg/image/names.go
+@@ -50,30 +50,3 @@ func (c *Uniform) Opaque() bool {
+ func NewUniform(c color.Color) *Uniform {
+ 	return &Uniform{c}
+ }
+-
+-// Repeated is an Image that is a source Image translated by -Offset and then
+-// repeated in all four directions to infinity.
+-//
+-// Repeated{src, off}.At(x, y) will equal src.At(x+off.X, y+off.Y) for all
+-// points {x+off.X, y+off.Y} within src's Bounds.
+-type Repeated struct {
+-	// I is the source image.
+-	I Image
+-	// Offset is the translation vector from result pixel to source pixel.
+-	Offset Point
+-}
+-
+-func (r *Repeated) ColorModel() color.Model {
+-	return r.I.ColorModel()
+-}
+-
+-func (r *Repeated) Bounds() Rectangle { return Rectangle{Point{-1e9, -1e9}, Point{1e9, 1e9}} }
+-
+-func (r *Repeated) At(x, y int) color.Color {
+-	p := Point{x, y}.Add(r.Offset).Mod(r.I.Bounds())
+-	return r.I.At(p.X, p.Y)
+-}
+-
+-func NewRepeated(i Image, offset Point) *Repeated {
+-	return &Repeated{i, offset}
+-}

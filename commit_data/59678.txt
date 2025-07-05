@@ -16,6 +16,36 @@ Date:   Tue Apr 9 12:42:37 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/577616
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/resolver.go | 17 ++++++++++++++++-
  1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index af932a80fe..2b1de600a7 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -677,8 +677,23 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	if check.enableAlias {
++	if false && check.enableAlias {
+ 		// With Alias nodes we can process declarations in any order.
++		//
++		// TODO(adonovan): unfortunately, Alias nodes
++		// (GODEBUG=gotypesalias=1) don't entirely resolve
++		// problems with cycles. For example, in
++		// GOROOT/test/typeparam/issue50259.go,
++		//
++		// 	type T[_ any] struct{}
++		// 	type A T[B]
++		// 	type B = T[A]
++		//
++		// TypeName A has Type Named during checking, but by
++		// the time the unified export data is written out,
++		// its Type is Invalid.
++		//
++		// Investigate and reenable this branch.
+ 		for _, obj := range objList {
+ 			check.objDecl(obj, nil)
+ 		}

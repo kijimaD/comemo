@@ -9,7 +9,7 @@ Date:   Wed Aug 19 15:18:08 2009 -0700
     R=ken
     OCL=33541
     CL=33541
-
+---
  src/cmd/gc/dcl.c    | 36 ++++++++-------------
  src/cmd/gc/export.c | 13 ++------
  src/cmd/gc/go.h     |  5 ++-
@@ -18,3 +18,531 @@ Date:   Wed Aug 19 15:18:08 2009 -0700
  src/cmd/gc/subr.c   | 34 ++++++++++++--------
  test/import1.go     |  9 ++++--
  7 files changed, 108 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index 199f5369a1..684697fbb9 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -146,6 +146,14 @@ testdclstack(void)
+ 	}
+ }
+ 
++void
++redeclare(Sym *s, char *where)
++{
++	yyerror("%S redeclared %s\n"
++		"\tprevious declaration at %L",
++		s, where, s->lastlineno);
++}
++
+ /*
+  * declare individual names - var, typ, const
+  */
+@@ -153,7 +161,6 @@ void
+ declare(Node *n, int ctxt)
+ {
+ 	Sym *s;
+-	char *what;
+ 	int gen;
+ 	static int typegen, vargen;
+ 
+@@ -177,25 +184,11 @@ declare(Node *n, int ctxt)
+ 	if(ctxt == PAUTO)
+ 		n->xoffset = BADWIDTH;
+ 
+-	if(s->block == block) {
+-		what = "???";
+-		switch(n->op) {
+-		case ONAME:
+-			what = "variable";
+-			break;
+-		case OLITERAL:
+-			what = "constant";
+-			break;
+-		case OTYPE:
+-			what = "type";
+-			break;
+-		}
++	if(s->block == block)
++		redeclare(s, "in this block");
+ 
+-		yyerror("%s %S redeclared in this block %d", what, s, block);
+-		print("\tprevious declaration at %L\n", s->lastlineno);
+-	}
+ 	s->block = block;
+-	s->lastlineno = lineno;
++	s->lastlineno = parserline();
+ 	s->def = n;
+ 	n->vargen = gen;
+ 	n->funcdepth = funcdepth;
+@@ -731,10 +724,8 @@ typedcl2(Type *pt, Type *t)
+ 
+ 	if(pt->etype == TFORW)
+ 		goto ok;
+-	if(!cvttype(pt, t)) {
+-		yyerror("redeclaration of %T during imports", pt);
+-		return;
+-	}
++	if(!cvttype(pt, t))
++		yyerror("inconsistent definition for type %S during import\n\t%lT\n\t%lT", pt->sym, pt, t);
+ 	return;
+ 
+ ok:
+@@ -743,6 +734,7 @@ ok:
+ 	pt->method = nil;
+ 	pt->nod = n;
+ 	pt->sym = n->sym;
++	pt->sym->lastlineno = parserline();
+ 	declare(n, PEXTERN);
+ 
+ 	checkwidth(pt);
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 1d5253ff5f..65f537c83c 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -258,15 +258,8 @@ dumpexport(void)
+ Sym*
+ importsym(Sym *s, int op)
+ {
+-	if(s->def != N && s->def->op != op) {
+-		// Clumsy hack for
+-		//	package parser
+-		//	import "go/parser"	// defines type parser
+-		if(s == lookup(package))
+-			s->def = N;
+-		else
+-			yyerror("redeclaration of %lS during import", s, s->def->op, op);
+-	}
++	if(s->def != N && s->def->op != op)
++		redeclare(s, "during import");
+ 
+ 	// mark the symbol so it is not reexported
+ 	if(s->def == N) {
+@@ -349,7 +342,7 @@ importvar(Sym *s, Type *t, int ctxt)
+ 	if(s->def != N && s->def->op == ONAME) {
+ 		if(cvttype(t, s->def->type))
+ 			return;
+-		warn("redeclare import var %S from %T to %T",
++		yyerror("inconsistent definition for var %S during import\n\t%T\n\t%T",
+ 			s, s->def->type, t);
+ 	}
+ 	n = newname(s);
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index e13d7bdd0d..b4fcd4befc 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -593,6 +593,7 @@ EXTERN	Dlist	dotlist[10];	// size is max depth of embeddeds
+ 
+ EXTERN	Io	curio;
+ EXTERN	Io	pushedio;
++EXTERN	int32	lexlineno;
+ EXTERN	int32	lineno;
+ EXTERN	int32	prevlineno;
+ EXTERN	char*	pathname;
+@@ -704,7 +705,6 @@ void	typeinit(void);
+ void	lexinit(void);
+ char*	lexname(int);
+ int32	getr(void);
+-int	getnsc(void);
+ int	escchar(int, int*, vlong*);
+ int	getc(void);
+ void	ungetc(int);
+@@ -782,6 +782,7 @@ Sym*	pkglookup(char*, char*);
+ Sym*	restrictlookup(char*, char*);
+ void	importdot(Sym*);
+ void	yyerror(char*, ...);
++int	parserline(void);
+ void	warn(char*, ...);
+ void	fatal(char*, ...);
+ void	linehist(char*, int32, int);
+@@ -880,6 +881,8 @@ Type*	tounsigned(Type*);
+ void	smagic(Magic*);
+ void	umagic(Magic*);
+ 
++void	redeclare(Sym*, char*);
++
+ /*
+  *	dcl.c
+  */
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 722ca82db0..129e77d6d7 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -43,7 +43,7 @@
+ %token		LIGNORE LINC LLE LLSH LLT LNE LOROR LRSH
+ %token		LSEMIBRACE
+ 
+-%type	<lint>	lbrace
++%type	<lint>	lbrace import_here
+ %type	<sym>	sym packname
+ %type	<val>	oliteral
+ 
+@@ -126,6 +126,7 @@ file:
+ package:
+ 	%prec NotPackage
+ 	{
++		prevlineno = lineno;
+ 		yyerror("package statement must be first");
+ 		mkpackage("main");
+ 	}
+@@ -158,7 +159,47 @@ import:
+ |	LIMPORT '(' ')'
+ 
+ import_stmt:
+-	import_here import_package import_there import_done
++	import_here import_package import_there
++	{
++		Sym *import, *my;
++
++		import = pkgimportname;
++		my = pkgmyname;
++		pkgmyname = S;
++		pkgimportname = S;
++
++		if(import == S)
++			break;
++		if(my == S)
++			my = import;
++		if(my->name[0] == '.') {
++			importdot(import);
++			break;
++		}
++
++		// In order to allow multifile packages to use type names
++		// that are the same as the package name (i.e. go/parser
++		// is package parser and has a type called parser), we have
++		// to not bother trying to declare the package if it is our package.
++		// TODO(rsc): Is there a better way to tell if the package is ours?
++		if(my == import && strcmp(import->name, package) == 0)
++			break;
++
++		// TODO(rsc): this line is needed for a package
++		// which does bytes := in a function, which creates
++		// an ONONAME for bytes, but then a different file
++		// imports "bytes".  more generally we need to figure out
++		// what it means if one file imports "bytes" and another
++		// declares a top-level name.
++		if(my->def && my->def->op == ONONAME)
++			my->def = N;
++
++		my->def = nod(OPACK, N, N);
++		my->def->sym = import;
++		my->lastlineno = $1;
++		import->block = -1;	// above top level
++	}
++	
+ 
+ import_stmt_list:
+ 	import_stmt
+@@ -168,6 +209,7 @@ import_here:
+ 	LLITERAL
+ 	{
+ 		// import with original name
++		$$ = parserline();
+ 		pkgimportname = S;
+ 		pkgmyname = S;
+ 		importfile(&$1);
+@@ -175,13 +217,17 @@ import_here:
+ |	sym LLITERAL
+ 	{
+ 		// import with given name
++		$$ = parserline();
+ 		pkgimportname = S;
+ 		pkgmyname = $1;
++		if(pkgmyname->def)
++			redeclare(pkgmyname, "as imported package name");
+ 		importfile(&$2);
+ 	}
+ |	'.' LLITERAL
+ 	{
+ 		// import into my name space
++		$$ = parserline();
+ 		pkgmyname = lookup(".");
+ 		importfile(&$2);
+ 	}
+@@ -214,48 +260,6 @@ import_there:
+ 		checkimports();
+ 	}
+ 
+-import_done:
+-	{
+-		Sym *import, *my;
+-
+-		import = pkgimportname;
+-		my = pkgmyname;
+-		pkgmyname = S;
+-		pkgimportname = S;
+-
+-		if(import == S)
+-			break;
+-		if(my == S)
+-			my = import;
+-		if(my->name[0] == '.') {
+-			importdot(import);
+-			break;
+-		}
+-
+-		// In order to allow multifile packages to use type names
+-		// that are the same as the package name (i.e. go/parser
+-		// is package parser and has a type called parser), we have
+-		// to not bother trying to declare the package if it is our package.
+-		// TODO(rsc): Is there a better way to tell if the package is ours?
+-		if(my == import && strcmp(import->name, package) == 0)
+-			break;
+-
+-		// TODO(rsc): this line is needed for a package
+-		// which does bytes := in a function, which creates
+-		// an ONONAME for bytes, but then a different file
+-		// imports "bytes".  more generally we need to figure out
+-		// what it means if one file imports "bytes" and another
+-		// declares a top-level name.
+-		if(my->def && my->def->op == ONONAME)
+-			my->def = N;
+-
+-		if(my->def)
+-			yyerror("redeclaration of %S by import\n\t%N", my, my->def);
+-		my->def = nod(OPACK, N, N);
+-		my->def->sym = import;
+-		import->block = -1;	// above top level
+-	}
+-
+ /*
+  * declarations
+  */
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index 7440ef8b25..7e9e8d5b35 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -73,7 +73,7 @@ main(int argc, char *argv[])
+ 	blockgen = 1;
+ 	dclcontext = PEXTERN;
+ 	nerrors = 0;
+-	lineno = 1;
++	lexlineno = 1;
+ 
+ 	for(i=0; i<argc; i++) {
+ 		if(i == 0)
+@@ -369,7 +369,7 @@ unimportfile(void)
+ 		Bterm(curio.bin);
+ 		curio.bin = nil;
+ 	} else
+-		lineno--;	// re correct sys.6 line number
++		lexlineno--;	// re correct sys.6 line number
+ 	curio = pushedio;
+ 	pushedio.bin = nil;
+ 	inimportsys = 0;
+@@ -382,7 +382,7 @@ cannedimports(char *file, char *cp)
+ 	if(!debug['A'])
+ 		anysym->def = typenod(types[TANY]);
+ 
+-	lineno++;		// if sys.6 is included on line 1,
++	lexlineno++;		// if sys.6 is included on line 1,
+ 	linehist(file, 0, 0);	// the debugger gets confused
+ 
+ 	pushedio = curio;
+@@ -420,7 +420,6 @@ _yylex(void)
+ 	vlong v;
+ 	char *cp;
+ 	Rune rune;
+-	int32 lno;
+ 	Sym *s;
+ 
+ 	prevlineno = lineno;
+@@ -430,6 +429,8 @@ l0:
+ 	if(isspace(c))
+ 		goto l0;
+ 
++	lineno = lexlineno;	/* start of token */
++
+ 	if(c >= Runeself) {
+ 		/* all multibyte runes are alpha */
+ 		cp = lexbuf;
+@@ -504,11 +505,10 @@ l0:
+ 		clen = sizeof(int32);
+ 
+ 	casebq:
+-		lno = lineno;
+ 		for(;;) {
+ 			c = getc();
+ 			if(c == EOF) {
+-				yyerror("eof in string starting at line %L", lno);
++				yyerror("eof in string");
+ 				break;
+ 			}
+ 			if(c == '`')
+@@ -791,7 +791,7 @@ l0:
+ 		goto lx;
+ 	case '{':
+ 		if(loophack == 1) {
+-			DBG("%L lex: LBODY\n", lineno);
++			DBG("%L lex: LBODY\n", lexlineno);
+ 			loophack = 0;
+ 			return LBODY;
+ 		}
+@@ -804,9 +804,9 @@ l0:
+ 
+ lx:
+ 	if(c > 0xff)
+-		DBG("%L lex: TOKEN %s\n", lineno, lexname(c));
++		DBG("%L lex: TOKEN %s\n", lexlineno, lexname(c));
+ 	else
+-		DBG("%L lex: TOKEN '%c'\n", lineno, c);
++		DBG("%L lex: TOKEN '%c'\n", lexlineno, c);
+ 	if(isfrog(c)) {
+ 		yyerror("illegal character 0x%ux", c);
+ 		goto l0;
+@@ -1044,7 +1044,7 @@ getc(void)
+ 		curio.peekc = curio.peekc1;
+ 		curio.peekc1 = 0;
+ 		if(c == '\n')
+-			lineno++;
++			lexlineno++;
+ 		return c;
+ 	}
+ 
+@@ -1063,7 +1063,7 @@ getc(void)
+ 		return EOF;
+ 
+ 	case '\n':
+-		lineno++;
++		lexlineno++;
+ 		break;
+ 	}
+ 	return c;
+@@ -1075,7 +1075,7 @@ ungetc(int c)
+ 	curio.peekc1 = curio.peekc;
+ 	curio.peekc = c;
+ 	if(c == '\n')
+-		lineno--;
++		lexlineno--;
+ }
+ 
+ int32
+@@ -1106,24 +1106,6 @@ loop:
+ 	return rune;
+ }
+ 
+-int
+-getnsc(void)
+-{
+-	int c;
+-
+-	c = getc();
+-	for(;;) {
+-		if(!isspace(c))
+-			return c;
+-		if(c == '\n') {
+-			lineno++;
+-			return c;
+-		}
+-		c = getc();
+-	}
+-	return 0;
+-}
+-
+ 
+ int
+ escchar(int e, int *escflg, vlong *val)
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c566b7f070..7a7259ca3e 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -14,23 +14,35 @@ errorexit(void)
+ 	exit(1);
+ }
+ 
++extern int yychar;
++int
++parserline(void)
++{
++	if(yychar != 0 && yychar != -2)	// parser has one symbol lookahead
++		return prevlineno;
++	return lineno;
++}
++
+ void
+ yyerror(char *fmt, ...)
+ {
+ 	va_list arg;
+ 
+-	print("%L: ", lineno);
+-	va_start(arg, fmt);
+-	vfprint(1, fmt, arg);
+-	va_end(arg);
+ 	if(strcmp(fmt, "syntax error") == 0) {
++		print("%L: syntax error near %s\n", lexlineno, lexbuf);
+ 		nsyntaxerrors++;
+-		print(" near %s", lexbuf);
++		goto out;
+ 	}
++
++	print("%L: ", parserline());
++	va_start(arg, fmt);
++	vfprint(1, fmt, arg);
++	va_end(arg);
+ 	print("\n");
++
++out:
+ 	if(debug['h'])
+ 		*(int*)0 = 0;
+-
+ 	nerrors++;
+ 	if(nerrors >= 10 && !debug['e'])
+ 		fatal("too many errors");
+@@ -92,7 +104,7 @@ linehist(char *file, int32 off, int relative)
+ 
+ 	h = mal(sizeof(Hist));
+ 	h->name = file;
+-	h->line = lineno;
++	h->line = lexlineno;
+ 	h->offset = off;
+ 	h->link = H;
+ 	if(ehist == H) {
+@@ -245,7 +257,7 @@ importdot(Sym *opkg)
+ 				continue;
+ 			s1 = lookup(s->name);
+ 			if(s1->def != N) {
+-				yyerror("redeclaration of %S during import", s1);
++				redeclare(s1, "during import");
+ 				continue;
+ 			}
+ 			s1->def = s->def;
+@@ -310,7 +322,6 @@ remal(void *p, int32 on, int32 n)
+ 	return p;
+ }
+ 
+-extern int yychar;
+ Node*
+ nod(int op, Node *nleft, Node *nright)
+ {
+@@ -320,10 +331,7 @@ nod(int op, Node *nleft, Node *nright)
+ 	n->op = op;
+ 	n->left = nleft;
+ 	n->right = nright;
+-	if(yychar <= 0)	// no lookahead
+-		n->lineno = lineno;
+-	else
+-		n->lineno = prevlineno;
++	n->lineno = parserline();
+ 	n->xoffset = BADWIDTH;
+ 	return n;
+ }
+diff --git a/test/import1.go b/test/import1.go
+index 35b618937f..e809990b76 100644
+--- a/test/import1.go
++++ b/test/import1.go
+@@ -8,7 +8,10 @@
+ 
+ package main
+ 
++import "bufio"	// GCCGO_ERROR "previous"
++import bufio "os"	// ERROR "redeclared|redefinition|incompatible"
++
+ import (
+-	"bufio";	// GCCGO_ERROR "previous"
+-	bufio "os";	// ERROR "redeclaration|redefinition|incompatible"
+-)
++	"fmt";	// GCCGO_ERROR "previous"
++	fmt "math";	// ERROR "redeclared|redefinition|incompatible"
++)
+\ No newline at end of file

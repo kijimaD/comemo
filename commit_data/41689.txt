@@ -23,7 +23,7 @@ Date:   Tue Sep 25 03:10:33 2018 -0400
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |  8 +++++++
  src/cmd/compile/internal/gc/builtin.go         |  1 +
  src/cmd/compile/internal/gc/builtin/runtime.go |  1 +
@@ -37,3 +37,247 @@ Date:   Tue Sep 25 03:10:33 2018 -0400
  src/runtime/proc.go                            |  1 +
  test/codegen/math.go                           |  1 +
  12 files changed, 85 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index a82ed0995c..480ff6523a 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -164,6 +164,14 @@ func duff(size int64) (int64, int64) {
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
++	case ssa.OpAMD64VFMADD231SD:
++		p := s.Prog(v.Op.Asm())
++		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[2].Reg()}
++		p.To = obj.Addr{Type: obj.TYPE_REG, Reg: v.Reg()}
++		p.SetFrom3(obj.Addr{Type: obj.TYPE_REG, Reg: v.Args[1].Reg()})
++		if v.Reg() != v.Args[0].Reg() {
++			v.Fatalf("input[0] and output not in same register %s", v.LongString())
++		}
+ 	case ssa.OpAMD64ADDQ, ssa.OpAMD64ADDL:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+diff --git a/src/cmd/compile/internal/gc/builtin.go b/src/cmd/compile/internal/gc/builtin.go
+index a770356ea0..c7cd5fae64 100644
+--- a/src/cmd/compile/internal/gc/builtin.go
++++ b/src/cmd/compile/internal/gc/builtin.go
+@@ -185,6 +185,7 @@ var runtimeDecls = [...]struct {
+ 	{"checkptrArithmetic", funcTag, 122},
+ 	{"x86HasPOPCNT", varTag, 15},
+ 	{"x86HasSSE41", varTag, 15},
++	{"x86HasFMA", varTag, 15},
+ 	{"arm64HasATOMICS", varTag, 15},
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/builtin/runtime.go b/src/cmd/compile/internal/gc/builtin/runtime.go
+index 3e9055b2ac..d9eaa0b7e5 100644
+--- a/src/cmd/compile/internal/gc/builtin/runtime.go
++++ b/src/cmd/compile/internal/gc/builtin/runtime.go
+@@ -241,4 +241,5 @@ func checkptrArithmetic(unsafe.Pointer, []unsafe.Pointer)
+ // architecture variants
+ var x86HasPOPCNT bool
+ var x86HasSSE41 bool
++var x86HasFMA bool
+ var arm64HasATOMICS bool
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index f6ad3752a0..bd10ca047f 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -311,6 +311,7 @@ var (
+ 	racewriterange,
+ 	x86HasPOPCNT,
+ 	x86HasSSE41,
++	x86HasFMA,
+ 	arm64HasATOMICS,
+ 	typedmemclr,
+ 	typedmemmove,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0b76ad728c..b65882e032 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -91,6 +91,7 @@ func initssaconfig() {
+ 	racewriterange = sysfunc("racewriterange")
+ 	x86HasPOPCNT = sysvar("x86HasPOPCNT")       // bool
+ 	x86HasSSE41 = sysvar("x86HasSSE41")         // bool
++	x86HasFMA = sysvar("x86HasFMA")             // bool
+ 	arm64HasATOMICS = sysvar("arm64HasATOMICS") // bool
+ 	typedmemclr = sysfunc("typedmemclr")
+ 	typedmemmove = sysfunc("typedmemmove")
+@@ -3326,6 +3327,36 @@ func init() {
+ 			return s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
+ 		},
+ 		sys.ARM64, sys.PPC64, sys.S390X)
++	addF("math", "Fma",
++		func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), x86HasFMA, s.sb)
++			v := s.load(types.Types[TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely // >= haswell cpus are common
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			s.vars[n] = s.newValue3(ssa.OpFma, types.Types[TFLOAT64], args[0], args[1], args[2])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			a := s.call(n, callNormal)
++			s.vars[n] = s.load(types.Types[TFLOAT64], a)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[TFLOAT64])
++		},
++		sys.AMD64)
+ 
+ 	makeRoundAMD64 := func(op ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 8ef51f9565..44c9e030d4 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -113,6 +113,7 @@
+ (Floor x)	-> (ROUNDSD [1] x)
+ (Ceil x)  	-> (ROUNDSD [2] x)
+ (Trunc x) 	-> (ROUNDSD [3] x)
++(Fma x y z) -> (VFMADD231SD z x y)
+ 
+ // Lowering extension
+ // Note: we always extend to 64 bits even though some ops don't need that many result bits.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index 3fa5cfbb96..5924fa497a 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -147,6 +147,7 @@ func init() {
+ 
+ 		fp01     = regInfo{inputs: nil, outputs: fponly}
+ 		fp21     = regInfo{inputs: []regMask{fp, fp}, outputs: fponly}
++		fp31     = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
+ 		fp21load = regInfo{inputs: []regMask{fp, gpspsb, 0}, outputs: fponly}
+ 		fpgp     = regInfo{inputs: fponly, outputs: gponly}
+ 		gpfp     = regInfo{inputs: gponly, outputs: fponly}
+@@ -478,6 +479,10 @@ func init() {
+ 		// Any use must be preceded by a successful check of runtime.x86HasSSE41.
+ 		{name: "ROUNDSD", argLength: 1, reg: fp11, aux: "Int8", asm: "ROUNDSD"}, // rounds arg0 depending on auxint, 1 means math.Floor, 2 Ceil, 3 Trunc
+ 
++		// VFMADD231SD only exists on platforms with the FMA3 instruction set.
++		// Any use must be preceded by a successful check of runtime.support_fma.
++		{name: "VFMADD231SD", argLength: 3, reg: fp31, resultInArg0: true, asm: "VFMADD231SD"},
++
+ 		{name: "SBBQcarrymask", argLength: 1, reg: flagsgp, asm: "SBBQ"}, // (int64)(-1) if carry is set, 0 if carry is clear.
+ 		{name: "SBBLcarrymask", argLength: 1, reg: flagsgp, asm: "SBBL"}, // (int32)(-1) if carry is set, 0 if carry is clear.
+ 		// Note: SBBW and SBBB are subsumed by SBBL
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7f9fb4e3ef..59740da9a4 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -743,6 +743,7 @@ const (
+ 	OpAMD64POPCNTL
+ 	OpAMD64SQRTSD
+ 	OpAMD64ROUNDSD
++	OpAMD64VFMADD231SD
+ 	OpAMD64SBBQcarrymask
+ 	OpAMD64SBBLcarrymask
+ 	OpAMD64SETEQ
+@@ -9625,6 +9626,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "VFMADD231SD",
++		argLen:       3,
++		resultInArg0: true,
++		asm:          x86.AVFMADD231SD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{1, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++				{2, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++			outputs: []outputInfo{
++				{0, 4294901760}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
++			},
++		},
++	},
+ 	{
+ 		name:   "SBBQcarrymask",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 386086f4b0..845e581364 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -768,6 +768,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpEqPtr_0(v)
+ 	case OpFloor:
+ 		return rewriteValueAMD64_OpFloor_0(v)
++	case OpFma:
++		return rewriteValueAMD64_OpFma_0(v)
+ 	case OpGeq16:
+ 		return rewriteValueAMD64_OpGeq16_0(v)
+ 	case OpGeq16U:
+@@ -52331,6 +52333,21 @@ func rewriteValueAMD64_OpFloor_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpFma_0(v *Value) bool {
++	// match: (Fma x y z)
++	// cond:
++	// result: (VFMADD231SD z x y)
++	for {
++		z := v.Args[2]
++		x := v.Args[0]
++		y := v.Args[1]
++		v.reset(OpAMD64VFMADD231SD)
++		v.AddArg(z)
++		v.AddArg(x)
++		v.AddArg(y)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpGeq16_0(v *Value) bool {
+ 	b := v.Block
+ 	// match: (Geq16 x y)
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 1565afb93a..3e859a3516 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -23,6 +23,7 @@ var (
+ 	// TODO: deprecate these; use internal/cpu directly.
+ 	x86HasPOPCNT bool
+ 	x86HasSSE41  bool
++	x86HasFMA    bool
+ 
+ 	arm64HasATOMICS bool
+ )
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index d7f55b6c64..c419dee771 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -514,6 +514,7 @@ func cpuinit() {
+ 	// to guard execution of instructions that can not be assumed to be always supported.
+ 	x86HasPOPCNT = cpu.X86.HasPOPCNT
+ 	x86HasSSE41 = cpu.X86.HasSSE41
++	x86HasFMA = cpu.X86.HasFMA
+ 
+ 	arm64HasATOMICS = cpu.ARM64.HasATOMICS
+ }
+diff --git a/test/codegen/math.go b/test/codegen/math.go
+index 427f305c12..c942085480 100644
+--- a/test/codegen/math.go
++++ b/test/codegen/math.go
+@@ -108,6 +108,7 @@ func copysign(a, b, c float64) {
+ }
+ 
+ func fma(x, y, z float64) float64 {
++	// amd64:"VFMADD231SD"
+ 	// arm64:"FMADDD"
+ 	// s390x:"FMADD"
+ 	// ppc64:"FMADD"

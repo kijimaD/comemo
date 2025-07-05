@@ -8,7 +8,7 @@ Date:   Wed Aug 18 16:53:22 2010 +0200
     R=rsc, r, ken2
     CC=golang-dev
     https://golang.org/cl/1987042
-
+---
  src/cmd/6l/Makefile     |   2 +
  src/cmd/6l/asm.c        |  59 ++--
  src/cmd/6l/l.h          |   1 +
@@ -17,3 +17,1492 @@ Date:   Wed Aug 18 16:53:22 2010 +0200
  src/cmd/ld/dwarf.h      |  28 ++
  src/cmd/ld/dwarf_defs.h | 454 +++++++++++++++++++++++++++
  7 files changed, 1337 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+index 72bde4465e..0ee1a6130a 100644
+--- a/src/cmd/6l/Makefile
++++ b/src/cmd/6l/Makefile
+@@ -9,6 +9,7 @@ TARG=\
+ 
+ OFILES=\
+ 	asm.$O\
++	dwarf.$O\
+ 	elf.$O\
+ 	enam.$O\
+ 	go.$O\
+@@ -26,6 +27,7 @@ HFILES=\
+ 	../ld/lib.h\
+ 	../ld/elf.h\
+ 	../ld/macho.h\
++	../ld/dwarf.h\
+ 
+ $(TARG): $(OFILES)
+ 	$(LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) -lbio -l9
+diff --git a/src/cmd/6l/asm.c b/src/cmd/6l/asm.c
+index fa419b659a..db11f14efb 100644
+--- a/src/cmd/6l/asm.c
++++ b/src/cmd/6l/asm.c
+@@ -31,6 +31,7 @@
+ #include	"l.h"
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
++#include	"../ld/dwarf.h"
+ #include	"../ld/macho.h"
+ 
+ #define	Dbufslop	100
+@@ -300,10 +301,9 @@ doelf(void)
+ 		elfstr[ElfStrGosymcounts] = addstring(shstrtab, ".gosymcounts");
+ 		elfstr[ElfStrGosymtab] = addstring(shstrtab, ".gosymtab");
+ 		elfstr[ElfStrGopclntab] = addstring(shstrtab, ".gopclntab");
+-		if(debug['e']) {
+-			elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
+-			elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
+-		}
++                elfstr[ElfStrSymtab] = addstring(shstrtab, ".symtab");
++                elfstr[ElfStrStrtab] = addstring(shstrtab, ".strtab");
++                dwarfaddshstrings(shstrtab);
+ 	}
+ 	elfstr[ElfStrShstrtab] = addstring(shstrtab, ".shstrtab");
+ 
+@@ -546,7 +546,7 @@ asmb(void)
+ 		seek(cout, v, 0);
+ 		
+ 		/* index of elf text section; needed by asmelfsym, double-checked below */
+-		/* debug['d'] causes 8 extra sections before the .text section */
++		/* !debug['d'] causes 8 extra sections before the .text section */
+ 		elftextsh = 1;
+ 		if(!debug['d'])
+ 			elftextsh += 8;
+@@ -627,7 +627,7 @@ asmb(void)
+ 		lputl(symsize);
+ 		lputl(lcsize);
+ 		cflush();
+-		if(!debug['s'] && debug['e']) {
++		if(!debug['s']) {
+ 			elfsymo = symo+8+symsize+lcsize;
+ 			seek(cout, elfsymo, 0);
+ 			asmelfsym();
+@@ -635,7 +635,12 @@ asmb(void)
+ 			elfstro = seek(cout, 0, 1);
+ 			elfsymsize = elfstro - elfsymo;
+ 			write(cout, elfstrdat, elfstrsize);
+-		}		
++
++                        if(debug['v'])
++                               Bprint(&bso, "%5.2f dwarf\n", cputime());
++
++                        dwarfemitdebugsections();
++		}
+ 	} else
+ 	if(dlm){
+ 		seek(cout, HEADR+textsize+datsize, 0);
+@@ -910,22 +915,22 @@ asmb(void)
+ 			sh->size = w;
+ 			sh->addralign = 1;
+ 			sh->addr = symdatva + 8 + symsize;
+-			
+-			if(debug['e']) {
+-				sh = newElfShdr(elfstr[ElfStrSymtab]);
+-				sh->type = SHT_SYMTAB;
+-				sh->off = elfsymo;
+-				sh->size = elfsymsize;
+-				sh->addralign = 8;
+-				sh->entsize = 24;
+-				sh->link = eh->shnum;	// link to strtab
+-			
+-				sh = newElfShdr(elfstr[ElfStrStrtab]);
+-				sh->type = SHT_STRTAB;
+-				sh->off = elfstro;
+-				sh->size = elfstrsize;
+-				sh->addralign = 1;
+-			}
++
++                        sh = newElfShdr(elfstr[ElfStrSymtab]);
++                        sh->type = SHT_SYMTAB;
++                        sh->off = elfsymo;
++                        sh->size = elfsymsize;
++                        sh->addralign = 8;
++                        sh->entsize = 24;
++                        sh->link = eh->shnum;	// link to strtab
++
++                        sh = newElfShdr(elfstr[ElfStrStrtab]);
++                        sh->type = SHT_STRTAB;
++                        sh->off = elfstro;
++                        sh->size = elfstrsize;
++                        sh->addralign = 1;
++
++                        dwarfaddheaders();
+ 		}
+ 
+ 		sh = newElfShstrtab(elfstr[ElfStrShstrtab]);
+@@ -977,6 +982,13 @@ cflush(void)
+ 	cbc = sizeof(buf.cbuf);
+ }
+ 
++/* Current position in file */
++vlong
++cpos(void)
++{
++        return seek(cout, 0, 1) + sizeof(buf.cbuf) - cbc;
++}
++
+ void
+ outa(int n, uchar *cast, uchar *map, vlong l)
+ {
+@@ -1322,4 +1334,3 @@ rnd(vlong v, vlong r)
+ 	v -= c;
+ 	return v;
+ }
+-
+diff --git a/src/cmd/6l/l.h b/src/cmd/6l/l.h
+index 23ca2232ba..9a77658c3d 100644
+--- a/src/cmd/6l/l.h
++++ b/src/cmd/6l/l.h
+@@ -394,6 +394,7 @@ Prog*	brchain(Prog*);
+ Prog*	brloop(Prog*);
+ void	buildop(void);
+ void	cflush(void);
++vlong   cpos(void);
+ void	ckoff(Sym*, int32);
+ Prog*	copyp(Prog*);
+ double	cputime(void);
+diff --git a/src/cmd/6l/obj.c b/src/cmd/6l/obj.c
+index 3b981a6127..adcccb55a3 100644
+--- a/src/cmd/6l/obj.c
++++ b/src/cmd/6l/obj.c
+@@ -33,6 +33,7 @@
+ #include	"../ld/lib.h"
+ #include	"../ld/elf.h"
+ #include	"../ld/macho.h"
++#include	"../ld/dwarf.h"
+ #include	<ar.h>
+ 
+ char	*noname		= "<none>";
+@@ -575,6 +576,7 @@ loop:
+ 				histfrogp++;
+ 			} else
+ 				collapsefrog(s);
++                        dwarfaddfrag(s->value, s->name);
+ 		}
+ 		goto loop;
+ 	}
+@@ -1058,4 +1060,3 @@ doprof2(void)
+ 		}
+ 	}
+ }
+-
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+new file mode 100644
+index 0000000000..d14fddb50f
+--- /dev/null
++++ b/src/cmd/ld/dwarf.c
+@@ -0,0 +1,815 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include        "l.h"
++#include        "lib.h"
++#include        "../ld/dwarf.h"
++#include        "../ld/dwarf_defs.h"
++#include        "../ld/elf.h"
++
++/*
++ * Offsets and sizes of the .debug_* sections in the cout file.
++ */
++
++static vlong abbrevo;
++static vlong abbrevsize;
++static vlong lineo;
++static vlong linesize;
++static vlong infoo;
++static vlong infosize;
++
++
++/*
++ * Defining Abbrevs.  This is hardcoded, and there will be
++ * only a handful of them.  The DWARF spec places no restriction on
++ * the ordering of atributes in the Abbrevs and DIEs, and we will
++ * always write them out in the order of declaration in the abbrev.
++ * This implementation relies on tag, attr < 127, so they serialize as
++ * a char, hence we do not support user-defined tags or attributes.
++ */
++typedef struct DWAttrForm DWAttrForm;
++struct DWAttrForm {
++	uint8 attr;
++	uint8 form;
++};
++
++// index into the abbrevs table below.
++enum
++{
++        DW_ABRV_NULL,
++        DW_ABRV_COMPUNIT,
++	DW_NABRV
++};
++
++typedef struct DWAbbrev DWAbbrev;
++struct DWAbbrev {
++	uint8 tag;
++	uint8 children;
++	DWAttrForm attr[30];
++} abbrevs[DW_NABRV] = {
++        /* The mandatory DW_ABRV_NULL entry. */
++        { 0 },
++	/* COMPUNIT */
++	{
++		DW_TAG_compile_unit, DW_CHILDREN_yes,
++                DW_AT_name,      DW_FORM_string,
++                DW_AT_language,  DW_FORM_data1,
++                DW_AT_low_pc,    DW_FORM_addr,
++                DW_AT_high_pc,   DW_FORM_addr,
++                DW_AT_stmt_list, DW_FORM_data4,
++                0, 0
++        },
++};
++
++/*
++ * Debugging Information Entries and their attributes
++ */
++
++
++// for string and block, value contains the length, and data the data,
++// for all others, value is the whole thing and data is null.
++
++typedef struct DWAttr DWAttr;
++struct DWAttr {
++        DWAttr *link;
++        uint8 atr;  // DW_AT_
++        uint8 cls;  // DW_CLS_
++        vlong value;
++        char *data;
++};
++
++typedef struct DWDie DWDie;
++struct DWDie {
++        int abbrev;
++        DWDie *link;
++        DWDie *child;
++        DWAttr *attr;
++};
++
++// top level compilation unit DIE's
++static DWDie *dwinfo;
++
++static DWDie*
++newdie(DWDie *link, int abbrev)
++{
++        DWDie *die;
++
++        die = mal(sizeof *die);
++        die->abbrev = abbrev;
++        die->link = link;
++        return die;
++}
++
++static DWAttr*
++newattr(DWDie *die, uint8 attr, int cls, vlong value, char *data)
++{
++        DWAttr *a;
++
++        a = mal(sizeof *a);
++        a->link = die->attr;
++        die->attr = a;
++        a->atr = attr;
++        a->cls = cls;
++        a->value = value;
++        a->data = data;
++        return a;
++}
++
++static void
++uleb128put(uvlong v)
++{
++        uint8 c;
++
++	do {
++		c = v & 0x7f;
++		v >>= 7;
++		if (v) c |= 0x80;
++		cput(c);
++	} while (c & 0x80);
++};
++
++static void
++sleb128put(vlong v)
++{
++        uint8 c, s;
++
++        do {
++                c = v & 0x7f;
++                s = c & 0x40;
++                v >>= 7;
++                if ((v != -1 || !s) && (v != 0 || s))
++                        c |= 0x80;
++                cput(c);
++        } while(c & 0x80);
++};
++
++static void
++putattr(int form, int cls, vlong value, char *data)
++{
++        switch(form) {
++        case DW_FORM_addr:	// address
++                VPUT(value);
++                break;
++
++        case DW_FORM_block1:	// block
++                value &= 0xff;
++                cput(value);
++                while(value--)
++                        cput(*data++);
++                break;
++
++        case DW_FORM_block2:	// block
++                value &= 0xffff;
++                WPUT(value);
++                while(value--)
++                        cput(*data++);
++                break;
++
++        case DW_FORM_block4:	// block
++                value &= 0xffffffff;
++                LPUT(value);
++                while(value--)
++                        cput(*data++);
++                break;
++
++        case DW_FORM_block:	// block
++                uleb128put(value);
++                while(value--)
++                        cput(*data++);
++                break;
++
++        case DW_FORM_data1:	// constant
++                cput(value);
++                break;
++
++        case DW_FORM_data2:	// constant
++                WPUT(value);
++                break;
++
++        case DW_FORM_data4:	// constant, lineptr, loclistptr, macptr, rangelistptr
++                LPUT(value);
++                break;
++
++        case DW_FORM_data8:	// constant, lineptr, loclistptr, macptr, rangelistptr
++                VPUT(value);
++                break;
++
++        case DW_FORM_sdata:	// constant
++                sleb128put(value);
++                break;
++
++        case DW_FORM_udata:	// constant
++                uleb128put(value);
++                break;
++
++        case DW_FORM_string:	// string
++                strnput(data, value+1);
++                break;
++
++        case DW_FORM_flag:	// flag
++                cput(value?1:0);
++                break;
++
++        case DW_FORM_strp:	// string
++        case DW_FORM_ref_addr:	// reference
++        case DW_FORM_ref1:	// reference
++        case DW_FORM_ref2:	// reference
++        case DW_FORM_ref4:	// reference
++        case DW_FORM_ref8:	// reference
++        case DW_FORM_ref_udata:	// reference
++        case DW_FORM_indirect:	// (see Section 7.5.3)
++        default:
++                diag("Unsupported atribute form %d / class %d", form, cls);
++                errorexit();
++        }
++}
++
++static void
++putattrs(int abbrev, DWAttr* attr)
++{
++        DWAttr *attrs[DW_AT_recursive + 1];
++        DWAttrForm* af;
++
++        memset(attrs, 0, sizeof attrs);
++        for( ; attr; attr = attr->link)
++                attrs[attr->atr] = attr;
++        for(af = abbrevs[abbrev].attr; af->attr; af++)
++                if (attrs[af->attr])
++                        putattr(af->form,
++                                attrs[af->attr]->cls,
++                                attrs[af->attr]->value,
++                                attrs[af->attr]->data);
++                else
++                        putattr(af->form, 0, 0, 0);
++}
++
++static void putdie(DWDie* die);
++
++static void
++putdies(DWDie* die)
++{
++        for(; die; die = die->link)
++                putdie(die);
++}
++
++static void
++putdie(DWDie* die)
++{
++        uleb128put(die->abbrev);
++        putattrs(die->abbrev, die->attr);
++        if (abbrevs[die->abbrev].children) {
++                putdies(die->child);
++                cput(0);
++        }
++}
++
++static void
++reverselist(DWDie** list)
++{
++        DWDie *curr, * prev;
++
++        curr = *list;
++        prev = 0;
++        while(curr) {
++                DWDie* next = curr->link;
++                curr->link = prev;
++                prev = curr;
++                curr = next;
++        }
++        *list = prev;
++}
++
++/*
++ * Filename fragments for the line history stack.
++ */
++
++static char **ftab;
++static int ftabsize;
++
++void
++dwarfaddfrag(int n, char *frag)
++{
++        int s;
++
++	if (n >= ftabsize) {
++		s = ftabsize;
++		ftabsize = 1 + n + (n >> 2);
++		ftab = realloc(ftab, ftabsize * sizeof(ftab[0]));
++		memset(ftab + s, 0, (ftabsize - s) * sizeof(ftab[0]));
++	}
++
++	if (*frag == '<')
++		frag++;
++	ftab[n] = frag;
++}
++
++// Returns a malloc'ed string, piecewise copied from the ftab.
++static char *
++decodez(char *s)
++{
++        int len, o;
++        char *ss, *f;
++        char *r, *rb, *re;
++
++	len = 0;
++	ss = s + 1;	// first is 0
++        while((o = ((uint8)ss[0] << 8) | (uint8)ss[1]) != 0) {
++		if (o < 0 || o >= ftabsize) {
++			diag("corrupt z entry");
++			return 0;
++		}
++		f = ftab[o];
++		if (!f) {
++			diag("corrupt z entry");
++			return 0;
++		}
++		len += strlen(f) + 1;	// for the '/'
++		ss += 2;
++	}
++
++	if (len == 0)
++		return 0;
++
++	r = malloc(len + 1);
++	rb = r;
++	re = rb + len + 1;
++
++	s++;
++	while((o = ((uint8)s[0] << 8) | (uint8)s[1]) != 0) {
++		f = ftab[o];
++		if (rb == r || rb[-1] == '/')
++			rb = seprint(rb, re, "%s", f);
++		else
++			rb = seprint(rb, re, "/%s", f);
++		s += 2;
++	}
++	return r;
++}
++
++/*
++ * The line history itself
++ */
++
++static char **histfile;    // [0] holds the empty string.
++static int  histfilesize;
++static int  histfilecap;
++
++static void
++clearhistfile(void)
++{
++  int i;
++
++  // [0] holds the empty string.
++  for (i = 1; i < histfilesize; i++)
++          free(histfile[i]);
++  histfilesize = 0;
++}
++
++static int
++addhistfile(char *zentry)
++{
++  char *fname;
++
++  if (histfilesize == histfilecap) {
++          histfilecap = 2 * histfilecap + 2;
++          histfile = realloc(histfile, histfilecap * sizeof(char*));
++  }
++  if (histfilesize == 0)
++          histfile[histfilesize++] = "<eof>";
++
++  fname = decodez(zentry);
++  if (fname == 0)
++          return -1;
++  // Don't fill with duplicates (check only top one).
++  if (strcmp(fname, histfile[histfilesize-1]) == 0) {
++          free(fname);
++          return histfilesize - 1;
++  }
++  histfile[histfilesize++] = fname;
++  return histfilesize - 1;
++}
++
++// Go's runtime C sources are sane, and Go sources nest only 1 level,
++// so 16 should be plenty.
++static struct {
++        int file;
++        vlong line;
++} includestack[16];
++static int includetop;
++static vlong absline;
++
++typedef struct Linehist Linehist;
++struct Linehist {
++        Linehist *link;
++        vlong absline;
++        vlong line;
++        int file;
++};
++
++static Linehist *linehist;
++
++static void
++checknesting(void)
++{
++        int i;
++
++        if (includetop < 0) {
++                diag("corrupt z stack");
++                errorexit();
++        }
++        if (includetop >= nelem(includestack)) {
++                diag("nesting too deep");
++                for (i = 0; i < nelem(includestack); i++)
++                        diag("\t%s", histfile[includestack[i].file]);
++                errorexit();
++        }
++}
++
++/* find z and Z entries in the Auto list (of a Prog), and reset the history stack */
++static char *
++inithist(Auto *a)
++{
++        char *unitname;
++        Linehist *lh;
++
++	for (; a; a = a->link)
++		if (a->type == D_FILE)
++                        break;
++        if (a==nil)
++                return 0;
++
++        // We have a new history.  They are guaranteed to come completely
++        // at the beginning of the compilation unit.
++        if (a->aoffset != 1) {
++                diag("stray 'z' with offset %d", a->aoffset);
++                return 0;
++        }
++
++        unitname = decodez(a->asym->name);
++
++        // Clear the history.
++        clearhistfile();
++        includetop = 0;
++        includestack[includetop].file = 0;
++        includestack[includetop].line = -1;
++        absline = 0;
++        while (linehist != nil) {
++                lh = linehist->link;
++                free(linehist);
++                linehist = lh;
++        }
++
++        // Construct the new one.
++        for (; a; a = a->link) {
++                if (a->type == D_FILE) {  // 'z'
++                        int f = addhistfile(a->asym->name);
++                        if (f < 0) {       // pop file
++                                includetop--;
++                                checknesting();
++                        } else if(f != includestack[includetop].file) { // pushed a new file
++                                includestack[includetop].line += a->aoffset - absline;
++                                includetop++;
++                                checknesting();
++                                includestack[includetop].file = f;
++                                includestack[includetop].line = 1;
++
++                        }
++                        absline = a->aoffset;
++                } else if (a->type == D_FILE1) {  // 'Z'
++                        // We could just fixup the current
++                        // linehist->line, but there doesn't appear to
++                        // be a guarantee that every 'Z' is preceded
++                        // by it's own 'z', so do the safe thing and
++                        // update the stack and push a new Linehist
++                        // entry
++                        includestack[includetop].line =  a->aoffset;
++                } else
++                        continue;
++                if (linehist == 0 || linehist->absline != absline) {
++                        Linehist* lh = malloc(sizeof *lh);
++                        lh->link = linehist;
++                        lh->absline = absline;
++                        linehist = lh;
++                }
++                linehist->file = includestack[includetop].file;
++                linehist->line = includestack[includetop].line;
++        }
++        return unitname;
++}
++
++static Linehist *
++searchhist(vlong absline)
++{
++        Linehist *lh;
++
++        for (lh = linehist; lh; lh = lh->link)
++                if (lh->absline <= absline)
++                        break;
++        return lh;
++}
++
++static void
++writeabbrev(void)
++{
++	int i, n;
++
++	abbrevo = cpos();
++	for (i = 1; i < DW_NABRV; i++) {
++                // See section 7.5.3
++		uleb128put(i);
++		uleb128put(abbrevs[i].tag);
++		cput(abbrevs[i].children);
++		// 0 is not a valid attr or form, so we can treat this as
++		// a string
++		n = strlen((char *) abbrevs[i].attr) / 2;
++		strnput((char *) abbrevs[i].attr,
++			(n + 1) * sizeof(DWAttrForm));
++	}
++        cput(0);
++	abbrevsize = cpos() - abbrevo;
++}
++
++
++static int
++guesslang(char *s)
++{
++        if(strlen(s) >= 3 && strcmp(s+strlen(s)-3, ".go") == 0)
++                return DW_LANG_Go;
++
++        return DW_LANG_C;
++}
++
++/*
++ * Generate short opcodes when possible, long ones when neccesary.
++ * See section 6.2.5
++ */
++
++enum {
++        LINE_BASE = -1,
++        LINE_RANGE = 4,
++        OPCODE_BASE = 5
++};
++
++static void
++putpclcdelta(vlong delta_pc, vlong delta_lc)
++{
++        if (LINE_BASE <= delta_lc && delta_lc < LINE_BASE+LINE_RANGE) {
++                vlong opcode = OPCODE_BASE + (delta_lc - LINE_BASE) + (LINE_RANGE * delta_pc);
++                if (OPCODE_BASE <= opcode && opcode < 256) {
++                        cput(opcode);
++                        return;
++                }
++        }
++
++        if (delta_pc) {
++          cput(DW_LNS_advance_pc);
++          sleb128put(delta_pc);
++        }
++
++        cput(DW_LNS_advance_line);
++        sleb128put(delta_lc);
++        cput(DW_LNS_copy);
++}
++
++
++/*
++ * Walk prog table, emit line program and build DIE tree.
++ */
++
++// flush previous compilation unit.
++static void
++flushunit(vlong pc, vlong unitstart)
++{
++        vlong here;
++
++        if (dwinfo != 0 && pc != 0) {
++                newattr(dwinfo, DW_AT_high_pc, DW_CLS_ADDRESS, pc, 0);
++        }
++
++        if (unitstart >= 0) {
++                cput(0);  // start extended opcode
++                uleb128put(1);
++                cput(DW_LNE_end_sequence);
++                cflush();
++
++                here = cpos();
++                seek(cout, unitstart, 0);
++                LPUT(here - unitstart - sizeof(int32));
++                cflush();
++                seek(cout, here, 0);
++        }
++}
++
++static void
++writelines(void)
++{
++        Prog *p, *q;
++        Sym *s;
++        char *unitname;
++        vlong unitstart;
++        vlong pc, lc, llc, lline;
++        int currfile;
++        int i;
++        Linehist *lh;
++
++        unitstart = -1;
++        pc = 0;
++        lc = 1;
++        llc = 1;
++        currfile = -1;
++        lineo = cpos();
++
++        for (p = textp; p != P; p = p->pcond) {
++		s = p->from.sym;
++		if (s == nil || s->type != STEXT) {
++                        diag("->pcond was supposed to loop over STEXT: %P", p);
++                        continue;
++                }
++
++                // Look for history stack.  If we find one,
++                // we're entering a new compilation unit
++                if ((unitname = inithist(p->to.autom)) != 0) {
++                        flushunit(pc, unitstart);
++                        unitstart = cpos();
++                        if(debug['v'] > 1) {
++                                print("dwarf writelines found %s\n", unitname);
++                                Linehist* lh;
++                                for (lh = linehist; lh; lh = lh->link)
++                                        print("\t%8lld: [%4lld]%s\n",
++                                              lh->absline, lh->line, histfile[lh->file]);
++                        }
++                        dwinfo = newdie(dwinfo, DW_ABRV_COMPUNIT);
++                        newattr(dwinfo, DW_AT_name, DW_CLS_STRING, strlen(unitname), unitname);
++                        newattr(dwinfo, DW_AT_language, DW_CLS_CONSTANT, guesslang(unitname), 0);
++                        newattr(dwinfo, DW_AT_stmt_list,  DW_CLS_PTR, unitstart - lineo, 0);
++                        newattr(dwinfo, DW_AT_low_pc,  DW_CLS_ADDRESS, p->pc, 0);
++                        // Write .debug_line Line Number Program Header (sec 6.2.4)
++                        // Fields marked with (*) must be changed for 64-bit dwarf
++                        LPUT(0);   // unit_length (*), will be filled in later.
++                        WPUT(3);   // version
++                        LPUT(11);  // header_length (*)
++                        cput(1);   // minimum_instruction_length
++                        cput(1);   // default_is_stmt
++                        cput(LINE_BASE);     // line_base
++                        cput(LINE_RANGE);    // line_range
++                        cput(OPCODE_BASE);   // opcode_base (we only use 1..4)
++                        cput(0);   // standard_opcode_lengths[1]
++                        cput(1);   // standard_opcode_lengths[2]
++                        cput(1);   // standard_opcode_lengths[3]
++                        cput(1);   // standard_opcode_lengths[4]
++                        cput(0);   // include_directories  (empty)
++                        cput(0);   // file_names (empty) (emitted by DW_LNE's below)
++                        for (i=1; i < histfilesize; i++) {
++                                cput(0);  // start extended opcode
++                                uleb128put(1 + strlen(histfile[i]) + 4);
++                                cput(DW_LNE_define_file);
++                                strnput(histfile[i], strlen(histfile[i]) + 4);
++                                // 4 zeros: the string termination + 3 fields.
++                        }
++                        pc = p->pc;
++                        currfile = 1;
++                        lc = 1;
++                        llc = 1;
++                        cput(0);  // start extended opcode
++                        uleb128put(1 + sizeof pc);
++                        cput(DW_LNE_set_address);
++                        VPUT(pc);
++                }
++                if (!p->from.sym->reachable)
++                        continue;
++                if (unitstart < 0) {
++                        diag("Reachable code before seeing any history: %P", p);
++                        continue;
++                }
++                for(q = p; q != P && (q == p || q->as != ATEXT); q = q->link) {
++                        lh = searchhist(q->line);
++                        if (!lh) {
++                                diag("corrupt history or bad absolute line: %P", q);
++                                continue;
++                        }
++                        lline = lh->line + q->line - lh->absline;
++                        if (debug['v'] > 1)
++                                print("%6llux %s[%lld] %P\n", q->pc, histfile[lh->file], lline, q);
++                        // Only emit a line program statement if line has changed.
++                        if (q->line == lc)
++                                continue;
++                        if (currfile != lh->file) {
++                                currfile = lh->file;
++                                cput(DW_LNS_set_file);
++                                uleb128put(currfile);
++                        }
++                        putpclcdelta(q->pc - pc, lline - llc);
++                        pc  = q->pc;
++                        lc  = q->line;
++                        llc = lline;
++                }
++        }
++        flushunit(pc, unitstart);
++        linesize = cpos() - lineo;
++}
++
++/*
++ *  Walk DWarfDebugInfoEntries, and emit .debug_info
++ */
++static void
++writeinfo(void)
++{
++        DWDie *compunit;
++        vlong unitstart;
++
++        reverselist(&dwinfo);
++
++        infoo = cpos();
++
++        for (compunit = dwinfo; compunit; compunit = compunit->link) {
++                unitstart = cpos();
++
++                // Write .debug_info Compilation Unit Header (sec 7.5.1)
++                // Fields marked with (*) must be changed for 64-bit dwarf
++                LPUT(0);   // unit_length (*), will be filled in later.
++                WPUT(3);   // version
++                LPUT(0);   // debug_abbrev_offset (*)
++                cput(8);   // address_size
++
++                putdie(compunit);
++
++                cflush();
++                vlong here = cpos();
++                seek(cout, unitstart, 0);
++                LPUT(here - unitstart - sizeof(int32));
++                cflush();
++                seek(cout, here, 0);
++        }
++
++        cflush();
++        infosize = cpos() - infoo;
++}
++
++/*
++ *  Elf sections.
++ */
++enum {
++	ElfStrDebugAbbrev,
++	ElfStrDebugAranges,
++	ElfStrDebugFrame,
++	ElfStrDebugInfo,
++	ElfStrDebugLine,
++	ElfStrDebugLoc,
++	ElfStrDebugMacinfo,
++	ElfStrDebugPubNames,
++	ElfStrDebugPubTypes,
++	ElfStrDebugRanges,
++	ElfStrDebugStr,
++	NElfStrDbg
++};
++
++vlong elfstrdbg[NElfStrDbg];
++
++void
++dwarfaddshstrings(Sym * shstrtab)
++{
++	elfstrdbg[ElfStrDebugAbbrev]   = addstring(shstrtab, ".debug_abbrev");
++	elfstrdbg[ElfStrDebugAranges]  = addstring(shstrtab, ".debug_aranges");
++	elfstrdbg[ElfStrDebugFrame]    = addstring(shstrtab, ".debug_frame");
++	elfstrdbg[ElfStrDebugInfo]     = addstring(shstrtab, ".debug_info");
++	elfstrdbg[ElfStrDebugLine]     = addstring(shstrtab, ".debug_line");
++	elfstrdbg[ElfStrDebugLoc]      = addstring(shstrtab, ".debug_loc");
++	elfstrdbg[ElfStrDebugMacinfo]  = addstring(shstrtab, ".debug_macinfo");
++	elfstrdbg[ElfStrDebugPubNames] = addstring(shstrtab, ".debug_pubnames");
++	elfstrdbg[ElfStrDebugPubTypes] = addstring(shstrtab, ".debug_pubtypes");
++	elfstrdbg[ElfStrDebugRanges]   = addstring(shstrtab, ".debug_ranges");
++	elfstrdbg[ElfStrDebugStr]      = addstring(shstrtab, ".debug_str");
++}
++
++void
++dwarfemitdebugsections(void)
++{
++	writeabbrev();
++	writelines();
++	writeinfo();
++}
++
++void
++dwarfaddheaders(void)
++{
++	ElfShdr *sh;
++
++	sh = newElfShdr(elfstrdbg[ElfStrDebugAbbrev]);
++	sh->type = SHT_PROGBITS;
++	sh->off = abbrevo;
++	sh->size = abbrevsize;
++	sh->addralign = 1;
++
++	sh = newElfShdr(elfstrdbg[ElfStrDebugLine]);
++	sh->type = SHT_PROGBITS;
++	sh->off = lineo;
++	sh->size = linesize;
++	sh->addralign = 1;
++
++	sh = newElfShdr(elfstrdbg[ElfStrDebugInfo]);
++	sh->type = SHT_PROGBITS;
++	sh->off = infoo;
++	sh->size = infosize;
++	sh->addralign = 1;
++}
+diff --git a/src/cmd/ld/dwarf.h b/src/cmd/ld/dwarf.h
+new file mode 100644
+index 0000000000..fae38af0ac
+--- /dev/null
++++ b/src/cmd/ld/dwarf.h
+@@ -0,0 +1,28 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++
++/*
++ * Register 'f' symbol file fragments.  Doing this while parsing the
++ * .6 input saves a pass over the symbol table later.
++ */
++void dwarfaddfrag(int n, char* frag);
++
++/*
++ * Add the dwarf section names to the ELF
++ * s[ection]h[eader]str[ing]tab.
++ */
++void dwarfaddshstrings(Sym *shstrtab);
++
++/*
++ * Emit debug_abbrevs, debug_info and debug_line sections to current
++ * offset in cout.
++ */
++void dwarfemitdebugsections(void);
++
++/*
++ * Add ELF section headers pointing to the sections emitted in
++ * dwarfemitdebugsections.
++ */
++void dwarfaddheaders(void);
+diff --git a/src/cmd/ld/dwarf_defs.h b/src/cmd/ld/dwarf_defs.h
+new file mode 100644
+index 0000000000..7bff4fbee8
+--- /dev/null
++++ b/src/cmd/ld/dwarf_defs.h
+@@ -0,0 +1,454 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Cut, pasted, tr-and-awk'ed from tables in
++// http://dwarfstd.org/doc/Dwarf3.pdf
++
++// Table 18
++enum
++{
++	DW_TAG_array_type = 0x01,
++	DW_TAG_class_type = 0x02,
++	DW_TAG_entry_point = 0x03,
++	DW_TAG_enumeration_type = 0x04,
++	DW_TAG_formal_parameter = 0x05,
++	DW_TAG_imported_declaration = 0x08,
++	DW_TAG_label = 0x0a,
++	DW_TAG_lexical_block = 0x0b,
++	DW_TAG_member = 0x0d,
++	DW_TAG_pointer_type = 0x0f,
++	DW_TAG_reference_type = 0x10,
++	DW_TAG_compile_unit = 0x11,
++	DW_TAG_string_type = 0x12,
++	DW_TAG_structure_type = 0x13,
++	DW_TAG_subroutine_type = 0x15,
++	DW_TAG_typedef = 0x16,
++	DW_TAG_union_type = 0x17,
++	DW_TAG_unspecified_parameters = 0x18,
++	DW_TAG_variant = 0x19,
++	DW_TAG_common_block = 0x1a,
++	DW_TAG_common_inclusion = 0x1b,
++	DW_TAG_inheritance = 0x1c,
++	DW_TAG_inlined_subroutine = 0x1d,
++	DW_TAG_module = 0x1e,
++	DW_TAG_ptr_to_member_type = 0x1f,
++	DW_TAG_set_type = 0x20,
++	DW_TAG_subrange_type = 0x21,
++	DW_TAG_with_stmt = 0x22,
++	DW_TAG_access_declaration = 0x23,
++	DW_TAG_base_type = 0x24,
++	DW_TAG_catch_block = 0x25,
++	DW_TAG_const_type = 0x26,
++	DW_TAG_constant = 0x27,
++	DW_TAG_enumerator = 0x28,
++	DW_TAG_file_type = 0x29,
++	DW_TAG_friend = 0x2a,
++	DW_TAG_namelist = 0x2b,
++	DW_TAG_namelist_item = 0x2c,
++	DW_TAG_packed_type = 0x2d,
++	DW_TAG_subprogram = 0x2e,
++	DW_TAG_template_type_parameter = 0x2f,
++	DW_TAG_template_value_parameter = 0x30,
++	DW_TAG_thrown_type = 0x31,
++	DW_TAG_try_block = 0x32,
++	DW_TAG_variant_part = 0x33,
++	DW_TAG_variable = 0x34,
++	DW_TAG_volatile_type = 0x35,
++	DW_TAG_dwarf_procedure = 0x36,
++	DW_TAG_restrict_type = 0x37,
++	DW_TAG_interface_type = 0x38,
++	DW_TAG_namespace = 0x39,
++	DW_TAG_imported_module = 0x3a,
++	DW_TAG_unspecified_type = 0x3b,
++	DW_TAG_partial_unit = 0x3c,
++	DW_TAG_imported_unit = 0x3d,
++	DW_TAG_condition = 0x3f,
++	DW_TAG_shared_type = 0x40,
++	DW_TAG_lo_user = 0x4080,
++	DW_TAG_hi_user = 0xffff,
++
++};
++
++// Table 19
++enum
++{
++	DW_CHILDREN_no = 0x00,
++	DW_CHILDREN_yes = 0x01,
++};
++
++// Not from the spec, but logicaly belongs here
++enum
++{
++	DW_CLS_ADDRESS = 0x01,
++	DW_CLS_BLOCK,
++	DW_CLS_CONSTANT,
++	DW_CLS_FLAG,
++	DW_CLS_PTR,     // lineptr, loclistptr, macptr, rangelistptr
++	DW_CLS_REFERENCE,
++	DW_CLS_STRING
++};
++
++// Table 20
++enum
++{
++	DW_AT_sibling = 0x01,	// reference
++	DW_AT_location = 0x02,	// block, loclistptr
++	DW_AT_name = 0x03,	// string
++	DW_AT_ordering = 0x09,	// constant
++	DW_AT_byte_size = 0x0b,	// block, constant, reference
++	DW_AT_bit_offset = 0x0c,	// block, constant, reference
++	DW_AT_bit_size = 0x0d,	// block, constant, reference
++	DW_AT_stmt_list = 0x10,	// lineptr
++	DW_AT_low_pc = 0x11,	// address
++	DW_AT_high_pc = 0x12,	// address
++	DW_AT_language = 0x13,	// constant
++	DW_AT_discr = 0x15,	// reference
++	DW_AT_discr_value = 0x16,	// constant
++	DW_AT_visibility = 0x17,	// constant
++	DW_AT_import = 0x18,	// reference
++	DW_AT_string_length = 0x19,	// block, loclistptr
++	DW_AT_common_reference = 0x1a,	// reference
++	DW_AT_comp_dir = 0x1b,	// string
++	DW_AT_const_value = 0x1c,	// block, constant, string
++	DW_AT_containing_type = 0x1d,	// reference
++	DW_AT_default_value = 0x1e,	// reference
++	DW_AT_inline = 0x20,	// constant
++	DW_AT_is_optional = 0x21,	// flag
++	DW_AT_lower_bound = 0x22,	// block, constant, reference
++	DW_AT_producer = 0x25,	// string
++	DW_AT_prototyped = 0x27,	// flag
++	DW_AT_return_addr = 0x2a,	// block, loclistptr
++	DW_AT_start_scope = 0x2c,	// constant
++	DW_AT_bit_stride = 0x2e,	// constant
++	DW_AT_upper_bound = 0x2f,	// block, constant, reference
++	DW_AT_abstract_origin = 0x31,	// reference
++	DW_AT_accessibility = 0x32,	// constant
++	DW_AT_address_class = 0x33,	// constant
++	DW_AT_artificial = 0x34,	// flag
++	DW_AT_base_types = 0x35,	// reference
++	DW_AT_calling_convention = 0x36,	// constant
++	DW_AT_count = 0x37,	// block, constant, reference
++	DW_AT_data_member_location = 0x38,	// block, constant, loclistptr
++	DW_AT_decl_column = 0x39,	// constant
++	DW_AT_decl_file = 0x3a,	// constant
++	DW_AT_decl_line = 0x3b,	// constant
++	DW_AT_declaration = 0x3c,	// flag
++	DW_AT_discr_list = 0x3d,	// block
++	DW_AT_encoding = 0x3e,	// constant
++	DW_AT_external = 0x3f,	// flag
++	DW_AT_frame_base = 0x40,	// block, loclistptr
++	DW_AT_friend = 0x41,	// reference
++	DW_AT_identifier_case = 0x42,	// constant
++	DW_AT_macro_info = 0x43,	// macptr
++	DW_AT_namelist_item = 0x44,	// block
++	DW_AT_priority = 0x45,	// reference
++	DW_AT_segment = 0x46,	// block, loclistptr
++	DW_AT_specification = 0x47,	// reference
++	DW_AT_static_link = 0x48,	// block, loclistptr
++	DW_AT_type = 0x49,	// reference
++	DW_AT_use_location = 0x4a,	// block, loclistptr
++	DW_AT_variable_parameter = 0x4b,	// flag
++	DW_AT_virtuality = 0x4c,	// constant
++	DW_AT_vtable_elem_location = 0x4d,	// block, loclistptr
++	DW_AT_allocated = 0x4e,	// block, constant, reference
++	DW_AT_associated = 0x4f,	// block, constant, reference
++	DW_AT_data_location = 0x50,	// block
++	DW_AT_byte_stride = 0x51,	// block, constant, reference
++	DW_AT_entry_pc = 0x52,	// address
++	DW_AT_use_UTF8 = 0x53,	// flag
++	DW_AT_extension = 0x54,	// reference
++	DW_AT_ranges = 0x55,	// rangelistptr
++	DW_AT_trampoline = 0x56,	// address, flag, reference, string
++	DW_AT_call_column = 0x57,	// constant
++	DW_AT_call_file = 0x58,	// constant
++	DW_AT_call_line = 0x59,	// constant
++	DW_AT_description = 0x5a,	// string
++	DW_AT_binary_scale = 0x5b,	// constant
++	DW_AT_decimal_scale = 0x5c,	// constant
++	DW_AT_small = 0x5d,	// reference
++	DW_AT_decimal_sign = 0x5e,	// constant
++	DW_AT_digit_count = 0x5f,	// constant
++	DW_AT_picture_string = 0x60,	// string
++	DW_AT_mutable = 0x61,	// flag
++	DW_AT_threads_scaled = 0x62,	// flag
++	DW_AT_explicit = 0x63,	// flag
++	DW_AT_object_pointer = 0x64,	// reference
++	DW_AT_endianity = 0x65,	// constant
++	DW_AT_elemental = 0x66,	// flag
++	DW_AT_pure = 0x67,	// flag
++	DW_AT_recursive = 0x68,	// flag
++	DW_AT_lo_user = 0x2000,	// ---
++	DW_AT_hi_user = 0x3fff,	// ---
++
++};
++
++// Table 21
++enum
++{
++	DW_FORM_addr = 0x01,	// address
++	DW_FORM_block2 = 0x03,	// block
++	DW_FORM_block4 = 0x04,	// block
++	DW_FORM_data2 = 0x05,	// constant
++	DW_FORM_data4 = 0x06,	// constant, lineptr, loclistptr, macptr, rangelistptr
++	DW_FORM_data8 = 0x07,	// constant, lineptr, loclistptr, macptr, rangelistptr
++	DW_FORM_string = 0x08,	// string
++	DW_FORM_block = 0x09,	// block
++	DW_FORM_block1 = 0x0a,	// block
++	DW_FORM_data1 = 0x0b,	// constant
++	DW_FORM_flag = 0x0c,	// flag
++	DW_FORM_sdata = 0x0d,	// constant
++	DW_FORM_strp = 0x0e,	// string
++	DW_FORM_udata = 0x0f,	// constant
++	DW_FORM_ref_addr = 0x10,	// reference
++	DW_FORM_ref1 = 0x11,	// reference
++	DW_FORM_ref2 = 0x12,	// reference
++	DW_FORM_ref4 = 0x13,	// reference
++	DW_FORM_ref8 = 0x14,	// reference
++	DW_FORM_ref_udata = 0x15,	// reference
++	DW_FORM_indirect = 0x16,	// (see Section 7.5.3)
++};
++
++// Table 24 (#operands, notes)
++enum
++{
++	DW_OP_addr = 0x03,	// 1 constant address (size target specific)
++	DW_OP_deref = 0x06,	// 0
++	DW_OP_const1u = 0x08,	// 1 1-byte constant
++	DW_OP_const1s = 0x09,	// 1 1-byte constant
++	DW_OP_const2u = 0x0a,	// 1 2-byte constant
++	DW_OP_const2s = 0x0b,	// 1 2-byte constant
++	DW_OP_const4u = 0x0c,	// 1 4-byte constant
++	DW_OP_const4s = 0x0d,	// 1 4-byte constant
++	DW_OP_const8u = 0x0e,	// 1 8-byte constant
++	DW_OP_const8s = 0x0f,	// 1 8-byte constant
++	DW_OP_constu = 0x10,	// 1 ULEB128 constant
++	DW_OP_consts = 0x11,	// 1 SLEB128 constant
++	DW_OP_dup = 0x12,	// 0
++	DW_OP_drop = 0x13,	// 0
++	DW_OP_over = 0x14,	// 0
++	DW_OP_pick = 0x15,	// 1 1-byte stack index
++	DW_OP_swap = 0x16,	// 0
++	DW_OP_rot = 0x17,	// 0
++	DW_OP_xderef = 0x18,	// 0
++	DW_OP_abs = 0x19,	// 0
++	DW_OP_and = 0x1a,	// 0
++	DW_OP_div = 0x1b,	// 0
++	DW_OP_minus = 0x1c,	// 0
++	DW_OP_mod = 0x1d,	// 0
++	DW_OP_mul = 0x1e,	// 0
++	DW_OP_neg = 0x1f,	// 0
++	DW_OP_not = 0x20,	// 0
++	DW_OP_or = 0x21,	// 0
++	DW_OP_plus = 0x22,	// 0
++	DW_OP_plus_uconst = 0x23,	// 1 ULEB128 addend
++	DW_OP_shl = 0x24,	// 0
++	DW_OP_shr = 0x25,	// 0
++	DW_OP_shra = 0x26,	// 0
++	DW_OP_xor = 0x27,	// 0
++	DW_OP_skip = 0x2f,	// 1 signed 2-byte constant
++	DW_OP_bra = 0x28,	// 1 signed 2-byte constant
++	DW_OP_eq = 0x29,	// 0
++	DW_OP_ge = 0x2a,	// 0
++	DW_OP_gt = 0x2b,	// 0
++	DW_OP_le = 0x2c,	// 0
++	DW_OP_lt = 0x2d,	// 0
++	DW_OP_ne = 0x2e,	// 0
++	DW_OP_lit0 = 0x30,	// 0 ...
++	DW_OP_lit31 = 0x4f,	// 0 literals 0..31 = (DW_OP_lit0 +
++	// literal)
++	DW_OP_reg0 = 0x50,	// 0 ..
++	DW_OP_reg31 = 0x6f,	// 0 reg 0..31 = (DW_OP_reg0 + regnum)
++	DW_OP_breg0 = 0x70,	// 1 ...
++	DW_OP_breg31 = 0x8f,	// 1 SLEB128 offset base register 0..31 = (DW_OP_breg0 + regnum)
++	DW_OP_regx = 0x90,	// 1 ULEB128 register
++	DW_OP_fbreg = 0x91,	// 1 SLEB128 offset
++	DW_OP_bregx = 0x92,	// 2 ULEB128 register followed by SLEB128 offset
++	DW_OP_piece = 0x93,	// 1 ULEB128 size of piece addressed
++	DW_OP_deref_size = 0x94,	// 1 1-byte size of data retrieved
++	DW_OP_xderef_size = 0x95,	// 1 1-byte size of data retrieved
++	DW_OP_nop = 0x96,	// 0
++	DW_OP_push_object_address = 0x97,	// 0
++	DW_OP_call2 = 0x98,	// 1 2-byte offset of DIE
++	DW_OP_call4 = 0x99,	// 1 4-byte offset of DIE
++	DW_OP_call_ref = 0x9a,	// 1 4- or 8-byte offset of DIE
++	DW_OP_form_tls_address = 0x9b,	// 0
++	DW_OP_call_frame_cfa = 0x9c,	// 0
++	DW_OP_bit_piece = 0x9d,	// 2
++	DW_OP_lo_user = 0xe0,
++	DW_OP_hi_user = 0xff,
++};
++
++// Table 25
++enum
++{
++	DW_ATE_address = 0x01,
++	DW_ATE_boolean = 0x02,
++	DW_ATE_complex_float = 0x03,
++	DW_ATE_float = 0x04,
++	DW_ATE_signed = 0x05,
++	DW_ATE_signed_char = 0x06,
++	DW_ATE_unsigned = 0x07,
++	DW_ATE_unsigned_char = 0x08,
++	DW_ATE_imaginary_float = 0x09,
++	DW_ATE_packed_decimal = 0x0a,
++	DW_ATE_numeric_string = 0x0b,
++	DW_ATE_edited = 0x0c,
++	DW_ATE_signed_fixed = 0x0d,
++	DW_ATE_unsigned_fixed = 0x0e,
++	DW_ATE_decimal_float = 0x0f,
++	DW_ATE_lo_user = 0x80,
++	DW_ATE_hi_user = 0xff,
++};
++
++// Table 26
++enum
++{
++	DW_DS_unsigned = 0x01,
++	DW_DS_leading_overpunch = 0x02,
++	DW_DS_trailing_overpunch = 0x03,
++	DW_DS_leading_separate = 0x04,
++	DW_DS_trailing_separate = 0x05,
++};
++
++// Table 27
++enum
++{
++	DW_END_default = 0x00,
++	DW_END_big = 0x01,
++	DW_END_little = 0x02,
++	DW_END_lo_user = 0x40,
++	DW_END_hi_user = 0xff,
++};
++
++// Table 28
++enum
++{
++	DW_ACCESS_public = 0x01,
++	DW_ACCESS_protected = 0x02,
++	DW_ACCESS_private = 0x03,
++};
++
++// Table 29
++enum
++{
++	DW_VIS_local = 0x01,
++	DW_VIS_exported = 0x02,
++	DW_VIS_qualified = 0x03,
++};
++
++// Table 30
++enum
++{
++	DW_VIRTUALITY_none = 0x00,
++	DW_VIRTUALITY_virtual = 0x01,
++	DW_VIRTUALITY_pure_virtual = 0x02,
++};
++
++// Table 31
++enum
++{
++	DW_LANG_C89 = 0x0001,
++	DW_LANG_C = 0x0002,
++	DW_LANG_Ada83 = 0x0003,
++	DW_LANG_C_plus_plus = 0x0004,
++	DW_LANG_Cobol74 = 0x0005,
++	DW_LANG_Cobol85 = 0x0006,
++	DW_LANG_Fortran77 = 0x0007,
++	DW_LANG_Fortran90 = 0x0008,
++	DW_LANG_Pascal83 = 0x0009,
++	DW_LANG_Modula2 = 0x000a,
++	DW_LANG_Java = 0x000b,
++	DW_LANG_C99 = 0x000c,
++	DW_LANG_Ada95 = 0x000d,
++	DW_LANG_Fortran95 = 0x000e,
++	DW_LANG_PLI = 0x000f,
++	DW_LANG_ObjC = 0x0010,
++	DW_LANG_ObjC_plus_plus = 0x0011,
++	DW_LANG_UPC = 0x0012,
++	DW_LANG_D = 0x0013,
++	DW_LANG_Python = 0x0014,	// DWARF4
++
++	DW_LANG_lo_user = 0x8000,
++	DW_LANG_Go = 0x8015,	// TODO(lvd) Temporary
++	DW_LANG_hi_user = 0xffff,
++};
++
++// Table 32
++enum
++{
++	DW_ID_case_sensitive = 0x00,
++	DW_ID_up_case = 0x01,
++	DW_ID_down_case = 0x02,
++	DW_ID_case_insensitive = 0x03,
++};
++
++// Table 33
++enum
++{
++	DW_CC_normal = 0x01,
++	DW_CC_program = 0x02,
++	DW_CC_nocall = 0x03,
++	DW_CC_lo_user = 0x40,
++	DW_CC_hi_user = 0xff,
++};
++
++// Table 34
++enum
++{
++	DW_INL_not_inlined = 0x00,
++	DW_INL_inlined = 0x01,
++	DW_INL_declared_not_inlined = 0x02,
++	DW_INL_declared_inlined = 0x03,
++};
++
++// Table 35
++enum
++{
++	DW_ORD_row_major = 0x00,
++	DW_ORD_col_major = 0x01,
++};
++
++// Table 36
++enum
++{
++	DW_DSC_label = 0x00,
++	DW_DSC_range = 0x01,
++};
++
++// Table 37
++enum
++{
++	DW_LNS_copy = 0x01,
++	DW_LNS_advance_pc = 0x02,
++	DW_LNS_advance_line = 0x03,
++	DW_LNS_set_file = 0x04,
++	DW_LNS_set_column = 0x05,
++	DW_LNS_negate_stmt = 0x06,
++	DW_LNS_set_basic_block = 0x07,
++	DW_LNS_const_add_pc = 0x08,
++	DW_LNS_fixed_advance_pc = 0x09,
++	DW_LNS_set_prologue_end = 0x0a,
++	DW_LNS_set_epilogue_begin = 0x0b,
++	DW_LNS_set_isa = 0x0c,
++};
++
++// Table 38
++enum
++{
++	DW_LNE_end_sequence = 0x01,
++	DW_LNE_set_address = 0x02,
++	DW_LNE_define_file = 0x03,
++	DW_LNE_lo_user = 0x80,
++	DW_LNE_hi_user = 0xff,
++};
++
++// Table 39
++enum
++{
++	DW_MACINFO_define = 0x01,
++	DW_MACINFO_undef = 0x02,
++	DW_MACINFO_start_file = 0x03,
++	DW_MACINFO_end_file = 0x04,
++	DW_MACINFO_vendor_ext = 0xff,
++};

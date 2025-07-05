@@ -15,10 +15,111 @@ Date:   Fri Dec 25 09:36:41 2020 +0800
     Reviewed-by: Ben Shi <powerman1st@163.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Trust: Robert Griesemer <gri@golang.org>
-
+---
  src/go/token/position.go            |  2 +-
  src/go/token/position_bench_test.go | 24 ++++++++++++++++++++++++
  src/reflect/type.go                 |  2 +-
  src/strconv/makeisprint.go          |  4 ++--
  src/strconv/quote.go                |  4 ++--
  5 files changed, 30 insertions(+), 6 deletions(-)
+
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index a21f5fd056..bbcd8b022b 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -540,7 +540,7 @@ func searchInts(a []int, x int) int {
+ 	// TODO(gri): Remove this when compilers have caught up.
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)/2 // avoid overflow when computing h
++		h := i + (j-i)>>1 // avoid overflow when computing h
+ 		// i ≤ h < j
+ 		if a[h] <= x {
+ 			i = h + 1
+diff --git a/src/go/token/position_bench_test.go b/src/go/token/position_bench_test.go
+new file mode 100644
+index 0000000000..41be7285b7
+--- /dev/null
++++ b/src/go/token/position_bench_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package token
++
++import (
++	"testing"
++)
++
++func BenchmarkSearchInts(b *testing.B) {
++	data := make([]int, 10000)
++	for i := 0; i < 10000; i++ {
++		data[i] = i
++	}
++	const x = 8
++	if r := searchInts(data, x); r != x {
++		b.Errorf("got index = %d; want %d", r, x)
++	}
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		searchInts(data, x)
++	}
++}
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index d52816628f..eb2030063a 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1723,7 +1723,7 @@ func typesByString(s string) []*rtype {
+ 		// This is a copy of sort.Search, with f(h) replaced by (*typ[h].String() >= s).
+ 		i, j := 0, len(offs)
+ 		for i < j {
+-			h := i + (j-i)/2 // avoid overflow when computing h
++			h := i + (j-i)>>1 // avoid overflow when computing h
+ 			// i ≤ h < j
+ 			if !(rtypeOff(section, offs[h]).String() >= s) {
+ 				i = h + 1 // preserves f(i-1) == false
+diff --git a/src/strconv/makeisprint.go b/src/strconv/makeisprint.go
+index 79678341d4..909f9e4787 100644
+--- a/src/strconv/makeisprint.go
++++ b/src/strconv/makeisprint.go
+@@ -37,7 +37,7 @@ var (
+ func bsearch16(a []uint16, x uint16) int {
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)/2
++		h := i + (j-i)>>1
+ 		if a[h] < x {
+ 			i = h + 1
+ 		} else {
+@@ -52,7 +52,7 @@ func bsearch16(a []uint16, x uint16) int {
+ func bsearch32(a []uint32, x uint32) int {
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)/2
++		h := i + (j-i)>>1
+ 		if a[h] < x {
+ 			i = h + 1
+ 		} else {
+diff --git a/src/strconv/quote.go b/src/strconv/quote.go
+index 4ffa10b72e..db0dbb288b 100644
+--- a/src/strconv/quote.go
++++ b/src/strconv/quote.go
+@@ -440,7 +440,7 @@ func Unquote(s string) (string, error) {
+ func bsearch16(a []uint16, x uint16) int {
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)/2
++		h := i + (j-i)>>1
+ 		if a[h] < x {
+ 			i = h + 1
+ 		} else {
+@@ -455,7 +455,7 @@ func bsearch16(a []uint16, x uint16) int {
+ func bsearch32(a []uint32, x uint32) int {
+ 	i, j := 0, len(a)
+ 	for i < j {
+-		h := i + (j-i)/2
++		h := i + (j-i)>>1
+ 		if a[h] < x {
+ 			i = h + 1
+ 		} else {

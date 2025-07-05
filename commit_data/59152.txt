@@ -18,10 +18,138 @@ Date:   Fri Feb 16 23:24:12 2024 +0000
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/go/build/deps_test.go   |  1 +
  src/internal/msan/doc.go    |  9 +++++++++
  src/internal/msan/msan.go   | 28 ++++++++++++++++++++++++++++
  src/internal/msan/nomsan.go | 28 ++++++++++++++++++++++++++++
  src/runtime/msan.go         |  5 +++++
  5 files changed, 71 insertions(+)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 34b0522812..c26228f7a7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -75,6 +75,7 @@ var depsRules = `
+ 	< runtime
+ 	< sync/atomic
+ 	< internal/race
++	< internal/msan
+ 	< internal/asan
+ 	< sync
+ 	< internal/bisect
+diff --git a/src/internal/msan/doc.go b/src/internal/msan/doc.go
+new file mode 100644
+index 0000000000..e68d341e7a
+--- /dev/null
++++ b/src/internal/msan/doc.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package msan contains helper functions for manually instrumenting code
++// for the memory sanitizer.
++// This package exports the private msan routines in runtime unconditionally
++// but without the "msan" build tag they are no-ops.
++package msan
+diff --git a/src/internal/msan/msan.go b/src/internal/msan/msan.go
+new file mode 100644
+index 0000000000..518153ee5a
+--- /dev/null
++++ b/src/internal/msan/msan.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build msan
++
++package msan
++
++import (
++	"unsafe"
++)
++
++const Enabled = true
++
++//go:linkname Read runtime.msanread
++func Read(addr unsafe.Pointer, sz uintptr)
++
++//go:linkname Write runtime.msanwrite
++func Write(addr unsafe.Pointer, sz uintptr)
++
++//go:linkname Malloc runtime.msanmalloc
++func Malloc(addr unsafe.Pointer, sz uintptr)
++
++//go:linkname Free runtime.msanfree
++func Free(addr unsafe.Pointer, sz uintptr)
++
++//go:linkname Move runtime.msanmove
++func Move(dst, src unsafe.Pointer, sz uintptr)
+diff --git a/src/internal/msan/nomsan.go b/src/internal/msan/nomsan.go
+new file mode 100644
+index 0000000000..3dccda3ffd
+--- /dev/null
++++ b/src/internal/msan/nomsan.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !msan
++
++package msan
++
++import (
++	"unsafe"
++)
++
++const Enabled = false
++
++func Read(addr unsafe.Pointer, sz uintptr) {
++}
++
++func Write(addr unsafe.Pointer, sz uintptr) {
++}
++
++func Malloc(addr unsafe.Pointer, sz uintptr) {
++}
++
++func Free(addr unsafe.Pointer, sz uintptr) {
++}
++
++func Move(dst, src unsafe.Pointer, sz uintptr) {
++}
+diff --git a/src/runtime/msan.go b/src/runtime/msan.go
+index 5e2aae1bd1..cb740dc2d8 100644
+--- a/src/runtime/msan.go
++++ b/src/runtime/msan.go
+@@ -29,6 +29,7 @@ const msanenabled = true
+ // anyhow for values on the stack. Just ignore msanread when running
+ // on the system stack. The other msan functions are fine.
+ //
++//go:linkname msanread
+ //go:nosplit
+ func msanread(addr unsafe.Pointer, sz uintptr) {
+ 	gp := getg()
+@@ -41,15 +42,19 @@ func msanread(addr unsafe.Pointer, sz uintptr) {
+ //go:noescape
+ func domsanread(addr unsafe.Pointer, sz uintptr)
+ 
++//go:linkname msanwrite
+ //go:noescape
+ func msanwrite(addr unsafe.Pointer, sz uintptr)
+ 
++//go:linkname msanmalloc
+ //go:noescape
+ func msanmalloc(addr unsafe.Pointer, sz uintptr)
+ 
++//go:linkname msanfree
+ //go:noescape
+ func msanfree(addr unsafe.Pointer, sz uintptr)
+ 
++//go:linkname msanmove
+ //go:noescape
+ func msanmove(dst, src unsafe.Pointer, sz uintptr)
+ 

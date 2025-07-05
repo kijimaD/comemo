@@ -16,7 +16,57 @@ Date:   Mon Feb 6 15:18:26 2017 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/link/internal/ld/data.go |  3 ---
  src/cmd/link/internal/ld/pe.go   | 10 +++++++---
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index aca8973a85..e7200d1aa0 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -656,9 +656,6 @@ func relocsym(ctxt *Link, s *Symbol) {
+ 					// PE/COFF's PC32 relocation uses the address after the relocated
+ 					// bytes as the base. Compensate by skewing the addend.
+ 					o += int64(r.Siz)
+-					// GNU ld always add VirtualAddress of the .text section to the
+-					// relocated address, compensate that.
+-					o -= int64(s.Sect.Vaddr - PEBASE)
+ 				} else {
+ 					Errorf(s, "unhandled pcrel relocation to %s on %v", rs.Name, Headtype)
+ 				}
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 6a1c19520c..924e18e1e5 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -485,6 +485,11 @@ func pewrite() {
+ 	} else {
+ 		binary.Write(&coutbuf, binary.LittleEndian, &oh)
+ 	}
++	if Linkmode == LinkExternal {
++		for i := range sh[:pensect] {
++			sh[i].VirtualAddress = 0
++		}
++	}
+ 	binary.Write(&coutbuf, binary.LittleEndian, sh[:pensect])
+ }
+ 
+@@ -828,7 +833,7 @@ func perelocsect(ctxt *Link, sect *Section, syms []*Symbol) int {
+ 			if r.Xsym.Dynid < 0 {
+ 				Errorf(sym, "reloc %d to non-coff symbol %s (outer=%s) %d", r.Type, r.Sym.Name, r.Xsym.Name, r.Sym.Type)
+ 			}
+-			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-PEBASE)) {
++			if !Thearch.PEreloc1(sym, r, int64(uint64(sym.Value+int64(r.Off))-sect.Seg.Vaddr)) {
+ 				Errorf(sym, "unsupported obj reloc %d/%d to %s", r.Type, r.Siz, r.Sym.Name)
+ 			}
+ 
+@@ -896,8 +901,7 @@ func peemitreloc(ctxt *Link, text, data, ctors *IMAGE_SECTION_HEADER) {
+ 	dottext := ctxt.Syms.Lookup(".text", 0)
+ 	ctors.NumberOfRelocations = 1
+ 	ctors.PointerToRelocations = uint32(coutbuf.Offset())
+-	sectoff := ctors.VirtualAddress
+-	Lputl(sectoff)
++	Lputl(0)
+ 	Lputl(uint32(dottext.Dynid))
+ 	switch obj.GOARCH {
+ 	default:

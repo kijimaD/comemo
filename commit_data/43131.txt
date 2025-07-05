@@ -22,7 +22,7 @@ Date:   Tue Feb 25 11:00:08 2020 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go/internal/modfetch/fetch.go              |  93 +++++++++++-----
  src/cmd/go/script_test.go                          |   1 +
  src/cmd/go/testdata/script/README                  |   1 +
@@ -30,3 +30,329 @@ Date:   Tue Feb 25 11:00:08 2020 -0500
  .../script/mod_download_concurrent_read.txt        | 120 +++++++++++++++++++++
  .../go/testdata/script/mod_download_partial.txt    |  10 ++
  6 files changed, 214 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 5787e14aa0..187d174542 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -57,11 +57,10 @@ func Download(mod module.Version) (dir string, err error) {
+ }
+ 
+ func download(mod module.Version) (dir string, err error) {
+-	// If the directory exists, and no .partial file exists,
+-	// the module has already been completely extracted.
+-	// .partial files may be created when future versions of cmd/go
+-	// extract module zip directories in place instead of extracting
+-	// to a random temporary directory and renaming.
++	// If the directory exists, and no .partial file exists, the module has
++	// already been completely extracted. .partial files may be created when a
++	// module zip directory is extracted in place instead of being extracted to a
++	// temporary directory and renamed.
+ 	dir, err = DownloadDir(mod)
+ 	if err == nil {
+ 		return dir, nil
+@@ -115,34 +114,61 @@ func download(mod module.Version) (dir string, err error) {
+ 		return "", err
+ 	}
+ 
+-	// Extract the zip file to a temporary directory, then rename it to the
+-	// final path. That way, we can use the existence of the source directory to
+-	// signal that it has been extracted successfully, and if someone deletes
+-	// the entire directory (e.g. as an attempt to prune out file corruption)
+-	// the module cache will still be left in a recoverable state.
+-	// We retry failed renames using robustio.Rename on Windows. Programs that
+-	// open files in the temporary directory (antivirus, search indexers, etc.)
+-	// can cause os.Rename to fail with ERROR_ACCESS_DENIED.
++	// Extract the module zip directory.
++	//
++	// By default, we extract to a temporary directory, then atomically rename to
++	// its final location. We use the existence of the source directory to signal
++	// that it has been extracted successfully (see DownloadDir).  If someone
++	// deletes the entire directory (e.g., as an attempt to prune out file
++	// corruption), the module cache will still be left in a recoverable
++	// state.
++	//
++	// Unfortunately, os.Rename may fail with ERROR_ACCESS_DENIED on Windows if
++	// another process opens files in the temporary directory. This is partially
++	// mitigated by using robustio.Rename, which retries os.Rename for a short
++	// time.
++	//
++	// To avoid this error completely, if unzipInPlace is set, we instead create a
++	// .partial file (indicating the directory isn't fully extracted), then we
++	// extract the directory at its final location, then we delete the .partial
++	// file. This is not the default behavior because older versions of Go may
++	// simply stat the directory to check whether it exists without looking for a
++	// .partial file. If multiple versions run concurrently, the older version may
++	// assume a partially extracted directory is complete.
++	// TODO(golang.org/issue/36568): when these older versions are no longer
++	// supported, remove the old default behavior and the unzipInPlace flag.
+ 	if err := os.MkdirAll(parentDir, 0777); err != nil {
+ 		return "", err
+ 	}
+-	tmpDir, err := ioutil.TempDir(parentDir, tmpPrefix)
+-	if err != nil {
+-		return "", err
+-	}
+-	defer func() {
++
++	if unzipInPlace {
++		if err := ioutil.WriteFile(partialPath, nil, 0666); err != nil {
++			return "", err
++		}
++		if err := modzip.Unzip(dir, mod, zipfile); err != nil {
++			fmt.Fprintf(os.Stderr, "-> %s\n", err)
++			if rmErr := RemoveAll(dir); rmErr == nil {
++				os.Remove(partialPath)
++			}
++			return "", err
++		}
++		if err := os.Remove(partialPath); err != nil {
++			return "", err
++		}
++	} else {
++		tmpDir, err := ioutil.TempDir(parentDir, tmpPrefix)
+ 		if err != nil {
++			return "", err
++		}
++		if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
++			fmt.Fprintf(os.Stderr, "-> %s\n", err)
+ 			RemoveAll(tmpDir)
++			return "", err
++		}
++		if err := robustio.Rename(tmpDir, dir); err != nil {
++			RemoveAll(tmpDir)
++			return "", err
+ 		}
+-	}()
+-
+-	if err := modzip.Unzip(tmpDir, mod, zipfile); err != nil {
+-		fmt.Fprintf(os.Stderr, "-> %s\n", err)
+-		return "", err
+-	}
+-
+-	if err := robustio.Rename(tmpDir, dir); err != nil {
+-		return "", err
+ 	}
+ 
+ 	if !cfg.ModCacheRW {
+@@ -153,6 +179,17 @@ func download(mod module.Version) (dir string, err error) {
+ 	return dir, nil
+ }
+ 
++var unzipInPlace bool
++
++func init() {
++	for _, f := range strings.Split(os.Getenv("GODEBUG"), ",") {
++		if f == "modcacheunzipinplace=1" {
++			unzipInPlace = true
++			break
++		}
++	}
++}
++
+ var downloadZipCache par.Cache
+ 
+ // DownloadZip downloads the specific module version to the
+@@ -324,7 +361,7 @@ func RemoveAll(dir string) error {
+ 		}
+ 		return nil
+ 	})
+-	return os.RemoveAll(dir)
++	return robustio.RemoveAll(dir)
+ }
+ 
+ var GoSumFile string // path to go.sum; set by package modload
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 1dca486c91..00c6523cbc 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -109,6 +109,7 @@ func (ts *testScript) setup() {
+ 		"CCACHE_DISABLE=1", // ccache breaks with non-existent HOME
+ 		"GOARCH=" + runtime.GOARCH,
+ 		"GOCACHE=" + testGOCACHE,
++		"GODEBUG=" + os.Getenv("GODEBUG"),
+ 		"GOEXE=" + cfg.ExeSuffix,
+ 		"GOOS=" + runtime.GOOS,
+ 		"GOPATH=" + filepath.Join(ts.workdir, "gopath"),
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index 71d38161d5..65b4c78090 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -36,6 +36,7 @@ Scripts also have access to these other environment variables:
+ 	HOME=/no-home
+ 	PATH=<actual PATH>
+ 	TMPDIR=$WORK/tmp
++	GODEBUG=<actual GODEBUG>
+ 	devnull=<value of os.DevNull>
+ 	goversion=<current Go version; for example, 1.12>
+ 	:=<OS-specific path list separator>
+diff --git a/src/cmd/go/testdata/script/mod_concurrent_unzipinplace.txt b/src/cmd/go/testdata/script/mod_concurrent_unzipinplace.txt
+new file mode 100644
+index 0000000000..473be71c9c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_concurrent_unzipinplace.txt
+@@ -0,0 +1,17 @@
++# This tests checks the GODEBUG=modcacheunzipinplace=1 flag, used as part of
++# a migration in golang.org/issue/36568.
++#
++# Concurrent downloads with and without GODEBUG=modcacheunzipinplace=1 should
++# not conflict. This is meant to simulate an old version and a new version
++# of Go accessing the cache concurrently.
++go mod download &
++env GODEBUG=modcacheunzipinplace=1
++go mod download
++wait
++
++-- go.mod --
++module golang.org/issue/36568
++
++go 1.14
++
++require rsc.io/quote v1.5.2
+diff --git a/src/cmd/go/testdata/script/mod_download_concurrent_read.txt b/src/cmd/go/testdata/script/mod_download_concurrent_read.txt
+new file mode 100644
+index 0000000000..bb9c588896
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_download_concurrent_read.txt
+@@ -0,0 +1,120 @@
++# This test simulates a process watching for changes and reading files in
++# module cache as a module is extracted.
++#
++# By default, we unzip a downloaded module into a temporary directory with a
++# random name, then rename the directory into place. On Windows, this fails
++# with ERROR_ACCESS_DENIED if another process (e.g., antivirus) opens files
++# in the directory.
++#
++# Setting GODEBUG=modcacheunzipinplace=1 opts into new behavior: a downloaded
++# module is unzipped in place. A .partial file is created elsewhere to indicate
++# that the extraction is incomplete.
++#
++# Verifies golang.org/issue/36568.
++
++[!windows] skip
++[short] skip
++
++# Control case: check that the default behavior fails.
++# This is commented out to avoid flakiness. We can't reproduce the failure
++# 100% of the time.
++# ! go run downloader.go
++
++# Experiment: check that the new behavior does not fail.
++env GODEBUG=modcacheunzipinplace=1
++go run downloader.go
++
++-- go.mod --
++module example.com/m
++
++go 1.14
++
++-- downloader.go --
++package main
++
++import (
++	"fmt"
++	"io/ioutil"
++	"log"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	if err := run(); err != nil {
++		log.Fatal(err)
++	}
++}
++
++// run repeatedly downloads a module while opening files in the module cache
++// in a background goroutine.
++//
++// run uses a different temporary module cache in each iteration so that we
++// don't need to clean the cache or synchronize closing files after each
++// iteration.
++func run() (err error) {
++	tmpDir, err := ioutil.TempDir("", "")
++	if err != nil {
++		return err
++	}
++	defer func() {
++		if rmErr := os.RemoveAll(tmpDir); err == nil && rmErr != nil {
++			err = rmErr
++		}
++	}()
++	for i := 0; i < 10; i++ {
++    gopath := filepath.Join(tmpDir, fmt.Sprintf("gopath%d", i))
++		var err error
++		done := make(chan struct{})
++		go func() {
++			err = download(gopath)
++			close(done)
++		}()
++		readCache(gopath, done)
++		if err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// download downloads a module into the given cache using 'go mod download'.
++func download(gopath string) error {
++	cmd := exec.Command("go", "mod", "download", "-modcacherw", "rsc.io/quote@v1.5.2")
++	cmd.Stderr = os.Stderr
++	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
++	return cmd.Run()
++}
++
++// readCache repeatedly globs for go.mod files in the given cache, then opens
++// those files for reading. When the done chan is closed, readCache closes
++// files and returns.
++func readCache(gopath string, done <-chan struct{}) {
++	files := make(map[string]*os.File)
++	defer func() {
++		for _, f := range files {
++			f.Close()
++		}
++	}()
++
++	pattern := filepath.Join(gopath, "pkg/mod/rsc.io/quote@v1.5.2*/go.mod")
++	for {
++		select {
++		case <-done:
++			return
++		default:
++		}
++
++		names, _ := filepath.Glob(pattern)
++		for _, name := range names {
++			if files[name] != nil {
++				continue
++			}
++			f, _ := os.Open(name)
++			if f != nil {
++				files[name] = f
++			}
++		}
++	}
++}
+diff --git a/src/cmd/go/testdata/script/mod_download_partial.txt b/src/cmd/go/testdata/script/mod_download_partial.txt
+index b035382296..4978982dab 100644
+--- a/src/cmd/go/testdata/script/mod_download_partial.txt
++++ b/src/cmd/go/testdata/script/mod_download_partial.txt
+@@ -44,6 +44,16 @@ go mod verify
+ rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+ ! go mod verify
+ 
++# 'go mod download' should not leave behind a directory or a .partial file
++# if there is an error extracting the zip file.
++env GODEBUG=modcacheunzipinplace=1
++rm $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++cp empty $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.zip
++! go mod download
++stderr 'not a valid zip file'
++! exists $GOPATH/pkg/mod/rsc.io/quote@v1.5.2
++! exists $GOPATH/pkg/mod/cache/download/rsc.io/quote/@v/v1.5.2.partial
++
+ -- go.mod --
+ module m
+ 

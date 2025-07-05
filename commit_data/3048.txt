@@ -11,7 +11,110 @@ Date:   Fri Aug 21 15:54:54 2009 -0700
     DELTA=18  (7 added, 0 deleted, 11 changed)
     OCL=33678
     CL=33683
-
+---
  usr/austin/ptrace/process.go      | 14 +++++++-------
  usr/austin/ptrace/ptrace_linux.go | 15 +++++++++++----
  2 files changed, 18 insertions(+), 11 deletions(-)
+
+diff --git a/usr/austin/ptrace/process.go b/usr/austin/ptrace/process.go
+index a26c6b0fe5..d88bcf7e97 100644
+--- a/usr/austin/ptrace/process.go
++++ b/usr/austin/ptrace/process.go
+@@ -179,11 +179,11 @@ type ThreadCreate struct {
+ 	thread Thread;
+ }
+ 
+-func (c ThreadCreate) NewThread() Thread {
++func (c *ThreadCreate) NewThread() Thread {
+ 	return c.thread;
+ }
+ 
+-func (c ThreadCreate) String() string {
++func (c *ThreadCreate) String() string {
+ 	return "thread create";
+ }
+ 
+@@ -197,28 +197,28 @@ type ThreadExit struct {
+ }
+ 
+ // Exited returns true if the thread exited normally.
+-func (c ThreadExit) Exited() bool {
++func (c *ThreadExit) Exited() bool {
+ 	return c.exitStatus != -1;
+ }
+ 
+ // ExitStatus returns the exit status of the thread if it exited
+ // normally or -1 otherwise.
+-func (c ThreadExit) ExitStatus() int {
++func (c *ThreadExit) ExitStatus() int {
+ 	return c.exitStatus;
+ }
+ 
+ // Signaled returns true if the thread was terminated by a signal.
+-func (c ThreadExit) Signaled() bool {
++func (c *ThreadExit) Signaled() bool {
+ 	return c.exitStatus == -1;
+ }
+ 
+ // StopSignal returns the signal that terminated the thread, or "" if
+ // it was not terminated by a signal.
+-func (c ThreadExit) StopSignal() string {
++func (c *ThreadExit) StopSignal() string {
+ 	return c.signal;
+ }
+ 
+-func (c ThreadExit) String() string {
++func (c *ThreadExit) String() string {
+ 	res := "thread exited ";
+ 	switch {
+ 	case c.Exited():
+diff --git a/usr/austin/ptrace/ptrace_linux.go b/usr/austin/ptrace/ptrace_linux.go
+index 5bf7072e27..115a29e5f2 100644
+--- a/usr/austin/ptrace/ptrace_linux.go
++++ b/usr/austin/ptrace/ptrace_linux.go
+@@ -33,8 +33,9 @@ import (
+ // as well as experimentation and examination of gdb's behavior.
+ 
+ const (
+-	trace = true;
++	trace = false;
+ 	traceIP = false;
++	traceMem = false;
+ )
+ 
+ /*
+@@ -215,11 +216,17 @@ func (e *newThreadError) String() string {
+ 
+ func (t *thread) ptracePeekText(addr uintptr, out []byte) (int, os.Error) {
+ 	c, err := syscall.PtracePeekText(t.tid, addr, out);
++	if traceMem {
++		fmt.Printf("peek(%#x) => %v, %v\n", addr, out, err);
++	}
+ 	return c, os.NewSyscallError("ptrace(PEEKTEXT)", err);
+ }
+ 
+ func (t *thread) ptracePokeText(addr uintptr, out []byte) (int, os.Error) {
+ 	c, err := syscall.PtracePokeText(t.tid, addr, out);
++	if traceMem {
++		fmt.Printf("poke(%#x, %v) => %v\n", addr, out, err);
++	}
+ 	return c, os.NewSyscallError("ptrace(POKETEXT)", err);
+ }
+ 
+@@ -889,13 +896,13 @@ func (t *thread) Stopped() (Cause, os.Error) {
+ 			c = Signal(sigName(t.signal));
+ 
+ 		case stoppedThreadCreate:
+-			c = ThreadCreate{t.newThread};
++			c = &ThreadCreate{t.newThread};
+ 
+ 		case stoppedExiting, exiting, exited:
+ 			if t.signal == -1 {
+-				c = ThreadExit{t.exitStatus, ""};
++				c = &ThreadExit{t.exitStatus, ""};
+ 			} else {
+-				c = ThreadExit{t.exitStatus, sigName(t.signal)};
++				c = &ThreadExit{t.exitStatus, sigName(t.signal)};
+ 			}
+ 
+ 		default:

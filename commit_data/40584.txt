@@ -17,7 +17,35 @@ Date:   Fri May 31 20:59:35 2019 +1000
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
     Run-TryBot: Benny Siegert <bsiegert@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/strconv/atof.go         | 3 +++
  src/strconv/example_test.go | 2 +-
  2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 504b9613fb..0903fa155a 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -654,6 +654,9 @@ func atof64(s string) (f float64, err error) {
+ // If s is syntactically well-formed but is more than 1/2 ULP
+ // away from the largest floating point number of the given size,
+ // ParseFloat returns f = ±Inf, err.Err = ErrRange.
++//
++// ParseFloat recognizes the strings "NaN", "+Inf", and "-Inf" as their
++// respective special floating point values. It ignores case when matching.
+ func ParseFloat(s string, bitSize int) (float64, error) {
+ 	if !underscoreOK(s) {
+ 		return 0, syntaxError(fnParseFloat, s)
+diff --git a/src/strconv/example_test.go b/src/strconv/example_test.go
+index 46cfd432fb..50f6b20fee 100644
+--- a/src/strconv/example_test.go
++++ b/src/strconv/example_test.go
+@@ -232,7 +232,7 @@ func ExampleParseFloat() {
+ 	if s, err := strconv.ParseFloat("inf", 32); err == nil {
+ 		fmt.Printf("%T, %v\n", s, s)
+ 	}
+-	if s, err := strconv.ParseFloat("Inf", 32); err == nil {
++	if s, err := strconv.ParseFloat("+Inf", 32); err == nil {
+ 		fmt.Printf("%T, %v\n", s, s)
+ 	}
+ 	if s, err := strconv.ParseFloat("-Inf", 32); err == nil {

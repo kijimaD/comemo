@@ -28,6 +28,24 @@ Date:   Tue Aug 21 14:02:56 2018 +0200
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/gofmt/long_test.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/gofmt/long_test.go b/src/cmd/gofmt/long_test.go
+index 237b86021b..e2a6208f87 100644
+--- a/src/cmd/gofmt/long_test.go
++++ b/src/cmd/gofmt/long_test.go
+@@ -85,6 +85,12 @@ func testFile(t *testing.T, b1, b2 *bytes.Buffer, filename string) {
+ 
+ 	// the first and 2nd result should be identical
+ 	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
++		// A known instance of gofmt not being idempotent
++		// (see Issue #24472)
++		if strings.HasSuffix(filename, "issue22662.go") {
++			t.Log("known gofmt idempotency bug (Issue #24472)")
++			return
++		}
+ 		t.Errorf("gofmt %s not idempotent", filename)
+ 	}
+ }

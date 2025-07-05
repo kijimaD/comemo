@@ -7,7 +7,37 @@ Date:   Sun Nov 29 14:11:52 2009 -0800
     
     R=rsc
     https://golang.org/cl/161073
-
+---
  src/pkg/go/parser/parser.go      | 2 ++
  src/pkg/go/parser/parser_test.go | 1 +
  2 files changed, 3 insertions(+)
+
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 8af1b801e0..65b275fc88 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -992,10 +992,12 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ 	}
+ 
+ 	lparen := p.expect(token.LPAREN);
++	p.exprLev++;
+ 	var args []ast.Expr;
+ 	if p.tok != token.RPAREN {
+ 		args = p.parseExprList()
+ 	}
++	p.exprLev--;
+ 	rparen := p.expect(token.RPAREN);
+ 
+ 	return &ast.CallExpr{fun, lparen, args, rparen};
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 10a750c59e..2aa1d43666 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -31,6 +31,7 @@ func TestParseIllegalInputs(t *testing.T) {
+ var validPrograms = []interface{}{
+ 	`package main`,
+ 	`package main import "fmt" func main() { fmt.Println("Hello, World!") }`,
++	`package main func main() { if f(T{}) {} }`,
+ }
+ 
+ 

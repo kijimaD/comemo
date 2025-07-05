@@ -11,7 +11,115 @@ Date:   Thu Mar 22 15:00:12 2018 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/asm_test.go | 49 ---------------------------------
  test/codegen/comparisons.go             | 39 ++++++++++++++++++++++++++
  2 files changed, 39 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index f8ba22dddb..de59b232a5 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -394,55 +394,6 @@ var linuxAMD64Tests = []*asmTest{
+ 		`,
+ 		pos: []string{"TEXT\t.*, [$]0-8"},
+ 	},
+-	// int <-> fp moves
+-	{
+-		fn: `
+-		func $(x uint32) bool {
+-			return x > 4
+-		}
+-		`,
+-		pos: []string{"\tSETHI\t.*\\(SP\\)"},
+-	},
+-	{
+-		fn: `
+-		func $(p int, q *int) bool {
+-			return p < *q
+-		}
+-		`,
+-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
+-	},
+-	{
+-		fn: `
+-		func $(p *int, q int) bool {
+-			return *p < q
+-		}
+-		`,
+-		pos: []string{"CMPQ\t\\(.*\\), [A-Z]"},
+-	},
+-	{
+-		fn: `
+-		func $(p *int) bool {
+-			return *p < 7
+-		}
+-		`,
+-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
+-	},
+-	{
+-		fn: `
+-		func $(p *int) bool {
+-			return 7 < *p
+-		}
+-		`,
+-		pos: []string{"CMPQ\t\\(.*\\), [$]7"},
+-	},
+-	{
+-		fn: `
+-		func $(p **int) {
+-			*p = nil
+-		}
+-		`,
+-		pos: []string{"CMPL\truntime.writeBarrier\\(SB\\), [$]0"},
+-	},
+ }
+ 
+ var linux386Tests = []*asmTest{
+diff --git a/test/codegen/comparisons.go b/test/codegen/comparisons.go
+index 40a1714519..c0824e6ed1 100644
+--- a/test/codegen/comparisons.go
++++ b/test/codegen/comparisons.go
+@@ -67,3 +67,42 @@ func CompareArray6(a, b unsafe.Pointer) bool {
+ 	// amd64:`CMPL\t\(.*\), [A-Z]`
+ 	return *((*[4]byte)(a)) != *((*[4]byte)(b))
+ }
++
++// -------------- //
++//    Ordering    //
++// -------------- //
++
++// Test that LEAQ/ADDQconst are folded into SETx ops
++
++func CmpFold(x uint32) bool {
++	// amd64:`SETHI\t.*\(SP\)`
++	return x > 4
++}
++
++// Test that direct comparisons with memory are generated when
++// possible
++
++func CmpMem1(p int, q *int) bool {
++	// amd64:`CMPQ\t\(.*\), [A-Z]`
++	return p < *q
++}
++
++func CmpMem2(p *int, q int) bool {
++	// amd64:`CMPQ\t\(.*\), [A-Z]`
++	return *p < q
++}
++
++func CmpMem3(p *int) bool {
++	// amd64:`CMPQ\t\(.*\), [$]7`
++	return *p < 7
++}
++
++func CmpMem4(p *int) bool {
++	// amd64:`CMPQ\t\(.*\), [$]7`
++	return 7 < *p
++}
++
++func CmpMem5(p **int) {
++	// amd64:`CMPL\truntime.writeBarrier\(SB\), [$]0`
++	*p = nil
++}

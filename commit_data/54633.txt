@@ -19,6 +19,23 @@ Date:   Fri Nov 4 16:42:52 2022 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/go_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index f5f583fbea..4f451e614b 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -894,6 +894,11 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 	defer tg.cleanup()
+ 	tg.parallel()
+ 
++	// Set GOCACHE to an empty directory so that a previous run of
++	// this test does not affect the staleness of the packages it builds.
++	tg.tempDir("gocache")
++	tg.setenv("GOCACHE", tg.path("gocache"))
++
+ 	// Copy the runtime packages into a temporary GOROOT
+ 	// so that we can change files.
+ 	for _, copydir := range []string{

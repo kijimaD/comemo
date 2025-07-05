@@ -7,6 +7,19 @@ Date:   Thu Jul 23 12:07:58 2015 -0400
     Change-Id: If0821a2af987b78ed8024b40d9ffa68032518b22
     Reviewed-on: https://go-review.googlesource.com/12572
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/bytes/buffer.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/bytes/buffer.go b/src/bytes/buffer.go
+index 4db93867d9..75dab13048 100644
+--- a/src/bytes/buffer.go
++++ b/src/bytes/buffer.go
+@@ -14,6 +14,7 @@ import (
+ 
+ // A Buffer is a variable-sized buffer of bytes with Read and Write methods.
+ // The zero value for Buffer is an empty buffer ready to use.
++// Buffer values must not be copied.
+ type Buffer struct {
+ 	buf       []byte            // contents are the bytes buf[off : len(buf)]
+ 	off       int               // read at &buf[off], write at &buf[len(buf)]

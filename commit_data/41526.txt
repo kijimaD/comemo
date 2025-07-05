@@ -31,7 +31,7 @@ Date:   Tue Oct 8 13:16:33 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/fmtcmd/fmt.go               |   2 +-
  src/cmd/go/internal/get/get.go                  |   4 +-
  src/cmd/go/internal/load/pkg.go                 | 130 ++++++++++++++++++------
@@ -42,3 +42,569 @@ Date:   Tue Oct 8 13:16:33 2019 -0400
  src/go/build/build.go                           |  18 +++-
  src/go/build/build_test.go                      |  27 +++++
  9 files changed, 167 insertions(+), 55 deletions(-)
+
+diff --git a/src/cmd/go/internal/fmtcmd/fmt.go b/src/cmd/go/internal/fmtcmd/fmt.go
+index e898d73d60..408af52ffa 100644
+--- a/src/cmd/go/internal/fmtcmd/fmt.go
++++ b/src/cmd/go/internal/fmtcmd/fmt.go
+@@ -72,7 +72,7 @@ func runFmt(cmd *base.Command, args []string) {
+ 			continue
+ 		}
+ 		if pkg.Error != nil {
+-			if strings.HasPrefix(pkg.Error.Err, "build constraints exclude all Go files") {
++			if strings.HasPrefix(pkg.Error.Err.Error(), "build constraints exclude all Go files") {
+ 				// Skip this error, as we will format
+ 				// all files regardless.
+ 			} else {
+diff --git a/src/cmd/go/internal/get/get.go b/src/cmd/go/internal/get/get.go
+index 44fd316f35..421f1bab75 100644
+--- a/src/cmd/go/internal/get/get.go
++++ b/src/cmd/go/internal/get/get.go
+@@ -274,7 +274,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 		stk.Push(arg)
+ 		err := downloadPackage(p)
+ 		if err != nil {
+-			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err.Error()})
++			base.Errorf("%s", &load.PackageError{ImportStack: stk.Copy(), Err: err})
+ 			stk.Pop()
+ 			return
+ 		}
+@@ -355,7 +355,7 @@ func download(arg string, parent *load.Package, stk *load.ImportStack, mode int)
+ 				stk.Push(path)
+ 				err := &load.PackageError{
+ 					ImportStack: stk.Copy(),
+-					Err:         "must be imported as " + path[j+len("vendor/"):],
++					Err:         load.ImportErrorf(path, "%s must be imported as %s", path, path[j+len("vendor/"):]),
+ 				}
+ 				stk.Pop()
+ 				base.Errorf("%s", err)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 115bc29694..6b8ecc46b1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -7,6 +7,7 @@ package load
+ 
+ import (
+ 	"bytes"
++	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
+@@ -304,9 +305,9 @@ func (p *Package) copyBuild(pp *build.Package) {
+ type PackageError struct {
+ 	ImportStack   []string // shortest path from package named on command line to this one
+ 	Pos           string   // position of error
+-	Err           string   // the error itself
+-	IsImportCycle bool     `json:"-"` // the error is an import cycle
+-	Hard          bool     `json:"-"` // whether the error is soft or hard; soft errors are ignored in some places
++	Err           error    // the error itself
++	IsImportCycle bool     // the error is an import cycle
++	Hard          bool     // whether the error is soft or hard; soft errors are ignored in some places
+ }
+ 
+ func (p *PackageError) Error() string {
+@@ -317,12 +318,77 @@ func (p *PackageError) Error() string {
+ 	if p.Pos != "" {
+ 		// Omit import stack. The full path to the file where the error
+ 		// is the most important thing.
+-		return p.Pos + ": " + p.Err
++		return p.Pos + ": " + p.Err.Error()
+ 	}
+-	if len(p.ImportStack) == 0 {
+-		return p.Err
++
++	// If the error is an ImportPathError, and the last path on the stack appears
++	// in the error message, omit that path from the stack to avoid repetition.
++	// If an ImportPathError wraps another ImportPathError that matches the
++	// last path on the stack, we don't omit the path. An error like
++	// "package A imports B: error loading C caused by B" would not be clearer
++	// if "imports B" were omitted.
++	stack := p.ImportStack
++	var ierr ImportPathError
++	if len(stack) > 0 && errors.As(p.Err, &ierr) && ierr.ImportPath() == stack[len(stack)-1] {
++		stack = stack[:len(stack)-1]
++	}
++	if len(stack) == 0 {
++		return p.Err.Error()
++	}
++	return "package " + strings.Join(stack, "\n\timports ") + ": " + p.Err.Error()
++}
++
++// PackageError implements MarshalJSON so that Err is marshaled as a string
++// and non-essential fields are omitted.
++func (p *PackageError) MarshalJSON() ([]byte, error) {
++	perr := struct {
++		ImportStack []string
++		Pos         string
++		Err         string
++	}{p.ImportStack, p.Pos, p.Err.Error()}
++	return json.Marshal(perr)
++}
++
++// ImportPathError is a type of error that prevents a package from being loaded
++// for a given import path. When such a package is loaded, a *Package is
++// returned with Err wrapping an ImportPathError: the error is attached to
++// the imported package, not the importing package.
++//
++// The string returned by ImportPath must appear in the string returned by
++// Error. Errors that wrap ImportPathError (such as PackageError) may omit
++// the import path.
++type ImportPathError interface {
++	error
++	ImportPath() string
++}
++
++type importError struct {
++	importPath string
++	err        error // created with fmt.Errorf
++}
++
++var _ ImportPathError = (*importError)(nil)
++
++func ImportErrorf(path, format string, args ...interface{}) ImportPathError {
++	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
++	if errStr := err.Error(); !strings.Contains(errStr, path) {
++		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
+ 	}
+-	return "package " + strings.Join(p.ImportStack, "\n\timports ") + ": " + p.Err
++	return err
++}
++
++func (e *importError) Error() string {
++	return e.err.Error()
++}
++
++func (e *importError) Unwrap() error {
++	// Don't return e.err directly, since we're only wrapping an error if %w
++	// was passed to ImportErrorf.
++	return errors.Unwrap(e.err)
++}
++
++func (e *importError) ImportPath() string {
++	return e.importPath
+ }
+ 
+ // An ImportStack is a stack of import paths, possibly with the suffix " (test)" appended.
+@@ -489,7 +555,7 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
+ 				ImportPath: path,
+ 				Error: &PackageError{
+ 					ImportStack: stk.Copy(),
+-					Err:         err.Error(),
++					Err:         err,
+ 				},
+ 			},
+ 		}
+@@ -516,7 +582,7 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
+ 		if !cfg.ModulesEnabled && path != cleanImport(path) {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.Copy(),
+-				Err:         fmt.Sprintf("non-canonical import path: %q should be %q", path, pathpkg.Clean(path)),
++				Err:         fmt.Errorf("non-canonical import path: %q should be %q", path, pathpkg.Clean(path)),
+ 			}
+ 			p.Incomplete = true
+ 		}
+@@ -536,20 +602,22 @@ func loadImport(pre *preload, path, srcDir string, parent *Package, stk *ImportS
+ 		perr := *p
+ 		perr.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         fmt.Sprintf("import %q is a program, not an importable package", path),
++			Err:         ImportErrorf(path, "import %q is a program, not an importable package", path),
+ 		}
+ 		return setErrorPos(&perr, importPos)
+ 	}
+ 
+ 	if p.Internal.Local && parent != nil && !parent.Internal.Local {
+ 		perr := *p
+-		errMsg := fmt.Sprintf("local import %q in non-local package", path)
++		var err error
+ 		if path == "." {
+-			errMsg = "cannot import current directory"
++			err = ImportErrorf(path, "%s: cannot import current directory", path)
++		} else {
++			err = ImportErrorf(path, "local import %q in non-local package", path)
+ 		}
+ 		perr.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         errMsg,
++			Err:         err,
+ 		}
+ 		return setErrorPos(&perr, importPos)
+ 	}
+@@ -1125,7 +1193,7 @@ func reusePackage(p *Package, stk *ImportStack) *Package {
+ 		if p.Error == nil {
+ 			p.Error = &PackageError{
+ 				ImportStack:   stk.Copy(),
+-				Err:           "import cycle not allowed",
++				Err:           errors.New("import cycle not allowed"),
+ 				IsImportCycle: true,
+ 			}
+ 		}
+@@ -1228,7 +1296,7 @@ func disallowInternal(srcDir string, importer *Package, importerPath string, p *
+ 	perr := *p
+ 	perr.Error = &PackageError{
+ 		ImportStack: stk.Copy(),
+-		Err:         "use of internal package " + p.ImportPath + " not allowed",
++		Err:         ImportErrorf(p.ImportPath, "use of internal package "+p.ImportPath+" not allowed"),
+ 	}
+ 	perr.Incomplete = true
+ 	return &perr
+@@ -1275,7 +1343,7 @@ func disallowVendor(srcDir string, importer *Package, importerPath, path string,
+ 		perr := *p
+ 		perr.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         "must be imported as " + path[i+len("vendor/"):],
++			Err:         ImportErrorf(path, "%s must be imported as %s", path, path[i+len("vendor/"):]),
+ 		}
+ 		perr.Incomplete = true
+ 		return &perr
+@@ -1329,7 +1397,7 @@ func disallowVendorVisibility(srcDir string, p *Package, stk *ImportStack) *Pack
+ 	perr := *p
+ 	perr.Error = &PackageError{
+ 		ImportStack: stk.Copy(),
+-		Err:         "use of vendored package not allowed",
++		Err:         errors.New("use of vendored package not allowed"),
+ 	}
+ 	perr.Incomplete = true
+ 	return &perr
+@@ -1455,7 +1523,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		err = base.ExpandScanner(err)
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         err.Error(),
++			Err:         err,
+ 		}
+ 		return
+ 	}
+@@ -1472,7 +1540,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		// Report an error when the old code.google.com/p/go.tools paths are used.
+ 		if InstallTargetDir(p) == StalePath {
+ 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
+-			e := fmt.Sprintf("the %v command has moved; use %v instead.", p.ImportPath, newPath)
++			e := ImportErrorf(p.ImportPath, "the %v command has moved; use %v instead.", p.ImportPath, newPath)
+ 			p.Error = &PackageError{Err: e}
+ 			return
+ 		}
+@@ -1585,7 +1653,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	if f1 != "" {
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         fmt.Sprintf("case-insensitive file name collision: %q and %q", f1, f2),
++			Err:         fmt.Errorf("case-insensitive file name collision: %q and %q", f1, f2),
+ 		}
+ 		return
+ 	}
+@@ -1601,7 +1669,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		if !SafeArg(file) || strings.HasPrefix(file, "_cgo_") {
+ 			p.Error = &PackageError{
+ 				ImportStack: stk.Copy(),
+-				Err:         fmt.Sprintf("invalid input file name %q", file),
++				Err:         fmt.Errorf("invalid input file name %q", file),
+ 			}
+ 			return
+ 		}
+@@ -1609,14 +1677,14 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	if name := pathpkg.Base(p.ImportPath); !SafeArg(name) {
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         fmt.Sprintf("invalid input directory name %q", name),
++			Err:         fmt.Errorf("invalid input directory name %q", name),
+ 		}
+ 		return
+ 	}
+ 	if !SafeArg(p.ImportPath) {
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         fmt.Sprintf("invalid import path %q", p.ImportPath),
++			Err:         ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath),
+ 		}
+ 		return
+ 	}
+@@ -1662,31 +1730,31 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		// code; see issue #16050).
+ 	}
+ 
+-	setError := func(msg string) {
++	setError := func(err error) {
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.Copy(),
+-			Err:         msg,
++			Err:         err,
+ 		}
+ 	}
+ 
+ 	// The gc toolchain only permits C source files with cgo or SWIG.
+ 	if len(p.CFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() && cfg.BuildContext.Compiler == "gc" {
+-		setError(fmt.Sprintf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")))
++		setError(fmt.Errorf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")))
+ 		return
+ 	}
+ 
+ 	// C++, Objective-C, and Fortran source files are permitted only with cgo or SWIG,
+ 	// regardless of toolchain.
+ 	if len(p.CXXFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+-		setError(fmt.Sprintf("C++ source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CXXFiles, " ")))
++		setError(fmt.Errorf("C++ source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CXXFiles, " ")))
+ 		return
+ 	}
+ 	if len(p.MFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+-		setError(fmt.Sprintf("Objective-C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.MFiles, " ")))
++		setError(fmt.Errorf("Objective-C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.MFiles, " ")))
+ 		return
+ 	}
+ 	if len(p.FFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() {
+-		setError(fmt.Sprintf("Fortran source files not allowed when not using cgo or SWIG: %s", strings.Join(p.FFiles, " ")))
++		setError(fmt.Errorf("Fortran source files not allowed when not using cgo or SWIG: %s", strings.Join(p.FFiles, " ")))
+ 		return
+ 	}
+ 
+@@ -1695,7 +1763,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	if other := foldPath[fold]; other == "" {
+ 		foldPath[fold] = p.ImportPath
+ 	} else if other != p.ImportPath {
+-		setError(fmt.Sprintf("case-insensitive import collision: %q and %q", p.ImportPath, other))
++		setError(ImportErrorf(p.ImportPath, "case-insensitive import collision: %q and %q", p.ImportPath, other))
+ 		return
+ 	}
+ 
+@@ -2102,7 +2170,7 @@ func GoFilesPackage(gofiles []string) *Package {
+ 			pkg.Internal.CmdlineFiles = true
+ 			pkg.Name = f
+ 			pkg.Error = &PackageError{
+-				Err: fmt.Sprintf("named files must be .go files: %s", pkg.Name),
++				Err: fmt.Errorf("named files must be .go files: %s", pkg.Name),
+ 			}
+ 			return pkg
+ 		}
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index aac7d7d481..fefc7d2e30 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -110,7 +110,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 			// non-test copy of a package.
+ 			ptestErr = &PackageError{
+ 				ImportStack:   testImportStack(stk[0], p1, p.ImportPath),
+-				Err:           "import cycle not allowed in test",
++				Err:           errors.New("import cycle not allowed in test"),
+ 				IsImportCycle: true,
+ 			}
+ 		}
+@@ -271,7 +271,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 	// afterward that gathers t.Cover information.
+ 	t, err := loadTestFuncs(ptest)
+ 	if err != nil && pmain.Error == nil {
+-		pmain.Error = &PackageError{Err: err.Error()}
++		pmain.Error = &PackageError{Err: err}
+ 	}
+ 	t.Cover = cover
+ 	if len(ptest.GoFiles)+len(ptest.CgoFiles) > 0 {
+@@ -322,7 +322,7 @@ func TestPackagesAndErrors(p *Package, cover *TestCover) (pmain, ptest, pxtest *
+ 
+ 	data, err := formatTestmain(t)
+ 	if err != nil && pmain.Error == nil {
+-		pmain.Error = &PackageError{Err: err.Error()}
++		pmain.Error = &PackageError{Err: err}
+ 	}
+ 	if data != nil {
+ 		pmain.Internal.TestmainGo = &data
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 8d6f789c2e..5b1f0ce027 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -16,6 +16,7 @@ import (
+ 	"time"
+ 
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/load"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/module"
+ 	"cmd/go/internal/par"
+@@ -25,32 +26,38 @@ import (
+ )
+ 
+ type ImportMissingError struct {
+-	ImportPath string
+-	Module     module.Version
+-	QueryErr   error
++	Path     string
++	Module   module.Version
++	QueryErr error
+ 
+ 	// newMissingVersion is set to a newer version of Module if one is present
+ 	// in the build list. When set, we can't automatically upgrade.
+ 	newMissingVersion string
+ }
+ 
++var _ load.ImportPathError = (*ImportMissingError)(nil)
++
+ func (e *ImportMissingError) Error() string {
+ 	if e.Module.Path == "" {
+-		if str.HasPathPrefix(e.ImportPath, "cmd") {
+-			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.ImportPath, filepath.Join(cfg.GOROOT, "src", e.ImportPath))
++		if str.HasPathPrefix(e.Path, "cmd") {
++			return fmt.Sprintf("package %s is not in GOROOT (%s)", e.Path, filepath.Join(cfg.GOROOT, "src", e.Path))
+ 		}
+ 		if e.QueryErr != nil {
+-			return fmt.Sprintf("cannot find module providing package %s: %v", e.ImportPath, e.QueryErr)
++			return fmt.Sprintf("cannot find module providing package %s: %v", e.Path, e.QueryErr)
+ 		}
+-		return "cannot find module providing package " + e.ImportPath
++		return "cannot find module providing package " + e.Path
+ 	}
+-	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.ImportPath)
++	return fmt.Sprintf("missing module for import: %s@%s provides %s", e.Module.Path, e.Module.Version, e.Path)
+ }
+ 
+ func (e *ImportMissingError) Unwrap() error {
+ 	return e.QueryErr
+ }
+ 
++func (e *ImportMissingError) ImportPath() string {
++	return e.Path
++}
++
+ // An AmbiguousImportError indicates an import of a package found in multiple
+ // modules in the build list, or found in both the main module and its vendor
+ // directory.
+@@ -121,7 +128,7 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		return module.Version{}, dir, nil
+ 	}
+ 	if str.HasPathPrefix(path, "cmd") {
+-		return module.Version{}, "", &ImportMissingError{ImportPath: path}
++		return module.Version{}, "", &ImportMissingError{Path: path}
+ 	}
+ 
+ 	// -mod=vendor is special.
+@@ -220,7 +227,7 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 			}
+ 			_, ok := dirInModule(path, m.Path, root, isLocal)
+ 			if ok {
+-				return m, "", &ImportMissingError{ImportPath: path, Module: m}
++				return m, "", &ImportMissingError{Path: path, Module: m}
+ 			}
+ 		}
+ 	}
+@@ -230,7 +237,7 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		if errors.Is(err, os.ErrNotExist) {
+ 			// Return "cannot find module providing package […]" instead of whatever
+ 			// low-level error QueryPackage produced.
+-			return module.Version{}, "", &ImportMissingError{ImportPath: path, QueryErr: err}
++			return module.Version{}, "", &ImportMissingError{Path: path, QueryErr: err}
+ 		} else {
+ 			return module.Version{}, "", err
+ 		}
+@@ -255,7 +262,7 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 			}
+ 		}
+ 	}
+-	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
++	return m, "", &ImportMissingError{Path: path, Module: m, newMissingVersion: newMissingVersion}
+ }
+ 
+ // maybeInModule reports whether, syntactically,
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index b75c61b6f2..68ab85ae07 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -433,7 +433,7 @@ func (b *Builder) build(a *Action) (err error) {
+ 			err = fmt.Errorf("go build %s: %v", a.Package.ImportPath, err)
+ 		}
+ 		if err != nil && b.IsCmdList && b.NeedError && p.Error == nil {
+-			p.Error = &load.PackageError{Err: err.Error()}
++			p.Error = &load.PackageError{Err: err}
+ 		}
+ 	}()
+ 	if cfg.BuildN {
+diff --git a/src/cmd/go/testdata/script/cmd_import_error.txt b/src/cmd/go/testdata/script/cmd_import_error.txt
+index ba94f9bd3e..685c606a41 100644
+--- a/src/cmd/go/testdata/script/cmd_import_error.txt
++++ b/src/cmd/go/testdata/script/cmd_import_error.txt
+@@ -5,7 +5,7 @@ env GO111MODULE=on
+ # a clear error in module mode.
+ 
+ ! go list cmd/unknown
+-stderr '^can''t load package: package cmd/unknown: package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
++stderr '^can''t load package: package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+ 
+ go list -f '{{range .DepsErrors}}{{.Err}}{{end}}' x.go
+ stdout '^package cmd/unknown is not in GOROOT \('$GOROOT'[/\\]src[/\\]cmd[/\\]unknown\)$'
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 097ad3c2ec..526d2fe27e 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1046,7 +1046,7 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 		parent = d
+ 	}
+ 
+-	cmd := exec.Command("go", "list", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n", path)
++	cmd := exec.Command("go", "list", "-e", "-compiler="+ctxt.Compiler, "-tags="+strings.Join(ctxt.BuildTags, ","), "-installsuffix="+ctxt.InstallSuffix, "-f={{.Dir}}\n{{.ImportPath}}\n{{.Root}}\n{{.Goroot}}\n{{if .Error}}{{.Error}}{{end}}\n", "--", path)
+ 
+ 	// TODO(bcmills): This is wrong if srcDir is in a vendor directory, or if
+ 	// srcDir is in some module dependency of the main module. The main module
+@@ -1073,12 +1073,22 @@ func (ctxt *Context) importGo(p *Package, path, srcDir string, mode ImportMode,
+ 		return fmt.Errorf("go/build: importGo %s: %v\n%s\n", path, err, stderr.String())
+ 	}
+ 
+-	f := strings.Split(stdout.String(), "\n")
+-	if len(f) != 5 || f[4] != "" {
++	f := strings.SplitN(stdout.String(), "\n", 5)
++	if len(f) != 5 {
+ 		return fmt.Errorf("go/build: importGo %s: unexpected output:\n%s\n", path, stdout.String())
+ 	}
++	dir := f[0]
++	errStr := strings.TrimSpace(f[4])
++	if errStr != "" && p.Dir == "" {
++		// If 'go list' could not locate the package, return the same error that
++		// 'go list' reported.
++		// If 'go list' did locate the package (p.Dir is not empty), ignore the
++		// error. It was probably related to loading source files, and we'll
++		// encounter it ourselves shortly.
++		return errors.New(errStr)
++	}
+ 
+-	p.Dir = f[0]
++	p.Dir = dir
+ 	p.ImportPath = f[1]
+ 	p.Root = f[2]
+ 	p.Goroot = f[3] == "true"
+diff --git a/src/go/build/build_test.go b/src/go/build/build_test.go
+index cff091f894..47a46f8c32 100644
+--- a/src/go/build/build_test.go
++++ b/src/go/build/build_test.go
+@@ -7,6 +7,7 @@ package build
+ import (
+ 	"internal/testenv"
+ 	"io"
++	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -447,3 +448,29 @@ func TestIssue23594(t *testing.T) {
+ 		t.Fatalf("incorrectly set .Doc to %q", p.Doc)
+ 	}
+ }
++
++// TestMissingImportErrorRepetition checks that when an unknown package is
++// imported, the package path is only shown once in the error.
++// Verifies golang.org/issue/34752.
++func TestMissingImportErrorRepetition(t *testing.T) {
++	testenv.MustHaveGoBuild(t) // need 'go list' internally
++	tmp, err := ioutil.TempDir("", "")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer os.RemoveAll(tmp)
++	if err := ioutil.WriteFile(filepath.Join(tmp, "go.mod"), []byte("module m"), 0666); err != nil {
++		t.Fatal(err)
++	}
++	defer os.Setenv("GO111MODULE", os.Getenv("GO111MODULE"))
++	os.Setenv("GO111MODULE", "on")
++	defer os.Setenv("GOPROXY", os.Getenv("GOPROXY"))
++	os.Setenv("GOPROXY", "off")
++
++	pkgPath := "example.com/hello"
++	if _, err = Import(pkgPath, tmp, FindOnly); err == nil {
++		t.Fatal("unexpected success")
++	} else if n := strings.Count(err.Error(), pkgPath); n != 1 {
++		t.Fatalf("package path %q appears in error %d times; should appear once\nerror: %v", pkgPath, n, err)
++	}
++}

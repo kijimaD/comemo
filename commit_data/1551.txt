@@ -8,8 +8,246 @@ Date:   Mon Jan 26 09:28:07 2009 -0800
     DELTA=205  (205 added, 0 deleted, 0 changed)
     OCL=23448
     CL=23478
-
+---
  src/lib/Makefile    |   2 +
  src/lib/log.go      | 135 ++++++++++++++++++++++++++++++++++++++++++++++++++++
  src/lib/log_test.go |  70 +++++++++++++++++++++++++++
  3 files changed, 207 insertions(+)
+
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 3cfde17b51..aaf6586502 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -27,6 +27,7 @@ DIRS=\
+ FILES=\
+ 	bufio\
+ 	flag\
++	log\
+ 	malloc\
+ 	once\
+ 	rand\
+@@ -91,6 +92,7 @@ test: test.files
+ bignum.6: fmt.dirinstall
+ bufio.6: io.dirinstall os.dirinstall
+ flag.6: fmt.dirinstall
++log.6: fmt.dirinstall io.dirinstall os.dirinstall time.dirinstall
+ testing.6: flag.install fmt.dirinstall
+ strings.6: utf8.install
+ 
+diff --git a/src/lib/log.go b/src/lib/log.go
+new file mode 100644
+index 0000000000..a54ba9f98b
+--- /dev/null
++++ b/src/lib/log.go
+@@ -0,0 +1,135 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Rudimentary logging package. Defines a type, Logger, with simple
++// methods for formatting output to one or two destinations. Also has
++// predefined Loggers accessible through helper functions Stdout[f],
++// Stderr[f], Exit[f], and Crash[f].
++// Exit exits when written to.
++// Crash causes a crash when written to.
++
++package log
++
++import (
++	"fmt";
++	"io";
++	"os";
++	"time";
++)
++
++// Lshortname can be or'd in to cause only the last element of the file name to be printed.
++const (
++	Lok = iota;
++	Lexit;	// terminate execution when written
++	Lcrash;	// crash (panic) when written
++	Lshortname = 1 << 5;
++)
++
++type Logger struct {
++	out0	io.Write;
++	out1	io.Write;
++	flag int;
++}
++
++func NewLogger(out0, out1 io.Write, flag int) *Logger {
++	return &Logger{out0, out1, flag}
++}
++
++var (
++	stdout = NewLogger(os.Stdout, nil, Lok);
++	stderr = NewLogger(os.Stderr, nil, Lok);
++	exit = NewLogger(os.Stderr, nil, Lexit);
++	crash = NewLogger(os.Stderr, nil, Lcrash);
++)
++
++func timestamp(ns int64) string {
++	t := time.SecondsToLocalTime(ns/1e9);
++	// why are time fields private?
++	s := t.RFC1123();
++	return s[5:12] + s[17:25];	// TODO(r): placeholder. this gives "24 Jan 15:50:18"
++}
++
++var shortnames = make(map[string] string)	// cache of short names to avoid allocation.
++
++// The calldepth is provided for generality, although at the moment on all paths it will be 2.
++func (l *Logger) output(calldepth int, s string) {
++	now := time.Nanoseconds();	// get this early.
++	newline := "\n";
++	if len(s) > 0 && s[len(s)-1] == '\n' {
++		newline = ""
++	}
++	pc, file, line, ok := sys.Caller(calldepth);
++	if ok {
++		if l.flag & Lshortname == Lshortname {
++			short, ok := shortnames[file];
++			if !ok {
++				short = file;
++				for i := len(file) - 1; i > 0; i-- {
++					if file[i] == '/' {
++						short = file[i+1:len(file)];
++						shortnames[file] = short;
++						break;
++					}
++				}
++			}
++			file = short;
++		}
++	} else {
++		file = "???";
++		line = 0;
++	}
++	s = fmt.Sprintf("%s %s:%d: %s%s", timestamp(now), file, line, s, newline);
++	io.WriteString(l.out0, s);
++	if l.out1 != nil {
++		io.WriteString(l.out1, s);
++	}
++	switch l.flag & ^Lshortname {
++	case Lcrash:
++		panic("log: fatal error");
++	case Lexit:
++		sys.Exit(1);
++	}
++}
++
++// Basic methods on Logger, analogous to Printf and Print
++func (l *Logger) Logf(format string, v ...) {
++	l.output(2, fmt.Sprintf(format, v))
++}
++
++func (l *Logger) Log(v ...) {
++	l.output(2, fmt.Sprintln(v))
++}
++
++// Helper functions for lightweight simple logging to predefined Loggers.
++func Stdout(v ...) {
++	stdout.output(2, fmt.Sprint(v))
++}
++
++func Stderr(v ...) {
++	stdout.output(2, fmt.Sprintln(v))
++}
++
++func Stdoutf(format string, v ...) {
++	stdout.output(2, fmt.Sprintf(format, v))
++}
++
++func Stderrf(format string, v ...) {
++	stderr.output(2, fmt.Sprintf(format, v))
++}
++
++func Exit(v ...) {
++	exit.output(2, fmt.Sprintln(v))
++}
++
++func Exitf(format string, v ...) {
++	exit.output(2, fmt.Sprintf(format, v))
++}
++
++func Crash(v ...) {
++	crash.output(2, fmt.Sprintln(v))
++}
++
++func Crashf(format string, v ...) {
++	crash.output(2, fmt.Sprintf(format, v))
++}
+diff --git a/src/lib/log_test.go b/src/lib/log_test.go
+new file mode 100644
+index 0000000000..f0cfb13bce
+--- /dev/null
++++ b/src/lib/log_test.go
+@@ -0,0 +1,70 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package log
++
++// These tests are too simple.
++
++import (
++	"bufio";
++	"log";
++	"os";
++	"testing";
++)
++
++func test(t *testing.T, flag int, expect string) {
++	fd0, fd1, err1 := os.Pipe();
++	if err1 != nil {
++		t.Error("pipe", err1);
++	}
++	buf, err2 := bufio.NewBufRead(fd0);
++	if err2 != nil {
++		t.Error("bufio.NewBufRead", err2);
++	}
++	l := NewLogger(fd1, nil, flag);
++	l.Log("hello", 23, "world");	/// the line number of this line needs to be placed in the expect strings
++	line, err3 := buf.ReadLineString('\n', false);
++	if line[len(line)-len(expect):len(line)] != expect {
++		t.Error("log output should be ...", expect, "; is " , line);
++	}
++	t.Log(line);
++	fd0.Close();
++	fd1.Close();
++}
++
++func TestRegularLog(t *testing.T) {
++	test(t, Lok, "/go/src/lib/log_test.go:25: hello 23 world");
++}
++
++func TestShortNameLog(t *testing.T) {
++	test(t, Lok|Lshortname, " log_test.go:25: hello 23 world")
++}
++
++func testFormatted(t *testing.T, flag int, expect string) {
++	fd0, fd1, err1 := os.Pipe();
++	if err1 != nil {
++		t.Error("pipe", err1);
++	}
++	buf, err2 := bufio.NewBufRead(fd0);
++	if err2 != nil {
++		t.Error("bufio.NewBufRead", err2);
++	}
++	l := NewLogger(fd1, nil, flag);
++	l.Logf("hello %d world", 23);	/// the line number of this line needs to be placed in the expect strings
++	line, err3 := buf.ReadLineString('\n', false);
++	if line[len(line)-len(expect):len(line)] != expect {
++		t.Error("log output should be ...", expect, "; is " , line);
++	}
++	t.Log(line);
++	fd0.Close();
++	fd1.Close();
++}
++
++func TestRegularLogFormatted(t *testing.T) {
++	testFormatted(t, Lok, "/go/src/lib/log_test.go:53: hello 23 world");
++}
++
++func TestShortNameLogFormatted(t *testing.T) {
++	testFormatted(t, Lok|Lshortname, " log_test.go:53: hello 23 world")
++}

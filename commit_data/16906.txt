@@ -17,6 +17,20 @@ Date:   Mon Jul 29 22:58:58 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12041044
-
+---
  src/pkg/runtime/sys_openbsd_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 3cbf0d9343..87e557c8ba 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -164,7 +164,7 @@ TEXT time·now(SB), 7, $32
+ 	MOVL	DX, nsec+8(FP)
+ 	RET
+ 
+-TEXT runtime·nanotime(SB),7,$32
++TEXT runtime·nanotime(SB),7,$24
+ 	MOVQ	$0, DI			// arg 1 - clock_id
+ 	LEAQ	8(SP), SI		// arg 2 - tp
+ 	MOVL	$232, AX		// sys_clock_gettime

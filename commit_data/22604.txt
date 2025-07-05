@@ -10,6 +10,22 @@ Date:   Fri Mar 27 11:28:33 2015 +1100
     Change-Id: I0c48502d1ba90fb5d41c5e66346a8e7f4ee87ce7
     Reviewed-on: https://go-review.googlesource.com/8151
     Reviewed-by: Nigel Tao <nigeltao@golang.org>
-
+---
  src/image/draw/draw_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/draw/draw_test.go b/src/image/draw/draw_test.go
+index a58f0f4984..29951bf05b 100644
+--- a/src/image/draw/draw_test.go
++++ b/src/image/draw/draw_test.go
+@@ -163,8 +163,8 @@ var drawTests = []drawTest{
+ 	// The source pixel is {0, 0, 136} in YCbCr-space, which is {11, 38, 0, 255} in RGB-space.
+ 	{"ycbcr", vgradCr(), fillAlpha(255), Over, color.RGBA{11, 38, 0, 255}},
+ 	{"ycbcrSrc", vgradCr(), fillAlpha(255), Src, color.RGBA{11, 38, 0, 255}},
+-	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 28, 0, 255}},
+-	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 28, 0, 192}},
++	{"ycbcrAlpha", vgradCr(), fillAlpha(192), Over, color.RGBA{42, 29, 0, 255}},
++	{"ycbcrAlphaSrc", vgradCr(), fillAlpha(192), Src, color.RGBA{8, 29, 0, 192}},
+ 	{"ycbcrNil", vgradCr(), nil, Over, color.RGBA{11, 38, 0, 255}},
+ 	{"ycbcrNilSrc", vgradCr(), nil, Src, color.RGBA{11, 38, 0, 255}},
+ 	// Uniform mask (100%, 75%, nil) and variable Gray source.

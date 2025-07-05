@@ -9,6 +9,20 @@ Date:   Wed Dec 21 11:46:42 2011 -0800
     R=rsc, alex.brainman, n13m3y3r
     CC=golang-dev
     https://golang.org/cl/5500052
-
+---
  src/pkg/path/filepath/path.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index e3d6c342ca..68cbae6644 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -262,6 +262,8 @@ func Abs(path string) (string, error) {
+ // Rel returns a relative path that is lexically equivalent to targpath when
+ // joined to basepath with an intervening separator. That is,
+ // Join(basepath, Rel(basepath, targpath)) is equivalent to targpath itself.
++// On success, the returned path will always be relative to basepath,
++// even if basepath and targpath share no elements.
+ // An error is returned if targpath can't be made relative to basepath or if
+ // knowing the current working directory would be necessary to compute it.
+ func Rel(basepath, targpath string) (string, error) {

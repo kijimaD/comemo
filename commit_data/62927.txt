@@ -31,9 +31,258 @@ Date:   Wed Apr 16 11:01:19 2025 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/670036
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
-
+---
  src/os/root.go        | 15 ++++++------
  src/os/root_js.go     | 23 +++++++++++++++----
  src/os/root_openat.go | 17 +++++++++++---
  src/os/root_test.go   | 63 +++++++++++++++++++++++++++++++++++++++++++++++++++
  4 files changed, 103 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index 49d09fe97b..fb2bb8350a 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -254,20 +254,20 @@ func (r *Root) logStat(name string) {
+ //
+ // "." components are removed, except in the last component.
+ //
+-// Path separators following the last component are preserved.
+-func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) {
++// Path separators following the last component are returned in suffixSep.
++func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep string, err error) {
+ 	if len(s) == 0 {
+-		return nil, errors.New("empty path")
++		return nil, "", errors.New("empty path")
+ 	}
+ 	if IsPathSeparator(s[0]) {
+-		return nil, errPathEscapes
++		return nil, "", errPathEscapes
+ 	}
+ 
+ 	if runtime.GOOS == "windows" {
+ 		// Windows cleans paths before opening them.
+ 		s, err = rootCleanPath(s, prefix, suffix)
+ 		if err != nil {
+-			return nil, err
++			return nil, "", err
+ 		}
+ 		prefix = nil
+ 		suffix = nil
+@@ -283,13 +283,14 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		}
+ 		parts = append(parts, s[i:j])
+ 		// Advance to the next component, or end of the path.
++		partEnd := j
+ 		for j < len(s) && IsPathSeparator(s[j]) {
+ 			j++
+ 		}
+ 		if j == len(s) {
+ 			// If this is the last path component,
+ 			// preserve any trailing path separators.
+-			parts[len(parts)-1] = s[i:]
++			suffixSep = s[partEnd:]
+ 			break
+ 		}
+ 		if parts[len(parts)-1] == "." {
+@@ -303,7 +304,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		parts = parts[:len(parts)-1]
+ 	}
+ 	parts = append(parts, suffix...)
+-	return parts, nil
++	return parts, suffixSep, nil
+ }
+ 
+ // FS returns a file system (an fs.FS) for the tree of files in the root.
+diff --git a/src/os/root_js.go b/src/os/root_js.go
+index 70aa5f9ccd..56a37dafe1 100644
+--- a/src/os/root_js.go
++++ b/src/os/root_js.go
+@@ -33,7 +33,7 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 	if r.root.closed.Load() {
+ 		return ErrClosed
+ 	}
+-	parts, err := splitPathInRoot(name, nil, nil)
++	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -61,11 +61,15 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 			continue
+ 		}
+ 
+-		if lstat && i == len(parts)-1 {
+-			break
++		part := parts[i]
++		if i == len(parts)-1 {
++			if lstat {
++				break
++			}
++			part += suffixSep
+ 		}
+ 
+-		next := joinPath(base, parts[i])
++		next := joinPath(base, part)
+ 		fi, err := Lstat(next)
+ 		if err != nil {
+ 			if IsNotExist(err) {
+@@ -82,10 +86,19 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 			if symlinks > rootMaxSymlinks {
+ 				return errors.New("too many symlinks")
+ 			}
+-			newparts, err := splitPathInRoot(link, parts[:i], parts[i+1:])
++			newparts, newSuffixSep, err := splitPathInRoot(link, parts[:i], parts[i+1:])
+ 			if err != nil {
+ 				return err
+ 			}
++			if i == len(parts) {
++				// suffixSep contains any trailing path separator characters
++				// in the link target.
++				// If we are replacing the remainder of the path, retain these.
++				// If we're replacing some intermediate component of the path,
++				// ignore them, since intermediate components must always be
++				// directories.
++				suffixSep = newSuffixSep
++			}
+ 			parts = newparts
+ 			continue
+ 		}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index f67794cd72..db2ae2295f 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -178,7 +178,7 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 	}
+ 	defer r.root.decref()
+ 
+-	parts, err := splitPathInRoot(name, nil, nil)
++	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
+ 	if err != nil {
+ 		return ret, err
+ 	}
+@@ -242,7 +242,9 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 			// Call f to decide what to do with it.
+ 			// If f returns errSymlink, this element is a symlink
+ 			// which should be followed.
+-			ret, err = f(dirfd, parts[i])
++			// suffixSep contains any trailing separator characters
++			// which we rejoin to the final part at this time.
++			ret, err = f(dirfd, parts[i]+suffixSep)
+ 			if _, ok := err.(errSymlink); !ok {
+ 				return ret, err
+ 			}
+@@ -264,10 +266,19 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 			if symlinks > rootMaxSymlinks {
+ 				return ret, syscall.ELOOP
+ 			}
+-			newparts, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
++			newparts, newSuffixSep, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
+ 			if err != nil {
+ 				return ret, err
+ 			}
++			if i == len(parts)-1 {
++				// suffixSep contains any trailing path separator characters
++				// in the link target.
++				// If we are replacing the remainder of the path, retain these.
++				// If we're replacing some intermediate component of the path,
++				// ignore them, since intermediate components must always be
++				// directories.
++				suffixSep = newSuffixSep
++			}
+ 			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
+ 				// Some component in the path which we have already traversed
+ 				// has changed. We need to restart parsing from the root.
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 63c921b66b..530d5abda6 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -187,6 +187,30 @@ var rootTestCases = []rootTest{{
+ 	open:    "link",
+ 	target:  "target",
+ 	ltarget: "link",
++}, {
++	name: "symlink dotdot slash",
++	fs: []string{
++		"link => ../",
++	},
++	open:      "link",
++	ltarget:   "link",
++	wantError: true,
++}, {
++	name: "symlink ending in slash",
++	fs: []string{
++		"dir/",
++		"link => dir/",
++	},
++	open:   "link/target",
++	target: "dir/target",
++}, {
++	name: "symlink dotdot dotdot slash",
++	fs: []string{
++		"dir/link => ../../",
++	},
++	open:      "dir/link",
++	ltarget:   "dir/link",
++	wantError: true,
+ }, {
+ 	name: "symlink chain",
+ 	fs: []string{
+@@ -214,6 +238,16 @@ var rootTestCases = []rootTest{{
+ 	},
+ 	open:   "a/../a/b/../../a/b/../b/target",
+ 	target: "a/b/target",
++}, {
++	name:      "path with dotdot slash",
++	fs:        []string{},
++	open:      "../",
++	wantError: true,
++}, {
++	name:      "path with dotdot dotdot slash",
++	fs:        []string{},
++	open:      "a/../../",
++	wantError: true,
+ }, {
+ 	name: "dotdot no symlink",
+ 	fs: []string{
+@@ -744,6 +778,21 @@ func testRootMoveFrom(t *testing.T, rename bool) {
+ 				if !rename && runtime.GOOS == "js" {
+ 					wantError = true
+ 				}
++
++				// Windows allows creating a hard link to a file symlink,
++				// but not to a directory symlink.
++				//
++				// This uses os.Stat to check the link target, because this
++				// is easier than figuring out whether the link itself is a
++				// directory link. The link was created with os.Symlink,
++				// which creates directory links when the target is a directory,
++				// so this is good enough for a test.
++				if !rename && runtime.GOOS == "windows" {
++					st, err := os.Stat(filepath.Join(root.Name(), test.ltarget))
++					if err == nil && st.IsDir() {
++						wantError = true
++					}
++				}
+ 			}
+ 
+ 			const dstPath = "destination"
+@@ -1019,6 +1068,20 @@ var rootConsistencyTestCases = []rootConsistencyTest{{
+ 		"b/target",
+ 	},
+ 	open: "a/../target",
++}, {
++	name: "symlink to dir ends in slash",
++	fs: []string{
++		"dir/",
++		"link => dir",
++	},
++	open: "link",
++}, {
++	name: "symlink to file ends in slash",
++	fs: []string{
++		"file",
++		"link => file/",
++	},
++	open: "link",
+ }, {
+ 	name: "long file name",
+ 	open: strings.Repeat("a", 500),

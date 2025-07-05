@@ -7,7 +7,54 @@ Date:   Wed May 11 17:00:19 2011 -0400
     R=rsc, bradfitz, bradfitzgoog
     CC=golang-dev
     https://golang.org/cl/4518056
-
+---
  src/pkg/compress/zlib/writer.go      |  2 +-
  src/pkg/compress/zlib/writer_test.go | 18 ++++++++++++++++++
  2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/compress/zlib/writer.go b/src/pkg/compress/zlib/writer.go
+index f1f9b28537..8f86e9c4ce 100644
+--- a/src/pkg/compress/zlib/writer.go
++++ b/src/pkg/compress/zlib/writer.go
+@@ -89,7 +89,7 @@ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, os.Error) {
+ 		}
+ 	}
+ 	z.w = w
+-	z.compressor = flate.NewWriter(w, level)
++	z.compressor = flate.NewWriterDict(w, level, dict)
+ 	z.digest = adler32.New()
+ 	return z, nil
+ }
+diff --git a/src/pkg/compress/zlib/writer_test.go b/src/pkg/compress/zlib/writer_test.go
+index f94f284700..a06689ee50 100644
+--- a/src/pkg/compress/zlib/writer_test.go
++++ b/src/pkg/compress/zlib/writer_test.go
+@@ -5,6 +5,7 @@
+ package zlib
+ 
+ import (
++	"bytes"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -121,3 +122,20 @@ func TestWriterDict(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestWriterDictIsUsed(t *testing.T) {
++	var input = []byte("Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.")
++	buf := bytes.NewBuffer(nil)
++	compressor, err := NewWriterDict(buf, BestCompression, input)
++	if err != nil {
++		t.Errorf("error in NewWriterDict: %s", err)
++		return
++	}
++	compressor.Write(input)
++	compressor.Close()
++	const expectedMaxSize = 25
++	output := buf.Bytes()
++	if len(output) > expectedMaxSize {
++		t.Errorf("result too large (got %d, want <= %d bytes). Is the dictionary being used?", len(output), expectedMaxSize)
++	}
++}

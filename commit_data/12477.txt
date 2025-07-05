@@ -12,6 +12,20 @@ Date:   Wed Mar 7 12:09:43 2012 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5768044
-
+---
  src/cmd/go/testflag.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index 8c887ba750..ecf5bf4562 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -142,7 +142,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		case "tags":
+ 			buildContext.BuildTags = strings.Fields(value)
+ 		case "compiler":
+-			buildContext.Compiler = value
++			buildCompiler{}.Set(value)
+ 		case "file":
+ 			testFiles = append(testFiles, value)
+ 		case "bench":

@@ -14,7 +14,7 @@ Date:   Fri Oct 26 20:10:23 2018 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go       | 17 +++++++++--------
  src/cmd/compile/internal/gc/fmt.go       |  6 +++---
  src/cmd/compile/internal/gc/iexport.go   |  3 ++-
@@ -27,3 +27,347 @@ Date:   Fri Oct 26 20:10:23 2018 -0700
  src/cmd/compile/internal/gc/syntax.go    |  8 ++++----
  src/cmd/compile/internal/gc/typecheck.go | 10 +++++-----
  11 files changed, 47 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index ad43b3caec..2310b1e5fd 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -621,23 +621,23 @@ func (e *EscState) escloopdepth(n *Node) {
+ 
+ 	switch n.Op {
+ 	case OLABEL:
+-		if n.Left == nil || n.Left.Sym == nil {
++		if n.Sym == nil {
+ 			Fatalf("esc:label without label: %+v", n)
+ 		}
+ 
+ 		// Walk will complain about this label being already defined, but that's not until
+ 		// after escape analysis. in the future, maybe pull label & goto analysis out of walk and put before esc
+-		n.Left.Sym.Label = asTypesNode(&nonlooping)
++		n.Sym.Label = asTypesNode(&nonlooping)
+ 
+ 	case OGOTO:
+-		if n.Left == nil || n.Left.Sym == nil {
++		if n.Sym == nil {
+ 			Fatalf("esc:goto without label: %+v", n)
+ 		}
+ 
+ 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
+ 		// but if it's set to nonlooping the label must have preceded this goto.
+-		if asNode(n.Left.Sym.Label) == &nonlooping {
+-			n.Left.Sym.Label = asTypesNode(&looping)
++		if asNode(n.Sym.Label) == &nonlooping {
++			n.Sym.Label = asTypesNode(&looping)
+ 		}
+ 	}
+ 
+@@ -851,18 +851,19 @@ opSwitch:
+ 		}
+ 
+ 	case OLABEL:
+-		if asNode(n.Left.Sym.Label) == &nonlooping {
++		switch asNode(n.Sym.Label) {
++		case &nonlooping:
+ 			if Debug['m'] > 2 {
+ 				fmt.Printf("%v:%v non-looping label\n", linestr(lineno), n)
+ 			}
+-		} else if asNode(n.Left.Sym.Label) == &looping {
++		case &looping:
+ 			if Debug['m'] > 2 {
+ 				fmt.Printf("%v: %v looping label\n", linestr(lineno), n)
+ 			}
+ 			e.loopdepth++
+ 		}
+ 
+-		n.Left.Sym.Label = nil
++		n.Sym.Label = nil
+ 
+ 	case ORANGE:
+ 		if n.List.Len() >= 2 {
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 23ed3f7844..0f4b6c9936 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1045,8 +1045,8 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		mode.Fprintf(s, ": %v", n.Nbody)
+ 
+ 	case OBREAK, OCONTINUE, OGOTO, OFALL:
+-		if n.Left != nil {
+-			mode.Fprintf(s, "%#v %v", n.Op, n.Left)
++		if n.Sym != nil {
++			mode.Fprintf(s, "%#v %v", n.Op, n.Sym)
+ 		} else {
+ 			mode.Fprintf(s, "%#v", n.Op)
+ 		}
+@@ -1055,7 +1055,7 @@ func (n *Node) stmtfmt(s fmt.State, mode fmtMode) {
+ 		break
+ 
+ 	case OLABEL:
+-		mode.Fprintf(s, "%v: ", n.Left)
++		mode.Fprintf(s, "%v: ", n.Sym)
+ 	}
+ 
+ 	if extrablock {
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index b141e5fc09..efe2f99d72 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1102,7 +1102,8 @@ func (w *exportWriter) stmt(n *Node) {
+ 	case OGOTO, OLABEL:
+ 		w.op(op)
+ 		w.pos(n.Pos)
+-		w.expr(n.Left)
++		w.op(ONAME) // TODO(mdempsky): Remove toolstash hack.
++		w.string(n.Sym.Name)
+ 
+ 	default:
+ 		Fatalf("exporter: CANNOT EXPORT: %v\nPlease notify gri@\n", n.Op)
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 4fea314263..a355b6d2c7 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -1043,7 +1043,12 @@ func (r *importReader) node() *Node {
+ 	// 	unreachable - not emitted by exporter
+ 
+ 	case OGOTO, OLABEL:
+-		return nodl(r.pos(), op, newname(r.expr().Sym), nil)
++		n := nodl(r.pos(), op, nil, nil)
++		if op := r.op(); op != ONAME { // TODO(mdempsky): Remove toolstash check.
++			Fatalf("got %v, want ONAME", op)
++		}
++		n.Sym = lookup(r.string())
++		return n
+ 
+ 	case OEND:
+ 		return nil
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index ae37c956a2..0b91d49188 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -1072,7 +1072,7 @@ func mkinlcall(n, fn *Node, maxCost int32) *Node {
+ 
+ 	body := subst.list(asNodes(fn.Func.Inl.Body))
+ 
+-	lab := nod(OLABEL, retlabel, nil)
++	lab := nodSym(OLABEL, nil, retlabel)
+ 	body = append(body, lab)
+ 
+ 	typecheckslice(body, Etop)
+@@ -1158,7 +1158,7 @@ func argvar(t *types.Type, i int) *Node {
+ // function call.
+ type inlsubst struct {
+ 	// Target of the goto substituted in place of a return.
+-	retlabel *Node
++	retlabel *types.Sym
+ 
+ 	// Temporary result variables.
+ 	retvars []*Node
+@@ -1218,7 +1218,7 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 
+ 	//		dump("Return before substitution", n);
+ 	case ORETURN:
+-		m := nod(OGOTO, subst.retlabel, nil)
++		m := nodSym(OGOTO, nil, subst.retlabel)
+ 		m.Ninit.Set(subst.list(n.Ninit))
+ 
+ 		if len(subst.retvars) != 0 && n.List.Len() != 0 {
+@@ -1245,8 +1245,8 @@ func (subst *inlsubst) node(n *Node) *Node {
+ 		m := n.copy()
+ 		m.Pos = subst.updatedPos(m.Pos)
+ 		m.Ninit.Set(nil)
+-		p := fmt.Sprintf("%s·%d", n.Left.Sym.Name, inlgen)
+-		m.Left = newname(lookup(p))
++		p := fmt.Sprintf("%s·%d", n.Sym.Name, inlgen)
++		m.Sym = lookup(p)
+ 
+ 		return m
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 135377c9e2..ca65c7ccca 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -941,7 +941,7 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) *Node {
+ 		}
+ 		n := p.nod(stmt, op, nil, nil)
+ 		if stmt.Label != nil {
+-			n.Left = p.newname(stmt.Label)
++			n.Sym = p.name(stmt.Label)
+ 		}
+ 		return n
+ 	case *syntax.CallStmt:
+@@ -1205,7 +1205,7 @@ func (p *noder) commClauses(clauses []*syntax.CommClause, rbrace syntax.Pos) []*
+ }
+ 
+ func (p *noder) labeledStmt(label *syntax.LabeledStmt, fallOK bool) *Node {
+-	lhs := p.nod(label, OLABEL, p.newname(label.Label), nil)
++	lhs := p.nodSym(label, OLABEL, nil, p.name(label.Label))
+ 
+ 	var ls *Node
+ 	if label.Stmt != nil { // TODO(mdempsky): Should always be present.
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e655d437f5..549038e7d1 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -845,7 +845,7 @@ func (s *state) stmt(n *Node) {
+ 		}
+ 
+ 	case OLABEL:
+-		sym := n.Left.Sym
++		sym := n.Sym
+ 		lab := s.label(sym)
+ 
+ 		// Associate label with its control flow node, if any
+@@ -867,7 +867,7 @@ func (s *state) stmt(n *Node) {
+ 		s.startBlock(lab.target)
+ 
+ 	case OGOTO:
+-		sym := n.Left.Sym
++		sym := n.Sym
+ 
+ 		lab := s.label(sym)
+ 		if lab.target == nil {
+@@ -1033,7 +1033,7 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case OCONTINUE, OBREAK:
+ 		var to *ssa.Block
+-		if n.Left == nil {
++		if n.Sym == nil {
+ 			// plain break/continue
+ 			switch n.Op {
+ 			case OCONTINUE:
+@@ -1043,7 +1043,7 @@ func (s *state) stmt(n *Node) {
+ 			}
+ 		} else {
+ 			// labeled break/continue; look up the target
+-			sym := n.Left.Sym
++			sym := n.Sym
+ 			lab := s.label(sym)
+ 			switch n.Op {
+ 			case OCONTINUE:
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 68803b65df..c92ad14475 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -234,7 +234,7 @@ func lookupN(prefix string, n int) *types.Sym {
+ // to help with debugging.
+ // It should begin with "." to avoid conflicts with
+ // user labels.
+-func autolabel(prefix string) *Node {
++func autolabel(prefix string) *types.Sym {
+ 	if prefix[0] != '.' {
+ 		Fatalf("autolabel prefix must start with '.', have %q", prefix)
+ 	}
+@@ -244,7 +244,7 @@ func autolabel(prefix string) *Node {
+ 	}
+ 	n := fn.Func.Label
+ 	fn.Func.Label++
+-	return newname(lookupN(prefix, int(n)))
++	return lookupN(prefix, int(n))
+ }
+ 
+ func restrictlookup(name string, pkg *types.Pkg) *types.Sym {
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index 965c545660..f1c153937f 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -421,7 +421,8 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		n.Op = OCASE
+ 		needvar := n.List.Len() != 1 || n.List.First().Op == OLITERAL
+ 
+-		jmp := nod(OGOTO, autolabel(".s"), nil)
++		lbl := autolabel(".s")
++		jmp := nodSym(OGOTO, nil, lbl)
+ 		switch n.List.Len() {
+ 		case 0:
+ 			// default
+@@ -486,7 +487,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 			}
+ 		}
+ 
+-		stat = append(stat, nod(OLABEL, jmp.Left, nil))
++		stat = append(stat, nodSym(OLABEL, nil, lbl))
+ 		if typeswvar != nil && needvar && n.Rlist.Len() != 0 {
+ 			l := []*Node{
+ 				nod(ODCL, n.Rlist.First(), nil),
+@@ -778,10 +779,10 @@ func (s *typeSwitch) walk(sw *Node) {
+ 	} else {
+ 		// Jump to default case.
+ 		lbl := autolabel(".s")
+-		i.Nbody.Set1(nod(OGOTO, lbl, nil))
++		i.Nbody.Set1(nodSym(OGOTO, nil, lbl))
+ 		// Wrap default case with label.
+ 		blk := nod(OBLOCK, nil, nil)
+-		blk.List.Set2(nod(OLABEL, lbl, nil), def)
++		blk.List.Set2(nodSym(OLABEL, nil, lbl), def)
+ 		def = blk
+ 	}
+ 	i.Left = typecheck(i.Left, Erv)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 4809199125..87b6d036c5 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -698,10 +698,10 @@ const (
+ 
+ 	// statements
+ 	OBLOCK    // { List } (block of code)
+-	OBREAK    // break
++	OBREAK    // break [Sym]
+ 	OCASE     // case Left or List[0]..List[1]: Nbody (select case after processing; Left==nil and List==nil means default)
+ 	OXCASE    // case List: Nbody (select case before processing; List==nil means default)
+-	OCONTINUE // continue
++	OCONTINUE // continue [Sym]
+ 	ODEFER    // defer Left (Left must be call)
+ 	OEMPTY    // no-op (empty statement)
+ 	OFALL     // fallthrough
+@@ -716,9 +716,9 @@ const (
+ 	// 	}
+ 	// OFORUNTIL is created by walk. There's no way to write this in Go code.
+ 	OFORUNTIL
+-	OGOTO   // goto Left
++	OGOTO   // goto Sym
+ 	OIF     // if Ninit; Left { Nbody } else { Rlist }
+-	OLABEL  // Left:
++	OLABEL  // Sym:
+ 	OPROC   // go Left (Left must be call)
+ 	ORANGE  // for List = range Right { Nbody }
+ 	ORETURN // return List
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 38d9fe078f..cf26d84521 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1984,7 +1984,7 @@ func typecheck1(n *Node, top int) *Node {
+ 	case OLABEL:
+ 		ok |= Etop
+ 		decldepth++
+-		if n.Left.Sym.IsBlank() {
++		if n.Sym.IsBlank() {
+ 			// Empty identifier is valid but useless.
+ 			// Eliminate now to simplify life later.
+ 			// See issues 7538, 11589, 11593.
+@@ -3831,12 +3831,12 @@ func markbreak(n *Node, implicit *Node) {
+ 
+ 	switch n.Op {
+ 	case OBREAK:
+-		if n.Left == nil {
++		if n.Sym == nil {
+ 			if implicit != nil {
+ 				implicit.SetHasBreak(true)
+ 			}
+ 		} else {
+-			lab := asNode(n.Left.Sym.Label)
++			lab := asNode(n.Sym.Label)
+ 			if lab != nil {
+ 				lab.SetHasBreak(true)
+ 			}
+@@ -3864,9 +3864,9 @@ func markbreaklist(l Nodes, implicit *Node) {
+ 		if n.Op == OLABEL && i+1 < len(s) && n.Name.Defn == s[i+1] {
+ 			switch n.Name.Defn.Op {
+ 			case OFOR, OFORUNTIL, OSWITCH, OTYPESW, OSELECT, ORANGE:
+-				n.Left.Sym.Label = asTypesNode(n.Name.Defn)
++				n.Sym.Label = asTypesNode(n.Name.Defn)
+ 				markbreak(n.Name.Defn, n.Name.Defn)
+-				n.Left.Sym.Label = nil
++				n.Sym.Label = nil
+ 				i++
+ 				continue
+ 			}

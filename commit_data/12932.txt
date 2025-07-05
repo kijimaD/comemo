@@ -8,7 +8,43 @@ Date:   Mon Apr 23 12:07:02 2012 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/6107047
-
+---
  src/pkg/reflect/all_test.go | 5 +++++
  src/pkg/reflect/type.go     | 1 +
  2 files changed, 6 insertions(+)
+
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 6bb0613981..e331405635 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -638,6 +638,7 @@ var (
+ 
+ var deepEqualTests = []DeepEqualTest{
+ 	// Equalities
++	{nil, nil, true},
+ 	{1, 1, true},
+ 	{int32(1), int32(1), true},
+ 	{0.5, 0.5, true},
+@@ -696,6 +697,10 @@ func TestDeepEqual(t *testing.T) {
+ }
+ 
+ func TestTypeOf(t *testing.T) {
++	// Special case for nil
++	if typ := TypeOf(nil); typ != nil {
++		t.Errorf("expected nil type for nil value; got %v", typ)
++	}
+ 	for _, test := range deepEqualTests {
+ 		v := ValueOf(test.a)
+ 		if !v.IsValid() {
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 64550b8f6c..060bde3aff 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -940,6 +940,7 @@ func toType(p *runtimeType) Type {
+ }
+ 
+ // TypeOf returns the reflection Type of the value in the interface{}.
++// TypeOf(nil) returns nil.
+ func TypeOf(i interface{}) Type {
+ 	eface := *(*emptyInterface)(unsafe.Pointer(&i))
+ 	return toType(eface.typ)

@@ -10,6 +10,23 @@ Date:   Tue Jan 27 22:55:03 2015 +0300
     Change-Id: I79c3302ec4b931eaaaaffe75e7101c92bf287fc7
     Reviewed-on: https://go-review.googlesource.com/3289
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/proc1.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 1950403329..39e8094578 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1429,10 +1429,7 @@ top:
+ 	// Check the global runnable queue once in a while to ensure fairness.
+ 	// Otherwise two goroutines can completely occupy the local runqueue
+ 	// by constantly respawning each other.
+-	tick := _g_.m.p.schedtick
+-	// This is a fancy way to say tick%61==0,
+-	// it uses 2 MUL instructions instead of a single DIV and so is faster on modern processors.
+-	if uint64(tick)-((uint64(tick)*0x4325c53f)>>36)*61 == 0 && sched.runqsize > 0 {
++	if _g_.m.p.schedtick%61 == 0 && sched.runqsize > 0 {
+ 		lock(&sched.lock)
+ 		gp = globrunqget(_g_.m.p, 1)
+ 		unlock(&sched.lock)

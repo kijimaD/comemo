@@ -11,10 +11,191 @@ Date:   Fri Nov 18 14:47:51 2016 -0800
     Change-Id: I8042ce18c4a27c70cc1ede675daca019b047bcf3
     Reviewed-on: https://go-review.googlesource.com/33412
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/go/internal/gccgoimporter/importer.go          |  5 +--
  src/go/internal/gccgoimporter/importer_test.go     |  1 +
  src/go/internal/gccgoimporter/parser.go            | 40 ++++++++++++++++++----
  .../internal/gccgoimporter/testdata/conversions.go |  5 +++
  .../gccgoimporter/testdata/conversions.gox         |  6 ++++
  5 files changed, 48 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/internal/gccgoimporter/importer.go b/src/go/internal/gccgoimporter/importer.go
+index 19b9c73568..a22d8fed90 100644
+--- a/src/go/internal/gccgoimporter/importer.go
++++ b/src/go/internal/gccgoimporter/importer.go
+@@ -63,6 +63,7 @@ func findExportFile(searchpaths []string, pkgpath string) (string, error) {
+ 
+ const (
+ 	gccgov1Magic    = "v1;\n"
++	gccgov2Magic    = "v2;\n"
+ 	goimporterMagic = "\n$$ "
+ 	archiveMagic    = "!<ar"
+ )
+@@ -91,7 +92,7 @@ func openExportFile(fpath string) (reader io.ReadSeeker, closer io.Closer, err e
+ 
+ 	var elfreader io.ReaderAt
+ 	switch string(magic[:]) {
+-	case gccgov1Magic, goimporterMagic:
++	case gccgov1Magic, gccgov2Magic, goimporterMagic:
+ 		// Raw export data.
+ 		reader = f
+ 		return
+@@ -168,7 +169,7 @@ func GetImporter(searchpaths []string, initmap map[*types.Package]InitData) Impo
+ 		}
+ 
+ 		switch string(magic[:]) {
+-		case gccgov1Magic:
++		case gccgov1Magic, gccgov2Magic:
+ 			var p parser
+ 			p.init(fpath, reader, imports)
+ 			pkg = p.parsePackage()
+diff --git a/src/go/internal/gccgoimporter/importer_test.go b/src/go/internal/gccgoimporter/importer_test.go
+index c10fa484e3..58abbba94e 100644
+--- a/src/go/internal/gccgoimporter/importer_test.go
++++ b/src/go/internal/gccgoimporter/importer_test.go
+@@ -95,6 +95,7 @@ var importerTests = [...]importerTest{
+ 	{pkgpath: "complexnums", name: "NP", want: "const NP untyped complex", wantval: "(-1 + 1i)"},
+ 	{pkgpath: "complexnums", name: "PN", want: "const PN untyped complex", wantval: "(1 + -1i)"},
+ 	{pkgpath: "complexnums", name: "PP", want: "const PP untyped complex", wantval: "(1 + 1i)"},
++	{pkgpath: "conversions", name: "Bits", want: "const Bits Units", wantval: `"bits"`},
+ 	// TODO: enable this entry once bug has been tracked down
+ 	//{pkgpath: "imports", wantinits: []string{"imports..import", "fmt..import", "math..import"}},
+ }
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index c06cce435b..7312cb4879 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -19,6 +19,7 @@ import (
+ 
+ type parser struct {
+ 	scanner  scanner.Scanner
++	version  string                    // format version
+ 	tok      rune                      // current token
+ 	lit      string                    // literal string; only valid for Ident, Int, String tokens
+ 	pkgpath  string                    // package path of imported package
+@@ -245,9 +246,20 @@ func (p *parser) parseVar(pkg *types.Package) *types.Var {
+ 	return types.NewVar(token.NoPos, pkg, name, p.parseType(pkg))
+ }
+ 
+-// ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) .
++// Conversion = "convert" "(" Type "," ConstValue ")" .
++func (p *parser) parseConversion(pkg *types.Package) (val constant.Value, typ types.Type) {
++	p.expectKeyword("convert")
++	p.expect('(')
++	typ = p.parseType(pkg)
++	p.expect(',')
++	val, _ = p.parseConstValue(pkg)
++	p.expect(')')
++	return
++}
++
++// ConstValue     = string | "false" | "true" | ["-"] (int ["'"] | FloatOrComplex) | Conversion .
+ // FloatOrComplex = float ["i" | ("+"|"-") float "i"] .
+-func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
++func (p *parser) parseConstValue(pkg *types.Package) (val constant.Value, typ types.Type) {
+ 	switch p.tok {
+ 	case scanner.String:
+ 		str := p.parseString()
+@@ -262,6 +274,9 @@ func (p *parser) parseConstValue() (val constant.Value, typ types.Type) {
+ 		case "true":
+ 			b = true
+ 
++		case "convert":
++			return p.parseConversion(pkg)
++
+ 		default:
+ 			p.errorf("expected const value, got %s (%q)", scanner.TokenString(p.tok), p.lit)
+ 		}
+@@ -348,7 +363,7 @@ func (p *parser) parseConst(pkg *types.Package) *types.Const {
+ 		typ = p.parseType(pkg)
+ 	}
+ 	p.expect('=')
+-	val, vtyp := p.parseConstValue()
++	val, vtyp := p.parseConstValue(pkg)
+ 	if typ == nil {
+ 		typ = vtyp
+ 	}
+@@ -723,7 +738,7 @@ func (p *parser) maybeCreatePackage() {
+ 	}
+ }
+ 
+-// InitDataDirective = "v1" ";" |
++// InitDataDirective = ( "v1" | "v2" ) ";" |
+ //                     "priority" int ";" |
+ //                     "init" { PackageInit } ";" |
+ //                     "checksum" unquotedString ";" .
+@@ -734,7 +749,8 @@ func (p *parser) parseInitDataDirective() {
+ 	}
+ 
+ 	switch p.lit {
+-	case "v1":
++	case "v1", "v2":
++		p.version = p.lit
+ 		p.next()
+ 		p.expect(';')
+ 
+@@ -766,8 +782,9 @@ func (p *parser) parseInitDataDirective() {
+ }
+ 
+ // Directive = InitDataDirective |
+-//             "package" unquotedString ";" |
++//             "package" unquotedString [ unquotedString ] [ unquotedString ] ";" |
+ //             "pkgpath" unquotedString ";" |
++//             "prefix" unquotedString ";" |
+ //             "import" unquotedString unquotedString string ";" |
+ //             "func" Func ";" |
+ //             "type" Type ";" |
+@@ -780,13 +797,17 @@ func (p *parser) parseDirective() {
+ 	}
+ 
+ 	switch p.lit {
+-	case "v1", "priority", "init", "checksum":
++	case "v1", "v2", "priority", "init", "checksum":
+ 		p.parseInitDataDirective()
+ 
+ 	case "package":
+ 		p.next()
+ 		p.pkgname = p.parseUnquotedString()
+ 		p.maybeCreatePackage()
++		if p.version == "v2" && p.tok != ';' {
++			p.parseUnquotedString()
++			p.parseUnquotedString()
++		}
+ 		p.expect(';')
+ 
+ 	case "pkgpath":
+@@ -795,6 +816,11 @@ func (p *parser) parseDirective() {
+ 		p.maybeCreatePackage()
+ 		p.expect(';')
+ 
++	case "prefix":
++		p.next()
++		p.pkgpath = p.parseUnquotedString()
++		p.expect(';')
++
+ 	case "import":
+ 		p.next()
+ 		pkgname := p.parseUnquotedString()
+diff --git a/src/go/internal/gccgoimporter/testdata/conversions.go b/src/go/internal/gccgoimporter/testdata/conversions.go
+new file mode 100644
+index 0000000000..653927ad67
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/conversions.go
+@@ -0,0 +1,5 @@
++package conversions
++
++type Units string
++
++const Bits = Units("bits")
+diff --git a/src/go/internal/gccgoimporter/testdata/conversions.gox b/src/go/internal/gccgoimporter/testdata/conversions.gox
+new file mode 100644
+index 0000000000..7de6cdad2c
+--- /dev/null
++++ b/src/go/internal/gccgoimporter/testdata/conversions.gox
+@@ -0,0 +1,6 @@
++v2;
++package conversions;
++prefix go;
++package conversions go.conversions go.conversions;
++const Bits <type 1 "Units" <type -16>> = convert(<type 1>, "bits");
++type <type 1>;

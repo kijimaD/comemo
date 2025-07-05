@@ -7,7 +7,37 @@ Date:   Thu May 14 03:26:31 2015 -0400
     Change-Id: Ia81675b0f01ceafada32bdd2bc59088016a7421e
     Reviewed-on: https://go-review.googlesource.com/10043
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/zerrors_linux_ppc64.go | 4 ++--
  src/syscall/ztypes_linux_ppc64.go  | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/syscall/zerrors_linux_ppc64.go b/src/syscall/zerrors_linux_ppc64.go
+index 15e0770c18..fbaf0dc9af 100644
+--- a/src/syscall/zerrors_linux_ppc64.go
++++ b/src/syscall/zerrors_linux_ppc64.go
+@@ -366,9 +366,9 @@ const (
+ 	F_SETFD                          = 0x2
+ 	F_SETFL                          = 0x4
+ 	F_SETLEASE                       = 0x400
+-	F_SETLK                          = 0xd
++	F_SETLK                          = 0x6
+ 	F_SETLK64                        = 0xd
+-	F_SETLKW                         = 0xe
++	F_SETLKW                         = 0x7
+ 	F_SETLKW64                       = 0xe
+ 	F_SETOWN                         = 0x8
+ 	F_SETOWN_EX                      = 0xf
+diff --git a/src/syscall/ztypes_linux_ppc64.go b/src/syscall/ztypes_linux_ppc64.go
+index fe438364d4..bce0350b86 100644
+--- a/src/syscall/ztypes_linux_ppc64.go
++++ b/src/syscall/ztypes_linux_ppc64.go
+@@ -549,7 +549,7 @@ type Sysinfo_t struct {
+ 	Totalhigh uint64
+ 	Freehigh  uint64
+ 	Unit      uint32
+-	X_f       [0]byte
++	X_f       [0]uint8
+ 	Pad_cgo_1 [4]byte
+ }
+ 

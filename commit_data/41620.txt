@@ -20,7 +20,7 @@ Date:   Mon Oct 14 10:06:37 2019 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go                          |   1 +
  src/cmd/link/internal/ld/deadcode2.go              | 143 +++++++++++----------
  src/cmd/link/internal/ld/lib.go                    |   9 +-
@@ -28,3 +28,709 @@ Date:   Mon Oct 14 10:06:37 2019 -0400
  .../{objfile/objfile2.go => loader/loader.go}      |  60 ++++-----
  src/cmd/link/internal/loadmacho/ldmacho.go         |   4 +-
  6 files changed, 112 insertions(+), 109 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index e85dd9a660..2458b439a8 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -73,6 +73,7 @@ var bootstrapDirs = []string{
+ 	"cmd/link/internal/arm64",
+ 	"cmd/link/internal/ld",
+ 	"cmd/link/internal/loadelf",
++	"cmd/link/internal/loader",
+ 	"cmd/link/internal/loadmacho",
+ 	"cmd/link/internal/loadpe",
+ 	"cmd/link/internal/loadxcoff",
+diff --git a/src/cmd/link/internal/ld/deadcode2.go b/src/cmd/link/internal/ld/deadcode2.go
+index 008285c429..ff5cb60a60 100644
+--- a/src/cmd/link/internal/ld/deadcode2.go
++++ b/src/cmd/link/internal/ld/deadcode2.go
+@@ -8,7 +8,7 @@ import (
+ 	"bytes"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+-	"cmd/link/internal/objfile"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"fmt"
+ 	"strings"
+@@ -26,16 +26,16 @@ var _ = fmt.Print
+ // - Debug output:
+ //   Emit messages about which symbols are kept or deleted.
+ 
+-type workQueue []objfile.Sym
++type workQueue []loader.Sym
+ 
+-func (q *workQueue) push(i objfile.Sym) { *q = append(*q, i) }
+-func (q *workQueue) pop() objfile.Sym   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
+-func (q *workQueue) empty() bool        { return len(*q) == 0 }
++func (q *workQueue) push(i loader.Sym) { *q = append(*q, i) }
++func (q *workQueue) pop() loader.Sym   { i := (*q)[len(*q)-1]; *q = (*q)[:len(*q)-1]; return i }
++func (q *workQueue) empty() bool       { return len(*q) == 0 }
+ 
+ type deadcodePass2 struct {
+-	ctxt   *Link
+-	loader *objfile.Loader
+-	wq     workQueue
++	ctxt *Link
++	ldr  *loader.Loader
++	wq   workQueue
+ 
+ 	ifaceMethod     map[methodsig]bool // methods declared in reached interfaces
+ 	markableMethods []methodref2       // methods of reached types
+@@ -43,7 +43,7 @@ type deadcodePass2 struct {
+ }
+ 
+ func (d *deadcodePass2) init() {
+-	d.loader.InitReachable()
++	d.ldr.InitReachable()
+ 	d.ifaceMethod = make(map[methodsig]bool)
+ 
+ 	var names []string
+@@ -67,15 +67,16 @@ func (d *deadcodePass2) init() {
+ 
+ 			// We don't keep the go.plugin.exports symbol,
+ 			// but we do keep the symbols it refers to.
+-			exportsIdx := d.loader.Lookup("go.plugin.exports", 0)
++			exportsIdx := d.ldr.Lookup("go.plugin.exports", 0)
+ 			if exportsIdx != 0 {
+-				relocs := d.loader.Relocs(exportsIdx)
++				relocs := d.ldr.Relocs(exportsIdx)
+ 				for i := 0; i < relocs.Count; i++ {
+ 					d.mark(relocs.At(i).Sym)
+ 				}
+ 			}
+ 		}
+ 	}
++
+ 	dynexpMap := d.ctxt.cgo_export_dynamic
+ 	if d.ctxt.LinkMode == LinkExternal {
+ 		dynexpMap = d.ctxt.cgo_export_static
+@@ -86,9 +87,9 @@ func (d *deadcodePass2) init() {
+ 
+ 	for _, name := range names {
+ 		// Mark symbol as an data/ABI0 symbol.
+-		d.mark(d.loader.Lookup(name, 0))
++		d.mark(d.ldr.Lookup(name, 0))
+ 		// Also mark any Go functions (internal ABI).
+-		d.mark(d.loader.Lookup(name, sym.SymVerABIInternal))
++		d.mark(d.ldr.Lookup(name, sym.SymVerABIInternal))
+ 	}
+ }
+ 
+@@ -96,13 +97,13 @@ func (d *deadcodePass2) flood() {
+ 	for !d.wq.empty() {
+ 		symIdx := d.wq.pop()
+ 
+-		d.reflectSeen = d.reflectSeen || d.loader.IsReflectMethod(symIdx)
++		d.reflectSeen = d.reflectSeen || d.ldr.IsReflectMethod(symIdx)
+ 
+-		name := d.loader.RawSymName(symIdx)
++		name := d.ldr.RawSymName(symIdx)
+ 		if strings.HasPrefix(name, "type.") && name[5] != '.' { // TODO: use an attribute instead of checking name
+-			p := d.loader.Data(symIdx)
++			p := d.ldr.Data(symIdx)
+ 			if len(p) != 0 && decodetypeKind(d.ctxt.Arch, p)&kindMask == kindInterface {
+-				for _, sig := range decodeIfaceMethods2(d.loader, d.ctxt.Arch, symIdx) {
++				for _, sig := range decodeIfaceMethods2(d.ldr, d.ctxt.Arch, symIdx) {
+ 					if d.ctxt.Debugvlog > 1 {
+ 						d.ctxt.Logf("reached iface method: %s\n", sig)
+ 					}
+@@ -112,7 +113,7 @@ func (d *deadcodePass2) flood() {
+ 		}
+ 
+ 		var methods []methodref2
+-		relocs := d.loader.Relocs(symIdx)
++		relocs := d.ldr.Relocs(symIdx)
+ 		for i := 0; i < relocs.Count; i++ {
+ 			r := relocs.At(i)
+ 			if r.Type == objabi.R_WEAKADDROFF {
+@@ -134,18 +135,18 @@ func (d *deadcodePass2) flood() {
+ 			}
+ 			d.mark(r.Sym)
+ 		}
+-		naux := d.loader.NAux(symIdx)
++		naux := d.ldr.NAux(symIdx)
+ 		for i := 0; i < naux; i++ {
+-			d.mark(d.loader.AuxSym(symIdx, i))
++			d.mark(d.ldr.AuxSym(symIdx, i))
+ 		}
+ 
+ 		if len(methods) != 0 {
+ 			// Decode runtime type information for type methods
+ 			// to help work out which methods can be called
+ 			// dynamically via interfaces.
+-			methodsigs := decodetypeMethods2(d.loader, d.ctxt.Arch, symIdx)
++			methodsigs := decodetypeMethods2(d.ldr, d.ctxt.Arch, symIdx)
+ 			if len(methods) != len(methodsigs) {
+-				panic(fmt.Sprintf("%q has %d method relocations for %d methods", d.loader.SymName(symIdx), len(methods), len(methodsigs)))
++				panic(fmt.Sprintf("%q has %d method relocations for %d methods", d.ldr.SymName(symIdx), len(methods), len(methodsigs)))
+ 			}
+ 			for i, m := range methodsigs {
+ 				methods[i].m = m
+@@ -155,29 +156,28 @@ func (d *deadcodePass2) flood() {
+ 	}
+ }
+ 
+-func (d *deadcodePass2) mark(symIdx objfile.Sym) {
+-	if symIdx != 0 && !d.loader.Reachable.Has(symIdx) {
++func (d *deadcodePass2) mark(symIdx loader.Sym) {
++	if symIdx != 0 && !d.ldr.Reachable.Has(symIdx) {
+ 		d.wq.push(symIdx)
+-		d.loader.Reachable.Set(symIdx)
++		d.ldr.Reachable.Set(symIdx)
+ 	}
+ }
+ 
+ func (d *deadcodePass2) markMethod(m methodref2) {
+-	relocs := d.loader.Relocs(m.src)
++	relocs := d.ldr.Relocs(m.src)
+ 	d.mark(relocs.At(m.r).Sym)
+ 	d.mark(relocs.At(m.r + 1).Sym)
+ 	d.mark(relocs.At(m.r + 2).Sym)
+ }
+ 
+ func deadcode2(ctxt *Link) {
+-	loader := ctxt.loader
+-	d := deadcodePass2{ctxt: ctxt, loader: loader}
++	ldr := ctxt.loader
++	d := deadcodePass2{ctxt: ctxt, ldr: ldr}
+ 	d.init()
+ 	d.flood()
+ 
+-	callSym := loader.Lookup("reflect.Value.Call", sym.SymVerABIInternal)
+-	methSym := loader.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
+-
++	callSym := ldr.Lookup("reflect.Value.Call", sym.SymVerABIInternal)
++	methSym := ldr.Lookup("reflect.Value.Method", sym.SymVerABIInternal)
+ 	if ctxt.DynlinkingGo() {
+ 		// Exported methods may satisfy interfaces we don't know
+ 		// about yet when dynamically linking.
+@@ -188,7 +188,7 @@ func deadcode2(ctxt *Link) {
+ 		// Methods might be called via reflection. Give up on
+ 		// static analysis, mark all exported methods of
+ 		// all reachable types as reachable.
+-		d.reflectSeen = d.reflectSeen || (callSym != 0 && loader.Reachable.Has(callSym)) || (methSym != 0 && loader.Reachable.Has(methSym))
++		d.reflectSeen = d.reflectSeen || (callSym != 0 && ldr.Reachable.Has(callSym)) || (methSym != 0 && ldr.Reachable.Has(methSym))
+ 
+ 		// Mark all methods that could satisfy a discovered
+ 		// interface as reachable. We recheck old marked interfaces
+@@ -211,16 +211,17 @@ func deadcode2(ctxt *Link) {
+ 		d.flood()
+ 	}
+ 
+-	n := loader.NSym()
++	n := ldr.NSym()
++
+ 	if ctxt.BuildMode != BuildModeShared {
+ 		// Keep a itablink if the symbol it points at is being kept.
+ 		// (When BuildModeShared, always keep itablinks.)
+ 		for i := 1; i < n; i++ {
+-			s := objfile.Sym(i)
+-			if strings.HasPrefix(loader.RawSymName(s), "go.itablink.") { // TODO: use an attribute instread of checking name
+-				relocs := loader.Relocs(s)
+-				if relocs.Count > 0 && loader.Reachable.Has(relocs.At(0).Sym) {
+-					loader.Reachable.Set(s)
++			s := loader.Sym(i)
++			if strings.HasPrefix(ldr.RawSymName(s), "go.itablink.") { // TODO: use an attribute instread of checking name
++				relocs := ldr.Relocs(s)
++				if relocs.Count > 0 && ldr.Reachable.Has(relocs.At(0).Sym) {
++					ldr.Reachable.Set(s)
+ 				}
+ 			}
+ 		}
+@@ -232,8 +233,8 @@ func deadcode2(ctxt *Link) {
+ // the reflect.method struct: mtyp, ifn, and tfn.
+ type methodref2 struct {
+ 	m   methodsig
+-	src objfile.Sym // receiver type symbol
+-	r   int         // the index of R_METHODOFF relocations
++	src loader.Sym // receiver type symbol
++	r   int        // the index of R_METHODOFF relocations
+ }
+ 
+ func (m methodref2) isExported() bool {
+@@ -249,13 +250,13 @@ func (m methodref2) isExported() bool {
+ // the function type.
+ //
+ // Conveniently this is the layout of both runtime.method and runtime.imethod.
+-func decodeMethodSig2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym, off, size, count int) []methodsig {
++func decodeMethodSig2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, off, size, count int) []methodsig {
+ 	var buf bytes.Buffer
+ 	var methods []methodsig
+ 	for i := 0; i < count; i++ {
+-		buf.WriteString(decodetypeName2(loader, symIdx, off))
+-		mtypSym := decodeRelocSym2(loader, symIdx, int32(off+4))
+-		mp := loader.Data(mtypSym)
++		buf.WriteString(decodetypeName2(ldr, symIdx, off))
++		mtypSym := decodeRelocSym2(ldr, symIdx, int32(off+4))
++		mp := ldr.Data(mtypSym)
+ 
+ 		buf.WriteRune('(')
+ 		inCount := decodetypeFuncInCount(arch, mp)
+@@ -263,8 +264,8 @@ func decodeMethodSig2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			a := decodetypeFuncInType2(loader, arch, mtypSym, i)
+-			buf.WriteString(loader.SymName(a))
++			a := decodetypeFuncInType2(ldr, arch, mtypSym, i)
++			buf.WriteString(ldr.SymName(a))
+ 		}
+ 		buf.WriteString(") (")
+ 		outCount := decodetypeFuncOutCount(arch, mp)
+@@ -272,8 +273,8 @@ func decodeMethodSig2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym
+ 			if i > 0 {
+ 				buf.WriteString(", ")
+ 			}
+-			a := decodetypeFuncOutType2(loader, arch, mtypSym, i)
+-			buf.WriteString(loader.SymName(a))
++			a := decodetypeFuncOutType2(ldr, arch, mtypSym, i)
++			buf.WriteString(ldr.SymName(a))
+ 		}
+ 		buf.WriteRune(')')
+ 
+@@ -284,28 +285,28 @@ func decodeMethodSig2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym
+ 	return methods
+ }
+ 
+-func decodeIfaceMethods2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym) []methodsig {
+-	p := loader.Data(symIdx)
++func decodeIfaceMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) []methodsig {
++	p := ldr.Data(symIdx)
+ 	if decodetypeKind(arch, p)&kindMask != kindInterface {
+-		panic(fmt.Sprintf("symbol %q is not an interface", loader.SymName(symIdx)))
++		panic(fmt.Sprintf("symbol %q is not an interface", ldr.SymName(symIdx)))
+ 	}
+-	rel := decodeReloc2(loader, symIdx, int32(commonsize(arch)+arch.PtrSize))
++	rel := decodeReloc2(ldr, symIdx, int32(commonsize(arch)+arch.PtrSize))
+ 	if rel.Sym == 0 {
+ 		return nil
+ 	}
+ 	if rel.Sym != symIdx {
+-		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", loader.SymName(symIdx)))
++		panic(fmt.Sprintf("imethod slice pointer in %q leads to a different symbol", ldr.SymName(symIdx)))
+ 	}
+ 	off := int(rel.Add) // array of reflect.imethod values
+ 	numMethods := int(decodetypeIfaceMethodCount(arch, p))
+ 	sizeofIMethod := 4 + 4
+-	return decodeMethodSig2(loader, arch, symIdx, off, sizeofIMethod, numMethods)
++	return decodeMethodSig2(ldr, arch, symIdx, off, sizeofIMethod, numMethods)
+ }
+ 
+-func decodetypeMethods2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym) []methodsig {
+-	p := loader.Data(symIdx)
++func decodetypeMethods2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) []methodsig {
++	p := ldr.Data(symIdx)
+ 	if !decodetypeHasUncommon(arch, p) {
+-		panic(fmt.Sprintf("no methods on %q", loader.SymName(symIdx)))
++		panic(fmt.Sprintf("no methods on %q", ldr.SymName(symIdx)))
+ 	}
+ 	off := commonsize(arch) // reflect.rtype
+ 	switch decodetypeKind(arch, p) & kindMask {
+@@ -333,47 +334,47 @@ func decodetypeMethods2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.S
+ 	moff := int(decodeInuxi(arch, p[off+4+2+2:], 4))
+ 	off += moff                // offset to array of reflect.method values
+ 	const sizeofMethod = 4 * 4 // sizeof reflect.method in program
+-	return decodeMethodSig2(loader, arch, symIdx, off, sizeofMethod, mcount)
++	return decodeMethodSig2(ldr, arch, symIdx, off, sizeofMethod, mcount)
+ }
+ 
+-func decodeReloc2(loader *objfile.Loader, symIdx objfile.Sym, off int32) objfile.Reloc {
+-	relocs := loader.Relocs(symIdx)
++func decodeReloc2(ldr *loader.Loader, symIdx loader.Sym, off int32) loader.Reloc {
++	relocs := ldr.Relocs(symIdx)
+ 	for j := 0; j < relocs.Count; j++ {
+ 		rel := relocs.At(j)
+ 		if rel.Off == off {
+ 			return rel
+ 		}
+ 	}
+-	return objfile.Reloc{}
++	return loader.Reloc{}
+ }
+ 
+-func decodeRelocSym2(loader *objfile.Loader, symIdx objfile.Sym, off int32) objfile.Sym {
+-	return decodeReloc2(loader, symIdx, off).Sym
++func decodeRelocSym2(ldr *loader.Loader, symIdx loader.Sym, off int32) loader.Sym {
++	return decodeReloc2(ldr, symIdx, off).Sym
+ }
+ 
+ // decodetypeName2 decodes the name from a reflect.name.
+-func decodetypeName2(loader *objfile.Loader, symIdx objfile.Sym, off int) string {
+-	r := decodeRelocSym2(loader, symIdx, int32(off))
++func decodetypeName2(ldr *loader.Loader, symIdx loader.Sym, off int) string {
++	r := decodeRelocSym2(ldr, symIdx, int32(off))
+ 	if r == 0 {
+ 		return ""
+ 	}
+ 
+-	data := loader.Data(r)
++	data := ldr.Data(r)
+ 	namelen := int(uint16(data[1])<<8 | uint16(data[2]))
+ 	return string(data[3 : 3+namelen])
+ }
+ 
+-func decodetypeFuncInType2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym, i int) objfile.Sym {
++func decodetypeFuncInType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
+ 	uadd := commonsize(arch) + 4
+ 	if arch.PtrSize == 8 {
+ 		uadd += 4
+ 	}
+-	if decodetypeHasUncommon(arch, loader.Data(symIdx)) {
++	if decodetypeHasUncommon(arch, ldr.Data(symIdx)) {
+ 		uadd += uncommonSize()
+ 	}
+-	return decodeRelocSym2(loader, symIdx, int32(uadd+i*arch.PtrSize))
++	return decodeRelocSym2(ldr, symIdx, int32(uadd+i*arch.PtrSize))
+ }
+ 
+-func decodetypeFuncOutType2(loader *objfile.Loader, arch *sys.Arch, symIdx objfile.Sym, i int) objfile.Sym {
+-	return decodetypeFuncInType2(loader, arch, symIdx, i+decodetypeFuncInCount(arch, loader.Data(symIdx)))
++func decodetypeFuncOutType2(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
++	return decodetypeFuncInType2(ldr, arch, symIdx, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+ }
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 98748eb6fd..7d24e650a2 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -38,6 +38,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loadelf"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/loadmacho"
+ 	"cmd/link/internal/loadpe"
+ 	"cmd/link/internal/loadxcoff"
+@@ -376,7 +377,7 @@ func (ctxt *Link) findLibPath(libname string) string {
+ 
+ func (ctxt *Link) loadlib() {
+ 	if *flagNewobj {
+-		ctxt.loader = objfile.NewLoader()
++		ctxt.loader = loader.NewLoader()
+ 	}
+ 
+ 	ctxt.cgo_export_static = make(map[string]bool)
+@@ -434,7 +435,7 @@ func (ctxt *Link) loadlib() {
+ 
+ 	if *flagNewobj {
+ 		// Add references of externally defined symbols.
+-		objfile.LoadRefs(ctxt.loader, ctxt.Arch, ctxt.Syms)
++		ctxt.loader.LoadRefs(ctxt.Arch, ctxt.Syms)
+ 	}
+ 
+ 	// Now that we know the link mode, set the dynexp list.
+@@ -1772,7 +1773,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	}
+ 	var c int
+ 	if *flagNewobj {
+-		objfile.LoadNew(ctxt.loader, ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
++		ctxt.loader.Preload(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+ 	} else {
+ 		c = objfile.Load(ctxt.Arch, ctxt.Syms, f, lib, unit, eof-f.Offset(), pn, flags)
+ 	}
+@@ -2550,7 +2551,7 @@ func dfs(lib *sym.Library, mark map[*sym.Library]markKind, order *[]*sym.Library
+ 
+ func (ctxt *Link) loadlibfull() {
+ 	// Load full symbol contents, resolve indexed references.
+-	objfile.LoadFull(ctxt.loader, ctxt.Arch, ctxt.Syms)
++	ctxt.loader.LoadFull(ctxt.Arch, ctxt.Syms)
+ 
+ 	// For now, add all symbols to ctxt.Syms.
+ 	for _, s := range ctxt.loader.Syms {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 46bf08bb1c..124f7d9001 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -35,7 +35,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+-	"cmd/link/internal/objfile"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"debug/elf"
+ 	"fmt"
+@@ -98,7 +98,7 @@ type Link struct {
+ 
+ 	relocbuf []byte // temporary buffer for applying relocations
+ 
+-	loader  *objfile.Loader
++	loader  *loader.Loader
+ 	cgodata []cgodata // cgo directives to load, three strings are args for loadcgo
+ 
+ 	cgo_export_static  map[string]bool
+diff --git a/src/cmd/link/internal/objfile/objfile2.go b/src/cmd/link/internal/loader/loader.go
+similarity index 94%
+rename from src/cmd/link/internal/objfile/objfile2.go
+rename to src/cmd/link/internal/loader/loader.go
+index d80ea1b379..e986f7e2c1 100644
+--- a/src/cmd/link/internal/objfile/objfile2.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package objfile
++package loader
+ 
+ import (
+ 	"bytes"
+@@ -87,8 +87,6 @@ func makeBitmap(n int) bitmap {
+ }
+ 
+ // A Loader loads new object files and resolves indexed symbol references.
+-//
+-// TODO: describe local-global index mapping.
+ type Loader struct {
+ 	start    map[*oReader]Sym // map from object file to its start index
+ 	objs     []objIdx         // sorted by start index (i.e. objIdx.i)
+@@ -117,12 +115,12 @@ func NewLoader() *Loader {
+ }
+ 
+ // Return the start index in the global index space for a given object file.
+-func (l *Loader) StartIndex(r *oReader) Sym {
++func (l *Loader) startIndex(r *oReader) Sym {
+ 	return l.start[r]
+ }
+ 
+ // Add object file r, return the start index.
+-func (l *Loader) AddObj(pkg string, r *oReader) Sym {
++func (l *Loader) addObj(pkg string, r *oReader) Sym {
+ 	if _, ok := l.start[r]; ok {
+ 		panic("already added")
+ 	}
+@@ -148,10 +146,10 @@ func (l *Loader) AddSym(name string, ver int, i Sym, r *oReader, dupok bool, typ
+ 		if dupok {
+ 			return false
+ 		}
+-		overwrite := r.DataSize(int(i-l.StartIndex(r))) != 0
++		overwrite := r.DataSize(int(i-l.startIndex(r))) != 0
+ 		if overwrite {
+ 			// new symbol overwrites old symbol.
+-			oldr, li := l.ToLocal(oldi)
++			oldr, li := l.toLocal(oldi)
+ 			oldsym := goobj2.Sym{}
+ 			oldsym.Read(oldr.Reader, oldr.SymOff(li))
+ 			oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type)]
+@@ -190,8 +188,8 @@ func (l *Loader) AddExtSym(name string, ver int) Sym {
+ }
+ 
+ // Convert a local index to a global index.
+-func (l *Loader) ToGlobal(r *oReader, i int) Sym {
+-	g := l.StartIndex(r) + Sym(i)
++func (l *Loader) toGlobal(r *oReader, i int) Sym {
++	g := l.startIndex(r) + Sym(i)
+ 	if ov, ok := l.overwrite[g]; ok {
+ 		return ov
+ 	}
+@@ -199,7 +197,7 @@ func (l *Loader) ToGlobal(r *oReader, i int) Sym {
+ }
+ 
+ // Convert a global index to a local index.
+-func (l *Loader) ToLocal(i Sym) (*oReader, int) {
++func (l *Loader) toLocal(i Sym) (*oReader, int) {
+ 	if ov, ok := l.overwrite[i]; ok {
+ 		i = ov
+ 	}
+@@ -216,7 +214,7 @@ func (l *Loader) ToLocal(i Sym) (*oReader, int) {
+ }
+ 
+ // Resolve a local symbol reference. Return global index.
+-func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
++func (l *Loader) resolve(r *oReader, s goobj2.SymRef) Sym {
+ 	var rr *oReader
+ 	switch p := s.PkgIdx; p {
+ 	case goobj2.PkgIdxInvalid:
+@@ -245,7 +243,7 @@ func (l *Loader) Resolve(r *oReader, s goobj2.SymRef) Sym {
+ 			log.Fatalf("reference of nonexisted package %s, from %v", pkg, r.unit.Lib)
+ 		}
+ 	}
+-	return l.ToGlobal(rr, int(s.SymIdx))
++	return l.toGlobal(rr, int(s.SymIdx))
+ }
+ 
+ // Look up a symbol by name, return global index, or 0 if not found.
+@@ -266,7 +264,7 @@ func (l *Loader) RawSymName(i Sym) string {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return ""
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	osym := goobj2.Sym{}
+ 	osym.Read(r.Reader, r.SymOff(li))
+ 	return osym.Name
+@@ -277,7 +275,7 @@ func (l *Loader) SymName(i Sym) string {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return ""
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	osym := goobj2.Sym{}
+ 	osym.Read(r.Reader, r.SymOff(li))
+ 	return strings.Replace(osym.Name, "\"\".", r.pkgprefix, -1)
+@@ -288,7 +286,7 @@ func (l *Loader) SymType(i Sym) sym.SymKind {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return 0
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	osym := goobj2.Sym{}
+ 	osym.Read(r.Reader, r.SymOff(li))
+ 	return sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type)]
+@@ -299,7 +297,7 @@ func (l *Loader) SymAttr(i Sym) uint8 {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return 0
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	osym := goobj2.Sym{}
+ 	osym.Read(r.Reader, r.SymOff(li))
+ 	return osym.Flag
+@@ -315,7 +313,7 @@ func (l *Loader) Data(i Sym) []byte {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return nil
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	return r.Data(li)
+ }
+ 
+@@ -324,7 +322,7 @@ func (l *Loader) NAux(i Sym) int {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return 0
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	return r.NAux(li)
+ }
+ 
+@@ -334,10 +332,10 @@ func (l *Loader) AuxSym(i Sym, j int) Sym {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return 0
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	a := goobj2.Aux{}
+ 	a.Read(r.Reader, r.AuxOff(li, j))
+-	return l.Resolve(r, a.Sym)
++	return l.resolve(r, a.Sym)
+ }
+ 
+ // Initialize Reachable bitmap for running deadcode pass.
+@@ -349,7 +347,7 @@ func (l *Loader) InitReachable() {
+ func (relocs *Relocs) At(j int) Reloc {
+ 	rel := goobj2.Reloc{}
+ 	rel.Read(relocs.r.Reader, relocs.r.RelocOff(relocs.li, j))
+-	target := relocs.l.Resolve(relocs.r, rel.Sym)
++	target := relocs.l.resolve(relocs.r, rel.Sym)
+ 	return Reloc{
+ 		Off:  rel.Off,
+ 		Size: rel.Siz,
+@@ -364,7 +362,7 @@ func (l *Loader) Relocs(i Sym) Relocs {
+ 	if l.extStart != 0 && i >= l.extStart {
+ 		return Relocs{}
+ 	}
+-	r, li := l.ToLocal(i)
++	r, li := l.toLocal(i)
+ 	return l.relocs(r, li)
+ }
+ 
+@@ -380,7 +378,7 @@ func (l *Loader) relocs(r *oReader, li int) Relocs {
+ 
+ // Preload a package: add autolibs, add symbols to the symbol table.
+ // Does not read symbol data yet.
+-func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
++func (l *Loader) Preload(arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *sym.Library, unit *sym.CompilationUnit, length int64, pn string, flags int) {
+ 	roObject, readonly, err := f.Slice(uint64(length))
+ 	if err != nil {
+ 		log.Fatal("cannot read object file:", err)
+@@ -403,7 +401,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
+ 		unit.DWARFFileTable[i] = r.DwarfFile(i)
+ 	}
+ 
+-	istart := l.AddObj(lib.Pkg, or)
++	istart := l.addObj(lib.Pkg, or)
+ 
+ 	ndef := r.NSym()
+ 	nnonpkgdef := r.NNonpkgdef()
+@@ -425,7 +423,7 @@ func LoadNew(l *Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, lib *s
+ 
+ // Make sure referenced symbols are added. Most of them should already be added.
+ // This should only be needed for referenced external symbols.
+-func LoadRefs(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
++func (l *Loader) LoadRefs(arch *sys.Arch, syms *sym.Symbols) {
+ 	for _, o := range l.objs[1:] {
+ 		loadObjRefs(l, o.r, arch, syms)
+ 	}
+@@ -479,7 +477,7 @@ func preprocess(arch *sys.Arch, s *sym.Symbol) {
+ }
+ 
+ // Load full contents.
+-func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
++func (l *Loader) LoadFull(arch *sys.Arch, syms *sym.Symbols) {
+ 	// create all Symbols first.
+ 	l.Syms = make([]*sym.Symbol, l.NSym())
+ 	for _, o := range l.objs[1:] {
+@@ -505,7 +503,7 @@ func LoadFull(l *Loader, arch *sys.Arch, syms *sym.Symbols) {
+ 
+ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+ 	lib := r.unit.Lib
+-	istart := l.StartIndex(r)
++	istart := l.startIndex(r)
+ 
+ 	for i, n := 0, r.NSym()+r.NNonpkgdef(); i < n; i++ {
+ 		osym := goobj2.Sym{}
+@@ -550,10 +548,10 @@ func loadObjSyms(l *Loader, syms *sym.Symbols, r *oReader) {
+ 
+ func loadObjFull(l *Loader, r *oReader) {
+ 	lib := r.unit.Lib
+-	istart := l.StartIndex(r)
++	istart := l.startIndex(r)
+ 
+ 	resolveSymRef := func(s goobj2.SymRef) *sym.Symbol {
+-		i := l.Resolve(r, s)
++		i := l.resolve(r, s)
+ 		return l.Syms[i]
+ 	}
+ 
+@@ -735,7 +733,7 @@ func loadObjFull(l *Loader, r *oReader) {
+ 				Parent:   inl.Parent,
+ 				File:     resolveSymRef(inl.File),
+ 				Line:     inl.Line,
+-				Func:     l.SymName(l.Resolve(r, inl.Func)),
++				Func:     l.SymName(l.resolve(r, inl.Func)),
+ 				ParentPC: inl.ParentPC,
+ 			}
+ 		}
+@@ -754,6 +752,8 @@ func loadObjFull(l *Loader, r *oReader) {
+ 	}
+ }
+ 
++var emptyPkg = []byte(`"".`)
++
+ func patchDWARFName(s *sym.Symbol, r *oReader) {
+ 	// This is kind of ugly. Really the package name should not
+ 	// even be included here.
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index 7a0e18fe71..18a0678af8 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -10,7 +10,7 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+-	"cmd/link/internal/objfile"
++	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+ 	"encoding/binary"
+ 	"fmt"
+@@ -424,7 +424,7 @@ func macholoadsym(m *ldMachoObj, symtab *ldMachoSymtab) int {
+ 	return 0
+ }
+ 
+-func Load(l *objfile.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
++func Load(l *loader.Loader, arch *sys.Arch, syms *sym.Symbols, f *bio.Reader, pkg string, length int64, pn string) error {
+ 	lookup := func(name string, version int) *sym.Symbol {
+ 		// Check to see if we've already defined the symbol.
+ 		if i := l.Lookup(name, version); i != 0 {

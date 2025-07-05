@@ -11,6 +11,19 @@ Date:   Sun Jan 10 06:52:16 2021 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     Trust: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/likelyadjust.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index 49898a1322..f462bf29a6 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -222,6 +222,7 @@ func likelyadjust(f *Func) {
+ 				if opcodeTable[v.Op].call {
+ 					local[b.ID] = blCALL
+ 					certain[b.ID] = max8(blCALL, certain[b.Succs[0].b.ID])
++					break
+ 				}
+ 			}
+ 		}

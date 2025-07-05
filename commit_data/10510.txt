@@ -13,8 +13,163 @@ Date:   Sun Nov 27 09:59:20 2011 -0500
     R=golang-dev, dave, rsc, agl
     CC=golang-dev
     https://golang.org/cl/5433063
-
+---
  src/pkg/exp/ssh/client.go  | 18 +++++++-----------
  src/pkg/exp/ssh/session.go | 14 +++++++-------
  src/pkg/exp/ssh/tcpip.go   |  4 ++--
  3 files changed, 16 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/exp/ssh/client.go b/src/pkg/exp/ssh/client.go
+index 9721723488..5e7b846b40 100644
+--- a/src/pkg/exp/ssh/client.go
++++ b/src/pkg/exp/ssh/client.go
+@@ -338,7 +338,7 @@ func newClientChan(t *transport, id uint32) *clientChan {
+ // Close closes the channel. This does not close the underlying connection.
+ func (c *clientChan) Close() error {
+ 	return c.writePacket(marshal(msgChannelClose, channelCloseMsg{
+-		PeersId: c.id,
++		PeersId: c.peersId,
+ 	}))
+ }
+ 
+@@ -384,7 +384,7 @@ func (c *chanlist) remove(id uint32) {
+ // A chanWriter represents the stdin of a remote process.
+ type chanWriter struct {
+ 	win          chan int // receives window adjustments
+-	id           uint32   // this channel's id
++	peersId      uint32   // the peers id
+ 	rwin         int      // current rwin size
+ 	packetWriter          // for sending channelDataMsg
+ }
+@@ -403,7 +403,7 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
+ 		n = len(data)
+ 		packet := make([]byte, 0, 9+n)
+ 		packet = append(packet, msgChannelData,
+-			byte(w.id)>>24, byte(w.id)>>16, byte(w.id)>>8, byte(w.id),
++			byte(w.peersId)>>24, byte(w.peersId)>>16, byte(w.peersId)>>8, byte(w.peersId),
+ 			byte(n)>>24, byte(n)>>16, byte(n)>>8, byte(n))
+ 		err = w.writePacket(append(packet, data...))
+ 		w.rwin -= n
+@@ -413,7 +413,7 @@ func (w *chanWriter) Write(data []byte) (n int, err error) {
+ }
+ 
+ func (w *chanWriter) Close() error {
+-	return w.writePacket(marshal(msgChannelEOF, channelEOFMsg{w.id}))
++	return w.writePacket(marshal(msgChannelEOF, channelEOFMsg{w.peersId}))
+ }
+ 
+ // A chanReader represents stdout or stderr of a remote process.
+@@ -422,8 +422,8 @@ type chanReader struct {
+ 	// If writes to this channel block, they will block mainLoop, making
+ 	// it unable to receive new messages from the remote side.
+ 	data         chan []byte // receives data from remote
+-	id           uint32
+-	packetWriter // for sending windowAdjustMsg
++	peersId      uint32      // the peers id
++	packetWriter             // for sending windowAdjustMsg
+ 	buf          []byte
+ }
+ 
+@@ -435,7 +435,7 @@ func (r *chanReader) Read(data []byte) (int, error) {
+ 			n := copy(data, r.buf)
+ 			r.buf = r.buf[n:]
+ 			msg := windowAdjustMsg{
+-				PeersId:         r.id,
++				PeersId:         r.peersId,
+ 				AdditionalBytes: uint32(n),
+ 			}
+ 			return n, r.writePacket(marshal(msgChannelWindowAdjust, msg))
+@@ -447,7 +447,3 @@ func (r *chanReader) Read(data []byte) (int, error) {
+ 	}
+ 	panic("unreachable")
+ }
+-
+-func (r *chanReader) Close() error {
+-	return r.writePacket(marshal(msgChannelEOF, channelEOFMsg{r.id}))
+-}
+diff --git a/src/pkg/exp/ssh/session.go b/src/pkg/exp/ssh/session.go
+index 181a896883..ade61757b8 100644
+--- a/src/pkg/exp/ssh/session.go
++++ b/src/pkg/exp/ssh/session.go
+@@ -53,7 +53,7 @@ type setenvRequest struct {
+ // command executed by Shell or Exec.
+ func (s *Session) Setenv(name, value string) error {
+ 	req := setenvRequest{
+-		PeersId:   s.id,
++		PeersId:   s.peersId,
+ 		Request:   "env",
+ 		WantReply: true,
+ 		Name:      name,
+@@ -84,7 +84,7 @@ type ptyRequestMsg struct {
+ // RequestPty requests the association of a pty with the session on the remote host.
+ func (s *Session) RequestPty(term string, h, w int) error {
+ 	req := ptyRequestMsg{
+-		PeersId:   s.id,
++		PeersId:   s.peersId,
+ 		Request:   "pty-req",
+ 		WantReply: true,
+ 		Term:      term,
+@@ -116,7 +116,7 @@ func (s *Session) Exec(cmd string) error {
+ 		return errors.New("ssh: session already started")
+ 	}
+ 	req := execMsg{
+-		PeersId:   s.id,
++		PeersId:   s.peersId,
+ 		Request:   "exec",
+ 		WantReply: true,
+ 		Command:   cmd,
+@@ -140,7 +140,7 @@ func (s *Session) Shell() error {
+ 		return errors.New("ssh: session already started")
+ 	}
+ 	req := channelRequestMsg{
+-		PeersId:   s.id,
++		PeersId:   s.peersId,
+ 		Request:   "shell",
+ 		WantReply: true,
+ 	}
+@@ -237,7 +237,7 @@ func (s *Session) stdin() error {
+ 	s.copyFuncs = append(s.copyFuncs, func() error {
+ 		_, err := io.Copy(&chanWriter{
+ 			packetWriter: s,
+-			id:           s.id,
++			peersId:      s.peersId,
+ 			win:          s.win,
+ 		}, s.Stdin)
+ 		return err
+@@ -252,7 +252,7 @@ func (s *Session) stdout() error {
+ 	s.copyFuncs = append(s.copyFuncs, func() error {
+ 		_, err := io.Copy(s.Stdout, &chanReader{
+ 			packetWriter: s,
+-			id:           s.id,
++			peersId:      s.peersId,
+ 			data:         s.data,
+ 		})
+ 		return err
+@@ -267,7 +267,7 @@ func (s *Session) stderr() error {
+ 	s.copyFuncs = append(s.copyFuncs, func() error {
+ 		_, err := io.Copy(s.Stderr, &chanReader{
+ 			packetWriter: s,
+-			id:           s.id,
++			peersId:      s.peersId,
+ 			data:         s.dataExt,
+ 		})
+ 		return err
+diff --git a/src/pkg/exp/ssh/tcpip.go b/src/pkg/exp/ssh/tcpip.go
+index 859dedc93b..f3bbac5d19 100644
+--- a/src/pkg/exp/ssh/tcpip.go
++++ b/src/pkg/exp/ssh/tcpip.go
+@@ -86,12 +86,12 @@ func (c *ClientConn) dial(laddr string, lport int, raddr string, rport int) (*tc
+ 		clientChan: ch,
+ 		Reader: &chanReader{
+ 			packetWriter: ch,
+-			id:           ch.id,
++			peersId:      ch.peersId,
+ 			data:         ch.data,
+ 		},
+ 		Writer: &chanWriter{
+ 			packetWriter: ch,
+-			id:           ch.id,
++			peersId:      ch.peersId,
+ 			win:          ch.win,
+ 		},
+ 	}, nil

@@ -23,7 +23,7 @@ Date:   Fri Jun 2 10:16:56 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go.mod                                  |  2 +-
  src/cmd/go.sum                                  |  4 ++--
  src/cmd/go/internal/modload/modfile.go          |  2 +-
@@ -31,3 +31,142 @@ Date:   Fri Jun 2 10:16:56 2023 -0400
  src/cmd/vendor/golang.org/x/mod/modfile/rule.go | 12 ++++++------
  src/cmd/vendor/modules.txt                      |  2 +-
  6 files changed, 32 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b1c26063d3..1e94f5dab0 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.22
+ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+ 	golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307
+-	golang.org/x/mod v0.13.0
++	golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6
+ 	golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36
+ 	golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3
+ 	golang.org/x/term v0.13.1-0.20231011140651-6a610bc55bff
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index afb211c2bc..ab476f84f9 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -4,8 +4,8 @@ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab h1:BA4a7pe
+ github.com/ianlancetaylor/demangle v0.0.0-20230524184225-eabc099b10ab/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307 h1:1nIbNxjxQ3+dss3xYMxayoIZONazUTg8/BENwc19sAQ=
+ golang.org/x/arch v0.5.1-0.20231011141335-a6bdeed49307/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/mod v0.13.0 h1:I/DsJXRlw/8l/0c24sM9yb0T4z9liZTduXvdAWYiysY=
+-golang.org/x/mod v0.13.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6 h1:YSyE+/SK6vfYAxf27iVtUZ/tTZOHGN6epnMgE1al/+M=
++golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36 h1:+lDu3sHZVY5Qqb7ynMbjaT4IsYicvoxypEOIE4aYlYE=
+ golang.org/x/sync v0.4.1-0.20231011140417-10739b037d36/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.13.1-0.20231011215430-1bfbee0e20e3 h1:G9se7UpoI67yWrFY0IIFGf6H3nwLLUZFDBCyOJwWeSc=
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 8107b234b5..899f1b3d09 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -804,7 +804,7 @@ var latestVersionIgnoringRetractionsCache par.ErrCache[string, module.Version] /
+ // an absolute path or a relative path starting with a '.' or '..'
+ // path component.
+ func ToDirectoryPath(path string) string {
+-	if path == "." || modfile.IsDirectoryPath(path) {
++	if modfile.IsDirectoryPath(path) {
+ 		return path
+ 	}
+ 	// The path is not a relative path or an absolute path, so make it relative
+diff --git a/src/cmd/go/testdata/script/work_init_path.txt b/src/cmd/go/testdata/script/work_init_path.txt
+index e3977882a0..0a2d3729fc 100644
+--- a/src/cmd/go/testdata/script/work_init_path.txt
++++ b/src/cmd/go/testdata/script/work_init_path.txt
+@@ -1,17 +1,33 @@
+ # Regression test for https://go.dev/issue/51448.
+-# 'go work init . foo/bar' should produce a go.work file
+-# with the same paths as 'go work init; go work use -r .'.
++# 'go work init . .. foo/bar' should produce a go.work file
++# with the same paths as 'go work init; go work use -r ..',
++# and it should have 'use .' rather than 'use ./.' inside.
+ 
+-go work init . foo/bar
++cd dir
++
++go work init . .. foo/bar
+ mv go.work go.work.init
+ 
+ go work init
+-go work use -r .
++go work use -r ..
+ cmp go.work go.work.init
+ 
++cmpenv go.work $WORK/go.work.want
++
+ -- go.mod --
+ module example
+ go 1.18
+--- foo/bar/go.mod --
++-- dir/go.mod --
+ module example
+ go 1.18
++-- dir/foo/bar/go.mod --
++module example
++go 1.18
++-- $WORK/go.work.want --
++go $goversion
++
++use (
++	.
++	..
++	./foo/bar
++)
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index e0869fa386..35fd1f534c 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -542,7 +542,7 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
+ 			if strings.Contains(ns, "@") {
+ 				return nil, errorf("replacement module must match format 'path version', not 'path@version'")
+ 			}
+-			return nil, errorf("replacement module without version must be directory path (rooted or starting with ./ or ../)")
++			return nil, errorf("replacement module without version must be directory path (rooted or starting with . or ..)")
+ 		}
+ 		if filepath.Separator == '/' && strings.Contains(ns, `\`) {
+ 			return nil, errorf("replacement directory appears to be Windows path (on a non-windows system)")
+@@ -555,7 +555,6 @@ func parseReplace(filename string, line *Line, verb string, args []string, fix V
+ 		}
+ 		if IsDirectoryPath(ns) {
+ 			return nil, errorf("replacement module directory path %q cannot have version", ns)
+-
+ 		}
+ 	}
+ 	return &Replace{
+@@ -679,14 +678,15 @@ func (f *WorkFile) add(errs *ErrorList, line *Line, verb string, args []string,
+ 	}
+ }
+ 
+-// IsDirectoryPath reports whether the given path should be interpreted
+-// as a directory path. Just like on the go command line, relative paths
++// IsDirectoryPath reports whether the given path should be interpreted as a directory path.
++// Just like on the go command line, relative paths starting with a '.' or '..' path component
+ // and rooted paths are directory paths; the rest are module paths.
+ func IsDirectoryPath(ns string) bool {
+ 	// Because go.mod files can move from one system to another,
+ 	// we check all known path syntaxes, both Unix and Windows.
+-	return strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, "/") ||
+-		strings.HasPrefix(ns, `.\`) || strings.HasPrefix(ns, `..\`) || strings.HasPrefix(ns, `\`) ||
++	return ns == "." || strings.HasPrefix(ns, "./") || strings.HasPrefix(ns, `.\`) ||
++		ns == ".." || strings.HasPrefix(ns, "../") || strings.HasPrefix(ns, `..\`) ||
++		strings.HasPrefix(ns, "/") || strings.HasPrefix(ns, `\`) ||
+ 		len(ns) >= 2 && ('A' <= ns[0] && ns[0] <= 'Z' || 'a' <= ns[0] && ns[0] <= 'z') && ns[1] == ':'
+ }
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index d08a039a1e..9b2335f20e 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.13.0
++# golang.org/x/mod v0.13.1-0.20231025225536-6e58e47c7bd6
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

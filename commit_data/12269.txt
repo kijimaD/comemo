@@ -7,7 +7,56 @@ Date:   Wed Feb 29 12:34:05 2012 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5707058
-
+---
  src/pkg/net/dial_test.go |  2 +-
  src/pkg/net/udp_test.go  | 10 +++++-----
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 8a91ea284a..5f5aea146a 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -186,7 +186,7 @@ var duplicateErrorPattern = `dial (.*) dial (.*)`
+ 
+ func TestDialError(t *testing.T) {
+ 	if !*runErrorTest {
+-		t.Logf("test disabled; use --run_error_test to enable")
++		t.Logf("test disabled; use -run_error_test to enable")
+ 		return
+ 	}
+ 	for i, tt := range dialErrorTests {
+diff --git a/src/pkg/net/udp_test.go b/src/pkg/net/udp_test.go
+index 6ba762b1f7..ea5fad41a5 100644
+--- a/src/pkg/net/udp_test.go
++++ b/src/pkg/net/udp_test.go
+@@ -38,18 +38,18 @@ func testWriteToConn(t *testing.T, raddr string) {
+ 
+ 	_, err = c.(*UDPConn).WriteToUDP([]byte("Connection-oriented mode socket"), ra)
+ 	if err == nil {
+-		t.Fatal("WriteToUDP should be failed")
++		t.Fatal("WriteToUDP should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteToUDP should be failed as ErrWriteToConnected: %v", err)
++		t.Fatalf("WriteToUDP should fail as ErrWriteToConnected: %v", err)
+ 	}
+ 
+ 	_, err = c.(*UDPConn).WriteTo([]byte("Connection-oriented mode socket"), ra)
+ 	if err == nil {
+-		t.Fatal("WriteTo should be failed")
++		t.Fatal("WriteTo should fail")
+ 	}
+ 	if err != nil && err.(*OpError).Err != ErrWriteToConnected {
+-		t.Fatalf("WriteTo should be failed as ErrWriteToConnected: %v", err)
++		t.Fatalf("WriteTo should fail as ErrWriteToConnected: %v", err)
+ 	}
+ 
+ 	_, err = c.Write([]byte("Connection-oriented mode socket"))
+@@ -82,6 +82,6 @@ func testWriteToPacketConn(t *testing.T, raddr string) {
+ 
+ 	_, err = c.(*UDPConn).Write([]byte("Connection-less mode socket"))
+ 	if err == nil {
+-		t.Fatal("Write should be failed")
++		t.Fatal("Write should fail")
+ 	}
+ }

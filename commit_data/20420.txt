@@ -13,9 +13,419 @@ Date:   Sat Sep 6 21:19:24 2014 -0400
     R=dvyukov, iant, khr, r, bradfitz, alex.brainman
     CC=golang-codereviews
     https://golang.org/cl/133670043
-
+---
  src/pkg/runtime/cgocall.go          |   2 +
  src/pkg/runtime/os_windows.c        |  17 +++-
  src/pkg/runtime/syscall_windows.c   | 166 ++++++++++++++++++++++++++++++++++++
  src/pkg/runtime/syscall_windows.goc | 137 -----------------------------
  4 files changed, 184 insertions(+), 138 deletions(-)
+
+diff --git a/src/pkg/runtime/cgocall.go b/src/pkg/runtime/cgocall.go
+index c00694e669..76a533e933 100644
+--- a/src/pkg/runtime/cgocall.go
++++ b/src/pkg/runtime/cgocall.go
+@@ -82,10 +82,12 @@ package runtime
+ import "unsafe"
+ 
+ // Call from Go to C.
++//go:nosplit
+ func cgocall(fn, arg unsafe.Pointer) {
+ 	cgocall_errno(fn, arg)
+ }
+ 
++//go:nosplit
+ func cgocall_errno(fn, arg unsafe.Pointer) int32 {
+ 	if !iscgo && GOOS != "solaris" && GOOS != "windows" {
+ 		gothrow("cgocall unavailable")
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 885fe63343..d7f7a5a3b4 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -158,12 +158,14 @@ runtime·goenvs(void)
+ 	runtime·stdcall1(runtime·FreeEnvironmentStringsW, (uintptr)env);
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·exit(int32 code)
+ {
+ 	runtime·stdcall1(runtime·ExitProcess, code);
+ }
+ 
++#pragma textflag NOSPLIT
+ int32
+ runtime·write(uintptr fd, void *buf, int32 n)
+ {
+@@ -206,12 +208,14 @@ runtime·semasleep(int64 ns)
+ 	return 0;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ runtime·semawakeup(M *mp)
+ {
+ 	runtime·stdcall1(runtime·SetEvent, mp->waitsema);
+ }
+ 
++#pragma textflag NOSPLIT
+ uintptr
+ runtime·semacreate(void)
+ {
+@@ -272,12 +276,15 @@ typedef struct KSYSTEM_TIME {
+ const KSYSTEM_TIME* INTERRUPT_TIME	= (KSYSTEM_TIME*)0x7ffe0008;
+ const KSYSTEM_TIME* SYSTEM_TIME		= (KSYSTEM_TIME*)0x7ffe0014;
+ 
++static void badsystime(void);
++
+ #pragma textflag NOSPLIT
+ int64
+ runtime·systime(KSYSTEM_TIME *timeaddr)
+ {
+ 	KSYSTEM_TIME t;
+ 	int32 i;
++	void (*fn)(void);
+ 
+ 	for(i = 1; i < 10000; i++) {
+ 		// these fields must be read in that order (see URL above)
+@@ -289,10 +296,17 @@ runtime·systime(KSYSTEM_TIME *timeaddr)
+ 		if((i%100) == 0)
+ 			runtime·osyield();
+ 	}
+-	runtime·throw("interrupt/system time is changing too fast");
++	fn = badsystime;
++	runtime·onM(&fn);
+ 	return 0;
+ }
+ 
++static void
++badsystime(void)
++{
++	runtime·throw("interrupt/system time is changing too fast");
++}
++
+ #pragma textflag NOSPLIT
+ int64
+ runtime·nanotime(void)
+@@ -300,6 +314,7 @@ runtime·nanotime(void)
+ 	return runtime·systime(INTERRUPT_TIME) * 100LL;
+ }
+ 
++#pragma textflag NOSPLIT
+ void
+ time·now(int64 sec, int32 usec)
+ {
+diff --git a/src/pkg/runtime/syscall_windows.c b/src/pkg/runtime/syscall_windows.c
+new file mode 100644
+index 0000000000..e7903b5171
+--- /dev/null
++++ b/src/pkg/runtime/syscall_windows.c
+@@ -0,0 +1,166 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "runtime.h"
++#include "os_GOOS.h"
++#include "cgocall.h"
++#include "textflag.h"
++
++typedef struct HandleErr HandleErr;
++typedef struct SyscallErr SyscallErr;
++
++struct HandleErr {
++	uintptr handle;
++	uintptr err;
++};
++
++struct SyscallErr {
++	uintptr r1;
++	uintptr r2;
++	uintptr err;
++};
++
++#pragma textflag NOSPLIT
++HandleErr
++syscall·loadlibrary(uint16 *filename)
++{
++	LibCall c;
++	HandleErr r;
++
++	c.fn = runtime·LoadLibrary;
++	c.n = 1;
++	c.args = &filename;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	r.handle = c.r1;
++	if(r.handle == 0)
++		r.err = c.err;
++	else
++		r.err = 0;
++	return r;
++}
++
++#pragma textflag NOSPLIT
++HandleErr
++syscall·getprocaddress(uintptr handle, int8 *procname)
++{
++	LibCall c;
++	HandleErr r;
++
++	USED(procname);
++	c.fn = runtime·GetProcAddress;
++	c.n = 2;
++	c.args = &handle;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	r.handle = c.r1;
++	if(r.handle == 0)
++		r.err = c.err;
++	else
++		r.err = 0;
++	return r;
++}
++
++#pragma textflag NOSPLIT
++SyscallErr
++syscall·Syscall(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3)
++{
++	LibCall c;
++
++	USED(a2);
++	USED(a3);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	return (SyscallErr){c.r1, c.r2, c.err};
++}
++
++#pragma textflag NOSPLIT
++SyscallErr
++syscall·Syscall6(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6)
++{
++	LibCall c;
++
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	return (SyscallErr){c.r1, c.r2, c.err};
++}
++
++#pragma textflag NOSPLIT
++SyscallErr
++syscall·Syscall9(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9)
++{
++	LibCall c;
++
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	return (SyscallErr){c.r1, c.r2, c.err};
++}
++
++#pragma textflag NOSPLIT
++SyscallErr
++syscall·Syscall12(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9, uintptr a10, uintptr a11, uintptr a12)
++{
++	LibCall c;
++
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	USED(a10);
++	USED(a11);
++	USED(a12);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	return (SyscallErr){c.r1, c.r2, c.err};
++}
++
++#pragma textflag NOSPLIT
++SyscallErr
++syscall·Syscall15(uintptr fn, uintptr nargs, uintptr a1, uintptr a2, uintptr a3, uintptr a4, uintptr a5, uintptr a6, uintptr a7, uintptr a8, uintptr a9, uintptr a10, uintptr a11, uintptr a12, uintptr a13, uintptr a14, uintptr a15)
++{
++	LibCall c;
++
++	USED(a2);
++	USED(a3);
++	USED(a4);
++	USED(a5);
++	USED(a6);
++	USED(a7);
++	USED(a8);
++	USED(a9);
++	USED(a10);
++	USED(a11);
++	USED(a12);
++	USED(a13);
++	USED(a14);
++	USED(a15);
++	c.fn = (void*)fn;
++	c.n = nargs;
++	c.args = &a1;
++	runtime·cgocall_errno(runtime·asmstdcall, &c);
++	return (SyscallErr){c.r1, c.r2, c.err};
++}
+diff --git a/src/pkg/runtime/syscall_windows.goc b/src/pkg/runtime/syscall_windows.goc
+deleted file mode 100644
+index a1665c3b5c..0000000000
+--- a/src/pkg/runtime/syscall_windows.goc
++++ /dev/null
+@@ -1,137 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package syscall
+-#include "runtime.h"
+-#include "os_GOOS.h"
+-#include "cgocall.h"
+-
+-func loadlibrary(filename *uint16) (handle uintptr, err uintptr) {
+-	LibCall c;
+-
+-	c.fn = runtime·LoadLibrary;
+-	c.n = 1;
+-	c.args = &filename;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	handle = c.r1;
+-	if(handle == 0)
+-		err = c.err;
+-	else
+-		err = 0;
+-}
+-
+-func getprocaddress(handle uintptr, procname *uint8) (proc uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(procname);
+-	c.fn = runtime·GetProcAddress;
+-	c.n = 2;
+-	c.args = &handle;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	proc = c.r1;
+-	if(proc == 0)
+-		err = c.err;
+-	else
+-		err = 0;
+-}
+-
+-func Syscall(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	err = c.err;
+-	r1 = c.r1;
+-	r2 = c.r2;
+-}
+-
+-func Syscall6(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	err = c.err;
+-	r1 = c.r1;
+-	r2 = c.r2;
+-}
+-
+-func Syscall9(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	err = c.err;
+-	r1 = c.r1;
+-	r2 = c.r2;
+-}
+-
+-func Syscall12(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	USED(a10);
+-	USED(a11);
+-	USED(a12);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	err = c.err;
+-	r1 = c.r1;
+-	r2 = c.r2;
+-}
+-
+-func Syscall15(fn uintptr, nargs uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr, a6 uintptr, a7 uintptr, a8 uintptr, a9 uintptr, a10 uintptr, a11 uintptr, a12 uintptr, a13 uintptr, a14 uintptr, a15 uintptr) (r1 uintptr, r2 uintptr, err uintptr) {
+-	LibCall c;
+-
+-	USED(a2);
+-	USED(a3);
+-	USED(a4);
+-	USED(a5);
+-	USED(a6);
+-	USED(a7);
+-	USED(a8);
+-	USED(a9);
+-	USED(a10);
+-	USED(a11);
+-	USED(a12);
+-	USED(a13);
+-	USED(a14);
+-	USED(a15);
+-	c.fn = (void*)fn;
+-	c.n = nargs;
+-	c.args = &a1;
+-	runtime·cgocall(runtime·asmstdcall, &c);
+-	err = c.err;
+-	r1 = c.r1;
+-	r2 = c.r2;
+-}

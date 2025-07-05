@@ -10,6 +10,19 @@ Date:   Tue Mar 22 12:44:01 2022 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/394634
     Trust: Austin Clements <austin@google.com>
     Reviewed-by: Eli Bendersky‎ <eliben@golang.org>
-
+---
  src/cmd/compile/abi-internal.md | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/abi-internal.md b/src/cmd/compile/abi-internal.md
+index 72232bd151..be47e9a31b 100644
+--- a/src/cmd/compile/abi-internal.md
++++ b/src/cmd/compile/abi-internal.md
+@@ -1,5 +1,7 @@
+ # Go internal ABI specification
+ 
++Self-link: [go.dev/s/regabi](https://go.dev/s/regabi)
++
+ This document describes Go’s internal application binary interface
+ (ABI), known as ABIInternal.
+ Go's ABI defines the layout of data in memory and the conventions for

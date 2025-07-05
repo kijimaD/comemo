@@ -11,6 +11,24 @@ Date:   Wed Aug 13 01:02:01 2014 +0400
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/116290043
-
+---
  src/pkg/runtime/pprof/pprof.go | 6 ------
  1 file changed, 6 deletions(-)
+
+diff --git a/src/pkg/runtime/pprof/pprof.go b/src/pkg/runtime/pprof/pprof.go
+index 26aa0b8be5..236de54f38 100644
+--- a/src/pkg/runtime/pprof/pprof.go
++++ b/src/pkg/runtime/pprof/pprof.go
+@@ -574,12 +574,6 @@ func StartCPUProfile(w io.Writer) error {
+ 	// each client to specify the frequency, we hard code it.
+ 	const hz = 100
+ 
+-	// Avoid queueing behind StopCPUProfile.
+-	// Could use TryLock instead if we had it.
+-	if cpu.profiling {
+-		return fmt.Errorf("cpu profiling already in use")
+-	}
+-
+ 	cpu.Lock()
+ 	defer cpu.Unlock()
+ 	if cpu.done == nil {

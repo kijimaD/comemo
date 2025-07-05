@@ -8,7 +8,38 @@ Date:   Tue Apr 16 13:30:52 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8798044
-
+---
  src/cmd/dist/build.c | 4 ++++
  src/make.bash        | 4 ++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/cmd/dist/build.c b/src/cmd/dist/build.c
+index e94862325c..169e5cadd3 100644
+--- a/src/cmd/dist/build.c
++++ b/src/cmd/dist/build.c
+@@ -622,6 +622,10 @@ install(char *dir)
+ 			// clang is too smart about unused command-line arguments
+ 			vadd(&gccargs, "-Qunused-arguments");
+ 		}
++		if(streq(gohostos, "darwin")) {
++			// golang.org/issue/5261
++			vadd(&gccargs, "-mmacosx-version-min=10.6");
++		}
+ 	}
+ 
+ 	islib = hasprefix(dir, "lib") || streq(dir, "cmd/cc") || streq(dir, "cmd/gc");
+diff --git a/src/make.bash b/src/make.bash
+index 8d0f6ebaea..10696e7658 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -111,6 +111,10 @@ case "$GOHOSTARCH" in
+ 386) mflag=-m32;;
+ amd64) mflag=-m64;;
+ esac
++if [ "$(uname)" == "Darwin" ]; then
++	# golang.org/issue/5261
++	mflag="$mflag -mmacosx-version-min=10.6"
++fi
+ ${CC:-gcc} $mflag -O2 -Wall -Werror -o cmd/dist/dist -Icmd/dist "$DEFGOROOT" cmd/dist/*.c
+ 
+ eval $(./cmd/dist/dist env -p)

@@ -19,7 +19,7 @@ Date:   Tue Apr 10 16:42:44 2018 +0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/alg.go            | 9 +++++----
  src/runtime/asm_386.s         | 9 ---------
  src/runtime/asm_amd64.s       | 9 ---------
@@ -27,3 +27,147 @@ Date:   Tue Apr 10 16:42:44 2018 +0800
  src/runtime/os_linux_arm64.go | 1 -
  src/runtime/runtime2.go       | 5 -----
  6 files changed, 5 insertions(+), 37 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index cc723e49e2..8e931fd765 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/cpu"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -282,13 +283,13 @@ func alginit() {
+ 	// Install AES hash algorithms if the instructions needed are present.
+ 	if (GOARCH == "386" || GOARCH == "amd64") &&
+ 		GOOS != "nacl" &&
+-		support_aes && // AESENC
+-		support_ssse3 && // PSHUFB
+-		support_sse41 { // PINSR{D,Q}
++		cpu.X86.HasAES && // AESENC
++		cpu.X86.HasSSSE3 && // PSHUFB
++		cpu.X86.HasSSE41 { // PINSR{D,Q}
+ 		initAlgAES()
+ 		return
+ 	}
+-	if GOARCH == "arm64" && arm64_support_aes {
++	if GOARCH == "arm64" && cpu.ARM64.HasAES {
+ 		initAlgAES()
+ 		return
+ 	}
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 806361b6b8..4ba1d5b278 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -167,21 +167,12 @@ notintel:
+ 	TESTL	$(1<<26), DX // SSE2
+ 	SETNE	runtime·support_sse2(SB)
+ 
+-	TESTL	$(1<<9), DI // SSSE3
+-	SETNE	runtime·support_ssse3(SB)
+-
+ 	TESTL	$(1<<19), DI // SSE4.1
+ 	SETNE	runtime·support_sse41(SB)
+ 
+-	TESTL	$(1<<20), DI // SSE4.2
+-	SETNE	runtime·support_sse42(SB)
+-
+ 	TESTL	$(1<<23), DI // POPCNT
+ 	SETNE	runtime·support_popcnt(SB)
+ 
+-	TESTL	$(1<<25), DI // AES
+-	SETNE	runtime·support_aes(SB)
+-
+ 	TESTL	$(1<<27), DI // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index db516b5492..a8357f0e97 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -130,21 +130,12 @@ notintel:
+ 	TESTL	$(1<<26), DX // SSE2
+ 	SETNE	runtime·support_sse2(SB)
+ 
+-	TESTL	$(1<<9), CX // SSSE3
+-	SETNE	runtime·support_ssse3(SB)
+-
+ 	TESTL	$(1<<19), CX // SSE4.1
+ 	SETNE	runtime·support_sse41(SB)
+ 
+-	TESTL	$(1<<20), CX // SSE4.2
+-	SETNE	runtime·support_sse42(SB)
+-
+ 	TESTL	$(1<<23), CX // POPCNT
+ 	SETNE	runtime·support_popcnt(SB)
+ 
+-	TESTL	$(1<<25), CX // AES
+-	SETNE	runtime·support_aes(SB)
+-
+ 	TESTL	$(1<<27), CX // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+diff --git a/src/runtime/asm_amd64p32.s b/src/runtime/asm_amd64p32.s
+index 04f78d8d93..e58e5ec90f 100644
+--- a/src/runtime/asm_amd64p32.s
++++ b/src/runtime/asm_amd64p32.s
+@@ -50,21 +50,12 @@ notintel:
+ 	TESTL	$(1<<26), DX // SSE2
+ 	SETNE	runtime·support_sse2(SB)
+ 
+-	TESTL	$(1<<9), CX // SSSE3
+-	SETNE	runtime·support_ssse3(SB)
+-
+ 	TESTL	$(1<<19), CX // SSE4.1
+ 	SETNE	runtime·support_sse41(SB)
+ 
+-	TESTL	$(1<<20), CX // SSE4.2
+-	SETNE	runtime·support_sse42(SB)
+-
+ 	TESTL	$(1<<23), CX // POPCNT
+ 	SETNE	runtime·support_popcnt(SB)
+ 
+-	TESTL	$(1<<25), CX // AES
+-	SETNE	runtime·support_aes(SB)
+-
+ 	TESTL	$(1<<27), CX // OSXSAVE
+ 	SETNE	runtime·support_osxsave(SB)
+ 
+diff --git a/src/runtime/os_linux_arm64.go b/src/runtime/os_linux_arm64.go
+index 9342a042ac..ed4af0dd41 100644
+--- a/src/runtime/os_linux_arm64.go
++++ b/src/runtime/os_linux_arm64.go
+@@ -29,7 +29,6 @@ func archauxv(tag, val uintptr) {
+ 		randomNumber = uint32(startupRandomData[4]) | uint32(startupRandomData[5])<<8 |
+ 			uint32(startupRandomData[6])<<16 | uint32(startupRandomData[7])<<24
+ 	case _AT_HWCAP:
+-		arm64_support_aes = ((val>>3)&0x1 == 0x1)
+ 		cpu_hwcap = uint(val)
+ 	case _AT_HWCAP2:
+ 		cpu_hwcap2 = uint(val)
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ee5f6d5b47..22ba375a93 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -771,7 +771,6 @@ var (
+ 	processorVersionInfo uint32
+ 	isIntel              bool
+ 	lfenceBeforeRdtsc    bool
+-	support_aes          bool
+ 	support_avx          bool
+ 	support_avx2         bool
+ 	support_erms         bool
+@@ -779,10 +778,6 @@ var (
+ 	support_popcnt       bool
+ 	support_sse2         bool
+ 	support_sse41        bool
+-	support_sse42        bool
+-	support_ssse3        bool
+-
+-	arm64_support_aes bool
+ 
+ 	goarm                uint8 // set by cmd/link on arm systems
+ 	framepointer_enabled bool  // set by cmd/link

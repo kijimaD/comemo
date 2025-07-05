@@ -27,7 +27,7 @@ Date:   Fri Apr 19 14:51:18 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/580355
     Reviewed-by: Alan Donovan <adonovan@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/importer/iimport.go   |  3 ++
  src/cmd/compile/internal/importer/support.go   |  3 +-
  src/cmd/compile/internal/noder/writer.go       |  5 ++-
@@ -52,3 +52,705 @@ Date:   Fri Apr 19 14:51:18 2024 +0000
  src/go/types/typexpr.go                        |  9 ++++-
  src/go/types/universe.go                       | 42 +++++++++++++++++-----
  23 files changed, 305 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 498134755d..4a7fece188 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -131,6 +131,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 	for i, pt := range predeclared {
+ 		p.typCache[uint64(i)] = pt
+ 	}
++	// Special handling for "any", whose representation may be changed by the
++	// gotypesalias GODEBUG variable.
++	p.typCache[uint64(len(predeclared))] = types2.Universe.Lookup("any").Type()
+ 
+ 	pkgList := make([]*types2.Package, r.uint64())
+ 	for i := range pkgList {
+diff --git a/src/cmd/compile/internal/importer/support.go b/src/cmd/compile/internal/importer/support.go
+index 5810f5e172..a443b4d862 100644
+--- a/src/cmd/compile/internal/importer/support.go
++++ b/src/cmd/compile/internal/importer/support.go
+@@ -130,8 +130,7 @@ var predeclared = []types2.Type{
+ 	// comparable
+ 	types2.Universe.Lookup("comparable").Type(),
+ 
+-	// any
+-	types2.Universe.Lookup("any").Type(),
++	// "any" has special handling: see usage of predeclared.
+ }
+ 
+ type anyType struct{}
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 785176b3b5..453b08dbf9 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -569,7 +569,10 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 
+ 	case *types2.Interface:
+ 		// Handle "any" as reference to its TypeName.
+-		if typ == anyTypeName.Type() {
++		// The underlying "any" interface is canonical, so this logic handles both
++		// GODEBUG=gotypesalias=1 (when any is represented as a types2.Alias), and
++		// gotypesalias=0.
++		if types2.Unalias(typ) == types2.Unalias(anyTypeName.Type()) {
+ 			w.Code(pkgbits.TypeNamed)
+ 			w.obj(anyTypeName, nil)
+ 			break
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index f3931dd262..b9ec874d45 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -176,9 +176,13 @@ type Config struct {
+ 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+ 	ErrorURL string
+ 
+-	// If EnableAlias is set, alias declarations produce an Alias type.
+-	// Otherwise the alias information is only in the type name, which
+-	// points directly to the actual (aliased) type.
++	// If EnableAlias is set, alias declarations produce an Alias type. Otherwise
++	// the alias information is only in the type name, which points directly to
++	// the actual (aliased) type.
++	//
++	// This setting must not differ among concurrent type-checking operations,
++	// since it affects the behavior of Universe.Lookup("any").
++	//
+ 	// This flag will eventually be removed (with Go 1.24 at the earliest).
+ 	EnableAlias bool
+ }
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index cf3c105f6c..5126ac5111 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -1867,7 +1867,10 @@ func sameSlice(a, b []int) bool {
+ // the correct result at various positions within the source.
+ func TestScopeLookupParent(t *testing.T) {
+ 	imports := make(testImporter)
+-	conf := Config{Importer: imports}
++	conf := Config{
++		Importer:    imports,
++		EnableAlias: true, // must match default Universe.Lookup behavior
++	}
+ 	var info Info
+ 	makePkg := func(path, src string) {
+ 		var err error
+@@ -3022,3 +3025,25 @@ type C = int
+ 		t.Errorf("A.Rhs = %s, want %s", got, want)
+ 	}
+ }
++
++// Test the hijacking described of "any" described in golang/go#66921, for
++// (concurrent) type checking.
++func TestAnyHijacking_Check(t *testing.T) {
++	for _, enableAlias := range []bool{false, true} {
++		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
++			var wg sync.WaitGroup
++			for i := 0; i < 10; i++ {
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					pkg := mustTypecheck("package p; var x any", &Config{EnableAlias: enableAlias}, nil)
++					x := pkg.Scope().Lookup("x")
++					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
++						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
++					}
++				}()
++			}
++			wg.Wait()
++		})
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index ee7e2e8683..9203a10217 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -12,6 +12,7 @@ import (
+ 	"go/constant"
+ 	"internal/godebug"
+ 	. "internal/types/errors"
++	"sync/atomic"
+ )
+ 
+ // nopos indicates an unknown position
+@@ -26,6 +27,29 @@ const debug = false // leave on during development
+ // This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
+ var gotypesalias = godebug.New("gotypesalias")
+ 
++// _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
++// [Universe] scope.
++//
++// This is necessary because while Alias creation is controlled by
++// [Config.EnableAlias], the representation of "any" is a global. In
++// [Scope.Lookup], we select this global representation based on the result of
++// [aliasAny], but as a result need to guard against this behavior changing
++// during the type checking pass. Therefore we implement the following rule:
++// any number of goroutines can type check concurrently with the same
++// EnableAlias value, but if any goroutine tries to type check concurrently
++// with a different EnableAlias value, we panic.
++//
++// To achieve this, _aliasAny is a state machine:
++//
++//	0:        no type checking is occurring
++//	negative: type checking is occurring without EnableAlias set
++//	positive: type checking is occurring with EnableAlias set
++var _aliasAny int32
++
++func aliasAny() bool {
++	return atomic.LoadInt32(&_aliasAny) >= 0 // default true
++}
++
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {
+ 	isLhs bool // expression is lhs operand of a shift with delayed type-check
+@@ -397,6 +421,20 @@ func (check *Checker) Files(files []*syntax.File) (err error) {
+ // syntax is properly type annotated even in a package containing
+ // errors.
+ func (check *Checker) checkFiles(files []*syntax.File) {
++	// Ensure that EnableAlias is consistent among concurrent type checking
++	// operations. See the documentation of [_aliasAny] for details.
++	if check.conf.EnableAlias {
++		if atomic.AddInt32(&_aliasAny, 1) <= 0 {
++			panic("EnableAlias set while !EnableAlias type checking is ongoing")
++		}
++		defer atomic.AddInt32(&_aliasAny, -1)
++	} else {
++		if atomic.AddInt32(&_aliasAny, -1) >= 0 {
++			panic("!EnableAlias set while EnableAlias type checking is ongoing")
++		}
++		defer atomic.AddInt32(&_aliasAny, 1)
++	}
++
+ 	print := func(msg string) {
+ 		if check.conf.Trace {
+ 			fmt.Println()
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index b087550b80..3d500811d4 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -600,7 +600,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
+ }
+ 
+ func TestIssue50646(t *testing.T) {
+-	anyType := Universe.Lookup("any").Type()
++	anyType := Universe.Lookup("any").Type().Underlying()
+ 	comparableType := Universe.Lookup("comparable").Type()
+ 
+ 	if !Comparable(anyType) {
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 3026777cad..f9a25473a1 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -577,7 +577,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	// Special handling for any: because WriteType will format 'any' as 'any',
+ 	// resulting in the object string `type any = any` rather than `type any =
+ 	// interface{}`. To avoid this, swap in a different empty interface.
+-	if obj == universeAny {
++	if obj.Name() == "any" && obj.Parent() == Universe {
+ 		assert(Identical(typ, &emptyInterface))
+ 		typ = &emptyInterface
+ 	}
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index b75e5cbaf7..f5ad25e81e 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -68,7 +68,19 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
+ // Lookup returns the object in scope s with the given name if such an
+ // object exists; otherwise the result is nil.
+ func (s *Scope) Lookup(name string) Object {
+-	return resolve(name, s.elems[name])
++	obj := resolve(name, s.elems[name])
++	// Hijack Lookup for "any": with gotypesalias=1, we want the Universe to
++	// return an Alias for "any", and with gotypesalias=0 we want to return
++	// the legacy representation of aliases.
++	//
++	// This is rather tricky, but works out after auditing of the usage of
++	// s.elems. The only external API to access scope elements is Lookup.
++	//
++	// TODO: remove this once gotypesalias=0 is no longer supported.
++	if obj == universeAnyAlias && !aliasAny() {
++		return universeAnyNoAlias
++	}
++	return obj
+ }
+ 
+ // LookupParent follows the parent chain of scopes starting with s until
+diff --git a/src/cmd/compile/internal/types2/typestring.go b/src/cmd/compile/internal/types2/typestring.go
+index 723c074e60..e067c3f4a7 100644
+--- a/src/cmd/compile/internal/types2/typestring.go
++++ b/src/cmd/compile/internal/types2/typestring.go
+@@ -211,10 +211,11 @@ func (w *typeWriter) typ(typ Type) {
+ 
+ 	case *Interface:
+ 		if w.ctxt == nil {
+-			if t == universeAny.Type() {
++			if t == universeAnyAlias.Type().Underlying() {
+ 				// When not hashing, we can try to improve type strings by writing "any"
+-				// for a type that is pointer-identical to universeAny. This logic should
+-				// be deprecated by more robust handling for aliases.
++				// for a type that is pointer-identical to universeAny.
++				// TODO(rfindley): this logic should not be necessary with
++				// gotypesalias=1. Remove once that is always the case.
+ 				w.string("any")
+ 				break
+ 			}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index ec012c24eb..1e00c7bd86 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -41,11 +41,19 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 			check.errorf(e, UndeclaredName, "undefined: %s", e.Value)
+ 		}
+ 		return
+-	case universeAny, universeComparable:
++	case universeComparable:
+ 		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
+ 			return // avoid follow-on errors
+ 		}
+ 	}
++	// Because the representation of any depends on gotypesalias, we don't check
++	// pointer identity here.
++	if obj.Name() == "any" && obj.Parent() == Universe {
++		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Value) {
++			return // avoid follow-on errors
++		}
++	}
++
+ 	check.recordUse(e, obj)
+ 
+ 	// If we want a type but don't have one, stop right here and avoid potential problems
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 8e1e4a2bb7..9c76ac2373 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -23,7 +23,8 @@ var (
+ 	universeIota       Object
+ 	universeByte       Type // uint8 alias, but has name "byte"
+ 	universeRune       Type // int32 alias, but has name "rune"
+-	universeAny        Object
++	universeAnyNoAlias *TypeName
++	universeAnyAlias   *TypeName
+ 	universeError      Type
+ 	universeComparable Object
+ )
+@@ -65,7 +66,7 @@ var Typ = [...]*Basic{
+ 	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
+ }
+ 
+-var aliases = [...]*Basic{
++var basicAliases = [...]*Basic{
+ 	{Byte, IsInteger | IsUnsigned, "byte"},
+ 	{Rune, IsInteger, "rune"},
+ }
+@@ -74,15 +75,41 @@ func defPredeclaredTypes() {
+ 	for _, t := range Typ {
+ 		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+-	for _, t := range aliases {
++	for _, t := range basicAliases {
+ 		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+ 
+ 	// type any = interface{}
+-	// Note: don't use &emptyInterface for the type of any. Using a unique
+-	// pointer allows us to detect any and format it as "any" rather than
+-	// interface{}, which clarifies user-facing error messages significantly.
+-	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
++	//
++	// Implement two representations of any: one for the legacy gotypesalias=0,
++	// and one for gotypesalias=1. This is necessary for consistent
++	// representation of interface aliases during type checking, and is
++	// implemented via hijacking [Scope.Lookup] for the [Universe] scope.
++	//
++	// Both representations use the same distinguished pointer for their RHS
++	// interface type, allowing us to detect any (even with the legacy
++	// representation), and format it as "any" rather than interface{}, which
++	// clarifies user-facing error messages significantly.
++	//
++	// TODO(rfindley): once the gotypesalias GODEBUG variable is obsolete (and we
++	// consistently use the Alias node), we should be able to clarify user facing
++	// error messages without using a distinguished pointer for the any
++	// interface.
++	{
++		universeAnyNoAlias = NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet})
++		universeAnyNoAlias.setColor(black)
++		// ensure that the any TypeName reports a consistent Parent, after
++		// hijacking Universe.Lookup with gotypesalias=0.
++		universeAnyNoAlias.setParent(Universe)
++
++		// It shouldn't matter which representation of any is actually inserted
++		// into the Universe, but we lean toward the future and insert the Alias
++		// representation.
++		universeAnyAlias = NewTypeName(nopos, nil, "any", nil)
++		universeAnyAlias.setColor(black)
++		_ = NewAlias(universeAnyAlias, universeAnyNoAlias.Type().Underlying()) // Link TypeName and Alias
++		def(universeAnyAlias)
++	}
+ 
+ 	// type error interface{ Error() string }
+ 	{
+@@ -250,7 +277,6 @@ func init() {
+ 	universeIota = Universe.Lookup("iota")
+ 	universeByte = Universe.Lookup("byte").Type()
+ 	universeRune = Universe.Lookup("rune").Type()
+-	universeAny = Universe.Lookup("any")
+ 	universeError = Universe.Lookup("error").Type()
+ 	universeComparable = Universe.Lookup("comparable")
+ }
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index 9e3c945b56..59cd411cee 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -145,6 +145,9 @@ func iImportData(fset *token.FileSet, imports map[string]*types.Package, dataRea
+ 	for i, pt := range predeclared {
+ 		p.typCache[uint64(i)] = pt
+ 	}
++	// Special handling for "any", whose representation may be changed by the
++	// gotypesalias GODEBUG variable.
++	p.typCache[uint64(len(predeclared))] = types.Universe.Lookup("any").Type()
+ 
+ 	pkgList := make([]*types.Package, r.uint64())
+ 	for i := range pkgList {
+diff --git a/src/go/internal/gcimporter/support.go b/src/go/internal/gcimporter/support.go
+index 7ed8c9a404..b5e5f6ab54 100644
+--- a/src/go/internal/gcimporter/support.go
++++ b/src/go/internal/gcimporter/support.go
+@@ -147,8 +147,7 @@ var predeclared = []types.Type{
+ 	// comparable
+ 	types.Universe.Lookup("comparable").Type(),
+ 
+-	// any
+-	types.Universe.Lookup("any").Type(),
++	// "any" has special handling: see usage of predeclared.
+ }
+ 
+ type anyType struct{}
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index cfe86f9dd6..2db67e5329 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -181,9 +181,13 @@ type Config struct {
+ 	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
+ 	_ErrorURL string
+ 
+-	// If _EnableAlias is set, alias declarations produce an Alias type.
+-	// Otherwise the alias information is only in the type name, which
+-	// points directly to the actual (aliased) type.
++	// If EnableAlias is set, alias declarations produce an Alias type. Otherwise
++	// the alias information is only in the type name, which points directly to
++	// the actual (aliased) type.
++	//
++	// This setting must not differ among concurrent type-checking operations,
++	// since it affects the behavior of Universe.Lookup("any").
++	//
+ 	// This flag will eventually be removed (with Go 1.24 at the earliest).
+ 	_EnableAlias bool
+ }
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 6f8dddb936..38cd7f7ec2 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2997,7 +2997,7 @@ func TestTooNew(t *testing.T) {
+ 
+ // This is a regression test for #66704.
+ func TestUnaliasTooSoonInCycle(t *testing.T) {
+-	t.Setenv("GODEBUG", "gotypesalias=1")
++	setGotypesalias(t, true)
+ 	const src = `package a
+ 
+ var x T[B] // this appears to cause Unalias to be called on B while still Invalid
+@@ -3016,7 +3016,7 @@ type B = T[A]
+ }
+ 
+ func TestAlias_Rhs(t *testing.T) {
+-	t.Setenv("GODEBUG", "gotypesalias=1")
++	setGotypesalias(t, true)
+ 	const src = `package p
+ 
+ type A = B
+@@ -3032,3 +3032,48 @@ type C = int
+ 		t.Errorf("A.Rhs = %s, want %s", got, want)
+ 	}
+ }
++
++// Test the hijacking described of "any" described in golang/go#66921, for type
++// checking.
++func TestAnyHijacking_Check(t *testing.T) {
++	for _, enableAlias := range []bool{false, true} {
++		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
++			setGotypesalias(t, enableAlias)
++			var wg sync.WaitGroup
++			for i := 0; i < 10; i++ {
++				wg.Add(1)
++				go func() {
++					defer wg.Done()
++					pkg := mustTypecheck("package p; var x any", nil, nil)
++					x := pkg.Scope().Lookup("x")
++					if _, gotAlias := x.Type().(*Alias); gotAlias != enableAlias {
++						t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, x.Type(), gotAlias, enableAlias)
++					}
++				}()
++			}
++			wg.Wait()
++		})
++	}
++}
++
++// Test the hijacking described of "any" described in golang/go#66921, for
++// Scope.Lookup outside of type checking.
++func TestAnyHijacking_Lookup(t *testing.T) {
++	for _, enableAlias := range []bool{false, true} {
++		t.Run(fmt.Sprintf("EnableAlias=%t", enableAlias), func(t *testing.T) {
++			setGotypesalias(t, enableAlias)
++			a := Universe.Lookup("any")
++			if _, gotAlias := a.Type().(*Alias); gotAlias != enableAlias {
++				t.Errorf(`Lookup("x").Type() is %T: got Alias: %t, want %t`, a.Type(), gotAlias, enableAlias)
++			}
++		})
++	}
++}
++
++func setGotypesalias(t *testing.T, enable bool) {
++	if enable {
++		t.Setenv("GODEBUG", "gotypesalias=1")
++	} else {
++		t.Setenv("GODEBUG", "gotypesalias=0")
++	}
++}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 94f2bbfd78..789c130e1c 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/godebug"
+ 	. "internal/types/errors"
+ 	"strings"
++	"sync/atomic"
+ )
+ 
+ // nopos, noposn indicate an unknown position
+@@ -29,6 +30,36 @@ const debug = false // leave on during development
+ // This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
+ var gotypesalias = godebug.New("gotypesalias")
+ 
++// _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
++// [Universe] scope.
++//
++// This is necessary because while Alias creation is controlled by
++// [Config._EnableAlias], based on the gotypealias variable, the representation
++// of "any" is a global. In [Scope.Lookup], we select this global
++// representation based on the result of [aliasAny], but as a result need to
++// guard against this behavior changing during the type checking pass.
++// Therefore we implement the following rule: any number of goroutines can type
++// check concurrently with the same EnableAlias value, but if any goroutine
++// tries to type check concurrently with a different EnableAlias value, we
++// panic.
++//
++// To achieve this, _aliasAny is a state machine:
++//
++//	0:        no type checking is occurring
++//	negative: type checking is occurring without _EnableAlias set
++//	positive: type checking is occurring with _EnableAlias set
++var _aliasAny int32
++
++func aliasAny() bool {
++	v := gotypesalias.Value()
++	useAlias := v != "0"
++	inuse := atomic.LoadInt32(&_aliasAny)
++	if inuse != 0 && useAlias != (inuse > 0) {
++		panic(fmt.Sprintf("gotypealias mutated during type checking, gotypesalias=%s, inuse=%d", v, inuse))
++	}
++	return useAlias
++}
++
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {
+ 	isLhs bool // expression is lhs operand of a shift with delayed type-check
+@@ -405,6 +436,20 @@ func (check *Checker) Files(files []*ast.File) (err error) {
+ // syntax is properly type annotated even in a package containing
+ // errors.
+ func (check *Checker) checkFiles(files []*ast.File) {
++	// Ensure that _EnableAlias is consistent among concurrent type checking
++	// operations. See the documentation of [_aliasAny] for details.
++	if check.conf._EnableAlias {
++		if atomic.AddInt32(&_aliasAny, 1) <= 0 {
++			panic("EnableAlias set while !EnableAlias type checking is ongoing")
++		}
++		defer atomic.AddInt32(&_aliasAny, -1)
++	} else {
++		if atomic.AddInt32(&_aliasAny, -1) >= 0 {
++			panic("!EnableAlias set while EnableAlias type checking is ongoing")
++		}
++		defer atomic.AddInt32(&_aliasAny, 1)
++	}
++
+ 	print := func(msg string) {
+ 		if check.conf._Trace {
+ 			fmt.Println()
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 379d833bf2..d51dd94cf3 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -607,7 +607,7 @@ var _ T = template /* ERRORx "cannot use.*text/template.* as T value" */.Templat
+ }
+ 
+ func TestIssue50646(t *testing.T) {
+-	anyType := Universe.Lookup("any").Type()
++	anyType := Universe.Lookup("any").Type().Underlying()
+ 	comparableType := Universe.Lookup("comparable").Type()
+ 
+ 	if !Comparable(anyType) {
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index d564d37e7a..cc01418832 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -580,7 +580,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 	// Special handling for any: because WriteType will format 'any' as 'any',
+ 	// resulting in the object string `type any = any` rather than `type any =
+ 	// interface{}`. To avoid this, swap in a different empty interface.
+-	if obj == universeAny {
++	if obj.Name() == "any" && obj.Parent() == Universe {
+ 		assert(Identical(typ, &emptyInterface))
+ 		typ = &emptyInterface
+ 	}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index 476b26ac3f..176928eda9 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -71,7 +71,19 @@ func (s *Scope) Child(i int) *Scope { return s.children[i] }
+ // Lookup returns the object in scope s with the given name if such an
+ // object exists; otherwise the result is nil.
+ func (s *Scope) Lookup(name string) Object {
+-	return resolve(name, s.elems[name])
++	obj := resolve(name, s.elems[name])
++	// Hijack Lookup for "any": with gotypesalias=1, we want the Universe to
++	// return an Alias for "any", and with gotypesalias=0 we want to return
++	// the legacy representation of aliases.
++	//
++	// This is rather tricky, but works out after auditing of the usage of
++	// s.elems. The only external API to access scope elements is Lookup.
++	//
++	// TODO: remove this once gotypesalias=0 is no longer supported.
++	if obj == universeAnyAlias && !aliasAny() {
++		return universeAnyNoAlias
++	}
++	return obj
+ }
+ 
+ // LookupParent follows the parent chain of scopes starting with s until
+diff --git a/src/go/types/typestring.go b/src/go/types/typestring.go
+index 8ce9e86994..9285bcbb81 100644
+--- a/src/go/types/typestring.go
++++ b/src/go/types/typestring.go
+@@ -214,10 +214,11 @@ func (w *typeWriter) typ(typ Type) {
+ 
+ 	case *Interface:
+ 		if w.ctxt == nil {
+-			if t == universeAny.Type() {
++			if t == universeAnyAlias.Type().Underlying() {
+ 				// When not hashing, we can try to improve type strings by writing "any"
+-				// for a type that is pointer-identical to universeAny. This logic should
+-				// be deprecated by more robust handling for aliases.
++				// for a type that is pointer-identical to universeAny.
++				// TODO(rfindley): this logic should not be necessary with
++				// gotypesalias=1. Remove once that is always the case.
+ 				w.string("any")
+ 				break
+ 			}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 4bbc8b2448..302de4caab 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -42,7 +42,14 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 			check.errorf(e, UndeclaredName, "undefined: %s", e.Name)
+ 		}
+ 		return
+-	case universeAny, universeComparable:
++	case universeComparable:
++		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
++			return // avoid follow-on errors
++		}
++	}
++	// Because the representation of any depends on gotypesalias, we don't check
++	// pointer identity here.
++	if obj.Name() == "any" && obj.Parent() == Universe {
+ 		if !check.verifyVersionf(e, go1_18, "predeclared %s", e.Name) {
+ 			return // avoid follow-on errors
+ 		}
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 9a882896c9..09b882ce05 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -26,7 +26,8 @@ var (
+ 	universeIota       Object
+ 	universeByte       Type // uint8 alias, but has name "byte"
+ 	universeRune       Type // int32 alias, but has name "rune"
+-	universeAny        Object
++	universeAnyNoAlias *TypeName
++	universeAnyAlias   *TypeName
+ 	universeError      Type
+ 	universeComparable Object
+ )
+@@ -68,7 +69,7 @@ var Typ = []*Basic{
+ 	UntypedNil:     {UntypedNil, IsUntyped, "untyped nil"},
+ }
+ 
+-var aliases = [...]*Basic{
++var basicAliases = [...]*Basic{
+ 	{Byte, IsInteger | IsUnsigned, "byte"},
+ 	{Rune, IsInteger, "rune"},
+ }
+@@ -77,15 +78,41 @@ func defPredeclaredTypes() {
+ 	for _, t := range Typ {
+ 		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+-	for _, t := range aliases {
++	for _, t := range basicAliases {
+ 		def(NewTypeName(nopos, nil, t.name, t))
+ 	}
+ 
+ 	// type any = interface{}
+-	// Note: don't use &emptyInterface for the type of any. Using a unique
+-	// pointer allows us to detect any and format it as "any" rather than
+-	// interface{}, which clarifies user-facing error messages significantly.
+-	def(NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet}))
++	//
++	// Implement two representations of any: one for the legacy gotypesalias=0,
++	// and one for gotypesalias=1. This is necessary for consistent
++	// representation of interface aliases during type checking, and is
++	// implemented via hijacking [Scope.Lookup] for the [Universe] scope.
++	//
++	// Both representations use the same distinguished pointer for their RHS
++	// interface type, allowing us to detect any (even with the legacy
++	// representation), and format it as "any" rather than interface{}, which
++	// clarifies user-facing error messages significantly.
++	//
++	// TODO(rfindley): once the gotypesalias GODEBUG variable is obsolete (and we
++	// consistently use the Alias node), we should be able to clarify user facing
++	// error messages without using a distinguished pointer for the any
++	// interface.
++	{
++		universeAnyNoAlias = NewTypeName(nopos, nil, "any", &Interface{complete: true, tset: &topTypeSet})
++		universeAnyNoAlias.setColor(black)
++		// ensure that the any TypeName reports a consistent Parent, after
++		// hijacking Universe.Lookup with gotypesalias=0.
++		universeAnyNoAlias.setParent(Universe)
++
++		// It shouldn't matter which representation of any is actually inserted
++		// into the Universe, but we lean toward the future and insert the Alias
++		// representation.
++		universeAnyAlias = NewTypeName(nopos, nil, "any", nil)
++		universeAnyAlias.setColor(black)
++		_ = NewAlias(universeAnyAlias, universeAnyNoAlias.Type().Underlying()) // Link TypeName and Alias
++		def(universeAnyAlias)
++	}
+ 
+ 	// type error interface{ Error() string }
+ 	{
+@@ -253,7 +280,6 @@ func init() {
+ 	universeIota = Universe.Lookup("iota")
+ 	universeByte = Universe.Lookup("byte").Type()
+ 	universeRune = Universe.Lookup("rune").Type()
+-	universeAny = Universe.Lookup("any")
+ 	universeError = Universe.Lookup("error").Type()
+ 	universeComparable = Universe.Lookup("comparable")
+ }

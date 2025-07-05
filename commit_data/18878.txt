@@ -8,6 +8,19 @@ Date:   Mon Mar 17 11:57:04 2014 -0700
     R=golang-codereviews, iant
     CC=golang-codereviews
     https://golang.org/cl/76930044
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index de43aa0fe9..6f38916a45 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -476,6 +476,7 @@ Roger Peppe <rogpeppe@gmail.com>
+ Ron Minnich <rminnich@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Rowan Worth <sqweek@gmail.com>
++Rui Ueyama <ruiu@google.com>
+ Russ Cox <rsc@golang.org>
+ Ryan Barrett <ryanb@google.com>
+ Ryan Hitchman <hitchmanr@gmail.com>

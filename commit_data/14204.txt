@@ -17,7 +17,50 @@ Date:   Mon Oct 22 10:01:14 2012 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6750043
-
+---
  src/cmd/gc/select.c    | 5 +++--
  src/cmd/gc/typecheck.c | 1 -
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/select.c b/src/cmd/gc/select.c
+index 8ace1d4ee5..6d8793b89b 100644
+--- a/src/cmd/gc/select.c
++++ b/src/cmd/gc/select.c
+@@ -62,7 +62,7 @@ typecheckselect(Node *sel)
+ 
+ 			case OAS2RECV:
+ 				// convert x, ok = <-c into OSELRECV2(x, <-c) with ntest=ok
+-				if(n->right->op != ORECV) {
++				if(n->rlist->n->op != ORECV) {
+ 					yyerror("select assignment must have receive on right hand side");
+ 					break;
+ 				}
+@@ -70,6 +70,7 @@ typecheckselect(Node *sel)
+ 				n->left = n->list->n;
+ 				n->ntest = n->list->next->n;
+ 				n->right = n->rlist->n;
++				n->rlist = nil;
+ 				break;
+ 
+ 			case ORECV:
+@@ -146,7 +147,7 @@ walkselect(Node *sel)
+ 				
+ 				a = nod(OAS2, N, N);
+ 				a->list = n->list;
+-				a->rlist = n->rlist;
++				a->rlist = list1(n->right);
+ 				n = a;
+ 				typecheck(&n, Etop);
+ 				break;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index e5bcabca0d..2ee468a58a 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -2574,7 +2574,6 @@ typecheckas2(Node *n)
+ 			goto common;
+ 		case ORECV:
+ 			n->op = OAS2RECV;
+-			n->right = n->rlist->n;
+ 			goto common;
+ 		case ODOTTYPE:
+ 			n->op = OAS2DOTTYPE;

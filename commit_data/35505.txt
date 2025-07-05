@@ -15,6 +15,20 @@ Date:   Fri Feb 16 17:01:52 2018 +0000
     Change-Id: If310ee569cae8ca8f56346d84ce23803feb23a41
     Reviewed-on: https://go-review.googlesource.com/94796
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/serve_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9cbfe872af..5ff08b4036 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -931,7 +931,7 @@ func TestOnlyWriteTimeout(t *testing.T) {
+ 		if err == nil {
+ 			t.Errorf("expected an error from Get request")
+ 		}
+-	case <-time.After(5 * time.Second):
++	case <-time.After(10 * time.Second):
+ 		t.Fatal("timeout waiting for Get error")
+ 	}
+ 	if err := <-afterTimeoutErrc; err == nil {

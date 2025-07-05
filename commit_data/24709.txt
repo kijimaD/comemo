@@ -12,7 +12,34 @@ Date:   Mon Aug 24 19:11:35 2015 -0500
     Change-Id: Iedaf0654dcba5e2c800645f26b26a1a781ea1991
     Reviewed-on: https://go-review.googlesource.com/13877
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/proc1.go    | 2 +-
  src/runtime/runtime2.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 09cb775f0d..a5708162de 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -1538,7 +1538,7 @@ func resetspinning() {
+ 	if _g_.m.spinning {
+ 		_g_.m.spinning = false
+ 		nmspinning = xadd(&sched.nmspinning, -1)
+-		if nmspinning < 0 {
++		if int32(nmspinning) < 0 {
+ 			throw("findrunnable: negative nmspinning")
+ 		}
+ 	} else {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 57cd869d88..fbd43d21da 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -429,7 +429,7 @@ type schedt struct {
+ 
+ 	pidle      puintptr // idle p's
+ 	npidle     uint32
+-	nmspinning uint32
++	nmspinning uint32 // limited to [0, 2^31-1]
+ 
+ 	// Global runnable queue.
+ 	runqhead guintptr

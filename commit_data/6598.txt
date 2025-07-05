@@ -8,6 +8,27 @@ Date:   Thu Oct 21 18:15:00 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2645042
-
+---
  src/cmd/5g/cgen64.c | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/5g/cgen64.c b/src/cmd/5g/cgen64.c
+index a22f4a548c..716ec5ed5b 100644
+--- a/src/cmd/5g/cgen64.c
++++ b/src/cmd/5g/cgen64.c
+@@ -439,12 +439,12 @@ olsh_break:
+ 		p3 = gbranch(ABLO, T);
+ 
+ 		// shift == 32
++		p1 = gins(AMOVW, &bh, &al);
++		p1->scond = C_SCOND_EQ;
+ 		if(bh.type->etype == TINT32)
+ 			p1 = gshift(AMOVW, &bh, SHIFT_AR, 31, &ah);
+ 		else
+-			p1 = gins(AEOR, &al, &al);
+-		p1->scond = C_SCOND_EQ;
+-		p1 = gins(AMOVW, &bh, &al);
++			p1 = gins(AEOR, &ah, &ah);
+ 		p1->scond = C_SCOND_EQ;
+ 		p4 = gbranch(ABEQ, T);
+ 

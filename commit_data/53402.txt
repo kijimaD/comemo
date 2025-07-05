@@ -23,6 +23,21 @@ Date:   Wed Aug 3 19:43:49 2022 +0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/cmd/link/internal/loadelf/ldelf.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loadelf/ldelf.go b/src/cmd/link/internal/loadelf/ldelf.go
+index f5b7907675..6014caca09 100644
+--- a/src/cmd/link/internal/loadelf/ldelf.go
++++ b/src/cmd/link/internal/loadelf/ldelf.go
+@@ -1002,7 +1002,8 @@ func relSize(arch *sys.Arch, pn string, elftype uint32) (uint8, uint8, error) {
+ 		LOONG64 | uint32(elf.R_LARCH_MARK_LA)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_SOP_POP_32_S_0_10_10_16_S2)<<16,
+ 		LOONG64 | uint32(elf.R_LARCH_64)<<16,
+-		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16:
++		LOONG64 | uint32(elf.R_LARCH_MARK_PCREL)<<16,
++		LOONG64 | uint32(elf.R_LARCH_32_PCREL)<<16:
+ 		return 4, 4, nil
+ 
+ 	case S390X | uint32(elf.R_390_8)<<16:

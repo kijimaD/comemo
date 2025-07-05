@@ -11,6 +11,20 @@ Date:   Mon Nov 28 17:23:12 2016 -0500
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/executable_procfs.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/executable_procfs.go b/src/os/executable_procfs.go
+index a6c8f45189..69a70e18df 100644
+--- a/src/os/executable_procfs.go
++++ b/src/os/executable_procfs.go
+@@ -19,7 +19,7 @@ var executablePath, executablePathErr = func() (string, error) {
+ 	switch runtime.GOOS {
+ 	default:
+ 		return "", errors.New("Executable not implemented for " + runtime.GOOS)
+-	case "linux":
++	case "linux", "android":
+ 		procfn = "/proc/self/exe"
+ 	case "netbsd":
+ 		procfn = "/proc/curproc/exe"

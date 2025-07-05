@@ -21,7 +21,62 @@ Date:   Thu Dec 14 16:29:50 2023 -0800
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Keith Randall <khr@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm.s | 14 ++++++++++++++
  src/cmd/internal/obj/arm/asm5.go        | 18 ++++++++++++++++++
  2 files changed, 32 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm.s b/src/cmd/asm/internal/asm/testdata/arm.s
+index 2b8cadbed8..93edc8854e 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm.s
++++ b/src/cmd/asm/internal/asm/testdata/arm.s
+@@ -943,6 +943,20 @@ jmp_label_3:
+ 	SLL	R5, R7               // 1775a0e1
+ 	SLL.S	R5, R7               // 1775b0e1
+ 
++// Ops with zero shifts should encode as left shifts
++	ADD	R0<<0, R1, R2	     // 002081e0
++	ADD	R0>>0, R1, R2	     // 002081e0
++	ADD	R0->0, R1, R2	     // 002081e0
++	ADD	R0@>0, R1, R2	     // 002081e0
++	MOVW	R0<<0(R1), R2        // 002091e7
++	MOVW	R0>>0(R1), R2        // 002091e7
++	MOVW	R0->0(R1), R2        // 002091e7
++	MOVW	R0@>0(R1), R2        // 002091e7
++	MOVW	R0, R1<<0(R2)        // 010082e7
++	MOVW	R0, R1>>0(R2)        // 010082e7
++	MOVW	R0, R1->0(R2)        // 010082e7
++	MOVW	R0, R1@>0(R2)        // 010082e7
++
+ // MULA / MULS
+ 	MULAWT		R1, R2, R3, R4       // c23124e1
+ 	MULAWB		R1, R2, R3, R4       // 823124e1
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 9731bd4151..4e6eff9e17 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -1106,6 +1106,24 @@ func (c *ctxt5) oplook(p *obj.Prog) *Optab {
+ 		// TODO: rotate by 0? Not currently supported, but if we ever do then include it here.
+ 		p.As = ASLL
+ 	}
++	if p.As != AMOVB && p.As != AMOVBS && p.As != AMOVBU && p.As != AMOVH && p.As != AMOVHS && p.As != AMOVHU && p.As != AXTAB && p.As != AXTABU && p.As != AXTAH && p.As != AXTAHU {
++		// Same here, but for shifts encoded in Addrs.
++		// Don't do it for the extension ops, which
++		// need to keep their RR shifts.
++		fixShift := func(a *obj.Addr) {
++			if a.Type == obj.TYPE_SHIFT {
++				typ := a.Offset & SHIFT_RR
++				isConst := a.Offset&(1<<4) == 0
++				amount := a.Offset >> 7 & 0x1f
++				if isConst && amount == 0 && (typ == SHIFT_LR || typ == SHIFT_AR || typ == SHIFT_RR) {
++					a.Offset -= typ
++					a.Offset += SHIFT_LL
++				}
++			}
++		}
++		fixShift(&p.From)
++		fixShift(&p.To)
++	}
+ 
+ 	ops := oprange[p.As&obj.AMask]
+ 	c1 := &xcmp[a1]

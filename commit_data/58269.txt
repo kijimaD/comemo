@@ -18,7 +18,7 @@ Date:   Tue Oct 17 15:07:58 2023 -0400
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/stdlib_test.go  | 2 +-
  src/go/types/stdlib_test.go                     | 2 +-
  test/abi/bad_internal_offsets.go                | 1 -
@@ -147,3 +147,1598 @@ Date:   Tue Oct 17 15:07:58 2023 -0400
  test/sigchld.go                                 | 3 ++-
  test/typeparam/issue54765.go                    | 1 -
  127 files changed, 147 insertions(+), 137 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index ae0f800d1e..7c14e3476e 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -191,7 +191,7 @@ func firstComment(filename string) (first string) {
+ 		}
+ 		text = strings.TrimSpace(text[2:])
+ 
+-		if strings.HasPrefix(text, "+build ") {
++		if strings.HasPrefix(text, "go:build ") {
+ 			panic("skip")
+ 		}
+ 		if first == "" {
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index e490dea848..f90f9388c2 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -192,7 +192,7 @@ func firstComment(filename string) string {
+ 				lit = lit[:len(lit)-2]
+ 			}
+ 			contents := strings.TrimSpace(lit[2:])
+-			if strings.HasPrefix(contents, "+build ") {
++			if strings.HasPrefix(contents, "go:build ") {
+ 				return "skip"
+ 			}
+ 			if first == "" {
+diff --git a/test/abi/bad_internal_offsets.go b/test/abi/bad_internal_offsets.go
+index d396c1a60f..bad4ebdc8e 100644
+--- a/test/abi/bad_internal_offsets.go
++++ b/test/abi/bad_internal_offsets.go
+@@ -1,7 +1,6 @@
+ // compile
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/double_nested_addressed_struct.go b/test/abi/double_nested_addressed_struct.go
+index be7c88aaaf..c3e68a1783 100644
+--- a/test/abi/double_nested_addressed_struct.go
++++ b/test/abi/double_nested_addressed_struct.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/double_nested_struct.go b/test/abi/double_nested_struct.go
+index 814341e701..0dce143f57 100644
+--- a/test/abi/double_nested_struct.go
++++ b/test/abi/double_nested_struct.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/f_ret_z_not.go b/test/abi/f_ret_z_not.go
+index 63d6c7918f..0fec654e4b 100644
+--- a/test/abi/f_ret_z_not.go
++++ b/test/abi/f_ret_z_not.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/fibish.go b/test/abi/fibish.go
+index b72f1322de..20ed92437a 100644
+--- a/test/abi/fibish.go
++++ b/test/abi/fibish.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/fibish_closure.go b/test/abi/fibish_closure.go
+index 988001ebac..682886cec4 100644
+--- a/test/abi/fibish_closure.go
++++ b/test/abi/fibish_closure.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/leaf.go b/test/abi/leaf.go
+index f893f5dddb..fb1be5cd8a 100644
+--- a/test/abi/leaf.go
++++ b/test/abi/leaf.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/leaf2.go b/test/abi/leaf2.go
+index d2018d5313..fdad59cf7e 100644
+--- a/test/abi/leaf2.go
++++ b/test/abi/leaf2.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/many_int_input.go b/test/abi/many_int_input.go
+index 8fda937932..046e31c39d 100644
+--- a/test/abi/many_int_input.go
++++ b/test/abi/many_int_input.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/many_intstar_input.go b/test/abi/many_intstar_input.go
+index b209c801ba..dc9e43b5ab 100644
+--- a/test/abi/many_intstar_input.go
++++ b/test/abi/many_intstar_input.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/more_intstar_input.go b/test/abi/more_intstar_input.go
+index 3eb0fbcc3d..256081d0f5 100644
+--- a/test/abi/more_intstar_input.go
++++ b/test/abi/more_intstar_input.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/named_results.go b/test/abi/named_results.go
+index eaaadb184f..07ea4610bf 100644
+--- a/test/abi/named_results.go
++++ b/test/abi/named_results.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/named_return_stuff.go b/test/abi/named_return_stuff.go
+index faa0221a3c..ac779f0dbe 100644
+--- a/test/abi/named_return_stuff.go
++++ b/test/abi/named_return_stuff.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/reg_not_ssa.go b/test/abi/reg_not_ssa.go
+index 5bd4b51a6b..da0f405116 100644
+--- a/test/abi/reg_not_ssa.go
++++ b/test/abi/reg_not_ssa.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/return_stuff.go b/test/abi/return_stuff.go
+index 130d8be5c5..222a9ee89a 100644
+--- a/test/abi/return_stuff.go
++++ b/test/abi/return_stuff.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/s_sif_sif.go b/test/abi/s_sif_sif.go
+index f05f26f29f..f57faac674 100644
+--- a/test/abi/s_sif_sif.go
++++ b/test/abi/s_sif_sif.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/spills3.go b/test/abi/spills3.go
+index 247828437b..4dee3eb679 100644
+--- a/test/abi/spills3.go
++++ b/test/abi/spills3.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/spills4.go b/test/abi/spills4.go
+index 205f5a64c0..646d6965d8 100644
+--- a/test/abi/spills4.go
++++ b/test/abi/spills4.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/struct_3_string_input.go b/test/abi/struct_3_string_input.go
+index 54a8b38af9..2291bbb036 100644
+--- a/test/abi/struct_3_string_input.go
++++ b/test/abi/struct_3_string_input.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/struct_lower_1.go b/test/abi/struct_lower_1.go
+index b20de9be4b..363b85c019 100644
+--- a/test/abi/struct_lower_1.go
++++ b/test/abi/struct_lower_1.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/too_big_to_ssa.go b/test/abi/too_big_to_ssa.go
+index 6c55d31419..e10acd1752 100644
+--- a/test/abi/too_big_to_ssa.go
++++ b/test/abi/too_big_to_ssa.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/uglyfib.go b/test/abi/uglyfib.go
+index b8e8739f30..9c9d710105 100644
+--- a/test/abi/uglyfib.go
++++ b/test/abi/uglyfib.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/abi/wrapdefer_largetmp.go b/test/abi/wrapdefer_largetmp.go
+index fb6eebaaca..1aaaade39c 100644
+--- a/test/abi/wrapdefer_largetmp.go
++++ b/test/abi/wrapdefer_largetmp.go
+@@ -1,7 +1,6 @@
+ // run
+ 
+ //go:build !wasm
+-// +build !wasm
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/chanlinear.go b/test/chanlinear.go
+index 4d55586dc8..87faa84c93 100644
+--- a/test/chanlinear.go
++++ b/test/chanlinear.go
+@@ -1,6 +1,7 @@
+-// +build darwin linux
+ // run
+ 
++//go:build darwin || linux
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/checkbce.go b/test/checkbce.go
+index ab31d95283..71acfb71ac 100644
+--- a/test/checkbce.go
++++ b/test/checkbce.go
+@@ -1,6 +1,7 @@
+-// +build amd64,!gcflags_noopt
+ // errorcheck -0 -d=ssa/check_bce/debug=3
+ 
++//go:build amd64 && !gcflags_noopt
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/closure3.go b/test/closure3.go
+index 14764d1070..24f8cefc30 100644
+--- a/test/closure3.go
++++ b/test/closure3.go
+@@ -1,7 +1,6 @@
+ // errorcheckandrundir -0 -m -d=inlfuncswithclosures=1
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/codegen/clobberdead.go b/test/codegen/clobberdead.go
+index 732be5f73b..13d2efbbe5 100644
+--- a/test/codegen/clobberdead.go
++++ b/test/codegen/clobberdead.go
+@@ -1,6 +1,6 @@
+ // asmcheck -gcflags=-clobberdead
+ 
+-// +build amd64 arm64
++//go:build amd64 || arm64
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/codegen/clobberdeadreg.go b/test/codegen/clobberdeadreg.go
+index 2a93c410f9..39c4a743cb 100644
+--- a/test/codegen/clobberdeadreg.go
++++ b/test/codegen/clobberdeadreg.go
+@@ -1,6 +1,6 @@
+ // asmcheck -gcflags=-clobberdeadreg
+ 
+-// +build amd64
++//go:build amd64
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/codegen/retpoline.go b/test/codegen/retpoline.go
+index a04a005e2e..0e8f661ec9 100644
+--- a/test/codegen/retpoline.go
++++ b/test/codegen/retpoline.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // asmcheck -gcflags=-spectre=ret
+ 
++//go:build amd64
++
+ package codegen
+ 
+ func CallFunc(f func()) {
+diff --git a/test/codegen/spectre.go b/test/codegen/spectre.go
+index edc8b28028..1b22b77aa6 100644
+--- a/test/codegen/spectre.go
++++ b/test/codegen/spectre.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // asmcheck -gcflags=-spectre=index
+ 
++//go:build amd64
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/codegen/structs.go b/test/codegen/structs.go
+index fc49a69375..49a201f743 100644
+--- a/test/codegen/structs.go
++++ b/test/codegen/structs.go
+@@ -1,7 +1,6 @@
+ // asmcheck
+ 
+ //go:build !goexperiment.cgocheck2
+-// +build !goexperiment.cgocheck2
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 93d2fdb671..bd305a867c 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!plan9
+ // errorcheckandrundir -1
+ 
++//go:build !nacl && !js && !plan9
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 47258fe3fe..f5dad370db 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,gc
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && gc
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug385_32.go b/test/fixedbugs/bug385_32.go
+index 73a1311f32..d9314c7e5d 100644
+--- a/test/fixedbugs/bug385_32.go
++++ b/test/fixedbugs/bug385_32.go
+@@ -1,6 +1,7 @@
+-// +build 386 amd64p32 arm
+ // errorcheck
+ 
++//go:build 386 || amd64p32 || arm
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+index 0f941ca2f4..3240960f1a 100644
+--- a/test/fixedbugs/bug385_64.go
++++ b/test/fixedbugs/bug385_64.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // errorcheck
+ 
++//go:build amd64
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/bug513.go b/test/fixedbugs/bug513.go
+index 459a9c396a..ce7ebf9b4e 100644
+--- a/test/fixedbugs/bug513.go
++++ b/test/fixedbugs/bug513.go
+@@ -1,6 +1,6 @@
+ // run -race -gcflags=all=-d=checkptr=0
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
+-// +build cgo
++
++//go:build ((linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)) && cgo
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue10607.go b/test/fixedbugs/issue10607.go
+index a2f9f3040b..d7be61842b 100644
+--- a/test/fixedbugs/issue10607.go
++++ b/test/fixedbugs/issue10607.go
+@@ -1,8 +1,7 @@
+-//go:build linux && !ppc64 && gc && cgo
+-// +build linux,!ppc64,gc,cgo
+-
+ // run
+ 
++//go:build linux && !ppc64 && gc && cgo
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue10958.go b/test/fixedbugs/issue10958.go
+index 52487fb9bd..d0b39587bb 100644
+--- a/test/fixedbugs/issue10958.go
++++ b/test/fixedbugs/issue10958.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,disabled_see_issue_18589
+ // buildrun -t 10  -gcflags=-d=ssa/insert_resched_checks/on,ssa/check/on
+ 
++//go:build !nacl && !js && disabled_see_issue_18589
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue11326b.go b/test/fixedbugs/issue11326b.go
+index b5f933bfea..5db083a989 100644
+--- a/test/fixedbugs/issue11326b.go
++++ b/test/fixedbugs/issue11326b.go
+@@ -2,7 +2,7 @@
+ 
+ // Does not work with gccgo, which uses a smaller (but still permitted)
+ // exponent size.
+-// +build !gccgo
++//go:build !gccgo
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue11656.dir/asm.go b/test/fixedbugs/issue11656.dir/asm.go
+index cdcb064dc5..c64302bd50 100644
+--- a/test/fixedbugs/issue11656.dir/asm.go
++++ b/test/fixedbugs/issue11656.dir/asm.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build ppc64 || ppc64le
+-// +build ppc64 ppc64le
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue11656.dir/asm_generic.go b/test/fixedbugs/issue11656.dir/asm_generic.go
+index 104d44dfeb..a8b8f6a5e4 100644
+--- a/test/fixedbugs/issue11656.dir/asm_generic.go
++++ b/test/fixedbugs/issue11656.dir/asm_generic.go
+@@ -3,7 +3,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !ppc64 && !ppc64le
+-// +build !ppc64,!ppc64le
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue11656.go b/test/fixedbugs/issue11656.go
+index dba8e35439..2d746891d6 100644
+--- a/test/fixedbugs/issue11656.go
++++ b/test/fixedbugs/issue11656.go
+@@ -17,6 +17,5 @@
+ // able to unwind past that point.
+ 
+ //go:build !windows && !wasm && !gccgo
+-// +build !windows,!wasm,!gccgo
+ 
+ package ignored
+diff --git a/test/fixedbugs/issue11771.go b/test/fixedbugs/issue11771.go
+index 657e1b0519..0c6b769d72 100644
+--- a/test/fixedbugs/issue11771.go
++++ b/test/fixedbugs/issue11771.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,gc
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && gc
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue12411.go b/test/fixedbugs/issue12411.go
+index ff49314a6b..19275d94a2 100644
+--- a/test/fixedbugs/issue12411.go
++++ b/test/fixedbugs/issue12411.go
+@@ -1,6 +1,7 @@
+-// +build !386
+ // run
+ 
++//go:build !386
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue13265.go b/test/fixedbugs/issue13265.go
+index 3e16cee6e7..0a393a3614 100644
+--- a/test/fixedbugs/issue13265.go
++++ b/test/fixedbugs/issue13265.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -race
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue13268.go b/test/fixedbugs/issue13268.go
+index 53a82d5074..da54b708a0 100644
+--- a/test/fixedbugs/issue13268.go
++++ b/test/fixedbugs/issue13268.go
+@@ -1,6 +1,7 @@
+-// +build gc
+ // run
+ 
++//go:build gc
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue14636.go b/test/fixedbugs/issue14636.go
+index 770fb4adc9..c8e751fb61 100644
+--- a/test/fixedbugs/issue14636.go
++++ b/test/fixedbugs/issue14636.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,!android,gc
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && !android && gc
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue15002.go b/test/fixedbugs/issue15002.go
+index 936105ed12..bb0fe42406 100644
+--- a/test/fixedbugs/issue15002.go
++++ b/test/fixedbugs/issue15002.go
+@@ -1,6 +1,6 @@
+ // run
+-// +build amd64
+-// +build linux darwin
++
++//go:build amd64 && (linux || darwin)
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue15091.go b/test/fixedbugs/issue15091.go
+index 678e7911c8..115ad6840f 100644
+--- a/test/fixedbugs/issue15091.go
++++ b/test/fixedbugs/issue15091.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -race
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue15277.go b/test/fixedbugs/issue15277.go
+index af165f7a6b..d22a305b0b 100644
+--- a/test/fixedbugs/issue15277.go
++++ b/test/fixedbugs/issue15277.go
+@@ -1,9 +1,10 @@
+ // run
+ 
++//go:build amd64
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-// +build amd64
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue15609.dir/call.go b/test/fixedbugs/issue15609.dir/call.go
+index 41a489cebd..48f90fd607 100644
+--- a/test/fixedbugs/issue15609.dir/call.go
++++ b/test/fixedbugs/issue15609.dir/call.go
+@@ -1,4 +1,4 @@
+-// +build !amd64,!386
++//go:build !amd64 && !386
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue15609.dir/call_decl.go b/test/fixedbugs/issue15609.dir/call_decl.go
+index d9c5a4e9f0..cdca44a654 100644
+--- a/test/fixedbugs/issue15609.dir/call_decl.go
++++ b/test/fixedbugs/issue15609.dir/call_decl.go
+@@ -1,4 +1,4 @@
+-// +build amd64 386
++//go:build amd64 || 386
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue15609.go b/test/fixedbugs/issue15609.go
+index e0bf8a42d8..fa3b755011 100644
+--- a/test/fixedbugs/issue15609.go
++++ b/test/fixedbugs/issue15609.go
+@@ -1,6 +1,6 @@
+ // runindir
+ 
+-// +build !nacl
++//go:build !nacl
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue15747.go b/test/fixedbugs/issue15747.go
+index 7825958066..92e762c4e9 100644
+--- a/test/fixedbugs/issue15747.go
++++ b/test/fixedbugs/issue15747.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -live
+ 
+ //go:build !goexperiment.cgocheck2
+-// +build !goexperiment.cgocheck2
+ 
+ // Copyright 2016 The Go Authors.  All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue16008.go b/test/fixedbugs/issue16008.go
+index b88e2351b7..963137960b 100644
+--- a/test/fixedbugs/issue16008.go
++++ b/test/fixedbugs/issue16008.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -race
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue16037_run.go b/test/fixedbugs/issue16037_run.go
+index 610fd2d395..d5ad477391 100644
+--- a/test/fixedbugs/issue16037_run.go
++++ b/test/fixedbugs/issue16037_run.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,!android,!gccgo
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && !android && !gccgo
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue17449.go b/test/fixedbugs/issue17449.go
+index 51cc8eaa06..4e092faa7f 100644
+--- a/test/fixedbugs/issue17449.go
++++ b/test/fixedbugs/issue17449.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -race
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19182.go b/test/fixedbugs/issue19182.go
+index f5e44e98c2..544c4b0ceb 100644
+--- a/test/fixedbugs/issue19182.go
++++ b/test/fixedbugs/issue19182.go
+@@ -1,5 +1,6 @@
+ // run
+-// +build !js,!wasip1
++
++//go:build !js && !wasip1
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19261.go b/test/fixedbugs/issue19261.go
+index 8650982a4c..1da90e94ca 100644
+--- a/test/fixedbugs/issue19261.go
++++ b/test/fixedbugs/issue19261.go
+@@ -1,7 +1,6 @@
+ // errorcheckdir -0 -m
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19507.dir/main.go b/test/fixedbugs/issue19507.dir/main.go
+index c115556f91..e4e72be87d 100644
+--- a/test/fixedbugs/issue19507.dir/main.go
++++ b/test/fixedbugs/issue19507.dir/main.go
+@@ -1,4 +1,4 @@
+-// +build arm
++//go:build arm
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue19507.go b/test/fixedbugs/issue19507.go
+index 543e17e50b..ef0a9a1b78 100644
+--- a/test/fixedbugs/issue19507.go
++++ b/test/fixedbugs/issue19507.go
+@@ -1,6 +1,7 @@
+-// +build arm
+ // builddir
+ 
++//go:build arm
++
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue20250.go b/test/fixedbugs/issue20250.go
+index c739b6fb12..34184c4815 100644
+--- a/test/fixedbugs/issue20250.go
++++ b/test/fixedbugs/issue20250.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -live -l
+ 
+ //go:build !goexperiment.cgocheck2
+-// +build !goexperiment.cgocheck2
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue20529.go b/test/fixedbugs/issue20529.go
+index eeaaf37358..118365d6be 100644
+--- a/test/fixedbugs/issue20529.go
++++ b/test/fixedbugs/issue20529.go
+@@ -1,6 +1,6 @@
+ // errorcheck
+ 
+-// +build amd64
++//go:build amd64
+ 
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue20780b.go b/test/fixedbugs/issue20780b.go
+index c8bf1f8349..8aba8548b8 100644
+--- a/test/fixedbugs/issue20780b.go
++++ b/test/fixedbugs/issue20780b.go
+@@ -1,6 +1,7 @@
+-// +build cgo,linux,amd64
+ // run -race
+ 
++//go:build cgo && linux && amd64
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index 75d871cbae..cebfc0f52d 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -1,6 +1,7 @@
+-// +build !js,!wasip1,gc
+ // run
+ 
++//go:build !js && !wasip1 && gc
++
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue21576.go b/test/fixedbugs/issue21576.go
+index 8e1e3ad495..d5bfc2859b 100644
+--- a/test/fixedbugs/issue21576.go
++++ b/test/fixedbugs/issue21576.go
+@@ -1,6 +1,6 @@
+ // run
+ 
+-// +build !nacl,!js,!wasip1,!gccgo
++//go:build !nacl && !js && !wasip1 && !gccgo
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue22200b.go b/test/fixedbugs/issue22200b.go
+index ce20923334..7babeec847 100644
+--- a/test/fixedbugs/issue22200b.go
++++ b/test/fixedbugs/issue22200b.go
+@@ -1,11 +1,11 @@
+ // errorcheck
+ 
++//go:build !386 && !amd64p32 && !arm && !mips && !mipsle
++
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build !386,!amd64p32,!arm,!mips,!mipsle
+-
+ package p
+ 
+ func f3(x *[1 << 31]byte) byte { // GC_ERROR "stack frame too large"
+diff --git a/test/fixedbugs/issue22660.go b/test/fixedbugs/issue22660.go
+index 150de174af..10622033f0 100644
+--- a/test/fixedbugs/issue22660.go
++++ b/test/fixedbugs/issue22660.go
+@@ -1,6 +1,7 @@
+-// +build !js,!wasip1,gc
+ // run
+ 
++//go:build !js && !wasip1 && gc
++
+ // Copyright 2017 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+index c7a1e0558b..a58a2e0a15 100644
+--- a/test/fixedbugs/issue22662b.go
++++ b/test/fixedbugs/issue22662b.go
+@@ -1,6 +1,7 @@
+-// +build !js,!wasip1,gc
+ // run
+ 
++//go:build !js && !wasip1 && gc
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue23781.go b/test/fixedbugs/issue23781.go
+index 5c03cf7e4e..1947951321 100644
+--- a/test/fixedbugs/issue23781.go
++++ b/test/fixedbugs/issue23781.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // compile
+ 
++//go:build amd64
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue24187.go b/test/fixedbugs/issue24187.go
+index 45fc929710..f697968a09 100644
+--- a/test/fixedbugs/issue24187.go
++++ b/test/fixedbugs/issue24187.go
+@@ -1,6 +1,7 @@
+-// +build amd64p32
+ // run
+ 
++//go:build amd64p32
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue24651a.go b/test/fixedbugs/issue24651a.go
+index 1bfe8ac1ce..74bcbb1fae 100644
+--- a/test/fixedbugs/issue24651a.go
++++ b/test/fixedbugs/issue24651a.go
+@@ -1,5 +1,6 @@
+ //errorcheck -0 -race -m -m
+-// +build linux,amd64 linux,ppc64le darwin,amd64 freebsd,amd64 netbsd,amd64 windows,amd64
++
++//go:build (linux && amd64) || (linux && ppc64le) || (darwin && amd64) || (freebsd && amd64) || (netbsd && amd64) || (windows && amd64)
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue26411.go b/test/fixedbugs/issue26411.go
+index 3ae9e03936..d7b2a26ff4 100644
+--- a/test/fixedbugs/issue26411.go
++++ b/test/fixedbugs/issue26411.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1
+ // run
+ 
++//go:build !nacl && !js && !wasip1
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue29329.go b/test/fixedbugs/issue29329.go
+index 7818bca30a..07f96f431f 100644
+--- a/test/fixedbugs/issue29329.go
++++ b/test/fixedbugs/issue29329.go
+@@ -1,12 +1,11 @@
+-// +build cgo
+ // run -race
+ 
++//go:build cgo && linux && amd64
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64
+-
+ package main
+ 
+ import (
+diff --git a/test/fixedbugs/issue30908.go b/test/fixedbugs/issue30908.go
+index 27f070ecec..98dd641066 100644
+--- a/test/fixedbugs/issue30908.go
++++ b/test/fixedbugs/issue30908.go
+@@ -5,6 +5,5 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build !nacl && !js
+-// +build !nacl,!js
+ 
+ package ignored
+diff --git a/test/fixedbugs/issue33275_run.go b/test/fixedbugs/issue33275_run.go
+index f2818b0f51..542cc03f60 100644
+--- a/test/fixedbugs/issue33275_run.go
++++ b/test/fixedbugs/issue33275_run.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,!gccgo
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && !gccgo
++
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue33555.go b/test/fixedbugs/issue33555.go
+index e7fe41e451..90d024470f 100644
+--- a/test/fixedbugs/issue33555.go
++++ b/test/fixedbugs/issue33555.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,!gccgo
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && !gccgo
++
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue34968.go b/test/fixedbugs/issue34968.go
+index 6b1dbd16ed..f328f04479 100644
+--- a/test/fixedbugs/issue34968.go
++++ b/test/fixedbugs/issue34968.go
+@@ -1,6 +1,7 @@
+-// +build cgo
+ // run -gcflags=all=-d=checkptr
+ 
++//go:build cgo
++
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue36437.go b/test/fixedbugs/issue36437.go
+index c16e7ef48f..72ea50bdad 100644
+--- a/test/fixedbugs/issue36437.go
++++ b/test/fixedbugs/issue36437.go
+@@ -1,6 +1,6 @@
+ // run
+ 
+-// +build !nacl,!js,!wasip1,gc
++//go:build !nacl && !js && !wasip1 && gc
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue36516.go b/test/fixedbugs/issue36516.go
+index d4e28b636d..68f655a568 100644
+--- a/test/fixedbugs/issue36516.go
++++ b/test/fixedbugs/issue36516.go
+@@ -1,6 +1,7 @@
+-// +build cgo,linux,amd64
+ // run -race
+ 
++//go:build cgo && linux && amd64
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue36705.go b/test/fixedbugs/issue36705.go
+index b0485c6335..9aad8a7f81 100644
+--- a/test/fixedbugs/issue36705.go
++++ b/test/fixedbugs/issue36705.go
+@@ -1,6 +1,7 @@
+-// +build cgo,!windows
+ // run fake-arg-to-force-use-of-go-run
+ 
++//go:build cgo && !windows
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue37513.go b/test/fixedbugs/issue37513.go
+index e05b2d861f..957032519c 100644
+--- a/test/fixedbugs/issue37513.go
++++ b/test/fixedbugs/issue37513.go
+@@ -4,6 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build linux,amd64 darwin,amd64 linux,386
++//go:build (linux && amd64) || (darwin && amd64) || (linux && 386)
+ 
+ package ignored
+diff --git a/test/fixedbugs/issue38093.go b/test/fixedbugs/issue38093.go
+index db92664a49..af476aba48 100644
+--- a/test/fixedbugs/issue38093.go
++++ b/test/fixedbugs/issue38093.go
+@@ -1,6 +1,7 @@
+-// +build js
+ // run
+ 
++//go:build js
++
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue4099.go b/test/fixedbugs/issue4099.go
+index 7e9790ff68..edbbfebc20 100644
+--- a/test/fixedbugs/issue4099.go
++++ b/test/fixedbugs/issue4099.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -m
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue42284.go b/test/fixedbugs/issue42284.go
+index 95da611f13..a1a525b8bd 100644
+--- a/test/fixedbugs/issue42284.go
++++ b/test/fixedbugs/issue42284.go
+@@ -1,7 +1,6 @@
+ // errorcheckdir -0 -m
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue46234.go b/test/fixedbugs/issue46234.go
+index ae280190eb..9c346dd95c 100644
+--- a/test/fixedbugs/issue46234.go
++++ b/test/fixedbugs/issue46234.go
+@@ -1,7 +1,6 @@
+ // buildrun -t 45
+ 
+ //go:build !js && !wasip1
+-// +build !js,!wasip1
+ 
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue47185.go b/test/fixedbugs/issue47185.go
+index 9c921b8698..91c7e0ad3a 100644
+--- a/test/fixedbugs/issue47185.go
++++ b/test/fixedbugs/issue47185.go
+@@ -1,6 +1,7 @@
+-// +build cgo
+ // runindir
+ 
++//go:build cgo
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue47227.go b/test/fixedbugs/issue47227.go
+index a14efc9a68..14c3b15212 100644
+--- a/test/fixedbugs/issue47227.go
++++ b/test/fixedbugs/issue47227.go
+@@ -5,7 +5,6 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:build cgo
+-// +build cgo
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue52127.go b/test/fixedbugs/issue52127.go
+index 68abe3fdbb..b40c194b3e 100644
+--- a/test/fixedbugs/issue52127.go
++++ b/test/fixedbugs/issue52127.go
+@@ -1,6 +1,6 @@
+ // run
++
+ //go:build !js && !wasip1
+-// +build !js,!wasip1
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue6036.go b/test/fixedbugs/issue6036.go
+index 8ebef5a447..e7c2557864 100644
+--- a/test/fixedbugs/issue6036.go
++++ b/test/fixedbugs/issue6036.go
+@@ -1,6 +1,7 @@
+-// +build !386,!arm,!mips,!mipsle,!amd64p32
+ // compile
+ 
++//go:build !386 && !arm && !mips && !mipsle && !amd64p32
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue8606b.go b/test/fixedbugs/issue8606b.go
+index 41b9a3d00e..6a56c0df89 100644
+--- a/test/fixedbugs/issue8606b.go
++++ b/test/fixedbugs/issue8606b.go
+@@ -1,5 +1,6 @@
+ // run
+-// +build linux darwin
++
++//go:build linux || darwin
+ 
+ // Copyright 2020 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 075e7ebbff..4e6cbf0395 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -1,6 +1,7 @@
+-// +build !js,!wasip1,gc
+ // run
+ 
++//go:build !js && !wasip1 && gc
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fixedbugs/issue9604b.go b/test/fixedbugs/issue9604b.go
+index d32116b857..0033a6ff95 100644
+--- a/test/fixedbugs/issue9604b.go
++++ b/test/fixedbugs/issue9604b.go
+@@ -5,7 +5,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // terribly slow on wasm
+-// +build !wasm
++//go:build !wasm
+ 
+ package main
+ 
+diff --git a/test/fixedbugs/issue9862_run.go b/test/fixedbugs/issue9862_run.go
+index edf8dfaf32..8c5caa3373 100644
+--- a/test/fixedbugs/issue9862_run.go
++++ b/test/fixedbugs/issue9862_run.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,gc
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && gc
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/fuse.go b/test/fuse.go
+index ea908bfd4d..f64a087965 100644
+--- a/test/fuse.go
++++ b/test/fuse.go
+@@ -1,6 +1,7 @@
+-// +build amd64,!gcflags_noopt arm64,!gcflags_noopt
+ // errorcheck -0 -d=ssa/late_fuse/debug=1
+ 
++//go:build (amd64 && !gcflags_noopt) || (arm64 && !gcflags_noopt)
++
+ // Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/gc2.go b/test/gc2.go
+index 2f8eb9b70e..954a021a14 100644
+--- a/test/gc2.go
++++ b/test/gc2.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js
+ // run
+ 
++//go:build !nacl && !js
++
+ // Copyright 2011 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/inline.go b/test/inline.go
+index 9bc0cf5e4b..fd14f25983 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -1,7 +1,6 @@
+ // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+ 
+ //go:build !goexperiment.newinliner
+-// +build !goexperiment.newinliner
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/inline_math_bits_rotate.go b/test/inline_math_bits_rotate.go
+index a0341ea497..ad15d60e08 100644
+--- a/test/inline_math_bits_rotate.go
++++ b/test/inline_math_bits_rotate.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // errorcheck -0 -m
+ 
++//go:build amd64
++
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/intrinsic.go b/test/intrinsic.go
+index 0b783d15df..702b6acaf8 100644
+--- a/test/intrinsic.go
++++ b/test/intrinsic.go
+@@ -1,5 +1,6 @@
+ // errorcheckandrundir -0 -d=ssa/intrinsics/debug
+-// +build amd64 arm64 arm s390x
++
++//go:build amd64 || arm64 || arm || s390x
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/intrinsic_atomic.go b/test/intrinsic_atomic.go
+index a1004c89d9..72038e676a 100644
+--- a/test/intrinsic_atomic.go
++++ b/test/intrinsic_atomic.go
+@@ -1,5 +1,6 @@
+ // errorcheck -0 -d=ssa/intrinsics/debug
+-// +build amd64 arm64 loong64 mips mipsle mips64 mips64le ppc64 ppc64le riscv64 s390x
++
++//go:build amd64 || arm64 || loong64 || mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || riscv64 || s390x
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/linkmain.go b/test/linkmain.go
+index af20ca5838..18962a9848 100644
+--- a/test/linkmain.go
++++ b/test/linkmain.go
+@@ -1,4 +1,4 @@
+-// +build ignore
++//go:build ignore
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/linkmain_run.go b/test/linkmain_run.go
+index f2ab681c0d..55aa652673 100644
+--- a/test/linkmain_run.go
++++ b/test/linkmain_run.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1
+ // run
+ 
++//go:build !nacl && !js && !wasip1
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/linkobj.go b/test/linkobj.go
+index fcf3f88919..85570269eb 100644
+--- a/test/linkobj.go
++++ b/test/linkobj.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,gc,!wasip1
+ // run
+ 
++//go:build !nacl && !js && gc && !wasip1
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/linkx_run.go b/test/linkx_run.go
+index b7b1ea87f0..15f7c9ab4f 100644
+--- a/test/linkx_run.go
++++ b/test/linkx_run.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!wasip1,gc
+ // run
+ 
++//go:build !nacl && !js && !wasip1 && gc
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/live.go b/test/live.go
+index 8a8f8bb71f..6badb011b0 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -1,6 +1,6 @@
+ // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
++
+ //go:build !ppc64 && !ppc64le && !goexperiment.regabiargs
+-// +build !ppc64,!ppc64le,!goexperiment.regabiargs
+ 
+ // ppc64 needs a better tighten pass to make f18 pass
+ // rescheduling checks need to be turned off because there are some live variables across the inserted check call
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 0b7f2eeb4e..80a9cc1002 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -1,6 +1,6 @@
+ // errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
++
+ //go:build (amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs)
+-// +build amd64,goexperiment.regabiargs arm64,goexperiment.regabiargs
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/live_uintptrkeepalive.go b/test/live_uintptrkeepalive.go
+index f681f683fc..ae41101954 100644
+--- a/test/live_uintptrkeepalive.go
++++ b/test/live_uintptrkeepalive.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -m -live -std
+ 
+ //go:build !windows && !js && !wasip1
+-// +build !windows,!js,!wasip1
+ 
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 1119aaa65a..04c186be0e 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // errorcheck -0 -d=ssa/prove/debug=1
+ 
++//go:build amd64
++
+ package main
+ 
+ import "math"
+diff --git a/test/maplinear.go b/test/maplinear.go
+index 34d0914914..dbc68272bf 100644
+--- a/test/maplinear.go
++++ b/test/maplinear.go
+@@ -1,6 +1,7 @@
+-// +build darwin linux
+ // run
+ 
++//go:build darwin || linux
++
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/newinline.go b/test/newinline.go
+index e27f6c7457..272eb82f3d 100644
+--- a/test/newinline.go
++++ b/test/newinline.go
+@@ -1,7 +1,6 @@
+ // errorcheckwithauto -0 -m -d=inlfuncswithclosures=1
+ 
+ //go:build goexperiment.newinliner
+-// +build goexperiment.newinliner
+ 
+ // Copyright 2023 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr.go b/test/nilptr.go
+index b296c88c99..7f42e930bd 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -7,10 +7,8 @@
+ // Test that the implementation catches nil ptr indirection
+ // in a large address space.
+ 
+-// +build !aix
+-// +build !darwin !arm64
+-// +build !windows !arm64
+ // Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/arm64, so dummy is too far.
++//go:build !aix && (!darwin || !arm64) && (!windows || !arm64)
+ 
+ package main
+ 
+diff --git a/test/nilptr3.go b/test/nilptr3.go
+index 5f08a5b20c..2cc510beb6 100644
+--- a/test/nilptr3.go
++++ b/test/nilptr3.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -d=nil
+ 
+-// +build !wasm
+-// +build !aix
++//go:build !wasm && !aix
+ 
+ // Copyright 2013 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr5.go b/test/nilptr5.go
+index 118746e4aa..51a302f252 100644
+--- a/test/nilptr5.go
++++ b/test/nilptr5.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -d=nil
+ 
+ //go:build !wasm && !aix
+-// +build !wasm,!aix
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr5_aix.go b/test/nilptr5_aix.go
+index 142780718b..3b116ca19f 100644
+--- a/test/nilptr5_aix.go
++++ b/test/nilptr5_aix.go
+@@ -1,6 +1,6 @@
+ // errorcheck -0 -d=nil
+ 
+-// +build aix
++//go:build aix
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr5_wasm.go b/test/nilptr5_wasm.go
+index 6ef8a02e90..ea380d1384 100644
+--- a/test/nilptr5_wasm.go
++++ b/test/nilptr5_wasm.go
+@@ -1,6 +1,6 @@
+ // errorcheck -0 -d=nil
+ 
+-// +build wasm
++//go:build wasm
+ 
+ // Copyright 2018 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/nilptr_aix.go b/test/nilptr_aix.go
+index ea5fcc3f4e..f7a7e616d1 100644
+--- a/test/nilptr_aix.go
++++ b/test/nilptr_aix.go
+@@ -7,7 +7,7 @@
+ // Test that the implementation catches nil ptr indirection
+ // in a large address space.
+ 
+-// +build aix
++//go:build aix
+ 
+ package main
+ 
+diff --git a/test/nosplit.go b/test/nosplit.go
+index 2b1bb5492d..e171d1da66 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -1,6 +1,7 @@
+-// +build !nacl,!js,!aix,!wasip1,!gcflags_noopt,gc
+ // run
+ 
++//go:build !nacl && !js && !aix && !wasip1 && !gcflags_noopt && gc
++
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/opt_branchlikely.go b/test/opt_branchlikely.go
+index 884c34916e..0aee33f87a 100644
+--- a/test/opt_branchlikely.go
++++ b/test/opt_branchlikely.go
+@@ -1,7 +1,8 @@
+-// +build amd64
+ // errorcheck -0 -d=ssa/likelyadjust/debug=1,ssa/insert_resched_checks/off
+ // rescheduling check insertion is turned off because the inserted conditional branches perturb the errorcheck
+ 
++//go:build amd64
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/phiopt.go b/test/phiopt.go
+index e04373eb72..9e21bfdba5 100644
+--- a/test/phiopt.go
++++ b/test/phiopt.go
+@@ -1,6 +1,7 @@
+-// +build amd64 s390x arm64
+ // errorcheck -0 -d=ssa/phiopt/debug=3
+ 
++//go:build amd64 || s390x || arm64
++
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/prove.go b/test/prove.go
+index 91d1f55519..1aea282291 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1,7 +1,6 @@
+ // errorcheck -0 -d=ssa/prove/debug=1
+ 
+ //go:build amd64
+-// +build amd64
+ 
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+diff --git a/test/prove_constant_folding.go b/test/prove_constant_folding.go
+index d4bdb20d83..ed63e6851c 100644
+--- a/test/prove_constant_folding.go
++++ b/test/prove_constant_folding.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // errorcheck -0 -d=ssa/prove/debug=2
+ 
++//go:build amd64
++
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/prove_invert_loop_with_unused_iterators.go b/test/prove_invert_loop_with_unused_iterators.go
+index f278e5aee0..c66f20b6e9 100644
+--- a/test/prove_invert_loop_with_unused_iterators.go
++++ b/test/prove_invert_loop_with_unused_iterators.go
+@@ -1,6 +1,7 @@
+-// +build amd64
+ // errorcheck -0 -d=ssa/prove/debug=1
+ 
++//go:build amd64
++
+ package main
+ 
+ func invert(b func(), n int) {
+diff --git a/test/recover4.go b/test/recover4.go
+index 7cab15a5a8..19b94948b8 100644
+--- a/test/recover4.go
++++ b/test/recover4.go
+@@ -1,6 +1,7 @@
+-// +build linux darwin
+ // run
+ 
++//go:build linux || darwin
++
+ // Copyright 2015 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/sigchld.go b/test/sigchld.go
+index fc6cf91b57..ad5b18e64d 100644
+--- a/test/sigchld.go
++++ b/test/sigchld.go
+@@ -1,6 +1,7 @@
+-// +build !plan9,!windows,!wasip1
+ // run
+ 
++//go:build !plan9 && !windows && !wasip1
++
+ // Copyright 2009 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/test/typeparam/issue54765.go b/test/typeparam/issue54765.go
+index 364567d258..69a0d3746d 100644
+--- a/test/typeparam/issue54765.go
++++ b/test/typeparam/issue54765.go
+@@ -8,7 +8,6 @@
+ // arguments. (pointer-to-nih types are okay though.)
+ 
+ //go:build cgo
+-// +build cgo
+ 
+ package p
+ 

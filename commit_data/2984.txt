@@ -8,7 +8,32 @@ Date:   Fri Aug 14 13:07:53 2009 -0700
     R=ken
     OCL=33235
     CL=33288
-
+---
  src/cmd/6g/gsubr.c | 1 +
  src/cmd/8g/gsubr.c | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/6g/gsubr.c b/src/cmd/6g/gsubr.c
+index c4c6e348c9..aec4cb1bd3 100644
+--- a/src/cmd/6g/gsubr.c
++++ b/src/cmd/6g/gsubr.c
+@@ -940,6 +940,7 @@ naddr(Node *n, Addr *a)
+ 			a->etype = simtype[n->type->etype];
+ 			a->width = n->type->width;
+ 			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
++			if(n->type->etype != TFUNC || n->type->thistuple == 0)
+ 				a->gotype = typename(n->type)->left->sym;
+ 		}
+ 		a->offset = n->xoffset;
+diff --git a/src/cmd/8g/gsubr.c b/src/cmd/8g/gsubr.c
+index 2eacd23ada..a0d2f6eb7e 100755
+--- a/src/cmd/8g/gsubr.c
++++ b/src/cmd/8g/gsubr.c
+@@ -1692,6 +1692,7 @@ naddr(Node *n, Addr *a)
+ 		if(n->type != T) {
+ 			a->etype = simtype[n->type->etype];
+ 			if(n->sym != S && strncmp(n->sym->name, "autotmp_", 8) != 0)
++			if(n->type->etype != TFUNC || n->type->thistuple == 0)
+ 				a->gotype = typename(n->type)->left->sym;
+ 		}
+ 		a->offset = n->xoffset;

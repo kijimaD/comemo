@@ -10,6 +10,20 @@ Date:   Tue Oct 30 20:56:32 2012 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6813058
-
+---
  test/fixedbugs/bug358.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug358.go b/test/fixedbugs/bug358.go
+index 6a008484f4..063c2e0bf8 100644
+--- a/test/fixedbugs/bug358.go
++++ b/test/fixedbugs/bug358.go
+@@ -12,7 +12,7 @@ package main
+ import (
+ 	"io/ioutil"	// GCCGO_ERROR "imported and not used"
+ 	"net/http"
+-	"os"
++	"os"		// GCCGO_ERROR "imported and not used"
+ )
+ 
+ func makeHandler(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {

@@ -16,9 +16,170 @@ Date:   Mon Jun 1 19:36:16 2020 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jeremy Faller <jeremy@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/elf.go      |  3 +-
  src/cmd/link/internal/ld/lib.go      | 72 ------------------------------------
  src/cmd/link/internal/ld/symtab.go   |  8 ++--
  src/cmd/link/internal/sym/library.go |  1 -
  4 files changed, 5 insertions(+), 79 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index eaa3ffddc4..b100d07e6f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -12,7 +12,6 @@ import (
+ 	"crypto/sha1"
+ 	"encoding/binary"
+ 	"encoding/hex"
+-	"io"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -1713,7 +1712,7 @@ func (ctxt *Link) doelf() {
+ 		sort.Sort(byPkg(ctxt.Library))
+ 		h := sha1.New()
+ 		for _, l := range ctxt.Library {
+-			io.WriteString(h, l.Hash)
++			h.Write(l.Fingerprint[:])
+ 		}
+ 		addgonote(ctxt, ".note.go.abihash", ELF_NOTE_GOABIHASH_TAG, h.Sum([]byte{}))
+ 		addgonote(ctxt, ".note.go.pkg-list", ELF_NOTE_GOPKGLIST_TAG, pkglistfornote)
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 93524f0955..dcb5f798c6 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -48,7 +48,6 @@ import (
+ 	"debug/macho"
+ 	"encoding/base64"
+ 	"encoding/binary"
+-	"encoding/hex"
+ 	"fmt"
+ 	"io"
+ 	"io/ioutil"
+@@ -785,16 +784,6 @@ func (ctxt *Link) linksetup() {
+ 	ctxt.loader.SetAttrReachable(moduledata, true)
+ 	ctxt.Moduledata = moduledata
+ 
+-	// If package versioning is required, generate a hash of the
+-	// packages used in the link.
+-	if ctxt.BuildMode == BuildModeShared || ctxt.BuildMode == BuildModePlugin || ctxt.CanUsePlugins() {
+-		for _, lib := range ctxt.Library {
+-			if lib.Shlib == "" {
+-				genhash(ctxt, lib)
+-			}
+-		}
+-	}
+-
+ 	if ctxt.Arch == sys.Arch386 && ctxt.HeadType != objabi.Hwindows {
+ 		if (ctxt.BuildMode == BuildModeCArchive && ctxt.IsELF) || ctxt.BuildMode == BuildModeCShared || ctxt.BuildMode == BuildModePIE || ctxt.DynlinkingGo() {
+ 			got := ctxt.loader.LookupOrCreateSym("_GLOBAL_OFFSET_TABLE_", 0)
+@@ -919,67 +908,6 @@ func nextar(bp *bio.Reader, off int64, a *ArHdr) int64 {
+ 	return arsize + SAR_HDR
+ }
+ 
+-func genhash(ctxt *Link, lib *sym.Library) {
+-	f, err := bio.Open(lib.File)
+-	if err != nil {
+-		Errorf(nil, "cannot open file %s for hash generation: %v", lib.File, err)
+-		return
+-	}
+-	defer f.Close()
+-
+-	var magbuf [len(ARMAG)]byte
+-	if _, err := io.ReadFull(f, magbuf[:]); err != nil {
+-		Exitf("file %s too short", lib.File)
+-	}
+-
+-	if string(magbuf[:]) != ARMAG {
+-		Exitf("%s is not an archive file", lib.File)
+-	}
+-
+-	var arhdr ArHdr
+-	l := nextar(f, f.Offset(), &arhdr)
+-	if l <= 0 {
+-		Errorf(nil, "%s: short read on archive file symbol header", lib.File)
+-		return
+-	}
+-	if arhdr.name != pkgdef {
+-		Errorf(nil, "%s: missing package data entry", lib.File)
+-		return
+-	}
+-
+-	h := sha1.New()
+-
+-	// To compute the hash of a package, we hash the first line of
+-	// __.PKGDEF (which contains the toolchain version and any
+-	// GOEXPERIMENT flags) and the export data (which is between
+-	// the first two occurrences of "\n$$").
+-
+-	pkgDefBytes := make([]byte, atolwhex(arhdr.size))
+-	_, err = io.ReadFull(f, pkgDefBytes)
+-	if err != nil {
+-		Errorf(nil, "%s: error reading package data: %v", lib.File, err)
+-		return
+-	}
+-	firstEOL := bytes.IndexByte(pkgDefBytes, '\n')
+-	if firstEOL < 0 {
+-		Errorf(nil, "cannot parse package data of %s for hash generation, no newline found", lib.File)
+-		return
+-	}
+-	firstDoubleDollar := bytes.Index(pkgDefBytes, []byte("\n$$"))
+-	if firstDoubleDollar < 0 {
+-		Errorf(nil, "cannot parse package data of %s for hash generation, no \\n$$ found", lib.File)
+-		return
+-	}
+-	secondDoubleDollar := bytes.Index(pkgDefBytes[firstDoubleDollar+1:], []byte("\n$$"))
+-	if secondDoubleDollar < 0 {
+-		Errorf(nil, "cannot parse package data of %s for hash generation, only one \\n$$ found", lib.File)
+-		return
+-	}
+-	h.Write(pkgDefBytes[0:firstEOL])
+-	h.Write(pkgDefBytes[firstDoubleDollar : firstDoubleDollar+secondDoubleDollar])
+-	lib.Hash = hex.EncodeToString(h.Sum(nil))
+-}
+-
+ func loadobjfile(ctxt *Link, lib *sym.Library) {
+ 	pkg := objabi.PathToPrefix(lib.Pkg)
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index a448244370..43639393d6 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -591,13 +591,13 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			s := ldr.CreateSymForUpdate("go.link.pkghashbytes."+l.Pkg, 0)
+ 			s.SetReachable(true)
+ 			s.SetType(sym.SRODATA)
+-			s.SetSize(int64(len(l.Hash)))
+-			s.SetData([]byte(l.Hash))
++			s.SetSize(int64(len(l.Fingerprint)))
++			s.SetData(l.Fingerprint[:])
+ 			str := ldr.CreateSymForUpdate("go.link.pkghash."+l.Pkg, 0)
+ 			str.SetReachable(true)
+ 			str.SetType(sym.SRODATA)
+ 			str.AddAddr(ctxt.Arch, s.Sym())
+-			str.AddUint(ctxt.Arch, uint64(len(l.Hash)))
++			str.AddUint(ctxt.Arch, uint64(len(l.Fingerprint)))
+ 		}
+ 	}
+ 
+@@ -698,7 +698,7 @@ func (ctxt *Link) symtab() []sym.SymKind {
+ 			// pkghashes[i].name
+ 			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkgname.%d", i), l.Pkg)
+ 			// pkghashes[i].linktimehash
+-			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), l.Hash)
++			addgostring(ctxt, ldr, pkghashes, fmt.Sprintf("go.link.pkglinkhash.%d", i), string(l.Fingerprint[:]))
+ 			// pkghashes[i].runtimehash
+ 			hash := ldr.Lookup("go.link.pkghash."+l.Pkg, 0)
+ 			pkghashes.AddAddr(ctxt.Arch, hash)
+diff --git a/src/cmd/link/internal/sym/library.go b/src/cmd/link/internal/sym/library.go
+index 18e1380a68..7f6e63c020 100644
+--- a/src/cmd/link/internal/sym/library.go
++++ b/src/cmd/link/internal/sym/library.go
+@@ -12,7 +12,6 @@ type Library struct {
+ 	File        string
+ 	Pkg         string
+ 	Shlib       string
+-	Hash        string
+ 	Fingerprint goobj2.FingerprintType
+ 	Autolib     []goobj2.ImportedPkg
+ 	Imports     []*Library

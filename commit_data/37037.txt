@@ -15,7 +15,95 @@ Date:   Tue Jun 19 20:43:24 2018 -0700
     Run-TryBot: Dmitry Vyukov <dvyukov@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/internal/poll/fd_mutex.go      | 10 ++++++----
  src/internal/poll/fd_mutex_test.go | 22 ++++++++++++++++++++++
  2 files changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/fd_mutex.go b/src/internal/poll/fd_mutex.go
+index 2ba7de7da3..0a8ee6f0d4 100644
+--- a/src/internal/poll/fd_mutex.go
++++ b/src/internal/poll/fd_mutex.go
+@@ -34,6 +34,8 @@ const (
+ 	mutexWMask   = (1<<20 - 1) << 43
+ )
+ 
++const overflowMsg = "too many concurrent operations on a single file or socket (max 1048575)"
++
+ // Read operations must do rwlock(true)/rwunlock(true).
+ //
+ // Write operations must do rwlock(false)/rwunlock(false).
+@@ -56,7 +58,7 @@ func (mu *fdMutex) incref() bool {
+ 		}
+ 		new := old + mutexRef
+ 		if new&mutexRefMask == 0 {
+-			panic("inconsistent poll.fdMutex")
++			panic(overflowMsg)
+ 		}
+ 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+ 			return true
+@@ -75,7 +77,7 @@ func (mu *fdMutex) increfAndClose() bool {
+ 		// Mark as closed and acquire a reference.
+ 		new := (old | mutexClosed) + mutexRef
+ 		if new&mutexRefMask == 0 {
+-			panic("inconsistent poll.fdMutex")
++			panic(overflowMsg)
+ 		}
+ 		// Remove all read and write waiters.
+ 		new &^= mutexRMask | mutexWMask
+@@ -136,13 +138,13 @@ func (mu *fdMutex) rwlock(read bool) bool {
+ 			// Lock is free, acquire it.
+ 			new = (old | mutexBit) + mutexRef
+ 			if new&mutexRefMask == 0 {
+-				panic("inconsistent poll.fdMutex")
++				panic(overflowMsg)
+ 			}
+ 		} else {
+ 			// Wait for lock.
+ 			new = old + mutexWait
+ 			if new&mutexMask == 0 {
+-				panic("inconsistent poll.fdMutex")
++				panic(overflowMsg)
+ 			}
+ 		}
+ 		if atomic.CompareAndSwapUint64(&mu.state, old, new) {
+diff --git a/src/internal/poll/fd_mutex_test.go b/src/internal/poll/fd_mutex_test.go
+index bab81c6dfe..2c53c4561f 100644
+--- a/src/internal/poll/fd_mutex_test.go
++++ b/src/internal/poll/fd_mutex_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "internal/poll"
+ 	"math/rand"
+ 	"runtime"
++	"strings"
+ 	"testing"
+ 	"time"
+ )
+@@ -121,6 +122,27 @@ func TestMutexPanic(t *testing.T) {
+ 	mu.RWUnlock(false)
+ }
+ 
++func TestMutexOverflowPanic(t *testing.T) {
++	defer func() {
++		r := recover()
++		if r == nil {
++			t.Fatal("did not panic")
++		}
++		msg, ok := r.(string)
++		if !ok {
++			t.Fatalf("unexpected panic type %T", r)
++		}
++		if !strings.Contains(msg, "too many") || strings.Contains(msg, "inconsistent") {
++			t.Fatalf("wrong panic message %q", msg)
++		}
++	}()
++
++	var mu1 FDMutex
++	for i := 0; i < 1<<21; i++ {
++		mu1.Incref()
++	}
++}
++
+ func TestMutexStress(t *testing.T) {
+ 	P := 8
+ 	N := int(1e6)

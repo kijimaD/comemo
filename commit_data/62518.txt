@@ -12,7 +12,61 @@ Date:   Mon Mar 10 11:45:10 2025 -0700
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David du Colombier <0intro@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/fd_plan9.go |  5 +++++
  src/net/net_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index da41bc0c34..66a12e7d7d 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -126,6 +126,11 @@ func (fd *netFD) Close() error {
+ 			return err
+ 		}
+ 	}
++	if fd.net == "udp" {
++		// The following line is required to unblock Reads.
++		// See https://go.dev/issue/72770.
++		fd.SetReadDeadline(time.Now().Add(-time.Hour))
++	}
+ 	err := fd.ctl.Close()
+ 	if fd.data != nil {
+ 		if err1 := fd.data.Close(); err1 != nil && err == nil {
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 4a5dc3b73a..705ac45c6b 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -508,6 +508,32 @@ func TestCloseUnblocksRead(t *testing.T) {
+ 	withTCPConnPair(t, client, server)
+ }
+ 
++// Issue 72770: verify that a blocked UDP read is woken up by a Close.
++func TestCloseUnblocksReadUDP(t *testing.T) {
++	t.Parallel()
++	pc, err := ListenPacket("udp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	time.AfterFunc(250*time.Millisecond, func() {
++		t.Logf("closing conn...")
++		pc.Close()
++	})
++	timer := time.AfterFunc(time.Second*10, func() {
++		panic("timeout waiting for Close")
++	})
++	defer timer.Stop()
++
++	n, src, err := pc.(*UDPConn).ReadFromUDPAddrPort([]byte{})
++
++	// Check for n > 0. Checking err == nil alone isn't enough;
++	// on macOS, it returns (n=0, src=0.0.0.0:0, err=nil).
++	if n > 0 {
++		t.Fatalf("unexpected Read success from ReadFromUDPAddrPort; read %d bytes from %v, err=%v", n, src, err)
++	}
++	t.Logf("got expected UDP read error")
++}
++
+ // Issue 24808: verify that ECONNRESET is not temporary for read.
+ func TestNotTemporaryRead(t *testing.T) {
+ 	t.Parallel()

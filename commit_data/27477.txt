@@ -13,7 +13,109 @@ Date:   Tue Mar 29 11:29:28 2016 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  6 ++++
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 52 ++++++++++++++++++++++++++++
  2 files changed, 58 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index bc932c99b1..061d7164bc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1239,6 +1239,12 @@
+ (CMPWconst (ANDWconst [c] x) [0]) -> (TESTWconst [c] x)
+ (CMPBconst (ANDBconst [c] x) [0]) -> (TESTBconst [c] x)
+ 
++// TEST %reg,%reg is shorter than CMP
++(CMPQconst x [0]) -> (TESTQ x x)
++(CMPLconst x [0]) -> (TESTL x x)
++(CMPWconst x [0]) -> (TESTW x x)
++(CMPBconst x [0]) -> (TESTB x x)
++
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+ // designed to match the way encoding/binary.LittleEndian does it.
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 0a7046aace..8dfa40d99d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -2608,6 +2608,19 @@ func rewriteValueAMD64_OpAMD64CMPBconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPBconst x [0])
++	// cond:
++	// result: (TESTB x x)
++	for {
++		x := v.Args[0]
++		if v.AuxInt != 0 {
++			break
++		}
++		v.reset(OpAMD64TESTB)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPL(v *Value, config *Config) bool {
+@@ -2782,6 +2795,19 @@ func rewriteValueAMD64_OpAMD64CMPLconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPLconst x [0])
++	// cond:
++	// result: (TESTL x x)
++	for {
++		x := v.Args[0]
++		if v.AuxInt != 0 {
++			break
++		}
++		v.reset(OpAMD64TESTL)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPQ(v *Value, config *Config) bool {
+@@ -2962,6 +2988,19 @@ func rewriteValueAMD64_OpAMD64CMPQconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPQconst x [0])
++	// cond:
++	// result: (TESTQ x x)
++	for {
++		x := v.Args[0]
++		if v.AuxInt != 0 {
++			break
++		}
++		v.reset(OpAMD64TESTQ)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64CMPW(v *Value, config *Config) bool {
+@@ -3136,6 +3175,19 @@ func rewriteValueAMD64_OpAMD64CMPWconst(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (CMPWconst x [0])
++	// cond:
++	// result: (TESTW x x)
++	for {
++		x := v.Args[0]
++		if v.AuxInt != 0 {
++			break
++		}
++		v.reset(OpAMD64TESTW)
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpClosureCall(v *Value, config *Config) bool {

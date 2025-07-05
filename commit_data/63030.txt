@@ -12,7 +12,82 @@ Date:   Wed May 14 12:46:28 2025 -0700
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/bytes/bytes_test.go     | 9 ++++++---
  src/strings/strings_test.go | 9 ++++++---
  2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 14b52a8035..0f6cf4993a 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -2128,8 +2128,9 @@ func TestContainsFunc(t *testing.T) {
+ var makeFieldsInput = func() []byte {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
++	r := rand.New(rand.NewSource(99))
+ 	for i := range x {
+-		switch rand.Intn(10) {
++		switch r.Intn(10) {
+ 		case 0:
+ 			x[i] = ' '
+ 		case 1:
+@@ -2148,8 +2149,9 @@ var makeFieldsInput = func() []byte {
+ var makeFieldsInputASCII = func() []byte {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, rest ASCII non-space.
++	r := rand.New(rand.NewSource(99))
+ 	for i := range x {
+-		if rand.Intn(10) == 0 {
++		if r.Intn(10) == 0 {
+ 			x[i] = ' '
+ 		} else {
+ 			x[i] = 'x'
+@@ -2246,8 +2248,9 @@ func makeBenchInputHard() []byte {
+ 		"hello", "world",
+ 	}
+ 	x := make([]byte, 0, 1<<20)
++	r := rand.New(rand.NewSource(99))
+ 	for {
+-		i := rand.Intn(len(tokens))
++		i := r.Intn(len(tokens))
+ 		if len(x)+len(tokens[i]) >= 1<<20 {
+ 			break
+ 		}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index d058ba7358..b10b5f05cc 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1875,8 +1875,9 @@ func makeBenchInputHard() string {
+ 		"hello", "world",
+ 	}
+ 	x := make([]byte, 0, 1<<20)
++	r := rand.New(rand.NewSource(99))
+ 	for {
+-		i := rand.Intn(len(tokens))
++		i := r.Intn(len(tokens))
+ 		if len(x)+len(tokens[i]) >= 1<<20 {
+ 			break
+ 		}
+@@ -1964,8 +1965,9 @@ func BenchmarkCountByte(b *testing.B) {
+ var makeFieldsInput = func() string {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
++	r := rand.New(rand.NewSource(99))
+ 	for i := range x {
+-		switch rand.Intn(10) {
++		switch r.Intn(10) {
+ 		case 0:
+ 			x[i] = ' '
+ 		case 1:
+@@ -1984,8 +1986,9 @@ var makeFieldsInput = func() string {
+ var makeFieldsInputASCII = func() string {
+ 	x := make([]byte, 1<<20)
+ 	// Input is ~10% space, rest ASCII non-space.
++	r := rand.New(rand.NewSource(99))
+ 	for i := range x {
+-		if rand.Intn(10) == 0 {
++		if r.Intn(10) == 0 {
+ 			x[i] = ' '
+ 		} else {
+ 			x[i] = 'x'

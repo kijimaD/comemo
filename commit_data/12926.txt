@@ -13,7 +13,245 @@ Date:   Sat Apr 21 09:20:38 2012 +1000
     R=golang-dev, nigeltao
     CC=golang-dev
     https://golang.org/cl/6089043
-
+---
  src/pkg/exp/html/parse.go                 | 150 +++++++++++++++++++-----------
  src/pkg/exp/html/testlogs/tests19.dat.log |  12 +--
  2 files changed, 104 insertions(+), 58 deletions(-)
+
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index 780b47a27a..1cb65b7dcb 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -166,6 +166,31 @@ func (p *parser) clearStackToContext(s scope) {
+ 	}
+ }
+ 
++// generateImpliedEndTags pops nodes off the stack of open elements as long as
++// the top node has a tag name of dd, dt, li, option, optgroup, p, rp, or rt.
++// If exceptions are specified, nodes with that name will not be popped off.
++func (p *parser) generateImpliedEndTags(exceptions ...string) {
++	var i int
++loop:
++	for i = len(p.oe) - 1; i >= 0; i-- {
++		n := p.oe[i]
++		if n.Type == ElementNode {
++			switch n.Data {
++			case "dd", "dt", "li", "option", "optgroup", "p", "rp", "rt":
++				for _, except := range exceptions {
++					if n.Data == except {
++						break loop
++					}
++				}
++				continue
++			}
++		}
++		break
++	}
++
++	p.oe = p.oe[:i+1]
++}
++
+ // addChild adds a child node n to the top element, and pushes n onto the stack
+ // of open elements if it is an element node.
+ func (p *parser) addChild(n *Node) {
+@@ -673,58 +698,11 @@ func inBodyIM(p *parser) bool {
+ 				p.oe.pop()
+ 			}
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+-		case "a":
+-			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
+-				if n := p.afe[i]; n.Type == ElementNode && n.Data == "a" {
+-					p.inBodyEndTagFormatting("a")
+-					p.oe.remove(n)
+-					p.afe.remove(n)
+-					break
+-				}
+-			}
+-			p.reconstructActiveFormattingElements()
+-			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+-		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
+-			p.reconstructActiveFormattingElements()
+-			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+-		case "nobr":
+-			p.reconstructActiveFormattingElements()
+-			if p.elementInScope(defaultScope, "nobr") {
+-				p.inBodyEndTagFormatting("nobr")
+-				p.reconstructActiveFormattingElements()
+-			}
+-			p.addFormattingElement(p.tok.Data, p.tok.Attr)
+-		case "applet", "marquee", "object":
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.afe = append(p.afe, &scopeMarker)
+-			p.framesetOK = false
+-		case "area", "br", "embed", "img", "input", "keygen", "wbr":
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.oe.pop()
+-			p.acknowledgeSelfClosingTag()
+-			p.framesetOK = false
+-		case "table":
+-			if !p.quirks {
+-				p.popUntil(buttonScope, "p")
+-			}
+-			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.framesetOK = false
+-			p.im = inTableIM
+-			return true
+-		case "hr":
++		case "pre", "listing":
+ 			p.popUntil(buttonScope, "p")
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+-			p.oe.pop()
+-			p.acknowledgeSelfClosingTag()
+-			p.framesetOK = false
+-		case "select":
+-			p.reconstructActiveFormattingElements()
+-			p.addElement(p.tok.Data, p.tok.Attr)
++			// The newline, if any, will be dealt with by the TextToken case.
+ 			p.framesetOK = false
+-			p.im = inSelectIM
+-			return true
+ 		case "form":
+ 			if p.form == nil {
+ 				p.popUntil(buttonScope, "p")
+@@ -737,7 +715,7 @@ func inBodyIM(p *parser) bool {
+ 				node := p.oe[i]
+ 				switch node.Data {
+ 				case "li":
+-					p.popUntil(listItemScope, "li")
++					p.oe = p.oe[:i]
+ 				case "address", "div", "p":
+ 					continue
+ 				default:
+@@ -775,6 +753,58 @@ func inBodyIM(p *parser) bool {
+ 			p.reconstructActiveFormattingElements()
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+ 			p.framesetOK = false
++		case "a":
++			for i := len(p.afe) - 1; i >= 0 && p.afe[i].Type != scopeMarkerNode; i-- {
++				if n := p.afe[i]; n.Type == ElementNode && n.Data == "a" {
++					p.inBodyEndTagFormatting("a")
++					p.oe.remove(n)
++					p.afe.remove(n)
++					break
++				}
++			}
++			p.reconstructActiveFormattingElements()
++			p.addFormattingElement(p.tok.Data, p.tok.Attr)
++		case "b", "big", "code", "em", "font", "i", "s", "small", "strike", "strong", "tt", "u":
++			p.reconstructActiveFormattingElements()
++			p.addFormattingElement(p.tok.Data, p.tok.Attr)
++		case "nobr":
++			p.reconstructActiveFormattingElements()
++			if p.elementInScope(defaultScope, "nobr") {
++				p.inBodyEndTagFormatting("nobr")
++				p.reconstructActiveFormattingElements()
++			}
++			p.addFormattingElement(p.tok.Data, p.tok.Attr)
++		case "applet", "marquee", "object":
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.afe = append(p.afe, &scopeMarker)
++			p.framesetOK = false
++		case "area", "br", "embed", "img", "input", "keygen", "wbr":
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
++			p.framesetOK = false
++		case "table":
++			if !p.quirks {
++				p.popUntil(buttonScope, "p")
++			}
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.framesetOK = false
++			p.im = inTableIM
++			return true
++		case "hr":
++			p.popUntil(buttonScope, "p")
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.oe.pop()
++			p.acknowledgeSelfClosingTag()
++			p.framesetOK = false
++		case "select":
++			p.reconstructActiveFormattingElements()
++			p.addElement(p.tok.Data, p.tok.Attr)
++			p.framesetOK = false
++			p.im = inSelectIM
++			return true
+ 		case "optgroup", "option":
+ 			if p.top().Data == "option" {
+ 				p.oe.pop()
+@@ -856,15 +886,31 @@ func inBodyIM(p *parser) bool {
+ 				return false
+ 			}
+ 			return true
++		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
++			p.popUntil(defaultScope, p.tok.Data)
++		case "form":
++			node := p.form
++			p.form = nil
++			i := p.indexOfElementInScope(defaultScope, "form")
++			if node == nil || i == -1 || p.oe[i] != node {
++				// Ignore the token.
++				return true
++			}
++			p.generateImpliedEndTags()
++			p.oe.remove(node)
+ 		case "p":
+ 			if !p.elementInScope(buttonScope, "p") {
+ 				p.addElement("p", nil)
+ 			}
+ 			p.popUntil(buttonScope, "p")
++		case "li":
++			p.popUntil(listItemScope, "li")
++		case "dd", "dt":
++			p.popUntil(defaultScope, p.tok.Data)
++		case "h1", "h2", "h3", "h4", "h5", "h6":
++			p.popUntil(defaultScope, "h1", "h2", "h3", "h4", "h5", "h6")
+ 		case "a", "b", "big", "code", "em", "font", "i", "nobr", "s", "small", "strike", "strong", "tt", "u":
+ 			p.inBodyEndTagFormatting(p.tok.Data)
+-		case "address", "article", "aside", "blockquote", "button", "center", "details", "dir", "div", "dl", "fieldset", "figcaption", "figure", "footer", "header", "hgroup", "listing", "menu", "nav", "ol", "pre", "section", "summary", "ul":
+-			p.popUntil(defaultScope, p.tok.Data)
+ 		case "applet", "marquee", "object":
+ 			if p.popUntil(defaultScope, p.tok.Data) {
+ 				p.clearActiveFormattingElements()
+diff --git a/src/pkg/exp/html/testlogs/tests19.dat.log b/src/pkg/exp/html/testlogs/tests19.dat.log
+index 189e0fe4a8..27ab4f05ef 100644
+--- a/src/pkg/exp/html/testlogs/tests19.dat.log
++++ b/src/pkg/exp/html/testlogs/tests19.dat.log
+@@ -1,8 +1,8 @@
+ FAIL "<!doctype html><math><mn DefinitionUrl=\"foo\">"
+ PASS "<!doctype html><html></p><!--foo-->"
+ PASS "<!doctype html><head></head></p><!--foo-->"
+-FAIL "<!doctype html><body><p><pre>"
+-FAIL "<!doctype html><body><p><listing>"
++PASS "<!doctype html><body><p><pre>"
++PASS "<!doctype html><body><p><listing>"
+ PASS "<!doctype html><p><plaintext>"
+ PASS "<!doctype html><p><h1>"
+ PASS "<!doctype html><form><isindex>"
+@@ -19,9 +19,9 @@ FAIL "<!doctype html><ruby><div><p><rt>"
+ PASS "<!doctype html><math/><foo>"
+ PASS "<!doctype html><svg/><foo>"
+ PASS "<!doctype html><div></body><!--foo-->"
+-FAIL "<!doctype html><h1><div><h3><span></h1>foo"
++PASS "<!doctype html><h1><div><h3><span></h1>foo"
+ PASS "<!doctype html><p></h3>foo"
+-FAIL "<!doctype html><h3><li>abc</h2>foo"
++PASS "<!doctype html><h3><li>abc</h2>foo"
+ PASS "<!doctype html><table>abc<!--foo-->"
+ FAIL "<!doctype html><table>  <!--foo-->"
+ PASS "<!doctype html><table> b <!--foo-->"
+@@ -46,8 +46,8 @@ PASS "<!doctype html><body><frameset>"
+ PASS "<!doctype html><p><frameset><frame>"
+ PASS "<!doctype html><p>a<frameset>"
+ FAIL "<!doctype html><p> <frameset><frame>"
+-FAIL "<!doctype html><pre><frameset>"
+-FAIL "<!doctype html><listing><frameset>"
++PASS "<!doctype html><pre><frameset>"
++PASS "<!doctype html><listing><frameset>"
+ PASS "<!doctype html><li><frameset>"
+ PASS "<!doctype html><dd><frameset>"
+ PASS "<!doctype html><dt><frameset>"

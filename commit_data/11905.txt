@@ -18,7 +18,7 @@ Date:   Tue Feb 14 16:39:20 2012 -0500
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5674043
-
+---
  src/cmd/go/build.go                 | 64 +++++++++++++++++++++++++++++++++----
  src/cmd/go/main.go                  |  2 +-
  src/cmd/go/pkg.go                   | 25 ++++++++++++---
@@ -34,3 +34,459 @@ Date:   Tue Feb 14 16:39:20 2012 -0500
  src/pkg/net/http/triv.go            |  2 ++
  src/pkg/unicode/maketables.go       |  2 ++
  14 files changed, 113 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index e76c6fc2f5..caffa1f05d 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ var cmdBuild = &Command{
+-	UsageLine: "build [-a] [-n] [-o output] [-p n] [-v] [-x] [importpath... | gofiles...]",
++	UsageLine: "build [-a] [-n] [-o output] [-p n] [-v] [-x] [-work] [importpath... | gofiles...]",
+ 	Short:     "compile packages and dependencies",
+ 	Long: `
+ Build compiles the packages named by the import paths,
+@@ -48,6 +48,9 @@ It is an error to use -o when the command line specifies multiple packages.
+ The -p flag specifies the number of builds that can be run in parallel.
+ The default is the number of CPUs available.
+ 
++The -work flag causes build to print the name of the temporary work
++directory and not delete it when exiting.
++
+ For more about import paths, see 'go help importpath'.
+ 
+ See also: go install, go get, go clean.
+@@ -70,6 +73,7 @@ var buildP = runtime.NumCPU() // -p flag
+ var buildV bool               // -v flag
+ var buildX bool               // -x flag
+ var buildO = cmdBuild.Flag.String("o", "", "output file")
++var buildWork bool // -work flag
+ 
+ var buildContext = build.DefaultContext
+ 
+@@ -80,6 +84,7 @@ func addBuildFlags(cmd *Command) {
+ 	cmd.Flag.IntVar(&buildP, "p", buildP, "")
+ 	cmd.Flag.BoolVar(&buildV, "v", false, "")
+ 	cmd.Flag.BoolVar(&buildX, "x", false, "")
++	cmd.Flag.BoolVar(&buildWork, "work", false, "")
+ 
+ 	// TODO(rsc): This -t flag is used by buildscript.sh but
+ 	// not documented.  Should be documented but the
+@@ -140,7 +145,7 @@ func runBuild(cmd *Command, args []string) {
+ }
+ 
+ var cmdInstall = &Command{
+-	UsageLine: "install [-a] [-n] [-p n] [-v] [-x] [importpath...]",
++	UsageLine: "install [-a] [-n] [-p n] [-v] [-x] [-work] [importpath...]",
+ 	Short:     "compile and install packages and dependencies",
+ 	Long: `
+ Install compiles and installs the packages named by the import paths,
+@@ -154,6 +159,9 @@ The -x flag prints the commands.
+ The -p flag specifies the number of builds that can be run in parallel.
+ The default is the number of CPUs available.
+ 
++The -work flag causes build to print the name of the temporary work
++directory and not delete it when exiting.
++
+ For more about import paths, see 'go help importpath'.
+ 
+ See also: go build, go get, go clean.
+@@ -263,10 +271,12 @@ func (b *builder) init() {
+ 		if err != nil {
+ 			fatalf("%s", err)
+ 		}
+-		if buildX {
++		if buildX || buildWork {
+ 			fmt.Printf("WORK=%s\n", b.work)
+ 		}
+-		atexit(func() { os.RemoveAll(b.work) })
++		if !buildWork {
++			atexit(func() { os.RemoveAll(b.work) })
++		}
+ 	}
+ }
+ 
+@@ -300,7 +310,7 @@ func goFilesPackage(gofiles []string, target string) *Package {
+ 	ctxt.ReadDir = func(string) ([]os.FileInfo, error) { return dir, nil }
+ 	pwd, _ := os.Getwd()
+ 	var stk importStack
+-	pkg := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd+"/.", &stk)
++	pkg := scanPackage(&ctxt, &build.Tree{Path: "."}, "<command line>", "<command line>", pwd+"/.", &stk, true)
+ 	if pkg.Error != nil {
+ 		fatalf("%s", pkg.Error)
+ 	}
+@@ -686,8 +696,10 @@ func (b *builder) install(a *action) error {
+ 	// garbage down in a large build.  On an operating system
+ 	// with aggressive buffering, cleaning incrementally like
+ 	// this keeps the intermediate objects from hitting the disk.
+-	defer os.RemoveAll(a1.objdir)
+-	defer os.Remove(a1.target)
++	if !buildWork {
++		defer os.RemoveAll(a1.objdir)
++		defer os.Remove(a1.target)
++	}
+ 
+ 	return b.copyFile(a.target, a1.target, perm)
+ }
+@@ -745,6 +757,18 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ 	}
+ 	defer sf.Close()
+ 
++	// Be careful about removing/overwriting dst.
++	// Do not remove/overwrite if dst exists and is a directory
++	// or a non-object file.
++	if fi, err := os.Stat(dst); err == nil {
++		if fi.IsDir() {
++			return fmt.Errorf("build output %q already exists and is a directory", dst)
++		}
++		if !isObject(dst) {
++			return fmt.Errorf("build output %q already exists and is not an object file", dst)
++		}
++	}
++
+ 	// On Windows, remove lingering ~ file from last attempt.
+ 	if toolIsWindows {
+ 		if _, err := os.Stat(dst + "~"); err == nil {
+@@ -777,6 +801,32 @@ func (b *builder) copyFile(dst, src string, perm os.FileMode) error {
+ 	return nil
+ }
+ 
++var objectMagic = [][]byte{
++	{'!', '<', 'a', 'r', 'c', 'h', '>', '\n'},        // Package archive
++	{'\x7F', 'E', 'L', 'F'},                          // ELF
++	{0xFE, 0xED, 0xFA, 0xCE},                         // Mach-O big-endian 32-bit
++	{0xFE, 0xED, 0xFA, 0xCF},                         // Mach-O big-endian 64-bit
++	{0xCE, 0xFA, 0xED, 0xFE},                         // Mach-O little-endian 32-bit
++	{0xCF, 0xFA, 0xED, 0xFE},                         // Mach-O little-endian 64-bit
++	{0x4d, 0x5a, 0x90, 0x00, 0x03, 0x00, 0x04, 0x00}, // PE (Windows) as generated by 6l/8l
++}
++
++func isObject(s string) bool {
++	f, err := os.Open(s)
++	if err != nil {
++		return false
++	}
++	defer f.Close()
++	buf := make([]byte, 64)
++	io.ReadFull(f, buf)
++	for _, magic := range objectMagic {
++		if bytes.HasPrefix(buf, magic) {
++			return true
++		}
++	}
++	return false
++}
++
+ // fmtcmd formats a command in the manner of fmt.Sprintf but also:
+ //
+ //	If dir is non-empty and the script is not in dir right now,
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 68ab582df1..44f33d4f00 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -398,7 +398,7 @@ func allPackages(pattern string) []string {
+ 			have[name] = true
+ 
+ 			_, err = build.ScanDir(path)
+-			if err != nil {
++			if err != nil && strings.Contains(err.Error(), "no Go source files") {
+ 				return nil
+ 			}
+ 
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index 00c5d30b50..c855fa6c4c 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"go/build"
+ 	"go/scanner"
+ 	"os"
+@@ -135,6 +136,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 	}
+ 
+ 	// Find basic information about package path.
++	isCmd := false
+ 	t, importPath, err := build.FindTree(arg)
+ 	dir := ""
+ 	// Maybe it is a standard command.
+@@ -146,6 +148,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 			importPath = arg
+ 			dir = p
+ 			err = nil
++			isCmd = true
+ 		}
+ 	}
+ 	// Maybe it is a path to a standard command.
+@@ -158,6 +161,7 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 			importPath = filepath.FromSlash(arg[len(cmd):])
+ 			dir = arg
+ 			err = nil
++			isCmd = true
+ 		}
+ 	}
+ 	if err != nil {
+@@ -178,12 +182,23 @@ func loadPackage(arg string, stk *importStack) *Package {
+ 	}
+ 
+ 	// Maybe we know the package by its directory.
+-	if p := packageCache[dir]; p != nil {
++	p := packageCache[dir]
++	if p != nil {
+ 		packageCache[importPath] = p
+-		return reusePackage(p, stk)
++		p = reusePackage(p, stk)
++	} else {
++		p = scanPackage(&buildContext, t, arg, importPath, dir, stk, false)
+ 	}
+ 
+-	return scanPackage(&buildContext, t, arg, importPath, dir, stk)
++	// If we loaded the files from the Go root's cmd/ tree,
++	// it must be a command (package main).
++	if isCmd && p.Error == nil && p.Name != "main" {
++		p.Error = &PackageError{
++			ImportStack: stk.copy(),
++			Err:         fmt.Sprintf("expected package main in %q; found package %s", dir, p.Name),
++		}
++	}
++	return p
+ }
+ 
+ func reusePackage(p *Package, stk *importStack) *Package {
+@@ -243,7 +258,7 @@ var isGoTool = map[string]bool{
+ 	"exp/ebnflint": true,
+ }
+ 
+-func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack) *Package {
++func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string, stk *importStack, useAllFiles bool) *Package {
+ 	// Read the files in the directory to learn the structure
+ 	// of the package.
+ 	p := &Package{
+@@ -255,7 +270,9 @@ func scanPackage(ctxt *build.Context, t *build.Tree, arg, importPath, dir string
+ 	packageCache[dir] = p
+ 	packageCache[importPath] = p
+ 
++	ctxt.UseAllFiles = useAllFiles
+ 	info, err := ctxt.ScanDir(dir)
++	useAllFiles = false // flag does not apply to dependencies
+ 	if err != nil {
+ 		p.Error = &PackageError{
+ 			ImportStack: stk.copy(),
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index e2bf44ed9d..a291262b3f 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -273,6 +273,10 @@ func runTest(cmd *Command, args []string) {
+ 			}
+ 		}
+ 
++		// Ignore pseudo-packages.
++		delete(deps, "C")
++		delete(deps, "unsafe")
++
+ 		all := []string{}
+ 		for path := range deps {
+ 			all = append(all, path)
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index 7c0718b82a..84be5bfd85 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Generate a self-signed X.509 certificate for a TLS server. Outputs to
+ // 'cert.pem' and 'key.pem' and will overwrite existing files.
+ 
+diff --git a/src/pkg/encoding/gob/dump.go b/src/pkg/encoding/gob/dump.go
+index f7d822c11e..e23a11e48b 100644
+--- a/src/pkg/encoding/gob/dump.go
++++ b/src/pkg/encoding/gob/dump.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ // Need to compile package gob with debug.go to build this program.
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 6e6317198f..bb21bb5810 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Normalization table generator.
+ // Data read from the web.
+ // See forminfo.go for a description of the trie values associated with each rune.
+diff --git a/src/pkg/exp/norm/maketesttables.go b/src/pkg/exp/norm/maketesttables.go
+index 20eb889dde..d3112b4041 100644
+--- a/src/pkg/exp/norm/maketesttables.go
++++ b/src/pkg/exp/norm/maketesttables.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Generate test data for trie code.
+ 
+ package main
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 57ba703298..c2ab25bc99 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/src/pkg/exp/norm/triegen.go b/src/pkg/exp/norm/triegen.go
+index 4ad9e0e057..2e275a0625 100644
+--- a/src/pkg/exp/norm/triegen.go
++++ b/src/pkg/exp/norm/triegen.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Trie table generator.
+ // Used by make*tables tools to generate a go file with trie data structures
+ // for mapping UTF-8 to a 16-bit value. All but the last byte in a UTF-8 byte
+diff --git a/src/pkg/go/build/dir.go b/src/pkg/go/build/dir.go
+index 0917e736aa..6b30f76265 100644
+--- a/src/pkg/go/build/dir.go
++++ b/src/pkg/go/build/dir.go
+@@ -25,10 +25,11 @@ import (
+ 
+ // A Context specifies the supporting context for a build.
+ type Context struct {
+-	GOARCH     string   // target architecture
+-	GOOS       string   // target operating system
+-	CgoEnabled bool     // whether cgo can be used
+-	BuildTags  []string // additional tags to recognize in +build lines
++	GOARCH      string   // target architecture
++	GOOS        string   // target operating system
++	CgoEnabled  bool     // whether cgo can be used
++	BuildTags   []string // additional tags to recognize in +build lines
++	UseAllFiles bool     // use files regardless of +build lines, file names
+ 
+ 	// By default, ScanDir uses the operating system's
+ 	// file system calls to read directories and files.
+@@ -225,6 +226,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 
+ 	var Sfiles []string // files with ".S" (capital S)
+ 	var di DirInfo
++	var firstFile string
+ 	imported := make(map[string][]token.Position)
+ 	testImported := make(map[string][]token.Position)
+ 	fset := token.NewFileSet()
+@@ -237,7 +239,7 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			strings.HasPrefix(name, ".") {
+ 			continue
+ 		}
+-		if !ctxt.goodOSArchFile(name) {
++		if !ctxt.UseAllFiles && !ctxt.goodOSArchFile(name) {
+ 			continue
+ 		}
+ 
+@@ -250,12 +252,13 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			continue
+ 		}
+ 
+-		// Look for +build comments to accept or reject the file.
+ 		filename, data, err := ctxt.readFile(dir, name)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if !ctxt.shouldBuild(data) {
++
++		// Look for +build comments to accept or reject the file.
++		if !ctxt.UseAllFiles && !ctxt.shouldBuild(data) {
+ 			continue
+ 		}
+ 
+@@ -281,9 +284,6 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 		}
+ 
+ 		pkg := string(pf.Name.Name)
+-		if pkg == "main" && di.Package != "" && di.Package != "main" {
+-			continue
+-		}
+ 		if pkg == "documentation" {
+ 			continue
+ 		}
+@@ -293,15 +293,11 @@ func (ctxt *Context) ScanDir(dir string) (info *DirInfo, err error) {
+ 			pkg = pkg[:len(pkg)-len("_test")]
+ 		}
+ 
+-		if pkg != di.Package && di.Package == "main" {
+-			// Found non-main package but was recording
+-			// information about package main.  Reset.
+-			di = DirInfo{}
+-		}
+ 		if di.Package == "" {
+ 			di.Package = pkg
++			firstFile = name
+ 		} else if pkg != di.Package {
+-			return nil, fmt.Errorf("%s: found packages %s and %s", dir, pkg, di.Package)
++			return nil, fmt.Errorf("%s: found packages %s (%s) and %s (%s)", dir, di.Package, firstFile, pkg, name)
+ 		}
+ 		if pf.Doc != nil {
+ 			if di.PackageComment != nil {
+diff --git a/src/pkg/go/doc/headscan.go b/src/pkg/go/doc/headscan.go
+index 37486b126f..f559347638 100644
+--- a/src/pkg/go/doc/headscan.go
++++ b/src/pkg/go/doc/headscan.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ 	The headscan command extracts comment headings from package files;
+ 	it is used to detect false positives which may require an adjustment
+diff --git a/src/pkg/net/http/triv.go b/src/pkg/net/http/triv.go
+index 994fc0e32f..c88a0fbce7 100644
+--- a/src/pkg/net/http/triv.go
++++ b/src/pkg/net/http/triv.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ package main
+ 
+ import (
+diff --git a/src/pkg/unicode/maketables.go b/src/pkg/unicode/maketables.go
+index 15e3f20774..16bc83cea9 100644
+--- a/src/pkg/unicode/maketables.go
++++ b/src/pkg/unicode/maketables.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ // Unicode table generator.
+ // Data read from the web.
+ 

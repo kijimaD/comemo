@@ -9,7 +9,56 @@ Date:   Wed Apr 19 10:36:31 2017 -0700
     Change-Id: I28ca4f44a04262407ee9f1c826ada4e7eba44775
     Reviewed-on: https://go-review.googlesource.com/41073
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/reflect.go | 2 +-
  src/cmd/compile/internal/types/pkg.go  | 8 +++++---
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9e11f05140..977c3d74c6 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -90,7 +90,7 @@ func uncommonSize(t *types.Type) int { // Sizeof(runtime.uncommontype{})
+ func makefield(name string, t *types.Type) *types.Field {
+ 	f := types.NewField()
+ 	f.Type = t
+-	f.Sym = types.Nopkg.Lookup(name)
++	f.Sym = (*types.Pkg)(nil).Lookup(name)
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/pkg.go b/src/cmd/compile/internal/types/pkg.go
+index 46a5606fc2..b43f13e5d1 100644
+--- a/src/cmd/compile/internal/types/pkg.go
++++ b/src/cmd/compile/internal/types/pkg.go
+@@ -45,7 +45,7 @@ func NewPkg(path, name string) *Pkg {
+ 	return p
+ }
+ 
+-var Nopkg = &Pkg{
++var nopkg = &Pkg{
+ 	Syms: make(map[string]*Sym),
+ }
+ 
+@@ -58,8 +58,9 @@ var InitSyms []*Sym
+ 
+ // LookupOK looks up name in pkg and reports whether it previously existed.
+ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
++	// TODO(gri) remove this check in favor of specialized lookup
+ 	if pkg == nil {
+-		pkg = Nopkg
++		pkg = nopkg
+ 	}
+ 	if s := pkg.Syms[name]; s != nil {
+ 		return s, true
+@@ -77,8 +78,9 @@ func (pkg *Pkg) LookupOK(name string) (s *Sym, existed bool) {
+ }
+ 
+ func (pkg *Pkg) LookupBytes(name []byte) *Sym {
++	// TODO(gri) remove this check in favor of specialized lookup
+ 	if pkg == nil {
+-		pkg = Nopkg
++		pkg = nopkg
+ 	}
+ 	if s := pkg.Syms[string(name)]; s != nil {
+ 		return s

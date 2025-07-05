@@ -15,10 +15,161 @@ Date:   Thu May 21 15:33:39 2020 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/net/http/httptest/recorder.go      |  4 ++--
  src/net/http/httptest/recorder_test.go | 36 ++++++++++++++++++++++++++++++++++
  src/net/http/transfer.go               |  6 +++---
  src/net/http/transfer_test.go          | 36 ++++++++++++++++++++++++++++++++++
  src/net/http/transport_test.go         | 19 ++++++++++++++++++
  5 files changed, 96 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/httptest/recorder.go b/src/net/http/httptest/recorder.go
+index 13697454cb..66e67e78b3 100644
+--- a/src/net/http/httptest/recorder.go
++++ b/src/net/http/httptest/recorder.go
+@@ -226,9 +226,9 @@ func parseContentLength(cl string) int64 {
+ 	if cl == "" {
+ 		return -1
+ 	}
+-	n, err := strconv.ParseInt(cl, 10, 64)
++	n, err := strconv.ParseUint(cl, 10, 63)
+ 	if err != nil {
+ 		return -1
+ 	}
+-	return n
++	return int64(n)
+ }
+diff --git a/src/net/http/httptest/recorder_test.go b/src/net/http/httptest/recorder_test.go
+index 0986554aa8..e9534894b6 100644
+--- a/src/net/http/httptest/recorder_test.go
++++ b/src/net/http/httptest/recorder_test.go
+@@ -310,3 +310,39 @@ func TestRecorder(t *testing.T) {
+ 		})
+ 	}
+ }
++
++// issue 39017 - disallow Content-Length values such as "+3"
++func TestParseContentLength(t *testing.T) {
++	tests := []struct {
++		cl   string
++		want int64
++	}{
++		{
++			cl:   "3",
++			want: 3,
++		},
++		{
++			cl:   "+3",
++			want: -1,
++		},
++		{
++			cl:   "-3",
++			want: -1,
++		},
++		{
++			// max int64, for safe conversion before returning
++			cl:   "9223372036854775807",
++			want: 9223372036854775807,
++		},
++		{
++			cl:   "9223372036854775808",
++			want: -1,
++		},
++	}
++
++	for _, tt := range tests {
++		if got := parseContentLength(tt.cl); got != tt.want {
++			t.Errorf("%q:\n\tgot=%d\n\twant=%d", tt.cl, got, tt.want)
++		}
++	}
++}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 9019afb61d..50d434b1fb 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -1039,11 +1039,11 @@ func parseContentLength(cl string) (int64, error) {
+ 	if cl == "" {
+ 		return -1, nil
+ 	}
+-	n, err := strconv.ParseInt(cl, 10, 64)
+-	if err != nil || n < 0 {
++	n, err := strconv.ParseUint(cl, 10, 63)
++	if err != nil {
+ 		return 0, badStringError("bad Content-Length", cl)
+ 	}
+-	return n, nil
++	return int64(n), nil
+ 
+ }
+ 
+diff --git a/src/net/http/transfer_test.go b/src/net/http/transfer_test.go
+index e27d34dd78..185225fa93 100644
+--- a/src/net/http/transfer_test.go
++++ b/src/net/http/transfer_test.go
+@@ -326,3 +326,39 @@ func TestParseTransferEncoding(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// issue 39017 - disallow Content-Length values such as "+3"
++func TestParseContentLength(t *testing.T) {
++	tests := []struct {
++		cl      string
++		wantErr error
++	}{
++		{
++			cl:      "3",
++			wantErr: nil,
++		},
++		{
++			cl:      "+3",
++			wantErr: badStringError("bad Content-Length", "+3"),
++		},
++		{
++			cl:      "-3",
++			wantErr: badStringError("bad Content-Length", "-3"),
++		},
++		{
++			// max int64, for safe conversion before returning
++			cl:      "9223372036854775807",
++			wantErr: nil,
++		},
++		{
++			cl:      "9223372036854775808",
++			wantErr: badStringError("bad Content-Length", "9223372036854775808"),
++		},
++	}
++
++	for _, tt := range tests {
++		if _, gotErr := parseContentLength(tt.cl); !reflect.DeepEqual(gotErr, tt.wantErr) {
++			t.Errorf("%q:\n\tgot=%v\n\twant=%v", tt.cl, gotErr, tt.wantErr)
++		}
++	}
++}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 5ccb3d14ab..99056a42d9 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -6222,3 +6222,22 @@ func TestIssue32441(t *testing.T) {
+ 		t.Error(err)
+ 	}
+ }
++
++// Issue 39017. Ensure that HTTP/1 transports reject Content-Length headers
++// that contain a sign (eg. "+3"), per RFC 2616, Section 14.13.
++func TestTransportRejectsSignInContentLength(t *testing.T) {
++	cst := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Length", "+3")
++		w.Write([]byte("abc"))
++	}))
++	defer cst.Close()
++
++	c := cst.Client()
++	res, err := c.Get(cst.URL)
++	if err == nil || res != nil {
++		t.Fatal("Expected a non-nil error and a nil http.Response")
++	}
++	if got, want := err.Error(), `bad Content-Length "+3"`; !strings.Contains(got, want) {
++		t.Fatalf("Error mismatch\nGot: %q\nWanted substring: %q", got, want)
++	}
++}

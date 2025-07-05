@@ -23,9 +23,127 @@ Date:   Sat Nov 28 07:23:50 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/ir/fmt.go         |  7 ++++++
  src/cmd/compile/internal/ir/func.go        | 34 ++++++++++++++++++++++++++++++
  src/cmd/compile/internal/ir/node.go        |  9 +-------
  src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
  4 files changed, 43 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index e749778030..3822c4c73b 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -1269,6 +1269,13 @@ func exprFmt(n Node, s fmt.State, prec int, mode FmtMode) {
+ 			mode.Fprintf(s, ")")
+ 		}
+ 
++	case ODCLFUNC:
++		if sym := n.Sym(); sym != nil {
++			fmt.Fprint(s, smodeString(sym, mode))
++			return
++		}
++		mode.Fprintf(s, "<unnamed Func>")
++
+ 	case ONAME:
+ 		// Special case: name used as local variable in export.
+ 		// _ becomes ~b%d internally; print as _ for export
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 1566125955..57ec0707e9 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"fmt"
+ )
+ 
+ // A Func corresponds to a single function in a Go program
+@@ -47,6 +48,11 @@ import (
+ // the generated ODCLFUNC (as n.Func.Decl), but there is no
+ // pointer from the Func back to the OCALLPART.
+ type Func struct {
++	miniNode
++	typ  *types.Type
++	body Nodes
++	iota int64
++
+ 	Nname    Node // ONAME node
+ 	Decl     Node // ODCLFUNC node
+ 	OClosure Node // OCLOSURE node
+@@ -102,6 +108,34 @@ type Func struct {
+ 	NWBRCalls *[]SymAndPos
+ }
+ 
++func NewFunc(pos src.XPos) *Func {
++	f := new(Func)
++	f.pos = pos
++	f.op = ODCLFUNC
++	f.Decl = f
++	f.iota = -1
++	return f
++}
++
++func (f *Func) String() string                { return fmt.Sprint(f) }
++func (f *Func) Format(s fmt.State, verb rune) { FmtNode(f, s, verb) }
++func (f *Func) RawCopy() Node                 { panic(f.no("RawCopy")) }
++func (f *Func) Func() *Func                   { return f }
++func (f *Func) Body() Nodes                   { return f.body }
++func (f *Func) PtrBody() *Nodes               { return &f.body }
++func (f *Func) SetBody(x Nodes)               { f.body = x }
++func (f *Func) Type() *types.Type             { return f.typ }
++func (f *Func) SetType(x *types.Type)         { f.typ = x }
++func (f *Func) Iota() int64                   { return f.iota }
++func (f *Func) SetIota(x int64)               { f.iota = x }
++
++func (f *Func) Sym() *types.Sym {
++	if f.Nname != nil {
++		return f.Nname.Sym()
++	}
++	return nil
++}
++
+ // An Inline holds fields used for function bodies that can be inlined.
+ type Inline struct {
+ 	Cost int32 // heuristic cost of inlining this function
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 1b01032c9b..02a5d7769a 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -1106,13 +1106,7 @@ func NodAt(pos src.XPos, op Op, nleft, nright Node) Node {
+ 	var n *node
+ 	switch op {
+ 	case ODCLFUNC:
+-		var x struct {
+-			n node
+-			f Func
+-		}
+-		n = &x.n
+-		n.SetFunc(&x.f)
+-		n.Func().Decl = n
++		return NewFunc(pos)
+ 	case OPACK:
+ 		return NewPkgName(pos, nil, nil)
+ 	case OEMPTY:
+@@ -1179,7 +1173,6 @@ var okForNod = [OEND]bool{
+ 	ODCL:           true,
+ 	ODCLCONST:      true,
+ 	ODCLFIELD:      true,
+-	ODCLFUNC:       true,
+ 	ODCLTYPE:       true,
+ 	ODDD:           true,
+ 	ODEFER:         true,
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 8a0b078b9b..8597ad492a 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 152, 280},
++		{Func{}, 180, 320},
+ 		{Name{}, 132, 232},
+ 		{node{}, 84, 144},
+ 	}

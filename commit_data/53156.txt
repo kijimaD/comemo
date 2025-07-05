@@ -18,6 +18,20 @@ Date:   Thu Jul 21 17:09:35 2022 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/net/http/client.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index 490349f7bd..992817c0f5 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -896,7 +896,7 @@ func (c *Client) PostForm(url string, data url.Values) (resp *Response, err erro
+ //	307 (Temporary Redirect)
+ //	308 (Permanent Redirect)
+ //
+-// # Head is a wrapper around DefaultClient.Head
++// Head is a wrapper around DefaultClient.Head.
+ //
+ // To make a request with a specified context.Context, use NewRequestWithContext
+ // and DefaultClient.Do.

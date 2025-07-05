@@ -7,6 +7,10 @@ Date:   Thu Oct 11 17:02:36 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6641058
-
+---
  favicon.ico | Bin 785 -> 1150 bytes
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/favicon.ico b/favicon.ico
+index 48854ff3b7..d287722d80 100644
+Binary files a/favicon.ico and b/favicon.ico differ

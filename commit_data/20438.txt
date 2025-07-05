@@ -13,6 +13,19 @@ Date:   Mon Sep 8 16:06:41 2014 +1000
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/136330043
-
+---
  src/cmd/cc/bv.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cc/bv.c b/src/cmd/cc/bv.c
+index 51b7f4076f..db433de6a7 100644
+--- a/src/cmd/cc/bv.c
++++ b/src/cmd/cc/bv.c
+@@ -40,6 +40,6 @@ bvset(Bvec *bv, int32 i)
+ 
+ 	if(i < 0 || i >= bv->n)
+ 		fatal(Z, "bvset: index %d is out of bounds with length %d\n", i, bv->n);
+-	mask = 1 << (i % WORDBITS);
++	mask = 1UL << (i % WORDBITS);
+ 	bv->b[i / WORDBITS] |= mask;
+ }

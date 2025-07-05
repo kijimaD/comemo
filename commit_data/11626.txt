@@ -7,6 +7,19 @@ Date:   Sun Feb 5 00:36:20 2012 -0200
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/5627051
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index 66613674a6..2131088bc6 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -64,6 +64,7 @@ test/times.out
+ test/garbage/*.out
+ goinstall.log
+ last-change
++VERSION.cache
+ 
+ syntax:regexp
+ ^bin/

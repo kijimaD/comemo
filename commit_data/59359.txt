@@ -28,7 +28,7 @@ Date:   Thu Feb 29 17:34:59 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/counters_test.go             | 13 ++++++++++++-
  src/cmd/go/internal/base/base.go        | 24 ++++++++++++++++++++++++
  src/cmd/go/internal/help/help.go        |  3 +++
@@ -40,3 +40,274 @@ Date:   Thu Feb 29 17:34:59 2024 -0500
  src/cmd/go/scriptcmds_test.go           | 17 ++++++++++++++++-
  src/cmd/go/testdata/counters.txt        |  7 +++++++
  10 files changed, 83 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/counters_test.go b/src/cmd/go/counters_test.go
+index 0413597924..5e2f7cbf0e 100644
+--- a/src/cmd/go/counters_test.go
++++ b/src/cmd/go/counters_test.go
+@@ -29,11 +29,22 @@ func TestCounterNamesUpToDate(t *testing.T) {
+ 	counters = append(counters, "cmd/go/flag:C", "cmd/go/subcommand:unknown")
+ 	counters = append(counters, flagscounters("cmd/go/flag:", *flag.CommandLine)...)
+ 
++	// Add help (without any arguments) as a special case. cmdcounters adds go help <cmd>
++	// for all subcommands, but it's also valid to invoke go help without any arguments.
++	counters = append(counters, "cmd/go/subcommand:help")
+ 	for _, cmd := range base.Go.Commands {
+ 		counters = append(counters, cmdcounters(nil, cmd)...)
+ 	}
+-	cstr := []byte(strings.Join(counters, "\n") + "\n")
+ 
++	counters = append(counters, base.RegisteredCounterNames()...)
++	for _, c := range counters {
++		const counterPrefix = "cmd/go"
++		if !strings.HasPrefix(c, counterPrefix) {
++			t.Fatalf("registered counter %q does not start with %q", c, counterPrefix)
++		}
++	}
++
++	cstr := []byte(strings.Join(counters, "\n") + "\n")
+ 	const counterNamesFile = "testdata/counters.txt"
+ 	old, err := os.ReadFile(counterNamesFile)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 2171d13909..73082df763 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -14,11 +14,14 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
++	"sort"
+ 	"strings"
+ 	"sync"
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
++
++	"golang.org/x/telemetry/counter"
+ )
+ 
+ // A Command is an implementation of a go command
+@@ -221,3 +224,24 @@ func RunStdin(cmdline []string) {
+ // Usage is the usage-reporting function, filled in by package main
+ // but here for reference by other packages.
+ var Usage func()
++
++var counterNames = map[string]bool{}
++
++// NewCounter registers a new counter. It must be called from an init function
++// or global variable initializer.
++func NewCounter(name string) *counter.Counter {
++	if counterNames[name] {
++		panic(fmt.Errorf("counter %q initialized twice", name))
++	}
++	counterNames[name] = true
++	return counter.New(name)
++}
++
++func RegisteredCounterNames() []string {
++	var names []string
++	for name := range counterNames {
++		names = append(names, name)
++	}
++	sort.Strings(names)
++	return names
++}
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index 501f08eb2d..22a39ee40a 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -18,6 +18,8 @@ import (
+ 	"cmd/go/internal/base"
+ )
+ 
++var counterErrorHelpUnknownTopic = base.NewCounter("cmd/go/error:help-unknown-topic")
++
+ // Help implements the 'help' command.
+ func Help(w io.Writer, args []string) {
+ 	// 'go help documentation' generates doc.go.
+@@ -57,6 +59,7 @@ Args:
+ 		if i > 0 {
+ 			helpSuccess += " " + strings.Join(args[:i], " ")
+ 		}
++		counterErrorHelpUnknownTopic.Inc()
+ 		fmt.Fprintf(os.Stderr, "go help %s: unknown help topic. Run '%s'.\n", strings.Join(args, " "), helpSuccess)
+ 		base.SetExitStatus(2) // failed at 'go help cmd'
+ 		base.Exit()
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 5a727c6dfa..c9364783af 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -777,6 +777,8 @@ func rewriteVersionList(ctx context.Context, dir string) (err error) {
+ var (
+ 	statCacheOnce sync.Once
+ 	statCacheErr  error
++
++	counterErrorGOMODCACHEEntryRelative = base.NewCounter("cmd/go/error:gomodcache-entry-relative")
+ )
+ 
+ // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
+@@ -788,6 +790,7 @@ func checkCacheDir(ctx context.Context) error {
+ 		return fmt.Errorf("module cache not found: neither GOMODCACHE nor GOPATH is set")
+ 	}
+ 	if !filepath.IsAbs(cfg.GOMODCACHE) {
++		counterErrorGOMODCACHEEntryRelative.Inc()
+ 		return fmt.Errorf("GOMODCACHE entry is relative; must be absolute path: %q.\n", cfg.GOMODCACHE)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index dcf3be92cc..661a48317f 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -81,6 +81,8 @@ func FilterEnv(env []string) []string {
+ 	return out
+ }
+ 
++var counterErrorInvalidToolchainInFile = base.NewCounter("cmd/go/error:invalid-toolchain-in-file")
++
+ // Select invokes a different Go toolchain if directed by
+ // the GOTOOLCHAIN environment variable or the user's configuration
+ // or go.mod file.
+@@ -174,6 +176,7 @@ func Select() {
+ 				// has a suffix like "go1.21.1-foo" and toolchain is "go1.21.1".)
+ 				toolVers := gover.FromToolchain(toolchain)
+ 				if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
++					counterErrorInvalidToolchainInFile.Inc()
+ 					base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
+ 				}
+ 				if gover.Compare(toolVers, minVers) > 0 {
+@@ -230,9 +233,12 @@ func Select() {
+ 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+ 	}
+ 
++	counterSelectExec.Inc()
+ 	Exec(gotoolchain)
+ }
+ 
++var counterSelectExec = base.NewCounter("cmd/go/select-exec")
++
+ // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
+ // Valid settings are:
+ //
+diff --git a/src/cmd/go/internal/toolchain/switch.go b/src/cmd/go/internal/toolchain/switch.go
+index 2c6a2b8f43..06819c5467 100644
+--- a/src/cmd/go/internal/toolchain/switch.go
++++ b/src/cmd/go/internal/toolchain/switch.go
+@@ -98,10 +98,13 @@ func (s *Switcher) Switch(ctx context.Context) {
+ 	}
+ 
+ 	fmt.Fprintf(os.Stderr, "go: %v requires go >= %v; switching to %v\n", s.TooNew.What, s.TooNew.GoVersion, tv)
++	counterSwitchExec.Inc()
+ 	Exec(tv)
+ 	panic("unreachable")
+ }
+ 
++var counterSwitchExec = base.NewCounter("cmd/go/switch-exec")
++
+ // SwitchOrFatal attempts a toolchain switch based on the information in err
+ // and otherwise falls back to base.Fatal(err).
+ func SwitchOrFatal(ctx context.Context, err error) {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index c1433b47ad..dbb581d279 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -90,6 +90,8 @@ func init() {
+ 
+ var _ = go11tag
+ 
++var counterErrorGOPATHEntryRelative = base.NewCounter("cmd/go/error:gopath-entry-relative")
++
+ func main() {
+ 	log.SetFlags(0)
+ 	TelemetryStart() // Open the telemetry counter file so counters can be written to it.
+@@ -107,6 +109,7 @@ func main() {
+ 
+ 	cfg.CmdName = args[0] // for error messages
+ 	if args[0] == "help" {
++		counter.Inc("cmd/go/subcommand:" + strings.Join(append([]string{"help"}, args[1:]...), "-"))
+ 		help.Help(os.Stdout, args[1:])
+ 		return
+ 	}
+@@ -145,6 +148,7 @@ func main() {
+ 					// Instead of dying, uninfer it.
+ 					cfg.BuildContext.GOPATH = ""
+ 				} else {
++					counterErrorGOPATHEntryRelative.Inc()
+ 					fmt.Fprintf(os.Stderr, "go: GOPATH entry is relative; must be absolute path: %q.\nFor more details see: 'go help gopath'\n", p)
+ 					os.Exit(2)
+ 				}
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 6efa9217de..6daa5d9e9a 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -410,6 +410,11 @@ func checkCounters(t *testing.T, telemetryDir string) {
+ 		}
+ 	})
+ 	counters := readCounters(t, telemetryDir)
++	if _, ok := scriptGoInvoked.Load(testing.TB(t)); ok {
++		if len(counters) == 0 {
++			t.Fatal("go was invoked but no counters were incremented")
++		}
++	}
+ 	for name := range counters {
+ 		if !allowedCounters[name] {
+ 			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+
+diff --git a/src/cmd/go/scriptcmds_test.go b/src/cmd/go/scriptcmds_test.go
+index db5e6cafda..4ddf7ee654 100644
+--- a/src/cmd/go/scriptcmds_test.go
++++ b/src/cmd/go/scriptcmds_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"strings"
++	"sync"
+ 	"time"
+ )
+ 
+@@ -69,9 +70,23 @@ func scriptCC(cmdExec script.Cmd) script.Cmd {
+ 		})
+ }
+ 
++var scriptGoInvoked sync.Map // testing.TB → go command was invoked
++
+ // scriptGo runs the go command.
+ func scriptGo(cancel func(*exec.Cmd) error, waitDelay time.Duration) script.Cmd {
+-	return script.Program(testGo, cancel, waitDelay)
++	cmd := script.Program(testGo, cancel, waitDelay)
++	// Inject code to update scriptGoInvoked before invoking the Go command.
++	return script.Command(*cmd.Usage(), func(state *script.State, s ...string) (script.WaitFunc, error) {
++		t, ok := tbFromContext(state.Context())
++		if !ok {
++			return nil, errors.New("script Context unexpectedly missing testing.TB key")
++		}
++		_, dup := scriptGoInvoked.LoadOrStore(t, true)
++		if !dup {
++			t.Cleanup(func() { scriptGoInvoked.Delete(t) })
++		}
++		return cmd.Run(state, s...)
++	})
+ }
+ 
+ // scriptStale checks that the named build targets are stale.
+diff --git a/src/cmd/go/testdata/counters.txt b/src/cmd/go/testdata/counters.txt
+index 5e1a565cfd..9fd1323293 100644
+--- a/src/cmd/go/testdata/counters.txt
++++ b/src/cmd/go/testdata/counters.txt
+@@ -40,6 +40,7 @@ cmd/go/flag:test.v
+ cmd/go/flag:testsum
+ cmd/go/flag:testwork
+ cmd/go/flag:update
++cmd/go/subcommand:help
+ cmd/go/subcommand:bug
+ cmd/go/flag:bug-C
+ cmd/go/flag:bug-v
+@@ -659,3 +660,9 @@ cmd/go/subcommand:help-private
+ cmd/go/subcommand:help-testflag
+ cmd/go/subcommand:help-testfunc
+ cmd/go/subcommand:help-vcs
++cmd/go/error:gomodcache-entry-relative
++cmd/go/error:gopath-entry-relative
++cmd/go/error:help-unknown-topic
++cmd/go/error:invalid-toolchain-in-file
++cmd/go/select-exec
++cmd/go/switch-exec

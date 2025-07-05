@@ -35,6 +35,27 @@ Date:   Wed Jul 11 16:13:04 2018 -0400
     Reviewed-on: https://go-review.googlesource.com/123356
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/link/internal/ld/data.go | 9 ++++++++-
  1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index c337c5e7ed..0ae93f1018 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2177,7 +2177,14 @@ func compressSyms(ctxt *Link, syms []*sym.Symbol) []byte {
+ 	binary.BigEndian.PutUint64(sizeBytes[:], uint64(total))
+ 	buf.Write(sizeBytes[:])
+ 
+-	z := zlib.NewWriter(&buf)
++	// Using zlib.BestSpeed achieves very nearly the same
++	// compression levels of zlib.DefaultCompression, but takes
++	// substantially less time. This is important because DWARF
++	// compression can be a significant fraction of link time.
++	z, err := zlib.NewWriterLevel(&buf, zlib.BestSpeed)
++	if err != nil {
++		log.Fatalf("NewWriterLevel failed: %s", err)
++	}
+ 	for _, sym := range syms {
+ 		if _, err := z.Write(sym.P); err != nil {
+ 			log.Fatalf("compression failed: %s", err)

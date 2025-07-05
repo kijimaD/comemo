@@ -17,6 +17,20 @@ Date:   Fri Nov 15 12:08:29 2024 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/mgcsweep.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index f53330a5b9..83064e8eea 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -855,7 +855,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ // pointer to that object and marked it.
+ func (s *mspan) reportZombies() {
+ 	printlock()
+-	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer? try -d=checkptr)\n")
++	print("runtime: marked free object in span ", s, ", elemsize=", s.elemsize, " freeindex=", s.freeindex, " (bad use of unsafe.Pointer or having race conditions? try -d=checkptr or -race)\n")
+ 	mbits := s.markBitsForBase()
+ 	abits := s.allocBitsForIndex(0)
+ 	for i := uintptr(0); i < uintptr(s.nelems); i++ {

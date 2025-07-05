@@ -31,9 +31,74 @@ Date:   Thu Nov 16 10:15:34 2017 -0800
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/common.go      | 5 +++--
  src/archive/tar/reader.go      | 1 +
  src/archive/tar/reader_test.go | 2 ++
  src/archive/tar/writer.go      | 5 ++++-
  4 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 1d24faa6f6..4a2c173bf3 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -438,8 +438,9 @@ func (h Header) allowedFormats() (format Format, paxHdrs map[string]string, err
+ 	case TypeXHeader, TypeGNULongName, TypeGNULongLink:
+ 		return FormatUnknown, nil, headerError{"cannot manually encode TypeXHeader, TypeGNULongName, or TypeGNULongLink headers"}
+ 	case TypeXGlobalHeader:
+-		if !reflect.DeepEqual(h, Header{Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}) {
+-			return FormatUnknown, nil, headerError{"only PAXRecords may be set for TypeXGlobalHeader"}
++		h2 := Header{Name: h.Name, Typeflag: h.Typeflag, Xattrs: h.Xattrs, PAXRecords: h.PAXRecords, Format: h.Format}
++		if !reflect.DeepEqual(h, h2) {
++			return FormatUnknown, nil, headerError{"only PAXRecords should be set for TypeXGlobalHeader"}
+ 		}
+ 		whyOnlyPAX = "only PAX supports TypeXGlobalHeader"
+ 		format.mayOnlyBe(FormatPAX)
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 4ec78a5eca..f4eeb557be 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -95,6 +95,7 @@ loop:
+ 			if hdr.Typeflag == TypeXGlobalHeader {
+ 				mergePAX(hdr, paxHdrs)
+ 				return &Header{
++					Name:       hdr.Name,
+ 					Typeflag:   hdr.Typeflag,
+ 					Xattrs:     hdr.Xattrs,
+ 					PAXRecords: hdr.PAXRecords,
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 2d8474fdcb..a6832d33b1 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -285,6 +285,7 @@ func TestReader(t *testing.T) {
+ 		file: "testdata/pax-global-records.tar",
+ 		headers: []*Header{{
+ 			Typeflag:   TypeXGlobalHeader,
++			Name:       "global1",
+ 			PAXRecords: map[string]string{"path": "global1", "mtime": "1500000000.0"},
+ 			Format:     FormatPAX,
+ 		}, {
+@@ -300,6 +301,7 @@ func TestReader(t *testing.T) {
+ 			Format:     FormatPAX,
+ 		}, {
+ 			Typeflag:   TypeXGlobalHeader,
++			Name:       "GlobalHead.0.0",
+ 			PAXRecords: map[string]string{"path": ""},
+ 			Format:     FormatPAX,
+ 		}, {
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 79b06b334f..97d23f8038 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -179,7 +179,10 @@ func (tw *Writer) writePAXHeader(hdr *Header, paxHdrs map[string]string) error {
+ 		var name string
+ 		var flag byte
+ 		if isGlobal {
+-			name = "GlobalHead.0.0"
++			name = realName
++			if name == "" {
++				name = "GlobalHead.0.0"
++			}
+ 			flag = TypeXGlobalHeader
+ 		} else {
+ 			dir, file := path.Split(realName)

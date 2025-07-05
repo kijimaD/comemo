@@ -22,6 +22,27 @@ Date:   Thu Oct 17 01:11:23 2019 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/compile/internal/gc/iexport.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 9125f67586..259b70a69f 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -993,9 +993,14 @@ func (w *exportWriter) linkname(s *types.Sym) {
+ func (w *exportWriter) symIdx(s *types.Sym) {
+ 	if Ctxt.Flag_newobj {
+ 		lsym := s.Linksym()
+-		if lsym.PkgIdx > goobj2.PkgIdxSelf || lsym.PkgIdx == goobj2.PkgIdxInvalid || s.Linkname != "" {
++		if lsym.PkgIdx > goobj2.PkgIdxSelf || (lsym.PkgIdx == goobj2.PkgIdxInvalid && !lsym.Indexed()) || s.Linkname != "" {
++			// Don't export index for non-package symbols, linkname'd symbols,
++			// and symbols without an index. They can only be referenced by
++			// name.
+ 			w.int64(-1)
+ 		} else {
++			// For a defined symbol, export its index.
++			// For re-exporting an imported symbol, pass its index through.
+ 			w.int64(int64(lsym.SymIdx))
+ 		}
+ 	}

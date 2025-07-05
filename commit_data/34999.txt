@@ -20,6 +20,44 @@ Date:   Tue Nov 7 13:04:22 2017 +0100
     Run-TryBot: Elias Naur <elias.naur@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/ios/go_darwin_arm_exec.go | 19 ++++++++++---------
  1 file changed, 10 insertions(+), 9 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index f1807ae1e0..56dbb009a1 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -232,6 +232,16 @@ func run(bin string, args []string) (err error) {
+ 		os.Stdout.Write(b)
+ 	}()
+ 
++	cond := func(out *buf) bool {
++		i0 := s.out.LastIndex([]byte("(lldb)"))
++		i1 := s.out.LastIndex([]byte("fruitstrap"))
++		i2 := s.out.LastIndex([]byte(" connect"))
++		return i0 > 0 && i1 > 0 && i2 > 0
++	}
++	if err := s.wait("lldb start", cond, 15*time.Second); err != nil {
++		panic(waitPanic{err})
++	}
++
+ 	// Script LLDB. Oh dear.
+ 	s.do(`process handle SIGHUP  --stop false --pass true --notify false`)
+ 	s.do(`process handle SIGPIPE --stop false --pass true --notify false`)
+@@ -348,15 +358,6 @@ func newSession(appdir string, args []string, opts options) (*lldbSession, error
+ 		s.exited <- s.cmd.Wait()
+ 	}()
+ 
+-	cond := func(out *buf) bool {
+-		i0 := s.out.LastIndex([]byte("(lldb)"))
+-		i1 := s.out.LastIndex([]byte("fruitstrap"))
+-		i2 := s.out.LastIndex([]byte(" connect"))
+-		return i0 > 0 && i1 > 0 && i2 > 0
+-	}
+-	if err := s.wait("lldb start", cond, 15*time.Second); err != nil {
+-		panic(waitPanic{err})
+-	}
+ 	return s, nil
+ }
+ 

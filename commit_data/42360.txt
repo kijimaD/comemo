@@ -33,7 +33,95 @@ Date:   Mon Dec 2 22:56:40 2019 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/209659
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go       | 31 ++++++++++++++++++++-----------
  src/runtime/testdata/testprog/preempt.go | 10 ++++++++--
  2 files changed, 28 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index bda170ec0e..efbfa32f42 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5968,23 +5968,22 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 	// Emit basic blocks
+ 	for i, b := range f.Blocks {
+ 		s.bstart[b.ID] = s.pp.next
+-		s.pp.nextLive = LivenessInvalid
+ 		s.lineRunStart = nil
+ 
++		// Attach a "default" liveness info. Normally this will be
++		// overwritten in the Values loop below for each Value. But
++		// for an empty block this will be used for its control
++		// instruction. We won't use the actual liveness map on a
++		// control instruction. Just mark it something that is
++		// preemptible.
++		s.pp.nextLive = LivenessIndex{-1, -1}
++
+ 		// Emit values in block
+ 		thearch.SSAMarkMoves(&s, b)
+ 		for _, v := range b.Values {
+ 			x := s.pp.next
+ 			s.DebugFriendlySetPosFrom(v)
+-			// Attach this safe point to the next
+-			// instruction.
+-			s.pp.nextLive = s.livenessMap.Get(v)
+-
+-			// Remember the liveness index of the first defer call of
+-			// the last defer exit
+-			if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
+-				s.lastDeferLiveness = s.pp.nextLive
+-			}
++
+ 			switch v.Op {
+ 			case ssa.OpInitMem:
+ 				// memory arg needs no code
+@@ -6018,12 +6017,22 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				inlMarksByPos[pos] = append(inlMarksByPos[pos], p)
+ 
+ 			default:
+-				// let the backend handle it
++				// Attach this safe point to the next
++				// instruction.
++				s.pp.nextLive = s.livenessMap.Get(v)
++
++				// Remember the liveness index of the first defer call of
++				// the last defer exit
++				if v.Block.Func.LastDeferExit != nil && v == v.Block.Func.LastDeferExit {
++					s.lastDeferLiveness = s.pp.nextLive
++				}
++
+ 				// Special case for first line in function; move it to the start.
+ 				if firstPos != src.NoXPos {
+ 					s.SetPos(firstPos)
+ 					firstPos = src.NoXPos
+ 				}
++				// let the backend handle it
+ 				thearch.SSAGenValue(&s, v)
+ 			}
+ 
+diff --git a/src/runtime/testdata/testprog/preempt.go b/src/runtime/testdata/testprog/preempt.go
+index 1454095cde..1c74d0e435 100644
+--- a/src/runtime/testdata/testprog/preempt.go
++++ b/src/runtime/testdata/testprog/preempt.go
+@@ -34,13 +34,19 @@ func AsyncPreempt() {
+ 	// This is an especially interesting case for
+ 	// LR machines.
+ 	go func() {
+-		atomic.StoreUint32(&ready2, 1)
++		atomic.AddUint32(&ready2, 1)
+ 		frameless()
+ 	}()
++	// Also test empty infinite loop.
++	go func() {
++		atomic.AddUint32(&ready2, 1)
++		for {
++		}
++	}()
+ 
+ 	// Wait for the goroutine to stop passing through sync
+ 	// safe-points.
+-	for atomic.LoadUint32(&ready) == 0 || atomic.LoadUint32(&ready2) == 0 {
++	for atomic.LoadUint32(&ready) == 0 || atomic.LoadUint32(&ready2) < 2 {
+ 		runtime.Gosched()
+ 	}
+ 

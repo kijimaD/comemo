@@ -22,7 +22,44 @@ Date:   Tue Oct 17 18:36:31 2023 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/go/printer/nodes.go        |  2 +-
  src/go/printer/printer_test.go | 15 +++++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 0a693b6667..a4651e0608 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1739,7 +1739,7 @@ func (p *printer) genDecl(d *ast.GenDecl) {
+ 	p.setPos(d.Pos())
+ 	p.print(d.Tok, blank)
+ 
+-	if d.Lparen.IsValid() || len(d.Specs) > 1 {
++	if d.Lparen.IsValid() || len(d.Specs) != 1 {
+ 		// group of parenthesized declarations
+ 		p.setPos(d.Lparen)
+ 		p.print(token.LPAREN)
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 8e78bc640e..6d5b559e50 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -848,3 +848,18 @@ func TestSourcePosNewline(t *testing.T) {
+ 		t.Errorf("unexpected Fprint output:\n%s", buf.Bytes())
+ 	}
+ }
++
++// TestEmptyDecl tests that empty decls for const, var, import are printed with
++// valid syntax e.g "var ()" instead of just "var", which is invalid and cannot
++// be parsed.
++func TestEmptyDecl(t *testing.T) { // issue 63566
++	for _, tok := range []token.Token{token.IMPORT, token.CONST, token.TYPE, token.VAR} {
++		var buf bytes.Buffer
++		Fprint(&buf, token.NewFileSet(), &ast.GenDecl{Tok: tok})
++		got := buf.String()
++		want := tok.String() + " ()"
++		if got != want {
++			t.Errorf("got %q, want %q", got, want)
++		}
++	}
++}

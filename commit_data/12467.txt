@@ -20,10 +20,103 @@ Date:   Wed Mar 7 10:15:20 2012 -0500
     R=golang-dev, minux.ma, r, f
     CC=golang-dev
     https://golang.org/cl/5756075
-
+---
  misc/cgo/testso/Makefile      | 22 ++++++++++++++++++++++
  misc/cgo/testso/cgoso_test.go |  7 -------
  misc/cgo/testso/main.go       | 11 +++++++++++
  misc/cgo/testso/test.bash     |  9 +++++++++
  src/run.bash                  |  5 ++++-
  5 files changed, 46 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/testso/Makefile b/misc/cgo/testso/Makefile
+new file mode 100644
+index 0000000000..e472cf2124
+--- /dev/null
++++ b/misc/cgo/testso/Makefile
+@@ -0,0 +1,22 @@
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++include ../../../src/Make.inc
++
++TARG=cgosotest
++
++CGO_DEPS+=libcgoso.so
++CGO_LDFLAGS+=-lcgoso -L.
++CLEANFILES+=out libcgoso.so
++CGOFILES=\
++	cgoso.go\
++
++include ../../../src/Make.pkg
++
++libcgoso.so: cgoso_c.c
++	gcc cgoso_c.c -fPIC -o $@ $(_CGO_CFLAGS_$(GOARCH)) $(_CGO_LDFLAGS_$(GOOS))
++
++out: install main.go
++	$(GC) $(GCFLAGS) $(GCIMPORTS) main.go
++	$(LD) -o $@ main.$O
+diff --git a/misc/cgo/testso/cgoso_test.go b/misc/cgo/testso/cgoso_test.go
+deleted file mode 100644
+index 6eddb90de7..0000000000
+--- a/misc/cgo/testso/cgoso_test.go
++++ /dev/null
+@@ -1,7 +0,0 @@
+-package cgosotest
+-
+-import (
+-	"testing"
+-)
+-
+-func TestCgoSo(t *testing.T) { Test() }
+diff --git a/misc/cgo/testso/main.go b/misc/cgo/testso/main.go
+new file mode 100644
+index 0000000000..672ab262be
+--- /dev/null
++++ b/misc/cgo/testso/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "cgosotest"
++
++func main() {
++	cgosotest.Test()
++}
+diff --git a/misc/cgo/testso/test.bash b/misc/cgo/testso/test.bash
+new file mode 100755
+index 0000000000..f275eb5723
+--- /dev/null
++++ b/misc/cgo/testso/test.bash
+@@ -0,0 +1,9 @@
++#!/bin/sh
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++set -e
++gomake out
++LD_LIBRARY_PATH=. ./out
++gomake clean
+diff --git a/src/run.bash b/src/run.bash
+index c6f02e303a..b5ffaa9974 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -57,10 +57,13 @@ BROKEN=true
+ go test
+ ) || exit $?
+ 
++$BROKEN ||
+ [ "$CGO_ENABLED" != 1 ] ||
+ [ "$GOHOSTOS" == windows ] ||
++[ "$GOHOSTOS" == darwin ] ||
+ (xcd ../misc/cgo/testso
+-go test
++"$GOMAKE" clean
++./test.bash
+ ) || exit $?
+ 
+ (xcd ../doc/progs

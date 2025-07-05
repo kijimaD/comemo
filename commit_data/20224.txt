@@ -11,6 +11,32 @@ Date:   Mon Aug 25 15:29:47 2014 -0700
     R=r
     CC=golang-codereviews
     https://golang.org/cl/126610044
-
+---
  src/cmd/gofmt/gofmt.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index f7d30d8405..f322a2b0a0 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -122,7 +122,7 @@ func processFile(filename string, in io.Reader, out io.Writer, stdin bool) error
+ 			fmt.Fprintln(out, filename)
+ 		}
+ 		if *write {
+-			err = ioutil.WriteFile(filename, res, 0)
++			err = ioutil.WriteFile(filename, res, 0644)
+ 			if err != nil {
+ 				return err
+ 			}
+@@ -186,6 +186,11 @@ func gofmtMain() {
+ 	initRewrite()
+ 
+ 	if flag.NArg() == 0 {
++		if *write {
++			fmt.Fprintln(os.Stderr, "error: cannot use -w with standard input")
++			exitCode = 2
++			return
++		}
+ 		if err := processFile("<standard input>", os.Stdin, os.Stdout, true); err != nil {
+ 			report(err)
+ 		}

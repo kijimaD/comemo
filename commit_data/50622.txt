@@ -13,10 +13,144 @@ Date:   Tue Nov 2 12:25:23 2021 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_aix.go     |  9 ++-------
  src/syscall/syscall_bsd.go     |  9 ++-------
  src/syscall/syscall_linux.go   |  9 ++-------
  src/syscall/syscall_solaris.go |  9 ++-------
  src/syscall/syscall_unix.go    | 10 ++++++++++
  5 files changed, 18 insertions(+), 28 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index 36172cc678..0f5101999f 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -321,10 +321,9 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	return
+ }
+ 
+-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
+ 	var msg Msghdr
+-	var rsa RawSockaddrAny
+-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Name = (*byte)(unsafe.Pointer(rsa))
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+@@ -353,10 +352,6 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	}
+ 	oobn = int(msg.Controllen)
+ 	recvflags = int(msg.Flags)
+-	// source address is only specified if the socket is unconnected
+-	if rsa.Addr.Family != AF_UNSPEC {
+-		from, err = anyToSockaddr(&rsa)
+-	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 71a331d6c0..5e636d5258 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -358,10 +358,9 @@ func GetsockoptICMPv6Filter(fd, level, opt int) (*ICMPv6Filter, error) {
+ //sys   sendto(s int, buf []byte, flags int, to unsafe.Pointer, addrlen _Socklen) (err error)
+ //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
+ 
+-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
+ 	var msg Msghdr
+-	var rsa RawSockaddrAny
+-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Name = (*byte)(unsafe.Pointer(rsa))
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+@@ -385,10 +384,6 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	}
+ 	oobn = int(msg.Controllen)
+ 	recvflags = int(msg.Flags)
+-	// source address is only specified if the socket is unconnected
+-	if rsa.Addr.Family != AF_UNSPEC {
+-		from, err = anyToSockaddr(&rsa)
+-	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 695ce2b198..c002299641 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -638,10 +638,9 @@ func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
+ 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
+ }
+ 
+-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
+ 	var msg Msghdr
+-	var rsa RawSockaddrAny
+-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Name = (*byte)(unsafe.Pointer(rsa))
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+@@ -672,10 +671,6 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 	}
+ 	oobn = int(msg.Controllen)
+ 	recvflags = int(msg.Flags)
+-	// source address is only specified if the socket is unconnected
+-	if rsa.Addr.Family != AF_UNSPEC {
+-		from, err = anyToSockaddr(&rsa)
+-	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 15b3c2bb40..5f12f229c4 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -332,10 +332,9 @@ func Accept(fd int) (nfd int, sa Sockaddr, err error) {
+ 	return
+ }
+ 
+-func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++func recvmsgRaw(fd int, p, oob []byte, flags int, rsa *RawSockaddrAny) (n, oobn int, recvflags int, err error) {
+ 	var msg Msghdr
+-	var rsa RawSockaddrAny
+-	msg.Name = (*byte)(unsafe.Pointer(&rsa))
++	msg.Name = (*byte)(unsafe.Pointer(rsa))
+ 	msg.Namelen = uint32(SizeofSockaddrAny)
+ 	var iov Iovec
+ 	if len(p) > 0 {
+@@ -358,10 +357,6 @@ func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from
+ 		return
+ 	}
+ 	oobn = int(msg.Accrightslen)
+-	// source address is only specified if the socket is unconnected
+-	if rsa.Addr.Family != AF_UNSPEC {
+-		from, err = anyToSockaddr(&rsa)
+-	}
+ 	return
+ }
+ 
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 2837c976e3..d1ecc361c6 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -324,6 +324,16 @@ func recvfromInet6(fd int, p []byte, flags int, from *SockaddrInet6) (n int, err
+ 	return
+ }
+ 
++func Recvmsg(fd int, p, oob []byte, flags int) (n, oobn int, recvflags int, from Sockaddr, err error) {
++	var rsa RawSockaddrAny
++	n, oobn, recvflags, err = recvmsgRaw(fd, p, oob, flags, &rsa)
++	// source address is only specified if the socket is unconnected
++	if rsa.Addr.Family != AF_UNSPEC {
++		from, err = anyToSockaddr(&rsa)
++	}
++	return
++}
++
+ func Sendmsg(fd int, p, oob []byte, to Sockaddr, flags int) (err error) {
+ 	_, err = SendmsgN(fd, p, oob, to, flags)
+ 	return

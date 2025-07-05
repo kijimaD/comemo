@@ -18,9 +18,127 @@ Date:   Tue Mar 15 16:37:50 2022 -0400
     Run-TryBot: Bryan Mills <bcmills@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/go/internal/work/gc.go                     |  2 +-
  .../go/testdata/script/build_trimpath_goroot.txt   | 63 ++++++++++++++++++++++
  src/cmd/link/internal/ld/main.go                   |  9 +++-
  src/cmd/link/internal/ld/pcln.go                   |  4 +-
  4 files changed, 74 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index a6174b2ed2..fdde3b289f 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -27,7 +27,7 @@ import (
+ )
+ 
+ // The 'path' used for GOROOT_FINAL when -trimpath is specified
+-const trimPathGoRootFinal = "go"
++const trimPathGoRootFinal string = "$GOROOT"
+ 
+ var runtimePackages = map[string]struct{}{
+ 	"internal/abi":            struct{}{},
+diff --git a/src/cmd/go/testdata/script/build_trimpath_goroot.txt b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+new file mode 100644
+index 0000000000..277a7a4bb6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_trimpath_goroot.txt
+@@ -0,0 +1,63 @@
++# Regression test for https://go.dev/issue/51461 and https://go.dev/issue/51483.
++#
++# When built with -trimpath, runtime.GOROOT() returned the bogus string "go"
++# if GOROOT was not set explicitly in the environment.
++# It should instead return the empty string, since we know that we don't
++# have a valid path to return.
++#
++# TODO(#51483): when runtime.GOROOT() returns the empty string,
++# go/build should default to 'go env GOROOT' instead.
++
++[short] skip
++
++env GOROOT=
++env GOROOT_FINAL=
++
++go run .
++stdout '^GOROOT '$TESTGO_GOROOT'$'
++stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
++
++go test -v .
++stdout '^GOROOT '$TESTGO_GOROOT'$'
++stdout '^runtime '$TESTGO_GOROOT${/}src${/}runtime'$'
++
++! go run -trimpath .
++stdout '^GOROOT $'
++stderr '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
++
++! go test -trimpath -v .
++stdout '^GOROOT $'
++stdout '^package runtime is not in GOROOT \(src'${/}'runtime\)$'
++
++-- go.mod --
++module example
++
++go 1.19
++-- main.go --
++package main
++
++import (
++	"fmt"
++	"go/build"
++	"os"
++	"runtime"
++)
++
++func main() {
++	fmt.Println("GOROOT", runtime.GOROOT())
++
++	p, err := build.Default.Import("runtime", "", build.FindOnly)
++	if err != nil {
++		fmt.Fprintln(os.Stderr, err)
++		os.Exit(1)
++	}
++	fmt.Println("runtime", p.Dir)
++}
++-- main_test.go --
++package main
++
++import "testing"
++
++func TestMain(*testing.M) {
++	main()
++}
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 14f83566f5..fa95a7acf2 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -119,8 +119,13 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		}
+ 	}
+ 
+-	final := gorootFinal()
+-	addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
++	if final := gorootFinal(); final == "$GOROOT" {
++		// cmd/go sets GOROOT_FINAL to the dummy value "$GOROOT" when -trimpath is set,
++		// but runtime.GOROOT() should return the empty string, not a bogus value.
++		// (See https://go.dev/issue/51461.)
++	} else {
++		addstrdata1(ctxt, "runtime.defaultGOROOT="+final)
++	}
+ 
+ 	buildVersion := buildcfg.Version
+ 	if goexperiment := buildcfg.Experiment.String(); goexperiment != "" {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index b57e212794..a81490089f 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -804,7 +804,9 @@ func gorootFinal() string {
+ func expandGoroot(s string) string {
+ 	const n = len("$GOROOT")
+ 	if len(s) >= n+1 && s[:n] == "$GOROOT" && (s[n] == '/' || s[n] == '\\') {
+-		return filepath.ToSlash(filepath.Join(gorootFinal(), s[n:]))
++		if final := gorootFinal(); final != "" {
++			return filepath.ToSlash(filepath.Join(final, s[n:]))
++		}
+ 	}
+ 	return s
+ }

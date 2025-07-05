@@ -21,6 +21,21 @@ Date:   Mon Nov 17 14:21:29 2014 +1100
     R=adg, rsc
     CC=golang-codereviews
     https://golang.org/cl/175870045
-
+---
  misc/nacl/testzip.proto | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index 07d4a1db02..fd0c6a035b 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -18,6 +18,9 @@ go	src=..
+ 				gofmt_test.go
+ 				testdata
+ 					+
++			link
++				testdata
++					+
+ 		archive
+ 			tar
+ 				testdata

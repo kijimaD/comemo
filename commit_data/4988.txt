@@ -7,7 +7,68 @@ Date:   Thu Mar 4 15:26:15 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/237041
-
+---
  test/bugs/bug260.go | 41 +++++++++++++++++++++++++++++++++++++++++
  test/golden.out     |  5 +++++
  2 files changed, 46 insertions(+)
+
+diff --git a/test/bugs/bug260.go b/test/bugs/bug260.go
+new file mode 100644
+index 0000000000..cbdd148766
+--- /dev/null
++++ b/test/bugs/bug260.go
+@@ -0,0 +1,41 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Test that structures pack densely, according to the alignment of the largest field.
++
++package main
++
++import (
++	"fmt"
++	"os"
++	"strconv"
++)
++
++type T1 struct { x uint8 }
++type T2 struct { x uint16 }
++type T4 struct { x uint32 }
++
++func main() {
++	status := 0
++	var b1 [10]T1
++	a0, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[0])[2:], 16)
++	a1, _ := strconv.Btoui64(fmt.Sprintf("%p", &b1[1])[2:], 16)
++	if a1 != a0 + 1 {
++		fmt.Println("FAIL: alignment should be 1, is", a1-a0)
++		status = 1
++	}
++	var b2 [10]T2
++	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[0])[2:], 16)
++	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b2[1])[2:], 16)
++	if a1 != a0 + 2 {
++		fmt.Println("FAIL: alignment should be 2, is", a1-a0)
++		status = 1
++	}
++	var b4 [10]T4
++	a0, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[0])[2:], 16)
++	a1, _ = strconv.Btoui64(fmt.Sprintf("%p", &b4[1])[2:], 16)
++	if a1 != a0 + 4 {
++		fmt.Println("FAIL: alignment should be 4, is", a1-a0)
++		status = 1
++	}
++	os.Exit(status)
++}
+diff --git a/test/golden.out b/test/golden.out
+index cf2297e1a7..56b9dd96d9 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -150,3 +150,8 @@ throw: interface conversion
+ panic PC=xxx
+ 
+ == bugs/
++
++=========== bugs/bug260.go
++FAIL: alignment should be 1, is 8
++FAIL: alignment should be 2, is 8
++FAIL: alignment should be 4, is 8

@@ -17,9 +17,113 @@ Date:   Tue Sep 8 16:04:37 2015 -0700
     Change-Id: I91b32c8b37075347243ff039b4e4385856fba7cd
     Reviewed-on: https://go-review.googlesource.com/14398
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/plive.go           | 6 ++++--
  src/cmd/compile/internal/gc/ssa.go             | 9 ++++++---
  src/cmd/compile/internal/ssa/check.go          | 7 +++++--
  src/cmd/compile/internal/ssa/gen/genericOps.go | 4 +++-
  4 files changed, 18 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index fa8bc20f14..2ac639629c 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -425,7 +425,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 
+ 	bb := newblock(firstp)
+ 	cfg = append(cfg, bb)
+-	for p := firstp; p != nil; p = p.Link {
++	for p := firstp; p != nil && p.As != obj.AEND; p = p.Link {
+ 		Thearch.Proginfo(p)
+ 		if p.To.Type == obj.TYPE_BRANCH {
+ 			if p.To.Val == nil {
+@@ -453,7 +453,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 	// contained instructions until a label is reached.  Add edges
+ 	// for branches and fall-through instructions.
+ 	for _, bb := range cfg {
+-		for p := bb.last; p != nil; p = p.Link {
++		for p := bb.last; p != nil && p.As != obj.AEND; p = p.Link {
+ 			if p.Opt != nil && p != bb.last {
+ 				break
+ 			}
+@@ -462,6 +462,8 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 			// Stop before an unreachable RET, to avoid creating
+ 			// unreachable control flow nodes.
+ 			if p.Link != nil && p.Link.As == obj.ARET && p.Link.Mode == 1 {
++				// TODO: remove after SSA is done.  SSA does not
++				// generate any unreachable RET instructions.
+ 				break
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 96d62041d6..9791967677 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -116,8 +116,11 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 	s.stmtList(fn.Nbody)
+ 
+ 	// fallthrough to exit
+-	if b := s.endBlock(); b != nil {
++	if s.curBlock != nil {
++		m := s.mem()
++		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
++		b.Control = m
+ 		b.AddEdgeTo(s.exit)
+ 	}
+ 
+@@ -575,8 +578,10 @@ func (s *state) stmt(n *Node) {
+ 
+ 	case ORETURN:
+ 		s.stmtList(n.List)
++		m := s.mem()
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRet
++		b.Control = m
+ 		b.AddEdgeTo(s.exit)
+ 
+ 	case OCONTINUE, OBREAK:
+@@ -2631,8 +2636,6 @@ func genssa(f *ssa.Func, ptxt *obj.Prog, gcargs, gclocals *Sym) {
+ 		p.To.Val = s.deferTarget
+ 	}
+ 
+-	Pc.As = obj.ARET // overwrite AEND
+-
+ 	if logProgs {
+ 		for p := ptxt; p != nil; p = p.Link {
+ 			var s string
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index 4b38bec99e..b860f633ef 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -63,8 +63,11 @@ func checkFunc(f *Func) {
+ 			if len(b.Succs) != 1 {
+ 				f.Fatalf("ret block %s len(Succs)==%d, want 1", b, len(b.Succs))
+ 			}
+-			if b.Control != nil {
+-				f.Fatalf("ret block %s has non-nil control %s", b, b.Control.LongString())
++			if b.Control == nil {
++				f.Fatalf("ret block %s has nil control %s", b)
++			}
++			if !b.Control.Type.IsMemory() {
++				f.Fatalf("ret block %s has non-memory control value %s", b, b.Control.LongString())
+ 			}
+ 			if b.Succs[0].Kind != BlockExit {
+ 				f.Fatalf("ret block %s has successor %s, not Exit", b, b.Succs[0].Kind)
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 042d34ea85..9bc77909b5 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -369,9 +369,11 @@ var genericOps = []opData{
+ //     kind           control    successors
+ //   ------------------------------------------
+ //     Exit        return mem                []
++//      Ret        return mem            [exit]
+ //    Plain               nil            [next]
+ //       If   a boolean Value      [then, else]
+-//     Call               mem  [nopanic, panic]  (control opcode should be OpCall or OpStaticCall)
++//     Call               mem   [nopanic, exit]  (control opcode should be OpCall or OpStaticCall)
++//    First               nil    [always,never]
+ 
+ var genericBlocks = []blockData{
+ 	{name: "Exit"},  // no successors.  There should only be 1 of these.

@@ -11,7 +11,102 @@ Date:   Thu Oct 6 11:00:02 2011 -0700
     R=rsc, dsymonds
     CC=golang-dev
     https://golang.org/cl/5162050
-
+---
  src/pkg/exec/exec.go      |  6 ++++++
  src/pkg/exec/exec_test.go | 43 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 49 insertions(+)
+
+diff --git a/src/pkg/exec/exec.go b/src/pkg/exec/exec.go
+index 3b20f2008c..aaad50846e 100644
+--- a/src/pkg/exec/exec.go
++++ b/src/pkg/exec/exec.go
+@@ -63,6 +63,11 @@ type Cmd struct {
+ 	Stdout io.Writer
+ 	Stderr io.Writer
+ 
++	// ExtraFiles specifies additional open files to be inherited by the
++	// new process. It does not include standard input, standard output, or
++	// standard error. If non-nil, entry i becomes file descriptor 3+i.
++	ExtraFiles []*os.File
++
+ 	// SysProcAttr holds optional, operating system-specific attributes.
+ 	// Run passes it to os.StartProcess as the os.ProcAttr's Sys field.
+ 	SysProcAttr *syscall.SysProcAttr
+@@ -224,6 +229,7 @@ func (c *Cmd) Start() os.Error {
+ 		}
+ 		c.childFiles = append(c.childFiles, fd)
+ 	}
++	c.childFiles = append(c.childFiles, c.ExtraFiles...)
+ 
+ 	var err os.Error
+ 	c.Process, err = os.StartProcess(c.Path, c.argv(), &os.ProcAttr{
+diff --git a/src/pkg/exec/exec_test.go b/src/pkg/exec/exec_test.go
+index 242120faab..2b36e2535a 100644
+--- a/src/pkg/exec/exec_test.go
++++ b/src/pkg/exec/exec_test.go
+@@ -9,8 +9,10 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"testing"
+ 	"os"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -139,6 +141,39 @@ func TestPipes(t *testing.T) {
+ 	check("Wait", err)
+ }
+ 
++func TestExtraFiles(t *testing.T) {
++	if runtime.GOOS == "windows" {
++		t.Logf("no operating system support; skipping")
++		return
++	}
++	tf, err := ioutil.TempFile("", "")
++	if err != nil {
++		t.Fatalf("TempFile: %v", err)
++	}
++	defer os.Remove(tf.Name())
++	defer tf.Close()
++
++	const text = "Hello, fd 3!"
++	_, err = tf.Write([]byte(text))
++	if err != nil {
++		t.Fatalf("Write: %v", err)
++	}
++	_, err = tf.Seek(0, os.SEEK_SET)
++	if err != nil {
++		t.Fatalf("Seek: %v", err)
++	}
++
++	c := helperCommand("read3")
++	c.ExtraFiles = []*os.File{tf}
++	bs, err := c.CombinedOutput()
++	if err != nil {
++		t.Fatalf("CombinedOutput: %v", err)
++	}
++	if string(bs) != text {
++		t.Errorf("got %q; want %q", string(bs), text)
++	}
++}
++
+ // TestHelperProcess isn't a real test. It's used as a helper process
+ // for TestParameterRun.
+ func TestHelperProcess(*testing.T) {
+@@ -204,6 +239,14 @@ func TestHelperProcess(*testing.T) {
+ 				os.Exit(1)
+ 			}
+ 		}
++	case "read3": // read fd 3
++		fd3 := os.NewFile(3, "fd3")
++		bs, err := ioutil.ReadAll(fd3)
++		if err != nil {
++			fmt.Printf("ReadAll from fd 3: %v", err)
++			os.Exit(1)
++		}
++		os.Stderr.Write(bs)
+ 	case "exit":
+ 		n, _ := strconv.Atoi(args[0])
+ 		os.Exit(n)

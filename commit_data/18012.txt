@@ -8,6 +8,20 @@ Date:   Tue Dec 17 02:43:14 2013 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/43210043
-
+---
  src/pkg/time/zoneinfo_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index be4e5c13ff..7e4d146d89 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -54,7 +54,7 @@ func matchZoneKey(zones syscall.Handle, kname string, stdname, dstname string) (
+ 	if err != nil {
+ 		return false, err
+ 	}
+-	if s != dstname {
++	if s != dstname && dstname != stdname {
+ 		return false, nil
+ 	}
+ 	return true, nil

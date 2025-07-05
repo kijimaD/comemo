@@ -20,6 +20,22 @@ Date:   Wed Apr 25 13:17:17 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Giovanni Bajo <rasky@develer.com>
-
+---
  src/cmd/compile/internal/ssa/prove.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 03f657da8a..b30dab9fe3 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1068,6 +1068,10 @@ func isNonNegative(v *Value) bool {
+ 		OpZeroExt8to64, OpZeroExt16to64, OpZeroExt32to64:
+ 		return true
+ 
++	case OpRsh64Ux64:
++		by := v.Args[1]
++		return by.Op == OpConst64 && by.AuxInt > 0
++
+ 	case OpRsh64x64:
+ 		return isNonNegative(v.Args[0])
+ 	}

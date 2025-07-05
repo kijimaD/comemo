@@ -20,7 +20,65 @@ Date:   Sun Jun 28 22:26:35 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/11657
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/link/internal/ld/pcln.go | 10 ++++++----
  src/runtime/symtab.go            | 11 ++++++++++-
  2 files changed, 16 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 56d813bfde..669776244c 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -122,10 +122,12 @@ func addvarint(d *Pcdata, val uint32) {
+ }
+ 
+ func addpctab(ftab *LSym, off int32, d *Pcdata) int32 {
+-	start := int32(len(ftab.P))
+-	Symgrow(Ctxt, ftab, int64(start)+int64(len(d.P)))
+-	copy(ftab.P[start:], d.P)
+-
++	var start int32
++	if len(d.P) > 0 {
++		start = int32(len(ftab.P))
++		Symgrow(Ctxt, ftab, int64(start)+int64(len(d.P)))
++		copy(ftab.P[start:], d.P)
++	}
+ 	return int32(setuint32(Ctxt, ftab, int64(off), uint32(start)))
+ }
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 687f067cb9..f02f592413 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -98,6 +98,8 @@ func moduledataverify() {
+ 	}
+ }
+ 
++const debugPcln = false
++
+ func moduledataverify1(datap *moduledata) {
+ 	// See golang.org/s/go12symtab for header: 0xfffffffb,
+ 	// two zero bytes, a byte giving the PC quantum,
+@@ -126,6 +128,13 @@ func moduledataverify1(datap *moduledata) {
+ 			}
+ 			throw("invalid runtime symbol table")
+ 		}
++
++		if debugPcln || nftab-i < 5 {
++			f := (*_func)(unsafe.Pointer(&datap.pclntable[datap.ftab[i].funcoff]))
++			pcvalue(f, f.pcfile, datap.ftab[i+1].entry-1, true)
++			pcvalue(f, f.pcln, datap.ftab[i+1].entry-1, true)
++			pcvalue(f, f.pcsp, datap.ftab[i+1].entry-1, true)
++		}
+ 	}
+ 
+ 	if datap.minpc != datap.ftab[0].entry ||
+@@ -275,7 +284,7 @@ func funcline(f *_func, targetpc uintptr) (file string, line int32) {
+ func funcspdelta(f *_func, targetpc uintptr) int32 {
+ 	x := pcvalue(f, f.pcsp, targetpc, true)
+ 	if x&(ptrSize-1) != 0 {
+-		print("invalid spdelta ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
++		print("invalid spdelta ", funcname(f), " ", hex(f.entry), " ", hex(targetpc), " ", hex(f.pcsp), " ", x, "\n")
+ 	}
+ 	return x
+ }

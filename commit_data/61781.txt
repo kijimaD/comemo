@@ -17,7 +17,7 @@ Date:   Fri Nov 22 04:21:12 2024 +0100
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/cipher/cfb.go                       |  7 +++
  src/crypto/cipher/gcm.go                       | 13 +++++
  src/crypto/cipher/ofb.go                       |  5 ++
@@ -38,3 +38,797 @@ Date:   Fri Nov 22 04:21:12 2024 +0100
  src/crypto/sha1/sha1.go                        |  9 ++-
  src/go/build/deps_test.go                      |  4 +-
  19 files changed, 271 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/cipher/cfb.go b/src/crypto/cipher/cfb.go
+index eccb1afa7d..b9f9efa574 100644
+--- a/src/crypto/cipher/cfb.go
++++ b/src/crypto/cipher/cfb.go
+@@ -8,6 +8,7 @@ package cipher
+ 
+ import (
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ )
+ 
+@@ -54,6 +55,9 @@ func (x *cfb) XORKeyStream(dst, src []byte) {
+ // using the given [Block]. The iv must be the same length as the [Block]'s block
+ // size.
+ func NewCFBEncrypter(block Block, iv []byte) Stream {
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
++	}
+ 	return newCFB(block, iv, false)
+ }
+ 
+@@ -61,6 +65,9 @@ func NewCFBEncrypter(block Block, iv []byte) Stream {
+ // using the given [Block]. The iv must be the same length as the [Block]'s block
+ // size.
+ func NewCFBDecrypter(block Block, iv []byte) Stream {
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of CFB is not allowed in FIPS 140-only mode")
++	}
+ 	return newCFB(block, iv, true)
+ }
+ 
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index ca60008111..5580f96d55 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/internal/fips140/aes"
+ 	"crypto/internal/fips140/aes/gcm"
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+@@ -27,6 +28,9 @@ const (
+ // An exception is when the underlying [Block] was created by aes.NewCipher
+ // on systems with hardware support for AES. See the [crypto/aes] package documentation for details.
+ func NewGCM(cipher Block) (AEAD, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
++	}
+ 	return newGCM(cipher, gcmStandardNonceSize, gcmTagSize)
+ }
+ 
+@@ -38,6 +42,9 @@ func NewGCM(cipher Block) (AEAD, error) {
+ // cryptosystem that uses non-standard nonce lengths. All other users should use
+ // [NewGCM], which is faster and more resistant to misuse.
+ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
++	}
+ 	return newGCM(cipher, size, gcmTagSize)
+ }
+ 
+@@ -50,12 +57,18 @@ func NewGCMWithNonceSize(cipher Block, size int) (AEAD, error) {
+ // cryptosystem that uses non-standard tag lengths. All other users should use
+ // [NewGCM], which is more resistant to misuse.
+ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/cipher: use of GCM with arbitrary IVs is not allowed in FIPS 140-only mode, use NewGCMWithRandomNonce")
++	}
+ 	return newGCM(cipher, gcmStandardNonceSize, tagSize)
+ }
+ 
+ func newGCM(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+ 	c, ok := cipher.(*aes.Block)
+ 	if !ok {
++		if fips140only.Enabled {
++			return nil, errors.New("crypto/cipher: use of GCM with non-AES ciphers is not allowed in FIPS 140-only mode")
++		}
+ 		return newGCMFallback(cipher, nonceSize, tagSize)
+ 	}
+ 	// We don't return gcm.New directly, because it would always return a non-nil
+diff --git a/src/crypto/cipher/ofb.go b/src/crypto/cipher/ofb.go
+index 549dc91962..abdc0225c0 100644
+--- a/src/crypto/cipher/ofb.go
++++ b/src/crypto/cipher/ofb.go
+@@ -8,6 +8,7 @@ package cipher
+ 
+ import (
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ )
+ 
+@@ -22,6 +23,10 @@ type ofb struct {
+ // in output feedback mode. The initialization vector iv's length must be equal
+ // to b's block size.
+ func NewOFB(b Block, iv []byte) Stream {
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of OFB is not allowed in FIPS 140-only mode")
++	}
++
+ 	blockSize := b.BlockSize()
+ 	if len(iv) != blockSize {
+ 		panic("cipher.NewOFB: IV length must equal block size")
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index 5663d16fb2..21303b384c 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -7,6 +7,8 @@ package des
+ import (
+ 	"crypto/cipher"
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
++	"errors"
+ 	"internal/byteorder"
+ 	"strconv"
+ )
+@@ -27,6 +29,10 @@ type desCipher struct {
+ 
+ // NewCipher creates and returns a new [cipher.Block].
+ func NewCipher(key []byte) (cipher.Block, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/des: use of DES is not allowed in FIPS 140-only mode")
++	}
++
+ 	if len(key) != 8 {
+ 		return nil, KeySizeError(len(key))
+ 	}
+@@ -71,6 +77,10 @@ type tripleDESCipher struct {
+ 
+ // NewTripleDESCipher creates and returns a new [cipher.Block].
+ func NewTripleDESCipher(key []byte) (cipher.Block, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/des: use of TripleDES is not allowed in FIPS 140-only mode")
++	}
++
+ 	if len(key) != 24 {
+ 		return nil, KeySizeError(len(key))
+ 	}
+diff --git a/src/crypto/dsa/dsa.go b/src/crypto/dsa/dsa.go
+index 4524bd492f..000becc82d 100644
+--- a/src/crypto/dsa/dsa.go
++++ b/src/crypto/dsa/dsa.go
+@@ -18,6 +18,7 @@ import (
+ 	"io"
+ 	"math/big"
+ 
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ )
+ 
+@@ -63,6 +64,10 @@ const numMRTests = 64
+ // GenerateParameters puts a random, valid set of DSA parameters into params.
+ // This function can take many seconds, even on fast machines.
+ func GenerateParameters(params *Parameters, rand io.Reader, sizes ParameterSizes) error {
++	if fips140only.Enabled {
++		return errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
++	}
++
+ 	// This function doesn't follow FIPS 186-3 exactly in that it doesn't
+ 	// use a verification seed to generate the primes. The verification
+ 	// seed doesn't appear to be exported or used by other code and
+@@ -157,6 +162,10 @@ GeneratePrimes:
+ // GenerateKey generates a public&private key pair. The Parameters of the
+ // [PrivateKey] must already be valid (see [GenerateParameters]).
+ func GenerateKey(priv *PrivateKey, rand io.Reader) error {
++	if fips140only.Enabled {
++		return errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
++	}
++
+ 	if priv.P == nil || priv.Q == nil || priv.G == nil {
+ 		return errors.New("crypto/dsa: parameters not set up before generating key")
+ 	}
+@@ -203,6 +212,10 @@ func fermatInverse(k, P *big.Int) *big.Int {
+ // Be aware that calling Sign with an attacker-controlled [PrivateKey] may
+ // require an arbitrary amount of CPU.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
++	if fips140only.Enabled {
++		return nil, nil, errors.New("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
++	}
++
+ 	randutil.MaybeReadByte(rand)
+ 
+ 	// FIPS 186-3, section 4.6
+@@ -271,6 +284,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ // to the byte-length of the subgroup. This function does not perform that
+ // truncation itself.
+ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
++	if fips140only.Enabled {
++		panic("crypto/dsa: use of DSA is not allowed in FIPS 140-only mode")
++	}
++
+ 	// FIPS 186-3, section 4.7
+ 
+ 	if pub.P.Sign() == 0 {
+diff --git a/src/crypto/ecdh/x25519.go b/src/crypto/ecdh/x25519.go
+index 73c1120bf3..81dca5d3a4 100644
+--- a/src/crypto/ecdh/x25519.go
++++ b/src/crypto/ecdh/x25519.go
+@@ -7,6 +7,7 @@ package ecdh
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips140/edwards25519/field"
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+@@ -34,6 +35,9 @@ func (c *x25519Curve) String() string {
+ }
+ 
+ func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
++	}
+ 	key := make([]byte, x25519PrivateKeySize)
+ 	randutil.MaybeReadByte(rand)
+ 	if _, err := io.ReadFull(rand, key); err != nil {
+@@ -43,6 +47,9 @@ func (c *x25519Curve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
+ }
+ 
+ func (c *x25519Curve) NewPrivateKey(key []byte) (*PrivateKey, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
++	}
+ 	if len(key) != x25519PrivateKeySize {
+ 		return nil, errors.New("crypto/ecdh: invalid private key size")
+ 	}
+@@ -60,6 +67,9 @@ func (c *x25519Curve) NewPrivateKey(key []byte) (*PrivateKey, error) {
+ }
+ 
+ func (c *x25519Curve) NewPublicKey(key []byte) (*PublicKey, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/ecdh: use of X25519 is not allowed in FIPS 140-only mode")
++	}
+ 	if len(key) != x25519PublicKeySize {
+ 		return nil, errors.New("crypto/ecdh: invalid public key")
+ 	}
+diff --git a/src/crypto/ecdsa/ecdsa_legacy.go b/src/crypto/ecdsa/ecdsa_legacy.go
+index a6590a5de3..74f27b7488 100644
+--- a/src/crypto/ecdsa/ecdsa_legacy.go
++++ b/src/crypto/ecdsa/ecdsa_legacy.go
+@@ -6,6 +6,7 @@ package ecdsa
+ 
+ import (
+ 	"crypto/elliptic"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"io"
+ 	"math/big"
+@@ -19,6 +20,10 @@ import (
+ // deprecated custom curves.
+ 
+ func generateLegacy(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
++	}
++
+ 	k, err := randFieldElement(c, rand)
+ 	if err != nil {
+ 		return nil, err
+@@ -76,6 +81,10 @@ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err err
+ }
+ 
+ func signLegacy(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
++	}
++
+ 	c := priv.Curve
+ 
+ 	// A cheap version of hedged signatures, for the deprecated path.
+@@ -144,6 +153,10 @@ func Verify(pub *PublicKey, hash []byte, r, s *big.Int) bool {
+ }
+ 
+ func verifyLegacy(pub *PublicKey, hash []byte, sig []byte) bool {
++	if fips140only.Enabled {
++		panic("crypto/ecdsa: use of custom curves is not allowed in FIPS 140-only mode")
++	}
++
+ 	rBytes, sBytes, err := parseSignature(sig)
+ 	if err != nil {
+ 		return false
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 6480463b4a..c1f8ff784e 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -18,6 +18,7 @@ package ed25519
+ import (
+ 	"crypto"
+ 	"crypto/internal/fips140/ed25519"
++	"crypto/internal/fips140only"
+ 	cryptorand "crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+@@ -103,6 +104,9 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
+ 	case hash == crypto.SHA512: // Ed25519ph
+ 		return ed25519.SignPH(k, message, context)
+ 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
++		if fips140only.Enabled {
++			return nil, errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
++		}
+ 		return ed25519.SignCtx(k, message, context)
+ 	case hash == crypto.Hash(0): // Ed25519
+ 		return ed25519.Sign(k, message), nil
+@@ -219,6 +223,9 @@ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options)
+ 	case opts.Hash == crypto.SHA512: // Ed25519ph
+ 		return ed25519.VerifyPH(k, message, sig, opts.Context)
+ 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
++		if fips140only.Enabled {
++			return errors.New("crypto/ed25519: use of Ed25519ctx is not allowed in FIPS 140-only mode")
++		}
+ 		return ed25519.VerifyCtx(k, message, sig, opts.Context)
+ 	case opts.Hash == crypto.Hash(0): // Ed25519
+ 		return ed25519.Verify(k, message, sig)
+diff --git a/src/crypto/hkdf/hkdf.go b/src/crypto/hkdf/hkdf.go
+index e33e0acef2..f4f441af04 100644
+--- a/src/crypto/hkdf/hkdf.go
++++ b/src/crypto/hkdf/hkdf.go
+@@ -6,6 +6,7 @@ package hkdf
+ 
+ import (
+ 	"crypto/internal/fips140/hkdf"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"hash"
+ )
+@@ -17,6 +18,9 @@ import (
+ // Expand invocations and different context values. Most common scenarios,
+ // including the generation of multiple keys, should use [Key] instead.
+ func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
++	if err := checkFIPS140Only(h, secret); err != nil {
++		return nil, err
++	}
+ 	return hkdf.Extract(h, secret, salt), nil
+ }
+ 
+@@ -28,6 +32,10 @@ func Extract[H hash.Hash](h func() H, secret, salt []byte) ([]byte, error) {
+ // random or pseudorandom cryptographically strong key. See RFC 5869, Section
+ // 3.3. Most common scenarios will want to use [Key] instead.
+ func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLength int) ([]byte, error) {
++	if err := checkFIPS140Only(h, pseudorandomKey); err != nil {
++		return nil, err
++	}
++
+ 	limit := h().Size() * 255
+ 	if keyLength > limit {
+ 		return nil, errors.New("hkdf: requested key length too large")
+@@ -40,6 +48,10 @@ func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLen
+ // returning a []byte of length keyLength that can be used as cryptographic key.
+ // Salt and info can be nil.
+ func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLength int) ([]byte, error) {
++	if err := checkFIPS140Only(h, secret); err != nil {
++		return nil, err
++	}
++
+ 	limit := h().Size() * 255
+ 	if keyLength > limit {
+ 		return nil, errors.New("hkdf: requested key length too large")
+@@ -47,3 +59,16 @@ func Key[Hash hash.Hash](h func() Hash, secret, salt []byte, info string, keyLen
+ 
+ 	return hkdf.Key(h, secret, salt, info, keyLength), nil
+ }
++
++func checkFIPS140Only[H hash.Hash](h func() H, key []byte) error {
++	if !fips140only.Enabled {
++		return nil
++	}
++	if len(key) < 112/8 {
++		return errors.New("crypto/hkdf: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
++	}
++	if !fips140only.ApprovedHash(h()) {
++		return errors.New("crypto/hkdf: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
++	return nil
++}
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 3b777665cb..72f5a4abea 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -24,6 +24,7 @@ package hmac
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/fips140/hmac"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ 	"hash"
+ )
+@@ -42,6 +43,14 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 		}
+ 		// BoringCrypto did not recognize h, so fall through to standard Go code.
+ 	}
++	if fips140only.Enabled {
++		if len(key) < 112/8 {
++			panic("crypto/hmac: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
++		}
++		if !fips140only.ApprovedHash(h()) {
++			panic("crypto/hmac: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++		}
++	}
+ 	return hmac.New(h, key)
+ }
+ 
+diff --git a/src/crypto/internal/fips140only/fips140only.go b/src/crypto/internal/fips140only/fips140only.go
+new file mode 100644
+index 0000000000..6ad97befbe
+--- /dev/null
++++ b/src/crypto/internal/fips140only/fips140only.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips140only
++
++import (
++	"crypto/internal/fips140/sha256"
++	"crypto/internal/fips140/sha3"
++	"crypto/internal/fips140/sha512"
++	"hash"
++	"internal/godebug"
++)
++
++// Enabled reports whether FIPS 140-only mode is enabled, in which non-approved
++// cryptography returns an error or panics.
++var Enabled = godebug.New("#fips140").Value() == "only"
++
++func ApprovedHash(h hash.Hash) bool {
++	switch h.(type) {
++	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
++		return true
++	default:
++		return false
++	}
++}
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index c49de91314..75e1fc7404 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -12,6 +12,7 @@ package md5
+ 
+ import (
+ 	"crypto"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"hash"
+ 	"internal/byteorder"
+@@ -103,6 +104,9 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New() hash.Hash {
++	if fips140only.Enabled {
++		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
++	}
+ 	d := new(digest)
+ 	d.Reset()
+ 	return d
+@@ -180,6 +184,9 @@ func (d *digest) checkSum() [Size]byte {
+ 
+ // Sum returns the MD5 checksum of the data.
+ func Sum(data []byte) [Size]byte {
++	if fips140only.Enabled {
++		panic("crypto/md5: use of MD5 is not allowed in FIPS 140-only mode")
++	}
+ 	var d digest
+ 	d.Reset()
+ 	d.Write(data)
+diff --git a/src/crypto/pbkdf2/pbkdf2.go b/src/crypto/pbkdf2/pbkdf2.go
+index e6fef68b29..0fdd9e822d 100644
+--- a/src/crypto/pbkdf2/pbkdf2.go
++++ b/src/crypto/pbkdf2/pbkdf2.go
+@@ -20,6 +20,8 @@ package pbkdf2
+ 
+ import (
+ 	"crypto/internal/fips140/pbkdf2"
++	"crypto/internal/fips140only"
++	"errors"
+ 	"hash"
+ )
+ 
+@@ -40,5 +42,16 @@ import (
+ // Using a higher iteration count will increase the cost of an exhaustive
+ // search but will also make derivation proportionally slower.
+ func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
++	if fips140only.Enabled {
++		if keyLength < 112/8 {
++			return nil, errors.New("crypto/pbkdf2: use of keys shorter than 112 bits is not allowed in FIPS 140-only mode")
++		}
++		if len(salt) < 128/8 {
++			return nil, errors.New("crypto/pbkdf2: use of salts shorter than 128 bits is not allowed in FIPS 140-only mode")
++		}
++		if !fips140only.ApprovedHash(h()) {
++			return nil, errors.New("crypto/pbkdf2: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++		}
++	}
+ 	return pbkdf2.Key(h, password, salt, iter, keyLength)
+ }
+diff --git a/src/crypto/rand/util.go b/src/crypto/rand/util.go
+index bb1f6f6fa3..10c2284a9b 100644
+--- a/src/crypto/rand/util.go
++++ b/src/crypto/rand/util.go
+@@ -5,6 +5,7 @@
+ package rand
+ 
+ import (
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+@@ -14,6 +15,9 @@ import (
+ // Prime returns a number of the given bit length that is prime with high probability.
+ // Prime will return error for any error returned by rand.Read or if bits < 2.
+ func Prime(rand io.Reader, bits int) (*big.Int, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/rand: use of Prime is not allowed in FIPS 140-only mode")
++	}
+ 	if bits < 2 {
+ 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
+ 	}
+diff --git a/src/crypto/rc4/rc4.go b/src/crypto/rc4/rc4.go
+index 19e6b8a047..90943a0935 100644
+--- a/src/crypto/rc4/rc4.go
++++ b/src/crypto/rc4/rc4.go
+@@ -11,6 +11,8 @@ package rc4
+ 
+ import (
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
++	"errors"
+ 	"strconv"
+ )
+ 
+@@ -29,6 +31,9 @@ func (k KeySizeError) Error() string {
+ // NewCipher creates and returns a new [Cipher]. The key argument should be the
+ // RC4 key, at least 1 byte and at most 256 bytes.
+ func NewCipher(key []byte) (*Cipher, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/rc4: use of RC4 is not allowed in FIPS 140-only mode")
++	}
+ 	k := len(key)
+ 	if k < 1 || k > 256 {
+ 		return nil, KeySizeError(k)
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index 581bcf194e..eac4c44066 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/fips140/rsa"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"hash"
+ 	"io"
+@@ -60,6 +61,12 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
++	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
++		return nil, err
++	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
++		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	if opts != nil && opts.Hash != 0 {
+ 		hash = opts.Hash
+@@ -81,6 +88,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	h := hash.New()
+ 
+ 	saltLength := opts.saltLength()
++	if fips140only.Enabled && saltLength > hash.Size() {
++		return nil, errors.New("crypto/rsa: use of PSS salt longer than the hash is not allowed in FIPS 140-only mode")
++	}
+ 	switch saltLength {
+ 	case PSSSaltLengthAuto:
+ 		saltLength, err = rsa.PSSMaxSaltLength(k.PublicKey(), h)
+@@ -113,6 +123,12 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
+ 	if err := checkPublicKeySize(pub); err != nil {
+ 		return err
+ 	}
++	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
++		return err
++	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
++		return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	if boring.Enabled {
+ 		bkey, err := boringPublicKey(pub)
+@@ -131,6 +147,9 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
+ 	}
+ 
+ 	saltLength := opts.saltLength()
++	if fips140only.Enabled && saltLength > hash.Size() {
++		return errors.New("crypto/rsa: use of PSS salt longer than the hash is not allowed in FIPS 140-only mode")
++	}
+ 	switch saltLength {
+ 	case PSSSaltLengthAuto:
+ 		return fipsError(rsa.VerifyPSS(k, hash.New(), digest, sig))
+@@ -163,6 +182,12 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	if err := checkPublicKeySize(pub); err != nil {
+ 		return nil, err
+ 	}
++	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
++		return nil, err
++	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hash) {
++		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	defer hash.Reset()
+ 
+@@ -206,6 +231,14 @@ func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, l
+ 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
++	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
++		return nil, err
++	}
++	if fips140only.Enabled {
++		if !fips140only.ApprovedHash(hash) || !fips140only.ApprovedHash(mgfHash) {
++			return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++		}
++	}
+ 
+ 	if boring.Enabled {
+ 		k := priv.Size()
+@@ -248,6 +281,12 @@ func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed [
+ 	if err := checkPublicKeySize(&priv.PublicKey); err != nil {
+ 		return nil, err
+ 	}
++	if err := checkFIPS140OnlyPrivateKey(priv); err != nil {
++		return nil, err
++	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
++		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	if boring.Enabled {
+ 		bkey, err := boringPrivateKey(priv)
+@@ -283,6 +322,12 @@ func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte)
+ 	if err := checkPublicKeySize(pub); err != nil {
+ 		return err
+ 	}
++	if err := checkFIPS140OnlyPublicKey(pub); err != nil {
++		return err
++	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
++		return errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	if boring.Enabled {
+ 		bkey, err := boringPublicKey(pub)
+@@ -324,3 +369,38 @@ func fipsError(err error) error {
+ func fipsError2[T any](x T, err error) (T, error) {
+ 	return x, fipsError(err)
+ }
++
++func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
++	if !fips140only.Enabled {
++		return nil
++	}
++	if pub.N == nil {
++		return errors.New("crypto/rsa: public key missing N")
++	}
++	if pub.N.BitLen() < 2048 {
++		return errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
++	}
++	if pub.N.BitLen() > 16384 {
++		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
++	}
++	if pub.E <= 1<<16 {
++		return errors.New("crypto/rsa: use of public exponent <= 2¹⁶ is not allowed in FIPS 140-only mode")
++	}
++	if pub.E&1 == 0 {
++		return errors.New("crypto/rsa: use of even public exponent is not allowed in FIPS 140-only mode")
++	}
++	return nil
++}
++
++func checkFIPS140OnlyPrivateKey(priv *PrivateKey) error {
++	if !fips140only.Enabled {
++		return nil
++	}
++	if err := checkFIPS140OnlyPublicKey(&priv.PublicKey); err != nil {
++		return err
++	}
++	if len(priv.Primes) > 2 {
++		return errors.New("crypto/rsa: use of multi-prime keys is not allowed in FIPS 140-only mode")
++	}
++	return nil
++}
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 819b447f1e..f1e4ef48a4 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -7,8 +7,10 @@ package rsa
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/fips140/rsa"
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ 	"crypto/subtle"
++	"errors"
+ 	"io"
+ )
+ 
+@@ -38,6 +40,10 @@ type PKCS1v15DecryptOptions struct {
+ // WARNING: use of this function to encrypt plaintexts other than
+ // session keys is dangerous. Use RSA OAEP in new protocols.
+ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
++	}
++
+ 	if err := checkPublicKeySize(pub); err != nil {
+ 		return nil, err
+ 	}
+@@ -187,6 +193,10 @@ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []
+ // access patterns. If the plaintext was valid then index contains the index of
+ // the original message in em, to allow constant time padding removal.
+ func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte, index int, err error) {
++	if fips140only.Enabled {
++		return 0, nil, 0, errors.New("crypto/rsa: use of PKCS#1 v1.5 encryption is not allowed in FIPS 140-only mode")
++	}
++
+ 	k := priv.Size()
+ 	if k < 11 {
+ 		err = ErrDecryption
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index c3972bea63..b799f0d2fb 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -11,6 +11,7 @@ package sha1
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"hash"
+ 	"internal/byteorder"
+@@ -102,7 +103,7 @@ func (d *digest) Reset() {
+ 	d.len = 0
+ }
+ 
+-// New512_224 returns a new [hash.Hash] computing the SHA1 checksum. The Hash
++// New returns a new [hash.Hash] computing the SHA1 checksum. The Hash
+ // also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+@@ -110,6 +111,9 @@ func New() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA1()
+ 	}
++	if fips140only.Enabled {
++		panic("crypto/sha1: use of weak SHA-1 is not allowed in FIPS 140-only mode")
++	}
+ 	d := new(digest)
+ 	d.Reset()
+ 	return d
+@@ -257,6 +261,9 @@ func Sum(data []byte) [Size]byte {
+ 	if boring.Enabled {
+ 		return boring.SHA1(data)
+ 	}
++	if fips140only.Enabled {
++		panic("crypto/sha1: use of weak SHA-1 is not allowed in FIPS 140-only mode")
++	}
+ 	var d digest
+ 	d.Reset()
+ 	d.Write(data)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4eb7b5f078..90b1eed00e 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -491,14 +491,14 @@ var depsRules = `
+ 
+ 	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+ 
+-	FIPS, internal/godebug < crypto/fips140;
++	FIPS, internal/godebug, hash < crypto/fips140, crypto/internal/fips140only;
+ 
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
+ 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+-	FIPS,
++	FIPS, crypto/internal/fips140only,
+ 	crypto/internal/boring/sig,
+ 	crypto/internal/boring/syso,
+ 	golang.org/x/sys/cpu,

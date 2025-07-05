@@ -17,7 +17,67 @@ Date:   Thu Nov 28 19:55:53 2024 +0100
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/internal/fips140/rsa/rsa.go | 10 +++++++++-
  src/crypto/rsa/rsa.go                  |  9 ++++++---
  2 files changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/rsa/rsa.go b/src/crypto/internal/fips140/rsa/rsa.go
+index 91655142dd..692cd3b1ad 100644
+--- a/src/crypto/internal/fips140/rsa/rsa.go
++++ b/src/crypto/internal/fips140/rsa/rsa.go
+@@ -115,15 +115,23 @@ func checkPublicKey(pub *PublicKey) error {
+ 	if pub.N == nil {
+ 		return errors.New("crypto/rsa: missing public modulus")
+ 	}
++	if pub.N.Nat().IsOdd() == 0 {
++		return errors.New("crypto/rsa: public modulus is even")
++	}
+ 	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
+ 		fips140.RecordNonApproved()
+ 	}
+ 	if pub.E < 2 {
+ 		return errors.New("crypto/rsa: public exponent too small or negative")
+ 	}
++	// e needs to be coprime with p-1 and q-1, since it must be invertible
++	// modulo λ(pq). Since p and q are prime, this means e needs to be odd.
++	if pub.E&1 == 0 {
++		return errors.New("crypto/rsa: public exponent is even")
++	}
+ 	// FIPS 186-5, Section 5.5(e): "The exponent e shall be an odd, positive
+ 	// integer such that 2¹⁶ < e < 2²⁵⁶."
+-	if pub.E <= 1<<16 || pub.E&1 == 0 {
++	if pub.E <= 1<<16 {
+ 		fips140.RecordNonApproved()
+ 	}
+ 	// We require pub.E to fit into a 32-bit integer so that we
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 3c9b98eae9..9051f176f7 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -228,9 +228,15 @@ func (priv *PrivateKey) Validate() error {
+ 	if pub.N == nil {
+ 		return errors.New("crypto/rsa: missing public modulus")
+ 	}
++	if pub.N.Bit(0) == 0 {
++		return errors.New("crypto/rsa: public modulus is even")
++	}
+ 	if pub.E < 2 {
+ 		return errors.New("crypto/rsa: public exponent is less than 2")
+ 	}
++	if pub.E&1 == 0 {
++		return errors.New("crypto/rsa: public exponent is even")
++	}
+ 	if pub.E > 1<<31-1 {
+ 		return errors.New("crypto/rsa: public exponent too large")
+ 	}
+@@ -544,9 +550,6 @@ func fipsPublicKey(pub *PublicKey) (*rsa.PublicKey, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if pub.E < 0 {
+-		return nil, errors.New("crypto/rsa: negative public exponent")
+-	}
+ 	return &rsa.PublicKey{N: N, E: pub.E}, nil
+ }
+ 

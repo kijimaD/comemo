@@ -19,8 +19,98 @@ Date:   Thu Apr 30 16:38:10 2015 -0400
     Change-Id: I853905254894b5367edb8abd381d45585a78ee8b
     Reviewed-on: https://go-review.googlesource.com/9549
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/test.go                     | 30 ++++++++++++++++++++++++++++--
  src/runtime/cgo/gcc_signal_darwin_armx.c |  7 ++-----
  src/runtime/cgo/gcc_signal_darwin_lldb.c |  2 +-
  3 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6c52693d5b..1ed099583e 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -94,6 +94,29 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
++	if t.iOS() {
++		// Install the Mach exception handler used to intercept
++		// EXC_BAD_ACCESS and convert it into a Go panic. This is
++		// necessary for a Go program running under lldb (the way
++		// we run tests). It is disabled by default because iOS
++		// apps are not allowed to access the exc_server symbol.
++		cmd := exec.Command("go", "install", "-a", "-tags", "lldb", "runtime/cgo")
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
++		if err := cmd.Run(); err != nil {
++			log.Fatalf("building mach exception handler: %v", err)
++		}
++
++		defer func() {
++			cmd := exec.Command("go", "install", "-a", "runtime/cgo")
++			cmd.Stdout = os.Stdout
++			cmd.Stderr = os.Stderr
++			if err := cmd.Run(); err != nil {
++				log.Fatalf("reverting mach exception handler: %v", err)
++			}
++		}()
++	}
++
+ 	t.timeoutScale = 1
+ 	if t.goarch == "arm" || t.goos == "windows" {
+ 		t.timeoutScale = 2
+@@ -350,6 +373,10 @@ func (t *tester) dirCmd(dir string, bin string, args ...string) *exec.Cmd {
+ 	return cmd
+ }
+ 
++func (t *tester) iOS() bool {
++	return t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
++}
++
+ func (t *tester) out(v string) {
+ 	if t.banner == "" {
+ 		return
+@@ -417,8 +444,7 @@ func (t *tester) supportedBuildmode(mode string) bool {
+ func (t *tester) cgoTest() error {
+ 	env := mergeEnvLists([]string{"GOTRACEBACK=2"}, os.Environ())
+ 
+-	iOS := t.goos == "darwin" && (t.goarch == "arm" || t.goarch == "arm64")
+-	if t.goos == "android" || iOS {
++	if t.goos == "android" || t.iOS() {
+ 		cmd := t.dirCmd("misc/cgo/test", "go", "test")
+ 		cmd.Env = env
+ 		return cmd.Run()
+diff --git a/src/runtime/cgo/gcc_signal_darwin_armx.c b/src/runtime/cgo/gcc_signal_darwin_armx.c
+index 9d572acce3..e36fe26bb1 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_armx.c
++++ b/src/runtime/cgo/gcc_signal_darwin_armx.c
+@@ -15,12 +15,9 @@
+ // chance to resolve exceptions before the task handler, so we can generate
+ // the panic and avoid lldb's SIGSEGV handler.
+ //
+-// If you want to debug a segfault under lldb, compile the standard library
+-// with the build tag lldb:
+-//
+-//	go test -tags lldb -installsuffix lldb
++// The dist tool enables this by build flag when testing.
+ 
+-// +build !lldb
++// +build lldb
+ // +build darwin
+ // +build arm arm64
+ 
+diff --git a/src/runtime/cgo/gcc_signal_darwin_lldb.c b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+index d3a3dddadd..b26315f10d 100644
+--- a/src/runtime/cgo/gcc_signal_darwin_lldb.c
++++ b/src/runtime/cgo/gcc_signal_darwin_lldb.c
+@@ -2,9 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !lldb
+ // +build darwin
+ // +build arm arm64
+-// +build lldb
+ 
+ #include <stdint.h>
+ 

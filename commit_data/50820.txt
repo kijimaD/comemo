@@ -13,6 +13,20 @@ Date:   Thu Nov 11 07:10:52 2021 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/363276
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/symtab.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 3237a6b708..21dd95a397 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -408,7 +408,7 @@ type pcHeader struct {
+ 
+ // moduledata records information about the layout of the executable
+ // image. It is written by the linker. Any changes here must be
+-// matched changes to the code in cmd/internal/ld/symtab.go:symtab.
++// matched changes to the code in cmd/link/internal/ld/symtab.go:symtab.
+ // moduledata is stored in statically allocated non-pointer memory;
+ // none of the pointers here are visible to the garbage collector.
+ type moduledata struct {

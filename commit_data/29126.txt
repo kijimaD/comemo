@@ -13,6 +13,23 @@ Date:   Fri Aug 26 13:06:59 2016 -0700
     Change-Id: Ib131d41aac56dbf970aab15ae7e75ef3944b412d
     Reviewed-on: https://go-review.googlesource.com/27912
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bimport.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 39fa844457..99c8554729 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -623,6 +623,11 @@ func (p *importer) method() *Node {
+ // parser.go:sym,hidden_importsym
+ func (p *importer) fieldName() *Sym {
+ 	name := p.string()
++	if p.version == 0 && name == "_" {
++		// version 0 didn't export a package for _ fields
++		// but used the builtin package instead
++		return builtinpkg.Lookup(name)
++	}
+ 	pkg := localpkg
+ 	if name != "" && !exportname(name) {
+ 		if name == "?" {

@@ -9,9 +9,179 @@ Date:   Mon Jan 11 13:05:26 2010 -0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/181161
-
+---
  src/cmd/cgo/ast.go  |  3 ++-
  src/cmd/cgo/gcc.go  | 68 +++++++++++++++++++++++++++++++++++++++++++++++++++--
  src/cmd/cgo/main.go |  5 ++++
  src/cmd/cgo/out.go  |  4 ++++
  4 files changed, 77 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 7d6221369e..d96a8bd9d0 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -19,7 +19,7 @@ import (
+ type Cref struct {
+ 	Name     string
+ 	Expr     *ast.Expr
+-	Context  string // "type", "expr", or "call"
++	Context  string // "type", "expr", "const", or "call"
+ 	TypeName bool   // whether xxx is a C type name
+ 	Type     *Type  // the type of xxx
+ 	FuncType *FuncType
+@@ -36,6 +36,7 @@ type Prog struct {
+ 	Vardef      map[string]*Type
+ 	Funcdef     map[string]*FuncType
+ 	Enumdef     map[string]int64
++	Constdef    map[string]string
+ 	PtrSize     int64
+ 	GccOptions  []string
+ 	OutDefs     map[string]bool
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index c701a6bbca..dd6223ea77 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -14,6 +14,7 @@ import (
+ 	"debug/macho"
+ 	"fmt"
+ 	"go/ast"
++	"go/parser"
+ 	"go/token"
+ 	"os"
+ 	"strconv"
+@@ -21,9 +22,51 @@ import (
+ )
+ 
+ func (p *Prog) loadDebugInfo() {
++	var b bytes.Buffer
++
++	b.WriteString(p.Preamble)
++	stdout := p.gccPostProc(b.Bytes())
++	defines := make(map[string]string)
++	for _, line := range strings.Split(stdout, "\n", 0) {
++		if len(line) < 9 || line[0:7] != "#define" {
++			continue
++		}
++
++		line = strings.TrimSpace(line[8:])
++
++		var key, val string
++		spaceIndex := strings.Index(line, " ")
++		tabIndex := strings.Index(line, "\t")
++
++		if spaceIndex == -1 && tabIndex == -1 {
++			continue
++		} else if tabIndex == -1 || (spaceIndex != -1 && spaceIndex < tabIndex) {
++			key = line[0:spaceIndex]
++			val = strings.TrimSpace(line[spaceIndex:])
++		} else {
++			key = line[0:tabIndex]
++			val = strings.TrimSpace(line[tabIndex:])
++		}
++
++		defines[key] = val
++	}
++
+ 	// Construct a slice of unique names from p.Crefs.
+ 	m := make(map[string]int)
+ 	for _, c := range p.Crefs {
++		// If we've already found this name as a define, it is not a Cref.
++		if val, ok := defines[c.Name]; ok {
++			_, err := parser.ParseExpr("", val)
++			if err != nil {
++				fmt.Fprintf(os.Stderr, "The value in C.%s does not parse as a Go expression; cannot use.\n", c.Name)
++				os.Exit(2)
++			}
++
++			c.Context = "const"
++			c.TypeName = false
++			p.Constdef[c.Name] = val
++			continue
++		}
+ 		m[c.Name] = -1
+ 	}
+ 	names := make([]string, 0, len(m))
+@@ -46,7 +89,7 @@ func (p *Prog) loadDebugInfo() {
+ 	//	x.c:2: error: 'name' undeclared (first use in this function)
+ 	// A line number directive causes the line number to
+ 	// correspond to the index in the names array.
+-	var b bytes.Buffer
++	b.Reset()
+ 	b.WriteString(p.Preamble)
+ 	b.WriteString("void f(void) {\n")
+ 	b.WriteString("#line 0 \"cgo-test\"\n")
+@@ -189,7 +232,13 @@ func (p *Prog) loadDebugInfo() {
+ 	var conv typeConv
+ 	conv.Init(p.PtrSize)
+ 	for _, c := range p.Crefs {
+-		i := m[c.Name]
++		i, ok := m[c.Name]
++		if !ok {
++			if _, ok := p.Constdef[c.Name]; !ok {
++				fatal("Cref %s is no longer around", c.Name)
++			}
++			continue
++		}
+ 		c.TypeName = kind[c.Name] == "type"
+ 		f, fok := types[i].(*dwarf.FuncType)
+ 		if c.Context == "call" && !c.TypeName && fok {
+@@ -257,6 +306,21 @@ func (p *Prog) gccDebug(stdin []byte) (*dwarf.Data, string) {
+ 	return d, ""
+ }
+ 
++func (p *Prog) gccPostProc(stdin []byte) string {
++	machine := "-m32"
++	if p.PtrSize == 8 {
++		machine = "-m64"
++	}
++
++	base := []string{"gcc", machine, "-E", "-dM", "-xc", "-"}
++	stdout, stderr, ok := run(stdin, concat(base, p.GccOptions))
++	if !ok {
++		return string(stderr)
++	}
++
++	return string(stdout)
++}
++
+ // A typeConv is a translator from dwarf types to Go types
+ // with equivalent memory layout.
+ type typeConv struct {
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 607f26b22c..e0a305c4da 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -76,6 +76,7 @@ func main() {
+ 	p.Vardef = make(map[string]*Type)
+ 	p.Funcdef = make(map[string]*FuncType)
+ 	p.Enumdef = make(map[string]int64)
++	p.Constdef = make(map[string]string)
+ 	p.OutDefs = make(map[string]bool)
+ 
+ 	for _, input := range goFiles {
+@@ -91,6 +92,10 @@ func main() {
+ 		p.loadDebugInfo()
+ 		for _, cref := range p.Crefs {
+ 			switch cref.Context {
++			case "const":
++				// This came from a #define and we'll output it later.
++				*cref.Expr = &ast.Ident{Value: cref.Name}
++				break
+ 			case "call":
+ 				if !cref.TypeName {
+ 					// Is an actual function call.
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 4c72f4c987..d628bef452 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -57,6 +57,10 @@ func (p *Prog) writeDefs() {
+ 	}
+ 	fmt.Fprintf(fc, "\n")
+ 
++	for name, value := range p.Constdef {
++		fmt.Fprintf(fgo2, "const %s = %s\n", name, value)
++	}
++
+ 	for name, value := range p.Enumdef {
+ 		fmt.Fprintf(fgo2, "const %s = %d\n", name, value)
+ 	}

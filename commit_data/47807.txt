@@ -80,9 +80,429 @@ Date:   Thu Apr 8 17:43:51 2021 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/asm_amd64.s     | 103 +++++++++++++++++++++++++++++++++++++++----
  src/runtime/memclr_amd64.s  | 105 ++++++++++++++++++++++++--------------------
  src/runtime/memmove_amd64.s |  21 ++++++++-
  src/runtime/stubs.go        |   3 ++
  4 files changed, 174 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 77f4939b30..e883f20045 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1011,34 +1011,62 @@ done:
+ 
+ // func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ // hash function using AES hardware instructions
+-TEXT runtime·memhash(SB),NOSPLIT,$0-32
++TEXT runtime·memhash<ABIInternal>(SB),NOSPLIT,$0-32
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = ptr to data
++	// BX = seed
++	// CX = size
++#endif
+ 	CMPB	runtime·useAeshash(SB), $0
+ 	JEQ	noaes
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	s+16(FP), CX	// size
+ 	LEAQ	ret+24(FP), DX
++#endif
+ 	JMP	aeshashbody<>(SB)
+ noaes:
+-	JMP	runtime·memhashFallback(SB)
++	JMP	runtime·memhashFallback<ABIInternal>(SB)
+ 
+ // func strhash(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·strhash(SB),NOSPLIT,$0-24
++TEXT runtime·strhash<ABIInternal>(SB),NOSPLIT,$0-24
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = ptr to string struct
++	// BX = seed
++#endif
+ 	CMPB	runtime·useAeshash(SB), $0
+ 	JEQ	noaes
++#ifndef GOEXPERIMENT_regabiargs
+ 	MOVQ	p+0(FP), AX	// ptr to string struct
++#endif
+ 	MOVQ	8(AX), CX	// length of string
+ 	MOVQ	(AX), AX	// string data
++#ifndef GOEXPERIMENT_regabiargs
+ 	LEAQ	ret+16(FP), DX
++#endif
+ 	JMP	aeshashbody<>(SB)
+ noaes:
+-	JMP	runtime·strhashFallback(SB)
++	JMP	runtime·strhashFallback<ABIInternal>(SB)
+ 
+ // AX: data
++#ifdef GOEXPERIMENT_regabiargs
++// BX: hash seed
++#else
++// h+8(FP): hash seed
++#endif
+ // CX: length
++#ifdef GOEXPERIMENT_regabiargs
++// At return: AX = return value
++#else
+ // DX: address to put return value
++#endif
+ TEXT aeshashbody<>(SB),NOSPLIT,$0-0
+ 	// Fill an SSE register with our seeds.
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	BX, X0				// 64 bits of per-table hash seed
++#else
+ 	MOVQ	h+8(FP), X0			// 64 bits of per-table hash seed
++#endif
+ 	PINSRW	$4, CX, X0			// 16 bits of length
+ 	PSHUFHW $0, X0, X0			// repeat length 4 times total
+ 	MOVO	X0, X1				// save unscrambled seed
+@@ -1075,7 +1103,11 @@ final1:
+ 	AESENC	X1, X1	// scramble combo 3 times
+ 	AESENC	X1, X1
+ 	AESENC	X1, X1
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X1, AX	// return X1
++#else
+ 	MOVQ	X1, (DX)
++#endif
+ 	RET
+ 
+ endofpage:
+@@ -1091,7 +1123,11 @@ endofpage:
+ aes0:
+ 	// Return scrambled input seed
+ 	AESENC	X0, X0
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X0, AX	// return X0
++#else
+ 	MOVQ	X0, (DX)
++#endif
+ 	RET
+ 
+ aes16:
+@@ -1121,7 +1157,11 @@ aes17to32:
+ 
+ 	// combine results
+ 	PXOR	X3, X2
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X2, AX	// return X2
++#else
+ 	MOVQ	X2, (DX)
++#endif
+ 	RET
+ 
+ aes33to64:
+@@ -1163,7 +1203,11 @@ aes33to64:
+ 	PXOR	X6, X4
+ 	PXOR	X7, X5
+ 	PXOR	X5, X4
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X4, AX	// return X4
++#else
+ 	MOVQ	X4, (DX)
++#endif
+ 	RET
+ 
+ aes65to128:
+@@ -1245,7 +1289,15 @@ aes65to128:
+ 	PXOR	X10, X8
+ 	PXOR	X11, X9
+ 	PXOR	X9, X8
++#ifdef GOEXPERIMENT_regabig
++	// X15 must be zero on return
++	PXOR	X15, X15
++#endif
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X8, AX	// return X8
++#else
+ 	MOVQ	X8, (DX)
++#endif
+ 	RET
+ 
+ aes129plus:
+@@ -1361,38 +1413,73 @@ aesloop:
+ 	PXOR	X10, X8
+ 	PXOR	X11, X9
+ 	PXOR	X9, X8
++#ifdef GOEXPERIMENT_regabig
++	// X15 must be zero on return
++	PXOR	X15, X15
++#endif
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X8, AX	// return X8
++#else
+ 	MOVQ	X8, (DX)
++#endif
+ 	RET
+ 
+ // func memhash32(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·memhash32(SB),NOSPLIT,$0-24
++// ABIInternal for performance.
++TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT,$0-24
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = ptr to data
++	// BX = seed
++#endif
+ 	CMPB	runtime·useAeshash(SB), $0
+ 	JEQ	noaes
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	BX, X0	// X0 = seed
++#else
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	h+8(FP), X0	// seed
++#endif
+ 	PINSRD	$2, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+32(SB), X0
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X0, AX	// return X0
++#else
+ 	MOVQ	X0, ret+16(FP)
++#endif
+ 	RET
+ noaes:
+-	JMP	runtime·memhash32Fallback(SB)
++	JMP	runtime·memhash32Fallback<ABIInternal>(SB)
+ 
+ // func memhash64(p unsafe.Pointer, h uintptr) uintptr
+-TEXT runtime·memhash64(SB),NOSPLIT,$0-24
++// ABIInternal for performance.
++TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT,$0-24
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = ptr to data
++	// BX = seed
++#else
++#endif
+ 	CMPB	runtime·useAeshash(SB), $0
+ 	JEQ	noaes
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	BX, X0	// X0 = seed
++#else
+ 	MOVQ	p+0(FP), AX	// ptr to data
+ 	MOVQ	h+8(FP), X0	// seed
++#endif
+ 	PINSRQ	$1, (AX), X0	// data
+ 	AESENC	runtime·aeskeysched+0(SB), X0
+ 	AESENC	runtime·aeskeysched+16(SB), X0
+ 	AESENC	runtime·aeskeysched+32(SB), X0
++#ifdef GOEXPERIMENT_regabiargs
++	MOVQ	X0, AX	// return X0
++#else
+ 	MOVQ	X0, ret+16(FP)
++#endif
+ 	RET
+ noaes:
+-	JMP	runtime·memhash64Fallback(SB)
++	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+ // simple mask to get rid of data in the high part of the register.
+ DATA masks<>+0x00(SB)/8, $0x0000000000000000
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index 37fe9745b1..b4bc9988ec 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -12,9 +12,16 @@
+ // See memclrNoHeapPointers Go doc for important implementation constraints.
+ 
+ // func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+-TEXT runtime·memclrNoHeapPointers(SB), NOSPLIT, $0-16
++// ABIInternal for performance.
++TEXT runtime·memclrNoHeapPointers<ABIInternal>(SB), NOSPLIT, $0-16
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = ptr
++	// BX = n
++	MOVQ	AX, DI	// DI = ptr
++#else
+ 	MOVQ	ptr+0(FP), DI
+ 	MOVQ	n+8(FP), BX
++#endif
+ 	XORQ	AX, AX
+ 
+ 	// MOVOU seems always faster than REP STOSQ.
+@@ -31,7 +38,9 @@ tail:
+ 	JE	_8
+ 	CMPQ	BX, $16
+ 	JBE	_9through16
+-	PXOR	X0, X0
++#ifndef GOEXPERIMENT_regabig
++	PXOR	X15, X15
++#endif
+ 	CMPQ	BX, $32
+ 	JBE	_17through32
+ 	CMPQ	BX, $64
+@@ -45,22 +54,22 @@ tail:
+ 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
+ 
+ loop:
+-	MOVOU	X0, 0(DI)
+-	MOVOU	X0, 16(DI)
+-	MOVOU	X0, 32(DI)
+-	MOVOU	X0, 48(DI)
+-	MOVOU	X0, 64(DI)
+-	MOVOU	X0, 80(DI)
+-	MOVOU	X0, 96(DI)
+-	MOVOU	X0, 112(DI)
+-	MOVOU	X0, 128(DI)
+-	MOVOU	X0, 144(DI)
+-	MOVOU	X0, 160(DI)
+-	MOVOU	X0, 176(DI)
+-	MOVOU	X0, 192(DI)
+-	MOVOU	X0, 208(DI)
+-	MOVOU	X0, 224(DI)
+-	MOVOU	X0, 240(DI)
++	MOVOU	X15, 0(DI)
++	MOVOU	X15, 16(DI)
++	MOVOU	X15, 32(DI)
++	MOVOU	X15, 48(DI)
++	MOVOU	X15, 64(DI)
++	MOVOU	X15, 80(DI)
++	MOVOU	X15, 96(DI)
++	MOVOU	X15, 112(DI)
++	MOVOU	X15, 128(DI)
++	MOVOU	X15, 144(DI)
++	MOVOU	X15, 160(DI)
++	MOVOU	X15, 176(DI)
++	MOVOU	X15, 192(DI)
++	MOVOU	X15, 208(DI)
++	MOVOU	X15, 224(DI)
++	MOVOU	X15, 240(DI)
+ 	SUBQ	$256, BX
+ 	ADDQ	$256, DI
+ 	CMPQ	BX, $256
+@@ -141,40 +150,40 @@ _9through16:
+ 	MOVQ	AX, -8(DI)(BX*1)
+ 	RET
+ _17through32:
+-	MOVOU	X0, (DI)
+-	MOVOU	X0, -16(DI)(BX*1)
++	MOVOU	X15, (DI)
++	MOVOU	X15, -16(DI)(BX*1)
+ 	RET
+ _33through64:
+-	MOVOU	X0, (DI)
+-	MOVOU	X0, 16(DI)
+-	MOVOU	X0, -32(DI)(BX*1)
+-	MOVOU	X0, -16(DI)(BX*1)
++	MOVOU	X15, (DI)
++	MOVOU	X15, 16(DI)
++	MOVOU	X15, -32(DI)(BX*1)
++	MOVOU	X15, -16(DI)(BX*1)
+ 	RET
+ _65through128:
+-	MOVOU	X0, (DI)
+-	MOVOU	X0, 16(DI)
+-	MOVOU	X0, 32(DI)
+-	MOVOU	X0, 48(DI)
+-	MOVOU	X0, -64(DI)(BX*1)
+-	MOVOU	X0, -48(DI)(BX*1)
+-	MOVOU	X0, -32(DI)(BX*1)
+-	MOVOU	X0, -16(DI)(BX*1)
++	MOVOU	X15, (DI)
++	MOVOU	X15, 16(DI)
++	MOVOU	X15, 32(DI)
++	MOVOU	X15, 48(DI)
++	MOVOU	X15, -64(DI)(BX*1)
++	MOVOU	X15, -48(DI)(BX*1)
++	MOVOU	X15, -32(DI)(BX*1)
++	MOVOU	X15, -16(DI)(BX*1)
+ 	RET
+ _129through256:
+-	MOVOU	X0, (DI)
+-	MOVOU	X0, 16(DI)
+-	MOVOU	X0, 32(DI)
+-	MOVOU	X0, 48(DI)
+-	MOVOU	X0, 64(DI)
+-	MOVOU	X0, 80(DI)
+-	MOVOU	X0, 96(DI)
+-	MOVOU	X0, 112(DI)
+-	MOVOU	X0, -128(DI)(BX*1)
+-	MOVOU	X0, -112(DI)(BX*1)
+-	MOVOU	X0, -96(DI)(BX*1)
+-	MOVOU	X0, -80(DI)(BX*1)
+-	MOVOU	X0, -64(DI)(BX*1)
+-	MOVOU	X0, -48(DI)(BX*1)
+-	MOVOU	X0, -32(DI)(BX*1)
+-	MOVOU	X0, -16(DI)(BX*1)
++	MOVOU	X15, (DI)
++	MOVOU	X15, 16(DI)
++	MOVOU	X15, 32(DI)
++	MOVOU	X15, 48(DI)
++	MOVOU	X15, 64(DI)
++	MOVOU	X15, 80(DI)
++	MOVOU	X15, 96(DI)
++	MOVOU	X15, 112(DI)
++	MOVOU	X15, -128(DI)(BX*1)
++	MOVOU	X15, -112(DI)(BX*1)
++	MOVOU	X15, -96(DI)(BX*1)
++	MOVOU	X15, -80(DI)(BX*1)
++	MOVOU	X15, -64(DI)(BX*1)
++	MOVOU	X15, -48(DI)(BX*1)
++	MOVOU	X15, -32(DI)(BX*1)
++	MOVOU	X15, -16(DI)(BX*1)
+ 	RET
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index d91641a8e8..f1e3403596 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -31,11 +31,20 @@
+ // See memmove Go doc for important implementation constraints.
+ 
+ // func memmove(to, from unsafe.Pointer, n uintptr)
+-TEXT runtime·memmove(SB), NOSPLIT, $0-24
+-
++// ABIInternal for performance.
++TEXT runtime·memmove<ABIInternal>(SB), NOSPLIT, $0-24
++#ifdef GOEXPERIMENT_regabiargs
++	// AX = to
++	// BX = from
++	// CX = n
++	MOVQ	AX, DI
++	MOVQ	BX, SI
++	MOVQ	CX, BX
++#else
+ 	MOVQ	to+0(FP), DI
+ 	MOVQ	from+8(FP), SI
+ 	MOVQ	n+16(FP), BX
++#endif
+ 
+ 	// REP instructions have a high startup cost, so we handle small sizes
+ 	// with some straightline code. The REP MOVSQ instruction is really fast
+@@ -244,6 +253,10 @@ move_129through256:
+ 	MOVOU	X13, -48(DI)(BX*1)
+ 	MOVOU	X14, -32(DI)(BX*1)
+ 	MOVOU	X15, -16(DI)(BX*1)
++#ifdef GOEXPERIMENT_regabig
++	// X15 must be zero on return
++	PXOR	X15, X15
++#endif
+ 	RET
+ move_256through2048:
+ 	SUBQ	$256, BX
+@@ -283,6 +296,10 @@ move_256through2048:
+ 	LEAQ	256(SI), SI
+ 	LEAQ	256(DI), DI
+ 	JGE	move_256through2048
++#ifdef GOEXPERIMENT_regabig
++	// X15 must be zero on return
++	PXOR	X15, X15
++#endif
+ 	JMP	tail
+ 
+ avxUnaligned:
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index f635d942e4..16d7583202 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -109,6 +109,9 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ //go:noescape
+ func memmove(to, from unsafe.Pointer, n uintptr)
+ 
++// Outside assembly calls memmove. Make sure it has ABI wrappers.
++//go:linkname memmove
++
+ //go:linkname reflect_memmove reflect.memmove
+ func reflect_memmove(to, from unsafe.Pointer, n uintptr) {
+ 	memmove(to, from, n)

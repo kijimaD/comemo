@@ -10,9 +10,66 @@ Date:   Thu Jan 20 17:23:07 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/decl.go    | 4 +++-
  src/cmd/compile/internal/types2/typexpr.go | 2 +-
  src/go/types/decl.go                       | 4 +++-
  src/go/types/typexpr.go                    | 2 +-
  4 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 41093cb637..710ae5f9c8 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -278,7 +278,9 @@ loop:
+ 			check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
+ 		}
+ 		defer func() {
+-			if !valid {
++			if valid {
++				check.trace(obj.Pos(), "=> cycle is valid")
++			} else {
+ 				check.trace(obj.Pos(), "=> error: cycle is invalid")
+ 			}
+ 		}()
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 0c7bd62643..991df9a082 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -211,7 +211,7 @@ func goTypeName(typ Type) string {
+ //
+ func (check *Checker) typInternal(e0 syntax.Expr, def *Named) (T Type) {
+ 	if check.conf.Trace {
+-		check.trace(e0.Pos(), "type %s", e0)
++		check.trace(e0.Pos(), "-- type %s", e0)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 043f02491d..279220bec0 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -277,7 +277,9 @@ loop:
+ 			check.trace(obj.Pos(), "## cycle contains: %d values, %d type definitions", nval, ndef)
+ 		}
+ 		defer func() {
+-			if !valid {
++			if valid {
++				check.trace(obj.Pos(), "=> cycle is valid")
++			} else {
+ 				check.trace(obj.Pos(), "=> error: cycle is invalid")
+ 			}
+ 		}()
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 1e629e3fdb..451662e598 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -209,7 +209,7 @@ func goTypeName(typ Type) string {
+ //
+ func (check *Checker) typInternal(e0 ast.Expr, def *Named) (T Type) {
+ 	if trace {
+-		check.trace(e0.Pos(), "type %s", e0)
++		check.trace(e0.Pos(), "-- type %s", e0)
+ 		check.indent++
+ 		defer func() {
+ 			check.indent--

@@ -7,6 +7,20 @@ Date:   Tue Mar 25 14:17:00 2014 -0700
     TBR=rsc
     CC=golang-codereviews
     https://golang.org/cl/80090043
-
+---
  src/pkg/runtime/mem_windows.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index 551c96ce99..7f55677c29 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -71,7 +71,7 @@ runtime·SysFault(void *v, uintptr n)
+ }
+ 
+ void*
+-runtime·SysReserve(void *v, uintptr n)
++runtime·SysReserve(void *v, uintptr n, bool *reserved)
+ {
+ 	*reserved = true;
+ 	// v is just a hint.

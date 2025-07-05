@@ -16,6 +16,20 @@ Date:   Sun Feb 28 12:24:02 2021 +0100
     Run-TryBot: Jason A. Donenfeld <Jason@zx2c4.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/runtime/os_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 707c9054b5..705b42c61c 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -1380,7 +1380,7 @@ func preemptM(mp *m) {
+ 
+ 	// Does it want a preemption and is it safe to preempt?
+ 	gp := gFromSP(mp, c.sp())
+-	if wantAsyncPreempt(gp) {
++	if gp != nil && wantAsyncPreempt(gp) {
+ 		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+ 			// Inject call to asyncPreempt
+ 			targetPC := funcPC(asyncPreempt)

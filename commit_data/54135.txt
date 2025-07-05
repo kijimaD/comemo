@@ -23,7 +23,7 @@ Date:   Sat Sep 24 11:15:43 2022 +0000
     Run-TryBot: xie cui <523516579@qq.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/internal/trace/goroutines.go               |  5 ++-
  src/runtime/crash_cgo_test.go                  | 26 ++++++++++++
  src/runtime/proc.go                            | 10 +++++
@@ -31,3 +31,194 @@ Date:   Sat Sep 24 11:15:43 2022 +0000
  src/runtime/testdata/testprogcgo/issue29707.go | 58 ++++++++++++++++++++++++++
  src/runtime/trace.go                           | 13 +++++-
  6 files changed, 110 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/trace/goroutines.go b/src/internal/trace/goroutines.go
+index 796bc8b03c..4b4f13d2ae 100644
+--- a/src/internal/trace/goroutines.go
++++ b/src/internal/trace/goroutines.go
+@@ -187,7 +187,7 @@ func GoroutineStats(events []*Event) map[uint64]*GDesc {
+ 			gs[g.ID] = g
+ 		case EvGoStart, EvGoStartLabel:
+ 			g := gs[ev.G]
+-			if g.PC == 0 {
++			if g.PC == 0 && len(ev.Stk) > 0 {
+ 				g.PC = ev.Stk[0].PC
+ 				g.Name = ev.Stk[0].Fn
+ 			}
+@@ -353,5 +353,6 @@ func RelatedGoroutines(events []*Event, goid uint64) map[uint64]bool {
+ func IsSystemGoroutine(entryFn string) bool {
+ 	// This mimics runtime.isSystemGoroutine as closely as
+ 	// possible.
+-	return entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
++	// Also, locked g in extra M (with empty entryFn) is system goroutine.
++	return entryFn == "" || entryFn != "runtime.main" && strings.HasPrefix(entryFn, "runtime.")
+ }
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index add5fee634..5d5eb33fde 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -721,3 +721,29 @@ func TestCgoTracebackGoroutineProfile(t *testing.T) {
+ 		t.Fatalf("want %s, got %s\n", want, output)
+ 	}
+ }
++
++func TestCgoTraceParser(t *testing.T) {
++	// Test issue 29707.
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no pthreads on %s", runtime.GOOS)
++	}
++	output := runTestProg(t, "testprogcgo", "CgoTraceParser")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("want %s, got %s\n", want, output)
++	}
++}
++
++func TestCgoTraceParserWithOneProc(t *testing.T) {
++	// Test issue 29707.
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no pthreads on %s", runtime.GOOS)
++	}
++	output := runTestProg(t, "testprogcgo", "CgoTraceParser", "GOMAXPROCS=1")
++	want := "OK\n"
++	if output != want {
++		t.Fatalf("GOMAXPROCS=1, want %s, got %s\n", want, output)
++	}
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 62e96e33aa..596778718a 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1976,13 +1976,23 @@ func oneNewExtraM() {
+ 	casgstatus(gp, _Gidle, _Gdead)
+ 	gp.m = mp
+ 	mp.curg = gp
++	mp.isextra = true
+ 	mp.lockedInt++
+ 	mp.lockedg.set(gp)
+ 	gp.lockedm.set(mp)
+ 	gp.goid = sched.goidgen.Add(1)
++	gp.sysblocktraced = true
+ 	if raceenabled {
+ 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
+ 	}
++	if trace.enabled {
++		// Trigger two trace events for the locked g in the extra m,
++		// since the next event of the g will be traceEvGoSysExit in exitsyscall,
++		// while calling from C thread to Go.
++		traceGoCreate(gp, 0) // no start pc
++		gp.traceseq++
++		traceEvent(traceEvGoInSyscall, -1, gp.goid)
++	}
+ 	// put on allg for garbage collector
+ 	allgadd(gp)
+ 
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 284f9d395d..cf44156c53 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -546,6 +546,7 @@ type m struct {
+ 	newSigstack   bool // minit on C thread called sigaltstack
+ 	printlock     int8
+ 	incgo         bool   // m is executing a cgo call
++	isextra       bool   // m is an extra m
+ 	freeWait      uint32 // if == 0, safe to free g0 and delete m (atomic)
+ 	fastrand      uint64
+ 	needextram    bool
+diff --git a/src/runtime/testdata/testprogcgo/issue29707.go b/src/runtime/testdata/testprogcgo/issue29707.go
+new file mode 100644
+index 0000000000..95964b111b
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/issue29707.go
+@@ -0,0 +1,58 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !plan9 && !windows
++// +build !plan9,!windows
++
++// This is for issue #29707
++
++package main
++
++/*
++#include <pthread.h>
++
++extern void* callbackTraceParser(void*);
++typedef void* (*cbTraceParser)(void*);
++
++static void testCallbackTraceParser(cbTraceParser cb) {
++	pthread_t thread_id;
++	pthread_create(&thread_id, NULL, cb, NULL);
++	pthread_join(thread_id, NULL);
++}
++*/
++import "C"
++
++import (
++	"bytes"
++	"fmt"
++	traceparser "internal/trace"
++	"runtime/trace"
++	"time"
++	"unsafe"
++)
++
++func init() {
++	register("CgoTraceParser", CgoTraceParser)
++}
++
++//export callbackTraceParser
++func callbackTraceParser(unsafe.Pointer) unsafe.Pointer {
++	time.Sleep(time.Millisecond)
++	return nil
++}
++
++func CgoTraceParser() {
++	buf := new(bytes.Buffer)
++
++	trace.Start(buf)
++	C.testCallbackTraceParser(C.cbTraceParser(C.callbackTraceParser))
++	trace.Stop()
++
++	_, err := traceparser.Parse(buf, "")
++	if err != nil {
++		fmt.Println("Parse error: ", err)
++	} else {
++		fmt.Println("OK")
++	}
++}
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index ab6402c706..e7dfab11f3 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -271,6 +271,17 @@ func StartTrace() error {
+ 		if status == _Gsyscall {
+ 			gp.traceseq++
+ 			traceEvent(traceEvGoInSyscall, -1, gp.goid)
++		} else if status == _Gdead && gp.m != nil && gp.m.isextra {
++			// Trigger two trace events for the dead g in the extra m,
++			// since the next event of the g will be traceEvGoSysExit in exitsyscall,
++			// while calling from C thread to Go.
++			gp.traceseq = 0
++			gp.tracelastp = getg().m.p
++			// +PCQuantum because traceFrameForPC expects return PCs and subtracts PCQuantum.
++			id := trace.stackTab.put([]uintptr{startPCforTrace(0) + sys.PCQuantum}) // no start pc
++			traceEvent(traceEvGoCreate, -1, gp.goid, uint64(id), stackID)
++			gp.traceseq++
++			traceEvent(traceEvGoInSyscall, -1, gp.goid)
+ 		} else {
+ 			gp.sysblocktraced = false
+ 		}
+@@ -1558,7 +1569,7 @@ func trace_userLog(id uint64, category, message string) {
+ func startPCforTrace(pc uintptr) uintptr {
+ 	f := findfunc(pc)
+ 	if !f.valid() {
+-		return pc // should not happen, but don't care
++		return pc // may happen for locked g in extra M since its pc is 0.
+ 	}
+ 	w := funcdata(f, _FUNCDATA_WrapInfo)
+ 	if w == nil {

@@ -10,10 +10,235 @@ Date:   Thu Feb 16 20:05:39 2012 +0100
     R=golang-dev, r
     CC=golang-dev, remy
     https://golang.org/cl/5672044
-
+---
  src/pkg/path/filepath/match.go     |  6 +++---
  src/pkg/path/filepath/path.go      | 19 ++++++++++++-------
  src/pkg/path/filepath/path_test.go |  5 +++++
  src/pkg/path/match.go              |  4 +++-
  src/pkg/path/path.go               | 21 ++++++++++++---------
  5 files changed, 35 insertions(+), 20 deletions(-)
+
+diff --git a/src/pkg/path/filepath/match.go b/src/pkg/path/filepath/match.go
+index c3678f541d..38d264fb97 100644
+--- a/src/pkg/path/filepath/match.go
++++ b/src/pkg/path/filepath/match.go
+@@ -12,6 +12,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// ErrBadPattern indicates a globbing pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+ // Match returns true if name matches the shell file name pattern.
+@@ -33,7 +34,8 @@ var ErrBadPattern = errors.New("syntax error in pattern")
+ //		lo '-' hi   matches character c for lo <= c <= hi
+ //
+ // Match requires pattern to match all of name, not just a substring.
+-// The only possible error return occurs when the pattern is malformed.
++// The only possible returned error is ErrBadPattern, when pattern
++// is malformed.
+ //
+ func Match(pattern, name string) (matched bool, err error) {
+ Pattern:
+@@ -211,7 +213,6 @@ func getEsc(chunk string) (r rune, nchunk string, err error) {
+ // if there is no matching file. The syntax of patterns is the same
+ // as in Match. The pattern may describe hierarchical names such as
+ // /usr/*/bin/ed (assuming the Separator is '/').
+-// The only possible error return occurs when the pattern is malformed.
+ //
+ func Glob(pattern string) (matches []string, err error) {
+ 	if !hasMeta(pattern) {
+@@ -253,7 +254,6 @@ func Glob(pattern string) (matches []string, err error) {
+ // and appends them to matches. If the directory cannot be
+ // opened, it returns the existing matches. New matches are
+ // added in lexicographical order.
+-// The only possible error return occurs when the pattern is malformed.
+ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ 	m = matches
+ 	fi, err := os.Stat(dir)
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 3dc52aab46..f468d33264 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -36,7 +36,7 @@ const (
+ // returns the string ".".
+ //
+ // See also Rob Pike, ``Lexical File Names in Plan 9 or
+-// Getting Dot-Dot right,''
++// Getting Dot-Dot Right,''
+ // http://plan9.bell-labs.com/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	vol := VolumeName(path)
+@@ -118,7 +118,8 @@ func Clean(path string) string {
+ }
+ 
+ // ToSlash returns the result of replacing each separator character
+-// in path with a slash ('/') character.
++// in path with a slash ('/') character. Multiple separators are
++// replaced by multiple slashes.
+ func ToSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path
+@@ -127,7 +128,8 @@ func ToSlash(path string) string {
+ }
+ 
+ // FromSlash returns the result of replacing each slash ('/') character
+-// in path with a separator character.
++// in path with a separator character. Multiple slashes are replaced
++// by multiple separators.
+ func FromSlash(path string) string {
+ 	if Separator == '/' {
+ 		return path
+@@ -135,7 +137,8 @@ func FromSlash(path string) string {
+ 	return strings.Replace(path, "/", string(Separator), -1)
+ }
+ 
+-// SplitList splits a list of paths joined by the OS-specific ListSeparator.
++// SplitList splits a list of paths joined by the OS-specific ListSeparator,
++// usually found in PATH or GOPATH environment variables.
+ func SplitList(path string) []string {
+ 	if path == "" {
+ 		return []string{}
+@@ -158,7 +161,8 @@ func Split(path string) (dir, file string) {
+ }
+ 
+ // Join joins any number of path elements into a single path, adding
+-// a Separator if necessary.  All empty strings are ignored.
++// a Separator if necessary. The result is Cleaned, in particular
++// all empty strings are ignored.
+ func Join(elem ...string) string {
+ 	for i, e := range elem {
+ 		if e != "" {
+@@ -183,7 +187,8 @@ func Ext(path string) string {
+ 
+ // EvalSymlinks returns the path name after the evaluation of any symbolic
+ // links.
+-// If path is relative it will be evaluated relative to the current directory.
++// If path is relative the result will be relative to the current directory,
++// unless one of the components is an absolute symbolic link.
+ func EvalSymlinks(path string) (string, error) {
+ 	if runtime.GOOS == "windows" {
+ 		// Symlinks are not supported under windows.
+@@ -443,7 +448,7 @@ func Base(path string) string {
+ 	return path
+ }
+ 
+-// Dir returns the all but the last element of path, typically the path's directory.
++// Dir returns all but the last element of path, typically the path's directory.
+ // Trailing path separators are removed before processing.
+ // If the path is empty, Dir returns ".".
+ // If the path consists entirely of separators, Dir returns a single separator.
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index 4572707ace..6b70aa2cd7 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -559,6 +559,7 @@ var EvalSymlinksTestDirs = []EvalSymlinksTest{
+ 	{"test/dir/link3", "../../"},
+ 	{"test/link1", "../test"},
+ 	{"test/link2", "dir"},
++	{"test/linkabs", "/tmp"},
+ }
+ 
+ var EvalSymlinksTests = []EvalSymlinksTest{
+@@ -571,6 +572,7 @@ var EvalSymlinksTests = []EvalSymlinksTest{
+ 	{"test/link2/..", "test"},
+ 	{"test/dir/link3", "."},
+ 	{"test/link2/link3/test", "test"},
++	{"test/linkabs", "/tmp"},
+ }
+ 
+ var EvalSymlinksAbsWindowsTests = []EvalSymlinksTest{
+@@ -629,6 +631,9 @@ func TestEvalSymlinks(t *testing.T) {
+ 	for _, d := range tests {
+ 		path := simpleJoin(tmpDir, d.path)
+ 		dest := simpleJoin(tmpDir, d.dest)
++		if filepath.IsAbs(d.dest) {
++			dest = d.dest
++		}
+ 		if p, err := filepath.EvalSymlinks(path); err != nil {
+ 			t.Errorf("EvalSymlinks(%q) error: %v", d.path, err)
+ 		} else if filepath.Clean(p) != filepath.Clean(dest) {
+diff --git a/src/pkg/path/match.go b/src/pkg/path/match.go
+index ba7e4de321..8154bf6025 100644
+--- a/src/pkg/path/match.go
++++ b/src/pkg/path/match.go
+@@ -10,6 +10,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
++// ErrBadPattern indicates a globbing pattern was malformed.
+ var ErrBadPattern = errors.New("syntax error in pattern")
+ 
+ // Match returns true if name matches the shell file name pattern.
+@@ -31,7 +32,8 @@ var ErrBadPattern = errors.New("syntax error in pattern")
+ //		lo '-' hi   matches character c for lo <= c <= hi
+ //
+ // Match requires pattern to match all of name, not just a substring.
+-// The only possible error return is when pattern is malformed.
++// The only possible returned error is ErrBadPattern, when pattern
++// is malformed.
+ //
+ func Match(pattern, name string) (matched bool, err error) {
+ Pattern:
+diff --git a/src/pkg/path/path.go b/src/pkg/path/path.go
+index 20d89c9ff0..13abed0b09 100644
+--- a/src/pkg/path/path.go
++++ b/src/pkg/path/path.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package path implements utility routines for manipulating slash-separated
+-// filename paths.
++// paths.
+ package path
+ 
+ import (
+@@ -25,7 +25,7 @@ import (
+ // returns the string ".".
+ //
+ // See also Rob Pike, ``Lexical File Names in Plan 9 or
+-// Getting Dot-Dot right,''
++// Getting Dot-Dot Right,''
+ // http://plan9.bell-labs.com/sys/doc/lexnames.html
+ func Clean(path string) string {
+ 	if path == "" {
+@@ -100,17 +100,19 @@ func Clean(path string) string {
+ 	return string(buf[0:w])
+ }
+ 
+-// Split splits path immediately following the final path separator,
++// Split splits path immediately following the final slash.
+ // separating it into a directory and file name component.
+-// If there is no separator in path, Split returns an empty dir and
++// If there is no slash path, Split returns an empty dir and
+ // file set to path.
++// The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {
+ 	i := strings.LastIndex(path, "/")
+ 	return path[:i+1], path[i+1:]
+ }
+ 
+ // Join joins any number of path elements into a single path, adding a
+-// separating slash if necessary.  All empty strings are ignored.
++// separating slash if necessary. The result is Cleaned; in particular,
++// all empty strings are ignored.
+ func Join(elem ...string) string {
+ 	for i, e := range elem {
+ 		if e != "" {
+@@ -161,11 +163,12 @@ func IsAbs(path string) bool {
+ 	return len(path) > 0 && path[0] == '/'
+ }
+ 
+-// Dir returns the all but the last element of path, typically the path's directory.
+-// Trailing path separators are removed before processing.
++// Dir returns all but the last element of path, typically the path's directory.
++// The path is Cleaned and trailing slashes are removed before processing.
+ // If the path is empty, Dir returns ".".
+-// If the path consists entirely of separators, Dir returns a single separator.
+-// The returned path does not end in a separator unless it is the root directory.
++// If the path consists entirely of slashes followed by non-slash bytes, Dir
++// returns a single slash. In any other case, the returned path does not end in a
++// slash.
+ func Dir(path string) string {
+ 	dir, _ := Split(path)
+ 	dir = Clean(dir)

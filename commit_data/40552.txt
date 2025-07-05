@@ -22,7 +22,7 @@ Date:   Fri May 24 08:55:30 2019 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  src/cmd/go/internal/cfg/cfg.go                     |  2 +-
  src/cmd/go/internal/web/http.go                    | 47 ++++++++++++++++++----
  .../go/testdata/script/get_insecure_redirect.txt   |  3 +-
@@ -31,3 +31,223 @@ Date:   Fri May 24 08:55:30 2019 -0400
  src/cmd/go/testdata/script/mod_sumdb_golang.txt    | 28 ++++++++++---
  src/cmd/go/testdata/script/mod_vcs_missing.txt     |  2 +-
  7 files changed, 69 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 77d8bab14f..c3c9c978a5 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -303,7 +303,7 @@ func goproxy() string {
+ 		return v
+ 	}
+ 
+-	return "https://proxy.golang.org"
++	return "https://proxy.golang.org,direct"
+ }
+ 
+ func gosumdb() string {
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index 51a5dfc54d..4e2b1c33dc 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -14,9 +14,11 @@ package web
+ import (
+ 	"crypto/tls"
+ 	"fmt"
+-	"log"
++	"io/ioutil"
+ 	"net/http"
+ 	urlpkg "net/url"
++	"os"
++	"strings"
+ 	"time"
+ 
+ 	"cmd/go/internal/auth"
+@@ -50,9 +52,28 @@ var securityPreservingHTTPClient = &http.Client{
+ }
+ 
+ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
++	start := time.Now()
++	if os.Getenv("TESTGOPROXY404") == "1" && url.Host == "proxy.golang.org" {
++		res := &Response{
++			URL:        Redacted(url),
++			Status:     "404 testing",
++			StatusCode: 404,
++			Header:     make(map[string][]string),
++			Body:       ioutil.NopCloser(strings.NewReader("")),
++		}
++		if cfg.BuildX {
++			fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
++		}
++		return res, nil
++	}
++
+ 	fetch := func(url *urlpkg.URL) (*urlpkg.URL, *http.Response, error) {
+-		if cfg.BuildV {
+-			log.Printf("Fetching %s", url)
++		// Note: The -v build flag does not mean "print logging information",
++		// despite its historical misuse for this in GOPATH-based go get.
++		// We print extra logging in -x mode instead, which traces what
++		// commands are executed.
++		if cfg.BuildX {
++			fmt.Fprintf(os.Stderr, "# get %s\n", Redacted(url))
+ 		}
+ 
+ 		req, err := http.NewRequest("GET", url.String(), nil)
+@@ -84,8 +105,8 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 
+ 		fetched, res, err = fetch(secure)
+ 		if err != nil {
+-			if cfg.BuildV {
+-				log.Printf("https fetch failed: %v", err)
++			if cfg.BuildX {
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
+ 			}
+ 			if security != Insecure || url.Scheme == "https" {
+ 				// HTTPS failed, and we can't fall back to plain HTTP.
+@@ -99,6 +120,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		switch url.Scheme {
+ 		case "http":
+ 			if security == SecureOnly {
++				if cfg.BuildX {
++					fmt.Fprintf(os.Stderr, "# get %s: insecure\n", Redacted(url))
++				}
+ 				return nil, fmt.Errorf("insecure URL: %s", Redacted(url))
+ 			}
+ 		case "":
+@@ -106,6 +130,9 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 				panic("should have returned after HTTPS failure")
+ 			}
+ 		default:
++			if cfg.BuildX {
++				fmt.Fprintf(os.Stderr, "# get %s: unsupported\n", Redacted(url))
++			}
+ 			return nil, fmt.Errorf("unsupported scheme: %s", Redacted(url))
+ 		}
+ 
+@@ -113,11 +140,17 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 		*insecure = *url
+ 		insecure.Scheme = "http"
+ 		if insecure.User != nil && security != Insecure {
++			if cfg.BuildX {
++				fmt.Fprintf(os.Stderr, "# get %s: insecure credentials\n", Redacted(url))
++			}
+ 			return nil, fmt.Errorf("refusing to pass credentials to insecure URL: %s", Redacted(insecure))
+ 		}
+ 
+ 		fetched, res, err = fetch(insecure)
+ 		if err != nil {
++			if cfg.BuildX {
++				fmt.Fprintf(os.Stderr, "# get %s: %v\n", Redacted(url), err)
++			}
+ 			// HTTP failed, and we already tried HTTPS if applicable.
+ 			// Report the error from the HTTP attempt.
+ 			return nil, err
+@@ -126,8 +159,8 @@ func get(security SecurityMode, url *urlpkg.URL) (*Response, error) {
+ 
+ 	// Note: accepting a non-200 OK here, so people can serve a
+ 	// meta import in their http 404 page.
+-	if cfg.BuildV {
+-		log.Printf("reading from %s: status code %d", Redacted(fetched), res.StatusCode)
++	if cfg.BuildX {
++		fmt.Fprintf(os.Stderr, "# get %s: %v (%.3fs)\n", Redacted(url), res.Status, time.Since(start).Seconds())
+ 	}
+ 	r := &Response{
+ 		URL:        Redacted(fetched),
+diff --git a/src/cmd/go/testdata/script/get_insecure_redirect.txt b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+index 6d20418fb2..b69eb949e4 100644
+--- a/src/cmd/go/testdata/script/get_insecure_redirect.txt
++++ b/src/cmd/go/testdata/script/get_insecure_redirect.txt
+@@ -3,7 +3,8 @@
+ [!net] skip
+ 
+ env GO111MODULE=on
+-env GOPROXY=
++env GOPROXY=direct
++env GOSUMDB=off
+ 
+ ! go get -d vcs-test.golang.org/insecure/go/insecure
+ stderr 'redirected .* to insecure URL'
+diff --git a/src/cmd/go/testdata/script/mod_get_private_vcs.txt b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+index 1c73182206..514b0a7a53 100644
+--- a/src/cmd/go/testdata/script/mod_get_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_get_private_vcs.txt
+@@ -3,7 +3,7 @@ env GO111MODULE=on
+ # Testing stderr for git ls-remote; turn off proxy.
+ [!net] skip
+ [!exec:git] skip
+-env GOPROXY=
++env GOPROXY=direct
+ 
+ ! go get github.com/golang/nonexist
+ stderr 'Confirm the import path was entered correctly.'
+diff --git a/src/cmd/go/testdata/script/mod_git_export_subst.txt b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+index 2b8e2bc7bc..a28b4f2d67 100644
+--- a/src/cmd/go/testdata/script/mod_git_export_subst.txt
++++ b/src/cmd/go/testdata/script/mod_git_export_subst.txt
+@@ -1,5 +1,5 @@
+ env GO111MODULE=on
+-env GOPROXY=
++env GOPROXY=direct
+ 
+ # Testing that git export-subst is disabled
+ [!net] skip
+diff --git a/src/cmd/go/testdata/script/mod_sumdb_golang.txt b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+index 0eb0fc84a7..d81030c235 100644
+--- a/src/cmd/go/testdata/script/mod_sumdb_golang.txt
++++ b/src/cmd/go/testdata/script/mod_sumdb_golang.txt
+@@ -2,7 +2,7 @@
+ env GOPROXY=
+ env GOSUMDB=
+ go env GOPROXY
+-stdout '^https://proxy.golang.org$'
++stdout '^https://proxy.golang.org,direct$'
+ go env GOSUMDB
+ stdout '^sum.golang.org$'
+ env GOPROXY=https://proxy.golang.org
+@@ -15,11 +15,29 @@ env GOSUMDB=sum.golang.org
+ env GOPROXY=direct
+ go get -m rsc.io/quote
+ 
+-# download from proxy.golang.org
++# download from proxy.golang.org with go.sum entry already
+ go clean -modcache
+-env GOSUMDB='sum.golang.org https://sum.golang.org' # TODO remove URL
+-env GOPROXY=https://proxy.golang.org
+-go get -m rsc.io/quote
++env GOSUMDB=
++env GOPROXY=
++go get -x -m rsc.io/quote
++! stderr github
++stderr proxy.golang.org/rsc.io/quote
++! stderr sum.golang.org/tile
++! stderr sum.golang.org/lookup/rsc.io/quote
++
++# download again, using checksum database to validate new go.sum lines
++rm go.sum
++go get -x -m rsc.io/quote
++! stderr github
++stderr proxy.golang.org/rsc.io/quote
++stderr sum.golang.org/tile
++stderr sum.golang.org/lookup/rsc.io/quote
++
++# test fallback to direct
++env TESTGOPROXY404=1
++go get -x -m rsc.io/quote
++stderr 'proxy.golang.org.*404 testing'
++stderr github.com/rsc
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_vcs_missing.txt b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+index 009bb91c3c..a755935b53 100644
+--- a/src/cmd/go/testdata/script/mod_vcs_missing.txt
++++ b/src/cmd/go/testdata/script/mod_vcs_missing.txt
+@@ -2,7 +2,7 @@
+ [!net] skip
+ 
+ env GO111MODULE=on
+-env GOPROXY=
++env GOPROXY=direct
+ 
+ cd empty
+ ! go list launchpad.net/gocheck

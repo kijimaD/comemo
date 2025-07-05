@@ -7,7 +7,7 @@ Date:   Fri May 21 14:14:22 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1211047
-
+---
  src/pkg/Makefile                        |  2 +-
  src/pkg/{ => exp}/bignum/Makefile       |  6 +++---
  src/pkg/{ => exp}/bignum/arith.go       |  0
@@ -27,3 +27,213 @@ Date:   Fri May 21 14:14:22 2010 -0700
  src/pkg/exp/eval/value.go               |  2 +-
  test/hilbert.go                         |  2 +-
  18 files changed, 23 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/Makefile b/src/pkg/Makefile
+index 7337951ae5..005c957046 100644
+--- a/src/pkg/Makefile
++++ b/src/pkg/Makefile
+@@ -23,7 +23,6 @@ DIRS=\
+ 	archive/tar\
+ 	asn1\
+ 	big\
+-	bignum\
+ 	bufio\
+ 	bytes\
+ 	cmath\
+@@ -64,6 +63,7 @@ DIRS=\
+ 	encoding/hex\
+ 	encoding/pem\
+ 	exec\
++	exp/bignum\
+ 	exp/datafmt\
+ 	exp/draw\
+ 	exp/eval\
+diff --git a/src/pkg/bignum/Makefile b/src/pkg/exp/bignum/Makefile
+similarity index 74%
+rename from src/pkg/bignum/Makefile
+rename to src/pkg/exp/bignum/Makefile
+index c3dd595316..064cf1eb95 100644
+--- a/src/pkg/bignum/Makefile
++++ b/src/pkg/exp/bignum/Makefile
+@@ -2,13 +2,13 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
+-include ../../Make.$(GOARCH)
++include ../../../Make.$(GOARCH)
+ 
+-TARG=bignum
++TARG=exp/bignum
+ GOFILES=\
+ 	arith.go\
+ 	bignum.go\
+ 	integer.go\
+ 	rational.go\
+ 
+-include ../../Make.pkg
++include ../../../Make.pkg
+diff --git a/src/pkg/bignum/arith.go b/src/pkg/exp/bignum/arith.go
+similarity index 100%
+rename from src/pkg/bignum/arith.go
+rename to src/pkg/exp/bignum/arith.go
+diff --git a/src/pkg/bignum/arith_amd64.s b/src/pkg/exp/bignum/arith_amd64.s
+similarity index 100%
+rename from src/pkg/bignum/arith_amd64.s
+rename to src/pkg/exp/bignum/arith_amd64.s
+diff --git a/src/pkg/bignum/bignum.go b/src/pkg/exp/bignum/bignum.go
+similarity index 100%
+rename from src/pkg/bignum/bignum.go
+rename to src/pkg/exp/bignum/bignum.go
+diff --git a/src/pkg/bignum/bignum_test.go b/src/pkg/exp/bignum/bignum_test.go
+similarity index 97%
+rename from src/pkg/bignum/bignum_test.go
+rename to src/pkg/exp/bignum/bignum_test.go
+index ade72dd1bc..8db93aa96f 100644
+--- a/src/pkg/bignum/bignum_test.go
++++ b/src/pkg/exp/bignum/bignum_test.go
+@@ -331,6 +331,16 @@ func TestNatDiv(t *testing.T) {
+ 	for i := uint(0); i < n; i++ {
+ 		nat_eq(100+i, p.Div(MulRange(1, i)), MulRange(i+1, n))
+ 	}
++
++	// a specific test case that exposed a bug in package big
++	test_msg = "NatDivC"
++	x := natFromString("69720375229712477164533808935312303556800", 10, nil)
++	y := natFromString("3099044504245996706400", 10, nil)
++	q := natFromString("22497377864108980962", 10, nil)
++	r := natFromString("0", 10, nil)
++	qc, rc := x.DivMod(y)
++	nat_eq(0, q, qc)
++	nat_eq(1, r, rc)
+ }
+ 
+ 
+diff --git a/src/pkg/bignum/integer.go b/src/pkg/exp/bignum/integer.go
+similarity index 100%
+rename from src/pkg/bignum/integer.go
+rename to src/pkg/exp/bignum/integer.go
+diff --git a/src/pkg/bignum/nrdiv_test.go b/src/pkg/exp/bignum/nrdiv_test.go
+similarity index 100%
+rename from src/pkg/bignum/nrdiv_test.go
+rename to src/pkg/exp/bignum/nrdiv_test.go
+diff --git a/src/pkg/bignum/rational.go b/src/pkg/exp/bignum/rational.go
+similarity index 100%
+rename from src/pkg/bignum/rational.go
+rename to src/pkg/exp/bignum/rational.go
+diff --git a/src/pkg/exp/eval/eval_test.go b/src/pkg/exp/eval/eval_test.go
+index 837c4fabdc..1dfdfe1fd6 100644
+--- a/src/pkg/exp/eval/eval_test.go
++++ b/src/pkg/exp/eval/eval_test.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+diff --git a/src/pkg/exp/eval/expr.go b/src/pkg/exp/eval/expr.go
+index 81e9ffa935..ea8117d065 100644
+--- a/src/pkg/exp/eval/expr.go
++++ b/src/pkg/exp/eval/expr.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/token"
+diff --git a/src/pkg/exp/eval/expr1.go b/src/pkg/exp/eval/expr1.go
+index 0e83053f46..f0a78ac4d6 100644
+--- a/src/pkg/exp/eval/expr1.go
++++ b/src/pkg/exp/eval/expr1.go
+@@ -4,7 +4,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"log"
+ )
+ 
+diff --git a/src/pkg/exp/eval/expr_test.go b/src/pkg/exp/eval/expr_test.go
+index 12914fbd54..7efa2069df 100644
+--- a/src/pkg/exp/eval/expr_test.go
++++ b/src/pkg/exp/eval/expr_test.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"testing"
+ )
+ 
+diff --git a/src/pkg/exp/eval/stmt.go b/src/pkg/exp/eval/stmt.go
+index bb080375a8..bcd81f04cb 100644
+--- a/src/pkg/exp/eval/stmt.go
++++ b/src/pkg/exp/eval/stmt.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"log"
+ 	"go/ast"
+ 	"go/token"
+diff --git a/src/pkg/exp/eval/type.go b/src/pkg/exp/eval/type.go
+index 8a0a2cf2fa..b0fbe21565 100644
+--- a/src/pkg/exp/eval/type.go
++++ b/src/pkg/exp/eval/type.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"go/ast"
+ 	"go/token"
+ 	"log"
+diff --git a/src/pkg/exp/eval/util.go b/src/pkg/exp/eval/util.go
+index 6508346dd9..ffe13e1702 100644
+--- a/src/pkg/exp/eval/util.go
++++ b/src/pkg/exp/eval/util.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ )
+ 
+ // TODO(austin): Maybe add to bignum in more general form
+diff --git a/src/pkg/exp/eval/value.go b/src/pkg/exp/eval/value.go
+index 153349c437..dce4bfcf3d 100644
+--- a/src/pkg/exp/eval/value.go
++++ b/src/pkg/exp/eval/value.go
+@@ -5,7 +5,7 @@
+ package eval
+ 
+ import (
+-	"bignum"
++	"exp/bignum"
+ 	"fmt"
+ )
+ 
+diff --git a/test/hilbert.go b/test/hilbert.go
+index 9438045c86..07db353240 100644
+--- a/test/hilbert.go
++++ b/test/hilbert.go
+@@ -10,7 +10,7 @@
+ 
+ package main
+ 
+-import Big "bignum"
++import Big "exp/bignum"
+ import Fmt "fmt"
+ 
+ 

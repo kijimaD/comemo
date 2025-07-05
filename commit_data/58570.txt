@@ -14,7 +14,50 @@ Date:   Mon Jun 5 19:14:01 2023 -0400
     Reviewed-by: Than McIntosh <thanm@google.com>
     Run-TryBot: David Chase <drchase@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/debug.go  | 7 +++++--
  src/cmd/compile/internal/ssagen/ssa.go | 6 +++---
  2 files changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 7e0e1f34a8..05a72787f3 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -42,7 +42,10 @@ type FuncDebug struct {
+ 	OptDcl []*ir.Name
+ 
+ 	// Filled in by the user. Translates Block and Value ID to PC.
+-	GetPC func(ID, ID) int64
++	//
++	// NOTE: block is only used if value is BlockStart.ID or BlockEnd.ID.
++	// Otherwise, it is ignored.
++	GetPC func(block, value ID) int64
+ }
+ 
+ type BlockDebug struct {
+@@ -1368,7 +1371,7 @@ func (state *debugState) buildLocationLists(blockLocs []*BlockDebug) {
+ 
+ 	// Flush any leftover entries live at the end of the last block.
+ 	for varID := range state.lists {
+-		state.writePendingEntry(VarID(varID), state.f.Blocks[len(state.f.Blocks)-1].ID, FuncEnd.ID)
++		state.writePendingEntry(VarID(varID), -1, FuncEnd.ID)
+ 		list := state.lists[varID]
+ 		if state.loggingLevel > 0 {
+ 			if len(list) == 0 {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 8d1e30e1e6..45bf0e6dc4 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7578,9 +7578,9 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		for i, b := range f.Blocks {
+ 			idToIdx[b.ID] = i
+ 		}
+-		// Note that at this moment, Prog.Pc is a sequence number; it's
+-		// not a real PC until after assembly, so this mapping has to
+-		// be done later.
++		// Register a callback that will be used later to fill in PCs into location
++		// lists. At the moment, Prog.Pc is a sequence number; it's not a real PC
++		// until after assembly, so the translation needs to be deferred.
+ 		debugInfo.GetPC = func(b, v ssa.ID) int64 {
+ 			switch v {
+ 			case ssa.BlockStart.ID:

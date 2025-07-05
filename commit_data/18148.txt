@@ -7,6 +7,43 @@ Date:   Wed Jan 1 17:54:06 2014 +1100
     R=golang-codereviews, dave, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/46250043
-
+---
  src/pkg/encoding/json/encode_test.go | 19 ++++++++++++++++++-
  1 file changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/encoding/json/encode_test.go b/src/pkg/encoding/json/encode_test.go
+index c4a199a1bd..265a237e44 100644
+--- a/src/pkg/encoding/json/encode_test.go
++++ b/src/pkg/encoding/json/encode_test.go
+@@ -25,13 +25,30 @@ type Optionals struct {
+ 
+ 	Mr map[string]interface{} `json:"mr"`
+ 	Mo map[string]interface{} `json:",omitempty"`
++
++	Fr float64 `json:"fr"`
++	Fo float64 `json:"fo,omitempty"`
++
++	Br bool `json:"br"`
++	Bo bool `json:"bo,omitempty"`
++
++	Ur uint `json:"ur"`
++	Uo uint `json:"uo,omitempty"`
++
++	Str struct{} `json:"str"`
++	Sto struct{} `json:"sto,omitempty"`
+ }
+ 
+ var optionalsExpected = `{
+  "sr": "",
+  "omitempty": 0,
+  "slr": null,
+- "mr": {}
++ "mr": {},
++ "fr": 0,
++ "br": false,
++ "ur": 0,
++ "str": {},
++ "sto": {}
+ }`
+ 
+ func TestOmitEmpty(t *testing.T) {

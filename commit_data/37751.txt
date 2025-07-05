@@ -14,7 +14,7 @@ Date:   Fri Aug 24 11:02:00 2018 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/internal/bytealg/bytealg.go        | 11 ++++++-----
  src/internal/bytealg/compare_amd64.s   |  2 +-
  src/internal/bytealg/count_amd64.s     |  6 +++---
@@ -31,3 +31,240 @@ Date:   Fri Aug 24 11:02:00 2018 +0200
  src/runtime/memmove_amd64.s            |  2 +-
  src/runtime/vlop_arm.s                 |  2 +-
  15 files changed, 26 insertions(+), 25 deletions(-)
+
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 1ab7c30f4e..9ecd8eb004 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -11,11 +11,12 @@ import (
+ 
+ // Offsets into internal/cpu records for use in assembly.
+ const (
+-	x86_HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
+-	x86_HasSSE42  = unsafe.Offsetof(cpu.X86.HasSSE42)
+-	x86_HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+-	x86_HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
+-	s390x_HasVX   = unsafe.Offsetof(cpu.S390X.HasVX)
++	offsetX86HasSSE2   = unsafe.Offsetof(cpu.X86.HasSSE2)
++	offsetX86HasSSE42  = unsafe.Offsetof(cpu.X86.HasSSE42)
++	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
++	offsetX86HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
++
++	offsetS390xHasVX = unsafe.Offsetof(cpu.S390X.HasVX)
+ )
+ 
+ // MaxLen is the maximum length of the string to be searched for (argument b) in Index.
+diff --git a/src/internal/bytealg/compare_amd64.s b/src/internal/bytealg/compare_amd64.s
+index 277d77c545..05bef4aad9 100644
+--- a/src/internal/bytealg/compare_amd64.s
++++ b/src/internal/bytealg/compare_amd64.s
+@@ -47,7 +47,7 @@ TEXT cmpbody<>(SB),NOSPLIT,$0-0
+ 
+ 	CMPQ	R8, $63
+ 	JBE	loop
+-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JEQ     big_loop_avx2
+ 	JMP	big_loop
+ loop:
+diff --git a/src/internal/bytealg/count_amd64.s b/src/internal/bytealg/count_amd64.s
+index cecba11cf9..fa864c4c76 100644
+--- a/src/internal/bytealg/count_amd64.s
++++ b/src/internal/bytealg/count_amd64.s
+@@ -6,7 +6,7 @@
+ #include "textflag.h"
+ 
+ TEXT ·Count(SB),NOSPLIT,$0-40
+-	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
+ 	JEQ	2(PC)
+ 	JMP	·countGeneric(SB)
+ 	MOVQ	b_base+0(FP), SI
+@@ -16,7 +16,7 @@ TEXT ·Count(SB),NOSPLIT,$0-40
+ 	JMP	countbody<>(SB)
+ 
+ TEXT ·CountString(SB),NOSPLIT,$0-32
+-	CMPB	internal∕cpu·X86+const_x86_HasPOPCNT(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasPOPCNT(SB), $1
+ 	JEQ	2(PC)
+ 	JMP	·countGenericString(SB)
+ 	MOVQ	s_base+0(FP), SI
+@@ -151,7 +151,7 @@ endofpage:
+ 	RET
+ 
+ avx2:
+-	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JNE sse
+ 	MOVD AX, X0
+ 	LEAQ -32(SI)(BX*1), R11
+diff --git a/src/internal/bytealg/equal_386.s b/src/internal/bytealg/equal_386.s
+index c048b6cebc..273389284e 100644
+--- a/src/internal/bytealg/equal_386.s
++++ b/src/internal/bytealg/equal_386.s
+@@ -80,7 +80,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ hugeloop:
+ 	CMPL	BX, $64
+ 	JB	bigloop
+-	CMPB	internal∕cpu·X86+const_x86_HasSSE2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+ 	JNE	bigloop
+ 	MOVOU	(SI), X0
+ 	MOVOU	(DI), X1
+diff --git a/src/internal/bytealg/equal_amd64.s b/src/internal/bytealg/equal_amd64.s
+index cbc62dc1d8..5263d3040d 100644
+--- a/src/internal/bytealg/equal_amd64.s
++++ b/src/internal/bytealg/equal_amd64.s
+@@ -77,7 +77,7 @@ TEXT memeqbody<>(SB),NOSPLIT,$0-0
+ 	JB	small
+ 	CMPQ	BX, $64
+ 	JB	bigloop
+-	CMPB	internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JE	hugeloop_avx2
+ 	
+ 	// 64 bytes at a time using xmm registers
+diff --git a/src/internal/bytealg/index_amd64.s b/src/internal/bytealg/index_amd64.s
+index f7297c0cab..4459820801 100644
+--- a/src/internal/bytealg/index_amd64.s
++++ b/src/internal/bytealg/index_amd64.s
+@@ -233,7 +233,7 @@ success_avx2:
+ 	VZEROUPPER
+ 	JMP success
+ sse42:
+-	CMPB internal∕cpu·X86+const_x86_HasSSE42(SB), $1
++	CMPB internal∕cpu·X86+const_offsetX86HasSSE42(SB), $1
+ 	JNE no_sse42
+ 	CMPQ AX, $12
+ 	// PCMPESTRI is slower than normal compare,
+diff --git a/src/internal/bytealg/indexbyte_amd64.s b/src/internal/bytealg/indexbyte_amd64.s
+index 359f38904b..5bf8866476 100644
+--- a/src/internal/bytealg/indexbyte_amd64.s
++++ b/src/internal/bytealg/indexbyte_amd64.s
+@@ -139,7 +139,7 @@ endofpage:
+ 	RET
+ 
+ avx2:
+-	CMPB   internal∕cpu·X86+const_x86_HasAVX2(SB), $1
++	CMPB   internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JNE sse
+ 	MOVD AX, X0
+ 	LEAQ -32(SI)(BX*1), R11
+diff --git a/src/internal/bytealg/indexbyte_s390x.s b/src/internal/bytealg/indexbyte_s390x.s
+index 15fd2935b4..24f5ce17fa 100644
+--- a/src/internal/bytealg/indexbyte_s390x.s
++++ b/src/internal/bytealg/indexbyte_s390x.s
+@@ -64,7 +64,7 @@ notfound:
+ 	RET
+ 
+ large:
+-	MOVBZ	internal∕cpu·S390X+const_s390x_HasVX(SB), R1
++	MOVBZ	internal∕cpu·S390X+const_offsetS390xHasVX(SB), R1
+ 	CMPBNE	R1, $0, vectorimpl
+ 
+ srstimpl:                       // no vector facility
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 725271eec4..7761415ecd 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -881,7 +881,7 @@ TEXT runtime·stackcheck(SB), NOSPLIT, $0-0
+ 
+ // func cputicks() int64
+ TEXT runtime·cputicks(SB),NOSPLIT,$0-8
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasSSE2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+ 	JNE	done
+ 	CMPB	runtime·lfenceBeforeRdtsc(SB), $1
+ 	JNE	mfence
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 050168c2d7..b65523766a 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -11,9 +11,9 @@ import (
+ 
+ // Offsets into internal/cpu records for use in assembly.
+ const (
+-	offset_x86_HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
+-	offset_x86_HasERMS = unsafe.Offsetof(cpu.X86.HasERMS)
+-	offset_x86_HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
++	offsetX86HasAVX2 = unsafe.Offsetof(cpu.X86.HasAVX2)
++	offsetX86HasERMS = unsafe.Offsetof(cpu.X86.HasERMS)
++	offsetX86HasSSE2 = unsafe.Offsetof(cpu.X86.HasSSE2)
+ 
+-	offset_arm_HasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
++	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ )
+diff --git a/src/runtime/memclr_386.s b/src/runtime/memclr_386.s
+index 318f883964..65f7196312 100644
+--- a/src/runtime/memclr_386.s
++++ b/src/runtime/memclr_386.s
+@@ -29,7 +29,7 @@ tail:
+ 	JBE	_5through8
+ 	CMPL	BX, $16
+ 	JBE	_9through16
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasSSE2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+ 	JNE	nosse2
+ 	PXOR	X0, X0
+ 	CMPL	BX, $32
+diff --git a/src/runtime/memclr_amd64.s b/src/runtime/memclr_amd64.s
+index b64b1477f9..d79078fd00 100644
+--- a/src/runtime/memclr_amd64.s
++++ b/src/runtime/memclr_amd64.s
+@@ -38,7 +38,7 @@ tail:
+ 	JBE	_65through128
+ 	CMPQ	BX, $256
+ 	JBE	_129through256
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasAVX2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasAVX2(SB), $1
+ 	JE loop_preheader_avx2
+ 	// TODO: for really big clears, use MOVNTDQ, even without AVX2.
+ 
+diff --git a/src/runtime/memmove_386.s b/src/runtime/memmove_386.s
+index 85c622b6b6..7b54070f59 100644
+--- a/src/runtime/memmove_386.s
++++ b/src/runtime/memmove_386.s
+@@ -52,7 +52,7 @@ tail:
+ 	JBE	move_5through8
+ 	CMPL	BX, $16
+ 	JBE	move_9through16
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasSSE2(SB), $1
++	CMPB	internal∕cpu·X86+const_offsetX86HasSSE2(SB), $1
+ 	JNE	nosse2
+ 	CMPL	BX, $32
+ 	JBE	move_17through32
+@@ -73,7 +73,7 @@ nosse2:
+  */
+ forward:
+ 	// If REP MOVSB isn't fast, don't use it
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
++	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+ 	JNE	fwdBy4
+ 
+ 	// Check alignment
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index c5385a3d43..b4243a833b 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -84,7 +84,7 @@ forward:
+ 	JLS	move_256through2048
+ 
+ 	// If REP MOVSB isn't fast, don't use it
+-	CMPB	internal∕cpu·X86+const_offset_x86_HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
++	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+ 	JNE	fwdBy8
+ 
+ 	// Check alignment
+diff --git a/src/runtime/vlop_arm.s b/src/runtime/vlop_arm.s
+index 8df13abd98..729653488f 100644
+--- a/src/runtime/vlop_arm.s
++++ b/src/runtime/vlop_arm.s
+@@ -44,7 +44,7 @@
+ // the RET instruction will clobber R12 on nacl, and the compiler's register
+ // allocator needs to know.
+ TEXT runtime·udiv(SB),NOSPLIT|NOFRAME,$0
+-	MOVBU	internal∕cpu·ARM+const_offset_arm_HasIDIVA(SB), Ra
++	MOVBU	internal∕cpu·ARM+const_offsetARMHasIDIVA(SB), Ra
+ 	CMP	$0, Ra
+ 	BNE	udiv_hardware
+ 

@@ -16,6 +16,45 @@ Date:   Wed Dec 21 11:03:16 2022 -0500
     Reviewed-by: David Chase <drchase@google.com>
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/runtime/coverage/testsupport.go | 15 +++++++++++++--
  1 file changed, 13 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index 462d06c878..1d90ebd7a2 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -136,13 +136,16 @@ func (ts *tstate) processPod(p pods.Pod) error {
+ 		return err
+ 	}
+ 
+-	// Read counter data files.
++	// A map to store counter data, indexed by pkgid/fnid tuple.
+ 	pmm := make(map[pkfunc][]uint32)
+-	for _, cdf := range p.CounterDataFiles {
++
++	// Helper to read a single counter data file.
++	readcdf := func(cdf string) error {
+ 		cf, err := os.Open(cdf)
+ 		if err != nil {
+ 			return fmt.Errorf("opening counter data file %s: %s", cdf, err)
+ 		}
++		defer cf.Close()
+ 		var cdr *decodecounter.CounterDataReader
+ 		cdr, err = decodecounter.NewCounterDataReader(cdf, cf)
+ 		if err != nil {
+@@ -170,6 +173,14 @@ func (ts *tstate) processPod(p pods.Pod) error {
+ 			copy(c, data.Counters)
+ 			pmm[key] = c
+ 		}
++		return nil
++	}
++
++	// Read counter data files.
++	for _, cdf := range p.CounterDataFiles {
++		if err := readcdf(cdf); err != nil {
++			return err
++		}
+ 	}
+ 
+ 	// Visit meta-data file.

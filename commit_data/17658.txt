@@ -9,6 +9,22 @@ Date:   Fri Sep 20 09:40:56 2013 -0700
     R=r, rsc
     CC=golang-dev
     https://golang.org/cl/13794043
-
+---
  test/fixedbugs/bug295.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/bug295.go b/test/fixedbugs/bug295.go
+index e2e5206ca1..63a12a3a74 100644
+--- a/test/fixedbugs/bug295.go
++++ b/test/fixedbugs/bug295.go
+@@ -6,7 +6,9 @@
+ 
+ package main
+ 
+-import . "testing"  // defines top-level T
++import . "testing"  // defines file-level T
++
++type _ B // make use of package "testing" (but don't refer to T)
+ 
+ type S struct {
+ 	T int

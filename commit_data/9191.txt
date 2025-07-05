@@ -7,8 +7,79 @@ Date:   Sat Jul 23 15:46:58 2011 -0400
     R=golang-dev, r, r, dsymonds, rsc
     CC=golang-dev
     https://golang.org/cl/4813043
-
+---
  src/pkg/runtime/386/asm.s   |  6 +++++-
  src/pkg/runtime/amd64/asm.s |  6 +++++-
  src/pkg/runtime/runtime.c   | 13 +++----------
  3 files changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index c6df4f069a..add14be964 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -479,12 +479,16 @@ TEXT runtime·stackcheck(SB), 7, $0
+ TEXT runtime·memclr(SB),7,$0
+ 	MOVL	4(SP), DI		// arg 1 addr
+ 	MOVL	8(SP), CX		// arg 2 count
+-	ADDL	$3, CX
++	MOVL	CX, BX
++	ANDL	$3, BX
+ 	SHRL	$2, CX
+ 	MOVL	$0, AX
+ 	CLD
+ 	REP
+ 	STOSL
++	MOVL	BX, CX
++	REP
++	STOSB
+ 	RET
+ 
+ TEXT runtime·getcallerpc(SB),7,$0
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 2b16587f8c..6ac84c408d 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -527,12 +527,16 @@ TEXT runtime·stackcheck(SB), 7, $0
+ TEXT runtime·memclr(SB),7,$0
+ 	MOVQ	8(SP), DI		// arg 1 addr
+ 	MOVQ	16(SP), CX		// arg 2 count
+-	ADDQ	$7, CX
++	MOVQ	CX, BX
++	ANDQ	$7, BX
+ 	SHRQ	$3, CX
+ 	MOVQ	$0, AX
+ 	CLD
+ 	REP
+ 	STOSQ
++	MOVQ	BX, CX
++	REP
++	STOSB
+ 	RET
+ 
+ TEXT runtime·getcallerpc(SB),7,$0
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index a16ca417e6..00116c001a 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -381,18 +381,11 @@ memprint(uint32 s, void *a)
+ static void
+ memcopy(uint32 s, void *a, void *b)
+ {
+-	byte *ba, *bb;
+-	uint32 i;
+-
+-	ba = a;
+-	bb = b;
+-	if(bb == nil) {
+-		for(i=0; i<s; i++)
+-			ba[i] = 0;
++	if(b == nil) {
++		runtime·memclr(a,s);
+ 		return;
+ 	}
+-	for(i=0; i<s; i++)
+-		ba[i] = bb[i];
++	runtime·memmove(a,b,s);
+ }
+ 
+ static uint32

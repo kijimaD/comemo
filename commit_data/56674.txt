@@ -28,7 +28,54 @@ Date:   Fri May 19 09:31:25 2023 +0000
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Jabar Asadi <jasadi@d2iq.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/io/io.go      |  4 ++++
  src/io/io_test.go | 20 ++++++++++++++++++++
  2 files changed, 24 insertions(+)
+
+diff --git a/src/io/io.go b/src/io/io.go
+index 7b8ee10a56..bcb9f774f6 100644
+--- a/src/io/io.go
++++ b/src/io/io.go
+@@ -575,6 +575,10 @@ func (o *OffsetWriter) Write(p []byte) (n int, err error) {
+ }
+ 
+ func (o *OffsetWriter) WriteAt(p []byte, off int64) (n int, err error) {
++	if off < 0 {
++		return 0, errOffset
++	}
++
+ 	off += o.base
+ 	return o.w.WriteAt(p, off)
+ }
+diff --git a/src/io/io_test.go b/src/io/io_test.go
+index 35db15c3ba..c09b5e34d2 100644
+--- a/src/io/io_test.go
++++ b/src/io/io_test.go
+@@ -608,6 +608,26 @@ func TestOffsetWriter_WriteAt(t *testing.T) {
+ 	}
+ }
+ 
++func TestWriteAt_PositionPriorToBase(t *testing.T) {
++	tmpdir := t.TempDir()
++	tmpfilename := "TestOffsetWriter_WriteAt"
++	tmpfile, err := os.CreateTemp(tmpdir, tmpfilename)
++	if err != nil {
++		t.Fatalf("CreateTemp(%s) failed: %v", tmpfilename, err)
++	}
++	defer tmpfile.Close()
++
++	// start writing position in OffsetWriter
++	offset := int64(10)
++	// position we want to write to the tmpfile
++	at := int64(-1)
++	w := NewOffsetWriter(tmpfile, offset)
++	_, e := w.WriteAt([]byte("hello"), at)
++	if e == nil {
++		t.Errorf("error expected to be not nil")
++	}
++}
++
+ func TestOffsetWriter_Write(t *testing.T) {
+ 	const content = "0123456789ABCDEF"
+ 	contentSize := len(content)

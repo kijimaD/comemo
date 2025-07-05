@@ -7,7 +7,29 @@ Date:   Fri Jan 22 10:06:08 2016 +1100
     Change-Id: Id82209dc313fa6b54e623eb325412737e7a055fe
     Reviewed-on: https://go-review.googlesource.com/18794
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  lib/time/update.bash  |   5 +++--
  lib/time/zoneinfo.zip | Bin 359824 -> 360617 bytes
  2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/lib/time/update.bash b/lib/time/update.bash
+index 3ef1df582c..3ffadc2ab4 100755
+--- a/lib/time/update.bash
++++ b/lib/time/update.bash
+@@ -5,10 +5,11 @@
+ 
+ # This script rebuilds the time zone files using files
+ # downloaded from the ICANN/IANA distribution.
++# Consult http://www.iana.org/time-zones for the latest versions.
+ 
+ # Versions to use.
+-CODE=2015e
+-DATA=2015e
++CODE=2015g
++DATA=2015g
+ 
+ set -e
+ rm -rf work
+diff --git a/lib/time/zoneinfo.zip b/lib/time/zoneinfo.zip
+index 73c30b4597..740d81988b 100644
+Binary files a/lib/time/zoneinfo.zip and b/lib/time/zoneinfo.zip differ

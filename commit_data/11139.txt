@@ -9,6 +9,20 @@ Date:   Thu Jan 12 14:45:32 2012 -0800
     R=golang-dev, gri, rsc
     CC=golang-dev
     https://golang.org/cl/5539050
-
+---
  doc/progs/run | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 2a76d6b2da..5a2b786516 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -68,7 +68,7 @@ for i in \
+ done
+ 
+ # Write to temporary file to avoid mingw bash bug.
+-TMPFILE="/tmp/gotest3"
++TMPFILE="/tmp/gotest3.$USER"
+ 
+ function testit {
+ 	$LD $1.$O

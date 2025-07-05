@@ -7,7 +7,7 @@ Date:   Fri Dec 16 17:04:32 2011 -0500
     R=golang-dev, r, r
     CC=golang-dev
     https://golang.org/cl/5493063
-
+---
  src/Make.pkg                          |  2 +-
  src/cmd/Makefile                      |  7 ++-
  src/make.bash                         |  8 ++-
@@ -48,3 +48,852 @@ Date:   Fri Dec 16 17:04:32 2011 -0500
  src/pkg/runtime/sys_windows_386.s     |  2 +-
  src/pkg/runtime/sys_windows_amd64.s   |  2 +-
  39 files changed, 227 insertions(+), 85 deletions(-)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index c6c47ffd0a..91562af92a 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -246,4 +246,4 @@ endif
+ 	$(CC) $(CFLAGS) -I . -o "$@" _obj/$*.c
+ 
+ %.$O: %.s $(HFILES)
+-	$(AS) $*.s
++	$(AS) $(AFLAGS) $*.s
+diff --git a/src/cmd/Makefile b/src/cmd/Makefile
+index 0b83e48312..c2f817a916 100644
+--- a/src/cmd/Makefile
++++ b/src/cmd/Makefile
+@@ -8,9 +8,12 @@ all: install
+ 
+ # Only build tools for current architecture, and only tools written in C.
+ # The tools written in Go are managed by ../pkg/Makefile.
++# We need all the C compilers for rebuilding generated files in runtime.
+ DIRS=\
+ 	$(O)a\
+-	$(O)c\
++	5c\
++	6c\
++	8c\
+ 	$(O)g\
+ 	$(O)l\
+ 	cc\
+@@ -55,7 +58,7 @@ nuke: $(patsubst %,%.nuke,$(CLEANDIRS))
+ 	@echo
+ 	$(MAKE) -C $* install
+ 
+-gc.install $(O)c.install: cc.install
++gc.install 5c.install 6c.install 8c.install: cc.install
+ $(O)g.install: gc.install
+ $(O)a.install $(O)c.install $(O)g.install: $(O)l.install
+ 
+diff --git a/src/make.bash b/src/make.bash
+index 3580d2a0bd..21189fe0e6 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -78,12 +78,18 @@ done
+ bash "$GOROOT"/src/clean.bash
+ 
+ # pkg builds libcgo and the Go programs in cmd.
+-for i in lib9 libbio libmach cmd pkg
++for i in lib9 libbio libmach cmd
+ do
+ 	echo; echo; echo %%%% making $i %%%%; echo
+ 	gomake -C $i install
+ done
+ 
++echo; echo; echo %%%% making runtime generated files %%%%; echo
++gomake -C pkg/runtime -f Makefile.auto
++
++echo; echo; echo %%%% making pkg%%%%; echo
++gomake -C pkg install
++
+ # Print post-install messages.
+ # Implemented as a function so that all.bash can repeat the output
+ # after run.bash finishes running all the tests.
+diff --git a/src/pkg/runtime/Makefile b/src/pkg/runtime/Makefile
+index 651fa02d0b..75443324da 100644
+--- a/src/pkg/runtime/Makefile
++++ b/src/pkg/runtime/Makefile
+@@ -4,9 +4,6 @@
+ 
+ include ../../Make.inc
+ 
+-# Go tool will do this for package runtime.
+-CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
+-
+ TARG=runtime
+ 
+ GOFILES=\
+@@ -14,15 +11,13 @@ GOFILES=\
+ 	error.go\
+ 	extern.go\
+ 	mem.go\
+-	runtime_defs.go\
+ 	sig.go\
+ 	softfloat64.go\
+ 	type.go\
+-	version.go\
+-	version_$(GOOS).go\
+-	version_$(GOARCH).go\
+-
+-CLEANFILES+=version.go version_*.go
++	zgoarch_$(GOARCH).go\
++	zgoos_$(GOOS).go\
++	zruntime_defs_$(GOOS)_$(GOARCH).go\
++	zversion.go\
+ 
+ OFILES_darwin=\
+ 	lock_sema.$O\
+@@ -45,7 +40,7 @@ OFILES_plan9=\
+ OFILES_windows=\
+ 	callback_windows_$(GOARCH).$O\
+ 	lock_sema.$O\
+-	syscall_windows.$O\
++	zsyscall_windows_$(GOARCH).$O\
+ 
+ # 386-specific object files
+ OFILES_386=\
+@@ -66,6 +61,8 @@ OFILES_arm=\
+ 	traceback_x86.$O\
+ 
+ OFILES=\
++	$(OFILES_$(GOARCH))\
++	$(OFILES_$(GOOS))\
+ 	alg.$O\
+ 	asm_$(GOARCH).$O\
+ 	atomic_$(GOARCH).$O\
+@@ -77,7 +74,6 @@ OFILES=\
+ 	float.$O\
+ 	hashmap.$O\
+ 	iface.$O\
+-	malloc.$O\
+ 	mcache.$O\
+ 	mcentral.$O\
+ 	mem_$(GOOS).$O\
+@@ -86,31 +82,31 @@ OFILES=\
+ 	mfixalloc.$O\
+ 	mgc0.$O\
+ 	mheap.$O\
+-	mprof.$O\
+ 	msize.$O\
+ 	print.$O\
+ 	proc.$O\
+ 	rt0_$(GOOS)_$(GOARCH).$O\
+ 	rune.$O\
+ 	runtime.$O\
+-	runtime1.$O\
+-	sema.$O\
+ 	signal_$(GOOS)_$(GOARCH).$O\
+-	sigqueue.$O\
+ 	slice.$O\
+-	string.$O\
+ 	symtab.$O\
+ 	sys_$(GOOS)_$(GOARCH).$O\
+ 	thread_$(GOOS).$O\
+-	time.$O\
+-	$(OFILES_$(GOARCH))\
+-	$(OFILES_$(GOOS))\
++	zmalloc_$(GOARCH).$O\
++	zmprof_$(GOARCH).$O\
++	zruntime1_$(GOARCH).$O\
++	zsema_$(GOARCH).$O\
++	zsigqueue_$(GOARCH).$O\
++	zstring_$(GOARCH).$O\
++	ztime_$(GOARCH).$O\
+ 
+ AUTOHFILES=\
+ 	arch_GOARCH.h\
+ 	os_GOOS.h\
+ 	signals_GOOS.h\
+ 	defs_GOOS_GOARCH.h\
++	zasm_GOOS_GOARCH.h\
+ 
+ HFILES=\
+ 	cgocall.h\
+@@ -126,6 +122,10 @@ GOFILES+=$(GOFILES_$(GOOS))
+ # For use by cgo.
+ INSTALLFILES=$(pkgdir)/runtime.h $(pkgdir)/cgocall.h
+ 
++# Go tool will do this for package runtime.
++AFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
++CFLAGS+=-DGOOS_$(GOOS) -DGOARCH_$(GOARCH)
++
+ # special, out of the way compiler flag that means "add runtime metadata to output"
+ GC+= -+
+ 
+@@ -138,44 +138,8 @@ $(pkgdir)/%.h: %.h
+ clean: clean-local
+ 
+ clean-local:
+-	rm -f goc2c mkversion version.go runtime.acid.* runtime_defs.go $$(ls *.goc | sed 's/goc$$/c/') $(AUTOHFILES)
+-
+-asm_$(GOARCH).h: mkasmh.sh runtime.acid.$(GOARCH)
+-	./mkasmh.sh >$@.x
+-	mv -f $@.x $@
+-
+-goc2c: goc2c.c
+-	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+-
+-mkversion: mkversion.c
+-	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
+-
+-version.go: mkversion
+-	GOROOT="$(GOROOT_FINAL)" ./mkversion >version.go
+-
+-version_$(GOARCH).go:
+-	(echo 'package runtime'; echo 'const theGoarch = "$(GOARCH)"') >$@
+-
+-version_$(GOOS).go:
+-	(echo 'package runtime'; echo 'const theGoos = "$(GOOS)"') >$@
+-
+-%.c:	%.goc goc2c
+-	./goc2c "`pwd`/$<" > $@.tmp
+-	mv -f $@.tmp $@
+-
+-# for discovering offsets inside structs when debugging
+-runtime.acid.$(GOARCH): runtime.h proc.c $(AUTOHFILES)
+-	$(CC) $(CFLAGS) -a proc.c >$@
+-
+-# 386 traceback is really amd64 traceback
+-ifeq ($(GOARCH),386)
+-traceback.$O:	amd64/traceback.c
+-	$(CC) $(CFLAGS) $<
+-endif
+-
+-runtime_defs.go: proc.c iface.c hashmap.c chan.c $(HFILES)
+-	CC="$(CC)" CFLAGS="$(CFLAGS)" ./mkgodefs.sh proc.c iface.c hashmap.c chan.c > $@.x
+-	mv -f $@.x $@
++	rm -f $(AUTOHFILES)
++	make -f Makefile.auto clean
+ 
+ arch_GOARCH.h: arch_$(GOARCH).h
+ 	cp $^ $@
+@@ -188,3 +152,6 @@ os_GOOS.h: os_$(GOOS).h
+ 
+ signals_GOOS.h: signals_$(GOOS).h
+ 	cp $^ $@
++
++zasm_GOOS_GOARCH.h: zasm_$(GOOS)_$(GOARCH).h
++	cp $^ $@
+diff --git a/src/pkg/runtime/Makefile.auto b/src/pkg/runtime/Makefile.auto
+new file mode 100644
+index 0000000000..b3b31c8cca
+--- /dev/null
++++ b/src/pkg/runtime/Makefile.auto
+@@ -0,0 +1,94 @@
++# Copyright 2011 The Go Authors.  All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++GOARCHES=\
++	386\
++	amd64\
++	arm\
++
++GOOSES=\
++	darwin\
++	freebsd\
++	linux\
++	netbsd\
++	openbsd\
++	plan9\
++	windows\
++
++GOOSARCHES=\
++	darwin_386\
++	darwin_amd64\
++	freebsd_386\
++	freebsd_amd64\
++	linux_386\
++	linux_amd64\
++	linux_arm\
++	netbsd_386\
++	netbsd_amd64\
++	openbsd_386\
++	openbsd_amd64\
++	plan9_386\
++	windows_386\
++	windows_amd64\
++
++AUTO=\
++	$(GOARCHES:%=zmalloc_%.c)\
++	$(GOARCHES:%=zmprof_%.c)\
++	$(GOARCHES:%=zruntime1_%.c)\
++	$(GOARCHES:%=zsema_%.c)\
++	$(GOARCHES:%=zsigqueue_%.c)\
++	$(GOARCHES:%=zstring_%.c)\
++	$(GOARCHES:%=ztime_%.c)\
++	$(GOARCHES:%=zgoarch_%.go)\
++	$(GOOSES:%=zgoos_%.go)\
++	$(GOOSARCHES:%=zruntime_defs_%.go)\
++	$(GOOSARCHES:%=zasm_%.h)\
++	zsyscall_windows_386.c\
++	zsyscall_windows_amd64.c\
++	zversion.go\
++
++all: auto
++auto: $(AUTO)
++
++# .goc -> .c (specific to os/arch combination)
++goc2c: goc2c.c
++	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
++
++z%_386.c: %.goc goc2c
++	GOARCH=386 ./goc2c "`pwd`/$<" >$@.tmp
++	mv -f $@.tmp $@
++
++z%_amd64.c: %.goc goc2c
++	GOARCH=amd64 ./goc2c "`pwd`/$<" >$@.tmp
++	mv -f $@.tmp $@
++
++z%_arm.c: %.goc goc2c
++	GOARCH=arm ./goc2c "`pwd`/$<" >$@.tmp
++	mv -f $@.tmp $@
++
++# version files
++mkversion: mkversion.c ../../../lib/lib9.a
++	quietgcc -o $@ -I "$(GOROOT)/include" $< "$(GOROOT)/lib/lib9.a"
++
++zversion.go: mkversion
++	GOROOT="$(GOROOT_FINAL)" ./mkversion >$@
++
++zgoos_%.go:
++	(echo '// AUTO-GENERATED; run make -f Makefile.auto'; echo; echo 'package runtime'; echo; echo 'const theGoos = "$*"') >$@
++
++zgoarch_%.go:
++	(echo '// AUTO-GENERATED; run make -f Makefile.auto'; echo; echo 'package runtime'; echo; echo 'const theGoarch = "$*"') >$@
++
++# definitions of runtime structs, translated from C to Go
++zruntime_defs_%.go: proc.c iface.c hashmap.c chan.c $(HFILES) mkgodefs.sh
++	./mkgodefs.sh $* proc.c iface.c hashmap.c chan.c >$@.tmp
++	mv -f $@.tmp $@
++
++# struct field offsets #defined for assembly
++zasm_%.h: mkasmh.sh proc.c defs.h
++	./mkasmh.sh $* >$@.tmp
++	mv -f $@.tmp $@
++
++clean:
++	rm -f goc2c mkversion $(AUTO)
+diff --git a/src/pkg/runtime/asm_386.s b/src/pkg/runtime/asm_386.s
+index c39f365d59..52400637be 100644
+--- a/src/pkg/runtime/asm_386.s
++++ b/src/pkg/runtime/asm_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT _rt0_386(SB),7,$0
+ 	// Linux, Windows start the FPU in extended double precision.
+diff --git a/src/pkg/runtime/asm_amd64.s b/src/pkg/runtime/asm_amd64.s
+index d91421e9e3..9053334993 100644
+--- a/src/pkg/runtime/asm_amd64.s
++++ b/src/pkg/runtime/asm_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT _rt0_amd64(SB),7,$-8
+ 	// copy arguments forward on an even stack
+diff --git a/src/pkg/runtime/asm_arm.s b/src/pkg/runtime/asm_arm.s
+index 533c0744d7..b36bbe3047 100644
+--- a/src/pkg/runtime/asm_arm.s
++++ b/src/pkg/runtime/asm_arm.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_arm.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // using frame size $-4 means do not save LR on stack.
+ TEXT _rt0_arm(SB),7,$-4
+diff --git a/src/pkg/runtime/defs1_linux.go b/src/pkg/runtime/defs1_linux.go
+index 6d84e84d76..451817a67a 100644
+--- a/src/pkg/runtime/defs1_linux.go
++++ b/src/pkg/runtime/defs1_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -cdefs
+ 
+diff --git a/src/pkg/runtime/defs2_linux.go b/src/pkg/runtime/defs2_linux.go
+index 1fafb7bfc1..9b07029556 100644
+--- a/src/pkg/runtime/defs2_linux.go
++++ b/src/pkg/runtime/defs2_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+  * Input to cgo -cdefs
+ 
+diff --git a/src/pkg/runtime/defs_arm_linux.go b/src/pkg/runtime/defs_arm_linux.go
+index 35f74e8dba..2063efb067 100644
+--- a/src/pkg/runtime/defs_arm_linux.go
++++ b/src/pkg/runtime/defs_arm_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ On a Debian Lenny arm linux distribution:
+diff --git a/src/pkg/runtime/defs_darwin.go b/src/pkg/runtime/defs_darwin.go
+index 6cd988def2..3f3e41d86b 100644
+--- a/src/pkg/runtime/defs_darwin.go
++++ b/src/pkg/runtime/defs_darwin.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ 
+diff --git a/src/pkg/runtime/defs_freebsd.go b/src/pkg/runtime/defs_freebsd.go
+index ee80bb2855..306e32197e 100644
+--- a/src/pkg/runtime/defs_freebsd.go
++++ b/src/pkg/runtime/defs_freebsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ 
+diff --git a/src/pkg/runtime/defs_linux.go b/src/pkg/runtime/defs_linux.go
+index bbaab2d33e..c0275e1114 100644
+--- a/src/pkg/runtime/defs_linux.go
++++ b/src/pkg/runtime/defs_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo -cdefs
+ 
+diff --git a/src/pkg/runtime/defs_netbsd.go b/src/pkg/runtime/defs_netbsd.go
+index 4fb3a04634..47c30cf101 100644
+--- a/src/pkg/runtime/defs_netbsd.go
++++ b/src/pkg/runtime/defs_netbsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ 
+diff --git a/src/pkg/runtime/defs_openbsd.go b/src/pkg/runtime/defs_openbsd.go
+index 4fb3a04634..47c30cf101 100644
+--- a/src/pkg/runtime/defs_openbsd.go
++++ b/src/pkg/runtime/defs_openbsd.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ 
+diff --git a/src/pkg/runtime/defs_windows.go b/src/pkg/runtime/defs_windows.go
+index e23e4207de..0d525b9322 100644
+--- a/src/pkg/runtime/defs_windows.go
++++ b/src/pkg/runtime/defs_windows.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+ Input to cgo.
+ 
+diff --git a/src/pkg/runtime/goc2c.c b/src/pkg/runtime/goc2c.c
+index fcac9c0600..f1d07f61b3 100644
+--- a/src/pkg/runtime/goc2c.c
++++ b/src/pkg/runtime/goc2c.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build ignore
++
+ /*
+  * Translate a .goc file into a .c file.  A .goc file is a combination
+  * of a limited form of Go with C.
+@@ -742,6 +744,7 @@ main(int argc, char **argv)
+ 		}
+ 	}
+ 
++	printf("// AUTO-GENERATED; run make\n\n");
+ 	process_file();
+ 	exits(0);
+ }
+diff --git a/src/pkg/runtime/lock_futex.c b/src/pkg/runtime/lock_futex.c
+index 375b7d7d7c..c6b64ca6de 100644
+--- a/src/pkg/runtime/lock_futex.c
++++ b/src/pkg/runtime/lock_futex.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build freebsd linux
++
+ #include "runtime.h"
+ 
+ // This implementation depends on OS-specific implementations of
+diff --git a/src/pkg/runtime/lock_sema.c b/src/pkg/runtime/lock_sema.c
+index 8875b17a24..ae229ec728 100644
+--- a/src/pkg/runtime/lock_sema.c
++++ b/src/pkg/runtime/lock_sema.c
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build darwin netbsd openbsd plan9 windows
++
+ #include "runtime.h"
+ 
+ // This implementation depends on OS-specific implementations of
+diff --git a/src/pkg/runtime/mkasmh.sh b/src/pkg/runtime/mkasmh.sh
+index 920e79a024..3f6c2b2d2b 100755
+--- a/src/pkg/runtime/mkasmh.sh
++++ b/src/pkg/runtime/mkasmh.sh
+@@ -5,9 +5,28 @@
+ 
+ set -e
+ 
++SYS=$1
++export GOOS=$(echo $SYS | sed 's/_.*//')
++export GOARCH=$(echo $SYS | sed 's/.*_//')
++shift
++
++case "$GOARCH" in
++386) CC=8c;;
++amd64) CC=6c;;
++arm) CC=5c;;
++esac
++export CC
++
++export CFLAGS="-Dos_$GOOS -Darch_$GOARCH"
++
++cp arch_$GOARCH.h arch_GOARCH.h
++cp defs_${GOOS}_$GOARCH.h defs_GOOS_GOARCH.h
++cp os_$GOOS.h os_GOOS.h
++cp signals_$GOOS.h signals_GOOS.h
++
+ cat <<'EOF'
+ // Assembly constants.
+-// AUTOMATICALLY GENERATED BY mkasmh.sh DURING BUILD
++// AUTO-GENERATED; run make -f Makefile.auto
+ 
+ EOF
+ 
+@@ -91,6 +110,7 @@ arm)
+ esac
+ echo
+ 
++$CC $CFLAGS -a proc.c |
+ awk '
+ { gsub(/\r/, ""); }
+ /^aggr G$/ { aggr="g" }
+@@ -109,5 +129,6 @@ aggr != "" && /^	/ {
+ 	offset=$(NF-1);
+ 	printf("#define %s_%s %s\n", aggr, name, offset);
+ }
+-' runtime.acid.$GOARCH
++'
+ 
++rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h
+diff --git a/src/pkg/runtime/mkgodefs.sh b/src/pkg/runtime/mkgodefs.sh
+index b6e97213e0..87c31f28b6 100755
+--- a/src/pkg/runtime/mkgodefs.sh
++++ b/src/pkg/runtime/mkgodefs.sh
+@@ -5,10 +5,28 @@
+ 
+ set -e
+ 
++SYS=$1
++export GOOS=$(echo $SYS | sed 's/_.*//')
++export GOARCH=$(echo $SYS | sed 's/.*_//')
++shift
++
++case "$GOARCH" in
++386) CC=8c;;
++amd64) CC=6c;;
++arm) CC=5c;;
++esac
++export CC
++
++export CFLAGS="-DGOOS_$GOOS -DGOARCH_$GOARCH"
++
++cp arch_$GOARCH.h arch_GOARCH.h
++cp defs_${GOOS}_$GOARCH.h defs_GOOS_GOARCH.h
++cp os_$GOOS.h os_GOOS.h
++cp signals_$GOOS.h signals_GOOS.h
++
+ cat <<EOF
+ // Go definitions for C variables and types.
+-// AUTOMATICALLY GENERATED BY THE FOLLOWING COMMAND. DO NOT EDIT.
+-// CC="$CC" CFLAGS="$CFLAGS" ./mkgodefs.sh $@
++// AUTO-GENERATED; run make -f Makefile.auto
+ 
+ package runtime
+ import "unsafe"
+@@ -37,3 +55,5 @@ skip {
+ 
+ {print}
+ '
++
++rm -f arch_GOARCH.h defs_GOOS_GOARCH.h os_GOOS.h signals_GOOS.h
+diff --git a/src/pkg/runtime/mkversion.c b/src/pkg/runtime/mkversion.c
+index 0d96aa3569..931302187f 100644
+--- a/src/pkg/runtime/mkversion.c
++++ b/src/pkg/runtime/mkversion.c
+@@ -1,8 +1,14 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build ignore
++
+ #include <u.h>
+ #include <libc.h>
+ 
+ char *template =
+-	"// generated by mkversion.c; do not edit.\n"
++	"// AUTO-GENERATED; run make -f Makefile.auto\n\n"
+ 	"package runtime\n"
+ 	"const defaultGoroot = `%s`\n"
+ 	"const theVersion = \"%s\"\n";
+diff --git a/src/pkg/runtime/rt0_windows_amd64.s b/src/pkg/runtime/rt0_windows_amd64.s
+index 5dc6b6e51b..dc1408adc3 100644
+--- a/src/pkg/runtime/rt0_windows_amd64.s
++++ b/src/pkg/runtime/rt0_windows_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT	_rt0_amd64_windows(SB),7,$-8
+ 	MOVQ	$_rt0_amd64(SB), AX
+diff --git a/src/pkg/runtime/signal_darwin_amd64.c b/src/pkg/runtime/signal_darwin_amd64.c
+index fd75e78454..c7621ddcaf 100644
+--- a/src/pkg/runtime/signal_darwin_amd64.c
++++ b/src/pkg/runtime/signal_darwin_amd64.c
+@@ -152,7 +152,7 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0ULL;
+ 	sa.sa_tramp = runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+-	*(uintptr*)&sa.__sigaction_u = (uintptr)fn;
++	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
+ 	runtime·sigaction(i, &sa, nil);
+ }
+ 
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index 9a513468a0..6ce1ba5533 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -6,7 +6,7 @@
+ // See http://fxr.watson.org/fxr/source/bsd/kern/syscalls.c?v=xnu-1228
+ // or /usr/include/sys/syscall.h (on a Mac) for system call numbers.
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT runtime·notok(SB),7,$0
+ 	MOVL	$0xf1, 0xf1
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index ac777656c5..86f9936614 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -11,7 +11,7 @@
+ // The high 8 bits specify the kind of system call: 1=Mach, 2=BSD, 3=Machine-Dependent.
+ //
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$0
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index 9833784efc..cec7a3e8e7 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),7,$-4
+ 	MOVL	$454, AX
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 991c33c825..c96b2f4d6b 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 	
+ TEXT runtime·sys_umtx_op(SB),7,$0
+ 	MOVQ 8(SP), DI
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 1763143f9e..b745bc502e 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for 386, Linux
+ //
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT runtime·exit(SB),7,$0
+ 	MOVL	$252, AX	// syscall number
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index d55518686c..ef7bb2864c 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for AMD64, Linux
+ //
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ TEXT runtime·exit(SB),7,$0-8
+ 	MOVL	8(SP), DI
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index d0b36dedf9..e0e4135b54 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -6,7 +6,7 @@
+ // System calls and other sys.stuff for arm, Linux
+ //
+ 
+-#include "asm_arm.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // OABI
+ //#define SYS_BASE 0x00900000
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index bcb4fc5e71..6322861024 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index 20817711fb..7abeb159b1 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ TEXT runtime·rfork_thread(SB),7,$0
+diff --git a/src/pkg/runtime/sys_openbsd_386.s b/src/pkg/runtime/sys_openbsd_386.s
+index ae3275c852..d49d32b95a 100644
+--- a/src/pkg/runtime/sys_openbsd_386.s
++++ b/src/pkg/runtime/sys_openbsd_386.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // Exit the entire program (like C exit)
+ TEXT runtime·exit(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index f568ba4312..5bf2e813e8 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -6,7 +6,7 @@
+ // /usr/src/sys/kern/syscalls.master for syscall numbers.
+ //
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // int64 rfork_thread(int32 flags, void *stack, M *m, G *g, void (*fn)(void));
+ TEXT runtime·rfork_thread(SB),7,$0
+diff --git a/src/pkg/runtime/sys_plan9_386.s b/src/pkg/runtime/sys_plan9_386.s
+index 8c773eee9d..94c36aa410 100644
+--- a/src/pkg/runtime/sys_plan9_386.s
++++ b/src/pkg/runtime/sys_plan9_386.s
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ #include "defs_GOOS_GOARCH.h"
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // setldt(int entry, int address, int limit)
+ TEXT runtime·setldt(SB),7,$0
+diff --git a/src/pkg/runtime/sys_windows_386.s b/src/pkg/runtime/sys_windows_386.s
+index 307b93d5c7..c864c7f83c 100644
+--- a/src/pkg/runtime/sys_windows_386.s
++++ b/src/pkg/runtime/sys_windows_386.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_386.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // void runtime·asmstdcall(void *c);
+ TEXT runtime·asmstdcall(SB),7,$0
+diff --git a/src/pkg/runtime/sys_windows_amd64.s b/src/pkg/runtime/sys_windows_amd64.s
+index 508759ff8f..e2a518884d 100644
+--- a/src/pkg/runtime/sys_windows_amd64.s
++++ b/src/pkg/runtime/sys_windows_amd64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-#include "asm_amd64.h"
++#include "zasm_GOOS_GOARCH.h"
+ 
+ // maxargs should be divisible by 2, as Windows stack
+ // must be kept 16-byte aligned on syscall entry.

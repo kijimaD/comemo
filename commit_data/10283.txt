@@ -25,7 +25,77 @@ Date:   Tue Nov 8 17:55:17 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5364047
-
+---
  src/pkg/html/parse.go      | 31 ++++++++++++++++++++++++++++++-
  src/pkg/html/parse_test.go |  2 +-
  2 files changed, 31 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/html/parse.go b/src/pkg/html/parse.go
+index fae0975d37..c6c96e50e0 100644
+--- a/src/pkg/html/parse.go
++++ b/src/pkg/html/parse.go
+@@ -275,7 +275,9 @@ type insertionMode func(*parser) (insertionMode, bool)
+ // Section 11.2.3.1, "using the rules for".
+ func useTheRulesFor(p *parser, actual, delegate insertionMode) (insertionMode, bool) {
+ 	im, consumed := delegate(p)
+-	// TODO: do we need to update p.originalMode if it equals delegate?
++	if p.originalIM == delegate {
++		p.originalIM = actual
++	}
+ 	if im != delegate {
+ 		return im, consumed
+ 	}
+@@ -537,6 +539,23 @@ func afterHeadIM(p *parser) (insertionMode, bool) {
+ 	return inBodyIM, !implied
+ }
+ 
++// copyAttributes copies attributes of src not found on dst to dst.
++func copyAttributes(dst *Node, src Token) {
++	if len(src.Attr) == 0 {
++		return
++	}
++	attr := map[string]string{}
++	for _, a := range dst.Attr {
++		attr[a.Key] = a.Val
++	}
++	for _, a := range src.Attr {
++		if _, ok := attr[a.Key]; !ok {
++			dst.Attr = append(dst.Attr, a)
++			attr[a.Key] = a.Val
++		}
++	}
++}
++
+ // Section 11.2.5.4.7.
+ func inBodyIM(p *parser) (insertionMode, bool) {
+ 	switch p.tok.Type {
+@@ -622,6 +641,16 @@ func inBodyIM(p *parser) (insertionMode, bool) {
+ 			}
+ 			p.reconstructActiveFormattingElements()
+ 			p.addElement(p.tok.Data, p.tok.Attr)
++		case "body":
++			if len(p.oe) >= 2 {
++				body := p.oe[1]
++				if body.Type == ElementNode && body.Data == "body" {
++					p.framesetOK = false
++					copyAttributes(body, p.tok)
++				}
++			}
++		case "base", "basefont", "bgsound", "command", "link", "meta", "noframes", "script", "style", "title":
++			return useTheRulesFor(p, inBodyIM, inHeadIM)
+ 		default:
+ 			// TODO.
+ 			p.addElement(p.tok.Data, p.tok.Attr)
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index c938cb9e69..1f4ffa9564 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+-		{"tests1.dat", 87},
++		{"tests1.dat", 89},
+ 		{"tests2.dat", 0},
+ 		{"tests3.dat", 0},
+ 	}

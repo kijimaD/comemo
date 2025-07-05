@@ -10,6 +10,25 @@ Date:   Fri Dec 2 09:52:31 2011 +1100
     R=golang-dev, rsc, adg
     CC=golang-dev
     https://golang.org/cl/5447051
-
+---
  lib/godoc/example.html | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/lib/godoc/example.html b/lib/godoc/example.html
+index 8c1fd1adc6..7badbb6fad 100644
+--- a/lib/godoc/example.html
++++ b/lib/godoc/example.html
+@@ -3,9 +3,12 @@
+ 		<p class="exampleHeading">▹ Example</p>
+ 	</div>
+ 	<div class="expanded">
+-		<p class="exampleHeading">▾ Example Code:</p>
++		<p class="exampleHeading">▾ Example</p>
++		<p>Code:</p>
+ 		<p class="code"><pre>{{.Code}}</pre></p>
++		{{if .Output}}
+ 		<p>Output:</p>
+ 		<p class="output"><pre>{{html .Output}}</pre></p>
++		{{end}}
+ 	</div>
+ </div>

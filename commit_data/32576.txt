@@ -13,6 +13,26 @@ Date:   Tue May 2 12:38:59 2017 +0200
     Change-Id: I0887ee854e4ac5975b5f305adb6259b81b41618f
     Reviewed-on: https://go-review.googlesource.com/42412
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/contribute.html | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/contribute.html b/doc/contribute.html
+index 4bb58c94e6..f3ea73cfc7 100644
+--- a/doc/contribute.html
++++ b/doc/contribute.html
+@@ -118,10 +118,10 @@ it does not need to be completed again.</i>
+ You can see your currently signed agreements and sign new ones through the Gerrit
+ interface.
+ To do this, <a href="https://go-review.googlesource.com/login/">Log into Gerrit</a>,
+-click your name in the upper-right, choose "Settings", then select "Agreements"
+-from the topics on the left.
+-If you do not have a signed agreement listed here,
+-you can create one by clicking "New Contributor Agreement" and following the steps.
++then visit the <a href="https://go-review.googlesource.com/settings/agreements">Agreements</a>
++page.
++If you do not have a signed agreement listed there, you can create one
++by clicking "New Contributor Agreement" and following the steps.
+ </p>
+ 
+ <p>

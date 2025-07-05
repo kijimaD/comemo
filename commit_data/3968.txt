@@ -7,6 +7,20 @@ Date:   Tue Nov 10 18:27:26 2009 -0800
     R=agl1
     CC=golang-dev
     https://golang.org/cl/152051
-
+---
  src/pkg/net/net_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/net_test.go b/src/pkg/net/net_test.go
+index 39fdf1e1d2..43c10f1d06 100644
+--- a/src/pkg/net/net_test.go
++++ b/src/pkg/net/net_test.go
+@@ -50,7 +50,7 @@ var dialErrorTests = []DialErrorTest{
+ 	},
+ 	DialErrorTest{
+ 		"unix", "", "/etc/",
+-		"dial unix /etc/: (permission denied|socket operation on non-socket)",
++		"dial unix /etc/: (permission denied|socket operation on non-socket|connection refused)",
+ 	},
+ }
+ 

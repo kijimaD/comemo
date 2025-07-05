@@ -18,8 +18,134 @@ Date:   Thu Aug 7 12:38:39 2014 -0700
     R=golang-codereviews, bradfitz
     CC=golang-codereviews
     https://golang.org/cl/119460043
-
+---
  misc/cgo/test/buildid_linux.go  | 77 +++++++++++++++++++++++++++++++++++++++++
  misc/cgo/test/cgo_linux_test.go |  5 +--
  src/cmd/go/build.go             | 18 +++++++++-
  3 files changed, 97 insertions(+), 3 deletions(-)
+
+diff --git a/misc/cgo/test/buildid_linux.go b/misc/cgo/test/buildid_linux.go
+new file mode 100644
+index 0000000000..a3a86edfca
+--- /dev/null
++++ b/misc/cgo/test/buildid_linux.go
+@@ -0,0 +1,77 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++// Test that we have no more than one build ID.  In the past we used
++// to generate a separate build ID for each package using cgo, and the
++// linker concatenated them all.  We don't want that--we only want
++// one.
++
++import (
++	"bytes"
++	"debug/elf"
++	"os"
++	"testing"
++)
++
++func testBuildID(t *testing.T) {
++	f, err := elf.Open("/proc/self/exe")
++	if err != nil {
++		if os.IsNotExist(err) {
++			t.Skip("no /proc/self/exe")
++		}
++		t.Fatalf("opening /proc/self/exe: ", err)
++	}
++	defer f.Close()
++
++	c := 0
++	for i, s := range f.Sections {
++		if s.Type != elf.SHT_NOTE {
++			continue
++		}
++
++		d, err := s.Data()
++		if err != nil {
++			t.Logf("reading data of note section %d: %v", i, err)
++			continue
++		}
++
++		for len(d) > 0 {
++
++			// ELF standards differ as to the sizes in
++			// note sections.  Both the GNU linker and
++			// gold always generate 32-bit sizes, so that
++			// is what we assume here.
++
++			if len(d) < 12 {
++				t.Logf("note section %d too short (%d < 12)", i, len(d))
++				continue
++			}
++
++			namesz := f.ByteOrder.Uint32(d)
++			descsz := f.ByteOrder.Uint32(d[4:])
++			typ := f.ByteOrder.Uint32(d[8:])
++
++			an := (namesz + 3) &^ 3
++			ad := (descsz + 3) &^ 3
++
++			if int(12+an+ad) > len(d) {
++				t.Logf("note section %d too short for header (%d < 12 + align(%d,4) + align(%d,4))", i, len(d), namesz, descsz)
++				continue
++			}
++
++			// 3 == NT_GNU_BUILD_ID
++			if typ == 3 && namesz == 4 && bytes.Equal(d[12:16], []byte("GNU\000")) {
++				c++
++			}
++
++			d = d[12+an+ad:]
++		}
++	}
++
++	if c > 1 {
++		t.Errorf("found %d build ID notes", c)
++	}
++}
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+index 0a405c7a3b..4fe0db1b2b 100644
+--- a/misc/cgo/test/cgo_linux_test.go
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -6,5 +6,6 @@ package cgotest
+ 
+ import "testing"
+ 
+-func TestSetgid(t *testing.T) { testSetgid(t) }
+-func Test6997(t *testing.T)   { test6997(t) }
++func TestSetgid(t *testing.T)  { testSetgid(t) }
++func Test6997(t *testing.T)    { test6997(t) }
++func TestBuildID(t *testing.T) { testBuildID(t) }
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index fa9262c0f0..b39364ed89 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -2312,7 +2312,23 @@ func (b *builder) cgo(p *Package, cgoExe, obj string, gccfiles, gxxfiles, mfiles
+ 			nonGccObjs = append(nonGccObjs, f)
+ 		}
+ 	}
+-	if err := b.gccld(p, ofile, stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs), gccObjs); err != nil {
++	ldflags := stringList(bareLDFLAGS, "-Wl,-r", "-nostdlib", staticLibs)
++
++	// Some systems, such as Ubuntu, always add --build-id to
++	// every link, but we don't want a build ID since we are
++	// producing an object file.  On some of those system a plain
++	// -r (not -Wl,-r) will turn off --build-id, but clang 3.0
++	// doesn't support a plain -r.  I don't know how to turn off
++	// --build-id when using clang other than passing a trailing
++	// --build-id=none.  So that is what we do, but only on
++	// systems likely to support it, which is to say, systems that
++	// normally use gold or the GNU linker.
++	switch goos {
++	case "android", "dragonfly", "freebsd", "linux", "netbsd", "openbsd":
++		ldflags = append(ldflags, "-Wl,--build-id=none")
++	}
++
++	if err := b.gccld(p, ofile, ldflags, gccObjs); err != nil {
+ 		return nil, nil, err
+ 	}
+ 

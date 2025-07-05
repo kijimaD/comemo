@@ -7,6 +7,20 @@ Date:   Thu Mar 19 18:17:21 2020 -0700
     Change-Id: Ida8048720611ecf50d7e7626a42715921bbc753b
     Reviewed-on: https://go-review.googlesource.com/c/go/+/224237
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/internal/poll/fd_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index cabca75d22..b330ae21a9 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -402,7 +402,7 @@ func (fd *FD) Init(net string, pollable bool) (string, error) {
+ 		// We do not use events, so we can skip them always.
+ 		flags := uint8(syscall.FILE_SKIP_SET_EVENT_ON_HANDLE)
+ 		// It's not safe to skip completion notifications for UDP:
+-		// https://blogs.technet.com/b/winserverperformance/archive/2008/06/26/designing-applications-for-high-performance-part-iii.aspx
++		// https://docs.microsoft.com/en-us/archive/blogs/winserverperformance/designing-applications-for-high-performance-part-iii
+ 		if net == "tcp" {
+ 			flags |= syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS
+ 		}

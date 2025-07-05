@@ -13,8 +13,103 @@ Date:   Thu May 2 19:55:54 2024 +0000
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Mauri de Souza Meneguzzo <mauri870@gmail.com>
-
+---
  src/runtime/asm.s       |  4 ++++
  src/runtime/asm_mipsx.s | 37 ++++++++++++++++++++++++++++++-------
  src/runtime/proc.go     |  2 +-
  3 files changed, 35 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/asm.s b/src/runtime/asm.s
+index 75b3013f4b..b4bcb04cd1 100644
+--- a/src/runtime/asm.s
++++ b/src/runtime/asm.s
+@@ -18,6 +18,8 @@ TEXT ·mapinitnoop<ABIInternal>(SB),NOSPLIT,$0-0
+ #ifndef GOARCH_amd64
+ #ifndef GOARCH_arm64
+ #ifndef GOARCH_loong64
++#ifndef GOARCH_mips
++#ifndef GOARCH_mipsle
+ #ifndef GOARCH_mips64
+ #ifndef GOARCH_mips64le
+ #ifndef GOARCH_ppc64
+@@ -40,3 +42,5 @@ TEXT ·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-0
+ #endif
+ #endif
+ #endif
++#endif
++#endif
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index eed4a05b38..ca95f22bd6 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -204,6 +204,29 @@ noswitch:
+ 	ADD	$4, R29
+ 	JMP	(R4)
+ 
++// func switchToCrashStack0(fn func())
++TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-4
++	MOVW	fn+0(FP), REGCTXT	// context register
++	MOVW	g_m(g), R2	// curm
++
++	// set g to gcrash
++	MOVW	$runtime·gcrash(SB), g	// g = &gcrash
++	CALL	runtime·save_g(SB)
++	MOVW	R2, g_m(g)	// g.m = curm
++	MOVW	g, m_g0(R2)	// curm.g0 = g
++
++	// switch to crashstack
++	MOVW	(g_stack+stack_hi)(g), R2
++	ADDU	$(-4*8), R2, R29
++
++	// call target function
++	MOVW	0(REGCTXT), R25
++	JAL	(R25)
++
++	// should never return
++	CALL	runtime·abort(SB)
++	UNDEF
++
+ /*
+  * support for morestack
+  */
+@@ -217,6 +240,13 @@ noswitch:
+ // calling the scheduler calling newm calling gc), so we must
+ // record an argument size. For that purpose, it has no arguments.
+ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
++	// Called from f.
++	// Set g->sched to context in f.
++	MOVW	R29, (g_sched+gobuf_sp)(g)
++	MOVW	R31, (g_sched+gobuf_pc)(g)
++	MOVW	R3, (g_sched+gobuf_lr)(g)
++	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
++
+ 	// Cannot grow scheduler stack (m->g0).
+ 	MOVW	g_m(g), R7
+ 	MOVW	m_g0(R7), R8
+@@ -230,13 +260,6 @@ TEXT runtime·morestack(SB),NOSPLIT|NOFRAME,$0-0
+ 	JAL	runtime·badmorestackgsignal(SB)
+ 	JAL	runtime·abort(SB)
+ 
+-	// Called from f.
+-	// Set g->sched to context in f.
+-	MOVW	R29, (g_sched+gobuf_sp)(g)
+-	MOVW	R31, (g_sched+gobuf_pc)(g)
+-	MOVW	R3, (g_sched+gobuf_lr)(g)
+-	MOVW	REGCTXT, (g_sched+gobuf_ctxt)(g)
+-
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(R7)	// f's caller's PC
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 56f97fa9f7..387c4598bb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -578,7 +578,7 @@ func switchToCrashStack(fn func()) {
+ // Disable crash stack on Windows for now. Apparently, throwing an exception
+ // on a non-system-allocated crash stack causes EXCEPTION_STACK_OVERFLOW and
+ // hangs the process (see issue 63938).
+-const crashStackImplemented = (GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
++const crashStackImplemented = (GOARCH == "386" || GOARCH == "amd64" || GOARCH == "arm" || GOARCH == "arm64" || GOARCH == "loong64" || GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "mips64" || GOARCH == "mips64le" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64" || GOARCH == "s390x" || GOARCH == "wasm") && GOOS != "windows"
+ 
+ //go:noescape
+ func switchToCrashStack0(fn func()) // in assembly

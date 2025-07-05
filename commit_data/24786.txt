@@ -18,7 +18,7 @@ Date:   Sun Aug 30 23:10:03 2015 +0200
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/amd64/ggen.go   |  6 +--
  src/cmd/compile/internal/amd64/gsubr.go  | 16 ++++----
  src/cmd/compile/internal/amd64/peep.go   |  4 +-
@@ -76,3 +76,4309 @@ Date:   Sun Aug 30 23:10:03 2015 +0200
  src/cmd/compile/internal/x86/peep.go     |  4 +-
  src/cmd/compile/internal/x86/prog.go     |  2 +-
  56 files changed, 481 insertions(+), 481 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ggen.go b/src/cmd/compile/internal/amd64/ggen.go
+index 65cf6947be..5aae563241 100644
+--- a/src/cmd/compile/internal/amd64/ggen.go
++++ b/src/cmd/compile/internal/amd64/ggen.go
+@@ -36,10 +36,10 @@ func defframe(ptxt *obj.Prog) {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+-			gc.Fatal("needzero class %d", n.Class)
++			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+@@ -124,7 +124,7 @@ func zerorange(p *obj.Prog, frame int64, lo int64, hi int64, ax *uint32) *obj.Pr
+ 	if cnt%int64(gc.Widthreg) != 0 {
+ 		// should only happen with nacl
+ 		if cnt%int64(gc.Widthptr) != 0 {
+-			gc.Fatal("zerorange count not a multiple of widthptr %d", cnt)
++			gc.Fatalf("zerorange count not a multiple of widthptr %d", cnt)
+ 		}
+ 		p = appendpp(p, x86.AMOVL, obj.TYPE_REG, x86.REG_AX, 0, obj.TYPE_MEM, x86.REG_SP, frame+lo)
+ 		lo += int64(gc.Widthptr)
+diff --git a/src/cmd/compile/internal/amd64/gsubr.go b/src/cmd/compile/internal/amd64/gsubr.go
+index a8e4170bee..7b57902c96 100644
+--- a/src/cmd/compile/internal/amd64/gsubr.go
++++ b/src/cmd/compile/internal/amd64/gsubr.go
+@@ -221,7 +221,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+@@ -621,7 +621,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	case x86.ALEAQ:
+ 		if f != nil && gc.Isconst(f, gc.CTNIL) {
+-			gc.Fatal("gins LEAQ nil %v", f.Type)
++			gc.Fatalf("gins LEAQ nil %v", f.Type)
+ 		}
+ 	}
+ 
+@@ -651,11 +651,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
++		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+-		gc.Fatal("bad use of addr: %v", p)
++		gc.Fatalf("bad use of addr: %v", p)
+ 	}
+ 
+ 	return p
+@@ -675,13 +675,13 @@ func ginsnop() {
+  */
+ func optoas(op int, t *gc.Type) int {
+ 	if t == nil {
+-		gc.Fatal("optoas: t is nil")
++		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+ 	case gc.OADDR<<16 | gc.TPTR32:
+ 		a = x86.ALEAL
+@@ -1223,7 +1223,7 @@ func jmptoset(jmp int) int {
+ 	case x86.AJPS:
+ 		return x86.ASETPS
+ 	}
+-	gc.Fatal("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
++	gc.Fatalf("jmptoset: no entry for %v", gc.Oconv(jmp, 0))
+ 	panic("unreachable")
+ }
+ 
+@@ -1359,7 +1359,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 
+ 		for i := 1; i < o; i++ {
+ 			if oary[i] >= 0 {
+-				gc.Fatal("can't happen")
++				gc.Fatalf("can't happen")
+ 			}
+ 			gins(movptr, &n1, reg)
+ 			gc.Cgen_checknil(reg)
+diff --git a/src/cmd/compile/internal/amd64/peep.go b/src/cmd/compile/internal/amd64/peep.go
+index 19db68e944..130f369a8b 100644
+--- a/src/cmd/compile/internal/amd64/peep.go
++++ b/src/cmd/compile/internal/amd64/peep.go
+@@ -873,10 +873,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+  */
+ func copyas(a *obj.Addr, v *obj.Addr) bool {
+ 	if x86.REG_AL <= a.Reg && a.Reg <= x86.REG_R15B {
+-		gc.Fatal("use of byte register")
++		gc.Fatalf("use of byte register")
+ 	}
+ 	if x86.REG_AL <= v.Reg && v.Reg <= x86.REG_R15B {
+-		gc.Fatal("use of byte register")
++		gc.Fatalf("use of byte register")
+ 	}
+ 
+ 	if a.Type != v.Type || a.Name != v.Name || a.Reg != v.Reg {
+diff --git a/src/cmd/compile/internal/amd64/prog.go b/src/cmd/compile/internal/amd64/prog.go
+index 5f4fe1c5ab..751683b1d4 100644
+--- a/src/cmd/compile/internal/amd64/prog.go
++++ b/src/cmd/compile/internal/amd64/prog.go
+@@ -264,7 +264,7 @@ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		gc.Fatal("unknown instruction %v", p)
++		gc.Fatalf("unknown instruction %v", p)
+ 	}
+ 
+ 	if (info.Flags&gc.ShiftCX != 0) && p.From.Type != obj.TYPE_CONST {
+diff --git a/src/cmd/compile/internal/arm/cgen.go b/src/cmd/compile/internal/arm/cgen.go
+index 8ea6c5f3f2..6c1a84c417 100644
+--- a/src/cmd/compile/internal/arm/cgen.go
++++ b/src/cmd/compile/internal/arm/cgen.go
+@@ -63,7 +63,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	var op int
+ 	switch align {
+ 	default:
+-		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
++		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)
+ 
+ 	case 1:
+ 		op = arm.AMOVB
+@@ -76,12 +76,12 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	}
+ 
+ 	if w%int64(align) != 0 {
+-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
++		gc.Fatalf("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
+ 	}
+ 	c := int32(w / int64(align))
+ 
+ 	if osrc%int64(align) != 0 || odst%int64(align) != 0 {
+-		gc.Fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
++		gc.Fatalf("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
+ 	}
+ 
+ 	// if we are copying forward on the stack and
+diff --git a/src/cmd/compile/internal/arm/cgen64.go b/src/cmd/compile/internal/arm/cgen64.go
+index cc969b8414..a9fe77b84a 100644
+--- a/src/cmd/compile/internal/arm/cgen64.go
++++ b/src/cmd/compile/internal/arm/cgen64.go
+@@ -19,7 +19,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
+ 		gc.Dump("n", n)
+ 		gc.Dump("res", res)
+-		gc.Fatal("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
++		gc.Fatalf("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
+ 	}
+ 
+ 	l := n.Left
+@@ -35,7 +35,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	split64(l, &lo1, &hi1)
+ 	switch n.Op {
+ 	default:
+-		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
++		gc.Fatalf("cgen64 %v", gc.Oconv(int(n.Op), 0))
+ 
+ 	case gc.OMINUS:
+ 		var lo2 gc.Node
+@@ -129,7 +129,7 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	// Do op.  Leave result in ah:al.
+ 	switch n.Op {
+ 	default:
+-		gc.Fatal("cgen64: not implemented: %v\n", n)
++		gc.Fatalf("cgen64: not implemented: %v\n", n)
+ 
+ 		// TODO: Constants
+ 	case gc.OADD:
+@@ -793,7 +793,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+ 	var br *obj.Prog
+ 	switch op {
+ 	default:
+-		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("cmp64 %v %v", gc.Oconv(int(op), 0), t)
+ 
+ 		// cmp hi
+ 	// bne L
+diff --git a/src/cmd/compile/internal/arm/ggen.go b/src/cmd/compile/internal/arm/ggen.go
+index 2d19d750ef..8ab384eada 100644
+--- a/src/cmd/compile/internal/arm/ggen.go
++++ b/src/cmd/compile/internal/arm/ggen.go
+@@ -34,10 +34,10 @@ func defframe(ptxt *obj.Prog) {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+-			gc.Fatal("needzero class %d", n.Class)
++			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+@@ -162,7 +162,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		p.To.Offset = int64(n2.Reg)
+ 
+ 	default:
+-		gc.Fatal("cgen_hmul %v", t)
++		gc.Fatalf("cgen_hmul %v", t)
+ 	}
+ 
+ 	gc.Cgen(&n1, res)
+@@ -177,7 +177,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  */
+ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if nl.Type.Width > 4 {
+-		gc.Fatal("cgen_shift %v", nl.Type)
++		gc.Fatalf("cgen_shift %v", nl.Type)
+ 	}
+ 
+ 	w := int(nl.Type.Width * 8)
+@@ -429,7 +429,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			gc.Warnl(int(p.Lineno), "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+-			gc.Fatal("invalid nil check %v", p)
++			gc.Fatalf("invalid nil check %v", p)
+ 		}
+ 		reg = int(p.From.Reg)
+ 
+diff --git a/src/cmd/compile/internal/arm/gsubr.go b/src/cmd/compile/internal/arm/gsubr.go
+index a0a7ba223d..acc67657ae 100644
+--- a/src/cmd/compile/internal/arm/gsubr.go
++++ b/src/cmd/compile/internal/arm/gsubr.go
+@@ -66,11 +66,11 @@ var nsclean int
+  */
+ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 	if !gc.Is64(n.Type) {
+-		gc.Fatal("split64 %v", n.Type)
++		gc.Fatalf("split64 %v", n.Type)
+ 	}
+ 
+ 	if nsclean >= len(sclean) {
+-		gc.Fatal("split64 clean")
++		gc.Fatalf("split64 clean")
+ 	}
+ 	sclean[nsclean].Op = gc.OEMPTY
+ 	nsclean++
+@@ -125,7 +125,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 
+ func splitclean() {
+ 	if nsclean <= 0 {
+-		gc.Fatal("splitclean")
++		gc.Fatalf("splitclean")
+ 	}
+ 	nsclean--
+ 	if sclean[nsclean].Op != gc.OEMPTY {
+@@ -204,7 +204,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+ 		// should not happen
+-		gc.Fatal("gmove %v -> %v", f, t)
++		gc.Fatalf("gmove %v -> %v", f, t)
+ 		return
+ 
+ 		/*
+@@ -546,7 +546,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	case gc.TUINT64<<16 | gc.TFLOAT32,
+ 		gc.TUINT64<<16 | gc.TFLOAT64:
+-		gc.Fatal("gmove UINT64, TFLOAT not implemented")
++		gc.Fatalf("gmove UINT64, TFLOAT not implemented")
+ 		return
+ 
+ 		/*
+@@ -641,7 +641,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	//	int32 v;
+ 
+ 	if f != nil && f.Op == gc.OINDEX {
+-		gc.Fatal("gins OINDEX not implemented")
++		gc.Fatalf("gins OINDEX not implemented")
+ 	}
+ 
+ 	//		gc.Regalloc(&nod, &regnode, Z);
+@@ -651,7 +651,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	//		idx.reg = nod.reg;
+ 	//		gc.Regfree(&nod);
+ 	if t != nil && t.Op == gc.OINDEX {
+-		gc.Fatal("gins OINDEX not implemented")
++		gc.Fatalf("gins OINDEX not implemented")
+ 	}
+ 
+ 	//		gc.Regalloc(&nod, &regnode, Z);
+@@ -677,7 +677,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 				/* generate a comparison
+ 				TODO(kaib): one of the args can actually be a small constant. relax the constraint and fix call sites.
+ 				*/
+-				gc.Fatal("bad operands to gcmp")
++				gc.Fatalf("bad operands to gcmp")
+ 			}
+ 			p.From = p.To
+ 			p.To = obj.Addr{}
+@@ -686,22 +686,22 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	case arm.AMULU:
+ 		if f != nil && f.Op != gc.OREGISTER {
+-			gc.Fatal("bad operands to mul")
++			gc.Fatalf("bad operands to mul")
+ 		}
+ 
+ 	case arm.AMOVW:
+ 		if (p.From.Type == obj.TYPE_MEM || p.From.Type == obj.TYPE_ADDR || p.From.Type == obj.TYPE_CONST) && (p.To.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_ADDR) {
+-			gc.Fatal("gins double memory")
++			gc.Fatalf("gins double memory")
+ 		}
+ 
+ 	case arm.AADD:
+ 		if p.To.Type == obj.TYPE_MEM {
+-			gc.Fatal("gins arith to mem")
++			gc.Fatalf("gins arith to mem")
+ 		}
+ 
+ 	case arm.ARSB:
+ 		if p.From.Type == obj.TYPE_NONE {
+-			gc.Fatal("rsb with no from")
++			gc.Fatalf("rsb with no from")
+ 		}
+ 	}
+ 
+@@ -719,9 +719,9 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+-			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
++			gc.Fatalf("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+ 		} else {
+-			gc.Fatal("bad in raddr: <null>")
++			gc.Fatalf("bad in raddr: <null>")
+ 		}
+ 		p.Reg = 0
+ 	} else {
+@@ -734,7 +734,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
+  */
+ func gshift(as int, lhs *gc.Node, stype int32, sval int32, rhs *gc.Node) *obj.Prog {
+ 	if sval <= 0 || sval > 32 {
+-		gc.Fatal("bad shift value: %d", sval)
++		gc.Fatalf("bad shift value: %d", sval)
+ 	}
+ 
+ 	sval = sval & 0x1f
+@@ -759,13 +759,13 @@ func gregshift(as int, lhs *gc.Node, stype int32, reg *gc.Node, rhs *gc.Node) *o
+  */
+ func optoas(op int, t *gc.Type) int {
+ 	if t == nil {
+-		gc.Fatal("optoas: t is nil")
++		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatal("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(int(op), 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
++		gc.Fatalf("optoas: no entry %v-%v etype %v simtype %v", gc.Oconv(int(op), 0), t, gc.Types[t.Etype], gc.Types[gc.Simtype[t.Etype]])
+ 
+ 		/*	case CASE(OADDR, TPTR32):
+ 				a = ALEAL;
+@@ -1188,7 +1188,7 @@ func sudoaddable(as int, n *gc.Node, a *obj.Addr) bool {
+ 
+ 		for i := 1; i < o; i++ {
+ 			if oary[i] >= 0 {
+-				gc.Fatal("can't happen")
++				gc.Fatalf("can't happen")
+ 			}
+ 			gins(arm.AMOVW, &n1, reg)
+ 			gc.Cgen_checknil(reg)
+diff --git a/src/cmd/compile/internal/arm/prog.go b/src/cmd/compile/internal/arm/prog.go
+index 9dcec46ba4..8a304e2893 100644
+--- a/src/cmd/compile/internal/arm/prog.go
++++ b/src/cmd/compile/internal/arm/prog.go
+@@ -138,7 +138,7 @@ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		gc.Fatal("unknown instruction %v", p)
++		gc.Fatalf("unknown instruction %v", p)
+ 	}
+ 
+ 	if p.From.Type == obj.TYPE_ADDR && p.From.Sym != nil && (info.Flags&gc.LeftRead != 0) {
+diff --git a/src/cmd/compile/internal/arm64/cgen.go b/src/cmd/compile/internal/arm64/cgen.go
+index 30326d73e2..9a7a8f9482 100644
+--- a/src/cmd/compile/internal/arm64/cgen.go
++++ b/src/cmd/compile/internal/arm64/cgen.go
+@@ -20,7 +20,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	var op int
+ 	switch align {
+ 	default:
+-		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
++		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)
+ 
+ 	case 1:
+ 		op = arm64.AMOVB
+@@ -36,12 +36,12 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	}
+ 
+ 	if w%int64(align) != 0 {
+-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
++		gc.Fatalf("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
+ 	}
+ 	c := int32(w / int64(align))
+ 
+ 	if osrc%int64(align) != 0 || odst%int64(align) != 0 {
+-		gc.Fatal("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
++		gc.Fatalf("sgen: unaligned offset src %d or dst %d (align %d)", osrc, odst, align)
+ 	}
+ 
+ 	// if we are copying forward on the stack and
+diff --git a/src/cmd/compile/internal/arm64/ggen.go b/src/cmd/compile/internal/arm64/ggen.go
+index cba4d99151..b647fce141 100644
+--- a/src/cmd/compile/internal/arm64/ggen.go
++++ b/src/cmd/compile/internal/arm64/ggen.go
+@@ -43,10 +43,10 @@ func defframe(ptxt *obj.Prog) {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+-			gc.Fatal("needzero class %d", n.Class)
++			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+@@ -299,7 +299,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		}
+ 
+ 	default:
+-		gc.Fatal("cgen_hmul %v", t)
++		gc.Fatalf("cgen_hmul %v", t)
+ 	}
+ 
+ 	gc.Cgen(&n1, res)
+@@ -499,7 +499,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			gc.Warnl(int(p.Lineno), "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+-			gc.Fatal("invalid nil check %v\n", p)
++			gc.Fatalf("invalid nil check %v\n", p)
+ 		}
+ 
+ 		// check is
+diff --git a/src/cmd/compile/internal/arm64/gsubr.go b/src/cmd/compile/internal/arm64/gsubr.go
+index 0a14654d83..11214789f5 100644
+--- a/src/cmd/compile/internal/arm64/gsubr.go
++++ b/src/cmd/compile/internal/arm64/gsubr.go
+@@ -84,7 +84,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 
+ 	switch as {
+ 	default:
+-		gc.Fatal("ginscon2")
++		gc.Fatalf("ginscon2")
+ 
+ 	case arm64.ACMP:
+ 		if -arm64.BIG <= c && c <= arm64.BIG {
+@@ -214,7 +214,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+@@ -514,7 +514,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case arm64.ACMP, arm64.AFCMPS, arm64.AFCMPD:
+ 		if t != nil {
+ 			if f.Op != gc.OREGISTER {
+-				gc.Fatal("bad operands to gcmp")
++				gc.Fatalf("bad operands to gcmp")
+ 			}
+ 			p.From = p.To
+ 			p.To = obj.Addr{}
+@@ -527,12 +527,12 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case arm64.AAND, arm64.AMUL:
+ 		if p.From.Type == obj.TYPE_CONST {
+ 			gc.Debug['h'] = 1
+-			gc.Fatal("bad inst: %v", p)
++			gc.Fatalf("bad inst: %v", p)
+ 		}
+ 	case arm64.ACMP:
+ 		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+ 			gc.Debug['h'] = 1
+-			gc.Fatal("bad inst: %v", p)
++			gc.Fatalf("bad inst: %v", p)
+ 		}
+ 	}
+ 
+@@ -564,7 +564,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
++		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	return p
+@@ -579,9 +579,9 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 	gc.Naddr(&a, n)
+ 	if a.Type != obj.TYPE_REG {
+ 		if n != nil {
+-			gc.Fatal("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
++			gc.Fatalf("bad in raddr: %v", gc.Oconv(int(n.Op), 0))
+ 		} else {
+-			gc.Fatal("bad in raddr: <null>")
++			gc.Fatalf("bad in raddr: <null>")
+ 		}
+ 		p.Reg = 0
+ 	} else {
+@@ -591,7 +591,7 @@ func raddr(n *gc.Node, p *obj.Prog) {
+ 
+ func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+ 	if lhs.Op != gc.OREGISTER {
+-		gc.Fatal("bad operands to gcmp: %v %v", gc.Oconv(int(lhs.Op), 0), gc.Oconv(int(rhs.Op), 0))
++		gc.Fatalf("bad operands to gcmp: %v %v", gc.Oconv(int(lhs.Op), 0), gc.Oconv(int(rhs.Op), 0))
+ 	}
+ 
+ 	p := rawgins(as, rhs, nil)
+@@ -604,13 +604,13 @@ func gcmp(as int, lhs *gc.Node, rhs *gc.Node) *obj.Prog {
+  */
+ func optoas(op int, t *gc.Type) int {
+ 	if t == nil {
+-		gc.Fatal("optoas: t is nil")
++		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
+ 	a := int(obj.AXXX)
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+ 
+ 	case gc.OEQ<<16 | gc.TBOOL,
+ 		gc.OEQ<<16 | gc.TINT8,
+diff --git a/src/cmd/compile/internal/arm64/prog.go b/src/cmd/compile/internal/arm64/prog.go
+index 4b498b7798..a4b8ebea72 100644
+--- a/src/cmd/compile/internal/arm64/prog.go
++++ b/src/cmd/compile/internal/arm64/prog.go
+@@ -133,7 +133,7 @@ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		gc.Fatal("proginfo: unknown instruction %v", p)
++		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+ 
+ 	if (info.Flags&gc.RegRead != 0) && p.Reg == 0 {
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 60c59fc32b..10a497a4b3 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -16,7 +16,7 @@ var defercalc int
+ 
+ func Rnd(o int64, r int64) int64 {
+ 	if r < 1 || r > 8 || r&(r-1) != 0 {
+-		Fatal("rnd %d", r)
++		Fatalf("rnd %d", r)
+ 	}
+ 	return (o + r - 1) &^ (r - 1)
+ }
+@@ -25,7 +25,7 @@ func offmod(t *Type) {
+ 	o := int32(0)
+ 	for f := t.Type; f != nil; f = f.Down {
+ 		if f.Etype != TFIELD {
+-			Fatal("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
++			Fatalf("offmod: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+ 		f.Width = int64(o)
+ 		o += int32(Widthptr)
+@@ -46,7 +46,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 	var w int64
+ 	for f := t.Type; f != nil; f = f.Down {
+ 		if f.Etype != TFIELD {
+-			Fatal("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
++			Fatalf("widstruct: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+ 		if f.Type == nil {
+ 			// broken field, just skip it so that other valid fields
+@@ -59,7 +59,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 			maxalign = int32(f.Type.Align)
+ 		}
+ 		if f.Type.Width < 0 {
+-			Fatal("invalid width %d", f.Type.Width)
++			Fatalf("invalid width %d", f.Type.Width)
+ 		}
+ 		w = f.Type.Width
+ 		if f.Type.Align > 0 {
+@@ -111,7 +111,7 @@ func widstruct(errtype *Type, t *Type, o int64, flag int) int64 {
+ 
+ func dowidth(t *Type) {
+ 	if Widthptr == 0 {
+-		Fatal("dowidth without betypeinit")
++		Fatalf("dowidth without betypeinit")
+ 	}
+ 
+ 	if t == nil {
+@@ -121,7 +121,7 @@ func dowidth(t *Type) {
+ 	if t.Width > 0 {
+ 		if t.Align == 0 {
+ 			// See issue 11354
+-			Fatal("zero alignment with nonzero size %v", t)
++			Fatalf("zero alignment with nonzero size %v", t)
+ 		}
+ 		return
+ 	}
+@@ -168,7 +168,7 @@ func dowidth(t *Type) {
+ 	w := int64(0)
+ 	switch et {
+ 	default:
+-		Fatal("dowidth: unknown type: %v", t)
++		Fatalf("dowidth: unknown type: %v", t)
+ 
+ 		/* compiler-specific stuff */
+ 	case TINT8, TUINT8, TBOOL:
+@@ -241,13 +241,13 @@ func dowidth(t *Type) {
+ 		// dummy type; should be replaced before use.
+ 	case TANY:
+ 		if Debug['A'] == 0 {
+-			Fatal("dowidth any")
++			Fatalf("dowidth any")
+ 		}
+ 		w = 1 // anything will do
+ 
+ 	case TSTRING:
+ 		if sizeof_String == 0 {
+-			Fatal("early dowidth string")
++			Fatalf("early dowidth string")
+ 		}
+ 		w = int64(sizeof_String)
+ 		t.Align = uint8(Widthptr)
+@@ -277,12 +277,12 @@ func dowidth(t *Type) {
+ 				t.Broke = 1
+ 			}
+ 		} else {
+-			Fatal("dowidth %v", t) // probably [...]T
++			Fatalf("dowidth %v", t) // probably [...]T
+ 		}
+ 
+ 	case TSTRUCT:
+ 		if t.Funarg != 0 {
+-			Fatal("dowidth fn struct %v", t)
++			Fatalf("dowidth fn struct %v", t)
+ 		}
+ 		w = widstruct(t, t, 0, 1)
+ 
+@@ -319,7 +319,7 @@ func dowidth(t *Type) {
+ 	t.Width = w
+ 	if t.Align == 0 {
+ 		if w > 8 || w&(w-1) != 0 {
+-			Fatal("invalid alignment for %v", t)
++			Fatalf("invalid alignment for %v", t)
+ 		}
+ 		t.Align = uint8(w)
+ 	}
+@@ -367,7 +367,7 @@ func checkwidth(t *Type) {
+ 	// function arg structs should not be checked
+ 	// outside of the enclosing function.
+ 	if t.Funarg != 0 {
+-		Fatal("checkwidth %v", t)
++		Fatalf("checkwidth %v", t)
+ 	}
+ 
+ 	if defercalc == 0 {
+@@ -395,14 +395,14 @@ func checkwidth(t *Type) {
+ func defercheckwidth() {
+ 	// we get out of sync on syntax errors, so don't be pedantic.
+ 	if defercalc != 0 && nerrors == 0 {
+-		Fatal("defercheckwidth")
++		Fatalf("defercheckwidth")
+ 	}
+ 	defercalc = 1
+ }
+ 
+ func resumecheckwidth() {
+ 	if defercalc == 0 {
+-		Fatal("resumecheckwidth")
++		Fatalf("resumecheckwidth")
+ 	}
+ 	for l := tlq; l != nil; l = tlq {
+ 		l.t.Deferwidth = 0
+@@ -419,7 +419,7 @@ var itable *Type // distinguished *byte
+ 
+ func typeinit() {
+ 	if Widthptr == 0 {
+-		Fatal("typeinit before betypeinit")
++		Fatalf("typeinit before betypeinit")
+ 	}
+ 
+ 	for i := 0; i < NTYPE; i++ {
+@@ -637,11 +637,11 @@ func typeinit() {
+ 
+ 		etype = Thearch.Typedefs[i].Etype
+ 		if etype < 0 || etype >= len(Types) {
+-			Fatal("typeinit: %s bad etype", s.Name)
++			Fatalf("typeinit: %s bad etype", s.Name)
+ 		}
+ 		sameas = Thearch.Typedefs[i].Sameas
+ 		if sameas < 0 || sameas >= len(Types) {
+-			Fatal("typeinit: %s bad sameas", s.Name)
++			Fatalf("typeinit: %s bad sameas", s.Name)
+ 		}
+ 		Simtype[etype] = uint8(sameas)
+ 		minfltval[etype] = minfltval[sameas]
+@@ -651,7 +651,7 @@ func typeinit() {
+ 
+ 		t = Types[etype]
+ 		if t != nil {
+-			Fatal("typeinit: %s already defined", s.Name)
++			Fatalf("typeinit: %s already defined", s.Name)
+ 		}
+ 
+ 		t = typ(etype)
+@@ -707,7 +707,7 @@ func Argsize(t *Type) int {
+ 
+ 	w = (w + int64(Widthptr) - 1) &^ (int64(Widthptr) - 1)
+ 	if int64(int(w)) != w {
+-		Fatal("argsize too big")
++		Fatalf("argsize too big")
+ 	}
+ 	return int(w)
+ }
+diff --git a/src/cmd/compile/internal/gc/bv.go b/src/cmd/compile/internal/gc/bv.go
+index 2b988e6547..b40339e484 100644
+--- a/src/cmd/compile/internal/gc/bv.go
++++ b/src/cmd/compile/internal/gc/bv.go
+@@ -65,7 +65,7 @@ func bvandnot(dst Bvec, src1 Bvec, src2 Bvec) {
+ 
+ func bvcmp(bv1 Bvec, bv2 Bvec) int {
+ 	if bv1.n != bv2.n {
+-		Fatal("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
++		Fatalf("bvequal: lengths %d and %d are not equal", bv1.n, bv2.n)
+ 	}
+ 	for i, x := range bv1.b {
+ 		if x != bv2.b[i] {
+@@ -98,7 +98,7 @@ func bvconcat(src1 Bvec, src2 Bvec) Bvec {
+ 
+ func bvget(bv Bvec, i int32) int {
+ 	if i < 0 || i >= bv.n {
+-		Fatal("bvget: index %d is out of bounds with length %d\n", i, bv.n)
++		Fatalf("bvget: index %d is out of bounds with length %d\n", i, bv.n)
+ 	}
+ 	return int((bv.b[i>>WORDSHIFT] >> uint(i&WORDMASK)) & 1)
+ }
+@@ -174,7 +174,7 @@ func bvprint(bv Bvec) {
+ 
+ func bvreset(bv Bvec, i int32) {
+ 	if i < 0 || i >= bv.n {
+-		Fatal("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
++		Fatalf("bvreset: index %d is out of bounds with length %d\n", i, bv.n)
+ 	}
+ 	mask := uint32(^(1 << uint(i%WORDBITS)))
+ 	bv.b[i/WORDBITS] &= mask
+@@ -188,7 +188,7 @@ func bvresetall(bv Bvec) {
+ 
+ func bvset(bv Bvec, i int32) {
+ 	if i < 0 || i >= bv.n {
+-		Fatal("bvset: index %d is out of bounds with length %d\n", i, bv.n)
++		Fatalf("bvset: index %d is out of bounds with length %d\n", i, bv.n)
+ 	}
+ 	mask := uint32(1 << uint(i%WORDBITS))
+ 	bv.b[i/WORDBITS] |= mask
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index b6a3e5bbeb..b979340862 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -34,7 +34,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	}
+ 
+ 	if res == nil || res.Type == nil {
+-		Fatal("cgen: res nil")
++		Fatalf("cgen: res nil")
+ 	}
+ 
+ 	for n.Op == OCONVNOP {
+@@ -68,7 +68,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 	if n.Ullman >= UINF {
+ 		if n.Op == OINDREG {
+-			Fatal("cgen: this is going to miscompile")
++			Fatalf("cgen: this is going to miscompile")
+ 		}
+ 		if res.Ullman >= UINF {
+ 			var n1 Node
+@@ -81,7 +81,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 	if Isfat(n.Type) {
+ 		if n.Type.Width < 0 {
+-			Fatal("forgot to compute width for %v", n.Type)
++			Fatalf("forgot to compute width for %v", n.Type)
+ 		}
+ 		sgen_wb(n, res, n.Type.Width, wb)
+ 		return
+@@ -103,7 +103,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			if n1.Ullman > res.Ullman {
+ 				Dump("n1", &n1)
+ 				Dump("res", res)
+-				Fatal("loop in cgen")
++				Fatalf("loop in cgen")
+ 			}
+ 
+ 			cgen_wb(&n1, res, wb)
+@@ -191,7 +191,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 
+ 	if wb {
+ 		if int(Simtype[res.Type.Etype]) != Tptr {
+-			Fatal("cgen_wb of type %v", res.Type)
++			Fatalf("cgen_wb of type %v", res.Type)
+ 		}
+ 		if n.Ullman >= UINF {
+ 			var n1 Node
+@@ -362,7 +362,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	default:
+ 		Dump("cgen", n)
+ 		Dump("cgen-res", res)
+-		Fatal("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("cgen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+ 
+ 	case OOROR, OANDAND,
+ 		OEQ, ONE,
+@@ -593,7 +593,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatal("cgen: OLEN: unknown type %v", Tconv(nl.Type, obj.FmtLong))
++		Fatalf("cgen: OLEN: unknown type %v", Tconv(nl.Type, obj.FmtLong))
+ 
+ 	case OCAP:
+ 		if Istype(nl.Type, TCHAN) {
+@@ -631,7 +631,7 @@ func cgen_wb(n, res *Node, wb bool) {
+ 			break
+ 		}
+ 
+-		Fatal("cgen: OCAP: unknown type %v", Tconv(nl.Type, obj.FmtLong))
++		Fatalf("cgen: OCAP: unknown type %v", Tconv(nl.Type, obj.FmtLong))
+ 
+ 	case OADDR:
+ 		if n.Bounded { // let race detector avoid nil checks
+@@ -928,7 +928,7 @@ func Cgenr(n *Node, a *Node, res *Node) {
+ 	}
+ 
+ 	if Isfat(n.Type) {
+-		Fatal("cgenr on fat node")
++		Fatalf("cgenr on fat node")
+ 	}
+ 
+ 	if n.Addable {
+@@ -1034,7 +1034,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			// constant index
+ 			if Isconst(nr, CTINT) {
+ 				if Isconst(nl, CTSTR) {
+-					Fatal("constant string constant index")
++					Fatalf("constant string constant index")
+ 				}
+ 				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+ 				var n2 Node
+@@ -1186,7 +1186,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 			// constant index
+ 			if Isconst(nr, CTINT) {
+ 				if Isconst(nl, CTSTR) {
+-					Fatal("constant string constant index") // front end should handle
++					Fatalf("constant string constant index") // front end should handle
+ 				}
+ 				v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+ 				if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+@@ -1376,7 +1376,7 @@ func Agenr(n *Node, a *Node, res *Node) {
+ 	index:
+ 		if Isconst(nr, CTINT) {
+ 			if Isconst(nl, CTSTR) {
+-				Fatal("constant string constant index") // front end should handle
++				Fatalf("constant string constant index") // front end should handle
+ 			}
+ 			v := uint64(Mpgetfix(nr.Val().U.(*Mpint)))
+ 			if Isslice(nl.Type) || nl.Type.Etype == TSTRING {
+@@ -1529,7 +1529,7 @@ func Agen(n *Node, res *Node) {
+ 
+ 	if n.Addable {
+ 		if n.Op == OREGISTER {
+-			Fatal("agen OREGISTER")
++			Fatalf("agen OREGISTER")
+ 		}
+ 		var n1 Node
+ 		n1.Op = OADDR
+@@ -1546,7 +1546,7 @@ func Agen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("agen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("agen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n, 0)
+@@ -1576,13 +1576,13 @@ func Agen(n *Node, res *Node) {
+ 		// should only get here with names in this func.
+ 		if n.Name.Funcdepth > 0 && n.Name.Funcdepth != Funcdepth {
+ 			Dump("bad agen", n)
+-			Fatal("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
++			Fatalf("agen: bad ONAME funcdepth %d != %d", n.Name.Funcdepth, Funcdepth)
+ 		}
+ 
+ 		// should only get here for heap vars or paramref
+ 		if n.Class&PHEAP == 0 && n.Class != PPARAMREF {
+ 			Dump("bad agen", n)
+-			Fatal("agen: bad ONAME class %#x", n.Class)
++			Fatalf("agen: bad ONAME class %#x", n.Class)
+ 		}
+ 
+ 		Cgen(n.Name.Heapaddr, res)
+@@ -1800,7 +1800,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	}
+ 
+ 	if n.Type.Etype != TBOOL {
+-		Fatal("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
++		Fatalf("bgen: bad type %v for %v", n.Type, Oconv(int(n.Op), 0))
+ 	}
+ 
+ 	for n.Op == OCONVNOP {
+@@ -1841,7 +1841,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			// We can fix that as we go.
+ 			switch Ctxt.Arch.Thechar {
+ 			case '5', '7', '9':
+-				Fatal("genval 5g, 7g, 9g ONAMES not fully implemented")
++				Fatalf("genval 5g, 7g, 9g ONAMES not fully implemented")
+ 			}
+ 			Cgen(n, res)
+ 			if !wantTrue {
+@@ -1865,7 +1865,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 	case OLITERAL:
+ 		// n is a constant.
+ 		if !Isconst(n, CTBOOL) {
+-			Fatal("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
++			Fatalf("bgen: non-bool const %v\n", Nconv(n, obj.FmtLong))
+ 		}
+ 		if genval {
+ 			Cgen(Nodbool(wantTrue == n.Val().U.(bool)), res)
+@@ -2068,7 +2068,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 		switch Ctxt.Arch.Thechar {
+ 		case '5':
+ 			if genval {
+-				Fatal("genval 5g Isfloat special cases not implemented")
++				Fatalf("genval 5g Isfloat special cases not implemented")
+ 			}
+ 			switch n.Op {
+ 			case ONE:
+@@ -2116,7 +2116,7 @@ func bgenx(n, res *Node, wantTrue bool, likely int, to *obj.Prog) {
+ 			}
+ 		case '7', '9':
+ 			if genval {
+-				Fatal("genval 7g, 9g Isfloat special cases not implemented")
++				Fatalf("genval 7g, 9g Isfloat special cases not implemented")
+ 			}
+ 			switch n.Op {
+ 			// On arm64 and ppc64, <= and >= mishandle NaN. Must decompose into < or > and =.
+@@ -2251,11 +2251,11 @@ func sgen_wb(n *Node, ns *Node, w int64, wb bool) {
+ 	}
+ 
+ 	if n.Ullman >= UINF && ns.Ullman >= UINF {
+-		Fatal("sgen UINF")
++		Fatalf("sgen UINF")
+ 	}
+ 
+ 	if w < 0 {
+-		Fatal("sgen copy %d", w)
++		Fatalf("sgen copy %d", w)
+ 	}
+ 
+ 	// If copying .args, that's all the results, so record definition sites
+@@ -2336,7 +2336,7 @@ func Ginscall(f *Node, proc int) {
+ 
+ 	switch proc {
+ 	default:
+-		Fatal("Ginscall: bad proc %d", proc)
++		Fatalf("Ginscall: bad proc %d", proc)
+ 
+ 	case 0, // normal call
+ 		-1: // normal call but no return
+@@ -2402,7 +2402,7 @@ func Ginscall(f *Node, proc int) {
+ 			Ginscall(Newproc, 0)
+ 		} else {
+ 			if Hasdefer == 0 {
+-				Fatal("hasdefer=0 but has defer")
++				Fatalf("hasdefer=0 but has defer")
+ 			}
+ 			Ginscall(Deferproc, 0)
+ 		}
+@@ -2423,12 +2423,12 @@ func Ginscall(f *Node, proc int) {
+ func cgen_callinter(n *Node, res *Node, proc int) {
+ 	i := n.Left
+ 	if i.Op != ODOTINTER {
+-		Fatal("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
++		Fatalf("cgen_callinter: not ODOTINTER %v", Oconv(int(i.Op), 0))
+ 	}
+ 
+ 	f := i.Right // field
+ 	if f.Op != ONAME {
+-		Fatal("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
++		Fatalf("cgen_callinter: not ONAME %v", Oconv(int(f.Op), 0))
+ 	}
+ 
+ 	i = i.Left // interface
+@@ -2471,7 +2471,7 @@ func cgen_callinter(n *Node, res *Node, proc int) {
+ 	var nodr Node
+ 	Regalloc(&nodr, Types[Tptr], &nodo)
+ 	if n.Left.Xoffset == BADWIDTH {
+-		Fatal("cgen_callinter: badwidth")
++		Fatalf("cgen_callinter: badwidth")
+ 	}
+ 	Cgen_checknil(&nodo) // in case offset is huge
+ 	nodo.Op = OINDREG
+@@ -2562,7 +2562,7 @@ func cgen_callret(n *Node, res *Node) {
+ 	var flist Iter
+ 	fp := Structfirst(&flist, Getoutarg(t))
+ 	if fp == nil {
+-		Fatal("cgen_callret: nil")
++		Fatalf("cgen_callret: nil")
+ 	}
+ 
+ 	var nod Node
+@@ -2592,7 +2592,7 @@ func cgen_aret(n *Node, res *Node) {
+ 	var flist Iter
+ 	fp := Structfirst(&flist, Getoutarg(t))
+ 	if fp == nil {
+-		Fatal("cgen_aret: nil")
++		Fatalf("cgen_aret: nil")
+ 	}
+ 
+ 	var nod1 Node
+@@ -2814,11 +2814,11 @@ func cgen_append(n, res *Node) {
+ 	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
+ 		Dump("cgen_append-n", n)
+ 		Dump("cgen_append-res", res)
+-		Fatal("append not lowered")
++		Fatalf("append not lowered")
+ 	}
+ 	for l := n.List; l != nil; l = l.Next {
+ 		if l.N.Ullman >= UINF {
+-			Fatal("append with function call arguments")
++			Fatalf("append with function call arguments")
+ 		}
+ 	}
+ 
+@@ -3261,7 +3261,7 @@ func cgen_slice(n, res *Node, wb bool) {
+ 		// but it will be represented in 32 bits.
+ 		if Ctxt.Arch.Regsize == 4 && Is64(n1.Type) {
+ 			if mpcmpfixc(n1.Val().U.(*Mpint), 1<<31) >= 0 {
+-				Fatal("missed slice out of bounds check")
++				Fatalf("missed slice out of bounds check")
+ 			}
+ 			var tmp Node
+ 			Nodconst(&tmp, indexRegType, Mpgetfix(n1.Val().U.(*Mpint)))
+diff --git a/src/cmd/compile/internal/gc/closure.go b/src/cmd/compile/internal/gc/closure.go
+index a0dfa0bb0f..999bf3900b 100644
+--- a/src/cmd/compile/internal/gc/closure.go
++++ b/src/cmd/compile/internal/gc/closure.go
+@@ -87,7 +87,7 @@ func typecheckclosure(func_ *Node, top int) {
+ 		if !n.Name.Captured {
+ 			n.Name.Captured = true
+ 			if n.Name.Decldepth == 0 {
+-				Fatal("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
++				Fatalf("typecheckclosure: var %v does not have decldepth assigned", Nconv(n, obj.FmtShort))
+ 			}
+ 
+ 			// Ignore assignments to the variable in straightline code
+@@ -172,7 +172,7 @@ func closurename(n *Node) *Sym {
+ 		n.Func.Outerfunc.Func.Closgen++
+ 		gen = n.Func.Outerfunc.Func.Closgen
+ 	} else {
+-		Fatal("closurename called for %v", Nconv(n, obj.FmtShort))
++		Fatalf("closurename called for %v", Nconv(n, obj.FmtShort))
+ 	}
+ 	n.Sym = Lookupf("%s.%s%d", outer, prefix, gen)
+ 	return n.Sym
+@@ -204,7 +204,7 @@ func makeclosure(func_ *Node) *Node {
+ 	xfunc.Nbody = func_.Nbody
+ 	xfunc.Func.Dcl = concat(func_.Func.Dcl, xfunc.Func.Dcl)
+ 	if xfunc.Nbody == nil {
+-		Fatal("empty body - won't generate any code")
++		Fatalf("empty body - won't generate any code")
+ 	}
+ 	typecheck(&xfunc, Etop)
+ 
+@@ -355,7 +355,7 @@ func transformclosure(xfunc *Node) {
+ 
+ 		// Recalculate param offsets.
+ 		if f.Type.Width > 0 {
+-			Fatal("transformclosure: width is already calculated")
++			Fatalf("transformclosure: width is already calculated")
+ 		}
+ 		dowidth(f.Type)
+ 		xfunc.Type = f.Type // update type of ODCLFUNC
+@@ -491,7 +491,7 @@ func typecheckpartialcall(fn *Node, sym *Node) {
+ 		break
+ 
+ 	default:
+-		Fatal("invalid typecheckpartialcall")
++		Fatalf("invalid typecheckpartialcall")
+ 	}
+ 
+ 	// Create top-level function.
+@@ -518,7 +518,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 		basetype = basetype.Type
+ 	}
+ 	if basetype.Etype != TINTER && basetype.Sym == nil {
+-		Fatal("missing base type for %v", rcvrtype)
++		Fatalf("missing base type for %v", rcvrtype)
+ 	}
+ 
+ 	var spkg *Pkg
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 9eb4983606..201a583319 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -14,7 +14,7 @@ import (
+ // n must be an integer constant.
+ func (n *Node) Int() int64 {
+ 	if !Isconst(n, CTINT) {
+-		Fatal("Int(%v)", n)
++		Fatalf("Int(%v)", n)
+ 	}
+ 	return Mpgetfix(n.Val().U.(*Mpint))
+ }
+@@ -23,7 +23,7 @@ func (n *Node) Int() int64 {
+ // n must be an integer constant.
+ func (n *Node) SetInt(i int64) {
+ 	if !Isconst(n, CTINT) {
+-		Fatal("SetInt(%v)", n)
++		Fatalf("SetInt(%v)", n)
+ 	}
+ 	Mpmovecfix(n.Val().U.(*Mpint), i)
+ }
+@@ -32,7 +32,7 @@ func (n *Node) SetInt(i int64) {
+ // n must be an integer constant.
+ func (n *Node) SetBigInt(x *big.Int) {
+ 	if !Isconst(n, CTINT) {
+-		Fatal("SetBigInt(%v)", n)
++		Fatalf("SetBigInt(%v)", n)
+ 	}
+ 	n.Val().U.(*Mpint).Val.Set(x)
+ }
+@@ -41,7 +41,7 @@ func (n *Node) SetBigInt(x *big.Int) {
+ // n must be an boolean constant.
+ func (n *Node) Bool() bool {
+ 	if !Isconst(n, CTBOOL) {
+-		Fatal("Int(%v)", n)
++		Fatalf("Int(%v)", n)
+ 	}
+ 	return n.Val().U.(bool)
+ }
+@@ -396,7 +396,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 	switch v.Ctype() {
+ 	case CTINT, CTRUNE:
+ 		if !Isint[t.Etype] {
+-			Fatal("overflow: %v integer constant", t)
++			Fatalf("overflow: %v integer constant", t)
+ 		}
+ 		if Mpcmpfixfix(v.U.(*Mpint), Minintval[t.Etype]) < 0 || Mpcmpfixfix(v.U.(*Mpint), Maxintval[t.Etype]) > 0 {
+ 			return true
+@@ -404,7 +404,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 
+ 	case CTFLT:
+ 		if !Isfloat[t.Etype] {
+-			Fatal("overflow: %v floating-point constant", t)
++			Fatalf("overflow: %v floating-point constant", t)
+ 		}
+ 		if mpcmpfltflt(v.U.(*Mpflt), minfltval[t.Etype]) <= 0 || mpcmpfltflt(v.U.(*Mpflt), maxfltval[t.Etype]) >= 0 {
+ 			return true
+@@ -412,7 +412,7 @@ func doesoverflow(v Val, t *Type) bool {
+ 
+ 	case CTCPLX:
+ 		if !Iscomplex[t.Etype] {
+-			Fatal("overflow: %v complex constant", t)
++			Fatalf("overflow: %v complex constant", t)
+ 		}
+ 		if mpcmpfltflt(&v.U.(*Mpcplx).Real, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Real, maxfltval[t.Etype]) >= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, minfltval[t.Etype]) <= 0 || mpcmpfltflt(&v.U.(*Mpcplx).Imag, maxfltval[t.Etype]) >= 0 {
+ 			return true
+@@ -787,7 +787,7 @@ func evconst(n *Node) {
+ 		if (v.Ctype() == 0 || rv.Ctype() == 0) && nerrors > 0 {
+ 			return
+ 		}
+-		Fatal("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
++		Fatalf("constant type mismatch %v(%d) %v(%d)", nl.Type, v.Ctype(), nr.Type, rv.Ctype())
+ 	}
+ 
+ 	// run op
+@@ -1106,7 +1106,7 @@ func nodlit(v Val) *Node {
+ 	n.SetVal(v)
+ 	switch v.Ctype() {
+ 	default:
+-		Fatal("nodlit ctype %d", v.Ctype())
++		Fatalf("nodlit ctype %d", v.Ctype())
+ 
+ 	case CTSTR:
+ 		n.Type = idealstring
+@@ -1134,7 +1134,7 @@ func nodcplxlit(r Val, i Val) *Node {
+ 	n.SetVal(Val{c})
+ 
+ 	if r.Ctype() != CTFLT || i.Ctype() != CTFLT {
+-		Fatal("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
++		Fatalf("nodcplxlit ctype %d/%d", r.Ctype(), i.Ctype())
+ 	}
+ 
+ 	mpmovefltflt(&c.Real, r.U.(*Mpflt))
+@@ -1249,7 +1249,7 @@ func defaultlit(np **Node, t *Type) {
+ 		Yyerror("defaultlit: unknown literal: %v", n)
+ 
+ 	case CTxxx:
+-		Fatal("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
++		Fatalf("defaultlit: idealkind is CTxxx: %v", Nconv(n, obj.FmtSign))
+ 
+ 	case CTBOOL:
+ 		t1 := Types[TBOOL]
+@@ -1450,7 +1450,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		var i int64
+ 		switch n.Val().Ctype() {
+ 		default:
+-			Fatal("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
++			Fatalf("convconst ctype=%d %v", n.Val().Ctype(), Tconv(t, obj.FmtLong))
+ 
+ 		case CTINT, CTRUNE:
+ 			i = Mpgetfix(n.Val().U.(*Mpint))
+@@ -1470,7 +1470,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 	if Isfloat[tt] {
+ 		con.SetVal(toflt(con.Val()))
+ 		if con.Val().Ctype() != CTFLT {
+-			Fatal("convconst ctype=%d %v", con.Val().Ctype(), t)
++			Fatalf("convconst ctype=%d %v", con.Val().Ctype(), t)
+ 		}
+ 		if tt == TFLOAT32 {
+ 			con.SetVal(Val{truncfltlit(con.Val().U.(*Mpflt), t)})
+@@ -1487,7 +1487,7 @@ func (n *Node) Convconst(con *Node, t *Type) {
+ 		return
+ 	}
+ 
+-	Fatal("convconst %v constant", Tconv(t, obj.FmtLong))
++	Fatalf("convconst %v constant", Tconv(t, obj.FmtLong))
+ }
+ 
+ // complex multiply v *= rv
+diff --git a/src/cmd/compile/internal/gc/cplx.go b/src/cmd/compile/internal/gc/cplx.go
+index 1643f262b5..9f11b96659 100644
+--- a/src/cmd/compile/internal/gc/cplx.go
++++ b/src/cmd/compile/internal/gc/cplx.go
+@@ -81,7 +81,7 @@ func complexbool(op int, nl, nr, res *Node, wantTrue bool, likely int, to *obj.P
+ // break addable nc-complex into nr-real and ni-imaginary
+ func subnode(nr *Node, ni *Node, nc *Node) {
+ 	if !nc.Addable {
+-		Fatal("subnode not addable")
++		Fatalf("subnode not addable")
+ 	}
+ 
+ 	tc := Simsimtype(nc.Type)
+@@ -230,7 +230,7 @@ func nodfconst(n *Node, t *Type, fval *Mpflt) {
+ 	n.Type = t
+ 
+ 	if !Isfloat[t.Etype] {
+-		Fatal("nodfconst: bad type %v", t)
++		Fatalf("nodfconst: bad type %v", t)
+ 	}
+ }
+ 
+@@ -288,14 +288,14 @@ func Complexmove(f *Node, t *Node) {
+ 	}
+ 
+ 	if !t.Addable {
+-		Fatal("complexmove: to not addable")
++		Fatalf("complexmove: to not addable")
+ 	}
+ 
+ 	ft := Simsimtype(f.Type)
+ 	tt := Simsimtype(t.Type)
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		Fatal("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
++		Fatalf("complexmove: unknown conversion: %v -> %v\n", f.Type, t.Type)
+ 
+ 		// complex to complex move/convert.
+ 	// make f addable.
+@@ -403,7 +403,7 @@ func Complexgen(n *Node, res *Node) {
+ 	switch n.Op {
+ 	default:
+ 		Dump("complexgen: unknown op", n)
+-		Fatal("complexgen: unknown op %v", Oconv(int(n.Op), 0))
++		Fatalf("complexgen: unknown op %v", Oconv(int(n.Op), 0))
+ 
+ 	case ODOT,
+ 		ODOTPTR,
+@@ -462,7 +462,7 @@ func Complexgen(n *Node, res *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("complexgen: unknown op %v", Oconv(int(n.Op), 0))
++		Fatalf("complexgen: unknown op %v", Oconv(int(n.Op), 0))
+ 
+ 	case OCONV:
+ 		Complexmove(nl, res)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index c8864f305e..99f29f4830 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -73,7 +73,7 @@ func popdcl() {
+ 	}
+ 
+ 	if d == nil {
+-		Fatal("popdcl: no mark")
++		Fatalf("popdcl: no mark")
+ 	}
+ 	dclstack = d.Link
+ 	block = d.Block
+@@ -198,7 +198,7 @@ func declare(n *Node, ctxt uint8) {
+ 		}
+ 	} else {
+ 		if Curfn == nil && ctxt == PAUTO {
+-			Fatal("automatic outside function")
++			Fatalf("automatic outside function")
+ 		}
+ 		if Curfn != nil {
+ 			Curfn.Func.Dcl = list(Curfn.Func.Dcl, n)
+@@ -238,7 +238,7 @@ func declare(n *Node, ctxt uint8) {
+ 
+ func addvar(n *Node, t *Type, ctxt uint8) {
+ 	if n == nil || n.Sym == nil || (n.Op != ONAME && n.Op != ONONAME) || t == nil {
+-		Fatal("addvar: n=%v t=%v nil", n, t)
++		Fatalf("addvar: n=%v t=%v nil", n, t)
+ 	}
+ 
+ 	n.Op = ONAME
+@@ -366,7 +366,7 @@ func constiter(vl *NodeList, t *Node, cl *NodeList) *NodeList {
+  */
+ func newname(s *Sym) *Node {
+ 	if s == nil {
+-		Fatal("newname nil")
++		Fatalf("newname nil")
+ 	}
+ 
+ 	n := Nod(ONAME, nil, nil)
+@@ -548,7 +548,7 @@ func colas(left *NodeList, right *NodeList, lno int32) *Node {
+  */
+ func ifacedcl(n *Node) {
+ 	if n.Op != ODCLFIELD || n.Right == nil {
+-		Fatal("ifacedcl")
++		Fatalf("ifacedcl")
+ 	}
+ 
+ 	if isblank(n.Left) {
+@@ -582,7 +582,7 @@ func ifacedcl(n *Node) {
+ func funchdr(n *Node) {
+ 	// change the declaration context from extern to auto
+ 	if Funcdepth == 0 && dclcontext != PEXTERN {
+-		Fatal("funchdr: dclcontext")
++		Fatalf("funchdr: dclcontext")
+ 	}
+ 
+ 	if importpkg == nil && n.Func.Nname != nil {
+@@ -607,7 +607,7 @@ func funchdr(n *Node) {
+ 
+ func funcargs(nt *Node) {
+ 	if nt.Op != OTFUNC {
+-		Fatal("funcargs %v", Oconv(int(nt.Op), 0))
++		Fatalf("funcargs %v", Oconv(int(nt.Op), 0))
+ 	}
+ 
+ 	// re-start the variable generation number
+@@ -621,7 +621,7 @@ func funcargs(nt *Node) {
+ 	if nt.Left != nil {
+ 		n := nt.Left
+ 		if n.Op != ODCLFIELD {
+-			Fatal("funcargs receiver %v", Oconv(int(n.Op), 0))
++			Fatalf("funcargs receiver %v", Oconv(int(n.Op), 0))
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+@@ -638,7 +638,7 @@ func funcargs(nt *Node) {
+ 	for l := nt.List; l != nil; l = l.Next {
+ 		n = l.N
+ 		if n.Op != ODCLFIELD {
+-			Fatal("funcargs in %v", Oconv(int(n.Op), 0))
++			Fatalf("funcargs in %v", Oconv(int(n.Op), 0))
+ 		}
+ 		if n.Left != nil {
+ 			n.Left.Op = ONAME
+@@ -659,7 +659,7 @@ func funcargs(nt *Node) {
+ 		n = l.N
+ 
+ 		if n.Op != ODCLFIELD {
+-			Fatal("funcargs out %v", Oconv(int(n.Op), 0))
++			Fatalf("funcargs out %v", Oconv(int(n.Op), 0))
+ 		}
+ 
+ 		if n.Left == nil {
+@@ -705,7 +705,7 @@ func funcargs(nt *Node) {
+  */
+ func funcargs2(t *Type) {
+ 	if t.Etype != TFUNC {
+-		Fatal("funcargs2 %v", t)
++		Fatalf("funcargs2 %v", t)
+ 	}
+ 
+ 	if t.Thistuple != 0 {
+@@ -753,7 +753,7 @@ func funcargs2(t *Type) {
+ func funcbody(n *Node) {
+ 	// change the declaration context from auto to extern
+ 	if dclcontext != PAUTO {
+-		Fatal("funcbody: dclcontext")
++		Fatalf("funcbody: dclcontext")
+ 	}
+ 	popdcl()
+ 	Funcdepth--
+@@ -813,7 +813,7 @@ func structfield(n *Node) *Type {
+ 	lineno = n.Lineno
+ 
+ 	if n.Op != ODCLFIELD {
+-		Fatal("structfield: oops %v\n", n)
++		Fatalf("structfield: oops %v\n", n)
+ 	}
+ 
+ 	f := typ(TFIELD)
+@@ -943,7 +943,7 @@ func interfacefield(n *Node) *Type {
+ 	lineno = n.Lineno
+ 
+ 	if n.Op != ODCLFIELD {
+-		Fatal("interfacefield: oops %v\n", n)
++		Fatalf("interfacefield: oops %v\n", n)
+ 	}
+ 
+ 	if n.Val().Ctype() != CTxxx {
+@@ -1356,7 +1356,7 @@ func methodname1(n *Node, t *Node) *Node {
+ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	// get field sym
+ 	if sf == nil {
+-		Fatal("no method symbol")
++		Fatalf("no method symbol")
+ 	}
+ 
+ 	// get parent type sym
+@@ -1433,7 +1433,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 	for f := pa.Method; f != nil; f = f.Down {
+ 		d = f
+ 		if f.Etype != TFIELD {
+-			Fatal("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
++			Fatalf("addmethod: not TFIELD: %v", Tconv(f, obj.FmtLong))
+ 		}
+ 		if sf.Name != f.Sym.Name {
+ 			continue
+@@ -1449,7 +1449,7 @@ func addmethod(sf *Sym, t *Type, local bool, nointerface bool) {
+ 
+ 	// during import unexported method names should be in the type's package
+ 	if importpkg != nil && f.Sym != nil && !exportname(f.Sym.Name) && f.Sym.Pkg != structpkg {
+-		Fatal("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), structpkg.Name)
++		Fatalf("imported method name %v in wrong package %s\n", Sconv(f.Sym, obj.FmtSign), structpkg.Name)
+ 	}
+ 
+ 	if d == nil {
+@@ -1466,7 +1466,7 @@ func funccompile(n *Node) {
+ 
+ 	if n.Type == nil {
+ 		if nerrors == 0 {
+-			Fatal("funccompile missing type")
++			Fatalf("funccompile missing type")
+ 		}
+ 		return
+ 	}
+@@ -1475,7 +1475,7 @@ func funccompile(n *Node) {
+ 	checkwidth(n.Type)
+ 
+ 	if Curfn != nil {
+-		Fatal("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
++		Fatalf("funccompile %v inside %v", n.Func.Nname.Sym, Curfn.Func.Nname.Sym)
+ 	}
+ 
+ 	Stksize = 0
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 4c4455fba7..3d75e8aec8 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -323,7 +323,7 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
+ 		return nE
+ 	}
+ 	if n.Opt() != nil {
+-		Fatal("nodeEscState: opt in use (%T)", n.Opt())
++		Fatalf("nodeEscState: opt in use (%T)", n.Opt())
+ 	}
+ 	nE := new(NodeEscState)
+ 	nE.Curfn = Curfn
+@@ -334,7 +334,7 @@ func (e *EscState) nodeEscState(n *Node) *NodeEscState {
+ 
+ func (e *EscState) track(n *Node) {
+ 	if Curfn == nil {
+-		Fatal("EscState.track: Curfn nil")
++		Fatalf("EscState.track: Curfn nil")
+ 	}
+ 	n.Esc = EscNone // until proven otherwise
+ 	nE := e.nodeEscState(n)
+@@ -368,7 +368,7 @@ func escMax(e, etype uint16) uint16 {
+ 	if e&EscMask >= EscScope {
+ 		// normalize
+ 		if e&^EscMask != 0 {
+-			Fatal("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
++			Fatalf("Escape information had unexpected return encoding bits (w/ EscScope, EscHeap, EscNever), e&EscMask=%v", e&EscMask)
+ 		}
+ 	}
+ 	if e&EscMask > etype {
+@@ -478,7 +478,7 @@ func escAnalyze(all *NodeList, recursive bool) {
+ func escfunc(e *EscState, func_ *Node) {
+ 	//	print("escfunc %N %s\n", func->nname, e->recursive?"(recursive)":"");
+ 	if func_.Esc != 1 {
+-		Fatal("repeat escfunc %v", func_.Func.Nname)
++		Fatalf("repeat escfunc %v", func_.Func.Nname)
+ 	}
+ 	func_.Esc = EscFuncStarted
+ 
+@@ -549,7 +549,7 @@ func escloopdepth(e *EscState, n *Node) {
+ 	switch n.Op {
+ 	case OLABEL:
+ 		if n.Left == nil || n.Left.Sym == nil {
+-			Fatal("esc:label without label: %v", Nconv(n, obj.FmtSign))
++			Fatalf("esc:label without label: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 
+ 		// Walk will complain about this label being already defined, but that's not until
+@@ -560,7 +560,7 @@ func escloopdepth(e *EscState, n *Node) {
+ 
+ 	case OGOTO:
+ 		if n.Left == nil || n.Left.Sym == nil {
+-			Fatal("esc:goto without label: %v", Nconv(n, obj.FmtSign))
++			Fatalf("esc:goto without label: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 
+ 		// If we come past one that's uninitialized, this must be a (harmless) forward jump
+@@ -766,7 +766,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 			escassign(e, ll.N, lr.N)
+ 		}
+ 		if lr != nil || ll != nil {
+-			Fatal("esc oas2func")
++			Fatalf("esc oas2func")
+ 		}
+ 
+ 	case ORETURN:
+@@ -787,7 +787,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 		}
+ 
+ 		if ll != nil {
+-			Fatal("esc return list")
++			Fatalf("esc return list")
+ 		}
+ 
+ 		// Argument could leak through recover.
+@@ -949,7 +949,7 @@ func escassign(e *EscState, dst *Node, src *Node) {
+ 	switch dst.Op {
+ 	default:
+ 		Dump("dst", dst)
+-		Fatal("escassign: unexpected dst")
++		Fatalf("escassign: unexpected dst")
+ 
+ 	case OARRAYLIT,
+ 		OCLOSURE,
+@@ -1112,7 +1112,7 @@ func mktag(mask int) *string {
+ 		break
+ 
+ 	default:
+-		Fatal("escape mktag")
++		Fatalf("escape mktag")
+ 	}
+ 
+ 	if mask < len(tags) && tags[mask] != "" {
+@@ -1239,7 +1239,7 @@ func escassignfromtag(e *EscState, note *string, dsts *NodeList, src *Node) uint
+ 	// so there is no need to check here.
+ 
+ 	if em != 0 && dsts == nil {
+-		Fatal("corrupt esc tag %q or messed up escretval list\n", note)
++		Fatalf("corrupt esc tag %q or messed up escretval list\n", note)
+ 	}
+ 	return em0
+ }
+@@ -1334,7 +1334,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 	var fn *Node
+ 	switch n.Op {
+ 	default:
+-		Fatal("esccall")
++		Fatalf("esccall")
+ 
+ 	case OCALLFUNC:
+ 		fn = n.Left
+@@ -1394,7 +1394,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 		// function in same mutually recursive group.  Incorporate into flow graph.
+ 		//		print("esc local fn: %N\n", fn->ntype);
+ 		if fn.Name.Defn.Esc == EscFuncUnknown || nE.Escretval != nil {
+-			Fatal("graph inconsistency")
++			Fatalf("graph inconsistency")
+ 		}
+ 
+ 		// set up out list on this call node
+@@ -1443,7 +1443,7 @@ func esccall(e *EscState, n *Node, up *Node) {
+ 
+ 	// Imported or completely analyzed function.  Use the escape tags.
+ 	if nE.Escretval != nil {
+-		Fatal("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("esc already decorated call %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	if Debug['m'] > 2 {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index 234af6cc31..f673137756 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -209,7 +209,7 @@ func dumpexportconst(s *Sym) {
+ 	n := s.Def
+ 	typecheck(&n, Erv)
+ 	if n == nil || n.Op != OLITERAL {
+-		Fatal("dumpexportconst: oconst nil: %v", s)
++		Fatalf("dumpexportconst: oconst nil: %v", s)
+ 	}
+ 
+ 	t := n.Type // may or may not be specified
+@@ -532,7 +532,7 @@ func dumpasmhdr() {
+ 
+ 	b, err := obj.Bopenw(asmhdr)
+ 	if err != nil {
+-		Fatal("%v", err)
++		Fatalf("%v", err)
+ 	}
+ 	fmt.Fprintf(b, "// generated by %cg -asmhdr from package %s\n\n", Thearch.Thechar, localpkg.Name)
+ 	var n *Node
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index d5decab915..a619740bd8 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -433,7 +433,7 @@ func symfmt(s *Sym, flag int) string {
+ 
+ 		case FExp:
+ 			if s.Name != "" && s.Name[0] == '.' {
+-				Fatal("exporting synthetic symbol %s", s.Name)
++				Fatalf("exporting synthetic symbol %s", s.Name)
+ 			}
+ 			if s.Pkg != builtinpkg {
+ 				return fmt.Sprintf("@%q.%s", s.Pkg.Path, s.Name)
+@@ -755,7 +755,7 @@ func typefmt(t *Type, flag int) string {
+ 	}
+ 
+ 	if fmtmode == FExp {
+-		Fatal("missing %v case during export", Econv(int(t.Etype), 0))
++		Fatalf("missing %v case during export", Econv(int(t.Etype), 0))
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+@@ -1672,7 +1672,7 @@ func Nconv(n *Node, flag int) string {
+ 		dumpdepth--
+ 
+ 	default:
+-		Fatal("unhandled %%N mode")
++		Fatalf("unhandled %%N mode")
+ 	}
+ 
+ 	flag = sf
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 764895f15d..4e03012a7f 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -62,7 +62,7 @@ func addrescapes(n *Node) {
+ 			n.Name.Param.Stackparam.Type = n.Type
+ 			n.Name.Param.Stackparam.Addable = true
+ 			if n.Xoffset == BADWIDTH {
+-				Fatal("addrescapes before param assignment")
++				Fatalf("addrescapes before param assignment")
+ 			}
+ 			n.Name.Param.Stackparam.Xoffset = n.Xoffset
+ 			fallthrough
+@@ -226,7 +226,7 @@ func Genlist(l *NodeList) {
+ func cgen_proc(n *Node, proc int) {
+ 	switch n.Left.Op {
+ 	default:
+-		Fatal("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
++		Fatalf("cgen_proc: unknown call %v", Oconv(int(n.Left.Op), 0))
+ 
+ 	case OCALLMETH:
+ 		cgen_callmeth(n.Left, proc)
+@@ -250,7 +250,7 @@ func cgen_dcl(n *Node) {
+ 	}
+ 	if n.Op != ONAME {
+ 		Dump("cgen_dcl", n)
+-		Fatal("cgen_dcl")
++		Fatalf("cgen_dcl")
+ 	}
+ 
+ 	if n.Class&PHEAP == 0 {
+@@ -360,7 +360,7 @@ func Clearslim(n *Node) {
+ 		Mpmovecfix(z.Val().U.(*Mpint), 0)
+ 
+ 	default:
+-		Fatal("clearslim called on type %v", n.Type)
++		Fatalf("clearslim called on type %v", n.Type)
+ 	}
+ 
+ 	ullmancalc(&z)
+@@ -561,7 +561,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
+ 	case ODOT:
+ 		if n.Xoffset == BADWIDTH {
+ 			Dump("bad width in dotoffset", n)
+-			Fatal("bad width in dotoffset")
++			Fatalf("bad width in dotoffset")
+ 		}
+ 
+ 		i = Dotoffset(n.Left, oary, nn)
+@@ -582,7 +582,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
+ 	case ODOTPTR:
+ 		if n.Xoffset == BADWIDTH {
+ 			Dump("bad width in dotoffset", n)
+-			Fatal("bad width in dotoffset")
++			Fatalf("bad width in dotoffset")
+ 		}
+ 
+ 		i = Dotoffset(n.Left, oary, nn)
+@@ -607,7 +607,7 @@ func Dotoffset(n *Node, oary []int64, nn **Node) int {
+  */
+ func Tempname(nn *Node, t *Type) {
+ 	if Curfn == nil {
+-		Fatal("no curfn for tempname")
++		Fatalf("no curfn for tempname")
+ 	}
+ 
+ 	if t == nil {
+@@ -661,7 +661,7 @@ func gen(n *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("gen: unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+ 
+ 	case OCASE,
+ 		OFALL,
+@@ -897,7 +897,7 @@ func gen(n *Node) {
+ ret:
+ 	if Anyregalloc() != wasregalloc {
+ 		Dump("node", n)
+-		Fatal("registers left allocated")
++		Fatalf("registers left allocated")
+ 	}
+ 
+ 	lineno = lno
+@@ -963,7 +963,7 @@ func cgen_callmeth(n *Node, proc int) {
+ 	l := n.Left
+ 
+ 	if l.Op != ODOTMETH {
+-		Fatal("cgen_callmeth: not dotmethod: %v", l)
++		Fatalf("cgen_callmeth: not dotmethod: %v", l)
+ 	}
+ 
+ 	n2 := *n
+@@ -1002,7 +1002,7 @@ func checklabels() {
+ 		}
+ 
+ 		if lab.Gotopc != nil {
+-			Fatal("label %v never resolved", lab.Sym)
++			Fatalf("label %v never resolved", lab.Sym)
+ 		}
+ 		for l = lab.Use; l != nil; l = l.Next {
+ 			checkgoto(l.N, lab.Def)
+@@ -1136,7 +1136,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 	nodr = *nr
+ 	if !cadable(nr) {
+ 		if nr.Ullman >= UINF && nodl.Op == OINDREG {
+-			Fatal("miscompile")
++			Fatalf("miscompile")
+ 		}
+ 		Igen(nr, &nodr, nil)
+ 		defer Regfree(&nodr)
+@@ -1157,7 +1157,7 @@ func componentgen_wb(nr, nl *Node, wb bool) bool {
+ 	visitComponents(nl.Type, 0, func(t *Type, offset int64) bool {
+ 		if wb && int(Simtype[t.Etype]) == Tptr && t != itable {
+ 			if ptrType != nil {
+-				Fatal("componentgen_wb %v", Tconv(nl.Type, 0))
++				Fatalf("componentgen_wb %v", Tconv(nl.Type, 0))
+ 			}
+ 			ptrType = t
+ 			ptrOffset = offset
+@@ -1197,7 +1197,7 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 		// NOTE: Assuming little endian (signed top half at offset 4).
+ 		// We don't have any 32-bit big-endian systems.
+ 		if Thearch.Thechar != '5' && Thearch.Thechar != '8' {
+-			Fatal("unknown 32-bit architecture")
++			Fatalf("unknown 32-bit architecture")
+ 		}
+ 		return f(Types[TUINT32], startOffset) &&
+ 			f(Types[TINT32], startOffset+4)
+@@ -1254,12 +1254,12 @@ func visitComponents(t *Type, startOffset int64, f func(elem *Type, elemOffset i
+ 			// in code introduced in CL 6932045 to fix issue #4518.
+ 			// But the test case in issue 4518 does not trigger this anymore,
+ 			// so maybe this complication is no longer needed.
+-			Fatal("struct not at offset 0")
++			Fatalf("struct not at offset 0")
+ 		}
+ 
+ 		for field := t.Type; field != nil; field = field.Down {
+ 			if field.Etype != TFIELD {
+-				Fatal("bad struct")
++				Fatalf("bad struct")
+ 			}
+ 			if !visitComponents(field.Type, startOffset+field.Width, f) {
+ 				return false
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index be56b81725..d31adb2181 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -98,7 +98,7 @@ type NilVal struct{}
+ func (v Val) Ctype() int {
+ 	switch x := v.U.(type) {
+ 	default:
+-		Fatal("unexpected Ctype for %T", v.U)
++		Fatalf("unexpected Ctype for %T", v.U)
+ 		panic("not reached")
+ 	case nil:
+ 		return 0
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 2c575f3d78..a4ece1d895 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -102,7 +102,7 @@ func Prog(as int) *obj.Prog {
+ 
+ 	if as == obj.ADATA || as == obj.AGLOBL {
+ 		if ddumped != 0 {
+-			Fatal("already dumped data")
++			Fatalf("already dumped data")
+ 		}
+ 		if dpc == nil {
+ 			dpc = Ctxt.NewProg()
+@@ -132,7 +132,7 @@ func Prog(as int) *obj.Prog {
+ 
+ func Nodreg(n *Node, t *Type, r int) {
+ 	if t == nil {
+-		Fatal("nodreg: t nil")
++		Fatalf("nodreg: t nil")
+ 	}
+ 
+ 	*n = Node{}
+@@ -310,7 +310,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		a := a // copy to let escape into Ctxt.Dconv
+ 		Debug['h'] = 1
+ 		Dump("naddr", n)
+-		Fatal("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
++		Fatalf("naddr: bad %v %v", Oconv(int(n.Op), 0), Ctxt.Dconv(a))
+ 
+ 	case OREGISTER:
+ 		a.Type = obj.TYPE_REG
+@@ -346,7 +346,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 
+ 	case OCLOSUREVAR:
+ 		if !Curfn.Func.Needctxt {
+-			Fatal("closurevar without needctxt")
++			Fatalf("closurevar without needctxt")
+ 		}
+ 		a.Type = obj.TYPE_MEM
+ 		a.Reg = int16(Thearch.REGCTXT)
+@@ -384,7 +384,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		a.Type = obj.TYPE_MEM
+ 		switch n.Class {
+ 		default:
+-			Fatal("naddr: ONAME class %v %d\n", n.Sym, n.Class)
++			Fatalf("naddr: ONAME class %v %d\n", n.Sym, n.Class)
+ 
+ 		case PEXTERN:
+ 			a.Name = obj.NAME_EXTERN
+@@ -410,7 +410,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		switch n.Val().Ctype() {
+ 		default:
+-			Fatal("naddr: const %v", Tconv(n.Type, obj.FmtLong))
++			Fatalf("naddr: const %v", Tconv(n.Type, obj.FmtLong))
+ 
+ 		case CTFLT:
+ 			a.Type = obj.TYPE_FCONST
+@@ -443,7 +443,7 @@ func Naddr(a *obj.Addr, n *Node) {
+ 		}
+ 		if a.Type != obj.TYPE_MEM {
+ 			a := a // copy to let escape into Ctxt.Dconv
+-			Fatal("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
++			Fatalf("naddr: OADDR %v (from %v)", Ctxt.Dconv(a), Oconv(int(n.Left.Op), 0))
+ 		}
+ 		a.Type = obj.TYPE_ADDR
+ 
+@@ -518,10 +518,10 @@ func nodarg(t *Type, fp int) *Node {
+ 		var savet Iter
+ 		first := Structfirst(&savet, &t)
+ 		if first == nil {
+-			Fatal("nodarg: bad struct")
++			Fatalf("nodarg: bad struct")
+ 		}
+ 		if first.Width == BADWIDTH {
+-			Fatal("nodarg: offset not computed for %v", t)
++			Fatalf("nodarg: offset not computed for %v", t)
+ 		}
+ 		n.Xoffset = first.Width
+ 		n.Addable = true
+@@ -529,7 +529,7 @@ func nodarg(t *Type, fp int) *Node {
+ 	}
+ 
+ 	if t.Etype != TFIELD {
+-		Fatal("nodarg: not field %v", t)
++		Fatalf("nodarg: not field %v", t)
+ 	}
+ 
+ 	if fp == 1 {
+@@ -547,7 +547,7 @@ func nodarg(t *Type, fp int) *Node {
+ 	n.Sym = t.Sym
+ 
+ 	if t.Width == BADWIDTH {
+-		Fatal("nodarg: offset not computed for %v", t)
++		Fatalf("nodarg: offset not computed for %v", t)
+ 	}
+ 	n.Xoffset = t.Width
+ 	n.Addable = true
+@@ -574,7 +574,7 @@ fp:
+ 		n.Class = PPARAM
+ 
+ 	case 2: // offset output arg
+-		Fatal("shouldn't be used")
++		Fatalf("shouldn't be used")
+ 	}
+ 
+ 	n.Typecheck = 1
+@@ -583,7 +583,7 @@ fp:
+ 
+ func Patch(p *obj.Prog, to *obj.Prog) {
+ 	if p.To.Type != obj.TYPE_BRANCH {
+-		Fatal("patch: not a branch")
++		Fatalf("patch: not a branch")
+ 	}
+ 	p.To.Val = to
+ 	p.To.Offset = to.Pc
+@@ -591,7 +591,7 @@ func Patch(p *obj.Prog, to *obj.Prog) {
+ 
+ func unpatch(p *obj.Prog) *obj.Prog {
+ 	if p.To.Type != obj.TYPE_BRANCH {
+-		Fatal("unpatch: not a branch")
++		Fatalf("unpatch: not a branch")
+ 	}
+ 	q, _ := p.To.Val.(*obj.Prog)
+ 	p.To.Val = nil
+@@ -669,18 +669,18 @@ func Anyregalloc() bool {
+  */
+ func Regalloc(n *Node, t *Type, o *Node) {
+ 	if t == nil {
+-		Fatal("regalloc: t nil")
++		Fatalf("regalloc: t nil")
+ 	}
+ 	et := int(Simtype[t.Etype])
+ 	if Ctxt.Arch.Regsize == 4 && (et == TINT64 || et == TUINT64) {
+-		Fatal("regalloc 64bit")
++		Fatalf("regalloc 64bit")
+ 	}
+ 
+ 	var i int
+ Switch:
+ 	switch et {
+ 	default:
+-		Fatal("regalloc: unknown type %v", t)
++		Fatalf("regalloc: unknown type %v", t)
+ 
+ 	case TINT8, TUINT8, TINT16, TUINT16, TINT32, TUINT32, TINT64, TUINT64, TPTR32, TPTR64, TBOOL:
+ 		if o != nil && o.Op == OREGISTER {
+@@ -696,7 +696,7 @@ Switch:
+ 		}
+ 		Flusherrors()
+ 		Regdump()
+-		Fatal("out of fixed registers")
++		Fatalf("out of fixed registers")
+ 
+ 	case TFLOAT32, TFLOAT64:
+ 		if Thearch.Use387 {
+@@ -716,7 +716,7 @@ Switch:
+ 		}
+ 		Flusherrors()
+ 		Regdump()
+-		Fatal("out of floating registers")
++		Fatalf("out of floating registers")
+ 
+ 	case TCOMPLEX64, TCOMPLEX128:
+ 		Tempname(n, t)
+@@ -741,7 +741,7 @@ func Regfree(n *Node) {
+ 		return
+ 	}
+ 	if n.Op != OREGISTER && n.Op != OINDREG {
+-		Fatal("regfree: not a register")
++		Fatalf("regfree: not a register")
+ 	}
+ 	i := int(n.Reg)
+ 	if i == Thearch.REGSP {
+@@ -752,12 +752,12 @@ func Regfree(n *Node) {
+ 		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
+ 		// ok
+ 	default:
+-		Fatal("regfree: reg out of range")
++		Fatalf("regfree: reg out of range")
+ 	}
+ 
+ 	i -= Thearch.REGMIN
+ 	if reg[i] <= 0 {
+-		Fatal("regfree: reg not allocated")
++		Fatalf("regfree: reg not allocated")
+ 	}
+ 	reg[i]--
+ 	if reg[i] == 0 {
+@@ -772,7 +772,7 @@ func Reginuse(r int) bool {
+ 		Thearch.FREGMIN <= r && r <= Thearch.FREGMAX:
+ 		// ok
+ 	default:
+-		Fatal("reginuse: reg out of range")
++		Fatalf("reginuse: reg out of range")
+ 	}
+ 
+ 	return reg[r-Thearch.REGMIN] > 0
+@@ -782,7 +782,7 @@ func Reginuse(r int) bool {
+ // so that a register can be given up but then reclaimed.
+ func Regrealloc(n *Node) {
+ 	if n.Op != OREGISTER && n.Op != OINDREG {
+-		Fatal("regrealloc: not a register")
++		Fatalf("regrealloc: not a register")
+ 	}
+ 	i := int(n.Reg)
+ 	if i == Thearch.REGSP {
+@@ -793,7 +793,7 @@ func Regrealloc(n *Node) {
+ 		Thearch.FREGMIN <= i && i <= Thearch.FREGMAX:
+ 		// ok
+ 	default:
+-		Fatal("regrealloc: reg out of range")
++		Fatalf("regrealloc: reg out of range")
+ 	}
+ 
+ 	i -= Thearch.REGMIN
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index b2eeeed315..1f9b473f92 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -54,7 +54,7 @@ func fnpkg(fn *Node) *Pkg {
+ 			rcvr = rcvr.Type
+ 		}
+ 		if rcvr.Sym == nil {
+-			Fatal("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, obj.FmtLong), rcvr)
++			Fatalf("receiver with no sym: [%v] %v  (%v)", fn.Sym, Nconv(fn, obj.FmtLong), rcvr)
+ 		}
+ 		return rcvr.Sym.Pkg
+ 	}
+@@ -100,10 +100,10 @@ func typecheckinl(fn *Node) {
+ // fn and ->nbody will already have been typechecked.
+ func caninl(fn *Node) {
+ 	if fn.Op != ODCLFUNC {
+-		Fatal("caninl %v", fn)
++		Fatalf("caninl %v", fn)
+ 	}
+ 	if fn.Func.Nname == nil {
+-		Fatal("caninl no nname %v", Nconv(fn, obj.FmtSign))
++		Fatalf("caninl no nname %v", Nconv(fn, obj.FmtSign))
+ 	}
+ 
+ 	// If fn has no body (is defined outside of Go), cannot inline it.
+@@ -112,7 +112,7 @@ func caninl(fn *Node) {
+ 	}
+ 
+ 	if fn.Typecheck == 0 {
+-		Fatal("caninl on non-typechecked function %v", fn)
++		Fatalf("caninl on non-typechecked function %v", fn)
+ 	}
+ 
+ 	// can't handle ... args yet
+@@ -196,10 +196,10 @@ func ishairy(n *Node, budget *int) bool {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case OCALLMETH:
+ 		if n.Left.Type == nil {
+-			Fatal("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
++			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
+ 		}
+ 		if n.Left.Type.Nname == nil {
+-			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
++			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
+ 		}
+ 		if n.Left.Type.Nname.Func.Inl != nil {
+ 			*budget -= int(n.Left.Type.Nname.Func.InlCost)
+@@ -277,7 +277,7 @@ func inlcalls(fn *Node) {
+ 	Curfn = fn
+ 	inlnode(&fn)
+ 	if fn != Curfn {
+-		Fatal("inlnode replaced curfn")
++		Fatalf("inlnode replaced curfn")
+ 	}
+ 	Curfn = savefn
+ }
+@@ -308,7 +308,7 @@ func inlconv2expr(np **Node) {
+ // statements.
+ func inlconv2list(n *Node) *NodeList {
+ 	if n.Op != OINLCALL || n.Rlist == nil {
+-		Fatal("inlconv2list %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("inlconv2list %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	l := n.Rlist
+@@ -470,11 +470,11 @@ func inlnode(np **Node) {
+ 
+ 		// typecheck should have resolved ODOTMETH->type, whose nname points to the actual function.
+ 		if n.Left.Type == nil {
+-			Fatal("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
++			Fatalf("no function type for [%p] %v\n", n.Left, Nconv(n.Left, obj.FmtSign))
+ 		}
+ 
+ 		if n.Left.Type.Nname == nil {
+-			Fatal("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
++			Fatalf("no function definition for [%p] %v\n", n.Left.Type, Tconv(n.Left.Type, obj.FmtSign))
+ 		}
+ 
+ 		mkinlcall(np, n.Left.Type.Nname, n.Isddd)
+@@ -500,7 +500,7 @@ func mkinlcall(np **Node, fn *Node, isddd bool) {
+ func tinlvar(t *Type) *Node {
+ 	if t.Nname != nil && !isblank(t.Nname) {
+ 		if t.Nname.Name.Inlvar == nil {
+-			Fatal("missing inlvar for %v\n", t.Nname)
++			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		return t.Nname.Name.Inlvar
+ 	}
+@@ -600,13 +600,13 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		t := getthisx(fn.Type).Type
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+-			Fatal("missing inlvar for %v\n", t.Nname)
++			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if n.Left.Left == nil {
+-			Fatal("method call without receiver: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call without receiver: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		if t == nil {
+-			Fatal("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		as = Nod(OAS, tinlvar(t), n.Left.Left)
+ 		if as != nil {
+@@ -662,17 +662,17 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 	if fn.Type.Thistuple != 0 && n.Left.Op != ODOTMETH {
+ 		// non-method call to method
+ 		if n.List == nil {
+-			Fatal("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
++			Fatalf("non-method call to method without first arg: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 
+ 		// append receiver inlvar to LHS.
+ 		t := getthisx(fn.Type).Type
+ 
+ 		if t != nil && t.Nname != nil && !isblank(t.Nname) && t.Nname.Name.Inlvar == nil {
+-			Fatal("missing inlvar for %v\n", t.Nname)
++			Fatalf("missing inlvar for %v\n", t.Nname)
+ 		}
+ 		if t == nil {
+-			Fatal("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
++			Fatalf("method call unknown receiver type: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		as.List = list(as.List, tinlvar(t))
+ 		ll = ll.Next // track argument count.
+@@ -732,7 +732,7 @@ func mkinlcall1(np **Node, fn *Node, isddd bool) {
+ 		}
+ 
+ 		if ll != nil || t != nil {
+-			Fatal("arg count mismatch: %v  vs %v\n", Tconv(getinargx(fn.Type), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
++			Fatalf("arg count mismatch: %v  vs %v\n", Tconv(getinargx(fn.Type), obj.FmtSharp), Hconv(n.List, obj.FmtComma))
+ 		}
+ 	}
+ 
+@@ -956,7 +956,7 @@ func inlsubst(n *Node) *Node {
+ 	m.Ninit = nil
+ 
+ 	if n.Op == OCLOSURE {
+-		Fatal("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
++		Fatalf("cannot inline function containing closure: %v", Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	m.Left = inlsubst(n.Left)
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index d6019b36ab..863fa8860b 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -305,7 +305,7 @@ func Main() {
+ 
+ 	Thearch.Betypeinit()
+ 	if Widthptr == 0 {
+-		Fatal("betypeinit failed")
++		Fatalf("betypeinit failed")
+ 	}
+ 
+ 	lexinit()
+@@ -2200,7 +2200,7 @@ func lexinit() {
+ 		etype = syms[i].etype
+ 		if etype != Txxx {
+ 			if etype < 0 || etype >= len(Types) {
+-				Fatal("lexinit: %s bad etype", s.Name)
++				Fatalf("lexinit: %s bad etype", s.Name)
+ 			}
+ 			s1 = Pkglookup(syms[i].name, builtinpkg)
+ 			t = Types[etype]
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index a36786e0bb..ec74009681 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -117,7 +117,7 @@ func dumpglobls() {
+ 		}
+ 
+ 		if n.Type == nil {
+-			Fatal("external %v nil type\n", n)
++			Fatalf("external %v nil type\n", n)
+ 		}
+ 		if n.Class == PFUNC {
+ 			continue
+@@ -276,7 +276,7 @@ func slicebytes(nam *Node, s string, len int) {
+ 	ggloblsym(sym, int32(off), obj.NOPTR|obj.LOCAL)
+ 
+ 	if nam.Op != ONAME {
+-		Fatal("slicebytes %v", nam)
++		Fatalf("slicebytes %v", nam)
+ 	}
+ 	off = int(nam.Xoffset)
+ 	off = dsymptr(nam.Sym, off, sym, 0)
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 799a17e184..ad021de25d 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -182,7 +182,7 @@ func ordersafeexpr(n *Node, order *Order) *Node {
+ 		return a
+ 	}
+ 
+-	Fatal("ordersafeexpr %v", Oconv(int(n.Op), 0))
++	Fatalf("ordersafeexpr %v", Oconv(int(n.Op), 0))
+ 	return nil // not reached
+ }
+ 
+@@ -337,7 +337,7 @@ func ismulticall(l *NodeList) bool {
+ // and then returns the list t1, t2, ....
+ func copyret(n *Node, order *Order) *NodeList {
+ 	if n.Type.Etype != TSTRUCT || n.Type.Funarg == 0 {
+-		Fatal("copyret %v %d", n.Type, n.Left.Type.Outtuple)
++		Fatalf("copyret %v %d", n.Type, n.Left.Type.Outtuple)
+ 	}
+ 
+ 	var l1 *NodeList
+@@ -403,7 +403,7 @@ func ordercall(n *Node, order *Order) {
+ func ordermapassign(n *Node, order *Order) {
+ 	switch n.Op {
+ 	default:
+-		Fatal("ordermapassign %v", Oconv(int(n.Op), 0))
++		Fatalf("ordermapassign %v", Oconv(int(n.Op), 0))
+ 
+ 	case OAS:
+ 		order.out = list(order.out, n)
+@@ -462,7 +462,7 @@ func orderstmt(n *Node, order *Order) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("orderstmt %v", Oconv(int(n.Op), 0))
++		Fatalf("orderstmt %v", Oconv(int(n.Op), 0))
+ 
+ 	case OVARKILL:
+ 		order.out = list(order.out, n)
+@@ -704,7 +704,7 @@ func orderstmt(n *Node, order *Order) {
+ 		orderexpr(&n.Right, order, nil)
+ 		switch n.Type.Etype {
+ 		default:
+-			Fatal("orderstmt range %v", n.Type)
++			Fatalf("orderstmt range %v", n.Type)
+ 
+ 			// Mark []byte(str) range expression to reuse string backing storage.
+ 		// It is safe because the storage cannot be mutated.
+@@ -773,7 +773,7 @@ func orderstmt(n *Node, order *Order) {
+ 		var r *Node
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if l.N.Op != OXCASE {
+-				Fatal("order select case %v", Oconv(int(l.N.Op), 0))
++				Fatalf("order select case %v", Oconv(int(l.N.Op), 0))
+ 			}
+ 			r = l.N.Left
+ 			setlineno(l.N)
+@@ -781,7 +781,7 @@ func orderstmt(n *Node, order *Order) {
+ 			// Append any new body prologue to ninit.
+ 			// The next loop will insert ninit into nbody.
+ 			if l.N.Ninit != nil {
+-				Fatal("order select ninit")
++				Fatalf("order select ninit")
+ 			}
+ 			if r != nil {
+ 				switch r.Op {
+@@ -927,7 +927,7 @@ func orderstmt(n *Node, order *Order) {
+ 		orderexpr(&n.Left, order, nil)
+ 		for l := n.List; l != nil; l = l.Next {
+ 			if l.N.Op != OXCASE {
+-				Fatal("order switch case %v", Oconv(int(l.N.Op), 0))
++				Fatalf("order switch case %v", Oconv(int(l.N.Op), 0))
+ 			}
+ 			orderexprlistinplace(l.N.List, order)
+ 			orderblock(&l.N.Nbody)
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 47cb8b1201..f98d72b88c 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -85,7 +85,7 @@ func makefuncdatasym(namefmt string, funcdatakind int64) *Sym {
+ 
+ func gvardefx(n *Node, as int) {
+ 	if n == nil {
+-		Fatal("gvardef nil")
++		Fatalf("gvardef nil")
+ 	}
+ 	if n.Op != ONAME {
+ 		Yyerror("gvardef %v; %v", Oconv(int(n.Op), obj.FmtSharp), n)
+@@ -122,7 +122,7 @@ func removevardef(firstp *obj.Prog) {
+ func gcsymdup(s *Sym) {
+ 	ls := Linksym(s)
+ 	if len(ls.R) > 0 {
+-		Fatal("cannot rosymdup %s with relocations", ls.Name)
++		Fatalf("cannot rosymdup %s with relocations", ls.Name)
+ 	}
+ 	ls.Name = fmt.Sprintf("gclocals·%x", md5.Sum(ls.P))
+ 	ls.Dupok = 1
+@@ -273,7 +273,7 @@ func allocauto(ptxt *obj.Prog) {
+ 		dowidth(n.Type)
+ 		w = n.Type.Width
+ 		if w >= Thearch.MAXWIDTH || w < 0 {
+-			Fatal("bad width")
++			Fatalf("bad width")
+ 		}
+ 		Stksize += w
+ 		Stksize = Rnd(Stksize, int64(n.Type.Align))
+@@ -314,7 +314,7 @@ func Cgen_checknil(n *Node) {
+ 	// Ideally we wouldn't see any integer types here, but we do.
+ 	if n.Type == nil || (!Isptr[n.Type.Etype] && !Isint[n.Type.Etype] && n.Type.Etype != TUNSAFEPTR) {
+ 		Dump("checknil", n)
+-		Fatal("bad checknil")
++		Fatalf("bad checknil")
+ 	}
+ 
+ 	if ((Thearch.Thechar == '5' || Thearch.Thechar == '7' || Thearch.Thechar == '9') && n.Op != OREGISTER) || !n.Addable || n.Op == OLITERAL {
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index efaf69f550..2d8a0ba2c8 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -95,7 +95,7 @@ type Liveness struct {
+ func xmalloc(size uint32) interface{} {
+ 	result := (interface{})(make([]byte, size))
+ 	if result == nil {
+-		Fatal("malloc failed")
++		Fatalf("malloc failed")
+ 	}
+ 	return result
+ }
+@@ -103,7 +103,7 @@ func xmalloc(size uint32) interface{} {
+ // Constructs a new basic block containing a single instruction.
+ func newblock(prog *obj.Prog) *BasicBlock {
+ 	if prog == nil {
+-		Fatal("newblock: prog cannot be nil")
++		Fatalf("newblock: prog cannot be nil")
+ 	}
+ 	result := new(BasicBlock)
+ 	result.rpo = -1
+@@ -118,7 +118,7 @@ func newblock(prog *obj.Prog) *BasicBlock {
+ // Frees a basic block and all of its leaf data structures.
+ func freeblock(bb *BasicBlock) {
+ 	if bb == nil {
+-		Fatal("freeblock: cannot free nil")
++		Fatalf("freeblock: cannot free nil")
+ 	}
+ }
+ 
+@@ -126,10 +126,10 @@ func freeblock(bb *BasicBlock) {
+ // to a successor of from.
+ func addedge(from *BasicBlock, to *BasicBlock) {
+ 	if from == nil {
+-		Fatal("addedge: from is nil")
++		Fatalf("addedge: from is nil")
+ 	}
+ 	if to == nil {
+-		Fatal("addedge: to is nil")
++		Fatalf("addedge: to is nil")
+ 	}
+ 	from.succ = append(from.succ, to)
+ 	to.pred = append(to.pred, from)
+@@ -290,10 +290,10 @@ func (x blockrpocmp) Less(i, j int) bool { return x[i].rpo < x[j].rpo }
+ // is a call to a specific package qualified function name.
+ func iscall(prog *obj.Prog, name *obj.LSym) bool {
+ 	if prog == nil {
+-		Fatal("iscall: prog is nil")
++		Fatalf("iscall: prog is nil")
+ 	}
+ 	if name == nil {
+-		Fatal("iscall: function name is nil")
++		Fatalf("iscall: function name is nil")
+ 	}
+ 	if prog.As != obj.ACALL {
+ 		return false
+@@ -363,14 +363,14 @@ func addselectgosucc(selectgo *BasicBlock) {
+ 	pred := selectgo
+ 	for {
+ 		if len(pred.pred) == 0 {
+-			Fatal("selectgo does not have a newselect")
++			Fatalf("selectgo does not have a newselect")
+ 		}
+ 		pred = pred.pred[0]
+ 		if blockany(pred, isselectcommcasecall) {
+ 			// A select comm case block should have exactly one
+ 			// successor.
+ 			if len(pred.succ) != 1 {
+-				Fatal("select comm case has too many successors")
++				Fatalf("select comm case has too many successors")
+ 			}
+ 			succ = pred.succ[0]
+ 
+@@ -379,7 +379,7 @@ func addselectgosucc(selectgo *BasicBlock) {
+ 			// and the branch should lead to the select case
+ 			// statements block.
+ 			if len(succ.succ) != 2 {
+-				Fatal("select comm case successor has too many successors")
++				Fatalf("select comm case successor has too many successors")
+ 			}
+ 
+ 			// Add the block as a successor of the selectgo block.
+@@ -429,7 +429,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 		Thearch.Proginfo(p)
+ 		if p.To.Type == obj.TYPE_BRANCH {
+ 			if p.To.Val == nil {
+-				Fatal("prog branch to nil")
++				Fatalf("prog branch to nil")
+ 			}
+ 			if p.To.Val.(*obj.Prog).Opt == nil {
+ 				p.To.Val.(*obj.Prog).Opt = newblock(p.To.Val.(*obj.Prog))
+@@ -524,7 +524,7 @@ func newcfg(firstp *obj.Prog) []*BasicBlock {
+ 	if bb.rpo == -1 {
+ 		fmt.Printf("newcfg: unreachable basic block for %v\n", bb.last)
+ 		printcfg(cfg)
+-		Fatal("newcfg: invalid control flow graph")
++		Fatalf("newcfg: invalid control flow graph")
+ 	}
+ 
+ 	return cfg
+@@ -626,7 +626,7 @@ func progeffects(prog *obj.Prog, vars []*Node, uevar Bvec, varkill Bvec, avarini
+ 					goto Next
+ 				}
+ 				if pos >= int32(len(vars)) || vars[pos] != from.Node {
+-					Fatal("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
++					Fatalf("bad bookkeeping in liveness %v %d", Nconv(from.Node.(*Node), 0), pos)
+ 				}
+ 				if ((from.Node).(*Node)).Addrtaken {
+ 					bvset(avarinit, pos)
+@@ -655,7 +655,7 @@ Next:
+ 					return
+ 				}
+ 				if pos >= int32(len(vars)) || vars[pos] != to.Node {
+-					Fatal("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
++					Fatalf("bad bookkeeping in liveness %v %d", Nconv(to.Node.(*Node), 0), pos)
+ 				}
+ 				if ((to.Node).(*Node)).Addrtaken {
+ 					if prog.As != obj.AVARKILL {
+@@ -718,7 +718,7 @@ func newliveness(fn *Node, ptxt *obj.Prog, cfg []*BasicBlock, vars []*Node) *Liv
+ // Frees the liveness structure and all of its leaf data structures.
+ func freeliveness(lv *Liveness) {
+ 	if lv == nil {
+-		Fatal("freeliveness: cannot free nil")
++		Fatalf("freeliveness: cannot free nil")
+ 	}
+ }
+ 
+@@ -890,7 +890,7 @@ func checkptxt(fn *Node, firstp *obj.Prog) {
+ // accounts for 40% of the 6g execution time.
+ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 	if t.Align > 0 && *xoffset&int64(t.Align-1) != 0 {
+-		Fatal("onebitwalktype1: invalid initial alignment, %v", t)
++		Fatalf("onebitwalktype1: invalid initial alignment, %v", t)
+ 	}
+ 
+ 	switch t.Etype {
+@@ -919,7 +919,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		TCHAN,
+ 		TMAP:
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("onebitwalktype1: invalid alignment, %v", t)
++			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+ 		bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer
+ 		*xoffset += t.Width
+@@ -927,7 +927,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 	case TSTRING:
+ 		// struct { byte *str; intgo len; }
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("onebitwalktype1: invalid alignment, %v", t)
++			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+ 		bvset(bv, int32(*xoffset/int64(Widthptr))) //pointer in first slot
+ 		*xoffset += t.Width
+@@ -937,7 +937,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		// or, when isnilinter(t)==true:
+ 		// struct { Type *type; void *data; }
+ 		if *xoffset&int64(Widthptr-1) != 0 {
+-			Fatal("onebitwalktype1: invalid alignment, %v", t)
++			Fatalf("onebitwalktype1: invalid alignment, %v", t)
+ 		}
+ 		bvset(bv, int32(*xoffset/int64(Widthptr)))   // pointer in first slot
+ 		bvset(bv, int32(*xoffset/int64(Widthptr)+1)) // pointer in second slot
+@@ -947,12 +947,12 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		// The value of t->bound is -1 for slices types and >=0 for
+ 		// for fixed array types.  All other values are invalid.
+ 		if t.Bound < -1 {
+-			Fatal("onebitwalktype1: invalid bound, %v", t)
++			Fatalf("onebitwalktype1: invalid bound, %v", t)
+ 		}
+ 		if Isslice(t) {
+ 			// struct { byte *array; uintgo len; uintgo cap; }
+ 			if *xoffset&int64(Widthptr-1) != 0 {
+-				Fatal("onebitwalktype1: invalid TARRAY alignment, %v", t)
++				Fatalf("onebitwalktype1: invalid TARRAY alignment, %v", t)
+ 			}
+ 			bvset(bv, int32(*xoffset/int64(Widthptr))) // pointer in first slot (BitsPointer)
+ 			*xoffset += t.Width
+@@ -975,7 +975,7 @@ func onebitwalktype1(t *Type, xoffset *int64, bv Bvec) {
+ 		*xoffset += t.Width - o
+ 
+ 	default:
+-		Fatal("onebitwalktype1: unexpected type, %v", t)
++		Fatalf("onebitwalktype1: unexpected type, %v", t)
+ 	}
+ }
+ 
+@@ -1346,7 +1346,7 @@ func livenessepilogue(lv *Liveness) {
+ 		if pos < 0 {
+ 			// the first block we encounter should have the ATEXT so
+ 			// at no point should pos ever be less than zero.
+-			Fatal("livenessepilogue")
++			Fatalf("livenessepilogue")
+ 		}
+ 
+ 		bvcopy(livein, bb.liveout)
+diff --git a/src/cmd/compile/internal/gc/popt.go b/src/cmd/compile/internal/gc/popt.go
+index 4fc562c1f5..0b3bde5e81 100644
+--- a/src/cmd/compile/internal/gc/popt.go
++++ b/src/cmd/compile/internal/gc/popt.go
+@@ -306,11 +306,11 @@ func Flowstart(firstp *obj.Prog, newData func() interface{}) *Graph {
+ 
+ 		if p.To.Type == obj.TYPE_BRANCH {
+ 			if p.To.Val == nil {
+-				Fatal("pnil %v", p)
++				Fatalf("pnil %v", p)
+ 			}
+ 			f1 = p.To.Val.(*obj.Prog).Opt.(*Flow)
+ 			if f1 == nil {
+-				Fatal("fnil %v / %v", p, p.To.Val.(*obj.Prog))
++				Fatalf("fnil %v / %v", p, p.To.Val.(*obj.Prog))
+ 			}
+ 			if f1 == f {
+ 				//fatal("self loop %v", p);
+@@ -380,7 +380,7 @@ func rpolca(idom []int32, rpo1 int32, rpo2 int32) int32 {
+ 		for rpo1 < rpo2 {
+ 			t = idom[rpo2]
+ 			if t >= rpo2 {
+-				Fatal("bad idom")
++				Fatalf("bad idom")
+ 			}
+ 			rpo2 = t
+ 		}
+@@ -435,7 +435,7 @@ func flowrpo(g *Graph) {
+ 	d := postorder(g.Start, rpo2r, 0)
+ 	nr := int32(g.Num)
+ 	if d > nr {
+-		Fatal("too many reg nodes %d %d", d, nr)
++		Fatalf("too many reg nodes %d %d", d, nr)
+ 	}
+ 	nr = d
+ 	var r1 *Flow
+@@ -605,7 +605,7 @@ func mergetemp(firstp *obj.Prog) {
+ 	for f := g.Start; f != nil; f = f.Link {
+ 		p := f.Prog
+ 		if p.From.Node != nil && ((p.From.Node).(*Node)).Opt() != nil && p.To.Node != nil && ((p.To.Node).(*Node)).Opt() != nil {
+-			Fatal("double node %v", p)
++			Fatalf("double node %v", p)
+ 		}
+ 		v = nil
+ 		n, _ = p.From.Node.(*Node)
+@@ -655,7 +655,7 @@ func mergetemp(firstp *obj.Prog) {
+ 					fmt.Printf("drop write-only %v\n", v.node.Sym)
+ 				}
+ 			} else {
+-				Fatal("temp used and not set: %v", p)
++				Fatalf("temp used and not set: %v", p)
+ 			}
+ 			nkill++
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/racewalk.go b/src/cmd/compile/internal/gc/racewalk.go
+index f53e8ec9a5..9301d87d2e 100644
+--- a/src/cmd/compile/internal/gc/racewalk.go
++++ b/src/cmd/compile/internal/gc/racewalk.go
+@@ -116,7 +116,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 	}
+ 	setlineno(n)
+ 	if init == nil {
+-		Fatal("racewalk: bad init list")
++		Fatalf("racewalk: bad init list")
+ 	}
+ 	if init == &n.Ninit {
+ 		// If init == &n->ninit and n->ninit is non-nil,
+@@ -136,7 +136,7 @@ func racewalknode(np **Node, init **NodeList, wr int, skip int) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
++		Fatalf("racewalk: unknown node type %v", Oconv(int(n.Op), 0))
+ 
+ 	case OAS, OASWB, OAS2FUNC:
+ 		racewalknode(&n.Left, init, 1, 0)
+diff --git a/src/cmd/compile/internal/gc/range.go b/src/cmd/compile/internal/gc/range.go
+index 26f05d9d70..dbfd674330 100644
+--- a/src/cmd/compile/internal/gc/range.go
++++ b/src/cmd/compile/internal/gc/range.go
+@@ -165,7 +165,7 @@ func walkrange(n *Node) {
+ 	var init *NodeList
+ 	switch t.Etype {
+ 	default:
+-		Fatal("walkrange")
++		Fatalf("walkrange")
+ 
+ 		// Lower n into runtime·memclr if possible, for
+ 	// fast zeroing of slices and arrays (issue 5373).
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 9463379300..80257c1dd8 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -364,13 +364,13 @@ func methods(t *Type) *Sig {
+ 	var method *Sym
+ 	for f := mt.Xmethod; f != nil; f = f.Down {
+ 		if f.Etype != TFIELD {
+-			Fatal("methods: not field %v", f)
++			Fatalf("methods: not field %v", f)
+ 		}
+ 		if f.Type.Etype != TFUNC || f.Type.Thistuple == 0 {
+-			Fatal("non-method on %v method %v %v\n", mt, f.Sym, f)
++			Fatalf("non-method on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if getthisx(f.Type).Type == nil {
+-			Fatal("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
++			Fatalf("receiver with no type on %v method %v %v\n", mt, f.Sym, f)
+ 		}
+ 		if f.Nointerface {
+ 			continue
+@@ -401,7 +401,7 @@ func methods(t *Type) *Sig {
+ 		a.name = method.Name
+ 		if !exportname(method.Name) {
+ 			if method.Pkg == nil {
+-				Fatal("methods: missing package")
++				Fatalf("methods: missing package")
+ 			}
+ 			a.pkg = method.Pkg
+ 		}
+@@ -445,7 +445,7 @@ func imethods(t *Type) *Sig {
+ 	var last *Sig
+ 	for f := t.Type; f != nil; f = f.Down {
+ 		if f.Etype != TFIELD {
+-			Fatal("imethods: not field")
++			Fatalf("imethods: not field")
+ 		}
+ 		if f.Type.Etype != TFUNC || f.Sym == nil {
+ 			continue
+@@ -455,7 +455,7 @@ func imethods(t *Type) *Sig {
+ 		a.name = method.Name
+ 		if !exportname(method.Name) {
+ 			if method.Pkg == nil {
+-				Fatal("imethods: missing package")
++				Fatalf("imethods: missing package")
+ 			}
+ 			a.pkg = method.Pkg
+ 		}
+@@ -465,7 +465,7 @@ func imethods(t *Type) *Sig {
+ 		a.type_ = methodfunc(f.Type, nil)
+ 
+ 		if last != nil && sigcmp(last, a) >= 0 {
+-			Fatal("sigcmp vs sortinter %s %s", last.name, a.name)
++			Fatalf("sigcmp vs sortinter %s %s", last.name, a.name)
+ 		}
+ 		if last == nil {
+ 			all = a
+@@ -707,7 +707,7 @@ func haspointers(t *Type) bool {
+ 		ret = true
+ 
+ 	case TFIELD:
+-		Fatal("haspointers: unexpected type, %v", t)
++		Fatalf("haspointers: unexpected type, %v", t)
+ 	}
+ 
+ 	t.Haspointers = 1 + uint8(obj.Bool2int(ret))
+@@ -758,7 +758,7 @@ func typeptrdata(t *Type) int64 {
+ 		return lastPtrField.Width + typeptrdata(lastPtrField.Type)
+ 
+ 	default:
+-		Fatal("typeptrdata: unexpected type, %v", t)
++		Fatalf("typeptrdata: unexpected type, %v", t)
+ 		return 0
+ 	}
+ }
+@@ -772,7 +772,7 @@ var dcommontype_algarray *Sym
+ 
+ func dcommontype(s *Sym, ot int, t *Type) int {
+ 	if ot != 0 {
+-		Fatal("dcommontype %d", ot)
++		Fatalf("dcommontype %d", ot)
+ 	}
+ 
+ 	sizeofAlg := 2 * Widthptr
+@@ -825,7 +825,7 @@ func dcommontype(s *Sym, ot int, t *Type) int {
+ 		i = 1
+ 	}
+ 	if i&(i-1) != 0 {
+-		Fatal("invalid alignment %d for %v", t.Align, t)
++		Fatalf("invalid alignment %d for %v", t.Align, t)
+ 	}
+ 	ot = duint8(s, ot, t.Align) // align
+ 	ot = duint8(s, ot, t.Align) // fieldAlign
+@@ -904,7 +904,7 @@ func typesymprefix(prefix string, t *Type) *Sym {
+ 
+ func typenamesym(t *Type) *Sym {
+ 	if t == nil || (Isptr[t.Etype] && t.Type == nil) || isideal(t) {
+-		Fatal("typename %v", t)
++		Fatalf("typename %v", t)
+ 	}
+ 	s := typesym(t)
+ 	if s.Def == nil {
+@@ -977,7 +977,7 @@ func isreflexive(t *Type) bool {
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			Fatal("slice can't be a map key: %v", t)
++			Fatalf("slice can't be a map key: %v", t)
+ 		}
+ 		return isreflexive(t.Type)
+ 
+@@ -991,7 +991,7 @@ func isreflexive(t *Type) bool {
+ 		return true
+ 
+ 	default:
+-		Fatal("bad type for map key: %v", t)
++		Fatalf("bad type for map key: %v", t)
+ 		return false
+ 	}
+ }
+@@ -1005,7 +1005,7 @@ func dtypesym(t *Type) *Sym {
+ 	}
+ 
+ 	if isideal(t) {
+-		Fatal("dtypesym %v", t)
++		Fatalf("dtypesym %v", t)
+ 	}
+ 
+ 	s := typesym(t)
+@@ -1491,7 +1491,7 @@ func fillptrmask(t *Type, ptrmask []byte) {
+ func dgcprog(t *Type) (*Sym, int64) {
+ 	dowidth(t)
+ 	if t.Width == BADWIDTH {
+-		Fatal("dgcprog: %v badwidth", t)
++		Fatalf("dgcprog: %v badwidth", t)
+ 	}
+ 	sym := typesymprefix(".gcprog", t)
+ 	var p GCProg
+@@ -1500,7 +1500,7 @@ func dgcprog(t *Type) (*Sym, int64) {
+ 	offset := p.w.BitIndex() * int64(Widthptr)
+ 	p.end()
+ 	if ptrdata := typeptrdata(t); offset < ptrdata || offset > t.Width {
+-		Fatal("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
++		Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Width)
+ 	}
+ 	return sym, offset
+ }
+@@ -1547,7 +1547,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 	}
+ 	switch t.Etype {
+ 	default:
+-		Fatal("GCProg.emit: unexpected type %v", t)
++		Fatalf("GCProg.emit: unexpected type %v", t)
+ 
+ 	case TSTRING:
+ 		p.w.Ptr(offset / int64(Widthptr))
+@@ -1563,7 +1563,7 @@ func (p *GCProg) emit(t *Type, offset int64) {
+ 		}
+ 		if t.Bound == 0 {
+ 			// should have been handled by haspointers check above
+-			Fatal("GCProg.emit: empty array")
++			Fatalf("GCProg.emit: empty array")
+ 		}
+ 
+ 		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+diff --git a/src/cmd/compile/internal/gc/reg.go b/src/cmd/compile/internal/gc/reg.go
+index 0fa0535424..c061df1fd4 100644
+--- a/src/cmd/compile/internal/gc/reg.go
++++ b/src/cmd/compile/internal/gc/reg.go
+@@ -351,7 +351,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	}
+ 	node = node.Orig
+ 	if node.Orig != node {
+-		Fatal("%v: bad node", Ctxt.Dconv(a))
++		Fatalf("%v: bad node", Ctxt.Dconv(a))
+ 	}
+ 	if node.Sym == nil || node.Sym.Name[0] == '.' {
+ 		return zbits
+@@ -360,7 +360,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 	o := a.Offset
+ 	w := a.Width
+ 	if w < 0 {
+-		Fatal("bad width %d for %v", w, Ctxt.Dconv(a))
++		Fatalf("bad width %d for %v", w, Ctxt.Dconv(a))
+ 	}
+ 
+ 	flag := 0
+@@ -396,7 +396,7 @@ func mkvar(f *Flow, a *obj.Addr) Bits {
+ 
+ 	if nvar >= NVAR {
+ 		if Debug['w'] > 1 && node != nil {
+-			Fatal("variable not optimized: %v", Nconv(node, obj.FmtSharp))
++			Fatalf("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+ 		}
+ 		if Debug['v'] > 0 {
+ 			Warn("variable not optimized: %v", Nconv(node, obj.FmtSharp))
+@@ -655,7 +655,7 @@ func allreg(b uint64, r *Rgn) uint64 {
+ 	r.regno = 0
+ 	switch v.etype {
+ 	default:
+-		Fatal("unknown etype %d/%v", Bitno(b), Econv(int(v.etype), 0))
++		Fatalf("unknown etype %d/%v", Bitno(b), Econv(int(v.etype), 0))
+ 
+ 	case TINT8,
+ 		TUINT8,
+@@ -1120,7 +1120,7 @@ func regopt(firstp *obj.Prog) {
+ 		// Currently we never generate three register forms.
+ 		// If we do, this will need to change.
+ 		if p.From3Type() != obj.TYPE_NONE {
+-			Fatal("regopt not implemented for from3")
++			Fatalf("regopt not implemented for from3")
+ 		}
+ 
+ 		bit = mkvar(f, &p.To)
+@@ -1472,7 +1472,7 @@ func bnum(a Bits) int {
+ 		}
+ 	}
+ 
+-	Fatal("bad in bnum")
++	Fatalf("bad in bnum")
+ 	return 0
+ }
+ 
+@@ -1499,10 +1499,10 @@ func biclr(a *Bits, n uint) {
+ }
+ 
+ // Bitno reports the lowest index of a 1 bit in b.
+-// It calls Fatal if there is no 1 bit.
++// It calls Fatalf if there is no 1 bit.
+ func Bitno(b uint64) int {
+ 	if b == 0 {
+-		Fatal("bad in bitno")
++		Fatalf("bad in bitno")
+ 	}
+ 	n := 0
+ 	if b&(1<<32-1) == 0 {
+diff --git a/src/cmd/compile/internal/gc/select.go b/src/cmd/compile/internal/gc/select.go
+index db20778837..9e75198b7c 100644
+--- a/src/cmd/compile/internal/gc/select.go
++++ b/src/cmd/compile/internal/gc/select.go
+@@ -20,7 +20,7 @@ func typecheckselect(sel *Node) {
+ 		ncase = l.N
+ 		setlineno(ncase)
+ 		if ncase.Op != OXCASE {
+-			Fatal("typecheckselect %v", Oconv(int(ncase.Op), 0))
++			Fatalf("typecheckselect %v", Oconv(int(ncase.Op), 0))
+ 		}
+ 
+ 		if ncase.List == nil {
+@@ -90,7 +90,7 @@ func typecheckselect(sel *Node) {
+ 
+ func walkselect(sel *Node) {
+ 	if sel.List == nil && sel.Xoffset != 0 {
+-		Fatal("double walkselect") // already rewrote
++		Fatalf("double walkselect") // already rewrote
+ 	}
+ 
+ 	lno := int(setlineno(sel))
+@@ -122,7 +122,7 @@ func walkselect(sel *Node) {
+ 			var ch *Node
+ 			switch n.Op {
+ 			default:
+-				Fatal("select %v", Oconv(int(n.Op), 0))
++				Fatalf("select %v", Oconv(int(n.Op), 0))
+ 
+ 				// ok already
+ 			case OSEND:
+@@ -218,7 +218,7 @@ func walkselect(sel *Node) {
+ 		r.Ninit = cas.Ninit
+ 		switch n.Op {
+ 		default:
+-			Fatal("select %v", Oconv(int(n.Op), 0))
++			Fatalf("select %v", Oconv(int(n.Op), 0))
+ 
+ 			// if selectnbsend(c, v) { body } else { default body }
+ 		case OSEND:
+@@ -284,7 +284,7 @@ func walkselect(sel *Node) {
+ 		} else {
+ 			switch n.Op {
+ 			default:
+-				Fatal("select %v", Oconv(int(n.Op), 0))
++				Fatalf("select %v", Oconv(int(n.Op), 0))
+ 
+ 				// selectsend(sel *byte, hchan *chan any, elem *any) (selected bool);
+ 			case OSEND:
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 0ced4ef3b0..27bcb0bdac 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -193,7 +193,7 @@ func init1(n *Node, out **NodeList) {
+ 	l = initlist
+ 	initlist = l.Next
+ 	if l.N != n {
+-		Fatal("bad initlist")
++		Fatalf("bad initlist")
+ 	}
+ 
+ 	n.Initorder = InitDone
+@@ -201,7 +201,7 @@ func init1(n *Node, out **NodeList) {
+ 
+ bad:
+ 	Dump("defn", n.Name.Defn)
+-	Fatal("init1: bad defn")
++	Fatalf("init1: bad defn")
+ }
+ 
+ // recurse over n, doing init1 everywhere.
+@@ -211,7 +211,7 @@ func init2(n *Node, out **NodeList) {
+ 	}
+ 
+ 	if n.Op == ONAME && n.Ninit != nil {
+-		Fatal("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
++		Fatalf("name %v with ninit: %v\n", n.Sym, Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	init1(n, out)
+@@ -271,7 +271,7 @@ func initfix(l *NodeList) *NodeList {
+  */
+ func staticinit(n *Node, out **NodeList) bool {
+ 	if n.Op != ONAME || n.Class != PEXTERN || n.Name.Defn == nil || n.Name.Defn.Op != OAS {
+-		Fatal("staticinit")
++		Fatalf("staticinit")
+ 	}
+ 
+ 	lineno = n.Lineno
+@@ -607,7 +607,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 	for nl := n.List; nl != nil; nl = nl.Next {
+ 		r = nl.N
+ 		if r.Op != OKEY {
+-			Fatal("structlit: rhs not OKEY: %v", r)
++			Fatalf("structlit: rhs not OKEY: %v", r)
+ 		}
+ 		index = r.Left
+ 		value = r.Right
+@@ -654,7 +654,7 @@ func structlit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 		if pass == 1 {
+ 			walkexpr(&a, init) // add any assignments in r to top
+ 			if a.Op != OAS {
+-				Fatal("structlit: not as")
++				Fatalf("structlit: not as")
+ 			}
+ 			a.Dodata = 2
+ 		} else {
+@@ -675,7 +675,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 	for l := n.List; l != nil; l = l.Next {
+ 		r = l.N
+ 		if r.Op != OKEY {
+-			Fatal("arraylit: rhs not OKEY: %v", r)
++			Fatalf("arraylit: rhs not OKEY: %v", r)
+ 		}
+ 		index = r.Left
+ 		value = r.Right
+@@ -722,7 +722,7 @@ func arraylit(ctxt int, pass int, n *Node, var_ *Node, init **NodeList) {
+ 		if pass == 1 {
+ 			walkexpr(&a, init)
+ 			if a.Op != OAS {
+-				Fatal("arraylit: not as")
++				Fatalf("arraylit: not as")
+ 			}
+ 			a.Dodata = 2
+ 		} else {
+@@ -851,7 +851,7 @@ func slicelit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	for l := n.List; l != nil; l = l.Next {
+ 		r = l.N
+ 		if r.Op != OKEY {
+-			Fatal("slicelit: rhs not OKEY: %v", r)
++			Fatalf("slicelit: rhs not OKEY: %v", r)
+ 		}
+ 		index = r.Left
+ 		value = r.Right
+@@ -909,7 +909,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		r = l.N
+ 
+ 		if r.Op != OKEY {
+-			Fatal("maplit: rhs not OKEY: %v", r)
++			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+ 		index = r.Left
+ 		value = r.Right
+@@ -960,7 +960,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 			r = l.N
+ 
+ 			if r.Op != OKEY {
+-				Fatal("maplit: rhs not OKEY: %v", r)
++				Fatalf("maplit: rhs not OKEY: %v", r)
+ 			}
+ 			index = r.Left
+ 			value = r.Right
+@@ -1031,7 +1031,7 @@ func maplit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 		r = l.N
+ 
+ 		if r.Op != OKEY {
+-			Fatal("maplit: rhs not OKEY: %v", r)
++			Fatalf("maplit: rhs not OKEY: %v", r)
+ 		}
+ 		index = r.Left
+ 		value = r.Right
+@@ -1083,11 +1083,11 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 	t := n.Type
+ 	switch n.Op {
+ 	default:
+-		Fatal("anylit: not lit")
++		Fatalf("anylit: not lit")
+ 
+ 	case OPTRLIT:
+ 		if !Isptr[t.Etype] {
+-			Fatal("anylit: not ptr")
++			Fatalf("anylit: not ptr")
+ 		}
+ 
+ 		var r *Node
+@@ -1113,7 +1113,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 	case OSTRUCTLIT:
+ 		if t.Etype != TSTRUCT {
+-			Fatal("anylit: not struct")
++			Fatalf("anylit: not struct")
+ 		}
+ 
+ 		if simplename(var_) && count(n.List) > 4 {
+@@ -1153,7 +1153,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 	case OARRAYLIT:
+ 		if t.Etype != TARRAY {
+-			Fatal("anylit: not array")
++			Fatalf("anylit: not array")
+ 		}
+ 		if t.Bound < 0 {
+ 			slicelit(ctxt, n, var_, init)
+@@ -1197,7 +1197,7 @@ func anylit(ctxt int, n *Node, var_ *Node, init **NodeList) {
+ 
+ 	case OMAPLIT:
+ 		if t.Etype != TMAP {
+-			Fatal("anylit: not map")
++			Fatalf("anylit: not map")
+ 		}
+ 		maplit(ctxt, n, var_, init)
+ 	}
+@@ -1304,14 +1304,14 @@ func initplan(n *Node) {
+ 	initplans[n] = p
+ 	switch n.Op {
+ 	default:
+-		Fatal("initplan")
++		Fatalf("initplan")
+ 
+ 	case OARRAYLIT:
+ 		var a *Node
+ 		for l := n.List; l != nil; l = l.Next {
+ 			a = l.N
+ 			if a.Op != OKEY || !Smallintconst(a.Left) {
+-				Fatal("initplan arraylit")
++				Fatalf("initplan arraylit")
+ 			}
+ 			addvalue(p, n.Type.Type.Width*Mpgetfix(a.Left.Val().U.(*Mpint)), nil, a.Right)
+ 		}
+@@ -1321,7 +1321,7 @@ func initplan(n *Node) {
+ 		for l := n.List; l != nil; l = l.Next {
+ 			a = l.N
+ 			if a.Op != OKEY || a.Left.Type == nil {
+-				Fatal("initplan structlit")
++				Fatalf("initplan structlit")
+ 			}
+ 			addvalue(p, a.Left.Type.Width, nil, a.Right)
+ 		}
+@@ -1331,7 +1331,7 @@ func initplan(n *Node) {
+ 		for l := n.List; l != nil; l = l.Next {
+ 			a = l.N
+ 			if a.Op != OKEY {
+-				Fatal("initplan maplit")
++				Fatalf("initplan maplit")
+ 			}
+ 			addvalue(p, -1, a.Left, a.Right)
+ 		}
+@@ -1377,7 +1377,7 @@ func iszero(n *Node) bool {
+ 		switch n.Val().Ctype() {
+ 		default:
+ 			Dump("unexpected literal", n)
+-			Fatal("iszero")
++			Fatalf("iszero")
+ 
+ 		case CTNIL:
+ 			return true
+@@ -1544,7 +1544,7 @@ func gen_as_init(n *Node) bool {
+ no:
+ 	if n.Dodata == 2 {
+ 		Dump("\ngen_as_init", n)
+-		Fatal("gen_as_init couldnt make data statement")
++		Fatalf("gen_as_init couldnt make data statement")
+ 	}
+ 
+ 	return false
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 866d8e1bde..9bcb238f07 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -181,7 +181,7 @@ func Warnl(line int, fmt_ string, args ...interface{}) {
+ 	}
+ }
+ 
+-func Fatal(fmt_ string, args ...interface{}) {
++func Fatalf(fmt_ string, args ...interface{}) {
+ 	Flusherrors()
+ 
+ 	fmt.Printf("%v: internal compiler error: ", Ctxt.Line(int(lineno)))
+@@ -339,7 +339,7 @@ func importdot(opkg *Pkg, pack *Node) {
+ 		s1.Block = s.Block
+ 		if s1.Def.Name == nil {
+ 			Dump("s1def", s1.Def)
+-			Fatal("missing Name")
++			Fatalf("missing Name")
+ 		}
+ 		s1.Def.Name.Pack = pack
+ 		s1.Origpkg = opkg
+@@ -414,7 +414,7 @@ func saveorignode(n *Node) {
+ // the last field, total gives the size of the enclosing struct.
+ func ispaddedfield(t *Type, total int64) bool {
+ 	if t.Etype != TFIELD {
+-		Fatal("ispaddedfield called non-field %v", t)
++		Fatalf("ispaddedfield called non-field %v", t)
+ 	}
+ 	if t.Down == nil {
+ 		return t.Width+t.Type.Width != total
+@@ -530,7 +530,7 @@ func algtype1(t *Type, bad **Type) int {
+ 		return ret
+ 	}
+ 
+-	Fatal("algtype1: unexpected type %v", t)
++	Fatalf("algtype1: unexpected type %v", t)
+ 	return 0
+ }
+ 
+@@ -709,7 +709,7 @@ func Nodconst(n *Node, t *Type, v int64) {
+ 	n.Type = t
+ 
+ 	if Isfloat[t.Etype] {
+-		Fatal("nodconst: bad type %v", t)
++		Fatalf("nodconst: bad type %v", t)
+ 	}
+ }
+ 
+@@ -775,7 +775,7 @@ func treecopy(n *Node, lineno int32) *Node {
+ 		}
+ 		if m.Name != nil && n.Op != ODCLFIELD {
+ 			Dump("treecopy", n)
+-			Fatal("treecopy Name")
++			Fatalf("treecopy Name")
+ 		}
+ 
+ 	case ONONAME:
+@@ -938,7 +938,7 @@ func cplxsubtype(et int) int {
+ 		return TFLOAT64
+ 	}
+ 
+-	Fatal("cplxsubtype: %v\n", Econv(int(et), 0))
++	Fatalf("cplxsubtype: %v\n", Econv(int(et), 0))
+ 	return 0
+ }
+ 
+@@ -1010,7 +1010,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 		t2 = t2.Type
+ 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+ 			if t1.Etype != TFIELD || t2.Etype != TFIELD {
+-				Fatal("struct/interface missing field: %v %v", t1, t2)
++				Fatalf("struct/interface missing field: %v %v", t1, t2)
+ 			}
+ 			if t1.Sym != t2.Sym || t1.Embedded != t2.Embedded || !eqtype1(t1.Type, t2.Type, &l) || !eqnote(t1.Note, t2.Note) {
+ 				return false
+@@ -1028,7 +1028,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 		t2 = t2.Type
+ 		for ; t1 != nil && t2 != nil; t1, t2 = t1.Down, t2.Down {
+ 			if t1.Etype != TSTRUCT || t2.Etype != TSTRUCT {
+-				Fatal("func missing struct: %v %v", t1, t2)
++				Fatalf("func missing struct: %v %v", t1, t2)
+ 			}
+ 
+ 			// Loop over fields in structs, ignoring argument names.
+@@ -1036,7 +1036,7 @@ func eqtype1(t1 *Type, t2 *Type, assumed_equal *TypePairList) bool {
+ 			tb := t2.Type
+ 			for ; ta != nil && tb != nil; ta, tb = ta.Down, tb.Down {
+ 				if ta.Etype != TFIELD || tb.Etype != TFIELD {
+-					Fatal("func struct missing field: %v %v", ta, tb)
++					Fatalf("func struct missing field: %v %v", ta, tb)
+ 				}
+ 				if ta.Isddd != tb.Isddd || !eqtype1(ta.Type, tb.Type, &l) {
+ 					return false
+@@ -1378,7 +1378,7 @@ func substArgTypes(n *Node, types ...*Type) {
+ 	}
+ 	substAny(&n.Type, &types)
+ 	if len(types) > 0 {
+-		Fatal("substArgTypes: too many argument types")
++		Fatalf("substArgTypes: too many argument types")
+ 	}
+ }
+ 
+@@ -1392,7 +1392,7 @@ func substAny(tp **Type, types *[]*Type) {
+ 		}
+ 		if t.Etype == TANY && t.Copyany != 0 {
+ 			if len(*types) == 0 {
+-				Fatal("substArgTypes: not enough argument types")
++				Fatalf("substArgTypes: not enough argument types")
+ 			}
+ 			*tp = (*types)[0]
+ 			*types = (*types)[1:]
+@@ -1526,7 +1526,7 @@ func deep(t *Type) *Type {
+ func syslook(name string, copy int) *Node {
+ 	s := Pkglookup(name, Runtimepkg)
+ 	if s == nil || s.Def == nil {
+-		Fatal("syslook: can't find runtime.%s", name)
++		Fatalf("syslook: can't find runtime.%s", name)
+ 	}
+ 
+ 	if copy == 0 {
+@@ -1600,7 +1600,7 @@ func ptrto1(t *Type) *Type {
+ // The returned struct must not be modified.
+ func Ptrto(t *Type) *Type {
+ 	if Tptr == 0 {
+-		Fatal("ptrto: no tptr")
++		Fatalf("ptrto: no tptr")
+ 	}
+ 	// Reduce allocations by pre-creating common cases.
+ 	if !initPtrtoDone {
+@@ -1760,14 +1760,14 @@ func Structfirst(s *Iter, nn **Type) *Type {
+ 	}
+ 
+ 	if t.Etype != TFIELD {
+-		Fatal("structfirst: not field %v", t)
++		Fatalf("structfirst: not field %v", t)
+ 	}
+ 
+ 	s.T = t
+ 	return t
+ 
+ bad:
+-	Fatal("structfirst: not struct %v", n)
++	Fatalf("structfirst: not struct %v", n)
+ 
+ 	return nil
+ }
+@@ -1780,7 +1780,7 @@ func structnext(s *Iter) *Type {
+ 	}
+ 
+ 	if t.Etype != TFIELD {
+-		Fatal("structnext: not struct %v", n)
++		Fatalf("structnext: not struct %v", n)
+ 
+ 		return nil
+ 	}
+@@ -1814,7 +1814,7 @@ func funcfirst(s *Iter, t *Type) *Type {
+ 	return fp
+ 
+ bad:
+-	Fatal("funcfirst: not func %v", t)
++	Fatalf("funcfirst: not func %v", t)
+ 	return nil
+ }
+ 
+@@ -1830,21 +1830,21 @@ func funcnext(s *Iter) *Type {
+ 
+ func getthis(t *Type) **Type {
+ 	if t.Etype != TFUNC {
+-		Fatal("getthis: not a func %v", t)
++		Fatalf("getthis: not a func %v", t)
+ 	}
+ 	return &t.Type
+ }
+ 
+ func Getoutarg(t *Type) **Type {
+ 	if t.Etype != TFUNC {
+-		Fatal("getoutarg: not a func %v", t)
++		Fatalf("getoutarg: not a func %v", t)
+ 	}
+ 	return &t.Type.Down
+ }
+ 
+ func getinarg(t *Type) **Type {
+ 	if t.Etype != TFUNC {
+-		Fatal("getinarg: not a func %v", t)
++		Fatalf("getinarg: not a func %v", t)
+ 	}
+ 	return &t.Type.Down.Down
+ }
+@@ -1878,7 +1878,7 @@ func Brcom(a int) int {
+ 	case OGE:
+ 		return OLT
+ 	}
+-	Fatal("brcom: no com for %v\n", Oconv(a, 0))
++	Fatalf("brcom: no com for %v\n", Oconv(a, 0))
+ 	return a
+ }
+ 
+@@ -1899,7 +1899,7 @@ func Brrev(a int) int {
+ 	case OGE:
+ 		return OLE
+ 	}
+-	Fatal("brrev: no rev for %v\n", Oconv(a, 0))
++	Fatalf("brrev: no rev for %v\n", Oconv(a, 0))
+ 	return a
+ }
+ 
+@@ -1961,7 +1961,7 @@ func safeexpr(n *Node, init **NodeList) *Node {
+ 
+ 	// make a copy; must not be used as an lvalue
+ 	if islvalue(n) {
+-		Fatal("missing lvalue case in safeexpr: %v", n)
++		Fatalf("missing lvalue case in safeexpr: %v", n)
+ 	}
+ 	return cheapexpr(n, init)
+ }
+@@ -2005,11 +2005,11 @@ func Setmaxarg(t *Type, extra int32) {
+ 	dowidth(t)
+ 	w := t.Argwid
+ 	if w >= Thearch.MAXWIDTH {
+-		Fatal("bad argwid %v", t)
++		Fatalf("bad argwid %v", t)
+ 	}
+ 	w += int64(extra)
+ 	if w >= Thearch.MAXWIDTH {
+-		Fatal("bad argwid %d + %v", extra, t)
++		Fatalf("bad argwid %d + %v", extra, t)
+ 	}
+ 	if w > Maxarg {
+ 		Maxarg = w
+@@ -2526,7 +2526,7 @@ func hashfor(t *Type) *Node {
+ 	a := algtype1(t, nil)
+ 	switch a {
+ 	case AMEM:
+-		Fatal("hashfor with AMEM type")
++		Fatalf("hashfor with AMEM type")
+ 
+ 	case AINTER:
+ 		sym = Pkglookup("interhash", Runtimepkg)
+@@ -2601,11 +2601,11 @@ func genhash(sym *Sym, t *Type) {
+ 	// so t must be either an array or a struct.
+ 	switch t.Etype {
+ 	default:
+-		Fatal("genhash %v", t)
++		Fatalf("genhash %v", t)
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			Fatal("genhash %v", t)
++			Fatalf("genhash %v", t)
+ 		}
+ 
+ 		// An array of pure memory would be handled by the
+@@ -2852,11 +2852,11 @@ func geneq(sym *Sym, t *Type) {
+ 	// so t must be either an array or a struct.
+ 	switch t.Etype {
+ 	default:
+-		Fatal("geneq %v", t)
++		Fatalf("geneq %v", t)
+ 
+ 	case TARRAY:
+ 		if Isslice(t) {
+-			Fatal("geneq %v", t)
++			Fatalf("geneq %v", t)
+ 		}
+ 
+ 		// An array of pure memory would be handled by the
+diff --git a/src/cmd/compile/internal/gc/swt.go b/src/cmd/compile/internal/gc/swt.go
+index f34b1c614c..c1a5a6dfb5 100644
+--- a/src/cmd/compile/internal/gc/swt.go
++++ b/src/cmd/compile/internal/gc/swt.go
+@@ -348,7 +348,7 @@ func casebody(sw *Node, typeswvar *Node) {
+ 		n := l.N
+ 		setlineno(n)
+ 		if n.Op != OXCASE {
+-			Fatal("casebody %v", Oconv(int(n.Op), 0))
++			Fatalf("casebody %v", Oconv(int(n.Op), 0))
+ 		}
+ 		n.Op = OCASE
+ 		needvar := count(n.List) != 1 || n.List.N.Op == OLITERAL
+@@ -679,7 +679,7 @@ func (s *typeSwitch) walkCases(cc []*caseClause) *Node {
+ 		for _, c := range cc {
+ 			n := c.node
+ 			if c.typ != caseKindTypeConst {
+-				Fatal("typeSwitch walkCases")
++				Fatalf("typeSwitch walkCases")
+ 			}
+ 			a := Nod(OIF, nil, nil)
+ 			a.Left = Nod(OEQ, s.hashname, Nodintconst(int64(c.hash)))
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 7f03a4e87a..5081ea0cb9 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -81,7 +81,7 @@ func (n *Node) SetVal(v Val) {
+ 	if n.hasVal == -1 {
+ 		Debug['h'] = 1
+ 		Dump("have Opt", n)
+-		Fatal("have Opt")
++		Fatalf("have Opt")
+ 	}
+ 	n.hasVal = +1
+ 	n.E = v.U
+@@ -104,7 +104,7 @@ func (n *Node) SetOpt(x interface{}) {
+ 	if n.hasVal == +1 {
+ 		Debug['h'] = 1
+ 		Dump("have Val", n)
+-		Fatal("have Val")
++		Fatalf("have Val")
+ 	}
+ 	n.hasVal = -1
+ 	n.E = x
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index befe3b2652..502c62c252 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -119,7 +119,7 @@ var typecheck_tcfree *NodeList
+ func typecheck(np **Node, top int) *Node {
+ 	// cannot type check until all the source has been parsed
+ 	if typecheckok == 0 {
+-		Fatal("early typecheck")
++		Fatalf("early typecheck")
+ 	}
+ 
+ 	n := *np
+@@ -204,7 +204,7 @@ func typecheck(np **Node, top int) *Node {
+ 	n.Typecheck = 1
+ 
+ 	if typecheck_tcstack != l {
+-		Fatal("typecheck stack out of sync")
++		Fatalf("typecheck stack out of sync")
+ 	}
+ 	typecheck_tcstack = l.Next
+ 	l.Next = typecheck_tcfree
+@@ -293,7 +293,7 @@ OpSwitch:
+ 	default:
+ 		Dump("typecheck", n)
+ 
+-		Fatal("typecheck %v", Oconv(int(n.Op), 0))
++		Fatalf("typecheck %v", Oconv(int(n.Op), 0))
+ 
+ 		/*
+ 		 * names
+@@ -820,7 +820,7 @@ OpSwitch:
+ 		}
+ 
+ 		if l.Orig != l && l.Op == ONAME {
+-			Fatal("found non-orig name node %v", l)
++			Fatalf("found non-orig name node %v", l)
+ 		}
+ 		l.Addrtaken = true
+ 		if l.Name != nil && l.Name.Param != nil && l.Name.Param.Closure != nil {
+@@ -1354,7 +1354,7 @@ OpSwitch:
+ 			tp := getthisx(t).Type.Type
+ 
+ 			if l.Left == nil || !Eqtype(l.Left.Type, tp) {
+-				Fatal("method receiver")
++				Fatalf("method receiver")
+ 			}
+ 
+ 		default:
+@@ -2008,7 +2008,7 @@ OpSwitch:
+ 			return
+ 		}
+ 		if t.Etype != TINTER {
+-			Fatal("OITAB of %v", t)
++			Fatalf("OITAB of %v", t)
+ 		}
+ 		n.Type = Ptrto(Types[TUINTPTR])
+ 		break OpSwitch
+@@ -2022,7 +2022,7 @@ OpSwitch:
+ 			return
+ 		}
+ 		if !Isslice(t) && t.Etype != TSTRING {
+-			Fatal("OSPTR of %v", t)
++			Fatalf("OSPTR of %v", t)
+ 		}
+ 		if t.Etype == TSTRING {
+ 			n.Type = Ptrto(Types[TUINT8])
+@@ -2527,7 +2527,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 			Yyerror("%v is both field and method", n.Right.Sym)
+ 		}
+ 		if f1.Width == BADWIDTH {
+-			Fatal("lookdot badwidth %v %p", f1, f1)
++			Fatalf("lookdot badwidth %v %p", f1, f1)
+ 		}
+ 		n.Xoffset = f1.Width
+ 		n.Type = f1.Type
+@@ -2578,7 +2578,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 					tt = tt.Type
+ 				}
+ 			} else {
+-				Fatal("method mismatch: %v for %v", rcvr, tt)
++				Fatalf("method mismatch: %v for %v", rcvr, tt)
+ 			}
+ 		}
+ 
+@@ -2820,7 +2820,7 @@ toomany:
+  */
+ func fielddup(n *Node, hash map[string]bool) {
+ 	if n.Op != ONAME {
+-		Fatal("fielddup: not ONAME")
++		Fatalf("fielddup: not ONAME")
+ 	}
+ 	name := n.Sym.Name
+ 	if hash[name] {
+@@ -2893,7 +2893,7 @@ func keydup(n *Node, hash map[uint32][]*Node) {
+ 
+ func indexdup(n *Node, hash map[int64]*Node) {
+ 	if n.Op != OLITERAL {
+-		Fatal("indexdup: not OLITERAL")
++		Fatalf("indexdup: not OLITERAL")
+ 	}
+ 
+ 	v := Mpgetfix(n.Val().U.(*Mpint))
+@@ -3497,7 +3497,7 @@ func typecheckfunc(n *Node) {
+ func stringtoarraylit(np **Node) {
+ 	n := *np
+ 	if n.Left.Op != OLITERAL || n.Left.Val().Ctype() != CTSTR {
+-		Fatal("stringtoarraylit %v", n)
++		Fatalf("stringtoarraylit %v", n)
+ 	}
+ 
+ 	s := n.Left.Val().U.(string)
+@@ -3709,7 +3709,7 @@ func typecheckdef(n *Node) *Node {
+ 			fmt.Printf(" %v", l.N.Sym)
+ 		}
+ 		fmt.Printf("\n")
+-		Fatal("typecheckdef loop")
++		Fatalf("typecheckdef loop")
+ 	}
+ 
+ 	n.Walkdef = 2
+@@ -3720,7 +3720,7 @@ func typecheckdef(n *Node) *Node {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("typecheckdef %v", Oconv(int(n.Op), 0))
++		Fatalf("typecheckdef %v", Oconv(int(n.Op), 0))
+ 
+ 		// not really syms
+ 	case OGOTO, OLABEL:
+@@ -3803,7 +3803,7 @@ func typecheckdef(n *Node) *Node {
+ 				break
+ 			}
+ 
+-			Fatal("var without type, init: %v", n.Sym)
++			Fatalf("var without type, init: %v", n.Sym)
+ 		}
+ 
+ 		if n.Name.Defn.Op == ONAME {
+@@ -3840,10 +3840,10 @@ func typecheckdef(n *Node) *Node {
+ 
+ ret:
+ 	if n.Op != OLITERAL && n.Type != nil && isideal(n.Type) {
+-		Fatal("got %v for %v", n.Type, n)
++		Fatalf("got %v for %v", n.Type, n)
+ 	}
+ 	if typecheckdefstack.N != n {
+-		Fatal("typecheckdefstack mismatch")
++		Fatalf("typecheckdefstack mismatch")
+ 	}
+ 	l = typecheckdefstack
+ 	typecheckdefstack = l.Next
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index a01765b4aa..44a658fd5b 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -89,7 +89,7 @@ func unsafenmagic(nn *Node) *Node {
+ 
+ 			default:
+ 				Dump("unsafenmagic", r)
+-				Fatal("impossible %v node after dot insertion", Oconv(int(r1.Op), obj.FmtSharp))
++				Fatalf("impossible %v node after dot insertion", Oconv(int(r1.Op), obj.FmtSharp))
+ 				goto bad
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index c59af0665b..8620e0b85c 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -78,10 +78,10 @@ func startProfile() {
+ 	if cpuprofile != "" {
+ 		f, err := os.Create(cpuprofile)
+ 		if err != nil {
+-			Fatal("%v", err)
++			Fatalf("%v", err)
+ 		}
+ 		if err := pprof.StartCPUProfile(f); err != nil {
+-			Fatal("%v", err)
++			Fatalf("%v", err)
+ 		}
+ 		AtExit(pprof.StopCPUProfile)
+ 	}
+@@ -91,12 +91,12 @@ func startProfile() {
+ 		}
+ 		f, err := os.Create(memprofile)
+ 		if err != nil {
+-			Fatal("%v", err)
++			Fatalf("%v", err)
+ 		}
+ 		AtExit(func() {
+ 			runtime.GC() // profile all outstanding allocations
+ 			if err := pprof.WriteHeapProfile(f); err != nil {
+-				Fatal("%v", err)
++				Fatalf("%v", err)
+ 			}
+ 		})
+ 	}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 9b60e2c2a2..38e22fc6cd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -182,7 +182,7 @@ func walkstmt(np **Node) {
+ 		ORECOVER,
+ 		OGETG:
+ 		if n.Typecheck == 0 {
+-			Fatal("missing typecheck: %v", Nconv(n, obj.FmtSign))
++			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		init := n.Ninit
+ 		n.Ninit = nil
+@@ -196,7 +196,7 @@ func walkstmt(np **Node) {
+ 	// the value received.
+ 	case ORECV:
+ 		if n.Typecheck == 0 {
+-			Fatal("missing typecheck: %v", Nconv(n, obj.FmtSign))
++			Fatalf("missing typecheck: %v", Nconv(n, obj.FmtSign))
+ 		}
+ 		init := n.Ninit
+ 		n.Ninit = nil
+@@ -311,7 +311,7 @@ func walkstmt(np **Node) {
+ 				f := n.List.N
+ 
+ 				if f.Op != OCALLFUNC && f.Op != OCALLMETH && f.Op != OCALLINTER {
+-					Fatal("expected return of call, have %v", f)
++					Fatalf("expected return of call, have %v", f)
+ 				}
+ 				n.List = concat(list1(f), ascompatet(int(n.Op), rl, &f.Type, 0, &n.Ninit))
+ 				break
+@@ -346,7 +346,7 @@ func walkstmt(np **Node) {
+ 	}
+ 
+ 	if n.Op == ONAME {
+-		Fatal("walkstmt ended up with name: %v", Nconv(n, obj.FmtSign))
++		Fatalf("walkstmt ended up with name: %v", Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	*np = n
+@@ -404,7 +404,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		// not okay to use n->ninit when walking n,
+ 		// because we might replace n with some other node
+ 		// and would lose the init list.
+-		Fatal("walkexpr init == &n->ninit")
++		Fatalf("walkexpr init == &n->ninit")
+ 	}
+ 
+ 	if n.Ninit != nil {
+@@ -427,13 +427,13 @@ func walkexpr(np **Node, init **NodeList) {
+ 	}
+ 
+ 	if n.Typecheck != 1 {
+-		Fatal("missed typecheck: %v\n", Nconv(n, obj.FmtSign))
++		Fatalf("missed typecheck: %v\n", Nconv(n, obj.FmtSign))
+ 	}
+ 
+ 	switch n.Op {
+ 	default:
+ 		Dump("walk", n)
+-		Fatal("walkexpr: switch 1 unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
++		Fatalf("walkexpr: switch 1 unknown op %v", Nconv(n, obj.FmtShort|obj.FmtSign))
+ 
+ 	case OTYPE,
+ 		ONONAME,
+@@ -968,7 +968,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		if !isdirectiface(n.Type) || Isfat(n.Type) {
+-			Fatal("walkexpr ODOTTYPE") // should see inside OAS only
++			Fatalf("walkexpr ODOTTYPE") // should see inside OAS only
+ 		}
+ 		walkexpr(&n.Left, init)
+ 		goto ret
+@@ -1283,7 +1283,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		goto ret
+ 
+ 	case ORECV:
+-		Fatal("walkexpr ORECV") // should see inside OAS only
++		Fatalf("walkexpr ORECV") // should see inside OAS only
+ 
+ 	case OSLICE, OSLICEARR, OSLICESTR:
+ 		walkexpr(&n.Left, init)
+@@ -1327,7 +1327,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 	case ONEW:
+ 		if n.Esc == EscNone {
+ 			if n.Type.Type.Width >= 1<<16 {
+-				Fatal("large ONEW with EscNone: %v", n)
++				Fatalf("large ONEW with EscNone: %v", n)
+ 			}
+ 			r := temp(n.Type.Type)
+ 			r = Nod(OAS, r, nil) // zero temp
+@@ -1397,7 +1397,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 
+ 		typecheck(&r, Erv)
+ 		if n.Type.Etype != TBOOL {
+-			Fatal("cmp %v", n.Type)
++			Fatalf("cmp %v", n.Type)
+ 		}
+ 		r.Type = n.Type
+ 		n = r
+@@ -1409,7 +1409,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 
+ 	case OAPPEND:
+ 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
+-		Fatal("append outside assignment")
++		Fatalf("append outside assignment")
+ 
+ 	case OCOPY:
+ 		n = copyany(n, init, flag_race)
+@@ -1468,7 +1468,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		t := n.Type
+ 		if n.Esc == EscNone {
+ 			if !isSmallMakeSlice(n) {
+-				Fatal("non-small OMAKESLICE with EscNone: %v", n)
++				Fatalf("non-small OMAKESLICE with EscNone: %v", n)
+ 			}
+ 			// var arr [r]T
+ 			// n = arr[:l]
+@@ -1576,7 +1576,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+ 	case OCMPIFACE:
+ 		if !Eqtype(n.Left.Type, n.Right.Type) {
+-			Fatal("ifaceeq %v %v %v", Oconv(int(n.Op), 0), n.Left.Type, n.Right.Type)
++			Fatalf("ifaceeq %v %v %v", Oconv(int(n.Op), 0), n.Left.Type, n.Right.Type)
+ 		}
+ 		var fn *Node
+ 		if isnilinter(n.Left.Type) {
+@@ -1628,7 +1628,7 @@ func walkexpr(np **Node, init **NodeList) {
+ 		goto ret
+ 	}
+ 
+-	Fatal("missing switch %v", Oconv(int(n.Op), 0))
++	Fatalf("missing switch %v", Oconv(int(n.Op), 0))
+ 
+ 	// Expressions that are constant at run time but not
+ 	// considered const by the language spec are not turned into
+@@ -1791,7 +1791,7 @@ func ascompatet(op int, nl *NodeList, nr **Type, fp int, init **NodeList) *NodeL
+ 	}
+ 
+ 	if ucount != 0 {
+-		Fatal("ascompatet: too many function calls evaluating parameters")
++		Fatalf("ascompatet: too many function calls evaluating parameters")
+ 	}
+ 	return concat(nn, mm)
+ }
+@@ -1822,7 +1822,7 @@ func mkdotargslice(lr0 *NodeList, nn *NodeList, l *Type, fp int, init **NodeList
+ 		n.Esc = esc
+ 		typecheck(&n, Erv)
+ 		if n.Type == nil {
+-			Fatal("mkdotargslice: typecheck failed")
++			Fatalf("mkdotargslice: typecheck failed")
+ 		}
+ 		walkexpr(&n, init)
+ 	}
+@@ -2240,7 +2240,7 @@ func applywritebarrier(n *Node, init **NodeList) *Node {
+ 
+ func convas(n *Node, init **NodeList) *Node {
+ 	if n.Op != OAS {
+-		Fatal("convas: not OAS %v", Oconv(int(n.Op), 0))
++		Fatalf("convas: not OAS %v", Oconv(int(n.Op), 0))
+ 	}
+ 
+ 	n.Typecheck = 1
+@@ -2391,7 +2391,7 @@ func reorder3(all *NodeList) *NodeList {
+ 
+ 		switch l.Op {
+ 		default:
+-			Fatal("reorder3 unexpected lvalue %v", Oconv(int(l.Op), obj.FmtSharp))
++			Fatalf("reorder3 unexpected lvalue %v", Oconv(int(l.Op), obj.FmtSharp))
+ 
+ 		case ONAME:
+ 			break
+@@ -2441,7 +2441,7 @@ func reorder3save(np **Node, all *NodeList, stop *NodeList, early **NodeList) {
+ func outervalue(n *Node) *Node {
+ 	for {
+ 		if n.Op == OXDOT {
+-			Fatal("OXDOT in walk")
++			Fatalf("OXDOT in walk")
+ 		}
+ 		if n.Op == ODOT || n.Op == OPAREN || n.Op == OCONVNOP {
+ 			n = n.Left
+@@ -2739,7 +2739,7 @@ func heapmoves() {
+ 
+ func vmkcall(fn *Node, t *Type, init **NodeList, va []*Node) *Node {
+ 	if fn.Type == nil || fn.Type.Etype != TFUNC {
+-		Fatal("mkcall %v %v", fn, fn.Type)
++		Fatalf("mkcall %v %v", fn, fn.Type)
+ 	}
+ 
+ 	var args *NodeList
+@@ -2780,12 +2780,12 @@ func conv(n *Node, t *Type) *Node {
+ 
+ func chanfn(name string, n int, t *Type) *Node {
+ 	if t.Etype != TCHAN {
+-		Fatal("chanfn %v", t)
++		Fatalf("chanfn %v", t)
+ 	}
+ 	fn := syslook(name, 1)
+ 	switch n {
+ 	default:
+-		Fatal("chanfn %d", n)
++		Fatalf("chanfn %d", n)
+ 	case 1:
+ 		substArgTypes(fn, t.Type)
+ 	case 2:
+@@ -2796,7 +2796,7 @@ func chanfn(name string, n int, t *Type) *Node {
+ 
+ func mapfn(name string, t *Type) *Node {
+ 	if t.Etype != TMAP {
+-		Fatal("mapfn %v", t)
++		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name, 1)
+ 	substArgTypes(fn, t.Down, t.Type, t.Down, t.Type)
+@@ -2805,7 +2805,7 @@ func mapfn(name string, t *Type) *Node {
+ 
+ func mapfndel(name string, t *Type) *Node {
+ 	if t.Etype != TMAP {
+-		Fatal("mapfn %v", t)
++		Fatalf("mapfn %v", t)
+ 	}
+ 	fn := syslook(name, 1)
+ 	substArgTypes(fn, t.Down, t.Type, t.Down)
+@@ -3156,7 +3156,7 @@ func eqfor(t *Type, needsize *int) *Node {
+ 	a := algtype1(t, nil)
+ 
+ 	if a != AMEM && a != -1 {
+-		Fatal("eqfor %v", t)
++		Fatalf("eqfor %v", t)
+ 	}
+ 
+ 	if a == AMEM {
+@@ -3268,7 +3268,7 @@ func walkcompare(np **Node, init **NodeList) {
+ 	}
+ 
+ 	if !islvalue(cmpl) || !islvalue(cmpr) {
+-		Fatal("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
++		Fatalf("arguments of comparison must be lvalues - %v %v", cmpl, cmpr)
+ 	}
+ 
+ 	l = temp(Ptrto(t))
+@@ -3859,7 +3859,7 @@ func usefield(n *Node) {
+ 
+ 	switch n.Op {
+ 	default:
+-		Fatal("usefield %v", Oconv(int(n.Op), 0))
++		Fatalf("usefield %v", Oconv(int(n.Op), 0))
+ 
+ 	case ODOT, ODOTPTR:
+ 		break
+@@ -3871,7 +3871,7 @@ func usefield(n *Node) {
+ 	}
+ 	field := dotField[typeSym{t.Orig, n.Right.Sym}]
+ 	if field == nil {
+-		Fatal("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
++		Fatalf("usefield %v %v without paramfld", n.Left.Type, n.Right.Sym)
+ 	}
+ 	if field.Note == nil || !strings.Contains(*field.Note, "go:\"track\"") {
+ 		return
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 2b61c077d2..530006ed03 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -1313,7 +1313,7 @@ yydefault:
+ 			// no package statement. This allows us to test more
+ 			// than one invalid import statement in a single file.
+ 			if nerrors == 0 {
+-				Fatal("phase error in import")
++				Fatalf("phase error in import")
+ 			}
+ 		}
+ 	case 15:
+diff --git a/src/cmd/compile/internal/ppc64/cgen.go b/src/cmd/compile/internal/ppc64/cgen.go
+index 37dd6cefb2..4f3092c9ef 100644
+--- a/src/cmd/compile/internal/ppc64/cgen.go
++++ b/src/cmd/compile/internal/ppc64/cgen.go
+@@ -20,7 +20,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	var op int
+ 	switch align {
+ 	default:
+-		gc.Fatal("sgen: invalid alignment %d for %v", align, n.Type)
++		gc.Fatalf("sgen: invalid alignment %d for %v", align, n.Type)
+ 
+ 	case 1:
+ 		op = ppc64.AMOVBU
+@@ -36,7 +36,7 @@ func blockcopy(n, res *gc.Node, osrc, odst, w int64) {
+ 	}
+ 
+ 	if w%int64(align) != 0 {
+-		gc.Fatal("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
++		gc.Fatalf("sgen: unaligned size %d (align=%d) for %v", w, align, n.Type)
+ 	}
+ 	c := int32(w / int64(align))
+ 
+diff --git a/src/cmd/compile/internal/ppc64/ggen.go b/src/cmd/compile/internal/ppc64/ggen.go
+index 5b282eb2f2..2779140ca0 100644
+--- a/src/cmd/compile/internal/ppc64/ggen.go
++++ b/src/cmd/compile/internal/ppc64/ggen.go
+@@ -36,10 +36,10 @@ func defframe(ptxt *obj.Prog) {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+-			gc.Fatal("needzero class %d", n.Class)
++			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 
+ 		if lo != hi && n.Xoffset+n.Type.Width >= lo-int64(2*gc.Widthreg) {
+@@ -291,7 +291,7 @@ func cgen_hmul(nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 		}
+ 
+ 	default:
+-		gc.Fatal("cgen_hmul %v", t)
++		gc.Fatalf("cgen_hmul %v", t)
+ 	}
+ 
+ 	gc.Cgen(&n1, res)
+@@ -411,7 +411,7 @@ func clearfat(nl *gc.Node) {
+ 	q := uint64(w / 8) // dwords
+ 
+ 	if gc.Reginuse(ppc64.REGRT1) {
+-		gc.Fatal("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
++		gc.Fatalf("%v in use during clearfat", obj.Rconv(ppc64.REGRT1))
+ 	}
+ 
+ 	var r0 gc.Node
+@@ -499,7 +499,7 @@ func expandchecks(firstp *obj.Prog) {
+ 			gc.Warnl(int(p.Lineno), "generated nil check")
+ 		}
+ 		if p.From.Type != obj.TYPE_REG {
+-			gc.Fatal("invalid nil check %v\n", p)
++			gc.Fatalf("invalid nil check %v\n", p)
+ 		}
+ 
+ 		/*
+diff --git a/src/cmd/compile/internal/ppc64/gsubr.go b/src/cmd/compile/internal/ppc64/gsubr.go
+index 2501972846..4ef928c826 100644
+--- a/src/cmd/compile/internal/ppc64/gsubr.go
++++ b/src/cmd/compile/internal/ppc64/gsubr.go
+@@ -93,7 +93,7 @@ func ginscon2(as int, n2 *gc.Node, c int64) {
+ 
+ 	switch as {
+ 	default:
+-		gc.Fatal("ginscon2")
++		gc.Fatalf("ginscon2")
+ 
+ 	case ppc64.ACMP:
+ 		if -ppc64.BIG <= c && c <= ppc64.BIG {
+@@ -261,7 +261,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+-		gc.Fatal("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
++		gc.Fatalf("gmove %v -> %v", gc.Tconv(f.Type, obj.FmtLong), gc.Tconv(t.Type, obj.FmtLong))
+ 
+ 		/*
+ 		 * integer copy and truncate
+@@ -614,12 +614,12 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	case ppc64.AAND, ppc64.AMULLD:
+ 		if p.From.Type == obj.TYPE_CONST {
+ 			gc.Debug['h'] = 1
+-			gc.Fatal("bad inst: %v", p)
++			gc.Fatalf("bad inst: %v", p)
+ 		}
+ 	case ppc64.ACMP, ppc64.ACMPU:
+ 		if p.From.Type == obj.TYPE_MEM || p.To.Type == obj.TYPE_MEM {
+ 			gc.Debug['h'] = 1
+-			gc.Fatal("bad inst: %v", p)
++			gc.Fatalf("bad inst: %v", p)
+ 		}
+ 	}
+ 
+@@ -658,7 +658,7 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if w != 0 && ((f != nil && p.From.Width < int64(w)) || (t != nil && p.To.Type != obj.TYPE_REG && p.To.Width > int64(w))) {
+ 		gc.Dump("f", f)
+ 		gc.Dump("t", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
++		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	return p
+@@ -669,13 +669,13 @@ func rawgins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+  */
+ func optoas(op int, t *gc.Type) int {
+ 	if t == nil {
+-		gc.Fatal("optoas: t is nil")
++		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
+ 	a := int(obj.AXXX)
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatal("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("optoas: no entry for op=%v type=%v", gc.Oconv(int(op), 0), t)
+ 
+ 	case gc.OEQ<<16 | gc.TBOOL,
+ 		gc.OEQ<<16 | gc.TINT8,
+diff --git a/src/cmd/compile/internal/ppc64/prog.go b/src/cmd/compile/internal/ppc64/prog.go
+index 406f23571f..9b8719bd8f 100644
+--- a/src/cmd/compile/internal/ppc64/prog.go
++++ b/src/cmd/compile/internal/ppc64/prog.go
+@@ -139,7 +139,7 @@ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		gc.Fatal("proginfo: unknown instruction %v", p)
++		gc.Fatalf("proginfo: unknown instruction %v", p)
+ 	}
+ 
+ 	if (info.Flags&gc.RegRead != 0) && p.Reg == 0 {
+@@ -302,7 +302,7 @@ func as2variant(as int) int {
+ 			return i
+ 		}
+ 	}
+-	gc.Fatal("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
++	gc.Fatalf("as2variant: instruction %v is not a variant of itself", obj.Aconv(as))
+ 	return 0
+ }
+ 
+diff --git a/src/cmd/compile/internal/x86/cgen64.go b/src/cmd/compile/internal/x86/cgen64.go
+index 0b061ffb60..f1e570d10b 100644
+--- a/src/cmd/compile/internal/x86/cgen64.go
++++ b/src/cmd/compile/internal/x86/cgen64.go
+@@ -19,12 +19,12 @@ func cgen64(n *gc.Node, res *gc.Node) {
+ 	if res.Op != gc.OINDREG && res.Op != gc.ONAME {
+ 		gc.Dump("n", n)
+ 		gc.Dump("res", res)
+-		gc.Fatal("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
++		gc.Fatalf("cgen64 %v of %v", gc.Oconv(int(n.Op), 0), gc.Oconv(int(res.Op), 0))
+ 	}
+ 
+ 	switch n.Op {
+ 	default:
+-		gc.Fatal("cgen64 %v", gc.Oconv(int(n.Op), 0))
++		gc.Fatalf("cgen64 %v", gc.Oconv(int(n.Op), 0))
+ 
+ 	case gc.OMINUS:
+ 		gc.Cgen(n.Left, res)
+@@ -531,7 +531,7 @@ func cmp64(nl *gc.Node, nr *gc.Node, op int, likely int, to *obj.Prog) {
+ 	var br *obj.Prog
+ 	switch op {
+ 	default:
+-		gc.Fatal("cmp64 %v %v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("cmp64 %v %v", gc.Oconv(int(op), 0), t)
+ 
+ 		// cmp hi
+ 	// jne L
+diff --git a/src/cmd/compile/internal/x86/ggen.go b/src/cmd/compile/internal/x86/ggen.go
+index ae9881d273..be865e5aad 100644
+--- a/src/cmd/compile/internal/x86/ggen.go
++++ b/src/cmd/compile/internal/x86/ggen.go
+@@ -34,10 +34,10 @@ func defframe(ptxt *obj.Prog) {
+ 			continue
+ 		}
+ 		if n.Class != gc.PAUTO {
+-			gc.Fatal("needzero class %d", n.Class)
++			gc.Fatalf("needzero class %d", n.Class)
+ 		}
+ 		if n.Type.Width%int64(gc.Widthptr) != 0 || n.Xoffset%int64(gc.Widthptr) != 0 || n.Type.Width == 0 {
+-			gc.Fatal("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
++			gc.Fatalf("var %v has size %d offset %d", gc.Nconv(n, obj.FmtLong), int(n.Type.Width), int(n.Xoffset))
+ 		}
+ 		if lo != hi && n.Xoffset+n.Type.Width == lo-int64(2*gc.Widthptr) {
+ 			// merge with range we already have
+@@ -350,7 +350,7 @@ func restx(x *gc.Node, oldx *gc.Node) {
+  */
+ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if gc.Is64(nl.Type) {
+-		gc.Fatal("cgen_div %v", nl.Type)
++		gc.Fatalf("cgen_div %v", nl.Type)
+ 	}
+ 
+ 	var t *gc.Type
+@@ -377,7 +377,7 @@ func cgen_div(op int, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+  */
+ func cgen_shift(op int, bounded bool, nl *gc.Node, nr *gc.Node, res *gc.Node) {
+ 	if nl.Type.Width > 4 {
+-		gc.Fatal("cgen_shift %v", nl.Type)
++		gc.Fatalf("cgen_shift %v", nl.Type)
+ 	}
+ 
+ 	w := int(nl.Type.Width * 8)
+@@ -677,7 +677,7 @@ func cgen_floatsse(n *gc.Node, res *gc.Node) {
+ 	switch n.Op {
+ 	default:
+ 		gc.Dump("cgen_floatsse", n)
+-		gc.Fatal("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
++		gc.Fatalf("cgen_floatsse %v", gc.Oconv(int(n.Op), 0))
+ 		return
+ 
+ 	case gc.OMINUS,
+diff --git a/src/cmd/compile/internal/x86/gsubr.go b/src/cmd/compile/internal/x86/gsubr.go
+index 7593d043bb..f57bbcb62a 100644
+--- a/src/cmd/compile/internal/x86/gsubr.go
++++ b/src/cmd/compile/internal/x86/gsubr.go
+@@ -55,13 +55,13 @@ const (
+  */
+ func optoas(op int, t *gc.Type) int {
+ 	if t == nil {
+-		gc.Fatal("optoas: t is nil")
++		gc.Fatalf("optoas: t is nil")
+ 	}
+ 
+ 	a := obj.AXXX
+ 	switch uint32(op)<<16 | uint32(gc.Simtype[t.Etype]) {
+ 	default:
+-		gc.Fatal("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
++		gc.Fatalf("optoas: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+ 	case gc.OADDR<<16 | gc.TPTR32:
+ 		a = x86.ALEAL
+@@ -413,7 +413,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 	if !gc.Thearch.Use387 {
+ 		switch uint32(op)<<16 | uint32(et) {
+ 		default:
+-			gc.Fatal("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
++			gc.Fatalf("foptoas-sse: no entry %v-%v", gc.Oconv(int(op), 0), t)
+ 
+ 		case gc.OCMP<<16 | gc.TFLOAT32:
+ 			a = x86.AUCOMISS
+@@ -546,7 +546,7 @@ func foptoas(op int, t *gc.Type, flg int) int {
+ 		return x86.AFCHS
+ 	}
+ 
+-	gc.Fatal("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
++	gc.Fatalf("foptoas %v %v %#x", gc.Oconv(int(op), 0), t, flg)
+ 	return 0
+ }
+ 
+@@ -655,11 +655,11 @@ var nsclean int
+  */
+ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 	if !gc.Is64(n.Type) {
+-		gc.Fatal("split64 %v", n.Type)
++		gc.Fatalf("split64 %v", n.Type)
+ 	}
+ 
+ 	if nsclean >= len(sclean) {
+-		gc.Fatal("split64 clean")
++		gc.Fatalf("split64 clean")
+ 	}
+ 	sclean[nsclean].Op = gc.OEMPTY
+ 	nsclean++
+@@ -714,7 +714,7 @@ func split64(n *gc.Node, lo *gc.Node, hi *gc.Node) {
+ 
+ func splitclean() {
+ 	if nsclean <= 0 {
+-		gc.Fatal("splitclean")
++		gc.Fatalf("splitclean")
+ 	}
+ 	nsclean--
+ 	if sclean[nsclean].Op != gc.OEMPTY {
+@@ -805,7 +805,7 @@ func gmove(f *gc.Node, t *gc.Node) {
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	default:
+ 		// should not happen
+-		gc.Fatal("gmove %v -> %v", f, t)
++		gc.Fatalf("gmove %v -> %v", f, t)
+ 		return
+ 
+ 		/*
+@@ -1372,7 +1372,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 		gmove(f, &t1)
+ 		switch tt {
+ 		default:
+-			gc.Fatal("gmove %v", t)
++			gc.Fatalf("gmove %v", t)
+ 
+ 		case gc.TINT8:
+ 			gins(x86.ACMPL, &t1, ncon(-0x80&(1<<32-1)))
+@@ -1483,7 +1483,7 @@ func floatmove_387(f *gc.Node, t *gc.Node) {
+ 		}
+ 		if gc.Ismem(t) {
+ 			if f.Op != gc.OREGISTER || f.Reg != x86.REG_F0 {
+-				gc.Fatal("gmove %v", f)
++				gc.Fatalf("gmove %v", f)
+ 			}
+ 			a = x86.AFMOVFP
+ 			if ft == gc.TFLOAT64 {
+@@ -1551,7 +1551,7 @@ hardmem:
+ 
+ 	// should not happen
+ fatal:
+-	gc.Fatal("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
++	gc.Fatalf("gmove %v -> %v", gc.Nconv(f, obj.FmtLong), gc.Nconv(t, obj.FmtLong))
+ 
+ 	return
+ }
+@@ -1567,7 +1567,7 @@ func floatmove_sse(f *gc.Node, t *gc.Node) {
+ 	switch uint32(ft)<<16 | uint32(tt) {
+ 	// should not happen
+ 	default:
+-		gc.Fatal("gmove %v -> %v", f, t)
++		gc.Fatalf("gmove %v -> %v", f, t)
+ 
+ 		return
+ 
+@@ -1703,13 +1703,13 @@ func samaddr(f *gc.Node, t *gc.Node) bool {
+  */
+ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if as == x86.AFMOVF && f != nil && f.Op == gc.OREGISTER && t != nil && t.Op == gc.OREGISTER {
+-		gc.Fatal("gins MOVF reg, reg")
++		gc.Fatalf("gins MOVF reg, reg")
+ 	}
+ 	if as == x86.ACVTSD2SS && f != nil && f.Op == gc.OLITERAL {
+-		gc.Fatal("gins CVTSD2SS const")
++		gc.Fatalf("gins CVTSD2SS const")
+ 	}
+ 	if as == x86.AMOVSD && t != nil && t.Op == gc.OREGISTER && t.Reg == x86.REG_F0 {
+-		gc.Fatal("gins MOVSD into F0")
++		gc.Fatalf("gins MOVSD into F0")
+ 	}
+ 
+ 	if as == x86.AMOVL && f != nil && f.Op == gc.OADDR && f.Left.Op == gc.ONAME && f.Left.Class != gc.PEXTERN && f.Left.Class != gc.PFUNC {
+@@ -1731,7 +1731,7 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 
+ 	case x86.ALEAL:
+ 		if f != nil && gc.Isconst(f, gc.CTNIL) {
+-			gc.Fatal("gins LEAL nil %v", f.Type)
++			gc.Fatalf("gins LEAL nil %v", f.Type)
+ 		}
+ 	}
+ 
+@@ -1758,11 +1758,11 @@ func gins(as int, f *gc.Node, t *gc.Node) *obj.Prog {
+ 	if true && w != 0 && f != nil && (p.From.Width > int64(w) || p.To.Width > int64(w)) {
+ 		gc.Dump("bad width from:", f)
+ 		gc.Dump("bad width to:", t)
+-		gc.Fatal("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
++		gc.Fatalf("bad width: %v (%d, %d)\n", p, p.From.Width, p.To.Width)
+ 	}
+ 
+ 	if p.To.Type == obj.TYPE_ADDR && w > 0 {
+-		gc.Fatal("bad use of addr: %v", p)
++		gc.Fatalf("bad use of addr: %v", p)
+ 	}
+ 
+ 	return p
+diff --git a/src/cmd/compile/internal/x86/peep.go b/src/cmd/compile/internal/x86/peep.go
+index 8b50eab077..63e64cb77c 100644
+--- a/src/cmd/compile/internal/x86/peep.go
++++ b/src/cmd/compile/internal/x86/peep.go
+@@ -660,10 +660,10 @@ func copyu(p *obj.Prog, v *obj.Addr, s *obj.Addr) int {
+  */
+ func copyas(a *obj.Addr, v *obj.Addr) bool {
+ 	if x86.REG_AL <= a.Reg && a.Reg <= x86.REG_BL {
+-		gc.Fatal("use of byte register")
++		gc.Fatalf("use of byte register")
+ 	}
+ 	if x86.REG_AL <= v.Reg && v.Reg <= x86.REG_BL {
+-		gc.Fatal("use of byte register")
++		gc.Fatalf("use of byte register")
+ 	}
+ 
+ 	if a.Type != v.Type || a.Name != v.Name || a.Reg != v.Reg {
+diff --git a/src/cmd/compile/internal/x86/prog.go b/src/cmd/compile/internal/x86/prog.go
+index ce432c17f3..5ff7bb8e8c 100644
+--- a/src/cmd/compile/internal/x86/prog.go
++++ b/src/cmd/compile/internal/x86/prog.go
+@@ -260,7 +260,7 @@ func proginfo(p *obj.Prog) {
+ 	info := &p.Info
+ 	*info = progtable[p.As]
+ 	if info.Flags == 0 {
+-		gc.Fatal("unknown instruction %v", p)
++		gc.Fatalf("unknown instruction %v", p)
+ 	}
+ 
+ 	if (info.Flags&gc.ShiftCX != 0) && p.From.Type != obj.TYPE_CONST {

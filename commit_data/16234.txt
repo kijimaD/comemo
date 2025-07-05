@@ -23,6 +23,18 @@ Date:   Sun Apr 28 00:18:11 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8863045
-
+---
  src/pkg/runtime/arch_arm.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/arch_arm.h b/src/pkg/runtime/arch_arm.h
+index bb65d3faf1..27c70c1052 100644
+--- a/src/pkg/runtime/arch_arm.h
++++ b/src/pkg/runtime/arch_arm.h
+@@ -6,5 +6,5 @@ enum {
+ 	thechar = '5',
+ 	BigEndian = 0,
+ 	CacheLineSize = 32,
+-	appendCrossover = 16
++	appendCrossover = 8
+ };

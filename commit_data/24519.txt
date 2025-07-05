@@ -7,6 +7,19 @@ Date:   Mon Aug 3 16:32:28 2015 -0700
     Change-Id: I4dc75065038a9cfd06f61c0deca1c86c70713d3a
     Reviewed-on: https://go-review.googlesource.com/13091
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/go/test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index baeec9d3a9..4e7b551ed8 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -220,6 +220,7 @@ const testFlag2 = `
+ 
+ 	-timeout t
+ 	    If a test runs longer than t, panic.
++	    The default is 10 minutes (10m).
+ 
+ 	-trace trace.out
+ 	    Write an execution trace to the specified file before exiting.

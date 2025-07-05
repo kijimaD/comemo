@@ -7,8 +7,64 @@ Date:   Wed Oct 5 11:12:07 2011 -0700
     R=golang-dev, rsc, r
     CC=golang-dev
     https://golang.org/cl/5181045
-
+---
  doc/docs.html    | 10 ++++++++++
  doc/install.html |  3 ++-
  doc/root.html    |  7 +++++--
  3 files changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/doc/docs.html b/doc/docs.html
+index c42116a30c..8b01e90604 100644
+--- a/doc/docs.html
++++ b/doc/docs.html
+@@ -16,6 +16,16 @@ Once you've learned a little about the language,
+ idioms of programming in Go.
+ </p>
+ 
++<h3 id="go_tour"><a href="http://go-tour.appspot.com/">A Tour of Go</a></h3>
++<p>
++An interactive introduction to Go in three sections.
++The first section covers basic syntax and data structures; the second discusses
++methods and interfaces; and the third introduces Go's concurrency primitives.
++Each section concludes with a few exercises so you can practice what you've
++learned. You can <a href="http://go-tour.appspot.com/">take the tour online</a> or
++<a href="http://code.google.com/p/go-tour/">install it locally</a>.
++</p>
++
+ <h3 id="orig_tutorial"><a href="go_tutorial.html">A Tutorial for the Go Programming Language</a></h3>
+ <p>
+ The first tutorial. An introductory text that touches upon several core
+diff --git a/doc/install.html b/doc/install.html
+index 21a66366b6..4b5a50b9a0 100644
+--- a/doc/install.html
++++ b/doc/install.html
+@@ -257,7 +257,8 @@ the process of building and testing Go programs.
+ <h2 id="next">What's next</h2>
+ 
+ <p>
+-Start by reading the <a href="go_tutorial.html">Go Tutorial</a>.
++Start by taking <a href="http://code.google.com/p/go-tour/">A Tour of Go</a>
++or reading the <a href="go_tutorial.html">Go Tutorial</a>.
+ </p>
+ 
+ <p>
+diff --git a/doc/root.html b/doc/root.html
+index 8d76928c81..2d9a8979ba 100644
+--- a/doc/root.html
++++ b/doc/root.html
+@@ -49,10 +49,13 @@ google.setOnLoadCallback(loadFeed);
+         It's a fast, statically typed, compiled language that feels like a 
+         dynamically typed, interpreted language.
+       </p>
+-      <h2>Check it out!</h2>
++      <h2>
++        Get started now with
++	<a target="_blank" href="http://go-tour.appspot.com/">A Tour of Go</a>.
++      </h2>
+       <p>
+       <div class="how">[<a href="/doc/playground.html">How does this work?</a>]</div>
+-      <a href="/doc/install.html">Install Go now</a>, or try it right here in your browser:</p>
++      Or try it right here in your browser:</p>
+       <div id="playground" class="small"></div>
+       <script src="/doc/play/playground.js"></script>
+     </div>

@@ -15,6 +15,31 @@ Date:   Tue May 23 16:13:13 2023 -0400
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/internal/modload/init.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index f4f4a68254..23db438da1 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1343,9 +1343,16 @@ func appendGoAndToolchainRoots(roots []module.Version, goVersion, toolchain stri
+ func setDefaultBuildMod() {
+ 	if cfg.BuildModExplicit {
+ 		if inWorkspaceMode() && cfg.BuildMod != "readonly" && cfg.BuildMod != "vendor" {
+-			base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
+-				"\n\tRemove the -mod flag to use the default readonly value, "+
+-				"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
++			switch cfg.CmdName {
++			case "work sync", "mod graph", "mod verify", "mod why":
++				// These commands run with BuildMod set to mod, but they don't take the
++				// -mod flag, so we should never get here.
++				panic("in workspace mode and -mod was set explicitly, but command doesn't support setting -mod")
++			default:
++				base.Fatalf("go: -mod may only be set to readonly or vendor when in workspace mode, but it is set to %q"+
++					"\n\tRemove the -mod flag to use the default readonly value, "+
++					"\n\tor set GOWORK=off to disable workspace mode.", cfg.BuildMod)
++			}
+ 		}
+ 		// Don't override an explicit '-mod=' argument.
+ 		return

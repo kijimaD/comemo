@@ -25,7 +25,7 @@ Date:   Fri Jan 14 14:05:20 2011 -0500
     R=r, r2
     CC=golang-dev
     https://golang.org/cl/3993041
-
+---
  src/cmd/5g/ggen.c               |   2 +-
  src/cmd/5l/noop.c               |   9 ++--
  src/pkg/runtime/386/asm.s       |  12 ++---
@@ -35,3 +35,598 @@ Date:   Fri Jan 14 14:05:20 2011 -0500
  src/pkg/runtime/runtime.h       |  15 +++---
  src/pkg/runtime/runtime_defs.go |  52 +++++++++---------
  8 files changed, 129 insertions(+), 115 deletions(-)
+
+diff --git a/src/cmd/5g/ggen.c b/src/cmd/5g/ggen.c
+index 932b4877c0..182d7f147e 100644
+--- a/src/cmd/5g/ggen.c
++++ b/src/cmd/5g/ggen.c
+@@ -172,7 +172,7 @@ ginscall(Node *f, int proc)
+ 		p->to.reg = REGSP;
+ 		p->to.offset = 8;
+ 
+-		nodconst(&con, types[TINT32], argsize(f->type) + 4);
++		nodconst(&con, types[TINT32], argsize(f->type));
+ 		gins(AMOVW, &con, &r);
+ 		p = gins(AMOVW, &r, N);
+ 		p->to.type = D_OREG;
+diff --git a/src/cmd/5l/noop.c b/src/cmd/5l/noop.c
+index 5def0d3f16..925984d756 100644
+--- a/src/cmd/5l/noop.c
++++ b/src/cmd/5l/noop.c
+@@ -340,13 +340,12 @@ noops(void)
+ 					p->to.type = D_REG;
+ 					p->to.reg = 1;
+ 	
+-					// MOVW.LO		$args +4, R2
+-					// also need to store the extra 4 bytes.
++					// MOVW.LO		$args, R2
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+ 					p->scond = C_SCOND_LO;
+ 					p->from.type = D_CONST;
+-					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
++					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 2;
+ 	
+@@ -391,12 +390,12 @@ noops(void)
+ 					p->to.type = D_REG;
+ 					p->to.reg = 1;
+ 	
+-					// MOVW		$args +4, R2
++					// MOVW		$args, R2
+ 					// also need to store the extra 4 bytes.
+ 					p = appendp(p);
+ 					p->as = AMOVW;
+ 					p->from.type = D_CONST;
+-					p->from.offset = ((cursym->text->to.offset2 + 3) & ~3) + 4;
++					p->from.offset = (cursym->text->to.offset2 + 3) & ~3;
+ 					p->to.type = D_REG;
+ 					p->to.reg = 2;
+ 	
+diff --git a/src/pkg/runtime/386/asm.s b/src/pkg/runtime/386/asm.s
+index 84f5367e51..101a0cf522 100644
+--- a/src/pkg/runtime/386/asm.s
++++ b/src/pkg/runtime/386/asm.s
+@@ -156,8 +156,8 @@ TEXT runtime·morestack(SB),7,$0
+ 	// frame size in DX
+ 	// arg size in AX
+ 	// Save in m.
+-	MOVL	DX, m_moreframe(BX)
+-	MOVL	AX, m_moreargs(BX)
++	MOVL	DX, m_moreframesize(BX)
++	MOVL	AX, m_moreargsize(BX)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+@@ -165,7 +165,7 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVL	DI, (m_morebuf+gobuf_pc)(BX)
+ 	LEAL	8(SP), CX	// f's caller's SP
+ 	MOVL	CX, (m_morebuf+gobuf_sp)(BX)
+-	MOVL	CX, (m_morefp)(BX)
++	MOVL	CX, m_moreargp(BX)
+ 	get_tls(CX)
+ 	MOVL	g(CX), SI
+ 	MOVL	SI, (m_morebuf+gobuf_g)(BX)
+@@ -213,9 +213,9 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	12(SP), CX	// arg size
+ 
+ 	MOVL	AX, m_morepc(BX)	// f's PC
+-	MOVL	DX, m_morefp(BX)	// argument frame pointer
+-	MOVL	CX, m_moreargs(BX)	// f's argument size
+-	MOVL	$1, m_moreframe(BX)	// f's frame size
++	MOVL	DX, m_moreargp(BX)	// f's argument pointer
++	MOVL	CX, m_moreargsize(BX)	// f's argument size
++	MOVL	$1, m_moreframesize(BX)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVL	m_g0(BX), BP
+diff --git a/src/pkg/runtime/amd64/asm.s b/src/pkg/runtime/amd64/asm.s
+index 235f272064..329775a8c0 100644
+--- a/src/pkg/runtime/amd64/asm.s
++++ b/src/pkg/runtime/amd64/asm.s
+@@ -151,7 +151,7 @@ TEXT runtime·morestack(SB),7,$0
+ 	MOVQ	AX, (m_morebuf+gobuf_pc)(BX)
+ 	LEAQ	16(SP), AX	// f's caller's SP
+ 	MOVQ	AX, (m_morebuf+gobuf_sp)(BX)
+-	MOVQ	AX, (m_morefp)(BX)
++	MOVQ	AX, m_moreargp(BX)
+ 	get_tls(CX)
+ 	MOVQ	g(CX), SI
+ 	MOVQ	SI, (m_morebuf+gobuf_g)(BX)
+@@ -197,9 +197,9 @@ TEXT reflect·call(SB), 7, $0
+ 	MOVL	24(SP), CX	// arg size
+ 
+ 	MOVQ	AX, m_morepc(BX)	// f's PC
+-	MOVQ	DX, m_morefp(BX)	// argument frame pointer
+-	MOVL	CX, m_moreargs(BX)	// f's argument size
+-	MOVL	$1, m_moreframe(BX)	// f's frame size
++	MOVQ	DX, m_moreargp(BX)	// argument frame pointer
++	MOVL	CX, m_moreargsize(BX)	// f's argument size
++	MOVL	$1, m_moreframesize(BX)	// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVQ	m_g0(BX), BP
+@@ -230,7 +230,7 @@ TEXT runtime·morestack00(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+ 	MOVQ	$0, AX
+-	MOVQ	AX, m_moreframe(BX)
++	MOVQ	AX, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+@@ -238,7 +238,7 @@ TEXT runtime·morestack01(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+ 	SHLQ	$32, AX
+-	MOVQ	AX, m_moreframe(BX)
++	MOVQ	AX, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+@@ -246,14 +246,14 @@ TEXT runtime·morestack10(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+ 	MOVLQZX	AX, AX
+-	MOVQ	AX, m_moreframe(BX)
++	MOVQ	AX, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+ TEXT runtime·morestack11(SB),7,$0
+ 	get_tls(CX)
+ 	MOVQ	m(CX), BX
+-	MOVQ	AX, m_moreframe(BX)
++	MOVQ	AX, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+@@ -294,7 +294,7 @@ TEXT morestack<>(SB),7,$0
+ 	MOVQ	m(CX), BX
+ 	POPQ	AX
+ 	SHLQ	$35, AX
+-	MOVQ	AX, m_moreframe(BX)
++	MOVQ	AX, m_moreframesize(BX)
+ 	MOVQ	$runtime·morestack(SB), AX
+ 	JMP	AX
+ 
+diff --git a/src/pkg/runtime/arm/asm.s b/src/pkg/runtime/arm/asm.s
+index 44c47bad14..a4e4b32836 100644
+--- a/src/pkg/runtime/arm/asm.s
++++ b/src/pkg/runtime/arm/asm.s
+@@ -145,14 +145,15 @@ TEXT runtime·morestack(SB),7,$-4
+ 	BL.EQ	runtime·abort(SB)
+ 
+ 	// Save in m.
+-	MOVW	R1, m_moreframe(m)
+-	MOVW	R2, m_moreargs(m)
++	MOVW	R1, m_moreframesize(m)
++	MOVW	R2, m_moreargsize(m)
+ 
+ 	// Called from f.
+ 	// Set m->morebuf to f's caller.
+ 	MOVW	R3, (m_morebuf+gobuf_pc)(m)	// f's caller's PC
+ 	MOVW	SP, (m_morebuf+gobuf_sp)(m)	// f's caller's SP
+-	MOVW	SP, m_morefp(m)			// f's caller's SP
++	MOVW	$4(SP), R3			// f's argument pointer
++	MOVW	R3, m_moreargp(m)	
+ 	MOVW	g, (m_morebuf+gobuf_g)(m)
+ 
+ 	// Set m->morepc to f's PC.
+@@ -185,14 +186,11 @@ TEXT reflect·call(SB), 7, $-4
+ 	MOVW	8(SP), R1			// arg frame
+ 	MOVW	12(SP), R2			// arg size
+ 
+-	SUB	$4,R1				// add the saved LR to the frame
+-	ADD	$4,R2
+-
+ 	MOVW	R0, m_morepc(m)			// f's PC
+-	MOVW	R1, m_morefp(m)			// argument frame pointer
+-	MOVW	R2, m_moreargs(m)		// f's argument size
++	MOVW	R1, m_moreargp(m)		// f's argument pointer
++	MOVW	R2, m_moreargsize(m)		// f's argument size
+ 	MOVW	$1, R3
+-	MOVW	R3, m_moreframe(m)		// f's frame size
++	MOVW	R3, m_moreframesize(m)		// f's frame size
+ 
+ 	// Call newstack on m's scheduling stack.
+ 	MOVW	m_g0(m), g
+@@ -218,8 +216,9 @@ TEXT runtime·lessstack(SB), 7, $-4
+ TEXT runtime·jmpdefer(SB), 7, $0
+ 	MOVW	0(SP), LR
+ 	MOVW	$-4(LR), LR	// BL deferreturn
+-	MOVW	4(SP), R0		// fn
+-	MOVW	8(SP), SP
++	MOVW	fn+0(FP), R0
++	MOVW	argp+4(FP), SP
++	MOVW	$-4(SP), SP	// SP is 4 below argp, due to saved LR
+ 	B		(R0)
+ 
+ TEXT runtime·memclr(SB),7,$20
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index e9a19d9504..35ab098944 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -470,8 +470,8 @@ scheduler(void)
+ 			d = gp->defer;
+ 			gp->defer = d->link;
+ 			
+-			// unwind to the stack frame with d->sp in it.
+-			unwindstack(gp, d->sp);
++			// unwind to the stack frame with d's arguments in it.
++			unwindstack(gp, d->argp);
+ 
+ 			// make the deferproc for this d return again,
+ 			// this time returning 1.  function will jump to
+@@ -481,7 +481,11 @@ scheduler(void)
+ 			// each call to deferproc.
+ 			// (the pc we're returning to does pop pop
+ 			// before it tests the return value.)
+-			gp->sched.sp = runtime·getcallersp(d->sp - 2*sizeof(uintptr));
++			// on the arm there are 2 saved LRs mixed in too.
++			if(thechar == '5')
++				gp->sched.sp = (byte*)d->argp - 4*sizeof(uintptr);
++			else
++				gp->sched.sp = (byte*)d->argp - 2*sizeof(uintptr);
+ 			gp->sched.pc = d->pc;
+ 			gp->status = Grunning;
+ 			runtime·free(d);
+@@ -633,7 +637,6 @@ void
+ runtime·startcgocallback(G* g1)
+ {
+ 	Defer *d;
+-	uintptr arg;
+ 
+ 	runtime·lock(&runtime·sched);
+ 	g1->status = Grunning;
+@@ -687,7 +690,7 @@ runtime·endcgocallback(G* g1)
+  * the stack is allowed to protrude StackSmall bytes
+  * below the stack guard.  functions with large frames
+  * don't bother with the check and always call morestack.
+- * the sequences are:
++ * the sequences are (for amd64, others are similar):
+  *
+  *	guard = g->stackguard
+  *	frame = function's stack frame size
+@@ -748,7 +751,7 @@ void
+ runtime·oldstack(void)
+ {
+ 	Stktop *top, old;
+-	uint32 args;
++	uint32 argsize;
+ 	byte *sp;
+ 	G *g1;
+ 	static int32 goid;
+@@ -759,10 +762,10 @@ runtime·oldstack(void)
+ 	top = (Stktop*)g1->stackbase;
+ 	sp = (byte*)top;
+ 	old = *top;
+-	args = old.args;
+-	if(args > 0) {
+-		sp -= args;
+-		runtime·mcpy(top->fp, sp, args);
++	argsize = old.argsize;
++	if(argsize > 0) {
++		sp -= argsize;
++		runtime·mcpy(top->argp, sp, argsize);
+ 	}
+ 	goid = old.gobuf.g->goid;	// fault if g is bad, before gogo
+ 
+@@ -777,22 +780,26 @@ runtime·oldstack(void)
+ void
+ runtime·newstack(void)
+ {
+-	int32 frame, args;
++	int32 framesize, argsize;
+ 	Stktop *top;
+ 	byte *stk, *sp;
+ 	G *g1;
+ 	Gobuf label;
+-	bool free;
++	bool free, reflectcall;
+ 
+-	frame = m->moreframe;
+-	args = m->moreargs;
++	framesize = m->moreframesize;
++	argsize = m->moreargsize;
+ 	g1 = m->curg;
+ 
+ 	if(m->morebuf.sp < g1->stackguard - StackGuard)
+ 		runtime·throw("split stack overflow");
+ 
+-	if(frame == 1 && args > 0 && m->morebuf.sp - sizeof(Stktop) - args - 32 > g1->stackguard) {
+-		// special case: called from reflect.call (frame == 1)
++	reflectcall = framesize==1;
++	if(reflectcall)
++		framesize = 0;
++
++	if(reflectcall && m->morebuf.sp - sizeof(Stktop) - argsize - 32 > g1->stackguard) {
++		// special case: called from reflect.call (framesize==1)
+ 		// to call code with an arbitrary argument size,
+ 		// and we have enough space on the current stack.
+ 		// the new Stktop* is necessary to unwind, but
+@@ -802,14 +809,12 @@ runtime·newstack(void)
+ 		free = false;
+ 	} else {
+ 		// allocate new segment.
+-		if(frame == 1)	// failed reflect.call hint
+-			frame = 0;
+-		frame += args;
+-		if(frame < StackBig)
+-			frame = StackBig;
+-		frame += 1024;	// room for more functions, Stktop.
+-		stk = runtime·stackalloc(frame);
+-		top = (Stktop*)(stk+frame-sizeof(*top));
++		framesize += argsize;
++		if(framesize < StackBig)
++			framesize = StackBig;
++		framesize += 1024;	// room for more functions, Stktop.
++		stk = runtime·stackalloc(framesize);
++		top = (Stktop*)(stk+framesize-sizeof(*top));
+ 		free = true;
+ 	}
+ 
+@@ -819,8 +824,8 @@ runtime·newstack(void)
+ 	top->stackbase = g1->stackbase;
+ 	top->stackguard = g1->stackguard;
+ 	top->gobuf = m->morebuf;
+-	top->fp = m->morefp;
+-	top->args = args;
++	top->argp = m->moreargp;
++	top->argsize = argsize;
+ 	top->free = free;
+ 	
+ 	// copy flag from panic
+@@ -831,9 +836,14 @@ runtime·newstack(void)
+ 	g1->stackguard = stk + StackGuard;
+ 
+ 	sp = (byte*)top;
+-	if(args > 0) {
+-		sp -= args;
+-		runtime·mcpy(sp, m->morefp, args);
++	if(argsize > 0) {
++		sp -= argsize;
++		runtime·mcpy(sp, m->moreargp, argsize);
++	}
++	if(thechar == '5') {
++		// caller would have saved its LR below args.
++		sp -= sizeof(void*);
++		*(void**)sp = nil;
+ 	}
+ 
+ 	// Continue as if lessstack had just called m->morepc
+@@ -876,7 +886,13 @@ runtime·malg(int32 stacksize)
+ void
+ runtime·newproc(int32 siz, byte* fn, ...)
+ {
+-	runtime·newproc1(fn, (byte*)(&fn+1), siz, 0);
++	byte *argp;
++	
++	if(thechar == '5')
++		argp = (byte*)(&fn+2);  // skip caller's saved LR
++	else
++		argp = (byte*)(&fn+1);
++	runtime·newproc1(fn, argp, siz, 0);
+ }
+ 
+ G*
+@@ -908,6 +924,11 @@ runtime·newproc1(byte *fn, byte *argp, int32 narg, int32 nret)
+ 	sp = newg->stackbase;
+ 	sp -= siz;
+ 	runtime·mcpy(sp, argp, narg);
++	if(thechar == '5') {
++		// caller's LR
++		sp -= sizeof(void*);
++		*(void**)sp = nil;
++	}
+ 
+ 	newg->sched.sp = sp;
+ 	newg->sched.pc = (byte*)runtime·goexit;
+@@ -933,10 +954,13 @@ runtime·deferproc(int32 siz, byte* fn, ...)
+ 
+ 	d = runtime·malloc(sizeof(*d) + siz - sizeof(d->args));
+ 	d->fn = fn;
+-	d->sp = (byte*)(&fn+1);
+ 	d->siz = siz;
+ 	d->pc = runtime·getcallerpc(&siz);
+-	runtime·mcpy(d->args, d->sp, d->siz);
++	if(thechar == '5')
++		d->argp = (byte*)(&fn+2);  // skip caller's saved link register
++	else
++		d->argp = (byte*)(&fn+1);
++	runtime·mcpy(d->args, d->argp, d->siz);
+ 
+ 	d->link = g->defer;
+ 	g->defer = d;
+@@ -955,19 +979,19 @@ void
+ runtime·deferreturn(uintptr arg0)
+ {
+ 	Defer *d;
+-	byte *sp, *fn;
++	byte *argp, *fn;
+ 
+ 	d = g->defer;
+ 	if(d == nil)
+ 		return;
+-	sp = runtime·getcallersp(&arg0);
+-	if(d->sp != sp)
++	argp = (byte*)&arg0;
++	if(d->argp != argp)
+ 		return;
+-	runtime·mcpy(d->sp, d->args, d->siz);
++	runtime·mcpy(argp, d->args, d->siz);
+ 	g->defer = d->link;
+ 	fn = d->fn;
+ 	runtime·free(d);
+-	runtime·jmpdefer(fn, sp);
++	runtime·jmpdefer(fn, argp);
+ }
+ 
+ static void
+@@ -983,7 +1007,7 @@ rundefer(void)
+ }
+ 
+ // Free stack frames until we hit the last one
+-// or until we find the one that contains the sp.
++// or until we find the one that contains the argp.
+ static void
+ unwindstack(G *gp, byte *sp)
+ {
+@@ -1043,10 +1067,7 @@ runtime·panic(Eface e)
+ 		// take defer off list in case of recursive panic
+ 		g->defer = d->link;
+ 		g->ispanic = true;	// rock for newstack, where reflect.call ends up
+-		if(thechar == '5')
+-			reflect·call(d->fn, d->args+4, d->siz-4);	// reflect.call does not expect LR
+-		else
+-			reflect·call(d->fn, d->args, d->siz);
++		reflect·call(d->fn, d->args, d->siz);
+ 		if(p->recovered) {
+ 			g->panic = p->link;
+ 			runtime·free(p);
+@@ -1068,13 +1089,11 @@ runtime·panic(Eface e)
+ 
+ #pragma textflag 7	/* no split, or else g->stackguard is not the stack for fp */
+ void
+-runtime·recover(byte *fp, Eface ret)
++runtime·recover(byte *argp, Eface ret)
+ {
+ 	Stktop *top, *oldtop;
+ 	Panic *p;
+ 
+-	fp = runtime·getcallersp(fp);
+-
+ 	// Must be a panic going on.
+ 	if((p = g->panic) == nil || p->recovered)
+ 		goto nomatch;
+@@ -1097,11 +1116,11 @@ runtime·recover(byte *fp, Eface ret)
+ 	// allocated a second segment (see below),
+ 	// the fp is slightly above top - top->args.
+ 	// That condition can't happen normally though
+-	// (stack pointer go down, not up), so we can accept
++	// (stack pointers go down, not up), so we can accept
+ 	// any fp between top and top - top->args as
+ 	// indicating the top of the segment.
+ 	top = (Stktop*)g->stackbase;
+-	if(fp < (byte*)top - top->args || (byte*)top < fp)
++	if(argp < (byte*)top - top->argsize || (byte*)top < argp)
+ 		goto nomatch;
+ 
+ 	// The deferred call makes a new segment big enough
+@@ -1117,7 +1136,7 @@ runtime·recover(byte *fp, Eface ret)
+ 	// bytes above top->fp) abuts the old top of stack.
+ 	// This is a correct test for both closure and non-closure code.
+ 	oldtop = (Stktop*)top->stackbase;
+-	if(oldtop != nil && top->fp == (byte*)oldtop - top->args)
++	if(oldtop != nil && top->argp == (byte*)oldtop - top->argsize)
+ 		top = oldtop;
+ 
+ 	// Now we have the segment that was created to
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index bde62833e0..c00c40aed9 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -205,12 +205,12 @@ struct	M
+ 	// The offsets of these fields are known to (hard-coded in) libmach.
+ 	G*	g0;		// goroutine with scheduling stack
+ 	void	(*morepc)(void);
+-	void*	morefp;	// frame pointer for more stack
++	void*	moreargp;	// argument pointer for more stack
+ 	Gobuf	morebuf;	// gobuf arg to morestack
+ 
+ 	// Fields not known to debuggers.
+-	uint32	moreframe;	// size arguments to morestack
+-	uint32	moreargs;
++	uint32	moreframesize;	// size arguments to morestack
++	uint32	moreargsize;
+ 	uintptr	cret;		// return value from C
+ 	uint64	procid;		// for debuggers, but offset not hard-coded
+ 	G*	gsignal;	// signal-handling G
+@@ -243,12 +243,9 @@ struct	Stktop
+ 	uint8*	stackguard;
+ 	uint8*	stackbase;
+ 	Gobuf	gobuf;
+-	uint32	args;
++	uint32	argsize;
+ 
+-	// Frame pointer: where args start in old frame.
+-	// fp == gobuf.sp except in the case of a reflected
+-	// function call, which uses an off-stack argument frame.
+-	uint8*	fp;
++	uint8*	argp;  // pointer to arguments in old frame
+ 	bool	free;	// call stackfree for this frame?
+ 	bool	panic;	// is this frame the top of a panic?
+ };
+@@ -333,7 +330,7 @@ enum {
+ struct Defer
+ {
+ 	int32	siz;
+-	byte*	sp;
++	byte*	argp;  // where args were copied from
+ 	byte*	pc;
+ 	byte*	fn;
+ 	Defer*	link;
+diff --git a/src/pkg/runtime/runtime_defs.go b/src/pkg/runtime/runtime_defs.go
+index ba3c3ed751..0e751c169d 100644
+--- a/src/pkg/runtime/runtime_defs.go
++++ b/src/pkg/runtime/runtime_defs.go
+@@ -84,32 +84,32 @@ type g_ struct {
+ }
+ 
+ type m_ struct {
+-	g0        *g_
+-	morepc    unsafe.Pointer
+-	morefp    unsafe.Pointer
+-	morebuf   gobuf
+-	moreframe uint32
+-	moreargs  uint32
+-	cret      uintptr
+-	procid    uint64
+-	gsignal   *g_
+-	tls       [8]uint32
+-	sched     gobuf
+-	curg      *g_
+-	id        int32
+-	mallocing int32
+-	gcing     int32
+-	locks     int32
+-	nomemprof int32
+-	waitnextg int32
+-	havenextg note
+-	nextg     *g_
+-	alllink   *m_
+-	schedlink *m_
+-	machport  uint32
+-	mcache    *mCache
+-	lockedg   *g_
+-	freg      [8]uint64
++	g0            *g_
++	morepc        unsafe.Pointer
++	moreargp      unsafe.Pointer
++	morebuf       gobuf
++	moreframesize uint32
++	moreargsize   uint32
++	cret          uintptr
++	procid        uint64
++	gsignal       *g_
++	tls           [8]uint32
++	sched         gobuf
++	curg          *g_
++	id            int32
++	mallocing     int32
++	gcing         int32
++	locks         int32
++	nomemprof     int32
++	waitnextg     int32
++	havenextg     note
++	nextg         *g_
++	alllink       *m_
++	schedlink     *m_
++	machport      uint32
++	mcache        *mCache
++	lockedg       *g_
++	freg          [8]uint64
+ 	// gostack	unsafe.Pointer  // __WINDOWS__
+ }
+ 

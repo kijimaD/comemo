@@ -23,6 +23,20 @@ Date:   Mon Nov 21 16:36:14 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 630012ded8..967bfc4b5c 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -7256,7 +7256,7 @@ append(s S, x ...E) S  // core type of S is []E
+ 
+ <p>
+ If the capacity of <code>s</code> is not large enough to fit the additional
+-values, <code>append</code> allocates a new, sufficiently large underlying
++values, <code>append</code> <a href="#Allocation">allocates</a> a new, sufficiently large underlying
+ array that fits both the existing slice elements and the additional values.
+ Otherwise, <code>append</code> re-uses the underlying array.
+ </p>

@@ -33,8 +33,65 @@ Date:   Thu Jan 5 17:27:34 2017 +0100
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  misc/cgo/errors/issue18452.go | 18 ++++++++++++++++++
  misc/cgo/errors/test.bash     |  1 +
  src/cmd/cgo/gcc.go            |  9 ++++++++-
  3 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/errors/issue18452.go b/misc/cgo/errors/issue18452.go
+new file mode 100644
+index 0000000000..36ef7f54e1
+--- /dev/null
++++ b/misc/cgo/errors/issue18452.go
+@@ -0,0 +1,18 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 18452: show pos info in undefined name errors
++
++package p
++
++import (
++	"C"
++	"fmt"
++)
++
++func a() {
++	fmt.Println("Hello, world!")
++	C.function_that_does_not_exist() // line 16
++	C.pi                             // line 17
++}
+diff --git a/misc/cgo/errors/test.bash b/misc/cgo/errors/test.bash
+index e9e36ce2cf..ed0b094692 100755
+--- a/misc/cgo/errors/test.bash
++++ b/misc/cgo/errors/test.bash
+@@ -48,6 +48,7 @@ check issue13830.go
+ check issue16116.go
+ check issue16591.go
+ check issue18889.go
++expect issue18452.go issue18452.go:16 issue18452.go:17
+ 
+ if ! go build issue14669.go; then
+ 	exit 1
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 50e6dfae07..0850bdc92f 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -421,7 +421,14 @@ func (p *Package) guessKinds(f *File) []*Name {
+ 	for i, n := range names {
+ 		switch sniff[i] &^ notSignedIntConst {
+ 		default:
+-			error_(token.NoPos, "could not determine kind of name for C.%s", fixGo(n.Go))
++			var tpos token.Pos
++			for _, ref := range f.Ref {
++				if ref.Name == n {
++					tpos = ref.Pos()
++					break
++				}
++			}
++			error_(tpos, "could not determine kind of name for C.%s", fixGo(n.Go))
+ 		case notStrLiteral | notType:
+ 			if sniff[i]&notSignedIntConst != 0 {
+ 				n.Kind = "uconst"

@@ -7,6 +7,24 @@ Date:   Fri Nov 5 11:22:28 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2939041
-
+---
  src/pkg/gob/type.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/gob/type.go b/src/pkg/gob/type.go
+index a72a392cb0..d68c8773cf 100644
+--- a/src/pkg/gob/type.go
++++ b/src/pkg/gob/type.go
+@@ -495,7 +495,11 @@ func Register(value interface{}) {
+ 		}
+ 	}
+ 	if rt.Name() != "" {
+-		name = star + rt.PkgPath() + "." + rt.Name()
++		if rt.PkgPath() == "" {
++			name = star + rt.Name()
++		} else {
++			name = star + rt.PkgPath() + "." + rt.Name()
++		}
+ 	}
+ 
+ 	RegisterName(name, value)

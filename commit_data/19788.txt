@@ -10,6 +10,51 @@ Date:   Mon Jul 21 11:23:29 2014 -0700
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/115160043
-
+---
  src/pkg/runtime/memmove_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/pkg/runtime/memmove_test.go b/src/pkg/runtime/memmove_test.go
+index 8dea1f9e7a..ffda4fe6c5 100644
+--- a/src/pkg/runtime/memmove_test.go
++++ b/src/pkg/runtime/memmove_test.go
+@@ -162,6 +162,18 @@ func BenchmarkMemclr256(b *testing.B)   { bmMemclr(b, 256) }
+ func BenchmarkMemclr4096(b *testing.B)  { bmMemclr(b, 4096) }
+ func BenchmarkMemclr65536(b *testing.B) { bmMemclr(b, 65536) }
+ 
++func BenchmarkClearFat8(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [8 / 4]uint32
++		_ = x
++	}
++}
++func BenchmarkClearFat12(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		var x [12 / 4]uint32
++		_ = x
++	}
++}
+ func BenchmarkClearFat16(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+ 		var x [16 / 4]uint32
+@@ -211,6 +223,20 @@ func BenchmarkClearFat1024(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkCopyFat8(b *testing.B) {
++	var x [8 / 4]uint32
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
++func BenchmarkCopyFat12(b *testing.B) {
++	var x [12 / 4]uint32
++	for i := 0; i < b.N; i++ {
++		y := x
++		_ = y
++	}
++}
+ func BenchmarkCopyFat16(b *testing.B) {
+ 	var x [16 / 4]uint32
+ 	for i := 0; i < b.N; i++ {

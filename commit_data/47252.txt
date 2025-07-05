@@ -20,7 +20,7 @@ Date:   Tue Mar 2 10:27:18 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297930
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ir/name.go                   | 2 --
  src/cmd/compile/internal/ssagen/pgen.go               | 7 +------
  src/cmd/compile/internal/ssagen/ssa.go                | 4 ----
@@ -29,3 +29,105 @@ Date:   Tue Mar 2 10:27:18 2021 -0500
  src/cmd/compile/internal/typecheck/universe.go        | 5 -----
  src/cmd/compile/internal/walk/expr.go                 | 9 ++++++++-
  7 files changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 035c9cd3d0..16c30324e5 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -509,5 +509,3 @@ func NewPkgName(pos src.XPos, sym *types.Sym, pkg *types.Pkg) *PkgName {
+ 	p.pos = pos
+ 	return p
+ }
+-
+-var RegFP *Name
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index 7e15f54299..d12e12947e 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -93,12 +93,7 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		for _, v := range b.Values {
+ 			if n, ok := v.Aux.(*ir.Name); ok {
+ 				switch n.Class {
+-				case ir.PPARAM, ir.PPARAMOUT:
+-					// Don't modify RegFP; it is a global.
+-					if n != ir.RegFP {
+-						n.SetUsed(true)
+-					}
+-				case ir.PAUTO:
++				case ir.PPARAM, ir.PPARAMOUT, ir.PAUTO:
+ 					n.SetUsed(true)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 961cae419a..cc79c07af7 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -5176,10 +5176,6 @@ func (s *state) addr(n ir.Node) *ssa.Value {
+ 			if v != nil {
+ 				return v
+ 			}
+-			if n == ir.RegFP {
+-				// Special arg that points to the frame pointer (Used by ORECOVER).
+-				return s.entryNewValue2A(ssa.OpLocalAddr, t, n, s.sp, s.startmem)
+-			}
+ 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			return nil
+ 		case ir.PAUTO:
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index ddec26df59..3421c44588 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -178,6 +178,7 @@ var runtimeDecls = [...]struct {
+ 	{"uint32tofloat64", funcTag, 117},
+ 	{"complex128div", funcTag, 118},
+ 	{"getcallerpc", funcTag, 119},
++	{"getcallersp", funcTag, 119},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+diff --git a/src/cmd/compile/internal/typecheck/builtin/runtime.go b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+index 8575148b5b..614bd46177 100644
+--- a/src/cmd/compile/internal/typecheck/builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/builtin/runtime.go
+@@ -226,6 +226,7 @@ func uint32tofloat64(uint32) float64
+ func complex128div(num complex128, den complex128) (quo complex128)
+ 
+ func getcallerpc() uintptr
++func getcallersp() uintptr
+ 
+ // race detection
+ func racefuncenter(uintptr)
+diff --git a/src/cmd/compile/internal/typecheck/universe.go b/src/cmd/compile/internal/typecheck/universe.go
+index c4c034184b..f04dcb671c 100644
+--- a/src/cmd/compile/internal/typecheck/universe.go
++++ b/src/cmd/compile/internal/typecheck/universe.go
+@@ -354,9 +354,4 @@ func DeclareUniverse() {
+ 		s1.Def = s.Def
+ 		s1.Block = s.Block
+ 	}
+-
+-	ir.RegFP = NewName(Lookup(".fp"))
+-	ir.RegFP.SetType(types.Types[types.TINT32])
+-	ir.RegFP.Class = ir.PPARAM
+-	ir.RegFP.SetUsed(true)
+ }
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 7b65db5100..1d90029298 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -158,7 +158,14 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 
+ 	case ir.ORECOVER:
+ 		n := n.(*ir.CallExpr)
+-		return mkcall("gorecover", n.Type(), init, typecheck.NodAddr(ir.RegFP))
++		// Call gorecover with the FP of this frame.
++		// FP is equal to caller's SP plus FixedFrameSize().
++		var fp ir.Node = mkcall("getcallersp", types.Types[types.TUINTPTR], init)
++		if off := base.Ctxt.FixedFrameSize(); off != 0 {
++			fp = ir.NewBinaryExpr(fp.Pos(), ir.OADD, fp, ir.NewInt(off))
++		}
++		fp = ir.NewConvExpr(fp.Pos(), ir.OCONVNOP, types.NewPtr(types.Types[types.TINT32]), fp)
++		return mkcall("gorecover", n.Type(), init, fp)
+ 
+ 	case ir.OCFUNC:
+ 		return n

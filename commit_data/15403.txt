@@ -14,6 +14,28 @@ Date:   Sun Feb 24 22:45:53 2013 +0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/7394047
-
+---
  src/cmd/dist/unix.c | 10 +++++++++-
  1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index baf019ef9c..d8b88893c9 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -770,7 +770,15 @@ sigillhand(int signum)
+ static void
+ __cpuid(int dst[4], int ax)
+ {
+-#if defined(__i386__) || defined(__x86_64__)
++#ifdef __i386__
++	// we need to avoid ebx on i386 (esp. when -fPIC).
++	asm volatile(
++		"mov %%ebx, %%edi\n\t"
++		"cpuid\n\t"
++		"xchgl %%ebx, %%edi"
++		: "=a" (dst[0]), "=D" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
++		: "0" (ax));
++#elif defined(__x86_64__)
+ 	asm volatile("cpuid"
+ 		: "=a" (dst[0]), "=b" (dst[1]), "=c" (dst[2]), "=d" (dst[3])
+ 		: "0" (ax));

@@ -9,6 +9,24 @@ Date:   Wed Mar 4 17:29:44 2015 -0500
     Change-Id: I0bbfc441662d79af4dbac6f9fc4e3a485adfb924
     Reviewed-on: https://go-review.googlesource.com/6831
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/net/server_test.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/server_test.go b/src/net/server_test.go
+index e0768e67cf..c29468fda4 100644
+--- a/src/net/server_test.go
++++ b/src/net/server_test.go
+@@ -22,8 +22,10 @@ func skipServerTest(net, unixsotype, addr string, ipv6, ipv4map, linuxOnly bool)
+ 			return true
+ 		}
+ 	case "darwin":
+-		if runtime.GOARCH == "arm" && net == unixsotype {
+-			return true
++		if net == unixsotype {
++			if runtime.GOARCH == "arm" || linuxOnly {
++				return true
++			}
+ 		}
+ 	default:
+ 		if net == unixsotype && linuxOnly {

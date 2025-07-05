@@ -33,7 +33,7 @@ Date:   Tue May 23 15:50:13 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go       |  2 +-
  src/cmd/compile/internal/base/print.go      |  6 +-----
  src/cmd/compile/internal/noder/irgen.go     |  3 +++
@@ -45,3 +45,209 @@ Date:   Tue May 23 15:50:13 2023 -0700
  src/go/types/check_test.go                  |  7 +++++++
  src/go/types/errors.go                      | 10 ++++++++++
  10 files changed, 95 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index bac421d303..753a60ae1e 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -124,7 +124,7 @@ type CmdFlags struct {
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+ 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
+ 	PgoProfile         string       "help:\"read profile from `file`\""
+-	Url                bool         "help:\"print explanatory URL with error message if applicable\""
++	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
+ 
+ 	// Configuration derived from flags; not a flag itself.
+ 	Cfg struct {
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 25ae04887f..efd70f7cc5 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -85,11 +85,7 @@ func FlushErrors() {
+ 	sort.Stable(byPos(errorMsgs))
+ 	for i, err := range errorMsgs {
+ 		if i == 0 || err.msg != errorMsgs[i-1].msg {
+-			fmt.Printf("%s", err.msg)
+-			if Flag.Url && err.code != 0 {
+-				// TODO(gri) we should come up with a better URL eventually
+-				fmt.Printf("\thttps://pkg.go.dev/internal/types/errors#%s\n", err.code)
+-			}
++			fmt.Print(err.msg)
+ 		}
+ 	}
+ 	errorMsgs = errorMsgs[:0]
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 3adf9e5d11..df5de63620 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -53,6 +53,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		Importer: &importer,
+ 		Sizes:    &gcSizes{},
+ 	}
++	if base.Flag.ErrorURL {
++		conf.ErrorURL = " [go.dev/e/%s]"
++	}
+ 	info := &types2.Info{
+ 		StoreTypesInSyntax: true,
+ 		Defs:               make(map[*syntax.Name]types2.Object),
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index b798f2c888..63ef31ba84 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -169,6 +169,12 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If a non-empty ErrorURL format string is provided, it is used
++	// to format an error URL link that is appended to the first line
++	// of an error message. ErrorURL must be a format string containing
++	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
++	ErrorURL string
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index f19b962116..bf807c35be 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -2661,3 +2661,28 @@ func (V4) M()
+ 	// V4 has no method m but has M. Should not report wrongType.
+ 	checkMissingMethod("V4", false)
+ }
++
++func TestErrorURL(t *testing.T) {
++	conf := Config{ErrorURL: " [go.dev/e/%s]"}
++
++	// test case for a one-line error
++	const src1 = `
++package p
++var _ T
++`
++	_, err := typecheck(src1, &conf, nil)
++	if err == nil || !strings.HasSuffix(err.Error(), " [go.dev/e/UndeclaredName]") {
++		t.Errorf("src1: unexpected error: got %v", err)
++	}
++
++	// test case for a multi-line error
++	const src2 = `
++package p
++func f() int { return 0 }
++var _ = f(1, 2)
++`
++	_, err = typecheck(src2, &conf, nil)
++	if err == nil || !strings.Contains(err.Error(), " [go.dev/e/WrongArgCount]\n") {
++		t.Errorf("src1: unexpected error: got %v", err)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/errors.go b/src/cmd/compile/internal/types2/errors.go
+index 1a9ab69093..7db06d944d 100644
+--- a/src/cmd/compile/internal/types2/errors.go
++++ b/src/cmd/compile/internal/types2/errors.go
+@@ -250,6 +250,16 @@ func (check *Checker) err(at poser, code Code, msg string, soft bool) {
+ 		pos = check.errpos
+ 	}
+ 
++	// If we have an URL for error codes, add a link to the first line.
++	if code != 0 && check.conf.ErrorURL != "" {
++		u := fmt.Sprintf(check.conf.ErrorURL, code)
++		if i := strings.Index(msg, "\n"); i >= 0 {
++			msg = msg[:i] + u + msg[i:]
++		} else {
++			msg += u
++		}
++	}
++
+ 	err := Error{pos, stripAnnotations(msg), msg, soft, code}
+ 	if check.firstErr == nil {
+ 		check.firstErr = err
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 08430c9e7a..61d313c0e1 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -170,6 +170,12 @@ type Config struct {
+ 	// If DisableUnusedImportCheck is set, packages are not checked
+ 	// for unused imports.
+ 	DisableUnusedImportCheck bool
++
++	// If a non-empty _ErrorURL format string is provided, it is used
++	// to format an error URL link that is appended to the first line
++	// of an error message. ErrorURL must be a format string containing
++	// exactly one "%s" format, e.g. "[go.dev/e/%s]".
++	_ErrorURL string
+ }
+ 
+ func srcimporter_setUsesCgo(conf *Config) {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 36d562a406..363e6d48e9 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2669,3 +2669,29 @@ func (V4) M()
+ 	// V4 has no method m but has M. Should not report wrongType.
+ 	checkMissingMethod("V4", false)
+ }
++
++func TestErrorURL(t *testing.T) {
++	var conf Config
++	*stringFieldAddr(&conf, "_ErrorURL") = " [go.dev/e/%s]"
++
++	// test case for a one-line error
++	const src1 = `
++package p
++var _ T
++`
++	_, err := typecheck(src1, &conf, nil)
++	if err == nil || !strings.HasSuffix(err.Error(), " [go.dev/e/UndeclaredName]") {
++		t.Errorf("src1: unexpected error: got %v", err)
++	}
++
++	// test case for a multi-line error
++	const src2 = `
++package p
++func f() int { return 0 }
++var _ = f(1, 2)
++`
++	_, err = typecheck(src2, &conf, nil)
++	if err == nil || !strings.Contains(err.Error(), " [go.dev/e/WrongArgCount]\n") {
++		t.Errorf("src1: unexpected error: got %v", err)
++	}
++}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 73ac80235c..9093a46a0a 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -300,6 +300,13 @@ func boolFieldAddr(conf *Config, name string) *bool {
+ 	return (*bool)(v.FieldByName(name).Addr().UnsafePointer())
+ }
+ 
++// stringFieldAddr(conf, name) returns the address of the string field conf.<name>.
++// For accessing unexported fields.
++func stringFieldAddr(conf *Config, name string) *string {
++	v := reflect.Indirect(reflect.ValueOf(conf))
++	return (*string)(v.FieldByName(name).Addr().UnsafePointer())
++}
++
+ // TestManual is for manual testing of a package - either provided
+ // as a list of filenames belonging to the package, or a directory
+ // name containing the package files - after the test arguments
+diff --git a/src/go/types/errors.go b/src/go/types/errors.go
+index 894403e666..5cef8032cf 100644
+--- a/src/go/types/errors.go
++++ b/src/go/types/errors.go
+@@ -228,6 +228,16 @@ func (check *Checker) report(errp *error_) {
+ 		panic("no error code provided")
+ 	}
+ 
++	// If we have an URL for error codes, add a link to the first line.
++	if errp.code != 0 && check.conf._ErrorURL != "" {
++		u := fmt.Sprintf(check.conf._ErrorURL, errp.code)
++		if i := strings.Index(msg, "\n"); i >= 0 {
++			msg = msg[:i] + u + msg[i:]
++		} else {
++			msg += u
++		}
++	}
++
+ 	span := spanOf(errp.desc[0].posn)
+ 	e := Error{
+ 		Fset:       check.fset,

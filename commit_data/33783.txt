@@ -71,9 +71,137 @@ Date:   Tue Aug 15 16:01:31 2017 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/math/rand/example_test.go |  8 ++++----
  src/math/rand/rand.go         | 26 +++++++++++++++++---------
  src/math/rand/rand_test.go    |  2 +-
  src/math/rand/regress_test.go | 28 ++++++++++++++--------------
  4 files changed, 36 insertions(+), 28 deletions(-)
+
+diff --git a/src/math/rand/example_test.go b/src/math/rand/example_test.go
+index aa1f2bcc73..f50d255209 100644
+--- a/src/math/rand/example_test.go
++++ b/src/math/rand/example_test.go
+@@ -94,7 +94,7 @@ func Example_rand() {
+ 	// Intn(10)    1                   2                   5
+ 	// Int31n(10)  4                   7                   8
+ 	// Int63n(10)  7                   6                   3
+-	// Perm        [1 4 2 3 0]         [4 2 1 3 0]         [1 2 4 0 3]
++	// Perm        [0 1 4 2 3]         [0 4 3 1 2]         [1 2 3 0 4]
+ }
+ 
+ func ExamplePerm() {
+@@ -115,7 +115,7 @@ func ExampleShuffle() {
+ 	fmt.Println(words)
+ 
+ 	// Output:
+-	// [mouth my the of runs corners from ink]
++	// [my of the mouth corners from ink runs]
+ }
+ 
+ func ExampleShuffle_slicesInUnison() {
+@@ -132,8 +132,8 @@ func ExampleShuffle_slicesInUnison() {
+ 
+ 	// Output:
+ 	// C: 3
+-	// D: 4
+-	// A: 1
+ 	// E: 5
+ 	// B: 2
++	// A: 1
++	// D: 4
+ }
+diff --git a/src/math/rand/rand.go b/src/math/rand/rand.go
+index a607409a16..895bb0597d 100644
+--- a/src/math/rand/rand.go
++++ b/src/math/rand/rand.go
+@@ -213,16 +213,24 @@ again:
+ // Perm returns, as a slice of n ints, a pseudo-random permutation of the integers [0,n).
+ func (r *Rand) Perm(n int) []int {
+ 	m := make([]int, n)
+-	// In the following loop, the iteration when i=0 always swaps m[0] with m[0].
+-	// A change to remove this useless iteration is to assign 1 to i in the init
+-	// statement. But Perm also effects r. Making this change will affect
+-	// the final state of r. So this change can't be made for compatibility
+-	// reasons for Go 1.
+-	for i := 0; i < n; i++ {
+-		j := r.Intn(i + 1)
+-		m[i] = m[j]
+-		m[j] = i
++	for i := range m {
++		m[i] = i
+ 	}
++
++	// The code that follows is equivalent to calling
++	//   r.Shuffle(n, func(i, j int) { m[i], m[j] = m[j], m[i] })
++	// but with the swap function inlined.
++	// This inlining provides a 10-15% speed-up.
++	i := n - 1
++	for ; i > 1<<31-1-1; i-- {
++		j := int(r.Int63n(int64(i + 1)))
++		m[i], m[j] = m[j], m[i]
++	}
++	for ; i > 0; i-- {
++		j := int(r.int31n(int32(i + 1)))
++		m[i], m[j] = m[j], m[i]
++	}
++
+ 	return m
+ }
+ 
+diff --git a/src/math/rand/rand_test.go b/src/math/rand/rand_test.go
+index 1a13accde9..e663b84f9f 100644
+--- a/src/math/rand/rand_test.go
++++ b/src/math/rand/rand_test.go
+@@ -53,7 +53,7 @@ func (this *statsResults) checkSimilarDistribution(expected *statsResults) error
+ 		fmt.Println(s)
+ 		return errors.New(s)
+ 	}
+-	if !nearEqual(this.stddev, expected.stddev, 0, expected.maxError) {
++	if !nearEqual(this.stddev, expected.stddev, expected.closeEnough, expected.maxError) {
+ 		s := fmt.Sprintf("stddev %v != %v (allowed error %v, %v)", this.stddev, expected.stddev, expected.closeEnough, expected.maxError)
+ 		fmt.Println(s)
+ 		return errors.New(s)
+diff --git a/src/math/rand/regress_test.go b/src/math/rand/regress_test.go
+index e31e6c5af0..0be2ca1d34 100644
+--- a/src/math/rand/regress_test.go
++++ b/src/math/rand/regress_test.go
+@@ -323,24 +323,24 @@ var regressGolden = []interface{}{
+ 	float64(-0.5987943422687668),  // NormFloat64()
+ 	[]int{},                                                     // Perm(0)
+ 	[]int{0},                                                    // Perm(1)
+-	[]int{0, 4, 1, 3, 2},                                        // Perm(5)
+-	[]int{3, 1, 0, 4, 7, 5, 2, 6},                               // Perm(8)
+-	[]int{5, 0, 3, 6, 7, 4, 2, 1, 8},                            // Perm(9)
+-	[]int{4, 5, 0, 2, 6, 9, 3, 1, 8, 7},                         // Perm(10)
+-	[]int{14, 2, 0, 8, 3, 5, 13, 12, 1, 4, 6, 7, 11, 9, 15, 10}, // Perm(16)
++	[]int{2, 3, 1, 0, 4},                                        // Perm(5)
++	[]int{5, 6, 0, 4, 3, 1, 7, 2},                               // Perm(8)
++	[]int{2, 4, 0, 5, 7, 3, 1, 6, 8},                            // Perm(9)
++	[]int{6, 0, 4, 2, 5, 1, 9, 8, 3, 7},                         // Perm(10)
++	[]int{7, 11, 12, 14, 0, 15, 2, 5, 9, 3, 8, 13, 4, 1, 6, 10}, // Perm(16)
+ 	[]int{},                                                     // Perm(0)
+ 	[]int{0},                                                    // Perm(1)
+-	[]int{3, 0, 1, 2, 4},                                        // Perm(5)
+-	[]int{5, 1, 2, 0, 4, 7, 3, 6},                               // Perm(8)
+-	[]int{4, 0, 6, 8, 1, 5, 2, 7, 3},                            // Perm(9)
+-	[]int{8, 6, 1, 7, 5, 4, 3, 2, 9, 0},                         // Perm(10)
+-	[]int{0, 3, 13, 2, 15, 4, 10, 1, 8, 14, 7, 6, 12, 9, 5, 11}, // Perm(16)
++	[]int{2, 1, 0, 4, 3},                                        // Perm(5)
++	[]int{4, 2, 1, 6, 0, 5, 3, 7},                               // Perm(8)
++	[]int{7, 3, 1, 2, 8, 5, 4, 6, 0},                            // Perm(9)
++	[]int{3, 0, 7, 4, 8, 9, 5, 6, 1, 2},                         // Perm(10)
++	[]int{0, 1, 8, 14, 9, 5, 4, 13, 7, 12, 10, 3, 15, 6, 11, 2}, // Perm(16)
+ 	[]int{},                             // Perm(0)
+ 	[]int{0},                            // Perm(1)
+-	[]int{0, 4, 2, 1, 3},                // Perm(5)
+-	[]int{2, 1, 7, 0, 6, 3, 4, 5},       // Perm(8)
+-	[]int{8, 7, 5, 3, 4, 6, 0, 1, 2},    // Perm(9)
+-	[]int{1, 0, 2, 5, 7, 6, 9, 8, 3, 4}, // Perm(10)
++	[]int{2, 1, 4, 3, 0},                // Perm(5)
++	[]int{4, 0, 7, 5, 1, 6, 2, 3},       // Perm(8)
++	[]int{6, 5, 3, 4, 7, 1, 0, 8, 2},    // Perm(9)
++	[]int{1, 7, 6, 3, 2, 9, 0, 5, 4, 8}, // Perm(10)
+ 	[]byte{0x1},                         // Read([0])
+ 	[]byte{0x94, 0xfd, 0xc2, 0xfa, 0x2f, 0xfc, 0xc0},                 // Read([0 0 0 0 0 0 0])
+ 	[]byte{0x41, 0xd3, 0xff, 0x12, 0x4, 0x5b, 0x73, 0xc8},            // Read([0 0 0 0 0 0 0 0])

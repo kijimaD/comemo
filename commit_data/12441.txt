@@ -9,10 +9,567 @@ Date:   Wed Mar 7 13:50:31 2012 +1100
     R=r, bradfitz, adg, rsc, minux.ma
     CC=golang-dev
     https://golang.org/cl/5756050
-
+---
  src/pkg/go/build/deps_test.go  |   2 +-
  src/pkg/strconv/isprint.go     | 268 ++++++++++++++++++++---------------------
  src/pkg/strconv/makeisprint.go |  25 ++--
  src/pkg/strconv/quote.go       |  68 ++++++++---
  src/pkg/strconv/quote_test.go  |  15 +++
  5 files changed, 215 insertions(+), 163 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 432f754d32..695af7da79 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -52,7 +52,7 @@ var pkgDeps = map[string][]string{
+ 	"math/rand":     {"L0", "math"},
+ 	"path":          {"L0", "unicode/utf8", "strings"},
+ 	"sort":          {"math"},
+-	"strconv":       {"L0", "unicode", "unicode/utf8", "math", "strings"},
++	"strconv":       {"L0", "unicode/utf8", "math"},
+ 	"strings":       {"L0", "unicode", "unicode/utf8"},
+ 	"unicode":       {},
+ 	"unicode/utf16": {},
+diff --git a/src/pkg/strconv/isprint.go b/src/pkg/strconv/isprint.go
+index 34fa4d8de7..a03a07bfb5 100644
+--- a/src/pkg/strconv/isprint.go
++++ b/src/pkg/strconv/isprint.go
+@@ -3,7 +3,7 @@
+ 
+ package strconv
+ 
+-// (474+134)*2 + (180+42)*4 = 2104 bytes
++// (474+134+42)*2 + (180)*4 = 2020 bytes
+ 
+ var isPrint16 = []uint16{
+ 	0x0020, 0x007e,
+@@ -383,139 +383,139 @@ var isNotPrint16 = []uint16{
+ }
+ 
+ var isPrint32 = []uint32{
+-	0x000020, 0x00007e,
+-	0x0000a1, 0x000377,
+-	0x00037a, 0x00037e,
+-	0x000384, 0x000527,
+-	0x000531, 0x000556,
+-	0x000559, 0x00058a,
+-	0x000591, 0x0005c7,
+-	0x0005d0, 0x0005ea,
+-	0x0005f0, 0x0005f4,
+-	0x000606, 0x00061b,
+-	0x00061e, 0x00070d,
+-	0x000710, 0x00074a,
+-	0x00074d, 0x0007b1,
+-	0x0007c0, 0x0007fa,
+-	0x000800, 0x00082d,
+-	0x000830, 0x00085b,
+-	0x00085e, 0x00085e,
+-	0x000900, 0x00098c,
+-	0x00098f, 0x000990,
+-	0x000993, 0x0009b2,
+-	0x0009b6, 0x0009b9,
+-	0x0009bc, 0x0009c4,
+-	0x0009c7, 0x0009c8,
+-	0x0009cb, 0x0009ce,
+-	0x0009d7, 0x0009d7,
+-	0x0009dc, 0x0009e3,
+-	0x0009e6, 0x0009fb,
+-	0x000a01, 0x000a0a,
+-	0x000a0f, 0x000a10,
+-	0x000a13, 0x000a39,
+-	0x000a3c, 0x000a42,
+-	0x000a47, 0x000a48,
+-	0x000a4b, 0x000a4d,
+-	0x000a51, 0x000a51,
+-	0x000a59, 0x000a5e,
+-	0x000a66, 0x000a75,
+-	0x000a81, 0x000ab9,
+-	0x000abc, 0x000acd,
+-	0x000ad0, 0x000ad0,
+-	0x000ae0, 0x000ae3,
+-	0x000ae6, 0x000af1,
+-	0x000b01, 0x000b0c,
+-	0x000b0f, 0x000b10,
+-	0x000b13, 0x000b39,
+-	0x000b3c, 0x000b44,
+-	0x000b47, 0x000b48,
+-	0x000b4b, 0x000b4d,
+-	0x000b56, 0x000b57,
+-	0x000b5c, 0x000b63,
+-	0x000b66, 0x000b77,
+-	0x000b82, 0x000b8a,
+-	0x000b8e, 0x000b95,
+-	0x000b99, 0x000b9f,
+-	0x000ba3, 0x000ba4,
+-	0x000ba8, 0x000baa,
+-	0x000bae, 0x000bb9,
+-	0x000bbe, 0x000bc2,
+-	0x000bc6, 0x000bcd,
+-	0x000bd0, 0x000bd0,
+-	0x000bd7, 0x000bd7,
+-	0x000be6, 0x000bfa,
+-	0x000c01, 0x000c39,
+-	0x000c3d, 0x000c4d,
+-	0x000c55, 0x000c59,
+-	0x000c60, 0x000c63,
+-	0x000c66, 0x000c6f,
+-	0x000c78, 0x000c7f,
+-	0x000c82, 0x000cb9,
+-	0x000cbc, 0x000ccd,
+-	0x000cd5, 0x000cd6,
+-	0x000cde, 0x000ce3,
+-	0x000ce6, 0x000cf2,
+-	0x000d02, 0x000d3a,
+-	0x000d3d, 0x000d4e,
+-	0x000d57, 0x000d57,
+-	0x000d60, 0x000d63,
+-	0x000d66, 0x000d75,
+-	0x000d79, 0x000d7f,
+-	0x000d82, 0x000d96,
+-	0x000d9a, 0x000dbd,
+-	0x000dc0, 0x000dc6,
+-	0x000dca, 0x000dca,
+-	0x000dcf, 0x000ddf,
+-	0x000df2, 0x000df4,
+-	0x000e01, 0x000e3a,
+-	0x000e3f, 0x000e5b,
+-	0x000e81, 0x000e84,
+-	0x000e87, 0x000e8a,
+-	0x000e8d, 0x000e8d,
+-	0x000e94, 0x000ea7,
++	0x010000, 0x01004d,
++	0x010050, 0x01005d,
++	0x010080, 0x0100fa,
++	0x010100, 0x010102,
++	0x010107, 0x010133,
++	0x010137, 0x01018a,
++	0x010190, 0x01019b,
++	0x0101d0, 0x0101fd,
++	0x010280, 0x01029c,
++	0x0102a0, 0x0102d0,
++	0x010300, 0x010323,
++	0x010330, 0x01034a,
++	0x010380, 0x0103c3,
++	0x0103c8, 0x0103d5,
++	0x010400, 0x01049d,
++	0x0104a0, 0x0104a9,
++	0x010800, 0x010805,
++	0x010808, 0x010838,
++	0x01083c, 0x01083c,
++	0x01083f, 0x01085f,
++	0x010900, 0x01091b,
++	0x01091f, 0x010939,
++	0x01093f, 0x01093f,
++	0x010a00, 0x010a06,
++	0x010a0c, 0x010a33,
++	0x010a38, 0x010a3a,
++	0x010a3f, 0x010a47,
++	0x010a50, 0x010a58,
++	0x010a60, 0x010a7f,
++	0x010b00, 0x010b35,
++	0x010b39, 0x010b55,
++	0x010b58, 0x010b72,
++	0x010b78, 0x010b7f,
++	0x010c00, 0x010c48,
++	0x010e60, 0x010e7e,
++	0x011000, 0x01104d,
++	0x011052, 0x01106f,
++	0x011080, 0x0110c1,
++	0x012000, 0x01236e,
++	0x012400, 0x012462,
++	0x012470, 0x012473,
++	0x013000, 0x01342e,
++	0x016800, 0x016a38,
++	0x01b000, 0x01b001,
++	0x01d000, 0x01d0f5,
++	0x01d100, 0x01d126,
++	0x01d129, 0x01d172,
++	0x01d17b, 0x01d1dd,
++	0x01d200, 0x01d245,
++	0x01d300, 0x01d356,
++	0x01d360, 0x01d371,
++	0x01d400, 0x01d49f,
++	0x01d4a2, 0x01d4a2,
++	0x01d4a5, 0x01d4a6,
++	0x01d4a9, 0x01d50a,
++	0x01d50d, 0x01d546,
++	0x01d54a, 0x01d6a5,
++	0x01d6a8, 0x01d7cb,
++	0x01d7ce, 0x01d7ff,
++	0x01f000, 0x01f02b,
++	0x01f030, 0x01f093,
++	0x01f0a0, 0x01f0ae,
++	0x01f0b1, 0x01f0be,
++	0x01f0c1, 0x01f0df,
++	0x01f100, 0x01f10a,
++	0x01f110, 0x01f169,
++	0x01f170, 0x01f19a,
++	0x01f1e6, 0x01f202,
++	0x01f210, 0x01f23a,
++	0x01f240, 0x01f248,
++	0x01f250, 0x01f251,
++	0x01f300, 0x01f320,
++	0x01f330, 0x01f37c,
++	0x01f380, 0x01f393,
++	0x01f3a0, 0x01f3ca,
++	0x01f3e0, 0x01f3f0,
++	0x01f400, 0x01f4fc,
++	0x01f500, 0x01f53d,
++	0x01f550, 0x01f567,
++	0x01f5fb, 0x01f625,
++	0x01f628, 0x01f62d,
++	0x01f630, 0x01f640,
++	0x01f645, 0x01f64f,
++	0x01f680, 0x01f6c5,
++	0x01f700, 0x01f773,
++	0x020000, 0x02a6d6,
++	0x02a700, 0x02b734,
++	0x02b740, 0x02b81d,
++	0x02f800, 0x02fa1d,
++	0x0e0100, 0x0e01ef,
+ }
+ 
+-var isNotPrint32 = []uint32{
+-	0x1000c,
+-	0x10027,
+-	0x1003b,
+-	0x1003e,
+-	0x1031f,
+-	0x1039e,
+-	0x10809,
+-	0x10836,
+-	0x10856,
+-	0x10a04,
+-	0x10a14,
+-	0x10a18,
+-	0x110bd,
+-	0x1d455,
+-	0x1d49d,
+-	0x1d4ad,
+-	0x1d4ba,
+-	0x1d4bc,
+-	0x1d4c4,
+-	0x1d506,
+-	0x1d515,
+-	0x1d51d,
+-	0x1d53a,
+-	0x1d53f,
+-	0x1d545,
+-	0x1d551,
+-	0x1f0d0,
+-	0x1f12f,
+-	0x1f336,
+-	0x1f3c5,
+-	0x1f43f,
+-	0x1f441,
+-	0x1f4f8,
+-	0x1f600,
+-	0x1f611,
+-	0x1f615,
+-	0x1f617,
+-	0x1f619,
+-	0x1f61b,
+-	0x1f61f,
+-	0x1f62c,
+-	0x1f634,
++var isNotPrint32 = []uint16{ // add 0x10000 to each entry
++	0x000c,
++	0x0027,
++	0x003b,
++	0x003e,
++	0x031f,
++	0x039e,
++	0x0809,
++	0x0836,
++	0x0856,
++	0x0a04,
++	0x0a14,
++	0x0a18,
++	0x10bd,
++	0xd455,
++	0xd49d,
++	0xd4ad,
++	0xd4ba,
++	0xd4bc,
++	0xd4c4,
++	0xd506,
++	0xd515,
++	0xd51d,
++	0xd53a,
++	0xd53f,
++	0xd545,
++	0xd551,
++	0xf0d0,
++	0xf12f,
++	0xf336,
++	0xf3c5,
++	0xf43f,
++	0xf441,
++	0xf4f8,
++	0xf600,
++	0xf611,
++	0xf615,
++	0xf617,
++	0xf619,
++	0xf61b,
++	0xf61f,
++	0xf62c,
++	0xf634,
+ }
+diff --git a/src/pkg/strconv/makeisprint.go b/src/pkg/strconv/makeisprint.go
+index 4ff2294f40..8a6699bdb5 100644
+--- a/src/pkg/strconv/makeisprint.go
++++ b/src/pkg/strconv/makeisprint.go
+@@ -9,6 +9,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"unicode"
+ )
+ 
+@@ -116,8 +117,8 @@ func main() {
+ 
+ 	for i := rune(0); i <= unicode.MaxRune; i++ {
+ 		if isPrint(i) != unicode.IsPrint(i) {
+-			fmt.Printf("%U: isPrint=%v, want %v\n", i, isPrint(i), unicode.IsPrint(i))
+-			break
++			fmt.Fprintf(os.Stderr, "%U: isPrint=%v, want %v\n", i, isPrint(i), unicode.IsPrint(i))
++			return
+ 		}
+ 	}
+ 
+@@ -125,11 +126,11 @@ func main() {
+ 	fmt.Printf("//     go run makeisprint.go >x && mv x isprint.go\n\n")
+ 	fmt.Printf("package strconv\n\n")
+ 
+-	fmt.Printf("// (%d+%d)*2 + (%d+%d)*4 = %d bytes\n\n",
+-		len(range16), len(except16),
+-		len(range32), len(except32),
+-		(len(range16)+len(except16))*2+
+-			(len(range32)+len(except32))*4)
++	fmt.Printf("// (%d+%d+%d)*2 + (%d)*4 = %d bytes\n\n",
++		len(range16), len(except16), len(except32),
++		len(range32),
++		(len(range16)+len(except16)+len(except32))*2+
++			(len(range32))*4)
+ 
+ 	fmt.Printf("var isPrint16 = []uint16{\n")
+ 	for i := 0; i < len(range16); i += 2 {
+@@ -145,13 +146,17 @@ func main() {
+ 
+ 	fmt.Printf("var isPrint32 = []uint32{\n")
+ 	for i := 0; i < len(range32); i += 2 {
+-		fmt.Printf("\t%#06x, %#06x,\n", range16[i], range16[i+1])
++		fmt.Printf("\t%#06x, %#06x,\n", range32[i], range32[i+1])
+ 	}
+ 	fmt.Printf("}\n\n")
+ 
+-	fmt.Printf("var isNotPrint32 = []uint32{\n")
++	fmt.Printf("var isNotPrint32 = []uint16{ // add 0x10000 to each entry\n")
+ 	for _, r := range except32 {
+-		fmt.Printf("\t%#04x,\n", r)
++		if r >= 0x20000 {
++			fmt.Fprintf(os.Stderr, "%U too big for isNotPrint32\n", r)
++			return
++		}
++		fmt.Printf("\t%#04x,\n", r-0x10000)
+ 	}
+ 	fmt.Printf("}\n")
+ }
+diff --git a/src/pkg/strconv/quote.go b/src/pkg/strconv/quote.go
+index c07063c030..8a73f9d3b2 100644
+--- a/src/pkg/strconv/quote.go
++++ b/src/pkg/strconv/quote.go
+@@ -5,8 +5,6 @@
+ package strconv
+ 
+ import (
+-	"strings"
+-	"unicode"
+ 	"unicode/utf8"
+ )
+ 
+@@ -34,11 +32,11 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 			continue
+ 		}
+ 		if ASCIIonly {
+-			if r <= unicode.MaxASCII && unicode.IsPrint(r) {
++			if r < utf8.RuneSelf && IsPrint(r) {
+ 				buf = append(buf, byte(r))
+ 				continue
+ 			}
+-		} else if unicode.IsPrint(r) {
++		} else if IsPrint(r) {
+ 			n := utf8.EncodeRune(runeTmp[:], r)
+ 			buf = append(buf, runeTmp[:n]...)
+ 			continue
+@@ -64,7 +62,7 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ 				buf = append(buf, `\x`...)
+ 				buf = append(buf, lowerhex[s[0]>>4])
+ 				buf = append(buf, lowerhex[s[0]&0xF])
+-			case r > unicode.MaxRune:
++			case r > utf8.MaxRune:
+ 				r = 0xFFFD
+ 				fallthrough
+ 			case r < 0x10000:
+@@ -88,7 +86,7 @@ func quoteWith(s string, quote byte, ASCIIonly bool) string {
+ // Quote returns a double-quoted Go string literal representing s.  The
+ // returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
+ // control characters and non-printable characters as defined by
+-// unicode.IsPrint.
++// IsPrint.
+ func Quote(s string) string {
+ 	return quoteWith(s, '"', false)
+ }
+@@ -101,8 +99,7 @@ func AppendQuote(dst []byte, s string) []byte {
+ 
+ // QuoteToASCII returns a double-quoted Go string literal representing s.
+ // The returned string uses Go escape sequences (\t, \n, \xFF, \u0100) for
+-// non-ASCII characters and non-printable characters as defined by
+-// unicode.IsPrint.
++// non-ASCII characters and non-printable characters as defined by IsPrint.
+ func QuoteToASCII(s string) string {
+ 	return quoteWith(s, '"', true)
+ }
+@@ -115,8 +112,7 @@ func AppendQuoteToASCII(dst []byte, s string) []byte {
+ 
+ // QuoteRune returns a single-quoted Go character literal representing the
+ // rune.  The returned string uses Go escape sequences (\t, \n, \xFF, \u0100)
+-// for control characters and non-printable characters as defined by
+-// unicode.IsPrint.
++// for control characters and non-printable characters as defined by IsPrint.
+ func QuoteRune(r rune) string {
+ 	// TODO: avoid the allocation here.
+ 	return quoteWith(string(r), '\'', false)
+@@ -131,7 +127,7 @@ func AppendQuoteRune(dst []byte, r rune) []byte {
+ // QuoteRuneToASCII returns a single-quoted Go character literal representing
+ // the rune.  The returned string uses Go escape sequences (\t, \n, \xFF,
+ // \u0100) for non-ASCII characters and non-printable characters as defined
+-// by unicode.IsPrint.
++// by IsPrint.
+ func QuoteRuneToASCII(r rune) string {
+ 	// TODO: avoid the allocation here.
+ 	return quoteWith(string(r), '\'', true)
+@@ -246,7 +242,7 @@ func UnquoteChar(s string, quote byte) (value rune, multibyte bool, tail string,
+ 			value = v
+ 			break
+ 		}
+-		if v > unicode.MaxRune {
++		if v > utf8.MaxRune {
+ 			err = ErrSyntax
+ 			return
+ 		}
+@@ -305,7 +301,7 @@ func Unquote(s string) (t string, err error) {
+ 	s = s[1 : n-1]
+ 
+ 	if quote == '`' {
+-		if strings.Contains(s, "`") {
++		if contains(s, '`') {
+ 			return "", ErrSyntax
+ 		}
+ 		return s, nil
+@@ -313,12 +309,12 @@ func Unquote(s string) (t string, err error) {
+ 	if quote != '"' && quote != '\'' {
+ 		return "", ErrSyntax
+ 	}
+-	if strings.Index(s, "\n") >= 0 {
++	if contains(s, '\n') {
+ 		return "", ErrSyntax
+ 	}
+ 
+ 	// Is it trivial?  Avoid allocation.
+-	if strings.Index(s, `\`) < 0 && strings.IndexRune(s, rune(quote)) < 0 {
++	if !contains(s, '\\') && !contains(s, quote) {
+ 		switch quote {
+ 		case '"':
+ 			return s, nil
+@@ -352,6 +348,16 @@ func Unquote(s string) (t string, err error) {
+ 	return string(buf), nil
+ }
+ 
++// contains reports whether the string contains the byte c.
++func contains(s string, c byte) bool {
++	for i := 0; i < len(s); i++ {
++		if s[i] == c {
++			return true
++		}
++	}
++	return false
++}
++
+ // bsearch16 returns the smallest i such that a[i] >= x.
+ // If there is no such i, bsearch16 returns len(a).
+ func bsearch16(a []uint16, x uint16) int {
+@@ -382,7 +388,29 @@ func bsearch32(a []uint32, x uint32) int {
+ 	return i
+ }
+ 
+-func isPrint(r rune) bool {
++// TODO: IsPrint is a local implementation of unicode.IsPrint, verified by the tests
++// to give the same answer. It allows this package not to depend on unicode,
++// and therefore not pull in all the Unicode tables. If the linker were better
++// at tossing unused tables, we could get rid of this implementation.
++// That would be nice.
++
++// IsPrint reports whether the rune is defined as printable by Go, with
++// the same definition as unicode.IsPrint: letters, numbers, punctuation,
++// symbols and ASCII space.
++func IsPrint(r rune) bool {
++	// Fast check for Latin-1
++	if r <= 0xFF {
++		if 0x20 <= r && r <= 0x7E {
++			// All the ASCII is printable from space through DEL-1.
++			return true
++		}
++		if 0xA1 <= r && r <= 0xFF {
++			// Similarly for ¡ through ÿ...
++			return r != 0xAD // ...except for the bizarre soft hyphen.
++		}
++		return false
++	}
++
+ 	// Same algorithm, either on uint16 or uint32 value.
+ 	// First, find first i such that isPrint[i] >= x.
+ 	// This is the index of either the start or end of a pair that might span x.
+@@ -404,6 +432,10 @@ func isPrint(r rune) bool {
+ 	if i >= len(isPrint) || rr < isPrint[i&^1] || isPrint[i|1] < rr {
+ 		return false
+ 	}
+-	j := bsearch32(isNotPrint, rr)
+-	return j >= len(isNotPrint) || isNotPrint[j] != rr
++	if r >= 0x20000 {
++		return true
++	}
++	r -= 0x10000
++	j := bsearch16(isNotPrint, uint16(r))
++	return j >= len(isNotPrint) || isNotPrint[j] != uint16(r)
+ }
+diff --git a/src/pkg/strconv/quote_test.go b/src/pkg/strconv/quote_test.go
+index 3f544c43cd..61d9bf9a57 100644
+--- a/src/pkg/strconv/quote_test.go
++++ b/src/pkg/strconv/quote_test.go
+@@ -7,8 +7,23 @@ package strconv_test
+ import (
+ 	. "strconv"
+ 	"testing"
++	"unicode"
+ )
+ 
++// Verify that our isPrint agrees with unicode.IsPrint
++func TestIsPrint(t *testing.T) {
++	n := 0
++	for r := rune(0); r <= unicode.MaxRune; r++ {
++		if IsPrint(r) != unicode.IsPrint(r) {
++			t.Errorf("IsPrint(%U)=%t incorrect", r, IsPrint(r))
++			n++
++			if n > 10 {
++				return
++			}
++		}
++	}
++}
++
+ type quoteTest struct {
+ 	in    string
+ 	out   string

@@ -17,7 +17,230 @@ Date:   Mon Aug 29 09:32:34 2022 -0700
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/crypto/tls/cache.go      |  93 ++++++++++++++++++++++++++++++++++
  src/crypto/tls/cache_test.go | 117 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 210 insertions(+)
+
+diff --git a/src/crypto/tls/cache.go b/src/crypto/tls/cache.go
+new file mode 100644
+index 0000000000..aa44173c80
+--- /dev/null
++++ b/src/crypto/tls/cache.go
+@@ -0,0 +1,93 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto/x509"
++	"runtime"
++	"sync"
++	"sync/atomic"
++)
++
++type cacheEntry struct {
++	refs atomic.Int64
++	cert *x509.Certificate
++}
++
++// certCache implements an intern table for reference counted x509.Certificates,
++// implemented in a similar fashion to BoringSSL's CRYPTO_BUFFER_POOL. This
++// allows for a single x509.Certificate to be kept in memory and referenced from
++// multiple Conns. Returned references should not be mutated by callers. Certificates
++// are still safe to use after they are removed from the cache.
++//
++// Certificates are returned wrapped in a activeCert struct that should be held by
++// the caller. When references to the activeCert are freed, the number of references
++// to the certificate in the cache is decremented. Once the number of references
++// reaches zero, the entry is evicted from the cache.
++//
++// The main difference between this implmentation and CRYPTO_BUFFER_POOL is that
++// CRYPTO_BUFFER_POOL is a more  generic structure which supports blobs of data,
++// rather than specific structures. Since we only care about x509.Certificates,
++// certCache is implemented as a specific cache, rather than a generic one.
++//
++// See https://boringssl.googlesource.com/boringssl/+/master/include/openssl/pool.h
++// and https://boringssl.googlesource.com/boringssl/+/master/crypto/pool/pool.c
++// for the BoringSSL reference.
++type certCache struct {
++	sync.Map
++}
++
++// activeCert is a handle to a certificate held in the cache. Once there are
++// no alive activeCerts for a given certificate, the certificate is removed
++// from the cache by a finalizer.
++type activeCert struct {
++	cert *x509.Certificate
++}
++
++// active increments the number of references to the entry, wraps the
++// certificate in the entry in a activeCert, and sets the finalizer.
++//
++// Note that there is a race between active and the finalizer set on the
++// returned activeCert, triggered if active is called after the ref count is
++// decremented such that refs may be > 0 when evict is called. We consider this
++// safe, since the caller holding an activeCert for an entry that is no longer
++// in the cache is fine, with the only side effect being the memory overhead of
++// there being more than one distinct reference to a certificate alive at once.
++func (cc *certCache) active(e *cacheEntry) *activeCert {
++	e.refs.Add(1)
++	a := &activeCert{e.cert}
++	runtime.SetFinalizer(a, func(_ *activeCert) {
++		if e.refs.Add(-1) == 0 {
++			cc.evict(e)
++		}
++	})
++	return a
++}
++
++// evict removes a cacheEntry from the cache.
++func (cc *certCache) evict(e *cacheEntry) {
++	cc.Delete(string(e.cert.Raw))
++}
++
++// newCert returns a x509.Certificate parsed from der. If there is already a copy
++// of the certificate in the cache, a reference to the existing certificate will
++// be returned. Otherwise, a fresh certificate will be added to the cache, and
++// the reference returned. The returned reference should not be mutated.
++func (cc *certCache) newCert(der []byte) (*activeCert, error) {
++	if entry, ok := cc.Load(string(der)); ok {
++		return cc.active(entry.(*cacheEntry)), nil
++	}
++
++	cert, err := x509.ParseCertificate(der)
++	if err != nil {
++		return nil, err
++	}
++
++	entry := &cacheEntry{cert: cert}
++	if entry, loaded := cc.LoadOrStore(string(der), entry); loaded {
++		return cc.active(entry.(*cacheEntry)), nil
++	}
++	return cc.active(entry), nil
++}
+diff --git a/src/crypto/tls/cache_test.go b/src/crypto/tls/cache_test.go
+new file mode 100644
+index 0000000000..2846734195
+--- /dev/null
++++ b/src/crypto/tls/cache_test.go
+@@ -0,0 +1,117 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"encoding/pem"
++	"fmt"
++	"runtime"
++	"testing"
++	"time"
++)
++
++func TestCertCache(t *testing.T) {
++	cc := certCache{}
++	p, _ := pem.Decode([]byte(rsaCertPEM))
++	if p == nil {
++		t.Fatal("Failed to decode certificate")
++	}
++
++	certA, err := cc.newCert(p.Bytes)
++	if err != nil {
++		t.Fatalf("newCert failed: %s", err)
++	}
++	certB, err := cc.newCert(p.Bytes)
++	if err != nil {
++		t.Fatalf("newCert failed: %s", err)
++	}
++	if certA.cert != certB.cert {
++		t.Fatal("newCert returned a unique reference for a duplicate certificate")
++	}
++
++	if entry, ok := cc.Load(string(p.Bytes)); !ok {
++		t.Fatal("cache does not contain expected entry")
++	} else {
++		if refs := entry.(*cacheEntry).refs.Load(); refs != 2 {
++			t.Fatalf("unexpected number of references: got %d, want 2", refs)
++		}
++	}
++
++	timeoutRefCheck := func(t *testing.T, key string, count int64) {
++		t.Helper()
++		c := time.After(4 * time.Second)
++		for {
++			select {
++			case <-c:
++				t.Fatal("timed out waiting for expected ref count")
++			default:
++				e, ok := cc.Load(key)
++				if !ok && count != 0 {
++					t.Fatal("cache does not contain expected key")
++				} else if count == 0 && !ok {
++					return
++				}
++
++				if e.(*cacheEntry).refs.Load() == count {
++					return
++				}
++			}
++		}
++	}
++
++	// Keep certA alive until at least now, so that we can
++	// purposefully nil it and force the finalizer to be
++	// called.
++	runtime.KeepAlive(certA)
++	certA = nil
++	runtime.GC()
++
++	timeoutRefCheck(t, string(p.Bytes), 1)
++
++	// Keep certB alive until at least now, so that we can
++	// purposefully nil it and force the finalizer to be
++	// called.
++	runtime.KeepAlive(certB)
++	certB = nil
++	runtime.GC()
++
++	timeoutRefCheck(t, string(p.Bytes), 0)
++}
++
++func BenchmarkCertCache(b *testing.B) {
++	p, _ := pem.Decode([]byte(rsaCertPEM))
++	if p == nil {
++		b.Fatal("Failed to decode certificate")
++	}
++
++	cc := certCache{}
++	b.ReportAllocs()
++	b.ResetTimer()
++	// We expect that calling newCert additional times after
++	// the initial call should not cause additional allocations.
++	for extra := 0; extra < 4; extra++ {
++		b.Run(fmt.Sprint(extra), func(b *testing.B) {
++			actives := make([]*activeCert, extra+1)
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				var err error
++				actives[0], err = cc.newCert(p.Bytes)
++				if err != nil {
++					b.Fatal(err)
++				}
++				for j := 0; j < extra; j++ {
++					actives[j+1], err = cc.newCert(p.Bytes)
++					if err != nil {
++						b.Fatal(err)
++					}
++				}
++				for j := 0; j < extra+1; j++ {
++					actives[j] = nil
++				}
++				runtime.GC()
++			}
++		})
++	}
++}

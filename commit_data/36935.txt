@@ -7,6 +7,19 @@ Date:   Tue Jun 12 09:40:24 2018 +0000
     Change-Id: I4e339b7c359a7cdb0933f7624ce190086c9c3599
     Reviewed-on: https://go-review.googlesource.com/118155
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  .github/SUPPORT.md | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/.github/SUPPORT.md b/.github/SUPPORT.md
+index 9a4d7b2759..23fec84fb6 100644
+--- a/.github/SUPPORT.md
++++ b/.github/SUPPORT.md
+@@ -9,6 +9,6 @@ For asking questions, see:
+ 
+ * [Gophers Slack](https://gophers.slack.com), use the [invite app](https://invite.slack.golangbridge.org/) for access
+ 
+-* [Stack Overflow](http://stackoverflow.com/questions/tagged/go) with questions tagged "go"
++* [Stack Overflow](https://stackoverflow.com/questions/tagged/go) with questions tagged "go"
+ 
+ * **IRC** channel #go-nuts on Freenode

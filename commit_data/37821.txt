@@ -22,7 +22,39 @@ Date:   Thu Aug 30 16:01:15 2018 -0400
     Change-Id: Ic4453ba485b7b88ede2a89f209365eda9e032abc
     Reviewed-on: https://go-review.googlesource.com/132355
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/api_test.go | 1 +
  src/go/types/expr.go     | 8 +++++++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index cde07f2b4b..c34ecbf9d1 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -263,6 +263,7 @@ func TestTypesInfo(t *testing.T) {
+ 		{`package x2; func _() { var a, b string; type x struct {f string}; z := &x{f: a; f: b;}}`, `b`, `string`},
+ 		{`package x3; var x = panic("");`, `panic`, `func(interface{})`},
+ 		{`package x4; func _() { panic("") }`, `panic`, `func(interface{})`},
++		{`package x5; func _() { var x map[string][...]int; x = map[string][...]int{"": {1,2,3}} }`, `x`, `map[string][-1]int`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index c1deaf8325..143a958182 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1161,7 +1161,13 @@ func (check *Checker) exprInternal(x *operand, e ast.Expr, hint Type) exprKind {
+ 			// not called for [...]).
+ 			if utyp.len < 0 {
+ 				utyp.len = n
+-				check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
++				// e.Type may be missing in case of errors.
++				// In "map[string][...]int{"": {1, 2, 3}}},
++				// an error is reported for the outer literal,
++				// then [...]int is used as a hint for the inner literal.
++				if e.Type != nil {
++					check.recordTypeAndValue(e.Type, typexpr, utyp, nil)
++				}
+ 			}
+ 
+ 		case *Slice:

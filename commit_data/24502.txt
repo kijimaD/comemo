@@ -9,7 +9,66 @@ Date:   Fri Jul 31 12:10:22 2015 -0400
     Change-Id: I9361a9f17f4eaf8e4f54b4ba380fd50a4b9cf003
     Reviewed-on: https://go-review.googlesource.com/13023
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/get.go     |  8 +++-----
  src/cmd/go/go_test.go | 13 ++++++++++++-
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 99d11ac2fa..e95201a693 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -208,9 +208,6 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 	wildcardOkay := len(*stk) == 0
+ 	isWildcard := false
+ 
+-	// Note: Do not stk.push(arg) and defer stk.pop() here.
+-	// The push/pop below are using updated values of arg in some cases.
+-
+ 	// Download if the package is missing, or update if we're using -u.
+ 	if p.Dir == "" || *getU {
+ 		// The actual download.
+@@ -258,9 +255,10 @@ func download(arg string, parent *Package, stk *importStack, mode int) {
+ 
+ 		pkgs = pkgs[:0]
+ 		for _, arg := range args {
+-			stk.push(arg)
++			// Note: load calls loadPackage or loadImport,
++			// which push arg onto stk already.
++			// Do not push here too, or else stk will say arg imports arg.
+ 			p := load(arg, mode)
+-			stk.pop()
+ 			if p.Error != nil {
+ 				errorf("%s", p.Error)
+ 				continue
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 783ae554ba..55b81f719e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1961,7 +1961,7 @@ func TestGoGenerateRunFlag(t *testing.T) {
+ 	tg.grepStdoutNot("no", "go generate -run yes ./testdata/generate/test4.go selected no")
+ }
+ 
+-func TestGoGetWorksWithVanityWildcards(t *testing.T) {
++func TestGoGetCustomDomainWildcard(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 
+ 	tg := testgo(t)
+@@ -1972,6 +1972,17 @@ func TestGoGetWorksWithVanityWildcards(t *testing.T) {
+ 	tg.wantExecutable(tg.path("bin/pdfpasswd"+exeSuffix), "did not build rsc/io/pdf/pdfpasswd")
+ }
+ 
++func TestGoGetInternalWildcard(t *testing.T) {
++	testenv.MustHaveExternalNetwork(t)
++
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.makeTempdir()
++	tg.setenv("GOPATH", tg.path("."))
++	// used to fail with errors about internal packages
++	tg.run("get", "github.com/rsc/go-get-issue-11960/...")
++}
++
+ func TestGoVetWithExternalTests(t *testing.T) {
+ 	testenv.MustHaveExternalNetwork(t)
+ 

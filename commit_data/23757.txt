@@ -10,6 +10,22 @@ Date:   Thu Jun 11 07:50:59 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/10940
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/go_test.go | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 346bd6a6c1..4d9d90ad58 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -532,10 +532,6 @@ func TestGoInstallCleansUpAfterGoBuild(t *testing.T) {
+ 		if _, err := os.Stat(file); err == nil {
+ 			t.Fatal(msg)
+ 		} else if !os.IsNotExist(err) {
+-			// See http://golang.org/issue/11132.
+-			if runtime.GOOS == "plan9" && strings.Contains(err.Error(), "stat buffer too short") {
+-				return
+-			}
+ 			t.Fatal(msg, "error:", err)
+ 		}
+ 	}

@@ -15,7 +15,43 @@ Date:   Sat Oct 14 12:33:13 2017 -0400
     Run-TryBot: Filippo Valsorda <hi@filippo.io>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/math/big/int.go      | 7 +++----
  src/math/big/int_test.go | 6 ++++++
  2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index 92e2ae954a..73d48deb81 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -667,10 +667,9 @@ func Jacobi(x, y *Int) int {
+ // to calculate the square root of any quadratic residue mod p quickly for 3
+ // mod 4 primes.
+ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
+-	z.Set(p)         // z = p
+-	z.Add(z, intOne) // z = p + 1
+-	z.Rsh(z, 2)      // z = (p + 1) / 4
+-	z.Exp(x, z, p)   // z = x^z mod p
++	e := new(Int).Add(p, intOne) // e = p + 1
++	e.Rsh(e, 2)                  // e = (p + 1) / 4
++	z.Exp(x, e, p)               // z = x^e mod p
+ 	return z
+ }
+ 
+diff --git a/src/math/big/int_test.go b/src/math/big/int_test.go
+index 65e24f1e4b..bc2eef5f76 100644
+--- a/src/math/big/int_test.go
++++ b/src/math/big/int_test.go
+@@ -1384,6 +1384,12 @@ func testModSqrt(t *testing.T, elt, mod, sq, sqrt *Int) bool {
+ 		t.Errorf("ModSqrt returned inconsistent value %s", z)
+ 	}
+ 
++	// test x aliasing z
++	z = sqrtChk.ModSqrt(sqrtChk.Set(sq), mod)
++	if z != &sqrtChk || z.Cmp(sqrt) != 0 {
++		t.Errorf("ModSqrt returned inconsistent value %s", z)
++	}
++
+ 	// make sure we actually got a square root
+ 	if sqrt.Cmp(elt) == 0 {
+ 		return true // we found the "desired" square root

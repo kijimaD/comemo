@@ -10,8 +10,55 @@ Date:   Sat Feb 9 08:18:32 2013 +0900
     R=rsc
     CC=golang-dev
     https://golang.org/cl/7310068
-
+---
  src/pkg/net/dial.go           | 3 ++-
  src/pkg/net/unixsock_plan9.go | 3 +--
  src/pkg/net/unixsock_posix.go | 5 ++---
  3 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/dial.go b/src/pkg/net/dial.go
+index 409e8bbbb3..82df35c340 100644
+--- a/src/pkg/net/dial.go
++++ b/src/pkg/net/dial.go
+@@ -54,7 +54,8 @@ func resolveAddr(op, net, addr string, deadline time.Time) (Addr, error) {
+ //
+ // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
+ // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
+-// (IPv4-only), "ip6" (IPv6-only), "unix" and "unixpacket".
++// (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram" and
++// "unixpacket".
+ //
+ // For TCP and UDP networks, addresses have the form host:port.
+ // If host is a literal IPv6 address, it must be enclosed
+diff --git a/src/pkg/net/unixsock_plan9.go b/src/pkg/net/unixsock_plan9.go
+index 713820c665..00a0be5b08 100644
+--- a/src/pkg/net/unixsock_plan9.go
++++ b/src/pkg/net/unixsock_plan9.go
+@@ -93,8 +93,7 @@ func dialUnix(net string, laddr, raddr *UnixAddr, deadline time.Time) (*UnixConn
+ type UnixListener struct{}
+ 
+ // ListenUnix announces on the Unix domain socket laddr and returns a
+-// Unix listener.  The network net must be "unix", "unixgram" or
+-// "unixpacket".
++// Unix listener.  The network net must be "unix" or "unixpacket".
+ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/pkg/net/unixsock_posix.go b/src/pkg/net/unixsock_posix.go
+index 34f3ffe73a..6d6ce3f5e2 100644
+--- a/src/pkg/net/unixsock_posix.go
++++ b/src/pkg/net/unixsock_posix.go
+@@ -251,11 +251,10 @@ type UnixListener struct {
+ }
+ 
+ // ListenUnix announces on the Unix domain socket laddr and returns a
+-// Unix listener.  The network net must be "unix", "unixgram" or
+-// "unixpacket".
++// Unix listener.  The network net must be "unix" or "unixpacket".
+ func ListenUnix(net string, laddr *UnixAddr) (*UnixListener, error) {
+ 	switch net {
+-	case "unix", "unixgram", "unixpacket":
++	case "unix", "unixpacket":
+ 	default:
+ 		return nil, UnknownNetworkError(net)
+ 	}

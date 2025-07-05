@@ -15,6 +15,37 @@ Date:   Wed Mar 30 15:13:26 2016 +1100
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/internal/testenv/testenv.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/internal/testenv/testenv.go b/src/internal/testenv/testenv.go
+index cd3f43640a..e751e0cf11 100644
+--- a/src/internal/testenv/testenv.go
++++ b/src/internal/testenv/testenv.go
+@@ -13,6 +13,7 @@ package testenv
+ import (
+ 	"os"
+ 	"os/exec"
++	"path/filepath"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -68,10 +69,17 @@ func MustHaveGoRun(t *testing.T) {
+ // If the tool should be available and isn't, GoToolPath calls t.Fatal.
+ func GoToolPath(t *testing.T) string {
+ 	MustHaveGoBuild(t)
++
+ 	var exeSuffix string
+ 	if runtime.GOOS == "windows" {
+ 		exeSuffix = ".exe"
+ 	}
++
++	path := filepath.Join(runtime.GOROOT(), "bin", "go"+exeSuffix)
++	if _, err := os.Stat(path); err == nil {
++		return path
++	}
++
+ 	goBin, err := exec.LookPath("go" + exeSuffix)
+ 	if err != nil {
+ 		t.Fatalf("cannot find go tool: %v", err)

@@ -7,6 +7,20 @@ Date:   Tue Mar 27 10:10:25 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5902060
-
+---
  src/cmd/godoc/appinit.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/godoc/appinit.go b/src/cmd/godoc/appinit.go
+index 4096a4f224..70da001100 100644
+--- a/src/cmd/godoc/appinit.go
++++ b/src/cmd/godoc/appinit.go
+@@ -19,7 +19,7 @@ import (
+ func serveError(w http.ResponseWriter, r *http.Request, relpath string, err error) {
+ 	contents := applyTemplate(errorHTML, "errorHTML", err) // err may contain an absolute path!
+ 	w.WriteHeader(http.StatusNotFound)
+-	servePage(w, "File "+relpath, "", "", contents)
++	servePage(w, relpath, "File "+relpath, "", "", contents)
+ }
+ 
+ func init() {

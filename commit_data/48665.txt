@@ -12,6 +12,26 @@ Date:   Sat Jun 5 21:23:48 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/types2/package.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/package.go b/src/cmd/compile/internal/types2/package.go
+index c5804a05ad..8044e7e6a7 100644
+--- a/src/cmd/compile/internal/types2/package.go
++++ b/src/cmd/compile/internal/types2/package.go
+@@ -48,7 +48,13 @@ func (pkg *Package) SetName(name string) { pkg.name = name }
+ // Scope returns the (complete or incomplete) package scope
+ // holding the objects declared at package level (TypeNames,
+ // Consts, Vars, and Funcs).
+-func (pkg *Package) Scope() *Scope { return pkg.scope }
++// For a nil pkg receiver, Scope returns the Universe scope.
++func (pkg *Package) Scope() *Scope {
++	if pkg != nil {
++		return pkg.scope
++	}
++	return Universe
++}
+ 
+ // A package is complete if its scope contains (at least) all
+ // exported objects; otherwise it is incomplete.

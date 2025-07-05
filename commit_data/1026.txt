@@ -7,7 +7,35 @@ Date:   Sat Nov 1 16:52:12 2008 -0700
     R=r
     OCL=18319
     CL=18319
-
+---
  src/cmd/gc/go.y   | 4 ++++
  src/cmd/gc/subr.c | 1 +
  2 files changed, 5 insertions(+)
+
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index cb802025a9..0fbe0c1739 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -1871,6 +1871,10 @@ hidden_type1:
+ 		$$->type = $3;
+ 		$$->chan = Csend;
+ 	}
++|	LDDD
++	{
++		$$ = typ(TDDD);
++	}
+ 
+ hidden_type2:
+ 	LCHAN hidden_type
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index c0344a9899..9da4738292 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -968,6 +968,7 @@ basicnames[] =
+ 	[TFLOAT80]	= "float80",
+ 	[TBOOL]		= "bool",
+ 	[TANY]		= "any",
++	[TDDD]		= "...",
+ };
+ 
+ int

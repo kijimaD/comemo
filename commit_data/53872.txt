@@ -18,7 +18,7 @@ Date:   Tue Sep 6 09:58:29 2022 -0700
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Damien Neil <dneil@google.com>
-
+---
  src/go.mod                                         |  2 +-
  src/go.sum                                         |  4 +-
  src/net/http/h2_bundle.go                          | 63 +++++++++++++++-------
@@ -27,3 +27,278 @@ Date:   Tue Sep 6 09:58:29 2022 -0700
  .../golang.org/x/net/route/zsys_freebsd_riscv64.go | 52 ++++++++++++++++++
  src/vendor/modules.txt                             |  2 +-
  7 files changed, 116 insertions(+), 25 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index aeff4459ce..fedb1adc37 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.20
+ 
+ require (
+ 	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
+-	golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
++	golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index eb2cc15729..99dddf20a3 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa h1:zuSxTR4o9y82ebqCUJYNGJbGPo6sKVl54f/TVDObg1c=
+ golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
+-golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48 h1:N9Vc/rorQUDes6B9CNdIxAn5jODGj2wzfrei2x4wNj4=
+-golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48/go.mod h1:YDH+HFinaLZZlnHAfSS6ZXJJ9M9t4Dl22yv3iI2vPwk=
++golang.org/x/net v0.0.0-20220906165146-f3363e06e74c h1:yKufUcDwucU5urd+50/Opbt4AYpqthk7wHpHok8f1lo=
++golang.org/x/net v0.0.0-20220906165146-f3363e06e74c/go.mod h1:YDH+HFinaLZZlnHAfSS6ZXJJ9M9t4Dl22yv3iI2vPwk=
+ golang.org/x/sys v0.0.0-20220804214406-8e32c043e418 h1:9vYwv7OjYaky/tlAeD7C4oC9EsPTlaFl1H2jS++V+ME=
+ golang.org/x/sys v0.0.0-20220804214406-8e32c043e418/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/text v0.3.8-0.20220722155301-d03b41800055 h1:mr0sHTB/O2dJ0ivoAAz1Mqs776JzxylyunOKJws3B88=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index ee0a40a15e..4882fd0d8c 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -5096,6 +5096,9 @@ func (sc *http2serverConn) startGracefulShutdownInternal() {
+ func (sc *http2serverConn) goAway(code http2ErrCode) {
+ 	sc.serveG.check()
+ 	if sc.inGoAway {
++		if sc.goAwayCode == http2ErrCodeNo {
++			sc.goAwayCode = code
++		}
+ 		return
+ 	}
+ 	sc.inGoAway = true
+@@ -5472,6 +5475,12 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 
+ 	// Sender sending more than they'd declared?
+ 	if st.declBodyBytes != -1 && st.bodyBytes+int64(len(data)) > st.declBodyBytes {
++		if sc.inflow.available() < int32(f.Length) {
++			return sc.countError("data_flow", http2streamError(id, http2ErrCodeFlowControl))
++		}
++		sc.inflow.take(int32(f.Length))
++		sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
++
+ 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
+ 		// RFC 7540, sec 8.1.2.6: A request or response is also malformed if the
+ 		// value of a content-length header field does not equal the sum of the
+@@ -5948,6 +5957,9 @@ func (sc *http2serverConn) runHandler(rw *http2responseWriter, req *Request, han
+ 	didPanic := true
+ 	defer func() {
+ 		rw.rws.stream.cancelCtx()
++		if req.MultipartForm != nil {
++			req.MultipartForm.RemoveAll()
++		}
+ 		if didPanic {
+ 			e := recover()
+ 			sc.writeFrameFromHandler(http2FrameWriteRequest{
+@@ -6874,13 +6886,23 @@ const (
+ // A Transport internally caches connections to servers. It is safe
+ // for concurrent use by multiple goroutines.
+ type http2Transport struct {
+-	// DialTLS specifies an optional dial function for creating
+-	// TLS connections for requests.
++	// DialTLSContext specifies an optional dial function with context for
++	// creating TLS connections for requests.
+ 	//
+-	// If DialTLS is nil, tls.Dial is used.
++	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
+ 	//
+ 	// If the returned net.Conn has a ConnectionState method like tls.Conn,
+ 	// it will be used to set http.Response.TLS.
++	DialTLSContext func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error)
++
++	// DialTLS specifies an optional dial function for creating
++	// TLS connections for requests.
++	//
++	// If DialTLSContext and DialTLS is nil, tls.Dial is used.
++	//
++	// Deprecated: Use DialTLSContext instead, which allows the transport
++	// to cancel dials as soon as they are no longer needed.
++	// If both are set, DialTLSContext takes priority.
+ 	DialTLS func(network, addr string, cfg *tls.Config) (net.Conn, error)
+ 
+ 	// TLSClientConfig specifies the TLS configuration to use with
+@@ -7400,7 +7422,7 @@ func (t *http2Transport) dialClientConn(ctx context.Context, addr string, single
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	tconn, err := t.dialTLS(ctx)("tcp", addr, t.newTLSConfig(host))
++	tconn, err := t.dialTLS(ctx, "tcp", addr, t.newTLSConfig(host))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -7421,24 +7443,25 @@ func (t *http2Transport) newTLSConfig(host string) *tls.Config {
+ 	return cfg
+ }
+ 
+-func (t *http2Transport) dialTLS(ctx context.Context) func(string, string, *tls.Config) (net.Conn, error) {
+-	if t.DialTLS != nil {
+-		return t.DialTLS
++func (t *http2Transport) dialTLS(ctx context.Context, network, addr string, tlsCfg *tls.Config) (net.Conn, error) {
++	if t.DialTLSContext != nil {
++		return t.DialTLSContext(ctx, network, addr, tlsCfg)
++	} else if t.DialTLS != nil {
++		return t.DialTLS(network, addr, tlsCfg)
+ 	}
+-	return func(network, addr string, cfg *tls.Config) (net.Conn, error) {
+-		tlsCn, err := t.dialTLSWithContext(ctx, network, addr, cfg)
+-		if err != nil {
+-			return nil, err
+-		}
+-		state := tlsCn.ConnectionState()
+-		if p := state.NegotiatedProtocol; p != http2NextProtoTLS {
+-			return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, http2NextProtoTLS)
+-		}
+-		if !state.NegotiatedProtocolIsMutual {
+-			return nil, errors.New("http2: could not negotiate protocol mutually")
+-		}
+-		return tlsCn, nil
++
++	tlsCn, err := t.dialTLSWithContext(ctx, network, addr, tlsCfg)
++	if err != nil {
++		return nil, err
+ 	}
++	state := tlsCn.ConnectionState()
++	if p := state.NegotiatedProtocol; p != http2NextProtoTLS {
++		return nil, fmt.Errorf("http2: unexpected ALPN protocol %q; want %q", p, http2NextProtoTLS)
++	}
++	if !state.NegotiatedProtocolIsMutual {
++		return nil, errors.New("http2: could not negotiate protocol mutually")
++	}
++	return tlsCn, nil
+ }
+ 
+ // disableKeepAlives reports whether connections should be closed as
+diff --git a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+index 0cdf89f9ff..0935878292 100644
+--- a/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
++++ b/src/vendor/golang.org/x/net/dns/dnsmessage/message.go
+@@ -317,6 +317,8 @@ type Header struct {
+ 	Truncated          bool
+ 	RecursionDesired   bool
+ 	RecursionAvailable bool
++	AuthenticData      bool
++	CheckingDisabled   bool
+ 	RCode              RCode
+ }
+ 
+@@ -338,6 +340,12 @@ func (m *Header) pack() (id uint16, bits uint16) {
+ 	if m.Response {
+ 		bits |= headerBitQR
+ 	}
++	if m.AuthenticData {
++		bits |= headerBitAD
++	}
++	if m.CheckingDisabled {
++		bits |= headerBitCD
++	}
+ 	return
+ }
+ 
+@@ -379,6 +387,8 @@ const (
+ 	headerBitTC = 1 << 9  // truncated
+ 	headerBitRD = 1 << 8  // recursion desired
+ 	headerBitRA = 1 << 7  // recursion available
++	headerBitAD = 1 << 5  // authentic data
++	headerBitCD = 1 << 4  // checking disabled
+ )
+ 
+ var sectionNames = map[section]string{
+@@ -456,6 +466,8 @@ func (h *header) header() Header {
+ 		Truncated:          (h.bits & headerBitTC) != 0,
+ 		RecursionDesired:   (h.bits & headerBitRD) != 0,
+ 		RecursionAvailable: (h.bits & headerBitRA) != 0,
++		AuthenticData:      (h.bits & headerBitAD) != 0,
++		CheckingDisabled:   (h.bits & headerBitCD) != 0,
+ 		RCode:              RCode(h.bits & 0xF),
+ 	}
+ }
+diff --git a/src/vendor/golang.org/x/net/nettest/nettest.go b/src/vendor/golang.org/x/net/nettest/nettest.go
+index ae5413b23d..6918f2c362 100644
+--- a/src/vendor/golang.org/x/net/nettest/nettest.go
++++ b/src/vendor/golang.org/x/net/nettest/nettest.go
+@@ -218,7 +218,11 @@ func NewLocalPacketListener(network string) (net.PacketConn, error) {
+ // LocalPath returns a local path that can be used for Unix-domain
+ // protocol testing.
+ func LocalPath() (string, error) {
+-	f, err := ioutil.TempFile("", "go-nettest")
++	dir := ""
++	if runtime.GOOS == "darwin" {
++		dir = "/tmp"
++	}
++	f, err := ioutil.TempFile(dir, "go-nettest")
+ 	if err != nil {
+ 		return "", err
+ 	}
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go b/src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go
+new file mode 100644
+index 0000000000..9293393698
+--- /dev/null
++++ b/src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go
+@@ -0,0 +1,52 @@
++// Code generated by cmd/cgo -godefs; DO NOT EDIT.
++// cgo -godefs defs_freebsd.go
++
++package route
++
++const (
++	sizeofIfMsghdrlFreeBSD10        = 0xb0
++	sizeofIfaMsghdrFreeBSD10        = 0x14
++	sizeofIfaMsghdrlFreeBSD10       = 0xb0
++	sizeofIfmaMsghdrFreeBSD10       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
++
++	sizeofRtMsghdrFreeBSD10  = 0x98
++	sizeofRtMetricsFreeBSD10 = 0x70
++
++	sizeofIfMsghdrFreeBSD7  = 0xa8
++	sizeofIfMsghdrFreeBSD8  = 0xa8
++	sizeofIfMsghdrFreeBSD9  = 0xa8
++	sizeofIfMsghdrFreeBSD10 = 0xa8
++	sizeofIfMsghdrFreeBSD11 = 0xa8
++
++	sizeofIfDataFreeBSD7  = 0x98
++	sizeofIfDataFreeBSD8  = 0x98
++	sizeofIfDataFreeBSD9  = 0x98
++	sizeofIfDataFreeBSD10 = 0x98
++	sizeofIfDataFreeBSD11 = 0x98
++
++	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
++	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
++	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
++	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
++	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
++
++	sizeofRtMsghdrFreeBSD10Emu  = 0x98
++	sizeofRtMetricsFreeBSD10Emu = 0x70
++
++	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
++	sizeofIfMsghdrFreeBSD10Emu = 0xa8
++	sizeofIfMsghdrFreeBSD11Emu = 0xa8
++
++	sizeofIfDataFreeBSD7Emu  = 0x98
++	sizeofIfDataFreeBSD8Emu  = 0x98
++	sizeofIfDataFreeBSD9Emu  = 0x98
++	sizeofIfDataFreeBSD10Emu = 0x98
++	sizeofIfDataFreeBSD11Emu = 0x98
++
++	sizeofSockaddrStorage = 0x80
++	sizeofSockaddrInet    = 0x10
++	sizeofSockaddrInet6   = 0x1c
++)
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 60c53b2dcd..a821f21f33 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/internal/subtle
+-# golang.org/x/net v0.0.0-20220805013720-a33c5aa5df48
++# golang.org/x/net v0.0.0-20220906165146-f3363e06e74c
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

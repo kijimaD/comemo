@@ -15,6 +15,44 @@ Date:   Thu Aug 2 20:42:00 2018 +0000
     Change-Id: I50ebbbf43778c1627bfa526f8824f52c7953454f
     Reviewed-on: https://go-review.googlesource.com/127663
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/encoding/xml/xml.go | 12 ++++++++----
  1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/xml/xml.go b/src/encoding/xml/xml.go
+index bc1a658bc5..ca059440a1 100644
+--- a/src/encoding/xml/xml.go
++++ b/src/encoding/xml/xml.go
+@@ -168,8 +168,8 @@ type Decoder struct {
+ 	// Setting:
+ 	//
+ 	//	d.Strict = false
+-	//	d.AutoClose = HTMLAutoClose
+-	//	d.Entity = HTMLEntity
++	//	d.AutoClose = xml.HTMLAutoClose
++	//	d.Entity = xml.HTMLEntity
+ 	//
+ 	// creates a parser that can handle typical HTML.
+ 	//
+@@ -1581,7 +1581,9 @@ var second = &unicode.RangeTable{
+ 
+ // HTMLEntity is an entity map containing translations for the
+ // standard HTML entity characters.
+-var HTMLEntity = htmlEntity
++//
++// See the Decoder.Strict and Decoder.Entity fields' documentation.
++var HTMLEntity map[string]string = htmlEntity
+ 
+ var htmlEntity = map[string]string{
+ 	/*
+@@ -1848,7 +1850,9 @@ var htmlEntity = map[string]string{
+ 
+ // HTMLAutoClose is the set of HTML elements that
+ // should be considered to close automatically.
+-var HTMLAutoClose = htmlAutoClose
++//
++// See the Decoder.Strict and Decoder.Entity fields' documentation.
++var HTMLAutoClose []string = htmlAutoClose
+ 
+ var htmlAutoClose = []string{
+ 	/*

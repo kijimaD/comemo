@@ -7,7 +7,61 @@ Date:   Mon Sep 8 19:30:14 2008 -0700
     R=ken
     OCL=14981
     CL=14981
-
+---
  src/runtime/proc.c            | 11 +++--------
  src/runtime/sys_amd64_linux.s |  3 ++-
  2 files changed, 5 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/proc.c b/src/runtime/proc.c
+index 2652679b27..5b4bc84a22 100644
+--- a/src/runtime/proc.c
++++ b/src/runtime/proc.c
+@@ -463,8 +463,6 @@ oldstack(void)
+ 
+ 	top = (Stktop*)m->curg->stackbase;
+ 
+-	m->curg->stackbase = top->oldbase;
+-	m->curg->stackguard = top->oldguard;
+ 	siz2 = (top->magic>>32) & 0xffffLL;
+ 
+ 	sp = (byte*)top;
+@@ -474,15 +472,12 @@ oldstack(void)
+ 		mcpy(top->oldsp+16, sp, siz2);
+ 	}
+ 
++	// call  no more functions after this point - limit register disagrees with R15
++	m->curg->stackbase = top->oldbase;
++	m->curg->stackguard = top->oldguard;
+ 	m->morestack.SP = top->oldsp+8;
+ 	m->morestack.PC = (byte*)(*(uint64*)(top->oldsp+8));
+ 
+-// prints("oldstack sp=");
+-// sys·printpointer(m->morestack.SP);
+-// prints(" pc=");
+-// sys·printpointer(m->morestack.PC);
+-// prints("\n");
+-
+ 	gogoret(&m->morestack, m->cret);
+ }
+ 
+diff --git a/src/runtime/sys_amd64_linux.s b/src/runtime/sys_amd64_linux.s
+index 178971b718..2cb6258320 100644
+--- a/src/runtime/sys_amd64_linux.s
++++ b/src/runtime/sys_amd64_linux.s
+@@ -81,6 +81,7 @@ TEXT	sigtramp(SB),7,$24-16
+ 
+ TEXT	sys·mmap(SB),7,$0-32
+ 	MOVQ	8(SP), DI
++	MOVQ	$0, SI
+ 	MOVL	16(SP), SI
+ 	MOVL	20(SP), DX
+ 	MOVL	24(SP), R10
+@@ -103,7 +104,7 @@ TEXT	sys·mmap(SB),7,$0-32
+ 	RET
+ 
+ TEXT	notok(SB),7,$0
+-	MOVL	$0xf1, BP
++	MOVQ	$0xf1, BP
+ 	MOVQ	BP, (BP)
+ 	RET
+ 

@@ -25,7 +25,7 @@ Date:   Mon Sep 18 14:53:56 2017 -0700
     Reviewed-on: https://go-review.googlesource.com/64452
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/fmt_test.go                    |   1 +
  src/cmd/compile/internal/arm/ssa.go            |   4 +-
  src/cmd/compile/internal/arm64/ssa.go          |   4 +-
@@ -45,3 +45,725 @@ Date:   Mon Sep 18 14:53:56 2017 -0700
  src/cmd/compile/internal/ssa/value.go          |  33 --------
  src/cmd/compile/internal/ssa/writebarrier.go   |  13 ++--
  18 files changed, 111 insertions(+), 173 deletions(-)
+
+diff --git a/src/cmd/compile/fmt_test.go b/src/cmd/compile/fmt_test.go
+index dde80565b8..91cf0c80a3 100644
+--- a/src/cmd/compile/fmt_test.go
++++ b/src/cmd/compile/fmt_test.go
+@@ -622,6 +622,7 @@ var knownFormats = map[string]string{
+ 	"byte %c":                                         "",
+ 	"cmd/compile/internal/arm.shift %d":               "",
+ 	"cmd/compile/internal/gc.Class %d":                "",
++	"cmd/compile/internal/gc.Class %s":                "",
+ 	"cmd/compile/internal/gc.Class %v":                "",
+ 	"cmd/compile/internal/gc.Ctype %d":                "",
+ 	"cmd/compile/internal/gc.Ctype %v":                "",
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index a70df6dd0e..4655513fa5 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -493,10 +493,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		switch v.Aux.(type) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+-		case *ssa.ExternSymbol:
++		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++		case *gc.Node:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index e74207b856..3c140be97d 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -273,10 +273,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		switch v.Aux.(type) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+-		case *ssa.ExternSymbol:
++		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++		case *gc.Node:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 79155f9ad6..54fdb30d10 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -133,20 +133,21 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 	scratchUsed := false
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			switch a := v.Aux.(type) {
+-			case *ssa.ArgSymbol:
+-				n := a.Node.(*Node)
+-				// Don't modify nodfp; it is a global.
+-				if n != nodfp {
++			if n, ok := v.Aux.(*Node); ok {
++				switch n.Class() {
++				case PPARAM, PPARAMOUT:
++					// Don't modify nodfp; it is a global.
++					if n != nodfp {
++						n.Name.SetUsed(true)
++					}
++				case PAUTO:
+ 					n.Name.SetUsed(true)
+ 				}
+-			case *ssa.AutoSymbol:
+-				a.Node.(*Node).Name.SetUsed(true)
+ 			}
+-
+ 			if !scratchUsed {
+ 				scratchUsed = v.Op.UsesScratch()
+ 			}
++
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index 1bb714e837..c3bc753d07 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -291,14 +291,7 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
+ 		return n, ssa.SymWrite
+ 
+ 	case ssa.OpVarLive:
+-		switch a := v.Aux.(type) {
+-		case *ssa.ArgSymbol:
+-			return a.Node.(*Node), ssa.SymRead
+-		case *ssa.AutoSymbol:
+-			return a.Node.(*Node), ssa.SymRead
+-		default:
+-			Fatalf("unknown VarLive aux type: %s", v.LongString())
+-		}
++		return v.Aux.(*Node), ssa.SymRead
+ 	case ssa.OpVarDef, ssa.OpVarKill:
+ 		return v.Aux.(*Node), ssa.SymWrite
+ 	case ssa.OpKeepAlive:
+@@ -313,12 +306,10 @@ func affectedNode(v *ssa.Value) (*Node, ssa.SymEffect) {
+ 
+ 	var n *Node
+ 	switch a := v.Aux.(type) {
+-	case nil, *ssa.ExternSymbol:
++	case nil, *obj.LSym:
+ 		// ok, but no node
+-	case *ssa.ArgSymbol:
+-		n = a.Node.(*Node)
+-	case *ssa.AutoSymbol:
+-		n = a.Node.(*Node)
++	case *Node:
++		n = a
+ 	default:
+ 		Fatalf("weird aux: %s", v.LongString())
+ 	}
+@@ -931,13 +922,7 @@ func clobberWalk(b *ssa.Block, v *Node, offset int64, t *types.Type) {
+ // clobberPtr generates a clobber of the pointer at offset offset in v.
+ // The clobber instruction is added at the end of b.
+ func clobberPtr(b *ssa.Block, v *Node, offset int64) {
+-	var aux interface{}
+-	if v.Class() == PAUTO {
+-		aux = &ssa.AutoSymbol{Node: v}
+-	} else {
+-		aux = &ssa.ArgSymbol{Node: v}
+-	}
+-	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, aux)
++	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
+ }
+ 
+ func (lv *Liveness) avarinitanyall(b *ssa.Block, any, all bvec) {
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 0ae0c26286..04f1a9230e 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -163,15 +163,12 @@ func buildssa(fn *Node, worker int) *ssa.Func {
+ 	s.startBlock(s.f.Entry)
+ 	s.vars[&memVar] = s.startmem
+ 
+-	s.varsyms = map[*Node]interface{}{}
+-
+ 	// Generate addresses of local declarations
+ 	s.decladdrs = map[*Node]*ssa.Value{}
+ 	for _, n := range fn.Func.Dcl {
+ 		switch n.Class() {
+ 		case PPARAM, PPARAMOUT:
+-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
+-			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sp)
++			s.decladdrs[n] = s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), n, s.sp)
+ 			if n.Class() == PPARAMOUT && s.canSSA(n) {
+ 				// Save ssa-able PPARAMOUT variables so we can
+ 				// store them back to the stack at the end of
+@@ -259,9 +256,6 @@ type state struct {
+ 	// addresses of PPARAM and PPARAMOUT variables.
+ 	decladdrs map[*Node]*ssa.Value
+ 
+-	// symbols for PEXTERN, PAUTO and PPARAMOUT variables so they can be reused.
+-	varsyms map[*Node]interface{}
+-
+ 	// starting values. Memory, stack pointer, and globals pointer
+ 	startmem *ssa.Value
+ 	sp       *ssa.Value
+@@ -937,16 +931,12 @@ func (s *state) stmt(n *Node) {
+ 		if !n.Left.Addrtaken() {
+ 			s.Fatalf("VARLIVE variable %v must have Addrtaken set", n.Left)
+ 		}
+-		var aux interface{}
+ 		switch n.Left.Class() {
+-		case PAUTO:
+-			aux = s.lookupSymbol(n.Left, &ssa.AutoSymbol{Node: n.Left})
+-		case PPARAM, PPARAMOUT:
+-			aux = s.lookupSymbol(n.Left, &ssa.ArgSymbol{Node: n.Left})
++		case PAUTO, PPARAM, PPARAMOUT:
+ 		default:
+ 			s.Fatalf("VARLIVE variable %v must be Auto or Arg", n.Left)
+ 		}
+-		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, aux, s.mem())
++		s.vars[&memVar] = s.newValue1A(ssa.OpVarLive, types.TypeMem, n.Left, s.mem())
+ 
+ 	case OCHECKNIL:
+ 		p := s.expr(n.Left)
+@@ -1420,14 +1410,13 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		len := s.newValue1(ssa.OpStringLen, types.Types[TINT], str)
+ 		return s.newValue3(ssa.OpSliceMake, n.Type, ptr, len, len)
+ 	case OCFUNC:
+-		aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Left.Sym.Linksym()})
++		aux := n.Left.Sym.Linksym()
+ 		return s.entryNewValue1A(ssa.OpAddr, n.Type, aux, s.sb)
+ 	case ONAME:
+ 		if n.Class() == PFUNC {
+ 			// "value" of a function is the address of the function's closure
+ 			sym := funcsym(n.Sym).Linksym()
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: sym})
+-			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), aux, s.sb)
++			return s.entryNewValue1A(ssa.OpAddr, types.NewPtr(n.Type), sym, s.sb)
+ 		}
+ 		if s.canSSA(n) {
+ 			return s.variable(n, n.Type)
+@@ -2203,7 +2192,7 @@ func (s *state) append(n *Node, inplace bool) *ssa.Value {
+ 	r := s.rtcall(growslice, true, []*types.Type{pt, types.Types[TINT], types.Types[TINT]}, taddr, p, l, c, nl)
+ 
+ 	if inplace {
+-		if sn.Op == ONAME {
++		if sn.Op == ONAME && sn.Class() != PEXTERN {
+ 			// Tell liveness we're about to build a new slice
+ 			s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, sn, s.mem())
+ 		}
+@@ -2410,7 +2399,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask)
+ 	}
+ 	// Left is not ssa-able. Compute its address.
+ 	addr := s.addr(left, false)
+-	if left.Op == ONAME && skip == 0 {
++	if left.Op == ONAME && left.Class() != PEXTERN && skip == 0 {
+ 		s.vars[&memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, left, s.mem())
+ 	}
+ 	if isReflectHeaderDataField(left) {
+@@ -2879,7 +2868,7 @@ func init() {
+ 		sys.ARM64)
+ 	makeOnesCountAMD64 := func(op64 ssa.Op, op32 ssa.Op) func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+ 		return func(s *state, n *Node, args []*ssa.Value) *ssa.Value {
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: syslook("support_popcnt").Sym.Linksym()})
++			aux := syslook("support_popcnt").Sym.Linksym()
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[TBOOL].PtrTo(), aux, s.sb)
+ 			v := s.newValue2(ssa.OpLoad, types.Types[TBOOL], addr, s.mem())
+ 			b := s.endBlock()
+@@ -3231,24 +3220,6 @@ func etypesign(e types.EType) int8 {
+ 	return 0
+ }
+ 
+-// lookupSymbol is used to retrieve the symbol (Extern, Arg or Auto) used for a particular node.
+-// This improves the effectiveness of cse by using the same Aux values for the
+-// same symbols.
+-func (s *state) lookupSymbol(n *Node, sym interface{}) interface{} {
+-	switch sym.(type) {
+-	default:
+-		s.Fatalf("sym %v is of unknown type %T", sym, sym)
+-	case *ssa.ExternSymbol, *ssa.ArgSymbol, *ssa.AutoSymbol:
+-		// these are the only valid types
+-	}
+-
+-	if lsym, ok := s.varsyms[n]; ok {
+-		return lsym
+-	}
+-	s.varsyms[n] = sym
+-	return sym
+-}
+-
+ // addr converts the address of the expression n to SSA, adds it to s and returns the SSA result.
+ // The value that the returned Value represents is guaranteed to be non-nil.
+ // If bounded is true then this address does not require a nil check for its operand
+@@ -3260,8 +3231,7 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 		switch n.Class() {
+ 		case PEXTERN:
+ 			// global variable
+-			aux := s.lookupSymbol(n, &ssa.ExternSymbol{Sym: n.Sym.Linksym()})
+-			v := s.entryNewValue1A(ssa.OpAddr, t, aux, s.sb)
++			v := s.entryNewValue1A(ssa.OpAddr, t, n.Sym.Linksym(), s.sb)
+ 			// TODO: Make OpAddr use AuxInt as well as Aux.
+ 			if n.Xoffset != 0 {
+ 				v = s.entryNewValue1I(ssa.OpOffPtr, v.Type, n.Xoffset, v)
+@@ -3275,19 +3245,16 @@ func (s *state) addr(n *Node, bounded bool) *ssa.Value {
+ 			}
+ 			if n == nodfp {
+ 				// Special arg that points to the frame pointer (Used by ORECOVER).
+-				aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
+-				return s.entryNewValue1A(ssa.OpAddr, t, aux, s.sp)
++				return s.entryNewValue1A(ssa.OpAddr, t, n, s.sp)
+ 			}
+ 			s.Fatalf("addr of undeclared ONAME %v. declared: %v", n, s.decladdrs)
+ 			return nil
+ 		case PAUTO:
+-			aux := s.lookupSymbol(n, &ssa.AutoSymbol{Node: n})
+-			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
++			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
+ 		case PPARAMOUT: // Same as PAUTO -- cannot generate LEA early.
+ 			// ensure that we reuse symbols for out parameters so
+ 			// that cse works on their addresses
+-			aux := s.lookupSymbol(n, &ssa.ArgSymbol{Node: n})
+-			return s.newValue1A(ssa.OpAddr, t, aux, s.sp)
++			return s.newValue1A(ssa.OpAddr, t, n, s.sp)
+ 		default:
+ 			s.Fatalf("variable address class %v not implemented", classnames[n.Class()])
+ 			return nil
+@@ -4672,10 +4639,11 @@ func AuxOffset(v *ssa.Value) (offset int64) {
+ 	if v.Aux == nil {
+ 		return 0
+ 	}
+-	switch sym := v.Aux.(type) {
+-
+-	case *ssa.AutoSymbol:
+-		n := sym.Node.(*Node)
++	n, ok := v.Aux.(*Node)
++	if !ok {
++		v.Fatalf("bad aux type in %s\n", v.LongString())
++	}
++	if n.Class() == PAUTO {
+ 		return n.Xoffset
+ 	}
+ 	return 0
+@@ -4697,17 +4665,17 @@ func AddAux2(a *obj.Addr, v *ssa.Value, offset int64) {
+ 		return
+ 	}
+ 	// Add symbol's offset from its base register.
+-	switch sym := v.Aux.(type) {
+-	case *ssa.ExternSymbol:
++	switch n := v.Aux.(type) {
++	case *obj.LSym:
+ 		a.Name = obj.NAME_EXTERN
+-		a.Sym = sym.Sym
+-	case *ssa.ArgSymbol:
+-		n := sym.Node.(*Node)
+-		a.Name = obj.NAME_PARAM
+-		a.Sym = n.Orig.Sym.Linksym()
+-		a.Offset += n.Xoffset
+-	case *ssa.AutoSymbol:
+-		n := sym.Node.(*Node)
++		a.Sym = n
++	case *Node:
++		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
++			a.Name = obj.NAME_PARAM
++			a.Sym = n.Orig.Sym.Linksym()
++			a.Offset += n.Xoffset
++			break
++		}
+ 		a.Name = obj.NAME_AUTO
+ 		a.Sym = n.Sym.Linksym()
+ 		a.Offset += n.Xoffset
+@@ -4922,9 +4890,8 @@ func (e *ssafn) StringData(s string) interface{} {
+ 		e.strings = make(map[string]interface{})
+ 	}
+ 	data := stringsym(s)
+-	aux := &ssa.ExternSymbol{Sym: data}
+-	e.strings[s] = aux
+-	return aux
++	e.strings[s] = data
++	return data
+ }
+ 
+ func (e *ssafn) Auto(pos src.XPos, t *types.Type) ssa.GCNode {
+@@ -5141,3 +5108,16 @@ func (e *ssafn) Syslook(name string) *obj.LSym {
+ func (n *Node) Typ() *types.Type {
+ 	return n.Type
+ }
++func (n *Node) StorageClass() ssa.StorageClass {
++	switch n.Class() {
++	case PPARAM:
++		return ssa.ClassParam
++	case PPARAMOUT:
++		return ssa.ClassParamOut
++	case PAUTO:
++		return ssa.ClassAuto
++	default:
++		Fatalf("untranslateable storage class for %v: %s", n, n.Class())
++		return 0
++	}
++}
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index e65515a85b..f7810ca497 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -283,10 +283,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		switch v.Aux.(type) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+-		case *ssa.ExternSymbol:
++		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++		case *gc.Node:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index db163f3e9d..65314e48b6 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -257,10 +257,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		switch v.Aux.(type) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+-		case *ssa.ExternSymbol:
++		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++		case *gc.Node:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 330d58becf..1228da2127 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -628,10 +628,10 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		switch v.Aux.(type) {
+ 		default:
+ 			v.Fatalf("aux is of unknown type %T", v.Aux)
+-		case *ssa.ExternSymbol:
++		case *obj.LSym:
+ 			wantreg = "SB"
+ 			gc.AddAux(&p.From, v)
+-		case *ssa.ArgSymbol, *ssa.AutoSymbol:
++		case *gc.Node:
+ 			wantreg = "SP"
+ 			gc.AddAux(&p.From, v)
+ 		case nil:
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index ad4b9114f3..c352219523 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -133,13 +133,22 @@ type Frontend interface {
+ 	UseWriteBarrier() bool
+ }
+ 
+-// interface used to hold *gc.Node. We'd use *gc.Node directly but
+-// that would lead to an import cycle.
++// interface used to hold a *gc.Node (a stack variable).
++// We'd use *gc.Node directly but that would lead to an import cycle.
+ type GCNode interface {
+ 	Typ() *types.Type
+ 	String() string
++	StorageClass() StorageClass
+ }
+ 
++type StorageClass uint8
++
++const (
++	ClassAuto     StorageClass = iota // local stack variable
++	ClassParam                        // argument
++	ClassParamOut                     // return value
++)
++
+ // NewConfig returns a new configuration object for the given architecture.
+ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize bool) *Config {
+ 	c := &Config{arch: arch, Types: types}
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 7506df8b19..bbeb990f17 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -132,7 +132,8 @@ func dse(f *Func) {
+ 	}
+ }
+ 
+-// elimUnreadAutos deletes stores to autos that are never read from.
++// elimUnreadAutos deletes stores (and associated bookkeeping ops VarDef and VarKill)
++// to autos that are never read from.
+ func elimUnreadAutos(f *Func) {
+ 	// Loop over all ops that affect autos taking note of which
+ 	// autos we need and also stores that we might be able to
+@@ -141,19 +142,21 @@ func elimUnreadAutos(f *Func) {
+ 	var stores []*Value
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+-			var sym *AutoSymbol
+-			sym, ok := v.Aux.(*AutoSymbol)
++			n, ok := v.Aux.(GCNode)
+ 			if !ok {
+ 				continue
+ 			}
++			if n.StorageClass() != ClassAuto {
++				continue
++			}
+ 
+ 			effect := v.Op.SymEffect()
+ 			switch effect {
+-			case SymWrite:
++			case SymNone, SymWrite:
+ 				// If we haven't seen the auto yet
+ 				// then this might be a store we can
+ 				// eliminate.
+-				if !seen[sym.Node] {
++				if !seen[n] {
+ 					stores = append(stores, v)
+ 				}
+ 			default:
+@@ -163,7 +166,7 @@ func elimUnreadAutos(f *Func) {
+ 				// because dead loads haven't been
+ 				// eliminated yet.
+ 				if v.Uses > 0 {
+-					seen[sym.Node] = true
++					seen[n] = true
+ 				}
+ 			}
+ 		}
+@@ -171,8 +174,8 @@ func elimUnreadAutos(f *Func) {
+ 
+ 	// Eliminate stores to unread autos.
+ 	for _, store := range stores {
+-		sym, _ := store.Aux.(*AutoSymbol)
+-		if seen[sym.Node] {
++		n, _ := store.Aux.(GCNode)
++		if seen[n] {
+ 			continue
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index 54cd96beaa..ad69463bdd 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -75,6 +75,10 @@ func (d *DummyAuto) String() string {
+ 	return d.s
+ }
+ 
++func (d *DummyAuto) StorageClass() StorageClass {
++	return ClassAuto
++}
++
+ func (DummyFrontend) StringData(s string) interface{} {
+ 	return nil
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 9786a71c81..6f8d10a939 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -289,12 +289,13 @@ var genericOps = []opData{
+ 
+ 	// Constant-like things
+ 	{name: "InitMem"},                               // memory input to the function.
+-	{name: "Arg", aux: "SymOff", symEffect: "None"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
++	{name: "Arg", aux: "SymOff", symEffect: "Read"}, // argument to the function.  aux=GCNode of arg, off = offset in that arg.
+ 
+-	// The address of a variable.  arg0 is the base pointer (SB or SP, depending
+-	// on whether it is a global or stack variable).  The Aux field identifies the
+-	// variable. It will be either an *ExternSymbol (with arg0=SB), *ArgSymbol (arg0=SP),
+-	// or *AutoSymbol (arg0=SP).
++	// The address of a variable.  arg0 is the base pointer.
++	// If the variable is a global, the base pointer will be SB and
++	// the Aux field will be a *obj.LSym.
++	// If the variable is a local, the base pointer will be SP and
++	// the Aux field will be a *gc.Node.
+ 	{name: "Addr", argLength: 1, aux: "Sym", symEffect: "Addr"}, // Address of a variable.  Arg0=SP or SB.  Aux identifies the variable.
+ 
+ 	{name: "SP"},                 // stack pointer
+@@ -418,7 +419,7 @@ var genericOps = []opData{
+ 
+ 	{name: "VarDef", argLength: 1, aux: "Sym", typ: "Mem", symEffect: "None"}, // aux is a *gc.Node of a variable that is about to be initialized.  arg0=mem, returns mem
+ 	{name: "VarKill", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that is known to be dead.  arg0=mem, returns mem
+-	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "None"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
++	{name: "VarLive", argLength: 1, aux: "Sym", symEffect: "Read"},            // aux is a *gc.Node of a variable that must be kept live.  arg0=mem, returns mem
+ 	{name: "KeepAlive", argLength: 2, typ: "Mem"},                             // arg[0] is a value that must be kept alive until this mark.  arg[1]=mem, returns mem
+ 	{name: "RegKill"},                                                         // regalloc has determined that the value in this register is dead
+ 
+diff --git a/src/cmd/compile/internal/ssa/op.go b/src/cmd/compile/internal/ssa/op.go
+index 37c24ee4cf..92560cdffb 100644
+--- a/src/cmd/compile/internal/ssa/op.go
++++ b/src/cmd/compile/internal/ssa/op.go
+@@ -67,7 +67,7 @@ const (
+ 	auxFloat32              // auxInt is a float32 (encoded with math.Float64bits)
+ 	auxFloat64              // auxInt is a float64 (encoded with math.Float64bits)
+ 	auxString               // aux is a string
+-	auxSym                  // aux is a symbol
++	auxSym                  // aux is a symbol (a *gc.Node for locals or an *obj.LSym for globals)
+ 	auxSymOff               // aux is a symbol, auxInt is an offset
+ 	auxSymValAndOff         // aux is a symbol, auxInt is a ValAndOff
+ 	auxTyp                  // aux is a type
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4493759ae9..c99733e500 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -22524,7 +22524,7 @@ var opcodeTable = [...]opInfo{
+ 		name:      "Arg",
+ 		auxType:   auxSymOff,
+ 		argLen:    0,
+-		symEffect: SymNone,
++		symEffect: SymRead,
+ 		generic:   true,
+ 	},
+ 	{
+@@ -22950,7 +22950,7 @@ var opcodeTable = [...]opInfo{
+ 		name:      "VarLive",
+ 		auxType:   auxSym,
+ 		argLen:    1,
+-		symEffect: SymNone,
++		symEffect: SymRead,
+ 		generic:   true,
+ 	},
+ 	{
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 2002a1ab59..b214f92bb9 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -276,18 +276,6 @@ search:
+ 	return true
+ }
+ 
+-// isArg returns whether s is an arg symbol
+-func isArg(s interface{}) bool {
+-	_, ok := s.(*ArgSymbol)
+-	return ok
+-}
+-
+-// isAuto returns whether s is an auto symbol
+-func isAuto(s interface{}) bool {
+-	_, ok := s.(*AutoSymbol)
+-	return ok
+-}
+-
+ // isSameSym returns whether sym is the same as the given named symbol
+ func isSameSym(sym interface{}, name string) bool {
+ 	s, ok := sym.(fmt.Stringer)
+@@ -412,11 +400,11 @@ func uaddOvf(a, b int64) bool {
+ // 'sym' is the symbol for the itab
+ func devirt(v *Value, sym interface{}, offset int64) *obj.LSym {
+ 	f := v.Block.Func
+-	ext, ok := sym.(*ExternSymbol)
++	n, ok := sym.(*obj.LSym)
+ 	if !ok {
+ 		return nil
+ 	}
+-	lsym := f.fe.DerefItab(ext.Sym, offset)
++	lsym := f.fe.DerefItab(n, offset)
+ 	if f.pass.debug > 0 {
+ 		if lsym != nil {
+ 			f.Warnl(v.Pos, "de-virtualizing call")
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index 73cb6a1b34..fa6dcd4cd4 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -6,7 +6,6 @@ package ssa
+ 
+ import (
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
+ 	"math"
+@@ -264,38 +263,6 @@ func (v *Value) isGenericIntConst() bool {
+ 	return v != nil && (v.Op == OpConst64 || v.Op == OpConst32 || v.Op == OpConst16 || v.Op == OpConst8)
+ }
+ 
+-// ExternSymbol is an aux value that encodes a variable's
+-// constant offset from the static base pointer.
+-type ExternSymbol struct {
+-	Sym *obj.LSym
+-	// Note: the offset for an external symbol is not
+-	// calculated until link time.
+-}
+-
+-// ArgSymbol is an aux value that encodes an argument or result
+-// variable's constant offset from FP (FP = SP + framesize).
+-type ArgSymbol struct {
+-	Node GCNode // A *gc.Node referring to the argument/result variable.
+-}
+-
+-// AutoSymbol is an aux value that encodes a local variable's
+-// constant offset from SP.
+-type AutoSymbol struct {
+-	Node GCNode // A *gc.Node referring to a local (auto) variable.
+-}
+-
+-func (s *ExternSymbol) String() string {
+-	return s.Sym.String()
+-}
+-
+-func (s *ArgSymbol) String() string {
+-	return s.Node.String()
+-}
+-
+-func (s *AutoSymbol) String() string {
+-	return s.Node.String()
+-}
+-
+ // Reg returns the register assigned to v, in cmd/internal/obj/$ARCH numbering.
+ func (v *Value) Reg() int16 {
+ 	reg := v.Block.Func.RegAlloc[v.ID]
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index cf22724a86..032a905abd 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -94,7 +94,7 @@ func writebarrier(f *Func) {
+ 			if sp == nil {
+ 				sp = f.Entry.NewValue0(initpos, OpSP, f.Config.Types.Uintptr)
+ 			}
+-			wbsym := &ExternSymbol{Sym: f.fe.Syslook("writeBarrier")}
++			wbsym := f.fe.Syslook("writeBarrier")
+ 			wbaddr = f.Entry.NewValue1A(initpos, OpAddr, f.Config.Types.UInt32Ptr, wbsym, sb)
+ 			writebarrierptr = f.fe.Syslook("writebarrierptr")
+ 			typedmemmove = f.fe.Syslook("typedmemmove")
+@@ -182,7 +182,7 @@ func writebarrier(f *Func) {
+ 			pos := w.Pos
+ 
+ 			var fn *obj.LSym
+-			var typ *ExternSymbol
++			var typ *obj.LSym
+ 			var val *Value
+ 			switch w.Op {
+ 			case OpStoreWB:
+@@ -191,10 +191,10 @@ func writebarrier(f *Func) {
+ 			case OpMoveWB:
+ 				fn = typedmemmove
+ 				val = w.Args[1]
+-				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
++				typ = w.Aux.(*types.Type).Symbol()
+ 			case OpZeroWB:
+ 				fn = typedmemclr
+-				typ = &ExternSymbol{Sym: w.Aux.(*types.Type).Symbol()}
++				typ = w.Aux.(*types.Type).Symbol()
+ 			case OpVarDef, OpVarLive, OpVarKill:
+ 			}
+ 
+@@ -274,7 +274,7 @@ func writebarrier(f *Func) {
+ 
+ // wbcall emits write barrier runtime call in b, returns memory.
+ // if valIsVolatile, it moves val into temp space before making the call.
+-func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
++func wbcall(pos src.XPos, b *Block, fn, typ *obj.LSym, ptr, val, mem, sp, sb *Value, valIsVolatile bool) *Value {
+ 	config := b.Func.Config
+ 
+ 	var tmp GCNode
+@@ -284,9 +284,8 @@ func wbcall(pos src.XPos, b *Block, fn *obj.LSym, typ *ExternSymbol, ptr, val, m
+ 		// value we're trying to move.
+ 		t := val.Type.ElemType()
+ 		tmp = b.Func.fe.Auto(val.Pos, t)
+-		aux := &AutoSymbol{Node: tmp}
+ 		mem = b.NewValue1A(pos, OpVarDef, types.TypeMem, tmp, mem)
+-		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), aux, sp)
++		tmpaddr := b.NewValue1A(pos, OpAddr, t.PtrTo(), tmp, sp)
+ 		siz := t.Size()
+ 		mem = b.NewValue3I(pos, OpMove, types.TypeMem, siz, tmpaddr, val, mem)
+ 		mem.Aux = t

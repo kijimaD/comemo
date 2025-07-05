@@ -6,6 +6,17 @@ Date:   Tue Nov 17 16:46:58 2009 -0800
     
     R=r, rsc
     https://golang.org/cl/156046
-
+---
  .hgignore | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/.hgignore b/.hgignore
+index e7aa685240..7d26f2c435 100644
+--- a/.hgignore
++++ b/.hgignore
+@@ -1,4 +1,5 @@
+ syntax:glob
++.git
+ *.[568ao]
+ *.ao
+ *.so

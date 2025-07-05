@@ -7,8 +7,53 @@ Date:   Fri Mar 4 20:21:26 2011 -0800
     R=rsc, r
     CC=golang-dev
     https://golang.org/cl/4260051
-
+---
  src/cmd/gc/doc.go     | 2 ++
  src/cmd/gopack/ar.c   | 2 +-
  src/cmd/gopack/doc.go | 4 +++-
  3 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/doc.go b/src/cmd/gc/doc.go
+index 21e1b103b0..3fe7fafddb 100644
+--- a/src/cmd/gc/doc.go
++++ b/src/cmd/gc/doc.go
+@@ -43,6 +43,8 @@ Flags:
+ 		disable optimization
+ 	-S
+ 		write assembly language text to standard output
++	-u
++		disallow importing packages not marked as safe
+ 	-V
+ 		print the compiler version
+ 
+diff --git a/src/cmd/gopack/ar.c b/src/cmd/gopack/ar.c
+index 702f104a68..a7e2c41afd 100644
+--- a/src/cmd/gopack/ar.c
++++ b/src/cmd/gopack/ar.c
+@@ -109,7 +109,7 @@ typedef struct Hashchain
+ 
+ 		/* constants and flags */
+ char	*man =		"mrxtdpq";
+-char	*opt =		"uvnbailoS";
++char	*opt =		"uvnbailogS";
+ char	artemp[] =	"/tmp/vXXXXX";
+ char	movtemp[] =	"/tmp/v1XXXXX";
+ char	tailtemp[] =	"/tmp/v2XXXXX";
+diff --git a/src/cmd/gopack/doc.go b/src/cmd/gopack/doc.go
+index 74c272fd21..08711e72e1 100644
+--- a/src/cmd/gopack/doc.go
++++ b/src/cmd/gopack/doc.go
+@@ -12,10 +12,12 @@ It adds a special Go-specific section __.PKGDEF that collects all the
+ Go type information from the files in the archive; that section is
+ used by the compiler when importing the package during compilation.
+ 
+-Usage: gopack [uvnbailo][mrxtdpq] archive files ...
++Usage: gopack [uvnbailogS][mrxtdpq] archive files ...
+ 
+ The new option 'g' causes gopack to maintain the __.PKGDEF section
+ as files are added to the archive.
+ 
++The new option 'S' forces gopack to mark the archive as safe.
++
+ */
+ package documentation

@@ -17,10 +17,257 @@ Date:   Mon Aug 23 15:29:16 2021 +0200
     Run-TryBot: Martin Möhrmann <moehrmann@google.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/README       | 10 +++++-----
  src/cmd/dist/build.go     | 20 ++++++--------------
  src/cmd/dist/buildtool.go | 32 +++++++++-----------------------
  src/cmd/dist/test.go      | 23 +++++++++++++++--------
  src/cmd/dist/util.go      |  2 +-
  5 files changed, 36 insertions(+), 51 deletions(-)
+
+diff --git a/src/cmd/dist/README b/src/cmd/dist/README
+index 0649e887f4..673c0f38c8 100644
+--- a/src/cmd/dist/README
++++ b/src/cmd/dist/README
+@@ -4,10 +4,10 @@ As of Go 1.5, dist and other parts of the compiler toolchain are written
+ in Go, making bootstrapping a little more involved than in the past.
+ The approach is to build the current release of Go with an earlier one.
+ 
+-The process to install Go 1.x, for x ≥ 5, is:
++The process to install Go 1.x, for x ≥ 20, is:
+ 
+-1. Build cmd/dist with Go 1.4.
+-2. Using dist, build Go 1.x compiler toolchain with Go 1.4.
++1. Build cmd/dist with Go 1.17.13.
++2. Using dist, build Go 1.x compiler toolchain with Go 1.17.13.
+ 3. Using dist, rebuild Go 1.x compiler toolchain with itself.
+ 4. Using dist, build Go 1.x cmd/go (as go_bootstrap) with Go 1.x compiler toolchain.
+ 5. Using go_bootstrap, build the remaining Go 1.x standard library and commands.
+@@ -16,8 +16,8 @@ NOTE: During the transition from the old C-based toolchain to the Go-based one,
+ step 2 also builds the parts of the toolchain written in C, and step 3 does not
+ recompile those.
+ 
+-Because of backward compatibility, although the steps above say Go 1.4,
+-in practice any release ≥ Go 1.4 but < Go 1.x will work as the bootstrap base.
++Because of backward compatibility, although the steps above say Go 1.17.13,
++in practice any release ≥ Go 1.17.13 but < Go 1.x will work as the bootstrap base.
+ 
+ See golang.org/s/go15bootstrap for more details.
+ 
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 47b25bc943..d0b71f1e57 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -386,7 +386,7 @@ func findgoversion() string {
+ 	// Note that we lightly parse internal/goversion/goversion.go to
+ 	// obtain the base version. We can't just import the package,
+ 	// because cmd/dist is built with a bootstrap GOROOT which could
+-	// be an entirely different version of Go, like 1.4. We assume
++	// be an entirely different version of Go. We assume
+ 	// that the file contains "const Version = <Integer>".
+ 	goversionSource := readfile(pathf("%s/src/internal/goversion/goversion.go", goroot))
+ 	m := regexp.MustCompile(`(?m)^const Version = (\d+)`).FindStringSubmatch(goversionSource)
+@@ -1253,18 +1253,10 @@ var toolchain = []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/link"}
+ // The bootstrap command runs a build from scratch,
+ // stopping at having installed the go_bootstrap command.
+ //
+-// WARNING: This command runs after cmd/dist is built with Go 1.4.
++// WARNING: This command runs after cmd/dist is built with the Go bootstrap toolchain.
+ // It rebuilds and installs cmd/dist with the new toolchain, so other
+ // commands (like "go tool dist test" in run.bash) can rely on bug fixes
+-// made since Go 1.4, but this function cannot. In particular, the uses
+-// of os/exec in this function cannot assume that
+-//
+-//	cmd.Env = append(os.Environ(), "X=Y")
+-//
+-// sets $X to Y in the command's environment. That guarantee was
+-// added after Go 1.4, and in fact in Go 1.4 it was typically the opposite:
+-// if $X was already present in os.Environ(), most systems preferred
+-// that setting, not the new one.
++// made since the Go bootstrap version, but this function cannot.
+ func cmdbootstrap() {
+ 	timelog("start", "dist bootstrap")
+ 	defer timelog("end", "dist bootstrap")
+@@ -1361,11 +1353,11 @@ func cmdbootstrap() {
+ 
+ 	// To recap, so far we have built the new toolchain
+ 	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link)
+-	// using Go 1.4's toolchain and go command.
++	// using the Go bootstrap toolchain and go command.
+ 	// Then we built the new go command (as go_bootstrap)
+ 	// using the new toolchain and our own build logic (above).
+ 	//
+-	//	toolchain1 = mk(new toolchain, go1.4 toolchain, go1.4 cmd/go)
++	//	toolchain1 = mk(new toolchain, go1.17 toolchain, go1.17 cmd/go)
+ 	//	go_bootstrap = mk(new cmd/go, toolchain1, cmd/dist)
+ 	//
+ 	// The toolchain1 we built earlier is built from the new sources,
+@@ -1391,7 +1383,7 @@ func cmdbootstrap() {
+ 	}
+ 
+ 	// Toolchain2 should be semantically equivalent to toolchain1,
+-	// but it was built using the new compilers instead of the Go 1.4 compilers,
++	// but it was built using the newly built compiler instead of the Go bootstrap compiler,
+ 	// so it should at the least run faster. Also, toolchain1 had no build IDs
+ 	// in the binaries, while toolchain2 does. In non-release builds, the
+ 	// toolchain's build IDs feed into constructing the build IDs of built targets,
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 394a4168d2..c4e366024c 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Build toolchain using Go 1.4.
++// Build toolchain using Go bootstrap version.
+ //
+ // The general strategy is to copy the source files we need into
+ // a new GOPATH workspace, adjust import paths appropriately,
+-// invoke the Go 1.4 go command to build those sources,
++// invoke the Go bootstrap toolchains go command to build those sources,
+ // and then copy the binaries back.
+ 
+ package main
+@@ -20,13 +20,13 @@ import (
+ )
+ 
+ // bootstrapDirs is a list of directories holding code that must be
+-// compiled with a Go 1.4 toolchain to produce the bootstrapTargets.
++// compiled with the Go bootstrap toolchain to produce the bootstrapTargets.
+ // All directories in this list are relative to and must be below $GOROOT/src.
+ //
+ // The list has two kinds of entries: names beginning with cmd/ with
+ // no other slashes, which are commands, and other paths, which are packages
+ // supporting the commands. Packages in the standard library can be listed
+-// if a newer copy needs to be substituted for the Go 1.4 copy when used
++// if a newer copy needs to be substituted for the Go bootstrap copy when used
+ // by the command packages. Paths ending with /... automatically
+ // include all packages within subdirectories as well.
+ // These will be imported during bootstrap as bootstrap/name, like bootstrap/math/big.
+@@ -87,18 +87,10 @@ var ignorePrefixes = []string{
+ 	"#",
+ }
+ 
+-// File suffixes that use build tags introduced since Go 1.4.
++// File suffixes that use build tags introduced since Go 1.17.
+ // These must not be copied into the bootstrap build directory.
+ // Also ignore test files.
+ var ignoreSuffixes = []string{
+-	"_arm64.s",
+-	"_arm64.go",
+-	"_loong64.s",
+-	"_loong64.go",
+-	"_riscv64.s",
+-	"_riscv64.go",
+-	"_wasm.s",
+-	"_wasm.go",
+ 	"_test.s",
+ 	"_test.go",
+ }
+@@ -181,12 +173,12 @@ func bootstrapBuildTools() {
+ 		})
+ 	}
+ 
+-	// Set up environment for invoking Go 1.4 go command.
+-	// GOROOT points at Go 1.4 GOROOT,
++	// Set up environment for invoking Go bootstrap toolchains go command.
++	// GOROOT points at Go bootstrap GOROOT,
+ 	// GOPATH points at our bootstrap workspace,
+ 	// GOBIN is empty, so that binaries are installed to GOPATH/bin,
+ 	// and GOOS, GOHOSTOS, GOARCH, and GOHOSTOS are empty,
+-	// so that Go 1.4 builds whatever kind of binary it knows how to build.
++	// so that Go bootstrap toolchain builds whatever kind of binary it knows how to build.
+ 	// Restore GOROOT, GOPATH, and GOBIN when done.
+ 	// Don't bother with GOOS, GOHOSTOS, GOARCH, and GOHOSTARCH,
+ 	// because setup will take care of those when bootstrapBuildTools returns.
+@@ -205,20 +197,14 @@ func bootstrapBuildTools() {
+ 	os.Setenv("GOARCH", "")
+ 	os.Setenv("GOHOSTARCH", "")
+ 
+-	// Run Go 1.4 to build binaries. Use -gcflags=-l to disable inlining to
+-	// workaround bugs in Go 1.4's compiler. See discussion thread:
+-	// https://groups.google.com/d/msg/golang-dev/Ss7mCKsvk8w/Gsq7VYI0AwAJ
++	// Run Go bootstrap to build binaries.
+ 	// Use the math_big_pure_go build tag to disable the assembly in math/big
+ 	// which may contain unsupported instructions.
+ 	// Use the purego build tag to disable other assembly code,
+ 	// such as in cmd/internal/notsha256.
+-	// Note that if we are using Go 1.10 or later as bootstrap, the -gcflags=-l
+-	// only applies to the final cmd/go binary, but that's OK: if this is Go 1.10
+-	// or later we don't need to disable inlining to work around bugs in the Go 1.4 compiler.
+ 	cmd := []string{
+ 		pathf("%s/bin/go", goroot_bootstrap),
+ 		"install",
+-		"-gcflags=-l",
+ 		"-tags=math_big_pure_go compiler_bootstrap purego",
+ 	}
+ 	if vflag > 0 {
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 293d95e35b..3f16fc3e08 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"flag"
+ 	"fmt"
++	"io/fs"
+ 	"log"
+ 	"os"
+ 	"os/exec"
+@@ -1709,8 +1710,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
+ 	}
+ 	gocacheSubdir, _ := filepath.Rel(dir, gocache)
+ 
+-	// Note: Can't use WalkDir here, because this has to compile with Go 1.4.
+-	filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
++	filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+ 		if suffix := strings.TrimPrefix(path, dir+string(filepath.Separator)); suffix != "" {
+ 			if suffix == gocacheSubdir {
+ 				// Leave GOCACHE writable: we may need to write test binaries into it.
+@@ -1723,11 +1723,18 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
+ 				return filepath.SkipDir
+ 			}
+ 		}
+-		if err == nil {
+-			mode := info.Mode()
+-			if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {
+-				dirs = append(dirs, pathMode{path, mode})
+-			}
++		if err != nil {
++			return nil
++		}
++
++		info, err := d.Info()
++		if err != nil {
++			return nil
++		}
++
++		mode := info.Mode()
++		if mode&0222 != 0 && (mode.IsDir() || mode.IsRegular()) {
++			dirs = append(dirs, pathMode{path, mode})
+ 		}
+ 		return nil
+ 	})
+@@ -1747,7 +1754,7 @@ func (t *tester) makeGOROOTUnwritable() (undo func()) {
+ 
+ // raceDetectorSupported is a copy of the function
+ // internal/platform.RaceDetectorSupported, which can't be used here
+-// because cmd/dist has to be buildable by Go 1.4.
++// because cmd/dist can not import internal packages during bootstrap.
+ // The race detector only supports 48-bit VMA on arm64. But we don't have
+ // a good solution to check VMA size(See https://golang.org/issue/29948)
+ // raceDetectorSupported will always return true for arm64. But race
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index a8efa513d2..319866a3b8 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -85,7 +85,7 @@ func run(dir string, mode int, cmd ...string) string {
+ 	// as it runs without fear of mixing the output with some
+ 	// other command's output. Not buffering lets the output
+ 	// appear as it is printed instead of once the command exits.
+-	// This is most important for the invocation of 'go1.4 build -v bootstrap/...'.
++	// This is most important for the invocation of 'go build -v bootstrap/...'.
+ 	if mode&(Background|ShowOutput) == ShowOutput {
+ 		xcmd.Stdout = os.Stdout
+ 		xcmd.Stderr = os.Stderr

@@ -7,6 +7,19 @@ Date:   Thu Nov 22 08:41:02 2012 +1100
     R=adg, minux.ma, rsc
     CC=golang-dev
     https://golang.org/cl/6843068
-
+---
  misc/dashboard/builder/main.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 03999db170..2b4c564e52 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -32,6 +32,7 @@ const (
+ // These variables are copied from the gobuilder's environment
+ // to the envv of its subprocesses.
+ var extraEnv = []string{
++	"CC",
+ 	"GOARM",
+ 	"GOHOSTARCH",
+ 	"GOHOSTOS",

@@ -11,6 +11,32 @@ Date:   Tue Feb 20 17:10:16 2024 +0100
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
-
+---
  src/time/zoneinfo_read.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 707dd1189d..9ce735d279 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -11,6 +11,7 @@ package time
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -99,10 +100,8 @@ func (d *dataIO) rest() []byte {
+ 
+ // Make a string by stopping at the first NUL
+ func byteString(p []byte) string {
+-	for i := 0; i < len(p); i++ {
+-		if p[i] == 0 {
+-			return string(p[0:i])
+-		}
++	if i := bytealg.IndexByte(p, 0); i != -1 {
++		p = p[:i]
+ 	}
+ 	return string(p)
+ }

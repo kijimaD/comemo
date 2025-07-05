@@ -11,7 +11,87 @@ Date:   Tue Dec 11 12:19:10 2012 -0500
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6929048
-
+---
  src/pkg/math/big/int.go      | 20 ++++++++++++++++++++
  src/pkg/math/big/int_test.go | 30 ++++++++++++++++++++++++++++++
  2 files changed, 50 insertions(+)
+
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index 95c0d58ee9..63a4536e2a 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -51,6 +51,13 @@ func (z *Int) SetInt64(x int64) *Int {
+ 	return z
+ }
+ 
++// SetUint64 sets z to x and returns z.
++func (z *Int) SetUint64(x uint64) *Int {
++	z.abs = z.abs.setUint64(uint64(x))
++	z.neg = false
++	return z
++}
++
+ // NewInt allocates and returns a new Int set to x.
+ func NewInt(x int64) *Int {
+ 	return new(Int).SetInt64(x)
+@@ -519,6 +526,19 @@ func (x *Int) Int64() int64 {
+ 	return v
+ }
+ 
++// Uint64 returns the int64 representation of x.
++// If x cannot be represented in an uint64, the result is undefined.
++func (x *Int) Uint64() uint64 {
++	if len(x.abs) == 0 {
++		return 0
++	}
++	v := uint64(x.abs[0])
++	if _W == 32 && len(x.abs) > 1 {
++		v |= uint64(x.abs[1]) << 32
++	}
++	return v
++}
++
+ // SetString sets z to the value of s, interpreted in the given base,
+ // and returns z and a boolean indicating success. If SetString fails,
+ // the value of z is undefined but the returned value is nil.
+diff --git a/src/pkg/math/big/int_test.go b/src/pkg/math/big/int_test.go
+index d3c5a0e8bf..fd6d152b39 100644
+--- a/src/pkg/math/big/int_test.go
++++ b/src/pkg/math/big/int_test.go
+@@ -1135,6 +1135,36 @@ func TestInt64(t *testing.T) {
+ 	}
+ }
+ 
++var uint64Tests = []uint64{
++	0,
++	1,
++	4294967295,
++	4294967296,
++	8589934591,
++	8589934592,
++	9223372036854775807,
++	9223372036854775808,
++	18446744073709551615, // 1<<64 - 1
++}
++
++func TestUint64(t *testing.T) {
++	in := new(Int)
++	for i, testVal := range uint64Tests {
++		in.SetUint64(testVal)
++		out := in.Uint64()
++
++		if out != testVal {
++			t.Errorf("#%d got %d want %d", i, out, testVal)
++		}
++
++		str := fmt.Sprint(testVal)
++		strOut := in.String()
++		if strOut != str {
++			t.Errorf("#%d.String got %s want %s", i, strOut, str)
++		}
++	}
++}
++
+ var bitwiseTests = []struct {
+ 	x, y                 string
+ 	and, or, xor, andNot string

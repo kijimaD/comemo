@@ -22,10 +22,418 @@ Date:   Tue Oct 10 14:41:57 2017 -0400
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  misc/nacl/testzip.proto              |   3 +
  src/cmd/cover/cover.go               | 125 ++++++++++++++++++++++------------
  src/cmd/cover/cover_test.go          | 128 ++++++++++++++++++++++++++++++++++-
  src/cmd/cover/doc.go                 |   4 ++
  src/cmd/cover/testdata/directives.go |  40 +++++++++++
  5 files changed, 253 insertions(+), 47 deletions(-)
+
+diff --git a/misc/nacl/testzip.proto b/misc/nacl/testzip.proto
+index ab9abbf21e..f15a2ab224 100644
+--- a/misc/nacl/testzip.proto
++++ b/misc/nacl/testzip.proto
+@@ -22,6 +22,9 @@ go	src=..
+ 				internal
+ 					syntax
+ 						parser.go
++			cover
++				testdata
++					+
+ 			doc
+ 				main.go
+ 				pkg.go
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 0d51a6ba30..8bcdec17c8 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -154,12 +154,11 @@ type Block struct {
+ // File is a wrapper for the state of a file used in the parser.
+ // The basic parse tree walker is a method of this type.
+ type File struct {
+-	fset       *token.FileSet
+-	name       string // Name of file.
+-	astFile    *ast.File
+-	blocks     []Block
+-	atomicPkg  string                // Package name for "sync/atomic" in this file.
+-	directives map[*ast.Comment]bool // Map of compiler directives to whether it's processed in ast.Visitor or not.
++	fset      *token.FileSet
++	name      string // Name of file.
++	astFile   *ast.File
++	blocks    []Block
++	atomicPkg string // Package name for "sync/atomic" in this file.
+ }
+ 
+ // Visit implements the ast.Visitor interface.
+@@ -244,23 +243,74 @@ func (f *File) Visit(node ast.Node) ast.Visitor {
+ 			ast.Walk(f, n.Assign)
+ 			return nil
+ 		}
+-	case *ast.CommentGroup:
+-		var list []*ast.Comment
+-		// Drop all but the //go: comments, some of which are semantically important.
+-		// We drop all others because they can appear in places that cause our counters
+-		// to appear in syntactically incorrect places. //go: appears at the beginning of
+-		// the line and is syntactically safe.
+-		for _, c := range n.List {
+-			if f.isDirective(c) {
+-				list = append(list, c)
+-
+-				// Mark compiler directive as handled.
+-				f.directives[c] = true
++	}
++	return f
++}
++
++// fixDirectives identifies //go: comments (known as directives or pragmas) and
++// attaches them to the documentation group of the following top-level
++// definitions. All other comments are dropped since non-documentation comments
++// tend to get printed in the wrong place after the AST is modified.
++//
++// fixDirectives returns a list of unhandled directives. These comments could
++// not be attached to a top-level declaration and should be be printed at the
++// end of the file.
++func (f *File) fixDirectives() []*ast.Comment {
++	// Scan comments in the file and collect directives. Detach all comments.
++	var directives []*ast.Comment
++	for _, cg := range f.astFile.Comments {
++		for _, c := range cg.List {
++			// Skip directives that will be included by initialComments, i.e., those
++			// before the package declaration but not in the file doc comment group.
++			if f.isDirective(c) && (c.Pos() >= f.astFile.Package || cg == f.astFile.Doc) {
++				directives = append(directives, c)
++			}
++		}
++		cg.List = nil
++	}
++	f.astFile.Comments = nil // force printer to use node comments
++
++	// Iterate over top-level declarations and attach preceding directives.
++	di := 0
++	var prevPos token.Pos
++	for _, decl := range f.astFile.Decls {
++		// Assume (but verify) that comments are sorted by position.
++		pos := decl.Pos()
++		if pos < prevPos {
++			log.Fatalf("comments are out of order. %s was before %s.",
++				f.fset.Position(prevPos), f.fset.Position(pos))
++		}
++		prevPos = pos
++
++		var doc **ast.CommentGroup
++		switch d := decl.(type) {
++		case *ast.FuncDecl:
++			doc = &d.Doc
++		case *ast.GenDecl:
++			// Limitation: for grouped declarations, we attach directives to the decl,
++			// not individual specs. Directives must start in the first column, so
++			// they are lost when the group is indented.
++			doc = &d.Doc
++		default:
++			// *ast.BadDecls is the only other type we might see, but
++			// we don't need to handle it here.
++			continue
++		}
++
++		for di < len(directives) && directives[di].Pos() < pos {
++			c := directives[di]
++			if *doc == nil {
++				*doc = new(ast.CommentGroup)
+ 			}
++			c.Slash = pos - 1 // must be strictly less than pos
++			(*doc).List = append((*doc).List, c)
++			di++
+ 		}
+-		n.List = list
+ 	}
+-	return f
++
++	// Return trailing directives. These cannot apply to a specific declaration
++	// and may be printed at the end of the file.
++	return directives[di:]
+ }
+ 
+ // unquote returns the unquoted string.
+@@ -369,25 +419,15 @@ func annotate(name string) {
+ 	}
+ 
+ 	file := &File{
+-		fset:       fset,
+-		name:       name,
+-		astFile:    parsedFile,
+-		directives: map[*ast.Comment]bool{},
++		fset:    fset,
++		name:    name,
++		astFile: parsedFile,
+ 	}
+ 	if *mode == "atomic" {
+ 		file.atomicPkg = file.addImport(atomicPackagePath)
+ 	}
+ 
+-	for _, cg := range parsedFile.Comments {
+-		for _, c := range cg.List {
+-			if file.isDirective(c) {
+-				file.directives[c] = false
+-			}
+-		}
+-	}
+-	// Remove comments. Or else they interfere with new AST.
+-	parsedFile.Comments = nil
+-
++	unhandledDirectives := file.fixDirectives()
+ 	ast.Walk(file, file.astFile)
+ 	fd := os.Stdout
+ 	if *output != "" {
+@@ -399,20 +439,17 @@ func annotate(name string) {
+ 	}
+ 	fd.Write(initialComments(content)) // Retain '// +build' directives.
+ 
+-	// Retain compiler directives that are not processed in ast.Visitor.
+-	// Some compiler directives like "go:linkname" and "go:cgo_"
+-	// can be not attached to anything in the tree and hence will not be printed by printer.
+-	// So, we have to explicitly print them here.
+-	for cd, handled := range file.directives {
+-		if !handled {
+-			fmt.Fprintln(fd, cd.Text)
+-		}
+-	}
+-
+ 	file.print(fd)
+ 	// After printing the source tree, add some declarations for the counters etc.
+ 	// We could do this by adding to the tree, but it's easier just to print the text.
+ 	file.addVariables(fd)
++
++	// Print directives that are not processed in fixDirectives. Some
++	// directives are not attached to anything in the tree hence will not
++	// be printed by printer. So, we have to explicitly print them here.
++	for _, c := range unhandledDirectives {
++		fmt.Fprintln(fd, c.Text)
++	}
+ }
+ 
+ func (f *File) print(w io.Writer) {
+diff --git a/src/cmd/cover/cover_test.go b/src/cmd/cover/cover_test.go
+index 1584a73b59..8c9acc93f6 100644
+--- a/src/cmd/cover/cover_test.go
++++ b/src/cmd/cover/cover_test.go
+@@ -7,12 +7,16 @@ package main_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"go/ast"
++	"go/parser"
++	"go/token"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -89,20 +93,138 @@ func TestCover(t *testing.T) {
+ 	}
+ 	// compiler directive must appear right next to function declaration.
+ 	if got, err := regexp.MatchString(".*\n//go:nosplit\nfunc someFunction().*", string(file)); err != nil || !got {
+-		t.Errorf("misplaced compiler directive: got=(%v, %v); want=(true; nil)", got, err)
++		t.Error("misplaced compiler directive")
+ 	}
+ 	// "go:linkname" compiler directive should be present.
+ 	if got, err := regexp.MatchString(`.*go\:linkname some\_name some\_name.*`, string(file)); err != nil || !got {
+-		t.Errorf("'go:linkname' compiler directive not found: got=(%v, %v); want=(true; nil)", got, err)
++		t.Error("'go:linkname' compiler directive not found")
+ 	}
+ 
+ 	// No other comments should be present in generated code.
+ 	c := ".*// This comment shouldn't appear in generated go code.*"
+ 	if got, err := regexp.MatchString(c, string(file)); err != nil || got {
+-		t.Errorf("non compiler directive comment %q found. got=(%v, %v); want=(false; nil)", c, got, err)
++		t.Errorf("non compiler directive comment %q found", c)
+ 	}
+ }
+ 
++// TestDirectives checks that compiler directives are preserved and positioned
++// correctly. Directives that occur before top-level declarations should remain
++// above those declarations, even if they are not part of the block of
++// documentation comments.
++func TestDirectives(t *testing.T) {
++	// Read the source file and find all the directives. We'll keep
++	// track of whether each one has been seen in the output.
++	testDirectives := filepath.Join(testdata, "directives.go")
++	source, err := ioutil.ReadFile(testDirectives)
++	if err != nil {
++		t.Fatal(err)
++	}
++	sourceDirectives := findDirectives(source)
++
++	// go tool cover -mode=set ./testdata/directives.go
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "cover", "-mode=set", testDirectives)
++	cmd.Stderr = os.Stderr
++	output, err := cmd.Output()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	// Check that all directives are present in the output.
++	outputDirectives := findDirectives(output)
++	foundDirective := make(map[string]bool)
++	for _, p := range sourceDirectives {
++		foundDirective[p.name] = false
++	}
++	for _, p := range outputDirectives {
++		if found, ok := foundDirective[p.name]; !ok {
++			t.Errorf("unexpected directive in output: %s", p.text)
++		} else if found {
++			t.Errorf("directive found multiple times in output: %s", p.text)
++		}
++		foundDirective[p.name] = true
++	}
++	for name, found := range foundDirective {
++		if !found {
++			t.Errorf("missing directive: %s", name)
++		}
++	}
++
++	// Check that directives that start with the name of top-level declarations
++	// come before the beginning of the named declaration and after the end
++	// of the previous declaration.
++	fset := token.NewFileSet()
++	astFile, err := parser.ParseFile(fset, testDirectives, output, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	prevEnd := 0
++	for _, decl := range astFile.Decls {
++		var name string
++		switch d := decl.(type) {
++		case *ast.FuncDecl:
++			name = d.Name.Name
++		case *ast.GenDecl:
++			if len(d.Specs) == 0 {
++				// An empty group declaration. We still want to check that
++				// directives can be associated with it, so we make up a name
++				// to match directives in the test data.
++				name = "_empty"
++			} else if spec, ok := d.Specs[0].(*ast.TypeSpec); ok {
++				name = spec.Name.Name
++			}
++		}
++		pos := fset.Position(decl.Pos()).Offset
++		end := fset.Position(decl.End()).Offset
++		if name == "" {
++			prevEnd = end
++			continue
++		}
++		for _, p := range outputDirectives {
++			if !strings.HasPrefix(p.name, name) {
++				continue
++			}
++			if p.offset < prevEnd || pos < p.offset {
++				t.Errorf("directive %s does not appear before definition %s", p.text, name)
++			}
++		}
++		prevEnd = end
++	}
++}
++
++type directiveInfo struct {
++	text   string // full text of the comment, not including newline
++	name   string // text after //go:
++	offset int    // byte offset of first slash in comment
++}
++
++func findDirectives(source []byte) []directiveInfo {
++	var directives []directiveInfo
++	directivePrefix := []byte("\n//go:")
++	offset := 0
++	for {
++		i := bytes.Index(source[offset:], directivePrefix)
++		if i < 0 {
++			break
++		}
++		i++ // skip newline
++		p := source[offset+i:]
++		j := bytes.IndexByte(p, '\n')
++		if j < 0 {
++			// reached EOF
++			j = len(p)
++		}
++		directive := directiveInfo{
++			text:   string(p[:j]),
++			name:   string(p[len(directivePrefix)-1 : j]),
++			offset: offset + i,
++		}
++		directives = append(directives, directive)
++		offset += i + j
++	}
++	return directives
++}
++
+ // Makes sure that `cover -func=profile.cov` reports accurate coverage.
+ // Issue #20515.
+ func TestCoverFunc(t *testing.T) {
+diff --git a/src/cmd/cover/doc.go b/src/cmd/cover/doc.go
+index 636d7e08d9..e2c849419a 100644
+--- a/src/cmd/cover/doc.go
++++ b/src/cmd/cover/doc.go
+@@ -14,6 +14,10 @@ than binary-rewriting coverage tools, but also a little less capable.
+ For instance, it does not probe inside && and || expressions, and can
+ be mildly confused by single statements with multiple function literals.
+ 
++When computing coverage of a package that uses cgo, the cover tool
++must be applied to the output of cgo preprocessing, not the input,
++because cover deletes comments that are significant to cgo.
++
+ For usage information, please see:
+ 	go help testflag
+ 	go tool cover -help
+diff --git a/src/cmd/cover/testdata/directives.go b/src/cmd/cover/testdata/directives.go
+new file mode 100644
+index 0000000000..dfb7b8ec33
+--- /dev/null
++++ b/src/cmd/cover/testdata/directives.go
+@@ -0,0 +1,40 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file is processed by the cover command, then a test verifies that
++// all compiler directives are preserved and positioned appropriately.
++
++//go:a
++
++//go:b
++package main
++
++//go:c1
++
++//go:c2
++//doc
++func c() {
++}
++
++//go:d1
++
++//doc
++//go:d2
++type d int
++
++//go:e1
++
++//doc
++//go:e2
++type (
++	e int
++	f int
++)
++
++//go:_empty1
++//doc
++//go:_empty2
++type ()
++
++//go:f

@@ -10,6 +10,19 @@ Date:   Sat Apr 6 20:00:45 2013 -0700
     R=golang-dev, alex.brainman, iant
     CC=golang-dev
     https://golang.org/cl/8402045
-
+---
  src/pkg/runtime/proc.c | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index eec7531e15..438de78b09 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -695,6 +695,7 @@ runtime·dropm(void)
+ 
+ 	// Undo whatever initialization minit did during needm.
+ 	runtime·unminit();
++	m->seh = nil;  // reset dangling typed pointer
+ 
+ 	// Clear m and g, and return m to the extra list.
+ 	// After the call to setmg we can only call nosplit functions.

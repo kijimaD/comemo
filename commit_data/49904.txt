@@ -10,7 +10,32 @@ Date:   Mon Sep 20 17:08:11 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/subst.go | 1 -
  src/go/types/subst.go                    | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 87c1d7872b..fe73ef688c 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -224,7 +224,6 @@ func (subst *subster) typ(typ Type) Type {
+ 			return named
+ 		}
+ 
+-		t.orig.resolve(subst.env)
+ 		// Create a new instance and populate the environment to avoid endless
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 16aafd622e..999099572c 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -210,7 +210,6 @@ func (subst *subster) typ(typ Type) Type {
+ 			return named
+ 		}
+ 
+-		t.orig.resolve(subst.env)
+ 		// Create a new instance and populate the environment to avoid endless
+ 		// recursion. The position used here is irrelevant because validation only
+ 		// occurs on t (we don't call validType on named), but we use subst.pos to

@@ -12,7 +12,7 @@ Date:   Sat Apr 18 16:53:55 2015 +0900
     Change-Id: I3197b9277bef0e034427e3a44fa77523acaa2520
     Reviewed-on: https://go-review.googlesource.com/9101
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/error_test.go     | 114 ++++++++++++++++++++++++++++++++++++++++++++++
  src/net/fd_plan9.go       |   2 +-
  src/net/fd_unix.go        |   4 +-
@@ -28,3 +28,555 @@ Date:   Sat Apr 18 16:53:55 2015 +0900
  src/net/unixsock_plan9.go |   2 +-
  src/net/unixsock_posix.go |   8 +++-
  14 files changed, 217 insertions(+), 97 deletions(-)
+
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index 7c12cba762..03c646c7c9 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"fmt"
+ 	"io"
++	"io/ioutil"
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
+@@ -56,6 +57,10 @@ func (e *OpError) isValid() error {
+ 		if addr == nil {
+ 			return fmt.Errorf("OpError.Addr is empty: %v", e)
+ 		}
++	case fileAddr:
++		if addr == "" {
++			return fmt.Errorf("OpError.Addr is empty: %v", e)
++		}
+ 	}
+ 	if e.Err == nil {
+ 		return fmt.Errorf("OpError.Err is empty: %v", e)
+@@ -503,3 +508,112 @@ func TestAcceptError(t *testing.T) {
+ 	time.Sleep(100 * time.Millisecond)
+ 	ls.teardown()
+ }
++
++// parseCommonError parses nestedErr and reports whether it is a valid
++// error value from miscellaneous functions.
++// It returns nil when nestedErr is valid.
++func parseCommonError(nestedErr error) error {
++	if nestedErr == nil {
++		return nil
++	}
++
++	switch err := nestedErr.(type) {
++	case *OpError:
++		if err := err.isValid(); err != nil {
++			return err
++		}
++		nestedErr = err.Err
++		goto second
++	}
++	return fmt.Errorf("unexpected type on 1st nested level: %T", nestedErr)
++
++second:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	switch err := nestedErr.(type) {
++	case *os.SyscallError:
++		nestedErr = err.Err
++		goto third
++	case *os.LinkError:
++		nestedErr = err.Err
++		goto third
++	case *os.PathError:
++		nestedErr = err.Err
++		goto third
++	}
++	return fmt.Errorf("unexpected type on 2nd nested level: %T", nestedErr)
++
++third:
++	if isPlatformError(nestedErr) {
++		return nil
++	}
++	return fmt.Errorf("unexpected type on 3rd nested level: %T", nestedErr)
++}
++
++func TestFileError(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows":
++		t.Skip("not supported on %s", runtime.GOOS)
++	}
++
++	f, err := ioutil.TempFile("", "nettest")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer f.Close()
++
++	c, err := FileConn(f)
++	if err != nil {
++		if c != nil {
++			t.Errorf("FileConn returned non-nil interface %T(%v) with err != nil", c, c)
++		}
++		if perr := parseCommonError(err); perr != nil {
++			t.Error(perr)
++		}
++	} else {
++		c.Close()
++		t.Error("should fail")
++	}
++	ln, err := FileListener(f)
++	if err != nil {
++		if ln != nil {
++			t.Errorf("FileListener returned non-nil interface %T(%v) with err != nil", ln, ln)
++		}
++		if perr := parseCommonError(err); perr != nil {
++			t.Error(perr)
++		}
++	} else {
++		ln.Close()
++		t.Error("should fail")
++	}
++	pc, err := FilePacketConn(f)
++	if err != nil {
++		if pc != nil {
++			t.Errorf("FilePacketConn returned non-nil interface %T(%v) with err != nil", pc, pc)
++		}
++		if perr := parseCommonError(err); perr != nil {
++			t.Error(perr)
++		}
++	} else {
++		pc.Close()
++		t.Error("should fail")
++	}
++
++	ln, err = newLocalListener("tcp")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	for i := 0; i < 3; i++ {
++		f, err := ln.(*TCPListener).File()
++		if err != nil {
++			if perr := parseCommonError(err); perr != nil {
++				t.Error(perr)
++			}
++		} else {
++			f.Close()
++		}
++		ln.Close()
++	}
++}
+diff --git a/src/net/fd_plan9.go b/src/net/fd_plan9.go
+index 29ec801278..347829ce8e 100644
+--- a/src/net/fd_plan9.go
++++ b/src/net/fd_plan9.go
+@@ -202,7 +202,7 @@ func (fd *netFD) file(f *os.File, s string) (*os.File, error) {
+ 	dfd, err := syscall.Dup(int(f.Fd()), -1)
+ 	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+-		return nil, &OpError{"dup", s, fd.laddr, err}
++		return nil, err
+ 	}
+ 	return os.NewFile(uintptr(dfd), s), nil
+ }
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index 329819e80a..4b19d9442c 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -459,7 +459,7 @@ func dupCloseOnExecOld(fd int) (newfd int, err error) {
+ func (fd *netFD) dup() (f *os.File, err error) {
+ 	ns, err := dupCloseOnExec(fd.sysfd)
+ 	if err != nil {
+-		return nil, &OpError{"dup", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 
+ 	// We want blocking mode for the new fd, hence the double negative.
+@@ -467,7 +467,7 @@ func (fd *netFD) dup() (f *os.File, err error) {
+ 	// I/O will block the thread instead of letting us use the epoll server.
+ 	// Everything will still work, just with more threads.
+ 	if err = syscall.SetNonblock(ns, false); err != nil {
+-		return nil, &OpError{"setnonblock", fd.net, fd.laddr, err}
++		return nil, err
+ 	}
+ 
+ 	return os.NewFile(uintptr(ns), fd.name()), nil
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 4826a88236..01fe1a9595 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -605,7 +605,7 @@ func (fd *netFD) accept() (*netFD, error) {
+ 
+ func (fd *netFD) dup() (*os.File, error) {
+ 	// TODO: Implement this
+-	return nil, os.NewSyscallError("dup", syscall.EWINDOWS)
++	return nil, syscall.EWINDOWS
+ }
+ 
+ func (fd *netFD) readMsg(p []byte, oob []byte) (n, oobn, flags int, sa syscall.Sockaddr, err error) {
+diff --git a/src/net/file.go b/src/net/file.go
+new file mode 100644
+index 0000000000..be93e2c6c0
+--- /dev/null
++++ b/src/net/file.go
+@@ -0,0 +1,48 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "os"
++
++type fileAddr string
++
++func (fileAddr) Network() string  { return "file+net" }
++func (f fileAddr) String() string { return string(f) }
++
++// FileConn returns a copy of the network connection corresponding to
++// the open file f.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func FileConn(f *os.File) (c Conn, err error) {
++	c, err = fileConn(f)
++	if err != nil {
++		err = &OpError{Op: "file", Net: "file+net", Addr: fileAddr(f.Name()), Err: err}
++	}
++	return
++}
++
++// FileListener returns a copy of the network listener corresponding
++// to the open file f.
++// It is the caller's responsibility to close ln when finished.
++// Closing ln does not affect f, and closing f does not affect ln.
++func FileListener(f *os.File) (ln Listener, err error) {
++	ln, err = fileListener(f)
++	if err != nil {
++		err = &OpError{Op: "file", Net: "file+net", Addr: fileAddr(f.Name()), Err: err}
++	}
++	return
++}
++
++// FilePacketConn returns a copy of the packet network connection
++// corresponding to the open file f.
++// It is the caller's responsibility to close f when finished.
++// Closing c does not affect f, and closing f does not affect c.
++func FilePacketConn(f *os.File) (c PacketConn, err error) {
++	c, err = filePacketConn(f)
++	if err != nil {
++		err = &OpError{Op: "file", Net: "file+net", Addr: fileAddr(f.Name()), Err: err}
++	}
++	return
++}
+diff --git a/src/net/file_plan9.go b/src/net/file_plan9.go
+index 068f0881dd..0aa6c32d06 100644
+--- a/src/net/file_plan9.go
++++ b/src/net/file_plan9.go
+@@ -39,7 +39,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 
+ 	path, err := syscall.Fd2path(int(f.Fd()))
+ 	if err != nil {
+-		return nil, os.NewSyscallError("fd2path", err)
++		return nil, err
+ 	}
+ 	comp := splitAtBytes(path, "/")
+ 	n := len(comp)
+@@ -54,7 +54,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 		fd, err := syscall.Dup(int(f.Fd()), -1)
+ 		syscall.ForkLock.RUnlock()
+ 		if err != nil {
+-			return nil, os.NewSyscallError("dup", err)
++			return nil, err
+ 		}
+ 		defer close(fd)
+ 
+@@ -86,7 +86,7 @@ func newFileFD(f *os.File) (net *netFD, err error) {
+ 	return newFD(comp[1], name, ctl, nil, laddr, nil)
+ }
+ 
+-func newFileConn(f *os.File) (c Conn, err error) {
++func fileConn(f *os.File) (Conn, error) {
+ 	fd, err := newFileFD(f)
+ 	if err != nil {
+ 		return nil, err
+@@ -109,7 +109,7 @@ func newFileConn(f *os.File) (c Conn, err error) {
+ 	return nil, syscall.EPLAN9
+ }
+ 
+-func newFileListener(f *os.File) (l Listener, err error) {
++func fileListener(f *os.File) (Listener, error) {
+ 	fd, err := newFileFD(f)
+ 	if err != nil {
+ 		return nil, err
+@@ -132,26 +132,6 @@ func newFileListener(f *os.File) (l Listener, err error) {
+ 	return &TCPListener{fd}, nil
+ }
+ 
+-// FileConn returns a copy of the network connection corresponding to
+-// the open file f.  It is the caller's responsibility to close f when
+-// finished.  Closing c does not affect f, and closing f does not
+-// affect c.
+-func FileConn(f *os.File) (c Conn, err error) {
+-	return newFileConn(f)
+-}
+-
+-// FileListener returns a copy of the network listener corresponding
+-// to the open file f.  It is the caller's responsibility to close l
+-// when finished.  Closing l does not affect f, and closing f does not
+-// affect l.
+-func FileListener(f *os.File) (l Listener, err error) {
+-	return newFileListener(f)
+-}
+-
+-// FilePacketConn returns a copy of the packet network connection
+-// corresponding to the open file f.  It is the caller's
+-// responsibility to close f when finished.  Closing c does not affect
+-// f, and closing f does not affect c.
+-func FilePacketConn(f *os.File) (c PacketConn, err error) {
++func filePacketConn(f *os.File) (PacketConn, error) {
+ 	return nil, syscall.EPLAN9
+ }
+diff --git a/src/net/file_stub.go b/src/net/file_stub.go
+index 4281072ef9..0f7460c757 100644
+--- a/src/net/file_stub.go
++++ b/src/net/file_stub.go
+@@ -11,28 +11,6 @@ import (
+ 	"syscall"
+ )
+ 
+-// FileConn returns a copy of the network connection corresponding to
+-// the open file f.  It is the caller's responsibility to close f when
+-// finished.  Closing c does not affect f, and closing f does not
+-// affect c.
+-func FileConn(f *os.File) (c Conn, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-
+-}
+-
+-// FileListener returns a copy of the network listener corresponding
+-// to the open file f.  It is the caller's responsibility to close l
+-// when finished.  Closing l does not affect f, and closing f does not
+-// affect l.
+-func FileListener(f *os.File) (l Listener, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-
+-}
+-
+-// FilePacketConn returns a copy of the packet network connection
+-// corresponding to the open file f.  It is the caller's
+-// responsibility to close f when finished.  Closing c does not affect
+-// f, and closing f does not affect c.
+-func FilePacketConn(f *os.File) (c PacketConn, err error) {
+-	return nil, syscall.ENOPROTOOPT
+-}
++func fileConn(f *os.File) (Conn, error)             { return nil, syscall.ENOPROTOOPT }
++func fileListener(f *os.File) (Listener, error)     { return nil, syscall.ENOPROTOOPT }
++func filePacketConn(f *os.File) (PacketConn, error) { return nil, syscall.ENOPROTOOPT }
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index 8d806a1d63..98ceea1d55 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -14,7 +14,7 @@ import (
+ func newFileFD(f *os.File) (*netFD, error) {
+ 	fd, err := dupCloseOnExec(int(f.Fd()))
+ 	if err != nil {
+-		return nil, os.NewSyscallError("dup", err)
++		return nil, err
+ 	}
+ 
+ 	if err = syscall.SetNonblock(fd, true); err != nil {
+@@ -25,16 +25,13 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	sotype, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_TYPE)
+ 	if err != nil {
+ 		closeFunc(fd)
+-		return nil, os.NewSyscallError("getsockopt", err)
++		return nil, err
+ 	}
+ 
+ 	family := syscall.AF_UNSPEC
+ 	toAddr := sockaddrToTCP
+ 	lsa, _ := syscall.Getsockname(fd)
+ 	switch lsa.(type) {
+-	default:
+-		closeFunc(fd)
+-		return nil, syscall.EINVAL
+ 	case *syscall.SockaddrInet4:
+ 		family = syscall.AF_INET
+ 		if sotype == syscall.SOCK_DGRAM {
+@@ -57,6 +54,9 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 		} else if sotype == syscall.SOCK_SEQPACKET {
+ 			toAddr = sockaddrToUnixpacket
+ 		}
++	default:
++		closeFunc(fd)
++		return nil, syscall.EPROTONOSUPPORT
+ 	}
+ 	laddr := toAddr(lsa)
+ 	rsa, _ := syscall.Getpeername(fd)
+@@ -75,11 +75,7 @@ func newFileFD(f *os.File) (*netFD, error) {
+ 	return netfd, nil
+ }
+ 
+-// FileConn returns a copy of the network connection corresponding to
+-// the open file f.  It is the caller's responsibility to close f when
+-// finished.  Closing c does not affect f, and closing f does not
+-// affect c.
+-func FileConn(f *os.File) (c Conn, err error) {
++func fileConn(f *os.File) (Conn, error) {
+ 	fd, err := newFileFD(f)
+ 	if err != nil {
+ 		return nil, err
+@@ -98,11 +94,7 @@ func FileConn(f *os.File) (c Conn, err error) {
+ 	return nil, syscall.EINVAL
+ }
+ 
+-// FileListener returns a copy of the network listener corresponding
+-// to the open file f.  It is the caller's responsibility to close l
+-// when finished.  Closing l does not affect f, and closing f does not
+-// affect l.
+-func FileListener(f *os.File) (l Listener, err error) {
++func fileListener(f *os.File) (Listener, error) {
+ 	fd, err := newFileFD(f)
+ 	if err != nil {
+ 		return nil, err
+@@ -117,11 +109,7 @@ func FileListener(f *os.File) (l Listener, err error) {
+ 	return nil, syscall.EINVAL
+ }
+ 
+-// FilePacketConn returns a copy of the packet network connection
+-// corresponding to the open file f.  It is the caller's
+-// responsibility to close f when finished.  Closing c does not affect
+-// f, and closing f does not affect c.
+-func FilePacketConn(f *os.File) (c PacketConn, err error) {
++func filePacketConn(f *os.File) (PacketConn, error) {
+ 	fd, err := newFileFD(f)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/net/file_windows.go b/src/net/file_windows.go
+index ca2b9b2262..241fa17617 100644
+--- a/src/net/file_windows.go
++++ b/src/net/file_windows.go
+@@ -9,29 +9,17 @@ import (
+ 	"syscall"
+ )
+ 
+-// FileConn returns a copy of the network connection corresponding to
+-// the open file f.  It is the caller's responsibility to close f when
+-// finished.  Closing c does not affect f, and closing f does not
+-// affect c.
+-func FileConn(f *os.File) (c Conn, err error) {
++func fileConn(f *os.File) (Conn, error) {
+ 	// TODO: Implement this
+-	return nil, os.NewSyscallError("FileConn", syscall.EWINDOWS)
++	return nil, syscall.EWINDOWS
+ }
+ 
+-// FileListener returns a copy of the network listener corresponding
+-// to the open file f.  It is the caller's responsibility to close l
+-// when finished.  Closing l does not affect f, and closing f does not
+-// affect l.
+-func FileListener(f *os.File) (l Listener, err error) {
++func fileListener(f *os.File) (Listener, error) {
+ 	// TODO: Implement this
+-	return nil, os.NewSyscallError("FileListener", syscall.EWINDOWS)
++	return nil, syscall.EWINDOWS
+ }
+ 
+-// FilePacketConn returns a copy of the packet network connection
+-// corresponding to the open file f.  It is the caller's
+-// responsibility to close f when finished.  Closing c does not affect
+-// f, and closing f does not affect c.
+-func FilePacketConn(f *os.File) (c PacketConn, err error) {
++func filePacketConn(f *os.File) (PacketConn, error) {
+ 	// TODO: Implement this
+-	return nil, os.NewSyscallError("FilePacketConn", syscall.EWINDOWS)
++	return nil, syscall.EWINDOWS
+ }
+diff --git a/src/net/net.go b/src/net/net.go
+index 83739b6313..d1029832bf 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -236,7 +236,13 @@ func (c *conn) SetWriteBuffer(bytes int) error {
+ // The returned os.File's file descriptor is different from the connection's.
+ // Attempting to change properties of the original using this duplicate
+ // may or may not have the desired effect.
+-func (c *conn) File() (f *os.File, err error) { return c.fd.dup() }
++func (c *conn) File() (f *os.File, err error) {
++	f, err = c.fd.dup()
++	if err != nil {
++		err = &OpError{Op: "file", Net: c.fd.net, Addr: c.fd.laddr, Err: err}
++	}
++	return
++}
+ 
+ // An Error represents a network error.
+ type Error interface {
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index 2390cbddb8..deb2424c27 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -193,7 +193,13 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ // The returned os.File's file descriptor is different from the
+ // connection's.  Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
+-func (l *TCPListener) File() (f *os.File, err error) { return l.dup() }
++func (l *TCPListener) File() (f *os.File, err error) {
++	f, err = l.dup()
++	if err != nil {
++		err = &OpError{Op: "file", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return
++}
+ 
+ // ListenTCP announces on the TCP address laddr and returns a TCP
+ // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+diff --git a/src/net/tcpsock_posix.go b/src/net/tcpsock_posix.go
+index da4dd50257..78a3b8bf83 100644
+--- a/src/net/tcpsock_posix.go
++++ b/src/net/tcpsock_posix.go
+@@ -290,7 +290,13 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ // The returned os.File's file descriptor is different from the
+ // connection's.  Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
+-func (l *TCPListener) File() (f *os.File, err error) { return l.fd.dup() }
++func (l *TCPListener) File() (f *os.File, err error) {
++	f, err = l.fd.dup()
++	if err != nil {
++		err = &OpError{Op: "file", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return
++}
+ 
+ // ListenTCP announces on the TCP address laddr and returns a TCP
+ // listener.  Net must be "tcp", "tcp4", or "tcp6".  If laddr has a
+diff --git a/src/net/unixsock_plan9.go b/src/net/unixsock_plan9.go
+index 2972702004..410933ddd1 100644
+--- a/src/net/unixsock_plan9.go
++++ b/src/net/unixsock_plan9.go
+@@ -133,7 +133,7 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
+ // connection's.  Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
+ func (l *UnixListener) File() (*os.File, error) {
+-	return nil, syscall.EPLAN9
++	return nil, &OpError{Op: "file", Net: "<nil>", Addr: nil, Err: syscall.EPLAN9}
+ }
+ 
+ // ListenUnixgram listens for incoming Unix datagram packets addressed
+diff --git a/src/net/unixsock_posix.go b/src/net/unixsock_posix.go
+index 2881437ec0..5cb2f436b6 100644
+--- a/src/net/unixsock_posix.go
++++ b/src/net/unixsock_posix.go
+@@ -370,7 +370,13 @@ func (l *UnixListener) SetDeadline(t time.Time) (err error) {
+ // The returned os.File's file descriptor is different from the
+ // connection's.  Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
+-func (l *UnixListener) File() (f *os.File, err error) { return l.fd.dup() }
++func (l *UnixListener) File() (f *os.File, err error) {
++	f, err = l.fd.dup()
++	if err != nil {
++		err = &OpError{Op: "file", Net: l.fd.net, Addr: l.fd.laddr, Err: err}
++	}
++	return
++}
+ 
+ // ListenUnixgram listens for incoming Unix datagram packets addressed
+ // to the local address laddr.  The network net must be "unixgram".

@@ -12,6 +12,28 @@ Date:   Sat Aug 20 18:36:27 2016 +0100
     Run-TryBot: Michael Munday <munday@ca.ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/os_linux.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 542f214a42..0131c6687d 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -388,7 +388,6 @@ func osyield()
+ //go:nowritebarrierrec
+ func setsig(i int32, fn uintptr, restart bool) {
+ 	var sa sigactiont
+-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ 	sa.sa_flags = _SA_SIGINFO | _SA_ONSTACK | _SA_RESTORER
+ 	if restart {
+ 		sa.sa_flags |= _SA_RESTART
+@@ -431,8 +430,6 @@ func setsigstack(i int32) {
+ //go:nowritebarrierrec
+ func getsig(i int32) uintptr {
+ 	var sa sigactiont
+-
+-	memclr(unsafe.Pointer(&sa), unsafe.Sizeof(sa))
+ 	if rt_sigaction(uintptr(i), nil, &sa, unsafe.Sizeof(sa.sa_mask)) != 0 {
+ 		throw("rt_sigaction read failure")
+ 	}

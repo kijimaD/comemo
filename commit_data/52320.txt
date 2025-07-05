@@ -18,7 +18,128 @@ Date:   Mon Apr 25 05:21:35 2022 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/reflect/all_test.go | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/reflect/value.go    | 14 +++++++++--
  2 files changed, 78 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 72d01c7deb..9eb01bde35 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -7913,3 +7913,69 @@ func BenchmarkSliceCap(b *testing.B) {
+ 		sinkAll.RawInt = sourceAll.SliceAny.Cap()
+ 	}
+ }
++
++func TestValue_Cap(t *testing.T) {
++	a := &[3]int{1, 2, 3}
++	v := ValueOf(a)
++	if v.Cap() != cap(a) {
++		t.Errorf("Cap = %d want %d", v.Cap(), cap(a))
++	}
++
++	a = nil
++	v = ValueOf(a)
++	if v.Cap() != cap(a) {
++		t.Errorf("Cap = %d want %d", v.Cap(), cap(a))
++	}
++
++	getError := func(f func()) (errorStr string) {
++		defer func() {
++			e := recover()
++			if str, ok := e.(string); ok {
++				errorStr = str
++			}
++		}()
++		f()
++		return
++	}
++	e := getError(func() {
++		var ptr *int
++		ValueOf(ptr).Cap()
++	})
++	wantStr := "reflect: call of reflect.Value.Cap on ptr to non-array Value"
++	if e != wantStr {
++		t.Errorf("error is %q, want %q", e, wantStr)
++	}
++}
++
++func TestValue_Len(t *testing.T) {
++	a := &[3]int{1, 2, 3}
++	v := ValueOf(a)
++	if v.Len() != len(a) {
++		t.Errorf("Len = %d want %d", v.Len(), len(a))
++	}
++
++	a = nil
++	v = ValueOf(a)
++	if v.Len() != len(a) {
++		t.Errorf("Len = %d want %d", v.Len(), len(a))
++	}
++
++	getError := func(f func()) (errorStr string) {
++		defer func() {
++			e := recover()
++			if str, ok := e.(string); ok {
++				errorStr = str
++			}
++		}()
++		f()
++		return
++	}
++	e := getError(func() {
++		var ptr *int
++		ValueOf(ptr).Len()
++	})
++	wantStr := "reflect: call of reflect.Value.Len on ptr to non-array Value"
++	if e != wantStr {
++		t.Errorf("error is %q, want %q", e, wantStr)
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 6b5ebfae24..f92fa16fe6 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1144,7 +1144,7 @@ func funcName(f func([]Value) []Value) string {
+ }
+ 
+ // Cap returns v's capacity.
+-// It panics if v's Kind is not Array, Chan, or Slice.
++// It panics if v's Kind is not Array, Chan, Slice or pointer to Array.
+ func (v Value) Cap() int {
+ 	// capNonSlice is split out to keep Cap inlineable for slice kinds.
+ 	if v.kind() == Slice {
+@@ -1160,6 +1160,11 @@ func (v Value) capNonSlice() int {
+ 		return v.typ.Len()
+ 	case Chan:
+ 		return chancap(v.pointer())
++	case Ptr:
++		if v.typ.Elem().Kind() == Array {
++			return v.typ.Elem().Len()
++		}
++		panic("reflect: call of reflect.Value.Cap on ptr to non-array Value")
+ 	}
+ 	panic(&ValueError{"reflect.Value.Cap", v.kind()})
+ }
+@@ -1600,7 +1605,7 @@ func (v Value) Kind() Kind {
+ }
+ 
+ // Len returns v's length.
+-// It panics if v's Kind is not Array, Chan, Map, Slice, or String.
++// It panics if v's Kind is not Array, Chan, Map, Slice, String, or pointer to Array.
+ func (v Value) Len() int {
+ 	// lenNonSlice is split out to keep Len inlineable for slice kinds.
+ 	if v.kind() == Slice {
+@@ -1621,6 +1626,11 @@ func (v Value) lenNonSlice() int {
+ 	case String:
+ 		// String is bigger than a word; assume flagIndir.
+ 		return (*unsafeheader.String)(v.ptr).Len
++	case Ptr:
++		if v.typ.Elem().Kind() == Array {
++			return v.typ.Elem().Len()
++		}
++		panic("reflect: call of reflect.Value.Len on ptr to non-array Value")
+ 	}
+ 	panic(&ValueError{"reflect.Value.Len", v.kind()})
+ }

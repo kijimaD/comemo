@@ -7,6 +7,24 @@ Date:   Fri Nov 2 20:46:47 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6811069
-
+---
  src/pkg/net/fd_windows.go | 5 +++--
  1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 040439ab3b..5f43125892 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -371,9 +371,10 @@ func (fd *netFD) Close() error {
+ }
+ 
+ func (fd *netFD) shutdown(how int) error {
+-	if fd == nil || fd.sysfd == syscall.InvalidHandle {
+-		return syscall.EINVAL
++	if err := fd.incref(false); err != nil {
++		return err
+ 	}
++	defer fd.decref()
+ 	err := syscall.Shutdown(fd.sysfd, how)
+ 	if err != nil {
+ 		return &OpError{"shutdown", fd.net, fd.laddr, err}

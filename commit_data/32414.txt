@@ -21,7 +21,7 @@ Date:   Thu Apr 20 14:07:57 2017 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/math/sincos.go         |   6 +-
  src/math/sincos_386.go     |  13 +++++
  src/math/sincos_amd64.s    | 142 ---------------------------------------------
@@ -33,3 +33,290 @@ Date:   Thu Apr 20 14:07:57 2017 -0500
  src/math/stubs_ppc64x.s    |   3 -
  src/math/stubs_s390x.s     |   3 -
  10 files changed, 16 insertions(+), 173 deletions(-)
+
+diff --git a/src/math/sincos.go b/src/math/sincos.go
+index 6e663d0c58..3ae193a3b2 100644
+--- a/src/math/sincos.go
++++ b/src/math/sincos.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// +build !386
++
+ package math
+ 
+ // Coefficients _sin[] and _cos[] are found in pkg/math/sin.go.
+@@ -12,9 +14,7 @@ package math
+ //	Sincos(±0) = ±0, 1
+ //	Sincos(±Inf) = NaN, NaN
+ //	Sincos(NaN) = NaN, NaN
+-func Sincos(x float64) (sin, cos float64)
+-
+-func sincos(x float64) (sin, cos float64) {
++func Sincos(x float64) (sin, cos float64) {
+ 	const (
+ 		PI4A = 7.85398125648498535156E-1                             // 0x3fe921fb40000000, Pi/4 split into three parts
+ 		PI4B = 3.77489470793079817668E-8                             // 0x3e64442d00000000,
+diff --git a/src/math/sincos_386.go b/src/math/sincos_386.go
+new file mode 100644
+index 0000000000..38bb050572
+--- /dev/null
++++ b/src/math/sincos_386.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package math
++
++// Sincos returns Sin(x), Cos(x).
++//
++// Special cases are:
++//	Sincos(±0) = ±0, 1
++//	Sincos(±Inf) = NaN, NaN
++//	Sincos(NaN) = NaN, NaN
++func Sincos(x float64) (sin, cos float64)
+diff --git a/src/math/sincos_amd64.s b/src/math/sincos_amd64.s
+deleted file mode 100644
+index b9ef88c96b..0000000000
+--- a/src/math/sincos_amd64.s
++++ /dev/null
+@@ -1,142 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-// The method is based on a paper by Naoki Shibata: "Efficient evaluation
+-// methods of elementary functions suitable for SIMD computation", Proc.
+-// of International Supercomputing Conference 2010 (ISC'10), pp. 25 -- 32
+-// (May 2010). The paper is available at
+-// http://www.springerlink.com/content/340228x165742104/
+-//
+-// The original code and the constants below are from the author's
+-// implementation available at http://freshmeat.net/projects/sleef.
+-// The README file says, "The software is in public domain.
+-// You can use the software without any obligation."
+-//
+-// This code is a simplified version of the original.
+-
+-#define PosOne 0x3FF0000000000000
+-#define PosInf 0x7FF0000000000000
+-#define NaN    0x7FF8000000000001
+-#define PI4A 0.7853981554508209228515625 // pi/4 split into three parts
+-#define PI4B 0.794662735614792836713604629039764404296875e-8
+-#define PI4C 0.306161699786838294306516483068750264552437361480769e-16
+-#define M4PI 1.273239544735162542821171882678754627704620361328125 // 4/pi
+-#define T0 1.0
+-#define T1 -8.33333333333333333333333e-02 // (-1.0/12)
+-#define T2 2.77777777777777777777778e-03 // (+1.0/360)
+-#define T3 -4.96031746031746031746032e-05 // (-1.0/20160)
+-#define T4 5.51146384479717813051146e-07 // (+1.0/1814400)
+-
+-// func Sincos(d float64) (sin, cos float64)
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	// test for special cases
+-	MOVQ    $~(1<<63), DX // sign bit mask
+-	MOVQ    x+0(FP), BX
+-	ANDQ    BX, DX
+-	JEQ     isZero
+-	MOVQ    $PosInf, AX
+-	CMPQ    AX, DX
+-	JLE     isInfOrNaN
+-	// Reduce argument
+-	MOVQ    BX, X7 // x7= d
+-	MOVQ    DX, X0 // x0= |d|
+-	MOVSD   $M4PI, X2
+-	MULSD   X0, X2
+-	CVTTSD2SQ X2, BX // bx= q
+-	MOVQ    $1, AX
+-	ANDQ    BX, AX
+-	ADDQ    BX, AX
+-	CVTSQ2SD AX, X2
+-	MOVSD   $PI4A, X3
+-	MULSD   X2, X3
+-	SUBSD   X3, X0
+-	MOVSD   $PI4B, X3
+-	MULSD   X2, X3
+-	SUBSD   X3, X0
+-	MOVSD   $PI4C, X3
+-	MULSD   X2, X3
+-	SUBSD   X3, X0
+-	MULSD   $0.125, X0 // x0= x, x7= d, bx= q
+-	// Evaluate Taylor series
+-	MULSD   X0, X0
+-	MOVSD   $T4, X2
+-	MULSD   X0, X2
+-	ADDSD   $T3, X2
+-	MULSD   X0, X2
+-	ADDSD   $T2, X2
+-	MULSD   X0, X2
+-	ADDSD   $T1, X2
+-	MULSD   X0, X2
+-	ADDSD   $T0, X2
+-	MULSD   X2, X0 // x0= x, x7= d, bx= q
+-	// Apply double angle formula
+-	MOVSD   $4.0, X2
+-	SUBSD   X0, X2
+-	MULSD   X2, X0
+-	MOVSD   $4.0, X2
+-	SUBSD   X0, X2
+-	MULSD   X2, X0
+-	MOVSD   $4.0, X2
+-	SUBSD   X0, X2
+-	MULSD   X2, X0
+-	MULSD   $0.5, X0 // x0= x, x7= d, bx= q
+-	// sin = sqrt((2 - x) * x)
+-	MOVSD   $2.0, X2
+-	SUBSD   X0, X2
+-	MULSD   X0, X2
+-	SQRTSD  X2, X2 // x0= x, x2= z, x7= d, bx= q
+-	// cos = 1 - x
+-	MOVSD   $1.0, X1
+-	SUBSD   X0, X1 // x1= x, x2= z, x7= d, bx= q
+-	// if ((q + 1) & 2) != 0 { sin, cos = cos, sin }
+-	MOVQ    $1, DX
+-	ADDQ    BX, DX
+-	ANDQ    $2, DX
+-	SHRQ    $1, DX
+-	SUBQ	$1, DX
+-	MOVQ    DX, X3
+-	// sin = (y & z) | (^y & x)
+-	MOVAPD  X2, X0
+-	ANDPD   X3, X0 // x0= sin
+-	MOVAPD  X3, X4
+-	ANDNPD  X1, X4
+-	ORPD    X4, X0 // x0= sin, x1= x, x2= z, x3= y, x7= d, bx= q
+-	// cos = (y & x) | (^y & z)
+-	ANDPD   X3, X1 // x1= cos
+-	ANDNPD  X2, X3
+-	ORPD    X3, X1 // x0= sin, x1= cos, x7= d, bx= q
+-	// if ((q & 4) != 0) != (d < 0) { sin = -sin }
+-	MOVQ    BX, AX
+-	MOVQ    $61, CX
+-	SHLQ    CX, AX
+-	MOVQ    AX, X3
+-	XORPD   X7, X3
+-	MOVQ    $(1<<63), AX
+-	MOVQ    AX, X2 // x2= -0.0
+-	ANDPD   X2, X3
+-	ORPD    X3, X0 // x0= sin, x1= cos, x2= -0.0, bx= q
+-	// if ((q + 2) & 4) != 0 { cos = -cos }
+-	MOVQ    $2, AX
+-	ADDQ    AX, BX
+-	MOVQ    $61, CX
+-	SHLQ    CX, BX
+-	MOVQ    BX, X3
+-	ANDPD   X2, X3
+-	ORPD    X3, X1 // x0= sin, x1= cos
+-	// return (sin, cos)
+-	MOVSD   X0, sin+8(FP)
+-	MOVSD   X1, cos+16(FP)
+-	RET
+-isZero: // return (±0.0, 1.0)
+-	MOVQ    BX, sin+8(FP)
+-	MOVQ    $PosOne, AX
+-	MOVQ    AX, cos+16(FP)
+-	RET
+-isInfOrNaN: // return (NaN, NaN)
+-	MOVQ    $NaN, AX
+-	MOVQ    AX, sin+8(FP)
+-	MOVQ    AX, cos+16(FP)
+-	RET
+diff --git a/src/math/sincos_amd64p32.s b/src/math/sincos_amd64p32.s
+deleted file mode 100644
+index db86029876..0000000000
+--- a/src/math/sincos_amd64p32.s
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "sincos_amd64.s"
+diff --git a/src/math/sincos_arm.s b/src/math/sincos_arm.s
+deleted file mode 100644
+index d8d833cd78..0000000000
+--- a/src/math/sincos_arm.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2011 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-#include "textflag.h"
+-
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	B ·sincos(SB)
+diff --git a/src/math/stubs_arm64.s b/src/math/stubs_arm64.s
+index d8c9aa8c01..4985974b48 100644
+--- a/src/math/stubs_arm64.s
++++ b/src/math/stubs_arm64.s
+@@ -57,9 +57,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	B ·remainder(SB)
+ 
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	B ·sincos(SB)
+-
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	B ·sin(SB)
+ 
+diff --git a/src/math/stubs_mips64x.s b/src/math/stubs_mips64x.s
+index 21df5cc9a6..4090529711 100644
+--- a/src/math/stubs_mips64x.s
++++ b/src/math/stubs_mips64x.s
+@@ -75,9 +75,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	JMP ·remainder(SB)
+ 
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	JMP ·sincos(SB)
+-
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	JMP ·sin(SB)
+ 
+diff --git a/src/math/stubs_mipsx.s b/src/math/stubs_mipsx.s
+index b869768173..7346442553 100644
+--- a/src/math/stubs_mipsx.s
++++ b/src/math/stubs_mipsx.s
+@@ -75,9 +75,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	JMP	·remainder(SB)
+ 
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	JMP	·sincos(SB)
+-
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	JMP	·sin(SB)
+ 
+diff --git a/src/math/stubs_ppc64x.s b/src/math/stubs_ppc64x.s
+index b622016720..73e8ad9df4 100644
+--- a/src/math/stubs_ppc64x.s
++++ b/src/math/stubs_ppc64x.s
+@@ -66,9 +66,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	BR ·remainder(SB)
+ 
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	BR ·sincos(SB)
+-
+ TEXT ·Sin(SB),NOSPLIT,$0
+ 	BR ·sin(SB)
+ 
+diff --git a/src/math/stubs_s390x.s b/src/math/stubs_s390x.s
+index 8da55c54ab..260272ce88 100644
+--- a/src/math/stubs_s390x.s
++++ b/src/math/stubs_s390x.s
+@@ -52,9 +52,6 @@ TEXT ·Mod(SB),NOSPLIT,$0
+ TEXT ·Remainder(SB),NOSPLIT,$0
+ 	BR ·remainder(SB)
+ 
+-TEXT ·Sincos(SB),NOSPLIT,$0
+-	BR ·sincos(SB)
+-
+ TEXT ·Tan(SB),NOSPLIT,$0
+ 	BR ·tan(SB)
+ 

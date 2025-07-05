@@ -11,8 +11,59 @@ Date:   Fri Sep 9 10:34:58 2022 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/link/internal/ld/elf_test.go | 6 +++---
  src/crypto/sha1/issue15617_test.go   | 4 ++--
  src/syscall/flock.go                 | 4 ++--
  3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 15eaa1388b..7d59249f3a 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -1,10 +1,10 @@
+-//go:build cgo
+-// +build cgo
+-
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build cgo
++// +build cgo
++
+ package ld
+ 
+ import (
+diff --git a/src/crypto/sha1/issue15617_test.go b/src/crypto/sha1/issue15617_test.go
+index df4e28f64e..116c78ff74 100644
+--- a/src/crypto/sha1/issue15617_test.go
++++ b/src/crypto/sha1/issue15617_test.go
+@@ -1,9 +1,9 @@
+-//go:build amd64 && (linux || darwin)
+-
+ // Copyright 2016 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build amd64 && (linux || darwin)
++
+ package sha1_test
+ 
+ import (
+diff --git a/src/syscall/flock.go b/src/syscall/flock.go
+index 8cb8f16153..820f526fe0 100644
+--- a/src/syscall/flock.go
++++ b/src/syscall/flock.go
+@@ -1,9 +1,9 @@
+-//go:build linux || freebsd || openbsd || netbsd || dragonfly
+-
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build linux || freebsd || openbsd || netbsd || dragonfly
++
+ package syscall
+ 
+ import "unsafe"

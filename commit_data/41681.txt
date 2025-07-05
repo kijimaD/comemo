@@ -9,6 +9,22 @@ Date:   Mon Oct 21 01:45:43 2019 -0700
     Change-Id: I186356a78ac385a15b4604e0ea6110c4c212ebc4
     Reviewed-on: https://go-review.googlesource.com/c/go/+/202357
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/runtime/runtime-gdb_test.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index de1bac65da..8cbc7638ca 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -66,8 +66,8 @@ func checkGdbVersion(t *testing.T) {
+ }
+ 
+ func checkGdbPython(t *testing.T) {
+-	if runtime.GOOS == "solaris" && testenv.Builder() != "solaris-amd64-smartosbuildlet" {
+-		t.Skip("skipping gdb python tests on solaris; see golang.org/issue/20821")
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
++		t.Skip("skipping gdb python tests on illumos and solaris; see golang.org/issue/20821")
+ 	}
+ 
+ 	cmd := exec.Command("gdb", "-nx", "-q", "--batch", "-iex", "python import sys; print('go gdb python support')")

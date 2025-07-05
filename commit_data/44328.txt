@@ -32,8 +32,81 @@ Date:   Tue Jun 9 23:03:35 2020 +0800
     Run-TryBot: Baokun Lee <nototon@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/web/http.go                       |  8 ++++++++
  src/cmd/go/proxy_test.go                              | 19 +++++++++++++++++++
  .../go/testdata/script/mod_get_too_many_redirects.txt | 10 ++++++++++
  3 files changed, 37 insertions(+)
+
+diff --git a/src/cmd/go/internal/web/http.go b/src/cmd/go/internal/web/http.go
+index beb80c505d..e0509808d6 100644
+--- a/src/cmd/go/internal/web/http.go
++++ b/src/cmd/go/internal/web/http.go
+@@ -13,6 +13,7 @@ package web
+ 
+ import (
+ 	"crypto/tls"
++	"errors"
+ 	"fmt"
+ 	"mime"
+ 	"net/http"
+@@ -47,6 +48,13 @@ var securityPreservingHTTPClient = &http.Client{
+ 			lastHop := via[len(via)-1].URL
+ 			return fmt.Errorf("redirected from secure URL %s to insecure URL %s", lastHop, req.URL)
+ 		}
++
++		// Go's http.DefaultClient allows 10 redirects before returning an error.
++		// The securityPreservingHTTPClient also uses this default policy to avoid
++		// Go command hangs.
++		if len(via) >= 10 {
++			return errors.New("stopped after 10 redirects")
++		}
+ 		return nil
+ 	},
+ }
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 8214488a59..2a4d2935b3 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -174,6 +174,25 @@ func proxyHandler(w http.ResponseWriter, r *http.Request) {
+ 		return
+ 	}
+ 
++	// Request for $GOPROXY/redirect/<count>/... goes to redirects.
++	if strings.HasPrefix(path, "redirect/") {
++		path = path[len("redirect/"):]
++		if j := strings.Index(path, "/"); j >= 0 {
++			count, err := strconv.Atoi(path[:j])
++			if err != nil {
++				return
++			}
++
++			// The last redirect.
++			if count <= 1 {
++				http.Redirect(w, r, fmt.Sprintf("/mod/%s", path[j+1:]), 302)
++				return
++			}
++			http.Redirect(w, r, fmt.Sprintf("/mod/redirect/%d/%s", count-1, path[j+1:]), 302)
++			return
++		}
++	}
++
+ 	// Request for $GOPROXY/sumdb/<name>/supported
+ 	// is checking whether it's OK to access sumdb via the proxy.
+ 	if path == "sumdb/"+testSumDBName+"/supported" {
+diff --git a/src/cmd/go/testdata/script/mod_get_too_many_redirects.txt b/src/cmd/go/testdata/script/mod_get_too_many_redirects.txt
+new file mode 100644
+index 0000000000..9cbe0d279d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_too_many_redirects.txt
+@@ -0,0 +1,10 @@
++env GO111MODULE=on
++env GOPROXYBASE=$GOPROXY
++env GOPROXY=$GOPROXYBASE/redirect/11
++env GOSUMDB=off
++
++! go get -d rsc.io/quote@v1.2.0
++stderr 'stopped after 10 redirects'
++
++env GOPROXY=$GOPROXYBASE/redirect/9
++go get -d rsc.io/quote@v1.2.0

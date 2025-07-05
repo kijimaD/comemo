@@ -7,6 +7,21 @@ Date:   Tue Jan 10 14:47:20 2012 +0900
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/5530063
-
+---
  src/cmd/go/build.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 2abc944ef8..5bd446cf58 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -449,6 +449,9 @@ func (b *builder) do(root *action) {
+ 	// drop the parallelism to 1, both to make the output
+ 	// deterministic and because there is no real work anyway.
+ 	par := buildP
++	if par == 0 {
++		par = 1
++	}
+ 	if buildN {
+ 		par = 1
+ 	}

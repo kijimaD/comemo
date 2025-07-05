@@ -10,7 +10,51 @@ Date:   Wed Oct 10 11:35:57 2012 -0700
     R=gri
     CC=golang-dev
     https://golang.org/cl/6613064
-
+---
  src/pkg/container/heap/heap.go      |  4 ++--
  src/pkg/container/heap/heap_test.go | 13 +++++++++++++
  2 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/container/heap/heap.go b/src/pkg/container/heap/heap.go
+index 67018e6bae..bbaf40a989 100644
+--- a/src/pkg/container/heap/heap.go
++++ b/src/pkg/container/heap/heap.go
+@@ -79,7 +79,7 @@ func Remove(h Interface, i int) interface{} {
+ func up(h Interface, j int) {
+ 	for {
+ 		i := (j - 1) / 2 // parent
+-		if i == j || h.Less(i, j) {
++		if i == j || !h.Less(j, i) {
+ 			break
+ 		}
+ 		h.Swap(i, j)
+@@ -97,7 +97,7 @@ func down(h Interface, i, n int) {
+ 		if j2 := j1 + 1; j2 < n && !h.Less(j1, j2) {
+ 			j = j2 // = 2*i + 2  // right child
+ 		}
+-		if h.Less(i, j) {
++		if !h.Less(j, i) {
+ 			break
+ 		}
+ 		h.Swap(i, j)
+diff --git a/src/pkg/container/heap/heap_test.go b/src/pkg/container/heap/heap_test.go
+index cb31ef6d30..73f33e8d2c 100644
+--- a/src/pkg/container/heap/heap_test.go
++++ b/src/pkg/container/heap/heap_test.go
+@@ -170,3 +170,16 @@ func TestRemove2(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkDup(b *testing.B) {
++	const n = 10000
++	h := make(myHeap, n)
++	for i := 0; i < b.N; i++ {
++		for j := 0; j < n; j++ {
++			Push(&h, 0) // all elements are the same
++		}
++		for h.Len() > 0 {
++			Pop(&h)
++		}
++	}
++}

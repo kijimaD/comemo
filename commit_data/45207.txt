@@ -39,7 +39,7 @@ Date:   Mon Jun 29 17:08:49 2020 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go         | 11 +++++---
  src/cmd/asm/internal/asm/parse.go                 | 31 ++++++++++++++++++++---
  src/cmd/asm/internal/asm/testdata/buildtagerror.s |  8 ++++++
@@ -48,3 +48,203 @@ Date:   Mon Jun 29 17:08:49 2020 -0400
  src/cmd/asm/internal/lex/lex_test.go              |  3 +++
  src/cmd/asm/internal/lex/tokenizer.go             | 11 +++++---
  7 files changed, 64 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 15202dc5dc..b21e3156ae 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -257,11 +257,11 @@ func isHexes(s string) bool {
+ 	return true
+ }
+ 
+-// It would be nice if the error messages began with
++// It would be nice if the error messages always began with
+ // the standard file:line: prefix,
+ // but that's not where we are today.
+ // It might be at the beginning but it might be in the middle of the printed instruction.
+-var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\))`)
++var fileLineRE = regexp.MustCompile(`(?:^|\()(testdata[/\\][0-9a-z]+\.s:[0-9]+)(?:$|\)|:)`)
+ 
+ // Same as in test/run.go
+ var (
+@@ -281,6 +281,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	defer ctxt.Bso.Flush()
+ 	failed := false
+ 	var errBuf bytes.Buffer
++	parser.errorWriter = &errBuf
+ 	ctxt.DiagFunc = func(format string, args ...interface{}) {
+ 		failed = true
+ 		s := fmt.Sprintf(format, args...)
+@@ -292,7 +293,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 	pList.Firstpc, ok = parser.Parse()
+ 	obj.Flushplist(ctxt, pList, nil, "")
+ 	if ok && !failed {
+-		t.Errorf("asm: %s had no errors", goarch)
++		t.Errorf("asm: %s had no errors", file)
+ 	}
+ 
+ 	errors := map[string]string{}
+@@ -368,6 +369,10 @@ func TestARMEndToEnd(t *testing.T) {
+ 	}
+ }
+ 
++func TestGoBuildErrors(t *testing.T) {
++	testErrors(t, "amd64", "buildtagerror")
++}
++
+ func TestARMErrors(t *testing.T) {
+ 	testErrors(t, "arm", "armerror")
+ }
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 17d40ee415..d9dbd92cb0 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -29,6 +29,7 @@ type Parser struct {
+ 	lineNum       int   // Line number in source file.
+ 	errorLine     int   // Line number of last error.
+ 	errorCount    int   // Number of errors.
++	sawCode       bool  // saw code in this file (as opposed to comments and blank lines)
+ 	pc            int64 // virtual PC; count of Progs; doesn't advance for GLOBL or DATA.
+ 	input         []lex.Token
+ 	inputPos      int
+@@ -132,6 +133,30 @@ func (p *Parser) ParseSymABIs(w io.Writer) bool {
+ 	return p.errorCount == 0
+ }
+ 
++// nextToken returns the next non-build-comment token from the lexer.
++// It reports misplaced //go:build comments but otherwise discards them.
++func (p *Parser) nextToken() lex.ScanToken {
++	for {
++		tok := p.lex.Next()
++		if tok == lex.BuildComment {
++			if p.sawCode {
++				p.errorf("misplaced //go:build comment")
++			}
++			continue
++		}
++		if tok != '\n' {
++			p.sawCode = true
++		}
++		if tok == '#' {
++			// A leftover wisp of a #include/#define/etc,
++			// to let us know that p.sawCode should be true now.
++			// Otherwise ignored.
++			continue
++		}
++		return tok
++	}
++}
++
+ // line consumes a single assembly line from p.lex of the form
+ //
+ //   {label:} WORD[.cond] [ arg {, arg} ] (';' | '\n')
+@@ -146,7 +171,7 @@ next:
+ 	// Skip newlines.
+ 	var tok lex.ScanToken
+ 	for {
+-		tok = p.lex.Next()
++		tok = p.nextToken()
+ 		// We save the line number here so error messages from this instruction
+ 		// are labeled with this line. Otherwise we complain after we've absorbed
+ 		// the terminating newline and the line numbers are off by one in errors.
+@@ -179,11 +204,11 @@ next:
+ 			items = make([]lex.Token, 0, 3)
+ 		}
+ 		for {
+-			tok = p.lex.Next()
++			tok = p.nextToken()
+ 			if len(operands) == 0 && len(items) == 0 {
+ 				if p.arch.InFamily(sys.ARM, sys.ARM64, sys.AMD64, sys.I386) && tok == '.' {
+ 					// Suffixes: ARM conditionals or x86 modifiers.
+-					tok = p.lex.Next()
++					tok = p.nextToken()
+ 					str := p.lex.Text()
+ 					if tok != scanner.Ident {
+ 						p.errorf("instruction suffix expected identifier, found %s", str)
+diff --git a/src/cmd/asm/internal/asm/testdata/buildtagerror.s b/src/cmd/asm/internal/asm/testdata/buildtagerror.s
+new file mode 100644
+index 0000000000..5a2d65b978
+--- /dev/null
++++ b/src/cmd/asm/internal/asm/testdata/buildtagerror.s
+@@ -0,0 +1,8 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#define X 1
++
++//go:build x // ERROR "misplaced //go:build comment"
++
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index a43953b515..da4ebe6d6e 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -109,6 +109,9 @@ func (in *Input) Next() ScanToken {
+ 				in.Error("'#' must be first item on line")
+ 			}
+ 			in.beginningOfLine = in.hash()
++			in.text = "#"
++			return '#'
++
+ 		case scanner.Ident:
+ 			// Is it a macro name?
+ 			name := in.Stack.Text()
+diff --git a/src/cmd/asm/internal/lex/lex.go b/src/cmd/asm/internal/lex/lex.go
+index f1f7da7911..7cd41a55a9 100644
+--- a/src/cmd/asm/internal/lex/lex.go
++++ b/src/cmd/asm/internal/lex/lex.go
+@@ -22,11 +22,13 @@ type ScanToken rune
+ const (
+ 	// Asm defines some two-character lexemes. We make up
+ 	// a rune/ScanToken value for them - ugly but simple.
+-	LSH       ScanToken = -1000 - iota // << Left shift.
+-	RSH                                // >> Logical right shift.
+-	ARR                                // -> Used on ARM for shift type 3, arithmetic right shift.
+-	ROT                                // @> Used on ARM for shift type 4, rotate right.
+-	macroName                          // name of macro that should not be expanded
++	LSH          ScanToken = -1000 - iota // << Left shift.
++	RSH                                   // >> Logical right shift.
++	ARR                                   // -> Used on ARM for shift type 3, arithmetic right shift.
++	ROT                                   // @> Used on ARM for shift type 4, rotate right.
++	Include                               // included file started here
++	BuildComment                          // //go:build or +build comment
++	macroName                             // name of macro that should not be expanded
+ )
+ 
+ // IsRegisterShift reports whether the token is one of the ARM register shift operators.
+diff --git a/src/cmd/asm/internal/lex/lex_test.go b/src/cmd/asm/internal/lex/lex_test.go
+index f606ffe07b..51679d2fbc 100644
+--- a/src/cmd/asm/internal/lex/lex_test.go
++++ b/src/cmd/asm/internal/lex/lex_test.go
+@@ -281,6 +281,9 @@ func drain(input *Input) string {
+ 		if tok == scanner.EOF {
+ 			return buf.String()
+ 		}
++		if tok == '#' {
++			continue
++		}
+ 		if buf.Len() > 0 {
+ 			buf.WriteByte('.')
+ 		}
+diff --git a/src/cmd/asm/internal/lex/tokenizer.go b/src/cmd/asm/internal/lex/tokenizer.go
+index aef9ea8636..861a2d421d 100644
+--- a/src/cmd/asm/internal/lex/tokenizer.go
++++ b/src/cmd/asm/internal/lex/tokenizer.go
+@@ -107,10 +107,13 @@ func (t *Tokenizer) Next() ScanToken {
+ 		if t.tok != scanner.Comment {
+ 			break
+ 		}
+-		length := strings.Count(s.TokenText(), "\n")
+-		t.line += length
+-		// TODO: If we ever have //go: comments in assembly, will need to keep them here.
+-		// For now, just discard all comments.
++		text := s.TokenText()
++		t.line += strings.Count(text, "\n")
++		// TODO: Use constraint.IsGoBuild once it exists.
++		if strings.HasPrefix(text, "//go:build") {
++			t.tok = BuildComment
++			break
++		}
+ 	}
+ 	switch t.tok {
+ 	case '\n':

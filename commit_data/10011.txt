@@ -10,7 +10,7 @@ Date:   Mon Oct 17 18:48:45 2011 -0400
     R=r, r
     CC=golang-dev
     https://golang.org/cl/5266054
-
+---
  src/pkg/fmt/fmt_test.go      |  16 +--
  src/pkg/fmt/print.go         | 247 ++++++++++++++++++++++++++-----------------
  src/pkg/reflect/all_test.go  | 115 +++++++++++++++-----
@@ -18,3 +18,920 @@ Date:   Mon Oct 17 18:48:45 2011 -0400
  src/pkg/reflect/value.go     |  31 +++---
  test/interface/fake.go       |  40 +++----
  6 files changed, 286 insertions(+), 165 deletions(-)
+
+diff --git a/src/pkg/fmt/fmt_test.go b/src/pkg/fmt/fmt_test.go
+index b1ad345186..8786e1b451 100644
+--- a/src/pkg/fmt/fmt_test.go
++++ b/src/pkg/fmt/fmt_test.go
+@@ -62,7 +62,7 @@ type I int
+ func (i I) String() string { return Sprintf("<%d>", int(i)) }
+ 
+ type B struct {
+-	i I
++	I I
+ 	j int
+ }
+ 
+@@ -84,8 +84,8 @@ func (g G) GoString() string {
+ }
+ 
+ type S struct {
+-	f F // a struct field that Formats
+-	g G // a struct field that GoStrings
++	F F // a struct field that Formats
++	G G // a struct field that GoStrings
+ }
+ 
+ // A type with a String method with pointer receiver for testing %p
+@@ -333,8 +333,8 @@ var fmttests = []struct {
+ 	{"%+v", A{1, 2, "a", []int{1, 2}}, `{i:1 j:2 s:a x:[1 2]}`},
+ 
+ 	// +v on structs with Stringable items
+-	{"%+v", B{1, 2}, `{i:<1> j:2}`},
+-	{"%+v", C{1, B{2, 3}}, `{i:1 B:{i:<2> j:3}}`},
++	{"%+v", B{1, 2}, `{I:<1> j:2}`},
++	{"%+v", C{1, B{2, 3}}, `{i:1 B:{I:<2> j:3}}`},
+ 
+ 	// q on Stringable items
+ 	{"%s", I(23), `<23>`},
+@@ -350,7 +350,7 @@ var fmttests = []struct {
+ 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
+ 	{"%#v", 1000000000, "1000000000"},
+ 	{"%#v", map[string]int{"a": 1, "b": 2}, `map[string] int{"a":1, "b":2}`},
+-	{"%#v", map[string]B{"a": {1, 2}, "b": {3, 4}}, `map[string] fmt_test.B{"a":fmt_test.B{i:1, j:2}, "b":fmt_test.B{i:3, j:4}}`},
++	{"%#v", map[string]B{"a": {1, 2}, "b": {3, 4}}, `map[string] fmt_test.B{"a":fmt_test.B{I:1, j:2}, "b":fmt_test.B{I:3, j:4}}`},
+ 	{"%#v", []string{"a", "b"}, `[]string{"a", "b"}`},
+ 
+ 	// slices with other formats
+@@ -385,11 +385,11 @@ var fmttests = []struct {
+ 	// Formatter
+ 	{"%x", F(1), "<x=F(1)>"},
+ 	{"%x", G(2), "2"},
+-	{"%+v", S{F(4), G(5)}, "{f:<v=F(4)> g:5}"},
++	{"%+v", S{F(4), G(5)}, "{F:<v=F(4)> G:5}"},
+ 
+ 	// GoStringer
+ 	{"%#v", G(6), "GoString(6)"},
+-	{"%#v", S{F(7), G(8)}, "fmt_test.S{f:<v=F(7)>, g:GoString(8)}"},
++	{"%#v", S{F(7), G(8)}, "fmt_test.S{F:<v=F(7)>, G:GoString(8)}"},
+ 
+ 	// %T
+ 	{"%T", (4 - 3i), "complex128"},
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 3c7f8088da..2e6aa9ff8b 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -262,10 +262,8 @@ func Sprintln(a ...interface{}) string {
+ // the thing inside the interface, not the interface itself.
+ func getField(v reflect.Value, i int) reflect.Value {
+ 	val := v.Field(i)
+-	if i := val; i.Kind() == reflect.Interface {
+-		if inter := i.Interface(); inter != nil {
+-			return reflect.ValueOf(inter)
+-		}
++	if val.Kind() == reflect.Interface && !val.IsNil() {
++		val = val.Elem()
+ 	}
+ 	return val
+ }
+@@ -292,27 +290,32 @@ func (p *pp) unknownType(v interface{}) {
+ 	p.buf.WriteByte('?')
+ }
+ 
+-func (p *pp) badVerb(verb int, val interface{}) {
++func (p *pp) badVerb(verb int, val interface{}, val1 reflect.Value) {
+ 	p.add('%')
+ 	p.add('!')
+ 	p.add(verb)
+ 	p.add('(')
+-	if val == nil {
+-		p.buf.Write(nilAngleBytes)
+-	} else {
++	switch {
++	case val != nil:
+ 		p.buf.WriteString(reflect.TypeOf(val).String())
+ 		p.add('=')
+ 		p.printField(val, 'v', false, false, 0)
++	case val1.IsValid():
++		p.buf.WriteString(val1.Type().String())
++		p.add('=')
++		p.printValue(val1, 'v', false, false, 0)
++	default:
++		p.buf.Write(nilAngleBytes)
+ 	}
+ 	p.add(')')
+ }
+ 
+-func (p *pp) fmtBool(v bool, verb int, value interface{}) {
++func (p *pp) fmtBool(v bool, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 't', 'v':
+ 		p.fmt.fmt_boolean(v)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+@@ -326,7 +329,7 @@ func (p *pp) fmtC(c int64) {
+ 	p.fmt.pad(p.runeBuf[0:w])
+ }
+ 
+-func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
++func (p *pp) fmtInt64(v int64, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'b':
+ 		p.fmt.integer(v, 2, signed, ldigits)
+@@ -340,7 +343,7 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
+ 		if 0 <= v && v <= unicode.MaxRune {
+ 			p.fmt.fmt_qc(v)
+ 		} else {
+-			p.badVerb(verb, value)
++			p.badVerb(verb, value, value1)
+ 		}
+ 	case 'x':
+ 		p.fmt.integer(v, 16, signed, ldigits)
+@@ -349,7 +352,7 @@ func (p *pp) fmtInt64(v int64, verb int, value interface{}) {
+ 	case 'X':
+ 		p.fmt.integer(v, 16, signed, udigits)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+@@ -384,7 +387,7 @@ func (p *pp) fmtUnicode(v int64) {
+ 	p.fmt.sharp = sharp
+ }
+ 
+-func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
++func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'b':
+ 		p.fmt.integer(int64(v), 2, unsigned, ldigits)
+@@ -404,7 +407,7 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
+ 		if 0 <= v && v <= unicode.MaxRune {
+ 			p.fmt.fmt_qc(int64(v))
+ 		} else {
+-			p.badVerb(verb, value)
++			p.badVerb(verb, value, value1)
+ 		}
+ 	case 'x':
+ 		p.fmt.integer(int64(v), 16, unsigned, ldigits)
+@@ -413,11 +416,11 @@ func (p *pp) fmtUint64(v uint64, verb int, goSyntax bool, value interface{}) {
+ 	case 'U':
+ 		p.fmtUnicode(int64(v))
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
++func (p *pp) fmtFloat32(v float32, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'b':
+ 		p.fmt.fmt_fb32(v)
+@@ -432,11 +435,11 @@ func (p *pp) fmtFloat32(v float32, verb int, value interface{}) {
+ 	case 'G':
+ 		p.fmt.fmt_G32(v)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
++func (p *pp) fmtFloat64(v float64, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'b':
+ 		p.fmt.fmt_fb64(v)
+@@ -451,33 +454,33 @@ func (p *pp) fmtFloat64(v float64, verb int, value interface{}) {
+ 	case 'G':
+ 		p.fmt.fmt_G64(v)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtComplex64(v complex64, verb int, value interface{}) {
++func (p *pp) fmtComplex64(v complex64, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'e', 'E', 'f', 'F', 'g', 'G':
+ 		p.fmt.fmt_c64(v, verb)
+ 	case 'v':
+ 		p.fmt.fmt_c64(v, 'g')
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtComplex128(v complex128, verb int, value interface{}) {
++func (p *pp) fmtComplex128(v complex128, verb int, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'e', 'E', 'f', 'F', 'g', 'G':
+ 		p.fmt.fmt_c128(v, verb)
+ 	case 'v':
+ 		p.fmt.fmt_c128(v, 'g')
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
++func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}, value1 reflect.Value) {
+ 	switch verb {
+ 	case 'v':
+ 		if goSyntax {
+@@ -494,11 +497,11 @@ func (p *pp) fmtString(v string, verb int, goSyntax bool, value interface{}) {
+ 	case 'q':
+ 		p.fmt.fmt_q(v)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+-func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}) {
++func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interface{}, value1 reflect.Value) {
+ 	if verb == 'v' || verb == 'd' {
+ 		if goSyntax {
+ 			p.buf.Write(bytesBytes)
+@@ -533,7 +536,7 @@ func (p *pp) fmtBytes(v []byte, verb int, goSyntax bool, depth int, value interf
+ 	case 'q':
+ 		p.fmt.fmt_q(s)
+ 	default:
+-		p.badVerb(verb, value)
++		p.badVerb(verb, value, value1)
+ 	}
+ }
+ 
+@@ -543,12 +546,12 @@ func (p *pp) fmtPointer(field interface{}, value reflect.Value, verb int, goSynt
+ 	case reflect.Chan, reflect.Func, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+ 		u = value.Pointer()
+ 	default:
+-		p.badVerb(verb, field)
++		p.badVerb(verb, field, value)
+ 		return
+ 	}
+ 	if goSyntax {
+ 		p.add('(')
+-		p.buf.WriteString(reflect.TypeOf(field).String())
++		p.buf.WriteString(value.Type().String())
+ 		p.add(')')
+ 		p.add('(')
+ 		if u == 0 {
+@@ -594,138 +597,192 @@ func (p *pp) catchPanic(val interface{}, verb int) {
+ 	}
+ }
+ 
+-func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+-	if field == nil {
+-		if verb == 'T' || verb == 'v' {
+-			p.buf.Write(nilAngleBytes)
+-		} else {
+-			p.badVerb(verb, field)
+-		}
+-		return false
+-	}
+-
+-	// Special processing considerations.
+-	// %T (the value's type) and %p (its address) are special; we always do them first.
+-	switch verb {
+-	case 'T':
+-		p.printField(reflect.TypeOf(field).String(), 's', false, false, 0)
+-		return false
+-	case 'p':
+-		p.fmtPointer(field, reflect.ValueOf(field), verb, goSyntax)
+-		return false
+-	}
++func (p *pp) handleMethods(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString, handled bool) {
+ 	// Is it a Formatter?
+ 	if formatter, ok := field.(Formatter); ok {
++		handled = true
++		wasString = false
+ 		defer p.catchPanic(field, verb)
+ 		formatter.Format(p, verb)
+-		return false // this value is not a string
+-
++		return
+ 	}
+ 	// Must not touch flags before Formatter looks at them.
+ 	if plus {
+ 		p.fmt.plus = false
+ 	}
++
+ 	// If we're doing Go syntax and the field knows how to supply it, take care of it now.
+ 	if goSyntax {
+ 		p.fmt.sharp = false
+ 		if stringer, ok := field.(GoStringer); ok {
++			wasString = false
++			handled = true
+ 			defer p.catchPanic(field, verb)
+ 			// Print the result of GoString unadorned.
+-			p.fmtString(stringer.GoString(), 's', false, field)
+-			return false // this value is not a string
++			p.fmtString(stringer.GoString(), 's', false, field, reflect.Value{})
++			return
+ 		}
+ 	} else {
+ 		// Is it a Stringer?
+ 		if stringer, ok := field.(Stringer); ok {
++			wasString = false
++			handled = true
+ 			defer p.catchPanic(field, verb)
+ 			p.printField(stringer.String(), verb, plus, false, depth)
+-			return false // this value is not a string
++			return
+ 		}
+ 	}
++	handled = false
++	return
++}
++
++func (p *pp) printField(field interface{}, verb int, plus, goSyntax bool, depth int) (wasString bool) {
++	if field == nil {
++		if verb == 'T' || verb == 'v' {
++			p.buf.Write(nilAngleBytes)
++		} else {
++			p.badVerb(verb, field, reflect.Value{})
++		}
++		return false
++	}
++
++	// Special processing considerations.
++	// %T (the value's type) and %p (its address) are special; we always do them first.
++	switch verb {
++	case 'T':
++		p.printField(reflect.TypeOf(field).String(), 's', false, false, 0)
++		return false
++	case 'p':
++		p.fmtPointer(field, reflect.ValueOf(field), verb, goSyntax)
++		return false
++	}
++
++	if wasString, handled := p.handleMethods(field, verb, plus, goSyntax, depth); handled {
++		return wasString
++	}
+ 
+ 	// Some types can be done without reflection.
+ 	switch f := field.(type) {
+ 	case bool:
+-		p.fmtBool(f, verb, field)
++		p.fmtBool(f, verb, field, reflect.Value{})
+ 		return false
+ 	case float32:
+-		p.fmtFloat32(f, verb, field)
++		p.fmtFloat32(f, verb, field, reflect.Value{})
+ 		return false
+ 	case float64:
+-		p.fmtFloat64(f, verb, field)
++		p.fmtFloat64(f, verb, field, reflect.Value{})
+ 		return false
+ 	case complex64:
+-		p.fmtComplex64(complex64(f), verb, field)
++		p.fmtComplex64(complex64(f), verb, field, reflect.Value{})
+ 		return false
+ 	case complex128:
+-		p.fmtComplex128(f, verb, field)
++		p.fmtComplex128(f, verb, field, reflect.Value{})
+ 		return false
+ 	case int:
+-		p.fmtInt64(int64(f), verb, field)
++		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+ 		return false
+ 	case int8:
+-		p.fmtInt64(int64(f), verb, field)
++		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+ 		return false
+ 	case int16:
+-		p.fmtInt64(int64(f), verb, field)
++		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+ 		return false
+ 	case int32:
+-		p.fmtInt64(int64(f), verb, field)
++		p.fmtInt64(int64(f), verb, field, reflect.Value{})
+ 		return false
+ 	case int64:
+-		p.fmtInt64(f, verb, field)
++		p.fmtInt64(f, verb, field, reflect.Value{})
+ 		return false
+ 	case uint:
+-		p.fmtUint64(uint64(f), verb, goSyntax, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case uint8:
+-		p.fmtUint64(uint64(f), verb, goSyntax, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case uint16:
+-		p.fmtUint64(uint64(f), verb, goSyntax, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case uint32:
+-		p.fmtUint64(uint64(f), verb, goSyntax, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case uint64:
+-		p.fmtUint64(f, verb, goSyntax, field)
++		p.fmtUint64(f, verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case uintptr:
+-		p.fmtUint64(uint64(f), verb, goSyntax, field)
++		p.fmtUint64(uint64(f), verb, goSyntax, field, reflect.Value{})
+ 		return false
+ 	case string:
+-		p.fmtString(f, verb, goSyntax, field)
++		p.fmtString(f, verb, goSyntax, field, reflect.Value{})
+ 		return verb == 's' || verb == 'v'
+ 	case []byte:
+-		p.fmtBytes(f, verb, goSyntax, depth, field)
++		p.fmtBytes(f, verb, goSyntax, depth, field, reflect.Value{})
+ 		return verb == 's'
+ 	}
+ 
+ 	// Need to use reflection
+-	value := reflect.ValueOf(field)
++	return p.printReflectValue(reflect.ValueOf(field), verb, plus, goSyntax, depth)
++}
++
++// printValue is like printField but starts with a reflect value, not an interface{} value.
++func (p *pp) printValue(value reflect.Value, verb int, plus, goSyntax bool, depth int) (wasString bool) {
++	if !value.IsValid() {
++		if verb == 'T' || verb == 'v' {
++			p.buf.Write(nilAngleBytes)
++		} else {
++			p.badVerb(verb, nil, value)
++		}
++		return false
++	}
+ 
++	// Special processing considerations.
++	// %T (the value's type) and %p (its address) are special; we always do them first.
++	switch verb {
++	case 'T':
++		p.printField(value.Type().String(), 's', false, false, 0)
++		return false
++	case 'p':
++		p.fmtPointer(nil, value, verb, goSyntax)
++		return false
++	}
++
++	// Handle values with special methods.
++	// Call always, even when field == nil, because handleMethods clears p.fmt.plus for us.
++	var field interface{}
++	if value.CanInterface() {
++		field = value.Interface()
++	}
++	if wasString, handled := p.handleMethods(field, verb, plus, goSyntax, depth); handled {
++		return wasString
++	}
++
++	return p.printReflectValue(value, verb, plus, goSyntax, depth)
++}
++
++// printReflectValue is the fallback for both printField and printValue.
++// It uses reflect to print the value.
++func (p *pp) printReflectValue(value reflect.Value, verb int, plus, goSyntax bool, depth int) (wasString bool) {
+ BigSwitch:
+ 	switch f := value; f.Kind() {
+ 	case reflect.Bool:
+-		p.fmtBool(f.Bool(), verb, field)
++		p.fmtBool(f.Bool(), verb, nil, value)
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		p.fmtInt64(f.Int(), verb, field)
++		p.fmtInt64(f.Int(), verb, nil, value)
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		p.fmtUint64(uint64(f.Uint()), verb, goSyntax, field)
++		p.fmtUint64(uint64(f.Uint()), verb, goSyntax, nil, value)
+ 	case reflect.Float32, reflect.Float64:
+ 		if f.Type().Size() == 4 {
+-			p.fmtFloat32(float32(f.Float()), verb, field)
++			p.fmtFloat32(float32(f.Float()), verb, nil, value)
+ 		} else {
+-			p.fmtFloat64(float64(f.Float()), verb, field)
++			p.fmtFloat64(float64(f.Float()), verb, nil, value)
+ 		}
+ 	case reflect.Complex64, reflect.Complex128:
+ 		if f.Type().Size() == 8 {
+-			p.fmtComplex64(complex64(f.Complex()), verb, field)
++			p.fmtComplex64(complex64(f.Complex()), verb, nil, value)
+ 		} else {
+-			p.fmtComplex128(complex128(f.Complex()), verb, field)
++			p.fmtComplex128(complex128(f.Complex()), verb, nil, value)
+ 		}
+ 	case reflect.String:
+-		p.fmtString(f.String(), verb, goSyntax, field)
++		p.fmtString(f.String(), verb, goSyntax, nil, value)
+ 	case reflect.Map:
+ 		if goSyntax {
+ 			p.buf.WriteString(f.Type().String())
+@@ -742,9 +799,9 @@ BigSwitch:
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(key.Interface(), verb, plus, goSyntax, depth+1)
++			p.printValue(key, verb, plus, goSyntax, depth+1)
+ 			p.buf.WriteByte(':')
+-			p.printField(f.MapIndex(key).Interface(), verb, plus, goSyntax, depth+1)
++			p.printValue(f.MapIndex(key), verb, plus, goSyntax, depth+1)
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteByte('}')
+@@ -753,7 +810,7 @@ BigSwitch:
+ 		}
+ 	case reflect.Struct:
+ 		if goSyntax {
+-			p.buf.WriteString(reflect.TypeOf(field).String())
++			p.buf.WriteString(value.Type().String())
+ 		}
+ 		p.add('{')
+ 		v := f
+@@ -772,20 +829,20 @@ BigSwitch:
+ 					p.buf.WriteByte(':')
+ 				}
+ 			}
+-			p.printField(getField(v, i).Interface(), verb, plus, goSyntax, depth+1)
++			p.printValue(getField(v, i), verb, plus, goSyntax, depth+1)
+ 		}
+ 		p.buf.WriteByte('}')
+ 	case reflect.Interface:
+ 		value := f.Elem()
+ 		if !value.IsValid() {
+ 			if goSyntax {
+-				p.buf.WriteString(reflect.TypeOf(field).String())
++				p.buf.WriteString(value.Type().String())
+ 				p.buf.Write(nilParenBytes)
+ 			} else {
+ 				p.buf.Write(nilAngleBytes)
+ 			}
+ 		} else {
+-			return p.printField(value.Interface(), verb, plus, goSyntax, depth+1)
++			return p.printValue(value, verb, plus, goSyntax, depth+1)
+ 		}
+ 	case reflect.Array, reflect.Slice:
+ 		// Byte slices are special.
+@@ -801,11 +858,11 @@ BigSwitch:
+ 			for i := range bytes {
+ 				bytes[i] = byte(f.Index(i).Uint())
+ 			}
+-			p.fmtBytes(bytes, verb, goSyntax, depth, field)
++			p.fmtBytes(bytes, verb, goSyntax, depth, nil, value)
+ 			return verb == 's'
+ 		}
+ 		if goSyntax {
+-			p.buf.WriteString(reflect.TypeOf(field).String())
++			p.buf.WriteString(value.Type().String())
+ 			p.buf.WriteByte('{')
+ 		} else {
+ 			p.buf.WriteByte('[')
+@@ -818,7 +875,7 @@ BigSwitch:
+ 					p.buf.WriteByte(' ')
+ 				}
+ 			}
+-			p.printField(f.Index(i).Interface(), verb, plus, goSyntax, depth+1)
++			p.printValue(f.Index(i), verb, plus, goSyntax, depth+1)
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteByte('}')
+@@ -833,17 +890,17 @@ BigSwitch:
+ 			switch a := f.Elem(); a.Kind() {
+ 			case reflect.Array, reflect.Slice:
+ 				p.buf.WriteByte('&')
+-				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
++				p.printValue(a, verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+ 			case reflect.Struct:
+ 				p.buf.WriteByte('&')
+-				p.printField(a.Interface(), verb, plus, goSyntax, depth+1)
++				p.printValue(a, verb, plus, goSyntax, depth+1)
+ 				break BigSwitch
+ 			}
+ 		}
+ 		if goSyntax {
+ 			p.buf.WriteByte('(')
+-			p.buf.WriteString(reflect.TypeOf(field).String())
++			p.buf.WriteString(value.Type().String())
+ 			p.buf.WriteByte(')')
+ 			p.buf.WriteByte('(')
+ 			if v == 0 {
+@@ -860,7 +917,7 @@ BigSwitch:
+ 		}
+ 		p.fmt0x64(uint64(v), true)
+ 	case reflect.Chan, reflect.Func, reflect.UnsafePointer:
+-		p.fmtPointer(field, value, verb, goSyntax)
++		p.fmtPointer(nil, value, verb, goSyntax)
+ 	default:
+ 		p.unknownType(f)
+ 	}
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 610ba4b667..85022818a0 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -853,13 +853,13 @@ func TestIsNil(t *testing.T) {
+ 
+ func TestInterfaceExtraction(t *testing.T) {
+ 	var s struct {
+-		w io.Writer
++		W io.Writer
+ 	}
+ 
+-	s.w = os.Stdout
++	s.W = os.Stdout
+ 	v := Indirect(ValueOf(&s)).Field(0).Interface()
+-	if v != s.w.(interface{}) {
+-		t.Error("Interface() on interface: ", v, s.w)
++	if v != s.W.(interface{}) {
++		t.Error("Interface() on interface: ", v, s.W)
+ 	}
+ }
+ 
+@@ -1190,18 +1190,18 @@ type D2 struct {
+ }
+ 
+ type S0 struct {
+-	a, b, c int
++	A, B, C int
+ 	D1
+ 	D2
+ }
+ 
+ type S1 struct {
+-	b int
++	B int
+ 	S0
+ }
+ 
+ type S2 struct {
+-	a int
++	A int
+ 	*S1
+ }
+ 
+@@ -1216,36 +1216,36 @@ type S1y struct {
+ type S3 struct {
+ 	S1x
+ 	S2
+-	d, e int
++	D, E int
+ 	*S1y
+ }
+ 
+ type S4 struct {
+ 	*S4
+-	a int
++	A int
+ }
+ 
+ var fieldTests = []FTest{
+ 	{struct{}{}, "", nil, 0},
+-	{struct{}{}, "foo", nil, 0},
+-	{S0{a: 'a'}, "a", []int{0}, 'a'},
+-	{S0{}, "d", nil, 0},
+-	{S1{S0: S0{a: 'a'}}, "a", []int{1, 0}, 'a'},
+-	{S1{b: 'b'}, "b", []int{0}, 'b'},
++	{struct{}{}, "Foo", nil, 0},
++	{S0{A: 'a'}, "A", []int{0}, 'a'},
++	{S0{}, "D", nil, 0},
++	{S1{S0: S0{A: 'a'}}, "A", []int{1, 0}, 'a'},
++	{S1{B: 'b'}, "B", []int{0}, 'b'},
+ 	{S1{}, "S0", []int{1}, 0},
+-	{S1{S0: S0{c: 'c'}}, "c", []int{1, 2}, 'c'},
+-	{S2{a: 'a'}, "a", []int{0}, 'a'},
++	{S1{S0: S0{C: 'c'}}, "C", []int{1, 2}, 'c'},
++	{S2{A: 'a'}, "A", []int{0}, 'a'},
+ 	{S2{}, "S1", []int{1}, 0},
+-	{S2{S1: &S1{b: 'b'}}, "b", []int{1, 0}, 'b'},
+-	{S2{S1: &S1{S0: S0{c: 'c'}}}, "c", []int{1, 1, 2}, 'c'},
+-	{S2{}, "d", nil, 0},
++	{S2{S1: &S1{B: 'b'}}, "B", []int{1, 0}, 'b'},
++	{S2{S1: &S1{S0: S0{C: 'c'}}}, "C", []int{1, 1, 2}, 'c'},
++	{S2{}, "D", nil, 0},
+ 	{S3{}, "S1", nil, 0},
+-	{S3{S2: S2{a: 'a'}}, "a", []int{1, 0}, 'a'},
+-	{S3{}, "b", nil, 0},
+-	{S3{d: 'd'}, "d", []int{2}, 0},
+-	{S3{e: 'e'}, "e", []int{3}, 'e'},
+-	{S4{a: 'a'}, "a", []int{1}, 'a'},
+-	{S4{}, "b", nil, 0},
++	{S3{S2: S2{A: 'a'}}, "A", []int{1, 0}, 'a'},
++	{S3{}, "B", nil, 0},
++	{S3{D: 'd'}, "D", []int{2}, 0},
++	{S3{E: 'e'}, "E", []int{3}, 'e'},
++	{S4{A: 'a'}, "A", []int{1}, 'a'},
++	{S4{}, "B", nil, 0},
+ }
+ 
+ func TestFieldByIndex(t *testing.T) {
+@@ -1587,3 +1587,68 @@ func TestSetBytes(t *testing.T) {
+ 		t.Errorf("ValueOf(%p).Bytes() = %p", &x[0], &y[0])
+ 	}
+ }
++
++type Private struct {
++	x int
++	y **int
++}
++
++func (p *Private) m() {
++}
++
++type Public struct {
++	X int
++	Y **int
++}
++
++func (p *Public) M() {
++}
++
++func TestUnexported(t *testing.T) {
++	var pub Public
++	v := ValueOf(&pub)
++	isValid(v.Elem().Field(0))
++	isValid(v.Elem().Field(1))
++	isValid(v.Elem().FieldByName("X"))
++	isValid(v.Elem().FieldByName("Y"))
++	isValid(v.Type().Method(0).Func)
++	isNonNil(v.Elem().Field(0).Interface())
++	isNonNil(v.Elem().Field(1).Interface())
++	isNonNil(v.Elem().FieldByName("X").Interface())
++	isNonNil(v.Elem().FieldByName("Y").Interface())
++	isNonNil(v.Type().Method(0).Func.Interface())
++
++	var priv Private
++	v = ValueOf(&priv)
++	isValid(v.Elem().Field(0))
++	isValid(v.Elem().Field(1))
++	isValid(v.Elem().FieldByName("x"))
++	isValid(v.Elem().FieldByName("y"))
++	isValid(v.Type().Method(0).Func)
++	shouldPanic(func() { v.Elem().Field(0).Interface() })
++	shouldPanic(func() { v.Elem().Field(1).Interface() })
++	shouldPanic(func() { v.Elem().FieldByName("x").Interface() })
++	shouldPanic(func() { v.Elem().FieldByName("y").Interface() })
++	shouldPanic(func() { v.Type().Method(0).Func.Interface() })
++}
++
++func shouldPanic(f func()) {
++	defer func() {
++		if recover() == nil {
++			panic("did not panic")
++		}
++	}()
++	f()
++}
++
++func isNonNil(x interface{}) {
++	if x == nil {
++		panic("nil interface")
++	}
++}
++
++func isValid(v Value) {
++	if !v.IsValid() {
++		panic("zero Value")
++	}
++}
+diff --git a/src/pkg/reflect/deepequal.go b/src/pkg/reflect/deepequal.go
+index a483135b01..63c28fe202 100644
+--- a/src/pkg/reflect/deepequal.go
++++ b/src/pkg/reflect/deepequal.go
+@@ -104,7 +104,7 @@ func deepValueEqual(v1, v2 Value, visited map[uintptr]*visit, depth int) (b bool
+ 		return true
+ 	default:
+ 		// Normal equality suffices
+-		return v1.Interface() == v2.Interface()
++		return valueInterface(v1, false) == valueInterface(v2, false)
+ 	}
+ 
+ 	panic("Not reached")
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 1cace3fdaf..056704f797 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -876,14 +876,7 @@ func (v Value) CanInterface() bool {
+ 	if iv.kind == Invalid {
+ 		panic(&ValueError{"reflect.Value.CanInterface", iv.kind})
+ 	}
+-	// TODO(rsc): Check flagRO too.  Decide what to do about asking for
+-	// interface for a value obtained via an unexported field.
+-	// If the field were of a known type, say chan int or *sync.Mutex,
+-	// the caller could interfere with the data after getting the
+-	// interface.  But fmt.Print depends on being able to look.
+-	// Now that reflect is more efficient the special cases in fmt
+-	// might be less important.
+-	return v.InternalMethod == 0
++	return v.InternalMethod == 0 && iv.flag&flagRO == 0
+ }
+ 
+ // Interface returns v's value as an interface{}.
+@@ -891,22 +884,28 @@ func (v Value) CanInterface() bool {
+ // (as opposed to Type.Method), Interface cannot return an
+ // interface value, so it panics.
+ func (v Value) Interface() interface{} {
+-	return v.internal().Interface()
++	return valueInterface(v, true)
+ }
+ 
+-func (iv internalValue) Interface() interface{} {
++func valueInterface(v Value, safe bool) interface{} {
++	iv := v.internal()
++	return iv.valueInterface(safe)
++}
++
++func (iv internalValue) valueInterface(safe bool) interface{} {
+ 	if iv.kind == 0 {
+ 		panic(&ValueError{"reflect.Value.Interface", iv.kind})
+ 	}
+ 	if iv.method {
+ 		panic("reflect.Value.Interface: cannot create interface value for method with bound receiver")
+ 	}
+-	/*
+-		if v.flag()&noExport != 0 {
+-			panic("reflect.Value.Interface: cannot return value obtained from unexported struct field")
+-		}
+-	*/
+ 
++	if safe && iv.flag&flagRO != 0 {
++		// Do not allow access to unexported values via Interface,
++		// because they might be pointers that should not be 
++		// writable or methods or function that should not be callable.
++		panic("reflect.Value.Interface: cannot return value obtained from unexported field or method")
++	}
+ 	if iv.kind == Interface {
+ 		// Special case: return the element inside the interface.
+ 		// Won't recurse further because an interface cannot contain an interface.
+@@ -1758,7 +1757,7 @@ func convertForAssignment(what string, addr unsafe.Pointer, dst Type, iv interna
+ 		if addr == nil {
+ 			addr = unsafe.Pointer(new(interface{}))
+ 		}
+-		x := iv.Interface()
++		x := iv.valueInterface(false)
+ 		if dst.NumMethod() == 0 {
+ 			*(*interface{})(addr) = x
+ 		} else {
+diff --git a/test/interface/fake.go b/test/interface/fake.go
+index bdc5b9072c..ddb8325427 100644
+--- a/test/interface/fake.go
++++ b/test/interface/fake.go
+@@ -12,20 +12,20 @@ package main
+ import "reflect"
+ 
+ type T struct {
+-	f float32
+-	g float32
++	F float32
++	G float32
+ 
+-	s string
+-	t string
++	S string
++	T string
+ 
+-	u uint32
+-	v uint32
++	U uint32
++	V uint32
+ 
+-	w uint32
+-	x uint32
++	W uint32
++	X uint32
+ 
+-	y uint32
+-	z uint32
++	Y uint32
++	Z uint32
+ }
+ 
+ func add(s, t string) string {
+@@ -40,16 +40,16 @@ func assert(b bool) {
+ 
+ func main() {
+ 	var x T
+-	x.f = 1.0
+-	x.g = x.f
+-	x.s = add("abc", "def")
+-	x.t = add("abc", "def")
+-	x.u = 1
+-	x.v = 2
+-	x.w = 1 << 28
+-	x.x = 2 << 28
+-	x.y = 0x12345678
+-	x.z = x.y
++	x.F = 1.0
++	x.G = x.F
++	x.S = add("abc", "def")
++	x.T = add("abc", "def")
++	x.U = 1
++	x.V = 2
++	x.W = 1 << 28
++	x.X = 2 << 28
++	x.Y = 0x12345678
++	x.Z = x.Y
+ 
+ 	// check mem and string
+ 	v := reflect.ValueOf(x)

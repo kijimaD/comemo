@@ -7,6 +7,23 @@ Date:   Tue Aug 10 15:53:19 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/1951041
-
+---
  src/pkg/exp/draw/x11/auth.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/exp/draw/x11/auth.go b/src/pkg/exp/draw/x11/auth.go
+index 896dedf05c..b4c75a360d 100644
+--- a/src/pkg/exp/draw/x11/auth.go
++++ b/src/pkg/exp/draw/x11/auth.go
+@@ -16,7 +16,10 @@ func readU16BE(r io.Reader, b []byte) (uint16, os.Error) {
+ 	if err != nil {
+ 		return 0, err
+ 	}
+-	return uint16(b[0])<<8 + uint16(b[1]), nil
++	// TODO(nigeltao): remove the workaround when bug 1011 gets fixed.
++	//return uint16(b[0])<<8 + uint16(b[1]), nil
++	ret := uint16(b[0])<<8 + uint16(b[1])
++	return ret, nil
+ }
+ 
+ // readStr reads a length-prefixed string from r, using b as a scratch buffer.

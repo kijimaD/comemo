@@ -15,7 +15,70 @@ Date:   Mon Aug 3 18:00:44 2015 -0700
     Change-Id: I077eb0b8dff35c5d5534ee5f6386127c9954bd58
     Reviewed-on: https://go-review.googlesource.com/13148
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/serve_test.go | 34 ++++++++++++++++++++++++++++++++++
  src/net/http/transfer.go   |  6 ++++++
  2 files changed, 40 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 7e49981071..d51417eb4a 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1373,6 +1373,40 @@ func TestRequestBodyReadErrorClosesConnection(t *testing.T) {
+ 	}
+ }
+ 
++func TestInvalidTrailerClosesConnection(t *testing.T) {
++	defer afterTest(t)
++	for _, handler := range testHandlerBodyConsumers {
++		conn := new(testConn)
++		conn.readBuf.WriteString("POST /public HTTP/1.1\r\n" +
++			"Host: test\r\n" +
++			"Trailer: hack\r\n" +
++			"Transfer-Encoding: chunked\r\n" +
++			"\r\n" +
++			"3\r\n" +
++			"hax\r\n" +
++			"0\r\n" +
++			"I'm not a valid trailer\r\n" +
++			"GET /secret HTTP/1.1\r\n" +
++			"Host: test\r\n" +
++			"\r\n")
++
++		conn.closec = make(chan bool, 1)
++		ln := &oneConnListener{conn}
++		var numReqs int
++		go Serve(ln, HandlerFunc(func(_ ResponseWriter, req *Request) {
++			numReqs++
++			if strings.Contains(req.URL.Path, "secret") {
++				t.Errorf("Handler %s, Request for /secret encountered, should not have happened.", handler.name)
++			}
++			handler.f(req.Body)
++		}))
++		<-conn.closec
++		if numReqs != 1 {
++			t.Errorf("Handler %s: got %d reqs; want 1", handler.name, numReqs)
++		}
++	}
++}
++
+ // slowTestConn is a net.Conn that provides a means to simulate parts of a
+ // request being received piecemeal. Deadlines can be set and enforced in both
+ // Read and Write.
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index c128a1d3cd..a8736b28e1 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -637,6 +637,12 @@ func (b *body) readLocked(p []byte) (n int, err error) {
+ 		if b.hdr != nil {
+ 			if e := b.readTrailer(); e != nil {
+ 				err = e
++				// Something went wrong in the trailer, we must not allow any
++				// further reads of any kind to succeed from body, nor any
++				// subsequent requests on the server connection. See
++				// golang.org/issue/12027
++				b.sawEOF = false
++				b.closed = true
+ 			}
+ 			b.hdr = nil
+ 		} else {

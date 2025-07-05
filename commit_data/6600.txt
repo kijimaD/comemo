@@ -7,6 +7,55 @@ Date:   Fri Oct 22 05:50:45 2010 +0200
     R=ken2
     CC=golang-dev
     https://golang.org/cl/2658042
-
+---
  src/cmd/5g/cgen.c | 16 ++++++++--------
  1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 3d96000c8a..bbe5b9c0b7 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -170,8 +170,8 @@ cgen(Node *n, Node *res)
+ 	case OREAL:
+ 	case OIMAG:
+ 	case OCMPLX:
+-		// TODO compile complex
+-		return;
++		fatal("unexpected complex");
++		break;
+ 
+ 	// these call bgen to get a bool value
+ 	case OOROR:
+@@ -828,12 +828,6 @@ bgen(Node *n, int true, Prog *to)
+ 	nl = n->left;
+ 	nr = n->right;
+ 
+-	// TODO compile complex
+-	if(nl != N && nl->type != T && iscomplex[nl->type->etype])
+-		return;
+-	if(nr != N && nr->type != T && iscomplex[nr->type->etype])
+-		return;
+-
+ 	if(n->type == T) {
+ 		convlit(&n, types[TBOOL]);
+ 		if(n->type == T)
+@@ -954,6 +948,7 @@ bgen(Node *n, int true, Prog *to)
+ 				goto ret;
+ 			}				
+ 			a = brcom(a);
++			true = !true;
+ 		}
+ 
+ 		// make simplest on right
+@@ -1014,6 +1009,11 @@ bgen(Node *n, int true, Prog *to)
+ 			break;
+ 		}
+ 
++		if(iscomplex[nl->type->etype]) {
++			complexbool(a, nl, nr, true, to);
++			break;
++		}
++
+ 		if(is64(nr->type)) {
+ 			if(!nl->addable) {
+ 				tempname(&n1, nl->type);

@@ -9,7 +9,32 @@ Date:   Mon Apr 14 13:00:41 2014 -0700
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/86960046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 90f4038203..08c107833b 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -39,6 +39,7 @@ Andrew Lutomirski <andy@luto.us>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Radev <andrey.radev@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrew Szeto <andrew@jabagawee.com>
+ Andrew Wilkins <axwalk@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andriy Lytvynov <lytvynov.a.v@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 5b2eb9ba26..9c22cb5808 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -71,6 +71,7 @@ Andrew Lutomirski <andy@luto.us>
+ Andrew Pritchard <awpritchard@gmail.com>
+ Andrew Radev <andrey.radev@gmail.com>
+ Andrew Skiba <skibaa@gmail.com>
++Andrew Szeto <andrew@jabagawee.com>
+ Andrew Wilkins <axwalk@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andriy Lytvynov <lytvynov.a.v@gmail.com>

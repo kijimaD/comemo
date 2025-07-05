@@ -15,8 +15,127 @@ Date:   Mon Jun 21 11:01:20 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1301043
-
+---
  src/cmd/goinstall/main.go  | 10 +++++++++-
  src/cmd/goinstall/make.go  |  3 +--
  src/cmd/goinstall/parse.go | 33 ++++++++++++++++++++-------------
  3 files changed, 30 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/goinstall/main.go b/src/cmd/goinstall/main.go
+index 59e66288b9..ecd21536e3 100644
+--- a/src/cmd/goinstall/main.go
++++ b/src/cmd/goinstall/main.go
+@@ -122,7 +122,7 @@ func install(pkg, parent string) {
+ 	}
+ 
+ 	// Install prerequisites.
+-	files, m, err := goFiles(dir)
++	files, m, pkgname, err := goFiles(dir, parent == "")
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%s: %s: %s\n", argv0, pkg, err)
+ 		errors = true
+@@ -138,6 +138,14 @@ func install(pkg, parent string) {
+ 	for p := range m {
+ 		install(p, pkg)
+ 	}
++	if pkgname == "main" {
++		if !errors {
++			fmt.Fprintf(os.Stderr, "%s: %s's dependencies are installed.\n", argv0, pkg)
++		}
++		errors = true
++		visit[pkg] = done
++		return
++	}
+ 
+ 	// Install this package.
+ 	if !errors {
+diff --git a/src/cmd/goinstall/make.go b/src/cmd/goinstall/make.go
+index 59fc332b61..c15709b313 100644
+--- a/src/cmd/goinstall/make.go
++++ b/src/cmd/goinstall/make.go
+@@ -35,11 +35,10 @@ func domake(dir, pkg string, local bool) os.Error {
+ // installing as package pkg.  It includes all *.go files in the directory
+ // except those in package main and those ending in _test.go.
+ func makeMakefile(dir, pkg string) ([]byte, os.Error) {
+-	files, _, err := goFiles(dir)
++	files, _, _, err := goFiles(dir, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+ 	var buf bytes.Buffer
+ 	if err := makefileTemplate.Execute(&makedata{pkg, files}, &buf); err != nil {
+ 		return nil, err
+diff --git a/src/cmd/goinstall/parse.go b/src/cmd/goinstall/parse.go
+index 066c47ff5f..ae391ed9a9 100644
+--- a/src/cmd/goinstall/parse.go
++++ b/src/cmd/goinstall/parse.go
+@@ -16,25 +16,25 @@ import (
+ 	"go/parser"
+ )
+ 
+-// goFiles returns a list of the *.go source files in dir,
+-// excluding those in package main or ending in _test.go.
+-// It also returns a map giving the packages imported
+-// by those files.  The map keys are the imported paths.
+-// The key's value is one file that imports that path.
+-func goFiles(dir string) (files []string, imports map[string]string, err os.Error) {
++// goFiles returns a list of the *.go source files in dir, excluding
++// those in package main (unless allowMain is true) or ending in
++// _test.go.  It also returns a map giving the packages imported by
++// those files, and the package name.
++// The map keys are the imported paths.  The key's value
++// is one file that imports that path.
++func goFiles(dir string, allowMain bool) (files []string, imports map[string]string, pkgName string, err os.Error) {
+ 	f, err := os.Open(dir, os.O_RDONLY, 0)
+ 	if err != nil {
+-		return nil, nil, err
++		return nil, nil, "", err
+ 	}
+ 	dirs, err := f.Readdir(-1)
+ 	f.Close()
+ 	if err != nil {
+-		return nil, nil, err
++		return nil, nil, "", err
+ 	}
+ 
+ 	files = make([]string, 0, len(dirs))
+ 	imports = make(map[string]string)
+-	pkgName := ""
+ 	for i := range dirs {
+ 		d := &dirs[i]
+ 		if !strings.HasSuffix(d.Name, ".go") || strings.HasSuffix(d.Name, "_test.go") {
+@@ -43,16 +43,23 @@ func goFiles(dir string) (files []string, imports map[string]string, err os.Erro
+ 		filename := path.Join(dir, d.Name)
+ 		pf, err := parser.ParseFile(filename, nil, nil, parser.ImportsOnly)
+ 		if err != nil {
+-			return nil, nil, err
++			return nil, nil, "", err
+ 		}
+ 		s := string(pf.Name.Name())
+-		if s == "main" {
++		if s == "main" && !allowMain {
+ 			continue
+ 		}
+ 		if pkgName == "" {
+ 			pkgName = s
+ 		} else if pkgName != s {
+-			return nil, nil, os.ErrorString("multiple package names in " + dir)
++			// Only if all files in the directory are in package main
++			// do we return pkgName=="main".
++			// A mix of main and another package reverts
++			// to the original (allowMain=false) behaviour.
++			if allowMain && pkgName == "main" {
++				return goFiles(dir, false)
++			}
++			return nil, nil, "", os.ErrorString("multiple package names in " + dir)
+ 		}
+ 		n := len(files)
+ 		files = files[0 : n+1]
+@@ -68,5 +75,5 @@ func goFiles(dir string) (files []string, imports map[string]string, err os.Erro
+ 			}
+ 		}
+ 	}
+-	return files, imports, nil
++	return files, imports, pkgName, nil
+ }

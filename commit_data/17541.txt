@@ -13,9 +13,81 @@ Date:   Tue Sep 10 14:43:35 2013 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/13462046
-
+---
  src/cmd/go/test.bash                        | 21 +++++++++++++++++++++
  src/cmd/go/test.go                          |  2 +-
  src/cmd/go/testdata/src/main_test/m.go      |  4 ++++
  src/cmd/go/testdata/src/main_test/m_test.go | 10 ++++++++++
  4 files changed, 36 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 61e9e6ada0..b55989c207 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -138,6 +138,27 @@ elif ! test -x testdata/bin/go-cmd-test; then
+ 	ok=false
+ fi
+ 
++TEST package main_test imports archive not binary
++export GOBIN=$(pwd)/testdata/bin
++mkdir -p $GOBIN
++export GOPATH=$(pwd)/testdata
++touch ./testdata/src/main_test/m.go
++if ! ./testgo test main_test; then
++	echo "go test main_test failed without install"
++	ok=false
++elif ! ./testgo install main_test; then
++	echo "go test main_test failed"
++	ok=false
++elif [ "$(./testgo list -f '{{.Stale}}' main_test)" != false ]; then
++	echo "after go install, main listed as stale"
++	ok=false
++elif ! ./testgo test main_test; then
++	echo "go test main_test failed after install"
++	ok=false
++fi
++rm -rf $GOBIN
++unset GOBIN
++
+ # And with $GOBIN set, binaries get installed to $GOBIN.
+ TEST install into GOBIN
+ if ! GOBIN=$(pwd)/testdata/bin1 GOPATH=$(pwd)/testdata ./testgo install go-cmd-test; then
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index 3b79e24285..ebc9d28548 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -590,7 +590,7 @@ func (b *builder) test(p *Package) (buildAction, runAction, printAction *action,
+ 	localCover := testCover && testCoverPaths == nil
+ 
+ 	// Test package.
+-	if len(p.TestGoFiles) > 0 || localCover {
++	if len(p.TestGoFiles) > 0 || localCover || p.Name == "main" {
+ 		ptest = new(Package)
+ 		*ptest = *p
+ 		ptest.GoFiles = nil
+diff --git a/src/cmd/go/testdata/src/main_test/m.go b/src/cmd/go/testdata/src/main_test/m.go
+new file mode 100644
+index 0000000000..c682f030b4
+--- /dev/null
++++ b/src/cmd/go/testdata/src/main_test/m.go
+@@ -0,0 +1,4 @@
++package main
++
++func F()    {}
++func main() {}
+diff --git a/src/cmd/go/testdata/src/main_test/m_test.go b/src/cmd/go/testdata/src/main_test/m_test.go
+new file mode 100644
+index 0000000000..f865b7734f
+--- /dev/null
++++ b/src/cmd/go/testdata/src/main_test/m_test.go
+@@ -0,0 +1,10 @@
++package main_test
++
++import (
++	. "main_test"
++	"testing"
++)
++
++func Test1(t *testing.T) {
++	F()
++}

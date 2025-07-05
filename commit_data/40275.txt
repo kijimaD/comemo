@@ -19,7 +19,7 @@ Date:   Thu Apr 18 17:06:56 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modget/get.go                |  55 ++--
  src/cmd/go/internal/modload/import.go            |  27 +-
  src/cmd/go/internal/modload/query.go             | 307 ++++++++++++++++-------
@@ -28,3 +28,591 @@ Date:   Thu Apr 18 17:06:56 2019 -0400
  src/cmd/go/testdata/script/mod_get_patterns.txt  |   4 +-
  src/cmd/go/testdata/script/mod_load_badchain.txt |   1 +
  7 files changed, 302 insertions(+), 126 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index e183151d29..9a45ba3e74 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -19,6 +19,7 @@ import (
+ 	"cmd/go/internal/semver"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"errors"
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
+@@ -351,10 +352,17 @@ func runGet(cmd *base.Command, args []string) {
+ 			match := search.MatchPattern(path)
+ 			matched := false
+ 			for _, m := range modload.BuildList() {
+-				// TODO(bcmills): Patterns that don't contain the module path but do
+-				// contain partial package paths will not match here. For example,
+-				// ...html/... would not match html/template or golang.org/x/net/html.
+-				// Related golang.org/issue/26902.
++				// TODO: If we have matching packages already in the build list and we
++				// know which module(s) they are in, then we should not upgrade the
++				// modules that do *not* contain those packages, even if the module path
++				// is a prefix of the pattern.
++				//
++				// For example, if we have modules golang.org/x/tools and
++				// golang.org/x/tools/playground, and all of the packages matching
++				// golang.org/x/tools/playground... are in the
++				// golang.org/x/tools/playground module, then we should not *also* try
++				// to upgrade golang.org/x/tools if the user says 'go get
++				// golang.org/x/tools/playground...@latest'.
+ 				if match(m.Path) || str.HasPathPrefix(path, m.Path) {
+ 					tasks = append(tasks, &task{arg: arg, path: m.Path, vers: vers, prevM: m, forceModulePath: true})
+ 					matched = true
+@@ -650,29 +658,31 @@ func getQuery(path, vers string, prevM module.Version, forceModulePath bool) (mo
+ 		}
+ 	}
+ 
+-	// If the path has a wildcard, search for a module that matches the pattern.
+-	if strings.Contains(path, "...") {
+-		if forceModulePath {
+-			panic("forceModulePath is true for path with wildcard " + path)
++	if forceModulePath || *getM || !strings.Contains(path, "...") {
++		if path == modload.Target.Path {
++			if vers != "latest" {
++				return module.Version{}, fmt.Errorf("can't get a specific version of the main module")
++			}
++		}
++
++		// If the path doesn't contain a wildcard, try interpreting it as a module path.
++		info, err := modload.Query(path, vers, modload.Allowed)
++		if err == nil {
++			return module.Version{Path: path, Version: info.Version}, nil
+ 		}
+-		_, m, _, err := modload.QueryPattern(path, vers, modload.Allowed)
+-		return m, err
+-	}
+ 
+-	// Try interpreting the path as a module path.
+-	info, err := modload.Query(path, vers, modload.Allowed)
+-	if err == nil {
+-		return module.Version{Path: path, Version: info.Version}, nil
++		// If the query fails, and the path must be a real module, report the query error.
++		if forceModulePath || *getM {
++			return module.Version{}, err
++		}
+ 	}
+ 
+-	// If the query fails, and the path must be a real module, report the query error.
+-	if forceModulePath || *getM {
++	// Otherwise, try a package path or pattern.
++	results, err := modload.QueryPattern(path, vers, modload.Allowed)
++	if err != nil {
+ 		return module.Version{}, err
+ 	}
+-
+-	// Otherwise, try a package path.
+-	m, _, err := modload.QueryPackage(path, vers, modload.Allowed)
+-	return m, err
++	return results[0].Mod, nil
+ }
+ 
+ // An upgrader adapts an underlying mvs.Reqs to apply an
+@@ -736,7 +746,8 @@ func (u *upgrader) Upgrade(m module.Version) (module.Version, error) {
+ 		// even report the error. Because Query does not consider pseudo-versions,
+ 		// it may happen that we have a pseudo-version but during -u=patch
+ 		// the query v0.0 matches no versions (not even the one we're using).
+-		if !strings.Contains(err.Error(), "no matching versions") {
++		var noMatch *modload.NoMatchingVersionError
++		if !errors.As(err, &noMatch) {
+ 			base.Errorf("go get: upgrading %s@%s: %v", m.Path, m.Version, err)
+ 		}
+ 		return m, nil
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index 305e0ddb75..3f2007ca2b 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -186,22 +186,31 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 		}
+ 	}
+ 
+-	m, _, err = QueryPackage(path, "latest", Allowed)
++	candidates, err := QueryPackage(path, "latest", Allowed)
+ 	if err != nil {
+ 		if _, ok := err.(*codehost.VCSError); ok {
+ 			return module.Version{}, "", err
+ 		}
+ 		return module.Version{}, "", &ImportMissingError{ImportPath: path}
+ 	}
++	m = candidates[0].Mod
+ 	newMissingVersion := ""
+-	for _, bm := range buildList {
+-		if bm.Path == m.Path && semver.Compare(bm.Version, m.Version) > 0 {
+-			// This typically happens when a package is present at the "@latest"
+-			// version (e.g., v1.0.0) of a module, but we have a newer version
+-			// of the same module in the build list (e.g., v1.0.1-beta), and
+-			// the package is not present there.
+-			newMissingVersion = bm.Version
+-			break
++	for _, c := range candidates {
++		cm := c.Mod
++		for _, bm := range buildList {
++			if bm.Path == cm.Path && semver.Compare(bm.Version, cm.Version) > 0 {
++				// QueryPackage proposed that we add module cm to provide the package,
++				// but we already depend on a newer version of that module (and we don't
++				// have the package).
++				//
++				// This typically happens when a package is present at the "@latest"
++				// version (e.g., v1.0.0) of a module, but we have a newer version
++				// of the same module in the build list (e.g., v1.0.1-beta), and
++				// the package is not present there.
++				m = cm
++				newMissingVersion = bm.Version
++				break
++			}
+ 		}
+ 	}
+ 	return m, "", &ImportMissingError{ImportPath: path, Module: m, newMissingVersion: newMissingVersion}
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 84950732be..74847a2912 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -5,15 +5,17 @@
+ package modload
+ 
+ import (
++	"fmt"
++	pathpkg "path"
++	"strings"
++	"sync"
++
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/module"
++	"cmd/go/internal/search"
+ 	"cmd/go/internal/semver"
+ 	"cmd/go/internal/str"
+-	"errors"
+-	"fmt"
+-	pathpkg "path"
+-	"strings"
+ )
+ 
+ // Query looks up a revision of a given module given a version query string.
+@@ -181,10 +183,10 @@ func Query(path, query string, allowed func(module.Version) bool) (*modfetch.Rev
+ 		}
+ 	}
+ 
+-	return nil, fmt.Errorf("no matching versions for query %q", query)
++	return nil, &NoMatchingVersionError{query: query}
+ }
+ 
+-// isSemverPrefix reports whether v is a semantic version prefix: v1 or  v1.2 (not v1.2.3).
++// isSemverPrefix reports whether v is a semantic version prefix: v1 or  v1.2 (not wv1.2.3).
+ // The caller is assumed to have checked that semver.IsValid(v) is true.
+ func isSemverPrefix(v string) bool {
+ 	dots := 0
+@@ -208,114 +210,235 @@ func matchSemverPrefix(p, v string) bool {
+ 	return len(v) > len(p) && v[len(p)] == '.' && v[:len(p)] == p
+ }
+ 
+-// QueryPackage looks up a revision of a module containing path.
++type QueryResult struct {
++	Mod      module.Version
++	Rev      *modfetch.RevInfo
++	Packages []string
++}
++
++// QueryPackage looks up the module(s) containing path at a revision matching
++// query. The results are sorted by module path length in descending order.
+ //
+-// If multiple modules with revisions matching the query provide the requested
+-// package, QueryPackage picks the one with the longest module path.
++// If the package is in the main module, QueryPackage considers only the main
++// module and only the version "latest", without checking for other possible
++// modules.
++func QueryPackage(path, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
++	if search.IsMetaPackage(path) || strings.Contains(path, "...") {
++		return nil, fmt.Errorf("pattern %s is not an importable package", path)
++	}
++	return QueryPattern(path, query, allowed)
++}
++
++// QueryPattern looks up the module(s) containing at least one package matching
++// the given pattern at the given version. The results are sorted by module path
++// length in descending order.
+ //
+-// If the path is in the main module and the query is "latest",
+-// QueryPackage returns Target as the version.
+-func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
++// QueryPattern queries modules with package paths up to the first "..."
++// in the pattern. For the pattern "example.com/a/b.../c", QueryPattern would
++// consider prefixes of "example.com/a". If multiple modules have versions
++// that match the query and packages that match the pattern, QueryPattern
++// picks the one with the longest module path.
++//
++// If any matching package is in the main module, QueryPattern considers only
++// the main module and only the version "latest", without checking for other
++// possible modules.
++func QueryPattern(pattern string, query string, allowed func(module.Version) bool) ([]QueryResult, error) {
++	base := pattern
++	var match func(m module.Version, root string, isLocal bool) (pkgs []string)
++
++	if i := strings.Index(pattern, "..."); i >= 0 {
++		base = pathpkg.Dir(pattern[:i+3])
++		match = func(m module.Version, root string, isLocal bool) []string {
++			return matchPackages(pattern, anyTags, false, []module.Version{m})
++		}
++	} else {
++		match = func(m module.Version, root string, isLocal bool) []string {
++			prefix := m.Path
++			if m == Target {
++				prefix = targetPrefix
++			}
++			if _, ok := dirInModule(pattern, prefix, root, isLocal); ok {
++				return []string{pattern}
++			} else {
++				return nil
++			}
++		}
++	}
++
+ 	if HasModRoot() {
+-		if _, ok := dirInModule(path, targetPrefix, modRoot, true); ok {
++		pkgs := match(Target, modRoot, true)
++		if len(pkgs) > 0 {
+ 			if query != "latest" {
+-				return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
++				return nil, fmt.Errorf("can't query specific version for package %s in the main module (%s)", pattern, Target.Path)
+ 			}
+ 			if !allowed(Target) {
+-				return module.Version{}, nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", path, Target.Path)
++				return nil, fmt.Errorf("internal error: package %s is in the main module (%s), but version is not allowed", pattern, Target.Path)
+ 			}
+-			return Target, &modfetch.RevInfo{Version: Target.Version}, nil
++			return []QueryResult{{
++				Mod:      Target,
++				Rev:      &modfetch.RevInfo{Version: Target.Version},
++				Packages: pkgs,
++			}}, nil
+ 		}
+ 	}
+ 
+-	finalErr := errMissing
+-	for p := path; p != "." && p != "/"; p = pathpkg.Dir(p) {
+-		info, err := Query(p, query, allowed)
+-		if err != nil {
+-			if _, ok := err.(*codehost.VCSError); ok {
+-				// A VCSError means we know where to find the code,
+-				// we just can't. Abort search.
+-				return module.Version{}, nil, err
++	// If the path we're attempting is not in the module cache and we don't have a
++	// fetch result cached either, we'll end up making a (potentially slow)
++	// request to the proxy or (often even slower) the origin server.
++	// To minimize latency, execute all of those requests in parallel.
++	type result struct {
++		QueryResult
++		err error
++	}
++	results := make([]result, strings.Count(base, "/")+1) // by descending path length
++	i, p := 0, base
++	var wg sync.WaitGroup
++	wg.Add(len(results))
++	for {
++		go func(p string, r *result) (err error) {
++			defer func() {
++				r.err = err
++				wg.Done()
++			}()
++
++			r.Mod.Path = p
++			if HasModRoot() && p == Target.Path {
++				r.Mod.Version = Target.Version
++				r.Rev = &modfetch.RevInfo{Version: Target.Version}
++				// We already know (from above) that Target does not contain any
++				// packages matching pattern, so leave r.Packages empty.
++			} else {
++				r.Rev, err = Query(p, query, allowed)
++				if err != nil {
++					return err
++				}
++				r.Mod.Version = r.Rev.Version
++				root, isLocal, err := fetch(r.Mod)
++				if err != nil {
++					return err
++				}
++				r.Packages = match(r.Mod, root, isLocal)
+ 			}
+-			if finalErr == errMissing {
+-				finalErr = err
++			if len(r.Packages) == 0 {
++				return &packageNotInModuleError{
++					mod:     r.Mod,
++					query:   query,
++					pattern: pattern,
++				}
+ 			}
+-			continue
+-		}
+-		m := module.Version{Path: p, Version: info.Version}
+-		root, isLocal, err := fetch(m)
+-		if err != nil {
+-			return module.Version{}, nil, err
++			return nil
++		}(p, &results[i])
++
++		j := strings.LastIndexByte(p, '/')
++		if i++; i == len(results) {
++			if j >= 0 {
++				panic("undercounted slashes")
++			}
++			break
+ 		}
+-		_, ok := dirInModule(path, m.Path, root, isLocal)
+-		if ok {
+-			return m, info, nil
++		if j < 0 {
++			panic("overcounted slashes")
+ 		}
++		p = p[:j]
+ 	}
++	wg.Wait()
+ 
+-	return module.Version{}, nil, finalErr
+-}
+-
+-// QueryPattern looks up a module with at least one package matching the
+-// given pattern at the given version. It returns a list of matched packages
+-// and information about the module.
+-//
+-// QueryPattern queries modules with package paths up to the first "..."
+-// in the pattern. For the pattern "example.com/a/b.../c", QueryPattern would
+-// consider prefixes of "example.com/a". If multiple modules have versions
+-// that match the query and packages that match the pattern, QueryPattern
+-// picks the one with the longest module path.
+-func QueryPattern(pattern string, query string, allowed func(module.Version) bool) ([]string, module.Version, *modfetch.RevInfo, error) {
+-	i := strings.Index(pattern, "...")
+-	if i < 0 {
+-		m, info, err := QueryPackage(pattern, query, allowed)
+-		if err != nil {
+-			return nil, module.Version{}, nil, err
+-		} else {
+-			return []string{pattern}, m, info, nil
++	// Classify the results. In case of failure, identify the error that the user
++	// is most likely to find helpful.
++	var (
++		successes  []QueryResult
++		mostUseful result
++	)
++	for _, r := range results {
++		if r.err == nil {
++			successes = append(successes, r.QueryResult)
++			continue
+ 		}
+-	}
+-	base := pathpkg.Dir(pattern[:i+3])
+ 
+-	// Return the most specific error for the longest module path.
+-	const (
+-		errNoModule  = 0
+-		errNoVersion = 1
+-		errNoMatch   = 2
+-	)
+-	errLevel := errNoModule
+-	finalErr := errors.New("cannot find module matching pattern")
++		switch mostUseful.err.(type) {
++		case nil:
++			mostUseful = r
++			continue
++		case *packageNotInModuleError:
++			// Any other error is more useful than one that reports that the main
++			// module does not contain the requested packages.
++			if mostUseful.Mod.Path == Target.Path {
++				mostUseful = r
++				continue
++			}
++		}
+ 
+-	for p := base; p != "." && p != "/"; p = pathpkg.Dir(p) {
+-		info, err := Query(p, query, allowed)
+-		if err != nil {
+-			if _, ok := err.(*codehost.VCSError); ok {
+-				// A VCSError means we know where to find the code,
+-				// we just can't. Abort search.
+-				return nil, module.Version{}, nil, err
++		switch r.err.(type) {
++		case *codehost.VCSError:
++			// A VCSError means that we've located a repository, but couldn't look
++			// inside it for packages. That's a very strong signal, and should
++			// override any others.
++			return nil, r.err
++		case *packageNotInModuleError:
++			if r.Mod.Path == Target.Path {
++				// Don't override a potentially-useful error for some other module with
++				// a trivial error for the main module.
++				continue
+ 			}
+-			if errLevel < errNoVersion {
+-				errLevel = errNoVersion
+-				finalErr = err
++			// A module with an appropriate prefix exists at the requested version,
++			// but it does not contain the requested package(s).
++			if _, worsePath := mostUseful.err.(*packageNotInModuleError); !worsePath {
++				mostUseful = r
++			}
++		case *NoMatchingVersionError:
++			// A module with an appropriate prefix exists, but not at the requested
++			// version.
++			_, worseError := mostUseful.err.(*packageNotInModuleError)
++			_, worsePath := mostUseful.err.(*NoMatchingVersionError)
++			if !(worseError || worsePath) {
++				mostUseful = r
+ 			}
+-			continue
+-		}
+-		m := module.Version{Path: p, Version: info.Version}
+-		// matchPackages also calls fetch but treats errors as fatal, so we
+-		// fetch here first.
+-		_, _, err = fetch(m)
+-		if err != nil {
+-			return nil, module.Version{}, nil, err
+-		}
+-		pkgs := matchPackages(pattern, anyTags, false, []module.Version{m})
+-		if len(pkgs) > 0 {
+-			return pkgs, m, info, nil
+-		}
+-		if errLevel < errNoMatch {
+-			errLevel = errNoMatch
+-			finalErr = fmt.Errorf("no matching packages in module %s@%s", m.Path, m.Version)
+ 		}
+ 	}
+ 
+-	return nil, module.Version{}, nil, finalErr
++	// TODO(#26232): If len(successes) == 0 and some of the errors are 4xx HTTP
++	// codes, have the auth package recheck the failed paths.
++	// If we obtain new credentials for any of them, re-run the above loop.
++
++	if len(successes) == 0 {
++		// All of the possible module paths either did not exist at the requested
++		// version, or did not contain the requested package(s).
++		return nil, mostUseful.err
++	}
++
++	// At least one module at the requested version contained the requested
++	// package(s). Any remaining errors only describe the non-existence of
++	// alternatives, so ignore them.
++	return successes, nil
++}
++
++// A NoMatchingVersionError indicates that Query found a module at the requested
++// path, but not at any versions satisfying the query string and allow-function.
++type NoMatchingVersionError struct {
++	query string
++}
++
++func (e *NoMatchingVersionError) Error() string {
++	return fmt.Sprintf("no matching versions for query %q", e.query)
++}
++
++// A packageNotInModuleError indicates that QueryPattern found a candidate
++// module at the requested version, but that module did not contain any packages
++// matching the requested pattern.
++type packageNotInModuleError struct {
++	mod     module.Version
++	query   string
++	pattern string
++}
++
++func (e *packageNotInModuleError) Error() string {
++	found := ""
++	if e.query != e.mod.Version {
++		found = fmt.Sprintf(" (%s)", e.mod.Version)
++	}
++
++	if strings.Contains(e.pattern, "...") {
++		return fmt.Sprintf("module %s@%s%s found, but does not contain packages matching %s", e.mod.Path, e.query, found, e.pattern)
++	}
++	return fmt.Sprintf("module %s@%s%s found, but does not contain package %s", e.mod.Path, e.query, found, e.pattern)
+ }
+diff --git a/src/cmd/go/testdata/script/mod_get_local.txt b/src/cmd/go/testdata/script/mod_get_local.txt
+index 4edda993f1..99bfdf29c8 100644
+--- a/src/cmd/go/testdata/script/mod_get_local.txt
++++ b/src/cmd/go/testdata/script/mod_get_local.txt
+@@ -17,6 +17,11 @@ cp go.mod.orig go.mod
+ go get -u -m local
+ cmp go.mod go.mod.implicitmod
+ 
++# For the main module, @patch should be a no-op.
++cp go.mod.orig go.mod
++go get -u -m local@patch
++cmp go.mod go.mod.implicitmod
++
+ # 'go get -u -d' in the empty root of the main module should update the
+ # dependencies of all packages in the module.
+ cp go.mod.orig go.mod
+@@ -43,7 +48,6 @@ cp go.mod.orig go.mod
+ go get -u -d local/uselang
+ cmp go.mod go.mod.dotpkg
+ 
+-
+ -- go.mod --
+ module local
+ 
+diff --git a/src/cmd/go/testdata/script/mod_get_main.txt b/src/cmd/go/testdata/script/mod_get_main.txt
+new file mode 100644
+index 0000000000..dfe8a15671
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_main.txt
+@@ -0,0 +1,28 @@
++env GO111MODULE=on
++
++# @patch and @latest within the main module refer to the current version, and
++# are no-ops.
++cp go.mod.orig go.mod
++go get -m rsc.io@latest
++go get -m rsc.io@patch
++cmp go.mod go.mod.orig
++
++# The main module cannot be updated to a specific version.
++cp go.mod.orig go.mod
++! go get -m rsc.io@v0.1.0
++stderr '^go get rsc.io@v0.1.0: can.t get a specific version of the main module$'
++! go get -d rsc.io/x@v0.1.0
++stderr '^go get rsc.io/x@v0.1.0: can.t query specific version for package rsc.io/x in the main module \(rsc.io\)$'
++
++# TODO: upgrading a package pattern not contained in the main module should not
++# attempt to upgrade the main module.
++! go get rsc.io/quote/...@v1.5.1
++
++-- go.mod.orig --
++module rsc.io
++
++go 1.13
++-- x/x.go --
++package x
++
++import _ "rsc.io/quote"
+diff --git a/src/cmd/go/testdata/script/mod_get_patterns.txt b/src/cmd/go/testdata/script/mod_get_patterns.txt
+index 123490da6c..1642ff2d10 100644
+--- a/src/cmd/go/testdata/script/mod_get_patterns.txt
++++ b/src/cmd/go/testdata/script/mod_get_patterns.txt
+@@ -15,11 +15,11 @@ grep 'require rsc.io/quote' go.mod
+ 
+ cp go.mod.orig go.mod
+ ! go get -d rsc.io/quote/x...
+-stderr 'go get rsc.io/quote/x...: no matching packages in module rsc.io/quote@v1.5.2'
++stderr 'go get rsc.io/quote/x...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ ! go get -d rsc.io/quote/x/...
+-stderr 'go get rsc.io/quote/x/...: no matching packages in module rsc.io/quote@v1.5.2'
++stderr 'go get rsc.io/quote/x/...: module rsc.io/quote@latest \(v1.5.2\) found, but does not contain packages matching rsc.io/quote/x/...'
+ ! grep 'require rsc.io/quote' go.mod
+ 
+ -- go.mod.orig --
+diff --git a/src/cmd/go/testdata/script/mod_load_badchain.txt b/src/cmd/go/testdata/script/mod_load_badchain.txt
+index d0fdb485c2..720b909a5a 100644
+--- a/src/cmd/go/testdata/script/mod_load_badchain.txt
++++ b/src/cmd/go/testdata/script/mod_load_badchain.txt
+@@ -4,6 +4,7 @@ env GO111MODULE=on
+ # Download everything to avoid "finding" messages in stderr later.
+ cp go.mod.orig go.mod
+ go mod download
++go mod download example.com@v1.0.0
+ go mod download example.com/badchain/a@v1.1.0
+ go mod download example.com/badchain/b@v1.1.0
+ go mod download example.com/badchain/c@v1.1.0

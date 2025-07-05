@@ -7,7 +7,33 @@ Date:   Wed Dec 21 07:23:03 2011 -0500
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5502056
-
+---
  src/pkg/runtime/cgo/gcc_darwin_386.c | 1 +
  src/pkg/runtime/signal_darwin_386.c  | 2 +-
  2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/cgo/gcc_darwin_386.c b/src/pkg/runtime/cgo/gcc_darwin_386.c
+index dbc3d31f9c..dfeb9e11f6 100644
+--- a/src/pkg/runtime/cgo/gcc_darwin_386.c
++++ b/src/pkg/runtime/cgo/gcc_darwin_386.c
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <string.h> /* for strerror */
+ #include <pthread.h>
+ #include "libcgo.h"
+ 
+diff --git a/src/pkg/runtime/signal_darwin_386.c b/src/pkg/runtime/signal_darwin_386.c
+index c1cab2ccaa..14f99115b4 100644
+--- a/src/pkg/runtime/signal_darwin_386.c
++++ b/src/pkg/runtime/signal_darwin_386.c
+@@ -142,7 +142,7 @@ sigaction(int32 i, void (*fn)(int32, Siginfo*, void*, G*), bool restart)
+ 		sa.sa_flags |= SA_RESTART;
+ 	sa.sa_mask = ~0U;
+ 	sa.sa_tramp = (void*)runtime·sigtramp;	// runtime·sigtramp's job is to call into real handler
+-	*(uintptr*)&sa.__sigaction_u = (uintptr)fn;
++	*(uintptr*)sa.__sigaction_u = (uintptr)fn;
+ 	runtime·sigaction(i, &sa, nil);
+ }
+ 

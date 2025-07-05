@@ -21,6 +21,25 @@ Date:   Thu Nov 15 23:24:51 2018 +0000
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
     Run-TryBot: Emmanuel Odeke <emm.odeke@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/main.go | 6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 6a188262cc..4f8ab7f55a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -151,10 +151,10 @@ func main() {
+ 				flag = flag[:i]
+ 			}
+ 			switch flag {
+-			case "-sync":
+-				fmt.Fprintf(os.Stderr, "go: go mod -sync is now go mod tidy\n")
++			case "-sync", "-fix":
++				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod tidy\n", flag)
+ 				os.Exit(2)
+-			case "-init", "-fix", "-graph", "-vendor", "-verify":
++			case "-init", "-graph", "-vendor", "-verify":
+ 				fmt.Fprintf(os.Stderr, "go: go mod %s is now go mod %s\n", flag, flag[1:])
+ 				os.Exit(2)
+ 			case "-fmt", "-json", "-module", "-require", "-droprequire", "-replace", "-dropreplace", "-exclude", "-dropexclude":

@@ -11,6 +11,22 @@ Date:   Sun Dec 16 01:07:58 2018 +1100
     Reviewed-on: https://go-review.googlesource.com/c/154378
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/util.go | 3 +--
  1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/util.go b/src/cmd/dist/util.go
+index 808a60a28e..996e058b31 100644
+--- a/src/cmd/dist/util.go
++++ b/src/cmd/dist/util.go
+@@ -397,9 +397,8 @@ func xgetgoarm() string {
+ 		// Conservative default for cross-compilation.
+ 		return "5"
+ 	}
+-	if goos == "freebsd" || goos == "openbsd" {
++	if goos == "freebsd" {
+ 		// FreeBSD has broken VFP support.
+-		// OpenBSD currently only supports softfloat.
+ 		return "5"
+ 	}
+ 

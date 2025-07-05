@@ -7,6 +7,20 @@ Date:   Mon Dec 9 12:55:25 2013 -0500
     TBR=iant
     CC=golang-dev
     https://golang.org/cl/39510043
-
+---
  src/cmd/gc/lex.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index d3b9983ee9..f1df9cc3b6 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -707,7 +707,7 @@ importfile(Val *f, int line)
+ 	}
+ 
+ 	if(!findpkg(path)) {
+-		yyerror("can't find import: \"%Z\"", f->u.sval);
++		yyerror("can't find import: \"%Z\" [path=%Z]", f->u.sval, path);
+ 		errorexit();
+ 	}
+ 	importpkg = mkpkg(path);

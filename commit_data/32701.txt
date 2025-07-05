@@ -99,7 +99,84 @@ Date:   Sun May 14 14:52:09 2017 -0700
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/likelyadjust.go |  2 +-
  src/cmd/compile/internal/ssa/looprotate.go   | 32 +++++++++++++++++++++++-----
  2 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/likelyadjust.go b/src/cmd/compile/internal/ssa/likelyadjust.go
+index a5d5a83537..323de3d76b 100644
+--- a/src/cmd/compile/internal/ssa/likelyadjust.go
++++ b/src/cmd/compile/internal/ssa/likelyadjust.go
+@@ -300,7 +300,7 @@ func loopnestfor(f *Func) *loopnest {
+ 		//
+ 		// Choose the first/innermost such h.
+ 		//
+-		// IF s itself dominates b, the s is a loop header;
++		// IF s itself dominates b, then s is a loop header;
+ 		// and there may be more than one such s.
+ 		// Since there's at most 2 successors, the inner/outer ordering
+ 		// between them can be established with simple comparisons.
+diff --git a/src/cmd/compile/internal/ssa/looprotate.go b/src/cmd/compile/internal/ssa/looprotate.go
+index fc186124df..c5b768264d 100644
+--- a/src/cmd/compile/internal/ssa/looprotate.go
++++ b/src/cmd/compile/internal/ssa/looprotate.go
+@@ -27,12 +27,17 @@ func loopRotate(f *Func) {
+ 		return
+ 	}
+ 
++	idToIdx := make([]int, f.NumBlocks())
++	for i, b := range f.Blocks {
++		idToIdx[b.ID] = i
++	}
++
+ 	// Set of blocks we're moving, by ID.
+ 	move := map[ID]struct{}{}
+ 
+-	// Map from block ID to the moving block that should
++	// Map from block ID to the moving blocks that should
+ 	// come right after it.
+-	after := map[ID]*Block{}
++	after := map[ID][]*Block{}
+ 
+ 	// Check each loop header and decide if we want to move it.
+ 	for _, loop := range loopnest.loops {
+@@ -50,10 +55,27 @@ func loopRotate(f *Func) {
+ 		if p == nil || p == b {
+ 			continue
+ 		}
++		after[p.ID] = []*Block{b}
++		for {
++			nextIdx := idToIdx[b.ID] + 1
++			if nextIdx >= len(f.Blocks) { // reached end of function (maybe impossible?)
++				break
++			}
++			nextb := f.Blocks[nextIdx]
++			if nextb == p { // original loop precedessor is next
++				break
++			}
++			if loopnest.b2l[nextb.ID] != loop { // about to leave loop
++				break
++			}
++			after[p.ID] = append(after[p.ID], nextb)
++			b = nextb
++		}
+ 
+ 		// Place b after p.
+-		move[b.ID] = struct{}{}
+-		after[p.ID] = b
++		for _, b := range after[p.ID] {
++			move[b.ID] = struct{}{}
++		}
+ 	}
+ 
+ 	// Move blocks to their destinations in a single pass.
+@@ -67,7 +89,7 @@ func loopRotate(f *Func) {
+ 		}
+ 		f.Blocks[j] = b
+ 		j++
+-		if a := after[b.ID]; a != nil {
++		for _, a := range after[b.ID] {
+ 			if j > i {
+ 				f.Fatalf("head before tail in loop %s", b)
+ 			}

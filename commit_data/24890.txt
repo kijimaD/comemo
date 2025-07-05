@@ -13,7 +13,32 @@ Date:   Tue Sep 8 05:54:22 2015 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dave Cheney <dave@cheney.net>
-
+---
  src/cmd/compile/internal/gc/go.go        | 1 -
  src/cmd/compile/internal/gc/typecheck.go | 1 -
  2 files changed, 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 59e1780b7d..a6b1ef55ab 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -160,7 +160,6 @@ type Type struct {
+ 	Trecur      uint8 // to detect loops
+ 	Printed     uint8
+ 	Embedded    uint8 // TFIELD embedded type
+-	Siggen      uint8
+ 	Funarg      uint8 // on TSTRUCT and TFIELD
+ 	Copyany     uint8
+ 	Local       bool // created in this file
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b3d49b0962..68071c409f 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3556,7 +3556,6 @@ func copytype(n *Node, t *Type) {
+ 	if n.Name != nil {
+ 		t.Vargen = n.Name.Vargen
+ 	}
+-	t.Siggen = 0
+ 	t.Method = nil
+ 	t.Xmethod = nil
+ 	t.Nod = nil

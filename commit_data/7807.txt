@@ -7,6 +7,22 @@ Date:   Fri Mar 18 10:19:19 2011 +1100
     R=golang-dev, rsc1
     CC=adg, golang-dev
     https://golang.org/cl/4274069
-
+---
  src/pkg/path/filepath/path_test.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/path/filepath/path_test.go b/src/pkg/path/filepath/path_test.go
+index e07b6b0c6f..5c891dee62 100644
+--- a/src/pkg/path/filepath/path_test.go
++++ b/src/pkg/path/filepath/path_test.go
+@@ -440,6 +440,10 @@ var EvalSymlinksTests = []EvalSymlinksTest{
+ }
+ 
+ func TestEvalSymlinks(t *testing.T) {
++	// Symlinks are not supported under windows.
++	if runtime.GOOS == "windows" {
++		return
++	}
+ 	defer os.RemoveAll("test")
+ 	for _, d := range EvalSymlinksTestDirs {
+ 		var err os.Error

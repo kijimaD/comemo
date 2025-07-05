@@ -13,6 +13,21 @@ Date:   Tue Nov 21 15:37:49 2023 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/syscall/exec_linux_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index a7af00d2c0..976275e1dc 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -582,6 +582,9 @@ func TestPidFD(t *testing.T) {
+ 
+ func TestPidFDWithUserNS(t *testing.T) {
+ 	if err := testPidFD(t, true); err != nil {
++		if testenv.SyscallIsNotSupported(err) {
++			t.Skip("userns not supported:", err)
++		}
+ 		t.Fatal("can't start a process:", err)
+ 	}
+ }

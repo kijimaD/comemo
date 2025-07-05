@@ -9,9 +9,89 @@ Date:   Thu Sep 24 08:32:59 2009 -0700
     DELTA=8  (0 added, 2 deleted, 6 changed)
     OCL=34854
     CL=34965
-
+---
  usr/austin/ogle/cmd.go    | 7 +++----
  usr/austin/ogle/rtype.go  | 4 ++--
  usr/austin/ogle/rvalue.go | 1 -
  usr/austin/ogle/vars.go   | 2 +-
  4 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/usr/austin/ogle/cmd.go b/usr/austin/ogle/cmd.go
+index e24094244f..88a675711f 100644
+--- a/usr/austin/ogle/cmd.go
++++ b/usr/austin/ogle/cmd.go
+@@ -94,7 +94,7 @@ var cmds = []cmd {
+ // successful, it returns the command and the bytes remaining after
+ // the command, which should be passed to the command.
+ func getCmd(line []byte) (*cmd, []byte) {
+-	sc, ev := newScanner(line);
++	sc, _ := newScanner(line);
+ 	pos, tok, lit := sc.Scan();
+ 	if sc.ErrorCount != 0 || tok != token.IDENT {
+ 		return nil, nil;
+@@ -208,8 +208,7 @@ func parseLoad(args []byte) (ident string, path string, err os.Error) {
+ 	var toks [4]token.Token;
+ 	var lits [4][]byte;
+ 	for i := range toks {
+-		var pos token.Position;
+-		pos, toks[i], lits[i] = sc.Scan();
++		_, toks[i], lits[i] = sc.Scan();
+ 	}
+ 	if sc.ErrorCount != 0 {
+ 		err = ev.GetError(scanner.NoMultiples);
+@@ -287,7 +286,7 @@ func cmdBt(args []byte) os.Error {
+ 
+ func parseNoArgs(args []byte, usage string) os.Error {
+ 	sc, ev := newScanner(args);
+-	pos, tok, lit := sc.Scan();
++	_, tok, _ := sc.Scan();
+ 	if sc.ErrorCount != 0 {
+ 		return ev.GetError(scanner.NoMultiples);
+ 	}
+diff --git a/usr/austin/ogle/rtype.go b/usr/austin/ogle/rtype.go
+index 05dfa17aba..a71a70a4af 100644
+--- a/usr/austin/ogle/rtype.go
++++ b/usr/austin/ogle/rtype.go
+@@ -38,7 +38,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 	}
+ 
+ 	// Get the type map for this architecture
+-	typeMap, ok := manualTypes[arch];
++	typeMap, _ := manualTypes[arch];
+ 	if typeMap == nil {
+ 		typeMap = make(map[eval.Type] *remoteType);
+ 		manualTypes[arch] = typeMap;
+@@ -74,7 +74,7 @@ func newManualType(t eval.Type, arch Arch) *remoteType {
+ 		rt = &remoteType{t, arch.PtrSize(), arch.PtrSize(), mk};
+ 		// Construct the element type after registering the
+ 		// type to break cycles.
+-		typeMap[t] = rt;
++		typeMap[eval.Type(t)] = rt;
+ 		elem = newManualType(t.Elem, arch);
+ 
+ 	case *eval.ArrayType:
+diff --git a/usr/austin/ogle/rvalue.go b/usr/austin/ogle/rvalue.go
+index 2d95a409dd..b22f531acb 100644
+--- a/usr/austin/ogle/rvalue.go
++++ b/usr/austin/ogle/rvalue.go
+@@ -7,7 +7,6 @@ package ogle
+ import (
+ 	"eval";
+ 	"fmt";
+-	"os";
+ 	"ptrace";
+ )
+ 
+diff --git a/usr/austin/ogle/vars.go b/usr/austin/ogle/vars.go
+index 17c4baa579..eb96b60ce8 100644
+--- a/usr/austin/ogle/vars.go
++++ b/usr/austin/ogle/vars.go
+@@ -142,7 +142,7 @@ func (p *Process) populateWorld(w *eval.World) os.Error {
+ 
+ 		// Symbol name
+ 		name := sc.BaseName();
+-		if prev, ok := pkg[name]; ok {
++		if _, ok := pkg[name]; ok {
+ 			log.Stderrf("Multiple definitions of symbol %s", sc.Name);
+ 			continue;
+ 		}

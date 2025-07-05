@@ -17,6 +17,21 @@ Date:   Sun Feb 28 21:48:20 2021 -0500
     Run-TryBot: David Chase <drchase@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/link/dwarf_test.go | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index db710bed6a..d0284ad4f5 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -91,7 +91,8 @@ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string)
+ 				exe = filepath.Join(tmpDir, "go.o")
+ 			}
+ 
+-			if runtime.GOOS == "darwin" {
++			darwinSymbolTestIsTooFlaky := true // Turn this off, it is too flaky -- See #32218
++			if runtime.GOOS == "darwin" && !darwinSymbolTestIsTooFlaky {
+ 				if _, err = exec.LookPath("symbols"); err == nil {
+ 					// Ensure Apple's tooling can parse our object for symbols.
+ 					out, err = exec.Command("symbols", exe).CombinedOutput()

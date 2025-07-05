@@ -18,6 +18,30 @@ Date:   Fri May 16 04:42:38 2025 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/673375
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/sync/pool_test.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/sync/pool_test.go b/src/sync/pool_test.go
+index 7f60ed7026..f0f0d3d40a 100644
+--- a/src/sync/pool_test.go
++++ b/src/sync/pool_test.go
+@@ -102,6 +102,18 @@ func TestPoolRelease(t *testing.T) {
+ }
+ 
+ func testPool(t *testing.T, drain bool) {
++	if drain {
++		// Run with GOMAXPROCS=1 if drain is set. The code below implicitly
++		// assumes it can remove all the pool-cached values with cleanups
++		// with Get, but this isn't necessarily true if a value gets stuck
++		// in the private slot for some P. This is especially likely when
++		// running with mayMoreStackPreempt. We can make this exact, however,
++		// by setting GOMAXPROCS to 1, so there's only 1 P. This is fine for
++		// this test, since we're not trying to check any concurrent properties
++		// of Pool anyway.
++		defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
++	}
++
+ 	var p Pool
+ 	const N = 100
+ 	for try := 0; try < 3; try++ {

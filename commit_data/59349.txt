@@ -12,6 +12,23 @@ Date:   Wed Mar 6 17:07:48 2024 +0000
     Auto-Submit: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/encoding/binary/binary.go | 5 +----
  1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index f001be8386..59a6c654d2 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -765,10 +765,7 @@ func (d *decoder) skip(v reflect.Value) {
+ 
+ func (e *encoder) skip(v reflect.Value) {
+ 	n := dataSize(v)
+-	zero := e.buf[e.offset : e.offset+n]
+-	for i := range zero {
+-		zero[i] = 0
+-	}
++	clear(e.buf[e.offset : e.offset+n])
+ 	e.offset += n
+ }
+ 

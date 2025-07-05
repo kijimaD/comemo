@@ -13,6 +13,20 @@ Date:   Tue Feb 1 13:27:36 2022 -0800
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/netip/netip.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 591d38abc8..f27984ab57 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -1288,7 +1288,7 @@ func (p Prefix) isZero() bool { return p == Prefix{} }
+ func (p Prefix) IsSingleIP() bool { return p.bits != 0 && int(p.bits) == p.ip.BitLen() }
+ 
+ // ParsePrefix parses s as an IP address prefix.
+-// The string can be in the form "192.168.1.0/24" or "2001::db8::/32",
++// The string can be in the form "192.168.1.0/24" or "2001:db8::/32",
+ // the CIDR notation defined in RFC 4632 and RFC 4291.
+ //
+ // Note that masked address bits are not zeroed. Use Masked for that.

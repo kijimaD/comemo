@@ -8,7 +8,53 @@ Date:   Fri May 8 09:58:25 2009 -0700
     DELTA=24  (24 added, 0 deleted, 0 changed)
     OCL=28451
     CL=28508
-
+---
  test/bugs/bug149.go | 24 ++++++++++++++++++++++++
  test/golden.out     |  4 ++++
  2 files changed, 28 insertions(+)
+
+diff --git a/test/bugs/bug149.go b/test/bugs/bug149.go
+new file mode 100644
+index 0000000000..a40403b7d7
+--- /dev/null
++++ b/test/bugs/bug149.go
+@@ -0,0 +1,24 @@
++// $G $D/$F.go || echo BUG: should compile
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	var b1 []byte;
++	s1 := string(b1);
++	println(len(s1));  // prints 0
++
++	b2 := ([]byte)(nil);
++	s2 := string(b2);
++	println(len(s2));  // prints 0
++
++	s3 := string(([]byte)(nil));  // does not compile (literal substitution of b2)
++	println(len(s3));
++}
++
++/*
++bug149.go:14: cannot convert []uint8 constant to string
++*/
+diff --git a/test/golden.out b/test/golden.out
+index 9ccb8ce678..92c2f8a43c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -101,6 +101,10 @@ BUG should compile
+ 5 7
+ BUG: should crash
+ 
++=========== bugs/bug149.go
++bugs/bug149.go:14: cannot convert []uint8 constant to string
++BUG: should compile
++
+ =========== fixedbugs/bug016.go
+ fixedbugs/bug016.go:7: constant -3 overflows uint
+ 

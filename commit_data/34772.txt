@@ -31,6 +31,25 @@ Date:   Tue Nov 14 15:08:32 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go | 7 ++++++-
  1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f4523ee7a2..a28ecdec2d 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1282,7 +1282,12 @@ func gcStart(mode gcMode, trigger gcTrigger) {
+ 
+ 	gcResetMarkState()
+ 
+-	work.stwprocs, work.maxprocs = gcprocs(), gomaxprocs
++	work.stwprocs, work.maxprocs = gomaxprocs, gomaxprocs
++	if work.stwprocs > ncpu {
++		// This is used to compute CPU time of the STW phases,
++		// so it can't be more than ncpu, even if GOMAXPROCS is.
++		work.stwprocs = ncpu
++	}
+ 	work.heap0 = atomic.Load64(&memstats.heap_live)
+ 	work.pauseNS = 0
+ 	work.mode = mode

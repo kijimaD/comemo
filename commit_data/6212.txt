@@ -7,7 +7,36 @@ Date:   Thu Sep 9 01:42:55 2010 -0400
     R=rsc, brainman, vcc
     CC=golang-dev
     https://golang.org/cl/2165044
-
+---
  src/Make.ccmd | 4 ++++
  src/Make.pkg  | 2 +-
  2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/Make.ccmd b/src/Make.ccmd
+index e22e256f00..a0da13857e 100644
+--- a/src/Make.ccmd
++++ b/src/Make.ccmd
+@@ -4,6 +4,10 @@
+ 
+ # Makefile for commands written in C.
+ 
++ifeq (windows,$(findstring windows, $(shell uname | tr A-Z a-z | sed 's/mingw/windows/')))
++TARG:=$(TARG).exe
++endif
++
+ $(TARG): $(OFILES) $(LIB)
+ 	$(HOST_LD) -o $(TARG) -L"$(GOROOT)"/lib $(OFILES) $(LIB) -lbio -l9 -lm
+ 
+diff --git a/src/Make.pkg b/src/Make.pkg
+index 6c1ac7a872..d5ccbe0308 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -50,7 +50,7 @@ coverage:
+ 	gotest
+ 	6cov -g $(shell pwd) $O.out | grep -v '_test\.go:'
+ 
+-CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go
++CLEANFILES+=*.cgo1.go *.cgo2.c _cgo_defun.c _cgo_gotypes.go _cgo_export.* *.so _obj _test _testmain.go *.exe
+ 
+ test:
+ 	gotest

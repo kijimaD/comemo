@@ -7,9 +7,105 @@ Date:   Wed Dec 18 08:26:36 2013 -0800
     R=golang-dev, adg, bradfitz, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/21580043
-
+---
  src/pkg/net/dnsclient_unix.go      |  3 ++-
  src/pkg/net/dnsconfig_unix.go      |  5 ++--
  src/pkg/net/dnsconfig_unix_test.go | 48 ++++++++++++++++++++++++++++++++++++++
  src/pkg/net/testdata/resolv.conf   |  5 ++++
  4 files changed, 57 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/dnsclient_unix.go b/src/pkg/net/dnsclient_unix.go
+index 16cf420dcd..a30c9a73d7 100644
+--- a/src/pkg/net/dnsclient_unix.go
++++ b/src/pkg/net/dnsclient_unix.go
+@@ -159,7 +159,8 @@ func convertRR_AAAA(records []dnsRR) []IP {
+ var cfg *dnsConfig
+ var dnserr error
+ 
+-func loadConfig() { cfg, dnserr = dnsReadConfig() }
++// Assume dns config file is /etc/resolv.conf here
++func loadConfig() { cfg, dnserr = dnsReadConfig("/etc/resolv.conf") }
+ 
+ var onceLoadConfig sync.Once
+ 
+diff --git a/src/pkg/net/dnsconfig_unix.go b/src/pkg/net/dnsconfig_unix.go
+index d10f099b12..7856ebc80d 100644
+--- a/src/pkg/net/dnsconfig_unix.go
++++ b/src/pkg/net/dnsconfig_unix.go
+@@ -20,9 +20,8 @@ type dnsConfig struct {
+ // See resolv.conf(5) on a Linux machine.
+ // TODO(rsc): Supposed to call uname() and chop the beginning
+ // of the host name to get the default search domain.
+-// We assume it's in resolv.conf anyway.
+-func dnsReadConfig() (*dnsConfig, error) {
+-	file, err := open("/etc/resolv.conf")
++func dnsReadConfig(filename string) (*dnsConfig, error) {
++	file, err := open(filename)
+ 	if err != nil {
+ 		return nil, &DNSConfigError{err}
+ 	}
+diff --git a/src/pkg/net/dnsconfig_unix_test.go b/src/pkg/net/dnsconfig_unix_test.go
+new file mode 100644
+index 0000000000..b24291c1c2
+--- /dev/null
++++ b/src/pkg/net/dnsconfig_unix_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2013 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin dragonfly freebsd linux netbsd openbsd
++
++package net
++
++import (
++	"testing"
++)
++
++func TestReadConfig(t *testing.T) {
++	dnsConfig, err := dnsReadConfig("testdata/resolv.conf")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if len(dnsConfig.servers) != 1 {
++		t.Errorf("len(dnsConfig.servers) = %d; want %d", len(dnsConfig.servers), 1)
++	}
++	if dnsConfig.servers[0] != "[192.168.1.1]" {
++		t.Errorf("dnsConfig.servers[0] = %s; want %s", dnsConfig.servers[0], "[192.168.1.1]")
++	}
++
++	if len(dnsConfig.search) != 1 {
++		t.Errorf("len(dnsConfig.search) = %d; want %d", len(dnsConfig.search), 1)
++	}
++	if dnsConfig.search[0] != "Home" {
++		t.Errorf("dnsConfig.search[0] = %s; want %s", dnsConfig.search[0], "Home")
++	}
++
++	if dnsConfig.ndots != 5 {
++		t.Errorf("dnsConfig.ndots = %d; want %d", dnsConfig.ndots, 5)
++	}
++
++	if dnsConfig.timeout != 10 {
++		t.Errorf("dnsConfig.timeout = %d; want %d", dnsConfig.timeout, 10)
++	}
++
++	if dnsConfig.attempts != 3 {
++		t.Errorf("dnsConfig.attempts = %d; want %d", dnsConfig.attempts, 3)
++	}
++
++	if dnsConfig.rotate != true {
++		t.Errorf("dnsConfig.rotate = %t; want %t", dnsConfig.rotate, true)
++	}
++}
+diff --git a/src/pkg/net/testdata/resolv.conf b/src/pkg/net/testdata/resolv.conf
+new file mode 100644
+index 0000000000..b5972e09c9
+--- /dev/null
++++ b/src/pkg/net/testdata/resolv.conf
+@@ -0,0 +1,5 @@
++# /etc/resolv.conf
++
++domain Home
++nameserver 192.168.1.1
++options ndots:5 timeout:10 attempts:3 rotate

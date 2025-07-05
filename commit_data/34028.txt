@@ -9,9 +9,368 @@ Date:   Thu Sep 21 10:53:08 2017 +0900
     Change-Id: I69ef9e257aa2b7b6c4fc4c115e99f8a7f93d8d9c
     Reviewed-on: https://go-review.googlesource.com/65150
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/debug/macho/file.go                         |  80 +++++++++++-
  src/debug/macho/file_test.go                    | 165 ++++++++++++++++++------
  src/debug/macho/testdata/clang-386-darwin.obj   | Bin 0 -> 464 bytes
  src/debug/macho/testdata/clang-amd64-darwin.obj | Bin 0 -> 768 bytes
  4 files changed, 204 insertions(+), 41 deletions(-)
+
+diff --git a/src/debug/macho/file.go b/src/debug/macho/file.go
+index cbf24787be..082c6b816a 100644
+--- a/src/debug/macho/file.go
++++ b/src/debug/macho/file.go
+@@ -94,8 +94,23 @@ type SectionHeader struct {
+ 	Flags  uint32
+ }
+ 
++// A Reloc represents a Mach-O relocation.
++type Reloc struct {
++	Addr  uint32
++	Value uint32
++	// when Scattered == false && Extern == true, Value is the symbol number.
++	// when Scattered == false && Extern == false, Value is the section number.
++	// when Scattered == true, Value is the value that this reloc refers to.
++	Type      uint8
++	Len       uint8 // 0=byte, 1=word, 2=long, 3=quad
++	Pcrel     bool
++	Extern    bool // valid if Scattered == false
++	Scattered bool
++}
++
+ type Section struct {
+ 	SectionHeader
++	Relocs []Reloc
+ 
+ 	// Embed ReaderAt for ReadAt method.
+ 	// Do not embed SectionReader directly
+@@ -377,7 +392,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				sh.Reloff = sh32.Reloff
+ 				sh.Nreloc = sh32.Nreloc
+ 				sh.Flags = sh32.Flags
+-				f.pushSection(sh, r)
++				if err := f.pushSection(sh, r); err != nil {
++					return nil, err
++				}
+ 			}
+ 
+ 		case LoadCmdSegment64:
+@@ -415,7 +432,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 				sh.Reloff = sh64.Reloff
+ 				sh.Nreloc = sh64.Nreloc
+ 				sh.Flags = sh64.Flags
+-				f.pushSection(sh, r)
++				if err := f.pushSection(sh, r); err != nil {
++					return nil, err
++				}
+ 			}
+ 		}
+ 		if s != nil {
+@@ -463,10 +482,65 @@ func (f *File) parseSymtab(symdat, strtab, cmddat []byte, hdr *SymtabCmd, offset
+ 	return st, nil
+ }
+ 
+-func (f *File) pushSection(sh *Section, r io.ReaderAt) {
++type relocInfo struct {
++	Addr   uint32
++	Symnum uint32
++}
++
++func (f *File) pushSection(sh *Section, r io.ReaderAt) error {
+ 	f.Sections = append(f.Sections, sh)
+ 	sh.sr = io.NewSectionReader(r, int64(sh.Offset), int64(sh.Size))
+ 	sh.ReaderAt = sh.sr
++
++	if sh.Nreloc > 0 {
++		reldat := make([]byte, int(sh.Nreloc)*8)
++		if _, err := r.ReadAt(reldat, int64(sh.Reloff)); err != nil {
++			return err
++		}
++		b := bytes.NewReader(reldat)
++
++		bo := f.ByteOrder
++
++		sh.Relocs = make([]Reloc, sh.Nreloc)
++		for i := range sh.Relocs {
++			rel := &sh.Relocs[i]
++
++			var ri relocInfo
++			if err := binary.Read(b, bo, &ri); err != nil {
++				return err
++			}
++
++			if ri.Addr&(1<<31) != 0 { // scattered
++				rel.Addr = ri.Addr & (1<<24 - 1)
++				rel.Type = uint8((ri.Addr >> 24) & (1<<4 - 1))
++				rel.Len = uint8((ri.Addr >> 28) & (1<<2 - 1))
++				rel.Pcrel = ri.Addr&(1<<30) != 0
++				rel.Value = ri.Symnum
++				rel.Scattered = true
++			} else {
++				switch bo {
++				case binary.LittleEndian:
++					rel.Addr = ri.Addr
++					rel.Value = ri.Symnum & (1<<24 - 1)
++					rel.Pcrel = ri.Symnum&(1<<24) != 0
++					rel.Len = uint8((ri.Symnum >> 25) & (1<<2 - 1))
++					rel.Extern = ri.Symnum&(1<<27) != 0
++					rel.Type = uint8((ri.Symnum >> 28) & (1<<4 - 1))
++				case binary.BigEndian:
++					rel.Addr = ri.Addr
++					rel.Value = ri.Symnum >> 8
++					rel.Pcrel = ri.Symnum&(1<<7) != 0
++					rel.Len = uint8((ri.Symnum >> 5) & (1<<2 - 1))
++					rel.Extern = ri.Symnum&(1<<4) != 0
++					rel.Type = uint8(ri.Symnum & (1<<4 - 1))
++				default:
++					panic("unreachable")
++				}
++			}
++		}
++	}
++
++	return nil
+ }
+ 
+ func cstring(b []byte) string {
+diff --git a/src/debug/macho/file_test.go b/src/debug/macho/file_test.go
+index 30705b1bc7..b9d88c1bad 100644
+--- a/src/debug/macho/file_test.go
++++ b/src/debug/macho/file_test.go
+@@ -10,10 +10,11 @@ import (
+ )
+ 
+ type fileTest struct {
+-	file     string
+-	hdr      FileHeader
+-	loads    []interface{}
+-	sections []*SectionHeader
++	file        string
++	hdr         FileHeader
++	loads       []interface{}
++	sections    []*SectionHeader
++	relocations map[string][]Reloc
+ }
+ 
+ var fileTests = []fileTest{
+@@ -41,6 +42,7 @@ var fileTests = []fileTest{
+ 			{"__dyld", "__DATA", 0x2014, 0x1c, 0x1014, 0x2, 0x0, 0x0, 0x0},
+ 			{"__jump_table", "__IMPORT", 0x3000, 0xa, 0x2000, 0x6, 0x0, 0x0, 0x4000008},
+ 		},
++		nil,
+ 	},
+ 	{
+ 		"testdata/gcc-amd64-darwin-exec",
+@@ -68,6 +70,7 @@ var fileTests = []fileTest{
+ 			{"__dyld", "__DATA", 0x100001020, 0x38, 0x1020, 0x3, 0x0, 0x0, 0x0},
+ 			{"__la_symbol_ptr", "__DATA", 0x100001058, 0x10, 0x1058, 0x2, 0x0, 0x0, 0x7},
+ 		},
++		nil,
+ 	},
+ 	{
+ 		"testdata/gcc-amd64-darwin-exec-debug",
+@@ -95,6 +98,7 @@ var fileTests = []fileTest{
+ 			{"__debug_pubnames", "__DWARF", 0x100002141, 0x1b, 0x1141, 0x0, 0x0, 0x0, 0x0},
+ 			{"__debug_str", "__DWARF", 0x10000215c, 0x60, 0x115c, 0x0, 0x0, 0x0, 0x0},
+ 		},
++		nil,
+ 	},
+ 	{
+ 		"testdata/clang-386-darwin-exec-with-rpath",
+@@ -118,6 +122,7 @@ var fileTests = []fileTest{
+ 			nil, // LC_DATA_IN_CODE
+ 		},
+ 		nil,
++		nil,
+ 	},
+ 	{
+ 		"testdata/clang-amd64-darwin-exec-with-rpath",
+@@ -141,6 +146,78 @@ var fileTests = []fileTest{
+ 			nil, // LC_DATA_IN_CODE
+ 		},
+ 		nil,
++		nil,
++	},
++	{
++		"testdata/clang-386-darwin.obj",
++		FileHeader{0xfeedface, Cpu386, 0x3, 0x1, 0x4, 0x138, 0x2000},
++		nil,
++		nil,
++		map[string][]Reloc{
++			"__text": []Reloc{
++				{
++					Addr:      0x1d,
++					Type:      uint8(GENERIC_RELOC_VANILLA),
++					Len:       2,
++					Pcrel:     true,
++					Extern:    true,
++					Value:     1,
++					Scattered: false,
++				},
++				{
++					Addr:      0xe,
++					Type:      uint8(GENERIC_RELOC_LOCAL_SECTDIFF),
++					Len:       2,
++					Pcrel:     false,
++					Value:     0x2d,
++					Scattered: true,
++				},
++				{
++					Addr:      0x0,
++					Type:      uint8(GENERIC_RELOC_PAIR),
++					Len:       2,
++					Pcrel:     false,
++					Value:     0xb,
++					Scattered: true,
++				},
++			},
++		},
++	},
++	{
++		"testdata/clang-amd64-darwin.obj",
++		FileHeader{0xfeedfacf, CpuAmd64, 0x3, 0x1, 0x4, 0x200, 0x2000},
++		nil,
++		nil,
++		map[string][]Reloc{
++			"__text": []Reloc{
++				{
++					Addr:   0x19,
++					Type:   uint8(X86_64_RELOC_BRANCH),
++					Len:    2,
++					Pcrel:  true,
++					Extern: true,
++					Value:  1,
++				},
++				{
++					Addr:   0xb,
++					Type:   uint8(X86_64_RELOC_SIGNED),
++					Len:    2,
++					Pcrel:  true,
++					Extern: false,
++					Value:  2,
++				},
++			},
++			"__compact_unwind": []Reloc{
++				{
++					Addr:   0x0,
++					Type:   uint8(X86_64_RELOC_UNSIGNED),
++					Len:    3,
++					Pcrel:  false,
++					Extern: false,
++					Value:  1,
++				},
++			},
++		},
+ 	},
+ }
+ 
+@@ -157,42 +234,44 @@ func TestOpen(t *testing.T) {
+ 			t.Errorf("open %s:\n\thave %#v\n\twant %#v\n", tt.file, f.FileHeader, tt.hdr)
+ 			continue
+ 		}
+-		for i, l := range f.Loads {
+-			if i >= len(tt.loads) {
+-				break
+-			}
+-
+-			want := tt.loads[i]
+-			if want == nil {
+-				continue
+-			}
+-
+-			switch l := l.(type) {
+-			case *Segment:
+-				have := &l.SegmentHeader
+-				if !reflect.DeepEqual(have, want) {
+-					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++		if tt.loads != nil {
++			for i, l := range f.Loads {
++				if i >= len(tt.loads) {
++					break
+ 				}
+-			case *Dylib:
+-				have := l
+-				have.LoadBytes = nil
+-				if !reflect.DeepEqual(have, want) {
+-					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++
++				want := tt.loads[i]
++				if want == nil {
++					continue
+ 				}
+-			case *Rpath:
+-				have := l
+-				have.LoadBytes = nil
+-				if !reflect.DeepEqual(have, want) {
+-					t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++
++				switch l := l.(type) {
++				case *Segment:
++					have := &l.SegmentHeader
++					if !reflect.DeepEqual(have, want) {
++						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++					}
++				case *Dylib:
++					have := l
++					have.LoadBytes = nil
++					if !reflect.DeepEqual(have, want) {
++						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++					}
++				case *Rpath:
++					have := l
++					have.LoadBytes = nil
++					if !reflect.DeepEqual(have, want) {
++						t.Errorf("open %s, segment %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
++					}
++				default:
++					t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
+ 				}
+-			default:
+-				t.Errorf("open %s, section %d: unknown load command\n\thave %#v\n\twant %#v\n", tt.file, i, l, want)
+ 			}
+-		}
+-		tn := len(tt.loads)
+-		fn := len(f.Loads)
+-		if tn != fn {
+-			t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
++			tn := len(tt.loads)
++			fn := len(f.Loads)
++			if tn != fn {
++				t.Errorf("open %s: len(Loads) = %d, want %d", tt.file, fn, tn)
++			}
+ 		}
+ 
+ 		if tt.sections != nil {
+@@ -206,12 +285,22 @@ func TestOpen(t *testing.T) {
+ 					t.Errorf("open %s, section %d:\n\thave %#v\n\twant %#v\n", tt.file, i, have, want)
+ 				}
+ 			}
+-			tn = len(tt.sections)
+-			fn = len(f.Sections)
++			tn := len(tt.sections)
++			fn := len(f.Sections)
+ 			if tn != fn {
+ 				t.Errorf("open %s: len(Sections) = %d, want %d", tt.file, fn, tn)
+ 			}
+ 		}
++
++		if tt.relocations != nil {
++			for i, sh := range f.Sections {
++				have := sh.Relocs
++				want := tt.relocations[sh.Name]
++				if !reflect.DeepEqual(have, want) {
++					t.Errorf("open %s, relocations in section %d (%s):\n\thave %#v\n\twant %#v\n", tt.file, i, sh.Name, have, want)
++				}
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/debug/macho/testdata/clang-386-darwin.obj b/src/debug/macho/testdata/clang-386-darwin.obj
+new file mode 100644
+index 0000000000..e79dc57a4b
+Binary files /dev/null and b/src/debug/macho/testdata/clang-386-darwin.obj differ
+diff --git a/src/debug/macho/testdata/clang-amd64-darwin.obj b/src/debug/macho/testdata/clang-amd64-darwin.obj
+new file mode 100644
+index 0000000000..23cc3c1bcb
+Binary files /dev/null and b/src/debug/macho/testdata/clang-amd64-darwin.obj differ

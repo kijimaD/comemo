@@ -8,7 +8,7 @@ Date:   Tue Sep 29 21:22:25 2009 -0700
     DELTA=236  (211 added, 18 deleted, 7 changed)
     OCL=35084
     CL=35131
-
+---
  src/pkg/syscall/asm_nacl_386.s       |  10 +--
  src/pkg/syscall/syscall_nacl.go      |  82 +++++++++++++++++-----
  src/pkg/syscall/syscall_nacl_386.go  |   8 ++-
@@ -16,3 +16,348 @@ Date:   Tue Sep 29 21:22:25 2009 -0700
  src/pkg/syscall/zsyscall_nacl_386.go | 129 +++++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_nacl_386.go   |   3 +
  6 files changed, 216 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/syscall/asm_nacl_386.s b/src/pkg/syscall/asm_nacl_386.s
+index 6bd69e0710..c1b1921434 100644
+--- a/src/pkg/syscall/asm_nacl_386.s
++++ b/src/pkg/syscall/asm_nacl_386.s
+@@ -47,24 +47,24 @@ ok:
+ 	RET
+ 
+ // func Syscall6(trap uintptr, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr);
+-// Actually Syscall5 but the rest of the code expects it to be named Syscall6.
+-TEXT	syscall·Syscall6(SB),7,$20
++TEXT	syscall·Syscall6(SB),7,$24
+ 	CALL	sys·entersyscall(SB)
+-	MOVL	trap+0(FP), AX	// syscall entry
+ 	MOVL	a1+4(FP), BX
+ 	MOVL	a2+8(FP), CX
+ 	MOVL	a3+12(FP), DX
+ 	MOVL	a4+16(FP), SI
+ 	MOVL	a5+20(FP), DI
+-	// a6+24(FP) is ignored
++	MOVL	a6+24(FP), AX
+ 
+ 	MOVL	BX, 0(SP)
+ 	MOVL	CX, 4(SP)
+ 	MOVL	DX, 8(SP)
+ 	MOVL	SI, 12(SP)
+ 	MOVL	DI, 16(SP)
++	MOVL	AX, 20(SP)
+ 
+-	// Call $(0x10000+32*AX)
++	// Call $(0x10000+32*trap)
++	MOVL	trap+0(FP), AX	// syscall entry
+ 	SHLL	$5, AX
+ 	ADDL	$0x10000, AX
+ 	CALL	AX
+diff --git a/src/pkg/syscall/syscall_nacl.go b/src/pkg/syscall/syscall_nacl.go
+index ae3ed850e1..bc8ec79757 100644
+--- a/src/pkg/syscall/syscall_nacl.go
++++ b/src/pkg/syscall/syscall_nacl.go
+@@ -24,6 +24,29 @@ const OS = "nacl"
+ //sys	Stat(path string, stat *Stat_t) (errno int)
+ //sys	Write(fd int, p []byte) (n int, errno int)
+ 
++//sys	MultimediaInit(subsys int) (errno int)
++//sys	MultimediaShutdown() (errno int)
++
++//sys	CondCreate() (cv int, errno int)
++//sys	CondWait(cv int, mutex int) (errno int)
++//sys	CondSignal(cv int) (errno int)
++//sys	CondBroadcast(cv int) (errno int)
++//sys	CondTimedWaitAbs(cv int, mutex int, abstime *Timespec) (errno int)
++//sys	MutexCreate() (mutex int, errno int)
++//sys	MutexLock(mutex int) (errno int)
++//sys	MutexUnlock(mutex int) (errno int)
++//sys	MutexTryLock(mutex int) (errno int) = SYS_MUTEX_TRYLOCK
++//sys	SemCreate() (sema int, errno int)
++//sys	SemWait(sema int) (errno int)
++//sys	SemPost(sema int) (errno int)
++//sys	VideoInit(dx int, dy int) (errno int)
++//sys	VideoUpdate(data *uint32) (errno int)
++//sys	VideoPollEvent(ev *byte) (errno int)
++//sys	VideoShutdown() (errno int)
++//sys	AudioInit(fmt int, nreq int, data *int) (errno int)
++//sys	AudioShutdown() (errno int)
++//sys	AudioStream(data *uint16, size *uintptr) (errno int)
++
+ // Hand-written
+ 
+ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+@@ -35,23 +58,55 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, errno int) {
+ 	return int64(o), int(e);
+ }
+ 
+-// Implemented in NaCl but not here:
++// Sleep by waiting on a condition variable that will never be signaled.
++// TODO(rsc): Replace when NaCl adds a proper sleep system call.
++var tcv, tmu int
++
++func init() {
++	tmu, _ = MutexCreate();
++	tcv, _ = CondCreate();
++}
++
++func Sleep(ns int64) (errno int) {
++	ts := NsecToTimespec(ns);
++	var tv Timeval;
++	if errno = Gettimeofday(&tv); errno != 0 {
++		return;
++	}
++	ts.Sec += tv.Sec;
++	ts.Nsec += tv.Usec*1000;
++	switch {
++	case ts.Nsec >= 1e9:
++		ts.Nsec -= 1e9;
++		ts.Sec++;
++	case ts.Nsec <= -1e9:
++		ts.Nsec += 1e9;
++		ts.Sec--;
++	}
++	if errno = MutexLock(tmu); errno != 0 {
++		return;
++	}
++	errno = CondTimedWaitAbs(tcv, tmu, &ts);
++	if e := MutexUnlock(tmu); e != 0 && errno == 0 {
++		errno = e;
++	}
++	return;
++}
++
++// Implemented in NaCl but not here; maybe later:
+ //	SYS_IOCTL
++//	SYS_IMC_*
++//	SYS_MMAP ???
++//	SYS_SRPC_*
++//	SYS_SYSCONF
++
++// Implemented in NaCl but not here; used by runtime instead:
+ //	SYS_SYSBRK
+ //	SYS_MMAP
+ //	SYS_MUNMAP
+-//	SYS_MULTIMEDIA_*
+-//	SYS_VIDEO_*
+-//	SYS_AUDIO_*
+-//	SYS_IMC_*
+-//	SYS_MUTEX_*
+-//	SYS_COND_*
+ //	SYS_THREAD_*
+ //	SYS_TLS_*
+-//	SYS_SRPC_*
+-//	SYS_SEM_*
+ //	SYS_SCHED_YIELD
+-//	SYS_SYSCONF
+ 
+ // Not implemented in NaCl but needed to compile other packages.
+ 
+@@ -135,13 +190,6 @@ func Ftruncate(fd int, length int64) (errno int) {
+ 	return ENACL;
+ }
+ 
+-// TODO(rsc): There must be a way to sleep, perhaps
+-// via the multimedia system calls.
+-
+-func Sleep(ns int64) (errno int) {
+-	return ENACL;
+-}
+-
+ // NaCL doesn't actually implement Getwd, but it also
+ // don't implement Chdir, so the fallback algorithm
+ // fails worse than calling Getwd does.
+diff --git a/src/pkg/syscall/syscall_nacl_386.go b/src/pkg/syscall/syscall_nacl_386.go
+index e0a7acb6ca..3ed3ccc25e 100644
+--- a/src/pkg/syscall/syscall_nacl_386.go
++++ b/src/pkg/syscall/syscall_nacl_386.go
+@@ -10,6 +10,12 @@ func Getpagesize() int {
+ 
+ func NsecToTimeval(nsec int64) (tv Timeval) {
+ 	tv.Sec = int32(nsec/1e9);
+-	tv.Usec = int32(nsec%1e9);
++	tv.Usec = int32(nsec%1e9 / 1e3);
++	return;
++}
++
++func NsecToTimespec(nsec int64) (ts Timespec) {
++	ts.Sec = int32(nsec/1e9);
++	ts.Nsec = int32(nsec%1e9);
+ 	return;
+ }
+diff --git a/src/pkg/syscall/types_nacl.c b/src/pkg/syscall/types_nacl.c
+index f594061a2f..67752402b8 100644
+--- a/src/pkg/syscall/types_nacl.c
++++ b/src/pkg/syscall/types_nacl.c
+@@ -23,6 +23,7 @@ Input to godefs.  See PORT.sh
+ #include <sys/stat.h>
+ #include <sys/time.h>
+ #include <sys/unistd.h>
++#include <sys/mman.h>
+ 
+ // Machine characteristics; for internal use.
+ 
+@@ -35,6 +36,12 @@ enum
+ 	$sizeofLongLong = sizeof(long long),
+ };
+ 
++// Mmap constants
++enum {
++	$PROT_READ = PROT_READ,
++	$PROT_WRITE = PROT_WRITE,
++	$MAP_SHARED = MAP_SHARED,
++};
+ 
+ // Unimplemented system calls
+ enum {
+diff --git a/src/pkg/syscall/zsyscall_nacl_386.go b/src/pkg/syscall/zsyscall_nacl_386.go
+index 2565d7dd22..dc5af44a4b 100644
+--- a/src/pkg/syscall/zsyscall_nacl_386.go
++++ b/src/pkg/syscall/zsyscall_nacl_386.go
+@@ -93,5 +93,134 @@ func Write(fd int, p []byte) (n int, errno int) {
+ 	return;
+ }
+ 
++func MultimediaInit(subsys int) (errno int) {
++	_, _, e1 := Syscall(SYS_MULTIMEDIA_INIT, uintptr(subsys), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func MultimediaShutdown() (errno int) {
++	_, _, e1 := Syscall(SYS_MULTIMEDIA_SHUTDOWN, 0, 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func CondCreate() (cv int, errno int) {
++	r0, _, e1 := Syscall(SYS_COND_CREATE, 0, 0, 0);
++	cv = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func CondWait(cv int, mutex int) (errno int) {
++	_, _, e1 := Syscall(SYS_COND_WAIT, uintptr(cv), uintptr(mutex), 0);
++	errno = int(e1);
++	return;
++}
++
++func CondSignal(cv int) (errno int) {
++	_, _, e1 := Syscall(SYS_COND_SIGNAL, uintptr(cv), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func CondBroadcast(cv int) (errno int) {
++	_, _, e1 := Syscall(SYS_COND_BROADCAST, uintptr(cv), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func CondTimedWaitAbs(cv int, mutex int, abstime *Timespec) (errno int) {
++	_, _, e1 := Syscall(SYS_COND_TIMED_WAIT_ABS, uintptr(cv), uintptr(mutex), uintptr(unsafe.Pointer(abstime)));
++	errno = int(e1);
++	return;
++}
++
++func MutexCreate() (mutex int, errno int) {
++	r0, _, e1 := Syscall(SYS_MUTEX_CREATE, 0, 0, 0);
++	mutex = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func MutexLock(mutex int) (errno int) {
++	_, _, e1 := Syscall(SYS_MUTEX_LOCK, uintptr(mutex), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func MutexUnlock(mutex int) (errno int) {
++	_, _, e1 := Syscall(SYS_MUTEX_UNLOCK, uintptr(mutex), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func MutexTryLock(mutex int) (errno int) {
++	_, _, e1 := Syscall(SYS_MUTEX_TRYLOCK, uintptr(mutex), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func SemCreate() (sema int, errno int) {
++	r0, _, e1 := Syscall(SYS_SEM_CREATE, 0, 0, 0);
++	sema = int(r0);
++	errno = int(e1);
++	return;
++}
++
++func SemWait(sema int) (errno int) {
++	_, _, e1 := Syscall(SYS_SEM_WAIT, uintptr(sema), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func SemPost(sema int) (errno int) {
++	_, _, e1 := Syscall(SYS_SEM_POST, uintptr(sema), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func VideoInit(dx int, dy int) (errno int) {
++	_, _, e1 := Syscall(SYS_VIDEO_INIT, uintptr(dx), uintptr(dy), 0);
++	errno = int(e1);
++	return;
++}
++
++func VideoUpdate(data *uint32) (errno int) {
++	_, _, e1 := Syscall(SYS_VIDEO_UPDATE, uintptr(unsafe.Pointer(data)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func VideoPollEvent(ev *byte) (errno int) {
++	_, _, e1 := Syscall(SYS_VIDEO_POLL_EVENT, uintptr(unsafe.Pointer(ev)), 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func VideoShutdown() (errno int) {
++	_, _, e1 := Syscall(SYS_VIDEO_SHUTDOWN, 0, 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func AudioInit(fmt int, nreq int, data *int) (errno int) {
++	_, _, e1 := Syscall(SYS_AUDIO_INIT, uintptr(fmt), uintptr(nreq), uintptr(unsafe.Pointer(data)));
++	errno = int(e1);
++	return;
++}
++
++func AudioShutdown() (errno int) {
++	_, _, e1 := Syscall(SYS_AUDIO_SHUTDOWN, 0, 0, 0);
++	errno = int(e1);
++	return;
++}
++
++func AudioStream(data *uint16, size *uintptr) (errno int) {
++	_, _, e1 := Syscall(SYS_AUDIO_STREAM, uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(size)), 0);
++	errno = int(e1);
++	return;
++}
++
+ 
+ 
+diff --git a/src/pkg/syscall/ztypes_nacl_386.go b/src/pkg/syscall/ztypes_nacl_386.go
+index e4bb25bb82..e2c33a2c5f 100644
+--- a/src/pkg/syscall/ztypes_nacl_386.go
++++ b/src/pkg/syscall/ztypes_nacl_386.go
+@@ -11,6 +11,9 @@ const (
+ 	sizeofInt = 0x4;
+ 	sizeofLong = 0x4;
+ 	sizeofLongLong = 0x8;
++	PROT_READ = 0x1;
++	PROT_WRITE = 0x2;
++	MAP_SHARED = 0x1;
+ 	SYS_FORK = 0;
+ 	SYS_PTRACE = 0;
+ 	SYS_CHDIR = 0;

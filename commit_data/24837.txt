@@ -10,6 +10,19 @@ Date:   Thu Sep 3 14:28:52 2015 -0700
     Change-Id: I994de2064da5c326c9cade2c33cbb15bdbce5acb
     Reviewed-on: https://go-review.googlesource.com/14256
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index f0cad90d40..c2ad49e954 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -114,6 +114,7 @@ func buildssa(fn *Node) (ssafn *ssa.Func, usessa bool) {
+ 
+ 	// fallthrough to exit
+ 	if b := s.endBlock(); b != nil {
++		b.Kind = ssa.BlockRet
+ 		b.AddEdgeTo(s.exit)
+ 	}
+ 

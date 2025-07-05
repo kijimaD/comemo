@@ -16,6 +16,30 @@ Date:   Tue Jun 25 11:46:39 2024 -0400
     Reviewed-by: Russell Webb <russell.webb@protonmail.com>
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/tls/bogo_shim_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index 38087d2b1c..f481a5a40f 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -54,6 +54,7 @@ var (
+ 	echConfigListB64           = flag.String("ech-config-list", "", "")
+ 	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
+ 	expectHRR                  = flag.Bool("expect-hrr", false, "")
++	expectNoHRR                = flag.Bool("expect-no-hrr", false, "")
+ 	expectedECHRetryConfigs    = flag.String("expect-ech-retry-configs", "", "")
+ 	expectNoECHRetryConfigs    = flag.Bool("expect-no-ech-retry-configs", false, "")
+ 	onInitialExpectECHAccepted = flag.Bool("on-initial-expect-ech-accept", false, "")
+@@ -283,6 +284,10 @@ func bogoShim() {
+ 				log.Fatal("expected HRR but did not do it")
+ 			}
+ 
++			if *expectNoHRR && cs.testingOnlyDidHRR {
++				log.Fatal("expected no HRR but did do it")
++			}
++
+ 			if *expectSessionMiss && cs.DidResume {
+ 				log.Fatal("unexpected session resumption")
+ 			}

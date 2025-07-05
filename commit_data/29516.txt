@@ -13,7 +13,44 @@ Date:   Mon Sep 19 14:11:20 2016 -0400
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: David Crawshaw <crawshaw@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go   | 2 +-
  src/cmd/link/internal/amd64/asm.go | 5 ++++-
  2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index a4c9603534..f1f8e6f264 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -2769,7 +2769,7 @@ func vaddr(ctxt *obj.Link, p *obj.Prog, a *obj.Addr, r *obj.Reloc) int64 {
+ 			log.Fatalf("reloc")
+ 		}
+ 
+-		if !ctxt.Flag_shared || isAndroid {
++		if !ctxt.Flag_shared || isAndroid || ctxt.Headtype == obj.Hdarwin {
+ 			r.Type = obj.R_TLS_LE
+ 			r.Siz = 4
+ 			r.Off = -1 // caller must fill in
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f074dbe6f9..2de86ea1db 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -425,7 +425,7 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 
+ 	rs := r.Xsym
+ 
+-	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_PCREL {
++	if rs.Type == obj.SHOSTOBJ || r.Type == obj.R_PCREL || r.Type == obj.R_GOTPCREL {
+ 		if rs.Dynid < 0 {
+ 			ld.Errorf(s, "reloc %d to non-macho symbol %s type=%d", r.Type, rs.Name, rs.Type)
+ 			return -1
+@@ -456,6 +456,9 @@ func machoreloc1(s *ld.Symbol, r *ld.Reloc, sectoff int64) int {
+ 	case obj.R_PCREL:
+ 		v |= 1 << 24 // pc-relative bit
+ 		v |= ld.MACHO_X86_64_RELOC_SIGNED << 28
++	case obj.R_GOTPCREL:
++		v |= 1 << 24 // pc-relative bit
++		v |= ld.MACHO_X86_64_RELOC_GOT_LOAD << 28
+ 	}
+ 
+ 	switch r.Siz {

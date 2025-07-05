@@ -12,8 +12,79 @@ Date:   Thu Jun 3 22:07:36 2021 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/scanner/scanner.go      |  2 ++
  src/go/scanner/scanner_test.go |  3 ++-
  src/go/token/token.go          | 11 ++++++++++-
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 29cbf39721..f8bcf4d864 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -969,6 +969,8 @@ scanAgain:
+ 			}
+ 		case '|':
+ 			tok = s.switch3(token.OR, token.OR_ASSIGN, '|', token.LOR)
++		case '~':
++			tok = token.TILDE
+ 		default:
+ 			// next reports unexpected BOMs - don't repeat
+ 			if ch != bom {
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index ac8d257716..dd3c7cf838 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -40,7 +40,7 @@ type elt struct {
+ 	class int
+ }
+ 
+-var tokens = [...]elt{
++var tokens = []elt{
+ 	// Special tokens
+ 	{token.COMMENT, "/* a comment */", special},
+ 	{token.COMMENT, "// a comment \n", special},
+@@ -149,6 +149,7 @@ var tokens = [...]elt{
+ 	{token.RBRACE, "}", operator},
+ 	{token.SEMICOLON, ";", operator},
+ 	{token.COLON, ":", operator},
++	{token.TILDE, "~", operator},
+ 
+ 	// Keywords
+ 	{token.BREAK, "break", keyword},
+diff --git a/src/go/token/token.go b/src/go/token/token.go
+index 96a1079ec3..d22e575661 100644
+--- a/src/go/token/token.go
++++ b/src/go/token/token.go
+@@ -125,6 +125,11 @@ const (
+ 	TYPE
+ 	VAR
+ 	keyword_end
++
++	additional_beg
++	// additional tokens, handled in an ad-hoc manner
++	TILDE
++	additional_end
+ )
+ 
+ var tokens = [...]string{
+@@ -225,6 +230,8 @@ var tokens = [...]string{
+ 	SWITCH: "switch",
+ 	TYPE:   "type",
+ 	VAR:    "var",
++
++	TILDE: "~",
+ }
+ 
+ // String returns the string corresponding to the token tok.
+@@ -304,7 +311,9 @@ func (tok Token) IsLiteral() bool { return literal_beg < tok && tok < literal_en
+ // IsOperator returns true for tokens corresponding to operators and
+ // delimiters; it returns false otherwise.
+ //
+-func (tok Token) IsOperator() bool { return operator_beg < tok && tok < operator_end }
++func (tok Token) IsOperator() bool {
++	return (operator_beg < tok && tok < operator_end) || tok == TILDE
++}
+ 
+ // IsKeyword returns true for tokens corresponding to keywords;
+ // it returns false otherwise.

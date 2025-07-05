@@ -7,7 +7,7 @@ Date:   Wed Mar 23 11:31:42 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4273097
-
+---
  src/pkg/runtime/darwin/386/defs.h   | 29 ++++++++++++++++++++++-------
  src/pkg/runtime/darwin/386/sys.s    |  5 +++++
  src/pkg/runtime/darwin/amd64/defs.h | 34 +++++++++++++++++++++++++---------
@@ -27,3 +27,549 @@ Date:   Wed Mar 23 11:31:42 2011 -0400
  src/pkg/runtime/linux/defs2.c       |  8 ++++++--
  src/pkg/runtime/linux/os.h          |  4 ++++
  18 files changed, 158 insertions(+), 22 deletions(-)
+
+diff --git a/src/pkg/runtime/darwin/386/defs.h b/src/pkg/runtime/darwin/386/defs.h
+index f9d874d85c..bb70207fda 100644
+--- a/src/pkg/runtime/darwin/386/defs.h
++++ b/src/pkg/runtime/darwin/386/defs.h
+@@ -89,6 +89,9 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_VIRTUAL = 0x1,
++	ITIMER_PROF = 0x2,
+ };
+ 
+ // Types
+@@ -139,14 +142,14 @@ struct StackT {
+ 
+ typedef union Sighandler Sighandler;
+ union Sighandler {
+-	void *__sa_handler;
+-	void *__sa_sigaction;
++	uint32 __sa_handler;
++	uint32 __sa_sigaction;
+ };
+ 
+ typedef struct Sigaction Sigaction;
+ struct Sigaction {
+ 	Sighandler __sigaction_u;
+-	void *sa_tramp;
++	uint32 sa_tramp;
+ 	uint32 sa_mask;
+ 	int32 sa_flags;
+ };
+@@ -171,14 +174,26 @@ struct Siginfo {
+ 	uint32 __pad[7];
+ };
+ 
++typedef struct Timeval Timeval;
++struct Timeval {
++	int32 tv_sec;
++	int32 tv_usec;
++};
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
++};
++
+ typedef struct FPControl FPControl;
+ struct FPControl {
+-	byte pad0[2];
++	byte pad_godefs_0[2];
+ };
+ 
+ typedef struct FPStatus FPStatus;
+ struct FPStatus {
+-	byte pad0[2];
++	byte pad_godefs_0[2];
+ };
+ 
+ typedef struct RegMMST RegMMST;
+@@ -214,7 +229,7 @@ struct Regs {
+ 
+ typedef struct FloatState FloatState;
+ struct FloatState {
+-	int32 fpu_reserved[2];
++	uint64 fpu_reserved;
+ 	FPControl fpu_fcw;
+ 	FPStatus fpu_fsw;
+ 	uint8 fpu_ftw;
+@@ -267,7 +282,7 @@ struct Ucontext {
+ 	int32 uc_onstack;
+ 	uint32 uc_sigmask;
+ 	StackT uc_stack;
+-	Ucontext *uc_link;
++	uint32 uc_link;
+ 	uint32 uc_mcsize;
+ 	Mcontext *uc_mcontext;
+ };
+diff --git a/src/pkg/runtime/darwin/386/sys.s b/src/pkg/runtime/darwin/386/sys.s
+index 9d2caca0a1..08eca9d5a8 100644
+--- a/src/pkg/runtime/darwin/386/sys.s
++++ b/src/pkg/runtime/darwin/386/sys.s
+@@ -45,6 +45,11 @@ TEXT runtime·munmap(SB),7,$0
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
++TEXT runtime·setitimer(SB),7,$0
++	MOVL	$83, AX
++	INT	$0x80
++	RET
++
+ // void gettime(int64 *sec, int32 *usec)
+ TEXT runtime·gettime(SB), 7, $32
+ 	LEAL	12(SP), AX	// must be non-nil, unused
+diff --git a/src/pkg/runtime/darwin/amd64/defs.h b/src/pkg/runtime/darwin/amd64/defs.h
+index 09e595988d..90f798e8a7 100644
+--- a/src/pkg/runtime/darwin/amd64/defs.h
++++ b/src/pkg/runtime/darwin/amd64/defs.h
+@@ -89,6 +89,9 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_VIRTUAL = 0x1,
++	ITIMER_PROF = 0x2,
+ };
+ 
+ // Types
+@@ -135,19 +138,19 @@ struct StackT {
+ 	void *ss_sp;
+ 	uint64 ss_size;
+ 	int32 ss_flags;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ };
+ 
+ typedef union Sighandler Sighandler;
+ union Sighandler {
+-	void *__sa_handler;
+-	void *__sa_sigaction;
++	uint64 __sa_handler;
++	uint64 __sa_sigaction;
+ };
+ 
+ typedef struct Sigaction Sigaction;
+ struct Sigaction {
+ 	Sighandler __sigaction_u;
+-	void *sa_tramp;
++	uint64 sa_tramp;
+ 	uint32 sa_mask;
+ 	int32 sa_flags;
+ };
+@@ -172,14 +175,27 @@ struct Siginfo {
+ 	uint64 __pad[7];
+ };
+ 
++typedef struct Timeval Timeval;
++struct Timeval {
++	int64 tv_sec;
++	int32 tv_usec;
++	byte pad_godefs_0[4];
++};
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
++};
++
+ typedef struct FPControl FPControl;
+ struct FPControl {
+-	byte pad0[2];
++	byte pad_godefs_0[2];
+ };
+ 
+ typedef struct FPStatus FPStatus;
+ struct FPStatus {
+-	byte pad0[2];
++	byte pad_godefs_0[2];
+ };
+ 
+ typedef struct RegMMST RegMMST;
+@@ -220,7 +236,7 @@ struct Regs {
+ 
+ typedef struct FloatState FloatState;
+ struct FloatState {
+-	int32 fpu_reserved[2];
++	uint64 fpu_reserved;
+ 	FPControl fpu_fcw;
+ 	FPStatus fpu_fsw;
+ 	uint8 fpu_ftw;
+@@ -274,7 +290,7 @@ struct Mcontext {
+ 	ExceptionState es;
+ 	Regs ss;
+ 	FloatState fs;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ };
+ 
+ typedef struct Ucontext Ucontext;
+@@ -282,7 +298,7 @@ struct Ucontext {
+ 	int32 uc_onstack;
+ 	uint32 uc_sigmask;
+ 	StackT uc_stack;
+-	Ucontext *uc_link;
++	uint64 uc_link;
+ 	uint64 uc_mcsize;
+ 	Mcontext *uc_mcontext;
+ };
+diff --git a/src/pkg/runtime/darwin/amd64/sys.s b/src/pkg/runtime/darwin/amd64/sys.s
+index 4f9e0d77a5..10d8f96df5 100644
+--- a/src/pkg/runtime/darwin/amd64/sys.s
++++ b/src/pkg/runtime/darwin/amd64/sys.s
+@@ -38,11 +38,19 @@ TEXT runtime·write(SB),7,$0
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·setitimer(SB), 7, $0
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$(0x2000000+83), AX	// syscall entry
++	SYSCALL
++	RET
++
+ // void gettime(int64 *sec, int32 *usec)
+ TEXT runtime·gettime(SB), 7, $32
+ 	MOVQ	SP, DI	// must be non-nil, unused
+ 	MOVQ	$0, SI
+-	MOVQ	$(0x2000000+116), AX
++	MOVL	$(0x2000000+116), AX
+ 	SYSCALL
+ 	MOVQ	sec+0(FP), DI
+ 	MOVQ	AX, (DI)
+diff --git a/src/pkg/runtime/darwin/defs.c b/src/pkg/runtime/darwin/defs.c
+index 1a1cdf880c..032a6bcbb3 100644
+--- a/src/pkg/runtime/darwin/defs.c
++++ b/src/pkg/runtime/darwin/defs.c
+@@ -116,6 +116,10 @@ enum {
+ 	
+ 	$SEGV_MAPERR = SEGV_MAPERR,
+ 	$SEGV_ACCERR = SEGV_ACCERR,
++	
++	$ITIMER_REAL = ITIMER_REAL,
++	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
++	$ITIMER_PROF = ITIMER_PROF,
+ };
+ 
+ typedef mach_msg_body_t	$MachBody;
+@@ -130,6 +134,8 @@ typedef struct __sigaction	$Sigaction;	// used in syscalls
+ // typedef struct sigaction	$Sigaction;	// used by the C library
+ typedef union sigval $Sigval;
+ typedef siginfo_t $Siginfo;
++typedef struct timeval	$Timeval;
++typedef struct itimerval	$Itimerval;
+ 
+ typedef struct fp_control $FPControl;
+ typedef struct fp_status $FPStatus;
+diff --git a/src/pkg/runtime/darwin/os.h b/src/pkg/runtime/darwin/os.h
+index 35ef4e6d9e..339768e516 100644
+--- a/src/pkg/runtime/darwin/os.h
++++ b/src/pkg/runtime/darwin/os.h
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#define SIG_DFL ((void*)0)
++#define SIG_IGN ((void*)1)
++
+ int32	runtime·bsdthread_create(void*, M*, G*, void(*)(void));
+ void	runtime·bsdthread_register(void);
+ int32	runtime·mach_msg_trap(MachHeader*, int32, uint32, uint32, uint32, uint32, uint32);
+@@ -23,3 +26,4 @@ struct StackT;
+ void	runtime·sigaltstack(struct StackT*, struct StackT*);
+ void	runtime·sigtramp(void);
+ void	runtime·sigpanic(void);
++void	runtime·setitimer(int32, Itimerval*, Itimerval*);
+diff --git a/src/pkg/runtime/freebsd/386/sys.s b/src/pkg/runtime/freebsd/386/sys.s
+index 60c189bf83..c4715b668b 100644
+--- a/src/pkg/runtime/freebsd/386/sys.s
++++ b/src/pkg/runtime/freebsd/386/sys.s
+@@ -87,6 +87,11 @@ TEXT runtime·munmap(SB),7,$-4
+ 	CALL	runtime·notok(SB)
+ 	RET
+ 
++TEXT runtime·setitimer(SB), 7, $-4
++	MOVL	$83, AX
++	INT	$0x80
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAL	12(SP), BX
+diff --git a/src/pkg/runtime/freebsd/amd64/sys.s b/src/pkg/runtime/freebsd/amd64/sys.s
+index d986e9ac07..9a6fdf1ac6 100644
+--- a/src/pkg/runtime/freebsd/amd64/sys.s
++++ b/src/pkg/runtime/freebsd/amd64/sys.s
+@@ -65,6 +65,14 @@ TEXT runtime·write(SB),7,$-8
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·setitimer(SB), 7, $-8
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$83, AX
++	SYSCALL
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	MOVL	$116, AX
+ 	LEAQ	8(SP), DI
+diff --git a/src/pkg/runtime/freebsd/defs.c b/src/pkg/runtime/freebsd/defs.c
+index 32a80f4756..faa1447ccb 100644
+--- a/src/pkg/runtime/freebsd/defs.c
++++ b/src/pkg/runtime/freebsd/defs.c
+@@ -86,6 +86,10 @@ enum {
+ 	
+ 	$SEGV_MAPERR = SEGV_MAPERR,
+ 	$SEGV_ACCERR = SEGV_ACCERR,
++	
++	$ITIMER_REAL = ITIMER_REAL,
++	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
++	$ITIMER_PROF = ITIMER_PROF,
+ };
+ 
+ typedef struct rtprio	$Rtprio;
+@@ -99,3 +103,4 @@ typedef siginfo_t $Siginfo;
+ 
+ typedef mcontext_t $Mcontext;
+ typedef ucontext_t $Ucontext;
++typedef struct itimerval $Itimerval;
+diff --git a/src/pkg/runtime/freebsd/os.h b/src/pkg/runtime/freebsd/os.h
+index 455355bc70..fd954c0e6e 100644
+--- a/src/pkg/runtime/freebsd/os.h
++++ b/src/pkg/runtime/freebsd/os.h
+@@ -1,5 +1,9 @@
++#define SIG_DFL ((void*)0)
++#define SIG_IGN ((void*)1)
++
+ int32 runtime·thr_new(ThrParam*, int32);
+ void runtime·sigpanic(void);
+ void runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ struct sigaction;
+ void runtime·sigaction(int32, struct sigaction*, struct sigaction*);
++void	runtiem·setitimerval(int32, Itimerval*, Itimerval*);
+diff --git a/src/pkg/runtime/linux/386/defs.h b/src/pkg/runtime/linux/386/defs.h
+index c1f58b2a08..6ae1c4e139 100644
+--- a/src/pkg/runtime/linux/386/defs.h
++++ b/src/pkg/runtime/linux/386/defs.h
+@@ -58,6 +58,9 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_VIRTUAL = 0x1,
++	ITIMER_PROF = 0x2,
+ };
+ 
+ // Types
+@@ -98,7 +101,8 @@ struct Fpstate {
+ 	uint32 reserved;
+ 	Fpxreg _fxsr_st[8];
+ 	Xmmreg _xmm[8];
+-	uint32 padding[56];
++	uint32 padding1[44];
++	byte Pad_godefs_0[48];
+ };
+ 
+ typedef struct Timespec Timespec;
+@@ -176,4 +180,10 @@ struct Ucontext {
+ 	Sigcontext uc_mcontext;
+ 	uint32 uc_sigmask;
+ };
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
++};
+ #pragma pack off
+diff --git a/src/pkg/runtime/linux/386/sys.s b/src/pkg/runtime/linux/386/sys.s
+index a684371bea..c39ce253f0 100644
+--- a/src/pkg/runtime/linux/386/sys.s
++++ b/src/pkg/runtime/linux/386/sys.s
+@@ -30,6 +30,15 @@ TEXT runtime·write(SB),7,$0
+ 	INT	$0x80
+ 	RET
+ 
++
++TEXT runtime·setitimer(SB),7,$0-24
++	MOVL	$104, AX			// syscall - setitimer
++	MOVL	4(SP), BX
++	MOVL	8(SP), CX
++	MOVL	12(SP), DX
++	INT	$0x80
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	MOVL	$78, AX			// syscall - gettimeofday
+ 	LEAL	8(SP), BX
+diff --git a/src/pkg/runtime/linux/amd64/defs.h b/src/pkg/runtime/linux/amd64/defs.h
+index 3e3d32f0d4..70d63145c6 100644
+--- a/src/pkg/runtime/linux/amd64/defs.h
++++ b/src/pkg/runtime/linux/amd64/defs.h
+@@ -58,6 +58,9 @@ enum {
+ 	BUS_OBJERR = 0x3,
+ 	SEGV_MAPERR = 0x1,
+ 	SEGV_ACCERR = 0x2,
++	ITIMER_REAL = 0,
++	ITIMER_VIRTUAL = 0x1,
++	ITIMER_PROF = 0x2,
+ };
+ 
+ // Types
+@@ -88,9 +91,15 @@ struct Siginfo {
+ 	int32 si_signo;
+ 	int32 si_errno;
+ 	int32 si_code;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ 	byte _sifields[112];
+ };
++
++typedef struct Itimerval Itimerval;
++struct Itimerval {
++	Timeval it_interval;
++	Timeval it_value;
++};
+ #pragma pack off
+ // godefs -f -m64 defs1.c
+ 
+@@ -170,7 +179,7 @@ typedef struct Sigaltstack Sigaltstack;
+ struct Sigaltstack {
+ 	void *ss_sp;
+ 	int32 ss_flags;
+-	byte pad0[4];
++	byte pad_godefs_0[4];
+ 	uint64 ss_size;
+ };
+ 
+diff --git a/src/pkg/runtime/linux/amd64/sys.s b/src/pkg/runtime/linux/amd64/sys.s
+index 1bf734dc06..11df1f894b 100644
+--- a/src/pkg/runtime/linux/amd64/sys.s
++++ b/src/pkg/runtime/linux/amd64/sys.s
+@@ -36,6 +36,14 @@ TEXT runtime·write(SB),7,$0-24
+ 	SYSCALL
+ 	RET
+ 
++TEXT runtime·setitimer(SB),7,$0-24
++	MOVL	8(SP), DI
++	MOVQ	16(SP), SI
++	MOVQ	24(SP), DX
++	MOVL	$38, AX			// syscall entry
++	SYSCALL
++	RET
++
+ TEXT runtime·gettime(SB), 7, $32
+ 	LEAQ	8(SP), DI
+ 	MOVQ	$0, SI
+diff --git a/src/pkg/runtime/linux/arm/sys.s b/src/pkg/runtime/linux/arm/sys.s
+index 9daf9c2e4d..2b01f0cbb3 100644
+--- a/src/pkg/runtime/linux/arm/sys.s
++++ b/src/pkg/runtime/linux/arm/sys.s
+@@ -26,6 +26,7 @@
+ #define SYS_futex (SYS_BASE + 240)
+ #define SYS_exit_group (SYS_BASE + 248)
+ #define SYS_munmap (SYS_BASE + 91)
++#define SYS_setitimer (SYS_BASE + 104)
+ 
+ #define ARM_BASE (SYS_BASE + 0x0f0000)
+ #define SYS_ARM_cacheflush (ARM_BASE + 2)
+@@ -72,6 +73,14 @@ TEXT runtime·munmap(SB),7,$0
+ 	SWI	$0
+ 	RET
+ 
++TEXT runtime·getitimer(SB),7,$0
++	MOVW	0(FP), R0
++	MOVW	4(FP), R1
++	MOWW	8(FP), R2
++	MOVW	$SYS_setitimer, R7
++	SWI	$0
++	RET
++
+ TEXT runtime·gettime(SB),7,$32
+ 	/* dummy version - return 0,0 */
+ 	MOVW	$0, R1
+diff --git a/src/pkg/runtime/linux/defs.c b/src/pkg/runtime/linux/defs.c
+index 2044fd60c9..5dda787891 100644
+--- a/src/pkg/runtime/linux/defs.c
++++ b/src/pkg/runtime/linux/defs.c
+@@ -15,6 +15,8 @@
+ // headers for things like ucontext_t, so that happens in
+ // a separate file, defs1.c.
+ 
++#include <asm/posix_types.h>
++#define size_t __kernel_size_t
+ #include <asm/signal.h>
+ #include <asm/siginfo.h>
+ #include <asm/mman.h>
+@@ -80,9 +82,14 @@ enum {
+ 	
+ 	$SEGV_MAPERR = SEGV_MAPERR,
+ 	$SEGV_ACCERR = SEGV_ACCERR,
++	
++	$ITIMER_REAL = ITIMER_REAL,
++	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
++	$ITIMER_PROF = ITIMER_PROF,
+ };
+ 
+ typedef struct timespec $Timespec;
+ typedef struct timeval $Timeval;
+ typedef struct sigaction $Sigaction;
+ typedef siginfo_t $Siginfo;
++typedef struct itimerval $Itimerval;
+diff --git a/src/pkg/runtime/linux/defs2.c b/src/pkg/runtime/linux/defs2.c
+index 3c0b110fc9..ff641fff2b 100644
+--- a/src/pkg/runtime/linux/defs2.c
++++ b/src/pkg/runtime/linux/defs2.c
+@@ -8,7 +8,7 @@
+ 		-f -I/home/rsc/pub/linux-2.6/arch/x86/include \
+ 		-f -I/home/rsc/pub/linux-2.6/include \
+ 		-f -D_LOOSE_KERNEL_NAMES \
+-		-f -D__ARCH_SI_UID_T=__kernel_uid32_t \
++		-f -D__ARCH_SI_UID_T'='__kernel_uid32_t \
+ 		defs2.c >386/defs.h
+ 
+  * The asm header tricks we have to use for Linux on amd64
+@@ -100,6 +100,10 @@ enum {
+ 	
+ 	$SEGV_MAPERR = SEGV_MAPERR,
+ 	$SEGV_ACCERR = SEGV_ACCERR,
++	
++	$ITIMER_REAL = ITIMER_REAL,
++	$ITIMER_VIRTUAL = ITIMER_VIRTUAL,
++	$ITIMER_PROF = ITIMER_PROF,
+ };
+ 
+ typedef struct _fpreg $Fpreg;
+@@ -113,4 +117,4 @@ typedef siginfo_t $Siginfo;
+ typedef struct sigaltstack $Sigaltstack;
+ typedef struct sigcontext $Sigcontext;
+ typedef struct ucontext $Ucontext;
+-
++typedef struct itimerval $Itimerval;
+diff --git a/src/pkg/runtime/linux/os.h b/src/pkg/runtime/linux/os.h
+index 772ade7da9..6ae0889777 100644
+--- a/src/pkg/runtime/linux/os.h
++++ b/src/pkg/runtime/linux/os.h
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#define SIG_DFL ((void*)0)
++#define SIG_IGN ((void*)1)
++
+ // Linux-specific system calls
+ int32	runtime·futex(uint32*, int32, uint32, Timespec*, uint32*, uint32);
+ int32	runtime·clone(int32, void*, M*, G*, void(*)(void));
+@@ -11,3 +14,4 @@ void	runtime·rt_sigaction(uintptr, struct Sigaction*, void*, uintptr);
+ 
+ void	runtime·sigaltstack(Sigaltstack*, Sigaltstack*);
+ void	runtime·sigpanic(void);
++void runtime·setitimer(int32, Itimerval*, Itimerval*);

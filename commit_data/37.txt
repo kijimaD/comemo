@@ -5,6 +5,18 @@ Date:   Wed Mar 26 09:50:20 2008 -0700
     - fixed my scripts
     
     SVN=113864
-
+---
  test/runtests.sh | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/runtests.sh b/test/runtests.sh
+index 75b7ae26a6..48f512a4f4 100755
+--- a/test/runtests.sh
++++ b/test/runtests.sh
+@@ -4,5 +4,5 @@
+ 
+ #!/bin/bash
+ for f in *.go; do
+-  ../src/go $f
++  go $f
+ done

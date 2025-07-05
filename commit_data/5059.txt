@@ -9,7 +9,7 @@ Date:   Tue Mar 16 16:45:54 2010 -0700
     R=rsc
     CC=golang-dev, r
     https://golang.org/cl/606041
-
+---
  src/cmd/godoc/main.go                           |  4 +--
  src/pkg/go/ast/scope.go                         | 10 +++---
  src/pkg/go/parser/parser.go                     |  6 ++--
@@ -27,3 +27,470 @@ Date:   Tue Mar 16 16:45:54 2010 -0700
  src/pkg/runtime/type.go                         |  6 ++--
  src/pkg/testing/regexp.go                       | 22 ++++++------
  16 files changed, 138 insertions(+), 88 deletions(-)
+
+diff --git a/src/cmd/godoc/main.go b/src/cmd/godoc/main.go
+index f7dc522f2f..f640029b12 100644
+--- a/src/cmd/godoc/main.go
++++ b/src/cmd/godoc/main.go
+@@ -39,8 +39,8 @@ import (
+ 
+ var (
+ 	// periodic sync
+-	syncCmd             = flag.String("sync", "", "sync command; disabled if empty")
+-	syncMin             = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
++	syncCmd   = flag.String("sync", "", "sync command; disabled if empty")
++	syncMin   = flag.Int("sync_minutes", 0, "sync interval in minutes; disabled if <= 0")
+ 	syncDelay delayTime // actual sync delay in minutes; usually syncDelay == syncMin, but delay may back off exponentially
+ 
+ 	// server control
+diff --git a/src/pkg/go/ast/scope.go b/src/pkg/go/ast/scope.go
+index 32b9d9d9f9..b5a38484ef 100644
+--- a/src/pkg/go/ast/scope.go
++++ b/src/pkg/go/ast/scope.go
+@@ -11,11 +11,11 @@ type ObjKind int
+ // The list of possible Object kinds.
+ const (
+ 	Err ObjKind = iota // object kind unknown (forward reference or error)
+-	Pkg         // package
+-	Con         // constant
+-	Typ         // type
+-	Var         // variable
+-	Fun         // function or method
++	Pkg                // package
++	Con                // constant
++	Typ                // type
++	Var                // variable
++	Fun                // function or method
+ )
+ 
+ 
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index 9928496e6c..2002d3818b 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -28,9 +28,9 @@ var noPos token.Position
+ //
+ const (
+ 	PackageClauseOnly uint = 1 << iota // parsing stops after package clause
+-	ImportsOnly            // parsing stops after import declarations
+-	ParseComments          // parse comments and add them to AST
+-	Trace                  // print a trace of parsed productions
++	ImportsOnly                        // parsing stops after import declarations
++	ParseComments                      // parse comments and add them to AST
++	Trace                              // print a trace of parsed productions
+ )
+ 
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 9e2a8c8568..8a6ac1a171 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -85,10 +85,10 @@ type exprListMode uint
+ 
+ const (
+ 	blankStart exprListMode = 1 << iota // print a blank before a non-empty list
+-	blankEnd                // print a blank after a non-empty list
+-	commaSep                // elements are separated by commas
+-	commaTerm               // list is optionally terminated by a comma
+-	noIndent                // no extra indentation in multi-line lists
++	blankEnd                            // print a blank after a non-empty list
++	commaSep                            // elements are separated by commas
++	commaTerm                           // list is optionally terminated by a comma
++	noIndent                            // no extra indentation in multi-line lists
+ )
+ 
+ 
+@@ -1105,11 +1105,6 @@ const (
+ // multiLine to true if the spec spans multiple lines.
+ //
+ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, multiLine *bool) {
+-	var (
+-		comment   *ast.CommentGroup // a line comment, if any
+-		extraTabs int               // number of extra tabs before comment, if any
+-	)
+-
+ 	switch s := spec.(type) {
+ 	case *ast.ImportSpec:
+ 		p.setComment(s.Doc)
+@@ -1118,7 +1113,7 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
+ 			p.print(blank)
+ 		}
+ 		p.expr(s.Path, multiLine)
+-		comment = s.Comment
++		p.setComment(s.Comment)
+ 
+ 	case *ast.ValueSpec:
+ 		p.setComment(s.Doc)
+@@ -1132,23 +1127,27 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
+ 				p.print(blank, token.ASSIGN)
+ 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
+ 			}
++			p.setComment(s.Comment)
++
+ 		} else {
+-			extraTabs = 2
+-			if s.Type != nil || s.Values != nil {
+-				p.print(vtab)
+-			}
++			extraTabs := 3
+ 			if s.Type != nil {
++				p.print(vtab)
+ 				p.expr(s.Type, multiLine)
+-				extraTabs = 1
++				extraTabs--
+ 			}
+ 			if s.Values != nil {
+-				p.print(vtab)
+-				p.print(token.ASSIGN)
++				p.print(vtab, token.ASSIGN)
+ 				p.exprList(noPos, s.Values, 1, blankStart|commaSep, multiLine, noPos)
+-				extraTabs = 0
++				extraTabs--
++			}
++			if s.Comment != nil {
++				for ; extraTabs > 0; extraTabs-- {
++					p.print(vtab)
++				}
++				p.setComment(s.Comment)
+ 			}
+ 		}
+-		comment = s.Comment
+ 
+ 	case *ast.TypeSpec:
+ 		p.setComment(s.Doc)
+@@ -1159,18 +1158,11 @@ func (p *printer) spec(spec ast.Spec, n int, context declContext, indent bool, m
+ 			p.print(vtab)
+ 		}
+ 		p.expr(s.Type, multiLine)
+-		comment = s.Comment
++		p.setComment(s.Comment)
+ 
+ 	default:
+ 		panic("unreachable")
+ 	}
+-
+-	if comment != nil {
+-		for ; extraTabs > 0; extraTabs-- {
+-			p.print(vtab)
+-		}
+-		p.setComment(comment)
+-	}
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/printer.go b/src/pkg/go/printer/printer.go
+index 87db4f3e6b..3bb51b466f 100644
+--- a/src/pkg/go/printer/printer.go
++++ b/src/pkg/go/printer/printer.go
+@@ -932,9 +932,9 @@ func (p *trimmer) Write(data []byte) (n int, err os.Error) {
+ // General printing is controlled with these Config.Mode flags.
+ const (
+ 	GenHTML   uint = 1 << iota // generate HTML
+-	RawFormat      // do not use a tabwriter; if set, UseSpaces is ignored
+-	TabIndent      // use tabs for indentation independent of UseSpaces
+-	UseSpaces      // use spaces instead of tabs for alignment
++	RawFormat                  // do not use a tabwriter; if set, UseSpaces is ignored
++	TabIndent                  // use tabs for indentation independent of UseSpaces
++	UseSpaces                  // use spaces instead of tabs for alignment
+ )
+ 
+ 
+diff --git a/src/pkg/go/printer/testdata/comments.golden b/src/pkg/go/printer/testdata/comments.golden
+index 0bd742bd11..f216b0b644 100644
+--- a/src/pkg/go/printer/testdata/comments.golden
++++ b/src/pkg/go/printer/testdata/comments.golden
+@@ -11,9 +11,38 @@ import "fmt"	// fmt
+ const c0 = 0	// zero
+ const (
+ 	c1	= iota	// c1
+-	c2	// c2
++	c2		// c2
+ )
+ 
++// Alignment of comments in declarations>
++const (
++	_	T	= iota	// comment
++	_			// comment
++	_			// comment
++	_	= iota + 10
++	_	// comments
++
++	_	= 10		// comment
++	_	T	= 20	// comment
++)
++
++const (
++	_____	= iota	// foo
++	_		// bar
++	_	= 0	// bal
++	_		// bat
++)
++
++const (
++	_	T	= iota	// comment
++	_			// comment
++	_			// comment
++	_	= iota + 10
++	_	// comment
++	_	= 10
++	_	= 20		// comment
++	_	T	= 0	// comment
++)
+ 
+ // The SZ struct; it is empty.
+ type SZ struct{}
+diff --git a/src/pkg/go/printer/testdata/comments.input b/src/pkg/go/printer/testdata/comments.input
+index 7a0245c796..8ed26c5ab1 100644
+--- a/src/pkg/go/printer/testdata/comments.input
++++ b/src/pkg/go/printer/testdata/comments.input
+@@ -14,6 +14,35 @@ const (
+ 	c2  // c2
+ )
+ 
++// Alignment of comments in declarations>
++const (
++	_ T = iota  // comment
++	_  // comment
++	_  // comment
++	_ = iota+10
++	_  // comments
++
++	_ = 10  // comment
++	_ T = 20  // comment
++)
++
++const (
++	_____ = iota // foo
++	_ // bar
++	_  = 0    // bal
++	_ // bat
++)
++
++const (
++	_ T = iota // comment
++	_ // comment
++	_ // comment
++	_ = iota + 10
++	_ // comment
++	_ = 10
++	_ = 20 // comment
++	_ T = 0 // comment
++)
+ 
+ // The SZ struct; it is empty.
+ type SZ struct {}
+diff --git a/src/pkg/go/printer/testdata/declarations.golden b/src/pkg/go/printer/testdata/declarations.golden
+index 2fe518e96b..9772e837f3 100644
+--- a/src/pkg/go/printer/testdata/declarations.golden
++++ b/src/pkg/go/printer/testdata/declarations.golden
+@@ -282,11 +282,11 @@ func _() {
+ 	)
+ 	// some entries have a type
+ 	const (
+-		xxxxxx			= 1
+-		x			= 2
+-		xxx			= 3
++		xxxxxx		= 1
++		x		= 2
++		xxx		= 3
+ 		yyyyyyyy	float	= iota
+-		yyyy			= "bar"
++		yyyy		= "bar"
+ 		yyy
+ 		yy	= 2
+ 	)
+@@ -316,15 +316,15 @@ func _() {
+ 		xxx		string
+ 		yyyyyyyy	int	= 1234
+ 		y		float	= 3.14
+-		yyyy			= "bar"
++		yyyy		= "bar"
+ 		yyy		string	= "foo"
+ 	)
+ 	// mixed entries - all comments should be aligned
+ 	var (
+ 		a, b, c			int
+-		x				= 10
+-		d			int	// comment
+-		y				= 20		// comment
++		x			= 10
++		d			int			// comment
++		y			= 20			// comment
+ 		f, ff, fff, ffff	int	= 0, 1, 2, 3	// comment
+ 	)
+ 	// respect original line breaks
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index 3f3b460bc2..6ecfe13b56 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -289,12 +289,12 @@ func _() {
+ 
+ // Alignment after overlong lines
+ const (
+-	_		= "991"
+-	_		= "2432902008176640000"	// 20!
+-	_		= "933262154439441526816992388562667004907159682643816214685929" +
++	_	= "991"
++	_	= "2432902008176640000"		// 20!
++	_	= "933262154439441526816992388562667004907159682643816214685929" +
+ 		"638952175999932299156089414639761565182862536979208272237582" +
+ 		"51185210916864000000000000000000000000"	// 100!
+-	_		= "170141183460469231731687303715884105727"	// prime
++	_	= "170141183460469231731687303715884105727"		// prime
+ )
+ 
+ 
+diff --git a/src/pkg/go/scanner/errors.go b/src/pkg/go/scanner/errors.go
+index d1fdf2dcf4..47e35a7107 100644
+--- a/src/pkg/go/scanner/errors.go
++++ b/src/pkg/go/scanner/errors.go
+@@ -112,8 +112,8 @@ func (p ErrorList) String() string {
+ //
+ const (
+ 	Raw         = iota // leave error list unchanged
+-	Sorted      // sort error list by file, line, and column number
+-	NoMultiples // sort error list and leave only the first error per line
++	Sorted             // sort error list by file, line, and column number
++	NoMultiples        // sort error list and leave only the first error per line
+ )
+ 
+ 
+diff --git a/src/pkg/go/scanner/scanner.go b/src/pkg/go/scanner/scanner.go
+index b12f9152a6..576b95a289 100644
+--- a/src/pkg/go/scanner/scanner.go
++++ b/src/pkg/go/scanner/scanner.go
+@@ -76,8 +76,8 @@ func (S *Scanner) next() {
+ //
+ const (
+ 	ScanComments      = 1 << iota // return comments as COMMENT tokens
+-	AllowIllegalChars // do not report an error for illegal chars
+-	InsertSemis       // automatically insert semicolons
++	AllowIllegalChars             // do not report an error for illegal chars
++	InsertSemis                   // automatically insert semicolons
+ )
+ 
+ 
+diff --git a/src/pkg/log/log.go b/src/pkg/log/log.go
+index 83769be039..28d6204eb6 100644
+--- a/src/pkg/log/log.go
++++ b/src/pkg/log/log.go
+@@ -30,10 +30,10 @@ const (
+ 	// described in the comments).  A colon appears after these items:
+ 	//	2009/0123 01:23:23.123123 /a/b/c/d.go:23: message
+ 	Ldate         = 1 << iota // the date: 2009/0123
+-	Ltime         // the time: 01:23:23
+-	Lmicroseconds // microsecond resolution: 01:23:23.123123.  assumes Ltime.
+-	Llongfile     // full file name and line number: /a/b/c/d.go:23
+-	Lshortfile    // final file name element and line number: d.go:23. overrides Llongfile
++	Ltime                     // the time: 01:23:23
++	Lmicroseconds             // microsecond resolution: 01:23:23.123123.  assumes Ltime.
++	Llongfile                 // full file name and line number: /a/b/c/d.go:23
++	Lshortfile                // final file name element and line number: d.go:23. overrides Llongfile
+ 	lAllBits      = Ldate | Ltime | Lmicroseconds | Llongfile | Lshortfile
+ )
+ 
+diff --git a/src/pkg/rand/rand_test.go b/src/pkg/rand/rand_test.go
+index 786831517d..7ce3894db1 100644
+--- a/src/pkg/rand/rand_test.go
++++ b/src/pkg/rand/rand_test.go
+@@ -197,7 +197,7 @@ func initNorm() (testKn []uint32, testWn, testFn []float32) {
+ 	const m1 = 1 << 31
+ 	var (
+ 		dn float64 = rn
+-		tn         = dn
++		tn = dn
+ 		vn float64 = 9.91256303526217e-3
+ 	)
+ 
+@@ -226,7 +226,7 @@ func initExp() (testKe []uint32, testWe, testFe []float32) {
+ 	const m2 = 1 << 32
+ 	var (
+ 		de float64 = re
+-		te         = de
++		te = de
+ 		ve float64 = 3.9496598225815571993e-3
+ 	)
+ 
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index 216e80516c..ecef271784 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -82,17 +82,17 @@ type Regexp struct {
+ 
+ const (
+ 	_START     = iota // beginning of program
+-	_END       // end of program: success
+-	_BOT       // '^' beginning of text
+-	_EOT       // '$' end of text
+-	_CHAR      // 'a' regular character
+-	_CHARCLASS // [a-z] character class
+-	_ANY       // '.' any character including newline
+-	_NOTNL     // [^\n] special case: any character but newline
+-	_BRA       // '(' parenthesized expression
+-	_EBRA      // ')'; end of '(' parenthesized expression
+-	_ALT       // '|' alternation
+-	_NOP       // do nothing; makes it easy to link without patching
++	_END              // end of program: success
++	_BOT              // '^' beginning of text
++	_EOT              // '$' end of text
++	_CHAR             // 'a' regular character
++	_CHARCLASS        // [a-z] character class
++	_ANY              // '.' any character including newline
++	_NOTNL            // [^\n] special case: any character but newline
++	_BRA              // '(' parenthesized expression
++	_EBRA             // ')'; end of '(' parenthesized expression
++	_ALT              // '|' alternation
++	_NOP              // do nothing; makes it easy to link without patching
+ )
+ 
+ // --- START start of program
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index c37447718f..70b0040c6a 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -164,9 +164,9 @@ type SliceType struct {
+ type ChanDir int
+ 
+ const (
+-	RecvDir ChanDir = 1 << iota // <-chan
+-	SendDir         // chan<-
+-	BothDir         = RecvDir | SendDir // chan
++	RecvDir ChanDir             = 1 << iota // <-chan
++	SendDir                                 // chan<-
++	BothDir = RecvDir | SendDir             // chan
+ )
+ 
+ // ChanType represents a channel type.
+diff --git a/src/pkg/testing/regexp.go b/src/pkg/testing/regexp.go
+index a21d14e6b0..6584d47c18 100644
+--- a/src/pkg/testing/regexp.go
++++ b/src/pkg/testing/regexp.go
+@@ -77,17 +77,17 @@ type Regexp struct {
+ 
+ const (
+ 	_START     = iota // beginning of program
+-	_END       // end of program: success
+-	_BOT       // '^' beginning of text
+-	_EOT       // '$' end of text
+-	_CHAR      // 'a' regular character
+-	_CHARCLASS // [a-z] character class
+-	_ANY       // '.' any character including newline
+-	_NOTNL     // [^\n] special case: any character but newline
+-	_BRA       // '(' parenthesized expression
+-	_EBRA      // ')'; end of '(' parenthesized expression
+-	_ALT       // '|' alternation
+-	_NOP       // do nothing; makes it easy to link without patching
++	_END              // end of program: success
++	_BOT              // '^' beginning of text
++	_EOT              // '$' end of text
++	_CHAR             // 'a' regular character
++	_CHARCLASS        // [a-z] character class
++	_ANY              // '.' any character including newline
++	_NOTNL            // [^\n] special case: any character but newline
++	_BRA              // '(' parenthesized expression
++	_EBRA             // ')'; end of '(' parenthesized expression
++	_ALT              // '|' alternation
++	_NOP              // do nothing; makes it easy to link without patching
+ )
+ 
+ // --- START start of program

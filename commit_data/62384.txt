@@ -19,6 +19,27 @@ Date:   Wed Feb 26 21:04:04 2025 +0700
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/test/issue71943_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/compile/internal/test/issue71943_test.go b/src/cmd/compile/internal/test/issue71943_test.go
+index 23312b4ee1..a92b0a1e2b 100644
+--- a/src/cmd/compile/internal/test/issue71943_test.go
++++ b/src/cmd/compile/internal/test/issue71943_test.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"crypto/sha256"
++	"internal/testenv"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -15,6 +16,7 @@ func Verify(token, salt string) [32]byte {
+ }
+ 
+ func TestIssue71943(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
+ 	if n := testing.AllocsPerRun(10, func() {
+ 		runtime.KeepAlive(Verify("teststring", "test"))
+ 	}); n > 0 {

@@ -64,7 +64,7 @@ Date:   Fri Oct 27 15:36:59 2017 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 115 +++++++++++++++++++++++++++++++--
  src/cmd/compile/internal/gc/bimport.go |  21 +++---
  src/cmd/compile/internal/gc/dcl.go     |  18 +++---
@@ -72,3 +72,405 @@ Date:   Fri Oct 27 15:36:59 2017 -0700
  src/cmd/compile/internal/gc/inl.go     |  37 +++++++++++
  src/cmd/compile/internal/gc/syntax.go  |   3 +
  6 files changed, 173 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index 9950f8b855..8b1f8a1b80 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -174,6 +174,8 @@ type exporter struct {
+ 	typIndex  map[*types.Type]int
+ 	funcList  []*Func
+ 
++	marked map[*types.Type]bool // types already seen by markType
++
+ 	// position encoding
+ 	posInfoFormat bool
+ 	prevFile      string
+@@ -230,6 +232,23 @@ func export(out *bufio.Writer, trace bool) int {
+ 		p.tracef("\n")
+ 	}
+ 
++	// Mark all inlineable functions that the importer could call.
++	// This is done by tracking down all inlineable methods
++	// reachable from exported types.
++	p.marked = make(map[*types.Type]bool)
++	for _, n := range exportlist {
++		sym := n.Sym
++		if sym.Exported() {
++			// Closures are added to exportlist, but with Exported
++			// already set. The export code below skips over them, so
++			// we have to here as well.
++			// TODO(mdempsky): Investigate why. This seems suspicious.
++			continue
++		}
++		p.markType(asNode(sym.Def).Type)
++	}
++	p.marked = nil
++
+ 	// export objects
+ 	//
+ 	// First, export all exported (package-level) objects; i.e., all objects
+@@ -436,6 +455,72 @@ func unidealType(typ *types.Type, val Val) *types.Type {
+ 	return typ
+ }
+ 
++// markType recursively visits types reachable from t to identify
++// functions whose inline bodies may be needed.
++func (p *exporter) markType(t *types.Type) {
++	if p.marked[t] {
++		return
++	}
++	p.marked[t] = true
++
++	// If this is a named type, mark all of its associated
++	// methods. Skip interface types because t.Methods contains
++	// only their unexpanded method set (i.e., exclusive of
++	// interface embeddings), and the switch statement below
++	// handles their full method set.
++	if t.Sym != nil && t.Etype != TINTER {
++		for _, m := range t.Methods().Slice() {
++			if exportname(m.Sym.Name) {
++				p.markType(m.Type)
++			}
++		}
++	}
++
++	// Recursively mark any types that can be produced given a
++	// value of type t: dereferencing a pointer; indexing an
++	// array, slice, or map; receiving from a channel; accessing a
++	// struct field or interface method; or calling a function.
++	//
++	// Notably, we don't mark map key or function parameter types,
++	// because the user already needs some way to construct values
++	// of those types.
++	//
++	// It's not critical for correctness that this algorithm is
++	// perfect. Worst case, we might miss opportunities to inline
++	// some function calls in downstream packages.
++	switch t.Etype {
++	case TPTR32, TPTR64, TARRAY, TSLICE, TCHAN:
++		p.markType(t.Elem())
++
++	case TMAP:
++		p.markType(t.Val())
++
++	case TSTRUCT:
++		for _, f := range t.FieldSlice() {
++			if exportname(f.Sym.Name) || f.Embedded != 0 {
++				p.markType(f.Type)
++			}
++		}
++
++	case TFUNC:
++		// If t is the type of a function or method, then
++		// t.Nname() is its ONAME. Mark its inline body and
++		// any recursively called functions for export.
++		inlFlood(asNode(t.Nname()))
++
++		for _, f := range t.Results().FieldSlice() {
++			p.markType(f.Type)
++		}
++
++	case TINTER:
++		for _, f := range t.FieldSlice() {
++			if exportname(f.Sym.Name) {
++				p.markType(f.Type)
++			}
++		}
++	}
++}
++
+ func (p *exporter) obj(sym *types.Sym) {
+ 	// Exported objects may be from different packages because they
+ 	// may be re-exported via an exported alias or as dependencies in
+@@ -505,7 +590,7 @@ func (p *exporter) obj(sym *types.Sym) {
+ 			p.paramList(sig.Results(), inlineable)
+ 
+ 			var f *Func
+-			if inlineable {
++			if inlineable && asNode(sym.Def).Func.ExportInline() {
+ 				f = asNode(sym.Def).Func
+ 				// TODO(gri) re-examine reexportdeplist:
+ 				// Because we can trivially export types
+@@ -591,10 +676,28 @@ func fileLine(n *Node) (file string, line int) {
+ }
+ 
+ func isInlineable(n *Node) bool {
+-	if exportInlined && n != nil && n.Func != nil && n.Func.Inl.Len() != 0 {
+-		// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+-		// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+-		if Debug_typecheckinl == 0 {
++	if exportInlined && n != nil && n.Func != nil {
++		// When lazily typechecking inlined bodies, some
++		// re-exported ones may not have been typechecked yet.
++		// Currently that can leave unresolved ONONAMEs in
++		// import-dot-ed packages in the wrong package.
++		//
++		// TODO(mdempsky): Having the ExportInline check here
++		// instead of the outer if statement means we end up
++		// exporting parameter names even for functions whose
++		// inline body won't be exported by this package. This
++		// is currently necessary because we might first
++		// import a function/method from a package where it
++		// doesn't need to be re-exported, and then from a
++		// package where it does. If this happens, we'll need
++		// the parameter names.
++		//
++		// We could initially do without the parameter names,
++		// and then fill them in when importing the inline
++		// body. But parameter names are attached to the
++		// function type, and modifying types after the fact
++		// is a little sketchy.
++		if Debug_typecheckinl == 0 && n.Func.ExportInline() {
+ 			typecheckinl(n)
+ 		}
+ 		return true
+@@ -693,7 +796,7 @@ func (p *exporter) typ(t *types.Type) {
+ 			p.bool(m.Nointerface()) // record go:nointerface pragma value (see also #16243)
+ 
+ 			var f *Func
+-			if inlineable {
++			if inlineable && mfn.Func.ExportInline() {
+ 				f = mfn.Func
+ 				reexportdeplist(mfn.Func.Inl)
+ 			}
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index 19b5f5a051..2b95ac5375 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -188,7 +188,7 @@ func Import(imp *types.Pkg, in *bufio.Reader) {
+ 		// parameter renaming which doesn't matter if we don't have a body.
+ 
+ 		inlCost := p.int()
+-		if f := p.funcList[i]; f != nil {
++		if f := p.funcList[i]; f != nil && f.Func.Inl.Len() == 0 {
+ 			// function not yet imported - read body and set it
+ 			funchdr(f)
+ 			body := p.stmtList()
+@@ -357,12 +357,13 @@ func (p *importer) obj(tag int) {
+ 
+ 		sig := functypefield(nil, params, result)
+ 		importsym(p.imp, sym, ONAME)
+-		if asNode(sym.Def) != nil && asNode(sym.Def).Op == ONAME {
++		if old := asNode(sym.Def); old != nil && old.Op == ONAME {
+ 			// function was imported before (via another import)
+-			if !eqtype(sig, asNode(sym.Def).Type) {
+-				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, asNode(sym.Def).Type, sig)
++			if !eqtype(sig, old.Type) {
++				p.formatErrorf("inconsistent definition for func %v during import\n\t%v\n\t%v", sym, old.Type, sig)
+ 			}
+-			p.funcList = append(p.funcList, nil)
++			n := asNode(old.Type.Nname())
++			p.funcList = append(p.funcList, n)
+ 			break
+ 		}
+ 
+@@ -372,6 +373,8 @@ func (p *importer) obj(tag int) {
+ 		p.funcList = append(p.funcList, n)
+ 		importlist = append(importlist, n)
+ 
++		sig.SetNname(asTypesNode(n))
++
+ 		if Debug['E'] > 0 {
+ 			fmt.Printf("import [%q] func %v \n", p.imp.Path, n)
+ 			if Debug['m'] > 2 && n.Func.Inl.Len() != 0 {
+@@ -518,17 +521,19 @@ func (p *importer) typ() *types.Type {
+ 			nointerface := p.bool()
+ 
+ 			mt := functypefield(recv[0], params, result)
+-			addmethod(sym, mt, false, nointerface)
++			oldm := addmethod(sym, mt, false, nointerface)
+ 
+ 			if dup {
+ 				// An earlier import already declared this type and its methods.
+ 				// Discard the duplicate method declaration.
+-				p.funcList = append(p.funcList, nil)
++				n := asNode(oldm.Type.Nname())
++				p.funcList = append(p.funcList, n)
+ 				continue
+ 			}
+ 
+ 			n := newfuncnamel(mpos, methodname(sym, recv[0].Type))
+ 			n.Type = mt
++			n.SetClass(PFUNC)
+ 			checkwidth(n.Type)
+ 			p.funcList = append(p.funcList, n)
+ 			importlist = append(importlist, n)
+@@ -538,7 +543,7 @@ func (p *importer) typ() *types.Type {
+ 			// (dotmeth's type).Nname.Inl, and dotmeth's type has been pulled
+ 			// out by typecheck's lookdot as this $$.ttype. So by providing
+ 			// this back link here we avoid special casing there.
+-			n.Type.FuncType().Nname = asTypesNode(n)
++			mt.SetNname(asTypesNode(n))
+ 
+ 			if Debug['E'] > 0 {
+ 				fmt.Printf("import [%q] meth %v \n", p.imp.Path, n)
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index f99c89d667..b39bdb5aa0 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -936,7 +936,8 @@ func methodname(s *types.Sym, recv *types.Type) *types.Sym {
+ // Add a method, declared as a function.
+ // - msym is the method symbol
+ // - t is function type (with receiver)
+-func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
++// Returns a pointer to the existing or added Field.
++func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) *types.Field {
+ 	if msym == nil {
+ 		Fatalf("no method symbol")
+ 	}
+@@ -945,7 +946,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 	rf := t.Recv() // ptr to this structure
+ 	if rf == nil {
+ 		yyerror("missing receiver")
+-		return
++		return nil
+ 	}
+ 
+ 	mt := methtype(rf.Type)
+@@ -955,7 +956,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 		if t != nil && t.IsPtr() {
+ 			if t.Sym != nil {
+ 				yyerror("invalid receiver type %v (%v is a pointer type)", pa, t)
+-				return
++				return nil
+ 			}
+ 			t = t.Elem()
+ 		}
+@@ -974,23 +975,23 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 			// but just in case, fall back to generic error.
+ 			yyerror("invalid receiver type %v (%L / %L)", pa, pa, t)
+ 		}
+-		return
++		return nil
+ 	}
+ 
+ 	if local && mt.Sym.Pkg != localpkg {
+ 		yyerror("cannot define new methods on non-local type %v", mt)
+-		return
++		return nil
+ 	}
+ 
+ 	if msym.IsBlank() {
+-		return
++		return nil
+ 	}
+ 
+ 	if mt.IsStruct() {
+ 		for _, f := range mt.Fields().Slice() {
+ 			if f.Sym == msym {
+ 				yyerror("type %v has both field and method named %v", mt, msym)
+-				return
++				return nil
+ 			}
+ 		}
+ 	}
+@@ -1004,7 +1005,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 		if !eqtype(t, f.Type) || !eqtype(t.Recv().Type, f.Type.Recv().Type) {
+ 			yyerror("method redeclared: %v.%v\n\t%v\n\t%v", mt, msym, f.Type, t)
+ 		}
+-		return
++		return f
+ 	}
+ 
+ 	f := types.NewField()
+@@ -1014,6 +1015,7 @@ func addmethod(msym *types.Sym, t *types.Type, local, nointerface bool) {
+ 	f.SetNointerface(nointerface)
+ 
+ 	mt.Methods().Append(f)
++	return f
+ }
+ 
+ func funccompile(n *Node) {
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index b420c97666..d46a42239e 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -131,10 +131,7 @@ func (v *bottomUpVisitor) visitcode(n *Node, min uint32) uint32 {
+ 
+ 	switch n.Op {
+ 	case OCALLFUNC, OCALLMETH:
+-		fn := n.Left
+-		if n.Op == OCALLMETH {
+-			fn = asNode(n.Left.Sym.Def)
+-		}
++		fn := asNode(n.Left.Type.Nname())
+ 		if fn != nil && fn.Op == ONAME && fn.Class() == PFUNC && fn.Name.Defn != nil {
+ 			m := v.visit(fn.Name.Defn)
+ 			if m < min {
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 1b52acde3a..a509d2d648 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -200,6 +200,43 @@ func caninl(fn *Node) {
+ 	Curfn = savefn
+ }
+ 
++// inlFlood marks n's inline body for export and recursively ensures
++// all called functions are marked too.
++func inlFlood(n *Node) {
++	if n == nil {
++		return
++	}
++	if n.Op != ONAME || n.Class() != PFUNC {
++		Fatalf("inlFlood: unexpected %v, %v, %v", n, n.Op, n.Class())
++	}
++	if n.Func == nil {
++		// TODO(mdempsky): Should init have a Func too?
++		if n.Sym.Name == "init" {
++			return
++		}
++		Fatalf("inlFlood: missing Func on %v", n)
++	}
++	if n.Func.Inl.Len() == 0 {
++		return
++	}
++
++	if n.Func.ExportInline() {
++		return
++	}
++	n.Func.SetExportInline(true)
++
++	typecheckinl(n)
++
++	// Recursively flood any functions called by this one.
++	inspectList(n.Func.Inl, func(n *Node) bool {
++		switch n.Op {
++		case OCALLFUNC, OCALLMETH:
++			inlFlood(asNode(n.Left.Type.Nname()))
++		}
++		return true
++	})
++}
++
+ // hairyVisitor visits a function body to determine its inlining
+ // hairiness and whether or not it can be inlined.
+ type hairyVisitor struct {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e28f8a0df3..be255fb4cc 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -462,6 +462,7 @@ const (
+ 	funcHasDefer            // contains a defer statement
+ 	funcNilCheckDisabled    // disable nil checks when compiling this function
+ 	funcInlinabilityChecked // inliner has already determined whether the function is inlinable
++	funcExportInline        // include inline body in export data
+ )
+ 
+ func (f *Func) Dupok() bool               { return f.flags&funcDupok != 0 }
+@@ -473,6 +474,7 @@ func (f *Func) NoFramePointer() bool      { return f.flags&funcNoFramePointer !=
+ func (f *Func) HasDefer() bool            { return f.flags&funcHasDefer != 0 }
+ func (f *Func) NilCheckDisabled() bool    { return f.flags&funcNilCheckDisabled != 0 }
+ func (f *Func) InlinabilityChecked() bool { return f.flags&funcInlinabilityChecked != 0 }
++func (f *Func) ExportInline() bool        { return f.flags&funcExportInline != 0 }
+ 
+ func (f *Func) SetDupok(b bool)               { f.flags.set(funcDupok, b) }
+ func (f *Func) SetWrapper(b bool)             { f.flags.set(funcWrapper, b) }
+@@ -483,6 +485,7 @@ func (f *Func) SetNoFramePointer(b bool)      { f.flags.set(funcNoFramePointer,
+ func (f *Func) SetHasDefer(b bool)            { f.flags.set(funcHasDefer, b) }
+ func (f *Func) SetNilCheckDisabled(b bool)    { f.flags.set(funcNilCheckDisabled, b) }
+ func (f *Func) SetInlinabilityChecked(b bool) { f.flags.set(funcInlinabilityChecked, b) }
++func (f *Func) SetExportInline(b bool)        { f.flags.set(funcExportInline, b) }
+ 
+ func (f *Func) setWBPos(pos src.XPos) {
+ 	if Debug_wb != 0 {

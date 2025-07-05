@@ -47,8 +47,36 @@ Date:   Tue Mar 23 14:54:19 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/304250
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/examples/functions.go2 | 1 -
  src/cmd/compile/internal/types2/examples/methods.go2   | 1 -
  src/cmd/compile/internal/types2/examples/types.go2     | 1 -
  3 files changed, 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/examples/functions.go2 b/src/cmd/compile/internal/types2/examples/functions.go2
+index ab4c192c00..0c2a408f02 100644
+--- a/src/cmd/compile/internal/types2/examples/functions.go2
++++ b/src/cmd/compile/internal/types2/examples/functions.go2
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/types2/examples/methods.go2 b/src/cmd/compile/internal/types2/examples/methods.go2
+index b34baef457..76c6539e1b 100644
+--- a/src/cmd/compile/internal/types2/examples/methods.go2
++++ b/src/cmd/compile/internal/types2/examples/methods.go2
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+diff --git a/src/cmd/compile/internal/types2/examples/types.go2 b/src/cmd/compile/internal/types2/examples/types.go2
+index a081f61c01..a7825ed2d9 100644
+--- a/src/cmd/compile/internal/types2/examples/types.go2
++++ b/src/cmd/compile/internal/types2/examples/types.go2
+@@ -1,4 +1,3 @@
+-// UNREVIEWED
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.

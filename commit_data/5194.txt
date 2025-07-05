@@ -7,10 +7,376 @@ Date:   Wed Mar 31 17:01:16 2010 +1100
     R=rsc, gri, r
     CC=golang-dev
     https://golang.org/cl/822044
-
+---
  misc/dashboard/godashboard/app.yaml         |  5 +-
  misc/dashboard/godashboard/gobuild.py       | 23 +++++++-
  misc/dashboard/godashboard/main.html        | 77 +++++++------------------
  misc/dashboard/godashboard/package.html     | 76 ++++++-------------------
  misc/dashboard/godashboard/static/style.css | 87 +++++++++++++++++++++++++++++
  5 files changed, 148 insertions(+), 120 deletions(-)
+
+diff --git a/misc/dashboard/godashboard/app.yaml b/misc/dashboard/godashboard/app.yaml
+index 1c786a6c1c..fb742d8edc 100644
+--- a/misc/dashboard/godashboard/app.yaml
++++ b/misc/dashboard/godashboard/app.yaml
+@@ -1,9 +1,12 @@
+ application: godashboard
+-version: 3
++version: 4
+ runtime: python
+ api_version: 1
+ 
+ handlers:
++- url: /static
++  static_dir: static
++
+ - url: /package.*
+   script: package.py
+ 
+diff --git a/misc/dashboard/godashboard/gobuild.py b/misc/dashboard/godashboard/gobuild.py
+index dcae7c8ad7..2dfba433bc 100644
+--- a/misc/dashboard/godashboard/gobuild.py
++++ b/misc/dashboard/godashboard/gobuild.py
+@@ -122,9 +122,25 @@ class MainPage(webapp.RequestHandler):
+     def get(self):
+         self.response.headers['Content-Type'] = 'text/html; charset=utf-8'
+ 
++        try:
++            page = int(self.request.get('p', 1))
++            if not page > 0:
++                raise
++        except:
++            page = 1
++
++        try:
++            num = int(self.request.get('n', N))
++            if num <= 0 or num > 200:
++                raise
++        except:
++            num = N
++
++        offset = (page-1) * num
++
+         q = Commit.all()
+         q.order('-__key__')
+-        results = q.fetch(N)
++        results = q.fetch(num, offset)
+ 
+         revs = [toRev(r) for r in results]
+         builders = {}
+@@ -144,6 +160,11 @@ class MainPage(webapp.RequestHandler):
+         builders.sort()
+         values = {"revs": revs, "builders": [v for k,v in builders]}
+ 
++        values['num'] = num
++        values['prev'] = page - 1
++        if len(results) == num:
++            values['next'] = page + 1
++
+         path = os.path.join(os.path.dirname(__file__), 'main.html')
+         self.response.out.write(template.render(path, values))
+ 
+diff --git a/misc/dashboard/godashboard/main.html b/misc/dashboard/godashboard/main.html
+index 7ba9aeed98..6de8e93158 100644
+--- a/misc/dashboard/godashboard/main.html
++++ b/misc/dashboard/godashboard/main.html
+@@ -1,67 +1,23 @@
+ <!DOCTYPE HTML>
+ <html>
+   <head>
+-    <title>Go dashboard</title>
+-
+-    <style>
+-      h1 {
+-          font-size: 1em;
+-          font-weight: bold;
+-      }
+-      h2 {
+-          font-size: 1em;
+-          font-weight: bold;
+-      }
+-      table.alternate {
+-          white-space: nowrap;
+-      }
+-      table.alternate tr td {
+-        padding-right: 10px;
+-      }
+-      table.alternate tr td:last-child {
+-        padding-right: 0;
+-      }
+-      table.alternate tr:nth-child(2n) {
+-        background-color: #f8f8f8;
+-      }
+-      td.revision {
+-      }
+-      span.hash {
+-        font-family: monospace;
+-        font-size: small;
+-        color: #aaa;
+-      }
+-      span.nodeseq {
+-      }
+-      td.user {
+-        font-size: small;
+-      }
+-      td.date {
+-        color: #aaa;
+-        font-size: small;
+-      }
+-      td.result {
+-        text-align: center;
+-      }
+-      span.ok {
+-      }
+-      td.desc {
+-        font-size: small;
+-        font-family: sans-serif;
+-      }
+-      th.builder {
+-        font-weight: bold;
+-        padding-right: 0.5em;
+-      }
+-    </style>
++    <title>Build Status - Go Dashboard</title>
++    <link rel="stylesheet" type="text/css" href="static/style.css">
+   </head>
+ 
+   <body>
+-    <h1>Go dashboard</h1>
++    <a id="top"></a>
++
++    <ul class="menu">
++      <li>Build Status</li>
++      <li><a href="/package">Packages</a></li>
++      <li><a href="/benchmarks">Benchmarks</a></li>
++      <li><a href="http://golang.org/">golang.org</a></li>
++    </ul>
+     
+-    <a href="benchmarks">benchmarks</a>
++    <h1>Go Dashboard</h1>
+     
+-    <h2>Build status</h2>
++    <h2>Build Status</h2>
+     <table class="alternate" cellpadding="0" cellspacing="0">
+       <tr>
+         <th></th>
+@@ -83,9 +39,9 @@
+             <span class="ok">ok</span>
+           {% else %}
+             {% if b.log %}
+-              <a href="/log/{{b.log}}">fail</a>
++              <a class="fail" href="/log/{{b.log}}">fail</a>
+             {% else %}
+-              <span/>
++              &nbsp;
+             {% endif %}
+           {% endif %}
+           </td>
+@@ -97,5 +53,10 @@
+       </tr>
+       {% endfor %}
+     </table>
++    <div class="paginate">
++	<a{% if prev %} href="?n={{num}}&p={{prev}}"{% else %} class="inactive"{% endif %}>prev</a>
++	<a{% if next %} href="?n={{num}}&p={{next}}"{% else %} class="inactive"{% endif %}>next</a>
++	<a href="#top">top</a>
++    </div>
+   </body>
+ </html>
+diff --git a/misc/dashboard/godashboard/package.html b/misc/dashboard/godashboard/package.html
+index 57d23d9af8..64d86d7b80 100644
+--- a/misc/dashboard/godashboard/package.html
++++ b/misc/dashboard/godashboard/package.html
+@@ -1,75 +1,31 @@
+ <!DOCTYPE HTML>
+ <html>
+   <head>
+-    <title>Go packages</title>
+-
+-    <style>
+-      h1 {
+-          font-size: 1em;
+-          font-weight: bold;
+-      }
+-      h2 {
+-          font-size: 1em;
+-          font-weight: bold;
+-      }
+-      table.alternate {
+-          white-space: nowrap;
+-      }
+-      table.alternate tr td {
+-        padding-right: 10px;
+-      }
+-      table.alternate tr td:last-child {
+-        padding-right: 0;
+-      }
+-      table.alternate tr:nth-child(2n) {
+-        background-color: #f8f8f8;
+-      }
+-      td.revision {
+-      }
+-      span.hash {
+-        font-family: monospace;
+-        font-size: small;
+-        color: #aaa;
+-      }
+-      span.nodeseq {
+-      }
+-      td.user {
+-        font-size: small;
+-      }
+-      td.date {
+-        color: #aaa;
+-        font-size: small;
+-      }
+-      td.result {
+-        text-align: center;
+-      }
+-      span.ok {
+-      }
+-      td.desc {
+-        font-size: small;
+-        font-family: sans-serif;
+-      }
+-      th.builder {
+-        font-weight: bold;
+-        padding-right: 0.5em;
+-      }
+-    </style>
++    <title>Packages - Go Dashboard</title>
++    <link rel="stylesheet" type="text/css" href="static/style.css">
+   </head>
+ 
+   <body>
+-    <h1>Go packages</h1>
++    <ul class="menu">
++      <li><a href="/">Build Status</a></li>
++      <li>Packages</li>
++      <li><a href="/benchmarks">Benchmarks</a></li>
++      <li><a href="http://golang.org/">golang.org</a></li>
++    </ul>
++
++    <h1>Go Dashboard</h1>
+     
+-    <a href="/">build status</a>
+-    <br><br>
+-    (Packages listed on this page are written by third parties and 
+-    may or may not build or be safe to use.)
++    <p>
++    Packages listed on this page are written by third parties and 
++    may or may not build or be safe to use.
++    </p>
+     
+     <h2>Recently Installed Packages</h2>
+     <table class="alternate" cellpadding="0" cellspacing="0">
+       <tr><th>last install</th><th>count</th><th>path</th></tr>
+       {% for r in by_time %}
+         <tr>
+-          <td class="time">{{r.last_install}}</td>
++          <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
+           <td class="count">{{r.count}}</td>
+           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
+         </tr>
+@@ -81,7 +37,7 @@
+       <tr><th>last install</th><th>count</th><th>path</th></tr>
+       {% for r in by_count %}
+         <tr>
+-          <td class="time">{{r.last_install}}</td>
++          <td class="time">{{r.last_install|date:"Y-M-d H:i"}}</td>
+           <td class="count">{{r.count}}</td>
+           <td class="path"><a href="{{r.web_url}}">{{r.path}}</a></td>
+         </tr>
+diff --git a/misc/dashboard/godashboard/static/style.css b/misc/dashboard/godashboard/static/style.css
+new file mode 100644
+index 0000000000..882b854aba
+--- /dev/null
++++ b/misc/dashboard/godashboard/static/style.css
+@@ -0,0 +1,87 @@
++body {
++	font-family: sans-serif;
++	margin: 0;
++	padding: 0;
++}
++h1, h2, ul, table, p {
++	padding: 0 0.2em;
++}
++h1, h2 {
++	margin: 0;
++	background: #eee;
++}
++h1 {
++	border-bottom: 1px solid #ccc;
++	font-size: 1em;
++	padding: 0.5em;
++	margin-bottom: 0.5em;
++	text-align: right;
++}
++h2 {
++	border-top: 1px solid #ccc;
++}
++table.alternate {
++	white-space: nowrap;
++	margin: 0.5em 0;
++}
++table.alternate td,
++table.alternate th {
++	padding: 0.1em 0.25em;
++	font-size: small;
++}
++table.alternate tr td:last-child {
++	padding-right: 0;
++}
++table.alternate tr:nth-child(2n) {
++	background-color: #f8f8f8;
++}
++span.hash {
++	font-family: monospace;
++	font-size: small;
++	color: #aaa;
++}
++td.date {
++	color: #aaa;
++}
++td.result {
++	text-align: center;
++}
++th.builder {
++	font-weight: bold;
++}
++a.fail {
++	color: #F00;
++}
++a.fail:visited {
++	color: #900;
++}
++ul.menu {
++	margin: 0;
++	padding: 0;
++	list-style-type: none;
++}
++ul.menu li {
++	float: left;
++	display: block;
++	font-size: 1em;
++	padding: 0.5em;
++	background: #EEF;
++	margin-left: 0.5em;
++	border-left: 1px solid #999;
++	border-right: 1px solid #999;
++}
++div.paginate {
++	padding: 0.5em;
++}
++div.paginate a {
++	padding: 0.5em;
++	margin-right: 0.5em;
++	background: #eee;
++	color: blue;
++}
++div.paginate a.inactive {
++	color: #999;
++}
++td.time {
++	font-family: monospace;
++}

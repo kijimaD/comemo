@@ -11,9 +11,71 @@ Date:   Tue Feb 14 22:42:38 2023 +0800
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/math/big/int.go      | 2 +-
  src/net/http/server.go   | 4 ++--
  src/net/http/transfer.go | 2 +-
  src/os/tempfile.go       | 2 +-
  4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index d34034bd1c..c9788beebd 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -1002,7 +1002,7 @@ func (z *Int) modSqrt3Mod4Prime(x, p *Int) *Int {
+ 	return z
+ }
+ 
+-// modSqrt5Mod8 uses Atkin's observation that 2 is not a square mod p
++// modSqrt5Mod8Prime uses Atkin's observation that 2 is not a square mod p
+ //
+ //	alpha ==  (2*a)^((p-5)/8)    mod p
+ //	beta  ==  2*a*alpha^2        mod p  is a square root of -1
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index c15f0f58cb..1ac61f7131 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -1749,7 +1749,7 @@ type closeWriter interface {
+ 
+ var _ closeWriter = (*net.TCPConn)(nil)
+ 
+-// closeWrite flushes any outstanding data and sends a FIN packet (if
++// closeWriteAndWait flushes any outstanding data and sends a FIN packet (if
+ // client is connected via TCP), signaling that we're done. We then
+ // pause for a bit, hoping the client processes it before any
+ // subsequent RST.
+@@ -2990,7 +2990,7 @@ func (srv *Server) ListenAndServe() error {
+ 
+ var testHookServerServe func(*Server, net.Listener) // used if non-nil
+ 
+-// shouldDoServeHTTP2 reports whether Server.Serve should configure
++// shouldConfigureHTTP2ForServe reports whether Server.Serve should configure
+ // automatic HTTP/2. (which sets up the srv.TLSNextProto map)
+ func (srv *Server) shouldConfigureHTTP2ForServe() bool {
+ 	if srv.TLSConfig == nil {
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index 7c7afd7de4..d6f26a709c 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -416,7 +416,7 @@ func (t *transferWriter) doBodyCopy(dst io.Writer, src io.Reader) (n int64, err
+ 	return
+ }
+ 
+-// unwrapBodyReader unwraps the body's inner reader if it's a
++// unwrapBody unwraps the body's inner reader if it's a
+ // nopCloser. This is to ensure that body writes sourced from local
+ // files (*os.File types) are properly optimized.
+ //
+diff --git a/src/os/tempfile.go b/src/os/tempfile.go
+index 3be3d13dfb..99f65c625a 100644
+--- a/src/os/tempfile.go
++++ b/src/os/tempfile.go
+@@ -117,7 +117,7 @@ func joinPath(dir, name string) string {
+ 	return dir + string(PathSeparator) + name
+ }
+ 
+-// LastIndexByte from the strings package.
++// lastIndex from the strings package.
+ func lastIndex(s string, sep byte) int {
+ 	for i := len(s) - 1; i >= 0; i-- {
+ 		if s[i] == sep {

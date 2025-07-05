@@ -9,9 +9,127 @@ Date:   Wed May 25 13:19:11 2016 -0400
     Change-Id: I6f3f45e3c21edd0e093ecb1d8a067907863478f5
     Reviewed-on: https://go-review.googlesource.com/23441
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/reflect/all_test.go    | 15 +++++++++++++++
  src/reflect/export_test.go |  4 ++++
  src/runtime/runtime1.go    |  4 ++--
  src/runtime/type.go        | 26 ++++++++++++++++++++------
  4 files changed, 41 insertions(+), 8 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index c801bfc1ec..f7cf46daec 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -5722,3 +5722,18 @@ func TestTypeStrings(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestOffsetLock(t *testing.T) {
++	var wg sync.WaitGroup
++	for i := 0; i < 4; i++ {
++		i := i
++		wg.Add(1)
++		go func() {
++			for j := 0; j < 50; j++ {
++				ResolveReflectName(fmt.Sprintf("OffsetLockName:%d:%d", i, j))
++			}
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 00189f3353..2cc1530250 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -109,3 +109,7 @@ func IsExported(t Type) bool {
+ 	n := typ.nameOff(typ.str)
+ 	return n.isExported()
+ }
++
++func ResolveReflectName(s string) {
++	resolveReflectName(newName(s, "", "", false))
++}
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 9089383904..302f58de5f 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -509,7 +509,7 @@ func reflect_resolveTextOff(rtype unsafe.Pointer, off int32) unsafe.Pointer {
+ // reflect_addReflectOff adds a pointer to the reflection offset lookup map.
+ //go:linkname reflect_addReflectOff reflect.addReflectOff
+ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+-	lock(&reflectOffs.lock)
++	reflectOffsLock()
+ 	if reflectOffs.m == nil {
+ 		reflectOffs.m = make(map[int32]unsafe.Pointer)
+ 		reflectOffs.minv = make(map[unsafe.Pointer]int32)
+@@ -522,6 +522,6 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+ 		reflectOffs.m[id] = ptr
+ 		reflectOffs.minv[ptr] = id
+ 	}
+-	unlock(&reflectOffs.lock)
++	reflectOffsUnlock()
+ 	return id
+ }
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 608c601abd..d7ec5573a9 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -169,6 +169,20 @@ var reflectOffs struct {
+ 	minv map[unsafe.Pointer]int32
+ }
+ 
++func reflectOffsLock() {
++	lock(&reflectOffs.lock)
++	if raceenabled {
++		raceacquire(unsafe.Pointer(&reflectOffs.lock))
++	}
++}
++
++func reflectOffsUnlock() {
++	if raceenabled {
++		racerelease(unsafe.Pointer(&reflectOffs.lock))
++	}
++	unlock(&reflectOffs.lock)
++}
++
+ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+ 	if off == 0 {
+ 		return name{}
+@@ -182,9 +196,9 @@ func resolveNameOff(ptrInModule unsafe.Pointer, off nameOff) name {
+ 		}
+ 	}
+ 	if md == nil {
+-		lock(&reflectOffs.lock)
++		reflectOffsLock()
+ 		res, found := reflectOffs.m[int32(off)]
+-		unlock(&reflectOffs.lock)
++		reflectOffsUnlock()
+ 		if !found {
+ 			println("runtime: nameOff", hex(off), "base", hex(base), "not in ranges:")
+ 			for next := &firstmoduledata; next != nil; next = next.next {
+@@ -219,9 +233,9 @@ func (t *_type) typeOff(off typeOff) *_type {
+ 		}
+ 	}
+ 	if md == nil {
+-		lock(&reflectOffs.lock)
++		reflectOffsLock()
+ 		res := reflectOffs.m[int32(off)]
+-		unlock(&reflectOffs.lock)
++		reflectOffsUnlock()
+ 		if res == nil {
+ 			println("runtime: typeOff", hex(off), "base", hex(base), "not in ranges:")
+ 			for next := &firstmoduledata; next != nil; next = next.next {
+@@ -252,9 +266,9 @@ func (t *_type) textOff(off textOff) unsafe.Pointer {
+ 		}
+ 	}
+ 	if md == nil {
+-		lock(&reflectOffs.lock)
++		reflectOffsLock()
+ 		res := reflectOffs.m[int32(off)]
+-		unlock(&reflectOffs.lock)
++		reflectOffsUnlock()
+ 		if res == nil {
+ 			println("runtime: textOff", hex(off), "base", hex(base), "not in ranges:")
+ 			for next := &firstmoduledata; next != nil; next = next.next {

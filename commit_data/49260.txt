@@ -31,7 +31,7 @@ Date:   Tue Aug 3 19:33:01 2021 -0700
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/reflectdata/reflect.go |  7 ++++++-
  src/cmd/compile/internal/typecheck/subr.go      |  7 +++----
  test/typeparam/dedup.dir/a.go                   | 10 ++++++++++
@@ -41,3 +41,157 @@ Date:   Tue Aug 3 19:33:01 2021 -0700
  test/typeparam/dedup.go                         | 12 ++++++++++++
  test/typeparam/dedup.out                        |  4 ++++
  8 files changed, 78 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 19cf2a0a12..a8df7a1a24 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -947,7 +947,7 @@ func writeType(t *types.Type) *obj.LSym {
+ 	}
+ 
+ 	dupok := 0
+-	if tbase.Sym() == nil { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
++	if tbase.Sym() == nil || tbase.HasShape() { // TODO(mdempsky): Probably need DUPOK for instantiated types too.
+ 		dupok = obj.DUPOK
+ 	}
+ 
+@@ -1738,6 +1738,11 @@ func NeedEmit(typ *types.Type) bool {
+ 		// Need to emit to be safe (however, see TODO above).
+ 		return true
+ 
++	case typ.HasShape():
++		// Shape type; need to emit even though it lives in the .shape package.
++		// TODO: make sure the linker deduplicates them (see dupok in writeType above).
++		return true
++
+ 	default:
+ 		// Should have been emitted by an imported package.
+ 		return false
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 25db24259c..53c3933370 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1362,8 +1362,7 @@ func Shapify(t *types.Type) *types.Type {
+ 		return s
+ 	}
+ 
+-	sym := Lookup(fmt.Sprintf(".shape%d", snum))
+-	snum++
++	sym := shapePkg.Lookup(u.LinkString())
+ 	name := ir.NewDeclNameAt(u.Pos(), ir.OTYPE, sym)
+ 	s := types.NewNamed(name)
+ 	s.SetUnderlying(u)
+@@ -1375,6 +1374,6 @@ func Shapify(t *types.Type) *types.Type {
+ 	return s
+ }
+ 
+-var snum int
+-
+ var shaped = map[*types.Type]*types.Type{}
++
++var shapePkg = types.NewPkg(".shape", ".shape")
+diff --git a/test/typeparam/dedup.dir/a.go b/test/typeparam/dedup.dir/a.go
+new file mode 100644
+index 0000000000..f5cb6dc762
+--- /dev/null
++++ b/test/typeparam/dedup.dir/a.go
+@@ -0,0 +1,10 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++//go:noinline
++func F[T comparable](a, b T) bool {
++	return a == b
++}
+diff --git a/test/typeparam/dedup.dir/b.go b/test/typeparam/dedup.dir/b.go
+new file mode 100644
+index 0000000000..ce037e2d8a
+--- /dev/null
++++ b/test/typeparam/dedup.dir/b.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "a"
++
++func B() {
++	var x int64
++	println(a.F(&x, &x))
++	var y int32
++	println(a.F(&y, &y))
++}
+diff --git a/test/typeparam/dedup.dir/c.go b/test/typeparam/dedup.dir/c.go
+new file mode 100644
+index 0000000000..11a5d97642
+--- /dev/null
++++ b/test/typeparam/dedup.dir/c.go
+@@ -0,0 +1,14 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package c
++
++import "a"
++
++func C() {
++	var x int64
++	println(a.F(&x, &x))
++	var y int32
++	println(a.F(&y, &y))
++}
+diff --git a/test/typeparam/dedup.dir/main.go b/test/typeparam/dedup.dir/main.go
+new file mode 100644
+index 0000000000..dc3ff6f75f
+--- /dev/null
++++ b/test/typeparam/dedup.dir/main.go
+@@ -0,0 +1,15 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"b"
++	"c"
++)
++
++func main() {
++	b.B()
++	c.C()
++}
+diff --git a/test/typeparam/dedup.go b/test/typeparam/dedup.go
+new file mode 100644
+index 0000000000..dca4cf3a84
+--- /dev/null
++++ b/test/typeparam/dedup.go
+@@ -0,0 +1,12 @@
++// rundir -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Note: this doesn't really test the deduplication of
++// instantiations. It just provides an easy mechanism to build a
++// binary that you can then check with objdump manually to make sure
++// deduplication is happening. TODO: automate this somehow?
++
++package ignored
+diff --git a/test/typeparam/dedup.out b/test/typeparam/dedup.out
+new file mode 100644
+index 0000000000..1140ff52e2
+--- /dev/null
++++ b/test/typeparam/dedup.out
+@@ -0,0 +1,4 @@
++true
++true
++true
++true

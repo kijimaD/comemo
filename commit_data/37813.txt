@@ -11,6 +11,26 @@ Date:   Thu Aug 30 12:24:05 2018 -0600
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/fmt/example_test.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/src/fmt/example_test.go b/src/fmt/example_test.go
+index c77e78809c..2d17fc69c7 100644
+--- a/src/fmt/example_test.go
++++ b/src/fmt/example_test.go
+@@ -27,3 +27,14 @@ func ExampleStringer() {
+ 	fmt.Println(a)
+ 	// Output: Gopher (2)
+ }
++
++func ExampleSprintf() {
++	i := 30
++	s := "Aug"
++	sf := fmt.Sprintf("Today is %d %s", i, s)
++	fmt.Println(sf)
++	fmt.Println(len(sf))
++	// Output:
++	// Today is 30 Aug
++	// 15
++}

@@ -17,6 +17,22 @@ Date:   Wed Oct 26 15:37:15 2016 +1100
     Reviewed-on: https://go-review.googlesource.com/32133
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/conduct.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/conduct.html b/doc/conduct.html
+index ce824a165b..c749266248 100644
+--- a/doc/conduct.html
++++ b/doc/conduct.html
+@@ -20,8 +20,8 @@ ul ul {
+ <p>
+ Online communities include people from many different backgrounds.
+ The Go contributors are committed to providing a friendly, safe and welcoming
+-environment for all, regardless of age, disability, gender, nationality, race,
+-religion, sexuality, or similar personal characteristic.
++environment for all, regardless of age, disability, gender, nationality,
++ethnicity, religion, sexuality, or similar personal characteristic.
+ </p>
+ 
+ <p>

@@ -18,6 +18,31 @@ Date:   Thu Jan 25 17:22:41 2018 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 2f96b46f2b..c8296971cd 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -314,12 +314,18 @@ func (v *hairyVisitor) visit(n *Node) bool {
+ 		}
+ 
+ 	// Things that are too hairy, irrespective of the budget
+-	case OCALL, OCALLINTER, OPANIC, ORECOVER:
++	case OCALL, OCALLINTER, OPANIC:
+ 		if Debug['l'] < 4 {
+ 			v.reason = "non-leaf op " + n.Op.String()
+ 			return true
+ 		}
+ 
++	case ORECOVER:
++		// recover matches the argument frame pointer to find
++		// the right panic value, so it needs an argument frame.
++		v.reason = "call to recover"
++		return true
++
+ 	case OCLOSURE,
+ 		OCALLPART,
+ 		ORANGE,

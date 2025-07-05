@@ -13,10 +13,82 @@ Date:   Fri Sep 13 15:01:22 2013 +1000
     R=mikioh.mikioh, jsing, minux.ma, bradfitz
     CC=golang-dev
     https://golang.org/cl/13660043
-
+---
  src/pkg/syscall/consistency_unix_test.go | 9 +++++++++
  src/pkg/syscall/mkerrors.sh              | 1 +
  src/pkg/syscall/zerrors_linux_386.go     | 3 +++
  src/pkg/syscall/zerrors_linux_amd64.go   | 3 +++
  src/pkg/syscall/zerrors_linux_arm.go     | 3 +++
  5 files changed, 19 insertions(+)
+
+diff --git a/src/pkg/syscall/consistency_unix_test.go b/src/pkg/syscall/consistency_unix_test.go
+index b4664d7c71..73630bc614 100644
+--- a/src/pkg/syscall/consistency_unix_test.go
++++ b/src/pkg/syscall/consistency_unix_test.go
+@@ -23,3 +23,12 @@ func _() {
+ 		_ int = syscall.PRIO_PGRP
+ 	)
+ }
++
++// termios functions and constants
++func _() {
++	const (
++		_ int = syscall.TCIFLUSH
++		_ int = syscall.TCIOFLUSH
++		_ int = syscall.TCOFLUSH
++	)
++}
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 44ec781cb6..20b2b98757 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -107,6 +107,7 @@ includes_Linux='
+ #include <net/if_arp.h>
+ #include <net/route.h>
+ #include <netpacket/packet.h>
++#include <termios.h>
+ 
+ #ifndef MSG_FASTOPEN
+ #define MSG_FASTOPEN    0x20000000
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 3d1a07a99b..7aa8ff07a7 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -1084,6 +1084,9 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	TCIFLUSH                         = 0x0
++	TCIOFLUSH                        = 0x2
++	TCOFLUSH                         = 0x1
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index ed175b73c4..94d051d8aa 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -1085,6 +1085,9 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	TCIFLUSH                         = 0x0
++	TCIOFLUSH                        = 0x2
++	TCOFLUSH                         = 0x1
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index f740f04516..dcaaef7423 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -1095,6 +1095,9 @@ const (
+ 	S_IXGRP                          = 0x8
+ 	S_IXOTH                          = 0x1
+ 	S_IXUSR                          = 0x40
++	TCIFLUSH                         = 0x0
++	TCIOFLUSH                        = 0x2
++	TCOFLUSH                         = 0x1
+ 	TCP_CONGESTION                   = 0xd
+ 	TCP_CORK                         = 0x3
+ 	TCP_DEFER_ACCEPT                 = 0x9

@@ -52,7 +52,7 @@ Date:   Fri Mar 25 16:50:31 2022 +0100
     Run-TryBot: Filippo Valsorda <filippo@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Roland Shoemaker <roland@golang.org>
-
+---
  src/crypto/elliptic/elliptic.go                    |   2 +-
  src/crypto/elliptic/elliptic_test.go               |  64 ++--
  src/crypto/elliptic/export_generate.go             |  16 -
@@ -77,3 +77,1308 @@ Date:   Fri Mar 25 16:50:31 2022 +0100
  src/crypto/elliptic/params.go                      |  14 +-
  src/go/build/deps_test.go                          |   2 +-
  23 files changed, 459 insertions(+), 293 deletions(-)
+
+diff --git a/src/crypto/elliptic/elliptic.go b/src/crypto/elliptic/elliptic.go
+index 522d7afbaf..87947ffe8f 100644
+--- a/src/crypto/elliptic/elliptic.go
++++ b/src/crypto/elliptic/elliptic.go
+@@ -176,7 +176,7 @@ func P224() Curve {
+ // Multiple invocations of this function will return the same value, so it can
+ // be used for equality checks and switch statements.
+ //
+-// ScalarMult and ScalarBaseMult are implemented using constant-time algorithms.
++// The cryptographic operations are implemented using constant-time algorithms.
+ func P256() Curve {
+ 	initonce.Do(initAll)
+ 	return p256
+diff --git a/src/crypto/elliptic/elliptic_test.go b/src/crypto/elliptic/elliptic_test.go
+index 6a79b82e2f..56756ba52d 100644
+--- a/src/crypto/elliptic/elliptic_test.go
++++ b/src/crypto/elliptic/elliptic_test.go
+@@ -73,43 +73,61 @@ func TestInfinity(t *testing.T) {
+ 	testAllCurves(t, testInfinity)
+ }
+ 
++func isInfinity(x, y *big.Int) bool {
++	return x.Sign() == 0 && y.Sign() == 0
++}
++
+ func testInfinity(t *testing.T, curve Curve) {
+-	_, x, y, _ := GenerateKey(curve, rand.Reader)
+-	x, y = curve.ScalarMult(x, y, curve.Params().N.Bytes())
+-	if x.Sign() != 0 || y.Sign() != 0 {
++	x0, y0 := new(big.Int), new(big.Int)
++	xG, yG := curve.Params().Gx, curve.Params().Gy
++
++	if !isInfinity(curve.ScalarMult(xG, yG, curve.Params().N.Bytes())) {
+ 		t.Errorf("x^q != ∞")
+ 	}
++	if !isInfinity(curve.ScalarMult(xG, yG, []byte{0})) {
++		t.Errorf("x^0 != ∞")
++	}
++
++	if !isInfinity(curve.ScalarMult(x0, y0, []byte{1, 2, 3})) {
++		t.Errorf("∞^k != ∞")
++	}
++	if !isInfinity(curve.ScalarMult(x0, y0, []byte{0})) {
++		t.Errorf("∞^0 != ∞")
++	}
+ 
+-	x, y = curve.ScalarBaseMult([]byte{0})
+-	if x.Sign() != 0 || y.Sign() != 0 {
++	if !isInfinity(curve.ScalarBaseMult(curve.Params().N.Bytes())) {
++		t.Errorf("b^q != ∞")
++	}
++	if !isInfinity(curve.ScalarBaseMult([]byte{0})) {
+ 		t.Errorf("b^0 != ∞")
+-		x.SetInt64(0)
+-		y.SetInt64(0)
+ 	}
+ 
+-	x2, y2 := curve.Double(x, y)
+-	if x2.Sign() != 0 || y2.Sign() != 0 {
++	if !isInfinity(curve.Double(x0, y0)) {
+ 		t.Errorf("2∞ != ∞")
+ 	}
+-
+-	baseX := curve.Params().Gx
+-	baseY := curve.Params().Gy
+-
+-	x3, y3 := curve.Add(baseX, baseY, x, y)
+-	if x3.Cmp(baseX) != 0 || y3.Cmp(baseY) != 0 {
++	// There is no other point of order two on the NIST curves (as they have
++	// cofactor one), so Double can't otherwise return the point at infinity.
++
++	nMinusOne := new(big.Int).Sub(curve.Params().N, big.NewInt(1))
++	x, y := curve.ScalarMult(xG, yG, nMinusOne.Bytes())
++	x, y = curve.Add(x, y, xG, yG)
++	if !isInfinity(x, y) {
++		t.Errorf("x^(q-1) + x != ∞")
++	}
++	x, y = curve.Add(xG, yG, x0, y0)
++	if x.Cmp(xG) != 0 || y.Cmp(yG) != 0 {
+ 		t.Errorf("x+∞ != x")
+ 	}
+-
+-	x4, y4 := curve.Add(x, y, baseX, baseY)
+-	if x4.Cmp(baseX) != 0 || y4.Cmp(baseY) != 0 {
++	x, y = curve.Add(x0, y0, xG, yG)
++	if x.Cmp(xG) != 0 || y.Cmp(yG) != 0 {
+ 		t.Errorf("∞+x != x")
+ 	}
+ 
+-	if curve.IsOnCurve(x, y) {
++	if curve.IsOnCurve(x0, y0) {
+ 		t.Errorf("IsOnCurve(∞) == true")
+ 	}
+ 
+-	if xx, yy := Unmarshal(curve, Marshal(curve, x, y)); xx != nil || yy != nil {
++	if xx, yy := Unmarshal(curve, Marshal(curve, x0, y0)); xx != nil || yy != nil {
+ 		t.Errorf("Unmarshal(Marshal(∞)) did not return an error")
+ 	}
+ 	// We don't test UnmarshalCompressed(MarshalCompressed(∞)) because there are
+@@ -117,6 +135,12 @@ func testInfinity(t *testing.T, curve Curve) {
+ 	if xx, yy := Unmarshal(curve, []byte{0x00}); xx != nil || yy != nil {
+ 		t.Errorf("Unmarshal(∞) did not return an error")
+ 	}
++	byteLen := (curve.Params().BitSize + 7) / 8
++	buf := make([]byte, byteLen*2+1)
++	buf[0] = 4 // Uncompressed format.
++	if xx, yy := Unmarshal(curve, buf); xx != nil || yy != nil {
++		t.Errorf("Unmarshal((0,0)) did not return an error")
++	}
+ }
+ 
+ func TestMarshal(t *testing.T) {
+diff --git a/src/crypto/elliptic/export_generate.go b/src/crypto/elliptic/export_generate.go
+deleted file mode 100644
+index f15b302d8c..0000000000
+--- a/src/crypto/elliptic/export_generate.go
++++ /dev/null
+@@ -1,16 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build tablegen
+-
+-package elliptic
+-
+-// This block exports p256-related internals for the p256 table generator in internal/gen.
+-var (
+-	P256PointDoubleAsm = p256PointDoubleAsm
+-	P256PointAddAsm    = p256PointAddAsm
+-	P256Inverse        = p256Inverse
+-	P256Sqr            = p256Sqr
+-	P256Mul            = p256Mul
+-)
+diff --git a/src/crypto/elliptic/gen_p256_table.go b/src/crypto/elliptic/gen_p256_table.go
+deleted file mode 100644
+index 0ebbc66494..0000000000
+--- a/src/crypto/elliptic/gen_p256_table.go
++++ /dev/null
+@@ -1,73 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build ignore
+-
+-package main
+-
+-import (
+-	"crypto/elliptic"
+-	"encoding/binary"
+-	"log"
+-	"os"
+-)
+-
+-func main() {
+-	// Generate precomputed p256 tables.
+-	var pre [43][32 * 8]uint64
+-	basePoint := []uint64{
+-		0x79e730d418a9143c, 0x75ba95fc5fedb601, 0x79fb732b77622510, 0x18905f76a53755c6,
+-		0xddf25357ce95560a, 0x8b4ab8e4ba19e45c, 0xd2e88688dd21f325, 0x8571ff1825885d85,
+-		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
+-	}
+-	t1 := make([]uint64, 12)
+-	t2 := make([]uint64, 12)
+-	copy(t2, basePoint)
+-	zInv := make([]uint64, 4)
+-	zInvSq := make([]uint64, 4)
+-	for j := 0; j < 32; j++ {
+-		copy(t1, t2)
+-		for i := 0; i < 43; i++ {
+-			// The window size is 6 so we need to double 6 times.
+-			if i != 0 {
+-				for k := 0; k < 6; k++ {
+-					elliptic.P256PointDoubleAsm(t1, t1)
+-				}
+-			}
+-			// Convert the point to affine form. (Its values are
+-			// still in Montgomery form however.)
+-			elliptic.P256Inverse(zInv, t1[8:12])
+-			elliptic.P256Sqr(zInvSq, zInv, 1)
+-			elliptic.P256Mul(zInv, zInv, zInvSq)
+-			elliptic.P256Mul(t1[:4], t1[:4], zInvSq)
+-			elliptic.P256Mul(t1[4:8], t1[4:8], zInv)
+-			copy(t1[8:12], basePoint[8:12])
+-			// Update the table entry
+-			copy(pre[i][j*8:], t1[:8])
+-		}
+-		if j == 0 {
+-			elliptic.P256PointDoubleAsm(t2, basePoint)
+-		} else {
+-			elliptic.P256PointAddAsm(t2, t2, basePoint)
+-		}
+-	}
+-
+-	var bin []byte
+-
+-	// Dump the precomputed tables, flattened, little-endian.
+-	// These tables are used directly by assembly on little-endian platforms.
+-	// go:embedding the data into a string lets it be stored readonly.
+-	for i := range &pre {
+-		for _, v := range &pre[i] {
+-			var u8 [8]byte
+-			binary.LittleEndian.PutUint64(u8[:], v)
+-			bin = append(bin, u8[:]...)
+-		}
+-	}
+-
+-	err := os.WriteFile("p256_asm_table.bin", bin, 0644)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-}
+diff --git a/src/crypto/elliptic/internal/nistec/generate.go b/src/crypto/elliptic/internal/nistec/generate.go
+index a7c9d00db4..f3726a06ca 100644
+--- a/src/crypto/elliptic/internal/nistec/generate.go
++++ b/src/crypto/elliptic/internal/nistec/generate.go
+@@ -29,9 +29,10 @@ var curves = []struct {
+ 		Params:  elliptic.P224().Params(),
+ 	},
+ 	{
+-		P:       "P256",
+-		Element: "fiat.P256Element",
+-		Params:  elliptic.P256().Params(),
++		P:         "P256",
++		Element:   "fiat.P256Element",
++		Params:    elliptic.P256().Params(),
++		BuildTags: "!amd64 && !arm64",
+ 	},
+ 	{
+ 		P:       "P384",
+@@ -329,7 +330,7 @@ func (q *{{.P}}Point) Select(p1, p2 *{{.P}}Point, cond int) *{{.P}}Point {
+ }
+ 
+ // ScalarMult sets p = scalar * q, and returns p.
+-func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) *{{.P}}Point {
++func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) (*{{.P}}Point, error) {
+ 	// table holds the first 16 multiples of q. The explicit new{{.P}}Point calls
+ 	// get inlined, letting the allocations live on the stack.
+ 	var table = [16]*{{.P}}Point{
+@@ -370,6 +371,12 @@ func (p *{{.P}}Point) ScalarMult(q *{{.P}}Point, scalar []byte) *{{.P}}Point {
+ 		p.Add(p, t)
+ 	}
+ 
+-	return p
++	return p, nil
++}
++
++// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
++// returns p.
++func (p *{{.P}}Point) ScalarBaseMult(scalar []byte) (*{{.P}}Point, error) {
++	return p.ScalarMult(New{{.P}}Generator(), scalar)
+ }
+ `
+diff --git a/src/crypto/elliptic/internal/nistec/nistec_test.go b/src/crypto/elliptic/internal/nistec/nistec_test.go
+index 9fde2f4fa1..9ce82a8f29 100644
+--- a/src/crypto/elliptic/internal/nistec/nistec_test.go
++++ b/src/crypto/elliptic/internal/nistec/nistec_test.go
+@@ -22,9 +22,10 @@ func TestAllocations(t *testing.T) {
+ 			p := nistec.NewP224Generator()
+ 			scalar := make([]byte, 28)
+ 			rand.Read(scalar)
++			p.ScalarBaseMult(scalar)
+ 			p.ScalarMult(p, scalar)
+ 			out := p.Bytes()
+-			if _, err := p.SetBytes(out); err != nil {
++			if _, err := nistec.NewP224Point().SetBytes(out); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 		}); allocs > 0 {
+@@ -36,9 +37,10 @@ func TestAllocations(t *testing.T) {
+ 			p := nistec.NewP256Generator()
+ 			scalar := make([]byte, 32)
+ 			rand.Read(scalar)
++			p.ScalarBaseMult(scalar)
+ 			p.ScalarMult(p, scalar)
+ 			out := p.Bytes()
+-			if _, err := p.SetBytes(out); err != nil {
++			if _, err := nistec.NewP256Point().SetBytes(out); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 		}); allocs > 0 {
+@@ -50,9 +52,10 @@ func TestAllocations(t *testing.T) {
+ 			p := nistec.NewP384Generator()
+ 			scalar := make([]byte, 48)
+ 			rand.Read(scalar)
++			p.ScalarBaseMult(scalar)
+ 			p.ScalarMult(p, scalar)
+ 			out := p.Bytes()
+-			if _, err := p.SetBytes(out); err != nil {
++			if _, err := nistec.NewP384Point().SetBytes(out); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 		}); allocs > 0 {
+@@ -64,9 +67,10 @@ func TestAllocations(t *testing.T) {
+ 			p := nistec.NewP521Generator()
+ 			scalar := make([]byte, 66)
+ 			rand.Read(scalar)
++			p.ScalarBaseMult(scalar)
+ 			p.ScalarMult(p, scalar)
+ 			out := p.Bytes()
+-			if _, err := p.SetBytes(out); err != nil {
++			if _, err := nistec.NewP521Point().SetBytes(out); err != nil {
+ 				t.Fatal(err)
+ 			}
+ 		}); allocs > 0 {
+@@ -80,7 +84,8 @@ type nistPoint[T any] interface {
+ 	SetBytes([]byte) (T, error)
+ 	Add(T, T) T
+ 	Double(T) T
+-	ScalarMult(T, []byte) T
++	ScalarMult(T, []byte) (T, error)
++	ScalarBaseMult([]byte) (T, error)
+ }
+ 
+ func TestEquivalents(t *testing.T) {
+@@ -101,9 +106,22 @@ func TestEquivalents(t *testing.T) {
+ func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func() P) {
+ 	p := newGenerator()
+ 
++	// This assumes the base and scalar fields have the same byte size, which
++	// they do for these curves.
++	elementSize := len(p.Bytes()) / 2
++	two := make([]byte, elementSize)
++	two[len(two)-1] = 2
++
+ 	p1 := newPoint().Double(p)
+ 	p2 := newPoint().Add(p, p)
+-	p3 := newPoint().ScalarMult(p, []byte{2})
++	p3, err := newPoint().ScalarMult(p, two)
++	if err != nil {
++		t.Fatal(err)
++	}
++	p4, err := newPoint().ScalarBaseMult(two)
++	if err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	if !bytes.Equal(p1.Bytes(), p2.Bytes()) {
+ 		t.Error("P+P != 2*P")
+@@ -111,6 +129,9 @@ func testEquivalents[P nistPoint[P]](t *testing.T, newPoint, newGenerator func()
+ 	if !bytes.Equal(p1.Bytes(), p3.Bytes()) {
+ 		t.Error("P+P != [2]P")
+ 	}
++	if !bytes.Equal(p1.Bytes(), p4.Bytes()) {
++		t.Error("G+G != [2]G")
++	}
+ }
+ 
+ func BenchmarkScalarMult(b *testing.B) {
+@@ -137,3 +158,28 @@ func benchmarkScalarMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
+ 		p.ScalarMult(p, scalar)
+ 	}
+ }
++
++func BenchmarkScalarBaseMult(b *testing.B) {
++	b.Run("P224", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP224Generator(), 28)
++	})
++	b.Run("P256", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP256Generator(), 32)
++	})
++	b.Run("P384", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP384Generator(), 48)
++	})
++	b.Run("P521", func(b *testing.B) {
++		benchmarkScalarBaseMult(b, nistec.NewP521Generator(), 66)
++	})
++}
++
++func benchmarkScalarBaseMult[P nistPoint[P]](b *testing.B, p P, scalarSize int) {
++	scalar := make([]byte, scalarSize)
++	rand.Read(scalar)
++	b.ReportAllocs()
++	b.ResetTimer()
++	for i := 0; i < b.N; i++ {
++		p.ScalarBaseMult(scalar)
++	}
++}
+diff --git a/src/crypto/elliptic/internal/nistec/p224.go b/src/crypto/elliptic/internal/nistec/p224.go
+index ca2b6edba2..7f3dcca742 100644
+--- a/src/crypto/elliptic/internal/nistec/p224.go
++++ b/src/crypto/elliptic/internal/nistec/p224.go
+@@ -243,7 +243,7 @@ func (q *P224Point) Select(p1, p2 *P224Point, cond int) *P224Point {
+ }
+ 
+ // ScalarMult sets p = scalar * q, and returns p.
+-func (p *P224Point) ScalarMult(q *P224Point, scalar []byte) *P224Point {
++func (p *P224Point) ScalarMult(q *P224Point, scalar []byte) (*P224Point, error) {
+ 	// table holds the first 16 multiples of q. The explicit newP224Point calls
+ 	// get inlined, letting the allocations live on the stack.
+ 	var table = [16]*P224Point{
+@@ -284,5 +284,11 @@ func (p *P224Point) ScalarMult(q *P224Point, scalar []byte) *P224Point {
+ 		p.Add(p, t)
+ 	}
+ 
+-	return p
++	return p, nil
++}
++
++// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
++// returns p.
++func (p *P224Point) ScalarBaseMult(scalar []byte) (*P224Point, error) {
++	return p.ScalarMult(NewP224Generator(), scalar)
+ }
+diff --git a/src/crypto/elliptic/internal/nistec/p256.go b/src/crypto/elliptic/internal/nistec/p256.go
+index e3f172767b..c288a2d75f 100644
+--- a/src/crypto/elliptic/internal/nistec/p256.go
++++ b/src/crypto/elliptic/internal/nistec/p256.go
+@@ -4,6 +4,8 @@
+ 
+ // Code generated by generate.go. DO NOT EDIT.
+ 
++//go:build !amd64 && !arm64
++
+ package nistec
+ 
+ import (
+@@ -243,7 +245,7 @@ func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
+ }
+ 
+ // ScalarMult sets p = scalar * q, and returns p.
+-func (p *P256Point) ScalarMult(q *P256Point, scalar []byte) *P256Point {
++func (p *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) {
+ 	// table holds the first 16 multiples of q. The explicit newP256Point calls
+ 	// get inlined, letting the allocations live on the stack.
+ 	var table = [16]*P256Point{
+@@ -284,5 +286,11 @@ func (p *P256Point) ScalarMult(q *P256Point, scalar []byte) *P256Point {
+ 		p.Add(p, t)
+ 	}
+ 
+-	return p
++	return p, nil
++}
++
++// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
++// returns p.
++func (p *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
++	return p.ScalarMult(NewP256Generator(), scalar)
+ }
+diff --git a/src/crypto/elliptic/p256_asm.go b/src/crypto/elliptic/internal/nistec/p256_asm.go
+similarity index 59%
+rename from src/crypto/elliptic/p256_asm.go
+rename to src/crypto/elliptic/internal/nistec/p256_asm.go
+index f8335bc85c..2bd3166062 100644
+--- a/src/crypto/elliptic/p256_asm.go
++++ b/src/crypto/elliptic/internal/nistec/p256_asm.go
+@@ -12,34 +12,155 @@
+ 
+ //go:build amd64 || arm64
+ 
+-package elliptic
++package nistec
+ 
+ import (
+ 	_ "embed"
+-	"math/big"
++	"errors"
++	"math/bits"
+ )
+ 
+-//go:generate go run -tags=tablegen gen_p256_table.go
+-
+ //go:embed p256_asm_table.bin
+ var p256Precomputed string
+ 
+-type p256Curve struct {
+-	*CurveParams
++// P256Point is a P-256 point. The zero value is NOT valid.
++type P256Point struct {
++	xyz [12]uint64
+ }
+ 
+-type p256Point struct {
+-	xyz [12]uint64
++// NewP256Point returns a new P256Point representing the point at infinity point.
++func NewP256Point() *P256Point {
++	return &P256Point{[12]uint64{
++		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
++		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
++		0, 0, 0, 0,
++	}}
++}
++
++// NewP256Generator returns a new P256Point set to the canonical generator.
++func NewP256Generator() *P256Point {
++	return &P256Point{[12]uint64{
++		0x79e730d418a9143c, 0x75ba95fc5fedb601, 0x79fb732b77622510, 0x18905f76a53755c6,
++		0xddf25357ce95560a, 0x8b4ab8e4ba19e45c, 0xd2e88688dd21f325, 0x8571ff1825885d85,
++		0x0000000000000001, 0xffffffff00000000, 0xffffffffffffffff, 0x00000000fffffffe,
++	}}
++}
++
++// Set sets p = q and returns p.
++func (p *P256Point) Set(q *P256Point) *P256Point {
++	p.xyz = q.xyz
++	return p
+ }
+ 
+-func init() {
+-	initP256Arch = func() {
+-		p256 = p256Curve{&p256Params}
++const p256ElementLength = 32
++const p256UncompressedLength = 1 + 2*p256ElementLength
++const p256CompressedLength = 1 + p256ElementLength
++
++// SetBytes sets p to the compressed, uncompressed, or infinity value encoded in
++// b, as specified in SEC 1, Version 2.0, Section 2.3.4. If the point is not on
++// the curve, it returns nil and an error, and the receiver is unchanged.
++// Otherwise, it returns p.
++func (p *P256Point) SetBytes(b []byte) (*P256Point, error) {
++	switch {
++	// Point at infinity.
++	case len(b) == 1 && b[0] == 0:
++		return p.Set(NewP256Point()), nil
++
++	// Uncompressed form.
++	case len(b) == p256UncompressedLength && b[0] == 4:
++		var r P256Point
++		p256BigToLittle(r.xyz[0:4], b[1:33])
++		p256BigToLittle(r.xyz[4:8], b[33:65])
++		if p256LessThanP(r.xyz[0:4]) == 0 || p256LessThanP(r.xyz[4:8]) == 0 {
++			return nil, errors.New("invalid P256 element encoding")
++		}
++		p256Mul(r.xyz[0:4], r.xyz[0:4], rr[:])
++		p256Mul(r.xyz[4:8], r.xyz[4:8], rr[:])
++		if err := p256CheckOnCurve(r.xyz[0:4], r.xyz[4:8]); err != nil {
++			return nil, err
++		}
++		// This sets r's Z value to 1, in the Montgomery domain.
++		r.xyz[8] = 0x0000000000000001
++		r.xyz[9] = 0xffffffff00000000
++		r.xyz[10] = 0xffffffffffffffff
++		r.xyz[11] = 0x00000000fffffffe
++		return p.Set(&r), nil
++
++	// Compressed form.
++	case len(b) == p256CompressedLength && (b[0] == 2 || b[0] == 3):
++		return nil, errors.New("unimplemented") // TODO(filippo)
++
++	default:
++		return nil, errors.New("invalid P256 point encoding")
+ 	}
+ }
+ 
+-func (curve p256Curve) Params() *CurveParams {
+-	return curve.CurveParams
++func p256CheckOnCurve(x, y []uint64) error {
++	// x³ - 3x + b
++	x3 := make([]uint64, 4)
++	p256Sqr(x3, x, 1)
++	p256Mul(x3, x3, x)
++
++	threeX := make([]uint64, 4)
++	p256Add(threeX, x, x)
++	p256Add(threeX, threeX, x)
++	p256NegCond(threeX, 1)
++
++	p256B := []uint64{0xd89cdf6229c4bddf, 0xacf005cd78843090,
++		0xe5a220abf7212ed6, 0xdc30061d04874834}
++
++	p256Add(x3, x3, threeX)
++	p256Add(x3, x3, p256B)
++
++	// y² = x³ - 3x + b
++	y2 := make([]uint64, 4)
++	p256Sqr(y2, y, 1)
++
++	diff := (x3[0] ^ y2[0]) | (x3[1] ^ y2[1]) |
++		(x3[2] ^ y2[2]) | (x3[3] ^ y2[3])
++	if uint64IsZero(diff) != 1 {
++		return errors.New("P256 point not on curve")
++	}
++	return nil
++}
++
++var p256P = []uint64{0xffffffffffffffff, 0x00000000ffffffff,
++	0x0000000000000000, 0xffffffff00000001}
++
++// p256LessThanP returns 1 if x < p, and 0 otherwise.
++func p256LessThanP(x []uint64) int {
++	var b uint64
++	_, b = bits.Sub64(x[0], p256P[0], b)
++	_, b = bits.Sub64(x[1], p256P[1], b)
++	_, b = bits.Sub64(x[2], p256P[2], b)
++	_, b = bits.Sub64(x[3], p256P[3], b)
++	return int(b)
++}
++
++func p256Add(res, x, y []uint64) {
++	var c, b uint64
++	t1 := make([]uint64, 4)
++	t1[0], c = bits.Add64(x[0], y[0], 0)
++	t1[1], c = bits.Add64(x[1], y[1], c)
++	t1[2], c = bits.Add64(x[2], y[2], c)
++	t1[3], c = bits.Add64(x[3], y[3], c)
++	t2 := make([]uint64, 4)
++	t2[0], b = bits.Sub64(t1[0], p256P[0], 0)
++	t2[1], b = bits.Sub64(t1[1], p256P[1], b)
++	t2[2], b = bits.Sub64(t1[2], p256P[2], b)
++	t2[3], b = bits.Sub64(t1[3], p256P[3], b)
++	// Three options:
++	//   - a+b < p
++	//     then c is 0, b is 1, and t1 is correct
++	//   - p <= a+b < 2^256
++	//     then c is 0, b is 0, and t2 is correct
++	//   - 2^256 <= a+b
++	//     then c is 1, b is 1, and t2 is correct
++	t2Mask := (c ^ b) - 1
++	res[0] = (t1[0] & ^t2Mask) | (t2[0] & t2Mask)
++	res[1] = (t1[1] & ^t2Mask) | (t2[1] & t2Mask)
++	res[2] = (t1[2] & ^t2Mask) | (t2[2] & t2Mask)
++	res[3] = (t1[3] & ^t2Mask) | (t2[3] & t2Mask)
+ }
+ 
+ // Functions implemented in p256_asm_*64.s
+@@ -114,15 +235,10 @@ func p256PointAddAsm(res, in1, in2 []uint64) int
+ //go:noescape
+ func p256PointDoubleAsm(res, in []uint64)
+ 
+-func (curve p256Curve) Inverse(k *big.Int) *big.Int {
+-	if k.Sign() < 0 {
+-		// This should never happen.
+-		k = new(big.Int).Neg(k)
+-	}
+-
+-	if k.Cmp(p256Params.N) >= 0 {
+-		// This should never happen.
+-		k = new(big.Int).Mod(k, p256Params.N)
++func P256OrdInverse(k []byte) ([]byte, error) {
++	// TODO: test for values p <= x < 2^256.
++	if len(k) != 32 {
++		return nil, errors.New("invalid scalar length")
+ 	}
+ 
+ 	// table will store precomputed powers of x.
+@@ -139,7 +255,7 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
+ 		t       = table[4*8 : 4*9]
+ 	)
+ 
+-	fromBig(x[:], k)
++	p256BigToLittle(x, k)
+ 	// This code operates in the Montgomery domain where R = 2^256 mod n
+ 	// and n is the order of the scalar field. (See initP256 for the
+ 	// value.) Elements in the Montgomery domain take the form a×R and
+@@ -198,30 +314,7 @@ func (curve p256Curve) Inverse(k *big.Int) *big.Int {
+ 
+ 	xOut := make([]byte, 32)
+ 	p256LittleToBig(xOut, x)
+-	return new(big.Int).SetBytes(xOut)
+-}
+-
+-// fromBig converts a *big.Int into a format used by this code.
+-func fromBig(out []uint64, big *big.Int) {
+-	for i := range out {
+-		out[i] = 0
+-	}
+-
+-	for i, v := range big.Bits() {
+-		out[i] = uint64(v)
+-	}
+-}
+-
+-// p256GetScalar endian-swaps the big-endian scalar value from in and writes it
+-// to out. If the scalar is equal or greater than the order of the group, it's
+-// reduced modulo that order.
+-func p256GetScalar(out []uint64, in []byte) {
+-	n := new(big.Int).SetBytes(in)
+-
+-	if n.Cmp(p256Params.N) >= 0 {
+-		n.Mod(n, p256Params.N)
+-	}
+-	fromBig(out, n)
++	return xOut, nil
+ }
+ 
+ // p256Mul operates in a Montgomery domain with R = 2^256 mod p, where p is the
+@@ -229,71 +322,54 @@ func p256GetScalar(out []uint64, in []byte) {
+ // R×R mod p. See comment in Inverse about how this is used.
+ var rr = []uint64{0x0000000000000003, 0xfffffffbffffffff, 0xfffffffffffffffe, 0x00000004fffffffd}
+ 
+-func maybeReduceModP(in *big.Int) *big.Int {
+-	if in.Cmp(p256Params.P) < 0 {
+-		return in
+-	}
+-	return new(big.Int).Mod(in, p256Params.P)
+-}
+-
+-func (curve p256Curve) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+-	scalarReversed := make([]uint64, 4)
+-	var r1, r2 p256Point
+-	p256GetScalar(scalarReversed, baseScalar)
+-	r1IsInfinity := scalarIsZero(scalarReversed)
+-	r1.p256BaseMult(scalarReversed)
+-
+-	p256GetScalar(scalarReversed, scalar)
+-	r2IsInfinity := scalarIsZero(scalarReversed)
+-	fromBig(r2.xyz[0:4], maybeReduceModP(bigX))
+-	fromBig(r2.xyz[4:8], maybeReduceModP(bigY))
+-	p256Mul(r2.xyz[0:4], r2.xyz[0:4], rr[:])
+-	p256Mul(r2.xyz[4:8], r2.xyz[4:8], rr[:])
+-
+-	// This sets r2's Z value to 1, in the Montgomery domain.
+-	r2.xyz[8] = 0x0000000000000001
+-	r2.xyz[9] = 0xffffffff00000000
+-	r2.xyz[10] = 0xffffffffffffffff
+-	r2.xyz[11] = 0x00000000fffffffe
+-
+-	r2.p256ScalarMult(scalarReversed)
+-
+-	var sum, double p256Point
++// Add sets q = p1 + p2, and returns q. The points may overlap.
++func (q *P256Point) Add(r1, r2 *P256Point) *P256Point {
++	var sum, double P256Point
++	r1IsInfinity := r1.isInfinity()
++	r2IsInfinity := r2.isInfinity()
+ 	pointsEqual := p256PointAddAsm(sum.xyz[:], r1.xyz[:], r2.xyz[:])
+ 	p256PointDoubleAsm(double.xyz[:], r1.xyz[:])
+-	sum.CopyConditional(&double, pointsEqual)
+-	sum.CopyConditional(&r1, r2IsInfinity)
+-	sum.CopyConditional(&r2, r1IsInfinity)
++	sum.Select(&double, &sum, pointsEqual)
++	sum.Select(r1, &sum, r2IsInfinity)
++	sum.Select(r2, &sum, r1IsInfinity)
++	return q.Set(&sum)
++}
+ 
+-	return sum.p256PointToAffine()
++// Double sets q = p + p, and returns q. The points may overlap.
++func (q *P256Point) Double(p *P256Point) *P256Point {
++	var double P256Point
++	p256PointDoubleAsm(double.xyz[:], p.xyz[:])
++	return q.Set(&double)
+ }
+ 
+-func (curve p256Curve) ScalarBaseMult(scalar []byte) (x, y *big.Int) {
++// ScalarBaseMult sets r = scalar * generator, where scalar is a 32-byte big
++// endian value, and returns r. If scalar is not 32 bytes long, ScalarBaseMult
++// returns an error and the receiver is unchanged.
++func (r *P256Point) ScalarBaseMult(scalar []byte) (*P256Point, error) {
++	// TODO: test for values p <= x < 2^256.
++	if len(scalar) != 32 {
++		return nil, errors.New("invalid scalar length")
++	}
+ 	scalarReversed := make([]uint64, 4)
+-	p256GetScalar(scalarReversed, scalar)
++	p256BigToLittle(scalarReversed, scalar)
+ 
+-	var r p256Point
+ 	r.p256BaseMult(scalarReversed)
+-	return r.p256PointToAffine()
++	return r, nil
+ }
+ 
+-func (curve p256Curve) ScalarMult(bigX, bigY *big.Int, scalar []byte) (x, y *big.Int) {
++// ScalarMult sets r = scalar * q, where scalar is a 32-byte big endian value,
++// and returns r. If scalar is not 32 bytes long, ScalarBaseMult returns an
++// error and the receiver is unchanged.
++func (r *P256Point) ScalarMult(q *P256Point, scalar []byte) (*P256Point, error) {
++	// TODO: test for values p <= x < 2^256.
++	if len(scalar) != 32 {
++		return nil, errors.New("invalid scalar length")
++	}
+ 	scalarReversed := make([]uint64, 4)
+-	p256GetScalar(scalarReversed, scalar)
+-
+-	var r p256Point
+-	fromBig(r.xyz[0:4], maybeReduceModP(bigX))
+-	fromBig(r.xyz[4:8], maybeReduceModP(bigY))
+-	p256Mul(r.xyz[0:4], r.xyz[0:4], rr[:])
+-	p256Mul(r.xyz[4:8], r.xyz[4:8], rr[:])
+-	// This sets r2's Z value to 1, in the Montgomery domain.
+-	r.xyz[8] = 0x0000000000000001
+-	r.xyz[9] = 0xffffffff00000000
+-	r.xyz[10] = 0xffffffffffffffff
+-	r.xyz[11] = 0x00000000fffffffe
+-
+-	r.p256ScalarMult(scalarReversed)
+-	return r.p256PointToAffine()
++	p256BigToLittle(scalarReversed, scalar)
++
++	r.Set(q).p256ScalarMult(scalarReversed)
++	return r, nil
+ }
+ 
+ // uint64IsZero returns 1 if x is zero and zero otherwise.
+@@ -308,13 +384,27 @@ func uint64IsZero(x uint64) int {
+ 	return int(x & 1)
+ }
+ 
+-// scalarIsZero returns 1 if scalar represents the zero value, and zero
+-// otherwise.
+-func scalarIsZero(scalar []uint64) int {
+-	return uint64IsZero(scalar[0] | scalar[1] | scalar[2] | scalar[3])
++// isInfinity returns 1 if p is the point at infinity and 0 otherwise.
++func (p *P256Point) isInfinity() int {
++	return uint64IsZero(p.xyz[8] | p.xyz[9] | p.xyz[10] | p.xyz[11])
+ }
+ 
+-func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
++// Bytes returns the uncompressed or infinity encoding of p, as specified in
++// SEC 1, Version 2.0, Section 2.3.3. Note that the encoding of the point at
++// infinity is shorter than all other encodings.
++func (p *P256Point) Bytes() []byte {
++	// This function is outlined to make the allocations inline in the caller
++	// rather than happen on the heap.
++	var out [p256UncompressedLength]byte
++	return p.bytes(&out)
++}
++
++func (p *P256Point) bytes(out *[p256UncompressedLength]byte) []byte {
++	// The proper representation of the point at infinity is a single zero byte.
++	if p.isInfinity() == 1 {
++		return out[:1]
++	}
++
+ 	zInv := make([]uint64, 4)
+ 	zInvSq := make([]uint64, 4)
+ 	p256Inverse(zInv, p.xyz[8:12])
+@@ -327,23 +417,17 @@ func (p *p256Point) p256PointToAffine() (x, y *big.Int) {
+ 	p256FromMont(zInvSq, zInvSq)
+ 	p256FromMont(zInv, zInv)
+ 
+-	xOut := make([]byte, 32)
+-	yOut := make([]byte, 32)
+-	p256LittleToBig(xOut, zInvSq)
+-	p256LittleToBig(yOut, zInv)
++	out[0] = 4 // Uncompressed form.
++	p256LittleToBig(out[1:33], zInvSq)
++	p256LittleToBig(out[33:65], zInv)
+ 
+-	return new(big.Int).SetBytes(xOut), new(big.Int).SetBytes(yOut)
++	return out[:]
+ }
+ 
+-// CopyConditional copies overwrites p with src if v == 1, and leaves p
+-// unchanged if v == 0.
+-func (p *p256Point) CopyConditional(src *p256Point, v int) {
+-	pMask := uint64(v) - 1
+-	srcMask := ^pMask
+-
+-	for i, n := range p.xyz {
+-		p.xyz[i] = (n & pMask) | (src.xyz[i] & srcMask)
+-	}
++// Select sets q to p1 if cond == 1, and to p2 if cond == 0.
++func (q *P256Point) Select(p1, p2 *P256Point, cond int) *P256Point {
++	p256MovCond(q.xyz[:], p1.xyz[:], p2.xyz[:], cond)
++	return q
+ }
+ 
+ // p256Inverse sets out to in^-1 mod p.
+@@ -395,7 +479,7 @@ func p256Inverse(out, in []uint64) {
+ 	p256Mul(out, out, in)
+ }
+ 
+-func (p *p256Point) p256StorePoint(r *[16 * 4 * 3]uint64, index int) {
++func (p *P256Point) p256StorePoint(r *[16 * 4 * 3]uint64, index int) {
+ 	copy(r[index*12:], p.xyz[:])
+ }
+ 
+@@ -415,7 +499,7 @@ func boothW6(in uint) (int, int) {
+ 	return int(d), int(s & 1)
+ }
+ 
+-func (p *p256Point) p256BaseMult(scalar []uint64) {
++func (p *P256Point) p256BaseMult(scalar []uint64) {
+ 	wvalue := (scalar[0] << 1) & 0x7f
+ 	sel, sign := boothW6(uint(wvalue))
+ 	p256SelectBase(&p.xyz, p256Precomputed, sel)
+@@ -427,7 +511,7 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
+ 	p.xyz[10] = 0xffffffffffffffff
+ 	p.xyz[11] = 0x00000000fffffffe
+ 
+-	var t0 p256Point
++	var t0 P256Point
+ 	// (This is one, in the Montgomery domain.)
+ 	t0.xyz[8] = 0x0000000000000001
+ 	t0.xyz[9] = 0xffffffff00000000
+@@ -449,13 +533,16 @@ func (p *p256Point) p256BaseMult(scalar []uint64) {
+ 		p256PointAddAffineAsm(p.xyz[0:12], p.xyz[0:12], t0.xyz[0:8], sign, sel, zero)
+ 		zero |= sel
+ 	}
++
++	// If the whole scalar was zero, set to the point at infinity.
++	p256MovCond(p.xyz[:], NewP256Point().xyz[:], p.xyz[:], uint64IsZero(uint64(zero)))
+ }
+ 
+-func (p *p256Point) p256ScalarMult(scalar []uint64) {
++func (p *P256Point) p256ScalarMult(scalar []uint64) {
+ 	// precomp is a table of precomputed points that stores powers of p
+ 	// from p^1 to p^16.
+ 	var precomp [16 * 4 * 3]uint64
+-	var t0, t1, t2, t3 p256Point
++	var t0, t1, t2, t3 P256Point
+ 
+ 	// Prepare the table
+ 	p.p256StorePoint(&precomp, 0) // 1
+diff --git a/src/crypto/elliptic/p256_asm_amd64.s b/src/crypto/elliptic/internal/nistec/p256_asm_amd64.s
+similarity index 100%
+rename from src/crypto/elliptic/p256_asm_amd64.s
+rename to src/crypto/elliptic/internal/nistec/p256_asm_amd64.s
+diff --git a/src/crypto/elliptic/p256_asm_arm64.s b/src/crypto/elliptic/internal/nistec/p256_asm_arm64.s
+similarity index 100%
+rename from src/crypto/elliptic/p256_asm_arm64.s
+rename to src/crypto/elliptic/internal/nistec/p256_asm_arm64.s
+diff --git a/src/crypto/elliptic/p256_asm_ppc64le.s b/src/crypto/elliptic/internal/nistec/p256_asm_ppc64le.s
+similarity index 99%
+rename from src/crypto/elliptic/p256_asm_ppc64le.s
+rename to src/crypto/elliptic/internal/nistec/p256_asm_ppc64le.s
+index 69e96e2696..88283e7f0d 100644
+--- a/src/crypto/elliptic/p256_asm_ppc64le.s
++++ b/src/crypto/elliptic/internal/nistec/p256_asm_ppc64le.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
++
+ #include "textflag.h"
+ 
+ // This is a port of the s390x asm implementation.
+diff --git a/src/crypto/elliptic/p256_asm_s390x.s b/src/crypto/elliptic/internal/nistec/p256_asm_s390x.s
+similarity index 99%
+rename from src/crypto/elliptic/p256_asm_s390x.s
+rename to src/crypto/elliptic/internal/nistec/p256_asm_s390x.s
+index cf37e204c7..4154f0dadf 100644
+--- a/src/crypto/elliptic/p256_asm_s390x.s
++++ b/src/crypto/elliptic/internal/nistec/p256_asm_s390x.s
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
++
+ #include "textflag.h"
+ #include "go_asm.h"
+ 
+diff --git a/src/crypto/elliptic/p256_asm_table.bin b/src/crypto/elliptic/internal/nistec/p256_asm_table.bin
+similarity index 100%
+rename from src/crypto/elliptic/p256_asm_table.bin
+rename to src/crypto/elliptic/internal/nistec/p256_asm_table.bin
+diff --git a/src/crypto/elliptic/p256_asm_table_test.go b/src/crypto/elliptic/internal/nistec/p256_asm_table_test.go
+similarity index 98%
+rename from src/crypto/elliptic/p256_asm_table_test.go
+rename to src/crypto/elliptic/internal/nistec/p256_asm_table_test.go
+index 6abd8cb11b..aab39e4ffa 100644
+--- a/src/crypto/elliptic/p256_asm_table_test.go
++++ b/src/crypto/elliptic/internal/nistec/p256_asm_table_test.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build amd64 || arm64
+ 
+-package elliptic
++package nistec
+ 
+ import (
+ 	"encoding/binary"
+diff --git a/src/crypto/elliptic/p256_ppc64le.go b/src/crypto/elliptic/internal/nistec/p256_ppc64le.go
+similarity index 99%
+rename from src/crypto/elliptic/p256_ppc64le.go
+rename to src/crypto/elliptic/internal/nistec/p256_ppc64le.go
+index 12021d038c..8152784d74 100644
+--- a/src/crypto/elliptic/p256_ppc64le.go
++++ b/src/crypto/elliptic/internal/nistec/p256_ppc64le.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build ppc64le
++//go:build ignore
+ 
+ package elliptic
+ 
+diff --git a/src/crypto/elliptic/p256_s390x.go b/src/crypto/elliptic/internal/nistec/p256_s390x.go
+similarity index 99%
+rename from src/crypto/elliptic/p256_s390x.go
+rename to src/crypto/elliptic/internal/nistec/p256_s390x.go
+index a8b2b07005..59006244e0 100644
+--- a/src/crypto/elliptic/p256_s390x.go
++++ b/src/crypto/elliptic/internal/nistec/p256_s390x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build s390x
++//go:build ignore
+ 
+ package elliptic
+ 
+diff --git a/src/crypto/elliptic/internal/nistec/p384.go b/src/crypto/elliptic/internal/nistec/p384.go
+index 50a1b71735..dff3feefb8 100644
+--- a/src/crypto/elliptic/internal/nistec/p384.go
++++ b/src/crypto/elliptic/internal/nistec/p384.go
+@@ -243,7 +243,7 @@ func (q *P384Point) Select(p1, p2 *P384Point, cond int) *P384Point {
+ }
+ 
+ // ScalarMult sets p = scalar * q, and returns p.
+-func (p *P384Point) ScalarMult(q *P384Point, scalar []byte) *P384Point {
++func (p *P384Point) ScalarMult(q *P384Point, scalar []byte) (*P384Point, error) {
+ 	// table holds the first 16 multiples of q. The explicit newP384Point calls
+ 	// get inlined, letting the allocations live on the stack.
+ 	var table = [16]*P384Point{
+@@ -284,5 +284,11 @@ func (p *P384Point) ScalarMult(q *P384Point, scalar []byte) *P384Point {
+ 		p.Add(p, t)
+ 	}
+ 
+-	return p
++	return p, nil
++}
++
++// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
++// returns p.
++func (p *P384Point) ScalarBaseMult(scalar []byte) (*P384Point, error) {
++	return p.ScalarMult(NewP384Generator(), scalar)
+ }
+diff --git a/src/crypto/elliptic/internal/nistec/p521.go b/src/crypto/elliptic/internal/nistec/p521.go
+index b7ed68cead..d60c3a7065 100644
+--- a/src/crypto/elliptic/internal/nistec/p521.go
++++ b/src/crypto/elliptic/internal/nistec/p521.go
+@@ -243,7 +243,7 @@ func (q *P521Point) Select(p1, p2 *P521Point, cond int) *P521Point {
+ }
+ 
+ // ScalarMult sets p = scalar * q, and returns p.
+-func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) *P521Point {
++func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) (*P521Point, error) {
+ 	// table holds the first 16 multiples of q. The explicit newP521Point calls
+ 	// get inlined, letting the allocations live on the stack.
+ 	var table = [16]*P521Point{
+@@ -284,5 +284,11 @@ func (p *P521Point) ScalarMult(q *P521Point, scalar []byte) *P521Point {
+ 		p.Add(p, t)
+ 	}
+ 
+-	return p
++	return p, nil
++}
++
++// ScalarBaseMult sets p = scalar * B, where B is the canonical generator, and
++// returns p.
++func (p *P521Point) ScalarBaseMult(scalar []byte) (*P521Point, error) {
++	return p.ScalarMult(NewP521Generator(), scalar)
+ }
+diff --git a/src/crypto/elliptic/nistec.go b/src/crypto/elliptic/nistec.go
+index 2a95380e06..989da66638 100644
+--- a/src/crypto/elliptic/nistec.go
++++ b/src/crypto/elliptic/nistec.go
+@@ -12,8 +12,7 @@ import (
+ )
+ 
+ var p224 = &nistCurve[*nistec.P224Point]{
+-	newPoint:     nistec.NewP224Point,
+-	newGenerator: nistec.NewP224Generator,
++	newPoint: nistec.NewP224Point,
+ }
+ 
+ func initP224() {
+@@ -29,18 +28,16 @@ func initP224() {
+ 	}
+ }
+ 
+-var p256Params CurveParams
+-
+-var p256 Curve = &nistCurve[*nistec.P256Point]{
+-	params:       &p256Params,
+-	newPoint:     nistec.NewP256Point,
+-	newGenerator: nistec.NewP256Generator,
++type p256Curve struct {
++	nistCurve[*nistec.P256Point]
+ }
+ 
+-var initP256Arch func()
++var p256 = &p256Curve{nistCurve[*nistec.P256Point]{
++	newPoint: nistec.NewP256Point,
++}}
+ 
+ func initP256() {
+-	p256Params = CurveParams{
++	p256.params = &CurveParams{
+ 		Name:    "P-256",
+ 		BitSize: 256,
+ 		// FIPS 186-4, section D.1.2.3
+@@ -50,18 +47,10 @@ func initP256() {
+ 		Gx: bigFromHex("6b17d1f2e12c4247f8bce6e563a440f277037d812deb33a0f4a13945d898c296"),
+ 		Gy: bigFromHex("4fe342e2fe1a7f9b8ee7eb4a7c0f9e162bce33576b315ececbb6406837bf51f5"),
+ 	}
+-
+-	// P-256 is implemented by various different backends, including a generic
+-	// 32-bit constant-time one in internal/nistec, which is used when assembly
+-	// implementations are not available, or not appropriate for the hardware.
+-	if initP256Arch != nil {
+-		initP256Arch()
+-	}
+ }
+ 
+ var p384 = &nistCurve[*nistec.P384Point]{
+-	newPoint:     nistec.NewP384Point,
+-	newGenerator: nistec.NewP384Generator,
++	newPoint: nistec.NewP384Point,
+ }
+ 
+ func initP384() {
+@@ -83,8 +72,7 @@ func initP384() {
+ }
+ 
+ var p521 = &nistCurve[*nistec.P521Point]{
+-	newPoint:     nistec.NewP521Point,
+-	newGenerator: nistec.NewP521Generator,
++	newPoint: nistec.NewP521Point,
+ }
+ 
+ func initP521() {
+@@ -121,9 +109,8 @@ func initP521() {
+ // Encoding and decoding is 1/1000th of the runtime of a scalar multiplication,
+ // so the overhead is acceptable.
+ type nistCurve[Point nistPoint[Point]] struct {
+-	newPoint     func() Point
+-	newGenerator func() Point
+-	params       *CurveParams
++	newPoint func() Point
++	params   *CurveParams
+ }
+ 
+ // nistPoint is a generic constraint for the nistec Point types.
+@@ -132,7 +119,8 @@ type nistPoint[T any] interface {
+ 	SetBytes([]byte) (T, error)
+ 	Add(T, T) T
+ 	Double(T) T
+-	ScalarMult(T, []byte) T
++	ScalarMult(T, []byte) (T, error)
++	ScalarBaseMult([]byte) (T, error)
+ }
+ 
+ func (curve *nistCurve[Point]) Params() *CurveParams {
+@@ -223,17 +211,61 @@ func (curve *nistCurve[Point]) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ 	return curve.pointToAffine(p.Double(p))
+ }
+ 
++// normalizeScalar brings the scalar within the byte size of the order of the
++// curve, as expected by the nistec scalar multiplication functions.
++func (curve *nistCurve[Point]) normalizeScalar(scalar []byte) []byte {
++	byteSize := (curve.params.N.BitLen() + 7) / 8
++	if len(scalar) == byteSize {
++		return scalar
++	}
++	s := new(big.Int).SetBytes(scalar)
++	if len(scalar) > byteSize {
++		s.Mod(s, curve.params.N)
++	}
++	out := make([]byte, byteSize)
++	return s.FillBytes(out)
++}
++
+ func (curve *nistCurve[Point]) ScalarMult(Bx, By *big.Int, scalar []byte) (*big.Int, *big.Int) {
+ 	p, err := curve.pointFromAffine(Bx, By)
+ 	if err != nil {
+ 		return curve.randomPoint()
+ 	}
+-	return curve.pointToAffine(p.ScalarMult(p, scalar))
++	scalar = curve.normalizeScalar(scalar)
++	p, err = p.ScalarMult(p, scalar)
++	if err != nil {
++		panic("elliptic: nistec rejected normalized scalar")
++	}
++	return curve.pointToAffine(p)
+ }
+ 
+ func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int) {
+-	p := curve.newGenerator()
+-	return curve.pointToAffine(p.ScalarMult(p, scalar))
++	scalar = curve.normalizeScalar(scalar)
++	p, err := curve.newPoint().ScalarBaseMult(scalar)
++	if err != nil {
++		panic("elliptic: nistec rejected normalized scalar")
++	}
++	return curve.pointToAffine(p)
++}
++
++// CombinedMult returns [s1]G + [s2]P where G is the generator. It's used
++// through an interface upgrade in crypto/ecdsa.
++func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int) {
++	s1 = curve.normalizeScalar(s1)
++	q, err := curve.newPoint().ScalarBaseMult(s1)
++	if err != nil {
++		panic("elliptic: nistec rejected normalized scalar")
++	}
++	p, err := curve.pointFromAffine(Px, Py)
++	if err != nil {
++		return curve.randomPoint()
++	}
++	s2 = curve.normalizeScalar(s2)
++	p, err = p.ScalarMult(p, s2)
++	if err != nil {
++		panic("elliptic: nistec rejected normalized scalar")
++	}
++	return curve.pointToAffine(p.Add(p, q))
+ }
+ 
+ func bigFromDecimal(s string) *big.Int {
+diff --git a/src/crypto/elliptic/nistec_p256.go b/src/crypto/elliptic/nistec_p256.go
+new file mode 100644
+index 0000000000..3e80a33131
+--- /dev/null
++++ b/src/crypto/elliptic/nistec_p256.go
+@@ -0,0 +1,29 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 || arm64
++
++package elliptic
++
++import (
++	"crypto/elliptic/internal/nistec"
++	"math/big"
++)
++
++func (c p256Curve) Inverse(k *big.Int) *big.Int {
++	if k.Sign() < 0 {
++		// This should never happen.
++		k = new(big.Int).Neg(k)
++	}
++	if k.Cmp(c.params.N) >= 0 {
++		// This should never happen.
++		k = new(big.Int).Mod(k, c.params.N)
++	}
++	scalar := k.FillBytes(make([]byte, 32))
++	inverse, err := nistec.P256OrdInverse(scalar)
++	if err != nil {
++		panic("elliptic: nistec rejected normalized scalar")
++	}
++	return new(big.Int).SetBytes(inverse)
++}
+diff --git a/src/crypto/elliptic/params.go b/src/crypto/elliptic/params.go
+index 586f2c0386..65176bf352 100644
+--- a/src/crypto/elliptic/params.go
++++ b/src/crypto/elliptic/params.go
+@@ -46,7 +46,7 @@ func (curve *CurveParams) polynomial(x *big.Int) *big.Int {
+ func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+-	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
++	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.IsOnCurve(x, y)
+ 	}
+ 
+@@ -94,7 +94,7 @@ func (curve *CurveParams) affineFromJacobian(x, y, z *big.Int) (xOut, yOut *big.
+ func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+-	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
++	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.Add(x1, y1, x2, y2)
+ 	}
+ 
+@@ -184,7 +184,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ func (curve *CurveParams) Double(x1, y1 *big.Int) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+-	if specific, ok := matchesSpecificCurve(curve, p224, p384, p521); ok {
++	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.Double(x1, y1)
+ 	}
+ 
+@@ -256,7 +256,7 @@ func (curve *CurveParams) doubleJacobian(x, y, z *big.Int) (*big.Int, *big.Int,
+ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+-	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
++	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.ScalarMult(Bx, By, k)
+ 	}
+ 
+@@ -279,15 +279,15 @@ func (curve *CurveParams) ScalarMult(Bx, By *big.Int, k []byte) (*big.Int, *big.
+ func (curve *CurveParams) ScalarBaseMult(k []byte) (*big.Int, *big.Int) {
+ 	// If there is a dedicated constant-time implementation for this curve operation,
+ 	// use that instead of the generic one.
+-	if specific, ok := matchesSpecificCurve(curve, p224, p256, p384, p521); ok {
++	if specific, ok := matchesSpecificCurve(curve); ok {
+ 		return specific.ScalarBaseMult(k)
+ 	}
+ 
+ 	return curve.ScalarMult(curve.Gx, curve.Gy, k)
+ }
+ 
+-func matchesSpecificCurve(params *CurveParams, available ...Curve) (Curve, bool) {
+-	for _, c := range available {
++func matchesSpecificCurve(params *CurveParams) (Curve, bool) {
++	for _, c := range []Curve{p224, p256, p384, p521} {
+ 		if params == c.Params() {
+ 			return c, true
+ 		}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8519b82059..f331660bfc 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -402,7 +402,7 @@ var depsRules = `
+ 	crypto/internal/boring/syso,
+ 	encoding/binary,
+ 	golang.org/x/sys/cpu,
+-	hash
++	hash, embed
+ 	< crypto
+ 	< crypto/subtle
+ 	< crypto/internal/subtle

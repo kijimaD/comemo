@@ -9,9 +9,115 @@ Date:   Sat Jul 28 10:40:51 2012 -0700
     R=golang-dev, nj, r, minux.ma
     CC=golang-dev
     https://golang.org/cl/6446060
-
+---
  misc/cgo/test/basic.go          | 16 ----------------
  misc/cgo/test/cgo_linux_test.go |  9 +++++++++
  misc/cgo/test/cgo_test.go       |  1 -
  misc/cgo/test/setgid_linux.go   | 32 ++++++++++++++++++++++++++++++++
  4 files changed, 41 insertions(+), 17 deletions(-)
+
+diff --git a/misc/cgo/test/basic.go b/misc/cgo/test/basic.go
+index c0f636289a..70ec5e43ac 100644
+--- a/misc/cgo/test/basic.go
++++ b/misc/cgo/test/basic.go
+@@ -11,7 +11,6 @@ package cgotest
+ #include <stdlib.h>
+ #include <sys/stat.h>
+ #include <errno.h>
+-#include <unistd.h>
+ 
+ #define SHIFT(x, y)  ((x)<<(y))
+ #define KILO SHIFT(1, 10)
+@@ -58,7 +57,6 @@ import "C"
+ import (
+ 	"syscall"
+ 	"testing"
+-	"time"
+ 	"unsafe"
+ )
+ 
+@@ -126,20 +124,6 @@ func testMultipleAssign(t *testing.T) {
+ 	C.free(unsafe.Pointer(p))
+ }
+ 
+-func testSetgid(t *testing.T) {
+-	// Issue 3871.
+-	c := make(chan bool)
+-	go func() {
+-		C.setgid(0)
+-		c <- true
+-	}()
+-	select {
+-	case <-c:
+-	case <-time.After(5 * time.Second):
+-		t.Error("setgid hung")
+-	}
+-}
+-
+ var (
+ 	cuint  = (C.uint)(0)
+ 	culong C.ulong
+diff --git a/misc/cgo/test/cgo_linux_test.go b/misc/cgo/test/cgo_linux_test.go
+new file mode 100644
+index 0000000000..056d67c96a
+--- /dev/null
++++ b/misc/cgo/test/cgo_linux_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgotest
++
++import "testing"
++
++func TestSetgid(t *testing.T) { testSetgid(t) }
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 43d32da585..34beee69d1 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -27,6 +27,5 @@ func Test1328(t *testing.T)                { test1328(t) }
+ func TestParallelSleep(t *testing.T)       { testParallelSleep(t) }
+ func TestSetEnv(t *testing.T)              { testSetEnv(t) }
+ func TestHelpers(t *testing.T)             { testHelpers(t) }
+-func TestSetgid(t *testing.T)              { testSetgid(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/setgid_linux.go b/misc/cgo/test/setgid_linux.go
+new file mode 100644
+index 0000000000..829afce1b3
+--- /dev/null
++++ b/misc/cgo/test/setgid_linux.go
+@@ -0,0 +1,32 @@
++// Copyright 2012 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that setgid does not hang on GNU/Linux.
++// See http://code.google.com/p/go/issues/detail?id=3871 for details.
++
++package cgotest
++
++/*
++#include <sys/types.h>
++#include <unistd.h>
++*/
++import "C"
++
++import (
++	"testing"
++	"time"
++)
++
++func testSetgid(t *testing.T) {
++	c := make(chan bool)
++	go func() {
++		C.setgid(0)
++		c <- true
++	}()
++	select {
++	case <-c:
++	case <-time.After(5 * time.Second):
++		t.Error("setgid hung")
++	}
++}

@@ -9,7 +9,53 @@ Date:   Sun Jan 29 10:35:11 2012 +0100
     R=golang-dev, lvd, iant
     CC=golang-dev, remy
     https://golang.org/cl/5572081
-
+---
  src/cmd/gc/export.c      |  1 +
  test/fixedbugs/bug381.go | 17 ++++++++++++++---
  2 files changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 05fdcbf32b..bbed8ae36e 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -423,6 +423,7 @@ importconst(Sym *s, Type *t, Node *n)
+ 		*n1 = *n;
+ 		n = n1;
+ 	}
++	n->orig = newname(s);
+ 	n->sym = s;
+ 	declare(n, PEXTERN);
+ 
+diff --git a/test/fixedbugs/bug381.go b/test/fixedbugs/bug381.go
+index 3f3232bf12..293ba71249 100644
+--- a/test/fixedbugs/bug381.go
++++ b/test/fixedbugs/bug381.go
+@@ -7,14 +7,25 @@
+ // Issue 2276.
+ 
+ // Check that the error messages says 
+-//	bug378.go:19: unsafe.Alignof(0) not used
++//	bug381.go:29: unsafe.Alignof(0) not used
+ // and not
+-//	bug378.go:19: 4 not used
++//	bug381.go:29: 4 not used
++
++// Issue 2768: previously got
++//    bug381.go:30: cannot use 3 (type time.Weekday) as type int in function argument
++// want
++//    bug381.go:30: cannot use time.Wednesday (type time.Weekday) as type int in function argument
+ 
+ package main
+ 
+-import "unsafe"
++import (
++	"time"
++	"unsafe"
++)
++
++func f(int)
+ 
+ func main() {
+ 	unsafe.Alignof(0) // ERROR "unsafe\.Alignof|value computed is not used"
++	f(time.Wednesday) // ERROR "time.Wednesday|incompatible type"
+ }

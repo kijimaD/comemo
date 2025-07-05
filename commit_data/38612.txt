@@ -15,9 +15,162 @@ Date:   Fri Nov 2 17:08:24 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/alldocs.go                      |  5 ++++-
  src/cmd/go/internal/modcmd/edit.go         | 26 ++++++++++++++++++++++----
  src/cmd/go/testdata/script/mod_edit.txt    |  3 ++-
  src/cmd/go/testdata/script/mod_edit_go.txt | 16 ++++++++++++++++
  4 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 27dbdd94f5..f8c4d2ffa9 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -972,6 +972,8 @@
+ // and -dropreplace editing flags may be repeated, and the changes
+ // are applied in the order given.
+ //
++// The -go=version flag sets the expected Go language version.
++//
+ // The -print flag prints the final go.mod in its text format instead of
+ // writing it back to go.mod.
+ //
+@@ -984,7 +986,8 @@
+ // 	}
+ //
+ // 	type GoMod struct {
+-// 		Module Module
++// 		Module  Module
++// 		Go      string
+ // 		Require []Require
+ // 		Exclude []Module
+ // 		Replace []Replace
+diff --git a/src/cmd/go/internal/modcmd/edit.go b/src/cmd/go/internal/modcmd/edit.go
+index 5fea3e48e0..c589c6d4ed 100644
+--- a/src/cmd/go/internal/modcmd/edit.go
++++ b/src/cmd/go/internal/modcmd/edit.go
+@@ -62,6 +62,8 @@ The -require, -droprequire, -exclude, -dropexclude, -replace,
+ and -dropreplace editing flags may be repeated, and the changes
+ are applied in the order given.
+ 
++The -go=version flag sets the expected Go language version.
++
+ The -print flag prints the final go.mod in its text format instead of
+ writing it back to go.mod.
+ 
+@@ -74,7 +76,8 @@ writing it back to go.mod. The JSON output corresponds to these Go types:
+ 	}
+ 
+ 	type GoMod struct {
+-		Module Module
++		Module  Module
++		Go      string
+ 		Require []Require
+ 		Exclude []Module
+ 		Replace []Replace
+@@ -102,8 +105,8 @@ by invoking 'go mod edit' with -require, -exclude, and so on.
+ }
+ 
+ var (
+-	editFmt = cmdEdit.Flag.Bool("fmt", false, "")
+-	// editGo     = cmdEdit.Flag.String("go", "", "")
++	editFmt    = cmdEdit.Flag.Bool("fmt", false, "")
++	editGo     = cmdEdit.Flag.String("go", "", "")
+ 	editJSON   = cmdEdit.Flag.Bool("json", false, "")
+ 	editPrint  = cmdEdit.Flag.Bool("print", false, "")
+ 	editModule = cmdEdit.Flag.String("module", "", "")
+@@ -131,6 +134,7 @@ func init() {
+ func runEdit(cmd *base.Command, args []string) {
+ 	anyFlags :=
+ 		*editModule != "" ||
++			*editGo != "" ||
+ 			*editJSON ||
+ 			*editPrint ||
+ 			*editFmt ||
+@@ -161,7 +165,11 @@ func runEdit(cmd *base.Command, args []string) {
+ 		}
+ 	}
+ 
+-	// TODO(rsc): Implement -go= once we start advertising it.
++	if *editGo != "" {
++		if !modfile.GoVersionRE.MatchString(*editGo) {
++			base.Fatalf(`go mod: invalid -go option; expecting something like "-go 1.12"`)
++		}
++	}
+ 
+ 	data, err := ioutil.ReadFile(gomod)
+ 	if err != nil {
+@@ -177,6 +185,12 @@ func runEdit(cmd *base.Command, args []string) {
+ 		modFile.AddModuleStmt(modload.CmdModModule)
+ 	}
+ 
++	if *editGo != "" {
++		if err := modFile.AddGoStmt(*editGo); err != nil {
++			base.Fatalf("go: internal error: %v", err)
++		}
++	}
++
+ 	if len(edits) > 0 {
+ 		for _, edit := range edits {
+ 			edit(modFile)
+@@ -344,6 +358,7 @@ func flagDropReplace(arg string) {
+ // fileJSON is the -json output data structure.
+ type fileJSON struct {
+ 	Module  module.Version
++	Go      string `json:",omitempty"`
+ 	Require []requireJSON
+ 	Exclude []module.Version
+ 	Replace []replaceJSON
+@@ -364,6 +379,9 @@ type replaceJSON struct {
+ func editPrintJSON(modFile *modfile.File) {
+ 	var f fileJSON
+ 	f.Module = modFile.Module.Mod
++	if modFile.Go != nil {
++		f.Go = modFile.Go.Version
++	}
+ 	for _, r := range modFile.Require {
+ 		f.Require = append(f.Require, requireJSON{Path: r.Mod.Path, Version: r.Mod.Version, Indirect: r.Indirect})
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_edit.txt b/src/cmd/go/testdata/script/mod_edit.txt
+index bf6f2a22c7..61801d5021 100644
+--- a/src/cmd/go/testdata/script/mod_edit.txt
++++ b/src/cmd/go/testdata/script/mod_edit.txt
+@@ -23,7 +23,7 @@ cmpenv go.mod $WORK/go.mod.edit2
+ 
+ # go mod edit -json
+ go mod edit -json
+-cmp stdout $WORK/go.mod.json
++cmpenv stdout $WORK/go.mod.json
+ 
+ # go mod edit -replace
+ go mod edit -replace=x.1@v1.3.0=y.1/v2@v2.3.5 -replace=x.1@v1.4.0=y.1/v2@v2.3.5
+@@ -83,6 +83,7 @@ require x.3 v1.99.0
+ 	"Module": {
+ 		"Path": "x.x/y/z"
+ 	},
++	"Go": "$goversion",
+ 	"Require": [
+ 		{
+ 			"Path": "x.3",
+diff --git a/src/cmd/go/testdata/script/mod_edit_go.txt b/src/cmd/go/testdata/script/mod_edit_go.txt
+new file mode 100644
+index 0000000000..3ec8137e2d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_edit_go.txt
+@@ -0,0 +1,16 @@
++# Test support for go mod -edit to set language version.
++
++env GO111MODULE=on
++! go build
++stderr 'type aliases only supported as of'
++go mod edit -go=1.9
++grep 'go 1.9' go.mod
++go build
++
++-- go.mod --
++module m
++go 1.8
++
++-- alias.go --
++package alias
++type T = int

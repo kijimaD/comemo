@@ -19,8 +19,67 @@ Date:   Tue May 2 17:15:10 2023 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/pprof/proto.go   |  2 +-
  src/runtime/pprof/runtime.go |  7 +++++++
  src/runtime/symtab.go        | 14 ++++++++++++++
  3 files changed, 22 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index f2ff3d2767..cdc4bd7c80 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -617,7 +617,7 @@ func (b *profileBuilder) emitLocation() uint64 {
+ 			b.funcs[frame.Function] = int(funcID)
+ 			newFuncs = append(newFuncs, newFunc{
+ 				id:        funcID,
+-				name:      frame.Function,
++				name:      runtime_FrameSymbolName(&frame),
+ 				file:      frame.File,
+ 				startLine: int64(runtime_FrameStartLine(&frame)),
+ 			})
+diff --git a/src/runtime/pprof/runtime.go b/src/runtime/pprof/runtime.go
+index 57e9ca480b..71f89ca680 100644
+--- a/src/runtime/pprof/runtime.go
++++ b/src/runtime/pprof/runtime.go
+@@ -11,8 +11,15 @@ import (
+ )
+ 
+ // runtime_FrameStartLine is defined in runtime/symtab.go.
++//
++//go:noescape
+ func runtime_FrameStartLine(f *runtime.Frame) int
+ 
++// runtime_FrameSymbolName is defined in runtime/symtab.go.
++//
++//go:noescape
++func runtime_FrameSymbolName(f *runtime.Frame) string
++
+ // runtime_expandFinalInlineFrame is defined in runtime/symtab.go.
+ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr
+ 
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 15e5e1d4d6..b47f2d8390 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -171,6 +171,20 @@ func runtime_FrameStartLine(f *Frame) int {
+ 	return f.startLine
+ }
+ 
++// runtime_FrameSymbolName returns the full symbol name of the function in a Frame.
++// For generic functions this differs from f.Function in that this doesn't replace
++// the shape name to "...".
++//
++//go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
++func runtime_FrameSymbolName(f *Frame) string {
++	if !f.funcInfo.valid() {
++		return f.Function
++	}
++	u, uf := newInlineUnwinder(f.funcInfo, f.PC, nil)
++	sf := u.srcFunc(uf)
++	return sf.name()
++}
++
+ // runtime_expandFinalInlineFrame expands the final pc in stk to include all
+ // "callers" if pc is inline.
+ //

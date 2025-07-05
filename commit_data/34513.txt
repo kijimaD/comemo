@@ -11,6 +11,21 @@ Date:   Fri Oct 27 14:40:59 2017 -0400
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Munday <mike.munday@ibm.com>
-
+---
  src/runtime/asm_s390x.s | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 42b9326607..487ed62306 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -915,7 +915,8 @@ TEXT runtime·sigreturn(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+-	SYNC
++        // Stores are already ordered on s390x, so this is just a
++        // compile barrier.
+ 	RET
+ 
+ TEXT runtime·cmpstring(SB),NOSPLIT|NOFRAME,$0-40

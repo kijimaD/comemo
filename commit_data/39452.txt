@@ -14,6 +14,43 @@ Date:   Fri Mar 1 01:15:24 2019 +0100
     Change-Id: Iaa2c03a1a3fb3aa5aaf62d79d52b63d5d8f11db5
     Reviewed-on: https://go-review.googlesource.com/c/164698
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  misc/ios/go_darwin_arm_exec.go | 16 ++++++++++++----
  1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index d1bf9fd150..3eb1757e8f 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -633,8 +633,12 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 	if err != nil {
+ 		return "", false, err
+ 	}
+-	if root := runtime.GOROOT(); strings.HasPrefix(cwd, root) {
+-		subdir, err := filepath.Rel(root, cwd)
++	goroot, err := filepath.EvalSymlinks(runtime.GOROOT())
++	if err != nil {
++		return "", false, err
++	}
++	if strings.HasPrefix(cwd, goroot) {
++		subdir, err := filepath.Rel(goroot, cwd)
+ 		if err != nil {
+ 			return "", false, err
+ 		}
+@@ -642,10 +646,14 @@ func subdir() (pkgpath string, underGoRoot bool, err error) {
+ 	}
+ 
+ 	for _, p := range filepath.SplitList(build.Default.GOPATH) {
+-		if !strings.HasPrefix(cwd, p) {
++		pabs, err := filepath.EvalSymlinks(p)
++		if err != nil {
++			return "", false, err
++		}
++		if !strings.HasPrefix(cwd, pabs) {
+ 			continue
+ 		}
+-		subdir, err := filepath.Rel(p, cwd)
++		subdir, err := filepath.Rel(pabs, cwd)
+ 		if err == nil {
+ 			return subdir, false, nil
+ 		}

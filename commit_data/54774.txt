@@ -11,6 +11,33 @@ Date:   Sun Nov 13 20:41:58 2022 +0100
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@google.com>
     Run-TryBot: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/_gen/main.go | 8 ++------
  1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index 6a8ae0e45c..f37438796c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -12,6 +12,7 @@ import (
+ 	"fmt"
+ 	"go/format"
+ 	"log"
++	"math/bits"
+ 	"os"
+ 	"path"
+ 	"regexp"
+@@ -546,12 +547,7 @@ func (a arch) Name() string {
+ 
+ // countRegs returns the number of set bits in the register mask.
+ func countRegs(r regMask) int {
+-	n := 0
+-	for r != 0 {
+-		n += int(r & 1)
+-		r >>= 1
+-	}
+-	return n
++	return bits.OnesCount64(uint64(r))
+ }
+ 
+ // for sorting a pair of integers by key

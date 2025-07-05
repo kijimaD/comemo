@@ -9,6 +9,20 @@ Date:   Sat May 3 17:06:41 2025 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
-
+---
  src/go/types/api.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index f60c2ff7ee..00fac4a9a0 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -228,7 +228,7 @@ type Info struct {
+ 	// Similarly, no type is recorded for the (synthetic) FuncType
+ 	// node in a FuncDecl.Type field, since there is no corresponding
+ 	// syntactic function type expression in the source in this case
+-	// Instead, the function type is found in the Defs.map entry for
++	// Instead, the function type is found in the Defs map entry for
+ 	// the corresponding function declaration.
+ 	Types map[ast.Expr]TypeAndValue
+ 

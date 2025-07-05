@@ -22,7 +22,106 @@ Date:   Wed Dec 12 21:38:52 2012 +1100
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/6899057
-
+---
  src/cmd/go/test.bash      | 31 +++++++++++++++++++++++++++++++
  src/pkg/go/build/build.go | 30 +++++++++++++++++++++++++++++-
  2 files changed, 60 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.bash b/src/cmd/go/test.bash
+index 350fdb89fa..b3e72f0969 100755
+--- a/src/cmd/go/test.bash
++++ b/src/cmd/go/test.bash
+@@ -150,6 +150,37 @@ if ! ./testgo list std | cmp -s test_std.list - ; then
+ fi
+ rm -f test_std.list
+ 
++# issue 4096. Validate the output of unsucessful go install foo/quxx 
++if [ $(./testgo install 'foo/quxx' 2>&1 | grep -c 'cannot find package "foo/quxx" in any of') -ne 1 ] ; then
++	echo 'go install foo/quxx expected error: .*cannot find package "foo/quxx" in any of'
++	ok=false
++fi 
++# test GOROOT search failure is reported
++if [ $(./testgo install 'foo/quxx' 2>&1 | egrep -c 'foo/quxx \(from \$GOROOT\)$') -ne 1 ] ; then
++        echo 'go install foo/quxx expected error: .*foo/quxx (from $GOROOT)'
++        ok=false
++fi
++# test multiple GOPATH entries are reported separately
++if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/./src/foo/quxx') -ne 2 ] ; then
++        echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)\n.*testdata/b/src/foo/quxx'
++        ok=false
++fi
++# test (from $GOPATH) annotation is reported for the first GOPATH entry
++if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/a/src/foo/quxx \(from \$GOPATH\)$') -ne 1 ] ; then
++        echo 'go install foo/quxx expected error: .*testdata/a/src/foo/quxx (from $GOPATH)'
++        ok=false
++fi
++# but not on the second
++if [ $(GOPATH=$(pwd)/testdata/a:$(pwd)/testdata/b ./testgo install 'foo/quxx' 2>&1 | egrep -c 'testdata/b/src/foo/quxx$') -ne 1 ] ; then
++        echo 'go install foo/quxx expected error: .*testdata/b/src/foo/quxx'
++        ok=false
++fi
++# test missing GOPATH is reported
++if [ $(GOPATH= ./testgo install 'foo/quxx' 2>&1 | egrep -c '\(\$GOPATH not set\)$') -ne 1 ] ; then
++        echo 'go install foo/quxx expected error: ($GOPATH not set)'
++        ok=false
++fi
++
+ # clean up
+ rm -rf testdata/bin testdata/bin1
+ rm -f testgo
+diff --git a/src/pkg/go/build/build.go b/src/pkg/go/build/build.go
+index e65d8453bc..6184beb5a5 100644
+--- a/src/pkg/go/build/build.go
++++ b/src/pkg/go/build/build.go
+@@ -424,6 +424,13 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 		if strings.HasPrefix(path, "/") {
+ 			return p, fmt.Errorf("import %q: cannot import absolute path", path)
+ 		}
++
++		// tried records the location of unsucsessful package lookups
++		var tried struct {
++			goroot string
++			gopath []string
++		}
++
+ 		// Determine directory from import path.
+ 		if ctxt.GOROOT != "" {
+ 			dir := ctxt.joinPath(ctxt.GOROOT, "src", "pkg", path)
+@@ -435,6 +442,7 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				p.Root = ctxt.GOROOT
+ 				goto Found
+ 			}
++			tried.goroot = dir
+ 		}
+ 		for _, root := range ctxt.gopath() {
+ 			dir := ctxt.joinPath(root, "src", path)
+@@ -445,8 +453,28 @@ func (ctxt *Context) Import(path string, srcDir string, mode ImportMode) (*Packa
+ 				p.Root = root
+ 				goto Found
+ 			}
++			tried.gopath = append(tried.gopath, dir)
++		}
++
++		// package was not found
++		var paths []string
++		if tried.goroot != "" {
++			paths = append(paths, fmt.Sprintf("\t%s (from $GOROOT)", tried.goroot))
++		} else {
++			paths = append(paths, "\t($GOROOT not set)")
++		}
++		var i int
++		var format = "\t%s (from $GOPATH)"
++		for ; i < len(tried.gopath); i++ {
++			if i > 0 {
++				format = "\t%s"
++			}
++			paths = append(paths, fmt.Sprintf(format, tried.gopath[i]))
++		}
++		if i == 0 {
++			paths = append(paths, "\t($GOPATH not set)")
+ 		}
+-		return p, fmt.Errorf("import %q: cannot find package", path)
++		return p, fmt.Errorf("cannot find package %q in any of:\n%s", path, strings.Join(paths, "\n"))
+ 	}
+ 
+ Found:

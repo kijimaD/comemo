@@ -16,7 +16,114 @@ Date:   Tue Feb 6 09:36:13 2018 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/compile/internal/gc/pgen.go    | 12 +++++-----
  src/cmd/link/internal/ld/dwarf_test.go | 44 +++++++++++++++++++++-------------
  2 files changed, 33 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 315321b06d..dea4cf8581 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -424,8 +424,8 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool
+ 			Abbrev:        abbrev,
+ 			StackOffset:   int32(offs),
+ 			Type:          Ctxt.Lookup(typename),
+-			DeclFile:      declpos.Base().SymFilename(),
+-			DeclLine:      declpos.Line(),
++			DeclFile:      declpos.RelFilename(),
++			DeclLine:      declpos.RelLine(),
+ 			DeclCol:       declpos.Col(),
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+@@ -519,8 +519,8 @@ func createDwarfVars(fnsym *obj.LSym, fn *Func, automDecls []*Node) ([]*Node, []
+ 			Abbrev:        abbrev,
+ 			StackOffset:   int32(n.Xoffset),
+ 			Type:          Ctxt.Lookup(typename),
+-			DeclFile:      declpos.Base().SymFilename(),
+-			DeclLine:      declpos.Line(),
++			DeclFile:      declpos.RelFilename(),
++			DeclLine:      declpos.RelLine(),
+ 			DeclCol:       declpos.Col(),
+ 			InlIndex:      int32(inlIndex),
+ 			ChildIndex:    -1,
+@@ -651,8 +651,8 @@ func createComplexVar(fn *Func, varID ssa.VarID) *dwarf.Var {
+ 		// This won't work well if the first slot hasn't been assigned a stack
+ 		// location, but it's not obvious how to do better.
+ 		StackOffset: stackOffset(*debug.Slots[debug.VarSlots[varID][0]]),
+-		DeclFile:    declpos.Base().SymFilename(),
+-		DeclLine:    declpos.Line(),
++		DeclFile:    declpos.RelFilename(),
++		DeclLine:    declpos.RelLine(),
+ 		DeclCol:     declpos.Col(),
+ 		InlIndex:    int32(inlIndex),
+ 		ChildIndex:  -1,
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 391601acaf..54e692865a 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -308,22 +308,11 @@ func main() {
+ 	}
+ }
+ 
+-func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
++func varDeclCoordsAndSubrogramDeclFile(t *testing.T, testpoint string, expectFile int, expectLine int, directive string) {
+ 
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+-	}
+-
+-	const prog = `
+-package main
++	prog := fmt.Sprintf("package main\n\nfunc main() {\n%s\nvar i int\ni = i\n}\n", directive)
+ 
+-func main() {
+-	var i int
+-	i = i
+-}
+-`
+-	dir, err := ioutil.TempDir("", "TestVarDeclCoords")
++	dir, err := ioutil.TempDir("", testpoint)
+ 	if err != nil {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+@@ -373,14 +362,35 @@ func main() {
+ 
+ 	// Verify line/file attributes.
+ 	line := iEntry.Val(dwarf.AttrDeclLine)
+-	if line == nil || line.(int64) != 5 {
+-		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
++	if line == nil || line.(int64) != int64(expectLine) {
++		t.Errorf("DW_AT_decl_line for i is %v, want %d", line, expectLine)
+ 	}
+ 
+ 	file := maindie.Val(dwarf.AttrDeclFile)
+ 	if file == nil || file.(int64) != 1 {
+-		t.Errorf("DW_AT_decl_file for main is %v, want 1", file)
++		t.Errorf("DW_AT_decl_file for main is %v, want %d", file, expectFile)
++	}
++}
++
++func TestVarDeclCoordsAndSubrogramDeclFile(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoords", 1, 5, "")
++}
++
++func TestVarDeclCoordsWithLineDirective(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
+ 	}
++
++	varDeclCoordsAndSubrogramDeclFile(t, "TestVarDeclCoordsWithLineDirective",
++		2, 200, "//line /foobar.go:200")
+ }
+ 
+ // Helper class for supporting queries on DIEs within a DWARF .debug_info

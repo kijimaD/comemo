@@ -17,8 +17,65 @@ Date:   Tue Oct 6 01:04:18 2015 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/tar/reader.go               |  14 ++++++++++----
  src/archive/tar/reader_test.go          |   8 ++++++++
  src/archive/tar/testdata/issue12435.tar | Bin 0 -> 512 bytes
  3 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/archive/tar/reader.go b/src/archive/tar/reader.go
+index 67db71540c..f38f8c8ce6 100644
+--- a/src/archive/tar/reader.go
++++ b/src/archive/tar/reader.go
+@@ -165,18 +165,24 @@ func (tr *Reader) Next() (*Header, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		hdr, err := tr.Next()
++		hdr, tr.err = tr.Next()
++		if tr.err != nil {
++			return nil, tr.err
++		}
+ 		hdr.Name = cString(realname)
+-		return hdr, err
++		return hdr, nil
+ 	case TypeGNULongLink:
+ 		// We have a GNU long link header.
+ 		realname, err := ioutil.ReadAll(tr)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		hdr, err := tr.Next()
++		hdr, tr.err = tr.Next()
++		if tr.err != nil {
++			return nil, tr.err
++		}
+ 		hdr.Linkname = cString(realname)
+-		return hdr, err
++		return hdr, nil
+ 	}
+ 	return hdr, tr.err
+ }
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index 4d065a9591..604d13f57b 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -300,6 +300,14 @@ var untarTests = []*untarTest{
+ 		file: "testdata/issue11169.tar",
+ 		// TODO(dsnet): Currently the library does not detect that this file is
+ 		// malformed. Instead it incorrectly believes that file just ends.
++		// At least the library doesn't crash anymore.
++		// err:  ErrHeader,
++	},
++	{
++		file: "testdata/issue12435.tar",
++		// TODO(dsnet): Currently the library does not detect that this file is
++		// malformed. Instead, it incorrectly believes that file just ends.
++		// At least the library doesn't crash anymore.
+ 		// err:  ErrHeader,
+ 	},
+ }
+diff --git a/src/archive/tar/testdata/issue12435.tar b/src/archive/tar/testdata/issue12435.tar
+new file mode 100644
+index 0000000000..3542dd8efd
+Binary files /dev/null and b/src/archive/tar/testdata/issue12435.tar differ

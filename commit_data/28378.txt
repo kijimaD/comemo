@@ -19,10 +19,754 @@ Date:   Fri May 13 15:31:14 2016 -0400
     Change-Id: Ieb4b68b44ee7de66bf7b68f5f33a605349fcc6fa
     Reviewed-on: https://go-review.googlesource.com/23097
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/arm/ssa.go        |  72 +++++++
  src/cmd/compile/internal/ssa/gen/ARM.rules |  58 +++++
  src/cmd/compile/internal/ssa/gen/ARMOps.go |  87 +++++++-
  src/cmd/compile/internal/ssa/opGen.go      |  52 +++++
  src/cmd/compile/internal/ssa/rewriteARM.go | 333 +++++++++++++++++++++++++++++
  5 files changed, 593 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index dab66f530c..e327715f1a 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -43,6 +43,19 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	case ssa.OpSP, ssa.OpSB:
+ 		// nothing to do
+ 	case ssa.OpCopy:
++		if v.Type.IsMemory() {
++			return
++		}
++		x := gc.SSARegNum(v.Args[0])
++		y := gc.SSARegNum(v)
++		if x == y {
++			return
++		}
++		p := gc.Prog(arm.AMOVW)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = x
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = y
+ 	case ssa.OpLoadReg:
+ 		// TODO: by type
+ 		p := gc.Prog(arm.AMOVW)
+@@ -311,6 +324,18 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Maxarg < v.AuxInt {
+ 			gc.Maxarg = v.AuxInt
+ 		}
++	case ssa.OpARMDUFFZERO:
++		p := gc.Prog(obj.ADUFFZERO)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Pkglookup("duffzero", gc.Runtimepkg))
++		p.To.Offset = v.AuxInt
++	case ssa.OpARMDUFFCOPY:
++		p := gc.Prog(obj.ADUFFCOPY)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = gc.Linksym(gc.Pkglookup("duffcopy", gc.Runtimepkg))
++		p.To.Offset = v.AuxInt
+ 	case ssa.OpARMLoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := gc.Prog(arm.AMOVB)
+@@ -322,6 +347,53 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		if gc.Debug_checknil != 0 && v.Line > 1 { // v.Line==1 in generated wrappers
+ 			gc.Warnl(v.Line, "generated nil check")
+ 		}
++	case ssa.OpARMLoweredZero:
++		// MOVW.P	Rarg2, 4(R1)
++		// CMP	Rarg1, R1
++		// BLT	-2(PC)
++		// arg1 is the end of memory to zero
++		// arg2 is known to be zero
++		p := gc.Prog(arm.AMOVW)
++		p.Scond = arm.C_PBIT
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = gc.SSARegNum(v.Args[2])
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = arm.REG_R1
++		p.To.Offset = 4
++		p2 := gc.Prog(arm.ACMP)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = gc.SSARegNum(v.Args[1])
++		p2.Reg = arm.REG_R1
++		p3 := gc.Prog(arm.ABLT)
++		p3.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p3, p)
++	case ssa.OpARMLoweredMove:
++		// MOVW.P	4(R1), Rtmp
++		// MOVW.P	Rtmp, 4(R2)
++		// CMP	Rarg2, R1
++		// BLT	-3(PC)
++		// arg2 is the end of src
++		p := gc.Prog(arm.AMOVW)
++		p.Scond = arm.C_PBIT
++		p.From.Type = obj.TYPE_MEM
++		p.From.Reg = arm.REG_R1
++		p.From.Offset = 4
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = arm.REGTMP
++		p2 := gc.Prog(arm.AMOVW)
++		p2.Scond = arm.C_PBIT
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = arm.REGTMP
++		p2.To.Type = obj.TYPE_MEM
++		p2.To.Reg = arm.REG_R2
++		p2.To.Offset = 4
++		p3 := gc.Prog(arm.ACMP)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = gc.SSARegNum(v.Args[2])
++		p3.Reg = arm.REG_R1
++		p4 := gc.Prog(arm.ABLT)
++		p4.To.Type = obj.TYPE_BRANCH
++		gc.Patch(p4, p)
+ 	case ssa.OpVarDef:
+ 		gc.Gvardef(v.Aux.(*gc.Node))
+ 	case ssa.OpVarKill:
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index 6805a30026..ca47e70cfb 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -113,16 +113,20 @@
+ (Rsh16x64 <t> x (Const64 [c])) && uint64(c) >= 16 -> (SRAconst (SLLconst <t> x [16]) [31])
+ (Rsh8x64 <t> x (Const64 [c])) && uint64(c) >= 8 -> (SRAconst (SLLconst <t> x [24]) [31])
+ 
++// constants
+ (Const8 [val]) -> (MOVWconst [val])
+ (Const16 [val]) -> (MOVWconst [val])
+ (Const32 [val]) -> (MOVWconst [val])
+ (ConstNil) -> (MOVWconst [0])
+ (ConstBool [b]) -> (MOVWconst [b])
+ 
++// truncations
++// Because we ignore high parts of registers, truncates are just copies.
+ (Trunc16to8 x) -> x
+ (Trunc32to8 x) -> x
+ (Trunc32to16 x) -> x
+ 
++// Zero-/Sign-extensions
+ (ZeroExt8to16 x) -> (MOVBUreg x)
+ (ZeroExt8to32 x) -> (MOVBUreg x)
+ (ZeroExt16to32 x) -> (MOVHUreg x)
+@@ -131,6 +135,7 @@
+ (SignExt8to32 x) -> (MOVBreg x)
+ (SignExt16to32 x) -> (MOVHreg x)
+ 
++// comparisons
+ (Eq8 x y)  -> (Equal (CMP (ZeroExt8to32 x) (ZeroExt8to32 y)))
+ (Eq16 x y) -> (Equal (CMP (ZeroExt16to32 x) (ZeroExt16to32 y)))
+ (Eq32 x y) -> (Equal (CMP x y))
+@@ -177,6 +182,7 @@
+ 
+ (Addr {sym} base) -> (ADDconst {sym} base)
+ 
++// loads
+ (Load <t> ptr mem) && t.IsBoolean() -> (MOVBUload ptr mem)
+ (Load <t> ptr mem) && (is8BitInt(t) && isSigned(t)) -> (MOVBload ptr mem)
+ (Load <t> ptr mem) && (is8BitInt(t) && !isSigned(t)) -> (MOVBUload ptr mem)
+@@ -184,10 +190,62 @@
+ (Load <t> ptr mem) && (is16BitInt(t) && !isSigned(t)) -> (MOVHUload ptr mem)
+ (Load <t> ptr mem) && (is32BitInt(t) || isPtr(t)) -> (MOVWload ptr mem)
+ 
++// stores
+ (Store [1] ptr val mem) -> (MOVBstore ptr val mem)
+ (Store [2] ptr val mem) -> (MOVHstore ptr val mem)
+ (Store [4] ptr val mem) -> (MOVWstore ptr val mem)
+ 
++// zero instructions
++//TODO: check alignment?
++(Zero [0] _ mem) -> mem
++(Zero [1] ptr mem) -> (MOVBstore ptr (MOVWconst [0]) mem)
++(Zero [2] ptr mem) -> (MOVHstore ptr (MOVWconst [0]) mem)
++(Zero [4] ptr mem) -> (MOVWstore ptr (MOVWconst [0]) mem)
++
++(Zero [3] ptr mem) ->
++	(MOVBstore [2] ptr (MOVWconst [0])
++		(MOVHstore [0] ptr (MOVWconst [0]) mem))
++
++// Strip off fractional word zeroing.
++(Zero [size] ptr mem) && size%4 != 0 && size > 4 ->
++	(Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4])
++		(Zero <TypeMem> [size-size%4] ptr mem))
++
++// Medium zeroing uses a duff device
++// 4 and 128 are magic constants, see runtime/mkduff.go
++(Zero [size] ptr mem) && size%4 == 0 && size > 4 && size <= 512 ->
++	(DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
++
++// Large zeroing uses a loop
++(Zero [size] ptr mem) && size%4 == 0 && size > 512 ->
++	(LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
++
++// moves
++//TODO: check alignment?
++(Move [0] _ _ mem) -> mem
++(Move [1] dst src mem) -> (MOVBstore dst (MOVBUload src mem) mem)
++(Move [2] dst src mem) -> (MOVHstore dst (MOVHUload src mem) mem)
++(Move [4] dst src mem) -> (MOVWstore dst (MOVWload src mem) mem)
++
++(Move [3] dst src mem) ->
++	(MOVBstore [2] dst (MOVBUload [2] src mem)
++		(MOVHstore dst (MOVHUload src mem) mem))
++
++// Strip off fractional word move
++(Move [size] dst src mem) && size%4!=0 && size > 4 ->
++	(Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4])
++		(Move <TypeMem> [size-size%4] dst src mem))
++
++// Medium move uses a duff device
++// 8 and 128 are magic constants, see runtime/mkduff.go
++(Move [size] dst src mem) && size%4 == 0 && size > 4 && size <= 512 ->
++	(DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
++
++// Large move uses a loop
++(Move [size] dst src mem) && size%4 == 0 && size > 512 ->
++	(LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
++
++// calls
+ (StaticCall [argwid] {target} mem) -> (CALLstatic [argwid] {target} mem)
+ (ClosureCall [argwid] entry closure mem) -> (CALLclosure [argwid] entry closure mem)
+ (DeferCall [argwid] mem) -> (CALLdefer [argwid] mem)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 3605496698..627748a905 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -129,17 +129,17 @@ func init() {
+ 		{name: "TEQ", argLength: 2, reg: gp2flags, asm: "TEQ", typ: "Flags", commutative: true}, // arg0 ^ arg1 compare to 0
+ 		{name: "TEQconst", argLength: 1, reg: gp1flags, asm: "TEQ", aux: "Int32", typ: "Flags"}, // arg0 ^ auxInt compare to 0
+ 
+-		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", rematerializeable: true}, // 32 low bits of auxint
++		{name: "MOVWconst", argLength: 0, reg: gp01, aux: "Int32", asm: "MOVW", typ: "UInt32", rematerializeable: true}, // 32 low bits of auxint
+ 
+-		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH"},   // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU"}, // load from arg0 + auxInt + aux.  arg1=mem.
+-		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW"},   // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVB", typ: "Int8"},     // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVBUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVBU", typ: "UInt8"},  // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVH", typ: "Int16"},    // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVHUload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVHU", typ: "UInt16"}, // load from arg0 + auxInt + aux.  arg1=mem.
++		{name: "MOVWload", argLength: 2, reg: gpload, aux: "SymOff", asm: "MOVW", typ: "UInt32"},   // load from arg0 + auxInt + aux.  arg1=mem.
+ 
+-		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+-		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVBstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVB", typ: "Mem"}, // store 1 byte of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVHstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVH", typ: "Mem"}, // store 2 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
++		{name: "MOVWstore", argLength: 3, reg: gpstore, aux: "SymOff", asm: "MOVW", typ: "Mem"}, // store 4 bytes of arg1 to arg0 + auxInt + aux.  arg2=mem.
+ 
+ 		{name: "MOVBreg", argLength: 1, reg: gp11, asm: "MOVBS"},  // move from arg0, sign-extended from byte
+ 		{name: "MOVBUreg", argLength: 1, reg: gp11, asm: "MOVBU"}, // move from arg0, unsign-extended from byte
+@@ -165,6 +165,75 @@ func init() {
+ 		{name: "LessEqualU", argLength: 1, reg: readflags},    // bool, true flags encode unsigned x<=y false otherwise.
+ 		{name: "GreaterThanU", argLength: 1, reg: readflags},  // bool, true flags encode unsigned x>y false otherwise.
+ 		{name: "GreaterEqualU", argLength: 1, reg: readflags}, // bool, true flags encode unsigned x>=y false otherwise.
++
++		// duffzero
++		// arg0 = address of memory to zero (in R1, changed as side effect)
++		// arg1 = value to store (always zero)
++		// arg2 = mem
++		// auxint = offset into duffzero code to start executing
++		// returns mem
++		{
++			name:      "DUFFZERO",
++			aux:       "Int64",
++			argLength: 3,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R1"), buildReg("R0")},
++				clobbers: buildReg("R1"),
++			},
++		},
++
++		// duffcopy
++		// arg0 = address of dst memory (in R2, changed as side effect)
++		// arg1 = address of src memory (in R1, changed as side effect)
++		// arg2 = mem
++		// auxint = offset into duffcopy code to start executing
++		// returns mem
++		{
++			name:      "DUFFCOPY",
++			aux:       "Int64",
++			argLength: 3,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R2"), buildReg("R1")},
++				clobbers: buildReg("R0 R1 R2"),
++			},
++		},
++
++		// large zeroing
++		// arg0 = address of memory to zero (in R1, changed as side effect)
++		// arg1 = address of the end of the memory to zero
++		// arg2 = value to store (always zero)
++		// arg3 = mem
++		// returns mem
++		//	MOVW.P	Rarg2, 4(R1)
++		//	CMP	R1, Rarg1
++		//	BLT	-2(PC)
++		{
++			name:      "LoweredZero",
++			argLength: 4,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R1"), gp, gp},
++				clobbers: buildReg("R1 FLAGS"),
++			},
++		},
++
++		// large move
++		// arg0 = address of dst memory (in R2, changed as side effect)
++		// arg1 = address of src memory (in R1, changed as side effect)
++		// arg2 = address of the end of src memory
++		// arg3 = mem
++		// returns mem
++		//	MOVW.P	4(R1), Rtmp
++		//	MOVW.P	Rtmp, 4(R2)
++		//	CMP	R1, Rarg2
++		//	BLT	-3(PC)
++		{
++			name:      "LoweredMove",
++			argLength: 4,
++			reg: regInfo{
++				inputs:   []regMask{buildReg("R2"), buildReg("R1"), gp},
++				clobbers: buildReg("R1 R2 FLAGS"),
++			},
++		},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 5f109a7a65..558d041624 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -384,6 +384,10 @@ const (
+ 	OpARMLessEqualU
+ 	OpARMGreaterThanU
+ 	OpARMGreaterEqualU
++	OpARMDUFFZERO
++	OpARMDUFFCOPY
++	OpARMLoweredZero
++	OpARMLoweredMove
+ 
+ 	OpAdd8
+ 	OpAdd16
+@@ -4656,6 +4660,54 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "DUFFZERO",
++		auxType: auxInt64,
++		argLen:  3,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2}, // R1
++				{1, 1}, // R0
++			},
++			clobbers: 2, // R1
++		},
++	},
++	{
++		name:    "DUFFCOPY",
++		auxType: auxInt64,
++		argLen:  3,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4}, // R2
++				{1, 2}, // R1
++			},
++			clobbers: 7, // R0 R1 R2
++		},
++	},
++	{
++		name:   "LoweredZero",
++		argLen: 4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 2},    // R1
++				{1, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65538, // R1 FLAGS
++		},
++	},
++	{
++		name:   "LoweredMove",
++		argLen: 4,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4},    // R2
++				{1, 2},    // R1
++				{2, 5119}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12
++			},
++			clobbers: 65542, // R1 R2 FLAGS
++		},
++	},
+ 
+ 	{
+ 		name:        "Add8",
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index bd9ffb83d1..d45ed2d87e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -170,6 +170,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpARMMOVWload(v, config)
+ 	case OpARMMOVWstore:
+ 		return rewriteValueARM_OpARMMOVWstore(v, config)
++	case OpMove:
++		return rewriteValueARM_OpMove(v, config)
+ 	case OpMul16:
+ 		return rewriteValueARM_OpMul16(v, config)
+ 	case OpMul32:
+@@ -284,6 +286,8 @@ func rewriteValueARM(v *Value, config *Config) bool {
+ 		return rewriteValueARM_OpXor32(v, config)
+ 	case OpXor8:
+ 		return rewriteValueARM_OpXor8(v, config)
++	case OpZero:
++		return rewriteValueARM_OpZero(v, config)
+ 	case OpZeroExt16to32:
+ 		return rewriteValueARM_OpZeroExt16to32(v, config)
+ 	case OpZeroExt8to16:
+@@ -1951,6 +1955,177 @@ func rewriteValueARM_OpARMMOVWstore(v *Value, config *Config) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM_OpMove(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Move [0] _ _ mem)
++	// cond:
++	// result: mem
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		mem := v.Args[2]
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [1] dst src mem)
++	// cond:
++	// result: (MOVBstore dst (MOVBUload src mem) mem)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVBstore)
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [2] dst src mem)
++	// cond:
++	// result: (MOVHstore dst (MOVHUload src mem) mem)
++	for {
++		if v.AuxInt != 2 {
++			break
++		}
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVHstore)
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [4] dst src mem)
++	// cond:
++	// result: (MOVWstore dst (MOVWload src mem) mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVWstore)
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVWload, config.fe.TypeUInt32())
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [3] dst src mem)
++	// cond:
++	// result: (MOVBstore [2] dst (MOVBUload [2] src mem) 		(MOVHstore dst (MOVHUload src mem) mem))
++	for {
++		if v.AuxInt != 3 {
++			break
++		}
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 2
++		v.AddArg(dst)
++		v0 := b.NewValue0(v.Line, OpARMMOVBUload, config.fe.TypeUInt8())
++		v0.AuxInt = 2
++		v0.AddArg(src)
++		v0.AddArg(mem)
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVHstore, TypeMem)
++		v1.AddArg(dst)
++		v2 := b.NewValue0(v.Line, OpARMMOVHUload, config.fe.TypeUInt16())
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Move [size] dst src mem)
++	// cond: size%4!=0 && size > 4
++	// result: (Move [size%4] (ADDconst <dst.Type> dst [size-size%4]) (ADDconst <src.Type> src [size-size%4]) 		(Move <TypeMem> [size-size%4] dst src mem))
++	for {
++		size := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(size%4 != 0 && size > 4) {
++			break
++		}
++		v.reset(OpMove)
++		v.AuxInt = size % 4
++		v0 := b.NewValue0(v.Line, OpARMADDconst, dst.Type)
++		v0.AddArg(dst)
++		v0.AuxInt = size - size%4
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
++		v1.AddArg(src)
++		v1.AuxInt = size - size%4
++		v.AddArg(v1)
++		v2 := b.NewValue0(v.Line, OpMove, TypeMem)
++		v2.AuxInt = size - size%4
++		v2.AddArg(dst)
++		v2.AddArg(src)
++		v2.AddArg(mem)
++		v.AddArg(v2)
++		return true
++	}
++	// match: (Move [size] dst src mem)
++	// cond: size%4 == 0 && size > 4 && size <= 512
++	// result: (DUFFCOPY [8 * (128 - int64(size/4))] dst src mem)
++	for {
++		size := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(size%4 == 0 && size > 4 && size <= 512) {
++			break
++		}
++		v.reset(OpARMDUFFCOPY)
++		v.AuxInt = 8 * (128 - int64(size/4))
++		v.AddArg(dst)
++		v.AddArg(src)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Move [size] dst src mem)
++	// cond: size%4 == 0 && size > 512
++	// result: (LoweredMove dst src (ADDconst <src.Type> src [size]) mem)
++	for {
++		size := v.AuxInt
++		dst := v.Args[0]
++		src := v.Args[1]
++		mem := v.Args[2]
++		if !(size%4 == 0 && size > 512) {
++			break
++		}
++		v.reset(OpARMLoweredMove)
++		v.AddArg(dst)
++		v.AddArg(src)
++		v0 := b.NewValue0(v.Line, OpARMADDconst, src.Type)
++		v0.AddArg(src)
++		v0.AuxInt = size
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpMul16(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b
+@@ -3049,6 +3224,164 @@ func rewriteValueARM_OpXor8(v *Value, config *Config) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueARM_OpZero(v *Value, config *Config) bool {
++	b := v.Block
++	_ = b
++	// match: (Zero [0] _ mem)
++	// cond:
++	// result: mem
++	for {
++		if v.AuxInt != 0 {
++			break
++		}
++		mem := v.Args[1]
++		v.reset(OpCopy)
++		v.Type = mem.Type
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [1] ptr mem)
++	// cond:
++	// result: (MOVBstore ptr (MOVWconst [0]) mem)
++	for {
++		if v.AuxInt != 1 {
++			break
++		}
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVBstore)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [2] ptr mem)
++	// cond:
++	// result: (MOVHstore ptr (MOVWconst [0]) mem)
++	for {
++		if v.AuxInt != 2 {
++			break
++		}
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVHstore)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [4] ptr mem)
++	// cond:
++	// result: (MOVWstore ptr (MOVWconst [0]) mem)
++	for {
++		if v.AuxInt != 4 {
++			break
++		}
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVWstore)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [3] ptr mem)
++	// cond:
++	// result: (MOVBstore [2] ptr (MOVWconst [0]) 		(MOVHstore [0] ptr (MOVWconst [0]) mem))
++	for {
++		if v.AuxInt != 3 {
++			break
++		}
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		v.reset(OpARMMOVBstore)
++		v.AuxInt = 2
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVHstore, TypeMem)
++		v1.AuxInt = 0
++		v1.AddArg(ptr)
++		v2 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v2.AuxInt = 0
++		v1.AddArg(v2)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Zero [size] ptr mem)
++	// cond: size%4 != 0 && size > 4
++	// result: (Zero [size%4] (ADDconst <ptr.Type> ptr [size-size%4]) 		(Zero <TypeMem> [size-size%4] ptr mem))
++	for {
++		size := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(size%4 != 0 && size > 4) {
++			break
++		}
++		v.reset(OpZero)
++		v.AuxInt = size % 4
++		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
++		v0.AddArg(ptr)
++		v0.AuxInt = size - size%4
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpZero, TypeMem)
++		v1.AuxInt = size - size%4
++		v1.AddArg(ptr)
++		v1.AddArg(mem)
++		v.AddArg(v1)
++		return true
++	}
++	// match: (Zero [size] ptr mem)
++	// cond: size%4 == 0 && size > 4 && size <= 512
++	// result: (DUFFZERO [4 * (128 - int64(size/4))] ptr (MOVWconst [0]) mem)
++	for {
++		size := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(size%4 == 0 && size > 4 && size <= 512) {
++			break
++		}
++		v.reset(OpARMDUFFZERO)
++		v.AuxInt = 4 * (128 - int64(size/4))
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v0.AuxInt = 0
++		v.AddArg(v0)
++		v.AddArg(mem)
++		return true
++	}
++	// match: (Zero [size] ptr mem)
++	// cond: size%4 == 0 && size > 512
++	// result: (LoweredZero ptr (ADDconst <ptr.Type> ptr [size]) (MOVWconst [0]) mem)
++	for {
++		size := v.AuxInt
++		ptr := v.Args[0]
++		mem := v.Args[1]
++		if !(size%4 == 0 && size > 512) {
++			break
++		}
++		v.reset(OpARMLoweredZero)
++		v.AddArg(ptr)
++		v0 := b.NewValue0(v.Line, OpARMADDconst, ptr.Type)
++		v0.AddArg(ptr)
++		v0.AuxInt = size
++		v.AddArg(v0)
++		v1 := b.NewValue0(v.Line, OpARMMOVWconst, config.fe.TypeUInt32())
++		v1.AuxInt = 0
++		v.AddArg(v1)
++		v.AddArg(mem)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM_OpZeroExt16to32(v *Value, config *Config) bool {
+ 	b := v.Block
+ 	_ = b

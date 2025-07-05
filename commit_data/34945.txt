@@ -21,7 +21,7 @@ Date:   Fri Oct 6 11:32:28 2017 -0400
     Run-TryBot: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/asm/internal/asm/endtoend_test.go |   4 +-
  src/cmd/asm/main.go                       |   2 +-
  src/cmd/compile/internal/gc/dwinl.go      | 317 ++++++++++++++
@@ -40,3 +40,2875 @@ Date:   Fri Oct 6 11:32:28 2017 -0400
  src/cmd/link/internal/ld/dwarf_test.go    | 295 +++++++++++--
  src/runtime/runtime-gdb_test.go           |   2 +-
  17 files changed, 1945 insertions(+), 147 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/endtoend_test.go b/src/cmd/asm/internal/asm/endtoend_test.go
+index 092b237efb..e877a53178 100644
+--- a/src/cmd/asm/internal/asm/endtoend_test.go
++++ b/src/cmd/asm/internal/asm/endtoend_test.go
+@@ -186,7 +186,7 @@ Diff:
+ 		t.Errorf(format, args...)
+ 		ok = false
+ 	}
+-	obj.Flushplist(ctxt, pList, nil)
++	obj.Flushplist(ctxt, pList, nil, "")
+ 
+ 	for p := top; p != nil; p = p.Link {
+ 		if p.As == obj.ATEXT {
+@@ -290,7 +290,7 @@ func testErrors(t *testing.T, goarch, file string) {
+ 		errBuf.WriteString(s)
+ 	}
+ 	pList.Firstpc, ok = parser.Parse()
+-	obj.Flushplist(ctxt, pList, nil)
++	obj.Flushplist(ctxt, pList, nil, "")
+ 	if ok && !failed {
+ 		t.Errorf("asm: %s had no errors", goarch)
+ 	}
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 2e799163af..04f56f9646 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -72,7 +72,7 @@ func main() {
+ 			break
+ 		}
+ 		// reports errors to parser.Errorf
+-		obj.Flushplist(ctxt, pList, nil)
++		obj.Flushplist(ctxt, pList, nil, "")
+ 	}
+ 	if ok {
+ 		obj.WriteObjFile(ctxt, buf)
+diff --git a/src/cmd/compile/internal/gc/dwinl.go b/src/cmd/compile/internal/gc/dwinl.go
+new file mode 100644
+index 0000000000..f76bacc5b9
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/dwinl.go
+@@ -0,0 +1,317 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import (
++	"cmd/internal/dwarf"
++	"cmd/internal/obj"
++	"cmd/internal/src"
++	"sort"
++	"strings"
++)
++
++// To identify variables by original source position.
++type varPos struct {
++	DeclFile string
++	DeclLine uint
++	DeclCol  uint
++}
++
++// This is the main entry point for collection of raw material to
++// drive generation of DWARF "inlined subroutine" DIEs. See proposal
++// 22080 for more details and background info.
++func assembleInlines(fnsym *obj.LSym, fn *Node, dwVars []*dwarf.Var) dwarf.InlCalls {
++	var inlcalls dwarf.InlCalls
++
++	if Debug_gendwarfinl != 0 {
++		Ctxt.Logf("assembling DWARF inlined routine info for %v\n", fnsym.Name)
++	}
++
++	// This maps inline index (from Ctxt.InlTree) to index in inlcalls.Calls
++	imap := make(map[int]int)
++
++	// Walk progs to build up the InlCalls data structure
++	var prevpos src.XPos
++	for p := fnsym.Func.Text; p != nil; p = p.Link {
++		if p.Pos == prevpos {
++			continue
++		}
++		ii := posInlIndex(p.Pos)
++		if ii >= 0 {
++			insertInlCall(&inlcalls, ii, imap)
++		}
++		prevpos = p.Pos
++	}
++
++	// This is used to partition DWARF vars by inline index. Vars not
++	// produced by the inliner will wind up in the vmap[0] entry.
++	vmap := make(map[int32][]*dwarf.Var)
++
++	// Now walk the dwarf vars and partition them based on whether they
++	// were produced by the inliner (dwv.InlIndex > 0) or were original
++	// vars/params from the function (dwv.InlIndex == 0).
++	for _, dwv := range dwVars {
++
++		vmap[dwv.InlIndex] = append(vmap[dwv.InlIndex], dwv)
++
++		// Zero index => var was not produced by an inline
++		if dwv.InlIndex == 0 {
++			continue
++		}
++
++		// Look up index in our map, then tack the var in question
++		// onto the vars list for the correct inlined call.
++		ii := int(dwv.InlIndex) - 1
++		idx, ok := imap[ii]
++		if !ok {
++			// We can occasionally encounter a var produced by the
++			// inliner for which there is no remaining prog; add a new
++			// entry to the call list in this scenario.
++			idx = insertInlCall(&inlcalls, ii, imap)
++		}
++		inlcalls.Calls[idx].InlVars =
++			append(inlcalls.Calls[idx].InlVars, dwv)
++	}
++
++	// Post process the map above to assign child indices to vars. For
++	// variables that weren't produced by an inline, sort them
++	// according to class and name and assign indices that way. For
++	// vars produced by an inline, assign child index by looking up
++	// the var name in the origin pre-optimization dcl list for the
++	// inlined function.
++	for ii, sl := range vmap {
++		if ii == 0 {
++			sort.Sort(byClassThenName(sl))
++			for j := 0; j < len(sl); j++ {
++				sl[j].ChildIndex = int32(j)
++			}
++		} else {
++			// Assign child index based on pre-inlined decls
++			ifnlsym := Ctxt.InlTree.InlinedFunction(int(ii - 1))
++			dcl, _ := preInliningDcls(ifnlsym)
++			m := make(map[varPos]int)
++			for i := 0; i < len(dcl); i++ {
++				n := dcl[i]
++				pos := Ctxt.InnermostPos(n.Pos)
++				vp := varPos{
++					DeclFile: pos.Base().SymFilename(),
++					DeclLine: pos.Line(),
++					DeclCol:  pos.Col(),
++				}
++				m[vp] = i
++			}
++			for j := 0; j < len(sl); j++ {
++				vp := varPos{
++					DeclFile: sl[j].DeclFile,
++					DeclLine: sl[j].DeclLine,
++					DeclCol:  sl[j].DeclCol,
++				}
++				if idx, found := m[vp]; found {
++					sl[j].ChildIndex = int32(idx)
++				} else {
++					Fatalf("unexpected: can't find var %s in preInliningDcls for %v\n", sl[j].Name, Ctxt.InlTree.InlinedFunction(int(ii-1)))
++				}
++			}
++		}
++	}
++
++	// Make a second pass through the progs to compute PC ranges
++	// for the various inlined calls.
++	curii := -1
++	var crange *dwarf.Range
++	var prevp *obj.Prog
++	for p := fnsym.Func.Text; p != nil; prevp, p = p, p.Link {
++		if prevp != nil && p.Pos == prevp.Pos {
++			continue
++		}
++		ii := posInlIndex(p.Pos)
++		if ii == curii {
++			continue
++		} else {
++			// Close out the current range
++			endRange(crange, prevp)
++
++			// Begin new range
++			crange = beginRange(inlcalls.Calls, p, ii, imap)
++			curii = ii
++		}
++	}
++	if prevp != nil {
++		endRange(crange, prevp)
++	}
++
++	// Debugging
++	if Debug_gendwarfinl != 0 {
++		dumpInlCalls(inlcalls)
++		dumpInlVars(dwVars)
++	}
++
++	return inlcalls
++}
++
++// Secondary hook for DWARF inlined subroutine generation. This is called
++// late in the compilation when it is determined that we need an
++// abstract function DIE for an inlined routine imported from a
++// previously compiled package.
++func genAbstractFunc(fn *obj.LSym) {
++	ifn := Ctxt.DwFixups.GetPrecursorFunc(fn)
++	if ifn == nil {
++		Ctxt.Diag("failed to locate precursor fn for %v", fn)
++		return
++	}
++	if Debug_gendwarfinl != 0 {
++		Ctxt.Logf("DwarfAbstractFunc(%v)\n", fn.Name)
++	}
++	Ctxt.DwarfAbstractFunc(ifn, fn, myimportpath)
++}
++
++func insertInlCall(dwcalls *dwarf.InlCalls, inlIdx int, imap map[int]int) int {
++	callIdx, found := imap[inlIdx]
++	if found {
++		return callIdx
++	}
++
++	// Haven't seen this inline yet. Visit parent of inline if there
++	// is one. We do this first so that parents appear before their
++	// children in the resulting table.
++	parCallIdx := -1
++	parInlIdx := Ctxt.InlTree.Parent(inlIdx)
++	if parInlIdx >= 0 {
++		parCallIdx = insertInlCall(dwcalls, parInlIdx, imap)
++	}
++
++	// Create new entry for this inline
++	inlinedFn := Ctxt.InlTree.InlinedFunction(int(inlIdx))
++	callXPos := Ctxt.InlTree.CallPos(int(inlIdx))
++	absFnSym := Ctxt.DwFixups.AbsFuncDwarfSym(inlinedFn)
++	pb := Ctxt.PosTable.Pos(callXPos).Base()
++	callFileSym := Ctxt.Lookup(pb.SymFilename())
++	ic := dwarf.InlCall{
++		InlIndex:  inlIdx,
++		CallFile:  callFileSym,
++		CallLine:  uint32(callXPos.Line()),
++		AbsFunSym: absFnSym,
++		Root:      parCallIdx == -1,
++	}
++	dwcalls.Calls = append(dwcalls.Calls, ic)
++	callIdx = len(dwcalls.Calls) - 1
++	imap[inlIdx] = callIdx
++
++	if parCallIdx != -1 {
++		// Add this inline to parent's child list
++		dwcalls.Calls[parCallIdx].Children = append(dwcalls.Calls[parCallIdx].Children, callIdx)
++	}
++
++	return callIdx
++}
++
++// Given a src.XPos, return its associated inlining index if it
++// corresponds to something created as a result of an inline, or -1 if
++// there is no inline info. Note that the index returned will refer to
++// the deepest call in the inlined stack, e.g. if you have "A calls B
++// calls C calls D" and all three callees are inlined (B, C, and D),
++// the index for a node from the inlined body of D will refer to the
++// call to D from C. Whew.
++func posInlIndex(xpos src.XPos) int {
++	pos := Ctxt.PosTable.Pos(xpos)
++	if b := pos.Base(); b != nil {
++		ii := b.InliningIndex()
++		if ii >= 0 {
++			return ii
++		}
++	}
++	return -1
++}
++
++func endRange(crange *dwarf.Range, p *obj.Prog) {
++	if crange == nil {
++		return
++	}
++	crange.End = p.Pc
++}
++
++func beginRange(calls []dwarf.InlCall, p *obj.Prog, ii int, imap map[int]int) *dwarf.Range {
++	if ii == -1 {
++		return nil
++	}
++	callIdx, found := imap[ii]
++	if !found {
++		Fatalf("internal error: can't find inlIndex %d in imap for prog at %d\n", ii, p.Pc)
++	}
++	call := &calls[callIdx]
++
++	// Set up range and append to correct inlined call
++	call.Ranges = append(call.Ranges, dwarf.Range{Start: p.Pc, End: -1})
++	return &call.Ranges[len(call.Ranges)-1]
++}
++
++func cmpDwarfVar(a, b *dwarf.Var) bool {
++	// named before artificial
++	aart := 0
++	if strings.HasPrefix(a.Name, "~r") {
++		aart = 1
++	}
++	bart := 0
++	if strings.HasPrefix(b.Name, "~r") {
++		bart = 1
++	}
++	if aart != bart {
++		return aart < bart
++	}
++
++	// otherwise sort by name
++	return a.Name < b.Name
++}
++
++// byClassThenName implements sort.Interface for []*dwarf.Var using cmpDwarfVar.
++type byClassThenName []*dwarf.Var
++
++func (s byClassThenName) Len() int           { return len(s) }
++func (s byClassThenName) Less(i, j int) bool { return cmpDwarfVar(s[i], s[j]) }
++func (s byClassThenName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++
++func dumpInlCall(inlcalls dwarf.InlCalls, idx, ilevel int) {
++	for i := 0; i < ilevel; i += 1 {
++		Ctxt.Logf("  ")
++	}
++	ic := inlcalls.Calls[idx]
++	callee := Ctxt.InlTree.InlinedFunction(ic.InlIndex)
++	Ctxt.Logf("  %d: II:%d (%s) V: (", idx, ic.InlIndex, callee.Name)
++	for _, f := range ic.InlVars {
++		Ctxt.Logf(" %v", f.Name)
++	}
++	Ctxt.Logf(" ) C: (")
++	for _, k := range ic.Children {
++		Ctxt.Logf(" %v", k)
++	}
++	Ctxt.Logf(" ) R:")
++	for _, r := range ic.Ranges {
++		Ctxt.Logf(" [%d,%d)", r.Start, r.End)
++	}
++	Ctxt.Logf("\n")
++	for _, k := range ic.Children {
++		dumpInlCall(inlcalls, k, ilevel+1)
++	}
++
++}
++
++func dumpInlCalls(inlcalls dwarf.InlCalls) {
++	n := len(inlcalls.Calls)
++	for k := 0; k < n; k += 1 {
++		if inlcalls.Calls[k].Root {
++			dumpInlCall(inlcalls, k, 0)
++		}
++	}
++}
++
++func dumpInlVars(dwvars []*dwarf.Var) {
++	for i, dwv := range dwvars {
++		typ := "local"
++		if dwv.Abbrev == dwarf.DW_ABRV_PARAM_LOCLIST || dwv.Abbrev == dwarf.DW_ABRV_PARAM {
++			typ = "param"
++		}
++		Ctxt.Logf("V%d: %s CI:%d II:%d %s\n", i, dwv.Name, dwv.ChildIndex, dwv.InlIndex-1, typ)
++	}
++}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 9b81600b60..58b7cf8e9f 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -219,6 +219,11 @@ var instrumenting bool
+ // Whether we are tracking lexical scopes for DWARF.
+ var trackScopes bool
+ 
++// Controls generation of DWARF inlined instance records. Zero
++// disables, 1 emits inlined routines but suppresses var info,
++// and 2 emits inlined routines with tracking of formals/locals.
++var genDwarfInline int
++
+ var debuglive int
+ 
+ var Ctxt *obj.Link
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index e4b6a91177..d074900d98 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -84,7 +84,7 @@ func (pp *Progs) NewProg() *obj.Prog {
+ // Flush converts from pp to machine code.
+ func (pp *Progs) Flush() {
+ 	plist := &obj.Plist{Firstpc: pp.Text, Curfn: pp.curfn}
+-	obj.Flushplist(Ctxt, plist, pp.NewProg)
++	obj.Flushplist(Ctxt, plist, pp.NewProg, myimportpath)
+ }
+ 
+ // Free clears pp and any associated resources.
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index e54bb97ed2..0e8ef196af 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -31,8 +31,11 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
+ 	"fmt"
++	"sort"
++	"strings"
+ )
+ 
+ // Get the function's package. For ordinary functions it's on the ->sym, but for imported methods
+@@ -809,6 +812,9 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 	// Make temp names to use instead of the originals.
+ 	inlvars := make(map[*Node]*Node)
+ 
++	// record formals/locals for later post-processing
++	var inlfvars []*Node
++
+ 	// Find declarations corresponding to inlineable body.
+ 	var dcl []*Node
+ 	if fn.Name.Defn != nil {
+@@ -867,13 +873,25 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 		if ln.Class() == PPARAM || ln.Name.Param.Stackcopy != nil && ln.Name.Param.Stackcopy.Class() == PPARAM {
+ 			ninit.Append(nod(ODCL, inlvars[ln], nil))
+ 		}
++		if genDwarfInline > 0 {
++			inlf := inlvars[ln]
++			if ln.Class() == PPARAM {
++				inlf.SetInlFormal(true)
++			} else {
++				inlf.SetInlLocal(true)
++			}
++			inlf.Pos = ln.Pos
++			inlfvars = append(inlfvars, inlf)
++		}
+ 	}
+ 
+ 	// temporaries for return values.
+ 	var retvars []*Node
+ 	for i, t := range fn.Type.Results().Fields().Slice() {
+ 		var m *Node
++		var mpos src.XPos
+ 		if t != nil && asNode(t.Nname) != nil && !isblank(asNode(t.Nname)) {
++			mpos = asNode(t.Nname).Pos
+ 			m = inlvar(asNode(t.Nname))
+ 			m = typecheck(m, Erv)
+ 			inlvars[asNode(t.Nname)] = m
+@@ -882,6 +900,17 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 			m = retvar(t, i)
+ 		}
+ 
++		if genDwarfInline > 0 {
++			// Don't update the src.Pos on a return variable if it
++			// was manufactured by the inliner (e.g. "~r2"); such vars
++			// were not part of the original callee.
++			if !strings.HasPrefix(m.Sym.Name, "~r") {
++				m.SetInlFormal(true)
++				m.Pos = mpos
++				inlfvars = append(inlfvars, m)
++			}
++		}
++
+ 		ninit.Append(nod(ODCL, m, nil))
+ 		retvars = append(retvars, m)
+ 	}
+@@ -976,8 +1005,16 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 	if b := Ctxt.PosTable.Pos(n.Pos).Base(); b != nil {
+ 		parent = b.InliningIndex()
+ 	}
++	sort.Sort(byNodeName(dcl))
+ 	newIndex := Ctxt.InlTree.Add(parent, n.Pos, fn.Sym.Linksym())
+ 
++	if genDwarfInline > 0 {
++		if !fn.Sym.Linksym().WasInlined() {
++			Ctxt.DwFixups.SetPrecursorFunc(fn.Sym.Linksym(), fn)
++			fn.Sym.Linksym().Set(obj.AttrWasInlined, true)
++		}
++	}
++
+ 	subst := inlsubst{
+ 		retlabel:    retlabel,
+ 		retvars:     retvars,
+@@ -993,6 +1030,12 @@ func mkinlcall1(n, fn *Node, isddd bool) *Node {
+ 
+ 	typecheckslice(body, Etop)
+ 
++	if genDwarfInline > 0 {
++		for _, v := range inlfvars {
++			v.Pos = subst.updatedPos(v.Pos)
++		}
++	}
++
+ 	//dumplist("ninit post", ninit);
+ 
+ 	call := nod(OINLCALL, nil, nil)
+@@ -1192,3 +1235,28 @@ func (subst *inlsubst) updatedPos(xpos src.XPos) src.XPos {
+ 	pos.SetBase(newbase)
+ 	return Ctxt.PosTable.XPos(pos)
+ }
++
++func cmpNodeName(a, b *Node) bool {
++	// named before artificial
++	aart := 0
++	if strings.HasPrefix(a.Sym.Name, "~r") {
++		aart = 1
++	}
++	bart := 0
++	if strings.HasPrefix(b.Sym.Name, "~r") {
++		bart = 1
++	}
++	if aart != bart {
++		return aart < bart
++	}
++
++	// otherwise sort by name
++	return a.Sym.Name < b.Sym.Name
++}
++
++// byNodeName implements sort.Interface for []*Node using cmpNodeName.
++type byNodeName []*Node
++
++func (s byNodeName) Len() int           { return len(s) }
++func (s byNodeName) Less(i, j int) bool { return cmpNodeName(s[i], s[j]) }
++func (s byNodeName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a045c2f403..7fd04e3f08 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -48,6 +48,7 @@ var (
+ 	Debug_pctab        string
+ 	Debug_locationlist int
+ 	Debug_typecheckinl int
++	Debug_gendwarfinl  int
+ )
+ 
+ // Debug arguments.
+@@ -76,6 +77,7 @@ var debugtab = []struct {
+ 	{"pctab", "print named pc-value table", &Debug_pctab},
+ 	{"locationlists", "print information about DWARF location list creation", &Debug_locationlist},
+ 	{"typecheckinl", "eager typechecking of inline function bodies", &Debug_typecheckinl},
++	{"dwarfinl", "print information about DWARF inlined function creation", &Debug_gendwarfinl},
+ }
+ 
+ const debugHelpHeader = `usage: -d arg[,arg]* and arg is <key>[=<value>]
+@@ -191,6 +193,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.StringVar(&debugstr, "d", "", "print debug information about items in `list`; try -d help")
+ 	flag.BoolVar(&flagDWARF, "dwarf", true, "generate DWARF symbols")
+ 	flag.BoolVar(&Ctxt.Flag_locationlists, "dwarflocationlists", false, "add location lists to DWARF in optimized mode")
++	flag.IntVar(&genDwarfInline, "gendwarfinl", 2, "generate DWARF inline info records")
+ 	objabi.Flagcount("e", "no limit on number of errors reported", &Debug['e'])
+ 	objabi.Flagcount("f", "debug stack frames", &Debug['f'])
+ 	objabi.Flagcount("h", "halt on error", &Debug['h'])
+@@ -247,6 +250,11 @@ func Main(archInit func(*Arch)) {
+ 	Ctxt.Debugvlog = Debug_vlog
+ 	if flagDWARF {
+ 		Ctxt.DebugInfo = debuginfo
++		Ctxt.GenAbstractFunc = genAbstractFunc
++		Ctxt.DwFixups = obj.NewDwarfFixupTable(Ctxt)
++	} else {
++		// turn off inline generation if no dwarf at all
++		genDwarfInline = 0
+ 	}
+ 
+ 	if flag.NArg() < 1 && debugstr != "help" && debugstr != "ssa/help" {
+@@ -381,6 +389,9 @@ func Main(archInit func(*Arch)) {
+ 
+ 	// set via a -d flag
+ 	Ctxt.Debugpcln = Debug_pctab
++	if flagDWARF {
++		dwarf.EnableLogging(Debug_gendwarfinl != 0)
++	}
+ 
+ 	// enable inlining.  for now:
+ 	//	default: inlining on.  (debug['l'] == 1)
+@@ -631,6 +642,15 @@ func Main(archInit func(*Arch)) {
+ 			nowritebarrierrecCheck = nil
+ 		}
+ 
++		// Finalize DWARF inline routine DIEs, then explicitly turn off
++		// DWARF inlining gen so as to avoid problems with generated
++		// method wrappers.
++		if Ctxt.DwFixups != nil {
++			Ctxt.DwFixups.Finalize(myimportpath, Debug_gendwarfinl != 0)
++			Ctxt.DwFixups = nil
++			genDwarfInline = 0
++		}
++
+ 		// Check whether any of the functions we have compiled have gigantic stack frames.
+ 		obj.SortSlice(largeStackFrames, func(i, j int) bool {
+ 			return largeStackFrames[i].Before(largeStackFrames[j])
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index cfdf07cc77..39da514d53 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -16,6 +16,7 @@ import (
+ 	"math"
+ 	"math/rand"
+ 	"sort"
++	"strings"
+ 	"sync"
+ 	"time"
+ )
+@@ -279,6 +280,7 @@ func compileFunctions() {
+ 			})
+ 		}
+ 		var wg sync.WaitGroup
++		Ctxt.InParallel = true
+ 		c := make(chan *Node, nBackendWorkers)
+ 		for i := 0; i < nBackendWorkers; i++ {
+ 			wg.Add(1)
+@@ -295,16 +297,19 @@ func compileFunctions() {
+ 		close(c)
+ 		compilequeue = nil
+ 		wg.Wait()
++		Ctxt.InParallel = false
+ 		sizeCalculationDisabled = false
+ 	}
+ }
+ 
+-func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
++func debuginfo(fnsym *obj.LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) {
+ 	fn := curfn.(*Node)
+ 	debugInfo := fn.Func.DebugInfo
+ 	fn.Func.DebugInfo = nil
+-	if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
+-		Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
++	if fn.Func.Nname != nil {
++		if expect := fn.Func.Nname.Sym.Linksym(); fnsym != expect {
++			Fatalf("unexpected fnsym: %v != %v", fnsym, expect)
++		}
+ 	}
+ 
+ 	var automDecls []*Node
+@@ -335,13 +340,7 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+ 		})
+ 	}
+ 
+-	var dwarfVars []*dwarf.Var
+-	var decls []*Node
+-	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize {
+-		decls, dwarfVars = createComplexVars(fnsym, debugInfo, automDecls)
+-	} else {
+-		decls, dwarfVars = createSimpleVars(automDecls)
+-	}
++	decls, dwarfVars := createDwarfVars(fnsym, debugInfo, automDecls)
+ 
+ 	var varScopes []ScopeID
+ 	for _, decl := range decls {
+@@ -365,14 +364,21 @@ func debuginfo(fnsym *obj.LSym, curfn interface{}) []dwarf.Scope {
+ 		}
+ 		varScopes = append(varScopes, findScope(fn.Func.Marks, pos))
+ 	}
+-	return assembleScopes(fnsym, fn, dwarfVars, varScopes)
++
++	scopes := assembleScopes(fnsym, fn, dwarfVars, varScopes)
++	var inlcalls dwarf.InlCalls
++	if genDwarfInline > 0 {
++		inlcalls = assembleInlines(fnsym, fn, dwarfVars)
++	}
++	return scopes, inlcalls
+ }
+ 
+ // createSimpleVars creates a DWARF entry for every variable declared in the
+ // function, claiming that they are permanently on the stack.
+-func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
++func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+ 	var vars []*dwarf.Var
+ 	var decls []*Node
++	selected := make(map[*Node]bool)
+ 	for _, n := range automDecls {
+ 		if n.IsAutoTmp() {
+ 			continue
+@@ -397,18 +403,31 @@ func createSimpleVars(automDecls []*Node) ([]*Node, []*dwarf.Var) {
+ 			Fatalf("createSimpleVars unexpected type %v for node %v", n.Class(), n)
+ 		}
+ 
++		selected[n] = true
+ 		typename := dwarf.InfoPrefix + typesymname(n.Type)
+ 		decls = append(decls, n)
++		inlIndex := 0
++		if genDwarfInline > 1 {
++			if n.InlFormal() || n.InlLocal() {
++				inlIndex = posInlIndex(n.Pos) + 1
++			}
++		}
++		declpos := Ctxt.InnermostPos(n.Pos)
+ 		vars = append(vars, &dwarf.Var{
+ 			Name:          n.Sym.Name,
+ 			IsReturnValue: n.Class() == PPARAMOUT,
++			IsInlFormal:   n.InlFormal(),
+ 			Abbrev:        abbrev,
+ 			StackOffset:   int32(offs),
+ 			Type:          Ctxt.Lookup(typename),
+-			DeclLine:      n.Pos.Line(),
++			DeclFile:      declpos.Base().SymFilename(),
++			DeclLine:      declpos.Line(),
++			DeclCol:       declpos.Col(),
++			InlIndex:      int32(inlIndex),
++			ChildIndex:    -1,
+ 		})
+ 	}
+-	return decls, vars
++	return decls, vars, selected
+ }
+ 
+ type varPart struct {
+@@ -416,7 +435,7 @@ type varPart struct {
+ 	slot      ssa.SlotID
+ }
+ 
+-func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*Node) ([]*Node, []*dwarf.Var) {
++func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*Node) ([]*Node, []*dwarf.Var, map[*Node]bool) {
+ 	for _, blockDebug := range debugInfo.Blocks {
+ 		for _, locList := range blockDebug.Variables {
+ 			for _, loc := range locList.Locations {
+@@ -475,20 +494,43 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*
+ 		}
+ 	}
+ 
+-	// The machinery above will create a dwarf.Var for only those
+-	// variables that are decomposed into SSA names. Fill in the list
+-	// with entries for the remaining variables (including things too
+-	// big to decompose). Since optimization is enabled, the recipe
+-	// below creates a conservative location. The idea here is that we
+-	// want to communicate to the user that "yes, there is a variable
+-	// named X in this function, but no, I don't have enough
+-	// information to reliably report its contents."
+-	for _, n := range automDecls {
+-		if _, found := ssaVars[n]; found {
++	return decls, vars, ssaVars
++}
++
++func createDwarfVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*Node) ([]*Node, []*dwarf.Var) {
++	// Collect a raw list of DWARF vars.
++	var vars []*dwarf.Var
++	var decls []*Node
++	var selected map[*Node]bool
++	if Ctxt.Flag_locationlists && Ctxt.Flag_optimize && debugInfo != nil {
++		decls, vars, selected = createComplexVars(fnsym, debugInfo, automDecls)
++	} else {
++		decls, vars, selected = createSimpleVars(automDecls)
++	}
++
++	var dcl []*Node
++	var chopVersion bool
++	if fnsym.WasInlined() {
++		dcl, chopVersion = preInliningDcls(fnsym)
++	} else {
++		dcl = automDecls
++	}
++
++	// If optimization is enabled, the list above will typically be
++	// missing some of the original pre-optimization variables in the
++	// function (they may have been promoted to registers, folded into
++	// constants, dead-coded away, etc). Here we add back in entries
++	// for selected missing vars. Note that the recipe below creates a
++	// conservative location. The idea here is that we want to
++	// communicate to the user that "yes, there is a variable named X
++	// in this function, but no, I don't have enough information to
++	// reliably report its contents."
++	for _, n := range dcl {
++		if _, found := selected[n]; found {
+ 			continue
+ 		}
+ 		c := n.Sym.Name[0]
+-		if c == '~' || c == '.' {
++		if c == '~' || c == '.' || n.Type.IsUntyped() {
+ 			continue
+ 		}
+ 		typename := dwarf.InfoPrefix + typesymname(n.Type)
+@@ -497,19 +539,70 @@ func createComplexVars(fnsym *obj.LSym, debugInfo *ssa.FuncDebug, automDecls []*
+ 		if n.Class() == PPARAM || n.Class() == PPARAMOUT {
+ 			abbrev = dwarf.DW_ABRV_PARAM_LOCLIST
+ 		}
++		inlIndex := 0
++		if genDwarfInline > 1 {
++			if n.InlFormal() || n.InlLocal() {
++				inlIndex = posInlIndex(n.Pos) + 1
++			}
++		}
++		declpos := Ctxt.InnermostPos(n.Pos)
+ 		vars = append(vars, &dwarf.Var{
+ 			Name:          n.Sym.Name,
+ 			IsReturnValue: n.Class() == PPARAMOUT,
+ 			Abbrev:        abbrev,
+ 			StackOffset:   int32(n.Xoffset),
+ 			Type:          Ctxt.Lookup(typename),
+-			DeclLine:      n.Pos.Line(),
++			DeclFile:      declpos.Base().SymFilename(),
++			DeclLine:      declpos.Line(),
++			DeclCol:       declpos.Col(),
++			InlIndex:      int32(inlIndex),
++			ChildIndex:    -1,
+ 		})
+ 	}
+ 
++	// Parameter and local variable names are given middle dot
++	// version numbers as part of the writing them out to export
++	// data (see issue 4326).  If DWARF inlined routine generation
++	// is turned on, undo this versioning, since DWARF variables
++	// in question will be parented by the inlined routine and
++	// not the top-level caller.
++	if genDwarfInline > 1 && chopVersion {
++		for _, v := range vars {
++			if v.InlIndex != -1 {
++				if i := strings.Index(v.Name, "·"); i > 0 {
++					v.Name = v.Name[:i] // cut off Vargen
++				}
++			}
++		}
++	}
++
+ 	return decls, vars
+ }
+ 
++// Given a function that was inlined at some point during the compilation,
++// return a list of nodes corresponding to the autos/locals in that
++// function prior to inlining. Untyped and compiler-synthesized vars are
++// stripped out along the way.
++func preInliningDcls(fnsym *obj.LSym) ([]*Node, bool) {
++	fn := Ctxt.DwFixups.GetPrecursorFunc(fnsym).(*Node)
++	imported := false
++	var dcl, rdcl []*Node
++	if fn.Name.Defn != nil {
++		dcl = fn.Func.Inldcl.Slice() // local function
++	} else {
++		dcl = fn.Func.Dcl // imported function
++		imported = true
++	}
++	for _, n := range dcl {
++		c := n.Sym.Name[0]
++		if c == '~' || c == '.' || n.Type.IsUntyped() {
++			continue
++		}
++		rdcl = append(rdcl, n)
++	}
++	return rdcl, imported
++}
++
+ // varOffset returns the offset of slot within the user variable it was
+ // decomposed from. This has nothing to do with its stack offset.
+ func varOffset(slot *ssa.LocalSlot) int64 {
+@@ -570,16 +663,29 @@ func createComplexVar(debugInfo *ssa.FuncDebug, n *Node, parts []varPart) *dwarf
+ 
+ 	gotype := ngotype(n).Linksym()
+ 	typename := dwarf.InfoPrefix + gotype.Name[len("type."):]
++	inlIndex := 0
++	if genDwarfInline > 1 {
++		if n.InlFormal() || n.InlLocal() {
++			inlIndex = posInlIndex(n.Pos) + 1
++		}
++	}
++	declpos := Ctxt.InnermostPos(n.Pos)
+ 	dvar := &dwarf.Var{
+-		Name:   n.Sym.Name,
+-		Abbrev: abbrev,
+-		Type:   Ctxt.Lookup(typename),
++		Name:          n.Sym.Name,
++		IsReturnValue: n.Class() == PPARAMOUT,
++		IsInlFormal:   n.InlFormal(),
++		Abbrev:        abbrev,
++		Type:          Ctxt.Lookup(typename),
+ 		// The stack offset is used as a sorting key, so for decomposed
+ 		// variables just give it the lowest one. It's not used otherwise.
+ 		// This won't work well if the first slot hasn't been assigned a stack
+ 		// location, but it's not obvious how to do better.
+ 		StackOffset: int32(stackOffset(slots[parts[0].slot])),
+-		DeclLine:    n.Pos.Line(),
++		DeclFile:    declpos.Base().SymFilename(),
++		DeclLine:    declpos.Line(),
++		DeclCol:     declpos.Col(),
++		InlIndex:    int32(inlIndex),
++		ChildIndex:  -1,
+ 	}
+ 
+ 	if Debug_locationlist != 0 {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 47d645e459..5044ea0fe2 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -85,18 +85,20 @@ const (
+ 	_, nodeAssigned  // is the variable ever assigned to
+ 	_, nodeAddrtaken // address taken, even if not moved to heap
+ 	_, nodeImplicit
+-	_, nodeIsddd    // is the argument variadic
+-	_, nodeDiag     // already printed error about this
+-	_, nodeColas    // OAS resulting from :=
+-	_, nodeNonNil   // guaranteed to be non-nil
+-	_, nodeNoescape // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
+-	_, nodeBounded  // bounds check unnecessary
+-	_, nodeAddable  // addressable
+-	_, nodeHasCall  // expression contains a function call
+-	_, nodeLikely   // if statement condition likely
+-	_, nodeHasVal   // node.E contains a Val
+-	_, nodeHasOpt   // node.E contains an Opt
+-	_, nodeEmbedded // ODCLFIELD embedded type
++	_, nodeIsddd     // is the argument variadic
++	_, nodeDiag      // already printed error about this
++	_, nodeColas     // OAS resulting from :=
++	_, nodeNonNil    // guaranteed to be non-nil
++	_, nodeNoescape  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	_, nodeBounded   // bounds check unnecessary
++	_, nodeAddable   // addressable
++	_, nodeHasCall   // expression contains a function call
++	_, nodeLikely    // if statement condition likely
++	_, nodeHasVal    // node.E contains a Val
++	_, nodeHasOpt    // node.E contains an Opt
++	_, nodeEmbedded  // ODCLFIELD embedded type
++	_, nodeInlFormal // OPAUTO created by inliner, derived from callee formal
++	_, nodeInlLocal  // OPAUTO created by inliner, derived from callee local
+ )
+ 
+ func (n *Node) Class() Class     { return Class(n.flags.get3(nodeClass)) }
+@@ -123,6 +125,8 @@ func (n *Node) Likely() bool                { return n.flags&nodeLikely != 0 }
+ func (n *Node) HasVal() bool                { return n.flags&nodeHasVal != 0 }
+ func (n *Node) HasOpt() bool                { return n.flags&nodeHasOpt != 0 }
+ func (n *Node) Embedded() bool              { return n.flags&nodeEmbedded != 0 }
++func (n *Node) InlFormal() bool             { return n.flags&nodeInlFormal != 0 }
++func (n *Node) InlLocal() bool              { return n.flags&nodeInlLocal != 0 }
+ 
+ func (n *Node) SetClass(b Class)     { n.flags.set3(nodeClass, uint8(b)) }
+ func (n *Node) SetWalkdef(b uint8)   { n.flags.set2(nodeWalkdef, b) }
+@@ -148,6 +152,8 @@ func (n *Node) SetLikely(b bool)                { n.flags.set(nodeLikely, b) }
+ func (n *Node) SetHasVal(b bool)                { n.flags.set(nodeHasVal, b) }
+ func (n *Node) SetHasOpt(b bool)                { n.flags.set(nodeHasOpt, b) }
+ func (n *Node) SetEmbedded(b bool)              { n.flags.set(nodeEmbedded, b) }
++func (n *Node) SetInlFormal(b bool)             { n.flags.set(nodeInlFormal, b) }
++func (n *Node) SetInlLocal(b bool)              { n.flags.set(nodeInlLocal, b) }
+ 
+ // Val returns the Val for the node.
+ func (n *Node) Val() Val {
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index ce1f9795e6..8997fbf41e 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -10,6 +10,8 @@ package dwarf
+ import (
+ 	"errors"
+ 	"fmt"
++	"sort"
++	"strings"
+ )
+ 
+ // InfoPrefix is the prefix for all the symbols containing DWARF info entries.
+@@ -29,6 +31,14 @@ const ConstInfoPrefix = "go.constinfo."
+ // populate the DWARF compilation unit info entries.
+ const CUInfoPrefix = "go.cuinfo."
+ 
++// Used to form the symbol name assigned to the DWARF 'abstract subprogram"
++// info entry for a function
++const AbstractFuncSuffix = "$abstract"
++
++// Controls logging/debugging for selected aspects of DWARF subprogram
++// generation (functions, scopes).
++var logDwarf bool
++
+ // Sym represents a symbol.
+ type Sym interface {
+ 	Len() int64
+@@ -56,11 +66,16 @@ type Var struct {
+ 	Name          string
+ 	Abbrev        int // Either DW_ABRV_AUTO[_LOCLIST] or DW_ABRV_PARAM[_LOCLIST]
+ 	IsReturnValue bool
++	IsInlFormal   bool
+ 	StackOffset   int32
+ 	LocationList  []Location
+ 	Scope         int32
+ 	Type          Sym
++	DeclFile      string
+ 	DeclLine      uint
++	DeclCol       uint
++	InlIndex      int32 // subtract 1 to form real index into InlTree
++	ChildIndex    int32 // child DIE index in abstract function
+ }
+ 
+ // A Scope represents a lexical scope. All variables declared within a
+@@ -80,6 +95,27 @@ type Range struct {
+ 	Start, End int64
+ }
+ 
++// This container is used by the PutFunc* variants below when
++// creating the DWARF subprogram DIE(s) for a function.
++type FnState struct {
++	Name       string
++	Importpath string
++	Info       Sym
++	Filesym    Sym
++	Loc        Sym
++	Ranges     Sym
++	Absfn      Sym
++	StartPC    Sym
++	Size       int64
++	External   bool
++	Scopes     []Scope
++	InlCalls   InlCalls
++}
++
++func EnableLogging(doit bool) {
++	logDwarf = doit
++}
++
+ // UnifyRanges merges the list of ranges of c into the list of ranges of s
+ func (s *Scope) UnifyRanges(c *Scope) {
+ 	out := make([]Range, 0, len(s.Ranges)+len(c.Ranges))
+@@ -115,6 +151,37 @@ func (s *Scope) UnifyRanges(c *Scope) {
+ 	s.Ranges = out
+ }
+ 
++type InlCalls struct {
++	Calls []InlCall
++}
++
++type InlCall struct {
++	// index into ctx.InlTree describing the call inlined here
++	InlIndex int
++
++	// Symbol of file containing inlined call site (really *obj.LSym).
++	CallFile Sym
++
++	// Line number of inlined call site.
++	CallLine uint32
++
++	// Dwarf abstract subroutine symbol (really *obj.LSym).
++	AbsFunSym Sym
++
++	// Indices of child inlines within Calls array above.
++	Children []int
++
++	// entries in this list are PAUTO's created by the inliner to
++	// capture the promoted formals and locals of the inlined callee.
++	InlVars []*Var
++
++	// PC ranges for this inlined call.
++	Ranges []Range
++
++	// Root call (not a child of some other call).
++	Root bool
++}
++
+ // A Context specifies how to add data to a Sym.
+ type Context interface {
+ 	PtrSize() int
+@@ -123,8 +190,12 @@ type Context interface {
+ 	AddAddress(s Sym, t interface{}, ofs int64)
+ 	AddCURelativeAddress(s Sym, t interface{}, ofs int64)
+ 	AddSectionOffset(s Sym, size int, t interface{}, ofs int64)
++	CurrentOffset(s Sym) int64
++	RecordDclReference(from Sym, to Sym, dclIdx int, inlIndex int)
++	RecordChildDieOffsets(s Sym, vars []*Var, offsets []int32)
+ 	AddString(s Sym, v string)
+ 	AddFileRef(s Sym, f interface{})
++	Logf(format string, args ...interface{})
+ }
+ 
+ // AppendUleb128 appends v to b using DWARF's unsigned LEB128 encoding.
+@@ -243,12 +314,22 @@ const (
+ 	DW_ABRV_NULL = iota
+ 	DW_ABRV_COMPUNIT
+ 	DW_ABRV_FUNCTION
++	DW_ABRV_FUNCTION_ABSTRACT
++	DW_ABRV_FUNCTION_CONCRETE
++	DW_ABRV_INLINED_SUBROUTINE
++	DW_ABRV_INLINED_SUBROUTINE_RANGES
+ 	DW_ABRV_VARIABLE
+ 	DW_ABRV_INT_CONSTANT
+ 	DW_ABRV_AUTO
+ 	DW_ABRV_AUTO_LOCLIST
++	DW_ABRV_AUTO_ABSTRACT
++	DW_ABRV_AUTO_CONCRETE
++	DW_ABRV_AUTO_CONCRETE_LOCLIST
+ 	DW_ABRV_PARAM
+ 	DW_ABRV_PARAM_LOCLIST
++	DW_ABRV_PARAM_ABSTRACT
++	DW_ABRV_PARAM_CONCRETE
++	DW_ABRV_PARAM_CONCRETE_LOCLIST
+ 	DW_ABRV_LEXICAL_BLOCK_RANGES
+ 	DW_ABRV_LEXICAL_BLOCK_SIMPLE
+ 	DW_ABRV_STRUCTFIELD
+@@ -310,6 +391,54 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		},
+ 	},
+ 
++	/* FUNCTION_ABSTRACT */
++	{
++		DW_TAG_subprogram,
++		DW_CHILDREN_yes,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_inline, DW_FORM_data1},
++			{DW_AT_external, DW_FORM_flag},
++		},
++	},
++
++	/* FUNCTION_CONCRETE */
++	{
++		DW_TAG_subprogram,
++		DW_CHILDREN_yes,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_low_pc, DW_FORM_addr},
++			{DW_AT_high_pc, DW_FORM_addr},
++			{DW_AT_frame_base, DW_FORM_block1},
++		},
++	},
++
++	/* INLINED_SUBROUTINE */
++	{
++		DW_TAG_inlined_subroutine,
++		DW_CHILDREN_yes,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_low_pc, DW_FORM_addr},
++			{DW_AT_high_pc, DW_FORM_addr},
++			{DW_AT_call_file, DW_FORM_data4},
++			{DW_AT_call_line, DW_FORM_udata},
++		},
++	},
++
++	/* INLINED_SUBROUTINE_RANGES */
++	{
++		DW_TAG_inlined_subroutine,
++		DW_CHILDREN_yes,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_ranges, DW_FORM_sec_offset},
++			{DW_AT_call_file, DW_FORM_data4},
++			{DW_AT_call_line, DW_FORM_udata},
++		},
++	},
++
+ 	/* VARIABLE */
+ 	{
+ 		DW_TAG_variable,
+@@ -340,8 +469,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_decl_line, DW_FORM_udata},
+-			{DW_AT_location, DW_FORM_block1},
+ 			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_block1},
+ 		},
+ 	},
+ 
+@@ -352,11 +481,42 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 		[]dwAttrForm{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++
++	/* AUTO_ABSTRACT */
++	{
++		DW_TAG_variable,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
++	/* AUTO_CONCRETE */
++	{
++		DW_TAG_variable,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_block1},
++		},
++	},
++
++	/* AUTO_CONCRETE_LOCLIST */
++	{
++		DW_TAG_variable,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++
+ 	/* PARAM */
+ 	{
+ 		DW_TAG_formal_parameter,
+@@ -365,8 +525,8 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_variable_parameter, DW_FORM_flag},
+ 			{DW_AT_decl_line, DW_FORM_udata},
+-			{DW_AT_location, DW_FORM_block1},
+ 			{DW_AT_type, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_block1},
+ 		},
+ 	},
+ 
+@@ -378,11 +538,43 @@ var abbrevs = [DW_NABRV]dwAbbrev{
+ 			{DW_AT_name, DW_FORM_string},
+ 			{DW_AT_variable_parameter, DW_FORM_flag},
+ 			{DW_AT_decl_line, DW_FORM_udata},
++			{DW_AT_type, DW_FORM_ref_addr},
+ 			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++
++	/* PARAM_ABSTRACT */
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_name, DW_FORM_string},
++			{DW_AT_variable_parameter, DW_FORM_flag},
++			{DW_AT_decl_line, DW_FORM_udata},
+ 			{DW_AT_type, DW_FORM_ref_addr},
+ 		},
+ 	},
+ 
++	/* PARAM_CONCRETE */
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_block1},
++		},
++	},
++
++	/* PARAM_CONCRETE_LOCLIST */
++	{
++		DW_TAG_formal_parameter,
++		DW_CHILDREN_no,
++		[]dwAttrForm{
++			{DW_AT_abstract_origin, DW_FORM_ref_addr},
++			{DW_AT_location, DW_FORM_sec_offset},
++		},
++	},
++
+ 	/* LEXICAL_BLOCK_RANGES */
+ 	{
+ 		DW_TAG_lexical_block,
+@@ -792,34 +984,320 @@ func PutRanges(ctxt Context, sym Sym, base Sym, ranges []Range) {
+ 	ctxt.AddInt(sym, ps, 0)
+ }
+ 
+-// PutFunc writes a DIE for a function to s.
+-// It also writes child DIEs for each variable in vars.
+-func PutFunc(ctxt Context, info, loc, ranges, filesym Sym, name string, external bool, startPC Sym, size int64, scopes []Scope) error {
+-	Uleb128put(ctxt, info, DW_ABRV_FUNCTION)
+-	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(name)), name)
+-	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, 0, startPC)
+-	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_addr, DW_CLS_ADDRESS, size, startPC)
+-	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
+-	// DW_AT_decl_file attribute
+-	ctxt.AddFileRef(info, filesym)
++// Return TRUE if the inlined call in the specified slot is empty,
++// meaning it has a zero-length range (no instructions), and all
++// of its children are empty.
++func isEmptyInlinedCall(slot int, calls *InlCalls) bool {
++	ic := &calls.Calls[slot]
++	if ic.InlIndex == -2 {
++		return true
++	}
++	live := false
++	for _, k := range ic.Children {
++		if !isEmptyInlinedCall(k, calls) {
++			live = true
++		}
++	}
++	if len(ic.Ranges) > 0 {
++		live = true
++	}
++	if !live {
++		ic.InlIndex = -2
++	}
++	return !live
++}
++
++// Slot -1:    return top-level inlines
++// Slot >= 0:  return children of that slot
++func inlChildren(slot int, calls *InlCalls) []int {
++	var kids []int
++	if slot != -1 {
++		for _, k := range calls.Calls[slot].Children {
++			if !isEmptyInlinedCall(k, calls) {
++				kids = append(kids, k)
++			}
++		}
++	} else {
++		for k := 0; k < len(calls.Calls); k += 1 {
++			if calls.Calls[k].Root && !isEmptyInlinedCall(k, calls) {
++				kids = append(kids, k)
++			}
++		}
++	}
++	return kids
++}
++
++func inlinedVarTable(inlcalls *InlCalls) map[*Var]bool {
++	vars := make(map[*Var]bool)
++	for _, ic := range inlcalls.Calls {
++		for _, v := range ic.InlVars {
++			vars[v] = true
++		}
++	}
++	return vars
++}
++
++// The s.Scopes slice contains variables were originally part of the
++// function being emitted, as well as variables that were imported
++// from various callee functions during the inlining process. This
++// function prunes out any variables from the latter category (since
++// they will be emitted as part of DWARF inlined_subroutine DIEs) and
++// then generates scopes for vars in the former category.
++func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
++	if len(s.Scopes) == 0 {
++		return nil
++	}
++	scopes := make([]Scope, len(s.Scopes), len(s.Scopes))
++	pvars := inlinedVarTable(&s.InlCalls)
++	for k, s := range s.Scopes {
++		var pruned Scope = Scope{Parent: s.Parent, Ranges: s.Ranges}
++		for i := 0; i < len(s.Vars); i++ {
++			_, found := pvars[s.Vars[i]]
++			if !found {
++				pruned.Vars = append(pruned.Vars, s.Vars[i])
++			}
++		}
++		sort.Sort(byChildIndex(pruned.Vars))
++		scopes[k] = pruned
++	}
++	var encbuf [20]byte
++	if putscope(ctxt, s, scopes, 0, fnabbrev, encbuf[:0]) < int32(len(scopes)) {
++		return errors.New("multiple toplevel scopes")
++	}
++	return nil
++}
++
++// Emit DWARF attributes and child DIEs for an 'abstract' subprogram.
++// The abstract subprogram DIE for a function contains its
++// location-independent attributes (name, type, etc). Other instances
++// of the function (any inlined copy of it, or the single out-of-line
++// 'concrete' instance) will contain a pointer back to this abstract
++// DIE (as a space-saving measure, so that name/type etc doesn't have
++// to be repeated for each inlined copy).
++func PutAbstractFunc(ctxt Context, s *FnState) error {
++
++	if logDwarf {
++		ctxt.Logf("PutAbstractFunc(%v)\n", s.Absfn)
++	}
++
++	abbrev := DW_ABRV_FUNCTION_ABSTRACT
++	Uleb128put(ctxt, s.Absfn, int64(abbrev))
++
++	fullname := s.Name
++	if strings.HasPrefix(s.Name, "\"\".") {
++		// Generate a fully qualified name for the function in the
++		// abstract case. This is so as to avoid the need for the
++		// linker to process the DIE with patchDWARFName(); we can't
++		// allow the name attribute of an abstract subprogram DIE to
++		// be rewritten, since it would change the offsets of the
++		// child DIEs (which we're relying on in order for abstract
++		// origin references to work).
++		fullname = s.Importpath + "." + s.Name[3:]
++	}
++	putattr(ctxt, s.Absfn, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(fullname)), fullname)
++
++	// DW_AT_inlined value
++	putattr(ctxt, s.Absfn, abbrev, DW_FORM_data1, DW_CLS_CONSTANT, int64(DW_INL_inlined), nil)
++
+ 	var ev int64
+-	if external {
++	if s.External {
+ 		ev = 1
+ 	}
+-	putattr(ctxt, info, DW_ABRV_FUNCTION, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
+-	if len(scopes) > 0 {
+-		var encbuf [20]byte
+-		if putscope(ctxt, info, loc, ranges, startPC, 0, scopes, encbuf[:0]) < int32(len(scopes)) {
+-			return errors.New("multiple toplevel scopes")
++	putattr(ctxt, s.Absfn, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
++
++	// Child variables (may be empty)
++	var flattened []*Var
++
++	// This slice will hold the offset in bytes for each child var DIE
++	// with respect to the start of the parent subprogram DIE.
++	var offsets []int32
++
++	// Scopes/vars
++	if len(s.Scopes) > 0 {
++		// For abstract subprogram DIEs we want to flatten out scope info:
++		// lexical scope DIEs contain range and/or hi/lo PC attributes,
++		// which we explicitly don't want for the abstract subprogram DIE.
++		pvars := inlinedVarTable(&s.InlCalls)
++		for _, scope := range s.Scopes {
++			for i := 0; i < len(scope.Vars); i++ {
++				_, found := pvars[scope.Vars[i]]
++				if !found {
++					flattened = append(flattened, scope.Vars[i])
++				}
++			}
++		}
++		if len(flattened) > 0 {
++			sort.Sort(byChildIndex(flattened))
++
++			// This slice will hold the offset in bytes for each child
++			// variable DIE with respect to the start of the parent
++			// subprogram DIE.
++			for _, v := range flattened {
++				offsets = append(offsets, int32(ctxt.CurrentOffset(s.Absfn)))
++				putAbstractVar(ctxt, s.Absfn, v)
++			}
++		}
++	}
++	ctxt.RecordChildDieOffsets(s.Absfn, flattened, offsets)
++
++	Uleb128put(ctxt, s.Absfn, 0)
++	return nil
++}
++
++// Emit DWARF attributes and child DIEs for an inlined subroutine. The
++// first attribute of an inlined subroutine DIE is a reference back to
++// its corresponding 'abstract' DIE (containing location-independent
++// attributes such as name, type, etc). Inlined subroutine DIEs can
++// have other inlined subroutine DIEs as children.
++func PutInlinedFunc(ctxt Context, s *FnState, callersym Sym, callIdx int) error {
++	ic := s.InlCalls.Calls[callIdx]
++	callee := ic.AbsFunSym
++
++	abbrev := DW_ABRV_INLINED_SUBROUTINE_RANGES
++	if len(ic.Ranges) == 1 {
++		abbrev = DW_ABRV_INLINED_SUBROUTINE
++	}
++	Uleb128put(ctxt, s.Info, int64(abbrev))
++
++	if logDwarf {
++		ctxt.Logf("PutInlinedFunc(caller=%v,callee=%v,abbrev=%d)\n", callersym, callee, abbrev)
++	}
++
++	// Abstract origin.
++	putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, callee)
++
++	if abbrev == DW_ABRV_INLINED_SUBROUTINE_RANGES {
++		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
++		PutRanges(ctxt, s.Ranges, s.StartPC, ic.Ranges)
++	} else {
++		st := ic.Ranges[0].Start
++		en := ic.Ranges[0].End
++		putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, st, s.StartPC)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, en, s.StartPC)
++	}
++
++	// Emit call file, line attrs.
++	ctxt.AddFileRef(s.Info, ic.CallFile)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(ic.CallLine), nil)
++
++	// Variables associated with this inlined routine instance.
++	vars := ic.InlVars
++	sort.Sort(byChildIndex(vars))
++	inlIndex := ic.InlIndex
++	var encbuf [20]byte
++	for _, v := range vars {
++		putvar(ctxt, s, v, callee, abbrev, inlIndex, encbuf[:0])
++	}
++
++	// Children of this inline.
++	for _, sib := range inlChildren(callIdx, &s.InlCalls) {
++		absfn := s.InlCalls.Calls[sib].AbsFunSym
++		err := PutInlinedFunc(ctxt, s, absfn, sib)
++		if err != nil {
++			return err
++		}
++	}
++
++	Uleb128put(ctxt, s.Info, 0)
++	return nil
++}
++
++// Emit DWARF attributes and child DIEs for a 'concrete' subprogram,
++// meaning the out-of-line copy of a function that was inlined at some
++// point during the compilation of its containing package. The first
++// attribute for a concrete DIE is a reference to the 'abstract' DIE
++// for the function (which holds location-independent attributes such
++// as name, type), then the remainder of the attributes are specific
++// to this instance (location, frame base, etc).
++func PutConcreteFunc(ctxt Context, s *FnState) error {
++	if logDwarf {
++		ctxt.Logf("PutConcreteFunc(%v)\n", s.Info)
++	}
++	abbrev := DW_ABRV_FUNCTION_CONCRETE
++	Uleb128put(ctxt, s.Info, int64(abbrev))
++
++	// Abstract origin.
++	putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, s.Absfn)
++
++	// Start/end PC.
++	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
++
++	// cfa / frame base
++	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
++
++	// Scopes
++	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
++		return err
++	}
++
++	// Inlined subroutines.
++	for _, sib := range inlChildren(-1, &s.InlCalls) {
++		absfn := s.InlCalls.Calls[sib].AbsFunSym
++		err := PutInlinedFunc(ctxt, s, absfn, sib)
++		if err != nil {
++			return err
+ 		}
+ 	}
+-	Uleb128put(ctxt, info, 0)
++
++	Uleb128put(ctxt, s.Info, 0)
+ 	return nil
+ }
+ 
+-func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scopes []Scope, encbuf []byte) int32 {
++// Emit DWARF attributes and child DIEs for a subprogram. Here
++// 'default' implies that the function in question was not inlined
++// when its containing package was compiled (hence there is no need to
++// emit an abstract version for it to use as a base for inlined
++// routine records).
++func PutDefaultFunc(ctxt Context, s *FnState) error {
++	if logDwarf {
++		ctxt.Logf("PutDefaultFunc(%v)\n", s.Info)
++	}
++	abbrev := DW_ABRV_FUNCTION
++	Uleb128put(ctxt, s.Info, int64(abbrev))
++
++	putattr(ctxt, s.Info, DW_ABRV_FUNCTION, DW_FORM_string, DW_CLS_STRING, int64(len(s.Name)), s.Name)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, 0, s.StartPC)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_addr, DW_CLS_ADDRESS, s.Size, s.StartPC)
++	putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, 1, []byte{DW_OP_call_frame_cfa})
++	ctxt.AddFileRef(s.Info, s.Filesym)
++
++	var ev int64
++	if s.External {
++		ev = 1
++	}
++	putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, ev, 0)
++
++	// Scopes
++	if err := putPrunedScopes(ctxt, s, abbrev); err != nil {
++		return err
++	}
++
++	// Inlined subroutines.
++	for _, sib := range inlChildren(-1, &s.InlCalls) {
++		absfn := s.InlCalls.Calls[sib].AbsFunSym
++		err := PutInlinedFunc(ctxt, s, absfn, sib)
++		if err != nil {
++			return err
++		}
++	}
++
++	Uleb128put(ctxt, s.Info, 0)
++	return nil
++}
++
++func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev int, encbuf []byte) int32 {
++
++	if logDwarf {
++		ctxt.Logf("putscope(%v,%d): vars:", s.Info, curscope)
++		for i, v := range scopes[curscope].Vars {
++			ctxt.Logf(" %d:%d:%s", i, v.ChildIndex, v.Name)
++		}
++		ctxt.Logf("\n")
++	}
++
+ 	for _, v := range scopes[curscope].Vars {
+-		putvar(ctxt, info, loc, v, startPC, encbuf)
++		putvar(ctxt, s, v, s.Absfn, fnabbrev, -1, encbuf)
+ 	}
+ 	this := curscope
+ 	curscope++
+@@ -830,49 +1308,144 @@ func putscope(ctxt Context, info, loc, ranges, startPC Sym, curscope int32, scop
+ 		}
+ 
+ 		if len(scope.Ranges) == 1 {
+-			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
+-			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, startPC)
+-			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, startPC)
++			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
++			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
++			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, s.StartPC)
+ 		} else {
+-			Uleb128put(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES)
+-			putattr(ctxt, info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, ranges.Len(), ranges)
++			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES)
++			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_RANGES, DW_FORM_sec_offset, DW_CLS_PTR, s.Ranges.Len(), s.Ranges)
+ 
+-			PutRanges(ctxt, ranges, startPC, scope.Ranges)
++			PutRanges(ctxt, s.Ranges, s.StartPC, scope.Ranges)
+ 		}
+ 
+-		curscope = putscope(ctxt, info, loc, ranges, startPC, curscope, scopes, encbuf)
+-
+-		Uleb128put(ctxt, info, 0)
++		curscope = putscope(ctxt, s, scopes, curscope, fnabbrev, encbuf)
++		Uleb128put(ctxt, s.Info, 0)
+ 	}
+ 	return curscope
+ }
+ 
+-func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
++// Pick the correct abbrev code for variable or parameter DIE.
++func determineVarAbbrev(v *Var, fnabbrev int) (int, bool, bool) {
++	abbrev := v.Abbrev
++
+ 	// If the variable was entirely optimized out, don't emit a location list;
+ 	// convert to an inline abbreviation and emit an empty location.
+ 	missing := false
+ 	switch {
+-	case v.Abbrev == DW_ABRV_AUTO_LOCLIST && len(v.LocationList) == 0:
++	case abbrev == DW_ABRV_AUTO_LOCLIST && len(v.LocationList) == 0:
+ 		missing = true
+-		v.Abbrev = DW_ABRV_AUTO
+-	case v.Abbrev == DW_ABRV_PARAM_LOCLIST && len(v.LocationList) == 0:
++		abbrev = DW_ABRV_AUTO
++	case abbrev == DW_ABRV_PARAM_LOCLIST && len(v.LocationList) == 0:
+ 		missing = true
+-		v.Abbrev = DW_ABRV_PARAM
++		abbrev = DW_ABRV_PARAM
+ 	}
+ 
+-	Uleb128put(ctxt, info, int64(v.Abbrev))
+-	putattr(ctxt, info, v.Abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name)
+-	if v.Abbrev == DW_ABRV_PARAM || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
++	concrete := true
++	switch fnabbrev {
++	case DW_ABRV_FUNCTION:
++		concrete = false
++		break
++	case DW_ABRV_FUNCTION_CONCRETE, DW_ABRV_INLINED_SUBROUTINE, DW_ABRV_INLINED_SUBROUTINE_RANGES:
++		switch abbrev {
++		case DW_ABRV_AUTO:
++			if v.IsInlFormal {
++				abbrev = DW_ABRV_PARAM_CONCRETE
++			} else {
++				abbrev = DW_ABRV_AUTO_CONCRETE
++			}
++			concrete = true
++		case DW_ABRV_AUTO_LOCLIST:
++			if v.IsInlFormal {
++				abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
++			} else {
++				abbrev = DW_ABRV_AUTO_CONCRETE_LOCLIST
++			}
++		case DW_ABRV_PARAM:
++			abbrev = DW_ABRV_PARAM_CONCRETE
++		case DW_ABRV_PARAM_LOCLIST:
++			abbrev = DW_ABRV_PARAM_CONCRETE_LOCLIST
++		}
++	default:
++		panic("should never happen")
++	}
++
++	return abbrev, missing, concrete
++}
++
++func abbrevUsesLoclist(abbrev int) bool {
++	switch abbrev {
++	case DW_ABRV_AUTO_LOCLIST, DW_ABRV_AUTO_CONCRETE_LOCLIST,
++		DW_ABRV_PARAM_LOCLIST, DW_ABRV_PARAM_CONCRETE_LOCLIST:
++		return true
++	default:
++		return false
++	}
++}
++
++// Emit DWARF attributes for a variable belonging to an 'abstract' subprogram.
++func putAbstractVar(ctxt Context, info Sym, v *Var) {
++	// Remap abbrev
++	abbrev := v.Abbrev
++	switch abbrev {
++	case DW_ABRV_AUTO, DW_ABRV_AUTO_LOCLIST:
++		abbrev = DW_ABRV_AUTO_ABSTRACT
++	case DW_ABRV_PARAM, DW_ABRV_PARAM_LOCLIST:
++		abbrev = DW_ABRV_PARAM_ABSTRACT
++	}
++
++	Uleb128put(ctxt, info, int64(abbrev))
++	putattr(ctxt, info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(v.Name)), v.Name)
++
++	// Isreturn attribute if this is a param
++	if abbrev == DW_ABRV_PARAM_ABSTRACT {
+ 		var isReturn int64
+ 		if v.IsReturnValue {
+ 			isReturn = 1
+ 		}
+-		putattr(ctxt, info, v.Abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
++		putattr(ctxt, info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
++	}
++
++	// Line
++	putattr(ctxt, info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
++
++	// Type
++	putattr(ctxt, info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++
++	// Var has no children => no terminator
++}
++
++func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int, encbuf []byte) {
++	// Remap abbrev according to parent DIE abbrev
++	abbrev, missing, concrete := determineVarAbbrev(v, fnabbrev)
++
++	Uleb128put(ctxt, s.Info, int64(abbrev))
++
++	// Abstract origin for concrete / inlined case
++	if concrete {
++		// Here we are making a reference to a child DIE of an abstract
++		// function subprogram DIE. The child DIE has no LSym, so instead
++		// after the call to 'putattr' below we make a call to register
++		// the child DIE reference.
++		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, absfn)
++		ctxt.RecordDclReference(s.Info, absfn, int(v.ChildIndex), inlIndex)
++	} else {
++		// Var name, line for abstract and default cases
++		n := v.Name
++		putattr(ctxt, s.Info, abbrev, DW_FORM_string, DW_CLS_STRING, int64(len(n)), n)
++		if abbrev == DW_ABRV_PARAM || abbrev == DW_ABRV_PARAM_LOCLIST || abbrev == DW_ABRV_PARAM_ABSTRACT {
++			var isReturn int64
++			if v.IsReturnValue {
++				isReturn = 1
++			}
++			putattr(ctxt, s.Info, abbrev, DW_FORM_flag, DW_CLS_FLAG, isReturn, nil)
++		}
++		putattr(ctxt, s.Info, abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
+ 	}
+-	putattr(ctxt, info, v.Abbrev, DW_FORM_udata, DW_CLS_CONSTANT, int64(v.DeclLine), nil)
+-	if v.Abbrev == DW_ABRV_AUTO_LOCLIST || v.Abbrev == DW_ABRV_PARAM_LOCLIST {
+-		putattr(ctxt, info, v.Abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(loc.Len()), loc)
+-		addLocList(ctxt, loc, startPC, v, encbuf)
++
++	if abbrevUsesLoclist(abbrev) {
++		putattr(ctxt, s.Info, abbrev, DW_FORM_sec_offset, DW_CLS_PTR, int64(s.Loc.Len()), s.Loc)
++		addLocList(ctxt, s.Loc, s.StartPC, v, encbuf)
+ 	} else {
+ 		loc := encbuf[:0]
+ 		switch {
+@@ -884,9 +1457,10 @@ func putvar(ctxt Context, info, loc Sym, v *Var, startPC Sym, encbuf []byte) {
+ 			loc = append(loc, DW_OP_fbreg)
+ 			loc = AppendSleb128(loc, int64(v.StackOffset))
+ 		}
+-		putattr(ctxt, info, v.Abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
++		putattr(ctxt, s.Info, abbrev, DW_FORM_block1, DW_CLS_BLOCK, int64(len(loc)), loc)
+ 	}
+-	putattr(ctxt, info, v.Abbrev, DW_FORM_ref_addr, DW_CLS_REFERENCE, 0, v.Type)
++
++	// Var has no children => no terminator
+ }
+ 
+ func addLocList(ctxt Context, listSym, startPC Sym, v *Var, encbuf []byte) {
+@@ -935,3 +1509,10 @@ type VarsByOffset []*Var
+ func (s VarsByOffset) Len() int           { return len(s) }
+ func (s VarsByOffset) Less(i, j int) bool { return s[i].StackOffset < s[j].StackOffset }
+ func (s VarsByOffset) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++
++// byChildIndex implements sort.Interface for []*dwarf.Var by child index.
++type byChildIndex []*Var
++
++func (s byChildIndex) Len() int           { return len(s) }
++func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
++func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/internal/obj/inl.go b/src/cmd/internal/obj/inl.go
+index d4f040d89f..671239444c 100644
+--- a/src/cmd/internal/obj/inl.go
++++ b/src/cmd/internal/obj/inl.go
+@@ -6,7 +6,7 @@ package obj
+ 
+ import "cmd/internal/src"
+ 
+-// InlTree s a collection of inlined calls. The Parent field of an
++// InlTree is a collection of inlined calls. The Parent field of an
+ // InlinedCall is the index of another InlinedCall in InlTree.
+ //
+ // The compiler maintains a global inlining tree and adds a node to it
+@@ -64,6 +64,18 @@ func (tree *InlTree) Add(parent int, pos src.XPos, func_ *LSym) int {
+ 	return r
+ }
+ 
++func (tree *InlTree) Parent(inlIndex int) int {
++	return tree.nodes[inlIndex].Parent
++}
++
++func (tree *InlTree) InlinedFunction(inlIndex int) *LSym {
++	return tree.nodes[inlIndex].Func
++}
++
++func (tree *InlTree) CallPos(inlIndex int) src.XPos {
++	return tree.nodes[inlIndex].Pos
++}
++
+ // OutermostPos returns the outermost position corresponding to xpos,
+ // which is where xpos was ultimately inlined to. In the example for
+ // InlTree, main() contains inlined AST nodes from h(), but the
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 09f522bdaf..090b1c604b 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -389,6 +389,7 @@ type FuncInfo struct {
+ 	dwarfInfoSym   *LSym
+ 	dwarfLocSym    *LSym
+ 	dwarfRangesSym *LSym
++	dwarfAbsFnSym  *LSym
+ 
+ 	GCArgs   LSym
+ 	GCLocals LSym
+@@ -427,6 +428,10 @@ const (
+ 	// definition. (When not compiling to support Go shared libraries, all symbols are
+ 	// local in this sense unless there is a cgo_export_* directive).
+ 	AttrLocal
++
++	// For function symbols; indicates that the specified function was the
++	// target of an inline during compilation
++	AttrWasInlined
+ )
+ 
+ func (a Attribute) DuplicateOK() bool   { return a&AttrDuplicateOK != 0 }
+@@ -442,6 +447,7 @@ func (a Attribute) Wrapper() bool       { return a&AttrWrapper != 0 }
+ func (a Attribute) NeedCtxt() bool      { return a&AttrNeedCtxt != 0 }
+ func (a Attribute) NoFrame() bool       { return a&AttrNoFrame != 0 }
+ func (a Attribute) Static() bool        { return a&AttrStatic != 0 }
++func (a Attribute) WasInlined() bool    { return a&AttrWasInlined != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	if value {
+@@ -468,6 +474,7 @@ var textAttrStrings = [...]struct {
+ 	{bit: AttrNeedCtxt, s: "NEEDCTXT"},
+ 	{bit: AttrNoFrame, s: "NOFRAME"},
+ 	{bit: AttrStatic, s: "STATIC"},
++	{bit: AttrWasInlined, s: ""},
+ }
+ 
+ // TextAttrString formats a for printing in as part of a TEXT prog.
+@@ -549,12 +556,15 @@ type Link struct {
+ 	statichash         map[string]*LSym // name -> sym mapping for static syms
+ 	PosTable           src.PosTable
+ 	InlTree            InlTree // global inlining tree used by gc/inl.go
++	DwFixups           *DwarfFixupTable
+ 	Imports            []string
+ 	DiagFunc           func(string, ...interface{})
+ 	DiagFlush          func()
+-	DebugInfo          func(fn *LSym, curfn interface{}) []dwarf.Scope // if non-nil, curfn is a *gc.Node
++	DebugInfo          func(fn *LSym, curfn interface{}) ([]dwarf.Scope, dwarf.InlCalls) // if non-nil, curfn is a *gc.Node
++	GenAbstractFunc    func(fn *LSym)
+ 	Errors             int
+ 
++	InParallel           bool // parallel backend phase in effect
+ 	Framepointer_enabled bool
+ 
+ 	// state for writing objects
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 9372fb34da..1a21bcdeb3 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -15,6 +15,7 @@ import (
+ 	"log"
+ 	"path/filepath"
+ 	"sort"
++	"sync"
+ )
+ 
+ // objWriter writes Go object files.
+@@ -473,8 +474,33 @@ func (c dwCtxt) AddFileRef(s dwarf.Sym, f interface{}) {
+ 	r.Type = objabi.R_DWARFFILEREF
+ }
+ 
+-// dwarfSym returns the DWARF symbols for TEXT symbol.
+-func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym *LSym) {
++func (c dwCtxt) CurrentOffset(s dwarf.Sym) int64 {
++	ls := s.(*LSym)
++	return ls.Size
++}
++
++// Here "from" is a symbol corresponding to an inlined or concrete
++// function, "to" is the symbol for the corresponding abstract
++// function, and "dclIdx" is the index of the symbol of interest with
++// respect to the Dcl slice of the original pre-optimization version
++// of the inlined function.
++func (c dwCtxt) RecordDclReference(from dwarf.Sym, to dwarf.Sym, dclIdx int, inlIndex int) {
++	ls := from.(*LSym)
++	tls := to.(*LSym)
++	ridx := len(ls.R) - 1
++	c.Link.DwFixups.ReferenceChildDIE(ls, ridx, tls, dclIdx, inlIndex)
++}
++
++func (c dwCtxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []int32) {
++	ls := s.(*LSym)
++	c.Link.DwFixups.RegisterChildDIEOffsets(ls, vars, offsets)
++}
++
++func (c dwCtxt) Logf(format string, args ...interface{}) {
++	c.Link.Logf(format, args...)
++}
++
++func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym, dwarfAbsFnSym *LSym) {
+ 	if s.Type != objabi.STEXT {
+ 		ctxt.Diag("dwarfSym of non-TEXT %v", s)
+ 	}
+@@ -484,8 +510,12 @@ func (ctxt *Link) dwarfSym(s *LSym) (dwarfInfoSym, dwarfLocSym, dwarfRangesSym *
+ 			s.Func.dwarfLocSym = ctxt.LookupDerived(s, dwarf.LocPrefix+s.Name)
+ 		}
+ 		s.Func.dwarfRangesSym = ctxt.LookupDerived(s, dwarf.RangePrefix+s.Name)
++		if s.WasInlined() {
++			s.Func.dwarfAbsFnSym = ctxt.DwFixups.AbsFuncDwarfSym(s)
++		}
++
+ 	}
+-	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym
++	return s.Func.dwarfInfoSym, s.Func.dwarfLocSym, s.Func.dwarfRangesSym, s.Func.dwarfAbsFnSym
+ }
+ 
+ func (s *LSym) Len() int64 {
+@@ -505,20 +535,45 @@ func (ctxt *Link) fileSymbol(fn *LSym) *LSym {
+ 	return nil
+ }
+ 
+-// populateDWARF fills in the DWARF Debugging Information Entries for TEXT symbol s.
+-// The DWARFs symbol must already have been initialized in InitTextSym.
+-func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym) {
+-	info, loc, ranges := ctxt.dwarfSym(s)
++// populateDWARF fills in the DWARF Debugging Information Entries for
++// TEXT symbol 's'. The various DWARF symbols must already have been
++// initialized in InitTextSym.
++func (ctxt *Link) populateDWARF(curfn interface{}, s *LSym, myimportpath string) {
++	info, loc, ranges, absfunc := ctxt.dwarfSym(s)
+ 	if info.Size != 0 {
+ 		ctxt.Diag("makeFuncDebugEntry double process %v", s)
+ 	}
+ 	var scopes []dwarf.Scope
++	var inlcalls dwarf.InlCalls
+ 	if ctxt.DebugInfo != nil {
+-		scopes = ctxt.DebugInfo(s, curfn)
++		scopes, inlcalls = ctxt.DebugInfo(s, curfn)
++	}
++	var err error
++	dwctxt := dwCtxt{ctxt}
++	filesym := ctxt.fileSymbol(s)
++	fnstate := &dwarf.FnState{
++		Name:       s.Name,
++		Importpath: myimportpath,
++		Info:       info,
++		Filesym:    filesym,
++		Loc:        loc,
++		Ranges:     ranges,
++		Absfn:      absfunc,
++		StartPC:    s,
++		Size:       s.Size,
++		External:   !s.Static(),
++		Scopes:     scopes,
++		InlCalls:   inlcalls,
++	}
++	if absfunc != nil {
++		err = dwarf.PutAbstractFunc(dwctxt, fnstate)
++		if err != nil {
++			ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
++		}
++		err = dwarf.PutConcreteFunc(dwctxt, fnstate)
++	} else {
++		err = dwarf.PutDefaultFunc(dwctxt, fnstate)
+ 	}
+-
+-	fs := ctxt.fileSymbol(s)
+-	err := dwarf.PutFunc(dwCtxt{ctxt}, info, loc, ranges, fs, s.Name, !s.Static(), s, s.Size, scopes)
+ 	if err != nil {
+ 		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
+ 	}
+@@ -536,3 +591,285 @@ func (ctxt *Link) DwarfIntConst(myimportpath, name, typename string, val int64)
+ 	})
+ 	dwarf.PutIntConst(dwCtxt{ctxt}, s, ctxt.Lookup(dwarf.InfoPrefix+typename), myimportpath+"."+name, val)
+ }
++
++func (ctxt *Link) DwarfAbstractFunc(curfn interface{}, s *LSym, myimportpath string) {
++	absfn := ctxt.DwFixups.AbsFuncDwarfSym(s)
++	if absfn.Size != 0 {
++		ctxt.Diag("internal error: DwarfAbstractFunc double process %v", s)
++	}
++	if s.Func == nil {
++		s.Func = new(FuncInfo)
++	}
++	scopes, _ := ctxt.DebugInfo(s, curfn)
++	dwctxt := dwCtxt{ctxt}
++	filesym := ctxt.fileSymbol(s)
++	fnstate := dwarf.FnState{
++		Name:       s.Name,
++		Importpath: myimportpath,
++		Info:       absfn,
++		Filesym:    filesym,
++		Absfn:      absfn,
++		External:   !s.Static(),
++		Scopes:     scopes,
++	}
++	if err := dwarf.PutAbstractFunc(dwctxt, &fnstate); err != nil {
++		ctxt.Diag("emitting DWARF for %s failed: %v", s.Name, err)
++	}
++}
++
++// This table is designed to aid in the creation of references betweeen
++// DWARF subprogram DIEs.
++//
++// In most cases when one DWARF DIE has to refer to another DWARF DIE,
++// the target of the reference has an LSym, which makes it easy to use
++// the existing relocation mechanism. For DWARF inlined routine DIEs,
++// however, the subprogram DIE has to refer to a child
++// parameter/variable DIE of the abstract subprogram. This child DIE
++// doesn't have an LSym, and also of interest is the fact that when
++// DWARF generation is happening for inlined function F within caller
++// G, it's possible that DWARF generation hasn't happened yet for F,
++// so there is no way to know the offset of a child DIE within F's
++// abstract function. Making matters more complex, each inlined
++// instance of F may refer to a subset of the original F's variables
++// (depending on what happens with optimization, some vars may be
++// eliminated).
++//
++// The fixup table below helps overcome this hurdle. At the point
++// where a parameter/variable reference is made (via a call to
++// "ReferenceChildDIE"), a fixup record is generate that records
++// the relocation that is targeting that child variable. At a later
++// point when the abstract function DIE is emitted, there will be
++// a call to "RegisterChildDIEOffsets", at which point the offsets
++// needed to apply fixups are captured. Finally, once the parallel
++// portion of the compilation is done, fixups can actually be applied
++// during the "Finalize" method (this can't be done during the
++// parallel portion of the compile due to the possibility of data
++// races).
++//
++// This table is also used to record the "precursor" function node for
++// each function that is the target of an inline -- child DIE references
++// have to be made with respect to the original pre-optimization
++// version of the function (to allow for the fact that each inlined
++// body may be optimized differently).
++type DwarfFixupTable struct {
++	ctxt      *Link
++	mu        sync.Mutex
++	symtab    map[*LSym]int // maps abstract fn LSYM to index in svec
++	svec      []symFixups
++	precursor map[*LSym]fnState // maps fn Lsym to precursor Node, absfn sym
++}
++
++type symFixups struct {
++	fixups   []relFixup
++	doffsets []declOffset
++	inlIndex int32
++	defseen  bool
++}
++
++type declOffset struct {
++	// Index of variable within DCL list of pre-optimization function
++	dclIdx int32
++	// Offset of var's child DIE with respect to containing subprogram DIE
++	offset int32
++}
++
++type relFixup struct {
++	refsym *LSym
++	relidx int32
++	dclidx int32
++}
++
++type fnState struct {
++	// precursor function (really *gc.Node)
++	precursor interface{}
++	// abstract function symbol
++	absfn *LSym
++}
++
++func NewDwarfFixupTable(ctxt *Link) *DwarfFixupTable {
++	return &DwarfFixupTable{
++		ctxt:      ctxt,
++		symtab:    make(map[*LSym]int),
++		precursor: make(map[*LSym]fnState),
++	}
++}
++
++func (ft *DwarfFixupTable) GetPrecursorFunc(s *LSym) interface{} {
++	if fnstate, found := ft.precursor[s]; found {
++		return fnstate.precursor
++	}
++	return nil
++}
++
++func (ft *DwarfFixupTable) SetPrecursorFunc(s *LSym, fn interface{}) {
++	if _, found := ft.precursor[s]; found {
++		ft.ctxt.Diag("internal error: DwarfFixupTable.SetPrecursorFunc double call on %v", s)
++	}
++
++	// initialize abstract function symbol now. This is done here so
++	// as to avoid data races later on during the parallel portion of
++	// the back end.
++	absfn := ft.ctxt.LookupDerived(s, dwarf.InfoPrefix+s.Name+dwarf.AbstractFuncSuffix)
++	absfn.Set(AttrDuplicateOK, true)
++	absfn.Type = objabi.SDWARFINFO
++	ft.ctxt.Data = append(ft.ctxt.Data, absfn)
++
++	ft.precursor[s] = fnState{precursor: fn, absfn: absfn}
++}
++
++// Make a note of a child DIE reference: relocation 'ridx' within symbol 's'
++// is targeting child 'c' of DIE with symbol 'tgt'.
++func (ft *DwarfFixupTable) ReferenceChildDIE(s *LSym, ridx int, tgt *LSym, dclidx int, inlIndex int) {
++	// Protect against concurrent access if multiple backend workers
++	ft.mu.Lock()
++	defer ft.mu.Unlock()
++
++	// Create entry for symbol if not already present.
++	idx, found := ft.symtab[tgt]
++	if !found {
++		ft.svec = append(ft.svec, symFixups{inlIndex: int32(inlIndex)})
++		idx = len(ft.svec) - 1
++		ft.symtab[tgt] = idx
++	}
++
++	// Do we have child DIE offsets available? If so, then apply them,
++	// otherwise create a fixup record.
++	sf := &ft.svec[idx]
++	if len(sf.doffsets) > 0 {
++		found := false
++		for _, do := range sf.doffsets {
++			if do.dclIdx == int32(dclidx) {
++				off := do.offset
++				s.R[ridx].Add += int64(off)
++				found = true
++				break
++			}
++		}
++		if !found {
++			ft.ctxt.Diag("internal error: DwarfFixupTable.ReferenceChildDIE unable to locate child DIE offset for dclIdx=%d src=%v tgt=%v", dclidx, s, tgt)
++		}
++	} else {
++		sf.fixups = append(sf.fixups, relFixup{s, int32(ridx), int32(dclidx)})
++	}
++}
++
++// Called once DWARF generation is complete for a given abstract function,
++// whose children might have been referenced via a call above. Stores
++// the offsets for any child DIEs (vars, params) so that they can be
++// consumed later in on DwarfFixupTable.Finalize, which applies any
++// outstanding fixups.
++func (ft *DwarfFixupTable) RegisterChildDIEOffsets(s *LSym, vars []*dwarf.Var, coffsets []int32) {
++	// Length of these two slices should agree
++	if len(vars) != len(coffsets) {
++		ft.ctxt.Diag("internal error: RegisterChildDIEOffsets vars/offsets length mismatch")
++		return
++	}
++
++	// Generate the slice of declOffset's based in vars/coffsets
++	doffsets := make([]declOffset, len(coffsets))
++	for i := 0; i < len(coffsets); i++ {
++		doffsets[i].dclIdx = vars[i].ChildIndex
++		doffsets[i].offset = coffsets[i]
++	}
++
++	ft.mu.Lock()
++	defer ft.mu.Unlock()
++
++	// Store offsets for this symbol.
++	idx, found := ft.symtab[s]
++	if !found {
++		sf := symFixups{inlIndex: -1, defseen: true, doffsets: doffsets}
++		ft.svec = append(ft.svec, sf)
++		ft.symtab[s] = len(ft.svec) - 1
++	} else {
++		sf := &ft.svec[idx]
++		sf.doffsets = doffsets
++		sf.defseen = true
++	}
++}
++
++func (ft *DwarfFixupTable) processFixups(slot int, s *LSym) {
++	sf := &ft.svec[slot]
++	for _, f := range sf.fixups {
++		dfound := false
++		for i := 0; i < len(sf.doffsets); i++ {
++			if sf.doffsets[i].dclIdx == f.dclidx {
++				f.refsym.R[f.relidx].Add += int64(sf.doffsets[i].offset)
++				dfound = true
++				break
++			}
++		}
++		if !dfound {
++			ft.ctxt.Diag("internal error: DwarfFixupTable has orphaned fixup on %v targeting %v relidx=%d dclidx=%d", f.refsym, s, f.relidx, f.dclidx)
++		}
++	}
++}
++
++// return the LSym corresponding to the 'abstract subprogram' DWARF
++// info entry for a function.
++func (ft *DwarfFixupTable) AbsFuncDwarfSym(fnsym *LSym) *LSym {
++	// Protect against concurrent access if multiple backend workers
++	ft.mu.Lock()
++	defer ft.mu.Unlock()
++
++	if fnstate, found := ft.precursor[fnsym]; found {
++		return fnstate.absfn
++	}
++	ft.ctxt.Diag("internal error: AbsFuncDwarfSym requested for %v, not seen during inlining", fnsym)
++	return nil
++}
++
++// Called after all functions have been compiled; the main job of this
++// function is to identify cases where there are outstanding fixups.
++// This scenario crops up when we have references to variables of an
++// inlined routine, but that routine is defined in some other package.
++// This helper walks through and locate these fixups, then invokes a
++// helper to create an abstract subprogram DIE for each one.
++func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
++	if trace {
++		ft.ctxt.Logf("DwarfFixupTable.Finalize invoked for %s\n", myimportpath)
++	}
++
++	// Collect up the keys from the precursor map, then sort the
++	// resulting list (don't want to rely on map ordering here).
++	fns := make([]*LSym, len(ft.precursor))
++	idx := 0
++	for fn, _ := range ft.precursor {
++		fns[idx] = fn
++		idx++
++	}
++	sort.Sort(bySymName(fns))
++
++	// Should not be called during parallel portion of compilation.
++	if ft.ctxt.InParallel {
++		ft.ctxt.Diag("internal error: DwarfFixupTable.Finalize call during parallel backend")
++	}
++
++	// Generate any missing abstract functions.
++	for i := 0; i < len(fns); i++ {
++		s := fns[i]
++		absfn := ft.AbsFuncDwarfSym(s)
++		slot, found := ft.symtab[absfn]
++		if !found || !ft.svec[slot].defseen {
++			ft.ctxt.GenAbstractFunc(s)
++		}
++	}
++
++	// Apply fixups.
++	for i := 0; i < len(fns); i++ {
++		s := fns[i]
++		absfn := ft.AbsFuncDwarfSym(s)
++		slot, found := ft.symtab[absfn]
++		if !found {
++			ft.ctxt.Diag("internal error: DwarfFixupTable.Finalize orphan abstract function for %v", s)
++		} else {
++			ft.processFixups(slot, s)
++		}
++	}
++}
++
++type bySymName []*LSym
++
++func (s bySymName) Len() int           { return len(s) }
++func (s bySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
++func (s bySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 1bb05aedfa..e2609da35d 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -19,7 +19,7 @@ type Plist struct {
+ // It is used to provide access to cached/bulk-allocated Progs to the assemblers.
+ type ProgAlloc func() *Prog
+ 
+-func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
++func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc, myimportpath string) {
+ 	// Build list of symbols, and assign instructions to lists.
+ 	var curtext *LSym
+ 	var etext *Prog
+@@ -106,7 +106,7 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 		ctxt.Arch.Preprocess(ctxt, s, newprog)
+ 		ctxt.Arch.Assemble(ctxt, s, newprog)
+ 		linkpcln(ctxt, s)
+-		ctxt.populateDWARF(plist.Curfn, s)
++		ctxt.populateDWARF(plist.Curfn, s, myimportpath)
+ 	}
+ }
+ 
+@@ -136,7 +136,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s.
+-	info, loc, ranges := ctxt.dwarfSym(s)
++	info, loc, ranges, _ := ctxt.dwarfSym(s)
+ 	info.Type = objabi.SDWARFINFO
+ 	info.Set(AttrDuplicateOK, s.DuplicateOK())
+ 	if loc != nil {
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index d1ce921df1..b2cd1f1b6a 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -72,10 +72,28 @@ func (c dwctxt) AddSectionOffset(s dwarf.Sym, size int, t interface{}, ofs int64
+ 	r.Add = ofs
+ }
+ 
++func (c dwctxt) Logf(format string, args ...interface{}) {
++	c.linkctxt.Logf(format, args...)
++}
++
++// At the moment these interfaces are only used in the compiler.
++
+ func (c dwctxt) AddFileRef(s dwarf.Sym, f interface{}) {
+ 	panic("should be used only in the compiler")
+ }
+ 
++func (c dwctxt) CurrentOffset(s dwarf.Sym) int64 {
++	panic("should be used only in the compiler")
++}
++
++func (c dwctxt) RecordDclReference(s dwarf.Sym, t dwarf.Sym, dclIdx int, inlIndex int) {
++	panic("should be used only in the compiler")
++}
++
++func (c dwctxt) RecordChildDieOffsets(s dwarf.Sym, vars []*dwarf.Var, offsets []int32) {
++	panic("should be used only in the compiler")
++}
++
+ var gdbscript string
+ 
+ var dwarfp []*sym.Symbol
+@@ -132,8 +150,10 @@ func getattr(die *dwarf.DWDie, attr uint16) *dwarf.DWAttr {
+ 	return nil
+ }
+ 
+-// Every DIE has at least an AT_name attribute (but it will only be
+-// written out if it is listed in the abbrev).
++// Every DIE manufactured by the linker has at least an AT_name
++// attribute (but it will only be written out if it is listed in the abbrev).
++// The compiler does create nameless DWARF DIEs (ex: concrete subprogram
++// instance).
+ func newdie(ctxt *Link, parent *dwarf.DWDie, abbrev int, name string, version int) *dwarf.DWDie {
+ 	die := new(dwarf.DWDie)
+ 	die.Abbrev = abbrev
+@@ -849,11 +869,12 @@ func defdwsymb(ctxt *Link, s *sym.Symbol, str string, t SymbolType, v int64, got
+ // compilationUnit is per-compilation unit (equivalently, per-package)
+ // debug-related data.
+ type compilationUnit struct {
+-	lib      *sym.Library
+-	consts   *sym.Symbol   // Package constants DIEs
+-	pcs      []dwarf.Range // PC ranges, relative to textp[0]
+-	dwinfo   *dwarf.DWDie  // CU root DIE
+-	funcDIEs []*sym.Symbol // Function DIE subtrees
++	lib       *sym.Library
++	consts    *sym.Symbol   // Package constants DIEs
++	pcs       []dwarf.Range // PC ranges, relative to textp[0]
++	dwinfo    *dwarf.DWDie  // CU root DIE
++	funcDIEs  []*sym.Symbol // Function DIE subtrees
++	absFnDIEs []*sym.Symbol // Abstract function DIE subtrees
+ }
+ 
+ // getCompilationUnits divides the symbols in ctxt.Textp by package.
+@@ -1052,7 +1073,52 @@ func importInfoSymbol(ctxt *Link, dsym *sym.Symbol) {
+ 	}
+ }
+ 
+-func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol) {
++// For the specified function, collect symbols corresponding to any
++// "abstract" subprogram DIEs referenced. The first case of interest
++// is a concrete subprogram DIE, which will refer to its corresponding
++// abstract subprogram DIE, and then there can be references from a
++// non-abstract subprogram DIE to the abstract subprogram DIEs for any
++// functions inlined into this one.
++//
++// A given abstract subprogram DIE can be referenced in numerous
++// places (even within the same DIE), so it is important to make sure
++// it gets imported and added to the absfuncs lists only once.
++
++func collectAbstractFunctions(ctxt *Link, fn *sym.Symbol, dsym *sym.Symbol, absfuncs []*sym.Symbol) []*sym.Symbol {
++
++	var newabsfns []*sym.Symbol
++
++	// Walk the relocations on the primary subprogram DIE and look for
++	// references to abstract funcs.
++	for _, reloc := range dsym.R {
++		candsym := reloc.Sym
++		if reloc.Type != objabi.R_DWARFSECREF {
++			continue
++		}
++		if !strings.HasPrefix(candsym.Name, dwarf.InfoPrefix) {
++			continue
++		}
++		if !strings.HasSuffix(candsym.Name, dwarf.AbstractFuncSuffix) {
++			continue
++		}
++		if candsym.Attr.OnList() {
++			continue
++		}
++		candsym.Attr |= sym.AttrOnList
++		newabsfns = append(newabsfns, candsym)
++	}
++
++	// Import any new symbols that have turned up.
++	for _, absdsym := range newabsfns {
++		importInfoSymbol(ctxt, absdsym)
++		absfuncs = append(absfuncs, absdsym)
++	}
++
++	return absfuncs
++}
++
++func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbol) (dwinfo *dwarf.DWDie, funcs []*sym.Symbol, absfuncs []*sym.Symbol) {
++
+ 	var dwarfctxt dwarf.Context = dwctxt{ctxt}
+ 
+ 	unitstart := int64(-1)
+@@ -1125,6 +1191,27 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 			ls.AddUint8(0)
+ 			ls.AddUint8(0)
+ 		}
++
++		// Look up the .debug_info sym for the function. We do this
++		// now so that we can walk the sym's relocations to discover
++		// files that aren't mentioned in S.FuncInfo.File (for
++		// example, files mentioned only in an inlined subroutine).
++		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
++		importInfoSymbol(ctxt, dsym)
++		for ri := 0; ri < len(dsym.R); ri++ {
++			r := &dsym.R[ri]
++			if r.Type != objabi.R_DWARFFILEREF {
++				continue
++			}
++			_, ok := fileNums[int(r.Sym.Value)]
++			if !ok {
++				fileNums[int(r.Sym.Value)] = len(fileNums) + 1
++				Addstring(ls, r.Sym.Name)
++				ls.AddUint8(0)
++				ls.AddUint8(0)
++				ls.AddUint8(0)
++			}
++		}
+ 	}
+ 
+ 	// 4 zeros: the string termination + 3 fields.
+@@ -1146,8 +1233,8 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	var pcline Pciter
+ 	for _, s := range textp {
+ 		dsym := ctxt.Syms.Lookup(dwarf.InfoPrefix+s.Name, int(s.Version))
+-		importInfoSymbol(ctxt, dsym)
+ 		funcs = append(funcs, dsym)
++		absfuncs = collectAbstractFunctions(ctxt, s, dsym, absfuncs)
+ 
+ 		finddebugruntimepath(s)
+ 
+@@ -1201,6 +1288,7 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 	// changed to generate DW_AT_decl_file attributes for other
+ 	// DIE flavors (ex: variables) then those DIEs would need to
+ 	// be included below.
++	missing := make(map[int]interface{})
+ 	for fidx := 0; fidx < len(funcs); fidx++ {
+ 		f := funcs[fidx]
+ 		for ri := 0; ri < len(f.R); ri++ {
+@@ -1224,12 +1312,16 @@ func writelines(ctxt *Link, lib *sym.Library, textp []*sym.Symbol, ls *sym.Symbo
+ 				}
+ 				ctxt.Arch.ByteOrder.PutUint32(f.P[r.Off:r.Off+4], uint32(idx))
+ 			} else {
+-				Errorf(f, "R_DWARFFILEREF relocation file missing: %v", r.Sym)
++				_, found := missing[int(r.Sym.Value)]
++				if !found {
++					Errorf(f, "R_DWARFFILEREF relocation file missing: %v idx %d", r.Sym, r.Sym.Value)
++					missing[int(r.Sym.Value)] = nil
++				}
+ 			}
+ 		}
+ 	}
+ 
+-	return dwinfo, funcs
++	return dwinfo, funcs, absfuncs
+ }
+ 
+ // writepcranges generates the DW_AT_ranges table for compilation unit cu.
+@@ -1434,6 +1526,7 @@ func writeinfo(ctxt *Link, syms []*sym.Symbol, units []*compilationUnit, abbrevs
+ 		dwarf.PutAttrs(dwarfctxt, s, compunit.Abbrev, compunit.Attr)
+ 
+ 		cu := []*sym.Symbol{s}
++		cu = append(cu, u.absFnDIEs...)
+ 		cu = append(cu, u.funcDIEs...)
+ 		if u.consts != nil {
+ 			cu = append(cu, u.consts)
+@@ -1621,7 +1714,7 @@ func dwarfgeneratedebugsyms(ctxt *Link) {
+ 	debugRanges.Attr |= sym.AttrReachable
+ 	syms = append(syms, debugLine)
+ 	for _, u := range units {
+-		u.dwinfo, u.funcDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
++		u.dwinfo, u.funcDIEs, u.absFnDIEs = writelines(ctxt, u.lib, u.lib.Textp, debugLine)
+ 		writepcranges(ctxt, u.dwinfo, u.lib.Textp[0], u.pcs, debugRanges)
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index b494970a7f..0bd5133f48 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -7,6 +7,8 @@ package ld
+ import (
+ 	objfilepkg "cmd/internal/objfile" // renamed to avoid conflict with objfile function
+ 	"debug/dwarf"
++	"errors"
++	"fmt"
+ 	"internal/testenv"
+ 	"io/ioutil"
+ 	"os"
+@@ -30,7 +32,7 @@ func TestRuntimeTypeDIEs(t *testing.T) {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, `package main; func main() { }`)
++	f := gobuild(t, dir, `package main; func main() { }`, false)
+ 	defer f.Close()
+ 
+ 	dwarf, err := f.DWARF()
+@@ -75,7 +77,7 @@ func findTypes(t *testing.T, dw *dwarf.Data, want map[string]bool) (found map[st
+ 	return
+ }
+ 
+-func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
++func gobuild(t *testing.T, dir string, testfile string, opt bool) *objfilepkg.File {
+ 	src := filepath.Join(dir, "test.go")
+ 	dst := filepath.Join(dir, "out")
+ 
+@@ -83,7 +85,11 @@ func gobuild(t *testing.T, dir string, testfile string) *objfilepkg.File {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "build", "-gcflags=-N -l", "-o", dst, src)
++	gcflags := "-gcflags=-N -l"
++	if opt {
++		gcflags = "-gcflags=-l=4"
++	}
++	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+ 	if b, err := cmd.CombinedOutput(); err != nil {
+ 		t.Logf("build: %s\n", b)
+ 		t.Fatalf("build error: %v", err)
+@@ -136,7 +142,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog)
++	f := gobuild(t, dir, prog, false)
+ 
+ 	defer f.Close()
+ 
+@@ -214,7 +220,7 @@ func main() {
+ 		t.Fatalf("could not create directory: %v", err)
+ 	}
+ 	defer os.RemoveAll(dir)
+-	f := gobuild(t, dir, prog)
++	f := gobuild(t, dir, prog, false)
+ 	defer f.Close()
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -262,7 +268,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog)
++	f := gobuild(t, dir, prog, false)
+ 	defer f.Close()
+ 
+ 	d, err := f.DWARF()
+@@ -320,7 +326,7 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	f := gobuild(t, dir, prog)
++	f := gobuild(t, dir, prog, false)
+ 
+ 	d, err := f.DWARF()
+ 	if err != nil {
+@@ -328,37 +334,274 @@ func main() {
+ 	}
+ 
+ 	rdr := d.Reader()
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	// Locate the main.main DIE
++	mains := ex.Named("main.main")
++	if len(mains) == 0 {
++		t.Fatalf("unable to locate DIE for main.main")
++	}
++	if len(mains) != 1 {
++		t.Fatalf("more than one main.main DIE")
++	}
++	maindie := mains[0]
++
++	// Vet the main.main DIE
++	if maindie.Tag != dwarf.TagSubprogram {
++		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
++	}
++
++	// Walk main's children and select variable "i".
++	mainIdx := ex.idxFromOffset(maindie.Offset)
++	childDies := ex.Children(mainIdx)
+ 	var iEntry *dwarf.Entry
+-	var pEntry *dwarf.Entry
+-	foundMain := false
++	for _, child := range childDies {
++		if child.Tag == dwarf.TagVariable && child.Val(dwarf.AttrName).(string) == "i" {
++			iEntry = child
++			break
++		}
++	}
++	if iEntry == nil {
++		t.Fatalf("didn't find DW_TAG_variable for i in main.main")
++	}
++
++	// Verify line/file attributes.
++	line := iEntry.Val(dwarf.AttrDeclLine)
++	if line == nil || line.(int64) != 5 {
++		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
++	}
++
++	file := maindie.Val(dwarf.AttrDeclFile)
++	if file == nil || file.(int64) != 1 {
++		t.Errorf("DW_AT_decl_file for main is %v, want 1", file)
++	}
++}
++
++// Helper class for supporting queries on DIEs within a DWARF .debug_info
++// section. Invoke the populate() method below passing in a dwarf.Reader,
++// which will read in all DIEs and keep track of parent/child
++// relationships. Queries can then be made to ask for DIEs by name or
++// by offset. This will hopefully reduce boilerplate for future test
++// writing.
++
++type examiner struct {
++	dies        []*dwarf.Entry
++	idxByOffset map[dwarf.Offset]int
++	kids        map[int][]int
++	byname      map[string][]int
++}
++
++// Populate the examiner using the DIEs read from rdr.
++func (ex *examiner) populate(rdr *dwarf.Reader) error {
++	ex.idxByOffset = make(map[dwarf.Offset]int)
++	ex.kids = make(map[int][]int)
++	ex.byname = make(map[string][]int)
++	var nesting []int
+ 	for entry, err := rdr.Next(); entry != nil; entry, err = rdr.Next() {
+ 		if err != nil {
+-			t.Fatalf("error reading DWARF: %v", err)
++			return err
+ 		}
+-		if entry.Tag == dwarf.TagSubprogram && entry.Val(dwarf.AttrName).(string) == "main.main" {
+-			foundMain = true
+-			pEntry = entry
++		if entry.Tag == 0 {
++			// terminator
++			if len(nesting) == 0 {
++				return errors.New("nesting stack underflow")
++			}
++			nesting = nesting[:len(nesting)-1]
+ 			continue
+ 		}
+-		if !foundMain {
+-			continue
++		idx := len(ex.dies)
++		ex.dies = append(ex.dies, entry)
++		if _, found := ex.idxByOffset[entry.Offset]; found {
++			return errors.New("DIE clash on offset")
+ 		}
+-		if entry.Tag == dwarf.TagSubprogram {
+-			t.Fatalf("didn't find DW_TAG_variable for i in main.main")
++		ex.idxByOffset[entry.Offset] = idx
++		if name, ok := entry.Val(dwarf.AttrName).(string); ok {
++			ex.byname[name] = append(ex.byname[name], idx)
+ 		}
+-		if foundMain && entry.Tag == dwarf.TagVariable && entry.Val(dwarf.AttrName).(string) == "i" {
+-			iEntry = entry
+-			break
++		if len(nesting) > 0 {
++			parent := nesting[len(nesting)-1]
++			ex.kids[parent] = append(ex.kids[parent], idx)
+ 		}
++		if entry.Children {
++			nesting = append(nesting, idx)
++		}
++	}
++	if len(nesting) > 0 {
++		return errors.New("unterminated child sequence")
+ 	}
++	return nil
++}
+ 
+-	line := iEntry.Val(dwarf.AttrDeclLine)
+-	if line == nil || line.(int64) != 5 {
+-		t.Errorf("DW_AT_decl_line for i is %v, want 5", line)
++func indent(ilevel int) {
++	for i := 0; i < ilevel; i++ {
++		fmt.Printf("  ")
+ 	}
++}
+ 
+-	file := pEntry.Val(dwarf.AttrDeclFile)
+-	if file == nil || file.(int64) != 1 {
+-		t.Errorf("DW_AT_decl_file for main is %v, want 1", file)
++// For debugging new tests
++func (ex *examiner) dumpEntry(idx int, dumpKids bool, ilevel int) error {
++	if idx >= len(ex.dies) {
++		msg := fmt.Sprintf("bad DIE %d: index out of range\n", idx)
++		return errors.New(msg)
++	}
++	entry := ex.dies[idx]
++	indent(ilevel)
++	fmt.Printf("%d: %v\n", idx, entry.Tag)
++	for _, f := range entry.Field {
++		indent(ilevel)
++		fmt.Printf("at=%v val=%v\n", f.Attr, f.Val)
++	}
++	if dumpKids {
++		ksl := ex.kids[idx]
++		for _, k := range ksl {
++			ex.dumpEntry(k, true, ilevel+2)
++		}
++	}
++	return nil
++}
++
++// Given a DIE offset, return the previously read dwarf.Entry, or nil
++func (ex *examiner) entryFromOffset(off dwarf.Offset) *dwarf.Entry {
++	if idx, found := ex.idxByOffset[off]; found && idx != -1 {
++		return ex.entryFromIdx(idx)
++	}
++	return nil
++}
++
++// Return the ID that that examiner uses to refer to the DIE at offset off
++func (ex *examiner) idxFromOffset(off dwarf.Offset) int {
++	if idx, found := ex.idxByOffset[off]; found {
++		return idx
++	}
++	return -1
++}
++
++// Return the dwarf.Entry pointer for the DIE with id 'idx'
++func (ex *examiner) entryFromIdx(idx int) *dwarf.Entry {
++	if idx >= len(ex.dies) {
++		return nil
++	}
++	return ex.dies[idx]
++}
++
++// Returns a list of child entries for a die with ID 'idx'
++func (ex *examiner) Children(idx int) []*dwarf.Entry {
++	sl := ex.kids[idx]
++	ret := make([]*dwarf.Entry, len(sl))
++	for i, k := range sl {
++		ret[i] = ex.entryFromIdx(k)
++	}
++	return ret
++}
++
++// Return a list of all DIEs with name 'name'. When searching for DIEs
++// by name, keep in mind that the returned results will include child
++// DIEs such as params/variables. For example, asking for all DIEs named
++// "p" for even a small program will give you 400-500 entries.
++func (ex *examiner) Named(name string) []*dwarf.Entry {
++	sl := ex.byname[name]
++	ret := make([]*dwarf.Entry, len(sl))
++	for i, k := range sl {
++		ret[i] = ex.entryFromIdx(k)
++	}
++	return ret
++}
++
++func TestInlinedRoutineRecords(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping on plan9; no DWARF symbol table in executables")
++	}
++
++	const prog = `
++package main
++
++var G int
++
++func cand(x, y int) int {
++    return (x + y) ^ (y - x)
++}
++
++func main() {
++    x := cand(G*G,G|7%G)
++    G = x
++}
++`
++	dir, err := ioutil.TempDir("", "TestInlinedRoutineRecords")
++	if err != nil {
++		t.Fatalf("could not create directory: %v", err)
++	}
++	defer os.RemoveAll(dir)
++
++	// Note: this is a regular go build here, without "-l -N". The
++	// test is intended to verify DWARF that is only generated when the
++	// inliner is active.
++	f := gobuild(t, dir, prog, true)
++
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	// The inlined subroutines we expect to visit
++	expectedInl := []string{"main.cand"}
++
++	rdr := d.Reader()
++	ex := examiner{}
++	if err := ex.populate(rdr); err != nil {
++		t.Fatalf("error reading DWARF: %v", err)
++	}
++
++	// Locate the main.main DIE
++	mains := ex.Named("main.main")
++	if len(mains) == 0 {
++		t.Fatalf("unable to locate DIE for main.main")
++	}
++	if len(mains) != 1 {
++		t.Fatalf("more than one main.main DIE")
++	}
++	maindie := mains[0]
++
++	// Vet the main.main DIE
++	if maindie.Tag != dwarf.TagSubprogram {
++		t.Fatalf("unexpected tag %v on main.main DIE", maindie.Tag)
++	}
++
++	// Walk main's children and pick out the inlined subroutines
++	mainIdx := ex.idxFromOffset(maindie.Offset)
++	childDies := ex.Children(mainIdx)
++	exCount := 0
++	for _, child := range childDies {
++		if child.Tag == dwarf.TagInlinedSubroutine {
++			// Found an inlined subroutine, locate abstract origin.
++			ooff, originOK := child.Val(dwarf.AttrAbstractOrigin).(dwarf.Offset)
++			if !originOK {
++				t.Fatalf("no abstract origin attr for inlined subroutine at offset %v", child.Offset)
++			}
++			originDIE := ex.entryFromOffset(ooff)
++			if originDIE == nil {
++				t.Fatalf("can't locate origin DIE at off %v", ooff)
++			}
++
++			if exCount >= len(expectedInl) {
++				t.Fatalf("too many inlined subroutines found in main.main")
++			}
++
++			// Name should check out.
++			expected := expectedInl[exCount]
++			if name, ok := originDIE.Val(dwarf.AttrName).(string); ok {
++				if name != expected {
++					t.Fatalf("expected inlined routine %s got %s", name, expected)
++				}
++			}
++			exCount++
++		}
++	}
++	if exCount != len(expectedInl) {
++		t.Fatalf("not enough inlined subroutines found in main.main")
+ 	}
+ }
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index fe62f96e86..91edc4dda1 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -218,7 +218,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	// a collection of scalar vars holding the fields. In such cases
+ 	// the DWARF variable location expression should be of the
+ 	// form "var.field" and not just "field".
+-	infoLocalsRe := regexp.MustCompile(`^slicevar.len = `)
++	infoLocalsRe := regexp.MustCompile(`.*\sslicevar.cap = `)
+ 	if bl := blocks["info locals"]; !infoLocalsRe.MatchString(bl) {
+ 		t.Fatalf("info locals failed: %s", bl)
+ 	}

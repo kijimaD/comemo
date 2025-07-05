@@ -10,6 +10,24 @@ Date:   Fri Sep 10 09:49:03 2021 -0400
     Run-TryBot: Katie Hockman <katie@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/internal/fuzz/fuzz.go | 6 +-----
  1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/internal/fuzz/fuzz.go b/src/internal/fuzz/fuzz.go
+index f36569b4cc..6c07da2dbe 100644
+--- a/src/internal/fuzz/fuzz.go
++++ b/src/internal/fuzz/fuzz.go
+@@ -613,11 +613,7 @@ func newCoordinator(opts CoordinateFuzzingOpts) (*coordinator, error) {
+ 
+ 	covSize := len(coverage())
+ 	if covSize == 0 {
+-		// TODO: improve this warning. This condition happens if the binary was
+-		// built without fuzzing instrumtation (e.g., with 'go test -c'), so the
+-		// warning may not be true.
+-		fmt.Fprintf(c.opts.Log, "warning: coverage-guided fuzzing is not supported on this platform\n")
+-		c.covOnlyInputs = 0
++		fmt.Fprintf(c.opts.Log, "warning: the test binary was not built with coverage instrumentation, so fuzzing will run without coverage guidance and may be inefficient\n")
+ 	} else {
+ 		// Set c.coverageData to a clean []byte full of zeros.
+ 		c.coverageMask = make([]byte, covSize)

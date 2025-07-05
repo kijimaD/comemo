@@ -12,6 +12,21 @@ Date:   Wed Dec 2 12:56:29 2020 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/go_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a730c87f97..1b8a21ecfa 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -838,6 +838,9 @@ func TestNewReleaseRebuildsStalePackagesInGOPATH(t *testing.T) {
+ 					return err
+ 				}
+ 				tg.tempFile(dest, string(data))
++				if strings.Contains(copydir, filepath.Join("pkg", "tool")) {
++					os.Chmod(tg.path(dest), 0777)
++				}
+ 				return nil
+ 			})
+ 		if err != nil {

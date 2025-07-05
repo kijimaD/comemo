@@ -13,7 +13,7 @@ Date:   Tue Aug 6 21:49:03 2013 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/12520043
-
+---
  src/pkg/runtime/env_plan9.c      | 3 ++-
  src/pkg/runtime/env_posix.c      | 3 ++-
  src/pkg/runtime/os_plan9.c       | 3 ++-
@@ -24,3 +24,143 @@ Date:   Tue Aug 6 21:49:03 2013 +1000
  src/pkg/runtime/runtime.h        | 4 ++--
  src/pkg/runtime/string.goc       | 8 ++++----
  9 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/pkg/runtime/env_plan9.c b/src/pkg/runtime/env_plan9.c
+index 0483d7eef5..599319c755 100644
+--- a/src/pkg/runtime/env_plan9.c
++++ b/src/pkg/runtime/env_plan9.c
+@@ -8,7 +8,8 @@
+ byte*
+ runtime·getenv(int8 *s)
+ {
+-	int32 fd, len, n, r;
++	int32 fd, n, r;
++	intgo len;
+ 	byte file[128];
+ 	byte *p;
+ 
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 8333811fb8..58da085085 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -11,7 +11,8 @@ Slice syscall·envs;
+ byte*
+ runtime·getenv(int8 *s)
+ {
+-	int32 i, j, len;
++	int32 i, j;
++	intgo len;
+ 	byte *v, *bs;
+ 	String* envv;
+ 	int32 envc;
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index e8e116f488..52460c7c81 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -194,7 +194,8 @@ runtime·goexitsall(int8 *status)
+ int32
+ runtime·postnote(int32 pid, int8* msg)
+ {
+-	int32 fd, len;
++	int32 fd;
++	intgo len;
+ 	uint8 buf[128];
+ 	uint8 tmp[16];
+ 	uint8 *p, *q;
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index a174771db3..0844d726b5 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -32,7 +32,7 @@ runtime·sighandler(void *v, int8 *s, G *gp)
+ 	Ureg *ureg;
+ 	uintptr *sp;
+ 	SigTab *sig, *nsig;
+-	int32 len, i;
++	intgo len, i;
+ 
+ 	if(!s)
+ 		return NCONT;
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index 30f31e9969..58822ff848 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -40,7 +40,7 @@ runtime·sighandler(void *v, int8 *s, G *gp)
+ 	Ureg *ureg;
+ 	uintptr *sp;
+ 	SigTab *sig, *nsig;
+-	int32 len, i;
++	intgo i, len;
+ 
+ 	if(!s)
+ 		return NCONT;
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index 5b601599bc..9220762355 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -12,7 +12,7 @@ static void vprintf(int8*, byte*);
+ // write to goroutine-local buffer if diverting output,
+ // or else standard error.
+ static void
+-gwrite(void *v, int32 n)
++gwrite(void *v, intgo n)
+ {
+ 	if(g == nil || g->writebuf == nil) {
+ 		runtime·write(2, v, n);
+diff --git a/src/pkg/runtime/runtime.c b/src/pkg/runtime/runtime.c
+index a0e9a194c6..7f693589f6 100644
+--- a/src/pkg/runtime/runtime.c
++++ b/src/pkg/runtime/runtime.c
+@@ -393,7 +393,7 @@ void
+ runtime·parsedebugvars(void)
+ {
+ 	byte *p;
+-	int32 i, n;
++	intgo i, n;
+ 
+ 	p = runtime·getenv("GODEBUG");
+ 	if(p == nil)
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e48b58a70e..ff3ecfaaaf 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -717,8 +717,8 @@ extern	DebugVars	runtime·debug;
+  */
+ int32	runtime·strcmp(byte*, byte*);
+ byte*	runtime·strstr(byte*, byte*);
+-int32	runtime·findnull(byte*);
+-int32	runtime·findnullw(uint16*);
++intgo	runtime·findnull(byte*);
++intgo	runtime·findnullw(uint16*);
+ void	runtime·dump(byte*, int32);
+ int32	runtime·runetochar(byte*, int32);
+ int32	runtime·charntorune(int32*, uint8*, int32);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index 15d690a921..dccb97128a 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -10,10 +10,10 @@ package runtime
+ 
+ String	runtime·emptystring;
+ 
+-int32
++intgo
+ runtime·findnull(byte *s)
+ {
+-	int32 l;
++	intgo l;
+ 
+ 	if(s == nil)
+ 		return 0;
+@@ -22,10 +22,10 @@ runtime·findnull(byte *s)
+ 	return l;
+ }
+ 
+-int32
++intgo
+ runtime·findnullw(uint16 *s)
+ {
+-	int32 l;
++	intgo l;
+ 
+ 	if(s == nil)
+ 		return 0;

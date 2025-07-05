@@ -20,7 +20,7 @@ Date:   Thu May 9 08:57:20 2019 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/176177
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/vet/all/whitelist/aix_ppc64.txt            |  3 ---
  src/cmd/vet/all/whitelist/all.txt                  | 24 ----------------------
  src/cmd/vet/all/whitelist/android_arm.txt          |  1 -
@@ -46,3 +46,330 @@ Date:   Thu May 9 08:57:20 2019 -0400
  src/cmd/vet/all/whitelist/windows_amd64.txt        |  1 -
  src/runtime/stubs.go                               |  3 +++
  24 files changed, 7 insertions(+), 105 deletions(-)
+
+diff --git a/src/cmd/vet/all/whitelist/aix_ppc64.txt b/src/cmd/vet/all/whitelist/aix_ppc64.txt
+index 49ff6df2ea..bfd76e9055 100644
+--- a/src/cmd/vet/all/whitelist/aix_ppc64.txt
++++ b/src/cmd/vet/all/whitelist/aix_ppc64.txt
+@@ -1,8 +1,5 @@
+ // aix/ppc64-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/asm_ppc64x.s: [ppc64] sigreturn: function sigreturn missing Go declaration
+-runtime/sys_aix_ppc64.s: [ppc64] callCfunction: function callCfunction missing Go declaration
+ runtime/sys_aix_ppc64.s: [ppc64] _asmsyscall6: function _asmsyscall6 missing Go declaration
+-runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: function _sigtramp missing Go declaration
+-runtime/sys_aix_ppc64.s: [ppc64] _sigtramp: use of 16(R1) points beyond argument frame
+ runtime/sys_aix_ppc64.s: [ppc64] _tstart: function _tstart missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/all.txt b/src/cmd/vet/all/whitelist/all.txt
+index dd0718a389..e12a96e0c5 100644
+--- a/src/cmd/vet/all/whitelist/all.txt
++++ b/src/cmd/vet/all/whitelist/all.txt
+@@ -1,24 +1,5 @@
+ // Non-platform-specific vet whitelist. See readme.txt for details.
+ 
+-// Real problems that we can't fix.
+-
+-// This is a bad WriteTo signature. Errors are being ignored!
+-// However, we can't change it due to the Go 1 compatibility promise.
+-go/types/scope.go: method WriteTo(w io.Writer, n int, recurse bool) should have signature WriteTo(io.Writer) (int64, error)
+-
+-
+-// False positives.
+-
+-// The write barrier is called directly by the compiler, so no Go def
+-runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+-
+-// Legitimate vet complaints in which we are testing for correct runtime behavior
+-// in bad situations that vet can also detect statically.
+-encoding/json/decode_test.go: struct field m has json tag but is not exported
+-encoding/json/decode_test.go: struct field m2 has json tag but is not exported
+-encoding/json/decode_test.go: struct field s has json tag but is not exported
+-encoding/json/tagkey_test.go: struct field tag `:"BadFormat"` not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+-
+ // Compiler tests that make sure even vet-failing code adheres to the spec.
+ cmd/compile/internal/gc/testdata/arithConst_test.go: a (64 bits) too small for shift of 4294967296
+ cmd/compile/internal/gc/testdata/arithConst_test.go: a (64 bits) too small for shift of 4294967296
+@@ -45,7 +26,6 @@ cmd/compile/internal/gc/testdata/short_test.go: unreachable code
+ cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
+ cmd/internal/bio/buf.go: method Seek(offset int64, whence int) int64 should have signature Seek(int64, int) (int64, error)
+ fmt/print.go: method WriteByte(c byte) should have signature WriteByte(byte) error
+-runtime/pprof/pprof.go: method WriteTo(w io.Writer, debug int) error should have signature WriteTo(io.Writer) (int64, error)
+ 
+ // Also non-standard, but this method is on an unexported type, so it's
+ // irrelevant.
+@@ -56,7 +36,3 @@ cmd/link/link_test.go: struct field tag "\n\tLondon. Michaelmas term lately over
+ cmd/link/link_test.go: struct field tag "\n\tIt was grand to see how the wind awoke, and bent the trees, and drove the rain before it like a cloud of smoke; and to hear the solemn thunder, and to see the lightning; and while thinking with awe of the tremendous powers by which our little lives are encompassed, to consider how beneficent they are, and how upon the smallest flower and leaf there was already a freshness poured from all this seeming rage, which seemed to make creation new again." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+ cmd/link/link_test.go: struct field tag "\n\tJarndyce and Jarndyce drones on. This scarecrow of a suit has, over the course of time, become so complicated, that no man alive knows what it means. The parties to it understand it least; but it has been observed that no two Chancery lawyers can talk about it for five minutes, without coming to a total disagreement as to all the premises. Innumerable children have been born into the cause; innumerable young people have married into it; innumerable old people have died out of it. Scores of persons have deliriously found themselves made parties in Jarndyce and Jarndyce, without knowing how or why; whole families have inherited legendary hatreds with the suit. The little plaintiff or defendant, who was promised a new rocking-horse when Jarndyce and Jarndyce should be settled, has grown up, possessed himself of a real horse, and trotted away into the other world. Fair wards of court have faded into mothers and grandmothers; a long procession of Chancellors has come in and gone out; the legion of bills in the suit have been transformed into mere bills of mortality; there are not three Jarndyces left upon the earth perhaps, since old Tom Jarndyce in despair blew his brains out at a coffee-house in Chancery Lane; but Jarndyce and Jarndyce still drags its dreary length before the Court, perennially hopeless." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+ cmd/link/link_test.go: struct field tag "\n\tThe one great principle of the English law is, to make business for itself. There is no other principle distinctly, certainly, and consistently maintained through all its narrow turnings. Viewed by this light it becomes a coherent scheme, and not the monstrous maze the laity are apt to think it. Let them but once clearly perceive that its grand principle is to make business for itself at their expense, and surely they will cease to grumble." not compatible with reflect.StructTag.Get: bad syntax for struct tag key
+-
+-// Tests of Decode(nil) trigger legitimate diagnostics.
+-encoding/gob/encoder_test.go: call of Decode passes non-pointer
+-encoding/gob/encoder_test.go: call of Decode passes non-pointer
+diff --git a/src/cmd/vet/all/whitelist/android_arm.txt b/src/cmd/vet/all/whitelist/android_arm.txt
+index fbd569e604..dda4fb539d 100644
+--- a/src/cmd/vet/all/whitelist/android_arm.txt
++++ b/src/cmd/vet/all/whitelist/android_arm.txt
+@@ -2,4 +2,3 @@
+ 
+ runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+ runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+-runtime/sys_linux_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm.txt b/src/cmd/vet/all/whitelist/arm.txt
+index 81a1f1831e..44eb97ec93 100644
+--- a/src/cmd/vet/all/whitelist/arm.txt
++++ b/src/cmd/vet/all/whitelist/arm.txt
+@@ -2,13 +2,9 @@
+ 
+ // Intentionally missing declarations.
+ runtime/asm_arm.s: [arm] emptyfunc: function emptyfunc missing Go declaration
+-runtime/asm_arm.s: [arm] armPublicationBarrier: function armPublicationBarrier missing Go declaration
+ runtime/asm_arm.s: [arm] usplitR0: function usplitR0 missing Go declaration
+ runtime/asm_arm.s: [arm] addmoduledata: function addmoduledata missing Go declaration
+ runtime/duff_arm.s: [arm] duffzero: function duffzero missing Go declaration
+ runtime/duff_arm.s: [arm] duffcopy: function duffcopy missing Go declaration
+-runtime/tls_arm.s: [arm] save_g: function save_g missing Go declaration
+ runtime/tls_arm.s: [arm] load_g: function load_g missing Go declaration
+ runtime/tls_arm.s: [arm] _initcgo: function _initcgo missing Go declaration
+-
+-runtime/internal/atomic/asm_arm.s: [arm] cas: function cas missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/arm64.txt b/src/cmd/vet/all/whitelist/arm64.txt
+index 5a0af626f6..550eb055e5 100644
+--- a/src/cmd/vet/all/whitelist/arm64.txt
++++ b/src/cmd/vet/all/whitelist/arm64.txt
+@@ -2,7 +2,5 @@
+ 
+ // Intentionally missing declarations.
+ runtime/asm_arm64.s: [arm64] addmoduledata: function addmoduledata missing Go declaration
+-runtime/duff_arm64.s: [arm64] duffzero: function duffzero missing Go declaration
+-runtime/duff_arm64.s: [arm64] duffcopy: function duffcopy missing Go declaration
+ runtime/tls_arm64.s: [arm64] load_g: function load_g missing Go declaration
+ runtime/tls_arm64.s: [arm64] save_g: function save_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/freebsd_arm.txt b/src/cmd/vet/all/whitelist/freebsd_arm.txt
+deleted file mode 100644
+index 5cb6989a26..0000000000
+--- a/src/cmd/vet/all/whitelist/freebsd_arm.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// freebsd/arm-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_freebsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/linux_arm.txt b/src/cmd/vet/all/whitelist/linux_arm.txt
+index fbf0e270aa..f7a9a0c468 100644
+--- a/src/cmd/vet/all/whitelist/linux_arm.txt
++++ b/src/cmd/vet/all/whitelist/linux_arm.txt
+@@ -6,7 +6,6 @@ runtime/sys_linux_arm.s: [arm] clone: 12(R13) should be stk+4(FP)
+ runtime/sys_linux_arm.s: [arm] clone: 8(R13) should be flags+0(FP)
+ 
+ // Special functions.
+-runtime/sys_linux_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+ runtime/sys_linux_arm.s: [arm] access: function access missing Go declaration
+ runtime/sys_linux_arm.s: [arm] connect: function connect missing Go declaration
+ runtime/sys_linux_arm.s: [arm] socket: function socket missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mips64x.txt b/src/cmd/vet/all/whitelist/mips64x.txt
+deleted file mode 100644
+index 1687765445..0000000000
+--- a/src/cmd/vet/all/whitelist/mips64x.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-// mips64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/duff_mips64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+-runtime/tls_mips64x.s: [GOARCH] save_g: function save_g missing Go declaration
+-runtime/tls_mips64x.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+deleted file mode 100644
+index 1451a86e28..0000000000
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// mips/mipsle-specific vet whitelist. See readme.txt for details.
+-
+-runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+-runtime/tls_mipsx.s: [GOARCH] load_g: function load_g missing Go declaration
+-runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+-runtime/sys_linux_mipsx.s: [GOARCH] clone: 4(R29) should be flags+0(FP)
+-runtime/sys_linux_mipsx.s: [GOARCH] clone: 8(R29) should be stk+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+index 9661f57b23..b3d6aa40a1 100644
+--- a/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
++++ b/src/cmd/vet/all/whitelist/nacl_amd64p32.txt
+@@ -5,8 +5,6 @@ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argumen
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 16(SP) points beyond argument frame
+ runtime/asm_amd64p32.s: [amd64p32] morestack: use of 8(SP) points beyond argument frame
+ 
+-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+-runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+ runtime/sys_nacl_amd64p32.s: [amd64p32] sigtramp: unknown variable ctxt
+diff --git a/src/cmd/vet/all/whitelist/nacl_arm.txt b/src/cmd/vet/all/whitelist/nacl_arm.txt
+index fbdcb5d229..08a613dd56 100644
+--- a/src/cmd/vet/all/whitelist/nacl_arm.txt
++++ b/src/cmd/vet/all/whitelist/nacl_arm.txt
+@@ -2,4 +2,3 @@
+ 
+ runtime/sys_nacl_arm.s: [arm] nacl_clock_gettime: function nacl_clock_gettime missing Go declaration
+ runtime/sys_nacl_arm.s: [arm] nacl_sysinfo: function nacl_sysinfo missing Go declaration
+-runtime/sys_nacl_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/netbsd_386.txt b/src/cmd/vet/all/whitelist/netbsd_386.txt
+index 1d1f323d7c..9a54f87192 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_386.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_386.txt
+@@ -1,6 +1,7 @@
+ // netbsd/386-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] settls: function settls missing Go declaration
++runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
+ 
+ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 140(SP) points beyond argument frame
+ runtime/sys_netbsd_386.s: [386] sigreturn_tramp: use of 4(SP) points beyond argument frame
+diff --git a/src/cmd/vet/all/whitelist/netbsd_amd64.txt b/src/cmd/vet/all/whitelist/netbsd_amd64.txt
+index 8b14dc506d..23b6a8c0ad 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_amd64.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_amd64.txt
+@@ -1,3 +1,5 @@
+ // netbsd/amd64-specific vet whitelist. See readme.txt for details.
+ 
++runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
++
+ runtime/sys_netbsd_amd64.s: [amd64] settls: function settls missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/netbsd_arm.txt b/src/cmd/vet/all/whitelist/netbsd_arm.txt
+index 85adae2129..59b261097f 100644
+--- a/src/cmd/vet/all/whitelist/netbsd_arm.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_arm.txt
+@@ -1,4 +1,3 @@
+ // netbsd/arm-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_netbsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+ syscall/asm_netbsd_arm.s: [arm] Syscall9: unknown variable trap; offset 0 is num+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/netbsd.txt b/src/cmd/vet/all/whitelist/netbsd_arm64.txt
+similarity index 62%
+rename from src/cmd/vet/all/whitelist/netbsd.txt
+rename to src/cmd/vet/all/whitelist/netbsd_arm64.txt
+index 48bfde5017..57d2135add 100644
+--- a/src/cmd/vet/all/whitelist/netbsd.txt
++++ b/src/cmd/vet/all/whitelist/netbsd_arm64.txt
+@@ -1,3 +1 @@
+-// netbsd-specific vet whitelist. See readme.txt for details.
+-
+ runtime/sys_netbsd_ARCHSUFF.s: [GOARCH] sigreturn_tramp: function sigreturn_tramp missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/openbsd_arm.txt b/src/cmd/vet/all/whitelist/openbsd_arm.txt
+deleted file mode 100644
+index 14823e1bf8..0000000000
+--- a/src/cmd/vet/all/whitelist/openbsd_arm.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// openbsd/arm-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_openbsd_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/plan9_arm.txt b/src/cmd/vet/all/whitelist/plan9_arm.txt
+deleted file mode 100644
+index af155e819f..0000000000
+--- a/src/cmd/vet/all/whitelist/plan9_arm.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-// plan9/arm-specific vet whitelist. See readme.txt for details.
+-
+-runtime/sys_plan9_arm.s: [arm] read_tls_fallback: function read_tls_fallback missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/ppc64x.txt b/src/cmd/vet/all/whitelist/ppc64x.txt
+deleted file mode 100644
+index 730a753afc..0000000000
+--- a/src/cmd/vet/all/whitelist/ppc64x.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// ppc64-specific vet whitelist. See readme.txt for details.
+-
+-runtime/asm_ppc64x.s: [GOARCH] reginit: function reginit missing Go declaration
+-runtime/asm_ppc64x.s: [GOARCH] goexit: use of 24(R1) points beyond argument frame
+-runtime/asm_ppc64x.s: [GOARCH] addmoduledata: function addmoduledata missing Go declaration
+-runtime/duff_ppc64x.s: [GOARCH] duffzero: function duffzero missing Go declaration
+-runtime/tls_ppc64x.s: [GOARCH] save_g: function save_g missing Go declaration
+-runtime/tls_ppc64x.s: [GOARCH] load_g: function load_g missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/s390x.txt b/src/cmd/vet/all/whitelist/s390x.txt
+deleted file mode 100644
+index 5d35f5fcdc..0000000000
+--- a/src/cmd/vet/all/whitelist/s390x.txt
++++ /dev/null
+@@ -1,20 +0,0 @@
+-runtime/asm_s390x.s: [s390x] addmoduledata: function addmoduledata missing Go declaration
+-runtime/memclr_s390x.s: [s390x] memclr_s390x_exrl_xc: function memclr_s390x_exrl_xc missing Go declaration
+-runtime/memmove_s390x.s: [s390x] memmove_s390x_exrl_mvc: function memmove_s390x_exrl_mvc missing Go declaration
+-runtime/tls_s390x.s: [s390x] save_g: function save_g missing Go declaration
+-runtime/tls_s390x.s: [s390x] load_g: function load_g missing Go declaration
+-internal/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); internal/cpu.facilityList is 32-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-internal/cpu/cpu_s390x.s: [s390x] kdsaQuery: invalid MOVD of ret+0(FP); internal/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] stfle: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.facilityList is 32-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmcQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmctrQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kmaQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] kimdQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+-vendor/golang.org/x/sys/cpu/cpu_s390x.s: [s390x] klmdQuery: invalid MOVD of ret+0(FP); vendor/golang.org/x/sys/cpu.queryResult is 16-byte value
+diff --git a/src/cmd/vet/all/whitelist/wasm.txt b/src/cmd/vet/all/whitelist/wasm.txt
+index 45496ed3f6..25acca52c0 100644
+--- a/src/cmd/vet/all/whitelist/wasm.txt
++++ b/src/cmd/vet/all/whitelist/wasm.txt
+@@ -9,16 +9,3 @@ runtime/asm_wasm.s: [wasm] morestack: use of 8(SP) points beyond argument frame
+ 
+ // rt0_go does not allocate a stack frame.
+ runtime/asm_wasm.s: [wasm] rt0_go: use of 8(SP) points beyond argument frame
+-
+-// Calling WebAssembly import. No write from Go assembly.
+-runtime/sys_wasm.s: [wasm] nanotime: RET without writing to 8-byte ret+0(FP)
+-runtime/sys_wasm.s: [wasm] scheduleTimeoutEvent: RET without writing to 4-byte ret+8(FP)
+-syscall/js/js_js.s: [wasm] stringVal: RET without writing to 8-byte ret+16(FP)
+-syscall/js/js_js.s: [wasm] valueGet: RET without writing to 8-byte ret+24(FP)
+-syscall/js/js_js.s: [wasm] valueIndex: RET without writing to 8-byte ret+16(FP)
+-syscall/js/js_js.s: [wasm] valueCall: RET without writing to 8-byte ret+48(FP)
+-syscall/js/js_js.s: [wasm] valueInvoke: RET without writing to 8-byte ret+32(FP)
+-syscall/js/js_js.s: [wasm] valueNew: RET without writing to 8-byte ret+32(FP)
+-syscall/js/js_js.s: [wasm] valueLength: RET without writing to 8-byte ret+8(FP)
+-syscall/js/js_js.s: [wasm] valuePrepareString: RET without writing to 8-byte ret+8(FP)
+-syscall/js/js_js.s: [wasm] valueInstanceOf: RET without writing to 1-byte ret+16(FP)
+diff --git a/src/cmd/vet/all/whitelist/windows.txt b/src/cmd/vet/all/whitelist/windows.txt
+index 2c101aeb98..9391183d64 100644
+--- a/src/cmd/vet/all/whitelist/windows.txt
++++ b/src/cmd/vet/all/whitelist/windows.txt
+@@ -3,5 +3,4 @@
+ // Issue 18609
+ crypto/x509/root_windows.go: unreachable code
+ 
+-runtime/sys_windows_ARCHSUFF.s: [GOARCH] sigtramp: function sigtramp missing Go declaration
+ runtime/sys_windows_ARCHSUFF.s: [GOARCH] onosstack: unknown variable usec; offset 0 is fn+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/windows_386.txt b/src/cmd/vet/all/whitelist/windows_386.txt
+index 87b3b24d7f..0bf072b11d 100644
+--- a/src/cmd/vet/all/whitelist/windows_386.txt
++++ b/src/cmd/vet/all/whitelist/windows_386.txt
+@@ -6,3 +6,4 @@ runtime/sys_windows_386.s: [386] setldt: function setldt missing Go declaration
+ runtime/sys_windows_386.s: [386] callbackasm1+0: function callbackasm1+0 missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart: function tstart missing Go declaration
+ runtime/sys_windows_386.s: [386] tstart_stdcall: RET without writing to 4-byte ret+4(FP)
++runtime/sys_windows_386.s: [386] sigtramp: function sigtramp missing Go declaration
+diff --git a/src/cmd/vet/all/whitelist/windows_amd64.txt b/src/cmd/vet/all/whitelist/windows_amd64.txt
+index daa23e73a1..4e6da405e3 100644
+--- a/src/cmd/vet/all/whitelist/windows_amd64.txt
++++ b/src/cmd/vet/all/whitelist/windows_amd64.txt
+@@ -1,6 +1,5 @@
+ // windows/amd64-specific vet whitelist. See readme.txt for details.
+ 
+-runtime/sys_windows_amd64.s: [amd64] ctrlhandler: 16(SP) should be _type+0(FP)
+ runtime/sys_windows_amd64.s: [amd64] ctrlhandler: RET without writing to 4-byte ret+8(FP)
+ runtime/sys_windows_amd64.s: [amd64] callbackasm1: function callbackasm1 missing Go declaration
+ runtime/sys_windows_amd64.s: [amd64] tstart_stdcall: RET without writing to 4-byte ret+8(FP)
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index d4698e805c..7210b6f4cb 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -316,3 +316,6 @@ func bool2int(x bool) int {
+ // signal handler, which will attempt to tear down the runtime
+ // immediately.
+ func abort()
++
++// Called from compiled code; declared for vet; do NOT call from Go.
++func gcWriteBarrier()

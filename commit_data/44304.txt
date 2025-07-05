@@ -10,6 +10,32 @@ Date:   Tue Jun 2 15:52:51 2020 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/236166
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  doc/go1.15.html | 14 ++++++++++++++
  1 file changed, 14 insertions(+)
+
+diff --git a/doc/go1.15.html b/doc/go1.15.html
+index 73dbf89c2d..7506a6aa49 100644
+--- a/doc/go1.15.html
++++ b/doc/go1.15.html
+@@ -406,6 +406,20 @@ TODO
+       <a href="/pkg/crypto/tls/#Dialer.DialContext"><code>DialContext</code></a>
+       method permits using a context to both connect and handshake with a TLS server.
+     </p>
++
++    <p><!-- CL 229122 -->
++      The new
++      <a href="/pkg/crypto/tls/#Config.VerifyConnection"><code>VerifyConnection</code></a>
++      callback on the <a href="/pkg/crypto/tls/#Config"><code>Config</code></a> type
++      allows custom verification logic for every connection. It has access to the
++      <a href="/pkg/crypto/tls/#ConnectionState"><code>ConnectionState</code></a>
++      which includes peer certificates, SCTs, and stapled OCSP responses.
++    </p>
++
++    <p><!-- CL 230679 -->
++      Auto-generated session ticket keys are now automatically rotated every 24 hours,
++      with a lifetime of 7 days, to limit their impact on forward secrecy.
++    </p>
+   </dd>
+ </dl>
+ 

@@ -10,6 +10,39 @@ Date:   Sat Jan 28 11:56:15 2017 +0100
     Change-Id: Ib824562db6044702456a221a8c6f9af412927a98
     Reviewed-on: https://go-review.googlesource.com/35952
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/go/alldocs.go | 9 ++++-----
  1 file changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e93fd6ebed..3d5dd2b397 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -17,7 +17,7 @@
+ // 	clean       remove object files
+ // 	doc         show documentation for package or symbol
+ // 	env         print Go environment information
+-// 	bug         print information for bug reports
++// 	bug         start a bug report
+ // 	fix         run go tool fix on packages
+ // 	fmt         run gofmt on package sources
+ // 	generate    generate Go files by processing source
+@@ -324,15 +324,14 @@
+ // each named variable on its own line.
+ //
+ //
+-// Print information for bug reports
++// Start a bug report
+ //
+ // Usage:
+ //
+ // 	go bug
+ //
+-// Bug prints information that helps file effective bug reports.
+-//
+-// Bugs may be reported at https://golang.org/issue/new.
++// Bug opens the default browser and starts a new bug report.
++// The report includes useful system information.
+ //
+ //
+ // Run go tool fix on packages

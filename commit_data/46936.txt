@@ -23,8 +23,69 @@ Date:   Thu Feb 11 11:54:46 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/check.go           |  4 +++-
  src/go/types/examples/types.go2 | 17 +++++++++++++++++
  src/go/types/predicates.go      |  9 +++++++--
  3 files changed, 27 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 57c6a2e7b8..4cc3024de9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -340,7 +340,9 @@ func (check *Checker) recordTypeAndValue(x ast.Expr, mode operandMode, typ Type,
+ 	}
+ 	if mode == constant_ {
+ 		assert(val != nil)
+-		assert(typ == Typ[Invalid] || isConstType(typ))
++		// We check is(typ, IsConstType) here as constant expressions may be
++		// recorded as type parameters.
++		assert(typ == Typ[Invalid] || is(typ, IsConstType))
+ 	}
+ 	if m := check.Types; m != nil {
+ 		m[x] = TypeAndValue{mode, typ, val}
+diff --git a/src/go/types/examples/types.go2 b/src/go/types/examples/types.go2
+index 4dba4f0e57..20abefbe05 100644
+--- a/src/go/types/examples/types.go2
++++ b/src/go/types/examples/types.go2
+@@ -267,3 +267,20 @@ func _() {
+ 	var _ comparable /* ERROR comparable */
+ 	var _ C /* ERROR comparable */
+ }
++
++// Type parameters are never const types, i.e., it's
++// not possible to declare a constant of type parameter type.
++// (If a type list contains just a single const type, we could
++// allow it, but such type lists don't make much sense in the
++// first place.)
++func _[T interface { type int, float64 }]() {
++	// not valid
++	const _ = T /* ERROR not constant */ (0)
++	const _ T /* ERROR invalid constant type T */ = 1
++
++	// valid
++	var _ = T(0)
++	var _ T = 1
++	_ = T(0)
++}
++
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 7a99c1ff99..0ff8fcbbf7 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -73,8 +73,13 @@ func isUntyped(typ Type) bool {
+ 	return !isTyped(typ)
+ }
+ 
+-func isOrdered(typ Type) bool   { return is(typ, IsOrdered) }
+-func isConstType(typ Type) bool { return is(typ, IsConstType) }
++func isOrdered(typ Type) bool { return is(typ, IsOrdered) }
++
++func isConstType(typ Type) bool {
++	// Type parameters are never const types.
++	t, _ := under(typ).(*Basic)
++	return t != nil && t.info&IsConstType != 0
++}
+ 
+ // IsInterface reports whether typ is an interface type.
+ func IsInterface(typ Type) bool {

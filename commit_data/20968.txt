@@ -12,8 +12,109 @@ Date:   Thu Oct 30 14:01:14 2014 -0400
     R=rsc
     CC=golang-codereviews
     https://golang.org/cl/162490043
-
+---
  misc/cgo/test/cgo_test.go  |  1 +
  misc/cgo/test/issue9026.go | 33 +++++++++++++++++++++++++++++++++
  src/cmd/cgo/gcc.go         | 24 +++++++++++++++---------
  3 files changed, 49 insertions(+), 9 deletions(-)
+
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 3b289ba7b5..fbdfac87ac 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -62,5 +62,6 @@ func Test8517(t *testing.T)                  { test8517(t) }
+ func Test8811(t *testing.T)                  { test8811(t) }
+ func TestReturnAfterGrow(t *testing.T)       { testReturnAfterGrow(t) }
+ func TestReturnAfterGrowFromGo(t *testing.T) { testReturnAfterGrowFromGo(t) }
++func Test9026(t *testing.T)                  { test9026(t) }
+ 
+ func BenchmarkCgoCall(b *testing.B) { benchCgoCall(b) }
+diff --git a/misc/cgo/test/issue9026.go b/misc/cgo/test/issue9026.go
+new file mode 100644
+index 0000000000..b17440452f
+--- /dev/null
++++ b/misc/cgo/test/issue9026.go
+@@ -0,0 +1,33 @@
++package cgotest
++
++/*
++typedef struct {} git_merge_file_input;
++
++typedef struct {} git_merge_file_options;
++
++int git_merge_file(
++        git_merge_file_input *in,
++        git_merge_file_options *opts) {}
++*/
++import "C"
++import (
++	"fmt"
++	"testing"
++)
++
++func test9026(t *testing.T) {
++	var in C.git_merge_file_input
++	var opts *C.git_merge_file_options
++	C.git_merge_file(&in, opts)
++
++	// Test that the generated type names are deterministic.
++	// (Previously this would fail about 10% of the time.)
++	//
++	// Brittle: the assertion may fail spuriously when the algorithm
++	// changes, but should remain stable otherwise.
++	got := fmt.Sprintf("%T %T", in, opts)
++	want := "cgotest._Ctype_struct___12 *cgotest._Ctype_struct___13"
++	if got != want {
++		t.Errorf("Non-deterministic type names: got %s, want %s", got, want)
++	}
++}
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index d77d56c22a..abdd369d71 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -944,6 +944,8 @@ type typeConv struct {
+ 
+ 	// Map from types to incomplete pointers to those types.
+ 	ptrs map[dwarf.Type][]*Type
++	// Keys of ptrs in insertion order (deterministic worklist)
++	ptrKeys []dwarf.Type
+ 
+ 	// Predeclared types.
+ 	bool                                   ast.Expr
+@@ -1061,16 +1063,17 @@ func (tr *TypeRepr) Set(repr string, fargs ...interface{}) {
+ func (c *typeConv) FinishType(pos token.Pos) {
+ 	// Completing one pointer type might produce more to complete.
+ 	// Keep looping until they're all done.
+-	for len(c.ptrs) > 0 {
+-		for dtype := range c.ptrs {
+-			// Note Type might invalidate c.ptrs[dtype].
+-			t := c.Type(dtype, pos)
+-			for _, ptr := range c.ptrs[dtype] {
+-				ptr.Go.(*ast.StarExpr).X = t.Go
+-				ptr.C.Set("%s*", t.C)
+-			}
+-			delete(c.ptrs, dtype)
++	for len(c.ptrKeys) > 0 {
++		dtype := c.ptrKeys[0]
++		c.ptrKeys = c.ptrKeys[1:]
++
++		// Note Type might invalidate c.ptrs[dtype].
++		t := c.Type(dtype, pos)
++		for _, ptr := range c.ptrs[dtype] {
++			ptr.Go.(*ast.StarExpr).X = t.Go
++			ptr.C.Set("%s*", t.C)
+ 		}
++		c.ptrs[dtype] = nil // retain the map key
+ 	}
+ }
+ 
+@@ -1237,6 +1240,9 @@ func (c *typeConv) Type(dtype dwarf.Type, pos token.Pos) *Type {
+ 		// Placeholder initialization; completed in FinishType.
+ 		t.Go = &ast.StarExpr{}
+ 		t.C.Set("<incomplete>*")
++		if _, ok := c.ptrs[dt.Type]; !ok {
++			c.ptrKeys = append(c.ptrKeys, dt.Type)
++		}
+ 		c.ptrs[dt.Type] = append(c.ptrs[dt.Type], t)
+ 
+ 	case *dwarf.QualType:

@@ -13,7 +13,7 @@ Date:   Sun Jul 10 14:29:47 2011 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/4681044
-
+---
  src/pkg/exp/gui/x11/conn.go      |  64 +++++------
  src/pkg/image/draw/draw.go       | 155 +++++++++++++------------
  src/pkg/image/image.go           | 240 ++++++++++++++++++++++++++++-----------
@@ -23,3 +23,1236 @@ Date:   Sun Jul 10 14:29:47 2011 +1000
  src/pkg/image/png/writer.go      |   8 +-
  src/pkg/image/png/writer_test.go |   4 +-
  8 files changed, 299 insertions(+), 185 deletions(-)
+
+diff --git a/src/pkg/exp/gui/x11/conn.go b/src/pkg/exp/gui/x11/conn.go
+index bc7ca63dbf..420bdd82a7 100644
+--- a/src/pkg/exp/gui/x11/conn.go
++++ b/src/pkg/exp/gui/x11/conn.go
+@@ -85,15 +85,15 @@ func (c *conn) writeSocket() {
+ 
+ 		for y := b.Min.Y; y < b.Max.Y; y++ {
+ 			setU32LE(c.flushBuf0[16:20], uint32(y<<16))
+-			if _, err := c.w.Write(c.flushBuf0[0:24]); err != nil {
++			if _, err := c.w.Write(c.flushBuf0[:24]); err != nil {
+ 				if err != os.EOF {
+ 					log.Println("x11:", err.String())
+ 				}
+ 				return
+ 			}
+-			p := c.img.Pix[y*c.img.Stride : (y+1)*c.img.Stride]
+-			for x := b.Min.X; x < b.Max.X; {
+-				nx := b.Max.X - x
++			p := c.img.Pix[(y-b.Min.Y)*c.img.Stride:]
++			for x, dx := 0, b.Dx(); x < dx; {
++				nx := dx - x
+ 				if nx > len(c.flushBuf1)/4 {
+ 					nx = len(c.flushBuf1) / 4
+ 				}
+@@ -103,7 +103,7 @@ func (c *conn) writeSocket() {
+ 					c.flushBuf1[4*i+2] = rgba.R
+ 				}
+ 				x += nx
+-				if _, err := c.w.Write(c.flushBuf1[0 : 4*nx]); err != nil {
++				if _, err := c.w.Write(c.flushBuf1[:4*nx]); err != nil {
+ 					if err != os.EOF {
+ 						log.Println("x11:", err.String())
+ 					}
+@@ -154,7 +154,7 @@ func (c *conn) readSocket() {
+ 	defer close(c.eventc)
+ 	for {
+ 		// X events are always 32 bytes long.
+-		if _, err := io.ReadFull(c.r, c.buf[0:32]); err != nil {
++		if _, err := io.ReadFull(c.r, c.buf[:32]); err != nil {
+ 			if err != os.EOF {
+ 				c.eventc <- gui.ErrEvent{err}
+ 			}
+@@ -177,7 +177,7 @@ func (c *conn) readSocket() {
+ 			for i := keymapLo; i <= keymapHi; i++ {
+ 				m := keymap[i]
+ 				for j := range m {
+-					u, err := readU32LE(c.r, c.buf[0:4])
++					u, err := readU32LE(c.r, c.buf[:4])
+ 					if err != nil {
+ 						if err != os.EOF {
+ 							c.eventc <- gui.ErrEvent{err}
+@@ -260,14 +260,14 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
+ 	// Parse the section before the colon.
+ 	var protocol, host, socket string
+ 	if display[0] == '/' {
+-		socket = display[0:colonIdx]
++		socket = display[:colonIdx]
+ 	} else {
+ 		if i := strings.LastIndex(display, "/"); i < 0 {
+ 			// The default protocol is TCP.
+ 			protocol = "tcp"
+-			host = display[0:colonIdx]
++			host = display[:colonIdx]
+ 		} else {
+-			protocol = display[0:i]
++			protocol = display[:i]
+ 			host = display[i+1 : colonIdx]
+ 		}
+ 	}
+@@ -279,7 +279,7 @@ func connect(display string) (conn net.Conn, displayStr string, err os.Error) {
+ 	if i := strings.LastIndex(after, "."); i < 0 {
+ 		displayStr = after
+ 	} else {
+-		displayStr = after[0:i]
++		displayStr = after[:i]
+ 	}
+ 	displayInt, err := strconv.Atoi(displayStr)
+ 	if err != nil || displayInt < 0 {
+@@ -339,7 +339,7 @@ func authenticate(w *bufio.Writer, displayStr string) os.Error {
+ 
+ // readU8 reads a uint8 from r, using b as a scratch buffer.
+ func readU8(r io.Reader, b []byte) (uint8, os.Error) {
+-	_, err := io.ReadFull(r, b[0:1])
++	_, err := io.ReadFull(r, b[:1])
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -348,7 +348,7 @@ func readU8(r io.Reader, b []byte) (uint8, os.Error) {
+ 
+ // readU16LE reads a little-endian uint16 from r, using b as a scratch buffer.
+ func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
+-	_, err := io.ReadFull(r, b[0:2])
++	_, err := io.ReadFull(r, b[:2])
+ 	if err != nil {
+ 		return 0, err
+ 	}
+@@ -357,14 +357,14 @@ func readU16LE(r io.Reader, b []byte) (uint16, os.Error) {
+ 
+ // readU32LE reads a little-endian uint32 from r, using b as a scratch buffer.
+ func readU32LE(r io.Reader, b []byte) (uint32, os.Error) {
+-	_, err := io.ReadFull(r, b[0:4])
++	_, err := io.ReadFull(r, b[:4])
+ 	if err != nil {
+ 		return 0, err
+ 	}
+ 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24, nil
+ }
+ 
+-// setU32LE sets b[0:4] to be the little-endian representation of u.
++// setU32LE sets b[:4] to be the little-endian representation of u.
+ func setU32LE(b []byte, u uint32) {
+ 	b[0] = byte((u >> 0) & 0xff)
+ 	b[1] = byte((u >> 8) & 0xff)
+@@ -375,7 +375,7 @@ func setU32LE(b []byte, u uint32) {
+ // checkPixmapFormats checks that we have an agreeable X pixmap Format.
+ func checkPixmapFormats(r io.Reader, b []byte, n int) (agree bool, err os.Error) {
+ 	for i := 0; i < n; i++ {
+-		_, err = io.ReadFull(r, b[0:8])
++		_, err = io.ReadFull(r, b[:8])
+ 		if err != nil {
+ 			return
+ 		}
+@@ -400,7 +400,7 @@ func checkDepths(r io.Reader, b []byte, n int, visual uint32) (agree bool, err o
+ 			return
+ 		}
+ 		// Ignore 4 bytes of padding.
+-		_, err = io.ReadFull(r, b[0:4])
++		_, err = io.ReadFull(r, b[:4])
+ 		if err != nil {
+ 			return
+ 		}
+@@ -433,7 +433,7 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
+ 		}
+ 		// Ignore the next 7x4 bytes, which is: colormap, whitepixel, blackpixel, current input masks,
+ 		// width and height (pixels), width and height (mm), min and max installed maps.
+-		_, err = io.ReadFull(r, b[0:28])
++		_, err = io.ReadFull(r, b[:28])
+ 		if err != nil {
+ 			return
+ 		}
+@@ -462,26 +462,26 @@ func checkScreens(r io.Reader, b []byte, n int) (root, visual uint32, err os.Err
+ // handshake performs the protocol handshake with the X server, and ensures
+ // that the server provides a compatible Screen, Depth, etc.
+ func (c *conn) handshake() os.Error {
+-	_, err := io.ReadFull(c.r, c.buf[0:8])
++	_, err := io.ReadFull(c.r, c.buf[:8])
+ 	if err != nil {
+ 		return err
+ 	}
+-	// Byte 0:1 should be 1 (success), bytes 2:6 should be 0xb0000000 (major/minor version 11.0).
++	// Byte 0 should be 1 (success), bytes 2:6 should be 0xb0000000 (major/minor version 11.0).
+ 	if c.buf[0] != 1 || c.buf[2] != 11 || c.buf[3] != 0 || c.buf[4] != 0 || c.buf[5] != 0 {
+ 		return os.NewError("unsupported X version")
+ 	}
+ 	// Ignore the release number.
+-	_, err = io.ReadFull(c.r, c.buf[0:4])
++	_, err = io.ReadFull(c.r, c.buf[:4])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	// Read the resource ID base.
+-	resourceIdBase, err := readU32LE(c.r, c.buf[0:4])
++	resourceIdBase, err := readU32LE(c.r, c.buf[:4])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	// Read the resource ID mask.
+-	resourceIdMask, err := readU32LE(c.r, c.buf[0:4])
++	resourceIdMask, err := readU32LE(c.r, c.buf[:4])
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -489,19 +489,19 @@ func (c *conn) handshake() os.Error {
+ 		return os.NewError("X resource ID mask is too small")
+ 	}
+ 	// Ignore the motion buffer size.
+-	_, err = io.ReadFull(c.r, c.buf[0:4])
++	_, err = io.ReadFull(c.r, c.buf[:4])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	// Read the vendor length and round it up to a multiple of 4,
+ 	// for X11 protocol alignment reasons.
+-	vendorLen, err := readU16LE(c.r, c.buf[0:2])
++	vendorLen, err := readU16LE(c.r, c.buf[:2])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	vendorLen = (vendorLen + 3) &^ 3
+ 	// Read the maximum request length.
+-	maxReqLen, err := readU16LE(c.r, c.buf[0:2])
++	maxReqLen, err := readU16LE(c.r, c.buf[:2])
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -509,12 +509,12 @@ func (c *conn) handshake() os.Error {
+ 		return os.NewError("unsupported X maximum request length")
+ 	}
+ 	// Read the roots length.
+-	rootsLen, err := readU8(c.r, c.buf[0:1])
++	rootsLen, err := readU8(c.r, c.buf[:1])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	// Read the pixmap formats length.
+-	pixmapFormatsLen, err := readU8(c.r, c.buf[0:1])
++	pixmapFormatsLen, err := readU8(c.r, c.buf[:1])
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -524,12 +524,12 @@ func (c *conn) handshake() os.Error {
+ 	if 10+int(vendorLen) > cap(c.buf) {
+ 		return os.NewError("unsupported X vendor")
+ 	}
+-	_, err = io.ReadFull(c.r, c.buf[0:10+int(vendorLen)])
++	_, err = io.ReadFull(c.r, c.buf[:10+int(vendorLen)])
+ 	if err != nil {
+ 		return err
+ 	}
+ 	// Check that we have an agreeable pixmap format.
+-	agree, err := checkPixmapFormats(c.r, c.buf[0:8], int(pixmapFormatsLen))
++	agree, err := checkPixmapFormats(c.r, c.buf[:8], int(pixmapFormatsLen))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -537,7 +537,7 @@ func (c *conn) handshake() os.Error {
+ 		return os.NewError("unsupported X pixmap formats")
+ 	}
+ 	// Check that we have an agreeable screen.
+-	root, visual, err := checkScreens(c.r, c.buf[0:24], int(rootsLen))
++	root, visual, err := checkScreens(c.r, c.buf[:24], int(rootsLen))
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -608,7 +608,7 @@ func NewWindowDisplay(display string) (gui.Window, os.Error) {
+ 	setU32LE(c.buf[72:76], 0x00020008) // 0x08 is the MapWindow opcode, and the message is 2 x 4 bytes long.
+ 	setU32LE(c.buf[76:80], uint32(c.window))
+ 	// Write the bytes.
+-	_, err = c.w.Write(c.buf[0:80])
++	_, err = c.w.Write(c.buf[:80])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/pkg/image/draw/draw.go b/src/pkg/image/draw/draw.go
+index 0ab7b59ab7..5c4dedb818 100644
+--- a/src/pkg/image/draw/draw.go
++++ b/src/pkg/image/draw/draw.go
+@@ -173,11 +173,10 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ 	cr, cg, cb, ca := src.RGBA()
+ 	// The 0x101 is here for the same reason as in drawRGBA.
+ 	a := (m - ca) * 0x101
+-	x0, x1 := r.Min.X, r.Max.X
+-	y0, y1 := r.Min.Y, r.Max.Y
+-	for y := y0; y != y1; y++ {
+-		dbase := y * dst.Stride
+-		dpix := dst.Pix[dbase+x0 : dbase+x1]
++	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
++	i1 := i0 + r.Dx()
++	for y := r.Min.Y; y != r.Max.Y; y++ {
++		dpix := dst.Pix[i0:i1]
+ 		for i, rgba := range dpix {
+ 			dr := (uint32(rgba.R)*a)/m + cr
+ 			dg := (uint32(rgba.G)*a)/m + cg
+@@ -185,18 +184,15 @@ func drawFillOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ 			da := (uint32(rgba.A)*a)/m + ca
+ 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+ 		}
++		i0 += dst.Stride
++		i1 += dst.Stride
+ 	}
+ }
+ 
+ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+-	dx0, dx1 := r.Min.X, r.Max.X
+-	dy0, dy1 := r.Min.Y, r.Max.Y
+-	nrows := dy1 - dy0
+-	sx0, sx1 := sp.X, sp.X+dx1-dx0
+-	d0 := dy0*dst.Stride + dx0
+-	d1 := dy0*dst.Stride + dx1
+-	s0 := sp.Y*src.Stride + sx0
+-	s1 := sp.Y*src.Stride + sx1
++	dx, dy := r.Dx(), r.Dy()
++	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
++	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + sp.X - src.Rect.Min.X
+ 	var (
+ 		ddelta, sdelta int
+ 		i0, i1, idelta int
+@@ -204,21 +200,19 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
+ 	if r.Min.Y < sp.Y || r.Min.Y == sp.Y && r.Min.X <= sp.X {
+ 		ddelta = dst.Stride
+ 		sdelta = src.Stride
+-		i0, i1, idelta = 0, d1-d0, +1
++		i0, i1, idelta = 0, dx, +1
+ 	} else {
+ 		// If the source start point is higher than the destination start point, or equal height but to the left,
+ 		// then we compose the rows in right-to-left, bottom-up order instead of left-to-right, top-down.
+-		d0 += (nrows - 1) * dst.Stride
+-		d1 += (nrows - 1) * dst.Stride
+-		s0 += (nrows - 1) * src.Stride
+-		s1 += (nrows - 1) * src.Stride
++		d0 += (dy - 1) * dst.Stride
++		s0 += (dy - 1) * src.Stride
+ 		ddelta = -dst.Stride
+ 		sdelta = -src.Stride
+-		i0, i1, idelta = d1-d0-1, -1, -1
++		i0, i1, idelta = dx-1, -1, -1
+ 	}
+-	for ; nrows > 0; nrows-- {
+-		dpix := dst.Pix[d0:d1]
+-		spix := src.Pix[s0:s1]
++	for ; dy > 0; dy-- {
++		dpix := dst.Pix[d0:]
++		spix := src.Pix[s0:]
+ 		for i := i0; i != i1; i += idelta {
+ 			// For unknown reasons, even though both dpix[i] and spix[i] are
+ 			// image.RGBAColors, on an x86 CPU it seems fastest to call RGBA
+@@ -238,17 +232,23 @@ func drawCopyOver(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.
+ 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+ 		}
+ 		d0 += ddelta
+-		d1 += ddelta
+ 		s0 += sdelta
+-		s1 += sdelta
+ 	}
+ }
+ 
+ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
+-	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
+-		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
++	xMax := r.Max.X - dst.Rect.Min.X
++	yMax := r.Max.Y - dst.Rect.Min.Y
++
++	y := r.Min.Y - dst.Rect.Min.Y
++	sy := sp.Y - src.Rect.Min.Y
++	for ; y != yMax; y, sy = y+1, sy+1 {
++		dpix := dst.Pix[y*dst.Stride:]
++		spix := src.Pix[sy*src.Stride:]
++
++		x := r.Min.X - dst.Rect.Min.X
++		sx := sp.X - src.Rect.Min.X
++		for ; x != xMax; x, sx = x+1, sx+1 {
+ 			// Convert from non-premultiplied color to pre-multiplied color.
+ 			// The order of operations here is to match the NRGBAColor.RGBA
+ 			// method in image/color.go.
+@@ -275,14 +275,13 @@ func drawNRGBAOver(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp imag
+ }
+ 
+ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, mask *image.Alpha, mp image.Point) {
+-	x0, x1 := r.Min.X, r.Max.X
+-	y0, y1 := r.Min.Y, r.Max.Y
++	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
++	i1 := i0 + r.Dx()
++	j0 := (mp.Y-mask.Rect.Min.Y)*mask.Stride + mp.X - mask.Rect.Min.X
+ 	cr, cg, cb, ca := src.RGBA()
+-	for y, my := y0, mp.Y; y != y1; y, my = y+1, my+1 {
+-		dbase := y * dst.Stride
+-		dpix := dst.Pix[dbase+x0 : dbase+x1]
+-		mbase := my * mask.Stride
+-		mpix := mask.Pix[mbase+mp.X:]
++	for y, my := r.Min.Y, mp.Y; y != r.Max.Y; y, my = y+1, my+1 {
++		dpix := dst.Pix[i0:i1]
++		mpix := mask.Pix[j0:]
+ 		for i, rgba := range dpix {
+ 			ma := uint32(mpix[i].A)
+ 			if ma == 0 {
+@@ -301,6 +300,9 @@ func drawGlyphOver(dst *image.RGBA, r image.Rectangle, src *image.ColorImage, ma
+ 			da = (da*a + ca*ma) / m
+ 			dpix[i] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+ 		}
++		i0 += dst.Stride
++		i1 += dst.Stride
++		j0 += mask.Stride
+ 	}
+ }
+ 
+@@ -313,15 +315,13 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ 	// The built-in copy function is faster than a straightforward for loop to fill the destination with
+ 	// the color, but copy requires a slice source. We therefore use a for loop to fill the first row, and
+ 	// then use the first row as the slice source for the remaining rows.
+-	dx0, dx1 := r.Min.X, r.Max.X
+-	dy0, dy1 := r.Min.Y, r.Max.Y
+-	dbase := dy0 * dst.Stride
+-	i0, i1 := dbase+dx0, dbase+dx1
++	i0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
++	i1 := i0 + r.Dx()
+ 	firstRow := dst.Pix[i0:i1]
+ 	for i := range firstRow {
+ 		firstRow[i] = color
+ 	}
+-	for y := dy0 + 1; y < dy1; y++ {
++	for y := r.Min.Y + 1; y < r.Max.Y; y++ {
+ 		i0 += dst.Stride
+ 		i1 += dst.Stride
+ 		copy(dst.Pix[i0:i1], firstRow)
+@@ -329,14 +329,9 @@ func drawFillSrc(dst *image.RGBA, r image.Rectangle, src *image.ColorImage) {
+ }
+ 
+ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.Point) {
+-	dx0, dx1 := r.Min.X, r.Max.X
+-	dy0, dy1 := r.Min.Y, r.Max.Y
+-	nrows := dy1 - dy0
+-	sx0, sx1 := sp.X, sp.X+dx1-dx0
+-	d0 := dy0*dst.Stride + dx0
+-	d1 := dy0*dst.Stride + dx1
+-	s0 := sp.Y*src.Stride + sx0
+-	s1 := sp.Y*src.Stride + sx1
++	dx, dy := r.Dx(), r.Dy()
++	d0 := (r.Min.Y-dst.Rect.Min.Y)*dst.Stride + r.Min.X - dst.Rect.Min.X
++	s0 := (sp.Y-src.Rect.Min.Y)*src.Stride + sp.X - src.Rect.Min.X
+ 	var ddelta, sdelta int
+ 	if r.Min.Y <= sp.Y {
+ 		ddelta = dst.Stride
+@@ -345,27 +340,31 @@ func drawCopySrc(dst *image.RGBA, r image.Rectangle, src *image.RGBA, sp image.P
+ 		// If the source start point is higher than the destination start point, then we compose the rows
+ 		// in bottom-up order instead of top-down. Unlike the drawCopyOver function, we don't have to
+ 		// check the x co-ordinates because the built-in copy function can handle overlapping slices.
+-		d0 += (nrows - 1) * dst.Stride
+-		d1 += (nrows - 1) * dst.Stride
+-		s0 += (nrows - 1) * src.Stride
+-		s1 += (nrows - 1) * src.Stride
++		d0 += (dy - 1) * dst.Stride
++		s0 += (dy - 1) * src.Stride
+ 		ddelta = -dst.Stride
+ 		sdelta = -src.Stride
+ 	}
+-	for ; nrows > 0; nrows-- {
+-		copy(dst.Pix[d0:d1], src.Pix[s0:s1])
++	for ; dy > 0; dy-- {
++		copy(dst.Pix[d0:d0+dx], src.Pix[s0:s0+dx])
+ 		d0 += ddelta
+-		d1 += ddelta
+ 		s0 += sdelta
+-		s1 += sdelta
+ 	}
+ }
+ 
+ func drawNRGBASrc(dst *image.RGBA, r image.Rectangle, src *image.NRGBA, sp image.Point) {
+-	for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-		spix := src.Pix[sy*src.Stride : (sy+1)*src.Stride]
+-		for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
++	xMax := r.Max.X - dst.Rect.Min.X
++	yMax := r.Max.Y - dst.Rect.Min.Y
++
++	y := r.Min.Y - dst.Rect.Min.Y
++	sy := sp.Y - src.Rect.Min.Y
++	for ; y != yMax; y, sy = y+1, sy+1 {
++		dpix := dst.Pix[y*dst.Stride:]
++		spix := src.Pix[sy*src.Stride:]
++
++		x := r.Min.X - dst.Rect.Min.X
++		sx := sp.X - src.Rect.Min.X
++		for ; x != xMax; x, sx = x+1, sx+1 {
+ 			// Convert from non-premultiplied color to pre-multiplied color.
+ 			// The order of operations here is to match the NRGBAColor.RGBA
+ 			// method in image/color.go.
+@@ -388,11 +387,15 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
+ 		yy, cb, cr uint8
+ 		rr, gg, bb uint8
+ 	)
++	x0 := r.Min.X - dst.Rect.Min.X
++	x1 := r.Max.X - dst.Rect.Min.X
++	y0 := r.Min.Y - dst.Rect.Min.Y
++	y1 := r.Max.Y - dst.Rect.Min.Y
+ 	switch src.SubsampleRatio {
+ 	case ycbcr.SubsampleRatio422:
+-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
+ 				i := sx / 2
+ 				yy = src.Y[sy*src.YStride+sx]
+ 				cb = src.Cb[sy*src.CStride+i]
+@@ -402,9 +405,9 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
+ 			}
+ 		}
+ 	case ycbcr.SubsampleRatio420:
+-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
+ 				i, j := sx/2, sy/2
+ 				yy = src.Y[sy*src.YStride+sx]
+ 				cb = src.Cb[j*src.CStride+i]
+@@ -415,9 +418,9 @@ func drawYCbCr(dst *image.RGBA, r image.Rectangle, src *ycbcr.YCbCr, sp image.Po
+ 		}
+ 	default:
+ 		// Default to 4:4:4 subsampling.
+-		for y, sy := r.Min.Y, sp.Y; y != r.Max.Y; y, sy = y+1, sy+1 {
+-			dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-			for x, sx := r.Min.X, sp.X; x != r.Max.X; x, sx = x+1, sx+1 {
++		for y, sy := y0, sp.Y; y != y1; y, sy = y+1, sy+1 {
++			dpix := dst.Pix[y*dst.Stride:]
++			for x, sx := x0, sp.X; x != x1; x, sx = x+1, sx+1 {
+ 				yy = src.Y[sy*src.YStride+sx]
+ 				cb = src.Cb[sy*src.CStride+sx]
+ 				cr = src.Cr[sy*src.CStride+sx]
+@@ -440,11 +443,12 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
+ 
+ 	sy := sp.Y + y0 - r.Min.Y
+ 	my := mp.Y + y0 - r.Min.Y
++	sx0 := sp.X + x0 - r.Min.X
++	mx0 := mp.X + x0 - r.Min.X
++	i0 := (y0 - dst.Rect.Min.Y) * dst.Stride
+ 	for y := y0; y != y1; y, sy, my = y+dy, sy+dy, my+dy {
+-		sx := sp.X + x0 - r.Min.X
+-		mx := mp.X + x0 - r.Min.X
+-		dpix := dst.Pix[y*dst.Stride : (y+1)*dst.Stride]
+-		for x := x0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
++		dpix := dst.Pix[i0:]
++		for x, sx, mx := x0, sx0, mx0; x != x1; x, sx, mx = x+dx, sx+dx, mx+dx {
+ 			ma := uint32(m)
+ 			if mask != nil {
+ 				_, _, _, ma = mask.At(mx, my).RGBA()
+@@ -452,7 +456,7 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
+ 			sr, sg, sb, sa := src.At(sx, sy).RGBA()
+ 			var dr, dg, db, da uint32
+ 			if op == Over {
+-				rgba := dpix[x]
++				rgba := dpix[x-dst.Rect.Min.X]
+ 				dr = uint32(rgba.R)
+ 				dg = uint32(rgba.G)
+ 				db = uint32(rgba.B)
+@@ -474,7 +478,8 @@ func drawRGBA(dst *image.RGBA, r image.Rectangle, src image.Image, sp image.Poin
+ 				db = sb * ma / m
+ 				da = sa * ma / m
+ 			}
+-			dpix[x] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
++			dpix[x-dst.Rect.Min.X] = image.RGBAColor{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), uint8(da >> 8)}
+ 		}
++		i0 += dy * dst.Stride
+ 	}
+ }
+diff --git a/src/pkg/image/image.go b/src/pkg/image/image.go
+index 5ea302d0da..f2726d7d8e 100644
+--- a/src/pkg/image/image.go
++++ b/src/pkg/image/image.go
+@@ -26,7 +26,8 @@ type Image interface {
+ 
+ // An RGBA is an in-memory image of RGBAColor values.
+ type RGBA struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []RGBAColor
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -41,30 +42,41 @@ func (p *RGBA) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return RGBAColor{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *RGBA) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toRGBAColor(c).(RGBAColor)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toRGBAColor(c).(RGBAColor)
+ }
+ 
+ func (p *RGBA) SetRGBA(x, y int, c RGBAColor) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *RGBA) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &RGBA{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &RGBA{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -73,8 +85,7 @@ func (p *RGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xff {
+@@ -95,7 +106,8 @@ func NewRGBA(w, h int) *RGBA {
+ 
+ // An RGBA64 is an in-memory image of RGBA64Color values.
+ type RGBA64 struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []RGBA64Color
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -110,30 +122,41 @@ func (p *RGBA64) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return RGBA64Color{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *RGBA64) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toRGBA64Color(c).(RGBA64Color)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toRGBA64Color(c).(RGBA64Color)
+ }
+ 
+ func (p *RGBA64) SetRGBA64(x, y int, c RGBA64Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *RGBA64) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &RGBA64{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &RGBA64{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -142,8 +165,7 @@ func (p *RGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xffff {
+@@ -164,7 +186,8 @@ func NewRGBA64(w, h int) *RGBA64 {
+ 
+ // An NRGBA is an in-memory image of NRGBAColor values.
+ type NRGBA struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []NRGBAColor
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -179,30 +202,41 @@ func (p *NRGBA) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return NRGBAColor{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *NRGBA) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toNRGBAColor(c).(NRGBAColor)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toNRGBAColor(c).(NRGBAColor)
+ }
+ 
+ func (p *NRGBA) SetNRGBA(x, y int, c NRGBAColor) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *NRGBA) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &NRGBA{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &NRGBA{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -211,8 +245,7 @@ func (p *NRGBA) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xff {
+@@ -233,7 +266,8 @@ func NewNRGBA(w, h int) *NRGBA {
+ 
+ // An NRGBA64 is an in-memory image of NRGBA64Color values.
+ type NRGBA64 struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []NRGBA64Color
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -248,30 +282,41 @@ func (p *NRGBA64) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return NRGBA64Color{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *NRGBA64) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toNRGBA64Color(c).(NRGBA64Color)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toNRGBA64Color(c).(NRGBA64Color)
+ }
+ 
+ func (p *NRGBA64) SetNRGBA64(x, y int, c NRGBA64Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *NRGBA64) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &NRGBA64{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &NRGBA64{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -280,8 +325,7 @@ func (p *NRGBA64) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xffff {
+@@ -302,7 +346,8 @@ func NewNRGBA64(w, h int) *NRGBA64 {
+ 
+ // An Alpha is an in-memory image of AlphaColor values.
+ type Alpha struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []AlphaColor
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -317,30 +362,41 @@ func (p *Alpha) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return AlphaColor{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *Alpha) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toAlphaColor(c).(AlphaColor)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toAlphaColor(c).(AlphaColor)
+ }
+ 
+ func (p *Alpha) SetAlpha(x, y int, c AlphaColor) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *Alpha) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &Alpha{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &Alpha{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -349,8 +405,7 @@ func (p *Alpha) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xff {
+@@ -371,7 +426,8 @@ func NewAlpha(w, h int) *Alpha {
+ 
+ // An Alpha16 is an in-memory image of Alpha16Color values.
+ type Alpha16 struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []Alpha16Color
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -386,30 +442,41 @@ func (p *Alpha16) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return Alpha16Color{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *Alpha16) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toAlpha16Color(c).(Alpha16Color)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toAlpha16Color(c).(Alpha16Color)
+ }
+ 
+ func (p *Alpha16) SetAlpha16(x, y int, c Alpha16Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *Alpha16) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &Alpha16{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &Alpha16{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -418,8 +485,7 @@ func (p *Alpha16) Opaque() bool {
+ 	if p.Rect.Empty() {
+ 		return true
+ 	}
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			if c.A != 0xffff {
+@@ -440,7 +506,8 @@ func NewAlpha16(w, h int) *Alpha16 {
+ 
+ // A Gray is an in-memory image of GrayColor values.
+ type Gray struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []GrayColor
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -455,30 +522,41 @@ func (p *Gray) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return GrayColor{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *Gray) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toGrayColor(c).(GrayColor)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toGrayColor(c).(GrayColor)
+ }
+ 
+ func (p *Gray) SetGray(x, y int, c GrayColor) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *Gray) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &Gray{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &Gray{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -495,7 +573,8 @@ func NewGray(w, h int) *Gray {
+ 
+ // A Gray16 is an in-memory image of Gray16Color values.
+ type Gray16 struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []Gray16Color
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -510,30 +589,41 @@ func (p *Gray16) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return Gray16Color{}
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *Gray16) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = toGray16Color(c).(Gray16Color)
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = toGray16Color(c).(Gray16Color)
+ }
+ 
+ func (p *Gray16) SetGray16(x, y int, c Gray16Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = c
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = c
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *Gray16) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &Gray16{}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &Gray16{
+-		Pix:    p.Pix,
++		Pix:    p.Pix[i:],
+ 		Stride: p.Stride,
+-		Rect:   p.Rect.Intersect(r),
++		Rect:   r,
+ 	}
+ }
+ 
+@@ -591,7 +681,8 @@ func (p PalettedColorModel) Index(c Color) int {
+ 
+ // A Paletted is an in-memory image backed by a 2-D slice of uint8 values and a PalettedColorModel.
+ type Paletted struct {
+-	// Pix holds the image's pixels. The pixel at (x, y) is Pix[y*Stride+x].
++	// Pix holds the image's pixels. The pixel at (x, y) is
++	// Pix[(y-Rect.Min.Y)*Stride + (x-Rect.Min.X)].
+ 	Pix    []uint8
+ 	Stride int
+ 	// Rect is the image's bounds.
+@@ -611,35 +702,49 @@ func (p *Paletted) At(x, y int) Color {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return p.Palette[0]
+ 	}
+-	return p.Palette[p.Pix[y*p.Stride+x]]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Palette[p.Pix[i]]
+ }
+ 
+ func (p *Paletted) Set(x, y int, c Color) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = uint8(p.Palette.Index(c))
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = uint8(p.Palette.Index(c))
+ }
+ 
+ func (p *Paletted) ColorIndexAt(x, y int) uint8 {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return 0
+ 	}
+-	return p.Pix[y*p.Stride+x]
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	return p.Pix[i]
+ }
+ 
+ func (p *Paletted) SetColorIndex(x, y int, index uint8) {
+ 	if !(Point{x, y}.In(p.Rect)) {
+ 		return
+ 	}
+-	p.Pix[y*p.Stride+x] = index
++	i := (y-p.Rect.Min.Y)*p.Stride + (x - p.Rect.Min.X)
++	p.Pix[i] = index
+ }
+ 
+ // SubImage returns an image representing the portion of the image p visible
+ // through r. The returned value shares pixels with the original image.
+ func (p *Paletted) SubImage(r Rectangle) Image {
++	r = r.Intersect(p.Rect)
++	// If r1 and r2 are Rectangles, r1.Intersect(r2) is not guaranteed to be inside
++	// either r1 or r2 if the intersection is empty. Without explicitly checking for
++	// this, the Pix[i:] expression below can panic.
++	if r.Empty() {
++		return &Paletted{
++			Palette: p.Palette,
++		}
++	}
++	i := (r.Min.Y-p.Rect.Min.Y)*p.Stride + (r.Min.X - p.Rect.Min.X)
+ 	return &Paletted{
+-		Pix:     p.Pix,
++		Pix:     p.Pix[i:],
+ 		Stride:  p.Stride,
+ 		Rect:    p.Rect.Intersect(r),
+ 		Palette: p.Palette,
+@@ -649,8 +754,7 @@ func (p *Paletted) SubImage(r Rectangle) Image {
+ // Opaque scans the entire image and returns whether or not it is fully opaque.
+ func (p *Paletted) Opaque() bool {
+ 	var present [256]bool
+-	base := p.Rect.Min.Y * p.Stride
+-	i0, i1 := base+p.Rect.Min.X, base+p.Rect.Max.X
++	i0, i1 := 0, p.Rect.Dx()
+ 	for y := p.Rect.Min.Y; y < p.Rect.Max.Y; y++ {
+ 		for _, c := range p.Pix[i0:i1] {
+ 			present[c] = true
+diff --git a/src/pkg/image/image_test.go b/src/pkg/image/image_test.go
+index 5469d64230..a368e71e63 100644
+--- a/src/pkg/image/image_test.go
++++ b/src/pkg/image/image_test.go
+@@ -72,6 +72,11 @@ func TestImage(t *testing.T) {
+ 			t.Errorf("%T: sub-image at (3, 3), want a non-zero color, got %v", m, m.At(3, 3))
+ 			continue
+ 		}
++		// Test that taking an empty sub-image starting at a corner does not panic.
++		m.SubImage(Rect(0, 0, 0, 0))
++		m.SubImage(Rect(10, 0, 10, 0))
++		m.SubImage(Rect(0, 10, 0, 10))
++		m.SubImage(Rect(10, 10, 10, 10))
+ 	}
+ }
+ 
+diff --git a/src/pkg/image/jpeg/reader.go b/src/pkg/image/jpeg/reader.go
+index ef8383a35e..8798919637 100644
+--- a/src/pkg/image/jpeg/reader.go
++++ b/src/pkg/image/jpeg/reader.go
+@@ -199,8 +199,8 @@ func (d *decoder) processDQT(n int) os.Error {
+ // makeImg allocates and initializes the destination image.
+ func (d *decoder) makeImg(h0, v0, mxx, myy int) {
+ 	if d.nComp == nGrayComponent {
+-		d.img1 = image.NewGray(8*mxx, 8*myy)
+-		d.img1.Rect = image.Rect(0, 0, d.width, d.height)
++		m := image.NewGray(8*mxx, 8*myy)
++		d.img1 = m.SubImage(image.Rect(0, 0, d.width, d.height)).(*image.Gray)
+ 		return
+ 	}
+ 	var subsampleRatio ycbcr.SubsampleRatio
+diff --git a/src/pkg/image/jpeg/writer.go b/src/pkg/image/jpeg/writer.go
+index eddaaefb6b..76a85adb05 100644
+--- a/src/pkg/image/jpeg/writer.go
++++ b/src/pkg/image/jpeg/writer.go
+@@ -397,13 +397,13 @@ func rgbaToYCbCr(m *image.RGBA, p image.Point, yBlock, cbBlock, crBlock *block)
+ 		if sj > ymax {
+ 			sj = ymax
+ 		}
+-		yoff := sj * m.Stride
++		offset := (sj-b.Min.Y)*m.Stride - b.Min.X
+ 		for i := 0; i < 8; i++ {
+ 			sx := p.X + i
+ 			if sx > xmax {
+ 				sx = xmax
+ 			}
+-			col := &m.Pix[yoff+sx]
++			col := &m.Pix[offset+sx]
+ 			yy, cb, cr := ycbcr.RGBToYCbCr(col.R, col.G, col.B)
+ 			yBlock[8*j+i] = int(yy)
+ 			cbBlock[8*j+i] = int(cb)
+diff --git a/src/pkg/image/png/writer.go b/src/pkg/image/png/writer.go
+index d770cfad5f..81d402fc9f 100644
+--- a/src/pkg/image/png/writer.go
++++ b/src/pkg/image/png/writer.go
+@@ -324,8 +324,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 			// We have previously verified that the alpha value is fully opaque.
+ 			cr0 := cr[0]
+ 			if rgba != nil {
+-				yoff := y * rgba.Stride
+-				for _, color := range rgba.Pix[yoff+b.Min.X : yoff+b.Max.X] {
++				offset := (y - b.Min.Y) * rgba.Stride
++				for _, color := range rgba.Pix[offset : offset+b.Dx()] {
+ 					cr0[i+0] = color.R
+ 					cr0[i+1] = color.G
+ 					cr0[i+2] = color.B
+@@ -341,8 +341,8 @@ func writeImage(w io.Writer, m image.Image, cb int) os.Error {
+ 				}
+ 			}
+ 		case cbP8:
+-			rowOffset := y * paletted.Stride
+-			copy(cr[0][1:], paletted.Pix[rowOffset+b.Min.X:rowOffset+b.Max.X])
++			offset := (y - b.Min.Y) * paletted.Stride
++			copy(cr[0][1:], paletted.Pix[offset:offset+b.Dx()])
+ 		case cbTCA8:
+ 			// Convert from image.Image (which is alpha-premultiplied) to PNG's non-alpha-premultiplied.
+ 			for x := b.Min.X; x < b.Max.X; x++ {
+diff --git a/src/pkg/image/png/writer_test.go b/src/pkg/image/png/writer_test.go
+index 271519a11f..1599791b3a 100644
+--- a/src/pkg/image/png/writer_test.go
++++ b/src/pkg/image/png/writer_test.go
+@@ -81,14 +81,14 @@ func TestWriter(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSubimage(t *testing.T) {
++func TestSubImage(t *testing.T) {
+ 	m0 := image.NewRGBA(256, 256)
+ 	for y := 0; y < 256; y++ {
+ 		for x := 0; x < 256; x++ {
+ 			m0.Set(x, y, image.RGBAColor{uint8(x), uint8(y), 0, 255})
+ 		}
+ 	}
+-	m0.Rect = image.Rect(50, 30, 250, 130)
++	m0 = m0.SubImage(image.Rect(50, 30, 250, 130)).(*image.RGBA)
+ 	m1, err := encodeDecode(m0)
+ 	if err != nil {
+ 		t.Error(err)

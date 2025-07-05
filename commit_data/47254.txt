@@ -10,8 +10,92 @@ Date:   Tue Mar 2 13:22:21 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/297932
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/runtime/race_amd64.s   | 10 +---------
  src/runtime/race_arm64.s   | 10 +---------
  src/runtime/race_ppc64le.s | 12 +-----------
  3 files changed, 3 insertions(+), 29 deletions(-)
+
+diff --git a/src/runtime/race_amd64.s b/src/runtime/race_amd64.s
+index e10c21c7f3..287bb9fc0a 100644
+--- a/src/runtime/race_amd64.s
++++ b/src/runtime/race_amd64.s
+@@ -167,21 +167,13 @@ call:
+ ret:
+ 	RET
+ 
+-// func runtime·racefuncenterfp(fp uintptr)
+-// Called from instrumented code.
+-// Like racefuncenter but passes FP, not PC
+-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-8
+-	MOVQ	fp+0(FP), R11
+-	MOVQ	-8(R11), R11
+-	JMP	racefuncenter<>(SB)
+-
+ // func runtime·racefuncenter(pc uintptr)
+ // Called from instrumented code.
+ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ 	MOVQ	callpc+0(FP), R11
+ 	JMP	racefuncenter<>(SB)
+ 
+-// Common code for racefuncenter/racefuncenterfp
++// Common code for racefuncenter
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVQ	DX, BX		// save function entry context (for closures)
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index 8aa17742b8..82e3caadc8 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -160,21 +160,13 @@ call:
+ ret:
+ 	RET
+ 
+-// func runtime·racefuncenterfp(fp uintptr)
+-// Called from instrumented code.
+-// Like racefuncenter but doesn't passes an arg, uses the caller pc
+-// from the first slot on the stack
+-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
+-	MOVD	0(RSP), R9
+-	JMP	racefuncenter<>(SB)
+-
+ // func runtime·racefuncenter(pc uintptr)
+ // Called from instrumented code.
+ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ 	MOVD	callpc+0(FP), R9
+ 	JMP	racefuncenter<>(SB)
+ 
+-// Common code for racefuncenter/racefuncenterfp
++// Common code for racefuncenter
+ // R9 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	load_g
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 8961254ea6..b09f37031c 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -163,23 +163,13 @@ call:
+ ret:
+ 	RET
+ 
+-// func runtime·racefuncenterfp()
+-// Called from instrumented Go code.
+-// Like racefuncenter but doesn't pass an arg, uses the caller pc
+-// from the first slot on the stack.
+-TEXT	runtime·racefuncenterfp(SB), NOSPLIT, $0-0
+-	MOVD	0(R1), R8
+-	BR	racefuncenter<>(SB)
+-
+ // func runtime·racefuncenter(pc uintptr)
+ // Called from instrumented Go code.
+-// Not used now since gc/racewalk.go doesn't pass the
+-// correct caller pc and racefuncenterfp can do it.
+ TEXT	runtime·racefuncenter(SB), NOSPLIT, $0-8
+ 	MOVD	callpc+0(FP), R8
+ 	BR	racefuncenter<>(SB)
+ 
+-// Common code for racefuncenter/racefuncenterfp
++// Common code for racefuncenter
+ // R11 = caller's return address
+ TEXT	racefuncenter<>(SB), NOSPLIT, $0-0
+ 	MOVD    runtime·tls_g(SB), R10

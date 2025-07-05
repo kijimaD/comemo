@@ -9,7 +9,31 @@ Date:   Fri Mar 18 16:49:19 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/objfile/disasm.go | 1 +
  src/cmd/internal/objfile/elf.go    | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index b2e7485a9d..d63f8f616f 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -245,4 +245,5 @@ var byteOrders = map[string]binary.ByteOrder{
+ 	"arm":     binary.LittleEndian,
+ 	"ppc64":   binary.BigEndian,
+ 	"ppc64le": binary.LittleEndian,
++	"s390x":   binary.BigEndian,
+ }
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 7ddfe1df24..6369f7e259 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -99,6 +99,8 @@ func (f *elfFile) goarch() string {
+ 		return "arm"
+ 	case elf.EM_PPC64:
+ 		return "ppc64"
++	case elf.EM_S390:
++		return "s390x"
+ 	}
+ 	return ""
+ }

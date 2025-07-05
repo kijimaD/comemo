@@ -18,10 +18,151 @@ Date:   Thu Dec 5 18:48:21 2019 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/crypto/rand/rand.go         |  6 +-----
  src/crypto/rand/rand_unix.go    |  4 ++++
  src/crypto/rand/rand_windows.go | 40 ++++++++--------------------------------
  src/syscall/syscall_windows.go  |  1 +
  src/syscall/zsyscall_windows.go | 13 +++++++++++++
  5 files changed, 27 insertions(+), 37 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index a5ccd19de3..fddd1147e6 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -14,7 +14,7 @@ import "io"
+ // On Linux and FreeBSD, Reader uses getrandom(2) if available, /dev/urandom otherwise.
+ // On OpenBSD, Reader uses getentropy(2).
+ // On other Unix-like systems, Reader reads from /dev/urandom.
+-// On Windows systems, Reader uses the CryptGenRandom API.
++// On Windows systems, Reader uses the RtlGenRandom API.
+ // On Wasm, Reader uses the Web Crypto API.
+ var Reader io.Reader
+ 
+@@ -23,7 +23,3 @@ var Reader io.Reader
+ func Read(b []byte) (n int, err error) {
+ 	return io.ReadFull(Reader, b)
+ }
+-
+-func warnBlocked() {
+-	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+-}
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+index 0610f691b0..548a5e4cb9 100644
+--- a/src/crypto/rand/rand_unix.go
++++ b/src/crypto/rand/rand_unix.go
+@@ -47,6 +47,10 @@ type devReader struct {
+ // urandom-style randomness.
+ var altGetRandom func([]byte) (ok bool)
+ 
++func warnBlocked() {
++	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
++}
++
+ func (r *devReader) Read(b []byte) (n int, err error) {
+ 	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+ 		// First use of randomness. Start timer to warn about
+diff --git a/src/crypto/rand/rand_windows.go b/src/crypto/rand/rand_windows.go
+index 78a4ed6d67..8b2c960906 100644
+--- a/src/crypto/rand/rand_windows.go
++++ b/src/crypto/rand/rand_windows.go
+@@ -9,48 +9,24 @@ package rand
+ 
+ import (
+ 	"os"
+-	"sync"
+-	"sync/atomic"
+ 	"syscall"
+-	"time"
+ )
+ 
+-// Implemented by using Windows CryptoAPI 2.0.
+-
+ func init() { Reader = &rngReader{} }
+ 
+-// A rngReader satisfies reads by reading from the Windows CryptGenRandom API.
+-type rngReader struct {
+-	used int32 // atomic; whether this rngReader has been used
+-	prov syscall.Handle
+-	mu   sync.Mutex
+-}
++type rngReader struct{}
+ 
+ func (r *rngReader) Read(b []byte) (n int, err error) {
+-	if atomic.CompareAndSwapInt32(&r.used, 0, 1) {
+-		// First use of randomness. Start timer to warn about
+-		// being blocked on entropy not being available.
+-		t := time.AfterFunc(60*time.Second, warnBlocked)
+-		defer t.Stop()
+-	}
+-	r.mu.Lock()
+-	if r.prov == 0 {
+-		const provType = syscall.PROV_RSA_FULL
+-		const flags = syscall.CRYPT_VERIFYCONTEXT | syscall.CRYPT_SILENT
+-		err := syscall.CryptAcquireContext(&r.prov, nil, nil, provType, flags)
+-		if err != nil {
+-			r.mu.Unlock()
+-			return 0, os.NewSyscallError("CryptAcquireContext", err)
+-		}
+-	}
+-	r.mu.Unlock()
++	// RtlGenRandom only accepts 2**32-1 bytes at a time, so truncate.
++	inputLen := uint32(len(b))
+ 
+-	if len(b) == 0 {
++	if inputLen == 0 {
+ 		return 0, nil
+ 	}
+-	err = syscall.CryptGenRandom(r.prov, uint32(len(b)), &b[0])
++
++	err = syscall.RtlGenRandom(&b[0], inputLen)
+ 	if err != nil {
+-		return 0, os.NewSyscallError("CryptGenRandom", err)
++		return 0, os.NewSyscallError("RtlGenRandom", err)
+ 	}
+-	return len(b), nil
++	return int(inputLen), nil
+ }
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 40c43de84c..0eea2b87a9 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -234,6 +234,7 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (err error) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle Handle, flags uint32) (err error) = advapi32.CryptReleaseContext
+ //sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) = advapi32.CryptGenRandom
++//sys	RtlGenRandom(buf *uint8, bytes uint32) (err error) = advapi32.SystemFunction036
+ //sys	GetEnvironmentStrings() (envs *uint16, err error) [failretval==nil] = kernel32.GetEnvironmentStringsW
+ //sys	FreeEnvironmentStrings(envs *uint16) (err error) = kernel32.FreeEnvironmentStringsW
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, err error) = kernel32.GetEnvironmentVariableW
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 2348f6534f..b4222f0528 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -95,6 +95,7 @@ var (
+ 	procCryptAcquireContextW               = modadvapi32.NewProc("CryptAcquireContextW")
+ 	procCryptReleaseContext                = modadvapi32.NewProc("CryptReleaseContext")
+ 	procCryptGenRandom                     = modadvapi32.NewProc("CryptGenRandom")
++	procSystemFunction036                  = modadvapi32.NewProc("SystemFunction036")
+ 	procGetEnvironmentStringsW             = modkernel32.NewProc("GetEnvironmentStringsW")
+ 	procFreeEnvironmentStringsW            = modkernel32.NewProc("FreeEnvironmentStringsW")
+ 	procGetEnvironmentVariableW            = modkernel32.NewProc("GetEnvironmentVariableW")
+@@ -821,6 +822,18 @@ func CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) {
+ 	return
+ }
+ 
++func RtlGenRandom(buf *uint8, bytes uint32) (err error) {
++	r1, _, e1 := Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(bytes), 0)
++	if r1 == 0 {
++		if e1 != 0 {
++			err = errnoErr(e1)
++		} else {
++			err = EINVAL
++		}
++	}
++	return
++}
++
+ func GetEnvironmentStrings() (envs *uint16, err error) {
+ 	r0, _, e1 := Syscall(procGetEnvironmentStringsW.Addr(), 0, 0, 0, 0)
+ 	envs = (*uint16)(unsafe.Pointer(r0))

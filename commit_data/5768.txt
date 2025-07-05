@@ -9,8 +9,142 @@ Date:   Fri Jul 2 16:43:48 2010 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/1697048
-
+---
  src/pkg/crypto/tls/generate_cert.go | 26 +++++++++++---------------
  src/pkg/crypto/tls/tls.go           |  8 ++++----
  src/pkg/http/server.go              |  4 ++--
  3 files changed, 17 insertions(+), 21 deletions(-)
+
+diff --git a/src/pkg/crypto/tls/generate_cert.go b/src/pkg/crypto/tls/generate_cert.go
+index b760af1364..984d686f9a 100644
+--- a/src/pkg/crypto/tls/generate_cert.go
++++ b/src/pkg/crypto/tls/generate_cert.go
+@@ -11,30 +11,26 @@ import (
+ 	"crypto/rsa"
+ 	"crypto/x509"
+ 	"encoding/pem"
+-	"fmt"
++	"flag"
+ 	"log"
+ 	"os"
+ 	"time"
+ )
+ 
+-func main() {
+-	if len(os.Args) != 2 {
+-		fmt.Printf("Usage: %s <hostname of server>\n", os.Args[0])
+-		return
+-	}
++var hostName *string = flag.String("host", "127.0.0.1", "Hostname to generate a certificate for")
+ 
+-	hostName := os.Args[1]
++func main() {
++	flag.Parse()
+ 
+ 	urandom, err := os.Open("/dev/urandom", os.O_RDONLY, 0)
+ 	if err != nil {
+-		log.Crashf("failed to open /dev/urandom: %s\n", err)
++		log.Exitf("failed to open /dev/urandom: %s", err)
+ 		return
+ 	}
+ 
+-	log.Stdoutf("Generating RSA key\n")
+ 	priv, err := rsa.GenerateKey(urandom, 1024)
+ 	if err != nil {
+-		log.Crashf("failed to generate private key: %s\n", err)
++		log.Exitf("failed to generate private key: %s", err)
+ 		return
+ 	}
+ 
+@@ -43,11 +39,11 @@ func main() {
+ 	template := x509.Certificate{
+ 		SerialNumber: []byte{0},
+ 		Subject: x509.Name{
+-			CommonName:   hostName,
++			CommonName:   *hostName,
+ 			Organization: "Acme Co",
+ 		},
+ 		NotBefore: time.SecondsToUTC(now - 300),
+-		NotAfter:  time.SecondsToUTC(now + 86400*365), // valid for 1 year.
++		NotAfter:  time.SecondsToUTC(now + 60*60*24*365), // valid for 1 year.
+ 
+ 		SubjectKeyId: []byte{1, 2, 3, 4},
+ 		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+@@ -55,13 +51,13 @@ func main() {
+ 
+ 	derBytes, err := x509.CreateCertificate(urandom, &template, &template, &priv.PublicKey, priv)
+ 	if err != nil {
+-		log.Crashf("Failed to create certificate: %s", err)
++		log.Exitf("Failed to create certificate: %s", err)
+ 		return
+ 	}
+ 
+ 	certOut, err := os.Open("cert.pem", os.O_WRONLY|os.O_CREAT, 0644)
+ 	if err != nil {
+-		log.Crashf("failed to open cert.pem for writing: %s\n", err)
++		log.Exitf("failed to open cert.pem for writing: %s", err)
+ 		return
+ 	}
+ 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+@@ -70,7 +66,7 @@ func main() {
+ 
+ 	keyOut, err := os.Open("key.pem", os.O_WRONLY|os.O_CREAT, 0600)
+ 	if err != nil {
+-		log.Crashf("failed to open key.pem for writing: %s\n", err)
++		log.Exitf("failed to open key.pem for writing: %s", err)
+ 		return
+ 	}
+ 	pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+diff --git a/src/pkg/crypto/tls/tls.go b/src/pkg/crypto/tls/tls.go
+index 874f944555..27e32cc2f2 100644
+--- a/src/pkg/crypto/tls/tls.go
++++ b/src/pkg/crypto/tls/tls.go
+@@ -79,7 +79,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
+ 
+ 	certDERBlock, _ := pem.Decode(certPEMBlock)
+ 	if certDERBlock == nil {
+-		err = os.ErrorString("failed to parse certificate PEM data")
++		err = os.ErrorString("crypto/tls: failed to parse certificate PEM data")
+ 		return
+ 	}
+ 
+@@ -92,13 +92,13 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
+ 
+ 	keyDERBlock, _ := pem.Decode(keyPEMBlock)
+ 	if keyDERBlock == nil {
+-		err = os.ErrorString("failed to parse key PEM data")
++		err = os.ErrorString("crypto/tls: failed to parse key PEM data")
+ 		return
+ 	}
+ 
+ 	key, err := x509.ParsePKCS1PrivateKey(keyDERBlock.Bytes)
+ 	if err != nil {
+-		err = os.ErrorString("failed to parse key")
++		err = os.ErrorString("crypto/tls: failed to parse key")
+ 		return
+ 	}
+ 
+@@ -112,7 +112,7 @@ func LoadX509KeyPair(certFile string, keyFile string) (cert Certificate, err os.
+ 	}
+ 
+ 	if x509Cert.PublicKeyAlgorithm != x509.RSA || x509Cert.PublicKey.(*rsa.PublicKey).N.Cmp(key.PublicKey.N) != 0 {
+-		err = os.ErrorString("Private key does not match public key")
++		err = os.ErrorString("crypto/tls: private key does not match public key")
+ 		return
+ 	}
+ 
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 75896af302..42c3f30d7c 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -642,8 +642,8 @@ func ListenAndServe(addr string, handler Handler) os.Error {
+ 	return e
+ }
+ 
+-// ListenAndServeTLS acts identically to ListenAndServe, expect that it
+-// except HTTPS connections. Additionally, files containing a certificate and
++// ListenAndServeTLS acts identically to ListenAndServe, except that it
++// expects HTTPS connections. Additionally, files containing a certificate and
+ // matching private key for the server must be provided.
+ //
+ // A trivial example server is:

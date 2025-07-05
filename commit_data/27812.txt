@@ -10,6 +10,20 @@ Date:   Wed Apr 13 16:57:23 2016 -0700
     Change-Id: If7d43e1e594ea43c644232b89e670f7abb6b003e
     Reviewed-on: https://go-review.googlesource.com/22033
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/bexport.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/bexport.go b/src/cmd/compile/internal/gc/bexport.go
+index e0810f9139..eef2e2200d 100644
+--- a/src/cmd/compile/internal/gc/bexport.go
++++ b/src/cmd/compile/internal/gc/bexport.go
+@@ -350,7 +350,7 @@ func export(out *bufio.Writer, trace bool) int {
+ 	if p.trace {
+ 		p.tracef("\n")
+ 	}
+-	p.tag(-1) // invalid index terminates list
++	p.int(-1) // invalid index terminates list
+ 
+ 	// for self-verification only (redundant)
+ 	p.int(objcount)

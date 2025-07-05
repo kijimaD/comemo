@@ -11,6 +11,26 @@ Date:   Wed Oct 17 09:41:09 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/os/file.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 3e626a023a..d9c5c57c17 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -384,12 +384,12 @@ func UserCacheDir() (string, error) {
+ // UserHomeDir returns the current user's home directory.
+ //
+ // On Unix, including macOS, it returns the $HOME environment variable.
+-// On Windows, it returns the concatenation of %HOMEDRIVE% and %HOMEPATH%.
++// On Windows, it returns %USERPROFILE%.
+ // On Plan 9, it returns the $home environment variable.
+ func UserHomeDir() string {
+ 	switch runtime.GOOS {
+ 	case "windows":
+-		return Getenv("HOMEDRIVE") + Getenv("HOMEPATH")
++		return Getenv("USERPROFILE")
+ 	case "plan9":
+ 		return Getenv("home")
+ 	case "nacl", "android":

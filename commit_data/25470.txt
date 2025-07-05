@@ -12,7 +12,7 @@ Date:   Thu Oct 29 21:45:19 2015 -0500
     Reviewed-by: Keith Randall <khr@golang.org>
     Run-TryBot: Todd Neal <todd@tneal.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/gc_test.go                       |  6 ++++--
  src/runtime/pprof/mprof_test.go              | 15 ++++++---------
  src/runtime/race/testdata/mop_test.go        |  8 +-------
@@ -28,3 +28,444 @@ Date:   Thu Oct 29 21:45:19 2015 -0500
  test/func8.go                                |  6 ++----
  test/reorder2.go                             | 24 +++++++++++-------------
  14 files changed, 44 insertions(+), 81 deletions(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 61bbc14945..ce61059e85 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -511,9 +511,11 @@ func TestAssertE2T2Liveness(t *testing.T) {
+ 	testIfaceEqual(io.EOF)
+ }
+ 
++var a bool
++
++//go:noinline
+ func testIfaceEqual(x interface{}) {
+ 	if x == "abc" {
+-		// Prevent inlining
+-		panic("")
++		a = true
+ 	}
+ }
+diff --git a/src/runtime/pprof/mprof_test.go b/src/runtime/pprof/mprof_test.go
+index ebf53dd66b..d14fb5888e 100644
+--- a/src/runtime/pprof/mprof_test.go
++++ b/src/runtime/pprof/mprof_test.go
+@@ -22,11 +22,8 @@ func allocateTransient1M() {
+ 	}
+ }
+ 
++//go:noinline
+ func allocateTransient2M() {
+-	// prevent inlining
+-	if memSink == nil {
+-		panic("bad")
+-	}
+ 	memSink = make([]byte, 2<<20)
+ }
+ 
+@@ -76,18 +73,18 @@ func TestMemoryProfiler(t *testing.T) {
+ 
+ 	tests := []string{
+ 		fmt.Sprintf(`%v: %v \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:43
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:66
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocatePersistent1K\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:40
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test\.go:63
+ `, 32*memoryProfilerRun, 1024*memoryProfilerRun, 32*memoryProfilerRun, 1024*memoryProfilerRun),
+ 
+ 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+ #	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient1M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:21
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:64
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:61
+ `, (1<<10)*memoryProfilerRun, (1<<20)*memoryProfilerRun),
+ 
+ 		fmt.Sprintf(`0: 0 \[%v: %v\] @ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+ 0x[0-9,a-f]+
+-#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:30
+-#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:65
++#	0x[0-9,a-f]+	runtime/pprof_test\.allocateTransient2M\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:27
++#	0x[0-9,a-f]+	runtime/pprof_test\.TestMemoryProfiler\+0x[0-9,a-f]+	.*/runtime/pprof/mprof_test.go:62
+ `, memoryProfilerRun, (2<<20)*memoryProfilerRun),
+ 	}
+ 
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index d7cbc98f95..c96acb9021 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1356,14 +1356,8 @@ type InterImpl struct {
+ 	x, y int
+ }
+ 
++//go:noinline
+ func (p InterImpl) Foo(x int) {
+-	// prevent inlining
+-	z := 42
+-	x = 85
+-	y := x / z
+-	z = y * z
+-	x = z * y
+-	_, _, _ = x, y, z
+ }
+ 
+ type InterImpl2 InterImpl
+diff --git a/src/runtime/race/testdata/regression_test.go b/src/runtime/race/testdata/regression_test.go
+index d461269d98..6a7802fb02 100644
+--- a/src/runtime/race/testdata/regression_test.go
++++ b/src/runtime/race/testdata/regression_test.go
+@@ -65,10 +65,8 @@ type Image struct {
+ 	min, max Rect
+ }
+ 
++//go:noinline
+ func NewImage() Image {
+-	var pleaseDoNotInlineMe stack
+-	pleaseDoNotInlineMe.push(1)
+-	_ = pleaseDoNotInlineMe.pop()
+ 	return Image{}
+ }
+ 
+@@ -113,11 +111,8 @@ type RpcChan struct {
+ 
+ var makeChanCalls int
+ 
++//go:noinline
+ func makeChan() *RpcChan {
+-	var pleaseDoNotInlineMe stack
+-	pleaseDoNotInlineMe.push(1)
+-	_ = pleaseDoNotInlineMe.pop()
+-
+ 	makeChanCalls++
+ 	c := &RpcChan{make(chan bool, 1)}
+ 	c.c <- true
+diff --git a/test/fixedbugs/bug401.go b/test/fixedbugs/bug401.go
+index 5589b5b1bb..c58e1ca400 100644
+--- a/test/fixedbugs/bug401.go
++++ b/test/fixedbugs/bug401.go
+@@ -9,9 +9,8 @@ package main
+ 
+ type T struct{}
+ 
++//go:noinline
+ func (T) cplx() complex128 {
+-	for false {
+-	} // avoid inlining
+ 	return complex(1, 0)
+ }
+ 
+diff --git a/test/fixedbugs/bug484.go b/test/fixedbugs/bug484.go
+index c664b83af3..7025affc2d 100644
+--- a/test/fixedbugs/bug484.go
++++ b/test/fixedbugs/bug484.go
+@@ -23,20 +23,14 @@ package main
+ 
+ import "runtime"
+ 
+-var c bool
+-
++//go:noinline
+ func f() interface{} {
+-	if c { // disable inlining
+-		f()
+-	}
+ 	runtime.GC()
+ 	return nil
+ }
+ 
++//go:noinline
+ func g() {
+-	if c { // disable inlining
+-		g()
+-	}
+ 	var s interface{}
+ 	_ = func() {
+ 		s := f()
+@@ -47,31 +41,25 @@ func g() {
+ 	useiface(s)
+ }
+ 
++//go:noinline
+ func useiface(x interface{}) {
+-	if c {	// disable inlining
+-		useiface(x)
+-	}
+ }
+ 
++//go:noinline
+ func h() {
+-	if c { // disable inlining
+-		h()
+-	}
+ 	var x [16]uintptr
+ 	for i := range x {
+ 		x[i] = 1
+ 	}
+-	
++
+ 	useint(x[0])
+ 	useint(x[1])
+ 	useint(x[2])
+ 	useint(x[3])
+ }
+ 
++//go:noinline
+ func useint(x uintptr) {
+-	if c {	// disable inlining
+-		useint(x)
+-	}
+ }
+ 
+ func main() {
+@@ -85,6 +73,6 @@ func main() {
+ 
+ func big(x int) {
+ 	if x >= 0 {
+-		big(x-1)
++		big(x - 1)
+ 	}
+ }
+diff --git a/test/fixedbugs/issue10441.go b/test/fixedbugs/issue10441.go
+index 25832fac45..9bc4948b15 100644
+--- a/test/fixedbugs/issue10441.go
++++ b/test/fixedbugs/issue10441.go
+@@ -11,7 +11,7 @@ func bar() {
+ 	foo(&f)
+ }
+ 
++//go:noinline
+ func foo(f *func()) func() {
+-	defer func() {}() // prevent inlining of foo
+ 	return *f
+ }
+diff --git a/test/fixedbugs/issue12133.go b/test/fixedbugs/issue12133.go
+index 0b66c56a51..7b02a47c72 100644
+--- a/test/fixedbugs/issue12133.go
++++ b/test/fixedbugs/issue12133.go
+@@ -19,8 +19,8 @@ func main() {
+ 		panic("bad")
+ 	}
+ }
++
++//go:noinline
+ func f1(v1 uint) uint {
+-	switch {
+-	} // prevent inlining
+ 	return v1 >> ((1 >> v1) + (1 >> v1))
+ }
+diff --git a/test/fixedbugs/issue4518.go b/test/fixedbugs/issue4518.go
+index e64b069bb9..5c3a1782be 100644
+--- a/test/fixedbugs/issue4518.go
++++ b/test/fixedbugs/issue4518.go
+@@ -10,15 +10,13 @@
+ 
+ package main
+ 
+-func DontInline() {}
+-
++//go:noinline
+ func F(e interface{}) (int, int) {
+-	DontInline()
+ 	return 3, 7
+ }
+ 
++//go:noinline
+ func G() (int, int) {
+-	DontInline()
+ 	return 3, 7
+ }
+ 
+diff --git a/test/fixedbugs/issue4964.dir/a.go b/test/fixedbugs/issue4964.dir/a.go
+index 2b9e44e351..216f352ca9 100644
+--- a/test/fixedbugs/issue4964.dir/a.go
++++ b/test/fixedbugs/issue4964.dir/a.go
+@@ -10,16 +10,14 @@ type T struct {
+ 	Pointer *int
+ }
+ 
+-func dontinline() {}
+-
++//go:noinline
+ func Store(t *T) {
+ 	global = t.Pointer
+-	dontinline()
+ }
+ 
++//go:noinline
+ func Store2(t *T) {
+ 	global2 = t.Pointer
+-	dontinline()
+ }
+ 
+ func Get() *int {
+diff --git a/test/fixedbugs/issue7995b.dir/x1.go b/test/fixedbugs/issue7995b.dir/x1.go
+index 075911b921..bafecf52a9 100644
+--- a/test/fixedbugs/issue7995b.dir/x1.go
++++ b/test/fixedbugs/issue7995b.dir/x1.go
+@@ -4,12 +4,8 @@ import "fmt"
+ 
+ var P int
+ 
+-var b bool
+-
++//go:noinline
+ func F(x *int) string {
+-	if b { // avoid inlining
+-		F(x)
+-	}
+ 	P = 50
+ 	*x = 100
+ 	return fmt.Sprintln(P, *x)
+diff --git a/test/fixedbugs/issue8036.go b/test/fixedbugs/issue8036.go
+index f32fde84ab..f052cf9e5c 100644
+--- a/test/fixedbugs/issue8036.go
++++ b/test/fixedbugs/issue8036.go
+@@ -18,19 +18,19 @@ type T struct {
+ 
+ type TI [3]uintptr
+ 
++//go:noinline
+ func G() (t TI) {
+ 	t[0] = 1
+ 	t[1] = 2
+ 	t[2] = 3
+-	runtime.GC() // prevent inlining
+ 	return
+ }
+ 
++//go:noinline
+ func F() (t T) {
+ 	t.X = newint()
+ 	t.Y = t.X
+ 	t.Z = t.Y
+-	runtime.GC() // prevent inlining
+ 	return
+ }
+ 
+diff --git a/test/func8.go b/test/func8.go
+index 13051802ec..09ca020814 100644
+--- a/test/func8.go
++++ b/test/func8.go
+@@ -21,16 +21,14 @@ func g() int {
+ 
+ var xy string
+ 
++//go:noinline
+ func x() bool {
+-	for false {
+-	} // no inlining
+ 	xy += "x"
+ 	return false
+ }
+ 
++//go:noinline
+ func y() string {
+-	for false {
+-	} // no inlining
+ 	xy += "y"
+ 	return "abc"
+ }
+diff --git a/test/reorder2.go b/test/reorder2.go
+index e56be2bc80..3e87998ffe 100644
+--- a/test/reorder2.go
++++ b/test/reorder2.go
+@@ -58,9 +58,8 @@ func f(x, y string) {
+ 	log += "f(" + x + ", " + y + ")"
+ }
+ 
++//go:noinline
+ func ff(x, y string) {
+-	for false {
+-	} // prevent inl
+ 	log += "ff(" + x + ", " + y + ")"
+ }
+ 
+@@ -69,9 +68,8 @@ func h(x string) string {
+ 	return x
+ }
+ 
++//go:noinline
+ func g(x string) string {
+-	for false {
+-	} // prevent inl
+ 	log += "g(" + x + ")"
+ 	return x
+ }
+@@ -167,7 +165,7 @@ func main() {
+ 		err++
+ 	}
+ 	log = ""
+-	
++
+ 	x := 0
+ 	switch x {
+ 	case 0:
+@@ -176,7 +174,7 @@ func main() {
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in switch, expecting a(1)b(2)a(2), got ", log)
+ 			err++
+@@ -194,7 +192,7 @@ func main() {
+ 		}
+ 		log = ""
+ 	}
+-	
++
+ 	c := make(chan int, 1)
+ 	c <- 1
+ 	select {
+@@ -206,7 +204,7 @@ func main() {
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in select1, expecting a(1)b(2)a(2), got ", log)
+ 			err++
+@@ -233,7 +231,7 @@ func main() {
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in select2, expecting a(1)b(2)a(2), got ", log)
+ 			err++
+@@ -255,14 +253,14 @@ func main() {
+ 	c <- 1
+ 	select {
+ 	default:
+-	case c<-1:
++	case c <- 1:
+ 	case <-c:
+ 		if a("1")("2")("3"); log != "a(1)a(2)a(3)" {
+ 			println("in select3, expecting a(1)a(2)a(3) , got ", log)
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in select3, expecting a(1)b(2)a(2), got ", log)
+ 			err++
+@@ -290,7 +288,7 @@ func main() {
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in select4, expecting a(1)b(2)a(2), got ", log)
+ 			err++
+@@ -318,7 +316,7 @@ func main() {
+ 			err++
+ 		}
+ 		log = ""
+-	
++
+ 		if t.a("1").a(t.b("2")); log != "a(1)b(2)a(2)" {
+ 			println("in select5, expecting a(1)b(2)a(2), got ", log)
+ 			err++

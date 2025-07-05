@@ -7,7 +7,36 @@ Date:   Tue Mar 3 12:25:36 2015 -0500
     Change-Id: I38d716de9d5a9c1b868641262067d0456d52c86d
     Reviewed-on: https://go-review.googlesource.com/6612
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/os1_windows.go | 2 +-
  src/runtime/runtime.go     | 4 ----
  2 files changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 744b1a9072..f91e9d596d 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -220,7 +220,7 @@ func goenvs() {
+ 			n++
+ 		}
+ 	}
+-	envs = makeStringSlice(n)
++	envs = make([]string, n)
+ 
+ 	for i := range envs {
+ 		envs[i] = gostringw(&p[0])
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index 0f660038fb..6d32de2a4f 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -43,10 +43,6 @@ func tickspersecond() int64 {
+ 	return r
+ }
+ 
+-func makeStringSlice(n int) []string {
+-	return make([]string, n)
+-}
+-
+ var envs []string
+ var argslice []string
+ 

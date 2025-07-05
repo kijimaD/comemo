@@ -8,6 +8,20 @@ Date:   Wed May 25 06:00:07 2011 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/4538089
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 7ad90dd129..13af1d83a1 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1696,7 +1696,7 @@ of an interface type or of elements of a composite type remains unchanged:
+ </p>
+ 
+ <pre>
+-// A Mutex is a data type with two methods Lock and Unlock.
++// A Mutex is a data type with two methods, Lock and Unlock.
+ type Mutex struct         { /* Mutex fields */ }
+ func (m *Mutex) Lock()    { /* Lock implementation */ }
+ func (m *Mutex) Unlock()  { /* Unlock implementation */ }

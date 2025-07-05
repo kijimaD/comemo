@@ -9,6 +9,29 @@ Date:   Sat May 30 17:42:34 2020 -0700
     Change-Id: Ie4f748ae94a5945dceb52779222ffd8cf36b8845
     Reviewed-on: https://go-review.googlesource.com/c/go/+/235838
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/container/list/list.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/container/list/list.go b/src/container/list/list.go
+index cc9ff0988c..210424ceed 100644
+--- a/src/container/list/list.go
++++ b/src/container/list/list.go
+@@ -219,7 +219,7 @@ func (l *List) MoveAfter(e, mark *Element) {
+ 	l.move(e, mark)
+ }
+ 
+-// PushBackList inserts a copy of an other list at the back of list l.
++// PushBackList inserts a copy of another list at the back of list l.
+ // The lists l and other may be the same. They must not be nil.
+ func (l *List) PushBackList(other *List) {
+ 	l.lazyInit()
+@@ -228,7 +228,7 @@ func (l *List) PushBackList(other *List) {
+ 	}
+ }
+ 
+-// PushFrontList inserts a copy of an other list at the front of list l.
++// PushFrontList inserts a copy of another list at the front of list l.
+ // The lists l and other may be the same. They must not be nil.
+ func (l *List) PushFrontList(other *List) {
+ 	l.lazyInit()

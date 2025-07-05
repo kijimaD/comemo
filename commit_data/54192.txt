@@ -14,6 +14,25 @@ Date:   Wed Sep 28 14:41:30 2022 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     Auto-Submit: Roland Shoemaker <roland@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/encoding/gob/doc.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 306d395d5b..04cb0ac471 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -276,6 +276,13 @@ document for background: https://golang.org/doc/go1compat
+ 
+ See "Gobs of data" for a design discussion of the gob wire format:
+ https://blog.golang.org/gobs-of-data
++
++# Security
++
++This package is not designed to be hardened against adversarial inputs. In
++particular, the Decoder does only basic sanity checking on decoded input sizes,
++and its limits are not configurable. Care should be taken when decoding gob data
++from untrusted sources, which may consume significant resources.
+ */
+ package gob
+ 

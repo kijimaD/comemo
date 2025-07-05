@@ -11,6 +11,20 @@ Date:   Mon Sep 30 21:37:40 2019 +0000
     GitHub-Pull-Request: golang/go#34613
     Reviewed-on: https://go-review.googlesource.com/c/go/+/197997
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
-
+---
  src/text/template/parse/node.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 1174a4b970..74552c293f 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -187,7 +187,7 @@ func (p *PipeNode) CopyPipe() *PipeNode {
+ 	if p == nil {
+ 		return p
+ 	}
+-	var vars []*VariableNode
++	vars := make([]*VariableNode, 0, len(p.Decl))
+ 	for _, d := range p.Decl {
+ 		vars = append(vars, d.Copy().(*VariableNode))
+ 	}

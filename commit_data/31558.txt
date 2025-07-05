@@ -16,7 +16,61 @@ Date:   Mon Feb 27 18:26:33 2017 -0500
     Run-TryBot: Heschi Kreinick <heschi@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Marcel van Lohuizen <mpvl@golang.org>
-
+---
  src/testing/benchmark.go |  5 ++++-
  src/testing/sub_test.go  | 12 ++++++++++++
  2 files changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 86c0f10ecd..18a46d93bf 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -657,7 +657,10 @@ func Benchmark(f func(b *B)) BenchmarkResult {
+ 		benchFunc: f,
+ 		benchTime: *benchTime,
+ 	}
+-	return b.run()
++	if b.run1() {
++		b.run()
++	}
++	return b.result
+ }
+ 
+ type discard struct{}
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index fe3e8ff858..ab145b5bf4 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -7,6 +7,7 @@ package testing
+ import (
+ 	"bytes"
+ 	"fmt"
++	"os"
+ 	"regexp"
+ 	"runtime"
+ 	"strings"
+@@ -530,6 +531,16 @@ func TestBenchmarkOutput(t *T) {
+ 	Benchmark(func(b *B) {})
+ }
+ 
++func TestBenchmarkStartsFrom1(t *T) {
++	var first = true
++	Benchmark(func(b *B) {
++		if first && b.N != 1 {
++			panic(fmt.Sprintf("Benchmark() first N=%v; want 1", b.N))
++		}
++		first = false
++	})
++}
++
+ func TestParallelSub(t *T) {
+ 	c := make(chan int)
+ 	block := make(chan int)
+@@ -591,6 +602,7 @@ func TestBenchmark(t *T) {
+ 	res := Benchmark(func(b *B) {
+ 		for i := 0; i < 5; i++ {
+ 			b.Run("", func(b *B) {
++				fmt.Fprintf(os.Stderr, "b.N: %v\n", b.N)
+ 				for i := 0; i < b.N; i++ {
+ 					time.Sleep(time.Millisecond)
+ 				}

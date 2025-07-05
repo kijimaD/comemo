@@ -56,7 +56,147 @@ Date:   Wed Apr 7 12:01:44 2021 -0400
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/proc.go      | 58 +++++++++++++++++++++++++-----------------------
  src/runtime/proc_test.go | 49 ++++++++++++++++++++++++++++++++++++++++
  2 files changed, 79 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 5c7328aacc..37c051634c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2841,44 +2841,46 @@ top:
+ 		if int32(atomic.Xadd(&sched.nmspinning, -1)) < 0 {
+ 			throw("findrunnable: negative nmspinning")
+ 		}
+-	}
+ 
+-	// Check all runqueues once again.
+-	_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
+-	if _p_ != nil {
+-		acquirep(_p_)
+-		if wasSpinning {
++		// Note the for correctness, only the last M transitioning from
++		// spinning to non-spinning must perform these rechecks to
++		// ensure no missed work. We are performing it on every M that
++		// transitions as a conservative change to monitor effects on
++		// latency. See golang.org/issue/43997.
++
++		// Check all runqueues once again.
++		_p_ = checkRunqsNoP(allpSnapshot, idlepMaskSnapshot)
++		if _p_ != nil {
++			acquirep(_p_)
+ 			_g_.m.spinning = true
+ 			atomic.Xadd(&sched.nmspinning, 1)
++			goto top
+ 		}
+-		goto top
+-	}
+ 
+-	// Check for idle-priority GC work again.
+-	_p_, gp = checkIdleGCNoP()
+-	if _p_ != nil {
+-		acquirep(_p_)
+-		if wasSpinning {
++		// Check for idle-priority GC work again.
++		_p_, gp = checkIdleGCNoP()
++		if _p_ != nil {
++			acquirep(_p_)
+ 			_g_.m.spinning = true
+ 			atomic.Xadd(&sched.nmspinning, 1)
+-		}
+ 
+-		// Run the idle worker.
+-		_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
+-		casgstatus(gp, _Gwaiting, _Grunnable)
+-		if trace.enabled {
+-			traceGoUnpark(gp, 0)
++			// Run the idle worker.
++			_p_.gcMarkWorkerMode = gcMarkWorkerIdleMode
++			casgstatus(gp, _Gwaiting, _Grunnable)
++			if trace.enabled {
++				traceGoUnpark(gp, 0)
++			}
++			return gp, false
+ 		}
+-		return gp, false
+-	}
+ 
+-	// Finally, check for timer creation or expiry concurrently with
+-	// transitioning from spinning to non-spinning.
+-	//
+-	// Note that we cannot use checkTimers here because it calls
+-	// adjusttimers which may need to allocate memory, and that isn't
+-	// allowed when we don't have an active P.
+-	pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
++		// Finally, check for timer creation or expiry concurrently with
++		// transitioning from spinning to non-spinning.
++		//
++		// Note that we cannot use checkTimers here because it calls
++		// adjusttimers which may need to allocate memory, and that isn't
++		// allowed when we don't have an active P.
++		pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
++	}
+ 
+ 	// Poll network until next timer.
+ 	if netpollinited() && (atomic.Load(&netpollWaiters) > 0 || pollUntil != 0) && atomic.Xchg64(&sched.lastpoll, 0) != 0 {
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index 767bde15b4..01152dff76 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -692,6 +692,55 @@ func BenchmarkCreateGoroutinesCapture(b *testing.B) {
+ 	}
+ }
+ 
++// warmupScheduler ensures the scheduler has at least targetThreadCount threads
++// in its thread pool.
++func warmupScheduler(targetThreadCount int) {
++	var wg sync.WaitGroup
++	var count int32
++	for i := 0; i < targetThreadCount; i++ {
++		wg.Add(1)
++		go func() {
++			atomic.AddInt32(&count, 1)
++			for atomic.LoadInt32(&count) < int32(targetThreadCount) {
++				// spin until all threads started
++			}
++
++			// spin a bit more to ensure they are all running on separate CPUs.
++			doWork(time.Millisecond)
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
++
++func doWork(dur time.Duration) {
++	start := time.Now()
++	for time.Since(start) < dur {
++	}
++}
++
++// BenchmarkCreateGoroutinesSingle creates many goroutines, all from a single
++// producer (the main benchmark goroutine).
++//
++// Compared to BenchmarkCreateGoroutines, this causes different behavior in the
++// scheduler because Ms are much more likely to need to steal work from the
++// main P rather than having work in the local run queue.
++func BenchmarkCreateGoroutinesSingle(b *testing.B) {
++	// Since we are interested in stealing behavior, warm the scheduler to
++	// get all the Ps running first.
++	warmupScheduler(runtime.GOMAXPROCS(0))
++	b.ResetTimer()
++
++	var wg sync.WaitGroup
++	wg.Add(b.N)
++	for i := 0; i < b.N; i++ {
++		go func(){
++			wg.Done()
++		}()
++	}
++	wg.Wait()
++}
++
+ func BenchmarkClosureCall(b *testing.B) {
+ 	sum := 0
+ 	off1 := 1

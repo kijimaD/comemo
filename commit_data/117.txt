@@ -5,8 +5,74 @@ Date:   Fri Jun 6 17:23:22 2008 -0700
     - tests for type forward declarations
     
     SVN=121560
-
+---
  test/bugs/bug041.go | 15 +++++++++++++++
  test/bugs/bug042.go | 20 ++++++++++++++++++++
  test/golden.out     |  7 +++++++
  3 files changed, 42 insertions(+)
+
+diff --git a/test/bugs/bug041.go b/test/bugs/bug041.go
+new file mode 100644
+index 0000000000..1a6e0dde80
+--- /dev/null
++++ b/test/bugs/bug041.go
+@@ -0,0 +1,15 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go && echo BUG: compilation succeeds incorrectly
++
++package main
++
++type S struct {
++  p *T  // BUG T never declared
++}
++
++func main() {
++  var s S;
++}
+diff --git a/test/bugs/bug042.go b/test/bugs/bug042.go
+new file mode 100644
+index 0000000000..37a2bfd693
+--- /dev/null
++++ b/test/bugs/bug042.go
+@@ -0,0 +1,20 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// $G $D/$F.go || echo BUG: compilation should succeed
++
++package main
++
++type T  // BUG forward declaration should be accepted
++type S struct {
++  p *T
++}
++
++type T struct {
++  p *S
++}
++
++func main() {
++  var s S;
++}
+diff --git a/test/golden.out b/test/golden.out
+index 4ea3036e73..ca0323b756 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -262,6 +262,13 @@ BUG: compilation succeeds incorrectly
+ =========== bugs/bug040.go
+ BUG: compilation succeeds incorrectly
+ 
++=========== bugs/bug041.go
++BUG: compilation succeeds incorrectly
++
++=========== bugs/bug042.go
++bugs/bug042.go:6: syntax error
++BUG: compilation should succeed
++
+ =========== fixedbugs/bug000.go
+ 
+ =========== fixedbugs/bug005.go

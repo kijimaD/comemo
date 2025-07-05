@@ -10,7 +10,43 @@ Date:   Fri Jul 30 14:10:25 2021 -0400
     Run-TryBot: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/init.go | 4 ++--
  src/cmd/go/testdata/script/work.txt | 9 +++++----
  2 files changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index a3337d6d23..53c73cb4a0 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -947,8 +947,8 @@ func requirementsFromModFiles(ctx context.Context, modFiles []*modfile.File) *Re
+ // wasn't provided. setDefaultBuildMod may be called multiple times.
+ func setDefaultBuildMod() {
+ 	if cfg.BuildModExplicit {
+-		if inWorkspaceMode() {
+-			base.Fatalf("go: -mod can't be set explicitly when in workspace mode." +
++		if inWorkspaceMode() && cfg.BuildMod != "readonly" {
++			base.Fatalf("go: -mod may only be set to readonly when in workspace mode." +
+ 				"\n\tRemove the -mod flag to use the default readonly value," +
+ 				"\n\tor set -workfile=off to disable workspace mode.")
+ 		}
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index eeaf92eaec..bcbabbacef 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -21,10 +21,11 @@ go list all # all includes both modules
+ stdout 'example.com/a'
+ stdout 'example.com/b'
+ 
+-# -mod can't be set in workspace mode, even to readonly
+-! go list -mod=readonly all
+-stderr '^go: -mod can''t be set explicitly'
+-go list -mod=readonly -workfile=off all
++# -mod can only be set to readonly in workspace mode
++go list -mod=readonly all
++! go list -mod=mod all
++stderr '^go: -mod may only be set to readonly when in workspace mode'
++go list -mod=mod -workfile=off all
+ 
+ # Test that duplicates in the directory list return an error
+ cp go.work go.work.backup

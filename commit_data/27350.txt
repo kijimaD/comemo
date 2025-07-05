@@ -13,7 +13,124 @@ Date:   Tue Mar 22 17:34:36 2016 +0100
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  1 +
  src/cmd/compile/internal/ssa/rewritegeneric.go | 49 +++++++++++++++++++-------
  2 files changed, 38 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 059914d979..d405419905 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -596,6 +596,7 @@
+ (SlicePtr (SliceMake (SlicePtr x) _ _)) -> (SlicePtr x)
+ (SliceLen (SliceMake _ (SliceLen x) _)) -> (SliceLen x)
+ (SliceCap (SliceMake _ _ (SliceCap x))) -> (SliceCap x)
++(SliceCap (SliceMake _ _ (SliceLen x))) -> (SliceLen x)
+ 
+ (ConstSlice) && config.PtrSize == 4 ->
+   (SliceMake
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 4094d862da..518240f6b7 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -2727,13 +2727,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	// cond: (1 << 8) <= int32(c)
+ 	// result: (ConstBool [1])
+ 	for {
+-		if v.Args[0].Op != OpZeroExt8to32 {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt8to32 {
+ 			break
+ 		}
+-		if v.Args[1].Op != OpConst32 {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+-		c := v.Args[1].AuxInt
++		c := v_1.AuxInt
+ 		if !((1 << 8) <= int32(c)) {
+ 			break
+ 		}
+@@ -2745,13 +2747,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	// cond: (1 << 8) <= c
+ 	// result: (ConstBool [1])
+ 	for {
+-		if v.Args[0].Op != OpZeroExt8to64 {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt8to64 {
+ 			break
+ 		}
+-		if v.Args[1].Op != OpConst64 {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+-		c := v.Args[1].AuxInt
++		c := v_1.AuxInt
+ 		if !((1 << 8) <= c) {
+ 			break
+ 		}
+@@ -2763,13 +2767,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	// cond: (1 << 16) <= int32(c)
+ 	// result: (ConstBool [1])
+ 	for {
+-		if v.Args[0].Op != OpZeroExt16to32 {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt16to32 {
+ 			break
+ 		}
+-		if v.Args[1].Op != OpConst32 {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst32 {
+ 			break
+ 		}
+-		c := v.Args[1].AuxInt
++		c := v_1.AuxInt
+ 		if !((1 << 16) <= int32(c)) {
+ 			break
+ 		}
+@@ -2781,13 +2787,15 @@ func rewriteValuegeneric_OpIsInBounds(v *Value, config *Config) bool {
+ 	// cond: (1 << 16) <= c
+ 	// result: (ConstBool [1])
+ 	for {
+-		if v.Args[0].Op != OpZeroExt16to64 {
++		v_0 := v.Args[0]
++		if v_0.Op != OpZeroExt16to64 {
+ 			break
+ 		}
+-		if v.Args[1].Op != OpConst64 {
++		v_1 := v.Args[1]
++		if v_1.Op != OpConst64 {
+ 			break
+ 		}
+-		c := v.Args[1].AuxInt
++		c := v_1.AuxInt
+ 		if !((1 << 16) <= c) {
+ 			break
+ 		}
+@@ -7705,6 +7713,23 @@ func rewriteValuegeneric_OpSliceCap(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SliceCap (SliceMake _ _ (SliceLen x)))
++	// cond:
++	// result: (SliceLen x)
++	for {
++		v_0 := v.Args[0]
++		if v_0.Op != OpSliceMake {
++			break
++		}
++		v_0_2 := v_0.Args[2]
++		if v_0_2.Op != OpSliceLen {
++			break
++		}
++		x := v_0_2.Args[0]
++		v.reset(OpSliceLen)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSliceLen(v *Value, config *Config) bool {

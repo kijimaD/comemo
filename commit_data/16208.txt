@@ -9,7 +9,50 @@ Date:   Sat Apr 20 17:20:41 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8886043
-
+---
  src/pkg/go/build/deps_test.go | 2 +-
  src/pkg/sort/sort.go          | 9 ++++++---
  2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 9a715ba601..71b1bcf060 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -47,7 +47,7 @@ var pkgDeps = map[string][]string{
+ 	"math":          {"unsafe"},
+ 	"math/cmplx":    {"math"},
+ 	"math/rand":     {"L0", "math"},
+-	"sort":          {"math"},
++	"sort":          {},
+ 	"strconv":       {"L0", "unicode/utf8", "math"},
+ 	"unicode/utf16": {},
+ 	"unicode/utf8":  {},
+diff --git a/src/pkg/sort/sort.go b/src/pkg/sort/sort.go
+index e109619924..d3092e8019 100644
+--- a/src/pkg/sort/sort.go
++++ b/src/pkg/sort/sort.go
+@@ -6,8 +6,6 @@
+ // collections.
+ package sort
+ 
+-import "math"
+-
+ // A type, typically a collection, that satisfies sort.Interface can be
+ // sorted by the routines in this package.  The methods require that the
+ // elements of the collection be enumerated by an integer index.
+@@ -245,9 +243,14 @@ func (p IntSlice) Sort() { Sort(p) }
+ type Float64Slice []float64
+ 
+ func (p Float64Slice) Len() int           { return len(p) }
+-func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] || math.IsNaN(p[i]) && !math.IsNaN(p[j]) }
++func (p Float64Slice) Less(i, j int) bool { return p[i] < p[j] || isNaN(p[i]) && !isNaN(p[j]) }
+ func (p Float64Slice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+ 
++// isNaN is a copy of math.IsNaN to avoid a dependency on the math package.
++func isNaN(f float64) bool {
++	return f != f
++}
++
+ // Sort is a convenience method.
+ func (p Float64Slice) Sort() { Sort(p) }
+ 

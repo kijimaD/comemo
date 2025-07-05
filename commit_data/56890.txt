@@ -28,7 +28,7 @@ Date:   Thu May 25 11:59:50 2023 -0400
     Auto-Submit: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/internal/gover/toolchain.go           |  13 +-
  src/cmd/go/internal/gover/toolchain_test.go      |  19 ++
  src/cmd/go/internal/modload/init.go              |   2 +-
@@ -41,3 +41,909 @@ Date:   Thu May 25 11:59:50 2023 -0400
  src/cmd/go/testdata/script/mod_get_future.txt    |   2 +-
  src/cmd/go/testdata/script/mod_go_version.txt    |   4 +-
  11 files changed, 417 insertions(+), 330 deletions(-)
+
+diff --git a/src/cmd/go/internal/gover/toolchain.go b/src/cmd/go/internal/gover/toolchain.go
+index 48bc86b568..f27e313524 100644
+--- a/src/cmd/go/internal/gover/toolchain.go
++++ b/src/cmd/go/internal/gover/toolchain.go
+@@ -18,7 +18,6 @@ import (
+ // Examples:
+ //
+ //	FromToolchain("go1.2.3") == "1.2.3"
+-//	FromToolchain("go1.2.3+bigcorp") == "1.2.3"
+ //	FromToolchain("go1.2.3-bigcorp") == "1.2.3"
+ //	FromToolchain("gccgo-go1.23rc4") == "1.23rc4"
+ //	FromToolchain("invalid") == ""
+@@ -28,9 +27,11 @@ func FromToolchain(name string) string {
+ 		v = name[2:]
+ 	} else if i := strings.Index(name, "-go"); i >= 0 {
+ 		v = name[i+3:]
++	} else {
++		return ""
+ 	}
+ 	// Some builds use custom suffixes; strip them.
+-	if i := strings.IndexAny(v, " \t+-"); i >= 0 {
++	if i := strings.IndexAny(v, " \t-"); i >= 0 {
+ 		v = v[:i]
+ 	}
+ 	if !IsValid(v) {
+@@ -68,14 +69,10 @@ func (e *TooNewError) Error() string {
+ 	}
+ 	if Startup.AutoFile != "" && (Startup.AutoGoVersion != "" || Startup.AutoToolchain != "") {
+ 		explain += fmt.Sprintf("; %s sets ", base.ShortPath(Startup.AutoFile))
+-		if Startup.AutoGoVersion != "" {
+-			explain += "go " + Startup.AutoGoVersion
+-			if Startup.AutoToolchain != "" {
+-				explain += ", "
+-			}
+-		}
+ 		if Startup.AutoToolchain != "" {
+ 			explain += "toolchain " + Startup.AutoToolchain
++		} else {
++			explain += "go " + Startup.AutoGoVersion
+ 		}
+ 	}
+ 	return fmt.Sprintf("%v requires go >= %v (running go %v%v)", e.What, e.GoVersion, Local(), explain)
+diff --git a/src/cmd/go/internal/gover/toolchain_test.go b/src/cmd/go/internal/gover/toolchain_test.go
+new file mode 100644
+index 0000000000..7d05f1d0c3
+--- /dev/null
++++ b/src/cmd/go/internal/gover/toolchain_test.go
+@@ -0,0 +1,19 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gover
++
++import "testing"
++
++func TestFromToolchain(t *testing.T) { test1(t, fromToolchainTests, "FromToolchain", FromToolchain) }
++
++var fromToolchainTests = []testCase1[string, string]{
++	{"go1.2.3", "1.2.3"},
++	{"1.2.3", ""},
++	{"go1.2.3+bigcorp", ""},
++	{"go1.2.3-bigcorp", "1.2.3"},
++	{"go1.2.3-bigcorp more text", "1.2.3"},
++	{"gccgo-go1.23rc4", "1.23rc4"},
++	{"gccgo-go1.23rc4-bigdwarf", "1.23rc4"},
++}
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index db407b88a7..2e833a979a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -652,7 +652,7 @@ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
++	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "work edit" {
+ 		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(path), GoVersion: f.Go.Version})
+ 	}
+ 	return f, nil
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 77d2d7f86a..e0261d2c1f 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -80,7 +80,7 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
+ 		// Errors returned by modfile.Parse begin with file:line.
+ 		return nil, nil, fmt.Errorf("errors parsing go.mod:\n%s\n", err)
+ 	}
+-	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
++	if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 && cfg.CmdName != "mod edit" {
+ 		base.Fatalf("go: %v", &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version})
+ 	}
+ 	if f.Module == nil {
+diff --git a/src/cmd/go/internal/toolchain/toolchain.go b/src/cmd/go/internal/toolchain/toolchain.go
+index 04d5474484..3d565021e7 100644
+--- a/src/cmd/go/internal/toolchain/toolchain.go
++++ b/src/cmd/go/internal/toolchain/toolchain.go
+@@ -59,12 +59,14 @@ func Switch() {
+ 
+ 	sw := os.Getenv(gotoolchainSwitchEnv)
+ 	os.Unsetenv(gotoolchainSwitchEnv)
++	// The sw == "1" check is delayed until later so that we still fill in gover.Startup for use in errors.
+ 
+-	if !modload.WillBeEnabled() || sw == "1" {
++	if !modload.WillBeEnabled() {
+ 		return
+ 	}
+ 
+ 	gotoolchain := cfg.Getenv("GOTOOLCHAIN")
++	gover.Startup.GOTOOLCHAIN = gotoolchain
+ 	if gotoolchain == "" {
+ 		// cfg.Getenv should fall back to $GOROOT/go.env,
+ 		// so this should not happen, unless a packager
+@@ -74,7 +76,6 @@ func Switch() {
+ 		// and diagnose the problem.
+ 		return
+ 	}
+-	gover.Startup.GOTOOLCHAIN = gotoolchain
+ 
+ 	var minToolchain, minVers string
+ 	if x, y, ok := strings.Cut(gotoolchain, "+"); ok { // go1.2.3+auto
+@@ -103,11 +104,17 @@ func Switch() {
+ 				// that a non-default toolchain version is being used here.
+ 				// (Normally you can run "go version", but go install m@v ignores the
+ 				// context that "go version" works in.)
+-				fmt.Fprintf(os.Stderr, "go: using go%s for %v\n", goVers, m)
+-				gotoolchain = "go" + goVers
++				var err error
++				gotoolchain, err = NewerToolchain(context.Background(), goVers)
++				if err != nil {
++					fmt.Fprintf(os.Stderr, "go: %v\n", err)
++					gotoolchain = "go" + goVers
++				}
++				fmt.Fprintf(os.Stderr, "go: using %s for %v\n", gotoolchain, m)
+ 			}
+ 		} else {
+ 			file, goVers, toolchain := modGoToolchain()
++			gover.Startup.AutoFile = file
+ 			if toolchain == "local" {
+ 				// Local means always use the default local toolchain,
+ 				// which is already set, so nothing to do here.
+@@ -121,24 +128,31 @@ func Switch() {
+ 				// That's what people who use toolchain local want:
+ 				// only ever use the toolchain configured in the local system
+ 				// (including its environment and go env -w file).
+-			} else if toolchain != "" {
+-				// Accept toolchain only if it is >= our min.
+-				toolVers := gover.FromToolchain(toolchain)
+-				if gover.Compare(toolVers, minVers) >= 0 {
+-					gotoolchain = toolchain
+-				}
++				gover.Startup.AutoToolchain = toolchain
++				gotoolchain = "local"
+ 			} else {
++				if toolchain != "" {
++					// Accept toolchain only if it is >= our min.
++					toolVers := gover.FromToolchain(toolchain)
++					if toolVers == "" || (!strings.HasPrefix(toolchain, "go") && !strings.Contains(toolchain, "-go")) {
++						base.Fatalf("invalid toolchain %q in %s", toolchain, base.ShortPath(file))
++					}
++					if gover.Compare(toolVers, minVers) >= 0 {
++						gotoolchain = toolchain
++						minVers = toolVers
++						gover.Startup.AutoToolchain = toolchain
++					}
++				}
+ 				if gover.Compare(goVers, minVers) > 0 {
+ 					gotoolchain = "go" + goVers
++					gover.Startup.AutoGoVersion = goVers
++					gover.Startup.AutoToolchain = "" // in case we are overriding it for being too old
+ 				}
+ 			}
+-			gover.Startup.AutoFile = file
+-			gover.Startup.AutoGoVersion = goVers
+-			gover.Startup.AutoToolchain = toolchain
+ 		}
+ 	}
+ 
+-	if gotoolchain == "local" || gotoolchain == "go"+gover.Local() {
++	if sw == "1" || gotoolchain == "local" || gotoolchain == "go"+gover.Local() {
+ 		// Let the current binary handle the command.
+ 		return
+ 	}
+@@ -147,8 +161,6 @@ func Switch() {
+ 	// We want to allow things like go1.20.3 but also gccgo-go1.20.3.
+ 	// We want to disallow mistakes / bad ideas like GOTOOLCHAIN=bash,
+ 	// since we will find that in the path lookup.
+-	// gover.FromToolchain has already done this check (except for the 1)
+-	// but doing it again makes sure we don't miss it on unexpected code paths.
+ 	if !strings.HasPrefix(gotoolchain, "go1") && !strings.Contains(gotoolchain, "-go1") {
+ 		base.Fatalf("invalid GOTOOLCHAIN %q", gotoolchain)
+ 	}
+diff --git a/src/cmd/go/testdata/script/gotoolchain.txt b/src/cmd/go/testdata/script/gotoolchain.txt
+deleted file mode 100644
+index abfa5c8cc0..0000000000
+--- a/src/cmd/go/testdata/script/gotoolchain.txt
++++ /dev/null
+@@ -1,301 +0,0 @@
+-# Plain go version
+-go version
+-! stdout go1\.999
+-
+-# Default should be auto
+-env GOTOOLCHAIN=
+-go env GOTOOLCHAIN
+-stdout auto
+-go env
+-stdout GOTOOLCHAIN=.?auto.?
+-
+-# GOTOOLCHAIN from network, does not exist
+-env GOTOOLCHAIN=go1.9999x
+-! go version
+-stderr 'go: download go1.9999x for .*: toolchain not available'
+-
+-[short] skip
+-
+-env GOTOOLCHAIN=
+-mkdir $WORK/bin
+-[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
+-[GOOS:plan9] env path=$WORK/bin${:}$path
+-go build -o $WORK/bin/ ./go1.999testpath.go  # adds .exe extension implicitly on Windows
+-cp $WORK/bin/go1.999testpath$GOEXE $WORK/bin/custom-go1.999.0$GOEXE
+-cp $WORK/bin/go1.999testpath$GOEXE $WORK/bin/go1.999.0-custom$GOEXE
+-
+-# GOTOOLCHAIN from PATH
+-env GOTOOLCHAIN=go1.999testpath
+-go version
+-stdout 'go1.999testpath here!'
+-
+-# GOTOOLCHAIN from PATH, with forced subprocess
+-env GOTOOLCHAIN=go1.999testpath
+-env GODEBUG=gotoolchainexec=0
+-go version
+-stdout 'go1.999testpath here!'
+-env GODEBUG=
+-
+-# GOTOOLCHAIN from network
+-[!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
+-env GOTOOLCHAIN=go1.999testmod
+-go version
+-stderr 'go: downloading go1.999testmod \(.*/.*\)'
+-
+-# GOTOOLCHAIN=auto
+-env GOTOOLCHAIN=auto
+-env TESTGO_VERSION=go1.100
+-
+-# toolchain line in go.mod
+-cp go119toolchain1999 go.mod
+-go version
+-stdout go1.999
+-
+-# custom toolchain line in go.mod
+-env TESTGO_VERSION=go1.999
+-go version
+-stdout testpath # go1.999 < go1.999testpath
+-
+-env TESTGO_VERSION=go1.999.0
+-go version
+-! stdout testpath # go1.999testpath < go1.999.0
+-
+-cp go119customtoolchain1999 go.mod
+-go version
+-stdout go1.999testpath # custom-go1.999.0 >= go1.999.0
+-
+-cp go119customtoolchain1999b go.mod
+-go version
+-stdout go1.999testpath # go1.999.0-custom >= go1.999.0
+-
+-env TESTGO_VERSION=go1.100
+-
+-# toolchain local in go.mod
+-cp go1999toolchainlocal go.mod
+-! go build
+-stderr '^go: go.mod requires go >= 1.999 \(running go 1.100; go.mod sets go 1.999, toolchain local\)$'
+-
+-# toolchain local in go.work
+-cp empty go.mod
+-cp go1999toolchainlocal go.work
+-! go build
+-stderr '^go: go.work requires go >= 1.999 \(running go 1.100; go.work sets go 1.999, toolchain local\)$'
+-rm go.work
+-
+-# toolchain line in go.work
+-cp empty go.mod
+-cp go119toolchain1999 go.work
+-go version
+-stdout go1.999
+-rm go.work
+-
+-# go version in go.mod
+-cp go1999 go.mod
+-go version
+-stdout go1.999
+-
+-# go version in go.work
+-cp empty go.mod
+-cp go1999 go.work
+-go version
+-stdout go1.999
+-rm go.work
+-
+-# GOTOOLCHAIN=auto falls back to local toolchain if newer than go or toolchain line
+-env TESTGO_VERSION=go1.1000
+-
+-# toolchain line in go.mod
+-cp go119toolchain1999 go.mod
+-go version
+-stdout go1.1000
+-
+-# toolchain line in go.work
+-cp empty go.mod
+-cp go119toolchain1999 go.work
+-go version
+-stdout go1.1000
+-rm go.work
+-
+-# go version in go.mod
+-cp go1999 go.mod
+-go version
+-stdout go1.1000
+-
+-# go version in go.work
+-cp empty go.mod
+-cp go1999 go.work
+-go version
+-stdout go1.1000
+-rm go.work
+-
+-# GOTOOLCHAIN=auto uses different toolchain when instructed and newer
+-env TESTGO_VERSION=go1.100
+-
+-# toolchain line in go.mod
+-cp go119toolchain1999 go.mod
+-go version
+-stdout go1.999
+-
+-# toolchain line in go.work
+-cp empty go.mod
+-cp go119toolchain1999 go.work
+-go version
+-stdout go1.999
+-rm go.work
+-
+-# go version in go.mod
+-cp go1999 go.mod
+-go version
+-stdout go1.999
+-
+-# go version in go.work
+-cp empty go.mod
+-cp go1999 go.work
+-go version
+-stdout go1.999
+-rm go.work
+-
+-# go1.999 should handle go1.998 without a download
+-env TESTGO_VERSION=go1.999
+-cp go1998 go.mod
+-go version
+-! stdout go1.998 # local toolchain instead
+-
+-# go1.998 should handle go1.998 without a download too
+-env TESTGO_VERSION=go1.999
+-go version
+-stdout go1.999 # local toolchain instead
+-
+-# go1.998+foo should handle go1.998 without a download too
+-env TESTGO_VERSION=go1.998+foo
+-go version
+-stdout 'go1.998\+foo' # local toolchain instead
+-
+-# go1.998-foo should handle go1.998 without a download too
+-env TESTGO_VERSION=go1.998-foo
+-go version
+-stdout go1.998-foo # local toolchain instead
+-
+-# 'go1.998 foo' should handle go1.998 without a download too
+-env TESTGO_VERSION='go1.998 foo'
+-go version
+-stdout 'go1.998 foo' # local toolchain instead
+-
+-# go1.997-foo should download go1.998
+-env TESTGO_VERSION=go1.997-foo
+-! go version
+-stderr go1.998
+-
+-# GOTOOLCHAIN=go1.1000+auto falls back to go1.1000 if newer than go line
+-env TESTGO_VERSION=go1.1
+-env GOTOOLCHAIN=go1.1000+auto
+-
+-# toolchain line in go.mod
+-cp go119toolchain1999 go.mod
+-! go version
+-stderr go1.1000
+-
+-# toolchain line in go.work
+-cp empty go.mod
+-cp go119toolchain1999 go.work
+-! go version
+-stderr go1.1000
+-rm go.work
+-
+-# go version in go.mod
+-cp go1999 go.mod
+-! go version
+-stderr go1.1000
+-
+-# go version in go.work
+-cp empty go.mod
+-cp go1999 go.work
+-! go version
+-stderr go1.1000
+-rm go.work
+-
+-# GOTOOLCHAIN=path refuses to download
+-env GOTOOLCHAIN=path
+-env TESTGO_VERSION=go1.19
+-
+-cp go1999 go.mod
+-go version
+-stdout go1.999
+-
+-cp go1999mod go.mod
+-! go version
+-stderr '^go: cannot find "go1.999mod" in PATH$'
+-
+-# go install m@v should use go version in m@v's go.mod
+-env GOTOOLCHAIN=path
+-env TESTGO_VERSION=go1.19
+-cp go1999 go.mod
+-! go install rsc.io/fortune/nonexist@v0.0.1
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-
+-# go install m@v should handle queries
+-! go install rsc.io/fortune/nonexist@v0.0
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-
+-# go run m@v should use go version in m@v's go.mod
+-env GOTOOLCHAIN=path
+-env TESTGO_VERSION=go1.19
+-cp go1999 go.mod
+-! go run -unknownflag=here rsc.io/fortune/nonexist@v0.0.1 args here
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-go run -unknownflag here rsc.io/fortune/nonexist@v0.0.1
+-stdout 'go1.999testpath here!'
+-
+-# go run m@v should handle known flags correctly
+-! go run -gcflags foo rsc.io/fortune/nonexist@v0.0.1 args here
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-! go run -x rsc.io/fortune/nonexist@v0.0.1 args here
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-
+-# go run m@v should handle queries
+-! go run rsc.io/fortune/nonexist@v0
+-stderr '^go: cannot find "go1.21rc999" in PATH$'
+-
+-# go install m@v should work if not upgrading
+-go install rsc.io/fortune/nonexist@v1
+-stderr '^go: downloading rsc.io/fortune v1.0.0$'
+-stdout '^go1.999testpath here!'
+-
+--- empty --
+-
+--- go1999 --
+-go 1.999testpath
+-
+--- go1998 --
+-go 1.998
+-
+--- go1999mod --
+-go 1.999mod
+-
+--- go119 ---
+-go 1.19
+-
+--- go119toolchain1999 --
+-go 1.19
+-toolchain go1.999testpath
+-
+--- go119customtoolchain1999 --
+-go 1.19
+-toolchain custom-go1.999.0
+-
+--- go119customtoolchain1999b --
+-go 1.19
+-toolchain go1.999.0-custom
+-
+--- go1999toolchainlocal --
+-go 1.999
+-toolchain local
+-
+--- go1.999testpath.go --
+-package main
+-
+-import "os"
+-
+-func main() {
+-	os.Stdout.WriteString("go1.999testpath here!\n")
+-}
+diff --git a/src/cmd/go/testdata/script/gotoolchain_local.txt b/src/cmd/go/testdata/script/gotoolchain_local.txt
+new file mode 100644
+index 0000000000..a7e2b36cc2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_local.txt
+@@ -0,0 +1,267 @@
++# This test uses the fake toolchain switch support in cmd/go/internal/toolchain.Switch
++# to exercise all the version selection logic without needing actual toolchains.
++# See gotoolchain_net.txt and gotoolchain_path.txt for tests of network and PATH toolchains.
++
++env TESTGO_VERSION=go1.500
++env TESTGO_VERSION_SWITCH=1
++
++# Default setting should be auto
++env GOTOOLCHAIN=
++go env GOTOOLCHAIN
++stdout auto
++go env
++stdout GOTOOLCHAIN=.?auto.?  # maybe quoted
++
++# GOTOOLCHAIN=auto runs default toolchain without a go.mod or go.work
++go version
++stdout go1.500
++
++# GOTOOLCHAIN=path runs default toolchain without a go.mod or go.work
++env GOTOOLCHAIN=path
++go version
++stdout go1.500
++
++# GOTOOLCHAIN=asdf is a syntax error
++env GOTOOLCHAIN=asdf
++! go version
++stderr '^go: invalid GOTOOLCHAIN "asdf"$'
++
++# GOTOOLCHAIN=version is used directly.
++env GOTOOLCHAIN=go1.600
++go version
++stdout go1.600
++
++env GOTOOLCHAIN=go1.400
++go version
++stdout go1.400
++
++# GOTOOLCHAIN=version+auto sets a minimum.
++env GOTOOLCHAIN=go1.600+auto
++go version
++stdout go1.600
++
++env GOTOOLCHAIN=go1.400+auto
++go version
++stdout go1.400
++
++# GOTOOLCHAIN=version+path sets a minimum too.
++env GOTOOLCHAIN=go1.600+path
++go version
++stdout go1.600
++
++env GOTOOLCHAIN=go1.400+path
++go version
++stdout go1.400
++
++# Create a go.mod file and test interactions with auto and path.
++
++# GOTOOLCHAIN=auto uses go line if newer than local toolchain.
++env GOTOOLCHAIN=auto
++go mod init m
++go mod edit -go=1.700 -toolchain=none
++go version
++stdout 1.700
++
++go mod edit -go=1.300 -toolchain=none
++go version
++stdout 1.500 # local toolchain is newer
++
++go mod edit -go=1.700 -toolchain=go1.300
++go version
++stdout go1.700 # toolchain too old, ignored
++
++go mod edit -go=1.300 -toolchain=local
++go version
++stdout go1.500
++
++go mod edit -go=1.700 -toolchain=local
++go version
++stdout go1.500 # toolchain local is like GOTOOLCHAIN=local and wins
++! go build
++stderr '^go: go.mod requires go >= 1.700 \(running go 1.500; go.mod sets toolchain local\)'
++
++# GOTOOLCHAIN=path does the same.
++env GOTOOLCHAIN=path
++go mod edit -go=1.700 -toolchain=none
++go version
++stdout 1.700
++
++go mod edit -go=1.300 -toolchain=none
++go version
++stdout 1.500 # local toolchain is newer
++
++go mod edit -go=1.700 -toolchain=go1.300
++go version
++stdout go1.700 # toolchain too old, ignored
++
++go mod edit -go=1.300 -toolchain=local
++go version
++stdout go1.500
++
++go mod edit -go=1.700 -toolchain=local
++go version
++stdout go1.500 # toolchain applies even if older than go line
++! go build
++stderr '^go: go.mod requires go >= 1.700 \(running go 1.500; GOTOOLCHAIN=path; go.mod sets toolchain local\)'
++
++# GOTOOLCHAIN names can have prefix- or -suffix
++env GOTOOLCHAIN=go1.800-bigcorp
++go version
++stdout go1.800-bigcorp
++
++env GOTOOLCHAIN=bigcorp-go1.100
++go version
++stdout bigcorp-go1.100
++
++env GOTOOLCHAIN=auto
++go mod edit -go=1.999 -toolchain=go1.800-bigcorp
++go version
++stdout go1.999
++
++go mod edit -go=1.777 -toolchain=go1.800-bigcorp
++go version
++stdout go1.800-bigcorp
++
++go mod edit -go=1.999 -toolchain=bigcorp-go1.800
++go version
++stdout go1.999
++
++go mod edit -go=1.777 -toolchain=bigcorp-go1.800
++go version
++stdout bigcorp-go1.800
++
++# go.work takes priority over go.mod
++go mod edit -go=1.700 -toolchain=go1.999-wrong
++go work init
++go work edit -go=1.400 -toolchain=go1.600-right
++go version
++stdout go1.600-right
++
++go work edit -go=1.400 -toolchain=local
++go version
++stdout go1.500
++
++# go.work misconfiguration does not break go work edit
++# ('go 1.600 / toolchain local' forces use of 1.500 which can't normally load that go.work; allow work edit to fix it.)
++go work edit -go=1.600 -toolchain=local
++go version
++stdout go1.500
++
++go work edit -toolchain=none
++go version
++stdout go1.600
++
++rm go.work
++
++# go.mod misconfiguration does not break go mod edit
++go mod edit -go=1.600 -toolchain=local
++go version
++stdout go1.500
++
++go mod edit -toolchain=none
++go version
++stdout go1.600
++
++# toolchain built with a custom version should know how it compares to others
++
++env TESTGO_VERSION=go1.500-bigcorp
++go mod edit -go=1.499 -toolchain=none
++go version
++stdout go1.500-bigcorp
++
++go mod edit -go=1.500 -toolchain=none
++go version
++stdout go1.500-bigcorp
++
++go mod edit -go=1.501 -toolchain=none
++go version
++stdout go1.501
++
++env TESTGO_VERSION=bigcorp-go1.500
++go mod edit -go=1.499 -toolchain=none
++go version
++stdout bigcorp-go1.500
++
++go mod edit -go=1.500 -toolchain=none
++go version
++stdout bigcorp-go1.500
++
++go mod edit -go=1.501 -toolchain=none
++go version
++stdout go1.501
++
++env TESTGO_VERSION='go1.500 (bigcorp)'
++go mod edit -go=1.499 -toolchain=none
++go version
++stdout 'go1.500 \(bigcorp\)'
++
++go mod edit -go=1.500 -toolchain=none
++go version
++stdout 'go1.500 \(bigcorp\)'
++
++go mod edit -go=1.501 -toolchain=none
++go version
++stdout go1.501
++
++# go install m@v and go run m@v should ignore go.mod and use m@v
++env TESTGO_VERSION=go1.2.3
++go mod edit -go=1.999 -toolchain=go1.998
++
++! go install rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++! go run rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++# go install should handle unknown flags to find m@v
++! go install -unknownflag rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^flag provided but not defined: -unknownflag'
++
++! go install -unknownflag arg rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^flag provided but not defined: -unknownflag'
++
++# go run should handle unknown boolean flags and flags with =arg
++! go run -unknownflag rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^flag provided but not defined: -unknownflag'
++
++! go run -unknown=flag rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^flag provided but not defined: -unknown'
++
++# go run assumes unknown flags don't take arguments
++! go run -unknownflag rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^flag provided but not defined: -unknownflag'
++
++! go run -unknownflag oops rsc.io/fortune/nonexist@v0.0.1  # lost parse, cannot find m@v
++! stderr go1.22.9
++! stderr '^go: using'
++stderr '^flag provided but not defined: -unknownflag'
++
++# go install m@v should handle queries
++! go install rsc.io/fortune/nonexist@v0.0
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^go: rsc.io/fortune/nonexist@v0.0: module rsc.io/fortune@v0.0 found \(v0.0.1\), but does not contain package rsc.io/fortune/nonexist'
++
++# go run m@v should handle queries
++! go install rsc.io/fortune/nonexist@v0
++stderr '^go: using go1.22.9 for rsc.io/fortune@v0.0.1'
++stderr '^go: rsc.io/fortune/nonexist@v0: module rsc.io/fortune@v0 found \(v0.0.1\), but does not contain package rsc.io/fortune/nonexist'
++
++# go install m@v should use local toolchain if not upgrading
++! go install rsc.io/fortune/nonexist@v1
++! stderr go1.22.9
++! stderr '^go: using'
++stderr '^go: downloading rsc.io/fortune v1.0.0$'
++stderr '^go: rsc.io/fortune/nonexist@v1: module rsc.io/fortune@v1 found \(v1.0.0\), but does not contain package rsc.io/fortune/nonexist'
++
++# go run m@v should use local toolchain if not upgrading
++! go run rsc.io/fortune/nonexist@v1
++! stderr go1.22.9
++! stderr '^go: using'
++stderr '^go: rsc.io/fortune/nonexist@v1: module rsc.io/fortune@v1 found \(v1.0.0\), but does not contain package rsc.io/fortune/nonexist'
+diff --git a/src/cmd/go/testdata/script/gotoolchain_net.txt b/src/cmd/go/testdata/script/gotoolchain_net.txt
+new file mode 100644
+index 0000000000..7d92b72315
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_net.txt
+@@ -0,0 +1,29 @@
++# This test only checks that basic network lookups work.
++# The full test of toolchain version selection is in gotoolchain.txt.
++
++[short] skip
++
++env TESTGO_VERSION=go1.21actual
++
++# GOTOOLCHAIN from network, does not exist
++env GOTOOLCHAIN=go1.9999x
++! go version
++stderr 'go: download go1.9999x for .*: toolchain not available'
++
++# GOTOOLCHAIN from network
++[!exec:/bin/sh] stop 'the fake proxy serves shell scripts instead of binaries'
++env GOTOOLCHAIN=go1.999testmod
++go version
++stderr 'go: downloading go1.999testmod \(.*/.*\)'
++
++# Test a real GOTOOLCHAIN
++[!net:golang.org] skip
++[!GOOS:darwin] [!GOOS:windows] [!GOOS:linux] skip
++[!GOARCH:amd64] [!GOARCH:arm64] skip
++
++env GOPROXY=
++env GOSUMDB=
++env GOTOOLCHAIN=go1.20.1
++go version
++stderr '^go: downloading go1.20.1 '
++stdout go1.20.1
+diff --git a/src/cmd/go/testdata/script/gotoolchain_path.txt b/src/cmd/go/testdata/script/gotoolchain_path.txt
+new file mode 100644
+index 0000000000..f0e7ab9123
+--- /dev/null
++++ b/src/cmd/go/testdata/script/gotoolchain_path.txt
+@@ -0,0 +1,64 @@
++# This test only checks that basic PATH lookups work.
++# The full test of toolchain version selection is in gotoolchain.txt.
++
++[short] skip
++
++env TESTGO_VERSION=go1.21pre3
++
++# Compile a fake toolchain to put in the path under various names.
++env GOTOOLCHAIN=
++mkdir $WORK/bin
++[!GOOS:plan9] env PATH=$WORK/bin${:}$PATH
++[GOOS:plan9] env path=$WORK/bin${:}$path
++go build -o $WORK/bin/ ./fakego.go  # adds .exe extension implicitly on Windows
++cp $WORK/bin/fakego$GOEXE $WORK/bin/go1.50.0$GOEXE
++
++go version
++stdout go1.21pre3
++
++# GOTOOLCHAIN=go1.50.0
++env GOTOOLCHAIN=go1.50.0
++go version
++stdout 'running go1.50.0 from PATH'
++
++# GOTOOLCHAIN=path with toolchain line
++env GOTOOLCHAIN=path
++go mod init m
++go mod edit -toolchain=go1.50.0
++go version
++stdout 'running go1.50.0 from PATH'
++
++# GOTOOLCHAIN=path with go line
++env GOTOOLCHAIN=path
++go mod edit -toolchain=none -go=go1.50.0
++go version
++stdout 'running go1.50.0 from PATH'
++
++# GOTOOLCHAIN=auto with toolchain line
++env GOTOOLCHAIN=auto
++go mod edit -toolchain=go1.50.0 -go=1.21
++go version
++stdout 'running go1.50.0 from PATH'
++
++# GOTOOLCHAIN=auto with go line
++env GOTOOLCHAIN=auto
++go mod edit -toolchain=none -go=go1.50.0
++go version
++stdout 'running go1.50.0 from PATH'
++
++-- fakego.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"path/filepath"
++	"strings"
++)
++
++func main() {
++	exe, _ := os.Executable()
++	name := filepath.Base(exe)
++	name = strings.TrimSuffix(name, ".exe")
++	fmt.Printf("running %s from PATH\n", name)
++}
+diff --git a/src/cmd/go/testdata/script/mod_get_future.txt b/src/cmd/go/testdata/script/mod_get_future.txt
+index 6f2985af86..72c0b97804 100644
+--- a/src/cmd/go/testdata/script/mod_get_future.txt
++++ b/src/cmd/go/testdata/script/mod_get_future.txt
+@@ -1,6 +1,6 @@
+ env TESTGO_VERSION=go1.21
+ ! go mod download rsc.io/future@v1.0.0
+-stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21; go.mod sets go 1.21\)$'
++stderr '^go: rsc.io/future@v1.0.0 requires go >= 1.999 \(running go 1.21\)$'
+ 
+ -- go.mod --
+ module m
+diff --git a/src/cmd/go/testdata/script/mod_go_version.txt b/src/cmd/go/testdata/script/mod_go_version.txt
+index 4e6baf89f1..b5350fc3e1 100644
+--- a/src/cmd/go/testdata/script/mod_go_version.txt
++++ b/src/cmd/go/testdata/script/mod_go_version.txt
+@@ -4,9 +4,9 @@ env GO111MODULE=on
+ env TESTGO_VERSION=go1.21
+ 
+ ! go list
+-stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
++stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21\)$'
+ ! go build sub
+-stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21; go.mod sets go 1.1\)$'
++stderr -count=1 '^go: sub@v1.0.0: sub requires go >= 1.999 \(running go 1.21\)$'
+ 
+ -- go.mod --
+ module m

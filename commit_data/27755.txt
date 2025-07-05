@@ -28,7 +28,7 @@ Date:   Mon Apr 11 21:51:29 2016 +0200
     Run-TryBot: Alexandru Moșoi <alexandru@mosoi.ro>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/compile.go       |  5 +++++
  src/cmd/compile/internal/ssa/dom.go           |  6 ++++++
  src/cmd/compile/internal/ssa/func.go          |  3 +++
@@ -37,3 +37,259 @@ Date:   Mon Apr 11 21:51:29 2016 +0200
  src/cmd/compile/internal/ssa/nilcheck_test.go | 10 ++++++++++
  src/cmd/compile/internal/ssa/prove.go         |  9 +++------
  7 files changed, 36 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/compile.go b/src/cmd/compile/internal/ssa/compile.go
+index b4215f119e..f4f0d8cab2 100644
+--- a/src/cmd/compile/internal/ssa/compile.go
++++ b/src/cmd/compile/internal/ssa/compile.go
+@@ -234,6 +234,7 @@ var passes = [...]pass{
+ 	{name: "zero arg cse", fn: zcse, required: true},     // required to merge OpSB values
+ 	{name: "opt deadcode", fn: deadcode, required: true}, // remove any blocks orphaned during opt
+ 	{name: "generic cse", fn: cse},
++	{name: "generic domtree", fn: domTree},
+ 	{name: "phiopt", fn: phiopt},
+ 	{name: "nilcheckelim", fn: nilcheckelim},
+ 	{name: "prove", fn: prove},
+@@ -288,6 +289,10 @@ var passOrder = [...]constraint{
+ 	{"opt", "nilcheckelim"},
+ 	// tighten should happen before lowering to avoid splitting naturally paired instructions such as CMP/SET
+ 	{"tighten", "lower"},
++	// nilcheckelim, prove and loopbce share idom.
++	{"generic domtree", "nilcheckelim"},
++	{"generic domtree", "prove"},
++	{"generic domtree", "loopbce"},
+ 	// tighten will be most effective when as many values have been removed as possible
+ 	{"generic deadcode", "tighten"},
+ 	{"generic cse", "tighten"},
+diff --git a/src/cmd/compile/internal/ssa/dom.go b/src/cmd/compile/internal/ssa/dom.go
+index 0fffcdc2af..fedaf602e4 100644
+--- a/src/cmd/compile/internal/ssa/dom.go
++++ b/src/cmd/compile/internal/ssa/dom.go
+@@ -364,3 +364,9 @@ func intersect(b, c *Block, postnum []int, idom []*Block) *Block {
+ 	}
+ 	return b
+ }
++
++// build immediate dominators.
++func domTree(f *Func) {
++	f.idom = dominators(f)
++	f.sdom = newSparseTree(f, f.idom)
++}
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 8dd75f6093..da44f26106 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -36,6 +36,9 @@ type Func struct {
+ 	freeValues *Value // free Values linked by argstorage[0].  All other fields except ID are 0/nil.
+ 	freeBlocks *Block // free Blocks linked by succstorage[0].  All other fields except ID are 0/nil.
+ 
++	idom []*Block   // precomputed immediate dominators
++	sdom sparseTree // precomputed dominator tree
++
+ 	constants map[int64][]*Value // constants cache, keyed by constant value; users must check value's Op and Type
+ }
+ 
+diff --git a/src/cmd/compile/internal/ssa/loopbce.go b/src/cmd/compile/internal/ssa/loopbce.go
+index c937ead1b2..9bd2d3f0de 100644
+--- a/src/cmd/compile/internal/ssa/loopbce.go
++++ b/src/cmd/compile/internal/ssa/loopbce.go
+@@ -31,7 +31,7 @@ type indVar struct {
+ //
+ //
+ // TODO: handle 32 bit operations
+-func findIndVar(f *Func, sdom sparseTree) []indVar {
++func findIndVar(f *Func) []indVar {
+ 	var iv []indVar
+ 
+ nextb:
+@@ -110,7 +110,7 @@ nextb:
+ 
+ 		// Second condition: b.Succs[entry] dominates nxt so that
+ 		// nxt is computed when inc < max, meaning nxt <= max.
+-		if !sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
++		if !f.sdom.isAncestorEq(b.Succs[entry], nxt.Block) {
+ 			// inc+ind can only be reached through the branch that enters the loop.
+ 			continue
+ 		}
+@@ -160,20 +160,18 @@ nextb:
+ 
+ // loopbce performs loop based bounds check elimination.
+ func loopbce(f *Func) {
+-	idom := dominators(f)
+-	sdom := newSparseTree(f, idom)
+-	ivList := findIndVar(f, sdom)
++	ivList := findIndVar(f)
+ 
+ 	m := make(map[*Value]indVar)
+ 	for _, iv := range ivList {
+ 		m[iv.ind] = iv
+ 	}
+ 
+-	removeBoundsChecks(f, sdom, m)
++	removeBoundsChecks(f, m)
+ }
+ 
+ // removesBoundsChecks remove IsInBounds and IsSliceInBounds based on the induction variables.
+-func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
++func removeBoundsChecks(f *Func, m map[*Value]indVar) {
+ 	for _, b := range f.Blocks {
+ 		if b.Kind != BlockIf {
+ 			continue
+@@ -202,7 +200,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
+ 				goto skip1
+ 			}
+ 
+-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
++			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+ 				if v.Args[1] == iv.max {
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "Found redundant %s", v.Op)
+@@ -229,7 +227,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
+ 				goto skip2
+ 			}
+ 
+-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
++			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isNonNegative(iv.min) {
+ 				if v.Args[1].Op == OpSliceCap && iv.max.Op == OpSliceLen && v.Args[1].Args[0] == iv.max.Args[0] {
+ 					if f.pass.debug > 0 {
+ 						f.Config.Warnl(b.Line, "Found redundant %s (len promoted to cap)", v.Op)
+@@ -250,7 +248,7 @@ func removeBoundsChecks(f *Func, sdom sparseTree, m map[*Value]indVar) {
+ 			}
+ 
+ 			// ind + add >= 0 <-> min + add >= 0 <-> min >= -add
+-			if iv, has := m[ind]; has && sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
++			if iv, has := m[ind]; has && f.sdom.isAncestorEq(iv.entry, b) && isGreaterOrEqualThan(iv.min, -add) {
+ 				if !v.Args[1].isGenericIntConst() || !iv.max.isGenericIntConst() {
+ 					goto skip3
+ 				}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index 881e3b2eff..753e48aad5 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -11,7 +11,7 @@ func nilcheckelim(f *Func) {
+ 	// A nil check is redundant if the same nil check was successful in a
+ 	// dominating block. The efficacy of this pass depends heavily on the
+ 	// efficacy of the cse pass.
+-	idom := dominators(f)
++	idom := f.idom
+ 	domTree := make([][]*Block, f.NumBlocks())
+ 
+ 	// Create a block ID -> [dominees] mapping
+diff --git a/src/cmd/compile/internal/ssa/nilcheck_test.go b/src/cmd/compile/internal/ssa/nilcheck_test.go
+index d1f38b6951..c1c8f94767 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck_test.go
++++ b/src/cmd/compile/internal/ssa/nilcheck_test.go
+@@ -49,6 +49,7 @@ func benchmarkNilCheckDeep(b *testing.B, depth int) {
+ 	b.ReportAllocs()
+ 
+ 	for i := 0; i < b.N; i++ {
++		domTree(fun.f)
+ 		nilcheckelim(fun.f)
+ 	}
+ }
+@@ -83,6 +84,7 @@ func TestNilcheckSimple(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -120,6 +122,7 @@ func TestNilcheckDomOrder(t *testing.T) {
+ 			Goto("exit")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -153,6 +156,7 @@ func TestNilcheckAddr(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -187,6 +191,7 @@ func TestNilcheckAddPtr(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -231,6 +236,7 @@ func TestNilcheckPhi(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -272,6 +278,7 @@ func TestNilcheckKeepRemove(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -319,6 +326,7 @@ func TestNilcheckInFalseBranch(t *testing.T) {
+ 			Exit("mem")))
+ 
+ 	CheckFunc(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -370,6 +378,7 @@ func TestNilcheckUser(t *testing.T) {
+ 	CheckFunc(fun.f)
+ 	// we need the opt here to rewrite the user nilcheck
+ 	opt(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+@@ -414,6 +423,7 @@ func TestNilcheckBug(t *testing.T) {
+ 	CheckFunc(fun.f)
+ 	// we need the opt here to rewrite the user nilcheck
+ 	opt(fun.f)
++	domTree(fun.f)
+ 	nilcheckelim(fun.f)
+ 
+ 	// clean up the removed nil check
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index a12a996263..f4a10b508a 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -445,9 +445,6 @@ var (
+ // else branch of the first comparison is executed, we already know that i < len(a).
+ // The code for the second panic can be removed.
+ func prove(f *Func) {
+-	idom := dominators(f)
+-	sdom := newSparseTree(f, idom)
+-
+ 	// current node state
+ 	type walkState int
+ 	const (
+@@ -471,8 +468,8 @@ func prove(f *Func) {
+ 	for len(work) > 0 {
+ 		node := work[len(work)-1]
+ 		work = work[:len(work)-1]
+-		parent := idom[node.block.ID]
+-		branch := getBranch(sdom, parent, node.block)
++		parent := f.idom[node.block.ID]
++		branch := getBranch(f.sdom, parent, node.block)
+ 
+ 		switch node.state {
+ 		case descend:
+@@ -491,7 +488,7 @@ func prove(f *Func) {
+ 				block: node.block,
+ 				state: simplify,
+ 			})
+-			for s := sdom.Child(node.block); s != nil; s = sdom.Sibling(s) {
++			for s := f.sdom.Child(node.block); s != nil; s = f.sdom.Sibling(s) {
+ 				work = append(work, bp{
+ 					block: s,
+ 					state: descend,

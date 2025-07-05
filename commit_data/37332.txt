@@ -9,6 +9,20 @@ Date:   Wed Jul 18 16:26:13 2018 -0400
     Change-Id: I305da891a360596fff89b10bc6de3090289b5396
     Reviewed-on: https://go-review.googlesource.com/124815
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/go1.11.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go1.11.html b/doc/go1.11.html
+index 41853ec3a6..20f8c3f8e5 100644
+--- a/doc/go1.11.html
++++ b/doc/go1.11.html
+@@ -309,7 +309,7 @@ func f(v interface{}) {
+   in execution traces and create groups of related goroutines.
+   The <code>go</code>&nbsp;<code>tool</code>&nbsp;<code>trace</code>
+   command visualizes this information in the trace view and the new
+-  user task/span analysis page.
++  user task/region analysis page.
+ </p>
+ 
+ <h2 id="runtime">Runtime</h2>

@@ -26,6 +26,27 @@ Date:   Thu Sep 7 13:30:43 2017 +0300
     Run-TryBot: Iskander Sharipov <iskander.sharipov@intel.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 760d8db475..f636d312d4 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -392,13 +392,13 @@ var ycmpl = []ytab{
+ 
+ var yshb = []ytab{
+ 	{Yi1, Ynone, Ymb, Zo_m, 2},
+-	{Yi32, Ynone, Ymb, Zibo_m, 2},
++	{Yu8, Ynone, Ymb, Zibo_m, 2},
+ 	{Ycx, Ynone, Ymb, Zo_m, 2},
+ }
+ 
+ var yshl = []ytab{
+ 	{Yi1, Ynone, Yml, Zo_m, 2},
+-	{Yi32, Ynone, Yml, Zibo_m, 2},
++	{Yu8, Ynone, Yml, Zibo_m, 2},
+ 	{Ycl, Ynone, Yml, Zo_m, 2},
+ 	{Ycx, Ynone, Yml, Zo_m, 2},
+ }

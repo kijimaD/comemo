@@ -30,7 +30,7 @@ Date:   Wed Jul 29 20:25:05 2020 +0000
     TryBot-Result: Go Bot <gobot@golang.org>
     Trust: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/export_test.go |  4 +--
  src/runtime/heapdump.go    | 14 ++++----
  src/runtime/malloc.go      | 10 +++---
@@ -49,3 +49,677 @@ Date:   Wed Jul 29 20:25:05 2020 +0000
  src/runtime/mstats.go      | 82 +++++++++++++++++-----------------------------
  src/runtime/os_darwin.go   |  3 +-
  17 files changed, 109 insertions(+), 130 deletions(-)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 47cbc286f6..cb753ee819 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -820,7 +820,7 @@ type AddrRanges struct {
+ // Add.
+ func NewAddrRanges() AddrRanges {
+ 	r := addrRanges{}
+-	r.init(new(uint64))
++	r.init(new(sysMemStat))
+ 	return AddrRanges{r, true}
+ }
+ 
+@@ -844,7 +844,7 @@ func MakeAddrRanges(a ...AddrRange) AddrRanges {
+ 	return AddrRanges{addrRanges{
+ 		ranges:     ranges,
+ 		totalBytes: total,
+-		sysStat:    new(uint64),
++		sysStat:    new(sysMemStat),
+ 	}, false}
+ }
+ 
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index 4c35309211..495ecc5164 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -548,20 +548,20 @@ func dumpmemstats() {
+ 	dumpint(memstats.nmalloc)
+ 	dumpint(memstats.nfree)
+ 	dumpint(memstats.heap_alloc)
+-	dumpint(memstats.heap_sys)
++	dumpint(memstats.heap_sys.load())
+ 	dumpint(memstats.heap_idle)
+ 	dumpint(memstats.heap_inuse)
+ 	dumpint(memstats.heap_released)
+ 	dumpint(memstats.heap_objects)
+ 	dumpint(memstats.stacks_inuse)
+-	dumpint(memstats.stacks_sys)
++	dumpint(memstats.stacks_sys.load())
+ 	dumpint(memstats.mspan_inuse)
+-	dumpint(memstats.mspan_sys)
++	dumpint(memstats.mspan_sys.load())
+ 	dumpint(memstats.mcache_inuse)
+-	dumpint(memstats.mcache_sys)
+-	dumpint(memstats.buckhash_sys)
+-	dumpint(memstats.gc_sys)
+-	dumpint(memstats.other_sys)
++	dumpint(memstats.mcache_sys.load())
++	dumpint(memstats.buckhash_sys.load())
++	dumpint(memstats.gc_sys.load())
++	dumpint(memstats.other_sys.load())
+ 	dumpint(memstats.next_gc)
+ 	dumpint(memstats.last_gc_unix)
+ 	dumpint(memstats.pause_total_ns)
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0f48d7f68e..27d678d917 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1313,7 +1313,7 @@ var persistentChunks *notInHeap
+ // The returned memory will be zeroed.
+ //
+ // Consider marking persistentalloc'd types go:notinheap.
+-func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
++func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	var p *notInHeap
+ 	systemstack(func() {
+ 		p = persistentalloc1(size, align, sysStat)
+@@ -1324,7 +1324,7 @@ func persistentalloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
+ // Must run on system stack because stack growth can (re)invoke it.
+ // See issue 9174.
+ //go:systemstack
+-func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
++func persistentalloc1(size, align uintptr, sysStat *sysMemStat) *notInHeap {
+ 	const (
+ 		maxBlock = 64 << 10 // VM reservation granularity is 64K on windows
+ 	)
+@@ -1383,8 +1383,8 @@ func persistentalloc1(size, align uintptr, sysStat *uint64) *notInHeap {
+ 	}
+ 
+ 	if sysStat != &memstats.other_sys {
+-		mSysStatInc(sysStat, size)
+-		mSysStatDec(&memstats.other_sys, size)
++		sysStat.add(int64(size))
++		memstats.other_sys.add(-int64(size))
+ 	}
+ 	return p
+ }
+@@ -1425,7 +1425,7 @@ func (l *linearAlloc) init(base, size uintptr) {
+ 	l.end = base + size
+ }
+ 
+-func (l *linearAlloc) alloc(size, align uintptr, sysStat *uint64) unsafe.Pointer {
++func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	p := alignUp(l.next, align)
+ 	if p+size > l.end {
+ 		return nil
+diff --git a/src/runtime/mem_aix.go b/src/runtime/mem_aix.go
+index 7e145b072a..957aa4dcc2 100644
+--- a/src/runtime/mem_aix.go
++++ b/src/runtime/mem_aix.go
+@@ -11,7 +11,7 @@ import (
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		if err == _EACCES {
+@@ -24,7 +24,7 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 		}
+ 		return nil
+ 	}
+-	mSysStatInc(sysStat, n)
++	sysStat.add(int64(n))
+ 	return p
+ }
+ 
+@@ -41,8 +41,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	munmap(v, n)
+ 
+ }
+@@ -59,8 +59,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ 
+ 	// AIX does not allow mapping a range that is already mapped.
+ 	// So, call mprotect to change permissions.
+diff --git a/src/runtime/mem_bsd.go b/src/runtime/mem_bsd.go
+index 4d860e7bd3..bc672019fb 100644
+--- a/src/runtime/mem_bsd.go
++++ b/src/runtime/mem_bsd.go
+@@ -13,12 +13,12 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	mSysStatInc(sysStat, n)
++	sysStat.add(int64(n))
+ 	return v
+ }
+ 
+@@ -35,8 +35,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	munmap(v, n)
+ }
+ 
+@@ -65,8 +65,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ const _sunosEAGAIN = 11
+ const _ENOMEM = 12
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ 
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM || ((GOOS == "solaris" || GOOS == "illumos") && err == _sunosEAGAIN) {
+diff --git a/src/runtime/mem_darwin.go b/src/runtime/mem_darwin.go
+index 3b5d565b0f..7fccd2bb8e 100644
+--- a/src/runtime/mem_darwin.go
++++ b/src/runtime/mem_darwin.go
+@@ -11,12 +11,12 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	v, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		return nil
+ 	}
+-	mSysStatInc(sysStat, n)
++	sysStat.add(int64(n))
+ 	return v
+ }
+ 
+@@ -39,8 +39,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	munmap(v, n)
+ }
+ 
+@@ -58,8 +58,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 
+ const _ENOMEM = 12
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ 
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+diff --git a/src/runtime/mem_js.go b/src/runtime/mem_js.go
+index 092b3d4fa2..957ed36ffa 100644
+--- a/src/runtime/mem_js.go
++++ b/src/runtime/mem_js.go
+@@ -13,7 +13,7 @@ import (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	p := sysReserve(nil, n)
+ 	sysMap(p, n, sysStat)
+ 	return p
+@@ -31,8 +31,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ }
+ 
+ func sysFault(v unsafe.Pointer, n uintptr) {
+@@ -80,6 +80,6 @@ func growMemory(pages int32) int32
+ // This allows the front-end to replace the old DataView object with a new one.
+ func resetMemoryDataView()
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ }
+diff --git a/src/runtime/mem_linux.go b/src/runtime/mem_linux.go
+index 59b0bca970..3436851091 100644
+--- a/src/runtime/mem_linux.go
++++ b/src/runtime/mem_linux.go
+@@ -17,7 +17,7 @@ const (
+ // Don't split the stack as this method may be invoked without a valid G, which
+ // prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	p, err := mmap(nil, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_PRIVATE, -1, 0)
+ 	if err != 0 {
+ 		if err == _EACCES {
+@@ -30,7 +30,7 @@ func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+ 		}
+ 		return nil
+ 	}
+-	mSysStatInc(sysStat, n)
++	sysStat.add(int64(n))
+ 	return p
+ }
+ 
+@@ -144,8 +144,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	munmap(v, n)
+ }
+ 
+@@ -161,8 +161,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return p
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ 
+ 	p, err := mmap(v, n, _PROT_READ|_PROT_WRITE, _MAP_ANON|_MAP_FIXED|_MAP_PRIVATE, -1, 0)
+ 	if err == _ENOMEM {
+diff --git a/src/runtime/mem_plan9.go b/src/runtime/mem_plan9.go
+index 4fea851cdd..53d8e6dffa 100644
+--- a/src/runtime/mem_plan9.go
++++ b/src/runtime/mem_plan9.go
+@@ -140,19 +140,19 @@ func sbrk(n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(bl)
+ }
+ 
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	lock(&memlock)
+ 	p := memAlloc(n)
+ 	memCheck()
+ 	unlock(&memlock)
+ 	if p != nil {
+-		mSysStatInc(sysStat, n)
++		sysStat.add(int64(n))
+ 	}
+ 	return p
+ }
+ 
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	lock(&memlock)
+ 	if uintptr(v)+n == bloc {
+ 		// Address range being freed is at the end of memory,
+@@ -176,10 +176,10 @@ func sysUsed(v unsafe.Pointer, n uintptr) {
+ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	// sysReserve has already allocated all heap memory,
+ 	// but has not adjusted stats.
+-	mSysStatInc(sysStat, n)
++	sysStat.add(int64(n))
+ }
+ 
+ func sysFault(v unsafe.Pointer, n uintptr) {
+diff --git a/src/runtime/mem_windows.go b/src/runtime/mem_windows.go
+index 165062ec27..3a805b9767 100644
+--- a/src/runtime/mem_windows.go
++++ b/src/runtime/mem_windows.go
+@@ -24,8 +24,8 @@ const (
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysAlloc(n uintptr, sysStat *uint64) unsafe.Pointer {
+-	mSysStatInc(sysStat, n)
++func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
++	sysStat.add(int64(n))
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_COMMIT|_MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+@@ -97,8 +97,8 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+-func sysFree(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatDec(sysStat, n)
++func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(-int64(n))
+ 	r := stdcall3(_VirtualFree, uintptr(v), 0, _MEM_RELEASE)
+ 	if r == 0 {
+ 		print("runtime: VirtualFree of ", n, " bytes failed with errno=", getlasterror(), "\n")
+@@ -124,6 +124,6 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(stdcall4(_VirtualAlloc, 0, n, _MEM_RESERVE, _PAGE_READWRITE))
+ }
+ 
+-func sysMap(v unsafe.Pointer, n uintptr, sysStat *uint64) {
+-	mSysStatInc(sysStat, n)
++func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
++	sysStat.add(int64(n))
+ }
+diff --git a/src/runtime/mfixalloc.go b/src/runtime/mfixalloc.go
+index f9dd6ca474..293c16b38b 100644
+--- a/src/runtime/mfixalloc.go
++++ b/src/runtime/mfixalloc.go
+@@ -32,7 +32,7 @@ type fixalloc struct {
+ 	chunk  uintptr // use uintptr instead of unsafe.Pointer to avoid write barriers
+ 	nchunk uint32
+ 	inuse  uintptr // in-use bytes now
+-	stat   *uint64
++	stat   *sysMemStat
+ 	zero   bool // zero allocations
+ }
+ 
+@@ -49,7 +49,7 @@ type mlink struct {
+ 
+ // Initialize f to allocate objects of the given size,
+ // using the allocator to obtain chunks of memory.
+-func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *uint64) {
++func (f *fixalloc) init(size uintptr, first func(arg, p unsafe.Pointer), arg unsafe.Pointer, stat *sysMemStat) {
+ 	f.size = size
+ 	f.first = first
+ 	f.arg = arg
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 6328b295ca..8b1a0be353 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -100,7 +100,7 @@ const (
+ 
+ // heapRetained returns an estimate of the current heap RSS.
+ func heapRetained() uint64 {
+-	return atomic.Load64(&memstats.heap_sys) - atomic.Load64(&memstats.heap_released)
++	return memstats.heap_sys.load() - atomic.Load64(&memstats.heap_released)
+ }
+ 
+ // gcPaceScavenger updates the scavenger's pacing, particularly
+@@ -711,7 +711,7 @@ func (p *pageAlloc) scavengeRangeLocked(ci chunkIdx, base, npages uint) uintptr
+ 
+ 	// Update global accounting only when not in test, otherwise
+ 	// the runtime's accounting will be wrong.
+-	mSysStatInc(&memstats.heap_released, uintptr(npages)*pageSize)
++	atomic.Xadd64(&memstats.heap_released, int64(npages)*pageSize)
+ 	return addr
+ }
+ 
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index df659e222b..27c1bfbcf1 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1222,22 +1222,22 @@ HaveSpan:
+ 		// sysUsed all the pages that are actually available
+ 		// in the span since some of them might be scavenged.
+ 		sysUsed(unsafe.Pointer(base), nbytes)
+-		mSysStatDec(&memstats.heap_released, scav)
++		atomic.Xadd64(&memstats.heap_released, -int64(scav))
+ 	}
+ 	// Update stats.
+ 	switch typ {
+ 	case spanAllocHeap:
+-		mSysStatInc(&memstats.heap_inuse, nbytes)
++		atomic.Xadd64(&memstats.heap_inuse, int64(nbytes))
+ 	case spanAllocStack:
+-		mSysStatInc(&memstats.stacks_inuse, nbytes)
++		atomic.Xadd64(&memstats.stacks_inuse, int64(nbytes))
+ 	case spanAllocPtrScalarBits, spanAllocWorkBuf:
+-		mSysStatInc(&memstats.gc_sys, nbytes)
++		memstats.gc_sys.add(int64(nbytes))
+ 	}
+ 	if typ.manual() {
+ 		// Manually managed memory doesn't count toward heap_sys.
+-		mSysStatDec(&memstats.heap_sys, nbytes)
++		memstats.heap_sys.add(-int64(nbytes))
+ 	}
+-	mSysStatDec(&memstats.heap_idle, nbytes)
++	atomic.Xadd64(&memstats.heap_idle, -int64(nbytes))
+ 
+ 	// Publish the span in various locations.
+ 
+@@ -1314,8 +1314,8 @@ func (h *mheap) grow(npage uintptr) bool {
+ 		// The allocation is always aligned to the heap arena
+ 		// size which is always > physPageSize, so its safe to
+ 		// just add directly to heap_released.
+-		mSysStatInc(&memstats.heap_released, asize)
+-		mSysStatInc(&memstats.heap_idle, asize)
++		atomic.Xadd64(&memstats.heap_released, int64(asize))
++		atomic.Xadd64(&memstats.heap_idle, int64(asize))
+ 
+ 		// Recalculate nBase.
+ 		// We know this won't overflow, because sysAlloc returned
+@@ -1400,18 +1400,20 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 	// Update stats.
+ 	//
+ 	// Mirrors the code in allocSpan.
++	nbytes := s.npages * pageSize
+ 	switch typ {
+ 	case spanAllocHeap:
+-		mSysStatDec(&memstats.heap_inuse, s.npages*pageSize)
++		atomic.Xadd64(&memstats.heap_inuse, -int64(nbytes))
+ 	case spanAllocStack:
+-		mSysStatDec(&memstats.stacks_inuse, s.npages*pageSize)
++		atomic.Xadd64(&memstats.stacks_inuse, -int64(nbytes))
+ 	case spanAllocPtrScalarBits, spanAllocWorkBuf:
+-		mSysStatDec(&memstats.gc_sys, s.npages*pageSize)
++		memstats.gc_sys.add(-int64(nbytes))
+ 	}
+ 	if typ.manual() {
+-		mSysStatInc(&memstats.heap_sys, s.npages*pageSize)
++		// Manually managed memory doesn't count toward heap_sys, so add it back.
++		memstats.heap_sys.add(int64(nbytes))
+ 	}
+-	mSysStatInc(&memstats.heap_idle, s.npages*pageSize)
++	atomic.Xadd64(&memstats.heap_idle, int64(nbytes))
+ 
+ 	// Mark the space as free.
+ 	h.pages.free(s.base(), s.npages)
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 560babed03..2af1c97e0b 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -293,13 +293,13 @@ type pageAlloc struct {
+ 
+ 	// sysStat is the runtime memstat to update when new system
+ 	// memory is committed by the pageAlloc for allocation metadata.
+-	sysStat *uint64
++	sysStat *sysMemStat
+ 
+ 	// Whether or not this struct is being used in tests.
+ 	test bool
+ }
+ 
+-func (p *pageAlloc) init(mheapLock *mutex, sysStat *uint64) {
++func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
+ 	if levelLogPages[0] > logMaxPackedValue {
+ 		// We can't represent 1<<levelLogPages[0] pages, the maximum number
+ 		// of pages we need to represent at the root level, in a summary, which
+diff --git a/src/runtime/mranges.go b/src/runtime/mranges.go
+index 1109f506a6..16acadcff1 100644
+--- a/src/runtime/mranges.go
++++ b/src/runtime/mranges.go
+@@ -160,10 +160,10 @@ type addrRanges struct {
+ 	totalBytes uintptr
+ 
+ 	// sysStat is the stat to track allocations by this type
+-	sysStat *uint64
++	sysStat *sysMemStat
+ }
+ 
+-func (a *addrRanges) init(sysStat *uint64) {
++func (a *addrRanges) init(sysStat *sysMemStat) {
+ 	ranges := (*notInHeapSlice)(unsafe.Pointer(&a.ranges))
+ 	ranges.len = 0
+ 	ranges.cap = 16
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 64687c24e5..571a9c9ce3 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -8,7 +8,6 @@ package runtime
+ 
+ import (
+ 	"runtime/internal/atomic"
+-	"runtime/internal/sys"
+ 	"unsafe"
+ )
+ 
+@@ -35,11 +34,11 @@ type mstats struct {
+ 	//
+ 	// Like MemStats, heap_sys and heap_inuse do not count memory
+ 	// in manually-managed spans.
+-	heap_alloc    uint64 // bytes allocated and not yet freed (same as alloc above)
+-	heap_sys      uint64 // virtual address space obtained from system for GC'd heap
+-	heap_idle     uint64 // bytes in idle spans
+-	heap_inuse    uint64 // bytes in mSpanInUse spans
+-	heap_released uint64 // bytes released to the os
++	heap_alloc    uint64     // bytes allocated and not yet freed (same as alloc above)
++	heap_sys      sysMemStat // virtual address space obtained from system for GC'd heap
++	heap_idle     uint64     // bytes in idle spans
++	heap_inuse    uint64     // bytes in mSpanInUse spans
++	heap_released uint64     // bytes released to the os
+ 
+ 	// heap_objects is not used by the runtime directly and instead
+ 	// computed on the fly by updatememstats.
+@@ -47,15 +46,15 @@ type mstats struct {
+ 
+ 	// Statistics about allocation of low-level fixed-size structures.
+ 	// Protected by FixAlloc locks.
+-	stacks_inuse uint64 // bytes in manually-managed stack spans; updated atomically or during STW
+-	stacks_sys   uint64 // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
+-	mspan_inuse  uint64 // mspan structures
+-	mspan_sys    uint64
++	stacks_inuse uint64     // bytes in manually-managed stack spans; updated atomically or during STW
++	stacks_sys   sysMemStat // only counts newosproc0 stack in mstats; differs from MemStats.StackSys
++	mspan_inuse  uint64     // mspan structures
++	mspan_sys    sysMemStat
+ 	mcache_inuse uint64 // mcache structures
+-	mcache_sys   uint64
+-	buckhash_sys uint64 // profiling bucket hash table
+-	gc_sys       uint64 // updated atomically or during STW
+-	other_sys    uint64 // updated atomically or during STW
++	mcache_sys   sysMemStat
++	buckhash_sys sysMemStat // profiling bucket hash table
++	gc_sys       sysMemStat // updated atomically or during STW
++	other_sys    sysMemStat // updated atomically or during STW
+ 
+ 	// Statistics about the garbage collector.
+ 
+@@ -533,8 +532,9 @@ func updatememstats() {
+ 
+ 	memstats.mcache_inuse = uint64(mheap_.cachealloc.inuse)
+ 	memstats.mspan_inuse = uint64(mheap_.spanalloc.inuse)
+-	memstats.sys = memstats.heap_sys + memstats.stacks_sys + memstats.mspan_sys +
+-		memstats.mcache_sys + memstats.buckhash_sys + memstats.gc_sys + memstats.other_sys
++	memstats.sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
++		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gc_sys.load() +
++		memstats.other_sys.load()
+ 
+ 	// We also count stacks_inuse as sys memory.
+ 	memstats.sys += memstats.stacks_inuse
+@@ -625,46 +625,24 @@ func flushallmcaches() {
+ 	}
+ }
+ 
+-// Atomically increases a given *system* memory stat. We are counting on this
+-// stat never overflowing a uintptr, so this function must only be used for
+-// system memory stats.
++// sysMemStat represents a global system statistic that is managed atomically.
+ //
+-// The current implementation for little endian architectures is based on
+-// xadduintptr(), which is less than ideal: xadd64() should really be used.
+-// Using xadduintptr() is a stop-gap solution until arm supports xadd64() that
+-// doesn't use locks.  (Locks are a problem as they require a valid G, which
+-// restricts their useability.)
+-//
+-// A side-effect of using xadduintptr() is that we need to check for
+-// overflow errors.
+-//go:nosplit
+-func mSysStatInc(sysStat *uint64, n uintptr) {
+-	if sysStat == nil {
+-		return
+-	}
+-	if sys.BigEndian {
+-		atomic.Xadd64(sysStat, int64(n))
+-		return
+-	}
+-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), n); val < n {
+-		print("runtime: stat overflow: val ", val, ", n ", n, "\n")
+-		exit(2)
+-	}
++// This type must structurally be a uint64 so that mstats aligns with MemStats.
++type sysMemStat uint64
++
++// load atomically reads the value of the stat.
++func (s *sysMemStat) load() uint64 {
++	return atomic.Load64((*uint64)(s))
+ }
+ 
+-// Atomically decreases a given *system* memory stat. Same comments as
+-// mSysStatInc apply.
+-//go:nosplit
+-func mSysStatDec(sysStat *uint64, n uintptr) {
+-	if sysStat == nil {
+-		return
+-	}
+-	if sys.BigEndian {
+-		atomic.Xadd64(sysStat, -int64(n))
++// add atomically adds the sysMemStat by n.
++func (s *sysMemStat) add(n int64) {
++	if s == nil {
+ 		return
+ 	}
+-	if val := atomic.Xadduintptr((*uintptr)(unsafe.Pointer(sysStat)), uintptr(-int64(n))); val+n < n {
+-		print("runtime: stat underflow: val ", val, ", n ", n, "\n")
+-		exit(2)
++	val := atomic.Xadd64((*uint64)(s), n)
++	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
++		print("runtime: val=", val, " n=", n, "\n")
++		throw("sysMemStat overflow")
+ 	}
+ }
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 394bd6fb0f..3f5bb7cf96 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -198,7 +198,6 @@ func newosproc(mp *m) {
+ 		exit(1)
+ 	}
+ 	mp.g0.stack.hi = stacksize // for mstart
+-	//mSysStatInc(&memstats.stacks_sys, stacksize) //TODO: do this?
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {
+@@ -247,7 +246,7 @@ func newosproc0(stacksize uintptr, fn uintptr) {
+ 		exit(1)
+ 	}
+ 	g0.stack.hi = stacksize // for mstart
+-	mSysStatInc(&memstats.stacks_sys, stacksize)
++	memstats.stacks_sys.add(int64(stacksize))
+ 
+ 	// Tell the pthread library we won't join with this thread.
+ 	if pthread_attr_setdetachstate(&attr, _PTHREAD_CREATE_DETACHED) != 0 {

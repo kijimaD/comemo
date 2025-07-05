@@ -11,6 +11,28 @@ Date:   Thu Apr 26 18:48:19 2018 +0100
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/ssa/rewritePPC64.go | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 8610f08e7f..19329b8338 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -13472,10 +13472,12 @@ func rewriteValuePPC64_OpRound_0(v *Value) bool {
+ 	// match: (Round x)
+ 	// cond:
+ 	// result: (FROUND x)
+-	x := v.Args[0]
+-	v.reset(OpPPC64FROUND)
+-	v.AddArg(x)
+-	return true
++	for {
++		x := v.Args[0]
++		v.reset(OpPPC64FROUND)
++		v.AddArg(x)
++		return true
++	}
+ }
+ func rewriteValuePPC64_OpRound32F_0(v *Value) bool {
+ 	// match: (Round32F x)

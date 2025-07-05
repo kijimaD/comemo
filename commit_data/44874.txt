@@ -17,6 +17,20 @@ Date:   Thu Sep 10 22:41:29 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/ld/deadcode.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 0269429723..35545f950e 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -209,7 +209,7 @@ func (d *deadcodePass) mark(symIdx, parent loader.Sym) {
+ 	if symIdx != 0 && !d.ldr.AttrReachable(symIdx) {
+ 		d.wq.push(symIdx)
+ 		d.ldr.SetAttrReachable(symIdx, true)
+-		if objabi.Fieldtrack_enabled != 0 {
++		if objabi.Fieldtrack_enabled != 0 && d.ldr.Reachparent[symIdx] == 0 {
+ 			d.ldr.Reachparent[symIdx] = parent
+ 		}
+ 		if *flagDumpDep {

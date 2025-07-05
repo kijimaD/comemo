@@ -18,7 +18,41 @@ Date:   Tue Dec 4 08:27:30 2012 +1100
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/6868046
-
+---
  src/cmd/dist/unix.c | 4 ++++
  src/make.bash       | 7 +++++++
  2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/dist/unix.c b/src/cmd/dist/unix.c
+index 607f904acb..b82bf1ddbd 100644
+--- a/src/cmd/dist/unix.c
++++ b/src/cmd/dist/unix.c
+@@ -670,6 +670,10 @@ main(int argc, char **argv)
+ 	gohostos = "linux";
+ #elif defined(__FreeBSD__)
+ 	gohostos = "freebsd";
++#elif defined(__FreeBSD_kernel__)
++	// detect debian/kFreeBSD. 
++	// http://wiki.debian.org/Debian_GNU/kFreeBSD_FAQ#Q._How_do_I_detect_kfreebsd_with_preprocessor_directives_in_a_C_program.3F
++	gohostos = "freebsd";	
+ #elif defined(__OpenBSD__)
+ 	gohostos = "openbsd";
+ #elif defined(__NetBSD__)
+diff --git a/src/make.bash b/src/make.bash
+index b2de37b724..1190b93ffa 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -77,6 +77,13 @@ do
+ 	fi
+ done
+ 
++# Test for debian/kFreeBSD.
++# cmd/dist will detect kFreeBSD as freebsd/$GOARCH, but we need to
++# disable cgo manually.
++if [ "$(uname -s)" == "GNU/kFreeBSD" ]; then
++        export CGO_ENABLED=0
++fi
++
+ # Clean old generated file that will cause problems in the build.
+ rm -f ./pkg/runtime/runtime_defs.go
+ 

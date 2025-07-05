@@ -31,7 +31,7 @@ Date:   Mon Apr 2 16:08:09 2018 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/amd64/ssa.go          |   4 -
  src/cmd/compile/internal/arm/ssa.go            |   2 +-
  src/cmd/compile/internal/arm64/ssa.go          |   2 +-
@@ -71,3 +71,1041 @@ Date:   Mon Apr 2 16:08:09 2018 -0400
  src/cmd/compile/internal/ssa/rewriteS390X.go   |  18 ----
  src/cmd/compile/internal/x86/ssa.go            |   4 -
  38 files changed, 44 insertions(+), 381 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index e7decb9eb6..527fb3a69b 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -846,10 +846,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+-	case ssa.OpAMD64MOVQconvert, ssa.OpAMD64MOVLconvert:
+-		if v.Args[0].Reg() != v.Reg() {
+-			v.Fatalf("MOVXconvert should be a no-op")
+-		}
+ 	case ssa.OpCopy: // TODO: use MOVQreg for reg->reg copies instead of OpCopy?
+ 		if v.Type.IsMemory() {
+ 			return
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 1c3b7eae11..4c8358f595 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -121,7 +121,7 @@ func genregshift(s *gc.SSAGenState, as obj.As, r0, r1, r2, r int16, typ int64) *
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpCopy, ssa.OpARMMOVWconvert, ssa.OpARMMOVWreg:
++	case ssa.OpCopy, ssa.OpARMMOVWreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index e194f9c403..ea3fe7a094 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -94,7 +94,7 @@ func genshift(s *gc.SSAGenState, as obj.As, r0, r1, r int16, typ int64, n int64)
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpCopy, ssa.OpARM64MOVDconvert, ssa.OpARM64MOVDreg:
++	case ssa.OpCopy, ssa.OpARM64MOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7c030fa80a..eb20276675 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4806,6 +4806,11 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			case ssa.OpPhi:
+ 				CheckLoweredPhi(v)
++			case ssa.OpConvert:
++				// nothing to do; no-op conversion for liveness
++				if v.Args[0].Reg() != v.Reg() {
++					v.Fatalf("OpConvert should be a no-op: %s; %s", v.Args[0].LongString(), v.LongString())
++				}
+ 			default:
+ 				// let the backend handle it
+ 				// Special case for first line in function; move it to the start.
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index 0098d1ce2b..7a81ce911b 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -76,7 +76,7 @@ func storeByType(t *types.Type, r int16) obj.As {
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpCopy, ssa.OpMIPSMOVWconvert, ssa.OpMIPSMOVWreg:
++	case ssa.OpCopy, ssa.OpMIPSMOVWreg:
+ 		t := v.Type
+ 		if t.IsMemory() {
+ 			return
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index d8645946de..33b3152e18 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -84,7 +84,7 @@ func storeByType(t *types.Type, r int16) obj.As {
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpCopy, ssa.OpMIPS64MOVVconvert, ssa.OpMIPS64MOVVreg:
++	case ssa.OpCopy, ssa.OpMIPS64MOVVreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index e615f207bd..3c10149eab 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -132,7 +132,7 @@ func ssaGenISEL(s *gc.SSAGenState, v *ssa.Value, cr int64, r1, r2 int16) {
+ 
+ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 	switch v.Op {
+-	case ssa.OpCopy, ssa.OpPPC64MOVDconvert:
++	case ssa.OpCopy:
+ 		t := v.Type
+ 		if t.IsMemory() {
+ 			return
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index 961bef5b91..eb7474e7fd 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -457,7 +457,7 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_MEM
+ 		p.To.Reg = v.Args[0].Reg()
+ 		gc.AddAux2(&p.To, v, sc.Off())
+-	case ssa.OpCopy, ssa.OpS390XMOVDconvert, ssa.OpS390XMOVDreg:
++	case ssa.OpCopy, ssa.OpS390XMOVDreg:
+ 		if v.Type.IsMemory() {
+ 			return
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index bde61f58cf..6ab90e2619 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -347,7 +347,6 @@
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+-(Convert <t> x mem) -> (MOVLconvert <t> x mem)
+ (IsNonNil p) -> (SETNE (TESTL p p))
+ (IsInBounds idx len) -> (SETB (CMPL idx len))
+ (IsSliceInBounds idx len) -> (SETBE (CMPL idx len))
+diff --git a/src/cmd/compile/internal/ssa/gen/386Ops.go b/src/cmd/compile/internal/ssa/gen/386Ops.go
+index d22271f2dc..23060ef0f6 100644
+--- a/src/cmd/compile/internal/ssa/gen/386Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/386Ops.go
+@@ -469,13 +469,6 @@ func init() {
+ 		// It saves all GP registers if necessary, but may clobber others.
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+-		// MOVLconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true, zeroWidth: true},
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 9ebeb98990..482a1558dc 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -459,8 +459,6 @@
+ (CMOV(QEQ|QGT|QGE|QCS|QLS|LEQ|LGT|LGE|LCS|LLS|WEQ|WGT|WGE|WCS|WLS) y _ (FlagLT_UGT)) -> y
+ 
+ // Miscellaneous
+-(Convert <t> x mem) && config.PtrSize == 8 -> (MOVQconvert <t> x mem)
+-(Convert <t> x mem) && config.PtrSize == 4 -> (MOVLconvert <t> x mem)
+ (IsNonNil p) && config.PtrSize == 8 -> (SETNE (TESTQ p p))
+ (IsNonNil p) && config.PtrSize == 4 -> (SETNE (TESTL p p))
+ (IsInBounds idx len) && config.PtrSize == 8 -> (SETB (CMPQ idx len))
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index bf49dc857e..cf15198c0c 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -642,14 +642,6 @@ func init() {
+ 		// It saves all GP registers if necessary, but may clobber others.
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("DI"), ax}, clobbers: callerSave &^ gp}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+-		// MOVQconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVQconvert", argLength: 2, reg: gp11, asm: "MOVQ", resultInArg0: true, zeroWidth: true},
+-		{name: "MOVLconvert", argLength: 2, reg: gp11, asm: "MOVL", resultInArg0: true, zeroWidth: true}, // amd64p32 equivalent
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM.rules b/src/cmd/compile/internal/ssa/gen/ARM.rules
+index bb15386f2d..8e5ba66749 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM.rules
+@@ -362,7 +362,6 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
+-(Convert x mem) -> (MOVWconvert x mem)
+ 
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64.rules b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+index 41417482e8..d8753414d9 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/gen/ARM64.rules
+@@ -502,7 +502,6 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
+-(Convert x mem) -> (MOVDconvert x mem)
+ 
+ // Absorb pseudo-ops into blocks.
+ (If (Equal cc) yes no) -> (EQ cc yes no)
+diff --git a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+index 184e22717e..c90d1439cd 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/ARM64Ops.go
+@@ -506,13 +506,6 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
+-		// MOVDconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index d668ed8c02..3b916e29ae 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -519,13 +519,6 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
+-		// MOVWconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 2540b76cb1..a97a74f6ad 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -399,7 +399,6 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
+-(Convert x mem) -> (MOVWconvert x mem)
+ 
+ (If cond yes no) -> (NE cond yes no)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64.rules b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+index c34f5fd92a..6170567870 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64.rules
+@@ -404,7 +404,6 @@
+ // pseudo-ops
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
+-(Convert x mem) -> (MOVVconvert x mem)
+ 
+ (If cond yes no) -> (NE cond yes no)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+index d5cae59147..55f860f053 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPS64Ops.go
+@@ -414,13 +414,6 @@ func init() {
+ 		// but clobbers R31 (LR) because it's a call
+ 		// and R23 (REGTMP).
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+-
+-		// MOVDconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVVconvert", argLength: 2, reg: gp11, asm: "MOVV"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index a38f3383b9..e07ad745b3 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -384,13 +384,6 @@ func init() {
+ 		// but clobbers R31 (LR) because it's a call
+ 		// and R23 (REGTMP).
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+-
+-		// MOVWconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps).  It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVWconvert", argLength: 2, reg: gp11, asm: "MOVW"},
+ 	}
+ 
+ 	blocks := []blockData{
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64.rules b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+index b8270eae35..6f3e893d8d 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/gen/PPC64.rules
+@@ -606,7 +606,6 @@
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+-(Convert <t> x mem) -> (MOVDconvert <t> x mem)
+ (GetClosurePtr) -> (LoweredGetClosurePtr)
+ (GetCallerSP) -> (LoweredGetCallerSP)
+ (IsNonNil ptr) -> (NotEqual (CMPconst [0] ptr))
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ecd6944b1e..567e34ec2a 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -327,9 +327,6 @@ func init() {
+ 		{name: "LoweredRound32F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 		{name: "LoweredRound64F", argLength: 1, reg: fp11, resultInArg0: true, zeroWidth: true},
+ 
+-		// Convert pointer to integer, takes a memory operand for ordering.
+-		{name: "MOVDconvert", argLength: 2, reg: gp11, asm: "MOVD"},
+-
+ 		{name: "CALLstatic", argLength: 1, reg: regInfo{clobbers: callerSave}, aux: "SymOff", clobberFlags: true, call: true, symEffect: "None"},                   // call static function aux.(*obj.LSym).  arg0=mem, auxint=argsize, returns mem
+ 		{name: "CALLclosure", argLength: 3, reg: regInfo{inputs: []regMask{callptr, ctxt, 0}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true}, // call function via closure.  arg0=codeptr, arg1=closure, arg2=mem, auxint=argsize, returns mem
+ 		{name: "CALLinter", argLength: 2, reg: regInfo{inputs: []regMask{callptr}, clobbers: callerSave}, aux: "Int64", clobberFlags: true, call: true},            // call fn by pointer.  arg0=codeptr, arg1=mem, auxint=argsize, returns mem
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 6eba1e0264..fe92d0a9d0 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -373,7 +373,6 @@
+ (InterCall [argwid] entry mem) -> (CALLinter [argwid] entry mem)
+ 
+ // Miscellaneous
+-(Convert <t> x mem) -> (MOVDconvert <t> x mem)
+ (IsNonNil p) -> (MOVDNE (MOVDconst [0]) (MOVDconst [1]) (CMPconst p [0]))
+ (IsInBounds idx len) -> (MOVDLT (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))
+ (IsSliceInBounds idx len) -> (MOVDLE (MOVDconst [0]) (MOVDconst [1]) (CMPU idx len))
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index 3cda2774a4..49904023e5 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -459,13 +459,6 @@ func init() {
+ 		// but clobbers R14 (LR) because it's a call.
+ 		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R2"), buildReg("R3")}, clobbers: (callerSave &^ gpg) | buildReg("R14")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
+ 
+-		// MOVDconvert converts between pointers and integers.
+-		// We have a special op for this so as to not confuse GC
+-		// (particularly stack maps). It takes a memory arg so it
+-		// gets correctly ordered with respect to GC safepoints.
+-		// arg0=ptr/int arg1=mem, output=int/ptr
+-		{name: "MOVDconvert", argLength: 2, reg: gp11sp, asm: "MOVD"},
+-
+ 		// Constant flag values. For any comparison, there are 5 possible
+ 		// outcomes: the three from the signed total order (<,==,>) and the
+ 		// three from the unsigned total order. The == cases overlap.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index c077b0bfcf..e84903b73d 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -289,8 +289,11 @@ var genericOps = []opData{
+ 	// We have a special op for this so as to not confuse GC
+ 	// (particularly stack maps).  It takes a memory arg so it
+ 	// gets correctly ordered with respect to GC safepoints.
++	// It gets compiled to nothing, so its result must in the same
++	// register as its argument. regalloc knows it can use any
++	// allocatable integer register for OpConvert.
+ 	// arg0=ptr/int arg1=mem, output=int/ptr
+-	{name: "Convert", argLength: 2},
++	{name: "Convert", argLength: 2, zeroWidth: true, resultInArg0: true},
+ 
+ 	// constants. Constant values are stored in the aux or
+ 	// auxint fields.
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 6b0ee41f64..5889da3ea3 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -180,10 +180,12 @@ func genOp() {
+ 			}
+ 			if v.resultInArg0 {
+ 				fmt.Fprintln(w, "resultInArg0: true,")
+-				if v.reg.inputs[0] != v.reg.outputs[0] {
++				// OpConvert's register mask is selected dynamically,
++				// so don't try to check it in the static table.
++				if v.name != "Convert" && v.reg.inputs[0] != v.reg.outputs[0] {
+ 					log.Fatalf("%s: input[0] and output[0] must use the same registers for %s", a.name, v.name)
+ 				}
+-				if v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
++				if v.name != "Convert" && v.commutative && v.reg.inputs[1] != v.reg.outputs[0] {
+ 					log.Fatalf("%s: input[1] and output[0] must use the same registers for %s", a.name, v.name)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/lower.go b/src/cmd/compile/internal/ssa/lower.go
+index e7c262910a..24f927f144 100644
+--- a/src/cmd/compile/internal/ssa/lower.go
++++ b/src/cmd/compile/internal/ssa/lower.go
+@@ -21,7 +21,7 @@ func checkLower(f *Func) {
+ 				continue // lowered
+ 			}
+ 			switch v.Op {
+-			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1:
++			case OpSP, OpSB, OpInitMem, OpArg, OpPhi, OpVarDef, OpVarKill, OpVarLive, OpKeepAlive, OpSelect0, OpSelect1, OpConvert:
+ 				continue // ok not to lower
+ 			case OpGetG:
+ 				if f.Config.hasGReg {
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 0de1ccfdde..3ce846837e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -411,7 +411,6 @@ const (
+ 	Op386LoweredGetCallerSP
+ 	Op386LoweredNilCheck
+ 	Op386LoweredWB
+-	Op386MOVLconvert
+ 	Op386FlagEQ
+ 	Op386FlagLT_ULT
+ 	Op386FlagLT_UGT
+@@ -742,8 +741,6 @@ const (
+ 	OpAMD64LoweredGetCallerSP
+ 	OpAMD64LoweredNilCheck
+ 	OpAMD64LoweredWB
+-	OpAMD64MOVQconvert
+-	OpAMD64MOVLconvert
+ 	OpAMD64FlagEQ
+ 	OpAMD64FlagLT_ULT
+ 	OpAMD64FlagLT_UGT
+@@ -1013,7 +1010,6 @@ const (
+ 	OpARMLoweredMove
+ 	OpARMLoweredGetClosurePtr
+ 	OpARMLoweredGetCallerSP
+-	OpARMMOVWconvert
+ 	OpARMFlagEQ
+ 	OpARMFlagLT_ULT
+ 	OpARMFlagLT_UGT
+@@ -1233,7 +1229,6 @@ const (
+ 	OpARM64LoweredMove
+ 	OpARM64LoweredGetClosurePtr
+ 	OpARM64LoweredGetCallerSP
+-	OpARM64MOVDconvert
+ 	OpARM64FlagEQ
+ 	OpARM64FlagLT_ULT
+ 	OpARM64FlagLT_UGT
+@@ -1355,7 +1350,6 @@ const (
+ 	OpMIPSLoweredGetClosurePtr
+ 	OpMIPSLoweredGetCallerSP
+ 	OpMIPSLoweredWB
+-	OpMIPSMOVWconvert
+ 
+ 	OpMIPS64ADDV
+ 	OpMIPS64ADDVconst
+@@ -1468,7 +1462,6 @@ const (
+ 	OpMIPS64LoweredGetClosurePtr
+ 	OpMIPS64LoweredGetCallerSP
+ 	OpMIPS64LoweredWB
+-	OpMIPS64MOVVconvert
+ 
+ 	OpPPC64ADD
+ 	OpPPC64ADDconst
+@@ -1598,7 +1591,6 @@ const (
+ 	OpPPC64LoweredNilCheck
+ 	OpPPC64LoweredRound32F
+ 	OpPPC64LoweredRound64F
+-	OpPPC64MOVDconvert
+ 	OpPPC64CALLstatic
+ 	OpPPC64CALLclosure
+ 	OpPPC64CALLinter
+@@ -1812,7 +1804,6 @@ const (
+ 	OpS390XLoweredRound32F
+ 	OpS390XLoweredRound64F
+ 	OpS390XLoweredWB
+-	OpS390XMOVDconvert
+ 	OpS390XFlagEQ
+ 	OpS390XFlagLT
+ 	OpS390XFlagGT
+@@ -4738,21 +4729,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 65280, // X0 X1 X2 X3 X4 X5 X6 X7
+ 		},
+ 	},
+-	{
+-		name:         "MOVLconvert",
+-		argLen:       2,
+-		resultInArg0: true,
+-		zeroWidth:    true,
+-		asm:          x86.AMOVL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 239}, // AX CX DX BX BP SI DI
+-			},
+-			outputs: []outputInfo{
+-				{0, 239}, // AX CX DX BX BP SI DI
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -9445,36 +9421,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294901760, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15
+ 		},
+ 	},
+-	{
+-		name:         "MOVQconvert",
+-		argLen:       2,
+-		resultInArg0: true,
+-		zeroWidth:    true,
+-		asm:          x86.AMOVQ,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+-	{
+-		name:         "MOVLconvert",
+-		argLen:       2,
+-		resultInArg0: true,
+-		zeroWidth:    true,
+-		asm:          x86.AMOVL,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-			outputs: []outputInfo{
+-				{0, 65519}, // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R14 R15
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -13186,19 +13132,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "MOVWconvert",
+-		argLen: 2,
+-		asm:    arm.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 22527}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 g R12 R14
+-			},
+-			outputs: []outputInfo{
+-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -16112,19 +16045,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "MOVDconvert",
+-		argLen: 2,
+-		asm:    arm64.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 805044223}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 g R30
+-			},
+-			outputs: []outputInfo{
+-				{0, 670826495}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R19 R20 R21 R22 R23 R24 R25 R26 R30
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -17729,19 +17649,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 140737219919872, // R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
+ 		},
+ 	},
+-	{
+-		name:   "MOVWconvert",
+-		argLen: 2,
+-		asm:    mips.AMOVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 469762046}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 g R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 335544318}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R28 R31
+-			},
+-		},
+-	},
+ 
+ 	{
+ 		name:        "ADDV",
+@@ -19262,19 +19169,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4611686018293170176, // R31 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31 HI LO
+ 		},
+ 	},
+-	{
+-		name:   "MOVVconvert",
+-		argLen: 2,
+-		asm:    mips.AMOVV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 234881022}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 g R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 167772158}, // R1 R2 R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R24 R25 R31
+-			},
+-		},
+-	},
+ 
+ 	{
+ 		name:        "ADD",
+@@ -20977,19 +20871,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "MOVDconvert",
+-		argLen: 2,
+-		asm:    ppc64.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073733630}, // SP SB R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-			outputs: []outputInfo{
+-				{0, 1073733624}, // R3 R4 R5 R6 R7 R8 R9 R10 R11 R12 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R24 R25 R26 R27 R28 R29
+-			},
+-		},
+-	},
+ 	{
+ 		name:         "CALLstatic",
+ 		auxType:      auxSymOff,
+@@ -24099,19 +23980,6 @@ var opcodeTable = [...]opInfo{
+ 			clobbers: 4294918144, // R14 F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+ 		},
+ 	},
+-	{
+-		name:   "MOVDconvert",
+-		argLen: 2,
+-		asm:    s390x.AMOVD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 54271}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14 SP
+-			},
+-			outputs: []outputInfo{
+-				{0, 21503}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R12 R14
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FlagEQ",
+ 		argLen: 0,
+@@ -25540,9 +25408,11 @@ var opcodeTable = [...]opInfo{
+ 		generic: true,
+ 	},
+ 	{
+-		name:    "Convert",
+-		argLen:  2,
+-		generic: true,
++		name:         "Convert",
++		argLen:       2,
++		resultInArg0: true,
++		zeroWidth:    true,
++		generic:      true,
+ 	},
+ 	{
+ 		name:    "ConstBool",
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 3fe170ac55..7e35526f19 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -714,6 +714,18 @@ func (s *regAllocState) compatRegs(t *types.Type) regMask {
+ 	return m & s.allocatable
+ }
+ 
++// regspec returns the regInfo for operation op.
++func (s *regAllocState) regspec(op Op) regInfo {
++	if op == OpConvert {
++		// OpConvert is a generic op, so it doesn't have a
++		// register set in the static table. It can use any
++		// allocatable integer register.
++		m := s.allocatable & s.f.Config.gpRegMask
++		return regInfo{inputs: []inputInfo{{regs: m}}, outputs: []outputInfo{{regs: m}}}
++	}
++	return opcodeTable[op].reg
++}
++
+ func (s *regAllocState) regalloc(f *Func) {
+ 	regValLiveSet := f.newSparseSet(f.NumValues()) // set of values that may be live in register
+ 	defer f.retSparseSet(regValLiveSet)
+@@ -1035,8 +1047,9 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		for i := len(oldSched) - 1; i >= 0; i-- {
+ 			v := oldSched[i]
+ 			prefs := desired.remove(v.ID)
+-			desired.clobber(opcodeTable[v.Op].reg.clobbers)
+-			for _, j := range opcodeTable[v.Op].reg.inputs {
++			regspec := s.regspec(v.Op)
++			desired.clobber(regspec.clobbers)
++			for _, j := range regspec.inputs {
+ 				if countRegs(j.regs) != 1 {
+ 					continue
+ 				}
+@@ -1064,7 +1077,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 			if s.f.pass.debug > regDebug {
+ 				fmt.Printf("  processing %s\n", v.LongString())
+ 			}
+-			regspec := opcodeTable[v.Op].reg
++			regspec := s.regspec(v.Op)
+ 			if v.Op == OpPhi {
+ 				f.Fatalf("phi %s not at start of block", v)
+ 			}
+@@ -2274,10 +2287,11 @@ func (s *regAllocState) computeLive() {
+ 					// desired registers back though phi nodes.
+ 					continue
+ 				}
++				regspec := s.regspec(v.Op)
+ 				// Cancel desired registers if they get clobbered.
+-				desired.clobber(opcodeTable[v.Op].reg.clobbers)
++				desired.clobber(regspec.clobbers)
+ 				// Update desired registers if there are any fixed register inputs.
+-				for _, j := range opcodeTable[v.Op].reg.inputs {
++				for _, j := range regspec.inputs {
+ 					if countRegs(j.regs) != 1 {
+ 						continue
+ 					}
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 233cd43f69..712cc9398e 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -303,8 +303,6 @@ func rewriteValue386(v *Value) bool {
+ 		return rewriteValue386_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValue386_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValue386_OpConvert_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValue386_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64F:
+@@ -15915,22 +15913,6 @@ func rewriteValue386_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValue386_OpConvert_0(v *Value) bool {
+-	// match: (Convert <t> x mem)
+-	// cond:
+-	// result: (MOVLconvert <t> x mem)
+-	for {
+-		t := v.Type
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(Op386MOVLconvert)
+-		v.Type = t
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValue386_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 30e09da3fe..e51a25527c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -587,8 +587,6 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueAMD64_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueAMD64_OpConvert_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueAMD64_OpCtz32_0(v)
+ 	case OpCtz64:
+@@ -53169,47 +53167,6 @@ func rewriteValueAMD64_OpConstNil_0(v *Value) bool {
+ 	}
+ 	return false
+ }
+-func rewriteValueAMD64_OpConvert_0(v *Value) bool {
+-	b := v.Block
+-	_ = b
+-	config := b.Func.Config
+-	_ = config
+-	// match: (Convert <t> x mem)
+-	// cond: config.PtrSize == 8
+-	// result: (MOVQconvert <t> x mem)
+-	for {
+-		t := v.Type
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		if !(config.PtrSize == 8) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVQconvert)
+-		v.Type = t
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	// match: (Convert <t> x mem)
+-	// cond: config.PtrSize == 4
+-	// result: (MOVLconvert <t> x mem)
+-	for {
+-		t := v.Type
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		if !(config.PtrSize == 4) {
+-			break
+-		}
+-		v.reset(OpAMD64MOVLconvert)
+-		v.Type = t
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-	return false
+-}
+ func rewriteValueAMD64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index 945d053f8a..3a0b270c8e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -481,8 +481,6 @@ func rewriteValueARM(v *Value) bool {
+ 		return rewriteValueARM_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueARM_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueARM_OpConvert_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueARM_OpCtz32_0(v)
+ 	case OpCvt32Fto32:
+@@ -17915,20 +17913,6 @@ func rewriteValueARM_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM_OpConvert_0(v *Value) bool {
+-	// match: (Convert x mem)
+-	// cond:
+-	// result: (MOVWconvert x mem)
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpARMMOVWconvert)
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 90cbff3a59..8317316f7e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -379,8 +379,6 @@ func rewriteValueARM64(v *Value) bool {
+ 		return rewriteValueARM64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueARM64_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueARM64_OpConvert_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueARM64_OpCtz32_0(v)
+ 	case OpCtz64:
+@@ -21155,20 +21153,6 @@ func rewriteValueARM64_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueARM64_OpConvert_0(v *Value) bool {
+-	// match: (Convert x mem)
+-	// cond:
+-	// result: (MOVDconvert x mem)
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpARM64MOVDconvert)
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueARM64_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index cfd4c7306b..ad5033176e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -83,8 +83,6 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueMIPS_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueMIPS_OpConvert_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueMIPS_OpCtz32_0(v)
+ 	case OpCvt32Fto32:
+@@ -1163,20 +1161,6 @@ func rewriteValueMIPS_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS_OpConvert_0(v *Value) bool {
+-	// match: (Convert x mem)
+-	// cond:
+-	// result: (MOVWconvert x mem)
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpMIPSMOVWconvert)
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 1e0fdcbc71..77573d784a 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -93,8 +93,6 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return rewriteValueMIPS64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueMIPS64_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueMIPS64_OpConvert_0(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValueMIPS64_OpCvt32Fto32_0(v)
+ 	case OpCvt32Fto64:
+@@ -1181,20 +1179,6 @@ func rewriteValueMIPS64_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueMIPS64_OpConvert_0(v *Value) bool {
+-	// match: (Convert x mem)
+-	// cond:
+-	// result: (MOVVconvert x mem)
+-	for {
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpMIPS64MOVVconvert)
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueMIPS64_OpCvt32Fto32_0(v *Value) bool {
+ 	// match: (Cvt32Fto32 x)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index b407ce4ffd..331a8c9232 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -103,8 +103,6 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValuePPC64_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValuePPC64_OpConvert_0(v)
+ 	case OpCopysign:
+ 		return rewriteValuePPC64_OpCopysign_0(v)
+ 	case OpCtz32:
+@@ -1275,22 +1273,6 @@ func rewriteValuePPC64_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValuePPC64_OpConvert_0(v *Value) bool {
+-	// match: (Convert <t> x mem)
+-	// cond:
+-	// result: (MOVDconvert <t> x mem)
+-	for {
+-		t := v.Type
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpPPC64MOVDconvert)
+-		v.Type = t
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValuePPC64_OpCopysign_0(v *Value) bool {
+ 	// match: (Copysign x y)
+ 	// cond:
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index d3e15ac037..9237a9d4e8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -101,8 +101,6 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpConstBool_0(v)
+ 	case OpConstNil:
+ 		return rewriteValueS390X_OpConstNil_0(v)
+-	case OpConvert:
+-		return rewriteValueS390X_OpConvert_0(v)
+ 	case OpCtz32:
+ 		return rewriteValueS390X_OpCtz32_0(v)
+ 	case OpCtz64:
+@@ -1391,22 +1389,6 @@ func rewriteValueS390X_OpConstNil_0(v *Value) bool {
+ 		return true
+ 	}
+ }
+-func rewriteValueS390X_OpConvert_0(v *Value) bool {
+-	// match: (Convert <t> x mem)
+-	// cond:
+-	// result: (MOVDconvert <t> x mem)
+-	for {
+-		t := v.Type
+-		_ = v.Args[1]
+-		x := v.Args[0]
+-		mem := v.Args[1]
+-		v.reset(OpS390XMOVDconvert)
+-		v.Type = t
+-		v.AddArg(x)
+-		v.AddArg(mem)
+-		return true
+-	}
+-}
+ func rewriteValueS390X_OpCtz32_0(v *Value) bool {
+ 	b := v.Block
+ 	_ = b
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 1e0e1f9a70..a9b95bd410 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -615,10 +615,6 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		p.To.Sym = gc.Duffcopy
+ 		p.To.Offset = v.AuxInt
+ 
+-	case ssa.Op386MOVLconvert:
+-		if v.Args[0].Reg() != v.Reg() {
+-			v.Fatalf("MOVLconvert should be a no-op")
+-		}
+ 	case ssa.OpCopy: // TODO: use MOVLreg for reg->reg copies instead of OpCopy?
+ 		if v.Type.IsMemory() {
+ 			return

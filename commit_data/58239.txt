@@ -17,6 +17,20 @@ Date:   Wed Oct 18 10:48:50 2023 -0400
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Auto-Submit: Austin Clements <austin@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go/testdata/script/list_pkgconfig_error.txt | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/list_pkgconfig_error.txt b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+index 8e5a278dd0..de6eafd2c2 100644
+--- a/src/cmd/go/testdata/script/list_pkgconfig_error.txt
++++ b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+@@ -2,7 +2,7 @@
+ [!exec:pkg-config] skip 'test requires pkg-config tool'
+ 
+ ! go list -export .
+-stderr '^go build example:\n# pkg-config (.*\n)+Package .* not found$'
++stderr '^go build example:\n# pkg-config (.*\n)+Package .* not found'
+ 
+ -- go.mod --
+ module example

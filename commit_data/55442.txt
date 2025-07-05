@@ -44,7 +44,7 @@ Date:   Tue Jan 10 10:21:16 2023 -0500
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/base/debug.go       |   2 +
  src/cmd/compile/internal/base/flag.go        |   2 +
  src/cmd/compile/internal/gc/compile.go       |   9 ++
@@ -53,3 +53,431 @@ Date:   Tue Jan 10 10:21:16 2023 -0500
  src/cmd/compile/internal/ssagen/pgen.go      |  52 ++++++++
  src/cmd/compile/internal/staticinit/sched.go | 183 +++++++++++++++++++++++++++
  7 files changed, 274 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index d1b095ad35..04b8469eef 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -51,6 +51,8 @@ type DebugFlags struct {
+ 	PGOInlineCDFThreshold string `help:"cummulative threshold percentage for determining call sites as hot candidates for inlining" concurrent:"ok"`
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+ 	PGOInline             int    `help:"debug profile-guided inlining"`
++	WrapGlobalMapDbg      int    "help:\"debug trace output for global map init wrapping\""
++	WrapGlobalMapStress   int    "help:\"run global map init wrap in stress mode (no size cutoff)\""
+ 
+ 	ConcurrentOk bool // true if only concurrentOk flags seen
+ }
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index d6b5b90aaa..6eaf89efe3 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -123,6 +123,7 @@ type CmdFlags struct {
+ 	TraceProfile       string       "help:\"write an execution trace to `file`\""
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+ 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
++	WrapGlobalMapInit  bool         "help:\"wrap global map large inits in their own functions (to permit deadcode)\""
+ 	PgoProfile         string       "help:\"read profile from `file`\""
+ 
+ 	// Configuration derived from flags; not a flag itself.
+@@ -163,6 +164,7 @@ func ParseFlags() {
+ 	Flag.LinkShared = &Ctxt.Flag_linkshared
+ 	Flag.Shared = &Ctxt.Flag_shared
+ 	Flag.WB = true
++	Flag.WrapGlobalMapInit = true
+ 
+ 	Debug.ConcurrentOk = true
+ 	Debug.InlFuncsWithClosures = 1
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 6951d7ed5a..cfce77d828 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/compile/internal/liveness"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssagen"
++	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/compile/internal/walk"
+@@ -84,6 +85,14 @@ func prepareFunc(fn *ir.Func) {
+ 	// (e.g. in MarkTypeUsedInInterface).
+ 	ir.InitLSym(fn, true)
+ 
++	// If this function is a compiler-generated outlined global map
++	// initializer function, register its LSym for later processing.
++	if staticinit.MapInitToVar != nil {
++		if _, ok := staticinit.MapInitToVar[fn]; ok {
++			ssagen.RegisterMapInitLsym(fn.Linksym())
++		}
++	}
++
+ 	// Calculate parameter offsets.
+ 	types.CalcSize(fn.Type())
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index e391ae7b5a..b2a37b9b02 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -22,6 +22,7 @@ import (
+ 	"cmd/compile/internal/reflectdata"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
++	"cmd/compile/internal/staticinit"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/dwarf"
+@@ -330,6 +331,11 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		ssagen.NoWriteBarrierRecCheck()
+ 	}
+ 
++	// Add keep relocations for global maps.
++	if base.Flag.WrapGlobalMapInit {
++		staticinit.AddKeepRelocations()
++	}
++
+ 	// Finalize DWARF inline routine DIEs, then explicitly turn off
+ 	// DWARF inlining gen so as to avoid problems with generated
+ 	// method wrappers.
+diff --git a/src/cmd/compile/internal/pkginit/init.go b/src/cmd/compile/internal/pkginit/init.go
+index fac1ad790f..84f4c2cfe3 100644
+--- a/src/cmd/compile/internal/pkginit/init.go
++++ b/src/cmd/compile/internal/pkginit/init.go
+@@ -14,6 +14,8 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"fmt"
++	"os"
+ )
+ 
+ // MakeInit creates a synthetic init function to handle any
+@@ -38,9 +40,16 @@ func MakeInit() {
+ 	typecheck.InitTodoFunc.Dcl = nil
+ 	fn.SetIsPackageInit(true)
+ 
++	// Outline (if legal/profitable) global map inits.
++	newfuncs := []*ir.Func{}
++	nf, newfuncs = staticinit.OutlineMapInits(nf)
++
+ 	// Suppress useless "can inline" diagnostics.
+ 	// Init functions are only called dynamically.
+ 	fn.SetInlinabilityChecked(true)
++	for _, nfn := range newfuncs {
++		nfn.SetInlinabilityChecked(true)
++	}
+ 
+ 	fn.Body = nf
+ 	typecheck.FinishFuncBody()
+@@ -50,6 +59,16 @@ func MakeInit() {
+ 		typecheck.Stmts(nf)
+ 	})
+ 	typecheck.Target.Decls = append(typecheck.Target.Decls, fn)
++	if base.Debug.WrapGlobalMapDbg > 1 {
++		fmt.Fprintf(os.Stderr, "=-= len(newfuncs) is %d for %v\n",
++			len(newfuncs), fn)
++	}
++	for _, nfn := range newfuncs {
++		if base.Debug.WrapGlobalMapDbg > 1 {
++			fmt.Fprintf(os.Stderr, "=-= add to target.decls %v\n", nfn)
++		}
++		typecheck.Target.Decls = append(typecheck.Target.Decls, ir.Node(nfn))
++	}
+ 
+ 	// Prepend to Inits, so it runs first, before any user-declared init
+ 	// functions.
+@@ -110,7 +129,7 @@ func Task() *ir.Name {
+ 			name := noder.Renameinit()
+ 			fnInit := typecheck.DeclFunc(name, nil, nil, nil)
+ 
+-			// Get an array of intrumented global variables.
++			// Get an array of instrumented global variables.
+ 			globals := instrumentGlobals(fnInit)
+ 
+ 			// Call runtime.asanregisterglobals function to poison redzones.
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index ffd51f19c7..d3b01aceb4 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -5,7 +5,9 @@
+ package ssagen
+ 
+ import (
++	"fmt"
+ 	"internal/buildcfg"
++	"os"
+ 	"sort"
+ 	"sync"
+ 
+@@ -208,10 +210,60 @@ func Compile(fn *ir.Func, worker int) {
+ 	}
+ 
+ 	pp.Flush() // assemble, fill in boilerplate, etc.
++
++	// If we're compiling the package init function, search for any
++	// relocations that target global map init outline functions and
++	// turn them into weak relocs.
++	if base.Flag.WrapGlobalMapInit && fn.IsPackageInit() {
++		weakenGlobalMapInitRelocs(fn)
++	}
++
+ 	// fieldtrack must be called after pp.Flush. See issue 20014.
+ 	fieldtrack(pp.Text.From.Sym, fn.FieldTrack)
+ }
+ 
++// globalMapInitLsyms records the LSym of each map.init.NNN outlined
++// map initializer function created by the compiler.
++var globalMapInitLsyms map[*obj.LSym]struct{}
++
++// RegisterMapInitLsym records "s" in the set of outlined map initializer
++// functions.
++func RegisterMapInitLsym(s *obj.LSym) {
++	if globalMapInitLsyms == nil {
++		globalMapInitLsyms = make(map[*obj.LSym]struct{})
++	}
++	globalMapInitLsyms[s] = struct{}{}
++}
++
++// weakenGlobalMapInitRelocs walks through all of the relocations on a
++// given a package init function "fn" and looks for relocs that target
++// outlined global map initializer functions; if it finds any such
++// relocs, it flags them as R_WEAK.
++func weakenGlobalMapInitRelocs(fn *ir.Func) {
++	// Disabled until next patch.
++	if true {
++		return
++	}
++	if globalMapInitLsyms == nil {
++		return
++	}
++	for i := range fn.LSym.R {
++		tgt := fn.LSym.R[i].Sym
++		if tgt == nil {
++			continue
++		}
++		if _, ok := globalMapInitLsyms[tgt]; !ok {
++			continue
++		}
++		if base.Debug.WrapGlobalMapDbg > 1 {
++			fmt.Fprintf(os.Stderr, "=-= weakify fn %v reloc %d %+v\n", fn, i,
++				fn.LSym.R[i])
++		}
++		// set the R_WEAK bit, leave rest of reloc type intact
++		fn.LSym.R[i].Type |= objabi.R_WEAK
++	}
++}
++
+ // StackOffset returns the stack location of a LocalSlot relative to the
+ // stack pointer, suitable for use in a DWARF location entry. This has nothing
+ // to do with its offset in the user variable.
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 3747656d58..f954c246f7 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"go/token"
++	"os"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -16,6 +17,7 @@ import (
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
++	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -55,6 +57,28 @@ func (s *Schedule) StaticInit(n ir.Node) {
+ 	}
+ }
+ 
++// varToMapInit holds book-keeping state for global map initialization;
++// it records the init function created by the compiler to host the
++// initialization code for the map in question.
++var varToMapInit map[*ir.Name]*ir.Func
++
++// MapInitToVar is the inverse of VarToMapInit; it maintains a mapping
++// from a compiler-generated init function to the map the function is
++// initializing.
++var MapInitToVar map[*ir.Func]*ir.Name
++
++// recordFuncForVar establishes a mapping between global map var "v" and
++// outlined init function "fn" (and vice versa); so that we can use
++// the mappings later on to update relocations.
++func recordFuncForVar(v *ir.Name, fn *ir.Func) {
++	if varToMapInit == nil {
++		varToMapInit = make(map[*ir.Name]*ir.Func)
++		MapInitToVar = make(map[*ir.Func]*ir.Name)
++	}
++	varToMapInit[v] = fn
++	MapInitToVar[fn] = v
++}
++
+ // tryStaticInit attempts to statically execute an initialization
+ // statement and reports whether it succeeded.
+ func (s *Schedule) tryStaticInit(nn ir.Node) bool {
+@@ -887,3 +911,162 @@ func truncate(c *ir.ConstExpr, t *types.Type) (*ir.ConstExpr, bool) {
+ 	c.SetType(t)
+ 	return c, true
+ }
++
++const wrapGlobalMapInitSizeThreshold = 20
++
++// tryWrapGlobalMapInit examines the node 'n' to see if it is a map
++// variable initialization, and if so, possibly returns the mapvar
++// being assigned, a new function containing the init code, and a call
++// to the function passing the mapvar. Returns will be nil if the
++// assignment is not to a map, or the map init is not big enough,
++// or if the expression being assigned to the map has side effects.
++func tryWrapGlobalMapInit(n ir.Node) (mapvar *ir.Name, genfn *ir.Func, call ir.Node) {
++	// Look for "X = ..." where X has map type.
++	// FIXME: might also be worth trying to look for cases where
++	// the LHS is of interface type but RHS is map type.
++	if n.Op() != ir.OAS {
++		return nil, nil, nil
++	}
++	as := n.(*ir.AssignStmt)
++	if ir.IsBlank(as.X) || as.X.Op() != ir.ONAME {
++		return nil, nil, nil
++	}
++	nm := as.X.(*ir.Name)
++	if !nm.Type().IsMap() {
++		return nil, nil, nil
++	}
++
++	// Determine size of RHS.
++	rsiz := 0
++	ir.Any(as.Y, func(n ir.Node) bool {
++		rsiz++
++		return false
++	})
++	if base.Debug.WrapGlobalMapDbg > 0 {
++		fmt.Fprintf(os.Stderr, "=-= mapassign %s %v rhs size %d\n",
++			base.Ctxt.Pkgpath, n, rsiz)
++	}
++
++	// Reject smaller candidates if not in stress mode.
++	if rsiz < wrapGlobalMapInitSizeThreshold && base.Debug.WrapGlobalMapStress == 0 {
++		if base.Debug.WrapGlobalMapDbg > 1 {
++			fmt.Fprintf(os.Stderr, "=-= skipping %v size too small at %d\n",
++				nm, rsiz)
++		}
++		return nil, nil, nil
++	}
++
++	// Reject right hand sides with side effects.
++	if AnySideEffects(as.Y) {
++		if base.Debug.WrapGlobalMapDbg > 0 {
++			fmt.Fprintf(os.Stderr, "=-= rejected %v due to side effects\n", nm)
++		}
++		return nil, nil, nil
++	}
++
++	if base.Debug.WrapGlobalMapDbg > 1 {
++		fmt.Fprintf(os.Stderr, "=-= committed for: %+v\n", n)
++	}
++
++	// Create a new function that will (eventually) have this form:
++	//
++	//    func map.init.%d() {
++	//      globmapvar = <map initialization>
++	//    }
++	//
++	minitsym := typecheck.LookupNum("map.init.", mapinitgen)
++	mapinitgen++
++	newfn := typecheck.DeclFunc(minitsym, nil, nil, nil)
++	if base.Debug.WrapGlobalMapDbg > 0 {
++		fmt.Fprintf(os.Stderr, "=-= generated func is %v\n", newfn)
++	}
++
++	// NB: we're relying on this phase being run before inlining;
++	// if for some reason we need to move it after inlining, we'll
++	// need code here that relocates or duplicates inline temps.
++
++	// Insert assignment into function body; mark body finished.
++	newfn.Body = append(newfn.Body, as)
++	typecheck.FinishFuncBody()
++
++	typecheck.Func(newfn)
++
++	const no = `
++	// Register new function with decls.
++	typecheck.Target.Decls = append(typecheck.Target.Decls, newfn)
++`
++
++	// Create call to function, passing mapvar.
++	fncall := ir.NewCallExpr(n.Pos(), ir.OCALL, newfn.Nname, nil)
++
++	if base.Debug.WrapGlobalMapDbg > 1 {
++		fmt.Fprintf(os.Stderr, "=-= mapvar is %v\n", nm)
++		fmt.Fprintf(os.Stderr, "=-= newfunc is %+v\n", newfn)
++		fmt.Fprintf(os.Stderr, "=-= call is %+v\n", fncall)
++	}
++
++	return nm, newfn, typecheck.Stmt(fncall)
++}
++
++// mapinitgen is a counter used to uniquify compiler-generated
++// map init functions.
++var mapinitgen int
++
++// AddKeepRelocations adds a dummy "R_KEEP" relocation from each
++// global map variable V to its associated outlined init function.
++// These relocation ensure that if the map var itself is determined to
++// be reachable at link time, we also mark the init function as
++// reachable.
++func AddKeepRelocations() {
++	if varToMapInit == nil {
++		return
++	}
++	for k, v := range varToMapInit {
++		// Add R_KEEP relocation from map to init function.
++		fs := v.Linksym()
++		if fs == nil {
++			base.Fatalf("bad: func %v has no linksym", v)
++		}
++		vs := k.Linksym()
++		if vs == nil {
++			base.Fatalf("bad: mapvar %v has no linksym", k)
++		}
++		r := obj.Addrel(vs)
++		r.Sym = fs
++		r.Type = objabi.R_KEEP
++		if base.Debug.WrapGlobalMapDbg > 1 {
++			fmt.Fprintf(os.Stderr, "=-= add R_KEEP relo from %s to %s\n",
++				vs.Name, fs.Name)
++		}
++	}
++	varToMapInit = nil
++}
++
++// OutlineMapInits walks through a list of init statements (candidates
++// for inclusion in the package "init" function) and returns an
++// updated list in which items corresponding to map variable
++// initializations have been replaced with calls to outline "map init"
++// functions (if legal/profitable). Return value is an updated list
++// and a list of any newly generated "map init" functions.
++func OutlineMapInits(stmts []ir.Node) ([]ir.Node, []*ir.Func) {
++	if !base.Flag.WrapGlobalMapInit {
++		return stmts, nil
++	}
++	newfuncs := []*ir.Func{}
++	for i := range stmts {
++		s := stmts[i]
++		// Call the helper tryWrapGlobalMapInit to see if the LHS of
++		// this assignment is to a map var, and if so whether the RHS
++		// should be outlined into a separate init function. If the
++		// outline goes through, then replace the original init
++		// statement with the call to the outlined func, and append
++		// the new outlined func to our return list.
++		if mapvar, genfn, call := tryWrapGlobalMapInit(s); call != nil {
++			stmts[i] = call
++			newfuncs = append(newfuncs, genfn)
++			recordFuncForVar(mapvar, genfn)
++		}
++	}
++
++	return stmts, newfuncs
++}

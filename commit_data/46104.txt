@@ -40,7 +40,7 @@ Date:   Sun Dec 6 13:54:50 2020 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/275779
     Trust: Russ Cox <rsc@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go        |   2 +-
  src/cmd/compile/internal/gc/bimport.go      |   3 +-
  src/cmd/compile/internal/gc/const.go        |   2 +-
@@ -69,3 +69,2271 @@ Date:   Sun Dec 6 13:54:50 2020 -0500
  src/cmd/compile/internal/ssa/export_test.go |   2 +-
  src/cmd/compile/internal/types/fmt.go       | 694 ++++++++++++++++++++++++++++
  27 files changed, 786 insertions(+), 774 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index af426f5b24..212e4c46ae 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -193,7 +193,7 @@ func findTypeLoop(t *types.Type, path *[]*types.Type) bool {
+ 		// Type imported from package, so it can't be part of
+ 		// a type loop (otherwise that package should have
+ 		// failed to compile).
+-		if t.Sym().Pkg != ir.LocalPkg {
++		if t.Sym().Pkg != types.LocalPkg {
+ 			return false
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/gc/bimport.go b/src/cmd/compile/internal/gc/bimport.go
+index c0c18e728e..5a7018d8e6 100644
+--- a/src/cmd/compile/internal/gc/bimport.go
++++ b/src/cmd/compile/internal/gc/bimport.go
+@@ -6,6 +6,7 @@ package gc
+ 
+ import (
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
+ )
+ 
+@@ -15,5 +16,5 @@ func npos(pos src.XPos, n ir.Node) ir.Node {
+ }
+ 
+ func builtinCall(op ir.Op) ir.Node {
+-	return ir.Nod(ir.OCALL, mkname(ir.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
++	return ir.Nod(ir.OCALL, mkname(types.BuiltinPkg.Lookup(ir.OpNames[op])), nil)
+ }
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index 304c9aa2c3..80799580c6 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -384,7 +384,7 @@ func overflow(v constant.Value, t *types.Type) bool {
+ 		return true
+ 	}
+ 	if doesoverflow(v, t) {
+-		base.Errorf("constant %v overflows %v", ir.FmtConst(v, false), t)
++		base.Errorf("constant %v overflows %v", types.FmtConst(v, false), t)
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a77c1aed45..1c23c5a92f 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -66,7 +66,7 @@ func declare(n *ir.Name, ctxt ir.Class) {
+ 	s := n.Sym()
+ 
+ 	// kludgy: typecheckok means we're past parsing. Eg genwrapper may declare out of package names later.
+-	if !inimport && !typecheckok && s.Pkg != ir.LocalPkg {
++	if !inimport && !typecheckok && s.Pkg != types.LocalPkg {
+ 		base.ErrorfAt(n.Pos(), "cannot declare name %v", s)
+ 	}
+ 
+@@ -253,7 +253,7 @@ func oldname(s *types.Sym) ir.Node {
+ // but it reports an error if sym is from another package and not exported.
+ func importName(sym *types.Sym) ir.Node {
+ 	n := oldname(sym)
+-	if !types.IsExported(sym.Name) && sym.Pkg != ir.LocalPkg {
++	if !types.IsExported(sym.Name) && sym.Pkg != types.LocalPkg {
+ 		n.SetDiag(true)
+ 		base.Errorf("cannot refer to unexported name %s.%s", sym.Pkg.Name, sym.Name)
+ 	}
+@@ -512,7 +512,7 @@ func tostruct(l []*ir.Field) *types.Type {
+ 	checkdupfields("field", fields)
+ 
+ 	base.Pos = lno
+-	return types.NewStruct(ir.LocalPkg, fields)
++	return types.NewStruct(types.LocalPkg, fields)
+ }
+ 
+ func tointerface(nmethods []*ir.Field) *types.Type {
+@@ -533,7 +533,7 @@ func tointerface(nmethods []*ir.Field) *types.Type {
+ 	}
+ 
+ 	base.Pos = lno
+-	return types.NewInterface(ir.LocalPkg, methods)
++	return types.NewInterface(types.LocalPkg, methods)
+ }
+ 
+ func fakeRecv() *ir.Field {
+@@ -585,14 +585,14 @@ func functype(nrecv *ir.Field, nparams, nresults []*ir.Field) *types.Type {
+ 		recv = funarg(nrecv)
+ 	}
+ 
+-	t := types.NewSignature(ir.LocalPkg, recv, funargs(nparams), funargs(nresults))
++	t := types.NewSignature(types.LocalPkg, recv, funargs(nparams), funargs(nresults))
+ 	checkdupfields("argument", t.Recvs().FieldSlice(), t.Params().FieldSlice(), t.Results().FieldSlice())
+ 	return t
+ }
+ 
+ func hasNamedResults(fn *ir.Func) bool {
+ 	typ := fn.Type()
+-	return typ.NumResults() > 0 && ir.OrigSym(typ.Results().Field(0).Sym) != nil
++	return typ.NumResults() > 0 && types.OrigSym(typ.Results().Field(0).Sym) != nil
+ }
+ 
+ // methodSym returns the method symbol representing a method name
+@@ -703,7 +703,7 @@ func addmethod(n *ir.Func, msym *types.Sym, t *types.Type, local, nointerface bo
+ 		return nil
+ 	}
+ 
+-	if local && mt.Sym().Pkg != ir.LocalPkg {
++	if local && mt.Sym().Pkg != types.LocalPkg {
+ 		base.Errorf("cannot define new methods on non-local type %v", mt)
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/gc/embed.go b/src/cmd/compile/internal/gc/embed.go
+index d6e42e4f03..7664bde1c5 100644
+--- a/src/cmd/compile/internal/gc/embed.go
++++ b/src/cmd/compile/internal/gc/embed.go
+@@ -131,18 +131,18 @@ func varEmbed(p *noder, names []ir.Node, typ ir.Ntype, exprs []ir.Node, embeds [
+ // can't tell whether "string" and "byte" really mean "string" and "byte".
+ // The result must be confirmed later, after type checking, using embedKind.
+ func embedKindApprox(typ ir.Node) int {
+-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
++	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+ 		return embedFiles
+ 	}
+ 	// These are not guaranteed to match only string and []byte -
+ 	// maybe the local package has redefined one of those words.
+ 	// But it's the best we can do now during the noder.
+ 	// The stricter check happens later, in initEmbed calling embedKind.
+-	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == ir.LocalPkg {
++	if typ.Sym() != nil && typ.Sym().Name == "string" && typ.Sym().Pkg == types.LocalPkg {
+ 		return embedString
+ 	}
+ 	if typ, ok := typ.(*ir.SliceType); ok {
+-		if sym := typ.Elem.Sym(); sym != nil && sym.Name == "byte" && sym.Pkg == ir.LocalPkg {
++		if sym := typ.Elem.Sym(); sym != nil && sym.Name == "byte" && sym.Pkg == types.LocalPkg {
+ 			return embedBytes
+ 		}
+ 	}
+@@ -151,7 +151,7 @@ func embedKindApprox(typ ir.Node) int {
+ 
+ // embedKind determines the kind of embedding variable.
+ func embedKind(typ *types.Type) int {
+-	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
++	if typ.Sym() != nil && typ.Sym().Name == "FS" && (typ.Sym().Pkg.Path == "embed" || (typ.Sym().Pkg == types.LocalPkg && base.Ctxt.Pkgpath == "embed")) {
+ 		return embedFiles
+ 	}
+ 	if typ == types.Types[types.TSTRING] {
+diff --git a/src/cmd/compile/internal/gc/export.go b/src/cmd/compile/internal/gc/export.go
+index b632a15865..593dd3b2f8 100644
+--- a/src/cmd/compile/internal/gc/export.go
++++ b/src/cmd/compile/internal/gc/export.go
+@@ -42,7 +42,7 @@ func initname(s string) bool {
+ }
+ 
+ func autoexport(n *ir.Name, ctxt ir.Class) {
+-	if n.Sym().Pkg != ir.LocalPkg {
++	if n.Sym().Pkg != types.LocalPkg {
+ 		return
+ 	}
+ 	if (ctxt != ir.PEXTERN && ctxt != ir.PFUNC) || dclcontext != ir.PEXTERN {
+@@ -202,7 +202,7 @@ func dumpasmhdr() {
+ 	if err != nil {
+ 		base.Fatalf("%v", err)
+ 	}
+-	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", ir.LocalPkg.Name)
++	fmt.Fprintf(b, "// generated by compile -asmhdr from package %s\n\n", types.LocalPkg.Name)
+ 	for _, n := range asmlist {
+ 		if n.Sym().IsBlank() {
+ 			continue
+diff --git a/src/cmd/compile/internal/gc/gen.go b/src/cmd/compile/internal/gc/gen.go
+index 0d3f9392fb..39e9425978 100644
+--- a/src/cmd/compile/internal/gc/gen.go
++++ b/src/cmd/compile/internal/gc/gen.go
+@@ -66,7 +66,7 @@ func tempAt(pos src.XPos, curfn *ir.Func, t *types.Type) *ir.Name {
+ 
+ 	s := &types.Sym{
+ 		Name: autotmpname(len(curfn.Dcl)),
+-		Pkg:  ir.LocalPkg,
++		Pkg:  types.LocalPkg,
+ 	}
+ 	n := ir.NewNameAt(pos, s)
+ 	s.Def = n
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index c4b9c185dc..041073f117 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -37,7 +37,7 @@ var (
+ 
+ // isRuntimePkg reports whether p is package runtime.
+ func isRuntimePkg(p *types.Pkg) bool {
+-	if base.Flag.CompilingRuntime && p == ir.LocalPkg {
++	if base.Flag.CompilingRuntime && p == types.LocalPkg {
+ 		return true
+ 	}
+ 	return p.Path == "runtime"
+@@ -45,7 +45,7 @@ func isRuntimePkg(p *types.Pkg) bool {
+ 
+ // isReflectPkg reports whether p is package reflect.
+ func isReflectPkg(p *types.Pkg) bool {
+-	if p == ir.LocalPkg {
++	if p == types.LocalPkg {
+ 		return base.Ctxt.Pkgpath == "reflect"
+ 	}
+ 	return p.Path == "reflect"
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index 003cf3b446..b1cc9a3dd9 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -322,7 +322,7 @@ func (w *exportWriter) writeIndex(index map[*types.Sym]uint64, mainIndex bool) {
+ 	// we reference, even if we're not exporting (or reexporting)
+ 	// any symbols from it.
+ 	if mainIndex {
+-		pkgSyms[ir.LocalPkg] = nil
++		pkgSyms[types.LocalPkg] = nil
+ 		for pkg := range w.p.allPkgs {
+ 			pkgSyms[pkg] = nil
+ 		}
+@@ -402,7 +402,7 @@ func (p *iexporter) pushDecl(n *ir.Name) {
+ 	}
+ 
+ 	// Don't export predeclared declarations.
+-	if n.Sym().Pkg == ir.BuiltinPkg || n.Sym().Pkg == unsafepkg {
++	if n.Sym().Pkg == types.BuiltinPkg || n.Sym().Pkg == unsafepkg {
+ 		return
+ 	}
+ 
+@@ -596,7 +596,7 @@ func (w *exportWriter) selector(s *types.Sym) {
+ 	} else {
+ 		pkg := w.currPkg
+ 		if types.IsExported(name) {
+-			pkg = ir.LocalPkg
++			pkg = types.LocalPkg
+ 		}
+ 		if s.Pkg != pkg {
+ 			base.Fatalf("package mismatch in selector: %v in package %q, but want %q", s, s.Pkg.Path, pkg.Path)
+@@ -637,7 +637,7 @@ func (w *exportWriter) startType(k itag) {
+ 
+ func (w *exportWriter) doTyp(t *types.Type) {
+ 	if t.Sym() != nil {
+-		if t.Sym().Pkg == ir.BuiltinPkg || t.Sym().Pkg == unsafepkg {
++		if t.Sym().Pkg == types.BuiltinPkg || t.Sym().Pkg == unsafepkg {
+ 			base.Fatalf("builtin type missing from typIndex: %v", t)
+ 		}
+ 
+@@ -748,7 +748,7 @@ func (w *exportWriter) paramList(fs []*types.Field) {
+ 
+ func (w *exportWriter) param(f *types.Field) {
+ 	w.pos(f.Pos)
+-	w.localIdent(ir.OrigSym(f.Sym), 0)
++	w.localIdent(types.OrigSym(f.Sym), 0)
+ 	w.typ(f.Type)
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 1d9baed5ad..859263c83f 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -148,7 +148,7 @@ func iimport(pkg *types.Pkg, in *bio.Reader) (fingerprint goobj.FingerprintType)
+ 		if pkg.Name == "" {
+ 			pkg.Name = pkgName
+ 			pkg.Height = pkgHeight
+-			ir.NumImport[pkgName]++
++			types.NumImport[pkgName]++
+ 
+ 			// TODO(mdempsky): This belongs somewhere else.
+ 			pkg.Lookup("_").Def = ir.BlankNode
+@@ -437,7 +437,7 @@ func (r *importReader) ident() *types.Sym {
+ 	}
+ 	pkg := r.currPkg
+ 	if types.IsExported(name) {
+-		pkg = ir.LocalPkg
++		pkg = types.LocalPkg
+ 	}
+ 	return pkg.Lookup(name)
+ }
+diff --git a/src/cmd/compile/internal/gc/init.go b/src/cmd/compile/internal/gc/init.go
+index dc825b2421..e0907f952c 100644
+--- a/src/cmd/compile/internal/gc/init.go
++++ b/src/cmd/compile/internal/gc/init.go
+@@ -96,7 +96,7 @@ func fninit(n []ir.Node) {
+ 		fns = append(fns, s.Linksym())
+ 	}
+ 
+-	if len(deps) == 0 && len(fns) == 0 && ir.LocalPkg.Name != "main" && ir.LocalPkg.Name != "runtime" {
++	if len(deps) == 0 && len(fns) == 0 && types.LocalPkg.Name != "main" && types.LocalPkg.Name != "runtime" {
+ 		return // nothing to initialize
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8402852424..77fbf7c802 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -85,7 +85,7 @@ func typecheckinl(fn *ir.Func) {
+ 	// the ->inl of a local function has been typechecked before caninl copied it.
+ 	pkg := fnpkg(fn.Nname)
+ 
+-	if pkg == ir.LocalPkg || pkg == nil {
++	if pkg == types.LocalPkg || pkg == nil {
+ 		return // typecheckinl on local function
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index a40671bccf..15659dc7fd 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -77,17 +77,17 @@ func Main(archInit func(*Arch)) {
+ 	// See bugs 31188 and 21945 (CLs 170638, 98075, 72371).
+ 	base.Ctxt.UseBASEntries = base.Ctxt.Headtype != objabi.Hdarwin
+ 
+-	ir.LocalPkg = types.NewPkg("", "")
+-	ir.LocalPkg.Prefix = "\"\""
++	types.LocalPkg = types.NewPkg("", "")
++	types.LocalPkg.Prefix = "\"\""
+ 
+ 	// We won't know localpkg's height until after import
+ 	// processing. In the mean time, set to MaxPkgHeight to ensure
+ 	// height comparisons at least work until then.
+-	ir.LocalPkg.Height = types.MaxPkgHeight
++	types.LocalPkg.Height = types.MaxPkgHeight
+ 
+ 	// pseudo-package, for scoping
+-	ir.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
+-	ir.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
++	types.BuiltinPkg = types.NewPkg("go.builtin", "") // TODO(gri) name this package go.builtin?
++	types.BuiltinPkg.Prefix = "go.builtin"            // not go%2ebuiltin
+ 
+ 	// pseudo-package, accessed by import "unsafe"
+ 	unsafepkg = types.NewPkg("unsafe", "unsafe")
+@@ -212,7 +212,7 @@ func Main(archInit func(*Arch)) {
+ 	// would lead to import cycles)
+ 	types.Widthptr = Widthptr
+ 	types.Dowidth = dowidth
+-	ir.InstallTypeFormats()
++	types.InstallTypeFormats()
+ 	types.TypeLinkSym = func(t *types.Type) *obj.LSym {
+ 		return typenamesym(t).Linksym()
+ 	}
+@@ -922,14 +922,14 @@ func pkgnotused(lineno src.XPos, path string, name string) {
+ }
+ 
+ func mkpackage(pkgname string) {
+-	if ir.LocalPkg.Name == "" {
++	if types.LocalPkg.Name == "" {
+ 		if pkgname == "_" {
+ 			base.Errorf("invalid package name _")
+ 		}
+-		ir.LocalPkg.Name = pkgname
++		types.LocalPkg.Name = pkgname
+ 	} else {
+-		if pkgname != ir.LocalPkg.Name {
+-			base.Errorf("package %s; expected %s", pkgname, ir.LocalPkg.Name)
++		if pkgname != types.LocalPkg.Name {
++			base.Errorf("package %s; expected %s", pkgname, types.LocalPkg.Name)
+ 		}
+ 	}
+ }
+@@ -942,7 +942,7 @@ func clearImports() {
+ 	}
+ 	var unused []importedPkg
+ 
+-	for _, s := range ir.LocalPkg.Syms {
++	for _, s := range types.LocalPkg.Syms {
+ 		n := ir.AsNode(s.Def)
+ 		if n == nil {
+ 			continue
+@@ -1046,7 +1046,7 @@ func recordPackageName() {
+ 	// together two package main archives. So allow dups.
+ 	s.Set(obj.AttrDuplicateOK, true)
+ 	base.Ctxt.Data = append(base.Ctxt.Data, s)
+-	s.P = []byte(ir.LocalPkg.Name)
++	s.P = []byte(types.LocalPkg.Name)
+ }
+ 
+ // currentLang returns the current language version.
+@@ -1073,9 +1073,9 @@ var langWant lang
+ func langSupported(major, minor int, pkg *types.Pkg) bool {
+ 	if pkg == nil {
+ 		// TODO(mdempsky): Set Pkg for local types earlier.
+-		pkg = ir.LocalPkg
++		pkg = types.LocalPkg
+ 	}
+-	if pkg != ir.LocalPkg {
++	if pkg != types.LocalPkg {
+ 		// Assume imported packages passed type-checking.
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 1cd8375677..f39bf2ff3c 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -79,7 +79,7 @@ func parseFiles(filenames []string) uint {
+ 		p.processPragmas()
+ 	}
+ 
+-	ir.LocalPkg.Height = myheight
++	types.LocalPkg.Height = myheight
+ 
+ 	return lines
+ }
+@@ -501,7 +501,7 @@ func (p *noder) typeDecl(decl *syntax.TypeDecl) ir.Node {
+ 	}
+ 
+ 	nod := p.nod(decl, ir.ODCLTYPE, n, nil)
+-	if n.Alias() && !langSupported(1, 9, ir.LocalPkg) {
++	if n.Alias() && !langSupported(1, 9, types.LocalPkg) {
+ 		base.ErrorfAt(nod.Pos(), "type aliases only supported as of -lang=go1.9")
+ 	}
+ 	return nod
+@@ -532,7 +532,7 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) ir.Node {
+ 			}
+ 		}
+ 
+-		if ir.LocalPkg.Name == "main" && name.Name == "main" {
++		if types.LocalPkg.Name == "main" && name.Name == "main" {
+ 			if t.List().Len() > 0 || t.Rlist().Len() > 0 {
+ 				base.ErrorfAt(f.Pos(), "func main must have no arguments and no return values")
+ 			}
+@@ -931,7 +931,7 @@ func (p *noder) packname(expr syntax.Expr) *types.Sym {
+ 		var pkg *types.Pkg
+ 		if def.Op() != ir.OPACK {
+ 			base.Errorf("%v is not a package", name)
+-			pkg = ir.LocalPkg
++			pkg = types.LocalPkg
+ 		} else {
+ 			def := def.(*ir.PkgName)
+ 			def.Used = true
+@@ -1387,7 +1387,7 @@ func (p *noder) binOp(op syntax.Operator) ir.Op {
+ // literal is not compatible with the current language version.
+ func checkLangCompat(lit *syntax.BasicLit) {
+ 	s := lit.Value
+-	if len(s) <= 2 || langSupported(1, 13, ir.LocalPkg) {
++	if len(s) <= 2 || langSupported(1, 13, types.LocalPkg) {
+ 		return
+ 	}
+ 	// len(s) > 2
+diff --git a/src/cmd/compile/internal/gc/obj.go b/src/cmd/compile/internal/gc/obj.go
+index b1701b30a1..c34a86d4eb 100644
+--- a/src/cmd/compile/internal/gc/obj.go
++++ b/src/cmd/compile/internal/gc/obj.go
+@@ -84,7 +84,7 @@ func printObjHeader(bout *bio.Writer) {
+ 	if base.Flag.BuildID != "" {
+ 		fmt.Fprintf(bout, "build id %q\n", base.Flag.BuildID)
+ 	}
+-	if ir.LocalPkg.Name == "main" {
++	if types.LocalPkg.Name == "main" {
+ 		fmt.Fprintf(bout, "main\n")
+ 	}
+ 	fmt.Fprintf(bout, "\n") // header ends with blank line
+@@ -200,7 +200,7 @@ func dumpLinkerObj(bout *bio.Writer) {
+ }
+ 
+ func addptabs() {
+-	if !base.Ctxt.Flag_dynlink || ir.LocalPkg.Name != "main" {
++	if !base.Ctxt.Flag_dynlink || types.LocalPkg.Name != "main" {
+ 		return
+ 	}
+ 	for _, exportn := range exportlist {
+@@ -235,7 +235,7 @@ func dumpGlobal(n ir.Node) {
+ 	if n.Class() == ir.PFUNC {
+ 		return
+ 	}
+-	if n.Sym().Pkg != ir.LocalPkg {
++	if n.Sym().Pkg != types.LocalPkg {
+ 		return
+ 	}
+ 	dowidth(n.Type())
+@@ -248,7 +248,7 @@ func dumpGlobalConst(n ir.Node) {
+ 	if t == nil {
+ 		return
+ 	}
+-	if n.Sym().Pkg != ir.LocalPkg {
++	if n.Sym().Pkg != types.LocalPkg {
+ 		return
+ 	}
+ 	// only export integer constants for now
+@@ -478,7 +478,7 @@ var slicedataGen int
+ func slicedata(pos src.XPos, s string) ir.Node {
+ 	slicedataGen++
+ 	symname := fmt.Sprintf(".gobytes.%d", slicedataGen)
+-	sym := ir.LocalPkg.Lookup(symname)
++	sym := types.LocalPkg.Lookup(symname)
+ 	symnode := NewName(sym)
+ 	sym.Def = symnode
+ 
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 42139b7135..9b8f26a84b 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -301,7 +301,7 @@ func deferstruct(stksize int64) *types.Type {
+ 		// Unlike the global makefield function, this one needs to set Pkg
+ 		// because these types might be compared (in SSA CSE sorting).
+ 		// TODO: unify this makefield and the global one above.
+-		sym := &types.Sym{Name: name, Pkg: ir.LocalPkg}
++		sym := &types.Sym{Name: name, Pkg: types.LocalPkg}
+ 		return types.NewField(src.NoXPos, sym, typ)
+ 	}
+ 	argtype := types.NewArray(types.Types[types.TUINT8], stksize)
+@@ -491,7 +491,7 @@ func dimportpath(p *types.Pkg) {
+ 	}
+ 
+ 	str := p.Path
+-	if p == ir.LocalPkg {
++	if p == types.LocalPkg {
+ 		// Note: myimportpath != "", or else dgopkgpath won't call dimportpath.
+ 		str = base.Ctxt.Pkgpath
+ 	}
+@@ -508,7 +508,7 @@ func dgopkgpath(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 		return duintptr(s, ot, 0)
+ 	}
+ 
+-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
++	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+ 		// If we don't know the full import path of the package being compiled
+ 		// (i.e. -p was not passed on the compiler command line), emit a reference to
+ 		// type..importpath.""., which the linker will rewrite using the correct import path.
+@@ -527,7 +527,7 @@ func dgopkgpathOff(s *obj.LSym, ot int, pkg *types.Pkg) int {
+ 	if pkg == nil {
+ 		return duint32(s, ot, 0)
+ 	}
+-	if pkg == ir.LocalPkg && base.Ctxt.Pkgpath == "" {
++	if pkg == types.LocalPkg && base.Ctxt.Pkgpath == "" {
+ 		// If we don't know the full import path of the package being compiled
+ 		// (i.e. -p was not passed on the compiler command line), emit a reference to
+ 		// type..importpath.""., which the linker will rewrite using the correct import path.
+@@ -1158,7 +1158,7 @@ func dtypesym(t *types.Type) *obj.LSym {
+ 
+ 	if base.Ctxt.Pkgpath != "runtime" || (tbase != types.Types[tbase.Kind()] && tbase != types.ByteType && tbase != types.RuneType && tbase != types.ErrorType) { // int, float, etc
+ 		// named types from other files are defined only by those files
+-		if tbase.Sym() != nil && tbase.Sym().Pkg != ir.LocalPkg {
++		if tbase.Sym() != nil && tbase.Sym().Pkg != types.LocalPkg {
+ 			if i, ok := typeSymIdx[tbase]; ok {
+ 				lsym.Pkg = tbase.Sym().Pkg.Prefix
+ 				if t != tbase {
+@@ -1568,7 +1568,7 @@ func dumptabs() {
+ 	}
+ 
+ 	// process ptabs
+-	if ir.LocalPkg.Name == "main" && len(ptabs) > 0 {
++	if types.LocalPkg.Name == "main" && len(ptabs) > 0 {
+ 		ot := 0
+ 		s := base.Ctxt.Lookup("go.plugin.tabs")
+ 		for _, p := range ptabs {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index c446c9d083..3c5f11c5ab 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -79,7 +79,7 @@ func (s *InitSchedule) staticcopy(l ir.Node, r ir.Node) bool {
+ 		pfuncsym(l, r)
+ 		return true
+ 	}
+-	if r.Class() != ir.PEXTERN || r.Sym().Pkg != ir.LocalPkg {
++	if r.Class() != ir.PEXTERN || r.Sym().Pkg != types.LocalPkg {
+ 		return false
+ 	}
+ 	if r.Name().Defn == nil { // probably zeroed but perhaps supplied externally and of unknown value
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 89918e2133..add50c35d7 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -4127,7 +4127,7 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
+ 		return nil
+ 	}
+ 	pkg := sym.Pkg.Path
+-	if sym.Pkg == ir.LocalPkg {
++	if sym.Pkg == types.LocalPkg {
+ 		pkg = base.Ctxt.Pkgpath
+ 	}
+ 	if base.Flag.Race && pkg == "sync/atomic" {
+@@ -7073,7 +7073,7 @@ func (e *ssafn) SplitSlot(parent *ssa.LocalSlot, suffix string, offset int64, t
+ 		return ssa.LocalSlot{N: node, Type: t, Off: parent.Off + offset}
+ 	}
+ 
+-	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: ir.LocalPkg}
++	s := &types.Sym{Name: node.Sym().Name + suffix, Pkg: types.LocalPkg}
+ 	n := ir.NewNameAt(parent.N.Pos(), s)
+ 	s.Def = n
+ 	ir.AsNode(s.Def).Name().SetUsed(true)
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 65eb61e680..dffebc58f2 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -69,7 +69,7 @@ func setlineno(n ir.Node) src.XPos {
+ }
+ 
+ func lookup(name string) *types.Sym {
+-	return ir.LocalPkg.Lookup(name)
++	return types.LocalPkg.Lookup(name)
+ }
+ 
+ // lookupN looks up the symbol starting with prefix and ending with
+@@ -78,7 +78,7 @@ func lookupN(prefix string, n int) *types.Sym {
+ 	var buf [20]byte // plenty long enough for all current users
+ 	copy(buf[:], prefix)
+ 	b := strconv.AppendInt(buf[:len(prefix)], int64(n), 10)
+-	return ir.LocalPkg.LookupBytes(b)
++	return types.LocalPkg.LookupBytes(b)
+ }
+ 
+ // autolabel generates a new Name node for use with
+@@ -1109,13 +1109,13 @@ func genwrapper(rcvr *types.Type, method *types.Field, newnam *types.Sym) {
+ 
+ 	// Only generate (*T).M wrappers for T.M in T's own package.
+ 	if rcvr.IsPtr() && rcvr.Elem() == method.Type.Recv().Type &&
+-		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != ir.LocalPkg {
++		rcvr.Elem().Sym() != nil && rcvr.Elem().Sym().Pkg != types.LocalPkg {
+ 		return
+ 	}
+ 
+ 	// Only generate I.M wrappers for I in I's own package
+ 	// but keep doing it for error.Error (was issue #29304).
+-	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != ir.LocalPkg && rcvr != types.ErrorType {
++	if rcvr.IsInterface() && rcvr.Sym() != nil && rcvr.Sym().Pkg != types.LocalPkg && rcvr != types.ErrorType {
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index dc9e23069e..85094dbebc 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -90,7 +90,7 @@ func resolve(n ir.Node) (res ir.Node) {
+ 		defer tracePrint("resolve", n)(&res)
+ 	}
+ 
+-	if n.Sym().Pkg != ir.LocalPkg {
++	if n.Sym().Pkg != types.LocalPkg {
+ 		if inimport {
+ 			base.Fatalf("recursive inimport")
+ 		}
+@@ -2386,7 +2386,7 @@ func typecheckMethodExpr(n ir.Node) (res ir.Node) {
+ 	me.(*ir.MethodExpr).Method = m
+ 
+ 	// Issue 25065. Make sure that we emit the symbol for a local method.
+-	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == ir.LocalPkg) {
++	if base.Ctxt.Flag_dynlink && !inimport && (t.Sym() == nil || t.Sym().Pkg == types.LocalPkg) {
+ 		makefuncsym(me.Sym())
+ 	}
+ 
+@@ -2862,7 +2862,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 
+ 				f := t.Field(i)
+ 				s := f.Sym
+-				if s != nil && !types.IsExported(s.Name) && s.Pkg != ir.LocalPkg {
++				if s != nil && !types.IsExported(s.Name) && s.Pkg != types.LocalPkg {
+ 					base.Errorf("implicit assignment of unexported field '%s' in %v literal", s.Name, t)
+ 				}
+ 				// No pushtype allowed here. Must name fields for that.
+@@ -2903,7 +2903,7 @@ func typecheckcomplit(n ir.Node) (res ir.Node) {
+ 					// package, because of import dot. Redirect to correct sym
+ 					// before we do the lookup.
+ 					s := key.Sym()
+-					if s.Pkg != ir.LocalPkg && types.IsExported(s.Name) {
++					if s.Pkg != types.LocalPkg && types.IsExported(s.Name) {
+ 						s1 := lookup(s.Name)
+ 						if s1.Origpkg == s.Pkg {
+ 							s = s1
+@@ -3034,7 +3034,7 @@ func typecheckarraylit(elemType *types.Type, bound int64, elts []ir.Node, ctx st
+ 
+ // visible reports whether sym is exported or locally defined.
+ func visible(sym *types.Sym) bool {
+-	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == ir.LocalPkg)
++	return sym != nil && (types.IsExported(sym.Name) || sym.Pkg == types.LocalPkg)
+ }
+ 
+ // nonexported reports whether sym is an unexported field.
+@@ -3929,7 +3929,7 @@ func curpkg() *types.Pkg {
+ 	fn := Curfn
+ 	if fn == nil {
+ 		// Initialization expressions for package-scope variables.
+-		return ir.LocalPkg
++		return types.LocalPkg
+ 	}
+ 	return fnpkg(fn.Nname)
+ }
+diff --git a/src/cmd/compile/internal/gc/universe.go b/src/cmd/compile/internal/gc/universe.go
+index cd68719a99..42b996d88d 100644
+--- a/src/cmd/compile/internal/gc/universe.go
++++ b/src/cmd/compile/internal/gc/universe.go
+@@ -104,7 +104,7 @@ func initUniverse() {
+ 	}
+ 
+ 	types.Types[types.TANY] = types.New(types.TANY)
+-	types.Types[types.TINTER] = types.NewInterface(ir.LocalPkg, nil)
++	types.Types[types.TINTER] = types.NewInterface(types.LocalPkg, nil)
+ 
+ 	defBasic := func(kind types.Kind, pkg *types.Pkg, name string) *types.Type {
+ 		sym := pkg.Lookup(name)
+@@ -120,7 +120,7 @@ func initUniverse() {
+ 	}
+ 
+ 	for _, s := range &basicTypes {
+-		types.Types[s.etype] = defBasic(s.etype, ir.BuiltinPkg, s.name)
++		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+ 	}
+ 
+ 	for _, s := range &typedefs {
+@@ -130,7 +130,7 @@ func initUniverse() {
+ 		}
+ 		simtype[s.etype] = sameas
+ 
+-		types.Types[s.etype] = defBasic(s.etype, ir.BuiltinPkg, s.name)
++		types.Types[s.etype] = defBasic(s.etype, types.BuiltinPkg, s.name)
+ 	}
+ 
+ 	// We create separate byte and rune types for better error messages
+@@ -140,11 +140,11 @@ func initUniverse() {
+ 	// of less informative error messages involving bytes and runes)?
+ 	// (Alternatively, we could introduce an OTALIAS node representing
+ 	// type aliases, albeit at the cost of having to deal with it everywhere).
+-	types.ByteType = defBasic(types.TUINT8, ir.BuiltinPkg, "byte")
+-	types.RuneType = defBasic(types.TINT32, ir.BuiltinPkg, "rune")
++	types.ByteType = defBasic(types.TUINT8, types.BuiltinPkg, "byte")
++	types.RuneType = defBasic(types.TINT32, types.BuiltinPkg, "rune")
+ 
+ 	// error type
+-	s := ir.BuiltinPkg.Lookup("error")
++	s := types.BuiltinPkg.Lookup("error")
+ 	n := ir.NewDeclNameAt(src.NoXPos, s)
+ 	n.SetOp(ir.OTYPE)
+ 	types.ErrorType = types.NewNamed(n)
+@@ -162,7 +162,7 @@ func initUniverse() {
+ 	simtype[types.TUNSAFEPTR] = types.TPTR
+ 
+ 	for _, s := range &builtinFuncs {
+-		s2 := ir.BuiltinPkg.Lookup(s.name)
++		s2 := types.BuiltinPkg.Lookup(s.name)
+ 		s2.Def = NewName(s2)
+ 		ir.AsNode(s2.Def).SetSubOp(s.op)
+ 	}
+@@ -173,16 +173,16 @@ func initUniverse() {
+ 		ir.AsNode(s2.Def).SetSubOp(s.op)
+ 	}
+ 
+-	s = ir.BuiltinPkg.Lookup("true")
++	s = types.BuiltinPkg.Lookup("true")
+ 	s.Def = nodbool(true)
+ 	ir.AsNode(s.Def).SetSym(lookup("true"))
+ 
+-	s = ir.BuiltinPkg.Lookup("false")
++	s = types.BuiltinPkg.Lookup("false")
+ 	s.Def = nodbool(false)
+ 	ir.AsNode(s.Def).SetSym(lookup("false"))
+ 
+ 	s = lookup("_")
+-	ir.BlankSym = s
++	types.BlankSym = s
+ 	s.Block = -100
+ 	s.Def = NewName(s)
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+@@ -190,18 +190,18 @@ func initUniverse() {
+ 	ir.BlankNode = ir.AsNode(s.Def)
+ 	ir.BlankNode.SetTypecheck(1)
+ 
+-	s = ir.BuiltinPkg.Lookup("_")
++	s = types.BuiltinPkg.Lookup("_")
+ 	s.Block = -100
+ 	s.Def = NewName(s)
+ 	types.Types[types.TBLANK] = types.New(types.TBLANK)
+ 	ir.AsNode(s.Def).SetType(types.Types[types.TBLANK])
+ 
+ 	types.Types[types.TNIL] = types.New(types.TNIL)
+-	s = ir.BuiltinPkg.Lookup("nil")
++	s = types.BuiltinPkg.Lookup("nil")
+ 	s.Def = nodnil()
+ 	ir.AsNode(s.Def).SetSym(s)
+ 
+-	s = ir.BuiltinPkg.Lookup("iota")
++	s = types.BuiltinPkg.Lookup("iota")
+ 	s.Def = ir.Nod(ir.OIOTA, nil, nil)
+ 	ir.AsNode(s.Def).SetSym(s)
+ 
+@@ -339,7 +339,7 @@ func finishUniverse() {
+ 	// that we silently skip symbols that are already declared in the
+ 	// package block rather than emitting a redeclared symbol error.
+ 
+-	for _, s := range ir.BuiltinPkg.Syms {
++	for _, s := range types.BuiltinPkg.Syms {
+ 		if s.Def == nil {
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index 574c7c4709..346817e589 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -983,7 +983,7 @@ opswitch:
+ 		if param == types.Txxx {
+ 			break
+ 		}
+-		fn := ir.BasicTypeNames[param] + "to" + ir.BasicTypeNames[result]
++		fn := types.BasicTypeNames[param] + "to" + types.BasicTypeNames[result]
+ 		n = conv(mkcall(fn, types.Types[result], init, conv(n.Left(), types.Types[param])), n.Type())
+ 
+ 	case ir.ODIV, ir.OMOD:
+diff --git a/src/cmd/compile/internal/ir/fmt.go b/src/cmd/compile/internal/ir/fmt.go
+index 117c7417d2..79d85d1803 100644
+--- a/src/cmd/compile/internal/ir/fmt.go
++++ b/src/cmd/compile/internal/ir/fmt.go
+@@ -10,9 +10,7 @@ import (
+ 	"go/constant"
+ 	"io"
+ 	"os"
+-	"strconv"
+-	"strings"
+-	"sync"
++
+ 	"unicode/utf8"
+ 
+ 	"cmd/compile/internal/base"
+@@ -20,74 +18,6 @@ import (
+ 	"cmd/internal/src"
+ )
+ 
+-// Format conversions:
+-// TODO(gri) verify these; eliminate those not used anymore
+-//
+-//	%v Op		Node opcodes
+-//		Flags:  #: print Go syntax (automatic unless mode == FDbg)
+-//
+-//	%j *Node	Node details
+-//		Flags:  0: suppresses things not relevant until walk
+-//
+-//	%v *Val		Constant values
+-//
+-//	%v *types.Sym		Symbols
+-//	%S              unqualified identifier in any mode
+-//		Flags:  +,- #: mode (see below)
+-//			0: in export mode: unqualified identifier if exported, qualified if not
+-//
+-//	%v *types.Type	Types
+-//	%S              omit "func" and receiver in function types
+-//	%L              definition instead of name.
+-//		Flags:  +,- #: mode (see below)
+-//			' ' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
+-//
+-//	%v *Node	Nodes
+-//	%S              (only in +/debug mode) suppress recursion
+-//	%L              (only in Error mode) print "foo (type Bar)"
+-//		Flags:  +,- #: mode (see below)
+-//
+-//	%v Nodes	Node lists
+-//		Flags:  those of *Node
+-//			.: separate items with ',' instead of ';'
+-
+-// *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
+-
+-// The mode flags '+', '-', and '#' are sticky; they persist through
+-// recursions of *Node, *types.Type, and *types.Sym values. The ' ' flag is
+-// sticky only on *types.Type recursions and only used in %-/*types.Sym mode.
+-//
+-// Example: given a *types.Sym: %+v %#v %-v print an identifier properly qualified for debug/export/internal mode
+-
+-// Useful format combinations:
+-// TODO(gri): verify these
+-//
+-// *Node, Nodes:
+-//   %+v    multiline recursive debug dump of *Node/Nodes
+-//   %+S    non-recursive debug dump
+-//
+-// *Node:
+-//   %#v    Go format
+-//   %L     "foo (type Bar)" for error messages
+-//
+-// *types.Type:
+-//   %#v    Go format
+-//   %#L    type definition instead of name
+-//   %#S    omit "func" and receiver in function signature
+-//
+-//   %-v    type identifiers
+-//   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
+-//   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
+-
+-type FmtMode int
+-
+-const (
+-	FErr FmtMode = iota
+-	FDbg
+-	FTypeId
+-	FTypeIdName // same as FTypeId, but use package name instead of prefix
+-)
+-
+ // Op
+ 
+ var OpNames = []string{
+@@ -177,584 +107,6 @@ func (o Op) Format(s fmt.State, verb rune) {
+ 	}
+ }
+ 
+-// Val
+-
+-func FmtConst(v constant.Value, sharp bool) string {
+-	if !sharp && v.Kind() == constant.Complex {
+-		real, imag := constant.Real(v), constant.Imag(v)
+-
+-		var re string
+-		sre := constant.Sign(real)
+-		if sre != 0 {
+-			re = real.String()
+-		}
+-
+-		var im string
+-		sim := constant.Sign(imag)
+-		if sim != 0 {
+-			im = imag.String()
+-		}
+-
+-		switch {
+-		case sre == 0 && sim == 0:
+-			return "0"
+-		case sre == 0:
+-			return im + "i"
+-		case sim == 0:
+-			return re
+-		case sim < 0:
+-			return fmt.Sprintf("(%s%si)", re, im)
+-		default:
+-			return fmt.Sprintf("(%s+%si)", re, im)
+-		}
+-	}
+-
+-	return v.String()
+-}
+-
+-// Sym
+-
+-// numImport tracks how often a package with a given name is imported.
+-// It is used to provide a better error message (by using the package
+-// path to disambiguate) if a package that appears multiple times with
+-// the same name appears in an error message.
+-var NumImport = make(map[string]int)
+-
+-// "%S" suppresses qualifying with package
+-func symFormat(s *types.Sym, f fmt.State, verb rune) {
+-	mode := FErr
+-	switch verb {
+-	case 'v', 'S':
+-		if verb == 'v' && f.Flag('+') {
+-			mode = FDbg
+-		}
+-		fmt.Fprint(f, sconv(s, verb, mode))
+-
+-	default:
+-		fmt.Fprintf(f, "%%!%c(*types.Sym=%p)", verb, s)
+-	}
+-}
+-
+-// See #16897 for details about performance implications
+-// before changing the implementation of sconv.
+-func sconv(s *types.Sym, verb rune, mode FmtMode) string {
+-	if verb == 'L' {
+-		panic("linksymfmt")
+-	}
+-
+-	if s == nil {
+-		return "<S>"
+-	}
+-
+-	if s.Name == "_" {
+-		return "_"
+-	}
+-	buf := fmtBufferPool.Get().(*bytes.Buffer)
+-	buf.Reset()
+-	defer fmtBufferPool.Put(buf)
+-
+-	symfmt(buf, s, verb, mode)
+-	return types.InternString(buf.Bytes())
+-}
+-
+-func sconv2(b *bytes.Buffer, s *types.Sym, verb rune, mode FmtMode) {
+-	if verb == 'L' {
+-		panic("linksymfmt")
+-	}
+-	if s == nil {
+-		b.WriteString("<S>")
+-		return
+-	}
+-	if s.Name == "_" {
+-		b.WriteString("_")
+-		return
+-	}
+-
+-	symfmt(b, s, verb, mode)
+-}
+-
+-func symfmt(b *bytes.Buffer, s *types.Sym, verb rune, mode FmtMode) {
+-	if verb != 'S' {
+-		switch mode {
+-		case FErr: // This is for the user
+-			if s.Pkg == BuiltinPkg || s.Pkg == LocalPkg {
+-				b.WriteString(s.Name)
+-				return
+-			}
+-
+-			// If the name was used by multiple packages, display the full path,
+-			if s.Pkg.Name != "" && NumImport[s.Pkg.Name] > 1 {
+-				fmt.Fprintf(b, "%q.%s", s.Pkg.Path, s.Name)
+-				return
+-			}
+-			b.WriteString(s.Pkg.Name)
+-			b.WriteByte('.')
+-			b.WriteString(s.Name)
+-			return
+-
+-		case FDbg:
+-			b.WriteString(s.Pkg.Name)
+-			b.WriteByte('.')
+-			b.WriteString(s.Name)
+-			return
+-
+-		case FTypeIdName:
+-			// dcommontype, typehash
+-			b.WriteString(s.Pkg.Name)
+-			b.WriteByte('.')
+-			b.WriteString(s.Name)
+-			return
+-
+-		case FTypeId:
+-			// (methodsym), typesym, weaksym
+-			b.WriteString(s.Pkg.Prefix)
+-			b.WriteByte('.')
+-			b.WriteString(s.Name)
+-			return
+-		}
+-	}
+-
+-	b.WriteString(s.Name)
+-}
+-
+-func methodSymName(s *types.Sym) string {
+-	// Skip leading "type." in method name
+-	name := s.Name
+-	if i := strings.LastIndex(name, "."); i >= 0 {
+-		name = name[i+1:]
+-	}
+-	return name
+-}
+-
+-// Type
+-
+-var BasicTypeNames = []string{
+-	types.TINT:        "int",
+-	types.TUINT:       "uint",
+-	types.TINT8:       "int8",
+-	types.TUINT8:      "uint8",
+-	types.TINT16:      "int16",
+-	types.TUINT16:     "uint16",
+-	types.TINT32:      "int32",
+-	types.TUINT32:     "uint32",
+-	types.TINT64:      "int64",
+-	types.TUINT64:     "uint64",
+-	types.TUINTPTR:    "uintptr",
+-	types.TFLOAT32:    "float32",
+-	types.TFLOAT64:    "float64",
+-	types.TCOMPLEX64:  "complex64",
+-	types.TCOMPLEX128: "complex128",
+-	types.TBOOL:       "bool",
+-	types.TANY:        "any",
+-	types.TSTRING:     "string",
+-	types.TNIL:        "nil",
+-	types.TIDEAL:      "untyped number",
+-	types.TBLANK:      "blank",
+-}
+-
+-var fmtBufferPool = sync.Pool{
+-	New: func() interface{} {
+-		return new(bytes.Buffer)
+-	},
+-}
+-
+-func InstallTypeFormats() {
+-	types.SymString = func(s *types.Sym) string {
+-		return sconv(s, 0, FErr)
+-	}
+-	types.TypeString = func(t *types.Type) string {
+-		return tconv(t, 0, FErr)
+-	}
+-	types.TypeShortString = func(t *types.Type) string {
+-		return tconv(t, 0, FTypeId)
+-	}
+-	types.TypeLongString = func(t *types.Type) string {
+-		return tconv(t, 0, FTypeIdName)
+-	}
+-	types.FormatSym = symFormat
+-	types.FormatType = typeFormat
+-}
+-
+-// "%L"  print definition, not name
+-// "%S"  omit 'func' and receiver from function types, short type names
+-func typeFormat(t *types.Type, s fmt.State, verb rune) {
+-	mode := FErr
+-	switch verb {
+-	case 'v', 'S', 'L':
+-		if verb == 'v' && s.Flag('+') { // %+v is debug format
+-			mode = FDbg
+-		}
+-		if verb == 'S' && s.Flag('-') { // %-S is special case for receiver - short typeid format
+-			mode = FTypeId
+-		}
+-		fmt.Fprint(s, tconv(t, verb, mode))
+-	default:
+-		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
+-	}
+-}
+-
+-func tconv(t *types.Type, verb rune, mode FmtMode) string {
+-	buf := fmtBufferPool.Get().(*bytes.Buffer)
+-	buf.Reset()
+-	defer fmtBufferPool.Put(buf)
+-
+-	tconv2(buf, t, verb, mode, nil)
+-	return types.InternString(buf.Bytes())
+-}
+-
+-// tconv2 writes a string representation of t to b.
+-// flag and mode control exactly what is printed.
+-// Any types x that are already in the visited map get printed as @%d where %d=visited[x].
+-// See #16897 before changing the implementation of tconv.
+-func tconv2(b *bytes.Buffer, t *types.Type, verb rune, mode FmtMode, visited map[*types.Type]int) {
+-	if off, ok := visited[t]; ok {
+-		// We've seen this type before, so we're trying to print it recursively.
+-		// Print a reference to it instead.
+-		fmt.Fprintf(b, "@%d", off)
+-		return
+-	}
+-	if t == nil {
+-		b.WriteString("<T>")
+-		return
+-	}
+-	if t.Kind() == types.TSSA {
+-		b.WriteString(t.Extra.(string))
+-		return
+-	}
+-	if t.Kind() == types.TTUPLE {
+-		b.WriteString(t.FieldType(0).String())
+-		b.WriteByte(',')
+-		b.WriteString(t.FieldType(1).String())
+-		return
+-	}
+-
+-	if t.Kind() == types.TRESULTS {
+-		tys := t.Extra.(*types.Results).Types
+-		for i, et := range tys {
+-			if i > 0 {
+-				b.WriteByte(',')
+-			}
+-			b.WriteString(et.String())
+-		}
+-		return
+-	}
+-
+-	if t == types.ByteType || t == types.RuneType {
+-		// in %-T mode collapse rune and byte with their originals.
+-		switch mode {
+-		case FTypeIdName, FTypeId:
+-			t = types.Types[t.Kind()]
+-		default:
+-			sconv2(b, t.Sym(), 'S', mode)
+-			return
+-		}
+-	}
+-	if t == types.ErrorType {
+-		b.WriteString("error")
+-		return
+-	}
+-
+-	// Unless the 'L' flag was specified, if the type has a name, just print that name.
+-	if verb != 'L' && t.Sym() != nil && t != types.Types[t.Kind()] {
+-		switch mode {
+-		case FTypeId, FTypeIdName:
+-			if verb == 'S' {
+-				if t.Vargen != 0 {
+-					sconv2(b, t.Sym(), 'S', mode)
+-					fmt.Fprintf(b, "·%d", t.Vargen)
+-					return
+-				}
+-				sconv2(b, t.Sym(), 'S', mode)
+-				return
+-			}
+-
+-			if mode == FTypeIdName {
+-				sconv2(b, t.Sym(), 'v', FTypeIdName)
+-				return
+-			}
+-
+-			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
+-				sconv2(b, t.Sym(), 'v', mode)
+-				fmt.Fprintf(b, "·%d", t.Vargen)
+-				return
+-			}
+-		}
+-
+-		sconv2(b, t.Sym(), 'v', mode)
+-		return
+-	}
+-
+-	if int(t.Kind()) < len(BasicTypeNames) && BasicTypeNames[t.Kind()] != "" {
+-		var name string
+-		switch t {
+-		case types.UntypedBool:
+-			name = "untyped bool"
+-		case types.UntypedString:
+-			name = "untyped string"
+-		case types.UntypedInt:
+-			name = "untyped int"
+-		case types.UntypedRune:
+-			name = "untyped rune"
+-		case types.UntypedFloat:
+-			name = "untyped float"
+-		case types.UntypedComplex:
+-			name = "untyped complex"
+-		default:
+-			name = BasicTypeNames[t.Kind()]
+-		}
+-		b.WriteString(name)
+-		return
+-	}
+-
+-	if mode == FDbg {
+-		b.WriteString(t.Kind().String())
+-		b.WriteByte('-')
+-		tconv2(b, t, 'v', FErr, visited)
+-		return
+-	}
+-
+-	// At this point, we might call tconv2 recursively. Add the current type to the visited list so we don't
+-	// try to print it recursively.
+-	// We record the offset in the result buffer where the type's text starts. This offset serves as a reference
+-	// point for any later references to the same type.
+-	// Note that we remove the type from the visited map as soon as the recursive call is done.
+-	// This prevents encoding types like map[*int]*int as map[*int]@4. (That encoding would work,
+-	// but I'd like to use the @ notation only when strictly necessary.)
+-	if visited == nil {
+-		visited = map[*types.Type]int{}
+-	}
+-	visited[t] = b.Len()
+-	defer delete(visited, t)
+-
+-	switch t.Kind() {
+-	case types.TPTR:
+-		b.WriteByte('*')
+-		switch mode {
+-		case FTypeId, FTypeIdName:
+-			if verb == 'S' {
+-				tconv2(b, t.Elem(), 'S', mode, visited)
+-				return
+-			}
+-		}
+-		tconv2(b, t.Elem(), 'v', mode, visited)
+-
+-	case types.TARRAY:
+-		b.WriteByte('[')
+-		b.WriteString(strconv.FormatInt(t.NumElem(), 10))
+-		b.WriteByte(']')
+-		tconv2(b, t.Elem(), 0, mode, visited)
+-
+-	case types.TSLICE:
+-		b.WriteString("[]")
+-		tconv2(b, t.Elem(), 0, mode, visited)
+-
+-	case types.TCHAN:
+-		switch t.ChanDir() {
+-		case types.Crecv:
+-			b.WriteString("<-chan ")
+-			tconv2(b, t.Elem(), 0, mode, visited)
+-		case types.Csend:
+-			b.WriteString("chan<- ")
+-			tconv2(b, t.Elem(), 0, mode, visited)
+-		default:
+-			b.WriteString("chan ")
+-			if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym() == nil && t.Elem().ChanDir() == types.Crecv {
+-				b.WriteByte('(')
+-				tconv2(b, t.Elem(), 0, mode, visited)
+-				b.WriteByte(')')
+-			} else {
+-				tconv2(b, t.Elem(), 0, mode, visited)
+-			}
+-		}
+-
+-	case types.TMAP:
+-		b.WriteString("map[")
+-		tconv2(b, t.Key(), 0, mode, visited)
+-		b.WriteByte(']')
+-		tconv2(b, t.Elem(), 0, mode, visited)
+-
+-	case types.TINTER:
+-		if t.IsEmptyInterface() {
+-			b.WriteString("interface {}")
+-			break
+-		}
+-		b.WriteString("interface {")
+-		for i, f := range t.Fields().Slice() {
+-			if i != 0 {
+-				b.WriteByte(';')
+-			}
+-			b.WriteByte(' ')
+-			switch {
+-			case f.Sym == nil:
+-				// Check first that a symbol is defined for this type.
+-				// Wrong interface definitions may have types lacking a symbol.
+-				break
+-			case types.IsExported(f.Sym.Name):
+-				sconv2(b, f.Sym, 'S', mode)
+-			default:
+-				if mode != FTypeIdName {
+-					mode = FTypeId
+-				}
+-				sconv2(b, f.Sym, 'v', mode)
+-			}
+-			tconv2(b, f.Type, 'S', mode, visited)
+-		}
+-		if t.NumFields() != 0 {
+-			b.WriteByte(' ')
+-		}
+-		b.WriteByte('}')
+-
+-	case types.TFUNC:
+-		if verb == 'S' {
+-			// no leading func
+-		} else {
+-			if t.Recv() != nil {
+-				b.WriteString("method")
+-				tconv2(b, t.Recvs(), 0, mode, visited)
+-				b.WriteByte(' ')
+-			}
+-			b.WriteString("func")
+-		}
+-		tconv2(b, t.Params(), 0, mode, visited)
+-
+-		switch t.NumResults() {
+-		case 0:
+-			// nothing to do
+-
+-		case 1:
+-			b.WriteByte(' ')
+-			tconv2(b, t.Results().Field(0).Type, 0, mode, visited) // struct->field->field's type
+-
+-		default:
+-			b.WriteByte(' ')
+-			tconv2(b, t.Results(), 0, mode, visited)
+-		}
+-
+-	case types.TSTRUCT:
+-		if m := t.StructType().Map; m != nil {
+-			mt := m.MapType()
+-			// Format the bucket struct for map[x]y as map.bucket[x]y.
+-			// This avoids a recursive print that generates very long names.
+-			switch t {
+-			case mt.Bucket:
+-				b.WriteString("map.bucket[")
+-			case mt.Hmap:
+-				b.WriteString("map.hdr[")
+-			case mt.Hiter:
+-				b.WriteString("map.iter[")
+-			default:
+-				base.Fatalf("unknown internal map type")
+-			}
+-			tconv2(b, m.Key(), 0, mode, visited)
+-			b.WriteByte(']')
+-			tconv2(b, m.Elem(), 0, mode, visited)
+-			break
+-		}
+-
+-		if funarg := t.StructType().Funarg; funarg != types.FunargNone {
+-			b.WriteByte('(')
+-			fieldVerb := 'v'
+-			switch mode {
+-			case FTypeId, FTypeIdName, FErr:
+-				// no argument names on function signature, and no "noescape"/"nosplit" tags
+-				fieldVerb = 'S'
+-			}
+-			for i, f := range t.Fields().Slice() {
+-				if i != 0 {
+-					b.WriteString(", ")
+-				}
+-				fldconv(b, f, fieldVerb, mode, visited, funarg)
+-			}
+-			b.WriteByte(')')
+-		} else {
+-			b.WriteString("struct {")
+-			for i, f := range t.Fields().Slice() {
+-				if i != 0 {
+-					b.WriteByte(';')
+-				}
+-				b.WriteByte(' ')
+-				fldconv(b, f, 'L', mode, visited, funarg)
+-			}
+-			if t.NumFields() != 0 {
+-				b.WriteByte(' ')
+-			}
+-			b.WriteByte('}')
+-		}
+-
+-	case types.TFORW:
+-		b.WriteString("undefined")
+-		if t.Sym() != nil {
+-			b.WriteByte(' ')
+-			sconv2(b, t.Sym(), 'v', mode)
+-		}
+-
+-	case types.TUNSAFEPTR:
+-		b.WriteString("unsafe.Pointer")
+-
+-	case types.Txxx:
+-		b.WriteString("Txxx")
+-
+-	default:
+-		// Don't know how to handle - fall back to detailed prints
+-		b.WriteString(t.Kind().String())
+-		b.WriteString(" <")
+-		sconv2(b, t.Sym(), 'v', mode)
+-		b.WriteString(">")
+-
+-	}
+-}
+-
+-func fldconv(b *bytes.Buffer, f *types.Field, verb rune, mode FmtMode, visited map[*types.Type]int, funarg types.Funarg) {
+-	if f == nil {
+-		b.WriteString("<T>")
+-		return
+-	}
+-
+-	var name string
+-	if verb != 'S' {
+-		s := f.Sym
+-
+-		// Take the name from the original.
+-		if mode == FErr {
+-			s = OrigSym(s)
+-		}
+-
+-		if s != nil && f.Embedded == 0 {
+-			if funarg != types.FunargNone {
+-				name = fmt.Sprint(f.Nname)
+-			} else if verb == 'L' {
+-				name = methodSymName(s)
+-				if !types.IsExported(name) && mode != FTypeIdName {
+-					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
+-				}
+-			} else {
+-				name = sconv(s, 0, mode)
+-			}
+-		}
+-	}
+-
+-	if name != "" {
+-		b.WriteString(name)
+-		b.WriteString(" ")
+-	}
+-
+-	if f.IsDDD() {
+-		var et *types.Type
+-		if f.Type != nil {
+-			et = f.Type.Elem()
+-		}
+-		b.WriteString("...")
+-		tconv2(b, et, 0, mode, visited)
+-	} else {
+-		tconv2(b, f.Type, 0, mode, visited)
+-	}
+-
+-	if verb != 'S' && funarg == types.FunargNone && f.Note != "" {
+-		b.WriteString(" ")
+-		b.WriteString(strconv.Quote(f.Note))
+-	}
+-}
+-
+ // Node
+ 
+ func FmtNode(n Node, s fmt.State, verb rune) {
+@@ -1198,7 +550,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 				fmt.Fprintf(s, "'\\U%08x'", uint64(x))
+ 			}
+ 		} else {
+-			fmt.Fprint(s, FmtConst(n.Val(), s.Flag('#')))
++			fmt.Fprint(s, types.FmtConst(n.Val(), s.Flag('#')))
+ 		}
+ 
+ 		if needUnparen {
+@@ -1338,7 +690,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%s", methodSymName(n.Sym()))
++		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
+ 
+ 	case OXDOT, ODOT, ODOTPTR, ODOTINTER, ODOTMETH:
+ 		exprFmt(n.Left(), s, nprec)
+@@ -1346,7 +698,7 @@ func exprFmt(n Node, s fmt.State, prec int) {
+ 			fmt.Fprint(s, ".<nil>")
+ 			return
+ 		}
+-		fmt.Fprintf(s, ".%s", methodSymName(n.Sym()))
++		fmt.Fprintf(s, ".%s", types.SymMethodName(n.Sym()))
+ 
+ 	case ODOTTYPE, ODOTTYPE2:
+ 		exprFmt(n.Left(), s, nprec)
+diff --git a/src/cmd/compile/internal/ir/ir.go b/src/cmd/compile/internal/ir/ir.go
+index ad7f692b07..82224ca2ed 100644
+--- a/src/cmd/compile/internal/ir/ir.go
++++ b/src/cmd/compile/internal/ir/ir.go
+@@ -3,10 +3,3 @@
+ // license that can be found in the LICENSE file.
+ 
+ package ir
+-
+-import "cmd/compile/internal/types"
+-
+-var LocalPkg *types.Pkg // package being compiled
+-
+-// builtinpkg is a fake package that declares the universe block.
+-var BuiltinPkg *types.Pkg
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 56b320e726..ba7eaae1b9 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 	"go/constant"
+ 	"sort"
+-	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+@@ -654,33 +653,6 @@ func AsNode(n types.Object) Node {
+ 
+ var BlankNode Node
+ 
+-var BlankSym *types.Sym
+-
+-// origSym returns the original symbol written by the user.
+-func OrigSym(s *types.Sym) *types.Sym {
+-	if s == nil {
+-		return nil
+-	}
+-
+-	if len(s.Name) > 1 && s.Name[0] == '~' {
+-		switch s.Name[1] {
+-		case 'r': // originally an unnamed result
+-			return nil
+-		case 'b': // originally the blank identifier _
+-			// TODO(mdempsky): Does s.Pkg matter here?
+-			return BlankSym
+-		}
+-		return s
+-	}
+-
+-	if strings.HasPrefix(s.Name, ".anon") {
+-		// originally an unnamed or _ name (see subr.go: structargs)
+-		return nil
+-	}
+-
+-	return s
+-}
+-
+ func IsConst(n Node, ct constant.Kind) bool {
+ 	return ConstType(n) == ct
+ }
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index cb3b9c0e2a..decb843465 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -137,7 +137,7 @@ func init() {
+ 	// Initialize just enough of the universe and the types package to make our tests function.
+ 	// TODO(josharian): move universe initialization to the types package,
+ 	// so this test setup can share it.
+-	ir.InstallTypeFormats()
++	types.InstallTypeFormats()
+ 	types.Dowidth = func(t *types.Type) {}
+ 
+ 	for _, typ := range [...]struct {
+diff --git a/src/cmd/compile/internal/types/fmt.go b/src/cmd/compile/internal/types/fmt.go
+new file mode 100644
+index 0000000000..4f36e4c393
+--- /dev/null
++++ b/src/cmd/compile/internal/types/fmt.go
+@@ -0,0 +1,694 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import (
++	"bytes"
++	"fmt"
++	"go/constant"
++	"strconv"
++	"strings"
++	"sync"
++
++	"cmd/compile/internal/base"
++)
++
++// builtinpkg is a fake package that declares the universe block.
++var BuiltinPkg *Pkg
++
++var LocalPkg *Pkg // package being compiled
++
++var BlankSym *Sym
++
++// origSym returns the original symbol written by the user.
++func OrigSym(s *Sym) *Sym {
++	if s == nil {
++		return nil
++	}
++
++	if len(s.Name) > 1 && s.Name[0] == '~' {
++		switch s.Name[1] {
++		case 'r': // originally an unnamed result
++			return nil
++		case 'b': // originally the blank identifier _
++			// TODO(mdempsky): Does s.Pkg matter here?
++			return BlankSym
++		}
++		return s
++	}
++
++	if strings.HasPrefix(s.Name, ".anon") {
++		// originally an unnamed or _ name (see subr.go: structargs)
++		return nil
++	}
++
++	return s
++}
++
++// Sym
++
++// numImport tracks how often a package with a given name is imported.
++// It is used to provide a better error message (by using the package
++// path to disambiguate) if a package that appears multiple times with
++// the same name appears in an error message.
++var NumImport = make(map[string]int)
++
++// Format conversions:
++// TODO(gri) verify these; eliminate those not used anymore
++//
++//	%v Op		Node opcodes
++//		Flags:  #: print Go syntax (automatic unless mode == FDbg)
++//
++//	%j *Node	Node details
++//		Flags:  0: suppresses things not relevant until walk
++//
++//	%v *Val		Constant values
++//
++//	%v *types.Sym		Symbols
++//	%S              unqualified identifier in any mode
++//		Flags:  +,- #: mode (see below)
++//			0: in export mode: unqualified identifier if exported, qualified if not
++//
++//	%v *types.Type	Types
++//	%S              omit "func" and receiver in function types
++//	%L              definition instead of name.
++//		Flags:  +,- #: mode (see below)
++//			' ' (only in -/Sym mode) print type identifiers wit package name instead of prefix.
++//
++//	%v *Node	Nodes
++//	%S              (only in +/debug mode) suppress recursion
++//	%L              (only in Error mode) print "foo (type Bar)"
++//		Flags:  +,- #: mode (see below)
++//
++//	%v Nodes	Node lists
++//		Flags:  those of *Node
++//			.: separate items with ',' instead of ';'
++
++// *types.Sym, *types.Type, and *Node types use the flags below to set the format mode
++
++// The mode flags '+', '-', and '#' are sticky; they persist through
++// recursions of *Node, *types.Type, and *types.Sym values. The ' ' flag is
++// sticky only on *types.Type recursions and only used in %-/*types.Sym mode.
++//
++// Example: given a *types.Sym: %+v %#v %-v print an identifier properly qualified for debug/export/internal mode
++
++// Useful format combinations:
++// TODO(gri): verify these
++//
++// *Node, Nodes:
++//   %+v    multiline recursive debug dump of *Node/Nodes
++//   %+S    non-recursive debug dump
++//
++// *Node:
++//   %#v    Go format
++//   %L     "foo (type Bar)" for error messages
++//
++// *types.Type:
++//   %#v    Go format
++//   %#L    type definition instead of name
++//   %#S    omit "func" and receiver in function signature
++//
++//   %-v    type identifiers
++//   %-S    type identifiers without "func" and arg names in type signatures (methodsym)
++//   %- v   type identifiers with package name instead of prefix (typesym, dcommontype, typehash)
++
++type fmtMode int
++
++const (
++	fmtGo fmtMode = iota
++	fmtDebug
++	fmtTypeID
++	fmtTypeIDName // same as FTypeId, but use package name instead of prefix
++)
++
++// "%S" suppresses qualifying with package
++func symFormat(s *Sym, f fmt.State, verb rune) {
++	mode := fmtGo
++	switch verb {
++	case 'v', 'S':
++		if verb == 'v' && f.Flag('+') {
++			mode = fmtDebug
++		}
++		fmt.Fprint(f, sconv(s, verb, mode))
++
++	default:
++		fmt.Fprintf(f, "%%!%c(*types.Sym=%p)", verb, s)
++	}
++}
++
++// See #16897 for details about performance implications
++// before changing the implementation of sconv.
++func sconv(s *Sym, verb rune, mode fmtMode) string {
++	if verb == 'L' {
++		panic("linksymfmt")
++	}
++
++	if s == nil {
++		return "<S>"
++	}
++
++	if s.Name == "_" {
++		return "_"
++	}
++	buf := fmtBufferPool.Get().(*bytes.Buffer)
++	buf.Reset()
++	defer fmtBufferPool.Put(buf)
++
++	symfmt(buf, s, verb, mode)
++	return InternString(buf.Bytes())
++}
++
++func sconv2(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
++	if verb == 'L' {
++		panic("linksymfmt")
++	}
++	if s == nil {
++		b.WriteString("<S>")
++		return
++	}
++	if s.Name == "_" {
++		b.WriteString("_")
++		return
++	}
++
++	symfmt(b, s, verb, mode)
++}
++
++func symfmt(b *bytes.Buffer, s *Sym, verb rune, mode fmtMode) {
++	if verb != 'S' {
++		switch mode {
++		case fmtGo: // This is for the user
++			if s.Pkg == BuiltinPkg || s.Pkg == LocalPkg {
++				b.WriteString(s.Name)
++				return
++			}
++
++			// If the name was used by multiple packages, display the full path,
++			if s.Pkg.Name != "" && NumImport[s.Pkg.Name] > 1 {
++				fmt.Fprintf(b, "%q.%s", s.Pkg.Path, s.Name)
++				return
++			}
++			b.WriteString(s.Pkg.Name)
++			b.WriteByte('.')
++			b.WriteString(s.Name)
++			return
++
++		case fmtDebug:
++			b.WriteString(s.Pkg.Name)
++			b.WriteByte('.')
++			b.WriteString(s.Name)
++			return
++
++		case fmtTypeIDName:
++			// dcommontype, typehash
++			b.WriteString(s.Pkg.Name)
++			b.WriteByte('.')
++			b.WriteString(s.Name)
++			return
++
++		case fmtTypeID:
++			// (methodsym), typesym, weaksym
++			b.WriteString(s.Pkg.Prefix)
++			b.WriteByte('.')
++			b.WriteString(s.Name)
++			return
++		}
++	}
++
++	b.WriteString(s.Name)
++}
++
++func SymMethodName(s *Sym) string {
++	// Skip leading "type." in method name
++	name := s.Name
++	if i := strings.LastIndex(name, "."); i >= 0 {
++		name = name[i+1:]
++	}
++	return name
++}
++
++// Type
++
++var BasicTypeNames = []string{
++	TINT:        "int",
++	TUINT:       "uint",
++	TINT8:       "int8",
++	TUINT8:      "uint8",
++	TINT16:      "int16",
++	TUINT16:     "uint16",
++	TINT32:      "int32",
++	TUINT32:     "uint32",
++	TINT64:      "int64",
++	TUINT64:     "uint64",
++	TUINTPTR:    "uintptr",
++	TFLOAT32:    "float32",
++	TFLOAT64:    "float64",
++	TCOMPLEX64:  "complex64",
++	TCOMPLEX128: "complex128",
++	TBOOL:       "bool",
++	TANY:        "any",
++	TSTRING:     "string",
++	TNIL:        "nil",
++	TIDEAL:      "untyped number",
++	TBLANK:      "blank",
++}
++
++var fmtBufferPool = sync.Pool{
++	New: func() interface{} {
++		return new(bytes.Buffer)
++	},
++}
++
++func InstallTypeFormats() {
++	SymString = func(s *Sym) string {
++		return sconv(s, 0, fmtGo)
++	}
++	TypeString = func(t *Type) string {
++		return tconv(t, 0, fmtGo)
++	}
++	TypeShortString = func(t *Type) string {
++		return tconv(t, 0, fmtTypeID)
++	}
++	TypeLongString = func(t *Type) string {
++		return tconv(t, 0, fmtTypeIDName)
++	}
++	FormatSym = symFormat
++	FormatType = typeFormat
++}
++
++// "%L"  print definition, not name
++// "%S"  omit 'func' and receiver from function types, short type names
++func typeFormat(t *Type, s fmt.State, verb rune) {
++	mode := fmtGo
++	switch verb {
++	case 'v', 'S', 'L':
++		if verb == 'v' && s.Flag('+') { // %+v is debug format
++			mode = fmtDebug
++		}
++		if verb == 'S' && s.Flag('-') { // %-S is special case for receiver - short typeid format
++			mode = fmtTypeID
++		}
++		fmt.Fprint(s, tconv(t, verb, mode))
++	default:
++		fmt.Fprintf(s, "%%!%c(*Type=%p)", verb, t)
++	}
++}
++
++func tconv(t *Type, verb rune, mode fmtMode) string {
++	buf := fmtBufferPool.Get().(*bytes.Buffer)
++	buf.Reset()
++	defer fmtBufferPool.Put(buf)
++
++	tconv2(buf, t, verb, mode, nil)
++	return InternString(buf.Bytes())
++}
++
++// tconv2 writes a string representation of t to b.
++// flag and mode control exactly what is printed.
++// Any types x that are already in the visited map get printed as @%d where %d=visited[x].
++// See #16897 before changing the implementation of tconv.
++func tconv2(b *bytes.Buffer, t *Type, verb rune, mode fmtMode, visited map[*Type]int) {
++	if off, ok := visited[t]; ok {
++		// We've seen this type before, so we're trying to print it recursively.
++		// Print a reference to it instead.
++		fmt.Fprintf(b, "@%d", off)
++		return
++	}
++	if t == nil {
++		b.WriteString("<T>")
++		return
++	}
++	if t.Kind() == TSSA {
++		b.WriteString(t.Extra.(string))
++		return
++	}
++	if t.Kind() == TTUPLE {
++		b.WriteString(t.FieldType(0).String())
++		b.WriteByte(',')
++		b.WriteString(t.FieldType(1).String())
++		return
++	}
++
++	if t.Kind() == TRESULTS {
++		tys := t.Extra.(*Results).Types
++		for i, et := range tys {
++			if i > 0 {
++				b.WriteByte(',')
++			}
++			b.WriteString(et.String())
++		}
++		return
++	}
++
++	if t == ByteType || t == RuneType {
++		// in %-T mode collapse rune and byte with their originals.
++		switch mode {
++		case fmtTypeIDName, fmtTypeID:
++			t = Types[t.Kind()]
++		default:
++			sconv2(b, t.Sym(), 'S', mode)
++			return
++		}
++	}
++	if t == ErrorType {
++		b.WriteString("error")
++		return
++	}
++
++	// Unless the 'L' flag was specified, if the type has a name, just print that name.
++	if verb != 'L' && t.Sym() != nil && t != Types[t.Kind()] {
++		switch mode {
++		case fmtTypeID, fmtTypeIDName:
++			if verb == 'S' {
++				if t.Vargen != 0 {
++					sconv2(b, t.Sym(), 'S', mode)
++					fmt.Fprintf(b, "·%d", t.Vargen)
++					return
++				}
++				sconv2(b, t.Sym(), 'S', mode)
++				return
++			}
++
++			if mode == fmtTypeIDName {
++				sconv2(b, t.Sym(), 'v', fmtTypeIDName)
++				return
++			}
++
++			if t.Sym().Pkg == LocalPkg && t.Vargen != 0 {
++				sconv2(b, t.Sym(), 'v', mode)
++				fmt.Fprintf(b, "·%d", t.Vargen)
++				return
++			}
++		}
++
++		sconv2(b, t.Sym(), 'v', mode)
++		return
++	}
++
++	if int(t.Kind()) < len(BasicTypeNames) && BasicTypeNames[t.Kind()] != "" {
++		var name string
++		switch t {
++		case UntypedBool:
++			name = "untyped bool"
++		case UntypedString:
++			name = "untyped string"
++		case UntypedInt:
++			name = "untyped int"
++		case UntypedRune:
++			name = "untyped rune"
++		case UntypedFloat:
++			name = "untyped float"
++		case UntypedComplex:
++			name = "untyped complex"
++		default:
++			name = BasicTypeNames[t.Kind()]
++		}
++		b.WriteString(name)
++		return
++	}
++
++	if mode == fmtDebug {
++		b.WriteString(t.Kind().String())
++		b.WriteByte('-')
++		tconv2(b, t, 'v', fmtGo, visited)
++		return
++	}
++
++	// At this point, we might call tconv2 recursively. Add the current type to the visited list so we don't
++	// try to print it recursively.
++	// We record the offset in the result buffer where the type's text starts. This offset serves as a reference
++	// point for any later references to the same type.
++	// Note that we remove the type from the visited map as soon as the recursive call is done.
++	// This prevents encoding types like map[*int]*int as map[*int]@4. (That encoding would work,
++	// but I'd like to use the @ notation only when strictly necessary.)
++	if visited == nil {
++		visited = map[*Type]int{}
++	}
++	visited[t] = b.Len()
++	defer delete(visited, t)
++
++	switch t.Kind() {
++	case TPTR:
++		b.WriteByte('*')
++		switch mode {
++		case fmtTypeID, fmtTypeIDName:
++			if verb == 'S' {
++				tconv2(b, t.Elem(), 'S', mode, visited)
++				return
++			}
++		}
++		tconv2(b, t.Elem(), 'v', mode, visited)
++
++	case TARRAY:
++		b.WriteByte('[')
++		b.WriteString(strconv.FormatInt(t.NumElem(), 10))
++		b.WriteByte(']')
++		tconv2(b, t.Elem(), 0, mode, visited)
++
++	case TSLICE:
++		b.WriteString("[]")
++		tconv2(b, t.Elem(), 0, mode, visited)
++
++	case TCHAN:
++		switch t.ChanDir() {
++		case Crecv:
++			b.WriteString("<-chan ")
++			tconv2(b, t.Elem(), 0, mode, visited)
++		case Csend:
++			b.WriteString("chan<- ")
++			tconv2(b, t.Elem(), 0, mode, visited)
++		default:
++			b.WriteString("chan ")
++			if t.Elem() != nil && t.Elem().IsChan() && t.Elem().Sym() == nil && t.Elem().ChanDir() == Crecv {
++				b.WriteByte('(')
++				tconv2(b, t.Elem(), 0, mode, visited)
++				b.WriteByte(')')
++			} else {
++				tconv2(b, t.Elem(), 0, mode, visited)
++			}
++		}
++
++	case TMAP:
++		b.WriteString("map[")
++		tconv2(b, t.Key(), 0, mode, visited)
++		b.WriteByte(']')
++		tconv2(b, t.Elem(), 0, mode, visited)
++
++	case TINTER:
++		if t.IsEmptyInterface() {
++			b.WriteString("interface {}")
++			break
++		}
++		b.WriteString("interface {")
++		for i, f := range t.Fields().Slice() {
++			if i != 0 {
++				b.WriteByte(';')
++			}
++			b.WriteByte(' ')
++			switch {
++			case f.Sym == nil:
++				// Check first that a symbol is defined for this type.
++				// Wrong interface definitions may have types lacking a symbol.
++				break
++			case IsExported(f.Sym.Name):
++				sconv2(b, f.Sym, 'S', mode)
++			default:
++				if mode != fmtTypeIDName {
++					mode = fmtTypeID
++				}
++				sconv2(b, f.Sym, 'v', mode)
++			}
++			tconv2(b, f.Type, 'S', mode, visited)
++		}
++		if t.NumFields() != 0 {
++			b.WriteByte(' ')
++		}
++		b.WriteByte('}')
++
++	case TFUNC:
++		if verb == 'S' {
++			// no leading func
++		} else {
++			if t.Recv() != nil {
++				b.WriteString("method")
++				tconv2(b, t.Recvs(), 0, mode, visited)
++				b.WriteByte(' ')
++			}
++			b.WriteString("func")
++		}
++		tconv2(b, t.Params(), 0, mode, visited)
++
++		switch t.NumResults() {
++		case 0:
++			// nothing to do
++
++		case 1:
++			b.WriteByte(' ')
++			tconv2(b, t.Results().Field(0).Type, 0, mode, visited) // struct->field->field's type
++
++		default:
++			b.WriteByte(' ')
++			tconv2(b, t.Results(), 0, mode, visited)
++		}
++
++	case TSTRUCT:
++		if m := t.StructType().Map; m != nil {
++			mt := m.MapType()
++			// Format the bucket struct for map[x]y as map.bucket[x]y.
++			// This avoids a recursive print that generates very long names.
++			switch t {
++			case mt.Bucket:
++				b.WriteString("map.bucket[")
++			case mt.Hmap:
++				b.WriteString("map.hdr[")
++			case mt.Hiter:
++				b.WriteString("map.iter[")
++			default:
++				base.Fatalf("unknown internal map type")
++			}
++			tconv2(b, m.Key(), 0, mode, visited)
++			b.WriteByte(']')
++			tconv2(b, m.Elem(), 0, mode, visited)
++			break
++		}
++
++		if funarg := t.StructType().Funarg; funarg != FunargNone {
++			b.WriteByte('(')
++			fieldVerb := 'v'
++			switch mode {
++			case fmtTypeID, fmtTypeIDName, fmtGo:
++				// no argument names on function signature, and no "noescape"/"nosplit" tags
++				fieldVerb = 'S'
++			}
++			for i, f := range t.Fields().Slice() {
++				if i != 0 {
++					b.WriteString(", ")
++				}
++				fldconv(b, f, fieldVerb, mode, visited, funarg)
++			}
++			b.WriteByte(')')
++		} else {
++			b.WriteString("struct {")
++			for i, f := range t.Fields().Slice() {
++				if i != 0 {
++					b.WriteByte(';')
++				}
++				b.WriteByte(' ')
++				fldconv(b, f, 'L', mode, visited, funarg)
++			}
++			if t.NumFields() != 0 {
++				b.WriteByte(' ')
++			}
++			b.WriteByte('}')
++		}
++
++	case TFORW:
++		b.WriteString("undefined")
++		if t.Sym() != nil {
++			b.WriteByte(' ')
++			sconv2(b, t.Sym(), 'v', mode)
++		}
++
++	case TUNSAFEPTR:
++		b.WriteString("unsafe.Pointer")
++
++	case Txxx:
++		b.WriteString("Txxx")
++
++	default:
++		// Don't know how to handle - fall back to detailed prints
++		b.WriteString(t.Kind().String())
++		b.WriteString(" <")
++		sconv2(b, t.Sym(), 'v', mode)
++		b.WriteString(">")
++
++	}
++}
++
++func fldconv(b *bytes.Buffer, f *Field, verb rune, mode fmtMode, visited map[*Type]int, funarg Funarg) {
++	if f == nil {
++		b.WriteString("<T>")
++		return
++	}
++
++	var name string
++	if verb != 'S' {
++		s := f.Sym
++
++		// Take the name from the original.
++		if mode == fmtGo {
++			s = OrigSym(s)
++		}
++
++		if s != nil && f.Embedded == 0 {
++			if funarg != FunargNone {
++				name = fmt.Sprint(f.Nname)
++			} else if verb == 'L' {
++				name = SymMethodName(s)
++				if !IsExported(name) && mode != fmtTypeIDName {
++					name = sconv(s, 0, mode) // qualify non-exported names (used on structs, not on funarg)
++				}
++			} else {
++				name = sconv(s, 0, mode)
++			}
++		}
++	}
++
++	if name != "" {
++		b.WriteString(name)
++		b.WriteString(" ")
++	}
++
++	if f.IsDDD() {
++		var et *Type
++		if f.Type != nil {
++			et = f.Type.Elem()
++		}
++		b.WriteString("...")
++		tconv2(b, et, 0, mode, visited)
++	} else {
++		tconv2(b, f.Type, 0, mode, visited)
++	}
++
++	if verb != 'S' && funarg == FunargNone && f.Note != "" {
++		b.WriteString(" ")
++		b.WriteString(strconv.Quote(f.Note))
++	}
++}
++
++// Val
++
++func FmtConst(v constant.Value, sharp bool) string {
++	if !sharp && v.Kind() == constant.Complex {
++		real, imag := constant.Real(v), constant.Imag(v)
++
++		var re string
++		sre := constant.Sign(real)
++		if sre != 0 {
++			re = real.String()
++		}
++
++		var im string
++		sim := constant.Sign(imag)
++		if sim != 0 {
++			im = imag.String()
++		}
++
++		switch {
++		case sre == 0 && sim == 0:
++			return "0"
++		case sre == 0:
++			return im + "i"
++		case sim == 0:
++			return re
++		case sim < 0:
++			return fmt.Sprintf("(%s%si)", re, im)
++		default:
++			return fmt.Sprintf("(%s+%si)", re, im)
++		}
++	}
++
++	return v.String()
++}

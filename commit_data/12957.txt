@@ -17,8 +17,99 @@ Date:   Wed Apr 25 02:32:51 2012 -0300
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/6112054
-
+---
  src/pkg/net/http/request.go    | 16 ++--------------
  src/pkg/net/http/serve_test.go | 15 ++++-----------
  src/pkg/net/http/server.go     |  3 ++-
  3 files changed, 8 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 219db483b4..f5bc6eb910 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -732,24 +732,12 @@ func (r *Request) FormFile(key string) (multipart.File, *multipart.FileHeader, e
+ }
+ 
+ func (r *Request) expectsContinue() bool {
+-	return hasToken(r.Header.Get("Expect"), "100-continue")
++	return strings.ToLower(r.Header.Get("Expect")) == "100-continue"
+ }
+ 
+ func (r *Request) wantsHttp10KeepAlive() bool {
+ 	if r.ProtoMajor != 1 || r.ProtoMinor != 0 {
+ 		return false
+ 	}
+-	return hasToken(r.Header.Get("Connection"), "keep-alive")
+-}
+-
+-func (r *Request) wantsClose() bool {
+-	return hasToken(r.Header.Get("Connection"), "close")
+-}
+-
+-func hasToken(s, token string) bool {
+-	if s == "" {
+-		return false
+-	}
+-	// TODO This is a poor implementation of the RFC. See http://golang.org/issue/3535
+-	return strings.Contains(strings.ToLower(s), token)
++	return strings.Contains(strings.ToLower(r.Header.Get("Connection")), "keep-alive")
+ }
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 8b9592d181..b6a6b4c77d 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -370,7 +370,7 @@ func TestIdentityResponse(t *testing.T) {
+ 	})
+ }
+ 
+-func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
++func testTcpConnectionCloses(t *testing.T, req string, h Handler) {
+ 	s := httptest.NewServer(h)
+ 	defer s.Close()
+ 
+@@ -410,28 +410,21 @@ func testTCPConnectionCloses(t *testing.T, req string, h Handler) {
+ 
+ // TestServeHTTP10Close verifies that HTTP/1.0 requests won't be kept alive.
+ func TestServeHTTP10Close(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
++	testTcpConnectionCloses(t, "GET / HTTP/1.0\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		ServeFile(w, r, "testdata/file")
+ 	}))
+ }
+ 
+-// TestClientCanClose verifies that clients can also force a connection to close.
+-func TestClientCanClose(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\nConnection: close\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+-		// Nothing.
+-	}))
+-}
+-
+ // TestHandlersCanSetConnectionClose verifies that handlers can force a connection to close,
+ // even for HTTP/1.1 requests.
+ func TestHandlersCanSetConnectionClose11(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
++	testTcpConnectionCloses(t, "GET / HTTP/1.1\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Connection", "close")
+ 	}))
+ }
+ 
+ func TestHandlersCanSetConnectionClose10(t *testing.T) {
+-	testTCPConnectionCloses(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
++	testTcpConnectionCloses(t, "GET / HTTP/1.0\r\nConnection: keep-alive\r\n\r\n", HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		w.Header().Set("Connection", "close")
+ 	}))
+ }
+diff --git a/src/pkg/net/http/server.go b/src/pkg/net/http/server.go
+index ae93db8070..924ffd3481 100644
+--- a/src/pkg/net/http/server.go
++++ b/src/pkg/net/http/server.go
+@@ -303,7 +303,8 @@ func (w *response) WriteHeader(code int) {
+ 		if !connectionHeaderSet {
+ 			w.header.Set("Connection", "keep-alive")
+ 		}
+-	} else if !w.req.ProtoAtLeast(1, 1) || w.req.wantsClose() {
++	} else if !w.req.ProtoAtLeast(1, 1) {
++		// Client did not ask to keep connection alive.
+ 		w.closeAfterReply = true
+ 	}
+ 

@@ -7,7 +7,48 @@ Date:   Sun Oct 21 20:32:35 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6749055
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 14b3f8cbdb..7b7ea3170f 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -122,6 +122,7 @@ Jeff Wendling <jeff@spacemonkey.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Jimmy Zelinskie <jimmyzelinskie@gmail.com>
++Jingcheng Zhang <diogin@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ John Asmuth <jasmuth@gmail.com>
+@@ -186,6 +187,7 @@ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
++Patrick Smith <pat42smith@gmail.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>
+ Paul Sbarra <Sbarra.Paul@gmail.com>
+ Petar Maymounkov <petarm@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 1410a6ff41..1cf3b93014 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -182,6 +182,7 @@ Jeff Wendling <jeff@spacemonkey.com>
+ Jeremy Jackins <jeremyjackins@gmail.com>
+ Jim McGrath <jimmc2@gmail.com>
+ Jimmy Zelinskie <jimmyzelinskie@gmail.com>
++Jingcheng Zhang <diogin@gmail.com>
+ Joakim Sernbrant <serbaut@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Joel Sing <jsing@google.com>
+@@ -269,6 +270,7 @@ Patrick Crosby <patrick@stathat.com>
+ Patrick Gavlin <pgavlin@gmail.com>
+ Patrick Higgins <patrick.allen.higgins@gmail.com>
+ Patrick Mylund Nielsen <patrick@patrickmn.com>
++Patrick Smith <pat42smith@gmail.com>
+ Paul Borman <borman@google.com>
+ Paul Chang <paulchang@google.com>
+ Paul Lalonde <paul.a.lalonde@gmail.com>

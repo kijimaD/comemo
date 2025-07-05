@@ -9,8 +9,218 @@ Date:   Fri Feb 28 12:36:03 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/generic.rules |  10 ++
  src/cmd/compile/internal/ssa/rewrite.go        |   7 +-
  src/cmd/compile/internal/ssa/rewritegeneric.go | 152 +++++++++++++++++++++++++
  3 files changed, 166 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/generic.rules b/src/cmd/compile/internal/ssa/gen/generic.rules
+index 8a3c8eeaab..c7f6a232c6 100644
+--- a/src/cmd/compile/internal/ssa/gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/gen/generic.rules
+@@ -137,6 +137,16 @@
+ (Xor32  (Const32 [c])  (Const32 [d]))  -> (Const32 [int64(int32(c^d))])
+ (Xor64  (Const64 [c])  (Const64 [d]))  -> (Const64 [c^d])
+ 
++(Ctz64 (Const64 [c])) && config.PtrSize == 4 -> (Const32 [ntz(c)])
++(Ctz32 (Const32 [c])) && config.PtrSize == 4 -> (Const32 [ntz32(c)])
++(Ctz16 (Const16 [c])) && config.PtrSize == 4 -> (Const32 [ntz16(c)])
++(Ctz8  (Const8  [c])) && config.PtrSize == 4 -> (Const32 [ntz8(c)])
++
++(Ctz64 (Const64 [c])) && config.PtrSize == 8 -> (Const64 [ntz(c)])
++(Ctz32 (Const32 [c])) && config.PtrSize == 8 -> (Const64 [ntz32(c)])
++(Ctz16 (Const16 [c])) && config.PtrSize == 8 -> (Const64 [ntz16(c)])
++(Ctz8  (Const8  [c])) && config.PtrSize == 8 -> (Const64 [ntz8(c)])
++
+ (Div8   (Const8  [c])  (Const8  [d])) && d != 0 -> (Const8  [int64(int8(c)/int8(d))])
+ (Div16  (Const16 [c])  (Const16 [d])) && d != 0 -> (Const16 [int64(int16(c)/int16(d))])
+ (Div32  (Const32 [c])  (Const32 [d])) && d != 0 -> (Const32 [int64(int32(c)/int32(d))])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 51dba5eb71..727fd2402d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -347,9 +347,10 @@ func nlz(x int64) int64 {
+ }
+ 
+ // ntz returns the number of trailing zeros.
+-func ntz(x int64) int64 {
+-	return int64(bits.TrailingZeros64(uint64(x)))
+-}
++func ntz(x int64) int64   { return int64(bits.TrailingZeros64(uint64(x))) }
++func ntz32(x int64) int64 { return int64(bits.TrailingZeros32(uint32(x))) }
++func ntz16(x int64) int64 { return int64(bits.TrailingZeros16(uint16(x))) }
++func ntz8(x int64) int64  { return int64(bits.TrailingZeros8(uint8(x))) }
+ 
+ func oneBit(x int64) bool {
+ 	return bits.OnesCount64(uint64(x)) == 1
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index d6213e8741..5d954784e3 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -50,6 +50,14 @@ func rewriteValuegeneric(v *Value) bool {
+ 		return rewriteValuegeneric_OpConstString(v)
+ 	case OpConvert:
+ 		return rewriteValuegeneric_OpConvert(v)
++	case OpCtz16:
++		return rewriteValuegeneric_OpCtz16(v)
++	case OpCtz32:
++		return rewriteValuegeneric_OpCtz32(v)
++	case OpCtz64:
++		return rewriteValuegeneric_OpCtz64(v)
++	case OpCtz8:
++		return rewriteValuegeneric_OpCtz8(v)
+ 	case OpCvt32Fto32:
+ 		return rewriteValuegeneric_OpCvt32Fto32(v)
+ 	case OpCvt32Fto64:
+@@ -4048,6 +4056,150 @@ func rewriteValuegeneric_OpConvert(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuegeneric_OpCtz16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (Ctz16 (Const16 [c]))
++	// cond: config.PtrSize == 4
++	// result: (Const32 [ntz16(c)])
++	for {
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 4) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = ntz16(c)
++		return true
++	}
++	// match: (Ctz16 (Const16 [c]))
++	// cond: config.PtrSize == 8
++	// result: (Const64 [ntz16(c)])
++	for {
++		if v_0.Op != OpConst16 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = ntz16(c)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpCtz32(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (Ctz32 (Const32 [c]))
++	// cond: config.PtrSize == 4
++	// result: (Const32 [ntz32(c)])
++	for {
++		if v_0.Op != OpConst32 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 4) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = ntz32(c)
++		return true
++	}
++	// match: (Ctz32 (Const32 [c]))
++	// cond: config.PtrSize == 8
++	// result: (Const64 [ntz32(c)])
++	for {
++		if v_0.Op != OpConst32 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = ntz32(c)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpCtz64(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (Ctz64 (Const64 [c]))
++	// cond: config.PtrSize == 4
++	// result: (Const32 [ntz(c)])
++	for {
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 4) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = ntz(c)
++		return true
++	}
++	// match: (Ctz64 (Const64 [c]))
++	// cond: config.PtrSize == 8
++	// result: (Const64 [ntz(c)])
++	for {
++		if v_0.Op != OpConst64 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = ntz(c)
++		return true
++	}
++	return false
++}
++func rewriteValuegeneric_OpCtz8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	config := b.Func.Config
++	// match: (Ctz8 (Const8 [c]))
++	// cond: config.PtrSize == 4
++	// result: (Const32 [ntz8(c)])
++	for {
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 4) {
++			break
++		}
++		v.reset(OpConst32)
++		v.AuxInt = ntz8(c)
++		return true
++	}
++	// match: (Ctz8 (Const8 [c]))
++	// cond: config.PtrSize == 8
++	// result: (Const64 [ntz8(c)])
++	for {
++		if v_0.Op != OpConst8 {
++			break
++		}
++		c := v_0.AuxInt
++		if !(config.PtrSize == 8) {
++			break
++		}
++		v.reset(OpConst64)
++		v.AuxInt = ntz8(c)
++		return true
++	}
++	return false
++}
+ func rewriteValuegeneric_OpCvt32Fto32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (Cvt32Fto32 (Const32F [c]))

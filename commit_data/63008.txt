@@ -14,6 +14,28 @@ Date:   Tue May 13 12:41:36 2025 -0400
     Reviewed-by: Michael Matloob <matloob@golang.org>
     Reviewed-by: Michael Matloob <matloob@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/internal/script/scripttest/setup.go | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/internal/script/scripttest/setup.go b/src/cmd/internal/script/scripttest/setup.go
+index 2826b56e87..f9d650af1c 100644
+--- a/src/cmd/internal/script/scripttest/setup.go
++++ b/src/cmd/internal/script/scripttest/setup.go
+@@ -114,6 +114,16 @@ func linkOrCopy(t *testing.T, src, dst string) {
+ 	if err == nil {
+ 		return
+ 	}
++	fi, err := os.Stat(src)
++	if err != nil {
++		t.Fatalf("copying %s to %s: %v", src, dst, err)
++	}
++	if fi.IsDir() {
++		if err := os.CopyFS(dst, os.DirFS(src)); err != nil {
++			t.Fatalf("copying %s to %s: %v", src, dst, err)
++		}
++		return
++	}
+ 	srcf, err := os.Open(src)
+ 	if err != nil {
+ 		t.Fatalf("copying %s to %s: %v", src, dst, err)

@@ -7,7 +7,32 @@ Date:   Thu Jun 16 12:56:39 2011 -0400
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4589055
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8f510f3bad..9f8b626059 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -140,6 +140,7 @@ Tor Andersson <tor.andersson@gmail.com>
+ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
++Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Josephson <wjosephson@gmail.com>
+ Yasuhiro Matsumoto <mattn.jp@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index a395c11cc8..9a2195f6fb 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -211,6 +211,7 @@ Vincent Ambo <tazjin@googlemail.com>
+ Vincent Vanackere <vincent.vanackere@gmail.com>
+ Vinu Rajashekhar <vinutheraj@gmail.com>
+ Vish Subramanian <vish@google.com>
++Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
+ William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>

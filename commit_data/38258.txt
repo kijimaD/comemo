@@ -12,6 +12,57 @@ Date:   Mon Oct 15 05:39:23 2018 +0000
     Run-TryBot: Ben Shi <powerman1st@163.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  test/codegen/floats.go | 20 ++++++++++++++++++--
  1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index 4e4f87d574..847959c42e 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -72,27 +72,43 @@ func indexStore(b0 []float64, b1 float64, idx int) {
+ func FusedAdd32(x, y, z float32) float32 {
+ 	// s390x:"FMADDS\t"
+ 	// ppc64le:"FMADDS\t"
++	// arm/7:"MULAF"
++	// arm64:"FMADDS"
+ 	return x*y + z
+ }
+ 
+-func FusedSub32(x, y, z float32) float32 {
++func FusedSub32_a(x, y, z float32) float32 {
+ 	// s390x:"FMSUBS\t"
+ 	// ppc64le:"FMSUBS\t"
+ 	return x*y - z
+ }
+ 
++func FusedSub32_b(x, y, z float32) float32 {
++	// arm/7:"MULSF"
++	// arm64:"FMSUBS"
++	return z - x*y
++}
++
+ func FusedAdd64(x, y, z float64) float64 {
+ 	// s390x:"FMADD\t"
+ 	// ppc64le:"FMADD\t"
++	// arm/7:"MULAD"
++	// arm64:"FMADDD"
+ 	return x*y + z
+ }
+ 
+-func FusedSub64(x, y, z float64) float64 {
++func FusedSub64_a(x, y, z float64) float64 {
+ 	// s390x:"FMSUB\t"
+ 	// ppc64le:"FMSUB\t"
+ 	return x*y - z
+ }
+ 
++func FusedSub64_b(x, y, z float64) float64 {
++	// arm/7:"MULSD"
++	// arm64:"FMSUBD"
++	return z - x*y
++}
++
+ // ---------------- //
+ //    Non-floats    //
+ // ---------------- //

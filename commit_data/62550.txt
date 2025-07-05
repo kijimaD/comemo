@@ -15,6 +15,29 @@ Date:   Wed Mar 12 22:55:49 2025 +1100
     Reviewed-by: Junyang Shao <shaojunyang@google.com>
     Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
     Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
-
+---
  src/cmd/compile/internal/ssagen/intrinsics.go | 11 +++--------
  1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 7a234a5b2e..abb63a99eb 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -938,14 +938,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			return s.newValue1(ssa.OpBitLen8, types.Types[types.TINT], args[0])
+ 		},
+ 		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
+-	addF("math/bits", "Len",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			if s.config.PtrSize == 4 {
+-				return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
+-			}
+-			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
+-		},
+-		sys.AMD64, sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.PPC64, sys.S390X, sys.Wasm)
++	alias("math/bits", "Len", "math/bits", "Len64", p8...)
++	alias("math/bits", "Len", "math/bits", "Len32", p4...)
++
+ 	// LeadingZeros is handled because it trivially calls Len.
+ 	addF("math/bits", "Reverse64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {

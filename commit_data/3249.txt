@@ -7,6 +7,20 @@ Date:   Thu Sep 10 13:43:15 2009 -0700
     TBR=r
     OCL=34524
     CL=34524
-
+---
  test/golden.out | 4 ----
  1 file changed, 4 deletions(-)
+
+diff --git a/test/golden.out b/test/golden.out
+index b6aef14204..f9bdb78378 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -176,8 +176,4 @@ bugs/bug198.go:10: too many arguments to CALL
+ BUG: errchk: compiler crashed
+ 
+ =========== bugs/bug206.go
+-0
+-throw: index out of range
+-
+-panic PC=xxx
+ BUG: bug206

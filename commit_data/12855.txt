@@ -8,6 +8,29 @@ Date:   Tue Apr 10 01:55:51 2012 +0800
     R=golang-dev, rsc, mtj
     CC=golang-dev
     https://golang.org/cl/5975061
-
+---
  doc/code.html | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/doc/code.html b/doc/code.html
+index b29f72a921..f2dfeebd48 100644
+--- a/doc/code.html
++++ b/doc/code.html
+@@ -384,7 +384,7 @@ package newmath
+ import "testing"
+ 
+ func TestSqrt(t *testing.T) {
+-	const in, out = 9, 3
++	const in, out = 4, 2
+ 	if x := Sqrt(in); x != out {
+ 		t.Errorf("Sqrt(%v) = %v, want %v", in, x, out)
+         }
+@@ -397,7 +397,7 @@ Now run the test with <code>go test</code>:
+ 
+ <pre>
+ $ go test example/newmath
+-ok  	example/newmath
++ok  	example/newmath 0.165s
+ </pre>
+ 
+ <p>

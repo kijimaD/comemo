@@ -9,7 +9,52 @@ Date:   Tue Jul 12 01:21:06 2011 -0400
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/4678049
-
+---
  src/pkg/runtime/print.c    |  2 +-
  src/pkg/runtime/string.goc | 10 +++++++---
  2 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/runtime/print.c b/src/pkg/runtime/print.c
+index b8069aa393..3ce7794957 100644
+--- a/src/pkg/runtime/print.c
++++ b/src/pkg/runtime/print.c
+@@ -320,7 +320,7 @@ runtime·printpointer(void *p)
+ void
+ runtime·printstring(String v)
+ {
+-	extern int32 runtime·maxstring;
++	extern uint32 runtime·maxstring;
+ 
+ 	if(v.len > runtime·maxstring) {
+ 		runtime·write(2, "[invalid string]", 16);
+diff --git a/src/pkg/runtime/string.goc b/src/pkg/runtime/string.goc
+index b72aa937c3..15b3459ada 100644
+--- a/src/pkg/runtime/string.goc
++++ b/src/pkg/runtime/string.goc
+@@ -32,19 +32,23 @@ runtime·findnullw(uint16 *s)
+ 	return l;
+ }
+ 
+-int32 runtime·maxstring = 256;
++uint32 runtime·maxstring = 256;
+ 
+ String
+ runtime·gostringsize(int32 l)
+ {
+ 	String s;
++	uint32 ms;
+ 
+ 	if(l == 0)
+ 		return runtime·emptystring;
+ 	s.str = runtime·mal(l+1);	// leave room for NUL for C runtime (e.g., callers of getenv)
+ 	s.len = l;
+-	if(l > runtime·maxstring)
+-		runtime·maxstring = l;
++	for(;;) {
++		ms = runtime·maxstring;
++		if((uint32)l <= ms || runtime·cas(&runtime·maxstring, ms, (uint32)l))
++			break;
++	}
+ 	return s;
+ }
+ 

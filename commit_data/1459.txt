@@ -8,8 +8,221 @@ Date:   Fri Jan 9 15:52:43 2009 -0800
     DELTA=139  (101 added, 38 deleted, 0 changed)
     OCL=22462
     CL=22466
-
+---
  src/cmd/gc/sys.go       | 47 ++++++++++++++++++++++++------------------
  src/cmd/gc/sysimport.c  | 37 +++++++++++++++++----------------
  src/runtime/rt2_amd64.c | 55 +++++++++++++++++++++++++++++++++++++++++++++++++
  3 files changed, 101 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index ba74fae61d..b61536a2e9 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -5,8 +5,9 @@
+ 
+ package PACKAGE
+ 
++// emitted by compiler, not referred to by go programs
++
+ export func	mal(int32) *any;
+-export func	breakpoint();
+ export func	throwindex();
+ export func	throwreturn();
+ export func	panicl(int32);
+@@ -35,25 +36,6 @@ export func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+ export func	ifaceI2I(sigi *byte, iface any) (ret any);
+ export func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ export func	ifaceeq(i1 any, i2 any) (ret bool);
+-export func	reflect(i interface { }) (uint64, string, bool);
+-export func	unreflect(uint64, string, bool) (ret interface { });
+-
+-export func	argc() int;
+-export func	envc() int;
+-export func	argv(int) string;
+-export func	envv(int) string;
+-
+-export func	frexp(float64) (float64, int);		// break fp into exp,fract
+-export func	ldexp(float64, int) float64;		// make fp from exp,fract
+-export func	modf(float64) (float64, float64);	// break fp into double.double
+-export func	isInf(float64, int) bool;		// test for infinity
+-export func	isNaN(float64) bool;			// test for not-a-number
+-export func	Inf(int) float64;			// return signed Inf
+-export func	NaN() float64;				// return a NaN
+-export func	float32bits(float32) uint32;		// raw bits
+-export func	float64bits(float64) uint64;		// raw bits
+-export func	float32frombits(uint32) float32;	// raw bits
+-export func	float64frombits(uint64) float64;	// raw bits
+ 
+ export func	newmap(keysize int, valsize int,
+ 			keyalg int, valalg int,
+@@ -85,6 +67,30 @@ export func	arraysliced(old []any, lb int, hb int, width int) (ary []any);
+ export func	arrayslices(old *any, nel int, lb int, hb int, width int) (ary []any);
+ export func	arrays2d(old *any, nel int) (ary []any);
+ 
++// used by go programs
++
++export func	breakpoint();
++
++export func	reflect(i interface { }) (uint64, string, bool);
++export func	unreflect(uint64, string, bool) (ret interface { });
++
++export func	argc() int;
++export func	envc() int;
++export func	argv(int) string;
++export func	envv(int) string;
++
++export func	frexp(float64) (float64, int);		// break fp into exp,fract
++export func	ldexp(float64, int) float64;		// make fp from exp,fract
++export func	modf(float64) (float64, float64);	// break fp into double.double
++export func	isInf(float64, int) bool;		// test for infinity
++export func	isNaN(float64) bool;			// test for not-a-number
++export func	Inf(int) float64;			// return signed Inf
++export func	NaN() float64;				// return a NaN
++export func	float32bits(float32) uint32;		// raw bits
++export func	float64bits(float64) uint64;		// raw bits
++export func	float32frombits(uint32) float32;	// raw bits
++export func	float64frombits(uint64) float64;	// raw bits
++
+ export func	gosched();
+ export func	goexit();
+ 
+@@ -96,6 +102,7 @@ export func	stringtorune(string, int) (int, int);	// convert bytes to runes
+ export func	exit(int);
+ 
+ export func	symdat() (symtab []byte, pclntab []byte);
++export func	caller(n int) (pc uint64, file string, line int, ok bool);
+ 
+ export func	semacquire(sema *int32);
+ export func	semrelease(sema *int32);
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index 00251018e9..5436e24186 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,7 +1,6 @@
+ char *sysimport =
+ 	"package sys\n"
+ 	"export func sys.mal (? int32) (? *any)\n"
+-	"export func sys.breakpoint ()\n"
+ 	"export func sys.throwindex ()\n"
+ 	"export func sys.throwreturn ()\n"
+ 	"export func sys.panicl (? int32)\n"
+@@ -27,23 +26,6 @@ char *sysimport =
+ 	"export func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
+ 	"export func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+ 	"export func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+-	"export func sys.reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+-	"export func sys.unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+-	"export func sys.argc () (? int)\n"
+-	"export func sys.envc () (? int)\n"
+-	"export func sys.argv (? int) (? string)\n"
+-	"export func sys.envv (? int) (? string)\n"
+-	"export func sys.frexp (? float64) (? float64, ? int)\n"
+-	"export func sys.ldexp (? float64, ? int) (? float64)\n"
+-	"export func sys.modf (? float64) (? float64, ? float64)\n"
+-	"export func sys.isInf (? float64, ? int) (? bool)\n"
+-	"export func sys.isNaN (? float64) (? bool)\n"
+-	"export func sys.Inf (? int) (? float64)\n"
+-	"export func sys.NaN () (? float64)\n"
+-	"export func sys.float32bits (? float32) (? uint32)\n"
+-	"export func sys.float64bits (? float64) (? uint64)\n"
+-	"export func sys.float32frombits (? uint32) (? float32)\n"
+-	"export func sys.float64frombits (? uint64) (? float64)\n"
+ 	"export func sys.newmap (keysize int, valsize int, keyalg int, valalg int, hint int) (hmap map[any] any)\n"
+ 	"export func sys.mapaccess1 (hmap map[any] any, key any) (val any)\n"
+ 	"export func sys.mapaccess2 (hmap map[any] any, key any) (val any, pres bool)\n"
+@@ -68,6 +50,24 @@ char *sysimport =
+ 	"export func sys.arraysliced (old []any, lb int, hb int, width int) (ary []any)\n"
+ 	"export func sys.arrayslices (old *any, nel int, lb int, hb int, width int) (ary []any)\n"
+ 	"export func sys.arrays2d (old *any, nel int) (ary []any)\n"
++	"export func sys.breakpoint ()\n"
++	"export func sys.reflect (i interface { }) (? uint64, ? string, ? bool)\n"
++	"export func sys.unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
++	"export func sys.argc () (? int)\n"
++	"export func sys.envc () (? int)\n"
++	"export func sys.argv (? int) (? string)\n"
++	"export func sys.envv (? int) (? string)\n"
++	"export func sys.frexp (? float64) (? float64, ? int)\n"
++	"export func sys.ldexp (? float64, ? int) (? float64)\n"
++	"export func sys.modf (? float64) (? float64, ? float64)\n"
++	"export func sys.isInf (? float64, ? int) (? bool)\n"
++	"export func sys.isNaN (? float64) (? bool)\n"
++	"export func sys.Inf (? int) (? float64)\n"
++	"export func sys.NaN () (? float64)\n"
++	"export func sys.float32bits (? float32) (? uint32)\n"
++	"export func sys.float64bits (? float64) (? uint64)\n"
++	"export func sys.float32frombits (? uint32) (? float32)\n"
++	"export func sys.float64frombits (? uint64) (? float64)\n"
+ 	"export func sys.gosched ()\n"
+ 	"export func sys.goexit ()\n"
+ 	"export func sys.readfile (? string) (? string, ? bool)\n"
+@@ -76,6 +76,7 @@ char *sysimport =
+ 	"export func sys.stringtorune (? string, ? int) (? int, ? int)\n"
+ 	"export func sys.exit (? int)\n"
+ 	"export func sys.symdat () (symtab []uint8, pclntab []uint8)\n"
++	"export func sys.caller (n int) (pc uint64, file string, line int, ok bool)\n"
+ 	"export func sys.semacquire (sema *int32)\n"
+ 	"export func sys.semrelease (sema *int32)\n"
+ 	"\n"
+diff --git a/src/runtime/rt2_amd64.c b/src/runtime/rt2_amd64.c
+index 9c8436f177..62c74bf51b 100644
+--- a/src/runtime/rt2_amd64.c
++++ b/src/runtime/rt2_amd64.c
+@@ -69,3 +69,58 @@ traceback(byte *pc0, byte *sp, G *g)
+ 	}
+ 	prints("...\n");
+ }
++
++// func caller(n int) (pc uint64, file string, line int, ok bool)
++void
++sys·caller(int32 n, uint64 retpc, string retfile, int32 retline, bool retbool)
++{
++	uint64 pc;
++	byte *sp;
++	Stktop *stk;
++	Func *f;
++
++	// our caller's pc, sp.
++	sp = (byte*)&n;
++	pc = *(uint64*)(sp-8);
++	if((f = findfunc(pc)) == nil) {
++	error:
++		retpc = 0;
++		retline = 0;
++		retfile = nil;
++		retbool = false;
++		FLUSH(&retpc);
++		FLUSH(&retfile);
++		FLUSH(&retline);
++		FLUSH(&retbool);
++		return;
++	}
++
++	// now unwind n levels
++	stk = (Stktop*)g->stackbase;
++	while(n-- > 0) {
++		while(pc == (uint64)retfromnewstack) {
++			sp = stk->oldsp;
++			stk = (Stktop*)stk->oldbase;
++			pc = *(uint64*)(sp+8);
++			sp += 16;
++		}
++
++		if(f->frame < 8)	// assembly functions lie
++			sp += 8;
++		else
++			sp += f->frame;
++
++		pc = *(uint64*)(sp-8);
++		if(pc <= 0x1000 || (f = findfunc(pc)) == nil)
++			goto error;
++	}
++
++	retpc = pc;
++	retfile = f->src;
++	retline = funcline(f, pc-1);
++	retbool = true;
++	FLUSH(&retpc);
++	FLUSH(&retfile);
++	FLUSH(&retline);
++	FLUSH(&retbool);
++}

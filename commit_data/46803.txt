@@ -29,10 +29,119 @@ Date:   Mon Feb 1 13:36:50 2021 -0500
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  misc/cgo/testshared/shared_test.go                   |  8 ++++++++
  misc/cgo/testshared/testdata/issue44031/a/a.go       |  9 +++++++++
  misc/cgo/testshared/testdata/issue44031/b/b.go       | 17 +++++++++++++++++
  misc/cgo/testshared/testdata/issue44031/main/main.go | 20 ++++++++++++++++++++
  src/cmd/link/internal/ld/deadcode.go                 | 16 ++++++++++------
  5 files changed, 64 insertions(+), 6 deletions(-)
+
+diff --git a/misc/cgo/testshared/shared_test.go b/misc/cgo/testshared/shared_test.go
+index 5e0893784b..f52391c6f6 100644
+--- a/misc/cgo/testshared/shared_test.go
++++ b/misc/cgo/testshared/shared_test.go
+@@ -1063,3 +1063,11 @@ func TestGCData(t *testing.T) {
+ 	goCmd(t, "build", "-linkshared", "./gcdata/main")
+ 	runWithEnv(t, "running gcdata/main", []string{"GODEBUG=clobberfree=1"}, "./main")
+ }
++
++// Test that we don't decode type symbols from shared libraries (which has no data,
++// causing panic). See issue 44031.
++func TestIssue44031(t *testing.T) {
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/a")
++	goCmd(t, "install", "-buildmode=shared", "-linkshared", "./issue44031/b")
++	goCmd(t, "run", "-linkshared", "./issue44031/main")
++}
+diff --git a/misc/cgo/testshared/testdata/issue44031/a/a.go b/misc/cgo/testshared/testdata/issue44031/a/a.go
+new file mode 100644
+index 0000000000..48827e682f
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue44031/a/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++type ATypeWithALoooooongName interface { // a long name, so the type descriptor symbol name is mangled
++	M()
++}
+diff --git a/misc/cgo/testshared/testdata/issue44031/b/b.go b/misc/cgo/testshared/testdata/issue44031/b/b.go
+new file mode 100644
+index 0000000000..ad3ebec2b9
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue44031/b/b.go
+@@ -0,0 +1,17 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package b
++
++import "testshared/issue44031/a"
++
++type T int
++
++func (T) M() {}
++
++var i = a.ATypeWithALoooooongName(T(0))
++
++func F() {
++	i.M()
++}
+diff --git a/misc/cgo/testshared/testdata/issue44031/main/main.go b/misc/cgo/testshared/testdata/issue44031/main/main.go
+new file mode 100644
+index 0000000000..47f2e3a98e
+--- /dev/null
++++ b/misc/cgo/testshared/testdata/issue44031/main/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "testshared/issue44031/b"
++
++type t int
++
++func (t) m() {}
++
++type i interface{ m() } // test that unexported method is correctly marked
++
++var v interface{} = t(0)
++
++func main() {
++	b.F()
++	v.(i).m()
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index d8813fa936..245076a83a 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -165,13 +165,17 @@ func (d *deadcodePass) flood() {
+ 				// R_USEIFACEMETHOD is a marker relocation that marks an interface
+ 				// method as used.
+ 				rs := r.Sym()
+-				if d.ldr.SymType(rs) != sym.SDYNIMPORT { // don't decode DYNIMPORT symbol (we'll mark all exported methods anyway)
+-					m := d.decodeIfaceMethod(d.ldr, d.ctxt.Arch, rs, r.Add())
+-					if d.ctxt.Debugvlog > 1 {
+-						d.ctxt.Logf("reached iface method: %v\n", m)
+-					}
+-					d.ifaceMethod[m] = true
++				if d.ctxt.linkShared && (d.ldr.SymType(rs) == sym.SDYNIMPORT || d.ldr.SymType(rs) == sym.Sxxx) {
++					// Don't decode symbol from shared library (we'll mark all exported methods anyway).
++					// We check for both SDYNIMPORT and Sxxx because name-mangled symbols haven't
++					// been resolved at this point.
++					continue
++				}
++				m := d.decodeIfaceMethod(d.ldr, d.ctxt.Arch, rs, r.Add())
++				if d.ctxt.Debugvlog > 1 {
++					d.ctxt.Logf("reached iface method: %v\n", m)
+ 				}
++				d.ifaceMethod[m] = true
+ 				continue
+ 			}
+ 			rs := r.Sym()

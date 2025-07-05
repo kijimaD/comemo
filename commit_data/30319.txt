@@ -7,6 +7,19 @@ Date:   Mon Oct 31 12:52:43 2016 -0700
     Change-Id: Iba5cfa033483b843dbd3681ffad50b117cced4a7
     Reviewed-on: https://go-review.googlesource.com/32448
     Reviewed-by: Alan Donovan <adonovan@google.com>
-
+---
  src/go/types/object.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index ec3fe3d170..ede78537be 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -350,6 +350,7 @@ func (obj *Const) String() string    { return ObjectString(obj, nil) }
+ func (obj *TypeName) String() string { return ObjectString(obj, nil) }
+ func (obj *Var) String() string      { return ObjectString(obj, nil) }
+ func (obj *Func) String() string     { return ObjectString(obj, nil) }
++func (obj *Alias) String() string    { return ObjectString(obj, nil) }
+ func (obj *Label) String() string    { return ObjectString(obj, nil) }
+ func (obj *Builtin) String() string  { return ObjectString(obj, nil) }
+ func (obj *Nil) String() string      { return ObjectString(obj, nil) }

@@ -24,9 +24,200 @@ Date:   Wed May 19 11:43:58 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/cmd/go/testdata/script/test_fuzz_mutator.txt | 10 +++++----
  src/internal/fuzz/worker.go                      |  8 --------
  src/testing/fuzz.go                              |  6 +++++-
  src/testing/testing.go                           | 26 ++++++++++++++++++++++--
  4 files changed, 35 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_mutator.txt b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+index 9098d52f5b..1d0c399a6c 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_mutator.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_mutator.txt
+@@ -110,6 +110,8 @@ package fuzz_test
+ 
+ import (
+ 	"bytes"
++	"fmt"
++	"os"
+ 	"testing"
+ )
+ 
+@@ -123,7 +125,7 @@ func FuzzMinimizerRecoverable(f *testing.F) {
+ 		// minimizer to trim down the value a bit.
+ 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+ 			if len(b) == 50 {
+-				t.Log("got the minimum size!")
++				fmt.Fprint(os.Stderr, "got the minimum size!\n")
+ 			}
+ 			t.Error("contains a letter")
+ 		}
+@@ -140,7 +142,7 @@ func FuzzMinimizerNonrecoverable(f *testing.F) {
+ 		// minimizer to trim down the value quite a bit.
+ 		if bytes.ContainsAny(b, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+ 			if len(b) == 50 {
+-				t.Log("got the minimum size!")
++				fmt.Fprint(os.Stderr, "got the minimum size!\n")
+ 			}
+ 			panic("contains a letter")
+ 		}
+@@ -155,7 +157,7 @@ func FuzzNonMinimizable(f *testing.F) {
+ 		}
+ 		panic("at least 20 bytes")
+ 		if len(b) == 20 {
+-			t.Log("got the minimum size!")
++			fmt.Fprint(os.Stderr, "got the minimum size!\n")
+ 		}
+ 	})
+ }
+@@ -327,4 +329,4 @@ func FuzzMutator(f *testing.F) {
+ 			panic("mutator found enough unique mutations")
+ 		}
+ 	})
+-}
+\ No newline at end of file
++}
+diff --git a/src/internal/fuzz/worker.go b/src/internal/fuzz/worker.go
+index c2cacf986b..875f3ac5ba 100644
+--- a/src/internal/fuzz/worker.go
++++ b/src/internal/fuzz/worker.go
+@@ -95,7 +95,6 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 			return nil
+ 		}
+ 		return fmt.Errorf("fuzzing process terminated without fuzzing: %w", err)
+-		// TODO(jayconrod,katiehockman): record and return stderr.
+ 	}
+ 
+ 	// interestingCount starts at -1, like the coordinator does, so that the
+@@ -141,7 +140,6 @@ func (w *worker) coordinate(ctx context.Context) error {
+ 			// (for example, SIGSEGV) while fuzzing.
+ 			return fmt.Errorf("fuzzing process terminated unexpectedly: %w", err)
+ 			// TODO(jayconrod,katiehockman): if -keepfuzzing, restart worker.
+-			// TODO(jayconrod,katiehockman): record and return stderr.
+ 
+ 		case input := <-w.coordinator.inputC:
+ 			// Received input from coordinator.
+@@ -288,9 +286,6 @@ func (w *worker) minimize(ctx context.Context) (res fuzzResult, minimized bool,
+ 		}
+ 		minimized = true
+ 	}
+-	// TODO(jayconrod,katiehockman): while minimizing, every panic message is
+-	// logged to STDOUT. We should probably suppress all but the last one to
+-	// lower the noise.
+ }
+ 
+ // start runs a new worker process.
+@@ -314,9 +309,6 @@ func (w *worker) start() (err error) {
+ 	cmd := exec.Command(w.binPath, w.args...)
+ 	cmd.Dir = w.dir
+ 	cmd.Env = w.env[:len(w.env):len(w.env)] // copy on append to ensure workers don't overwrite each other.
+-	// TODO(jayconrod): set stdout and stderr to nil or buffer. A large number
+-	// of workers may be very noisy, but for now, this output is useful for
+-	// debugging.
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+ 
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 9364b27eaf..78a0a600fa 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"flag"
+ 	"fmt"
++	"io"
+ 	"os"
+ 	"path/filepath"
+ 	"reflect"
+@@ -313,6 +314,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 		if e.Name != "" {
+ 			testName = fmt.Sprintf("%s/%s", testName, e.Name)
+ 		}
++
+ 		// Record the stack trace at the point of this call so that if the subtest
+ 		// function - which runs in a separate stack - is marked as a helper, we can
+ 		// continue walking the stack into the parent test.
+@@ -327,6 +329,7 @@ func (f *F) Fuzz(ff interface{}) {
+ 				level:   f.level + 1,
+ 				creator: pc[:n],
+ 				chatty:  f.chatty,
++				fuzzing: true,
+ 			},
+ 			context: f.testContext,
+ 		}
+@@ -541,12 +544,13 @@ func runFuzzing(deps testDeps, fuzzTargets []InternalFuzzTarget) (ran, ok bool)
+ 		resetCoverage:    deps.ResetCoverage,
+ 		snapshotCoverage: deps.SnapshotCoverage,
+ 	}
++	root := common{w: os.Stdout}
+ 	if *isFuzzWorker {
++		root.w = io.Discard
+ 		fctx.runFuzzWorker = deps.RunFuzzWorker
+ 	} else {
+ 		fctx.coordinateFuzzing = deps.CoordinateFuzzing
+ 	}
+-	root := common{w: os.Stdout}
+ 	if Verbose() && !*isFuzzWorker {
+ 		root.chatty = newChattyPrinter(root.w)
+ 	}
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 07ef625538..82b422a414 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -448,6 +448,7 @@ type common struct {
+ 
+ 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+ 	bench      bool           // Whether the current test is a benchmark.
++	fuzzing    bool           // Whether the current test is a fuzzing target.
+ 	hasSub     int32          // Written atomically.
+ 	raceErrors int            // Number of races detected during test.
+ 	runner     string         // Function name of tRunner running the test.
+@@ -655,6 +656,20 @@ func (c *common) flushToParent(testName, format string, args ...interface{}) {
+ 	}
+ }
+ 
++// isFuzzing returns whether the current context, or any of the parent contexts,
++// are a fuzzing target
++func (c *common) isFuzzing() bool {
++	if c.fuzzing {
++		return true
++	}
++	for parent := c.parent; parent != nil; parent = parent.parent {
++		if parent.fuzzing {
++			return true
++		}
++	}
++	return false
++}
++
+ type indenter struct {
+ 	c *common
+ }
+@@ -1221,10 +1236,11 @@ func tRunner(t *T, fn func(t *T)) {
+ 		// complete even if a cleanup function calls t.FailNow. See issue 41355.
+ 		didPanic := false
+ 		defer func() {
+-			if didPanic {
++			isFuzzing := t.common.isFuzzing()
++			if didPanic && !isFuzzing {
+ 				return
+ 			}
+-			if err != nil {
++			if err != nil && !isFuzzing {
+ 				panic(err)
+ 			}
+ 			// Only report that the test is complete if it doesn't panic,
+@@ -1250,6 +1266,12 @@ func tRunner(t *T, fn func(t *T)) {
+ 				}
+ 			}
+ 			didPanic = true
++			if t.common.fuzzing {
++				for root := &t.common; root.parent != nil; root = root.parent {
++					fmt.Fprintf(root.parent.w, "panic: %s\n%s\n", err, string(debug.Stack()))
++				}
++				return
++			}
+ 			panic(err)
+ 		}
+ 		if err != nil {

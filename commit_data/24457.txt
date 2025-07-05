@@ -7,6 +7,25 @@ Date:   Thu Jul 30 08:27:56 2015 +1000
     Change-Id: Ie43986d016e5a9fb17ca1393263932bbb56e81ff
     Reviewed-on: https://go-review.googlesource.com/12836
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  doc/go_faq.html | 7 -------
  1 file changed, 7 deletions(-)
+
+diff --git a/doc/go_faq.html b/doc/go_faq.html
+index f61e24a662..33636fca39 100644
+--- a/doc/go_faq.html
++++ b/doc/go_faq.html
+@@ -92,13 +92,6 @@ portability and the addition of new functionality such as improved support for i
+ There may well be a Go 2 one day, but not for a few years and it will be influenced by what we learn using Go 1 as it is today.
+ </p>
+ 
+-<h3 id="What_is_the_origin_of_the_name">
+-What is the origin of the name?</h3>
+-
+-<p>
+-&ldquo;Ogle&rdquo; would be a good name for a Go debugger.
+-</p>
+-
+ <h3 id="Whats_the_origin_of_the_mascot">
+ What's the origin of the mascot?</h3>
+ 

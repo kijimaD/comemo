@@ -11,7 +11,182 @@ Date:   Wed Oct 10 01:02:49 2012 +0800
     R=rsc
     CC=golang-dev
     https://golang.org/cl/6643050
-
+---
  src/cmd/5l/asm.c | 73 +++++++++++++++++++++++++++++++++++++++-----------------
  src/cmd/5l/obj.c |  4 +++-
  2 files changed, 54 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/5l/asm.c b/src/cmd/5l/asm.c
+index 51a2809676..463e3bfa33 100644
+--- a/src/cmd/5l/asm.c
++++ b/src/cmd/5l/asm.c
+@@ -38,6 +38,7 @@
+ static Prog *PP;
+ 
+ char linuxdynld[] = "/lib/ld-linux.so.3"; // 2 for OABI, 3 for EABI
++char freebsddynld[] = "/usr/libexec/ld-elf.so.1";
+ 
+ int32
+ entryvalue(void)
+@@ -344,13 +345,16 @@ addpltsym(Sym *s)
+ 	if(iself) {
+ 		plt = lookup(".plt", 0);
+ 		got = lookup(".got.plt", 0);
+-		rel = lookup(".rel", 0);
++		rel = lookup(".rel.plt", 0);
+ 		if(plt->size == 0)
+ 			elfsetupplt();
+ 		
+ 		// .got entry
+ 		s->got = got->size;
+-		adduint32(got, 0);
++		// In theory, all GOT should point to the first PLT entry,
++		// Linux/ARM's dynamic linker will do that for us, but FreeBSD/ARM's
++		// dynamic linker won't, so we'd better do it ourselves.
++		addaddrplus(got, plt, 0);
+ 
+ 		// .plt entry, this depends on the .got entry
+ 		s->plt = plt->size;
+@@ -696,7 +700,7 @@ asmb(void)
+ 		/* !debug['d'] causes extra sections before the .text section */
+ 		elftextsh = 2;
+ 		if(!debug['d']) {
+-			elftextsh += 9;
++			elftextsh += 10;
+ 			if(elfverneed)
+ 				elftextsh += 2;
+ 		}
+@@ -755,6 +759,9 @@ asmb(void)
+ 	Bflush(&bso);
+ 	cseek(0L);
+ 	switch(HEADTYPE) {
++	default:
++		if(iself)
++			goto Elfput;
+ 	case Hnoheader:	/* no header */
+ 		break;
+ 	case Hrisc:	/* aif for risc os */
+@@ -815,7 +822,7 @@ asmb(void)
+ 		lputl(0xe3300000);		/* nop */
+ 		lputl(0xe3300000);		/* nop */
+ 		break;
+-	case Hlinux:
++	Elfput:
+ 		/* elf arm */
+ 		eh = getElfEhdr();
+ 		fo = HEADR;
+@@ -851,8 +858,16 @@ asmb(void)
+ 			sh->type = SHT_PROGBITS;
+ 			sh->flags = SHF_ALLOC;
+ 			sh->addralign = 1;
+-			if(interpreter == nil)
+-				interpreter = linuxdynld;
++			if(interpreter == nil) {
++				switch(HEADTYPE) {
++				case Hlinux:
++					interpreter = linuxdynld;
++					break;
++				case Hfreebsd:
++					interpreter = freebsddynld;
++					break;
++				}
++			}
+ 			resoff -= elfinterp(sh, startva, resoff, interpreter);
+ 
+ 			ph = newElfPhdr();
+@@ -886,6 +901,31 @@ asmb(void)
+ 		/* Dynamic linking sections */
+ 		if(!debug['d']) {	/* -d suppresses dynamic loader format */
+ 			/* S headers for dynamic linking */
++			dynsym = eh->shnum;
++			sh = newElfShdr(elfstr[ElfStrDynsym]);
++			sh->type = SHT_DYNSYM;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = ELF32SYMSIZE;
++			sh->addralign = 4;
++			sh->link = dynsym+1;	// dynstr
++			// sh->info = index of first non-local symbol (number of local symbols)
++			shsym(sh, lookup(".dynsym", 0));
++
++			sh = newElfShdr(elfstr[ElfStrDynstr]);
++			sh->type = SHT_STRTAB;
++			sh->flags = SHF_ALLOC;
++			sh->addralign = 1;
++			shsym(sh, lookup(".dynstr", 0));
++
++			sh = newElfShdr(elfstr[ElfStrRelPlt]);
++			sh->type = SHT_REL;
++			sh->flags = SHF_ALLOC;
++			sh->entsize = ELF32RELSIZE;
++			sh->addralign = 4;
++			sh->link = dynsym;
++			sh->info = eh->shnum;	// .plt
++			shsym(sh, lookup(".rel.plt", 0));
++
+ 			// ARM ELF needs .plt to be placed before .got
+ 			sh = newElfShdr(elfstr[ElfStrPlt]);
+ 			sh->type = SHT_PROGBITS;
+@@ -908,22 +948,6 @@ asmb(void)
+ 			sh->addralign = 4;
+ 			shsym(sh, lookup(".got", 0));
+ 
+-			dynsym = eh->shnum;
+-			sh = newElfShdr(elfstr[ElfStrDynsym]);
+-			sh->type = SHT_DYNSYM;
+-			sh->flags = SHF_ALLOC;
+-			sh->entsize = ELF32SYMSIZE;
+-			sh->addralign = 4;
+-			sh->link = dynsym+1;	// dynstr
+-			// sh->info = index of first non-local symbol (number of local symbols)
+-			shsym(sh, lookup(".dynsym", 0));
+-
+-			sh = newElfShdr(elfstr[ElfStrDynstr]);
+-			sh->type = SHT_STRTAB;
+-			sh->flags = SHF_ALLOC;
+-			sh->addralign = 1;
+-			shsym(sh, lookup(".dynstr", 0));
+-
+ 			if(elfverneed) {
+ 				sh = newElfShdr(elfstr[ElfStrGnuVersion]);
+ 				sh->type = SHT_GNU_VERSYM;
+@@ -1029,6 +1053,11 @@ asmb(void)
+ 		eh->ident[EI_CLASS] = ELFCLASS32;
+ 		eh->ident[EI_DATA] = ELFDATA2LSB;
+ 		eh->ident[EI_VERSION] = EV_CURRENT;
++		switch(HEADTYPE) {
++		case Hfreebsd:
++			eh->ident[EI_OSABI] = ELFOSABI_FREEBSD;
++			break;
++		}
+ 
+ 		eh->type = ET_EXEC;
+ 		eh->machine = EM_ARM;
+diff --git a/src/cmd/5l/obj.c b/src/cmd/5l/obj.c
+index 889dfbd252..7e229ac17e 100644
+--- a/src/cmd/5l/obj.c
++++ b/src/cmd/5l/obj.c
+@@ -52,6 +52,7 @@ Header headers[] = {
+    "ixp1200", Hixp1200,
+    "ipaq", Hipaq,
+    "linux", Hlinux,
++   "freebsd", Hfreebsd,
+    0, 0
+ };
+ 
+@@ -152,7 +153,7 @@ main(int argc, char *argv[])
+ 	libinit();
+ 
+ 	if(HEADTYPE == -1)
+-		HEADTYPE = Hlinux;
++		HEADTYPE = headtype(goos);
+ 	switch(HEADTYPE) {
+ 	default:
+ 		diag("unknown -H option");
+@@ -212,6 +213,7 @@ main(int argc, char *argv[])
+ 			INITRND = 1024;
+ 		break;
+ 	case Hlinux:	/* arm elf */
++	case Hfreebsd:
+ 		debug['d'] = 0;	// with dynamic linking
+ 		tlsoffset = -8; // hardcoded number, first 4-byte word for g, and then 4-byte word for m
+ 		                // this number is known to ../../pkg/runtime/cgo/gcc_linux_arm.c

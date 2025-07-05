@@ -30,7 +30,7 @@ Date:   Thu Apr 1 18:38:14 2021 +0000
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Michael Pratt <mpratt@google.com>
-
+---
  src/cmd/trace/trace.go       |  2 +-
  src/internal/trace/parser.go |  6 +++---
  src/runtime/metrics.go       |  2 +-
@@ -40,3 +40,301 @@ Date:   Thu Apr 1 18:38:14 2021 +0000
  src/runtime/mstats.go        |  9 +--------
  src/runtime/trace.go         | 12 ++++++------
  8 files changed, 46 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index 30c80f0e04..ca10736c32 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -627,7 +627,7 @@ func generateTrace(params *traceParams, consumer traceConsumer) error {
+ 			}
+ 		case trace.EvHeapAlloc:
+ 			ctx.heapStats.heapAlloc = ev.Args[0]
+-		case trace.EvNextGC:
++		case trace.EvHeapGoal:
+ 			ctx.heapStats.nextGC = ev.Args[0]
+ 		}
+ 		if setGStateErr != nil {
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index c371ff3092..254f20137b 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -1042,8 +1042,8 @@ const (
+ 	EvGoSysBlock        = 30 // syscall blocks [timestamp]
+ 	EvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+ 	EvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+-	EvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
+-	EvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
++	EvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap live bytes]
++	EvHeapGoal          = 34 // gcController.heapGoal change [timestamp, heap goal bytes]
+ 	EvTimerGoroutine    = 35 // denotes timer goroutine [timer goroutine id]
+ 	EvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+ 	EvString            = 37 // string dictionary entry [ID, length, string]
+@@ -1102,7 +1102,7 @@ var EventDescriptions = [EvCount]struct {
+ 	EvGoWaiting:         {"GoWaiting", 1005, false, []string{"g"}, nil},
+ 	EvGoInSyscall:       {"GoInSyscall", 1005, false, []string{"g"}, nil},
+ 	EvHeapAlloc:         {"HeapAlloc", 1005, false, []string{"mem"}, nil},
+-	EvNextGC:            {"NextGC", 1005, false, []string{"mem"}, nil},
++	EvHeapGoal:          {"HeapGoal", 1005, false, []string{"mem"}, nil},
+ 	EvTimerGoroutine:    {"TimerGoroutine", 1005, false, []string{"g"}, nil}, // in 1.5 format it was {"g", "unused"}
+ 	EvFutileWakeup:      {"FutileWakeup", 1005, false, []string{}, nil},
+ 	EvString:            {"String", 1007, false, []string{}, nil},
+diff --git a/src/runtime/metrics.go b/src/runtime/metrics.go
+index ce3bac9d8f..e4343f9148 100644
+--- a/src/runtime/metrics.go
++++ b/src/runtime/metrics.go
+@@ -364,7 +364,7 @@ func (a *sysStatsAggregate) compute() {
+ 	a.buckHashSys = memstats.buckhash_sys.load()
+ 	a.gcMiscSys = memstats.gcMiscSys.load()
+ 	a.otherSys = memstats.other_sys.load()
+-	a.heapGoal = atomic.Load64(&memstats.next_gc)
++	a.heapGoal = atomic.Load64(&gcController.heapGoal)
+ 	a.gcCyclesDone = uint64(memstats.numgc)
+ 	a.gcCyclesForced = uint64(memstats.numforcedgc)
+ 
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index e68e9bb75b..bb98cf29bc 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -113,8 +113,8 @@
+ // Next GC is after we've allocated an extra amount of memory proportional to
+ // the amount already in use. The proportion is controlled by GOGC environment variable
+ // (100 by default). If GOGC=100 and we're using 4M, we'll GC again when we get to 8M
+-// (this mark is tracked in next_gc variable). This keeps the GC cost in linear
+-// proportion to the allocation cost. Adjusting GOGC just changes the linear constant
++// (this mark is tracked in gcController.heapGoal variable). This keeps the GC cost in
++// linear proportion to the allocation cost. Adjusting GOGC just changes the linear constant
+ // (and also the amount of extra memory used).
+ 
+ // Oblets
+@@ -669,7 +669,7 @@ func gcStart(trigger gcTrigger) {
+ 	work.cycles++
+ 
+ 	gcController.startCycle()
+-	work.heapGoal = memstats.next_gc
++	work.heapGoal = gcController.heapGoal
+ 
+ 	// In STW mode, disable scheduling of user Gs. This may also
+ 	// disable scheduling of this goroutine, so it may block as
+@@ -972,8 +972,8 @@ func gcMarkTermination(nextTriggerRatio float64) {
+ 		throw("gc done but gcphase != _GCoff")
+ 	}
+ 
+-	// Record next_gc and heap_inuse for scavenger.
+-	memstats.last_next_gc = memstats.next_gc
++	// Record heapGoal and heap_inuse for scavenger.
++	gcController.lastHeapGoal = gcController.heapGoal
+ 	memstats.last_heap_inuse = memstats.heap_inuse
+ 
+ 	// Update GC trigger and pacing for the next cycle.
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index ea3b39f24d..ba16c59052 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -114,6 +114,19 @@ type gcControllerState struct {
+ 	// Protected by mheap_.lock or a STW.
+ 	trigger uint64
+ 
++	// heapGoal is the goal heapLive for when next GC ends.
++	// Set to ^uint64(0) if disabled.
++	//
++	// Read and written atomically, unless the world is stopped.
++	heapGoal uint64
++
++	// lastHeapGoal is the value of heapGoal for the previous GC.
++	// Note that this is distinct from the last value heapGoal had,
++	// because it could change if e.g. gcPercent changes.
++	//
++	// Read and written with the world stopped or with mheap_.lock held.
++	lastHeapGoal uint64
++
+ 	// heapLive is the number of bytes considered live by the GC.
+ 	// That is: retained by the most recent GC plus allocated
+ 	// since then. heapLive ≤ memstats.heapAlloc, since heapAlloc includes
+@@ -276,8 +289,8 @@ func (c *gcControllerState) startCycle() {
+ 	// GOGC. Assist is proportional to this distance, so enforce a
+ 	// minimum distance, even if it means going over the GOGC goal
+ 	// by a tiny bit.
+-	if memstats.next_gc < c.heapLive+1024*1024 {
+-		memstats.next_gc = c.heapLive + 1024*1024
++	if c.heapGoal < c.heapLive+1024*1024 {
++		c.heapGoal = c.heapLive + 1024*1024
+ 	}
+ 
+ 	// Compute the background mark utilization goal. In general,
+@@ -324,7 +337,7 @@ func (c *gcControllerState) startCycle() {
+ 		print("pacer: assist ratio=", assistRatio,
+ 			" (scan ", gcController.heapScan>>20, " MB in ",
+ 			work.initialHeapLive>>20, "->",
+-			memstats.next_gc>>20, " MB)",
++			c.heapGoal>>20, " MB)",
+ 			" workers=", c.dedicatedMarkWorkersNeeded,
+ 			"+", c.fractionalUtilizationGoal, "\n")
+ 	}
+@@ -332,7 +345,7 @@ func (c *gcControllerState) startCycle() {
+ 
+ // revise updates the assist ratio during the GC cycle to account for
+ // improved estimates. This should be called whenever gcController.heapScan,
+-// gcController.heapLive, or memstats.next_gc is updated. It is safe to
++// gcController.heapLive, or gcController.heapGoal is updated. It is safe to
+ // call concurrently, but it may race with other calls to revise.
+ //
+ // The result of this race is that the two assist ratio values may not line
+@@ -363,8 +376,8 @@ func (c *gcControllerState) revise() {
+ 	work := atomic.Loadint64(&c.scanWork)
+ 
+ 	// Assume we're under the soft goal. Pace GC to complete at
+-	// next_gc assuming the heap is in steady-state.
+-	heapGoal := int64(atomic.Load64(&memstats.next_gc))
++	// heapGoal assuming the heap is in steady-state.
++	heapGoal := int64(atomic.Load64(&c.heapGoal))
+ 
+ 	// Compute the expected scan work remaining.
+ 	//
+@@ -417,7 +430,7 @@ func (c *gcControllerState) revise() {
+ 	}
+ 
+ 	// Compute the mutator assist ratio so by the time the mutator
+-	// allocates the remaining heap bytes up to next_gc, it will
++	// allocates the remaining heap bytes up to heapGoal, it will
+ 	// have done (or stolen) the remaining amount of scan work.
+ 	// Note that the assist ratio values are updated atomically
+ 	// but not together. This means there may be some degree of
+@@ -704,7 +717,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 			trigger = minTrigger
+ 		}
+ 		if int64(trigger) < 0 {
+-			print("runtime: next_gc=", memstats.next_gc, " heapMarked=", c.heapMarked, " gcController.heapLive=", c.heapLive, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
++			print("runtime: heapGoal=", c.heapGoal, " heapMarked=", c.heapMarked, " gcController.heapLive=", c.heapLive, " initialHeapLive=", work.initialHeapLive, "triggerRatio=", triggerRatio, " minTrigger=", minTrigger, "\n")
+ 			throw("trigger underflow")
+ 		}
+ 		if trigger > goal {
+@@ -717,9 +730,9 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 
+ 	// Commit to the trigger and goal.
+ 	c.trigger = trigger
+-	atomic.Store64(&memstats.next_gc, goal)
++	atomic.Store64(&c.heapGoal, goal)
+ 	if trace.enabled {
+-		traceNextGC()
++		traceHeapGoal()
+ 	}
+ 
+ 	// Update mark pacing.
+@@ -766,7 +779,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ 
+ // gcEffectiveGrowthRatio returns the current effective heap growth
+ // ratio (GOGC/100) based on heapMarked from the previous GC and
+-// next_gc for the current GC.
++// heapGoal for the current GC.
+ //
+ // This may differ from gcPercent/100 because of various upper and
+ // lower bounds on gcPercent. For example, if the heap is smaller than
+@@ -776,7 +789,7 @@ func (c *gcControllerState) commit(triggerRatio float64) {
+ func gcEffectiveGrowthRatio() float64 {
+ 	assertWorldStoppedOrLockHeld(&mheap_.lock)
+ 
+-	egogc := float64(atomic.Load64(&memstats.next_gc)-gcController.heapMarked) / float64(gcController.heapMarked)
++	egogc := float64(atomic.Load64(&gcController.heapGoal)-gcController.heapMarked) / float64(gcController.heapMarked)
+ 	if egogc < 0 {
+ 		// Shouldn't happen, but just in case.
+ 		egogc = 0
+diff --git a/src/runtime/mgcscavenge.go b/src/runtime/mgcscavenge.go
+index 6632bed2b3..7e32348670 100644
+--- a/src/runtime/mgcscavenge.go
++++ b/src/runtime/mgcscavenge.go
+@@ -18,12 +18,12 @@
+ // application down to a goal.
+ //
+ // That goal is defined as:
+-//   (retainExtraPercent+100) / 100 * (next_gc / last_next_gc) * last_heap_inuse
++//   (retainExtraPercent+100) / 100 * (heapGoal / lastHeapGoal) * last_heap_inuse
+ //
+ // Essentially, we wish to have the application's RSS track the heap goal, but
+ // the heap goal is defined in terms of bytes of objects, rather than pages like
+ // RSS. As a result, we need to take into account for fragmentation internal to
+-// spans. next_gc / last_next_gc defines the ratio between the current heap goal
++// spans. heapGoal / lastHeapGoal defines the ratio between the current heap goal
+ // and the last heap goal, which tells us by how much the heap is growing and
+ // shrinking. We estimate what the heap will grow to in terms of pages by taking
+ // this ratio and multiplying it by heap_inuse at the end of the last GC, which
+@@ -118,12 +118,12 @@ func gcPaceScavenger() {
+ 	// We never scavenge before the 2nd GC cycle anyway (we don't have enough
+ 	// information about the heap yet) so this is fine, and avoids a fault
+ 	// or garbage data later.
+-	if memstats.last_next_gc == 0 {
++	if gcController.lastHeapGoal == 0 {
+ 		mheap_.scavengeGoal = ^uint64(0)
+ 		return
+ 	}
+ 	// Compute our scavenging goal.
+-	goalRatio := float64(atomic.Load64(&memstats.next_gc)) / float64(memstats.last_next_gc)
++	goalRatio := float64(atomic.Load64(&gcController.heapGoal)) / float64(gcController.lastHeapGoal)
+ 	retainedGoal := uint64(float64(memstats.last_heap_inuse) * goalRatio)
+ 	// Add retainExtraPercent overhead to retainedGoal. This calculation
+ 	// looks strange but the purpose is to arrive at an integer division
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index cd9359bc91..c68cb2fcc3 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -62,12 +62,6 @@ type mstats struct {
+ 
+ 	// Statistics about the garbage collector.
+ 
+-	// next_gc is the goal gcController.heapLive for when next GC ends.
+-	// Set to ^uint64(0) if disabled.
+-	//
+-	// Read and written atomically, unless the world is stopped.
+-	next_gc uint64
+-
+ 	// Protected by mheap or stopping the world during GC.
+ 	last_gc_unix    uint64 // last gc (in unix time)
+ 	pause_total_ns  uint64
+@@ -93,7 +87,6 @@ type mstats struct {
+ 
+ 	last_gc_nanotime uint64 // last gc (monotonic time)
+ 	tinyallocs       uint64 // number of tiny allocations that didn't cause actual allocation; not exported to go directly
+-	last_next_gc     uint64 // next_gc for the previous GC
+ 	last_heap_inuse  uint64 // heap_inuse at mark termination of the previous GC
+ 
+ 	// heapStats is a set of statistics
+@@ -460,7 +453,7 @@ func readmemstats_m(stats *MemStats) {
+ 	// at a more granular level in the runtime.
+ 	stats.GCSys = memstats.gcMiscSys.load() + memstats.gcWorkBufInUse + memstats.gcProgPtrScalarBitsInUse
+ 	stats.OtherSys = memstats.other_sys.load()
+-	stats.NextGC = memstats.next_gc
++	stats.NextGC = gcController.heapGoal
+ 	stats.LastGC = memstats.last_gc_unix
+ 	stats.PauseTotalNs = memstats.pause_total_ns
+ 	stats.PauseNs = memstats.pause_ns
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index ba8fbda028..1530178c85 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -53,8 +53,8 @@ const (
+ 	traceEvGoSysBlock        = 30 // syscall blocks [timestamp]
+ 	traceEvGoWaiting         = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+ 	traceEvGoInSyscall       = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+-	traceEvHeapAlloc         = 33 // memstats.heap_live change [timestamp, heap_alloc]
+-	traceEvNextGC            = 34 // memstats.next_gc change [timestamp, next_gc]
++	traceEvHeapAlloc         = 33 // gcController.heapLive change [timestamp, heap_alloc]
++	traceEvHeapGoal          = 34 // gcController.heapGoal (formerly next_gc) change [timestamp, heap goal in bytes]
+ 	traceEvTimerGoroutine    = 35 // not currently used; previously denoted timer goroutine [timer goroutine id]
+ 	traceEvFutileWakeup      = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+ 	traceEvString            = 37 // string dictionary entry [ID, length, string]
+@@ -1147,12 +1147,12 @@ func traceHeapAlloc() {
+ 	traceEvent(traceEvHeapAlloc, -1, gcController.heapLive)
+ }
+ 
+-func traceNextGC() {
+-	if nextGC := atomic.Load64(&memstats.next_gc); nextGC == ^uint64(0) {
++func traceHeapGoal() {
++	if heapGoal := atomic.Load64(&gcController.heapGoal); heapGoal == ^uint64(0) {
+ 		// Heap-based triggering is disabled.
+-		traceEvent(traceEvNextGC, -1, 0)
++		traceEvent(traceEvHeapGoal, -1, 0)
+ 	} else {
+-		traceEvent(traceEvNextGC, -1, nextGC)
++		traceEvent(traceEvHeapGoal, -1, heapGoal)
+ 	}
+ }
+ 

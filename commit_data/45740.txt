@@ -35,7 +35,94 @@ Date:   Tue Nov 10 13:59:48 2020 -0500
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/work/exec.go             | 16 ++++++++++++-
  src/cmd/go/testdata/script/build_overlay.txt | 36 ++++++++++++++++++++++++++++
  2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index a1a357e2ac..7959e09c33 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2709,7 +2709,7 @@ func (b *Builder) cgo(a *Action, cgoExe, objdir string, pcCFLAGS, pcLDFLAGS, cgo
+ 	// subtly break some cgo files that include .h files across directory
+ 	// boundaries, even though they shouldn't.
+ 	hasOverlay := false
+-	cgoFileLists := [][]string{cgofiles, gccfiles, gxxfiles, mfiles, ffiles, hfiles}
++	cgoFileLists := [][]string{gccfiles, gxxfiles, mfiles, ffiles, hfiles}
+ OverlayLoop:
+ 	for _, fs := range cgoFileLists {
+ 		for _, f := range fs {
+@@ -2732,6 +2732,20 @@ OverlayLoop:
+ 		}
+ 	}
+ 
++	// Rewrite overlaid paths in cgo files.
++	// cgo adds //line and #line pragmas in generated files with these paths.
++	var trimpath []string
++	for i := range cgofiles {
++		path := mkAbs(p.Dir, cgofiles[i])
++		if opath, ok := fsys.OverlayPath(path); ok {
++			cgofiles[i] = opath
++			trimpath = append(trimpath, opath+"=>"+path)
++		}
++	}
++	if len(trimpath) > 0 {
++		cgoflags = append(cgoflags, "-trimpath", strings.Join(trimpath, ";"))
++	}
++
+ 	if err := b.run(a, execdir, p.ImportPath, cgoenv, cfg.BuildToolexec, cgoExe, "-objdir", objdir, "-importpath", p.ImportPath, cgoflags, "--", cgoCPPFLAGS, cgoCFLAGS, cgofiles); err != nil {
+ 		return nil, nil, err
+ 	}
+diff --git a/src/cmd/go/testdata/script/build_overlay.txt b/src/cmd/go/testdata/script/build_overlay.txt
+index e18a8f5b28..f9487da9f1 100644
+--- a/src/cmd/go/testdata/script/build_overlay.txt
++++ b/src/cmd/go/testdata/script/build_overlay.txt
+@@ -43,6 +43,12 @@ go build -overlay overlay.json -o main_cgo_angle$GOEXE ./cgo_hello_angle
+ exec ./main_cgo_angle$GOEXE
+ stdout '^hello cgo\r?\n'
+ 
++go list -compiled -overlay overlay.json -f '{{range .CompiledGoFiles}}{{. | printf "%s\n"}}{{end}}' ./cgo_hello_replace
++cp stdout compiled_cgo_sources.txt
++go run ../print_line_comments.go compiled_cgo_sources.txt
++stdout $GOPATH[/\\]src[/\\]m[/\\]cgo_hello_replace[/\\]cgo_hello_replace.go
++! stdout $GOPATH[/\\]src[/\\]m[/\\]overlay[/\\]hello.c
++
+ # Run same tests but with gccgo.
+ env GO111MODULE=off
+ [!exec:gccgo] stop
+@@ -207,3 +213,33 @@ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+ 
+ void say_hello() { puts("hello cgo\n"); fflush(stdout); }
+ 
++-- print_line_comments.go --
++package main
++
++import (
++    "fmt"
++    "io/ioutil"
++    "log"
++    "os"
++    "strings"
++)
++
++func main() {
++    compiledGoFilesArg := os.Args[1]
++    b, err := ioutil.ReadFile(compiledGoFilesArg)
++    if err != nil {
++        log.Fatal(err)
++    }
++    compiledGoFiles := strings.Split(strings.TrimSpace(string(b)), "\n")
++    for _, f := range compiledGoFiles {
++        b, err := ioutil.ReadFile(f)
++        if err != nil {
++            log.Fatal(err)
++        }
++        for _, line := range strings.Split(string(b), "\n") {
++            if strings.HasPrefix(line, "#line") || strings.HasPrefix(line, "//line") {
++                fmt.Println(line)
++            }
++        }
++    }
++}
+\ No newline at end of file

@@ -36,7 +36,58 @@ Date:   Wed Mar 29 17:04:54 2023 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/encoding/asn1/asn1.go      | 11 +++++++----
  src/encoding/asn1/asn1_test.go |  7 +++++++
  2 files changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/asn1/asn1.go b/src/encoding/asn1/asn1.go
+index f743cd6f69..e7bf793a82 100644
+--- a/src/encoding/asn1/asn1.go
++++ b/src/encoding/asn1/asn1.go
+@@ -26,6 +26,7 @@ import (
+ 	"math/big"
+ 	"reflect"
+ 	"strconv"
++	"strings"
+ 	"time"
+ 	"unicode/utf16"
+ 	"unicode/utf8"
+@@ -236,16 +237,18 @@ func (oi ObjectIdentifier) Equal(other ObjectIdentifier) bool {
+ }
+ 
+ func (oi ObjectIdentifier) String() string {
+-	var s string
++	var s strings.Builder
++	s.Grow(32)
+ 
++	buf := make([]byte, 0, 19)
+ 	for i, v := range oi {
+ 		if i > 0 {
+-			s += "."
++			s.WriteByte('.')
+ 		}
+-		s += strconv.Itoa(v)
++		s.Write(strconv.AppendInt(buf, int64(v), 10))
+ 	}
+ 
+-	return s
++	return s.String()
+ }
+ 
+ // parseObjectIdentifier parses an OBJECT IDENTIFIER from the given bytes and
+diff --git a/src/encoding/asn1/asn1_test.go b/src/encoding/asn1/asn1_test.go
+index 0e67dbf396..9a605e245c 100644
+--- a/src/encoding/asn1/asn1_test.go
++++ b/src/encoding/asn1/asn1_test.go
+@@ -1168,3 +1168,10 @@ func TestNonMinimalEncodedOID(t *testing.T) {
+ 		t.Fatalf("accepted non-minimally encoded oid")
+ 	}
+ }
++
++func BenchmarkObjectIdentifierString(b *testing.B) {
++	oidPublicKeyRSA := ObjectIdentifier{1, 2, 840, 113549, 1, 1, 1}
++	for i := 0; i < b.N; i++ {
++		_ = oidPublicKeyRSA.String()
++	}
++}

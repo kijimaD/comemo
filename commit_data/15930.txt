@@ -10,6 +10,24 @@ Date:   Mon Mar 25 17:01:40 2013 -0400
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/8003046
-
+---
  src/pkg/math/hypot.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/math/hypot.go b/src/pkg/math/hypot.go
+index 3846e6d87d..2087cb05b3 100644
+--- a/src/pkg/math/hypot.go
++++ b/src/pkg/math/hypot.go
+@@ -12,8 +12,10 @@ package math
+ // unnecessary overflow and underflow.
+ //
+ // Special cases are:
+-//	Hypot(p, q) = +Inf if p or q is infinite
+-//	Hypot(p, q) = NaN if p or q is NaN
++//	Hypot(±Inf, q) = +Inf
++//	Hypot(p, ±Inf) = +Inf
++//	Hypot(NaN, q) = NaN
++//	Hypot(p, NaN) = NaN
+ func Hypot(p, q float64) float64
+ 
+ func hypot(p, q float64) float64 {

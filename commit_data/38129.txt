@@ -9,7 +9,34 @@ Date:   Wed Oct 3 23:52:49 2018 +0000
     GitHub-Pull-Request: golang/go#28000
     Reviewed-on: https://go-review.googlesource.com/c/139424
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/typeswitch2.go | 2 +-
  test/typeswitch3.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/test/typeswitch2.go b/test/typeswitch2.go
+index 1160b62e14..5958b7db8e 100644
+--- a/test/typeswitch2.go
++++ b/test/typeswitch2.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Verify that various erroneous type switches are caught be the compiler.
++// Verify that various erroneous type switches are caught by the compiler.
+ // Does not compile.
+ 
+ package main
+diff --git a/test/typeswitch3.go b/test/typeswitch3.go
+index 58d4cba2d0..1388187566 100644
+--- a/test/typeswitch3.go
++++ b/test/typeswitch3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Verify that erroneous type switches are caught be the compiler.
++// Verify that erroneous type switches are caught by the compiler.
+ // Issue 2700, among other things.
+ // Does not compile.
+ 

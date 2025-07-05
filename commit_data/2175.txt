@@ -8,7 +8,7 @@ Date:   Fri May 8 14:57:56 2009 -0700
     DELTA=19  (4 added, 5 deleted, 10 changed)
     OCL=28563
     CL=28566
-
+---
  src/cmd/gc/builtin.c.boot   |  4 ++--
  src/cmd/gc/sys.go           |  3 ---
  src/cmd/gc/unsafe.go        |  2 ++
@@ -17,3 +17,145 @@ Date:   Fri May 8 14:57:56 2009 -0700
  src/runtime/iface.c         | 10 +++++-----
  test/convert.go             |  2 +-
  7 files changed, 14 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index d935fc564f..0f189d3634 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -56,8 +56,6 @@ char *sysimport =
+ 	"func sys.arrays2d (old *any, nel int) (ary []any)\n"
+ 	"func sys.closure ()\n"
+ 	"func sys.Breakpoint ()\n"
+-	"func sys.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
+-	"func sys.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+ 	"var sys.Args []string\n"
+ 	"var sys.Envs []string\n"
+ 	"func sys.Gosched ()\n"
+@@ -72,5 +70,7 @@ char *unsafeimport =
+ 	"func unsafe.Offsetof (? any) (? int)\n"
+ 	"func unsafe.Sizeof (? any) (? int)\n"
+ 	"func unsafe.Alignof (? any) (? int)\n"
++	"func unsafe.Reflect (i interface { }) (? uint64, ? string, ? bool)\n"
++	"func unsafe.Unreflect (? uint64, ? string, ? bool) (ret interface { })\n"
+ 	"\n"
+ 	"$$\n";
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index 9c2bc4d04f..f77771a09d 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -77,9 +77,6 @@ func	closure();	// has args, but compiler fills in
+ 
+ func	Breakpoint();
+ 
+-func	Reflect(i interface { }) (uint64, string, bool);
+-func	Unreflect(uint64, string, bool) (ret interface { });
+-
+ var	Args []string;
+ var	Envs []string;
+ 
+diff --git a/src/cmd/gc/unsafe.go b/src/cmd/gc/unsafe.go
+index d1dcee02a8..9289a9ca8e 100644
+--- a/src/cmd/gc/unsafe.go
++++ b/src/cmd/gc/unsafe.go
+@@ -9,3 +9,5 @@ type	Pointer	*any;
+ func	Offsetof(any) int;
+ func	Sizeof(any) int;
+ func	Alignof(any) int;
++func	Reflect(i interface { }) (uint64, string, bool);
++func	Unreflect(uint64, string, bool) (ret interface { });
+diff --git a/src/lib/reflect/all_test.go b/src/lib/reflect/all_test.go
+index d193efde23..cc61bbbf10 100644
+--- a/src/lib/reflect/all_test.go
++++ b/src/lib/reflect/all_test.go
+@@ -314,7 +314,7 @@ func TestInterfaceValue(t *testing.T) {
+ 
+ 	i3 := v2.Interface();
+ 	if f, ok := i3.(float); !ok {
+-		a, typ, c := sys.Reflect(i3);
++		a, typ, c := unsafe.Reflect(i3);
+ 		t.Error("v2.Interface() did not return float, got ", typ);
+ 	}
+ }
+diff --git a/src/lib/reflect/value.go b/src/lib/reflect/value.go
+index ac7ed2f84a..c3b50ae68b 100644
+--- a/src/lib/reflect/value.go
++++ b/src/lib/reflect/value.go
+@@ -62,12 +62,12 @@ func (c *commonValue) Interface() interface {} {
+ 	case c.typ.Kind() == InterfaceKind:
+ 		i = *(*interface{})(c.addr);
+ 	case c.typ.Size() > 8:	// TODO(rsc): how do we know it is 8?
+-		i = sys.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
++		i = unsafe.Unreflect(uint64(uintptr(c.addr)), c.typ.String(), true);
+ 	default:
+ 		if uintptr(c.addr) == 0 {
+ 			panicln("reflect: address 0 for", c.typ.String());
+ 		}
+-		i = sys.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
++		i = unsafe.Unreflect(uint64(uintptr(*(*Addr)(c.addr))), c.typ.String(), false);
+ 	}
+ 	return i;
+ }
+@@ -902,7 +902,7 @@ func copyArray(dst ArrayValue, src ArrayValue, n int) {
+ 
+ // NewValue creates a new Value from the interface{} object provided.
+ func NewValue(e interface {}) Value {
+-	value, typestring, indir := sys.Reflect(e);
++	value, typestring, indir := unsafe.Reflect(e);
+ 	typ, ok := typecache[typestring];
+ 	if !ok {
+ 		typ = ParseTypeString("", typestring);
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index e5de5d16d7..cad7370c5f 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -560,7 +560,7 @@ sys·printinter(Iface i)
+ }
+ 
+ void
+-sys·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
++unsafe·Reflect(Iface i, uint64 retit, String rettype, bool retindir)
+ {
+ 	int32 wid;
+ 
+@@ -602,7 +602,7 @@ extern int32 ngotypesigs;
+ // on the fake signature are:
+ //
+ //	(1) any interface conversion using the signature will fail
+-//	(2) calling sys.Reflect() returns the args to unreflect
++//	(2) calling unsafe.Reflect() returns the args to unreflect
+ //	(3) the right algorithm type is used, for == and map insertion
+ //
+ // (1) is ensured by the fact that we allocate a new Sigt,
+@@ -757,7 +757,7 @@ findtype(String type, bool indir)
+ 
+ 
+ void
+-sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
++unsafe·Unreflect(uint64 it, String type, bool indir, Iface ret)
+ {
+ 	Sigt *sigt;
+ 
+@@ -767,8 +767,8 @@ sys·Unreflect(uint64 it, String type, bool indir, Iface ret)
+ 		goto out;
+ 
+ 	if(type.len > 10 && mcmp(type.str, (byte*)"interface ", 10) == 0) {
+-		printf("sys.Unreflect: cannot put %S in interface\n", type);
+-		throw("sys.Unreflect");
++		printf("unsafe.Unreflect: cannot put %S in interface\n", type);
++		throw("unsafe.Unreflect");
+ 	}
+ 
+ 	// if we think the type should be indirect
+diff --git a/test/convert.go b/test/convert.go
+index 11369e5211..4952e01b76 100644
+--- a/test/convert.go
++++ b/test/convert.go
+@@ -9,7 +9,7 @@ package main
+ import "unsafe"
+ 
+ func typeof(x interface{}) string {
+-	val, typ, indir := sys.Reflect(x);
++	val, typ, indir := unsafe.Reflect(x);
+ 	return typ;
+ }
+ 

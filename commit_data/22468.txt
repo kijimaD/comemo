@@ -11,6 +11,32 @@ Date:   Fri Mar 13 11:58:13 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/7628
     Run-TryBot: Russ Cox <rsc@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/internal/obj/x86/asm6.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/asm6.go b/src/cmd/internal/obj/x86/asm6.go
+index 3bcec5de64..4842bd6238 100644
+--- a/src/cmd/internal/obj/x86/asm6.go
++++ b/src/cmd/internal/obj/x86/asm6.go
+@@ -1903,6 +1903,9 @@ func instinit() {
+ }
+ 
+ func prefixof(ctxt *obj.Link, p *obj.Prog, a *obj.Addr) int {
++	if a.Reg < REG_CS && a.Index < REG_CS { // fast path
++		return 0
++	}
+ 	if a.Type == obj.TYPE_MEM && a.Name == obj.NAME_NONE {
+ 		switch a.Reg {
+ 		case REG_CS:
+@@ -2985,8 +2988,8 @@ func doasm(ctxt *obj.Link, p *obj.Prog) {
+ 	var r *obj.Reloc
+ 	var rel obj.Reloc
+ 	var v int64
+-	var yt ytab
+-	for _, yt = range o.ytab {
++	for i := range o.ytab {
++		yt := &o.ytab[i]
+ 		if ycover[ft+int(yt.from)] != 0 && ycover[f3t+int(yt.from3)] != 0 && ycover[tt+int(yt.to)] != 0 {
+ 			switch o.prefix {
+ 			case Px1: /* first option valid only in 32-bit mode */

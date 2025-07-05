@@ -8,9 +8,177 @@ Date:   Wed May 20 18:23:19 2009 -0700
     R=ken
     OCL=29136
     CL=29136
-
+---
  src/cmd/gc/builtin.c.boot |  1 +
  src/cmd/gc/sys.go         |  1 +
  src/cmd/gc/walk.c         |  7 ++++++-
  src/runtime/iface.c       | 39 +++++++++++++++++++++++++++++++--------
  4 files changed, 39 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/gc/builtin.c.boot b/src/cmd/gc/builtin.c.boot
+index 164a27822c..38c8b4cb5e 100644
+--- a/src/cmd/gc/builtin.c.boot
++++ b/src/cmd/gc/builtin.c.boot
+@@ -32,6 +32,7 @@ char *sysimport =
+ 	"func sys.ifaceI2T (sigt *uint8, iface any) (ret any)\n"
+ 	"func sys.ifaceI2T2 (sigt *uint8, iface any) (ret any, ok bool)\n"
+ 	"func sys.ifaceI2I (sigi *uint8, iface any) (ret any)\n"
++	"func sys.ifaceI2Ix (sigi *uint8, iface any) (ret any)\n"
+ 	"func sys.ifaceI2I2 (sigi *uint8, iface any) (ret any, ok bool)\n"
+ 	"func sys.ifaceeq (i1 any, i2 any) (ret bool)\n"
+ 	"func sys.efaceeq (i1 any, i2 any) (ret bool)\n"
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index e139e759c6..b5a6ddc2bb 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -42,6 +42,7 @@ func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+ func	ifaceI2T(sigt *byte, iface any) (ret any);
+ func	ifaceI2T2(sigt *byte, iface any) (ret any, ok bool);
+ func	ifaceI2I(sigi *byte, iface any) (ret any);
++func	ifaceI2Ix(sigi *byte, iface any) (ret any);
+ func	ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ func	ifaceeq(i1 any, i2 any) (ret bool);
+ func	efaceeq(i1 any, i2 any) (ret bool);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 18cd2c7eb6..0f160a8a4c 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -12,6 +12,7 @@ enum
+ 	I2T,
+ 	I2T2,
+ 	I2I,
++	I2Ix,
+ 	I2I2,
+ 	T2I,
+ 	I2Isame,
+@@ -524,7 +525,7 @@ loop:
+ 				case I2T:
+ 					et = I2T2;
+ 					break;
+-				case I2I:
++				case I2Ix:
+ 					et = I2I2;
+ 					break;
+ 				case E2I:
+@@ -2947,6 +2948,8 @@ ifaceas1(Type *dst, Type *src, int explicit)
+ 			ifacecheck(dst, src, lineno, explicit);
+ 			if(isnilinter(src))
+ 				return E2I;
++			if(explicit)
++				return I2Ix;
+ 			return I2I;
+ 		}
+ 		if(isnilinter(dst))
+@@ -2983,6 +2986,7 @@ ifacename[] =
+ 	[I2T]		= "ifaceI2T",
+ 	[I2T2]		= "ifaceI2T2",
+ 	[I2I]		= "ifaceI2I",
++	[I2Ix]		= "ifaceI2Ix",
+ 	[I2I2]		= "ifaceI2I2",
+ 	[I2Isame]	= "ifaceI2Isame",
+ 	[E2T]		= "ifaceE2T",
+@@ -3038,6 +3042,7 @@ ifacecvt(Type *tl, Node *n, int et)
+ 	case I2T:
+ 	case I2T2:
+ 	case I2I:
++	case I2Ix:
+ 	case I2I2:
+ 	case E2T:
+ 	case E2T2:
+diff --git a/src/runtime/iface.c b/src/runtime/iface.c
+index 9e65a267aa..2351f422d0 100644
+--- a/src/runtime/iface.c
++++ b/src/runtime/iface.c
+@@ -431,6 +431,7 @@ sys·ifaceI2E(Iface i, Eface ret)
+ }
+ 
+ // ifaceI2I(sigi *byte, iface any) (ret any);
++// called only for implicit (no type assertion) conversions
+ void
+ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ {
+@@ -438,7 +439,6 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ 
+ 	im = i.type;
+ 	if(im == nil) {
+-//TODO(rsc): fixme
+ 		// If incoming interface is uninitialized (zeroed)
+ 		// make the outgoing interface zeroed as well.
+ 		ret = niliface;
+@@ -451,6 +451,27 @@ sys·ifaceI2I(Sigi *si, Iface i, Iface ret)
+ 	FLUSH(&ret);
+ }
+ 
++// ifaceI2Ix(sigi *byte, iface any) (ret any);
++// called only for explicit conversions (with type assertion).
++void
++sys·ifaceI2Ix(Sigi *si, Iface i, Iface ret)
++{
++	Itype *im;
++
++	im = i.type;
++	if(im == nil) {
++		// explicit conversions require non-nil interface value.
++		printf("interface is nil, not %s\n", si->name);
++		throw("interface conversion");
++	} else {
++		ret = i;
++		if(im->sigi != si)
++			ret.type = itype(si, im->sigt, 0);
++	}
++
++	FLUSH(&ret);
++}
++
+ // ifaceI2I2(sigi *byte, iface any) (ret any, ok bool);
+ void
+ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+@@ -458,14 +479,13 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ 	Itype *im;
+ 
+ 	im = i.type;
+-	ok = true;
+ 	if(im == nil) {
+-//TODO: fixme
+-		// If incoming interface is uninitialized (zeroed)
+-		// make the outgoing interface zeroed as well.
++		// If incoming interface is nil, the conversion fails.
+ 		ret = niliface;
++		ok = false;
+ 	} else {
+ 		ret = i;
++		ok = true;
+ 		if(im->sigi != si) {
+ 			ret.type = itype(si, im->sigt, 1);
+ 			if(ret.type == nil) {
+@@ -480,6 +500,7 @@ sys·ifaceI2I2(Sigi *si, Iface i, Iface ret, bool ok)
+ }
+ 
+ // ifaceE2I(sigi *byte, iface any) (ret any);
++// Called only for explicit conversions (with type assertion).
+ void
+ sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
+ {
+@@ -487,8 +508,9 @@ sys·ifaceE2I(Sigi *si, Eface e, Iface ret)
+ 
+ 	t = e.type;
+ 	if(t == nil) {
+-//TODO(rsc): fixme
+-		ret = niliface;
++		// explicit conversions require non-nil interface value.
++		printf("interface is nil, not %s\n", si->name);
++		throw("interface conversion");
+ 	} else {
+ 		ret.data = e.data;
+ 		ret.type = itype(si, t, 0);
+@@ -505,8 +527,9 @@ sys·ifaceE2I2(Sigi *si, Eface e, Iface ret, bool ok)
+ 	t = e.type;
+ 	ok = true;
+ 	if(t == nil) {
+-//TODO(rsc): fixme
++		// If incoming interface is nil, the conversion fails.
+ 		ret = niliface;
++		ok = false;
+ 	} else {
+ 		ret.data = e.data;
+ 		ret.type = itype(si, t, 1);

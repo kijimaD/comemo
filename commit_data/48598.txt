@@ -15,6 +15,25 @@ Date:   Tue Jun 1 17:00:26 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/link/internal/ld/dwarf_test.go | 7 +++++--
  1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 2f59c2fe0a..543dd5caac 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -101,8 +101,11 @@ func gobuild(t *testing.T, dir string, testfile string, gcflags string) *builtFi
+ 	}
+ 
+ 	cmd := exec.Command(testenv.GoToolPath(t), "build", gcflags, "-o", dst, src)
+-	if b, err := cmd.CombinedOutput(); err != nil {
+-		t.Logf("build: %s\n", b)
++	b, err := cmd.CombinedOutput()
++	if len(b) != 0 {
++		t.Logf("## build output:\n%s", b)
++	}
++	if err != nil {
+ 		t.Fatalf("build error: %v", err)
+ 	}
+ 

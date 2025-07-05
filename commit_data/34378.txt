@@ -21,10 +21,105 @@ Date:   Fri Oct 20 11:01:43 2017 -0700
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/gc/unsafe.go |  4 +++-
  test/fixedbugs/issue22351.go          | 11 +++++++++++
  test/fixedbugs/issue7525.go           |  4 +---
  test/fixedbugs/issue7525d.go          | 15 +++++++++++++++
  test/fixedbugs/issue7525e.go          | 15 +++++++++++++++
  5 files changed, 45 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/unsafe.go b/src/cmd/compile/internal/gc/unsafe.go
+index 0ae97b454c..14ab33b0b6 100644
+--- a/src/cmd/compile/internal/gc/unsafe.go
++++ b/src/cmd/compile/internal/gc/unsafe.go
+@@ -12,7 +12,6 @@ func evalunsafe(n *Node) int64 {
+ 		n.Left = defaultlit(n.Left, nil)
+ 		tr := n.Left.Type
+ 		if tr == nil {
+-			yyerror("invalid expression %v", n)
+ 			return 0
+ 		}
+ 		dowidth(tr)
+@@ -35,6 +34,9 @@ func evalunsafe(n *Node) int64 {
+ 		base := n.Left.Left
+ 
+ 		n.Left = typecheck(n.Left, Erv)
++		if n.Left.Type == nil {
++			return 0
++		}
+ 		switch n.Left.Op {
+ 		case ODOT, ODOTPTR:
+ 			break
+diff --git a/test/fixedbugs/issue22351.go b/test/fixedbugs/issue22351.go
+new file mode 100644
+index 0000000000..e46a0fb201
+--- /dev/null
++++ b/test/fixedbugs/issue22351.go
+@@ -0,0 +1,11 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++const _ = uint64(unsafe.Offsetof(T{}.F)) // ERROR "undefined"
+diff --git a/test/fixedbugs/issue7525.go b/test/fixedbugs/issue7525.go
+index 6e6959312e..fcfab7236a 100644
+--- a/test/fixedbugs/issue7525.go
++++ b/test/fixedbugs/issue7525.go
+@@ -11,7 +11,5 @@ package main
+ import "unsafe"
+ 
+ var x struct {
+-	a [unsafe.Sizeof(x.a)]int   // ERROR "array bound|typechecking loop|invalid expression"
+-	b [unsafe.Offsetof(x.b)]int // ERROR "array bound"
+-	c [unsafe.Alignof(x.c)]int  // ERROR "array bound|invalid expression"
++	a [unsafe.Sizeof(x.a)]int // ERROR "array bound|typechecking loop|invalid expression"
+ }
+diff --git a/test/fixedbugs/issue7525d.go b/test/fixedbugs/issue7525d.go
+new file mode 100644
+index 0000000000..141d675246
+--- /dev/null
++++ b/test/fixedbugs/issue7525d.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7525: self-referential array types.
++
++package main
++
++import "unsafe"
++
++var x struct {
++	b [unsafe.Offsetof(x.b)]int // ERROR "array bound|typechecking loop|invalid array"
++}
+diff --git a/test/fixedbugs/issue7525e.go b/test/fixedbugs/issue7525e.go
+new file mode 100644
+index 0000000000..c13194ca63
+--- /dev/null
++++ b/test/fixedbugs/issue7525e.go
+@@ -0,0 +1,15 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 7525: self-referential array types.
++
++package main
++
++import "unsafe"
++
++var x struct {
++	c [unsafe.Alignof(x.c)]int // ERROR "array bound|typechecking loop|invalid array"
++}

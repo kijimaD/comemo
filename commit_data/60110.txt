@@ -15,7 +15,40 @@ Date:   Mon May 20 11:07:28 2024 +0200
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Auto-Submit: Filippo Valsorda <filippo@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/crypto/tls/handshake_client.go | 1 +
  src/crypto/tls/handshake_server.go | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index d046c86679..cc3efe1a79 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -527,6 +527,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
+ 	}
+ 
+ 	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
++		tlsrsakex.Value() // ensure godebug is initialized
+ 		tlsrsakex.IncNonDefault()
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index d5f8cc843e..f5d3c5b98a 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -169,6 +169,7 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, error) {
+ 	c.out.version = c.vers
+ 
+ 	if c.config.MinVersion == 0 && c.vers < VersionTLS12 {
++		tls10server.Value() // ensure godebug is initialized
+ 		tls10server.IncNonDefault()
+ 	}
+ 
+@@ -371,6 +372,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	c.cipherSuite = hs.suite.id
+ 
+ 	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
++		tlsrsakex.Value() // ensure godebug is initialized
+ 		tlsrsakex.IncNonDefault()
+ 	}
+ 

@@ -13,6 +13,21 @@ Date:   Wed Jan 24 14:45:06 2024 +0000
     Reviewed-by: Keith Randall <khr@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/mgcmark.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b515568eb0..e118ba69af 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -73,9 +73,7 @@ func gcMarkRootPrepare() {
+ 		if nDataRoots > work.nDataRoots {
+ 			work.nDataRoots = nDataRoots
+ 		}
+-	}
+ 
+-	for _, datap := range activeModules() {
+ 		nBSSRoots := nBlocks(datap.ebss - datap.bss)
+ 		if nBSSRoots > work.nBSSRoots {
+ 			work.nBSSRoots = nBSSRoots

@@ -7,7 +7,7 @@ Date:   Wed Jun 30 14:58:21 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/1319042
-
+---
  src/pkg/syscall/syscall_bsd.go            | 5 +++++
  src/pkg/syscall/syscall_linux.go          | 5 +++++
  src/pkg/syscall/syscall_linux_386.go      | 7 +++++++
@@ -18,3 +18,170 @@ Date:   Wed Jun 30 14:58:21 2010 -0700
  src/pkg/syscall/zsyscall_linux_amd64.go   | 8 ++++++++
  src/pkg/syscall/zsyscall_linux_arm.go     | 8 ++++++++
  9 files changed, 67 insertions(+)
+
+diff --git a/src/pkg/syscall/syscall_bsd.go b/src/pkg/syscall/syscall_bsd.go
+index c773daa7ce..14dfab1539 100644
+--- a/src/pkg/syscall/syscall_bsd.go
++++ b/src/pkg/syscall/syscall_bsd.go
+@@ -323,6 +323,11 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	return
+ }
+ 
++func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
++	fd, errno = socketpair(domain, typ, proto)
++	return
++}
++
+ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+ 	var n = int32(value)
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index bf124bd135..2ce3c08828 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -368,6 +368,11 @@ func Socket(domain, typ, proto int) (fd, errno int) {
+ 	return
+ }
+ 
++func Socketpair(domain, typ, proto int) (fd [2]int, errno int) {
++	fd, errno = socketpair(domain, typ, proto)
++	return
++}
++
+ func SetsockoptInt(fd, level, opt int, value int) (errno int) {
+ 	var n = int32(value)
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(&n)), 4)
+diff --git a/src/pkg/syscall/syscall_linux_386.go b/src/pkg/syscall/syscall_linux_386.go
+index 4dfaddc43e..4a2e92f0ab 100644
+--- a/src/pkg/syscall/syscall_linux_386.go
++++ b/src/pkg/syscall/syscall_linux_386.go
+@@ -100,6 +100,13 @@ func getpeername(s int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, errno = socketcall(_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	return
++}
++
+ func bind(s int, addr uintptr, addrlen _Socklen) (errno int) {
+ 	_, errno = socketcall(_BIND, uintptr(s), uintptr(addr), uintptr(addrlen), 0, 0, 0)
+ 	return
+diff --git a/src/pkg/syscall/zsyscall_darwin_386.go b/src/pkg/syscall/zsyscall_darwin_386.go
+index 6e46cfbc4e..78e21ca442 100644
+--- a/src/pkg/syscall/zsyscall_darwin_386.go
++++ b/src/pkg/syscall/zsyscall_darwin_386.go
+@@ -59,6 +59,15 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
++
+ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_darwin_amd64.go b/src/pkg/syscall/zsyscall_darwin_amd64.go
+index cb963171a8..96a4bd0f02 100644
+--- a/src/pkg/syscall/zsyscall_darwin_amd64.go
++++ b/src/pkg/syscall/zsyscall_darwin_amd64.go
+@@ -59,6 +59,14 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
+ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_386.go b/src/pkg/syscall/zsyscall_freebsd_386.go
+index 96e9da6a49..611beacf61 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_386.go
++++ b/src/pkg/syscall/zsyscall_freebsd_386.go
+@@ -59,6 +59,14 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
+ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_freebsd_amd64.go b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+index c45e6fe35a..f6c050ee50 100644
+--- a/src/pkg/syscall/zsyscall_freebsd_amd64.go
++++ b/src/pkg/syscall/zsyscall_freebsd_amd64.go
+@@ -59,6 +59,15 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
++
+ func setsockopt(s int, level int, name int, val uintptr, vallen int) (errno int) {
+ 	_, _, e1 := Syscall6(SYS_SETSOCKOPT, uintptr(s), uintptr(level), uintptr(name), uintptr(val), uintptr(vallen), 0)
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index b57296a546..87e545987a 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -786,6 +786,14 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)
+diff --git a/src/pkg/syscall/zsyscall_linux_arm.go b/src/pkg/syscall/zsyscall_linux_arm.go
+index 7e872ce3d2..36ff342946 100644
+--- a/src/pkg/syscall/zsyscall_linux_arm.go
++++ b/src/pkg/syscall/zsyscall_linux_arm.go
+@@ -628,6 +628,14 @@ func socket(domain int, typ int, proto int) (fd int, errno int) {
+ 	return
+ }
+ 
++func socketpair(domain int, typ int, proto int) (fd [2]int, errno int) {
++	var f [2]int
++	_, _, e1 := Syscall6(SYS_SOCKETPAIR, uintptr(domain), uintptr(typ), uintptr(proto), uintptr(unsafe.Pointer(&f)), 0, 0)
++	fd = f
++	errno = int(e1)
++	return
++}
++
+ func getpeername(fd int, rsa *RawSockaddrAny, addrlen *_Socklen) (errno int) {
+ 	_, _, e1 := Syscall(SYS_GETPEERNAME, uintptr(fd), uintptr(unsafe.Pointer(rsa)), uintptr(unsafe.Pointer(addrlen)))
+ 	errno = int(e1)

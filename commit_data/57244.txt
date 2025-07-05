@@ -61,6 +61,22 @@ Date:   Wed Jun 7 16:57:34 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     Auto-Submit: Michael Pratt <mpratt@google.com>
-
+---
  src/runtime/proc.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 68d20edf41..a0167d333f 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3779,6 +3779,10 @@ func goschedImpl(gp *g) {
+ 	globrunqput(gp)
+ 	unlock(&sched.lock)
+ 
++	if mainStarted {
++		wakep()
++	}
++
+ 	schedule()
+ }
+ 

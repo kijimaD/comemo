@@ -21,7 +21,7 @@ Date:   Tue Oct 26 00:27:27 2021 -0400
     Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/go.mod                                     |   2 +-
  src/cmd/go.sum                                     |   4 +-
  .../go/analysis/passes/composite/composite.go      |  66 ++++---
@@ -34,3 +34,870 @@ Date:   Tue Oct 26 00:27:27 2021 -0400
  .../x/tools/internal/typeparams/typeterm.go        | 170 +++++++++++++++++
  src/cmd/vendor/modules.txt                         |   2 +-
  11 files changed, 653 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b2ec091292..e6fdc902dd 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/mod v0.5.1-0.20210913215816-37dd6891021a
+ 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
+ 	golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+-	golang.org/x/tools v0.1.8-0.20211011152358-18fa84021695
++	golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ff8df7b749..4993128d1a 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -18,7 +18,7 @@ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e h1:XMgFehsDnnLGtjvjOfqWSUzt0
+ golang.org/x/sys v0.0.0-20210831042530-f4d43177bf5e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b h1:9zKuko04nR4gjZ4+DNjHqRlAJqbJETHwiNKDqTfOjfE=
+ golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b/go.mod h1:jbD1KX2456YbFQfuXm/mYQcufACuNUgVhRMnK/tPxf8=
+-golang.org/x/tools v0.1.8-0.20211011152358-18fa84021695 h1:H+g8CC6T05IOoW6fXaWvb5N3XBYQElWwgDS/7Yxg8dU=
+-golang.org/x/tools v0.1.8-0.20211011152358-18fa84021695/go.mod h1:LGqMHiF4EqQNHR1JncWGqT5BVaXmza+X+BDGol+dOxo=
++golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784 h1:+xP+QoP2SEPgbn+07I/yJTzP+gavj0XKGS6+JU5tlck=
++golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784/go.mod h1:LGqMHiF4EqQNHR1JncWGqT5BVaXmza+X+BDGol+dOxo=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+index 4c3ac6647f..025952ed50 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/composite/composite.go
+@@ -14,6 +14,7 @@ import (
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/inspect"
+ 	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ const Doc = `check for unkeyed composite literals
+@@ -67,41 +68,52 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 			// skip whitelisted types
+ 			return
+ 		}
+-		under := typ.Underlying()
+-		for {
+-			ptr, ok := under.(*types.Pointer)
+-			if !ok {
+-				break
+-			}
+-			under = ptr.Elem().Underlying()
+-		}
+-		if _, ok := under.(*types.Struct); !ok {
+-			// skip non-struct composite literals
+-			return
+-		}
+-		if isLocalType(pass, typ) {
+-			// allow unkeyed locally defined composite literal
+-			return
++		terms, err := typeparams.StructuralTerms(typ)
++		if err != nil {
++			return // invalid type
+ 		}
++		for _, term := range terms {
++			under := deref(term.Type().Underlying())
++			if _, ok := under.(*types.Struct); !ok {
++				// skip non-struct composite literals
++				continue
++			}
++			if isLocalType(pass, term.Type()) {
++				// allow unkeyed locally defined composite literal
++				continue
++			}
+ 
+-		// check if the CompositeLit contains an unkeyed field
+-		allKeyValue := true
+-		for _, e := range cl.Elts {
+-			if _, ok := e.(*ast.KeyValueExpr); !ok {
+-				allKeyValue = false
+-				break
++			// check if the CompositeLit contains an unkeyed field
++			allKeyValue := true
++			for _, e := range cl.Elts {
++				if _, ok := e.(*ast.KeyValueExpr); !ok {
++					allKeyValue = false
++					break
++				}
+ 			}
+-		}
+-		if allKeyValue {
+-			// all the composite literal fields are keyed
++			if allKeyValue {
++				// all the composite literal fields are keyed
++				continue
++			}
++
++			pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
+ 			return
+ 		}
+-
+-		pass.ReportRangef(cl, "%s composite literal uses unkeyed fields", typeName)
+ 	})
+ 	return nil, nil
+ }
+ 
++func deref(typ types.Type) types.Type {
++	for {
++		ptr, ok := typ.(*types.Pointer)
++		if !ok {
++			break
++		}
++		typ = ptr.Elem().Underlying()
++	}
++	return typ
++}
++
+ func isLocalType(pass *analysis.Pass, typ types.Type) bool {
+ 	switch x := typ.(type) {
+ 	case *types.Struct:
+@@ -112,6 +124,8 @@ func isLocalType(pass *analysis.Pass, typ types.Type) bool {
+ 	case *types.Named:
+ 		// names in package foo are local to foo_test too
+ 		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
++	case *typeparams.TypeParam:
++		return strings.TrimSuffix(x.Obj().Pkg().Path(), "_test") == strings.TrimSuffix(pass.Pkg.Path(), "_test")
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index de0369a428..4169d30e4f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -834,8 +834,9 @@ func okPrintfArg(pass *analysis.Pass, call *ast.CallExpr, state *formatState) (o
+ 	}
+ 
+ 	// Could current arg implement fmt.Formatter?
++	// Skip check for the %w verb, which requires an error.
+ 	formatter := false
+-	if state.argNum < len(call.Args) {
++	if v.typ != argError && state.argNum < len(call.Args) {
+ 		if tv, ok := pass.TypesInfo.Types[call.Args[state.argNum]]; ok {
+ 			formatter = isFormatter(tv.Type)
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 5424489f8b..b539866ddd 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -51,6 +51,7 @@ import (
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/internal/analysisflags"
+ 	"golang.org/x/tools/go/analysis/internal/facts"
++	"golang.org/x/tools/internal/typeparams"
+ )
+ 
+ // A Config describes a compilation unit to be analyzed.
+@@ -233,6 +234,8 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 		Scopes:     make(map[ast.Node]*types.Scope),
+ 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+ 	}
++	typeparams.InitInstanceInfo(info)
++
+ 	pkg, err := tc.Check(cfg.ImportPath, fset, files, info)
+ 	if err != nil {
+ 		if cfg.SucceedOnTypecheckFailure {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+new file mode 100644
+index 0000000000..29373508e9
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/normalize.go
+@@ -0,0 +1,212 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package typeparams
++
++import (
++	"errors"
++	"fmt"
++	"go/types"
++	"os"
++	"strings"
++)
++
++//go:generate go run copytermlist.go
++
++const debug = false
++
++// NormalizeInterface returns the normal form of the interface iface, or nil if iface
++// has an empty type set (i.e. there are no types that satisfy iface). If the
++// resulting interface is non-nil, it will be identical to iface.
++//
++// An error is returned if the interface type is invalid, or too complicated to
++// reasonably normalize (for example, contains unions with more than a hundred
++// terms).
++//
++// An interface is in normal form if and only if:
++//   - it has 0 or 1 embedded types.
++//   - its embedded type is either a types.Union or has a concrete
++//     (non-interface) underlying type
++//   - if the embedded type is a union, each term of the union has a concrete
++//     underlying type, and no terms may be removed without changing the type set
++//     of the interface
++func NormalizeInterface(iface *types.Interface) (*types.Interface, error) {
++	var methods []*types.Func
++	for i := 0; i < iface.NumMethods(); i++ {
++		methods = append(methods, iface.Method(i))
++	}
++	var embeddeds []types.Type
++	tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
++	if err != nil {
++		return nil, err
++	}
++	switch {
++	case tset.terms.isEmpty():
++		// Special case: as documented
++		return nil, nil
++
++	case tset.terms.isAll():
++		// No embeddeds.
++
++	case len(tset.terms) == 1:
++		if !tset.terms[0].tilde {
++			embeddeds = append(embeddeds, tset.terms[0].typ)
++			break
++		}
++		fallthrough
++	default:
++		var terms []*Term
++		for _, term := range tset.terms {
++			terms = append(terms, NewTerm(term.tilde, term.typ))
++		}
++		embeddeds = append(embeddeds, NewUnion(terms))
++	}
++
++	return types.NewInterfaceType(methods, embeddeds), nil
++}
++
++var ErrEmptyTypeSet = errors.New("empty type set")
++
++// StructuralTerms returns the normalized structural type restrictions of a
++// type, if any. For types that are not type parameters, it returns term slice
++// containing a single non-tilde term holding the given type. For type
++// parameters, it returns the normalized term list of the type parameter's
++// constraint. See NormalizeInterface for more information on the normal form
++// of a constraint interface.
++//
++// StructuralTerms returns an error if the structural term list cannot be
++// computed. If the type set of typ is empty, it returns ErrEmptyTypeSet.
++func StructuralTerms(typ types.Type) ([]*Term, error) {
++	switch typ := typ.(type) {
++	case *TypeParam:
++		iface, _ := typ.Constraint().(*types.Interface)
++		if iface == nil {
++			return nil, fmt.Errorf("constraint is %T, not *types.Interface", typ)
++		}
++		tset, err := computeTermSet(iface, make(map[types.Type]*termSet), 0)
++		if err != nil {
++			return nil, err
++		}
++		if tset.terms.isEmpty() {
++			return nil, ErrEmptyTypeSet
++		}
++		if tset.terms.isAll() {
++			return nil, nil
++		}
++		var terms []*Term
++		for _, term := range tset.terms {
++			terms = append(terms, NewTerm(term.tilde, term.typ))
++		}
++		return terms, nil
++	default:
++		return []*Term{NewTerm(false, typ)}, nil
++	}
++}
++
++// A termSet holds the normalized set of terms for a given type.
++//
++// The name termSet is intentionally distinct from 'type set': a type set is
++// all types that implement a type (and includes method restrictions), whereas
++// a term set just represents the structural restrictions on a type.
++type termSet struct {
++	complete bool
++	terms    termlist
++}
++
++func indentf(depth int, format string, args ...interface{}) {
++	fmt.Fprintf(os.Stderr, strings.Repeat(".", depth)+format+"\n", args...)
++}
++
++func computeTermSet(t types.Type, seen map[types.Type]*termSet, depth int) (res *termSet, err error) {
++	if t == nil {
++		panic("nil type")
++	}
++
++	if debug {
++		indentf(depth, "%s", t.String())
++		defer func() {
++			if err != nil {
++				indentf(depth, "=> %s", err)
++			} else {
++				indentf(depth, "=> %s", res.terms.String())
++			}
++		}()
++	}
++
++	const maxTermCount = 100
++	if tset, ok := seen[t]; ok {
++		if !tset.complete {
++			return nil, fmt.Errorf("cycle detected in the declaration of %s", t)
++		}
++		return tset, nil
++	}
++
++	// Mark the current type as seen to avoid infinite recursion.
++	tset := new(termSet)
++	defer func() {
++		tset.complete = true
++	}()
++	seen[t] = tset
++
++	switch u := t.Underlying().(type) {
++	case *types.Interface:
++		// The term set of an interface is the intersection of the term sets of its
++		// embedded types.
++		tset.terms = allTermlist
++		for i := 0; i < u.NumEmbeddeds(); i++ {
++			embedded := u.EmbeddedType(i)
++			if _, ok := embedded.Underlying().(*TypeParam); ok {
++				return nil, fmt.Errorf("invalid embedded type %T", embedded)
++			}
++			tset2, err := computeTermSet(embedded, seen, depth+1)
++			if err != nil {
++				return nil, err
++			}
++			tset.terms = tset.terms.intersect(tset2.terms)
++		}
++	case *Union:
++		// The term set of a union is the union of term sets of its terms.
++		tset.terms = nil
++		for i := 0; i < u.Len(); i++ {
++			t := u.Term(i)
++			var terms termlist
++			switch t.Type().Underlying().(type) {
++			case *types.Interface:
++				tset2, err := computeTermSet(t.Type(), seen, depth+1)
++				if err != nil {
++					return nil, err
++				}
++				terms = tset2.terms
++			case *TypeParam, *Union:
++				// A stand-alone type parameter or union is not permitted as union
++				// term.
++				return nil, fmt.Errorf("invalid union term %T", t)
++			default:
++				if t.Type() == types.Typ[types.Invalid] {
++					continue
++				}
++				terms = termlist{{t.Tilde(), t.Type()}}
++			}
++			tset.terms = tset.terms.union(terms)
++			if len(tset.terms) > maxTermCount {
++				return nil, fmt.Errorf("exceeded max term count %d", maxTermCount)
++			}
++		}
++	case *TypeParam:
++		panic("unreachable")
++	default:
++		// For all other types, the term set is just a single non-tilde term
++		// holding the type itself.
++		if u != types.Typ[types.Invalid] {
++			tset.terms = termlist{{false, t}}
++		}
++	}
++	return tset, nil
++}
++
++// under is a facade for the go/types internal function of the same name. It is
++// used by typeterm.go.
++func under(t types.Type) types.Type {
++	return t.Underlying()
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+new file mode 100644
+index 0000000000..10857d504c
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/termlist.go
+@@ -0,0 +1,172 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code generated by copytermlist.go DO NOT EDIT.
++
++package typeparams
++
++import (
++	"bytes"
++	"go/types"
++)
++
++// A termlist represents the type set represented by the union
++// t1 ∪ y2 ∪ ... tn of the type sets of the terms t1 to tn.
++// A termlist is in normal form if all terms are disjoint.
++// termlist operations don't require the operands to be in
++// normal form.
++type termlist []*term
++
++// allTermlist represents the set of all types.
++// It is in normal form.
++var allTermlist = termlist{new(term)}
++
++// String prints the termlist exactly (without normalization).
++func (xl termlist) String() string {
++	if len(xl) == 0 {
++		return "∅"
++	}
++	var buf bytes.Buffer
++	for i, x := range xl {
++		if i > 0 {
++			buf.WriteString(" ∪ ")
++		}
++		buf.WriteString(x.String())
++	}
++	return buf.String()
++}
++
++// isEmpty reports whether the termlist xl represents the empty set of types.
++func (xl termlist) isEmpty() bool {
++	// If there's a non-nil term, the entire list is not empty.
++	// If the termlist is in normal form, this requires at most
++	// one iteration.
++	for _, x := range xl {
++		if x != nil {
++			return false
++		}
++	}
++	return true
++}
++
++// isAll reports whether the termlist xl represents the set of all types.
++func (xl termlist) isAll() bool {
++	// If there's a 𝓤 term, the entire list is 𝓤.
++	// If the termlist is in normal form, this requires at most
++	// one iteration.
++	for _, x := range xl {
++		if x != nil && x.typ == nil {
++			return true
++		}
++	}
++	return false
++}
++
++// norm returns the normal form of xl.
++func (xl termlist) norm() termlist {
++	// Quadratic algorithm, but good enough for now.
++	// TODO(gri) fix asymptotic performance
++	used := make([]bool, len(xl))
++	var rl termlist
++	for i, xi := range xl {
++		if xi == nil || used[i] {
++			continue
++		}
++		for j := i + 1; j < len(xl); j++ {
++			xj := xl[j]
++			if xj == nil || used[j] {
++				continue
++			}
++			if u1, u2 := xi.union(xj); u2 == nil {
++				// If we encounter a 𝓤 term, the entire list is 𝓤.
++				// Exit early.
++				// (Note that this is not just an optimization;
++				// if we continue, we may end up with a 𝓤 term
++				// and other terms and the result would not be
++				// in normal form.)
++				if u1.typ == nil {
++					return allTermlist
++				}
++				xi = u1
++				used[j] = true // xj is now unioned into xi - ignore it in future iterations
++			}
++		}
++		rl = append(rl, xi)
++	}
++	return rl
++}
++
++// If the type set represented by xl is specified by a single (non-𝓤) term,
++// structuralType returns that type. Otherwise it returns nil.
++func (xl termlist) structuralType() types.Type {
++	if nl := xl.norm(); len(nl) == 1 {
++		return nl[0].typ // if nl.isAll() then typ is nil, which is ok
++	}
++	return nil
++}
++
++// union returns the union xl ∪ yl.
++func (xl termlist) union(yl termlist) termlist {
++	return append(xl, yl...).norm()
++}
++
++// intersect returns the intersection xl ∩ yl.
++func (xl termlist) intersect(yl termlist) termlist {
++	if xl.isEmpty() || yl.isEmpty() {
++		return nil
++	}
++
++	// Quadratic algorithm, but good enough for now.
++	// TODO(gri) fix asymptotic performance
++	var rl termlist
++	for _, x := range xl {
++		for _, y := range yl {
++			if r := x.intersect(y); r != nil {
++				rl = append(rl, r)
++			}
++		}
++	}
++	return rl.norm()
++}
++
++// equal reports whether xl and yl represent the same type set.
++func (xl termlist) equal(yl termlist) bool {
++	// TODO(gri) this should be more efficient
++	return xl.subsetOf(yl) && yl.subsetOf(xl)
++}
++
++// includes reports whether t ∈ xl.
++func (xl termlist) includes(t types.Type) bool {
++	for _, x := range xl {
++		if x.includes(t) {
++			return true
++		}
++	}
++	return false
++}
++
++// supersetOf reports whether y ⊆ xl.
++func (xl termlist) supersetOf(y *term) bool {
++	for _, x := range xl {
++		if y.subsetOf(x) {
++			return true
++		}
++	}
++	return false
++}
++
++// subsetOf reports whether xl ⊆ yl.
++func (xl termlist) subsetOf(yl termlist) bool {
++	if yl.isEmpty() {
++		return xl.isEmpty()
++	}
++
++	// each term x of xl must be a subset of yl
++	for _, x := range xl {
++		if !yl.supersetOf(x) {
++			return false // x is not a subset yl
++		}
++	}
++	return true
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+index d22899d29e..6ad3a43a2c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go117.go
+@@ -132,6 +132,15 @@ func IsMethodSet(*types.Interface) bool {
+ 	return true
+ }
+ 
++// IsImplicit returns false, as no interfaces are implicit at this Go version.
++func IsImplicit(*types.Interface) bool {
++	return false
++}
++
++// MarkImplicit does nothing, because this Go version does not have implicit
++// interfaces.
++func MarkImplicit(*types.Interface) {}
++
+ // ForNamed returns an empty type parameter list, as type parameters are not
+ // supported at this Go version.
+ func ForNamed(*types.Named) *TypeParamList {
+@@ -155,19 +164,25 @@ func NamedTypeOrigin(named *types.Named) types.Type {
+ 	return named
+ }
+ 
+-// Term is a placeholder type, as type parameters are not supported at this Go
+-// version. Its methods panic on use.
+-type Term struct{}
++// Term holds information about a structural type restriction.
++type Term struct {
++	tilde bool
++	typ   types.Type
++}
+ 
+-func (*Term) Tilde() bool            { unsupported(); return false }
+-func (*Term) Type() types.Type       { unsupported(); return nil }
+-func (*Term) String() string         { unsupported(); return "" }
+-func (*Term) Underlying() types.Type { unsupported(); return nil }
++func (m *Term) Tilde() bool      { return m.tilde }
++func (m *Term) Type() types.Type { return m.typ }
++func (m *Term) String() string {
++	pre := ""
++	if m.tilde {
++		pre = "~"
++	}
++	return pre + m.typ.String()
++}
+ 
+ // NewTerm is unsupported at this Go version, and panics.
+ func NewTerm(tilde bool, typ types.Type) *Term {
+-	unsupported()
+-	return nil
++	return &Term{tilde, typ}
+ }
+ 
+ // Union is a placeholder type, as type parameters are not supported at this Go
+@@ -186,9 +201,16 @@ func NewUnion(terms []*Term) *Union {
+ // InitInstanceInfo is a noop at this Go version.
+ func InitInstanceInfo(*types.Info) {}
+ 
+-// GetInstance returns nothing, as type parameters are not supported at this Go
+-// version.
+-func GetInstance(*types.Info, *ast.Ident) (*TypeList, types.Type) { return nil, nil }
++// Instance is a placeholder type, as type parameters are not supported at this
++// Go version.
++type Instance struct {
++	TypeArgs *TypeList
++	Type     types.Type
++}
++
++// GetInstances returns a nil map, as type parameters are not supported at this
++// Go version.
++func GetInstances(info *types.Info) map[*ast.Ident]Instance { return nil }
+ 
+ // Context is a placeholder type, as type parameters are not supported at
+ // this Go version.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+index a252183411..e45896fb02 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeparams_go118.go
+@@ -125,6 +125,16 @@ func IsMethodSet(iface *types.Interface) bool {
+ 	return iface.IsMethodSet()
+ }
+ 
++// IsImplicit calls iface.IsImplicit().
++func IsImplicit(iface *types.Interface) bool {
++	return iface.IsImplicit()
++}
++
++// MarkImplicit calls iface.MarkImplicit().
++func MarkImplicit(iface *types.Interface) {
++	iface.MarkImplicit()
++}
++
+ // ForNamed extracts the (possibly empty) type parameter object list from
+ // named.
+ func ForNamed(named *types.Named) *TypeParamList {
+@@ -169,15 +179,12 @@ func InitInstanceInfo(info *types.Info) {
+ 	info.Instances = make(map[*ast.Ident]types.Instance)
+ }
+ 
+-// GetInstance extracts information about the instantiation occurring at the
+-// identifier id. id should be the identifier denoting a parameterized type or
+-// function in an instantiation expression or function call.
+-func GetInstance(info *types.Info, id *ast.Ident) (*TypeList, types.Type) {
+-	if info.Instances != nil {
+-		inf := info.Instances[id]
+-		return inf.TypeArgs, inf.Type
+-	}
+-	return nil, nil
++// Instance is an alias for types.Instance.
++type Instance = types.Instance
++
++// GetInstances returns info.Instances.
++func GetInstances(info *types.Info) map[*ast.Ident]Instance {
++	return info.Instances
+ }
+ 
+ // Context is an alias for types.Context.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+new file mode 100644
+index 0000000000..7ddee28d98
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/typeterm.go
+@@ -0,0 +1,170 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code generated by copytermlist.go DO NOT EDIT.
++
++package typeparams
++
++import "go/types"
++
++// A term describes elementary type sets:
++//
++//   ∅:  (*term)(nil)     == ∅                      // set of no types (empty set)
++//   𝓤:  &term{}          == 𝓤                      // set of all types (𝓤niverse)
++//   T:  &term{false, T}  == {T}                    // set of type T
++//  ~t:  &term{true, t}   == {t' | under(t') == t}  // set of types with underlying type t
++//
++type term struct {
++	tilde bool // valid if typ != nil
++	typ   types.Type
++}
++
++func (x *term) String() string {
++	switch {
++	case x == nil:
++		return "∅"
++	case x.typ == nil:
++		return "𝓤"
++	case x.tilde:
++		return "~" + x.typ.String()
++	default:
++		return x.typ.String()
++	}
++}
++
++// equal reports whether x and y represent the same type set.
++func (x *term) equal(y *term) bool {
++	// easy cases
++	switch {
++	case x == nil || y == nil:
++		return x == y
++	case x.typ == nil || y.typ == nil:
++		return x.typ == y.typ
++	}
++	// ∅ ⊂ x, y ⊂ 𝓤
++
++	return x.tilde == y.tilde && types.Identical(x.typ, y.typ)
++}
++
++// union returns the union x ∪ y: zero, one, or two non-nil terms.
++func (x *term) union(y *term) (_, _ *term) {
++	// easy cases
++	switch {
++	case x == nil && y == nil:
++		return nil, nil // ∅ ∪ ∅ == ∅
++	case x == nil:
++		return y, nil // ∅ ∪ y == y
++	case y == nil:
++		return x, nil // x ∪ ∅ == x
++	case x.typ == nil:
++		return x, nil // 𝓤 ∪ y == 𝓤
++	case y.typ == nil:
++		return y, nil // x ∪ 𝓤 == 𝓤
++	}
++	// ∅ ⊂ x, y ⊂ 𝓤
++
++	if x.disjoint(y) {
++		return x, y // x ∪ y == (x, y) if x ∩ y == ∅
++	}
++	// x.typ == y.typ
++
++	// ~t ∪ ~t == ~t
++	// ~t ∪  T == ~t
++	//  T ∪ ~t == ~t
++	//  T ∪  T ==  T
++	if x.tilde || !y.tilde {
++		return x, nil
++	}
++	return y, nil
++}
++
++// intersect returns the intersection x ∩ y.
++func (x *term) intersect(y *term) *term {
++	// easy cases
++	switch {
++	case x == nil || y == nil:
++		return nil // ∅ ∩ y == ∅ and ∩ ∅ == ∅
++	case x.typ == nil:
++		return y // 𝓤 ∩ y == y
++	case y.typ == nil:
++		return x // x ∩ 𝓤 == x
++	}
++	// ∅ ⊂ x, y ⊂ 𝓤
++
++	if x.disjoint(y) {
++		return nil // x ∩ y == ∅ if x ∩ y == ∅
++	}
++	// x.typ == y.typ
++
++	// ~t ∩ ~t == ~t
++	// ~t ∩  T ==  T
++	//  T ∩ ~t ==  T
++	//  T ∩  T ==  T
++	if !x.tilde || y.tilde {
++		return x
++	}
++	return y
++}
++
++// includes reports whether t ∈ x.
++func (x *term) includes(t types.Type) bool {
++	// easy cases
++	switch {
++	case x == nil:
++		return false // t ∈ ∅ == false
++	case x.typ == nil:
++		return true // t ∈ 𝓤 == true
++	}
++	// ∅ ⊂ x ⊂ 𝓤
++
++	u := t
++	if x.tilde {
++		u = under(u)
++	}
++	return types.Identical(x.typ, u)
++}
++
++// subsetOf reports whether x ⊆ y.
++func (x *term) subsetOf(y *term) bool {
++	// easy cases
++	switch {
++	case x == nil:
++		return true // ∅ ⊆ y == true
++	case y == nil:
++		return false // x ⊆ ∅ == false since x != ∅
++	case y.typ == nil:
++		return true // x ⊆ 𝓤 == true
++	case x.typ == nil:
++		return false // 𝓤 ⊆ y == false since y != 𝓤
++	}
++	// ∅ ⊂ x, y ⊂ 𝓤
++
++	if x.disjoint(y) {
++		return false // x ⊆ y == false if x ∩ y == ∅
++	}
++	// x.typ == y.typ
++
++	// ~t ⊆ ~t == true
++	// ~t ⊆ T == false
++	//  T ⊆ ~t == true
++	//  T ⊆  T == true
++	return !x.tilde || y.tilde
++}
++
++// disjoint reports whether x ∩ y == ∅.
++// x.typ and y.typ must not be nil.
++func (x *term) disjoint(y *term) bool {
++	if debug && (x.typ == nil || y.typ == nil) {
++		panic("invalid argument(s)")
++	}
++	ux := x.typ
++	if y.tilde {
++		ux = under(ux)
++	}
++	uy := y.typ
++	if x.tilde {
++		uy = under(uy)
++	}
++	return !types.Identical(ux, uy)
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index e0e116a634..ecb170d290 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -51,7 +51,7 @@ golang.org/x/sys/windows
+ # golang.org/x/term v0.0.0-20210615171337-6886f2dfbf5b
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.1.8-0.20211011152358-18fa84021695
++# golang.org/x/tools v0.1.8-0.20211025211149-f916b54a1784
+ ## explicit; go 1.17
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

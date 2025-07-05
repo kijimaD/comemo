@@ -19,6 +19,47 @@ Date:   Tue Apr 27 02:31:23 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     Reviewed-by: Michael Matloob <matloob@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go/testdata/script/mod_readonly.txt | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_readonly.txt b/src/cmd/go/testdata/script/mod_readonly.txt
+index 176be72967..d05ad2a317 100644
+--- a/src/cmd/go/testdata/script/mod_readonly.txt
++++ b/src/cmd/go/testdata/script/mod_readonly.txt
+@@ -89,7 +89,7 @@ stderr '^no required module provides package rsc.io/quote; to add it:\n\tgo get
+ -- go.mod --
+ module m
+ 
+-go 1.20
++go 1.16
+ 
+ -- x.go --
+ package x
+@@ -104,7 +104,7 @@ require (
+ -- go.mod.redundant --
+ module m
+ 
+-go 1.20
++go 1.16
+ 
+ require (
+ 	rsc.io/quote v1.5.2
+@@ -114,7 +114,7 @@ require (
+ -- go.mod.indirect --
+ module m
+ 
+-go 1.20
++go 1.16
+ 
+ require (
+ 	rsc.io/quote v1.5.2 // indirect
+@@ -124,7 +124,7 @@ require (
+ -- go.mod.untidy --
+ module m
+ 
+-go 1.20
++go 1.16
+ 
+ require (
+ 	rsc.io/sampler v1.3.0 // indirect

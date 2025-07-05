@@ -11,7 +11,38 @@ Date:   Tue Mar 11 06:57:46 2014 +1100
     R=rsc, remyoudompheng, iant
     CC=golang-codereviews
     https://golang.org/cl/72780043
-
+---
  src/pkg/runtime/env_posix.c | 2 +-
  src/pkg/runtime/mem_nacl.c  | 6 ++++++
  2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/env_posix.c b/src/pkg/runtime/env_posix.c
+index 746c7ee3fd..4c8288f6b4 100644
+--- a/src/pkg/runtime/env_posix.c
++++ b/src/pkg/runtime/env_posix.c
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
++// +build darwin dragonfly freebsd linux nacl netbsd openbsd solaris windows
+ 
+ #include "runtime.h"
+ #include "arch_GOARCH.h"
+diff --git a/src/pkg/runtime/mem_nacl.c b/src/pkg/runtime/mem_nacl.c
+index 993d194dd5..b3cf91d7f0 100644
+--- a/src/pkg/runtime/mem_nacl.c
++++ b/src/pkg/runtime/mem_nacl.c
+@@ -53,6 +53,12 @@ runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ 	runtime·munmap(v, n);
+ }
+ 
++void
++runtime·SysFault(void *v, uintptr n)
++{
++	runtime·mmap(v, n, PROT_NONE, 0, -1, 0);
++}
++
+ void*
+ runtime·SysReserve(void *v, uintptr n)
+ {

@@ -8,6 +8,20 @@ Date:   Wed Nov 12 19:04:56 2008 -0800
     DELTA=1  (0 added, 0 deleted, 1 changed)
     OCL=19131
     CL=19131
-
+---
  src/lib/io.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/io.go b/src/lib/io.go
+index 44d072caa9..80f753a4bf 100644
+--- a/src/lib/io.go
++++ b/src/lib/io.go
+@@ -65,7 +65,7 @@ type FullRead struct {
+ }
+ 
+ func (fd *FullRead) Read(p *[]byte) (n int, err *os.Error) {
+-	n, err = Readn(fd, p);
++	n, err = Readn(fd.fd, p);
+ 	return n, err
+ }
+ 

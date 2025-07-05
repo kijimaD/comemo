@@ -8,6 +8,23 @@ Date:   Thu Jan 22 14:23:50 2009 -0800
     R=r
     OCL=23300
     CL=23300
-
+---
  src/cmd/gotest/gotest | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/gotest/gotest b/src/cmd/gotest/gotest
+index 82cc7381c3..d95201ad87 100755
+--- a/src/cmd/gotest/gotest
++++ b/src/cmd/gotest/gotest
+@@ -33,6 +33,11 @@ esac
+ ofiles=$(echo $gofiles | sed 's/\.go/.6/g')
+ files=$(echo $gofiles | sed 's/\.go//g')
+ 
++# Run any commands given in sources, like
++#   // gotest: 6g foo.go
++# to build any test-only dependencies. 
++sed -n 's/^\/\/ gotest: //p' $gofiles | sh
++
+ for i in $gofiles
+ do
+ 	6g $i

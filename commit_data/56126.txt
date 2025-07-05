@@ -16,7 +16,7 @@ Date:   Tue Apr 11 12:01:43 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/internal/obj/abi_string.go        |  9 +++++
  src/debug/dwarf/class_string.go           |  9 +++--
  src/debug/macho/reloctype_string.go       | 58 +++++++++++++++++++++++++++++++
@@ -29,3 +29,325 @@ Date:   Tue Apr 11 12:01:43 2023 -0700
  src/math/big/roundingmode_string.go       | 12 +++++++
  src/regexp/syntax/op_string.go            | 26 ++++++++++++++
  11 files changed, 169 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/internal/obj/abi_string.go b/src/cmd/internal/obj/abi_string.go
+index a439da36a3..77868eeac0 100644
+--- a/src/cmd/internal/obj/abi_string.go
++++ b/src/cmd/internal/obj/abi_string.go
+@@ -4,6 +4,15 @@ package obj
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[ABI0-0]
++	_ = x[ABIInternal-1]
++	_ = x[ABICount-2]
++}
++
+ const _ABI_name = "ABI0ABIInternalABICount"
+ 
+ var _ABI_index = [...]uint8{0, 4, 15, 23}
+diff --git a/src/debug/dwarf/class_string.go b/src/debug/dwarf/class_string.go
+index 76de7cad31..163bed712a 100644
+--- a/src/debug/dwarf/class_string.go
++++ b/src/debug/dwarf/class_string.go
+@@ -23,11 +23,16 @@ func _() {
+ 	_ = x[ClassString-12]
+ 	_ = x[ClassReferenceAlt-13]
+ 	_ = x[ClassStringAlt-14]
++	_ = x[ClassAddrPtr-15]
++	_ = x[ClassLocList-16]
++	_ = x[ClassRngList-17]
++	_ = x[ClassRngListsPtr-18]
++	_ = x[ClassStrOffsetsPtr-19]
+ }
+ 
+-const _Class_name = "ClassUnknownClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAlt"
++const _Class_name = "ClassUnknownClassAddressClassBlockClassConstantClassExprLocClassFlagClassLinePtrClassLocListPtrClassMacPtrClassRangeListPtrClassReferenceClassReferenceSigClassStringClassReferenceAltClassStringAltClassAddrPtrClassLocListClassRngListClassRngListsPtrClassStrOffsetsPtr"
+ 
+-var _Class_index = [...]uint8{0, 12, 24, 34, 47, 59, 68, 80, 95, 106, 123, 137, 154, 165, 182, 196}
++var _Class_index = [...]uint16{0, 12, 24, 34, 47, 59, 68, 80, 95, 106, 123, 137, 154, 165, 182, 196, 208, 220, 232, 248, 266}
+ 
+ func (i Class) String() string {
+ 	if i < 0 || i >= Class(len(_Class_index)-1) {
+diff --git a/src/debug/macho/reloctype_string.go b/src/debug/macho/reloctype_string.go
+index 9c2b13186e..cb31627e7e 100644
+--- a/src/debug/macho/reloctype_string.go
++++ b/src/debug/macho/reloctype_string.go
+@@ -4,6 +4,18 @@ package macho
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[GENERIC_RELOC_VANILLA-0]
++	_ = x[GENERIC_RELOC_PAIR-1]
++	_ = x[GENERIC_RELOC_SECTDIFF-2]
++	_ = x[GENERIC_RELOC_PB_LA_PTR-3]
++	_ = x[GENERIC_RELOC_LOCAL_SECTDIFF-4]
++	_ = x[GENERIC_RELOC_TLV-5]
++}
++
+ const _RelocTypeGeneric_name = "GENERIC_RELOC_VANILLAGENERIC_RELOC_PAIRGENERIC_RELOC_SECTDIFFGENERIC_RELOC_PB_LA_PTRGENERIC_RELOC_LOCAL_SECTDIFFGENERIC_RELOC_TLV"
+ 
+ var _RelocTypeGeneric_index = [...]uint8{0, 21, 39, 61, 84, 112, 129}
+@@ -14,6 +26,21 @@ func (i RelocTypeGeneric) String() string {
+ 	}
+ 	return _RelocTypeGeneric_name[_RelocTypeGeneric_index[i]:_RelocTypeGeneric_index[i+1]]
+ }
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[X86_64_RELOC_UNSIGNED-0]
++	_ = x[X86_64_RELOC_SIGNED-1]
++	_ = x[X86_64_RELOC_BRANCH-2]
++	_ = x[X86_64_RELOC_GOT_LOAD-3]
++	_ = x[X86_64_RELOC_GOT-4]
++	_ = x[X86_64_RELOC_SUBTRACTOR-5]
++	_ = x[X86_64_RELOC_SIGNED_1-6]
++	_ = x[X86_64_RELOC_SIGNED_2-7]
++	_ = x[X86_64_RELOC_SIGNED_4-8]
++	_ = x[X86_64_RELOC_TLV-9]
++}
+ 
+ const _RelocTypeX86_64_name = "X86_64_RELOC_UNSIGNEDX86_64_RELOC_SIGNEDX86_64_RELOC_BRANCHX86_64_RELOC_GOT_LOADX86_64_RELOC_GOTX86_64_RELOC_SUBTRACTORX86_64_RELOC_SIGNED_1X86_64_RELOC_SIGNED_2X86_64_RELOC_SIGNED_4X86_64_RELOC_TLV"
+ 
+@@ -25,6 +52,21 @@ func (i RelocTypeX86_64) String() string {
+ 	}
+ 	return _RelocTypeX86_64_name[_RelocTypeX86_64_index[i]:_RelocTypeX86_64_index[i+1]]
+ }
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[ARM_RELOC_VANILLA-0]
++	_ = x[ARM_RELOC_PAIR-1]
++	_ = x[ARM_RELOC_SECTDIFF-2]
++	_ = x[ARM_RELOC_LOCAL_SECTDIFF-3]
++	_ = x[ARM_RELOC_PB_LA_PTR-4]
++	_ = x[ARM_RELOC_BR24-5]
++	_ = x[ARM_THUMB_RELOC_BR22-6]
++	_ = x[ARM_THUMB_32BIT_BRANCH-7]
++	_ = x[ARM_RELOC_HALF-8]
++	_ = x[ARM_RELOC_HALF_SECTDIFF-9]
++}
+ 
+ const _RelocTypeARM_name = "ARM_RELOC_VANILLAARM_RELOC_PAIRARM_RELOC_SECTDIFFARM_RELOC_LOCAL_SECTDIFFARM_RELOC_PB_LA_PTRARM_RELOC_BR24ARM_THUMB_RELOC_BR22ARM_THUMB_32BIT_BRANCHARM_RELOC_HALFARM_RELOC_HALF_SECTDIFF"
+ 
+@@ -36,6 +78,22 @@ func (i RelocTypeARM) String() string {
+ 	}
+ 	return _RelocTypeARM_name[_RelocTypeARM_index[i]:_RelocTypeARM_index[i+1]]
+ }
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[ARM64_RELOC_UNSIGNED-0]
++	_ = x[ARM64_RELOC_SUBTRACTOR-1]
++	_ = x[ARM64_RELOC_BRANCH26-2]
++	_ = x[ARM64_RELOC_PAGE21-3]
++	_ = x[ARM64_RELOC_PAGEOFF12-4]
++	_ = x[ARM64_RELOC_GOT_LOAD_PAGE21-5]
++	_ = x[ARM64_RELOC_GOT_LOAD_PAGEOFF12-6]
++	_ = x[ARM64_RELOC_POINTER_TO_GOT-7]
++	_ = x[ARM64_RELOC_TLVP_LOAD_PAGE21-8]
++	_ = x[ARM64_RELOC_TLVP_LOAD_PAGEOFF12-9]
++	_ = x[ARM64_RELOC_ADDEND-10]
++}
+ 
+ const _RelocTypeARM64_name = "ARM64_RELOC_UNSIGNEDARM64_RELOC_SUBTRACTORARM64_RELOC_BRANCH26ARM64_RELOC_PAGE21ARM64_RELOC_PAGEOFF12ARM64_RELOC_GOT_LOAD_PAGE21ARM64_RELOC_GOT_LOAD_PAGEOFF12ARM64_RELOC_POINTER_TO_GOTARM64_RELOC_TLVP_LOAD_PAGE21ARM64_RELOC_TLVP_LOAD_PAGEOFF12ARM64_RELOC_ADDEND"
+ 
+diff --git a/src/html/template/attr_string.go b/src/html/template/attr_string.go
+index babe70c08b..51c3f26208 100644
+--- a/src/html/template/attr_string.go
++++ b/src/html/template/attr_string.go
+@@ -4,6 +4,18 @@ package template
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[attrNone-0]
++	_ = x[attrScript-1]
++	_ = x[attrScriptType-2]
++	_ = x[attrStyle-3]
++	_ = x[attrURL-4]
++	_ = x[attrSrcset-5]
++}
++
+ const _attr_name = "attrNoneattrScriptattrScriptTypeattrStyleattrURLattrSrcset"
+ 
+ var _attr_index = [...]uint8{0, 8, 18, 32, 41, 48, 58}
+diff --git a/src/html/template/delim_string.go b/src/html/template/delim_string.go
+index 6d80e09a44..8d82850223 100644
+--- a/src/html/template/delim_string.go
++++ b/src/html/template/delim_string.go
+@@ -4,6 +4,16 @@ package template
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[delimNone-0]
++	_ = x[delimDoubleQuote-1]
++	_ = x[delimSingleQuote-2]
++	_ = x[delimSpaceOrTagEnd-3]
++}
++
+ const _delim_name = "delimNonedelimDoubleQuotedelimSingleQuotedelimSpaceOrTagEnd"
+ 
+ var _delim_index = [...]uint8{0, 9, 25, 41, 59}
+diff --git a/src/html/template/element_string.go b/src/html/template/element_string.go
+index 4573e0873e..db286655aa 100644
+--- a/src/html/template/element_string.go
++++ b/src/html/template/element_string.go
+@@ -4,6 +4,17 @@ package template
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[elementNone-0]
++	_ = x[elementScript-1]
++	_ = x[elementStyle-2]
++	_ = x[elementTextarea-3]
++	_ = x[elementTitle-4]
++}
++
+ const _element_name = "elementNoneelementScriptelementStyleelementTextareaelementTitle"
+ 
+ var _element_index = [...]uint8{0, 11, 24, 36, 51, 63}
+diff --git a/src/html/template/urlpart_string.go b/src/html/template/urlpart_string.go
+index 813eea9e44..7bc957e81d 100644
+--- a/src/html/template/urlpart_string.go
++++ b/src/html/template/urlpart_string.go
+@@ -4,6 +4,16 @@ package template
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[urlPartNone-0]
++	_ = x[urlPartPreQuery-1]
++	_ = x[urlPartQueryOrFrag-2]
++	_ = x[urlPartUnknown-3]
++}
++
+ const _urlPart_name = "urlPartNoneurlPartPreQueryurlPartQueryOrFragurlPartUnknown"
+ 
+ var _urlPart_index = [...]uint8{0, 11, 26, 44, 58}
+diff --git a/src/internal/pkgbits/syncmarker_string.go b/src/internal/pkgbits/syncmarker_string.go
+index 4a5b0ca5f2..582ad56d3e 100644
+--- a/src/internal/pkgbits/syncmarker_string.go
++++ b/src/internal/pkgbits/syncmarker_string.go
+@@ -74,11 +74,14 @@ func _() {
+ 	_ = x[SyncStmtsEnd-64]
+ 	_ = x[SyncLabel-65]
+ 	_ = x[SyncOptLabel-66]
++	_ = x[SyncMultiExpr-67]
++	_ = x[SyncRType-68]
++	_ = x[SyncConvRTTI-69]
+ }
+ 
+-const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprExprTypeAssignOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabel"
++const _SyncMarker_name = "EOFBoolInt64Uint64StringValueValRelocsRelocUseRelocPublicPosPosBaseObjectObject1PkgPkgDefMethodTypeTypeIdxTypeParamNamesSignatureParamsParamCodeObjSymLocalIdentSelectorPrivateFuncExtVarExtTypeExtPragmaExprListExprsExprExprTypeAssignOpFuncLitCompLitDeclFuncBodyOpenScopeCloseScopeCloseAnotherScopeDeclNamesDeclNameStmtsBlockStmtIfStmtForStmtSwitchStmtRangeStmtCaseClauseCommClauseSelectStmtDeclsLabeledStmtUseObjLocalAddLocalLinknameStmt1StmtsEndLabelOptLabelMultiExprRTypeConvRTTI"
+ 
+-var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 226, 232, 234, 241, 248, 252, 260, 269, 279, 296, 305, 313, 318, 327, 333, 340, 350, 359, 369, 379, 389, 394, 405, 416, 424, 432, 437, 445, 450, 458}
++var _SyncMarker_index = [...]uint16{0, 3, 7, 12, 18, 24, 29, 32, 38, 43, 51, 57, 60, 67, 73, 80, 83, 89, 95, 99, 106, 120, 129, 135, 140, 147, 150, 160, 168, 175, 182, 188, 195, 201, 209, 214, 218, 226, 232, 234, 241, 248, 252, 260, 269, 279, 296, 305, 313, 318, 327, 333, 340, 350, 359, 369, 379, 389, 394, 405, 416, 424, 432, 437, 445, 450, 458, 467, 472, 480}
+ 
+ func (i SyncMarker) String() string {
+ 	i -= 1
+diff --git a/src/math/big/accuracy_string.go b/src/math/big/accuracy_string.go
+index 1501ace00d..aae923829d 100644
+--- a/src/math/big/accuracy_string.go
++++ b/src/math/big/accuracy_string.go
+@@ -4,6 +4,15 @@ package big
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[Below - -1]
++	_ = x[Exact-0]
++	_ = x[Above-1]
++}
++
+ const _Accuracy_name = "BelowExactAbove"
+ 
+ var _Accuracy_index = [...]uint8{0, 5, 10, 15}
+diff --git a/src/math/big/roundingmode_string.go b/src/math/big/roundingmode_string.go
+index c7629eb98b..e2f13a63b7 100644
+--- a/src/math/big/roundingmode_string.go
++++ b/src/math/big/roundingmode_string.go
+@@ -4,6 +4,18 @@ package big
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[ToNearestEven-0]
++	_ = x[ToNearestAway-1]
++	_ = x[ToZero-2]
++	_ = x[AwayFromZero-3]
++	_ = x[ToNegativeInf-4]
++	_ = x[ToPositiveInf-5]
++}
++
+ const _RoundingMode_name = "ToNearestEvenToNearestAwayToZeroAwayFromZeroToNegativeInfToPositiveInf"
+ 
+ var _RoundingMode_index = [...]uint8{0, 13, 26, 32, 44, 57, 70}
+diff --git a/src/regexp/syntax/op_string.go b/src/regexp/syntax/op_string.go
+index 3952b2bdd5..1368f5b7ea 100644
+--- a/src/regexp/syntax/op_string.go
++++ b/src/regexp/syntax/op_string.go
+@@ -4,6 +4,32 @@ package syntax
+ 
+ import "strconv"
+ 
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[OpNoMatch-1]
++	_ = x[OpEmptyMatch-2]
++	_ = x[OpLiteral-3]
++	_ = x[OpCharClass-4]
++	_ = x[OpAnyCharNotNL-5]
++	_ = x[OpAnyChar-6]
++	_ = x[OpBeginLine-7]
++	_ = x[OpEndLine-8]
++	_ = x[OpBeginText-9]
++	_ = x[OpEndText-10]
++	_ = x[OpWordBoundary-11]
++	_ = x[OpNoWordBoundary-12]
++	_ = x[OpCapture-13]
++	_ = x[OpStar-14]
++	_ = x[OpPlus-15]
++	_ = x[OpQuest-16]
++	_ = x[OpRepeat-17]
++	_ = x[OpConcat-18]
++	_ = x[OpAlternate-19]
++	_ = x[opPseudo-128]
++}
++
+ const (
+ 	_Op_name_0 = "NoMatchEmptyMatchLiteralCharClassAnyCharNotNLAnyCharBeginLineEndLineBeginTextEndTextWordBoundaryNoWordBoundaryCaptureStarPlusQuestRepeatConcatAlternate"
+ 	_Op_name_1 = "opPseudo"

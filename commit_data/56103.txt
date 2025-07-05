@@ -11,7 +11,7 @@ Date:   Tue Apr 4 13:59:06 2023 -0700
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Auto-Submit: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  misc/cgo/life/testdata/life.go                     |  3 +-
  misc/cgo/test/issue24161arg/def.go                 |  1 +
  misc/cgo/test/issue24161arg/use.go                 |  1 +
@@ -53,3 +53,672 @@ Date:   Tue Apr 4 13:59:06 2023 -0700
  misc/cgo/testso/testdata/main.go                   |  1 +
  misc/cgo/testsovar/testdata/main.go                |  1 +
  40 files changed, 96 insertions(+), 43 deletions(-)
+
+diff --git a/misc/cgo/life/testdata/life.go b/misc/cgo/life/testdata/life.go
+index 70701cc121..72311404df 100644
+--- a/misc/cgo/life/testdata/life.go
++++ b/misc/cgo/life/testdata/life.go
+@@ -20,8 +20,9 @@ func Run(gen, x, y int, a []int32) {
+ // Keep the channels visible from Go.
+ var chans [4]chan bool
+ 
+-//export GoStart
+ // Double return value is just for testing.
++//
++//export GoStart
+ func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
+ 	c := make(chan bool, int(C.MYCONST))
+ 	go func() {
+diff --git a/misc/cgo/test/issue24161arg/def.go b/misc/cgo/test/issue24161arg/def.go
+index d33479a891..06126143e5 100644
+--- a/misc/cgo/test/issue24161arg/def.go
++++ b/misc/cgo/test/issue24161arg/def.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161arg
+diff --git a/misc/cgo/test/issue24161arg/use.go b/misc/cgo/test/issue24161arg/use.go
+index 3e74944013..a776ce0584 100644
+--- a/misc/cgo/test/issue24161arg/use.go
++++ b/misc/cgo/test/issue24161arg/use.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161arg
+diff --git a/misc/cgo/test/issue24161e0/main.go b/misc/cgo/test/issue24161e0/main.go
+index efe53458d8..4b139552e2 100644
+--- a/misc/cgo/test/issue24161e0/main.go
++++ b/misc/cgo/test/issue24161e0/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161e0
+diff --git a/misc/cgo/test/issue24161e1/main.go b/misc/cgo/test/issue24161e1/main.go
+index 82bf172b7d..1b30b9a9fc 100644
+--- a/misc/cgo/test/issue24161e1/main.go
++++ b/misc/cgo/test/issue24161e1/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161e1
+diff --git a/misc/cgo/test/issue24161e2/main.go b/misc/cgo/test/issue24161e2/main.go
+index 82d2ec1296..4a7e1033e3 100644
+--- a/misc/cgo/test/issue24161e2/main.go
++++ b/misc/cgo/test/issue24161e2/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161e2
+diff --git a/misc/cgo/test/issue24161res/restype.go b/misc/cgo/test/issue24161res/restype.go
+index e5719f22a4..cb33f3c8aa 100644
+--- a/misc/cgo/test/issue24161res/restype.go
++++ b/misc/cgo/test/issue24161res/restype.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin
+ // +build darwin
+ 
+ package issue24161res
+diff --git a/misc/cgo/test/issue9400/gccgo.go b/misc/cgo/test/issue9400/gccgo.go
+index a9b62b07a0..e1e805cb5c 100644
+--- a/misc/cgo/test/issue9400/gccgo.go
++++ b/misc/cgo/test/issue9400/gccgo.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gccgo
+ // +build gccgo
+ 
+ package issue9400
+diff --git a/misc/cgo/test/issue9400/stubs.go b/misc/cgo/test/issue9400/stubs.go
+index e431c5a28a..56bd6f44cb 100644
+--- a/misc/cgo/test/issue9400/stubs.go
++++ b/misc/cgo/test/issue9400/stubs.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc
+ // +build gc
+ 
+ package issue9400
+diff --git a/misc/cgo/testcarchive/testdata/libgo2/libgo2.go b/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
+index 35c89ae92b..b2e7731a45 100644
+--- a/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
++++ b/misc/cgo/testcarchive/testdata/libgo2/libgo2.go
+@@ -39,6 +39,7 @@ import (
+ // RunGoroutines starts some goroutines that don't do anything.
+ // The idea is to get some threads going, so that a signal will be delivered
+ // to a thread started by Go.
++//
+ //export RunGoroutines
+ func RunGoroutines() {
+ 	for i := 0; i < 4; i++ {
+@@ -50,6 +51,7 @@ func RunGoroutines() {
+ }
+ 
+ // Block blocks the current thread while running Go code.
++//
+ //export Block
+ func Block() {
+ 	select {}
+@@ -58,6 +60,7 @@ func Block() {
+ var P *byte
+ 
+ // TestSEGV makes sure that an invalid address turns into a run-time Go panic.
++//
+ //export TestSEGV
+ func TestSEGV() {
+ 	defer func() {
+@@ -72,11 +75,13 @@ func TestSEGV() {
+ }
+ 
+ // Noop ensures that the Go runtime is initialized.
++//
+ //export Noop
+ func Noop() {
+ }
+ 
+ // Raise SIGPIPE.
++//
+ //export GoRaiseSIGPIPE
+ func GoRaiseSIGPIPE() {
+ 	C.CRaiseSIGPIPE()
+diff --git a/misc/cgo/testcarchive/testdata/libgo3/libgo3.go b/misc/cgo/testcarchive/testdata/libgo3/libgo3.go
+index 3725f7ab0f..136695b09b 100644
+--- a/misc/cgo/testcarchive/testdata/libgo3/libgo3.go
++++ b/misc/cgo/testcarchive/testdata/libgo3/libgo3.go
+@@ -17,6 +17,7 @@ import (
+ var sigioChan chan os.Signal
+ 
+ // CatchSIGIO starts catching SIGIO signals.
++//
+ //export CatchSIGIO
+ func CatchSIGIO() {
+ 	sigioChan = make(chan os.Signal, 1)
+@@ -24,12 +25,14 @@ func CatchSIGIO() {
+ }
+ 
+ // ResetSIGIO stops catching SIGIO signals.
++//
+ //export ResetSIGIO
+ func ResetSIGIO() {
+ 	signal.Reset(syscall.SIGIO)
+ }
+ 
+ // SawSIGIO reports whether we saw a SIGIO.
++//
+ //export SawSIGIO
+ func SawSIGIO() C.int {
+ 	select {
+@@ -41,6 +44,7 @@ func SawSIGIO() C.int {
+ }
+ 
+ // ProvokeSIGPIPE provokes a kernel-initiated SIGPIPE.
++//
+ //export ProvokeSIGPIPE
+ func ProvokeSIGPIPE() {
+ 	r, w, err := os.Pipe()
+diff --git a/misc/cgo/testcarchive/testdata/libgo4/libgo4.go b/misc/cgo/testcarchive/testdata/libgo4/libgo4.go
+index 8cc1895f99..c81d3af4ea 100644
+--- a/misc/cgo/testcarchive/testdata/libgo4/libgo4.go
++++ b/misc/cgo/testcarchive/testdata/libgo4/libgo4.go
+@@ -25,6 +25,7 @@ import (
+ var sigioCount int32
+ 
+ // Catch SIGIO.
++//
+ //export GoCatchSIGIO
+ func GoCatchSIGIO() {
+ 	c := make(chan os.Signal, 1)
+@@ -37,12 +38,14 @@ func GoCatchSIGIO() {
+ }
+ 
+ // Raise SIGIO.
++//
+ //export GoRaiseSIGIO
+ func GoRaiseSIGIO(p *C.pthread_t) {
+ 	C.CRaiseSIGIO(p)
+ }
+ 
+ // Return the number of SIGIO signals seen.
++//
+ //export SIGIOCount
+ func SIGIOCount() C.int {
+ 	return C.int(atomic.LoadInt32(&sigioCount))
+diff --git a/misc/cgo/testcshared/testdata/issue36233/issue36233.go b/misc/cgo/testcshared/testdata/issue36233/issue36233.go
+index d0d1e5d50a..433bf5ce55 100644
+--- a/misc/cgo/testcshared/testdata/issue36233/issue36233.go
++++ b/misc/cgo/testcshared/testdata/issue36233/issue36233.go
+@@ -1,29 +1,30 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-package main
+-
+-// #include <complex.h>
+-import "C"
+-
+-//export exportComplex64
+-func exportComplex64(v complex64) complex64 {
+-	return v
+-}
+-
+-//export exportComplex128
+-func exportComplex128(v complex128) complex128 {
+-	return v
+-}
+-
+-//export exportComplexfloat
+-func exportComplexfloat(v C.complexfloat) C.complexfloat {
+-	return v
+-}
+-
+-//export exportComplexdouble
+-func exportComplexdouble(v C.complexdouble) C.complexdouble {
+-	return v
+-}
+-
+-func main() {}
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include <complex.h>
++import "C"
++
++//export exportComplex64
++func exportComplex64(v complex64) complex64 {
++	return v
++}
++
++//export exportComplex128
++func exportComplex128(v complex128) complex128 {
++	return v
++}
++
++//export exportComplexfloat
++func exportComplexfloat(v C.complexfloat) C.complexfloat {
++	return v
++}
++
++//export exportComplexdouble
++func exportComplexdouble(v C.complexdouble) C.complexdouble {
++	return v
++}
++
++func main() {}
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup2.go b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+index d343aa54d9..dc03633db6 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup2.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || dragonfly || freebsd || (linux && !arm64 && !riscv64) || netbsd || openbsd
+ // +build darwin dragonfly freebsd linux,!arm64,!riscv64 netbsd openbsd
+ 
+ package main
+diff --git a/misc/cgo/testcshared/testdata/libgo2/dup3.go b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+index 459f0dc196..705cdbc4fd 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/dup3.go
++++ b/misc/cgo/testcshared/testdata/libgo2/dup3.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build (linux && arm64) || (linux && riscv64)
+ // +build linux,arm64 linux,riscv64
+ 
+ package main
+diff --git a/misc/cgo/testcshared/testdata/libgo2/libgo2.go b/misc/cgo/testcshared/testdata/libgo2/libgo2.go
+index e57c93b77d..d8a6c48703 100644
+--- a/misc/cgo/testcshared/testdata/libgo2/libgo2.go
++++ b/misc/cgo/testcshared/testdata/libgo2/libgo2.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || dragonfly || freebsd || linux || netbsd || openbsd || solaris
+ // +build darwin dragonfly freebsd linux netbsd openbsd solaris
+ 
+ package main
+diff --git a/misc/cgo/testcshared/testdata/libgo4/libgo4.go b/misc/cgo/testcshared/testdata/libgo4/libgo4.go
+index ab40b75e78..9c30c8585a 100644
+--- a/misc/cgo/testcshared/testdata/libgo4/libgo4.go
++++ b/misc/cgo/testcshared/testdata/libgo4/libgo4.go
+@@ -15,6 +15,7 @@ import (
+ // RunGoroutines starts some goroutines that don't do anything.
+ // The idea is to get some threads going, so that a signal will be delivered
+ // to a thread started by Go.
++//
+ //export RunGoroutines
+ func RunGoroutines() {
+ 	for i := 0; i < 4; i++ {
+@@ -28,6 +29,7 @@ func RunGoroutines() {
+ var P *byte
+ 
+ // TestSEGV makes sure that an invalid address turns into a run-time Go panic.
++//
+ //export TestSEGV
+ func TestSEGV() {
+ 	defer func() {
+diff --git a/misc/cgo/testcshared/testdata/libgo5/libgo5.go b/misc/cgo/testcshared/testdata/libgo5/libgo5.go
+index 94e5d21c14..4ca44e5894 100644
+--- a/misc/cgo/testcshared/testdata/libgo5/libgo5.go
++++ b/misc/cgo/testcshared/testdata/libgo5/libgo5.go
+@@ -17,6 +17,7 @@ import (
+ var sigioChan chan os.Signal
+ 
+ // CatchSIGIO starts catching SIGIO signals.
++//
+ //export CatchSIGIO
+ func CatchSIGIO() {
+ 	sigioChan = make(chan os.Signal, 1)
+@@ -24,12 +25,14 @@ func CatchSIGIO() {
+ }
+ 
+ // ResetSIGIO stops catching SIGIO signals.
++//
+ //export ResetSIGIO
+ func ResetSIGIO() {
+ 	signal.Reset(syscall.SIGIO)
+ }
+ 
+ // SawSIGIO returns whether we saw a SIGIO within a brief pause.
++//
+ //export SawSIGIO
+ func SawSIGIO() C.int {
+ 	select {
+diff --git a/misc/cgo/testgodefs/testdata/anonunion.go b/misc/cgo/testgodefs/testdata/anonunion.go
+index 18840f2577..9e9daa6625 100644
+--- a/misc/cgo/testgodefs/testdata/anonunion.go
++++ b/misc/cgo/testgodefs/testdata/anonunion.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/bitfields.go b/misc/cgo/testgodefs/testdata/bitfields.go
+index 6a9724dcd1..a7f26dd6d2 100644
+--- a/misc/cgo/testgodefs/testdata/bitfields.go
++++ b/misc/cgo/testgodefs/testdata/bitfields.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/fieldtypedef.go b/misc/cgo/testgodefs/testdata/fieldtypedef.go
+index 45c0bf8653..50562538b2 100644
+--- a/misc/cgo/testgodefs/testdata/fieldtypedef.go
++++ b/misc/cgo/testgodefs/testdata/fieldtypedef.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue37479.go b/misc/cgo/testgodefs/testdata/issue37479.go
+index a210eb5bc5..ba7185b81f 100644
+--- a/misc/cgo/testgodefs/testdata/issue37479.go
++++ b/misc/cgo/testgodefs/testdata/issue37479.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue37621.go b/misc/cgo/testgodefs/testdata/issue37621.go
+index d5ace3f6d6..515f0c089f 100644
+--- a/misc/cgo/testgodefs/testdata/issue37621.go
++++ b/misc/cgo/testgodefs/testdata/issue37621.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue38649.go b/misc/cgo/testgodefs/testdata/issue38649.go
+index 6af74d6058..5ef00eb5fe 100644
+--- a/misc/cgo/testgodefs/testdata/issue38649.go
++++ b/misc/cgo/testgodefs/testdata/issue38649.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue39534.go b/misc/cgo/testgodefs/testdata/issue39534.go
+index 9899ba1673..e310a81266 100644
+--- a/misc/cgo/testgodefs/testdata/issue39534.go
++++ b/misc/cgo/testgodefs/testdata/issue39534.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue48396.go b/misc/cgo/testgodefs/testdata/issue48396.go
+index d4c192403f..27c03940b7 100644
+--- a/misc/cgo/testgodefs/testdata/issue48396.go
++++ b/misc/cgo/testgodefs/testdata/issue48396.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testgodefs/testdata/issue8478.go b/misc/cgo/testgodefs/testdata/issue8478.go
+index 2321446171..ec3bdcf43b 100644
+--- a/misc/cgo/testgodefs/testdata/issue8478.go
++++ b/misc/cgo/testgodefs/testdata/issue8478.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ //
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testplugin/testdata/issue18676/main.go b/misc/cgo/testplugin/testdata/issue18676/main.go
+index b1dadbedf2..471f3d969c 100644
+--- a/misc/cgo/testplugin/testdata/issue18676/main.go
++++ b/misc/cgo/testplugin/testdata/issue18676/main.go
+@@ -3,13 +3,14 @@
+ // license that can be found in the LICENSE file.
+ 
+ // The bug happened like this:
+-// 1) The main binary adds an itab for *json.UnsupportedValueError / error
+-//    (concrete type / interface type).  This itab goes in hash bucket 0x111.
+-// 2) The plugin adds that same itab again.  That makes a cycle in the itab
+-//    chain rooted at hash bucket 0x111.
+-// 3) The main binary then asks for the itab for *dynamodbstreamsevt.Event /
+-//    json.Unmarshaler.  This itab happens to also live in bucket 0x111.
+-//    The lookup code goes into an infinite loop searching for this itab.
++//  1. The main binary adds an itab for *json.UnsupportedValueError / error
++//     (concrete type / interface type).  This itab goes in hash bucket 0x111.
++//  2. The plugin adds that same itab again.  That makes a cycle in the itab
++//     chain rooted at hash bucket 0x111.
++//  3. The main binary then asks for the itab for *dynamodbstreamsevt.Event /
++//     json.Unmarshaler.  This itab happens to also live in bucket 0x111.
++//     The lookup code goes into an infinite loop searching for this itab.
++//
+ // The code is carefully crafted so that the two itabs are both from the
+ // same bucket, and so that the second itab doesn't exist in
+ // the itab hashmap yet (so the entire linked list must be searched).
+diff --git a/misc/cgo/testplugin/testdata/issue22295.pkg/main.go b/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+index 6cb186e100..eb6064be80 100644
+--- a/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
++++ b/misc/cgo/testplugin/testdata/issue22295.pkg/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testplugin/testdata/issue25756/plugin/life.go b/misc/cgo/testplugin/testdata/issue25756/plugin/life.go
+index 675a192fc1..468bc6fab6 100644
+--- a/misc/cgo/testplugin/testdata/issue25756/plugin/life.go
++++ b/misc/cgo/testplugin/testdata/issue25756/plugin/life.go
+@@ -20,8 +20,9 @@ func Run(gen, x, y int, a []int32) {
+ // Keep the channels visible from Go.
+ var chans [4]chan bool
+ 
+-//export GoStart
+ // Double return value is just for testing.
++//
++//export GoStart
+ func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
+ 	c := make(chan bool, int(C.MYCONST))
+ 	go func() {
+diff --git a/misc/cgo/testplugin/testdata/method3/p/p.go b/misc/cgo/testplugin/testdata/method3/p/p.go
+index 3846bc07f5..f72f7c715c 100644
+--- a/misc/cgo/testplugin/testdata/method3/p/p.go
++++ b/misc/cgo/testplugin/testdata/method3/p/p.go
+@@ -8,7 +8,7 @@ type T int
+ 
+ func (T) m() { println("m") }
+ 
+-type I interface { m() }
++type I interface{ m() }
+ 
+ func F() {
+ 	i.m()
+diff --git a/misc/cgo/testplugin/testdata/unnamed1/main.go b/misc/cgo/testplugin/testdata/unnamed1/main.go
+index dd1777b418..1629f18e01 100644
+--- a/misc/cgo/testplugin/testdata/unnamed1/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed1/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testplugin/testdata/unnamed2/main.go b/misc/cgo/testplugin/testdata/unnamed2/main.go
+index 757436f250..35e9f381f9 100644
+--- a/misc/cgo/testplugin/testdata/unnamed2/main.go
++++ b/misc/cgo/testplugin/testdata/unnamed2/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testsanitizers/testdata/msan6.go b/misc/cgo/testsanitizers/testdata/msan6.go
+index 003989c2be..e96e8f9ead 100644
+--- a/misc/cgo/testsanitizers/testdata/msan6.go
++++ b/misc/cgo/testsanitizers/testdata/msan6.go
+@@ -32,6 +32,7 @@ import "C"
+ 
+ // allocateStack extends the stack so that stack copying doesn't
+ // confuse the msan data structures.
++//
+ //go:noinline
+ func allocateStack(i int) int {
+ 	if i == 0 {
+@@ -43,6 +44,7 @@ func allocateStack(i int) int {
+ // F1 marks a chunk of stack as uninitialized.
+ // C.f returns an uninitialized struct on the stack, so msan will mark
+ // the stack as uninitialized.
++//
+ //go:noinline
+ func F1() uintptr {
+ 	s := C.f()
+@@ -51,6 +53,7 @@ func F1() uintptr {
+ 
+ // F2 allocates a struct on the stack and converts it to an empty interface,
+ // which will call msanread and see that the data appears uninitialized.
++//
+ //go:noinline
+ func F2() interface{} {
+ 	return C.S{}
+diff --git a/misc/cgo/testshared/testdata/depBase/gccgo.go b/misc/cgo/testshared/testdata/depBase/gccgo.go
+index 2b02a1e83b..2c829989e0 100644
+--- a/misc/cgo/testshared/testdata/depBase/gccgo.go
++++ b/misc/cgo/testshared/testdata/depBase/gccgo.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gccgo
+ // +build gccgo
+ 
+ package depBase
+diff --git a/misc/cgo/testshared/testdata/depBase/stubs.go b/misc/cgo/testshared/testdata/depBase/stubs.go
+index c77953803b..aca7a85f69 100644
+--- a/misc/cgo/testshared/testdata/depBase/stubs.go
++++ b/misc/cgo/testshared/testdata/depBase/stubs.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build gc
+ // +build gc
+ 
+ package depBase
+diff --git a/misc/cgo/testshared/testdata/issue25065/a.go b/misc/cgo/testshared/testdata/issue25065/a.go
+index 979350ff24..646de4e52f 100644
+--- a/misc/cgo/testshared/testdata/issue25065/a.go
++++ b/misc/cgo/testshared/testdata/issue25065/a.go
+@@ -3,10 +3,11 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package issue25065 has a type with a method that is
+-//  1) referenced in a method expression
+-//  2) not called
+-//  3) not converted to an interface
+-//  4) is a value method but the reference is to the pointer method
++//  1. referenced in a method expression
++//  2. not called
++//  3. not converted to an interface
++//  4. is a value method but the reference is to the pointer method
++//
+ // These cases avoid the call to makefuncsym from typecheckfunc, but we
+ // still need to call makefuncsym somehow or the symbol will not be defined.
+ package issue25065
+diff --git a/misc/cgo/testso/testdata/cgoso_unix.go b/misc/cgo/testso/testdata/cgoso_unix.go
+index 1860694f1e..5164af5b3f 100644
+--- a/misc/cgo/testso/testdata/cgoso_unix.go
++++ b/misc/cgo/testso/testdata/cgoso_unix.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build aix || dragonfly || freebsd || linux || netbsd || solaris
+ // +build aix dragonfly freebsd linux netbsd solaris
+ 
+ package cgosotest
+diff --git a/misc/cgo/testso/testdata/main.go b/misc/cgo/testso/testdata/main.go
+index 963d45121e..5e2d6eff86 100644
+--- a/misc/cgo/testso/testdata/main.go
++++ b/misc/cgo/testso/testdata/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main
+diff --git a/misc/cgo/testsovar/testdata/main.go b/misc/cgo/testsovar/testdata/main.go
+index 87b52cef60..462e99389d 100644
+--- a/misc/cgo/testsovar/testdata/main.go
++++ b/misc/cgo/testsovar/testdata/main.go
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build ignore
+ // +build ignore
+ 
+ package main

@@ -12,8 +12,87 @@ Date:   Tue Aug 12 21:22:27 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/123310043
-
+---
  src/cmd/9g/cgen.c | 18 +++++++++++++++---
  src/cmd/gc/walk.c |  3 +++
  src/cmd/ld/lib.c  |  3 +++
  3 files changed, 21 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/9g/cgen.c b/src/cmd/9g/cgen.c
+index af87b3a079..3644ebf8f6 100644
+--- a/src/cmd/9g/cgen.c
++++ b/src/cmd/9g/cgen.c
+@@ -788,6 +788,18 @@ agenr(Node *n, Node *a, Node *res)
+ 	}
+ }
+ 
++static void
++ginsadd(int as, vlong off, Node *dst)
++{
++	Node n1;
++
++	regalloc(&n1, types[tptr], dst);
++	gmove(dst, &n1);
++	ginscon(as, off, &n1);
++	gmove(&n1, dst);
++	regfree(&n1);
++}
++
+ /*
+  * generate:
+  *	res = &n;
+@@ -901,7 +913,7 @@ agen(Node *n, Node *res)
+ 		}
+ 		cgen(n->heapaddr, res);
+ 		if(n->xoffset != 0) {
+-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		}
+ 		break;
+ 
+@@ -913,7 +925,7 @@ agen(Node *n, Node *res)
+ 	case ODOT:
+ 		agen(nl, res);
+ 		if(n->xoffset != 0) {
+-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		}
+ 		break;
+ 
+@@ -921,7 +933,7 @@ agen(Node *n, Node *res)
+ 		cgen(nl, res);
+ 		cgen_checknil(res);
+ 		if(n->xoffset != 0) {
+-			ginscon(optoas(OADD, types[tptr]), n->xoffset, res);
++			ginsadd(optoas(OADD, types[tptr]), n->xoffset, res);
+ 		}
+ 		break;
+ 	}
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index be929e99ed..cb1873f853 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -3217,6 +3217,9 @@ walkrotate(Node **np)
+ 	int w, sl, sr, s;
+ 	Node *l, *r;
+ 	Node *n;
++
++	if(thechar == '9')
++		return;
+ 	
+ 	n = *np;
+ 
+diff --git a/src/cmd/ld/lib.c b/src/cmd/ld/lib.c
+index bdba217478..b4134da368 100644
+--- a/src/cmd/ld/lib.c
++++ b/src/cmd/ld/lib.c
+@@ -1045,6 +1045,9 @@ dostkcheck(void)
+ {
+ 	Chain ch;
+ 	LSym *s;
++
++	if(thechar == '9')
++		return;
+ 	
+ 	morestack = linklookup(ctxt, "runtime.morestack", 0);
+ 	newstack = linklookup(ctxt, "runtime.newstack", 0);

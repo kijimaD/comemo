@@ -15,6 +15,34 @@ Date:   Tue Dec 13 17:49:28 2016 +0530
     Change-Id: I56b6399edb640c8ef507675f98e0bd45a50d4e2d
     Reviewed-on: https://go-review.googlesource.com/34176
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/dial.go | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 5db3585894..a281b4554e 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -265,6 +265,9 @@ func (r *Resolver) resolveAddrList(ctx context.Context, op, network, addr string
+ //	Dial("ip6:ipv6-icmp", "2001:db8::1")
+ //
+ // For Unix networks, the address must be a file system path.
++
++// If the host is resolved to multiple addresses,
++// Dial will try each address in order until one succeeds.
+ func Dial(network, address string) (Conn, error) {
+ 	var d Dialer
+ 	return d.Dial(network, address)
+@@ -299,6 +302,12 @@ func (d *Dialer) Dial(network, address string) (Conn, error) {
+ // connected, any expiration of the context will not affect the
+ // connection.
+ //
++// If the host in the address parameter resolves to multiple network addresses,
++// and if a timeout is given, the connection to each address is given an
++// appropriate fraction of the time to connect. For example, if a host has
++// 4 IP addresses and the timeout is 1 minute, the connect to each single
++// address will be given 15 seconds to complete before trying the next one.
++//
+ // See func Dial for a description of the network and address
+ // parameters.
+ func (d *Dialer) DialContext(ctx context.Context, network, address string) (Conn, error) {

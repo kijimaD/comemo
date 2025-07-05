@@ -11,8 +11,264 @@ Date:   Wed Nov 25 11:34:41 2015 -0500
     Change-Id: If25d9cac92f10327bb355f2d11b00c625b464661
     Reviewed-on: https://go-review.googlesource.com/17199
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/encoding/json/decode.go      | 120 ++++++++++-----------------------------
  src/encoding/json/encode.go      |   5 +-
  src/encoding/json/number_test.go |  20 +++----
  3 files changed, 44 insertions(+), 101 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 6dc1b9d5b6..099d7f6da5 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -60,7 +60,7 @@ import (
+ // If the JSON array is smaller than the Go array,
+ // the additional Go array elements are set to zero values.
+ //
+-// To unmarshal a JSON object into a string-keyed map, Unmarshal first 
++// To unmarshal a JSON object into a string-keyed map, Unmarshal first
+ // establishes a map to use, If the map is nil, Unmarshal allocates a new map.
+ // Otherwise Unmarshal reuses the existing map, keeping existing entries.
+ // Unmarshal then stores key-value pairs from the JSON object into the map.
+@@ -184,122 +184,64 @@ func (n Number) Int64() (int64, error) {
+ 	return strconv.ParseInt(string(n), 10, 64)
+ }
+ 
+-// IsValid returns if the number is a valid JSON number literal.
+-func (n Number) IsValid() bool {
++// isValidNumber reports whether s is a valid JSON number literal.
++func isValidNumber(s string) bool {
+ 	// This function implements the JSON numbers grammar.
+ 	// See https://tools.ietf.org/html/rfc7159#section-6
+ 	// and http://json.org/number.gif
+ 
+-	l := len(n)
+-	if l == 0 {
++	if s == "" {
+ 		return false
+ 	}
+ 
+-	i := 0
+-	c := n[i]
+-	i++
+-
+ 	// Optional -
+-	if c == '-' {
+-		if i == l {
++	if s[0] == '-' {
++		s = s[1:]
++		if s == "" {
+ 			return false
+ 		}
+-
+-		c = n[i]
+-		i++
+ 	}
+ 
+-	// 1-9
+-	if c >= '1' && c <= '9' {
+-		// Eat digits.
+-		for ; i < l; i++ {
+-			c = n[i]
+-			if c < '0' || c > '9' {
+-				break
+-			}
+-		}
+-		i++
+-	} else if c != '0' {
+-		// If it's not 0 or 1-9 it's invalid.
++	// Digits
++	switch {
++	default:
+ 		return false
+-	} else {
+-		if i == l {
+-			// Just 0
+-			return true
+-		}
+ 
+-		// Skip the 0
+-		c = n[i]
+-		i++
+-	}
+-
+-	// . followed by 1 or more digits.
+-	if c == '.' {
+-		if i == l {
+-			// Just 1. is invalid.
+-			return false
+-		}
++	case s[0] == '0':
++		s = s[1:]
+ 
+-		// . needs to be followed by at least one digit.
+-		c = n[i]
+-		i++
+-		if c < '0' || c > '9' {
+-			return false
++	case '1' <= s[0] && s[0] <= '9':
++		s = s[1:]
++		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
++			s = s[1:]
+ 		}
++	}
+ 
+-		// Eat digits.
+-		for ; i < l; i++ {
+-			c = n[i]
+-			if c < '0' || c > '9' {
+-				break
+-			}
++	// . followed by 1 or more digits.
++	if len(s) >= 2 && s[0] == '.' && '0' <= s[1] && s[1] <= '9' {
++		s = s[2:]
++		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
++			s = s[1:]
+ 		}
+-		i++
+ 	}
+ 
+ 	// e or E followed by an optional - or + and
+ 	// 1 or more digits.
+-	if c == 'e' || c == 'E' {
+-		if i == l {
+-			// Just 1e is invalid.
+-			return false
+-		}
+-
+-		c = n[i]
+-		i++
+-
+-		// Optional - or +
+-		if c == '-' || c == '+' {
+-			if i == l {
+-				// Just 1e+ is invalid.
++	if len(s) >= 2 && (s[0] == 'e' || s[0] == 'E') {
++		s = s[1:]
++		if s[0] == '+' || s[0] == '-' {
++			s = s[1:]
++			if s == "" {
+ 				return false
+ 			}
+-
+-			c = n[i]
+-			i++
+ 		}
+-
+-		// Need to have a digit.
+-		if c < '0' || c > '9' {
+-			return false
+-		}
+-
+-		// Eat digits.
+-		for ; i < l; i++ {
+-			c = n[i]
+-			if c < '0' || c > '9' {
+-				break
+-			}
++		for len(s) > 0 && '0' <= s[0] && s[0] <= '9' {
++			s = s[1:]
+ 		}
+-		i++
+ 	}
+ 
+ 	// Make sure we are at the end.
+-	if i <= l {
+-		return false
+-	}
+-
+-	return true
++	return s == ""
+ }
+ 
+ // decodeState represents the state while decoding a JSON value.
+@@ -909,7 +851,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ 		default:
+ 			if v.Kind() == reflect.String && v.Type() == numberType {
+ 				v.SetString(s)
+-				if !Number(s).IsValid() {
++				if !isValidNumber(s) {
+ 					d.error(fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", item))
+ 				}
+ 				break
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 364e2724b7..69ac7e03c8 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -534,8 +534,9 @@ func stringEncoder(e *encodeState, v reflect.Value, quoted bool) {
+ 		// we keep compatibility so check validity after this.
+ 		if numStr == "" {
+ 			numStr = "0" // Number's zero-val
+-		} else if !Number(numStr).IsValid() {
+-			e.error(fmt.Errorf("json: invalid number literal, trying to marshal %s", v.String()))
++		}
++		if !isValidNumber(numStr) {
++			e.error(fmt.Errorf("json: invalid number literal %q", numStr))
+ 		}
+ 		e.WriteString(numStr)
+ 		return
+diff --git a/src/encoding/json/number_test.go b/src/encoding/json/number_test.go
+index 702d4ea58d..4e63cf9c74 100644
+--- a/src/encoding/json/number_test.go
++++ b/src/encoding/json/number_test.go
+@@ -63,17 +63,17 @@ func TestNumberIsValid(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range validTests {
+-		if !Number(test).IsValid() {
++		if !isValidNumber(test) {
+ 			t.Errorf("%s should be valid", test)
+ 		}
+ 
+ 		var f float64
+ 		if err := Unmarshal([]byte(test), &f); err != nil {
+-			t.Errorf("%s should be invalid: %v", test, err)
++			t.Errorf("%s should be valid but Unmarshal failed: %v", test, err)
+ 		}
+ 
+ 		if !jsonNumberRegexp.MatchString(test) {
+-			t.Errorf("%s should be invalid", test)
++			t.Errorf("%s should be valid but regexp does not match", test)
+ 		}
+ 	}
+ 
+@@ -102,32 +102,32 @@ func TestNumberIsValid(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range invalidTests {
+-		if Number(test).IsValid() {
++		if isValidNumber(test) {
+ 			t.Errorf("%s should be invalid", test)
+ 		}
+ 
+ 		var f float64
+ 		if err := Unmarshal([]byte(test), &f); err == nil {
+-			t.Errorf("%s should be valid: %v", test, f)
++			t.Errorf("%s should be invalid but unmarshal wrote %v", test, f)
+ 		}
+ 
+ 		if jsonNumberRegexp.MatchString(test) {
+-			t.Errorf("%s should be valid", test)
++			t.Errorf("%s should be invalid but matches regexp", test)
+ 		}
+ 	}
+ }
+ 
+ func BenchmarkNumberIsValid(b *testing.B) {
+-	n := Number("-61657.61667E+61673")
++	s := "-61657.61667E+61673"
+ 	for i := 0; i < b.N; i++ {
+-		n.IsValid()
++		isValidNumber(s)
+ 	}
+ }
+ 
+ func BenchmarkNumberIsValidRegexp(b *testing.B) {
+ 	var jsonNumberRegexp = regexp.MustCompile(`^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$`)
+-	n := "-61657.61667E+61673"
++	s := "-61657.61667E+61673"
+ 	for i := 0; i < b.N; i++ {
+-		jsonNumberRegexp.MatchString(n)
++		jsonNumberRegexp.MatchString(s)
+ 	}
+ }

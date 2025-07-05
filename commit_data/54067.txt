@@ -15,6 +15,20 @@ Date:   Mon Sep 19 17:57:44 2022 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/cgo/doc.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 7fb6179e26..366844d150 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -125,7 +125,7 @@ environment variable when running the go tool: set it to 1 to enable
+ the use of cgo, and to 0 to disable it. The go tool will set the
+ build constraint "cgo" if cgo is enabled. The special import "C"
+ implies the "cgo" build constraint, as though the file also said
+-"// +build cgo".  Therefore, if cgo is disabled, files that import
++"//go:build cgo".  Therefore, if cgo is disabled, files that import
+ "C" will not be built by the go tool. (For more about build constraints
+ see https://golang.org/pkg/go/build/#hdr-Build_Constraints).
+ 

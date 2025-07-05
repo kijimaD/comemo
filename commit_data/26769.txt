@@ -15,7 +15,43 @@ Date:   Mon Feb 15 16:50:12 2016 -0500
     Reviewed-by: Rick Hudson <rlh@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/chan.go   | 4 ++++
  src/runtime/select.go | 2 ++
  2 files changed, 6 insertions(+)
+
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 063c5ce391..f6f3ce4d90 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -203,6 +203,8 @@ func chansend(t *chantype, c *hchan, ep unsafe.Pointer, block bool, callerpc uin
+ 	if t0 != 0 {
+ 		mysg.releasetime = -1
+ 	}
++	// No stack splits between assigning elem and enqueuing mysg
++	// on gp.waiting where copystack can find it.
+ 	mysg.elem = ep
+ 	mysg.waitlink = nil
+ 	mysg.g = gp
+@@ -460,6 +462,8 @@ func chanrecv(t *chantype, c *hchan, ep unsafe.Pointer, block bool) (selected, r
+ 	if t0 != 0 {
+ 		mysg.releasetime = -1
+ 	}
++	// No stack splits between assigning elem and enqueuing mysg
++	// on gp.waiting where copystack can find it.
+ 	mysg.elem = ep
+ 	mysg.waitlink = nil
+ 	gp.waiting = mysg
+diff --git a/src/runtime/select.go b/src/runtime/select.go
+index b6c3fea001..b315dde6c6 100644
+--- a/src/runtime/select.go
++++ b/src/runtime/select.go
+@@ -370,6 +370,8 @@ loop:
+ 		sg.g = gp
+ 		// Note: selectdone is adjusted for stack copies in stack1.go:adjustsudogs
+ 		sg.selectdone = (*uint32)(noescape(unsafe.Pointer(&done)))
++		// No stack splits between assigning elem and enqueuing
++		// sg on gp.waiting where copystack can find it.
+ 		sg.elem = cas.elem
+ 		sg.releasetime = 0
+ 		if t0 != 0 {

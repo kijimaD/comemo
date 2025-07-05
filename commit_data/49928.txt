@@ -35,7 +35,7 @@ Date:   Wed Jun 23 20:46:11 2021 -0700
     Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/os/user/cgo_listgroups_unix.go  |  51 +++++++++++++++
  src/os/user/listgroups_aix.go       |  20 ------
  src/os/user/listgroups_illumos.go   |  24 -------
@@ -47,3 +47,541 @@ Date:   Wed Jun 23 20:46:11 2021 -0700
  src/os/user/lookup_unix_test.go     |  30 +--------
  src/os/user/user.go                 |  10 +--
  10 files changed, 279 insertions(+), 130 deletions(-)
+
+diff --git a/src/os/user/cgo_listgroups_unix.go b/src/os/user/cgo_listgroups_unix.go
+new file mode 100644
+index 0000000000..38aa7653b0
+--- /dev/null
++++ b/src/os/user/cgo_listgroups_unix.go
+@@ -0,0 +1,51 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
++// +build dragonfly darwin freebsd !android,linux netbsd openbsd solaris,!illumos
++// +build cgo
++// +build !osusergo
++
++package user
++
++import (
++	"fmt"
++	"strconv"
++	"unsafe"
++)
++
++/*
++#include <unistd.h>
++#include <sys/types.h>
++*/
++import "C"
++
++const maxGroups = 2048
++
++func listGroups(u *User) ([]string, error) {
++	ug, err := strconv.Atoi(u.Gid)
++	if err != nil {
++		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
++	}
++	userGID := C.gid_t(ug)
++	nameC := make([]byte, len(u.Username)+1)
++	copy(nameC, u.Username)
++
++	n := C.int(256)
++	gidsC := make([]C.gid_t, n)
++	rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
++	if rv == -1 {
++		// Mac is the only Unix that does not set n properly when rv == -1, so
++		// we need to use different logic for Mac vs. the other OS's.
++		if err := groupRetry(u.Username, nameC, userGID, &gidsC, &n); err != nil {
++			return nil, err
++		}
++	}
++	gidsC = gidsC[:n]
++	gids := make([]string, 0, n)
++	for _, g := range gidsC[:n] {
++		gids = append(gids, strconv.Itoa(int(g)))
++	}
++	return gids, nil
++}
+diff --git a/src/os/user/listgroups_aix.go b/src/os/user/listgroups_aix.go
+deleted file mode 100644
+index fbc1deb03f..0000000000
+--- a/src/os/user/listgroups_aix.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cgo && !osusergo
+-// +build cgo,!osusergo
+-
+-package user
+-
+-import "fmt"
+-
+-// Not implemented on AIX, see golang.org/issue/30563.
+-
+-func init() {
+-	groupListImplemented = false
+-}
+-
+-func listGroups(u *User) ([]string, error) {
+-	return nil, fmt.Errorf("user: list groups for %s: not supported on AIX", u.Username)
+-}
+diff --git a/src/os/user/listgroups_illumos.go b/src/os/user/listgroups_illumos.go
+deleted file mode 100644
+index e783b26080..0000000000
+--- a/src/os/user/listgroups_illumos.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build cgo && !osusergo
+-// +build cgo,!osusergo
+-
+-// Even though this file requires no C, it is used to provide a
+-// listGroup stub because all the other illumos calls work.  Otherwise,
+-// this stub will conflict with the lookup_stubs.go fallback.
+-
+-package user
+-
+-import "fmt"
+-
+-// Not implemented on illumos, see golang.org/issue/14709.
+-
+-func init() {
+-	groupListImplemented = false
+-}
+-
+-func listGroups(u *User) ([]string, error) {
+-	return nil, fmt.Errorf("user: list groups for %s: not supported on illumos", u.Username)
+-}
+diff --git a/src/os/user/listgroups_stub.go b/src/os/user/listgroups_stub.go
+new file mode 100644
+index 0000000000..a066c6db71
+--- /dev/null
++++ b/src/os/user/listgroups_stub.go
+@@ -0,0 +1,20 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build android || (js && !wasm)
++// +build android js,!wasm
++
++package user
++
++import (
++	"errors"
++)
++
++func init() {
++	groupListImplemented = false
++}
++
++func listGroups(*User) ([]string, error) {
++	return nil, errors.New("user: list groups not implemented")
++}
+diff --git a/src/os/user/listgroups_unix.go b/src/os/user/listgroups_unix.go
+index 38aa7653b0..fa2df4931c 100644
+--- a/src/os/user/listgroups_unix.go
++++ b/src/os/user/listgroups_unix.go
+@@ -1,51 +1,113 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2021 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (dragonfly || darwin || freebsd || (!android && linux) || netbsd || openbsd || (solaris && !illumos)) && cgo && !osusergo
+-// +build dragonfly darwin freebsd !android,linux netbsd openbsd solaris,!illumos
+-// +build cgo
+-// +build !osusergo
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
+ 
+ package user
+ 
+ import (
++	"bufio"
++	"bytes"
++	"errors"
+ 	"fmt"
++	"io"
++	"os"
+ 	"strconv"
+-	"unsafe"
+ )
+ 
+-/*
+-#include <unistd.h>
+-#include <sys/types.h>
+-*/
+-import "C"
++const groupFile = "/etc/group"
+ 
+-const maxGroups = 2048
++var colon = []byte{':'}
+ 
+-func listGroups(u *User) ([]string, error) {
+-	ug, err := strconv.Atoi(u.Gid)
++func listGroupsFromReader(u *User, r io.Reader) ([]string, error) {
++	if u.Username == "" {
++		return nil, errors.New("user: list groups: empty username")
++	}
++	primaryGid, err := strconv.Atoi(u.Gid)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: list groups for %s: invalid gid %q", u.Username, u.Gid)
+ 	}
+-	userGID := C.gid_t(ug)
+-	nameC := make([]byte, len(u.Username)+1)
+-	copy(nameC, u.Username)
+-
+-	n := C.int(256)
+-	gidsC := make([]C.gid_t, n)
+-	rv := getGroupList((*C.char)(unsafe.Pointer(&nameC[0])), userGID, &gidsC[0], &n)
+-	if rv == -1 {
+-		// Mac is the only Unix that does not set n properly when rv == -1, so
+-		// we need to use different logic for Mac vs. the other OS's.
+-		if err := groupRetry(u.Username, nameC, userGID, &gidsC, &n); err != nil {
+-			return nil, err
++
++	userCommas := []byte("," + u.Username + ",")  // ,john,
++	userFirst := userCommas[1:]                   // john,
++	userLast := userCommas[:len(userCommas)-1]    // ,john
++	userOnly := userCommas[1 : len(userCommas)-1] // john
++
++	// Add primary Gid first.
++	groups := []string{u.Gid}
++
++	rd := bufio.NewReader(r)
++	done := false
++	for !done {
++		line, err := rd.ReadBytes('\n')
++		if err != nil {
++			if err == io.EOF {
++				done = true
++			} else {
++				return groups, err
++			}
++		}
++
++		// Look for username in the list of users. If user is found,
++		// append the GID to the groups slice.
++
++		// There's no spec for /etc/passwd or /etc/group, but we try to follow
++		// the same rules as the glibc parser, which allows comments and blank
++		// space at the beginning of a line.
++		line = bytes.TrimSpace(line)
++		if len(line) == 0 || line[0] == '#' ||
++			// If you search for a gid in a row where the group
++			// name (the first field) starts with "+" or "-",
++			// glibc fails to find the record, and so should we.
++			line[0] == '+' || line[0] == '-' {
++			continue
++		}
++
++		// Format of /etc/group is
++		// 	groupname:password:GID:user_list
++		// for example
++		// 	wheel:x:10:john,paul,jack
++		//	tcpdump:x:72:
++		listIdx := bytes.LastIndexByte(line, ':')
++		if listIdx == -1 || listIdx == len(line)-1 {
++			// No commas, or empty group list.
++			continue
++		}
++		if bytes.Count(line[:listIdx], colon) != 2 {
++			// Incorrect number of colons.
++			continue
+ 		}
++		list := line[listIdx+1:]
++		// Check the list for user without splitting or copying.
++		if !(bytes.Equal(list, userOnly) || bytes.HasPrefix(list, userFirst) || bytes.HasSuffix(list, userLast) || bytes.Contains(list, userCommas)) {
++			continue
++		}
++
++		// groupname:password:GID
++		parts := bytes.Split(line[:listIdx], colon)
++		if len(parts) != 3 || len(parts[0]) == 0 {
++			continue
++		}
++		gid := string(parts[2])
++		// Make sure it's numeric and not the same as primary GID.
++		numGid, err := strconv.Atoi(gid)
++		if err != nil || numGid == primaryGid {
++			continue
++		}
++
++		groups = append(groups, gid)
+ 	}
+-	gidsC = gidsC[:n]
+-	gids := make([]string, 0, n)
+-	for _, g := range gidsC[:n] {
+-		gids = append(gids, strconv.Itoa(int(g)))
++
++	return groups, nil
++}
++
++func listGroups(u *User) ([]string, error) {
++	f, err := os.Open(groupFile)
++	if err != nil {
++		return nil, err
+ 	}
+-	return gids, nil
++	defer f.Close()
++
++	return listGroupsFromReader(u, f)
+ }
+diff --git a/src/os/user/listgroups_unix_test.go b/src/os/user/listgroups_unix_test.go
+new file mode 100644
+index 0000000000..a9f79ec6bb
+--- /dev/null
++++ b/src/os/user/listgroups_unix_test.go
+@@ -0,0 +1,107 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build ((darwin || dragonfly || freebsd || (js && wasm) || (!android && linux) || netbsd || openbsd || solaris) && (!cgo || osusergo)) || aix || illumos
++
++package user
++
++import (
++	"fmt"
++	"sort"
++	"strings"
++	"testing"
++)
++
++var testGroupFile = `# See the opendirectoryd(8) man page for additional
++# information about Open Directory.
++##
++nobody:*:-2:
++nogroup:*:-1:
++wheel:*:0:root
++emptyid:*::root
++invalidgid:*:notanumber:root
+++plussign:*:20:root
++-minussign:*:21:root
++# Next line is invalid (empty group name)
++:*:22:root
++      
++daemon:*:1:root
++    indented:*:7:root
++# comment:*:4:found
++     # comment:*:4:found
++kmem:*:2:root
++manymembers:x:777:jill,jody,john,jack,jov,user777
++` + largeGroup()
++
++func largeGroup() (res string) {
++	var b strings.Builder
++	b.WriteString("largegroup:x:1000:user1")
++	for i := 2; i <= 7500; i++ {
++		fmt.Fprintf(&b, ",user%d", i)
++	}
++	return b.String()
++}
++
++var listGroupsTests = []struct {
++	// input
++	in   string
++	user string
++	gid  string
++	// output
++	gids []string
++	err  bool
++}{
++	{in: testGroupFile, user: "root", gid: "0", gids: []string{"0", "1", "2", "7"}},
++	{in: testGroupFile, user: "jill", gid: "33", gids: []string{"33", "777"}},
++	{in: testGroupFile, user: "jody", gid: "34", gids: []string{"34", "777"}},
++	{in: testGroupFile, user: "john", gid: "35", gids: []string{"35", "777"}},
++	{in: testGroupFile, user: "jov", gid: "37", gids: []string{"37", "777"}},
++	{in: testGroupFile, user: "user777", gid: "7", gids: []string{"7", "777", "1000"}},
++	{in: testGroupFile, user: "user1111", gid: "1111", gids: []string{"1111", "1000"}},
++	{in: testGroupFile, user: "user1000", gid: "1000", gids: []string{"1000"}},
++	{in: testGroupFile, user: "user7500", gid: "7500", gids: []string{"1000", "7500"}},
++	{in: testGroupFile, user: "no-such-user", gid: "2345", gids: []string{"2345"}},
++	{in: "", user: "no-such-user", gid: "2345", gids: []string{"2345"}},
++	// Error cases.
++	{in: "", user: "", gid: "2345", err: true},
++	{in: "", user: "joanna", gid: "bad", err: true},
++}
++
++func TestListGroups(t *testing.T) {
++	for _, tc := range listGroupsTests {
++		u := &User{Username: tc.user, Gid: tc.gid}
++		got, err := listGroupsFromReader(u, strings.NewReader(tc.in))
++		if tc.err {
++			if err == nil {
++				t.Errorf("listGroups(%q): got nil; want error", tc.user)
++			}
++			continue // no more checks
++		}
++		if err != nil {
++			t.Errorf("listGroups(%q): got %v error, want nil", tc.user, err)
++			continue // no more checks
++		}
++		checkSameIDs(t, got, tc.gids)
++	}
++}
++
++func checkSameIDs(t *testing.T, got, want []string) {
++	t.Helper()
++	if len(got) != len(want) {
++		t.Errorf("ID list mismatch: got %v; want %v", got, want)
++		return
++	}
++	sort.Strings(got)
++	sort.Strings(want)
++	mismatch := -1
++	for i, g := range want {
++		if got[i] != g {
++			mismatch = i
++			break
++		}
++	}
++	if mismatch != -1 {
++		t.Errorf("ID list mismatch (at index %d): got %v; want %v", mismatch, got, want)
++	}
++}
+diff --git a/src/os/user/lookup_stubs.go b/src/os/user/lookup_stubs.go
+index d8e3d4866a..efaa92923d 100644
+--- a/src/os/user/lookup_stubs.go
++++ b/src/os/user/lookup_stubs.go
+@@ -8,17 +8,12 @@
+ package user
+ 
+ import (
+-	"errors"
+ 	"fmt"
+ 	"os"
+ 	"runtime"
+ 	"strconv"
+ )
+ 
+-func init() {
+-	groupListImplemented = false
+-}
+-
+ func current() (*User, error) {
+ 	uid := currentUID()
+ 	// $USER and /etc/passwd may disagree; prefer the latter if we can get it.
+@@ -64,13 +59,6 @@ func current() (*User, error) {
+ 	return u, fmt.Errorf("user: Current requires cgo or %s set in environment", missing)
+ }
+ 
+-func listGroups(*User) ([]string, error) {
+-	if runtime.GOOS == "android" || runtime.GOOS == "aix" {
+-		return nil, fmt.Errorf("user: GroupIds not implemented on %s", runtime.GOOS)
+-	}
+-	return nil, errors.New("user: GroupIds requires cgo")
+-}
+-
+ func currentUID() string {
+ 	if id := os.Getuid(); id >= 0 {
+ 		return strconv.Itoa(id)
+diff --git a/src/os/user/lookup_unix.go b/src/os/user/lookup_unix.go
+index dffea4a885..ac4f1502af 100644
+--- a/src/os/user/lookup_unix.go
++++ b/src/os/user/lookup_unix.go
+@@ -18,16 +18,7 @@ import (
+ 	"strings"
+ )
+ 
+-const (
+-	groupFile = "/etc/group"
+-	userFile  = "/etc/passwd"
+-)
+-
+-var colon = []byte{':'}
+-
+-func init() {
+-	groupListImplemented = false
+-}
++const userFile = "/etc/passwd"
+ 
+ // lineFunc returns a value, an error, or (nil, nil) to skip the row.
+ type lineFunc func(line []byte) (v interface{}, err error)
+diff --git a/src/os/user/lookup_unix_test.go b/src/os/user/lookup_unix_test.go
+index 060cfe186f..05d23567c3 100644
+--- a/src/os/user/lookup_unix_test.go
++++ b/src/os/user/lookup_unix_test.go
+@@ -9,30 +9,11 @@
+ package user
+ 
+ import (
+-	"fmt"
+ 	"reflect"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-var testGroupFile = `# See the opendirectoryd(8) man page for additional 
+-# information about Open Directory.
+-##
+-nobody:*:-2:
+-nogroup:*:-1:
+-wheel:*:0:root
+-emptyid:*::root
+-invalidgid:*:notanumber:root
+-+plussign:*:20:root
+--minussign:*:21:root
+-      
+-daemon:*:1:root
+-    indented:*:7:
+-# comment:*:4:found
+-     # comment:*:4:found
+-kmem:*:2:root
+-` + largeGroup()
+-
+ var groupTests = []struct {
+ 	in   string
+ 	name string
+@@ -51,19 +32,10 @@ var groupTests = []struct {
+ 	{testGroupFile, "indented", "7"},
+ 	{testGroupFile, "# comment", ""},
+ 	{testGroupFile, "largegroup", "1000"},
++	{testGroupFile, "manymembers", "777"},
+ 	{"", "emptyfile", ""},
+ }
+ 
+-// Generate a proper "largegroup" entry for testGroupFile string
+-func largeGroup() (res string) {
+-	var b strings.Builder
+-	b.WriteString("largegroup:x:1000:user1")
+-	for i := 2; i <= 7500; i++ {
+-		fmt.Fprintf(&b, ",user%d", i)
+-	}
+-	return b.String()
+-}
+-
+ func TestFindGroupName(t *testing.T) {
+ 	for _, tt := range groupTests {
+ 		got, err := findGroupName(tt.name, strings.NewReader(tt.in))
+diff --git a/src/os/user/user.go b/src/os/user/user.go
+index 4e1b5b3407..0307d2ad6a 100644
+--- a/src/os/user/user.go
++++ b/src/os/user/user.go
+@@ -6,11 +6,13 @@
+ Package user allows user account lookups by name or id.
+ 
+ For most Unix systems, this package has two internal implementations of
+-resolving user and group ids to names. One is written in pure Go and
+-parses /etc/passwd and /etc/group. The other is cgo-based and relies on
+-the standard C library (libc) routines such as getpwuid_r and getgrnam_r.
++resolving user and group ids to names, and listing supplementary group IDs.
++One is written in pure Go and parses /etc/passwd and /etc/group. The other
++is cgo-based and relies on the standard C library (libc) routines such as
++getpwuid_r, getgrnam_r, and getgrouplist.
+ 
+-When cgo is available, cgo-based (libc-backed) code is used by default.
++When cgo is available, and the required routines are implemented in libc
++for a particular platform, cgo-based (libc-backed) code is used.
+ This can be overridden by using osusergo build tag, which enforces
+ the pure Go implementation.
+ */

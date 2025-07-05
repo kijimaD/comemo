@@ -9,6 +9,20 @@ Date:   Mon Aug 25 12:09:42 2014 +0400
     R=golang-codereviews
     CC=golang-codereviews
     https://golang.org/cl/129570043
-
+---
  src/pkg/runtime/sema.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/sema.go b/src/pkg/runtime/sema.go
+index ac855f9d8c..1d591ffeba 100644
+--- a/src/pkg/runtime/sema.go
++++ b/src/pkg/runtime/sema.go
+@@ -66,7 +66,7 @@ func syncsemacquire(s *syncSema) {
+ 		s.tail = w
+ 		goparkunlock(&s.lock, "semacquire")
+ 		if t0 != 0 {
+-			goblockevent(int64(w.releasetime)-t0, 2)
++			goblockevent(int64(w.releasetime)-t0, 3)
+ 		}
+ 		releaseSudog(w)
+ 	}

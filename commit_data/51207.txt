@@ -12,6 +12,27 @@ Date:   Wed Dec 15 08:40:30 2021 -0500
     Run-TryBot: Hyang-Ah Hana Kim <hyangah@gmail.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.18.html | 9 +++++++++
  1 file changed, 9 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 9cb3cae20d..2ec5fae8c7 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -250,6 +250,15 @@ Do not send CLs removing the interior tags from such phrases.
+   package.
+ </p>
+ 
++<p><!-- CL 369977 -->
++  The underlying data format of the embedded build information can change with
++  new go releases, so an older version of <code>go</code> may not handle the
++  build information produced with a newer version of <code>go</code>.
++  To read the version information from a binary built with <code>go</code> 1.18,
++  use the <code>go</code> <code>version</code> command and the
++  <code>debug/buildinfo</code> package from <code>go</code> 1.18+.
++</p>
++
+ <p><!-- https://golang.org/issue/44435 -->
+   If the main module's <code>go.mod</code> file
+   specifies <a href="/ref/mod#go-mod-file-go"><code>go</code> <code>1.17</code></a>

@@ -14,7 +14,7 @@ Date:   Mon Aug 21 11:38:57 2017 -0400
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/go/go_test.go                              |  13 +++
  src/cmd/go/internal/work/build.go                  | 116 +++++++++++++++++----
  src/cmd/go/testdata/src/complex/main.go            |  12 +++
@@ -27,3 +27,339 @@ Date:   Mon Aug 21 11:38:57 2017 -0400
  src/cmd/go/testdata/src/complex/vendor/v/v.go      |   3 +
  src/cmd/go/testdata/src/complex/w/w.go             |   3 +
  11 files changed, 159 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index a41d91fce5..4460dca156 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -723,6 +723,19 @@ func (tg *testgoData) failSSH() {
+ 	tg.setenv("PATH", fmt.Sprintf("%v%c%v", fail, filepath.ListSeparator, os.Getenv("PATH")))
+ }
+ 
++func TestBuildComplex(t *testing.T) {
++	// Simple smoke test for build configuration.
++	tg := testgo(t)
++	defer tg.cleanup()
++	tg.parallel()
++	tg.setenv("GOPATH", filepath.Join(tg.pwd(), "testdata"))
++	tg.run("build", "-o", os.DevNull, "complex")
++
++	if _, err := exec.LookPath("gccgo"); err == nil {
++		tg.run("build", "-o", os.DevNull, "-compiler=gccgo", "complex")
++	}
++}
++
+ func TestFileLineInErrorMessages(t *testing.T) {
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index 5ed7b5a40b..ce5c71ae5a 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -1397,18 +1397,19 @@ func (b *Builder) build(a *Action) (err error) {
+ 		if p1.ImportPath == "unsafe" {
+ 			continue
+ 		}
++		if p1.Internal.Pkgfile == "" {
++			// This happens for gccgo-internal packages like runtime.
++			continue
++		}
+ 		// TODO(rsc): runtime/internal/sys appears twice sometimes,
+ 		// because of the blind append in ../load/pkg.go that
+ 		// claims to fix issue 13655. That's probably not the right fix.
+ 		// Look into that.
+ 		fmt.Fprintf(&icfg, "packagefile %s=%s\n", p1.ImportPath, p1.Internal.Pkgfile)
+ 	}
+-	if err := b.writeFile(objdir+"importcfg", icfg.Bytes()); err != nil {
+-		return err
+-	}
+ 
+ 	// Compile Go.
+-	ofile, out, err := BuildToolchain.gc(b, a.Package, a.Objpkg, objdir, objdir+"importcfg", len(sfiles) > 0, gofiles)
++	ofile, out, err := BuildToolchain.gc(b, a.Package, a.Objpkg, objdir, icfg.Bytes(), len(sfiles) > 0, gofiles)
+ 	if len(out) > 0 {
+ 		b.showOutput(a.Package.Dir, a.Package.ImportPath, b.processOutput(out))
+ 		if err != nil {
+@@ -2174,7 +2175,7 @@ func mkAbs(dir, f string) string {
+ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+ 	// and returns the name of the generated output file.
+-	gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
++	gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *Builder, p *load.Package, objdir, ofile, cfile string) error
+@@ -2213,7 +2214,7 @@ func (noToolchain) linker() string {
+ 	return ""
+ }
+ 
+-func (noToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
++func (noToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
+ 	return "", nil, noCompiler()
+ }
+ 
+@@ -2253,7 +2254,7 @@ func (gcToolchain) linker() string {
+ 	return base.Tool("link")
+ }
+ 
+-func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	if archive != "" {
+ 		ofile = archive
+ 	} else {
+@@ -2303,14 +2304,6 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg st
+ 		gcargs = append(gcargs, "-dwarf=false")
+ 	}
+ 
+-	for _, path := range p.Imports {
+-		if i := strings.LastIndex(path, "/vendor/"); i >= 0 {
+-			gcargs = append(gcargs, "-importmap", path[i+len("/vendor/"):]+"="+path)
+-		} else if strings.HasPrefix(path, "vendor/") {
+-			gcargs = append(gcargs, "-importmap", path[len("vendor/"):]+"="+path)
+-		}
+-	}
+-
+ 	gcflags := buildGcflags
+ 	if compilingRuntime {
+ 		// Remove -N, if present.
+@@ -2327,8 +2320,11 @@ func (gcToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg st
+ 		}
+ 	}
+ 	args := []interface{}{cfg.BuildToolexec, base.Tool("compile"), "-o", ofile, "-trimpath", b.WorkDir, gcflags, gcargs, "-D", p.Internal.LocalPrefix}
+-	if importcfg != "" {
+-		args = append(args, "-importcfg", importcfg)
++	if importcfg != nil {
++		if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
++			return "", nil, err
++		}
++		args = append(args, "-importcfg", objdir+"importcfg")
+ 	}
+ 	if ofile == archive {
+ 		args = append(args, "-pack")
+@@ -2703,7 +2699,7 @@ func checkGccgoBin() {
+ 	os.Exit(2)
+ }
+ 
+-func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, importcfg string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir string, importcfg []byte, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
+ 	out := "_go_.o"
+ 	ofile = objdir + out
+ 	gcargs := []string{"-g"}
+@@ -2716,8 +2712,19 @@ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, imp
+ 	}
+ 
+ 	args := str.StringList(tools.compiler(), "-c", gcargs, "-o", ofile)
+-	if importcfg != "" {
+-		args = append(args, "-importcfg", importcfg)
++	if importcfg != nil {
++		if b.gccSupportsFlag(args[:1], "-fgo-importcfg=/dev/null") {
++			if err := b.writeFile(objdir+"importcfg", importcfg); err != nil {
++				return "", nil, err
++			}
++			args = append(args, "-fgo-importcfg="+objdir+"importcfg")
++		} else {
++			root := objdir + "_importcfgroot_"
++			if err := buildImportcfgSymlinks(b, root, importcfg); err != nil {
++				return "", nil, err
++			}
++			args = append(args, "-I", root)
++		}
+ 	}
+ 	args = append(args, buildGccgoflags...)
+ 	for _, f := range gofiles {
+@@ -2728,6 +2735,67 @@ func (tools gccgoToolchain) gc(b *Builder, p *load.Package, archive, objdir, imp
+ 	return ofile, output, err
+ }
+ 
++// buildImportcfgSymlinks builds in root a tree of symlinks
++// implementing the directives from importcfg.
++// This serves as a temporary transition mechanism until
++// we can depend on gccgo reading an importcfg directly.
++// (The Go 1.9 and later gc compilers already do.)
++func buildImportcfgSymlinks(b *Builder, root string, importcfg []byte) error {
++	for lineNum, line := range strings.Split(string(importcfg), "\n") {
++		lineNum++ // 1-based
++		line = strings.TrimSpace(line)
++		if line == "" {
++			continue
++		}
++		if line == "" || strings.HasPrefix(line, "#") {
++			continue
++		}
++		var verb, args string
++		if i := strings.Index(line, " "); i < 0 {
++			verb = line
++		} else {
++			verb, args = line[:i], strings.TrimSpace(line[i+1:])
++		}
++		var before, after string
++		if i := strings.Index(args, "="); i >= 0 {
++			before, after = args[:i], args[i+1:]
++		}
++		switch verb {
++		default:
++			base.Fatalf("importcfg:%d: unknown directive %q", lineNum, verb)
++		case "packagefile":
++			if before == "" || after == "" {
++				return fmt.Errorf(`importcfg:%d: invalid packagefile: syntax is "packagefile path=filename": %s`, lineNum, line)
++			}
++			archive := gccgoArchive(root, before)
++			if err := b.Mkdir(filepath.Dir(archive)); err != nil {
++				return err
++			}
++			if err := os.Symlink(after, archive); err != nil {
++				return err
++			}
++		case "importmap":
++			if before == "" || after == "" {
++				return fmt.Errorf(`importcfg:%d: invalid importmap: syntax is "importmap old=new": %s`, lineNum, line)
++			}
++			beforeA := gccgoArchive(root, before)
++			afterA := gccgoArchive(root, after)
++			if err := b.Mkdir(filepath.Dir(beforeA)); err != nil {
++				return err
++			}
++			if err := b.Mkdir(filepath.Dir(afterA)); err != nil {
++				return err
++			}
++			if err := os.Symlink(afterA, beforeA); err != nil {
++				return err
++			}
++		case "packageshlib":
++			return fmt.Errorf("gccgo -importcfg does not support shared libraries")
++		}
++	}
++	return nil
++}
++
+ func (tools gccgoToolchain) asm(b *Builder, p *load.Package, objdir string, sfiles []string) ([]string, error) {
+ 	var ofiles []string
+ 	for _, sfile := range sfiles {
+@@ -2749,7 +2817,11 @@ func (tools gccgoToolchain) asm(b *Builder, p *load.Package, objdir string, sfil
+ }
+ 
+ func (gccgoToolchain) Pkgpath(basedir string, p *load.Package) string {
+-	end := filepath.FromSlash(p.ImportPath + ".a")
++	return gccgoArchive(basedir, p.ImportPath)
++}
++
++func gccgoArchive(basedir, imp string) string {
++	end := filepath.FromSlash(imp + ".a")
+ 	afile := filepath.Join(basedir, end)
+ 	// add "lib" to the final element
+ 	return filepath.Join(filepath.Dir(afile), "lib"+filepath.Base(afile))
+@@ -3653,7 +3725,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
+ 
+ 	p := load.GoFilesPackage(srcs)
+ 
+-	if _, _, e := BuildToolchain.gc(b, p, "", objdir, "", false, srcs); e != nil {
++	if _, _, e := BuildToolchain.gc(b, p, "", objdir, nil, false, srcs); e != nil {
+ 		return "32", nil
+ 	}
+ 	return "64", nil
+diff --git a/src/cmd/go/testdata/src/complex/main.go b/src/cmd/go/testdata/src/complex/main.go
+new file mode 100644
+index 0000000000..c38df01948
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/main.go
+@@ -0,0 +1,12 @@
++package main
++
++import (
++	_ "complex/nest/sub/test12"
++	_ "complex/nest/sub/test23"
++	"complex/w"
++	"v"
++)
++
++func main() {
++	println(v.Hello + " " + w.World)
++}
+diff --git a/src/cmd/go/testdata/src/complex/nest/sub/test12/p.go b/src/cmd/go/testdata/src/complex/nest/sub/test12/p.go
+new file mode 100644
+index 0000000000..94943ec1bb
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/sub/test12/p.go
+@@ -0,0 +1,11 @@
++package test12
++
++// Check that vendor/v1 is used but vendor/v2 is NOT used (sub/vendor/v2 wins).
++
++import (
++	"v1"
++	"v2"
++)
++
++const x = v1.ComplexNestVendorV1
++const y = v2.ComplexNestSubVendorV2
+diff --git a/src/cmd/go/testdata/src/complex/nest/sub/test23/p.go b/src/cmd/go/testdata/src/complex/nest/sub/test23/p.go
+new file mode 100644
+index 0000000000..8801a4812a
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/sub/test23/p.go
+@@ -0,0 +1,11 @@
++package test23
++
++// Check that vendor/v3 is used but vendor/v2 is NOT used (sub/vendor/v2 wins).
++
++import (
++	"v2"
++	"v3"
++)
++
++const x = v3.ComplexNestVendorV3
++const y = v2.ComplexNestSubVendorV2
+diff --git a/src/cmd/go/testdata/src/complex/nest/sub/vendor/v2/v2.go b/src/cmd/go/testdata/src/complex/nest/sub/vendor/v2/v2.go
+new file mode 100644
+index 0000000000..2991871710
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/sub/vendor/v2/v2.go
+@@ -0,0 +1,3 @@
++package v2
++
++const ComplexNestSubVendorV2 = true
+diff --git a/src/cmd/go/testdata/src/complex/nest/vendor/v1/v1.go b/src/cmd/go/testdata/src/complex/nest/vendor/v1/v1.go
+new file mode 100644
+index 0000000000..a55f5290a9
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/vendor/v1/v1.go
+@@ -0,0 +1,3 @@
++package v1
++
++const ComplexNestVendorV1 = true
+diff --git a/src/cmd/go/testdata/src/complex/nest/vendor/v2/v2.go b/src/cmd/go/testdata/src/complex/nest/vendor/v2/v2.go
+new file mode 100644
+index 0000000000..ac94def4e3
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/vendor/v2/v2.go
+@@ -0,0 +1,3 @@
++package v2
++
++const ComplexNestVendorV2 = true
+diff --git a/src/cmd/go/testdata/src/complex/nest/vendor/v3/v3.go b/src/cmd/go/testdata/src/complex/nest/vendor/v3/v3.go
+new file mode 100644
+index 0000000000..abf99b9574
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/nest/vendor/v3/v3.go
+@@ -0,0 +1,3 @@
++package v3
++
++const ComplexNestVendorV3 = true
+diff --git a/src/cmd/go/testdata/src/complex/vendor/v/v.go b/src/cmd/go/testdata/src/complex/vendor/v/v.go
+new file mode 100644
+index 0000000000..bb20d86f25
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/vendor/v/v.go
+@@ -0,0 +1,3 @@
++package v
++
++const Hello = "hello"
+diff --git a/src/cmd/go/testdata/src/complex/w/w.go b/src/cmd/go/testdata/src/complex/w/w.go
+new file mode 100644
+index 0000000000..a9c7fbb309
+--- /dev/null
++++ b/src/cmd/go/testdata/src/complex/w/w.go
+@@ -0,0 +1,3 @@
++package w
++
++const World = "world"

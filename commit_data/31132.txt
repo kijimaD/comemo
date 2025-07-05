@@ -21,7 +21,56 @@ Date:   Wed Feb 1 15:13:48 2017 -0800
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/noder.go |  3 +++
  test/fixedbugs/issue15550.go         | 28 ++++++++++++++++++++++++++++
  2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index 912652110c..482578d10a 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -204,6 +204,9 @@ func (p *noder) varDecl(decl *syntax.VarDecl) []*Node {
+ 	return variter(names, typ, exprs)
+ }
+ 
++// constState tracks state between constant specifiers within a
++// declaration group. This state is kept separate from noder so nested
++// constant declarations are handled correctly (e.g., issue 15550).
+ type constState struct {
+ 	group  *syntax.Group
+ 	typ    *Node
+diff --git a/test/fixedbugs/issue15550.go b/test/fixedbugs/issue15550.go
+new file mode 100644
+index 0000000000..f2853fc48b
+--- /dev/null
++++ b/test/fixedbugs/issue15550.go
+@@ -0,0 +1,28 @@
++// run
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++const (
++	_ = unsafe.Sizeof(func() int {
++		const (
++			_ = 1
++			_
++			_
++		)
++		return 0
++	}())
++
++	y = iota
++)
++
++func main() {
++	if y != 1 {
++		panic(y)
++	}
++}

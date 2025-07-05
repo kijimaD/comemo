@@ -7,6 +7,19 @@ Date:   Sun May 10 12:19:05 2020 +0300
     Change-Id: I9f23490a565b81b155642fe301f897c1d0af03fd
     Reviewed-on: https://go-review.googlesource.com/c/go/+/232810
     Reviewed-by: Emmanuel Odeke <emm.odeke@gmail.com>
-
+---
  src/internal/trace/writer.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/trace/writer.go b/src/internal/trace/writer.go
+index af5fec84fd..dd0b9f104e 100644
+--- a/src/internal/trace/writer.go
++++ b/src/internal/trace/writer.go
+@@ -1,3 +1,7 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ package trace
+ 
+ import "bytes"

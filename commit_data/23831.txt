@@ -13,6 +13,23 @@ Date:   Tue Jun 16 23:42:23 2015 +0200
     Reviewed-on: https://go-review.googlesource.com/11033
     Run-TryBot: David du Colombier <0intro@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/os_test.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3c0dfd194d..afb30fd844 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1251,7 +1251,10 @@ func testWindowsHostname(t *testing.T) {
+ func TestHostname(t *testing.T) {
+ 	// There is no other way to fetch hostname on windows, but via winapi.
+ 	// On Plan 9 it can be taken from #c/sysname as Hostname() does.
+-	if runtime.GOOS == "windows" {
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("skipping on %s", runtime.GOOS)
++	case "windows":
+ 		testWindowsHostname(t)
+ 		return
+ 	}

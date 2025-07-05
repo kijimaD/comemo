@@ -11,9 +11,95 @@ Date:   Thu Jan 23 22:19:39 2020 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/PPC64Ops.go | 8 ++++----
  src/cmd/compile/internal/ssa/gen/main.go     | 4 ++--
  src/cmd/compile/internal/ssa/nilcheck.go     | 4 ++++
  src/cmd/compile/internal/ssa/opGen.go        | 6 +++---
  4 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+index ab671a2fa6..6660b921ef 100644
+--- a/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/PPC64Ops.go
+@@ -317,10 +317,10 @@ func init() {
+ 		{name: "FMOVSloadidx", argLength: 3, reg: fploadidx, asm: "FMOVS", aux: "SymOff", typ: "Float32", faultOnNilArg0: true, symEffect: "Read"},
+ 
+ 		// Store bytes in the reverse endian order of the arch into arg0.
+-		// These are indexes stores with no offset field in the instruction so the aux fields are not used.
+-		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
+-		{name: "MOVWBRstore", argLength: 3, reg: gpstore, asm: "MOVWBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes reverse order
+-		{name: "MOVHBRstore", argLength: 3, reg: gpstore, asm: "MOVHBR", aux: "SymOff", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes reverse order
++		// These are indexed stores with no offset field in the instruction so the auxint fields are not used.
++		{name: "MOVDBRstore", argLength: 3, reg: gpstore, asm: "MOVDBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 8 bytes reverse order
++		{name: "MOVWBRstore", argLength: 3, reg: gpstore, asm: "MOVWBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 4 bytes reverse order
++		{name: "MOVHBRstore", argLength: 3, reg: gpstore, asm: "MOVHBR", aux: "Sym", typ: "Mem", faultOnNilArg0: true, symEffect: "Write"}, // store 2 bytes reverse order
+ 
+ 		// Floating point loads from arg0+aux+auxint
+ 		{name: "FMOVDload", argLength: 2, reg: fpload, asm: "FMOVD", aux: "SymOff", typ: "Float64", faultOnNilArg0: true, symEffect: "Read"}, // load double float
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 8520c68a5a..f2a0915737 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -307,13 +307,13 @@ func genOp() {
+ 			}
+ 			if v.faultOnNilArg0 {
+ 				fmt.Fprintln(w, "faultOnNilArg0: true,")
+-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
++				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+ 					log.Fatalf("faultOnNilArg0 with aux %s not allowed", v.aux)
+ 				}
+ 			}
+ 			if v.faultOnNilArg1 {
+ 				fmt.Fprintln(w, "faultOnNilArg1: true,")
+-				if v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
++				if v.aux != "Sym" && v.aux != "SymOff" && v.aux != "SymValAndOff" && v.aux != "Int64" && v.aux != "Int32" && v.aux != "" {
+ 					log.Fatalf("faultOnNilArg1 with aux %s not allowed", v.aux)
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index cf6bdbe37b..9e1473b3b8 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -285,6 +285,10 @@ func nilcheckelim2(f *Func) {
+ 			for _, ptr := range ptrs {
+ 				// Check to make sure the offset is small.
+ 				switch opcodeTable[v.Op].auxType {
++				case auxSym:
++					if v.Aux != nil {
++						continue
++					}
+ 				case auxSymOff:
+ 					if v.Aux != nil || v.AuxInt < 0 || v.AuxInt >= minZeroPage {
+ 						continue
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 6e18f1933b..879490babf 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -23950,7 +23950,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:           "MOVDBRstore",
+-		auxType:        auxSymOff,
++		auxType:        auxSym,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+@@ -23964,7 +23964,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:           "MOVWBRstore",
+-		auxType:        auxSymOff,
++		auxType:        auxSym,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,
+@@ -23978,7 +23978,7 @@ var opcodeTable = [...]opInfo{
+ 	},
+ 	{
+ 		name:           "MOVHBRstore",
+-		auxType:        auxSymOff,
++		auxType:        auxSym,
+ 		argLen:         3,
+ 		faultOnNilArg0: true,
+ 		symEffect:      SymWrite,

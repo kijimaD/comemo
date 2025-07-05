@@ -7,6 +7,20 @@ Date:   Thu Aug 22 12:34:05 2013 +1000
     R=golang-dev, adg
     CC=golang-dev, mikioh.mikioh
     https://golang.org/cl/12848047
-
+---
  src/pkg/net/lookup_windows.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/net/lookup_windows.go b/src/pkg/net/lookup_windows.go
+index dcbb6d74f1..130364231d 100644
+--- a/src/pkg/net/lookup_windows.go
++++ b/src/pkg/net/lookup_windows.go
+@@ -44,7 +44,7 @@ func lookupProtocol(name string) (proto int, err error) {
+ 	r := <-ch
+ 	if r.err != nil {
+ 		if proto, ok := protocols[name]; ok {
+-			return protol, nil
++			return proto, nil
+ 		}
+ 	}
+ 	return r.proto, r.err

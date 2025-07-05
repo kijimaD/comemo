@@ -10,6 +10,16 @@ Date:   Tue Feb 18 13:38:47 2014 -0800
     R=r
     CC=golang-codereviews
     https://golang.org/cl/65650043
-
+---
  api/except.txt | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/api/except.txt b/api/except.txt
+index 8bec65f1e0..40bb59891c 100644
+--- a/api/except.txt
++++ b/api/except.txt
+@@ -318,3 +318,4 @@ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, F_spare [3]uint32
+ pkg syscall (openbsd-amd64-cgo), type Statfs_t struct, Pad_cgo_1 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Pad_cgo_0 [4]uint8
+ pkg syscall (openbsd-amd64-cgo), type Timespec struct, Sec int32
++pkg unicode, const Version = "6.2.0"

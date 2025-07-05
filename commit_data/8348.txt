@@ -7,7 +7,56 @@ Date:   Wed May 11 04:30:05 2011 -0700
     R=adg, rsc, kevlar, r
     CC=golang-dev
     https://golang.org/cl/4476045
-
+---
  src/pkg/http/serve_test.go | 17 +++++++++++++++++
  src/pkg/http/server.go     |  6 ++++++
  2 files changed, 23 insertions(+)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 7ff6ef04b1..f2fb98e3e2 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -693,3 +693,20 @@ func TestTimeoutHandler(t *testing.T) {
+ 		t.Errorf("expected Write error of %v; got %v", e, g)
+ 	}
+ }
++
++// Verifies we don't path.Clean() on the wrong parts in redirects.
++func TestRedirectMunging(t *testing.T) {
++	req, _ := NewRequest("GET", "http://example.com/", nil)
++
++	resp := httptest.NewRecorder()
++	Redirect(resp, req, "/foo?next=http://bar.com/", 302)
++	if g, e := resp.Header().Get("Location"), "/foo?next=http://bar.com/"; g != e {
++		t.Errorf("Location header was %q; want %q", g, e)
++	}
++
++	resp = httptest.NewRecorder()
++	Redirect(resp, req, "http://localhost:8080/_ah/login?continue=http://localhost:8080/", 302)
++	if g, e := resp.Header().Get("Location"), "http://localhost:8080/_ah/login?continue=http://localhost:8080/"; g != e {
++		t.Errorf("Location header was %q; want %q", g, e)
++	}
++}
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index d155f06a2d..eb5a3a365e 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -581,12 +581,18 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 				url = olddir + url
+ 			}
+ 
++			var query string
++			if i := strings.Index(url, "?"); i != -1 {
++				url, query = url[:i], url[i:]
++			}
++
+ 			// clean up but preserve trailing slash
+ 			trailing := url[len(url)-1] == '/'
+ 			url = path.Clean(url)
+ 			if trailing && url[len(url)-1] != '/' {
+ 				url += "/"
+ 			}
++			url += query
+ 		}
+ 	}
+ 

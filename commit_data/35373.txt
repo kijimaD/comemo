@@ -11,7 +11,7 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/gc/main.go         |   2 +-
  src/cmd/compile/internal/mips/ssa.go        |   5 ++
  src/cmd/compile/internal/ssa/gen/MIPS.rules |   3 +
@@ -23,3 +23,280 @@ Date:   Wed Nov 15 14:54:24 2017 -0800
  src/cmd/vet/all/whitelist/mipsx.txt         |   4 +-
  src/runtime/asm_mipsx.s                     | 101 ++++++++++++++++++++++++++++
  10 files changed, 156 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index c624f1dc21..2eef7b7c7b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -408,7 +408,7 @@ func Main(archInit func(*Arch)) {
+ 	}
+ 
+ 	switch objabi.GOARCH {
+-	case "amd64", "amd64p32", "386", "arm", "arm64", "mips64", "mips64le":
++	case "amd64", "amd64p32", "386", "arm", "arm64", "mips64", "mips64le", "mips", "mipsle":
+ 	default:
+ 		// Other architectures don't support the buffered
+ 		// write barrier yet.
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index ee68afdfa3..61dedb00ca 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -480,6 +480,11 @@ func ssaGenValue(s *gc.SSAGenState, v *ssa.Value) {
+ 		gc.Patch(p6, p2)
+ 	case ssa.OpMIPSCALLstatic, ssa.OpMIPSCALLclosure, ssa.OpMIPSCALLinter:
+ 		s.Call(v)
++	case ssa.OpMIPSLoweredWB:
++		p := s.Prog(obj.ACALL)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Name = obj.NAME_EXTERN
++		p.To.Sym = v.Aux.(*obj.LSym)
+ 	case ssa.OpMIPSLoweredAtomicLoad:
+ 		s.Prog(mips.ASYNC)
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPS.rules b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+index 2e7a0230b8..bdd68b3ee6 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/gen/MIPS.rules
+@@ -442,6 +442,9 @@
+ 
+ (If cond yes no) -> (NE cond yes no)
+ 
++// Write barrier.
++(WB {fn} destptr srcptr mem) -> (LoweredWB {fn} destptr srcptr mem)
++
+ 
+ // Optimizations
+ 
+diff --git a/src/cmd/compile/internal/ssa/gen/MIPSOps.go b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+index 155a20bbad..868e4d90da 100644
+--- a/src/cmd/compile/internal/ssa/gen/MIPSOps.go
++++ b/src/cmd/compile/internal/ssa/gen/MIPSOps.go
+@@ -379,6 +379,12 @@ func init() {
+ 		// LoweredGetCallerSP returns the SP of the caller of the current function.
+ 		{name: "LoweredGetCallerSP", reg: gp01, rematerializeable: true},
+ 
++		// LoweredWB invokes runtime.gcWriteBarrier. arg0=destptr, arg1=srcptr, arg2=mem, aux=runtime.gcWriteBarrier
++		// It saves all GP registers if necessary,
++		// but clobbers R31 (LR) because it's a call
++		// and R23 (REGTMP).
++		{name: "LoweredWB", argLength: 3, reg: regInfo{inputs: []regMask{buildReg("R20"), buildReg("R21")}, clobbers: (callerSave &^ gpg) | buildReg("R31")}, clobberFlags: true, aux: "Sym", symEffect: "None"},
++
+ 		// MOVWconvert converts between pointers and integers.
+ 		// We have a special op for this so as to not confuse GC
+ 		// (particularly stack maps).  It takes a memory arg so it
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index d99abaa4f6..4246048e63 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1230,6 +1230,7 @@ const (
+ 	OpMIPSFPFlagFalse
+ 	OpMIPSLoweredGetClosurePtr
+ 	OpMIPSLoweredGetCallerSP
++	OpMIPSLoweredWB
+ 	OpMIPSMOVWconvert
+ 
+ 	OpMIPS64ADDV
+@@ -15722,6 +15723,20 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:         "LoweredWB",
++		auxType:      auxSym,
++		argLen:       3,
++		clobberFlags: true,
++		symEffect:    SymNone,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1048576}, // R20
++				{1, 2097152}, // R21
++			},
++			clobbers: 140737219919872, // R31 F0 F2 F4 F6 F8 F10 F12 F14 F16 F18 F20 F22 F24 F26 F28 F30 HI LO
++		},
++	},
+ 	{
+ 		name:   "MOVWconvert",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index d4f4c03ca3..d40b770752 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -491,6 +491,8 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpTrunc32to16_0(v)
+ 	case OpTrunc32to8:
+ 		return rewriteValueMIPS_OpTrunc32to8_0(v)
++	case OpWB:
++		return rewriteValueMIPS_OpWB_0(v)
+ 	case OpXor16:
+ 		return rewriteValueMIPS_OpXor16_0(v)
+ 	case OpXor32:
+@@ -9113,6 +9115,24 @@ func rewriteValueMIPS_OpTrunc32to8_0(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS_OpWB_0(v *Value) bool {
++	// match: (WB {fn} destptr srcptr mem)
++	// cond:
++	// result: (LoweredWB {fn} destptr srcptr mem)
++	for {
++		fn := v.Aux
++		_ = v.Args[2]
++		destptr := v.Args[0]
++		srcptr := v.Args[1]
++		mem := v.Args[2]
++		v.reset(OpMIPSLoweredWB)
++		v.Aux = fn
++		v.AddArg(destptr)
++		v.AddArg(srcptr)
++		v.AddArg(mem)
++		return true
++	}
++}
+ func rewriteValueMIPS_OpXor16_0(v *Value) bool {
+ 	// match: (Xor16 x y)
+ 	// cond:
+diff --git a/src/cmd/vet/all/whitelist/mips.txt b/src/cmd/vet/all/whitelist/mips.txt
+index ad29336ad1..fa17c6233b 100644
+--- a/src/cmd/vet/all/whitelist/mips.txt
++++ b/src/cmd/vet/all/whitelist/mips.txt
+@@ -1,4 +1,4 @@
+-// mips64-specific vet whitelist. See readme.txt for details.
++// mips-specific (big endian) vet whitelist. See readme.txt for details.
+ 
+ // Work around if-def'd code. Will be fixed by golang.org/issue/17544.
+ runtime/sys_linux_mipsx.s: [mips] walltime: invalid offset sec_lo+0(FP); expected sec_lo+4(FP)
+diff --git a/src/cmd/vet/all/whitelist/mipsle.txt b/src/cmd/vet/all/whitelist/mipsle.txt
+index 929216905e..9361dc4353 100644
+--- a/src/cmd/vet/all/whitelist/mipsle.txt
++++ b/src/cmd/vet/all/whitelist/mipsle.txt
+@@ -1,4 +1,4 @@
+-// mips64-specific vet whitelist. See readme.txt for details.
++// mipsle-specific vet whitelist. See readme.txt for details.
+ 
+ // Work around if-def'd code. Will be fixed by golang.org/issue/17544.
+ runtime/sys_linux_mipsx.s: [mipsle] walltime: invalid offset sec_lo+4(FP); expected sec_lo+0(FP)
+diff --git a/src/cmd/vet/all/whitelist/mipsx.txt b/src/cmd/vet/all/whitelist/mipsx.txt
+index 860f839921..fbf4499bdc 100644
+--- a/src/cmd/vet/all/whitelist/mipsx.txt
++++ b/src/cmd/vet/all/whitelist/mipsx.txt
+@@ -1,4 +1,4 @@
+-// mips64-specific vet whitelist. See readme.txt for details.
++// mips/mipsle-specific vet whitelist. See readme.txt for details.
+ 
+ runtime/asm_mipsx.s: [GOARCH] abort: function abort missing Go declaration
+ runtime/tls_mipsx.s: [GOARCH] save_g: function save_g missing Go declaration
+@@ -7,3 +7,5 @@ runtime/asm_mipsx.s: [GOARCH] cannot check cross-package assembly function: Comp
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 12(R29) should be mp+8(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 4(R29) should be flags+0(FP)
+ runtime/sys_linux_mipsx.s: [GOARCH] clone: 8(R29) should be stk+4(FP)
++
++runtime/asm_ARCHSUFF.s: [GOARCH] gcWriteBarrier: function gcWriteBarrier missing Go declaration
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 6a4eb0af25..47367f1703 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -856,3 +856,104 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	MOVW	$1, R1
+ 	MOVB	R1, ret+0(FP)
+ 	RET
++
++// gcWriteBarrier performs a heap pointer write and informs the GC.
++//
++// gcWriteBarrier does NOT follow the Go ABI. It takes two arguments:
++// - R20 is the destination of the write
++// - R21 is the value being written at R20.
++// It clobbers R23 (the linker temp register).
++// The act of CALLing gcWriteBarrier will clobber R31 (LR).
++// It does not clobber any other general-purpose registers,
++// but may clobber others (e.g., floating point registers).
++TEXT runtime·gcWriteBarrier(SB),NOSPLIT,$104
++	// Save the registers clobbered by the fast path.
++	MOVW	R1, 100(R29)
++	MOVW	R2, 104(R29)
++	MOVW	g_m(g), R1
++	MOVW	m_p(R1), R1
++	MOVW	(p_wbBuf+wbBuf_next)(R1), R2
++	// Increment wbBuf.next position.
++	ADD	$8, R2
++	MOVW	R2, (p_wbBuf+wbBuf_next)(R1)
++	MOVW	(p_wbBuf+wbBuf_end)(R1), R1
++	MOVW	R1, R23		// R23 is linker temp register
++	// Record the write.
++	MOVW	R21, -8(R2)	// Record value
++	MOVW	(R20), R1	// TODO: This turns bad writes into bad reads.
++	MOVW	R1, -4(R2)	// Record *slot
++	// Is the buffer full?
++	BEQ	R2, R23, flush
++ret:
++	MOVW	100(R29), R1
++	MOVW	104(R29), R2
++	// Do the write.
++	MOVW	R21, (R20)
++	RET
++
++flush:
++	// Save all general purpose registers since these could be
++	// clobbered by wbBufFlush and were not saved by the caller.
++	MOVW	R20, 4(R29)	// Also first argument to wbBufFlush
++	MOVW	R21, 8(R29)	// Also second argument to wbBufFlush
++	// R1 already saved
++	// R2 already saved
++	MOVW	R3, 12(R29)
++	MOVW	R4, 16(R29)
++	MOVW	R5, 20(R29)
++	MOVW	R6, 24(R29)
++	MOVW	R7, 28(R29)
++	MOVW	R8, 32(R29)
++	MOVW	R9, 36(R29)
++	MOVW	R10, 40(R29)
++	MOVW	R11, 44(R29)
++	MOVW	R12, 48(R29)
++	MOVW	R13, 52(R29)
++	MOVW	R14, 56(R29)
++	MOVW	R15, 60(R29)
++	MOVW	R16, 64(R29)
++	MOVW	R17, 68(R29)
++	MOVW	R18, 72(R29)
++	MOVW	R19, 76(R29)
++	MOVW	R20, 80(R29)
++	// R21 already saved
++	// R22 already saved.
++	MOVW	R22, 84(R29)
++	// R23 is tmp register.
++	MOVW	R24, 88(R29)
++	MOVW	R25, 92(R29)
++	// R26 is reserved by kernel.
++	// R27 is reserved by kernel.
++	MOVW	R28, 96(R29)
++	// R29 is SP.
++	// R30 is g.
++	// R31 is LR, which was saved by the prologue.
++
++	// This takes arguments R20 and R21.
++	CALL	runtime·wbBufFlush(SB)
++
++	MOVW	4(R29), R20
++	MOVW	8(R29), R21
++	MOVW	12(R29), R3
++	MOVW	16(R29), R4
++	MOVW	20(R29), R5
++	MOVW	24(R29), R6
++	MOVW	28(R29), R7
++	MOVW	32(R29), R8
++	MOVW	36(R29), R9
++	MOVW	40(R29), R10
++	MOVW	44(R29), R11
++	MOVW	48(R29), R12
++	MOVW	52(R29), R13
++	MOVW	56(R29), R14
++	MOVW	60(R29), R15
++	MOVW	64(R29), R16
++	MOVW	68(R29), R17
++	MOVW	72(R29), R18
++	MOVW	76(R29), R19
++	MOVW	80(R29), R20
++	MOVW	84(R29), R22
++	MOVW	88(R29), R24
++	MOVW	92(R29), R25
++	MOVW	96(R29), R28
++	JMP	ret

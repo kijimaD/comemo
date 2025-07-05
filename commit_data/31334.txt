@@ -22,7 +22,7 @@ Date:   Mon Feb 13 09:37:06 2017 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/asm_test.go      | 33 +++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/gen/386.rules   |  3 +++
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  4 ++++
@@ -31,3 +31,224 @@ Date:   Mon Feb 13 09:37:06 2017 -0800
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 34 ++++++++++++++++++++++++++++
  src/cmd/compile/internal/ssa/rewriteS390X.go | 34 ++++++++++++++++++++++++++++
  7 files changed, 129 insertions(+)
+
+diff --git a/src/cmd/compile/internal/gc/asm_test.go b/src/cmd/compile/internal/gc/asm_test.go
+index d07988b2ab..edd6e3f393 100644
+--- a/src/cmd/compile/internal/gc/asm_test.go
++++ b/src/cmd/compile/internal/gc/asm_test.go
+@@ -221,6 +221,39 @@ func f(b []byte, i int) uint32 {
+ `,
+ 		[]string{"\tMOVL\t\\(.*\\)\\(.*\\*1\\),"},
+ 	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte) uint32 {
++	return binary.LittleEndian.Uint32(b)
++}
++`,
++		[]string{"\tMOVWZ\t\\(.*\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint32 {
++	return binary.LittleEndian.Uint32(b[i:])
++}
++`,
++		[]string{"\tMOVWZ\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte) uint64 {
++	return binary.LittleEndian.Uint64(b)
++}
++`,
++		[]string{"\tMOVD\t\\(.*\\),"},
++	},
++	{"s390x", "linux", `
++import "encoding/binary"
++func f(b []byte, i int) uint64 {
++	return binary.LittleEndian.Uint64(b[i:])
++}
++`,
++		[]string{"\tMOVD\t\\(.*\\)\\(.*\\*1\\),"},
++	},
++	// TODO: s390x big-endian tests.
+ 
+ 	// Structure zeroing.  See issue #18370.
+ 	{"amd64", "linux", `
+diff --git a/src/cmd/compile/internal/ssa/gen/386.rules b/src/cmd/compile/internal/ssa/gen/386.rules
+index 173f40bc8e..2c5357553c 100644
+--- a/src/cmd/compile/internal/ssa/gen/386.rules
++++ b/src/cmd/compile/internal/ssa/gen/386.rules
+@@ -1131,6 +1131,9 @@
+ (CMPWconst x [0]) -> (TESTW x x)
+ (CMPBconst x [0]) -> (TESTB x x)
+ 
++// Move shifts to second argument of ORs.  Helps load combining rules below.
++(ORL x:(SHLLconst _) y) && y.Op != Op386SHLLconst -> (ORL y x)
++
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+ // designed to match the way encoding/binary.LittleEndian does it.
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index a8d31717f2..aeec9f84a2 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -1383,6 +1383,10 @@
+ (CMPWconst x [0]) -> (TESTW x x)
+ (CMPBconst x [0]) -> (TESTB x x)
+ 
++// Move shifts to second argument of ORs.  Helps load combining rules below.
++(ORQ x:(SHLQconst _) y) && y.Op != OpAMD64SHLQconst -> (ORQ y x)
++(ORL x:(SHLLconst _) y) && y.Op != OpAMD64SHLLconst -> (ORL y x)
++
+ // Combining byte loads into larger (unaligned) loads.
+ // There are many ways these combinations could occur.  This is
+ // designed to match the way encoding/binary.LittleEndian does it.
+diff --git a/src/cmd/compile/internal/ssa/gen/S390X.rules b/src/cmd/compile/internal/ssa/gen/S390X.rules
+index 9907d5b281..32c5977fe6 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/gen/S390X.rules
+@@ -1266,6 +1266,10 @@
+   && clobber(x)
+   -> (MOVDBRstoreidx [i-4] {s} p idx w0 mem)
+ 
++// Move shifts to second argument of ORs.  Helps load combining rules below.
++(ORW x:(SLWconst _) y) && y.Op != OpS390XSLWconst -> (ORW y x)
++(OR  x:(SLDconst _) y) && y.Op != OpS390XSLDconst -> (OR  y x)
++
+ // Combining byte loads into larger (unaligned) loads.
+ 
+ // Little endian loads.
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index 4a369b2897..7d9f56922d 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -7465,6 +7465,23 @@ func rewriteValue386_Op386ORL(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORL x:(SHLLconst _) y)
++	// cond: y.Op != Op386SHLLconst
++	// result: (ORL y x)
++	for {
++		x := v.Args[0]
++		if x.Op != Op386SHLLconst {
++			break
++		}
++		y := v.Args[1]
++		if !(y.Op != Op386SHLLconst) {
++			break
++		}
++		v.reset(Op386ORL)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ORL                  x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8] x1:(MOVBload [i+1] {s} p mem)))
+ 	// cond: x0.Uses == 1   && x1.Uses == 1   && s0.Uses == 1   && mergePoint(b,x0,x1) != nil   && clobber(x0)   && clobber(x1)   && clobber(s0)
+ 	// result: @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ff65ad5d19..226b0d67f4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -11282,6 +11282,23 @@ func rewriteValueAMD64_OpAMD64ORL(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORL x:(SHLLconst _) y)
++	// cond: y.Op != OpAMD64SHLLconst
++	// result: (ORL y x)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64SHLLconst {
++			break
++		}
++		y := v.Args[1]
++		if !(y.Op != OpAMD64SHLLconst) {
++			break
++		}
++		v.reset(OpAMD64ORL)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ORL                  x0:(MOVBload [i]   {s} p mem)     s0:(SHLLconst [8] x1:(MOVBload [i+1] {s} p mem)))
+ 	// cond: x0.Uses == 1   && x1.Uses == 1   && s0.Uses == 1   && mergePoint(b,x0,x1) != nil   && clobber(x0)   && clobber(x1)   && clobber(s0)
+ 	// result: @mergePoint(b,x0,x1) (MOVWload [i] {s} p mem)
+@@ -11909,6 +11926,23 @@ func rewriteValueAMD64_OpAMD64ORQ(v *Value, config *Config) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (ORQ x:(SHLQconst _) y)
++	// cond: y.Op != OpAMD64SHLQconst
++	// result: (ORQ y x)
++	for {
++		x := v.Args[0]
++		if x.Op != OpAMD64SHLQconst {
++			break
++		}
++		y := v.Args[1]
++		if !(y.Op != OpAMD64SHLQconst) {
++			break
++		}
++		v.reset(OpAMD64ORQ)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ORQ o0:(ORQ o1:(ORQ o2:(ORQ o3:(ORQ o4:(ORQ o5:(ORQ                        x0:(MOVBload [i]   {s} p mem)     s0:(SHLQconst [8]  x1:(MOVBload [i+1] {s} p mem)))     s1:(SHLQconst [16] x2:(MOVBload [i+2] {s} p mem)))     s2:(SHLQconst [24] x3:(MOVBload [i+3] {s} p mem)))     s3:(SHLQconst [32] x4:(MOVBload [i+4] {s} p mem)))     s4:(SHLQconst [40] x5:(MOVBload [i+5] {s} p mem)))     s5:(SHLQconst [48] x6:(MOVBload [i+6] {s} p mem)))     s6:(SHLQconst [56] x7:(MOVBload [i+7] {s} p mem)))
+ 	// cond: x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && x4.Uses == 1   && x5.Uses == 1   && x6.Uses == 1   && x7.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && s3.Uses == 1   && s4.Uses == 1   && s5.Uses == 1   && s6.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && o2.Uses == 1   && o3.Uses == 1   && o4.Uses == 1   && o5.Uses == 1   && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(x4)   && clobber(x5)   && clobber(x6)   && clobber(x7)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(s3)   && clobber(s4)   && clobber(s5)   && clobber(s6)   && clobber(o0)   && clobber(o1)   && clobber(o2)   && clobber(o3)   && clobber(o4)   && clobber(o5)
+ 	// result: @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVQload [i] {s} p mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index da6ff6b112..08a2ddd846 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -14324,6 +14324,23 @@ func rewriteValueS390X_OpS390XOR(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (OR  x:(SLDconst _) y)
++	// cond: y.Op != OpS390XSLDconst
++	// result: (OR  y x)
++	for {
++		x := v.Args[0]
++		if x.Op != OpS390XSLDconst {
++			break
++		}
++		y := v.Args[1]
++		if !(y.Op != OpS390XSLDconst) {
++			break
++		}
++		v.reset(OpS390XOR)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (OR o0:(OR o1:(OR o2:(OR o3:(OR o4:(OR o5:(OR                       x0:(MOVBZload [i]   {s} p mem)     s0:(SLDconst [8]  x1:(MOVBZload [i+1] {s} p mem)))     s1:(SLDconst [16] x2:(MOVBZload [i+2] {s} p mem)))     s2:(SLDconst [24] x3:(MOVBZload [i+3] {s} p mem)))     s3:(SLDconst [32] x4:(MOVBZload [i+4] {s} p mem)))     s4:(SLDconst [40] x5:(MOVBZload [i+5] {s} p mem)))     s5:(SLDconst [48] x6:(MOVBZload [i+6] {s} p mem)))     s6:(SLDconst [56] x7:(MOVBZload [i+7] {s} p mem)))
+ 	// cond: p.Op != OpSB   && x0.Uses == 1   && x1.Uses == 1   && x2.Uses == 1   && x3.Uses == 1   && x4.Uses == 1   && x5.Uses == 1   && x6.Uses == 1   && x7.Uses == 1   && s0.Uses == 1   && s1.Uses == 1   && s2.Uses == 1   && s3.Uses == 1   && s4.Uses == 1   && s5.Uses == 1   && s6.Uses == 1   && o0.Uses == 1   && o1.Uses == 1   && o2.Uses == 1   && o3.Uses == 1   && o4.Uses == 1   && o5.Uses == 1   && mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) != nil   && clobber(x0)   && clobber(x1)   && clobber(x2)   && clobber(x3)   && clobber(x4)   && clobber(x5)   && clobber(x6)   && clobber(x7)   && clobber(s0)   && clobber(s1)   && clobber(s2)   && clobber(s3)   && clobber(s4)   && clobber(s5)   && clobber(s6)   && clobber(o0)   && clobber(o1)   && clobber(o2)   && clobber(o3)   && clobber(o4)   && clobber(o5)
+ 	// result: @mergePoint(b,x0,x1,x2,x3,x4,x5,x6,x7) (MOVDBRload [i] {s} p mem)
+@@ -15412,6 +15429,23 @@ func rewriteValueS390X_OpS390XORW(v *Value, config *Config) bool {
+ 		v.AddArg(mem)
+ 		return true
+ 	}
++	// match: (ORW x:(SLWconst _) y)
++	// cond: y.Op != OpS390XSLWconst
++	// result: (ORW y x)
++	for {
++		x := v.Args[0]
++		if x.Op != OpS390XSLWconst {
++			break
++		}
++		y := v.Args[1]
++		if !(y.Op != OpS390XSLWconst) {
++			break
++		}
++		v.reset(OpS390XORW)
++		v.AddArg(y)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ORW                 x0:(MOVBZload [i]   {s} p mem)     s0:(SLWconst [8] x1:(MOVBZload [i+1] {s} p mem)))
+ 	// cond: p.Op != OpSB   && x0.Uses == 1   && x1.Uses == 1   && s0.Uses == 1   && mergePoint(b,x0,x1) != nil   && clobber(x0)   && clobber(x1)   && clobber(s0)
+ 	// result: @mergePoint(b,x0,x1) (MOVHZreg (MOVHBRload [i] {s} p mem))

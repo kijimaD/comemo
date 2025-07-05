@@ -13,6 +13,22 @@ Date:   Thu Mar 24 10:16:46 2016 +0100
     Change-Id: Iab3d0a7b5309187a603b48f22a7fa736f089f89d
     Reviewed-on: https://go-review.googlesource.com/21070
     Reviewed-by: David Crawshaw <crawshaw@golang.org>
-
+---
  src/cmd/dist/test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0f28a71fc9..d8eb0f8a48 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -496,7 +496,9 @@ func (t *tester) registerTests() {
+ 				},
+ 			})
+ 		}
+-		if t.supportedBuildmode("c-archive") {
++		if t.supportedBuildmode("c-archive") && t.goos != "android" && !t.iOS() {
++			// TODO(elias.naur): reenable on android and iOS
++			// golang.org/issue/8345
+ 			t.registerTest("testcarchive", "../misc/cgo/testcarchive", "go", "test", "carchive_test.go")
+ 		}
+ 		if t.supportedBuildmode("c-shared") {

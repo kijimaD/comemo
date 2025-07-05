@@ -9,6 +9,22 @@ Date:   Sat Jul 15 22:27:29 2017 +0000
     Run-TryBot: Bryan Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/sort/example_test.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/src/sort/example_test.go b/src/sort/example_test.go
+index 89ebe790c1..f8d8491bc4 100644
+--- a/src/sort/example_test.go
++++ b/src/sort/example_test.go
+@@ -69,3 +69,10 @@ func ExampleSliceStable() {
+ 	// Output: By name: [{Alice 25} {Alice 75} {Alice 75} {Bob 75} {Bob 25} {Colin 25} {Elizabeth 75} {Elizabeth 25}]
+ 	// By age,name: [{Alice 25} {Bob 25} {Colin 25} {Elizabeth 25} {Alice 75} {Alice 75} {Bob 75} {Elizabeth 75}]
+ }
++
++func ExampleStrings() {
++	s := []string{"Go", "Bravo", "Gopher", "Alpha", "Grin", "Delta"}
++	sort.Strings(s)
++	fmt.Println(s)
++	// Output: [Alpha Bravo Delta Go Gopher Grin]
++}

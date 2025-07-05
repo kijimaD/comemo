@@ -7,6 +7,30 @@ Date:   Tue Jan 29 15:17:39 2013 -0800
     R=adg
     CC=golang-dev
     https://golang.org/cl/7221055
-
+---
  misc/dist/bindist.go | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/misc/dist/bindist.go b/misc/dist/bindist.go
+index 0e3eff7704..29454c73cf 100644
+--- a/misc/dist/bindist.go
++++ b/misc/dist/bindist.go
+@@ -611,11 +611,18 @@ func cp(dst, src string) error {
+ 		return err
+ 	}
+ 	defer sf.Close()
++	fi, err := sf.Stat()
++	if err != nil {
++		return err
++	}
+ 	df, err := os.Create(dst)
+ 	if err != nil {
+ 		return err
+ 	}
+ 	defer df.Close()
++	if err := df.Chmod(fi.Mode()); err != nil {
++		return err
++	}
+ 	_, err = io.Copy(df, sf)
+ 	return err
+ }

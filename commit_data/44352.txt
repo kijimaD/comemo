@@ -9,6 +9,20 @@ Date:   Tue Jun 16 16:58:28 2020 -0400
     Change-Id: Ic14616310cd8e8703cfc7b1ce50c411be34488fa
     Reviewed-on: https://go-review.googlesource.com/c/go/+/238243
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/internal/goobj2/objfile.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 7354c219c4..433eafa559 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -139,7 +139,7 @@ func (fp FingerprintType) IsZero() bool { return fp == FingerprintType{} }
+ // Package Index.
+ const (
+ 	PkgIdxNone    = (1<<31 - 1) - iota // Non-package symbols
+-	PkgIdxBuiltin                      // Predefined symbols // TODO: not used for now, we could use it for compiler-generated symbols like runtime.newobject
++	PkgIdxBuiltin                      // Predefined runtime symbols (ex: runtime.newobject)
+ 	PkgIdxSelf                         // Symbols defined in the current package
+ 	PkgIdxInvalid = 0
+ 	// The index of other referenced packages starts from 1.

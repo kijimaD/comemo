@@ -12,7 +12,55 @@ Date:   Wed Oct 24 13:33:14 2018 +1100
     Change-Id: I823f313b682b37616ea555aee079e2fe39f914c2
     Reviewed-on: https://go-review.googlesource.com/c/144357
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/doc/doc_test.go | 20 ++++++++++++++++++++
  src/cmd/doc/main.go     |  5 +----
  2 files changed, 21 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/doc/doc_test.go b/src/cmd/doc/doc_test.go
+index f8c52b1988..0761c6ddb3 100644
+--- a/src/cmd/doc/doc_test.go
++++ b/src/cmd/doc/doc_test.go
+@@ -481,6 +481,26 @@ var tests = []test{
+ 			`unexportedTypedConstant`,       // No unexported constant.
+ 		},
+ 	},
++	// Type -all.
++	{
++		"type",
++		[]string{"-all", p, `ExportedType`},
++		[]string{
++			`type ExportedType struct {`,                        // Type definition as source.
++			`Comment about exported type`,                       // Include comment afterwards.
++			`const ConstGroup4 ExportedType = ExportedType\{\}`, // Related constants.
++			`ExportedTypedConstant ExportedType = iota`,
++			`Constants tied to ExportedType`,
++			`func ExportedTypeConstructor\(\) \*ExportedType`,
++			`Comment about constructor for exported type.`,
++			`func ReturnExported\(\) ExportedType`,
++			`func \(ExportedType\) ExportedMethod\(a int\) bool`,
++			`Comment about exported method.`,
++		},
++		[]string{
++			`unexportedType`,
++		},
++	},
+ 	// Type T1 dump (alias).
+ 	{
+ 		"type T1",
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 614f19438c..ec15ec5826 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -133,10 +133,7 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 		}
+ 
+ 		// We have a package.
+-		if showAll {
+-			if symbol != "" {
+-				return fmt.Errorf("-all valid only for package, not symbol: %s", symbol)
+-			}
++		if showAll && symbol == "" {
+ 			pkg.allDoc()
+ 			return
+ 		}

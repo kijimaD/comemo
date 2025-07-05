@@ -8,7 +8,73 @@ Date:   Wed Oct 7 22:19:42 2009 -0700
     R=ken
     OCL=35454
     CL=35457
-
+---
  src/cmd/gc/walk.c        | 11 +++++++++--
  test/fixedbugs/bug207.go | 23 +++++++++++++++++++++++
  2 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 53352a8e0d..abbd37335b 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -356,7 +356,7 @@ walkstmt(Node **np)
+ 		walkstmtlist(n->ninit);
+ 		if(n->ntest != N) {
+ 			walkstmtlist(n->ntest->ninit);
+-			walkexpr(&n->ntest, &n->ntest->ninit);
++			walkexpr(&n->ntest, &n->ninit);
+ 		}
+ 		walkstmt(&n->nincr);
+ 		walkstmtlist(n->nbody);
+@@ -364,7 +364,7 @@ walkstmt(Node **np)
+ 
+ 	case OIF:
+ 		walkstmtlist(n->ninit);
+-		walkexpr(&n->ntest, &n->ntest->ninit);
++		walkexpr(&n->ntest, &n->ninit);
+ 		walkstmtlist(n->nbody);
+ 		walkstmtlist(n->nelse);
+ 		break;
+@@ -455,6 +455,13 @@ walkexpr(Node **np, NodeList **init)
+ 	if(n == N)
+ 		return;
+ 
++	if(init == &n->ninit) {
++		// not okay to use n->ninit when walking n,
++		// because we might replace n with some other node
++		// and would lose the init list.
++		fatal("walkexpr init == &n->ninit");
++	}
++
+ 	// annoying case - not typechecked
+ 	if(n->op == OKEY) {
+ 		walkexpr(&n->left, init);
+diff --git a/test/fixedbugs/bug207.go b/test/fixedbugs/bug207.go
+new file mode 100644
+index 0000000000..5810d66901
+--- /dev/null
++++ b/test/fixedbugs/bug207.go
+@@ -0,0 +1,23 @@
++// $G $D/$F.go && $L $F.$A && ./$A.out
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// used to panic because 6g didn't generate
++// the code to fill in the ... argument to fmt.Sprint.
++
++package main
++
++import "fmt"
++
++type T struct {
++	a, b, c, d, e []int;
++}
++
++var t T
++
++func main() {
++	if fmt.Sprint("xxx", t) != "yyy" { 
++	}
++}

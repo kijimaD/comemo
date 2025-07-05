@@ -11,9 +11,183 @@ Date:   Wed Jun 8 09:10:30 2011 -0700
     R=nmessenger, r
     CC=golang-dev
     https://golang.org/cl/4528127
-
+---
  src/cmd/godoc/spec.go     |  7 ++++++-
  src/pkg/ebnf/ebnf.go      |  7 +++++++
  src/pkg/ebnf/ebnf_test.go | 33 ++++++++++++++++++++++++++++-----
  src/pkg/ebnf/parser.go    | 19 ++++++++++---------
  4 files changed, 51 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/godoc/spec.go b/src/cmd/godoc/spec.go
+index d863ca0d84..444e36e086 100644
+--- a/src/cmd/godoc/spec.go
++++ b/src/cmd/godoc/spec.go
+@@ -129,6 +129,9 @@ func (p *ebnfParser) parseTerm() bool {
+ 
+ 
+ func (p *ebnfParser) parseSequence() {
++	if !p.parseTerm() {
++		p.errorExpected(p.pos, "term")
++	}
+ 	for p.parseTerm() {
+ 	}
+ }
+@@ -148,7 +151,9 @@ func (p *ebnfParser) parseExpression() {
+ func (p *ebnfParser) parseProduction() {
+ 	p.parseIdentifier(true)
+ 	p.expect(token.ASSIGN)
+-	p.parseExpression()
++	if p.tok != token.PERIOD {
++		p.parseExpression()
++	}
+ 	p.expect(token.PERIOD)
+ }
+ 
+diff --git a/src/pkg/ebnf/ebnf.go b/src/pkg/ebnf/ebnf.go
+index 386bfce504..661afdd35c 100644
+--- a/src/pkg/ebnf/ebnf.go
++++ b/src/pkg/ebnf/ebnf.go
+@@ -82,6 +82,12 @@ type (
+ 		Body   Expression // {body}
+ 	}
+ 
++	// A Bad node stands for pieces of source code that lead to a parse error.
++	Bad struct {
++		TokPos token.Pos
++		Error  string // parser error message
++	}
++
+ 	// A Production node represents an EBNF production.
+ 	Production struct {
+ 		Name *Name
+@@ -103,6 +109,7 @@ func (x *Range) Pos() token.Pos      { return x.Begin.Pos() }
+ func (x *Group) Pos() token.Pos      { return x.Lparen }
+ func (x *Option) Pos() token.Pos     { return x.Lbrack }
+ func (x *Repetition) Pos() token.Pos { return x.Lbrace }
++func (x *Bad) Pos() token.Pos        { return x.TokPos }
+ func (x *Production) Pos() token.Pos { return x.Name.Pos() }
+ 
+ 
+diff --git a/src/pkg/ebnf/ebnf_test.go b/src/pkg/ebnf/ebnf_test.go
+index 2055f872ac..30301748d2 100644
+--- a/src/pkg/ebnf/ebnf_test.go
++++ b/src/pkg/ebnf/ebnf_test.go
+@@ -14,7 +14,7 @@ import (
+ var fset = token.NewFileSet()
+ 
+ 
+-var grammars = []string{
++var goodGrammars = []string{
+ 	`Program = .`,
+ 
+ 	`Program = foo .
+@@ -38,7 +38,19 @@ var grammars = []string{
+ }
+ 
+ 
+-func check(t *testing.T, filename string, src []byte) {
++var badGrammars = []string{
++	`Program = | .`,
++	`Program = | b .`,
++	`Program = a … b .`,
++	`Program = "a" … .`,
++	`Program = … "b" .`,
++	`Program = () .`,
++	`Program = [] .`,
++	`Program = {} .`,
++}
++
++
++func checkGood(t *testing.T, filename string, src []byte) {
+ 	grammar, err := Parse(fset, filename, src)
+ 	if err != nil {
+ 		t.Errorf("Parse(%s) failed: %v", src, err)
+@@ -49,9 +61,20 @@ func check(t *testing.T, filename string, src []byte) {
+ }
+ 
+ 
++func checkBad(t *testing.T, filename string, src []byte) {
++	_, err := Parse(fset, filename, src)
++	if err == nil {
++		t.Errorf("Parse(%s) should have failed", src)
++	}
++}
++
++
+ func TestGrammars(t *testing.T) {
+-	for _, src := range grammars {
+-		check(t, "", []byte(src))
++	for _, src := range goodGrammars {
++		checkGood(t, "", []byte(src))
++	}
++	for _, src := range badGrammars {
++		checkBad(t, "", []byte(src))
+ 	}
+ }
+ 
+@@ -67,6 +90,6 @@ func TestFiles(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal(err)
+ 		}
+-		check(t, filename, src)
++		checkGood(t, filename, src)
+ 	}
+ }
+diff --git a/src/pkg/ebnf/parser.go b/src/pkg/ebnf/parser.go
+index 166412f990..ede4f7073a 100644
+--- a/src/pkg/ebnf/parser.go
++++ b/src/pkg/ebnf/parser.go
+@@ -85,6 +85,7 @@ func (p *parser) parseToken() *Token {
+ }
+ 
+ 
++// ParseTerm returns nil if no term was found.
+ func (p *parser) parseTerm() (x Expression) {
+ 	pos := p.pos
+ 
+@@ -131,7 +132,8 @@ func (p *parser) parseSequence() Expression {
+ 	// no need for a sequence if list.Len() < 2
+ 	switch len(list) {
+ 	case 0:
+-		return nil
++		p.errorExpected(p.pos, "term")
++		return &Bad{p.pos, "term expected"}
+ 	case 1:
+ 		return list[0]
+ 	}
+@@ -144,20 +146,16 @@ func (p *parser) parseExpression() Expression {
+ 	var list Alternative
+ 
+ 	for {
+-		if x := p.parseSequence(); x != nil {
+-			list = append(list, x)
+-		}
++		list = append(list, p.parseSequence())
+ 		if p.tok != token.OR {
+ 			break
+ 		}
+ 		p.next()
+ 	}
++	// len(list) > 0
+ 
+ 	// no need for an Alternative node if list.Len() < 2
+-	switch len(list) {
+-	case 0:
+-		return nil
+-	case 1:
++	if len(list) == 1 {
+ 		return list[0]
+ 	}
+ 
+@@ -168,7 +166,10 @@ func (p *parser) parseExpression() Expression {
+ func (p *parser) parseProduction() *Production {
+ 	name := p.parseIdentifier()
+ 	p.expect(token.ASSIGN)
+-	expr := p.parseExpression()
++	var expr Expression
++	if p.tok != token.PERIOD {
++		expr = p.parseExpression()
++	}
+ 	p.expect(token.PERIOD)
+ 	return &Production{name, expr}
+ }

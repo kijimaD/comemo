@@ -10,7 +10,7 @@ Date:   Wed Jan 12 15:55:17 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/3834042
-
+---
  src/pkg/net/fd.go                       |  4 +++
  src/pkg/net/fd_windows.go               | 63 ++++++++++++++-------------------
  src/pkg/net/ipsock.go                   |  2 +-
@@ -20,3 +20,296 @@ Date:   Wed Jan 12 15:55:17 2011 +1100
  src/pkg/syscall/syscall_windows.go      |  1 +
  src/pkg/syscall/zsyscall_windows_386.go | 15 ++++++++
  8 files changed, 53 insertions(+), 42 deletions(-)
+
+diff --git a/src/pkg/net/fd.go b/src/pkg/net/fd.go
+index 5adaf1df3c..5ec91845df 100644
+--- a/src/pkg/net/fd.go
++++ b/src/pkg/net/fd.go
+@@ -606,3 +606,7 @@ func (fd *netFD) dup() (f *os.File, err os.Error) {
+ 
+ 	return os.NewFile(ns, fd.sysfile.Name()), nil
+ }
++
++func closesocket(s int) (errno int) {
++	return syscall.Close(s)
++}
+diff --git a/src/pkg/net/fd_windows.go b/src/pkg/net/fd_windows.go
+index 64eed4ab97..72685d612a 100644
+--- a/src/pkg/net/fd_windows.go
++++ b/src/pkg/net/fd_windows.go
+@@ -9,6 +9,7 @@ import (
+ 	"sync"
+ 	"syscall"
+ 	"unsafe"
++	"runtime"
+ )
+ 
+ // BUG(brainman): The Windows implementation does not implement SetTimeout.
+@@ -28,15 +29,14 @@ type netFD struct {
+ 	closing bool
+ 
+ 	// immutable until Close
+-	sysfd   int
+-	family  int
+-	proto   int
+-	sysfile *os.File
+-	cr      chan *ioResult
+-	cw      chan *ioResult
+-	net     string
+-	laddr   Addr
+-	raddr   Addr
++	sysfd  int
++	family int
++	proto  int
++	cr     chan *ioResult
++	cw     chan *ioResult
++	net    string
++	laddr  Addr
++	raddr  Addr
+ 
+ 	// owned by client
+ 	rdeadline_delta int64
+@@ -149,14 +149,7 @@ func newFD(fd, family, proto int, net string, laddr, raddr Addr) (f *netFD, err
+ 		laddr:  laddr,
+ 		raddr:  raddr,
+ 	}
+-	var ls, rs string
+-	if laddr != nil {
+-		ls = laddr.String()
+-	}
+-	if raddr != nil {
+-		rs = raddr.String()
+-	}
+-	f.sysfile = os.NewFile(fd, net+":"+ls+"->"+rs)
++	runtime.SetFinalizer(f, (*netFD).Close)
+ 	return f, nil
+ }
+ 
+@@ -178,15 +171,16 @@ func (fd *netFD) decref() {
+ 		// can handle the extra OS processes.  Otherwise we'll need to
+ 		// use the pollserver for Close too.  Sigh.
+ 		syscall.SetNonblock(fd.sysfd, false)
+-		fd.sysfile.Close()
+-		fd.sysfile = nil
++		closesocket(fd.sysfd)
+ 		fd.sysfd = -1
++		// no need for a finalizer anymore
++		runtime.SetFinalizer(fd, nil)
+ 	}
+ 	fd.sysmu.Unlock()
+ }
+ 
+ func (fd *netFD) Close() os.Error {
+-	if fd == nil || fd.sysfile == nil {
++	if fd == nil || fd.sysfd == -1 {
+ 		return os.EINVAL
+ 	}
+ 
+@@ -213,7 +207,7 @@ func (fd *netFD) Read(p []byte) (n int, err os.Error) {
+ 	defer fd.rio.Unlock()
+ 	fd.incref()
+ 	defer fd.decref()
+-	if fd.sysfile == nil {
++	if fd.sysfd == -1 {
+ 		return 0, os.EINVAL
+ 	}
+ 	// Submit receive request.
+@@ -253,7 +247,7 @@ func (fd *netFD) ReadFrom(p []byte) (n int, sa syscall.Sockaddr, err os.Error) {
+ 	defer fd.rio.Unlock()
+ 	fd.incref()
+ 	defer fd.decref()
+-	if fd.sysfile == nil {
++	if fd.sysfd == -1 {
+ 		return 0, nil, os.EINVAL
+ 	}
+ 	// Submit receive request.
+@@ -290,7 +284,7 @@ func (fd *netFD) Write(p []byte) (n int, err os.Error) {
+ 	defer fd.wio.Unlock()
+ 	fd.incref()
+ 	defer fd.decref()
+-	if fd.sysfile == nil {
++	if fd.sysfd == -1 {
+ 		return 0, os.EINVAL
+ 	}
+ 	// Submit send request.
+@@ -326,7 +320,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+ 	defer fd.wio.Unlock()
+ 	fd.incref()
+ 	defer fd.decref()
+-	if fd.sysfile == nil {
++	if fd.sysfd == -1 {
+ 		return 0, os.EINVAL
+ 	}
+ 	// Submit send request.
+@@ -352,7 +346,7 @@ func (fd *netFD) WriteTo(p []byte, sa syscall.Sockaddr) (n int, err os.Error) {
+ }
+ 
+ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.Error) {
+-	if fd == nil || fd.sysfile == nil {
++	if fd == nil || fd.sysfd == -1 {
+ 		return nil, os.EINVAL
+ 	}
+ 	fd.incref()
+@@ -387,21 +381,21 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 	case syscall.ERROR_IO_PENDING:
+ 		// IO started, and we have to wait for it's completion.
+ 	default:
+-		syscall.Close(s)
++		closesocket(s)
+ 		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(e)}
+ 	}
+ 
+ 	// Wait for peer connection.
+ 	r := <-pckt.c
+ 	if r.errno != 0 {
+-		syscall.Close(s)
++		closesocket(s)
+ 		return nil, &OpError{"AcceptEx", fd.net, fd.laddr, os.Errno(r.errno)}
+ 	}
+ 
+ 	// Inherit properties of the listening socket.
+ 	e = syscall.SetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_UPDATE_ACCEPT_CONTEXT, fd.sysfd)
+ 	if e != 0 {
+-		syscall.Close(s)
++		closesocket(s)
+ 		return nil, &OpError{"Setsockopt", fd.net, fd.laddr, os.Errno(r.errno)}
+ 	}
+ 
+@@ -422,17 +416,14 @@ func (fd *netFD) accept(toAddr func(syscall.Sockaddr) Addr) (nfd *netFD, err os.
+ 		laddr:  laddr,
+ 		raddr:  raddr,
+ 	}
+-	var ls, rs string
+-	if laddr != nil {
+-		ls = laddr.String()
+-	}
+-	if raddr != nil {
+-		rs = raddr.String()
+-	}
+-	f.sysfile = os.NewFile(s, fd.net+":"+ls+"->"+rs)
++	runtime.SetFinalizer(f, (*netFD).Close)
+ 	return f, nil
+ }
+ 
++func closesocket(s int) (errno int) {
++	return syscall.Closesocket(int32(s))
++}
++
+ func init() {
+ 	var d syscall.WSAData
+ 	e := syscall.WSAStartup(uint32(0x101), &d)
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index dd796bc920..4ba6a55b96 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -24,7 +24,7 @@ func kernelSupportsIPv6() bool {
+ 	}
+ 	fd, e := syscall.Socket(syscall.AF_INET6, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)
+ 	if fd >= 0 {
+-		syscall.Close(fd)
++		closesocket(fd)
+ 	}
+ 	return e == 0
+ }
+diff --git a/src/pkg/net/sock.go b/src/pkg/net/sock.go
+index 3e105ad4ab..8ad3548add 100644
+--- a/src/pkg/net/sock.go
++++ b/src/pkg/net/sock.go
+@@ -47,7 +47,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	if la != nil {
+ 		e = syscall.Bind(s, la)
+ 		if e != 0 {
+-			syscall.Close(s)
++			closesocket(s)
+ 			return nil, os.Errno(e)
+ 		}
+ 	}
+@@ -55,7 +55,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 	if ra != nil {
+ 		e = syscall.Connect(s, ra)
+ 		if e != 0 {
+-			syscall.Close(s)
++			closesocket(s)
+ 			return nil, os.Errno(e)
+ 		}
+ 	}
+@@ -67,7 +67,7 @@ func socket(net string, f, p, t int, la, ra syscall.Sockaddr, toAddr func(syscal
+ 
+ 	fd, err = newFD(s, f, p, net, laddr, raddr)
+ 	if err != nil {
+-		syscall.Close(s)
++		closesocket(s)
+ 		return nil, err
+ 	}
+ 
+diff --git a/src/pkg/net/tcpsock.go b/src/pkg/net/tcpsock.go
+index b0cb8f9992..a4bca11bb4 100644
+--- a/src/pkg/net/tcpsock.go
++++ b/src/pkg/net/tcpsock.go
+@@ -244,7 +244,7 @@ func ListenTCP(net string, laddr *TCPAddr) (l *TCPListener, err os.Error) {
+ 	}
+ 	errno := syscall.Listen(fd.sysfd, listenBacklog())
+ 	if errno != 0 {
+-		syscall.Close(fd.sysfd)
++		closesocket(fd.sysfd)
+ 		return nil, &OpError{"listen", "tcp", laddr, os.Errno(errno)}
+ 	}
+ 	l = new(TCPListener)
+diff --git a/src/pkg/net/unixsock.go b/src/pkg/net/unixsock.go
+index 1c15e5e97f..2521969eb0 100644
+--- a/src/pkg/net/unixsock.go
++++ b/src/pkg/net/unixsock.go
+@@ -342,7 +342,7 @@ func ListenUnix(net string, laddr *UnixAddr) (l *UnixListener, err os.Error) {
+ 	}
+ 	e1 := syscall.Listen(fd.sysfd, 8) // listenBacklog());
+ 	if e1 != 0 {
+-		syscall.Close(fd.sysfd)
++		closesocket(fd.sysfd)
+ 		return nil, &OpError{Op: "listen", Net: "unix", Addr: laddr, Error: os.Errno(e1)}
+ 	}
+ 	return &UnixListener{fd, laddr.Name}, nil
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 9501779e18..33a86ce251 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -469,6 +469,7 @@ func Utimes(path string, tv []Timeval) (errno int) {
+ //sys	getpeername(s int32, rsa *RawSockaddrAny, addrlen *int32) (errno int) [failretval==-1] = wsock32.getpeername
+ //sys	listen(s int32, backlog int32) (errno int) [failretval==-1] = wsock32.listen
+ //sys	shutdown(s int32, how int32) (errno int) [failretval==-1] = wsock32.shutdown
++//sys	Closesocket(s int32) (errno int) [failretval==-1] = wsock32.closesocket
+ //sys	AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) = wsock32.AcceptEx
+ //sys	GetAcceptExSockaddrs(buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, lrsa **RawSockaddrAny, lrsalen *int32, rrsa **RawSockaddrAny, rrsalen *int32) = wsock32.GetAcceptExSockaddrs
+ //sys	WSARecv(s uint32, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (errno int) [failretval==-1] = ws2_32.WSARecv
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 09ed6c4318..29880f2b28 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -75,6 +75,7 @@ var (
+ 	procgetpeername                = getSysProcAddr(modwsock32, "getpeername")
+ 	proclisten                     = getSysProcAddr(modwsock32, "listen")
+ 	procshutdown                   = getSysProcAddr(modwsock32, "shutdown")
++	procclosesocket                = getSysProcAddr(modwsock32, "closesocket")
+ 	procAcceptEx                   = getSysProcAddr(modwsock32, "AcceptEx")
+ 	procGetAcceptExSockaddrs       = getSysProcAddr(modwsock32, "GetAcceptExSockaddrs")
+ 	procWSARecv                    = getSysProcAddr(modws2_32, "WSARecv")
+@@ -977,6 +978,20 @@ func shutdown(s int32, how int32) (errno int) {
+ 	return
+ }
+ 
++func Closesocket(s int32) (errno int) {
++	r1, _, e1 := Syscall(procclosesocket, uintptr(s), 0, 0)
++	if int(r1) == -1 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func AcceptEx(ls uint32, as uint32, buf *byte, rxdatalen uint32, laddrlen uint32, raddrlen uint32, recvd *uint32, overlapped *Overlapped) (ok bool, errno int) {
+ 	r0, _, e1 := Syscall9(procAcceptEx, uintptr(ls), uintptr(as), uintptr(unsafe.Pointer(buf)), uintptr(rxdatalen), uintptr(laddrlen), uintptr(raddrlen), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(overlapped)), 0)
+ 	ok = bool(r0 != 0)

@@ -14,7 +14,7 @@ Date:   Sat Dec 22 15:06:28 2012 -0500
     R=ken2
     CC=golang-dev
     https://golang.org/cl/6998052
-
+---
  src/pkg/runtime/sys_darwin_386.s    | 3 +--
  src/pkg/runtime/sys_darwin_amd64.s  | 3 +--
  src/pkg/runtime/sys_freebsd_386.s   | 3 +--
@@ -27,3 +27,162 @@ Date:   Sat Dec 22 15:06:28 2012 -0500
  src/pkg/runtime/sys_netbsd_amd64.s  | 3 +--
  src/pkg/runtime/sys_openbsd_amd64.s | 3 +--
  11 files changed, 11 insertions(+), 26 deletions(-)
+
+diff --git a/src/pkg/runtime/sys_darwin_386.s b/src/pkg/runtime/sys_darwin_386.s
+index bdbe0737f2..8a938f9f4c 100644
+--- a/src/pkg/runtime/sys_darwin_386.s
++++ b/src/pkg/runtime/sys_darwin_386.s
+@@ -47,8 +47,7 @@ TEXT runtime·mmap(SB),7,$0
+ TEXT runtime·madvise(SB),7,$0
+ 	MOVL	$75, AX
+ 	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·munmap(SB),7,$0
+diff --git a/src/pkg/runtime/sys_darwin_amd64.s b/src/pkg/runtime/sys_darwin_amd64.s
+index c91501a912..4e43a76c3c 100644
+--- a/src/pkg/runtime/sys_darwin_amd64.s
++++ b/src/pkg/runtime/sys_darwin_amd64.s
+@@ -61,8 +61,7 @@ TEXT runtime·madvise(SB), 7, $0
+ 	MOVL	24(SP), DX		// arg 3 advice
+ 	MOVL	$(0x2000000+75), AX	// syscall entry madvise
+ 	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ // OS X comm page time offsets
+diff --git a/src/pkg/runtime/sys_freebsd_386.s b/src/pkg/runtime/sys_freebsd_386.s
+index a30c7ba01f..4a9d7b40fa 100644
+--- a/src/pkg/runtime/sys_freebsd_386.s
++++ b/src/pkg/runtime/sys_freebsd_386.s
+@@ -105,8 +105,7 @@ TEXT runtime·munmap(SB),7,$-4
+ TEXT runtime·madvise(SB),7,$-4
+ 	MOVL	$75, AX	// madvise
+ 	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·setitimer(SB), 7, $-4
+diff --git a/src/pkg/runtime/sys_freebsd_amd64.s b/src/pkg/runtime/sys_freebsd_amd64.s
+index 7b1359167b..e8c0899cf7 100644
+--- a/src/pkg/runtime/sys_freebsd_amd64.s
++++ b/src/pkg/runtime/sys_freebsd_amd64.s
+@@ -188,8 +188,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVQ	24(SP), DX
+ 	MOVQ	$75, AX	// madvise
+ 	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 	
+ TEXT runtime·sigaltstack(SB),7,$-8
+diff --git a/src/pkg/runtime/sys_freebsd_arm.s b/src/pkg/runtime/sys_freebsd_arm.s
+index ec8134e4c5..0c30d44957 100644
+--- a/src/pkg/runtime/sys_freebsd_arm.s
++++ b/src/pkg/runtime/sys_freebsd_arm.s
+@@ -189,8 +189,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVW 4(FP), R1		// arg 2 len
+ 	MOVW 8(FP), R2		// arg 3 flags
+ 	SWI $75
+-	MOVW.CS $0, R9 // crash on syscall failure
+-	MOVW.CS R9, (R9)
++	// ignore failure - maybe pages are locked
+ 	RET
+ 	
+ TEXT runtime·sigaltstack(SB),7,$-8
+diff --git a/src/pkg/runtime/sys_linux_386.s b/src/pkg/runtime/sys_linux_386.s
+index 60f76fa92f..f27fd47130 100644
+--- a/src/pkg/runtime/sys_linux_386.s
++++ b/src/pkg/runtime/sys_linux_386.s
+@@ -241,9 +241,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVL	8(SP), CX
+ 	MOVL	12(SP), DX
+ 	CALL	*runtime·_vdso(SB)
+-	CMPL	AX, $0xfffff001
+-	JLS	2(PC)
+-	INT $3
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ // int32 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/pkg/runtime/sys_linux_amd64.s b/src/pkg/runtime/sys_linux_amd64.s
+index 3f7a207f37..e459437582 100644
+--- a/src/pkg/runtime/sys_linux_amd64.s
++++ b/src/pkg/runtime/sys_linux_amd64.s
+@@ -250,9 +250,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVQ	24(SP), DX
+ 	MOVQ	$28, AX	// madvise
+ 	SYSCALL
+-	CMPQ	AX, $0xfffffffffffff001
+-	JLS	2(PC)
+-	MOVL	$0xf1, 0xf1  // crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ // int64 futex(int32 *uaddr, int32 op, int32 val,
+diff --git a/src/pkg/runtime/sys_linux_arm.s b/src/pkg/runtime/sys_linux_arm.s
+index eda7b1f568..53eb7b19d8 100644
+--- a/src/pkg/runtime/sys_linux_arm.s
++++ b/src/pkg/runtime/sys_linux_arm.s
+@@ -133,10 +133,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVW	8(FP), R2
+ 	MOVW	$SYS_madvise, R7
+ 	SWI	$0
+-	MOVW	$0xfffff001, R6
+-	CMP 	R6, R0
+-	MOVW.HI	$0, R9  // crash on syscall failure
+-	MOVW.HI	R9, (R9)
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$0
+diff --git a/src/pkg/runtime/sys_netbsd_386.s b/src/pkg/runtime/sys_netbsd_386.s
+index 1a4ff95b6d..3d3d312736 100644
+--- a/src/pkg/runtime/sys_netbsd_386.s
++++ b/src/pkg/runtime/sys_netbsd_386.s
+@@ -86,8 +86,7 @@ TEXT runtime·munmap(SB),7,$-4
+ TEXT runtime·madvise(SB),7,$-4
+ 	MOVL	$75, AX			// sys_madvise
+ 	INT	$0x80
+-	JAE	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·setitimer(SB),7,$-4
+diff --git a/src/pkg/runtime/sys_netbsd_amd64.s b/src/pkg/runtime/sys_netbsd_amd64.s
+index fc5f28ca79..e73e83ded2 100644
+--- a/src/pkg/runtime/sys_netbsd_amd64.s
++++ b/src/pkg/runtime/sys_netbsd_amd64.s
+@@ -252,8 +252,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVQ	behav+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8
+diff --git a/src/pkg/runtime/sys_openbsd_amd64.s b/src/pkg/runtime/sys_openbsd_amd64.s
+index 49eb7a9815..8a736507ff 100644
+--- a/src/pkg/runtime/sys_openbsd_amd64.s
++++ b/src/pkg/runtime/sys_openbsd_amd64.s
+@@ -240,8 +240,7 @@ TEXT runtime·madvise(SB),7,$0
+ 	MOVQ	behav+16(FP), DX	// arg 3 - behav
+ 	MOVQ	$75, AX			// sys_madvise
+ 	SYSCALL
+-	JCC	2(PC)
+-	MOVL	$0xf1, 0xf1		// crash
++	// ignore failure - maybe pages are locked
+ 	RET
+ 
+ TEXT runtime·sigaltstack(SB),7,$-8

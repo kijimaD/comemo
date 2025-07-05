@@ -14,7 +14,7 @@ Date:   Tue Sep 19 10:36:19 2023 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/archive/zip/reader_test.go        |  6 +++---
  src/archive/zip/zip_test.go           |  2 +-
  src/bufio/scan_test.go                |  2 +-
@@ -27,3 +27,259 @@ Date:   Tue Sep 19 10:36:19 2023 +0000
  src/syscall/exec_linux_test.go        |  6 +++---
  src/time/time_test.go                 | 18 +++++++++---------
  11 files changed, 31 insertions(+), 31 deletions(-)
+
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index a67c33598d..a1ae1c97cc 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1186,7 +1186,7 @@ func TestIssue12449(t *testing.T) {
+ 		0x00, 0x50, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 	}
+ 	// Read in the archive.
+-	_, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
++	_, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != nil {
+ 		t.Errorf("Error reading the archive: %v", err)
+ 	}
+@@ -1333,7 +1333,7 @@ func TestCVE202127919(t *testing.T) {
+ 		0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x39, 0x00,
+ 		0x00, 0x00, 0x59, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 	}
+-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
++	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != ErrInsecurePath {
+ 		t.Fatalf("Error reading the archive: %v", err)
+ 	}
+@@ -1559,7 +1559,7 @@ func TestCVE202141772(t *testing.T) {
+ 		0x00, 0x04, 0x00, 0x04, 0x00, 0x31, 0x01, 0x00,
+ 		0x00, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 	}
+-	r, err := NewReader(bytes.NewReader([]byte(data)), int64(len(data)))
++	r, err := NewReader(bytes.NewReader(data), int64(len(data)))
+ 	if err != ErrInsecurePath {
+ 		t.Fatalf("Error reading the archive: %v", err)
+ 	}
+diff --git a/src/archive/zip/zip_test.go b/src/archive/zip/zip_test.go
+index f53d1b9913..e7661284e7 100644
+--- a/src/archive/zip/zip_test.go
++++ b/src/archive/zip/zip_test.go
+@@ -590,7 +590,7 @@ func testZip64(t testing.TB, size int64) *rleBuffer {
+ 	}
+ 
+ 	// read back zip file and check that we get to the end of it
+-	r, err := NewReader(buf, int64(buf.Size()))
++	r, err := NewReader(buf, buf.Size())
+ 	if err != nil {
+ 		t.Fatal("reader:", err)
+ 	}
+diff --git a/src/bufio/scan_test.go b/src/bufio/scan_test.go
+index e99b09f66f..6b64f7ba9c 100644
+--- a/src/bufio/scan_test.go
++++ b/src/bufio/scan_test.go
+@@ -68,7 +68,7 @@ func TestScanRune(t *testing.T) {
+ 		var i, runeCount int
+ 		var expect rune
+ 		// Use a string range loop to validate the sequence of runes.
+-		for i, expect = range string(test) {
++		for i, expect = range test {
+ 			if !s.Scan() {
+ 				break
+ 			}
+diff --git a/src/debug/buildinfo/buildinfo_test.go b/src/debug/buildinfo/buildinfo_test.go
+index 290e3705bc..ea7228c300 100644
+--- a/src/debug/buildinfo/buildinfo_test.go
++++ b/src/debug/buildinfo/buildinfo_test.go
+@@ -236,7 +236,7 @@ func TestReadFile(t *testing.T) {
+ 									t.Fatalf("unexpected success; want error containing %q", tc.wantErr)
+ 								}
+ 								got := info.String()
+-								if clean := cleanOutputForComparison(string(got)); got != tc.want && clean != tc.want {
++								if clean := cleanOutputForComparison(got); got != tc.want && clean != tc.want {
+ 									t.Fatalf("got:\n%s\nwant:\n%s", got, tc.want)
+ 								}
+ 							}
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index f9b3ce3121..5dd83a2917 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -1339,7 +1339,7 @@ func TestLargeNumberOfSections(t *testing.T) {
+ 		binary.Write(&buf, binary.LittleEndian, Section32{
+ 			Name:      0x1B,
+ 			Type:      uint32(SHT_PROGBITS),
+-			Flags:     uint32(uint32(SHF_ALLOC | SHF_EXECINSTR)),
++			Flags:     uint32(SHF_ALLOC | SHF_EXECINSTR),
+ 			Off:       0x34,
+ 			Addralign: 0x01,
+ 		})
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index cddcf70159..55c80ad426 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -38,7 +38,7 @@ var compareTests = [][]reflect.Value{
+ 	ct(reflect.TypeOf(chans[0]), chans[0], chans[1], chans[2]),
+ 	ct(reflect.TypeOf(toy{}), toy{0, 1}, toy{0, 2}, toy{1, -1}, toy{1, 1}),
+ 	ct(reflect.TypeOf([2]int{}), [2]int{1, 1}, [2]int{1, 2}, [2]int{2, 0}),
+-	ct(reflect.TypeOf(any(any(0))), iFace, 1, 2, 3),
++	ct(reflect.TypeOf(any(0)), iFace, 1, 2, 3),
+ }
+ 
+ var iFace any
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 2496c8dcd9..8a6dc44765 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -80,7 +80,7 @@ func TypeLinks() []string {
+ 	for i, offs := range offset {
+ 		rodata := sections[i]
+ 		for _, off := range offs {
+-			typ := (*rtype)(resolveTypeOff(unsafe.Pointer(rodata), off))
++			typ := (*rtype)(resolveTypeOff(rodata, off))
+ 			r = append(r, typ.String())
+ 		}
+ 	}
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 008d2042cd..ebb9098f34 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -73,7 +73,7 @@ func LFStackPush(head *uint64, node *LFNode) {
+ }
+ 
+ func LFStackPop(head *uint64) *LFNode {
+-	return (*LFNode)(unsafe.Pointer((*lfstack)(head).pop()))
++	return (*LFNode)((*lfstack)(head).pop())
+ }
+ func LFNodeValidate(node *LFNode) {
+ 	lfnodeValidate((*lfnode)(unsafe.Pointer(node)))
+@@ -371,7 +371,7 @@ var ReadUnaligned64 = readUnaligned64
+ func CountPagesInUse() (pagesInUse, counted uintptr) {
+ 	stopTheWorld(stwForTestCountPagesInUse)
+ 
+-	pagesInUse = uintptr(mheap_.pagesInUse.Load())
++	pagesInUse = mheap_.pagesInUse.Load()
+ 
+ 	for _, s := range mheap_.allspans {
+ 		if s.state.get() == mSpanInUse {
+@@ -404,7 +404,7 @@ const (
+ )
+ 
+ func (p *ProfBuf) Read(mode profBufReadMode) ([]uint64, []unsafe.Pointer, bool) {
+-	return (*profBuf)(p).read(profBufReadMode(mode))
++	return (*profBuf)(p).read(mode)
+ }
+ 
+ func (p *ProfBuf) Close() {
+@@ -486,15 +486,15 @@ func ReadMemStatsSlow() (base, slow MemStats) {
+ 		// Collect per-sizeclass free stats.
+ 		var smallFree uint64
+ 		for i := 0; i < _NumSizeClasses; i++ {
+-			slow.Frees += uint64(m.smallFreeCount[i])
+-			bySize[i].Frees += uint64(m.smallFreeCount[i])
+-			bySize[i].Mallocs += uint64(m.smallFreeCount[i])
+-			smallFree += uint64(m.smallFreeCount[i]) * uint64(class_to_size[i])
++			slow.Frees += m.smallFreeCount[i]
++			bySize[i].Frees += m.smallFreeCount[i]
++			bySize[i].Mallocs += m.smallFreeCount[i]
++			smallFree += m.smallFreeCount[i] * uint64(class_to_size[i])
+ 		}
+-		slow.Frees += uint64(m.tinyAllocCount) + uint64(m.largeFreeCount)
++		slow.Frees += m.tinyAllocCount + m.largeFreeCount
+ 		slow.Mallocs += slow.Frees
+ 
+-		slow.TotalAlloc = slow.Alloc + uint64(m.largeFree) + smallFree
++		slow.TotalAlloc = slow.Alloc + m.largeFree + smallFree
+ 
+ 		for i := range slow.BySize {
+ 			slow.BySize[i].Mallocs = bySize[i].Mallocs
+diff --git a/src/syscall/dirent_test.go b/src/syscall/dirent_test.go
+index 68e766e6b0..befe78f1cf 100644
+--- a/src/syscall/dirent_test.go
++++ b/src/syscall/dirent_test.go
+@@ -82,7 +82,7 @@ func TestDirent(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatalf("names[%d] is non-integer %q: %v", i, names[i], err)
+ 		}
+-		if expected := string(strings.Repeat(name[:1], filenameMinSize+ord)); name != expected {
++		if expected := strings.Repeat(name[:1], filenameMinSize+ord); name != expected {
+ 			t.Errorf("names[%d] is %q (len %d); expected %q (len %d)", i, name, len(name), expected, len(expected))
+ 		}
+ 	}
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index e1b322ae62..f255930aa8 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -515,7 +515,7 @@ func TestCloneTimeNamespace(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	parentTimeNS := string(timens)
++	parentTimeNS := timens
+ 	childTimeNS := string(out)
+ 	if childTimeNS == parentTimeNS {
+ 		t.Fatalf("expected child time namespace to be different from parent time namespace: %s", parentTimeNS)
+@@ -717,12 +717,12 @@ func testAmbientCaps(t *testing.T, userns bool) {
+ 		gid := os.Getgid()
+ 		cmd.SysProcAttr.UidMappings = []syscall.SysProcIDMap{{
+ 			ContainerID: int(nobody),
+-			HostID:      int(uid),
++			HostID:      uid,
+ 			Size:        int(1),
+ 		}}
+ 		cmd.SysProcAttr.GidMappings = []syscall.SysProcIDMap{{
+ 			ContainerID: int(nobody),
+-			HostID:      int(gid),
++			HostID:      gid,
+ 			Size:        int(1),
+ 		}}
+ 
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 3b30f802ef..86335e3796 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -283,7 +283,7 @@ func TestTruncateRound(t *testing.T) {
+ 	testOne := func(ti, tns, di int64) bool {
+ 		t.Helper()
+ 
+-		t0 := Unix(ti, int64(tns)).UTC()
++		t0 := Unix(ti, tns).UTC()
+ 		d := Duration(di)
+ 		if d < 0 {
+ 			d = -d
+@@ -321,7 +321,7 @@ func TestTruncateRound(t *testing.T) {
+ 		// The commented out code would round half to even instead of up,
+ 		// but that makes it time-zone dependent, which is a bit strange.
+ 		if r > int64(d)/2 || r+r == int64(d) /*&& bq.Bit(0) == 1*/ {
+-			t1 = t1.Add(Duration(d))
++			t1 = t1.Add(d)
+ 		}
+ 
+ 		// Check that time.Round works.
+@@ -1106,14 +1106,14 @@ var subTests = []struct {
+ 	{Date(2009, 11, 23, 0, 0, 0, 0, UTC), Date(2009, 11, 24, 0, 0, 0, 0, UTC), -24 * Hour},
+ 	{Date(2009, 11, 24, 0, 0, 0, 0, UTC), Date(2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
+ 	{Date(-2009, 11, 24, 0, 0, 0, 0, UTC), Date(-2009, 11, 23, 0, 0, 0, 0, UTC), 24 * Hour},
+-	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), Duration(minDuration)},
+-	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(maxDuration)},
+-	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Duration(maxDuration)},
+-	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, Duration(minDuration)},
++	{Time{}, Date(2109, 11, 23, 0, 0, 0, 0, UTC), minDuration},
++	{Date(2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, maxDuration},
++	{Time{}, Date(-2109, 11, 23, 0, 0, 0, 0, UTC), maxDuration},
++	{Date(-2109, 11, 23, 0, 0, 0, 0, UTC), Time{}, minDuration},
+ 	{Date(2290, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), 290*365*24*Hour + 71*24*Hour},
+-	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), Duration(maxDuration)},
++	{Date(2300, 1, 1, 0, 0, 0, 0, UTC), Date(2000, 1, 1, 0, 0, 0, 0, UTC), maxDuration},
+ 	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2290, 1, 1, 0, 0, 0, 0, UTC), -290*365*24*Hour - 71*24*Hour},
+-	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), Duration(minDuration)},
++	{Date(2000, 1, 1, 0, 0, 0, 0, UTC), Date(2300, 1, 1, 0, 0, 0, 0, UTC), minDuration},
+ 	{Date(2311, 11, 26, 02, 16, 47, 63535996, UTC), Date(2019, 8, 16, 2, 29, 30, 268436582, UTC), 9223372036795099414},
+ 	{MinMonoTime, MaxMonoTime, minDuration},
+ 	{MaxMonoTime, MinMonoTime, maxDuration},
+@@ -1640,7 +1640,7 @@ func TestZeroMonthString(t *testing.T) {
+ 
+ // Issue 24692: Out of range weekday panics
+ func TestWeekdayString(t *testing.T) {
+-	if got, want := Weekday(Tuesday).String(), "Tuesday"; got != want {
++	if got, want := Tuesday.String(), "Tuesday"; got != want {
+ 		t.Errorf("Tuesday weekday = %q; want %q", got, want)
+ 	}
+ 	if got, want := Weekday(14).String(), "%!Weekday(14)"; got != want {

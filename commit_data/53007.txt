@@ -11,8 +11,65 @@ Date:   Sat Jun 25 15:40:11 2022 -0700
     Reviewed-by: Robert Griesemer <gri@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
-
+---
  test/fixedbugs/issue52856.dir/a.go    |  9 +++++++++
  test/fixedbugs/issue52856.dir/main.go | 19 +++++++++++++++++++
  test/fixedbugs/issue52856.go          | 10 ++++++++++
  3 files changed, 38 insertions(+)
+
+diff --git a/test/fixedbugs/issue52856.dir/a.go b/test/fixedbugs/issue52856.dir/a.go
+new file mode 100644
+index 0000000000..36af7e04cd
+--- /dev/null
++++ b/test/fixedbugs/issue52856.dir/a.go
+@@ -0,0 +1,9 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++func F() any {
++	return struct{ int }{0}
++}
+diff --git a/test/fixedbugs/issue52856.dir/main.go b/test/fixedbugs/issue52856.dir/main.go
+new file mode 100644
+index 0000000000..732368d3a7
+--- /dev/null
++++ b/test/fixedbugs/issue52856.dir/main.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./a"
++
++func F() any {
++	return struct{ int }{0}
++}
++
++func main() {
++	_, ok1 := F().(struct{ int })
++	_, ok2 := a.F().(struct{ int })
++	if !ok1 || ok2 {
++		panic(0)
++	}
++}
+diff --git a/test/fixedbugs/issue52856.go b/test/fixedbugs/issue52856.go
+new file mode 100644
+index 0000000000..1991aaa408
+--- /dev/null
++++ b/test/fixedbugs/issue52856.go
+@@ -0,0 +1,10 @@
++// rundir
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that an embedded unexported type has a different name in
++// different packages.
++
++package ignored

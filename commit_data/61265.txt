@@ -13,7 +13,48 @@ Date:   Wed Oct 23 20:01:36 2024 +0200
     Reviewed-by: Roland Shoemaker <roland@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
-
+---
  src/crypto/sha256/sha256_test.go | 2 ++
  src/crypto/sha512/sha512_test.go | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 40be1480dd..ffd1638651 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"encoding"
+ 	"fmt"
+ 	"hash"
++	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -297,6 +298,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 6e3d9bce1c..fdad37b186 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"encoding/hex"
+ 	"fmt"
+ 	"hash"
++	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -902,6 +903,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}

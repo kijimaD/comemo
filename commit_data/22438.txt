@@ -11,6 +11,20 @@ Date:   Sun Mar 8 13:56:41 2015 +0100
     Reviewed-by: Russ Cox <rsc@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 5b32c015f4..0327972be8 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1705,7 +1705,7 @@ func (gcToolchain) asm(b *builder, p *Package, obj, ofile, sfile string) error {
+ 	if err := b.run(p.Dir, p.ImportPath, nil, args...); err != nil {
+ 		return err
+ 	}
+-	if verifyAsm {
++	if verifyAsm && goarch != "arm64" {
+ 		if err := toolVerify(b, p, "old"+archChar+"a", ofile, args); err != nil {
+ 			return err
+ 		}

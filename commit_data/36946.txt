@@ -11,6 +11,42 @@ Date:   Tue Jun 12 16:16:38 2018 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  test/strcopy.go | 29 +++++++++++++++++++++++++++++
  1 file changed, 29 insertions(+)
+
+diff --git a/test/strcopy.go b/test/strcopy.go
+new file mode 100644
+index 0000000000..6d32baeec5
+--- /dev/null
++++ b/test/strcopy.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that string([]byte(string)) makes a copy and doesn't reduce to
++// nothing. (Issue 25834)
++
++package main
++
++import (
++	"reflect"
++	"unsafe"
++)
++
++func main() {
++	var (
++		buf      = make([]byte, 2<<10)
++		large    = string(buf)
++		sub      = large[10:12]
++		subcopy  = string([]byte(sub))
++		subh     = *(*reflect.StringHeader)(unsafe.Pointer(&sub))
++		subcopyh = *(*reflect.StringHeader)(unsafe.Pointer(&subcopy))
++	)
++	if subh.Data == subcopyh.Data {
++		panic("sub and subcopy have the same underlying array")
++	}
++}

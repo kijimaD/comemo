@@ -22,6 +22,33 @@ Date:   Tue Mar 8 14:59:32 2022 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/noder/reader.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 004630236d..73e4ddbbed 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -644,6 +644,10 @@ func (pr *pkgReader) objIdx(idx int, implicits, explicits []*types.Type) ir.Node
+ 		name.Func = ir.NewFunc(r.pos())
+ 		name.Func.Nname = name
+ 
++		if r.hasTypeParams() {
++			name.Func.SetDupok(true)
++		}
++
+ 		rext.funcExt(name)
+ 		return name
+ 
+@@ -790,6 +794,10 @@ func (r *reader) method(rext *reader) *types.Field {
+ 	name.Func = ir.NewFunc(r.pos())
+ 	name.Func.Nname = name
+ 
++	if r.hasTypeParams() {
++		name.Func.SetDupok(true)
++	}
++
+ 	rext.funcExt(name)
+ 
+ 	meth := types.NewField(name.Func.Pos(), sym, typ)

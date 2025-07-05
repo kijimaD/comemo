@@ -19,9 +19,91 @@ Date:   Mon Aug 5 12:57:33 2024 -0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/infer.go |  2 +-
  src/cmd/internal/testdir/testdir_test.go | 22 +++++++++++++++++++++-
  src/go/types/infer.go                    |  2 +-
  test/fixedbugs/issue68292.go             | 12 ++++++++++++
  4 files changed, 35 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/infer.go b/src/cmd/compile/internal/types2/infer.go
+index 122ac9e04f..219942862f 100644
+--- a/src/cmd/compile/internal/types2/infer.go
++++ b/src/cmd/compile/internal/types2/infer.go
+@@ -431,7 +431,7 @@ func (check *Checker) infer(pos syntax.Pos, tparams []*TypeParam, targs []Type,
+ 	for i, typ := range inferred {
+ 		if typ == nil || isParameterized(tparams, typ) {
+ 			obj := tparams[i].obj
+-			err.addf(pos, "cannot infer %s (%v)", obj.name, obj.pos)
++			err.addf(pos, "cannot infer %s (declared at %v)", obj.name, obj.pos)
+ 			return nil
+ 		}
+ 	}
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index c494f2c4c0..68fbdffb1d 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1212,7 +1212,7 @@ func (t test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err
+ 	for i := range out {
+ 		for j := 0; j < len(fullshort); j += 2 {
+ 			full, short := fullshort[j], fullshort[j+1]
+-			out[i] = strings.Replace(out[i], full, short, -1)
++			out[i] = replacePrefix(out[i], full, short)
+ 		}
+ 	}
+ 
+@@ -1962,3 +1962,23 @@ func splitQuoted(s string) (r []string, err error) {
+ 	}
+ 	return args, err
+ }
++
++// replacePrefix is like strings.ReplaceAll, but only replaces instances of old
++// that are preceded by ' ', '\t', or appear at the beginning of a line.
++//
++// This does the same kind of filename string replacement as cmd/go.
++// Pilfered from src/cmd/go/internal/work/shell.go .
++func replacePrefix(s, old, new string) string {
++	n := strings.Count(s, old)
++	if n == 0 {
++		return s
++	}
++
++	s = strings.ReplaceAll(s, " "+old, " "+new)
++	s = strings.ReplaceAll(s, "\n"+old, "\n"+new)
++	s = strings.ReplaceAll(s, "\n\t"+old, "\n\t"+new)
++	if strings.HasPrefix(s, old) {
++		s = new + s[len(old):]
++	}
++	return s
++}
+diff --git a/src/go/types/infer.go b/src/go/types/infer.go
+index d0f1c1caf4..4da4513c7b 100644
+--- a/src/go/types/infer.go
++++ b/src/go/types/infer.go
+@@ -434,7 +434,7 @@ func (check *Checker) infer(posn positioner, tparams []*TypeParam, targs []Type,
+ 	for i, typ := range inferred {
+ 		if typ == nil || isParameterized(tparams, typ) {
+ 			obj := tparams[i].obj
+-			err.addf(posn, "cannot infer %s (%v)", obj.name, obj.pos)
++			err.addf(posn, "cannot infer %s (declared at %v)", obj.name, obj.pos)
+ 			return nil
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue68292.go b/test/fixedbugs/issue68292.go
+new file mode 100644
+index 0000000000..2a0d826745
+--- /dev/null
++++ b/test/fixedbugs/issue68292.go
+@@ -0,0 +1,12 @@
++// errorcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func f[S any, T any](T) {}
++func g() {
++	f(0) // ERROR "in call to f, cannot infer S \(declared at issue68292.go:9:8\)"
++}

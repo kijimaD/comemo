@@ -6,7 +6,7 @@ Date:   Wed Jun 11 17:50:07 2008 -0700
     phew.
     
     SVN=122266
-
+---
  src/cmd/6a/Makefile | 42 ++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6c/Makefile | 43 +++++++++++++++++++++++++++++++++++++++++++
  src/cmd/6c/cgen.c   |  4 ++--
@@ -17,3 +17,378 @@ Date:   Wed Jun 11 17:50:07 2008 -0700
  src/cmd/gc/Makefile | 45 +++++++++++++++++++++++++++++++++++++++++++++
  src/cmd/make.bash   | 14 +++++++-------
  9 files changed, 267 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/6a/Makefile b/src/cmd/6a/Makefile
+new file mode 100644
+index 0000000000..b92e6204b6
+--- /dev/null
++++ b/src/cmd/6a/Makefile
+@@ -0,0 +1,42 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++YFLAGS=-d
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++TARG=\
++	6a\
++
++HFILES=\
++	a.h\
++	y.tab.h\
++	../6l/6.out.h\
++	compat.h\
++
++OFILES=\
++	y.tab.$O\
++	lex.$O\
++	compat.$O\
++	../6l/enam.$O\
++
++YFILES=\
++	a.y\
++
++$(TARG): $(OFILES)
++	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++lex.$O:	../cc/macbody ../cc/lexbody
++
++y.tab.c: $(YFILES)
++	yacc $(YFLAGS) $(YFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/6c/Makefile b/src/cmd/6c/Makefile
+new file mode 100644
+index 0000000000..6f88ad319e
+--- /dev/null
++++ b/src/cmd/6c/Makefile
+@@ -0,0 +1,43 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++TARG=\
++	6c\
++
++HFILES=\
++	gc.h\
++	../6l/6.out.h\
++	../cc/cc.h\
++
++OFILES=\
++	cgen.$O\
++	list.$O\
++	sgen.$O\
++	swt.$O\
++	txt.$O\
++	pgen.$O\
++	pswt.$O\
++	div.$O\
++	mul.$O\
++	reg.$O\
++	peep.$O\
++	../6l/enam.$O\
++
++LIB=\
++	../cc/cc.a$O
++
++$(TARG): $(OFILES)
++	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/6c/cgen.c b/src/cmd/6c/cgen.c
+index 7463aa6a3c..3027325f7f 100644
+--- a/src/cmd/6c/cgen.c
++++ b/src/cmd/6c/cgen.c
+@@ -333,7 +333,7 @@ cgen(Node *n, Node *nn)
+ 				c = r->vconst;
+ 				if(c < 0)
+ 					c = -c;
+-				v = log2(c);
++				v = xlog2(c);
+ 				if(v < 0)
+ 					break;
+ 				/* fall thru */
+@@ -640,7 +640,7 @@ cgen(Node *n, Node *nn)
+ 				c = r->vconst;
+ 				if(c < 0)
+ 					c = -c;
+-				v = log2(c);
++				v = xlog2(c);
+ 				if(v < 0)
+ 					break;
+ 				/* fall thru */
+diff --git a/src/cmd/6g/Makefile b/src/cmd/6g/Makefile
+new file mode 100644
+index 0000000000..590ace8b64
+--- /dev/null
++++ b/src/cmd/6g/Makefile
+@@ -0,0 +1,38 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++TARG=\
++	6g
++
++HFILES=\
++	../gc/go.h\
++	../6l/6.out.h\
++	gg.h\
++
++OFILES=\
++	list.$O\
++	align.$O\
++	gen.$O\
++	cgen.$O\
++	gsubr.$O\
++	obj.$O\
++	../6l/enam.$O\
++
++LIB=\
++	../gc/gc.a$O
++
++$(TARG): $(OFILES)
++	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) $(LIB) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/6l/Makefile b/src/cmd/6l/Makefile
+new file mode 100644
+index 0000000000..7c15012a0e
+--- /dev/null
++++ b/src/cmd/6l/Makefile
+@@ -0,0 +1,39 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++TARG=\
++	6l\
++
++OFILES=\
++	asm.$O\
++	obj.$O\
++	optab.$O\
++	pass.$O\
++	span.$O\
++	list.$O\
++	compat.$O\
++	enam.$O\
++
++HFILES=\
++	l.h\
++	../6l/6.out.h\
++
++
++$(TARG): $(OFILES)
++	cc -o $(TARG) -L/home/r/plan9/lib $(OFILES) -lbio -l9
++
++$(OFILES): $(HFILES)
++
++enam.c: 6.out.h
++	sh mkenam
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out
++
++install: $(TARG)
++	cp $(TARG) $(BIN)/$(TARG)
+diff --git a/src/cmd/cc/Makefile b/src/cmd/cc/Makefile
+new file mode 100644
+index 0000000000..9121d13900
+--- /dev/null
++++ b/src/cmd/cc/Makefile
+@@ -0,0 +1,50 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++YFLAGS=-d
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++LIB=\
++	cc.a$O\
++
++HFILES=\
++	cc.h\
++	y.tab.h\
++	compat.h\
++
++YFILES=\
++	cc.y\
++
++OFILES=\
++	y.tab.$O\
++	lex.$O\
++	mac.$O\
++	dcl.$O\
++	acid.$O\
++	pickle.$O\
++	bits.$O\
++	com.$O\
++	scon.$O\
++	funct.$O\
++	sub.$O\
++	com64.$O\
++	compat.$O\
++	dpchk.$O\
++	omachcap.$O\
++	compat.$O\
++
++$(LIB): $(OFILES)
++	9ar rsc $(LIB) $(OFILES)
++
++$(OFILES): $(HFILES)
++
++y.tab.c: $(YFILES)
++	yacc $(YFLAGS) $(YFILES)
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++
++install: $(LIB)
+diff --git a/src/cmd/clean.bash b/src/cmd/clean.bash
+index 73a704c43b..a333bcd0e1 100644
+--- a/src/cmd/clean.bash
++++ b/src/cmd/clean.bash
+@@ -6,6 +6,6 @@
+ for i in 6l 6a 6c 6g gc cc
+ do
+ 	cd $i
+-	mk clean
++	make clean
+ 	cd ..
+ done
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+new file mode 100644
+index 0000000000..1141d132f3
+--- /dev/null
++++ b/src/cmd/gc/Makefile
+@@ -0,0 +1,45 @@
++# Copyright 2009 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++YFLAGS=-d
++CFLAGS=-I/home/r/plan9/include -I$(GOROOT)/include
++BIN=$(HOME)/bin
++O=o
++
++LIB=\
++	gc.a$O\
++
++HFILES=\
++	go.h\
++	y.tab.h\
++
++YFILES=\
++	go.y\
++
++OFILES=\
++	y.tab.$O\
++	lex.$O\
++	subr.$O\
++	dcl.$O\
++	export.$O\
++	walk.$O\
++	const.$O\
++	mpatof.$O\
++	sysimport.$O\
++
++$(LIB): $(OFILES)
++	9ar rsc $(LIB) $(OFILES)
++
++$(OFILES): $(HFILES)
++
++y.tab.c: $(YFILES)
++	yacc $(YFLAGS) $(YFILES)
++
++sysimport.c:	sys.go mksys.bash
++	bash mksys.bash
++
++clean:
++	rm -f $(OFILES) $(TARG) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++
++install: $(LIB)
+diff --git a/src/cmd/make.bash b/src/cmd/make.bash
+index af84940402..83c97039c2 100644
+--- a/src/cmd/make.bash
++++ b/src/cmd/make.bash
+@@ -8,35 +8,35 @@ bash clean.bash
+ 
+ cd 6l
+ bash mkenam
+-mk enam.o
++make enam.o
+ cd ..
+ 
+ echo; echo; echo %%%% making cc %%%%; echo
+ cd cc
+-mk install
++make install
+ cd ..
+ 
+ echo; echo; echo %%%% making 6l %%%%; echo
+ cd 6l
+-mk install
++make install
+ cd ..
+ 
+ echo; echo; echo %%%% making 6a %%%%; echo
+ cd 6a
+-mk install
++make install
+ cd ..
+ 
+ echo; echo; echo %%%% making 6c %%%%; echo
+ cd 6c
+-mk install
++make install
+ cd ..
+ 
+ echo; echo; echo %%%% making gc %%%%; echo
+ cd gc
+-mk install
++make install
+ cd ..
+ 
+ echo; echo; echo %%%% making 6g %%%%; echo
+ cd 6g
+-mk install
++make install
+ cd ..

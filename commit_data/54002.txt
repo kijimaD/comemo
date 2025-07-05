@@ -17,6 +17,26 @@ Date:   Mon Sep 12 09:27:11 2022 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Jenny Rakoczy <jenny@golang.org>
-
+---
  src/strconv/itoa_test.go | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/src/strconv/itoa_test.go b/src/strconv/itoa_test.go
+index b5ee3aa828..b8bc52490a 100644
+--- a/src/strconv/itoa_test.go
++++ b/src/strconv/itoa_test.go
+@@ -93,6 +93,14 @@ func TestItoa(t *testing.T) {
+ 			}
+ 		}
+ 	}
++
++	// Override when base is illegal
++	defer func() {
++		if r := recover(); r == nil {
++			t.Fatalf("expected panic due to illegal base")
++		}
++	}()
++	FormatUint(12345678, 1)
+ }
+ 
+ type uitob64Test struct {

@@ -20,10 +20,119 @@ Date:   Mon Mar 14 00:24:43 2016 -0700
     Reviewed-by: Robert Griesemer <gri@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/esc.go       |  2 +-
  src/cmd/compile/internal/gc/fmt.go       |  2 +-
  src/cmd/compile/internal/gc/sinit.go     |  4 ++--
  src/cmd/compile/internal/gc/syntax.go    |  7 +++++++
  src/cmd/compile/internal/gc/typecheck.go | 14 ++++++++++++--
  5 files changed, 23 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index ec256e1ccb..7f7b7577a1 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -576,7 +576,7 @@ func esc(e *EscState, n *Node, up *Node) {
+ 	if n == nil {
+ 		return
+ 	}
+-	if n.Type != nil && n.Type.Etype == TFIELD {
++	if n.Type == structkey {
+ 		// This is the left side of x:y in a struct literal.
+ 		// x is syntax, not an expression.
+ 		// See #14405.
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 3363d4993c..e6db3d18e0 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1287,7 +1287,7 @@ func exprfmt(n *Node, prec int) string {
+ 
+ 	case OKEY:
+ 		if n.Left != nil && n.Right != nil {
+-			if fmtmode == FExp && n.Left.Type != nil && n.Left.Type.Etype == TFIELD {
++			if fmtmode == FExp && n.Left.Type == structkey {
+ 				// requires special handling of field names
+ 				return fmt.Sprintf("%v:%v", Sconv(n.Left.Sym, obj.FmtShort|obj.FmtByte), n.Right)
+ 			} else {
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index e54f7e1c97..631427c0d3 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -1246,10 +1246,10 @@ func initplan(n *Node) {
+ 
+ 	case OSTRUCTLIT:
+ 		for _, a := range n.List.Slice() {
+-			if a.Op != OKEY || a.Left.Type == nil {
++			if a.Op != OKEY || a.Left.Type != structkey {
+ 				Fatalf("initplan structlit")
+ 			}
+-			addvalue(p, a.Left.Type.Width, a.Right)
++			addvalue(p, a.Left.Xoffset, a.Right)
+ 		}
+ 
+ 	case OMAPLIT:
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 2ddc8cbbab..c363df8822 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -33,6 +33,13 @@ type Node struct {
+ 	Sym *Sym        // various
+ 	E   interface{} // Opt or Val, see methods below
+ 
++	// Various. Usually an offset into a struct. For example, ONAME nodes
++	// that refer to local variables use it to identify their stack frame
++	// position. ODOT, ODOTPTR, and OINDREG use it to indicate offset
++	// relative to their base address. ONAME nodes on the left side of an
++	// OKEY within an OSTRUCTLIT use it to store the named field's offset.
++	// OXCASE and OXFALL use it to validate the use of fallthrough.
++	// Possibly still more uses. If you find any, document them.
+ 	Xoffset int64
+ 
+ 	Lineno int32
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index e19e161a7a..97e268466e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -2893,6 +2893,11 @@ func pushtype(n *Node, t *Type) {
+ 	}
+ }
+ 
++// Marker type so esc, fmt, and sinit can recognize the LHS of an OKEY node
++// in a struct literal.
++// TODO(mdempsky): Find a nicer solution.
++var structkey = typ(Txxx)
++
+ func typecheckcomplit(np **Node) {
+ 	n := *np
+ 	lno := lineno
+@@ -3039,6 +3044,9 @@ func typecheckcomplit(np **Node) {
+ 		n.Op = OMAPLIT
+ 
+ 	case TSTRUCT:
++		// Need valid field offsets for Xoffset below.
++		dowidth(t)
++
+ 		bad := 0
+ 		if n.List.Len() != 0 && nokeys(n.List) {
+ 			// simple list of variables
+@@ -3065,7 +3073,8 @@ func typecheckcomplit(np **Node) {
+ 				// No pushtype allowed here. Must name fields for that.
+ 				n1 = assignconv(n1, f.Type, "field value")
+ 				n1 = Nod(OKEY, newname(f.Sym), n1)
+-				n1.Left.Type = f
++				n1.Left.Type = structkey
++				n1.Left.Xoffset = f.Width
+ 				n1.Left.Typecheck = 1
+ 				ls[i1] = n1
+ 				f = it.Next()
+@@ -3114,8 +3123,9 @@ func typecheckcomplit(np **Node) {
+ 				}
+ 
+ 				l.Left = newname(s)
++				l.Left.Type = structkey
++				l.Left.Xoffset = f.Width
+ 				l.Left.Typecheck = 1
+-				l.Left.Type = f
+ 				s = f.Sym
+ 				fielddup(newname(s), hash)
+ 				r = l.Right

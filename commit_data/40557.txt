@@ -11,7 +11,66 @@ Date:   Sat May 25 18:47:22 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/http/export_test.go    | 15 +++++++++++++++
  src/net/http/transport_test.go | 17 ++++++++++-------
  2 files changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/http/export_test.go b/src/net/http/export_test.go
+index b6965c239e..c33b88860a 100644
+--- a/src/net/http/export_test.go
++++ b/src/net/http/export_test.go
+@@ -244,3 +244,18 @@ func ExportSetH2GoawayTimeout(d time.Duration) (restore func()) {
+ }
+ 
+ func (r *Request) ExportIsReplayable() bool { return r.isReplayable() }
++
++// ExportCloseTransportConnsAbruptly closes all idle connections from
++// tr in an abrupt way, just reaching into the underlying Conns and
++// closing them, without telling the Transport or its persistConns
++// that it's doing so. This is to simulate the server closing connections
++// on the Transport.
++func ExportCloseTransportConnsAbruptly(tr *Transport) {
++	tr.idleMu.Lock()
++	for _, pcs := range tr.idleConn {
++		for _, pc := range pcs {
++			pc.conn.Close()
++		}
++	}
++	tr.idleMu.Unlock()
++}
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 9de2fdab66..21d26a24b2 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -737,6 +737,8 @@ func TestTransportRemovesDeadIdleConnections(t *testing.T) {
+ 	}
+ }
+ 
++// Test that the Transport notices when a server hangs up on its
++// unexpectedly (a keep-alive connection is closed).
+ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 	setParallel(t)
+ 	defer afterTest(t)
+@@ -773,13 +775,14 @@ func TestTransportServerClosingUnexpectedly(t *testing.T) {
+ 	body1 := fetch(1, 0)
+ 	body2 := fetch(2, 0)
+ 
+-	ts.CloseClientConnections() // surprise!
+-
+-	// This test has an expected race. Sleeping for 25 ms prevents
+-	// it on most fast machines, causing the next fetch() call to
+-	// succeed quickly. But if we do get errors, fetch() will retry 5
+-	// times with some delays between.
+-	time.Sleep(25 * time.Millisecond)
++	// Close all the idle connections in a way that's similar to
++	// the server hanging up on us. We don't use
++	// httptest.Server.CloseClientConnections because it's
++	// best-effort and stops blocking after 5 seconds. On a loaded
++	// machine running many tests concurrently it's possible for
++	// that method to be async and cause the body3 fetch below to
++	// run on an old connection. This function is synchronous.
++	ExportCloseTransportConnsAbruptly(c.Transport.(*Transport))
+ 
+ 	body3 := fetch(3, 5)
+ 

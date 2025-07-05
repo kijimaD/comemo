@@ -9,6 +9,23 @@ Date:   Tue Nov 17 16:03:14 2009 -0800
     
     R=r
     https://golang.org/cl/156052
-
+---
  src/pkg/reflect/type.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 69bc7d4552..faea24340e 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -252,9 +252,11 @@ type Method struct {
+ type Type interface {
+ 	// PkgPath returns the type's package path.
+ 	// The package path is a full package import path like "container/vector".
++	// PkgPath returns an empty string for unnamed types.
+ 	PkgPath() string;
+ 
+ 	// Name returns the type's name within its package.
++	// Name returns an empty string for unnamed types.
+ 	Name() string;
+ 
+ 	// String returns a string representation of the type.

@@ -7,6 +7,20 @@ Date:   Wed Nov 11 19:31:42 2015 -0800
     Change-Id: Ie5f70af7e673bb2c691a45c28db2c017e6cddd4f
     Reviewed-on: https://go-review.googlesource.com/16833
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/sys_openbsd_amd64.s | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/sys_openbsd_amd64.s b/src/runtime/sys_openbsd_amd64.s
+index 213ffc1937..381354ea09 100644
+--- a/src/runtime/sys_openbsd_amd64.s
++++ b/src/runtime/sys_openbsd_amd64.s
+@@ -306,7 +306,7 @@ TEXT runtime·sigaltstack(SB),NOSPLIT,$-8
+ 
+ // set tls base to DI
+ TEXT runtime·settls(SB),NOSPLIT,$0
+-	// adjust for ELF: wants to use -16(FS) and -8(FS) for g and m
++	// adjust for ELF: wants to use -8(FS) for g
+ 	ADDQ	$8, DI
+ 	MOVQ	$329, AX		// sys___settcb
+ 	SYSCALL

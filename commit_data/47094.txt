@@ -10,6 +10,20 @@ Date:   Sun Feb 14 11:19:39 2021 +0100
     Reviewed-on: https://go-review.googlesource.com/c/go/+/291631
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/hash/maphash/maphash.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index ecc147d599..f7ef1b41e8 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -34,7 +34,7 @@ type Seed struct {
+ //
+ // The zero Hash is a valid Hash ready to use.
+ // A zero Hash chooses a random seed for itself during
+-// the first call to a Reset, Write, Seed, Sum64, or Seed method.
++// the first call to a Reset, Write, Seed, or Sum64 method.
+ // For control over the seed, use SetSeed.
+ //
+ // The computed hash values depend only on the initial seed and

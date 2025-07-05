@@ -15,9 +15,151 @@ Date:   Thu Apr 27 16:37:25 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/align.go   | 12 ++++++++++++
  src/cmd/compile/internal/gc/pgen.go    |  2 ++
  src/cmd/compile/internal/gc/ssa.go     | 12 ++++++------
  src/cmd/compile/internal/types/type.go | 11 ++---------
  4 files changed, 22 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/align.go b/src/cmd/compile/internal/gc/align.go
+index 06cb524093..a270adf653 100644
+--- a/src/cmd/compile/internal/gc/align.go
++++ b/src/cmd/compile/internal/gc/align.go
+@@ -9,6 +9,10 @@ import (
+ 	"sort"
+ )
+ 
++// sizeCalculationDisabled indicates whether it is safe
++// to calculate Types' widths and alignments. See dowidth.
++var sizeCalculationDisabled bool
++
+ // machine size and rounding alignment is dictated around
+ // the size of a pointer, set in betypeinit (see ../amd64/galign.go).
+ var defercalc int
+@@ -151,6 +155,10 @@ func widstruct(errtype *types.Type, t *types.Type, o int64, flag int) int64 {
+ 	return o
+ }
+ 
++// dowidth calculates and stores the size and alignment for t.
++// If sizeCalculationDisabled is set, and the size/alignment
++// have not already been calculated, it calls Fatal.
++// This is used to prevent data races in the back end.
+ func dowidth(t *types.Type) {
+ 	if Widthptr == 0 {
+ 		Fatalf("dowidth without betypeinit")
+@@ -174,6 +182,10 @@ func dowidth(t *types.Type) {
+ 		return
+ 	}
+ 
++	if sizeCalculationDisabled {
++		Fatalf("width not calculated: %v", t)
++	}
++
+ 	// break infinite recursion if the broken recursive type
+ 	// is referenced again
+ 	if t.Broke() && t.Width == 0 {
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index f9a623480b..5bb4622f39 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -254,6 +254,7 @@ func compileSSA(fn *Node, worker int) {
+ // and waits for them to complete.
+ func compileFunctions() {
+ 	if len(compilequeue) != 0 {
++		sizeCalculationDisabled = true // not safe to calculate sizes concurrently
+ 		if raceEnabled {
+ 			// Randomize compilation order to try to shake out races.
+ 			tmp := make([]*Node, len(compilequeue))
+@@ -287,6 +288,7 @@ func compileFunctions() {
+ 		close(c)
+ 		compilequeue = nil
+ 		wg.Wait()
++		sizeCalculationDisabled = false
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index e0cbe57bd3..926bc9d724 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1519,8 +1519,8 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return v
+ 		}
+ 
+-		from.AssertWidthCalculated()
+-		to.AssertWidthCalculated()
++		dowidth(from)
++		dowidth(to)
+ 		if from.Width != to.Width {
+ 			s.Fatalf("CONVNOP width mismatch %v (%d) -> %v (%d)\n", from, from.Width, to, to.Width)
+ 			return nil
+@@ -2321,7 +2321,7 @@ func (s *state) assign(left *Node, right *ssa.Value, deref bool, skip skipMask)
+ 		return
+ 	}
+ 	t := left.Type
+-	t.AssertWidthCalculated()
++	dowidth(t)
+ 	if s.canSSA(left) {
+ 		if deref {
+ 			s.Fatalf("can SSA LHS %v but not RHS %s", left, right)
+@@ -3095,7 +3095,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 		}
+ 		rcvr = s.newValue1(ssa.OpIData, types.Types[TUINTPTR], i)
+ 	}
+-	fn.Type.AssertWidthCalculated()
++	dowidth(fn.Type)
+ 	stksize := fn.Type.ArgWidth() // includes receiver
+ 
+ 	// Run all argument assignments. The arg slots have already
+@@ -3351,7 +3351,7 @@ func (s *state) canSSA(n *Node) bool {
+ 
+ // canSSA reports whether variables of type t are SSA-able.
+ func canSSAType(t *types.Type) bool {
+-	t.AssertWidthCalculated()
++	dowidth(t)
+ 	if t.Width > int64(4*Widthptr) {
+ 		// 4*Widthptr is an arbitrary constant. We want it
+ 		// to be at least 3*Widthptr so slices can be registerized.
+@@ -4972,7 +4972,7 @@ func (e *ssafn) namedAuto(name string, typ ssa.Type, pos src.XPos) ssa.GCNode {
+ 	n.Esc = EscNever
+ 	n.Name.Curfn = e.curfn
+ 	e.curfn.Func.Dcl = append(e.curfn.Func.Dcl, n)
+-	t.AssertWidthCalculated()
++	dowidth(t)
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 62041454ca..b0be122d0a 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -849,13 +849,6 @@ func (t *Type) WidthCalculated() bool {
+ 	return t.Align > 0
+ }
+ 
+-// AssertWidthCalculated calls Fatalf if t's width has not yet been calculated.
+-func (t *Type) AssertWidthCalculated() {
+-	if !t.WidthCalculated() {
+-		Fatalf("width not calculated: %v", t)
+-	}
+-}
+-
+ // ArgWidth returns the total aligned argument size for a function.
+ // It includes the receiver, parameters, and results.
+ func (t *Type) ArgWidth() int64 {
+@@ -864,12 +857,12 @@ func (t *Type) ArgWidth() int64 {
+ }
+ 
+ func (t *Type) Size() int64 {
+-	t.AssertWidthCalculated()
++	Dowidth(t)
+ 	return t.Width
+ }
+ 
+ func (t *Type) Alignment() int64 {
+-	t.AssertWidthCalculated()
++	Dowidth(t)
+ 	return int64(t.Align)
+ }
+ 

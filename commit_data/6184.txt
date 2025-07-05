@@ -9,6 +9,24 @@ Date:   Tue Sep 7 09:54:20 2010 -0400
     R=adg
     CC=golang-dev
     https://golang.org/cl/2154041
-
+---
  src/cmd/cgo/out.go | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 906b2c511f..eb39338684 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -107,7 +107,11 @@ func (p *Package) structType(n *Name) (string, int64) {
+ 			fmt.Fprintf(&buf, "\t\tchar __pad%d[%d];\n", off, pad)
+ 			off += pad
+ 		}
+-		fmt.Fprintf(&buf, "\t\t%s r;\n", t.C)
++		qual := ""
++		if t.C[len(t.C)-1] == '*' {
++			qual = "const "
++		}
++		fmt.Fprintf(&buf, "\t\t%s%s r;\n", qual, t.C)
+ 		off += t.Size
+ 	}
+ 	if off%p.PtrSize != 0 {

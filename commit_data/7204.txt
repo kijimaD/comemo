@@ -10,7 +10,62 @@ Date:   Thu Jan 20 12:51:02 2011 -0500
     R=r, gri
     CC=golang-dev
     https://golang.org/cl/4022042
-
+---
  AUTHORS      | 9 +++++----
  CONTRIBUTORS | 1 +
  2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/AUTHORS b/AUTHORS
+index 8d0394c322..067d3a0c47 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -27,7 +27,7 @@ Ben Olive <sionide21@gmail.com>
+ Benny Siegert <bsiegert@gmail.com>
+ Caine Tighe <arctanofyourface@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+-Chris Jones <chris@cjones.org> <chris.jones.yar@gmail.com>
++Chris Jones <chris@cjones.org>
+ Chris Lennert <calennert@gmail.com>
+ Christian Himpel <chressie@googlemail.com>
+ Christopher Wedgwood <cw@f00f.org>
+@@ -48,7 +48,7 @@ Eric Eisner <eric.d.eisner@gmail.com>
+ Evan Shaw <chickencha@gmail.com>
+ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+-Florian Uekermann <florian@uekermann-online.de> <f1@uekermann-online.de>
++Florian Uekermann <florian@uekermann-online.de>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
+ Graham Miller <graham.miller@gmail.com>
+@@ -63,7 +63,7 @@ James Toy <nil@opensesame.st>
+ James Whitehead <jnwhiteh@gmail.com>
+ Jan H. Hosang <jan.hosang@gmail.com>
+ Jan Mercl <befelemepeseveze@gmail.com>
+-Jeff R. Allen <jra@nella.org> <jeff.allen@gmail.com>
++Jeff R. Allen <jra@nella.org>
+ Jim McGrath <jimmc2@gmail.com>
+ Joe Poirier <jdpoirier@gmail.com>
+ Jonathan Wills <runningwild@gmail.com>
+@@ -83,8 +83,9 @@ Mathieu Lonjaret <mathieu.lonjaret@gmail.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Miek Gieben <miek@miek.nl>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+-Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
++Mikkel Krautz <mikkel@krautz.dk>
+ Moriyoshi Koizumi <mozo@mozo.jp>
+ Môshe van der Sterre <moshevds@gmail.com>
+ Nicholas Waples <nwaples@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 694e6fe1b7..d4cdd45f9d 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -131,6 +131,7 @@ Maxim Ushakov <ushakov@google.com>
+ Micah Stetson <micah.stetson@gmail.com>
+ Michael Elkins <michael.elkins@gmail.com>
+ Michael Hoisie <hoisie@gmail.com>
++Miek Gieben <miek@miek.nl> <remigius.gieben@gmail.com>
+ Mikio Hara <mikioh.mikioh@gmail.com>
+ Mikkel Krautz <mikkel@krautz.dk> <krautz@gmail.com>
+ Moriyoshi Koizumi <mozo@mozo.jp>

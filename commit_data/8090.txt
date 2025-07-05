@@ -7,8 +7,93 @@ Date:   Thu Apr 14 15:32:20 2011 +0200
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4418043
-
+---
  src/cmd/ld/dwarf.c             | 10 ++++------
  src/pkg/runtime/chan.c         |  7 -------
  src/pkg/runtime/runtime-gdb.py | 11 +++++++----
  3 files changed, 11 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/ld/dwarf.c b/src/cmd/ld/dwarf.c
+index fa55fcbb4a..ba735265c8 100644
+--- a/src/cmd/ld/dwarf.c
++++ b/src/cmd/ld/dwarf.c
+@@ -1376,20 +1376,18 @@ synthesizemaptypes(DWDie *die)
+ static void
+ synthesizechantypes(DWDie *die)
+ {
+-	DWDie *sudog, *waitq, *link, *hchan,
++	DWDie *sudog, *waitq, *hchan,
+ 		*dws, *dww, *dwh, *elemtype;
+ 	DWAttr *a;
+-	int elemsize, linksize, sudogsize;
++	int elemsize, sudogsize;
+ 
+ 	sudog = defgotype(lookup_or_diag("type.runtime.sudog"));
+ 	waitq = defgotype(lookup_or_diag("type.runtime.waitq"));
+-	link  = defgotype(lookup_or_diag("type.runtime.link"));
+ 	hchan = defgotype(lookup_or_diag("type.runtime.hchan"));
+-	if (sudog == nil || waitq == nil || link == nil || hchan == nil)
++	if (sudog == nil || waitq == nil || hchan == nil)
+ 		return;
+ 
+ 	sudogsize = getattr(sudog, DW_AT_byte_size)->value;
+-	linksize = getattr(link, DW_AT_byte_size)->value;
+ 
+ 	for (; die != nil; die = die->link) {
+ 		if (die->abbrev != DW_ABRV_CHANTYPE)
+@@ -1422,7 +1420,7 @@ synthesizechantypes(DWDie *die)
+ 		copychildren(dwh, hchan);
+ 		substitutetype(dwh, "recvq", dww);
+ 		substitutetype(dwh, "sendq", dww);
+-		substitutetype(dwh, "free", dws);
++		substitutetype(dwh, "free", defptrto(dws));
+ 		newattr(dwh, DW_AT_byte_size, DW_CLS_CONSTANT,
+ 			getattr(hchan, DW_AT_byte_size)->value, NULL);
+ 
+diff --git a/src/pkg/runtime/chan.c b/src/pkg/runtime/chan.c
+index 2fab9e2161..f2bdad27be 100644
+--- a/src/pkg/runtime/chan.c
++++ b/src/pkg/runtime/chan.c
+@@ -9,7 +9,6 @@
+ 
+ static	int32	debug	= 0;
+ 
+-typedef	struct	Link	Link;
+ typedef	struct	WaitQ	WaitQ;
+ typedef	struct	SudoG	SudoG;
+ typedef	struct	Select	Select;
+@@ -51,12 +50,6 @@ struct	Hchan
+ // chanbuf(c, i) is pointer to the i'th slot in the buffer.
+ #define chanbuf(c, i) ((byte*)((c)+1)+(uintptr)(c)->elemsize*(i))
+ 
+-struct	Link
+-{
+-	Link*	link;			// asynch queue circular linked list
+-	byte	elem[8];		// asynch queue data element (+ more)
+-};
+-
+ enum
+ {
+ 	// Scase.kind
+diff --git a/src/pkg/runtime/runtime-gdb.py b/src/pkg/runtime/runtime-gdb.py
+index 08772a431e..3f767fbdd7 100644
+--- a/src/pkg/runtime/runtime-gdb.py
++++ b/src/pkg/runtime/runtime-gdb.py
+@@ -122,10 +122,13 @@ class ChanTypePrinter:
+ 		return str(self.val.type)
+ 
+ 	def children(self):
+-		ptr = self.val['recvdataq']
+-		for idx in range(self.val["qcount"]):
+-			yield ('[%d]' % idx, ptr['elem'])
+-			ptr = ptr['link']
++		# see chan.c chanbuf()
++		et = [x.type for x in self.val['free'].type.target().fields() if x.name == 'elem'][0]
++                ptr = (self.val.address + 1).cast(et.pointer())
++                for i in range(self.val["qcount"]):
++			j = (self.val["recvx"] + i) % self.val["dataqsiz"]
++			yield ('[%d]' % i, (ptr + j).dereference())
++
+ 
+ #
+ #  Register all the *Printer classes above.

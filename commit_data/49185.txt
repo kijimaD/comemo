@@ -19,7 +19,7 @@ Date:   Mon Jul 26 14:50:57 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/337354
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/instantiate.go     | 16 +++++++++----
  src/cmd/compile/internal/types2/interface.go       |  2 +-
  src/cmd/compile/internal/types2/lookup.go          | 10 +-------
@@ -30,3 +30,278 @@ Date:   Mon Jul 26 14:50:57 2021 -0700
  src/cmd/compile/internal/types2/typeset.go         | 27 ++++++++++++++++++----
  src/cmd/compile/internal/types2/universe.go        | 12 ++++------
  9 files changed, 71 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index cc96375027..db398c6563 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -146,6 +146,17 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 	// the parameterized type.
+ 	iface = check.subst(pos, iface, smap).(*Interface)
+ 
++	// if iface is comparable, targ must be comparable
++	// TODO(gri) the error messages needs to be better, here
++	if iface.IsComparable() && !Comparable(targ) {
++		if tpar := asTypeParam(targ); tpar != nil && tpar.Bound().typeSet().IsTop() {
++			check.softErrorf(pos, "%s has no constraints", targ)
++			return false
++		}
++		check.softErrorf(pos, "%s does not satisfy comparable", targ)
++		return false
++	}
++
+ 	// targ must implement iface (methods)
+ 	// - check only if we have methods
+ 	if iface.NumMethods() > 0 {
+@@ -161,10 +172,7 @@ func (check *Checker) satisfies(pos syntax.Pos, targ Type, tpar *TypeParam, smap
+ 			//           (print warning for now)
+ 			// Old warning:
+ 			// check.softErrorf(pos, "%s does not satisfy %s (warning: name not updated) = %s (missing method %s)", targ, tpar.bound, iface, m)
+-			if m.name == "==" {
+-				// We don't want to report "missing method ==".
+-				check.softErrorf(pos, "%s does not satisfy comparable", targ)
+-			} else if wrong != nil {
++			if wrong != nil {
+ 				// TODO(gri) This can still report uninstantiated types which makes the error message
+ 				//           more difficult to read then necessary.
+ 				check.softErrorf(pos,
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index c344f8ed01..cf8ec1a5e2 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -107,7 +107,7 @@ func (t *Interface) Method(i int) *Func { return t.typeSet().Method(i) }
+ // Empty reports whether t is the empty interface.
+ func (t *Interface) Empty() bool { return t.typeSet().IsTop() }
+ 
+-// IsComparable reports whether interface t is or embeds the predeclared interface "comparable".
++// IsComparable reports whether each type in interface t's type set is comparable.
+ func (t *Interface) IsComparable() bool { return t.typeSet().IsComparable() }
+ 
+ // IsConstraint reports whether interface t is not just a method set.
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 91be14bde3..ecf6926c0a 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -308,11 +308,7 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		for _, m := range T.typeSet().methods {
+ 			_, f := ityp.typeSet().LookupMethod(m.pkg, m.name)
+ 
+-			if f == nil {
+-				// if m is the magic method == we're ok (interfaces are comparable)
+-				if m.name == "==" || !static {
+-					continue
+-				}
++			if f == nil && static {
+ 				return m, f
+ 			}
+ 
+@@ -360,10 +356,6 @@ func (check *Checker) missingMethod(V Type, T *Interface, static bool) (method,
+ 		// we must have a method (not a field of matching function type)
+ 		f, _ := obj.(*Func)
+ 		if f == nil {
+-			// if m is the magic method == and V is comparable, we're ok
+-			if m.name == "==" && Comparable(V) {
+-				continue
+-			}
+ 			return m, nil
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index e862c0fca8..f2215b36cb 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -96,19 +96,6 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	}
+ 	seen[T] = true
+ 
+-	// If T is a type parameter not constrained by any type
+-	// (i.e., it's operational type is the top type),
+-	// T is comparable if it has the == method. Otherwise,
+-	// the operational type "wins". For instance
+-	//
+-	//     interface{ comparable; type []byte }
+-	//
+-	// is not comparable because []byte is not comparable.
+-	// TODO(gri) this code is not 100% correct (see comment for TypeSet.IsComparable)
+-	if t := asTypeParam(T); t != nil && optype(t) == theTop {
+-		return t.Bound().IsComparable()
+-	}
+-
+ 	switch t := under(T).(type) {
+ 	case *Basic:
+ 		// assume invalid types to be comparable
+@@ -126,9 +113,7 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 	case *Array:
+ 		return comparable(t.elem, seen)
+ 	case *TypeParam:
+-		return t.underIs(func(t Type) bool {
+-			return comparable(t, seen)
+-		})
++		return t.Bound().IsComparable()
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index f7f191f629..22ef369683 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -49,7 +49,7 @@ func TestSizeof(t *testing.T) {
+ 		// Misc
+ 		{Scope{}, 60, 104},
+ 		{Package{}, 40, 80},
+-		{TypeSet{}, 20, 40},
++		{TypeSet{}, 24, 48},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/cmd/compile/internal/types2/testdata/check/issues.go2 b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+index 32c4320d27..1ede383ebe 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/issues.go2
++++ b/src/cmd/compile/internal/types2/testdata/check/issues.go2
+@@ -58,7 +58,7 @@ func _() {
+ type T1[P interface{~uint}] struct{}
+ 
+ func _[P any]() {
+-    _ = T1[P /* ERROR P has no type constraints */ ]{}
++    _ = T1[P /* ERROR P has no constraints */ ]{}
+ }
+ 
+ // This is the original (simplified) program causing the same issue.
+@@ -74,8 +74,8 @@ func (u T2[U]) Add1() U {
+     return u.s + 1
+ }
+ 
+-func NewT2[U any]() T2[U /* ERROR U has no type constraints */ ] {
+-    return T2[U /* ERROR U has no type constraints */ ]{}
++func NewT2[U any]() T2[U /* ERROR U has no constraints */ ] {
++    return T2[U /* ERROR U has no constraints */ ]{}
+ }
+ 
+ func _() {
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+new file mode 100644
+index 0000000000..72968f9d43
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue47411.go2
+@@ -0,0 +1,26 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f[_ comparable]()
++func g[_ interface{interface{comparable; ~int|~string}}]()
++
++func _[P comparable,
++        Q interface{ comparable; ~int|~string },
++        R any,                               // not comparable
++        S interface{ comparable; ~func() },  // not comparable
++]() {
++        _ = f[int]
++        _ = f[P]
++        _ = f[Q]
++        _ = f[func( /* ERROR does not satisfy comparable */ )]
++        _ = f[R /* ERROR R has no constraints */ ]
++
++        _ = g[int]
++        _ = g[P /* ERROR P has no type constraints */ ]
++        _ = g[Q]
++        _ = g[func( /* ERROR does not satisfy comparable */ )]
++        _ = g[R /* ERROR R has no constraints */ ]
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 8e6af8e65c..cc28625070 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -16,22 +16,30 @@ import (
+ 
+ // A TypeSet represents the type set of an interface.
+ type TypeSet struct {
++	comparable bool // if set, the interface is or embeds comparable
+ 	// TODO(gri) consider using a set for the methods for faster lookup
+ 	methods []*Func // all methods of the interface; sorted by unique ID
+ 	types   Type    // typically a *Union; nil means no type restrictions
+ }
+ 
+ // IsTop reports whether type set s is the top type set (corresponding to the empty interface).
+-func (s *TypeSet) IsTop() bool { return len(s.methods) == 0 && s.types == nil }
++func (s *TypeSet) IsTop() bool { return !s.comparable && len(s.methods) == 0 && s.types == nil }
+ 
+ // IsMethodSet reports whether the type set s is described by a single set of methods.
+-func (s *TypeSet) IsMethodSet() bool { return s.types == nil && !s.IsComparable() }
++func (s *TypeSet) IsMethodSet() bool { return !s.comparable && s.types == nil }
+ 
+ // IsComparable reports whether each type in the set is comparable.
+-// TODO(gri) this is not correct - there may be s.types values containing non-comparable types
+ func (s *TypeSet) IsComparable() bool {
+-	_, m := s.LookupMethod(nil, "==")
+-	return m != nil
++	if s.types == nil {
++		return s.comparable
++	}
++	tcomparable := s.underIs(func(u Type) bool {
++		return Comparable(u)
++	})
++	if !s.comparable {
++		return tcomparable
++	}
++	return s.comparable && tcomparable
+ }
+ 
+ // NumMethods returns the number of methods available.
+@@ -54,6 +62,12 @@ func (s *TypeSet) String() string {
+ 
+ 	var buf bytes.Buffer
+ 	buf.WriteByte('{')
++	if s.comparable {
++		buf.WriteString(" comparable")
++		if len(s.methods) > 0 || s.types != nil {
++			buf.WriteByte(';')
++		}
++	}
+ 	for i, m := range s.methods {
+ 		if i > 0 {
+ 			buf.WriteByte(';')
+@@ -205,6 +219,9 @@ func computeTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *TypeSet {
+ 		switch t := under(typ).(type) {
+ 		case *Interface:
+ 			tset := computeTypeSet(check, pos, t)
++			if tset.comparable {
++				ityp.tset.comparable = true
++			}
+ 			for _, m := range tset.methods {
+ 				addMethod(pos, m, false) // use embedding position pos rather than m.pos
+ 			}
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 0f711a6b68..a3dd4bd0d6 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -88,23 +88,19 @@ func defPredeclaredTypes() {
+ 		res := NewVar(nopos, nil, "", Typ[String])
+ 		sig := NewSignature(nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+-		ityp := NewInterfaceType([]*Func{err}, nil)
++		ityp := &Interface{obj, []*Func{err}, nil, nil, true, nil}
+ 		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+ 		typ := NewNamed(obj, ityp, nil)
+ 		sig.recv = NewVar(nopos, nil, "", typ)
+ 		def(obj)
+ 	}
+ 
+-	// type comparable interface{ ==() }
++	// type comparable interface{ /* type set marked comparable */ }
+ 	{
+ 		obj := NewTypeName(nopos, nil, "comparable", nil)
+ 		obj.setColor(black)
+-		sig := NewSignature(nil, nil, nil, false)
+-		eql := NewFunc(nopos, nil, "==", sig)
+-		ityp := NewInterfaceType([]*Func{eql}, nil)
+-		computeTypeSet(nil, nopos, ityp) // prevent races due to lazy computation of tset
+-		typ := NewNamed(obj, ityp, nil)
+-		sig.recv = NewVar(nopos, nil, "", typ)
++		ityp := &Interface{obj, nil, nil, nil, true, &TypeSet{true, nil, nil}}
++		NewNamed(obj, ityp, nil)
+ 		def(obj)
+ 	}
+ }

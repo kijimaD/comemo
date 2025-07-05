@@ -77,7 +77,7 @@ Date:   Wed May 6 12:34:30 2015 -0400
     Change-Id: I2a7421658091b2488c64741b4db15ab6c3b4cb7e
     Reviewed-on: https://go-review.googlesource.com/9812
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/gc/cgen.go  | 183 +++++++++++++++++++++++++++++++++++++++++++
  src/cmd/internal/gc/lex.go   |   6 +-
  src/cmd/internal/gc/order.go |  10 ++-
@@ -85,3 +85,451 @@ Date:   Wed May 6 12:34:30 2015 -0400
  test/sliceopt.go             |  22 ++++++
  test/writebarrier.go         |  26 +++++-
  6 files changed, 284 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/internal/gc/cgen.go b/src/cmd/internal/gc/cgen.go
+index 92a670d2fc..0c847c291c 100644
+--- a/src/cmd/internal/gc/cgen.go
++++ b/src/cmd/internal/gc/cgen.go
+@@ -67,6 +67,10 @@ func cgen_wb(n, res *Node, wb bool) {
+ 	case ODOTTYPE:
+ 		cgen_dottype(n, res, nil, wb)
+ 		return
++
++	case OAPPEND:
++		cgen_append(n, res)
++		return
+ 	}
+ 
+ 	if n.Ullman >= UINF {
+@@ -2786,3 +2790,182 @@ func Fixlargeoffset(n *Node) {
+ 		n.Xoffset = 0
+ 	}
+ }
++
++func cgen_append(n, res *Node) {
++	if Debug['g'] != 0 {
++		Dump("cgen_append-n", n)
++		Dump("cgen_append-res", res)
++	}
++	if res.Op != ONAME && !samesafeexpr(res, n.List.N) {
++		Dump("cgen_append-n", n)
++		Dump("cgen_append-res", res)
++		Fatal("append not lowered")
++	}
++	for l := n.List; l != nil; l = l.Next {
++		if l.N.Ullman >= UINF {
++			Fatal("append with function call arguments")
++		}
++	}
++
++	// res = append(src, x, y, z)
++	//
++	// If res and src are the same, we can avoid writing to base and cap
++	// unless we grow the underlying array.
++	needFullUpdate := !samesafeexpr(res, n.List.N)
++
++	// Copy src triple into base, len, cap.
++	base := temp(Types[Tptr])
++	len := temp(Types[TUINT])
++	cap := temp(Types[TUINT])
++
++	var src Node
++	Igen(n.List.N, &src, nil)
++	src.Type = Types[Tptr]
++	Thearch.Gmove(&src, base)
++	src.Type = Types[TUINT]
++	src.Xoffset += int64(Widthptr)
++	Thearch.Gmove(&src, len)
++	src.Xoffset += int64(Widthptr)
++	Thearch.Gmove(&src, cap)
++
++	// if len+argc <= cap goto L1
++	var rlen Node
++	Regalloc(&rlen, Types[TUINT], nil)
++	Thearch.Gmove(len, &rlen)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &rlen)
++	p := Thearch.Ginscmp(OLE, Types[TUINT], &rlen, cap, +1)
++	// Note: rlen and src are Regrealloc'ed below at the target of the
++	// branch we just emitted; do not reuse these Go variables for
++	// other purposes. They need to still describe the same things
++	// below that they describe right here.
++	Regfree(&src)
++
++	// base, len, cap = growslice(type, base, len, cap, newlen)
++	var arg Node
++	arg.Op = OINDREG
++	arg.Reg = int16(Thearch.REGSP)
++	arg.Addable = true
++	arg.Xoffset = 0
++	if HasLinkRegister() {
++		arg.Xoffset = int64(Ctxt.Arch.Ptrsize)
++	}
++	arg.Type = Ptrto(Types[TUINT8])
++	Cgen(typename(res.Type), &arg)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[Tptr]
++	Cgen(base, &arg)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[TUINT]
++	Cgen(len, &arg)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[TUINT]
++	Cgen(cap, &arg)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[TUINT]
++	Cgen(&rlen, &arg)
++	arg.Xoffset += int64(Widthptr)
++	Regfree(&rlen)
++
++	fn := syslook("growslice", 1)
++	substArgTypes(fn, res.Type.Type, res.Type.Type)
++	Ginscall(fn, 0)
++
++	if Widthptr == 4 && Widthreg == 8 {
++		arg.Xoffset += 4
++	}
++
++	arg.Type = Types[Tptr]
++	Cgen(&arg, base)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[TUINT]
++	Cgen(&arg, len)
++	arg.Xoffset += int64(Widthptr)
++
++	arg.Type = Types[TUINT]
++	Cgen(&arg, cap)
++
++	// Update res with base, len+argc, cap.
++	if needFullUpdate {
++		if Debug_append > 0 {
++			Warn("append: full update")
++		}
++		Patch(p, Pc)
++	}
++	if res.Op == ONAME {
++		Gvardef(res)
++	}
++	var dst, r1 Node
++	Igen(res, &dst, nil)
++	dst.Type = Types[TUINT]
++	dst.Xoffset += int64(Widthptr)
++	Regalloc(&r1, Types[TUINT], nil)
++	Thearch.Gmove(len, &r1)
++	Thearch.Ginscon(Thearch.Optoas(OADD, Types[TUINT]), int64(count(n.List)-1), &r1)
++	Thearch.Gmove(&r1, &dst)
++	Regfree(&r1)
++	dst.Xoffset += int64(Widthptr)
++	Thearch.Gmove(cap, &dst)
++	dst.Type = Types[Tptr]
++	dst.Xoffset -= 2 * int64(Widthptr)
++	cgen_wb(base, &dst, needwritebarrier(&dst, base))
++	Regfree(&dst)
++
++	if !needFullUpdate {
++		if Debug_append > 0 {
++			Warn("append: len-only update")
++		}
++		// goto L2;
++		// L1:
++		//	update len only
++		// L2:
++		q := Gbranch(obj.AJMP, nil, 0)
++		Patch(p, Pc)
++		// At the goto above, src refers to cap and rlen holds the new len
++		if src.Op == OREGISTER || src.Op == OINDREG {
++			Regrealloc(&src)
++		}
++		Regrealloc(&rlen)
++		src.Xoffset -= int64(Widthptr)
++		Thearch.Gmove(&rlen, &src)
++		Regfree(&src)
++		Regfree(&rlen)
++		Patch(q, Pc)
++	}
++
++	// Copy data into place.
++	// Could do write barrier check around entire copy instead of each element.
++	// Could avoid reloading registers on each iteration if we know the cgen_wb
++	// is not going to use a write barrier.
++	i := 0
++	var r2 Node
++	for l := n.List.Next; l != nil; l = l.Next {
++		Regalloc(&r1, Types[Tptr], nil)
++		Thearch.Gmove(base, &r1)
++		Regalloc(&r2, Types[TUINT], nil)
++		Thearch.Gmove(len, &r2)
++		if i > 0 {
++			Thearch.Gins(Thearch.Optoas(OADD, Types[TUINT]), Nodintconst(int64(i)), &r2)
++		}
++		w := res.Type.Type.Width
++		if Thearch.AddIndex != nil && Thearch.AddIndex(&r2, w, &r1) {
++			// r1 updated by back end
++		} else if w == 1 {
++			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
++		} else {
++			Thearch.Ginscon(Thearch.Optoas(OMUL, Types[TUINT]), int64(w), &r2)
++			Thearch.Gins(Thearch.Optoas(OADD, Types[Tptr]), &r2, &r1)
++		}
++		Regfree(&r2)
++
++		r1.Op = OINDREG
++		r1.Type = res.Type.Type
++		cgen_wb(l.N, &r1, needwritebarrier(&r1, l.N))
++		Regfree(&r1)
++		i++
++	}
++}
+diff --git a/src/cmd/internal/gc/lex.go b/src/cmd/internal/gc/lex.go
+index 4bbda957a5..be95138b6a 100644
+--- a/src/cmd/internal/gc/lex.go
++++ b/src/cmd/internal/gc/lex.go
+@@ -35,7 +35,10 @@ var goarch string
+ 
+ var goroot string
+ 
+-var Debug_wb int
++var (
++	Debug_wb     int
++	Debug_append int
++)
+ 
+ // Debug arguments.
+ // These can be specified with the -d flag, as in "-d nil"
+@@ -49,6 +52,7 @@ var debugtab = []struct {
+ 	{"typeassert", &Debug_typeassert}, // print information about type assertion inlining
+ 	{"disablenil", &Disable_checknil}, // disable nil checks
+ 	{"wb", &Debug_wb},                 // print information about write barriers
++	{"append", &Debug_append},         // print information about append compilation
+ }
+ 
+ // Our own isdigit, isspace, isalpha, isalnum that take care
+diff --git a/src/cmd/internal/gc/order.go b/src/cmd/internal/gc/order.go
+index 82876f81bc..5de2aa391c 100644
+--- a/src/cmd/internal/gc/order.go
++++ b/src/cmd/internal/gc/order.go
+@@ -1055,8 +1055,7 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 		n.Right.Ninit = concat(l, n.Right.Ninit)
+ 		orderexprinplace(&n.Right, order)
+ 
+-	case OAPPEND,
+-		OCALLFUNC,
++	case OCALLFUNC,
+ 		OCALLINTER,
+ 		OCALLMETH,
+ 		OCAP,
+@@ -1075,6 +1074,12 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 			n = ordercopyexpr(n, n.Type, order, 0)
+ 		}
+ 
++	case OAPPEND:
++		ordercallargs(&n.List, order)
++		if lhs == nil || flag_race != 0 || lhs.Op != ONAME && !samesafeexpr(lhs, n.List.N) {
++			n = ordercopyexpr(n, n.Type, order, 0)
++		}
++
+ 	case OCLOSURE:
+ 		if n.Noescape && n.Func.Cvars != nil {
+ 			n.Alloc = ordertemp(Types[TUINT8], order, false) // walk will fill in correct type
+@@ -1119,7 +1124,6 @@ func orderexpr(np **Node, order *Order, lhs *Node) {
+ 			// for complex comparisons, we need both args to be
+ 			// addressable so we can pass them to the runtime.
+ 			orderaddrtemp(&n.Left, order)
+-
+ 			orderaddrtemp(&n.Right, order)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/gc/walk.go b/src/cmd/internal/gc/walk.go
+index c8a5c7e2f3..bef08ae252 100644
+--- a/src/cmd/internal/gc/walk.go
++++ b/src/cmd/internal/gc/walk.go
+@@ -711,6 +711,23 @@ func walkexpr(np **Node, init **NodeList) {
+ 			n = mkcall1(chanfn("chanrecv1", 2, r.Type), nil, init, typename(r.Type), r, n1)
+ 			walkexpr(&n, init)
+ 			goto ret
++
++		case OAPPEND:
++			// x = append(...)
++			r := n.Right
++			if r.Isddd {
++				r = appendslice(r, init) // also works for append(slice, string).
++			} else {
++				r = walkappend(r, init, n)
++			}
++			n.Right = r
++			if r.Op == OAPPEND {
++				// Left in place for back end.
++				// Do not add a new write barrier.
++				goto ret
++			}
++			// Otherwise, lowered for race detector.
++			// Treat as ordinary assignment.
+ 		}
+ 
+ 		if n.Left != nil && n.Right != nil {
+@@ -1400,12 +1417,8 @@ func walkexpr(np **Node, init **NodeList) {
+ 		goto ret
+ 
+ 	case OAPPEND:
+-		if n.Isddd {
+-			n = appendslice(n, init) // also works for append(slice, string).
+-		} else {
+-			n = walkappend(n, init)
+-		}
+-		goto ret
++		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
++		Fatal("append outside assignment")
+ 
+ 	case OCOPY:
+ 		n = copyany(n, init, flag_race)
+@@ -2108,9 +2121,8 @@ func isstack(n *Node) bool {
+ 	}
+ 
+ 	switch n.Op {
+-	// OINDREG only ends up in walk if it's indirect of SP.
+ 	case OINDREG:
+-		return true
++		return n.Reg == int16(Thearch.REGSP)
+ 
+ 	case ONAME:
+ 		switch n.Class {
+@@ -3006,7 +3018,13 @@ func appendslice(n *Node, init **NodeList) *Node {
+ 	return s
+ }
+ 
+-// expand append(src, a [, b]* ) to
++// Rewrite append(src, x, y, z) so that any side effects in
++// x, y, z (including runtime panics) are evaluated in
++// initialization statements before the append.
++// For normal code generation, stop there and leave the
++// rest to cgen_append.
++//
++// For race detector, expand append(src, a [, b]* ) to
+ //
+ //   init {
+ //     s := src
+@@ -3021,13 +3039,21 @@ func appendslice(n *Node, init **NodeList) *Node {
+ //     ...
+ //   }
+ //   s
+-func walkappend(n *Node, init **NodeList) *Node {
+-	walkexprlistsafe(n.List, init)
++func walkappend(n *Node, init **NodeList, dst *Node) *Node {
++	if !samesafeexpr(dst, n.List.N) {
++		l := n.List
++		l.N = safeexpr(l.N, init)
++		walkexpr(&l.N, init)
++	}
++	walkexprlistsafe(n.List.Next, init)
+ 
+ 	// walkexprlistsafe will leave OINDEX (s[n]) alone if both s
+ 	// and n are name or literal, but those may index the slice we're
+ 	// modifying here.  Fix explicitly.
+-	for l := n.List; l != nil; l = l.Next {
++	// Using cheapexpr also makes sure that the evaluation
++	// of all arguments (and especially any panics) happen
++	// before we begin to modify the slice in a visible way.
++	for l := n.List.Next; l != nil; l = l.Next {
+ 		l.N = cheapexpr(l.N, init)
+ 	}
+ 
+@@ -3042,6 +3068,12 @@ func walkappend(n *Node, init **NodeList) *Node {
+ 		return nsrc
+ 	}
+ 
++	// General case, with no function calls left as arguments.
++	// Leave for gen, except that race detector requires old form
++	if flag_race == 0 {
++		return n
++	}
++
+ 	var l *NodeList
+ 
+ 	ns := temp(nsrc.Type)
+diff --git a/test/sliceopt.go b/test/sliceopt.go
+new file mode 100644
+index 0000000000..dc30717ebf
+--- /dev/null
++++ b/test/sliceopt.go
+@@ -0,0 +1,22 @@
++// errorcheck -0 -d=append
++
++// Copyright 2015 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Check optimization results for append.
++
++package main
++
++func a1(x []int, y int) []int {
++	x = append(x, y) // ERROR "append: len-only update"
++	return x
++}
++
++func a2(x []int, y int) []int {
++	return append(x, y) // ERROR "append: full update"
++}
++
++func a3(x *[]int, y int) {
++	*x = append(*x, y) // ERROR "append: len-only update"
++}
+diff --git a/test/writebarrier.go b/test/writebarrier.go
+index 1f25d91ea4..b24af9a14d 100644
+--- a/test/writebarrier.go
++++ b/test/writebarrier.go
+@@ -28,7 +28,7 @@ func f1a(x *[]byte, y *[]byte) {
+ 	*x = *y // ERROR "write barrier"
+ 
+ 	z := *y // no barrier
+-	*x = z // ERROR "write barrier"
++	*x = z  // ERROR "write barrier"
+ }
+ 
+ func f2(x *interface{}, y interface{}) {
+@@ -56,7 +56,7 @@ func f3a(x *string, y *string) {
+ 	*x = *y // ERROR "write barrier"
+ 
+ 	z := *y // no barrier
+-	*x = z // ERROR "write barrier"
++	*x = z  // ERROR "write barrier"
+ }
+ 
+ func f4(x *[2]string, y [2]string) {
+@@ -70,7 +70,7 @@ func f4a(x *[2]string, y *[2]string) {
+ 	*x = *y // ERROR "write barrier"
+ 
+ 	z := *y // no barrier
+-	*x = z // ERROR "write barrier"
++	*x = z  // ERROR "write barrier"
+ }
+ 
+ type T struct {
+@@ -108,3 +108,23 @@ func f10(x *byte, f func(interface{})) {
+ func f11(x *unsafe.Pointer, y unsafe.Pointer) {
+ 	*x = unsafe.Pointer(uintptr(y) + 1) // ERROR "write barrier"
+ }
++
++func f12(x []*int, y *int) []*int {
++	// write barrier for storing y in x's underlying array
++	x = append(x, y) // ERROR "write barrier"
++	return x
++}
++
++func f12a(x []int, y int) []int {
++	// y not a pointer, so no write barriers in this function
++	x = append(x, y)
++	return x
++}
++
++func f13(x []int, y *[]int) {
++	*y = append(x, 1) // ERROR "write barrier"
++}
++
++func f14(y *[]int) {
++	*y = append(*y, 1) // ERROR "write barrier"
++}

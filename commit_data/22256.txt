@@ -9,6 +9,32 @@ Date:   Mon Mar 2 16:05:11 2015 -0500
     Change-Id: I2145a42877ed6b78400f29c2ef18969870dab5c3
     Reviewed-on: https://go-review.googlesource.com/6512
     Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
-
+---
  misc/ios/go_darwin_arm_exec.go | 13 ++++++++++---
  1 file changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/misc/ios/go_darwin_arm_exec.go b/misc/ios/go_darwin_arm_exec.go
+index 27e6b329e8..bca8f16e50 100644
+--- a/misc/ios/go_darwin_arm_exec.go
++++ b/misc/ios/go_darwin_arm_exec.go
+@@ -406,10 +406,17 @@ func copyLocalData(dstbase string) (pkgpath string, err error) {
+ 	}
+ 
+ 	// Copy timezone file.
++	//
++	// Typical apps have the zoneinfo.zip in the root of their app bundle,
++	// read by the time package as the working directory at initialization.
++	// As we move the working directory to the GOROOT pkg directory, we
++	// install the zoneinfo.zip file in the pkgpath.
+ 	if underGoRoot {
+-		dst := filepath.Join(dstbase, "lib", "time")
+-		os.MkdirAll(dst, 0755)
+-		if err := cp(dst, filepath.Join(cwd, "lib", "time", "zoneinfo.zip")); err != nil {
++		err := cp(
++			filepath.Join(dstbase, pkgpath),
++			filepath.Join(cwd, "lib", "time", "zoneinfo.zip"),
++		)
++		if err != nil {
+ 			return "", err
+ 		}
+ 	}

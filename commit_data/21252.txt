@@ -7,6 +7,15 @@ Date:   Fri Dec 12 01:52:05 2014 -0500
     Change-Id: I5f021b131f5650217bd14dec09cfb81fb0447b9e
     Reviewed-on: https://go-review.googlesource.com/1422
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  .gitattributes | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/.gitattributes b/.gitattributes
+new file mode 100644
+index 0000000000..97da3389fb
+--- /dev/null
++++ b/.gitattributes
+@@ -0,0 +1,2 @@
++# see golang.org/issue/9281
++* eol=lf

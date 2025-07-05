@@ -88,9 +88,172 @@ Date:   Thu Apr 2 02:39:28 2020 +0000
     Run-TryBot: Alberto Donizetti <alb.donizetti@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/asm/internal/asm/testdata/arm64.s | 15 ++++++++--
  src/cmd/internal/obj/arm64/a.out.go       |  7 +++--
  src/cmd/internal/obj/arm64/anames7.go     |  1 +
  src/cmd/internal/obj/arm64/asm7.go        | 46 +++++++++++++++++++++----------
  4 files changed, 50 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index e106ff2ae1..acfb16b096 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -340,8 +340,19 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $-8
+ 	MOVD	$0x1111ffff1111aaaa, R1       // MOVD	$1230045644216969898, R1    // a1aa8a922122a2f22122e2f2
+ 	MOVD	$0, R1                        // 010080d2
+ 	MOVD	$-1, R1                       // 01008092
+-	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                 // 2004a0d2
+-	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                  // a1aa8a92
++	MOVD	$0x210000, R0                 // MOVD	$2162688, R0                // 2004a0d2
++	MOVD	$0xffffffffffffaaaa, R1       // MOVD	$-21846, R1                 // a1aa8a92
++
++	MOVD	$0x1002(RSP), R1              // MOVD	$4098(RSP), R1              // fb074091610b0091
++	MOVD	$0x1708(RSP), RSP             // MOVD	$5896(RSP), RSP             // fb0740917f231c91
++	MOVD	$0x2001(R7), R1               // MOVD	$8193(R7), R1               // fb08409161070091
++	MOVD	$0xffffff(R7), R1             // MOVD	$16777215(R7), R1           // fbfc7f9161ff3f91
++
++	MOVD	$-0x1(R7), R1                 // MOVD	$-1(R7), R1                 // e10400d1
++	MOVD	$-0x30(R7), R1                // MOVD	$-48(R7), R1                // e1c000d1
++	MOVD	$-0x708(R7), R1               // MOVD	$-1800(R7), R1              // e1201cd1
++	MOVD	$-0x2000(RSP), R1             // MOVD	$-8192(RSP), R1             // e10b40d1
++	MOVD	$-0x10000(RSP), RSP           // MOVD	$-65536(RSP), RSP           // ff4340d1
+ 
+ //
+ // CLS
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index 2839da1437..b3c9e9a18e 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -410,9 +410,10 @@ const (
+ 	C_FCON     // floating-point constant
+ 	C_VCONADDR // 64-bit memory address
+ 
+-	C_AACON // ADDCON offset in auto constant $a(FP)
+-	C_LACON // 32-bit offset in auto constant $a(FP)
+-	C_AECON // ADDCON offset in extern constant $e(SB)
++	C_AACON  // ADDCON offset in auto constant $a(FP)
++	C_AACON2 // 24-bit offset in auto constant $a(FP)
++	C_LACON  // 32-bit offset in auto constant $a(FP)
++	C_AECON  // ADDCON offset in extern constant $e(SB)
+ 
+ 	// TODO(aram): only one branch class should be enough
+ 	C_SBRA // for TYPE_BRANCH
+diff --git a/src/cmd/internal/obj/arm64/anames7.go b/src/cmd/internal/obj/arm64/anames7.go
+index e1703fc4ab..96c9f788d9 100644
+--- a/src/cmd/internal/obj/arm64/anames7.go
++++ b/src/cmd/internal/obj/arm64/anames7.go
+@@ -36,6 +36,7 @@ var cnames7 = []string{
+ 	"FCON",
+ 	"VCONADDR",
+ 	"AACON",
++	"AACON2",
+ 	"LACON",
+ 	"AECON",
+ 	"SBRA",
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index df4bbbbd35..fc2033d689 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -391,7 +391,11 @@ var optab = []Optab{
+ 	{AMOVD, C_VCON, C_NONE, C_NONE, C_REG, 12, 16, 0, NOTUSETMP, 0},
+ 
+ 	{AMOVK, C_VCON, C_NONE, C_NONE, C_REG, 33, 4, 0, 0, 0},
+-	{AMOVD, C_AACON, C_NONE, C_NONE, C_REG, 4, 4, REGFROM, 0, 0},
++	{AMOVD, C_AACON, C_NONE, C_NONE, C_RSP, 4, 4, REGFROM, 0, 0},
++	{AMOVD, C_AACON2, C_NONE, C_NONE, C_RSP, 4, 8, REGFROM, 0, 0},
++
++	/* load long effective stack address (load int32 offset and add) */
++	{AMOVD, C_LACON, C_NONE, C_NONE, C_RSP, 34, 8, REGSP, LFROM, 0},
+ 
+ 	// Move a large constant to a Vn.
+ 	{AFMOVQ, C_VCON, C_NONE, C_NONE, C_VREG, 101, 4, 0, LFROM, 0},
+@@ -594,9 +598,6 @@ var optab = []Optab{
+ 	{AFMOVD, C_LAUTO, C_NONE, C_NONE, C_FREG, 31, 8, REGSP, LFROM, 0},
+ 	{AFMOVD, C_LOREG, C_NONE, C_NONE, C_FREG, 31, 8, 0, LFROM, 0},
+ 
+-	/* load long effective stack address (load int32 offset and add) */
+-	{AMOVD, C_LACON, C_NONE, C_NONE, C_REG, 34, 8, REGSP, LFROM, 0},
+-
+ 	/* pre/post-indexed load (unscaled, signed 9-bit offset) */
+ 	{AMOVD, C_LOREG, C_NONE, C_NONE, C_REG, 22, 4, 0, 0, C_XPOST},
+ 	{AMOVW, C_LOREG, C_NONE, C_NONE, C_REG, 22, 4, 0, 0, C_XPOST},
+@@ -1361,6 +1362,10 @@ func isaddcon(v int64) bool {
+ 	return v <= 0xFFF
+ }
+ 
++func isaddcon2(v int64) bool {
++	return 0 <= v && v <= 0xFFFFFF
++}
++
+ // isbitcon reports whether a constant can be encoded into a logical instruction.
+ // bitcon has a binary form of repetition of a bit sequence of length 2, 4, 8, 16, 32, or 64,
+ // which itself is a rotate (w.r.t. the length of the unit) of a sequence of ones.
+@@ -1889,10 +1894,14 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 		default:
+ 			return C_GOK
+ 		}
+-
+-		if isaddcon(c.instoffset) {
++		cf := c.instoffset
++		if isaddcon(cf) || isaddcon(-cf) {
+ 			return C_AACON
+ 		}
++		if isaddcon2(cf) {
++			return C_AACON2
++		}
++
+ 		return C_LACON
+ 
+ 	case obj.TYPE_BRANCH:
+@@ -2046,7 +2055,7 @@ func cmp(a int, b int) bool {
+ 		return cmp(C_LCON, b)
+ 
+ 	case C_LACON:
+-		if b == C_AACON {
++		if b == C_AACON || b == C_AACON2 {
+ 			return true
+ 		}
+ 
+@@ -3062,11 +3071,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		}
+ 		o1 |= (uint32(r&31) << 5) | uint32(rt&31)
+ 
+-	case 4: /* mov $addcon, R; mov $recon, R; mov $racon, R */
+-		o1 = c.opirr(p, p.As)
+-
++	case 4: /* mov $addcon, R; mov $recon, R; mov $racon, R; mov $addcon2, R */
+ 		rt := int(p.To.Reg)
+ 		r := int(o.param)
++
+ 		if r == 0 {
+ 			r = REGZERO
+ 		} else if r == REGFROM {
+@@ -3075,13 +3083,23 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		if r == 0 {
+ 			r = REGSP
+ 		}
++
+ 		v := int32(c.regoff(&p.From))
+-		if (v & 0xFFF000) != 0 {
+-			v >>= 12
+-			o1 |= 1 << 22 /* shift, by 12 */
++		var op int32
++		if v < 0 {
++			v = -v
++			op = int32(c.opirr(p, ASUB))
++		} else {
++			op = int32(c.opirr(p, AADD))
++		}
++
++		if int(o.size) == 8 {
++			o1 = c.oaddi(p, op, v&0xfff000, r, REGTMP)
++			o2 = c.oaddi(p, op, v&0x000fff, REGTMP, rt)
++			break
+ 		}
+ 
+-		o1 |= ((uint32(v) & 0xFFF) << 10) | (uint32(r&31) << 5) | uint32(rt&31)
++		o1 = c.oaddi(p, op, v, r, rt)
+ 
+ 	case 5: /* b s; bl s */
+ 		o1 = c.opbra(p, p.As)

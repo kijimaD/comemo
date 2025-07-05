@@ -14,7 +14,7 @@ Date:   Fri Jan 27 12:01:38 2023 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Joel Sing <joel@sing.id.au>
-
+---
  src/cmd/link/internal/amd64/obj.go   | 23 +++++++++++---------
  src/cmd/link/internal/arm/obj.go     | 23 +++++++++++---------
  src/cmd/link/internal/arm64/obj.go   | 25 +++++++++++----------
@@ -28,3 +28,538 @@ Date:   Fri Jan 27 12:01:38 2023 -0800
  src/cmd/link/internal/s390x/obj.go   | 25 +++++++++++----------
  src/cmd/link/internal/x86/obj.go     | 21 ++++++++++--------
  12 files changed, 164 insertions(+), 123 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/obj.go b/src/cmd/link/internal/amd64/obj.go
+index c5e2117f90..3bc0fef196 100644
+--- a/src/cmd/link/internal/amd64/obj.go
++++ b/src/cmd/link/internal/amd64/obj.go
+@@ -55,22 +55,25 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 		MachorelocSize:   8,
+ 		PEreloc1:         pereloc1,
+ 		TLSIEtoLE:        tlsIEtoLE,
+ 
+-		Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
+-		LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
+-		Freebsddynld:   "/libexec/ld-elf.so.1",
+-		Openbsddynld:   "/usr/libexec/ld.so",
+-		Netbsddynld:    "/libexec/ld.elf_so",
+-		Dragonflydynld: "/usr/libexec/ld-elf.so.2",
+-		Solarisdynld:   "/lib/amd64/ld.so.1",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib64/ld-linux-x86-64.so.2",
++			LinuxdynldMusl: "/lib/ld-musl-x86_64.so.1",
++			Freebsddynld:   "/libexec/ld-elf.so.1",
++			Openbsddynld:   "/usr/libexec/ld.so",
++			Netbsddynld:    "/libexec/ld.elf_so",
++			Dragonflydynld: "/usr/libexec/ld-elf.so.2",
++			Solarisdynld:   "/lib/amd64/ld.so.1",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/arm/obj.go b/src/cmd/link/internal/arm/obj.go
+index 6da0c77483..cb1a269c0f 100644
+--- a/src/cmd/link/internal/arm/obj.go
++++ b/src/cmd/link/internal/arm/obj.go
+@@ -55,20 +55,23 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+ 		Trampoline:       trampoline,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     8,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 		PEreloc1:         pereloc1,
+ 
+-		Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
+-		LinuxdynldMusl: "/lib/ld-musl-arm.so.1",
+-		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+-		Openbsddynld:   "/usr/libexec/ld.so",
+-		Netbsddynld:    "/libexec/ld.elf_so",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib/ld-linux.so.3", // 2 for OABI, 3 for EABI
++			LinuxdynldMusl: "/lib/ld-musl-arm.so.1",
++			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
++			Openbsddynld:   "/usr/libexec/ld.so",
++			Netbsddynld:    "/libexec/ld.elf_so",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 8,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/arm64/obj.go b/src/cmd/link/internal/arm64/obj.go
+index a47be0b282..d068f8ef80 100644
+--- a/src/cmd/link/internal/arm64/obj.go
++++ b/src/cmd/link/internal/arm64/obj.go
+@@ -52,9 +52,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		GenSymsLate:      gensymlate,
+ 		Machoreloc1:      machoreloc1,
+@@ -62,15 +59,21 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		PEreloc1:         pereloc1,
+ 		Trampoline:       trampoline,
+ 
+-		Androiddynld:   "/system/bin/linker64",
+-		Linuxdynld:     "/lib/ld-linux-aarch64.so.1",
+-		LinuxdynldMusl: "/lib/ld-musl-aarch64.so.1",
++		ELF: ld.ELFArch{
++			Androiddynld:   "/system/bin/linker64",
++			Linuxdynld:     "/lib/ld-linux-aarch64.so.1",
++			LinuxdynldMusl: "/lib/ld-musl-aarch64.so.1",
+ 
+-		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+-		Openbsddynld:   "/usr/libexec/ld.so",
+-		Netbsddynld:    "/libexec/ld.elf_so",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
++			Openbsddynld:   "/usr/libexec/ld.so",
++			Netbsddynld:    "/libexec/ld.elf_so",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index a1ae7eab57..738bea11c8 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -191,6 +191,26 @@ var (
+ 	interp string
+ )
+ 
++// ELFArch includes target-specific hooks for ELF targets.
++// This is initialized by the target-specific Init function
++// called by the linker's main function in cmd/link/main.go.
++type ELFArch struct {
++	// TODO: Document these fields.
++
++	Androiddynld   string
++	Linuxdynld     string
++	LinuxdynldMusl string
++	Freebsddynld   string
++	Netbsddynld    string
++	Openbsddynld   string
++	Dragonflydynld string
++	Solarisdynld   string
++
++	Elfreloc1    func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
++	ElfrelocSize uint32 // size of an ELF relocation record, must match Elfreloc1.
++	Elfsetupplt  func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
++}
++
+ type Elfstring struct {
+ 	s   string
+ 	off int
+@@ -1284,7 +1304,7 @@ func elfrelocsect(ctxt *Link, out *OutBuf, sect *sym.Section, syms []loader.Sym)
+ 			if !ldr.AttrReachable(rr.Xsym) {
+ 				ldr.Errorf(s, "unreachable reloc %d (%s) target %v", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), ldr.SymName(rr.Xsym))
+ 			}
+-			if !thearch.Elfreloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
++			if !thearch.ELF.Elfreloc1(ctxt, out, ldr, s, rr, ri, int64(uint64(ldr.SymValue(s)+int64(r.Off()))-sect.Vaddr)) {
+ 				ldr.Errorf(s, "unsupported obj reloc %d (%s)/%d to %s", r.Type(), sym.RelocName(ctxt.Arch, r.Type()), r.Siz(), ldr.SymName(r.Sym()))
+ 			}
+ 		}
+@@ -1301,7 +1321,7 @@ func elfEmitReloc(ctxt *Link) {
+ 		ctxt.Out.Write8(0)
+ 	}
+ 
+-	sizeExtRelocs(ctxt, thearch.ElfrelocSize)
++	sizeExtRelocs(ctxt, thearch.ELF.ElfrelocSize)
+ 	relocSect, wg := relocSectFn(ctxt, elfrelocsect)
+ 
+ 	for _, sect := range Segtext.Sections {
+@@ -1549,7 +1569,7 @@ func (ctxt *Link) doelf() {
+ 			// S390X uses .got instead of .got.plt
+ 			gotplt = got
+ 		}
+-		thearch.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
++		thearch.ELF.Elfsetupplt(ctxt, plt, gotplt, dynamic.Sym())
+ 
+ 		/*
+ 		 * .dynamic table
+@@ -1846,17 +1866,17 @@ func asmbElf(ctxt *Link) {
+ 			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+ 				if buildcfg.GOOS == "android" {
+-					interpreter = thearch.Androiddynld
++					interpreter = thearch.ELF.Androiddynld
+ 					if interpreter == "" {
+ 						Exitf("ELF interpreter not set")
+ 					}
+ 				} else {
+-					interpreter = thearch.Linuxdynld
++					interpreter = thearch.ELF.Linuxdynld
+ 					// If interpreter does not exist, try musl instead.
+ 					// This lets the same cmd/link binary work on
+ 					// both glibc-based and musl-based systems.
+ 					if _, err := os.Stat(interpreter); err != nil {
+-						if musl := thearch.LinuxdynldMusl; musl != "" {
++						if musl := thearch.ELF.LinuxdynldMusl; musl != "" {
+ 							if _, err := os.Stat(musl); err == nil {
+ 								interpreter = musl
+ 							}
+@@ -1865,19 +1885,19 @@ func asmbElf(ctxt *Link) {
+ 				}
+ 
+ 			case objabi.Hfreebsd:
+-				interpreter = thearch.Freebsddynld
++				interpreter = thearch.ELF.Freebsddynld
+ 
+ 			case objabi.Hnetbsd:
+-				interpreter = thearch.Netbsddynld
++				interpreter = thearch.ELF.Netbsddynld
+ 
+ 			case objabi.Hopenbsd:
+-				interpreter = thearch.Openbsddynld
++				interpreter = thearch.ELF.Openbsddynld
+ 
+ 			case objabi.Hdragonfly:
+-				interpreter = thearch.Dragonflydynld
++				interpreter = thearch.ELF.Dragonflydynld
+ 
+ 			case objabi.Hsolaris:
+-				interpreter = thearch.Solarisdynld
++				interpreter = thearch.ELF.Solarisdynld
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 8acf8aadb0..3b34e40358 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -181,15 +181,6 @@ type Arch struct {
+ 	// We leave some room for extra stuff like PLT stubs.
+ 	TrampLimit uint64
+ 
+-	Androiddynld   string
+-	Linuxdynld     string
+-	LinuxdynldMusl string
+-	Freebsddynld   string
+-	Netbsddynld    string
+-	Openbsddynld   string
+-	Dragonflydynld string
+-	Solarisdynld   string
+-
+ 	// Empty spaces between codeblocks will be padded with this value.
+ 	// For example an architecture might want to pad with a trap instruction to
+ 	// catch wayward programs. Architectures that do not define a padding value
+@@ -244,9 +235,6 @@ type Arch struct {
+ 	// needed.
+ 	Extreloc func(*Target, *loader.Loader, loader.Reloc, loader.Sym) (loader.ExtReloc, bool)
+ 
+-	Elfreloc1      func(*Link, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int, int64) bool
+-	ElfrelocSize   uint32 // size of an ELF relocation record, must match Elfreloc1.
+-	Elfsetupplt    func(ctxt *Link, plt, gotplt *loader.SymbolBuilder, dynamic loader.Sym)
+ 	Gentext        func(*Link, *loader.Loader) // Generate text before addressing has been performed.
+ 	Machoreloc1    func(*sys.Arch, *OutBuf, *loader.Loader, loader.Sym, loader.ExtReloc, int64) bool
+ 	MachorelocSize uint32 // size of an Mach-O relocation record, must match Machoreloc1.
+@@ -267,6 +255,9 @@ type Arch struct {
+ 
+ 	// optional override for assignAddress
+ 	AssignAddress func(ldr *loader.Loader, sect *sym.Section, n int, s loader.Sym, va uint64, isTramp bool) (*sym.Section, int, uint64)
++
++	// ELF specific information.
++	ELF ELFArch
+ }
+ 
+ var (
+diff --git a/src/cmd/link/internal/loong64/obj.go b/src/cmd/link/internal/loong64/obj.go
+index 0a5bb0ac6d..e99dbe5c8d 100644
+--- a/src/cmd/link/internal/loong64/obj.go
++++ b/src/cmd/link/internal/loong64/obj.go
+@@ -24,19 +24,22 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Machoreloc1:      machoreloc1,
+ 		Gentext:          gentext,
+ 
+-		Linuxdynld:     "/lib64/ld.so.1",
+-		LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
+-		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
+-		Netbsddynld:    "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib64/ld.so.1",
++			LinuxdynldMusl: "/lib64/ld-musl-loongarch.so.1",
++			Freebsddynld:   "XXX",
++			Openbsddynld:   "XXX",
++			Netbsddynld:    "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/mips/obj.go b/src/cmd/link/internal/mips/obj.go
+index f03c9abfe9..709c493a53 100644
+--- a/src/cmd/link/internal/mips/obj.go
++++ b/src/cmd/link/internal/mips/obj.go
+@@ -56,20 +56,23 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     8,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 
+-		Linuxdynld:     "/lib/ld.so.1",
+-		LinuxdynldMusl: musl,
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib/ld.so.1",
++			LinuxdynldMusl: musl,
+ 
+-		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
+-		Netbsddynld:    "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++			Freebsddynld:   "XXX",
++			Openbsddynld:   "XXX",
++			Netbsddynld:    "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 8,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/mips64/obj.go b/src/cmd/link/internal/mips64/obj.go
+index 557d7993cd..986cd078be 100644
+--- a/src/cmd/link/internal/mips64/obj.go
++++ b/src/cmd/link/internal/mips64/obj.go
+@@ -55,19 +55,22 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 
+-		Linuxdynld:     "/lib64/ld64.so.1",
+-		LinuxdynldMusl: musl,
+-		Freebsddynld:   "XXX",
+-		Openbsddynld:   "/usr/libexec/ld.so",
+-		Netbsddynld:    "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib64/ld64.so.1",
++			LinuxdynldMusl: musl,
++			Freebsddynld:   "XXX",
++			Openbsddynld:   "/usr/libexec/ld.so",
++			Netbsddynld:    "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/ppc64/obj.go b/src/cmd/link/internal/ppc64/obj.go
+index f580c55456..16cd4fc20c 100644
+--- a/src/cmd/link/internal/ppc64/obj.go
++++ b/src/cmd/link/internal/ppc64/obj.go
+@@ -61,22 +61,25 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Trampoline:       trampoline,
+ 		Machoreloc1:      machoreloc1,
+ 		Xcoffreloc1:      xcoffreloc1,
+ 
+-		Linuxdynld:     dynld,
+-		LinuxdynldMusl: musl,
++		ELF: ld.ELFArch{
++			Linuxdynld:     dynld,
++			LinuxdynldMusl: musl,
+ 
+-		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
+-		Netbsddynld:    "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++			Freebsddynld:   "XXX",
++			Openbsddynld:   "XXX",
++			Netbsddynld:    "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/riscv64/obj.go b/src/cmd/link/internal/riscv64/obj.go
+index 8e4e41fff9..28fa7747d6 100644
+--- a/src/cmd/link/internal/riscv64/obj.go
++++ b/src/cmd/link/internal/riscv64/obj.go
+@@ -24,9 +24,6 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+ 		Extreloc:         extreloc,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 
+ 		// TrampLimit is set such that we always run the trampoline
+ 		// generation code. This is necessary since calls to external
+@@ -39,13 +36,19 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		GenSymsLate: genSymsLate,
+ 		Machoreloc1: machoreloc1,
+ 
+-		Linuxdynld: "/lib/ld.so.1",
++		ELF: ld.ELFArch{
++			Linuxdynld: "/lib/ld.so.1",
+ 
+-		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+-		Netbsddynld:    "XXX",
+-		Openbsddynld:   "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
++			Netbsddynld:    "XXX",
++			Openbsddynld:   "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/s390x/obj.go b/src/cmd/link/internal/s390x/obj.go
+index 3aa8948151..df06b952bc 100644
+--- a/src/cmd/link/internal/s390x/obj.go
++++ b/src/cmd/link/internal/s390x/obj.go
+@@ -50,21 +50,24 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     24,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 
+-		Linuxdynld:     "/lib64/ld64.so.1",
+-		LinuxdynldMusl: "/lib/ld-musl-s390x.so.1",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib64/ld64.so.1",
++			LinuxdynldMusl: "/lib/ld-musl-s390x.so.1",
+ 
+-		// not relevant for s390x
+-		Freebsddynld:   "XXX",
+-		Openbsddynld:   "XXX",
+-		Netbsddynld:    "XXX",
+-		Dragonflydynld: "XXX",
+-		Solarisdynld:   "XXX",
++			// not relevant for s390x
++			Freebsddynld:   "XXX",
++			Openbsddynld:   "XXX",
++			Netbsddynld:    "XXX",
++			Dragonflydynld: "XXX",
++			Solarisdynld:   "XXX",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 24,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch
+diff --git a/src/cmd/link/internal/x86/obj.go b/src/cmd/link/internal/x86/obj.go
+index b0a129eb0a..9c62bd7633 100644
+--- a/src/cmd/link/internal/x86/obj.go
++++ b/src/cmd/link/internal/x86/obj.go
+@@ -54,19 +54,22 @@ func Init() (*sys.Arch, ld.Arch) {
+ 		Archinit:         archinit,
+ 		Archreloc:        archreloc,
+ 		Archrelocvariant: archrelocvariant,
+-		Elfreloc1:        elfreloc1,
+-		ElfrelocSize:     8,
+-		Elfsetupplt:      elfsetupplt,
+ 		Gentext:          gentext,
+ 		Machoreloc1:      machoreloc1,
+ 		PEreloc1:         pereloc1,
+ 
+-		Linuxdynld:     "/lib/ld-linux.so.2",
+-		LinuxdynldMusl: "/lib/ld-musl-i386.so.1",
+-		Freebsddynld:   "/usr/libexec/ld-elf.so.1",
+-		Openbsddynld:   "/usr/libexec/ld.so",
+-		Netbsddynld:    "/usr/libexec/ld.elf_so",
+-		Solarisdynld:   "/lib/ld.so.1",
++		ELF: ld.ELFArch{
++			Linuxdynld:     "/lib/ld-linux.so.2",
++			LinuxdynldMusl: "/lib/ld-musl-i386.so.1",
++			Freebsddynld:   "/usr/libexec/ld-elf.so.1",
++			Openbsddynld:   "/usr/libexec/ld.so",
++			Netbsddynld:    "/usr/libexec/ld.elf_so",
++			Solarisdynld:   "/lib/ld.so.1",
++
++			Elfreloc1:    elfreloc1,
++			ElfrelocSize: 8,
++			Elfsetupplt:  elfsetupplt,
++		},
+ 	}
+ 
+ 	return arch, theArch

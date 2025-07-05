@@ -16,6 +16,28 @@ Date:   Fri Aug 25 16:42:42 2023 +0000
     Reviewed-by: Alan Donovan <adonovan@google.com>
     Reviewed-by: Jonathan Amsterdam <jba@google.com>
     Run-TryBot: Mateusz Poliwczak <mpoliwczak34@gmail.com>
-
+---
  src/log/slog/logger.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index a068085f47..a42b0a4bcc 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -14,14 +14,14 @@ import (
+ 	"time"
+ )
+ 
+-var defaultLogger atomic.Value
++var defaultLogger atomic.Pointer[Logger]
+ 
+ func init() {
+ 	defaultLogger.Store(New(newDefaultHandler(loginternal.DefaultOutput)))
+ }
+ 
+ // Default returns the default Logger.
+-func Default() *Logger { return defaultLogger.Load().(*Logger) }
++func Default() *Logger { return defaultLogger.Load() }
+ 
+ // SetDefault makes l the default Logger.
+ // After this call, output from the log package's default Logger

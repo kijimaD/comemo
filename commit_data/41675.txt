@@ -32,7 +32,58 @@ Date:   Sat Oct 19 17:47:12 2019 +1100
     Run-TryBot: Alex Brainman <alex.brainman@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/link/internal/ld/lib.go      |  5 +++++
  src/cmd/link/internal/loadpe/ldpe.go | 23 ++++++++++++++++++++---
  2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 182e5b0769..2c5145e640 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -582,6 +582,11 @@ func (ctxt *Link) loadlib() {
+ 				if p := ctxt.findLibPath("libmingw32.a"); p != "none" {
+ 					hostArchive(ctxt, p)
+ 				}
++				// Link libmsvcrt.a to resolve '__acrt_iob_func' symbol
++				// (see https://golang.org/issue/23649 for details).
++				if p := ctxt.findLibPath("libmsvcrt.a"); p != "none" {
++					hostArchive(ctxt, p)
++				}
+ 				// TODO: maybe do something similar to peimporteddlls to collect all lib names
+ 				// and try link them all to final exe just like libmingwex.a and libmingw32.a:
+ 				/*
+diff --git a/src/cmd/link/internal/loadpe/ldpe.go b/src/cmd/link/internal/loadpe/ldpe.go
+index f08e1241a7..a41a7901a9 100644
+--- a/src/cmd/link/internal/loadpe/ldpe.go
++++ b/src/cmd/link/internal/loadpe/ldpe.go
+@@ -445,9 +445,26 @@ func readpesym(arch *sys.Arch, syms *sym.Symbols, f *pe.File, pesym *pe.COFFSymb
+ 		name = sectsyms[f.Sections[pesym.SectionNumber-1]].Name
+ 	} else {
+ 		name = symname
+-		name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
+-		if arch.Family == sys.I386 && name[0] == '_' {
+-			name = name[1:] // _Name => Name
++		switch arch.Family {
++		case sys.AMD64:
++			if name == "__imp___acrt_iob_func" {
++				// Do not rename __imp___acrt_iob_func into __acrt_iob_func,
++				// becasue __imp___acrt_iob_func symbol is real
++				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
++			} else {
++				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
++			}
++		case sys.I386:
++			if name == "__imp____acrt_iob_func" {
++				// Do not rename __imp____acrt_iob_func into ___acrt_iob_func,
++				// becasue __imp____acrt_iob_func symbol is real
++				// (see commit b295099 from git://git.code.sf.net/p/mingw-w64/mingw-w64 for detials).
++			} else {
++				name = strings.TrimPrefix(name, "__imp_") // __imp_Name => Name
++			}
++			if name[0] == '_' {
++				name = name[1:] // _Name => Name
++			}
+ 		}
+ 	}
+ 

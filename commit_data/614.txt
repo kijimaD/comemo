@@ -7,8 +7,83 @@ Date:   Thu Sep 11 15:38:22 2008 -0700
     R=r
     OCL=15168
     CL=15168
-
+---
  src/pkg/integer.go       | 2 +-
  usr/gri/gosrc/parser.go  | 9 +++++++--
  usr/gri/gosrc/scanner.go | 2 ++
  3 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/integer.go b/src/pkg/integer.go
+index b10c73577e..f6184c4cbd 100755
+--- a/src/pkg/integer.go
++++ b/src/pkg/integer.go
+@@ -572,7 +572,7 @@ func (x Integer) cmp (y Integer) int {
+     case zero(d.val): return  0;
+     default         : return +1;
+   }
+-  CHECK(false);  // unreachable
++  panic("UNREACHABLE");
+ }
+ 
+ 
+diff --git a/usr/gri/gosrc/parser.go b/usr/gri/gosrc/parser.go
+index 6cccb5508d..95f1771fea 100644
+--- a/usr/gri/gosrc/parser.go
++++ b/usr/gri/gosrc/parser.go
+@@ -348,6 +348,8 @@ func (P *Parser) ParseQualifiedIdent(pos int, ident string) *Globals.Object {
+ 		P.Ecart();
+ 		return nil;
+ 	}
++	
++	panic("UNREACHABLE");
+ }
+ 
+ 
+@@ -412,6 +414,8 @@ func (P *Parser) ParseTypeName() *Globals.Type {
+ 		P.Ecart();
+ 		return Universe.bad_t;
+ 	}
++	
++	panic("UNREACHABLE");
+ }
+ 
+ 
+@@ -1525,6 +1529,7 @@ func (P *Parser) ParseIfStat() *AST.IfStat {
+ 	P.CloseScope();
+ 	
+ 	P.Ecart();
++	return nil;
+ }
+ 
+ 
+@@ -1657,7 +1662,7 @@ func (P *Parser) ParseCommClause() {
+ }
+ 
+ 
+-func (P *Parser) ParseRangeStat() bool {
++func (P *Parser) ParseRangeStat() {
+ 	P.Trace("RangeStat");
+ 	
+ 	P.Expect(Scanner.RANGE);
+@@ -1670,7 +1675,7 @@ func (P *Parser) ParseRangeStat() bool {
+ }
+ 
+ 
+-func (P *Parser) ParseSelectStat() bool {
++func (P *Parser) ParseSelectStat() {
+ 	P.Trace("SelectStat");
+ 	
+ 	P.Expect(Scanner.SELECT);
+diff --git a/usr/gri/gosrc/scanner.go b/usr/gri/gosrc/scanner.go
+index 956d0facfa..39d5760468 100644
+--- a/usr/gri/gosrc/scanner.go
++++ b/usr/gri/gosrc/scanner.go
+@@ -609,6 +609,8 @@ func (S *Scanner) ScanEscape() string {
+ 	default:
+ 		S.Error(pos, "illegal char escape");
+ 	}
++
++	return "";  // TODO fix this
+ }
+ 
+ 

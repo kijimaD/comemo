@@ -9,7 +9,41 @@ Date:   Mon Jan 9 21:42:24 2012 +0100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/5498105
-
+---
  src/cmd/gc/swt.c         |  1 -
  test/fixedbugs/bug391.go | 14 ++++++++++++++
  2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/swt.c b/src/cmd/gc/swt.c
+index 7764f0dd35..8b1b93c7da 100644
+--- a/src/cmd/gc/swt.c
++++ b/src/cmd/gc/swt.c
+@@ -792,7 +792,6 @@ walkswitch(Node *sw)
+ 	 * cases have OGOTO into statements.
+ 	 * both have inserted OBREAK statements
+ 	 */
+-	walkstmtlist(sw->ninit);
+ 	if(sw->ntest == N) {
+ 		sw->ntest = nodbool(1);
+ 		typecheck(&sw->ntest, Erv);
+diff --git a/test/fixedbugs/bug391.go b/test/fixedbugs/bug391.go
+new file mode 100644
+index 0000000000..81507188b2
+--- /dev/null
++++ b/test/fixedbugs/bug391.go
+@@ -0,0 +1,14 @@
++// $G $D/$F.go || echo "Issue2576"
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Issue 2576
++package bug
++
++type T struct { a int }
++
++func f(t T) {
++        switch _, _ = t.a, t.a; {}
++}
+\ No newline at end of file

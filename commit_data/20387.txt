@@ -11,7 +11,73 @@ Date:   Thu Sep 4 14:19:50 2014 -0400
     R=rlh, bradfitz
     CC=dvyukov, golang-codereviews, iant, khr, r
     https://golang.org/cl/139150045
-
+---
  src/pkg/runtime/proc.c  |  1 +
  src/pkg/runtime/proc.go | 30 ++----------------------------
  2 files changed, 3 insertions(+), 28 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 3e7b07c2c5..d75c210c5a 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -442,6 +442,7 @@ isscanstatus(uint32 status)
+ 
+ // All reads and writes of g's status go through readgstatus, casgstatus
+ // castogscanstatus, casfromgscanstatus.
++#pragma textflag NOSPLIT
+ uint32
+ runtime·readgstatus(G *gp)
+ {
+diff --git a/src/pkg/runtime/proc.go b/src/pkg/runtime/proc.go
+index 3e1d0694a0..4789a51b66 100644
+--- a/src/pkg/runtime/proc.go
++++ b/src/pkg/runtime/proc.go
+@@ -6,27 +6,6 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// This is not mechanically generated
+-// so be very careful and refer to runtime.h
+-// for the definitive enum.
+-const (
+-	gStatusidle = iota
+-	gStatusRunnable
+-	gStatusRunning
+-	gStatusSyscall
+-	gStatusWaiting
+-	gStatusMoribundUnused
+-	gStatusDead
+-	gStatusEnqueue
+-	gStatusCopystack
+-	gStatusScan         = 0x1000
+-	gStatusScanRunnable = gStatusScan + gStatusRunnable
+-	gStatusScanRunning  = gStatusScan + gStatusRunning
+-	gStatusScanSyscall  = gStatusScan + gStatusSyscall
+-	gStatusScanWaiting  = gStatusScan + gStatusWaiting
+-	gStatusScanEnqueue  = gStatusScan + gStatusEnqueue
+-)
+-
+ var parkunlock_c byte
+ 
+ // start forcegc helper goroutine
+@@ -58,18 +37,13 @@ func Gosched() {
+ 	mcall(gosched_m)
+ }
+ 
+-func readgStatus(gp *g) uint32 {
+-	//return atomic.LoadUint32(&gp.atomicstatus) // TODO: add bootstrap code to provide.
+-	return gp.atomicstatus
+-}
+-
+ // Puts the current goroutine into a waiting state and calls unlockf.
+ // If unlockf returns false, the goroutine is resumed.
+ func gopark(unlockf unsafe.Pointer, lock unsafe.Pointer, reason string) {
+ 	mp := acquirem()
+ 	gp := mp.curg
+-	status := readgStatus(gp)
+-	if status != gStatusRunning && status != gStatusScanRunning {
++	status := readgstatus(gp)
++	if status != _Grunning && status != _Gscanrunning {
+ 		gothrow("gopark: bad g status")
+ 	}
+ 	mp.waitlock = lock

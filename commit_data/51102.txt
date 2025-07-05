@@ -13,6 +13,20 @@ Date:   Sat Dec 4 17:59:19 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  test/ken/slicearray.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/ken/slicearray.go b/test/ken/slicearray.go
+index 6cf676c588..a431983d15 100644
+--- a/test/ken/slicearray.go
++++ b/test/ken/slicearray.go
+@@ -89,7 +89,7 @@ func main() {
+ 	by = bx[2:8]
+ 	tstb()
+ 
+-	// width 4 (float64)
++	// width 8 (float64)
+ 	lb = 0
+ 	hb = 10
+ 	fy = fx[lb:hb]

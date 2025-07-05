@@ -27,7 +27,7 @@ Date:   Tue Mar 10 21:37:13 2015 -0700
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/gc/closure.go |   4 +-
  src/cmd/internal/gc/dcl.go     |  17 ++++--
  src/cmd/internal/gc/export.go  |   2 +-
@@ -37,3 +37,355 @@ Date:   Tue Mar 10 21:37:13 2015 -0700
  src/cmd/internal/gc/syntax.go  | 126 ++++++++++++++++++++++-------------------
  src/cmd/internal/gc/y.go       |   6 +-
  8 files changed, 98 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/internal/gc/closure.go b/src/cmd/internal/gc/closure.go
+index 4b1e929642..7cee6309c3 100644
+--- a/src/cmd/internal/gc/closure.go
++++ b/src/cmd/internal/gc/closure.go
+@@ -191,7 +191,7 @@ func makeclosure(func_ *Node) *Node {
+ 	// create the function
+ 	xfunc := Nod(ODCLFUNC, nil, nil)
+ 
+-	xfunc.Nname = newname(closurename(func_))
++	xfunc.Nname = newfuncname(closurename(func_))
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+ 	xfunc.Nname.Ntype = xtype
+ 	xfunc.Nname.Defn = xfunc
+@@ -581,7 +581,7 @@ func makepartialcall(fn *Node, t0 *Type, meth *Node) *Node {
+ 	xtype.Rlist = l
+ 
+ 	xfunc.Dupok = true
+-	xfunc.Nname = newname(sym)
++	xfunc.Nname = newfuncname(sym)
+ 	xfunc.Nname.Sym.Flags |= SymExported // disable export
+ 	xfunc.Nname.Ntype = xtype
+ 	xfunc.Nname.Defn = xfunc
+diff --git a/src/cmd/internal/gc/dcl.go b/src/cmd/internal/gc/dcl.go
+index 64be3e7119..4e298a3038 100644
+--- a/src/cmd/internal/gc/dcl.go
++++ b/src/cmd/internal/gc/dcl.go
+@@ -373,6 +373,14 @@ func newname(s *Sym) *Node {
+ 	return n
+ }
+ 
++// newfuncname generates a new name node for a function or method.
++// TODO(rsc): Use an ODCLFUNC node instead. See comment in CL 7360.
++func newfuncname(s *Sym) *Node {
++	n := newname(s)
++	n.Func = new(Func)
++	return n
++}
++
+ /*
+  * this generates a new name node for a name
+  * being declared.
+@@ -542,6 +550,7 @@ func ifacedcl(n *Node) {
+ 		Yyerror("methods must have a unique non-blank name")
+ 	}
+ 
++	n.Func = new(Func)
+ 	dclcontext = PPARAM
+ 	markdcl()
+ 	Funcdepth++
+@@ -1312,7 +1321,7 @@ func methodname1(n *Node, t *Node) *Node {
+ 	}
+ 
+ 	if t.Sym == nil || isblank(n) {
+-		return newname(n.Sym)
++		return newfuncname(n.Sym)
+ 	}
+ 
+ 	var p string
+@@ -1323,9 +1332,9 @@ func methodname1(n *Node, t *Node) *Node {
+ 	}
+ 
+ 	if exportname(t.Sym.Name) {
+-		n = newname(Lookup(p))
++		n = newfuncname(Lookup(p))
+ 	} else {
+-		n = newname(Pkglookup(p, t.Sym.Pkg))
++		n = newfuncname(Pkglookup(p, t.Sym.Pkg))
+ 	}
+ 
+ 	return n
+@@ -1476,7 +1485,7 @@ func funcsym(s *Sym) *Sym {
+ 
+ 	s1 := Pkglookup(s.Name+"·f", s.Pkg)
+ 	if s1.Def == nil {
+-		s1.Def = newname(s1)
++		s1.Def = newfuncname(s1)
+ 		s1.Def.Shortname = newname(s)
+ 		funcsyms = list(funcsyms, s1.Def)
+ 	}
+diff --git a/src/cmd/internal/gc/export.go b/src/cmd/internal/gc/export.go
+index e36ea76080..dae8912924 100644
+--- a/src/cmd/internal/gc/export.go
++++ b/src/cmd/internal/gc/export.go
+@@ -239,7 +239,7 @@ func dumpexportvar(s *Sym) {
+ 	dumpexporttype(t)
+ 
+ 	if t.Etype == TFUNC && n.Class == PFUNC {
+-		if n.Inl != nil {
++		if n.Func != nil && n.Inl != nil {
+ 			// when lazily typechecking inlined bodies, some re-exported ones may not have been typechecked yet.
+ 			// currently that can leave unresolved ONONAMEs in import-dot-ed packages in the wrong package
+ 			if Debug['l'] < 2 {
+diff --git a/src/cmd/internal/gc/go.y b/src/cmd/internal/gc/go.y
+index bfdf781519..6777d7a361 100644
+--- a/src/cmd/internal/gc/go.y
++++ b/src/cmd/internal/gc/go.y
+@@ -1358,7 +1358,7 @@ fndcl:
+ 		t.Rlist = $5;
+ 
+ 		$$ = Nod(ODCLFUNC, nil, nil);
+-		$$.Nname = newname($1);
++		$$.Nname = newfuncname($1);
+ 		$$.Nname.Defn = $$;
+ 		$$.Nname.Ntype = t;		// TODO: check if nname already has an ntype
+ 		declare($$.Nname, PFUNC);
+@@ -1392,7 +1392,7 @@ fndcl:
+ 		t.Rlist = $8;
+ 
+ 		$$ = Nod(ODCLFUNC, nil, nil);
+-		$$.Shortname = newname($4);
++		$$.Shortname = newfuncname($4);
+ 		$$.Nname = methodname1($$.Shortname, rcvr.Right);
+ 		$$.Nname.Defn = $$;
+ 		$$.Nname.Ntype = t;
+@@ -1422,7 +1422,7 @@ hidden_fndcl:
+ 			Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0));
+ 		}
+ 
+-		$$ = newname(s);
++		$$ = newfuncname(s);
+ 		$$.Type = t;
+ 		declare($$, PFUNC);
+ 
+diff --git a/src/cmd/internal/gc/inl.go b/src/cmd/internal/gc/inl.go
+index 5e5cb6d3f0..0e8ef710ff 100644
+--- a/src/cmd/internal/gc/inl.go
++++ b/src/cmd/internal/gc/inl.go
+@@ -169,7 +169,7 @@ func ishairy(n *Node, budget *int) bool {
+ 	switch n.Op {
+ 	// Call is okay if inlinable and we have the budget for the body.
+ 	case OCALLFUNC:
+-		if n.Left.Inl != nil {
++		if n.Left.Func != nil && n.Left.Inl != nil {
+ 			*budget -= int(n.Left.InlCost)
+ 			break
+ 		}
+@@ -247,7 +247,9 @@ func inlcopy(n *Node) *Node {
+ 
+ 	m := Nod(OXXX, nil, nil)
+ 	*m = *n
+-	m.Inl = nil
++	if m.Func != nil {
++		m.Inl = nil
++	}
+ 	m.Left = inlcopy(n.Left)
+ 	m.Right = inlcopy(n.Right)
+ 	m.List = inlcopylist(n.List)
+@@ -457,7 +459,7 @@ func inlnode(np **Node) {
+ 		if Debug['m'] > 3 {
+ 			fmt.Printf("%v:call to func %v\n", n.Line(), Nconv(n.Left, obj.FmtSign))
+ 		}
+-		if n.Left.Inl != nil { // normal case
++		if n.Left.Func != nil && n.Left.Inl != nil { // normal case
+ 			mkinlcall(np, n.Left, n.Isddd)
+ 		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+ 			if n.Left.Sym.Def != nil {
+diff --git a/src/cmd/internal/gc/subr.go b/src/cmd/internal/gc/subr.go
+index 8d199a296d..17ee1d3c0a 100644
+--- a/src/cmd/internal/gc/subr.go
++++ b/src/cmd/internal/gc/subr.go
+@@ -394,6 +394,10 @@ func Nod(op int, nleft *Node, nright *Node) *Node {
+ 	n.Xoffset = BADWIDTH
+ 	n.Orig = n
+ 	n.Curfn = Curfn
++	switch op {
++	case OCLOSURE, ODCLFUNC:
++		n.Func = new(Func)
++	}
+ 	return n
+ }
+ 
+diff --git a/src/cmd/internal/gc/syntax.go b/src/cmd/internal/gc/syntax.go
+index 1c84aa196b..593e81e3dc 100644
+--- a/src/cmd/internal/gc/syntax.go
++++ b/src/cmd/internal/gc/syntax.go
+@@ -23,58 +23,45 @@ type Node struct {
+ 	List  *NodeList
+ 	Rlist *NodeList
+ 
+-	Op             uint8
+-	Nointerface    bool
+-	Ullman         uint8 // sethi/ullman number
+-	Addable        uint8 // type of addressability - 0 is not addressable
+-	Etype          uint8 // op for OASOP, etype for OTYPE, exclam for export
+-	Bounded        bool  // bounds check unnecessary
+-	Class          uint8 // PPARAM, PAUTO, PEXTERN, etc
+-	Method         uint8 // OCALLMETH name
+-	Embedded       uint8 // ODCLFIELD embedded type
+-	Colas          uint8 // OAS resulting from :=
+-	Diag           uint8 // already printed error about this
+-	Noescape       bool  // func arguments do not escape
+-	Nosplit        bool  // func should not execute on separate stack
+-	Nowritebarrier bool  // emit compiler error instead of write barrier
+-	Walkdef        uint8
+-	Typecheck      uint8
+-	Local          bool
+-	Dodata         uint8
+-	Initorder      uint8
+-	Used           bool
+-	Isddd          bool // is the argument variadic
+-	Readonly       bool
+-	Implicit       bool
+-	Addrtaken      bool  // address taken, even if not moved to heap
+-	Assigned       bool  // is the variable ever assigned to
+-	Captured       bool  // is the variable captured by a closure
+-	Byval          bool  // is the variable captured by value or by reference
+-	Dupok          bool  // duplicate definitions ok (for func)
+-	Wrapper        bool  // is method wrapper (for func)
+-	Reslice        bool  // this is a reslice x = x[0:y] or x = append(x, ...)
+-	Likely         int8  // likeliness of if statement
+-	Hasbreak       bool  // has break statement
+-	Needzero       bool  // if it contains pointers, needs to be zeroed on function entry
+-	Needctxt       bool  // function uses context register (has closure variables)
+-	Esc            uint8 // EscXXX
+-	Funcdepth      int32
++	Op          uint8
++	Nointerface bool
++	Ullman      uint8 // sethi/ullman number
++	Addable     uint8 // type of addressability - 0 is not addressable
++	Etype       uint8 // op for OASOP, etype for OTYPE, exclam for export
++	Bounded     bool  // bounds check unnecessary
++	Class       uint8 // PPARAM, PAUTO, PEXTERN, etc
++	Method      uint8 // OCALLMETH name
++	Embedded    uint8 // ODCLFIELD embedded type
++	Colas       uint8 // OAS resulting from :=
++	Diag        uint8 // already printed error about this
++	Noescape    bool  // func arguments do not escape; TODO(rsc): move Noescape to Func struct (see CL 7360)
++	Walkdef     uint8
++	Typecheck   uint8
++	Local       bool
++	Dodata      uint8
++	Initorder   uint8
++	Used        bool
++	Isddd       bool // is the argument variadic
++	Readonly    bool
++	Implicit    bool
++	Addrtaken   bool  // address taken, even if not moved to heap
++	Assigned    bool  // is the variable ever assigned to
++	Captured    bool  // is the variable captured by a closure
++	Byval       bool  // is the variable captured by value or by reference
++	Reslice     bool  // this is a reslice x = x[0:y] or x = append(x, ...)
++	Likely      int8  // likeliness of if statement
++	Hasbreak    bool  // has break statement
++	Needzero    bool  // if it contains pointers, needs to be zeroed on function entry
++	Esc         uint8 // EscXXX
++	Funcdepth   int32
+ 
+ 	// most nodes
+-	Type *Type
+-	Orig *Node // original form, for printing, and tracking copies of ONAMEs
++	Type  *Type
++	Orig  *Node // original form, for printing, and tracking copies of ONAMEs
++	Nname *Node
+ 
+ 	// func
+-	Nname     *Node
+-	Shortname *Node
+-	Enter     *NodeList
+-	Exit      *NodeList
+-	Cvars     *NodeList // closure params
+-	Dcl       *NodeList // autodcl for this func/closure
+-	Inl       *NodeList // copy of the body for use in inlining
+-	Inldcl    *NodeList // copy of dcl for use in inlining
+-	Closgen   int
+-	Outerfunc *Node
++	*Func
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val Val
+@@ -112,18 +99,39 @@ type Node struct {
+ 	Escretval    *NodeList // on OCALLxxx, list of dummy return values
+ 	Escloopdepth int       // -1: global, 0: return variables, 1:function top level, increased inside function for every loop or label to mark scopes
+ 
+-	Sym       *Sym  // various
+-	InlCost   int32 // unique name for OTYPE/ONAME
+-	Vargen    int32
+-	Lineno    int32
++	Sym      *Sym  // various
++	Vargen   int32 // unique name for OTYPE/ONAME
++	Lineno   int32
++	Xoffset  int64
++	Stkdelta int64 // offset added by stack frame compaction phase.
++	Ostk     int32 // 6g only
++	Iota     int32
++	Walkgen  uint32
++	Esclevel int32
++	Opt      interface{} // for optimization passes
++}
++
++// Func holds Node fields used only with function-like nodes.
++type Func struct {
++	Shortname *Node
++	Enter     *NodeList
++	Exit      *NodeList
++	Cvars     *NodeList // closure params
++	Dcl       *NodeList // autodcl for this func/closure
++	Inldcl    *NodeList // copy of dcl for use in inlining
++	Closgen   int
++	Outerfunc *Node
++
++	Inl     *NodeList // copy of the body for use in inlining
++	InlCost int32
++
+ 	Endlineno int32
+-	Xoffset   int64
+-	Stkdelta  int64 // offset added by stack frame compaction phase.
+-	Ostk      int32
+-	Iota      int32
+-	Walkgen   uint32
+-	Esclevel  int32
+-	Opt       interface{} // for optimization passes
++
++	Nosplit        bool // func should not execute on separate stack
++	Nowritebarrier bool // emit compiler error instead of write barrier
++	Dupok          bool // duplicate definitions ok
++	Wrapper        bool // is method wrapper
++	Needctxt       bool // function uses context register (has closure variables)
+ }
+ 
+ // Node ops.
+diff --git a/src/cmd/internal/gc/y.go b/src/cmd/internal/gc/y.go
+index 4f97439b22..4e3f8b1a1a 100644
+--- a/src/cmd/internal/gc/y.go
++++ b/src/cmd/internal/gc/y.go
+@@ -2523,7 +2523,7 @@ yydefault:
+ 			t.Rlist = yyDollar[5].list
+ 
+ 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
+-			yyVAL.node.Nname = newname(yyDollar[1].sym)
++			yyVAL.node.Nname = newfuncname(yyDollar[1].sym)
+ 			yyVAL.node.Nname.Defn = yyVAL.node
+ 			yyVAL.node.Nname.Ntype = t // TODO: check if nname already has an ntype
+ 			declare(yyVAL.node.Nname, PFUNC)
+@@ -2559,7 +2559,7 @@ yydefault:
+ 			t.Rlist = yyDollar[8].list
+ 
+ 			yyVAL.node = Nod(ODCLFUNC, nil, nil)
+-			yyVAL.node.Shortname = newname(yyDollar[4].sym)
++			yyVAL.node.Shortname = newfuncname(yyDollar[4].sym)
+ 			yyVAL.node.Nname = methodname1(yyVAL.node.Shortname, rcvr.Right)
+ 			yyVAL.node.Nname.Defn = yyVAL.node
+ 			yyVAL.node.Nname.Ntype = t
+@@ -2589,7 +2589,7 @@ yydefault:
+ 				Yyerror("inconsistent definition for func %v during import\n\t%v\n\t%v", Sconv(s, 0), Tconv(s.Def.Type, 0), Tconv(t, 0))
+ 			}
+ 
+-			yyVAL.node = newname(s)
++			yyVAL.node = newfuncname(s)
+ 			yyVAL.node.Type = t
+ 			declare(yyVAL.node, PFUNC)
+ 

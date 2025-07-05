@@ -16,7 +16,7 @@ Date:   Thu May 19 12:33:30 2016 -0400
     Change-Id: I393924d68067f2dbb13dab82e569fb452c986593
     Reviewed-on: https://go-review.googlesource.com/23292
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/config.go       |  9 +++++++++
  src/cmd/compile/internal/ssa/gen/AMD64Ops.go | 17 ++++++++++-------
  src/cmd/compile/internal/ssa/gen/ARMOps.go   | 17 ++++++++++-------
@@ -24,3 +24,193 @@ Date:   Thu May 19 12:33:30 2016 -0400
  src/cmd/compile/internal/ssa/opGen.go        |  6 ++++++
  src/cmd/compile/internal/ssa/regalloc.go     | 12 ++++++------
  6 files changed, 55 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 7c3f87147f..bc56657e75 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -20,7 +20,10 @@ type Config struct {
+ 	lowerBlock      func(*Block) bool          // lowering function
+ 	lowerValue      func(*Value, *Config) bool // lowering function
+ 	registers       []Register                 // machine registers
++	gpRegMask       regMask                    // general purpose integer register mask
++	fpRegMask       regMask                    // floating point register mask
+ 	flagRegMask     regMask                    // flag register mask
++	FPReg           int8                       // register number of frame pointer, -1 if not used
+ 	fe              Frontend                   // callbacks into compiler frontend
+ 	HTML            *HTMLWriter                // html writer, for debugging
+ 	ctxt            *obj.Link                  // Generic arch information
+@@ -130,7 +133,10 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.lowerBlock = rewriteBlockAMD64
+ 		c.lowerValue = rewriteValueAMD64
+ 		c.registers = registersAMD64[:]
++		c.gpRegMask = gpRegMaskAMD64
++		c.fpRegMask = fpRegMaskAMD64
+ 		c.flagRegMask = flagRegMaskAMD64
++		c.FPReg = framepointerRegAMD64
+ 	case "386":
+ 		c.IntSize = 4
+ 		c.PtrSize = 4
+@@ -142,7 +148,10 @@ func NewConfig(arch string, fe Frontend, ctxt *obj.Link, optimize bool) *Config
+ 		c.lowerBlock = rewriteBlockARM
+ 		c.lowerValue = rewriteValueARM
+ 		c.registers = registersARM[:]
++		c.gpRegMask = gpRegMaskARM
++		c.fpRegMask = fpRegMaskARM
+ 		c.flagRegMask = flagRegMaskARM
++		c.FPReg = framepointerRegARM
+ 	default:
+ 		fe.Unimplementedf(0, "arch %s not implemented", arch)
+ 	}
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+index c84a37d368..7767e14a35 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/gen/AMD64Ops.go
+@@ -545,12 +545,15 @@ func init() {
+ 	}
+ 
+ 	archs = append(archs, arch{
+-		name:     "AMD64",
+-		pkg:      "cmd/internal/obj/x86",
+-		genfile:  "../../amd64/ssa.go",
+-		ops:      AMD64ops,
+-		blocks:   AMD64blocks,
+-		regnames: regNamesAMD64,
+-		flagmask: flags,
++		name:            "AMD64",
++		pkg:             "cmd/internal/obj/x86",
++		genfile:         "../../amd64/ssa.go",
++		ops:             AMD64ops,
++		blocks:          AMD64blocks,
++		regnames:        regNamesAMD64,
++		gpregmask:       gp,
++		fpregmask:       fp,
++		flagmask:        flags,
++		framepointerreg: int8(num["BP"]),
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/ARMOps.go b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+index 629feeb403..2e202bbc8a 100644
+--- a/src/cmd/compile/internal/ssa/gen/ARMOps.go
++++ b/src/cmd/compile/internal/ssa/gen/ARMOps.go
+@@ -264,12 +264,15 @@ func init() {
+ 	}
+ 
+ 	archs = append(archs, arch{
+-		name:     "ARM",
+-		pkg:      "cmd/internal/obj/arm",
+-		genfile:  "../../arm/ssa.go",
+-		ops:      ops,
+-		blocks:   blocks,
+-		regnames: regNamesARM,
+-		flagmask: flags,
++		name:            "ARM",
++		pkg:             "cmd/internal/obj/arm",
++		genfile:         "../../arm/ssa.go",
++		ops:             ops,
++		blocks:          blocks,
++		regnames:        regNamesARM,
++		gpregmask:       gp,
++		fpregmask:       0, // fp not implemented yet
++		flagmask:        flags,
++		framepointerreg: -1, // not used
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/ssa/gen/main.go b/src/cmd/compile/internal/ssa/gen/main.go
+index 948cd89d2f..1fc42b94bc 100644
+--- a/src/cmd/compile/internal/ssa/gen/main.go
++++ b/src/cmd/compile/internal/ssa/gen/main.go
+@@ -21,14 +21,17 @@ import (
+ )
+ 
+ type arch struct {
+-	name     string
+-	pkg      string // obj package to import for this arch.
+-	genfile  string // source file containing opcode code generation.
+-	ops      []opData
+-	blocks   []blockData
+-	regnames []string
+-	flagmask regMask
+-	generic  bool
++	name            string
++	pkg             string // obj package to import for this arch.
++	genfile         string // source file containing opcode code generation.
++	ops             []opData
++	blocks          []blockData
++	regnames        []string
++	gpregmask       regMask
++	fpregmask       regMask
++	flagmask        regMask
++	framepointerreg int8
++	generic         bool
+ }
+ 
+ type opData struct {
+@@ -224,7 +227,10 @@ func genOp() {
+ 			fmt.Fprintf(w, "  {%d, \"%s\"},\n", i, r)
+ 		}
+ 		fmt.Fprintln(w, "}")
++		fmt.Fprintf(w, "var gpRegMask%s = regMask(%d)\n", a.name, a.gpregmask)
++		fmt.Fprintf(w, "var fpRegMask%s = regMask(%d)\n", a.name, a.fpregmask)
+ 		fmt.Fprintf(w, "var flagRegMask%s = regMask(%d)\n", a.name, a.flagmask)
++		fmt.Fprintf(w, "var framepointerReg%s = int8(%d)\n", a.name, a.framepointerreg)
+ 	}
+ 
+ 	// gofmt result
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1f33c5b3db..89719ebe22 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -6442,7 +6442,10 @@ var registersAMD64 = [...]Register{
+ 	{32, "SB"},
+ 	{33, "FLAGS"},
+ }
++var gpRegMaskAMD64 = regMask(65519)
++var fpRegMaskAMD64 = regMask(4294901760)
+ var flagRegMaskAMD64 = regMask(8589934592)
++var framepointerRegAMD64 = int8(5)
+ var registersARM = [...]Register{
+ 	{0, "R0"},
+ 	{1, "R1"},
+@@ -6463,4 +6466,7 @@ var registersARM = [...]Register{
+ 	{16, "FLAGS"},
+ 	{17, "SB"},
+ }
++var gpRegMaskARM = regMask(5119)
++var fpRegMaskARM = regMask(0)
+ var flagRegMaskARM = regMask(65536)
++var framepointerRegARM = int8(-1)
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 8603615f25..8f5c1c42d5 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -452,13 +452,13 @@ func (s *regAllocState) init(f *Func) {
+ 	}
+ 
+ 	// Figure out which registers we're allowed to use.
+-	s.allocatable = regMask(1)<<s.numRegs - 1
++	s.allocatable = s.f.Config.gpRegMask | s.f.Config.fpRegMask | s.f.Config.flagRegMask
+ 	s.allocatable &^= 1 << s.SPReg
+ 	s.allocatable &^= 1 << s.SBReg
+-	if s.f.Config.ctxt.Framepointer_enabled {
+-		s.allocatable &^= 1 << 5 // BP
++	if s.f.Config.ctxt.Framepointer_enabled && s.f.Config.FPReg >= 0 {
++		s.allocatable &^= 1 << uint(s.f.Config.FPReg)
+ 	}
+-	if s.f.Config.ctxt.Flag_dynlink {
++	if s.f.Config.ctxt.Flag_dynlink && s.f.Config.arch == "amd64" {
+ 		s.allocatable &^= 1 << 15 // R15
+ 	}
+ 
+@@ -564,9 +564,9 @@ func (s *regAllocState) setState(regs []endReg) {
+ func (s *regAllocState) compatRegs(t Type) regMask {
+ 	var m regMask
+ 	if t.IsFloat() || t == TypeInt128 {
+-		m = 0xffff << 16 // X0-X15
++		m = s.f.Config.fpRegMask
+ 	} else {
+-		m = 0xffff << 0 // AX-R15
++		m = s.f.Config.gpRegMask
+ 	}
+ 	return m & s.allocatable
+ }

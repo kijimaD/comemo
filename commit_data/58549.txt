@@ -33,8 +33,95 @@ Date:   Thu Nov 16 17:42:25 2023 +0000
     Auto-Submit: Michael Knyszek <mknyszek@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/runtime/malloc.go               |  3 ++-
  src/runtime/mbitmap_allocheaders.go | 14 ++++++++------
  src/runtime/mfinal.go               |  8 +++++++-
  3 files changed, 17 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 398eaf5d52..c7ab928fe6 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1153,7 +1153,8 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 				memclrNoHeapPointers(x, size)
+ 			}
+ 			if goexperiment.AllocHeaders && hasHeader {
+-				header = (**_type)(unsafe.Pointer(uintptr(v) + size - mallocHeaderSize))
++				header = (**_type)(x)
++				x = add(x, mallocHeaderSize)
+ 				size -= mallocHeaderSize
+ 			}
+ 		}
+diff --git a/src/runtime/mbitmap_allocheaders.go b/src/runtime/mbitmap_allocheaders.go
+index 03cec5ffcc..33535a515a 100644
+--- a/src/runtime/mbitmap_allocheaders.go
++++ b/src/runtime/mbitmap_allocheaders.go
+@@ -48,9 +48,9 @@
+ // is zeroed, so the GC just observes nil pointers.
+ // Note that this "tiled" bitmap isn't stored anywhere; it is generated on-the-fly.
+ //
+-// For objects without their own span, the type metadata is stored in the last
+-// word of the allocation slot. For objects with their own span, the type metadata
+-// is stored in the mspan.
++// For objects without their own span, the type metadata is stored in the first
++// word before the object at the beginning of the allocation slot. For objects
++// with their own span, the type metadata is stored in the mspan.
+ //
+ // The bitmap for small unallocated objects in scannable spans is not maintained
+ // (can be junk).
+@@ -167,7 +167,8 @@ func (span *mspan) typePointersOf(addr, size uintptr) typePointers {
+ }
+ 
+ // typePointersOfUnchecked is like typePointersOf, but assumes addr is the base
+-// pointer of an object in span. It returns an iterator that generates all pointers
++// of an allocation slot in a span (the start of the object if no header, the
++// header otherwise). It returns an iterator that generates all pointers
+ // in the range [addr, addr+span.elemsize).
+ //
+ // nosplit because it is used during write barriers and must not be preempted.
+@@ -192,8 +193,9 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ 	// All of these objects have a header.
+ 	var typ *_type
+ 	if spc.sizeclass() != 0 {
+-		// Pull the allocation header from the last word of the object.
+-		typ = *(**_type)(unsafe.Pointer(addr + span.elemsize - mallocHeaderSize))
++		// Pull the allocation header from the first word of the object.
++		typ = *(**_type)(unsafe.Pointer(addr))
++		addr += mallocHeaderSize
+ 	} else {
+ 		typ = span.largeType
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 18cd93e77e..be501e6fca 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"runtime/internal/atomic"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+@@ -410,7 +411,7 @@ func SetFinalizer(obj any, finalizer any) {
+ 	}
+ 
+ 	// find the containing object
+-	base, _, _ := findObject(uintptr(e.data), 0, 0)
++	base, span, _ := findObject(uintptr(e.data), 0, 0)
+ 
+ 	if base == 0 {
+ 		if isGoPointerWithoutSpan(e.data) {
+@@ -419,6 +420,11 @@ func SetFinalizer(obj any, finalizer any) {
+ 		throw("runtime.SetFinalizer: pointer not in allocated block")
+ 	}
+ 
++	// Move base forward if we've got an allocation header.
++	if goexperiment.AllocHeaders && !span.spanclass.noscan() && !heapBitsInSpan(span.elemsize) && span.spanclass.sizeclass() != 0 {
++		base += mallocHeaderSize
++	}
++
+ 	if uintptr(e.data) != base {
+ 		// As an implementation detail we allow to set finalizers for an inner byte
+ 		// of an object if it could come from tiny alloc (see mallocgc for details).

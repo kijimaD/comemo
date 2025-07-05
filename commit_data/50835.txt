@@ -16,7 +16,71 @@ Date:   Fri Nov 12 13:27:07 2021 +0700
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/noder/stencil.go | 12 ++++++++----
  test/typeparam/issue49538.go              | 23 +++++++++++++++++++++++
  2 files changed, 31 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index 20197565f5..4f9f8107bc 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -1095,6 +1095,9 @@ func (subst *subster) node(n ir.Node) ir.Node {
+ 			case ir.OXDOT:
+ 				// This is the case of a bound call on a typeparam,
+ 				// which will be handled in the dictPass.
++				// As with OFUNCINST, we must transform the arguments of the call now,
++				// so any needed CONVIFACE nodes are exposed.
++				transformEarlyCall(call)
+ 
+ 			case ir.ODOTTYPE, ir.ODOTTYPE2:
+ 				// These are DOTTYPEs that could get transformed into
+@@ -1229,14 +1232,15 @@ func (g *genInst) dictPass(info *instInfo) {
+ 				transformDot(mse, false)
+ 			}
+ 		case ir.OCALL:
+-			op := m.(*ir.CallExpr).X.Op()
++			call := m.(*ir.CallExpr)
++			op := call.X.Op()
+ 			if op == ir.OMETHVALUE {
+ 				// Redo the transformation of OXDOT, now that we
+ 				// know the method value is being called.
+-				m.(*ir.CallExpr).X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
+-				transformDot(m.(*ir.CallExpr).X.(*ir.SelectorExpr), true)
++				call.X.(*ir.SelectorExpr).SetOp(ir.OXDOT)
++				transformDot(call.X.(*ir.SelectorExpr), true)
+ 			}
+-			transformCall(m.(*ir.CallExpr))
++			transformCall(call)
+ 
+ 		case ir.OCONVIFACE:
+ 			if m.Type().IsEmptyInterface() && m.(*ir.ConvExpr).X.Type().IsEmptyInterface() {
+diff --git a/test/typeparam/issue49538.go b/test/typeparam/issue49538.go
+new file mode 100644
+index 0000000000..ac20a5423f
+--- /dev/null
++++ b/test/typeparam/issue49538.go
+@@ -0,0 +1,23 @@
++// compile -G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface {
++	M(interface{})
++}
++
++type a[T any] struct{}
++
++func (a[T]) M(interface{}) {}
++
++func f[T I](t *T) {
++	(*t).M(t)
++}
++
++func g() {
++	f(&a[int]{})
++}

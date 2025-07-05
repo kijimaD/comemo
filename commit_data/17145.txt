@@ -11,7 +11,42 @@ Date:   Sat Aug 10 09:46:22 2013 +0900
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/12670044
-
+---
  src/pkg/net/ipsock.go | 6 ------
  src/pkg/net/net.go    | 6 ++++++
  2 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/net/ipsock.go b/src/pkg/net/ipsock.go
+index bde4394ff0..33b584db57 100644
+--- a/src/pkg/net/ipsock.go
++++ b/src/pkg/net/ipsock.go
+@@ -85,12 +85,6 @@ func ipv6only(ip IP) IP {
+ 	return nil
+ }
+ 
+-type InvalidAddrError string
+-
+-func (e InvalidAddrError) Error() string   { return string(e) }
+-func (e InvalidAddrError) Timeout() bool   { return false }
+-func (e InvalidAddrError) Temporary() bool { return false }
+-
+ // SplitHostPort splits a network address of the form "host:port",
+ // "[host]:port" or "[ipv6-host%zone]:port" into host or
+ // ipv6-host%zone and port.  A literal address or host name for IPv6
+diff --git a/src/pkg/net/net.go b/src/pkg/net/net.go
+index c077b4cc48..fbf207c5f8 100644
+--- a/src/pkg/net/net.go
++++ b/src/pkg/net/net.go
+@@ -372,6 +372,12 @@ func (e UnknownNetworkError) Error() string   { return "unknown network " + stri
+ func (e UnknownNetworkError) Temporary() bool { return false }
+ func (e UnknownNetworkError) Timeout() bool   { return false }
+ 
++type InvalidAddrError string
++
++func (e InvalidAddrError) Error() string   { return string(e) }
++func (e InvalidAddrError) Timeout() bool   { return false }
++func (e InvalidAddrError) Temporary() bool { return false }
++
+ // DNSConfigError represents an error reading the machine's DNS configuration.
+ type DNSConfigError struct {
+ 	Err error

@@ -8,6 +8,17 @@ Date:   Thu May 23 04:41:22 2013 +0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/9662044
-
+---
  test/errchk | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/errchk b/test/errchk
+index b8b312a923..de0c4fd2f8 100755
+--- a/test/errchk
++++ b/test/errchk
+@@ -1,4 +1,4 @@
+-#!/usr/bin/perl
++#!/usr/bin/env perl
+ # Copyright 2009 The Go Authors. All rights reserved.
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.

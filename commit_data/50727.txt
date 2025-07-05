@@ -35,8 +35,321 @@ Date:   Thu Oct 21 10:39:05 2021 +0100
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
-
+---
  src/archive/zip/reader.go      |  94 +++++++++----------------------
  src/archive/zip/reader_test.go | 122 -----------------------------------------
  src/archive/zip/struct.go      |   8 ---
  3 files changed, 27 insertions(+), 197 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index e40a2c656b..2843a5d658 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -125,7 +125,6 @@ func (z *Reader) init(r io.ReaderAt, size int64) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		f.readDataDescriptor()
+ 		z.File = append(z.File, f)
+ 	}
+ 	if uint16(len(z.File)) != uint16(end.directoryRecords) { // only compare 16 bits here
+@@ -186,10 +185,15 @@ func (f *File) Open() (io.ReadCloser, error) {
+ 		return nil, ErrAlgorithm
+ 	}
+ 	var rc io.ReadCloser = dcomp(r)
++	var desr io.Reader
++	if f.hasDataDescriptor() {
++		desr = io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, dataDescriptorLen)
++	}
+ 	rc = &checksumReader{
+ 		rc:   rc,
+ 		hash: crc32.NewIEEE(),
+ 		f:    f,
++		desr: desr,
+ 	}
+ 	return rc, nil
+ }
+@@ -205,49 +209,13 @@ func (f *File) OpenRaw() (io.Reader, error) {
+ 	return r, nil
+ }
+ 
+-func (f *File) readDataDescriptor() {
+-	if !f.hasDataDescriptor() {
+-		return
+-	}
+-
+-	bodyOffset, err := f.findBodyOffset()
+-	if err != nil {
+-		f.descErr = err
+-		return
+-	}
+-
+-	// In section 4.3.9.2 of the spec: "However ZIP64 format MAY be used
+-	// regardless of the size of a file.  When extracting, if the zip64
+-	// extended information extra field is present for the file the
+-	// compressed and uncompressed sizes will be 8 byte values."
+-	//
+-	// Historically, this package has used the compressed and uncompressed
+-	// sizes from the central directory to determine if the package is
+-	// zip64.
+-	//
+-	// For this case we allow either the extra field or sizes to determine
+-	// the data descriptor length.
+-	zip64 := f.zip64 || f.isZip64()
+-	n := int64(dataDescriptorLen)
+-	if zip64 {
+-		n = dataDescriptor64Len
+-	}
+-	size := int64(f.CompressedSize64)
+-	r := io.NewSectionReader(f.zipr, f.headerOffset+bodyOffset+size, n)
+-	dd, err := readDataDescriptor(r, zip64)
+-	if err != nil {
+-		f.descErr = err
+-		return
+-	}
+-	f.CRC32 = dd.crc32
+-}
+-
+ type checksumReader struct {
+ 	rc    io.ReadCloser
+ 	hash  hash.Hash32
+ 	nread uint64 // number of bytes read so far
+ 	f     *File
+-	err   error // sticky error
++	desr  io.Reader // if non-nil, where to read the data descriptor
++	err   error     // sticky error
+ }
+ 
+ func (r *checksumReader) Stat() (fs.FileInfo, error) {
+@@ -268,12 +236,12 @@ func (r *checksumReader) Read(b []byte) (n int, err error) {
+ 		if r.nread != r.f.UncompressedSize64 {
+ 			return 0, io.ErrUnexpectedEOF
+ 		}
+-		if r.f.hasDataDescriptor() {
+-			if r.f.descErr != nil {
+-				if r.f.descErr == io.EOF {
++		if r.desr != nil {
++			if err1 := readDataDescriptor(r.desr, r.f); err1 != nil {
++				if err1 == io.EOF {
+ 					err = io.ErrUnexpectedEOF
+ 				} else {
+-					err = r.f.descErr
++					err = err1
+ 				}
+ 			} else if r.hash.Sum32() != r.f.CRC32 {
+ 				err = ErrChecksum
+@@ -485,10 +453,8 @@ parseExtras:
+ 	return nil
+ }
+ 
+-func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
+-	// Create enough space for the largest possible size
+-	var buf [dataDescriptor64Len]byte
+-
++func readDataDescriptor(r io.Reader, f *File) error {
++	var buf [dataDescriptorLen]byte
+ 	// The spec says: "Although not originally assigned a
+ 	// signature, the value 0x08074b50 has commonly been adopted
+ 	// as a signature value for the data descriptor record.
+@@ -497,9 +463,10 @@ func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
+ 	// descriptors and should account for either case when reading
+ 	// ZIP files to ensure compatibility."
+ 	//
+-	// First read just those 4 bytes to see if the signature exists.
++	// dataDescriptorLen includes the size of the signature but
++	// first read just those 4 bytes to see if it exists.
+ 	if _, err := io.ReadFull(r, buf[:4]); err != nil {
+-		return nil, err
++		return err
+ 	}
+ 	off := 0
+ 	maybeSig := readBuf(buf[:4])
+@@ -508,28 +475,21 @@ func readDataDescriptor(r io.Reader, zip64 bool) (*dataDescriptor, error) {
+ 		// bytes.
+ 		off += 4
+ 	}
+-
+-	end := dataDescriptorLen - 4
+-	if zip64 {
+-		end = dataDescriptor64Len - 4
++	if _, err := io.ReadFull(r, buf[off:12]); err != nil {
++		return err
+ 	}
+-	if _, err := io.ReadFull(r, buf[off:end]); err != nil {
+-		return nil, err
++	b := readBuf(buf[:12])
++	if b.uint32() != f.CRC32 {
++		return ErrChecksum
+ 	}
+-	b := readBuf(buf[:end])
+ 
+-	out := &dataDescriptor{
+-		crc32: b.uint32(),
+-	}
++	// The two sizes that follow here can be either 32 bits or 64 bits
++	// but the spec is not very clear on this and different
++	// interpretations has been made causing incompatibilities. We
++	// already have the sizes from the central directory so we can
++	// just ignore these.
+ 
+-	if zip64 {
+-		out.compressedSize = b.uint64()
+-		out.uncompressedSize = b.uint64()
+-	} else {
+-		out.compressedSize = uint64(b.uint32())
+-		out.uncompressedSize = uint64(b.uint32())
+-	}
+-	return out, nil
++	return nil
+ }
+ 
+ func readDirectoryEnd(r io.ReaderAt, size int64) (dir *directoryEnd, err error) {
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index a54915316c..d1a9bdd334 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -1214,128 +1214,6 @@ func TestCVE202127919(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReadDataDescriptor(t *testing.T) {
+-	tests := []struct {
+-		desc    string
+-		in      []byte
+-		zip64   bool
+-		want    *dataDescriptor
+-		wantErr error
+-	}{{
+-		desc: "valid 32 bit with signature",
+-		in: []byte{
+-			0x50, 0x4b, 0x07, 0x08, // signature
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, // compressed size
+-			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
+-		},
+-		want: &dataDescriptor{
+-			crc32:            0x03020100,
+-			compressedSize:   0x07060504,
+-			uncompressedSize: 0x0b0a0908,
+-		},
+-	}, {
+-		desc: "valid 32 bit without signature",
+-		in: []byte{
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, // compressed size
+-			0x08, 0x09, 0x0a, 0x0b, // uncompressed size
+-		},
+-		want: &dataDescriptor{
+-			crc32:            0x03020100,
+-			compressedSize:   0x07060504,
+-			uncompressedSize: 0x0b0a0908,
+-		},
+-	}, {
+-		desc: "valid 64 bit with signature",
+-		in: []byte{
+-			0x50, 0x4b, 0x07, 0x08, // signature
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
+-		},
+-		zip64: true,
+-		want: &dataDescriptor{
+-			crc32:            0x03020100,
+-			compressedSize:   0x0b0a090807060504,
+-			uncompressedSize: 0x131211100f0e0d0c,
+-		},
+-	}, {
+-		desc: "valid 64 bit without signature",
+-		in: []byte{
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, // uncompressed size
+-		},
+-		zip64: true,
+-		want: &dataDescriptor{
+-			crc32:            0x03020100,
+-			compressedSize:   0x0b0a090807060504,
+-			uncompressedSize: 0x131211100f0e0d0c,
+-		},
+-	}, {
+-		desc: "invalid 32 bit with signature",
+-		in: []byte{
+-			0x50, 0x4b, 0x07, 0x08, // signature
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, // unexpected end
+-		},
+-		wantErr: io.ErrUnexpectedEOF,
+-	}, {
+-		desc: "invalid 32 bit without signature",
+-		in: []byte{
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, // unexpected end
+-		},
+-		wantErr: io.ErrUnexpectedEOF,
+-	}, {
+-		desc: "invalid 64 bit with signature",
+-		in: []byte{
+-			0x50, 0x4b, 0x07, 0x08, // signature
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
+-		},
+-		zip64:   true,
+-		wantErr: io.ErrUnexpectedEOF,
+-	}, {
+-		desc: "invalid 64 bit without signature",
+-		in: []byte{
+-			0x00, 0x01, 0x02, 0x03, // crc32
+-			0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, // compressed size
+-			0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, // unexpected end
+-		},
+-		zip64:   true,
+-		wantErr: io.ErrUnexpectedEOF,
+-	}}
+-
+-	for _, test := range tests {
+-		t.Run(test.desc, func(t *testing.T) {
+-			r := bytes.NewReader(test.in)
+-
+-			desc, err := readDataDescriptor(r, test.zip64)
+-			if err != test.wantErr {
+-				t.Fatalf("got err %v; want nil", err)
+-			}
+-			if test.want == nil {
+-				return
+-			}
+-			if desc == nil {
+-				t.Fatalf("got nil DataDescriptor; want non-nil")
+-			}
+-			if desc.crc32 != test.want.crc32 {
+-				t.Errorf("got CRC32 %#x; want %#x", desc.crc32, test.want.crc32)
+-			}
+-			if desc.compressedSize != test.want.compressedSize {
+-				t.Errorf("got CompressedSize %#x; want %#x", desc.compressedSize, test.want.compressedSize)
+-			}
+-			if desc.uncompressedSize != test.want.uncompressedSize {
+-				t.Errorf("got UncompressedSize %#x; want %#x", desc.uncompressedSize, test.want.uncompressedSize)
+-			}
+-		})
+-	}
+-}
+-
+ func TestCVE202133196(t *testing.T) {
+ 	// Archive that indicates it has 1 << 128 -1 files,
+ 	// this would previously cause a panic due to attempting
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index ff9f605eb6..88effedc0f 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -390,11 +390,3 @@ func unixModeToFileMode(m uint32) fs.FileMode {
+ 	}
+ 	return mode
+ }
+-
+-// dataDescriptor holds the data descriptor that optionally follows the file
+-// contents in the zip file.
+-type dataDescriptor struct {
+-	crc32            uint32
+-	compressedSize   uint64
+-	uncompressedSize uint64
+-}

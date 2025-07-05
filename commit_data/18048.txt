@@ -7,6 +7,23 @@ Date:   Wed Dec 18 08:33:59 2013 -0800
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/36830046
-
+---
  src/pkg/encoding/ascii85/ascii85_test.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/pkg/encoding/ascii85/ascii85_test.go b/src/pkg/encoding/ascii85/ascii85_test.go
+index 42cf7e80e1..dc1134dccd 100644
+--- a/src/pkg/encoding/ascii85/ascii85_test.go
++++ b/src/pkg/encoding/ascii85/ascii85_test.go
+@@ -16,6 +16,11 @@ type testpair struct {
+ }
+ 
+ var pairs = []testpair{
++	// Encode returns 0 when len(src) is 0
++	{
++		"",
++		"",
++	},
+ 	// Wikipedia example
+ 	{
+ 		"Man is distinguished, not only by his reason, but by this singular passion from " +

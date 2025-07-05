@@ -13,9 +13,65 @@ Date:   Tue Dec 1 15:10:03 2020 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/go.mod                                   | 2 +-
  src/cmd/go.sum                                   | 4 ++--
  src/cmd/vendor/golang.org/x/mod/semver/semver.go | 3 +++
  src/cmd/vendor/modules.txt                       | 2 +-
  4 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 6f55b2d1c8..bfee2c7f06 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,7 +7,7 @@ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20200414190113-039b1ae3a340 // indirect
+ 	golang.org/x/arch v0.0.0-20201008161808-52c3e6f60cff
+ 	golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897
+-	golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
++	golang.org/x/mod v0.4.0
+ 	golang.org/x/sys v0.0.0-20201110211018-35f3e6cf4a65 // indirect
+ 	golang.org/x/tools v0.0.0-20201110201400-7099162a900a
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 8775b754d8..7a743d9f73 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -15,8 +15,8 @@ golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9/go.mod h1:LzIPMQfyMNhhGPh
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897 h1:pLI5jrR7OSLijeIDcmRxNmw2api+jEfxLoykJVice/E=
+ golang.org/x/crypto v0.0.0-20201016220609-9e8e0b390897/go.mod h1:LzIPMQfyMNhhGPhUkYOs5KpL4U8rLKemX1yGLhDgUto=
+ golang.org/x/mod v0.3.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+-golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449 h1:xUIPaMhvROX9dhPvRCenIJtU78+lbEenGbgqB5hfHCQ=
+-golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
++golang.org/x/mod v0.4.0 h1:8pl+sMODzuvGJkmj2W4kZihvVb5mKm8pB/X44PIQHv8=
++golang.org/x/mod v0.4.0/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
+ golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
+ golang.org/x/net v0.0.0-20201021035429-f5854403a974/go.mod h1:sp8m0HH+o8qH0wwXwYZr8TS3Oi6o0r6Gce1SSxlDquU=
+diff --git a/src/cmd/vendor/golang.org/x/mod/semver/semver.go b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+index 2988e3cf9c..4338f35177 100644
+--- a/src/cmd/vendor/golang.org/x/mod/semver/semver.go
++++ b/src/cmd/vendor/golang.org/x/mod/semver/semver.go
+@@ -138,6 +138,9 @@ func Compare(v, w string) int {
+ 
+ // Max canonicalizes its arguments and then returns the version string
+ // that compares greater.
++//
++// Deprecated: use Compare instead. In most cases, returning a canonicalized
++// version is not expected or desired.
+ func Max(v, w string) string {
+ 	v = Canonical(v)
+ 	w = Canonical(w)
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f20b6b2be1..21bd6bfe48 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -29,7 +29,7 @@ golang.org/x/arch/x86/x86asm
+ golang.org/x/crypto/ed25519
+ golang.org/x/crypto/ed25519/internal/edwards25519
+ golang.org/x/crypto/ssh/terminal
+-# golang.org/x/mod v0.3.1-0.20200828183125-ce943fd02449
++# golang.org/x/mod v0.4.0
+ ## explicit
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

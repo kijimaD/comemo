@@ -16,6 +16,22 @@ Date:   Wed May 18 00:08:49 2022 +0200
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/net/netip/netip.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index a88a994068..dedebbe818 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -63,8 +63,8 @@ type Addr struct {
+ 	z *intern.Value
+ }
+ 
+-// z0, z4, and z6noz are sentinel IP.z values.
+-// See the IP type's field docs.
++// z0, z4, and z6noz are sentinel Addr.z values.
++// See the Addr type's field docs.
+ var (
+ 	z0    = (*intern.Value)(nil)
+ 	z4    = new(intern.Value)

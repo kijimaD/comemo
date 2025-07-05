@@ -7,6 +7,20 @@ Date:   Fri Mar 29 10:28:37 2013 -0700
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/7548045
-
+---
  doc/effective_go.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/effective_go.html b/doc/effective_go.html
+index decca34b5a..a1e13c0f69 100644
+--- a/doc/effective_go.html
++++ b/doc/effective_go.html
+@@ -2466,7 +2466,7 @@ only to have them be needed again later.
+ The blank identifier provides a workaround.
+ </p>
+ <p>
+-This half-written program is has two unused imports
++This half-written program has two unused imports
+ (<code>fmt</code> and <code>io</code>)
+ and an unused variable (<code>fd</code>),
+ so it will not compile, but it would be nice to see if the

@@ -12,9 +12,168 @@ Date:   Wed May 14 15:22:36 2025 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/672875
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  api/next/73205.txt                           |  1 +
  doc/next/6-stdlib/99-minor/go/token/73205.md |  4 ++
  src/go/token/position.go                     | 66 ++++++++++++++++++++++++++++
  src/go/token/position_test.go                | 42 ++++++++++++++++++
  4 files changed, 113 insertions(+)
+
+diff --git a/api/next/73205.txt b/api/next/73205.txt
+new file mode 100644
+index 0000000000..3cc2c09543
+--- /dev/null
++++ b/api/next/73205.txt
+@@ -0,0 +1 @@
++pkg go/token, method (*FileSet) AddExistingFiles(...*File) #73205
+diff --git a/doc/next/6-stdlib/99-minor/go/token/73205.md b/doc/next/6-stdlib/99-minor/go/token/73205.md
+new file mode 100644
+index 0000000000..d743663736
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/token/73205.md
+@@ -0,0 +1,4 @@
++The new [FileSet.AddExistingFiles] method enables existing Files to be
++added to a FileSet, or a FileSet to be constructed for an arbitrary
++set of Files, alleviating the problems associated with a single global
++FileSet in long-lived applications.
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 35ef14da87..f5a43aecef 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -98,6 +98,9 @@ func (p Pos) IsValid() bool {
+ 
+ // A File is a handle for a file belonging to a [FileSet].
+ // A File has a name, size, and line offset table.
++//
++// Use [FileSet.AddFile] to create a File.
++// A File may belong to more than one FileSet; see [FileSet.AddExistingFiles].
+ type File struct {
+ 	name string // file name as provided to AddFile
+ 	base int    // Pos value range for this file is [base...base+size]
+@@ -489,6 +492,69 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 	return f
+ }
+ 
++// AddExistingFiles adds the specified files to the
++// FileSet if they are not already present.
++// The caller must ensure that no pair of Files that
++// would appear in the resulting FileSet overlap.
++func (s *FileSet) AddExistingFiles(files ...*File) {
++	// This function cannot be implemented as:
++	//
++	//	for _, file := range files {
++	//		if prev := fset.File(token.Pos(file.Base())); prev != nil {
++	//			if prev != file {
++	//				panic("FileSet contains a different file at the same base")
++	//			}
++	//			continue
++	//		}
++	//		file2 := fset.AddFile(file.Name(), file.Base(), file.Size())
++	//		file2.SetLines(file.Lines())
++	//	}
++	//
++	// because all calls to AddFile must be in increasing order.
++	// AddExistingFilesFiles lets us augment an existing FileSet
++	// sequentially, so long as all sets of files have disjoint ranges.
++	// This approach also does not preserve line directives.
++
++	s.mutex.Lock()
++	defer s.mutex.Unlock()
++
++	// Merge and sort.
++	newFiles := append(s.files, files...)
++	slices.SortFunc(newFiles, func(x, y *File) int {
++		return cmp.Compare(x.Base(), y.Base())
++	})
++
++	// Reject overlapping files.
++	// Discard adjacent identical files.
++	out := newFiles[:0]
++	for i, file := range newFiles {
++		if i > 0 {
++			prev := newFiles[i-1]
++			if file == prev {
++				continue
++			}
++			if prev.Base()+prev.Size()+1 > file.Base() {
++				panic(fmt.Sprintf("file %s (%d-%d) overlaps with file %s (%d-%d)",
++					prev.Name(), prev.Base(), prev.Base()+prev.Size(),
++					file.Name(), file.Base(), file.Base()+file.Size()))
++			}
++		}
++		out = append(out, file)
++	}
++	newFiles = out
++
++	s.files = newFiles
++
++	// Advance base.
++	if len(newFiles) > 0 {
++		last := newFiles[len(newFiles)-1]
++		newBase := last.Base() + last.Size() + 1
++		if s.base < newBase {
++			s.base = newBase
++		}
++	}
++}
++
+ // RemoveFile removes a file from the [FileSet] so that subsequent
+ // queries for its [Pos] interval yield a negative result.
+ // This reduces the memory usage of a long-lived [FileSet] that
+diff --git a/src/go/token/position_test.go b/src/go/token/position_test.go
+index 677a0a251d..51516b6ddd 100644
+--- a/src/go/token/position_test.go
++++ b/src/go/token/position_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"math/rand"
+ 	"slices"
++	"strings"
+ 	"sync"
+ 	"testing"
+ )
+@@ -537,3 +538,44 @@ func TestIssue57490(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestFileSet_AddExistingFiles(t *testing.T) {
++	fset := NewFileSet()
++
++	check := func(descr, want string) {
++		t.Helper()
++		if got := fsetString(fset); got != want {
++			t.Errorf("%s: got %s, want %s", descr, got, want)
++		}
++	}
++
++	fileA := fset.AddFile("A", -1, 3)
++	fileB := fset.AddFile("B", -1, 5)
++	_ = fileB
++	check("after AddFile [AB]", "{A:1-4 B:5-10}")
++
++	fset.AddExistingFiles() // noop
++	check("after AddExistingFiles []", "{A:1-4 B:5-10}")
++
++	fileC := NewFileSet().AddFile("C", 100, 5)
++	fileD := NewFileSet().AddFile("D", 200, 5)
++	fset.AddExistingFiles(fileC, fileA, fileD, fileC)
++	check("after AddExistingFiles [CADC]", "{A:1-4 B:5-10 C:100-105 D:200-205}")
++
++	fileE := fset.AddFile("E", -1, 3)
++	_ = fileE
++	check("after AddFile [E]", "{A:1-4 B:5-10 C:100-105 D:200-205 E:206-209}")
++}
++
++func fsetString(fset *FileSet) string {
++	var buf strings.Builder
++	buf.WriteRune('{')
++	sep := ""
++	fset.Iterate(func(f *File) bool {
++		fmt.Fprintf(&buf, "%s%s:%d-%d", sep, f.Name(), f.Base(), f.Base()+f.Size())
++		sep = " "
++		return true
++	})
++	buf.WriteRune('}')
++	return buf.String()
++}

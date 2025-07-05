@@ -16,7 +16,188 @@ Date:   Tue Jan 24 17:52:54 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
-
+---
  src/net/http/client.go      | 21 ++++++++++------
  src/net/http/client_test.go | 61 ++++++++++++++++++++++++++++++---------------
  2 files changed, 54 insertions(+), 28 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index d368bae861..0005538e70 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -413,11 +413,12 @@ func (c *Client) checkRedirect(req *Request, via []*Request) error {
+ 
+ // redirectBehavior describes what should happen when the
+ // client encounters a 3xx status code from the server
+-func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect bool) {
++func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirectMethod string, shouldRedirect, includeBody bool) {
+ 	switch resp.StatusCode {
+ 	case 301, 302, 303:
+ 		redirectMethod = reqMethod
+ 		shouldRedirect = true
++		includeBody = false
+ 
+ 		// RFC 2616 allowed automatic redirection only with GET and
+ 		// HEAD requests. RFC 7231 lifts this restriction, but we still
+@@ -429,6 +430,7 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
+ 	case 307, 308:
+ 		redirectMethod = reqMethod
+ 		shouldRedirect = true
++		includeBody = true
+ 
+ 		// Treat 307 and 308 specially, since they're new in
+ 		// Go 1.8, and they also require re-sending the request body.
+@@ -449,7 +451,7 @@ func redirectBehavior(reqMethod string, resp *Response, ireq *Request) (redirect
+ 			shouldRedirect = false
+ 		}
+ 	}
+-	return redirectMethod, shouldRedirect
++	return redirectMethod, shouldRedirect, includeBody
+ }
+ 
+ // Do sends an HTTP request and returns an HTTP response, following
+@@ -492,11 +494,14 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 	}
+ 
+ 	var (
+-		deadline       = c.deadline()
+-		reqs           []*Request
+-		resp           *Response
+-		copyHeaders    = c.makeHeadersCopier(req)
++		deadline    = c.deadline()
++		reqs        []*Request
++		resp        *Response
++		copyHeaders = c.makeHeadersCopier(req)
++
++		// Redirect behavior:
+ 		redirectMethod string
++		includeBody    bool
+ 	)
+ 	uerr := func(err error) error {
+ 		req.closeBody()
+@@ -534,7 +539,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 				Cancel:   ireq.Cancel,
+ 				ctx:      ireq.ctx,
+ 			}
+-			if ireq.GetBody != nil {
++			if includeBody && ireq.GetBody != nil {
+ 				req.Body, err = ireq.GetBody()
+ 				if err != nil {
+ 					return nil, uerr(err)
+@@ -598,7 +603,7 @@ func (c *Client) Do(req *Request) (*Response, error) {
+ 		}
+ 
+ 		var shouldRedirect bool
+-		redirectMethod, shouldRedirect = redirectBehavior(req.Method, resp, reqs[0])
++		redirectMethod, shouldRedirect, includeBody = redirectBehavior(req.Method, resp, reqs[0])
+ 		if !shouldRedirect {
+ 			return resp, nil
+ 		}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index eaf2cdca8e..4f674dd8d6 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -360,25 +360,25 @@ func TestPostRedirects(t *testing.T) {
+ 	wantSegments := []string{
+ 		`POST / "first"`,
+ 		`POST /?code=301&next=302 "c301"`,
+-		`GET /?code=302 "c301"`,
+-		`GET / "c301"`,
++		`GET /?code=302 ""`,
++		`GET / ""`,
+ 		`POST /?code=302&next=302 "c302"`,
+-		`GET /?code=302 "c302"`,
+-		`GET / "c302"`,
++		`GET /?code=302 ""`,
++		`GET / ""`,
+ 		`POST /?code=303&next=301 "c303wc301"`,
+-		`GET /?code=301 "c303wc301"`,
+-		`GET / "c303wc301"`,
++		`GET /?code=301 ""`,
++		`GET / ""`,
+ 		`POST /?code=304 "c304"`,
+ 		`POST /?code=305 "c305"`,
+ 		`POST /?code=307&next=303,308,302 "c307"`,
+ 		`POST /?code=303&next=308,302 "c307"`,
+-		`GET /?code=308&next=302 "c307"`,
++		`GET /?code=308&next=302 ""`,
+ 		`GET /?code=302 "c307"`,
+-		`GET / "c307"`,
++		`GET / ""`,
+ 		`POST /?code=308&next=302,301 "c308"`,
+ 		`POST /?code=302&next=301 "c308"`,
+-		`GET /?code=301 "c308"`,
+-		`GET / "c308"`,
++		`GET /?code=301 ""`,
++		`GET / ""`,
+ 		`POST /?code=404 "c404"`,
+ 	}
+ 	want := strings.Join(wantSegments, "\n")
+@@ -399,20 +399,20 @@ func TestDeleteRedirects(t *testing.T) {
+ 	wantSegments := []string{
+ 		`DELETE / "first"`,
+ 		`DELETE /?code=301&next=302,308 "c301"`,
+-		`GET /?code=302&next=308 "c301"`,
+-		`GET /?code=308 "c301"`,
++		`GET /?code=302&next=308 ""`,
++		`GET /?code=308 ""`,
+ 		`GET / "c301"`,
+ 		`DELETE /?code=302&next=302 "c302"`,
+-		`GET /?code=302 "c302"`,
+-		`GET / "c302"`,
++		`GET /?code=302 ""`,
++		`GET / ""`,
+ 		`DELETE /?code=303 "c303"`,
+-		`GET / "c303"`,
++		`GET / ""`,
+ 		`DELETE /?code=307&next=301,308,303,302,304 "c307"`,
+ 		`DELETE /?code=301&next=308,303,302,304 "c307"`,
+-		`GET /?code=308&next=303,302,304 "c307"`,
++		`GET /?code=308&next=303,302,304 ""`,
+ 		`GET /?code=303&next=302,304 "c307"`,
+-		`GET /?code=302&next=304 "c307"`,
+-		`GET /?code=304 "c307"`,
++		`GET /?code=302&next=304 ""`,
++		`GET /?code=304 ""`,
+ 		`DELETE /?code=308&next=307 "c308"`,
+ 		`DELETE /?code=307 "c308"`,
+ 		`DELETE / "c308"`,
+@@ -432,7 +432,11 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ 	ts = httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
+ 		log.Lock()
+ 		slurp, _ := ioutil.ReadAll(r.Body)
+-		fmt.Fprintf(&log.Buffer, "%s %s %q\n", r.Method, r.RequestURI, slurp)
++		fmt.Fprintf(&log.Buffer, "%s %s %q", r.Method, r.RequestURI, slurp)
++		if cl := r.Header.Get("Content-Length"); r.Method == "GET" && len(slurp) == 0 && (r.ContentLength != 0 || cl != "") {
++			fmt.Fprintf(&log.Buffer, " (but with body=%T, content-length = %v, %q)", r.Body, r.ContentLength, cl)
++		}
++		log.WriteByte('\n')
+ 		log.Unlock()
+ 		urlQuery := r.URL.Query()
+ 		if v := urlQuery.Get("code"); v != "" {
+@@ -475,7 +479,24 @@ func testRedirectsByMethod(t *testing.T, method string, table []redirectTest, wa
+ 	want = strings.TrimSpace(want)
+ 
+ 	if got != want {
+-		t.Errorf("Log differs.\n Got:\n%s\nWant:\n%s\n", got, want)
++		got, want, lines := removeCommonLines(got, want)
++		t.Errorf("Log differs after %d common lines.\n\nGot:\n%s\n\nWant:\n%s\n", lines, got, want)
++	}
++}
++
++func removeCommonLines(a, b string) (asuffix, bsuffix string, commonLines int) {
++	for {
++		nl := strings.IndexByte(a, '\n')
++		if nl < 0 {
++			return a, b, commonLines
++		}
++		line := a[:nl+1]
++		if !strings.HasPrefix(b, line) {
++			return a, b, commonLines
++		}
++		commonLines++
++		a = a[len(line):]
++		b = b[len(line):]
+ 	}
+ }
+ 

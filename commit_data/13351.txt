@@ -38,7 +38,7 @@ Date:   Thu Jun 14 10:43:20 2012 +1000
     R=rsc, dave, bsiegert, dsymonds
     CC=golang-dev
     https://golang.org/cl/6280049
-
+---
  src/cmd/5g/cgen.c             |  14 ++++++
  src/cmd/6g/cgen.c             |  14 ++++++
  src/cmd/8g/cgen.c             |  14 ++++++
@@ -48,3 +48,351 @@ Date:   Thu Jun 14 10:43:20 2012 +1000
  src/pkg/runtime/iface_test.go |  12 +++--
  test/convT2E.go               | 114 ++++++++++++++++++++++++++++++++++++++++++
  8 files changed, 201 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/5g/cgen.c b/src/cmd/5g/cgen.c
+index 2e13f9a6c9..4f56cccbd3 100644
+--- a/src/cmd/5g/cgen.c
++++ b/src/cmd/5g/cgen.c
+@@ -41,6 +41,14 @@ cgen(Node *n, Node *res)
+ 		} else
+ 			cgen_slice(n, res);
+ 		return;
++	case OEFACE:
++		if (res->op != ONAME || !res->addable) {
++			tempname(&n1, n->type);
++			cgen_eface(n, &n1);
++			cgen(&n1, res);
++		} else
++			cgen_eface(n, res);
++		return;
+ 	}
+ 
+ 	while(n->op == OCONVNOP)
+@@ -598,6 +606,12 @@ agen(Node *n, Node *res)
+ 		agen(&n1, res);
+ 		break;
+ 
++	case OEFACE:
++		tempname(&n1, n->type);
++		cgen_eface(n, &n1);
++		agen(&n1, res);
++		break;
++
+ 	case OINDEX:
+ 		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+diff --git a/src/cmd/6g/cgen.c b/src/cmd/6g/cgen.c
+index e38fb86a32..c2760375ff 100644
+--- a/src/cmd/6g/cgen.c
++++ b/src/cmd/6g/cgen.c
+@@ -44,6 +44,14 @@ cgen(Node *n, Node *res)
+ 		} else
+ 			cgen_slice(n, res);
+ 		goto ret;
++	case OEFACE:
++		if (res->op != ONAME || !res->addable) {
++			tempname(&n1, n->type);
++			cgen_eface(n, &n1);
++			cgen(&n1, res);
++		} else
++			cgen_eface(n, res);
++		goto ret;
+ 	}
+ 
+ 	if(n->ullman >= UINF) {
+@@ -549,6 +557,12 @@ agen(Node *n, Node *res)
+ 		agen(&n1, res);
+ 		break;
+ 
++	case OEFACE:
++		tempname(&n1, n->type);
++		cgen_eface(n, &n1);
++		agen(&n1, res);
++		break;
++
+ 	case OINDEX:
+ 		w = n->type->width;
+ 		if(nr->addable)
+diff --git a/src/cmd/8g/cgen.c b/src/cmd/8g/cgen.c
+index 860e8cb6c0..aefa15a670 100644
+--- a/src/cmd/8g/cgen.c
++++ b/src/cmd/8g/cgen.c
+@@ -74,6 +74,14 @@ cgen(Node *n, Node *res)
+ 		} else
+ 			cgen_slice(n, res);
+ 		return;
++	case OEFACE:
++		if (res->op != ONAME || !res->addable) {
++			tempname(&n1, n->type);
++			cgen_eface(n, &n1);
++			cgen(&n1, res);
++		} else
++			cgen_eface(n, res);
++		return;
+ 	}
+ 
+ 	while(n->op == OCONVNOP)
+@@ -549,6 +557,12 @@ agen(Node *n, Node *res)
+ 		agen(&n1, res);
+ 		break;
+ 
++	case OEFACE:
++		tempname(&n1, n->type);
++		cgen_eface(n, &n1);
++		agen(&n1, res);
++		break;
++
+ 	case OINDEX:
+ 		p2 = nil;  // to be patched to panicindex.
+ 		w = n->type->width;
+diff --git a/src/cmd/gc/gen.c b/src/cmd/gc/gen.c
+index 569bf46173..ebb410ba54 100644
+--- a/src/cmd/gc/gen.c
++++ b/src/cmd/gc/gen.c
+@@ -737,6 +737,22 @@ ret:
+ 	;
+ }
+ 
++/*
++ * generate:
++ *	res = iface{typ, data}
++ * n->left is typ
++ * n->right is data
++ */
++void
++cgen_eface(Node *n, Node *res)
++{
++	Node dst;
++	dst = *res;
++	dst.type = types[tptr];
++	cgen(n->left, &dst);
++	dst.xoffset += widthptr;
++	cgen(n->right, &dst);
++}
+ 
+ /*
+  * generate:
+@@ -744,15 +760,12 @@ ret:
+  * n->left is s
+  * n->list is (cap(s)-lo(TUINT32), hi-lo(TUINT32)[, lo*width(TUINTPTR)])
+  * caller (cgen) guarantees res is an addable ONAME.
+- *
+  */
+ void
+ cgen_slice(Node *n, Node *res)
+ {
+ 	Node src, dst, *cap, *len, *offs, *add;
+ 
+-//	print("cgen_slice: %N = %+N\n", res, n);
+-
+ 	cap = n->list->n;
+ 	len = n->list->next->n;
+ 	offs = N;
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 1212b42172..7864b7b72d 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -488,6 +488,7 @@ enum
+ 	ODDD,
+ 	ODDDARG,
+ 	OINLCALL,	// intermediary representation of an inlined call
++	OEFACE,	// itable and data words of empty-interface value
+ 	OITAB,	// itable word of interface value
+ 
+ 	// for back ends
+@@ -989,6 +990,7 @@ void	dumplist(char *s, NodeList *l);
+ void	addrescapes(Node *n);
+ void	cgen_as(Node *nl, Node *nr);
+ void	cgen_callmeth(Node *n, int proc);
++void	cgen_eface(Node* n, Node* res);
+ void	cgen_slice(Node* n, Node* res);
+ void	clearlabels(void);
+ void	checklabels(void);
+diff --git a/src/cmd/gc/walk.c b/src/cmd/gc/walk.c
+index 706fe44191..f5ccc198b3 100644
+--- a/src/cmd/gc/walk.c
++++ b/src/cmd/gc/walk.c
+@@ -436,6 +436,11 @@ walkexpr(Node **np, NodeList **init)
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+ 
++	case OEFACE:
++		walkexpr(&n->left, init);
++		walkexpr(&n->right, init);
++		goto ret;
++
+ 	case OITAB:
+ 		walkexpr(&n->left, init);
+ 		goto ret;
+@@ -713,10 +718,22 @@ walkexpr(Node **np, NodeList **init)
+ 		goto ret;
+ 
+ 	case OCONVIFACE:
++		walkexpr(&n->left, init);
++
++		// Optimize convT2E as a two-word copy when T is uintptr-shaped.
++		if(!isinter(n->left->type) && isnilinter(n->type) &&
++		   (n->left->type->width == widthptr) &&
++		   isint[simsimtype(n->left->type)]) {
++			l = nod(OEFACE, typename(n->left->type), n->left);
++			l->type = n->type;
++			l->typecheck = n->typecheck;
++			n = l;
++			goto ret;
++		}
++
+ 		// Build name of function: convI2E etc.
+ 		// Not all names are possible
+ 		// (e.g., we'll never generate convE2E or convE2I).
+-		walkexpr(&n->left, init);
+ 		strcpy(buf, "conv");
+ 		p = buf+strlen(buf);
+ 		if(isnilinter(n->left->type))
+diff --git a/src/pkg/runtime/iface_test.go b/src/pkg/runtime/iface_test.go
+index fbbb2c933b..ee534db15d 100644
+--- a/src/pkg/runtime/iface_test.go
++++ b/src/pkg/runtime/iface_test.go
+@@ -20,14 +20,20 @@ var (
+ 	Big [2]*int
+ )
+ 
+-func BenchmarkConvT2E(b *testing.B) {
++func BenchmarkConvT2ESmall(b *testing.B) {
+ 	for i := 0; i < b.N; i++ {
+-		I = 1
++		I = uint16(1)
++	}
++}
++
++func BenchmarkConvT2EUintptr(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		I = uintptr(1)
+ 	}
+ }
+ 
+ func BenchmarkConvT2EBig(b *testing.B) {
+-	v := [2]*int{}
++	v := [2]uintptr{1, 2}
+ 	for i := 0; i < b.N; i++ {
+ 		I = v
+ 	}
+diff --git a/test/convT2E.go b/test/convT2E.go
+new file mode 100644
+index 0000000000..975808fef7
+--- /dev/null
++++ b/test/convT2E.go
+@@ -0,0 +1,114 @@
++// run
++
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test conversion from non-interface types to the empty interface.
++
++package main
++
++var (
++	z    = struct{}{}
++	p    = &z
++	pp   = &p
++	u16  = uint16(1)
++	u32  = uint32(2)
++	u64  = uint64(3)
++	u128 = [2]uint64{4, 5}
++	f32  = float32(6)
++	f64  = float64(7)
++	c128 = complex128(8 + 9i)
++	s    = "10"
++	b    = []byte("11")
++	m    = map[int]int{12: 13}
++	c    = make(chan int, 14)
++)
++
++var (
++	iz    interface{} = z
++	ip    interface{} = p
++	ipp   interface{} = pp
++	iu16  interface{} = u16
++	iu32  interface{} = u32
++	iu64  interface{} = u64
++	iu128 interface{} = u128
++	if32  interface{} = f32
++	if64  interface{} = f64
++	ic128 interface{} = c128
++	is    interface{} = s
++	ib    interface{} = b
++	im    interface{} = m
++	ic    interface{} = c
++)
++
++func second(a ...interface{}) interface{} {
++	return a[1]
++}
++
++func main() {
++	// Test equality. There are no tests for b and m, as slices and
++	// maps are not comparable by ==.
++	if z != iz {
++		panic("z != iz")
++	}
++	if p != ip {
++		panic("p != ip")
++	}
++	if pp != ipp {
++		panic("pp != ipp")
++	}
++	if u16 != iu16 {
++		panic("u16 != iu16")
++	}
++	if u32 != iu32 {
++		panic("u32 != iu32")
++	}
++	if u64 != iu64 {
++		panic("u64 != iu64")
++	}
++	if u128 != iu128 {
++		panic("u128 != iu128")
++	}
++	if f32 != if32 {
++		panic("f32 != if32")
++	}
++	if f64 != if64 {
++		panic("f64 != if64")
++	}
++	if c128 != ic128 {
++		panic("c128 != ic128")
++	}
++	if s != is {
++		panic("s != is")
++	}
++	if c != ic {
++		panic("c != ic")
++	}
++
++	// Test that non-interface types can be used as ...interface{} arguments.
++	if got := second(z, p, pp, u16, u32, u64, u128, f32, f64, c128, s, b, m, c); got != ip {
++		println("second: got", got, "want", ip)
++		panic("fail")
++	}
++
++	// Test that non-interface types can be sent on a chan interface{}.
++	const n = 100
++	uc := make(chan interface{})
++	go func() {
++		for i := 0; i < n; i++ {
++			select {
++			case uc <- nil:
++			case uc <- u32:
++			case uc <- u64:
++			case uc <- u128:
++			}
++		}
++	}()
++	for i := 0; i < n; i++ {
++		if got := <-uc; got != nil && got != u32 && got != u64 && got != u128 {
++			println("recv: i", i, "got", got)
++			panic("fail")
++		}
++	}
++}

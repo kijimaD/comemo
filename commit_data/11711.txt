@@ -9,6 +9,32 @@ Date:   Wed Feb 8 14:28:51 2012 -0500
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/5645058
-
+---
  doc/go_spec.html | 8 +++++++-
  1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 4467f4e39e..ff7ce325ca 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Version of February 6, 2012"
++	"Subtitle": "Version of February 8, 2012"
+ }-->
+ 
+ <!--
+@@ -665,6 +665,12 @@ Any other type has an empty method set.
+ In a method set, each method must have a unique name.
+ </p>
+ 
++<p>
++The method set of a type determines the interfaces that the
++type <a href="#Interface_types">implements</a>
++and the methods that can be <a href="#Calls">called</a>
++using a receiver of that type.
++</p>
+ 
+ <h3 id="Boolean_types">Boolean types</h3>
+ 

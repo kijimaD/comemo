@@ -246,3 +246,4 @@ Date:   Mon Feb 29 23:19:17 2016 +0000
  test/fixedbugs/issue11610.go                       |    2 +-
  test/fixedbugs/issue14520.go                       |   14 +
  240 files changed, 4669 insertions(+), 3175 deletions(-)
+

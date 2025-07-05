@@ -7,6 +7,20 @@ Date:   Thu Jun 27 20:51:46 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/10660043
-
+---
  src/pkg/crypto/sha512/sha512.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/sha512/sha512.go b/src/pkg/crypto/sha512/sha512.go
+index 6825c22acd..d2ada51373 100644
+--- a/src/pkg/crypto/sha512/sha512.go
++++ b/src/pkg/crypto/sha512/sha512.go
+@@ -184,7 +184,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	return digest
+ }
+ 
+-// Sum returns the SHA512 checksum of the data.
++// Sum512 returns the SHA512 checksum of the data.
+ func Sum512(data []byte) [Size]byte {
+ 	var d digest
+ 	d.Reset()

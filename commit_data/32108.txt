@@ -12,10 +12,104 @@ Date:   Wed Apr 5 08:01:33 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/doc.go                   |  2 ++
  src/cmd/compile/internal/gc/bootstrap.go | 13 +++++++++++++
  src/cmd/compile/internal/gc/main.go      |  1 +
  src/cmd/compile/internal/gc/pprof.go     | 13 +++++++++++++
  src/cmd/compile/internal/gc/util.go      | 12 ++++++++++++
  5 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/compile/doc.go b/src/cmd/compile/doc.go
+index 0a364cabb7..83bd36c34c 100644
+--- a/src/cmd/compile/doc.go
++++ b/src/cmd/compile/doc.go
+@@ -77,6 +77,8 @@ Flags:
+ 		Set runtime.MemProfileRate for the compilation to rate.
+ 	-msan
+ 		Insert calls to C/C++ memory sanitizer.
++	-mutexprofile file
++		Write mutex profile for the compilation to file.
+ 	-nolocalimports
+ 		Disallow local (relative) imports.
+ 	-o file
+diff --git a/src/cmd/compile/internal/gc/bootstrap.go b/src/cmd/compile/internal/gc/bootstrap.go
+new file mode 100644
+index 0000000000..967f75a9ac
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/bootstrap.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build !go1.8
++
++package gc
++
++import "runtime"
++
++func startMutexProfiling() {
++	Fatalf("mutex profiling unavailable in version %v", runtime.Version())
++}
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index b2efd7cbef..e850bef2b6 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -222,6 +222,7 @@ func Main(archInit func(*Arch)) {
+ 	flag.Int64Var(&memprofilerate, "memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+ 	flag.StringVar(&traceprofile, "traceprofile", "", "write an execution trace to `file`")
+ 	flag.StringVar(&blockprofile, "blockprofile", "", "write block profile to `file`")
++	flag.StringVar(&mutexprofile, "mutexprofile", "", "write mutex profile to `file`")
+ 	flag.StringVar(&benchfile, "bench", "", "append benchmark times to `file`")
+ 	obj.Flagparse(usage)
+ 
+diff --git a/src/cmd/compile/internal/gc/pprof.go b/src/cmd/compile/internal/gc/pprof.go
+new file mode 100644
+index 0000000000..256c659259
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/pprof.go
+@@ -0,0 +1,13 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build go1.8
++
++package gc
++
++import "runtime"
++
++func startMutexProfiling() {
++	runtime.SetMutexProfileFraction(1)
++}
+diff --git a/src/cmd/compile/internal/gc/util.go b/src/cmd/compile/internal/gc/util.go
+index 97fff063f8..58be2f8253 100644
+--- a/src/cmd/compile/internal/gc/util.go
++++ b/src/cmd/compile/internal/gc/util.go
+@@ -38,6 +38,7 @@ var (
+ 	memprofilerate int64
+ 	traceprofile   string
+ 	traceHandler   func(string)
++	mutexprofile   string
+ )
+ 
+ func startProfile() {
+@@ -85,6 +86,17 @@ func startProfile() {
+ 			f.Close()
+ 		})
+ 	}
++	if mutexprofile != "" {
++		f, err := os.Create(mutexprofile)
++		if err != nil {
++			Fatalf("%v", err)
++		}
++		startMutexProfiling()
++		atExit(func() {
++			pprof.Lookup("mutex").WriteTo(f, 0)
++			f.Close()
++		})
++	}
+ 	if traceprofile != "" && traceHandler != nil {
+ 		traceHandler(traceprofile)
+ 	}

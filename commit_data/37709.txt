@@ -10,6 +10,29 @@ Date:   Wed Aug 22 19:53:45 2018 +0000
     Reviewed-on: https://go-review.googlesource.com/130815
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Martin Möhrmann <moehrmann@google.com>
-
+---
  src/runtime/panic.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index a5287a0b86..45be886196 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -37,7 +37,7 @@ var indexError = error(errorString("index out of range"))
+ // entire runtime stack for easier debugging.
+ 
+ func panicindex() {
+-	if hasprefix(funcname(findfunc(getcallerpc())), "runtime.") {
++	if hasPrefix(funcname(findfunc(getcallerpc())), "runtime.") {
+ 		throw(string(indexError.(errorString)))
+ 	}
+ 	panicCheckMalloc(indexError)
+@@ -47,7 +47,7 @@ func panicindex() {
+ var sliceError = error(errorString("slice bounds out of range"))
+ 
+ func panicslice() {
+-	if hasprefix(funcname(findfunc(getcallerpc())), "runtime.") {
++	if hasPrefix(funcname(findfunc(getcallerpc())), "runtime.") {
+ 		throw(string(sliceError.(errorString)))
+ 	}
+ 	panicCheckMalloc(sliceError)

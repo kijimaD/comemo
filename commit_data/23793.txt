@@ -7,6 +7,20 @@ Date:   Sun Jun 14 10:27:50 2015 -0700
     Change-Id: I235a759e4688358adc088cf5a80f8ce7ad12d2f2
     Reviewed-on: https://go-review.googlesource.com/11093
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 36352d009d..dec4de0e10 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -381,7 +381,7 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 		}
+ 	case OCONVNOP:
+ 		x := s.expr(n.Left)
+-		return s.newValue1(ssa.OpConvNop, n.Type, nil, x)
++		return s.newValue1(ssa.OpConvNop, n.Type, x)
+ 
+ 		// binary ops
+ 	case OLT:

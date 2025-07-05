@@ -25,8 +25,137 @@ Date:   Fri Sep 27 14:34:05 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgcmark.go  | 13 +++++++++++--
  src/runtime/runtime2.go | 13 ++++++++-----
  src/runtime/stack.go    | 43 ++++++++++++++++++++++++++++++++-----------
  3 files changed, 51 insertions(+), 18 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 22e70ce157..338983424c 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -667,6 +667,10 @@ func gcFlushBgCredit(scanWork int64) {
+ 
+ // scanstack scans gp's stack, greying all pointers found on the stack.
+ //
++// scanstack will also shrink the stack if it is safe to do so. If it
++// is not, it schedules a stack shrink for the next synchronous safe
++// point.
++//
+ // scanstack is marked go:systemstack because it must not be preempted
+ // while using a workbuf.
+ //
+@@ -695,8 +699,13 @@ func scanstack(gp *g, gcw *gcWork) {
+ 		throw("can't scan our own stack")
+ 	}
+ 
+-	// Shrink the stack if not much of it is being used.
+-	shrinkstack(gp)
++	if isShrinkStackSafe(gp) {
++		// Shrink the stack if not much of it is being used.
++		shrinkstack(gp)
++	} else {
++		// Otherwise, shrink the stack at the next sync safe point.
++		gp.preemptShrink = true
++	}
+ 
+ 	var state stackScanState
+ 	state.stack = gp.stack
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index bf56466e08..eecc6a78ac 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -418,11 +418,14 @@ type g struct {
+ 	schedlink    guintptr
+ 	waitsince    int64      // approx time when the g become blocked
+ 	waitreason   waitReason // if status==Gwaiting
+-	preempt      bool       // preemption signal, duplicates stackguard0 = stackpreempt
+-	preemptStop  bool       // transition to _Gpreempted on preemption; otherwise, just deschedule
+-	paniconfault bool       // panic (instead of crash) on unexpected fault address
+-	gcscandone   bool       // g has scanned stack; protected by _Gscan bit in status
+-	throwsplit   bool       // must not split stack
++
++	preempt       bool // preemption signal, duplicates stackguard0 = stackpreempt
++	preemptStop   bool // transition to _Gpreempted on preemption; otherwise, just deschedule
++	preemptShrink bool // shrink stack at synchronous safe point
++
++	paniconfault bool // panic (instead of crash) on unexpected fault address
++	gcscandone   bool // g has scanned stack; protected by _Gscan bit in status
++	throwsplit   bool // must not split stack
+ 	// activeStackChans indicates that there are unlocked channels
+ 	// pointing into this goroutine's stack. If true, stack
+ 	// copying needs to acquire channel locks to protect these
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index e47f12a8dc..825826cacd 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1010,6 +1010,13 @@ func newstack() {
+ 			throw("runtime: g is running but p is not")
+ 		}
+ 
++		if gp.preemptShrink {
++			// We're at a synchronous safe point now, so
++			// do the pending stack shrink.
++			gp.preemptShrink = false
++			shrinkstack(gp)
++		}
++
+ 		if gp.preemptStop {
+ 			preemptPark(gp) // never returns
+ 		}
+@@ -1057,16 +1064,36 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ 	gostartcall(gobuf, fn, unsafe.Pointer(fv))
+ }
+ 
++// isShrinkStackSafe returns whether it's safe to attempt to shrink
++// gp's stack. Shrinking the stack is only safe when we have precise
++// pointer maps for all frames on the stack.
++func isShrinkStackSafe(gp *g) bool {
++	// We can't copy the stack if we're in a syscall.
++	// The syscall might have pointers into the stack and
++	// often we don't have precise pointer maps for the innermost
++	// frames.
++	return gp.syscallsp == 0
++}
++
+ // Maybe shrink the stack being used by gp.
+-// Called at garbage collection time.
+-// gp must be stopped, but the world need not be.
++//
++// gp must be stopped and we must own its stack. It may be in
++// _Grunning, but only if this is our own user G.
+ func shrinkstack(gp *g) {
+-	gstatus := readgstatus(gp)
+ 	if gp.stack.lo == 0 {
+ 		throw("missing stack in shrinkstack")
+ 	}
+-	if gstatus&_Gscan == 0 {
+-		throw("bad status in shrinkstack")
++	if s := readgstatus(gp); s&_Gscan == 0 {
++		// We don't own the stack via _Gscan. We could still
++		// own it if this is our own user G and we're on the
++		// system stack.
++		if !(gp == getg().m.curg && getg() != getg().m.curg && s == _Grunning) {
++			// We don't own the stack.
++			throw("bad status in shrinkstack")
++		}
++	}
++	if !isShrinkStackSafe(gp) {
++		throw("shrinkstack at bad time")
+ 	}
+ 	// Check for self-shrinks while in a libcall. These may have
+ 	// pointers into the stack disguised as uintptrs, but these
+@@ -1102,12 +1129,6 @@ func shrinkstack(gp *g) {
+ 		return
+ 	}
+ 
+-	// We can't copy the stack if we're in a syscall.
+-	// The syscall might have pointers into the stack.
+-	if gp.syscallsp != 0 {
+-		return
+-	}
+-
+ 	if stackDebug > 0 {
+ 		print("shrinking stack ", oldsize, "->", newsize, "\n")
+ 	}

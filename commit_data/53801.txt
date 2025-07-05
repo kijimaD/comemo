@@ -43,7 +43,7 @@ Date:   Sat Aug 13 21:39:56 2022 -0400
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/test/inl_test.go |  1 -
  src/runtime/heapdump.go                   |  2 +-
  src/runtime/mgcmark.go                    |  4 +-
@@ -51,3 +51,248 @@ Date:   Sat Aug 13 21:39:56 2022 -0400
  src/runtime/stack.go                      | 51 +++++++++++-------------
  src/runtime/traceback.go                  | 66 ++++++++++++++++---------------
  6 files changed, 65 insertions(+), 71 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 9926985c58..622224d85e 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -47,7 +47,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"fastrand",
+ 			"float64bits",
+ 			"funcspdelta",
+-			"getArgInfoFast",
+ 			"getm",
+ 			"getMCache",
+ 			"isDirectIface",
+diff --git a/src/runtime/heapdump.go b/src/runtime/heapdump.go
+index a3d817105b..0268e25595 100644
+--- a/src/runtime/heapdump.go
++++ b/src/runtime/heapdump.go
+@@ -327,7 +327,7 @@ func dumpframe(s *stkframe, arg unsafe.Pointer) bool {
+ 
+ 	// Record arg info for parent.
+ 	child.argoff = s.argp - s.fp
+-	child.arglen = s.arglen
++	child.arglen = s.argBytes()
+ 	child.sp = (*uint8)(unsafe.Pointer(s.sp))
+ 	child.depth++
+ 	stkmap = (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index c2602c0aa1..6e66a3af65 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -945,10 +945,10 @@ func scanframeworker(frame *stkframe, state *stackScanState, gcw *gcWork) {
+ 		}
+ 
+ 		// Scan arguments to this frame.
+-		if frame.arglen != 0 {
++		if n := frame.argBytes(); n != 0 {
+ 			// TODO: We could pass the entry argument map
+ 			// to narrow this down further.
+-			scanConservative(frame.argp, frame.arglen, nil, gcw, state)
++			scanConservative(frame.argp, n, nil, gcw, state)
+ 		}
+ 
+ 		if isAsyncPreempt || isDebugCall {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4e67fd6e44..fe9b770b44 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1027,13 +1027,11 @@ type stkframe struct {
+ 	// This is the PC to use to look up GC liveness for this frame.
+ 	continpc uintptr
+ 
+-	lr     uintptr    // program counter at caller aka link register
+-	sp     uintptr    // stack pointer at pc
+-	fp     uintptr    // stack pointer at caller aka frame pointer
+-	varp   uintptr    // top of local variables
+-	argp   uintptr    // pointer to function arguments
+-	arglen uintptr    // number of bytes at argp
+-	argmap *bitvector // force use of this argmap
++	lr   uintptr // program counter at caller aka link register
++	sp   uintptr // stack pointer at pc
++	fp   uintptr // stack pointer at caller aka frame pointer
++	varp uintptr // top of local variables
++	argp uintptr // pointer to function arguments
+ }
+ 
+ // ancestorInfo records details of where a goroutine was started.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 22dc2d4748..1b3b0b7840 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1305,40 +1305,35 @@ func getStackMap(frame *stkframe, cache *pcvalueCache, debug bool) (locals, args
+ 		}
+ 	}
+ 
+-	// Arguments.
+-	if frame.arglen > 0 {
+-		if frame.argmap != nil {
+-			// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
+-			// In this case, arglen specifies how much of the args section is actually live.
+-			// (It could be either all the args + results, or just the args.)
+-			args = *frame.argmap
+-			n := int32(frame.arglen / goarch.PtrSize)
+-			if n < args.n {
+-				args.n = n // Don't use more of the arguments than arglen.
+-			}
++	// Arguments. First fetch frame size and special-case argument maps.
++	var isReflect bool
++	args, isReflect = frame.argMapInternal()
++	if args.n > 0 && args.bytedata == nil {
++		// Non-empty argument frame, but not a special map.
++		// Fetch the argument map at pcdata.
++		stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
++		if stackmap == nil || stackmap.n <= 0 {
++			print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(args.n*goarch.PtrSize), "\n")
++			throw("missing stackmap")
++		}
++		if pcdata < 0 || pcdata >= stackmap.n {
++			// don't know where we are
++			print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
++			throw("bad symbol table")
++		}
++		if stackmap.nbit == 0 {
++			args.n = 0
+ 		} else {
+-			stackmap := (*stackmap)(funcdata(f, _FUNCDATA_ArgsPointerMaps))
+-			if stackmap == nil || stackmap.n <= 0 {
+-				print("runtime: frame ", funcname(f), " untyped args ", hex(frame.argp), "+", hex(frame.arglen), "\n")
+-				throw("missing stackmap")
+-			}
+-			if pcdata < 0 || pcdata >= stackmap.n {
+-				// don't know where we are
+-				print("runtime: pcdata is ", pcdata, " and ", stackmap.n, " args stack map entries for ", funcname(f), " (targetpc=", hex(targetpc), ")\n")
+-				throw("bad symbol table")
+-			}
+-			if stackmap.nbit > 0 {
+-				args = stackmapdata(stackmap, pcdata)
+-			}
++			args = stackmapdata(stackmap, pcdata)
+ 		}
+ 	}
+ 
+ 	// stack objects.
+ 	if (GOARCH == "amd64" || GOARCH == "arm64" || GOARCH == "ppc64" || GOARCH == "ppc64le" || GOARCH == "riscv64") &&
+-		unsafe.Sizeof(abi.RegArgs{}) > 0 && frame.argmap != nil {
+-		// argmap is set when the function is reflect.makeFuncStub or reflect.methodValueCall.
+-		// We don't actually use argmap in this case, but we need to fake the stack object
+-		// record for these frames which contain an internal/abi.RegArgs at a hard-coded offset.
++		unsafe.Sizeof(abi.RegArgs{}) > 0 && isReflect {
++		// For reflect.makeFuncStub and reflect.methodValueCall,
++		// we need to fake the stack object record.
++		// These frames contain an internal/abi.RegArgs at a hard-coded offset.
+ 		// This offset matches the assembly code on amd64 and arm64.
+ 		objs = methodValueCallFrameObjs[:]
+ 	} else {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8ecddc8935..0c8e5bace3 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -285,20 +285,7 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 			frame.varp -= goarch.PtrSize
+ 		}
+ 
+-		// Derive size of arguments.
+-		// Most functions have a fixed-size argument block,
+-		// so we can use metadata about the function f.
+-		// Not all, though: there are some variadic functions
+-		// in package runtime and reflect, and for those we use call-specific
+-		// metadata recorded by f's caller.
+-		if callback != nil || printing {
+-			frame.argp = frame.fp + sys.MinFrameSize
+-			var ok bool
+-			frame.arglen, frame.argmap, ok = getArgInfoFast(f, callback != nil)
+-			if !ok {
+-				frame.arglen, frame.argmap = getArgInfo(&frame, callback != nil)
+-			}
+-		}
++		frame.argp = frame.fp + sys.MinFrameSize
+ 
+ 		// Determine frame's 'continuation PC', where it can continue.
+ 		// Normally this is the return address on the stack, but if sigpanic
+@@ -491,7 +478,6 @@ func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max in
+ 		frame.lr = 0
+ 		frame.sp = frame.fp
+ 		frame.fp = 0
+-		frame.argmap = nil
+ 
+ 		// On link register architectures, sighandler saves the LR on stack
+ 		// before faking a call.
+@@ -670,21 +656,33 @@ type reflectMethodValue struct {
+ 	argLen uintptr    // just args
+ }
+ 
+-// getArgInfoFast returns the argument frame information for a call to f.
+-// It is short and inlineable. However, it does not handle all functions.
+-// If ok reports false, you must call getArgInfo instead.
+-// TODO(josharian): once we do mid-stack inlining,
+-// call getArgInfo directly from getArgInfoFast and stop returning an ok bool.
+-func getArgInfoFast(f funcInfo, needArgMap bool) (arglen uintptr, argmap *bitvector, ok bool) {
+-	return uintptr(f.args), nil, !(needArgMap && f.args == _ArgsSizeUnknown)
++// argBytes returns the argument frame size for a call to frame.fn.
++func (frame *stkframe) argBytes() uintptr {
++	if frame.fn.args != _ArgsSizeUnknown {
++		return uintptr(frame.fn.args)
++	}
++	// This is an uncommon and complicated case. Fall back to fully
++	// fetching the argument map to compute its size.
++	argMap, _ := frame.argMapInternal()
++	return uintptr(argMap.n) * goarch.PtrSize
+ }
+ 
+-// getArgInfo returns the argument frame information for a call to f
+-// with call frame frame.
+-func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitvector) {
++// argMapInternal is used internally by stkframe to fetch special
++// argument maps.
++//
++// argMap.n is always populated with the size of the argument map.
++//
++// argMap.bytedata is only populated for dynamic argument maps (used
++// by reflect). If the caller requires the argument map, it should use
++// this if non-nil, and otherwise fetch the argument map using the
++// current PC.
++//
++// hasReflectStackObj indicates that this frame also has a reflect
++// function stack object, which the caller must synthesize.
++func (frame *stkframe) argMapInternal() (argMap bitvector, hasReflectStackObj bool) {
+ 	f := frame.fn
+-	arglen = uintptr(f.args)
+-	if needArgMap && f.args == _ArgsSizeUnknown {
++	argMap.n = f.args / goarch.PtrSize
++	if f.args == _ArgsSizeUnknown {
+ 		// Extract argument bitmaps for reflect stubs from the calls they made to reflect.
+ 		switch funcname(f) {
+ 		case "reflect.makeFuncStub", "reflect.methodValueCall":
+@@ -715,8 +713,9 @@ func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitve
+ 					print("runtime: confused by ", funcname(f), ": no frame (sp=", hex(frame.sp), " fp=", hex(frame.fp), ") at entry+", hex(frame.pc-f.entry()), "\n")
+ 					throw("reflect mismatch")
+ 				}
+-				return 0, nil
++				return bitvector{}, false // No locals, so also no stack objects
+ 			}
++			hasReflectStackObj = true
+ 			mv := *(**reflectMethodValue)(unsafe.Pointer(arg0))
+ 			// Figure out whether the return values are valid.
+ 			// Reflect will update this value after it copies
+@@ -726,12 +725,15 @@ func getArgInfo(frame *stkframe, needArgMap bool) (arglen uintptr, argmap *bitve
+ 				print("runtime: confused by ", funcname(f), "\n")
+ 				throw("reflect mismatch")
+ 			}
+-			bv := mv.stack
+-			arglen = uintptr(bv.n * goarch.PtrSize)
++			argMap = *mv.stack
+ 			if !retValid {
+-				arglen = uintptr(mv.argLen) &^ (goarch.PtrSize - 1)
++				// argMap.n includes the results, but
++				// those aren't valid, so drop them.
++				n := int32((uintptr(mv.argLen) &^ (goarch.PtrSize - 1)) / goarch.PtrSize)
++				if n < argMap.n {
++					argMap.n = n
++				}
+ 			}
+-			argmap = bv
+ 		}
+ 	}
+ 	return

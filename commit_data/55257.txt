@@ -15,7 +15,7 @@ Date:   Sat Jan 21 14:53:47 2023 +0700
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Cuong Manh Le <cuong.manhle.vn@gmail.com>
-
+---
  src/cmd/compile/internal/types2/builtins.go      | 8 ++------
  src/cmd/compile/internal/types2/builtins_test.go | 2 --
  src/go/types/builtins.go                         | 8 ++------
@@ -24,3 +24,113 @@ Date:   Sat Jan 21 14:53:47 2023 +0700
  src/internal/types/testdata/check/builtins0.go   | 2 +-
  src/internal/types/testdata/check/builtins1.go   | 2 +-
  7 files changed, 7 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index a5e7baa8f5..4e4d756652 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -240,15 +240,11 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		}
+ 
+ 		if !underIs(x.typ, func(u Type) bool {
+-			switch u := u.(type) {
++			switch u.(type) {
+ 			case *Map, *Slice:
+ 				return true
+-			case *Pointer:
+-				if _, ok := under(u.base).(*Array); ok {
+-					return true
+-				}
+ 			}
+-			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
++			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map or slice", x)
+ 			return false
+ 		}) {
+ 			return
+diff --git a/src/cmd/compile/internal/types2/builtins_test.go b/src/cmd/compile/internal/types2/builtins_test.go
+index 347595e169..863aa95680 100644
+--- a/src/cmd/compile/internal/types2/builtins_test.go
++++ b/src/cmd/compile/internal/types2/builtins_test.go
+@@ -42,8 +42,6 @@ var builtinCalls = []struct {
+ 
+ 	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
+ 	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
+-	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
+-	{"clear", `var s P; clear(s)`, `func(P)`},
+ 
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index e7799731e8..938e85ed68 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -241,15 +241,11 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		}
+ 
+ 		if !underIs(x.typ, func(u Type) bool {
+-			switch u := u.(type) {
++			switch u.(type) {
+ 			case *Map, *Slice:
+ 				return true
+-			case *Pointer:
+-				if _, ok := under(u.base).(*Array); ok {
+-					return true
+-				}
+ 			}
+-			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map, slice, or array pointer", x)
++			check.errorf(x, InvalidClear, invalidArg+"cannot clear %s: argument must be (or constrained by) map or slice", x)
+ 			return false
+ 		}) {
+ 			return
+diff --git a/src/go/types/builtins_test.go b/src/go/types/builtins_test.go
+index aadf4bc5b6..5591fecf02 100644
+--- a/src/go/types/builtins_test.go
++++ b/src/go/types/builtins_test.go
+@@ -42,8 +42,6 @@ var builtinCalls = []struct {
+ 
+ 	{"clear", `var m map[float64]int; clear(m)`, `func(map[float64]int)`},
+ 	{"clear", `var s []byte; clear(s)`, `func([]byte)`},
+-	{"clear", `var p *[10]int; clear(p)`, `func(*[10]int)`},
+-	{"clear", `var s P; clear(s)`, `func(P)`},
+ 
+ 	{"close", `var c chan int; close(c)`, `func(chan int)`},
+ 	{"close", `var c chan<- chan string; close(c)`, `func(chan<- chan string)`},
+diff --git a/src/internal/types/errors/codes.go b/src/internal/types/errors/codes.go
+index acddcbb9c5..9615f496c8 100644
+--- a/src/internal/types/errors/codes.go
++++ b/src/internal/types/errors/codes.go
+@@ -1432,7 +1432,7 @@ const (
+ 	_ // not used anymore
+ 
+ 	// InvalidClear occurs when clear is called with an argument
+-	// that is not of map, slice, or pointer-to-array type.
++	// that is not of map or slice type.
+ 	//
+ 	// Example:
+ 	//  func _(x int) {
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index 9ae696d5b9..913dc5156e 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -144,7 +144,7 @@ func clear1() {
+ 	var m map[float64]string
+ 	var s []byte
+ 	clear(a /* ERROR "cannot clear a" */)
+-	clear(&a)
++	clear(&/* ERROR "cannot clear &a" */a)
+ 	clear(m)
+ 	clear(s)
+ 	clear([]int{})
+diff --git a/src/internal/types/testdata/check/builtins1.go b/src/internal/types/testdata/check/builtins1.go
+index 725bba18a2..b99114f4d6 100644
+--- a/src/internal/types/testdata/check/builtins1.go
++++ b/src/internal/types/testdata/check/builtins1.go
+@@ -14,7 +14,7 @@ func _[T any](x T) {
+ 	clear(x /* ERROR "cannot clear x" */)
+ }
+ 
+-func _[T ~map[int]string | ~[]byte | ~*[10]int](x T) {
++func _[T ~map[int]string | ~[]byte](x T) {
+ 	clear(x)
+ }
+ 

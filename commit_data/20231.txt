@@ -10,7 +10,76 @@ Date:   Tue Aug 26 05:39:04 2014 +0000
     R=minux, josharian, rsc
     CC=golang-codereviews
     https://golang.org/cl/132990044
-
+---
  src/pkg/runtime/vlrt.go    | 26 +++++++++++++++++++++-----
  src/pkg/runtime/vlrt_arm.c | 14 --------------
  2 files changed, 21 insertions(+), 19 deletions(-)
+
+diff --git a/src/pkg/runtime/vlrt.go b/src/pkg/runtime/vlrt.go
+index 64154fce08..c346812aec 100644
+--- a/src/pkg/runtime/vlrt.go
++++ b/src/pkg/runtime/vlrt.go
+@@ -29,17 +29,33 @@ package runtime
+ 
+ import "unsafe"
+ 
+-func float64toint64(d float64, y uint64) {
++const (
++	sign64 = 1 << (64 - 1)
++)
++
++func float64toint64(d float64) (y uint64) {
+ 	_d2v(&y, d)
++	return
+ }
+ 
+-func float64touint64(d float64, y uint64) {
++func float64touint64(d float64) (y uint64) {
+ 	_d2v(&y, d)
++	return
+ }
+ 
+-const (
+-	sign64 = 1 << (64 - 1)
+-)
++func int64tofloat64(y int64) float64 {
++	if y < 0 {
++		return -uint64tofloat64(-uint64(y))
++	}
++	return uint64tofloat64(uint64(y))
++}
++
++func uint64tofloat64(y uint64) float64 {
++	hi := float64(uint32(y >> 32))
++	lo := float64(uint32(y))
++	d := hi*(1<<32) + lo
++	return d
++}
+ 
+ func _d2v(y *uint64, d float64) {
+ 	x := *(*uint64)(unsafe.Pointer(&d))
+diff --git a/src/pkg/runtime/vlrt_arm.c b/src/pkg/runtime/vlrt_arm.c
+index 5e7807f455..b342a3eb86 100644
+--- a/src/pkg/runtime/vlrt_arm.c
++++ b/src/pkg/runtime/vlrt_arm.c
+@@ -159,20 +159,6 @@ _v2f(Vlong x)
+ 	return _v2d(x);
+ }
+ 
+-void
+-runtime·int64tofloat64(Vlong y, double d)
+-{
+-	d = _v2d(y);
+-	USED(&d); // FLUSH
+-}
+-
+-void
+-runtime·uint64tofloat64(Vlong y, double d)
+-{
+-	d = _ul2d(y.hi)*4294967296. + _ul2d(y.lo);
+-	USED(&d); // FLUSH
+-}
+-
+ static void
+ dodiv(Vlong num, Vlong den, Vlong *q, Vlong *r)
+ {

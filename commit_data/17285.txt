@@ -15,6 +15,20 @@ Date:   Fri Aug 16 12:49:51 2013 +1000
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/13036043
-
+---
  src/cmd/go/test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/test.go b/src/cmd/go/test.go
+index d4a1c50f41..002758c3b1 100644
+--- a/src/cmd/go/test.go
++++ b/src/cmd/go/test.go
+@@ -378,7 +378,7 @@ func runTest(cmd *Command, args []string) {
+ 			a.deps = append(a.deps, b.action(modeInstall, modeInstall, p))
+ 		}
+ 		b.do(a)
+-		if !testC {
++		if !testC || a.failed {
+ 			return
+ 		}
+ 		b.init()

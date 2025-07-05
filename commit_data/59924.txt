@@ -23,9 +23,304 @@ Date:   Fri Mar 15 12:56:23 2024 -0400
     Reviewed-on: https://go-review.googlesource.com/c/go/+/571995
     Reviewed-by: Damien Neil <dneil@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/fs.go         | 32 +++++++++++------
  src/net/http/fs_test.go    | 85 +++++++++++++++++++++++++++++++++++++++++++---
  src/net/http/serve_test.go | 22 ++++++++++++
  src/net/http/server.go     | 19 +++++++++--
  4 files changed, 140 insertions(+), 18 deletions(-)
+
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 25e9406a58..c213d8a328 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -171,6 +171,18 @@ func dirList(w ResponseWriter, r *Request, f File) {
+ 	fmt.Fprintf(w, "</pre>\n")
+ }
+ 
++// serveError serves an error from ServeFile, ServeFileFS, and ServeContent.
++// Because those can all be configured by the caller by setting headers like
++// Etag, Last-Modified, and Cache-Control to send on a successful response,
++// the error path needs to clear them, since they may not be meant for errors.
++func serveError(w ResponseWriter, text string, code int) {
++	h := w.Header()
++	h.Del("Etag")
++	h.Del("Last-Modified")
++	h.Del("Cache-Control")
++	Error(w, text, code)
++}
++
+ // ServeContent replies to the request using the content in the
+ // provided ReadSeeker. The main benefit of ServeContent over [io.Copy]
+ // is that it handles Range requests properly, sets the MIME type, and
+@@ -247,7 +259,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 			ctype = DetectContentType(buf[:n])
+ 			_, err := content.Seek(0, io.SeekStart) // rewind to output whole file
+ 			if err != nil {
+-				Error(w, "seeker can't seek", StatusInternalServerError)
++				serveError(w, "seeker can't seek", StatusInternalServerError)
+ 				return
+ 			}
+ 		}
+@@ -258,12 +270,12 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 
+ 	size, err := sizeFunc()
+ 	if err != nil {
+-		Error(w, err.Error(), StatusInternalServerError)
++		serveError(w, err.Error(), StatusInternalServerError)
+ 		return
+ 	}
+ 	if size < 0 {
+ 		// Should never happen but just to be sure
+-		Error(w, "negative content size computed", StatusInternalServerError)
++		serveError(w, "negative content size computed", StatusInternalServerError)
+ 		return
+ 	}
+ 
+@@ -285,7 +297,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", size))
+ 		fallthrough
+ 	default:
+-		Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
++		serveError(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 		return
+ 	}
+ 
+@@ -311,7 +323,7 @@ func serveContent(w ResponseWriter, r *Request, name string, modtime time.Time,
+ 		// multipart responses."
+ 		ra := ranges[0]
+ 		if _, err := content.Seek(ra.start, io.SeekStart); err != nil {
+-			Error(w, err.Error(), StatusRequestedRangeNotSatisfiable)
++			serveError(w, err.Error(), StatusRequestedRangeNotSatisfiable)
+ 			return
+ 		}
+ 		sendSize = ra.length
+@@ -644,7 +656,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	f, err := fs.Open(name)
+ 	if err != nil {
+ 		msg, code := toHTTPError(err)
+-		Error(w, msg, code)
++		serveError(w, msg, code)
+ 		return
+ 	}
+ 	defer f.Close()
+@@ -652,7 +664,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 	d, err := f.Stat()
+ 	if err != nil {
+ 		msg, code := toHTTPError(err)
+-		Error(w, msg, code)
++		serveError(w, msg, code)
+ 		return
+ 	}
+ 
+@@ -670,7 +682,7 @@ func serveFile(w ResponseWriter, r *Request, fs FileSystem, name string, redirec
+ 			if base == "/" || base == "." {
+ 				// The FileSystem maps a path like "/" or "/./" to a file instead of a directory.
+ 				msg := "http: attempting to traverse a non-directory"
+-				Error(w, msg, StatusInternalServerError)
++				serveError(w, msg, StatusInternalServerError)
+ 				return
+ 			}
+ 			localRedirect(w, r, "../"+base)
+@@ -769,7 +781,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
+ 		// here and ".." may not be wanted.
+ 		// Note that name might not contain "..", for example if code (still
+ 		// incorrectly) used filepath.Join(myDir, r.URL.Path).
+-		Error(w, "invalid URL path", StatusBadRequest)
++		serveError(w, "invalid URL path", StatusBadRequest)
+ 		return
+ 	}
+ 	dir, file := filepath.Split(name)
+@@ -802,7 +814,7 @@ func ServeFileFS(w ResponseWriter, r *Request, fsys fs.FS, name string) {
+ 		// here and ".." may not be wanted.
+ 		// Note that name might not contain "..", for example if code (still
+ 		// incorrectly) used filepath.Join(myDir, r.URL.Path).
+-		Error(w, "invalid URL path", StatusBadRequest)
++		serveError(w, "invalid URL path", StatusBadRequest)
+ 		return
+ 	}
+ 	serveFile(w, r, FS(fsys), name, false)
+diff --git a/src/net/http/fs_test.go b/src/net/http/fs_test.go
+index 70a4b8982f..63278d890f 100644
+--- a/src/net/http/fs_test.go
++++ b/src/net/http/fs_test.go
+@@ -27,6 +27,7 @@ import (
+ 	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"strconv"
+ 	"strings"
+ 	"testing"
+ 	"testing/fstest"
+@@ -1222,8 +1223,8 @@ type issue12991File struct{ File }
+ func (issue12991File) Stat() (fs.FileInfo, error) { return nil, fs.ErrPermission }
+ func (issue12991File) Close() error               { return nil }
+ 
+-func TestServeContentErrorMessages(t *testing.T) { run(t, testServeContentErrorMessages) }
+-func testServeContentErrorMessages(t *testing.T, mode testMode) {
++func TestFileServerErrorMessages(t *testing.T) { run(t, testFileServerErrorMessages) }
++func testFileServerErrorMessages(t *testing.T, mode testMode) {
+ 	fs := fakeFS{
+ 		"/500": &fakeFileInfo{
+ 			err: errors.New("random error"),
+@@ -1232,7 +1233,15 @@ func testServeContentErrorMessages(t *testing.T, mode testMode) {
+ 			err: &fs.PathError{Err: fs.ErrPermission},
+ 		},
+ 	}
+-	ts := newClientServerTest(t, mode, FileServer(fs)).ts
++	server := FileServer(fs)
++	h := func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("Etag", "étude")
++		w.Header().Set("Cache-Control", "yes")
++		w.Header().Set("Content-Type", "awesome")
++		w.Header().Set("Last-Modified", "yesterday")
++		server.ServeHTTP(w, r)
++	}
++	ts := newClientServerTest(t, mode, http.HandlerFunc(h)).ts
+ 	c := ts.Client()
+ 	for _, code := range []int{403, 404, 500} {
+ 		res, err := c.Get(fmt.Sprintf("%s/%d", ts.URL, code))
+@@ -1240,10 +1249,15 @@ func testServeContentErrorMessages(t *testing.T, mode testMode) {
+ 			t.Errorf("Error fetching /%d: %v", code, err)
+ 			continue
+ 		}
++		res.Body.Close()
+ 		if res.StatusCode != code {
+-			t.Errorf("For /%d, status code = %d; want %d", code, res.StatusCode, code)
++			t.Errorf("GET /%d: StatusCode = %d; want %d", code, res.StatusCode, code)
++		}
++		for _, hdr := range []string{"Etag", "Last-Modified", "Cache-Control"} {
++			if v, ok := res.Header[hdr]; ok {
++				t.Errorf("GET /%d: Header[%q] = %q, want not present", code, hdr, v)
++			}
+ 		}
+-		res.Body.Close()
+ 	}
+ }
+ 
+@@ -1694,3 +1708,64 @@ func testFileServerDirWithRootFile(t *testing.T, mode testMode) {
+ 		testDirFile(t, FileServerFS(os.DirFS("testdata/index.html")))
+ 	})
+ }
++
++func TestServeContentHeadersWithError(t *testing.T) {
++	contents := []byte("content")
++	ts := newClientServerTest(t, http1Mode, HandlerFunc(func(w ResponseWriter, r *Request) {
++		w.Header().Set("Content-Type", "application/octet-stream")
++		w.Header().Set("Content-Length", strconv.Itoa(len(contents)))
++		w.Header().Set("Content-Encoding", "gzip")
++		w.Header().Set("Etag", `"abcdefgh"`)
++		w.Header().Set("Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT")
++		w.Header().Set("Cache-Control", "immutable")
++		w.Header().Set("Other-Header", "test")
++		ServeContent(w, r, "", time.Time{}, bytes.NewReader(contents))
++	})).ts
++	defer ts.Close()
++
++	req, err := NewRequest("GET", ts.URL, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	req.Header.Set("Range", "bytes=100-10000")
++
++	c := ts.Client()
++	res, err := c.Do(req)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	out, _ := io.ReadAll(res.Body)
++	res.Body.Close()
++
++	if g, e := res.StatusCode, 416; g != e {
++		t.Errorf("got status = %d; want %d", g, e)
++	}
++	if g, e := string(out), "invalid range: failed to overlap\n"; g != e {
++		t.Errorf("got body = %q; want %q", g, e)
++	}
++	if g, e := res.Header.Get("Content-Type"), "text/plain; charset=utf-8"; g != e {
++		t.Errorf("got content-type = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Content-Length"), strconv.Itoa(len(out)); g != e {
++		t.Errorf("got content-length = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Content-Encoding"), ""; g != e {
++		t.Errorf("got content-encoding = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Etag"), ""; g != e {
++		t.Errorf("got etag = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Last-Modified"), ""; g != e {
++		t.Errorf("got last-modified = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Cache-Control"), ""; g != e {
++		t.Errorf("got cache-control = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Content-Range"), "bytes */7"; g != e {
++		t.Errorf("got content-range = %q, want %q", g, e)
++	}
++	if g, e := res.Header.Get("Other-Header"), "test"; g != e {
++		t.Errorf("got other-header = %q, want %q", g, e)
++	}
++}
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index c03157e814..e21af8b159 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -7144,3 +7144,25 @@ func testErrorContentLength(t *testing.T, mode testMode) {
+ 		t.Fatalf("read body: %q, want %q", string(body), errorBody)
+ 	}
+ }
++
++func TestError(t *testing.T) {
++	w := httptest.NewRecorder()
++	w.Header().Set("Content-Length", "1")
++	w.Header().Set("Content-Encoding", "ascii")
++	w.Header().Set("X-Content-Type-Options", "scratch and sniff")
++	w.Header().Set("Other", "foo")
++	Error(w, "oops", 432)
++
++	h := w.Header()
++	for _, hdr := range []string{"Content-Length", "Content-Encoding"} {
++		if v, ok := h[hdr]; ok {
++			t.Errorf("%s: %q, want not present", hdr, v)
++		}
++	}
++	if v := h.Get("Content-Type"); v != "text/plain; charset=utf-8" {
++		t.Errorf("Content-Type: %q, want %q", v, "text/plain; charset=utf-8")
++	}
++	if v := h.Get("X-Content-Type-Options"); v != "nosniff" {
++		t.Errorf("X-Content-Type-Options: %q, want %q", v, "nosniff")
++	}
++}
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index cd0303b5b9..a50b20b7da 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2175,10 +2175,23 @@ func (f HandlerFunc) ServeHTTP(w ResponseWriter, r *Request) {
+ // It does not otherwise end the request; the caller should ensure no further
+ // writes are done to w.
+ // The error message should be plain text.
++//
++// Error deletes the Content-Length and Content-Encoding headers,
++// sets Content-Type to “text/plain; charset=utf-8”,
++// and sets X-Content-Type-Options to “nosniff”.
++// This configures the header properly for the error message,
++// in case the caller had set it up expecting a successful output.
+ func Error(w ResponseWriter, error string, code int) {
+-	w.Header().Del("Content-Length")
+-	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+-	w.Header().Set("X-Content-Type-Options", "nosniff")
++	h := w.Header()
++	// We delete headers which might be valid for some other content,
++	// but not anymore for the error content.
++	h.Del("Content-Length")
++	h.Del("Content-Encoding")
++
++	// There might be content type already set, but we reset it to
++	// text/plain for the error message.
++	h.Set("Content-Type", "text/plain; charset=utf-8")
++	h.Set("X-Content-Type-Options", "nosniff")
+ 	w.WriteHeader(code)
+ 	fmt.Fprintln(w, error)
+ }

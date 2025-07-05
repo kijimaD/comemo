@@ -11,6 +11,20 @@ Date:   Sun Sep 4 14:52:59 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Michael Hudson-Doyle <michael.hudson@canonical.com>
-
+---
  src/net/http/httputil/reverseproxy_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index 8e181dbb04..8ab57b4cbb 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -342,7 +342,7 @@ func TestReverseProxyCancelation(t *testing.T) {
+ 	}()
+ 	res, err := http.DefaultClient.Do(getReq)
+ 	if res != nil {
+-		t.Error("got response %v; want nil", res.Status)
++		t.Errorf("got response %v; want nil", res.Status)
+ 	}
+ 	if err == nil {
+ 		// This should be an error like:

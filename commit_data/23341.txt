@@ -31,10 +31,263 @@ Date:   Tue May 5 13:25:58 2015 -0400
     Change-Id: I16693e93cc8d8ca195e7742a222d640c262105b4
     Reviewed-on: https://go-review.googlesource.com/9731
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/internal/gc/typecheck.go       | 44 +++++++++++++++++++++++-------
  test/fixedbugs/issue10700.dir/other.go | 10 +++++++
  test/fixedbugs/issue10700.dir/test.go  | 49 ++++++++++++++++++++++++++++++++++
  test/fixedbugs/issue10700.go           |  7 +++++
  test/interface/embed2.go               | 23 +++++++++-------
  5 files changed, 115 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/gc/typecheck.go b/src/cmd/internal/gc/typecheck.go
+index eabbdc2e4d..6daf842474 100644
+--- a/src/cmd/internal/gc/typecheck.go
++++ b/src/cmd/internal/gc/typecheck.go
+@@ -915,11 +915,26 @@ OpSwitch:
+ 			return
+ 		}
+ 
+-		if !lookdot(n, t, 0) {
+-			if lookdot(n, t, 1) {
++		if lookdot(n, t, 0) == nil {
++			// Legitimate field or method lookup failed, try to explain the error
++			switch {
++			case isnilinter(t):
++				Yyerror("%v undefined (type %v is interface with no methods)", n, n.Left.Type)
++
++			case Isptr[t.Etype] && Isinter(t.Type):
++				// Pointer to interface is almost always a mistake.
++				Yyerror("%v undefined (type %v is pointer to interface, not interface)", n, n.Left.Type)
++
++			case lookdot(n, t, 1) != nil:
++				// Field or method matches by name, but it is not exported.
+ 				Yyerror("%v undefined (cannot refer to unexported field or method %v)", n, n.Right.Sym)
+-			} else {
+-				Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Right.Sym)
++
++			default:
++				if mt := lookdot(n, t, 2); mt != nil { // Case-insensitive lookup.
++					Yyerror("%v undefined (type %v has no field or method %v, but does have %v)", n, n.Left.Type, n.Right.Sym, mt.Sym)
++				} else {
++					Yyerror("%v undefined (type %v has no field or method %v)", n, n.Left.Type, n.Right.Sym)
++				}
+ 			}
+ 			n.Type = nil
+ 			return
+@@ -2391,6 +2406,9 @@ func lookdot1(errnode *Node, s *Sym, t *Type, f *Type, dostrcmp int) *Type {
+ 		if dostrcmp != 0 && f.Sym.Name == s.Name {
+ 			return f
+ 		}
++		if dostrcmp == 2 && strings.EqualFold(f.Sym.Name, s.Name) {
++			return f
++		}
+ 		if f.Sym != s {
+ 			continue
+ 		}
+@@ -2461,7 +2479,7 @@ func derefall(t *Type) *Type {
+ 	return t
+ }
+ 
+-func lookdot(n *Node, t *Type, dostrcmp int) bool {
++func lookdot(n *Node, t *Type, dostrcmp int) *Type {
+ 	s := n.Right.Sym
+ 
+ 	dowidth(t)
+@@ -2481,6 +2499,10 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 	}
+ 
+ 	if f1 != nil {
++		if dostrcmp > 1 {
++			// Already in the process of diagnosing an error.
++			return f1
++		}
+ 		if f2 != nil {
+ 			Yyerror("%v is both field and method", n.Right.Sym)
+ 		}
+@@ -2500,10 +2522,14 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 			n.Op = ODOTINTER
+ 		}
+ 
+-		return true
++		return f1
+ 	}
+ 
+ 	if f2 != nil {
++		if dostrcmp > 1 {
++			// Already in the process of diagnosing an error.
++			return f2
++		}
+ 		tt := n.Left.Type
+ 		dowidth(tt)
+ 		rcvr := getthisx(f2.Type).Type.Type
+@@ -2543,7 +2569,7 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 				// It is invalid to automatically dereference a named pointer type when selecting a method.
+ 				// Make n->left == ll to clarify error message.
+ 				n.Left = ll
+-				return false
++				return nil
+ 			}
+ 		}
+ 
+@@ -2554,10 +2580,10 @@ func lookdot(n *Node, t *Type, dostrcmp int) bool {
+ 		//		print("lookdot found [%p] %T\n", f2->type, f2->type);
+ 		n.Op = ODOTMETH
+ 
+-		return true
++		return f2
+ 	}
+ 
+-	return false
++	return nil
+ }
+ 
+ func nokeys(l *NodeList) bool {
+diff --git a/test/fixedbugs/issue10700.dir/other.go b/test/fixedbugs/issue10700.dir/other.go
+new file mode 100644
+index 0000000000..12908b9205
+--- /dev/null
++++ b/test/fixedbugs/issue10700.dir/other.go
+@@ -0,0 +1,10 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package other
++
++type Exported interface {
++	Do()
++	secret()
++}
+diff --git a/test/fixedbugs/issue10700.dir/test.go b/test/fixedbugs/issue10700.dir/test.go
+new file mode 100644
+index 0000000000..2033efc9d8
+--- /dev/null
++++ b/test/fixedbugs/issue10700.dir/test.go
+@@ -0,0 +1,49 @@
++// errorcheck -0 -m -l
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "./other"
++
++type Imported interface {
++	Do()
++}
++
++type HasAMethod struct {
++	x int
++}
++
++func (me *HasAMethod) Do() {
++	println(me.x)
++}
++
++func InMyCode(x *Imported, y *HasAMethod, z *other.Exported) {
++	x.Do() // ERROR "x\.Do undefined \(type \*Imported is pointer to interface, not interface\)"
++	x.do() // ERROR "x\.do undefined \(type \*Imported is pointer to interface, not interface\)"
++	(*x).Do()
++	x.Dont()    // ERROR "x\.Dont undefined \(type \*Imported is pointer to interface, not interface\)"
++	(*x).Dont() // ERROR "\(\*x\)\.Dont undefined \(type Imported has no field or method Dont\)"
++
++	y.Do()
++	y.do() // ERROR "y\.do undefined \(type \*HasAMethod has no field or method do, but does have Do\)"
++	(*y).Do()
++	(*y).do()   // ERROR "\(\*y\)\.do undefined \(type HasAMethod has no field or method do, but does have Do\)"
++	y.Dont()    // ERROR "y\.Dont undefined \(type \*HasAMethod has no field or method Dont\)"
++	(*y).Dont() // ERROR "\(\*y\)\.Dont undefined \(type HasAMethod has no field or method Dont\)"
++
++	z.Do() // ERROR "z\.Do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
++	z.do() // ERROR "z\.do undefined \(type \*other\.Exported is pointer to interface, not interface\)"
++	(*z).Do()
++	(*z).do()     // ERROR "\(\*z\)\.do undefined \(type other.Exported has no field or method do, but does have Do\)"
++	z.Dont()      // ERROR "z\.Dont undefined \(type \*other\.Exported is pointer to interface, not interface\)"
++	(*z).Dont()   // ERROR "\(\*z\)\.Dont undefined \(type other\.Exported has no field or method Dont\)"
++	z.secret()    // ERROR "z\.secret undefined \(type \*other\.Exported is pointer to interface, not interface\)"
++	(*z).secret() // ERROR "\(\*z\)\.secret undefined \(cannot refer to unexported field or method secret\)"
++
++}
++
++func main() {
++}
+diff --git a/test/fixedbugs/issue10700.go b/test/fixedbugs/issue10700.go
+new file mode 100644
+index 0000000000..25544efd9b
+--- /dev/null
++++ b/test/fixedbugs/issue10700.go
+@@ -0,0 +1,7 @@
++// errorcheckdir
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored
+diff --git a/test/interface/embed2.go b/test/interface/embed2.go
+index 1636db78eb..df3e2e435b 100644
+--- a/test/interface/embed2.go
++++ b/test/interface/embed2.go
+@@ -12,20 +12,25 @@ import "os"
+ 
+ const Value = 1e12
+ 
+-type Inter interface { M() int64 }
++type Inter interface {
++	M() int64
++}
+ 
+ type T int64
++
+ func (t T) M() int64 { return int64(t) }
++
+ var t = T(Value)
+ var pt = &t
+ var ti Inter = t
+ var pti = &ti
+ 
+-type S struct { Inter }
+-var s = S{ ti }
++type S struct{ Inter }
++
++var s = S{ti}
+ var ps = &s
+ 
+-type SP struct { *Inter }	// ERROR "interface"
++type SP struct{ *Inter } // ERROR "interface"
+ 
+ var i Inter
+ var pi = &i
+@@ -43,25 +48,25 @@ func main() {
+ 	check("t.M()", t.M())
+ 	check("pt.M()", pt.M())
+ 	check("ti.M()", ti.M())
+-	check("pti.M()", pti.M())	// ERROR "method"
++	check("pti.M()", pti.M()) // ERROR "pointer to interface, not interface"
+ 	check("s.M()", s.M())
+ 	check("ps.M()", ps.M())
+ 
+ 	i = t
+ 	check("i = t; i.M()", i.M())
+-	check("i = t; pi.M()", pi.M())	// ERROR "method"
++	check("i = t; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+ 
+ 	i = pt
+ 	check("i = pt; i.M()", i.M())
+-	check("i = pt; pi.M()", pi.M())	// ERROR "method"
++	check("i = pt; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+ 
+ 	i = s
+ 	check("i = s; i.M()", i.M())
+-	check("i = s; pi.M()", pi.M())	// ERROR "method"
++	check("i = s; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+ 
+ 	i = ps
+ 	check("i = ps; i.M()", i.M())
+-	check("i = ps; pi.M()", pi.M())	// ERROR "method"
++	check("i = ps; pi.M()", pi.M()) // ERROR "pointer to interface, not interface"
+ 
+ 	if !ok {
+ 		println("BUG: interface10")

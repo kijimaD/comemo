@@ -9,9 +9,64 @@ Date:   Mon Jul 29 16:31:42 2013 -0400
     R=dvyukov
     CC=golang-dev
     https://golang.org/cl/12056044
-
+---
  src/pkg/runtime/os_freebsd.c | 1 +
  src/pkg/runtime/os_linux.c   | 1 +
  src/pkg/runtime/os_netbsd.c  | 3 ++-
  src/pkg/runtime/os_openbsd.c | 3 ++-
  4 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 98de6dc346..386b4002c2 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -54,6 +54,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 			return;
+ 		goto fail;
+ 	}
++	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 	ts.tv_nsec = 0;
+ 	ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+ 	ret = runtime·sys_umtx_op(addr, UMTX_OP_WAIT_UINT, val, nil, &ts);
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index 038208b60c..d940c9765b 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -48,6 +48,7 @@ runtime·futexsleep(uint32 *addr, uint32 val, int64 ns)
+ 		runtime·futex(addr, FUTEX_WAIT, val, nil, nil, 0);
+ 		return;
+ 	}
++	// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 	ts.tv_nsec = 0;
+ 	ts.tv_sec = runtime·timediv(ns, 1000000000LL, (int32*)&ts.tv_nsec);
+ 	runtime·futex(addr, FUTEX_WAIT, val, &ts, nil, 0);
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index d6e573c3d5..9c0511d4c0 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -95,8 +95,9 @@ runtime·semasleep(int64 ns)
+ 				runtime·lwp_park(nil, 0, &m->waitsemacount, nil);
+ 			} else {
+ 				ns += runtime·nanotime();
++				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 				ts.tv_nsec = 0;
+-				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)ts.tv_nsec);
++				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+ 				// TODO(jsing) - potential deadlock!
+ 				// See above for details.
+ 				runtime·atomicstore(&m->waitsemalock, 0);
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 7468d01380..bbb33a7f48 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -78,8 +78,9 @@ runtime·semasleep(int64 ns)
+ 				runtime·thrsleep(&m->waitsemacount, 0, nil, &m->waitsemalock, nil);
+ 			else {
+ 				ns += runtime·nanotime();
++				// NOTE: tv_nsec is int64 on amd64, so this assumes a little-endian system.
+ 				ts.tv_nsec = 0;
+-				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)ts.tv_nsec);
++				ts.tv_sec = runtime·timediv(ns, 1000000000, (int32*)&ts.tv_nsec);
+ 				runtime·thrsleep(&m->waitsemacount, CLOCK_REALTIME, &ts, &m->waitsemalock, nil);
+ 			}
+ 			// reacquire lock

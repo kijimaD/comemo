@@ -11,6 +11,21 @@ Date:   Fri Feb 3 06:29:30 2012 -0800
     R=golang-dev, rsc, iant
     CC=golang-dev
     https://golang.org/cl/5622053
-
+---
  test/ken/array.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/test/ken/array.go b/test/ken/array.go
+index 40209f5da3..12694fec62 100644
+--- a/test/ken/array.go
++++ b/test/ken/array.go
+@@ -68,6 +68,9 @@ func testpdpd() {
+ 
+ 	a = a[5:25]
+ 	res(sumpd(a), 5, 25)
++
++	a = a[30:95]
++	res(sumpd(a), 35, 100)
+ }
+ 
+ // call ptr fixed with ptr fixed

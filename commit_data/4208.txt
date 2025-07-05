@@ -6,6 +6,25 @@ Date:   Tue Nov 24 11:47:53 2009 -0800
     
     R=r, r1
     https://golang.org/cl/157154
-
+---
  src/pkg/http/fs.go | 7 +++----
  1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/http/fs.go b/src/pkg/http/fs.go
+index 55b6f267ed..507ce33a98 100644
+--- a/src/pkg/http/fs.go
++++ b/src/pkg/http/fs.go
+@@ -75,10 +75,9 @@ func dirList(c *Conn, f *os.File) {
+ func serveFileInternal(c *Conn, r *Request, name string, redirect bool) {
+ 	const indexPage = "/index.html";
+ 
+-	// redirect to strip off any index.html
+-	n := len(name) - len(indexPage);
+-	if n >= 0 && name[n:] == indexPage {
+-		Redirect(c, name[0:n+1], StatusMovedPermanently);
++	// redirect .../index.html to .../
++	if strings.HasSuffix(r.URL.Path, indexPage) {
++		Redirect(c, r.URL.Path[0:len(r.URL.Path)-len(indexPage)+1], StatusMovedPermanently);
+ 		return;
+ 	}
+ 

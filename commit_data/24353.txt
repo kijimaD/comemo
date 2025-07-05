@@ -9,8 +9,78 @@ Date:   Fri Jul 24 11:55:52 2015 -0700
     Change-Id: I81d24371de47f5a27d3a3a0ec0ef5baaf6814c06
     Reviewed-on: https://go-review.googlesource.com/12659
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go             | 5 ++---
  src/cmd/compile/internal/ssa/TODO              | 4 ++++
  src/cmd/compile/internal/ssa/gen/genericOps.go | 2 +-
  3 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index b8831793fc..e9f99b1799 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1114,6 +1114,8 @@ func canSSA(n *Node) bool {
+ 
+ // nilCheck generates nil pointer checking code.
+ // Starts a new block on return.
++// Used only for automatically inserted nil checks,
++// not for user code like 'x != nil'.
+ func (s *state) nilCheck(ptr *ssa.Value) {
+ 	c := s.newValue1(ssa.OpIsNonNil, ssa.TypeBool, ptr)
+ 	b := s.endBlock()
+@@ -1466,7 +1468,6 @@ func genValue(v *ssa.Value) {
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+-			x = r
+ 		}
+ 		p := Prog(x86.ASUBQ)
+ 		p.From.Type = obj.TYPE_CONST
+@@ -1485,7 +1486,6 @@ func genValue(v *ssa.Value) {
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+-			x = r
+ 		}
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_REG
+@@ -1501,7 +1501,6 @@ func genValue(v *ssa.Value) {
+ 			p.From.Reg = x
+ 			p.To.Type = obj.TYPE_REG
+ 			p.To.Reg = r
+-			x = r
+ 		}
+ 		p := Prog(v.Op.Asm())
+ 		p.From.Type = obj.TYPE_CONST
+diff --git a/src/cmd/compile/internal/ssa/TODO b/src/cmd/compile/internal/ssa/TODO
+index 0074ded5d1..225768c73c 100644
+--- a/src/cmd/compile/internal/ssa/TODO
++++ b/src/cmd/compile/internal/ssa/TODO
+@@ -52,6 +52,9 @@ Common-Subexpression Elimination
+  - Can we move control values out of their basic block?
+    This would break nilcheckelim as currently implemented,
+    but it could be replaced by a similar CFG simplication pass.
++ - Investigate type equality. During SSA generation, should we use n.Type or (say) TypeBool?
++   Should we get rid of named types in favor of underlying types during SSA generation?
++   Should we introduce a new type equality routine that is less strict than the frontend's?
+ 
+ Other
+  - Write barriers
+@@ -63,3 +66,4 @@ Other
+  - make deadstore work with zeroing.
+  - Add a value range propagation optimization pass.
+    Use it for bounds check elimination and bitwidth reduction.
++ - Branch prediction: Respect hints from the frontend, add our own.
+diff --git a/src/cmd/compile/internal/ssa/gen/genericOps.go b/src/cmd/compile/internal/ssa/gen/genericOps.go
+index 6129849ec6..4014fd5009 100644
+--- a/src/cmd/compile/internal/ssa/gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/gen/genericOps.go
+@@ -153,7 +153,7 @@ var genericOps = []opData{
+ 	{name: "Convert"}, // convert arg0 to another type
+ 	{name: "ConvNop"}, // interpret arg0 as another type
+ 
+-	// Safety checks
++	// Automatically inserted safety checks
+ 	{name: "IsNonNil"},   // arg0 != nil
+ 	{name: "IsInBounds"}, // 0 <= arg0 < arg1
+ 

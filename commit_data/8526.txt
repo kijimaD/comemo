@@ -19,6 +19,41 @@ Date:   Fri May 27 16:43:02 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4515155
-
+---
  src/pkg/http/serve_test.go | 26 ++++++++++++++++++++++++++
  1 file changed, 26 insertions(+)
+
+diff --git a/src/pkg/http/serve_test.go b/src/pkg/http/serve_test.go
+index 120a026056..0acec226d5 100644
+--- a/src/pkg/http/serve_test.go
++++ b/src/pkg/http/serve_test.go
+@@ -754,3 +754,29 @@ func TestZeroLengthPostAndResponse(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func BenchmarkClientServer(b *testing.B) {
++	b.StopTimer()
++	ts := httptest.NewServer(HandlerFunc(func(rw ResponseWriter, r *Request) {
++		fmt.Fprintf(rw, "Hello world.\n")
++	}))
++	defer ts.Close()
++	b.StartTimer()
++
++	for i := 0; i < b.N; i++ {
++		res, err := Get(ts.URL)
++		if err != nil {
++			panic("Get: " + err.String())
++		}
++		all, err := ioutil.ReadAll(res.Body)
++		if err != nil {
++			panic("ReadAll: " + err.String())
++		}
++		body := string(all)
++		if body != "Hello world.\n" {
++			panic("Got body: " + body)
++		}
++	}
++
++	b.StopTimer()
++}

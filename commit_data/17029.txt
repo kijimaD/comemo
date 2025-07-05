@@ -12,10 +12,170 @@ Date:   Mon Aug 5 22:55:54 2013 +0400
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/12250043
-
+---
  src/pkg/runtime/mgc0.c          | 10 +++++-----
  src/pkg/runtime/proc.c          | 39 +++++++++++++++++++--------------------
  src/pkg/runtime/runtime.h       |  8 ++++----
  src/pkg/runtime/traceback_arm.c |  4 ++--
  src/pkg/runtime/traceback_x86.c |  4 ++--
  5 files changed, 32 insertions(+), 33 deletions(-)
+
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index b72199847e..f8da5457d8 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1457,17 +1457,17 @@ addstackroots(G *gp)
+ 		runtime·throw("can't scan our own stack");
+ 	if((mp = gp->m) != nil && mp->helpgc)
+ 		runtime·throw("can't scan gchelper stack");
+-	if(gp->gcstack != (uintptr)nil) {
++	if(gp->syscallstack != (uintptr)nil) {
+ 		// Scanning another goroutine that is about to enter or might
+ 		// have just exited a system call. It may be executing code such
+ 		// as schedlock and may have needed to start a new stack segment.
+ 		// Use the stack segment and stack pointer at the time of
+ 		// the system call instead, since that won't change underfoot.
+-		sp = gp->gcsp;
+-		pc = gp->gcpc;
++		sp = gp->syscallsp;
++		pc = gp->syscallpc;
+ 		lr = 0;
+-		stk = (Stktop*)gp->gcstack;
+-		guard = gp->gcguard;
++		stk = (Stktop*)gp->syscallstack;
++		guard = gp->syscallguard;
+ 	} else {
+ 		// Scanning another goroutine's stack.
+ 		// The goroutine is usually asleep (the world is stopped).
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index 52849809d0..c2ee6e9489 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -1359,8 +1359,6 @@ goexit0(G *gp)
+ static void
+ save(void *pc, uintptr sp)
+ {
+-	g->gcpc = (uintptr)pc;
+-	g->gcsp = sp;
+ 	g->sched.pc = (uintptr)pc;
+ 	g->sched.sp = sp;
+ 	g->sched.lr = 0;
+@@ -1388,15 +1386,16 @@ void
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 
+-	// Leave SP around for gc and traceback.
++	// Leave SP around for GC and traceback.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+-
+-	g->gcstack = g->stackbase;
+-	g->gcguard = g->stackguard;
++	g->syscallsp = g->sched.sp;
++	g->syscallpc = g->sched.pc;
++	g->syscallstack = g->stackbase;
++	g->syscallguard = g->stackguard;
+ 	g->status = Gsyscall;
+-	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
++	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
+ 		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
+-		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
++		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
+ 		runtime·throw("entersyscall");
+ 	}
+ 
+@@ -1443,16 +1442,16 @@ void
+ 	if(m->profilehz > 0)
+ 		runtime·setprof(false);
+ 
+-	// Leave SP around for gc and traceback.
++	// Leave SP around for GC and traceback.
+ 	save(runtime·getcallerpc(&dummy), runtime·getcallersp(&dummy));
+-	g->gcsp = g->sched.sp;
+-	g->gcpc = g->sched.pc;
+-	g->gcstack = g->stackbase;
+-	g->gcguard = g->stackguard;
++	g->syscallsp = g->sched.sp;
++	g->syscallpc = g->sched.pc;
++	g->syscallstack = g->stackbase;
++	g->syscallguard = g->stackguard;
+ 	g->status = Gsyscall;
+-	if(g->gcsp < g->gcguard-StackGuard || g->gcstack < g->gcsp) {
+-		// runtime·printf("entersyscallblock inconsistent %p [%p,%p]\n",
+-		//	g->gcsp, g->gcguard-StackGuard, g->gcstack);
++	if(g->syscallsp < g->syscallguard-StackGuard || g->syscallstack < g->syscallsp) {
++		// runtime·printf("entersyscall inconsistent %p [%p,%p]\n",
++		//	g->syscallsp, g->syscallguard-StackGuard, g->syscallstack);
+ 		runtime·throw("entersyscallblock");
+ 	}
+ 
+@@ -1491,8 +1490,8 @@ runtime·exitsyscall(void)
+ 		g->status = Grunning;
+ 		// Garbage collector isn't running (since we are),
+ 		// so okay to clear gcstack and gcsp.
+-		g->gcstack = (uintptr)nil;
+-		g->gcsp = (uintptr)nil;
++		g->syscallstack = (uintptr)nil;
++		g->syscallsp = (uintptr)nil;
+ 		m->locks--;
+ 		if(g->preempt) {
+ 			// restore the preemption request in case we've cleared it in newstack
+@@ -1515,8 +1514,8 @@ runtime·exitsyscall(void)
+ 	// Must wait until now because until gosched returns
+ 	// we don't know for sure that the garbage collector
+ 	// is not running.
+-	g->gcstack = (uintptr)nil;
+-	g->gcsp = (uintptr)nil;
++	g->syscallstack = (uintptr)nil;
++	g->syscallsp = (uintptr)nil;
+ }
+ 
+ #pragma textflag 7
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index 1ecdfffcab..15520b57eb 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -253,10 +253,10 @@ struct	G
+ 	Defer*	defer;
+ 	Panic*	panic;
+ 	Gobuf	sched;
+-	uintptr	gcstack;		// if status==Gsyscall, gcstack = stackbase to use during gc
+-	uintptr	gcsp;		// if status==Gsyscall, gcsp = sched.sp to use during gc
+-	uintptr	gcpc;		// if status==Gsyscall, gcpc = sched.pc to use during gc
+-	uintptr	gcguard;		// if status==Gsyscall, gcguard = stackguard to use during gc
++	uintptr	syscallstack;		// if status==Gsyscall, syscallstack = stackbase to use during gc
++	uintptr	syscallguard;		// if status==Gsyscall, syscallguard = stackguard to use during gc
++	uintptr	syscallsp;		// if status==Gsyscall, syscallsp = sched.sp to use during gc
++	uintptr	syscallpc;		// if status==Gsyscall, syscallpc = sched.pc to use during gc
+ 	uintptr	stackguard;	// same as stackguard0, but not set to StackPreempt
+ 	uintptr	stack0;
+ 	G*	alllink;	// on allg
+diff --git a/src/pkg/runtime/traceback_arm.c b/src/pkg/runtime/traceback_arm.c
+index 78ec5482db..74725ba4ca 100644
+--- a/src/pkg/runtime/traceback_arm.c
++++ b/src/pkg/runtime/traceback_arm.c
+@@ -221,8 +221,8 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ {
+ 	if(gp->status == Gsyscall) {
+ 		// Override signal registers if blocked in system call.
+-		pc = gp->sched.pc;
+-		sp = gp->sched.sp;
++		pc = gp->syscallpc;
++		sp = gp->syscallsp;
+ 		lr = 0;
+ 	}
+ 
+diff --git a/src/pkg/runtime/traceback_x86.c b/src/pkg/runtime/traceback_x86.c
+index 7f89b78fde..78f8bd5aad 100644
+--- a/src/pkg/runtime/traceback_x86.c
++++ b/src/pkg/runtime/traceback_x86.c
+@@ -229,8 +229,8 @@ runtime·traceback(uintptr pc, uintptr sp, uintptr lr, G *gp)
+ 
+ 	if(gp->status == Gsyscall) {
+ 		// Override signal registers if blocked in system call.
+-		pc = gp->sched.pc;
+-		sp = gp->sched.sp;
++		pc = gp->syscallpc;
++		sp = gp->syscallsp;
+ 	}
+ 	
+ 	// Print traceback. By default, omits runtime frames.

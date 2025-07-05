@@ -23,10 +23,159 @@ Date:   Thu Feb 1 16:00:51 2024 -0500
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  src/cmd/relnote/relnote_test.go                    |  3 +-
  .../vendor/golang.org/x/build/relnote/relnote.go   | 48 +++++++++++++++++-----
  src/cmd/vendor/modules.txt                         |  2 +-
  5 files changed, 43 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 41194f39d9..7b548c79bd 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,7 +5,7 @@ go 1.23
+ require (
+ 	github.com/google/pprof v0.0.0-20230811205829-9131a7e9cc17
+ 	golang.org/x/arch v0.7.0
+-	golang.org/x/build v0.0.0-20240122184708-c291ad69d6be
++	golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+ 	golang.org/x/mod v0.14.0
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.16.1-0.20240110015235-f69d32aa924f
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 86dd83bd8a..572492d22f 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,8 +8,8 @@ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20240122184708-c291ad69d6be h1:h1qJlb1MudWuUMYotaFX+nSdSgv6zrBBDNojV68uqCA=
+-golang.org/x/build v0.0.0-20240122184708-c291ad69d6be/go.mod h1:RHSzqFUzT4+buJlGik6WptO5NxLQiR/ewD2uz3fgWuA=
++golang.org/x/build v0.0.0-20240201175143-3ee44a092755 h1:irSM9p93GT4I3+Pu/grZlkwIjrXA3GfyKwlSosVbmtU=
++golang.org/x/build v0.0.0-20240201175143-3ee44a092755/go.mod h1:RHSzqFUzT4+buJlGik6WptO5NxLQiR/ewD2uz3fgWuA=
+ golang.org/x/mod v0.14.0 h1:dGoOF9QVLYng8IHTm7BAyWqCqSheQ5pYWGhzW00YJr0=
+ golang.org/x/mod v0.14.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+diff --git a/src/cmd/relnote/relnote_test.go b/src/cmd/relnote/relnote_test.go
+index 74b785923a..c20f80efc4 100644
+--- a/src/cmd/relnote/relnote_test.go
++++ b/src/cmd/relnote/relnote_test.go
+@@ -19,7 +19,6 @@ var flagCheck = flag.Bool("check", false, "run API release note checks")
+ 
+ // Check that each file in api/next has corresponding release note files in doc/next.
+ func TestCheckAPIFragments(t *testing.T) {
+-	t.Skip("impossibly confusing error messages")
+ 	if !*flagCheck {
+ 		t.Skip("-check not specified")
+ 	}
+@@ -33,7 +32,7 @@ func TestCheckAPIFragments(t *testing.T) {
+ 	docFS := os.DirFS(filepath.Join(root, "doc", "next"))
+ 	// Check that each api/next file has a corresponding release note fragment.
+ 	for _, apiFile := range files {
+-		if err := relnote.CheckAPIFile(rootFS, apiFile, docFS); err != nil {
++		if err := relnote.CheckAPIFile(rootFS, apiFile, docFS, "doc/next"); err != nil {
+ 			t.Errorf("%s: %v", apiFile, err)
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+index 63791a7036..5ac4d7a843 100644
+--- a/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
++++ b/src/cmd/vendor/golang.org/x/build/relnote/relnote.go
+@@ -37,13 +37,13 @@ func NewParser() *md.Parser {
+ // CheckFragment reports problems in a release-note fragment.
+ func CheckFragment(data string) error {
+ 	doc := NewParser().Parse(data)
+-	if len(doc.Blocks) == 0 {
+-		return errors.New("empty content")
+-	}
+ 	// Check that the content of the document contains either a TODO or at least one sentence.
+-	txt := text(doc)
++	txt := ""
++	if len(doc.Blocks) > 0 {
++		txt = text(doc)
++	}
+ 	if !strings.Contains(txt, "TODO") && !strings.ContainsAny(txt, ".?!") {
+-		return errors.New("needs a TODO or a sentence")
++		return errors.New("File must contain a complete sentence or a TODO.")
+ 	}
+ 	return nil
+ }
+@@ -382,7 +382,9 @@ func GroupAPIFeaturesByFile(fs []APIFeature) (map[string][]APIFeature, error) {
+ // CheckAPIFile reads the api file at filename in apiFS, and checks the corresponding
+ // release-note files under docFS. It checks that the files exist and that they have
+ // some minimal content (see [CheckFragment]).
+-func CheckAPIFile(apiFS fs.FS, filename string, docFS fs.FS) error {
++// The docRoot argument is the path from the repo or project root to the root of docFS.
++// It is used only for error messages.
++func CheckAPIFile(apiFS fs.FS, filename string, docFS fs.FS, docRoot string) error {
+ 	features, err := parseAPIFile(apiFS, filename)
+ 	if err != nil {
+ 		return err
+@@ -396,21 +398,47 @@ func CheckAPIFile(apiFS fs.FS, filename string, docFS fs.FS) error {
+ 		filenames = append(filenames, fn)
+ 	}
+ 	slices.Sort(filenames)
++	mcDir, err := minorChangesDir(docFS)
++	if err != nil {
++		return err
++	}
+ 	var errs []error
+-	for _, filename := range filenames {
++	for _, fn := range filenames {
++		// Use path.Join for consistency with io/fs pathnames.
++		fn = path.Join(mcDir, fn)
+ 		// TODO(jba): check that the file mentions each feature?
+-		if err := checkFragmentFile(docFS, filename); err != nil {
+-			errs = append(errs, fmt.Errorf("%s: %v", filename, err))
++		if err := checkFragmentFile(docFS, fn); err != nil {
++			errs = append(errs, fmt.Errorf("%s: %v\nSee doc/README.md for more information.", path.Join(docRoot, fn), err))
+ 		}
+ 	}
+ 	return errors.Join(errs...)
+ }
+ 
++// minorChangesDir returns the unique directory in docFS that corresponds to the
++// "Minor changes to the standard library" section of the release notes.
++func minorChangesDir(docFS fs.FS) (string, error) {
++	dirs, err := fs.Glob(docFS, "*stdlib/*minor")
++	if err != nil {
++		return "", err
++	}
++	var bad string
++	if len(dirs) == 0 {
++		bad = "No"
++	} else if len(dirs) > 1 {
++		bad = "More than one"
++	}
++	if bad != "" {
++		return "", fmt.Errorf("%s directory matches *stdlib/*minor.\nThis shouldn't happen; please file a bug at https://go.dev/issues/new.",
++			bad)
++	}
++	return dirs[0], nil
++}
++
+ func checkFragmentFile(fsys fs.FS, filename string) error {
+ 	f, err := fsys.Open(filename)
+ 	if err != nil {
+ 		if errors.Is(err, fs.ErrNotExist) {
+-			err = fs.ErrNotExist
++			err = errors.New("File does not exist. Every API change must have a corresponding release note file.")
+ 		}
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index f5ffc67a02..abafaf30ba 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -23,7 +23,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20240122184708-c291ad69d6be
++# golang.org/x/build v0.0.0-20240201175143-3ee44a092755
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+ # golang.org/x/mod v0.14.0

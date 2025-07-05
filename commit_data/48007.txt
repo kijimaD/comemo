@@ -29,6 +29,26 @@ Date:   Wed Apr 21 20:45:44 2021 +0000
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/runtime/sys_windows_amd64.s | 8 +-------
  1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index a9a7dfdd49..72ced3cd1c 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -367,13 +367,7 @@ loop:
+ 	MOVQ	CX, ret+0(FP)
+ 	RET
+ useQPC:
+-	// Call with ABIInternal because we could be
+-	// very deep in a nosplit context and the wrapper
+-	// adds stack space.
+-	// TODO(#40724): The result from nanotimeQPC will
+-	// be passed in a register, so store that to the
+-	// stack so we can return through a wrapper.
+-	JMP	runtime·nanotimeQPC<ABIInternal>(SB)
++	JMP	runtime·nanotimeQPC(SB)
+ 	RET
+ 
+ TEXT time·now(SB),NOSPLIT,$0-24

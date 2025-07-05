@@ -11,9 +11,58 @@ Date:   Fri Jul 24 16:50:47 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/lockrank_off.go   | 4 ++++
  src/runtime/lockrank_on.go    | 4 ++++
  src/sync/runtime2.go          | 4 ++++
  src/sync/runtime2_lockrank.go | 4 ++++
  4 files changed, 16 insertions(+)
+
+diff --git a/src/runtime/lockrank_off.go b/src/runtime/lockrank_off.go
+index 891589c0f2..425ca8dd93 100644
+--- a/src/runtime/lockrank_off.go
++++ b/src/runtime/lockrank_off.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build !goexperiment.staticlockranking
+ 
+ package runtime
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index cf4151ff46..fbc5ff58b7 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build goexperiment.staticlockranking
+ 
+ package runtime
+diff --git a/src/sync/runtime2.go b/src/sync/runtime2.go
+index 931edad9f1..f10c4e8e0e 100644
+--- a/src/sync/runtime2.go
++++ b/src/sync/runtime2.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build !goexperiment.staticlockranking
+ 
+ package sync
+diff --git a/src/sync/runtime2_lockrank.go b/src/sync/runtime2_lockrank.go
+index 5a68e901fa..aaa1c27626 100644
+--- a/src/sync/runtime2_lockrank.go
++++ b/src/sync/runtime2_lockrank.go
+@@ -1,3 +1,7 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
+ // +build goexperiment.staticlockranking
+ 
+ package sync

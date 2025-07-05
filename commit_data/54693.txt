@@ -12,6 +12,29 @@ Date:   Wed Nov 9 11:10:59 2022 -0500
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  doc/go1.20.html | 11 +++++++++++
  1 file changed, 11 insertions(+)
+
+diff --git a/doc/go1.20.html b/doc/go1.20.html
+index 4b726b5a77..a9e9983eee 100644
+--- a/doc/go1.20.html
++++ b/doc/go1.20.html
+@@ -270,6 +270,17 @@ Do not send CLs removing the interior tags from such phrases.
+   </dd>
+ </dl><!-- net/http/httputil -->
+ 
++<dl id="os/exec"><dt><a href="/pkg/os/exec/">os/exec</a></dt>
++  <dd>
++    <p><!-- https://go.dev/issue/50436, CL 401835 -->
++      The new <code>Cmd</code> fields <code>Cancel</code> and <code>WaitDelay</code>
++      specify the behavior of the <code>Cmd</code> when its associated
++      <code>Context</code> is canceled or its process exits with I/O pipes still
++      held open by a child process.
++    </p>
++  </dd>
++</dl><!-- os/exec -->
++
+ <dl id="strconv"><dt><a href="/pkg/strconv/">strconv</a></dt>
+   <dd>
+     <p><!-- CL 345488 -->

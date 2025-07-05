@@ -15,6 +15,37 @@ Date:   Sun Jun 14 07:50:17 2015 +0900
     Change-Id: I397c823e1648114d91a229b316477bff2948b4f9
     Reviewed-on: https://go-review.googlesource.com/11057
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/net/hosts_test.go | 15 ---------------
  1 file changed, 15 deletions(-)
+
+diff --git a/src/net/hosts_test.go b/src/net/hosts_test.go
+index 4c6f203707..aca64c38b0 100644
+--- a/src/net/hosts_test.go
++++ b/src/net/hosts_test.go
+@@ -6,7 +6,6 @@ package net
+ 
+ import (
+ 	"reflect"
+-	"sort"
+ 	"testing"
+ )
+ 
+@@ -119,17 +118,3 @@ func TestLookupStaticAddr(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestLookupHost(t *testing.T) {
+-	// Can't depend on this to return anything in particular,
+-	// but if it does return something, make sure it doesn't
+-	// duplicate addresses (a common bug due to the way
+-	// getaddrinfo works).
+-	addrs, _ := LookupHost("localhost")
+-	sort.Strings(addrs)
+-	for i := 0; i+1 < len(addrs); i++ {
+-		if addrs[i] == addrs[i+1] {
+-			t.Fatalf("LookupHost(\"localhost\") = %v, has duplicate addresses", addrs)
+-		}
+-	}
+-}

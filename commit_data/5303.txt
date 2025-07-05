@@ -7,6 +7,19 @@ Date:   Fri Apr 16 17:40:49 2010 +1000
     R=r
     CC=golang-dev
     https://golang.org/cl/890048
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 963a908aa2..886a3d1b84 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -103,6 +103,7 @@ Robert Griesemer <gri@golang.org>
+ Roger Peppe <rogpeppe@gmail.com>
+ Ross Light <rlight2@gmail.com>
+ Russ Cox <rsc@golang.org>
++Sam Thorogood <thorogood@google.com>
+ Scott Schwartz <scotts@golang.org>
+ Sergei Skorobogatov <skorobo@rambler.ru>
+ Sergey 'SnakE' Gromov <snake.scaly@gmail.com>

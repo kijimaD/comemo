@@ -11,7 +11,74 @@ Date:   Fri Oct 15 15:05:36 2021 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/356312
     Trust: Dan Scales <danscales@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/cmd/compile/internal/typecheck/subr.go |  3 --
  test/typeparam/genembed2.go                | 46 ++++++++++++++++++++++++++++++
  2 files changed, 46 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index b3fc7459e1..b4d5302525 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1324,9 +1324,6 @@ func (ts *Tsubster) tstruct(t *types.Type, force bool) *types.Type {
+ 			}
+ 		}
+ 		if newfields != nil {
+-			// TODO(danscales): make sure this works for the field
+-			// names of embedded types (which should keep the name of
+-			// the type param, not the instantiated type).
+ 			newfields[i] = types.NewField(f.Pos, f.Sym, t2)
+ 			newfields[i].Embedded = f.Embedded
+ 			newfields[i].Note = f.Note
+diff --git a/test/typeparam/genembed2.go b/test/typeparam/genembed2.go
+new file mode 100644
+index 0000000000..6effd2e6bc
+--- /dev/null
++++ b/test/typeparam/genembed2.go
+@@ -0,0 +1,46 @@
++// run -gcflags=-G=3
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test for declaration and use of a parameterized embedded field.
++
++package main
++
++import (
++	"fmt"
++	"sync"
++)
++
++type MyStruct[T any] struct {
++	val T
++}
++
++type Lockable[T any] struct {
++	MyStruct[T]
++	mu sync.Mutex
++}
++
++// Get returns the value stored in a Lockable.
++func (l *Lockable[T]) Get() T {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	return l.MyStruct.val
++}
++
++// Set sets the value in a Lockable.
++func (l *Lockable[T]) Set(v T) {
++	l.mu.Lock()
++	defer l.mu.Unlock()
++	l.MyStruct = MyStruct[T]{v}
++}
++
++func main() {
++	var li Lockable[int]
++
++	li.Set(5)
++	if got, want := li.Get(), 5; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}

@@ -8,9 +8,577 @@ Date:   Fri Jan 16 10:14:12 2009 -0800
     DELTA=103  (1 added, 0 deleted, 102 changed)
     OCL=22914
     CL=22937
-
+---
  src/lib/time/tick.go      |   4 +-
  src/lib/time/time.go      | 106 +++++++++++++++++++++++-----------------------
  src/lib/time/time_test.go |  30 ++++++-------
  src/lib/time/zoneinfo.go  |  53 +++++++++++------------
  4 files changed, 97 insertions(+), 96 deletions(-)
+
+diff --git a/src/lib/time/tick.go b/src/lib/time/tick.go
+index 408dbc2684..d1db0ce6e7 100644
+--- a/src/lib/time/tick.go
++++ b/src/lib/time/tick.go
+@@ -25,7 +25,7 @@ import (
+ //			c <- nsec;
+ //		}
+ 
+-func Ticker(ns int64, c chan int64) {
++func ticker(ns int64, c chan int64) {
+ 	var tv syscall.Timeval;
+ 	now := time.Nanoseconds();
+ 	when := now;
+@@ -54,7 +54,7 @@ export func Tick(ns int64) chan int64 {
+ 		return nil
+ 	}
+ 	c := make(chan int64);
+-	go Ticker(ns, c);
++	go ticker(ns, c);
+ 	return c;
+ }
+ 
+diff --git a/src/lib/time/time.go b/src/lib/time/time.go
+index 1325d26c09..9421eeae5b 100644
+--- a/src/lib/time/time.go
++++ b/src/lib/time/time.go
+@@ -46,39 +46,39 @@ export type Time struct {
+ 	zone string;
+ }
+ 
+-var RegularMonths = []int{
++var nonleapyear = []int{
+ 	31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+ }
+-var LeapMonths = []int{
++var leapyear = []int{
+ 	31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
+ }
+ 
+-func Months(year int64) []int {
++func months(year int64) []int {
+ 	if year%4 == 0 && (year%100 != 0 || year%400 == 0) {
+-		return LeapMonths
++		return leapyear
+ 	}
+-	return RegularMonths
++	return nonleapyear
+ }
+ 
+ const (
+-	SecondsPerDay = 24*60*60;
++	_SecondsPerDay = 24*60*60;
+ 
+-	DaysPer400Years = 365*400+97;
+-	DaysPer100Years = 365*100+24;
+-	DaysPer4Years = 365*4+1;
++	_DaysPer400Years = 365*400+97;
++	_DaysPer100Years = 365*100+24;
++	_DaysPer4Years = 365*4+1;
+ 
+-	Days1970To2001 = 31*365+8;
++	_Days1970To2001 = 31*365+8;
+ )
+ 
+ export func SecondsToUTC(sec int64) *Time {
+ 	t := new(Time);
+ 
+ 	// Split into time and day.
+-	day := sec/SecondsPerDay;
+-	sec -= day*SecondsPerDay;
++	day := sec/_SecondsPerDay;
++	sec -= day*_SecondsPerDay;
+ 	if sec < 0 {
+ 		day--;
+-		sec += SecondsPerDay
++		sec += _SecondsPerDay
+ 	}
+ 
+ 	// Time
+@@ -95,30 +95,30 @@ export func SecondsToUTC(sec int64) *Time {
+ 	// Change day from 0 = 1970 to 0 = 2001,
+ 	// to make leap year calculations easier
+ 	// (2001 begins 4-, 100-, and 400-year cycles ending in a leap year.)
+-	day -= Days1970To2001;
++	day -= _Days1970To2001;
+ 
+ 	year := int64(2001);
+ 	if day < 0 {
+ 		// Go back enough 400 year cycles to make day positive.
+-		n := -day/DaysPer400Years + 1;
++		n := -day/_DaysPer400Years + 1;
+ 		year -= 400*n;
+-		day += DaysPer400Years*n;
++		day += _DaysPer400Years*n;
+ 	} else {
+ 		// Cut off 400 year cycles.
+-		n := day/DaysPer400Years;
++		n := day/_DaysPer400Years;
+ 		year += 400*n;
+-		day -= DaysPer400Years*n;
++		day -= _DaysPer400Years*n;
+ 	}
+ 
+ 	// Cut off 100-year cycles
+-	n := day/DaysPer100Years;
++	n := day/_DaysPer100Years;
+ 	year += 100*n;
+-	day -= DaysPer100Years*n;
++	day -= _DaysPer100Years*n;
+ 
+ 	// Cut off 4-year cycles
+-	n = day/DaysPer4Years;
++	n = day/_DaysPer4Years;
+ 	year += 4*n;
+-	day -= DaysPer4Years*n;
++	day -= _DaysPer4Years*n;
+ 
+ 	// Cut off non-leap years.
+ 	n = day/365;
+@@ -130,7 +130,7 @@ export func SecondsToUTC(sec int64) *Time {
+ 	// If someone ever needs yearday,
+ 	// tyearday = day (+1?)
+ 
+-	months := Months(year);
++	months := months(year);
+ 	var m int;
+ 	yday := int(day);
+ 	for m = 0; m < 12 && yday >= months[m]; m++ {
+@@ -176,37 +176,37 @@ func (t *Time) Seconds() int64 {
+ 	if year < 2001 {
+ 		n := (2001 - year)/400 + 1;
+ 		year += 400*n;
+-		day -= DaysPer400Years*n;
++		day -= _DaysPer400Years*n;
+ 	}
+ 
+ 	// Add in days from 400-year cycles.
+ 	n := (year - 2001) / 400;
+ 	year -= 400*n;
+-	day += DaysPer400Years*n;
++	day += _DaysPer400Years*n;
+ 
+ 	// Add in 100-year cycles.
+ 	n = (year - 2001) / 100;
+ 	year -= 100*n;
+-	day += DaysPer100Years*n;
++	day += _DaysPer100Years*n;
+ 
+ 	// Add in 4-year cycles.
+ 	n = (year - 2001) / 4;
+ 	year -= 4*n;
+-	day += DaysPer4Years*n;
++	day += _DaysPer4Years*n;
+ 
+ 	// Add in non-leap years.
+ 	n = year - 2001;
+ 	day += 365*n;
+ 
+ 	// Add in days this year.
+-	months := Months(t.year);
++	months := months(t.year);
+ 	for m := 0; m < t.month-1; m++ {
+ 		day += int64(months[m])
+ 	}
+ 	day += int64(t.day - 1);
+ 
+ 	// Convert days to seconds since January 1, 2001.
+-	sec := day * SecondsPerDay;
++	sec := day * _SecondsPerDay;
+ 
+ 	// Add in time elapsed today.
+ 	sec += int64(t.hour) * 3600;
+@@ -214,14 +214,14 @@ func (t *Time) Seconds() int64 {
+ 	sec += int64(t.second);
+ 
+ 	// Convert from seconds since 2001 to seconds since 1970.
+-	sec += Days1970To2001 * SecondsPerDay;
++	sec += _Days1970To2001 * _SecondsPerDay;
+ 
+ 	// Account for local time zone.
+ 	sec -= int64(t.zoneoffset);
+ 	return sec
+ }
+ 
+-var LongDayNames = []string{
++var _LongDayNames = []string{
+ 	"Sunday",
+ 	"Monday",
+ 	"Tuesday",
+@@ -231,7 +231,7 @@ var LongDayNames = []string{
+ 	"Saturday"
+ }
+ 
+-var ShortDayNames = []string{
++var _ShortDayNames = []string{
+ 	"Sun",
+ 	"Mon",
+ 	"Tue",
+@@ -241,7 +241,7 @@ var ShortDayNames = []string{
+ 	"Sat"
+ }
+ 
+-var ShortMonthNames = []string{
++var _ShortMonthNames = []string{
+ 	"Jan",
+ 	"Feb",
+ 	"Mar",
+@@ -256,13 +256,13 @@ var ShortMonthNames = []string{
+ 	"Dec"
+ }
+ 
+-func Copy(dst []byte, s string) {
++func _Copy(dst []byte, s string) {
+ 	for i := 0; i < len(s); i++ {
+ 		dst[i] = s[i]
+ 	}
+ }
+ 
+-func Decimal(dst []byte, n int) {
++func _Decimal(dst []byte, n int) {
+ 	if n < 0 {
+ 		n = 0
+ 	}
+@@ -272,15 +272,15 @@ func Decimal(dst []byte, n int) {
+ 	}
+ }
+ 
+-func AddString(buf []byte, bp int, s string) int {
++func _AddString(buf []byte, bp int, s string) int {
+ 	n := len(s);
+-	Copy(buf[bp:bp+n], s);
++	_Copy(buf[bp:bp+n], s);
+ 	return bp+n
+ }
+ 
+ // Just enough of strftime to implement the date formats below.
+ // Not exported.
+-func Format(t *Time, fmt string) string {
++func _Format(t *Time, fmt string) string {
+ 	buf := make([]byte, 128);
+ 	bp := 0;
+ 
+@@ -289,39 +289,39 @@ func Format(t *Time, fmt string) string {
+ 			i++;
+ 			switch fmt[i] {
+ 			case 'A':	// %A full weekday name
+-				bp = AddString(buf, bp, LongDayNames[t.weekday]);
++				bp = _AddString(buf, bp, _LongDayNames[t.weekday]);
+ 			case 'a':	// %a abbreviated weekday name
+-				bp = AddString(buf, bp, ShortDayNames[t.weekday]);
++				bp = _AddString(buf, bp, _ShortDayNames[t.weekday]);
+ 			case 'b':	// %b abbreviated month name
+-				bp = AddString(buf, bp, ShortMonthNames[t.month-1]);
++				bp = _AddString(buf, bp, _ShortMonthNames[t.month-1]);
+ 			case 'd':	// %d day of month (01-31)
+-				Decimal(buf[bp:bp+2], t.day);
++				_Decimal(buf[bp:bp+2], t.day);
+ 				bp += 2;
+ 			case 'e':	// %e day of month ( 1-31)
+ 				if t.day >= 10 {
+-					Decimal(buf[bp:bp+2], t.day)
++					_Decimal(buf[bp:bp+2], t.day)
+ 				} else {
+ 					buf[bp] = ' ';
+ 					buf[bp+1] = byte(t.day + '0')
+ 				}
+ 				bp += 2;
+ 			case 'H':	// %H hour 00-23
+-				Decimal(buf[bp:bp+2], t.hour);
++				_Decimal(buf[bp:bp+2], t.hour);
+ 				bp += 2;
+ 			case 'M':	// %M minute 00-59
+-				Decimal(buf[bp:bp+2], t.minute);
++				_Decimal(buf[bp:bp+2], t.minute);
+ 				bp += 2;
+ 			case 'S':	// %S second 00-59
+-				Decimal(buf[bp:bp+2], t.second);
++				_Decimal(buf[bp:bp+2], t.second);
+ 				bp += 2;
+ 			case 'Y':	// %Y year 2008
+-				Decimal(buf[bp:bp+4], int(t.year));
++				_Decimal(buf[bp:bp+4], int(t.year));
+ 				bp += 4;
+ 			case 'y':	// %y year 08
+-				Decimal(buf[bp:bp+2], int(t.year%100));
++				_Decimal(buf[bp:bp+2], int(t.year%100));
+ 				bp += 2;
+ 			case 'Z':
+-				bp = AddString(buf, bp, t.zone);
++				bp = _AddString(buf, bp, t.zone);
+ 			default:
+ 				buf[bp] = '%';
+ 				buf[bp+1] = fmt[i];
+@@ -337,21 +337,21 @@ func Format(t *Time, fmt string) string {
+ 
+ // ANSI C asctime: Sun Nov  6 08:49:37 1994
+ func (t *Time) Asctime() string {
+-	return Format(t, "%a %b %e %H:%M:%S %Y")
++	return _Format(t, "%a %b %e %H:%M:%S %Y")
+ }
+ 
+ // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
+ func (t *Time) RFC850() string {
+-	return Format(t, "%A, %d-%b-%y %H:%M:%S %Z")
++	return _Format(t, "%A, %d-%b-%y %H:%M:%S %Z")
+ }
+ 
+ // RFC 1123: Sun, 06 Nov 1994 08:49:37 GMT
+ func (t *Time) RFC1123() string {
+-	return Format(t, "%a, %d %b %Y %H:%M:%S %Z")
++	return _Format(t, "%a, %d %b %Y %H:%M:%S %Z")
+ }
+ 
+ // date(1) - Sun Nov  6 08:49:37 GMT 1994
+ func (t *Time) String() string {
+-	return Format(t, "%a %b %e %H:%M:%S %Z %Y")
++	return _Format(t, "%a %b %e %H:%M:%S %Z %Y")
+ }
+ 
+diff --git a/src/lib/time/time_test.go b/src/lib/time/time_test.go
+index d54dfd0217..61f0608add 100644
+--- a/src/lib/time/time_test.go
++++ b/src/lib/time/time_test.go
+@@ -9,27 +9,27 @@ import (
+ 	"time";
+ )
+ 
+-type TimeTest struct {
++type _TimeTest struct {
+ 	seconds int64;
+ 	golden Time;
+ }
+ 
+-var utctests = []TimeTest {
+-	TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "GMT"}},
+-	TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "GMT"}},
+-	TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "GMT"}},
+-	TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "GMT"}},
+-	TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "GMT"}},
+-	TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "GMT"}},
+-	TimeTest{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "GMT"}}
++var utctests = []_TimeTest {
++	_TimeTest{0, Time{1970, 1, 1, 0, 0, 0, Thursday, 0, "GMT"}},
++	_TimeTest{1221681866, Time{2008, 9, 17, 20, 4, 26, Wednesday, 0, "GMT"}},
++	_TimeTest{-1221681866, Time{1931, 4, 16, 3, 55, 34, Thursday, 0, "GMT"}},
++	_TimeTest{1e18, Time{31688740476, 10, 23, 1, 46, 40, Friday, 0, "GMT"}},
++	_TimeTest{-1e18, Time{-31688736537, 3, 10, 22, 13, 20, Tuesday, 0, "GMT"}},
++	_TimeTest{0x7fffffffffffffff, Time{292277026596, 12, 4, 15, 30, 7, Sunday, 0, "GMT"}},
++	_TimeTest{-0x8000000000000000, Time{-292277022657, 1, 27, 8, 29, 52, Sunday, 0, "GMT"}}
+ }
+ 
+-var localtests = []TimeTest {
+-	TimeTest{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8*60*60, "PST"}},
+-	TimeTest{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7*60*60, "PDT"}}
++var localtests = []_TimeTest {
++	_TimeTest{0, Time{1969, 12, 31, 16, 0, 0, Wednesday, -8*60*60, "PST"}},
++	_TimeTest{1221681866, Time{2008, 9, 17, 13, 4, 26, Wednesday, -7*60*60, "PDT"}}
+ }
+ 
+-func Same(t, u *Time) bool {
++func _Same(t, u *Time) bool {
+ 	return t.year == u.year
+ 		&& t.month == u.month
+ 		&& t.day == u.day
+@@ -50,7 +50,7 @@ export func TestSecondsToUTC(t *testing.T) {
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToUTC(%d).Seconds() = %d", sec, newsec);
+ 		}
+-		if !Same(tm, golden) {
++		if !_Same(tm, golden) {
+ 			t.Errorf("SecondsToUTC(%d):", sec);
+ 			t.Errorf("  want=%v", *golden);
+ 			t.Errorf("  have=%v", *tm);
+@@ -67,7 +67,7 @@ export func TestSecondsToLocalTime(t *testing.T) {
+ 		if newsec != sec {
+ 			t.Errorf("SecondsToLocalTime(%d).Seconds() = %d", sec, newsec);
+ 		}
+-		if !Same(tm, golden) {
++		if !_Same(tm, golden) {
+ 			t.Errorf("SecondsToLocalTime(%d):", sec);
+ 			t.Errorf("  want=%v", *golden);
+ 			t.Errorf("  have=%v", *tm);
+diff --git a/src/lib/time/zoneinfo.go b/src/lib/time/zoneinfo.go
+index cdd656ce0d..6f2a1f3154 100644
+--- a/src/lib/time/zoneinfo.go
++++ b/src/lib/time/zoneinfo.go
+@@ -10,13 +10,14 @@
+ package time
+ 
+ import (
++	"io";
+ 	"once";
+ 	"os"
+ )
+ 
+ const (
+-	MaxFileSize = 8192;	// actual files are closer to 1K
+-	HeaderSize = 4+16+4*7
++	_MaxFileSize = 8192;	// actual files are closer to 1K
++	_HeaderSize = 4+16+4*7
+ )
+ 
+ export var (
+@@ -25,13 +26,13 @@ export var (
+ )
+ 
+ // Simple I/O interface to binary blob of data.
+-type Data struct {
++type _Data struct {
+ 	p []byte;
+ 	error bool;
+ }
+ 
+ 
+-func (d *Data) Read(n int) []byte {
++func (d *_Data) Read(n int) []byte {
+ 	if len(d.p) < n {
+ 		d.p = nil;
+ 		d.error = true;
+@@ -42,7 +43,7 @@ func (d *Data) Read(n int) []byte {
+ 	return p
+ }
+ 
+-func (d *Data) Big4() (n uint32, ok bool) {
++func (d *_Data) Big4() (n uint32, ok bool) {
+ 	p := d.Read(4);
+ 	if len(p) < 4 {
+ 		d.error = true;
+@@ -51,7 +52,7 @@ func (d *Data) Big4() (n uint32, ok bool) {
+ 	return uint32(p[0]) << 24 | uint32(p[1]) << 16 | uint32(p[2]) << 8 | uint32(p[3]), true
+ }
+ 
+-func (d *Data) Byte() (n byte, ok bool) {
++func (d *_Data) Byte() (n byte, ok bool) {
+ 	p := d.Read(1);
+ 	if len(p) < 1 {
+ 		d.error = true;
+@@ -62,7 +63,7 @@ func (d *Data) Byte() (n byte, ok bool) {
+ 
+ 
+ // Make a string by stopping at the first NUL
+-func ByteString(p []byte) string {
++func _ByteString(p []byte) string {
+ 	for i := 0; i < len(p); i++ {
+ 		if p[i] == 0 {
+ 			return string(p[0:i])
+@@ -72,21 +73,21 @@ func ByteString(p []byte) string {
+ }
+ 
+ // Parsed representation
+-type Zone struct {
++type _Zone struct {
+ 	utcoff int;
+ 	isdst bool;
+ 	name string;
+ }
+ 
+-type Zonetime struct {
++type _Zonetime struct {
+ 	time int32;		// transition time, in seconds since 1970 GMT
+-	zone *Zone;		// the zone that goes into effect at that time
++	zone *_Zone;		// the zone that goes into effect at that time
+ 	isstd, isutc bool;	// ignored - no idea what these mean
+ }
+ 
+-func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
++func parseinfo(bytes []byte) (zt []_Zonetime, err *os.Error) {
+ 
+-	data1 := Data{bytes, false};
++	data1 := _Data{bytes, false};
+ 	data := &data1;
+ 
+ 	// 4-byte magic "TZif"
+@@ -126,21 +127,21 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	}
+ 
+ 	// Transition times.
+-	txtimes1 := Data{data.Read(n[NTime]*4), false};
++	txtimes1 := _Data{data.Read(n[NTime]*4), false};
+ 	txtimes := &txtimes1;
+ 
+ 	// Time zone indices for transition times.
+ 	txzones := data.Read(n[NTime]);
+ 
+ 	// Zone info structures
+-	zonedata1 := Data{data.Read(n[NZone]*6), false};
++	zonedata1 := _Data{data.Read(n[NZone]*6), false};
+ 	zonedata := &zonedata1;
+ 
+ 	// Time zone abbreviations.
+ 	abbrev := data.Read(n[NChar]);
+ 
+ 	// Leap-second time pairs
+-	leapdata1 := Data{data.Read(n[NLeap]*8), false};
++	leapdata1 := _Data{data.Read(n[NLeap]*8), false};
+ 	leapdata := &leapdata1;
+ 
+ 	// Whether tx times associated with local time types
+@@ -162,7 +163,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	// Now we can build up a useful data structure.
+ 	// First the zone information.
+ 	//	utcoff[4] isdst[1] nameindex[1]
+-	zone := make([]Zone, n[NZone]);
++	zone := make([]_Zone, n[NZone]);
+ 	for i := 0; i < len(zone); i++ {
+ 		var ok bool;
+ 		var n uint32;
+@@ -178,11 +179,11 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 		if b, ok = zonedata.Byte(); !ok || int(b) >= len(abbrev) {
+ 			return nil, BadZoneinfo
+ 		}
+-		zone[i].name = ByteString(abbrev[b:len(abbrev)])
++		zone[i].name = _ByteString(abbrev[b:len(abbrev)])
+ 	}
+ 
+ 	// Now the transition time info.
+-	zt = make([]Zonetime, n[NTime]);
++	zt = make([]_Zonetime, n[NTime]);
+ 	for i := 0; i < len(zt); i++ {
+ 		var ok bool;
+ 		var n uint32;
+@@ -204,7 +205,7 @@ func ParseZoneinfo(bytes []byte) (zt []Zonetime, err *os.Error) {
+ 	return zt, nil
+ }
+ 
+-func ReadFile(name string, max int) (p []byte, err *os.Error) {
++func readfile(name string, max int) (p []byte, err *os.Error) {
+ 	fd, e := os.Open(name, os.O_RDONLY, 0);
+ 	if e != nil {
+ 		return nil, e
+@@ -228,29 +229,29 @@ func ReadFile(name string, max int) (p []byte, err *os.Error) {
+ }
+ 
+ 
+-func ReadZoneinfoFile(name string) (tx []Zonetime, err *os.Error) {
+-	data, e := ReadFile(name, MaxFileSize);
++func readinfofile(name string) (tx []_Zonetime, err *os.Error) {
++	data, e := readfile(name, _MaxFileSize);
+ 	if e != nil {
+ 		return nil, e
+ 	}
+-	tx, err = ParseZoneinfo(data);
++	tx, err = parseinfo(data);
+ 	return tx, err
+ }
+ 
+-var zones []Zonetime
++var zones []_Zonetime
+ var zoneerr *os.Error
+ 
+-func SetupZone() {
++func _SetupZone() {
+ 	// TODO: /etc/localtime is the default time zone info
+ 	// for the system, but libc allows setting an environment
+ 	// variable in order to direct reading a different file
+ 	// (in /usr/share/zoneinfo).  We should check that
+ 	// environment variable.
+-	zones, zoneerr = ReadZoneinfoFile("/etc/localtime");
++	zones, zoneerr = readinfofile("/etc/localtime");
+ }
+ 
+ export func LookupTimezone(sec int64) (zone string, offset int, err *os.Error) {
+-	once.Do(&SetupZone);
++	once.Do(&_SetupZone);
+ 	if zoneerr != nil || len(zones) == 0 {
+ 		return "GMT", 0, zoneerr
+ 	}

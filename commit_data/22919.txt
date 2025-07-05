@@ -25,9 +25,93 @@ Date:   Thu Apr 9 16:30:48 2015 -0700
     Reviewed-on: https://go-review.googlesource.com/8731
     Reviewed-by: roger peppe <rogpeppe@gmail.com>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/fmt/doc.go       | 11 +++++++----
  src/fmt/fmt_test.go  |  7 +++++++
  src/fmt/print.go     |  2 ++
  src/reflect/value.go |  2 ++
  4 files changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index 9ba11f4a2b..cbca6ab492 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -138,20 +138,23 @@
+ 	formatting considerations apply for operands that implement
+ 	certain interfaces. In order of application:
+ 
+-	1. If an operand implements the Formatter interface, it will
++	1. If the operand is a reflect.Value, the concrete value it
++	holds is printed as if it was the operand.
++
++	2. If an operand implements the Formatter interface, it will
+ 	be invoked. Formatter provides fine control of formatting.
+ 
+-	2. If the %v verb is used with the # flag (%#v) and the operand
++	3. If the %v verb is used with the # flag (%#v) and the operand
+ 	implements the GoStringer interface, that will be invoked.
+ 
+ 	If the format (which is implicitly %v for Println etc.) is valid
+ 	for a string (%s %q %v %x %X), the following two rules apply:
+ 
+-	3. If an operand implements the error interface, the Error method
++	4. If an operand implements the error interface, the Error method
+ 	will be invoked to convert the object to a string, which will then
+ 	be formatted as required by the verb (if any).
+ 
+-	4. If an operand implements method String() string, that method
++	5. If an operand implements method String() string, that method
+ 	will be invoked to convert the object to a string, which will then
+ 	be formatted as required by the verb (if any).
+ 
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 146977ace1..96505b8271 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -9,6 +9,7 @@ import (
+ 	. "fmt"
+ 	"io"
+ 	"math"
++	"reflect"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -679,6 +680,12 @@ var fmtTests = []struct {
+ 	{"%x", byteFormatterSlice, "61626364"},
+ 	// This next case seems wrong, but the docs say the Formatter wins here.
+ 	{"%#v", byteFormatterSlice, "[]fmt_test.byteFormatter{X, X, X, X}"},
++
++	// reflect.Value handled specially in Go 1.5, making it possible to
++	// see inside non-exported fields (which cannot be accessed with Interface()).
++	// Issue 8965.
++	{"%v", reflect.ValueOf(A{}).Field(0).String(), "<int Value>"}, // Equivalent to the old way.
++	{"%v", reflect.ValueOf(A{}).Field(0), "0"},                    // Sees inside the field.
+ }
+ 
+ // zeroFill generates zero-filled strings of the specified width. The length
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 59a30d221e..c8038f09a8 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -789,6 +789,8 @@ func (p *pp) printArg(arg interface{}, verb rune, depth int) (wasString bool) {
+ 	case []byte:
+ 		p.fmtBytes(f, verb, nil, depth)
+ 		wasString = verb == 's'
++	case reflect.Value:
++		return p.printReflectValue(f, verb, depth)
+ 	default:
+ 		// If the type is not simple, it might have methods.
+ 		if handled := p.handleMethods(verb, depth); handled {
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 27f9c2dc8c..0b22efb027 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -1622,6 +1622,8 @@ func (v Value) Slice3(i, j, k int) Value {
+ // String is a special case because of Go's String method convention.
+ // Unlike the other getters, it does not panic if v's Kind is not String.
+ // Instead, it returns a string of the form "<T value>" where T is v's type.
++// The fmt package treats Values specially. It does not call their String
++// method implicitly but instead prints the concrete values they hold.
+ func (v Value) String() string {
+ 	switch k := v.kind(); k {
+ 	case Invalid:

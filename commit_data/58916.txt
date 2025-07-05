@@ -13,7 +13,7 @@ Date:   Wed Sep 20 12:22:26 2023 -0700
     Reviewed-by: Michael Pratt <mpratt@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go              |   2 +-
  src/cmd/compile/internal/pgo/irgraph.go            | 207 +++++++++++++++----
  src/cmd/compile/internal/test/pgo_inl_test.go      |  35 +++-
@@ -21,3 +21,662 @@ Date:   Wed Sep 20 12:22:26 2023 -0700
  src/cmd/preprofile/main.go                         | 224 +++++++++++++++++++++
  .../internal/graph => internal/profile}/graph.go   |  13 +-
  6 files changed, 450 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index a3144f8fb4..5b3c3ad8c6 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -124,7 +124,7 @@ type CmdFlags struct {
+ 	TraceProfile       string       "help:\"write an execution trace to `file`\""
+ 	TrimPath           string       "help:\"remove `prefix` from recorded source file paths\""
+ 	WB                 bool         "help:\"enable write barrier\"" // TODO: remove
+-	PgoProfile         string       "help:\"read profile from `file`\""
++	PgoProfile         string       "help:\"read profile or pre-process profile from `file`\""
+ 	ErrorURL           bool         "help:\"print explanatory URL with error message if applicable\""
+ 
+ 	// Configuration derived from flags; not a flag itself.
+diff --git a/src/cmd/compile/internal/pgo/irgraph.go b/src/cmd/compile/internal/pgo/irgraph.go
+index 96485e33ab..9a7dadfe25 100644
+--- a/src/cmd/compile/internal/pgo/irgraph.go
++++ b/src/cmd/compile/internal/pgo/irgraph.go
+@@ -41,16 +41,20 @@
+ package pgo
+ 
+ import (
++	"bufio"
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+-	"cmd/compile/internal/pgo/internal/graph"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/bio"
+ 	"errors"
+ 	"fmt"
+ 	"internal/profile"
++	"log"
+ 	"os"
+ 	"sort"
++	"strconv"
++	"strings"
+ )
+ 
+ // IRGraph is a call graph with nodes pointing to IRs of functions and edges
+@@ -105,6 +109,7 @@ type NamedCallEdge struct {
+ 	CallerName     string
+ 	CalleeName     string
+ 	CallSiteOffset int // Line offset from function start line.
++	CallStartLine  int // Start line of the function. Can be 0 which means missing.
+ }
+ 
+ // NamedEdgeMap contains all unique call edges in the profile and their
+@@ -139,8 +144,52 @@ type Profile struct {
+ 	WeightedCG *IRGraph
+ }
+ 
+-// New generates a profile-graph from the profile.
++var wantHdr = "GO PREPROFILE V1\n"
++
++func isPreProfileFile(filename string) (bool, error) {
++	file, err := bio.Open(filename)
++	if err != nil {
++		return false, err
++	}
++	defer file.Close()
++
++	/* check the header */
++	line, err := file.ReadString('\n')
++	if err != nil {
++		return false, err
++	}
++
++	if wantHdr == line {
++		return true, nil
++	}
++	return false, nil
++}
++
++// New generates a profile-graph from the profile or pre-processed profile.
+ func New(profileFile string) (*Profile, error) {
++	var profile *Profile
++	var err error
++	isPreProf, err := isPreProfileFile(profileFile)
++	if err != nil {
++		return nil, fmt.Errorf("error opening profile: %w", err)
++	}
++	if !isPreProf {
++		profile, err = processProto(profileFile)
++		if err != nil {
++			log.Fatalf("%s: PGO error: %v", profileFile, err)
++		}
++	} else {
++		profile, err = processPreprof(profileFile)
++		if err != nil {
++			log.Fatalf("%s: Preprocessed PGO error: %v", profileFile, err)
++		}
++	}
++	return profile, nil
++
++}
++
++// processProto generates a profile-graph from the profile.
++func processProto(profileFile string) (*Profile, error) {
+ 	f, err := os.Open(profileFile)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("error opening profile: %w", err)
+@@ -175,7 +224,7 @@ func New(profileFile string) (*Profile, error) {
+ 		return nil, fmt.Errorf(`profile does not contain a sample index with value/type "samples/count" or cpu/nanoseconds"`)
+ 	}
+ 
+-	g := graph.NewGraph(p, &graph.Options{
++	g := profile.NewGraph(p, &profile.Options{
+ 		SampleValue: func(v []int64) int64 { return v[valueIndex] },
+ 	})
+ 
+@@ -198,11 +247,130 @@ func New(profileFile string) (*Profile, error) {
+ 	}, nil
+ }
+ 
++// processPreprof generates a profile-graph from the pre-procesed profile.
++func processPreprof(preprofileFile string) (*Profile, error) {
++	namedEdgeMap, totalWeight, err := createNamedEdgeMapFromPreprocess(preprofileFile)
++	if err != nil {
++		return nil, err
++	}
++
++	if totalWeight == 0 {
++		return nil, nil // accept but ignore profile with no samples.
++	}
++
++	// Create package-level call graph with weights from profile and IR.
++	wg := createIRGraph(namedEdgeMap)
++
++	return &Profile{
++		TotalWeight:  totalWeight,
++		NamedEdgeMap: namedEdgeMap,
++		WeightedCG:   wg,
++	}, nil
++}
++
++func postProcessNamedEdgeMap(weight map[NamedCallEdge]int64, weightVal int64) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
++	if weightVal == 0 {
++		return NamedEdgeMap{}, 0, nil // accept but ignore profile with no samples.
++	}
++	byWeight := make([]NamedCallEdge, 0, len(weight))
++	for namedEdge := range weight {
++		byWeight = append(byWeight, namedEdge)
++	}
++	sort.Slice(byWeight, func(i, j int) bool {
++		ei, ej := byWeight[i], byWeight[j]
++		if wi, wj := weight[ei], weight[ej]; wi != wj {
++			return wi > wj // want larger weight first
++		}
++		// same weight, order by name/line number
++		if ei.CallerName != ej.CallerName {
++			return ei.CallerName < ej.CallerName
++		}
++		if ei.CalleeName != ej.CalleeName {
++			return ei.CalleeName < ej.CalleeName
++		}
++		return ei.CallSiteOffset < ej.CallSiteOffset
++	})
++
++	edgeMap = NamedEdgeMap{
++		Weight:   weight,
++		ByWeight: byWeight,
++	}
++
++	totalWeight = weightVal
++
++	return edgeMap, totalWeight, nil
++}
++
++// restore NodeMap information from a preprocessed profile.
++// The reader can refer to the format of preprocessed profile in cmd/preprofile/main.go.
++func createNamedEdgeMapFromPreprocess(preprofileFile string) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
++	readFile, err := os.Open(preprofileFile)
++	if err != nil {
++		log.Fatal("preprofile: failed to open file " + preprofileFile)
++		return
++	}
++	defer readFile.Close()
++
++	fileScanner := bufio.NewScanner(readFile)
++	fileScanner.Split(bufio.ScanLines)
++	weight := make(map[NamedCallEdge]int64)
++
++	if !fileScanner.Scan() {
++		log.Fatal("fail to parse preprocessed profile: missing header")
++		return
++	}
++	if fileScanner.Text()+"\n" != wantHdr {
++		log.Fatal("fail to parse preprocessed profile: mismatched header")
++		return
++	}
++
++	for fileScanner.Scan() {
++		readStr := fileScanner.Text()
++
++		callerName := readStr
++
++		if !fileScanner.Scan() {
++			log.Fatal("fail to parse preprocessed profile: missing callee")
++			return
++		}
++		calleeName := fileScanner.Text()
++
++		if !fileScanner.Scan() {
++			log.Fatal("fail to parse preprocessed profile: missing weight")
++			return
++		}
++		readStr = fileScanner.Text()
++
++		split := strings.Split(readStr, " ")
++
++		if len(split) == 5 {
++			co, _ := strconv.Atoi(split[0])
++			cs, _ := strconv.Atoi(split[1])
++
++			namedEdge := NamedCallEdge{
++				CallerName:     callerName,
++				CallSiteOffset: co - cs,
++			}
++
++			namedEdge.CalleeName = calleeName
++			EWeight, _ := strconv.ParseInt(split[4], 10, 64)
++
++			weight[namedEdge] += EWeight
++			totalWeight += EWeight
++		} else {
++			log.Fatal("fail to parse preprocessed profile: mismatched fields.\n")
++		}
++	}
++
++	return postProcessNamedEdgeMap(weight, totalWeight)
++
++}
++
+ // createNamedEdgeMap builds a map of callsite-callee edge weights from the
+ // profile-graph.
+ //
+ // Caller should ignore the profile if totalWeight == 0.
+-func createNamedEdgeMap(g *graph.Graph) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
++func createNamedEdgeMap(g *profile.Graph) (edgeMap NamedEdgeMap, totalWeight int64, err error) {
+ 	seenStartLine := false
+ 
+ 	// Process graph and build various node and edge maps which will
+@@ -226,42 +394,13 @@ func createNamedEdgeMap(g *graph.Graph) (edgeMap NamedEdgeMap, totalWeight int64
+ 		}
+ 	}
+ 
+-	if totalWeight == 0 {
+-		return NamedEdgeMap{}, 0, nil // accept but ignore profile with no samples.
+-	}
+-
+ 	if !seenStartLine {
+ 		// TODO(prattmic): If Function.start_line is missing we could
+ 		// fall back to using absolute line numbers, which is better
+ 		// than nothing.
+ 		return NamedEdgeMap{}, 0, fmt.Errorf("profile missing Function.start_line data (Go version of profiled application too old? Go 1.20+ automatically adds this to profiles)")
+ 	}
+-
+-	byWeight := make([]NamedCallEdge, 0, len(weight))
+-	for namedEdge := range weight {
+-		byWeight = append(byWeight, namedEdge)
+-	}
+-	sort.Slice(byWeight, func(i, j int) bool {
+-		ei, ej := byWeight[i], byWeight[j]
+-		if wi, wj := weight[ei], weight[ej]; wi != wj {
+-			return wi > wj // want larger weight first
+-		}
+-		// same weight, order by name/line number
+-		if ei.CallerName != ej.CallerName {
+-			return ei.CallerName < ej.CallerName
+-		}
+-		if ei.CalleeName != ej.CalleeName {
+-			return ei.CalleeName < ej.CalleeName
+-		}
+-		return ei.CallSiteOffset < ej.CallSiteOffset
+-	})
+-
+-	edgeMap = NamedEdgeMap{
+-		Weight:   weight,
+-		ByWeight: byWeight,
+-	}
+-
+-	return edgeMap, totalWeight, nil
++	return postProcessNamedEdgeMap(weight, totalWeight)
+ }
+ 
+ // initializeIRGraph builds the IRGraph by visiting all the ir.Func in decl list
+diff --git a/src/cmd/compile/internal/test/pgo_inl_test.go b/src/cmd/compile/internal/test/pgo_inl_test.go
+index da6c4a53d3..3aafaee197 100644
+--- a/src/cmd/compile/internal/test/pgo_inl_test.go
++++ b/src/cmd/compile/internal/test/pgo_inl_test.go
+@@ -43,7 +43,12 @@ go 1.19
+ }
+ 
+ // testPGOIntendedInlining tests that specific functions are inlined.
+-func testPGOIntendedInlining(t *testing.T, dir string) {
++func testPGOIntendedInlining(t *testing.T, dir string, preprocessed ...bool) {
++	defaultPGOPackValue := false
++	if len(preprocessed) > 0 {
++		defaultPGOPackValue = preprocessed[0]
++	}
++
+ 	testenv.MustHaveGoRun(t)
+ 	t.Parallel()
+ 
+@@ -86,7 +91,12 @@ func testPGOIntendedInlining(t *testing.T, dir string) {
+ 
+ 	// Build the test with the profile. Use a smaller threshold to test.
+ 	// TODO: maybe adjust the test to work with default threshold.
+-	pprof := filepath.Join(dir, "inline_hot.pprof")
++	var pprof string
++	if defaultPGOPackValue == false {
++		pprof = filepath.Join(dir, "inline_hot.pprof")
++	} else {
++		pprof = filepath.Join(dir, "inline_hot.pprof.node_map")
++	}
+ 	gcflag := fmt.Sprintf("-m -m -pgoprofile=%s -d=pgoinlinebudget=160,pgoinlinecdfthreshold=90", pprof)
+ 	out := buildPGOInliningTest(t, dir, gcflag)
+ 
+@@ -164,6 +174,27 @@ func TestPGOIntendedInlining(t *testing.T) {
+ 	testPGOIntendedInlining(t, dir)
+ }
+ 
++// TestPGOIntendedInlining tests that specific functions are inlined when PGO
++// is applied to the exact source that was profiled.
++func TestPGOPreprocessInlining(t *testing.T) {
++	wd, err := os.Getwd()
++	if err != nil {
++		t.Fatalf("error getting wd: %v", err)
++	}
++	srcDir := filepath.Join(wd, "testdata/pgo/inline")
++
++	// Copy the module to a scratch location so we can add a go.mod.
++	dir := t.TempDir()
++
++	for _, file := range []string{"inline_hot.go", "inline_hot_test.go", "inline_hot.pprof.node_map"} {
++		if err := copyFile(filepath.Join(dir, file), filepath.Join(srcDir, file)); err != nil {
++			t.Fatalf("error copying %s: %v", file, err)
++		}
++	}
++
++	testPGOIntendedInlining(t, dir, true)
++}
++
+ // TestPGOIntendedInlining tests that specific functions are inlined when PGO
+ // is applied to the modified source.
+ func TestPGOIntendedInliningShiftedLines(t *testing.T) {
+diff --git a/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof.node_map b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof.node_map
+new file mode 100644
+index 0000000000..bc5bc66b61
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/pgo/inline/inline_hot.pprof.node_map
+@@ -0,0 +1,13 @@
++GO PREPROFILE V1
++example.com/pgo/inline.benchmarkB
++example.com/pgo/inline.A
++18 17 0 1 1
++example.com/pgo/inline.(*BS).NS
++example.com/pgo/inline.T
++13 53 124 129 2
++example.com/pgo/inline.(*BS).NS
++example.com/pgo/inline.T
++8 53 124 129 3
++example.com/pgo/inline.A
++example.com/pgo/inline.(*BS).NS
++7 74 1 130 129
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+new file mode 100644
+index 0000000000..cf747266ca
+--- /dev/null
++++ b/src/cmd/preprofile/main.go
+@@ -0,0 +1,224 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Preprofile handles pprof files.
++//
++// Usage:
++//
++//	go tool preprofile [-v] [-o output] [-i (pprof)input]
++//
++//
++
++package main
++
++import (
++	"bufio"
++	"flag"
++	"fmt"
++	"internal/profile"
++	"log"
++	"os"
++	"path/filepath"
++	"strconv"
++)
++
++// The current Go Compiler consumes significantly long compilation time when the PGO
++// is enabled. To optimize the existing flow and reduce build time of multiple Go
++// services, we create a standalone tool, PGO preprocessor, to extract information
++// from collected profiling files and to cache the WeightedCallGraph in one time
++// fashion. By adding the new tool to the Go compiler, it will reduce the time
++// of repeated profiling file parsing and avoid WeightedCallGraph reconstruction
++// in current Go Compiler.
++// The format of the pre-processed output is as follows.
++//
++//	Header
++//	caller_name
++//      callee_name
++//      "call site offset" "caller's start line number" "flat" "cum" "call edge weight"
++//      ...
++//	caller_name
++//      callee_name
++//      "call site offset" "caller's start line number" "flat" "cum" "call edge weight"
++
++func usage() {
++	fmt.Fprintf(os.Stderr, "MUST have (pprof) input file \n")
++	fmt.Fprintf(os.Stderr, "usage: go tool preprofile [-v] [-o output] [-i (pprof)input] \n\n")
++	flag.PrintDefaults()
++	os.Exit(2)
++}
++
++type NodeMapKey struct {
++	CallerName     string
++	CalleeName     string
++	CallSiteOffset int // Line offset from function start line.
++	CallStartLine  int // Start line of the function. Can be 0 which means missing.
++}
++
++type Weights struct {
++	NFlat   int64
++	NCum    int64
++	EWeight int64
++}
++
++func readPprofFile(profileFile string, outputFile string, verbose bool) bool {
++	// open the pprof profile file
++	f, err := os.Open(profileFile)
++	if err != nil {
++		log.Fatal("failed to open file " + profileFile)
++		return false
++	}
++	defer f.Close()
++	p, err := profile.Parse(f)
++	if err != nil {
++		log.Fatal("failed to Parse profile file.")
++		return false
++	}
++
++	if len(p.Sample) == 0 {
++		// We accept empty profiles, but there is nothing to do.
++		return false
++	}
++
++	valueIndex := -1
++	for i, s := range p.SampleType {
++		// Samples count is the raw data collected, and CPU nanoseconds is just
++		// a scaled version of it, so either one we can find is fine.
++		if (s.Type == "samples" && s.Unit == "count") ||
++			(s.Type == "cpu" && s.Unit == "nanoseconds") {
++			valueIndex = i
++			break
++		}
++	}
++
++	if valueIndex == -1 {
++		log.Fatal("failed to find CPU samples count or CPU nanoseconds value-types in profile.")
++		return false
++	}
++
++	// The processing here is equivalent to cmd/compile/internal/pgo.createNamedEdgeMap.
++	g := profile.NewGraph(p, &profile.Options{
++		SampleValue: func(v []int64) int64 { return v[valueIndex] },
++	})
++
++	nFlat := make(map[string]int64)
++	nCum := make(map[string]int64)
++
++	// Accummulate weights for the same node.
++	for _, n := range g.Nodes {
++		canonicalName := n.Info.Name
++		nFlat[canonicalName] += n.FlatValue()
++		nCum[canonicalName] += n.CumValue()
++	}
++
++	TotalNodeWeight := int64(0)
++	TotalEdgeWeight := int64(0)
++
++	NodeMap := make(map[NodeMapKey]*Weights)
++	NodeWeightMap := make(map[string]int64)
++
++	for _, n := range g.Nodes {
++		TotalNodeWeight += n.FlatValue()
++		canonicalName := n.Info.Name
++		// Create the key to the nodeMapKey.
++		nodeinfo := NodeMapKey{
++			CallerName:     canonicalName,
++			CallSiteOffset: n.Info.Lineno - n.Info.StartLine,
++			CallStartLine:  n.Info.StartLine,
++		}
++
++		if nodeinfo.CallStartLine == 0 {
++			if verbose {
++				log.Println("[PGO] warning: " + canonicalName + " relative line number is missing from the profile")
++			}
++		}
++
++		for _, e := range n.Out {
++			TotalEdgeWeight += e.WeightValue()
++			nodeinfo.CalleeName = e.Dest.Info.Name
++			if w, ok := NodeMap[nodeinfo]; ok {
++				w.EWeight += e.WeightValue()
++			} else {
++				weights := new(Weights)
++				weights.NFlat = nFlat[canonicalName]
++				weights.NCum = nCum[canonicalName]
++				weights.EWeight = e.WeightValue()
++				NodeMap[nodeinfo] = weights
++			}
++		}
++	}
++
++	for _, n := range g.Nodes {
++		lineno := fmt.Sprintf("%v", n.Info.Lineno)
++		canonicalName := n.Info.Name + "-" + lineno
++		if _, ok := (NodeWeightMap)[canonicalName]; ok {
++			(NodeWeightMap)[canonicalName] += n.CumValue()
++		} else {
++			(NodeWeightMap)[canonicalName] = n.CumValue()
++		}
++	}
++
++	var fNodeMap *os.File
++	if outputFile == "" {
++		fNodeMap = os.Stdout
++	} else {
++		dirPath := filepath.Dir(outputFile)
++		_, err := os.Stat(dirPath)
++		if err != nil {
++			log.Fatal("Directory does not exist: ", dirPath)
++		}
++		base := filepath.Base(outputFile)
++		outputFile = filepath.Join(dirPath, base)
++
++		// write out NodeMap to a file
++		fNodeMap, err = os.Create(outputFile)
++		if err != nil {
++			log.Fatal("Error creating output file:", err)
++			return false
++		}
++
++		defer fNodeMap.Close() // Close the file when done writing
++	}
++
++	w := bufio.NewWriter(fNodeMap)
++	w.WriteString("GO PREPROFILE V1\n")
++	count := 1
++	separator := " "
++	for key, element := range NodeMap {
++		line := key.CallerName + "\n"
++		w.WriteString(line)
++		line = key.CalleeName + "\n"
++		w.WriteString(line)
++		line = strconv.Itoa(key.CallSiteOffset)
++		line = line + separator + strconv.Itoa(key.CallStartLine)
++		line = line + separator + strconv.FormatInt(element.NFlat, 10)
++		line = line + separator + strconv.FormatInt(element.NCum, 10)
++		line = line + separator + strconv.FormatInt(element.EWeight, 10) + "\n"
++		w.WriteString(line)
++		w.Flush()
++		count += 1
++	}
++
++	if TotalNodeWeight == 0 || TotalEdgeWeight == 0 {
++		return false
++	}
++
++	return true
++}
++
++var dumpCode = flag.String("o", "", "dump output file ")
++var input = flag.String("i", "", "input pprof file ")
++var verbose = flag.Bool("v", false, "verbose log")
++
++func main() {
++	log.SetFlags(0)
++	log.SetPrefix("preprofile: ")
++
++	flag.Usage = usage
++	flag.Parse()
++	if *input == "" {
++		usage()
++	} else {
++		readPprofFile(*input, *dumpCode, *verbose)
++	}
++}
+diff --git a/src/cmd/compile/internal/pgo/internal/graph/graph.go b/src/internal/profile/graph.go
+similarity index 96%
+rename from src/cmd/compile/internal/pgo/internal/graph/graph.go
+rename to src/internal/profile/graph.go
+index 4d89b1ba63..88d5311927 100644
+--- a/src/cmd/compile/internal/pgo/internal/graph/graph.go
++++ b/src/internal/profile/graph.go
+@@ -15,11 +15,10 @@
+ // Package graph represents a pprof profile as a directed graph.
+ //
+ // This package is a simplified fork of github.com/google/pprof/internal/graph.
+-package graph
++package profile
+ 
+ import (
+ 	"fmt"
+-	"internal/profile"
+ 	"sort"
+ 	"strings"
+ )
+@@ -241,7 +240,7 @@ func (e *Edge) WeightValue() int64 {
+ }
+ 
+ // NewGraph computes a graph from a profile.
+-func NewGraph(prof *profile.Profile, o *Options) *Graph {
++func NewGraph(prof *Profile, o *Options) *Graph {
+ 	nodes, locationMap := CreateNodes(prof, o)
+ 	seenNode := make(map[*Node]bool)
+ 	seenEdge := make(map[nodePair]bool)
+@@ -368,13 +367,13 @@ func (l locationMap) get(id uint64) Nodes {
+ // CreateNodes creates graph nodes for all locations in a profile. It
+ // returns set of all nodes, plus a mapping of each location to the
+ // set of corresponding nodes (one per location.Line).
+-func CreateNodes(prof *profile.Profile, o *Options) (Nodes, locationMap) {
++func CreateNodes(prof *Profile, o *Options) (Nodes, locationMap) {
+ 	locations := locationMap{make([]Nodes, len(prof.Location)+1), make(map[uint64]Nodes)}
+ 	nm := make(NodeMap, len(prof.Location))
+ 	for _, l := range prof.Location {
+ 		lines := l.Line
+ 		if len(lines) == 0 {
+-			lines = []profile.Line{{}} // Create empty line to include location info.
++			lines = []Line{{}} // Create empty line to include location info.
+ 		}
+ 		nodes := make(Nodes, len(lines))
+ 		for ln := range lines {
+@@ -393,7 +392,7 @@ func (nm NodeMap) nodes() Nodes {
+ 	return nodes
+ }
+ 
+-func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Options) *Node {
++func (nm NodeMap) findOrInsertLine(l *Location, li Line, o *Options) *Node {
+ 	var objfile string
+ 	if m := l.Mapping; m != nil && m.File != "" {
+ 		objfile = m.File
+@@ -405,7 +404,7 @@ func (nm NodeMap) findOrInsertLine(l *profile.Location, li profile.Line, o *Opti
+ 	return nil
+ }
+ 
+-func nodeInfo(l *profile.Location, line profile.Line, objfile string, o *Options) *NodeInfo {
++func nodeInfo(l *Location, line Line, objfile string, o *Options) *NodeInfo {
+ 	if line.Function == nil {
+ 		return &NodeInfo{Address: l.Address}
+ 	}

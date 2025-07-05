@@ -12,6 +12,24 @@ Date:   Mon Jan 29 20:35:43 2018 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/bootstrap.bash | 6 +++++-
  1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/bootstrap.bash b/src/bootstrap.bash
+index 7b4f57461f..32b736ad78 100755
+--- a/src/bootstrap.bash
++++ b/src/bootstrap.bash
+@@ -77,7 +77,11 @@ else
+ 	rm -rf "pkg/${gohostos}_${gohostarch}" "pkg/tool/${gohostos}_${gohostarch}"
+ fi
+ 
+-GITREV=$(git rev-parse --short HEAD)
++if [ "$BOOTSTRAP_FORMAT" = "mintgz" ]; then
++	# Fetch git revision before rm -rf .git.
++	GITREV=$(git rev-parse --short HEAD)
++fi
++
+ rm -rf pkg/bootstrap pkg/obj .git
+ 
+ # Support for building minimal tar.gz for the builders.

@@ -39,9 +39,104 @@ Date:   Thu Mar 9 22:41:32 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/sinit.go     |  9 ++++++++-
  src/cmd/compile/internal/gc/typecheck.go |  2 +-
  src/cmd/internal/obj/data.go             |  2 +-
  test/fixedbugs/issue19482.go             | 34 ++++++++++++++++++++++++++++++++
  4 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 47aee51c17..0ff94abe2e 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -725,6 +725,9 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 			if r.Op != OSTRUCTKEY {
+ 				Fatalf("fixedlit: rhs not OSTRUCTKEY: %v", r)
+ 			}
++			if isblanksym(r.Sym) {
++				return nblank, r.Left
++			}
+ 			return nodSym(ODOT, var_, r.Sym), r.Left
+ 		}
+ 	default:
+@@ -1346,8 +1349,12 @@ func isvaluelit(n *Node) bool {
+ }
+ 
+ func genAsStatic(as *Node) {
++	if as.Left.Type == nil {
++		Fatalf("genAsStatic as.Left not typechecked")
++	}
++
+ 	var nam Node
+-	if !stataddr(&nam, as.Left) || nam.Class != PEXTERN {
++	if !stataddr(&nam, as.Left) || (nam.Class != PEXTERN && as.Left != nblank) {
+ 		Fatalf("genAsStatic: lhs %v", as.Left)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b272d27612..db4ea0a895 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -3100,7 +3100,7 @@ func typecheckcomplit(n *Node) *Node {
+ 					// the field to the right of the dot,
+ 					// so s will be non-nil, but an OXDOT
+ 					// is never a valid struct literal key.
+-					if key.Sym == nil || key.Op == OXDOT {
++					if key.Sym == nil || key.Op == OXDOT || isblanksym(key.Sym) {
+ 						yyerror("invalid field name %v in struct initializer", key)
+ 						l.Left = typecheck(l.Left, Erv)
+ 						continue
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 114841dedb..5f583071e6 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -70,7 +70,7 @@ func (s *LSym) GrowCap(c int64) {
+ // prepwrite prepares to write data of size siz into s at offset off.
+ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	if off < 0 || siz < 0 || off >= 1<<30 {
+-		log.Fatalf("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
++		ctxt.Diag("prepwrite: bad off=%d siz=%d s=%v", off, siz, s)
+ 	}
+ 	if s.Type == SBSS || s.Type == STLSBSS {
+ 		ctxt.Diag("cannot supply data for BSS var")
+diff --git a/test/fixedbugs/issue19482.go b/test/fixedbugs/issue19482.go
+new file mode 100644
+index 0000000000..97497a434c
+--- /dev/null
++++ b/test/fixedbugs/issue19482.go
+@@ -0,0 +1,34 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Compiler rejected initialization of structs to composite literals
++// in a non-static setting (e.g. in a function)
++// when the struct contained a field named _.
++
++package p
++
++type T struct {
++	_ string
++}
++
++func ok() {
++	var x = T{"check"}
++	_ = x
++	_ = T{"et"}
++}
++
++var (
++	y = T{"stare"}
++	w = T{_: "look"} // ERROR "invalid field name _ in struct initializer"
++	_ = T{"page"}
++	_ = T{_: "out"} // ERROR "invalid field name _ in struct initializer"
++)
++
++func bad() {
++	var z = T{_: "verse"} // ERROR "invalid field name _ in struct initializer"
++	_ = z
++	_ = T{_: "itinerary"} // ERROR "invalid field name _ in struct initializer"
++}

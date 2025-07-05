@@ -14,10 +14,140 @@ Date:   Thu May 4 11:16:04 2023 -0400
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Auto-Submit: Bryan Mills <bcmills@google.com>
     Run-TryBot: Bryan Mills <bcmills@google.com>
-
+---
  src/cmd/go/scriptconds_test.go                     | 26 +++++++++++++++++++++-
  src/cmd/go/testdata/script/README                  |  4 ++++
  src/cmd/go/testdata/script/cache_unix.txt          |  7 +++---
  src/cmd/go/testdata/script/cgo_path.txt            |  6 ++---
  .../script/cgo_suspect_flag_force_external.txt     |  4 ++--
  5 files changed, 37 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/scriptconds_test.go b/src/cmd/go/scriptconds_test.go
+index a9b5f9acec..3c893eeae5 100644
+--- a/src/cmd/go/scriptconds_test.go
++++ b/src/cmd/go/scriptconds_test.go
+@@ -39,8 +39,9 @@ func scriptConditions() map[string]script.Cond {
+ 	add("asan", sysCondition("-asan", platform.ASanSupported, true))
+ 	add("buildmode", script.PrefixCondition("go supports -buildmode=<suffix>", hasBuildmode))
+ 	add("case-sensitive", script.OnceCondition("$WORK filesystem is case-sensitive", isCaseSensitive))
++	add("cc", script.PrefixCondition("go env CC = <suffix> (ignoring the go/env file)", ccIs))
+ 	add("cgo", script.BoolCondition("host CGO_ENABLED", testenv.HasCGO()))
+-	add("cgolinkext", script.BoolCondition("platform requires external linking for cgo", platform.MustLinkExternal(cfg.Goos, cfg.Goarch, true)))
++	add("cgolinkext", script.Condition("platform requires external linking for cgo", cgoLinkExt))
+ 	add("cross", script.BoolCondition("cmd/go GOOS/GOARCH != GOHOSTOS/GOHOSTARCH", goHostOS != runtime.GOOS || goHostArch != runtime.GOARCH))
+ 	add("fuzz", sysCondition("-fuzz", platform.FuzzSupported, false))
+ 	add("fuzz-instrumented", sysCondition("-fuzz with instrumentation", platform.FuzzInstrumented, false))
+@@ -50,6 +51,7 @@ func scriptConditions() map[string]script.Cond {
+ 	add("link", lazyBool("testenv.HasLink()", testenv.HasLink))
+ 	add("mismatched-goroot", script.Condition("test's GOROOT_FINAL does not match the real GOROOT", isMismatchedGoroot))
+ 	add("msan", sysCondition("-msan", platform.MSanSupported, true))
++	add("mustlinkext", script.Condition("platform always requires external linking", mustLinkExt))
+ 	add("net", script.PrefixCondition("can connect to external network host <suffix>", hasNet))
+ 	add("race", sysCondition("-race", platform.RaceDetectorSupported, true))
+ 	add("symlink", lazyBool("testenv.HasSymlink()", testenv.HasSymlink))
+@@ -70,6 +72,16 @@ func defaultCCIsAbsolute(s *script.State) (bool, error) {
+ 	return false, nil
+ }
+ 
++func ccIs(s *script.State, want string) (bool, error) {
++	CC, _ := s.LookupEnv("CC")
++	if CC != "" {
++		return CC == want, nil
++	}
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return cfg.DefaultCC(GOOS, GOARCH) == want, nil
++}
++
+ func isMismatchedGoroot(s *script.State) (bool, error) {
+ 	gorootFinal, _ := s.LookupEnv("GOROOT_FINAL")
+ 	if gorootFinal == "" {
+@@ -185,3 +197,15 @@ func hasWorkingGit() bool {
+ 	_, err := exec.LookPath("git")
+ 	return err == nil
+ }
++
++func cgoLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return platform.MustLinkExternal(GOOS, GOARCH, true), nil
++}
++
++func mustLinkExt(s *script.State) (bool, error) {
++	GOOS, _ := s.LookupEnv("GOOS")
++	GOARCH, _ := s.LookupEnv("GOARCH")
++	return platform.MustLinkExternal(GOOS, GOARCH, false), nil
++}
+diff --git a/src/cmd/go/testdata/script/README b/src/cmd/go/testdata/script/README
+index c653764145..b7215e8f4f 100644
+--- a/src/cmd/go/testdata/script/README
++++ b/src/cmd/go/testdata/script/README
+@@ -380,6 +380,8 @@ The available conditions are:
+ 	go supports -buildmode=<suffix>
+ [case-sensitive]
+ 	$WORK filesystem is case-sensitive
++[cc:*]
++	go env CC = <suffix> (ignoring the go/env file)
+ [cgo]
+ 	host CGO_ENABLED
+ [cgolinkext]
+@@ -402,6 +404,8 @@ The available conditions are:
+ 	test's GOROOT_FINAL does not match the real GOROOT
+ [msan]
+ 	GOOS/GOARCH supports -msan
++[mustlinkext]
++	platform always requires external linking
+ [net:*]
+ 	can connect to external network host <suffix>
+ [race]
+diff --git a/src/cmd/go/testdata/script/cache_unix.txt b/src/cmd/go/testdata/script/cache_unix.txt
+index 569480051c..e11804d39a 100644
+--- a/src/cmd/go/testdata/script/cache_unix.txt
++++ b/src/cmd/go/testdata/script/cache_unix.txt
+@@ -2,9 +2,10 @@ env GO111MODULE=off
+ 
+ # Integration test for cache directory calculation (cmd/go/internal/cache).
+ 
+-[GOOS:windows] skip
+-[GOOS:darwin] skip
+-[GOOS:plan9] skip
++[GOOS:windows] skip 'windows does not use XDG_CACHE_HOME'
++[GOOS:darwin]  skip 'darwin does not use XDG_CACHE_HOME'
++[GOOS:ios]     skip 'ios does not use XDG_CACHE_HOME'
++[GOOS:plan9]   skip 'plan9 does not use XDG_CACHE_HOME'
+ 
+ mkdir $WORK/gocache
+ mkdir $WORK/xdg
+diff --git a/src/cmd/go/testdata/script/cgo_path.txt b/src/cmd/go/testdata/script/cgo_path.txt
+index 88f57f0a5b..be23893df5 100644
+--- a/src/cmd/go/testdata/script/cgo_path.txt
++++ b/src/cmd/go/testdata/script/cgo_path.txt
+@@ -1,11 +1,9 @@
+ [!cgo] skip
+ 
+-# Set CC explicitly to something that requires a PATH lookup.
++# Require that CC is something that requires a PATH lookup.
+ # Normally, the default is gcc or clang, but if CC was set during make.bash,
+ # that becomes the default.
+-[exec:clang] env CC=clang
+-[exec:gcc] env CC=gcc
+-[!exec:clang] [!exec:gcc] skip 'Unknown C compiler'
++[!cc:clang] [!cc:gcc] skip 'C compiler is not gcc or clang'
+ 
+ env GOCACHE=$WORK/gocache  # Looking for compile flags, so need a clean cache.
+ [!GOOS:windows] env PATH=.:$PATH
+diff --git a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+index fbe8236f9d..b2c84a387c 100644
+--- a/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
++++ b/src/cmd/go/testdata/script/cgo_suspect_flag_force_external.txt
+@@ -5,8 +5,8 @@
+ 
+ [compiler:gccgo] skip # only external linking for gccgo
+ 
+-# This test requires external linking, so use cgo as a proxy
+-[!cgo] skip
++[!cgo] skip 'test verifies behavior that depends on CGO_CFLAGS'
++[mustlinkext] skip 'test expects internal linking for non-cgo programs'
+ 
+ # Here we build three program: one with explicit CGO use, one with no
+ # CGO use, and one that uses a stdlib package ("runtime/cgo") that has

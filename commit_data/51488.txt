@@ -36,7 +36,7 @@ Date:   Mon Jan 31 21:25:14 2022 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/381964
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/expr.go            | 178 +++++++++++++++-----
  src/cmd/compile/internal/types2/predicates.go      |  18 +-
  src/cmd/compile/internal/types2/stmt.go            |   2 +-
@@ -55,3 +55,1162 @@ Date:   Mon Jan 31 21:25:14 2022 -0800
  src/go/types/typeset.go                            |   2 +-
  test/fixedbugs/issue11737.go                       |   2 +-
  17 files changed, 643 insertions(+), 145 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 7a668d20f1..442e7121e5 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -770,52 +770,82 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 	return target, nil, 0
+ }
+ 
+-func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
++// If switchCase is true, the operator op is ignored.
++func (check *Checker) comparison(x, y *operand, op syntax.Operator, switchCase bool) {
++	if switchCase {
++		op = syntax.Eql
++	}
++
++	errOp := x  // operand for which error is reported, if any
++	cause := "" // specific error cause, if any
++
+ 	// spec: "In any comparison, the first operand must be assignable
+ 	// to the type of the second operand, or vice versa."
+-	err := ""
+-	xok, _ := x.assignableTo(check, y.typ, nil)
+-	yok, _ := y.assignableTo(check, x.typ, nil)
+-	if xok || yok {
+-		equality := false
+-		defined := false
+-		switch op {
+-		case syntax.Eql, syntax.Neq:
+-			// spec: "The equality operators == and != apply to operands that are comparable."
+-			equality = true
+-			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+-		case syntax.Lss, syntax.Leq, syntax.Gtr, syntax.Geq:
+-			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
+-			defined = allOrdered(x.typ) && allOrdered(y.typ)
+-		default:
+-			unreachable()
+-		}
+-		if !defined {
+-			if equality && (isTypeParam(x.typ) || isTypeParam(y.typ)) {
+-				typ := x.typ
+-				if isTypeParam(y.typ) {
+-					typ = y.typ
+-				}
+-				err = check.sprintf("%s is not comparable", typ)
+-			} else {
+-				typ := x.typ
+-				if x.isNil() {
+-					typ = y.typ
+-				}
+-				err = check.sprintf("operator %s not defined on %s", op, typ)
++	ok, _ := x.assignableTo(check, y.typ, nil)
++	if !ok {
++		ok, _ = y.assignableTo(check, x.typ, nil)
++	}
++	if !ok {
++		// Report the error on the 2nd operand since we only
++		// know after seeing the 2nd operand whether we have
++		// a type mismatch.
++		errOp = y
++		// For now, if we're not running the compiler, use the
++		// position of x to minimize changes to existing tests.
++		if !check.conf.CompilerErrorMessages {
++			errOp = x
++		}
++		cause = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
++		goto Error
++	}
++
++	// check if comparison is defined for operands
++	switch op {
++	case syntax.Eql, syntax.Neq:
++		// spec: "The equality operators == and != apply to operands that are comparable."
++		switch {
++		case x.isNil() || y.isNil():
++			// Comparison against nil requires that the other operand type has nil.
++			typ := x.typ
++			if x.isNil() {
++				typ = y.typ
++			}
++			if !hasNil(typ) {
++				// This case should only be possible for "nil == nil".
++				// Report the error on the 2nd operand since we only
++				// know after seeing the 2nd operand whether we have
++				// an invalid comparison.
++				errOp = y
++				goto Error
+ 			}
++
++		case !Comparable(x.typ):
++			errOp = x
++			cause = check.incomparableCause(x.typ)
++			goto Error
++
++		case !Comparable(y.typ):
++			errOp = y
++			cause = check.incomparableCause(y.typ)
++			goto Error
+ 		}
+-	} else {
+-		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
+-	}
+ 
+-	if err != "" {
+-		// TODO(gri) better error message for cases where one can only compare against nil
+-		check.errorf(x, invalidOp+"cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
+-		x.mode = invalid
+-		return
++	case syntax.Lss, syntax.Leq, syntax.Gtr, syntax.Geq:
++		// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
++		switch {
++		case !allOrdered(x.typ):
++			errOp = x
++			goto Error
++		case !allOrdered(y.typ):
++			errOp = y
++			goto Error
++		}
++
++	default:
++		unreachable()
+ 	}
+ 
++	// comparison is ok
+ 	if x.mode == constant_ && y.mode == constant_ {
+ 		x.val = constant.MakeBool(constant.Compare(x.val, op2tok[op], y.val))
+ 		// The operands are never materialized; no need to update
+@@ -833,6 +863,74 @@ func (check *Checker) comparison(x, y *operand, op syntax.Operator) {
+ 	// spec: "Comparison operators compare two operands and yield
+ 	//        an untyped boolean value."
+ 	x.typ = Typ[UntypedBool]
++	return
++
++Error:
++	// We have an offending operand errOp and possibly an error cause.
++	if cause == "" {
++		if isTypeParam(x.typ) || isTypeParam(y.typ) {
++			// TODO(gri) should report the specific type causing the problem, if any
++			if !isTypeParam(x.typ) {
++				errOp = y
++			}
++			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
++		} else {
++			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
++		}
++	}
++	// For switches, report errors on the first (case) operand.
++	// TODO(gri) adjust error message in that case
++	if switchCase {
++		errOp = x
++	}
++	if check.conf.CompilerErrorMessages {
++		check.errorf(errOp, invalidOp+"%s %s %s (%s)", x.expr, op, y.expr, cause)
++	} else {
++		check.errorf(errOp, invalidOp+"cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
++	}
++	x.mode = invalid
++}
++
++// incomparableCause returns a more specific cause why typ is not comparable.
++// If there is no more specific cause, the result is "".
++func (check *Checker) incomparableCause(typ Type) string {
++	switch under(typ).(type) {
++	case *Slice, *Signature, *Map:
++		return check.kindString(typ) + " can only be compared to nil"
++	}
++	// see if we can extract a more specific error
++	var cause string
++	comparable(typ, nil, func(format string, args ...interface{}) {
++		cause = check.sprintf(format, args...)
++	})
++	return cause
++}
++
++// kindString returns the type kind as a string.
++func (check *Checker) kindString(typ Type) string {
++	switch under(typ).(type) {
++	case *Array:
++		return "array"
++	case *Slice:
++		return "slice"
++	case *Struct:
++		return "struct"
++	case *Pointer:
++		return "pointer"
++	case *Signature:
++		return "func"
++	case *Interface:
++		if isTypeParam(typ) {
++			return check.sprintf("type parameter %s", typ)
++		}
++		return "interface"
++	case *Map:
++		return "map"
++	case *Chan:
++		return "chan"
++	default:
++		return check.sprintf("%s", typ) // catch-all
++	}
+ }
+ 
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+@@ -1034,7 +1132,7 @@ func (check *Checker) binary(x *operand, e syntax.Expr, lhs, rhs syntax.Expr, op
+ 	}
+ 
+ 	if isComparison(op) {
+-		check.comparison(x, &y, op)
++		check.comparison(x, &y, op, false)
+ 		return
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 003e58db38..279d0775bd 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -102,10 +102,11 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, nil)
++	return comparable(T, nil, nil)
+ }
+ 
+-func comparable(T Type, seen map[Type]bool) bool {
++// If reportf != nil, it may be used to report why T is not comparable.
++func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -123,13 +124,22 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, seen) {
++			if !comparable(f.typ, seen, nil) {
++				if reportf != nil {
++					reportf("struct containing %s cannot be compared", f.typ)
++				}
+ 				return false
+ 			}
+ 		}
+ 		return true
+ 	case *Array:
+-		return comparable(t.elem, seen)
++		if !comparable(t.elem, seen, nil) {
++			if reportf != nil {
++				reportf("%s cannot be compared", t)
++			}
++			return false
++		}
++		return true
+ 	case *Interface:
+ 		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index b23d7aeef2..633ee31551 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -239,7 +239,7 @@ L:
+ 		}
+ 		// Order matters: By comparing v against x, error positions are at the case values.
+ 		res := v // keep original v unchanged
+-		check.comparison(&res, x, syntax.Eql)
++		check.comparison(&res, x, syntax.Eql, true)
+ 		if res.mode == invalid {
+ 			continue L
+ 		}
+diff --git a/src/cmd/compile/internal/types2/testdata/check/expr2.src b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+index 8e5862319e..88781f1189 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/expr2.src
++++ b/src/cmd/compile/internal/types2/testdata/check/expr2.src
+@@ -9,8 +9,8 @@ package expr2
+ func _bool() {
+ 	const t = true == true
+ 	const f = true == false
+-	_ = t /* ERROR "cannot compare" */ < f
+-	_ = 0 /* ERROR "mismatched types untyped int and untyped bool" */ == t
++	_ = t /* ERROR cannot compare */ < f
++	_ = 0 /* ERROR mismatched types untyped int and untyped bool */ == t
+ 	var b bool
+ 	var x, y float32
+ 	b = x < y
+@@ -20,7 +20,7 @@ func _bool() {
+ 
+ // corner cases
+ var (
+-	v0 = nil /* ERROR "cannot compare" */ == nil
++	v0 = nil == nil // ERROR operator == not defined on untyped nil
+ )
+ 
+ func arrays() {
+@@ -40,7 +40,7 @@ func arrays() {
+ 	_ = c /* ERROR mismatched types */ == d
+ 
+ 	var e [10]func() int
+-	_ = e /* ERROR == not defined */ == e
++	_ = e /* ERROR \[10\]func\(\) int cannot be compared */ == e
+ }
+ 
+ func structs() {
+@@ -79,8 +79,8 @@ func structs() {
+ 
+ func pointers() {
+ 	// nil
+-	_ = nil /* ERROR == not defined */ == nil
+-	_ = nil /* ERROR != not defined */ != nil
++	_ = nil == nil // ERROR operator == not defined on untyped nil
++	_ = nil != nil // ERROR operator != not defined on untyped nil
+ 	_ = nil /* ERROR < not defined */ < nil
+ 	_ = nil /* ERROR <= not defined */ <= nil
+ 	_ = nil /* ERROR > not defined */ > nil
+@@ -211,16 +211,16 @@ func interfaces() {
+ 
+ 	// issue #28164
+ 	// testcase from issue
+-	_ = interface /* ERROR cannot compare */ {}(nil) == []int(nil)
++	_ = interface{}(nil) == [ /* ERROR slice can only be compared to nil */ ]int(nil)
+ 
+ 	// related cases
+ 	var e interface{}
+ 	var s []int
+ 	var x int
+-	_ = e /* ERROR cannot compare */ == s
+-	_ = s /* ERROR cannot compare */ == e
+-	_ = e /* ERROR cannot compare */ < x
+-	_ = x /* ERROR cannot compare */ < e
++	_ = e == s // ERROR slice can only be compared to nil
++	_ = s /* ERROR slice can only be compared to nil */ == e
++	_ = e /* ERROR operator < not defined on interface */ < x
++	_ = x < e // ERROR operator < not defined on interface
+ }
+ 
+ func slices() {
+@@ -231,7 +231,7 @@ func slices() {
+ 	_ = s /* ERROR < not defined */ < nil
+ 
+ 	// slices are not otherwise comparable
+-	_ = s /* ERROR == not defined */ == s
++	_ = s /* ERROR slice can only be compared to nil */ == s
+ 	_ = s /* ERROR < not defined */ < s
+ }
+ 
+@@ -243,7 +243,7 @@ func maps() {
+ 	_ = m /* ERROR < not defined */ < nil
+ 
+ 	// maps are not otherwise comparable
+-	_ = m /* ERROR == not defined */ == m
++	_ = m /* ERROR map can only be compared to nil */ == m
+ 	_ = m /* ERROR < not defined */ < m
+ }
+ 
+@@ -255,6 +255,6 @@ func funcs() {
+ 	_ = f /* ERROR < not defined */ < nil
+ 
+ 	// funcs are not otherwise comparable
+-	_ = f /* ERROR == not defined */ == f
++	_ = f /* ERROR func can only be compared to nil */ == f
+ 	_ = f /* ERROR < not defined */ < f
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go2
+index bad8712fda..ab397560a8 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48712.go2
+@@ -10,7 +10,7 @@ func _[P comparable](x, y P) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P comparable](x P, y any) {
+@@ -19,23 +19,23 @@ func _[P comparable](x P, y any) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x, y P) {
+-	_ = x /* ERROR P is not comparable */ == x
+-	_ = x /* ERROR P is not comparable */ == y
+-	_ = y /* ERROR P is not comparable */ == x
+-	_ = y /* ERROR P is not comparable */ == y
++	_ = x /* ERROR type parameter P is not comparable with == */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == y
++	_ = y /* ERROR type parameter P is not comparable with == */ == x
++	_ = y /* ERROR type parameter P is not comparable with == */ == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x P, y any) {
+-	_ = x /* ERROR P is not comparable */ == x
+-	_ = x /* ERROR P is not comparable */ == y
+-	_ = y /* ERROR P is not comparable */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == y
++	_ = y == x // ERROR type parameter P is not comparable with ==
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go
+new file mode 100644
+index 0000000000..41604b8bad
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50918.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type thing1 struct {
++	things []string
++}
++
++type thing2 struct {
++	things []thing1
++}
++
++func _() {
++	var a1, b1 thing1
++	_ = a1 /* ERROR struct containing \[\]string cannot be compared */ == b1
++
++	var a2, b2 thing2
++	_ = a2 /* ERROR struct containing \[\]thing1 cannot be compared */ == b2
++}
+diff --git a/src/cmd/compile/internal/types2/testdata/spec/comparisons.go2 b/src/cmd/compile/internal/types2/testdata/spec/comparisons.go2
+new file mode 100644
+index 0000000000..62c95d47d7
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/spec/comparisons.go2
+@@ -0,0 +1,120 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comparisons
++
++type (
++	B int // basic type representative
++	A [10]func()
++	L []byte
++	S struct{ f []byte }
++	P *S
++	F func()
++	I interface{}
++	M map[string]int
++	C chan int
++)
++
++var (
++	b B
++	a A
++	l L
++	s S
++	p P
++	f F
++	i I
++	m M
++	c C
++)
++
++func _() {
++	_ = nil == nil // ERROR operator == not defined on untyped nil
++	_ = b == b
++	_ = a /* ERROR \[10\]func\(\) cannot be compared */ == a
++	_ = l /* ERROR slice can only be compared to nil */ == l
++	_ = s /* ERROR struct containing \[\]byte cannot be compared */ == s
++	_ = p == p
++	_ = f /* ERROR func can only be compared to nil */ == f
++	_ = i == i
++	_ = m /* ERROR map can only be compared to nil */ == m
++	_ = c == c
++
++	_ = b /* ERROR mismatched types */ == nil 
++	_ = a /* ERROR mismatched types */ == nil
++	_ = l == nil
++	_ = s /* ERROR mismatched types */ == nil
++	_ = p == nil
++	_ = f == nil
++	_ = i == nil
++	_ = m == nil
++	_ = c == nil
++
++	_ = nil /* ERROR operator < not defined on untyped nil */ < nil
++	_ = b < b
++	_ = a /* ERROR operator < not defined on array */ < a
++	_ = l /* ERROR operator < not defined on slice */ < l
++	_ = s /* ERROR operator < not defined on struct */ < s
++	_ = p /* ERROR operator < not defined on pointer */ < p
++	_ = f /* ERROR operator < not defined on func */ < f
++	_ = i /* ERROR operator < not defined on interface */ < i
++	_ = m /* ERROR operator < not defined on map */ < m
++	_ = c /* ERROR operator < not defined on chan */ < c
++}
++
++func _[
++	B int,
++	A [10]func(),
++	L []byte,
++	S struct{ f []byte },
++	P *S,
++	F func(),
++	I interface{},
++	J comparable,
++	M map[string]int,
++	C chan int,
++] (
++	b B,
++	a A,
++	l L,
++	s S,
++	p P,
++	f F,
++	i I,
++	j J,
++	m M,
++	c C,
++) {
++	_ = b == b
++	_ = a /* ERROR type parameter A is not comparable with == */ == a
++	_ = l /* ERROR type parameter L is not comparable with == */ == l
++	_ = s /* ERROR type parameter S is not comparable with == */ == s
++	_ = p == p
++	_ = f /* ERROR type parameter F is not comparable with == */ == f
++	_ = i /* ERROR type parameter I is not comparable with == */ == i
++	_ = j == j
++	_ = m /* ERROR type parameter M is not comparable with == */ == m
++	_ = c == c
++
++	_ = b /* ERROR mismatched types */ == nil
++	_ = a /* ERROR mismatched types */ == nil
++	_ = l == nil
++	_ = s /* ERROR mismatched types */ == nil
++	_ = p == nil
++	_ = f == nil
++	_ = i /* ERROR mismatched types */ == nil
++	_ = j /* ERROR mismatched types */ == nil
++	_ = m == nil
++	_ = c == nil
++
++	_ = b < b
++	_ = a /* ERROR type parameter A is not comparable with < */ < a
++	_ = l /* ERROR type parameter L is not comparable with < */ < l
++	_ = s /* ERROR type parameter S is not comparable with < */ < s
++	_ = p /* ERROR type parameter P is not comparable with < */ < p
++	_ = f /* ERROR type parameter F is not comparable with < */ < f
++	_ = i /* ERROR type parameter I is not comparable with < */ < i
++	_ = j /* ERROR type parameter J is not comparable with < */ < j
++	_ = m /* ERROR type parameter M is not comparable with < */ < m
++	_ = c /* ERROR type parameter C is not comparable with < */ < c
++}
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 7a1e1bdf2f..3884276adc 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -39,7 +39,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, seen)
++		return t != nil && comparable(t.typ, seen, nil)
+ 	})
+ }
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 44e0288d3e..c5b27e84b8 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -728,54 +728,84 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 	return target, nil, 0
+ }
+ 
+-func (check *Checker) comparison(x, y *operand, op token.Token) {
++// If switchCase is true, the operator op is ignored.
++func (check *Checker) comparison(x, y *operand, op token.Token, switchCase bool) {
++	if switchCase {
++		op = token.EQL
++	}
++
++	errOp := x  // operand for which error is reported, if any
++	cause := "" // specific error cause, if any
++
+ 	// spec: "In any comparison, the first operand must be assignable
+ 	// to the type of the second operand, or vice versa."
+-	err := ""
+-	var code errorCode
+-	xok, _ := x.assignableTo(check, y.typ, nil)
+-	yok, _ := y.assignableTo(check, x.typ, nil)
+-	if xok || yok {
+-		equality := false
+-		defined := false
+-		switch op {
+-		case token.EQL, token.NEQ:
+-			// spec: "The equality operators == and != apply to operands that are comparable."
+-			equality = true
+-			defined = Comparable(x.typ) && Comparable(y.typ) || x.isNil() && hasNil(y.typ) || y.isNil() && hasNil(x.typ)
+-		case token.LSS, token.LEQ, token.GTR, token.GEQ:
+-			// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
+-			defined = allOrdered(x.typ) && allOrdered(y.typ)
+-		default:
+-			unreachable()
+-		}
+-		if !defined {
+-			if equality && (isTypeParam(x.typ) || isTypeParam(y.typ)) {
+-				typ := x.typ
+-				if isTypeParam(y.typ) {
+-					typ = y.typ
+-				}
+-				err = check.sprintf("%s is not comparable", typ)
+-			} else {
+-				typ := x.typ
+-				if x.isNil() {
+-					typ = y.typ
+-				}
+-				err = check.sprintf("operator %s not defined on %s", op, typ)
++	code := _MismatchedTypes
++	ok, _ := x.assignableTo(check, y.typ, nil)
++	if !ok {
++		ok, _ = y.assignableTo(check, x.typ, nil)
++	}
++	if !ok {
++		// Report the error on the 2nd operand since we only
++		// know after seeing the 2nd operand whether we have
++		// a type mismatch.
++		errOp = y
++		// For now, if we're not running the compiler, use the
++		// position of x to minimize changes to existing tests.
++		if !compilerErrorMessages {
++			errOp = x
++		}
++		cause = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
++		goto Error
++	}
++
++	// check if comparison is defined for operands
++	code = _UndefinedOp
++	switch op {
++	case token.EQL, token.NEQ:
++		// spec: "The equality operators == and != apply to operands that are comparable."
++		switch {
++		case x.isNil() || y.isNil():
++			// Comparison against nil requires that the other operand type has nil.
++			typ := x.typ
++			if x.isNil() {
++				typ = y.typ
+ 			}
+-			code = _UndefinedOp
++			if !hasNil(typ) {
++				// This case should only be possible for "nil == nil".
++				// Report the error on the 2nd operand since we only
++				// know after seeing the 2nd operand whether we have
++				// an invalid comparison.
++				errOp = y
++				goto Error
++			}
++
++		case !Comparable(x.typ):
++			errOp = x
++			cause = check.incomparableCause(x.typ)
++			goto Error
++
++		case !Comparable(y.typ):
++			errOp = y
++			cause = check.incomparableCause(y.typ)
++			goto Error
+ 		}
+-	} else {
+-		err = check.sprintf("mismatched types %s and %s", x.typ, y.typ)
+-		code = _MismatchedTypes
+-	}
+ 
+-	if err != "" {
+-		check.errorf(x, code, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, err)
+-		x.mode = invalid
+-		return
++	case token.LSS, token.LEQ, token.GTR, token.GEQ:
++		// spec: The ordering operators <, <=, >, and >= apply to operands that are ordered."
++		switch {
++		case !allOrdered(x.typ):
++			errOp = x
++			goto Error
++		case !allOrdered(y.typ):
++			errOp = y
++			goto Error
++		}
++
++	default:
++		unreachable()
+ 	}
+ 
++	// comparison is ok
+ 	if x.mode == constant_ && y.mode == constant_ {
+ 		x.val = constant.MakeBool(constant.Compare(x.val, op, y.val))
+ 		// The operands are never materialized; no need to update
+@@ -793,6 +823,74 @@ func (check *Checker) comparison(x, y *operand, op token.Token) {
+ 	// spec: "Comparison operators compare two operands and yield
+ 	//        an untyped boolean value."
+ 	x.typ = Typ[UntypedBool]
++	return
++
++Error:
++	// We have an offending operand errOp and possibly an error cause.
++	if cause == "" {
++		if isTypeParam(x.typ) || isTypeParam(y.typ) {
++			// TODO(gri) should report the specific type causing the problem, if any
++			if !isTypeParam(x.typ) {
++				errOp = y
++			}
++			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
++		} else {
++			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
++		}
++	}
++	// For switches, report errors on the first (case) operand.
++	// TODO(gri) adjust error message in that case
++	if switchCase {
++		errOp = x
++	}
++	if compilerErrorMessages {
++		check.invalidOp(errOp, code, "%s %s %s (%s)", x.expr, op, y.expr, cause)
++	} else {
++		check.invalidOp(errOp, code, "cannot compare %s %s %s (%s)", x.expr, op, y.expr, cause)
++	}
++	x.mode = invalid
++}
++
++// incomparableCause returns a more specific cause why typ is not comparable.
++// If there is no more specific cause, the result is "".
++func (check *Checker) incomparableCause(typ Type) string {
++	switch under(typ).(type) {
++	case *Slice, *Signature, *Map:
++		return check.kindString(typ) + " can only be compared to nil"
++	}
++	// see if we can extract a more specific error
++	var cause string
++	comparable(typ, nil, func(format string, args ...interface{}) {
++		cause = check.sprintf(format, args...)
++	})
++	return cause
++}
++
++// kindString returns the type kind as a string.
++func (check *Checker) kindString(typ Type) string {
++	switch under(typ).(type) {
++	case *Array:
++		return "array"
++	case *Slice:
++		return "slice"
++	case *Struct:
++		return "struct"
++	case *Pointer:
++		return "pointer"
++	case *Signature:
++		return "func"
++	case *Interface:
++		if isTypeParam(typ) {
++			return check.sprintf("type parameter %s", typ)
++		}
++		return "interface"
++	case *Map:
++		return "map"
++	case *Chan:
++		return "chan"
++	default:
++		return check.sprintf("%s", typ) // catch-all
++	}
+ }
+ 
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+@@ -1014,7 +1112,7 @@ func (check *Checker) binary(x *operand, e ast.Expr, lhs, rhs ast.Expr, op token
+ 	}
+ 
+ 	if isComparison(op) {
+-		check.comparison(x, &y, op)
++		check.comparison(x, &y, op, false)
+ 		return
+ 	}
+ 
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 9ae6cd51b7..23dcd7274d 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -104,10 +104,11 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, nil)
++	return comparable(T, nil, nil)
+ }
+ 
+-func comparable(T Type, seen map[Type]bool) bool {
++// If reportf != nil, it may be used to report why T is not comparable.
++func comparable(T Type, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -125,13 +126,22 @@ func comparable(T Type, seen map[Type]bool) bool {
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, seen) {
++			if !comparable(f.typ, seen, nil) {
++				if reportf != nil {
++					reportf("struct containing %s cannot be compared", f.typ)
++				}
+ 				return false
+ 			}
+ 		}
+ 		return true
+ 	case *Array:
+-		return comparable(t.elem, seen)
++		if !comparable(t.elem, seen, nil) {
++			if reportf != nil {
++				reportf("%s cannot be compared", t)
++			}
++			return false
++		}
++		return true
+ 	case *Interface:
+ 		return !isTypeParam(T) || t.typeSet().IsComparable(seen)
+ 	}
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 802673567d..5ceae08daa 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -248,7 +248,7 @@ L:
+ 		}
+ 		// Order matters: By comparing v against x, error positions are at the case values.
+ 		res := v // keep original v unchanged
+-		check.comparison(&res, x, token.EQL)
++		check.comparison(&res, x, token.EQL, true)
+ 		if res.mode == invalid {
+ 			continue L
+ 		}
+diff --git a/src/go/types/testdata/check/expr2.src b/src/go/types/testdata/check/expr2.src
+index 8757fd9e48..6133dbb42b 100644
+--- a/src/go/types/testdata/check/expr2.src
++++ b/src/go/types/testdata/check/expr2.src
+@@ -9,8 +9,8 @@ package expr2
+ func _bool() {
+ 	const t = true == true
+ 	const f = true == false
+-	_ = t /* ERROR "cannot compare" */ < f
+-	_ = 0 /* ERROR "mismatched types untyped int and untyped bool" */ == t
++	_ = t /* ERROR cannot compare */ < f
++	_ = 0 /* ERROR mismatched types untyped int and untyped bool */ == t
+ 	var b bool
+ 	var x, y float32
+ 	b = x < y
+@@ -20,7 +20,7 @@ func _bool() {
+ 
+ // corner cases
+ var (
+-	v0 = nil /* ERROR "cannot compare" */ == nil
++	v0 = nil == nil // ERROR operator == not defined on untyped nil
+ )
+ 
+ func arrays() {
+@@ -40,7 +40,7 @@ func arrays() {
+ 	_ = c /* ERROR mismatched types */ == d
+ 
+ 	var e [10]func() int
+-	_ = e /* ERROR == not defined */ == e
++	_ = e /* ERROR \[10\]func\(\) int cannot be compared */ == e
+ }
+ 
+ func structs() {
+@@ -79,8 +79,8 @@ func structs() {
+ 
+ func pointers() {
+ 	// nil
+-	_ = nil /* ERROR == not defined */ == nil
+-	_ = nil /* ERROR != not defined */ != nil
++	_ = nil == nil // ERROR operator == not defined on untyped nil
++	_ = nil != nil // ERROR operator != not defined on untyped nil
+ 	_ = nil /* ERROR < not defined */ < nil
+ 	_ = nil /* ERROR <= not defined */ <= nil
+ 	_ = nil /* ERROR > not defined */ > nil
+@@ -211,16 +211,16 @@ func interfaces() {
+ 
+ 	// issue #28164
+ 	// testcase from issue
+-	_ = interface /* ERROR cannot compare */ {}(nil) == []int(nil)
++	_ = interface{}(nil) == [ /* ERROR slice can only be compared to nil */ ]int(nil)
+ 
+ 	// related cases
+ 	var e interface{}
+ 	var s []int
+ 	var x int
+-	_ = e /* ERROR cannot compare */ == s
+-	_ = s /* ERROR cannot compare */ == e
+-	_ = e /* ERROR cannot compare */ < x
+-	_ = x /* ERROR cannot compare */ < e
++	_ = e == s // ERROR slice can only be compared to nil
++	_ = s /* ERROR slice can only be compared to nil */ == e
++	_ = e /* ERROR operator < not defined on interface */ < x
++	_ = x < e // ERROR operator < not defined on interface
+ }
+ 
+ func slices() {
+@@ -231,7 +231,7 @@ func slices() {
+ 	_ = s /* ERROR < not defined */ < nil
+ 
+ 	// slices are not otherwise comparable
+-	_ = s /* ERROR == not defined */ == s
++	_ = s /* ERROR slice can only be compared to nil */ == s
+ 	_ = s /* ERROR < not defined */ < s
+ }
+ 
+@@ -243,7 +243,7 @@ func maps() {
+ 	_ = m /* ERROR < not defined */ < nil
+ 
+ 	// maps are not otherwise comparable
+-	_ = m /* ERROR == not defined */ == m
++	_ = m /* ERROR map can only be compared to nil */ == m
+ 	_ = m /* ERROR < not defined */ < m
+ }
+ 
+@@ -255,6 +255,6 @@ func funcs() {
+ 	_ = f /* ERROR < not defined */ < nil
+ 
+ 	// funcs are not otherwise comparable
+-	_ = f /* ERROR == not defined */ == f
++	_ = f /* ERROR func can only be compared to nil */ == f
+ 	_ = f /* ERROR < not defined */ < f
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue48712.go2 b/src/go/types/testdata/fixedbugs/issue48712.go2
+index bad8712fda..ab397560a8 100644
+--- a/src/go/types/testdata/fixedbugs/issue48712.go2
++++ b/src/go/types/testdata/fixedbugs/issue48712.go2
+@@ -10,7 +10,7 @@ func _[P comparable](x, y P) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P comparable](x P, y any) {
+@@ -19,23 +19,23 @@ func _[P comparable](x P, y any) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x, y P) {
+-	_ = x /* ERROR P is not comparable */ == x
+-	_ = x /* ERROR P is not comparable */ == y
+-	_ = y /* ERROR P is not comparable */ == x
+-	_ = y /* ERROR P is not comparable */ == y
++	_ = x /* ERROR type parameter P is not comparable with == */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == y
++	_ = y /* ERROR type parameter P is not comparable with == */ == x
++	_ = y /* ERROR type parameter P is not comparable with == */ == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+ 
+ func _[P any](x P, y any) {
+-	_ = x /* ERROR P is not comparable */ == x
+-	_ = x /* ERROR P is not comparable */ == y
+-	_ = y /* ERROR P is not comparable */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == x
++	_ = x /* ERROR type parameter P is not comparable with == */ == y
++	_ = y == x // ERROR type parameter P is not comparable with ==
+ 	_ = y == y
+ 
+-	_ = x /* ERROR operator < not defined on P */ < y
++	_ = x /* ERROR type parameter P is not comparable with < */ < y
+ }
+diff --git a/src/go/types/testdata/fixedbugs/issue50918.go b/src/go/types/testdata/fixedbugs/issue50918.go
+new file mode 100644
+index 0000000000..41604b8bad
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue50918.go
+@@ -0,0 +1,21 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type thing1 struct {
++	things []string
++}
++
++type thing2 struct {
++	things []thing1
++}
++
++func _() {
++	var a1, b1 thing1
++	_ = a1 /* ERROR struct containing \[\]string cannot be compared */ == b1
++
++	var a2, b2 thing2
++	_ = a2 /* ERROR struct containing \[\]thing1 cannot be compared */ == b2
++}
+diff --git a/src/go/types/testdata/spec/comparisons.go2 b/src/go/types/testdata/spec/comparisons.go2
+new file mode 100644
+index 0000000000..62c95d47d7
+--- /dev/null
++++ b/src/go/types/testdata/spec/comparisons.go2
+@@ -0,0 +1,120 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package comparisons
++
++type (
++	B int // basic type representative
++	A [10]func()
++	L []byte
++	S struct{ f []byte }
++	P *S
++	F func()
++	I interface{}
++	M map[string]int
++	C chan int
++)
++
++var (
++	b B
++	a A
++	l L
++	s S
++	p P
++	f F
++	i I
++	m M
++	c C
++)
++
++func _() {
++	_ = nil == nil // ERROR operator == not defined on untyped nil
++	_ = b == b
++	_ = a /* ERROR \[10\]func\(\) cannot be compared */ == a
++	_ = l /* ERROR slice can only be compared to nil */ == l
++	_ = s /* ERROR struct containing \[\]byte cannot be compared */ == s
++	_ = p == p
++	_ = f /* ERROR func can only be compared to nil */ == f
++	_ = i == i
++	_ = m /* ERROR map can only be compared to nil */ == m
++	_ = c == c
++
++	_ = b /* ERROR mismatched types */ == nil 
++	_ = a /* ERROR mismatched types */ == nil
++	_ = l == nil
++	_ = s /* ERROR mismatched types */ == nil
++	_ = p == nil
++	_ = f == nil
++	_ = i == nil
++	_ = m == nil
++	_ = c == nil
++
++	_ = nil /* ERROR operator < not defined on untyped nil */ < nil
++	_ = b < b
++	_ = a /* ERROR operator < not defined on array */ < a
++	_ = l /* ERROR operator < not defined on slice */ < l
++	_ = s /* ERROR operator < not defined on struct */ < s
++	_ = p /* ERROR operator < not defined on pointer */ < p
++	_ = f /* ERROR operator < not defined on func */ < f
++	_ = i /* ERROR operator < not defined on interface */ < i
++	_ = m /* ERROR operator < not defined on map */ < m
++	_ = c /* ERROR operator < not defined on chan */ < c
++}
++
++func _[
++	B int,
++	A [10]func(),
++	L []byte,
++	S struct{ f []byte },
++	P *S,
++	F func(),
++	I interface{},
++	J comparable,
++	M map[string]int,
++	C chan int,
++] (
++	b B,
++	a A,
++	l L,
++	s S,
++	p P,
++	f F,
++	i I,
++	j J,
++	m M,
++	c C,
++) {
++	_ = b == b
++	_ = a /* ERROR type parameter A is not comparable with == */ == a
++	_ = l /* ERROR type parameter L is not comparable with == */ == l
++	_ = s /* ERROR type parameter S is not comparable with == */ == s
++	_ = p == p
++	_ = f /* ERROR type parameter F is not comparable with == */ == f
++	_ = i /* ERROR type parameter I is not comparable with == */ == i
++	_ = j == j
++	_ = m /* ERROR type parameter M is not comparable with == */ == m
++	_ = c == c
++
++	_ = b /* ERROR mismatched types */ == nil
++	_ = a /* ERROR mismatched types */ == nil
++	_ = l == nil
++	_ = s /* ERROR mismatched types */ == nil
++	_ = p == nil
++	_ = f == nil
++	_ = i /* ERROR mismatched types */ == nil
++	_ = j /* ERROR mismatched types */ == nil
++	_ = m == nil
++	_ = c == nil
++
++	_ = b < b
++	_ = a /* ERROR type parameter A is not comparable with < */ < a
++	_ = l /* ERROR type parameter L is not comparable with < */ < l
++	_ = s /* ERROR type parameter S is not comparable with < */ < s
++	_ = p /* ERROR type parameter P is not comparable with < */ < p
++	_ = f /* ERROR type parameter F is not comparable with < */ < f
++	_ = i /* ERROR type parameter I is not comparable with < */ < i
++	_ = j /* ERROR type parameter J is not comparable with < */ < j
++	_ = m /* ERROR type parameter M is not comparable with < */ < m
++	_ = c /* ERROR type parameter C is not comparable with < */ < c
++}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 4598daacb0..9f4831e976 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -37,7 +37,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, seen)
++		return t != nil && comparable(t.typ, seen, nil)
+ 	})
+ }
+ 
+diff --git a/test/fixedbugs/issue11737.go b/test/fixedbugs/issue11737.go
+index eb4bfe8964..aa4abbc327 100644
+--- a/test/fixedbugs/issue11737.go
++++ b/test/fixedbugs/issue11737.go
+@@ -12,6 +12,6 @@ func f()
+ 
+ func s(x interface{}) {
+ 	switch x {
+-	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)|cannot compare"
++	case f: // ERROR "invalid case f \(type func\(\)\) in switch \(incomparable type\)|can only be compared to nil"
+ 	}
+ }

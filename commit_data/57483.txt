@@ -11,6 +11,43 @@ Date:   Wed Aug 9 00:53:03 2023 -0700
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/internal/objabi/flag.go | 11 +++++++++--
  1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index 847ed48cfb..ee7d2fed49 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -7,6 +7,7 @@ package objabi
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/bisect"
+ 	"internal/buildcfg"
+ 	"io"
+ 	"log"
+@@ -262,8 +263,8 @@ func NewDebugFlag(debug interface{}, debugSSA DebugSSA) *DebugFlag {
+ 
+ 		switch ptr.(type) {
+ 		default:
+-			panic(fmt.Sprintf("debug.%s has invalid type %v (must be int or string)", f.Name, f.Type))
+-		case *int, *string:
++			panic(fmt.Sprintf("debug.%s has invalid type %v (must be int, string, or *bisect.Matcher)", f.Name, f.Type))
++		case *int, *string, **bisect.Matcher:
+ 			// ok
+ 		}
+ 		flag.tab[name] = debugField{name, help, concurrent == "ok", ptr}
+@@ -328,6 +329,12 @@ func (f *DebugFlag) Set(debugstr string) error {
+ 					log.Fatalf("invalid debug value %v", name)
+ 				}
+ 				*vp = val
++			case **bisect.Matcher:
++				var err error
++				*vp, err = bisect.New(valstring)
++				if err != nil {
++					log.Fatalf("debug flag %v: %v", name, err)
++				}
+ 			default:
+ 				panic("bad debugtab type")
+ 			}

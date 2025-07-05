@@ -10,6 +10,25 @@ Date:   Thu Dec 19 13:02:06 2013 +0900
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/43470051
-
+---
  src/pkg/net/dnsconfig_unix_test.go | 6 ++----
  1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/pkg/net/dnsconfig_unix_test.go b/src/pkg/net/dnsconfig_unix_test.go
+index b24291c1c2..697c69f995 100644
+--- a/src/pkg/net/dnsconfig_unix_test.go
++++ b/src/pkg/net/dnsconfig_unix_test.go
+@@ -6,11 +6,9 @@
+ 
+ package net
+ 
+-import (
+-	"testing"
+-)
++import "testing"
+ 
+-func TestReadConfig(t *testing.T) {
++func TestDNSReadConfig(t *testing.T) {
+ 	dnsConfig, err := dnsReadConfig("testdata/resolv.conf")
+ 	if err != nil {
+ 		t.Fatal(err)

@@ -8,7 +8,7 @@ Date:   Mon Mar 30 02:59:10 2015 +0000
     Reviewed-on: https://go-review.googlesource.com/8252
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/6l/asm.go              |  6 +++-
  src/cmd/6l/obj.go              |  2 +-
  src/cmd/internal/ld/data.go    | 19 ++++++++---
@@ -21,3 +21,483 @@ Date:   Mon Mar 30 02:59:10 2015 +0000
  src/cmd/internal/ld/pobj.go    | 18 +++++++++--
  src/cmd/internal/ld/symtab.go  | 35 +++++++++++++-------
  11 files changed, 146 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/6l/asm.go b/src/cmd/6l/asm.go
+index c55dae462d..07bb7c418f 100644
+--- a/src/cmd/6l/asm.go
++++ b/src/cmd/6l/asm.go
+@@ -313,7 +313,11 @@ func elfreloc1(r *ld.Reloc, sectoff int64) int {
+ 	case ld.R_CALL:
+ 		if r.Siz == 4 {
+ 			if r.Xsym.Type == ld.SDYNIMPORT {
+-				ld.Thearch.Vput(ld.R_X86_64_GOTPCREL | uint64(elfsym)<<32)
++				if ld.DynlinkingGo() {
++					ld.Thearch.Vput(ld.R_X86_64_PLT32 | uint64(elfsym)<<32)
++				} else {
++					ld.Thearch.Vput(ld.R_X86_64_GOTPCREL | uint64(elfsym)<<32)
++				}
+ 			} else {
+ 				ld.Thearch.Vput(ld.R_X86_64_PC32 | uint64(elfsym)<<32)
+ 			}
+diff --git a/src/cmd/6l/obj.go b/src/cmd/6l/obj.go
+index ad1cf92bd5..a1e012bec7 100644
+--- a/src/cmd/6l/obj.go
++++ b/src/cmd/6l/obj.go
+@@ -91,7 +91,7 @@ func archinit() {
+ 		ld.Linkmode = ld.LinkInternal
+ 	}
+ 
+-	if ld.Buildmode == ld.BuildmodeCShared {
++	if ld.Buildmode == ld.BuildmodeCShared || ld.DynlinkingGo() {
+ 		ld.Linkmode = ld.LinkExternal
+ 	}
+ 
+diff --git a/src/cmd/internal/ld/data.go b/src/cmd/internal/ld/data.go
+index 76446b1187..39dfea910f 100644
+--- a/src/cmd/internal/ld/data.go
++++ b/src/cmd/internal/ld/data.go
+@@ -333,8 +333,14 @@ func relocsym(s *LSym) {
+ 		}
+ 
+ 		if r.Sym != nil && (r.Sym.Type&(SMASK|SHIDDEN) == 0 || r.Sym.Type&SMASK == SXREF) {
+-			Diag("%s: not defined", r.Sym.Name)
+-			continue
++			// When putting the runtime but not main into a shared library
++			// these symbols are undefined and that's OK.
++			if Buildmode == BuildmodeShared && (r.Sym.Name == "main.main" || r.Sym.Name == "main.init") {
++				r.Sym.Type = SDYNIMPORT
++			} else {
++				Diag("%s: not defined", r.Sym.Name)
++				continue
++			}
+ 		}
+ 
+ 		if r.Type >= 256 {
+@@ -344,8 +350,9 @@ func relocsym(s *LSym) {
+ 			continue
+ 		}
+ 
+-		// Solaris needs the ability to reference dynimport symbols.
+-		if HEADTYPE != Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT {
++		// We need to be able to reference dynimport symbols when linking against
++		// shared libraries, and Solaris needs it always
++		if HEADTYPE != Hsolaris && r.Sym != nil && r.Sym.Type == SDYNIMPORT && !DynlinkingGo() {
+ 			Diag("unhandled relocation for %s (type %d rtype %d)", r.Sym.Name, r.Sym.Type, r.Type)
+ 		}
+ 		if r.Sym != nil && r.Sym.Type != STLSBSS && !r.Sym.Reachable {
+@@ -1322,7 +1329,7 @@ func dodata() {
+ 	sect.Length = uint64(datsize) - sect.Vaddr
+ 
+ 	/* shared library initializer */
+-	if Buildmode == BuildmodeCShared {
++	if Buildmode == BuildmodeCShared || DynlinkingGo() {
+ 		sect := addsection(&Segdata, ".init_array", 06)
+ 		sect.Align = maxalign(s, SINITARR)
+ 		datsize = Rnd(datsize, int64(sect.Align))
+@@ -1728,10 +1735,12 @@ func address() {
+ 	xdefine("runtime.etypelink", SRODATA, int64(typelink.Vaddr+typelink.Length))
+ 
+ 	sym := Linklookup(Ctxt, "runtime.gcdata", 0)
++	sym.Local = true
+ 	xdefine("runtime.egcdata", SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(Ctxt, "runtime.egcdata", 0).Sect = sym.Sect
+ 
+ 	sym = Linklookup(Ctxt, "runtime.gcbss", 0)
++	sym.Local = true
+ 	xdefine("runtime.egcbss", SRODATA, Symaddr(sym)+sym.Size)
+ 	Linklookup(Ctxt, "runtime.egcbss", 0).Sect = sym.Sect
+ 
+diff --git a/src/cmd/internal/ld/elf.go b/src/cmd/internal/ld/elf.go
+index 3448fe6ce4..a7674da311 100644
+--- a/src/cmd/internal/ld/elf.go
++++ b/src/cmd/internal/ld/elf.go
+@@ -1658,7 +1658,7 @@ func doelf() {
+ 		Addstring(shstrtab, ".note.GNU-stack")
+ 	}
+ 
+-	if Buildmode == BuildmodeCShared {
++	if Buildmode == BuildmodeCShared || DynlinkingGo() {
+ 		Addstring(shstrtab, ".init_array")
+ 		switch Thearch.Thechar {
+ 		case '6', '7', '9':
+diff --git a/src/cmd/internal/ld/go.go b/src/cmd/internal/ld/go.go
+index fac72f7d05..55c9bb20a9 100644
+--- a/src/cmd/internal/ld/go.go
++++ b/src/cmd/internal/ld/go.go
+@@ -619,47 +619,58 @@ func deadcode() {
+ 		fmt.Fprintf(&Bso, "%5.2f deadcode\n", obj.Cputime())
+ 	}
+ 
+-	mark(Linklookup(Ctxt, INITENTRY, 0))
+-	for i := 0; i < len(markextra); i++ {
+-		mark(Linklookup(Ctxt, markextra[i], 0))
+-	}
+-
+-	for i := 0; i < len(dynexp); i++ {
+-		mark(dynexp[i])
+-	}
++	if Buildmode == BuildmodeShared {
++		// Mark all symbols as reachable when building a
++		// shared library.
++		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++			if s.Type != 0 {
++				mark(s)
++			}
++		}
++		mark(Linkrlookup(Ctxt, "main.main", 0))
++		mark(Linkrlookup(Ctxt, "main.init", 0))
++	} else {
++		mark(Linklookup(Ctxt, INITENTRY, 0))
++		for i := 0; i < len(markextra); i++ {
++			mark(Linklookup(Ctxt, markextra[i], 0))
++		}
+ 
+-	markflood()
++		for i := 0; i < len(dynexp); i++ {
++			mark(dynexp[i])
++		}
++		markflood()
+ 
+-	// keep each beginning with 'typelink.' if the symbol it points at is being kept.
+-	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+-		if strings.HasPrefix(s.Name, "go.typelink.") {
+-			s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
++		// keep each beginning with 'typelink.' if the symbol it points at is being kept.
++		for s := Ctxt.Allsym; s != nil; s = s.Allsym {
++			if strings.HasPrefix(s.Name, "go.typelink.") {
++				s.Reachable = len(s.R) == 1 && s.R[0].Sym.Reachable
++			}
+ 		}
+-	}
+ 
+-	// remove dead text but keep file information (z symbols).
+-	var last *LSym
++		// remove dead text but keep file information (z symbols).
++		var last *LSym
+ 
+-	for s := Ctxt.Textp; s != nil; s = s.Next {
+-		if !s.Reachable {
+-			continue
++		for s := Ctxt.Textp; s != nil; s = s.Next {
++			if !s.Reachable {
++				continue
++			}
++
++			// NOTE: Removing s from old textp and adding to new, shorter textp.
++			if last == nil {
++				Ctxt.Textp = s
++			} else {
++				last.Next = s
++			}
++			last = s
+ 		}
+ 
+-		// NOTE: Removing s from old textp and adding to new, shorter textp.
+ 		if last == nil {
+-			Ctxt.Textp = s
++			Ctxt.Textp = nil
++			Ctxt.Etextp = nil
+ 		} else {
+-			last.Next = s
++			last.Next = nil
++			Ctxt.Etextp = last
+ 		}
+-		last = s
+-	}
+-
+-	if last == nil {
+-		Ctxt.Textp = nil
+-		Ctxt.Etextp = nil
+-	} else {
+-		last.Next = nil
+-		Ctxt.Etextp = last
+ 	}
+ 
+ 	for s := Ctxt.Allsym; s != nil; s = s.Allsym {
+diff --git a/src/cmd/internal/ld/lib.go b/src/cmd/internal/ld/lib.go
+index 2829b5b9f4..ed54ce87ae 100644
+--- a/src/cmd/internal/ld/lib.go
++++ b/src/cmd/internal/ld/lib.go
+@@ -150,6 +150,14 @@ type Section struct {
+ 	Rellen  uint64
+ }
+ 
++// DynlinkingGo returns whether we are producing Go code that can live
++// in separate shared libraries linked together at runtime.
++func DynlinkingGo() bool {
++	// TODO(mwhudson): This is a bit silly for now, but it will need to have
++	// "|| Linkshared" appended when a subsequent change adds that flag.
++	return Buildmode == BuildmodeShared
++}
++
+ var (
+ 	Thestring          string
+ 	Thelinkarch        *LinkArch
+@@ -241,11 +249,15 @@ func Lflag(arg string) {
+ //   "c-shared": build a main package, plus all packages that it imports, into a
+ //     single C shared library. The only callable symbols will be those functions
+ //     marked as exported.
++//   "shared": combine all packages passed on the command line, and their
++//     dependencies, into a single shared library that will be used when
++//     building with the -linkshared option.
+ type BuildMode uint8
+ 
+ const (
+ 	BuildmodeExe BuildMode = iota
+ 	BuildmodeCShared
++	BuildmodeShared
+ )
+ 
+ func (mode *BuildMode) Set(s string) error {
+@@ -260,6 +272,13 @@ func (mode *BuildMode) Set(s string) error {
+ 			return fmt.Errorf("not supported on %s", goarch)
+ 		}
+ 		*mode = BuildmodeCShared
++	case "shared":
++		goos := obj.Getgoos()
++		goarch := obj.Getgoarch()
++		if goos != "linux" || goarch != "amd64" {
++			return fmt.Errorf("not supported on %s/%s", goos, goarch)
++		}
++		*mode = BuildmodeShared
+ 	}
+ 	return nil
+ }
+@@ -270,6 +289,8 @@ func (mode *BuildMode) String() string {
+ 		return "exe"
+ 	case BuildmodeCShared:
+ 		return "c-shared"
++	case BuildmodeShared:
++		return "shared"
+ 	}
+ 	return fmt.Sprintf("BuildMode(%d)", uint8(*mode))
+ }
+@@ -321,12 +342,16 @@ func libinit() {
+ 			INITENTRY = fmt.Sprintf("_rt0_%s_%s_lib", goarch, goos)
+ 		case BuildmodeExe:
+ 			INITENTRY = fmt.Sprintf("_rt0_%s_%s", goarch, goos)
++		case BuildmodeShared:
++			// No INITENTRY for -buildmode=shared
+ 		default:
+ 			Diag("unknown INITENTRY for buildmode %v", Buildmode)
+ 		}
+ 	}
+ 
+-	Linklookup(Ctxt, INITENTRY, 0).Type = SXREF
++	if !DynlinkingGo() {
++		Linklookup(Ctxt, INITENTRY, 0).Type = SXREF
++	}
+ }
+ 
+ func Errorexit() {
+@@ -790,6 +815,16 @@ func hostlink() {
+ 	if Buildmode == BuildmodeCShared {
+ 		argv = append(argv, "-Wl,-Bsymbolic")
+ 		argv = append(argv, "-shared")
++	} else if Buildmode == BuildmodeShared {
++		// TODO(mwhudson): unless you do this, dynamic relocations fill
++		// out the findfunctab table and for some reason shared libraries
++		// and the executable both define a main function and putting the
++		// address of executable's main into the shared libraries
++		// findfunctab violates the assumptions of the runtime.  TBH, I
++		// think we may well end up wanting to use -Bsymbolic here
++		// anyway.
++		argv = append(argv, "-Wl,-Bsymbolic-functions")
++		argv = append(argv, "-shared")
+ 	}
+ 
+ 	argv = append(argv, "-o")
+@@ -1162,7 +1197,8 @@ func stkcheck(up *Chain, depth int) int {
+ 		// external function.
+ 		// should never be called directly.
+ 		// only diagnose the direct caller.
+-		if depth == 1 && s.Type != SXREF {
++		// TODO(mwhudson): actually think about this.
++		if depth == 1 && s.Type != SXREF && !DynlinkingGo() {
+ 			Diag("call to external function %s", s.Name)
+ 		}
+ 		return -1
+@@ -1477,6 +1513,7 @@ func xdefine(p string, t int, v int64) {
+ 	s.Value = v
+ 	s.Reachable = true
+ 	s.Special = 1
++	s.Local = true
+ }
+ 
+ func datoff(addr int64) int64 {
+diff --git a/src/cmd/internal/ld/link.go b/src/cmd/internal/ld/link.go
+index 0a63567dd1..47af2ae77f 100644
+--- a/src/cmd/internal/ld/link.go
++++ b/src/cmd/internal/ld/link.go
+@@ -74,6 +74,7 @@ type LSym struct {
+ 	Pcln        *Pcln
+ 	P           []byte
+ 	R           []Reloc
++	Local       bool
+ }
+ 
+ type Reloc struct {
+diff --git a/src/cmd/internal/ld/objfile.go b/src/cmd/internal/ld/objfile.go
+index 34176bee6e..ec846736ac 100644
+--- a/src/cmd/internal/ld/objfile.go
++++ b/src/cmd/internal/ld/objfile.go
+@@ -327,12 +327,14 @@ func rdsym(ctxt *Link, f *Biobuf, pkg string) *LSym {
+ 			x, _ := strconv.ParseUint(s.Name[5:], 16, 32)
+ 			i32 := int32(x)
+ 			s.Type = SRODATA
++			s.Local = true
+ 			Adduint32(ctxt, s, uint32(i32))
+ 			s.Reachable = false
+ 		} else if strings.HasPrefix(s.Name, "$f64.") || strings.HasPrefix(s.Name, "$i64.") {
+ 			x, _ := strconv.ParseUint(s.Name[5:], 16, 64)
+ 			i64 := int64(x)
+ 			s.Type = SRODATA
++			s.Local = true
+ 			Adduint64(ctxt, s, uint64(i64))
+ 			s.Reachable = false
+ 		}
+diff --git a/src/cmd/internal/ld/pcln.go b/src/cmd/internal/ld/pcln.go
+index 65ca0c32ea..042be01d21 100644
+--- a/src/cmd/internal/ld/pcln.go
++++ b/src/cmd/internal/ld/pcln.go
+@@ -380,6 +380,7 @@ func findfunctab() {
+ 	t := Linklookup(Ctxt, "runtime.findfunctab", 0)
+ 	t.Type = SRODATA
+ 	t.Reachable = true
++	t.Local = true
+ 
+ 	// find min and max address
+ 	min := Ctxt.Textp.Value
+diff --git a/src/cmd/internal/ld/pobj.go b/src/cmd/internal/ld/pobj.go
+index 32a8908440..539e3d353a 100644
+--- a/src/cmd/internal/ld/pobj.go
++++ b/src/cmd/internal/ld/pobj.go
+@@ -152,7 +152,7 @@ func Ldmain() {
+ 		}
+ 	}
+ 
+-	if flag.NArg() != 1 {
++	if Buildmode != BuildmodeShared && flag.NArg() != 1 {
+ 		usage()
+ 	}
+ 
+@@ -181,7 +181,21 @@ func Ldmain() {
+ 	}
+ 	Bflush(&Bso)
+ 
+-	addlibpath(Ctxt, "command line", "command line", flag.Arg(0), "main")
++	if Buildmode == BuildmodeShared {
++		for i := 0; i < flag.NArg(); i++ {
++			arg := flag.Arg(i)
++			parts := strings.SplitN(arg, "=", 2)
++			var pkgpath, file string
++			if len(parts) == 1 {
++				pkgpath, file = "main", arg
++			} else {
++				pkgpath, file = parts[0], parts[1]
++			}
++			addlibpath(Ctxt, "command line", "command line", file, pkgpath)
++		}
++	} else {
++		addlibpath(Ctxt, "command line", "command line", flag.Arg(0), "main")
++	}
+ 	loadlib()
+ 
+ 	if Thearch.Thechar == '5' {
+diff --git a/src/cmd/internal/ld/symtab.go b/src/cmd/internal/ld/symtab.go
+index af818ce3aa..7bcc1c667a 100644
+--- a/src/cmd/internal/ld/symtab.go
++++ b/src/cmd/internal/ld/symtab.go
+@@ -40,8 +40,13 @@ func putelfstr(s string) int {
+ 		putelfstr("")
+ 	}
+ 
+-	// Rewrite · to . for ASCII-only tools like DTrace (sigh)
+-	s = strings.Replace(s, "·", ".", -1)
++	// When dynamically linking, we create LSym's by reading the names from
++	// the symbol tables of the shared libraries and so the names need to
++	// match exactly.  Tools like DTrace will have to wait for now.
++	if !DynlinkingGo() {
++		// Rewrite · to . for ASCII-only tools like DTrace (sigh)
++		s = strings.Replace(s, "·", ".", -1)
++	}
+ 
+ 	n := len(s) + 1
+ 	for len(Elfstrdat)+n > cap(Elfstrdat) {
+@@ -130,7 +135,7 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	// maybe one day STB_WEAK.
+ 	bind := STB_GLOBAL
+ 
+-	if ver != 0 || (x.Type&SHIDDEN != 0) {
++	if ver != 0 || (x.Type&SHIDDEN != 0) || x.Local {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -138,7 +143,8 @@ func putelfsym(x *LSym, s string, t int, addr int64, size int64, ver int, go_ *L
+ 	// to get the exported symbols put into the dynamic symbol table.
+ 	// To avoid filling the dynamic table with lots of unnecessary symbols,
+ 	// mark all Go symbols local (not global) in the final executable.
+-	if Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
++	// But when we're dynamically linking, we need all those global symbols.
++	if !DynlinkingGo() && Linkmode == LinkExternal && x.Cgoexport&CgoExportStatic == 0 && elfshnum != SHN_UNDEF {
+ 		bind = STB_LOCAL
+ 	}
+ 
+@@ -322,21 +328,26 @@ func symtab() {
+ 	xdefine("runtime.egcbss", SRODATA, 0)
+ 
+ 	// pseudo-symbols to mark locations of type, string, and go string data.
+-	s = Linklookup(Ctxt, "type.*", 0)
+-
+-	s.Type = STYPE
+-	s.Size = 0
+-	s.Reachable = true
+-	symtype := s
++	var symtype *LSym
++	if !DynlinkingGo() {
++		s = Linklookup(Ctxt, "type.*", 0)
++
++		s.Type = STYPE
++		s.Size = 0
++		s.Reachable = true
++		symtype = s
++	}
+ 
+ 	s = Linklookup(Ctxt, "go.string.*", 0)
+ 	s.Type = SGOSTRING
++	s.Local = true
+ 	s.Size = 0
+ 	s.Reachable = true
+ 	symgostring := s
+ 
+ 	s = Linklookup(Ctxt, "go.func.*", 0)
+ 	s.Type = SGOFUNC
++	s.Local = true
+ 	s.Size = 0
+ 	s.Reachable = true
+ 	symgofunc := s
+@@ -344,6 +355,7 @@ func symtab() {
+ 	symtypelink := Linklookup(Ctxt, "runtime.typelink", 0)
+ 
+ 	symt = Linklookup(Ctxt, "runtime.symtab", 0)
++	symt.Local = true
+ 	symt.Type = SSYMTAB
+ 	symt.Size = 0
+ 	symt.Reachable = true
+@@ -358,7 +370,7 @@ func symtab() {
+ 		if !s.Reachable || s.Special != 0 || s.Type != SRODATA {
+ 			continue
+ 		}
+-		if strings.HasPrefix(s.Name, "type.") {
++		if strings.HasPrefix(s.Name, "type.") && !DynlinkingGo() {
+ 			s.Type = STYPE
+ 			s.Hide = 1
+ 			s.Outer = symtype
+@@ -400,6 +412,7 @@ func symtab() {
+ 	moduledata.Type = SNOPTRDATA
+ 	moduledata.Size = 0 // truncate symbol back to 0 bytes to reinitialize
+ 	moduledata.Reachable = true
++	moduledata.Local = true
+ 	// The pclntab slice
+ 	Addaddr(Ctxt, moduledata, Linklookup(Ctxt, "runtime.pclntab", 0))
+ 	adduint(Ctxt, moduledata, uint64(Linklookup(Ctxt, "runtime.pclntab", 0).Size))

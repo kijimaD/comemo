@@ -13,7 +13,51 @@ Date:   Wed Mar 25 12:26:32 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/goobj/read.go     | 3 ++-
  src/cmd/internal/goobj2/objfile.go | 4 ++--
  2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/goobj/read.go b/src/cmd/internal/goobj/read.go
+index e61e95dcc8..027c77e725 100644
+--- a/src/cmd/internal/goobj/read.go
++++ b/src/cmd/internal/goobj/read.go
+@@ -11,6 +11,7 @@ package goobj
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmd/internal/goobj2"
+ 	"cmd/internal/objabi"
+ 	"errors"
+ 	"fmt"
+@@ -506,7 +507,7 @@ func (r *objReader) parseObject(prefix []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	if bytes.Equal(p, []byte("\x00go114LD")) {
++	if bytes.Equal(p, []byte(goobj2.Magic)) {
+ 		r.readNew()
+ 		return nil
+ 	}
+diff --git a/src/cmd/internal/goobj2/objfile.go b/src/cmd/internal/goobj2/objfile.go
+index 3336f6cfff..2f275f3258 100644
+--- a/src/cmd/internal/goobj2/objfile.go
++++ b/src/cmd/internal/goobj2/objfile.go
+@@ -19,7 +19,7 @@ import (
+ // New object file format.
+ //
+ //    Header struct {
+-//       Magic   [...]byte   // "\x00go114LD"
++//       Magic   [...]byte   // "\x00go115ld"
+ //       Flags   uint32
+ //       // TODO: Fingerprint
+ //       Offsets [...]uint32 // byte offset of each block below
+@@ -153,7 +153,7 @@ type Header struct {
+ 	Offsets [NBlk]uint32
+ }
+ 
+-const Magic = "\x00go114LD"
++const Magic = "\x00go115ld"
+ 
+ func (h *Header) Write(w *Writer) {
+ 	w.RawString(h.Magic)

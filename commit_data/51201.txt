@@ -16,8 +16,157 @@ Date:   Tue Dec 14 12:48:31 2021 -0500
     Run-TryBot: Robert Findley <rfindley@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/types/api.go      |  6 ------
  src/go/types/api_test.go | 13 ++++++++++++
  src/go/types/union.go    | 55 +++++++++++++++++++++++++++++++++---------------
  3 files changed, 51 insertions(+), 23 deletions(-)
+
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index c4d81c1491..51d58c49aa 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -197,12 +197,6 @@ type Info struct {
+ 	// identifier z in a variable declaration 'var z int' is found
+ 	// only in the Defs map, and identifiers denoting packages in
+ 	// qualified identifiers are collected in the Uses map.
+-	//
+-	// For binary expressions representing unions in constraint
+-	// position or type elements in interfaces, a union type is
+-	// recorded for the top-level expression only. For instance,
+-	// given the constraint a|b|c, the union type for (a|b)|c
+-	// is recorded, but not the union type for a|b.
+ 	Types map[ast.Expr]TypeAndValue
+ 
+ 	// Instances maps identifiers denoting parameterized types or functions to
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 1ee9806fd0..e55255d75e 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -379,10 +379,23 @@ func TestTypesInfo(t *testing.T) {
+ 		{genericPkg + `u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+ 		{genericPkg + `u2a; func _[_ interface{int|string}]() {}`, `int | string`, `int|string`},
+ 		{genericPkg + `u3a; func _[_ interface{int|string|~bool}]() {}`, `int | string | ~bool`, `int|string|~bool`},
++		{genericPkg + `u3b; func _[_ interface{int|string|~bool}]() {}`, `int | string`, `int|string`},
++		{genericPkg + `u3b; func _[_ interface{int|string|~bool}]() {}`, `~bool`, `~bool`},
++		{genericPkg + `u3b; func _[_ interface{int|string|~float64|~bool}]() {}`, `int | string | ~float64`, `int|string|~float64`},
+ 		{genericPkg + `u0b; func _[_ int]() {}`, `int`, `int`},
+ 		{genericPkg + `u1b; func _[_ ~int]() {}`, `~int`, `~int`},
+ 		{genericPkg + `u2b; func _[_ int|string]() {}`, `int | string`, `int|string`},
+ 		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `int | string | ~bool`, `int|string|~bool`},
++		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `int | string`, `int|string`},
++		{genericPkg + `u3b; func _[_ int|string|~bool]() {}`, `~bool`, `~bool`},
++		{genericPkg + `u3b; func _[_ int|string|~float64|~bool]() {}`, `int | string | ~float64`, `int|string|~float64`},
++		{genericPkg + `u0b; type _ interface{int}`, `int`, `int`},
++		{genericPkg + `u1b; type _ interface{~int}`, `~int`, `~int`},
++		{genericPkg + `u2b; type _ interface{int|string}`, `int | string`, `int|string`},
++		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `int | string | ~bool`, `int|string|~bool`},
++		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `int | string`, `int|string`},
++		{genericPkg + `u3b; type _ interface{int|string|~bool}`, `~bool`, `~bool`},
++		{genericPkg + `u3b; type _ interface{int|string|~float64|~bool}`, `int | string | ~float64`, `int|string|~float64`},
+ 	}
+ 
+ 	for _, test := range tests {
+diff --git a/src/go/types/union.go b/src/go/types/union.go
+index 9dd67a0db4..7cd5b2a88b 100644
+--- a/src/go/types/union.go
++++ b/src/go/types/union.go
+@@ -51,23 +51,37 @@ const maxTermCount = 100
+ // parseUnion parses uexpr as a union of expressions.
+ // The result is a Union type, or Typ[Invalid] for some errors.
+ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+-	tlist := flattenUnion(nil, uexpr)
++	blist, tlist := flattenUnion(nil, uexpr)
++	assert(len(blist) == len(tlist)-1)
+ 
+ 	var terms []*Term
+-	for _, x := range tlist {
+-		tilde, typ := parseTilde(check, x)
+-		if len(tlist) == 1 && !tilde {
++
++	var u Type
++	for i, x := range tlist {
++		term := parseTilde(check, x)
++		if len(tlist) == 1 && !term.tilde {
+ 			// Single type. Ok to return early because all relevant
+ 			// checks have been performed in parseTilde (no need to
+ 			// run through term validity check below).
+-			return typ // typ already recorded through check.typ in parseTilde
++			return term.typ // typ already recorded through check.typ in parseTilde
+ 		}
+ 		if len(terms) >= maxTermCount {
+-			check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
+-			check.recordTypeAndValue(uexpr, typexpr, Typ[Invalid], nil)
+-			return Typ[Invalid]
++			if u != Typ[Invalid] {
++				check.errorf(x, _InvalidUnion, "cannot handle more than %d union terms (implementation limitation)", maxTermCount)
++				u = Typ[Invalid]
++			}
++		} else {
++			terms = append(terms, term)
++			u = &Union{terms}
++		}
++
++		if i > 0 {
++			check.recordTypeAndValue(blist[i-1], typexpr, u, nil)
+ 		}
+-		terms = append(terms, NewTerm(tilde, typ))
++	}
++
++	if u == Typ[Invalid] {
++		return u
+ 	}
+ 
+ 	// Check validity of terms.
+@@ -109,17 +123,17 @@ func parseUnion(check *Checker, uexpr ast.Expr) Type {
+ 		}
+ 	})
+ 
+-	u := &Union{terms}
+-	check.recordTypeAndValue(uexpr, typexpr, u, nil)
+ 	return u
+ }
+ 
+-func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
++func parseTilde(check *Checker, tx ast.Expr) *Term {
++	x := tx
++	var tilde bool
+ 	if op, _ := x.(*ast.UnaryExpr); op != nil && op.Op == token.TILDE {
+ 		x = op.X
+ 		tilde = true
+ 	}
+-	typ = check.typ(x)
++	typ := check.typ(x)
+ 	// Embedding stand-alone type parameters is not permitted (issue #47127).
+ 	// We don't need this restriction anymore if we make the underlying type of a type
+ 	// parameter its constraint interface: if we embed a lone type parameter, we will
+@@ -129,7 +143,11 @@ func parseTilde(check *Checker, x ast.Expr) (tilde bool, typ Type) {
+ 		check.error(x, _MisplacedTypeParam, "cannot embed a type parameter")
+ 		typ = Typ[Invalid]
+ 	}
+-	return
++	term := NewTerm(tilde, typ)
++	if tilde {
++		check.recordTypeAndValue(tx, typexpr, &Union{[]*Term{term}}, nil)
++	}
++	return term
+ }
+ 
+ // overlappingTerm reports the index of the term x in terms which is
+@@ -150,10 +168,13 @@ func overlappingTerm(terms []*Term, y *Term) int {
+ 	return -1
+ }
+ 
+-func flattenUnion(list []ast.Expr, x ast.Expr) []ast.Expr {
++// flattenUnion walks a union type expression of the form A | B | C | ...,
++// extracting both the binary exprs (blist) and leaf types (tlist).
++func flattenUnion(list []ast.Expr, x ast.Expr) (blist, tlist []ast.Expr) {
+ 	if o, _ := x.(*ast.BinaryExpr); o != nil && o.Op == token.OR {
+-		list = flattenUnion(list, o.X)
++		blist, tlist = flattenUnion(list, o.X)
++		blist = append(blist, o)
+ 		x = o.Y
+ 	}
+-	return append(list, x)
++	return blist, append(tlist, x)
+ }

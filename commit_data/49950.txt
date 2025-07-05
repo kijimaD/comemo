@@ -12,9 +12,72 @@ Date:   Wed Sep 22 13:38:05 2021 -0700
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/named.go                      |  2 +-
  src/cmd/compile/internal/types2/subst.go                      |  4 +++-
  .../compile/internal/types2/testdata/fixedbugs/issue46461.go2 | 11 +++++++++++
  .../compile/internal/types2/testdata/fixedbugs/issue48529.go2 | 11 +++++++++++
  4 files changed, 26 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 1db993afc9..bc4d4f89c5 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -330,7 +330,7 @@ func (check *Checker) completeMethod(env *Environment, m *Func) {
+ // TODO(rfindley): eliminate this function or give it a better name.
+ func safeUnderlying(typ Type) Type {
+ 	if t, _ := typ.(*Named); t != nil {
+-		return t.resolve(nil).underlying
++		return t.underlying
+ 	}
+ 	return typ.Underlying()
+ }
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index ee68f22653..5e057a6f80 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -177,7 +177,9 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 		var newTArgs []Type
+-		assert(t.targs.Len() == t.orig.TypeParams().Len())
++		if t.targs.Len() != t.orig.TypeParams().Len() {
++			return Typ[Invalid] // error reported elsewhere
++		}
+ 
+ 		// already instantiated
+ 		dump(">>> %s already instantiated", t)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go2
+new file mode 100644
+index 0000000000..bfeaf3a966
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue46461.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[U interface{ M() T[U] }] int
++
++type X int
++
++func (X) M() T[X] { return 0 }
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go2
+new file mode 100644
+index 0000000000..4f92dec7fe
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue48529.go2
+@@ -0,0 +1,11 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type T[U interface{ M() T /* ERROR "got 2 arguments but 1 type parameters" */ [U, int] }] int
++
++type X int
++
++func (X) M() T[X] { return 0 }

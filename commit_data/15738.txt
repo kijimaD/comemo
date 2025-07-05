@@ -13,6 +13,20 @@ Date:   Tue Mar 12 23:10:18 2013 +0100
     R=khr, rsc, rminnich, ality
     CC=golang-dev
     https://golang.org/cl/7644047
-
+---
  src/pkg/runtime/time_plan9_386.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/time_plan9_386.c b/src/pkg/runtime/time_plan9_386.c
+index a29d45715c..fc08a90d6d 100644
+--- a/src/pkg/runtime/time_plan9_386.c
++++ b/src/pkg/runtime/time_plan9_386.c
+@@ -24,7 +24,7 @@ runtime·nanotime(void)
+ 	// file descriptor) is roughly four times slower
+ 	// in 9vx on a 2.16 GHz Intel Core 2 Duo.
+ 
+-	if(fd < 0 && (fd = runtime·open((byte*)"/dev/bintime", OREAD|OCEXEC)) < 0)
++	if(fd < 0 && (fd = runtime·open("/dev/bintime", OREAD|OCEXEC, 0)) < 0)
+ 		return 0;
+ 	if(runtime·pread(fd, b, sizeof b, 0) != sizeof b)
+ 		return 0;

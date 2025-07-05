@@ -13,7 +13,34 @@ Date:   Thu Mar 14 13:55:01 2024 +0000
     Auto-Submit: Russ Cox <rsc@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/serve_test.go | 2 +-
  src/net/http/server.go     | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 9df6ab426c..1012e44b68 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -2712,7 +2712,7 @@ func TestRedirectContentTypeAndBody(t *testing.T) {
+ 		wantCT   string
+ 		wantBody string
+ 	}{
+-		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n"},
++		{MethodGet, nil, "text/html; charset=utf-8", "<a href=\"/foo\">Found</a>.\n\n"},
+ 		{MethodHead, nil, "text/html; charset=utf-8", ""},
+ 		{MethodPost, nil, "", ""},
+ 		{MethodDelete, nil, "", ""},
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index d0e4dc69e5..99c6d4fd0a 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2287,7 +2287,7 @@ func Redirect(w ResponseWriter, r *Request, url string, code int) {
+ 
+ 	// Shouldn't send the body for POST or HEAD; that leaves GET.
+ 	if !hadCT && r.Method == "GET" {
+-		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>."
++		body := "<a href=\"" + htmlEscape(url) + "\">" + StatusText(code) + "</a>.\n"
+ 		fmt.Fprintln(w, body)
+ 	}
+ }

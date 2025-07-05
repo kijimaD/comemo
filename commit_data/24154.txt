@@ -63,7 +63,65 @@ Date:   Tue Jul 14 15:46:18 2015 +1000
     Change-Id: I30b67036e9b087f3051d57dac7ea05fb4fa36f66
     Reviewed-on: https://go-review.googlesource.com/12163
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/image/jpeg/huffman.go |  4 +++-
  src/image/jpeg/reader.go  | 17 ++++++++++++-----
  2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/image/jpeg/huffman.go b/src/image/jpeg/huffman.go
+index d4ff4cfa0c..4f8fe8eff3 100644
+--- a/src/image/jpeg/huffman.go
++++ b/src/image/jpeg/huffman.go
+@@ -187,7 +187,9 @@ func (d *decoder) decodeHuffman(h *huffman) (uint8, error) {
+ 			// There are no more bytes of data in this segment, but we may still
+ 			// be able to read the next symbol out of the previously read bits.
+ 			// First, undo the readByte that the ensureNBits call made.
+-			d.unreadByteStuffedByte()
++			if d.bytes.nUnreadable != 0 {
++				d.unreadByteStuffedByte()
++			}
+ 			goto slowPath
+ 		}
+ 	}
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 0fe57006bb..adf97abbd1 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -169,9 +169,6 @@ func (d *decoder) fill() error {
+ // sometimes overshoot and read one or two too many bytes. Two-byte overshoot
+ // can happen when expecting to read a 0xff 0x00 byte-stuffed byte.
+ func (d *decoder) unreadByteStuffedByte() {
+-	if d.bytes.nUnreadable == 0 {
+-		return
+-	}
+ 	d.bytes.i -= d.bytes.nUnreadable
+ 	d.bytes.nUnreadable = 0
+ 	if d.bits.n >= 8 {
+@@ -243,7 +240,12 @@ func (d *decoder) readByteStuffedByte() (x byte, err error) {
+ // stuffing.
+ func (d *decoder) readFull(p []byte) error {
+ 	// Unread the overshot bytes, if any.
+-	d.unreadByteStuffedByte()
++	if d.bytes.nUnreadable != 0 {
++		if d.bits.n >= 8 {
++			d.unreadByteStuffedByte()
++		}
++		d.bytes.nUnreadable = 0
++	}
+ 
+ 	for {
+ 		n := copy(p, d.bytes.buf[d.bytes.i:d.bytes.j])
+@@ -265,7 +267,12 @@ func (d *decoder) readFull(p []byte) error {
+ // ignore ignores the next n bytes.
+ func (d *decoder) ignore(n int) error {
+ 	// Unread the overshot bytes, if any.
+-	d.unreadByteStuffedByte()
++	if d.bytes.nUnreadable != 0 {
++		if d.bits.n >= 8 {
++			d.unreadByteStuffedByte()
++		}
++		d.bytes.nUnreadable = 0
++	}
+ 
+ 	for {
+ 		m := d.bytes.j - d.bytes.i

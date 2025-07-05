@@ -12,6 +12,27 @@ Date:   Wed Nov 15 13:45:31 2017 -0500
     Reviewed-on: https://go-review.googlesource.com/77990
     Run-TryBot: Than McIntosh <thanm@google.com>
     Reviewed-by: Heschi Kreinick <heschi@google.com>
-
+---
  src/cmd/internal/obj/x86/obj6.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 0e6deafc91..7b5e4769dc 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -322,7 +322,7 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//     $LEA $offset($reg), $reg
+ 		//     CALL $reg
+ 		// (we use LEAx rather than ADDx because ADDx clobbers
+-		// flags and duffzero on 386 does not otherwise do so)
++		// flags and duffzero on 386 does not otherwise do so).
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+ 			sym = ctxt.Lookup("runtime.duffzero")
+@@ -1260,5 +1260,5 @@ var Link386 = obj.LinkArch{
+ 	Assemble:       span6,
+ 	Progedit:       progedit,
+ 	UnaryDst:       unaryDst,
+-	DWARFRegisters: AMD64DWARFRegisters,
++	DWARFRegisters: X86DWARFRegisters,
+ }

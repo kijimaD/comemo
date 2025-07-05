@@ -22,6 +22,40 @@ Date:   Thu Jan 16 21:39:42 2020 +0000
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/runtime/mgcmark.go | 8 ++++++--
  1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 54f988a902..2c17d8befa 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -963,6 +963,8 @@ const (
+ // credit to gcController.bgScanCredit every gcCreditSlack units of
+ // scan work.
+ //
++// gcDrain will always return if there is a pending STW.
++//
+ //go:nowritebarrier
+ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	if !writeBarrier.needed {
+@@ -991,7 +993,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 
+ 	// Drain root marking jobs.
+ 	if work.markrootNext < work.markrootJobs {
+-		for !(preemptible && gp.preempt) {
++		// Stop if we're preemptible or if someone wants to STW.
++		for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+ 			job := atomic.Xadd(&work.markrootNext, +1) - 1
+ 			if job >= work.markrootJobs {
+ 				break
+@@ -1004,7 +1007,8 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 	}
+ 
+ 	// Drain heap marking jobs.
+-	for !(preemptible && gp.preempt) {
++	// Stop if we're preemptible or if someone wants to STW.
++	for !(gp.preempt && (preemptible || atomic.Load(&sched.gcwaiting) != 0)) {
+ 		// Try to keep work available on the global queue. We used to
+ 		// check if there were waiting workers, but it's better to
+ 		// just keep work available than to make workers wait. In the

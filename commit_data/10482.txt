@@ -32,7 +32,7 @@ Date:   Tue Nov 22 12:30:02 2011 -0500
     R=golang-dev, gri, r
     CC=golang-dev
     https://golang.org/cl/5421057
-
+---
  doc/go_spec.html                 |  24 ++++++---
  src/cmd/gc/subr.c                |  12 ++---
  src/pkg/encoding/xml/xml_test.go | 102 +++++++++++++++++++--------------------
@@ -42,3 +42,458 @@ Date:   Tue Nov 22 12:30:02 2011 -0500
  test/convlit.go                  |   6 +--
  test/named1.go                   |   4 +-
  8 files changed, 191 insertions(+), 89 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0e52d4d230..43281c9953 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,5 +1,5 @@
+ <!-- title The Go Programming Language Specification -->
+-<!-- subtitle Version of November 14, 2011 -->
++<!-- subtitle Version of November 22, 2011 -->
+ 
+ <!--
+ TODO
+@@ -3346,42 +3346,50 @@ MyString(0x65e5)      // "\u65e5" == "日" == "\xe6\x97\xa5"
+ </li>
+ 
+ <li>
+-Converting a value of type <code>[]byte</code> to a string type yields
++Converting a slice of bytes to a string type yields
+ a string whose successive bytes are the elements of the slice.  If
+ the slice value is <code>nil</code>, the result is the empty string.
+ 
+ <pre>
+-string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
++string([]byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'})   // "hellø"
++
++type MyBytes []byte
++string(MyBytes{'h', 'e', 'l', 'l', '\xc3', '\xb8'})  // "hellø"
+ </pre>
+ </li>
+ 
+ <li>
+-Converting a value of type <code>[]rune</code> to a string type yields
++Converting a slice of runes to a string type yields
+ a string that is the concatenation of the individual rune values
+ converted to strings.  If the slice value is <code>nil</code>, the
+ result is the empty string.
+ 
+ <pre>
+-string([]rune{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
++string([]rune{0x767d, 0x9d6c, 0x7fd4})   // "\u767d\u9d6c\u7fd4" == "白鵬翔"
++
++type MyRunes []rune
++string(MyRunes{0x767d, 0x9d6c, 0x7fd4})  // "\u767d\u9d6c\u7fd4" == "白鵬翔"
+ </pre>
+ </li>
+ 
+ <li>
+-Converting a value of a string type to <code>[]byte</code> (or <code>[]uint8</code>)
++Converting a value of a string type to a slice of bytes type
+ yields a slice whose successive elements are the bytes of the string.
+ If the string is empty, the result is <code>[]byte(nil)</code>.
+ 
+ <pre>
+ []byte("hellø")  // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
++MyBytes("hellø") // []byte{'h', 'e', 'l', 'l', '\xc3', '\xb8'}
+ </pre>
+ </li>
+ 
+ <li>
+-Converting a value of a string type to <code>[]rune</code> yields a
+-slice containing the individual Unicode code points of the string.
++Converting a value of a string type to a slice of runes type
++yields a slice containing the individual Unicode code points of the string.
+ If the string is empty, the result is <code>[]rune(nil)</code>.
+ <pre>
+ []rune(MyString("白鵬翔"))  // []rune{0x767d, 0x9d6c, 0x7fd4}
++MyRunes("白鵬翔")           // []rune{0x767d, 0x9d6c, 0x7fd4}
+ </pre>
+ </li>
+ </ol>
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 913ea22d30..36dbb7b437 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -1177,19 +1177,19 @@ convertop(Type *src, Type *dst, char **why)
+ 	if(isint[src->etype] && dst->etype == TSTRING)
+ 		return ORUNESTR;
+ 
+-	if(isslice(src) && src->sym == nil && dst->etype == TSTRING) {
+-		if(eqtype(src->type, bytetype))
++	if(isslice(src) && dst->etype == TSTRING) {
++		if(src->type->etype == bytetype->etype)
+ 			return OARRAYBYTESTR;
+-		if(eqtype(src->type, runetype))
++		if(src->type->etype == runetype->etype)
+ 			return OARRAYRUNESTR;
+ 	}
+ 	
+ 	// 7. src is a string and dst is []byte or []rune.
+ 	// String to slice.
+-	if(src->etype == TSTRING && isslice(dst) && dst->sym == nil) {
+-		if(eqtype(dst->type, bytetype))
++	if(src->etype == TSTRING && isslice(dst)) {
++		if(dst->type->etype == bytetype->etype)
+ 			return OSTRARRAYBYTE;
+-		if(eqtype(dst->type, runetype))
++		if(dst->type->etype == runetype->etype)
+ 			return OSTRARRAYRUNE;
+ 	}
+ 	
+diff --git a/src/pkg/encoding/xml/xml_test.go b/src/pkg/encoding/xml/xml_test.go
+index bcb22afde0..828fac53ab 100644
+--- a/src/pkg/encoding/xml/xml_test.go
++++ b/src/pkg/encoding/xml/xml_test.go
+@@ -29,71 +29,69 @@ const testInput = `
+ </body><!-- missing final newline -->`
+ 
+ var rawTokens = []Token{
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
++	CharData("\n"),
++	Directive(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
+-	),
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	StartElement{Name{"", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
+-	CharData([]byte("World <>'\" 白鵬翔")),
++	CharData("World <>'\" 白鵬翔"),
+ 	EndElement{Name{"", "hello"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"", "goodbye"}, []Attr{}},
+ 	EndElement{Name{"", "goodbye"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"", "outer"}, []Attr{{Name{"foo", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}},
+-	CharData([]byte("\n    ")),
++	CharData("\n    "),
+ 	StartElement{Name{"", "inner"}, []Attr{}},
+ 	EndElement{Name{"", "inner"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	EndElement{Name{"", "outer"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"tag", "name"}, []Attr{}},
+-	CharData([]byte("\n    ")),
+-	CharData([]byte("Some text here.")),
+-	CharData([]byte("\n  ")),
++	CharData("\n    "),
++	CharData("Some text here."),
++	CharData("\n  "),
+ 	EndElement{Name{"tag", "name"}},
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	EndElement{Name{"", "body"}},
+-	Comment([]byte(" missing final newline ")),
++	Comment(" missing final newline "),
+ }
+ 
+ var cookedTokens = []Token{
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	ProcInst{"xml", []byte(`version="1.0" encoding="UTF-8"`)},
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
++	CharData("\n"),
++	Directive(`DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd"`),
+-	),
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	StartElement{Name{"ns2", "body"}, []Attr{{Name{"xmlns", "foo"}, "ns1"}, {Name{"", "xmlns"}, "ns2"}, {Name{"xmlns", "tag"}, "ns3"}}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"ns2", "hello"}, []Attr{{Name{"", "lang"}, "en"}}},
+-	CharData([]byte("World <>'\" 白鵬翔")),
++	CharData("World <>'\" 白鵬翔"),
+ 	EndElement{Name{"ns2", "hello"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"ns2", "goodbye"}, []Attr{}},
+ 	EndElement{Name{"ns2", "goodbye"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"ns2", "outer"}, []Attr{{Name{"ns1", "attr"}, "value"}, {Name{"xmlns", "tag"}, "ns4"}}},
+-	CharData([]byte("\n    ")),
++	CharData("\n    "),
+ 	StartElement{Name{"ns2", "inner"}, []Attr{}},
+ 	EndElement{Name{"ns2", "inner"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	EndElement{Name{"ns2", "outer"}},
+-	CharData([]byte("\n  ")),
++	CharData("\n  "),
+ 	StartElement{Name{"ns3", "name"}, []Attr{}},
+-	CharData([]byte("\n    ")),
+-	CharData([]byte("Some text here.")),
+-	CharData([]byte("\n  ")),
++	CharData("\n    "),
++	CharData("Some text here."),
++	CharData("\n  "),
+ 	EndElement{Name{"ns3", "name"}},
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	EndElement{Name{"ns2", "body"}},
+-	Comment([]byte(" missing final newline ")),
++	Comment(" missing final newline "),
+ }
+ 
+ const testInputAltEncoding = `
+@@ -101,11 +99,11 @@ const testInputAltEncoding = `
+ <TAG>VALUE</TAG>`
+ 
+ var rawTokensAltEncoding = []Token{
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	ProcInst{"xml", []byte(`version="1.0" encoding="x-testing-uppercase"`)},
+-	CharData([]byte("\n")),
++	CharData("\n"),
+ 	StartElement{Name{"", "tag"}, []Attr{}},
+-	CharData([]byte("value")),
++	CharData("value"),
+ 	EndElement{Name{"", "tag"}},
+ }
+ 
+@@ -270,21 +268,21 @@ var nestedDirectivesInput = `
+ `
+ 
+ var nestedDirectivesTokens = []Token{
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt ">">]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt "<">]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt '>'>]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt '<'>]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt '">'>]`)),
+-	CharData([]byte("\n")),
+-	Directive([]byte(`DOCTYPE [<!ENTITY xlt "'<">]`)),
+-	CharData([]byte("\n")),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY rdf "http://www.w3.org/1999/02/22-rdf-syntax-ns#">]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt ">">]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt "<">]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt '>'>]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt '<'>]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt '">'>]`),
++	CharData("\n"),
++	Directive(`DOCTYPE [<!ENTITY xlt "'<">]`),
++	CharData("\n"),
+ }
+ 
+ func TestNestedDirectives(t *testing.T) {
+diff --git a/src/pkg/net/http/sniff.go b/src/pkg/net/http/sniff.go
+index 5707c7f057..c1c78e2417 100644
+--- a/src/pkg/net/http/sniff.go
++++ b/src/pkg/net/http/sniff.go
+@@ -48,23 +48,23 @@ type sniffSig interface {
+ 
+ // Data matching the table in section 6.
+ var sniffSignatures = []sniffSig{
+-	htmlSig([]byte("<!DOCTYPE HTML")),
+-	htmlSig([]byte("<HTML")),
+-	htmlSig([]byte("<HEAD")),
+-	htmlSig([]byte("<SCRIPT")),
+-	htmlSig([]byte("<IFRAME")),
+-	htmlSig([]byte("<H1")),
+-	htmlSig([]byte("<DIV")),
+-	htmlSig([]byte("<FONT")),
+-	htmlSig([]byte("<TABLE")),
+-	htmlSig([]byte("<A")),
+-	htmlSig([]byte("<STYLE")),
+-	htmlSig([]byte("<TITLE")),
+-	htmlSig([]byte("<B")),
+-	htmlSig([]byte("<BODY")),
+-	htmlSig([]byte("<BR")),
+-	htmlSig([]byte("<P")),
+-	htmlSig([]byte("<!--")),
++	htmlSig("<!DOCTYPE HTML"),
++	htmlSig("<HTML"),
++	htmlSig("<HEAD"),
++	htmlSig("<SCRIPT"),
++	htmlSig("<IFRAME"),
++	htmlSig("<H1"),
++	htmlSig("<DIV"),
++	htmlSig("<FONT"),
++	htmlSig("<TABLE"),
++	htmlSig("<A"),
++	htmlSig("<STYLE"),
++	htmlSig("<TITLE"),
++	htmlSig("<B"),
++	htmlSig("<BODY"),
++	htmlSig("<BR"),
++	htmlSig("<P"),
++	htmlSig("<!--"),
+ 
+ 	&maskedSig{mask: []byte("\xFF\xFF\xFF\xFF\xFF"), pat: []byte("<?xml"), skipWS: true, ct: "text/xml; charset=utf-8"},
+ 
+diff --git a/src/pkg/net/mail/message.go b/src/pkg/net/mail/message.go
+index 95246b2fa1..a1a86d3c6f 100644
+--- a/src/pkg/net/mail/message.go
++++ b/src/pkg/net/mail/message.go
+@@ -185,7 +185,7 @@ func (a *Address) String() string {
+ type addrParser []byte
+ 
+ func newAddrParser(s string) *addrParser {
+-	p := addrParser([]byte(s))
++	p := addrParser(s)
+ 	return &p
+ }
+ 
+diff --git a/test/convert1.go b/test/convert1.go
+new file mode 100644
+index 0000000000..9de1b7e017
+--- /dev/null
++++ b/test/convert1.go
+@@ -0,0 +1,96 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type Tbyte []byte
++type Trune []rune
++type Tint64 []int64
++type Tstring string
++
++func main() {
++	s := "hello"
++	sb := []byte("hello")
++	sr := []rune("hello")
++	si := []int64{'h', 'e', 'l', 'l', 'o'}
++
++	ts := Tstring(s)
++	tsb := Tbyte(sb)
++	tsr := Trune(sr)
++	tsi := Tint64(si)
++
++	_ = string(s)
++	_ = []byte(s)
++	_ = []rune(s)
++	_ = []int64(s) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(s)
++	_ = Tbyte(s)
++	_ = Trune(s)
++	_ = Tint64(s) // ERROR "cannot convert.*Tint64"
++
++	_ = string(sb)
++	_ = []byte(sb)
++	_ = []rune(sb)  // ERROR "cannot convert.*\[\]rune"
++	_ = []int64(sb) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(sb)
++	_ = Tbyte(sb)
++	_ = Trune(sb)  // ERROR "cannot convert.*Trune"
++	_ = Tint64(sb) // ERROR "cannot convert.*Tint64"
++
++	_ = string(sr)
++	_ = []byte(sr) // ERROR "cannot convert.*\[\]byte"
++	_ = []rune(sr)
++	_ = []int64(sr) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(sr)
++	_ = Tbyte(sr) // ERROR "cannot convert.*Tbyte"
++	_ = Trune(sr)
++	_ = Tint64(sr) // ERROR "cannot convert.*Tint64"
++
++	_ = string(si) // ERROR "cannot convert.* string"
++	_ = []byte(si) // ERROR "cannot convert.*\[\]byte"
++	_ = []rune(si) // ERROR "cannot convert.*\[\]rune"
++	_ = []int64(si)
++	_ = Tstring(si) // ERROR "cannot convert.*Tstring"
++	_ = Tbyte(si)   // ERROR "cannot convert.*Tbyte"
++	_ = Trune(si)   // ERROR "cannot convert.*Trune"
++	_ = Tint64(si)
++
++	_ = string(ts)
++	_ = []byte(ts)
++	_ = []rune(ts)
++	_ = []int64(ts) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(ts)
++	_ = Tbyte(ts)
++	_ = Trune(ts)
++	_ = Tint64(ts) // ERROR "cannot convert.*Tint64"
++
++	_ = string(tsb)
++	_ = []byte(tsb)
++	_ = []rune(tsb)  // ERROR "cannot convert.*\[\]rune"
++	_ = []int64(tsb) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(tsb)
++	_ = Tbyte(tsb)
++	_ = Trune(tsb)  // ERROR "cannot convert.*Trune"
++	_ = Tint64(tsb) // ERROR "cannot convert.*Tint64"
++
++	_ = string(tsr)
++	_ = []byte(tsr) // ERROR "cannot convert.*\[\]byte"
++	_ = []rune(tsr)
++	_ = []int64(tsr) // ERROR "cannot convert.*\[\]int64"
++	_ = Tstring(tsr)
++	_ = Tbyte(tsr) // ERROR "cannot convert.*Tbyte"
++	_ = Trune(tsr)
++	_ = Tint64(tsr) // ERROR "cannot convert.*Tint64"
++
++	_ = string(tsi) // ERROR "cannot convert.* string"
++	_ = []byte(tsi) // ERROR "cannot convert.*\[\]byte"
++	_ = []rune(tsi) // ERROR "cannot convert.*\[\]rune"
++	_ = []int64(tsi)
++	_ = Tstring(tsi) // ERROR "cannot convert.*Tstring"
++	_ = Tbyte(tsi)   // ERROR "cannot convert.*Tbyte"
++	_ = Trune(tsi)   // ERROR "cannot convert.*Trune"
++	_ = Tint64(tsi)
++}
+diff --git a/test/convlit.go b/test/convlit.go
+index 2e3b15bda1..1e82d1f2f5 100644
+--- a/test/convlit.go
++++ b/test/convlit.go
+@@ -54,12 +54,12 @@ var _ = []byte(ss)
+ var _ []rune = ss // ERROR "cannot use|incompatible|invalid"
+ var _ []byte = ss // ERROR "cannot use|incompatible|invalid"
+ 
+-// named slice is not
++// named slice is now ok
+ type Trune []rune
+ type Tbyte []byte
+ 
+-var _ = Trune("abc") // ERROR "convert|incompatible|invalid"
+-var _ = Tbyte("abc") // ERROR "convert|incompatible|invalid"
++var _ = Trune("abc") // ok
++var _ = Tbyte("abc") // ok
+ 
+ // implicit is still not
+ var _ Trune = "abc" // ERROR "cannot use|incompatible|invalid"
+diff --git a/test/named1.go b/test/named1.go
+index fe71df844f..64e492886e 100644
+--- a/test/named1.go
++++ b/test/named1.go
+@@ -54,8 +54,8 @@ func main() {
+ 
+ 	_, bb := <-c
+ 	asBool(bb) // ERROR "cannot use.*type bool.*as type Bool"
+-	_, b = <-c     // ERROR "cannot .* bool.*type Bool"
++	_, b = <-c // ERROR "cannot .* bool.*type Bool"
+ 	_ = b
+ 
+-	asString(String(slice)) // ERROR "cannot .*type Slice.*type String"
++	asString(String(slice)) // ok
+ }

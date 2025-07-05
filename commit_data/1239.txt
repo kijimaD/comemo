@@ -8,7 +8,40 @@ Date:   Mon Nov 24 15:18:29 2008 -0800
     DELTA=3  (3 added, 0 deleted, 0 changed)
     OCL=19935
     CL=19937
-
+---
  src/clean.bash   | 1 +
  src/lib/Makefile | 2 ++
  2 files changed, 3 insertions(+)
+
+diff --git a/src/clean.bash b/src/clean.bash
+index 143eb0b7a6..1beb6a5133 100755
+--- a/src/clean.bash
++++ b/src/clean.bash
+@@ -3,6 +3,7 @@
+ # Use of this source code is governed by a BSD-style
+ # license that can be found in the LICENSE file.
+ 
++rm -f $GOROOT/pkg/*.[6a]
+ for i in lib9 libbio libmach_amd64 libregexp cmd runtime lib
+ do
+ 	cd $i
+diff --git a/src/lib/Makefile b/src/lib/Makefile
+index 1fea380681..bd65bf0db2 100644
+--- a/src/lib/Makefile
++++ b/src/lib/Makefile
+@@ -9,6 +9,7 @@ GC=6g
+ DIRS=\
+ 	container/array\
+ 	fmt\
++	hash\
+ 	http\
+ 	math\
+ 	net\
+@@ -86,6 +87,7 @@ io.6: os.dirinstall syscall.dirinstall
+ testing.6: flag.install fmt.dirinstall
+ 
+ fmt.dirinstall: io.install reflect.dirinstall strconv.dirinstall
++hash.dirinstall: os.dirinstall
+ http.dirinstall: bufio.install io.install net.dirinstall os.dirinstall strings.install
+ net.dirinstall: once.install os.dirinstall strconv.dirinstall
+ os.dirinstall: syscall.dirinstall

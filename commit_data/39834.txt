@@ -11,6 +11,30 @@ Date:   Wed Mar 13 09:39:21 2019 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/math/rand/example_test.go | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/src/math/rand/example_test.go b/src/math/rand/example_test.go
+index adeeaa0b46..4107613555 100644
+--- a/src/math/rand/example_test.go
++++ b/src/math/rand/example_test.go
+@@ -140,3 +140,18 @@ func ExampleShuffle_slicesInUnison() {
+ 	// E: 5
+ 	// B: 2
+ }
++
++func ExampleIntn() {
++	// Seeding with the same value results in the same random sequence each run.
++	// For different numbers, seed with a different value, such as
++	// time.Now().UnixNano(), which yields a constantly-changing number.
++	rand.Seed(86)
++	fmt.Println(rand.Intn(100))
++	fmt.Println(rand.Intn(100))
++	fmt.Println(rand.Intn(100))
++
++	// Output:
++	// 42
++	// 76
++	// 30
++}

@@ -22,7 +22,7 @@ Date:   Wed Mar 28 01:15:39 2018 +0200
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/dist/build.go                           |  1 +
  src/cmd/vet/all/main.go                         |  6 +++++
  src/go/build/syslist.go                         |  4 ++--
@@ -62,3 +62,452 @@ Date:   Wed Mar 28 01:15:39 2018 +0200
  src/runtime/internal/sys/zgoos_windows.go       |  1 +
  src/runtime/internal/sys/zgoos_zos.go           |  1 +
  38 files changed, 93 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 398a187658..d570aa1a84 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1380,6 +1380,7 @@ var cgoEnabled = map[string]bool{
+ 	"android/amd64":   true,
+ 	"android/arm":     true,
+ 	"android/arm64":   true,
++	"js/wasm":         false,
+ 	"nacl/386":        false,
+ 	"nacl/amd64p32":   false,
+ 	"nacl/arm":        false,
+diff --git a/src/cmd/vet/all/main.go b/src/cmd/vet/all/main.go
+index 09167af6d5..6c56daff03 100644
+--- a/src/cmd/vet/all/main.go
++++ b/src/cmd/vet/all/main.go
+@@ -192,6 +192,12 @@ func vetPlatforms(pp []platform) {
+ }
+ 
+ func (p platform) vet() {
++	if p.os == "js" && p.arch == "wasm" {
++		// TODO(neelance): enable as soon as js/wasm has fully landed
++		fmt.Println("skipping js/wasm")
++		return
++	}
++
+ 	var buf bytes.Buffer
+ 	fmt.Fprintf(&buf, "go run main.go -p %s\n", p)
+ 
+diff --git a/src/go/build/syslist.go b/src/go/build/syslist.go
+index 73fdbe6c85..d1fcc8f5bd 100644
+--- a/src/go/build/syslist.go
++++ b/src/go/build/syslist.go
+@@ -4,5 +4,5 @@
+ 
+ package build
+ 
+-const goosList = "android darwin dragonfly freebsd linux nacl netbsd openbsd plan9 solaris windows zos "
+-const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc s390 s390x sparc sparc64 "
++const goosList = "android darwin dragonfly freebsd js linux nacl netbsd openbsd plan9 solaris windows zos "
++const goarchList = "386 amd64 amd64p32 arm armbe arm64 arm64be ppc64 ppc64le mips mipsle mips64 mips64le mips64p32 mips64p32le ppc s390 s390x sparc sparc64 wasm "
+diff --git a/src/go/types/sizes.go b/src/go/types/sizes.go
+index eb274799f4..fda0c95469 100644
+--- a/src/go/types/sizes.go
++++ b/src/go/types/sizes.go
+@@ -168,6 +168,7 @@ var gcArchSizes = map[string]*StdSizes{
+ 	"ppc64":    {8, 8},
+ 	"ppc64le":  {8, 8},
+ 	"s390x":    {8, 8},
++	"wasm":     {8, 8},
+ 	// When adding more architectures here,
+ 	// update the doc string of SizesFor below.
+ }
+@@ -177,7 +178,7 @@ var gcArchSizes = map[string]*StdSizes{
+ //
+ // Supported architectures for compiler "gc":
+ // "386", "arm", "arm64", "amd64", "amd64p32", "mips", "mipsle",
+-// "mips64", "mips64le", "ppc64", "ppc64le", "s390x".
++// "mips64", "mips64le", "ppc64", "ppc64le", "s390x", "wasm".
+ func SizesFor(compiler, arch string) Sizes {
+ 	if compiler != "gc" {
+ 		return nil
+diff --git a/src/runtime/internal/sys/zgoarch_386.go b/src/runtime/internal/sys/zgoarch_386.go
+index b07abbedc6..209b7749f6 100644
+--- a/src/runtime/internal/sys/zgoarch_386.go
++++ b/src/runtime/internal/sys/zgoarch_386.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_amd64.go b/src/runtime/internal/sys/zgoarch_amd64.go
+index bfdcb00bd9..950a196786 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64.go
++++ b/src/runtime/internal/sys/zgoarch_amd64.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_amd64p32.go b/src/runtime/internal/sys/zgoarch_amd64p32.go
+index b61617d4d9..0d27361471 100644
+--- a/src/runtime/internal/sys/zgoarch_amd64p32.go
++++ b/src/runtime/internal/sys/zgoarch_amd64p32.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm.go b/src/runtime/internal/sys/zgoarch_arm.go
+index 79595d545a..46f7fb880f 100644
+--- a/src/runtime/internal/sys/zgoarch_arm.go
++++ b/src/runtime/internal/sys/zgoarch_arm.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm64.go b/src/runtime/internal/sys/zgoarch_arm64.go
+index c839b8fc03..67893f99cc 100644
+--- a/src/runtime/internal/sys/zgoarch_arm64.go
++++ b/src/runtime/internal/sys/zgoarch_arm64.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_arm64be.go b/src/runtime/internal/sys/zgoarch_arm64be.go
+index 58b4ef198b..0a9451f388 100644
+--- a/src/runtime/internal/sys/zgoarch_arm64be.go
++++ b/src/runtime/internal/sys/zgoarch_arm64be.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_armbe.go b/src/runtime/internal/sys/zgoarch_armbe.go
+index e9e2c314d8..84cc570ec8 100644
+--- a/src/runtime/internal/sys/zgoarch_armbe.go
++++ b/src/runtime/internal/sys/zgoarch_armbe.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips.go b/src/runtime/internal/sys/zgoarch_mips.go
+index b0bf4ffec3..6ff4b24fcf 100644
+--- a/src/runtime/internal/sys/zgoarch_mips.go
++++ b/src/runtime/internal/sys/zgoarch_mips.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64.go b/src/runtime/internal/sys/zgoarch_mips64.go
+index 093e88ceaa..55a8b860a5 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64.go
++++ b/src/runtime/internal/sys/zgoarch_mips64.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64le.go b/src/runtime/internal/sys/zgoarch_mips64le.go
+index 3bad7cfd38..ea0d94a39e 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64le.go
++++ b/src/runtime/internal/sys/zgoarch_mips64le.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64p32.go b/src/runtime/internal/sys/zgoarch_mips64p32.go
+index c5f69fc687..fe0b9f6bf1 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64p32.go
++++ b/src/runtime/internal/sys/zgoarch_mips64p32.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mips64p32le.go b/src/runtime/internal/sys/zgoarch_mips64p32le.go
+index 014ef84ce8..273e224973 100644
+--- a/src/runtime/internal/sys/zgoarch_mips64p32le.go
++++ b/src/runtime/internal/sys/zgoarch_mips64p32le.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_mipsle.go b/src/runtime/internal/sys/zgoarch_mipsle.go
+index 75814be787..802d1ecd4f 100644
+--- a/src/runtime/internal/sys/zgoarch_mipsle.go
++++ b/src/runtime/internal/sys/zgoarch_mipsle.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc.go b/src/runtime/internal/sys/zgoarch_ppc.go
+index 2a891b8477..ca24130458 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc.go
++++ b/src/runtime/internal/sys/zgoarch_ppc.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64.go b/src/runtime/internal/sys/zgoarch_ppc64.go
+index 847db4bdb2..e307121cd8 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_ppc64le.go b/src/runtime/internal/sys/zgoarch_ppc64le.go
+index 5195797b29..afc67c59a3 100644
+--- a/src/runtime/internal/sys/zgoarch_ppc64le.go
++++ b/src/runtime/internal/sys/zgoarch_ppc64le.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_s390.go b/src/runtime/internal/sys/zgoarch_s390.go
+index cd215da577..1f4a1c262b 100644
+--- a/src/runtime/internal/sys/zgoarch_s390.go
++++ b/src/runtime/internal/sys/zgoarch_s390.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 1
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_s390x.go b/src/runtime/internal/sys/zgoarch_s390x.go
+index b9368ff4e3..13fdd2314f 100644
+--- a/src/runtime/internal/sys/zgoarch_s390x.go
++++ b/src/runtime/internal/sys/zgoarch_s390x.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 1
+ const GoarchSparc = 0
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_sparc.go b/src/runtime/internal/sys/zgoarch_sparc.go
+index e9afe0131b..825d013f93 100644
+--- a/src/runtime/internal/sys/zgoarch_sparc.go
++++ b/src/runtime/internal/sys/zgoarch_sparc.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 1
+ const GoarchSparc64 = 0
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_sparc64.go b/src/runtime/internal/sys/zgoarch_sparc64.go
+index b6004efe1c..939c56f2d3 100644
+--- a/src/runtime/internal/sys/zgoarch_sparc64.go
++++ b/src/runtime/internal/sys/zgoarch_sparc64.go
+@@ -26,3 +26,4 @@ const GoarchS390 = 0
+ const GoarchS390x = 0
+ const GoarchSparc = 0
+ const GoarchSparc64 = 1
++const GoarchWasm = 0
+diff --git a/src/runtime/internal/sys/zgoarch_wasm.go b/src/runtime/internal/sys/zgoarch_wasm.go
+new file mode 100644
+index 0000000000..20a22414d0
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoarch_wasm.go
+@@ -0,0 +1,29 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build wasm
++
++package sys
++
++const GOARCH = `wasm`
++
++const Goarch386 = 0
++const GoarchAmd64 = 0
++const GoarchAmd64p32 = 0
++const GoarchArm = 0
++const GoarchArmbe = 0
++const GoarchArm64 = 0
++const GoarchArm64be = 0
++const GoarchPpc64 = 0
++const GoarchPpc64le = 0
++const GoarchMips = 0
++const GoarchMipsle = 0
++const GoarchMips64 = 0
++const GoarchMips64le = 0
++const GoarchMips64p32 = 0
++const GoarchMips64p32le = 0
++const GoarchPpc = 0
++const GoarchS390 = 0
++const GoarchS390x = 0
++const GoarchSparc = 0
++const GoarchSparc64 = 0
++const GoarchWasm = 1
+diff --git a/src/runtime/internal/sys/zgoos_android.go b/src/runtime/internal/sys/zgoos_android.go
+index 01ebe753c5..bfdc37792e 100644
+--- a/src/runtime/internal/sys/zgoos_android.go
++++ b/src/runtime/internal/sys/zgoos_android.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 1
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_darwin.go b/src/runtime/internal/sys/zgoos_darwin.go
+index 1303d71ee9..1c4667f6de 100644
+--- a/src/runtime/internal/sys/zgoos_darwin.go
++++ b/src/runtime/internal/sys/zgoos_darwin.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 1
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_dragonfly.go b/src/runtime/internal/sys/zgoos_dragonfly.go
+index 64325c7a42..728bf6abe8 100644
+--- a/src/runtime/internal/sys/zgoos_dragonfly.go
++++ b/src/runtime/internal/sys/zgoos_dragonfly.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 1
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_freebsd.go b/src/runtime/internal/sys/zgoos_freebsd.go
+index 37449713f9..a8d659169b 100644
+--- a/src/runtime/internal/sys/zgoos_freebsd.go
++++ b/src/runtime/internal/sys/zgoos_freebsd.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 1
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_js.go b/src/runtime/internal/sys/zgoos_js.go
+new file mode 100644
+index 0000000000..cc8eef080f
+--- /dev/null
++++ b/src/runtime/internal/sys/zgoos_js.go
+@@ -0,0 +1,21 @@
++// Code generated by gengoos.go using 'go generate'. DO NOT EDIT.
++
++// +build js
++
++package sys
++
++const GOOS = `js`
++
++const GoosAndroid = 0
++const GoosDarwin = 0
++const GoosDragonfly = 0
++const GoosFreebsd = 0
++const GoosJs = 1
++const GoosLinux = 0
++const GoosNacl = 0
++const GoosNetbsd = 0
++const GoosOpenbsd = 0
++const GoosPlan9 = 0
++const GoosSolaris = 0
++const GoosWindows = 0
++const GoosZos = 0
+diff --git a/src/runtime/internal/sys/zgoos_linux.go b/src/runtime/internal/sys/zgoos_linux.go
+index c726465350..289400c612 100644
+--- a/src/runtime/internal/sys/zgoos_linux.go
++++ b/src/runtime/internal/sys/zgoos_linux.go
+@@ -11,6 +11,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 1
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_nacl.go b/src/runtime/internal/sys/zgoos_nacl.go
+index 53b394c631..3fedb0a2c3 100644
+--- a/src/runtime/internal/sys/zgoos_nacl.go
++++ b/src/runtime/internal/sys/zgoos_nacl.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 1
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_netbsd.go b/src/runtime/internal/sys/zgoos_netbsd.go
+index 8bfdf45d4a..3346e3711c 100644
+--- a/src/runtime/internal/sys/zgoos_netbsd.go
++++ b/src/runtime/internal/sys/zgoos_netbsd.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 1
+diff --git a/src/runtime/internal/sys/zgoos_openbsd.go b/src/runtime/internal/sys/zgoos_openbsd.go
+index fc6acb761c..13c0323249 100644
+--- a/src/runtime/internal/sys/zgoos_openbsd.go
++++ b/src/runtime/internal/sys/zgoos_openbsd.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_plan9.go b/src/runtime/internal/sys/zgoos_plan9.go
+index 75baeb34f6..6b2e977b5e 100644
+--- a/src/runtime/internal/sys/zgoos_plan9.go
++++ b/src/runtime/internal/sys/zgoos_plan9.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_solaris.go b/src/runtime/internal/sys/zgoos_solaris.go
+index c18f34f398..cbf70f079a 100644
+--- a/src/runtime/internal/sys/zgoos_solaris.go
++++ b/src/runtime/internal/sys/zgoos_solaris.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_windows.go b/src/runtime/internal/sys/zgoos_windows.go
+index b9f0d4e584..70839ca793 100644
+--- a/src/runtime/internal/sys/zgoos_windows.go
++++ b/src/runtime/internal/sys/zgoos_windows.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0
+diff --git a/src/runtime/internal/sys/zgoos_zos.go b/src/runtime/internal/sys/zgoos_zos.go
+index 2563ebea23..ecf449f703 100644
+--- a/src/runtime/internal/sys/zgoos_zos.go
++++ b/src/runtime/internal/sys/zgoos_zos.go
+@@ -10,6 +10,7 @@ const GoosAndroid = 0
+ const GoosDarwin = 0
+ const GoosDragonfly = 0
+ const GoosFreebsd = 0
++const GoosJs = 0
+ const GoosLinux = 0
+ const GoosNacl = 0
+ const GoosNetbsd = 0

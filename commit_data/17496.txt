@@ -35,7 +35,7 @@ Date:   Fri Sep 6 16:55:40 2013 -0400
     R=rsc, dave, alex.brainman
     CC=golang-dev
     https://golang.org/cl/12946043
-
+---
  src/pkg/runtime/cpuprof.c      |  4 ++--
  src/pkg/runtime/iface.c        |  2 +-
  src/pkg/runtime/malloc.goc     | 21 ++++++++++++---------
@@ -56,3 +56,824 @@ Date:   Fri Sep 6 16:55:40 2013 -0400
  src/pkg/runtime/netpoll.goc    |  2 +-
  src/pkg/runtime/stack.c        |  3 +--
  19 files changed, 117 insertions(+), 103 deletions(-)
+
+diff --git a/src/pkg/runtime/cpuprof.c b/src/pkg/runtime/cpuprof.c
+index 8117c9732a..1c34b9e6f6 100644
+--- a/src/pkg/runtime/cpuprof.c
++++ b/src/pkg/runtime/cpuprof.c
+@@ -127,7 +127,7 @@ runtime·SetCPUProfileRate(intgo hz)
+ {
+ 	uintptr *p;
+ 	uintptr n;
+-	
++
+ 	// Clamp hz to something reasonable.
+ 	if(hz < 0)
+ 		hz = 0;
+@@ -137,7 +137,7 @@ runtime·SetCPUProfileRate(intgo hz)
+ 	runtime·lock(&lk);
+ 	if(hz > 0) {
+ 		if(prof == nil) {
+-			prof = runtime·SysAlloc(sizeof *prof);
++			prof = runtime·SysAlloc(sizeof *prof, &mstats.other_sys);
+ 			if(prof == nil) {
+ 				runtime·printf("runtime: cpu profiling cannot allocate memory\n");
+ 				runtime·unlock(&lk);
+diff --git a/src/pkg/runtime/iface.c b/src/pkg/runtime/iface.c
+index 06a621ac47..ecbdcc7077 100644
+--- a/src/pkg/runtime/iface.c
++++ b/src/pkg/runtime/iface.c
+@@ -86,7 +86,7 @@ itab(InterfaceType *inter, Type *type, int32 canfail)
+ 	}
+ 
+ 	ni = inter->mhdr.len;
+-	m = runtime·persistentalloc(sizeof(*m) + ni*sizeof m->fun[0], 0);
++	m = runtime·persistentalloc(sizeof(*m) + ni*sizeof m->fun[0], 0, &mstats.other_sys);
+ 	m->inter = inter;
+ 	m->type = type;
+ 
+diff --git a/src/pkg/runtime/malloc.goc b/src/pkg/runtime/malloc.goc
+index a28e35d04b..c3ede4abdd 100644
+--- a/src/pkg/runtime/malloc.goc
++++ b/src/pkg/runtime/malloc.goc
+@@ -269,8 +269,6 @@ runtime·allocmcache(void)
+ 
+ 	runtime·lock(&runtime·mheap);
+ 	c = runtime·FixAlloc_Alloc(&runtime·mheap.cachealloc);
+-	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
+-	mstats.mcache_sys = runtime·mheap.cachealloc.sys;
+ 	runtime·unlock(&runtime·mheap);
+ 	runtime·memclr((byte*)c, sizeof(*c));
+ 
+@@ -472,7 +470,7 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	if(n <= h->arena_end - h->arena_used) {
+ 		// Keep taking from our reservation.
+ 		p = h->arena_used;
+-		runtime·SysMap(p, n);
++		runtime·SysMap(p, n, &mstats.heap_sys);
+ 		h->arena_used += n;
+ 		runtime·MHeap_MapBits(h);
+ 		runtime·MHeap_MapSpans(h);
+@@ -488,14 +486,14 @@ runtime·MHeap_SysAlloc(MHeap *h, uintptr n)
+ 	// On 32-bit, once the reservation is gone we can
+ 	// try to get memory at a location chosen by the OS
+ 	// and hope that it is in the range we allocated bitmap for.
+-	p = runtime·SysAlloc(n);
++	p = runtime·SysAlloc(n, &mstats.heap_sys);
+ 	if(p == nil)
+ 		return nil;
+ 
+ 	if(p < h->arena_start || p+n - h->arena_start >= MaxArena32) {
+ 		runtime·printf("runtime: memory allocated by OS (%p) not in usable range [%p,%p)\n",
+ 			p, h->arena_start, h->arena_start+MaxArena32);
+-		runtime·SysFree(p, n);
++		runtime·SysFree(p, n, &mstats.heap_sys);
+ 		return nil;
+ 	}
+ 
+@@ -530,7 +528,7 @@ enum
+ // Intended for things like function/type/debug-related persistent data.
+ // If align is 0, uses default align (currently 8).
+ void*
+-runtime·persistentalloc(uintptr size, uintptr align)
++runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat)
+ {
+ 	byte *p;
+ 
+@@ -542,11 +540,11 @@ runtime·persistentalloc(uintptr size, uintptr align)
+ 	} else
+ 		align = 8;
+ 	if(size >= PersistentAllocMaxBlock)
+-		return runtime·SysAlloc(size);
++		return runtime·SysAlloc(size, stat);
+ 	runtime·lock(&persistent);
+ 	persistent.pos = (byte*)ROUND((uintptr)persistent.pos, align);
+ 	if(persistent.pos + size > persistent.end) {
+-		persistent.pos = runtime·SysAlloc(PersistentAllocChunk);
++		persistent.pos = runtime·SysAlloc(PersistentAllocChunk, &mstats.other_sys);
+ 		if(persistent.pos == nil) {
+ 			runtime·unlock(&persistent);
+ 			runtime·throw("runtime: cannot allocate memory");
+@@ -556,7 +554,12 @@ runtime·persistentalloc(uintptr size, uintptr align)
+ 	p = persistent.pos;
+ 	persistent.pos += size;
+ 	runtime·unlock(&persistent);
+-	return p; 
++	if(stat != &mstats.other_sys) {
++		// reaccount the allocation against provided stat
++		runtime·xadd64(stat, size);
++		runtime·xadd64(&mstats.other_sys, -(uint64)size);
++	}
++	return p;
+ }
+ 
+ static Lock settype_lock;
+diff --git a/src/pkg/runtime/malloc.h b/src/pkg/runtime/malloc.h
+index e0dc50f3ae..2c66c6fa7b 100644
+--- a/src/pkg/runtime/malloc.h
++++ b/src/pkg/runtime/malloc.h
+@@ -172,11 +172,11 @@ struct MLink
+ //
+ // SysMap maps previously reserved address space for use.
+ 
+-void*	runtime·SysAlloc(uintptr nbytes);
+-void	runtime·SysFree(void *v, uintptr nbytes);
++void*	runtime·SysAlloc(uintptr nbytes, uint64 *stat);
++void	runtime·SysFree(void *v, uintptr nbytes, uint64 *stat);
+ void	runtime·SysUnused(void *v, uintptr nbytes);
+ void	runtime·SysUsed(void *v, uintptr nbytes);
+-void	runtime·SysMap(void *v, uintptr nbytes);
++void	runtime·SysMap(void *v, uintptr nbytes, uint64 *stat);
+ void*	runtime·SysReserve(void *v, uintptr nbytes);
+ 
+ // FixAlloc is a simple free-list allocator for fixed size objects.
+@@ -189,17 +189,17 @@ void*	runtime·SysReserve(void *v, uintptr nbytes);
+ // smashed by freeing and reallocating.
+ struct FixAlloc
+ {
+-	uintptr size;
+-	void (*first)(void *arg, byte *p);	// called first time p is returned
+-	void *arg;
+-	MLink *list;
+-	byte *chunk;
+-	uint32 nchunk;
+-	uintptr inuse;	// in-use bytes now
+-	uintptr sys;	// bytes obtained from system
++	uintptr	size;
++	void	(*first)(void *arg, byte *p);	// called first time p is returned
++	void*	arg;
++	MLink*	list;
++	byte*	chunk;
++	uint32	nchunk;
++	uintptr	inuse;	// in-use bytes now
++	uint64*	stat;
+ };
+ 
+-void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg);
++void	runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg, uint64 *stat);
+ void*	runtime·FixAlloc_Alloc(FixAlloc *f);
+ void	runtime·FixAlloc_Free(FixAlloc *f, void *p);
+ 
+@@ -234,6 +234,8 @@ struct MStats
+ 	uint64	mcache_inuse;	// MCache structures
+ 	uint64	mcache_sys;
+ 	uint64	buckhash_sys;	// profiling bucket hash table
++	uint64	gc_sys;
++	uint64	other_sys;
+ 
+ 	// Statistics about garbage collector.
+ 	// Protected by mheap or stopping the world during GC.
+@@ -444,7 +446,7 @@ void	runtime·MHeap_MapSpans(MHeap *h);
+ void	runtime·MHeap_Scavenger(void);
+ 
+ void*	runtime·mallocgc(uintptr size, uintptr typ, uint32 flag);
+-void*	runtime·persistentalloc(uintptr size, uintptr align);
++void*	runtime·persistentalloc(uintptr size, uintptr align, uint64 *stat);
+ int32	runtime·mlookup(void *v, byte **base, uintptr *size, MSpan **s);
+ void	runtime·gc(int32 force);
+ void	runtime·markallocated(void *v, uintptr n, bool noptr);
+diff --git a/src/pkg/runtime/malloc_test.go b/src/pkg/runtime/malloc_test.go
+index 1afd32d08c..2b686a6e7e 100644
+--- a/src/pkg/runtime/malloc_test.go
++++ b/src/pkg/runtime/malloc_test.go
+@@ -5,10 +5,25 @@
+ package runtime_test
+ 
+ import (
++	. "runtime"
+ 	"testing"
+ 	"unsafe"
+ )
+ 
++func TestMemStats(t *testing.T) {
++	// Test that MemStats has sane values.
++	st := new(MemStats)
++	ReadMemStats(st)
++	if st.HeapSys == 0 || st.StackSys == 0 || st.MSpanSys == 0 || st.MCacheSys == 0 ||
++		st.BuckHashSys == 0 || st.GCSys == 0 || st.OtherSys == 0 {
++		t.Fatalf("Zero sys value: %+v", *st)
++	}
++	if st.Sys != st.HeapSys+st.StackSys+st.MSpanSys+st.MCacheSys+
++		st.BuckHashSys+st.GCSys+st.OtherSys {
++		t.Fatalf("Bad sys value: %+v", *st)
++	}
++}
++
+ var mallocSink uintptr
+ 
+ func BenchmarkMalloc8(b *testing.B) {
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index 79edc5a604..dc735e4a62 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -14,7 +14,7 @@ type MemStats struct {
+ 	// General statistics.
+ 	Alloc      uint64 // bytes allocated and still in use
+ 	TotalAlloc uint64 // bytes allocated (even if freed)
+-	Sys        uint64 // bytes obtained from system (should be sum of XxxSys below)
++	Sys        uint64 // bytes obtained from system (sum of XxxSys below)
+ 	Lookups    uint64 // number of pointer lookups
+ 	Mallocs    uint64 // number of mallocs
+ 	Frees      uint64 // number of frees
+@@ -37,6 +37,8 @@ type MemStats struct {
+ 	MCacheInuse uint64 // mcache structures
+ 	MCacheSys   uint64
+ 	BuckHashSys uint64 // profiling bucket hash table
++	GCSys       uint64 // GC metadata
++	OtherSys    uint64 // other system allocations
+ 
+ 	// Garbage collector statistics.
+ 	NextGC       uint64 // next run in HeapAlloc time (bytes)
+diff --git a/src/pkg/runtime/mem_darwin.c b/src/pkg/runtime/mem_darwin.c
+index ef5674e340..a75c46d9d4 100644
+--- a/src/pkg/runtime/mem_darwin.c
++++ b/src/pkg/runtime/mem_darwin.c
+@@ -9,14 +9,14 @@
+ #include "malloc.h"
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+ 	void *v;
+ 
+-	mstats.sys += n;
+ 	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(v < (void*)4096)
+ 		return nil;
++	runtime·xadd64(stat, n);
+ 	return v;
+ }
+ 
+@@ -35,9 +35,9 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	runtime·munmap(v, n);
+ }
+ 
+@@ -58,11 +58,11 @@ enum
+ };
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 	p = runtime·mmap(v, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_FIXED|MAP_PRIVATE, -1, 0);
+ 	if(p == (void*)ENOMEM)
+ 		runtime·throw("runtime: out of memory");
+diff --git a/src/pkg/runtime/mem_freebsd.c b/src/pkg/runtime/mem_freebsd.c
+index e47ea7a436..1ee2a555e5 100644
+--- a/src/pkg/runtime/mem_freebsd.c
++++ b/src/pkg/runtime/mem_freebsd.c
+@@ -14,14 +14,14 @@ enum
+ };
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+ 	void *v;
+ 
+-	mstats.sys += n;
+ 	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(v < (void*)4096)
+ 		return nil;
++	runtime·xadd64(stat, n);
+ 	return v;
+ }
+ 
+@@ -39,9 +39,9 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	runtime·munmap(v, n);
+ }
+ 
+@@ -63,11 +63,11 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+diff --git a/src/pkg/runtime/mem_linux.c b/src/pkg/runtime/mem_linux.c
+index d96eb69e89..b0f2956335 100644
+--- a/src/pkg/runtime/mem_linux.c
++++ b/src/pkg/runtime/mem_linux.c
+@@ -50,11 +50,10 @@ mmap_fixed(byte *v, uintptr n, int32 prot, int32 flags, int32 fd, uint32 offset)
+ }
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 
+-	mstats.sys += n;
+ 	p = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(p < (void*)4096) {
+ 		if(p == (void*)EACCES) {
+@@ -68,6 +67,7 @@ runtime·SysAlloc(uintptr n)
+ 		}
+ 		return nil;
+ 	}
++	runtime·xadd64(stat, n);
+ 	return p;
+ }
+ 
+@@ -85,9 +85,9 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	runtime·munmap(v, n);
+ }
+ 
+@@ -118,11 +118,11 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8 && (uintptr)v >= 0xffffffffU) {
+diff --git a/src/pkg/runtime/mem_netbsd.c b/src/pkg/runtime/mem_netbsd.c
+index 8a7ef17e84..91e36eb608 100644
+--- a/src/pkg/runtime/mem_netbsd.c
++++ b/src/pkg/runtime/mem_netbsd.c
+@@ -14,14 +14,14 @@ enum
+ };
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+ 	void *v;
+ 
+-	mstats.sys += n;
+ 	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(v < (void*)4096)
+ 		return nil;
++	runtime·xadd64(stat, n);
+ 	return v;
+ }
+ 
+@@ -39,9 +39,9 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	runtime·munmap(v, n);
+ }
+ 
+@@ -63,11 +63,11 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+diff --git a/src/pkg/runtime/mem_openbsd.c b/src/pkg/runtime/mem_openbsd.c
+index 8a7ef17e84..91e36eb608 100644
+--- a/src/pkg/runtime/mem_openbsd.c
++++ b/src/pkg/runtime/mem_openbsd.c
+@@ -14,14 +14,14 @@ enum
+ };
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+ 	void *v;
+ 
+-	mstats.sys += n;
+ 	v = runtime·mmap(nil, n, PROT_READ|PROT_WRITE, MAP_ANON|MAP_PRIVATE, -1, 0);
+ 	if(v < (void*)4096)
+ 		return nil;
++	runtime·xadd64(stat, n);
+ 	return v;
+ }
+ 
+@@ -39,9 +39,9 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	runtime·munmap(v, n);
+ }
+ 
+@@ -63,11 +63,11 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 
+ 	// On 64-bit, we don't actually have v reserved, so tread carefully.
+ 	if(sizeof(void*) == 8) {
+diff --git a/src/pkg/runtime/mem_plan9.c b/src/pkg/runtime/mem_plan9.c
+index f443b640e7..edf970b2fb 100644
+--- a/src/pkg/runtime/mem_plan9.c
++++ b/src/pkg/runtime/mem_plan9.c
+@@ -18,12 +18,11 @@ enum
+ };
+ 
+ void*
+-runtime·SysAlloc(uintptr nbytes)
++runtime·SysAlloc(uintptr nbytes, uint64 *stat)
+ {
+ 	uintptr bl;
+ 
+ 	runtime·lock(&memlock);
+-	mstats.sys += nbytes;
+ 	// Plan 9 sbrk from /sys/src/libc/9sys/sbrk.c
+ 	bl = ((uintptr)bloc + Round) & ~Round;
+ 	if(runtime·brk_((void*)(bl + nbytes)) < 0) {
+@@ -32,20 +31,21 @@ runtime·SysAlloc(uintptr nbytes)
+ 	}
+ 	bloc = (byte*)bl + nbytes;
+ 	runtime·unlock(&memlock);
++	runtime·xadd64(stat, nbytes);
+ 	return (void*)bl;
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr nbytes)
++runtime·SysFree(void *v, uintptr nbytes, uint64 *stat)
+ {
++	runtime·xadd64(stat, -(uint64)nbytes);
+ 	runtime·lock(&memlock);
+-	mstats.sys -= nbytes;
+ 	// from tiny/mem.c
+ 	// Push pointer back if this is a free
+ 	// of the most recent SysAlloc.
+ 	nbytes += (nbytes + Round) & ~Round;
+ 	if(bloc == (byte*)v+nbytes)
+-		bloc -= nbytes;	
++		bloc -= nbytes;
+ 	runtime·unlock(&memlock);
+ }
+ 
+@@ -62,14 +62,14 @@ runtime·SysUsed(void *v, uintptr nbytes)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr nbytes)
++runtime·SysMap(void *v, uintptr nbytes, uint64 *stat)
+ {
+-	USED(v, nbytes);
++	USED(v, nbytes, stat);
+ }
+ 
+ void*
+ runtime·SysReserve(void *v, uintptr nbytes)
+ {
+ 	USED(v);
+-	return runtime·SysAlloc(nbytes);
++	return runtime·SysAlloc(nbytes, &mstats.heap_sys);
+ }
+diff --git a/src/pkg/runtime/mem_windows.c b/src/pkg/runtime/mem_windows.c
+index 2cf83396fa..abdc72ad8e 100644
+--- a/src/pkg/runtime/mem_windows.c
++++ b/src/pkg/runtime/mem_windows.c
+@@ -23,9 +23,9 @@ extern void *runtime·VirtualAlloc;
+ extern void *runtime·VirtualFree;
+ 
+ void*
+-runtime·SysAlloc(uintptr n)
++runtime·SysAlloc(uintptr n, uint64 *stat)
+ {
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 	return runtime·stdcall(runtime·VirtualAlloc, 4, nil, n, (uintptr)(MEM_COMMIT|MEM_RESERVE), (uintptr)PAGE_READWRITE);
+ }
+ 
+@@ -50,11 +50,11 @@ runtime·SysUsed(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysFree(void *v, uintptr n)
++runtime·SysFree(void *v, uintptr n, uint64 *stat)
+ {
+ 	uintptr r;
+ 
+-	mstats.sys -= n;
++	runtime·xadd64(stat, -(uint64)n);
+ 	r = (uintptr)runtime·stdcall(runtime·VirtualFree, 3, v, (uintptr)0, (uintptr)MEM_RELEASE);
+ 	if(r == 0)
+ 		runtime·throw("runtime: failed to release pages");
+@@ -74,11 +74,11 @@ runtime·SysReserve(void *v, uintptr n)
+ }
+ 
+ void
+-runtime·SysMap(void *v, uintptr n)
++runtime·SysMap(void *v, uintptr n, uint64 *stat)
+ {
+ 	void *p;
+ 	
+-	mstats.sys += n;
++	runtime·xadd64(stat, n);
+ 	p = runtime·stdcall(runtime·VirtualAlloc, 4, v, n, (uintptr)MEM_COMMIT, (uintptr)PAGE_READWRITE);
+ 	if(p != v)
+ 		runtime·throw("runtime: cannot map pages in arena address space");
+diff --git a/src/pkg/runtime/mfixalloc.c b/src/pkg/runtime/mfixalloc.c
+index 9541511644..d670629dae 100644
+--- a/src/pkg/runtime/mfixalloc.c
++++ b/src/pkg/runtime/mfixalloc.c
+@@ -13,7 +13,7 @@
+ // Initialize f to allocate objects of the given size,
+ // using the allocator to obtain chunks of memory.
+ void
+-runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg)
++runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), void *arg, uint64 *stat)
+ {
+ 	f->size = size;
+ 	f->first = first;
+@@ -22,7 +22,7 @@ runtime·FixAlloc_Init(FixAlloc *f, uintptr size, void (*first)(void*, byte*), v
+ 	f->chunk = nil;
+ 	f->nchunk = 0;
+ 	f->inuse = 0;
+-	f->sys = 0;
++	f->stat = stat;
+ }
+ 
+ void*
+@@ -42,8 +42,7 @@ runtime·FixAlloc_Alloc(FixAlloc *f)
+ 		return v;
+ 	}
+ 	if(f->nchunk < f->size) {
+-		f->sys += FixAllocChunk;
+-		f->chunk = runtime·persistentalloc(FixAllocChunk, 0);
++		f->chunk = runtime·persistentalloc(FixAllocChunk, 0, f->stat);
+ 		f->nchunk = FixAllocChunk;
+ 	}
+ 	v = f->chunk;
+diff --git a/src/pkg/runtime/mgc0.c b/src/pkg/runtime/mgc0.c
+index 074e756b07..9b6a9d5e96 100644
+--- a/src/pkg/runtime/mgc0.c
++++ b/src/pkg/runtime/mgc0.c
+@@ -1223,7 +1223,7 @@ getempty(Workbuf *b)
+ 		runtime·lock(&work);
+ 		if(work.nchunk < sizeof *b) {
+ 			work.nchunk = 1<<20;
+-			work.chunk = runtime·SysAlloc(work.nchunk);
++			work.chunk = runtime·SysAlloc(work.nchunk, &mstats.gc_sys);
+ 			if(work.chunk == nil)
+ 				runtime·throw("runtime: cannot allocate memory");
+ 		}
+@@ -1314,12 +1314,12 @@ addroot(Obj obj)
+ 		cap = PageSize/sizeof(Obj);
+ 		if(cap < 2*work.rootcap)
+ 			cap = 2*work.rootcap;
+-		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj));
++		new = (Obj*)runtime·SysAlloc(cap*sizeof(Obj), &mstats.gc_sys);
+ 		if(new == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		if(work.roots != nil) {
+ 			runtime·memmove(new, work.roots, work.rootcap*sizeof(Obj));
+-			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj));
++			runtime·SysFree(work.roots, work.rootcap*sizeof(Obj), &mstats.gc_sys);
+ 		}
+ 		work.roots = new;
+ 		work.rootcap = cap;
+@@ -1583,7 +1583,7 @@ handlespecial(byte *p, uintptr size)
+ 	runtime·lock(&finlock);
+ 	if(finq == nil || finq->cnt == finq->cap) {
+ 		if(finc == nil) {
+-			finc = runtime·persistentalloc(PageSize, 0);
++			finc = runtime·persistentalloc(PageSize, 0, &mstats.gc_sys);
+ 			finc->cap = (PageSize - sizeof(FinBlock)) / sizeof(Finalizer) + 1;
+ 			finc->alllink = allfin;
+ 			allfin = finc;
+@@ -1869,7 +1869,11 @@ updatememstats(GCStats *stats)
+ 		}
+ 	}
+ 	mstats.stacks_inuse = stacks_inuse;
+-
++	mstats.mcache_inuse = runtime·mheap.cachealloc.inuse;
++	mstats.mspan_inuse = runtime·mheap.spanalloc.inuse;
++	mstats.sys = mstats.heap_sys + mstats.stacks_sys + mstats.mspan_sys +
++		mstats.mcache_sys + mstats.buckhash_sys + mstats.gc_sys + mstats.other_sys;
++	
+ 	// Calculate memory allocator stats.
+ 	// During program execution we only count number of frees and amount of freed memory.
+ 	// Current number of alive object in the heap and amount of alive heap memory
+@@ -2517,6 +2521,6 @@ runtime·MHeap_MapBits(MHeap *h)
+ 	if(h->bitmap_mapped >= n)
+ 		return;
+ 
+-	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped);
++	runtime·SysMap(h->arena_start - n, n - h->bitmap_mapped, &mstats.gc_sys);
+ 	h->bitmap_mapped = n;
+ }
+diff --git a/src/pkg/runtime/mheap.c b/src/pkg/runtime/mheap.c
+index d7713965cf..fc80c2600e 100644
+--- a/src/pkg/runtime/mheap.c
++++ b/src/pkg/runtime/mheap.c
+@@ -36,12 +36,12 @@ RecordSpan(void *vh, byte *p)
+ 		cap = 64*1024/sizeof(all[0]);
+ 		if(cap < h->nspancap*3/2)
+ 			cap = h->nspancap*3/2;
+-		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]));
++		all = (MSpan**)runtime·SysAlloc(cap*sizeof(all[0]), &mstats.other_sys);
+ 		if(all == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+ 		if(h->allspans) {
+ 			runtime·memmove(all, h->allspans, h->nspancap*sizeof(all[0]));
+-			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]));
++			runtime·SysFree(h->allspans, h->nspancap*sizeof(all[0]), &mstats.other_sys);
+ 		}
+ 		h->allspans = all;
+ 		h->nspancap = cap;
+@@ -55,8 +55,8 @@ runtime·MHeap_Init(MHeap *h)
+ {
+ 	uint32 i;
+ 
+-	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h);
+-	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil);
++	runtime·FixAlloc_Init(&h->spanalloc, sizeof(MSpan), RecordSpan, h, &mstats.mspan_sys);
++	runtime·FixAlloc_Init(&h->cachealloc, sizeof(MCache), nil, nil, &mstats.mcache_sys);
+ 	// h->mapcache needs no init
+ 	for(i=0; i<nelem(h->free); i++)
+ 		runtime·MSpanList_Init(&h->free[i]);
+@@ -78,7 +78,7 @@ runtime·MHeap_MapSpans(MHeap *h)
+ 	n = ROUND(n, PageSize);
+ 	if(h->spans_mapped >= n)
+ 		return;
+-	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped);
++	runtime·SysMap((byte*)h->spans + h->spans_mapped, n - h->spans_mapped, &mstats.other_sys);
+ 	h->spans_mapped = n;
+ }
+ 
+@@ -164,8 +164,6 @@ HaveSpan:
+ 	if(s->npages > npage) {
+ 		// Trim extra and put it back in the heap.
+ 		t = runtime·FixAlloc_Alloc(&h->spanalloc);
+-		mstats.mspan_inuse = h->spanalloc.inuse;
+-		mstats.mspan_sys = h->spanalloc.sys;
+ 		runtime·MSpan_Init(t, s->start + npage, s->npages - npage);
+ 		s->npages = npage;
+ 		p = t->start;
+@@ -251,13 +249,10 @@ MHeap_Grow(MHeap *h, uintptr npage)
+ 			return false;
+ 		}
+ 	}
+-	mstats.heap_sys += ask;
+ 
+ 	// Create a fake "in use" span and free it, so that the
+ 	// right coalescing happens.
+ 	s = runtime·FixAlloc_Alloc(&h->spanalloc);
+-	mstats.mspan_inuse = h->spanalloc.inuse;
+-	mstats.mspan_sys = h->spanalloc.sys;
+ 	runtime·MSpan_Init(s, (uintptr)v>>PageShift, ask>>PageShift);
+ 	p = s->start;
+ 	if(sizeof(void*) == 8)
+@@ -363,8 +358,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		runtime·MSpanList_Remove(t);
+ 		t->state = MSpanDead;
+ 		runtime·FixAlloc_Free(&h->spanalloc, t);
+-		mstats.mspan_inuse = h->spanalloc.inuse;
+-		mstats.mspan_sys = h->spanalloc.sys;
+ 	}
+ 	if((p+s->npages)*sizeof(h->spans[0]) < h->spans_mapped && (t = h->spans[p+s->npages]) != nil && t->state != MSpanInUse) {
+ 		if(t->npreleased == 0) {  // cant't touch this otherwise
+@@ -377,8 +370,6 @@ MHeap_FreeLocked(MHeap *h, MSpan *s)
+ 		runtime·MSpanList_Remove(t);
+ 		t->state = MSpanDead;
+ 		runtime·FixAlloc_Free(&h->spanalloc, t);
+-		mstats.mspan_inuse = h->spanalloc.inuse;
+-		mstats.mspan_sys = h->spanalloc.sys;
+ 	}
+ 
+ 	// Insert s into appropriate list.
+diff --git a/src/pkg/runtime/mprof.goc b/src/pkg/runtime/mprof.goc
+index 473e6e11cf..a8d57e7635 100644
+--- a/src/pkg/runtime/mprof.goc
++++ b/src/pkg/runtime/mprof.goc
+@@ -70,10 +70,9 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ 	Bucket *b;
+ 
+ 	if(buckhash == nil) {
+-		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0]);
++		buckhash = runtime·SysAlloc(BuckHashSize*sizeof buckhash[0], &mstats.buckhash_sys);
+ 		if(buckhash == nil)
+ 			runtime·throw("runtime: cannot allocate memory");
+-		mstats.buckhash_sys += BuckHashSize*sizeof buckhash[0];
+ 	}
+ 
+ 	// Hash stack.
+@@ -95,7 +94,7 @@ stkbucket(int32 typ, uintptr *stk, int32 nstk, bool alloc)
+ 	if(!alloc)
+ 		return nil;
+ 
+-	b = runtime·persistentalloc(sizeof *b + nstk*sizeof stk[0], 0);
++	b = runtime·persistentalloc(sizeof *b + nstk*sizeof stk[0], 0, &mstats.buckhash_sys);
+ 	bucketmem += sizeof *b + nstk*sizeof stk[0];
+ 	runtime·memmove(b->stk, stk, nstk*sizeof stk[0]);
+ 	b->typ = typ;
+@@ -197,7 +196,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 		if(ah->addr == (addr>>AddrHashShift))
+ 			goto found;
+ 
+-	ah = runtime·persistentalloc(sizeof *ah, 0);
++	ah = runtime·persistentalloc(sizeof *ah, 0, &mstats.buckhash_sys);
+ 	addrmem += sizeof *ah;
+ 	ah->next = addrhash[h];
+ 	ah->addr = addr>>AddrHashShift;
+@@ -205,7 +204,7 @@ setaddrbucket(uintptr addr, Bucket *b)
+ 
+ found:
+ 	if((e = addrfree) == nil) {
+-		e = runtime·persistentalloc(64*sizeof *e, 0);
++		e = runtime·persistentalloc(64*sizeof *e, 0, &mstats.buckhash_sys);
+ 		addrmem += 64*sizeof *e;
+ 		for(i=0; i+1<64; i++)
+ 			e[i].next = &e[i+1];
+@@ -529,5 +528,5 @@ func GoroutineProfile(b Slice) (n int, ok bool) {
+ void
+ runtime·mprofinit(void)
+ {
+-	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0);
++	addrhash = runtime·persistentalloc((1<<AddrHashBits)*sizeof *addrhash, 0, &mstats.buckhash_sys);
+ }
+diff --git a/src/pkg/runtime/netpoll.goc b/src/pkg/runtime/netpoll.goc
+index 467476951d..d27bef167e 100644
+--- a/src/pkg/runtime/netpoll.goc
++++ b/src/pkg/runtime/netpoll.goc
+@@ -379,7 +379,7 @@ allocPollDesc(void)
+ 			n = 1;
+ 		// Must be in non-GC memory because can be referenced
+ 		// only from epoll/kqueue internals.
+-		pd = runtime·persistentalloc(n*sizeof(*pd), 0);
++		pd = runtime·persistentalloc(n*sizeof(*pd), 0, &mstats.other_sys);
+ 		for(i = 0; i < n; i++) {
+ 			pd[i].link = pollcache.first;
+ 			pollcache.first = &pd[i];
+diff --git a/src/pkg/runtime/stack.c b/src/pkg/runtime/stack.c
+index dd823705da..6b34f091e1 100644
+--- a/src/pkg/runtime/stack.c
++++ b/src/pkg/runtime/stack.c
+@@ -36,10 +36,9 @@ stackcacherefill(void)
+ 		stackcache = n->next;
+ 	runtime·unlock(&stackcachemu);
+ 	if(n == nil) {
+-		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch);
++		n = (StackCacheNode*)runtime·SysAlloc(FixedStack*StackCacheBatch, &mstats.stacks_sys);
+ 		if(n == nil)
+ 			runtime·throw("out of memory (stackcacherefill)");
+-		runtime·xadd64(&mstats.stacks_sys, FixedStack*StackCacheBatch);
+ 		for(i = 0; i < StackCacheBatch-1; i++)
+ 			n->batch[i] = (byte*)n + (i+1)*FixedStack;
+ 	}

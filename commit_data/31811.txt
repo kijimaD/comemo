@@ -25,7 +25,54 @@ Date:   Fri Mar 17 11:53:24 2017 -0400
     Reviewed-on: https://go-review.googlesource.com/38294
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/ssa.go           | 8 ++++++++
  src/cmd/compile/internal/ssa/writebarrier.go | 6 +++---
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 587bb7e2fb..f1447009da 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -3417,9 +3417,17 @@ func (s *state) rtcall(fn *obj.LSym, returns bool, results []*Type, args ...*ssa
+ 
+ // do *left = right for type t.
+ func (s *state) storeType(t *Type, left, right *ssa.Value, skip skipMask) {
++	if skip == 0 && (!haspointers(t) || ssa.IsStackAddr(left)) {
++		// Known to not have write barrier. Store the whole type.
++		s.vars[&memVar] = s.newValue3A(ssa.OpStore, ssa.TypeMem, t, left, right, s.mem())
++		return
++	}
++
+ 	// store scalar fields first, so write barrier stores for
+ 	// pointer fields can be grouped together, and scalar values
+ 	// don't need to be live across the write barrier call.
++	// TODO: if the writebarrier pass knows how to reorder stores,
++	// we can do a single store here as long as skip==0.
+ 	s.storeTypeScalars(t, left, right, skip)
+ 	if skip&skipPtr == 0 && haspointers(t) {
+ 		s.storeTypePtrs(t, left, right)
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 3447540309..43349bfaf5 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -19,7 +19,7 @@ func needwb(v *Value) bool {
+ 	if !t.HasPointer() {
+ 		return false
+ 	}
+-	if isStackAddr(v.Args[0]) {
++	if IsStackAddr(v.Args[0]) {
+ 		return false // write on stack doesn't need write barrier
+ 	}
+ 	return true
+@@ -316,8 +316,8 @@ func round(o int64, r int64) int64 {
+ 	return (o + r - 1) &^ (r - 1)
+ }
+ 
+-// isStackAddr returns whether v is known to be an address of a stack slot
+-func isStackAddr(v *Value) bool {
++// IsStackAddr returns whether v is known to be an address of a stack slot
++func IsStackAddr(v *Value) bool {
+ 	for v.Op == OpOffPtr || v.Op == OpAddPtr || v.Op == OpPtrIndex || v.Op == OpCopy {
+ 		v = v.Args[0]
+ 	}

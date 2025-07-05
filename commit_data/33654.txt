@@ -9,6 +9,23 @@ Date:   Mon Aug 28 11:09:37 2017 -0700
     Change-Id: I42fb7ea2dd7f6d6a201171055beaeda68c26b823
     Reviewed-on: https://go-review.googlesource.com/59530
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/go1.9.html | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/doc/go1.9.html b/doc/go1.9.html
+index 90bf442f70..fa50ae7805 100644
+--- a/doc/go1.9.html
++++ b/doc/go1.9.html
+@@ -745,6 +745,11 @@ version of gccgo.
+         and
+         <a href="/pkg/context/#WithValue"><code>context.WithValue</code></a> instead.
+       </li>
++
++      <li><!-- CL 35490 -->
++        <a href="/pkg/net/http/#LocalAddrContextKey"><code>LocalAddrContextKey</code></a> now contains
++        the connection's actual network address instead of the interface address used by the listener.
++      </li>
+     </ul>
+ 
+     <p>Client &amp; Transport changes:</p>

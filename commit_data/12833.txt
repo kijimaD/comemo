@@ -10,7 +10,113 @@ Date:   Wed Apr 4 17:41:36 2012 -0700
     R=golang-dev, bradfitz, mikioh.mikioh, iant
     CC=golang-dev
     https://golang.org/cl/5975073
-
+---
  src/pkg/net/interface_linux.go   |  8 ++++++--
  src/pkg/syscall/netlink_linux.go | 31 ++++++++++---------------------
  2 files changed, 16 insertions(+), 23 deletions(-)
+
+diff --git a/src/pkg/net/interface_linux.go b/src/pkg/net/interface_linux.go
+index 825b20227a..ce2e921e86 100644
+--- a/src/pkg/net/interface_linux.go
++++ b/src/pkg/net/interface_linux.go
+@@ -64,7 +64,7 @@ func newLink(ifim *syscall.IfInfomsg, attrs []syscall.NetlinkRouteAttr) Interfac
+ 		case syscall.IFLA_IFNAME:
+ 			ifi.Name = string(a.Value[:len(a.Value)-1])
+ 		case syscall.IFLA_MTU:
+-			ifi.MTU = int(uint32(a.Value[3])<<24 | uint32(a.Value[2])<<16 | uint32(a.Value[1])<<8 | uint32(a.Value[0]))
++			ifi.MTU = int(*(*uint32)(unsafe.Pointer(&a.Value[:4][0])))
+ 		}
+ 	}
+ 	return ifi
+@@ -193,10 +193,14 @@ func parseProcNetIGMP(path string, ifi *Interface) []Addr {
+ 			name = f[1]
+ 		case len(f[0]) == 8:
+ 			if ifi == nil || name == ifi.Name {
++				// The Linux kernel puts the IP
++				// address in /proc/net/igmp in native
++				// endianness.
+ 				for i := 0; i+1 < len(f[0]); i += 2 {
+ 					b[i/2], _ = xtoi2(f[0][i:i+2], 0)
+ 				}
+-				ifma := IPAddr{IP: IPv4(b[3], b[2], b[1], b[0])}
++				i := *(*uint32)(unsafe.Pointer(&b[:4][0]))
++				ifma := IPAddr{IP: IPv4(byte(i>>24), byte(i>>16), byte(i>>8), byte(i))}
+ 				ifmat = append(ifmat, ifma.toAddr())
+ 			}
+ 		}
+diff --git a/src/pkg/syscall/netlink_linux.go b/src/pkg/syscall/netlink_linux.go
+index dc0f68470d..d535713069 100644
+--- a/src/pkg/syscall/netlink_linux.go
++++ b/src/pkg/syscall/netlink_linux.go
+@@ -30,29 +30,18 @@ type NetlinkRouteRequest struct {
+ 
+ func (rr *NetlinkRouteRequest) toWireFormat() []byte {
+ 	b := make([]byte, rr.Header.Len)
+-	b[0] = byte(rr.Header.Len)
+-	b[1] = byte(rr.Header.Len >> 8)
+-	b[2] = byte(rr.Header.Len >> 16)
+-	b[3] = byte(rr.Header.Len >> 24)
+-	b[4] = byte(rr.Header.Type)
+-	b[5] = byte(rr.Header.Type >> 8)
+-	b[6] = byte(rr.Header.Flags)
+-	b[7] = byte(rr.Header.Flags >> 8)
+-	b[8] = byte(rr.Header.Seq)
+-	b[9] = byte(rr.Header.Seq >> 8)
+-	b[10] = byte(rr.Header.Seq >> 16)
+-	b[11] = byte(rr.Header.Seq >> 24)
+-	b[12] = byte(rr.Header.Pid)
+-	b[13] = byte(rr.Header.Pid >> 8)
+-	b[14] = byte(rr.Header.Pid >> 16)
+-	b[15] = byte(rr.Header.Pid >> 24)
++	*(*uint32)(unsafe.Pointer(&b[0:4][0])) = rr.Header.Len
++	*(*uint16)(unsafe.Pointer(&b[4:6][0])) = rr.Header.Type
++	*(*uint16)(unsafe.Pointer(&b[6:8][0])) = rr.Header.Flags
++	*(*uint32)(unsafe.Pointer(&b[8:12][0])) = rr.Header.Seq
++	*(*uint32)(unsafe.Pointer(&b[12:16][0])) = rr.Header.Pid
+ 	b[16] = byte(rr.Data.Family)
+ 	return b
+ }
+ 
+ func newNetlinkRouteRequest(proto, seq, family int) []byte {
+ 	rr := &NetlinkRouteRequest{}
+-	rr.Header.Len = NLMSG_HDRLEN + SizeofRtGenmsg
++	rr.Header.Len = uint32(NLMSG_HDRLEN + SizeofRtGenmsg)
+ 	rr.Header.Type = uint16(proto)
+ 	rr.Header.Flags = NLM_F_DUMP | NLM_F_REQUEST
+ 	rr.Header.Seq = uint32(seq)
+@@ -156,7 +145,7 @@ func ParseNetlinkMessage(buf []byte) ([]NetlinkMessage, error) {
+ 		}
+ 		m := NetlinkMessage{}
+ 		m.Header = *h
+-		m.Data = dbuf[:h.Len-NLMSG_HDRLEN]
++		m.Data = dbuf[:int(h.Len)-NLMSG_HDRLEN]
+ 		msgs = append(msgs, m)
+ 		buf = buf[dlen:]
+ 	}
+@@ -166,7 +155,7 @@ func ParseNetlinkMessage(buf []byte) ([]NetlinkMessage, error) {
+ 
+ func netlinkMessageHeaderAndData(buf []byte) (*NlMsghdr, []byte, int, error) {
+ 	h := (*NlMsghdr)(unsafe.Pointer(&buf[0]))
+-	if h.Len < NLMSG_HDRLEN || int(h.Len) > len(buf) {
++	if int(h.Len) < NLMSG_HDRLEN || int(h.Len) > len(buf) {
+ 		return nil, nil, 0, EINVAL
+ 	}
+ 	return h, buf[NLMSG_HDRLEN:], nlmAlignOf(int(h.Len)), nil
+@@ -209,7 +198,7 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, error) {
+ 		}
+ 		ra := NetlinkRouteAttr{}
+ 		ra.Attr = *a
+-		ra.Value = vbuf[:a.Len-SizeofRtAttr]
++		ra.Value = vbuf[:int(a.Len)-SizeofRtAttr]
+ 		attrs = append(attrs, ra)
+ 		buf = buf[alen:]
+ 	}
+@@ -219,7 +208,7 @@ func ParseNetlinkRouteAttr(msg *NetlinkMessage) ([]NetlinkRouteAttr, error) {
+ 
+ func netlinkRouteAttrAndValue(buf []byte) (*RtAttr, []byte, int, error) {
+ 	h := (*RtAttr)(unsafe.Pointer(&buf[0]))
+-	if h.Len < SizeofRtAttr || int(h.Len) > len(buf) {
++	if int(h.Len) < SizeofRtAttr || int(h.Len) > len(buf) {
+ 		return nil, nil, 0, EINVAL
+ 	}
+ 	return h, buf[SizeofRtAttr:], rtaAlignOf(int(h.Len)), nil

@@ -15,7 +15,60 @@ Date:   Thu Sep 1 16:30:15 2016 -0400
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/response.go           |  2 +-
  src/net/http/responsewrite_test.go | 21 +++++++++++++++++++--
  2 files changed, 20 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 5450d50c3c..e04ecb9a1b 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -300,7 +300,7 @@ func (r *Response) Write(w io.Writer) error {
+ 	// contentLengthAlreadySent may have been already sent for
+ 	// POST/PUT requests, even if zero length. See Issue 8180.
+ 	contentLengthAlreadySent := tw.shouldSendContentLength()
+-	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent {
++	if r1.ContentLength == 0 && !chunked(r1.TransferEncoding) && !contentLengthAlreadySent && bodyAllowedForStatus(r.StatusCode) {
+ 		if _, err := io.WriteString(w, "Content-Length: 0\r\n"); err != nil {
+ 			return err
+ 		}
+diff --git a/src/net/http/responsewrite_test.go b/src/net/http/responsewrite_test.go
+index 90f6767d96..d41d89896e 100644
+--- a/src/net/http/responsewrite_test.go
++++ b/src/net/http/responsewrite_test.go
+@@ -241,7 +241,8 @@ func TestResponseWrite(t *testing.T) {
+ 			"HTTP/1.0 007 license to violate specs\r\nContent-Length: 0\r\n\r\n",
+ 		},
+ 
+-		// No stutter.
++		// No stutter.  Status code in 1xx range response should
++		// not include a Content-Length header.  See issue #16942.
+ 		{
+ 			Response{
+ 				StatusCode: 123,
+@@ -253,7 +254,23 @@ func TestResponseWrite(t *testing.T) {
+ 				Body:       nil,
+ 			},
+ 
+-			"HTTP/1.0 123 Sesame Street\r\nContent-Length: 0\r\n\r\n",
++			"HTTP/1.0 123 Sesame Street\r\n\r\n",
++		},
++
++		// Status code 204 (No content) response should not include a
++		// Content-Length header.  See issue #16942.
++		{
++			Response{
++				StatusCode: 204,
++				Status:     "No Content",
++				ProtoMajor: 1,
++				ProtoMinor: 0,
++				Request:    dummyReq("GET"),
++				Header:     Header{},
++				Body:       nil,
++			},
++
++			"HTTP/1.0 204 No Content\r\n\r\n",
+ 		},
+ 	}
+ 

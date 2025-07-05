@@ -28,7 +28,113 @@ Date:   Tue Mar 22 16:41:11 2016 +0100
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Adam Langley <agl@golang.org>
-
+---
  src/crypto/hmac/hmac.go      | 34 +++++++++++++++-------------------
  src/crypto/hmac/hmac_test.go | 26 ++++++++++++++++++++++++++
  2 files changed, 41 insertions(+), 19 deletions(-)
+
+diff --git a/src/crypto/hmac/hmac.go b/src/crypto/hmac/hmac.go
+index 3b41cde0bd..a748107838 100644
+--- a/src/crypto/hmac/hmac.go
++++ b/src/crypto/hmac/hmac.go
+@@ -37,26 +37,16 @@ import (
+ type hmac struct {
+ 	size         int
+ 	blocksize    int
+-	key, tmp     []byte
++	opad, ipad   []byte
+ 	outer, inner hash.Hash
+ }
+ 
+-func (h *hmac) tmpPad(xor byte) {
+-	for i, k := range h.key {
+-		h.tmp[i] = xor ^ k
+-	}
+-	for i := len(h.key); i < h.blocksize; i++ {
+-		h.tmp[i] = xor
+-	}
+-}
+-
+ func (h *hmac) Sum(in []byte) []byte {
+ 	origLen := len(in)
+ 	in = h.inner.Sum(in)
+-	h.tmpPad(0x5c)
+-	copy(h.tmp[h.blocksize:], in[origLen:])
+ 	h.outer.Reset()
+-	h.outer.Write(h.tmp)
++	h.outer.Write(h.opad)
++	h.outer.Write(in[origLen:])
+ 	return h.outer.Sum(in[:origLen])
+ }
+ 
+@@ -70,8 +60,7 @@ func (h *hmac) BlockSize() int { return h.blocksize }
+ 
+ func (h *hmac) Reset() {
+ 	h.inner.Reset()
+-	h.tmpPad(0x36)
+-	h.inner.Write(h.tmp[:h.blocksize])
++	h.inner.Write(h.ipad)
+ }
+ 
+ // New returns a new HMAC hash using the given hash.Hash type and key.
+@@ -81,15 +70,22 @@ func New(h func() hash.Hash, key []byte) hash.Hash {
+ 	hm.inner = h()
+ 	hm.size = hm.inner.Size()
+ 	hm.blocksize = hm.inner.BlockSize()
+-	hm.tmp = make([]byte, hm.blocksize+hm.size)
++	hm.ipad = make([]byte, hm.blocksize)
++	hm.opad = make([]byte, hm.blocksize)
+ 	if len(key) > hm.blocksize {
+ 		// If key is too big, hash it.
+ 		hm.outer.Write(key)
+ 		key = hm.outer.Sum(nil)
+ 	}
+-	hm.key = make([]byte, len(key))
+-	copy(hm.key, key)
+-	hm.Reset()
++	copy(hm.ipad, key)
++	copy(hm.opad, key)
++	for i := range hm.ipad {
++		hm.ipad[i] ^= 0x36
++	}
++	for i := range hm.opad {
++		hm.opad[i] ^= 0x5c
++	}
++	hm.inner.Write(hm.ipad)
+ 	return hm
+ }
+ 
+diff --git a/src/crypto/hmac/hmac_test.go b/src/crypto/hmac/hmac_test.go
+index e80b7e0baa..aac9aa96a8 100644
+--- a/src/crypto/hmac/hmac_test.go
++++ b/src/crypto/hmac/hmac_test.go
+@@ -568,3 +568,29 @@ func TestEqual(t *testing.T) {
+ 		t.Error("Equal accepted unequal slices")
+ 	}
+ }
++
++func BenchmarkHMACSHA256_1K(b *testing.B) {
++	key := make([]byte, 32)
++	buf := make([]byte, 1024)
++	h := New(sha256.New, key)
++	b.SetBytes(int64(len(buf)))
++	for i := 0; i < b.N; i++ {
++		h.Write(buf)
++		h.Reset()
++		mac := h.Sum(nil)
++		buf[0] = mac[0]
++	}
++}
++
++func BenchmarkHMACSHA256_32(b *testing.B) {
++	key := make([]byte, 32)
++	buf := make([]byte, 32)
++	h := New(sha256.New, key)
++	b.SetBytes(int64(len(buf)))
++	for i := 0; i < b.N; i++ {
++		h.Write(buf)
++		h.Reset()
++		mac := h.Sum(nil)
++		buf[0] = mac[0]
++	}
++}

@@ -10,7 +10,7 @@ Date:   Tue Oct 30 13:38:01 2012 -0700
     R=r
     CC=golang-dev
     https://golang.org/cl/6815053
-
+---
  misc/cgo/test/callback.go                     |  2 +-
  misc/cgo/test/cgo_test.go                     |  2 +-
  misc/cgo/test/issue1560.go                    |  4 +--
@@ -148,3 +148,2378 @@ Date:   Tue Oct 30 13:38:01 2012 -0700
  src/pkg/unicode/letter.go                     |  2 +-
  src/pkg/unicode/letter_test.go                |  2 +-
  136 files changed, 240 insertions(+), 240 deletions(-)
+
+diff --git a/misc/cgo/test/callback.go b/misc/cgo/test/callback.go
+index e6a1462b3e..4f5d3f855f 100644
+--- a/misc/cgo/test/callback.go
++++ b/misc/cgo/test/callback.go
+@@ -110,7 +110,7 @@ func testZeroArgCallback(t *testing.T) {
+ func goFoo() {
+ 	x := 1
+ 	for i := 0; i < 10000; i++ {
+-		// variadic call mallocs + writes to 
++		// variadic call mallocs + writes to
+ 		variadic(x, x, x)
+ 		if x != 1 {
+ 			panic("bad x")
+diff --git a/misc/cgo/test/cgo_test.go b/misc/cgo/test/cgo_test.go
+index 682e292a70..a423195f48 100644
+--- a/misc/cgo/test/cgo_test.go
++++ b/misc/cgo/test/cgo_test.go
+@@ -6,7 +6,7 @@ package cgotest
+ 
+ import "testing"
+ 
+-// The actual test functions are in non-_test.go files 
++// The actual test functions are in non-_test.go files
+ // so that they can use cgo (import "C").
+ // These wrappers are here for gotest to find.
+ 
+diff --git a/misc/cgo/test/issue1560.go b/misc/cgo/test/issue1560.go
+index 0f43b8bd0a..147ce94b58 100644
+--- a/misc/cgo/test/issue1560.go
++++ b/misc/cgo/test/issue1560.go
+@@ -35,8 +35,8 @@ func BackgroundSleep(n int32) {
+ 	}()
+ }
+ 
+-// wasteCPU starts a background goroutine to waste CPU 
+-// to cause the power management to raise the CPU frequency. 
++// wasteCPU starts a background goroutine to waste CPU
++// to cause the power management to raise the CPU frequency.
+ // On ARM this has the side effect of making sleep more accurate.
+ func wasteCPU() chan struct{} {
+ 	done := make(chan struct{})
+diff --git a/misc/cgo/test/issue4029.go b/misc/cgo/test/issue4029.go
+index a266cc64a0..7495d38fea 100644
+--- a/misc/cgo/test/issue4029.go
++++ b/misc/cgo/test/issue4029.go
+@@ -7,7 +7,7 @@
+ package cgotest
+ 
+ /*
+-#include <dlfcn.h> 
++#include <dlfcn.h>
+ #cgo linux LDFLAGS: -ldl
+ */
+ import "C"
+diff --git a/misc/dashboard/app/build/build.go b/misc/dashboard/app/build/build.go
+index 52f9fb0d4a..53db3dda5b 100644
+--- a/misc/dashboard/app/build/build.go
++++ b/misc/dashboard/app/build/build.go
+@@ -183,7 +183,7 @@ type Result struct {
+ 	Log     string `datastore:"-"`        // for JSON unmarshaling only
+ 	LogHash string `datastore:",noindex"` // Key to the Log record.
+ 
+-	RunTime int64 // time to build+test in nanoseconds 
++	RunTime int64 // time to build+test in nanoseconds
+ }
+ 
+ func (r *Result) Key(c appengine.Context) *datastore.Key {
+diff --git a/misc/dashboard/builder/doc.go b/misc/dashboard/builder/doc.go
+index 30d8fe9488..707f8e68fd 100644
+--- a/misc/dashboard/builder/doc.go
++++ b/misc/dashboard/builder/doc.go
+@@ -4,15 +4,15 @@
+ 
+ /*
+ 
+-Go Builder is a continuous build client for the Go project. 
++Go Builder is a continuous build client for the Go project.
+ It integrates with the Go Dashboard AppEngine application.
+ 
+ Go Builder is intended to run continuously as a background process.
+ 
+-It periodically pulls updates from the Go Mercurial repository. 
++It periodically pulls updates from the Go Mercurial repository.
+ 
+ When a newer revision is found, Go Builder creates a clone of the repository,
+-runs all.bash, and reports build success or failure to the Go Dashboard. 
++runs all.bash, and reports build success or failure to the Go Dashboard.
+ 
+ For a release revision (a change description that matches "release.YYYY-MM-DD"),
+ Go Builder will create a tar.gz archive of the GOROOT and deliver it to the
+@@ -22,7 +22,7 @@ Usage:
+ 
+   gobuilder goos-goarch...
+ 
+-  Several goos-goarch combinations can be provided, and the builder will 
++  Several goos-goarch combinations can be provided, and the builder will
+   build them in serial.
+ 
+ Optional flags:
+diff --git a/misc/dashboard/builder/exec.go b/misc/dashboard/builder/exec.go
+index 6ebe7b8bf4..bf5c28d47d 100644
+--- a/misc/dashboard/builder/exec.go
++++ b/misc/dashboard/builder/exec.go
+@@ -29,7 +29,7 @@ func run(timeout time.Duration, envv []string, dir string, argv ...string) error
+ 	return waitWithTimeout(timeout, cmd)
+ }
+ 
+-// runLog runs a process and returns the combined stdout/stderr, 
++// runLog runs a process and returns the combined stdout/stderr,
+ // as well as writing it to logfile (if specified). It returns
+ // process combined stdout and stderr output, exit status and error.
+ // The error returned is nil, if process is started successfully,
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 5e30115edf..03999db170 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -208,7 +208,7 @@ func NewBuilder(builder string) (*Builder, error) {
+ }
+ 
+ // build checks for a new commit for this builder
+-// and builds it if one is found. 
++// and builds it if one is found.
+ // It returns true if a build was attempted.
+ func (b *Builder) build() bool {
+ 	hash, err := b.todo("build-go-commit", "", "")
+@@ -286,7 +286,7 @@ func (b *Builder) buildHash(hash string) error {
+ }
+ 
+ // failBuild checks for a new commit for this builder
+-// and fails it if one is found. 
++// and fails it if one is found.
+ // It returns true if a build was "attempted".
+ func (b *Builder) failBuild() bool {
+ 	hash, err := b.todo("build-go-commit", "", "")
+diff --git a/misc/dashboard/codereview/dashboard/cl.go b/misc/dashboard/codereview/dashboard/cl.go
+index dce2744257..e150ea123d 100644
+--- a/misc/dashboard/codereview/dashboard/cl.go
++++ b/misc/dashboard/codereview/dashboard/cl.go
+@@ -434,7 +434,7 @@ func updateCL(c appengine.Context, n string) error {
+ // trailingSpaceRE matches trailing spaces.
+ var trailingSpaceRE = regexp.MustCompile(`(?m)[ \t\r]+$`)
+ 
+-// removeRE is the list of patterns to skip over at the beginning of a 
++// removeRE is the list of patterns to skip over at the beginning of a
+ // message when looking for message text.
+ var removeRE = regexp.MustCompile(`(?m-s)\A(` +
+ 	// Skip leading "Hello so-and-so," generated by codereview plugin.
+diff --git a/misc/goplay/doc.go b/misc/goplay/doc.go
+index fd4a28e71e..e4e8862912 100644
+--- a/misc/goplay/doc.go
++++ b/misc/goplay/doc.go
+@@ -4,20 +4,20 @@
+ 
+ // Goplay is a web interface for experimenting with Go code.
+ // It is similar to the Go Playground: http://golang.org/doc/play/
+-// 
++//
+ // To use goplay:
+ //   $ cd $GOROOT/misc/goplay
+ //   $ go run goplay.go
+ // and load http://localhost:3999/ in a web browser.
+-// 
++//
+ // You should see a Hello World program, which you can compile and run by
+ // pressing shift-enter. There is also a "compile-on-keypress" feature that can
+ // be enabled by checking a checkbox.
+-// 
++//
+ // WARNING! CUIDADO! ACHTUNG! ATTENZIONE!
+ // A note on security: anyone with access to the goplay web interface can run
+ // arbitrary code on your computer. Goplay is not a sandbox, and has no other
+-// security mechanisms. Do not deploy it in untrusted environments. 
+-// By default, goplay listens only on localhost. This can be overridden with 
++// security mechanisms. Do not deploy it in untrusted environments.
++// By default, goplay listens only on localhost. This can be overridden with
+ // the -http parameter. Do so at your own risk.
+ package documentation
+diff --git a/misc/goplay/goplay.go b/misc/goplay/goplay.go
+index 9ce4f89aeb..94d04139dd 100644
+--- a/misc/goplay/goplay.go
++++ b/misc/goplay/goplay.go
+@@ -44,7 +44,7 @@ func main() {
+ 	log.Fatal(http.ListenAndServe(*httpListen, nil))
+ }
+ 
+-// FrontPage is an HTTP handler that renders the goplay interface. 
++// FrontPage is an HTTP handler that renders the goplay interface.
+ // If a filename is supplied in the path component of the URI,
+ // its contents will be put in the interface's text area.
+ // Otherwise, the default "hello, world" program is displayed.
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 9d5fc22bc0..689c6eb067 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -1562,7 +1562,7 @@ func godefsFields(fld []*ast.Field) {
+ }
+ 
+ // fieldPrefix returns the prefix that should be removed from all the
+-// field names when generating the C or Go code.  For generated 
++// field names when generating the C or Go code.  For generated
+ // C, we leave the names as is (tv_sec, tv_usec), since that's what
+ // people are used to seeing in C.  For generated Go code, such as
+ // package syscall's data structures, we drop a common prefix
+@@ -1579,7 +1579,7 @@ func fieldPrefix(fld []*ast.Field) string {
+ 			// named, say, _pad in an otherwise prefixed header.
+ 			// If the struct has 3 fields tv_sec, tv_usec, _pad1, then we
+ 			// still want to remove the tv_ prefix.
+-			// The check for "orig_" here handles orig_eax in the 
++			// The check for "orig_" here handles orig_eax in the
+ 			// x86 ptrace register sets, which otherwise have all fields
+ 			// with reg_ prefixes.
+ 			if strings.HasPrefix(n.Name, "orig_") || strings.HasPrefix(n.Name, "_") {
+diff --git a/src/cmd/fix/osopen.go b/src/cmd/fix/osopen.go
+index af2796ac22..5fe4cd067f 100644
+--- a/src/cmd/fix/osopen.go
++++ b/src/cmd/fix/osopen.go
+@@ -91,7 +91,7 @@ func isCreateFlag(flag ast.Expr) bool {
+ 		case "O_TRUNC":
+ 			foundTrunc = true
+ 		case "O_RDONLY", "O_WRONLY", "O_RDWR":
+-			// okay 
++			// okay
+ 		default:
+ 			// Unexpected flag, like O_APPEND or O_EXCL.
+ 			// Be conservative and do not rewrite.
+diff --git a/src/cmd/fix/reflect.go b/src/cmd/fix/reflect.go
+index 151da569de..a81f485467 100644
+--- a/src/cmd/fix/reflect.go
++++ b/src/cmd/fix/reflect.go
+@@ -42,7 +42,7 @@ http://codereview.appspot.com/4433066
+ //
+ // If z is an ordinary variable name and x is not subsequently assigned to,
+ // references to x can be replaced by z and the assignment deleted.
+-// We only bother if x and z are the same name.  
++// We only bother if x and z are the same name.
+ // If y is not subsequently assigned to and neither is x, references to
+ // y can be replaced by its expression.  We only bother when there is
+ // just one use or when the use appears in an if clause.
+@@ -76,14 +76,14 @@ http://codereview.appspot.com/4433066
+ //
+ // Because the type check assignment includes a type assertion in its
+ // syntax and the rewrite traversal is bottom up, we must do a pass to
+-// rewrite the type check assignments and then a separate pass to 
++// rewrite the type check assignments and then a separate pass to
+ // rewrite the type assertions.
+ //
+ // The same process applies to the API changes for reflect.Value.
+ //
+ // For both cases, but especially Value, the code needs to be aware
+ // of the type of a receiver when rewriting a method call.   For example,
+-// x.(*reflect.ArrayValue).Elem(i) becomes x.Index(i) while 
++// x.(*reflect.ArrayValue).Elem(i) becomes x.Index(i) while
+ // x.(*reflect.MapValue).Elem(v) becomes x.MapIndex(v).
+ // In general, reflectFn needs to know the type of the receiver expression.
+ // In most cases (and in all the cases in the Go source tree), the toy
+diff --git a/src/cmd/fix/typecheck.go b/src/cmd/fix/typecheck.go
+index 8e54314d14..d54d375478 100644
+--- a/src/cmd/fix/typecheck.go
++++ b/src/cmd/fix/typecheck.go
+@@ -17,7 +17,7 @@ import (
+ //
+ // The fact that it is partial is very important: the input is
+ // an AST and a description of some type information to
+-// assume about one or more packages, but not all the 
++// assume about one or more packages, but not all the
+ // packages that the program imports.  The checker is
+ // expected to do as much as it can with what it has been
+ // given.  There is not enough information supplied to do
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index 05cf84d2bd..5dff122c8c 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -1120,7 +1120,7 @@ func (b *builder) runOut(dir string, desc string, cmdargs ...interface{}) ([]byt
+ 		// not worry about other processes inheriting the fd accidentally.
+ 		// The answer is that running a command is fork and exec.
+ 		// A child forked while the cgo fd is open inherits that fd.
+-		// Until the child has called exec, it holds the fd open and the 
++		// Until the child has called exec, it holds the fd open and the
+ 		// kernel will not let us run cgo.  Even if the child were to close
+ 		// the fd explicitly, it would still be open from the time of the fork
+ 		// until the time of the explicit close, and the race would remain.
+diff --git a/src/cmd/go/doc.go b/src/cmd/go/doc.go
+index 9e728163f8..588a061733 100644
+--- a/src/cmd/go/doc.go
++++ b/src/cmd/go/doc.go
+@@ -493,7 +493,7 @@ Here's an example directory layout:
+                     bar.a          (installed package object)
+ 
+ Go searches each directory listed in GOPATH to find source code,
+-but new packages are always downloaded into the first directory 
++but new packages are always downloaded into the first directory
+ in the list.
+ 
+ 
+@@ -511,13 +511,13 @@ denotes the package in that directory.
+ 
+ Otherwise, the import path P denotes the package found in
+ the directory DIR/src/P for some DIR listed in the GOPATH
+-environment variable (see 'go help gopath'). 
++environment variable (see 'go help gopath').
+ 
+ If no import paths are given, the action applies to the
+ package in the current directory.
+ 
+ The special import path "all" expands to all package directories
+-found in all the GOPATH trees.  For example, 'go list all' 
++found in all the GOPATH trees.  For example, 'go list all'
+ lists all the packages on the local system.
+ 
+ The special import path "std" is like all but expands to just the
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index fe45697e28..7d046fb8c5 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -105,7 +105,7 @@ func downloadPaths(args []string) []string {
+ 		if strings.Contains(a, "...") {
+ 			var expand []string
+ 			// Use matchPackagesInFS to avoid printing
+-			// warnings.  They will be printed by the 
++			// warnings.  They will be printed by the
+ 			// eventual call to importPaths instead.
+ 			if build.IsLocalImport(a) {
+ 				expand = matchPackagesInFS(a)
+diff --git a/src/cmd/go/testflag.go b/src/cmd/go/testflag.go
+index d73bfde20d..6d3b2bed31 100644
+--- a/src/cmd/go/testflag.go
++++ b/src/cmd/go/testflag.go
+@@ -124,7 +124,7 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		f, value, extraWord := testFlag(args, i)
+ 		if f == nil {
+ 			// This is a flag we do not know; we must assume
+-			// that any args we see after this might be flag 
++			// that any args we see after this might be flag
+ 			// arguments, not package names.
+ 			inPkg = false
+ 			if packageNames == nil {
+diff --git a/src/cmd/godoc/dirtrees.go b/src/cmd/godoc/dirtrees.go
+index b9b529f87a..29bd39e6b0 100644
+--- a/src/cmd/godoc/dirtrees.go
++++ b/src/cmd/godoc/dirtrees.go
+@@ -264,7 +264,7 @@ type DirEntry struct {
+ 	Height   int    // = DirList.MaxHeight - Depth, > 0
+ 	Path     string // directory path; includes Name, relative to DirList root
+ 	Name     string // directory name
+-	HasPkg   bool   // true if the directory contains at least one package 
++	HasPkg   bool   // true if the directory contains at least one package
+ 	Synopsis string // package documentation, if any
+ }
+ 
+diff --git a/src/cmd/godoc/filesystem.go b/src/cmd/godoc/filesystem.go
+index 09d7b2463c..c4afbed800 100644
+--- a/src/cmd/godoc/filesystem.go
++++ b/src/cmd/godoc/filesystem.go
+@@ -41,7 +41,7 @@ import (
+ // paths can assume they are slash-separated and should be using
+ // package path (often imported as pathpkg) to manipulate them,
+ // even on Windows.
+-// 
++//
+ var fs = nameSpace{} // the underlying file system for godoc
+ 
+ // Setting debugNS = true will enable debugging prints about
+@@ -138,7 +138,7 @@ func hasPathPrefix(x, y string) bool {
+ // but we want to be able to mount multiple file systems on a single
+ // mount point and have the system behave as if the union of those
+ // file systems were present at the mount point.
+-// For example, if the OS file system has a Go installation in 
++// For example, if the OS file system has a Go installation in
+ // c:\Go and additional Go path trees in  d:\Work1 and d:\Work2, then
+ // this name space creates the view we want for the godoc server:
+ //
+@@ -179,7 +179,7 @@ func hasPathPrefix(x, y string) bool {
+ //	OS(`d:\Work1').ReadDir("/src/code")
+ //	OS(`d:\Work2').ReadDir("/src/code")
+ //
+-// Note that the "/src/pkg" in "/src/pkg/code" has been replaced by 
++// Note that the "/src/pkg" in "/src/pkg/code" has been replaced by
+ // just "/src" in the final two calls.
+ //
+ // OS is itself an implementation of a file system: it implements
+diff --git a/src/cmd/godoc/format.go b/src/cmd/godoc/format.go
+index f9cbdf53cd..122ddc7d62 100644
+--- a/src/cmd/godoc/format.go
++++ b/src/cmd/godoc/format.go
+@@ -121,7 +121,7 @@ func FormatSelections(w io.Writer, text []byte, lw LinkWriter, links Selection,
+ 		} else {
+ 			// we have a selection change:
+ 			// format the previous selection segment, determine
+-			// the new selection bitset and start a new segment 
++			// the new selection bitset and start a new segment
+ 			segment(offs)
+ 			lastOffs = offs
+ 			mask := 1 << uint(index)
+diff --git a/src/cmd/godoc/template.go b/src/cmd/godoc/template.go
+index d709baef49..c96bf5bc4e 100644
+--- a/src/cmd/godoc/template.go
++++ b/src/cmd/godoc/template.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Template support for writing HTML documents.
+-// Documents that include Template: true in their 
++// Documents that include Template: true in their
+ // metadata are executed as input to text/template.
+ //
+ // This file defines functions for those templates to invoke.
+diff --git a/src/cmd/nm/doc.go b/src/cmd/nm/doc.go
+index c84369a5fd..004567cad2 100644
+--- a/src/cmd/nm/doc.go
++++ b/src/cmd/nm/doc.go
+@@ -11,7 +11,7 @@ Nm is a version of the Plan 9 nm command.  The original is documented at
+ It prints the name list (symbol table) for programs compiled by gc as well as the
+ Plan 9 C compiler.
+ 
+-This implementation adds the flag -S, which prints each symbol's size 
++This implementation adds the flag -S, which prints each symbol's size
+ in decimal after its address.
+ 
+ Usage:
+diff --git a/src/cmd/vet/doc.go b/src/cmd/vet/doc.go
+index be51ec8077..d19a42fde1 100644
+--- a/src/cmd/vet/doc.go
++++ b/src/cmd/vet/doc.go
+@@ -35,7 +35,7 @@ Printf.
+ 
+ Non-standard signatures for methods with familiar names, including:
+ 	Format GobEncode GobDecode MarshalJSON MarshalXML
+-	Peek ReadByte ReadFrom ReadRune Scan Seek 
++	Peek ReadByte ReadFrom ReadRune Scan Seek
+ 	UnmarshalJSON UnreadByte UnreadRune WriteByte
+ 	WriteTo
+ 
+diff --git a/src/pkg/archive/zip/writer.go b/src/pkg/archive/zip/writer.go
+index 50d83946d2..4c696e1529 100644
+--- a/src/pkg/archive/zip/writer.go
++++ b/src/pkg/archive/zip/writer.go
+@@ -174,7 +174,7 @@ func (w *Writer) Create(name string) (io.Writer, error) {
+ }
+ 
+ // CreateHeader adds a file to the zip file using the provided FileHeader
+-// for the file metadata. 
++// for the file metadata.
+ // It returns a Writer to which the file contents should be written.
+ // The file's contents must be written to the io.Writer before the next
+ // call to Create, CreateHeader, or Close.
+diff --git a/src/pkg/bytes/bytes_test.go b/src/pkg/bytes/bytes_test.go
+index 124760ac74..2311329ad0 100644
+--- a/src/pkg/bytes/bytes_test.go
++++ b/src/pkg/bytes/bytes_test.go
+@@ -1026,7 +1026,7 @@ func TestEqualFold(t *testing.T) {
+ 
+ var makeFieldsInput = func() []byte {
+ 	x := make([]byte, 1<<20)
+-	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space. 
++	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+ 	for i := range x {
+ 		switch rand.Intn(10) {
+ 		case 0:
+diff --git a/src/pkg/compress/bzip2/bit_reader.go b/src/pkg/compress/bzip2/bit_reader.go
+index 0141d469c3..ab1d606514 100644
+--- a/src/pkg/compress/bzip2/bit_reader.go
++++ b/src/pkg/compress/bzip2/bit_reader.go
+@@ -20,7 +20,7 @@ type bitReader struct {
+ 	err  error
+ }
+ 
+-// newBitReader returns a new bitReader reading from r. If r is not 
++// newBitReader returns a new bitReader reading from r. If r is not
+ // already an io.ByteReader, it will be converted via a bufio.Reader.
+ func newBitReader(r io.Reader) bitReader {
+ 	byter, ok := r.(io.ByteReader)
+diff --git a/src/pkg/crypto/rsa/rsa.go b/src/pkg/crypto/rsa/rsa.go
+index 7faae67430..6addd04bce 100644
+--- a/src/pkg/crypto/rsa/rsa.go
++++ b/src/pkg/crypto/rsa/rsa.go
+@@ -61,7 +61,7 @@ type PrivateKey struct {
+ }
+ 
+ type PrecomputedValues struct {
+-	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1) 
++	Dp, Dq *big.Int // D mod (P-1) (or mod Q-1)
+ 	Qinv   *big.Int // Q^-1 mod Q
+ 
+ 	// CRTValues is used for the 3rd and subsequent primes. Due to a
+diff --git a/src/pkg/crypto/tls/conn.go b/src/pkg/crypto/tls/conn.go
+index 74ae650f6e..44f3e66dae 100644
+--- a/src/pkg/crypto/tls/conn.go
++++ b/src/pkg/crypto/tls/conn.go
+@@ -513,7 +513,7 @@ Again:
+ 		// First message, be extra suspicious:
+ 		// this might not be a TLS client.
+ 		// Bail out before reading a full 'body', if possible.
+-		// The current max version is 3.1. 
++		// The current max version is 3.1.
+ 		// If the version is >= 16.0, it's probably not real.
+ 		// Similarly, a clientHello message encodes in
+ 		// well under a kilobyte.  If the length is >= 12 kB,
+diff --git a/src/pkg/crypto/x509/cert_pool.go b/src/pkg/crypto/x509/cert_pool.go
+index 616a0b3c1e..505f4d4f77 100644
+--- a/src/pkg/crypto/x509/cert_pool.go
++++ b/src/pkg/crypto/x509/cert_pool.go
+@@ -103,7 +103,7 @@ func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+ }
+ 
+ // Subjects returns a list of the DER-encoded subjects of
+-// all of the certificates in the pool. 
++// all of the certificates in the pool.
+ func (s *CertPool) Subjects() (res [][]byte) {
+ 	res = make([][]byte, len(s.certs))
+ 	for i, c := range s.certs {
+diff --git a/src/pkg/crypto/x509/pkcs8.go b/src/pkg/crypto/x509/pkcs8.go
+index 8c3b65f807..539d1c5238 100644
+--- a/src/pkg/crypto/x509/pkcs8.go
++++ b/src/pkg/crypto/x509/pkcs8.go
+@@ -11,7 +11,7 @@ import (
+ 	"fmt"
+ )
+ 
+-// pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See 
++// pkcs8 reflects an ASN.1, PKCS#8 PrivateKey. See
+ // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-8/pkcs-8v1_2.asn.
+ type pkcs8 struct {
+ 	Version    int
+diff --git a/src/pkg/crypto/x509/x509.go b/src/pkg/crypto/x509/x509.go
+index 5cfd09008c..7983217696 100644
+--- a/src/pkg/crypto/x509/x509.go
++++ b/src/pkg/crypto/x509/x509.go
+@@ -156,8 +156,8 @@ const (
+ //
+ // pkcs-1 OBJECT IDENTIFIER ::= {
+ //    iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1) 1 }
+-// 
+-// 
++//
++//
+ // RFC 3279 2.2.1 RSA Signature Algorithms
+ //
+ // md2WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 2 }
+@@ -165,19 +165,19 @@ const (
+ // md5WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 4 }
+ //
+ // sha-1WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 5 }
+-// 
++//
+ // dsaWithSha1 OBJECT IDENTIFIER ::= {
+-//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 } 
++//    iso(1) member-body(2) us(840) x9-57(10040) x9cm(4) 3 }
+ //
+ // RFC 3279 2.2.3 ECDSA Signature Algorithm
+-// 
++//
+ // ecdsa-with-SHA1 OBJECT IDENTIFIER ::= {
+ // 	  iso(1) member-body(2) us(840) ansi-x962(10045)
+ //    signatures(4) ecdsa-with-SHA1(1)}
+ //
+ //
+ // RFC 4055 5 PKCS #1 Version 1.5
+-// 
++//
+ // sha256WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 11 }
+ //
+ // sha384WithRSAEncryption OBJECT IDENTIFIER ::= { pkcs-1 12 }
+diff --git a/src/pkg/encoding/gob/encoder.go b/src/pkg/encoding/gob/encoder.go
+index 51444bb526..284decedea 100644
+--- a/src/pkg/encoding/gob/encoder.go
++++ b/src/pkg/encoding/gob/encoder.go
+@@ -132,7 +132,7 @@ func (enc *Encoder) sendActualType(w io.Writer, state *encoderState, ut *userTyp
+ 	return true
+ }
+ 
+-// sendType sends the type info to the other side, if necessary. 
++// sendType sends the type info to the other side, if necessary.
+ func (enc *Encoder) sendType(w io.Writer, state *encoderState, origt reflect.Type) (sent bool) {
+ 	ut := userType(origt)
+ 	if ut.isGobEncoder {
+diff --git a/src/pkg/encoding/json/encode.go b/src/pkg/encoding/json/encode.go
+index c8535ef79d..a5803b4623 100644
+--- a/src/pkg/encoding/json/encode.go
++++ b/src/pkg/encoding/json/encode.go
+@@ -86,7 +86,7 @@ import (
+ //
+ // Anonymous struct fields are usually marshaled as if their inner exported fields
+ // were fields in the outer struct, subject to the usual Go visibility rules.
+-// An anonymous struct field with a name given in its JSON tag is treated as 
++// An anonymous struct field with a name given in its JSON tag is treated as
+ // having that name instead of as anonymous.
+ //
+ // Handling of anonymous struct fields is new in Go 1.1.
+diff --git a/src/pkg/exp/html/doctype.go b/src/pkg/exp/html/doctype.go
+index f692061a55..c484e5a94f 100644
+--- a/src/pkg/exp/html/doctype.go
++++ b/src/pkg/exp/html/doctype.go
+@@ -9,7 +9,7 @@ import (
+ )
+ 
+ // parseDoctype parses the data from a DoctypeToken into a name,
+-// public identifier, and system identifier. It returns a Node whose Type 
++// public identifier, and system identifier. It returns a Node whose Type
+ // is DoctypeNode, whose Data is the name, and which has attributes
+ // named "system" and "public" for the two identifiers if they were present.
+ // quirks is whether the document should be parsed in "quirks mode".
+diff --git a/src/pkg/exp/html/escape.go b/src/pkg/exp/html/escape.go
+index 7827dc2d50..75bddff094 100644
+--- a/src/pkg/exp/html/escape.go
++++ b/src/pkg/exp/html/escape.go
+@@ -10,7 +10,7 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// These replacements permit compatibility with old numeric entities that 
++// These replacements permit compatibility with old numeric entities that
+ // assumed Windows-1252 encoding.
+ // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+ var replacementTable = [...]rune{
+@@ -46,7 +46,7 @@ var replacementTable = [...]rune{
+ 	'\u009D',
+ 	'\u017E',
+ 	'\u0178', // Last entry is 0x9F.
+-	// 0x00->'\uFFFD' is handled programmatically. 
++	// 0x00->'\uFFFD' is handled programmatically.
+ 	// 0x0D->'\u000D' is a no-op.
+ }
+ 
+diff --git a/src/pkg/exp/html/parse.go b/src/pkg/exp/html/parse.go
+index cae836e14b..0ff15746f2 100644
+--- a/src/pkg/exp/html/parse.go
++++ b/src/pkg/exp/html/parse.go
+@@ -2027,7 +2027,7 @@ func Parse(r io.Reader) (*Node, error) {
+ 	return p.doc, nil
+ }
+ 
+-// ParseFragment parses a fragment of HTML and returns the nodes that were 
++// ParseFragment parses a fragment of HTML and returns the nodes that were
+ // found. If the fragment is the InnerHTML for an existing element, pass that
+ // element in context.
+ func ParseFragment(r io.Reader, context *Node) ([]*Node, error) {
+diff --git a/src/pkg/exp/html/render.go b/src/pkg/exp/html/render.go
+index 65b10046a4..285dbc926e 100644
+--- a/src/pkg/exp/html/render.go
++++ b/src/pkg/exp/html/render.go
+@@ -35,7 +35,7 @@ type writer interface {
+ // children; the <a> is reparented to the <table>'s parent. However, calling
+ // Parse on "<a><table><a>" does not return an error, but the result has an <a>
+ // element with an <a> child, and is therefore not 'well-formed'.
+-// 
++//
+ // Programmatically constructed trees are typically also 'well-formed', but it
+ // is possible to construct a tree that looks innocuous but, when rendered and
+ // re-parsed, results in a different tree. A simple example is that a solitary
+@@ -53,7 +53,7 @@ func Render(w io.Writer, n *Node) error {
+ 	return buf.Flush()
+ }
+ 
+-// plaintextAbort is returned from render1 when a <plaintext> element 
++// plaintextAbort is returned from render1 when a <plaintext> element
+ // has been rendered. No more end tags should be rendered after that.
+ var plaintextAbort = errors.New("html: internal error (plaintext abort)")
+ 
+diff --git a/src/pkg/exp/html/token.go b/src/pkg/exp/html/token.go
+index 517bd5d3ee..f9a087b02d 100644
+--- a/src/pkg/exp/html/token.go
++++ b/src/pkg/exp/html/token.go
+@@ -320,7 +320,7 @@ loop:
+ }
+ 
+ // readRawEndTag attempts to read a tag like "</foo>", where "foo" is z.rawTag.
+-// If it succeeds, it backs up the input position to reconsume the tag and 
++// If it succeeds, it backs up the input position to reconsume the tag and
+ // returns true. Otherwise it returns false. The opening "</" has already been
+ // consumed.
+ func (z *Tokenizer) readRawEndTag() bool {
+diff --git a/src/pkg/exp/locale/collate/build/builder.go b/src/pkg/exp/locale/collate/build/builder.go
+index 97d5e81ddd..c931e2868c 100644
+--- a/src/pkg/exp/locale/collate/build/builder.go
++++ b/src/pkg/exp/locale/collate/build/builder.go
+@@ -25,7 +25,7 @@ import (
+ //   compacted.
+ // - Compress secondary weights into 8 bits.
+ // - Some LDML specs specify a context element. Currently we simply concatenate
+-//   those.  Context can be implemented using the contraction trie. If Builder 
++//   those.  Context can be implemented using the contraction trie. If Builder
+ //   could analyze and detect when using a context makes sense, there is no
+ //   need to expose this construct in the API.
+ 
+@@ -72,7 +72,7 @@ func NewBuilder() *Builder {
+ 	}
+ }
+ 
+-// Tailoring returns a Tailoring for the given locale.  One should 
++// Tailoring returns a Tailoring for the given locale.  One should
+ // have completed all calls to Add before calling Tailoring.
+ func (b *Builder) Tailoring(locale string) *Tailoring {
+ 	t := &Tailoring{
+@@ -84,7 +84,7 @@ func (b *Builder) Tailoring(locale string) *Tailoring {
+ 	return t
+ }
+ 
+-// Add adds an entry to the collation element table, mapping 
++// Add adds an entry to the collation element table, mapping
+ // a slice of runes to a sequence of collation elements.
+ // A collation element is specified as list of weights: []int{primary, secondary, ...}.
+ // The entries are typically obtained from a collation element table
+@@ -171,7 +171,7 @@ func (t *Tailoring) SetAnchorBefore(anchor string) error {
+ // See http://www.unicode.org/reports/tr10/#Tailoring_Example for details
+ // on parametric tailoring and http://unicode.org/reports/tr35/#Collation_Elements
+ // for full details on LDML.
+-// 
++//
+ // Examples: create a tailoring for Swedish, where "ä" is ordered after "z"
+ // at the primary sorting level:
+ //      t := b.Tailoring("se")
+diff --git a/src/pkg/exp/locale/collate/build/colelem.go b/src/pkg/exp/locale/collate/build/colelem.go
+index ff63eb594c..3ad2930daa 100644
+--- a/src/pkg/exp/locale/collate/build/colelem.go
++++ b/src/pkg/exp/locale/collate/build/colelem.go
+@@ -132,7 +132,7 @@ func makeExpandIndex(index int) (uint32, error) {
+ 	return expandID + uint32(index), nil
+ }
+ 
+-// Each list of collation elements corresponding to an expansion starts with 
++// Each list of collation elements corresponding to an expansion starts with
+ // a header indicating the length of the sequence.
+ func makeExpansionHeader(n int) (uint32, error) {
+ 	return uint32(n), nil
+@@ -199,7 +199,7 @@ func implicitPrimary(r rune) int {
+ 	return int(r) + otherOffset
+ }
+ 
+-// convertLargeWeights converts collation elements with large 
++// convertLargeWeights converts collation elements with large
+ // primaries (either double primaries or for illegal runes)
+ // to our own representation.
+ // A CJK character C is represented in the DUCET as
+diff --git a/src/pkg/exp/locale/collate/build/contract.go b/src/pkg/exp/locale/collate/build/contract.go
+index f7cf64a730..868665061e 100644
+--- a/src/pkg/exp/locale/collate/build/contract.go
++++ b/src/pkg/exp/locale/collate/build/contract.go
+@@ -15,7 +15,7 @@ import (
+ // This file contains code for detecting contractions and generating
+ // the necessary tables.
+ // Any Unicode Collation Algorithm (UCA) table entry that has more than
+-// one rune one the left-hand side is called a contraction.  
++// one rune one the left-hand side is called a contraction.
+ // See http://www.unicode.org/reports/tr10/#Contractions for more details.
+ //
+ // We define the following terms:
+@@ -27,7 +27,7 @@ import (
+ // A rune may be both a initial and a non-initial and may be so in
+ // many contractions.  An initial may typically also appear by itself.
+ // In case of ambiguities, the UCA requires we match the longest
+-// contraction.  
++// contraction.
+ //
+ // Many contraction rules share the same set of possible suffixes.
+ // We store sets of suffixes in a trie that associates an index with
+@@ -39,14 +39,14 @@ import (
+ // is represented as a subsequence of ctEntries, where each entry corresponds to
+ // a possible match of a next character in the search string.  An entry
+ // also includes the length and offset to the next sequence of entries
+-// to check in case of a match. 
++// to check in case of a match.
+ 
+ const (
+ 	final   = 0
+ 	noIndex = 0xFF
+ )
+ 
+-// ctEntry associates to a matching byte an offset and/or next sequence of 
++// ctEntry associates to a matching byte an offset and/or next sequence of
+ // bytes to check. A ctEntry c is called final if a match means that the
+ // longest suffix has been found.  An entry c is final if c.n == 0.
+ // A single final entry can match a range of characters to an offset.
+@@ -58,7 +58,7 @@ const (
+ //     {'a', 1, 1, noIndex},  // 'a' by itself does not match, so i is 0xFF.
+ //     {'b', 'c', 0, 1},   // "ab" -> 1, "ac" -> 2
+ // }
+-// 
++//
+ // The suffix strings "ab", "abc", "abd", and "abcd" can be represented as:
+ // []ctEntry{
+ //     {'a', 1, 1, noIndex}, // 'a' must be followed by 'b'.
+@@ -72,7 +72,7 @@ type ctEntry struct {
+ 	l uint8 // non-final: byte value to match; final: lowest match in range.
+ 	h uint8 // non-final: relative index to next block; final: highest match in range.
+ 	n uint8 // non-final: length of next block; final: final
+-	i uint8 // result offset. Will be noIndex if more bytes are needed to complete. 
++	i uint8 // result offset. Will be noIndex if more bytes are needed to complete.
+ }
+ 
+ // contractTrieSet holds a set of contraction tries. The tries are stored
+diff --git a/src/pkg/exp/locale/collate/build/trie.go b/src/pkg/exp/locale/collate/build/trie.go
+index 201c2c17a2..f5214279e2 100644
+--- a/src/pkg/exp/locale/collate/build/trie.go
++++ b/src/pkg/exp/locale/collate/build/trie.go
+@@ -4,7 +4,7 @@
+ 
+ // The trie in this file is used to associate the first full character
+ // in a UTF-8 string to a collation element.
+-// All but the last byte in a UTF-8 byte sequence are 
++// All but the last byte in a UTF-8 byte sequence are
+ // used to look up offsets in the index table to be used for the next byte.
+ // The last byte is used to index into a table of collation elements.
+ // This file contains the code for the generation of the trie.
+diff --git a/src/pkg/exp/locale/collate/build/trie_test.go b/src/pkg/exp/locale/collate/build/trie_test.go
+index 11da56664d..4d4f6e4d14 100644
+--- a/src/pkg/exp/locale/collate/build/trie_test.go
++++ b/src/pkg/exp/locale/collate/build/trie_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-// We take the smallest, largest and an arbitrary value for each 
++// We take the smallest, largest and an arbitrary value for each
+ // of the UTF-8 sequence lengths.
+ var testRunes = []rune{
+ 	0x01, 0x0C, 0x7F, // 1-byte sequences
+diff --git a/src/pkg/exp/locale/collate/collate.go b/src/pkg/exp/locale/collate/collate.go
+index 59507e55b2..0c1d0dcb09 100644
+--- a/src/pkg/exp/locale/collate/collate.go
++++ b/src/pkg/exp/locale/collate/collate.go
+@@ -30,7 +30,7 @@ const (
+ 
+ // AlternateHandling identifies the various ways in which variables are handled.
+ // A rune with a primary weight lower than the variable top is considered a
+-// variable. 
++// variable.
+ // See http://www.unicode.org/reports/tr10/#Variable_Weighting for details.
+ type AlternateHandling int
+ 
+diff --git a/src/pkg/exp/locale/collate/table.go b/src/pkg/exp/locale/collate/table.go
+index c25799b98b..430f3cca5b 100644
+--- a/src/pkg/exp/locale/collate/table.go
++++ b/src/pkg/exp/locale/collate/table.go
+@@ -37,9 +37,9 @@ func (t *table) indexedTable(idx tableIndex) *table {
+ 	return &nt
+ }
+ 
+-// appendNext appends the weights corresponding to the next rune or 
++// appendNext appends the weights corresponding to the next rune or
+ // contraction in s.  If a contraction is matched to a discontinuous
+-// sequence of runes, the weights for the interstitial runes are 
++// sequence of runes, the weights for the interstitial runes are
+ // appended as well.  It returns a new slice that includes the appended
+ // weights and the number of bytes consumed from s.
+ func (t *table) appendNext(w []weights, s []byte) ([]weights, int) {
+diff --git a/src/pkg/exp/locale/collate/trie.go b/src/pkg/exp/locale/collate/trie.go
+index c70a89b089..f6259424d9 100644
+--- a/src/pkg/exp/locale/collate/trie.go
++++ b/src/pkg/exp/locale/collate/trie.go
+@@ -4,7 +4,7 @@
+ 
+ // The trie in this file is used to associate the first full character
+ // in an UTF-8 string to a collation element.
+-// All but the last byte in a UTF-8 byte sequence are 
++// All but the last byte in a UTF-8 byte sequence are
+ // used to lookup offsets in the index table to be used for the next byte.
+ // The last byte is used to index into a table of collation elements.
+ // For a full description, see exp/locale/collate/build/trie.go.
+diff --git a/src/pkg/exp/locale/collate/trie_test.go b/src/pkg/exp/locale/collate/trie_test.go
+index 00d636c6f8..778e85614a 100644
+--- a/src/pkg/exp/locale/collate/trie_test.go
++++ b/src/pkg/exp/locale/collate/trie_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"testing"
+ )
+ 
+-// We take the smallest, largest and an arbitrary value for each 
++// We take the smallest, largest and an arbitrary value for each
+ // of the UTF-8 sequence lengths.
+ var testRunes = []rune{
+ 	0x01, 0x0C, 0x7F, // 1-byte sequences
+diff --git a/src/pkg/exp/norm/forminfo.go b/src/pkg/exp/norm/forminfo.go
+index a982174f54..c74efb56d9 100644
+--- a/src/pkg/exp/norm/forminfo.go
++++ b/src/pkg/exp/norm/forminfo.go
+@@ -76,7 +76,7 @@ func init() {
+ // We do not distinguish between boundaries for NFC, NFD, etc. to avoid
+ // unexpected behavior for the user.  For example, in NFD, there is a boundary
+ // after 'a'.  However, 'a' might combine with modifiers, so from the application's
+-// perspective it is not a good boundary. We will therefore always use the 
++// perspective it is not a good boundary. We will therefore always use the
+ // boundaries for the combining variants.
+ 
+ // BoundaryBefore returns true if this rune starts a new segment and
+@@ -101,7 +101,7 @@ func (p Properties) BoundaryAfter() bool {
+ //   0:    NFD_QC Yes (0) or No (1). No also means there is a decomposition.
+ //   1..2: NFC_QC Yes(00), No (10), or Maybe (11)
+ //   3:    Combines forward  (0 == false, 1 == true)
+-// 
++//
+ // When all 4 bits are zero, the character is inert, meaning it is never
+ // influenced by normalization.
+ type qcInfo uint8
+diff --git a/src/pkg/exp/norm/iter.go b/src/pkg/exp/norm/iter.go
+index e37ad7b410..c0ab25e565 100644
+--- a/src/pkg/exp/norm/iter.go
++++ b/src/pkg/exp/norm/iter.go
+@@ -64,9 +64,9 @@ func (i *Iter) Done() bool {
+ }
+ 
+ // Next writes f(i.input[i.Pos():n]...) to buffer buf, where n is the
+-// largest boundary of i.input such that the result fits in buf.  
++// largest boundary of i.input such that the result fits in buf.
+ // It returns the number of bytes written to buf.
+-// len(buf) should be at least MaxSegmentSize. 
++// len(buf) should be at least MaxSegmentSize.
+ // Done must be false before calling Next.
+ func (i *Iter) Next(buf []byte) int {
+ 	return i.next(i, buf)
+diff --git a/src/pkg/exp/norm/maketables.go b/src/pkg/exp/norm/maketables.go
+index 8ac64ba967..2ba67a5ab4 100644
+--- a/src/pkg/exp/norm/maketables.go
++++ b/src/pkg/exp/norm/maketables.go
+@@ -86,7 +86,7 @@ const (
+ // Quick Check properties of runes allow us to quickly
+ // determine whether a rune may occur in a normal form.
+ // For a given normal form, a rune may be guaranteed to occur
+-// verbatim (QC=Yes), may or may not combine with another 
++// verbatim (QC=Yes), may or may not combine with another
+ // rune (QC=Maybe), or may not occur (QC=No).
+ type QCResult int
+ 
+diff --git a/src/pkg/exp/norm/maketesttables.go b/src/pkg/exp/norm/maketesttables.go
+index d3112b4041..6d11ec069c 100644
+--- a/src/pkg/exp/norm/maketesttables.go
++++ b/src/pkg/exp/norm/maketesttables.go
+@@ -16,7 +16,7 @@ func main() {
+ 	printTestTables()
+ }
+ 
+-// We take the smallest, largest and an arbitrary value for each 
++// We take the smallest, largest and an arbitrary value for each
+ // of the UTF-8 sequence lengths.
+ var testRunes = []rune{
+ 	0x01, 0x0C, 0x7F, // 1-byte sequences
+diff --git a/src/pkg/exp/norm/normregtest.go b/src/pkg/exp/norm/normregtest.go
+index 6d2188498b..0dd2559612 100644
+--- a/src/pkg/exp/norm/normregtest.go
++++ b/src/pkg/exp/norm/normregtest.go
+@@ -57,7 +57,7 @@ var logger = log.New(os.Stderr, "", log.Lshortfile)
+ // 1E0A;1E0A;0044 0307;1E0A;0044 0307; # (Ḋ; Ḋ; D◌̇; Ḋ; D◌̇; ) LATIN CAPITAL LETTER D WITH DOT ABOVE
+ // 1E0C;1E0C;0044 0323;1E0C;0044 0323; # (Ḍ; Ḍ; D◌̣; Ḍ; D◌̣; ) LATIN CAPITAL LETTER D WITH DOT BELOW
+ //
+-// Each test has 5 columns (c1, c2, c3, c4, c5), where 
++// Each test has 5 columns (c1, c2, c3, c4, c5), where
+ // (c1, c2, c3, c4, c5) == (c1, NFC(c1), NFD(c1), NFKC(c1), NFKD(c1))
+ //
+ // CONFORMANCE:
+diff --git a/src/pkg/exp/types/staging/const.go b/src/pkg/exp/types/staging/const.go
+index e817f1fd85..fa86912482 100644
+--- a/src/pkg/exp/types/staging/const.go
++++ b/src/pkg/exp/types/staging/const.go
+@@ -29,7 +29,7 @@ import (
+ // required to represent the constant, independent of actual
+ // type. Non-numeric constants are always normalized.
+ 
+-// Representation of complex numbers. 
++// Representation of complex numbers.
+ type complex struct {
+ 	re, im *big.Rat
+ }
+@@ -313,7 +313,7 @@ func complexity(x interface{}) int {
+ // matchConst returns the matching representation (same type) with the
+ // smallest complexity for two constant values x and y. They must be
+ // of the same "kind" (boolean, numeric, string, or nilType).
+-// 
++//
+ func matchConst(x, y interface{}) (_, _ interface{}) {
+ 	if complexity(x) > complexity(y) {
+ 		y, x = matchConst(y, x)
+diff --git a/src/pkg/exp/types/staging/expr.go b/src/pkg/exp/types/staging/expr.go
+index f5f46f6a10..fb7482e971 100644
+--- a/src/pkg/exp/types/staging/expr.go
++++ b/src/pkg/exp/types/staging/expr.go
+@@ -559,7 +559,7 @@ func (check *checker) exprOrType(x *operand, e ast.Expr, hint Type, iota int, cy
+ 		switch typ := x.typ.(type) {
+ 		case *Struct:
+ 			if fld := lookupField(typ, e.Sel.Name); fld != nil {
+-				// TODO(gri) only variable if struct is variable 
++				// TODO(gri) only variable if struct is variable
+ 				x.mode = variable
+ 				x.expr = e
+ 				x.typ = fld.Type
+diff --git a/src/pkg/exp/types/staging/operand.go b/src/pkg/exp/types/staging/operand.go
+index f2440c2999..46977dfe36 100644
+--- a/src/pkg/exp/types/staging/operand.go
++++ b/src/pkg/exp/types/staging/operand.go
+@@ -80,7 +80,7 @@ func (x *operand) String() string {
+ 	return buf.String()
+ }
+ 
+-// setConst sets x to the untyped constant for literal lit. 
++// setConst sets x to the untyped constant for literal lit.
+ func (x *operand) setConst(tok token.Token, lit string) {
+ 	x.mode = invalid
+ 
+diff --git a/src/pkg/fmt/doc.go b/src/pkg/fmt/doc.go
+index 8a2289edee..ff947b68a7 100644
+--- a/src/pkg/fmt/doc.go
++++ b/src/pkg/fmt/doc.go
+@@ -31,8 +31,8 @@
+ 		%X	base 16, with upper-case letters for A-F
+ 		%U	Unicode format: U+1234; same as "U+%04X"
+ 	Floating-point and complex constituents:
+-		%b	decimalless scientific notation with exponent a power of two, 
+-			in the manner of strconv.FormatFloat with the 'b' format, 
++		%b	decimalless scientific notation with exponent a power of two,
++			in the manner of strconv.FormatFloat with the 'b' format,
+ 			e.g. -123456p-78
+ 		%e	scientific notation, e.g. -1234.456e+78
+ 		%E	scientific notation, e.g. -1234.456E+78
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 13e58737f9..dce46d8a68 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -231,7 +231,7 @@ func Sprintf(format string, a ...interface{}) string {
+ 	return s
+ }
+ 
+-// Errorf formats according to a format specifier and returns the string 
++// Errorf formats according to a format specifier and returns the string
+ // as a value that satisfies error.
+ func Errorf(format string, a ...interface{}) error {
+ 	return errors.New(Sprintf(format, a...))
+diff --git a/src/pkg/fmt/scan.go b/src/pkg/fmt/scan.go
+index d69911c7d7..62de3a2efa 100644
+--- a/src/pkg/fmt/scan.go
++++ b/src/pkg/fmt/scan.go
+@@ -33,8 +33,8 @@ type ScanState interface {
+ 	ReadRune() (r rune, size int, err error)
+ 	// UnreadRune causes the next call to ReadRune to return the same rune.
+ 	UnreadRune() error
+-	// SkipSpace skips space in the input. Newlines are treated as space 
+-	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case 
++	// SkipSpace skips space in the input. Newlines are treated as space
++	// unless the scan operation is Scanln, Fscanln or Sscanln, in which case
+ 	// a newline is treated as EOF.
+ 	SkipSpace()
+ 	// Token skips space in the input if skipSpace is true, then returns the
+@@ -312,7 +312,7 @@ func notSpace(r rune) bool {
+ 	return !isSpace(r)
+ }
+ 
+-// skipSpace provides Scan() methods the ability to skip space and newline characters 
++// skipSpace provides Scan() methods the ability to skip space and newline characters
+ // in keeping with the current scanning mode set by format strings and Scan()/Scanln().
+ func (s *ss) SkipSpace() {
+ 	s.skipSpace(false)
+diff --git a/src/pkg/go/ast/commentmap.go b/src/pkg/go/ast/commentmap.go
+index 201c948560..252d460af9 100644
+--- a/src/pkg/go/ast/commentmap.go
++++ b/src/pkg/go/ast/commentmap.go
+@@ -99,7 +99,7 @@ func (r *commentListReader) next() {
+ 
+ // A nodeStack keeps track of nested nodes.
+ // A node lower on the stack lexically contains the nodes higher on the stack.
+-// 
++//
+ type nodeStack []Node
+ 
+ // push pops all nodes that appear lexically before n
+@@ -113,7 +113,7 @@ func (s *nodeStack) push(n Node) {
+ // pop pops all nodes that appear lexically before pos
+ // (i.e., whose lexical extent has ended before or at pos).
+ // It returns the last node popped.
+-// 
++//
+ func (s *nodeStack) pop(pos token.Pos) (top Node) {
+ 	i := len(*s)
+ 	for i > 0 && (*s)[i-1].End() <= pos {
+diff --git a/src/pkg/go/ast/filter.go b/src/pkg/go/ast/filter.go
+index 4a89b89096..4db5814cb8 100644
+--- a/src/pkg/go/ast/filter.go
++++ b/src/pkg/go/ast/filter.go
+@@ -414,7 +414,7 @@ func MergePackageFiles(pkg *Package, mode MergeMode) *File {
+ 				if path := imp.Path.Value; !seen[path] {
+ 					// TODO: consider handling cases where:
+ 					// - 2 imports exist with the same import path but
+-					//   have different local names (one should probably 
++					//   have different local names (one should probably
+ 					//   keep both of them)
+ 					// - 2 imports exist but only one has a comment
+ 					// - 2 imports exist and they both have (possibly
+diff --git a/src/pkg/go/ast/resolve.go b/src/pkg/go/ast/resolve.go
+index 54b5d73252..0406bfc584 100644
+--- a/src/pkg/go/ast/resolve.go
++++ b/src/pkg/go/ast/resolve.go
+@@ -57,7 +57,7 @@ func resolve(scope *Scope, ident *Ident) bool {
+ // An Importer must determine the canonical import path and
+ // check the map to see if it is already present in the imports map.
+ // If so, the Importer can return the map entry.  Otherwise, the
+-// Importer should load the package data for the given path into 
++// Importer should load the package data for the given path into
+ // a new *Object (pkg), record pkg in the imports map, and then
+ // return pkg.
+ type Importer func(imports map[string]*Object, path string) (pkg *Object, err error)
+diff --git a/src/pkg/go/build/deps_test.go b/src/pkg/go/build/deps_test.go
+index 725ce5bdc2..e303b7ae23 100644
+--- a/src/pkg/go/build/deps_test.go
++++ b/src/pkg/go/build/deps_test.go
+@@ -24,7 +24,7 @@ import (
+ // be used as dependencies by other rules.
+ //
+ // DO NOT CHANGE THIS DATA TO FIX BUILDS.
+-// 
++//
+ var pkgDeps = map[string][]string{
+ 	// L0 is the lowest level, core, nearly unavoidable packages.
+ 	"errors":      {},
+diff --git a/src/pkg/go/build/doc.go b/src/pkg/go/build/doc.go
+index df560c38f6..3aaa6ac657 100644
+--- a/src/pkg/go/build/doc.go
++++ b/src/pkg/go/build/doc.go
+@@ -23,12 +23,12 @@
+ // As in the Go tree, each target operating system and
+ // architecture pair has its own subdirectory of pkg
+ // (pkg/GOOS_GOARCH).
+-// 
++//
+ // If DIR is a directory listed in the Go path, a package with
+ // source in DIR/src/foo/bar can be imported as "foo/bar" and
+ // has its compiled form installed to "DIR/pkg/GOOS_GOARCH/foo/bar.a"
+ // (or, for gccgo, "DIR/pkg/gccgo/foo/libbar.a").
+-// 
++//
+ // The bin/ directory holds compiled commands.
+ // Each command is named for its source directory, but only
+ // using the final element, not the entire path.  That is, the
+@@ -36,11 +36,11 @@
+ // DIR/bin/quux, not DIR/bin/foo/quux.  The foo/ is stripped
+ // so that you can add DIR/bin to your PATH to get at the
+ // installed commands.
+-// 
++//
+ // Here's an example directory layout:
+-// 
++//
+ //	GOPATH=/home/user/gocode
+-// 
++//
+ //	/home/user/gocode/
+ //	    src/
+ //	        foo/
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index 6f0edd4bad..51e2bf7324 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -174,7 +174,7 @@ func unindent(block []string) {
+ }
+ 
+ // heading returns the trimmed line if it passes as a section heading;
+-// otherwise it returns the empty string. 
++// otherwise it returns the empty string.
+ func heading(line string) string {
+ 	line = strings.TrimSpace(line)
+ 	if len(line) == 0 {
+diff --git a/src/pkg/go/doc/example.go b/src/pkg/go/doc/example.go
+index 79053b9a73..5c51ecef34 100644
+--- a/src/pkg/go/doc/example.go
++++ b/src/pkg/go/doc/example.go
+@@ -119,7 +119,7 @@ func playExample(file *ast.File, body *ast.BlockStmt) *ast.File {
+ 		return nil
+ 	}
+ 
+-	// Find unresolved identifiers 
++	// Find unresolved identifiers
+ 	unresolved := make(map[string]bool)
+ 	ast.Inspect(body, func(n ast.Node) bool {
+ 		// For an expression like fmt.Println, only add "fmt" to the
+@@ -243,7 +243,7 @@ func playExampleFile(file *ast.File) *ast.File {
+ 	return &f
+ }
+ 
+-// stripOutputComment finds and removes an "Output:" commment from body 
++// stripOutputComment finds and removes an "Output:" commment from body
+ // and comments, and adjusts the body block's end position.
+ func stripOutputComment(body *ast.BlockStmt, comments []*ast.CommentGroup) (*ast.BlockStmt, []*ast.CommentGroup) {
+ 	// Do nothing if no "Output:" comment found.
+diff --git a/src/pkg/go/doc/exports.go b/src/pkg/go/doc/exports.go
+index 146be5d870..ff01285d4c 100644
+--- a/src/pkg/go/doc/exports.go
++++ b/src/pkg/go/doc/exports.go
+@@ -107,7 +107,7 @@ func (r *reader) filterParamList(fields *ast.FieldList) {
+ 
+ // filterType strips any unexported struct fields or method types from typ
+ // in place. If fields (or methods) have been removed, the corresponding
+-// struct or interface type has the Incomplete field set to true. 
++// struct or interface type has the Incomplete field set to true.
+ //
+ func (r *reader) filterType(parent *namedType, typ ast.Expr) {
+ 	switch t := typ.(type) {
+diff --git a/src/pkg/go/doc/reader.go b/src/pkg/go/doc/reader.go
+index de42d47d9f..fafd8f98ea 100644
+--- a/src/pkg/go/doc/reader.go
++++ b/src/pkg/go/doc/reader.go
+@@ -46,7 +46,7 @@ func (mset methodSet) set(f *ast.FuncDecl) {
+ 		// since it has documentation, assume f is simply another
+ 		// implementation and ignore it. This does not happen if the
+ 		// caller is using go/build.ScanDir to determine the list of
+-		// files implementing a package. 
++		// files implementing a package.
+ 		return
+ 	}
+ 	// function doesn't exist or has no documentation; use f
+@@ -597,7 +597,7 @@ func (r *reader) computeMethodSets() {
+ // types that have no declaration. Instead, these functions and methods
+ // are shown at the package level. It also removes types with missing
+ // declarations or which are not visible.
+-// 
++//
+ func (r *reader) cleanupTypes() {
+ 	for _, t := range r.types {
+ 		visible := r.isVisible(t.name)
+diff --git a/src/pkg/go/doc/testdata/e.go b/src/pkg/go/doc/testdata/e.go
+index 19dd138cf4..ec432e3e52 100644
+--- a/src/pkg/go/doc/testdata/e.go
++++ b/src/pkg/go/doc/testdata/e.go
+@@ -106,7 +106,7 @@ type U4 struct {
+ 	*u5
+ }
+ 
+-// U4.M should appear as method of U4. 
++// U4.M should appear as method of U4.
+ func (*U4) M() {}
+ 
+ type u5 struct {
+diff --git a/src/pkg/go/doc/testdata/testing.go b/src/pkg/go/doc/testdata/testing.go
+index 71c1d1eaf0..c2499ad779 100644
+--- a/src/pkg/go/doc/testdata/testing.go
++++ b/src/pkg/go/doc/testdata/testing.go
+@@ -197,7 +197,7 @@ func (c *common) Fatalf(format string, args ...interface{}) {
+ 	c.FailNow()
+ }
+ 
+-// Parallel signals that this test is to be run in parallel with (and only with) 
++// Parallel signals that this test is to be run in parallel with (and only with)
+ // other parallel tests in this CPU group.
+ func (t *T) Parallel() {
+ 	t.signal <- (*T)(nil) // Release main testing loop
+@@ -215,7 +215,7 @@ func tRunner(t *T, test *InternalTest) {
+ 	t.start = time.Now()
+ 
+ 	// When this goroutine is done, either because test.F(t)
+-	// returned normally or because a test failure triggered 
++	// returned normally or because a test failure triggered
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+diff --git a/src/pkg/go/parser/interface.go b/src/pkg/go/parser/interface.go
+index 4a84a97ae7..fac513e557 100644
+--- a/src/pkg/go/parser/interface.go
++++ b/src/pkg/go/parser/interface.go
+@@ -158,7 +158,7 @@ func ParseDir(fset *token.FileSet, path string, filter func(os.FileInfo) bool, m
+ 
+ // ParseExpr is a convenience function for obtaining the AST of an expression x.
+ // The position information recorded in the AST is undefined.
+-// 
++//
+ func ParseExpr(x string) (ast.Expr, error) {
+ 	// parse x within the context of a complete package for correct scopes;
+ 	// use //line directive for correct positions in error messages and put
+diff --git a/src/pkg/go/printer/performance_test.go b/src/pkg/go/printer/performance_test.go
+index 0c6a4e71f1..31f5ef0883 100644
+--- a/src/pkg/go/printer/performance_test.go
++++ b/src/pkg/go/printer/performance_test.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // This file implements a simple printer performance benchmark:
+-// go test -bench=BenchmarkPrint 
++// go test -bench=BenchmarkPrint
+ 
+ package printer
+ 
+diff --git a/src/pkg/go/token/position.go b/src/pkg/go/token/position.go
+index 647d1b770b..fc45c1e769 100644
+--- a/src/pkg/go/token/position.go
++++ b/src/pkg/go/token/position.go
+@@ -76,7 +76,7 @@ type Pos int
+ // associated with it, and NoPos().IsValid() is false. NoPos is always
+ // smaller than any other Pos value. The corresponding Position value
+ // for NoPos is the zero value for Position.
+-// 
++//
+ const NoPos Pos = 0
+ 
+ // IsValid returns true if the position is valid.
+@@ -347,7 +347,7 @@ func (s *FileSet) AddFile(filename string, base, size int) *File {
+ 
+ // Iterate calls f for the files in the file set in the order they were added
+ // until f returns false.
+-// 
++//
+ func (s *FileSet) Iterate(f func(*File) bool) {
+ 	for i := 0; ; i++ {
+ 		var file *File
+diff --git a/src/pkg/html/escape.go b/src/pkg/html/escape.go
+index 24cb7af852..eff0384e08 100644
+--- a/src/pkg/html/escape.go
++++ b/src/pkg/html/escape.go
+@@ -15,7 +15,7 @@ type writer interface {
+ 	WriteString(string) (int, error)
+ }
+ 
+-// These replacements permit compatibility with old numeric entities that 
++// These replacements permit compatibility with old numeric entities that
+ // assumed Windows-1252 encoding.
+ // http://www.whatwg.org/specs/web-apps/current-work/multipage/tokenization.html#consume-a-character-reference
+ var replacementTable = [...]rune{
+@@ -51,7 +51,7 @@ var replacementTable = [...]rune{
+ 	'\u009D',
+ 	'\u017E',
+ 	'\u0178', // Last entry is 0x9F.
+-	// 0x00->'\uFFFD' is handled programmatically. 
++	// 0x00->'\uFFFD' is handled programmatically.
+ 	// 0x0D->'\u000D' is a no-op.
+ }
+ 
+diff --git a/src/pkg/html/template/content.go b/src/pkg/html/template/content.go
+index 42ea7930f0..9d1f74f6f0 100644
+--- a/src/pkg/html/template/content.go
++++ b/src/pkg/html/template/content.go
+@@ -30,7 +30,7 @@ type (
+ 	HTMLAttr string
+ 
+ 	// JS encapsulates a known safe EcmaScript5 Expression, for example,
+-	// `(x + y * z())`. 
++	// `(x + y * z())`.
+ 	// Template authors are responsible for ensuring that typed expressions
+ 	// do not break the intended precedence and that there is no
+ 	// statement/expression ambiguity as when passing an expression like
+diff --git a/src/pkg/html/template/error.go b/src/pkg/html/template/error.go
+index dcac748967..46e49ccf83 100644
+--- a/src/pkg/html/template/error.go
++++ b/src/pkg/html/template/error.go
+@@ -102,7 +102,7 @@ const (
+ 	//
+ 	//   {{define "main"}} <script>{{template "helper"}}</script> {{end}}
+ 	//   {{define "helper"}} document.write(' <div title=" ') {{end}}
+-	// 
++	//
+ 	//   "helper" does not produce a valid document fragment, so should
+ 	//   not be Executed directly.
+ 	ErrEndContext
+@@ -161,7 +161,7 @@ const (
+ 	//   In the example, there is missing a quote, so it is not clear
+ 	//   whether {{.}} is meant to be inside a JS string or in a JS value
+ 	//   context.  The second iteration would produce something like
+-	// 
++	//
+ 	//     <script>var x = ['firstValue,'secondValue]</script>
+ 	ErrRangeLoopReentry
+ 
+diff --git a/src/pkg/html/template/html.go b/src/pkg/html/template/html.go
+index 36c88e23e6..f25f1074c7 100644
+--- a/src/pkg/html/template/html.go
++++ b/src/pkg/html/template/html.go
+@@ -106,7 +106,7 @@ var htmlNospaceReplacementTable = []string{
+ 	'<':  "&lt;",
+ 	'=':  "&#61;",
+ 	'>':  "&gt;",
+-	// A parse error in the attribute value (unquoted) and 
++	// A parse error in the attribute value (unquoted) and
+ 	// before attribute value states.
+ 	// Treated as a quoting character by IE.
+ 	'`': "&#96;",
+@@ -128,7 +128,7 @@ var htmlNospaceNormReplacementTable = []string{
+ 	'<':  "&lt;",
+ 	'=':  "&#61;",
+ 	'>':  "&gt;",
+-	// A parse error in the attribute value (unquoted) and 
++	// A parse error in the attribute value (unquoted) and
+ 	// before attribute value states.
+ 	// Treated as a quoting character by IE.
+ 	'`': "&#96;",
+@@ -143,7 +143,7 @@ func htmlReplacer(s string, replacementTable []string, badRunes bool) string {
+ 			if repl := replacementTable[r]; len(repl) != 0 {
+ 				b.WriteString(s[written:i])
+ 				b.WriteString(repl)
+-				// Valid as long as replacementTable doesn't 
++				// Valid as long as replacementTable doesn't
+ 				// include anything above 0x7f.
+ 				written = i + utf8.RuneLen(r)
+ 			}
+diff --git a/src/pkg/math/big/int.go b/src/pkg/math/big/int.go
+index caa23ae3d2..95c0d58ee9 100644
+--- a/src/pkg/math/big/int.go
++++ b/src/pkg/math/big/int.go
+@@ -412,7 +412,7 @@ func (x *Int) Format(s fmt.State, ch rune) {
+ 	if precisionSet {
+ 		switch {
+ 		case len(digits) < precision:
+-			zeroes = precision - len(digits) // count of zero padding 
++			zeroes = precision - len(digits) // count of zero padding
+ 		case digits == "0" && precision == 0:
+ 			return // print nothing if zero value (x == 0) and zero precision ("." or ".0")
+ 		}
+diff --git a/src/pkg/math/big/nat.go b/src/pkg/math/big/nat.go
+index 17985c248e..13a623a703 100644
+--- a/src/pkg/math/big/nat.go
++++ b/src/pkg/math/big/nat.go
+@@ -421,17 +421,17 @@ func (z nat) mul(x, y nat) nat {
+ 	z[2*k:].clear() // upper portion of z is garbage (and 2*k <= m+n since k <= n <= m)
+ 
+ 	// If xh != 0 or yh != 0, add the missing terms to z. For
+-	// 
+-	//   xh = xi*b^i + ... + x2*b^2 + x1*b (0 <= xi < b) 
+-	//   yh =                         y1*b (0 <= y1 < b) 
+-	// 
+-	// the missing terms are 
+-	// 
+-	//   x0*y1*b and xi*y0*b^i, xi*y1*b^(i+1) for i > 0 
+-	// 
+-	// since all the yi for i > 1 are 0 by choice of k: If any of them 
+-	// were > 0, then yh >= b^2 and thus y >= b^2. Then k' = k*2 would 
+-	// be a larger valid threshold contradicting the assumption about k. 
++	//
++	//   xh = xi*b^i + ... + x2*b^2 + x1*b (0 <= xi < b)
++	//   yh =                         y1*b (0 <= y1 < b)
++	//
++	// the missing terms are
++	//
++	//   x0*y1*b and xi*y0*b^i, xi*y1*b^(i+1) for i > 0
++	//
++	// since all the yi for i > 1 are 0 by choice of k: If any of them
++	// were > 0, then yh >= b^2 and thus y >= b^2. Then k' = k*2 would
++	// be a larger valid threshold contradicting the assumption about k.
+ 	//
+ 	if k < n || m != n {
+ 		var t nat
+@@ -828,16 +828,16 @@ func (x nat) string(charset string) string {
+ // by nat/nat division using tabulated divisors. Otherwise, it is converted iteratively using
+ // repeated nat/Word divison.
+ //
+-// The iterative method processes n Words by n divW() calls, each of which visits every Word in the 
+-// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s. 
+-// Recursive conversion divides q by its approximate square root, yielding two parts, each half 
++// The iterative method processes n Words by n divW() calls, each of which visits every Word in the
++// incrementally shortened q for a total of n + (n-1) + (n-2) ... + 2 + 1, or n(n+1)/2 divW()'s.
++// Recursive conversion divides q by its approximate square root, yielding two parts, each half
+ // the size of q. Using the iterative method on both halves means 2 * (n/2)(n/2 + 1)/2 divW()'s
+ // plus the expensive long div(). Asymptotically, the ratio is favorable at 1/2 the divW()'s, and
+-// is made better by splitting the subblocks recursively. Best is to split blocks until one more 
+-// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the 
+-// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the 
+-// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and 
+-// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for 
++// is made better by splitting the subblocks recursively. Best is to split blocks until one more
++// split would take longer (because of the nat/nat div()) than the twice as many divW()'s of the
++// iterative approach. This threshold is represented by leafSize. Benchmarking of leafSize in the
++// range 2..64 shows that values of 8 and 16 work well, with a 4x speedup at medium lengths and
++// ~30x for 20000 digits. Use nat_test.go's BenchmarkLeafSize tests to optimize leafSize for
+ // specific hardware.
+ //
+ func (q nat) convertWords(s []byte, charset string, b Word, ndigits int, bb Word, table []divisor) {
+diff --git a/src/pkg/math/big/nat_test.go b/src/pkg/math/big/nat_test.go
+index 8dfbf092b4..6244eeefc9 100644
+--- a/src/pkg/math/big/nat_test.go
++++ b/src/pkg/math/big/nat_test.go
+@@ -166,7 +166,7 @@ func TestMulRangeN(t *testing.T) {
+ 	}
+ }
+ 
+-// allocBytes returns the number of bytes allocated by invoking f. 
++// allocBytes returns the number of bytes allocated by invoking f.
+ func allocBytes(f func()) uint64 {
+ 	var stats runtime.MemStats
+ 	runtime.ReadMemStats(&stats)
+@@ -546,7 +546,7 @@ func BenchmarkLeafSize13(b *testing.B) { LeafSizeHelper(b, 10, 13) }
+ func BenchmarkLeafSize14(b *testing.B) { LeafSizeHelper(b, 10, 14) }
+ func BenchmarkLeafSize15(b *testing.B) { LeafSizeHelper(b, 10, 15) }
+ func BenchmarkLeafSize16(b *testing.B) { LeafSizeHelper(b, 10, 16) }
+-func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths 
++func BenchmarkLeafSize32(b *testing.B) { LeafSizeHelper(b, 10, 32) } // try some large lengths
+ func BenchmarkLeafSize64(b *testing.B) { LeafSizeHelper(b, 10, 64) }
+ 
+ func LeafSizeHelper(b *testing.B, base Word, size int) {
+diff --git a/src/pkg/net/dial_test.go b/src/pkg/net/dial_test.go
+index 09ff5e739a..869c3cb966 100644
+--- a/src/pkg/net/dial_test.go
++++ b/src/pkg/net/dial_test.go
+@@ -55,7 +55,7 @@ func TestDialTimeout(t *testing.T) {
+ 		// on our 386 builder, this Dial succeeds, connecting
+ 		// to an IIS web server somewhere.  The data center
+ 		// or VM or firewall must be stealing the TCP connection.
+-		// 
++		//
+ 		// IANA Service Name and Transport Protocol Port Number Registry
+ 		// <http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xml>
+ 		go func() {
+diff --git a/src/pkg/net/dnsclient.go b/src/pkg/net/dnsclient.go
+index a7089d04a5..76b192645a 100644
+--- a/src/pkg/net/dnsclient.go
++++ b/src/pkg/net/dnsclient.go
+@@ -183,7 +183,7 @@ func (s byPriorityWeight) Less(i, j int) bool {
+ }
+ 
+ // shuffleByWeight shuffles SRV records by weight using the algorithm
+-// described in RFC 2782.  
++// described in RFC 2782.
+ func (addrs byPriorityWeight) shuffleByWeight() {
+ 	sum := 0
+ 	for _, addr := range addrs {
+diff --git a/src/pkg/net/example_test.go b/src/pkg/net/example_test.go
+index 1a1c2edfea..eefe84fa77 100644
+--- a/src/pkg/net/example_test.go
++++ b/src/pkg/net/example_test.go
+@@ -17,7 +17,7 @@ func ExampleListener() {
+ 		log.Fatal(err)
+ 	}
+ 	for {
+-		// Wait for a connection. 
++		// Wait for a connection.
+ 		conn, err := l.Accept()
+ 		if err != nil {
+ 			log.Fatal(err)
+diff --git a/src/pkg/net/fd_unix_test.go b/src/pkg/net/fd_unix_test.go
+index 50befac177..d1eb573d00 100644
+--- a/src/pkg/net/fd_unix_test.go
++++ b/src/pkg/net/fd_unix_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"testing"
+ )
+ 
+-// Issue 3590. netFd.AddFD should return an error 
++// Issue 3590. netFd.AddFD should return an error
+ // from the underlying pollster rather than panicing.
+ func TestAddFDReturnsError(t *testing.T) {
+ 	l, err := Listen("tcp", "127.0.0.1:0")
+diff --git a/src/pkg/net/http/chunked.go b/src/pkg/net/http/chunked.go
+index 60a478fd8f..91d7bb6575 100644
+--- a/src/pkg/net/http/chunked.go
++++ b/src/pkg/net/http/chunked.go
+@@ -22,7 +22,7 @@ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
+ var ErrLineTooLong = errors.New("header line too long")
+ 
+ // newChunkedReader returns a new chunkedReader that translates the data read from r
+-// out of HTTP "chunked" format before returning it. 
++// out of HTTP "chunked" format before returning it.
+ // The chunkedReader returns io.EOF when the final 0-length chunk is read.
+ //
+ // newChunkedReader is not needed by normal applications. The http package
+diff --git a/src/pkg/net/http/cookie.go b/src/pkg/net/http/cookie.go
+index 43f519d1fb..155b09223e 100644
+--- a/src/pkg/net/http/cookie.go
++++ b/src/pkg/net/http/cookie.go
+@@ -26,7 +26,7 @@ type Cookie struct {
+ 	Expires    time.Time
+ 	RawExpires string
+ 
+-	// MaxAge=0 means no 'Max-Age' attribute specified. 
++	// MaxAge=0 means no 'Max-Age' attribute specified.
+ 	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+ 	// MaxAge>0 means Max-Age attribute present and given in seconds
+ 	MaxAge   int
+diff --git a/src/pkg/net/http/cookie_test.go b/src/pkg/net/http/cookie_test.go
+index 1e9186a058..f84f73936c 100644
+--- a/src/pkg/net/http/cookie_test.go
++++ b/src/pkg/net/http/cookie_test.go
+@@ -217,7 +217,7 @@ var readCookiesTests = []struct {
+ 
+ func TestReadCookies(t *testing.T) {
+ 	for i, tt := range readCookiesTests {
+-		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input                                                  
++		for n := 0; n < 2; n++ { // to verify readCookies doesn't mutate its input
+ 			c := readCookies(tt.Header, tt.Filter)
+ 			if !reflect.DeepEqual(c, tt.Cookies) {
+ 				t.Errorf("#%d readCookies:\nhave: %s\nwant: %s\n", i, toJSON(c), toJSON(tt.Cookies))
+diff --git a/src/pkg/net/http/httputil/chunked.go b/src/pkg/net/http/httputil/chunked.go
+index 29eaf3475f..91a7eb6b1a 100644
+--- a/src/pkg/net/http/httputil/chunked.go
++++ b/src/pkg/net/http/httputil/chunked.go
+@@ -24,7 +24,7 @@ const maxLineLength = 4096 // assumed <= bufio.defaultBufSize
+ var ErrLineTooLong = errors.New("header line too long")
+ 
+ // NewChunkedReader returns a new chunkedReader that translates the data read from r
+-// out of HTTP "chunked" format before returning it. 
++// out of HTTP "chunked" format before returning it.
+ // The chunkedReader returns io.EOF when the final 0-length chunk is read.
+ //
+ // NewChunkedReader is not needed by normal applications. The http package
+diff --git a/src/pkg/net/http/proxy_test.go b/src/pkg/net/http/proxy_test.go
+index 5ecffaface..86db976b83 100644
+--- a/src/pkg/net/http/proxy_test.go
++++ b/src/pkg/net/http/proxy_test.go
+@@ -25,7 +25,7 @@ var UseProxyTests = []struct {
+ 	{"[::2]", true}, // not a loopback address
+ 
+ 	{"barbaz.net", false},     // match as .barbaz.net
+-	{"foobar.com", false},     // have a port but match 
++	{"foobar.com", false},     // have a port but match
+ 	{"foofoobar.com", true},   // not match as a part of foobar.com
+ 	{"baz.com", true},         // not match as a part of barbaz.com
+ 	{"localhost.net", true},   // not match as suffix of address
+diff --git a/src/pkg/net/http/request_test.go b/src/pkg/net/http/request_test.go
+index db7419b26f..c0b738c6e6 100644
+--- a/src/pkg/net/http/request_test.go
++++ b/src/pkg/net/http/request_test.go
+@@ -161,7 +161,7 @@ func TestSetBasicAuth(t *testing.T) {
+ }
+ 
+ func TestMultipartRequest(t *testing.T) {
+-	// Test that we can read the values and files of a 
++	// Test that we can read the values and files of a
+ 	// multipart request with FormValue and FormFile,
+ 	// and that ParseMultipartForm can be called multiple times.
+ 	req := newTestMultipartRequest(t)
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index a286edc72d..355efb2cac 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -314,7 +314,7 @@ func TestServerTimeouts(t *testing.T) {
+ 	l.Close()
+ }
+ 
+-// TestIdentityResponse verifies that a handler can unset 
++// TestIdentityResponse verifies that a handler can unset
+ func TestIdentityResponse(t *testing.T) {
+ 	handler := HandlerFunc(func(rw ResponseWriter, req *Request) {
+ 		rw.Header().Set("Content-Length", "3")
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 22e1bb4928..e8d7b527f5 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // HTTP client implementation. See RFC 2616.
+-// 
++//
+ // This is the low-level Transport implementation of RoundTripper.
+ // The high-level interface is in client.go.
+ 
+@@ -707,7 +707,7 @@ func (pc *persistConn) roundTrip(req *transportRequest) (resp *Response, err err
+ 	// requested it.
+ 	requestedGzip := false
+ 	if !pc.t.DisableCompression && req.Header.Get("Accept-Encoding") == "" {
+-		// Request gzip only, not deflate. Deflate is ambiguous and 
++		// Request gzip only, not deflate. Deflate is ambiguous and
+ 		// not as universally supported anyway.
+ 		// See: http://www.gzip.org/zlib/zlib_faq.html#faq38
+ 		requestedGzip = true
+diff --git a/src/pkg/net/rpc/client.go b/src/pkg/net/rpc/client.go
+index 7d3d0bb9b8..ee3cc4d34d 100644
+--- a/src/pkg/net/rpc/client.go
++++ b/src/pkg/net/rpc/client.go
+@@ -228,7 +228,7 @@ func DialHTTP(network, address string) (*Client, error) {
+ 	return DialHTTPPath(network, address, DefaultRPCPath)
+ }
+ 
+-// DialHTTPPath connects to an HTTP RPC server 
++// DialHTTPPath connects to an HTTP RPC server
+ // at the specified network address and path.
+ func DialHTTPPath(network, address, path string) (*Client, error) {
+ 	var err error
+diff --git a/src/pkg/net/rpc/server.go b/src/pkg/net/rpc/server.go
+index e5282202c3..ee1df823eb 100644
+--- a/src/pkg/net/rpc/server.go
++++ b/src/pkg/net/rpc/server.go
+@@ -227,7 +227,7 @@ func (server *Server) Register(rcvr interface{}) error {
+ 	return server.register(rcvr, "", false)
+ }
+ 
+-// RegisterName is like Register but uses the provided name for the type 
++// RegisterName is like Register but uses the provided name for the type
+ // instead of the receiver's concrete type.
+ func (server *Server) RegisterName(name string, rcvr interface{}) error {
+ 	return server.register(rcvr, name, true)
+@@ -569,7 +569,7 @@ func (server *Server) Accept(lis net.Listener) {
+ // Register publishes the receiver's methods in the DefaultServer.
+ func Register(rcvr interface{}) error { return DefaultServer.Register(rcvr) }
+ 
+-// RegisterName is like Register but uses the provided name for the type 
++// RegisterName is like Register but uses the provided name for the type
+ // instead of the receiver's concrete type.
+ func RegisterName(name string, rcvr interface{}) error {
+ 	return DefaultServer.RegisterName(name, rcvr)
+@@ -612,7 +612,7 @@ func ServeRequest(codec ServerCodec) error {
+ }
+ 
+ // Accept accepts connections on the listener and serves requests
+-// to DefaultServer for each incoming connection.  
++// to DefaultServer for each incoming connection.
+ // Accept blocks; the caller typically invokes it in a go statement.
+ func Accept(lis net.Listener) { DefaultServer.Accept(lis) }
+ 
+diff --git a/src/pkg/net/unicast_posix_test.go b/src/pkg/net/unicast_posix_test.go
+index 5b39e25acb..e1d4b0d47a 100644
+--- a/src/pkg/net/unicast_posix_test.go
++++ b/src/pkg/net/unicast_posix_test.go
+@@ -171,9 +171,9 @@ var dualStackListenerTests = []struct {
+ 	// Test cases and expected results for the attemping 2nd listen on the same port
+ 	// 1st listen                2nd listen                 darwin  freebsd  linux  openbsd
+ 	// ------------------------------------------------------------------------------------
+-	// "tcp"  ""                 "tcp"  ""                    -        -       -       - 
+-	// "tcp"  ""                 "tcp"  "0.0.0.0"             -        -       -       - 
+-	// "tcp"  "0.0.0.0"          "tcp"  ""                    -        -       -       - 
++	// "tcp"  ""                 "tcp"  ""                    -        -       -       -
++	// "tcp"  ""                 "tcp"  "0.0.0.0"             -        -       -       -
++	// "tcp"  "0.0.0.0"          "tcp"  ""                    -        -       -       -
+ 	// ------------------------------------------------------------------------------------
+ 	// "tcp"  ""                 "tcp"  "[::]"                -        -       -       ok
+ 	// "tcp"  "[::]"             "tcp"  ""                    -        -       -       ok
+diff --git a/src/pkg/old/netchan/export.go b/src/pkg/old/netchan/export.go
+index d94c4b16b2..a65b260799 100644
+--- a/src/pkg/old/netchan/export.go
++++ b/src/pkg/old/netchan/export.go
+@@ -163,7 +163,7 @@ func (client *expClient) run() {
+ 				// all messages <=N have been seen by the recipient.  We check anyway.
+ 				expLog("sequence out of order:", client.ackNum, hdr.SeqNum)
+ 			}
+-			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count. 
++			if client.ackNum < hdr.SeqNum { // If there has been an error, don't back up the count.
+ 				client.ackNum = hdr.SeqNum
+ 			}
+ 			client.mu.Unlock()
+diff --git a/src/pkg/os/dir_plan9.go b/src/pkg/os/dir_plan9.go
+index ebce6d83d8..060c0b2e8f 100644
+--- a/src/pkg/os/dir_plan9.go
++++ b/src/pkg/os/dir_plan9.go
+@@ -110,7 +110,7 @@ var nullDir = dir{
+ }
+ 
+ // Null assigns members of d with special "don't care" values indicating
+-// they should not be written by syscall.Wstat. 
++// they should not be written by syscall.Wstat.
+ func (d *dir) Null() {
+ 	*d = nullDir
+ }
+@@ -118,7 +118,7 @@ func (d *dir) Null() {
+ // pdir appends a 9P Stat message based on the contents of Dir d to a byte slice b.
+ func pdir(b []byte, d *dir) []byte {
+ 	n := len(b)
+-	b = pbit16(b, 0) // length, filled in later	
++	b = pbit16(b, 0) // length, filled in later
+ 	b = pbit16(b, d.Type)
+ 	b = pbit32(b, d.Dev)
+ 	b = pqid(b, d.Qid)
+diff --git a/src/pkg/os/error.go b/src/pkg/os/error.go
+index b88e49400d..a7977ff191 100644
+--- a/src/pkg/os/error.go
++++ b/src/pkg/os/error.go
+@@ -43,7 +43,7 @@ func NewSyscallError(syscall string, err error) error {
+ 	return &SyscallError{syscall, err}
+ }
+ 
+-// IsExist returns whether the error is known to report that a file or directory 
++// IsExist returns whether the error is known to report that a file or directory
+ // already exists. It is satisfied by ErrExist as well as some syscall errors.
+ func IsExist(err error) bool {
+ 	return isExist(err)
+diff --git a/src/pkg/os/exec/exec.go b/src/pkg/os/exec/exec.go
+index c4907cd7d7..8368491b0f 100644
+--- a/src/pkg/os/exec/exec.go
++++ b/src/pkg/os/exec/exec.go
+@@ -37,7 +37,7 @@ type Cmd struct {
+ 
+ 	// Args holds command line arguments, including the command as Args[0].
+ 	// If the Args field is empty or nil, Run uses {Path}.
+-	// 
++	//
+ 	// In typical use, both Path and Args are set by calling Command.
+ 	Args []string
+ 
+diff --git a/src/pkg/os/file.go b/src/pkg/os/file.go
+index 5b1658a715..32cac6d89a 100644
+--- a/src/pkg/os/file.go
++++ b/src/pkg/os/file.go
+@@ -9,7 +9,7 @@
+ // if a call that takes a file name fails, such as Open or Stat, the error
+ // will include the failing file name when printed and will be of type
+ // *PathError, which may be unpacked for more information.
+-// 
++//
+ // The os interface is intended to be uniform across all operating systems.
+ // Features not generally available appear in the system-specific package syscall.
+ //
+diff --git a/src/pkg/os/stat_plan9.go b/src/pkg/os/stat_plan9.go
+index 1bc9dd0524..b3dd188343 100644
+--- a/src/pkg/os/stat_plan9.go
++++ b/src/pkg/os/stat_plan9.go
+@@ -38,7 +38,7 @@ func fileInfoFromStat(d *dir) FileInfo {
+ 	return fs
+ }
+ 
+-// arg is an open *File or a path string. 
++// arg is an open *File or a path string.
+ func dirstat(arg interface{}) (d *dir, err error) {
+ 	var name string
+ 
+diff --git a/src/pkg/os/user/lookup_unix.go b/src/pkg/os/user/lookup_unix.go
+index 2c53c95363..1102e5bb1b 100644
+--- a/src/pkg/os/user/lookup_unix.go
++++ b/src/pkg/os/user/lookup_unix.go
+@@ -29,7 +29,7 @@ static int mygetpwuid_r(int uid, struct passwd *pwd,
+ */
+ import "C"
+ 
+-// Current returns the current user. 
++// Current returns the current user.
+ func Current() (*User, error) {
+ 	return lookup(syscall.Getuid(), "", false)
+ }
+diff --git a/src/pkg/path/filepath/path.go b/src/pkg/path/filepath/path.go
+index 730c2dfb51..bbd738d8c8 100644
+--- a/src/pkg/path/filepath/path.go
++++ b/src/pkg/path/filepath/path.go
+@@ -329,7 +329,7 @@ var SkipDir = errors.New("skip this directory")
+ // prefix; that is, if Walk is called with "dir", which is a directory
+ // containing the file "a", the walk function will be called with argument
+ // "dir/a". The info argument is the os.FileInfo for the named path.
+-// 
++//
+ // If there was a problem walking to the file or directory named by path, the
+ // incoming error will describe the problem and the function can decide how
+ // to handle that error (and Walk will not descend into that directory). If
+@@ -457,7 +457,7 @@ func Dir(path string) string {
+ 	return vol + dir
+ }
+ 
+-// VolumeName returns leading volume name.  
++// VolumeName returns leading volume name.
+ // Given "C:\foo\bar" it returns "C:" under windows.
+ // Given "\\host\share\foo" it returns "\\host\share".
+ // On other platforms it returns "".
+diff --git a/src/pkg/reflect/all_test.go b/src/pkg/reflect/all_test.go
+index 4ebe055305..d3646c65c9 100644
+--- a/src/pkg/reflect/all_test.go
++++ b/src/pkg/reflect/all_test.go
+@@ -1332,7 +1332,7 @@ func TestSelect(t *testing.T) {
+ 
+ // selectWatch and the selectWatcher are a watchdog mechanism for running Select.
+ // If the selectWatcher notices that the select has been blocked for >1 second, it prints
+-// an error describing the select and panics the entire test binary. 
++// an error describing the select and panics the entire test binary.
+ var selectWatch struct {
+ 	sync.Mutex
+ 	once sync.Once
+diff --git a/src/pkg/reflect/set_test.go b/src/pkg/reflect/set_test.go
+index 8135a4cd14..83b6507f1a 100644
+--- a/src/pkg/reflect/set_test.go
++++ b/src/pkg/reflect/set_test.go
+@@ -85,7 +85,7 @@ func TestImplicitMapConversion(t *testing.T) {
+ 		}
+ 	}
+ 	{
+-		// convert channel direction	
++		// convert channel direction
+ 		m := make(map[<-chan int]chan int)
+ 		mv := ValueOf(m)
+ 		c1 := make(chan int)
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 493a6721d8..5e3856b1c3 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -364,7 +364,7 @@ type Method struct {
+ 	// PkgPath is the package path that qualifies a lower case (unexported)
+ 	// method name.  It is empty for upper case (exported) method names.
+ 	// The combination of PkgPath and Name uniquely identifies a method
+-	// in a method set. 
++	// in a method set.
+ 	// See http://golang.org/ref/spec#Uniqueness_of_identifiers
+ 	Name    string
+ 	PkgPath string
+diff --git a/src/pkg/reflect/value.go b/src/pkg/reflect/value.go
+index 2d217a5180..b629b58cc1 100644
+--- a/src/pkg/reflect/value.go
++++ b/src/pkg/reflect/value.go
+@@ -346,7 +346,7 @@ func (v Value) Call(in []Value) []Value {
+ }
+ 
+ // CallSlice calls the variadic function v with the input arguments in,
+-// assigning the slice in[len(in)-1] to v's final variadic argument.  
++// assigning the slice in[len(in)-1] to v's final variadic argument.
+ // For example, if len(in) == 3, v.Call(in) represents the Go call v(in[0], in[1], in[2]...).
+ // Call panics if v's Kind is not Func or if v is not variadic.
+ // It returns the output results as Values.
+@@ -924,7 +924,7 @@ func valueInterface(v Value, safe bool) interface{} {
+ 
+ 	if safe && v.flag&flagRO != 0 {
+ 		// Do not allow access to unexported values via Interface,
+-		// because they might be pointers that should not be 
++		// because they might be pointers that should not be
+ 		// writable or methods or function that should not be callable.
+ 		panic("reflect.Value.Interface: cannot return value obtained from unexported field or method")
+ 	}
+@@ -1809,7 +1809,7 @@ func Select(cases []SelectCase) (chosen int, recv Value, recvOK bool) {
+ 		default:
+ 			panic("reflect.Select: invalid Dir")
+ 
+-		case SelectDefault: // default	
++		case SelectDefault: // default
+ 			if haveDefault {
+ 				panic("reflect.Select: multiple default cases")
+ 			}
+diff --git a/src/pkg/regexp/exec_test.go b/src/pkg/regexp/exec_test.go
+index e668574a51..0741957a41 100644
+--- a/src/pkg/regexp/exec_test.go
++++ b/src/pkg/regexp/exec_test.go
+@@ -405,14 +405,14 @@ Reading:
+ 		//   implementation. If the first character is not [BEASKLP] then the
+ 		//   specification is a global control line. One or more of [BEASKLP] may be
+ 		//   specified; the test will be repeated for each mode.
+-		// 
++		//
+ 		//     B 	basic			BRE	(grep, ed, sed)
+ 		//     E 	REG_EXTENDED		ERE	(egrep)
+ 		//     A	REG_AUGMENTED		ARE	(egrep with negation)
+ 		//     S	REG_SHELL		SRE	(sh glob)
+ 		//     K	REG_SHELL|REG_AUGMENTED	KRE	(ksh glob)
+ 		//     L	REG_LITERAL		LRE	(fgrep)
+-		// 
++		//
+ 		//     a	REG_LEFT|REG_RIGHT	implicit ^...$
+ 		//     b	REG_NOTBOL		lhs does not match ^
+ 		//     c	REG_COMMENT		ignore space and #...\n
+@@ -442,23 +442,23 @@ Reading:
+ 		//     $	                        expand C \c escapes in fields 2 and 3
+ 		//     /	                        field 2 is a regsubcomp() expression
+ 		//     =	                        field 3 is a regdecomp() expression
+-		// 
++		//
+ 		//   Field 1 control lines:
+-		// 
++		//
+ 		//     C		set LC_COLLATE and LC_CTYPE to locale in field 2
+-		// 
++		//
+ 		//     ?test ...	output field 5 if passed and != EXPECTED, silent otherwise
+ 		//     &test ...	output field 5 if current and previous passed
+ 		//     |test ...	output field 5 if current passed and previous failed
+ 		//     ; ...	output field 2 if previous failed
+ 		//     {test ...	skip if failed until }
+ 		//     }		end of skip
+-		// 
++		//
+ 		//     : comment		comment copied as output NOTE
+ 		//     :comment:test	:comment: ignored
+ 		//     N[OTE] comment	comment copied as output NOTE
+ 		//     T[EST] comment	comment
+-		// 
++		//
+ 		//     number		use number for nmatch (20 by default)
+ 		flag := field[0]
+ 		switch flag[0] {
+@@ -501,7 +501,7 @@ Reading:
+ 
+ 		//   Field 2: the regular expression pattern; SAME uses the pattern from
+ 		//     the previous specification.
+-		// 
++		//
+ 		if field[1] == "SAME" {
+ 			field[1] = lastRegexp
+ 		}
+diff --git a/src/pkg/regexp/regexp.go b/src/pkg/regexp/regexp.go
+index e4896a1c05..2a1ae56bd8 100644
+--- a/src/pkg/regexp/regexp.go
++++ b/src/pkg/regexp/regexp.go
+@@ -720,7 +720,7 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
+ // append, Expand replaces variables in the template with corresponding
+ // matches drawn from src.  The match slice should have been returned by
+ // FindSubmatchIndex.
+-// 
++//
+ // In the template, a variable is denoted by a substring of the form
+ // $name or ${name}, where name is a non-empty sequence of letters,
+ // digits, and underscores.  A purely numeric name like $1 refers to
+@@ -728,10 +728,10 @@ func (re *Regexp) FindSubmatch(b []byte) [][]byte {
+ // capturing parentheses named with the (?P<name>...) syntax.  A
+ // reference to an out of range or unmatched index or a name that is not
+ // present in the regular expression is replaced with an empty slice.
+-// 
++//
+ // In the $name form, name is taken to be as long as possible: $1x is
+ // equivalent to ${1x}, not ${1}x, and, $10 is equivalent to ${10}, not ${1}0.
+-// 
++//
+ // To insert a literal $ in the output, use $$ in the template.
+ func (re *Regexp) Expand(dst []byte, template []byte, src []byte, match []int) []byte {
+ 	return re.expand(dst, string(template), src, "", match)
+diff --git a/src/pkg/regexp/syntax/compile.go b/src/pkg/regexp/syntax/compile.go
+index 41955bfc29..95f6f15698 100644
+--- a/src/pkg/regexp/syntax/compile.go
++++ b/src/pkg/regexp/syntax/compile.go
+@@ -10,10 +10,10 @@ import "unicode"
+ // Because the pointers haven't been filled in yet, we can reuse their storage
+ // to hold the list.  It's kind of sleazy, but works well in practice.
+ // See http://swtch.com/~rsc/regexp/regexp1.html for inspiration.
+-// 
++//
+ // These aren't really pointers: they're integers, so we can reinterpret them
+ // this way without using package unsafe.  A value l denotes
+-// p.inst[l>>1].Out (l&1==0) or .Arg (l&1==1). 
++// p.inst[l>>1].Out (l&1==0) or .Arg (l&1==1).
+ // l == 0 denotes the empty list, okay because we start every program
+ // with a fail instruction, so we'll never want to point at its output link.
+ type patchList uint32
+diff --git a/src/pkg/regexp/syntax/parse.go b/src/pkg/regexp/syntax/parse.go
+index 55ea465d80..999bc995b6 100644
+--- a/src/pkg/regexp/syntax/parse.go
++++ b/src/pkg/regexp/syntax/parse.go
+@@ -466,7 +466,7 @@ func (p *parser) factor(sub []*Regexp, flags Flags) []*Regexp {
+ 			// Construct factored form: prefix(suffix1|suffix2|...)
+ 			prefix := first
+ 			for j := start; j < i; j++ {
+-				reuse := j != start // prefix came from sub[start] 
++				reuse := j != start // prefix came from sub[start]
+ 				sub[j] = p.removeLeadingRegexp(sub[j], reuse)
+ 			}
+ 			suffix := p.collapse(sub[start:i], OpAlternate) // recurse
+diff --git a/src/pkg/runtime/mem.go b/src/pkg/runtime/mem.go
+index c943b7a2d2..79edc5a604 100644
+--- a/src/pkg/runtime/mem.go
++++ b/src/pkg/runtime/mem.go
+@@ -6,7 +6,7 @@ package runtime
+ 
+ import "unsafe"
+ 
+-// Note: the MemStats struct should be kept in sync with 
++// Note: the MemStats struct should be kept in sync with
+ // struct MStats in malloc.h
+ 
+ // A MemStats records statistics about the memory allocator.
+diff --git a/src/pkg/runtime/race.go b/src/pkg/runtime/race.go
+index 5f995762c8..a3d7256072 100644
+--- a/src/pkg/runtime/race.go
++++ b/src/pkg/runtime/race.go
+@@ -12,10 +12,10 @@ import (
+ 	"unsafe"
+ )
+ 
+-// RaceDisable disables handling of race events in the current goroutine. 
++// RaceDisable disables handling of race events in the current goroutine.
+ func RaceDisable()
+ 
+-// RaceEnable re-enables handling of race events in the current goroutine. 
++// RaceEnable re-enables handling of race events in the current goroutine.
+ func RaceEnable()
+ 
+ func RaceAcquire(addr unsafe.Pointer)
+diff --git a/src/pkg/runtime/stack_test.go b/src/pkg/runtime/stack_test.go
+index 01c6b6e2f2..8b75e4d121 100644
+--- a/src/pkg/runtime/stack_test.go
++++ b/src/pkg/runtime/stack_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test stack split logic by calling functions of every frame size 
++// Test stack split logic by calling functions of every frame size
+ // from near 0 up to and beyond the default segment size (4k).
+ // Each of those functions reports its SP + stack limit, and then
+ // the test (the caller) checks that those make sense.  By not
+diff --git a/src/pkg/runtime/vlop_arm_test.go b/src/pkg/runtime/vlop_arm_test.go
+index f672f1a0de..cd28419adf 100644
+--- a/src/pkg/runtime/vlop_arm_test.go
++++ b/src/pkg/runtime/vlop_arm_test.go
+@@ -6,7 +6,7 @@ package runtime_test
+ 
+ import "testing"
+ 
+-// arm soft division benchmarks adapted from 
++// arm soft division benchmarks adapted from
+ // http://ridiculousfish.com/files/division_benchmarks.tar.gz
+ 
+ const numeratorsSize = 1 << 21
+diff --git a/src/pkg/sort/search.go b/src/pkg/sort/search.go
+index 2dca6bf133..66e6636446 100644
+--- a/src/pkg/sort/search.go
++++ b/src/pkg/sort/search.go
+@@ -7,7 +7,7 @@
+ package sort
+ 
+ // Search uses binary search to find and return the smallest index i
+-// in [0, n) at which f(i) is true, assuming that on the range [0, n), 
++// in [0, n) at which f(i) is true, assuming that on the range [0, n),
+ // f(i) == true implies f(i+1) == true.  That is, Search requires that
+ // f is false for some (possibly empty) prefix of the input range [0, n)
+ // and then true for the (possibly empty) remainder; Search returns
+@@ -82,14 +82,14 @@ func SearchInts(a []int, x int) int {
+ 
+ // SearchFloat64s searches for x in a sorted slice of float64s and returns the index
+ // as specified by Search. The slice must be sorted in ascending order.
+-// 
++//
+ func SearchFloat64s(a []float64, x float64) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+ 
+ // SearchStrings searches for x in a sorted slice of strings and returns the index
+ // as specified by Search. The slice must be sorted in ascending order.
+-// 
++//
+ func SearchStrings(a []string, x string) int {
+ 	return Search(len(a), func(i int) bool { return a[i] >= x })
+ }
+diff --git a/src/pkg/strconv/extfloat.go b/src/pkg/strconv/extfloat.go
+index 6c35201940..438017e5f6 100644
+--- a/src/pkg/strconv/extfloat.go
++++ b/src/pkg/strconv/extfloat.go
+@@ -394,7 +394,7 @@ func (f *extFloat) FixedDecimal(d *decimalSlice, n int) bool {
+ 		panic("strconv: internal error: extFloat.FixedDecimal called with n == 0")
+ 	}
+ 	// Multiply by an appropriate power of ten to have a reasonable
+-	// number to process. 
++	// number to process.
+ 	f.Normalize()
+ 	exp10, _ := f.frexp10()
+ 
+@@ -647,7 +647,7 @@ func (f *extFloat) ShortestDecimal(d *decimalSlice, lower, upper *extFloat) bool
+ 	return false
+ }
+ 
+-// adjustLastDigit modifies d = x-currentDiff*ε, to get closest to 
++// adjustLastDigit modifies d = x-currentDiff*ε, to get closest to
+ // d = x-targetDiff*ε, without becoming smaller than x-maxDiff*ε.
+ // It assumes that a decimal digit is worth ulpDecimal*ε, and that
+ // all data is known with a error estimate of ulpBinary*ε.
+diff --git a/src/pkg/strings/strings_test.go b/src/pkg/strings/strings_test.go
+index c271e48ab2..7be41a8dca 100644
+--- a/src/pkg/strings/strings_test.go
++++ b/src/pkg/strings/strings_test.go
+@@ -995,7 +995,7 @@ func TestEqualFold(t *testing.T) {
+ 
+ var makeFieldsInput = func() string {
+ 	x := make([]byte, 1<<20)
+-	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space. 
++	// Input is ~10% space, ~10% 2-byte UTF-8, rest ASCII non-space.
+ 	for i := range x {
+ 		switch rand.Intn(10) {
+ 		case 0:
+diff --git a/src/pkg/syscall/exec_plan9.go b/src/pkg/syscall/exec_plan9.go
+index 45da9909e6..1425e100be 100644
+--- a/src/pkg/syscall/exec_plan9.go
++++ b/src/pkg/syscall/exec_plan9.go
+@@ -461,7 +461,7 @@ func forkExec(argv0 string, argv []string, attr *ProcAttr) (pid int, err error)
+ 		}
+ 	}
+ 
+-	// Allocate child status pipe close on exec.	
++	// Allocate child status pipe close on exec.
+ 	e = cexecPipe(p[:])
+ 
+ 	if e != nil {
+diff --git a/src/pkg/syscall/syscall_plan9.go b/src/pkg/syscall/syscall_plan9.go
+index 4379731f79..94bed0981f 100644
+--- a/src/pkg/syscall/syscall_plan9.go
++++ b/src/pkg/syscall/syscall_plan9.go
+@@ -313,7 +313,7 @@ func DecodeBintime(b []byte) (nsec int64, err error) {
+ }
+ 
+ func Gettimeofday(tv *Timeval) (err error) {
+-	// TODO(paulzhol): 
++	// TODO(paulzhol):
+ 	// avoid reopening a file descriptor for /dev/bintime on each call,
+ 	// use lower-level calls to avoid allocation.
+ 
+diff --git a/src/pkg/syscall/types_linux.go b/src/pkg/syscall/types_linux.go
+index 0030960b5c..89e043f9e6 100644
+--- a/src/pkg/syscall/types_linux.go
++++ b/src/pkg/syscall/types_linux.go
+@@ -73,7 +73,7 @@ struct sockaddr_any {
+ 	char pad[sizeof(union sockaddr_all) - sizeof(struct sockaddr)];
+ };
+ 
+-// copied from /usr/include/linux/un.h 
++// copied from /usr/include/linux/un.h
+ struct my_sockaddr_un {
+ 	sa_family_t sun_family;
+ #ifdef __ARM_EABI__
+diff --git a/src/pkg/syscall/zsysnum_freebsd_386.go b/src/pkg/syscall/zsysnum_freebsd_386.go
+index e986abac52..5a2bfd119e 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_386.go
++++ b/src/pkg/syscall/zsysnum_freebsd_386.go
+@@ -1,4 +1,4 @@
+-// mksysnum_freebsd.pl 
++// mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_freebsd_amd64.go b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+index e986abac52..5a2bfd119e 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_freebsd_amd64.go
+@@ -1,4 +1,4 @@
+-// mksysnum_freebsd.pl 
++// mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_freebsd_arm.go b/src/pkg/syscall/zsysnum_freebsd_arm.go
+index e986abac52..5a2bfd119e 100644
+--- a/src/pkg/syscall/zsysnum_freebsd_arm.go
++++ b/src/pkg/syscall/zsysnum_freebsd_arm.go
+@@ -1,4 +1,4 @@
+-// mksysnum_freebsd.pl 
++// mksysnum_freebsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_linux_arm.go b/src/pkg/syscall/zsysnum_linux_arm.go
+index 7f5d9498c2..7068e4e210 100644
+--- a/src/pkg/syscall/zsysnum_linux_arm.go
++++ b/src/pkg/syscall/zsysnum_linux_arm.go
+@@ -1,4 +1,4 @@
+-// mksysnum_linux.pl 
++// mksysnum_linux.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_netbsd_386.go b/src/pkg/syscall/zsysnum_netbsd_386.go
+index a9bff651fb..c570965237 100644
+--- a/src/pkg/syscall/zsysnum_netbsd_386.go
++++ b/src/pkg/syscall/zsysnum_netbsd_386.go
+@@ -1,4 +1,4 @@
+-// mksysnum_netbsd.pl 
++// mksysnum_netbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_netbsd_amd64.go b/src/pkg/syscall/zsysnum_netbsd_amd64.go
+index a9bff651fb..c570965237 100644
+--- a/src/pkg/syscall/zsysnum_netbsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_netbsd_amd64.go
+@@ -1,4 +1,4 @@
+-// mksysnum_netbsd.pl 
++// mksysnum_netbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_openbsd_386.go b/src/pkg/syscall/zsysnum_openbsd_386.go
+index 1d97fe0db6..927b137986 100644
+--- a/src/pkg/syscall/zsysnum_openbsd_386.go
++++ b/src/pkg/syscall/zsysnum_openbsd_386.go
+@@ -1,4 +1,4 @@
+-// mksysnum_openbsd.pl 
++// mksysnum_openbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/syscall/zsysnum_openbsd_amd64.go b/src/pkg/syscall/zsysnum_openbsd_amd64.go
+index 1d97fe0db6..927b137986 100644
+--- a/src/pkg/syscall/zsysnum_openbsd_amd64.go
++++ b/src/pkg/syscall/zsysnum_openbsd_amd64.go
+@@ -1,4 +1,4 @@
+-// mksysnum_openbsd.pl 
++// mksysnum_openbsd.pl
+ // MACHINE GENERATED BY THE ABOVE COMMAND; DO NOT EDIT
+ 
+ package syscall
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index 60edbd55eb..66b41a50fa 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -14,7 +14,7 @@
+ //     func BenchmarkXxx(*testing.B)
+ // are considered benchmarks, and are executed by the "go test" command when
+ // the -test.bench flag is provided. Benchmarks are run sequentially.
+-// 
++//
+ // For a description of the testing flags, see
+ // http://golang.org/cmd/go/#Description_of_testing_flags.
+ //
+@@ -267,7 +267,7 @@ func (c *common) Fatalf(format string, args ...interface{}) {
+ 	c.FailNow()
+ }
+ 
+-// Parallel signals that this test is to be run in parallel with (and only with) 
++// Parallel signals that this test is to be run in parallel with (and only with)
+ // other parallel tests in this CPU group.
+ func (t *T) Parallel() {
+ 	t.signal <- (*T)(nil) // Release main testing loop
+@@ -285,7 +285,7 @@ func tRunner(t *T, test *InternalTest) {
+ 	t.start = time.Now()
+ 
+ 	// When this goroutine is done, either because test.F(t)
+-	// returned normally or because a test failure triggered 
++	// returned normally or because a test failure triggered
+ 	// a call to runtime.Goexit, record the duration and send
+ 	// a signal saying that the test is done.
+ 	defer func() {
+diff --git a/src/pkg/text/template/example_test.go b/src/pkg/text/template/example_test.go
+index ad49514a8b..de1d51851f 100644
+--- a/src/pkg/text/template/example_test.go
++++ b/src/pkg/text/template/example_test.go
+@@ -47,25 +47,25 @@ Josie
+ 
+ 	// Output:
+ 	// Dear Aunt Mildred,
+-	// 
++	//
+ 	// It was a pleasure to see you at the wedding.
+ 	// Thank you for the lovely bone china tea set.
+-	// 
++	//
+ 	// Best wishes,
+ 	// Josie
+-	// 
++	//
+ 	// Dear Uncle John,
+-	// 
++	//
+ 	// It is a shame you couldn't make it to the wedding.
+ 	// Thank you for the lovely moleskin pants.
+-	// 
++	//
+ 	// Best wishes,
+ 	// Josie
+-	// 
++	//
+ 	// Dear Cousin Rodney,
+-	// 
++	//
+ 	// It is a shame you couldn't make it to the wedding.
+-	// 
++	//
+ 	// Best wishes,
+ 	// Josie
+ }
+diff --git a/src/pkg/time/zoneinfo_read.go b/src/pkg/time/zoneinfo_read.go
+index d57c09e115..0eb20c7637 100644
+--- a/src/pkg/time/zoneinfo_read.go
++++ b/src/pkg/time/zoneinfo_read.go
+@@ -284,7 +284,7 @@ func loadZoneZip(zipfile, name string) (l *Location, err error) {
+ 		//	42	off[4]
+ 		//	46	name[namelen]
+ 		//	46+namelen+xlen+fclen - next header
+-		//		
++		//
+ 		if get4(buf) != zcheader {
+ 			break
+ 		}
+diff --git a/src/pkg/time/zoneinfo_windows.go b/src/pkg/time/zoneinfo_windows.go
+index d596fab93d..a8d3dcbfeb 100644
+--- a/src/pkg/time/zoneinfo_windows.go
++++ b/src/pkg/time/zoneinfo_windows.go
+@@ -15,9 +15,9 @@ import (
+ // BUG(brainman,rsc): On Windows, the operating system does not provide complete
+ // time zone information.
+ // The implementation assumes that this year's rules for daylight savings
+-// time apply to all previous and future years as well. 
++// time apply to all previous and future years as well.
+ // Also, time zone abbreviations are unavailable.  The implementation constructs
+-// them using the capital letters from a longer time zone description.	
++// them using the capital letters from a longer time zone description.
+ 
+ // abbrev returns the abbreviation to use for the given zone name.
+ func abbrev(name []uint16) string {
+diff --git a/src/pkg/unicode/letter.go b/src/pkg/unicode/letter.go
+index 8239557e3f..bee02f9f28 100644
+--- a/src/pkg/unicode/letter.go
++++ b/src/pkg/unicode/letter.go
+@@ -316,7 +316,7 @@ type foldPair struct {
+ // SimpleFold iterates over Unicode code points equivalent under
+ // the Unicode-defined simple case folding.  Among the code points
+ // equivalent to rune (including rune itself), SimpleFold returns the
+-// smallest rune >= r if one exists, or else the smallest rune >= 0. 
++// smallest rune >= r if one exists, or else the smallest rune >= 0.
+ //
+ // For example:
+ //	SimpleFold('A') = 'a'
+diff --git a/src/pkg/unicode/letter_test.go b/src/pkg/unicode/letter_test.go
+index 0ec25ab7e2..e4d5572a0f 100644
+--- a/src/pkg/unicode/letter_test.go
++++ b/src/pkg/unicode/letter_test.go
+@@ -435,7 +435,7 @@ func TestSimpleFold(t *testing.T) {
+ // Running 'go test -calibrate' runs the calibration to find a plausible
+ // cutoff point for linear search of a range list vs. binary search.
+ // We create a fake table and then time how long it takes to do a
+-// sequence of searches within that table, for all possible inputs 
++// sequence of searches within that table, for all possible inputs
+ // relative to the ranges (something before all, in each, between each, after all).
+ // This assumes that all possible runes are equally likely.
+ // In practice most runes are ASCII so this is a conservative estimate

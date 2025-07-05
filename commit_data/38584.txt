@@ -43,6 +43,20 @@ Date:   Mon Nov 5 21:00:52 2018 -0500
     Change-Id: I365560dfe006513200fa877551ce7afec9115fdf
     Reviewed-on: https://go-review.googlesource.com/c/147637
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/tls/conn.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 853e86ebd8..95ca60383d 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -350,7 +350,7 @@ func (hc *halfConn) decrypt(record []byte) ([]byte, recordType, error) {
+ 			}
+ 		case cbcMode:
+ 			blockSize := c.BlockSize()
+-			minPayload := explicitNonceLen + roundUp(hc.mac.Size()+1, blockSize) // TODO: vuln?
++			minPayload := explicitNonceLen + roundUp(hc.mac.Size()+1, blockSize)
+ 			if len(payload)%blockSize != 0 || len(payload) < minPayload {
+ 				return nil, 0, alertBadRecordMAC
+ 			}

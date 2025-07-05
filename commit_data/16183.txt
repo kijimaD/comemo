@@ -29,8 +29,101 @@ Date:   Mon Apr 15 14:06:41 2013 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/8633044
-
+---
  src/pkg/database/sql/fakedb_test.go | 18 ++++++++++++++++++
  src/pkg/database/sql/sql.go         |  2 +-
  src/pkg/database/sql/sql_test.go    | 20 ++++++++++++++++++++
  3 files changed, 39 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/database/sql/fakedb_test.go b/src/pkg/database/sql/fakedb_test.go
+index 24c255f6e0..07e7fd242a 100644
+--- a/src/pkg/database/sql/fakedb_test.go
++++ b/src/pkg/database/sql/fakedb_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	"testing"
+ 	"time"
+ )
+ 
+@@ -240,8 +241,19 @@ func setHookpostCloseConn(fn func(*fakeConn, error)) {
+ 	hookPostCloseConn.fn = fn
+ }
+ 
++var testStrictClose *testing.T
++
++// setStrictFakeConnClose sets the t to Errorf on when fakeConn.Close
++// fails to close. If nil, the check is disabled.
++func setStrictFakeConnClose(t *testing.T) {
++	testStrictClose = t
++}
++
+ func (c *fakeConn) Close() (err error) {
+ 	defer func() {
++		if err != nil && testStrictClose != nil {
++			testStrictClose.Errorf("failed to close a test fakeConn: %v", err)
++		}
+ 		hookPostCloseConn.Lock()
+ 		fn := hookPostCloseConn.fn
+ 		hookPostCloseConn.Unlock()
+@@ -443,6 +455,12 @@ func (s *fakeStmt) ColumnConverter(idx int) driver.ValueConverter {
+ }
+ 
+ func (s *fakeStmt) Close() error {
++	if s.c == nil {
++		panic("nil conn in fakeStmt.Close")
++	}
++	if s.c.db == nil {
++		panic("in fakeSmt.Close, conn's db is nil (already closed)")
++	}
+ 	if !s.closed {
+ 		s.c.incrStat(&s.c.stmtsClosed)
+ 		s.closed = true
+diff --git a/src/pkg/database/sql/sql.go b/src/pkg/database/sql/sql.go
+index bd450c7ec9..72289407c9 100644
+--- a/src/pkg/database/sql/sql.go
++++ b/src/pkg/database/sql/sql.go
+@@ -1311,10 +1311,10 @@ func (rs *Rows) Close() error {
+ 	}
+ 	rs.closed = true
+ 	err := rs.rowsi.Close()
+-	rs.releaseConn(err)
+ 	if rs.closeStmt != nil {
+ 		rs.closeStmt.Close()
+ 	}
++	rs.releaseConn(err)
+ 	return err
+ }
+ 
+diff --git a/src/pkg/database/sql/sql_test.go b/src/pkg/database/sql/sql_test.go
+index 6b91783784..37fdd2795e 100644
+--- a/src/pkg/database/sql/sql_test.go
++++ b/src/pkg/database/sql/sql_test.go
+@@ -854,6 +854,26 @@ func TestCloseConnBeforeStmts(t *testing.T) {
+ 	}
+ }
+ 
++// golang.org/issue/5283: don't release the Rows' connection in Close
++// before calling Stmt.Close.
++func TestRowsCloseOrder(t *testing.T) {
++	db := newTestDB(t, "people")
++	defer closeDB(t, db)
++
++	db.SetMaxIdleConns(0)
++	setStrictFakeConnClose(t)
++	defer setStrictFakeConnClose(nil)
++
++	rows, err := db.Query("SELECT|people|age,name|")
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = rows.Close()
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func manyConcurrentQueries(t testOrBench) {
+ 	maxProcs, numReqs := 16, 500
+ 	if testing.Short() {

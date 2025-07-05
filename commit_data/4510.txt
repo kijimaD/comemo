@@ -7,7 +7,44 @@ Date:   Tue Dec 29 14:01:09 2009 -0800
     R=iant
     CC=golang-dev
     https://golang.org/cl/183084
-
+---
  test/bugs/bug238.go | 19 +++++++++++++++++++
  test/golden.out     |  3 +++
  2 files changed, 22 insertions(+)
+
+diff --git a/test/bugs/bug238.go b/test/bugs/bug238.go
+new file mode 100644
+index 0000000000..a5737d6602
+--- /dev/null
++++ b/test/bugs/bug238.go
+@@ -0,0 +1,19 @@
++// errchk $G -e $D/$F.go
++
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test case for issue 471. This file shouldn't compile.
++
++package main
++
++const a *int = 1        // ERROR "wrong|incompatible"
++const b [2]int = 2      // ERROR "wrong|incompatible"
++const c map[int]int = 3 // ERROR "wrong|incompatible"
++const d chan int = 4    // ERROR "wrong|incompatible"
++const e func() = 5      // ERROR "wrong|incompatible"
++const f struct{} = 6    // ERROR "wrong|incompatible"
++const g interface{} = 7 // ERROR "wrong|incompatible"
++
++func main() { println(a, b, c, d, e, f, g) }
+diff --git a/test/golden.out b/test/golden.out
+index 063feccd08..8b092f95ca 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -148,3 +148,6 @@ panic PC=xxx
+ =========== bugs/bug219.go
+ bugs/bug219.go:16: syntax error near if
+ BUG: bug219
++
++=========== bugs/bug238.go
++BUG: errchk: command succeeded unexpectedly

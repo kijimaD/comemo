@@ -8,8 +8,148 @@ Date:   Mon Jul 11 10:01:15 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4641100
-
+---
  src/pkg/exp/template/exec_test.go  |  1 -
  src/pkg/exp/template/parse.go      | 25 +++++++++++++++++++++++++
  src/pkg/exp/template/parse_test.go |  9 +++++++--
  3 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/exp/template/exec_test.go b/src/pkg/exp/template/exec_test.go
+index 7343998205..55cb681363 100644
+--- a/src/pkg/exp/template/exec_test.go
++++ b/src/pkg/exp/template/exec_test.go
+@@ -163,7 +163,6 @@ var execTests = []execTest{
+ 	{"with $x int", "{{with $x := .I}}{{$x}}{{end}}", "17", tVal, true},
+ 	{"range $x SI", "{{range $x := .SI}}<{{$x}}>{{end}}", "<3><4><5>", tVal, true},
+ 	{"range $x PSI", "{{range $x := .PSI}}<{{$x}}>{{end}}", "<21><22><23>", tVal, true},
+-	{"after range $x", "{{range $x := .SI}}{{end}}{{$x}}", "", tVal, false},
+ 	{"if $x with $y int", "{{if $x := true}}{{with $y := .I}}{{$x}},{{$y}}{{end}}{{end}}", "true,17", tVal, true},
+ 	{"if $x with $x int", "{{if $x := true}}{{with $x := .I}}{{$x}},{{end}}{{$x}}{{end}}", "17,true", tVal, true},
+ 
+diff --git a/src/pkg/exp/template/parse.go b/src/pkg/exp/template/parse.go
+index effd824504..b7fea497e2 100644
+--- a/src/pkg/exp/template/parse.go
++++ b/src/pkg/exp/template/parse.go
+@@ -25,6 +25,7 @@ type Template struct {
+ 	lex       *lexer
+ 	token     [2]item // two-token lookahead for parser
+ 	peekCount int
++	vars      []string // variables defined at the moment
+ }
+ 
+ // Name returns the name of the template.
+@@ -32,6 +33,11 @@ func (t *Template) Name() string {
+ 	return t.name
+ }
+ 
++// popVars trims the variable list to the specified length
++func (t *Template) popVars(n int) {
++	t.vars = t.vars[:n]
++}
++
+ // next returns the next token.
+ func (t *Template) next() item {
+ 	if t.peekCount > 0 {
+@@ -560,11 +566,13 @@ func (t *Template) startParse(set *Set, lex *lexer) {
+ 	t.root = nil
+ 	t.set = set
+ 	t.lex = lex
++	t.vars = []string{"$"}
+ }
+ 
+ // stopParse terminates parsing.
+ func (t *Template) stopParse() {
+ 	t.set, t.lex = nil, nil
++	t.vars = nil
+ }
+ 
+ // atEOF returns true if, possibly after spaces, we're at EOF.
+@@ -605,6 +613,9 @@ func (t *Template) ParseInSet(s string, set *Set) (err os.Error) {
+ 	t.startParse(set, lex(t.name, s))
+ 	defer t.recover(&err)
+ 	t.parse(true)
++	if len(t.vars) != 1 { // $ should still be defined
++		t.errorf("internal error: vars not popped")
++	}
+ 	t.stopParse()
+ 	return
+ }
+@@ -674,6 +685,7 @@ func (t *Template) action() (n node) {
+ 		return t.withControl()
+ 	}
+ 	t.backup()
++	defer t.popVars(len(t.vars))
+ 	return newAction(t.lex.lineNumber(), t.pipeline("command"))
+ }
+ 
+@@ -688,6 +700,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 		if ce := t.peek(); ce.typ == itemColonEquals {
+ 			t.next()
+ 			decl = newVariable(v.val)
++			t.vars = append(t.vars, v.val)
+ 		} else {
+ 			t.backup2(v)
+ 		}
+@@ -712,6 +725,7 @@ func (t *Template) pipeline(context string) (pipe *pipeNode) {
+ 
+ func (t *Template) parseControl(context string) (lineNum int, pipe *pipeNode, list, elseList *listNode) {
+ 	lineNum = t.lex.lineNumber()
++	defer t.popVars(len(t.vars))
+ 	pipe = t.pipeline(context)
+ 	var next node
+ 	list, next = t.itemList(false)
+@@ -795,6 +809,7 @@ func (t *Template) templateControl() node {
+ 	var pipe *pipeNode
+ 	if t.next().typ != itemRightDelim {
+ 		t.backup()
++		defer t.popVars(len(t.vars))
+ 		pipe = t.pipeline("template")
+ 	}
+ 	return newTemplate(t.lex.lineNumber(), name, pipe)
+@@ -823,6 +838,16 @@ Loop:
+ 		case itemDot:
+ 			cmd.append(newDot())
+ 		case itemVariable:
++			found := false
++			for _, varName := range t.vars {
++				if varName == token.val {
++					found = true
++					break
++				}
++			}
++			if !found {
++				t.errorf("undefined variable %q", token.val)
++			}
+ 			cmd.append(newVariable(token.val))
+ 		case itemField:
+ 			cmd.append(newField(token.val))
+diff --git a/src/pkg/exp/template/parse_test.go b/src/pkg/exp/template/parse_test.go
+index 1d358209ab..7524ac8b25 100644
+--- a/src/pkg/exp/template/parse_test.go
++++ b/src/pkg/exp/template/parse_test.go
+@@ -146,8 +146,10 @@ var parseTests = []parseTest{
+ 		`[(action: [(command: [F=[X]])])]`},
+ 	{"simple command", "{{printf}}", noError,
+ 		`[(action: [(command: [I=printf])])]`},
+-	{"variable invocation", "{{$x 23}}", noError,
+-		"[(action: [(command: [V=$x N=23])])]"},
++	{"$ invocation", "{{$}}", noError,
++		"[(action: [(command: [V=$])])]"},
++	{"variable invocation", "{{with $x := 3}}{{$x 23}}{{end}}", noError,
++		"[({{with $x := [(command: [N=3])]}} [(action: [(command: [V=$x N=23])])])]"},
+ 	{"multi-word command", "{{printf `%d` 23}}", noError,
+ 		"[(action: [(command: [I=printf S=`%d` N=23])])]"},
+ 	{"pipeline", "{{.X|.Y}}", noError,
+@@ -184,9 +186,12 @@ var parseTests = []parseTest{
+ 		`[({{with [(command: [F=[X]])]}} [(text: "hello")] {{else}} [(text: "goodbye")])]`},
+ 	// Errors.
+ 	{"unclosed action", "hello{{range", hasError, ""},
++	{"unmatched end", "{{end}}", hasError, ""},
+ 	{"missing end", "hello{{range .x}}", hasError, ""},
+ 	{"missing end after else", "hello{{range .x}}{{else}}", hasError, ""},
+ 	{"undefined function", "hello{{undefined}}", hasError, ""},
++	{"undefined variable", "{{$x}}", hasError, ""},
++	{"variable undefined after end", "{{with $x := 4}}{{end}}{{$x}}", hasError, ""},
+ }
+ 
+ func TestParse(t *testing.T) {

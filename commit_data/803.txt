@@ -35,7 +35,7 @@ Date:   Fri Oct 3 16:15:55 2008 -0700
     DELTA=1827  (446 added, 1083 deleted, 298 changed)
     OCL=16433
     CL=16463
-
+---
  src/cmd/ar/ar.c        |  24 +-
  src/cmd/gc/Makefile    |   8 +-
  src/cmd/gc/dcl.c       |  80 +-----
@@ -50,3 +50,2832 @@ Date:   Fri Oct 3 16:15:55 2008 -0700
  src/cmd/gc/sysimport.c | 441 +++++-------------------------
  test/golden.out        |  27 +-
  13 files changed, 699 insertions(+), 1339 deletions(-)
+
+diff --git a/src/cmd/ar/ar.c b/src/cmd/ar/ar.c
+index 1dcfe3233d..7985357b4e 100644
+--- a/src/cmd/ar/ar.c
++++ b/src/cmd/ar/ar.c
+@@ -131,7 +131,7 @@ char	*pkgdata;		/* pkgdef data */
+ char	*pkgstmt;		/* string "package foo" */
+ int	dupfound;			/* flag for duplicate symbol */
+ Hashchain	*hash[NHASH];		/* hash table of text symbols */
+-	
++
+ #define	ARNAMESIZE	sizeof(astart->tail->hdr.name)
+ 
+ char	poname[ARNAMESIZE+1];		/* name of pivot member */
+@@ -630,7 +630,7 @@ int
+ strstrn(char *line, int len, char *sub)
+ {
+ 	int i;
+-	int sublen; 
++	int sublen;
+ 
+ 	sublen = strlen(sub);
+ 	for (i = 0; i < len - sublen; i++)
+@@ -654,20 +654,20 @@ scanpkg(Biobuf *b, long size)
+ 	int first;
+ 
+ 	/*
+-	 * scan until ((
++	 * scan until $$
+ 	 */
+ 	for (n=0; n<size; ) {
+ 		c = Bgetc(b);
+ 		if(c == Beof)
+ 			break;
+ 		n++;
+-		if(c != '(')
++		if(c != '$')
+ 			continue;
+ 		c = Bgetc(b);
+ 		if(c == Beof)
+ 			break;
+ 		n++;
+-		if(c != '(')
++		if(c != '$')
+ 			continue;
+ 		goto foundstart;
+ 	}
+@@ -691,9 +691,9 @@ foundstart:
+ 			first = 0;
+ 			continue;
+ 		}
+-		if (strstrn(line, Blinelen(b), "))"))
++		if (strstrn(line, Blinelen(b), "$$"))
+ 			goto foundend;
+-		end = Boffset(b);  // before closing ))
++		end = Boffset(b);  // before closing $$
+ 	}
+ bad:
+ 	fprint(2, "ar: bad package import section in %s\n", file);
+@@ -706,9 +706,9 @@ foundend:
+ 		/* this is the first package */
+ 		pkgstmt = armalloc(strlen(pkg)+1);
+ 		strcpy(pkgstmt, pkg);
+-		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n((\npackage foo\n" */
++		pkgdefsize = 7 + 3 + strlen(pkg);	/* "import\n$$\npackage foo\n" */
+ 		pkgdata = armalloc(pkgdefsize);
+-		sprint(pkgdata, "import\n((\n%s", pkgstmt);
++		sprint(pkgdata, "import\n$$\n%s", pkgstmt);
+ 	} else {
+ 		if (strcmp(pkg, pkgstmt) != 0) {
+ 			fprint(2, "ar: inconsistent package name\n");
+@@ -1018,7 +1018,7 @@ rl(int fd)
+ 	headlen = Boffset(&b);
+ 	len += headlen;
+ 	if (gflag) {
+-		len += SAR_HDR + pkgdefsize + 3; /* +3 for "))\n" */
++		len += SAR_HDR + pkgdefsize + 3; /* +3 for "$$\n" */
+ 		if (len & 1)
+ 			len++;
+ 	}
+@@ -1037,7 +1037,7 @@ rl(int fd)
+ 		Bputc(&b, 0);
+ 
+ 	if (gflag) {
+-		len = pkgdefsize + 3;  /* for "))\n" at close */
++		len = pkgdefsize + 3;  /* for "$$\n" at close */
+ 		sprint(a.date, "%-12ld", time(0));
+ 		sprint(a.uid, "%-6d", 0);
+ 		sprint(a.gid, "%-6d", 0);
+@@ -1053,7 +1053,7 @@ rl(int fd)
+ 
+ 		if (Bwrite(&b, pkgdata, pkgdefsize) != pkgdefsize)
+ 			wrerr();
+-		if (Bwrite(&b, "))\n", 3) != 3)
++		if (Bwrite(&b, "$$\n", 3) != 3)
+ 			wrerr();
+ 		if(len&0x01)
+ 			Bputc(&b, 0);
+diff --git a/src/cmd/gc/Makefile b/src/cmd/gc/Makefile
+index 600c3b4420..502f37146d 100644
+--- a/src/cmd/gc/Makefile
++++ b/src/cmd/gc/Makefile
+@@ -39,10 +39,12 @@ y.tab.h: $(YFILES)
+ y.tab.c: y.tab.h
+ 	test -f y.tab.c && touch y.tab.c
+ 
+-sysimport.c:	sys.go mksys.bash
+-	bash mksys.bash
++sysimport.c:	sys.go mksys.c
++	gcc -o mksys mksys.c
++	6g sys.go
++	./mksys sys.6 >_sysimport.c && mv _sysimport.c sysimport.c
+ 
+ clean:
+-	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB)
++	rm -f $(OFILES) *.6 enam.c 6.out a.out y.tab.h y.tab.c $(LIB) _sysimport.c
+ 
+ install: $(LIB)
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d6f1b14424..0fdae33786 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -50,10 +50,10 @@ dodcltype(Type *n, Type *t)
+ 		t = nt;
+ 		t->sym = S;
+ 	}
+-	if(exportadj)
+-		exportsym(n->sym);
+ 	n->sym->local = 1;
+ 	addtyp(n, t, dclcontext);
++	if(exportadj)
++		exportsym(n->sym);
+ }
+ 
+ void
+@@ -70,8 +70,6 @@ loop:
+ 		n = n->right;
+ 		goto loop;
+ 	}
+-	if(exportadj)
+-		exportsym(n->sym);
+ 
+ 	if(n->op != ONAME)
+ 		fatal("dodclconst: not a name");
+@@ -85,6 +83,9 @@ loop:
+ 	s->oconst = e;
+ 	s->lexical = LACONST;
+ 
++	if(exportadj)
++		exportsym(n->sym);
++
+ 	r = autodcl;
+ 	if(dclcontext == PEXTERN)
+ 		r = externdcl;
+@@ -142,51 +143,6 @@ functype(Node *this, Node *in, Node *out)
+ 	return t;
+ }
+ 
+-void
+-funcnam(Type *t, char *nam)
+-{
+-	Node *n;
+-	Sym *s;
+-	char buf[100];
+-
+-	if(nam == nil) {
+-		vargen++;
+-		snprint(buf, sizeof(buf), "_f%s_%.3ld", filename, vargen);
+-		nam = buf;
+-	}
+-
+-	if(t->etype != TFUNC)
+-		fatal("funcnam: not func %T\n", t);
+-
+-	if(t->thistuple > 0) {
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_t%s_%.3ld", filename, vargen);
+-		s = lookup(namebuf);
+-		addtyp(newtype(s), t->type, PEXTERN);
+-		n = newname(s);
+-		n->vargen = vargen;
+-		t->type->nname = n;
+-	}
+-	if(t->outtuple > 0) {
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_o%s_%.3ld", filename, vargen);
+-		s = lookup(namebuf);
+-		addtyp(newtype(s), t->type->down, PEXTERN);
+-		n = newname(s);
+-		n->vargen = vargen;
+-		t->type->down->nname = n;
+-	}
+-	if(t->intuple > 0) {
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_i%s_%.3ld", filename, vargen);
+-		s = lookup(namebuf);
+-		addtyp(newtype(s), t->type->down->down, PEXTERN);
+-		n = newname(s);
+-		n->vargen = vargen;
+-		t->type->down->down->nname = n;
+-	}
+-}
+-
+ int
+ methcmp(Type *t1, Type *t2)
+ {
+@@ -218,6 +174,7 @@ Node*
+ methodname(Node *n, Type *t)
+ {
+ 	Sym *s;
++	char buf[NSYMB];
+ 
+ 	if(t == T)
+ 		goto bad;
+@@ -233,8 +190,8 @@ methodname(Node *n, Type *t)
+ 	if(s == S)
+ 		goto bad;
+ 
+-	snprint(namebuf, sizeof(namebuf), "%s_%s", s->name, n->sym->name);
+-	return newname(lookup(namebuf));
++	snprint(buf, sizeof(buf), "%s_%s", s->name, n->sym->name);
++	return newname(pkglookup(buf, t->sym->opackage));
+ 
+ bad:
+ 	yyerror("illegal <this> type: %T", t);
+@@ -366,7 +323,6 @@ funchdr(Node *n)
+ 	if(on == N) {
+ 		// initial declaration or redeclaration
+ 		// declare fun name, argument types and argument names
+-		funcnam(n->type, s->name);
+ 		n->nname->type = n->type;
+ 		if(n->type->thistuple == 0)
+ 			addvar(n->nname, n->type, PEXTERN);
+@@ -462,6 +418,7 @@ stotype(Node *n, Type **t)
+ {
+ 	Type *f;
+ 	Iter save;
++	char buf[100];
+ 
+ 	n = listfirst(&save, &n);
+ 
+@@ -490,8 +447,8 @@ loop:
+ 		f->nname = n->left;
+ 	} else {
+ 		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, vargen);
+-		f->nname = newname(lookup(namebuf));
++		snprint(buf, sizeof(buf), "_e%s_%.3ld", filename, vargen);
++		f->nname = newname(lookup(buf));
+ 	}
+ 	f->sym = f->nname->sym;
+ 
+@@ -600,6 +557,7 @@ poptodcl(void)
+ 	}
+ 	if(d == S)
+ 		fatal("poptodcl: no mark");
++	dclstack = d;
+ }
+ 
+ void
+@@ -689,17 +647,6 @@ addvar(Node *n, Type *t, int ctxt)
+ 	if(n==N || n->sym == S || n->op != ONAME || t == T)
+ 		fatal("addvar: n=%N t=%T nil", n, t);
+ 
+-	ot = t;
+-	if(isptr[ot->etype])
+-		ot = ot->type;
+-
+-	if(ot->etype == TSTRUCT && ot->vargen == 0) {
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_s%s_%.3ld", filename, vargen);
+-		s = lookup(namebuf);
+-		addtyp(newtype(s), ot, PEXTERN);
+-	}
+-
+ 	s = n->sym;
+ 	vargen++;
+ 	gen = vargen;
+@@ -783,7 +730,8 @@ addtyp(Type *n, Type *t, int ctxt)
+ 		pushdcl(s);
+ 
+ 	if(t->sym != S)
+-		warn("addtyp: renaming %S/%lT to %S/%lT", t->sym, t->sym->otype, s, n);
++		warn("addtyp: renaming type %S/%lT to %S/%lT",
++			t->sym, t->sym->otype, s, n);
+ 
+ 	vargen++;
+ 	s->vargen = vargen;
+diff --git a/src/cmd/gc/export.c b/src/cmd/gc/export.c
+index 0c17ad683c..b3d3556de5 100644
+--- a/src/cmd/gc/export.c
++++ b/src/cmd/gc/export.c
+@@ -5,6 +5,8 @@
+ #include	"go.h"
+ #include	"y.tab.h"
+ 
++void dumpsym(Sym*);
++
+ void
+ addexportsym(Sym *s)
+ {
+@@ -33,28 +35,21 @@ exportsym(Sym *s)
+ 	addexportsym(s);
+ }
+ 
+-void
+-makeexportsym(Type *t)
+-{
+-	Sym *s;
+-
+-	if(t->sym == S) {
+-		exportgen++;
+-		snprint(namebuf, sizeof(namebuf), "_e%s_%.3ld", filename, exportgen);
+-		s = lookup(namebuf);
+-		s->lexical = LATYPE;
+-		s->otype = t;
+-		t->sym = s;
+-	}
+-}
+ 
+ void
+-reexport(Type *t)
++dumpprereq(Type *t)
+ {
+ 	if(t == T)
+-		fatal("reexport: type nil");
+-	makeexportsym(t);
+-	dumpexporttype(t->sym);
++		return;
++
++	if(t->printed)
++		return;
++	t->printed = 1;
++
++	if(t->sym != S && t->etype != TFIELD && t->sym->name[0] != '_')
++		dumpsym(t->sym);
++	dumpprereq(t->type);
++	dumpprereq(t->down);
+ }
+ 
+ void
+@@ -63,24 +58,21 @@ dumpexportconst(Sym *s)
+ 	Node *n;
+ 	Type *t;
+ 
+-	if(s->exported != 0)
+-		return;
+-	s->exported = 1;
+-
+ 	n = s->oconst;
+ 	if(n == N || n->op != OLITERAL)
+ 		fatal("dumpexportconst: oconst nil: %S", s);
+ 
+ 	t = n->type;	// may or may not be specified
+ 	if(t != T)
+-		reexport(t);
++		dumpprereq(t);
+ 
+-	Bprint(bout, "\tconst ");
++	Bprint(bout, "\t");
+ 	if(s->export != 0)
+-		Bprint(bout, "!");
+-	Bprint(bout, "%lS ", s);
++		Bprint(bout, "export ");
++	Bprint(bout, "const %lS ", s);
+ 	if(t != T)
+-		Bprint(bout, "%lS ", t->sym);
++		Bprint(bout, "%#T ", t);
++	Bprint(bout, " = ");
+ 
+ 	switch(n->val.ctype) {
+ 	default:
+@@ -108,10 +100,6 @@ dumpexportvar(Sym *s)
+ 	Node *n;
+ 	Type *t;
+ 
+-	if(s->exported != 0)
+-		return;
+-	s->exported = 1;
+-
+ 	n = s->oname;
+ 	if(n == N || n->type == T) {
+ 		yyerror("variable exported but not defined: %S", s);
+@@ -119,148 +107,36 @@ dumpexportvar(Sym *s)
+ 	}
+ 
+ 	t = n->type;
+-	reexport(t);
++	dumpprereq(t);
+ 
+-	Bprint(bout, "\tvar ");
++	Bprint(bout, "\t");
+ 	if(s->export != 0)
+-		Bprint(bout, "!");
+-	Bprint(bout, "%lS %lS\n", s, t->sym);
++		Bprint(bout, "export ");
++	if(t->etype == TFUNC)
++		Bprint(bout, "func ");
++	else
++		Bprint(bout, "var ");
++	Bprint(bout, "%lS %#T\n", s, t);
+ }
+ 
+ void
+ dumpexporttype(Sym *s)
+ {
+-	Type *t, *f;
+-	Sym *ts;
+-	int et, forw;
++	Bprint(bout, "\t");
++	if(s->export != 0)
++		Bprint(bout, "export ");
++	Bprint(bout, "type %lS %l#T\n",  s, s->otype);
++}
++
++void
++dumpsym(Sym *s)
++{
++	Type *f;
+ 
+ 	if(s->exported != 0)
+ 		return;
+ 	s->exported = 1;
+ 
+-	t = s->otype;
+-	if(t == T) {
+-		yyerror("type exported but not defined: %S", s);
+-		return;
+-	}
+-
+-	if(t->sym != s)
+-		fatal("dumpexporttype: cross reference: %S", s);
+-
+-	et = t->etype;
+-	switch(et) {
+-	default:
+-		if(et < 0 || et >= nelem(types) || types[et] == T)
+-			fatal("dumpexporttype: basic type: %S %E", s, et);
+-		/* type 5 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS %d\n", s, et);
+-		break;
+-
+-	case TARRAY:
+-		reexport(t->type);
+-
+-		/* type 2 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		if(t->bound >= 0)
+-			Bprint(bout, "%lS [%lud] %lS\n", s, t->bound, t->type->sym);
+-		else
+-			Bprint(bout, "%lS [] %lS\n", s, t->type->sym);
+-		break;
+-
+-	case TPTR32:
+-	case TPTR64:
+-		if(t->type == T)
+-			fatal("dumpexporttype: ptr %S", s);
+-		if(t->type->etype == TFORW) {
+-			yyerror("export of a undefined forward reference: %S", s);
+-			break;
+-		}
+-		makeexportsym(t->type);
+-		ts = t->type->sym;
+-		if(ts->exported == 0)
+-			addexportsym(ts);
+-
+-		/* type 6 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS *%lS\n", s, ts);
+-
+-		break;
+-
+-	case TFUNC:
+-		for(f=t->type; f!=T; f=f->down) {
+-			if(f->etype != TSTRUCT)
+-				fatal("dumpexporttype: funct not field: %T", f);
+-			reexport(f);
+-		}
+-
+-		/* type 3 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS (", s);
+-		for(f=t->type; f!=T; f=f->down) {
+-			if(f != t->type)
+-				Bprint(bout, " ");
+-			Bprint(bout, "%lS", f->sym);
+-		}
+-		Bprint(bout, ")\n");
+-		break;
+-
+-	case TSTRUCT:
+-	case TINTER:
+-		for(f=t->type; f!=T; f=f->down) {
+-			if(f->etype != TFIELD)
+-				fatal("dumpexporttype: funct not field: %lT", f);
+-			reexport(f->type);
+-		}
+-
+-		/* type 4 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS %c", s, (et==TSTRUCT)? '{': '<');
+-		for(f=t->type; f!=T; f=f->down) {
+-			ts = f->type->sym;
+-			if(f != t->type)
+-				Bprint(bout, " ");
+-			Bprint(bout, "%s %lS", f->sym->name, ts);
+-		}
+-		Bprint(bout, "%c\n", (et==TSTRUCT)? '}': '>');
+-		break;
+-
+-	case TMAP:
+-		reexport(t->type);
+-		reexport(t->down);
+-
+-		/* type 1 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS [%lS] %lS\n", s, t->down->sym, t->type->sym);
+-		break;
+-
+-	case TCHAN:
+-		reexport(t->type);
+-
+-		/* type 8 */
+-		Bprint(bout, "\ttype ");
+-		if(s->export != 0)
+-			Bprint(bout, "!");
+-		Bprint(bout, "%lS %d %lS\n", s, t->chan, t->type->sym);
+-		break;
+-	}
+-}
+-
+-void
+-dumpe(Sym *s)
+-{
+ 	switch(s->lexical) {
+ 	default:
+ 		yyerror("unknown export symbol: %S", s);
+@@ -270,506 +146,252 @@ dumpe(Sym *s)
+ 		break;
+ 	case LATYPE:
+ 	case LBASETYPE:
+-//print("TYPE %S\n", s);
+ 		dumpexporttype(s);
++		for(f=s->otype->method; f!=T; f=f->down) {
++			dumpprereq(f);
++			Bprint(bout, "\tfunc (%#T) %hS %#T\n",
++				f->type->type->type, f->sym, f->type);
++		}
+ 		break;
+ 	case LNAME:
+-//print("VAR %S\n", s);
+ 		dumpexportvar(s);
+ 		break;
+ 	case LACONST:
+-//print("CONST %S\n", s);
+ 		dumpexportconst(s);
+ 		break;
+ 	}
+ }
+ 
+-void
+-dumpm(Sym *s)
+-{
+-	Type *t, *f;
+-	Dcl *back, *d;
+-
+-	switch(s->lexical) {
+-	default:
+-		return;
+-
+-	case LATYPE:
+-	case LBASETYPE:
+-		break;
+-	}
+-
+-	t = s->otype;
+-	if(t == T) {
+-		yyerror("type exported but not defined: %S", s);
+-		return;
+-	}
+-
+-	for(f=t->method; f!=T; f=f->down) {
+-		back = exportlist->back;
+-
+-		if(f->etype != TFIELD)
+-			fatal("dumpexporttype: method not field: %lT", f);
+-		reexport(f->type);
+-		Bprint(bout, "\tfunc %S %lS\n", f->sym, f->type->sym);
+-	
+-		// redo first pass on new entries
+-		for(d=back; d!=D; d=d->forw) {
+-			lineno = d->lineno;
+-			dumpe(d->dsym);
+-		}
+-	}
+-}
+-
+ void
+ dumpexport(void)
+ {
+ 	Dcl *d;
+ 	int32 lno;
++	char *pkg;
+ 
++	exporting = 1;
+ 	lno = lineno;
+ 
+ 	Bprint(bout, "   import\n");
+-	Bprint(bout, "   ((\n");
++	Bprint(bout, "   $$\n");
+ 
+ 	Bprint(bout, "    package %s\n", package);
++	pkg = package;
++	package = "$nopkg";
+ 
+-	// first pass dump vars/types depth first
+ 	for(d=exportlist->forw; d!=D; d=d->forw) {
+ 		lineno = d->lineno;
+-		dumpe(d->dsym);
++		dumpsym(d->dsym);
+ 	}
+ 
+-	// second pass dump methods
+-	for(d=exportlist->forw; d!=D; d=d->forw) {
+-		lineno = d->lineno;
+-		dumpm(d->dsym);
+-	}
++	package = pkg;
+ 
+-	Bprint(bout, "   ))\n");
++	Bprint(bout, "\n$$\n");
+ 
+ 	lineno = lno;
++	exporting = 0;
+ }
+ 
+ /*
+- * ******* import *******
++ * import
+  */
+ 
+-void
+-checkimports(void)
++/*
++ * look up and maybe declare pkg.name, which should match lexical
++ */
++Sym*
++pkgsym(char *name, char *pkg, int lexical)
+ {
+ 	Sym *s;
+-	Type *t, *t1;
+-	uint32 h;
+-	int et;
+-
+-return;
+-
+-	for(h=0; h<NHASH; h++)
+-	for(s = hash[h]; s != S; s = s->link) {
+-		t = s->otype;
+-		if(t == T)
+-			continue;
+-
+-		et = t->etype;
+-		switch(t->etype) {
+-		case TFORW:
+-			print("ci-1: %S %lT\n", s, t);
+-			break;
+ 
+-		case TPTR32:
+-		case TPTR64:
+-			if(t->type == T) {
+-				print("ci-2: %S %lT\n", s, t);
+-				break;
+-			}
+-
+-			t1 = t->type;
+-			if(t1 == T) {
+-				print("ci-3: %S %lT\n", s, t1);
+-				break;
+-			}
+-
+-			et = t1->etype;
+-			if(et == TFORW) {
+-				print("%L: ci-4: %S %lT\n", lineno, s, t);
+-				break;
+-			}
+-			break;
+-		}
++	s = pkglookup(name, pkg);
++	switch(lexical) {
++	case LATYPE:
++		if(s->oname)
++			yyerror("%s.%s is not a type", name, pkg);
++		break;
++	case LNAME:
++		if(s->otype)
++			yyerror("%s.%s is not a name", name, pkg);
++		break;
+ 	}
++	s->lexical = lexical;
++	return s;
+ }
+ 
+-void
+-renamepkg(Node *n)
+-{
+-	if(n->psym == pkgimportname)
+-		if(pkgmyname != S)
+-			n->psym = pkgmyname;
+-}
+-
++/*
++ * return the sym for ss, which should match lexical
++ */
+ Sym*
+-getimportsym(Node *ss)
++importsym(Node *ss, int lexical)
+ {
+-	char *pkg;
+ 	Sym *s;
+ 
++	renamepkg(ss);
++
+ 	if(ss->op != OIMPORT)
+-		fatal("getimportsym: oops1 %N", ss);
++		fatal("importsym: oops1 %N", ss);
+ 
+-	pkg = ss->psym->name;
+-	s = pkglookup(ss->sym->name, pkg);
++	s = pkgsym(ss->sym->name, ss->psym->name, lexical);
+ 
+-	/* botch - need some diagnostic checking for the following assignment */
++	/* TODO botch - need some diagnostic checking for the following assignment */
+ 	s->opackage = ss->osym->name;
+ 	return s;
+ }
+ 
+-Type*
+-importlooktype(Node *n)
+-{
+-	Sym *s;
+-
+-	s = getimportsym(n);
+-	if(s->otype == T)
+-		fatal("importlooktype: oops2 %S", s);
+-	return s->otype;
+-}
+-
+-Type**
+-importstotype(Node *fl, Type **t, Type *uber)
+-{
+-	Type *f;
+-	Iter save;
+-	Node *n;
+-
+-	n = listfirst(&save, &fl);
+-
+-loop:
+-	if(n == N) {
+-		*t = T;
+-		return t;
+-	}
+-	f = typ(TFIELD);
+-	f->type = importlooktype(n);
+-
+-	if(n->fsym != S) {
+-		f->nname = newname(n->fsym);
+-	} else {
+-		vargen++;
+-		snprint(namebuf, sizeof(namebuf), "_m%.3ld", vargen);
+-		f->nname = newname(lookup(namebuf));
+-	}
+-	f->sym = f->nname->sym;
+-
+-	*t = f;
+-	t = &f->down;
+-
+-	n = listnext(&save);
+-	goto loop;
+-}
+-
+-int
+-importcount(Type *t)
+-{
+-	int i;
+-	Type *f;
+-
+-	if(t == T || t->etype != TSTRUCT)
+-		fatal("importcount: not a struct: %N", t);
+-
+-	i = 0;
+-	for(f=t->type; f!=T; f=f->down)
+-		i = i+1;
+-	return i;
+-}
+-
+-void
+-importfuncnam(Type *t)
+-{
+-	Node *n;
+-	Type *t1;
+-
+-	if(t->etype != TFUNC)
+-		fatal("importfuncnam: not func %T", t);
+-
+-	if(t->thistuple > 0) {
+-		t1 = t->type;
+-		if(t1->sym == S)
+-			fatal("importfuncnam: no this");
+-		n = newname(t1->sym);
+-		vargen++;
+-		n->vargen = vargen;
+-		t1->nname = n;
+-	}
+-	if(t->outtuple > 0) {
+-		t1 = t->type->down;
+-		if(t1->sym == S)
+-			fatal("importfuncnam: no output");
+-		n = newname(t1->sym);
+-		vargen++;
+-		n->vargen = vargen;
+-		t1->nname = n;
+-	}
+-	if(t->intuple > 0) {
+-		t1 = t->type->down->down;
+-		if(t1->sym == S)
+-			fatal("importfuncnam: no input");
+-		n = newname(t1->sym);
+-		vargen++;
+-		n->vargen = vargen;
+-		t1->nname = n;
+-	}
+-}
+-
+-void
+-importaddtyp(Node *ss, Type *t)
+-{
+-	Sym *s;
+-
+-	s = getimportsym(ss);
+-	if(s->otype != T) {
+-		// here we should try to discover if
+-		// the new type is the same as the old type
+-		if(eqtype(t, s->otype, 0))
+-			return;
+-		if(isptrto(t, TFORW)) {
+-			return;	// hard part
+-		}
+-		warn("redeclare import %S from %lT to %lT",
+-			s, s->otype, t);
+-		return;
+-	}
+-	addtyp(newtype(s), t, PEXTERN);
+-}
+-
+ /*
+- * LCONST importsym LITERAL
+- * untyped constant
++ * return the type pkg.name, forward declaring if needed
+  */
+-void
+-doimportc1(Node *ss, Val *v)
++Type*
++pkgtype(char *name, char *pkg)
+ {
+-	Node *n;
+ 	Sym *s;
++	Type *t;
+ 
+-	n = nod(OLITERAL, N, N);
+-	n->val = *v;
+-
+-	s = getimportsym(ss);
+-	if(s->oconst == N) {
+-		// botch sould ask if already declared the same
+-		dodclconst(newname(s), n);
++	// botch
++	// s = pkgsym(name, pkg, LATYPE);
++	Node *n;
++	n = nod(OIMPORT, N, N);
++	n->sym = lookup(name);
++	n->psym = lookup(pkg);
++	n->osym = n->psym;
++	renamepkg(n);
++	s = importsym(n, LATYPE);
++
++	if(s->otype == T) {
++		t = typ(TFORW);
++		t->sym = s;
++		s->otype = t;
+ 	}
++	return s->otype;
+ }
+ 
+-/*
+- * LCONST importsym importsym LITERAL
+- * typed constant
+- */
+ void
+-doimportc2(Node *ss, Node *st, Val *v)
++importconst(int export, Node *ss, Type *t, Val *v)
+ {
+ 	Node *n;
+-	Type *t;
+ 	Sym *s;
+ 
+ 	n = nod(OLITERAL, N, N);
+ 	n->val = *v;
+-
+-	t = importlooktype(st);
+ 	n->type = t;
+ 
+-	s = getimportsym(ss);
+-	if(s->oconst == N) {
+-		// botch sould ask if already declared the same
+-		dodclconst(newname(s), n);
++	s = importsym(ss, LNAME);
++	if(s->oconst != N) {
++		// TODO: check if already the same.
++		return;
+ 	}
+-}
+ 
+-/*
+- * LVAR importsym importsym
+- * variable
+- */
+-void
+-doimportv1(Node *ss, Node *st)
+-{
+-	Type *t;
+-	Sym *s;
++	dodclconst(newname(s), n);
+ 
+-	t = importlooktype(st);
+-	s = getimportsym(ss);
+-	if(s->oname == N || !eqtype(t, s->oname->type, 0)) {
+-		addvar(newname(s), t, dclcontext);
+-	}
++	if(debug['e'])
++		print("import const %S\n", s);
+ }
+ 
+-/*
+- * LTYPE importsym [ importsym ] importsym
+- * array type
+- */
+ void
+-doimport1(Node *ss, Node *si, Node *st)
++importvar(int export, Node *ss, Type *t)
+ {
+-	Type *t;
+ 	Sym *s;
+ 
+-	t = typ(TMAP);
+-	s = pkglookup(si->sym->name, si->psym->name);
+-	t->down = s->otype;
+-	s = pkglookup(st->sym->name, st->psym->name);
+-	t->type = s->otype;
++	s = importsym(ss, LNAME);
++	if(s->oname != N) {
++		if(eqtype(t, s->oname->type, 0))
++			return;
++		warn("redeclare import var %S from %T to %T",
++			s, s->oname->type, t);
++	}
++	addvar(newname(s), t, PEXTERN);
+ 
+-	importaddtyp(ss, t);
++	if(debug['e'])
++		print("import var %S %lT\n", s, t);
+ }
+ 
+-/*
+- * LTYPE importsym [ LLITERAL ] importsym
+- * array type
+- */
+ void
+-doimport2(Node *ss, Val *b, Node *st)
++importtype(int export, Node *ss, Type *t)
+ {
+-	Type *t;
+ 	Sym *s;
+ 
+-	t = typ(TARRAY);
+-	t->bound = -1;
+-	if(b != nil)
+-		t->bound = mpgetfix(b->u.xval);
+-	s = pkglookup(st->sym->name, st->psym->name);
+-	t->type = s->otype;
++	s = importsym(ss, LATYPE);
++	if(s->otype != T) {
++		if(eqtype(t, s->otype, 0))
++			return;
++		if(s->otype->etype != TFORW) {
++			warn("redeclare import type %S from %T to %T",
++				s, s->otype, t);
++			s->otype = typ(0);
++		}
++	}
++	if(s->otype == T)
++		s->otype = typ(0);
++	*s->otype = *t;
++	s->otype->sym = s;
+ 
+-	importaddtyp(ss, t);
++	if(debug['e'])
++		print("import type %S %lT\n", s, t);
+ }
+ 
+-/*
+- * LTYPE importsym '(' importsym_list ')'
+- * function/method type
+- */
+ void
+-doimport3(Node *ss, Node *n)
++importmethod(Sym *s, Type *t)
+ {
+-	Type *t;
+-
+-	t = typ(TFUNC);
+-
+-	t->type = importlooktype(n->left);
+-	t->type->down = importlooktype(n->right->left);
+-	t->type->down->down = importlooktype(n->right->right);
+-
+-	t->thistuple = importcount(t->type);
+-	t->outtuple = importcount(t->type->down);
+-	t->intuple = importcount(t->type->down->down);
+ 	dowidth(t);
+-	importfuncnam(t);
+-
+-	importaddtyp(ss, t);
++	addmethod(newname(s), t, 0);
+ }
+ 
+ /*
+- * LTYPE importsym '{' importsym_list '}'
+- * structure type
++ * ******* import *******
+  */
+-void
+-doimport4(Node *ss, Node *n)
+-{
+-	Type *t;
+-
+-	t = typ(TSTRUCT);
+-	importstotype(n, &t->type, t);
+-	dowidth(t);
+ 
+-	importaddtyp(ss, t);
+-}
+-
+-/*
+- * LTYPE importsym LLITERAL
+- * basic type
+- */
+ void
+-doimport5(Node *ss, Val *v)
++checkimports(void)
+ {
++	Sym *s;
++	Type *t, *t1;
++	uint32 h;
+ 	int et;
+-	Type *t;
+-
+-	et = mpgetfix(v->u.xval);
+-	if(et <= 0 || et >= nelem(types) || types[et] == T)
+-		fatal("doimport5: bad type index: %E", et);
+ 
+-	t = typ(et);
+-	t->sym = S;
+-
+-	importaddtyp(ss, t);
+-}
+-
+-/*
+- * LTYPE importsym * importsym
+- * pointer type
+- */
+-void
+-doimport6(Node *ss, Node *st)
+-{
+-	Type *t;
+-	Sym *s;
++return;
+ 
+-	s = pkglookup(st->sym->name, st->psym->name);
+-	t = s->otype;
+-	if(t == T)
+-		t = forwdcl(s);
+-	else
+-		t = ptrto(t);
++	for(h=0; h<NHASH; h++)
++	for(s = hash[h]; s != S; s = s->link) {
++		t = s->otype;
++		if(t == T)
++			continue;
+ 
+-	importaddtyp(ss, t);
+-}
++		et = t->etype;
++		switch(t->etype) {
++		case TFORW:
++			print("ci-1: %S %lT\n", s, t);
++			break;
+ 
+-/*
+- * LTYPE importsym '<' importsym '>'
+- * interface type
+- */
+-void
+-doimport7(Node *ss, Node *n)
+-{
+-	Type *t;
++		case TPTR32:
++		case TPTR64:
++			if(t->type == T) {
++				print("ci-2: %S %lT\n", s, t);
++				break;
++			}
+ 
+-	t = typ(TINTER);
+-	importstotype(n, &t->type, t);
+-	dowidth(t);
++			t1 = t->type;
++			if(t1 == T) {
++				print("ci-3: %S %lT\n", s, t1);
++				break;
++			}
+ 
+-	importaddtyp(ss, t);
++			et = t1->etype;
++			if(et == TFORW) {
++				print("%L: ci-4: %S %lT\n", lineno, s, t);
++				break;
++			}
++			break;
++		}
++	}
+ }
+ 
+-/*
+- * LTYPE importsym chdir importsym
+- * interface type
+- */
+-void
+-doimport8(Node *ss, Val *v, Node *st)
+-{
+-	Type *t;
+-	Sym *s;
+-	int dir;
+-
+-	s = pkglookup(st->sym->name, st->psym->name);
+-	dir = mpgetfix(v->u.xval);
+ 
+-	t = typ(TCHAN);
+-	s = pkglookup(st->sym->name, st->psym->name);
+-	t->type = s->otype;
+-	t->chan = dir;
+ 
+-	importaddtyp(ss, t);
+-}
+-
+-/*
+- * LFUNC importsym sym
+- * method type
+- */
+ void
+-doimport9(Sym *sf, Node *ss)
++renamepkg(Node *n)
+ {
+-	Sym *sfun;
+-
+-	sfun = getimportsym(ss);
+-	addmethod(newname(sf), sfun->otype, 0);
++	if(n->psym == pkgimportname)
++		if(pkgmyname != S)
++			n->psym = pkgmyname;
+ }
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index ca2f44a324..7b337fbc06 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -123,6 +123,7 @@ struct	Type
+ 	uchar	recur;		// to detect loops
+ 	uchar	trecur;		// to detect loops
+ 	uchar	methptr;	// 1=direct 2=pointer
++	uchar	printed;
+ 
+ 	// TFUNCT
+ 	uchar	thistuple;
+@@ -464,6 +465,8 @@ EXTERN	char*	hunk;
+ EXTERN	int32	nhunk;
+ EXTERN	int32	thunk;
+ 
++EXTERN	int	exporting;
++
+ /*
+  *	y.tab.c
+  */
+@@ -652,6 +655,7 @@ void	fninit(Node*);
+ Node*	nametoanondcl(Node*);
+ Node*	nametodcl(Node*, Type*);
+ Node*	anondcl(Type*);
++void	checkarglist(Node*);
+ 
+ /*
+  *	export.c
+@@ -675,6 +679,12 @@ void	doimport6(Node*, Node*);
+ void	doimport7(Node*, Node*);
+ void	doimport8(Node*, Val*, Node*);
+ void	doimport9(Sym*, Node*);
++void	importconst(int, Node *ss, Type *t, Val *v);
++void	importmethod(Sym *s, Type *t);
++void	importtype(int, Node *ss, Type *t);
++void	importvar(int, Node *ss, Type *t);
++void	checkimports(void);
++Type*	pkgtype(char*, char*);
+ 
+ /*
+  *	walk.c
+diff --git a/src/cmd/gc/go.y b/src/cmd/gc/go.y
+index 46b01e3a43..2f9cd0aca4 100644
+--- a/src/cmd/gc/go.y
++++ b/src/cmd/gc/go.y
+@@ -45,8 +45,6 @@
+ %type	<node>		vardcl_list_r vardcl Avardcl Bvardcl
+ %type	<node>		interfacedcl_list_r interfacedcl
+ %type	<node>		structdcl_list_r structdcl
+-%type	<node>		hidden_importsym_list_r ohidden_importsym_list hidden_importsym isym
+-%type	<node>		hidden_importfield_list_r ohidden_importfield_list hidden_importfield
+ %type	<node>		fnres Afnres Bfnres fnliteral xfndcl fndcl fnbody
+ %type	<node>		keyexpr_list keyval_list_r keyval
+ %type	<node>		typedcl Atypedcl Btypedcl
+@@ -58,6 +56,14 @@
+ %type	<type>		Achantype Bchantype
+ 
+ %type	<val>		hidden_constant
++%type	<node>		hidden_dcl
++%type	<type>		hidden_type hidden_type1 hidden_type2
++%type	<node>		hidden_structdcl_list ohidden_structdcl_list hidden_structdcl_list_r
++%type	<node>		hidden_interfacedcl_list ohidden_interfacedcl_list hidden_interfacedcl_list_r
++%type	<node>		hidden_interfacedcl
++%type	<node>		hidden_funarg_list ohidden_funarg_list hidden_funarg_list_r
++%type	<node>		hidden_funres ohidden_funres hidden_importsym
++%type	<lint>		oexport
+ 
+ %left			LOROR
+ %left			LANDAND
+@@ -65,6 +71,7 @@
+ %left			LEQ LNE LLE LGE LLT LGT
+ %left			'+' '-' '|' '^'
+ %left			'*' '/' '%' '&' LLSH LRSH
++
+ %%
+ file:
+ 	package import_there imports oxdcl_list
+@@ -130,12 +137,12 @@ import_package:
+ 	}
+ 
+ import_there:
+-	hidden_import_list_r ')' ')'
++	hidden_import_list_r '$' '$'
+ 	{
+ 		checkimports();
+ 		unimportfile();
+ 	}
+-|	LIMPORT '(' '(' hidden_import_list_r ')' ')'
++|	LIMPORT '$' '$' hidden_import_list_r '$' '$'
+ 	{
+ 		checkimports();
+ 	}
+@@ -889,8 +896,7 @@ sym1:
+ |	keyword
+ 
+ sym2:
+-	sym
+-|	keyword
++	sym1
+ 
+ /*
+  * keywords that we can
+@@ -1124,14 +1130,12 @@ Afntype:
+ 	'(' oarg_type_list ')' Afnres
+ 	{
+ 		$$ = functype(N, $2, $4);
+-		funcnam($$, nil);
+ 	}
+ 
+ Bfntype:
+ 	'(' oarg_type_list ')' Bfnres
+ 	{
+ 		$$ = functype(N, $2, $4);
+-		funcnam($$, nil);
+ 	}
+ 
+ fnlitdcl:
+@@ -1175,8 +1179,7 @@ fnbody:
+ 		if($$ == N)
+ 			$$ = nod(ORETURN, N, N);
+ 	}
+-|	';'
+-	{
++|	{
+ 		$$ = N;
+ 	}
+ 
+@@ -1296,7 +1299,6 @@ indcl:
+ 	{
+ 		// without func keyword
+ 		$$ = functype(fakethis(), $2, $4);
+-		funcnam($$, nil);
+ 	}
+ |	latype
+ 	{
+@@ -1357,10 +1359,6 @@ arg_type_list_r:
+ 		$$ = nametoanondcl($1);
+ 	}
+ 
+-/*
+- * arg type is just list of arg_chunks, except for the
+- * special case of a simple comma-separated list of names.
+- */
+ arg_type_list:
+ 	arg_type_list_r
+ 	{
+@@ -1493,18 +1491,43 @@ hidden_import_list_r:
+ 	hidden_import
+ |	hidden_import_list_r hidden_import
+ 
+-hidden_importsym_list_r:
+-	hidden_importsym
+-|	hidden_importsym_list_r hidden_importsym
++hidden_funarg_list_r:
++	hidden_dcl
++|	hidden_funarg_list_r ',' hidden_dcl
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++hidden_funarg_list:
++	hidden_funarg_list_r
++	{
++		$$ = rev($1);
++	}
++
++hidden_structdcl_list_r:
++	hidden_dcl
++|	hidden_structdcl_list_r ';' hidden_dcl
++	{
++		$$ = nod(OLIST, $1, $3);
++	}
++
++hidden_structdcl_list:
++	hidden_structdcl_list_r
+ 	{
+-		$$ = nod(OLIST, $1, $2);
++		$$ = rev($1);
+ 	}
+ 
+-hidden_importfield_list_r:
+-	hidden_importfield
+-|	hidden_importfield_list_r hidden_importfield
++hidden_interfacedcl_list_r:
++	hidden_interfacedcl
++|	hidden_interfacedcl_list_r ';' hidden_interfacedcl
+ 	{
+-		$$ = nod(OLIST, $1, $2);
++		$$ = nod(OLIST, $1, $3);
++	}
++
++hidden_interfacedcl_list:
++	hidden_interfacedcl_list_r
++	{
++		$$ = rev($1);
+ 	}
+ 
+ keyval_list_r:
+@@ -1577,104 +1600,183 @@ oxdcl_list:
+ 		$$ = rev($1);
+ 	}
+ 
+-ohidden_importsym_list:
++oarg_type_list:
+ 	{
+ 		$$ = N;
+ 	}
+-|	hidden_importsym_list_r
++|	arg_type_list
++
++ohidden_funarg_list:
+ 	{
+-		$$ = rev($1);
++		$$ = N;
+ 	}
++|	hidden_funarg_list
+ 
+-ohidden_importfield_list:
++ohidden_structdcl_list:
+ 	{
+ 		$$ = N;
+ 	}
+-|	hidden_importfield_list_r
++|	hidden_structdcl_list
++
++ohidden_interfacedcl_list:
+ 	{
+-		$$ = rev($1);
++		$$ = N;
+ 	}
++|	hidden_interfacedcl_list
+ 
+-oarg_type_list:
++oexport:
+ 	{
+-		$$ = N;
++		$$ = 0;
++	}
++|	LEXPORT
++	{
++		$$ = 1;
+ 	}
+-|	arg_type_list
+ 
+ /*
+  * import syntax from header of
+  * an output package
+  */
+ hidden_import:
+-	/* leftover import ignored */
+-	LPACKAGE sym
++	LPACKAGE sym1
+ 	/* variables */
+-|	LVAR hidden_importsym hidden_importsym
++|	oexport LVAR hidden_importsym hidden_type
++	{
++		importvar($1, $3, $4);
++	}
++|	oexport LCONST hidden_importsym '=' hidden_constant
++	{
++		importconst($1, $3, T, &$5);
++	}
++|	oexport LCONST hidden_importsym hidden_type '=' hidden_constant
++	{
++		importconst($1, $3, $4, &$6);
++	}
++|	oexport LTYPE hidden_importsym hidden_type
++	{
++		importtype($1, $3, $4);
++	}
++|	oexport LFUNC hidden_importsym '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		// var
+-		doimportv1($2, $3);
++		importvar($1, $3, functype(N, $5, $7));
+ 	}
++|	oexport LFUNC '(' hidden_funarg_list ')' sym1 '(' ohidden_funarg_list ')' ohidden_funres
++	{
++		// have to put oexport here to avoid shift/reduce
++		// with non-method func.  but it isn't allowed.
++		if($1)
++			yyerror("cannot export method");
++		if($4->op != ODCLFIELD) {
++			yyerror("bad receiver in method");
++			YYERROR;
++		}
++		importmethod($6, functype($4, $8, $10));
++	}
++
++hidden_type:
++	hidden_type1
++|	hidden_type2
+ 
+-	/* constants */
+-|	LCONST hidden_importsym hidden_constant
++hidden_type1:
++	hidden_importsym
+ 	{
+-		doimportc1($2, &$3);
++		$$ = pkgtype($1->sym->name, $1->psym->name);
+ 	}
+-|	LCONST hidden_importsym hidden_importsym hidden_constant
++|	LATYPE
+ 	{
+-		doimportc2($2, $3, &$4);
++		$$ = oldtype($1);
+ 	}
++|	'[' ']' hidden_type
++	{
++		$$ = aindex(N, $3);
++	}
++|	'[' LLITERAL ']' hidden_type
++	{
++		Node *n;
+ 
+-	/* types */
+-|	LTYPE hidden_importsym '[' hidden_importsym ']' hidden_importsym
++		n = nod(OLITERAL, N, N);
++		n->val = $2;
++		$$ = aindex(n, $4);
++	}
++|	LMAP '[' hidden_type ']' hidden_type
++	{
++		$$ = typ(TMAP);
++		$$->down = $3;
++		$$->type = $5;
++	}
++|	LSTRUCT '{' ohidden_structdcl_list '}'
+ 	{
+-		// type map
+-		doimport1($2, $4, $6);
++		$$ = dostruct($3, TSTRUCT);
+ 	}
+-|	LTYPE hidden_importsym '[' LLITERAL ']' hidden_importsym
++|	LINTERFACE '{' ohidden_interfacedcl_list '}'
+ 	{
+-		// type array
+-		doimport2($2, &$4, $6);
++		$$ = dostruct($3, TINTER);
++		$$ = sortinter($$);
+ 	}
+-|	LTYPE hidden_importsym '[' ']' hidden_importsym
++|	'*' hidden_type
+ 	{
+-		// type array
+-		doimport2($2, nil, $5);
++		dowidth($2);
++		$$ = ptrto($2);
+ 	}
+-|	LTYPE hidden_importsym '(' ohidden_importsym_list ')'
++|	LCOMM LCHAN hidden_type
+ 	{
+-		// type function
+-		doimport3($2, $4);
++		$$ = typ(TCHAN);
++		$$->type = $3;
++		$$->chan = Crecv;
+ 	}
+-|	LTYPE hidden_importsym '{' ohidden_importfield_list '}'
++|	LCHAN LCOMM hidden_type1
+ 	{
+-		// type structure
+-		doimport4($2, $4);
++		$$ = typ(TCHAN);
++		$$->type = $3;
++		$$->chan = Csend;
+ 	}
+-|	LTYPE hidden_importsym LLITERAL
++
++hidden_type2:
++	LCHAN hidden_type
+ 	{
+-		// type basic
+-		doimport5($2, &$3);
++		$$ = typ(TCHAN);
++		$$->type = $2;
++		$$->chan = Cboth;
+ 	}
+-|	LTYPE hidden_importsym '*' hidden_importsym
++|	'(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		// type pointer
+-		doimport6($2, $4);
++		$$ = functype(N, $2, $4);
+ 	}
+-|	LTYPE hidden_importsym LLT ohidden_importfield_list LGT
++
++hidden_dcl:
++	sym1 hidden_type
+ 	{
+-		// type interface
+-		doimport7($2, $4);
++		$$ = nod(ODCLFIELD, newname($1), N);
++		$$->type = $2;
+ 	}
+-|	LTYPE hidden_importsym LLITERAL hidden_importsym
++|	'?' hidden_type
+ 	{
+-		// type interface
+-		doimport8($2, &$3, $4);
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $2;
+ 	}
+-|	LFUNC sym1 hidden_importsym
++
++hidden_interfacedcl:
++	sym1 '(' ohidden_funarg_list ')' ohidden_funres
+ 	{
+-		// method
+-		doimport9($2, $3);
++		$$ = nod(ODCLFIELD, newname($1), N);
++		$$->type = functype(fakethis(), $3, $5);
++	}
++
++ohidden_funres:
++	{
++		$$ = N;
++	}
++|	hidden_funres
++
++hidden_funres:
++	'(' ohidden_funarg_list ')'
++	{
++		$$ = $2;
++	}
++|	hidden_type1
++	{
++		$$ = nod(ODCLFIELD, N, N);
++		$$->type = $1;
+ 	}
+ 
+ hidden_constant:
+@@ -1694,37 +1796,13 @@ hidden_constant:
+ 		}
+ 	}
+ 
+-isym:
++hidden_importsym:
+ 	sym1 '.' sym2
+ 	{
+ 		$$ = nod(OIMPORT, N, N);
+ 		$$->osym = $1;
+ 		$$->psym = $1;
+ 		$$->sym = $3;
+-		renamepkg($$);
+-	}
+-|	'(' sym1 ')' sym1 '.' sym2
+-	{
+-		$$ = nod(OIMPORT, N, N);
+-		$$->osym = $2;
+-		$$->psym = $4;
+-		$$->sym = $6;
+-		renamepkg($$);
+-	}
+-
+-hidden_importsym:
+-	isym
+-|	'!' isym
+-	{
+-		$$ = $2;
+-		$$->etype = 1;
+-	}
+-
+-hidden_importfield:
+-	sym1 isym
+-	{
+-		$$ = $2;
+-		$$->fsym = $1;
+ 	}
+ 
+ /*
+@@ -1739,7 +1817,7 @@ hidden_importfield:
+  * to check whether the rest of the grammar is free of
+  * reduce/reduce conflicts, comment this section out by
+  * removing the slash on the next line.
+- */
++ *
+ lpack:
+ 	LATYPE
+ 	{
+diff --git a/src/cmd/gc/lex.c b/src/cmd/gc/lex.c
+index ee19ab8ae8..94917d5ff1 100644
+--- a/src/cmd/gc/lex.c
++++ b/src/cmd/gc/lex.c
+@@ -53,7 +53,7 @@ mainlex(int argc, char *argv[])
+ 	fmtinstall('Z', Zconv);		// escaped string
+ 	fmtinstall('L', Lconv);		// line number
+ 	fmtinstall('B', Bconv);		// big numbers
+-	
++
+ 	lexinit();
+ 	lineno = 1;
+ 	block = 1;
+@@ -227,7 +227,7 @@ importfile(Val *f)
+ 
+ 	/*
+ 	 * position the input right
+-	 * after (( and return
++	 * after $$ and return
+ 	 */
+ 	pushedio = curio;
+ 	curio.bin = imp;
+@@ -237,12 +237,12 @@ importfile(Val *f)
+ 		c = getc();
+ 		if(c == EOF)
+ 			break;
+-		if(c != '(')
++		if(c != '$')
+ 			continue;
+ 		c = getc();
+ 		if(c == EOF)
+ 			break;
+-		if(c != '(')
++		if(c != '$')
+ 			continue;
+ 		return;
+ 	}
+@@ -586,9 +586,9 @@ l0:
+ 
+ lx:
+ 	if(c > 0xff)
+-		DBG("lex: TOKEN %s\n", lexname(c));
++		DBG("%L lex: TOKEN %s\n", lineno, lexname(c));
+ 	else
+-		DBG("lex: TOKEN '%c'\n", c);
++		DBG("%L lex: TOKEN '%c'\n", lineno, c);
+ 	return c;
+ 
+ asop:
+diff --git a/src/cmd/gc/mksys.bash b/src/cmd/gc/mksys.bash
+deleted file mode 100755
+index c920cde61a..0000000000
+--- a/src/cmd/gc/mksys.bash
++++ /dev/null
+@@ -1,22 +0,0 @@
+-# Copyright 2009 The Go Authors.  All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-#!/bin/bash
+-
+-6g sys.go
+-echo '1,/((/d
+-/))/+1,$d
+-g/init_.*_function/d
+-1,$s/foop/sys/g
+-1,$s/^[ 	]*/	"/g
+-1,$s/$/\\n"/g
+-1i
+-char*	sysimport =
+-.
+-$a
+-;
+-
+-.
+-w sysimport.c
+-q' | /bin/ed sys.6
+diff --git a/src/cmd/gc/mksys.c b/src/cmd/gc/mksys.c
+new file mode 100644
+index 0000000000..cf0537c318
+--- /dev/null
++++ b/src/cmd/gc/mksys.c
+@@ -0,0 +1,66 @@
++// Copyright 2009 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Extract import data from sys.6 and generate C string version.
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <ctype.h>
++#include <errno.h>
++
++int
++main(int argc, char **argv)
++{
++	FILE *fin;
++	char buf[1024], *p, *q;
++
++	if(argc != 2) {
++		fprintf(stderr, "usage: mksys sys.6\n");
++		exit(1);
++	}
++	if((fin = fopen(argv[1], "r")) == NULL) {
++		fprintf(stderr, "open %s: %s\n", argv[1], strerror(errno));
++		exit(1);
++	}
++
++	// look for $$ that introduces imports
++	while(fgets(buf, sizeof buf, fin) != NULL)
++		if(strstr(buf, "$$"))
++			goto begin;
++	fprintf(stderr, "did not find beginning of imports\n");
++	exit(1);
++
++begin:
++	printf("char *sysimport = \n");
++
++	// process imports, stopping at $$ that closes them
++	while(fgets(buf, sizeof buf, fin) != NULL) {
++		buf[strlen(buf)-1] = 0;	// chop \n
++		if(strstr(buf, "$$"))
++			goto end;
++
++		// chop leading white space
++		for(p=buf; *p==' ' || *p == '\t'; p++)
++			;
++
++		// cut out decl of init_sys_function - it doesn't exist
++		if(strstr(buf, "init_sys_function"))
++			continue;
++
++		// sys.go claims to be in package SYS to avoid
++		// conflicts during "6g sys.go".  rename SYS to sys.
++		for(q=p; *q; q++)
++			if(memcmp(q, "SYS", 3) == 0)
++				memmove(q, "sys", 3);
++
++		printf("\t\"%s\\n\"\n", p);
++	}
++	fprintf(stderr, "did not find end of imports\n");
++	exit(1);
++
++end:
++	printf("\t\"$$\\n\";\n");
++	return 0;
++}
+diff --git a/src/cmd/gc/subr.c b/src/cmd/gc/subr.c
+index 90f11af5e7..7d017d6674 100644
+--- a/src/cmd/gc/subr.c
++++ b/src/cmd/gc/subr.c
+@@ -22,6 +22,8 @@ yyerror(char *fmt, ...)
+ 	va_start(arg, fmt);
+ 	vfprint(1, fmt, arg);
+ 	va_end(arg);
++	if(strcmp(fmt, "syntax error") == 0)
++		print(" near %s", namebuf);
+ 	print("\n");
+ 	if(debug['h'])
+ 		*(int*)0 = 0;
+@@ -921,6 +923,7 @@ Sconv(Fmt *fp)
+ 	if(s->name != nil)
+ 		nam = s->name;
+ 
++	if(!(fp->flags & FmtShort))
+ 	if(strcmp(pkg, package) || strcmp(opk, package) || (fp->flags & FmtLong)) {
+ 		if(strcmp(opk, pkg) == 0) {
+ 			snprint(buf, sizeof(buf), "%s.%s", pkg, nam);
+@@ -948,7 +951,7 @@ static char *basicnames[] = {
+ [TFLOAT64]	"float64",
+ [TFLOAT80]	"float80",
+ [TBOOL]	"bool",
+-[TSTRING]	"string"
++[TANY]	"any",
+ };
+ 
+ int
+@@ -956,41 +959,65 @@ Tpretty(Fmt *fp, Type *t)
+ {
+ 	Type *t1;
+ 
+-	if(t->etype != TFIELD && t->sym != S && t->sym->name[0] != '_')
++	if(t->etype != TFIELD
++	&& t->sym != S
++	&& t->sym->name[0] != '_'
++	&& !(fp->flags&FmtLong))
+ 		return fmtprint(fp, "%S", t->sym);
+-	
++
+ 	if(t->etype < nelem(basicnames) && basicnames[t->etype] != nil)
+ 		return fmtprint(fp, "%s", basicnames[t->etype]);
+-	
++
+ 	switch(t->etype) {
+ 	case TPTR32:
+ 	case TPTR64:
++		if(t->type && t->type->etype == TSTRING)
++			return fmtprint(fp, "string");
+ 		return fmtprint(fp, "*%T", t->type);
+-	
++
+ 	case TFUNC:
++		// t->type is method struct
++		// t->type->down is result struct
++		// t->type->down->down is arg struct
++		if(t->thistuple && !(fp->flags&FmtSharp) && !(fp->flags&FmtShort)) {
++			fmtprint(fp, "method(");
++			for(t1=getthisx(t)->type; t1; t1=t1->down) {
++				fmtprint(fp, "%T", t1);
++				if(t1->down)
++					fmtprint(fp, ", ");
++			}
++			fmtprint(fp, ")");
++		}
++
+ 		fmtprint(fp, "(");
+-		for(t1=t->type->down->down->type; t1; t1=t1->down) {
++		for(t1=getinargx(t)->type; t1; t1=t1->down) {
+ 			fmtprint(fp, "%T", t1);
+ 			if(t1->down)
+ 				fmtprint(fp, ", ");
+ 		}
+ 		fmtprint(fp, ")");
+-		t1 = t->type->down->type;
+-		if(t1 != T) {
+-			if(t1->down == T && t1->etype != TFIELD)
++		switch(t->outtuple) {
++		case 0:
++			break;
++		case 1:
++			t1 = getoutargx(t)->type;
++			if(t1->etype != TFIELD) {
+ 				fmtprint(fp, " %T", t1);
+-			else {
+-				fmtprint(fp, " (");
+-				for(; t1; t1=t1->down) {
+-					fmtprint(fp, "%T", t1);
+-					if(t1->down)
+-						fmtprint(fp, ", ");
+-				}
+-				fmtprint(fp, ")");
++				break;
+ 			}
++		default:
++			t1 = getoutargx(t)->type;
++			fmtprint(fp, " (");
++			for(; t1; t1=t1->down) {
++				fmtprint(fp, "%T", t1);
++				if(t1->down)
++					fmtprint(fp, ", ");
++			}
++			fmtprint(fp, ")");
++			break;
+ 		}
+ 		return 0;
+-	
++
+ 	case TARRAY:
+ 		if(t->bound >= 0)
+ 			return fmtprint(fp, "[%d]%T", (int)t->bound, t->type);
+@@ -998,28 +1025,42 @@ Tpretty(Fmt *fp, Type *t)
+ 
+ 	case TCHAN:
+ 		return fmtprint(fp, "chan %T", t->type);
+-	
++
+ 	case TMAP:
+ 		return fmtprint(fp, "map[%T] %T", t->down, t->type);
+-	
++
+ 	case TINTER:
+ 		fmtprint(fp, "interface {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			fmtprint(fp, " %S %T;", t1->sym, t1);
++			fmtprint(fp, " %hS %hT", t1->sym, t1->type);
++			if(t1->down)
++				fmtprint(fp, ";");
+ 		}
+-		return fmtprint(fp, " }"); 
+-	
++		return fmtprint(fp, " }");
++
+ 	case TSTRUCT:
+ 		fmtprint(fp, "struct {");
+ 		for(t1=t->type; t1!=T; t1=t1->down) {
+-			fmtprint(fp, " %T;", t1);
++			fmtprint(fp, " %T", t1);
++			if(t1->down)
++				fmtprint(fp, ";");
+ 		}
+ 		return fmtprint(fp, " }");
+-	
++
+ 	case TFIELD:
+-		if(t->sym == S || t->sym->name[0] == '_')
++		if(t->sym == S || t->sym->name[0] == '_') {
++			if(exporting)
++				fmtprint(fp, "? ");
+ 			return fmtprint(fp, "%T", t->type);
+-		return fmtprint(fp, "%S %T", t->sym, t->type);
++		}
++		return fmtprint(fp, "%hS %T", t->sym, t->type);
++
++	case TFORW:
++		if(exporting)
++			yyerror("undefined type %S", t->sym);
++		if(t->sym)
++			return fmtprint(fp, "undefined %S", t->sym);
++		return fmtprint(fp, "undefined");
+ 	}
+ 
+ 	// Don't know how to handle - fall back to detailed prints.
+@@ -1032,7 +1073,7 @@ Tconv(Fmt *fp)
+ 	char buf[500], buf1[500];
+ 	Type *t, *t1;
+ 	int et;
+-	
++
+ 	t = va_arg(fp->args, Type*);
+ 	if(t == T)
+ 		return fmtstrcpy(fp, "<T>");
+@@ -1417,6 +1458,9 @@ signame(Type *t)
+ {
+ 	Sym *s, *ss;
+ 	char *e;
++	Type *t1;
++	int n;
++	char buf[NSYMB];
+ 
+ 	if(t == T)
+ 		goto bad;
+@@ -1437,8 +1481,8 @@ signame(Type *t)
+ 	if(t->etype == TINTER)
+ 		e = "sigi";
+ 
+-	snprint(namebuf, sizeof(namebuf), "%s_%s", e, s->name);
+-	ss = pkglookup(namebuf, s->opackage);
++	snprint(buf, sizeof(buf), "%s_%s", e, s->name);
++	ss = pkglookup(buf, s->opackage);
+ 	if(ss->oname == N) {
+ 		ss->oname = newname(ss);
+ 		ss->oname->type = types[TUINT8];
+diff --git a/src/cmd/gc/sys.go b/src/cmd/gc/sys.go
+index abc62886ec..37c523d992 100644
+--- a/src/cmd/gc/sys.go
++++ b/src/cmd/gc/sys.go
+@@ -3,168 +3,80 @@
+ // license that can be found in the LICENSE file.
+ 
+ 
+-package foop	// rename to avoid redeclaration
+-
+-func	mal(uint32) *any;
+-func	breakpoint();
+-func	throwindex();
+-func	throwreturn();
+-func	panicl(int32);
+-
+-func	printbool(bool);
+-func	printfloat(double);
+-func	printint(int64);
+-func	printstring(string);
+-func	printpointer(*any);
+-func	printinter(any);
+-func	printnl();
+-func	printsp();
+-
+-func	catstring(string, string) string;
+-func	cmpstring(string, string) int32;
+-func	slicestring(string, int32, int32) string;
+-func	indexstring(string, int32) byte;
+-func	intstring(int64) string;
+-func	byteastring(*byte, int32) string;
+-func	arraystring(*[]byte) string;
+-
+-func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
+-func	ifaceI2T(sigt *byte, iface any) (ret any);
+-func	ifaceI2I(sigi *byte, iface any) (ret any);
+-
+-func	argc() int32;
+-func	envc() int32;
+-func	argv(int32) string;
+-func	envv(int32) string;
+-
+-func	frexp(float64) (float64, int32);	// break fp into exp,fract
+-func	ldexp(float64, int32) float64;		// make fp from exp,fract
+-func	modf(float64) (float64, float64);	// break fp into double.double
+-func	isInf(float64, int32) bool;		// test for infinity
+-func	isNaN(float64) bool;			// test for not-a-number
+-func	Inf(int32) float64;			// return signed Inf
+-func	NaN() float64;				// return a NaN
+-
+-func	newmap(keysize uint32, valsize uint32,
+-		keyalg uint32, valalg uint32,
+-		hint uint32) (hmap *map[any]any);
+-func	mapaccess1(hmap *map[any]any, key any) (val any);
+-func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
+-func	mapassign1(hmap *map[any]any, key any, val any);
+-func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
+-
+-func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
+-func	chanrecv1(hchan *chan any) (elem any);
+-func	chanrecv2(hchan *chan any) (elem any, pres bool);
+-func	chanrecv3(hchan *chan any, elem *any) (pres bool);
+-func	chansend1(hchan *chan any, elem any);
+-func	chansend2(hchan *chan any, elem any) (pres bool);
+-
+-func	newselect(size uint32) (sel *byte);
+-func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
+-func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
+-func	selectgo(sel *byte);
+-
+-func	newarray(nel uint32, cap uint32, width uint32) (ary *[]any);
+-func	arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
+-func	arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any);
+-func	arrays2d(old *any, nel uint32) (ary *[]any);
+-
+-func	gosched();
+-func	goexit();
+-
+-func	readfile(string) (string, bool);	// read file into string; boolean status
+-func	writefile(string, string) (bool);	// write string into file; boolean status
+-func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes	
+-func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes	
+-
+-func	exit(int32);
+-
+-export
+-	mal
+-	breakpoint
+-	throwindex
+-	throwreturn
+-
+-	// print panic
+-	panicl
+-	printbool
+-	printfloat
+-	printint
+-	printstring
+-	printpointer
+-	printinter
+-	printnl
+-	printsp
+-
+-	// op string
+-	catstring
+-	cmpstring
+-	slicestring
+-	indexstring
+-	intstring
+-	byteastring
+-	arraystring
+-
+-	// interface
+-	ifaceT2I
+-	ifaceI2T
+-	ifaceI2I
+-
+-	// args
+-	argc
+-	envc
+-	argv
+-	envv
+-
+-	// fp
+-	frexp
+-	ldexp
+-	modf
+-	isInf,
+-	isNaN,
+-	Inf,
+-	NaN,
+-
+-	// map
+-	newmap
+-	mapaccess1
+-	mapaccess2
+-	mapassign1
+-	mapassign2
+-
+-	// chan
+-	newchan
+-	chanrecv1
+-	chanrecv2
+-	chanrecv3
+-	chansend1
+-	chansend2
+-
+-	// select
+-	newselect
+-	selectsend
+-	selectrecv
+-	selectgo
+-
+-	// dynamic arrays
+-	newarray
+-	arraysliced
+-	arrayslices
+-	arrays2d
+-
+-	// go routines
+-	gosched
+-	goexit
+-
+-	// files
+-	readfile
+-	writefile
+-
+-	// runes and utf-8
+-	bytestorune
+-	stringtorune
+-
+-	// system calls
+-	exit
+-	;
++package SYS	// rename to avoid redeclaration
++
++export func	mal(uint32) *any;
++export func	breakpoint();
++export func	throwindex();
++export func	throwreturn();
++export func	panicl(int32);
++
++export func	printbool(bool);
++export func	printfloat(double);
++export func	printint(int64);
++export func	printstring(string);
++export func	printpointer(*any);
++export func	printinter(any);
++export func	printnl();
++export func	printsp();
++
++export func	catstring(string, string) string;
++export func	cmpstring(string, string) int32;
++export func	slicestring(string, int32, int32) string;
++export func	indexstring(string, int32) byte;
++export func	intstring(int64) string;
++export func	byteastring(*byte, int32) string;
++export func	arraystring(*[]byte) string;
++
++export func	ifaceT2I(sigi *byte, sigt *byte, elem any) (ret any);
++export func	ifaceI2T(sigt *byte, iface any) (ret any);
++export func	ifaceI2I(sigi *byte, iface any) (ret any);
++
++export func	argc() int32;
++export func	envc() int32;
++export func	argv(int32) string;
++export func	envv(int32) string;
++
++export func	frexp(float64) (float64, int32);	// break fp into exp,fract
++export func	ldexp(float64, int32) float64;		// make fp from exp,fract
++export func	modf(float64) (float64, float64);	// break fp into double.double
++export func	isInf(float64, int32) bool;		// test for infinity
++export func	isNaN(float64) bool;			// test for not-a-number
++export func	Inf(int32) float64;			// return signed Inf
++export func	NaN() float64;				// return a NaN
++
++export func	newmap(keysize uint32, valsize uint32,
++			keyalg uint32, valalg uint32,
++			hint uint32) (hmap *map[any]any);
++export func	mapaccess1(hmap *map[any]any, key any) (val any);
++export func	mapaccess2(hmap *map[any]any, key any) (val any, pres bool);
++export func	mapassign1(hmap *map[any]any, key any, val any);
++export func	mapassign2(hmap *map[any]any, key any, val any, pres bool);
++
++export func	newchan(elemsize uint32, elemalg uint32, hint uint32) (hchan *chan any);
++export func	chanrecv1(hchan *chan any) (elem any);
++export func	chanrecv2(hchan *chan any) (elem any, pres bool);
++export func	chanrecv3(hchan *chan any, elem *any) (pres bool);
++export func	chansend1(hchan *chan any, elem any);
++export func	chansend2(hchan *chan any, elem any) (pres bool);
++
++export func	newselect(size uint32) (sel *byte);
++export func	selectsend(sel *byte, hchan *chan any, elem any) (selected bool);
++export func	selectrecv(sel *byte, hchan *chan any, elem *any) (selected bool);
++export func	selectgo(sel *byte);
++
++export func	newarray(nel uint32, cap uint32, width uint32) (ary *[]any);
++export func	arraysliced(old *[]any, lb uint32, hb uint32, width uint32) (ary *[]any);
++export func	arrayslices(old *any, nel uint32, lb uint32, hb uint32, width uint32) (ary *[]any);
++export func	arrays2d(old *any, nel uint32) (ary *[]any);
++
++export func	gosched();
++export func	goexit();
++
++export func	readfile(string) (string, bool);	// read file into string; boolean status
++export func	writefile(string, string) (bool);	// write string into file; boolean status
++export func	bytestorune(*byte, int32, int32) (int32, int32);	// convert bytes to runes
++export func	stringtorune(string, int32, int32) (int32, int32);	// convert bytes to runes
++
++export func	exit(int32);
++
+diff --git a/src/cmd/gc/sysimport.c b/src/cmd/gc/sysimport.c
+index b49e6ba278..c3b7cbfc1f 100644
+--- a/src/cmd/gc/sysimport.c
++++ b/src/cmd/gc/sysimport.c
+@@ -1,371 +1,72 @@
+-char*	sysimport =
++char *sysimport =
+ 	"package sys\n"
+-	"type sys._esys_002 {}\n"
+-	"type sys._esys_003 *sys.any\n"
+-	"type sys._osys_461 {_esys_459 sys._esys_003}\n"
+-	"type sys.uint32 6\n"
+-	"type sys._isys_463 {_esys_460 sys.uint32}\n"
+-	"type sys._esys_001 (sys._esys_002 sys._osys_461 sys._isys_463)\n"
+-	"var !sys.mal sys._esys_001\n"
+-	"type sys._esys_005 {}\n"
+-	"type sys._esys_006 {}\n"
+-	"type sys._esys_007 {}\n"
+-	"type sys._esys_004 (sys._esys_005 sys._esys_006 sys._esys_007)\n"
+-	"var !sys.breakpoint sys._esys_004\n"
+-	"type sys._esys_009 {}\n"
+-	"type sys._esys_010 {}\n"
+-	"type sys._esys_011 {}\n"
+-	"type sys._esys_008 (sys._esys_009 sys._esys_010 sys._esys_011)\n"
+-	"var !sys.throwindex sys._esys_008\n"
+-	"type sys._esys_013 {}\n"
+-	"type sys._esys_014 {}\n"
+-	"type sys._esys_015 {}\n"
+-	"type sys._esys_012 (sys._esys_013 sys._esys_014 sys._esys_015)\n"
+-	"var !sys.throwreturn sys._esys_012\n"
+-	"type sys._esys_017 {}\n"
+-	"type sys._esys_018 {}\n"
+-	"type sys.int32 5\n"
+-	"type sys._isys_471 {_esys_470 sys.int32}\n"
+-	"type sys._esys_016 (sys._esys_017 sys._esys_018 sys._isys_471)\n"
+-	"var !sys.panicl sys._esys_016\n"
+-	"type sys._esys_020 {}\n"
+-	"type sys._esys_021 {}\n"
+-	"type sys.bool 12\n"
+-	"type sys._isys_476 {_esys_475 sys.bool}\n"
+-	"type sys._esys_019 (sys._esys_020 sys._esys_021 sys._isys_476)\n"
+-	"var !sys.printbool sys._esys_019\n"
+-	"type sys._esys_023 {}\n"
+-	"type sys._esys_024 {}\n"
+-	"type sys.float64 10\n"
+-	"type sys._isys_481 {_esys_480 sys.float64}\n"
+-	"type sys._esys_022 (sys._esys_023 sys._esys_024 sys._isys_481)\n"
+-	"var !sys.printfloat sys._esys_022\n"
+-	"type sys._esys_026 {}\n"
+-	"type sys._esys_027 {}\n"
+-	"type sys.int64 7\n"
+-	"type sys._isys_486 {_esys_485 sys.int64}\n"
+-	"type sys._esys_025 (sys._esys_026 sys._esys_027 sys._isys_486)\n"
+-	"var !sys.printint sys._esys_025\n"
+-	"type sys._esys_029 {}\n"
+-	"type sys._esys_030 {}\n"
+-	"type sys.string *sys._esys_031\n"
+-	"type sys._isys_491 {_esys_490 sys.string}\n"
+-	"type sys._esys_028 (sys._esys_029 sys._esys_030 sys._isys_491)\n"
+-	"var !sys.printstring sys._esys_028\n"
+-	"type sys._esys_033 {}\n"
+-	"type sys._esys_034 {}\n"
+-	"type sys._esys_035 *sys.any\n"
+-	"type sys._isys_496 {_esys_495 sys._esys_035}\n"
+-	"type sys._esys_032 (sys._esys_033 sys._esys_034 sys._isys_496)\n"
+-	"var !sys.printpointer sys._esys_032\n"
+-	"type sys._esys_037 {}\n"
+-	"type sys._esys_038 {}\n"
+-	"type sys.any 24\n"
+-	"type sys._isys_501 {_esys_500 sys.any}\n"
+-	"type sys._esys_036 (sys._esys_037 sys._esys_038 sys._isys_501)\n"
+-	"var !sys.printinter sys._esys_036\n"
+-	"type sys._esys_040 {}\n"
+-	"type sys._esys_041 {}\n"
+-	"type sys._esys_042 {}\n"
+-	"type sys._esys_039 (sys._esys_040 sys._esys_041 sys._esys_042)\n"
+-	"var !sys.printnl sys._esys_039\n"
+-	"type sys._esys_044 {}\n"
+-	"type sys._esys_045 {}\n"
+-	"type sys._esys_046 {}\n"
+-	"type sys._esys_043 (sys._esys_044 sys._esys_045 sys._esys_046)\n"
+-	"var !sys.printsp sys._esys_043\n"
+-	"type sys._esys_048 {}\n"
+-	"type sys._osys_510 {_esys_507 sys.string}\n"
+-	"type sys._isys_512 {_esys_508 sys.string _esys_509 sys.string}\n"
+-	"type sys._esys_047 (sys._esys_048 sys._osys_510 sys._isys_512)\n"
+-	"var !sys.catstring sys._esys_047\n"
+-	"type sys._esys_050 {}\n"
+-	"type sys._osys_520 {_esys_517 sys.int32}\n"
+-	"type sys._isys_522 {_esys_518 sys.string _esys_519 sys.string}\n"
+-	"type sys._esys_049 (sys._esys_050 sys._osys_520 sys._isys_522)\n"
+-	"var !sys.cmpstring sys._esys_049\n"
+-	"type sys._esys_052 {}\n"
+-	"type sys._osys_531 {_esys_527 sys.string}\n"
+-	"type sys._isys_533 {_esys_528 sys.string _esys_529 sys.int32 _esys_530 sys.int32}\n"
+-	"type sys._esys_051 (sys._esys_052 sys._osys_531 sys._isys_533)\n"
+-	"var !sys.slicestring sys._esys_051\n"
+-	"type sys._esys_054 {}\n"
+-	"type sys.uint8 2\n"
+-	"type sys._osys_542 {_esys_539 sys.uint8}\n"
+-	"type sys._isys_544 {_esys_540 sys.string _esys_541 sys.int32}\n"
+-	"type sys._esys_053 (sys._esys_054 sys._osys_542 sys._isys_544)\n"
+-	"var !sys.indexstring sys._esys_053\n"
+-	"type sys._esys_056 {}\n"
+-	"type sys._osys_551 {_esys_549 sys.string}\n"
+-	"type sys._isys_553 {_esys_550 sys.int64}\n"
+-	"type sys._esys_055 (sys._esys_056 sys._osys_551 sys._isys_553)\n"
+-	"var !sys.intstring sys._esys_055\n"
+-	"type sys._esys_058 {}\n"
+-	"type sys._osys_560 {_esys_557 sys.string}\n"
+-	"type sys._esys_059 *sys.uint8\n"
+-	"type sys._isys_562 {_esys_558 sys._esys_059 _esys_559 sys.int32}\n"
+-	"type sys._esys_057 (sys._esys_058 sys._osys_560 sys._isys_562)\n"
+-	"var !sys.byteastring sys._esys_057\n"
+-	"type sys._esys_061 {}\n"
+-	"type sys._osys_569 {_esys_567 sys.string}\n"
+-	"type sys._esys_062 *sys._esys_063\n"
+-	"type sys._isys_571 {_esys_568 sys._esys_062}\n"
+-	"type sys._esys_060 (sys._esys_061 sys._osys_569 sys._isys_571)\n"
+-	"var !sys.arraystring sys._esys_060\n"
+-	"type sys._esys_065 {}\n"
+-	"type sys._osys_575 {ret sys.any}\n"
+-	"type sys._esys_066 *sys.uint8\n"
+-	"type sys._esys_067 *sys.uint8\n"
+-	"type sys._isys_577 {sigi sys._esys_066 sigt sys._esys_067 elem sys.any}\n"
+-	"type sys._esys_064 (sys._esys_065 sys._osys_575 sys._isys_577)\n"
+-	"var !sys.ifaceT2I sys._esys_064\n"
+-	"type sys._esys_069 {}\n"
+-	"type sys._osys_584 {ret sys.any}\n"
+-	"type sys._esys_070 *sys.uint8\n"
+-	"type sys._isys_586 {sigt sys._esys_070 iface sys.any}\n"
+-	"type sys._esys_068 (sys._esys_069 sys._osys_584 sys._isys_586)\n"
+-	"var !sys.ifaceI2T sys._esys_068\n"
+-	"type sys._esys_072 {}\n"
+-	"type sys._osys_592 {ret sys.any}\n"
+-	"type sys._esys_073 *sys.uint8\n"
+-	"type sys._isys_594 {sigi sys._esys_073 iface sys.any}\n"
+-	"type sys._esys_071 (sys._esys_072 sys._osys_592 sys._isys_594)\n"
+-	"var !sys.ifaceI2I sys._esys_071\n"
+-	"type sys._esys_075 {}\n"
+-	"type sys._osys_601 {_esys_600 sys.int32}\n"
+-	"type sys._esys_076 {}\n"
+-	"type sys._esys_074 (sys._esys_075 sys._osys_601 sys._esys_076)\n"
+-	"var !sys.argc sys._esys_074\n"
+-	"type sys._esys_078 {}\n"
+-	"type sys._osys_605 {_esys_604 sys.int32}\n"
+-	"type sys._esys_079 {}\n"
+-	"type sys._esys_077 (sys._esys_078 sys._osys_605 sys._esys_079)\n"
+-	"var !sys.envc sys._esys_077\n"
+-	"type sys._esys_081 {}\n"
+-	"type sys._osys_610 {_esys_608 sys.string}\n"
+-	"type sys._isys_612 {_esys_609 sys.int32}\n"
+-	"type sys._esys_080 (sys._esys_081 sys._osys_610 sys._isys_612)\n"
+-	"var !sys.argv sys._esys_080\n"
+-	"type sys._esys_083 {}\n"
+-	"type sys._osys_618 {_esys_616 sys.string}\n"
+-	"type sys._isys_620 {_esys_617 sys.int32}\n"
+-	"type sys._esys_082 (sys._esys_083 sys._osys_618 sys._isys_620)\n"
+-	"var !sys.envv sys._esys_082\n"
+-	"type sys._esys_085 {}\n"
+-	"type sys._osys_627 {_esys_624 sys.float64 _esys_625 sys.int32}\n"
+-	"type sys._isys_629 {_esys_626 sys.float64}\n"
+-	"type sys._esys_084 (sys._esys_085 sys._osys_627 sys._isys_629)\n"
+-	"var !sys.frexp sys._esys_084\n"
+-	"type sys._esys_087 {}\n"
+-	"type sys._osys_636 {_esys_633 sys.float64}\n"
+-	"type sys._isys_638 {_esys_634 sys.float64 _esys_635 sys.int32}\n"
+-	"type sys._esys_086 (sys._esys_087 sys._osys_636 sys._isys_638)\n"
+-	"var !sys.ldexp sys._esys_086\n"
+-	"type sys._esys_089 {}\n"
+-	"type sys._osys_646 {_esys_643 sys.float64 _esys_644 sys.float64}\n"
+-	"type sys._isys_648 {_esys_645 sys.float64}\n"
+-	"type sys._esys_088 (sys._esys_089 sys._osys_646 sys._isys_648)\n"
+-	"var !sys.modf sys._esys_088\n"
+-	"type sys._esys_091 {}\n"
+-	"type sys._osys_655 {_esys_652 sys.bool}\n"
+-	"type sys._isys_657 {_esys_653 sys.float64 _esys_654 sys.int32}\n"
+-	"type sys._esys_090 (sys._esys_091 sys._osys_655 sys._isys_657)\n"
+-	"var !sys.isInf sys._esys_090\n"
+-	"type sys._esys_093 {}\n"
+-	"type sys._osys_664 {_esys_662 sys.bool}\n"
+-	"type sys._isys_666 {_esys_663 sys.float64}\n"
+-	"type sys._esys_092 (sys._esys_093 sys._osys_664 sys._isys_666)\n"
+-	"var !sys.isNaN sys._esys_092\n"
+-	"type sys._esys_095 {}\n"
+-	"type sys._osys_672 {_esys_670 sys.float64}\n"
+-	"type sys._isys_674 {_esys_671 sys.int32}\n"
+-	"type sys._esys_094 (sys._esys_095 sys._osys_672 sys._isys_674)\n"
+-	"var !sys.Inf sys._esys_094\n"
+-	"type sys._esys_097 {}\n"
+-	"type sys._osys_679 {_esys_678 sys.float64}\n"
+-	"type sys._esys_098 {}\n"
+-	"type sys._esys_096 (sys._esys_097 sys._osys_679 sys._esys_098)\n"
+-	"var !sys.NaN sys._esys_096\n"
+-	"type sys._esys_100 {}\n"
+-	"type sys._esys_101 *sys._esys_102\n"
+-	"type sys._osys_682 {hmap sys._esys_101}\n"
+-	"type sys._isys_684 {keysize sys.uint32 valsize sys.uint32 keyalg sys.uint32 valalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_099 (sys._esys_100 sys._osys_682 sys._isys_684)\n"
+-	"var !sys.newmap sys._esys_099\n"
+-	"type sys._esys_104 {}\n"
+-	"type sys._osys_693 {val sys.any}\n"
+-	"type sys._esys_105 *sys._esys_106\n"
+-	"type sys._isys_695 {hmap sys._esys_105 key sys.any}\n"
+-	"type sys._esys_103 (sys._esys_104 sys._osys_693 sys._isys_695)\n"
+-	"var !sys.mapaccess1 sys._esys_103\n"
+-	"type sys._esys_108 {}\n"
+-	"type sys._osys_701 {val sys.any pres sys.bool}\n"
+-	"type sys._esys_109 *sys._esys_110\n"
+-	"type sys._isys_703 {hmap sys._esys_109 key sys.any}\n"
+-	"type sys._esys_107 (sys._esys_108 sys._osys_701 sys._isys_703)\n"
+-	"var !sys.mapaccess2 sys._esys_107\n"
+-	"type sys._esys_112 {}\n"
+-	"type sys._esys_113 {}\n"
+-	"type sys._esys_114 *sys._esys_115\n"
+-	"type sys._isys_710 {hmap sys._esys_114 key sys.any val sys.any}\n"
+-	"type sys._esys_111 (sys._esys_112 sys._esys_113 sys._isys_710)\n"
+-	"var !sys.mapassign1 sys._esys_111\n"
+-	"type sys._esys_117 {}\n"
+-	"type sys._esys_118 {}\n"
+-	"type sys._esys_119 *sys._esys_120\n"
+-	"type sys._isys_716 {hmap sys._esys_119 key sys.any val sys.any pres sys.bool}\n"
+-	"type sys._esys_116 (sys._esys_117 sys._esys_118 sys._isys_716)\n"
+-	"var !sys.mapassign2 sys._esys_116\n"
+-	"type sys._esys_122 {}\n"
+-	"type sys._esys_123 *sys._esys_124\n"
+-	"type sys._osys_723 {hchan sys._esys_123}\n"
+-	"type sys._isys_725 {elemsize sys.uint32 elemalg sys.uint32 hint sys.uint32}\n"
+-	"type sys._esys_121 (sys._esys_122 sys._osys_723 sys._isys_725)\n"
+-	"var !sys.newchan sys._esys_121\n"
+-	"type sys._esys_126 {}\n"
+-	"type sys._osys_732 {elem sys.any}\n"
+-	"type sys._esys_127 *sys._esys_128\n"
+-	"type sys._isys_734 {hchan sys._esys_127}\n"
+-	"type sys._esys_125 (sys._esys_126 sys._osys_732 sys._isys_734)\n"
+-	"var !sys.chanrecv1 sys._esys_125\n"
+-	"type sys._esys_130 {}\n"
+-	"type sys._osys_739 {elem sys.any pres sys.bool}\n"
+-	"type sys._esys_131 *sys._esys_132\n"
+-	"type sys._isys_741 {hchan sys._esys_131}\n"
+-	"type sys._esys_129 (sys._esys_130 sys._osys_739 sys._isys_741)\n"
+-	"var !sys.chanrecv2 sys._esys_129\n"
+-	"type sys._esys_134 {}\n"
+-	"type sys._osys_747 {pres sys.bool}\n"
+-	"type sys._esys_135 *sys._esys_136\n"
+-	"type sys._esys_137 *sys.any\n"
+-	"type sys._isys_749 {hchan sys._esys_135 elem sys._esys_137}\n"
+-	"type sys._esys_133 (sys._esys_134 sys._osys_747 sys._isys_749)\n"
+-	"var !sys.chanrecv3 sys._esys_133\n"
+-	"type sys._esys_139 {}\n"
+-	"type sys._esys_140 {}\n"
+-	"type sys._esys_141 *sys._esys_142\n"
+-	"type sys._isys_755 {hchan sys._esys_141 elem sys.any}\n"
+-	"type sys._esys_138 (sys._esys_139 sys._esys_140 sys._isys_755)\n"
+-	"var !sys.chansend1 sys._esys_138\n"
+-	"type sys._esys_144 {}\n"
+-	"type sys._osys_760 {pres sys.bool}\n"
+-	"type sys._esys_145 *sys._esys_146\n"
+-	"type sys._isys_762 {hchan sys._esys_145 elem sys.any}\n"
+-	"type sys._esys_143 (sys._esys_144 sys._osys_760 sys._isys_762)\n"
+-	"var !sys.chansend2 sys._esys_143\n"
+-	"type sys._esys_148 {}\n"
+-	"type sys._esys_149 *sys.uint8\n"
+-	"type sys._osys_768 {sel sys._esys_149}\n"
+-	"type sys._isys_770 {size sys.uint32}\n"
+-	"type sys._esys_147 (sys._esys_148 sys._osys_768 sys._isys_770)\n"
+-	"var !sys.newselect sys._esys_147\n"
+-	"type sys._esys_151 {}\n"
+-	"type sys._osys_775 {selected sys.bool}\n"
+-	"type sys._esys_152 *sys.uint8\n"
+-	"type sys._esys_153 *sys._esys_154\n"
+-	"type sys._isys_777 {sel sys._esys_152 hchan sys._esys_153 elem sys.any}\n"
+-	"type sys._esys_150 (sys._esys_151 sys._osys_775 sys._isys_777)\n"
+-	"var !sys.selectsend sys._esys_150\n"
+-	"type sys._esys_156 {}\n"
+-	"type sys._osys_784 {selected sys.bool}\n"
+-	"type sys._esys_157 *sys.uint8\n"
+-	"type sys._esys_158 *sys._esys_159\n"
+-	"type sys._esys_160 *sys.any\n"
+-	"type sys._isys_786 {sel sys._esys_157 hchan sys._esys_158 elem sys._esys_160}\n"
+-	"type sys._esys_155 (sys._esys_156 sys._osys_784 sys._isys_786)\n"
+-	"var !sys.selectrecv sys._esys_155\n"
+-	"type sys._esys_162 {}\n"
+-	"type sys._esys_163 {}\n"
+-	"type sys._esys_164 *sys.uint8\n"
+-	"type sys._isys_793 {sel sys._esys_164}\n"
+-	"type sys._esys_161 (sys._esys_162 sys._esys_163 sys._isys_793)\n"
+-	"var !sys.selectgo sys._esys_161\n"
+-	"type sys._esys_166 {}\n"
+-	"type sys._esys_167 *sys._esys_168\n"
+-	"type sys._osys_797 {ary sys._esys_167}\n"
+-	"type sys._isys_799 {nel sys.uint32 cap sys.uint32 width sys.uint32}\n"
+-	"type sys._esys_165 (sys._esys_166 sys._osys_797 sys._isys_799)\n"
+-	"var !sys.newarray sys._esys_165\n"
+-	"type sys._esys_170 {}\n"
+-	"type sys._esys_171 *sys._esys_172\n"
+-	"type sys._osys_806 {ary sys._esys_171}\n"
+-	"type sys._esys_173 *sys._esys_174\n"
+-	"type sys._isys_808 {old sys._esys_173 lb sys.uint32 hb sys.uint32 width sys.uint32}\n"
+-	"type sys._esys_169 (sys._esys_170 sys._osys_806 sys._isys_808)\n"
+-	"var !sys.arraysliced sys._esys_169\n"
+-	"type sys._esys_176 {}\n"
+-	"type sys._esys_177 *sys._esys_178\n"
+-	"type sys._osys_816 {ary sys._esys_177}\n"
+-	"type sys._esys_179 *sys.any\n"
+-	"type sys._isys_818 {old sys._esys_179 nel sys.uint32 lb sys.uint32 hb sys.uint32 width sys.uint32}\n"
+-	"type sys._esys_175 (sys._esys_176 sys._osys_816 sys._isys_818)\n"
+-	"var !sys.arrayslices sys._esys_175\n"
+-	"type sys._esys_181 {}\n"
+-	"type sys._esys_182 *sys._esys_183\n"
+-	"type sys._osys_827 {ary sys._esys_182}\n"
+-	"type sys._esys_184 *sys.any\n"
+-	"type sys._isys_829 {old sys._esys_184 nel sys.uint32}\n"
+-	"type sys._esys_180 (sys._esys_181 sys._osys_827 sys._isys_829)\n"
+-	"var !sys.arrays2d sys._esys_180\n"
+-	"type sys._esys_186 {}\n"
+-	"type sys._esys_187 {}\n"
+-	"type sys._esys_188 {}\n"
+-	"type sys._esys_185 (sys._esys_186 sys._esys_187 sys._esys_188)\n"
+-	"var !sys.gosched sys._esys_185\n"
+-	"type sys._esys_190 {}\n"
+-	"type sys._esys_191 {}\n"
+-	"type sys._esys_192 {}\n"
+-	"type sys._esys_189 (sys._esys_190 sys._esys_191 sys._esys_192)\n"
+-	"var !sys.goexit sys._esys_189\n"
+-	"type sys._esys_194 {}\n"
+-	"type sys._osys_840 {_esys_837 sys.string _esys_838 sys.bool}\n"
+-	"type sys._isys_842 {_esys_839 sys.string}\n"
+-	"type sys._esys_193 (sys._esys_194 sys._osys_840 sys._isys_842)\n"
+-	"var !sys.readfile sys._esys_193\n"
+-	"type sys._esys_196 {}\n"
+-	"type sys._osys_849 {_esys_846 sys.bool}\n"
+-	"type sys._isys_851 {_esys_847 sys.string _esys_848 sys.string}\n"
+-	"type sys._esys_195 (sys._esys_196 sys._osys_849 sys._isys_851)\n"
+-	"var !sys.writefile sys._esys_195\n"
+-	"type sys._esys_198 {}\n"
+-	"type sys._osys_861 {_esys_856 sys.int32 _esys_857 sys.int32}\n"
+-	"type sys._esys_199 *sys.uint8\n"
+-	"type sys._isys_863 {_esys_858 sys._esys_199 _esys_859 sys.int32 _esys_860 sys.int32}\n"
+-	"type sys._esys_197 (sys._esys_198 sys._osys_861 sys._isys_863)\n"
+-	"var !sys.bytestorune sys._esys_197\n"
+-	"type sys._esys_201 {}\n"
+-	"type sys._osys_874 {_esys_869 sys.int32 _esys_870 sys.int32}\n"
+-	"type sys._isys_876 {_esys_871 sys.string _esys_872 sys.int32 _esys_873 sys.int32}\n"
+-	"type sys._esys_200 (sys._esys_201 sys._osys_874 sys._isys_876)\n"
+-	"var !sys.stringtorune sys._esys_200\n"
+-	"type sys._esys_203 {}\n"
+-	"type sys._esys_204 {}\n"
+-	"type sys._isys_883 {_esys_882 sys.int32}\n"
+-	"type sys._esys_202 (sys._esys_203 sys._esys_204 sys._isys_883)\n"
+-	"var !sys.exit sys._esys_202\n"
+-	"type sys._esys_206 {}\n"
+-	"type sys._esys_207 {}\n"
+-	"type sys._esys_208 {}\n"
+-	"type sys._esys_205 (sys._esys_206 sys._esys_207 sys._esys_208)\n"
+-	"type sys._esys_031 25\n"
+-	"type sys._esys_063 [] sys.uint8\n"
+-	"type sys._esys_102 [sys.any] sys.any\n"
+-	"type sys._esys_106 [sys.any] sys.any\n"
+-	"type sys._esys_110 [sys.any] sys.any\n"
+-	"type sys._esys_115 [sys.any] sys.any\n"
+-	"type sys._esys_120 [sys.any] sys.any\n"
+-	"type sys._esys_124 1 sys.any\n"
+-	"type sys._esys_128 1 sys.any\n"
+-	"type sys._esys_132 1 sys.any\n"
+-	"type sys._esys_136 1 sys.any\n"
+-	"type sys._esys_142 1 sys.any\n"
+-	"type sys._esys_146 1 sys.any\n"
+-	"type sys._esys_154 1 sys.any\n"
+-	"type sys._esys_159 1 sys.any\n"
+-	"type sys._esys_168 [] sys.any\n"
+-	"type sys._esys_172 [] sys.any\n"
+-	"type sys._esys_174 [] sys.any\n"
+-	"type sys._esys_178 [] sys.any\n"
+-	"type sys._esys_183 [] sys.any\n"
+-	"))\n"
+-;
++	"type sys.any any\n"
++	"type sys.uint32 uint32\n"
++	"export func sys.mal (? sys.uint32) (? *sys.any)\n"
++	"export func sys.breakpoint ()\n"
++	"export func sys.throwindex ()\n"
++	"export func sys.throwreturn ()\n"
++	"type sys.int32 int32\n"
++	"export func sys.panicl (? sys.int32)\n"
++	"type sys.bool bool\n"
++	"export func sys.printbool (? sys.bool)\n"
++	"type sys.float64 float64\n"
++	"export func sys.printfloat (? sys.float64)\n"
++	"type sys.int64 int64\n"
++	"export func sys.printint (? sys.int64)\n"
++	"type sys.string string\n"
++	"export func sys.printstring (? sys.string)\n"
++	"export func sys.printpointer (? *sys.any)\n"
++	"export func sys.printinter (? sys.any)\n"
++	"export func sys.printnl ()\n"
++	"export func sys.printsp ()\n"
++	"export func sys.catstring (? sys.string, ? sys.string) (? sys.string)\n"
++	"export func sys.cmpstring (? sys.string, ? sys.string) (? sys.int32)\n"
++	"export func sys.slicestring (? sys.string, ? sys.int32, ? sys.int32) (? sys.string)\n"
++	"type sys.uint8 uint8\n"
++	"export func sys.indexstring (? sys.string, ? sys.int32) (? sys.uint8)\n"
++	"export func sys.intstring (? sys.int64) (? sys.string)\n"
++	"export func sys.byteastring (? *sys.uint8, ? sys.int32) (? sys.string)\n"
++	"export func sys.arraystring (? *[]sys.uint8) (? sys.string)\n"
++	"export func sys.ifaceT2I (sigi *sys.uint8, sigt *sys.uint8, elem sys.any) (ret sys.any)\n"
++	"export func sys.ifaceI2T (sigt *sys.uint8, iface sys.any) (ret sys.any)\n"
++	"export func sys.ifaceI2I (sigi *sys.uint8, iface sys.any) (ret sys.any)\n"
++	"export func sys.argc () (? sys.int32)\n"
++	"export func sys.envc () (? sys.int32)\n"
++	"export func sys.argv (? sys.int32) (? sys.string)\n"
++	"export func sys.envv (? sys.int32) (? sys.string)\n"
++	"export func sys.frexp (? sys.float64) (? sys.float64, ? sys.int32)\n"
++	"export func sys.ldexp (? sys.float64, ? sys.int32) (? sys.float64)\n"
++	"export func sys.modf (? sys.float64) (? sys.float64, ? sys.float64)\n"
++	"export func sys.isInf (? sys.float64, ? sys.int32) (? sys.bool)\n"
++	"export func sys.isNaN (? sys.float64) (? sys.bool)\n"
++	"export func sys.Inf (? sys.int32) (? sys.float64)\n"
++	"export func sys.NaN () (? sys.float64)\n"
++	"export func sys.newmap (keysize sys.uint32, valsize sys.uint32, keyalg sys.uint32, valalg sys.uint32, hint sys.uint32) (hmap *map[sys.any] sys.any)\n"
++	"export func sys.mapaccess1 (hmap *map[sys.any] sys.any, key sys.any) (val sys.any)\n"
++	"export func sys.mapaccess2 (hmap *map[sys.any] sys.any, key sys.any) (val sys.any, pres sys.bool)\n"
++	"export func sys.mapassign1 (hmap *map[sys.any] sys.any, key sys.any, val sys.any)\n"
++	"export func sys.mapassign2 (hmap *map[sys.any] sys.any, key sys.any, val sys.any, pres sys.bool)\n"
++	"export func sys.newchan (elemsize sys.uint32, elemalg sys.uint32, hint sys.uint32) (hchan *chan sys.any)\n"
++	"export func sys.chanrecv1 (hchan *chan sys.any) (elem sys.any)\n"
++	"export func sys.chanrecv2 (hchan *chan sys.any) (elem sys.any, pres sys.bool)\n"
++	"export func sys.chanrecv3 (hchan *chan sys.any, elem *sys.any) (pres sys.bool)\n"
++	"export func sys.chansend1 (hchan *chan sys.any, elem sys.any)\n"
++	"export func sys.chansend2 (hchan *chan sys.any, elem sys.any) (pres sys.bool)\n"
++	"export func sys.newselect (size sys.uint32) (sel *sys.uint8)\n"
++	"export func sys.selectsend (sel *sys.uint8, hchan *chan sys.any, elem sys.any) (selected sys.bool)\n"
++	"export func sys.selectrecv (sel *sys.uint8, hchan *chan sys.any, elem *sys.any) (selected sys.bool)\n"
++	"export func sys.selectgo (sel *sys.uint8)\n"
++	"export func sys.newarray (nel sys.uint32, cap sys.uint32, width sys.uint32) (ary *[]sys.any)\n"
++	"export func sys.arraysliced (old *[]sys.any, lb sys.uint32, hb sys.uint32, width sys.uint32) (ary *[]sys.any)\n"
++	"export func sys.arrayslices (old *sys.any, nel sys.uint32, lb sys.uint32, hb sys.uint32, width sys.uint32) (ary *[]sys.any)\n"
++	"export func sys.arrays2d (old *sys.any, nel sys.uint32) (ary *[]sys.any)\n"
++	"export func sys.gosched ()\n"
++	"export func sys.goexit ()\n"
++	"export func sys.readfile (? sys.string) (? sys.string, ? sys.bool)\n"
++	"export func sys.writefile (? sys.string, ? sys.string) (? sys.bool)\n"
++	"export func sys.bytestorune (? *sys.uint8, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
++	"export func sys.stringtorune (? sys.string, ? sys.int32, ? sys.int32) (? sys.int32, ? sys.int32)\n"
++	"export func sys.exit (? sys.int32)\n"
++	"\n"
++	"$$\n";
+diff --git a/test/golden.out b/test/golden.out
+index d3f01882fc..a619502969 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -1,6 +1,5 @@
+ 
+ =========== ./func3.go
+-BUG: errchk func3
+ BUG: errchk: func3.go: missing expected error message on line 14: 'type'
+ 
+ =========== ./helloworld.go
+@@ -58,7 +57,7 @@ bugs/bug020.go:7: type of a structure field cannot be an open array
+ BUG should compile
+ 
+ =========== bugs/bug026.go
+-sys·printstring: main·sigs_I: not defined
++sys·printnl: main·sigt_I: not defined
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug032.go
+@@ -74,11 +73,11 @@ BUG: map increment
+ =========== bugs/bug064.go
+ bugs/bug064.go:15: illegal types for operand: CALL
+ 	int32
+-	struct { u int32; v int32; }
++	struct { u int32; v int32 }
+ BUG: compilation should succeed
+ 
+ =========== bugs/bug074.go
+-bugs/bug074.go:6: syntax error
++bugs/bug074.go:6: syntax error near string
+ bugs/bug074.go:7: x: undefined
+ BUG: compiler crashes - Bus error
+ 
+@@ -91,7 +90,7 @@ BUG: succeeds incorrectly
+ =========== bugs/bug080.go
+ bugs/bug080.go:12: illegal types for operand: CALL
+ 	int32
+-	struct { x int32; y float32; }
++	struct { x int32; y float32 }
+ BUG: fails incorrectly
+ 
+ =========== bugs/bug083.go
+@@ -115,19 +114,19 @@ M
+ =========== bugs/bug094.go
+ bugs/bug094.go:11: left side of := must be a name
+ bad top
+-.   LITERAL-I0 l(369)
++.   LITERAL-I0 l(81)
+ bugs/bug094.go:11: fatal error: walktype: top=3 LITERAL
+ BUG: fails incorrectly
+ 
+ =========== bugs/bug095.go
+ found 2, expected 1
+ 
+-panic on line 368 PC=xxx
++panic on line 80 PC=xxx
+ BUG wrong result
+ 
+ =========== bugs/bug097.go
+ 
+-panic on line 370 PC=xxx
++panic on line 82 PC=xxx
+ BUG wrong result
+ 
+ =========== bugs/bug098.go
+@@ -164,7 +163,7 @@ BUG: should compile
+ fixedbugs/bug016.go:7: overflow converting constant to uint32
+ 
+ =========== fixedbugs/bug025.go
+-fixedbugs/bug025.go:7: variable exported but not defined: Foo
++fixedbugs/bug025.go:7: variable exported but not defined: main.Foo
+ 
+ =========== fixedbugs/bug027.go
+ hi
+@@ -181,8 +180,8 @@ hi
+ 
+ =========== fixedbugs/bug029.go
+ fixedbugs/bug029.go:6: f is not a type
+-fixedbugs/bug029.go:6: syntax error
+-fixedbugs/bug029.go:6: syntax error
++fixedbugs/bug029.go:6: syntax error near func
++fixedbugs/bug029.go:6: syntax error near int
+ 
+ =========== fixedbugs/bug035.go
+ fixedbugs/bug035.go:6: var i redeclared in this block
+@@ -192,7 +191,7 @@ fixedbugs/bug035.go:7: var f redeclared in this block
+ 
+ =========== fixedbugs/bug037.go
+ fixedbugs/bug037.go:6: vlong: undefined
+-fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(364) t=<T> nil
++fixedbugs/bug037.go:6: fatal error: addvar: n=NAME-s G0 a(1) l(76) t=<T> nil
+ 
+ =========== fixedbugs/bug039.go
+ fixedbugs/bug039.go:6: var x redeclared in this block
+@@ -203,7 +202,7 @@ fixedbugs/bug049.go:6: illegal conversion of constant to string
+ 
+ =========== fixedbugs/bug050.go
+ fixedbugs/bug050.go:3: package statement must be first
+-sys.6:1 fixedbugs/bug050.go:3: syntax error
++sys.6:1 fixedbugs/bug050.go:3: syntax error near package
+ 
+ =========== fixedbugs/bug051.go
+ fixedbugs/bug051.go:10: expression must be a constant
+@@ -241,7 +240,7 @@ fixedbugs/bug073.go:9: illegal types for operand: RSH
+ 	int32
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: syntax error
++fixedbugs/bug081.go:5: syntax error near x
+ 
+ =========== fixedbugs/bug086.go
+ fixedbugs/bug086.go:5: function ends without a return statement

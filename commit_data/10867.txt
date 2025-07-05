@@ -7,7 +7,90 @@ Date:   Mon Dec 19 16:57:25 2011 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5493077
-
+---
  misc/dashboard/app/build/ui.go   | 23 ++++++++++++++++++++++-
  misc/dashboard/app/build/ui.html | 10 +++++++---
  2 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/misc/dashboard/app/build/ui.go b/misc/dashboard/app/build/ui.go
+index 918b53e5bd..1e7ea876b4 100644
+--- a/misc/dashboard/app/build/ui.go
++++ b/misc/dashboard/app/build/ui.go
+@@ -148,7 +148,9 @@ var uiTemplate = template.Must(
+ 	template.New("ui").
+ 		Funcs(template.FuncMap{
+ 			"builderTitle": builderTitle,
++			"shortDesc":    shortDesc,
+ 			"shortHash":    shortHash,
++			"shortUser":    shortUser,
+ 			"repoURL":      repoURL,
+ 		}).
+ 		ParseFile("build/ui.html"),
+@@ -159,7 +161,15 @@ func builderTitle(s string) string {
+ 	return strings.Replace(s, "-", " ", -1)
+ }
+ 
+-// shortHash returns a the short version of a hash.
++// shortDesc returns the first line of a description.
++func shortDesc(desc string) string {
++	if i := strings.Index(desc, "\n"); i != -1 {
++		desc = desc[:i]
++	}
++	return desc
++}
++
++// shortHash returns a short version of a hash.
+ func shortHash(hash string) string {
+ 	if len(hash) > 12 {
+ 		hash = hash[:12]
+@@ -167,6 +177,17 @@ func shortHash(hash string) string {
+ 	return hash
+ }
+ 
++// shortUser returns a shortened version of a user string.
++func shortUser(user string) string {
++	if i, j := strings.Index(user, "<"), strings.Index(user, ">"); i != -1 && j > i {
++		user = user[i+1 : j]
++		if k := strings.Index(user, "@golang.org"); k != -1 {
++			user = user[:k]
++		}
++	}
++	return user
++}
++
+ // repoRe matches Google Code repositories and subrepositories (without paths).
+ var repoRe = regexp.MustCompile(`^code\.google\.com/p/([a-z0-9\-]+)(\.[a-z0-9\-]+)?$`)
+ 
+diff --git a/misc/dashboard/app/build/ui.html b/misc/dashboard/app/build/ui.html
+index 684ae1333f..80a924bfca 100644
+--- a/misc/dashboard/app/build/ui.html
++++ b/misc/dashboard/app/build/ui.html
+@@ -29,11 +29,15 @@
+       .build tr:nth-child(2n) {
+         background-color: #f0f0f0;
+       }
++      .build .hash {
++      	font-family: monospace;
++      }
+       .build .result {
+         text-align: center;
+         width: 50px;
+       }
+       .build .time {
++      	font-family: monospace;
+         color: #666;
+       }
+       .build .descr, .build .time, .build .user {
+@@ -83,9 +87,9 @@
+       {{end}}
+       </td>
+       {{end}}
+-      <td class="user">{{.User}}</td>
+-      <td class="time">{{.Time.Time}}</td>
+-      <td class="desc">{{.Desc}}</td>
++      <td class="user">{{shortUser .User}}</td>
++      <td class="time">{{.Time.Time.Format "02 Jan 2006 15:04"}}</td>
++      <td class="desc">{{shortDesc .Desc}}</td>
+       </tr>
+     {{end}}
+     </table>

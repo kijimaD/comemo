@@ -12,6 +12,26 @@ Date:   Wed Nov 24 11:05:51 2021 -0500
     Reviewed-on: https://go-review.googlesource.com/c/go/+/366914
     Trust: Dmitri Shuralyov <dmitshur@golang.org>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  doc/go1.18.html | 8 ++++++++
  1 file changed, 8 insertions(+)
+
+diff --git a/doc/go1.18.html b/doc/go1.18.html
+index 4175063edd..c6c338984c 100644
+--- a/doc/go1.18.html
++++ b/doc/go1.18.html
+@@ -105,6 +105,14 @@ proposal</a>.
+   now supports the <code>c-archive</code> and <code>c-shared</code> build modes.
+ </p>
+ 
++<h3 id="ios">iOS</h3>
++
++<p><!-- golang.org/issue/48076, golang.org/issue/49616 -->
++  On iOS (the <code>ios/arm64</code> port)
++  and iOS simulator running on AMD64-based macOS (the <code>ios/amd64</code> port),
++  Go 1.18 now requires iOS 12 or later; support for previous versions has been discontinued.
++</p>
++
+ <h2 id="tools">Tools</h2>
+ 
+ <h3 id="go-command">Go command</h3>

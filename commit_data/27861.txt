@@ -16,7 +16,34 @@ Date:   Sat Apr 16 04:36:42 2016 +0200
     Change-Id: I1399303b0b3d6d81e0b8b8d327980d978b411a46
     Reviewed-on: https://go-review.googlesource.com/22127
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/tcpsock_plan9.go | 2 +-
  src/net/udpsock_plan9.go | 2 +-
  2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/tcpsock_plan9.go b/src/net/tcpsock_plan9.go
+index dd36c70d50..08ad9be8f4 100644
+--- a/src/net/tcpsock_plan9.go
++++ b/src/net/tcpsock_plan9.go
+@@ -23,7 +23,7 @@ func dialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn,
+ 
+ func doDialTCP(ctx context.Context, net string, laddr, raddr *TCPAddr) (*TCPConn, error) {
+ 	if d, _ := ctx.Deadline(); !d.IsZero() {
+-		panic("net.dialTCP: deadline not implemented on Plan 9")
++		// TODO: deadline not implemented on Plan 9 (see golang.og/issue/11932)
+ 	}
+ 	// TODO(bradfitz,0intro): also use the cancel channel.
+ 	switch net {
+diff --git a/src/net/udpsock_plan9.go b/src/net/udpsock_plan9.go
+index 81edaf59fe..3b3d8d7615 100644
+--- a/src/net/udpsock_plan9.go
++++ b/src/net/udpsock_plan9.go
+@@ -57,7 +57,7 @@ func (c *UDPConn) writeMsg(b, oob []byte, addr *UDPAddr) (n, oobn int, err error
+ 
+ func dialUDP(ctx context.Context, net string, laddr, raddr *UDPAddr) (*UDPConn, error) {
+ 	if deadline, _ := ctx.Deadline(); !deadline.IsZero() {
+-		panic("net.dialUDP: deadline not implemented on Plan 9")
++		// TODO: deadline not implemented on Plan 9 (see golang.og/issue/11932)
+ 	}
+ 	fd, err := dialPlan9(net, laddr, raddr)
+ 	if err != nil {

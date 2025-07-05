@@ -10,7 +10,32 @@ Date:   Sun Feb 2 13:02:37 2014 +0100
     R=gobot
     CC=golang-codereviews
     https://golang.org/cl/59410044
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index f9d36f7f2d..bede12e021 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -356,6 +356,7 @@ Thomas Kappler <tkappler@gmail.com>
+ Timo Savola <timo.savola@gmail.com>
+ Tobias Columbus <tobias.columbus@gmail.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Travis Cline <travis.cline@gmail.com>
+ Tw <tw19881113@gmail.com>
+ Tyler Bunnell <tylerbunnell@gmail.com>
+ Ugorji Nwoke <ugorji@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index d6db9bfb69..12a1a75bf9 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -496,6 +496,7 @@ Tobias Columbus <tobias.columbus@gmail.com> <tobias.columbus@googlemail.com>
+ Todd Wang <toddwang@gmail.com>
+ Tom Szymanski <tgs@google.com>
+ Tor Andersson <tor.andersson@gmail.com>
++Travis Cline <travis.cline@gmail.com>
+ Trevor Strohman <trevor.strohman@gmail.com>
+ Tw <tw19881113@gmail.com>
+ Tyler Bunnell <tylerbunnell@gmail.com>

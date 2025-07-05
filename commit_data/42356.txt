@@ -15,8 +15,175 @@ Date:   Thu Dec 5 13:28:57 2019 -0500
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/load/pkg.go               | 53 ++++++++++++---------------
  src/cmd/go/testdata/script/list_parse_err.txt | 17 +++++++++
  src/go/build/build.go                         | 13 +++----
  3 files changed, 47 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0d63187e06..369a79b716 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"go/scanner"
+ 	"go/token"
+ 	"io/ioutil"
+ 	"os"
+@@ -1519,17 +1520,30 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		p.Internal.LocalPrefix = dirToImportPath(p.Dir)
+ 	}
+ 
++	// setError sets p.Error if it hasn't already been set. We may proceed
++	// after encountering some errors so that 'go list -e' has more complete
++	// output. If there's more than one error, we should report the first.
++	setError := func(err error) {
++		if p.Error == nil {
++			p.Error = &PackageError{
++				ImportStack: stk.Copy(),
++				Err:         err,
++			}
++		}
++	}
++
+ 	if err != nil {
+ 		if _, ok := err.(*build.NoGoError); ok {
+ 			err = &NoGoError{Package: p}
+ 		}
+ 		p.Incomplete = true
+-		err = base.ExpandScanner(err)
+-		p.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         err,
++
++		setError(base.ExpandScanner(err))
++		if _, isScanErr := err.(scanner.ErrorList); !isScanErr {
++			return
+ 		}
+-		return
++		// Fall through if there was an error parsing a file. 'go list -e' should
++		// still report imports and other metadata.
+ 	}
+ 
+ 	useBindir := p.Name == "main"
+@@ -1545,7 +1559,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		if InstallTargetDir(p) == StalePath {
+ 			newPath := strings.Replace(p.ImportPath, "code.google.com/p/go.", "golang.org/x/", 1)
+ 			e := ImportErrorf(p.ImportPath, "the %v command has moved; use %v instead.", p.ImportPath, newPath)
+-			p.Error = &PackageError{Err: e}
++			setError(e)
+ 			return
+ 		}
+ 		elem := p.DefaultExecName()
+@@ -1658,10 +1672,7 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	inputs := p.AllFiles()
+ 	f1, f2 := str.FoldDup(inputs)
+ 	if f1 != "" {
+-		p.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         fmt.Errorf("case-insensitive file name collision: %q and %q", f1, f2),
+-		}
++		setError(fmt.Errorf("case-insensitive file name collision: %q and %q", f1, f2))
+ 		return
+ 	}
+ 
+@@ -1674,25 +1685,16 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 	// so we shouldn't see any _cgo_ files anyway, but just be safe.
+ 	for _, file := range inputs {
+ 		if !SafeArg(file) || strings.HasPrefix(file, "_cgo_") {
+-			p.Error = &PackageError{
+-				ImportStack: stk.Copy(),
+-				Err:         fmt.Errorf("invalid input file name %q", file),
+-			}
++			setError(fmt.Errorf("invalid input file name %q", file))
+ 			return
+ 		}
+ 	}
+ 	if name := pathpkg.Base(p.ImportPath); !SafeArg(name) {
+-		p.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         fmt.Errorf("invalid input directory name %q", name),
+-		}
++		setError(fmt.Errorf("invalid input directory name %q", name))
+ 		return
+ 	}
+ 	if !SafeArg(p.ImportPath) {
+-		p.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath),
+-		}
++		setError(ImportErrorf(p.ImportPath, "invalid import path %q", p.ImportPath))
+ 		return
+ 	}
+ 
+@@ -1737,13 +1739,6 @@ func (p *Package) load(stk *ImportStack, bp *build.Package, err error) {
+ 		// code; see issue #16050).
+ 	}
+ 
+-	setError := func(err error) {
+-		p.Error = &PackageError{
+-			ImportStack: stk.Copy(),
+-			Err:         err,
+-		}
+-	}
+-
+ 	// The gc toolchain only permits C source files with cgo or SWIG.
+ 	if len(p.CFiles) > 0 && !p.UsesCgo() && !p.UsesSwig() && cfg.BuildContext.Compiler == "gc" {
+ 		setError(fmt.Errorf("C source files not allowed when not using cgo or SWIG: %s", strings.Join(p.CFiles, " ")))
+diff --git a/src/cmd/go/testdata/script/list_parse_err.txt b/src/cmd/go/testdata/script/list_parse_err.txt
+new file mode 100644
+index 0000000000..5aacaa88fa
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_parse_err.txt
+@@ -0,0 +1,17 @@
++# 'go list' should report imports, even if some files have parse errors
++# before the import block.
++go list -e -f '{{range .Imports}}{{.}} {{end}}'
++stdout '^fmt '
++
++-- go.mod --
++module m
++
++go 1.13
++
++-- a.go --
++package a
++
++import "fmt"
++
++-- b.go --
++// no package statement
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 62b70c26f1..a1ea8af81f 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -976,13 +976,6 @@ Found:
+ 		}
+ 	}
+ 
+-	if badGoError != nil {
+-		return p, badGoError
+-	}
+-	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+-		return p, &NoGoError{p.Dir}
+-	}
+-
+ 	for tag := range allTags {
+ 		p.AllTags = append(p.AllTags, tag)
+ 	}
+@@ -1000,6 +993,12 @@ Found:
+ 		sort.Strings(p.SFiles)
+ 	}
+ 
++	if badGoError != nil {
++		return p, badGoError
++	}
++	if len(p.GoFiles)+len(p.CgoFiles)+len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
++		return p, &NoGoError{p.Dir}
++	}
+ 	return p, pkgerr
+ }
+ 

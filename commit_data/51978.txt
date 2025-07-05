@@ -10,9 +10,70 @@ Date:   Mon Mar 28 15:42:30 2022 -0700
     Reviewed-on: https://go-review.googlesource.com/c/go/+/396297
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
-
+---
  src/cmd/compile/internal/types2/interface.go             | 6 +-----
  src/cmd/compile/internal/types2/testdata/check/decls0.go | 4 ++--
  src/go/types/interface.go                                | 2 +-
  src/go/types/testdata/check/decls0.go                    | 4 ++--
  4 files changed, 6 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index b8bf88dc62..431b91f270 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -132,11 +132,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		// We have a method with name f.Name.
+ 		name := f.Name.Value
+ 		if name == "_" {
+-			if check.conf.CompilerErrorMessages {
+-				check.error(f.Name, "methods must have a unique non-blank name")
+-			} else {
+-				check.error(f.Name, "invalid method name _")
+-			}
++			check.error(f.Name, "methods must have a unique non-blank name")
+ 			continue // ignore
+ 		}
+ 
+diff --git a/src/cmd/compile/internal/types2/testdata/check/decls0.go b/src/cmd/compile/internal/types2/testdata/check/decls0.go
+index aa98480b99..927c2d353d 100644
+--- a/src/cmd/compile/internal/types2/testdata/check/decls0.go
++++ b/src/cmd/compile/internal/types2/testdata/check/decls0.go
+@@ -194,8 +194,8 @@ func (S0) m4() (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { ret
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+-	_ /* ERROR "invalid method name" */ ()
+-	_ /* ERROR "invalid method name" */ (float32) int
++	_ /* ERROR "methods must have a unique non-blank name" */ ()
++	_ /* ERROR "methods must have a unique non-blank name" */ (float32) int
+ 	m()
+ }
+ 
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 361ef7eddf..52ae123bb7 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -173,7 +173,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		// We have a method with name f.Names[0].
+ 		name := f.Names[0]
+ 		if name.Name == "_" {
+-			check.errorf(name, _BlankIfaceMethod, "invalid method name _")
++			check.errorf(name, _BlankIfaceMethod, "methods must have a unique non-blank name")
+ 			continue // ignore
+ 		}
+ 
+diff --git a/src/go/types/testdata/check/decls0.go b/src/go/types/testdata/check/decls0.go
+index 740c9b4fdf..d8fcef0824 100644
+--- a/src/go/types/testdata/check/decls0.go
++++ b/src/go/types/testdata/check/decls0.go
+@@ -196,8 +196,8 @@ func (S0) m4 () (x *S0 /* ERROR illegal cycle in method declaration */ .m4) { re
+ 
+ // interfaces may not have any blank methods
+ type BlankI interface {
+-	_ /* ERROR "invalid method name" */ ()
+-	_ /* ERROR "invalid method name" */ (float32) int
++	_ /* ERROR "methods must have a unique non-blank name" */ ()
++	_ /* ERROR "methods must have a unique non-blank name" */ (float32) int
+ 	m()
+ }
+ 

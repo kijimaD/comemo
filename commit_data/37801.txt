@@ -11,6 +11,25 @@ Date:   Thu Aug 30 03:20:00 2018 +0000
     GitHub-Pull-Request: golang/go#27359
     Reviewed-on: https://go-review.googlesource.com/132117
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  doc/devel/release.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/devel/release.html b/doc/devel/release.html
+index e5d834e928..a6dd5f9d28 100644
+--- a/doc/devel/release.html
++++ b/doc/devel/release.html
+@@ -23,6 +23,13 @@ in supported releases as needed by issuing minor revisions
+ (for example, Go 1.6.1, Go 1.6.2, and so on).
+ </p>
+ 
++<h2 id="go1.11">go1.11 (released 2018/08/24)</h2>
++
++<p>
++Go 1.11 is a major release of Go.
++Read the <a href="/doc/go1.11">Go 1.11 Release Notes</a> for more information.
++</p>
++
+ <h2 id="go1.10">go1.10 (released 2018/02/16)</h2>
+ 
+ <p>

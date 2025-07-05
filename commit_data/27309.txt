@@ -11,8 +11,81 @@ Date:   Mon Mar 21 14:19:57 2016 +1100
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/internal/obj/arm/asm5.go | 17 +++++++++++++----
  src/cmd/internal/obj/arm/obj5.go |  2 +-
  src/cmd/internal/obj/go.go       |  9 ---------
  3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index f235751cb6..f49ee65a04 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -419,8 +419,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 			} else {
+ 				a2 = &q.From
+ 			}
+-			obj.Nocache(q)
+-			obj.Nocache(p)
++			nocache(q)
++			nocache(p)
+ 
+ 			// insert q after p
+ 			q.Link = p.Link
+@@ -496,8 +496,8 @@ func asmoutnacl(ctxt *obj.Link, origPC int32, p *obj.Prog, o *Optab, out []uint3
+ 				} else {
+ 					a2 = &q.From
+ 				}
+-				obj.Nocache(q)
+-				obj.Nocache(p)
++				nocache(q)
++				nocache(p)
+ 
+ 				// insert q after p
+ 				q.Link = p.Link
+@@ -2829,3 +2829,12 @@ func chipfloat5(ctxt *obj.Link, e float64) int {
+ 	//print("match %.8lux %.8lux %d\n", l, h, n);
+ 	return n
+ }
++
++func nocache(p *obj.Prog) {
++	p.Optab = 0
++	p.From.Class = 0
++	if p.From3 != nil {
++		p.From3.Class = 0
++	}
++	p.To.Class = 0
++}
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index 75a099faca..6aa76c72bd 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -478,7 +478,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym) {
+ 			}
+ 
+ 		case obj.ARET:
+-			obj.Nocache(p)
++			nocache(p)
+ 			if cursym.Text.Mark&LEAF != 0 {
+ 				if autosize == 0 {
+ 					p.As = AB
+diff --git a/src/cmd/internal/obj/go.go b/src/cmd/internal/obj/go.go
+index 3e6cd21636..484bb472d0 100644
+--- a/src/cmd/internal/obj/go.go
++++ b/src/cmd/internal/obj/go.go
+@@ -60,15 +60,6 @@ func Nopout(p *Prog) {
+ 	p.To = Addr{}
+ }
+ 
+-func Nocache(p *Prog) {
+-	p.Optab = 0
+-	p.From.Class = 0
+-	if p.From3 != nil {
+-		p.From3.Class = 0
+-	}
+-	p.To.Class = 0
+-}
+-
+ func Expstring() string {
+ 	buf := "X"
+ 	for i := range exper {

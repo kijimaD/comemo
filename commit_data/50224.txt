@@ -11,6 +11,20 @@ Date:   Sat Oct 9 12:22:01 2021 +0200
     Reviewed-by: Alberto Donizetti <alb.donizetti@gmail.com>
     Reviewed-by: Meng Zhuo <mzh@golangcn.org>
     Trust: Alberto Donizetti <alb.donizetti@gmail.com>
-
+---
  src/sync/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/example_test.go b/src/sync/example_test.go
+index bdd3af6fed..f009a68cf2 100644
+--- a/src/sync/example_test.go
++++ b/src/sync/example_test.go
+@@ -22,7 +22,7 @@ func ExampleWaitGroup() {
+ 	var urls = []string{
+ 		"http://www.golang.org/",
+ 		"http://www.google.com/",
+-		"http://www.somestupidname.com/",
++		"http://www.example.com/",
+ 	}
+ 	for _, url := range urls {
+ 		// Increment the WaitGroup counter.

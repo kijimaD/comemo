@@ -7,10 +7,538 @@ Date:   Thu Sep 8 14:18:02 2011 -0400
     R=r
     CC=golang-dev
     https://golang.org/cl/4952061
-
+---
  src/pkg/exp/regexp/syntax/parse.go         |  75 +++++++++--
  src/pkg/exp/regexp/syntax/parse_test.go    | 198 ++++++++++++++++++++++++++++-
  src/pkg/exp/regexp/syntax/prog.go          |   2 +-
  src/pkg/exp/regexp/syntax/regexp.go        |  15 ++-
  src/pkg/exp/regexp/syntax/simplify_test.go |  12 +-
  5 files changed, 273 insertions(+), 29 deletions(-)
+
+diff --git a/src/pkg/exp/regexp/syntax/parse.go b/src/pkg/exp/regexp/syntax/parse.go
+index 954a0ad8ae..dbcae66db3 100644
+--- a/src/pkg/exp/regexp/syntax/parse.go
++++ b/src/pkg/exp/regexp/syntax/parse.go
+@@ -181,11 +181,29 @@ func (p *parser) maybeConcat(r int, flags Flags) bool {
+ func (p *parser) newLiteral(r int, flags Flags) *Regexp {
+ 	re := p.newRegexp(OpLiteral)
+ 	re.Flags = flags
++	if flags&FoldCase != 0 {
++		r = minFoldRune(r)
++	}
+ 	re.Rune0[0] = r
+ 	re.Rune = re.Rune0[:1]
+ 	return re
+ }
+ 
++// minFoldRune returns the minimum rune fold-equivalent to r.
++func minFoldRune(r int) int {
++	if r < minFold || r > maxFold {
++		return r
++	}
++	min := r
++	r0 := r
++	for r = unicode.SimpleFold(r); r != r0; r = unicode.SimpleFold(r) {
++		if min > r {
++			min = r
++		}
++	}
++	return min
++}
++
+ // literal pushes a literal regexp for the rune r on the stack
+ // and returns that regexp.
+ func (p *parser) literal(r int) {
+@@ -202,25 +220,29 @@ func (p *parser) op(op Op) *Regexp {
+ 
+ // repeat replaces the top stack element with itself repeated
+ // according to op.
+-func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (string, os.Error) {
++func (p *parser) repeat(op Op, min, max int, whole, opstr, t, lastRepeat string) (string, string, os.Error) {
+ 	flags := p.flags
+ 	if p.flags&PerlX != 0 {
+ 		if len(t) > 0 && t[0] == '?' {
+ 			t = t[1:]
++			opstr = whole[:len(opstr)+1]
+ 			flags ^= NonGreedy
+ 		}
+ 		if lastRepeat != "" {
+ 			// In Perl it is not allowed to stack repetition operators:
+ 			// a** is a syntax error, not a doubled star, and a++ means
+ 			// something else entirely, which we don't support!
+-			return "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
++			return "", "", &Error{ErrInvalidRepeatOp, lastRepeat[:len(lastRepeat)-len(t)]}
+ 		}
+ 	}
+ 	n := len(p.stack)
+ 	if n == 0 {
+-		return "", &Error{ErrMissingRepeatArgument, opstr}
++		return "", "", &Error{ErrMissingRepeatArgument, opstr}
+ 	}
+ 	sub := p.stack[n-1]
++	if sub.Op >= opPseudo {
++		return "", "", &Error{ErrMissingRepeatArgument, opstr}
++	}
+ 	re := p.newRegexp(op)
+ 	re.Min = min
+ 	re.Max = max
+@@ -228,7 +250,7 @@ func (p *parser) repeat(op Op, min, max int, opstr, t, lastRepeat string) (strin
+ 	re.Sub = re.Sub0[:1]
+ 	re.Sub[0] = sub
+ 	p.stack[n-1] = re
+-	return t, nil
++	return t, opstr, nil
+ }
+ 
+ // concat replaces the top of the stack (above the topmost '|' or '(') with its concatenation.
+@@ -712,7 +734,7 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
+ 			case '?':
+ 				op = OpQuest
+ 			}
+-			if t, err = p.repeat(op, min, max, t[:1], t[1:], lastRepeat); err != nil {
++			if t, repeat, err = p.repeat(op, min, max, t, t[:1], t[1:], lastRepeat); err != nil {
+ 				return nil, err
+ 			}
+ 		case '{':
+@@ -724,7 +746,12 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
+ 				t = t[1:]
+ 				break
+ 			}
+-			if t, err = p.repeat(op, min, max, t[:len(t)-len(tt)], tt, lastRepeat); err != nil {
++			opstr := t[:len(t)-len(tt)]
++			if min < 0 || min > 1000 || max > 1000 || max >= 0 && min > max {
++				// Numbers were too big, or max is present and min > max.
++				return nil, &Error{ErrInvalidRepeatSize, opstr}
++			}
++			if t, repeat, err = p.repeat(op, min, max, t, opstr, tt, lastRepeat); err != nil {
+ 				return nil, err
+ 			}
+ 		case '\\':
+@@ -815,12 +842,14 @@ func Parse(s string, flags Flags) (*Regexp, os.Error) {
+ 
+ // parseRepeat parses {min} (max=min) or {min,} (max=-1) or {min,max}.
+ // If s is not of that form, it returns ok == false.
++// If s has the right form but the values are too big, it returns min == -1, ok == true.
+ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
+ 	if s == "" || s[0] != '{' {
+ 		return
+ 	}
+ 	s = s[1:]
+-	if min, s, ok = p.parseInt(s); !ok {
++	var ok1 bool
++	if min, s, ok1 = p.parseInt(s); !ok1 {
+ 		return
+ 	}
+ 	if s == "" {
+@@ -835,8 +864,11 @@ func (p *parser) parseRepeat(s string) (min, max int, rest string, ok bool) {
+ 		}
+ 		if s[0] == '}' {
+ 			max = -1
+-		} else if max, s, ok = p.parseInt(s); !ok {
++		} else if max, s, ok1 = p.parseInt(s); !ok1 {
+ 			return
++		} else if max < 0 {
++			// parseInt found too big a number
++			min = -1
+ 		}
+ 	}
+ 	if s == "" || s[0] != '}' {
+@@ -981,16 +1013,22 @@ func (p *parser) parseInt(s string) (n int, rest string, ok bool) {
+ 	if len(s) >= 2 && s[0] == '0' && '0' <= s[1] && s[1] <= '9' {
+ 		return
+ 	}
++	t := s
+ 	for s != "" && '0' <= s[0] && s[0] <= '9' {
+-		// Avoid overflow.
+-		if n >= 1e8 {
+-			return
+-		}
+-		n = n*10 + int(s[0]) - '0'
+ 		s = s[1:]
+ 	}
+ 	rest = s
+ 	ok = true
++	// Have digits, compute value.
++	t = t[:len(t)-len(s)]
++	for i := 0; i < len(t); i++ {
++		// Avoid overflow.
++		if n >= 1e8 {
++			n = -1
++			break
++		}
++		n = n*10 + int(t[i]) - '0'
++	}
+ 	return
+ }
+ 
+@@ -1125,6 +1163,8 @@ func (p *parser) parseRightParen() os.Error {
+ 	if re2.Op != opLeftParen {
+ 		return &Error{ErrMissingParen, p.wholeRegexp}
+ 	}
++	// Restore flags at time of paren.
++	p.flags = re2.Flags
+ 	if re2.Cap == 0 {
+ 		// Just for grouping.
+ 		p.push(re1)
+@@ -1330,9 +1370,18 @@ func (p *parser) appendGroup(r []int, g charGroup) []int {
+ 	return r
+ }
+ 
++var anyTable = &unicode.RangeTable{
++	[]unicode.Range16{{0, 1<<16 - 1, 1}},
++	[]unicode.Range32{{1 << 16, unicode.MaxRune, 1}},
++}
++
+ // unicodeTable returns the unicode.RangeTable identified by name
+ // and the table of additional fold-equivalent code points.
+ func unicodeTable(name string) (*unicode.RangeTable, *unicode.RangeTable) {
++	// Special case: "Any" means any.
++	if name == "Any" {
++		return anyTable, anyTable
++	}
+ 	if t := unicode.Categories[name]; t != nil {
+ 		return t, unicode.FoldCategory[name]
+ 	}
+diff --git a/src/pkg/exp/regexp/syntax/parse_test.go b/src/pkg/exp/regexp/syntax/parse_test.go
+index a146c89c3f..5c8107c89c 100644
+--- a/src/pkg/exp/regexp/syntax/parse_test.go
++++ b/src/pkg/exp/regexp/syntax/parse_test.go
+@@ -11,10 +11,12 @@ import (
+ 	"unicode"
+ )
+ 
+-var parseTests = []struct {
++type parseTest struct {
+ 	Regexp string
+ 	Dump   string
+-}{
++}
++
++var parseTests = []parseTest{
+ 	// Base cases
+ 	{`a`, `lit{a}`},
+ 	{`a.`, `cat{lit{a}dot{}}`},
+@@ -38,6 +40,12 @@ var parseTests = []struct {
+ 	{`a{2}?`, `nrep{2,2 lit{a}}`},
+ 	{`a{2,3}?`, `nrep{2,3 lit{a}}`},
+ 	{`a{2,}?`, `nrep{2,-1 lit{a}}`},
++	// Malformed { } are treated as literals.
++	{`x{1001`, `str{x{1001}`},
++	{`x{9876543210`, `str{x{9876543210}`},
++	{`x{9876543210,`, `str{x{9876543210,}`},
++	{`x{2,1`, `str{x{2,1}`},
++	{`x{1,9876543210`, `str{x{1,9876543210}`},
+ 	{``, `emp{}`},
+ 	{`|`, `emp{}`}, // alt{emp{}emp{}} but got factored
+ 	{`|x|`, `alt{emp{}lit{x}emp{}}`},
+@@ -101,6 +109,8 @@ var parseTests = []struct {
+ 	{`\p{Lu}`, mkCharClass(unicode.IsUpper)},
+ 	{`[\p{Lu}]`, mkCharClass(unicode.IsUpper)},
+ 	{`(?i)[\p{Lu}]`, mkCharClass(isUpperFold)},
++	{`\p{Any}`, `dot{}`},
++	{`\p{^Any}`, `cc{}`},
+ 
+ 	// Hex, octal.
+ 	{`[\012-\234]\141`, `cat{cc{0xa-0x9c}lit{a}}`},
+@@ -174,14 +184,80 @@ var parseTests = []struct {
+ 	{`(?-s).`, `dnl{}`},
+ 	{`(?:(?:^).)`, `cat{bol{}dot{}}`},
+ 	{`(?-s)(?:(?:^).)`, `cat{bol{}dnl{}}`},
++
++	// RE2 prefix_tests
++	{`abc|abd`, `cat{str{ab}cc{0x63-0x64}}`},
++	{`a(?:b)c|abd`, `cat{str{ab}cc{0x63-0x64}}`},
++	{`abc|abd|aef|bcx|bcy`,
++		`alt{cat{lit{a}alt{cat{lit{b}cc{0x63-0x64}}str{ef}}}` +
++			`cat{str{bc}cc{0x78-0x79}}}`},
++	{`abc|x|abd`, `alt{str{abc}lit{x}str{abd}}`},
++	{`(?i)abc|ABD`, `cat{strfold{AB}cc{0x43-0x44 0x63-0x64}}`},
++	{`[ab]c|[ab]d`, `cat{cc{0x61-0x62}cc{0x63-0x64}}`},
++	{`(?:xx|yy)c|(?:xx|yy)d`,
++		`cat{alt{str{xx}str{yy}}cc{0x63-0x64}}`},
++	{`x{2}|x{2}[0-9]`,
++		`cat{rep{2,2 lit{x}}alt{emp{}cc{0x30-0x39}}}`},
++	{`x{2}y|x{2}[0-9]y`,
++		`cat{rep{2,2 lit{x}}alt{lit{y}cat{cc{0x30-0x39}lit{y}}}}`},
+ }
+ 
+ const testFlags = MatchNL | PerlX | UnicodeGroups
+ 
++func TestParseSimple(t *testing.T) {
++	testParseDump(t, parseTests, testFlags)
++}
++
++var foldcaseTests = []parseTest{
++	{`AbCdE`, `strfold{ABCDE}`},
++	{`[Aa]`, `litfold{A}`},
++	{`a`, `litfold{A}`},
++
++	// 0x17F is an old English long s (looks like an f) and folds to s.
++	// 0x212A is the Kelvin symbol and folds to k.
++	{`A[F-g]`, `cat{litfold{A}cc{0x41-0x7a 0x17f 0x212a}}`}, // [Aa][A-z...]
++	{`[[:upper:]]`, `cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}`},
++	{`[[:lower:]]`, `cc{0x41-0x5a 0x61-0x7a 0x17f 0x212a}`},
++}
++
++func TestParseFoldCase(t *testing.T) {
++	testParseDump(t, foldcaseTests, FoldCase)
++}
++
++var literalTests = []parseTest{
++	{"(|)^$.[*+?]{5,10},\\", "str{(|)^$.[*+?]{5,10},\\}"},
++}
++
++func TestParseLiteral(t *testing.T) {
++	testParseDump(t, literalTests, Literal)
++}
++
++var matchnlTests = []parseTest{
++	{`.`, `dot{}`},
++	{"\n", "lit{\n}"},
++	{`[^a]`, `cc{0x0-0x60 0x62-0x10ffff}`},
++	{`[a\n]`, `cc{0xa 0x61}`},
++}
++
++func TestParseMatchNL(t *testing.T) {
++	testParseDump(t, matchnlTests, MatchNL)
++}
++
++var nomatchnlTests = []parseTest{
++	{`.`, `dnl{}`},
++	{"\n", "lit{\n}"},
++	{`[^a]`, `cc{0x0-0x9 0xb-0x60 0x62-0x10ffff}`},
++	{`[a\n]`, `cc{0xa 0x61}`},
++}
++
++func TestParseNoMatchNL(t *testing.T) {
++	testParseDump(t, nomatchnlTests, 0)
++}
++
+ // Test Parse -> Dump.
+-func TestParseDump(t *testing.T) {
+-	for _, tt := range parseTests {
+-		re, err := Parse(tt.Regexp, testFlags)
++func testParseDump(t *testing.T, tests []parseTest, flags Flags) {
++	for _, tt := range tests {
++		re, err := Parse(tt.Regexp, flags)
+ 		if err != nil {
+ 			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
+ 			continue
+@@ -360,3 +436,115 @@ func TestAppendRangeCollapse(t *testing.T) {
+ 		t.Errorf("appendRange interlaced A-Z a-z = %s, want AZaz", string(r))
+ 	}
+ }
++
++var invalidRegexps = []string{
++	`(`,
++	`)`,
++	`(a`,
++	`(a|b|`,
++	`(a|b`,
++	`[a-z`,
++	`([a-z)`,
++	`x{1001}`,
++	`x{9876543210}`,
++	`x{2,1}`,
++	`x{1,9876543210}`,
++	"\xff", // Invalid UTF-8
++	"[\xff]",
++	"[\\\xff]",
++	"\\\xff",
++	`(?P<name>a`,
++	`(?P<name>`,
++	`(?P<name`,
++	`(?P<x y>a)`,
++	`(?P<>a)`,
++	`[a-Z]`,
++	`(?i)[a-Z]`,
++	`a{100000}`,
++	`a{100000,}`,
++}
++
++var onlyPerl = []string{
++	`[a-b-c]`,
++	`\Qabc\E`,
++	`\Q*+?{[\E`,
++	`\Q\\E`,
++	`\Q\\\E`,
++	`\Q\\\\E`,
++	`\Q\\\\\E`,
++	`(?:a)`,
++	`(?P<name>a)`,
++}
++
++var onlyPOSIX = []string{
++	"a++",
++	"a**",
++	"a?*",
++	"a+*",
++	"a{1}*",
++}
++
++func TestParseInvalidRegexps(t *testing.T) {
++	for _, regexp := range invalidRegexps {
++		if re, err := Parse(regexp, Perl); err == nil {
++			t.Errorf("Parse(%#q, Perl) = %s, should have failed", regexp, dump(re))
++		}
++		if re, err := Parse(regexp, POSIX); err == nil {
++			t.Errorf("Parse(%#q, POSIX) = %s, should have failed", regexp, dump(re))
++		}
++	}
++	for _, regexp := range onlyPerl {
++		if _, err := Parse(regexp, Perl); err != nil {
++			t.Errorf("Parse(%#q, Perl): %v", regexp, err)
++		}
++		if re, err := Parse(regexp, POSIX); err == nil {
++			t.Errorf("Parse(%#q, POSIX) = %s, should have failed", regexp, dump(re))
++		}
++	}
++	for _, regexp := range onlyPOSIX {
++		if re, err := Parse(regexp, Perl); err == nil {
++			t.Errorf("Parse(%#q, Perl) = %s, should have failed", regexp, dump(re))
++		}
++		if _, err := Parse(regexp, POSIX); err != nil {
++			t.Errorf("Parse(%#q, POSIX): %v", regexp, err)
++		}
++	}
++}
++
++func TestToStringEquivalentParse(t *testing.T) {
++	for _, tt := range parseTests {
++		re, err := Parse(tt.Regexp, testFlags)
++		if err != nil {
++			t.Errorf("Parse(%#q): %v", tt.Regexp, err)
++			continue
++		}
++		d := dump(re)
++		if d != tt.Dump {
++			t.Errorf("Parse(%#q).Dump() = %#q want %#q", tt.Regexp, d, tt.Dump)
++			continue
++		}
++
++		s := re.String()
++		if s != tt.Regexp {
++			// If ToString didn't return the original regexp,
++			// it must have found one with fewer parens.
++			// Unfortunately we can't check the length here, because
++			// ToString produces "\\{" for a literal brace,
++			// but "{" is a shorter equivalent in some contexts.
++			nre, err := Parse(s, testFlags)
++			if err != nil {
++				t.Errorf("Parse(%#q.String() = %#q): %v", tt.Regexp, t, err)
++				continue
++			}
++			nd := dump(nre)
++			if d != nd {
++				t.Errorf("Parse(%#q) -> %#q; %#q vs %#q", tt.Regexp, s, d, nd)
++			}
++
++			ns := nre.String()
++			if s != ns {
++				t.Errorf("Parse(%#q) -> %#q -> %#q", tt.Regexp, s, ns)
++			}
++		}
++	}
++}
+diff --git a/src/pkg/exp/regexp/syntax/prog.go b/src/pkg/exp/regexp/syntax/prog.go
+index d214d70b52..e92baaca0d 100644
+--- a/src/pkg/exp/regexp/syntax/prog.go
++++ b/src/pkg/exp/regexp/syntax/prog.go
+@@ -57,7 +57,7 @@ func EmptyOpContext(r1, r2 int) EmptyOp {
+ 		op |= EmptyBeginLine
+ 	}
+ 	if r2 < 0 {
+-		op |= EmptyEndText
++		op |= EmptyEndText | EmptyEndLine
+ 	}
+ 	if r2 == '\n' {
+ 		op |= EmptyEndLine
+diff --git a/src/pkg/exp/regexp/syntax/regexp.go b/src/pkg/exp/regexp/syntax/regexp.go
+index d8f51b903b..033848df28 100644
+--- a/src/pkg/exp/regexp/syntax/regexp.go
++++ b/src/pkg/exp/regexp/syntax/regexp.go
+@@ -164,9 +164,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ 		}
+ 		b.WriteRune(']')
+ 	case OpAnyCharNotNL:
+-		b.WriteString(`[^\n]`)
++		b.WriteString(`(?-s:.)`)
+ 	case OpAnyChar:
+-		b.WriteRune('.')
++		b.WriteString(`(?s:.)`)
+ 	case OpBeginLine:
+ 		b.WriteRune('^')
+ 	case OpEndLine:
+@@ -174,7 +174,11 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ 	case OpBeginText:
+ 		b.WriteString(`\A`)
+ 	case OpEndText:
+-		b.WriteString(`\z`)
++		if re.Flags&WasDollar != 0 {
++			b.WriteString(`(?-m:$)`)
++		} else {
++			b.WriteString(`\z`)
++		}
+ 	case OpWordBoundary:
+ 		b.WriteString(`\b`)
+ 	case OpNoWordBoundary:
+@@ -192,7 +196,7 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ 		}
+ 		b.WriteRune(')')
+ 	case OpStar, OpPlus, OpQuest, OpRepeat:
+-		if sub := re.Sub[0]; sub.Op > OpCapture {
++		if sub := re.Sub[0]; sub.Op > OpCapture || sub.Op == OpLiteral && len(sub.Rune) > 1 {
+ 			b.WriteString(`(?:`)
+ 			writeRegexp(b, sub)
+ 			b.WriteString(`)`)
+@@ -217,6 +221,9 @@ func writeRegexp(b *bytes.Buffer, re *Regexp) {
+ 			}
+ 			b.WriteRune('}')
+ 		}
++		if re.Flags&NonGreedy != 0 {
++			b.WriteRune('?')
++		}
+ 	case OpConcat:
+ 		for _, sub := range re.Sub {
+ 			if sub.Op == OpAlternate {
+diff --git a/src/pkg/exp/regexp/syntax/simplify_test.go b/src/pkg/exp/regexp/syntax/simplify_test.go
+index c8cec21831..879eff5be7 100644
+--- a/src/pkg/exp/regexp/syntax/simplify_test.go
++++ b/src/pkg/exp/regexp/syntax/simplify_test.go
+@@ -18,7 +18,7 @@ var simplifyTests = []struct {
+ 	{`(ab)*`, `(ab)*`},
+ 	{`(ab)+`, `(ab)+`},
+ 	{`(ab)?`, `(ab)?`},
+-	{`.`, `.`},
++	{`.`, `(?s:.)`},
+ 	{`^`, `^`},
+ 	{`$`, `$`},
+ 	{`[ac]`, `[ac]`},
+@@ -97,22 +97,22 @@ var simplifyTests = []struct {
+ 	{`[^[:cntrl:][:^cntrl:]]`, `[^\x00-\x{10FFFF}]`},
+ 
+ 	// Full character classes
+-	{`[[:cntrl:][:^cntrl:]]`, `.`},
++	{`[[:cntrl:][:^cntrl:]]`, `(?s:.)`},
+ 
+ 	// Unicode case folding.
+ 	{`(?i)A`, `(?i:A)`},
+-	{`(?i)a`, `(?i:a)`},
++	{`(?i)a`, `(?i:A)`},
+ 	{`(?i)[A]`, `(?i:A)`},
+ 	{`(?i)[a]`, `(?i:A)`},
+ 	{`(?i)K`, `(?i:K)`},
+-	{`(?i)k`, `(?i:k)`},
+-	{`(?i)\x{212a}`, "(?i:\u212A)"},
++	{`(?i)k`, `(?i:K)`},
++	{`(?i)\x{212a}`, "(?i:K)"},
+ 	{`(?i)[K]`, "[Kk\u212A]"},
+ 	{`(?i)[k]`, "[Kk\u212A]"},
+ 	{`(?i)[\x{212a}]`, "[Kk\u212A]"},
+ 	{`(?i)[a-z]`, "[A-Za-z\u017F\u212A]"},
+ 	{`(?i)[\x00-\x{FFFD}]`, "[\\x00-\uFFFD]"},
+-	{`(?i)[\x00-\x{10FFFF}]`, `.`},
++	{`(?i)[\x00-\x{10FFFF}]`, `(?s:.)`},
+ 
+ 	// Empty string as a regular expression.
+ 	// The empty string must be preserved inside parens in order

@@ -135,7 +135,7 @@ Date:   Tue Mar 8 18:16:35 2022 -0500
     Run-TryBot: Russ Cox <rsc@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/base/flag.go              |  4 ++
  .../compile/internal/importer/gcimporter_test.go   |  2 +-
  src/cmd/compile/internal/logopt/logopt_test.go     |  6 +-
@@ -166,3 +166,773 @@ Date:   Tue Mar 8 18:16:35 2022 -0500
  test/run.go                                        | 69 ++++++++++------------
  test/sinit_run.go                                  |  2 +-
  29 files changed, 94 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 6377091ce0..0b04f62e1c 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -201,6 +201,10 @@ func ParseFlags() {
+ 		Exit(2)
+ 	}
+ 
++	if *Flag.LowerP == "" {
++		log.Fatalf("-p is required")
++	}
++
+ 	if Flag.LowerO == "" {
+ 		p := flag.Arg(0)
+ 		if i := strings.LastIndex(p, "/"); i >= 0 {
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 5d80db244b..cc804aabbc 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -38,7 +38,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
+ 	}
+ 	basename := filepath.Base(filename)
+ 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index 902cbc8091..8d07a49cc0 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -226,7 +226,7 @@ func s15a8(x *[15]int64) [15]int64 {
+ }
+ 
+ func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
+-	run := []string{testenv.GoToolPath(t), "tool", "compile", flag, "-o", outfile, src}
++	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", flag, "-o", outfile, src}
+ 	t.Log(run)
+ 	cmd := exec.Command(run[0], run[1:]...)
+ 	out, err := cmd.CombinedOutput()
+@@ -236,7 +236,7 @@ func testLogOpt(t *testing.T, flag, src, outfile string) (string, error) {
+ 
+ func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error) {
+ 	// Notice the specified import path "x"
+-	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p", "x", flag, "-o", outfile, src}
++	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", flag, "-o", outfile, src}
+ 	t.Log(run)
+ 	cmd := exec.Command(run[0], run[1:]...)
+ 	cmd.Dir = dir
+@@ -247,7 +247,7 @@ func testLogOptDir(t *testing.T, dir, flag, src, outfile string) (string, error)
+ 
+ func testCopy(t *testing.T, dir, goarch, goos, src, outfile string) (string, error) {
+ 	// Notice the specified import path "x"
+-	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p", "x", "-json=0,file://log/opt", "-o", outfile, src}
++	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=x", "-json=0,file://log/opt", "-o", outfile, src}
+ 	t.Log(run)
+ 	cmd := exec.Command(run[0], run[1:]...)
+ 	cmd.Dir = dir
+diff --git a/src/cmd/compile/internal/test/fixedbugs_test.go b/src/cmd/compile/internal/test/fixedbugs_test.go
+index 376b45edfc..cd0d5fc353 100644
+--- a/src/cmd/compile/internal/test/fixedbugs_test.go
++++ b/src/cmd/compile/internal/test/fixedbugs_test.go
+@@ -72,7 +72,7 @@ func TestIssue16214(t *testing.T) {
+ 		t.Fatalf("could not write file: %v", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-S", "-o", filepath.Join(dir, "out.o"), src)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-S", "-o", filepath.Join(dir, "out.o"), src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("go tool compile: %v\n%s", err, out)
+diff --git a/src/cmd/compile/internal/test/lang_test.go b/src/cmd/compile/internal/test/lang_test.go
+index 67c1551292..66ab8401c6 100644
+--- a/src/cmd/compile/internal/test/lang_test.go
++++ b/src/cmd/compile/internal/test/lang_test.go
+@@ -56,7 +56,7 @@ func TestInvalidLang(t *testing.T) {
+ }
+ 
+ func testLang(t *testing.T, lang, src, outfile string) error {
+-	run := []string{testenv.GoToolPath(t), "tool", "compile", "-lang", lang, "-o", outfile, src}
++	run := []string{testenv.GoToolPath(t), "tool", "compile", "-p=p", "-lang", lang, "-o", outfile, src}
+ 	t.Log(run)
+ 	out, err := exec.Command(run[0], run[1:]...).CombinedOutput()
+ 	t.Logf("%s", out)
+diff --git a/src/cmd/compile/internal/test/reproduciblebuilds_test.go b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+index 4d84f9cdef..0a1a5e9b99 100644
+--- a/src/cmd/compile/internal/test/reproduciblebuilds_test.go
++++ b/src/cmd/compile/internal/test/reproduciblebuilds_test.go
+@@ -41,7 +41,7 @@ func TestReproducibleBuilds(t *testing.T) {
+ 			for i := 0; i < iters; i++ {
+ 				// Note: use -c 2 to expose any nondeterminism which is the result
+ 				// of the runtime scheduler.
+-				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
++				out, err := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "2", "-o", tmp.Name(), filepath.Join("testdata", "reproducible", test)).CombinedOutput()
+ 				if err != nil {
+ 					t.Fatalf("failed to compile: %v\n%s", err, out)
+ 				}
+@@ -89,7 +89,7 @@ func TestIssue38068(t *testing.T) {
+ 		s := &scenarios[i]
+ 		s.libpath = filepath.Join(tmpdir, s.tag+".a")
+ 		// Note: use of "-p" required in order for DWARF to be generated.
+-		cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-trimpath", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
++		cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=issue38068", "-buildid=", s.args, "-o", s.libpath, src)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+ 			t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
+diff --git a/src/cmd/internal/archive/archive_test.go b/src/cmd/internal/archive/archive_test.go
+index c284a9cf0d..9573495dec 100644
+--- a/src/cmd/internal/archive/archive_test.go
++++ b/src/cmd/internal/archive/archive_test.go
+@@ -109,11 +109,11 @@ func buildGoobj() error {
+ 	go1src := filepath.Join("testdata", "go1.go")
+ 	go2src := filepath.Join("testdata", "go2.go")
+ 
+-	out, err := exec.Command(gotool, "tool", "compile", "-o", go1obj, go1src).CombinedOutput()
++	out, err := exec.Command(gotool, "tool", "compile", "-p=p", "-o", go1obj, go1src).CombinedOutput()
+ 	if err != nil {
+ 		return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go1obj, go1src, err, out)
+ 	}
+-	out, err = exec.Command(gotool, "tool", "compile", "-o", go2obj, go2src).CombinedOutput()
++	out, err = exec.Command(gotool, "tool", "compile", "-p=p", "-o", go2obj, go2src).CombinedOutput()
+ 	if err != nil {
+ 		return fmt.Errorf("go tool compile -o %s %s: %v\n%s", go2obj, go2src, err, out)
+ 	}
+diff --git a/src/cmd/internal/obj/objfile_test.go b/src/cmd/internal/obj/objfile_test.go
+index 146627b62b..f5a4016eec 100644
+--- a/src/cmd/internal/obj/objfile_test.go
++++ b/src/cmd/internal/obj/objfile_test.go
+@@ -111,7 +111,7 @@ func TestSymbolTooLarge(t *testing.T) { // Issue 42054
+ 		t.Fatalf("failed to write source file: %v\n", err)
+ 	}
+ 	obj := filepath.Join(tmpdir, "p.o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", obj, src)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Fatalf("did not fail\noutput: %s", out)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index ad7658bb25..0492feaf0d 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -55,7 +55,7 @@ func main() {}
+ 		t.Fatalf("failed to write main.go: %v\n", err)
+ 	}
+ 
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "main.go")
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "main.go")
+ 	cmd.Dir = tmpdir
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -100,7 +100,7 @@ func TestIssue28429(t *testing.T) {
+ 
+ 	// Compile a main package.
+ 	write("main.go", "package main; func main() {}")
+-	runGo("tool", "compile", "-p", "main", "main.go")
++	runGo("tool", "compile", "-p=main", "main.go")
+ 	runGo("tool", "pack", "c", "main.a", "main.o")
+ 
+ 	// Add an extra section with a short, non-.o name.
+@@ -236,7 +236,7 @@ void foo() {
+ 
+ 	// Compile, assemble and pack the Go and C code.
+ 	runGo("tool", "asm", "-gensymabis", "-o", "symabis", "x.s")
+-	runGo("tool", "compile", "-symabis", "symabis", "-p", "main", "-o", "x1.o", "main.go")
++	runGo("tool", "compile", "-symabis", "symabis", "-p=main", "-o", "x1.o", "main.go")
+ 	runGo("tool", "asm", "-o", "x2.o", "x.s")
+ 	run(cc, append(cflags, "-c", "-o", "x3.o", "x.c")...)
+ 	runGo("tool", "pack", "c", "x.a", "x1.o", "x2.o", "x3.o")
+@@ -431,7 +431,7 @@ func TestIssue34788Android386TLSSequence(t *testing.T) {
+ 	}
+ 
+ 	obj := filepath.Join(tmpdir, "blah.o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", obj, src)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=blah", "-o", obj, src)
+ 	cmd.Env = append(os.Environ(), "GOARCH=386", "GOOS=android")
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+ 		t.Fatalf("failed to compile blah.go: %v, output: %s\n", err, out)
+@@ -765,13 +765,13 @@ func TestIndexMismatch(t *testing.T) {
+ 	exe := filepath.Join(tmpdir, "main.exe")
+ 
+ 	// Build a program with main package importing package a.
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, aSrc)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, aSrc)
+ 	t.Log(cmd)
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("compiling a.go failed: %v\n%s", err, out)
+ 	}
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-I", tmpdir, "-o", mObj, mSrc)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=main", "-I", tmpdir, "-o", mObj, mSrc)
+ 	t.Log(cmd)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+@@ -786,7 +786,7 @@ func TestIndexMismatch(t *testing.T) {
+ 
+ 	// Now, overwrite a.o with the object of b.go. This should
+ 	// result in an index mismatch.
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", aObj, bSrc)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=a", "-o", aObj, bSrc)
+ 	t.Log(cmd)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index ff43161030..313cc7a809 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -267,7 +267,7 @@ func TestDisasmGoobj(t *testing.T) {
+ 	mustHaveDisasm(t)
+ 
+ 	hello := filepath.Join(tmp, "hello.o")
+-	args := []string{"tool", "compile", "-o", hello}
++	args := []string{"tool", "compile", "-p=main", "-o", hello}
+ 	args = append(args, "testdata/fmthello.go")
+ 	out, err := exec.Command(testenv.GoToolPath(t), args...).CombinedOutput()
+ 	if err != nil {
+diff --git a/src/cmd/pack/pack_test.go b/src/cmd/pack/pack_test.go
+index 81e78f53e2..6eec1f50ef 100644
+--- a/src/cmd/pack/pack_test.go
++++ b/src/cmd/pack/pack_test.go
+@@ -179,7 +179,7 @@ func TestHello(t *testing.T) {
+ 
+ 	goBin := testenv.GoToolPath(t)
+ 	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+-	run(goBin, "tool", "compile", "hello.go")
++	run(goBin, "tool", "compile", "-p=main", "hello.go")
+ 	run("./pack", "grc", "hello.a", "hello.o")
+ 	run(goBin, "tool", "link", "-o", "a.out", "hello.a")
+ 	out := run("./a.out")
+@@ -246,9 +246,9 @@ func TestLargeDefs(t *testing.T) {
+ 
+ 	goBin := testenv.GoToolPath(t)
+ 	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+-	run(goBin, "tool", "compile", "large.go")
++	run(goBin, "tool", "compile", "-p=large", "large.go")
+ 	run("./pack", "grc", "large.a", "large.o")
+-	run(goBin, "tool", "compile", "-I", ".", "main.go")
++	run(goBin, "tool", "compile", "-p=main", "-I", ".", "main.go")
+ 	run(goBin, "tool", "link", "-L", ".", "-o", "a.out", "main.o")
+ 	out := run("./a.out")
+ 	if out != "ok\n" {
+@@ -281,9 +281,9 @@ func TestIssue21703(t *testing.T) {
+ 
+ 	goBin := testenv.GoToolPath(t)
+ 	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+-	run(goBin, "tool", "compile", "a.go")
++	run(goBin, "tool", "compile", "-p=a", "a.go")
+ 	run("./pack", "c", "a.a", "a.o")
+-	run(goBin, "tool", "compile", "-I", ".", "b.go")
++	run(goBin, "tool", "compile", "-p=b", "-I", ".", "b.go")
+ }
+ 
+ // Test the "c" command can "see through" the archive generated by the compiler.
+@@ -305,7 +305,7 @@ func TestCreateWithCompilerObj(t *testing.T) {
+ 
+ 	goBin := testenv.GoToolPath(t)
+ 	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+-	run(goBin, "tool", "compile", "-pack", "-o", "p.a", "p.go")
++	run(goBin, "tool", "compile", "-pack", "-p=p", "-o", "p.a", "p.go")
+ 	run("./pack", "c", "packed.a", "p.a")
+ 	fi, err := os.Stat(filepath.Join(dir, "p.a"))
+ 	if err != nil {
+@@ -323,7 +323,7 @@ func TestCreateWithCompilerObj(t *testing.T) {
+ 	}
+ 
+ 	// Test -linkobj flag as well.
+-	run(goBin, "tool", "compile", "-linkobj", "p2.a", "-o", "p.x", "p.go")
++	run(goBin, "tool", "compile", "-p=p", "-linkobj", "p2.a", "-o", "p.x", "p.go")
+ 	run("./pack", "c", "packed2.a", "p2.a")
+ 	fi, err = os.Stat(filepath.Join(dir, "p2.a"))
+ 	if err != nil {
+@@ -369,7 +369,7 @@ func TestRWithNonexistentFile(t *testing.T) {
+ 
+ 	goBin := testenv.GoToolPath(t)
+ 	run(goBin, "build", "cmd/pack") // writes pack binary to dir
+-	run(goBin, "tool", "compile", "-o", "p.o", "p.go")
++	run(goBin, "tool", "compile", "-p=p", "-o", "p.o", "p.go")
+ 	run("./pack", "r", "p.a", "p.o") // should succeed
+ }
+ 
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index c9c5946d9f..51511ea620 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -45,7 +45,7 @@ func compile(t *testing.T, dirname, filename, outdirname string) string {
+ 	}
+ 	basename := filepath.Base(filename)
+ 	outname := filepath.Join(outdirname, basename[:len(basename)-2]+"o")
+-	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-o", outname, filename)
++	cmd := exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-o", outname, filename)
+ 	cmd.Dir = dirname
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/internal/abi/abi_test.go b/src/internal/abi/abi_test.go
+index 5a3b6b616d..51d26f69ae 100644
+--- a/src/internal/abi/abi_test.go
++++ b/src/internal/abi/abi_test.go
+@@ -50,7 +50,7 @@ func TestFuncPCCompileError(t *testing.T) {
+ 	}
+ 
+ 	// compile go code.
+-	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-symabis", symabi, "-o", obj, goSrc)
++	cmd = exec.Command(testenv.GoToolPath(t), "tool", "compile", "-p=p", "-symabis", symabi, "-o", obj, goSrc)
+ 	out, err = cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Fatalf("go tool compile did not fail")
+diff --git a/test/const7.go b/test/const7.go
+index e625671278..6acd7fde3a 100644
+--- a/test/const7.go
++++ b/test/const7.go
+@@ -37,7 +37,7 @@ func testProg(dir, name string, length int, ok bool) {
+ 		log.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", "compile", filename)
++	cmd := exec.Command("go", "tool", "compile", "-p=p", filename)
+ 	cmd.Dir = dir
+ 	output, err := cmd.CombinedOutput()
+ 
+diff --git a/test/fixedbugs/bug302.go b/test/fixedbugs/bug302.go
+index a2ab661277..b3b958c3aa 100644
+--- a/test/fixedbugs/bug302.go
++++ b/test/fixedbugs/bug302.go
+@@ -28,9 +28,9 @@ func main() {
+ 	}
+ 	defer os.RemoveAll(tmpDir)
+ 
+-	run("go", "tool", "compile", filepath.Join(fb, "bug302.dir", "p.go"))
++	run("go", "tool", "compile", "-p=p", filepath.Join(fb, "bug302.dir", "p.go"))
+ 	run("go", "tool", "pack", "grc", "pp.a", "p.o")
+-	run("go", "tool", "compile", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
++	run("go", "tool", "compile", "-p=main", "-I", ".", filepath.Join(fb, "bug302.dir", "main.go"))
+ }
+ 
+ func run(cmd string, args ...string) {
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 83f638d046..8e50678c89 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -29,9 +29,9 @@ func main() {
+ 		return filepath.Join(tmpDir, name)
+ 	}
+ 
+-	run("go", "tool", "compile", "-N", "-o", tmp("slow.o"), "pkg.go")
+-	run("go", "tool", "compile", "-o", tmp("fast.o"), "pkg.go")
+-	run("go", "tool", "compile", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
++	run("go", "tool", "compile", "-p=pkg", "-N", "-o", tmp("slow.o"), "pkg.go")
++	run("go", "tool", "compile", "-p=pkg", "-o", tmp("fast.o"), "pkg.go")
++	run("go", "tool", "compile", "-p=main", "-D", tmpDir, "-o", tmp("main.o"), "main.go")
+ 	run("go", "tool", "link", "-o", tmp("a.exe"), tmp("main.o"))
+ 	run(tmp("a.exe"))
+ }
+diff --git a/test/fixedbugs/issue11771.go b/test/fixedbugs/issue11771.go
+index c95dd6ba39..e5bed186bb 100644
+--- a/test/fixedbugs/issue11771.go
++++ b/test/fixedbugs/issue11771.go
+@@ -52,7 +52,7 @@ func x() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	cmd := exec.Command("go", "tool", "compile", "x.go")
++	cmd := exec.Command("go", "tool", "compile", "-p=p", "x.go")
+ 	cmd.Dir = dir
+ 	output, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index 32b660c163..fe51ef1738 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -38,7 +38,7 @@ func main() {
+ 	defer os.RemoveAll(f.Name())
+ 
+ 	// compile and test output
+-	cmd := exec.Command("go", "tool", "compile", f.Name())
++	cmd := exec.Command("go", "tool", "compile", "-p=main", f.Name())
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		log.Fatalf("expected cmd/compile to fail")
+diff --git a/test/fixedbugs/issue22660.go b/test/fixedbugs/issue22660.go
+index 9ce9c4d732..7f542c5153 100644
+--- a/test/fixedbugs/issue22660.go
++++ b/test/fixedbugs/issue22660.go
+@@ -35,7 +35,7 @@ func main() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	out, err := exec.Command("go", "tool", "compile", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
++	out, err := exec.Command("go", "tool", "compile", "-p=p", fmt.Sprintf("-trimpath=%s", path), f.Name()).CombinedOutput()
+ 	if err == nil {
+ 		log.Fatalf("expected compiling %s to fail", f.Name())
+ 	}
+diff --git a/test/fixedbugs/issue22662b.go b/test/fixedbugs/issue22662b.go
+index 8da17679be..df4f28429c 100644
+--- a/test/fixedbugs/issue22662b.go
++++ b/test/fixedbugs/issue22662b.go
+@@ -48,7 +48,7 @@ func main() {
+ 			log.Fatal(err)
+ 		}
+ 
+-		out, err := exec.Command("go", "tool", "compile", f.Name()).CombinedOutput()
++		out, err := exec.Command("go", "tool", "compile", "-p=p", f.Name()).CombinedOutput()
+ 		if err == nil {
+ 			log.Fatalf("expected compiling\n---\n%s\n---\nto fail", test.src)
+ 		}
+diff --git a/test/fixedbugs/issue26411.go b/test/fixedbugs/issue26411.go
+index 5f40bf2522..eb17960c47 100644
+--- a/test/fixedbugs/issue26411.go
++++ b/test/fixedbugs/issue26411.go
+@@ -75,7 +75,7 @@ bar            :
+ 			log.Printf("#%d: failed to create file %s", i, filename)
+ 			continue
+ 		}
+-		output, _ := exec.Command("go", "tool", "compile", filename).CombinedOutput()
++		output, _ := exec.Command("go", "tool", "compile", "-p=p", filename).CombinedOutput()
+ 
+ 		// remove each matching error from the output
+ 		for _, err := range test.errors {
+diff --git a/test/fixedbugs/issue30908.go b/test/fixedbugs/issue30908.go
+index 60fbd11457..27f070ecec 100644
+--- a/test/fixedbugs/issue30908.go
++++ b/test/fixedbugs/issue30908.go
+@@ -1,9 +1,10 @@
+-// rundir -P -ldflags -strictdups=2 -w=0
++// rundir -ldflags -strictdups=2 -w=0
+ 
+ // Copyright 2019 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build !nacl && !js
+ // +build !nacl,!js
+ 
+ package ignored
+diff --git a/test/fixedbugs/issue9355.go b/test/fixedbugs/issue9355.go
+index 319a2a90df..31376153ac 100644
+--- a/test/fixedbugs/issue9355.go
++++ b/test/fixedbugs/issue9355.go
+@@ -27,7 +27,7 @@ func main() {
+ 	}
+ 	f.Close()
+ 
+-	out := run("go", "tool", "compile", "-o", f.Name(), "-S", "a.go")
++	out := run("go", "tool", "compile", "-p=p", "-o", f.Name(), "-S", "a.go")
+ 	os.Remove(f.Name())
+ 
+ 	// 6g/8g print the offset as dec, but 5g/9g print the offset as hex.
+diff --git a/test/interface/embed1.dir/embed0.go b/test/interface/embed1.dir/embed0.go
+index 728bec74e8..4aed391b63 100644
+--- a/test/interface/embed1.dir/embed0.go
++++ b/test/interface/embed1.dir/embed0.go
+@@ -7,10 +7,11 @@
+ package p
+ 
+ type T int
++
+ func (t T) m() {}
+ 
+-type I interface { m() }
+-type J interface { I }
++type I interface{ m() }
++type J interface{ I }
+ 
+ func main() {
+ 	var i I
+diff --git a/test/linkmain_run.go b/test/linkmain_run.go
+index 077f7ee917..6bc82dfafc 100644
+--- a/test/linkmain_run.go
++++ b/test/linkmain_run.go
+@@ -62,14 +62,14 @@ func main() {
+ 	}
+ 
+ 	// helloworld.go is package main
+-	run("go tool compile -o", tmp("linkmain.o"), "helloworld.go")
+-	run("go tool compile -pack -o", tmp("linkmain.a"), "helloworld.go")
++	run("go tool compile -p=main -o", tmp("linkmain.o"), "helloworld.go")
++	run("go tool compile -p=main -pack -o", tmp("linkmain.a"), "helloworld.go")
+ 	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.o"))
+ 	run("go tool link -o", tmp("linkmain.exe"), tmp("linkmain.a"))
+ 
+ 	// linkmain.go is not
+-	run("go tool compile -o", tmp("linkmain1.o"), "linkmain.go")
+-	run("go tool compile -pack -o", tmp("linkmain1.a"), "linkmain.go")
++	run("go tool compile -p=notmain -o", tmp("linkmain1.o"), "linkmain.go")
++	run("go tool compile -p=notmain -pack -o", tmp("linkmain1.a"), "linkmain.go")
+ 	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.o"))
+ 	runFail("go tool link -o", tmp("linkmain.exe"), tmp("linkmain1.a"))
+ 	cleanup()
+diff --git a/test/linkname2.go b/test/linkname2.go
+deleted file mode 100644
+index 5eb250f9c4..0000000000
+--- a/test/linkname2.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// errorcheck
+-
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Tests that errors are reported for misuse of linkname.
+-package p
+-
+-import _ "unsafe"
+-
+-type t int
+-
+-var x, y int
+-
+-//go:linkname x ok
+-
+-// ERROR "//go:linkname requires linkname argument or -p compiler flag"
+-
+-//line linkname2.go:18
+-//go:linkname y
+diff --git a/test/linkobj.go b/test/linkobj.go
+index 4c9bd24568..023996aa30 100644
+--- a/test/linkobj.go
++++ b/test/linkobj.go
+@@ -37,28 +37,28 @@ func main() {
+ 
+ 	writeFile("p1.go", `
+ 		package p1
+-		
++
+ 		func F() {
+ 			println("hello from p1")
+ 		}
+ 	`)
+ 	writeFile("p2.go", `
+ 		package p2
+-		
++
+ 		import "./p1"
+ 
+ 		func F() {
+ 			p1.F()
+ 			println("hello from p2")
+ 		}
+-		
++
+ 		func main() {}
+ 	`)
+ 	writeFile("p3.go", `
+ 		package main
+ 
+ 		import "./p2"
+-		
++
+ 		func main() {
+ 			p2.F()
+ 			println("hello from main")
+@@ -76,9 +76,9 @@ func main() {
+ 		}
+ 
+ 		// inlining is disabled to make sure that the link objects contain needed code.
+-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
+-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
+-		run("go", "tool", "compile", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
++		run("go", "tool", "compile", "-p=p1", pkg, "-D", ".", "-I", ".", "-l", "-o", "p1."+o, "-linkobj", "p1.lo", "p1.go")
++		run("go", "tool", "compile", "-p=p2", pkg, "-D", ".", "-I", ".", "-l", "-o", "p2."+o, "-linkobj", "p2.lo", "p2.go")
++		run("go", "tool", "compile", "-p=main", pkg, "-D", ".", "-I", ".", "-l", "-o", "p3."+o, "-linkobj", "p3.lo", "p3.go")
+ 
+ 		cp("p1."+o, "p1.oo")
+ 		cp("p2."+o, "p2.oo")
+diff --git a/test/run.go b/test/run.go
+index 869911a426..e5dd0e443c 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -184,7 +184,7 @@ func main() {
+ 		resCount[status]++
+ 		dt := fmt.Sprintf("%.3fs", test.dt.Seconds())
+ 		if status == "FAIL" {
+-			fmt.Printf("# go run run.go %s\n%s\nFAIL\t%s\t%s\n",
++			fmt.Printf("# go run run.go -- %s\n%s\nFAIL\t%s\t%s\n",
+ 				path.Join(test.dir, test.gofile),
+ 				errStr, test.goFileName(), dt)
+ 			continue
+@@ -254,7 +254,7 @@ func goFiles(dir string) []string {
+ type runCmd func(...string) ([]byte, error)
+ 
+ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, err error) {
+-	cmd := []string{goTool(), "tool", "compile", "-e"}
++	cmd := []string{goTool(), "tool", "compile", "-e", "-p=p"}
+ 	cmd = append(cmd, flags...)
+ 	if *linkshared {
+ 		cmd = append(cmd, "-dynlink", "-installsuffix=dynlink")
+@@ -263,8 +263,11 @@ func compileFile(runcmd runCmd, longname string, flags []string) (out []byte, er
+ 	return runcmd(cmd...)
+ }
+ 
+-func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, names ...string) (out []byte, err error) {
+-	cmd := []string{goTool(), "tool", "compile", "-e"}
++func compileInDir(runcmd runCmd, dir string, flags []string, localImports bool, pkgname string, names ...string) (out []byte, err error) {
++	if pkgname != "main" {
++		pkgname = strings.TrimSuffix(names[0], ".go")
++	}
++	cmd := []string{goTool(), "tool", "compile", "-e", "-p=" + pkgname}
+ 	if localImports {
+ 		// Set relative path for local imports and import search path to current dir.
+ 		cmd = append(cmd, "-D", ".", "-I", ".")
+@@ -415,28 +418,33 @@ func getPackageNameFromSource(fn string) (string, error) {
+ 	return pkgname[1], nil
+ }
+ 
++type goDirPkg struct {
++	name  string
++	files []string
++}
++
+ // If singlefilepkgs is set, each file is considered a separate package
+ // even if the package names are the same.
+-func goDirPackages(longdir string, singlefilepkgs bool) ([][]string, error) {
++func goDirPackages(longdir string, singlefilepkgs bool) ([]*goDirPkg, error) {
+ 	files, err := goDirFiles(longdir)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	var pkgs [][]string
+-	m := make(map[string]int)
++	var pkgs []*goDirPkg
++	m := make(map[string]*goDirPkg)
+ 	for _, file := range files {
+ 		name := file.Name()
+ 		pkgname, err := getPackageNameFromSource(filepath.Join(longdir, name))
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+-		i, ok := m[pkgname]
++		p, ok := m[pkgname]
+ 		if singlefilepkgs || !ok {
+-			i = len(pkgs)
+-			pkgs = append(pkgs, nil)
+-			m[pkgname] = i
++			p = &goDirPkg{name: pkgname}
++			pkgs = append(pkgs, p)
++			m[pkgname] = p
+ 		}
+-		pkgs[i] = append(pkgs[i], name)
++		p.files = append(p.files, name)
+ 	}
+ 	return pkgs, nil
+ }
+@@ -607,7 +615,6 @@ func (t *test) run() {
+ 	wantError := false
+ 	wantAuto := false
+ 	singlefilepkgs := false
+-	setpkgpaths := false
+ 	localImports := true
+ 	f, err := splitQuoted(action)
+ 	if err != nil {
+@@ -652,8 +659,6 @@ func (t *test) run() {
+ 			wantError = false
+ 		case "-s":
+ 			singlefilepkgs = true
+-		case "-P":
+-			setpkgpaths = true
+ 		case "-n":
+ 			// Do not set relative path for local imports to current dir,
+ 			// e.g. do not pass -D . -I . to the compiler.
+@@ -843,7 +848,7 @@ func (t *test) run() {
+ 		// Fail if wantError is true and compilation was successful and vice versa.
+ 		// Match errors produced by gc against errors in comments.
+ 		// TODO(gri) remove need for -C (disable printing of columns in error messages)
+-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-C", "-e", "-o", "a.o"}
++		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-C", "-e", "-o", "a.o"}
+ 		// No need to add -dynlink even if linkshared if we're just checking for errors...
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, long)
+@@ -880,8 +885,8 @@ func (t *test) run() {
+ 			t.err = err
+ 			return
+ 		}
+-		for _, gofiles := range pkgs {
+-			_, t.err = compileInDir(runcmd, longdir, flags, localImports, gofiles...)
++		for _, pkg := range pkgs {
++			_, t.err = compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+ 			if t.err != nil {
+ 				return
+ 			}
+@@ -904,8 +909,8 @@ func (t *test) run() {
+ 			// Preceding pkg must return an error from compileInDir.
+ 			errPkg--
+ 		}
+-		for i, gofiles := range pkgs {
+-			out, err := compileInDir(runcmd, longdir, flags, localImports, gofiles...)
++		for i, pkg := range pkgs {
++			out, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+ 			if i == errPkg {
+ 				if wantError && err == nil {
+ 					t.err = fmt.Errorf("compilation succeeded unexpectedly\n%s", out)
+@@ -919,7 +924,7 @@ func (t *test) run() {
+ 				return
+ 			}
+ 			var fullshort []string
+-			for _, name := range gofiles {
++			for _, name := range pkg.files {
+ 				fullshort = append(fullshort, filepath.Join(longdir, name), name)
+ 			}
+ 			t.err = t.errorCheck(string(out), wantAuto, fullshort...)
+@@ -953,18 +958,8 @@ func (t *test) run() {
+ 			}
+ 		}
+ 
+-		for i, gofiles := range pkgs {
+-			pflags := []string{}
+-			pflags = append(pflags, flags...)
+-			if setpkgpaths {
+-				fp := filepath.Join(longdir, gofiles[0])
+-				pkgname, err := getPackageNameFromSource(fp)
+-				if err != nil {
+-					log.Fatal(err)
+-				}
+-				pflags = append(pflags, "-p", pkgname)
+-			}
+-			_, err := compileInDir(runcmd, longdir, pflags, localImports, gofiles...)
++		for i, pkg := range pkgs {
++			_, err := compileInDir(runcmd, longdir, flags, localImports, pkg.name, pkg.files...)
+ 			// Allow this package compilation fail based on conditions below;
+ 			// its errors were checked in previous case.
+ 			if err != nil && !(wantError && action == "errorcheckandrundir" && i == len(pkgs)-2) {
+@@ -972,7 +967,7 @@ func (t *test) run() {
+ 				return
+ 			}
+ 			if i == len(pkgs)-1 {
+-				err = linkFile(runcmd, gofiles[0], ldflags)
++				err = linkFile(runcmd, pkg.files[0], ldflags)
+ 				if err != nil {
+ 					t.err = err
+ 					return
+@@ -1071,7 +1066,7 @@ func (t *test) run() {
+ 			}
+ 		}
+ 		var objs []string
+-		cmd := []string{goTool(), "tool", "compile", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
++		cmd := []string{goTool(), "tool", "compile", "-p=main", "-e", "-D", ".", "-I", ".", "-o", "go.o"}
+ 		if len(asms) > 0 {
+ 			cmd = append(cmd, "-asmhdr", "go_asm.h", "-symabis", "symabis")
+ 		}
+@@ -1156,7 +1151,7 @@ func (t *test) run() {
+ 			// Because we run lots of trivial test programs,
+ 			// the time adds up.
+ 			pkg := filepath.Join(t.tempDir, "pkg.a")
+-			if _, err := runcmd(goTool(), "tool", "compile", "-o", pkg, t.goFileName()); err != nil {
++			if _, err := runcmd(goTool(), "tool", "compile", "-p=main", "-o", pkg, t.goFileName()); err != nil {
+ 				t.err = err
+ 				return
+ 			}
+@@ -1238,7 +1233,7 @@ func (t *test) run() {
+ 			t.err = fmt.Errorf("write tempfile:%s", err)
+ 			return
+ 		}
+-		cmdline := []string{goTool(), "tool", "compile", "-d=panic", "-e", "-o", "a.o"}
++		cmdline := []string{goTool(), "tool", "compile", "-p=p", "-d=panic", "-e", "-o", "a.o"}
+ 		cmdline = append(cmdline, flags...)
+ 		cmdline = append(cmdline, tfile)
+ 		out, err = runcmd(cmdline...)
+diff --git a/test/sinit_run.go b/test/sinit_run.go
+index dcaf338331..e01502bd56 100644
+--- a/test/sinit_run.go
++++ b/test/sinit_run.go
+@@ -25,7 +25,7 @@ func main() {
+ 	}
+ 	f.Close()
+ 
+-	cmd := exec.Command("go", "tool", "compile", "-o", f.Name(), "-S", "sinit.go")
++	cmd := exec.Command("go", "tool", "compile", "-p=sinit", "-o", f.Name(), "-S", "sinit.go")
+ 	out, err := cmd.CombinedOutput()
+ 	os.Remove(f.Name())
+ 	if err != nil {

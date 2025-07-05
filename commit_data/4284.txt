@@ -20,6 +20,33 @@ Date:   Wed Dec 2 13:02:42 2009 -0800
     R=gri
     CC=golang-dev
     https://golang.org/cl/164073
-
+---
  src/cmd/gofmt/gofmt.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 47d03405e1..683600ad76 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -150,6 +150,7 @@ func (v fileVisitor) VisitFile(path string, d *os.Dir) {
+ 
+ func walkDir(path string) {
+ 	// start an error handler
++	done := make(chan bool);
+ 	v := make(fileVisitor);
+ 	go func() {
+ 		for err := range v {
+@@ -157,10 +158,12 @@ func walkDir(path string) {
+ 				report(err)
+ 			}
+ 		}
++		done <- true;
+ 	}();
+ 	// walk the tree
+ 	pathutil.Walk(path, v, v);
+-	close(v);
++	close(v);	// terminate error handler loop
++	<-done;		// wait for all errors to be reported
+ }
+ 
+ 

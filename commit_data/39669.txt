@@ -11,7 +11,7 @@ Date:   Tue Mar 12 09:27:27 2019 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  src/cmd/go/internal/modload/import.go         | 25 +++++++-------------
  src/cmd/go/internal/modload/init.go           | 20 ++++++++++++----
  src/cmd/go/internal/modload/load.go           | 34 ++++++++++++---------------
@@ -19,3 +19,263 @@ Date:   Tue Mar 12 09:27:27 2019 -0400
  src/cmd/go/internal/modload/search.go         | 16 ++++---------
  src/cmd/go/testdata/script/mod_alt_goroot.txt | 20 ++++++++++++++++
  6 files changed, 65 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index fdce9d43e0..db3e1a9e5b 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -61,30 +61,21 @@ func Import(path string) (m module.Version, dir string, err error) {
+ 	}
+ 
+ 	// Is the package in the standard library?
+-	if search.IsStandardImportPath(path) {
+-		if goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
+-			dir := filepath.Join(cfg.GOROOT, "src", path)
+-
+-			// If the main module is in the standard library, attribute its packages
+-			// to that module.
+-			switch Target.Path {
+-			case "cmd":
+-				if strings.HasPrefix(path, "cmd") {
+-					return Target, dir, nil
+-				}
+-			case "std":
+-				if !strings.HasPrefix(path, "cmd") {
+-					return Target, dir, nil
+-				}
++	if search.IsStandardImportPath(path) &&
++		goroot.IsStandardPackage(cfg.GOROOT, cfg.BuildContext.Compiler, path) {
++		if targetInGorootSrc {
++			if dir, ok := dirInModule(path, targetPrefix, ModRoot(), true); ok {
++				return Target, dir, nil
+ 			}
+-			return module.Version{}, dir, nil
+ 		}
++		dir := filepath.Join(cfg.GOROOT, "src", path)
++		return module.Version{}, dir, nil
+ 	}
+ 
+ 	// -mod=vendor is special.
+ 	// Everything must be in the main module or the main module's vendor directory.
+ 	if cfg.BuildMod == "vendor" {
+-		mainDir, mainOK := dirInModule(path, Target.Path, ModRoot(), true)
++		mainDir, mainOK := dirInModule(path, targetPrefix, ModRoot(), true)
+ 		vendorDir, vendorOK := dirInModule(path, "", filepath.Join(ModRoot(), "vendor"), false)
+ 		if mainOK && vendorOK {
+ 			return module.Version{}, "", fmt.Errorf("ambiguous import: found %s in multiple directories:\n\t%s\n\t%s", path, mainDir, vendorDir)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 0970ccf2d6..a93692579c 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -18,7 +18,6 @@ import (
+ 	"cmd/go/internal/mvs"
+ 	"cmd/go/internal/renameio"
+ 	"cmd/go/internal/search"
+-	"cmd/go/internal/str"
+ 	"encoding/json"
+ 	"fmt"
+ 	"go/build"
+@@ -43,6 +42,15 @@ var (
+ 	excluded    map[module.Version]bool
+ 	Target      module.Version
+ 
++	// targetPrefix is the path prefix for packages in Target, without a trailing
++	// slash. For most modules, targetPrefix is just Target.Path, but the
++	// standard-library module "std" has an empty prefix.
++	targetPrefix string
++
++	// targetInGorootSrc caches whether modRoot is within GOROOT/src.
++	// The "std" module is special within GOROOT/src, but not otherwise.
++	targetInGorootSrc bool
++
+ 	gopath string
+ 
+ 	CmdModInit   bool   // running 'go mod init'
+@@ -329,6 +337,7 @@ func InitMod() {
+ 	Init()
+ 	if modRoot == "" {
+ 		Target = module.Version{Path: "command-line-arguments"}
++		targetPrefix = "command-line-arguments"
+ 		buildList = []module.Version{Target}
+ 		return
+ 	}
+@@ -381,9 +390,12 @@ func InitMod() {
+ // modFileToBuildList initializes buildList from the modFile.
+ func modFileToBuildList() {
+ 	Target = modFile.Module.Mod
+-	if (str.HasPathPrefix(Target.Path, "std") || str.HasPathPrefix(Target.Path, "cmd")) &&
+-		search.InDir(cwd, cfg.GOROOTsrc) == "" {
+-		base.Fatalf("go: reserved module path %s not allow outside of GOROOT/src", Target.Path)
++	targetPrefix = Target.Path
++	if search.InDir(cwd, cfg.GOROOTsrc) != "" {
++		targetInGorootSrc = true
++		if Target.Path == "std" {
++			targetPrefix = ""
++		}
+ 	}
+ 
+ 	list := []module.Version{Target}
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 205754546c..33b53052d8 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -111,7 +111,7 @@ func ImportPaths(patterns []string) []*search.Match {
+ 						if strings.HasPrefix(suffix, "/vendor/") {
+ 							// TODO getmode vendor check
+ 							pkg = strings.TrimPrefix(suffix, "/vendor/")
+-						} else if Target.Path == "std" {
++						} else if targetInGorootSrc && Target.Path == "std" {
+ 							// Don't add the prefix "std/" to packages in the "std" module.
+ 							// It's the one module path that isn't a prefix of its packages.
+ 							pkg = strings.TrimPrefix(suffix, "/")
+@@ -270,14 +270,14 @@ func DirImportPath(dir string) string {
+ 	}
+ 
+ 	if dir == modRoot {
+-		return Target.Path
++		return targetPrefix
+ 	}
+ 	if strings.HasPrefix(dir, modRoot+string(filepath.Separator)) {
+ 		suffix := filepath.ToSlash(dir[len(modRoot):])
+ 		if strings.HasPrefix(suffix, "/vendor/") {
+ 			return strings.TrimPrefix(suffix, "/vendor/")
+ 		}
+-		return Target.Path + suffix
++		return targetPrefix + suffix
+ 	}
+ 	return "."
+ }
+@@ -474,14 +474,10 @@ func newLoader() *loader {
+ 	ld.tags = imports.Tags()
+ 	ld.testRoots = LoadTests
+ 
+-	switch Target.Path {
+-	case "std", "cmd":
+-		// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
+-		// unless the command explicitly changes the module graph.
+-		// TODO(golang.org/issue/30240): Remove this special case.
+-		if cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ") {
+-			ld.forceStdVendor = true
+-		}
++	// Inside the "std" and "cmd" modules, we prefer to use the vendor directory
++	// unless the command explicitly changes the module graph.
++	if !targetInGorootSrc || (cfg.CmdName != "get" && !strings.HasPrefix(cfg.CmdName, "mod ")) {
++		ld.forceStdVendor = true
+ 	}
+ 
+ 	return ld
+@@ -680,13 +676,14 @@ func (ld *loader) stdVendor(parentPath, path string) string {
+ 		return path
+ 	}
+ 
+-	if str.HasPathPrefix(parentPath, "cmd") && (Target.Path != "cmd" || ld.forceStdVendor) {
+-		vendorPath := pathpkg.Join("cmd", "vendor", path)
+-		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+-			return vendorPath
++	if str.HasPathPrefix(parentPath, "cmd") {
++		if ld.forceStdVendor || Target.Path != "cmd" {
++			vendorPath := pathpkg.Join("cmd", "vendor", path)
++			if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
++				return vendorPath
++			}
+ 		}
+-	}
+-	if Target.Path != "std" || ld.forceStdVendor {
++	} else if ld.forceStdVendor || Target.Path != "std" {
+ 		vendorPath := pathpkg.Join("vendor", path)
+ 		if _, err := os.Stat(filepath.Join(cfg.GOROOTsrc, filepath.FromSlash(vendorPath))); err == nil {
+ 			return vendorPath
+@@ -987,8 +984,7 @@ func (r *mvsReqs) required(mod module.Version) ([]module.Version, error) {
+ 		return vendorList, nil
+ 	}
+ 
+-	switch Target.Path {
+-	case "std", "cmd":
++	if targetInGorootSrc {
+ 		// When inside "std" or "cmd", only fetch and read go.mod files if we're
+ 		// explicitly running a command that can change the module graph. If we have
+ 		// to resolve a new dependency, we might pick the wrong version, but 'go mod
+diff --git a/src/cmd/go/internal/modload/query.go b/src/cmd/go/internal/modload/query.go
+index 3a1ea863b0..30bdc4dc7d 100644
+--- a/src/cmd/go/internal/modload/query.go
++++ b/src/cmd/go/internal/modload/query.go
+@@ -216,7 +216,7 @@ func matchSemverPrefix(p, v string) bool {
+ // QueryPackage returns Target as the version.
+ func QueryPackage(path, query string, allowed func(module.Version) bool) (module.Version, *modfetch.RevInfo, error) {
+ 	if HasModRoot() {
+-		if _, ok := dirInModule(path, Target.Path, modRoot, true); ok {
++		if _, ok := dirInModule(path, targetPrefix, modRoot, true); ok {
+ 			if query != "latest" {
+ 				return module.Version{}, nil, fmt.Errorf("can't query specific version (%q) for package %s in the main module (%s)", query, path, Target.Path)
+ 			}
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index 2cd657326c..753b3be6de 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -106,11 +106,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		if HasModRoot() {
+-			modPrefix := Target.Path
+-			if Target.Path == "std" {
+-				modPrefix = ""
+-			}
+-			walkPkgs(ModRoot(), modPrefix, false)
++			walkPkgs(ModRoot(), targetPrefix, false)
+ 			walkPkgs(filepath.Join(ModRoot(), "vendor"), "", false)
+ 		}
+ 		return pkgs
+@@ -120,12 +116,13 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 		if !treeCanMatch(mod.Path) {
+ 			continue
+ 		}
+-		var root string
+-		if mod.Version == "" {
++		var root, modPrefix string
++		if mod == Target {
+ 			if !HasModRoot() {
+ 				continue // If there is no main module, we can't search in it.
+ 			}
+ 			root = ModRoot()
++			modPrefix = targetPrefix
+ 		} else {
+ 			var err error
+ 			root, _, err = fetch(mod)
+@@ -133,10 +130,7 @@ func matchPackages(pattern string, tags map[string]bool, useStd bool, modules []
+ 				base.Errorf("go: %v", err)
+ 				continue
+ 			}
+-		}
+-		modPrefix := mod.Path
+-		if mod.Path == "std" {
+-			modPrefix = ""
++			modPrefix = mod.Path
+ 		}
+ 		walkPkgs(root, modPrefix, false)
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_alt_goroot.txt b/src/cmd/go/testdata/script/mod_alt_goroot.txt
+new file mode 100644
+index 0000000000..32f94c5303
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_alt_goroot.txt
+@@ -0,0 +1,20 @@
++env GO111MODULE=on
++
++# If the working directory is a different GOROOT, then the 'std' module should be
++# treated as an ordinary module (with an ordinary module prefix).
++# It should not override packages in GOROOT, but should not fail the command.
++# See golang.org/issue/30756.
++go list -e -deps -f '{{.ImportPath}} {{.Dir}}' ./bytes
++stdout ^std/bytes.*$PWD[/\\]bytes
++stdout '^bytes/modified'
++
++-- go.mod --
++module std
++
++go 1.12
++-- bytes/bytes.go --
++package bytes
++
++import _"bytes/modified"
++-- bytes/modified/modified.go --
++package modified

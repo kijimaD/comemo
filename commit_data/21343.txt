@@ -15,8 +15,55 @@ Date:   Mon Dec 22 15:26:21 2014 -0800
     Change-Id: Idf73ebccb066943e3fe17c2f662b37238ec74dfe
     Reviewed-on: https://go-review.googlesource.com/2052
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
-
+---
  test/fixedbugs/bug248.go | 3 ++-
  test/fixedbugs/bug345.go | 3 ++-
  test/fixedbugs/bug369.go | 2 +-
  3 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/test/fixedbugs/bug248.go b/test/fixedbugs/bug248.go
+index 338bc8eb96..13796eed28 100644
+--- a/test/fixedbugs/bug248.go
++++ b/test/fixedbugs/bug248.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!windows
+ // run
+ 
+ // Copyright 2009 The Go Authors. All rights reserved.
+@@ -19,6 +19,7 @@ func main() {
+ 	a, err := build.ArchChar(build.Default.GOARCH)
+ 	check(err)
+ 
++	// TODO: If we get rid of errchk, re-enable this test on Windows.
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+ 
+diff --git a/test/fixedbugs/bug345.go b/test/fixedbugs/bug345.go
+index e772d86e77..bfa00938fd 100644
+--- a/test/fixedbugs/bug345.go
++++ b/test/fixedbugs/bug345.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!windows
+ // run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.
+@@ -19,6 +19,7 @@ func main() {
+ 	a, err := build.ArchChar(build.Default.GOARCH)
+ 	check(err)
+ 
++	// TODO: If we get rid of errchk, re-enable this test on Windows.
+ 	errchk, err := filepath.Abs("errchk")
+ 	check(err)
+ 
+diff --git a/test/fixedbugs/bug369.go b/test/fixedbugs/bug369.go
+index 8cb2bf0995..519703fb1e 100644
+--- a/test/fixedbugs/bug369.go
++++ b/test/fixedbugs/bug369.go
+@@ -1,4 +1,4 @@
+-// +build !nacl
++// +build !nacl,!windows
+ // run
+ 
+ // Copyright 2011 The Go Authors.  All rights reserved.

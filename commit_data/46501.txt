@@ -12,6 +12,24 @@ Date:   Mon Jan 4 14:06:29 2021 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/cmd/go/internal/work/gccgo.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 3ffd01c473..45ff7c9838 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -93,6 +93,12 @@ func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg,
+ 			args = append(args, "-I", root)
+ 		}
+ 	}
++	if embedcfg != nil && b.gccSupportsFlag(args[:1], "-fgo-embedcfg=/dev/null") {
++		if err := b.writeFile(objdir+"embedcfg", embedcfg); err != nil {
++			return "", nil, err
++		}
++		args = append(args, "-fgo-embedcfg="+objdir+"embedcfg")
++	}
+ 
+ 	if b.gccSupportsFlag(args[:1], "-ffile-prefix-map=a=b") {
+ 		if cfg.BuildTrimpath {

@@ -17,6 +17,34 @@ Date:   Mon Feb 6 22:01:07 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/36479
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/syntax/parser.go | 8 +++-----
  1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index bebcbb14de..3ebc670950 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1700,6 +1700,8 @@ func (p *parser) stmtBody(context string) []Stmt {
+ 	return body
+ }
+ 
++var dummyCond = &Name{Value: "false"}
++
+ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleStmt) {
+ 	if p.tok == _Lbrace {
+ 		return
+@@ -1746,12 +1748,8 @@ func (p *parser) header(forStmt bool) (init SimpleStmt, cond Expr, post SimpleSt
+ 	case *ExprStmt:
+ 		cond = s.X
+ 	default:
+-		// Not obviously a syntax error but by making it one, we get
+-		// automatic filtering of multiple syntax error messages per
+-		// line in the compiler. This avoids the follow-up error
+-		// "missing condition in if statement" for an if statement
+-		// (minimal fix for #18915).
+ 		p.syntax_error(fmt.Sprintf("%s used as value", String(s)))
++		cond = dummyCond // avoid follow-up error for if statements
+ 	}
+ 
+ 	p.xnest = outer

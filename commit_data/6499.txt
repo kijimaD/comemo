@@ -7,9 +7,191 @@ Date:   Tue Oct 12 15:42:07 2010 +1100
     R=brainman, rsc, kardia, Joe Poirier
     CC=golang-dev
     https://golang.org/cl/1910041
-
+---
  src/pkg/syscall/exec_windows.go         | 10 +++++++---
  src/pkg/syscall/syscall_windows.go      | 32 +++++++++++++++++++++++++++-----
  src/pkg/syscall/zsyscall_windows_386.go | 32 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/ztypes_windows_386.go   | 12 +++++++++++-
  4 files changed, 77 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/syscall/exec_windows.go b/src/pkg/syscall/exec_windows.go
+index 1ac84a3d28..c3ed3ba98e 100644
+--- a/src/pkg/syscall/exec_windows.go
++++ b/src/pkg/syscall/exec_windows.go
+@@ -117,7 +117,6 @@ func SetNonblock(fd int, nonblocking bool) (errno int) {
+ 
+ // TODO(kardia): Add trace
+ //The command and arguments are passed via the Command line parameter.
+-//Thus, repeating the exec name in the first argument is unneeded.
+ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir string, fd []int) (pid int, err int) {
+ 	if traceme == true {
+ 		return 0, EWINDOWS
+@@ -150,23 +149,28 @@ func forkExec(argv0 string, argv []string, envv []string, traceme bool, dir stri
+ 		if ok, err := DuplicateHandle(currentProc, int32(fd[0]), currentProc, &startupInfo.StdInput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+ 			return 0, err
+ 		}
++		defer CloseHandle(int32(startupInfo.StdInput))
+ 	}
+ 	if len(fd) > 1 && fd[1] > 0 {
+ 		if ok, err := DuplicateHandle(currentProc, int32(fd[1]), currentProc, &startupInfo.StdOutput, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+ 			return 0, err
+ 		}
++		defer CloseHandle(int32(startupInfo.StdOutput))
+ 	}
+ 	if len(fd) > 2 && fd[2] > 0 {
+ 		if ok, err := DuplicateHandle(currentProc, int32(fd[2]), currentProc, &startupInfo.StdErr, 0, true, DUPLICATE_SAME_ACCESS); !ok {
+ 			return 0, err
+ 		}
++		defer CloseHandle(int32(startupInfo.StdErr))
++	}
++	if len(argv) == 0 {
++		argv = []string{""}
+ 	}
+-
+ 	// argv0 must not be longer then 256 chars
+ 	// but the entire cmd line can have up to 32k chars (msdn)
+ 	ok, err := CreateProcess(
+ 		nil,
+-		StringToUTF16Ptr(escapeAddQuotes(argv0)+" "+stringJoin(argv, " ", escapeAddQuotes)),
++		StringToUTF16Ptr(escapeAddQuotes(argv0)+" "+stringJoin(argv[1:], " ", escapeAddQuotes)),
+ 		nil,  //ptr to struct lpProcessAttributes
+ 		nil,  //ptr to struct lpThreadAttributes
+ 		true, //bInheritHandles
+diff --git a/src/pkg/syscall/syscall_windows.go b/src/pkg/syscall/syscall_windows.go
+index 54859f46d6..d42103bc28 100644
+--- a/src/pkg/syscall/syscall_windows.go
++++ b/src/pkg/syscall/syscall_windows.go
+@@ -137,6 +137,8 @@ func getSysProcAddr(m uint32, pname string) uintptr {
+ //sys	CryptAcquireContext(provhandle *uint32, container *uint16, provider *uint16, provtype uint32, flags uint32) (ok bool, errno int) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle uint32, flags uint32) (ok bool, errno int) = advapi32.CryptReleaseContext
+ //sys	CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno int) = advapi32.CryptGenRandom
++//sys OpenProcess(da uint32,b int, pid uint32) (handle uint32, errno int)
++//sys GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int)
+ //sys	GetEnvironmentStrings() (envs *uint16, errno int) [failretval=nil] = kernel32.GetEnvironmentStringsW
+ //sys	FreeEnvironmentStrings(envs *uint16) (ok bool, errno int) = kernel32.FreeEnvironmentStringsW
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, errno int) = kernel32.GetEnvironmentVariableW
+@@ -691,15 +693,35 @@ type Rusage struct {
+ 	Nivcsw   int32
+ }
+ 
++type WaitStatus struct {
++	Status   uint32
++	ExitCode uint32
++}
++
+ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int, errno int) {
+-	return 0, EWINDOWS
++	handle, errno := OpenProcess(PROCESS_ALL_ACCESS, 0, uint32(pid))
++	if errno != 0 {
++		return 0, errno
++	}
++	defer CloseHandle(int32(handle))
++	e, errno := WaitForSingleObject(int32(handle), INFINITE)
++	var c uint32
++	if ok, errno := GetExitCodeProcess(handle, &c); !ok {
++		return 0, errno
++	}
++	*wstatus = WaitStatus{e, c}
++	return pid, 0
+ }
+ 
+-type WaitStatus uint32
+ 
+-func (WaitStatus) Exited() bool { return false }
++func (w WaitStatus) Exited() bool { return w.Status == WAIT_OBJECT_0 }
+ 
+-func (WaitStatus) ExitStatus() int { return -1 }
++func (w WaitStatus) ExitStatus() int {
++	if w.Status == WAIT_OBJECT_0 {
++		return int(w.ExitCode)
++	}
++	return -1
++}
+ 
+ func (WaitStatus) Signal() int { return -1 }
+ 
+@@ -711,6 +733,6 @@ func (WaitStatus) Continued() bool { return false }
+ 
+ func (WaitStatus) StopSignal() int { return -1 }
+ 
+-func (WaitStatus) Signaled() bool { return false }
++func (w WaitStatus) Signaled() bool { return w.Status == WAIT_OBJECT_0 }
+ 
+ func (WaitStatus) TrapCause() int { return -1 }
+diff --git a/src/pkg/syscall/zsyscall_windows_386.go b/src/pkg/syscall/zsyscall_windows_386.go
+index 464a4e6d5a..292d0e32ea 100644
+--- a/src/pkg/syscall/zsyscall_windows_386.go
++++ b/src/pkg/syscall/zsyscall_windows_386.go
+@@ -53,6 +53,8 @@ var (
+ 	procCryptAcquireContextW       = getSysProcAddr(modadvapi32, "CryptAcquireContextW")
+ 	procCryptReleaseContext        = getSysProcAddr(modadvapi32, "CryptReleaseContext")
+ 	procCryptGenRandom             = getSysProcAddr(modadvapi32, "CryptGenRandom")
++	procOpenProcess                = getSysProcAddr(modkernel32, "OpenProcess")
++	procGetExitCodeProcess         = getSysProcAddr(modkernel32, "GetExitCodeProcess")
+ 	procGetEnvironmentStringsW     = getSysProcAddr(modkernel32, "GetEnvironmentStringsW")
+ 	procFreeEnvironmentStringsW    = getSysProcAddr(modkernel32, "FreeEnvironmentStringsW")
+ 	procGetEnvironmentVariableW    = getSysProcAddr(modkernel32, "GetEnvironmentVariableW")
+@@ -679,6 +681,36 @@ func CryptGenRandom(provhandle uint32, buflen uint32, buf *byte) (ok bool, errno
+ 	return
+ }
+ 
++func OpenProcess(da uint32, b int, pid uint32) (handle uint32, errno int) {
++	r0, _, e1 := Syscall(procOpenProcess, uintptr(da), uintptr(b), uintptr(pid))
++	handle = (uint32)(r0)
++	if handle == 0 {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
++func GetExitCodeProcess(h uint32, c *uint32) (ok bool, errno int) {
++	r0, _, e1 := Syscall(procGetExitCodeProcess, uintptr(h), uintptr(unsafe.Pointer(c)), 0)
++	ok = (bool)(r0 != 0)
++	if !ok {
++		if e1 != 0 {
++			errno = int(e1)
++		} else {
++			errno = EINVAL
++		}
++	} else {
++		errno = 0
++	}
++	return
++}
++
+ func GetEnvironmentStrings() (envs *uint16, errno int) {
+ 	r0, _, e1 := Syscall(procGetEnvironmentStringsW, 0, 0, 0)
+ 	envs = (*uint16)(unsafe.Pointer(r0))
+diff --git a/src/pkg/syscall/ztypes_windows_386.go b/src/pkg/syscall/ztypes_windows_386.go
+index 1187f9033a..4e54ee6cda 100644
+--- a/src/pkg/syscall/ztypes_windows_386.go
++++ b/src/pkg/syscall/ztypes_windows_386.go
+@@ -104,7 +104,10 @@ const (
+ 	IGNORE                = 0
+ 	INFINITE              = 0xffffffff
+ 
+-	WAIT_TIMEOUT = 258
++	WAIT_TIMEOUT   = 258
++	WAIT_ABANDONED = 0x00000080
++	WAIT_OBJECT_0  = 0x00000000
++	WAIT_FAILED    = 0xFFFFFFFF
+ 
+ 	CREATE_UNICODE_ENVIRONMENT = 0x00000400
+ )
+@@ -473,3 +476,10 @@ type DNSRecord struct {
+ 	Reserved uint32
+ 	Data     [40]byte
+ }
++
++const (
++	HANDLE_FLAG_INHERIT            = 0x00000001
++	HANDLE_FLAG_PROTECT_FROM_CLOSE = 0x00000002
++
++	PROCESS_ALL_ACCESS = 0x001fffff
++)

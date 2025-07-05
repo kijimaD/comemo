@@ -14,7 +14,7 @@ Date:   Tue Aug 6 21:58:38 2024 +0000
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  doc/next/6-stdlib/99-minor/hash/adler32/62384.md |  1 +
  doc/next/6-stdlib/99-minor/hash/crc32/62384.md   |  1 +
  doc/next/6-stdlib/99-minor/hash/crc64/62384.md   |  1 +
@@ -28,3 +28,349 @@ Date:   Tue Aug 6 21:58:38 2024 +0000
  src/hash/fnv/fnv.go                              | 42 +++++++++++++++++-------
  src/hash/fnv/fnv_test.go                         | 12 +++++++
  12 files changed, 122 insertions(+), 18 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/hash/adler32/62384.md b/doc/next/6-stdlib/99-minor/hash/adler32/62384.md
+new file mode 100644
+index 0000000000..a584db8cad
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/adler32/62384.md
+@@ -0,0 +1 @@
++The value returned by [New] now also implements the [encoding.BinaryAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/hash/crc32/62384.md b/doc/next/6-stdlib/99-minor/hash/crc32/62384.md
+new file mode 100644
+index 0000000000..0e835c2ccd
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/crc32/62384.md
+@@ -0,0 +1 @@
++The values returned by [New] and [NewIEEE] now also implement the [encoding.BinaryAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/hash/crc64/62384.md b/doc/next/6-stdlib/99-minor/hash/crc64/62384.md
+new file mode 100644
+index 0000000000..a584db8cad
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/crc64/62384.md
+@@ -0,0 +1 @@
++The value returned by [New] now also implements the [encoding.BinaryAppender] interface.
+diff --git a/doc/next/6-stdlib/99-minor/hash/fnv/62384.md b/doc/next/6-stdlib/99-minor/hash/fnv/62384.md
+new file mode 100644
+index 0000000000..68ec6f360e
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/hash/fnv/62384.md
+@@ -0,0 +1 @@
++The values returned by [New32], [New32a], [New64], [New64a], [New128] and [New128a] now also implement the [encoding.BinaryAppender] interface.
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index ed9ccad910..88b4ccf2fe 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -57,13 +57,16 @@ const (
+ 	marshaledSize = len(magic) + 4
+ )
+ 
+-func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+ 	b = byteorder.BeAppendUint32(b, uint32(*d))
+ 	return b, nil
+ }
+ 
++func (d *digest) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
+ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+ 		return errors.New("hash/adler32: invalid hash state identifier")
+diff --git a/src/hash/adler32/adler32_test.go b/src/hash/adler32/adler32_test.go
+index 6bac802507..ebb9a438a6 100644
+--- a/src/hash/adler32/adler32_test.go
++++ b/src/hash/adler32/adler32_test.go
+@@ -103,11 +103,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 			continue
+ 		}
+ 
++		stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++		if err != nil {
++			t.Errorf("could not marshal: %v", err)
++			continue
++		}
++		stateAppend = stateAppend[4:]
++
+ 		if string(state) != g.halfState {
+ 			t.Errorf("checksum(%q) state = %q, want %q", g.in, state, g.halfState)
+ 			continue
+ 		}
+ 
++		if string(stateAppend) != g.halfState {
++			t.Errorf("checksum(%q) state = %q, want %q", g.in, stateAppend, g.halfState)
++			continue
++		}
++
+ 		if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 			t.Errorf("could not unmarshal: %v", err)
+ 			continue
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 3964646b27..b659959959 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -170,14 +170,18 @@ const (
+ 	marshaledSize = len(magic) + 4 + 4
+ )
+ 
+-func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+ 	b = byteorder.BeAppendUint32(b, tableSum(d.tab))
+ 	b = byteorder.BeAppendUint32(b, d.crc)
+ 	return b, nil
+ }
+ 
++func (d *digest) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++
++}
++
+ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+ 		return errors.New("hash/crc32: invalid hash state identifier")
+diff --git a/src/hash/crc32/crc32_test.go b/src/hash/crc32/crc32_test.go
+index 5a3e134cf7..10c28f9533 100644
+--- a/src/hash/crc32/crc32_test.go
++++ b/src/hash/crc32/crc32_test.go
+@@ -133,11 +133,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 				continue
+ 			}
+ 
++			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++			if err != nil {
++				t.Errorf("could not marshal: %v", err)
++				continue
++			}
++			stateAppend = stateAppend[4:]
++
+ 			if string(state) != g.halfStateIEEE {
+ 				t.Errorf("IEEE(%q) state = %q, want %q", g.in, state, g.halfStateIEEE)
+ 				continue
+ 			}
+ 
++			if string(stateAppend) != g.halfStateIEEE {
++				t.Errorf("IEEE(%q) state = %q, want %q", g.in, stateAppend, g.halfStateIEEE)
++				continue
++			}
++
+ 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 				t.Errorf("could not unmarshal: %v", err)
+ 				continue
+@@ -165,11 +177,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 				continue
+ 			}
+ 
++			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++			if err != nil {
++				t.Errorf("could not marshal: %v", err)
++				continue
++			}
++			stateAppend = stateAppend[4:]
++
+ 			if string(state) != g.halfStateCastagnoli {
+ 				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, state, g.halfStateCastagnoli)
+ 				continue
+ 			}
+ 
++			if string(stateAppend) != g.halfStateCastagnoli {
++				t.Errorf("Castagnoli(%q) state = %q, want %q", g.in, stateAppend, g.halfStateCastagnoli)
++				continue
++			}
++
+ 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 				t.Errorf("could not unmarshal: %v", err)
+ 				continue
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 4cdb4c7e77..bdfd82ed31 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -111,14 +111,17 @@ const (
+ 	marshaledSize = len(magic) + 8 + 8
+ )
+ 
+-func (d *digest) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize)
++func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+ 	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
+ 	b = byteorder.BeAppendUint64(b, d.crc)
+ 	return b, nil
+ }
+ 
++func (d *digest) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
+ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) < len(magic) || string(b[:len(magic)]) != magic {
+ 		return errors.New("hash/crc64: invalid hash state identifier")
+diff --git a/src/hash/crc64/crc64_test.go b/src/hash/crc64/crc64_test.go
+index 9cf602c82f..06c428c81f 100644
+--- a/src/hash/crc64/crc64_test.go
++++ b/src/hash/crc64/crc64_test.go
+@@ -88,11 +88,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 				continue
+ 			}
+ 
++			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++			if err != nil {
++				t.Errorf("could not marshal: %v", err)
++				continue
++			}
++			stateAppend = stateAppend[4:]
++
+ 			if string(state) != g.halfStateISO {
+ 				t.Errorf("ISO crc64(%q) state = %q, want %q", g.in, state, g.halfStateISO)
+ 				continue
+ 			}
+ 
++			if string(stateAppend) != g.halfStateISO {
++				t.Errorf("ISO crc64(%q) state = %q, want %q", g.in, stateAppend, g.halfStateISO)
++				continue
++			}
++
+ 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 				t.Errorf("could not unmarshal: %v", err)
+ 				continue
+@@ -120,11 +132,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 				continue
+ 			}
+ 
++			stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++			if err != nil {
++				t.Errorf("could not marshal: %v", err)
++				continue
++			}
++			stateAppend = stateAppend[4:]
++
+ 			if string(state) != g.halfStateECMA {
+ 				t.Errorf("ECMA crc64(%q) state = %q, want %q", g.in, state, g.halfStateECMA)
+ 				continue
+ 			}
+ 
++			if string(stateAppend) != g.halfStateECMA {
++				t.Errorf("ECMA crc64(%q) state = %q, want %q", g.in, stateAppend, g.halfStateECMA)
++				continue
++			}
++
+ 			if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 				t.Errorf("could not unmarshal: %v", err)
+ 				continue
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index bf95bb32a3..e7463795cd 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -219,50 +219,68 @@ const (
+ 	marshaledSize128 = len(magic128) + 8*2
+ )
+ 
+-func (s *sum32) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize32)
++func (s *sum32) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic32...)
+ 	b = byteorder.BeAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+-func (s *sum32a) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize32)
++func (s *sum32) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize32))
++}
++
++func (s *sum32a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic32a...)
+ 	b = byteorder.BeAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+-func (s *sum64) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize64)
++func (s *sum32a) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize32))
++}
++
++func (s *sum64) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic64...)
+ 	b = byteorder.BeAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+-func (s *sum64a) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize64)
++func (s *sum64) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize64))
++}
++
++func (s *sum64a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic64a...)
+ 	b = byteorder.BeAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+-func (s *sum128) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize128)
++func (s *sum64a) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize64))
++}
++
++func (s *sum128) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic128...)
+ 	b = byteorder.BeAppendUint64(b, s[0])
+ 	b = byteorder.BeAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
+-func (s *sum128a) MarshalBinary() ([]byte, error) {
+-	b := make([]byte, 0, marshaledSize128)
++func (s *sum128) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize128))
++}
++
++func (s *sum128a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic128a...)
+ 	b = byteorder.BeAppendUint64(b, s[0])
+ 	b = byteorder.BeAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
++func (s *sum128a) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize128))
++}
++
+ func (s *sum32) UnmarshalBinary(b []byte) error {
+ 	if len(b) < len(magic32) || string(b[:len(magic32)]) != magic32 {
+ 		return errors.New("hash/fnv: invalid hash state identifier")
+diff --git a/src/hash/fnv/fnv_test.go b/src/hash/fnv/fnv_test.go
+index 7b1f7a32ea..4219460e46 100644
+--- a/src/hash/fnv/fnv_test.go
++++ b/src/hash/fnv/fnv_test.go
+@@ -128,11 +128,23 @@ func TestGoldenMarshal(t *testing.T) {
+ 					continue
+ 				}
+ 
++				stateAppend, err := h.(encoding.BinaryAppender).AppendBinary(make([]byte, 4, 32))
++				if err != nil {
++					t.Errorf("could not marshal: %v", err)
++					continue
++				}
++				stateAppend = stateAppend[4:]
++
+ 				if string(state) != g.halfState {
+ 					t.Errorf("checksum(%q) state = %q, want %q", g.in, state, g.halfState)
+ 					continue
+ 				}
+ 
++				if string(stateAppend) != g.halfState {
++					t.Errorf("checksum(%q) state = %q, want %q", g.in, stateAppend, g.halfState)
++					continue
++				}
++
+ 				if err := h2.(encoding.BinaryUnmarshaler).UnmarshalBinary(state); err != nil {
+ 					t.Errorf("could not unmarshal: %v", err)
+ 					continue

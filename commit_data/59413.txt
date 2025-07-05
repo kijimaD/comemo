@@ -17,7 +17,66 @@ Date:   Fri Mar 8 13:42:49 2024 +0800
     Auto-Submit: Damien Neil <dneil@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Damien Neil <dneil@google.com>
-
+---
  src/net/http/transport.go      | 13 +++++++------
  src/net/http/transport_test.go |  1 +
  2 files changed, 8 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 828da01247..cc590f1b37 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -114,8 +114,9 @@ type Transport struct {
+ 	// request is aborted with the provided error.
+ 	//
+ 	// The proxy type is determined by the URL scheme. "http",
+-	// "https", and "socks5" are supported. If the scheme is empty,
++	// "https", "socks5", and "socks5h" are supported. If the scheme is empty,
+ 	// "http" is assumed.
++	// "socks5" is treated the same as "socks5h".
+ 	//
+ 	// If the proxy URL contains a userinfo subcomponent,
+ 	// the proxy request will pass the username and password
+@@ -440,7 +441,6 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ //
+ // The environment values may be either a complete URL or a
+ // "host[:port]", in which case the "http" scheme is assumed.
+-// The schemes "http", "https", and "socks5" are supported.
+ // An error is returned if the value is a different form.
+ //
+ // A nil URL and nil error are returned if no proxy is defined in the
+@@ -1676,7 +1676,7 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 	switch {
+ 	case cm.proxyURL == nil:
+ 		// Do nothing. Not using a proxy.
+-	case cm.proxyURL.Scheme == "socks5":
++	case cm.proxyURL.Scheme == "socks5" || cm.proxyURL.Scheme == "socks5h":
+ 		conn := pconn.conn
+ 		d := socksNewDialer("tcp", conn.RemoteAddr().String())
+ 		if u := cm.proxyURL.User; u != nil {
+@@ -2777,9 +2777,10 @@ func (pc *persistConn) closeLocked(err error) {
+ }
+ 
+ var portMap = map[string]string{
+-	"http":   "80",
+-	"https":  "443",
+-	"socks5": "1080",
++	"http":    "80",
++	"https":   "443",
++	"socks5":  "1080",
++	"socks5h": "1080",
+ }
+ 
+ func idnaASCIIFromURL(url *url.URL) string {
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 55222a6763..e407d1768a 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -3282,6 +3282,7 @@ var proxyFromEnvTests = []proxyFromEnvTest{
+ 	{env: "http://127.0.0.1:8080", want: "http://127.0.0.1:8080"},
+ 	{env: "https://127.0.0.1:8080", want: "https://127.0.0.1:8080"},
+ 	{env: "socks5://127.0.0.1", want: "socks5://127.0.0.1"},
++	{env: "socks5h://127.0.0.1", want: "socks5h://127.0.0.1"},
+ 
+ 	// Don't use secure for http
+ 	{req: "http://insecure.tld/", env: "http.proxy.tld", httpsenv: "secure.proxy.tld", want: "http://http.proxy.tld"},

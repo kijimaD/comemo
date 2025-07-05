@@ -14,7 +14,7 @@ Date:   Fri Dec 16 15:10:07 2016 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/go/ast/ast.go                           |  1 +
  src/go/parser/parser.go                     |  5 ++++-
  src/go/parser/short_test.go                 |  2 ++
@@ -25,3 +25,150 @@ Date:   Fri Dec 16 15:10:07 2016 -0800
  src/go/types/resolver.go                    |  3 +++
  src/go/types/testdata/decls0.src            |  8 ++++++++
  9 files changed, 54 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index a197b5a5bf..2ecc48b741 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -848,6 +848,7 @@ type (
+ 	TypeSpec struct {
+ 		Doc     *CommentGroup // associated documentation; or nil
+ 		Name    *Ident        // type name
++		Assign  token.Pos     // position of '=', if any
+ 		Type    Expr          // *Ident, *ParenExpr, *SelectorExpr, *StarExpr, or any of the *XxxTypes
+ 		Comment *CommentGroup // line comments; or nil
+ 	}
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index d3ef7db31e..40c4a3e58d 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2327,7 +2327,10 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
+ 	// (Global identifiers are resolved in a separate phase after parsing.)
+ 	spec := &ast.TypeSpec{Doc: doc, Name: ident}
+ 	p.declare(spec, nil, p.topScope, ast.Typ, ident)
+-
++	if p.tok == token.ASSIGN {
++		spec.Assign = p.pos
++		p.next()
++	}
+ 	spec.Type = p.parseType()
+ 	p.expectSemi() // call before accessing p.linecomment
+ 	spec.Comment = p.lineComment
+diff --git a/src/go/parser/short_test.go b/src/go/parser/short_test.go
+index cdd343ea3c..6f8ef6b0f7 100644
+--- a/src/go/parser/short_test.go
++++ b/src/go/parser/short_test.go
+@@ -46,6 +46,8 @@ var valids = []string{
+ 	`package p; const (x = 0; y; z)`, // issue 9639
+ 	`package p; var _ = map[P]int{P{}:0, {}:1}`,
+ 	`package p; var _ = map[*P]int{&P{}:0, {}:1}`,
++	`package p; type T = int`,
++	`package p; type (T = p.T; _ = struct{}; x = *T)`,
+ }
+ 
+ func TestValid(t *testing.T) {
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 11f26d45ea..5a408cd571 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -1445,6 +1445,9 @@ func (p *printer) spec(spec ast.Spec, n int, doIndent bool) {
+ 		} else {
+ 			p.print(vtab)
+ 		}
++		if s.Assign.IsValid() {
++			p.print(token.ASSIGN, blank)
++		}
+ 		p.expr(s.Type)
+ 		p.setComment(s.Comment)
+ 
+diff --git a/src/go/printer/testdata/declarations.golden b/src/go/printer/testdata/declarations.golden
+index 82f5e0f914..d4ea545658 100644
+--- a/src/go/printer/testdata/declarations.golden
++++ b/src/go/printer/testdata/declarations.golden
+@@ -985,3 +985,18 @@ func _(struct {
+ 	x	int
+ 	y	int
+ })	// no extra comma between } and )
++
++// alias declarations
++
++type c0 struct{}
++type c1 = C
++type c2 = struct{ x int }
++type c3 = p.C
++type (
++	s	struct{}
++	a	= A
++	b	= A
++	c	= foo
++	d	= interface{}
++	ddd	= p.Foo
++)
+diff --git a/src/go/printer/testdata/declarations.input b/src/go/printer/testdata/declarations.input
+index a0a3783b84..50386eb8d5 100644
+--- a/src/go/printer/testdata/declarations.input
++++ b/src/go/printer/testdata/declarations.input
+@@ -999,3 +999,18 @@ func _(struct {
+ 	x int
+ 	y int
+ }) // no extra comma between } and )
++
++// alias declarations
++
++type c0 struct{}
++type c1 = C
++type c2 = struct{ x int}
++type c3 = p.C
++type (
++	s struct{}
++	a = A
++	b = A
++	c = foo
++	d = interface{}
++	ddd = p.Foo
++)
+\ No newline at end of file
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index dced7a6d6d..2472aa3434 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -534,6 +534,9 @@ func (check *Checker) declStmt(decl ast.Decl) {
+ 				}
+ 
+ 			case *ast.TypeSpec:
++				if s.Assign.IsValid() {
++					check.errorf(s.Assign, "type alias declarations not yet implemented")
++				}
+ 				obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+ 				// spec: "The scope of a type identifier declared inside a function
+ 				// begins at the identifier in the TypeSpec and ends at the end of
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 046e147456..d37f93de45 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -346,6 +346,9 @@ func (check *Checker) collectObjects() {
+ 						}
+ 
+ 					case *ast.TypeSpec:
++						if s.Assign.IsValid() {
++							check.errorf(s.Assign, "type alias declarations not yet implemented")
++						}
+ 						obj := NewTypeName(s.Name.Pos(), pkg, s.Name.Name, nil)
+ 						check.declarePkgObj(s.Name, obj, &declInfo{file: fileScope, typ: s.Type})
+ 
+diff --git a/src/go/types/testdata/decls0.src b/src/go/types/testdata/decls0.src
+index d4df386b13..3ed1b976e5 100644
+--- a/src/go/types/testdata/decls0.src
++++ b/src/go/types/testdata/decls0.src
+@@ -208,3 +208,11 @@ func (BlankT) _() {}
+ func (BlankT) _(int) {}
+ func (BlankT) _() int { return 0 }
+ func (BlankT) _(int) int { return 0}
++
++// type alias declarations
++// TODO(gri) complete this
++type (
++	__ = /* ERROR not yet implemented */ int
++	a0 = /* ERROR not yet implemented */ int
++	a1 = /* ERROR not yet implemented */ struct{}
++)

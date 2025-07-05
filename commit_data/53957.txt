@@ -13,9 +13,116 @@ Date:   Wed Sep 7 03:33:43 2022 +0000
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/go/ast/commentmap_test.go | 4 ++--
  src/go/ast/example_test.go    | 6 +++---
  src/go/ast/filter_test.go     | 4 ++--
  src/go/ast/print_test.go      | 3 +--
  4 files changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/go/ast/commentmap_test.go b/src/go/ast/commentmap_test.go
+index 281467c41f..f0faeed610 100644
+--- a/src/go/ast/commentmap_test.go
++++ b/src/go/ast/commentmap_test.go
+@@ -7,12 +7,12 @@
+ package ast_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	. "go/ast"
+ 	"go/parser"
+ 	"go/token"
+ 	"sort"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -94,7 +94,7 @@ var res = map[string]string{
+ }
+ 
+ func ctext(list []*CommentGroup) string {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for _, g := range list {
+ 		buf.WriteString(g.Text())
+ 	}
+diff --git a/src/go/ast/example_test.go b/src/go/ast/example_test.go
+index e3013f64be..67860ce922 100644
+--- a/src/go/ast/example_test.go
++++ b/src/go/ast/example_test.go
+@@ -5,12 +5,12 @@
+ package ast_test
+ 
+ import (
+-	"bytes"
+ 	"fmt"
+ 	"go/ast"
+ 	"go/format"
+ 	"go/parser"
+ 	"go/token"
++	"strings"
+ )
+ 
+ // This example demonstrates how to inspect the AST of a Go program.
+@@ -186,11 +186,11 @@ func main() {
+ 	f.Comments = cmap.Filter(f).Comments()
+ 
+ 	// Print the modified AST.
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	if err := format.Node(&buf, fset, f); err != nil {
+ 		panic(err)
+ 	}
+-	fmt.Printf("%s", buf.Bytes())
++	fmt.Printf("%s", buf.String())
+ 
+ 	// Output:
+ 	// // This is the package comment.
+diff --git a/src/go/ast/filter_test.go b/src/go/ast/filter_test.go
+index 86f396bb8b..d5cb0c2e3f 100644
+--- a/src/go/ast/filter_test.go
++++ b/src/go/ast/filter_test.go
+@@ -7,11 +7,11 @@
+ package ast_test
+ 
+ import (
+-	"bytes"
+ 	"go/ast"
+ 	"go/format"
+ 	"go/parser"
+ 	"go/token"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -73,7 +73,7 @@ func TestFilterDuplicates(t *testing.T) {
+ 	merged := ast.MergePackageFiles(pkg, ast.FilterFuncDuplicates)
+ 
+ 	// pretty-print
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	if err := format.Node(&buf, fset, merged); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/go/ast/print_test.go b/src/go/ast/print_test.go
+index 6691ccd63a..94b515bce7 100644
+--- a/src/go/ast/print_test.go
++++ b/src/go/ast/print_test.go
+@@ -5,7 +5,6 @@
+ package ast
+ 
+ import (
+-	"bytes"
+ 	"strings"
+ 	"testing"
+ )
+@@ -84,7 +83,7 @@ func trim(s string) string {
+ }
+ 
+ func TestPrint(t *testing.T) {
+-	var buf bytes.Buffer
++	var buf strings.Builder
+ 	for _, test := range tests {
+ 		buf.Reset()
+ 		if err := Fprint(&buf, nil, test.x, nil); err != nil {

@@ -16,7 +16,7 @@ Date:   Tue May 11 11:44:24 2021 +0800
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Benny Siegert <bsiegert@gmail.com>
-
+---
  misc/cgo/testsanitizers/asan_test.go               |  5 ++++
  .../testsanitizers/testdata/asan_global1_fail.go   | 25 +++++++++++++++++
  .../testsanitizers/testdata/asan_global2_fail.go   | 31 ++++++++++++++++++++++
@@ -24,3 +24,181 @@ Date:   Tue May 11 11:44:24 2021 +0800
  .../testsanitizers/testdata/asan_global4_fail.go   | 25 +++++++++++++++++
  misc/cgo/testsanitizers/testdata/asan_global5.go   | 22 +++++++++++++++
  6 files changed, 136 insertions(+)
+
+diff --git a/misc/cgo/testsanitizers/asan_test.go b/misc/cgo/testsanitizers/asan_test.go
+index b5be1ffa27..dc1b5a1ecf 100644
+--- a/misc/cgo/testsanitizers/asan_test.go
++++ b/misc/cgo/testsanitizers/asan_test.go
+@@ -52,6 +52,11 @@ func TestASAN(t *testing.T) {
+ 		{src: "asan_unsafe_fail1.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail1.go:25"},
+ 		{src: "asan_unsafe_fail2.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail2.go:25"},
+ 		{src: "asan_unsafe_fail3.go", memoryAccessError: "use-after-poison", errorLocation: "asan_unsafe_fail3.go:18"},
++		{src: "asan_global1_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global1_fail.go:12"},
++		{src: "asan_global2_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global2_fail.go:19"},
++		{src: "asan_global3_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global3_fail.go:13"},
++		{src: "asan_global4_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global4_fail.go:21"},
++		{src: "asan_global5.go"},
+ 	}
+ 	for _, tc := range cases {
+ 		tc := tc
+diff --git a/misc/cgo/testsanitizers/testdata/asan_global1_fail.go b/misc/cgo/testsanitizers/testdata/asan_global1_fail.go
+new file mode 100644
+index 0000000000..6cfc0b7138
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_global1_fail.go
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++#include <stdio.h>
++
++int test(int *a) {
++	a[2] = 300;  // BOOM
++	return a[2];
++}
++*/
++import "C"
++
++import "fmt"
++
++var cIntArray [2]C.int
++
++func main() {
++	r := C.test(&cIntArray[0])
++	fmt.Println("r value = ", r)
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_global2_fail.go b/misc/cgo/testsanitizers/testdata/asan_global2_fail.go
+new file mode 100644
+index 0000000000..1932633368
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_global2_fail.go
+@@ -0,0 +1,31 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++#include <stdio.h>
++
++struct ss {
++	int *p;
++	int len;
++	int cap;
++};
++
++int test(struct ss *a) {
++	struct ss *t = a + 1;
++	t->len = 100;          // BOOM
++	return t->len;
++}
++*/
++import "C"
++import "fmt"
++
++var tt C.struct_ss
++
++func main() {
++	r := C.test(&tt)
++	fmt.Println("r value = ", r)
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_global3_fail.go b/misc/cgo/testsanitizers/testdata/asan_global3_fail.go
+new file mode 100644
+index 0000000000..9ab026c7fa
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_global3_fail.go
+@@ -0,0 +1,28 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#include <stdlib.h>
++#include <stdio.h>
++
++int test(int *a) {
++	int* p = a+1;
++	*p = 10;          // BOOM
++	return *p;
++}
++*/
++import "C"
++import (
++	"fmt"
++	"unsafe"
++)
++
++var cIntV C.int
++
++func main() {
++	r := C.test((*C.int)(unsafe.Pointer(&cIntV)))
++	fmt.Printf("r value is %d", r)
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_global4_fail.go b/misc/cgo/testsanitizers/testdata/asan_global4_fail.go
+new file mode 100644
+index 0000000000..d593598d5b
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_global4_fail.go
+@@ -0,0 +1,25 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++	"unsafe"
++)
++
++var intGlo int
++
++func main() {
++	r := bar(&intGlo)
++	fmt.Printf("r value is %d", r)
++}
++
++func bar(a *int) int {
++	p := (*int)(unsafe.Add(unsafe.Pointer(a), 1*unsafe.Sizeof(int(1))))
++	if *p == 10 { // BOOM
++		fmt.Println("its value is 10")
++	}
++	return *p
++}
+diff --git a/misc/cgo/testsanitizers/testdata/asan_global5.go b/misc/cgo/testsanitizers/testdata/asan_global5.go
+new file mode 100644
+index 0000000000..0ed103da4f
+--- /dev/null
++++ b/misc/cgo/testsanitizers/testdata/asan_global5.go
+@@ -0,0 +1,22 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type Any struct {
++	s string
++	b int64
++}
++
++var Sg = []interface{}{
++	Any{"a", 10},
++}
++
++func main() {
++	fmt.Println(Sg[0])
++}

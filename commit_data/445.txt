@@ -7,7 +7,44 @@ Date:   Tue Jul 29 13:16:42 2008 -0700
     R=gri
     OCL=13545
     CL=13545
-
+---
  src/syscall/errstr_darwin.go | 4 ++--
  src/syscall/errstr_linux.go  | 4 ++--
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/errstr_darwin.go b/src/syscall/errstr_darwin.go
+index c3ae975234..dd4e48587b 100644
+--- a/src/syscall/errstr_darwin.go
++++ b/src/syscall/errstr_darwin.go
+@@ -336,11 +336,11 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	var buf [32]byte;  // big enough for int64
+ 	i := len(buf)-1;
+ 	for val >= 10 {
+-		buf[i] = val%10 + '0';
++		buf[i] = byte(val%10 + '0');
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = val + '0';
++	buf[i] = byte(val + '0');
+ 	return string(buf)[i:len(buf)];
+ }
+ 
+diff --git a/src/syscall/errstr_linux.go b/src/syscall/errstr_linux.go
+index fa42572cf7..021861a243 100644
+--- a/src/syscall/errstr_linux.go
++++ b/src/syscall/errstr_linux.go
+@@ -410,11 +410,11 @@ func str(val int64) string {  // do it here rather than with fmt to avoid depend
+ 	var buf [32]byte;  // big enough for int64
+ 	i := len(buf)-1;
+ 	for val >= 10 {
+-		buf[i] = val%10 + '0';
++		buf[i] = byte(val%10 + '0');
+ 		i--;
+ 		val /= 10;
+ 	}
+-	buf[i] = val + '0';
++	buf[i] = byte(val + '0');
+ 	return string(buf)[i:len(buf)];
+ }
+ 

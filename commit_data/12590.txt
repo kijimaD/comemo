@@ -9,6 +9,40 @@ Date:   Tue Mar 13 11:55:16 2012 +1100
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/5795067
-
+---
  doc/progs/run | 14 ++++++++++----
  1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/doc/progs/run b/doc/progs/run
+index 8b383e5903..4d183530cb 100755
+--- a/doc/progs/run
++++ b/doc/progs/run
+@@ -5,6 +5,8 @@
+ 
+ set -e
+ 
++goos=$(go env GOOS)
++
+ defer_panic_recover="
+ 	defer
+ 	defer2
+@@ -29,11 +31,15 @@ law_of_reflection="
+ "
+ 
+ c_go_cgo="
+-    cgo1
+-    cgo2
+-    cgo3
+-    cgo4
++	cgo1
++	cgo2
++	cgo3
++	cgo4
+ "
++# cgo1 and cgo2 don't run on freebsd, srandom has a different signature
++if [ "$goos" == "freebsd" ]; then
++	c_go_cgo="cgo3 cgo4"
++fi
+ 
+ all=$(echo $defer_panic_recover $effective_go $error_handling $law_of_reflection $c_go_cgo slices go1)
+ 

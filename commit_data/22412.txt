@@ -10,6 +10,21 @@ Date:   Fri Mar 13 01:52:12 2015 +1100
     Change-Id: Ia50ff01ac86ea83358e72b8f45f7818aaec1e4b1
     Reviewed-on: https://go-review.googlesource.com/7490
     Reviewed-by: Minux Ma <minux@golang.org>
-
+---
  src/runtime/os1_openbsd.go | 3 ---
  1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/os1_openbsd.go b/src/runtime/os1_openbsd.go
+index 04779ea870..92a19fe31b 100644
+--- a/src/runtime/os1_openbsd.go
++++ b/src/runtime/os1_openbsd.go
+@@ -117,9 +117,6 @@ func newosproc(mp *m, stk unsafe.Pointer) {
+ 
+ 	if ret < 0 {
+ 		print("runtime: failed to create new OS thread (have ", mcount()-1, " already; errno=", -ret, ")\n")
+-		if ret == -_ENOTSUP {
+-			print("runtime: is kern.rthreads disabled?\n")
+-		}
+ 		throw("runtime.newosproc")
+ 	}
+ }

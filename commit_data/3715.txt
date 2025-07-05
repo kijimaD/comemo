@@ -8,6 +8,18 @@ Date:   Mon Nov 2 10:12:40 2009 -0800
     
     R=rsc
     http://go/go-review/1018018
-
+---
  test/runtime.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/runtime.go b/test/runtime.go
+index 5bf76e0036..9507300a27 100644
+--- a/test/runtime.go
++++ b/test/runtime.go
+@@ -16,5 +16,5 @@ package main
+ import "runtime"
+ 
+ func main() {
+-	runtime.printbool(true);	// ERROR "cannot refer"
++	runtime.printbool(true);	// ERROR "cannot refer|undefined identifier"
+ }

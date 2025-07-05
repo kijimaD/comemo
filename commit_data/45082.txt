@@ -15,7 +15,43 @@ Date:   Wed Sep 30 17:37:24 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  src/internal/poll/fd_fsync_darwin.go | 7 ++++---
  src/internal/poll/fd_unix.go         | 7 +++++++
  2 files changed, 11 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/fd_fsync_darwin.go b/src/internal/poll/fd_fsync_darwin.go
+index 91751496a4..48e7596922 100644
+--- a/src/internal/poll/fd_fsync_darwin.go
++++ b/src/internal/poll/fd_fsync_darwin.go
+@@ -14,7 +14,8 @@ func (fd *FD) Fsync() error {
+ 		return err
+ 	}
+ 	defer fd.decref()
+-
+-	_, e1 := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
+-	return e1
++	return ignoringEINTR(func() error {
++		_, err := fcntl(fd.Sysfd, syscall.F_FULLFSYNC, 0)
++		return err
++	})
+ }
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index f6f6c52f31..2e77e76c87 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -74,7 +74,14 @@ func (fd *FD) destroy() error {
+ 	// Poller may want to unregister fd in readiness notification mechanism,
+ 	// so this must be executed before CloseFunc.
+ 	fd.pd.close()
++
++	// We don't use ignoringEINTR here because POSIX does not define
++	// whether the descriptor is closed if close returns EINTR.
++	// If the descriptor is indeed closed, using a loop would race
++	// with some other goroutine opening a new descriptor.
++	// (The Linux kernel guarantees that it is closed on an EINTR error.)
+ 	err := CloseFunc(fd.Sysfd)
++
+ 	fd.Sysfd = -1
+ 	runtime_Semrelease(&fd.csema)
+ 	return err

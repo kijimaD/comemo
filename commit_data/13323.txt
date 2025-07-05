@@ -7,6 +7,46 @@ Date:   Fri Jun 8 13:44:13 2012 -0400
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/6298063
-
+---
  src/cmd/api/goapi.go | 14 +++++++++++++-
  1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/goapi.go b/src/cmd/api/goapi.go
+index 3beb7d4b71..ad1c6bb8ca 100644
+--- a/src/cmd/api/goapi.go
++++ b/src/cmd/api/goapi.go
+@@ -28,6 +28,7 @@ import (
+ 	"os/exec"
+ 	"path"
+ 	"path/filepath"
++	"runtime"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -99,6 +100,13 @@ func setContexts() {
+ func main() {
+ 	flag.Parse()
+ 
++	if !strings.Contains(runtime.Version(), "weekly") {
++		if *nextFile != "" {
++			fmt.Printf("Go version is %q, ignoring -next %s\n", runtime.Version(), *nextFile)
++			*nextFile = ""
++		}
++	}
++
+ 	if *forceCtx != "" {
+ 		setContexts()
+ 	}
+@@ -235,7 +243,11 @@ func fileFeatures(filename string) []string {
+ 	if err != nil {
+ 		log.Fatalf("Error reading file %s: %v", filename, err)
+ 	}
+-	return strings.Split(strings.TrimSpace(string(bs)), "\n")
++	text := strings.TrimSpace(string(bs))
++	if text == "" {
++		return nil
++	}
++	return strings.Split(text, "\n")
+ }
+ 
+ // pkgSymbol represents a symbol in a package

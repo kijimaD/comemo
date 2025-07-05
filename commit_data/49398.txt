@@ -16,7 +16,7 @@ Date:   Mon Jul 26 10:39:38 2021 -0700
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
     Reviewed-on: https://go-review.googlesource.com/c/go/+/341937
-
+---
  src/cmd/go/internal/fsys/fsys_test.go              |  3 +-
  src/cmd/go/internal/txtar/archive_test.go          | 67 ----------------------
  src/cmd/go/proxy_test.go                           |  2 +-
@@ -26,3 +26,204 @@ Date:   Mon Jul 26 10:39:38 2021 -0700
  .../golang.org/x/tools}/txtar/archive.go           |  6 +-
  src/cmd/vendor/modules.txt                         |  1 +
  8 files changed, 11 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys_test.go b/src/cmd/go/internal/fsys/fsys_test.go
+index 7f175c7031..c080c14987 100644
+--- a/src/cmd/go/internal/fsys/fsys_test.go
++++ b/src/cmd/go/internal/fsys/fsys_test.go
+@@ -1,7 +1,6 @@
+ package fsys
+ 
+ import (
+-	"cmd/go/internal/txtar"
+ 	"encoding/json"
+ 	"errors"
+ 	"fmt"
+@@ -12,6 +11,8 @@ import (
+ 	"path/filepath"
+ 	"reflect"
+ 	"testing"
++
++	"golang.org/x/tools/txtar"
+ )
+ 
+ // initOverlay resets the overlay state to reflect the config.
+diff --git a/src/cmd/go/internal/txtar/archive_test.go b/src/cmd/go/internal/txtar/archive_test.go
+deleted file mode 100644
+index 3f734f6762..0000000000
+--- a/src/cmd/go/internal/txtar/archive_test.go
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package txtar
+-
+-import (
+-	"bytes"
+-	"fmt"
+-	"reflect"
+-	"testing"
+-)
+-
+-var tests = []struct {
+-	name   string
+-	text   string
+-	parsed *Archive
+-}{
+-	{
+-		name: "basic",
+-		text: `comment1
+-comment2
+--- file1 --
+-File 1 text.
+--- foo ---
+-More file 1 text.
+--- file 2 --
+-File 2 text.
+--- empty --
+--- noNL --
+-hello world`,
+-		parsed: &Archive{
+-			Comment: []byte("comment1\ncomment2\n"),
+-			Files: []File{
+-				{"file1", []byte("File 1 text.\n-- foo ---\nMore file 1 text.\n")},
+-				{"file 2", []byte("File 2 text.\n")},
+-				{"empty", []byte{}},
+-				{"noNL", []byte("hello world\n")},
+-			},
+-		},
+-	},
+-}
+-
+-func Test(t *testing.T) {
+-	for _, tt := range tests {
+-		t.Run(tt.name, func(t *testing.T) {
+-			a := Parse([]byte(tt.text))
+-			if !reflect.DeepEqual(a, tt.parsed) {
+-				t.Fatalf("Parse: wrong output:\nhave:\n%s\nwant:\n%s", shortArchive(a), shortArchive(tt.parsed))
+-			}
+-			text := Format(a)
+-			a = Parse(text)
+-			if !reflect.DeepEqual(a, tt.parsed) {
+-				t.Fatalf("Parse after Format: wrong output:\nhave:\n%s\nwant:\n%s", shortArchive(a), shortArchive(tt.parsed))
+-			}
+-		})
+-	}
+-}
+-
+-func shortArchive(a *Archive) string {
+-	var buf bytes.Buffer
+-	fmt.Fprintf(&buf, "comment: %q\n", a.Comment)
+-	for _, f := range a.Files {
+-		fmt.Fprintf(&buf, "file %q: %q\n", f.Name, f.Data)
+-	}
+-	return buf.String()
+-}
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index 74bfecc08d..a387fe67db 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -25,12 +25,12 @@ import (
+ 
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/par"
+-	"cmd/go/internal/txtar"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+ 	"golang.org/x/mod/sumdb"
+ 	"golang.org/x/mod/sumdb/dirhash"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ var (
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 8a7c77a46f..3c5855bd6f 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -31,9 +31,10 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+-	"cmd/go/internal/txtar"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/sys"
++
++	"golang.org/x/tools/txtar"
+ )
+ 
+ var testSum = flag.String("testsum", "", `may be tidy, listm, or listall. If set, TestScript generates a go.sum file at the beginning of each test and updates test files if they pass.`)
+diff --git a/src/cmd/go/testdata/addmod.go b/src/cmd/go/testdata/addmod.go
+index 03869e68de..a1ace4ce59 100644
+--- a/src/cmd/go/testdata/addmod.go
++++ b/src/cmd/go/testdata/addmod.go
+@@ -29,7 +29,7 @@ import (
+ 	"path/filepath"
+ 	"strings"
+ 
+-	"cmd/go/internal/txtar"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/go/testdata/savedir.go b/src/cmd/go/testdata/savedir.go
+index d469c31a91..6a8a232702 100644
+--- a/src/cmd/go/testdata/savedir.go
++++ b/src/cmd/go/testdata/savedir.go
+@@ -24,7 +24,7 @@ import (
+ 	"strings"
+ 	"unicode/utf8"
+ 
+-	"../internal/txtar"
++	"golang.org/x/tools/txtar"
+ )
+ 
+ func usage() {
+diff --git a/src/cmd/go/internal/txtar/archive.go b/src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+similarity index 96%
+rename from src/cmd/go/internal/txtar/archive.go
+rename to src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+index 1796684877..214256617b 100644
+--- a/src/cmd/go/internal/txtar/archive.go
++++ b/src/cmd/vendor/golang.org/x/tools/txtar/archive.go
+@@ -34,7 +34,7 @@ package txtar
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"os"
++	"io/ioutil"
+ 	"strings"
+ )
+ 
+@@ -66,7 +66,7 @@ func Format(a *Archive) []byte {
+ 
+ // ParseFile parses the named file as an archive.
+ func ParseFile(file string) (*Archive, error) {
+-	data, err := os.ReadFile(file)
++	data, err := ioutil.ReadFile(file)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -121,7 +121,7 @@ func isMarker(data []byte) (name string, after []byte) {
+ 	if i := bytes.IndexByte(data, '\n'); i >= 0 {
+ 		data, after = data[:i], data[i+1:]
+ 	}
+-	if !bytes.HasSuffix(data, markerEnd) {
++	if !(bytes.HasSuffix(data, markerEnd) && len(data) >= len(marker)+len(markerEnd)) {
+ 		return "", nil
+ 	}
+ 	return strings.TrimSpace(string(data[len(marker) : len(data)-len(markerEnd)])), after
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c98bdcd344..1765e3e1fc 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -93,6 +93,7 @@ golang.org/x/tools/go/types/typeutil
+ golang.org/x/tools/internal/analysisinternal
+ golang.org/x/tools/internal/lsp/fuzzy
+ golang.org/x/tools/internal/typeparams
++golang.org/x/tools/txtar
+ # golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
+ ## explicit; go 1.11
+ golang.org/x/xerrors

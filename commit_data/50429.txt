@@ -20,7 +20,7 @@ Date:   Mon Oct 25 07:48:12 2021 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd.go           |  7 +----
  src/syscall/syscall_darwin.go        | 53 +-----------------------------------
  src/syscall/syscall_dragonfly.go     |  5 ----
@@ -32,3 +32,261 @@ Date:   Mon Oct 25 07:48:12 2021 +0200
  src/syscall/zsyscall_darwin_arm64.go | 19 +++++++++++++
  src/syscall/zsyscall_darwin_arm64.s  |  4 +--
  10 files changed, 44 insertions(+), 82 deletions(-)
+
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index 595e705856..40b1c07a90 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -524,12 +524,7 @@ func UtimesNano(path string, ts []Timespec) error {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
+-	// Darwin setattrlist can set nanosecond timestamps
+-	err := setattrlistTimes(path, ts)
+-	if err != ENOSYS {
+-		return err
+-	}
+-	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
++	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index a4fe4f1962..5bb34e300c 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -72,22 +72,6 @@ func direntNamlen(buf []byte) (uint64, bool) {
+ func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
+ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+ 
+-const (
+-	attrBitMapCount = 5
+-	attrCmnModtime  = 0x00000400
+-	attrCmnAcctime  = 0x00001000
+-)
+-
+-type attrList struct {
+-	bitmapCount uint16
+-	_           uint16
+-	CommonAttr  uint32
+-	VolAttr     uint32
+-	DirAttr     uint32
+-	FileAttr    uint32
+-	Forkattr    uint32
+-}
+-
+ //sysnb pipe(p *[2]int32) (err error)
+ 
+ func Pipe(p []int) (err error) {
+@@ -120,42 +104,7 @@ func libc_getfsstat_trampoline()
+ 
+ //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
+ 
+-func setattrlistTimes(path string, times []Timespec) error {
+-	_p0, err := BytePtrFromString(path)
+-	if err != nil {
+-		return err
+-	}
+-
+-	var attrList attrList
+-	attrList.bitmapCount = attrBitMapCount
+-	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
+-
+-	// order is mtime, atime: the opposite of Chtimes
+-	attributes := [2]Timespec{times[1], times[0]}
+-	const options = 0
+-	_, _, e1 := syscall6(
+-		abi.FuncPCABI0(libc_setattrlist_trampoline),
+-		uintptr(unsafe.Pointer(_p0)),
+-		uintptr(unsafe.Pointer(&attrList)),
+-		uintptr(unsafe.Pointer(&attributes)),
+-		uintptr(unsafe.Sizeof(attributes)),
+-		uintptr(options),
+-		0,
+-	)
+-	if e1 != 0 {
+-		return e1
+-	}
+-	return nil
+-}
+-
+-func libc_setattrlist_trampoline()
+-
+-//go:cgo_import_dynamic libc_setattrlist setattrlist "/usr/lib/libSystem.B.dylib"
+-
+-func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
+-	// Darwin doesn't support SYS_UTIMENSAT
+-	return ENOSYS
+-}
++//sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
+ 
+ /*
+  * Wrapped
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index b01a4ada67..16adf306d5 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -156,11 +156,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func setattrlistTimes(path string, times []Timespec) error {
+-	// used on Darwin for UtimesNano
+-	return ENOSYS
+-}
+-
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 7c7b89aab9..6f44b25cb9 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -176,11 +176,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func setattrlistTimes(path string, times []Timespec) error {
+-	// used on Darwin for UtimesNano
+-	return ENOSYS
+-}
+-
+ func Stat(path string, st *Stat_t) (err error) {
+ 	var oldStat stat_freebsd11_t
+ 	if supportsABI(_ino64First) {
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index fc13b706b5..6f05b0d43d 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -146,11 +146,6 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ 	return -1, ENOSYS
+ }
+ 
+-func setattrlistTimes(path string, times []Timespec) error {
+-	// used on Darwin for UtimesNano
+-	return ENOSYS
+-}
+-
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 5a5ba5a51b..195cf8617c 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -121,11 +121,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
+-func setattrlistTimes(path string, times []Timespec) error {
+-	// used on Darwin for UtimesNano
+-	return ENOSYS
+-}
+-
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 07a519d7d6..ff88fef74e 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -345,6 +345,25 @@ func libc_pipe_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall6(abi.FuncPCABI0(libc_utimensat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_utimensat_trampoline()
++
++//go:cgo_import_dynamic libc_utimensat utimensat "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_kill_trampoline), uintptr(pid), uintptr(signum), uintptr(posix))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_amd64.s b/src/syscall/zsyscall_darwin_amd64.s
+index 492f947855..563083d441 100644
+--- a/src/syscall/zsyscall_darwin_amd64.s
++++ b/src/syscall/zsyscall_darwin_amd64.s
+@@ -3,8 +3,6 @@
+ #include "textflag.h"
+ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+-TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fdopendir(SB)
+ TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
+@@ -53,6 +51,8 @@ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+ TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
++TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_utimensat(SB)
+ TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+ TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 5ae096730e..b096b5e662 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -345,6 +345,25 @@ func libc_pipe_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error) {
++	var _p0 *byte
++	_p0, err = BytePtrFromString(path)
++	if err != nil {
++		return
++	}
++	_, _, e1 := syscall6(abi.FuncPCABI0(libc_utimensat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(_p0)), uintptr(unsafe.Pointer(times)), uintptr(flags), 0, 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func libc_utimensat_trampoline()
++
++//go:cgo_import_dynamic libc_utimensat utimensat "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func kill(pid int, signum int, posix int) (err error) {
+ 	_, _, e1 := syscall(abi.FuncPCABI0(libc_kill_trampoline), uintptr(pid), uintptr(signum), uintptr(posix))
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_darwin_arm64.s b/src/syscall/zsyscall_darwin_arm64.s
+index b606c6e49e..0567a42fa3 100644
+--- a/src/syscall/zsyscall_darwin_arm64.s
++++ b/src/syscall/zsyscall_darwin_arm64.s
+@@ -3,8 +3,6 @@
+ #include "textflag.h"
+ TEXT ·libc_getfsstat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_getfsstat(SB)
+-TEXT ·libc_setattrlist_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_setattrlist(SB)
+ TEXT ·libc_fdopendir_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fdopendir(SB)
+ TEXT ·libc_sendfile_trampoline(SB),NOSPLIT,$0-0
+@@ -53,6 +51,8 @@ TEXT ·libc_fcntl_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fcntl(SB)
+ TEXT ·libc_pipe_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_pipe(SB)
++TEXT ·libc_utimensat_trampoline(SB),NOSPLIT,$0-0
++	JMP	libc_utimensat(SB)
+ TEXT ·libc_kill_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_kill(SB)
+ TEXT ·libc_access_trampoline(SB),NOSPLIT,$0-0

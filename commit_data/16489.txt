@@ -7,6 +7,19 @@ Date:   Wed Jun 5 09:11:49 2013 +1000
     R=golang-dev
     CC=golang-dev
     https://golang.org/cl/10019045
-
+---
  CONTRIBUTORS | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 20ed3bf21d..074e4150d7 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -423,6 +423,7 @@ Vish Subramanian <vish@google.com>
+ Vladimir Nikishenko <vova616@gmail.com>
+ Volker Dobler <dr.volker.dobler@gmail.com>
+ Wei Guangjing <vcc.163@gmail.com>
++Will Norris <willnorris@google.com>
+ Willem van der Schyff <willemvds@gmail.com>
+ William Chan <willchan@chromium.org>
+ William Josephson <wjosephson@gmail.com>

@@ -92,6 +92,42 @@ Date:   Mon Feb 1 14:06:51 2016 -0500
     Reviewed-by: Russ Cox <rsc@golang.org>
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/proc.go | 12 ++++++++++++
  1 file changed, 12 insertions(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 2bc3c920dc..d1f5088b50 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1602,11 +1602,19 @@ func startm(_p_ *p, spinning bool) {
+ // Always runs without a P, so write barriers are not allowed.
+ //go:nowritebarrier
+ func handoffp(_p_ *p) {
++	// handoffp must start an M in any situation where
++	// findrunnable would return a G to run on _p_.
++
+ 	// if it has local work, start it straight away
+ 	if !runqempty(_p_) || sched.runqsize != 0 {
+ 		startm(_p_, false)
+ 		return
+ 	}
++	// if it has GC work, start it straight away
++	if gcBlackenEnabled != 0 && gcMarkWorkAvailable(_p_) {
++		startm(_p_, false)
++		return
++	}
+ 	// no local work, check that there are no spinning/idle M's,
+ 	// otherwise our help is not required
+ 	if atomic.Load(&sched.nmspinning)+atomic.Load(&sched.npidle) == 0 && atomic.Cas(&sched.nmspinning, 0, 1) { // TODO: fast atomic
+@@ -1787,6 +1795,10 @@ func execute(gp *g, inheritTime bool) {
+ func findrunnable() (gp *g, inheritTime bool) {
+ 	_g_ := getg()
+ 
++	// The conditions here and in handoffp must agree: if
++	// findrunnable would return a G to run, handoffp must start
++	// an M.
++
+ top:
+ 	if sched.gcwaiting != 0 {
+ 		gcstopm()

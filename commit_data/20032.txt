@@ -8,7 +8,125 @@ Date:   Tue Aug 12 19:50:40 2014 -0400
     R=rsc, iant
     CC=golang-codereviews
     https://golang.org/cl/119670043
-
+---
  src/pkg/math/abs_power64x.s   | 14 +++++++
  src/pkg/math/stubs_power64x.s | 91 +++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 105 insertions(+)
+
+diff --git a/src/pkg/math/abs_power64x.s b/src/pkg/math/abs_power64x.s
+new file mode 100644
+index 0000000000..8fd8020f98
+--- /dev/null
++++ b/src/pkg/math/abs_power64x.s
+@@ -0,0 +1,14 @@
++// Copyright 2011 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++
++#include "../../cmd/ld/textflag.h"
++
++TEXT ·Abs(SB),NOSPLIT,$0-16
++	MOVD	x+0(FP), R3
++	MOVD 	$((1<<63)-1), R4
++	AND	R4, R3
++	MOVD	R3, ret+8(FP)
++	RETURN
+diff --git a/src/pkg/math/stubs_power64x.s b/src/pkg/math/stubs_power64x.s
+new file mode 100644
+index 0000000000..0cb86144a7
+--- /dev/null
++++ b/src/pkg/math/stubs_power64x.s
+@@ -0,0 +1,91 @@
++// Copyright 2014 The Go Authors.  All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build power64 power64le
++
++#include "../../cmd/ld/textflag.h"
++
++TEXT ·Asin(SB),NOSPLIT,$0
++	BR ·asin(SB)
++
++TEXT ·Acos(SB),NOSPLIT,$0
++	BR ·acos(SB)
++
++TEXT ·Atan2(SB),NOSPLIT,$0
++	BR ·atan2(SB)
++
++TEXT ·Atan(SB),NOSPLIT,$0
++	BR ·atan(SB)
++
++TEXT ·Dim(SB),NOSPLIT,$0
++	BR ·dim(SB)
++
++TEXT ·Min(SB),NOSPLIT,$0
++	BR ·min(SB)
++
++TEXT ·Max(SB),NOSPLIT,$0
++	BR ·max(SB)
++
++TEXT ·Exp2(SB),NOSPLIT,$0
++	BR ·exp2(SB)
++
++TEXT ·Expm1(SB),NOSPLIT,$0
++	BR ·expm1(SB)
++
++TEXT ·Exp(SB),NOSPLIT,$0
++	BR ·exp(SB)
++
++TEXT ·Floor(SB),NOSPLIT,$0
++	BR ·floor(SB)
++
++TEXT ·Ceil(SB),NOSPLIT,$0
++	BR ·ceil(SB)
++
++TEXT ·Trunc(SB),NOSPLIT,$0
++	BR ·trunc(SB)
++
++TEXT ·Frexp(SB),NOSPLIT,$0
++	BR ·frexp(SB)
++
++TEXT ·Hypot(SB),NOSPLIT,$0
++	BR ·hypot(SB)
++
++TEXT ·Ldexp(SB),NOSPLIT,$0
++	BR ·ldexp(SB)
++
++TEXT ·Log10(SB),NOSPLIT,$0
++	BR ·log10(SB)
++
++TEXT ·Log2(SB),NOSPLIT,$0
++	BR ·log2(SB)
++
++TEXT ·Log1p(SB),NOSPLIT,$0
++	BR ·log1p(SB)
++
++TEXT ·Log(SB),NOSPLIT,$0
++	BR ·log(SB)
++
++TEXT ·Modf(SB),NOSPLIT,$0
++	BR ·modf(SB)
++
++TEXT ·Mod(SB),NOSPLIT,$0
++	BR ·mod(SB)
++
++TEXT ·Remainder(SB),NOSPLIT,$0
++	BR ·remainder(SB)
++
++TEXT ·Sincos(SB),NOSPLIT,$0
++	BR ·sincos(SB)
++
++TEXT ·Sin(SB),NOSPLIT,$0
++	BR ·sin(SB)
++
++TEXT ·Cos(SB),NOSPLIT,$0
++	BR ·cos(SB)
++
++TEXT ·Sqrt(SB),NOSPLIT,$0
++	BR ·sqrt(SB)
++
++TEXT ·Tan(SB),NOSPLIT,$0
++	BR ·tan(SB)

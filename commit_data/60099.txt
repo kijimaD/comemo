@@ -14,8 +14,69 @@ Date:   Tue May 21 15:05:55 2024 -0700
     Auto-Submit: Robert Griesemer <gri@google.com>
     Reviewed-by: Robert Griesemer <gri@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/cmd/compile/internal/types2/under.go            |  2 ++
  src/go/types/under.go                               |  2 ++
  src/internal/types/testdata/fixedbugs/issue67547.go | 12 ++++++++++++
  3 files changed, 16 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index 6b24399de4..2d90c35d3b 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -22,6 +22,7 @@ func under(t Type) Type {
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+ func coreType(t Type) Type {
++	t = Unalias(t)
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t)
+@@ -51,6 +52,7 @@ func coreType(t Type) Type {
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+ func coreString(t Type) Type {
++	t = Unalias(t)
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t) // string or untyped string
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index 9f9740e7c3..ed5aab238e 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -25,6 +25,7 @@ func under(t Type) Type {
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+ func coreType(t Type) Type {
++	t = Unalias(t)
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t)
+@@ -54,6 +55,7 @@ func coreType(t Type) Type {
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+ func coreString(t Type) Type {
++	t = Unalias(t)
+ 	tpar, _ := t.(*TypeParam)
+ 	if tpar == nil {
+ 		return under(t) // string or untyped string
+diff --git a/src/internal/types/testdata/fixedbugs/issue67547.go b/src/internal/types/testdata/fixedbugs/issue67547.go
+index cca8ba2367..b95be4faeb 100644
+--- a/src/internal/types/testdata/fixedbugs/issue67547.go
++++ b/src/internal/types/testdata/fixedbugs/issue67547.go
+@@ -8,3 +8,15 @@ func _[P int]() {
+ 	type A = P
+ 	_ = A(0) // don't crash with this conversion
+ }
++
++func _[P []int]() {
++	type A = P
++	_ = make(A, 10) // don't report an error for A
++}
++
++func _[P string]() {
++	var t []byte
++	type A = P
++	var s A
++	copy(t, s) // don't report an error for s
++}

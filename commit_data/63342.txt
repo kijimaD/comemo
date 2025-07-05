@@ -23,7 +23,7 @@ Date:   Fri Jun 27 00:59:49 2025 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
-
+---
  src/internal/trace/testdata/testprog/stacks.go | 14 ++++++++++++++
  src/internal/trace/trace_test.go               | 15 ++++++++++-----
  src/runtime/proc.go                            |  4 ++--
@@ -32,3 +32,178 @@ Date:   Fri Jun 27 00:59:49 2025 +0000
  src/runtime/traceruntime.go                    |  2 +-
  src/runtime/tracestack.go                      | 17 ++++++++++++++++-
  7 files changed, 47 insertions(+), 9 deletions(-)
+
+diff --git a/src/internal/trace/testdata/testprog/stacks.go b/src/internal/trace/testdata/testprog/stacks.go
+index e64bc86844..478daa0d94 100644
+--- a/src/internal/trace/testdata/testprog/stacks.go
++++ b/src/internal/trace/testdata/testprog/stacks.go
+@@ -97,6 +97,11 @@ func main() {
+ 		rp.Read(data[:])
+ 		pipeReadDone <- true
+ 	}()
++	go func() { // func12
++		for {
++			syncPreemptPoint()
++		}
++	}()
+ 
+ 	time.Sleep(100 * time.Millisecond)
+ 	runtime.GC()
+@@ -127,3 +132,12 @@ func main() {
+ 
+ 	runtime.GOMAXPROCS(oldGoMaxProcs)
+ }
++
++//go:noinline
++func syncPreemptPoint() {
++	if never {
++		syncPreemptPoint()
++	}
++}
++
++var never bool
+diff --git a/src/internal/trace/trace_test.go b/src/internal/trace/trace_test.go
+index eaf194cf07..44b7055344 100644
+--- a/src/internal/trace/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -326,7 +326,8 @@ func TestTraceStacks(t *testing.T) {
+ 		const mainLine = 21
+ 		want := []evDesc{
+ 			{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
+-				{"main.main", mainLine + 82},
++				{"runtime.Gosched", 0},
++				{"main.main", mainLine + 87},
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine NotExist->Runnable", []frame{
+ 				{"main.main", mainLine + 11},
+@@ -349,7 +350,7 @@ func TestTraceStacks(t *testing.T) {
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
+ 				{"runtime.chansend1", 0},
+-				{"main.main", mainLine + 84},
++				{"main.main", mainLine + 89},
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
+ 				{"runtime.chansend1", 0},
+@@ -357,7 +358,7 @@ func TestTraceStacks(t *testing.T) {
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
+ 				{"runtime.chanrecv1", 0},
+-				{"main.main", mainLine + 85},
++				{"main.main", mainLine + 90},
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
+ 				{"runtime.selectgo", 0},
+@@ -365,7 +366,7 @@ func TestTraceStacks(t *testing.T) {
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
+ 				{"runtime.selectgo", 0},
+-				{"main.main", mainLine + 86},
++				{"main.main", mainLine + 91},
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
+ 				{"sync.(*Mutex).Lock", 0},
+@@ -382,7 +383,7 @@ func TestTraceStacks(t *testing.T) {
+ 			{trace.EventStateTransition, "Goroutine Waiting->Runnable", []frame{
+ 				{"sync.(*WaitGroup).Add", 0},
+ 				{"sync.(*WaitGroup).Done", 0},
+-				{"main.main", mainLine + 91},
++				{"main.main", mainLine + 96},
+ 			}},
+ 			{trace.EventStateTransition, "Goroutine Running->Waiting", []frame{
+ 				{"sync.(*Cond).Wait", 0},
+@@ -402,6 +403,10 @@ func TestTraceStacks(t *testing.T) {
+ 				{"runtime.GOMAXPROCS", 0},
+ 				{"main.main", 0},
+ 			}},
++			{trace.EventStateTransition, "Goroutine Running->Runnable", []frame{
++				{"main.syncPreemptPoint", 0},
++				{"main.main.func12", 0},
++			}},
+ 		}
+ 		if !stress {
+ 			// Only check for this stack if !stress because traceAdvance alone could
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9817308430..0376f7812b 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3307,10 +3307,10 @@ func execute(gp *g, inheritTime bool) {
+ 		tryRecordGoroutineProfile(gp, nil, osyield)
+ 	}
+ 
+-	// Assign gp.m before entering _Grunning so running Gs have an
+-	// M.
++	// Assign gp.m before entering _Grunning so running Gs have an M.
+ 	mp.curg = gp
+ 	gp.m = mp
++	gp.syncSafePoint = false // Clear the flag, which may have been set by morestack.
+ 	casgstatus(gp, _Grunnable, _Grunning)
+ 	gp.waitsince = 0
+ 	gp.preempt = false
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 96720846b2..49a2ba2752 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -466,6 +466,7 @@ type g struct {
+ 	runnableTime    int64 // the amount of time spent runnable, cleared when running, only used when tracking
+ 	lockedm         muintptr
+ 	fipsIndicator   uint8
++	syncSafePoint   bool // set if g is stopped at a synchronous safe point.
+ 	runningCleanups atomic.Bool
+ 	sig             uint32
+ 	writebuf        []byte
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 4b647976f0..a338708d76 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1115,6 +1115,9 @@ func newstack() {
+ 			shrinkstack(gp)
+ 		}
+ 
++		// Set a flag indicated that we've been synchronously preempted.
++		gp.syncSafePoint = true
++
+ 		if gp.preemptStop {
+ 			preemptPark(gp) // never returns
+ 		}
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 39adeb4c07..a2775a3427 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -457,7 +457,7 @@ func (tl traceLocker) GoPreempt() {
+ 
+ // GoStop emits a GoStop event with the provided reason.
+ func (tl traceLocker) GoStop(reason traceGoStopReason) {
+-	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(1))
++	tl.eventWriter(tracev2.GoRunning, tracev2.ProcRunning).event(tracev2.EvGoStop, traceArg(trace.goStopReasons[tl.gen%2][reason]), tl.stack(0))
+ }
+ 
+ // GoPark emits a GoBlock event with the provided reason.
+diff --git a/src/runtime/tracestack.go b/src/runtime/tracestack.go
+index bca2d0a88d..2ee68c85f0 100644
+--- a/src/runtime/tracestack.go
++++ b/src/runtime/tracestack.go
+@@ -109,7 +109,22 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
+ 				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
+ 			} else {
+ 				pcBuf[1] = gp.sched.pc
+-				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
++				if gp.syncSafePoint {
++					// We're stopped in morestack, which is an odd state because gp.sched.bp
++					// refers to our parent frame, since we haven't had the chance to push our
++					// frame pointer to the stack yet. If we just start walking from gp.sched.bp,
++					// we'll skip a frame as a result. Luckily, we can find the PC we want right
++					// at gp.sched.sp on non-LR platforms, and we have it directly on LR platforms.
++					// See issue go.dev/issue/68090.
++					if usesLR {
++						pcBuf[2] = gp.sched.lr
++					} else {
++						pcBuf[2] = *(*uintptr)(unsafe.Pointer(gp.sched.sp))
++					}
++					nstk += 2 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[3:])
++				} else {
++					nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
++				}
+ 			}
+ 		}
+ 	}

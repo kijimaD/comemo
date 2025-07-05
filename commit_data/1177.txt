@@ -8,6 +8,60 @@ Date:   Tue Nov 18 22:32:01 2008 -0800
     DELTA=13  (9 added, 0 deleted, 4 changed)
     OCL=19538
     CL=19570
-
+---
  src/lib/os/os_file.go | 17 +++++++++++++----
  1 file changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/lib/os/os_file.go b/src/lib/os/os_file.go
+index 2667a1e212..0d2e7bd6a3 100644
+--- a/src/lib/os/os_file.go
++++ b/src/lib/os/os_file.go
+@@ -55,35 +55,44 @@ func (fd *FD) Close() *Error {
+ 
+ func (fd *FD) Read(b *[]byte) (ret int, err *Error) {
+ 	if fd == nil {
+-		return -1, EINVAL
++		return 0, EINVAL
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+ 		r, e = syscall.read(fd.fd, &b[0], int64(len(b)));
++		if r < 0 {
++			r = 0
++		}
+ 	}
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+ func (fd *FD) Write(b *[]byte) (ret int, err *Error) {
+ 	if fd == nil {
+-		return -1, EINVAL
++		return 0, EINVAL
+ 	}
+ 	var r, e int64;
+ 	if len(b) > 0 {  // because we access b[0]
+ 		r, e = syscall.write(fd.fd, &b[0], int64(len(b)));
++		if r < 0 {
++			r = 0
++		}
+ 	}
+ 	return int(r), ErrnoToError(e)
+ }
+ 
+ func (fd *FD) WriteString(s string) (ret int, err *Error) {
+ 	if fd == nil {
+-		return -1, EINVAL
++		return 0, EINVAL
+ 	}
+ 	b := new([]byte, len(s)+1);
+ 	if !syscall.StringToBytes(b, s) {
+-		return -1, EINVAL
++		return 0, EINVAL
+ 	}
+ 	r, e := syscall.write(fd.fd, &b[0], int64(len(s)));
++	if r < 0 {
++		r = 0
++	}
+ 	return int(r), ErrnoToError(e)
+ }
+ 

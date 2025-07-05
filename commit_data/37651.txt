@@ -13,7 +13,73 @@ Date:   Mon Aug 20 10:55:26 2018 +0200
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go  |  4 ++--
  src/cmd/compile/internal/gc/ssa.go | 10 +++++-----
  2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 95bf562e2c..d8ab5eb39c 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -281,7 +281,7 @@ var (
+ 	assertE2I2,
+ 	assertI2I,
+ 	assertI2I2,
+-	Deferproc,
++	deferproc,
+ 	Deferreturn,
+ 	Duffcopy,
+ 	Duffzero,
+@@ -290,7 +290,7 @@ var (
+ 	growslice,
+ 	msanread,
+ 	msanwrite,
+-	Newproc,
++	newproc,
+ 	panicdivide,
+ 	panicdottypeE,
+ 	panicdottypeI,
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 86b457b758..199e4d9072 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -56,7 +56,7 @@ func initssaconfig() {
+ 	assertE2I2 = sysfunc("assertE2I2")
+ 	assertI2I = sysfunc("assertI2I")
+ 	assertI2I2 = sysfunc("assertI2I2")
+-	Deferproc = sysfunc("deferproc")
++	deferproc = sysfunc("deferproc")
+ 	Deferreturn = sysfunc("deferreturn")
+ 	Duffcopy = sysfunc("duffcopy")
+ 	Duffzero = sysfunc("duffzero")
+@@ -65,7 +65,7 @@ func initssaconfig() {
+ 	growslice = sysfunc("growslice")
+ 	msanread = sysfunc("msanread")
+ 	msanwrite = sysfunc("msanwrite")
+-	Newproc = sysfunc("newproc")
++	newproc = sysfunc("newproc")
+ 	panicdivide = sysfunc("panicdivide")
+ 	panicdottypeE = sysfunc("panicdottypeE")
+ 	panicdottypeI = sysfunc("panicdottypeI")
+@@ -3578,7 +3578,7 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 
+ 	// Defer/go args
+ 	if k != callNormal {
+-		// Write argsize and closure (args to Newproc/Deferproc).
++		// Write argsize and closure (args to newproc/deferproc).
+ 		argStart := Ctxt.FixedFrameSize()
+ 		argsize := s.constInt32(types.Types[TUINT32], int32(stksize))
+ 		addr := s.constOffPtrSP(s.f.Config.Types.UInt32Ptr, argStart)
+@@ -3592,9 +3592,9 @@ func (s *state) call(n *Node, k callKind) *ssa.Value {
+ 	var call *ssa.Value
+ 	switch {
+ 	case k == callDefer:
+-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Deferproc, s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, deferproc, s.mem())
+ 	case k == callGo:
+-		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, Newproc, s.mem())
++		call = s.newValue1A(ssa.OpStaticCall, types.TypeMem, newproc, s.mem())
+ 	case closure != nil:
+ 		// rawLoad because loading the code pointer from a
+ 		// closure is always safe, but IsSanitizerSafeAddr

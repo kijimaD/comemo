@@ -8,7 +8,7 @@ Date:   Fri Oct 22 10:03:14 2010 -0700
     R=rsc
     CC=golang-dev
     https://golang.org/cl/2319041
-
+---
  src/cmd/gofmt/Makefile                         |   4 +-
  src/cmd/gofmt/doc.go                           |   2 +
  src/cmd/gofmt/gofmt.go                         |   5 ++
@@ -24,3 +24,650 @@ Date:   Fri Oct 22 10:03:14 2010 -0700
  src/pkg/go/printer/testdata/expressions.input  |  21 +++++
  src/pkg/go/printer/testdata/expressions.raw    |  21 +++++
  14 files changed, 438 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/gofmt/Makefile b/src/cmd/gofmt/Makefile
+index 43434a5659..5f2f454e82 100644
+--- a/src/cmd/gofmt/Makefile
++++ b/src/cmd/gofmt/Makefile
+@@ -8,6 +8,7 @@ TARG=gofmt
+ GOFILES=\
+ 	gofmt.go\
+ 	rewrite.go\
++	simplify.go\
+ 
+ include ../../Make.cmd
+ 
+@@ -15,5 +16,4 @@ test: $(TARG)
+ 	./test.sh
+ 
+ smoketest: $(TARG)
+-	./test.sh "$(GOROOT)"/src/pkg/go/parser/parser.go
+-
++	(cd testdata; ./test.sh)
+diff --git a/src/cmd/gofmt/doc.go b/src/cmd/gofmt/doc.go
+index 6fee227836..2d2c9ae611 100644
+--- a/src/cmd/gofmt/doc.go
++++ b/src/cmd/gofmt/doc.go
+@@ -20,6 +20,8 @@ The flags are:
+ 		unless -w is also set.
+ 	-r rule
+ 		apply the rewrite rule to the source before reformatting.
++	-s
++		try to simplify code (after applying the rewrite rule, if any).
+ 	-w
+ 		if set, overwrite each input file with its output.
+ 	-spaces
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 88c9f197ce..7bb0fb583c 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -24,6 +24,7 @@ var (
+ 	list        = flag.Bool("l", false, "list files whose formatting differs from gofmt's")
+ 	write       = flag.Bool("w", false, "write result to (source) file instead of stdout")
+ 	rewriteRule = flag.String("r", "", "rewrite rule (e.g., 'α[β:len(α)] -> α[β:]')")
++	simplifyAST = flag.Bool("s", false, "simplify code")
+ 
+ 	// debugging support
+ 	comments = flag.Bool("comments", true, "print comments")
+@@ -106,6 +107,10 @@ func processFile(f *os.File) os.Error {
+ 		file = rewrite(file)
+ 	}
+ 
++	if *simplifyAST {
++		simplify(file)
++	}
++
+ 	var res bytes.Buffer
+ 	_, err = (&printer.Config{printerMode, *tabWidth, nil}).Fprint(&res, file)
+ 	if err != nil {
+diff --git a/src/cmd/gofmt/simplify.go b/src/cmd/gofmt/simplify.go
+new file mode 100644
+index 0000000000..de135f3f68
+--- /dev/null
++++ b/src/cmd/gofmt/simplify.go
+@@ -0,0 +1,57 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"go/ast"
++	"reflect"
++)
++
++
++type compositeLitFinder struct{}
++
++func (f *compositeLitFinder) Visit(node interface{}) ast.Visitor {
++	if outer, ok := node.(*ast.CompositeLit); ok {
++		// array, slice, and map composite literals may be simplified
++		var eltType ast.Expr
++		switch typ := outer.Type.(type) {
++		case *ast.ArrayType:
++			eltType = typ.Elt
++		case *ast.MapType:
++			eltType = typ.Value
++		}
++
++		if eltType != nil {
++			typ := reflect.NewValue(eltType)
++			for _, x := range outer.Elts {
++				// look at value of indexed/named elements
++				if t, ok := x.(*ast.KeyValueExpr); ok {
++					x = t.Value
++				}
++				simplify(x)
++				// if the element is a composite literal and its literal type
++				// matches the outer literal's element type exactly, the inner
++				// literal type may be omitted
++				if inner, ok := x.(*ast.CompositeLit); ok {
++					if match(nil, typ, reflect.NewValue(inner.Type)) {
++						inner.Type = nil
++					}
++				}
++			}
++
++			// node was simplified - stop walk
++			return nil
++		}
++	}
++
++	// not a composite literal or not simplified - continue walk
++	return f
++}
++
++
++func simplify(node interface{}) {
++	var f compositeLitFinder
++	ast.Walk(&f, node)
++}
+diff --git a/src/cmd/gofmt/testdata/composites.golden b/src/cmd/gofmt/testdata/composites.golden
+new file mode 100644
+index 0000000000..1fd5847c11
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/composites.golden
+@@ -0,0 +1,104 @@
++package P
++
++type T struct {
++	x, y int
++}
++
++var _ = [42]T{
++	{},
++	{1, 2},
++	{3, 4},
++}
++
++var _ = [...]T{
++	{},
++	{1, 2},
++	{3, 4},
++}
++
++var _ = []T{
++	{},
++	{1, 2},
++	{3, 4},
++}
++
++var _ = []T{
++	{},
++	10: {1, 2},
++	20: {3, 4},
++}
++
++var _ = []struct {
++	x, y int
++}{
++	{},
++	10: {1, 2},
++	20: {3, 4},
++}
++
++var _ = []interface{}{
++	T{},
++	10: T{1, 2},
++	20: T{3, 4},
++}
++
++var _ = [][]int{
++	{},
++	{1, 2},
++	{3, 4},
++}
++
++var _ = [][]int{
++	([]int{}),
++	([]int{1, 2}),
++	{3, 4},
++}
++
++var _ = [][][]int{
++	{},
++	{
++		{},
++		{0, 1, 2, 3},
++		{4, 5},
++	},
++}
++
++var _ = map[string]T{
++	"foo": {},
++	"bar": {1, 2},
++	"bal": {3, 4},
++}
++
++var _ = map[string]struct {
++	x, y int
++}{
++	"foo": {},
++	"bar": {1, 2},
++	"bal": {3, 4},
++}
++
++var _ = map[string]interface{}{
++	"foo": T{},
++	"bar": T{1, 2},
++	"bal": T{3, 4},
++}
++
++var _ = map[string][]int{
++	"foo": {},
++	"bar": {1, 2},
++	"bal": {3, 4},
++}
++
++var _ = map[string][]int{
++	"foo": ([]int{}),
++	"bar": ([]int{1, 2}),
++	"bal": {3, 4},
++}
++
++// from exp/4s/data.go
++var pieces4 = []Piece{
++	{0, 0, Point{4, 1}, []Point{{0, 0}, {1, 0}, {1, 0}, {1, 0}}, nil, nil},
++	{1, 0, Point{1, 4}, []Point{{0, 0}, {0, 1}, {0, 1}, {0, 1}}, nil, nil},
++	{2, 0, Point{4, 1}, []Point{{0, 0}, {1, 0}, {1, 0}, {1, 0}}, nil, nil},
++	{3, 0, Point{1, 4}, []Point{{0, 0}, {0, 1}, {0, 1}, {0, 1}}, nil, nil},
++}
+diff --git a/src/cmd/gofmt/testdata/composites.input b/src/cmd/gofmt/testdata/composites.input
+new file mode 100644
+index 0000000000..15afd9e5c4
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/composites.input
+@@ -0,0 +1,104 @@
++package P
++
++type T struct {
++	x, y int
++}
++
++var _ = [42]T{
++	T{},
++	T{1, 2},
++	T{3, 4},
++}
++
++var _ = [...]T{
++	T{},
++	T{1, 2},
++	T{3, 4},
++}
++
++var _ = []T{
++	T{},
++	T{1, 2},
++	T{3, 4},
++}
++
++var _ = []T{
++	T{},
++	10: T{1, 2},
++	20: T{3, 4},
++}
++
++var _ = []struct {
++	x, y int
++}{
++	struct{ x, y int }{},
++	10: struct{ x, y int }{1, 2},
++	20: struct{ x, y int }{3, 4},
++}
++
++var _ = []interface{}{
++	T{},
++	10: T{1, 2},
++	20: T{3, 4},
++}
++
++var _ = [][]int{
++	[]int{},
++	[]int{1, 2},
++	[]int{3, 4},
++}
++
++var _ = [][]int{
++	([]int{}),
++	([]int{1, 2}),
++	[]int{3, 4},
++}
++
++var _ = [][][]int{
++	[][]int{},
++	[][]int{
++		[]int{},
++		[]int{0, 1, 2, 3},
++		[]int{4, 5},
++	},
++}
++
++var _ = map[string]T{
++	"foo": T{},
++	"bar": T{1, 2},
++	"bal": T{3, 4},
++}
++
++var _ = map[string]struct {
++	x, y int
++}{
++	"foo": struct{ x, y int }{},
++	"bar": struct{ x, y int }{1, 2},
++	"bal": struct{ x, y int }{3, 4},
++}
++
++var _ = map[string]interface{}{
++	"foo": T{},
++	"bar": T{1, 2},
++	"bal": T{3, 4},
++}
++
++var _ = map[string][]int{
++	"foo": []int{},
++	"bar": []int{1, 2},
++	"bal": []int{3, 4},
++}
++
++var _ = map[string][]int{
++	"foo": ([]int{}),
++	"bar": ([]int{1, 2}),
++	"bal": []int{3, 4},
++}
++
++// from exp/4s/data.go
++var pieces4 = []Piece{
++	Piece{0, 0, Point{4, 1}, []Point{Point{0, 0}, Point{1, 0}, Point{1, 0}, Point{1, 0}}, nil, nil},
++	Piece{1, 0, Point{1, 4}, []Point{Point{0, 0}, Point{0, 1}, Point{0, 1}, Point{0, 1}}, nil, nil},
++	Piece{2, 0, Point{4, 1}, []Point{Point{0, 0}, Point{1, 0}, Point{1, 0}, Point{1, 0}}, nil, nil},
++	Piece{3, 0, Point{1, 4}, []Point{Point{0, 0}, Point{0, 1}, Point{0, 1}, Point{0, 1}}, nil, nil},
++}
+diff --git a/src/cmd/gofmt/testdata/test.sh b/src/cmd/gofmt/testdata/test.sh
+new file mode 100755
+index 0000000000..a1d5d823eb
+--- /dev/null
++++ b/src/cmd/gofmt/testdata/test.sh
+@@ -0,0 +1,65 @@
++#!/usr/bin/env bash
++# Copyright 2010 The Go Authors. All rights reserved.
++# Use of this source code is governed by a BSD-style
++# license that can be found in the LICENSE file.
++
++CMD="../gofmt"
++TMP=test_tmp.go
++COUNT=0
++
++
++cleanup() {
++	rm -f $TMP
++}
++
++
++error() {
++	echo $1
++	exit 1
++}
++
++
++count() {
++	#echo $1
++	let COUNT=$COUNT+1
++	let M=$COUNT%10
++	if [ $M == 0 ]; then
++		echo -n "."
++	fi
++}
++
++
++test() {
++	count $1
++
++	# compare against .golden file
++	cleanup
++	$CMD -s $1 > $TMP
++	cmp -s $TMP $2
++	if [ $? != 0 ]; then
++		diff $TMP $2
++		error "Error: simplified $1 does not match $2"
++	fi
++
++	# make sure .golden is idempotent
++	cleanup
++	$CMD -s $2 > $TMP
++	cmp -s $TMP $2
++	if [ $? != 0 ]; then
++		diff $TMP $2
++		error "Error: $2 is not idempotent"
++	fi
++}
++
++
++runtests() {
++	smoketest=../../../pkg/go/parser/parser.go
++	test $smoketest $smoketest
++	test composites.input composites.golden
++	# add more test cases here
++}
++
++
++runtests
++cleanup
++echo "PASSED ($COUNT tests)"
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 10396e4044..c034b74a9b 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -168,7 +168,7 @@ type (
+ 
+ 	// A CompositeLit node represents a composite literal.
+ 	CompositeLit struct {
+-		Type   Expr           // literal type
++		Type   Expr           // literal type; or nil
+ 		Lbrace token.Position // position of "{"
+ 		Elts   []Expr         // list of composite elements
+ 		Rbrace token.Position // position of "}"
+@@ -318,8 +318,13 @@ type (
+ // Pos() implementations for expression/type where the position
+ // corresponds to the position of a sub-node.
+ //
+-func (x *FuncLit) Pos() token.Position        { return x.Type.Pos() }
+-func (x *CompositeLit) Pos() token.Position   { return x.Type.Pos() }
++func (x *FuncLit) Pos() token.Position { return x.Type.Pos() }
++func (x *CompositeLit) Pos() token.Position {
++	if x.Type != nil {
++		return x.Type.Pos()
++	}
++	return x.Lbrace
++}
+ func (x *SelectorExpr) Pos() token.Position   { return x.X.Pos() }
+ func (x *IndexExpr) Pos() token.Position      { return x.X.Pos() }
+ func (x *SliceExpr) Pos() token.Position      { return x.X.Pos() }
+diff --git a/src/pkg/go/parser/parser.go b/src/pkg/go/parser/parser.go
+index b20cf10b8a..5c69c55859 100644
+--- a/src/pkg/go/parser/parser.go
++++ b/src/pkg/go/parser/parser.go
+@@ -961,18 +961,21 @@ func (p *parser) parseCallOrConversion(fun ast.Expr) *ast.CallExpr {
+ }
+ 
+ 
+-func (p *parser) parseElement() ast.Expr {
++func (p *parser) parseElement(keyOk bool) ast.Expr {
+ 	if p.trace {
+ 		defer un(trace(p, "Element"))
+ 	}
+ 
++	if p.tok == token.LBRACE {
++		return p.parseLiteralValue(nil)
++	}
++
+ 	x := p.parseExpr()
+-	if p.tok == token.COLON {
++	if keyOk && p.tok == token.COLON {
+ 		colon := p.pos
+ 		p.next()
+-		x = &ast.KeyValueExpr{x, colon, p.parseExpr()}
++		x = &ast.KeyValueExpr{x, colon, p.parseElement(false)}
+ 	}
+-
+ 	return x
+ }
+ 
+@@ -984,7 +987,7 @@ func (p *parser) parseElementList() []ast.Expr {
+ 
+ 	var list vector.Vector
+ 	for p.tok != token.RBRACE && p.tok != token.EOF {
+-		list.Push(p.parseElement())
++		list.Push(p.parseElement(true))
+ 		if p.tok != token.COMMA {
+ 			break
+ 		}
+@@ -995,9 +998,9 @@ func (p *parser) parseElementList() []ast.Expr {
+ }
+ 
+ 
+-func (p *parser) parseCompositeLit(typ ast.Expr) ast.Expr {
++func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
+ 	if p.trace {
+-		defer un(trace(p, "CompositeLit"))
++		defer un(trace(p, "LiteralValue"))
+ 	}
+ 
+ 	lbrace := p.expect(token.LBRACE)
+@@ -1142,7 +1145,7 @@ L:
+ 			x = p.parseCallOrConversion(p.checkExprOrType(x))
+ 		case token.LBRACE:
+ 			if isLiteralType(x) && (p.exprLev >= 0 || !isTypeName(x)) {
+-				x = p.parseCompositeLit(x)
++				x = p.parseLiteralValue(x)
+ 			} else {
+ 				break L
+ 			}
+diff --git a/src/pkg/go/parser/parser_test.go b/src/pkg/go/parser/parser_test.go
+index 3998049ac4..5882145903 100644
+--- a/src/pkg/go/parser/parser_test.go
++++ b/src/pkg/go/parser/parser_test.go
+@@ -29,18 +29,20 @@ func TestParseIllegalInputs(t *testing.T) {
+ 
+ 
+ var validPrograms = []interface{}{
++	"package main\n",
+ 	`package main;`,
+-	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") }` + "\n",
+-	`package main; func main() { if f(T{}) {} }` + "\n",
+-	`package main; func main() { _ = (<-chan int)(x) }` + "\n",
+-	`package main; func main() { _ = (<-chan <-chan int)(x) }` + "\n",
+-	`package main; func f(func() func() func())` + "\n",
+-	`package main; func f(...T)` + "\n",
+-	`package main; func f(float, ...int)` + "\n",
+-	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) }` + "\n",
+-	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} }` + "\n",
+-	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} }` + "\n",
+-	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} }` + "\n",
++	`package main; import "fmt"; func main() { fmt.Println("Hello, World!") };`,
++	`package main; func main() { if f(T{}) {} };`,
++	`package main; func main() { _ = (<-chan int)(x) };`,
++	`package main; func main() { _ = (<-chan <-chan int)(x) };`,
++	`package main; func f(func() func() func());`,
++	`package main; func f(...T);`,
++	`package main; func f(float, ...int);`,
++	`package main; func f(x int, a ...int) { f(0, a...); f(1, a...,) };`,
++	`package main; type T []int; var a []bool; func f() { if a[T{42}[0]] {} };`,
++	`package main; type T []int; func g(int) bool { return true }; func f() { if g(T{42}[0]) {} };`,
++	`package main; type T []int; func f() { for _ = range []int{T{42}[0]} {} };`,
++	`package main; var a = T{{1, 2}, {3, 4}}`,
+ }
+ 
+ 
+diff --git a/src/pkg/go/printer/nodes.go b/src/pkg/go/printer/nodes.go
+index 3e8f12100b..79e00bb850 100644
+--- a/src/pkg/go/printer/nodes.go
++++ b/src/pkg/go/printer/nodes.go
+@@ -856,7 +856,10 @@ func (p *printer) expr1(expr ast.Expr, prec1, depth int, ctxt exprContext, multi
+ 		p.print(x.Rparen, token.RPAREN)
+ 
+ 	case *ast.CompositeLit:
+-		p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
++		// composite literal elements that are composite literals themselves may have the type omitted
++		if x.Type != nil {
++			p.expr1(x.Type, token.HighestPrec, depth, compositeLit, multiLine)
++		}
+ 		p.print(x.Lbrace, token.LBRACE)
+ 		p.exprList(x.Lbrace, x.Elts, 1, commaSep|commaTerm, multiLine, x.Rbrace)
+ 		p.print(x.Rbrace, token.RBRACE)
+diff --git a/src/pkg/go/printer/testdata/expressions.golden b/src/pkg/go/printer/testdata/expressions.golden
+index b5dac45a7b..882c7624c0 100644
+--- a/src/pkg/go/printer/testdata/expressions.golden
++++ b/src/pkg/go/printer/testdata/expressions.golden
+@@ -276,6 +276,27 @@ func _() {
+ }
+ 
+ 
++func _() {
++	_ = [][]int{
++		[]int{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int{
++		{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int{
++		{1},
++		{1, 2},
++		{1, 2, 3},
++	}
++	_ = [][]int{{1}, {1, 2}, {1, 2, 3}}
++}
++
++
++// various multi-line expressions
+ func _() {
+ 	// do not add extra indentation to multi-line string lists
+ 	_ = "foo" + "bar"
+diff --git a/src/pkg/go/printer/testdata/expressions.input b/src/pkg/go/printer/testdata/expressions.input
+index 3eb1629317..647706b092 100644
+--- a/src/pkg/go/printer/testdata/expressions.input
++++ b/src/pkg/go/printer/testdata/expressions.input
+@@ -268,6 +268,27 @@ func _() {
+ }
+ 
+ 
++func _() {
++	_ = [][]int {
++		[]int{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int {
++		{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int {
++		{1},
++		{1, 2},
++		{1, 2, 3},
++	}
++	_ = [][]int {{1}, {1, 2}, {1, 2, 3}}
++}
++
++
++// various multi-line expressions
+ func _() {
+ 	// do not add extra indentation to multi-line string lists
+ 	_ = "foo" + "bar"
+diff --git a/src/pkg/go/printer/testdata/expressions.raw b/src/pkg/go/printer/testdata/expressions.raw
+index e571d08284..62be00cc30 100644
+--- a/src/pkg/go/printer/testdata/expressions.raw
++++ b/src/pkg/go/printer/testdata/expressions.raw
+@@ -276,6 +276,27 @@ func _() {
+ }
+ 
+ 
++func _() {
++	_ = [][]int{
++		[]int{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int{
++		{1},
++		[]int{1, 2},
++		[]int{1, 2, 3},
++	}
++	_ = [][]int{
++		{1},
++		{1, 2},
++		{1, 2, 3},
++	}
++	_ = [][]int{{1}, {1, 2}, {1, 2, 3}}
++}
++
++
++// various multi-line expressions
+ func _() {
+ 	// do not add extra indentation to multi-line string lists
+ 	_ = "foo" + "bar"

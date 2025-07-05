@@ -12,7 +12,7 @@ Date:   Fri Mar 11 18:29:37 2022 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/runtime/race/testdata/mop_test.go  | 14 ++++++++++++-
  src/syscall/syscall_aix.go             |  4 ++--
  src/syscall/syscall_darwin.go          |  4 ++--
@@ -61,3 +61,1055 @@ Date:   Fri Mar 11 18:29:37 2022 -0800
  src/syscall/zsyscall_openbsd_mips64.go |  4 ++--
  src/syscall/zsyscall_solaris_amd64.go  | 20 +++++++++----------
  47 files changed, 155 insertions(+), 107 deletions(-)
+
+diff --git a/src/runtime/race/testdata/mop_test.go b/src/runtime/race/testdata/mop_test.go
+index 2d093739df..d05a443f62 100644
+--- a/src/runtime/race/testdata/mop_test.go
++++ b/src/runtime/race/testdata/mop_test.go
+@@ -1896,6 +1896,14 @@ func TestRaceNestedStruct(t *testing.T) {
+ }
+ 
+ func TestRaceIssue5567(t *testing.T) {
++	testRaceRead(t, false)
++}
++
++func TestRaceIssue51618(t *testing.T) {
++	testRaceRead(t, true)
++}
++
++func testRaceRead(t *testing.T, pread bool) {
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(4))
+ 	in := make(chan []byte)
+ 	res := make(chan error)
+@@ -1914,7 +1922,11 @@ func TestRaceIssue5567(t *testing.T) {
+ 		var n, total int
+ 		b := make([]byte, 17) // the race is on b buffer
+ 		for err == nil {
+-			n, err = f.Read(b)
++			if pread {
++				n, err = f.ReadAt(b, int64(total))
++			} else {
++				n, err = f.Read(b)
++			}
+ 			total += n
+ 			if n > 0 {
+ 				in <- b[:n]
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index acc19b4db3..a2f8c78438 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -604,8 +604,8 @@ func PtraceDetach(pid int) (err error) { return ptrace64(PT_DETACH, int64(pid),
+ //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
+ //sys	Mknodat(dirfd int, path string, mode uint32, dev int) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Reboot(how int) (err error)
+ //sys	Rename(from string, to string) (err error)
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 87fb5c2f62..2e5387a6d9 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -170,8 +170,8 @@ func Kill(pid int, signum Signal) (err error) { return kill(pid, int(signum), 1)
+ //sys	Munlockall() (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	readdir_r(dir uintptr, entry *Dirent, result **Dirent) (res Errno)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index f3c0f54521..d8edca9961 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -122,12 +122,12 @@ func Pipe2(p []int, flags int) (err error) {
+ }
+ 
+ //sys	extpread(fd int, p []byte, flags int, offset int64) (n int, err error)
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	return extpread(fd, p, 0, offset)
+ }
+ 
+ //sys	extpwrite(fd int, p []byte, flags int, offset int64) (n int, err error)
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	return extpwrite(fd, p, 0, offset)
+ }
+ 
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index ecb9ec825a..8494b21e5b 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -469,8 +469,8 @@ func convertFromDirents11(buf []byte, old []byte) int {
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Rename(from string, to string) (err error)
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index ef0f53468a..fc7df8496e 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -32,8 +32,8 @@ func setTimeval(sec, usec int64) Timeval {
+ //sys	Ioperm(from int, num int, on int) (err error)
+ //sys	Iopl(level int) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+ //sys	Setfsgid(gid int) (err error) = SYS_SETFSGID32
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index ea5229e8a0..0bcc664d32 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -22,8 +22,8 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Iopl(level int) (err error)
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index f00149a1d4..9db702729f 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -72,8 +72,8 @@ func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
+ //sys	Utime(path string, buf *Utimbuf) (err error)
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+-//sys   Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys   Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys   pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys   pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Truncate(path string, length int64) (err error) = SYS_TRUNCATE64
+ //sys	Ftruncate(fd int, length int64) (err error) = SYS_FTRUNCATE64
+ 
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index 9ed20f43ed..ef935f3a63 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -28,8 +28,8 @@ func EpollCreate(size int) (fd int, err error) {
+ //sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Listen(s int, n int) (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index b56b8f06b6..258eb97b7e 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -23,8 +23,8 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index c9c9f94e42..5390277926 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -24,8 +24,8 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Listen(s int, n int) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) = SYS_SENDFILE64
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 4180a17f3b..88ad8e4cd4 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -28,8 +28,8 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Listen(s int, n int) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error) = SYS__NEWSELECT
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index a5fb18aa85..0ac4c5496e 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -28,8 +28,8 @@ func EpollCreate(size int) (fd int, err error) {
+ //sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Listen(s int, n int) (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	renameat2(olddirfd int, oldpath string, newdirfd int, newpath string, flags uint) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index 5d6f4d2526..46b252dc95 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -25,8 +25,8 @@ const _SYS_setgroups = SYS_SETGROUPS
+ //sys	Lchown(path string, uid int, gid int) (err error)
+ //sys	Lstat(path string, stat *Stat_t) (err error)
+ //sys	Pause() (err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
++//sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error) = SYS_PWRITE64
+ //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
+ //sys	Seek(fd int, offset int64, whence int) (off int64, err error) = SYS_LSEEK
+ //sys	Select(nfd int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (n int, err error)
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 0d562cc78e..9ccb66c083 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -198,8 +198,8 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Rename(from string, to string) (err error)
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 30a95316e8..1d82351084 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -173,8 +173,8 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Rename(from string, to string) (err error)
+diff --git a/src/syscall/syscall_solaris.go b/src/syscall/syscall_solaris.go
+index 38c82a11e8..37ce5c9e3c 100644
+--- a/src/syscall/syscall_solaris.go
++++ b/src/syscall/syscall_solaris.go
+@@ -434,8 +434,8 @@ func sendmsgN(fd int, p, oob []byte, ptr unsafe.Pointer, salen _Socklen, flags i
+ //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
+ //sys	Open(path string, mode int, perm uint32) (fd int, err error)
+ //sys	Pathconf(path string, name int) (val int, err error)
+-//sys	Pread(fd int, p []byte, offset int64) (n int, err error)
+-//sys	Pwrite(fd int, p []byte, offset int64) (n int, err error)
++//sys	pread(fd int, p []byte, offset int64) (n int, err error)
++//sys	pwrite(fd int, p []byte, offset int64) (n int, err error)
+ //sys	read(fd int, p []byte) (n int, err error)
+ //sys	Readlink(path string, buf []byte) (n int, err error)
+ //sys	Rename(from string, to string) (err error)
+diff --git a/src/syscall/syscall_unix.go b/src/syscall/syscall_unix.go
+index 5ee938115d..c35df430aa 100644
+--- a/src/syscall/syscall_unix.go
++++ b/src/syscall/syscall_unix.go
+@@ -227,6 +227,42 @@ func Write(fd int, p []byte) (n int, err error) {
+ 	return
+ }
+ 
++func Pread(fd int, p []byte, offset int64) (n int, err error) {
++	n, err = pread(fd, p, offset)
++	if race.Enabled {
++		if n > 0 {
++			race.WriteRange(unsafe.Pointer(&p[0]), n)
++		}
++		if err == nil {
++			race.Acquire(unsafe.Pointer(&ioSync))
++		}
++	}
++	if msanenabled && n > 0 {
++		msanWrite(unsafe.Pointer(&p[0]), n)
++	}
++	if asanenabled && n > 0 {
++		asanWrite(unsafe.Pointer(&p[0]), n)
++	}
++	return
++}
++
++func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++	if race.Enabled {
++		race.ReleaseMerge(unsafe.Pointer(&ioSync))
++	}
++	n, err = pwrite(fd, p, offset)
++	if race.Enabled && n > 0 {
++		race.ReadRange(unsafe.Pointer(&p[0]), n)
++	}
++	if msanenabled && n > 0 {
++		msanRead(unsafe.Pointer(&p[0]), n)
++	}
++	if asanenabled && n > 0 {
++		asanRead(unsafe.Pointer(&p[0]), n)
++	}
++	return
++}
++
+ // For testing: clients can set this flag to force
+ // creation of IPv6 sockets to return EAFNOSUPPORT.
+ var SocketDisableIPv6 bool
+diff --git a/src/syscall/zsyscall_aix_ppc64.go b/src/syscall/zsyscall_aix_ppc64.go
+index 2a3411374f..39838a42e6 100644
+--- a/src/syscall/zsyscall_aix_ppc64.go
++++ b/src/syscall/zsyscall_aix_ppc64.go
+@@ -72,8 +72,8 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_Mkdirat mkdirat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_Mknodat mknodat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_Open open "libc.a/shr_64.o"
+-//go:cgo_import_dynamic libc_Pread pread "libc.a/shr_64.o"
+-//go:cgo_import_dynamic libc_Pwrite pwrite "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_pread pread "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_pwrite pwrite "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_read read "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_Reboot reboot "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_Rename rename "libc.a/shr_64.o"
+@@ -165,8 +165,8 @@ import "unsafe"
+ //go:linkname libc_Mkdirat libc_Mkdirat
+ //go:linkname libc_Mknodat libc_Mknodat
+ //go:linkname libc_Open libc_Open
+-//go:linkname libc_Pread libc_Pread
+-//go:linkname libc_Pwrite libc_Pwrite
++//go:linkname libc_pread libc_pread
++//go:linkname libc_pwrite libc_pwrite
+ //go:linkname libc_read libc_read
+ //go:linkname libc_Reboot libc_Reboot
+ //go:linkname libc_Rename libc_Rename
+@@ -261,8 +261,8 @@ var (
+ 	libc_Mkdirat,
+ 	libc_Mknodat,
+ 	libc_Open,
+-	libc_Pread,
+-	libc_Pwrite,
++	libc_pread,
++	libc_pwrite,
+ 	libc_read,
+ 	libc_Reboot,
+ 	libc_Rename,
+@@ -1067,12 +1067,12 @@ func Open(path string, mode int, perm uint32) (fd int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 *byte
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -1082,12 +1082,12 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 *byte
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_Pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := syscall6(uintptr(unsafe.Pointer(&libc_pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+diff --git a/src/syscall/zsyscall_darwin_amd64.go b/src/syscall/zsyscall_darwin_amd64.go
+index 0ccdaf2d0e..ee78a572fc 100644
+--- a/src/syscall/zsyscall_darwin_amd64.go
++++ b/src/syscall/zsyscall_darwin_amd64.go
+@@ -1137,7 +1137,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1158,7 +1158,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_darwin_arm64.go b/src/syscall/zsyscall_darwin_arm64.go
+index 09bf34bb3c..ac1eccf755 100644
+--- a/src/syscall/zsyscall_darwin_arm64.go
++++ b/src/syscall/zsyscall_darwin_arm64.go
+@@ -1137,7 +1137,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1158,7 +1158,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_freebsd_386.go b/src/syscall/zsyscall_freebsd_386.go
+index ed0eb9fa15..04bad4acc9 100644
+--- a/src/syscall/zsyscall_freebsd_386.go
++++ b/src/syscall/zsyscall_freebsd_386.go
+@@ -905,7 +905,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -922,7 +922,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_freebsd_amd64.go b/src/syscall/zsyscall_freebsd_amd64.go
+index e291a56756..eeb9c0cb9b 100644
+--- a/src/syscall/zsyscall_freebsd_amd64.go
++++ b/src/syscall/zsyscall_freebsd_amd64.go
+@@ -905,7 +905,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -922,7 +922,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_freebsd_arm.go b/src/syscall/zsyscall_freebsd_arm.go
+index 7dd856fd97..8ea4282ba4 100644
+--- a/src/syscall/zsyscall_freebsd_arm.go
++++ b/src/syscall/zsyscall_freebsd_arm.go
+@@ -905,7 +905,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -922,7 +922,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_freebsd_arm64.go b/src/syscall/zsyscall_freebsd_arm64.go
+index 229a9a2238..73bf50559d 100644
+--- a/src/syscall/zsyscall_freebsd_arm64.go
++++ b/src/syscall/zsyscall_freebsd_arm64.go
+@@ -905,7 +905,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -922,7 +922,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index c385dd3ca1..36a3d7ed39 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1196,7 +1196,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1213,7 +1213,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 3e22e20907..07f328e1e2 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1211,7 +1211,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1228,7 +1228,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 38907a0b35..df79dbd0e1 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1493,7 +1493,7 @@ func utimes(path string, times *[2]Timeval) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1510,7 +1510,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index f335c062d5..73321bd897 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1196,7 +1196,7 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1213,7 +1213,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index f5f73895cc..1ef8eebe4f 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1180,7 +1180,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1197,7 +1197,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 32f3c32b9b..1ed877ce7e 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1211,7 +1211,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1228,7 +1228,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 62dcff45a1..3d7cc9e373 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1211,7 +1211,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1228,7 +1228,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index 4761246536..59b49ddf74 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1180,7 +1180,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1197,7 +1197,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index c9b1365e74..93632bd1cb 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1273,7 +1273,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1290,7 +1290,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 0807390894..fc8f6b7bcf 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1273,7 +1273,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1290,7 +1290,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index 1661d04221..0efa70715d 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -1196,7 +1196,7 @@ func Listen(s int, n int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1213,7 +1213,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index 2ab78c71bf..568bb430a6 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -1243,7 +1243,7 @@ func Pause() (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1260,7 +1260,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_netbsd_386.go b/src/syscall/zsyscall_netbsd_386.go
+index 408318181a..9b92859206 100644
+--- a/src/syscall/zsyscall_netbsd_386.go
++++ b/src/syscall/zsyscall_netbsd_386.go
+@@ -816,7 +816,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -833,7 +833,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_netbsd_amd64.go b/src/syscall/zsyscall_netbsd_amd64.go
+index 2039cf6d0e..ac34c00b5a 100644
+--- a/src/syscall/zsyscall_netbsd_amd64.go
++++ b/src/syscall/zsyscall_netbsd_amd64.go
+@@ -816,7 +816,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -833,7 +833,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_netbsd_arm.go b/src/syscall/zsyscall_netbsd_arm.go
+index 3c287ea223..2be5e7baa4 100644
+--- a/src/syscall/zsyscall_netbsd_arm.go
++++ b/src/syscall/zsyscall_netbsd_arm.go
+@@ -816,7 +816,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -833,7 +833,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_netbsd_arm64.go b/src/syscall/zsyscall_netbsd_arm64.go
+index 1d40db9e6b..02a652bbbb 100644
+--- a/src/syscall/zsyscall_netbsd_arm64.go
++++ b/src/syscall/zsyscall_netbsd_arm64.go
+@@ -816,7 +816,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -833,7 +833,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index 2dcc4b2739..f7986d5ea5 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1105,7 +1105,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1126,7 +1126,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 8d4cb9c1e1..605443d890 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1105,7 +1105,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1126,7 +1126,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index d45bc02fbd..0f2312fbc4 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1105,7 +1105,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1126,7 +1126,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_openbsd_arm64.go b/src/syscall/zsyscall_openbsd_arm64.go
+index e060b092fe..1367e2aba9 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.go
++++ b/src/syscall/zsyscall_openbsd_arm64.go
+@@ -1105,7 +1105,7 @@ func libc_pathconf_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -1126,7 +1126,7 @@ func libc_pread_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_openbsd_mips64.go b/src/syscall/zsyscall_openbsd_mips64.go
+index 51904b5e29..2cf8465319 100644
+--- a/src/syscall/zsyscall_openbsd_mips64.go
++++ b/src/syscall/zsyscall_openbsd_mips64.go
+@@ -810,7 +810,7 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+@@ -827,7 +827,7 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 unsafe.Pointer
+ 	if len(p) > 0 {
+ 		_p0 = unsafe.Pointer(&p[0])
+diff --git a/src/syscall/zsyscall_solaris_amd64.go b/src/syscall/zsyscall_solaris_amd64.go
+index 7b012bf9bb..5bb50caaae 100644
+--- a/src/syscall/zsyscall_solaris_amd64.go
++++ b/src/syscall/zsyscall_solaris_amd64.go
+@@ -48,8 +48,8 @@ import "unsafe"
+ //go:cgo_import_dynamic libc_Nanosleep nanosleep "libc.so"
+ //go:cgo_import_dynamic libc_Open open "libc.so"
+ //go:cgo_import_dynamic libc_Pathconf pathconf "libc.so"
+-//go:cgo_import_dynamic libc_Pread pread "libc.so"
+-//go:cgo_import_dynamic libc_Pwrite pwrite "libc.so"
++//go:cgo_import_dynamic libc_pread pread "libc.so"
++//go:cgo_import_dynamic libc_pwrite pwrite "libc.so"
+ //go:cgo_import_dynamic libc_read read "libc.so"
+ //go:cgo_import_dynamic libc_Readlink readlink "libc.so"
+ //go:cgo_import_dynamic libc_Rename rename "libc.so"
+@@ -134,8 +134,8 @@ import "unsafe"
+ //go:linkname libc_Nanosleep libc_Nanosleep
+ //go:linkname libc_Open libc_Open
+ //go:linkname libc_Pathconf libc_Pathconf
+-//go:linkname libc_Pread libc_Pread
+-//go:linkname libc_Pwrite libc_Pwrite
++//go:linkname libc_pread libc_pread
++//go:linkname libc_pwrite libc_pwrite
+ //go:linkname libc_read libc_read
+ //go:linkname libc_Readlink libc_Readlink
+ //go:linkname libc_Rename libc_Rename
+@@ -223,8 +223,8 @@ var (
+ 	libc_Nanosleep,
+ 	libc_Open,
+ 	libc_Pathconf,
+-	libc_Pread,
+-	libc_Pwrite,
++	libc_pread,
++	libc_pwrite,
+ 	libc_read,
+ 	libc_Readlink,
+ 	libc_Rename,
+@@ -753,12 +753,12 @@ func Pathconf(path string, name int) (val int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pread(fd int, p []byte, offset int64) (n int, err error) {
++func pread(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 *byte
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pread)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)
+@@ -768,12 +768,12 @@ func Pread(fd int, p []byte, offset int64) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Pwrite(fd int, p []byte, offset int64) (n int, err error) {
++func pwrite(fd int, p []byte, offset int64) (n int, err error) {
+ 	var _p0 *byte
+ 	if len(p) > 0 {
+ 		_p0 = &p[0]
+ 	}
+-	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_Pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
++	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&libc_pwrite)), 4, uintptr(fd), uintptr(unsafe.Pointer(_p0)), uintptr(len(p)), uintptr(offset), 0, 0)
+ 	n = int(r0)
+ 	if e1 != 0 {
+ 		err = errnoErr(e1)

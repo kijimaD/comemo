@@ -57,7 +57,38 @@ Date:   Tue Nov 28 18:42:43 2023 +0000
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
     Run-TryBot: Cherry Mui <cherryyz@google.com>
-
+---
  src/bytes/bytes_test.go            | 5 +++++
  src/internal/bytealg/equal_arm64.s | 3 +++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index f0733edd3f..5e8cf85fd9 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -629,6 +629,11 @@ func BenchmarkEqual(b *testing.B) {
+ 	})
+ 
+ 	sizes := []int{1, 6, 9, 15, 16, 20, 32, 4 << 10, 4 << 20, 64 << 20}
++
++	b.Run("same", func(b *testing.B) {
++		benchBytes(b, sizes, bmEqual(func(a, b []byte) bool { return Equal(a, a) }))
++	})
++
+ 	benchBytes(b, sizes, bmEqual(Equal))
+ }
+ 
+diff --git a/src/internal/bytealg/equal_arm64.s b/src/internal/bytealg/equal_arm64.s
+index d3aabba587..4db9515474 100644
+--- a/src/internal/bytealg/equal_arm64.s
++++ b/src/internal/bytealg/equal_arm64.s
+@@ -9,6 +9,9 @@
+ TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+ 	// short path to handle 0-byte case
+ 	CBZ	R2, equal
++	// short path to handle equal pointers
++	CMP	R0, R1
++	BEQ	equal
+ 	B	memeqbody<>(SB)
+ equal:
+ 	MOVD	$1, R0

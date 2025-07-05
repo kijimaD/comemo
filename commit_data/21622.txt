@@ -16,7 +16,51 @@ Date:   Wed Jan 21 12:10:35 2015 -0500
     Reviewed-on: https://go-review.googlesource.com/3144
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 8 +++++++-
  src/cmd/go/pkg.go         | 1 +
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 10371526d3..6cfe4c78b5 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -23,11 +23,16 @@ import (
+ // which are commands, and entries beginning with internal/, which are
+ // packages supporting the commands.
+ var bootstrapDirs = []string{
++	"internal/asm",
+ 	"internal/obj",
+ 	"internal/obj/arm",
+ 	"internal/obj/i386",
+ 	"internal/obj/ppc64",
+ 	"internal/obj/x86",
++	"new5a",
++	"new6a",
++	"new8a",
++	"new9a",
+ 	"objwriter",
+ }
+ 
+@@ -112,7 +117,8 @@ func bootstrapFixImports(text, srcFile string) string {
+ 			inBlock = false
+ 			continue
+ 		}
+-		if strings.HasPrefix(line, "import \"") || inBlock && strings.HasPrefix(line, "\t\"") {
++		if strings.HasPrefix(line, `import "`) || strings.HasPrefix(line, `import . "`) ||
++			inBlock && (strings.HasPrefix(line, "\t\"") || strings.HasPrefix(line, "\t. \"")) {
+ 			lines[i] = strings.Replace(line, `"cmd/internal/`, `"bootstrap/internal/`, -1)
+ 		}
+ 	}
+diff --git a/src/cmd/go/pkg.go b/src/cmd/go/pkg.go
+index e224eef091..9e0f1f6c6c 100644
+--- a/src/cmd/go/pkg.go
++++ b/src/cmd/go/pkg.go
+@@ -394,6 +394,7 @@ var goTools = map[string]targetDir{
+ 	"cmd/addr2line":                        toTool,
+ 	"cmd/api":                              toTool,
+ 	"cmd/cgo":                              toTool,
++	"cmd/dist":                             toTool,
+ 	"cmd/fix":                              toTool,
+ 	"cmd/link":                             toTool,
+ 	"cmd/new5a":                            toTool,

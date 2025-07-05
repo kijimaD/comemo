@@ -16,7 +16,44 @@ Date:   Mon May 29 11:45:14 2023 +0200
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
-
+---
  src/syscall/syscall_windows.go      |  4 ++--
  src/syscall/syscall_windows_test.go | 10 ++++++++++
  2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index d721309781..9f1b384de4 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -585,8 +585,8 @@ func Rename(oldpath, newpath string) (err error) {
+ }
+ 
+ func ComputerName() (name string, err error) {
+-	b := make([]uint16, MAX_COMPUTERNAME_LENGTH+1)
+-	var n uint32
++	var n uint32 = MAX_COMPUTERNAME_LENGTH + 1
++	b := make([]uint16, n)
+ 	e := GetComputerName(&b[0], &n)
+ 	if e != nil {
+ 		return "", e
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 23041ee09a..7b31a863c3 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -37,6 +37,16 @@ func TestOpen_Dir(t *testing.T) {
+ 	}
+ }
+ 
++func TestComputerName(t *testing.T) {
++	name, err := syscall.ComputerName()
++	if err != nil {
++		t.Fatalf("ComputerName failed: %v", err)
++	}
++	if len(name) == 0 {
++		t.Error("ComputerName returned empty string")
++	}
++}
++
+ func TestWin32finddata(t *testing.T) {
+ 	dir := t.TempDir()
+ 

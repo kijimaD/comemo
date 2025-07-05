@@ -8,7 +8,27 @@ Date:   Tue Jan 6 13:44:44 2009 -0800
     DELTA=40  (18 added, 22 deleted, 0 changed)
     OCL=22134
     CL=22139
-
+---
  test/{bugs => fixedbugs}/bug020.go | 0
  test/golden.out                    | 4 ----
  2 files changed, 4 deletions(-)
+
+diff --git a/test/bugs/bug020.go b/test/fixedbugs/bug020.go
+similarity index 100%
+rename from test/bugs/bug020.go
+rename to test/fixedbugs/bug020.go
+diff --git a/test/golden.out b/test/golden.out
+index 50b957f121..f1a6ad31fd 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -84,10 +84,6 @@ abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz-abcxyz
+ =========== chan/nonblock.go
+ PASS
+ 
+-=========== bugs/bug020.go
+-bugs/bug020.go:7: type of a structure field cannot be an open array
+-BUG should compile
+-
+ =========== bugs/bug041.go
+ BUG: compilation succeeds incorrectly
+ 

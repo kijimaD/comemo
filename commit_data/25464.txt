@@ -9,7 +9,43 @@ Date:   Fri Oct 30 11:48:43 2015 +1300
     Change-Id: Ice639440aafc0724714c25333d90a49954372230
     Reviewed-on: https://go-review.googlesource.com/16503
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/build.go         | 4 ++--
  src/runtime/sys_linux_386.s | 2 +-
  2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/build.go b/src/cmd/go/build.go
+index b1c95220cc..3ee5b59f18 100644
+--- a/src/cmd/go/build.go
++++ b/src/cmd/go/build.go
+@@ -389,7 +389,7 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+-				buildAsmflags = append(buildAsmflags, "-D=shared=1")
++				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+ 			}
+@@ -408,7 +408,7 @@ func buildModeInit() {
+ 		} else {
+ 			switch platform {
+ 			case "linux/386", "linux/amd64", "linux/arm", "linux/arm64":
+-				buildAsmflags = append(buildAsmflags, "-D=shared=1")
++				buildAsmflags = append(buildAsmflags, "-D=GOBUILDMODE_shared=1")
+ 			default:
+ 				fatalf("-buildmode=shared not supported on %s\n", platform)
+ 			}
+diff --git a/src/runtime/sys_linux_386.s b/src/runtime/sys_linux_386.s
+index f2beb18455..9e0e87cafc 100644
+--- a/src/runtime/sys_linux_386.s
++++ b/src/runtime/sys_linux_386.s
+@@ -10,7 +10,7 @@
+ #include "go_tls.h"
+ #include "textflag.h"
+ 
+-#ifdef shared
++#ifdef GOBUILDMODE_shared
+ #define INVOKE_SYSINFO CALL 0x10(GS)
+ #else
+ #define INVOKE_SYSINFO CALL *runtime·_vdso(SB)

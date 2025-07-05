@@ -9,6 +9,29 @@ Date:   Fri Apr 5 13:43:18 2013 +1100
     R=golang-dev, adg
     CC=golang-dev
     https://golang.org/cl/8353045
-
+---
  src/pkg/testing/testing.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/testing/testing.go b/src/pkg/testing/testing.go
+index c834aa1f7e..312d287329 100644
+--- a/src/pkg/testing/testing.go
++++ b/src/pkg/testing/testing.go
+@@ -18,6 +18,8 @@
+ //         ...
+ //     }
+ //
++// Benchmarks
++//
+ // Functions of the form
+ //     func BenchmarkXxx(*testing.B)
+ // are considered benchmarks, and are executed by the "go test" command when
+@@ -49,6 +51,8 @@
+ //         }
+ //     }
+ //
++// Examples
++//
+ // The package also runs and verifies example code. Example functions may
+ // include a concluding line comment that begins with "Output:" and is compared with
+ // the standard output of the function when the tests are run. (The comparison

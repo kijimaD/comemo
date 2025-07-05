@@ -17,7 +17,55 @@ Date:   Wed Sep 2 16:05:04 2015 -0700
     Change-Id: I7c7f6164a0a0143236729eb778d7638c51c34ed1
     Reviewed-on: https://go-review.googlesource.com/14185
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/rpc/server.go      |  8 +++++---
  src/net/rpc/server_test.go | 13 +++++++++++++
  2 files changed, 18 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/rpc/server.go b/src/net/rpc/server.go
+index 6e6e881917..c4d4479958 100644
+--- a/src/net/rpc/server.go
++++ b/src/net/rpc/server.go
+@@ -611,13 +611,15 @@ func (server *Server) readRequestHeader(codec ServerCodec) (service *service, mt
+ }
+ 
+ // Accept accepts connections on the listener and serves requests
+-// for each incoming connection.  Accept blocks; the caller typically
+-// invokes it in a go statement.
++// for each incoming connection. Accept blocks until the listener
++// returns a non-nil error. The caller typically invokes Accept in a
++// go statement.
+ func (server *Server) Accept(lis net.Listener) {
+ 	for {
+ 		conn, err := lis.Accept()
+ 		if err != nil {
+-			log.Fatal("rpc.Serve: accept:", err.Error()) // TODO(r): exit?
++			log.Print("rpc.Serve: accept:", err.Error())
++			return
+ 		}
+ 		go server.ServeConn(conn)
+ 	}
+diff --git a/src/net/rpc/server_test.go b/src/net/rpc/server_test.go
+index 0dc4ddc2de..498217b6ed 100644
+--- a/src/net/rpc/server_test.go
++++ b/src/net/rpc/server_test.go
+@@ -593,6 +593,19 @@ func TestErrorAfterClientClose(t *testing.T) {
+ 	}
+ }
+ 
++// Tests the fix to issue 11221. Without the fix, this loops forever or crashes.
++func TestAcceptExitAfterListenerClose(t *testing.T) {
++	newServer = NewServer()
++	newServer.Register(new(Arith))
++	newServer.RegisterName("net.rpc.Arith", new(Arith))
++	newServer.RegisterName("newServer.Arith", new(Arith))
++
++	var l net.Listener
++	l, newServerAddr = listenTCP()
++	l.Close()
++	newServer.Accept(l)
++}
++
+ func benchmarkEndToEnd(dial func() (*Client, error), b *testing.B) {
+ 	once.Do(startServer)
+ 	client, err := dial()

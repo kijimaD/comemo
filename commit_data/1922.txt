@@ -10,7 +10,62 @@ Date:   Mon Mar 30 22:26:00 2009 -0700
     R=ken
     OCL=26935
     CL=26935
-
+---
  src/cmd/gc/dcl.c | 6 ++++++
  src/cmd/gc/go.h  | 3 ++-
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index c9f1b1aacb..2e467249bb 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -481,8 +481,13 @@ funclit0(Type *t)
+ 
+ 	n = nod(OXXX, N, N);
+ 	n->outer = funclit;
++	n->dcl = autodcl;
+ 	funclit = n;
+ 
++	// new declaration context
++	autodcl = dcl();
++	autodcl->back = autodcl;
++
+ 	funcargs(t);
+ }
+ 
+@@ -592,6 +597,7 @@ funclit1(Type *type, Node *body)
+ 	n->nbody = body;
+ 	compile(n);
+ 	funcdepth--;
++	autodcl = func->dcl;
+ 
+ 	// if there's no closure, we can use f directly
+ 	if(func->cvars == N)
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index 62fd95a124..20c859943e 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -131,6 +131,7 @@ struct	Val
+ typedef	struct	Sym	Sym;
+ typedef	struct	Node	Node;
+ typedef	struct	Type	Type;
++typedef	struct	Dcl	Dcl;
+ 
+ struct	Type
+ {
+@@ -211,6 +212,7 @@ struct	Node
+ 	Node*	enter;
+ 	Node*	exit;
+ 	Node*	cvars;	// closure params
++	Dcl*	dcl;	// outer autodcl
+ 
+ 	// OLITERAL/OREGISTER
+ 	Val	val;
+@@ -259,7 +261,6 @@ struct	Sym
+ };
+ #define	S	((Sym*)0)
+ 
+-typedef	struct	Dcl	Dcl;
+ struct	Dcl
+ {
+ 	uchar	op;

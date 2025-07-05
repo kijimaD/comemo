@@ -21,7 +21,44 @@ Date:   Thu Nov 10 08:09:54 2011 +1100
     R=nigeltao
     CC=golang-dev
     https://golang.org/cl/5373043
-
+---
  src/pkg/html/parse_test.go | 3 ++-
  src/pkg/html/token.go      | 6 ++++--
  2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/html/parse_test.go b/src/pkg/html/parse_test.go
+index 14863da79f..8cef0fa8e3 100644
+--- a/src/pkg/html/parse_test.go
++++ b/src/pkg/html/parse_test.go
+@@ -133,7 +133,7 @@ func TestParser(t *testing.T) {
+ 		n int
+ 	}{
+ 		// TODO(nigeltao): Process all the test cases from all the .dat files.
+-		{"tests1.dat", 99},
++		{"tests1.dat", 106},
+ 		{"tests2.dat", 0},
+ 		{"tests3.dat", 0},
+ 	}
+@@ -213,4 +213,5 @@ var renderTestBlacklist = map[string]bool{
+ 	// More cases of <a> being reparented:
+ 	`<a href="blah">aba<table><a href="foo">br<tr><td></td></tr>x</table>aoe`: true,
+ 	`<a><table><a></table><p><a><div><a>`:                                     true,
++	`<a><table><td><a><table></table><a></tr><a></table><a>`:                  true,
+ }
+diff --git a/src/pkg/html/token.go b/src/pkg/html/token.go
+index 2c138227b1..78a240a66f 100644
+--- a/src/pkg/html/token.go
++++ b/src/pkg/html/token.go
+@@ -552,8 +552,10 @@ func (z *Tokenizer) Next() TokenType {
+ 	z.data.end = z.raw.end
+ 	if z.rawTag != "" {
+ 		z.readRawOrRCDATA()
+-		z.tt = TextToken
+-		return z.tt
++		if z.data.end > z.data.start {
++			z.tt = TextToken
++			return z.tt
++		}
+ 	}
+ 	z.textIsRaw = false
+ 

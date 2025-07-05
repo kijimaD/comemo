@@ -32,6 +32,19 @@ Date:   Fri Jun 24 13:13:05 2022 -0700
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/net/http/client.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index b29910ca43..cbf7c54501 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -603,6 +603,7 @@ func (c *Client) do(req *Request) (retres *Response, reterr error) {
+ 			Err: errors.New("http: nil Request.URL"),
+ 		}
+ 	}
++	_ = *c // panic early if c is nil; see go.dev/issue/53521
+ 
+ 	var (
+ 		deadline      = c.deadline()

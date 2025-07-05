@@ -26,8 +26,53 @@ Date:   Fri Jan 6 09:44:41 2017 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 2 ++
  src/runtime/malloc.go                    | 7 +++++++
  src/runtime/stack.go                     | 2 +-
  3 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index eb2d297f80..9f58db664b 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -132,6 +132,8 @@ func nilcheckelim(f *Func) {
+ }
+ 
+ // All platforms are guaranteed to fault if we load/store to anything smaller than this address.
++//
++// This should agree with minLegalPointer in the runtime.
+ const minZeroPage = 4096
+ 
+ // nilcheckelim2 eliminates unnecessary nil checks.
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 1c9efc3432..da39dac510 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -157,6 +157,13 @@ const (
+ 	_MaxGcproc = 32
+ 
+ 	_MaxArena32 = 1<<32 - 1
++
++	// minLegalPointer is the smallest possible legal pointer.
++	// This is the smallest possible architectural page size,
++	// since we assume that the first page is never mapped.
++	//
++	// This should agree with minZeroPage in the compiler.
++	minLegalPointer uintptr = 4096
+ )
+ 
+ // physPageSize is the size in bytes of the OS's physical pages.
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index b77a3119c3..0f1a5c1c55 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -601,7 +601,7 @@ func adjustpointers(scanp unsafe.Pointer, cbv *bitvector, adjinfo *adjustinfo, f
+ 			pp := (*uintptr)(add(scanp, i*sys.PtrSize))
+ 		retry:
+ 			p := *pp
+-			if f != nil && 0 < p && p < _PageSize && debug.invalidptr != 0 {
++			if f != nil && 0 < p && p < minLegalPointer && debug.invalidptr != 0 {
+ 				// Looks like a junk value in a pointer slot.
+ 				// Live analysis wrong?
+ 				getg().m.traceback = 2

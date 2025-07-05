@@ -16,7 +16,7 @@ Date:   Wed Jan 20 17:03:36 2021 -0800
     Reviewed-on: https://go-review.googlesource.com/c/go/+/285172
     Trust: Robert Griesemer <gri@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/noder/expr.go     |  4 --
  src/cmd/compile/internal/noder/noder.go    | 16 ++++----
  src/cmd/compile/internal/noder/stmt.go     |  2 +-
@@ -28,3 +28,247 @@ Date:   Wed Jan 20 17:03:36 2021 -0800
  src/cmd/compile/internal/types2/pos.go     |  2 +-
  src/cmd/compile/internal/types2/stmt.go    | 62 +++++++++++++++---------------
  10 files changed, 48 insertions(+), 53 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index be592003e1..76db774229 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -19,10 +19,6 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 		return nil
+ 	}
+ 
+-	if expr == syntax.ImplicitOne {
+-		base.Fatalf("expr of ImplicitOne")
+-	}
+-
+ 	if expr, ok := expr.(*syntax.Name); ok && expr.Value == "_" {
+ 		return ir.BlankNode
+ 	}
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 0c7d015977..e1ae2569e0 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -677,11 +677,7 @@ func (p *noder) expr(expr syntax.Expr) ir.Node {
+ 	case *syntax.Name:
+ 		return p.mkname(expr)
+ 	case *syntax.BasicLit:
+-		pos := base.Pos
+-		if expr != syntax.ImplicitOne { // ImplicitOne doesn't have a unique position
+-			pos = p.pos(expr)
+-		}
+-		n := ir.NewBasicLit(pos, p.basicLit(expr))
++		n := ir.NewBasicLit(p.pos(expr), p.basicLit(expr))
+ 		if expr.Kind == syntax.RuneLit {
+ 			n.SetType(types.UntypedRune)
+ 		}
+@@ -1039,9 +1035,15 @@ func (p *noder) stmtFall(stmt syntax.Stmt, fallOK bool) ir.Node {
+ 	case *syntax.DeclStmt:
+ 		return ir.NewBlockStmt(src.NoXPos, p.decls(stmt.DeclList))
+ 	case *syntax.AssignStmt:
++		if stmt.Rhs == nil {
++			pos := p.pos(stmt)
++			n := ir.NewAssignOpStmt(pos, p.binOp(stmt.Op), p.expr(stmt.Lhs), ir.NewBasicLit(pos, one))
++			n.IncDec = true
++			return n
++		}
++
+ 		if stmt.Op != 0 && stmt.Op != syntax.Def {
+ 			n := ir.NewAssignOpStmt(p.pos(stmt), p.binOp(stmt.Op), p.expr(stmt.Lhs), p.expr(stmt.Rhs))
+-			n.IncDec = stmt.Rhs == syntax.ImplicitOne
+ 			return n
+ 		}
+ 
+@@ -1502,7 +1504,7 @@ func (p *noder) wrapname(n syntax.Node, x ir.Node) ir.Node {
+ }
+ 
+ func (p *noder) setlineno(n syntax.Node) {
+-	if n != nil && n != syntax.ImplicitOne {
++	if n != nil {
+ 		base.Pos = p.pos(n)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/noder/stmt.go b/src/cmd/compile/internal/noder/stmt.go
+index 7d79595a04..267a34dbc8 100644
+--- a/src/cmd/compile/internal/noder/stmt.go
++++ b/src/cmd/compile/internal/noder/stmt.go
+@@ -53,7 +53,7 @@ func (g *irgen) stmt0(stmt syntax.Stmt) ir.Node {
+ 	case *syntax.AssignStmt:
+ 		if stmt.Op != 0 && stmt.Op != syntax.Def {
+ 			op := g.op(stmt.Op, binOps[:])
+-			if stmt.Rhs == syntax.ImplicitOne {
++			if stmt.Rhs == nil {
+ 				return IncDec(g.pos(stmt), op, g.expr(stmt.Lhs))
+ 			}
+ 			return ir.NewAssignOpStmt(g.pos(stmt), op, g.expr(stmt.Lhs), g.expr(stmt.Rhs))
+diff --git a/src/cmd/compile/internal/syntax/nodes.go b/src/cmd/compile/internal/syntax/nodes.go
+index a06d6e85b1..fb9786daa3 100644
+--- a/src/cmd/compile/internal/syntax/nodes.go
++++ b/src/cmd/compile/internal/syntax/nodes.go
+@@ -367,7 +367,7 @@ type (
+ 
+ 	AssignStmt struct {
+ 		Op       Operator // 0 means no operation
+-		Lhs, Rhs Expr     // Rhs == ImplicitOne means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
++		Lhs, Rhs Expr     // Rhs == nil means Lhs++ (Op == Add) or Lhs-- (Op == Sub)
+ 		simpleStmt
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index e3fb1003a2..c4ccbb82cb 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -1874,10 +1874,6 @@ func (p *parser) badExpr() *BadExpr {
+ // ----------------------------------------------------------------------------
+ // Statements
+ 
+-// We represent x++, x-- as assignments x += ImplicitOne, x -= ImplicitOne.
+-// ImplicitOne should not be used elsewhere.
+-var ImplicitOne = &BasicLit{Value: "1"}
+-
+ // SimpleStmt = EmptyStmt | ExpressionStmt | SendStmt | IncDecStmt | Assignment | ShortVarDecl .
+ func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
+ 	if trace {
+@@ -1910,7 +1906,7 @@ func (p *parser) simpleStmt(lhs Expr, keyword token) SimpleStmt {
+ 			// lhs++ or lhs--
+ 			op := p.op
+ 			p.next()
+-			return p.newAssignStmt(pos, op, lhs, ImplicitOne)
++			return p.newAssignStmt(pos, op, lhs, nil)
+ 
+ 		case _Arrow:
+ 			// lhs <- rhs
+diff --git a/src/cmd/compile/internal/syntax/printer.go b/src/cmd/compile/internal/syntax/printer.go
+index 161eb0d092..9109ce2363 100644
+--- a/src/cmd/compile/internal/syntax/printer.go
++++ b/src/cmd/compile/internal/syntax/printer.go
+@@ -549,7 +549,7 @@ func (p *printer) printRawNode(n Node) {
+ 
+ 	case *AssignStmt:
+ 		p.print(n.Lhs)
+-		if n.Rhs == ImplicitOne {
++		if n.Rhs == nil {
+ 			// TODO(gri) This is going to break the mayCombine
+ 			//           check once we enable that again.
+ 			p.print(n.Op, n.Op) // ++ or --
+diff --git a/src/cmd/compile/internal/syntax/walk.go b/src/cmd/compile/internal/syntax/walk.go
+index 418b26d674..c26e97a0d8 100644
+--- a/src/cmd/compile/internal/syntax/walk.go
++++ b/src/cmd/compile/internal/syntax/walk.go
+@@ -207,7 +207,9 @@ func (w *walker) node(n Node) {
+ 
+ 	case *AssignStmt:
+ 		w.node(n.Lhs)
+-		w.node(n.Rhs)
++		if n.Rhs != nil {
++			w.node(n.Rhs)
++		}
+ 
+ 	case *BranchStmt:
+ 		if n.Label != nil {
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index b728238d9f..22dc47b1e7 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -889,6 +889,7 @@ var binaryOpPredicates = opPredicates{
+ }
+ 
+ // The binary expression e may be nil. It's passed in for better error messages only.
++// TODO(gri) revisit use of e and opPos
+ func (check *Checker) binary(x *operand, e *syntax.Operation, lhs, rhs syntax.Expr, op syntax.Operator, opPos syntax.Pos) {
+ 	var y operand
+ 
+diff --git a/src/cmd/compile/internal/types2/pos.go b/src/cmd/compile/internal/types2/pos.go
+index 0a19cd1a23..955bb2ad08 100644
+--- a/src/cmd/compile/internal/types2/pos.go
++++ b/src/cmd/compile/internal/types2/pos.go
+@@ -286,7 +286,7 @@ func endPos(n syntax.Node) syntax.Pos {
+ 			return n.Pos()
+ 		case *syntax.AssignStmt:
+ 			m = n.Rhs
+-			if m == syntax.ImplicitOne {
++			if m == nil {
+ 				p := endPos(n.Lhs)
+ 				return syntax.MakePos(p.Base(), p.Line(), p.Col()+2)
+ 			}
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 52b9794c10..cbfe97b03c 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -367,47 +367,45 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 	case *syntax.AssignStmt:
+ 		lhs := unpackExpr(s.Lhs)
+-		rhs := unpackExpr(s.Rhs)
+-		if s.Op == 0 || s.Op == syntax.Def {
+-			// regular assignment or short variable declaration
+-			if len(lhs) == 0 {
+-				check.invalidASTf(s, "missing lhs in assignment")
+-				return
+-			}
+-			if s.Op == syntax.Def {
+-				check.shortVarDecl(s.Pos(), lhs, rhs)
+-			} else {
+-				// regular assignment
+-				check.assignVars(lhs, rhs)
+-			}
+-		} else {
+-			// assignment operations
+-			if len(lhs) != 1 || len(rhs) != 1 {
+-				check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
++		if s.Rhs == nil {
++			// x++ or x--
++			if len(lhs) != 1 {
++				check.invalidASTf(s, "%s%s requires one operand", s.Op, s.Op)
+ 				return
+ 			}
+-
+-			// provide better error messages for x++ and x--
+-			if rhs[0] == syntax.ImplicitOne {
+-				var x operand
+-				check.expr(&x, lhs[0])
+-				if x.mode == invalid {
+-					return
+-				}
+-				if !isNumeric(x.typ) {
+-					check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
+-					return
+-				}
+-			}
+-
+ 			var x operand
+-			check.binary(&x, nil, lhs[0], rhs[0], s.Op, rhs[0].Pos()) // TODO(gri) should have TokPos here (like in go/types)
++			check.expr(&x, lhs[0])
+ 			if x.mode == invalid {
+ 				return
+ 			}
++			if !isNumeric(x.typ) {
++				check.invalidOpf(lhs[0], "%s%s%s (non-numeric type %s)", lhs[0], s.Op, s.Op, x.typ)
++				return
++			}
+ 			check.assignVar(lhs[0], &x)
++			return
++		}
++
++		rhs := unpackExpr(s.Rhs)
++		switch s.Op {
++		case 0:
++			check.assignVars(lhs, rhs)
++			return
++		case syntax.Def:
++			check.shortVarDecl(s.Pos(), lhs, rhs)
++			return
++		}
++
++		// assignment operations
++		if len(lhs) != 1 || len(rhs) != 1 {
++			check.errorf(s, "assignment operation %s requires single-valued expressions", s.Op)
++			return
+ 		}
+ 
++		var x operand
++		check.binary(&x, nil, lhs[0], rhs[0], s.Op, s.Pos())
++		check.assignVar(lhs[0], &x)
++
+ 	// case *syntax.GoStmt:
+ 	// 	check.suspendedCall("go", s.Call)
+ 

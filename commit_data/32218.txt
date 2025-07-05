@@ -20,6 +20,29 @@ Date:   Wed Apr 12 17:43:30 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/internal/obj/plist.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 069e954130..ebfd361021 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -107,9 +107,6 @@ func Flushplist(ctxt *Link, plist *Plist, newprog ProgAlloc) {
+ 		linkpcln(ctxt, s)
+ 		makeFuncDebugEntry(ctxt, plist.Curfn, s)
+ 	}
+-
+-	// Add to running list in ctxt.
+-	ctxt.Text = append(ctxt.Text, text...)
+ }
+ 
+ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+@@ -135,6 +132,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int) {
+ 	s.Set(AttrNeedCtxt, flag&NEEDCTXT != 0)
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+ 	s.Type = STEXT
++	ctxt.Text = append(ctxt.Text, s)
+ }
+ 
+ func (ctxt *Link) Globl(s *LSym, size int64, flag int) {

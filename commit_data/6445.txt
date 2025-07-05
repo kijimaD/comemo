@@ -27,6 +27,19 @@ Date:   Fri Oct 1 16:02:18 2010 -0400
     R=iant
     CC=golang-dev, msolo
     https://golang.org/cl/2333045
-
+---
  src/Make.pkg | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/Make.pkg b/src/Make.pkg
+index d5ccbe0308..10454c7cc4 100644
+--- a/src/Make.pkg
++++ b/src/Make.pkg
+@@ -153,6 +153,7 @@ $(CGOTARG).so: $(GCC_OFILES) $(CGO_DEPS)
+ 
+ $(pkgdir)/$(CGOTARG).so: $(CGOTARG).so
+ 	@test -d $(QUOTED_GOROOT)/pkg && mkdir -p $(pkgdir)
++	rm -f "$@"
+ 	cp $(CGOTARG).so "$@"
+ 
+ ifneq ($(CGOFILES),)

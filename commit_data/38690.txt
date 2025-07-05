@@ -18,7 +18,39 @@ Date:   Tue Oct 30 13:30:09 2018 -0700
     Change-Id: I1880b7725a9fd99e4613799930fdad9aaa99e8f0
     Reviewed-on: https://go-review.googlesource.com/c/146058
     Reviewed-by: Austin Clements <austin@google.com>
-
+---
  src/cmd/compile/internal/ssa/nilcheck.go | 3 ++-
  src/unsafe/unsafe.go                     | 6 ++++++
  2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/nilcheck.go b/src/cmd/compile/internal/ssa/nilcheck.go
+index f2e17c606b..fca4f0bfc4 100644
+--- a/src/cmd/compile/internal/ssa/nilcheck.go
++++ b/src/cmd/compile/internal/ssa/nilcheck.go
+@@ -47,7 +47,8 @@ func nilcheckelim(f *Func) {
+ 			// a value resulting from taking the address of a
+ 			// value, or a value constructed from an offset of a
+ 			// non-nil ptr (OpAddPtr) implies it is non-nil
+-			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr {
++			// We also assume unsafe pointer arithmetic generates non-nil pointers. See #27180.
++			if v.Op == OpAddr || v.Op == OpLocalAddr || v.Op == OpAddPtr || v.Op == OpOffPtr || v.Op == OpAdd32 || v.Op == OpAdd64 || v.Op == OpSub32 || v.Op == OpSub64 {
+ 				nonNilValues[v.ID] = true
+ 			}
+ 		}
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index e16c4aeacb..272761d936 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -99,6 +99,12 @@ type ArbitraryType int
+ //	u := uintptr(p)
+ //	p = unsafe.Pointer(u + offset)
+ //
++// Note that the pointer must point into an allocated object, so it may not be nil.
++//
++//	// INVALID: conversion of nil pointer
++//	u := unsafe.Pointer(nil)
++//	p := unsafe.Pointer(uintptr(u) + offset)
++//
+ // (4) Conversion of a Pointer to a uintptr when calling syscall.Syscall.
+ //
+ // The Syscall functions in package syscall pass their uintptr arguments directly

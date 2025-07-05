@@ -22,9 +22,309 @@ Date:   Fri Jun 24 16:46:14 2011 -0700
     R=golang-dev, kevlar
     CC=golang-dev
     https://golang.org/cl/4628063
-
+---
  src/pkg/http/request.go           |   7 ---
  src/pkg/http/requestwrite_test.go | 119 +++++++++++++++++++++++++++-----------
  src/pkg/http/reverseproxy_test.go |   3 +
  src/pkg/http/transfer.go          |  31 ++++++++--
  4 files changed, 114 insertions(+), 46 deletions(-)
+
+diff --git a/src/pkg/http/request.go b/src/pkg/http/request.go
+index 183a35c712..cd6965fa5d 100644
+--- a/src/pkg/http/request.go
++++ b/src/pkg/http/request.go
+@@ -511,13 +511,6 @@ func NewRequest(method, url string, body io.Reader) (*Request, os.Error) {
+ 			req.ContentLength = int64(v.Len())
+ 		case *bytes.Buffer:
+ 			req.ContentLength = int64(v.Len())
+-		default:
+-			req.ContentLength = -1 // chunked
+-		}
+-		if req.ContentLength == 0 {
+-			// To prevent chunking and disambiguate this
+-			// from the default ContentLength zero value.
+-			req.TransferEncoding = []string{"identity"}
+ 		}
+ 	}
+ 
+diff --git a/src/pkg/http/requestwrite_test.go b/src/pkg/http/requestwrite_test.go
+index 43ad5252d3..0052c0cfc5 100644
+--- a/src/pkg/http/requestwrite_test.go
++++ b/src/pkg/http/requestwrite_test.go
+@@ -6,6 +6,7 @@ package http
+ 
+ import (
+ 	"bytes"
++	"fmt"
+ 	"io"
+ 	"io/ioutil"
+ 	"os"
+@@ -15,7 +16,7 @@ import (
+ 
+ type reqWriteTest struct {
+ 	Req      Request
+-	Body     []byte
++	Body     interface{} // optional []byte or func() io.ReadCloser to populate Req.Body
+ 	Raw      string
+ 	RawProxy string
+ }
+@@ -98,13 +99,13 @@ var reqWriteTests = []reqWriteTest{
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+-			"6\r\nabcdef\r\n0\r\n\r\n",
++			chunk("abcdef") + chunk(""),
+ 
+ 		"GET http://www.google.com/search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+-			"6\r\nabcdef\r\n0\r\n\r\n",
++			chunk("abcdef") + chunk(""),
+ 	},
+ 	// HTTP/1.1 POST => chunked coding; body; empty trailer
+ 	{
+@@ -129,14 +130,14 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go http package\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+-			"6\r\nabcdef\r\n0\r\n\r\n",
++			chunk("abcdef") + chunk(""),
+ 
+ 		"POST http://www.google.com/search HTTP/1.1\r\n" +
+ 			"Host: www.google.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Connection: close\r\n" +
+ 			"Transfer-Encoding: chunked\r\n\r\n" +
+-			"6\r\nabcdef\r\n0\r\n\r\n",
++			chunk("abcdef") + chunk(""),
+ 	},
+ 
+ 	// HTTP/1.1 POST with Content-Length, no chunking
+@@ -224,13 +225,72 @@ var reqWriteTests = []reqWriteTest{
+ 			"User-Agent: Go http package\r\n" +
+ 			"\r\n",
+ 	},
++
++	// Request with a 0 ContentLength and a 0 byte body.
++	{
++		Request{
++			Method:        "POST",
++			RawURL:        "/",
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++
++		func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 0)) },
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"\r\n",
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"\r\n",
++	},
++
++	// Request with a 0 ContentLength and a 1 byte body.
++	{
++		Request{
++			Method:        "POST",
++			RawURL:        "/",
++			Host:          "example.com",
++			ProtoMajor:    1,
++			ProtoMinor:    1,
++			ContentLength: 0, // as if unset by user
++		},
++
++		func() io.ReadCloser { return ioutil.NopCloser(io.LimitReader(strings.NewReader("xx"), 1)) },
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			chunk("x") + chunk(""),
++
++		"POST / HTTP/1.1\r\n" +
++			"Host: example.com\r\n" +
++			"User-Agent: Go http package\r\n" +
++			"Transfer-Encoding: chunked\r\n\r\n" +
++			chunk("x") + chunk(""),
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {
+ 	for i := range reqWriteTests {
+ 		tt := &reqWriteTests[i]
++
++		setBody := func() {
++			switch b := tt.Body.(type) {
++			case []byte:
++				tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(b))
++			case func() io.ReadCloser:
++				tt.Req.Body = b()
++			}
++		}
+ 		if tt.Body != nil {
+-			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
++			setBody()
+ 		}
+ 		if tt.Req.Header == nil {
+ 			tt.Req.Header = make(Header)
+@@ -248,7 +308,7 @@ func TestRequestWrite(t *testing.T) {
+ 		}
+ 
+ 		if tt.Body != nil {
+-			tt.Req.Body = ioutil.NopCloser(bytes.NewBuffer(tt.Body))
++			setBody()
+ 		}
+ 		var praw bytes.Buffer
+ 		err = tt.Req.WriteProxy(&praw)
+@@ -280,41 +340,30 @@ func (rc *closeChecker) Close() os.Error {
+ func TestRequestWriteClosesBody(t *testing.T) {
+ 	rc := &closeChecker{Reader: strings.NewReader("my body")}
+ 	req, _ := NewRequest("POST", "http://foo.com/", rc)
+-	if g, e := req.ContentLength, int64(-1); g != e {
+-		t.Errorf("got req.ContentLength %d, want %d", g, e)
++	if req.ContentLength != 0 {
++		t.Errorf("got req.ContentLength %d, want 0", req.ContentLength)
+ 	}
+ 	buf := new(bytes.Buffer)
+ 	req.Write(buf)
+ 	if !rc.closed {
+ 		t.Error("body not closed after write")
+ 	}
+-	if g, e := buf.String(), "POST / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n7\r\nmy body\r\n0\r\n\r\n"; g != e {
+-		t.Errorf("write:\n got: %s\nwant: %s", g, e)
++	expected := "POST / HTTP/1.1\r\n" +
++		"Host: foo.com\r\n" +
++		"User-Agent: Go http package\r\n" +
++		"Transfer-Encoding: chunked\r\n\r\n" +
++		// TODO: currently we don't buffer before chunking, so we get a
++		// single "m" chunk before the other chunks, as this was the 1-byte
++		// read from our MultiReader where we stiched the Body back together
++		// after sniffing whether the Body was 0 bytes or not.
++		chunk("m") +
++		chunk("y body") +
++		chunk("")
++	if buf.String() != expected {
++		t.Errorf("write:\n got: %s\nwant: %s", buf.String(), expected)
+ 	}
+ }
+ 
+-func TestZeroLengthNewRequest(t *testing.T) {
+-	var buf bytes.Buffer
+-
+-	// Writing with default identity encoding
+-	req, _ := NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
+-	if len(req.TransferEncoding) == 0 || req.TransferEncoding[0] != "identity" {
+-		t.Fatalf("got req.TransferEncoding of %v, want %v", req.TransferEncoding, []string{"identity"})
+-	}
+-	if g, e := req.ContentLength, int64(0); g != e {
+-		t.Errorf("got req.ContentLength %d, want %d", g, e)
+-	}
+-	req.Write(&buf)
+-	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nContent-Length: 0\r\n\r\n"; g != e {
+-		t.Errorf("identity write:\n got: %s\nwant: %s", g, e)
+-	}
+-
+-	// Overriding identity encoding and forcing chunked.
+-	req, _ = NewRequest("PUT", "http://foo.com/", strings.NewReader(""))
+-	req.TransferEncoding = nil
+-	buf.Reset()
+-	req.Write(&buf)
+-	if g, e := buf.String(), "PUT / HTTP/1.1\r\nHost: foo.com\r\nUser-Agent: Go http package\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"; g != e {
+-		t.Errorf("chunked write:\n got: %s\nwant: %s", g, e)
+-	}
++func chunk(s string) string {
++	return fmt.Sprintf("%x\r\n%s\r\n", len(s), s)
+ }
+diff --git a/src/pkg/http/reverseproxy_test.go b/src/pkg/http/reverseproxy_test.go
+index bc08614814..b2dd24633a 100644
+--- a/src/pkg/http/reverseproxy_test.go
++++ b/src/pkg/http/reverseproxy_test.go
+@@ -17,6 +17,9 @@ func TestReverseProxy(t *testing.T) {
+ 	const backendResponse = "I am the backend"
+ 	const backendStatus = 404
+ 	backend := httptest.NewServer(HandlerFunc(func(w ResponseWriter, r *Request) {
++		if len(r.TransferEncoding) > 0 {
++			t.Errorf("backend got unexpected TransferEncoding: %v", r.TransferEncoding)
++		}
+ 		if r.Header.Get("X-Forwarded-For") == "" {
+ 			t.Errorf("didn't get X-Forwarded-For header")
+ 		}
+diff --git a/src/pkg/http/transfer.go b/src/pkg/http/transfer.go
+index 609a5f7233..f72c3d239a 100644
+--- a/src/pkg/http/transfer.go
++++ b/src/pkg/http/transfer.go
+@@ -5,6 +5,7 @@
+ package http
+ 
+ import (
++	"bytes"
+ 	"bufio"
+ 	"io"
+ 	"io/ioutil"
+@@ -17,7 +18,8 @@ import (
+ // sanitizes them without changing the user object and provides methods for
+ // writing the respective header, body and trailer in wire format.
+ type transferWriter struct {
+-	Body             io.ReadCloser
++	Body             io.Reader
++	BodyCloser       io.Closer
+ 	ResponseToHEAD   bool
+ 	ContentLength    int64
+ 	Close            bool
+@@ -33,16 +35,37 @@ func newTransferWriter(r interface{}) (t *transferWriter, err os.Error) {
+ 	switch rr := r.(type) {
+ 	case *Request:
+ 		t.Body = rr.Body
++		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+ 		t.Close = rr.Close
+ 		t.TransferEncoding = rr.TransferEncoding
+ 		t.Trailer = rr.Trailer
+ 		atLeastHTTP11 = rr.ProtoAtLeast(1, 1)
+-		if t.Body != nil && t.ContentLength <= 0 && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
+-			t.TransferEncoding = []string{"chunked"}
++		if t.Body != nil && len(t.TransferEncoding) == 0 && atLeastHTTP11 {
++			if t.ContentLength == 0 {
++				// Test to see if it's actually zero or just unset.
++				var buf [1]byte
++				n, _ := io.ReadFull(t.Body, buf[:])
++				if n == 1 {
++					// Oh, guess there is data in this Body Reader after all.
++					// The ContentLength field just wasn't set.
++					// Stich the Body back together again, re-attaching our
++					// consumed byte.
++					t.ContentLength = -1
++					t.Body = io.MultiReader(bytes.NewBuffer(buf[:]), t.Body)
++				} else {
++					// Body is actually empty.
++					t.Body = nil
++					t.BodyCloser = nil
++				}
++			}
++			if t.ContentLength < 0 {
++				t.TransferEncoding = []string{"chunked"}
++			}
+ 		}
+ 	case *Response:
+ 		t.Body = rr.Body
++		t.BodyCloser = rr.Body
+ 		t.ContentLength = rr.ContentLength
+ 		t.Close = rr.Close
+ 		t.TransferEncoding = rr.TransferEncoding
+@@ -147,7 +170,7 @@ func (t *transferWriter) WriteBody(w io.Writer) (err os.Error) {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if err = t.Body.Close(); err != nil {
++		if err = t.BodyCloser.Close(); err != nil {
+ 			return err
+ 		}
+ 	}

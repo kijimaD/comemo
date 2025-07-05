@@ -136,8 +136,66 @@ Date:   Sun Feb 17 23:12:55 2019 -0500
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/gc/esc.go | 10 ++++++++++
  test/escape_because.go             |  2 +-
  test/escape_param.go               | 15 +++++++++++++++
  3 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 322b2dcd0b..bd0fb82554 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -2105,6 +2105,16 @@ func (e *EscState) escwalkBody(level Level, dst *Node, src *Node, step *EscStep,
+ 				step.describe(src)
+ 			}
+ 			extraloopdepth = modSrcLoopdepth
++			if src.Op == OCONVIFACE {
++				lt := src.Left.Type
++				if !lt.IsInterface() && !isdirectiface(lt) && types.Haspointers(lt) {
++					// We're converting from a non-direct interface type.
++					// The interface will hold a heap copy of the data
++					// (by calling convT2I or friend). Flow the data to heap.
++					// See issue 29353.
++					e.escwalk(level, &e.theSink, src.Left, e.stepWalk(dst, src.Left, "interface-converted", step))
++				}
++			}
+ 		}
+ 
+ 	case ODOT,
+diff --git a/test/escape_because.go b/test/escape_because.go
+index 3b67ff9e4b..64fa28ddda 100644
+--- a/test/escape_because.go
++++ b/test/escape_because.go
+@@ -43,7 +43,7 @@ func f2(q *int) { // ERROR "from &u \(address-of\) at escape_because.go:43$" "fr
+ 	sink = &u // ERROR "&u escapes to heap$" "from &u \(interface-converted\) at escape_because.go:43$" "from sink \(assigned to top level variable\) at escape_because.go:43$"
+ }
+ 
+-func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r to result ~r1 level=-1$"
++func f3(r *int) interface{} { // ERROR "from \[\]\*int literal \(slice-literal-element\) at escape_because.go:47$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$" "leaking param: r"
+ 	c := []*int{r} // ERROR "\[\]\*int literal escapes to heap$" "from c \(assigned\) at escape_because.go:47$" "from c \(interface-converted\) at escape_because.go:48$" "from ~r1 \(return\) at escape_because.go:48$"
+ 	return c       // "return" // ERROR "c escapes to heap$" "from ~r1 \(return\) at escape_because.go:48$"
+ }
+diff --git a/test/escape_param.go b/test/escape_param.go
+index dff13b6f7c..175a4f03dd 100644
+--- a/test/escape_param.go
++++ b/test/escape_param.go
+@@ -424,3 +424,18 @@ func h(x *Node) { // ERROR "leaking param: x"
+ 	Sink = g(y)
+ 	f(y)
+ }
++
++// interface(in) -> out
++// See also issue 29353.
++
++// Convert to a non-direct interface, require an allocation and
++// copy x to heap (not to result).
++func param14a(x [4]*int) interface{} { // ERROR "leaking param: x$"
++	return x // ERROR "x escapes to heap"
++}
++
++// Convert to a direct interface, does not need an allocation.
++// So x only leaks to result.
++func param14b(x *int) interface{} { // ERROR "leaking param: x to result ~r1 level=0"
++	return x // ERROR "x escapes to heap"
++}

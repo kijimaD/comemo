@@ -25,6 +25,23 @@ Date:   Sat Jul 11 12:59:00 2015 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/runtime1.go | 5 +++++
  1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index e483178d64..db26995703 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -376,6 +376,11 @@ func parsedebugvars() {
+ 	default:
+ 		traceback_cache = uint32(atoi(p)) << 1
+ 	}
++	// when C owns the process, simply exit'ing the process on fatal errors
++	// and panics is surprising. Be louder and abort instead.
++	if islibrary || isarchive {
++		traceback_cache |= 1
++	}
+ }
+ 
+ // Poor mans 64-bit division.

@@ -10,7 +10,7 @@ Date:   Fri Mar 15 00:00:02 2013 -0400
     R=golang-dev, nightlyone, fullung, r
     CC=golang-dev
     https://golang.org/cl/7546048
-
+---
  src/pkg/os/signal/sig.s            |   3 +
  src/pkg/os/signal/signal.go        |  91 +++++++++++++++++++++++------
  src/pkg/os/signal/signal_stub.go   |   8 ++-
@@ -24,3 +24,565 @@ Date:   Fri Mar 15 00:00:02 2013 -0400
  src/pkg/runtime/signal_unix.c      |  51 +++++++++++++----
  src/pkg/runtime/sigqueue.goc       |  18 +++---
  12 files changed, 289 insertions(+), 47 deletions(-)
+
+diff --git a/src/pkg/os/signal/sig.s b/src/pkg/os/signal/sig.s
+index d1984cf886..7d0c92b195 100644
+--- a/src/pkg/os/signal/sig.s
++++ b/src/pkg/os/signal/sig.s
+@@ -8,6 +8,9 @@
+ #define JMP B
+ #endif
+ 
++TEXT ·signal_disable(SB),7,$0
++	JMP runtime·signal_disable(SB)
++
+ TEXT ·signal_enable(SB),7,$0
+ 	JMP runtime·signal_enable(SB)
+ 
+diff --git a/src/pkg/os/signal/signal.go b/src/pkg/os/signal/signal.go
+index 0861f59aa9..3004275495 100644
+--- a/src/pkg/os/signal/signal.go
++++ b/src/pkg/os/signal/signal.go
+@@ -14,13 +14,20 @@ import (
+ 
+ var handlers struct {
+ 	sync.Mutex
+-	list []handler
++	m   map[chan<- os.Signal]*handler
++	ref [numSig]int64
+ }
+ 
+ type handler struct {
+-	c   chan<- os.Signal
+-	sig os.Signal
+-	all bool
++	mask [(numSig + 31) / 32]uint32
++}
++
++func (h *handler) want(sig int) bool {
++	return (h.mask[sig/32]>>uint(sig&31))&1 != 0
++}
++
++func (h *handler) set(sig int) {
++	h.mask[sig/32] |= 1 << uint(sig&31)
+ }
+ 
+ // Notify causes package signal to relay incoming signals to c.
+@@ -32,6 +39,13 @@ type handler struct {
+ // signal rate.  For a channel used for notification of just one signal value,
+ // a buffer of size 1 is sufficient.
+ //
++// It is allowed to call Notify multiple times with the same channel:
++// each call expands the set of signals sent to that channel.
++// The only way to remove signals from the set is to call Stop.
++//
++// It is allowed to call Notify multiple times with different channels
++// and the same signals: each channel receives copies of incoming
++// signals independently.
+ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 	if c == nil {
+ 		panic("os/signal: Notify using nil channel")
+@@ -39,32 +53,77 @@ func Notify(c chan<- os.Signal, sig ...os.Signal) {
+ 
+ 	handlers.Lock()
+ 	defer handlers.Unlock()
++
++	h := handlers.m[c]
++	if h == nil {
++		if handlers.m == nil {
++			handlers.m = make(map[chan<- os.Signal]*handler)
++		}
++		h = new(handler)
++		handlers.m[c] = h
++	}
++
++	add := func(n int) {
++		if n < 0 {
++			return
++		}
++		if !h.want(n) {
++			h.set(n)
++			if handlers.ref[n] == 0 {
++				enableSignal(n)
++			}
++			handlers.ref[n]++
++		}
++	}
++
+ 	if len(sig) == 0 {
+-		enableSignal(nil)
+-		handlers.list = append(handlers.list, handler{c: c, all: true})
++		for n := 0; n < numSig; n++ {
++			add(n)
++		}
+ 	} else {
+ 		for _, s := range sig {
+-			// We use nil as a special wildcard value for enableSignal,
+-			// so filter it out of the list of arguments.  This is safe because
+-			// we will never get an incoming nil signal, so discarding the
+-			// registration cannot affect the observed behavior.
+-			if s != nil {
+-				enableSignal(s)
+-				handlers.list = append(handlers.list, handler{c: c, sig: s})
++			add(signum(s))
++		}
++	}
++}
++
++// Stop causes package signal to stop relaying incoming signals to c.
++// It undoes the effect of all prior calls to Notify using c.
++// When Stop returns, it is guaranteed that c will receive no more signals.
++func Stop(c chan<- os.Signal) {
++	handlers.Lock()
++	defer handlers.Unlock()
++
++	h := handlers.m[c]
++	if h == nil {
++		return
++	}
++	delete(handlers.m, c)
++
++	for n := 0; n < numSig; n++ {
++		if h.want(n) {
++			handlers.ref[n]--
++			if handlers.ref[n] == 0 {
++				disableSignal(n)
+ 			}
+ 		}
+ 	}
+ }
+ 
+ func process(sig os.Signal) {
++	n := signum(sig)
++	if n < 0 {
++		return
++	}
++
+ 	handlers.Lock()
+ 	defer handlers.Unlock()
+ 
+-	for _, h := range handlers.list {
+-		if h.all || h.sig == sig {
++	for c, h := range handlers.m {
++		if h.want(n) {
+ 			// send but do not block for it
+ 			select {
+-			case h.c <- sig:
++			case c <- sig:
+ 			default:
+ 			}
+ 		}
+diff --git a/src/pkg/os/signal/signal_stub.go b/src/pkg/os/signal/signal_stub.go
+index fc227cf4c2..d0a6935ff2 100644
+--- a/src/pkg/os/signal/signal_stub.go
++++ b/src/pkg/os/signal/signal_stub.go
+@@ -8,4 +8,10 @@ package signal
+ 
+ import "os"
+ 
+-func enableSignal(sig os.Signal) {}
++const numSig = 0
++
++func signum(sig os.Signal) int { return -1 }
++
++func disableSignal(int) {}
++
++func enableSignal(int) {}
+diff --git a/src/pkg/os/signal/signal_test.go b/src/pkg/os/signal/signal_test.go
+index 93e5ab9fad..d13833306f 100644
+--- a/src/pkg/os/signal/signal_test.go
++++ b/src/pkg/os/signal/signal_test.go
+@@ -7,15 +7,17 @@
+ package signal
+ 
+ import (
++	"flag"
++	"io/ioutil"
+ 	"os"
++	"os/exec"
+ 	"runtime"
++	"strconv"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+ )
+ 
+-const sighup = syscall.SIGHUP
+-
+ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+ 	select {
+ 	case s := <-c:
+@@ -27,15 +29,17 @@ func waitSig(t *testing.T, c <-chan os.Signal, sig os.Signal) {
+ 	}
+ }
+ 
++// Test that basic signal handling works.
+ func TestSignal(t *testing.T) {
+ 	// Ask for SIGHUP
+ 	c := make(chan os.Signal, 1)
+-	Notify(c, sighup)
++	Notify(c, syscall.SIGHUP)
++	defer Stop(c)
+ 
+ 	t.Logf("sighup...")
+ 	// Send this process a SIGHUP
+-	syscall.Kill(syscall.Getpid(), sighup)
+-	waitSig(t, c, sighup)
++	syscall.Kill(syscall.Getpid(), syscall.SIGHUP)
++	waitSig(t, c, syscall.SIGHUP)
+ 
+ 	// Ask for everything we can get.
+ 	c1 := make(chan os.Signal, 1)
+@@ -71,6 +75,7 @@ func TestStress(t *testing.T) {
+ 	go func() {
+ 		sig := make(chan os.Signal, 1)
+ 		Notify(sig, syscall.SIGUSR1)
++		defer Stop(sig)
+ 	Loop:
+ 		for {
+ 			select {
+@@ -103,3 +108,101 @@ func TestStress(t *testing.T) {
+ 	// Sleep for a while to reduce the possibility of the failure.
+ 	time.Sleep(10 * time.Millisecond)
+ }
++
++var sendUncaughtSighup = flag.Int("send_uncaught_sighup", 0, "send uncaught SIGHUP during TestStop")
++
++// Test that Stop cancels the channel's registrations.
++func TestStop(t *testing.T) {
++	sigs := []syscall.Signal{
++		syscall.SIGWINCH,
++		syscall.SIGHUP,
++	}
++
++	for _, sig := range sigs {
++		// Send the signal.
++		// If it's SIGWINCH, we should not see it.
++		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
++		if sig != syscall.SIGHUP || *sendUncaughtSighup == 1 {
++			syscall.Kill(syscall.Getpid(), sig)
++		}
++		time.Sleep(10 * time.Millisecond)
++
++		// Ask for signal
++		c := make(chan os.Signal, 1)
++		Notify(c, sig)
++		defer Stop(c)
++
++		// Send this process that signal
++		syscall.Kill(syscall.Getpid(), sig)
++		waitSig(t, c, sig)
++
++		Stop(c)
++		select {
++		case s := <-c:
++			t.Fatalf("unexpected signal %v", s)
++		case <-time.After(10 * time.Millisecond):
++			// nothing to read - good
++		}
++
++		// Send the signal.
++		// If it's SIGWINCH, we should not see it.
++		// If it's SIGHUP, maybe we'll die. Let the flag tell us what to do.
++		if sig != syscall.SIGHUP || *sendUncaughtSighup == 2 {
++			syscall.Kill(syscall.Getpid(), sig)
++		}
++
++		select {
++		case s := <-c:
++			t.Fatalf("unexpected signal %v", s)
++		case <-time.After(10 * time.Millisecond):
++			// nothing to read - good
++		}
++	}
++}
++
++// Test that when run under nohup, an uncaught SIGHUP does not kill the program,
++// but a
++func TestNohup(t *testing.T) {
++	// Ugly: ask for SIGHUP so that child will not have no-hup set
++	// even if test is running under nohup environment.
++	// We have no intention of reading from c.
++	c := make(chan os.Signal, 1)
++	Notify(c, syscall.SIGHUP)
++
++	// When run without nohup, the test should crash on an uncaught SIGHUP.
++	// When run under nohup, the test should ignore uncaught SIGHUPs,
++	// because the runtime is not supposed to be listening for them.
++	// Either way, TestStop should still be able to catch them when it wants them
++	// and then when it stops wanting them, the original behavior should resume.
++	//
++	// send_uncaught_sighup=1 sends the SIGHUP before starting to listen for SIGHUPs.
++	// send_uncaught_sighup=2 sends the SIGHUP after no longer listening for SIGHUPs.
++	//
++	// Both should fail without nohup and succeed with nohup.
++
++	for i := 1; i <= 2; i++ {
++		out, err := exec.Command(os.Args[0], "-test.run=TestStop", "-send_uncaught_sighup="+strconv.Itoa(i)).CombinedOutput()
++		if err == nil {
++			t.Fatalf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
++		}
++	}
++
++	Stop(c)
++
++	// Again, this time with nohup, assuming we can find it.
++	_, err := os.Stat("/usr/bin/nohup")
++	if err != nil {
++		t.Skip("cannot find nohup; skipping second half of test")
++	}
++
++	for i := 1; i <= 2; i++ {
++		os.Remove("nohup.out")
++		out, err := exec.Command("/usr/bin/nohup", os.Args[0], "-test.run=TestStop", "-send_uncaught_sighup="+strconv.Itoa(i)).CombinedOutput()
++
++		data, _ := ioutil.ReadFile("nohup.out")
++		os.Remove("nohup.out")
++		if err != nil {
++			t.Fatalf("ran test with -send_uncaught_sighup=%d under nohup and it failed: expected success.\nError: %v\nOutput:\n%s%s", i, err, out, data)
++		}
++	}
++}
+diff --git a/src/pkg/os/signal/signal_unix.go b/src/pkg/os/signal/signal_unix.go
+index 20ee5f26aa..6b4c8ab662 100644
+--- a/src/pkg/os/signal/signal_unix.go
++++ b/src/pkg/os/signal/signal_unix.go
+@@ -12,6 +12,7 @@ import (
+ )
+ 
+ // In assembly.
++func signal_disable(uint32)
+ func signal_enable(uint32)
+ func signal_recv() uint32
+ 
+@@ -26,13 +27,27 @@ func init() {
+ 	go loop()
+ }
+ 
+-func enableSignal(sig os.Signal) {
++const (
++	numSig = 65 // max across all systems
++)
++
++func signum(sig os.Signal) int {
+ 	switch sig := sig.(type) {
+-	case nil:
+-		signal_enable(^uint32(0))
+ 	case syscall.Signal:
+-		signal_enable(uint32(sig))
++		i := int(sig)
++		if i < 0 || i >= numSig {
++			return -1
++		}
++		return i
+ 	default:
+-		// Can ignore: this signal (whatever it is) will never come in.
++		return -1
+ 	}
+ }
++
++func enableSignal(sig int) {
++	signal_enable(uint32(sig))
++}
++
++func disableSignal(sig int) {
++	signal_disable(uint32(sig))
++}
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 17bc117496..3d8b43a5da 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -111,6 +111,12 @@ runtime·sigenable(uint32 sig)
+ 	USED(sig);
+ }
+ 
++void
++runtime·sigdisable(uint32 sig)
++{
++	USED(sig);
++}
++
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index e4f946abce..acdf65d00c 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -118,6 +118,12 @@ runtime·sigenable(uint32 sig)
+ 	USED(sig);
+ }
+ 
++void
++runtime·sigdisable(uint32 sig)
++{
++	USED(sig);
++}
++
+ void
+ runtime·resetcpuprofiler(int32 hz)
+ {
+diff --git a/src/pkg/runtime/os_windows_386.c b/src/pkg/runtime/os_windows_386.c
+index d76d5bf4bd..fc75eb3af0 100644
+--- a/src/pkg/runtime/os_windows_386.c
++++ b/src/pkg/runtime/os_windows_386.c
+@@ -90,6 +90,12 @@ runtime·sigenable(uint32 sig)
+ 	USED(sig);
+ }
+ 
++void
++runtime·sigdisable(uint32 sig)
++{
++	USED(sig);
++}
++
+ void
+ runtime·dosigprof(Context *r, G *gp)
+ {
+diff --git a/src/pkg/runtime/os_windows_amd64.c b/src/pkg/runtime/os_windows_amd64.c
+index 3729aa57b7..7ed33465e3 100644
+--- a/src/pkg/runtime/os_windows_amd64.c
++++ b/src/pkg/runtime/os_windows_amd64.c
+@@ -97,6 +97,12 @@ runtime·sigenable(uint32 sig)
+ 	USED(sig);
+ }
+ 
++void
++runtime·sigdisable(uint32 sig)
++{
++	USED(sig);
++}
++
+ void
+ runtime·dosigprof(Context *r, G *gp)
+ {
+diff --git a/src/pkg/runtime/runtime.h b/src/pkg/runtime/runtime.h
+index e2c35e1657..e0da57bb0a 100644
+--- a/src/pkg/runtime/runtime.h
++++ b/src/pkg/runtime/runtime.h
+@@ -384,6 +384,8 @@ enum
+ 	SigThrow = 1<<2,	// if signal.Notify doesn't take it, exit loudly
+ 	SigPanic = 1<<3,	// if the signal is from the kernel, panic
+ 	SigDefault = 1<<4,	// if the signal isn't explicitly requested, don't monitor it
++	SigHandling = 1<<5,	// our signal handler is registered
++	SigIgnored = 1<<6,	// the signal was ignored before we registered for it
+ };
+ 
+ // NOTE(rsc): keep in sync with extern.go:/type.Func.
+@@ -696,6 +698,7 @@ String	runtime·gostringnocopy(byte*);
+ String	runtime·gostringw(uint16*);
+ void	runtime·initsig(void);
+ void	runtime·sigenable(uint32 sig);
++void	runtime·sigdisable(uint32 sig);
+ int32	runtime·gotraceback(void);
+ void	runtime·goroutineheader(G*);
+ void	runtime·traceback(uint8 *pc, uint8 *sp, uint8 *lr, G* gp);
+diff --git a/src/pkg/runtime/signal_unix.c b/src/pkg/runtime/signal_unix.c
+index f3542acbae..5d0bcbd2d5 100644
+--- a/src/pkg/runtime/signal_unix.c
++++ b/src/pkg/runtime/signal_unix.c
+@@ -22,6 +22,20 @@ runtime·initsig(void)
+ 		t = &runtime·sigtab[i];
+ 		if((t->flags == 0) || (t->flags & SigDefault))
+ 			continue;
++
++		// For some signals, we respect an inherited SIG_IGN handler
++		// rather than insist on installing our own default handler.
++		// Even these signals can be fetched using the os/signal package.
++		switch(i) {
++		case SIGHUP:
++		case SIGINT:
++			if(runtime·getsig(i) == SIG_IGN) {
++				t->flags = SigNotify | SigIgnored;
++				continue;
++			}
++		}
++
++		t->flags |= SigHandling;
+ 		runtime·setsig(i, runtime·sighandler, true);
+ 	}
+ }
+@@ -29,18 +43,35 @@ runtime·initsig(void)
+ void
+ runtime·sigenable(uint32 sig)
+ {
+-	int32 i;
+ 	SigTab *t;
+ 
+-	for(i = 0; i<NSIG; i++) {
+-		// ~0 means all signals.
+-		if(~sig == 0 || i == sig) {
+-			t = &runtime·sigtab[i];
+-			if(t->flags & SigDefault) {
+-				runtime·setsig(i, runtime·sighandler, true);
+-				t->flags &= ~SigDefault;  // make this idempotent
+-			}
+-		}
++	if(sig >= NSIG)
++		return;
++
++	t = &runtime·sigtab[sig];
++	if((t->flags & SigNotify) && !(t->flags & SigHandling)) {
++		t->flags |= SigHandling;
++		if(runtime·getsig(sig) == SIG_IGN)
++			t->flags |= SigIgnored;
++		runtime·setsig(sig, runtime·sighandler, true);
++	}
++}
++
++void
++runtime·sigdisable(uint32 sig)
++{
++	SigTab *t;
++
++	if(sig >= NSIG)
++		return;
++
++	t = &runtime·sigtab[sig];
++	if((t->flags & SigNotify) && (t->flags & SigHandling)) {
++		t->flags &= ~SigHandling;
++		if(t->flags & SigIgnored)
++			runtime·setsig(sig, SIG_IGN, true);
++		else
++			runtime·setsig(sig, SIG_DFL, true);
+ 	}
+ }
+ 
+diff --git a/src/pkg/runtime/sigqueue.goc b/src/pkg/runtime/sigqueue.goc
+index ab5f312e42..7e083685d0 100644
+--- a/src/pkg/runtime/sigqueue.goc
++++ b/src/pkg/runtime/sigqueue.goc
+@@ -133,8 +133,6 @@ done:;
+ 
+ // Must only be called from a single goroutine at a time.
+ func signal_enable(s uint32) {
+-	int32 i;
+-
+ 	if(!sig.inuse) {
+ 		// The first call to signal_enable is for us
+ 		// to use for initialization.  It does not pass
+@@ -144,16 +142,16 @@ func signal_enable(s uint32) {
+ 		return;
+ 	}
+ 	
+-	if(~s == 0) {
+-		// Special case: want everything.
+-		for(i=0; i<nelem(sig.wanted); i++)
+-			sig.wanted[i] = ~(uint32)0;
+-		runtime·sigenable(s);
+-		return;
+-	}
+-
+ 	if(s >= nelem(sig.wanted)*32)
+ 		return;
+ 	sig.wanted[s/32] |= 1U<<(s&31);
+ 	runtime·sigenable(s);
+ }
++
++// Must only be called from a single goroutine at a time.
++func signal_disable(s uint32) {
++	if(s >= nelem(sig.wanted)*32)
++		return;
++	sig.wanted[s/32] &= ~(1U<<(s&31));
++	runtime·sigdisable(s);
++}

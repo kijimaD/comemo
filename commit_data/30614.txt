@@ -13,6 +13,42 @@ Date:   Wed Nov 16 11:33:38 2016 -0800
     Reviewed-on: https://go-review.googlesource.com/33328
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/database/sql/sql.go | 24 +++++++++++++-----------
  1 file changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index d3803e85c3..a549e859a4 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -408,17 +408,19 @@ func (dc *driverConn) Close() error {
+ }
+ 
+ func (dc *driverConn) finalClose() error {
+-	dc.Lock()
+-
+-	for si := range dc.openStmt {
+-		si.Close()
+-	}
+-	dc.openStmt = nil
+-
+-	err := dc.ci.Close()
+-	dc.ci = nil
+-	dc.finalClosed = true
+-	dc.Unlock()
++	var err error
++	withLock(dc, func() {
++		defer func() { // In case si.Close panics.
++			dc.openStmt = nil
++			dc.finalClosed = true
++			err = dc.ci.Close()
++			dc.ci = nil
++		}()
++
++		for si := range dc.openStmt {
++			si.Close()
++		}
++	})
+ 
+ 	dc.db.mu.Lock()
+ 	dc.db.numOpen--

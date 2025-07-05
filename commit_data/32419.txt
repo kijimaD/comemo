@@ -11,6 +11,28 @@ Date:   Mon Apr 24 21:50:33 2017 +0000
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/runtime/debug/garbage_test.go | 3 +++
  1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/debug/garbage_test.go b/src/runtime/debug/garbage_test.go
+index 2110f90824..69e769ecf2 100644
+--- a/src/runtime/debug/garbage_test.go
++++ b/src/runtime/debug/garbage_test.go
+@@ -5,6 +5,7 @@
+ package debug_test
+ 
+ import (
++	"internal/testenv"
+ 	"runtime"
+ 	. "runtime/debug"
+ 	"testing"
+@@ -110,6 +111,8 @@ var (
+ )
+ 
+ func TestSetGCPercent(t *testing.T) {
++	testenv.SkipFlaky(t, 20076)
++
+ 	// Test that the variable is being set and returned correctly.
+ 	old := SetGCPercent(123)
+ 	new := SetGCPercent(old)

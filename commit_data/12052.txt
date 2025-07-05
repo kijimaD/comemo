@@ -7,7 +7,7 @@ Date:   Sun Feb 19 17:44:02 2012 +1100
     R=golang-dev, bradfitz
     CC=golang-dev
     https://golang.org/cl/5677094
-
+---
  test/chan/doubleselect.go | 3 ++-
  test/chan/fifo.go         | 2 +-
  test/chan/goroutines.go   | 4 ++--
@@ -25,3 +25,236 @@ Date:   Sun Feb 19 17:44:02 2012 +1100
  test/chan/sieve2.go       | 2 ++
  test/chan/zerosize.go     | 2 +-
  16 files changed, 36 insertions(+), 13 deletions(-)
+
+diff --git a/test/chan/doubleselect.go b/test/chan/doubleselect.go
+index 15df249444..ac559302d9 100644
+--- a/test/chan/doubleselect.go
++++ b/test/chan/doubleselect.go
+@@ -4,8 +4,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// This test is designed to flush out the case where two cases of a select can
++// Test the situation in which two cases of a select can
+ // both end up running. See http://codereview.appspot.com/180068.
++
+ package main
+ 
+ import (
+diff --git a/test/chan/fifo.go b/test/chan/fifo.go
+index a8dcaef8ae..70d20b31f0 100644
+--- a/test/chan/fifo.go
++++ b/test/chan/fifo.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Verify that unbuffered channels act as pure fifos.
++// Test that unbuffered channels act as pure fifos.
+ 
+ package main
+ 
+diff --git a/test/chan/goroutines.go b/test/chan/goroutines.go
+index f52ff582af..6ffae7df65 100644
+--- a/test/chan/goroutines.go
++++ b/test/chan/goroutines.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// make a lot of goroutines, threaded together.
+-// tear them down cleanly.
++// Torture test for goroutines.
++// Make a lot of goroutines, threaded together, and tear them down cleanly.
+ 
+ package main
+ 
+diff --git a/test/chan/nonblock.go b/test/chan/nonblock.go
+index eff1a4898c..7e3c0c74da 100644
+--- a/test/chan/nonblock.go
++++ b/test/chan/nonblock.go
+@@ -4,8 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Verify channel operations that test for blocking
+-// Use several sizes and types of operands
++// Test channel operations that test for blocking.
++// Use several sizes and types of operands.
+ 
+ package main
+ 
+diff --git a/test/chan/perm.go b/test/chan/perm.go
+index 89e32f1eba..7e152c5eb5 100644
+--- a/test/chan/perm.go
++++ b/test/chan/perm.go
+@@ -4,6 +4,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test various correct and incorrect permutations of send-only,
++// receive-only, and bidirectional channels.
++// Does not compile.
++
+ package main
+ 
+ var (
+diff --git a/test/chan/powser1.go b/test/chan/powser1.go
+index 4d4882b489..6bf2a91115 100644
+--- a/test/chan/powser1.go
++++ b/test/chan/powser1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test concurrency primitives: power series.
++
+ // Power series package
+ // A power series is a channel, along which flow rational
+ // coefficients.  A denominator of zero signifies the end.
+diff --git a/test/chan/powser2.go b/test/chan/powser2.go
+index 6efb358f3c..33abd5c53f 100644
+--- a/test/chan/powser2.go
++++ b/test/chan/powser2.go
+@@ -4,15 +4,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test concurrency primitives: power series.
++
++// Like powser1.go but uses channels of interfaces.
++// Has not been cleaned up as much as powser1.go, to keep
++// it distinct and therefore a different test.
++
+ // Power series package
+ // A power series is a channel, along which flow rational
+ // coefficients.  A denominator of zero signifies the end.
+ // Original code in Newsqueak by Doug McIlroy.
+ // See Squinting at Power Series by Doug McIlroy,
+ //   http://www.cs.bell-labs.com/who/rsc/thread/squint.pdf
+-// Like powser1.go but uses channels of interfaces.
+-// Has not been cleaned up as much as powser1.go, to keep
+-// it distinct and therefore a different test.
+ 
+ package main
+ 
+diff --git a/test/chan/select.go b/test/chan/select.go
+index ce26177d54..38fa7e1e3f 100644
+--- a/test/chan/select.go
++++ b/test/chan/select.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test simple select.
++
+ package main
+ 
+ var counter uint
+diff --git a/test/chan/select2.go b/test/chan/select2.go
+index 37a2d36a94..40bc357b5d 100644
+--- a/test/chan/select2.go
++++ b/test/chan/select2.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test that selects do not consume undue memory.
++
+ package main
+ 
+ import "runtime"
+diff --git a/test/chan/select3.go b/test/chan/select3.go
+index 4acb93ab79..847d8ed37e 100644
+--- a/test/chan/select3.go
++++ b/test/chan/select3.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Tests verifying the semantics of the select statement
++// Test the semantics of the select statement
+ // for basic empty/non-empty cases.
+ 
+ package main
+diff --git a/test/chan/select4.go b/test/chan/select4.go
+index 1830150fd3..5003640385 100644
+--- a/test/chan/select4.go
++++ b/test/chan/select4.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file
+ 
++// Test that a select statement proceeds when a value is ready.
++
+ package main
+ 
+ func f() *int {
+diff --git a/test/chan/select5.go b/test/chan/select5.go
+index cc2cc71000..13cde1afe5 100644
+--- a/test/chan/select5.go
++++ b/test/chan/select5.go
+@@ -7,7 +7,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Generate test of channel operations and simple selects.
+-// Only doing one real send or receive at a time, but phrased
++// The output of this program is compiled and run to do the
++// actual test.
++
++// Each test does only one real send or receive at a time, but phrased
+ // in various ways that the compiler may or may not rewrite
+ // into simpler expressions.
+ 
+diff --git a/test/chan/select6.go b/test/chan/select6.go
+index 06f934e501..af470a0d0d 100644
+--- a/test/chan/select6.go
++++ b/test/chan/select6.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Issue 2075
++// Test for select: Issue 2075
+ // A bug in select corrupts channel queues of failed cases
+ // if there are multiple waiters on those channels and the
+ // select is the last in the queue. If further waits are made
+diff --git a/test/chan/sieve1.go b/test/chan/sieve1.go
+index 4698dba6d6..acc310f6c7 100644
+--- a/test/chan/sieve1.go
++++ b/test/chan/sieve1.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test concurrency primitives: classical inefficient concurrent prime sieve.
++
+ // Generate primes up to 100 using channels, checking the results.
+ // This sieve consists of a linear chain of divisibility filters,
+ // equivalent to trial-dividing each n by all primes p ≤ n.
+diff --git a/test/chan/sieve2.go b/test/chan/sieve2.go
+index 95bf10a61f..09e5c527b6 100644
+--- a/test/chan/sieve2.go
++++ b/test/chan/sieve2.go
+@@ -4,6 +4,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Test concurrency primitives: prime sieve of Eratosthenes.
++
+ // Generate primes up to 100 using channels, checking the results.
+ // This sieve is Eratosthenesque and only considers odd candidates.
+ // See discussion at <http://blog.onideas.ws/eratosthenes.go>.
+diff --git a/test/chan/zerosize.go b/test/chan/zerosize.go
+index b3fe84260c..50aca857cb 100644
+--- a/test/chan/zerosize.go
++++ b/test/chan/zerosize.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Making channels of a zero-sized type should not panic.
++// Test making channels of a zero-sized type.
+ 
+ package main
+ 

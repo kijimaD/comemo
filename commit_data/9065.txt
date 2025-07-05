@@ -9,6 +9,20 @@ Date:   Thu Jul 14 09:13:39 2011 +1000
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4705046
-
+---
  src/pkg/runtime/stack.h | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/pkg/runtime/stack.h b/src/pkg/runtime/stack.h
+index cf35365366..44d5533f45 100644
+--- a/src/pkg/runtime/stack.h
++++ b/src/pkg/runtime/stack.h
+@@ -71,7 +71,7 @@ enum {
+ 	// If the amount needed for the splitting frame + StackExtra
+ 	// is less than this number, the stack will have this size instead.
+ 	StackMin = 4096,
+-	FixedStack = StackMin,
++	FixedStack = StackMin + StackSystem,
+ 
+ 	// Functions that need frames bigger than this call morestack
+ 	// unconditionally.  That is, on entry to a function it is assumed

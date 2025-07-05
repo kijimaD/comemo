@@ -18,7 +18,7 @@ Date:   Wed Oct 10 16:47:47 2018 -0700
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/const.go     |   4 +-
  src/cmd/compile/internal/gc/fmt.go       |   7 -
  src/cmd/compile/internal/gc/iexport.go   |   6 -
@@ -28,3 +28,678 @@ Date:   Wed Oct 10 16:47:47 2018 -0700
  src/cmd/compile/internal/gc/typecheck.go |  49 ++--
  src/cmd/compile/internal/gc/walk.go      | 395 ++++++++++++++++---------------
  8 files changed, 236 insertions(+), 267 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/const.go b/src/cmd/compile/internal/gc/const.go
+index e60e05df04..3c542aafae 100644
+--- a/src/cmd/compile/internal/gc/const.go
++++ b/src/cmd/compile/internal/gc/const.go
+@@ -1058,9 +1058,7 @@ func idealkind(n *Node) Ctype {
+ 		OLT,
+ 		ONE,
+ 		ONOT,
+-		OOROR,
+-		OCMPSTR,
+-		OCMPIFACE:
++		OOROR:
+ 		return CTBOOL
+ 
+ 		// shifts (beware!).
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 28e9b9b6dc..23ed3f7844 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -1146,8 +1146,6 @@ var opprec = []int{
+ 	OGE:           4,
+ 	OGT:           4,
+ 	ONE:           4,
+-	OCMPSTR:       4,
+-	OCMPIFACE:     4,
+ 	OSEND:         3,
+ 	OANDAND:       2,
+ 	OOROR:         1,
+@@ -1507,11 +1505,6 @@ func (n *Node) exprfmt(s fmt.State, prec int, mode fmtMode) {
+ 			n1.exprfmt(s, nprec, mode)
+ 		}
+ 
+-	case OCMPSTR, OCMPIFACE:
+-		n.Left.exprfmt(s, nprec, mode)
+-		mode.Fprintf(s, " %#v ", n.SubOp())
+-		n.Right.exprfmt(s, nprec+1, mode)
+-
+ 	default:
+ 		mode.Fprintf(s, "<node %v>", n.Op)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/iexport.go b/src/cmd/compile/internal/gc/iexport.go
+index d90c97ad92..b141e5fc09 100644
+--- a/src/cmd/compile/internal/gc/iexport.go
++++ b/src/cmd/compile/internal/gc/iexport.go
+@@ -1319,12 +1319,6 @@ func (w *exportWriter) expr(n *Node) {
+ 		w.pos(n.Pos)
+ 		w.exprList(n.List)
+ 
+-	case OCMPSTR, OCMPIFACE:
+-		w.op(n.SubOp())
+-		w.pos(n.Pos)
+-		w.expr(n.Left)
+-		w.expr(n.Right)
+-
+ 	case ODCLCONST:
+ 		// if exporting, DCLCONST should just be removed as its usage
+ 		// has already been replaced with literals
+diff --git a/src/cmd/compile/internal/gc/iimport.go b/src/cmd/compile/internal/gc/iimport.go
+index 6f0fd6b6d2..4fea314263 100644
+--- a/src/cmd/compile/internal/gc/iimport.go
++++ b/src/cmd/compile/internal/gc/iimport.go
+@@ -935,9 +935,6 @@ func (r *importReader) node() *Node {
+ 		}
+ 		return x
+ 
+-	// case OCMPSTR, OCMPIFACE:
+-	// 	unreachable - mapped to std comparison operators by exporter
+-
+ 	// --------------------------------------------------------------------
+ 	// statements
+ 	case ODCL:
+diff --git a/src/cmd/compile/internal/gc/order.go b/src/cmd/compile/internal/gc/order.go
+index 1e22ecfcdf..8afb136515 100644
+--- a/src/cmd/compile/internal/gc/order.go
++++ b/src/cmd/compile/internal/gc/order.go
+@@ -1010,20 +1010,6 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 			}
+ 		}
+ 
+-	case OCMPSTR:
+-		n.Left = o.expr(n.Left, nil)
+-		n.Right = o.expr(n.Right, nil)
+-
+-		// Mark string(byteSlice) arguments to reuse byteSlice backing
+-		// buffer during conversion. String comparison does not
+-		// memorize the strings for later use, so it is safe.
+-		if n.Left.Op == OARRAYBYTESTR {
+-			n.Left.Op = OARRAYBYTESTRTMP
+-		}
+-		if n.Right.Op == OARRAYBYTESTR {
+-			n.Right.Op = OARRAYBYTESTRTMP
+-		}
+-
+ 		// key must be addressable
+ 	case OINDEXMAP:
+ 		n.Left = o.expr(n.Left, nil)
+@@ -1181,11 +1167,24 @@ func (o *Order) expr(n, lhs *Node) *Node {
+ 		n.Left = o.expr(n.Left, nil)
+ 		n = o.copyExpr(n, n.Type, true)
+ 
+-	case OEQ, ONE:
++	case OEQ, ONE, OLT, OLE, OGT, OGE:
+ 		n.Left = o.expr(n.Left, nil)
+ 		n.Right = o.expr(n.Right, nil)
++
+ 		t := n.Left.Type
+-		if t.IsStruct() || t.IsArray() {
++		switch {
++		case t.IsString():
++			// Mark string(byteSlice) arguments to reuse byteSlice backing
++			// buffer during conversion. String comparison does not
++			// memorize the strings for later use, so it is safe.
++			if n.Left.Op == OARRAYBYTESTR {
++				n.Left.Op = OARRAYBYTESTRTMP
++			}
++			if n.Right.Op == OARRAYBYTESTR {
++				n.Right.Op = OARRAYBYTESTRTMP
++			}
++
++		case t.IsStruct() || t.IsArray():
+ 			// for complex comparisons, we need both args to be
+ 			// addressable so we can pass them to the runtime.
+ 			n.Left = o.addrTemp(n.Left)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index ab65ddebb4..1368d5edb8 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -65,7 +65,7 @@ func (n *Node) ResetAux() {
+ 
+ func (n *Node) SubOp() Op {
+ 	switch n.Op {
+-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
++	case OASOP, ONAME:
+ 	default:
+ 		Fatalf("unexpected op: %v", n.Op)
+ 	}
+@@ -74,7 +74,7 @@ func (n *Node) SubOp() Op {
+ 
+ func (n *Node) SetSubOp(op Op) {
+ 	switch n.Op {
+-	case OASOP, OCMPIFACE, OCMPSTR, ONAME:
++	case OASOP, ONAME:
+ 	default:
+ 		Fatalf("unexpected op: %v", n.Op)
+ 	}
+@@ -610,8 +610,8 @@ const (
+ 	OCAP             // cap(Left)
+ 	OCLOSE           // close(Left)
+ 	OCLOSURE         // func Type { Body } (func literal)
+-	OCMPIFACE        // Left Etype Right (interface comparison, x == y or x != y)
+-	OCMPSTR          // Left Etype Right (string comparison, x == y, x < y, etc)
++	_                // toolstash kludge; was OCMPIFACE
++	_                // toolstash kludge; was OCMPSTR
+ 	OCOMPLIT         // Right{List} (composite literal, not yet lowered to specific form)
+ 	OMAPLIT          // Type{List} (composite literal, Type is map)
+ 	OSTRUCTLIT       // Type{List} (composite literal, Type is struct)
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index 897dd710b9..cfdd88d45e 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -747,43 +747,22 @@ func typecheck1(n *Node, top int) *Node {
+ 			}
+ 		}
+ 
+-		if et == TSTRING {
+-			if iscmp[n.Op] {
+-				ot := n.Op
+-				n.Op = OCMPSTR
+-				n.SetSubOp(ot)
+-			} else if n.Op == OADD {
+-				// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
+-				n.Op = OADDSTR
+-
+-				if l.Op == OADDSTR {
+-					n.List.Set(l.List.Slice())
+-				} else {
+-					n.List.Set1(l)
+-				}
+-				if r.Op == OADDSTR {
+-					n.List.AppendNodes(&r.List)
+-				} else {
+-					n.List.Append(r)
+-				}
+-				n.Left = nil
+-				n.Right = nil
+-			}
+-		}
++		if et == TSTRING && n.Op == OADD {
++			// create OADDSTR node with list of strings in x + y + z + (w + v) + ...
++			n.Op = OADDSTR
+ 
+-		if et == TINTER {
+-			if l.Op == OLITERAL && l.Val().Ctype() == CTNIL {
+-				// swap for back end
+-				n.Left = r
+-
+-				n.Right = l
+-			} else if r.Op == OLITERAL && r.Val().Ctype() == CTNIL {
+-			} else // leave alone for back end
+-			if r.Type.IsInterface() == l.Type.IsInterface() {
+-				ot := n.Op
+-				n.Op = OCMPIFACE
+-				n.SetSubOp(ot)
++			if l.Op == OADDSTR {
++				n.List.Set(l.List.Slice())
++			} else {
++				n.List.Set1(l)
++			}
++			if r.Op == OADDSTR {
++				n.List.AppendNodes(&r.List)
++			} else {
++				n.List.Append(r)
+ 			}
++			n.Left = nil
++			n.Right = nil
+ 		}
+ 
+ 		if (op == ODIV || op == OMOD) && Isconst(r, CTINT) {
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index c3201c1404..6b9ec51203 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -514,7 +514,7 @@ opswitch:
+ 		OIND, OSPTR, OITAB, OIDATA, OADDR:
+ 		n.Left = walkexpr(n.Left, init)
+ 
+-	case OEFACE, OAND, OSUB, OMUL, OLT, OLE, OGE, OGT, OADD, OOR, OXOR:
++	case OEFACE, OAND, OSUB, OMUL, OADD, OOR, OXOR:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+@@ -584,19 +584,8 @@ opswitch:
+ 		n.Left = walkexpr(n.Left, init)
+ 		n.Right = walkexpr(n.Right, init)
+ 
+-	case OEQ, ONE:
+-		n.Left = walkexpr(n.Left, init)
+-		n.Right = walkexpr(n.Right, init)
+-
+-		// Disable safemode while compiling this code: the code we
+-		// generate internally can refer to unsafe.Pointer.
+-		// In this case it can happen if we need to generate an ==
+-		// for a struct containing a reflect.Value, which itself has
+-		// an unexported field of type unsafe.Pointer.
+-		old_safemode := safemode
+-		safemode = false
++	case OEQ, ONE, OLT, OLE, OGT, OGE:
+ 		n = walkcompare(n, init)
+-		safemode = old_safemode
+ 
+ 	case OANDAND, OOROR:
+ 		n.Left = walkexpr(n.Left, init)
+@@ -1218,149 +1207,6 @@ opswitch:
+ 			n = callnew(n.Type.Elem())
+ 		}
+ 
+-	case OCMPSTR:
+-		// s + "badgerbadgerbadger" == "badgerbadgerbadger"
+-		if (n.SubOp() == OEQ || n.SubOp() == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
+-			r := nod(n.SubOp(), nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
+-			n = finishcompare(n, r, init)
+-			break
+-		}
+-
+-		// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
+-		var cs, ncs *Node // const string, non-const string
+-		switch {
+-		case Isconst(n.Left, CTSTR) && Isconst(n.Right, CTSTR):
+-			// ignore; will be constant evaluated
+-		case Isconst(n.Left, CTSTR):
+-			cs = n.Left
+-			ncs = n.Right
+-		case Isconst(n.Right, CTSTR):
+-			cs = n.Right
+-			ncs = n.Left
+-		}
+-		if cs != nil {
+-			cmp := n.SubOp()
+-			// Our comparison below assumes that the non-constant string
+-			// is on the left hand side, so rewrite "" cmp x to x cmp "".
+-			// See issue 24817.
+-			if Isconst(n.Left, CTSTR) {
+-				cmp = brrev(cmp)
+-			}
+-
+-			// maxRewriteLen was chosen empirically.
+-			// It is the value that minimizes cmd/go file size
+-			// across most architectures.
+-			// See the commit description for CL 26758 for details.
+-			maxRewriteLen := 6
+-			// Some architectures can load unaligned byte sequence as 1 word.
+-			// So we can cover longer strings with the same amount of code.
+-			canCombineLoads := canMergeLoads()
+-			combine64bit := false
+-			if canCombineLoads {
+-				// Keep this low enough to generate less code than a function call.
+-				maxRewriteLen = 2 * thearch.LinkArch.RegSize
+-				combine64bit = thearch.LinkArch.RegSize >= 8
+-			}
+-
+-			var and Op
+-			switch cmp {
+-			case OEQ:
+-				and = OANDAND
+-			case ONE:
+-				and = OOROR
+-			default:
+-				// Don't do byte-wise comparisons for <, <=, etc.
+-				// They're fairly complicated.
+-				// Length-only checks are ok, though.
+-				maxRewriteLen = 0
+-			}
+-			if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
+-				if len(s) > 0 {
+-					ncs = safeexpr(ncs, init)
+-				}
+-				r := nod(cmp, nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
+-				remains := len(s)
+-				for i := 0; remains > 0; {
+-					if remains == 1 || !canCombineLoads {
+-						cb := nodintconst(int64(s[i]))
+-						ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
+-						r = nod(and, r, nod(cmp, ncb, cb))
+-						remains--
+-						i++
+-						continue
+-					}
+-					var step int
+-					var convType *types.Type
+-					switch {
+-					case remains >= 8 && combine64bit:
+-						convType = types.Types[TINT64]
+-						step = 8
+-					case remains >= 4:
+-						convType = types.Types[TUINT32]
+-						step = 4
+-					case remains >= 2:
+-						convType = types.Types[TUINT16]
+-						step = 2
+-					}
+-					ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))
+-					ncsubstr = conv(ncsubstr, convType)
+-					csubstr := int64(s[i])
+-					// Calculate large constant from bytes as sequence of shifts and ors.
+-					// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
+-					// ssa will combine this into a single large load.
+-					for offset := 1; offset < step; offset++ {
+-						b := nod(OINDEX, ncs, nodintconst(int64(i+offset)))
+-						b = conv(b, convType)
+-						b = nod(OLSH, b, nodintconst(int64(8*offset)))
+-						ncsubstr = nod(OOR, ncsubstr, b)
+-						csubstr |= int64(s[i+offset]) << uint8(8*offset)
+-					}
+-					csubstrPart := nodintconst(csubstr)
+-					// Compare "step" bytes as once
+-					r = nod(and, r, nod(cmp, csubstrPart, ncsubstr))
+-					remains -= step
+-					i += step
+-				}
+-				n = finishcompare(n, r, init)
+-				break
+-			}
+-		}
+-
+-		var r *Node
+-		if n.SubOp() == OEQ || n.SubOp() == ONE {
+-			// prepare for rewrite below
+-			n.Left = cheapexpr(n.Left, init)
+-			n.Right = cheapexpr(n.Right, init)
+-
+-			lstr := conv(n.Left, types.Types[TSTRING])
+-			rstr := conv(n.Right, types.Types[TSTRING])
+-			lptr := nod(OSPTR, lstr, nil)
+-			rptr := nod(OSPTR, rstr, nil)
+-			llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
+-			rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
+-
+-			fn := syslook("memequal")
+-			fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
+-			r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
+-
+-			// quick check of len before full compare for == or !=.
+-			// memequal then tests equality up to length len.
+-			if n.SubOp() == OEQ {
+-				// len(left) == len(right) && memequal(left, right, len)
+-				r = nod(OANDAND, nod(OEQ, llen, rlen), r)
+-			} else {
+-				// len(left) != len(right) || !memequal(left, right, len)
+-				r = nod(ONOT, r, nil)
+-				r = nod(OOROR, nod(ONE, llen, rlen), r)
+-			}
+-		} else {
+-			// sys_cmpstring(s1, s2) :: 0
+-			r = mkcall("cmpstring", types.Types[TINT], init, conv(n.Left, types.Types[TSTRING]), conv(n.Right, types.Types[TSTRING]))
+-			r = nod(n.SubOp(), r, nodintconst(0))
+-		}
+-
+-		n = finishcompare(n, r, init)
+-
+ 	case OADDSTR:
+ 		n = addstr(n, init)
+ 
+@@ -1658,40 +1504,6 @@ opswitch:
+ 
+ 		n = mkcall("stringtoslicerune", n.Type, init, a, conv(n.Left, types.Types[TSTRING]))
+ 
+-		// ifaceeq(i1 any-1, i2 any-2) (ret bool);
+-	case OCMPIFACE:
+-		if !eqtype(n.Left.Type, n.Right.Type) {
+-			Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
+-		}
+-		var fn *Node
+-		if n.Left.Type.IsEmptyInterface() {
+-			fn = syslook("efaceeq")
+-		} else {
+-			fn = syslook("ifaceeq")
+-		}
+-
+-		n.Right = cheapexpr(n.Right, init)
+-		n.Left = cheapexpr(n.Left, init)
+-		lt := nod(OITAB, n.Left, nil)
+-		rt := nod(OITAB, n.Right, nil)
+-		ld := nod(OIDATA, n.Left, nil)
+-		rd := nod(OIDATA, n.Right, nil)
+-		ld.Type = types.Types[TUNSAFEPTR]
+-		rd.Type = types.Types[TUNSAFEPTR]
+-		ld.SetTypecheck(1)
+-		rd.SetTypecheck(1)
+-		call := mkcall1(fn, n.Type, init, lt, ld, rd)
+-
+-		// Check itable/type before full compare.
+-		// Note: short-circuited because order matters.
+-		var cmp *Node
+-		if n.SubOp() == OEQ {
+-			cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
+-		} else {
+-			cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
+-		}
+-		n = finishcompare(n, cmp, init)
+-
+ 	case OARRAYLIT, OSLICELIT, OMAPLIT, OSTRUCTLIT, OPTRLIT:
+ 		if isStaticCompositeLiteral(n) && !canSSAType(n.Type) {
+ 			// n can be directly represented in the read-only data section.
+@@ -3390,7 +3202,7 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
+ 	// Should only arrive here with large memory or
+ 	// a struct/array containing a non-memory field/element.
+ 	// Small memory is handled inline, and single non-memory
+-	// is handled during type check (OCMPSTR etc).
++	// is handled by walkcompare.
+ 	switch a, _ := algtype1(t); a {
+ 	case AMEM:
+ 		n := syslook("memequal")
+@@ -3415,6 +3227,28 @@ func eqfor(t *types.Type) (n *Node, needsize bool) {
+ // The result of walkcompare MUST be assigned back to n, e.g.
+ // 	n.Left = walkcompare(n.Left, init)
+ func walkcompare(n *Node, init *Nodes) *Node {
++	if n.Left.Type.IsInterface() && n.Right.Type.IsInterface() && n.Left.Op != OLITERAL && n.Right.Op != OLITERAL {
++		return walkcompareInterface(n, init)
++	}
++
++	if n.Left.Type.IsString() && n.Right.Type.IsString() {
++		return walkcompareString(n, init)
++	}
++
++	n.Left = walkexpr(n.Left, init)
++	n.Right = walkexpr(n.Right, init)
++
++	// Disable safemode while compiling this code: the code we
++	// generate internally can refer to unsafe.Pointer.
++	// In this case it can happen if we need to generate an ==
++	// for a struct containing a reflect.Value, which itself has
++	// an unexported field of type unsafe.Pointer.
++	old_safemode := safemode
++	safemode = false
++	defer func() {
++		safemode = old_safemode
++	}()
++
+ 	// Given interface value l and concrete value r, rewrite
+ 	//   l == r
+ 	// into types-equal && data-equal.
+@@ -3627,6 +3461,183 @@ func walkcompare(n *Node, init *Nodes) *Node {
+ 	return n
+ }
+ 
++func walkcompareInterface(n *Node, init *Nodes) *Node {
++	// ifaceeq(i1 any-1, i2 any-2) (ret bool);
++	if !eqtype(n.Left.Type, n.Right.Type) {
++		Fatalf("ifaceeq %v %v %v", n.Op, n.Left.Type, n.Right.Type)
++	}
++	var fn *Node
++	if n.Left.Type.IsEmptyInterface() {
++		fn = syslook("efaceeq")
++	} else {
++		fn = syslook("ifaceeq")
++	}
++
++	n.Right = cheapexpr(n.Right, init)
++	n.Left = cheapexpr(n.Left, init)
++	lt := nod(OITAB, n.Left, nil)
++	rt := nod(OITAB, n.Right, nil)
++	ld := nod(OIDATA, n.Left, nil)
++	rd := nod(OIDATA, n.Right, nil)
++	ld.Type = types.Types[TUNSAFEPTR]
++	rd.Type = types.Types[TUNSAFEPTR]
++	ld.SetTypecheck(1)
++	rd.SetTypecheck(1)
++	call := mkcall1(fn, n.Type, init, lt, ld, rd)
++
++	// Check itable/type before full compare.
++	// Note: short-circuited because order matters.
++	var cmp *Node
++	if n.Op == OEQ {
++		cmp = nod(OANDAND, nod(OEQ, lt, rt), call)
++	} else {
++		cmp = nod(OOROR, nod(ONE, lt, rt), nod(ONOT, call, nil))
++	}
++	return finishcompare(n, cmp, init)
++}
++
++func walkcompareString(n *Node, init *Nodes) *Node {
++	// s + "badgerbadgerbadger" == "badgerbadgerbadger"
++	if (n.Op == OEQ || n.Op == ONE) && Isconst(n.Right, CTSTR) && n.Left.Op == OADDSTR && n.Left.List.Len() == 2 && Isconst(n.Left.List.Second(), CTSTR) && strlit(n.Right) == strlit(n.Left.List.Second()) {
++		r := nod(n.Op, nod(OLEN, n.Left.List.First(), nil), nodintconst(0))
++		return finishcompare(n, r, init)
++	}
++
++	// Rewrite comparisons to short constant strings as length+byte-wise comparisons.
++	var cs, ncs *Node // const string, non-const string
++	switch {
++	case Isconst(n.Left, CTSTR) && Isconst(n.Right, CTSTR):
++		// ignore; will be constant evaluated
++	case Isconst(n.Left, CTSTR):
++		cs = n.Left
++		ncs = n.Right
++	case Isconst(n.Right, CTSTR):
++		cs = n.Right
++		ncs = n.Left
++	}
++	if cs != nil {
++		cmp := n.Op
++		// Our comparison below assumes that the non-constant string
++		// is on the left hand side, so rewrite "" cmp x to x cmp "".
++		// See issue 24817.
++		if Isconst(n.Left, CTSTR) {
++			cmp = brrev(cmp)
++		}
++
++		// maxRewriteLen was chosen empirically.
++		// It is the value that minimizes cmd/go file size
++		// across most architectures.
++		// See the commit description for CL 26758 for details.
++		maxRewriteLen := 6
++		// Some architectures can load unaligned byte sequence as 1 word.
++		// So we can cover longer strings with the same amount of code.
++		canCombineLoads := canMergeLoads()
++		combine64bit := false
++		if canCombineLoads {
++			// Keep this low enough to generate less code than a function call.
++			maxRewriteLen = 2 * thearch.LinkArch.RegSize
++			combine64bit = thearch.LinkArch.RegSize >= 8
++		}
++
++		var and Op
++		switch cmp {
++		case OEQ:
++			and = OANDAND
++		case ONE:
++			and = OOROR
++		default:
++			// Don't do byte-wise comparisons for <, <=, etc.
++			// They're fairly complicated.
++			// Length-only checks are ok, though.
++			maxRewriteLen = 0
++		}
++		if s := cs.Val().U.(string); len(s) <= maxRewriteLen {
++			if len(s) > 0 {
++				ncs = safeexpr(ncs, init)
++			}
++			r := nod(cmp, nod(OLEN, ncs, nil), nodintconst(int64(len(s))))
++			remains := len(s)
++			for i := 0; remains > 0; {
++				if remains == 1 || !canCombineLoads {
++					cb := nodintconst(int64(s[i]))
++					ncb := nod(OINDEX, ncs, nodintconst(int64(i)))
++					r = nod(and, r, nod(cmp, ncb, cb))
++					remains--
++					i++
++					continue
++				}
++				var step int
++				var convType *types.Type
++				switch {
++				case remains >= 8 && combine64bit:
++					convType = types.Types[TINT64]
++					step = 8
++				case remains >= 4:
++					convType = types.Types[TUINT32]
++					step = 4
++				case remains >= 2:
++					convType = types.Types[TUINT16]
++					step = 2
++				}
++				ncsubstr := nod(OINDEX, ncs, nodintconst(int64(i)))
++				ncsubstr = conv(ncsubstr, convType)
++				csubstr := int64(s[i])
++				// Calculate large constant from bytes as sequence of shifts and ors.
++				// Like this:  uint32(s[0]) | uint32(s[1])<<8 | uint32(s[2])<<16 ...
++				// ssa will combine this into a single large load.
++				for offset := 1; offset < step; offset++ {
++					b := nod(OINDEX, ncs, nodintconst(int64(i+offset)))
++					b = conv(b, convType)
++					b = nod(OLSH, b, nodintconst(int64(8*offset)))
++					ncsubstr = nod(OOR, ncsubstr, b)
++					csubstr |= int64(s[i+offset]) << uint8(8*offset)
++				}
++				csubstrPart := nodintconst(csubstr)
++				// Compare "step" bytes as once
++				r = nod(and, r, nod(cmp, csubstrPart, ncsubstr))
++				remains -= step
++				i += step
++			}
++			return finishcompare(n, r, init)
++		}
++	}
++
++	var r *Node
++	if n.Op == OEQ || n.Op == ONE {
++		// prepare for rewrite below
++		n.Left = cheapexpr(n.Left, init)
++		n.Right = cheapexpr(n.Right, init)
++
++		lstr := conv(n.Left, types.Types[TSTRING])
++		rstr := conv(n.Right, types.Types[TSTRING])
++		lptr := nod(OSPTR, lstr, nil)
++		rptr := nod(OSPTR, rstr, nil)
++		llen := conv(nod(OLEN, lstr, nil), types.Types[TUINTPTR])
++		rlen := conv(nod(OLEN, rstr, nil), types.Types[TUINTPTR])
++
++		fn := syslook("memequal")
++		fn = substArgTypes(fn, types.Types[TUINT8], types.Types[TUINT8])
++		r = mkcall1(fn, types.Types[TBOOL], init, lptr, rptr, llen)
++
++		// quick check of len before full compare for == or !=.
++		// memequal then tests equality up to length len.
++		if n.Op == OEQ {
++			// len(left) == len(right) && memequal(left, right, len)
++			r = nod(OANDAND, nod(OEQ, llen, rlen), r)
++		} else {
++			// len(left) != len(right) || !memequal(left, right, len)
++			r = nod(ONOT, r, nil)
++			r = nod(OOROR, nod(ONE, llen, rlen), r)
++		}
++	} else {
++		// sys_cmpstring(s1, s2) :: 0
++		r = mkcall("cmpstring", types.Types[TINT], init, conv(n.Left, types.Types[TSTRING]), conv(n.Right, types.Types[TSTRING]))
++		r = nod(n.Op, r, nodintconst(0))
++	}
++
++	return finishcompare(n, r, init)
++}
++
+ // The result of finishcompare MUST be assigned back to n, e.g.
+ // 	n.Left = finishcompare(n.Left, x, r, init)
+ func finishcompare(n, r *Node, init *Nodes) *Node {
+@@ -3961,8 +3972,6 @@ func candiscard(n *Node) bool {
+ 		OSTRARRAYBYTE,
+ 		OSTRARRAYRUNE,
+ 		OCAP,
+-		OCMPIFACE,
+-		OCMPSTR,
+ 		OCOMPLIT,
+ 		OMAPLIT,
+ 		OSTRUCTLIT,

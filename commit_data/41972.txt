@@ -22,7 +22,7 @@ Date:   Sat Oct 26 21:01:32 2019 +0200
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/wasm/wasm_exec.js        |  49 ++++++++++----
  src/net/http/roundtrip_js.go  |  10 +--
  src/syscall/fs_js.go          |   4 +-
@@ -32,3 +32,733 @@ Date:   Sat Oct 26 21:01:32 2019 +0200
  src/syscall/js/js_js.s        |   4 ++
  src/syscall/js/js_test.go     |  91 +++++++++++++++++++------
  8 files changed, 244 insertions(+), 78 deletions(-)
+
+diff --git a/misc/wasm/wasm_exec.js b/misc/wasm/wasm_exec.js
+index 3c2c186867..bb66cf254d 100644
+--- a/misc/wasm/wasm_exec.js
++++ b/misc/wasm/wasm_exec.js
+@@ -205,26 +205,31 @@
+ 						return;
+ 				}
+ 
+-				let ref = this._refs.get(v);
+-				if (ref === undefined) {
+-					ref = this._values.length;
+-					this._values.push(v);
+-					this._refs.set(v, ref);
++				let id = this._ids.get(v);
++				if (id === undefined) {
++					id = this._idPool.pop();
++					if (id === undefined) {
++						id = this._values.length;
++					}
++					this._values[id] = v;
++					this._goRefCounts[id] = 0;
++					this._ids.set(v, id);
+ 				}
+-				let typeFlag = 0;
++				this._goRefCounts[id]++;
++				let typeFlag = 1;
+ 				switch (typeof v) {
+ 					case "string":
+-						typeFlag = 1;
++						typeFlag = 2;
+ 						break;
+ 					case "symbol":
+-						typeFlag = 2;
++						typeFlag = 3;
+ 						break;
+ 					case "function":
+-						typeFlag = 3;
++						typeFlag = 4;
+ 						break;
+ 				}
+ 				this.mem.setUint32(addr + 4, nanHead | typeFlag, true);
+-				this.mem.setUint32(addr, ref, true);
++				this.mem.setUint32(addr, id, true);
+ 			}
+ 
+ 			const loadSlice = (addr) => {
+@@ -263,7 +268,9 @@
+ 						this.exited = true;
+ 						delete this._inst;
+ 						delete this._values;
+-						delete this._refs;
++						delete this._goRefCounts;
++						delete this._ids;
++						delete this._idPool;
+ 						this.exit(code);
+ 					},
+ 
+@@ -323,6 +330,18 @@
+ 						crypto.getRandomValues(loadSlice(sp + 8));
+ 					},
+ 
++					// func finalizeRef(v ref)
++					"syscall/js.finalizeRef": (sp) => {
++						const id = this.mem.getUint32(sp + 8, true);
++						this._goRefCounts[id]--;
++						if (this._goRefCounts[id] === 0) {
++							const v = this._values[id];
++							this._values[id] = null;
++							this._ids.delete(v);
++							this._idPool.push(id);
++						}
++					},
++
+ 					// func stringVal(value string) ref
+ 					"syscall/js.stringVal": (sp) => {
+ 						storeValue(sp + 24, loadString(sp + 8));
+@@ -462,7 +481,7 @@
+ 		async run(instance) {
+ 			this._inst = instance;
+ 			this.mem = new DataView(this._inst.exports.mem.buffer);
+-			this._values = [ // TODO: garbage collection
++			this._values = [ // JS values that Go currently has references to, indexed by reference id
+ 				NaN,
+ 				0,
+ 				null,
+@@ -471,8 +490,10 @@
+ 				global,
+ 				this,
+ 			];
+-			this._refs = new Map();
+-			this.exited = false;
++			this._goRefCounts = []; // number of references that Go has to a JS value, indexed by reference id
++			this._ids = new Map();  // mapping from JS values to reference ids
++			this._idPool = [];      // unused ids that have been garbage collected
++			this.exited = false;    // whether the Go program has exited
+ 
+ 			// Pass command line arguments and environment variables to WebAssembly by writing them to the linear memory.
+ 			let offset = 4096;
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 6331351a83..4dd99651a7 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -41,7 +41,7 @@ const jsFetchCreds = "js.fetch:credentials"
+ // Reference: https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch#Parameters
+ const jsFetchRedirect = "js.fetch:redirect"
+ 
+-var useFakeNetwork = js.Global().Get("fetch") == js.Undefined()
++var useFakeNetwork = js.Global().Get("fetch").IsUndefined()
+ 
+ // RoundTrip implements the RoundTripper interface using the WHATWG Fetch API.
+ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+@@ -50,7 +50,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	}
+ 
+ 	ac := js.Global().Get("AbortController")
+-	if ac != js.Undefined() {
++	if !ac.IsUndefined() {
+ 		// Some browsers that support WASM don't necessarily support
+ 		// the AbortController. See
+ 		// https://developer.mozilla.org/en-US/docs/Web/API/AbortController#Browser_compatibility.
+@@ -74,7 +74,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		opt.Set("redirect", h)
+ 		req.Header.Del(jsFetchRedirect)
+ 	}
+-	if ac != js.Undefined() {
++	if !ac.IsUndefined() {
+ 		opt.Set("signal", ac.Get("signal"))
+ 	}
+ 	headers := js.Global().Get("Headers").New()
+@@ -132,7 +132,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		var body io.ReadCloser
+ 		// The body is undefined when the browser does not support streaming response bodies (Firefox),
+ 		// and null in certain error cases, i.e. when the request is blocked because of CORS settings.
+-		if b != js.Undefined() && b != js.Null() {
++		if !b.IsUndefined() && !b.IsNull() {
+ 			body = &streamReader{stream: b.Call("getReader")}
+ 		} else {
+ 			// Fall back to using ArrayBuffer
+@@ -168,7 +168,7 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 	respPromise.Call("then", success, failure)
+ 	select {
+ 	case <-req.Context().Done():
+-		if ac != js.Undefined() {
++		if !ac.IsUndefined() {
+ 			// Abort the Fetch request
+ 			ac.Call("abort")
+ 		}
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 91042f10ef..f7079e9d09 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -259,7 +259,7 @@ func Lchown(path string, uid, gid int) error {
+ 	if err := checkPath(path); err != nil {
+ 		return err
+ 	}
+-	if jsFS.Get("lchown") == js.Undefined() {
++	if jsFS.Get("lchown").IsUndefined() {
+ 		// fs.lchown is unavailable on Linux until Node.js 10.6.0
+ 		// TODO(neelance): remove when we require at least this Node.js version
+ 		return ENOSYS
+@@ -497,7 +497,7 @@ func fsCall(name string, args ...interface{}) (js.Value, error) {
+ 		var res callResult
+ 
+ 		if len(args) >= 1 { // on Node.js 8, fs.utimes calls the callback without any arguments
+-			if jsErr := args[0]; jsErr != js.Null() {
++			if jsErr := args[0]; !jsErr.IsNull() {
+ 				res.err = mapJSError(jsErr)
+ 			}
+ 		}
+diff --git a/src/syscall/js/export_test.go b/src/syscall/js/export_test.go
+new file mode 100644
+index 0000000000..1b5ed3ce84
+--- /dev/null
++++ b/src/syscall/js/export_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build js,wasm
++
++package js
++
++var JSGo = jsGo
+diff --git a/src/syscall/js/func.go b/src/syscall/js/func.go
+index 6b7f39b878..6c145c9da6 100644
+--- a/src/syscall/js/func.go
++++ b/src/syscall/js/func.go
+@@ -64,7 +64,7 @@ func init() {
+ 
+ func handleEvent() {
+ 	cb := jsGo.Get("_pendingEvent")
+-	if cb == Null() {
++	if cb.IsNull() {
+ 		return
+ 	}
+ 	jsGo.Set("_pendingEvent", Null())
+diff --git a/src/syscall/js/js.go b/src/syscall/js/js.go
+index f42a16f0d0..8a04399171 100644
+--- a/src/syscall/js/js.go
++++ b/src/syscall/js/js.go
+@@ -12,6 +12,7 @@
+ package js
+ 
+ import (
++	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -20,7 +21,7 @@ import (
+ // The JavaScript value "undefined" is represented by the value 0.
+ // A JavaScript number (64-bit float, except 0 and NaN) is represented by its IEEE 754 binary representation.
+ // All other values are represented as an IEEE 754 binary representation of NaN with bits 0-31 used as
+-// an ID and bits 32-33 used to differentiate between string, symbol, function and object.
++// an ID and bits 32-34 used to differentiate between string, symbol, function and object.
+ type ref uint64
+ 
+ // nanHead are the upper 32 bits of a ref which are set if the value is not encoded as an IEEE 754 number (see above).
+@@ -33,21 +34,45 @@ type Wrapper interface {
+ }
+ 
+ // Value represents a JavaScript value. The zero value is the JavaScript value "undefined".
++// Values can be checked for equality with the Equal method.
+ type Value struct {
+-	ref ref
++	_     [0]func() // uncomparable; to make == not compile
++	ref   ref       // identifies a JavaScript value, see ref type
++	gcPtr *ref      // used to trigger the finalizer when the Value is not referenced any more
+ }
+ 
++const (
++	// the type flags need to be in sync with wasm_exec.js
++	typeFlagNone = iota
++	typeFlagObject
++	typeFlagString
++	typeFlagSymbol
++	typeFlagFunction
++)
++
+ // JSValue implements Wrapper interface.
+ func (v Value) JSValue() Value {
+ 	return v
+ }
+ 
+-func makeValue(v ref) Value {
+-	return Value{ref: v}
++func makeValue(r ref) Value {
++	var gcPtr *ref
++	typeFlag := (r >> 32) & 7
++	if (r>>32)&nanHead == nanHead && typeFlag != typeFlagNone {
++		gcPtr = new(ref)
++		*gcPtr = r
++		runtime.SetFinalizer(gcPtr, func(p *ref) {
++			finalizeRef(*p)
++		})
++	}
++
++	return Value{ref: r, gcPtr: gcPtr}
+ }
+ 
+-func predefValue(id uint32) Value {
+-	return Value{ref: nanHead<<32 | ref(id)}
++func finalizeRef(r ref)
++
++func predefValue(id uint32, typeFlag byte) Value {
++	return Value{ref: (nanHead|ref(typeFlag))<<32 | ref(id)}
+ }
+ 
+ func floatValue(f float64) Value {
+@@ -73,28 +98,48 @@ func (e Error) Error() string {
+ 
+ var (
+ 	valueUndefined = Value{ref: 0}
+-	valueNaN       = predefValue(0)
+-	valueZero      = predefValue(1)
+-	valueNull      = predefValue(2)
+-	valueTrue      = predefValue(3)
+-	valueFalse     = predefValue(4)
+-	valueGlobal    = predefValue(5)
+-	jsGo           = predefValue(6) // instance of the Go class in JavaScript
++	valueNaN       = predefValue(0, typeFlagNone)
++	valueZero      = predefValue(1, typeFlagNone)
++	valueNull      = predefValue(2, typeFlagNone)
++	valueTrue      = predefValue(3, typeFlagNone)
++	valueFalse     = predefValue(4, typeFlagNone)
++	valueGlobal    = predefValue(5, typeFlagObject)
++	jsGo           = predefValue(6, typeFlagObject) // instance of the Go class in JavaScript
+ 
+ 	objectConstructor = valueGlobal.Get("Object")
+ 	arrayConstructor  = valueGlobal.Get("Array")
+ )
+ 
++// Equal reports whether v and w are equal according to JavaScript's === operator.
++func (v Value) Equal(w Value) bool {
++	return v.ref == w.ref && v.ref != valueNaN.ref
++}
++
+ // Undefined returns the JavaScript value "undefined".
+ func Undefined() Value {
+ 	return valueUndefined
+ }
+ 
++// IsUndefined reports whether v is the JavaScript value "undefined".
++func (v Value) IsUndefined() bool {
++	return v.ref == valueUndefined.ref
++}
++
+ // Null returns the JavaScript value "null".
+ func Null() Value {
+ 	return valueNull
+ }
+ 
++// IsNull reports whether v is the JavaScript value "null".
++func (v Value) IsNull() bool {
++	return v.ref == valueNull.ref
++}
++
++// IsNaN reports whether v is the JavaScript value "NaN".
++func (v Value) IsNaN() bool {
++	return v.ref == valueNaN.ref
++}
++
+ // Global returns the JavaScript global object, usually "window" or "global".
+ func Global() Value {
+ 	return valueGlobal
+@@ -232,16 +277,18 @@ func (v Value) Type() Type {
+ 	if v.isNumber() {
+ 		return TypeNumber
+ 	}
+-	typeFlag := v.ref >> 32 & 3
++	typeFlag := (v.ref >> 32) & 7
+ 	switch typeFlag {
+-	case 1:
++	case typeFlagObject:
++		return TypeObject
++	case typeFlagString:
+ 		return TypeString
+-	case 2:
++	case typeFlagSymbol:
+ 		return TypeSymbol
+-	case 3:
++	case typeFlagFunction:
+ 		return TypeFunction
+ 	default:
+-		return TypeObject
++		panic("bad type flag")
+ 	}
+ }
+ 
+@@ -251,7 +298,9 @@ func (v Value) Get(p string) Value {
+ 	if vType := v.Type(); !vType.isObject() {
+ 		panic(&ValueError{"Value.Get", vType})
+ 	}
+-	return makeValue(valueGet(v.ref, p))
++	r := makeValue(valueGet(v.ref, p))
++	runtime.KeepAlive(v)
++	return r
+ }
+ 
+ func valueGet(v ref, p string) ref
+@@ -262,7 +311,10 @@ func (v Value) Set(p string, x interface{}) {
+ 	if vType := v.Type(); !vType.isObject() {
+ 		panic(&ValueError{"Value.Set", vType})
+ 	}
+-	valueSet(v.ref, p, ValueOf(x).ref)
++	xv := ValueOf(x)
++	valueSet(v.ref, p, xv.ref)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(xv)
+ }
+ 
+ func valueSet(v ref, p string, x ref)
+@@ -274,6 +326,7 @@ func (v Value) Delete(p string) {
+ 		panic(&ValueError{"Value.Delete", vType})
+ 	}
+ 	valueDelete(v.ref, p)
++	runtime.KeepAlive(v)
+ }
+ 
+ func valueDelete(v ref, p string)
+@@ -284,7 +337,9 @@ func (v Value) Index(i int) Value {
+ 	if vType := v.Type(); !vType.isObject() {
+ 		panic(&ValueError{"Value.Index", vType})
+ 	}
+-	return makeValue(valueIndex(v.ref, i))
++	r := makeValue(valueIndex(v.ref, i))
++	runtime.KeepAlive(v)
++	return r
+ }
+ 
+ func valueIndex(v ref, i int) ref
+@@ -295,17 +350,23 @@ func (v Value) SetIndex(i int, x interface{}) {
+ 	if vType := v.Type(); !vType.isObject() {
+ 		panic(&ValueError{"Value.SetIndex", vType})
+ 	}
+-	valueSetIndex(v.ref, i, ValueOf(x).ref)
++	xv := ValueOf(x)
++	valueSetIndex(v.ref, i, xv.ref)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(xv)
+ }
+ 
+ func valueSetIndex(v ref, i int, x ref)
+ 
+-func makeArgs(args []interface{}) []ref {
+-	argVals := make([]ref, len(args))
++func makeArgs(args []interface{}) ([]Value, []ref) {
++	argVals := make([]Value, len(args))
++	argRefs := make([]ref, len(args))
+ 	for i, arg := range args {
+-		argVals[i] = ValueOf(arg).ref
++		v := ValueOf(arg)
++		argVals[i] = v
++		argRefs[i] = v.ref
+ 	}
+-	return argVals
++	return argVals, argRefs
+ }
+ 
+ // Length returns the JavaScript property "length" of v.
+@@ -314,7 +375,9 @@ func (v Value) Length() int {
+ 	if vType := v.Type(); !vType.isObject() {
+ 		panic(&ValueError{"Value.SetIndex", vType})
+ 	}
+-	return valueLength(v.ref)
++	r := valueLength(v.ref)
++	runtime.KeepAlive(v)
++	return r
+ }
+ 
+ func valueLength(v ref) int
+@@ -323,7 +386,10 @@ func valueLength(v ref) int
+ // It panics if v has no method m.
+ // The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) Call(m string, args ...interface{}) Value {
+-	res, ok := valueCall(v.ref, m, makeArgs(args))
++	argVals, argRefs := makeArgs(args)
++	res, ok := valueCall(v.ref, m, argRefs)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(argVals)
+ 	if !ok {
+ 		if vType := v.Type(); !vType.isObject() { // check here to avoid overhead in success case
+ 			panic(&ValueError{"Value.Call", vType})
+@@ -342,7 +408,10 @@ func valueCall(v ref, m string, args []ref) (ref, bool)
+ // It panics if v is not a JavaScript function.
+ // The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) Invoke(args ...interface{}) Value {
+-	res, ok := valueInvoke(v.ref, makeArgs(args))
++	argVals, argRefs := makeArgs(args)
++	res, ok := valueInvoke(v.ref, argRefs)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(argVals)
+ 	if !ok {
+ 		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
+ 			panic(&ValueError{"Value.Invoke", vType})
+@@ -358,7 +427,10 @@ func valueInvoke(v ref, args []ref) (ref, bool)
+ // It panics if v is not a JavaScript function.
+ // The arguments get mapped to JavaScript values according to the ValueOf function.
+ func (v Value) New(args ...interface{}) Value {
+-	res, ok := valueNew(v.ref, makeArgs(args))
++	argVals, argRefs := makeArgs(args)
++	res, ok := valueNew(v.ref, argRefs)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(argVals)
+ 	if !ok {
+ 		if vType := v.Type(); vType != TypeFunction { // check here to avoid overhead in success case
+ 			panic(&ValueError{"Value.Invoke", vType})
+@@ -373,7 +445,7 @@ func valueNew(v ref, args []ref) (ref, bool)
+ func (v Value) isNumber() bool {
+ 	return v.ref == valueZero.ref ||
+ 		v.ref == valueNaN.ref ||
+-		(v.ref != valueUndefined.ref && v.ref>>32&nanHead != nanHead)
++		(v.ref != valueUndefined.ref && (v.ref>>32)&nanHead != nanHead)
+ }
+ 
+ func (v Value) float(method string) float64 {
+@@ -438,15 +510,15 @@ func (v Value) Truthy() bool {
+ func (v Value) String() string {
+ 	switch v.Type() {
+ 	case TypeString:
+-		return jsString(v.ref)
++		return jsString(v)
+ 	case TypeUndefined:
+ 		return "<undefined>"
+ 	case TypeNull:
+ 		return "<null>"
+ 	case TypeBoolean:
+-		return "<boolean: " + jsString(v.ref) + ">"
++		return "<boolean: " + jsString(v) + ">"
+ 	case TypeNumber:
+-		return "<number: " + jsString(v.ref) + ">"
++		return "<number: " + jsString(v) + ">"
+ 	case TypeSymbol:
+ 		return "<symbol>"
+ 	case TypeObject:
+@@ -458,10 +530,12 @@ func (v Value) String() string {
+ 	}
+ }
+ 
+-func jsString(v ref) string {
+-	str, length := valuePrepareString(v)
++func jsString(v Value) string {
++	str, length := valuePrepareString(v.ref)
++	runtime.KeepAlive(v)
+ 	b := make([]byte, length)
+ 	valueLoadString(str, b)
++	finalizeRef(str)
+ 	return string(b)
+ }
+ 
+@@ -471,7 +545,10 @@ func valueLoadString(v ref, b []byte)
+ 
+ // InstanceOf reports whether v is an instance of type t according to JavaScript's instanceof operator.
+ func (v Value) InstanceOf(t Value) bool {
+-	return valueInstanceOf(v.ref, t.ref)
++	r := valueInstanceOf(v.ref, t.ref)
++	runtime.KeepAlive(v)
++	runtime.KeepAlive(t)
++	return r
+ }
+ 
+ func valueInstanceOf(v ref, t ref) bool
+@@ -493,6 +570,7 @@ func (e *ValueError) Error() string {
+ // CopyBytesToGo panics if src is not an Uint8Array.
+ func CopyBytesToGo(dst []byte, src Value) int {
+ 	n, ok := copyBytesToGo(dst, src.ref)
++	runtime.KeepAlive(src)
+ 	if !ok {
+ 		panic("syscall/js: CopyBytesToGo: expected src to be an Uint8Array")
+ 	}
+@@ -506,6 +584,7 @@ func copyBytesToGo(dst []byte, src ref) (int, bool)
+ // CopyBytesToJS panics if dst is not an Uint8Array.
+ func CopyBytesToJS(dst Value, src []byte) int {
+ 	n, ok := copyBytesToJS(dst.ref, src)
++	runtime.KeepAlive(dst)
+ 	if !ok {
+ 		panic("syscall/js: CopyBytesToJS: expected dst to be an Uint8Array")
+ 	}
+diff --git a/src/syscall/js/js_js.s b/src/syscall/js/js_js.s
+index ab56087c16..47ad6b83e5 100644
+--- a/src/syscall/js/js_js.s
++++ b/src/syscall/js/js_js.s
+@@ -4,6 +4,10 @@
+ 
+ #include "textflag.h"
+ 
++TEXT ·finalizeRef(SB), NOSPLIT, $0
++  CallImport
++  RET
++
+ TEXT ·stringVal(SB), NOSPLIT, $0
+   CallImport
+   RET
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 10d4364e4c..b5d267c03c 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -18,6 +18,7 @@ package js_test
+ import (
+ 	"fmt"
+ 	"math"
++	"runtime"
+ 	"syscall/js"
+ 	"testing"
+ )
+@@ -53,7 +54,7 @@ func TestBool(t *testing.T) {
+ 	if got := dummys.Get("otherBool").Bool(); got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+-	if dummys.Get("someBool") != dummys.Get("someBool") {
++	if !dummys.Get("someBool").Equal(dummys.Get("someBool")) {
+ 		t.Errorf("same value not equal")
+ 	}
+ }
+@@ -68,7 +69,7 @@ func TestString(t *testing.T) {
+ 	if got := dummys.Get("otherString").String(); got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+-	if dummys.Get("someString") != dummys.Get("someString") {
++	if !dummys.Get("someString").Equal(dummys.Get("someString")) {
+ 		t.Errorf("same value not equal")
+ 	}
+ 
+@@ -105,7 +106,7 @@ func TestInt(t *testing.T) {
+ 	if got := dummys.Get("otherInt").Int(); got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+-	if dummys.Get("someInt") != dummys.Get("someInt") {
++	if !dummys.Get("someInt").Equal(dummys.Get("someInt")) {
+ 		t.Errorf("same value not equal")
+ 	}
+ 	if got := dummys.Get("zero").Int(); got != 0 {
+@@ -141,20 +142,20 @@ func TestFloat(t *testing.T) {
+ 	if got := dummys.Get("otherFloat").Float(); got != want {
+ 		t.Errorf("got %#v, want %#v", got, want)
+ 	}
+-	if dummys.Get("someFloat") != dummys.Get("someFloat") {
++	if !dummys.Get("someFloat").Equal(dummys.Get("someFloat")) {
+ 		t.Errorf("same value not equal")
+ 	}
+ }
+ 
+ func TestObject(t *testing.T) {
+-	if dummys.Get("someArray") != dummys.Get("someArray") {
++	if !dummys.Get("someArray").Equal(dummys.Get("someArray")) {
+ 		t.Errorf("same value not equal")
+ 	}
+ 
+ 	// An object and its prototype should not be equal.
+ 	proto := js.Global().Get("Object").Get("prototype")
+ 	o := js.Global().Call("eval", "new Object()")
+-	if proto == o {
++	if proto.Equal(o) {
+ 		t.Errorf("object equals to its prototype")
+ 	}
+ }
+@@ -167,26 +168,66 @@ func TestFrozenObject(t *testing.T) {
+ 	}
+ }
+ 
++func TestEqual(t *testing.T) {
++	if !dummys.Get("someFloat").Equal(dummys.Get("someFloat")) {
++		t.Errorf("same float is not equal")
++	}
++	if !dummys.Get("emptyObj").Equal(dummys.Get("emptyObj")) {
++		t.Errorf("same object is not equal")
++	}
++	if dummys.Get("someFloat").Equal(dummys.Get("someInt")) {
++		t.Errorf("different values are not unequal")
++	}
++}
++
+ func TestNaN(t *testing.T) {
+-	want := js.ValueOf(math.NaN())
+-	got := dummys.Get("NaN")
+-	if got != want {
+-		t.Errorf("got %#v, want %#v", got, want)
++	if !dummys.Get("NaN").IsNaN() {
++		t.Errorf("JS NaN is not NaN")
++	}
++	if !js.ValueOf(math.NaN()).IsNaN() {
++		t.Errorf("Go NaN is not NaN")
++	}
++	if dummys.Get("NaN").Equal(dummys.Get("NaN")) {
++		t.Errorf("NaN is equal to NaN")
+ 	}
+ }
+ 
+ func TestUndefined(t *testing.T) {
+-	dummys.Set("test", js.Undefined())
+-	if dummys == js.Undefined() || dummys.Get("test") != js.Undefined() || dummys.Get("xyz") != js.Undefined() {
+-		t.Errorf("js.Undefined expected")
++	if !js.Undefined().IsUndefined() {
++		t.Errorf("undefined is not undefined")
++	}
++	if !js.Undefined().Equal(js.Undefined()) {
++		t.Errorf("undefined is not equal to undefined")
++	}
++	if dummys.IsUndefined() {
++		t.Errorf("object is undefined")
++	}
++	if js.Undefined().IsNull() {
++		t.Errorf("undefined is null")
++	}
++	if dummys.Set("test", js.Undefined()); !dummys.Get("test").IsUndefined() {
++		t.Errorf("could not set undefined")
+ 	}
+ }
+ 
+ func TestNull(t *testing.T) {
+-	dummys.Set("test1", nil)
+-	dummys.Set("test2", js.Null())
+-	if dummys == js.Null() || dummys.Get("test1") != js.Null() || dummys.Get("test2") != js.Null() {
+-		t.Errorf("js.Null expected")
++	if !js.Null().IsNull() {
++		t.Errorf("null is not null")
++	}
++	if !js.Null().Equal(js.Null()) {
++		t.Errorf("null is not equal to null")
++	}
++	if dummys.IsNull() {
++		t.Errorf("object is null")
++	}
++	if js.Null().IsUndefined() {
++		t.Errorf("null is undefined")
++	}
++	if dummys.Set("test", js.Null()); !dummys.Get("test").IsNull() {
++		t.Errorf("could not set null")
++	}
++	if dummys.Set("test", nil); !dummys.Get("test").IsNull() {
++		t.Errorf("could not set nil")
+ 	}
+ }
+ 
+@@ -340,7 +381,7 @@ func TestValueOf(t *testing.T) {
+ 
+ func TestZeroValue(t *testing.T) {
+ 	var v js.Value
+-	if v != js.Undefined() {
++	if !v.IsUndefined() {
+ 		t.Error("zero js.Value is not js.Undefined()")
+ 	}
+ }
+@@ -497,12 +538,24 @@ func TestCopyBytesToJS(t *testing.T) {
+ 	}
+ }
+ 
++func TestGarbageCollection(t *testing.T) {
++	before := js.JSGo.Get("_values").Length()
++	for i := 0; i < 1000; i++ {
++		_ = js.Global().Get("Object").New().Call("toString").String()
++		runtime.GC()
++	}
++	after := js.JSGo.Get("_values").Length()
++	if after-before > 500 {
++		t.Errorf("garbage collection ineffective")
++	}
++}
++
+ // BenchmarkDOM is a simple benchmark which emulates a webapp making DOM operations.
+ // It creates a div, and sets its id. Then searches by that id and sets some data.
+ // Finally it removes that div.
+ func BenchmarkDOM(b *testing.B) {
+ 	document := js.Global().Get("document")
+-	if document == js.Undefined() {
++	if document.IsUndefined() {
+ 		b.Skip("Not a browser environment. Skipping.")
+ 	}
+ 	const data = "someString"

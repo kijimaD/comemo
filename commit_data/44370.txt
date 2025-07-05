@@ -14,8 +14,317 @@ Date:   Thu Jun 18 05:25:07 2020 -0700
     Run-TryBot: Michael Munday <mike.munday@ibm.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/ssa/gen/S390XOps.go |  37 ++++-----
  src/cmd/compile/internal/ssa/opGen.go        | 112 +++++++++++++++------------
  test/fixedbugs/issue39651.go                 |  26 +++++++
  3 files changed, 109 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/S390XOps.go b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+index c583dada33..710beaddbb 100644
+--- a/src/cmd/compile/internal/ssa/gen/S390XOps.go
++++ b/src/cmd/compile/internal/ssa/gen/S390XOps.go
+@@ -394,24 +394,25 @@ func init() {
+ 
+ 		{name: "MOVDconst", reg: gp01, asm: "MOVD", typ: "UInt64", aux: "Int64", rematerializeable: true}, // auxint
+ 
+-		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"},     // move int64 to float64 (no conversion)
+-		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"},     // move float64 to int64 (no conversion)
+-		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA"}, // convert float64 to int32
+-		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA"}, // convert float64 to int64
+-		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA"}, // convert float32 to int32
+-		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA"}, // convert float32 to int64
+-		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA"}, // convert int32 to float32
+-		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA"}, // convert int32 to float64
+-		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA"}, // convert int64 to float32
+-		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA"}, // convert int64 to float64
+-		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR"}, // convert float32 to uint32
+-		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR"}, // convert float64 to uint32
+-		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR"}, // convert float32 to uint64
+-		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR"}, // convert float64 to uint64
+-		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR"}, // convert uint32 to float32
+-		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR"}, // convert uint32 to float64
+-		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR"}, // convert uint64 to float32
+-		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR"}, // convert uint64 to float64
++		{name: "LDGR", argLength: 1, reg: gpfp, asm: "LDGR"}, // move int64 to float64 (no conversion)
++		{name: "LGDR", argLength: 1, reg: fpgp, asm: "LGDR"}, // move float64 to int64 (no conversion)
++
++		{name: "CFDBRA", argLength: 1, reg: fpgp, asm: "CFDBRA", clobberFlags: true}, // convert float64 to int32
++		{name: "CGDBRA", argLength: 1, reg: fpgp, asm: "CGDBRA", clobberFlags: true}, // convert float64 to int64
++		{name: "CFEBRA", argLength: 1, reg: fpgp, asm: "CFEBRA", clobberFlags: true}, // convert float32 to int32
++		{name: "CGEBRA", argLength: 1, reg: fpgp, asm: "CGEBRA", clobberFlags: true}, // convert float32 to int64
++		{name: "CEFBRA", argLength: 1, reg: gpfp, asm: "CEFBRA", clobberFlags: true}, // convert int32 to float32
++		{name: "CDFBRA", argLength: 1, reg: gpfp, asm: "CDFBRA", clobberFlags: true}, // convert int32 to float64
++		{name: "CEGBRA", argLength: 1, reg: gpfp, asm: "CEGBRA", clobberFlags: true}, // convert int64 to float32
++		{name: "CDGBRA", argLength: 1, reg: gpfp, asm: "CDGBRA", clobberFlags: true}, // convert int64 to float64
++		{name: "CLFEBR", argLength: 1, reg: fpgp, asm: "CLFEBR", clobberFlags: true}, // convert float32 to uint32
++		{name: "CLFDBR", argLength: 1, reg: fpgp, asm: "CLFDBR", clobberFlags: true}, // convert float64 to uint32
++		{name: "CLGEBR", argLength: 1, reg: fpgp, asm: "CLGEBR", clobberFlags: true}, // convert float32 to uint64
++		{name: "CLGDBR", argLength: 1, reg: fpgp, asm: "CLGDBR", clobberFlags: true}, // convert float64 to uint64
++		{name: "CELFBR", argLength: 1, reg: gpfp, asm: "CELFBR", clobberFlags: true}, // convert uint32 to float32
++		{name: "CDLFBR", argLength: 1, reg: gpfp, asm: "CDLFBR", clobberFlags: true}, // convert uint32 to float64
++		{name: "CELGBR", argLength: 1, reg: gpfp, asm: "CELGBR", clobberFlags: true}, // convert uint64 to float32
++		{name: "CDLGBR", argLength: 1, reg: gpfp, asm: "CDLGBR", clobberFlags: true}, // convert uint64 to float64
+ 
+ 		{name: "LEDBR", argLength: 1, reg: fp11, asm: "LEDBR"}, // convert float64 to float32
+ 		{name: "LDEBR", argLength: 1, reg: fp11, asm: "LDEBR"}, // convert float32 to float64
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 7f6bf3e15b..2ce3f6aafd 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -30191,9 +30191,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CFDBRA",
+-		argLen: 1,
+-		asm:    s390x.ACFDBRA,
++		name:         "CFDBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACFDBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30204,9 +30205,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CGDBRA",
+-		argLen: 1,
+-		asm:    s390x.ACGDBRA,
++		name:         "CGDBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACGDBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30217,9 +30219,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CFEBRA",
+-		argLen: 1,
+-		asm:    s390x.ACFEBRA,
++		name:         "CFEBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACFEBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30230,9 +30233,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CGEBRA",
+-		argLen: 1,
+-		asm:    s390x.ACGEBRA,
++		name:         "CGEBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACGEBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30243,9 +30247,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CEFBRA",
+-		argLen: 1,
+-		asm:    s390x.ACEFBRA,
++		name:         "CEFBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACEFBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30256,9 +30261,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CDFBRA",
+-		argLen: 1,
+-		asm:    s390x.ACDFBRA,
++		name:         "CDFBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACDFBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30269,9 +30275,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CEGBRA",
+-		argLen: 1,
+-		asm:    s390x.ACEGBRA,
++		name:         "CEGBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACEGBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30282,9 +30289,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CDGBRA",
+-		argLen: 1,
+-		asm:    s390x.ACDGBRA,
++		name:         "CDGBRA",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACDGBRA,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30295,9 +30303,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CLFEBR",
+-		argLen: 1,
+-		asm:    s390x.ACLFEBR,
++		name:         "CLFEBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACLFEBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30308,9 +30317,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CLFDBR",
+-		argLen: 1,
+-		asm:    s390x.ACLFDBR,
++		name:         "CLFDBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACLFDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30321,9 +30331,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CLGEBR",
+-		argLen: 1,
+-		asm:    s390x.ACLGEBR,
++		name:         "CLGEBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACLGEBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30334,9 +30345,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CLGDBR",
+-		argLen: 1,
+-		asm:    s390x.ACLGDBR,
++		name:         "CLGDBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACLGDBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 4294901760}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15
+@@ -30347,9 +30359,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CELFBR",
+-		argLen: 1,
+-		asm:    s390x.ACELFBR,
++		name:         "CELFBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACELFBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30360,9 +30373,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CDLFBR",
+-		argLen: 1,
+-		asm:    s390x.ACDLFBR,
++		name:         "CDLFBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACDLFBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30373,9 +30387,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CELGBR",
+-		argLen: 1,
+-		asm:    s390x.ACELGBR,
++		name:         "CELGBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACELGBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+@@ -30386,9 +30401,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:   "CDLGBR",
+-		argLen: 1,
+-		asm:    s390x.ACDLGBR,
++		name:         "CDLGBR",
++		argLen:       1,
++		clobberFlags: true,
++		asm:          s390x.ACDLGBR,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 23551}, // R0 R1 R2 R3 R4 R5 R6 R7 R8 R9 R11 R12 R14
+diff --git a/test/fixedbugs/issue39651.go b/test/fixedbugs/issue39651.go
+new file mode 100644
+index 0000000000..256a34dcb3
+--- /dev/null
++++ b/test/fixedbugs/issue39651.go
+@@ -0,0 +1,26 @@
++// run
++
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that float -> integer conversion doesn't clobber
++// flags.
++
++package main
++
++//go:noinline
++func f(x, y float64, a, b *bool, r *int64) {
++	*a = x < y    // set flags
++	*r = int64(x) // clobber flags
++	*b = x == y   // use flags
++}
++
++func main() {
++	var a, b bool
++	var r int64
++	f(1, 1, &a, &b, &r)
++	if a || !b {
++		panic("comparison incorrect")
++	}
++}

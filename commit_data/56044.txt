@@ -21,7 +21,7 @@ Date:   Fri Mar 24 23:07:58 2023 -0700
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/cmd/internal/obj/wasm/wasmobj.go |  5 +++--
  src/cmd/link/internal/ld/dwarf.go    |  2 +-
  src/cmd/link/internal/ld/sym.go      |  2 +-
@@ -30,3 +30,242 @@ Date:   Fri Mar 24 23:07:58 2023 -0700
  src/runtime/rt0_js_wasm.s            | 39 ----------------------------------
  src/runtime/rt0_wasip1_wasm.s        | 16 ++++++++++++++
  7 files changed, 86 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index f344b53870..6bf49c602d 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -905,6 +905,7 @@ func regAddr(reg int16) obj.Addr {
+ // Wasm ABI. This is a list of exceptions.
+ var notUsePC_B = map[string]bool{
+ 	"_rt0_wasm_js":            true,
++	"_rt0_wasm_wasip1":        true,
+ 	"wasm_export_run":         true,
+ 	"wasm_export_resume":      true,
+ 	"wasm_export_getsp":       true,
+@@ -959,8 +960,8 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	// Function starts with declaration of locals: numbers and types.
+ 	// Some functions use a special calling convention.
+ 	switch s.Name {
+-	case "_rt0_wasm_js", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp", "wasm_pc_f_loop",
+-		"runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
++	case "_rt0_wasm_js", "_rt0_wasm_wasip1", "wasm_export_run", "wasm_export_resume", "wasm_export_getsp",
++		"wasm_pc_f_loop", "runtime.wasmDiv", "runtime.wasmTruncS", "runtime.wasmTruncU", "memeqbody":
+ 		varDecls = []*varDecl{}
+ 		useAssemblyRegMap()
+ 	case "memchr", "memcmp":
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index a402c9ea92..41da25805f 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -1636,7 +1636,7 @@ func dwarfEnabled(ctxt *Link) bool {
+ 	if *FlagS && ctxt.HeadType != objabi.Hdarwin {
+ 		return false
+ 	}
+-	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs {
++	if ctxt.HeadType == objabi.Hplan9 || ctxt.HeadType == objabi.Hjs || ctxt.HeadType == objabi.Hwasip1 {
+ 		return false
+ 	}
+ 
+diff --git a/src/cmd/link/internal/ld/sym.go b/src/cmd/link/internal/ld/sym.go
+index d51a59ef46..6ae110602e 100644
+--- a/src/cmd/link/internal/ld/sym.go
++++ b/src/cmd/link/internal/ld/sym.go
+@@ -75,7 +75,7 @@ func (ctxt *Link) computeTLSOffset() {
+ 	default:
+ 		log.Fatalf("unknown thread-local storage offset for %v", ctxt.HeadType)
+ 
+-	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Haix:
++	case objabi.Hplan9, objabi.Hwindows, objabi.Hjs, objabi.Hwasip1, objabi.Haix:
+ 		break
+ 
+ 	case objabi.Hlinux,
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 30d0dc7ff2..413a809414 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -114,6 +114,8 @@ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
+ 
+ var wasmFuncTypes = map[string]*wasmFuncType{
+ 	"_rt0_wasm_js":            {Params: []byte{}},                                         //
++	"_rt0_wasm_wasip1":        {Params: []byte{}},                                         //
++	"wasm_export__start":      {},                                                         //
+ 	"wasm_export_run":         {Params: []byte{I32, I32}},                                 // argc, argv
+ 	"wasm_export_resume":      {Params: []byte{}},                                         //
+ 	"wasm_export_getsp":       {Results: []byte{I32}},                                     // sp
+@@ -450,20 +452,33 @@ func writeGlobalSec(ctxt *ld.Link) {
+ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 	sizeOffset := writeSecHeader(ctxt, sectionExport)
+ 
+-	writeUleb128(ctxt.Out, 4) // number of exports
+-
+-	for _, name := range []string{"run", "resume", "getsp"} {
+-		s := ldr.Lookup("wasm_export_"+name, 0)
++	switch buildcfg.GOOS {
++	case "wasip1":
++		writeUleb128(ctxt.Out, 2) // number of exports
++		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
+ 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+-		writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
++		writeName(ctxt.Out, "_start")       // the wasi entrypoint
+ 		ctxt.Out.WriteByte(0x00)            // func export
+ 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
++		writeName(ctxt.Out, "memory")       // memory in wasi
++		ctxt.Out.WriteByte(0x02)            // mem export
++		writeUleb128(ctxt.Out, 0)           // memidx
++	case "js":
++		writeUleb128(ctxt.Out, 4) // number of exports
++		for _, name := range []string{"run", "resume", "getsp"} {
++			s := ldr.Lookup("wasm_export_"+name, 0)
++			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
++			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js
++			ctxt.Out.WriteByte(0x00)            // func export
++			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
++		}
++		writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
++		ctxt.Out.WriteByte(0x02)   // mem export
++		writeUleb128(ctxt.Out, 0)  // memidx
++	default:
++		ld.Exitf("internal error: writeExportSec: unrecognized GOOS %s", buildcfg.GOOS)
+ 	}
+ 
+-	writeName(ctxt.Out, "mem") // inst.exports.mem in wasm_exec.js
+-	ctxt.Out.WriteByte(0x02)   // mem export
+-	writeUleb128(ctxt.Out, 0)  // memidx
+-
+ 	writeSecSize(ctxt, sizeOffset)
+ }
+ 
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 330c10cc0c..9cd8b5a99f 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -15,7 +15,9 @@ TEXT runtime·rt0_go(SB), NOSPLIT|NOFRAME|TOPFRAME, $0
+ 	// set g to g0
+ 	MOVD $runtime·g0(SB), g
+ 	CALLNORESUME runtime·check(SB)
++#ifdef GOOS_js
+ 	CALLNORESUME runtime·args(SB)
++#endif
+ 	CALLNORESUME runtime·osinit(SB)
+ 	CALLNORESUME runtime·schedinit(SB)
+ 	MOVD $runtime·mainPC(SB), 0(SP)
+@@ -482,3 +484,42 @@ TEXT runtime·gcWriteBarrier8<ABIInternal>(SB),NOSPLIT,$0
+ 	I64Const $64
+ 	Call	gcWriteBarrier<>(SB)
+ 	Return
++
++TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
++// Call the function for the current PC_F. Repeat until PAUSE != 0 indicates pause or exit.
++// The WebAssembly stack may unwind, e.g. when switching goroutines.
++// The Go stack on the linear memory is then used to jump to the correct functions
++// with this loop, without having to restore the full WebAssembly stack.
++// It is expected to have a pending call before entering the loop, so check PAUSE first.
++	Get PAUSE
++	I32Eqz
++	If
++	loop:
++		Loop
++			// Get PC_B & PC_F from -8(SP)
++			Get SP
++			I32Const $8
++			I32Sub
++			I32Load16U $0 // PC_B
++
++			Get SP
++			I32Const $8
++			I32Sub
++			I32Load16U $2 // PC_F
++
++			CallIndirect $0
++			Drop
++
++			Get PAUSE
++			I32Eqz
++			BrIf loop
++		End
++	End
++
++	I32Const $0
++	Set PAUSE
++
++	Return
++
++TEXT wasm_export_lib(SB),NOSPLIT,$0
++	UNDEF
+diff --git a/src/runtime/rt0_js_wasm.s b/src/runtime/rt0_js_wasm.s
+index 6f67752d63..34a60474f7 100644
+--- a/src/runtime/rt0_js_wasm.s
++++ b/src/runtime/rt0_js_wasm.s
+@@ -48,42 +48,6 @@ TEXT wasm_export_resume(SB),NOSPLIT,$0
+ 
+ 	Return
+ 
+-TEXT wasm_pc_f_loop(SB),NOSPLIT,$0
+-// Call the function for the current PC_F. Repeat until PAUSE != 0 indicates pause or exit.
+-// The WebAssembly stack may unwind, e.g. when switching goroutines.
+-// The Go stack on the linear memory is then used to jump to the correct functions
+-// with this loop, without having to restore the full WebAssembly stack.
+-// It is expected to have a pending call before entering the loop, so check PAUSE first.
+-	Get PAUSE
+-	I32Eqz
+-	If
+-	loop:
+-		Loop
+-			// Get PC_B & PC_F from -8(SP)
+-			Get SP
+-			I32Const $8
+-			I32Sub
+-			I32Load16U $0 // PC_B
+-
+-			Get SP
+-			I32Const $8
+-			I32Sub
+-			I32Load16U $2 // PC_F
+-
+-			CallIndirect $0
+-			Drop
+-
+-			Get PAUSE
+-			I32Eqz
+-			BrIf loop
+-		End
+-	End
+-
+-	I32Const $0
+-	Set PAUSE
+-
+-	Return
+-
+ // wasm_export_getsp gets called from JavaScript to retrieve the SP.
+ TEXT wasm_export_getsp(SB),NOSPLIT,$0
+ 	Get SP
+@@ -101,6 +65,3 @@ TEXT runtime·exit(SB), NOSPLIT, $0-4
+ 	I32Const $1
+ 	Set PAUSE
+ 	RETUNWIND
+-
+-TEXT wasm_export_lib(SB),NOSPLIT,$0
+-	UNDEF
+diff --git a/src/runtime/rt0_wasip1_wasm.s b/src/runtime/rt0_wasip1_wasm.s
+new file mode 100644
+index 0000000000..6dc239306b
+--- /dev/null
++++ b/src/runtime/rt0_wasip1_wasm.s
+@@ -0,0 +1,16 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT _rt0_wasm_wasip1(SB),NOSPLIT,$0
++	MOVD $runtime·wasmStack+(m0Stack__size-16)(SB), SP
++
++	I32Const $0 // entry PC_B
++	Call runtime·rt0_go(SB)
++	Drop
++	Call wasm_pc_f_loop(SB)
++
++	Return

@@ -19,9 +19,125 @@ Date:   Tue Jan 22 10:08:10 2019 -0800
     Run-TryBot: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/gsubr.go |  5 -----
  src/cmd/compile/internal/gc/pgen.go  | 20 ++++++++---------
  src/cmd/compile/internal/gc/plive.go | 42 ++++++++++++++++++------------------
  src/cmd/compile/internal/gc/ssa.go   |  5 +----
  4 files changed, 31 insertions(+), 41 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/gsubr.go b/src/cmd/compile/internal/gc/gsubr.go
+index 5ad7b9a1b6..6e9f80a89d 100644
+--- a/src/cmd/compile/internal/gc/gsubr.go
++++ b/src/cmd/compile/internal/gc/gsubr.go
+@@ -176,11 +176,6 @@ func (pp *Progs) settext(fn *Node) {
+ 	ptxt := pp.Prog(obj.ATEXT)
+ 	pp.Text = ptxt
+ 
+-	if fn.Func.lsym == nil {
+-		// func _() { }
+-		return
+-	}
+-
+ 	fn.Func.lsym.Func.Text = ptxt
+ 	ptxt.From.Type = obj.TYPE_MEM
+ 	ptxt.From.Name = obj.NAME_EXTERN
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index 1dc4b53427..6914e3c5f8 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -258,17 +258,15 @@ func compile(fn *Node) {
+ 	// be types of stack objects. We need to do this here
+ 	// because symbols must be allocated before the parallel
+ 	// phase of the compiler.
+-	if fn.Func.lsym != nil { // not func _(){}
+-		for _, n := range fn.Func.Dcl {
+-			switch n.Class() {
+-			case PPARAM, PPARAMOUT, PAUTO:
+-				if livenessShouldTrack(n) && n.Addrtaken() {
+-					dtypesym(n.Type)
+-					// Also make sure we allocate a linker symbol
+-					// for the stack object data, for the same reason.
+-					if fn.Func.lsym.Func.StackObjects == nil {
+-						fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+-					}
++	for _, n := range fn.Func.Dcl {
++		switch n.Class() {
++		case PPARAM, PPARAMOUT, PAUTO:
++			if livenessShouldTrack(n) && n.Addrtaken() {
++				dtypesym(n.Type)
++				// Also make sure we allocate a linker symbol
++				// for the stack object data, for the same reason.
++				if fn.Func.lsym.Func.StackObjects == nil {
++					fn.Func.lsym.Func.StackObjects = lookup(fmt.Sprintf("%s.stkobj", fn.funcname())).Linksym()
+ 				}
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/gc/plive.go b/src/cmd/compile/internal/gc/plive.go
+index b48a9ea87e..a9a01e5c12 100644
+--- a/src/cmd/compile/internal/gc/plive.go
++++ b/src/cmd/compile/internal/gc/plive.go
+@@ -1426,26 +1426,26 @@ func liveness(e *ssafn, f *ssa.Func, pp *Progs) LivenessMap {
+ 	}
+ 
+ 	// Emit the live pointer map data structures
+-	if ls := e.curfn.Func.lsym; ls != nil {
+-		ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
+-
+-		p := pp.Prog(obj.AFUNCDATA)
+-		Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = ls.Func.GCArgs
+-
+-		p = pp.Prog(obj.AFUNCDATA)
+-		Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = ls.Func.GCLocals
+-
+-		p = pp.Prog(obj.AFUNCDATA)
+-		Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
+-		p.To.Type = obj.TYPE_MEM
+-		p.To.Name = obj.NAME_EXTERN
+-		p.To.Sym = ls.Func.GCRegs
+-	}
++	ls := e.curfn.Func.lsym
++	ls.Func.GCArgs, ls.Func.GCLocals, ls.Func.GCRegs = lv.emit()
++
++	p := pp.Prog(obj.AFUNCDATA)
++	Addrconst(&p.From, objabi.FUNCDATA_ArgsPointerMaps)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = ls.Func.GCArgs
++
++	p = pp.Prog(obj.AFUNCDATA)
++	Addrconst(&p.From, objabi.FUNCDATA_LocalsPointerMaps)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = ls.Func.GCLocals
++
++	p = pp.Prog(obj.AFUNCDATA)
++	Addrconst(&p.From, objabi.FUNCDATA_RegPointerMaps)
++	p.To.Type = obj.TYPE_MEM
++	p.To.Name = obj.NAME_EXTERN
++	p.To.Sym = ls.Func.GCRegs
++
+ 	return lv.livenessMap
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 9d56c562d0..c8befa40cd 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -5175,10 +5175,7 @@ func genssa(f *ssa.Func, pp *Progs) {
+ 				}
+ 			case ssa.OpInlMark:
+ 				p := thearch.Ginsnop(s.pp)
+-				if pp.curfn.Func.lsym != nil {
+-					// lsym is nil if the function name is "_".
+-					pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
+-				}
++				pp.curfn.Func.lsym.Func.AddInlMark(p, v.AuxInt32())
+ 				// TODO: if matching line number, merge somehow with previous instruction?
+ 
+ 			default:

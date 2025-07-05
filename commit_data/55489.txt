@@ -9,7 +9,7 @@ Date:   Thu Feb 9 13:04:21 2023 -0500
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Damien Neil <dneil@google.com>
     Run-TryBot: David Chase <drchase@google.com>
-
+---
  src/cmd/go.mod                                     |  10 +-
  src/cmd/go.sum                                     |  20 +-
  .../golang.org/x/arch/ppc64/ppc64asm/field.go      |   2 +-
@@ -53,3 +53,1656 @@ Date:   Thu Feb 9 13:04:21 2023 -0500
  .../golang.org/x/text/unicode/norm/forminfo.go     |   2 +-
  src/vendor/modules.txt                             |   8 +-
  42 files changed, 515 insertions(+), 248 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index da54384011..49dc45cd62 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -4,12 +4,12 @@ go 1.21
+ 
+ require (
+ 	github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26
+-	golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
+-	golang.org/x/mod v0.7.0
++	golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5
++	golang.org/x/mod v0.8.0
+ 	golang.org/x/sync v0.1.0
+-	golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7
+-	golang.org/x/term v0.2.0
+-	golang.org/x/tools v0.5.1-0.20230119221225-ff9bea528a4d
++	golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339
++	golang.org/x/term v0.5.0
++	golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de
+ )
+ 
+ require github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 // indirect
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 684e0ed6cb..8acb92cda4 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -2,15 +2,15 @@ github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26 h1:Xim43kblpZXfIBQsbu
+ github.com/google/pprof v0.0.0-20221118152302-e6195bd50e26/go.mod h1:dDKJzRmX4S37WGHujM7tX//fmj1uioxKzKxz3lo4HJo=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2 h1:rcanfLhLDA8nozr/K289V1zcntHr3V+SHlXwzz1ZI2g=
+ github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2/go.mod h1:aYm2/VgdVmcIU8iMfdMvDMsRAQjcfZSKFby6HOFvi/w=
+-golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a h1:TpDpIG2bYSheFxm9xw8NNrBKrurU1ZJ59ZMXnpQwPLQ=
+-golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
+-golang.org/x/mod v0.7.0 h1:LapD9S96VoQRhi/GrNTqeBJFrUjs5UHCAtTlgwA5oZA=
+-golang.org/x/mod v0.7.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
++golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5 h1:UFbINK7+lzLJEIqCXPlzx05ivYhLQeXCkxW3SSH3f8Q=
++golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/mod v0.8.0 h1:LUYupSeNrTNCGzR/hVBk2NHZO4hXcVaW1k4Qx7rjPx8=
++golang.org/x/mod v0.8.0/go.mod h1:iBbtSCu2XBx23ZKBPSOrRkjjQPZFPuis4dIYUhu/chs=
+ golang.org/x/sync v0.1.0 h1:wsuoTGHzEhffawBOhz5CYhcrV4IdKZbEyZjBMuTp12o=
+ golang.org/x/sync v0.1.0/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
+-golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7 h1:8JDGJv1YjATMJavFHiQ2yCOU2OsFY7tYA9Gy7GxCnVE=
+-golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/term v0.2.0 h1:z85xZCsEl7bi/KwbNADeBYoOP0++7W1ipu+aGnpwzRM=
+-golang.org/x/term v0.2.0/go.mod h1:TVmDHMZPmdnySmBfhjOoOdhjzdE1h4u1VwSiw2l1Nuc=
+-golang.org/x/tools v0.5.1-0.20230119221225-ff9bea528a4d h1:qE9zTiBDarXhxeBVsEObTlRdcIlbIIHoQbyKQ+Vv86k=
+-golang.org/x/tools v0.5.1-0.20230119221225-ff9bea528a4d/go.mod h1:N+Kgy78s5I24c24dU8OfWNEotWjutIs8SnJvn5IDq+k=
++golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339 h1:qejQWXLeAs3eO3KUJ7VrThA+k04v3zo/FhGln8EizY0=
++golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.5.0 h1:n2a8QNdAb0sZNpU9R1ALUXBbY+w51fCQDN+7EdxNBsY=
++golang.org/x/term v0.5.0/go.mod h1:jMB1sMXY+tzblOD4FWmEbocvup2/aLOaQEp7JmGp78k=
++golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de h1:4jmbIl5TAjCdpElDHfccqVTxbYmcojXD9SeGqafSYp0=
++golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de/go.mod h1:N+Kgy78s5I24c24dU8OfWNEotWjutIs8SnJvn5IDq+k=
+diff --git a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
+index 3779446078..b47f672d31 100644
+--- a/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
++++ b/src/cmd/vendor/golang.org/x/arch/ppc64/ppc64asm/field.go
+@@ -80,7 +80,7 @@ func (bs BitFields) Parse(i [2]uint32) uint64 {
+ 	return u
+ }
+ 
+-// Parse extracts the bitfields from i, concatenate them and return the result
++// ParseSigned extracts the bitfields from i, concatenate them and return the result
+ // as a signed integer. Parse will panic if any bitfield in b is invalid.
+ func (bs BitFields) ParseSigned(i [2]uint32) int64 {
+ 	u, l := bs.parse(i)
+diff --git a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
+index 8c984970bd..059b73d3f1 100644
+--- a/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
++++ b/src/cmd/vendor/golang.org/x/arch/x86/x86asm/decode.go
+@@ -1550,7 +1550,7 @@ var addr16 = [8]Mem{
+ 	{Base: BX},
+ }
+ 
+-// baseReg returns the base register for a given register size in bits.
++// baseRegForBits returns the base register for a given register size in bits.
+ func baseRegForBits(bits int) Reg {
+ 	switch bits {
+ 	case 8:
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go b/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
+index ef5df6f5b5..51ec4db873 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/dirhash/hash.go
+@@ -33,7 +33,7 @@ type Hash func(files []string, open func(string) (io.ReadCloser, error)) (string
+ // Hash1 is "h1:" followed by the base64-encoded SHA-256 hash of a summary
+ // prepared as if by the Unix command:
+ //
+-//	find . -type f | sort | sha256sum
++//	sha256sum $(find . -type f | sort) | sha256sum
+ //
+ // More precisely, the hashed summary contains a single line for each file in the list,
+ // ordered by sort.Strings applied to the file names, where each line consists of
+@@ -90,7 +90,10 @@ func DirFiles(dir, prefix string) ([]string, error) {
+ 		}
+ 		if info.IsDir() {
+ 			return nil
++		} else if file == dir {
++			return fmt.Errorf("%s is not a directory", dir)
+ 		}
++
+ 		rel := file
+ 		if dir != "." {
+ 			rel = file[len(dir)+1:]
+diff --git a/src/cmd/vendor/golang.org/x/mod/zip/zip.go b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+index 0328705d70..c5eca4bbc2 100644
+--- a/src/cmd/vendor/golang.org/x/mod/zip/zip.go
++++ b/src/cmd/vendor/golang.org/x/mod/zip/zip.go
+@@ -51,7 +51,6 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
+-	"io/ioutil"
+ 	"os"
+ 	"os/exec"
+ 	"path"
+@@ -753,7 +752,7 @@ func Unzip(dir string, m module.Version, zipFile string) (err error) {
+ 
+ 	// Check that the directory is empty. Don't create it yet in case there's
+ 	// an error reading the zip.
+-	if files, _ := ioutil.ReadDir(dir); len(files) > 0 {
++	if files, _ := os.ReadDir(dir); len(files) > 0 {
+ 		return fmt.Errorf("target directory %v exists and is not empty", dir)
+ 	}
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 1f63382182..192b071b3d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -230,6 +230,7 @@ func direntNamlen(buf []byte) (uint64, bool) {
+ 
+ func PtraceAttach(pid int) (err error) { return ptrace(PT_ATTACH, pid, 0, 0) }
+ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
++func PtraceDenyAttach() (err error)    { return ptrace(PT_DENY_ATTACH, 0, 0, 0) }
+ 
+ //sysnb	pipe(p *[2]int32) (err error)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
+index d50b9dc250..19e71c2240 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd.go
+@@ -274,6 +274,25 @@ func PtraceGetRegs(pid int, regsout *Reg) (err error) {
+ 	return ptrace(PT_GETREGS, pid, uintptr(unsafe.Pointer(regsout)), 0)
+ }
+ 
++func PtraceIO(req int, pid int, offs uintptr, out []byte, countin int) (count int, err error) {
++	ioDesc := PtraceIoDesc{
++		Op:   int32(req),
++		Offs: offs,
++	}
++	if countin > 0 {
++		_ = out[:countin] // check bounds
++		ioDesc.Addr = &out[0]
++	} else if out != nil {
++		ioDesc.Addr = (*byte)(unsafe.Pointer(&_zero))
++	}
++	ioDesc.SetLen(countin)
++
++	// TODO(#58387): It's not actually safe to pass &ioDesc as a uintptr here.
++	// Pass it as an unsafe.Pointer instead.
++	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
++	return int(ioDesc.Len), err
++}
++
+ func PtraceLwpEvents(pid int, enable int) (err error) {
+ 	return ptrace(PT_LWP_EVENTS, pid, 0, enable)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_386.go
+index b11ede89a9..2f798dbe2c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_386.go
+@@ -42,6 +42,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func (d *PtraceIoDesc) SetLen(length int) {
++	d.Len = uint32(length)
++}
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
+@@ -59,9 +63,3 @@ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ func PtraceGetFsBase(pid int, fsbase *int64) (err error) {
+ 	return ptrace(PT_GETFSBASE, pid, uintptr(unsafe.Pointer(fsbase)), 0)
+ }
+-
+-func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
+-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint32(countin)}
+-	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
+-	return int(ioDesc.Len), err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_amd64.go
+index 9ed8eec6c2..1ed93b69e5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_amd64.go
+@@ -42,6 +42,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func (d *PtraceIoDesc) SetLen(length int) {
++	d.Len = uint64(length)
++}
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+@@ -59,9 +63,3 @@ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ func PtraceGetFsBase(pid int, fsbase *int64) (err error) {
+ 	return ptrace(PT_GETFSBASE, pid, uintptr(unsafe.Pointer(fsbase)), 0)
+ }
+-
+-func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
+-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint64(countin)}
+-	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
+-	return int(ioDesc.Len), err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm.go
+index f8ac982479..08932093fa 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm.go
+@@ -42,6 +42,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func (d *PtraceIoDesc) SetLen(length int) {
++	d.Len = uint32(length)
++}
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr((*offset)>>32), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0)
+@@ -55,9 +59,3 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ }
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+-
+-func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
+-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint32(countin)}
+-	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
+-	return int(ioDesc.Len), err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm64.go
+index 8e932036ec..d151a0d0e5 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_arm64.go
+@@ -42,6 +42,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func (d *PtraceIoDesc) SetLen(length int) {
++	d.Len = uint64(length)
++}
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+@@ -55,9 +59,3 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ }
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+-
+-func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
+-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint64(countin)}
+-	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
+-	return int(ioDesc.Len), err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_riscv64.go
+index cbe1222789..d5cd64b378 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_freebsd_riscv64.go
+@@ -42,6 +42,10 @@ func (cmsg *Cmsghdr) SetLen(length int) {
+ 	cmsg.Len = uint32(length)
+ }
+ 
++func (d *PtraceIoDesc) SetLen(length int) {
++	d.Len = uint64(length)
++}
++
+ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+ 	var writtenOut uint64 = 0
+ 	_, _, e1 := Syscall9(SYS_SENDFILE, uintptr(infd), uintptr(outfd), uintptr(*offset), uintptr(count), 0, uintptr(unsafe.Pointer(&writtenOut)), 0, 0, 0)
+@@ -55,9 +59,3 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ }
+ 
+ func Syscall9(num, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
+-
+-func PtraceIO(req int, pid int, addr uintptr, out []byte, countin int) (count int, err error) {
+-	ioDesc := PtraceIoDesc{Op: int32(req), Offs: uintptr(unsafe.Pointer(addr)), Addr: uintptr(unsafe.Pointer(&out[0])), Len: uint64(countin)}
+-	err = ptrace(PT_IO, pid, uintptr(unsafe.Pointer(&ioDesc)), 0)
+-	return int(ioDesc.Len), err
+-}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index bea511fc49..5443dddd48 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1800,6 +1800,7 @@ func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ //sysnb	Capset(hdr *CapUserHeader, data *CapUserData) (err error)
+ //sys	Chdir(path string) (err error)
+ //sys	Chroot(path string) (err error)
++//sys	ClockAdjtime(clockid int32, buf *Timex) (state int, err error)
+ //sys	ClockGetres(clockid int32, res *Timespec) (err error)
+ //sys	ClockGettime(clockid int32, time *Timespec) (err error)
+ //sys	ClockNanosleep(clockid int32, flags int, request *Timespec, remain *Timespec) (err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+index a386f8897d..00f0aa3758 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_unix.go
+@@ -578,7 +578,7 @@ func Lutimes(path string, tv []Timeval) error {
+ 	return UtimesNanoAt(AT_FDCWD, path, ts, AT_SYMLINK_NOFOLLOW)
+ }
+ 
+-// emptyIovec reports whether there are no bytes in the slice of Iovec.
++// emptyIovecs reports whether there are no bytes in the slice of Iovec.
+ func emptyIovecs(iov []Iovec) bool {
+ 	for i := range iov {
+ 		if iov[i].Len > 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/timestruct.go b/src/cmd/vendor/golang.org/x/sys/unix/timestruct.go
+index 3d89304055..616b1b2848 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/timestruct.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/timestruct.go
+@@ -9,7 +9,7 @@ package unix
+ 
+ import "time"
+ 
+-// TimespecToNSec returns the time stored in ts as nanoseconds.
++// TimespecToNsec returns the time stored in ts as nanoseconds.
+ func TimespecToNsec(ts Timespec) int64 { return ts.Nano() }
+ 
+ // NsecToTimespec converts a number of nanoseconds into a Timespec.
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/xattr_bsd.go b/src/cmd/vendor/golang.org/x/sys/unix/xattr_bsd.go
+index 663b3779de..f5f8e9f366 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/xattr_bsd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/xattr_bsd.go
+@@ -36,9 +36,14 @@ func xattrnamespace(fullattr string) (ns int, attr string, err error) {
+ func initxattrdest(dest []byte, idx int) (d unsafe.Pointer) {
+ 	if len(dest) > idx {
+ 		return unsafe.Pointer(&dest[idx])
+-	} else {
+-		return unsafe.Pointer(_zero)
+ 	}
++	if dest != nil {
++		// extattr_get_file and extattr_list_file treat NULL differently from
++		// a non-NULL pointer of length zero. Preserve the property of nilness,
++		// even if we can't use dest directly.
++		return unsafe.Pointer(&_zero)
++	}
++	return nil
+ }
+ 
+ // FreeBSD and NetBSD implement their own syscalls to handle extended attributes
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 35de885cf3..e174685adb 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -1814,6 +1814,7 @@ const (
+ 	MADV_DONTDUMP                               = 0x10
+ 	MADV_DONTFORK                               = 0xa
+ 	MADV_DONTNEED                               = 0x4
++	MADV_DONTNEED_LOCKED                        = 0x18
+ 	MADV_FREE                                   = 0x8
+ 	MADV_HUGEPAGE                               = 0xe
+ 	MADV_HWPOISON                               = 0x64
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 293cf36804..36ea3a55b7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -537,6 +537,17 @@ func Chroot(path string) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func ClockAdjtime(clockid int32, buf *Timex) (state int, err error) {
++	r0, _, e1 := Syscall(SYS_CLOCK_ADJTIME, uintptr(clockid), uintptr(unsafe.Pointer(buf)), 0)
++	state = int(r0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func ClockGetres(clockid int32, res *Timespec) (err error) {
+ 	_, _, e1 := Syscall(SYS_CLOCK_GETRES, uintptr(clockid), uintptr(unsafe.Pointer(res)), 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
+index d9c78cdcbc..29dc483378 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
+@@ -362,7 +362,7 @@ type FpExtendedPrecision struct{}
+ type PtraceIoDesc struct {
+ 	Op   int32
+ 	Offs uintptr
+-	Addr uintptr
++	Addr *byte
+ 	Len  uint32
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
+index 26991b1655..0a89b28906 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
+@@ -367,7 +367,7 @@ type FpExtendedPrecision struct{}
+ type PtraceIoDesc struct {
+ 	Op   int32
+ 	Offs uintptr
+-	Addr uintptr
++	Addr *byte
+ 	Len  uint64
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
+index f8324e7e7f..c8666bb152 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
+@@ -350,7 +350,7 @@ type FpExtendedPrecision struct {
+ type PtraceIoDesc struct {
+ 	Op   int32
+ 	Offs uintptr
+-	Addr uintptr
++	Addr *byte
+ 	Len  uint32
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
+index 4220411f34..88fb48a887 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
+@@ -347,7 +347,7 @@ type FpExtendedPrecision struct{}
+ type PtraceIoDesc struct {
+ 	Op   int32
+ 	Offs uintptr
+-	Addr uintptr
++	Addr *byte
+ 	Len  uint64
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
+index 0660fd45c7..698dc975e9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
+@@ -348,7 +348,7 @@ type FpExtendedPrecision struct{}
+ type PtraceIoDesc struct {
+ 	Op   int32
+ 	Offs uintptr
+-	Addr uintptr
++	Addr *byte
+ 	Len  uint64
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index bacf1d96bc..7d9fc8f1c9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -29,6 +29,41 @@ type Itimerval struct {
+ 	Value    Timeval
+ }
+ 
++const (
++	ADJ_OFFSET            = 0x1
++	ADJ_FREQUENCY         = 0x2
++	ADJ_MAXERROR          = 0x4
++	ADJ_ESTERROR          = 0x8
++	ADJ_STATUS            = 0x10
++	ADJ_TIMECONST         = 0x20
++	ADJ_TAI               = 0x80
++	ADJ_SETOFFSET         = 0x100
++	ADJ_MICRO             = 0x1000
++	ADJ_NANO              = 0x2000
++	ADJ_TICK              = 0x4000
++	ADJ_OFFSET_SINGLESHOT = 0x8001
++	ADJ_OFFSET_SS_READ    = 0xa001
++)
++
++const (
++	STA_PLL       = 0x1
++	STA_PPSFREQ   = 0x2
++	STA_PPSTIME   = 0x4
++	STA_FLL       = 0x8
++	STA_INS       = 0x10
++	STA_DEL       = 0x20
++	STA_UNSYNC    = 0x40
++	STA_FREQHOLD  = 0x80
++	STA_PPSSIGNAL = 0x100
++	STA_PPSJITTER = 0x200
++	STA_PPSWANDER = 0x400
++	STA_PPSERROR  = 0x800
++	STA_CLOCKERR  = 0x1000
++	STA_NANO      = 0x2000
++	STA_MODE      = 0x4000
++	STA_CLK       = 0x8000
++)
++
+ const (
+ 	TIME_OK    = 0x0
+ 	TIME_INS   = 0x1
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 41cb3c01fd..afe2f80670 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -824,6 +824,9 @@ const socket_error = uintptr(^uint32(0))
+ //sys	WSAStartup(verreq uint32, data *WSAData) (sockerr error) = ws2_32.WSAStartup
+ //sys	WSACleanup() (err error) [failretval==socket_error] = ws2_32.WSACleanup
+ //sys	WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbob uint32, cbbr *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) [failretval==socket_error] = ws2_32.WSAIoctl
++//sys	WSALookupServiceBegin(querySet *WSAQUERYSET, flags uint32, handle *Handle) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceBeginW
++//sys	WSALookupServiceNext(handle Handle, flags uint32, size *int32, querySet *WSAQUERYSET) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceNextW
++//sys	WSALookupServiceEnd(handle Handle) (err error) [failretval==socket_error] = ws2_32.WSALookupServiceEnd
+ //sys	socket(af int32, typ int32, protocol int32) (handle Handle, err error) [failretval==InvalidHandle] = ws2_32.socket
+ //sys	sendto(s Handle, buf []byte, flags int32, to unsafe.Pointer, tolen int32) (err error) [failretval==socket_error] = ws2_32.sendto
+ //sys	recvfrom(s Handle, buf []byte, flags int32, from *RawSockaddrAny, fromlen *int32) (n int32, err error) [failretval==-1] = ws2_32.recvfrom
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 0c4add9741..857acf1032 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -1243,6 +1243,51 @@ const (
+ 	DnsSectionAdditional = 0x0003
+ )
+ 
++const (
++	// flags of WSALookupService
++	LUP_DEEP                = 0x0001
++	LUP_CONTAINERS          = 0x0002
++	LUP_NOCONTAINERS        = 0x0004
++	LUP_NEAREST             = 0x0008
++	LUP_RETURN_NAME         = 0x0010
++	LUP_RETURN_TYPE         = 0x0020
++	LUP_RETURN_VERSION      = 0x0040
++	LUP_RETURN_COMMENT      = 0x0080
++	LUP_RETURN_ADDR         = 0x0100
++	LUP_RETURN_BLOB         = 0x0200
++	LUP_RETURN_ALIASES      = 0x0400
++	LUP_RETURN_QUERY_STRING = 0x0800
++	LUP_RETURN_ALL          = 0x0FF0
++	LUP_RES_SERVICE         = 0x8000
++
++	LUP_FLUSHCACHE    = 0x1000
++	LUP_FLUSHPREVIOUS = 0x2000
++
++	LUP_NON_AUTHORITATIVE      = 0x4000
++	LUP_SECURE                 = 0x8000
++	LUP_RETURN_PREFERRED_NAMES = 0x10000
++	LUP_DNS_ONLY               = 0x20000
++
++	LUP_ADDRCONFIG           = 0x100000
++	LUP_DUAL_ADDR            = 0x200000
++	LUP_FILESERVER           = 0x400000
++	LUP_DISABLE_IDN_ENCODING = 0x00800000
++	LUP_API_ANSI             = 0x01000000
++
++	LUP_RESOLUTION_HANDLE = 0x80000000
++)
++
++const (
++	// values of WSAQUERYSET's namespace
++	NS_ALL       = 0
++	NS_DNS       = 12
++	NS_NLA       = 15
++	NS_BTH       = 16
++	NS_EMAIL     = 37
++	NS_PNRPNAME  = 38
++	NS_PNRPCLOUD = 39
++)
++
+ type DNSSRVData struct {
+ 	Target   *uint16
+ 	Priority uint16
+@@ -3258,3 +3303,43 @@ const (
+ 	DWMWA_TEXT_COLOR                     = 36
+ 	DWMWA_VISIBLE_FRAME_BORDER_THICKNESS = 37
+ )
++
++type WSAQUERYSET struct {
++	Size                uint32
++	ServiceInstanceName *uint16
++	ServiceClassId      *GUID
++	Version             *WSAVersion
++	Comment             *uint16
++	NameSpace           uint32
++	NSProviderId        *GUID
++	Context             *uint16
++	NumberOfProtocols   uint32
++	AfpProtocols        *AFProtocols
++	QueryString         *uint16
++	NumberOfCsAddrs     uint32
++	SaBuffer            *CSAddrInfo
++	OutputFlags         uint32
++	Blob                *BLOB
++}
++
++type WSAVersion struct {
++	Version                 uint32
++	EnumerationOfComparison int32
++}
++
++type AFProtocols struct {
++	AddressFamily int32
++	Protocol      int32
++}
++
++type CSAddrInfo struct {
++	LocalAddr  SocketAddress
++	RemoteAddr SocketAddress
++	SocketType int32
++	Protocol   int32
++}
++
++type BLOB struct {
++	Size     uint32
++	BlobData *byte
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index ac60052e44..6d2a268534 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -474,6 +474,9 @@ var (
+ 	procWSAEnumProtocolsW                                    = modws2_32.NewProc("WSAEnumProtocolsW")
+ 	procWSAGetOverlappedResult                               = modws2_32.NewProc("WSAGetOverlappedResult")
+ 	procWSAIoctl                                             = modws2_32.NewProc("WSAIoctl")
++	procWSALookupServiceBeginW                               = modws2_32.NewProc("WSALookupServiceBeginW")
++	procWSALookupServiceEnd                                  = modws2_32.NewProc("WSALookupServiceEnd")
++	procWSALookupServiceNextW                                = modws2_32.NewProc("WSALookupServiceNextW")
+ 	procWSARecv                                              = modws2_32.NewProc("WSARecv")
+ 	procWSARecvFrom                                          = modws2_32.NewProc("WSARecvFrom")
+ 	procWSASend                                              = modws2_32.NewProc("WSASend")
+@@ -4067,6 +4070,30 @@ func WSAIoctl(s Handle, iocc uint32, inbuf *byte, cbif uint32, outbuf *byte, cbo
+ 	return
+ }
+ 
++func WSALookupServiceBegin(querySet *WSAQUERYSET, flags uint32, handle *Handle) (err error) {
++	r1, _, e1 := syscall.Syscall(procWSALookupServiceBeginW.Addr(), 3, uintptr(unsafe.Pointer(querySet)), uintptr(flags), uintptr(unsafe.Pointer(handle)))
++	if r1 == socket_error {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func WSALookupServiceEnd(handle Handle) (err error) {
++	r1, _, e1 := syscall.Syscall(procWSALookupServiceEnd.Addr(), 1, uintptr(handle), 0, 0)
++	if r1 == socket_error {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++func WSALookupServiceNext(handle Handle, flags uint32, size *int32, querySet *WSAQUERYSET) (err error) {
++	r1, _, e1 := syscall.Syscall6(procWSALookupServiceNextW.Addr(), 4, uintptr(handle), uintptr(flags), uintptr(unsafe.Pointer(size)), uintptr(unsafe.Pointer(querySet)), 0, 0)
++	if r1 == socket_error {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func WSARecv(s Handle, bufs *WSABuf, bufcnt uint32, recvd *uint32, flags *uint32, overlapped *Overlapped, croutine *byte) (err error) {
+ 	r1, _, e1 := syscall.Syscall9(procWSARecv.Addr(), 7, uintptr(s), uintptr(unsafe.Pointer(bufs)), uintptr(bufcnt), uintptr(unsafe.Pointer(recvd)), uintptr(unsafe.Pointer(flags)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0, 0)
+ 	if r1 == socket_error {
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+index 2ea630608c..e127a42b97 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/internal/analysisflags/flags.go
+@@ -206,7 +206,7 @@ func (versionFlag) Get() interface{} { return nil }
+ func (versionFlag) String() string   { return "" }
+ func (versionFlag) Set(s string) error {
+ 	if s != "full" {
+-		log.Fatalf("unsupported flag value: -V=%s", s)
++		log.Fatalf("unsupported flag value: -V=%s (use -V=full)", s)
+ 	}
+ 
+ 	// This replicates the minimal subset of
+@@ -218,7 +218,10 @@ func (versionFlag) Set(s string) error {
+ 	// Formats:
+ 	//   $progname version devel ... buildID=...
+ 	//   $progname version go1.9.1
+-	progname := os.Args[0]
++	progname, err := os.Executable()
++	if err != nil {
++		return err
++	}
+ 	f, err := os.Open(progname)
+ 	if err != nil {
+ 		log.Fatal(err)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+index 1285ecf136..b35f62dc73 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/ifaceassert/parameterized.go
+@@ -1,6 +1,7 @@
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
++
+ package ifaceassert
+ 
+ import (
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+index af5e17feee..3fbfebf369 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/ast/inspector/inspector.go
+@@ -53,10 +53,13 @@ func New(files []*ast.File) *Inspector {
+ // of an ast.Node during a traversal.
+ type event struct {
+ 	node  ast.Node
+-	typ   uint64 // typeOf(node)
+-	index int    // 1 + index of corresponding pop event, or 0 if this is a pop
++	typ   uint64 // typeOf(node) on push event, or union of typ strictly between push and pop events on pop events
++	index int    // index of corresponding push or pop event
+ }
+ 
++// TODO: Experiment with storing only the second word of event.node (unsafe.Pointer).
++// Type can be recovered from the sole bit in typ.
++
+ // Preorder visits all the nodes of the files supplied to New in
+ // depth-first order. It calls f(n) for each node n before it visits
+ // n's children.
+@@ -72,10 +75,17 @@ func (in *Inspector) Preorder(types []ast.Node, f func(ast.Node)) {
+ 	mask := maskOf(types)
+ 	for i := 0; i < len(in.events); {
+ 		ev := in.events[i]
+-		if ev.typ&mask != 0 {
+-			if ev.index > 0 {
++		if ev.index > i {
++			// push
++			if ev.typ&mask != 0 {
+ 				f(ev.node)
+ 			}
++			pop := ev.index
++			if in.events[pop].typ&mask == 0 {
++				// Subtrees do not contain types: skip them and pop.
++				i = pop + 1
++				continue
++			}
+ 		}
+ 		i++
+ 	}
+@@ -94,15 +104,24 @@ func (in *Inspector) Nodes(types []ast.Node, f func(n ast.Node, push bool) (proc
+ 	mask := maskOf(types)
+ 	for i := 0; i < len(in.events); {
+ 		ev := in.events[i]
+-		if ev.typ&mask != 0 {
+-			if ev.index > 0 {
+-				// push
++		if ev.index > i {
++			// push
++			pop := ev.index
++			if ev.typ&mask != 0 {
+ 				if !f(ev.node, true) {
+-					i = ev.index // jump to corresponding pop + 1
++					i = pop + 1 // jump to corresponding pop + 1
+ 					continue
+ 				}
+-			} else {
+-				// pop
++			}
++			if in.events[pop].typ&mask == 0 {
++				// Subtrees do not contain types: skip them.
++				i = pop
++				continue
++			}
++		} else {
++			// pop
++			push := ev.index
++			if in.events[push].typ&mask != 0 {
+ 				f(ev.node, false)
+ 			}
+ 		}
+@@ -119,19 +138,26 @@ func (in *Inspector) WithStack(types []ast.Node, f func(n ast.Node, push bool, s
+ 	var stack []ast.Node
+ 	for i := 0; i < len(in.events); {
+ 		ev := in.events[i]
+-		if ev.index > 0 {
++		if ev.index > i {
+ 			// push
++			pop := ev.index
+ 			stack = append(stack, ev.node)
+ 			if ev.typ&mask != 0 {
+ 				if !f(ev.node, true, stack) {
+-					i = ev.index
++					i = pop + 1
+ 					stack = stack[:len(stack)-1]
+ 					continue
+ 				}
+ 			}
++			if in.events[pop].typ&mask == 0 {
++				// Subtrees does not contain types: skip them.
++				i = pop
++				continue
++			}
+ 		} else {
+ 			// pop
+-			if ev.typ&mask != 0 {
++			push := ev.index
++			if in.events[push].typ&mask != 0 {
+ 				f(ev.node, false, stack)
+ 			}
+ 			stack = stack[:len(stack)-1]
+@@ -157,25 +183,31 @@ func traverse(files []*ast.File) []event {
+ 	events := make([]event, 0, capacity)
+ 
+ 	var stack []event
++	stack = append(stack, event{}) // include an extra event so file nodes have a parent
+ 	for _, f := range files {
+ 		ast.Inspect(f, func(n ast.Node) bool {
+ 			if n != nil {
+ 				// push
+ 				ev := event{
+ 					node:  n,
+-					typ:   typeOf(n),
++					typ:   0,           // temporarily used to accumulate type bits of subtree
+ 					index: len(events), // push event temporarily holds own index
+ 				}
+ 				stack = append(stack, ev)
+ 				events = append(events, ev)
+ 			} else {
+ 				// pop
+-				ev := stack[len(stack)-1]
+-				stack = stack[:len(stack)-1]
++				top := len(stack) - 1
++				ev := stack[top]
++				typ := typeOf(ev.node)
++				push := ev.index
++				parent := top - 1
+ 
+-				events[ev.index].index = len(events) + 1 // make push refer to pop
++				events[push].typ = typ            // set type of push
++				stack[parent].typ |= typ | ev.typ // parent's typ contains push and pop's typs.
++				events[push].index = len(events)  // make push refer to pop
+ 
+-				ev.index = 0 // turn ev into a pop event
++				stack = stack[:top]
+ 				events = append(events, ev)
+ 			}
+ 			return true
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+index a3aa90dd1c..7b21668660 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/imports.go
+@@ -25,21 +25,20 @@ import (
+ // by obtaining it from the internals of the gcexportdata decoder.
+ func importMap(imports []*types.Package) map[string]*types.Package {
+ 	objects := make(map[types.Object]bool)
++	typs := make(map[types.Type]bool) // Named and TypeParam
+ 	packages := make(map[string]*types.Package)
+ 
+-	var addObj func(obj types.Object) bool
++	var addObj func(obj types.Object)
+ 	var addType func(T types.Type)
+ 
+-	addObj = func(obj types.Object) bool {
++	addObj = func(obj types.Object) {
+ 		if !objects[obj] {
+ 			objects[obj] = true
+ 			addType(obj.Type())
+ 			if pkg := obj.Pkg(); pkg != nil {
+ 				packages[pkg.Path()] = pkg
+ 			}
+-			return true
+ 		}
+-		return false
+ 	}
+ 
+ 	addType = func(T types.Type) {
+@@ -47,8 +46,16 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 		case *types.Basic:
+ 			// nop
+ 		case *types.Named:
+-			if addObj(T.Obj()) {
+-				// TODO(taking): Investigate why the Underlying type is not added here.
++			// Remove infinite expansions of *types.Named by always looking at the origin.
++			// Some named types with type parameters [that will not type check] have
++			// infinite expansions:
++			//     type N[T any] struct { F *N[N[T]] }
++			// importMap() is called on such types when Analyzer.RunDespiteErrors is true.
++			T = typeparams.NamedTypeOrigin(T).(*types.Named)
++			if !typs[T] {
++				typs[T] = true
++				addObj(T.Obj())
++				addType(T.Underlying())
+ 				for i := 0; i < T.NumMethods(); i++ {
+ 					addObj(T.Method(i))
+ 				}
+@@ -102,7 +109,9 @@ func importMap(imports []*types.Package) map[string]*types.Package {
+ 				addType(T.Term(i).Type())
+ 			}
+ 		case *typeparams.TypeParam:
+-			if addObj(T.Obj()) {
++			if !typs[T] {
++				typs[T] = true
++				addObj(T.Obj())
+ 				addType(T.Constraint())
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c6492ca300..930f1f825d 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -17,13 +17,13 @@ github.com/google/pprof/third_party/svgpan
+ # github.com/ianlancetaylor/demangle v0.0.0-20220319035150-800ac71e25c2
+ ## explicit; go 1.12
+ github.com/ianlancetaylor/demangle
+-# golang.org/x/arch v0.1.1-0.20221116201807-1bb480fc256a
++# golang.org/x/arch v0.2.1-0.20230208145055-40c19ba4a7c5
+ ## explicit; go 1.17
+ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/mod v0.7.0
++# golang.org/x/mod v0.8.0
+ ## explicit; go 1.17
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -37,16 +37,16 @@ golang.org/x/mod/zip
+ # golang.org/x/sync v0.1.0
+ ## explicit
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7
++# golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339
+ ## explicit; go 1.17
+ golang.org/x/sys/internal/unsafeheader
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/term v0.2.0
++# golang.org/x/term v0.5.0
+ ## explicit; go 1.17
+ golang.org/x/term
+-# golang.org/x/tools v0.5.1-0.20230119221225-ff9bea528a4d
++# golang.org/x/tools v0.5.1-0.20230207232209-1ace7dbcb0de
+ ## explicit; go 1.18
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis
+diff --git a/src/go.mod b/src/go.mod
+index 52baf65f2d..35ce39e94a 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.21
+ 
+ require (
+-	golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
+-	golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
++	golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4
++	golang.org/x/net v0.5.1-0.20230208184008-87ce33ecb484
+ )
+ 
+ require (
+-	golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7 // indirect
+-	golang.org/x/text v0.5.0 // indirect
++	golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339 // indirect
++	golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 5db621a13f..bd92c7cd98 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a h1:diz9pEYuTIuLMJLs3rGDkeaTsNyRs6duYdFyPAxzE/U=
+-golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a/go.mod h1:hebNnKkNXi2UzZN1eVRvBB7co0a+JxK6XbPiWVs/3J4=
+-golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10 h1:Frnccbp+ok2GkUS2tC84yAq/U9Vg+0sIO7aRL3T4Xnc=
+-golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10/go.mod h1:MBQ8lrhLObU/6UmLb4fmbmk5OcyYmqtbGd/9yIeKjEE=
+-golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7 h1:8JDGJv1YjATMJavFHiQ2yCOU2OsFY7tYA9Gy7GxCnVE=
+-golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+-golang.org/x/text v0.5.0 h1:OLmvp0KP+FVG99Ct/qFiL/Fhk4zp4QQnZ7b2U+5piUM=
+-golang.org/x/text v0.5.0/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
++golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4 h1:8CmdfDrqo5/AGztF4Zk/aBNGTgL5dgcfPMmmvH1z8Lo=
++golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4/go.mod h1:NK/OQwhpMQP3MwtdjgLlYHnH9ebylxKWv3e0fK+mkQU=
++golang.org/x/net v0.5.1-0.20230208184008-87ce33ecb484 h1:reOs7qLeFybNpg5gc2AYupdrdhj7HHdlwchxHN00Ab0=
++golang.org/x/net v0.5.1-0.20230208184008-87ce33ecb484/go.mod h1:2Tu9+aMcznHK/AK1HMvgo6xiTLG5rD5rZLDS+rp2Bjs=
++golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339 h1:qejQWXLeAs3eO3KUJ7VrThA+k04v3zo/FhGln8EizY0=
++golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b h1:/WbjM0nb7XdqglHRPb40OoA+bJr3ZR/TFeNAF139Jyw=
++golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b/go.mod h1:mrYo+phRRbMaCq/xk9113O4dZlRixOauAjOtrjsXDZ8=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 1e0b83d493..eb3fd159f8 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1303,23 +1303,91 @@ var (
+ 	http2errPseudoAfterRegular   = errors.New("pseudo header field after regular")
+ )
+ 
+-// flow is the flow control window's size.
+-type http2flow struct {
++// inflowMinRefresh is the minimum number of bytes we'll send for a
++// flow control window update.
++const http2inflowMinRefresh = 4 << 10
++
++// inflow accounts for an inbound flow control window.
++// It tracks both the latest window sent to the peer (used for enforcement)
++// and the accumulated unsent window.
++type http2inflow struct {
++	avail  int32
++	unsent int32
++}
++
++// init sets the initial window.
++func (f *http2inflow) init(n int32) {
++	f.avail = n
++}
++
++// add adds n bytes to the window, with a maximum window size of max,
++// indicating that the peer can now send us more data.
++// For example, the user read from a {Request,Response} body and consumed
++// some of the buffered data, so the peer can now send more.
++// It returns the number of bytes to send in a WINDOW_UPDATE frame to the peer.
++// Window updates are accumulated and sent when the unsent capacity
++// is at least inflowMinRefresh or will at least double the peer's available window.
++func (f *http2inflow) add(n int) (connAdd int32) {
++	if n < 0 {
++		panic("negative update")
++	}
++	unsent := int64(f.unsent) + int64(n)
++	// "A sender MUST NOT allow a flow-control window to exceed 2^31-1 octets."
++	// RFC 7540 Section 6.9.1.
++	const maxWindow = 1<<31 - 1
++	if unsent+int64(f.avail) > maxWindow {
++		panic("flow control update exceeds maximum window size")
++	}
++	f.unsent = int32(unsent)
++	if f.unsent < http2inflowMinRefresh && f.unsent < f.avail {
++		// If there aren't at least inflowMinRefresh bytes of window to send,
++		// and this update won't at least double the window, buffer the update for later.
++		return 0
++	}
++	f.avail += f.unsent
++	f.unsent = 0
++	return int32(unsent)
++}
++
++// take attempts to take n bytes from the peer's flow control window.
++// It reports whether the window has available capacity.
++func (f *http2inflow) take(n uint32) bool {
++	if n > uint32(f.avail) {
++		return false
++	}
++	f.avail -= int32(n)
++	return true
++}
++
++// takeInflows attempts to take n bytes from two inflows,
++// typically connection-level and stream-level flows.
++// It reports whether both windows have available capacity.
++func http2takeInflows(f1, f2 *http2inflow, n uint32) bool {
++	if n > uint32(f1.avail) || n > uint32(f2.avail) {
++		return false
++	}
++	f1.avail -= int32(n)
++	f2.avail -= int32(n)
++	return true
++}
++
++// outflow is the outbound flow control window's size.
++type http2outflow struct {
+ 	_ http2incomparable
+ 
+ 	// n is the number of DATA bytes we're allowed to send.
+-	// A flow is kept both on a conn and a per-stream.
++	// An outflow is kept both on a conn and a per-stream.
+ 	n int32
+ 
+-	// conn points to the shared connection-level flow that is
+-	// shared by all streams on that conn. It is nil for the flow
++	// conn points to the shared connection-level outflow that is
++	// shared by all streams on that conn. It is nil for the outflow
+ 	// that's on the conn directly.
+-	conn *http2flow
++	conn *http2outflow
+ }
+ 
+-func (f *http2flow) setConnFlow(cf *http2flow) { f.conn = cf }
++func (f *http2outflow) setConnFlow(cf *http2outflow) { f.conn = cf }
+ 
+-func (f *http2flow) available() int32 {
++func (f *http2outflow) available() int32 {
+ 	n := f.n
+ 	if f.conn != nil && f.conn.n < n {
+ 		n = f.conn.n
+@@ -1327,7 +1395,7 @@ func (f *http2flow) available() int32 {
+ 	return n
+ }
+ 
+-func (f *http2flow) take(n int32) {
++func (f *http2outflow) take(n int32) {
+ 	if n > f.available() {
+ 		panic("internal error: took too much")
+ 	}
+@@ -1339,7 +1407,7 @@ func (f *http2flow) take(n int32) {
+ 
+ // add adds n bytes (positive or negative) to the flow control window.
+ // It returns false if the sum would exceed 2^31-1.
+-func (f *http2flow) add(n int32) bool {
++func (f *http2outflow) add(n int32) bool {
+ 	sum := f.n + n
+ 	if (sum > n) == (f.n > 0) {
+ 		f.n = sum
+@@ -4187,7 +4255,7 @@ func (s *http2Server) ServeConn(c net.Conn, opts *http2ServeConnOpts) {
+ 	// configured value for inflow, that will be updated when we send a
+ 	// WINDOW_UPDATE shortly after sending SETTINGS.
+ 	sc.flow.add(http2initialWindowSize)
+-	sc.inflow.add(http2initialWindowSize)
++	sc.inflow.init(http2initialWindowSize)
+ 	sc.hpackEncoder = hpack.NewEncoder(&sc.headerWriteBuf)
+ 	sc.hpackEncoder.SetMaxDynamicTableSizeLimit(s.maxEncoderHeaderTableSize())
+ 
+@@ -4302,8 +4370,8 @@ type http2serverConn struct {
+ 	wroteFrameCh     chan http2frameWriteResult  // from writeFrameAsync -> serve, tickles more frame writes
+ 	bodyReadCh       chan http2bodyReadMsg       // from handlers -> serve
+ 	serveMsgCh       chan interface{}            // misc messages & code to send to / run on the serve loop
+-	flow             http2flow                   // conn-wide (not stream-specific) outbound flow control
+-	inflow           http2flow                   // conn-wide inbound flow control
++	flow             http2outflow                // conn-wide (not stream-specific) outbound flow control
++	inflow           http2inflow                 // conn-wide inbound flow control
+ 	tlsState         *tls.ConnectionState        // shared by all handlers, like net/http
+ 	remoteAddrStr    string
+ 	writeSched       http2WriteScheduler
+@@ -4380,10 +4448,10 @@ type http2stream struct {
+ 	cancelCtx func()
+ 
+ 	// owned by serverConn's serve loop:
+-	bodyBytes        int64     // body bytes seen so far
+-	declBodyBytes    int64     // or -1 if undeclared
+-	flow             http2flow // limits writing from Handler to client
+-	inflow           http2flow // what the client is allowed to POST/etc to us
++	bodyBytes        int64        // body bytes seen so far
++	declBodyBytes    int64        // or -1 if undeclared
++	flow             http2outflow // limits writing from Handler to client
++	inflow           http2inflow  // what the client is allowed to POST/etc to us
+ 	state            http2streamState
+ 	resetQueued      bool        // RST_STREAM queued for write; set by sc.resetStream
+ 	gotTrailerHeader bool        // HEADER frame for trailers was seen
+@@ -5247,7 +5315,7 @@ func (sc *http2serverConn) processFrame(f http2Frame) error {
+ 	if sc.inGoAway && (sc.goAwayCode != http2ErrCodeNo || f.Header().StreamID > sc.maxClientStreamID) {
+ 
+ 		if f, ok := f.(*http2DataFrame); ok {
+-			if sc.inflow.available() < int32(f.Length) {
++			if !sc.inflow.take(f.Length) {
+ 				return sc.countError("data_flow", http2streamError(f.Header().StreamID, http2ErrCodeFlowControl))
+ 			}
+ 			sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
+@@ -5519,14 +5587,9 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 		// But still enforce their connection-level flow control,
+ 		// and return any flow control bytes since we're not going
+ 		// to consume them.
+-		if sc.inflow.available() < int32(f.Length) {
++		if !sc.inflow.take(f.Length) {
+ 			return sc.countError("data_flow", http2streamError(id, http2ErrCodeFlowControl))
+ 		}
+-		// Deduct the flow control from inflow, since we're
+-		// going to immediately add it back in
+-		// sendWindowUpdate, which also schedules sending the
+-		// frames.
+-		sc.inflow.take(int32(f.Length))
+ 		sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
+ 
+ 		if st != nil && st.resetQueued {
+@@ -5541,10 +5604,9 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 
+ 	// Sender sending more than they'd declared?
+ 	if st.declBodyBytes != -1 && st.bodyBytes+int64(len(data)) > st.declBodyBytes {
+-		if sc.inflow.available() < int32(f.Length) {
++		if !sc.inflow.take(f.Length) {
+ 			return sc.countError("data_flow", http2streamError(id, http2ErrCodeFlowControl))
+ 		}
+-		sc.inflow.take(int32(f.Length))
+ 		sc.sendWindowUpdate(nil, int(f.Length)) // conn-level
+ 
+ 		st.body.CloseWithError(fmt.Errorf("sender tried to send more than declared Content-Length of %d bytes", st.declBodyBytes))
+@@ -5555,10 +5617,9 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 	}
+ 	if f.Length > 0 {
+ 		// Check whether the client has flow control quota.
+-		if st.inflow.available() < int32(f.Length) {
++		if !http2takeInflows(&sc.inflow, &st.inflow, f.Length) {
+ 			return sc.countError("flow_on_data_length", http2streamError(id, http2ErrCodeFlowControl))
+ 		}
+-		st.inflow.take(int32(f.Length))
+ 
+ 		if len(data) > 0 {
+ 			wrote, err := st.body.Write(data)
+@@ -5574,10 +5635,12 @@ func (sc *http2serverConn) processData(f *http2DataFrame) error {
+ 
+ 		// Return any padded flow control now, since we won't
+ 		// refund it later on body reads.
+-		if pad := int32(f.Length) - int32(len(data)); pad > 0 {
+-			sc.sendWindowUpdate32(nil, pad)
+-			sc.sendWindowUpdate32(st, pad)
+-		}
++		// Call sendWindowUpdate even if there is no padding,
++		// to return buffered flow control credit if the sent
++		// window has shrunk.
++		pad := int32(f.Length) - int32(len(data))
++		sc.sendWindowUpdate32(nil, pad)
++		sc.sendWindowUpdate32(st, pad)
+ 	}
+ 	if f.StreamEnded() {
+ 		st.endStream()
+@@ -5849,8 +5912,7 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
+ 	st.cw.Init()
+ 	st.flow.conn = &sc.flow // link to conn-level counter
+ 	st.flow.add(sc.initialStreamSendWindowSize)
+-	st.inflow.conn = &sc.inflow // link to conn-level counter
+-	st.inflow.add(sc.srv.initialStreamRecvWindowSize())
++	st.inflow.init(sc.srv.initialStreamRecvWindowSize())
+ 	if sc.hs.WriteTimeout != 0 {
+ 		st.writeDeadline = time.AfterFunc(sc.hs.WriteTimeout, st.onWriteTimeout)
+ 	}
+@@ -5942,7 +6004,7 @@ func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2re
+ 		tlsState = sc.tlsState
+ 	}
+ 
+-	needsContinue := rp.header.Get("Expect") == "100-continue"
++	needsContinue := httpguts.HeaderValuesContainsToken(rp.header["Expect"], "100-continue")
+ 	if needsContinue {
+ 		rp.header.Del("Expect")
+ 	}
+@@ -6132,47 +6194,28 @@ func (sc *http2serverConn) noteBodyRead(st *http2stream, n int) {
+ }
+ 
+ // st may be nil for conn-level
+-func (sc *http2serverConn) sendWindowUpdate(st *http2stream, n int) {
+-	sc.serveG.check()
+-	// "The legal range for the increment to the flow control
+-	// window is 1 to 2^31-1 (2,147,483,647) octets."
+-	// A Go Read call on 64-bit machines could in theory read
+-	// a larger Read than this. Very unlikely, but we handle it here
+-	// rather than elsewhere for now.
+-	const maxUint31 = 1<<31 - 1
+-	for n > maxUint31 {
+-		sc.sendWindowUpdate32(st, maxUint31)
+-		n -= maxUint31
+-	}
+-	sc.sendWindowUpdate32(st, int32(n))
++func (sc *http2serverConn) sendWindowUpdate32(st *http2stream, n int32) {
++	sc.sendWindowUpdate(st, int(n))
+ }
+ 
+ // st may be nil for conn-level
+-func (sc *http2serverConn) sendWindowUpdate32(st *http2stream, n int32) {
++func (sc *http2serverConn) sendWindowUpdate(st *http2stream, n int) {
+ 	sc.serveG.check()
+-	if n == 0 {
+-		return
+-	}
+-	if n < 0 {
+-		panic("negative update")
+-	}
+ 	var streamID uint32
+-	if st != nil {
++	var send int32
++	if st == nil {
++		send = sc.inflow.add(n)
++	} else {
+ 		streamID = st.id
++		send = st.inflow.add(n)
++	}
++	if send == 0 {
++		return
+ 	}
+ 	sc.writeFrame(http2FrameWriteRequest{
+-		write:  http2writeWindowUpdate{streamID: streamID, n: uint32(n)},
++		write:  http2writeWindowUpdate{streamID: streamID, n: uint32(send)},
+ 		stream: st,
+ 	})
+-	var ok bool
+-	if st == nil {
+-		ok = sc.inflow.add(n)
+-	} else {
+-		ok = st.inflow.add(n)
+-	}
+-	if !ok {
+-		panic("internal error; sent too many window updates without decrements?")
+-	}
+ }
+ 
+ // requestBody is the Handler's Request.Body type.
+@@ -7004,10 +7047,6 @@ const (
+ 	// we buffer per stream.
+ 	http2transportDefaultStreamFlow = 4 << 20
+ 
+-	// transportDefaultStreamMinRefresh is the minimum number of bytes we'll send
+-	// a stream-level WINDOW_UPDATE for at a time.
+-	http2transportDefaultStreamMinRefresh = 4 << 10
+-
+ 	http2defaultUserAgent = "Go-http-client/2.0"
+ 
+ 	// initialMaxConcurrentStreams is a connections maxConcurrentStreams until
+@@ -7265,11 +7304,11 @@ type http2ClientConn struct {
+ 	idleTimeout time.Duration // or 0 for never
+ 	idleTimer   *time.Timer
+ 
+-	mu              sync.Mutex // guards following
+-	cond            *sync.Cond // hold mu; broadcast on flow/closed changes
+-	flow            http2flow  // our conn-level flow control quota (cs.flow is per stream)
+-	inflow          http2flow  // peer's conn-level flow control
+-	doNotReuse      bool       // whether conn is marked to not be reused for any future requests
++	mu              sync.Mutex   // guards following
++	cond            *sync.Cond   // hold mu; broadcast on flow/closed changes
++	flow            http2outflow // our conn-level flow control quota (cs.outflow is per stream)
++	inflow          http2inflow  // peer's conn-level flow control
++	doNotReuse      bool         // whether conn is marked to not be reused for any future requests
+ 	closing         bool
+ 	closed          bool
+ 	seenSettings    bool                          // true if we've seen a settings frame, false otherwise
+@@ -7333,10 +7372,10 @@ type http2clientStream struct {
+ 	respHeaderRecv chan struct{} // closed when headers are received
+ 	res            *Response     // set if respHeaderRecv is closed
+ 
+-	flow        http2flow // guarded by cc.mu
+-	inflow      http2flow // guarded by cc.mu
+-	bytesRemain int64     // -1 means unknown; owned by transportResponseBody.Read
+-	readErr     error     // sticky read error; owned by transportResponseBody.Read
++	flow        http2outflow // guarded by cc.mu
++	inflow      http2inflow  // guarded by cc.mu
++	bytesRemain int64        // -1 means unknown; owned by transportResponseBody.Read
++	readErr     error        // sticky read error; owned by transportResponseBody.Read
+ 
+ 	reqBody              io.ReadCloser
+ 	reqBodyContentLength int64         // -1 means unknown
+@@ -7769,7 +7808,7 @@ func (t *http2Transport) newClientConn(c net.Conn, singleUse bool) (*http2Client
+ 	cc.bw.Write(http2clientPreface)
+ 	cc.fr.WriteSettings(initialSettings...)
+ 	cc.fr.WriteWindowUpdate(0, http2transportDefaultConnFlow)
+-	cc.inflow.add(http2transportDefaultConnFlow + http2initialWindowSize)
++	cc.inflow.init(http2transportDefaultConnFlow + http2initialWindowSize)
+ 	cc.bw.Flush()
+ 	if cc.werr != nil {
+ 		cc.Close()
+@@ -8531,7 +8570,7 @@ func (cs *http2clientStream) cleanupWriteRequest(err error) {
+ 	close(cs.donec)
+ }
+ 
+-// awaitOpenSlotForStream waits until len(streams) < maxConcurrentStreams.
++// awaitOpenSlotForStreamLocked waits until len(streams) < maxConcurrentStreams.
+ // Must hold cc.mu.
+ func (cc *http2ClientConn) awaitOpenSlotForStreamLocked(cs *http2clientStream) error {
+ 	for {
+@@ -9031,8 +9070,7 @@ type http2resAndError struct {
+ func (cc *http2ClientConn) addStreamLocked(cs *http2clientStream) {
+ 	cs.flow.add(int32(cc.initialWindowSize))
+ 	cs.flow.setConnFlow(&cc.flow)
+-	cs.inflow.add(http2transportDefaultStreamFlow)
+-	cs.inflow.setConnFlow(&cc.inflow)
++	cs.inflow.init(http2transportDefaultStreamFlow)
+ 	cs.ID = cc.nextStreamID
+ 	cc.nextStreamID += 2
+ 	cc.streams[cs.ID] = cs
+@@ -9491,21 +9529,10 @@ func (b http2transportResponseBody) Read(p []byte) (n int, err error) {
+ 	}
+ 
+ 	cc.mu.Lock()
+-	var connAdd, streamAdd int32
+-	// Check the conn-level first, before the stream-level.
+-	if v := cc.inflow.available(); v < http2transportDefaultConnFlow/2 {
+-		connAdd = http2transportDefaultConnFlow - v
+-		cc.inflow.add(connAdd)
+-	}
++	connAdd := cc.inflow.add(n)
++	var streamAdd int32
+ 	if err == nil { // No need to refresh if the stream is over or failed.
+-		// Consider any buffered body data (read from the conn but not
+-		// consumed by the client) when computing flow control for this
+-		// stream.
+-		v := int(cs.inflow.available()) + cs.bufPipe.Len()
+-		if v < http2transportDefaultStreamFlow-http2transportDefaultStreamMinRefresh {
+-			streamAdd = int32(http2transportDefaultStreamFlow - v)
+-			cs.inflow.add(streamAdd)
+-		}
++		streamAdd = cs.inflow.add(n)
+ 	}
+ 	cc.mu.Unlock()
+ 
+@@ -9533,17 +9560,15 @@ func (b http2transportResponseBody) Close() error {
+ 	if unread > 0 {
+ 		cc.mu.Lock()
+ 		// Return connection-level flow control.
+-		if unread > 0 {
+-			cc.inflow.add(int32(unread))
+-		}
++		connAdd := cc.inflow.add(unread)
+ 		cc.mu.Unlock()
+ 
+ 		// TODO(dneil): Acquiring this mutex can block indefinitely.
+ 		// Move flow control return to a goroutine?
+ 		cc.wmu.Lock()
+ 		// Return connection-level flow control.
+-		if unread > 0 {
+-			cc.fr.WriteWindowUpdate(0, uint32(unread))
++		if connAdd > 0 {
++			cc.fr.WriteWindowUpdate(0, uint32(connAdd))
+ 		}
+ 		cc.bw.Flush()
+ 		cc.wmu.Unlock()
+@@ -9586,13 +9611,18 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
+ 		// But at least return their flow control:
+ 		if f.Length > 0 {
+ 			cc.mu.Lock()
+-			cc.inflow.add(int32(f.Length))
++			ok := cc.inflow.take(f.Length)
++			connAdd := cc.inflow.add(int(f.Length))
+ 			cc.mu.Unlock()
+-
+-			cc.wmu.Lock()
+-			cc.fr.WriteWindowUpdate(0, uint32(f.Length))
+-			cc.bw.Flush()
+-			cc.wmu.Unlock()
++			if !ok {
++				return http2ConnectionError(http2ErrCodeFlowControl)
++			}
++			if connAdd > 0 {
++				cc.wmu.Lock()
++				cc.fr.WriteWindowUpdate(0, uint32(connAdd))
++				cc.bw.Flush()
++				cc.wmu.Unlock()
++			}
+ 		}
+ 		return nil
+ 	}
+@@ -9623,9 +9653,7 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
+ 		}
+ 		// Check connection-level flow control.
+ 		cc.mu.Lock()
+-		if cs.inflow.available() >= int32(f.Length) {
+-			cs.inflow.take(int32(f.Length))
+-		} else {
++		if !http2takeInflows(&cc.inflow, &cs.inflow, f.Length) {
+ 			cc.mu.Unlock()
+ 			return http2ConnectionError(http2ErrCodeFlowControl)
+ 		}
+@@ -9647,19 +9675,20 @@ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
+ 			}
+ 		}
+ 
+-		if refund > 0 {
+-			cc.inflow.add(int32(refund))
+-			if !didReset {
+-				cs.inflow.add(int32(refund))
+-			}
++		sendConn := cc.inflow.add(refund)
++		var sendStream int32
++		if !didReset {
++			sendStream = cs.inflow.add(refund)
+ 		}
+ 		cc.mu.Unlock()
+ 
+-		if refund > 0 {
++		if sendConn > 0 || sendStream > 0 {
+ 			cc.wmu.Lock()
+-			cc.fr.WriteWindowUpdate(0, uint32(refund))
+-			if !didReset {
+-				cc.fr.WriteWindowUpdate(cs.ID, uint32(refund))
++			if sendConn > 0 {
++				cc.fr.WriteWindowUpdate(0, uint32(sendConn))
++			}
++			if sendStream > 0 {
++				cc.fr.WriteWindowUpdate(cs.ID, uint32(sendStream))
+ 			}
+ 			cc.bw.Flush()
+ 			cc.wmu.Unlock()
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+index 401414dde2..3141a7f1b9 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/asn1.go
+@@ -559,7 +559,7 @@ func (s *String) ReadASN1BitString(out *encoding_asn1.BitString) bool {
+ 	return true
+ }
+ 
+-// ReadASN1BitString decodes an ASN.1 BIT STRING into out and advances. It is
++// ReadASN1BitStringAsBytes decodes an ASN.1 BIT STRING into out and advances. It is
+ // an error if the BIT STRING is not a whole number of bytes. It reports
+ // whether the read was successful.
+ func (s *String) ReadASN1BitStringAsBytes(out *[]byte) bool {
+diff --git a/src/vendor/golang.org/x/crypto/cryptobyte/builder.go b/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
+index 2a90c592d7..c05ac7d16d 100644
+--- a/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
++++ b/src/vendor/golang.org/x/crypto/cryptobyte/builder.go
+@@ -303,9 +303,9 @@ func (b *Builder) add(bytes ...byte) {
+ 	b.result = append(b.result, bytes...)
+ }
+ 
+-// Unwrite rolls back n bytes written directly to the Builder. An attempt by a
+-// child builder passed to a continuation to unwrite bytes from its parent will
+-// panic.
++// Unwrite rolls back non-negative n bytes written directly to the Builder.
++// An attempt by a child builder passed to a continuation to unwrite bytes
++// from its parent will panic.
+ func (b *Builder) Unwrite(n int) {
+ 	if b.err != nil {
+ 		return
+@@ -317,6 +317,9 @@ func (b *Builder) Unwrite(n int) {
+ 	if length < 0 {
+ 		panic("cryptobyte: internal error")
+ 	}
++	if n < 0 {
++		panic("cryptobyte: attempted to unwrite negative number of bytes")
++	}
+ 	if n > length {
+ 		panic("cryptobyte: attempted to unwrite more than was written")
+ 	}
+diff --git a/src/vendor/golang.org/x/net/http2/hpack/hpack.go b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+index ebdfbee964..b184a2771a 100644
+--- a/src/vendor/golang.org/x/net/http2/hpack/hpack.go
++++ b/src/vendor/golang.org/x/net/http2/hpack/hpack.go
+@@ -211,7 +211,7 @@ func (d *Decoder) at(i uint64) (hf HeaderField, ok bool) {
+ 	return dt.ents[dt.len()-(int(i)-staticTable.len())], true
+ }
+ 
+-// Decode decodes an entire block.
++// DecodeFull decodes an entire block.
+ //
+ // TODO: remove this method and make it incremental later? This is
+ // easier for debugging now.
+diff --git a/src/vendor/golang.org/x/net/nettest/nettest.go b/src/vendor/golang.org/x/net/nettest/nettest.go
+index 6918f2c362..510555ac28 100644
+--- a/src/vendor/golang.org/x/net/nettest/nettest.go
++++ b/src/vendor/golang.org/x/net/nettest/nettest.go
+@@ -20,11 +20,13 @@ import (
+ )
+ 
+ var (
+-	stackOnce          sync.Once
+-	ipv4Enabled        bool
+-	ipv6Enabled        bool
+-	unStrmDgramEnabled bool
+-	rawSocketSess      bool
++	stackOnce               sync.Once
++	ipv4Enabled             bool
++	canListenTCP4OnLoopback bool
++	ipv6Enabled             bool
++	canListenTCP6OnLoopback bool
++	unStrmDgramEnabled      bool
++	rawSocketSess           bool
+ 
+ 	aLongTimeAgo = time.Unix(233431200, 0)
+ 	neverTimeout = time.Time{}
+@@ -34,13 +36,19 @@ var (
+ )
+ 
+ func probeStack() {
++	if _, err := RoutedInterface("ip4", net.FlagUp); err == nil {
++		ipv4Enabled = true
++	}
+ 	if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
+ 		ln.Close()
+-		ipv4Enabled = true
++		canListenTCP4OnLoopback = true
++	}
++	if _, err := RoutedInterface("ip6", net.FlagUp); err == nil {
++		ipv6Enabled = true
+ 	}
+ 	if ln, err := net.Listen("tcp6", "[::1]:0"); err == nil {
+ 		ln.Close()
+-		ipv6Enabled = true
++		canListenTCP6OnLoopback = true
+ 	}
+ 	rawSocketSess = supportsRawSocket()
+ 	switch runtime.GOOS {
+@@ -154,22 +162,23 @@ func TestableAddress(network, address string) bool {
+ // The provided network must be "tcp", "tcp4", "tcp6", "unix" or
+ // "unixpacket".
+ func NewLocalListener(network string) (net.Listener, error) {
++	stackOnce.Do(probeStack)
+ 	switch network {
+ 	case "tcp":
+-		if SupportsIPv4() {
++		if canListenTCP4OnLoopback {
+ 			if ln, err := net.Listen("tcp4", "127.0.0.1:0"); err == nil {
+ 				return ln, nil
+ 			}
+ 		}
+-		if SupportsIPv6() {
++		if canListenTCP6OnLoopback {
+ 			return net.Listen("tcp6", "[::1]:0")
+ 		}
+ 	case "tcp4":
+-		if SupportsIPv4() {
++		if canListenTCP4OnLoopback {
+ 			return net.Listen("tcp4", "127.0.0.1:0")
+ 		}
+ 	case "tcp6":
+-		if SupportsIPv6() {
++		if canListenTCP6OnLoopback {
+ 			return net.Listen("tcp6", "[::1]:0")
+ 		}
+ 	case "unix", "unixpacket":
+@@ -187,22 +196,23 @@ func NewLocalListener(network string) (net.Listener, error) {
+ //
+ // The provided network must be "udp", "udp4", "udp6" or "unixgram".
+ func NewLocalPacketListener(network string) (net.PacketConn, error) {
++	stackOnce.Do(probeStack)
+ 	switch network {
+ 	case "udp":
+-		if SupportsIPv4() {
++		if canListenTCP4OnLoopback {
+ 			if c, err := net.ListenPacket("udp4", "127.0.0.1:0"); err == nil {
+ 				return c, nil
+ 			}
+ 		}
+-		if SupportsIPv6() {
++		if canListenTCP6OnLoopback {
+ 			return net.ListenPacket("udp6", "[::1]:0")
+ 		}
+ 	case "udp4":
+-		if SupportsIPv4() {
++		if canListenTCP4OnLoopback {
+ 			return net.ListenPacket("udp4", "127.0.0.1:0")
+ 		}
+ 	case "udp6":
+-		if SupportsIPv6() {
++		if canListenTCP6OnLoopback {
+ 			return net.ListenPacket("udp6", "[::1]:0")
+ 		}
+ 	case "unixgram":
+diff --git a/src/vendor/golang.org/x/text/unicode/norm/forminfo.go b/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
+index d69ccb4f97..487335d14d 100644
+--- a/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
++++ b/src/vendor/golang.org/x/text/unicode/norm/forminfo.go
+@@ -13,7 +13,7 @@ import "encoding/binary"
+ // a rune to a uint16. The values take two forms.  For v >= 0x8000:
+ //   bits
+ //   15:    1 (inverse of NFD_QC bit of qcInfo)
+-//   13..7: qcInfo (see below). isYesD is always true (no decompostion).
++//   13..7: qcInfo (see below). isYesD is always true (no decomposition).
+ //    6..0: ccc (compressed CCC value).
+ // For v < 0x8000, the respective rune has a decomposition and v is an index
+ // into a byte array of UTF-8 decomposition sequences and additional info and
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index cb9ed4bdf7..306d253ec1 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.3.1-0.20221117191849-2c476679df9a
++# golang.org/x/crypto v0.5.1-0.20230203195927-310bfa40f1e4
+ ## explicit; go 1.17
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.3.1-0.20221206200815-1e63c2f08a10
++# golang.org/x/net v0.5.1-0.20230208184008-87ce33ecb484
+ ## explicit; go 1.17
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -17,10 +17,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.4.1-0.20230127010248-17fce3ac51c7
++# golang.org/x/sys v0.5.1-0.20230208141308-4fee21c92339
+ ## explicit; go 1.17
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.5.0
++# golang.org/x/text v0.7.1-0.20230207171107-30dadde3188b
+ ## explicit; go 1.17
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

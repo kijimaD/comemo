@@ -35,7 +35,66 @@ Date:   Thu Dec 1 15:14:15 2011 -0800
     R=golang-dev, adg, rsc
     CC=golang-dev
     https://golang.org/cl/5437105
-
+---
  src/pkg/go/doc/comment.go      | 13 ++++---------
  src/pkg/go/doc/comment_test.go |  5 +++--
  2 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/pkg/go/doc/comment.go b/src/pkg/go/doc/comment.go
+index ed39268f5a..c9fb55bd54 100644
+--- a/src/pkg/go/doc/comment.go
++++ b/src/pkg/go/doc/comment.go
+@@ -241,8 +241,8 @@ func unindent(block []string) {
+ 	}
+ }
+ 
+-// heading returns the (possibly trimmed) line if it passes as a valid section
+-// heading; otherwise it returns the empty string. 
++// heading returns the trimmed line if it passes as a section heading;
++// otherwise it returns the empty string. 
+ func heading(line string) string {
+ 	line = strings.TrimSpace(line)
+ 	if len(line) == 0 {
+@@ -255,17 +255,12 @@ func heading(line string) string {
+ 		return ""
+ 	}
+ 
+-	// it must end in a letter, digit or ':'
++	// it must end in a letter or digit:
+ 	r, _ = utf8.DecodeLastRuneInString(line)
+-	if !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != ':' {
++	if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+ 		return ""
+ 	}
+ 
+-	// strip trailing ':', if any
+-	if r == ':' {
+-		line = line[0 : len(line)-1]
+-	}
+-
+ 	// exclude lines with illegal characters
+ 	if strings.IndexAny(line, ",.;:!?+*/=()[]{}_^°&§~%#@<\">\\") >= 0 {
+ 		return ""
+diff --git a/src/pkg/go/doc/comment_test.go b/src/pkg/go/doc/comment_test.go
+index f689ac985e..6424053ac9 100644
+--- a/src/pkg/go/doc/comment_test.go
++++ b/src/pkg/go/doc/comment_test.go
+@@ -18,7 +18,8 @@ var headingTests = []struct {
+ 	{"Foo 42", true},
+ 	{"", false},
+ 	{"section", false},
+-	{"A typical usage:", true},
++	{"A typical usage:", false},
++	{"This code:", false},
+ 	{"δ is Greek", false},
+ 	{"Foo §", false},
+ 	{"Fermat's Last Sentence", true},
+@@ -26,7 +27,7 @@ var headingTests = []struct {
+ 	{"'sX", false},
+ 	{"Ted 'Too' Bar", false},
+ 	{"Use n+m", false},
+-	{"Scanning:", true},
++	{"Scanning:", false},
+ 	{"N:M", false},
+ }
+ 

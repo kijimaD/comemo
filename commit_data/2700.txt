@@ -9,9 +9,425 @@ Date:   Tue Jul 14 10:53:04 2009 -0700
     DELTA=311  (308 added, 3 deleted, 0 changed)
     OCL=31569
     CL=31606
-
+---
  src/pkg/syscall/syscall_linux.go        | 158 ++++++++++++++++++++++++++++++++
  src/pkg/syscall/types_linux.c           |  67 +++++++++++++-
  src/pkg/syscall/zsyscall_linux_amd64.go |   6 ++
  src/pkg/syscall/ztypes_linux_amd64.go   |  80 +++++++++++++++-
  4 files changed, 308 insertions(+), 3 deletions(-)
+
+diff --git a/src/pkg/syscall/syscall_linux.go b/src/pkg/syscall/syscall_linux.go
+index 65d69e467e..70b34b46dc 100644
+--- a/src/pkg/syscall/syscall_linux.go
++++ b/src/pkg/syscall/syscall_linux.go
+@@ -386,6 +386,163 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ 	return setsockopt(fd, level, opt, uintptr(unsafe.Pointer(l)), unsafe.Sizeof(*l));
+ }
+ 
++//sys	ptrace(request int, pid int, addr uintptr, data uintptr) (errno int)
++
++// See bytes.Copy.
++func bytesCopy(dst, src []byte) int {
++	if len(src) > len(dst) {
++		src = src[0:len(dst)];
++	}
++	for i, x := range src {
++		dst[i] = x
++	}
++	return len(src)
++}
++
++func ptracePeek(req int, pid int, addr uintptr, out []byte) (count int, errno int) {
++	// The peek requests are machine-size oriented, so we wrap it
++	// to retrieve arbitrary-length data.
++
++	// The ptrace syscall differs from glibc's ptrace.
++	// Peeks returns the word in *data, not as the return value.
++
++	var buf [sizeofPtr]byte;
++
++	// Leading edge.  PEEKTEXT/PEEKDATA don't require aligned
++	// access (PEEKUSER warns that it might), but if we don't
++	// align our reads, we might straddle an unmapped page
++	// boundary and not get the bytes leading up to the page
++	// boundary.
++	n := 0;
++	if addr % sizeofPtr != 0 {
++		errno = ptrace(req, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++		if errno != 0 {
++			return 0, errno;
++		}
++		n += bytesCopy(out, buf[addr%sizeofPtr:len(buf)]);
++		out = out[n:len(out)];
++	}
++
++	// Remainder.
++	for len(out) > 0 {
++		// We use an internal buffer to gaurantee alignment.
++		// It's not documented if this is necessary, but we're paranoid.
++		errno = ptrace(req, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
++		if errno != 0 {
++			return n, errno;
++		}
++		copied := bytesCopy(out, &buf);
++		n += copied;
++		out = out[copied:len(out)];
++	}
++
++	return n, 0;
++}
++
++func PtracePeekText(pid int, addr uintptr, out []byte) (count int, errno int) {
++	return ptracePeek(_PTRACE_PEEKTEXT, pid, addr, out);
++}
++
++func PtracePeekData(pid int, addr uintptr, out []byte) (count int, errno int) {
++	return ptracePeek(_PTRACE_PEEKDATA, pid, addr, out);
++}
++
++func ptracePoke(pokeReq int, peekReq int, pid int, addr uintptr, data []byte) (count int, errno int) {
++	// As for ptracePeek, we need to align our accesses to deal
++	// with the possibility of straddling an invalid page.
++
++	// Leading edge.
++	n := 0;
++	if addr % sizeofPtr != 0 {
++		var buf [sizeofPtr]byte;
++		errno = ptrace(peekReq, pid, addr - addr%sizeofPtr, uintptr(unsafe.Pointer(&buf[0])));
++		if errno != 0 {
++			return 0, errno;
++		}
++		n += bytesCopy(buf[addr%sizeofPtr:len(buf)], data);
++		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
++		errno = ptrace(pokeReq, pid, addr - addr%sizeofPtr, word);
++		if errno != 0 {
++			return 0, errno;
++		}
++		data = data[n:len(data)];
++	}
++
++	// Interior.
++	for len(data) > sizeofPtr {
++		word := *((*uintptr)(unsafe.Pointer(&data[0])));
++		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
++		if errno != 0 {
++			return n, errno;
++		}
++		n += sizeofPtr;
++		data = data[sizeofPtr:len(data)];
++	}
++
++	// Trailing edge.
++	if len(data) > 0 {
++		var buf [sizeofPtr]byte;
++		errno = ptrace(peekReq, pid, addr+uintptr(n), uintptr(unsafe.Pointer(&buf[0])));
++		if errno != 0 {
++			return n, errno;
++		}
++		bytesCopy(&buf, data);
++		word := *((*uintptr)(unsafe.Pointer(&buf[0])));
++		errno = ptrace(pokeReq, pid, addr+uintptr(n), word);
++		if errno != 0 {
++			return n, errno;
++		}
++		n += len(data);
++	}
++
++	return n, 0;
++}
++
++func PtracePokeText(pid int, addr uintptr, data []byte) (count int, errno int) {
++	return ptracePoke(_PTRACE_POKETEXT, _PTRACE_PEEKTEXT, pid, addr, data);
++}
++
++func PtracePokeData(pid int, addr uintptr, data []byte) (count int, errno int) {
++	return ptracePoke(_PTRACE_POKEDATA, _PTRACE_PEEKDATA, pid, addr, data);
++}
++
++func PtraceGetRegs(pid int, regsout *PtraceRegs) (errno int) {
++	return ptrace(_PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)));
++}
++
++func PtraceSetRegs(pid int, regs *PtraceRegs) (errno int) {
++	return ptrace(_PTRACE_SETREGS, pid, 0, uintptr(unsafe.Pointer(regs)));
++}
++
++func PtraceSetOptions(pid int, options int) (errno int) {
++	return ptrace(_PTRACE_SETOPTIONS, pid, 0, uintptr(options));
++}
++
++func PtraceGetEventMsg(pid int) (msg uint, errno int) {
++	var data _C_long;
++	errno = ptrace(_PTRACE_GETEVENTMSG, pid, 0, uintptr(unsafe.Pointer(&data)));
++	if errno != 0 {
++		msg = uint(data);
++	}
++	return;
++}
++
++func PtraceCont(pid int, signal int) (errno int) {
++	return ptrace(_PTRACE_CONT, pid, 0, uintptr(signal));
++}
++
++func PtraceSingleStep(pid int) (errno int) {
++	return ptrace(_PTRACE_SINGLESTEP, pid, 0, 0);
++}
++
++func PtraceAttach(pid int) (errno int) {
++	return ptrace(_PTRACE_ATTACH, pid, 0, 0);
++}
++
++func PtraceDetach(pid int) (errno int) {
++	return ptrace(_PTRACE_DETACH, pid, 0, 0);
++}
++
+ // Sendto
+ // Recvfrom
+ // Sendmsg
+@@ -634,3 +791,4 @@ func SetsockoptLinger(fd, level, opt int, l *Linger) (errno int) {
+ // Waitid
+ // Writev
+ // _Sysctl
++
+diff --git a/src/pkg/syscall/types_linux.c b/src/pkg/syscall/types_linux.c
+index 40b36481f3..234e5dd1e5 100644
+--- a/src/pkg/syscall/types_linux.c
++++ b/src/pkg/syscall/types_linux.c
+@@ -13,6 +13,7 @@ Input to godefs.  See PORT.
+ 
+ #include <dirent.h>
+ #include <fcntl.h>
++#include <linux/user.h>
+ #include <netinet/in.h>
+ #include <netinet/tcp.h>
+ #include <signal.h>
+@@ -52,6 +53,12 @@ enum
+ 	$PathMax = PATH_MAX,
+ };
+ 
++// Basic types
++
++typedef short $_C_short;
++typedef int $_C_int;
++typedef long $_C_long;
++typedef long long $_C_long_long;
+ 
+ // Time
+ 
+@@ -67,7 +74,6 @@ typedef struct utimbuf $Utimbuf;
+ typedef struct rusage $Rusage;
+ typedef struct rlimit $Rlimit;
+ 
+-typedef int $_C_int;
+ typedef gid_t $_Gid_t;
+ 
+ // Files
+@@ -130,6 +136,11 @@ enum
+ 	$WSTOPPED = WSTOPPED,
+ 	$WCONTINUED = WCONTINUED,
+ 	$WNOWAIT = WNOWAIT,
++
++        // Linux-specific
++        $WCLONE = __WCLONE,
++        $WALL = __WALL,
++        $WNOTHREAD = __WNOTHREAD,
+ };
+ 
+ // Sockets
+@@ -192,6 +203,60 @@ typedef struct sockaddr_any $RawSockaddrAny;
+ typedef socklen_t $_Socklen;
+ typedef struct linger $Linger;
+ 
++// Ptrace
++
++// Ptrace requests
++enum {
++	$_PTRACE_TRACEME = PTRACE_TRACEME,
++	$_PTRACE_PEEKTEXT = PTRACE_PEEKTEXT,
++	$_PTRACE_PEEKDATA = PTRACE_PEEKDATA,
++	$_PTRACE_PEEKUSER = PTRACE_PEEKUSER,
++	$_PTRACE_POKETEXT = PTRACE_POKETEXT,
++	$_PTRACE_POKEDATA = PTRACE_POKEDATA,
++	$_PTRACE_POKEUSER = PTRACE_POKEUSER,
++	$_PTRACE_CONT = PTRACE_CONT,
++	$_PTRACE_KILL = PTRACE_KILL,
++	$_PTRACE_SINGLESTEP = PTRACE_SINGLESTEP,
++	$_PTRACE_GETREGS = PTRACE_GETREGS,
++	$_PTRACE_SETREGS = PTRACE_SETREGS,
++	$_PTRACE_GETFPREGS = PTRACE_GETFPREGS,
++	$_PTRACE_SETFPREGS = PTRACE_SETFPREGS,
++	$_PTRACE_ATTACH = PTRACE_ATTACH,
++	$_PTRACE_DETACH = PTRACE_DETACH,
++	$_PTRACE_GETFPXREGS = PTRACE_GETFPXREGS,
++	$_PTRACE_SETFPXREGS = PTRACE_SETFPXREGS,
++	$_PTRACE_SYSCALL = PTRACE_SYSCALL,
++	$_PTRACE_SETOPTIONS = PTRACE_SETOPTIONS,
++	$_PTRACE_GETEVENTMSG = PTRACE_GETEVENTMSG,
++	$_PTRACE_GETSIGINFO = PTRACE_GETSIGINFO,
++	$_PTRACE_SETSIGINFO = PTRACE_SETSIGINFO,
++};
++
++// PTRACE_SETOPTIONS options
++enum {
++	$PTRACE_O_TRACESYSGOOD = PTRACE_O_TRACESYSGOOD,
++	$PTRACE_O_TRACEFORK = PTRACE_O_TRACEFORK,
++	$PTRACE_O_TRACEVFORK = PTRACE_O_TRACEVFORK,
++	$PTRACE_O_TRACECLONE = PTRACE_O_TRACECLONE,
++	$PTRACE_O_TRACEEXEC = PTRACE_O_TRACEEXEC,
++	$PTRACE_O_TRACEVFORKDONE = PTRACE_O_TRACEVFORKDONE,
++	$PTRACE_O_TRACEEXIT = PTRACE_O_TRACEEXIT,
++	$PTRACE_O_MASK = PTRACE_O_MASK,
++};
++
++// Extended result codes
++enum {
++	$PTRACE_EVENT_FORK = PTRACE_EVENT_FORK,
++	$PTRACE_EVENT_VFORK = PTRACE_EVENT_VFORK,
++	$PTRACE_EVENT_CLONE = PTRACE_EVENT_CLONE,
++	$PTRACE_EVENT_EXEC = PTRACE_EVENT_EXEC,
++	$PTRACE_EVENT_VFORK_DONE = PTRACE_EVENT_VFORK_DONE,
++	$PTRACE_EVENT_EXIT = PTRACE_EVENT_EXIT,
++};
++
++// Register structures
++typedef struct user_regs_struct $PtraceRegs;
++
+ // Misc
+ 
+ enum {
+diff --git a/src/pkg/syscall/zsyscall_linux_amd64.go b/src/pkg/syscall/zsyscall_linux_amd64.go
+index 09f21df2ab..743c5285b5 100644
+--- a/src/pkg/syscall/zsyscall_linux_amd64.go
++++ b/src/pkg/syscall/zsyscall_linux_amd64.go
+@@ -42,6 +42,12 @@ func wait4(pid int, wstatus *_C_int, options int, rusage *Rusage) (wpid int, err
+ 	return;
+ }
+ 
++func ptrace(request int, pid int, addr uintptr, data uintptr) (errno int) {
++	r0, r1, e1 := Syscall6(SYS_PTRACE, uintptr(request), uintptr(pid), uintptr(addr), uintptr(data), 0, 0);
++	errno = int(e1);
++	return;
++}
++
+ func Access(path string, mode int) (errno int) {
+ 	r0, r1, e1 := Syscall(SYS_ACCESS, uintptr(unsafe.Pointer(StringBytePtr(path))), uintptr(mode), 0);
+ 	errno = int(e1);
+diff --git a/src/pkg/syscall/ztypes_linux_amd64.go b/src/pkg/syscall/ztypes_linux_amd64.go
+index 5733f3e26e..56211b4b9c 100644
+--- a/src/pkg/syscall/ztypes_linux_amd64.go
++++ b/src/pkg/syscall/ztypes_linux_amd64.go
+@@ -49,6 +49,9 @@ const (
+ 	WSTOPPED = 0x2;
+ 	WCONTINUED = 0x8;
+ 	WNOWAIT = 0x1000000;
++	WCLONE = 0x80000000;
++	WALL = 0x40000000;
++	WNOTHREAD = 0x20000000;
+ 	AF_UNIX = 0x1;
+ 	AF_INET = 0x2;
+ 	AF_INET6 = 0xa;
+@@ -74,6 +77,43 @@ const (
+ 	SizeofSockaddrInet6 = 0x1c;
+ 	SizeofSockaddrAny = 0x1c;
+ 	SizeofSockaddrUnix = 0x6e;
++	_PTRACE_TRACEME = 0;
++	_PTRACE_PEEKTEXT = 0x1;
++	_PTRACE_PEEKDATA = 0x2;
++	_PTRACE_PEEKUSER = 0x3;
++	_PTRACE_POKETEXT = 0x4;
++	_PTRACE_POKEDATA = 0x5;
++	_PTRACE_POKEUSER = 0x6;
++	_PTRACE_CONT = 0x7;
++	_PTRACE_KILL = 0x8;
++	_PTRACE_SINGLESTEP = 0x9;
++	_PTRACE_GETREGS = 0xc;
++	_PTRACE_SETREGS = 0xd;
++	_PTRACE_GETFPREGS = 0xe;
++	_PTRACE_SETFPREGS = 0xf;
++	_PTRACE_ATTACH = 0x10;
++	_PTRACE_DETACH = 0x11;
++	_PTRACE_GETFPXREGS = 0x12;
++	_PTRACE_SETFPXREGS = 0x13;
++	_PTRACE_SYSCALL = 0x18;
++	_PTRACE_SETOPTIONS = 0x4200;
++	_PTRACE_GETEVENTMSG = 0x4201;
++	_PTRACE_GETSIGINFO = 0x4202;
++	_PTRACE_SETSIGINFO = 0x4203;
++	PTRACE_O_TRACESYSGOOD = 0x1;
++	PTRACE_O_TRACEFORK = 0x2;
++	PTRACE_O_TRACEVFORK = 0x4;
++	PTRACE_O_TRACECLONE = 0x8;
++	PTRACE_O_TRACEEXEC = 0x10;
++	PTRACE_O_TRACEVFORKDONE = 0x20;
++	PTRACE_O_TRACEEXIT = 0x40;
++	PTRACE_O_MASK = 0x7f;
++	PTRACE_EVENT_FORK = 0x1;
++	PTRACE_EVENT_VFORK = 0x2;
++	PTRACE_EVENT_CLONE = 0x3;
++	PTRACE_EVENT_EXEC = 0x4;
++	PTRACE_EVENT_VFORK_DONE = 0x5;
++	PTRACE_EVENT_EXIT = 0x6;
+ 	EPOLLIN = 0x1;
+ 	EPOLLRDHUP = 0x2000;
+ 	EPOLLOUT = 0x4;
+@@ -85,6 +125,14 @@ const (
+ 
+ // Types
+ 
++type _C_short int16
++
++type _C_int int32
++
++type _C_long int64
++
++type _C_long_long int64
++
+ type Timespec struct {
+ 	Sec int64;
+ 	Nsec int64;
+@@ -170,8 +218,6 @@ type Rlimit struct {
+ 	Max uint64;
+ }
+ 
+-type _C_int int32
+-
+ type _Gid_t uint32
+ 
+ type Stat_t struct {
+@@ -252,6 +298,36 @@ type Linger struct {
+ 	Linger int32;
+ }
+ 
++type PtraceRegs struct {
++	R15 uint64;
++	R14 uint64;
++	R13 uint64;
++	R12 uint64;
++	Rbp uint64;
++	Rbx uint64;
++	R11 uint64;
++	R10 uint64;
++	R9 uint64;
++	R8 uint64;
++	Rax uint64;
++	Rcx uint64;
++	Rdx uint64;
++	Rsi uint64;
++	Rdi uint64;
++	Orig_rax uint64;
++	Rip uint64;
++	Cs uint64;
++	Eflags uint64;
++	Rsp uint64;
++	Ss uint64;
++	Fs_base uint64;
++	Gs_base uint64;
++	Ds uint64;
++	Es uint64;
++	Fs uint64;
++	Gs uint64;
++}
++
+ type FdSet struct {
+ 	Bits [16]int64;
+ }

@@ -12,6 +12,15 @@ Date:   Tue Feb 13 06:10:32 2018 +0000
     Reviewed-by: Andrew Bonventre <andybons@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  VERSION | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/VERSION b/VERSION
+deleted file mode 100644
+index 540058b3d0..0000000000
+--- a/VERSION
++++ /dev/null
+@@ -1 +0,0 @@
+-go1.10rc2
+\ No newline at end of file

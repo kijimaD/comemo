@@ -15,7 +15,7 @@ Date:   Thu Apr 3 19:05:59 2014 -0400
     R=dvyukov, iant
     CC=golang-codereviews
     https://golang.org/cl/83980043
-
+---
  src/pkg/runtime/os_darwin.c      | 3 +++
  src/pkg/runtime/os_dragonfly.c   | 3 +++
  src/pkg/runtime/os_freebsd.c     | 3 +++
@@ -32,3 +32,238 @@ Date:   Thu Apr 3 19:05:59 2014 -0400
  src/pkg/runtime/signal_amd64x.c  | 4 ----
  src/pkg/runtime/signal_arm.c     | 4 ----
  15 files changed, 30 insertions(+), 18 deletions(-)
+
+diff --git a/src/pkg/runtime/os_darwin.c b/src/pkg/runtime/os_darwin.c
+index f2262618db..a1165dd7be 100644
+--- a/src/pkg/runtime/os_darwin.c
++++ b/src/pkg/runtime/os_darwin.c
+@@ -434,6 +434,9 @@ runtime·mach_semrelease(uint32 sem)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_dragonfly.c b/src/pkg/runtime/os_dragonfly.c
+index f96ea89484..35a7de96fe 100644
+--- a/src/pkg/runtime/os_dragonfly.c
++++ b/src/pkg/runtime/os_dragonfly.c
+@@ -169,6 +169,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_freebsd.c b/src/pkg/runtime/os_freebsd.c
+index 7598b13ba5..9a8de4206b 100644
+--- a/src/pkg/runtime/os_freebsd.c
++++ b/src/pkg/runtime/os_freebsd.c
+@@ -177,6 +177,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_linux.c b/src/pkg/runtime/os_linux.c
+index b4be9406ec..8a945242b9 100644
+--- a/src/pkg/runtime/os_linux.c
++++ b/src/pkg/runtime/os_linux.c
+@@ -218,6 +218,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_nacl.c b/src/pkg/runtime/os_nacl.c
+index 3c5e487ad1..3196e2ce32 100644
+--- a/src/pkg/runtime/os_nacl.c
++++ b/src/pkg/runtime/os_nacl.c
+@@ -247,6 +247,9 @@ runtime·closeonexec(int32)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	// Native Client only invokes the exception handler for memory faults.
+ 	g->sig = SIGSEGV;
+ 	if(g->sigpc == 0)
+diff --git a/src/pkg/runtime/os_netbsd.c b/src/pkg/runtime/os_netbsd.c
+index f8ae309857..7f4b97271c 100644
+--- a/src/pkg/runtime/os_netbsd.c
++++ b/src/pkg/runtime/os_netbsd.c
+@@ -237,6 +237,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_openbsd.c b/src/pkg/runtime/os_openbsd.c
+index 714f907545..0eec7956cf 100644
+--- a/src/pkg/runtime/os_openbsd.c
++++ b/src/pkg/runtime/os_openbsd.c
+@@ -214,6 +214,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_plan9.c b/src/pkg/runtime/os_plan9.c
+index af20ce8db9..b634fd73db 100644
+--- a/src/pkg/runtime/os_plan9.c
++++ b/src/pkg/runtime/os_plan9.c
+@@ -352,6 +352,9 @@ runtime·sigpanic(void)
+ {
+ 	byte *p;
+ 
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGRFAULT:
+ 	case SIGWFAULT:
+diff --git a/src/pkg/runtime/os_plan9_386.c b/src/pkg/runtime/os_plan9_386.c
+index 04be91bf4e..80d711f338 100644
+--- a/src/pkg/runtime/os_plan9_386.c
++++ b/src/pkg/runtime/os_plan9_386.c
+@@ -71,9 +71,6 @@ runtime·sighandler(void *v, int8 *note, G *gp)
+ 		runtime·exits(note+9); // Strip "go: exit " prefix.
+ 
+ 	if(flags & SigPanic) {
+-		if(!runtime·canpanic(gp))
+-			goto Throw;
+-
+ 		// Copy the error string from sigtramp's stack into m->notesig so
+ 		// we can reliably access it from the panic routines.
+ 		runtime·memmove(m->notesig, note, len+1);
+diff --git a/src/pkg/runtime/os_plan9_amd64.c b/src/pkg/runtime/os_plan9_amd64.c
+index 7f4e1187fd..b497056c67 100644
+--- a/src/pkg/runtime/os_plan9_amd64.c
++++ b/src/pkg/runtime/os_plan9_amd64.c
+@@ -79,9 +79,6 @@ runtime·sighandler(void *v, int8 *note, G *gp)
+ 		runtime·exits(note+9); // Strip "go: exit " prefix.
+ 
+ 	if(flags & SigPanic) {
+-		if(!runtime·canpanic(gp))
+-			goto Throw;
+-
+ 		// Copy the error string from sigtramp's stack into m->notesig so
+ 		// we can reliably access it from the panic routines.
+ 		runtime·memmove(m->notesig, note, len+1);
+diff --git a/src/pkg/runtime/os_solaris.c b/src/pkg/runtime/os_solaris.c
+index b8cd4d90ca..3575f693db 100644
+--- a/src/pkg/runtime/os_solaris.c
++++ b/src/pkg/runtime/os_solaris.c
+@@ -209,6 +209,9 @@ runtime·unminit(void)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case SIGBUS:
+ 		if(g->sigcode0 == BUS_ADRERR && g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/os_windows.c b/src/pkg/runtime/os_windows.c
+index 8cb6e15030..4d5ea3bf45 100644
+--- a/src/pkg/runtime/os_windows.c
++++ b/src/pkg/runtime/os_windows.c
+@@ -346,6 +346,9 @@ runtime·issigpanic(uint32 code)
+ void
+ runtime·sigpanic(void)
+ {
++	if(!runtime·canpanic(g))
++		runtime·throw("unexpected signal during runtime execution");
++
+ 	switch(g->sig) {
+ 	case EXCEPTION_ACCESS_VIOLATION:
+ 		if(g->sigcode1 < 0x1000 || g->paniconfault) {
+diff --git a/src/pkg/runtime/signal_386.c b/src/pkg/runtime/signal_386.c
+index 70790fa0a3..70fcc6a636 100644
+--- a/src/pkg/runtime/signal_386.c
++++ b/src/pkg/runtime/signal_386.c
+@@ -45,9 +45,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(!runtime·canpanic(gp))
+-			goto Throw;
+-
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -94,7 +91,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	if(!(t->flags & SigThrow))
+ 		return;
+ 
+-Throw:
+ 	m->throwing = 1;
+ 	m->caughtsig = gp;
+ 	runtime·startpanic();
+diff --git a/src/pkg/runtime/signal_amd64x.c b/src/pkg/runtime/signal_amd64x.c
+index b217338711..309bad3ba6 100644
+--- a/src/pkg/runtime/signal_amd64x.c
++++ b/src/pkg/runtime/signal_amd64x.c
+@@ -54,9 +54,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(!runtime·canpanic(gp))
+-			goto Throw;
+-
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -107,7 +104,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	if(!(t->flags & SigThrow))
+ 		return;
+ 
+-Throw:
+ 	m->throwing = 1;
+ 	m->caughtsig = gp;
+ 	runtime·startpanic();
+diff --git a/src/pkg/runtime/signal_arm.c b/src/pkg/runtime/signal_arm.c
+index 41997dbd85..9b2a43d9ba 100644
+--- a/src/pkg/runtime/signal_arm.c
++++ b/src/pkg/runtime/signal_arm.c
+@@ -52,9 +52,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 
+ 	t = &runtime·sigtab[sig];
+ 	if(SIG_CODE0(info, ctxt) != SI_USER && (t->flags & SigPanic)) {
+-		if(!runtime·canpanic(gp))
+-			goto Throw;
+-
+ 		// Make it look like a call to the signal func.
+ 		// Have to pass arguments out of band since
+ 		// augmenting the stack frame would break
+@@ -92,7 +89,6 @@ runtime·sighandler(int32 sig, Siginfo *info, void *ctxt, G *gp)
+ 	if(!(t->flags & SigThrow))
+ 		return;
+ 
+-Throw:
+ 	m->throwing = 1;
+ 	m->caughtsig = gp;
+ 	if(runtime·panicking)	// traceback already printed

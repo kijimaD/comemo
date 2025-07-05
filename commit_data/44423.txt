@@ -14,7 +14,59 @@ Date:   Fri Jun 26 14:06:41 2020 -0400
     Run-TryBot: Cherry Zhang <cherryyz@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Than McIntosh <thanm@google.com>
-
+---
  src/cmd/link/internal/amd64/asm.go | 5 ++---
  src/cmd/link/internal/s390x/asm.go | 3 +--
  2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 659c03e5dc..e07321f855 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -389,7 +389,6 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+-	xst := ldr.SymType(r.Xsym)
+ 	switch r.Type() {
+ 	default:
+ 		return false
+@@ -415,7 +414,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		}
+ 	case objabi.R_CALL:
+ 		if siz == 4 {
+-			if xst == sym.SDYNIMPORT {
++			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT {
+ 				if ctxt.DynlinkingGo() {
+ 					ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 				} else {
+@@ -429,7 +428,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		}
+ 	case objabi.R_PCREL:
+ 		if siz == 4 {
+-			if xst == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
++			if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && ldr.SymElfType(r.Xsym) == elf.STT_FUNC {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PLT32) | uint64(elfsym)<<32)
+ 			} else {
+ 				ctxt.Out.Write64(uint64(elf.R_X86_64_PC32) | uint64(elfsym)<<32)
+diff --git a/src/cmd/link/internal/s390x/asm.go b/src/cmd/link/internal/s390x/asm.go
+index 11406ee51e..f9bb12bb19 100644
+--- a/src/cmd/link/internal/s390x/asm.go
++++ b/src/cmd/link/internal/s390x/asm.go
+@@ -224,7 +224,6 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 
+ 	elfsym := ld.ElfSymForReloc(ctxt, r.Xsym)
+ 	siz := r.Siz()
+-	xst := ldr.SymType(r.Xsym)
+ 	switch r.Type() {
+ 	default:
+ 		return false
+@@ -271,7 +270,7 @@ func elfreloc1(ctxt *ld.Link, ldr *loader.Loader, s loader.Sym, r loader.ExtRelo
+ 		case objabi.R_PCRELDBL, objabi.R_CALL:
+ 			isdbl = true
+ 		}
+-		if xst == sym.SDYNIMPORT && (ldr.SymElfType(r.Xsym) == elf.STT_FUNC || r.Type() == objabi.R_CALL) {
++		if ldr.SymType(r.Xsym) == sym.SDYNIMPORT && (ldr.SymElfType(r.Xsym) == elf.STT_FUNC || r.Type() == objabi.R_CALL) {
+ 			if isdbl {
+ 				switch siz {
+ 				case 2:

@@ -9,9 +9,160 @@ Date:   Tue Feb 15 05:42:16 2011 +1100
     R=rsc
     CC=golang-dev
     https://golang.org/cl/4183048
-
+---
  src/pkg/archive/zip/reader.go       |  39 ++++++++++++++++++++++++++++++++----
  src/pkg/archive/zip/reader_test.go  |  31 +++++++++++++++++++---------
  src/pkg/archive/zip/struct.go       |   1 +
  src/pkg/archive/zip/testdata/dd.zip | Bin 0 -> 154 bytes
  4 files changed, 57 insertions(+), 14 deletions(-)
+
+diff --git a/src/pkg/archive/zip/reader.go b/src/pkg/archive/zip/reader.go
+index 579ba16029..d8d9bba60b 100644
+--- a/src/pkg/archive/zip/reader.go
++++ b/src/pkg/archive/zip/reader.go
+@@ -42,6 +42,10 @@ type File struct {
+ 	bodyOffset   int64
+ }
+ 
++func (f *File) hasDataDescriptor() bool {
++	return f.Flags&0x8 != 0
++}
++
+ // OpenReader will open the Zip file specified by name and return a Reader.
+ func OpenReader(name string) (*Reader, os.Error) {
+ 	f, err := os.Open(name, os.O_RDONLY, 0644)
+@@ -93,7 +97,16 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
+ 			return
+ 		}
+ 	}
+-	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, int64(f.CompressedSize))
++	size := int64(f.CompressedSize)
++	if f.hasDataDescriptor() {
++		if size == 0 {
++			// permit SectionReader to see the rest of the file
++			size = f.zipsize - (off + f.bodyOffset)
++		} else {
++			size += dataDescriptorLen
++		}
++	}
++	r := io.NewSectionReader(f.zipr, off+f.bodyOffset, size)
+ 	switch f.Method {
+ 	case 0: // store (no compression)
+ 		rc = nopCloser{r}
+@@ -103,7 +116,7 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
+ 		err = UnsupportedMethod
+ 	}
+ 	if rc != nil {
+-		rc = &checksumReader{rc, crc32.NewIEEE(), f.CRC32}
++		rc = &checksumReader{rc, crc32.NewIEEE(), f, r}
+ 	}
+ 	return
+ }
+@@ -111,7 +124,8 @@ func (f *File) Open() (rc io.ReadCloser, err os.Error) {
+ type checksumReader struct {
+ 	rc   io.ReadCloser
+ 	hash hash.Hash32
+-	sum  uint32
++	f    *File
++	zipr io.Reader // for reading the data descriptor
+ }
+ 
+ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
+@@ -120,7 +134,12 @@ func (r *checksumReader) Read(b []byte) (n int, err os.Error) {
+ 	if err != os.EOF {
+ 		return
+ 	}
+-	if r.hash.Sum32() != r.sum {
++	if r.f.hasDataDescriptor() {
++		if err = readDataDescriptor(r.zipr, r.f); err != nil {
++			return
++		}
++	}
++	if r.hash.Sum32() != r.f.CRC32 {
+ 		err = ChecksumError
+ 	}
+ 	return
+@@ -205,6 +224,18 @@ func readDirectoryHeader(f *File, r io.Reader) (err os.Error) {
+ 	return
+ }
+ 
++func readDataDescriptor(r io.Reader, f *File) (err os.Error) {
++	defer func() {
++		if rerr, ok := recover().(os.Error); ok {
++			err = rerr
++		}
++	}()
++	read(r, &f.CRC32)
++	read(r, &f.CompressedSize)
++	read(r, &f.UncompressedSize)
++	return
++}
++
+ func readDirectoryEnd(r io.ReaderAt, size int64) (d *directoryEnd, err os.Error) {
+ 	// look for directoryEndSignature in the last 1k, then in the last 65k
+ 	var b []byte
+diff --git a/src/pkg/archive/zip/reader_test.go b/src/pkg/archive/zip/reader_test.go
+index 3c24f1467c..72e8cccfd4 100644
+--- a/src/pkg/archive/zip/reader_test.go
++++ b/src/pkg/archive/zip/reader_test.go
+@@ -52,6 +52,15 @@ var tests = []ZipTest{
+ 	},
+ 	{Name: "readme.zip"},
+ 	{Name: "readme.notzip", Error: FormatError},
++	{
++		Name: "dd.zip",
++		File: []ZipTestFile{
++			{
++				Name:    "filename",
++				Content: []byte("This is a test textfile.\n"),
++			},
++		},
++	},
+ }
+ 
+ func TestReader(t *testing.T) {
+@@ -102,16 +111,18 @@ func readTestZip(t *testing.T, zt ZipTest) {
+ 	}
+ 
+ 	// test invalid checksum
+-	z.File[0].CRC32++ // invalidate
+-	r, err := z.File[0].Open()
+-	if err != nil {
+-		t.Error(err)
+-		return
+-	}
+-	var b bytes.Buffer
+-	_, err = io.Copy(&b, r)
+-	if err != ChecksumError {
+-		t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ChecksumError)
++	if !z.File[0].hasDataDescriptor() { // skip test when crc32 in dd
++		z.File[0].CRC32++ // invalidate
++		r, err := z.File[0].Open()
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		var b bytes.Buffer
++		_, err = io.Copy(&b, r)
++		if err != ChecksumError {
++			t.Errorf("%s: copy error=%v, want %v", z.File[0].Name, err, ChecksumError)
++		}
+ 	}
+ }
+ 
+diff --git a/src/pkg/archive/zip/struct.go b/src/pkg/archive/zip/struct.go
+index 8a8c727d47..bfe0aae2e9 100644
+--- a/src/pkg/archive/zip/struct.go
++++ b/src/pkg/archive/zip/struct.go
+@@ -4,6 +4,7 @@ const (
+ 	fileHeaderSignature      = 0x04034b50
+ 	directoryHeaderSignature = 0x02014b50
+ 	directoryEndSignature    = 0x06054b50
++	dataDescriptorLen        = 12
+ )
+ 
+ type FileHeader struct {
+diff --git a/src/pkg/archive/zip/testdata/dd.zip b/src/pkg/archive/zip/testdata/dd.zip
+new file mode 100644
+index 0000000000..e53378b0b0
+Binary files /dev/null and b/src/pkg/archive/zip/testdata/dd.zip differ

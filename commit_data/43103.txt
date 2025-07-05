@@ -11,6 +11,22 @@ Date:   Mon Mar 9 21:33:35 2020 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/cgo/out.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 1518e5fab8..6b40a255d5 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -809,6 +809,10 @@ func (p *Package) packedAttribute() string {
+ // the value of position; otherwise, this function will return the
+ // value of param.
+ func exportParamName(param string, position int) string {
++	if param == "" {
++		return fmt.Sprintf("p%d", position)
++	}
++
+ 	pname := param
+ 
+ 	for i := 0; i < len(param); i++ {

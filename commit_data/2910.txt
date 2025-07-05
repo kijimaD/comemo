@@ -9,8 +9,48 @@ Date:   Fri Aug 7 13:00:20 2009 -0700
     R=ken
     OCL=32883
     CL=32883
-
+---
  src/cmd/gc/dcl.c       | 2 +-
  src/cmd/gc/typecheck.c | 2 +-
  test/golden.out        | 2 +-
  3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/gc/dcl.c b/src/cmd/gc/dcl.c
+index d5864212b0..1768f2e121 100644
+--- a/src/cmd/gc/dcl.c
++++ b/src/cmd/gc/dcl.c
+@@ -837,7 +837,7 @@ typedcl2(Type *pt, Type *t)
+ 	if(pt->etype == TINTER && t->etype == TFORWINTER)
+ 		return;
+ 	if(!cvttype(pt, t)) {
+-		yyerror("redeclaration of %T during imports\n\t%lT [%p]\n\t%lT [%p]", pt, pt, pt, t, t);
++		yyerror("redeclaration of %T during imports", pt);
+ 		return;
+ 	}
+ 	return;
+diff --git a/src/cmd/gc/typecheck.c b/src/cmd/gc/typecheck.c
+index 05efbba84c..ff8b2056c0 100644
+--- a/src/cmd/gc/typecheck.c
++++ b/src/cmd/gc/typecheck.c
+@@ -400,7 +400,7 @@ reswitch:
+ 			checkwidth(t);
+ 		}
+ 		if(!lookdot(n, t)) {
+-			yyerror("%#N undefined (type %p %T has no field %S)", n, t, t, n->right->sym);
++			yyerror("%#N undefined (type %T has no field %S)", n, t, n->right->sym);
+ 			goto error;
+ 		}
+ 		switch(n->op) {
+diff --git a/test/golden.out b/test/golden.out
+index d1403736b9..d4c05db18c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -121,7 +121,7 @@ do break
+ broke
+ 
+ =========== fixedbugs/bug081.go
+-fixedbugs/bug081.go:5: fatal error: loop
++fixedbugs/bug081.go:5: fatal error: typecheck loop
+ 
+ =========== fixedbugs/bug093.go
+ M

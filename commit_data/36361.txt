@@ -16,8 +16,109 @@ Date:   Mon Apr 23 13:49:51 2018 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/ssa/gen/AMD64.rules |  1 +
  src/cmd/compile/internal/ssa/rewriteAMD64.go | 43 +++++++++++++++++++++++++++-
  test/codegen/arithmetic.go                   |  5 ++++
  3 files changed, 48 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/gen/AMD64.rules b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+index 482a1558dc..cab0f66079 100644
+--- a/src/cmd/compile/internal/ssa/gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/gen/AMD64.rules
+@@ -925,6 +925,7 @@
+ // combine ADDQ/ADDQconst into LEAQ1
+ (ADDQconst [c] (ADDQ x y)) -> (LEAQ1 [c] x y)
+ (ADDQ (ADDQconst [c] x) y) -> (LEAQ1 [c] x y)
++(ADD(Q|L)const [c] (SHL(Q|L)const [1] x)) -> (LEA(Q|L)1 [c] x x)
+ 
+ // fold ADDQ into LEAQ
+ (ADDQconst [c] (LEAQ [d] {s} x)) && is32Bit(c+d) -> (LEAQ [c+d] {s} x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index e51a25527c..313b6bef9c 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -26,7 +26,7 @@ func rewriteValueAMD64(v *Value) bool {
+ 	case OpAMD64ADDQ:
+ 		return rewriteValueAMD64_OpAMD64ADDQ_0(v) || rewriteValueAMD64_OpAMD64ADDQ_10(v) || rewriteValueAMD64_OpAMD64ADDQ_20(v)
+ 	case OpAMD64ADDQconst:
+-		return rewriteValueAMD64_OpAMD64ADDQconst_0(v)
++		return rewriteValueAMD64_OpAMD64ADDQconst_0(v) || rewriteValueAMD64_OpAMD64ADDQconst_10(v)
+ 	case OpAMD64ADDQconstmem:
+ 		return rewriteValueAMD64_OpAMD64ADDQconstmem_0(v)
+ 	case OpAMD64ADDQmem:
+@@ -1313,6 +1313,25 @@ func rewriteValueAMD64_OpAMD64ADDL_10(v *Value) bool {
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64ADDLconst_0(v *Value) bool {
++	// match: (ADDLconst [c] (SHLLconst [1] x))
++	// cond:
++	// result: (LEAL1 [c] x x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SHLLconst {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64LEAL1)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDLconst [c] x)
+ 	// cond: int32(c)==0
+ 	// result: x
+@@ -2077,6 +2096,25 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
+ 		v.AddArg(y)
+ 		return true
+ 	}
++	// match: (ADDQconst [c] (SHLQconst [1] x))
++	// cond:
++	// result: (LEAQ1 [c] x x)
++	for {
++		c := v.AuxInt
++		v_0 := v.Args[0]
++		if v_0.Op != OpAMD64SHLQconst {
++			break
++		}
++		if v_0.AuxInt != 1 {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpAMD64LEAQ1)
++		v.AuxInt = c
++		v.AddArg(x)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (ADDQconst [c] (LEAQ [d] {s} x))
+ 	// cond: is32Bit(c+d)
+ 	// result: (LEAQ [c+d] {s} x)
+@@ -2240,6 +2278,9 @@ func rewriteValueAMD64_OpAMD64ADDQconst_0(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	return false
++}
++func rewriteValueAMD64_OpAMD64ADDQconst_10(v *Value) bool {
+ 	// match: (ADDQconst [off] x:(SP))
+ 	// cond:
+ 	// result: (LEAQ [off] x)
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index ce7a7c27f4..3948ef301d 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -173,3 +173,8 @@ func CapMod(a []int) int {
+ 	// amd64:"ANDQ\t[$]4095"
+ 	return cap(a) % ((1 << 11) + 2048)
+ }
++
++func AddMul(x int) int {
++	// amd64:"LEAQ\t1"
++	return 2*x + 1
++}

@@ -11,7 +11,7 @@ Date:   Tue Jun 28 18:09:56 2016 +1000
     Run-TryBot: Andrew Gerrand <adg@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/go/alldocs.go     | 10 ++++------
  src/cmd/go/get.go         |  3 +--
  src/cmd/go/go_test.go     | 10 ++++++++++
@@ -19,3 +19,141 @@ Date:   Tue Jun 28 18:09:56 2016 +1000
  src/cmd/go/vcs.go         | 12 ------------
  src/cmd/go/vendor_test.go |  1 +
  6 files changed, 19 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 91875616ce..58b0d16b2b 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -508,8 +508,7 @@
+ // searches for a branch or tag named "go1". If no such version exists it
+ // retrieves the most recent version of the package.
+ //
+-// Unless vendoring support is disabled (see 'go help gopath'),
+-// when go get checks out or updates a Git repository,
++// When go get checks out or updates a Git repository,
+ // it also updates any git submodules referenced by the repository.
+ //
+ // Get never checks out or updates code stored in vendor directories.
+@@ -1271,10 +1270,9 @@
+ // let package authors make sure the custom import path is used and not a
+ // direct path to the underlying code hosting site.
+ //
+-// If vendoring is enabled (see 'go help gopath'), then import path checking is
+-// disabled for code found within vendor trees. This makes it possible to copy
+-// code into alternate locations in vendor trees without needing to update import
+-// comments.
++// Import path checking is disabled for code found within vendor trees.
++// This makes it possible to copy code into alternate locations in vendor trees
++// without needing to update import comments.
+ //
+ // See https://golang.org/s/go14customimport for details.
+ //
+diff --git a/src/cmd/go/get.go b/src/cmd/go/get.go
+index 969760a77e..19858f7e55 100644
+--- a/src/cmd/go/get.go
++++ b/src/cmd/go/get.go
+@@ -55,8 +55,7 @@ rule is that if the local installation is running version "go1", get
+ searches for a branch or tag named "go1". If no such version exists it
+ retrieves the most recent version of the package.
+ 
+-Unless vendoring support is disabled (see 'go help gopath'),
+-when go get checks out or updates a Git repository,
++When go get checks out or updates a Git repository,
+ it also updates any git submodules referenced by the repository.
+ 
+ Get never checks out or updates code stored in vendor directories.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 0529d7fb31..66c641347c 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -489,6 +489,16 @@ func (tg *testgoData) path(name string) string {
+ 	return filepath.Join(tg.tempdir, name)
+ }
+ 
++// mustExist fails if path does not exist.
++func (tg *testgoData) mustExist(path string) {
++	if _, err := os.Stat(path); err != nil {
++		if os.IsNotExist(err) {
++			tg.t.Fatalf("%s does not exist but should", path)
++		}
++		tg.t.Fatalf("%s stat failed: %v", path, err)
++	}
++}
++
+ // mustNotExist fails if path exists.
+ func (tg *testgoData) mustNotExist(path string) {
+ 	if _, err := os.Stat(path); err == nil || !os.IsNotExist(err) {
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 34bd80dc92..056a0af112 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -261,10 +261,9 @@ unless it is being referred to by that import path. In this way, import comments
+ let package authors make sure the custom import path is used and not a
+ direct path to the underlying code hosting site.
+ 
+-If vendoring is enabled (see 'go help gopath'), then import path checking is
+-disabled for code found within vendor trees. This makes it possible to copy
+-code into alternate locations in vendor trees without needing to update import
+-comments.
++Import path checking is disabled for code found within vendor trees.
++This makes it possible to copy code into alternate locations in vendor trees
++without needing to update import comments.
+ 
+ See https://golang.org/s/go14customimport for details.
+ 	`,
+diff --git a/src/cmd/go/vcs.go b/src/cmd/go/vcs.go
+index f7c34de576..df37c1a1f1 100644
+--- a/src/cmd/go/vcs.go
++++ b/src/cmd/go/vcs.go
+@@ -383,9 +383,6 @@ func (v *vcsCmd) ping(scheme, repo string) error {
+ // The parent of dir must exist; dir must not.
+ func (v *vcsCmd) create(dir, repo string) error {
+ 	for _, cmd := range v.createCmd {
+-		if strings.Contains(cmd, "submodule") {
+-			continue
+-		}
+ 		if err := v.run(".", cmd, "dir", dir, "repo", repo); err != nil {
+ 			return err
+ 		}
+@@ -396,9 +393,6 @@ func (v *vcsCmd) create(dir, repo string) error {
+ // download downloads any new changes for the repo in dir.
+ func (v *vcsCmd) download(dir string) error {
+ 	for _, cmd := range v.downloadCmd {
+-		if strings.Contains(cmd, "submodule") {
+-			continue
+-		}
+ 		if err := v.run(dir, cmd); err != nil {
+ 			return err
+ 		}
+@@ -445,9 +439,6 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ 
+ 	if tag == "" && v.tagSyncDefault != nil {
+ 		for _, cmd := range v.tagSyncDefault {
+-			if strings.Contains(cmd, "submodule") {
+-				continue
+-			}
+ 			if err := v.run(dir, cmd); err != nil {
+ 				return err
+ 			}
+@@ -456,9 +447,6 @@ func (v *vcsCmd) tagSync(dir, tag string) error {
+ 	}
+ 
+ 	for _, cmd := range v.tagSyncCmd {
+-		if strings.Contains(cmd, "submodule") {
+-			continue
+-		}
+ 		if err := v.run(dir, cmd, "tag", tag); err != nil {
+ 			return err
+ 		}
+diff --git a/src/cmd/go/vendor_test.go b/src/cmd/go/vendor_test.go
+index e3070e8e45..226b5377b9 100644
+--- a/src/cmd/go/vendor_test.go
++++ b/src/cmd/go/vendor_test.go
+@@ -197,6 +197,7 @@ func TestGetSubmodules(t *testing.T) {
+ 	tg.setenv("GOPATH", tg.path("."))
+ 	tg.run("get", "-d", "github.com/rsc/go-get-issue-12612")
+ 	tg.run("get", "-u", "-d", "github.com/rsc/go-get-issue-12612")
++	tg.mustExist(tg.path("src/github.com/rsc/go-get-issue-12612/vendor/golang.org/x/crypto/.git"))
+ }
+ 
+ func TestVendorCache(t *testing.T) {

@@ -9,7 +9,43 @@ Date:   Wed Jun 7 13:10:05 2017 -0700
     Change-Id: Iac1589484dec626c018314e0cea7efce091fd87d
     Reviewed-on: https://go-review.googlesource.com/45075
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/typecheck.go |  4 +++-
  test/fixedbugs/issue20602.go             | 14 ++++++++++++++
  2 files changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/gc/typecheck.go b/src/cmd/compile/internal/gc/typecheck.go
+index b02bc659be..04efcc3d82 100644
+--- a/src/cmd/compile/internal/gc/typecheck.go
++++ b/src/cmd/compile/internal/gc/typecheck.go
+@@ -1349,7 +1349,9 @@ OpSwitch:
+ 		}
+ 		n.Left = typecheck(n.Left, Erv)
+ 		n.Left = defaultlit(n.Left, nil)
+-		n.Left = implicitstar(n.Left)
++		if n.Op == OCAP || n.Op == OLEN {
++			n.Left = implicitstar(n.Left)
++		}
+ 		l := n.Left
+ 		t := l.Type
+ 		if t == nil {
+diff --git a/test/fixedbugs/issue20602.go b/test/fixedbugs/issue20602.go
+new file mode 100644
+index 0000000000..ca4ce095aa
+--- /dev/null
++++ b/test/fixedbugs/issue20602.go
+@@ -0,0 +1,14 @@
++// errorcheck
++
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that the correct (not implicitly dereferenced)
++// type is reported in the error message.
++
++package p
++
++var p = &[1]complex128{0}
++var _ = real(p)  // ERROR "type \*\[1\]complex128"
++var _ = imag(p)	 // ERROR "type \*\[1\]complex128"

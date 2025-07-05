@@ -13,7 +13,7 @@ Date:   Mon Mar 7 09:47:02 2016 +1300
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/go.go      |   2 --
  src/cmd/compile/internal/gc/lex.go     |   5 -----
  src/cmd/compile/internal/gc/reflect.go |   9 ---------
@@ -25,3 +25,224 @@ Date:   Mon Mar 7 09:47:02 2016 +1300
  src/cmd/newlink/testdata/autoweak.6    | Bin 385 -> 0 bytes
  src/cmd/newlink/testdata/autoweak.s    |  30 ------------------------------
  10 files changed, 1 insertion(+), 100 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index e1b75d1b0c..d890909ea4 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -425,8 +425,6 @@ var typepkg *Pkg // fake package for runtime type info (headers)
+ 
+ var typelinkpkg *Pkg // fake package for runtime type info (data)
+ 
+-var weaktypepkg *Pkg // weak references to runtime type info
+-
+ var unsafepkg *Pkg // package unsafe
+ 
+ var trackpkg *Pkg // fake package for field tracking
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index 81bd9461ca..383e076c64 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -140,11 +140,6 @@ func Main() {
+ 	itabpkg.Name = "go.itab"
+ 	itabpkg.Prefix = "go.itab" // not go%2eitab
+ 
+-	weaktypepkg = mkpkg("go.weak.type")
+-
+-	weaktypepkg.Name = "go.weak.type"
+-	weaktypepkg.Prefix = "go.weak.type" // not go%2eweak%2etype
+-
+ 	typelinkpkg = mkpkg("go.typelink")
+ 	typelinkpkg.Name = "go.typelink"
+ 	typelinkpkg.Prefix = "go.typelink" // not go%2etypelink
+diff --git a/src/cmd/compile/internal/gc/reflect.go b/src/cmd/compile/internal/gc/reflect.go
+index 3cf480efd4..1a436c322d 100644
+--- a/src/cmd/compile/internal/gc/reflect.go
++++ b/src/cmd/compile/internal/gc/reflect.go
+@@ -844,15 +844,6 @@ func typename(t *Type) *Node {
+ 	return n
+ }
+ 
+-func weaktypesym(t *Type) *Sym {
+-	p := Tconv(t, obj.FmtLeft)
+-	s := Pkglookup(p, weaktypepkg)
+-
+-	//print("weaktypesym: %s -> %+S\n", p, s);
+-
+-	return s
+-}
+-
+ // isreflexive reports whether t has a reflexive equality operator.
+ // That is, if x==x for all x of type t.
+ func isreflexive(t *Type) bool {
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index 3ee7b292e3..2895915506 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -373,9 +373,6 @@ func mark1(s *LSym, parent *LSym) {
+ 	if s == nil || s.Attr.Reachable() {
+ 		return
+ 	}
+-	if strings.HasPrefix(s.Name, "go.weak.") {
+-		return
+-	}
+ 	s.Attr |= AttrReachable
+ 	s.Reachparent = parent
+ 	markQueue = append(markQueue, s)
+@@ -494,14 +491,6 @@ func deadcode() {
+ 		}
+ 	}
+ 
+-	for _, s := range Ctxt.Allsym {
+-		if strings.HasPrefix(s.Name, "go.weak.") {
+-			s.Attr |= AttrSpecial // do not lay out in data segment
+-			s.Attr |= AttrReachable
+-			s.Attr |= AttrHidden
+-		}
+-	}
+-
+ 	// record field tracking references
+ 	var buf bytes.Buffer
+ 	for _, s := range Ctxt.Allsym {
+@@ -532,26 +521,6 @@ func deadcode() {
+ 	addstrdata(tracksym, buf.String())
+ }
+ 
+-func doweak() {
+-	// resolve weak references only if
+-	// target symbol will be in binary anyway.
+-	for _, s := range Ctxt.Allsym {
+-		if strings.HasPrefix(s.Name, "go.weak.") {
+-			t := Linkrlookup(Ctxt, s.Name[8:], int(s.Version))
+-			if t != nil && t.Type != 0 && t.Attr.Reachable() {
+-				s.Value = t.Value
+-				s.Type = t.Type
+-				s.Outer = t
+-			} else {
+-				s.Type = obj.SCONST
+-				s.Value = 0
+-			}
+-
+-			continue
+-		}
+-	}
+-}
+-
+ func addexport() {
+ 	if HEADTYPE == obj.Hdarwin {
+ 		return
+diff --git a/src/cmd/link/internal/ld/pobj.go b/src/cmd/link/internal/ld/pobj.go
+index d36dfc1b68..06932c694f 100644
+--- a/src/cmd/link/internal/ld/pobj.go
++++ b/src/cmd/link/internal/ld/pobj.go
+@@ -216,7 +216,6 @@ func Ldmain() {
+ 	symtab()
+ 	dodata()
+ 	address()
+-	doweak()
+ 	reloc()
+ 	Thearch.Asmb()
+ 	undef()
+diff --git a/src/cmd/newlink/auto.go b/src/cmd/newlink/auto.go
+index aaebdd24d3..ce7c6269bf 100644
+--- a/src/cmd/newlink/auto.go
++++ b/src/cmd/newlink/auto.go
+@@ -42,8 +42,7 @@ var linkerDefined = map[string]bool{
+ 
+ // isAuto reports whether sym is an automatically-generated data or constant symbol.
+ func (p *Prog) isAuto(sym goobj.SymID) bool {
+-	return strings.HasPrefix(sym.Name, "go.weak.") ||
+-		strings.HasPrefix(sym.Name, "$f64.") ||
++	return strings.HasPrefix(sym.Name, "$f64.") ||
+ 		strings.HasPrefix(sym.Name, "$f32.") ||
+ 		linkerDefined[sym.Name]
+ }
+@@ -85,24 +84,6 @@ func (p *Prog) autoData() {
+ 	}
+ }
+ 
+-// autoConst defines the automatically generated constant symbols needed by p.
+-func (p *Prog) autoConst() {
+-	for sym := range p.Missing {
+-		switch {
+-		case strings.HasPrefix(sym.Name, "go.weak."):
+-			// weak symbol resolves to actual symbol if present, or else nil.
+-			delete(p.Missing, sym)
+-			targ := sym
+-			targ.Name = sym.Name[len("go.weak."):]
+-			var addr Addr
+-			if s := p.Syms[targ]; s != nil {
+-				addr = s.Addr
+-			}
+-			p.defineConst(sym.Name, addr)
+-		}
+-	}
+-}
+-
+ // defineConst defines a new symbol with the given name and constant address.
+ func (p *Prog) defineConst(name string, addr Addr) {
+ 	sym := goobj.SymID{Name: name}
+diff --git a/src/cmd/newlink/auto_test.go b/src/cmd/newlink/auto_test.go
+index 5447b87a65..0e18266ecf 100644
+--- a/src/cmd/newlink/auto_test.go
++++ b/src/cmd/newlink/auto_test.go
+@@ -22,7 +22,6 @@ import (
+ // identical 8-byte sequences.
+ var autoTests = []string{
+ 	"testdata/autosection.6",
+-	"testdata/autoweak.6",
+ }
+ 
+ func TestAuto(t *testing.T) {
+diff --git a/src/cmd/newlink/prog.go b/src/cmd/newlink/prog.go
+index 3ec65fe788..9cf1402427 100644
+--- a/src/cmd/newlink/prog.go
++++ b/src/cmd/newlink/prog.go
+@@ -149,7 +149,6 @@ func (p *Prog) link(w io.Writer, mainFile string) {
+ 	p.runtime()
+ 	p.autoData()
+ 	p.layout()
+-	p.autoConst()
+ 	if p.NumError > 0 {
+ 		return
+ 	}
+diff --git a/src/cmd/newlink/testdata/autoweak.6 b/src/cmd/newlink/testdata/autoweak.6
+deleted file mode 100644
+index 5c68cdb61e..0000000000
+Binary files a/src/cmd/newlink/testdata/autoweak.6 and /dev/null differ
+diff --git a/src/cmd/newlink/testdata/autoweak.s b/src/cmd/newlink/testdata/autoweak.s
+deleted file mode 100644
+index 6611456cbb..0000000000
+--- a/src/cmd/newlink/testdata/autoweak.s
++++ /dev/null
+@@ -1,30 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Test of go.weak symbols.
+-
+-TEXT start(SB),7,$0
+-	MOVQ $autotab(SB),AX
+-	MOVQ $autoptr(SB),AX
+-	RET
+-
+-// go.weak.sym should resolve to sym, because sym is in the binary.
+-DATA autotab+0(SB)/8, $go·weak·sym(SB)
+-DATA autotab+8(SB)/8, $sym(SB)
+-
+-// go.weak.missingsym should resolve to 0, because missingsym is not in the binary.
+-DATA autotab+16(SB)/8, $go·weak·missingsym(SB)
+-DATA autotab+24(SB)/8, $0
+-
+-// go.weak.deadsym should resolve to 0, because deadsym is discarded during dead code removal
+-DATA autotab+32(SB)/8, $go·weak·deadsym(SB)
+-DATA autotab+40(SB)/8, $0
+-
+-GLOBL autotab(SB), $48
+-
+-GLOBL sym(SB), $1
+-
+-GLOBL deadsym(SB), $1
+-
+-GLOBL autoptr(SB), $0

@@ -14,7 +14,47 @@ Date:   Mon Mar 20 13:16:07 2017 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/noder.go | 4 ++++
  src/cmd/compile/internal/gc/pgen.go  | 6 ------
  2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/noder.go b/src/cmd/compile/internal/gc/noder.go
+index a7f0ba54f0..41c05c6480 100644
+--- a/src/cmd/compile/internal/gc/noder.go
++++ b/src/cmd/compile/internal/gc/noder.go
+@@ -319,6 +319,10 @@ func (p *noder) funcDecl(fun *syntax.FuncDecl) *Node {
+ 
+ 	funcbody(f)
+ 
++	if f.Nbody.Len() == 0 && (pure_go || strings.HasPrefix(f.Func.Nname.Sym.Name, "init.")) {
++		yyerrorl(f.Pos, "missing function body for %q", f.Func.Nname.Sym.Name)
++	}
++
+ 	return f
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/pgen.go b/src/cmd/compile/internal/gc/pgen.go
+index e588ab210c..6294c125c7 100644
+--- a/src/cmd/compile/internal/gc/pgen.go
++++ b/src/cmd/compile/internal/gc/pgen.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"sort"
+-	"strings"
+ )
+ 
+ // "Portable" code generation.
+@@ -278,11 +277,6 @@ func compile(fn *Node) {
+ 	dowidth(fn.Type)
+ 
+ 	if fn.Nbody.Len() == 0 {
+-		if pure_go || strings.HasPrefix(fn.Func.Nname.Sym.Name, "init.") {
+-			yyerror("missing function body for %q", fn.Func.Nname.Sym.Name)
+-			return
+-		}
+-
+ 		emitptrargsmap()
+ 		return
+ 	}

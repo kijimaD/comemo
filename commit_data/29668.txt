@@ -19,6 +19,20 @@ Date:   Fri Sep 30 14:48:11 2016 -0700
     Run-TryBot: Adam Langley <agl@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/ecdsa/ecdsa.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 72fb49934f..02848fd595 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -149,7 +149,7 @@ var errZeroParam = errors.New("zero parameter")
+ // returns the signature as a pair of integers. The security of the private key
+ // depends on the entropy of rand.
+ func Sign(rand io.Reader, priv *PrivateKey, hash []byte) (r, s *big.Int, err error) {
+-	// Get max(log2(q) / 2, 256) bits of entropy from rand.
++	// Get min(log2(q) / 2, 256) bits of entropy from rand.
+ 	entropylen := (priv.Curve.Params().BitSize + 7) / 16
+ 	if entropylen > 32 {
+ 		entropylen = 32

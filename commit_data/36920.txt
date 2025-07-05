@@ -28,7 +28,7 @@ Date:   Fri Jun 8 11:07:18 2018 -0400
     Run-TryBot: Lynn Boger <laboger@linux.vnet.ibm.com>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/testplugin/src/issue25756/main.go         | 52 ++++++++++++++++++++
  misc/cgo/testplugin/src/issue25756/plugin/c-life.c | 56 ++++++++++++++++++++++
  misc/cgo/testplugin/src/issue25756/plugin/life.go  | 39 +++++++++++++++
@@ -36,3 +36,220 @@ Date:   Fri Jun 8 11:07:18 2018 -0400
  misc/cgo/testplugin/test.bash                      | 11 ++++-
  src/runtime/asm_ppc64x.s                           |  1 +
  6 files changed, 165 insertions(+), 1 deletion(-)
+
+diff --git a/misc/cgo/testplugin/src/issue25756/main.go b/misc/cgo/testplugin/src/issue25756/main.go
+new file mode 100644
+index 0000000000..817daf42f6
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue25756/main.go
+@@ -0,0 +1,52 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Run the game of life in C using Go for parallelization.
++
++package main
++
++import (
++	"flag"
++	"fmt"
++	"plugin"
++)
++
++const MAXDIM = 100
++
++var dim = flag.Int("dim", 16, "board dimensions")
++var gen = flag.Int("gen", 10, "generations")
++
++func main() {
++	flag.Parse()
++
++	var a [MAXDIM * MAXDIM]int32
++	for i := 2; i < *dim; i += 8 {
++		for j := 2; j < *dim-3; j += 8 {
++			for y := 0; y < 3; y++ {
++				a[i**dim+j+y] = 1
++			}
++		}
++	}
++
++	p, err := plugin.Open("life.so")
++	if err != nil {
++		panic(err)
++	}
++	f, err := p.Lookup("Run")
++	if err != nil {
++		panic(err)
++	}
++	f.(func(int, int, int, []int32))(*gen, *dim, *dim, a[:])
++
++	for i := 0; i < *dim; i++ {
++		for j := 0; j < *dim; j++ {
++			if a[i**dim+j] == 0 {
++				fmt.Print(" ")
++			} else {
++				fmt.Print("X")
++			}
++		}
++		fmt.Print("\n")
++	}
++}
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/c-life.c b/misc/cgo/testplugin/src/issue25756/plugin/c-life.c
+new file mode 100644
+index 0000000000..f853163e2f
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue25756/plugin/c-life.c
+@@ -0,0 +1,56 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include <assert.h>
++#include "life.h"
++#include "_cgo_export.h"
++
++const int MYCONST = 0;
++
++// Do the actual manipulation of the life board in C.  This could be
++// done easily in Go, we are just using C for demonstration
++// purposes.
++void
++Step(int x, int y, int *a, int *n)
++{
++	struct GoStart_return r;
++
++	// Use Go to start 4 goroutines each of which handles 1/4 of the
++	// board.
++	r = GoStart(0, x, y, 0, x / 2, 0, y / 2, a, n);
++	assert(r.r0 == 0 && r.r1 == 100);	// test multiple returns
++	r = GoStart(1, x, y, x / 2, x, 0, y / 2, a, n);
++	assert(r.r0 == 1 && r.r1 == 101);	// test multiple returns
++	GoStart(2, x, y, 0, x / 2, y / 2, y, a, n);
++	GoStart(3, x, y, x / 2, x, y / 2, y, a, n);
++	GoWait(0);
++	GoWait(1);
++	GoWait(2);
++	GoWait(3);
++}
++
++// The actual computation.  This is called in parallel.
++void
++DoStep(int xdim, int ydim, int xstart, int xend, int ystart, int yend, int *a, int *n)
++{
++	int x, y, c, i, j;
++
++	for(x = xstart; x < xend; x++) {
++		for(y = ystart; y < yend; y++) {
++			c = 0;
++			for(i = -1; i <= 1; i++) {
++				for(j = -1; j <= 1; j++) {
++				  if(x+i >= 0 && x+i < xdim &&
++					y+j >= 0 && y+j < ydim &&
++					(i != 0 || j != 0))
++				    c += a[(x+i)*xdim + (y+j)] != 0;
++				}
++			}
++			if(c == 3 || (c == 2 && a[x*xdim + y] != 0))
++				n[x*xdim + y] = 1;
++			else
++				n[x*xdim + y] = 0;
++		}
++	}
++}
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/life.go b/misc/cgo/testplugin/src/issue25756/plugin/life.go
+new file mode 100644
+index 0000000000..675a192fc1
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue25756/plugin/life.go
+@@ -0,0 +1,39 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// #include "life.h"
++import "C"
++
++import "unsafe"
++
++func Run(gen, x, y int, a []int32) {
++	n := make([]int32, x*y)
++	for i := 0; i < gen; i++ {
++		C.Step(C.int(x), C.int(y), (*C.int)(unsafe.Pointer(&a[0])), (*C.int)(unsafe.Pointer(&n[0])))
++		copy(a, n)
++	}
++}
++
++// Keep the channels visible from Go.
++var chans [4]chan bool
++
++//export GoStart
++// Double return value is just for testing.
++func GoStart(i, xdim, ydim, xstart, xend, ystart, yend C.int, a *C.int, n *C.int) (int, int) {
++	c := make(chan bool, int(C.MYCONST))
++	go func() {
++		C.DoStep(xdim, ydim, xstart, xend, ystart, yend, a, n)
++		c <- true
++	}()
++	chans[i] = c
++	return int(i), int(i + 100)
++}
++
++//export GoWait
++func GoWait(i C.int) {
++	<-chans[i]
++	chans[i] = nil
++}
+diff --git a/misc/cgo/testplugin/src/issue25756/plugin/life.h b/misc/cgo/testplugin/src/issue25756/plugin/life.h
+new file mode 100644
+index 0000000000..11d2b97226
+--- /dev/null
++++ b/misc/cgo/testplugin/src/issue25756/plugin/life.h
+@@ -0,0 +1,7 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++extern void Step(int, int, int *, int *);
++extern void DoStep(int, int, int, int, int, int, int *, int *);
++extern const int MYCONST;
+diff --git a/misc/cgo/testplugin/test.bash b/misc/cgo/testplugin/test.bash
+index df38204a4e..bf8ed3cd19 100755
+--- a/misc/cgo/testplugin/test.bash
++++ b/misc/cgo/testplugin/test.bash
+@@ -15,7 +15,7 @@ goos=$(go env GOOS)
+ goarch=$(go env GOARCH)
+ 
+ function cleanup() {
+-	rm -f plugin*.so unnamed*.so iface*.so issue*
++	rm -f plugin*.so unnamed*.so iface*.so life.so issue*
+ 	rm -rf host pkg sub iface
+ }
+ trap cleanup EXIT
+@@ -90,3 +90,12 @@ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue22295 src/issue22295.pkg/m
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o issue24351.so src/issue24351/plugin.go
+ GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue24351 src/issue24351/main.go
+ ./issue24351
++
++# Test for issue 25756
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -buildmode=plugin -o life.so issue25756/plugin
++GOPATH=$(pwd) go build -gcflags "$GO_GCFLAGS" -o issue25756 src/issue25756/main.go
++# Fails intermittently, but 20 runs should cause the failure
++for i in `seq 1 20`;
++do
++  ./issue25756 > /dev/null
++done
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 93f9110cc0..3708961d76 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -139,6 +139,7 @@ TEXT runtime·gogo(SB), NOSPLIT, $16-8
+ 	MOVD	0(g), R4
+ 	MOVD	gobuf_sp(R5), R1
+ 	MOVD	gobuf_lr(R5), R31
++	MOVD	24(R1), R2	// restore R2
+ 	MOVD	R31, LR
+ 	MOVD	gobuf_ret(R5), R3
+ 	MOVD	gobuf_ctxt(R5), R11

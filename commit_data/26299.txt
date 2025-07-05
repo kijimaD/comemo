@@ -12,6 +12,24 @@ Date:   Fri Jan 8 11:23:25 2016 -0500
     Change-Id: I197021ed60cbcd33c91ca6ceed456ec3d5a6c9d6
     Reviewed-on: https://go-review.googlesource.com/18433
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/file_windows.go | 6 ++++--
  1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 9b0458552c..aa8c05c4ff 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -265,8 +265,10 @@ func (f *File) readConsole(b []byte) (n int, err error) {
+ 	if len(f.readbuf) == 0 {
+ 		numBytes := len(b)
+ 		// Windows  can't read bytes over max of int16.
+-		if numBytes > 32767 {
+-			numBytes = 32767
++		// Some versions of Windows can read even less.
++		// See golang.org/issue/13697.
++		if numBytes > 10000 {
++			numBytes = 10000
+ 		}
+ 		mbytes := make([]byte, numBytes)
+ 		var nmb uint32

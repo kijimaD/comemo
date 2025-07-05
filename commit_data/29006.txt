@@ -9,6 +9,41 @@ Date:   Fri May 6 09:06:05 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl.go | 12 +++++++-----
  1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl.go b/src/cmd/compile/internal/gc/inl.go
+index 8245a73791..2b84dd4a66 100644
+--- a/src/cmd/compile/internal/gc/inl.go
++++ b/src/cmd/compile/internal/gc/inl.go
+@@ -179,7 +179,7 @@ func ishairy(n *Node, budget *int32) bool {
+ 			break
+ 		}
+ 
+-		if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
++		if n.isMethodCalledAsFunction() {
+ 			if d := n.Left.Sym.Def; d != nil && d.Func.Inl.Len() != 0 {
+ 				*budget -= d.Func.InlCost
+ 				break
+@@ -458,10 +458,8 @@ func inlnode(n *Node) *Node {
+ 		}
+ 		if n.Left.Func != nil && n.Left.Func.Inl.Len() != 0 && !isIntrinsicCall1(n) { // normal case
+ 			n = mkinlcall(n, n.Left, n.Isddd)
+-		} else if n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME { // methods called as functions
+-			if n.Left.Sym.Def != nil {
+-				n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
+-			}
++		} else if n.isMethodCalledAsFunction() && n.Left.Sym.Def != nil {
++			n = mkinlcall(n, n.Left.Sym.Def, n.Isddd)
+ 		}
+ 
+ 	case OCALLMETH:
+@@ -1004,3 +1002,7 @@ func setlno(n *Node, lno int32) {
+ 	setlnolist(n.Ninit, lno)
+ 	setlnolist(n.Nbody, lno)
+ }
++
++func (n *Node) isMethodCalledAsFunction() bool {
++	return n.Left.Op == ONAME && n.Left.Left != nil && n.Left.Left.Op == OTYPE && n.Left.Right != nil && n.Left.Right.Op == ONAME
++}

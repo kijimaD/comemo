@@ -12,7 +12,147 @@ Date:   Fri Sep 3 09:56:23 2021 -0700
     Run-TryBot: Roland Shoemaker <roland@golang.org>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Reviewed-by: Filippo Valsorda <filippo@golang.org>
-
+---
  src/crypto/x509/parser.go      |  13 ++++--
  src/crypto/x509/parser_test.go | 102 +++++++++++++++++++++++++++++++++++++++++
  2 files changed, 112 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 5e6bd54368..a32a973c68 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -51,9 +51,9 @@ func isPrintable(b byte) bool {
+ }
+ 
+ // parseASN1String parses the ASN.1 string types T61String, PrintableString,
+-// UTF8String, BMPString, and IA5String. This is mostly copied from the
+-// respective encoding/asn1.parse... methods, rather than just increasing
+-// the API surface of that package.
++// UTF8String, BMPString, IA5String, and NumericString. This is mostly copied
++// from the respective encoding/asn1.parse... methods, rather than just
++// increasing the API surface of that package.
+ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
+ 	switch tag {
+ 	case cryptobyte_asn1.T61String:
+@@ -93,6 +93,13 @@ func parseASN1String(tag cryptobyte_asn1.Tag, value []byte) (string, error) {
+ 			return "", errors.New("invalid IA5String")
+ 		}
+ 		return s, nil
++	case cryptobyte_asn1.Tag(asn1.TagNumericString):
++		for _, b := range value {
++			if !('0' <= b && b <= '9' || b == ' ') {
++				return "", errors.New("invalid NumericString")
++			}
++		}
++		return string(value), nil
+ 	}
+ 	return "", fmt.Errorf("unsupported string type: %v", tag)
+ }
+diff --git a/src/crypto/x509/parser_test.go b/src/crypto/x509/parser_test.go
+new file mode 100644
+index 0000000000..d7cf7ea758
+--- /dev/null
++++ b/src/crypto/x509/parser_test.go
+@@ -0,0 +1,102 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package x509
++
++import (
++	"encoding/asn1"
++	"testing"
++
++	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
++)
++
++func TestParseASN1String(t *testing.T) {
++	tests := []struct {
++		name        string
++		tag         cryptobyte_asn1.Tag
++		value       []byte
++		expected    string
++		expectedErr string
++	}{
++		{
++			name:     "T61String",
++			tag:      cryptobyte_asn1.T61String,
++			value:    []byte{80, 81, 82},
++			expected: string("PQR"),
++		},
++		{
++			name:     "PrintableString",
++			tag:      cryptobyte_asn1.PrintableString,
++			value:    []byte{80, 81, 82},
++			expected: string("PQR"),
++		},
++		{
++			name:        "PrintableString (invalid)",
++			tag:         cryptobyte_asn1.PrintableString,
++			value:       []byte{1, 2, 3},
++			expectedErr: "invalid PrintableString",
++		},
++		{
++			name:     "UTF8String",
++			tag:      cryptobyte_asn1.UTF8String,
++			value:    []byte{80, 81, 82},
++			expected: string("PQR"),
++		},
++		{
++			name:        "UTF8String (invalid)",
++			tag:         cryptobyte_asn1.UTF8String,
++			value:       []byte{255},
++			expectedErr: "invalid UTF-8 string",
++		},
++		{
++			name:     "BMPString",
++			tag:      cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:    []byte{80, 81},
++			expected: string("偑"),
++		},
++		{
++			name:        "BMPString (invalid length)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagBMPString),
++			value:       []byte{255},
++			expectedErr: "invalid BMPString",
++		},
++		{
++			name:     "IA5String",
++			tag:      cryptobyte_asn1.IA5String,
++			value:    []byte{80, 81},
++			expected: string("PQ"),
++		},
++		{
++			name:        "IA5String (invalid)",
++			tag:         cryptobyte_asn1.IA5String,
++			value:       []byte{255},
++			expectedErr: "invalid IA5String",
++		},
++		{
++			name:     "NumericString",
++			tag:      cryptobyte_asn1.Tag(asn1.TagNumericString),
++			value:    []byte{49, 50},
++			expected: string("12"),
++		},
++		{
++			name:        "NumericString (invalid)",
++			tag:         cryptobyte_asn1.Tag(asn1.TagNumericString),
++			value:       []byte{80},
++			expectedErr: "invalid NumericString",
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			out, err := parseASN1String(tc.tag, tc.value)
++			if err != nil && err.Error() != tc.expectedErr {
++				t.Fatalf("parseASN1String returned unexpected error: got %q, want %q", err, tc.expectedErr)
++			} else if err == nil && tc.expectedErr != "" {
++				t.Fatalf("parseASN1String didn't fail, expected: %s", tc.expectedErr)
++			}
++			if out != tc.expected {
++				t.Fatalf("parseASN1String returned unexpected value: got %q, want %q", out, tc.expected)
++			}
++		})
++	}
++}

@@ -20,6 +20,38 @@ Date:   Sun Jul 12 16:57:01 2020 -0400
     Run-TryBot: Robert Findley <rfindley@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Robert Griesemer <gri@golang.org>
-
+---
  src/go/types/assignments.go | 13 +++++++++++--
  1 file changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 34a9d7843d..9697e504cd 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -7,6 +7,7 @@
+ package types
+ 
+ import (
++	"errors"
+ 	"go/ast"
+ 	"go/token"
+ )
+@@ -43,8 +44,16 @@ func (check *Checker) assignment(x *operand, T Type, context string) {
+ 			}
+ 			target = Default(x.typ)
+ 		}
+-		check.convertUntyped(x, target)
+-		if x.mode == invalid {
++		if err := check.canConvertUntyped(x, target); err != nil {
++			var internalErr Error
++			var msg string
++			if errors.As(err, &internalErr) {
++				msg = internalErr.Msg
++			} else {
++				msg = err.Error()
++			}
++			check.errorf(x.pos(), "cannot use %s as %s value in %s: %v", x, target, context, msg)
++			x.mode = invalid
+ 			return
+ 		}
+ 	}

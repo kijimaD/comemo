@@ -9,6 +9,25 @@ Date:   Mon Jun 24 19:04:15 2019 -0400
     Run-TryBot: Jay Conrod <jayconrod@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Bryan C. Mills <bcmills@google.com>
-
+---
  doc/go1.13.html | 7 +++++++
  1 file changed, 7 insertions(+)
+
+diff --git a/doc/go1.13.html b/doc/go1.13.html
+index a1584f99da..f9a6c5b710 100644
+--- a/doc/go1.13.html
++++ b/doc/go1.13.html
+@@ -366,6 +366,13 @@ go env -w GOSUMDB=off
+   files may be searched for directives but ignored during build.
+ </p>
+ 
++<p id="binary-only"><!-- CL 165746 -->
++  As <a href="/doc/go1.12#binary-only">announced</a> in the Go 1.12 release
++  notes, binary-only packages are no longer supported. Building a binary-only
++  package (marked with a <code>//go:binary-only-package</code> comment) now
++  results in an error.
++</p>
++
+ <h3 id="compiler">Compiler toolchain</h3>
+ 
+ <p><!-- CL 170448 -->

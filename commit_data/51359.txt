@@ -40,7 +40,7 @@ Date:   Thu Jan 6 16:51:10 2022 -0800
     Trust: Dan Scales <danscales@google.com>
     Run-TryBot: Dan Scales <danscales@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/stencil.go          |  80 +++++----
  src/cmd/compile/internal/reflectdata/reflect.go    |   3 +-
  src/cmd/compile/internal/typecheck/crawler.go      |   2 +-
@@ -52,3 +52,730 @@ Date:   Thu Jan 6 16:51:10 2022 -0800
  test/typeparam/issue50417.go                       |  86 +++++++++-
  test/typeparam/issue50417b.go                      |  50 ++++++
  10 files changed, 512 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/stencil.go b/src/cmd/compile/internal/noder/stencil.go
+index e5f59d0286..66c73a9427 100644
+--- a/src/cmd/compile/internal/noder/stencil.go
++++ b/src/cmd/compile/internal/noder/stencil.go
+@@ -634,17 +634,38 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
+ 		checkFetchBody(nameNode)
+ 	}
+ 
++	var tparams []*types.Type
++	if isMeth {
++		// Get the type params from the method receiver (after skipping
++		// over any pointer)
++		recvType := nameNode.Type().Recv().Type
++		recvType = deref(recvType)
++		tparams = recvType.RParams()
++	} else {
++		fields := nameNode.Type().TParams().Fields().Slice()
++		tparams = make([]*types.Type, len(fields))
++		for i, f := range fields {
++			tparams[i] = f.Type
++		}
++	}
++
+ 	// Convert any non-shape type arguments to their shape, so we can reduce the
+ 	// number of instantiations we have to generate. You can actually have a mix
+ 	// of shape and non-shape arguments, because of inferred or explicitly
+ 	// specified concrete type args.
+ 	s1 := make([]*types.Type, len(shapes))
+ 	for i, t := range shapes {
++		var tparam *types.Type
++		if tparams[i].Kind() == types.TTYPEPARAM {
++			// Shapes are grouped differently for structural types, so we
++			// pass the type param to Shapify(), so we can distinguish.
++			tparam = tparams[i]
++		}
+ 		if !t.IsShape() {
+-			s1[i] = typecheck.Shapify(t, i)
++			s1[i] = typecheck.Shapify(t, i, tparam)
+ 		} else {
+ 			// Already a shape, but make sure it has the correct index.
+-			s1[i] = typecheck.Shapify(shapes[i].Underlying(), i)
++			s1[i] = typecheck.Shapify(shapes[i].Underlying(), i, tparam)
+ 		}
+ 	}
+ 	shapes = s1
+@@ -675,7 +696,7 @@ func (g *genInst) getInstantiation(nameNode *ir.Name, shapes []*types.Type, isMe
+ 		}
+ 
+ 		// genericSubst fills in info.dictParam and info.shapeToBound.
+-		st := g.genericSubst(sym, nameNode, shapes, isMeth, info)
++		st := g.genericSubst(sym, nameNode, tparams, shapes, isMeth, info)
+ 		info.fun = st
+ 		g.instInfoMap[sym] = info
+ 
+@@ -713,21 +734,7 @@ type subster struct {
+ // function type where the receiver becomes the first parameter. For either a generic
+ // method or function, a dictionary parameter is the added as the very first
+ // parameter. genericSubst fills in info.dictParam and info.shapeToBound.
+-func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+-	var tparams []*types.Type
+-	if isMethod {
+-		// Get the type params from the method receiver (after skipping
+-		// over any pointer)
+-		recvType := nameNode.Type().Recv().Type
+-		recvType = deref(recvType)
+-		tparams = recvType.RParams()
+-	} else {
+-		fields := nameNode.Type().TParams().Fields().Slice()
+-		tparams = make([]*types.Type, len(fields))
+-		for i, f := range fields {
+-			tparams[i] = f.Type
+-		}
+-	}
++func (g *genInst) genericSubst(newsym *types.Sym, nameNode *ir.Name, tparams []*types.Type, shapes []*types.Type, isMethod bool, info *instInfo) *ir.Func {
+ 	gf := nameNode.Func
+ 	// Pos of the instantiated function is same as the generic function
+ 	newf := ir.NewFunc(gf.Pos())
+@@ -1208,31 +1215,40 @@ func (g *genInst) dictPass(info *instInfo) {
+ 			ir.CurFunc = info.fun
+ 
+ 		case ir.OXDOT:
++			// This is the case of a dot access on a type param. This is
++			// typically a bound call on the type param, but could be a
++			// field access, if the constraint has a single structural type.
+ 			mse := m.(*ir.SelectorExpr)
+ 			src := mse.X.Type()
+ 			assert(src.IsShape())
+ 
+-			// The only dot on a shape type value are methods.
+ 			if mse.X.Op() == ir.OTYPE {
+ 				// Method expression T.M
+ 				m = g.buildClosure2(info, m)
+ 				// No need for transformDot - buildClosure2 has already
+ 				// transformed to OCALLINTER/ODOTINTER.
+ 			} else {
+-				// Implement x.M as a conversion-to-bound-interface
+-				//  1) convert x to the bound interface
+-				//  2) call M on that interface
+ 				dst := info.dictInfo.shapeToBound[m.(*ir.SelectorExpr).X.Type()]
+-				if src.IsInterface() {
+-					// If type arg is an interface (unusual case),
+-					// we do a type assert to the type bound.
+-					mse.X = assertToBound(info, info.dictParam, m.Pos(), mse.X, dst)
+-				} else {
+-					mse.X = convertUsingDictionary(info, info.dictParam, m.Pos(), mse.X, m, dst, true)
+-					// Note: we set nonEscaping==true, because we can assume the backing store for the
+-					// interface conversion doesn't escape. The method call will immediately go to
+-					// a wrapper function which copies all the data out of the interface value.
+-					// (It only matters for non-pointer-shaped interface conversions. See issue 50182.)
++				// If we can't find the selected method in the
++				// AllMethods of the bound, then this must be an access
++				// to a field of a structural type. If so, we skip the
++				// dictionary lookups - transformDot() will convert to
++				// the desired direct field access.
++				if typecheck.Lookdot1(mse, mse.Sel, dst, dst.AllMethods(), 1) != nil {
++					// Implement x.M as a conversion-to-bound-interface
++					//  1) convert x to the bound interface
++					//  2) call M on that interface
++					if src.IsInterface() {
++						// If type arg is an interface (unusual case),
++						// we do a type assert to the type bound.
++						mse.X = assertToBound(info, info.dictParam, m.Pos(), mse.X, dst)
++					} else {
++						mse.X = convertUsingDictionary(info, info.dictParam, m.Pos(), mse.X, m, dst, true)
++						// Note: we set nonEscaping==true, because we can assume the backing store for the
++						// interface conversion doesn't escape. The method call will immediately go to
++						// a wrapper function which copies all the data out of the interface value.
++						// (It only matters for non-pointer-shaped interface conversions. See issue 50182.)
++					}
+ 				}
+ 				transformDot(mse, false)
+ 			}
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index eb1d7b0e07..42ea7bac46 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -1921,8 +1921,9 @@ func methodWrapper(rcvr *types.Type, method *types.Field, forItab bool) *obj.LSy
+ 
+ 			// Target method uses shaped names.
+ 			targs2 := make([]*types.Type, len(targs))
++			origRParams := deref(orig).OrigSym().Def.(*ir.Name).Type().RParams()
+ 			for i, t := range targs {
+-				targs2[i] = typecheck.Shapify(t, i)
++				targs2[i] = typecheck.Shapify(t, i, origRParams[i])
+ 			}
+ 			targs = targs2
+ 
+diff --git a/src/cmd/compile/internal/typecheck/crawler.go b/src/cmd/compile/internal/typecheck/crawler.go
+index a25c741488..4394c6e698 100644
+--- a/src/cmd/compile/internal/typecheck/crawler.go
++++ b/src/cmd/compile/internal/typecheck/crawler.go
+@@ -232,7 +232,7 @@ func (p *crawler) checkForFullyInst(t *types.Type) {
+ 		baseType := t.OrigSym().Def.(*ir.Name).Type()
+ 		shapes := make([]*types.Type, len(t.RParams()))
+ 		for i, t1 := range t.RParams() {
+-			shapes[i] = Shapify(t1, i)
++			shapes[i] = Shapify(t1, i, baseType.RParams()[i])
+ 		}
+ 		for j := range t.Methods().Slice() {
+ 			baseNname := baseType.Methods().Slice()[j].Nname.(*ir.Name)
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index 04a4ed392f..9f6966233d 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -1430,11 +1430,15 @@ func genericTypeName(sym *types.Sym) string {
+ // For now, we only consider two types to have the same shape, if they have exactly
+ // the same underlying type or they are both pointer types.
+ //
++//  tparam is the associated typeparam. If there is a structural type for
++//  the associated type param (not common), then a pointer type t is mapped to its
++//  underlying type, rather than being merged with other pointers.
++//
+ //  Shape types are also distinguished by the index of the type in a type param/arg
+ //  list. We need to do this so we can distinguish and substitute properly for two
+ //  type params in the same function that have the same shape for a particular
+ //  instantiation.
+-func Shapify(t *types.Type, index int) *types.Type {
++func Shapify(t *types.Type, index int, tparam *types.Type) *types.Type {
+ 	assert(!t.IsShape())
+ 	// Map all types with the same underlying type to the same shape.
+ 	u := t.Underlying()
+@@ -1443,7 +1447,8 @@ func Shapify(t *types.Type, index int) *types.Type {
+ 	// TODO: Make unsafe.Pointer the same shape as normal pointers.
+ 	// Note: pointers to arrays are special because of slice-to-array-pointer
+ 	// conversions. See issue 49295.
+-	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY {
++	if u.Kind() == types.TPTR && u.Elem().Kind() != types.TARRAY &&
++		tparam.Bound().StructuralType() == nil {
+ 		u = types.Types[types.TUINT8].PtrTo()
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types/structuraltype.go b/src/cmd/compile/internal/types/structuraltype.go
+new file mode 100644
+index 0000000000..2d49e77aae
+--- /dev/null
++++ b/src/cmd/compile/internal/types/structuraltype.go
+@@ -0,0 +1,187 @@
++package types
++
++// Implementation of structural type computation for types.
++
++// TODO: we would like to depend only on the types2 computation of structural type,
++// but we can only do that the next time we change the export format and export
++// structural type info along with each constraint type, since the compiler imports
++// types directly into types1 format.
++
++// A term describes elementary type sets:
++//
++// term{false, T}  set of type T
++// term{true, T}   set of types with underlying type t
++// term{}          empty set (we specifically check for typ == nil)
++type term struct {
++	tilde bool
++	typ   *Type
++}
++
++// StructuralType returns the structural type of an interface, or nil if it has no
++// structural type.
++func (t *Type) StructuralType() *Type {
++	sts, _ := specificTypes(t)
++	var su *Type
++	for _, st := range sts {
++		u := st.typ.Underlying()
++		if su != nil {
++			u = match(su, u)
++			if u == nil {
++				return nil
++			}
++		}
++		// su == nil || match(su, u) != nil
++		su = u
++	}
++	return su
++}
++
++// If x and y are identical, match returns x.
++// If x and y are identical channels but for their direction
++// and one of them is unrestricted, match returns the channel
++// with the restricted direction.
++// In all other cases, match returns nil.
++// x and y are assumed to be underlying types, hence are not named types.
++func match(x, y *Type) *Type {
++	if IdenticalStrict(x, y) {
++		return x
++	}
++
++	if x.IsChan() && y.IsChan() && IdenticalStrict(x.Elem(), y.Elem()) {
++		// We have channels that differ in direction only.
++		// If there's an unrestricted channel, select the restricted one.
++		// If both have the same direction, return x (either is fine).
++		switch {
++		case x.ChanDir().CanSend() && x.ChanDir().CanRecv():
++			return y
++		case y.ChanDir().CanSend() && y.ChanDir().CanRecv():
++			return x
++		}
++	}
++	return nil
++}
++
++// specificTypes returns the list of specific types of an interface type or nil if
++// there are none. It also returns a flag that indicates, for an empty term list
++// result, whether it represents the empty set, or the infinite set of all types (in
++// both cases, there are no specific types).
++func specificTypes(t *Type) (list []term, inf bool) {
++	t.wantEtype(TINTER)
++
++	// We have infinite term list before processing any type elements
++	// (or if there are no type elements).
++	inf = true
++	for _, m := range t.Methods().Slice() {
++		var r2 []term
++		inf2 := false
++
++		switch {
++		case m.IsMethod():
++			inf2 = true
++
++		case m.Type.IsUnion():
++			nt := m.Type.NumTerms()
++			for i := 0; i < nt; i++ {
++				t, tilde := m.Type.Term(i)
++				if t.IsInterface() {
++					r3, r3inf := specificTypes(t)
++					if r3inf {
++						// Union with an infinite set of types is
++						// infinite, so skip remaining terms.
++						r2 = nil
++						inf2 = true
++						break
++					}
++					// Add the elements of r3 to r2.
++					for _, r3e := range r3 {
++						r2 = insertType(r2, r3e)
++					}
++				} else {
++					r2 = insertType(r2, term{tilde, t})
++				}
++			}
++
++		case m.Type.IsInterface():
++			r2, inf2 = specificTypes(m.Type)
++
++		default:
++			// m.Type is a single non-interface type, so r2 is just a
++			// one-element list, inf2 is false.
++			r2 = []term{term{false, m.Type}}
++		}
++
++		if inf2 {
++			// If the current type element has infinite types,
++			// its intersection with r is just r, so skip this type element.
++			continue
++		}
++
++		if inf {
++			// If r is infinite, then the intersection of r and r2 is just r2.
++			list = r2
++			inf = false
++			continue
++		}
++
++		// r and r2 are finite, so intersect r and r2.
++		var r3 []term
++		for _, re := range list {
++			for _, r2e := range r2 {
++				if tm := intersect(re, r2e); tm.typ != nil {
++					r3 = append(r3, tm)
++				}
++			}
++		}
++		list = r3
++	}
++	return
++}
++
++// insertType adds t to the returned list if it is not already in list.
++func insertType(list []term, tm term) []term {
++	for i, elt := range list {
++		if new := union(elt, tm); new.typ != nil {
++			// Replace existing elt with the union of elt and new.
++			list[i] = new
++			return list
++		}
++	}
++	return append(list, tm)
++}
++
++// If x and y are disjoint, return term with nil typ (which means the union should
++// include both types). If x and y are not disjoint, return the single type which is
++// the union of x and y.
++func union(x, y term) term {
++	if disjoint(x, y) {
++		return term{false, nil}
++	}
++	if x.tilde || !y.tilde {
++		return x
++	}
++	return y
++}
++
++// intersect returns the intersection x ∩ y.
++func intersect(x, y term) term {
++	if disjoint(x, y) {
++		return term{false, nil}
++	}
++	if !x.tilde || y.tilde {
++		return x
++	}
++	return y
++}
++
++// disjoint reports whether x ∩ y == ∅.
++func disjoint(x, y term) bool {
++	ux := x.typ
++	if y.tilde {
++		ux = ux.Underlying()
++	}
++	uy := y.typ
++	if x.tilde {
++		uy = uy.Underlying()
++	}
++	return !IdenticalStrict(ux, uy)
++}
+diff --git a/src/cmd/compile/internal/types/structuraltype_test.go b/src/cmd/compile/internal/types/structuraltype_test.go
+new file mode 100644
+index 0000000000..fc34458338
+--- /dev/null
++++ b/src/cmd/compile/internal/types/structuraltype_test.go
+@@ -0,0 +1,135 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that StructuralType() calculates the correct value of structural type for
++// unusual cases.
++
++package types
++
++import (
++	"cmd/internal/src"
++	"testing"
++)
++
++type test struct {
++	typ            *Type
++	structuralType *Type
++}
++
++func TestStructuralType(t *testing.T) {
++	// These are the few constants that need to be initialized in order to use
++	// the types package without using the typecheck package by calling
++	// typecheck.InitUniverse() (the normal way to initialize the types package).
++	PtrSize = 8
++	RegSize = 8
++	MaxWidth = 1 << 50
++
++	// type intType = int
++	intType := newType(TINT)
++	// type structf = struct { f int }
++	structf := NewStruct(nil, []*Field{
++		NewField(src.NoXPos, LocalPkg.Lookup("f"), intType),
++	})
++
++	// type Sf structf
++	Sf := newType(TFORW)
++	Sf.sym = LocalPkg.Lookup("Sf")
++	Sf.SetUnderlying(structf)
++
++	// type A int
++	A := newType(TFORW)
++	A.sym = LocalPkg.Lookup("A")
++	A.SetUnderlying(intType)
++
++	// type B int
++	B := newType(TFORW)
++	B.sym = LocalPkg.Lookup("B")
++	B.SetUnderlying(intType)
++
++	emptyInterface := NewInterface(BuiltinPkg, []*Field{}, false)
++	any := newType(TFORW)
++	any.sym = LocalPkg.Lookup("any")
++	any.SetUnderlying(emptyInterface)
++
++	// The tests marked NONE have no structural type; all the others have a
++	// structural type of structf - "struct { f int }"
++	tests := []*test{
++		{
++			// interface { struct { f int } }
++			embed(structf),
++			structf,
++		},
++		{
++			// interface { struct { f int }; any }
++			embed(structf, any),
++			structf,
++		},
++		{
++			// interface { Sf }
++			embed(Sf),
++			structf,
++		},
++		{
++			// interface { any | Sf }
++			embed(any, Sf),
++			structf,
++		},
++		{
++			// interface { struct { f int }; Sf } - NONE
++			embed(structf, Sf),
++			nil,
++		},
++		{
++			// interface { struct { f int } | ~struct { f int } }
++			embed(NewUnion([]*Type{structf, structf}, []bool{false, true})),
++			structf,
++		},
++		{
++			// interface { ~struct { f int } ; Sf }
++			embed(NewUnion([]*Type{structf}, []bool{true}), Sf),
++			structf,
++		},
++		{
++			// interface { struct { f int } ; Sf } - NONE
++			embed(NewUnion([]*Type{structf}, []bool{false}), Sf),
++			nil,
++		},
++		{
++			// interface { Sf | A; B | Sf}
++			embed(NewUnion([]*Type{Sf, A}, []bool{false, false}),
++				NewUnion([]*Type{B, Sf}, []bool{false, false})),
++			structf,
++		},
++		{
++			// interface { Sf | A; A | Sf } - NONE
++			embed(NewUnion([]*Type{Sf, A}, []bool{false, false}),
++				NewUnion([]*Type{A, Sf}, []bool{false, false})),
++			nil,
++		},
++		{
++			// interface { Sf | any } - NONE
++			embed(NewUnion([]*Type{Sf, any}, []bool{false, false})),
++			nil,
++		},
++		{
++			// interface { Sf | any; Sf }
++			embed(NewUnion([]*Type{Sf, any}, []bool{false, false}), Sf),
++			structf,
++		},
++	}
++	for _, tst := range tests {
++		if got, want := tst.typ.StructuralType(), tst.structuralType; got != want {
++			t.Errorf("StructuralType(%v) = %v, wanted %v",
++				tst.typ, got, want)
++		}
++	}
++}
++
++func embed(types ...*Type) *Type {
++	fields := make([]*Field, len(types))
++	for i, t := range types {
++		fields[i] = NewField(src.NoXPos, nil, t)
++	}
++	return NewInterface(LocalPkg, fields, false)
++}
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 15a7b176bb..c9c5946d9f 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -169,8 +169,9 @@ func TestImportTypeparamTests(t *testing.T) {
+ 	}
+ 
+ 	skip := map[string]string{
+-		"equal.go":  "inconsistent embedded sorting", // TODO(rfindley): investigate this.
+-		"nested.go": "fails to compile",              // TODO(rfindley): investigate this.
++		"equal.go":      "inconsistent embedded sorting", // TODO(rfindley): investigate this.
++		"nested.go":     "fails to compile",              // TODO(rfindley): investigate this.
++		"issue50417.go": "inconsistent interface member sorting",
+ 	}
+ 
+ 	for _, entry := range list {
+diff --git a/test/run.go b/test/run.go
+index 75073993b8..2a7f080f9d 100644
+--- a/test/run.go
++++ b/test/run.go
+@@ -2178,6 +2178,7 @@ var unifiedFailures = setOf(
+ 	"typeparam/typeswitch2.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch3.go", // duplicate case failure due to stenciling
+ 	"typeparam/typeswitch4.go", // duplicate case failure due to stenciling
++	"typeparam/issue50417b.go", // Need to handle field access on a type param
+ 	"typeparam/issue50552.go",  // gives missing method for instantiated type
+ )
+ 
+diff --git a/test/typeparam/issue50417.go b/test/typeparam/issue50417.go
+index f6cf73b18f..cd46f3feab 100644
+--- a/test/typeparam/issue50417.go
++++ b/test/typeparam/issue50417.go
+@@ -22,12 +22,11 @@ func f0t[P ~struct{ f int }](p P) {
+ 	p.f = 0
+ }
+ 
+-// TODO(danscales) enable once the compiler is fixed
+-// var _ = f0[Sf]
+-// var _ = f0t[Sf]
++var _ = f0[Sf]
++var _ = f0t[Sf]
+ 
+ func f1[P interface {
+-	Sf
++	~struct{ f int }
+ 	m()
+ }](p P) {
+ 	_ = p.f
+@@ -35,6 +34,8 @@ func f1[P interface {
+ 	p.m()
+ }
+ 
++var _ = f1[Sfm]
++
+ type Sm struct{}
+ 
+ func (Sm) m() {}
+@@ -54,8 +55,7 @@ func f2[P interface {
+ 	p.m()
+ }
+ 
+-// TODO(danscales) enable once the compiler is fixed
+-// var _ = f2[Sfm]
++var _ = f2[Sfm]
+ 
+ // special case: structural type is a named pointer type
+ 
+@@ -66,5 +66,75 @@ func f3[P interface{ PSfm }](p P) {
+ 	p.f = 0
+ }
+ 
+-// TODO(danscales) enable once the compiler is fixed
+-// var _ = f3[PSfm]
++var _ = f3[PSfm]
++
++// special case: structural type is an unnamed pointer type
++
++func f4[P interface{ *Sfm }](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++var _ = f4[*Sfm]
++
++type A int
++type B int
++type C float64
++
++type Int interface {
++	*Sf | A
++	*Sf | B
++}
++
++func f5[P Int](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++var _ = f5[*Sf]
++
++type Int2 interface {
++	*Sf | A
++	any
++	*Sf | C
++}
++
++func f6[P Int2](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++var _ = f6[*Sf]
++
++type Int3 interface {
++	Sf
++	~struct{ f int }
++}
++
++func f7[P Int3](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++var _ = f7[Sf]
++
++type Em1 interface {
++	*Sf | A
++}
++
++type Em2 interface {
++	*Sf | B
++}
++
++type Int4 interface {
++	Em1
++	Em2
++	any
++}
++
++func f8[P Int4](p P) {
++	_ = p.f
++	p.f = 0
++}
++
++var _ = f8[*Sf]
+diff --git a/test/typeparam/issue50417b.go b/test/typeparam/issue50417b.go
+new file mode 100644
+index 0000000000..e6b205cb37
+--- /dev/null
++++ b/test/typeparam/issue50417b.go
+@@ -0,0 +1,50 @@
++// run -gcflags=-G=3
++
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "fmt"
++
++type MyStruct struct {
++	b1, b2 string
++	E
++}
++
++type E struct {
++	val int
++}
++
++type C interface {
++	~struct {
++		b1, b2 string
++		E
++	}
++}
++
++func f[T C]() T {
++	var x T = T{
++		b1: "a",
++		b2: "b",
++	}
++
++	if got, want := x.b2, "b"; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	x.b1 = "y"
++	x.val = 5
++
++	return x
++}
++
++func main() {
++	x := f[MyStruct]()
++	if got, want := x.b1, "y"; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++	if got, want := x.val, 5; got != want {
++		panic(fmt.Sprintf("got %d, want %d", got, want))
++	}
++}

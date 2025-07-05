@@ -16,7 +16,7 @@ Date:   Fri Jan 15 00:04:10 2021 +0100
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Austin Clements <austin@google.com>
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  api/go1.16.txt                                   |  2 --
  src/crypto/rand/rand_windows.go                  |  4 ++--
  src/internal/syscall/windows/syscall_windows.go  |  2 ++
@@ -24,3 +24,122 @@ Date:   Fri Jan 15 00:04:10 2021 +0100
  src/syscall/syscall_windows.go                   |  1 -
  src/syscall/zsyscall_windows.go                  |  9 ---------
  6 files changed, 17 insertions(+), 14 deletions(-)
+
+diff --git a/api/go1.16.txt b/api/go1.16.txt
+index a4a034be06..6e1f8ca91d 100644
+--- a/api/go1.16.txt
++++ b/api/go1.16.txt
+@@ -430,10 +430,8 @@ pkg syscall (linux-arm-cgo), func AllThreadsSyscall(uintptr, uintptr, uintptr, u
+ pkg syscall (linux-arm-cgo), func AllThreadsSyscall6(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (uintptr, uintptr, Errno)
+ pkg syscall (linux-arm-cgo), func Setegid(int) error
+ pkg syscall (linux-arm-cgo), func Seteuid(int) error
+-pkg syscall (windows-386), func RtlGenRandom(*uint8, uint32) error
+ pkg syscall (windows-386), method (*DLLError) Unwrap() error
+ pkg syscall (windows-386), type SysProcAttr struct, NoInheritHandles bool
+-pkg syscall (windows-amd64), func RtlGenRandom(*uint8, uint32) error
+ pkg syscall (windows-amd64), method (*DLLError) Unwrap() error
+ pkg syscall (windows-amd64), type SysProcAttr struct, NoInheritHandles bool
+ pkg testing/fstest, func TestFS(fs.FS, ...string) error
+diff --git a/src/crypto/rand/rand_windows.go b/src/crypto/rand/rand_windows.go
+index 8b2c960906..7379f1489a 100644
+--- a/src/crypto/rand/rand_windows.go
++++ b/src/crypto/rand/rand_windows.go
+@@ -8,8 +8,8 @@
+ package rand
+ 
+ import (
++	"internal/syscall/windows"
+ 	"os"
+-	"syscall"
+ )
+ 
+ func init() { Reader = &rngReader{} }
+@@ -24,7 +24,7 @@ func (r *rngReader) Read(b []byte) (n int, err error) {
+ 		return 0, nil
+ 	}
+ 
+-	err = syscall.RtlGenRandom(&b[0], inputLen)
++	err = windows.RtlGenRandom(b)
+ 	if err != nil {
+ 		return 0, os.NewSyscallError("RtlGenRandom", err)
+ 	}
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 1f40c11820..f8965d0bab 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -342,3 +342,5 @@ func LoadGetFinalPathNameByHandle() error {
+ 
+ //sys	CreateEnvironmentBlock(block **uint16, token syscall.Token, inheritExisting bool) (err error) = userenv.CreateEnvironmentBlock
+ //sys	DestroyEnvironmentBlock(block *uint16) (err error) = userenv.DestroyEnvironmentBlock
++
++//sys	RtlGenRandom(buf []byte) (err error) = advapi32.SystemFunction036
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 170b239486..aaad4a5b94 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -52,6 +52,7 @@ var (
+ 	procOpenThreadToken              = modadvapi32.NewProc("OpenThreadToken")
+ 	procRevertToSelf                 = modadvapi32.NewProc("RevertToSelf")
+ 	procSetTokenInformation          = modadvapi32.NewProc("SetTokenInformation")
++	procSystemFunction036            = modadvapi32.NewProc("SystemFunction036")
+ 	procGetAdaptersAddresses         = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procGetACP                       = modkernel32.NewProc("GetACP")
+ 	procGetComputerNameExW           = modkernel32.NewProc("GetComputerNameExW")
+@@ -140,6 +141,18 @@ func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32
+ 	return
+ }
+ 
++func RtlGenRandom(buf []byte) (err error) {
++	var _p0 *byte
++	if len(buf) > 0 {
++		_p0 = &buf[0]
++	}
++	r1, _, e1 := syscall.Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(_p0)), uintptr(len(buf)), 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+ 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
+ 	if r0 != 0 {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index c1a12ccba3..ba69133d81 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -234,7 +234,6 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	CryptAcquireContext(provhandle *Handle, container *uint16, provider *uint16, provtype uint32, flags uint32) (err error) = advapi32.CryptAcquireContextW
+ //sys	CryptReleaseContext(provhandle Handle, flags uint32) (err error) = advapi32.CryptReleaseContext
+ //sys	CryptGenRandom(provhandle Handle, buflen uint32, buf *byte) (err error) = advapi32.CryptGenRandom
+-//sys	RtlGenRandom(buf *uint8, bytes uint32) (err error) = advapi32.SystemFunction036
+ //sys	GetEnvironmentStrings() (envs *uint16, err error) [failretval==nil] = kernel32.GetEnvironmentStringsW
+ //sys	FreeEnvironmentStrings(envs *uint16) (err error) = kernel32.FreeEnvironmentStringsW
+ //sys	GetEnvironmentVariable(name *uint16, buffer *uint16, size uint32) (n uint32, err error) = kernel32.GetEnvironmentVariableW
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index 86c4cac2ad..2166be595b 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -65,7 +65,6 @@ var (
+ 	procRegOpenKeyExW                      = modadvapi32.NewProc("RegOpenKeyExW")
+ 	procRegQueryInfoKeyW                   = modadvapi32.NewProc("RegQueryInfoKeyW")
+ 	procRegQueryValueExW                   = modadvapi32.NewProc("RegQueryValueExW")
+-	procSystemFunction036                  = modadvapi32.NewProc("SystemFunction036")
+ 	procCertAddCertificateContextToStore   = modcrypt32.NewProc("CertAddCertificateContextToStore")
+ 	procCertCloseStore                     = modcrypt32.NewProc("CertCloseStore")
+ 	procCertCreateCertificateContext       = modcrypt32.NewProc("CertCreateCertificateContext")
+@@ -333,14 +332,6 @@ func RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32
+ 	return
+ }
+ 
+-func RtlGenRandom(buf *uint8, bytes uint32) (err error) {
+-	r1, _, e1 := Syscall(procSystemFunction036.Addr(), 2, uintptr(unsafe.Pointer(buf)), uintptr(bytes), 0)
+-	if r1 == 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+ func CertAddCertificateContextToStore(store Handle, certContext *CertContext, addDisposition uint32, storeContext **CertContext) (err error) {
+ 	r1, _, e1 := Syscall6(procCertAddCertificateContextToStore.Addr(), 4, uintptr(store), uintptr(unsafe.Pointer(certContext)), uintptr(addDisposition), uintptr(unsafe.Pointer(storeContext)), 0, 0)
+ 	if r1 == 0 {

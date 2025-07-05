@@ -22,7 +22,37 @@ Date:   Fri Oct 16 15:05:04 2020 +0100
     Run-TryBot: Daniel Martí <mvdan@mvdan.cc>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/gc/inl_test.go | 1 +
  src/compress/flate/dict_decoder.go      | 6 ++----
  2 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/inl_test.go b/src/cmd/compile/internal/gc/inl_test.go
+index 547a602ee0..afa6b98315 100644
+--- a/src/cmd/compile/internal/gc/inl_test.go
++++ b/src/cmd/compile/internal/gc/inl_test.go
+@@ -115,6 +115,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"byLiteral.Len",
+ 			"byLiteral.Less",
+ 			"byLiteral.Swap",
++			"(*dictDecoder).tryWriteCopy",
+ 		},
+ 		"encoding/base64": {
+ 			"assemble32",
+diff --git a/src/compress/flate/dict_decoder.go b/src/compress/flate/dict_decoder.go
+index 71c75a065e..3b59d48351 100644
+--- a/src/compress/flate/dict_decoder.go
++++ b/src/compress/flate/dict_decoder.go
+@@ -160,10 +160,8 @@ func (dd *dictDecoder) tryWriteCopy(dist, length int) int {
+ 	srcPos := dstPos - dist
+ 
+ 	// Copy possibly overlapping section before destination position.
+-loop:
+-	dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
+-	if dstPos < endPos {
+-		goto loop // Avoid for-loop so that this function can be inlined
++	for dstPos < endPos {
++		dstPos += copy(dd.hist[dstPos:endPos], dd.hist[srcPos:dstPos])
+ 	}
+ 
+ 	dd.wrPos = dstPos

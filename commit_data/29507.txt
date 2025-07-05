@@ -11,8 +11,106 @@ Date:   Sun Sep 18 16:51:02 2016 -0700
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/crypto/md5/example_test.go    | 17 +++++++++++++++++
  src/crypto/sha1/example_test.go   | 17 +++++++++++++++++
  src/crypto/sha256/example_test.go | 18 ++++++++++++++++++
  3 files changed, 52 insertions(+)
+
+diff --git a/src/crypto/md5/example_test.go b/src/crypto/md5/example_test.go
+index d47bb4570c..af8c1bfd65 100644
+--- a/src/crypto/md5/example_test.go
++++ b/src/crypto/md5/example_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"crypto/md5"
+ 	"fmt"
+ 	"io"
++	"log"
++	"os"
+ )
+ 
+ func ExampleNew() {
+@@ -23,3 +25,18 @@ func ExampleSum() {
+ 	fmt.Printf("%x", md5.Sum(data))
+ 	// Output: b0804ec967f48520697662a204f5fe72
+ }
++
++func ExampleNew_file() {
++	f, err := os.Open("file.txt")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer f.Close()
++
++	h := md5.New()
++	if _, err := io.Copy(h, f); err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Printf("%x", h.Sum(nil))
++}
+diff --git a/src/crypto/sha1/example_test.go b/src/crypto/sha1/example_test.go
+index 42aec8afa2..499055cc96 100644
+--- a/src/crypto/sha1/example_test.go
++++ b/src/crypto/sha1/example_test.go
+@@ -8,6 +8,8 @@ import (
+ 	"crypto/sha1"
+ 	"fmt"
+ 	"io"
++	"log"
++	"os"
+ )
+ 
+ func ExampleNew() {
+@@ -23,3 +25,18 @@ func ExampleSum() {
+ 	fmt.Printf("% x", sha1.Sum(data))
+ 	// Output: af 06 49 23 bb f2 30 15 96 aa c4 c2 73 ba 32 17 8e bc 4a 96
+ }
++
++func ExampleNew_file() {
++	f, err := os.Open("file.txt")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer f.Close()
++
++	h := sha1.New()
++	if _, err := io.Copy(h, f); err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Printf("% x", h.Sum(nil))
++}
+diff --git a/src/crypto/sha256/example_test.go b/src/crypto/sha256/example_test.go
+index 0eb70b711b..7d73120155 100644
+--- a/src/crypto/sha256/example_test.go
++++ b/src/crypto/sha256/example_test.go
+@@ -7,6 +7,9 @@ package sha256_test
+ import (
+ 	"crypto/sha256"
+ 	"fmt"
++	"io"
++	"log"
++	"os"
+ )
+ 
+ func ExampleSum256() {
+@@ -21,3 +24,18 @@ func ExampleNew() {
+ 	fmt.Printf("%x", h.Sum(nil))
+ 	// Output: a948904f2f0f479b8f8197694b30184b0d2ed1c1cd2a1ec0fb85d299a192a447
+ }
++
++func ExampleNew_file() {
++	f, err := os.Open("file.txt")
++	if err != nil {
++		log.Fatal(err)
++	}
++	defer f.Close()
++
++	h := sha256.New()
++	if _, err := io.Copy(h, f); err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Printf("%x", h.Sum(nil))
++}

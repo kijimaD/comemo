@@ -12,7 +12,7 @@ Date:   Fri May 14 16:53:06 2021 -0400
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Jay Conrod <jayconrod@google.com>
-
+---
  doc/go1.17.html                                    |   5 +
  src/cmd/go.sum                                     |  23 ++
  src/cmd/go/alldocs.go                              |  10 +-
@@ -29,3 +29,1083 @@ Date:   Fri May 14 16:53:06 2021 -0400
  src/cmd/go/testdata/script/mod_tidy_oldgo.txt      |  21 ++
  src/go.sum                                         |   7 +
  15 files changed, 749 insertions(+), 54 deletions(-)
+
+diff --git a/doc/go1.17.html b/doc/go1.17.html
+index 46ee1da6fa..6dd1d0d1db 100644
+--- a/doc/go1.17.html
++++ b/doc/go1.17.html
+@@ -106,6 +106,11 @@ Do not send CLs removing the interior tags from such phrases.
+   go mod tidy -go=1.17
+ </pre>
+ 
++<p><!-- golang.org/issue/46141 -->
++  TODO: Describe the <code>-compat</code> flag
++  for <code>go</code> <code>mod</code> <code>tidy</code>.
++</p>
++
+ <h4 id="module-deprecation-comments">Module deprecation comments</h4>
+ 
+ <p><!-- golang.org/issue/40357 -->
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 9af4978d66..eeb625fcf8 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -5,18 +5,41 @@ github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a h1:jmAp/2PZAScNd62lTD
+ github.com/google/pprof v0.0.0-20210506205249-923b5ab0fc1a/go.mod h1:kpwsk12EmLew5upagYY7GY0pfYCcupk39gWOCRROcvE=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639 h1:mV02weKRL81bEnm8A0HT1/CAelMQDBuQIfLw8n+d6xI=
+ github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
++github.com/yuin/goldmark v1.3.5/go.mod h1:mwnBkeHKe2W/ZEtQ+71ViKU8L12m81fl3OWwC1Zlc8k=
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e h1:pv3V0NlNSh5Q6AX/StwGLBjcLS7UN4m4Gq+V+uSecqM=
+ golang.org/x/arch v0.0.0-20210502124803-cbf565b21d1e/go.mod h1:5om86z9Hs0C8fWVUuoMHwpExlXzs5Tkyp9hOrfG7pp8=
++golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
++golang.org/x/crypto v0.0.0-20191011191535-87dc89f01550/go.mod h1:yigFU9vqHzYiE8UmvKecakEJjdnWj3jj499lnFckfCI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
++golang.org/x/mod v0.4.2/go.mod h1:s0Qsj1ACt9ePp/hMypM3fl4fZqREWJwdYDEqhRiZZUA=
+ golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd h1:CuRnpyMrCCBulv0d/y0CswR4K0vGydgE3DZ2wYPIOo8=
+ golang.org/x/mod v0.4.3-0.20210512182355-6088ed88cecd/go.mod h1:5OXOZSfqPIIbmVBIIKWRFfZjPR0E5r58TLhUjH0a2Ro=
++golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3/go.mod h1:t9HGtf8HONx5eT2rtn7q6eTqICYqUVnKs3thJo3Qplg=
++golang.org/x/net v0.0.0-20190620200207-3b0461eec859/go.mod h1:z5CRVTTTmAJ677TzLLGU+0bjPO0LkuOLi4/5GtJWs/s=
++golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
++golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4/go.mod h1:p54w0d4576C0XHj96bSt6lcn1PtDYWL6XObtHCRCNQM=
++golang.org/x/sync v0.0.0-20190423024810-112230192c58/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sync v0.0.0-20210220032951-036812b2e83c/go.mod h1:RxMgew5VJxzue5/jJTE5uejpjVlOe/izrB70Jof72aM=
++golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
++golang.org/x/sys v0.0.0-20190412213103-97732733099d/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20191204072324-ce4227a45e2e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210330210617-4fbd30eecc44/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210510120138-977fb7262007/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mUOKexJBNsLf4Z+6En1Q=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56 h1:b8jxX3zqjpqb2LklXPzKSGJhzyxCOZSz8ncv8Nv+y7w=
+ golang.org/x/term v0.0.0-20210503060354-a79de5458b56/go.mod h1:tfny5GFUkzUvx4ps4ajbZsCe5lw1metzhBm9T3x7oIY=
++golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
++golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
++golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
++golang.org/x/tools v0.0.0-20191119224855-298f0cb1881e/go.mod h1:b+2E5dAYhXwXZwtnZ6UAqBI28+e2cm9otk0dWdXHAEo=
+ golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9 h1:2XlR/j4I4xz5GQZI7zBjqTfezYyRIE2jD5IMousB2rg=
+ golang.org/x/tools v0.1.2-0.20210519160823-49064d2332f9/go.mod h1:o0xws9oXOQQZyjljx8fwUC0k7L1pTE6eaCbjGeHmOkk=
++golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 h1:go1bK/D/BFZV2I8cIQd1NKEZ+0owSTG1fDTci4IqFcE=
+ golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1/go.mod h1:I/5z698sn9Ka8TeJc9MKroUUfqBBauWjQqLJ2OPfmY0=
++rsc.io/pdf v0.1.1/go.mod h1:n8OzWcQ6Sp37PL01nO98y4iUCRdTGarVfzxY20ICaU4=
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index fcc7f36335..bad2b7f16e 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1221,7 +1221,7 @@
+ //
+ // Usage:
+ //
+-// 	go mod tidy [-e] [-v] [-go=version]
++// 	go mod tidy [-e] [-v] [-go=version] [-compat=version]
+ //
+ // Tidy makes sure go.mod matches the source code in the module.
+ // It adds any missing modules necessary to build the current module's
+@@ -1241,6 +1241,14 @@
+ // (Go versions 1.17 and higher retain more requirements in order to
+ // support lazy module loading.)
+ //
++// The -compat flag preserves any additional checksums needed for the
++// 'go' command from the indicated major Go release to successfully load
++// the module graph, and causes tidy to error out if that version of the
++// 'go' command would load any imported package from a different module
++// version. By default, tidy acts as if the -compat flag were set to the
++// version prior to the one indicated by the 'go' directive in the go.mod
++// file.
++//
+ // See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ //
+ //
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 9af624028a..fe25507e94 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -19,7 +19,7 @@ import (
+ )
+ 
+ var cmdTidy = &base.Command{
+-	UsageLine: "go mod tidy [-e] [-v] [-go=version]",
++	UsageLine: "go mod tidy [-e] [-v] [-go=version] [-compat=version]",
+ 	Short:     "add missing and remove unused modules",
+ 	Long: `
+ Tidy makes sure go.mod matches the source code in the module.
+@@ -40,20 +40,30 @@ are retained as explicit requirements in the go.mod file.
+ (Go versions 1.17 and higher retain more requirements in order to
+ support lazy module loading.)
+ 
++The -compat flag preserves any additional checksums needed for the
++'go' command from the indicated major Go release to successfully load
++the module graph, and causes tidy to error out if that version of the
++'go' command would load any imported package from a different module
++version. By default, tidy acts as if the -compat flag were set to the
++version prior to the one indicated by the 'go' directive in the go.mod
++file.
++
+ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ 	`,
+ 	Run: runTidy,
+ }
+ 
+ var (
+-	tidyE  bool          // if true, report errors but proceed anyway.
+-	tidyGo goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
++	tidyE      bool          // if true, report errors but proceed anyway.
++	tidyGo     goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
++	tidyCompat goVersionFlag // go version for which the tidied go.mod and go.sum files should be “compatible”
+ )
+ 
+ func init() {
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
+ 	cmdTidy.Flag.Var(&tidyGo, "go", "")
++	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+ 	base.AddModCommonFlags(&cmdTidy.Flag)
+ }
+ 
+@@ -105,6 +115,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		GoVersion:                tidyGo.String(),
+ 		Tags:                     imports.AnyTags(),
+ 		Tidy:                     true,
++		TidyCompatibleVersion:    tidyCompat.String(),
+ 		VendorModulesInGOROOTSrc: true,
+ 		ResolveMissingImports:    true,
+ 		LoadTests:                true,
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index df9f48e8ea..86c0db3fe4 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -767,11 +767,33 @@ func LatestGoVersion() string {
+ 	tags := build.Default.ReleaseTags
+ 	version := tags[len(tags)-1]
+ 	if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
+-		base.Fatalf("go: unrecognized default version %q", version)
++		base.Fatalf("go: internal error: unrecognized default version %q", version)
+ 	}
+ 	return version[2:]
+ }
+ 
++// priorGoVersion returns the Go major release immediately preceding v,
++// or v itself if v is the first Go major release (1.0) or not a supported
++// Go version.
++func priorGoVersion(v string) string {
++	vTag := "go" + v
++	tags := build.Default.ReleaseTags
++	for i, tag := range tags {
++		if tag == vTag {
++			if i == 0 {
++				return v
++			}
++
++			version := tags[i-1]
++			if !strings.HasPrefix(version, "go") || !modfile.GoVersionRE.MatchString(version[2:]) {
++				base.Fatalf("go: internal error: unrecognized version %q", version)
++			}
++			return version[2:]
++		}
++	}
++	return v
++}
++
+ var altConfigs = []string{
+ 	"Gopkg.lock",
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 37b0032d43..a9d1777125 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -152,6 +152,13 @@ type PackageOpts struct {
+ 	// packages.
+ 	Tidy bool
+ 
++	// TidyCompatibleVersion is the oldest Go version that must be able to
++	// reproducibly reload the requested packages.
++	//
++	// If empty, the compatible version is the Go version immediately prior to the
++	// 'go' version listed in the go.mod file.
++	TidyCompatibleVersion string
++
+ 	// VendorModulesInGOROOTSrc indicates that if we are within a module in
+ 	// GOROOT/src, packages in the module's vendor directory should be resolved as
+ 	// actual module dependencies (instead of standard-library packages).
+@@ -371,7 +378,26 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			}
+ 		}
+ 
+-		modfetch.TrimGoSum(keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly))
++		keep := keepSums(ctx, ld, ld.requirements, loadedZipSumsOnly)
++		if compatDepth := modDepthFromGoVersion(ld.TidyCompatibleVersion); compatDepth != ld.requirements.depth {
++			compatRS := newRequirements(compatDepth, ld.requirements.rootModules, ld.requirements.direct)
++			ld.checkTidyCompatibility(ctx, compatRS)
++
++			for m := range keepSums(ctx, ld, compatRS, loadedZipSumsOnly) {
++				keep[m] = true
++			}
++		}
++
++		if allowWriteGoMod {
++			modfetch.TrimGoSum(keep)
++
++			// commitRequirements below will also call WriteGoSum, but the "keep" map
++			// we have here could be strictly larger: commitRequirements only commits
++			// loaded.requirements, but here we may have also loaded (and want to
++			// preserve checksums for) additional entities from compatRS, which are
++			// only needed for compatibility with ld.TidyCompatibleVersion.
++			modfetch.WriteGoSum(keep)
++		}
+ 	}
+ 
+ 	// Success! Update go.mod and go.sum (if needed) and return the results.
+@@ -924,6 +950,17 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 		}
+ 	}
+ 
++	if ld.Tidy {
++		if ld.TidyCompatibleVersion == "" {
++			ld.TidyCompatibleVersion = priorGoVersion(ld.GoVersion)
++		} else if semver.Compare("v"+ld.TidyCompatibleVersion, "v"+ld.GoVersion) > 0 {
++			// Each version of the Go toolchain knows how to interpret go.mod and
++			// go.sum files produced by all previous versions, so a compatibility
++			// version higher than the go.mod version adds nothing.
++			ld.TidyCompatibleVersion = ld.GoVersion
++		}
++	}
++
+ 	if semver.Compare("v"+ld.GoVersion, narrowAllVersionV) < 0 && !ld.UseVendorAll {
+ 		// The module's go version explicitly predates the change in "all" for lazy
+ 		// loading, so continue to use the older interpretation.
+@@ -1072,7 +1109,7 @@ func loadFromRoots(ctx context.Context, params loaderParams) *loader {
+ 			// If that is not the case, there is a bug in the loading loop above.
+ 			for _, m := range rs.rootModules {
+ 				if v, ok := ld.requirements.rootSelected(m.Path); !ok || v != m.Version {
+-					ld.errorf("go: internal error: a requirement on %v is needed but was not added during package loading\n", m)
++					ld.errorf("go mod tidy: internal error: a requirement on %v is needed but was not added during package loading\n", m)
+ 					base.ExitIfErrors()
+ 				}
+ 			}
+@@ -1743,6 +1780,219 @@ func (ld *loader) checkMultiplePaths() {
+ 	}
+ }
+ 
++// checkTidyCompatibility emits an error if any package would be loaded from a
++// different module under rs than under ld.requirements.
++func (ld *loader) checkTidyCompatibility(ctx context.Context, rs *Requirements) {
++	suggestUpgrade := false
++	suggestEFlag := false
++	suggestFixes := func() {
++		if ld.AllowErrors {
++			// The user is explicitly ignoring these errors, so don't bother them with
++			// other options.
++			return
++		}
++
++		// We print directly to os.Stderr because this information is advice about
++		// how to fix errors, not actually an error itself.
++		// (The actual errors should have been logged already.)
++
++		fmt.Fprintln(os.Stderr)
++
++		goFlag := ""
++		if ld.GoVersion != modFileGoVersion() {
++			goFlag = " -go=" + ld.GoVersion
++		}
++
++		compatFlag := ""
++		if ld.TidyCompatibleVersion != priorGoVersion(ld.GoVersion) {
++			compatFlag = " -compat=" + ld.TidyCompatibleVersion
++		}
++		if suggestUpgrade {
++			eDesc := ""
++			eFlag := ""
++			if suggestEFlag {
++				eDesc = ", leaving some packages unresolved"
++				eFlag = " -e"
++			}
++			fmt.Fprintf(os.Stderr, "To upgrade to the versions selected by go %s%s:\n\tgo mod tidy%s -go=%s && go mod tidy%s -go=%s%s\n", ld.TidyCompatibleVersion, eDesc, eFlag, ld.TidyCompatibleVersion, eFlag, ld.GoVersion, compatFlag)
++		} else if suggestEFlag {
++			// If some packages are missing but no package is upgraded, then we
++			// shouldn't suggest upgrading to the Go 1.16 versions explicitly — that
++			// wouldn't actually fix anything for Go 1.16 users, and *would* break
++			// something for Go 1.17 users.
++			fmt.Fprintf(os.Stderr, "To proceed despite packages unresolved in go %s:\n\tgo mod tidy -e%s%s\n", ld.TidyCompatibleVersion, goFlag, compatFlag)
++		}
++
++		fmt.Fprintf(os.Stderr, "If reproducibility with go %s is not needed:\n\tgo mod tidy%s -compat=%s\n", ld.TidyCompatibleVersion, goFlag, ld.GoVersion)
++
++		// TODO(#46141): Populate the linked wiki page.
++		fmt.Fprintf(os.Stderr, "For other options, see:\n\thttps://golang.org/wiki/PruningModules\n")
++	}
++
++	mg, err := rs.Graph(ctx)
++	if err != nil {
++		ld.errorf("go mod tidy: error loading go %s module graph: %v\n", ld.TidyCompatibleVersion, err)
++		suggestFixes()
++		return
++	}
++
++	// Re-resolve packages in parallel.
++	//
++	// We re-resolve each package — rather than just checking versions — to ensure
++	// that we have fetched module source code (and, importantly, checksums for
++	// that source code) for all modules that are necessary to ensure that imports
++	// are unambiguous. That also produces clearer diagnostics, since we can say
++	// exactly what happened to the package if it became ambiguous or disappeared
++	// entirely.
++	//
++	// We re-resolve the packages in parallel because this process involves disk
++	// I/O to check for package sources, and because the process of checking for
++	// ambiguous imports may require us to download additional modules that are
++	// otherwise pruned out in Go 1.17 — we don't want to block progress on other
++	// packages while we wait for a single new download.
++	type mismatch struct {
++		mod module.Version
++		err error
++	}
++	mismatchMu := make(chan map[*loadPkg]mismatch, 1)
++	mismatchMu <- map[*loadPkg]mismatch{}
++	for _, pkg := range ld.pkgs {
++		if pkg.mod.Path == "" && pkg.err == nil {
++			// This package is from the standard library (which does not vary based on
++			// the module graph).
++			continue
++		}
++
++		pkg := pkg
++		ld.work.Add(func() {
++			mod, _, err := importFromModules(ctx, pkg.path, rs, mg)
++			if mod != pkg.mod {
++				mismatches := <-mismatchMu
++				mismatches[pkg] = mismatch{mod: mod, err: err}
++				mismatchMu <- mismatches
++			}
++		})
++	}
++	<-ld.work.Idle()
++
++	mismatches := <-mismatchMu
++	if len(mismatches) == 0 {
++		// Since we're running as part of 'go mod tidy', the roots of the module
++		// graph should contain only modules that are relevant to some package in
++		// the package graph. We checked every package in the package graph and
++		// didn't find any mismatches, so that must mean that all of the roots of
++		// the module graph are also consistent.
++		//
++		// If we're wrong, Go 1.16 in -mod=readonly mode will error out with
++		// "updates to go.mod needed", which would be very confusing. So instead,
++		// we'll double-check that our reasoning above actually holds — if it
++		// doesn't, we'll emit an internal error and hopefully the user will report
++		// it as a bug.
++		for _, m := range ld.requirements.rootModules {
++			if v := mg.Selected(m.Path); v != m.Version {
++				fmt.Fprintln(os.Stderr)
++				base.Fatalf("go: internal error: failed to diagnose selected-version mismatch for module %s: go %s selects %s, but go %s selects %s\n\tPlease report this at https://golang.org/issue.", m.Path, ld.GoVersion, m.Version, ld.TidyCompatibleVersion, v)
++			}
++		}
++		return
++	}
++
++	// Iterate over the packages (instead of the mismatches map) to emit errors in
++	// deterministic order.
++	for _, pkg := range ld.pkgs {
++		mismatch, ok := mismatches[pkg]
++		if !ok {
++			continue
++		}
++
++		if pkg.isTest() {
++			// We already did (or will) report an error for the package itself,
++			// so don't report a duplicate (and more vebose) error for its test.
++			if _, ok := mismatches[pkg.testOf]; !ok {
++				base.Fatalf("go: internal error: mismatch recorded for test %s, but not its non-test package", pkg.path)
++			}
++			continue
++		}
++
++		switch {
++		case mismatch.err != nil:
++			// pkg resolved successfully, but errors out using the requirements in rs.
++			//
++			// This could occur because the import is provided by a single lazy root
++			// (and is thus unambiguous in lazy mode) and also one or more
++			// transitive dependencies (and is ambiguous in eager mode).
++			//
++			// It could also occur because some transitive dependency upgrades the
++			// module that previously provided the package to a version that no
++			// longer does, or to a version for which the module source code (but
++			// not the go.mod file in isolation) has a checksum error.
++			if missing := (*ImportMissingError)(nil); errors.As(mismatch.err, &missing) {
++				selected := module.Version{
++					Path:    pkg.mod.Path,
++					Version: mg.Selected(pkg.mod.Path),
++				}
++				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it in %s\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, selected)
++			} else {
++				if ambiguous := (*AmbiguousImportError)(nil); errors.As(mismatch.err, &ambiguous) {
++					// TODO: Is this check needed?
++				}
++				ld.errorf("%s loaded from %v,\n\tbut go %s would fail to locate it:\n\t%v\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, mismatch.err)
++			}
++
++			suggestEFlag = true
++
++			// Even if we press ahead with the '-e' flag, the older version will
++			// error out in readonly mode if it thinks the go.mod file contains
++			// any *explicit* dependency that is not at its selected version,
++			// even if that dependency is not relevant to any package being loaded.
++			//
++			// We check for that condition here. If all of the roots are consistent
++			// the '-e' flag suffices, but otherwise we need to suggest an upgrade.
++			if !suggestUpgrade {
++				for _, m := range ld.requirements.rootModules {
++					if v := mg.Selected(m.Path); v != m.Version {
++						suggestUpgrade = true
++						break
++					}
++				}
++			}
++
++		case pkg.err != nil:
++			// pkg had an error in lazy mode (presumably suppressed with the -e flag),
++			// but not in eager mode.
++			//
++			// This is possible, if, say, the import is unresolved in lazy mode
++			// (because the "latest" version of each candidate module either is
++			// unavailable or does not contain the package), but is resolved in
++			// eager mode due to a newer-than-latest dependency that is normally
++			// runed out of the module graph.
++			//
++			// This could also occur if the source code for the module providing the
++			// package in lazy mode has a checksum error, but eager mode upgrades
++			// that module to a version with a correct checksum.
++			//
++			// pkg.err should have already been logged elsewhere — along with a
++			// stack trace — so log only the import path and non-error info here.
++			suggestUpgrade = true
++			ld.errorf("%s failed to load from any module,\n\tbut go %s would load it from %v\n", pkg.path, ld.TidyCompatibleVersion, mismatch.mod)
++
++		case pkg.mod != mismatch.mod:
++			// The package is loaded successfully by both Go versions, but from a
++			// different module in each. This could lead to subtle (and perhaps even
++			// unnoticed!) variations in behavior between builds with different
++			// toolchains.
++			suggestUpgrade = true
++			ld.errorf("%s loaded from %v,\n\tbut go %s would select %v\n", pkg.stackText(), pkg.mod, ld.TidyCompatibleVersion, mismatch.mod.Version)
++
++		default:
++			base.Fatalf("go: internal error: mismatch recorded for package %s, but no differences found", pkg.path)
++		}
++	}
++
++	suggestFixes()
++	base.ExitIfErrors()
++}
++
+ // scanDir is like imports.ScanDir but elides known magic imports from the list,
+ // so that we do not go looking for packages that don't really exist.
+ //
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat.txt b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+index e6f88dc779..e6edef5ee3 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+@@ -34,28 +34,23 @@ go list -m all
+ cmp stdout m_all.txt
+ 
+ go mod edit -go=1.16
+-! go list -m all
+-stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
++go list -m all
++cmp stdout m_all.txt
+ 
+ 
+-# If we combine a Go 1.16 go.sum file...
+-go mod tidy -go=1.16
++# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
++# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
+ 
+-# ...with a Go 1.17 go.mod file...
+ cp go.mod.orig go.mod
++go mod tidy -compat=1.17
++cmp go.mod go.mod.orig
+ 
+-# ...then Go 1.17 continues to work...
+ go list -m all
+ cmp stdout m_all.txt
+ 
+-# ...and now 1.16 can load the same build list!
+ go mod edit -go=1.16
+-go list -m all
+-cmp stdout m_all.txt
+-
+-
+-# TODO(#46141): Add a cleaner way to tidy a Go 1.17 module while preserving
+-# the checksums needed to work within it with Go 1.16.
++! go list -m all
++stderr '^go list -m: example.net/lazy@v0.1.0 requires\n\texample.com/version@v1.0.1: missing go.sum entry; to add it:\n\tgo mod download example.com/version$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+new file mode 100644
+index 0000000000..94fa79bc9f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+@@ -0,0 +1,105 @@
++# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
++# default preserve enough checksums for the module to be used by Go 1.16.
++#
++# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
++# 'go' version in the go.mod file to 1.16, without actually updating the
++# requirements to match.
++
++[short] skip
++
++env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
++
++
++# For this module, Go 1.17 produces an error for one module, and Go 1.16
++# produces a different error for a different module.
++
++cp go.mod go.mod.orig
++
++! go mod tidy
++
++stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
++
++cmp go.mod go.mod.orig
++
++
++# When we run 'go mod tidy -e', we should proceed past the first error and follow
++# it with a second error describing the version descrepancy.
++#
++# We should not provide advice on how to push past the version descrepancy,
++# because the '-e' flag should already do that, writing out an otherwise-tidied
++# go.mod file.
++
++go mod tidy -e
++
++stderr '^example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\nexample\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
++
++! stderr '\n\tgo mod tidy'
++
++cmp go.mod go.mod.tidy
++
++
++-- go.mod --
++module example.com/m
++
++go 1.17
++
++replace (
++	example.net/added v0.1.0 => ./a1
++	example.net/added v0.2.0 => ./a2
++	example.net/added v0.3.0 => ./a1
++	example.net/lazy v0.1.0 => ./lazy
++	example.net/pruned v0.1.0 => ./pruned
++)
++
++require (
++	example.net/added v0.1.0
++	example.net/lazy v0.1.0
++)
++-- go.mod.tidy --
++module example.com/m
++
++go 1.17
++
++replace (
++	example.net/added v0.1.0 => ./a1
++	example.net/added v0.2.0 => ./a2
++	example.net/added v0.3.0 => ./a1
++	example.net/lazy v0.1.0 => ./lazy
++	example.net/pruned v0.1.0 => ./pruned
++)
++
++require example.net/lazy v0.1.0
++-- m.go --
++package m
++
++import (
++	_ "example.net/added"
++	_ "example.net/lazy"
++)
++
++-- a1/go.mod --
++module example.net/added
++
++go 1.17
++-- a2/go.mod --
++module example.net/added
++
++go 1.17
++-- a2/added.go --
++package added
++
++-- lazy/go.mod --
++module example.net/lazy
++
++go 1.17
++
++require example.net/pruned v0.1.0
++-- lazy/lazy.go --
++package lazy
++
++-- pruned/go.mod --
++module example.net/pruned
++
++go 1.17
++
++require example.net/added v0.2.0
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+new file mode 100644
+index 0000000000..ed1dd53eff
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -0,0 +1,98 @@
++# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
++# default preserve enough checksums for the module to be used by Go 1.16.
++#
++# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
++# 'go' version in the go.mod file to 1.16, without actually updating the
++# requirements to match.
++
++[short] skip
++
++env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
++
++# For this module, the dependency providing package
++# example.net/ambiguous/nested/pkg is unambiguous in Go 1.17 (because only one
++# root of the module graph contains the package), whereas it is ambiguous in
++# Go 1.16 (because two different modules contain plausible packages and Go 1.16
++# does not privilege roots above other dependencies).
++#
++# However, the overall build list is identical for both versions.
++
++cp go.mod go.mod.orig
++
++! go mod tidy
++
++stderr '^example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
++
++stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/wiki/PruningModules\n'
++
++cmp go.mod go.mod.orig
++
++
++# If we run 'go mod tidy -e', we should still save enough checksums to run
++# 'go list -m all' reproducibly with go 1.16, even though we can't list
++# the specific package.
++
++go mod tidy -e
++! stderr '\n\tgo mod tidy'
++cmp go.mod go.mod.orig
++
++go list -m all
++cmp stdout all-m.txt
++
++go list -f $MODFMT example.net/ambiguous/nested/pkg
++stdout '^example.net/ambiguous/nested v0\.1\.0$'
++! stderr .
++
++go mod edit -go=1.16
++go list -m all
++cmp stdout all-m.txt
++
++! go list -f $MODFMT example.net/ambiguous/nested/pkg
++stderr '^ambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0\.1\.0 \(.*\)\n\texample\.net/ambiguous/nested v0\.1\.0 \(.*\)\n'
++
++
++# On the other hand, if we use -compat=1.17, 1.16 can't even load
++# the build list (due to missing checksums).
++
++cp go.mod.orig go.mod
++go mod tidy -compat=1.17
++! stderr .
++go list -m all
++cmp stdout all-m.txt
++
++go mod edit -go=1.16
++! go list -m all
++stderr '^go list -m: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry; to add it:\n\tgo mod download example\.net/ambiguous\n'
++
++
++-- go.mod --
++module example.com/m
++
++go 1.17
++
++replace example.net/indirect v0.1.0 => ./indirect
++
++require (
++	example.net/ambiguous/nested v0.1.0 // indirect
++	example.net/indirect v0.1.0
++)
++-- all-m.txt --
++example.com/m
++example.net/ambiguous v0.1.0
++example.net/ambiguous/nested v0.1.0
++example.net/indirect v0.1.0 => ./indirect
++-- m.go --
++package m
++
++import _ "example.net/indirect"
++
++-- indirect/go.mod --
++module example.net/indirect
++
++go 1.17
++
++require example.net/ambiguous v0.1.0
++-- indirect/indirect.go --
++package indirect
++
++import _ "example.net/ambiguous/nested/pkg"
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+new file mode 100644
+index 0000000000..3aacde2025
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+@@ -0,0 +1,128 @@
++# https://golang.org/issue/46141: 'go mod tidy' for a Go 1.17 module should by
++# default preserve enough checksums for the module to be used by Go 1.16.
++#
++# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
++# 'go' version in the go.mod file to 1.16, without actually updating the
++# requirements to match.
++
++[short] skip
++
++env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
++
++
++# For this module, the "deleted" dependency contains an imported package, but
++# Go 1.16 selects a higher version (in which that package has been deleted).
++
++cp go.mod go.mod.orig
++
++! go mod tidy
++
++stderr '^example\.com/m imports\n\texample\.net/deleted loaded from example\.net/deleted@v0\.1\.0,\n\tbut go 1\.16 would fail to locate it in example\.net/deleted@v0\.2\.0\n\n'
++
++stderr '\n\nTo upgrade to the versions selected by go 1.16, leaving some packages unresolved:\n\tgo mod tidy -e -go=1\.16 && go mod tidy -e -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/wiki/PruningModules\n'
++
++
++# The suggested 'go mod tidy -e' command should proceed anyway.
++
++go mod tidy -e
++cmp go.mod go.mod.tidy
++
++
++# In 'go 1.16' mode we should error out in the way we claimed.
++
++cd 116-outside
++! go list -deps -f $MODFMT example.com/m
++stderr '^\.\.[/\\]m\.go:4:2: no required module provides package example\.net/deleted; to add it:\n\tgo get example\.net/deleted$'
++cd ..
++
++go mod edit -go=1.16
++! go list -deps -f $MODFMT example.com/m
++stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
++
++! go mod tidy
++stderr '^example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
++
++
++-- go.mod --
++module example.com/m
++
++go 1.17
++
++replace (
++	example.net/deleted v0.1.0 => ./d1
++	example.net/deleted v0.2.0 => ./d2
++	example.net/lazy v0.1.0 => ./lazy
++	example.net/pruned v0.1.0 => ./pruned
++)
++
++require (
++	example.net/deleted v0.1.0
++	example.net/deleted v0.1.0 // redundant
++	example.net/lazy v0.1.0
++)
++-- go.mod.tidy --
++module example.com/m
++
++go 1.17
++
++replace (
++	example.net/deleted v0.1.0 => ./d1
++	example.net/deleted v0.2.0 => ./d2
++	example.net/lazy v0.1.0 => ./lazy
++	example.net/pruned v0.1.0 => ./pruned
++)
++
++require (
++	example.net/deleted v0.1.0
++	example.net/lazy v0.1.0
++)
++-- 116-outside/go.mod --
++module outside
++
++go 1.16
++
++replace (
++	example.com/m => ../
++	example.net/deleted v0.1.0 => ../d1
++	example.net/deleted v0.2.0 => ../d2
++	example.net/lazy v0.1.0 => ../lazy
++	example.net/pruned v0.1.0 => ../pruned
++)
++
++require example.com/m v0.1.0
++-- m.go --
++package m
++
++import (
++	_ "example.net/deleted"
++	_ "example.net/lazy"
++)
++
++-- d1/go.mod --
++module example.net/deleted
++
++go 1.17
++-- d1/deleted.go --
++package deleted
++-- d2/go.mod --
++module example.net/deleted
++
++go 1.17
++-- d2/README --
++There is no longer a Go package here.
++
++-- lazy/go.mod --
++module example.net/lazy
++
++go 1.17
++
++require example.net/pruned v0.1.0
++-- lazy/lazy.go --
++package lazy
++
++-- pruned/go.mod --
++module example.net/pruned
++
++go 1.17
++
++require example.net/deleted v0.2.0
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+index baaa5d63e3..e00aea930e 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+@@ -27,8 +27,22 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+ # it — lazy v0.1.0 — specifies 'go 1.17', and it is not otherwise relevant to
+ # the main module).
+ 
++# 'go mod tidy' should by default diagnose the difference in dependencies as an
++# error, with useful suggestions about how to resolve it.
++
+ cp go.mod go.mod.orig
+-go mod tidy
++! go mod tidy
++stderr '^example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/wiki/PruningModules\n'
++
++cmp go.mod go.mod.orig
++
++# The suggested '-compat' flag to ignore differences should silence the error
++# and leave go.mod unchanged, resulting in checksum errors when Go 1.16 tries
++# to load a module pruned out by Go 1.17.
++
++go mod tidy -compat=1.17
++! stderr .
+ cmp go.mod go.mod.orig
+ 
+ go list -deps -test -f $MODFMT all
+@@ -49,7 +63,7 @@ cp go.mod.orig go.mod
+ 
+ # ...then Go 1.17 no longer works. 😞
+ ! go list -deps -test -f $MODFMT all
+-stderr -count=1 '^can''t load test package: lazy/lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
++stderr -count=1 '^can''t load test package: lazy[/\\]lazy_test.go:3:8: missing go\.sum entry for module providing package example\.com/retract/incompatible \(imported by example\.net/lazy\); to add:\n\tgo get -t example.net/lazy@v0\.1\.0$'
+ 
+ 
+ # However, if we take the union of the go.sum files...
+@@ -67,11 +81,6 @@ go list -deps -test -f $MODFMT all
+ stdout '^example\.com/retract/incompatible v2\.0\.0\+incompatible$'
+ 
+ 
+-# TODO(#46100): In compatibility mode, should we reject the above difference as
+-# incompatible, or save checksums for both possible versions of the test
+-# dependency?
+-
+-
+ -- go.mod --
+ // Module m imports packages from the same versions under Go 1.17
+ // as under Go 1.16, but under 1.16 its (implicit) external test dependencies
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index 0861352408..2d8726544a 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -27,12 +27,23 @@ env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+ # the main module).
+ 
+ 
+-# TODO(#46141): 'go mod tidy' should by default diagnose the difference in
+-# dependencies as an error, but it should still be possible to simply drop
+-# compatibility with Go 1.16 by passing an appropriate '-compat' flag.
++# 'go mod tidy' should by default diagnose the difference in dependencies as an
++# error, with useful suggestions about how to resolve it.
+ 
+ cp go.mod go.mod.orig
+-go mod tidy
++! go mod tidy
++stderr '^example\.com/m imports\n\texample\.net/lazy imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1\.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/wiki/PruningModules\n'
++
++cmp go.mod go.mod.orig
++
++
++# The suggested '-compat' flag to ignore differences should silence the error
++# and leave go.mod unchanged, resulting in checksum errors when Go 1.16 tries
++# to load a module pruned out by Go 1.17.
++
++go mod tidy -compat=1.17
++! stderr .
+ cmp go.mod go.mod.orig
+ 
+ go mod edit -go=1.16
+@@ -44,6 +55,7 @@ stderr -count=2 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requir
+ # There are two ways for the module author to bring the two into alignment.
+ # One is to *explicitly* 'exclude' the version that is already *implicitly*
+ # pruned out under 1.17.
++
+ go mod edit -exclude=example.com/retract/incompatible@v2.0.0+incompatible
+ go list -f $MODFMT -deps ./...
+ stdout '^example.com/retract/incompatible v1\.0\.0$'
+@@ -51,13 +63,20 @@ stdout '^example.com/retract/incompatible v1\.0\.0$'
+ 
+ 
+ # The other is to explicitly upgrade the version required under Go 1.17
+-# to match the version selected by Go 1.16.
++# to match the version selected by Go 1.16. The commands suggested by
++# 'go mod tidy' should do exactly that.
++
+ cp go.mod.orig go.mod
+ 
+-go get -d example.com/retract/incompatible@v2.0.0+incompatible
+-	# Note that we are not running 'go mod tidy' here: we need to preserve
+-	# the checksum for v1.0.0 because it is also still in the module graph
+-	# as seen by Go 1.16.
++go mod tidy -go=1.16
++go list -f $MODFMT -deps ./...
++stdout '^example.com/retract/incompatible v2\.0\.0\+incompatible$'
++! stdout 'v1\.0\.0'
++
++go mod tidy -go=1.17
++go list -f $MODFMT -deps ./...
++stdout '^example.com/retract/incompatible v2\.0\.0\+incompatible$'
++! stdout 'v1\.0\.0'
+ 
+ go mod edit -go=1.16
+ go list -f $MODFMT -deps ./...
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+index d4371e0f7d..7c22fca6c0 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+@@ -27,34 +27,28 @@ cp go.mod go.mod.orig
+ go mod tidy
+ cmp go.mod go.mod.orig
+ 
+-go list -m all
+-stdout '^example\.com/retract/incompatible v1\.0\.0$'
++go list -deps -test -f $MODFMT all
++cp stdout out-117.txt
+ 
+ go mod edit -go=1.16
+-! go list -deps -test -f $MODFMT all
+-	# TODO(#46160): -count=1 instead of -count=2.
+-stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
++go list -deps -test -f $MODFMT all
++cmp stdout out-117.txt
+ 
+ 
+-# If we combine a Go 1.16 go.sum file...
+-go mod tidy -go=1.16
++# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
++# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
+ 
+-# ...with a Go 1.17 go.mod file...
+ cp go.mod.orig go.mod
++go mod tidy -compat=1.17
++cmp go.mod go.mod.orig
+ 
+-# ...then Go 1.17 continues to work...
+-go list -deps -test -f $MODFMT all
+-cp stdout out-117.txt
+-
+-# ...and 1.16 also works, and selects the same versions for all packages
+-# even remotely relevant to the main module.
+-go mod edit -go=1.16
+ go list -deps -test -f $MODFMT all
+ cmp stdout out-117.txt
+ 
+-
+-# TODO(#46160): Add a cleaner way to tidy a Go 1.17 module while preserving
+-# the checksums needed to work within it with Go 1.16.
++go mod edit -go=1.16
++! go list -deps -test -f $MODFMT all
++	# TODO(#46160): -count=1 instead of -count=2.
++stderr -count=2 '^go: example.net/lazy@v0.1.0 requires\n\texample.com/retract/incompatible@v1.0.0: missing go.sum entry; to add it:\n\tgo mod download example.com/retract/incompatible$'
+ 
+ 
+ -- go.mod --
+diff --git a/src/cmd/go/testdata/script/mod_tidy_oldgo.txt b/src/cmd/go/testdata/script/mod_tidy_oldgo.txt
+new file mode 100644
+index 0000000000..0e88b068a7
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_oldgo.txt
+@@ -0,0 +1,21 @@
++# Modules were introduced in Go 1.11, but for various reasons users may
++# decide to declare a (much!) older go version in their go.mod file.
++# Modules with very old versions should not be rejected, and should have
++# the same module-graph semantics as in Go 1.11.
++
++cp go.mod go.mod.orig
++go mod tidy
++cmp go.mod go.mod.orig
++
++-- go.mod --
++module example.com/legacy/go1
++
++go 1.0
++
++require golang.org/x/text v0.3.0
++-- main.go --
++package main
++
++import _ "golang.org/x/text/language"
++
++func main() {}
+diff --git a/src/go.sum b/src/go.sum
+index b3de6c526c..6e869b96f7 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,15 @@
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e h1:8foAy0aoO5GkqCvAEJ4VC4P3zksTg4X4aJCDpZzmgQI=
+ golang.org/x/crypto v0.0.0-20210503195802-e9a32991a82e/go.mod h1:P+XmwS30IXTQdn5tA2iutPOUgjI07+tq3H3K9MVA1s8=
++golang.org/x/net v0.0.0-20210226172049-e18ecbb05110/go.mod h1:m0MpNAwzfU5UDzcl9v0D8zg8gWTRqZa9RBIspLL5mdg=
+ golang.org/x/net v0.0.0-20210510120150-4163338589ed h1:p9UgmWI9wKpfYmgaV/IZKGdXc5qEK45tDwwwDyjS26I=
+ golang.org/x/net v0.0.0-20210510120150-4163338589ed/go.mod h1:9nx3DQGgdP8bBQD5qxJ1jj9UTztislL4KSBs9R2vV5Y=
++golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
++golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744 h1:yhBbb4IRs2HS9PPlAg6DMC6mUOKexJBNsLf4Z+6En1Q=
+ golang.org/x/sys v0.0.0-20210511113859-b0526f3d8744/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
++golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
++golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
++golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f h1:yQJrRE0hDxDFmZLlRaw+3vusO4fwNHgHIjUOMO7bHYI=
+ golang.org/x/text v0.3.7-0.20210503195748-5c7c50ebbd4f/go.mod h1:u+2+/6zg+i71rQMx5EYifcz6MCKuco9NR6JIITiCfzQ=
++golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=

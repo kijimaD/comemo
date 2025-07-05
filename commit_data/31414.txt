@@ -13,10 +13,234 @@ Date:   Wed Feb 15 21:16:49 2017 -0800
     Reviewed-on: https://go-review.googlesource.com/37024
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Josh Bleecher Snyder <josharian@gmail.com>
-
+---
  src/cmd/compile/internal/gc/fmt.go    |   4 --
  src/cmd/compile/internal/gc/sinit.go  | 104 +++++++++-------------------------
  src/cmd/compile/internal/gc/ssa.go    |   9 ---
  src/cmd/compile/internal/gc/syntax.go |   1 -
  src/cmd/compile/internal/gc/walk.go   |   5 --
  5 files changed, 26 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/fmt.go b/src/cmd/compile/internal/gc/fmt.go
+index 0f8e4795e6..fffa261269 100644
+--- a/src/cmd/compile/internal/gc/fmt.go
++++ b/src/cmd/compile/internal/gc/fmt.go
+@@ -335,10 +335,6 @@ func (n *Node) jconv(s fmt.State, flag FmtFlag) {
+ 		fmt.Fprintf(s, " tc(%d)", n.Typecheck)
+ 	}
+ 
+-	if c == 0 && n.IsStatic {
+-		fmt.Fprint(s, " static")
+-	}
+-
+ 	if n.Isddd {
+ 		fmt.Fprintf(s, " isddd(%v)", n.Isddd)
+ 	}
+diff --git a/src/cmd/compile/internal/gc/sinit.go b/src/cmd/compile/internal/gc/sinit.go
+index 91cb53773c..63d11cbb7f 100644
+--- a/src/cmd/compile/internal/gc/sinit.go
++++ b/src/cmd/compile/internal/gc/sinit.go
+@@ -751,19 +751,15 @@ func fixedlit(ctxt initContext, kind initKind, n *Node, var_ *Node, init *Nodes)
+ 		a = typecheck(a, Etop)
+ 		switch kind {
+ 		case initKindStatic:
+-			a = walkexpr(a, init) // add any assignments in r to top
+-			if a.Op != OAS {
+-				Fatalf("fixedlit: not as, is %v", a)
+-			}
+-			a.IsStatic = true
++			genAsStatic(a)
+ 		case initKindDynamic, initKindLocalCode:
+ 			a = orderstmtinplace(a)
+ 			a = walkstmt(a)
++			init.Append(a)
+ 		default:
+ 			Fatalf("fixedlit: bad kind %d", kind)
+ 		}
+ 
+-		init.Append(a)
+ 	}
+ }
+ 
+@@ -780,12 +776,22 @@ func slicelit(ctxt initContext, n *Node, var_ *Node, init *Nodes) {
+ 		fixedlit(ctxt, initKindDynamic, n, vstat, init)
+ 
+ 		// copy static to slice
+-		a := nod(OSLICE, vstat, nil)
++		var_ = typecheck(var_, Erv|Easgn)
++		var nam Node
++		if !stataddr(&nam, var_) || nam.Class != PEXTERN {
++			Fatalf("slicelit: %v", var_)
++		}
++
++		var v Node
++		nodconst(&v, Types[TINT], t.NumElem())
++
++		nam.Xoffset += int64(array_array)
++		gdata(&nam, nod(OADDR, vstat, nil), Widthptr)
++		nam.Xoffset += int64(array_nel) - int64(array_array)
++		gdata(&nam, &v, Widthint)
++		nam.Xoffset += int64(array_cap) - int64(array_nel)
++		gdata(&nam, &v, Widthint)
+ 
+-		a = nod(OAS, var_, a)
+-		a = typecheck(a, Etop)
+-		a.IsStatic = true
+-		init.Append(a)
+ 		return
+ 	}
+ 
+@@ -964,18 +970,14 @@ func maplit(n *Node, m *Node, init *Nodes) {
+ 				lhs := nod(OINDEX, vstatk, nodintconst(b))
+ 				as := nod(OAS, lhs, index)
+ 				as = typecheck(as, Etop)
+-				as = walkexpr(as, init)
+-				as.IsStatic = true
+-				init.Append(as)
++				genAsStatic(as)
+ 
+ 				// build vstatv[b] = value
+ 				setlineno(value)
+ 				lhs = nod(OINDEX, vstatv, nodintconst(b))
+ 				as = nod(OAS, lhs, value)
+ 				as = typecheck(as, Etop)
+-				as = walkexpr(as, init)
+-				as.IsStatic = true
+-				init.Append(as)
++				genAsStatic(as)
+ 
+ 				b++
+ 			}
+@@ -1344,69 +1346,15 @@ func isvaluelit(n *Node) bool {
+ 	return n.Op == OARRAYLIT || n.Op == OSTRUCTLIT
+ }
+ 
+-func genAsInitNoCheck(n *Node) bool {
+-	nr := n.Right
+-	nl := n.Left
+-	if nr == nil {
+-		var nam Node
+-		return stataddr(&nam, nl) && nam.Class == PEXTERN
+-	}
+-
+-	if nr.Type == nil || !eqtype(nl.Type, nr.Type) {
+-		return false
+-	}
+-
++func genAsStatic(as *Node) {
+ 	var nam Node
+-	if !stataddr(&nam, nl) || nam.Class != PEXTERN {
+-		return false
++	if !stataddr(&nam, as.Left) || nam.Class != PEXTERN {
++		Fatalf("genAsStatic: lhs %v", as.Left)
+ 	}
+ 
+-	switch nr.Op {
+-	default:
+-		return false
+-
+-	case OCONVNOP:
+-		nr = nr.Left
+-		if nr == nil || nr.Op != OSLICEARR {
+-			return false
+-		}
+-		fallthrough
+-
+-	case OSLICEARR:
+-		low, high, _ := nr.SliceBounds()
+-		if low != nil || high != nil {
+-			return false
+-		}
+-		nr = nr.Left
+-		if nr == nil || nr.Op != OADDR {
+-			return false
+-		}
+-		ptr := nr
+-		nr = nr.Left
+-		if nr == nil || nr.Op != ONAME {
+-			return false
+-		}
+-
+-		// nr is the array being converted to a slice
+-		if nr.Type == nil || !nr.Type.IsArray() {
+-			return false
+-		}
+-
+-		nam.Xoffset += int64(array_array)
+-		gdata(&nam, ptr, Widthptr)
+-
+-		nam.Xoffset += int64(array_nel) - int64(array_array)
+-		var nod1 Node
+-		nodconst(&nod1, Types[TINT], nr.Type.NumElem())
+-		gdata(&nam, &nod1, Widthint)
+-
+-		nam.Xoffset += int64(array_cap) - int64(array_nel)
+-		gdata(&nam, &nod1, Widthint)
+-
+-		return true
+-
+-	case OLITERAL:
+-		gdata(&nam, nr, int(nr.Type.Width))
+-		return true
++	if as.Right.Op != OLITERAL {
++		Fatalf("genAsStatic: rhs %v", as.Right)
+ 	}
++
++	gdata(&nam, as.Right, int(as.Right.Type.Width))
+ }
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 7b918cc6d3..4bcac53994 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -630,15 +630,6 @@ func (s *state) stmt(n *Node) {
+ 		b.AddEdgeTo(lab.target)
+ 
+ 	case OAS:
+-		// Generate static data rather than code, if possible.
+-		if n.IsStatic {
+-			if !genAsInitNoCheck(n) {
+-				Dump("\ngen_as_init", n)
+-				Fatalf("gen_as_init couldn't generate static data")
+-			}
+-			return
+-		}
+-
+ 		if n.Left == n.Right && n.Left.Op == ONAME {
+ 			// An x=x assignment. No point in doing anything
+ 			// here. In addition, skipping this assignment
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index b2dce1527a..b8aabd7bb4 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -65,7 +65,6 @@ type Node struct {
+ 	Walkdef   uint8 // tracks state during typecheckdef; 2 == loop detected
+ 	Typecheck uint8 // tracks state during typechecking; 2 == loop detected
+ 	Local     bool  // type created in this file (see also Type.Local); TODO(gri): move this into flags
+-	IsStatic  bool  // whether this Node will be converted to purely static data
+ 	Initorder uint8
+ 	Used      bool // for variable/label declared and not used error
+ 	Isddd     bool // is the argument variadic
+diff --git a/src/cmd/compile/internal/gc/walk.go b/src/cmd/compile/internal/gc/walk.go
+index f728943b83..0eb38109bd 100644
+--- a/src/cmd/compile/internal/gc/walk.go
++++ b/src/cmd/compile/internal/gc/walk.go
+@@ -145,9 +145,6 @@ func walkstmt(n *Node) *Node {
+ 	if n == nil {
+ 		return n
+ 	}
+-	if n.IsStatic { // don't walk, generated by anylit.
+-		return n
+-	}
+ 
+ 	setlineno(n)
+ 
+@@ -720,9 +717,7 @@ opswitch:
+ 		}
+ 
+ 		if n.Left != nil && n.Right != nil {
+-			static := n.IsStatic
+ 			n = convas(n, init)
+-			n.IsStatic = static
+ 		}
+ 
+ 	case OAS2:

@@ -18,7 +18,279 @@ Date:   Tue Feb 9 17:32:08 2021 -0500
     Trust: Jay Conrod <jayconrod@google.com>
     Trust: Katie Hockman <katie@golang.org>
     Reviewed-by: Katie Hockman <katie@golang.org>
-
+---
  src/testing/fuzz.go    | 121 +++++++++++++++++++++++++++++++++++++++++++++++++
  src/testing/testing.go |  37 ---------------
  2 files changed, 121 insertions(+), 37 deletions(-)
+
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index 196b4cf7ab..f64629bcd4 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -43,11 +43,14 @@ type InternalFuzzTarget struct {
+ type F struct {
+ 	common
+ 	context  *fuzzContext
++	inFuzzFn bool          // set to true when fuzz function is running
+ 	corpus   []corpusEntry // corpus is the in-memory corpus
+ 	result   FuzzResult    // result is the result of running the fuzz target
+ 	fuzzFunc func(f *F)    // fuzzFunc is the function which makes up the fuzz target
+ }
+ 
++var _ TB = (*F)(nil)
++
+ // corpusEntry is an alias to the same type as internal/fuzz.CorpusEntry.
+ // We use a type alias because we don't want to export this type, and we can't
+ // importing internal/fuzz from testing.
+@@ -56,6 +59,124 @@ type corpusEntry = struct {
+ 	Data []byte
+ }
+ 
++// Cleanup registers a function to be called when the test and all its
++// subtests complete. Cleanup functions will be called in last added,
++// first called order.
++func (f *F) Cleanup(fn func()) {
++	if f.inFuzzFn {
++		panic("testing: f.Cleanup was called inside the f.Fuzz function")
++	}
++	f.common.Cleanup(fn)
++}
++
++// Error is equivalent to Log followed by Fail.
++func (f *F) Error(args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Error was called inside the f.Fuzz function")
++	}
++	f.common.Error(args...)
++}
++
++// Errorf is equivalent to Logf followed by Fail.
++func (f *F) Errorf(format string, args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Errorf was called inside the f.Fuzz function")
++	}
++	f.common.Errorf(format, args...)
++}
++
++// Fail marks the function as having failed but continues execution.
++func (f *F) Fail() {
++	if f.inFuzzFn {
++		panic("testing: f.Fail was called inside the f.Fuzz function")
++	}
++	f.common.Fail()
++}
++
++// FailNow marks the function as having failed and stops its execution
++// by calling runtime.Goexit (which then runs all deferred calls in the
++// current goroutine).
++// Execution will continue at the next test or benchmark.
++// FailNow must be called from the goroutine running the
++// test or benchmark function, not from other goroutines
++// created during the test. Calling FailNow does not stop
++// those other goroutines.
++func (f *F) FailNow() {
++	if f.inFuzzFn {
++		panic("testing: f.FailNow was called inside the f.Fuzz function")
++	}
++	f.common.FailNow()
++}
++
++// Fatal is equivalent to Log followed by FailNow.
++func (f *F) Fatal(args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Fatal was called inside the f.Fuzz function")
++	}
++	f.common.Fatal(args...)
++}
++
++// Fatalf is equivalent to Logf followed by FailNow.
++func (f *F) Fatalf(format string, args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Fatalf was called inside the f.Fuzz function")
++	}
++	f.common.Fatalf(format, args...)
++}
++
++// Helper marks the calling function as a test helper function.
++// When printing file and line information, that function will be skipped.
++// Helper may be called simultaneously from multiple goroutines.
++func (f *F) Helper() {
++	if f.inFuzzFn {
++		panic("testing: f.Helper was called inside the f.Fuzz function")
++	}
++	f.common.Helper()
++}
++
++// Skip is equivalent to Log followed by SkipNow.
++func (f *F) Skip(args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Skip was called inside the f.Fuzz function")
++	}
++	f.common.Skip(args...)
++}
++
++// SkipNow marks the test as having been skipped and stops its execution
++// by calling runtime.Goexit.
++// If a test fails (see Error, Errorf, Fail) and is then skipped,
++// it is still considered to have failed.
++// Execution will continue at the next test or benchmark. See also FailNow.
++// SkipNow must be called from the goroutine running the test, not from
++// other goroutines created during the test. Calling SkipNow does not stop
++// those other goroutines.
++func (f *F) SkipNow() {
++	if f.inFuzzFn {
++		panic("testing: f.SkipNow was called inside the f.Fuzz function")
++	}
++	f.common.SkipNow()
++}
++
++// Skipf is equivalent to Logf followed by SkipNow.
++func (f *F) Skipf(format string, args ...interface{}) {
++	if f.inFuzzFn {
++		panic("testing: f.Skipf was called inside the f.Fuzz function")
++	}
++	f.common.Skipf(format, args...)
++}
++
++// TempDir returns a temporary directory for the test to use.
++// The directory is automatically removed by Cleanup when the test and
++// all its subtests complete.
++// Each subsequent call to t.TempDir returns a unique directory;
++// if the directory creation fails, TempDir terminates the test by calling Fatal.
++func (f *F) TempDir() string {
++	if f.inFuzzFn {
++		panic("testing: f.TempDir was called inside the f.Fuzz function")
++	}
++	return f.common.TempDir()
++}
++
+ // Add will add the arguments to the seed corpus for the fuzz target. This will
+ // be a no-op if called after or within the Fuzz function. The args must match
+ // those in the Fuzz function.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 72529956c3..2e38898c98 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -399,7 +399,6 @@ type common struct {
+ 
+ 	chatty     *chattyPrinter // A copy of chattyPrinter, if the chatty flag is set.
+ 	bench      bool           // Whether the current test is a benchmark.
+-	inFuzzFn   bool           // Whether the test is executing a Fuzz function
+ 	finished   bool           // Test function has completed.
+ 	hasSub     int32          // Written atomically.
+ 	raceErrors int            // Number of races detected during test.
+@@ -690,9 +689,6 @@ func (c *common) setRan() {
+ 
+ // Fail marks the function as having failed but continues execution.
+ func (c *common) Fail() {
+-	if c.inFuzzFn {
+-		panic("testing: f.Fail was called inside the f.Fuzz function")
+-	}
+ 	if c.parent != nil {
+ 		c.parent.Fail()
+ 	}
+@@ -722,9 +718,6 @@ func (c *common) Failed() bool {
+ // created during the test. Calling FailNow does not stop
+ // those other goroutines.
+ func (c *common) FailNow() {
+-	if c.inFuzzFn {
+-		panic("testing: f.FailNow was called inside the f.Fuzz function")
+-	}
+ 	c.Fail()
+ 
+ 	// Calling runtime.Goexit will exit the goroutine, which
+@@ -802,54 +795,36 @@ func (c *common) Logf(format string, args ...interface{}) { c.log(fmt.Sprintf(fo
+ 
+ // Error is equivalent to Log followed by Fail.
+ func (c *common) Error(args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Error was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintln(args...))
+ 	c.Fail()
+ }
+ 
+ // Errorf is equivalent to Logf followed by Fail.
+ func (c *common) Errorf(format string, args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Errorf was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintf(format, args...))
+ 	c.Fail()
+ }
+ 
+ // Fatal is equivalent to Log followed by FailNow.
+ func (c *common) Fatal(args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Fatal was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintln(args...))
+ 	c.FailNow()
+ }
+ 
+ // Fatalf is equivalent to Logf followed by FailNow.
+ func (c *common) Fatalf(format string, args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Fatalf was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintf(format, args...))
+ 	c.FailNow()
+ }
+ 
+ // Skip is equivalent to Log followed by SkipNow.
+ func (c *common) Skip(args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Skip was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintln(args...))
+ 	c.SkipNow()
+ }
+ 
+ // Skipf is equivalent to Logf followed by SkipNow.
+ func (c *common) Skipf(format string, args ...interface{}) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Skipf was called inside the f.Fuzz function")
+-	}
+ 	c.log(fmt.Sprintf(format, args...))
+ 	c.SkipNow()
+ }
+@@ -863,9 +838,6 @@ func (c *common) Skipf(format string, args ...interface{}) {
+ // other goroutines created during the test. Calling SkipNow does not stop
+ // those other goroutines.
+ func (c *common) SkipNow() {
+-	if c.inFuzzFn {
+-		panic("testing: f.SkipNow was called inside the f.Fuzz function")
+-	}
+ 	c.skip()
+ 	c.finished = true
+ 	runtime.Goexit()
+@@ -888,9 +860,6 @@ func (c *common) Skipped() bool {
+ // When printing file and line information, that function will be skipped.
+ // Helper may be called simultaneously from multiple goroutines.
+ func (c *common) Helper() {
+-	if c.inFuzzFn {
+-		panic("testing: f.Helper was called inside the f.Fuzz function")
+-	}
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+ 	if c.helperPCs == nil {
+@@ -912,9 +881,6 @@ func (c *common) Helper() {
+ // subtests complete. Cleanup functions will be called in last added,
+ // first called order.
+ func (c *common) Cleanup(f func()) {
+-	if c.inFuzzFn {
+-		panic("testing: f.Cleanup was called inside the f.Fuzz function")
+-	}
+ 	var pc [maxStackLen]uintptr
+ 	// Skip two extra frames to account for this function and runtime.Callers itself.
+ 	n := runtime.Callers(2, pc[:])
+@@ -953,9 +919,6 @@ var tempDirReplacer struct {
+ // Each subsequent call to t.TempDir returns a unique directory;
+ // if the directory creation fails, TempDir terminates the test by calling Fatal.
+ func (c *common) TempDir() string {
+-	if c.inFuzzFn {
+-		panic("testing: f.TempDir was called inside the f.Fuzz function")
+-	}
+ 	// Use a single parent directory for all the temporary directories
+ 	// created by a test, each numbered sequentially.
+ 	c.tempDirMu.Lock()

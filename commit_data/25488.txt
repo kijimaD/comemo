@@ -24,7 +24,7 @@ Date:   Mon Nov 2 16:45:07 2015 -0500
     Change-Id: I225ca483c8f699e8436373ed96349e80ca2c2479
     Reviewed-on: https://go-review.googlesource.com/16554
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/cgen.go   |  18 ++++--
  src/cmd/compile/internal/gc/dcl.go    | 113 ++++++++++++++++++++++++++++++++++
  src/cmd/compile/internal/gc/go.go     |  13 ++--
@@ -33,3 +33,279 @@ Date:   Mon Nov 2 16:45:07 2015 -0500
  src/cmd/compile/internal/gc/y.go      |   2 +
  src/runtime/mbarrier.go               |   2 +-
  7 files changed, 161 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/cgen.go b/src/cmd/compile/internal/gc/cgen.go
+index 8cbdd18c29..cbb84f9da8 100644
+--- a/src/cmd/compile/internal/gc/cgen.go
++++ b/src/cmd/compile/internal/gc/cgen.go
+@@ -779,8 +779,13 @@ abop: // asymmetric binary
+ var sys_wbptr *Node
+ 
+ func cgen_wbptr(n, res *Node) {
+-	if Curfn != nil && Curfn.Func.Nowritebarrier {
+-		Yyerror("write barrier prohibited")
++	if Curfn != nil {
++		if Curfn.Func.Nowritebarrier {
++			Yyerror("write barrier prohibited")
++		}
++		if Curfn.Func.WBLineno == 0 {
++			Curfn.Func.WBLineno = lineno
++		}
+ 	}
+ 	if Debug_wb > 0 {
+ 		Warn("write barrier")
+@@ -822,8 +827,13 @@ func cgen_wbptr(n, res *Node) {
+ }
+ 
+ func cgen_wbfat(n, res *Node) {
+-	if Curfn != nil && Curfn.Func.Nowritebarrier {
+-		Yyerror("write barrier prohibited")
++	if Curfn != nil {
++		if Curfn.Func.Nowritebarrier {
++			Yyerror("write barrier prohibited")
++		}
++		if Curfn.Func.WBLineno == 0 {
++			Curfn.Func.WBLineno = lineno
++		}
+ 	}
+ 	if Debug_wb > 0 {
+ 		Warn("write barrier")
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index a3179c9d18..c0326c547b 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -1475,3 +1475,116 @@ func makefuncsym(s *Sym) {
+ 	s1.Def.Func.Shortname = newname(s)
+ 	funcsyms = append(funcsyms, s1.Def)
+ }
++
++type nowritebarrierrecChecker struct {
++	curfn  *Node
++	stable bool
++
++	// best maps from the ODCLFUNC of each visited function that
++	// recursively invokes a write barrier to the called function
++	// on the shortest path to a write barrier.
++	best map[*Node]nowritebarrierrecCall
++}
++
++type nowritebarrierrecCall struct {
++	target *Node
++	depth  int
++	lineno int32
++}
++
++func checknowritebarrierrec() {
++	c := nowritebarrierrecChecker{
++		best: make(map[*Node]nowritebarrierrecCall),
++	}
++	visitBottomUp(xtop, func(list []*Node, recursive bool) {
++		// Functions with write barriers have depth 0.
++		for _, n := range list {
++			if n.Func.WBLineno != 0 {
++				c.best[n] = nowritebarrierrecCall{target: nil, depth: 0, lineno: n.Func.WBLineno}
++			}
++		}
++
++		// Propagate write barrier depth up from callees. In
++		// the recursive case, we have to update this at most
++		// len(list) times and can stop when we an iteration
++		// that doesn't change anything.
++		for _ = range list {
++			c.stable = false
++			for _, n := range list {
++				if n.Func.WBLineno == 0 {
++					c.curfn = n
++					c.visitcodelist(n.Nbody)
++				}
++			}
++			if c.stable {
++				break
++			}
++		}
++
++		// Check nowritebarrierrec functions.
++		for _, n := range list {
++			if !n.Func.Nowritebarrierrec {
++				continue
++			}
++			call, hasWB := c.best[n]
++			if !hasWB {
++				continue
++			}
++
++			// Build the error message in reverse.
++			err := ""
++			for call.target != nil {
++				err = fmt.Sprintf("\n\t%v: called by %v%s", Ctxt.Line(int(call.lineno)), n.Func.Nname, err)
++				n = call.target
++				call = c.best[n]
++			}
++			err = fmt.Sprintf("write barrier prohibited by caller; %v%s", n.Func.Nname, err)
++			yyerrorl(int(n.Func.WBLineno), err)
++		}
++	})
++}
++
++func (c *nowritebarrierrecChecker) visitcodelist(l *NodeList) {
++	for ; l != nil; l = l.Next {
++		c.visitcode(l.N)
++	}
++}
++
++func (c *nowritebarrierrecChecker) visitcode(n *Node) {
++	if n == nil {
++		return
++	}
++
++	if n.Op == OCALLFUNC || n.Op == OCALLMETH {
++		c.visitcall(n)
++	}
++
++	c.visitcodelist(n.Ninit)
++	c.visitcode(n.Left)
++	c.visitcode(n.Right)
++	c.visitcodelist(n.List)
++	c.visitcodelist(n.Nbody)
++	c.visitcodelist(n.Rlist)
++}
++
++func (c *nowritebarrierrecChecker) visitcall(n *Node) {
++	fn := n.Left
++	if n.Op == OCALLMETH {
++		fn = n.Left.Right.Sym.Def
++	}
++	if fn == nil || fn.Op != ONAME || fn.Class != PFUNC || fn.Name.Defn == nil {
++		return
++	}
++	defn := fn.Name.Defn
++
++	fnbest, ok := c.best[defn]
++	if !ok {
++		return
++	}
++	best, ok := c.best[c.curfn]
++	if ok && fnbest.depth+1 >= best.depth {
++		return
++	}
++	c.best[c.curfn] = nowritebarrierrecCall{target: defn, depth: fnbest.depth + 1, lineno: n.Lineno}
++	c.stable = false
++}
+diff --git a/src/cmd/compile/internal/gc/go.go b/src/cmd/compile/internal/gc/go.go
+index 4ccf3607b8..64c3e4772f 100644
+--- a/src/cmd/compile/internal/gc/go.go
++++ b/src/cmd/compile/internal/gc/go.go
+@@ -658,12 +658,13 @@ var instrumenting bool
+ 
+ // Pending annotations for next func declaration.
+ var (
+-	noescape       bool
+-	noinline       bool
+-	norace         bool
+-	nosplit        bool
+-	nowritebarrier bool
+-	systemstack    bool
++	noescape          bool
++	noinline          bool
++	norace            bool
++	nosplit           bool
++	nowritebarrier    bool
++	nowritebarrierrec bool
++	systemstack       bool
+ )
+ 
+ var debuglive int
+diff --git a/src/cmd/compile/internal/gc/lex.go b/src/cmd/compile/internal/gc/lex.go
+index c7a16e89cd..9fe0f6cbc1 100644
+--- a/src/cmd/compile/internal/gc/lex.go
++++ b/src/cmd/compile/internal/gc/lex.go
+@@ -479,6 +479,10 @@ func Main() {
+ 		fninit(xtop)
+ 	}
+ 
++	if compiling_runtime != 0 {
++		checknowritebarrierrec()
++	}
++
+ 	// Phase 9: Check external declarations.
+ 	for i, n := range externdcl {
+ 		if n.Op == ONAME {
+@@ -1682,6 +1686,15 @@ func getlinepragma() int {
+ 			nowritebarrier = true
+ 			return c
+ 		}
++
++		if verb == "go:nowritebarrierrec" {
++			if compiling_runtime == 0 {
++				Yyerror("//go:nowritebarrierrec only allowed in runtime")
++			}
++			nowritebarrierrec = true
++			nowritebarrier = true // Implies nowritebarrier
++			return c
++		}
+ 		return c
+ 	}
+ 	if c != 'l' {
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index e48f69229c..993e2ae048 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -169,14 +169,17 @@ type Func struct {
+ 
+ 	Endlineno int32
+ 
+-	Norace         bool // func must not have race detector annotations
+-	Nosplit        bool // func should not execute on separate stack
+-	Noinline       bool // func should not be inlined
+-	Nowritebarrier bool // emit compiler error instead of write barrier
+-	Dupok          bool // duplicate definitions ok
+-	Wrapper        bool // is method wrapper
+-	Needctxt       bool // function uses context register (has closure variables)
+-	Systemstack    bool // must run on system stack
++	Norace            bool // func must not have race detector annotations
++	Nosplit           bool // func should not execute on separate stack
++	Noinline          bool // func should not be inlined
++	Nowritebarrier    bool // emit compiler error instead of write barrier
++	Nowritebarrierrec bool // error on write barrier in this or recursive callees
++	Dupok             bool // duplicate definitions ok
++	Wrapper           bool // is method wrapper
++	Needctxt          bool // function uses context register (has closure variables)
++	Systemstack       bool // must run on system stack
++
++	WBLineno int32 // line number of first write barrier
+ }
+ 
+ type Op uint8
+diff --git a/src/cmd/compile/internal/gc/y.go b/src/cmd/compile/internal/gc/y.go
+index 2bc3e408a1..7c3ce88756 100644
+--- a/src/cmd/compile/internal/gc/y.go
++++ b/src/cmd/compile/internal/gc/y.go
+@@ -2544,6 +2544,7 @@ yydefault:
+ 			yyVAL.node.Func.Nosplit = nosplit
+ 			yyVAL.node.Func.Noinline = noinline
+ 			yyVAL.node.Func.Nowritebarrier = nowritebarrier
++			yyVAL.node.Func.Nowritebarrierrec = nowritebarrierrec
+ 			yyVAL.node.Func.Systemstack = systemstack
+ 			funcbody(yyVAL.node)
+ 		}
+@@ -2745,6 +2746,7 @@ yydefault:
+ 			norace = false
+ 			nosplit = false
+ 			nowritebarrier = false
++			nowritebarrierrec = false
+ 			systemstack = false
+ 		}
+ 	case 221:
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 5aa1d20e7d..f6e6c30648 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -84,7 +84,7 @@ import "unsafe"
+ // frames that have potentially been active since the concurrent scan,
+ // so it depends on write barriers to track changes to pointers in
+ // stack frames that have not been active.
+-//go:nowritebarrier
++//go:nowritebarrierrec
+ func gcmarkwb_m(slot *uintptr, ptr uintptr) {
+ 	if writeBarrierEnabled {
+ 		if ptr != 0 && inheap(ptr) {

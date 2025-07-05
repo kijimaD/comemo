@@ -16,8 +16,139 @@ Date:   Wed Jan 21 19:27:34 2015 +0900
     Change-Id: I7406bd0aa961d260d96f1f887c2e45854e921452
     Reviewed-on: https://go-review.googlesource.com/3111
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/net/http/request.go           | 24 ++++++++++++++++++++++--
  src/net/http/request_test.go      | 30 ++++++++++++++++++++++++------
  src/net/http/requestwrite_test.go | 31 +++++++++++++++++++++++++++++++
  3 files changed, 77 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 639a579bdf..a4e515c790 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -361,12 +361,15 @@ func (r *Request) WriteProxy(w io.Writer) error {
+ 
+ // extraHeaders may be nil
+ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) error {
+-	host := req.Host
++	// According to RFC 6874, an HTTP client, proxy, or other
++	// intermediary must remove any IPv6 zone identifier attached
++	// to an outgoing URI.
++	host := removeZone(req.Host)
+ 	if host == "" {
+ 		if req.URL == nil {
+ 			return errors.New("http: Request.Write on Request with no Host or URL set")
+ 		}
+-		host = req.URL.Host
++		host = removeZone(req.URL.Host)
+ 	}
+ 
+ 	ruri := req.URL.RequestURI()
+@@ -453,6 +456,23 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 	return nil
+ }
+ 
++// removeZone removes IPv6 zone identifer from host.
++// E.g., "[fe80::1%en0]:8080" to "[fe80::1]:8080"
++func removeZone(host string) string {
++	if !strings.HasPrefix(host, "[") {
++		return host
++	}
++	i := strings.LastIndex(host, "]")
++	if i < 0 {
++		return host
++	}
++	j := strings.LastIndex(host[:i], "%")
++	if j < 0 {
++		return host
++	}
++	return host[:j] + host[i:]
++}
++
+ // ParseHTTPVersion parses a HTTP version string.
+ // "HTTP/1.0" returns (1, 0, true).
+ func ParseHTTPVersion(vers string) (major, minor int, ok bool) {
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 671841ff70..9228d50ef7 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -326,13 +326,31 @@ func TestReadRequestErrors(t *testing.T) {
+ 	}
+ }
+ 
++var newRequestHostTests = []struct {
++	in, out string
++}{
++	{"http://www.example.com/", "www.example.com"},
++	{"http://www.example.com:8080/", "www.example.com:8080"},
++
++	{"http://192.168.0.1/", "192.168.0.1"},
++	{"http://192.168.0.1:8080/", "192.168.0.1:8080"},
++
++	{"http://[fe80::1]/", "[fe80::1]"},
++	{"http://[fe80::1]:8080/", "[fe80::1]:8080"},
++	{"http://[fe80::1%25en0]/", "[fe80::1%en0]"},
++	{"http://[fe80::1%25en0]:8080/", "[fe80::1%en0]:8080"},
++}
++
+ func TestNewRequestHost(t *testing.T) {
+-	req, err := NewRequest("GET", "http://localhost:1234/", nil)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	if req.Host != "localhost:1234" {
+-		t.Errorf("Host = %q; want localhost:1234", req.Host)
++	for i, tt := range newRequestHostTests {
++		req, err := NewRequest("GET", tt.in, nil)
++		if err != nil {
++			t.Errorf("#%v: %v", i, err)
++			continue
++		}
++		if req.Host != tt.out {
++			t.Errorf("got %q; want %q", req.Host, tt.out)
++		}
+ 	}
+ }
+ 
+diff --git a/src/net/http/requestwrite_test.go b/src/net/http/requestwrite_test.go
+index 7a6bd58786..e9a5f5f080 100644
+--- a/src/net/http/requestwrite_test.go
++++ b/src/net/http/requestwrite_test.go
+@@ -455,6 +455,37 @@ var reqWriteTests = []reqWriteTest{
+ 			"ALL-CAPS: x\r\n" +
+ 			"\r\n",
+ 	},
++
++	// Request with host header field; IPv6 address with zone identifier
++	{
++		Req: Request{
++			Method: "GET",
++			URL: &url.URL{
++				Host: "[fe80::1%en0]",
++			},
++		},
++
++		WantWrite: "GET / HTTP/1.1\r\n" +
++			"Host: [fe80::1]\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
++			"\r\n",
++	},
++
++	// Request with optional host header field; IPv6 address with zone identifier
++	{
++		Req: Request{
++			Method: "GET",
++			URL: &url.URL{
++				Host: "www.example.com",
++			},
++			Host: "[fe80::1%en0]:8080",
++		},
++
++		WantWrite: "GET / HTTP/1.1\r\n" +
++			"Host: [fe80::1]:8080\r\n" +
++			"User-Agent: Go 1.1 package http\r\n" +
++			"\r\n",
++	},
+ }
+ 
+ func TestRequestWrite(t *testing.T) {

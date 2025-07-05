@@ -7,6 +7,20 @@ Date:   Tue Jan 7 09:32:15 2014 -0800
     R=golang-codereviews, r
     CC=golang-codereviews
     https://golang.org/cl/46310043
-
+---
  src/pkg/encoding/csv/writer_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/pkg/encoding/csv/writer_test.go b/src/pkg/encoding/csv/writer_test.go
+index 03ca6b093c..22b740c074 100644
+--- a/src/pkg/encoding/csv/writer_test.go
++++ b/src/pkg/encoding/csv/writer_test.go
+@@ -26,6 +26,8 @@ var writeTests = []struct {
+ 	{Input: [][]string{{"abc"}, {"def"}}, Output: "abc\ndef\n"},
+ 	{Input: [][]string{{"abc\ndef"}}, Output: "\"abc\ndef\"\n"},
+ 	{Input: [][]string{{"abc\ndef"}}, Output: "\"abc\r\ndef\"\r\n", UseCRLF: true},
++	{Input: [][]string{{"abc\rdef"}}, Output: "\"abcdef\"\r\n", UseCRLF: true},
++	{Input: [][]string{{"abc\rdef"}}, Output: "\"abc\rdef\"\n", UseCRLF: false},
+ }
+ 
+ func TestWrite(t *testing.T) {

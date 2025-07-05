@@ -9,6 +9,20 @@ Date:   Wed Feb 29 10:39:20 2012 -0800
     R=golang-dev, iant
     CC=golang-dev
     https://golang.org/cl/5709058
-
+---
  doc/go_spec.html | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 46cb47f10e..96bf8b721f 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -67,7 +67,7 @@ operators, in increasing precedence:
+ 
+ <p>
+ Lower-case production names are used to identify lexical tokens.
+-Non-terminals are in CamelCase. Lexical symbols are enclosed in
++Non-terminals are in CamelCase. Lexical tokens are enclosed in
+ double quotes <code>""</code> or back quotes <code>``</code>.
+ </p>
+ 

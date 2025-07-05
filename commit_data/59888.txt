@@ -14,8 +14,123 @@ Date:   Tue May 7 13:25:16 2024 +0000
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Keith Randall <khr@google.com>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
-
+---
  src/reflect/abi.go   |  2 +-
  src/reflect/type.go  |  9 ++-------
  src/reflect/value.go | 14 +++++++-------
  3 files changed, 10 insertions(+), 15 deletions(-)
+
+diff --git a/src/reflect/abi.go b/src/reflect/abi.go
+index 2b5f405380..b67d821743 100644
+--- a/src/reflect/abi.go
++++ b/src/reflect/abi.go
+@@ -166,7 +166,7 @@ func (a *abiSeq) addRcvr(rcvr *abi.Type) (*abiStep, bool) {
+ 	// The receiver is always one word.
+ 	a.valueStart = append(a.valueStart, len(a.steps))
+ 	var ok, ptr bool
+-	if ifaceIndir(rcvr) || rcvr.Pointers() {
++	if rcvr.IfaceIndir() || rcvr.Pointers() {
+ 		ok = a.assignIntN(0, goarch.PtrSize, 1, 0b1)
+ 		ptr = true
+ 	} else {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3095dfea48..de447c0d15 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2606,7 +2606,7 @@ func StructOf(fields []StructField) Type {
+ 	}
+ 
+ 	switch {
+-	case len(fs) == 1 && !ifaceIndir(fs[0].Typ):
++	case len(fs) == 1 && !fs[0].Typ.IfaceIndir():
+ 		// structs of 1 direct iface type can be direct
+ 		typ.Kind_ |= abi.KindDirectIface
+ 	default:
+@@ -2801,7 +2801,7 @@ func ArrayOf(length int, elem Type) Type {
+ 	}
+ 
+ 	switch {
+-	case length == 1 && !ifaceIndir(typ):
++	case length == 1 && !typ.IfaceIndir():
+ 		// array of 1 direct iface type can be direct
+ 		array.Kind_ |= abi.KindDirectIface
+ 	default:
+@@ -2903,11 +2903,6 @@ func funcLayout(t *funcType, rcvr *abi.Type) (frametype *abi.Type, framePool *sy
+ 	return lt.t, lt.framePool, lt.abid
+ }
+ 
+-// ifaceIndir reports whether t is stored indirectly in an interface value.
+-func ifaceIndir(t *abi.Type) bool {
+-	return t.Kind_&abi.KindDirectIface == 0
+-}
+-
+ // Note: this type must agree with runtime.bitvector.
+ type bitVector struct {
+ 	n    uint32 // number of bits
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 06f2c2b7da..8ee669f483 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -624,7 +624,7 @@ func (v Value) call(op string, in []Value) []Value {
+ 			}
+ 
+ 			// Handle pointers passed in registers.
+-			if !ifaceIndir(tv) {
++			if !tv.IfaceIndir() {
+ 				// Pointer-valued data gets put directly
+ 				// into v.ptr.
+ 				if steps[0].kind != abiStepPointer {
+@@ -714,7 +714,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 		v := Value{typ, nil, flag(typ.Kind())}
+ 		steps := abid.call.stepsForValue(i)
+ 		if st := steps[0]; st.kind == abiStepStack {
+-			if ifaceIndir(typ) {
++			if typ.IfaceIndir() {
+ 				// value cannot be inlined in interface data.
+ 				// Must make a copy, because f might keep a reference to it,
+ 				// and we cannot let f keep a reference to the stack frame
+@@ -728,7 +728,7 @@ func callReflect(ctxt *makeFuncImpl, frame unsafe.Pointer, retValid *bool, regs
+ 				v.ptr = *(*unsafe.Pointer)(add(ptr, st.stkOff, "1-ptr"))
+ 			}
+ 		} else {
+-			if ifaceIndir(typ) {
++			if typ.IfaceIndir() {
+ 				// All that's left is values passed in registers that we need to
+ 				// create space for the values.
+ 				v.flag |= flagIndir
+@@ -914,7 +914,7 @@ func storeRcvr(v Value, p unsafe.Pointer) {
+ 		// the interface data word becomes the receiver word
+ 		iface := (*nonEmptyInterface)(v.ptr)
+ 		*(*unsafe.Pointer)(p) = iface.word
+-	} else if v.flag&flagIndir != 0 && !ifaceIndir(t) {
++	} else if v.flag&flagIndir != 0 && !t.IfaceIndir() {
+ 		*(*unsafe.Pointer)(p) = *(*unsafe.Pointer)(v.ptr)
+ 	} else {
+ 		*(*unsafe.Pointer)(p) = v.ptr
+@@ -1232,7 +1232,7 @@ func (v Value) Elem() Value {
+ 	case Pointer:
+ 		ptr := v.ptr
+ 		if v.flag&flagIndir != 0 {
+-			if ifaceIndir(v.typ()) {
++			if v.typ().IfaceIndir() {
+ 				// This is a pointer to a not-in-heap object. ptr points to a uintptr
+ 				// in the heap. That uintptr is the address of a not-in-heap object.
+ 				// In general, pointers to not-in-heap objects can be total junk.
+@@ -2258,7 +2258,7 @@ func (v Value) recv(nb bool) (val Value, ok bool) {
+ 	t := tt.Elem
+ 	val = Value{t, nil, flag(t.Kind())}
+ 	var p unsafe.Pointer
+-	if ifaceIndir(t) {
++	if t.IfaceIndir() {
+ 		p = unsafe_New(t)
+ 		val.ptr = p
+ 		val.flag |= flagIndir
+@@ -3297,7 +3297,7 @@ func New(typ Type) Value {
+ 	}
+ 	t := &typ.(*rtype).t
+ 	pt := ptrTo(t)
+-	if ifaceIndir(pt) {
++	if pt.IfaceIndir() {
+ 		// This is a pointer to a not-in-heap type.
+ 		panic("reflect: New of type that may not be allocated in heap (possibly undefined cgo C type)")
+ 	}

@@ -5,6 +5,21 @@ Date:   Wed Feb 7 16:07:34 2018 +0000
     doc: note that x509 cert parsing rejects some more certs now
     
     Fixes #23711
-
+---
  doc/go1.10.html | 3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/doc/go1.10.html b/doc/go1.10.html
+index 5885176f46..569e420d51 100644
+--- a/doc/go1.10.html
++++ b/doc/go1.10.html
+@@ -785,7 +785,8 @@ Parsed certificates also now report URI names and IP, email, and URI constraints
+ <a href="/pkg/crypto/x509/#Certificate"><code>Certificate</code></a> fields
+ <code>URIs</code>, <code>PermittedIPRanges</code>, <code>ExcludedIPRanges</code>,
+ <code>PermittedEmailAddresses</code>, <code>ExcludedEmailAddresses</code>,
+-<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>.
++<code>PermittedURIDomains</code>, and <code>ExcludedURIDomains</code>. Certificates with
++invalid values for those fields are now rejected.
+ </p>
+ 
+ <p>

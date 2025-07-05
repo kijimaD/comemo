@@ -12,6 +12,27 @@ Date:   Wed Sep 3 12:48:32 2014 -0400
     R=golang-codereviews, bradfitz, dvyukov
     CC=golang-codereviews, rlh
     https://golang.org/cl/140180043
-
+---
  src/pkg/runtime/proc.c | 9 +++------
  1 file changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/pkg/runtime/proc.c b/src/pkg/runtime/proc.c
+index b159215d1b..71ea89705b 100644
+--- a/src/pkg/runtime/proc.c
++++ b/src/pkg/runtime/proc.c
+@@ -2955,12 +2955,9 @@ sysmon(void)
+ 		lastgc = runtime·atomicload64(&mstats.last_gc);
+ 		if(lastgc != 0 && unixnow - lastgc > forcegcperiod && runtime·atomicload(&runtime·forcegc.idle)) {
+ 			runtime·lock(&runtime·forcegc.lock);
+-			if(runtime·forcegc.g != nil) {
+-				// Goroutine may be started but has not initialized g yet.
+-				runtime·forcegc.idle = 0;
+-				runtime·forcegc.g->schedlink = nil;
+-				injectglist(runtime·forcegc.g);
+-			}
++			runtime·forcegc.idle = 0;
++			runtime·forcegc.g->schedlink = nil;
++			injectglist(runtime·forcegc.g);
+ 			runtime·unlock(&runtime·forcegc.lock);
+ 		}
+ 

@@ -7,6 +7,28 @@ Date:   Wed Sep 25 18:15:29 2013 +1000
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/13893043
-
+---
  doc/install-source.html | 10 ++++++++++
  1 file changed, 10 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 9aaf588124..59d984fd38 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -250,6 +250,16 @@ You must also have a workspace (<code>GOPATH</code>) set up;
+ see <a href="/doc/code.html">How to Write Go Code</a> for the details.
+ </p>
+ 
++<p>
++<b>Note</b>: The <code>go</code> command will install the <code>godoc</code>
++binary to <code>$GOROOT/bin</code> (or <code>$GOBIN</code>) and the
++<code>cover</code> and <code>vet</code> binaries to
++<code>$GOROOT/pkg/tool/$GOOS_$GOARCH</code>.
++You can access the latter commands with
++"<code>go</code> <code>tool</code> <code>cover</code>" and
++"<code>go</code> <code>tool</code> <code>vet</code>".
++</p>
++
+ <h2 id="community">Community resources</h2>
+ 
+ <p>

@@ -11,7 +11,61 @@ Date:   Thu Oct 20 15:45:51 2016 -0400
     Change-Id: Ic75adc5ba18303ed9578e04284f32933f905d6a3
     Reviewed-on: https://go-review.googlesource.com/31577
     Reviewed-by: Quentin Smith <quentin@golang.org>
-
+---
  src/cmd/go/go_test.go | 10 ++++++++++
  src/go/build/build.go | 11 +++++++----
  2 files changed, 17 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 33fc462339..7e92841082 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -2980,6 +2980,16 @@ func TestBinaryOnlyPackages(t *testing.T) {
+ 
+ 	tg.run("run", tg.path("src/p3/p3.go"))
+ 	tg.grepStdout("hello from p1", "did not see message from p1")
++
++	tg.tempFile("src/p4/p4.go", `package main`)
++	tg.tempFile("src/p4/p4not.go", `//go:binary-only-package
++
++		// +build asdf
++
++		package main
++	`)
++	tg.run("list", "-f", "{{.BinaryOnly}}", "p4")
++	tg.grepStdout("false", "did not see BinaryOnly=false for p4")
+ }
+ 
+ // Issue 16050.
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 9bd211521d..bd89e3188f 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1072,10 +1072,14 @@ func (ctxt *Context) matchFile(dir, name string, returnImports bool, allTags map
+ 	}
+ 
+ 	// Look for +build comments to accept or reject the file.
+-	if !ctxt.shouldBuild(data, allTags, binaryOnly) && !ctxt.UseAllFiles {
++	var sawBinaryOnly bool
++	if !ctxt.shouldBuild(data, allTags, &sawBinaryOnly) && !ctxt.UseAllFiles {
+ 		return
+ 	}
+ 
++	if binaryOnly != nil && sawBinaryOnly {
++		*binaryOnly = true
++	}
+ 	match = true
+ 	return
+ }
+@@ -1119,9 +1123,8 @@ var binaryOnlyComment = []byte("//go:binary-only-package")
+ //
+ // marks the file as applicable only on Windows and Linux.
+ //
+-// If shouldBuild finds a //go:binary-only-package comment in a file that
+-// should be built, it sets *binaryOnly to true. Otherwise it does
+-// not change *binaryOnly.
++// If shouldBuild finds a //go:binary-only-package comment in the file,
++// it sets *binaryOnly to true. Otherwise it does not change *binaryOnly.
+ //
+ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool, binaryOnly *bool) bool {
+ 	sawBinaryOnly := false

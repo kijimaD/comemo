@@ -13,7 +13,88 @@ Date:   Mon Feb 8 23:23:36 2016 +0000
     Change-Id: Ib282ebb05697edd37ed8ff105972cbd1176d900b
     Reviewed-on: https://go-review.googlesource.com/19381
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/net/http/serve_test.go | 28 ++++++++++++++++++++++------
  src/net/http/server.go     | 12 +++++++-----
  2 files changed, 29 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index f7df776389..384b453ce0 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -1039,12 +1039,30 @@ func TestAutomaticHTTP2_Serve(t *testing.T) {
+ }
+ 
+ func TestAutomaticHTTP2_ListenAndServe(t *testing.T) {
+-	defer afterTest(t)
+-	defer SetTestHookServerServe(nil)
+ 	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	testAutomaticHTTP2_ListenAndServe(t, &tls.Config{
++		Certificates: []tls.Certificate{cert},
++	})
++}
++
++func TestAutomaticHTTP2_ListenAndServe_GetCertificate(t *testing.T) {
++	cert, err := tls.X509KeyPair(internal.LocalhostCert, internal.LocalhostKey)
++	if err != nil {
++		t.Fatal(err)
++	}
++	testAutomaticHTTP2_ListenAndServe(t, &tls.Config{
++		GetCertificate: func(clientHello *tls.ClientHelloInfo) (*tls.Certificate, error) {
++			return &cert, nil
++		},
++	})
++}
++
++func testAutomaticHTTP2_ListenAndServe(t *testing.T, tlsConf *tls.Config) {
++	defer afterTest(t)
++	defer SetTestHookServerServe(nil)
+ 	var ok bool
+ 	var s *Server
+ 	const maxTries = 5
+@@ -1060,10 +1078,8 @@ Try:
+ 			lnc <- ln
+ 		})
+ 		s = &Server{
+-			Addr: addr,
+-			TLSConfig: &tls.Config{
+-				Certificates: []tls.Certificate{cert},
+-			},
++			Addr:      addr,
++			TLSConfig: tlsConf,
+ 		}
+ 		errc := make(chan error, 1)
+ 		go func() { errc <- s.ListenAndServeTLS("", "") }()
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 004a1f92fc..5e3b6084ae 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2233,10 +2233,11 @@ func ListenAndServeTLS(addr, certFile, keyFile string, handler Handler) error {
+ // Accepted connections are configured to enable TCP keep-alives.
+ //
+ // Filenames containing a certificate and matching private key for the
+-// server must be provided if the Server's TLSConfig.Certificates is
+-// not populated. If the certificate is signed by a certificate
+-// authority, the certFile should be the concatenation of the server's
+-// certificate, any intermediates, and the CA's certificate.
++// server must be provided if neither the Server's TLSConfig.Certificates
++// nor TLSConfig.GetCertificate are populated. If the certificate is
++// signed by a certificate authority, the certFile should be the
++// concatenation of the server's certificate, any intermediates, and
++// the CA's certificate.
+ //
+ // If srv.Addr is blank, ":https" is used.
+ //
+@@ -2258,7 +2259,8 @@ func (srv *Server) ListenAndServeTLS(certFile, keyFile string) error {
+ 		config.NextProtos = append(config.NextProtos, "http/1.1")
+ 	}
+ 
+-	if len(config.Certificates) == 0 || certFile != "" || keyFile != "" {
++	configHasCert := len(config.Certificates) > 0 || config.GetCertificate != nil
++	if !configHasCert || certFile != "" || keyFile != "" {
+ 		var err error
+ 		config.Certificates = make([]tls.Certificate, 1)
+ 		config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile)

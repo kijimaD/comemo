@@ -19,7 +19,7 @@ Date:   Fri Jan 21 09:05:51 2022 -0800
     Run-TryBot: Robert Griesemer <gri@golang.org>
     Reviewed-by: Robert Findley <rfindley@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/types2/resolver.go        | 34 +++++++++++++---------
  .../types2/testdata/fixedbugs/issue25838.go        | 26 +++++++++++++++++
  .../types2/testdata/fixedbugs/issue50259.go2       |  4 +--
@@ -30,3 +30,271 @@ Date:   Fri Jan 21 09:05:51 2022 -0800
  src/go/types/testdata/fixedbugs/issue50276.go2     |  4 +--
  test/typeparam/issue50259.go                       |  4 +--
  9 files changed, 102 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index a0cad40429..05755f8cfd 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -656,27 +656,33 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	// We process non-alias declarations first, in order to avoid situations where
+-	// the type of an alias declaration is needed before it is available. In general
+-	// this is still not enough, as it is possible to create sufficiently convoluted
+-	// recursive type definitions that will cause a type alias to be needed before it
+-	// is available (see issue #25838 for examples).
+-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
++	// We process non-alias type declarations first, followed by alias declarations,
++	// and then everything else. This appears to avoid most situations where the type
++	// of an alias is needed before it is available.
++	// There may still be cases where this is not good enough (see also issue #25838).
++	// In those cases Checker.ident will report an error ("invalid use of type alias").
+ 	var aliasList []*TypeName
+-	// phase 1
++	var othersList []Object // everything that's not a type
++	// phase 1: non-alias type declarations
+ 	for _, obj := range objList {
+-		// If we have a type alias, collect it for the 2nd phase.
+-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Alias {
+-			aliasList = append(aliasList, tname)
+-			continue
++		if tname, _ := obj.(*TypeName); tname != nil {
++			if check.objMap[tname].tdecl.Alias {
++				aliasList = append(aliasList, tname)
++			} else {
++				check.objDecl(obj, nil)
++			}
++		} else {
++			othersList = append(othersList, obj)
+ 		}
+-
+-		check.objDecl(obj, nil)
+ 	}
+-	// phase 2
++	// phase 2: alias type declarations
+ 	for _, obj := range aliasList {
+ 		check.objDecl(obj, nil)
+ 	}
++	// phase 3: all other declarations
++	for _, obj := range othersList {
++		check.objDecl(obj, nil)
++	}
+ 
+ 	// At this point we may have a non-empty check.methods map; this means that not all
+ 	// entries were deleted at the end of typeDecl because the respective receiver base
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go
+new file mode 100644
+index 0000000000..adbd138f16
+--- /dev/null
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue25838.go
+@@ -0,0 +1,26 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// examples from the issue
++
++type (
++	e = f
++	f = g
++	g = []h
++	h i
++	i = j
++	j = e
++)
++
++type (
++	e1 = []h1
++	h1 e1
++)
++
++type (
++	P = *T
++	T P
++)
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2
+index a2e65c4c15..6df8c64524 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50259.go2
+@@ -7,7 +7,7 @@ package p
+ var x T[B]
+ 
+ type T[_ any] struct{}
+-type A T[B /* ERROR invalid use of type alias */ ]
++type A T[B]
+ type B = T[A]
+ 
+ // test case from issue
+@@ -15,4 +15,4 @@ type B = T[A]
+ var v Box[Step]
+ type Box[T any] struct{}
+ type Step = Box[StepBox]
+-type StepBox Box[Step /* ERROR invalid use of type alias */ ]
++type StepBox Box[Step]
+diff --git a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2 b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2
+index 38a419d361..97e477e6fa 100644
+--- a/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2
++++ b/src/cmd/compile/internal/types2/testdata/fixedbugs/issue50276.go2
+@@ -11,7 +11,7 @@ type pair[S any] struct {}
+ 
+ var _ transform[step]
+ 
+-type box transform[step /* ERROR invalid use of type alias */ ]
++type box transform[step]
+ type step = pair[box]
+ 
+ // test case from issue
+@@ -27,7 +27,7 @@ var first Transform[Step]
+ // This line doesn't use the Step alias, and it compiles fine if you uncomment it.
+ var second Transform[Pair[Box, interface{}]]
+ 
+-type Box *Transform[Step /* ERROR invalid use of type alias */ ]
++type Box *Transform[Step]
+ 
+ // This line is the same as the `first` line, but it comes after the Box declaration and
+ // does not break the compile.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 7a2dcbffbb..9edf41bf3c 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -629,27 +629,33 @@ func (check *Checker) packageObjects() {
+ 		}
+ 	}
+ 
+-	// We process non-alias declarations first, in order to avoid situations where
+-	// the type of an alias declaration is needed before it is available. In general
+-	// this is still not enough, as it is possible to create sufficiently convoluted
+-	// recursive type definitions that will cause a type alias to be needed before it
+-	// is available (see issue #25838 for examples).
+-	// As an aside, the cmd/compiler suffers from the same problem (#25838).
++	// We process non-alias type declarations first, followed by alias declarations,
++	// and then everything else. This appears to avoid most situations where the type
++	// of an alias is needed before it is available.
++	// There may still be cases where this is not good enough (see also issue #25838).
++	// In those cases Checker.ident will report an error ("invalid use of type alias").
+ 	var aliasList []*TypeName
+-	// phase 1
++	var othersList []Object // everything that's not a type
++	// phase 1: non-alias type declarations
+ 	for _, obj := range objList {
+-		// If we have a type alias, collect it for the 2nd phase.
+-		if tname, _ := obj.(*TypeName); tname != nil && check.objMap[tname].tdecl.Assign.IsValid() {
+-			aliasList = append(aliasList, tname)
+-			continue
++		if tname, _ := obj.(*TypeName); tname != nil {
++			if check.objMap[tname].tdecl.Assign.IsValid() {
++				aliasList = append(aliasList, tname)
++			} else {
++				check.objDecl(obj, nil)
++			}
++		} else {
++			othersList = append(othersList, obj)
+ 		}
+-
+-		check.objDecl(obj, nil)
+ 	}
+-	// phase 2
++	// phase 2: alias type declarations
+ 	for _, obj := range aliasList {
+ 		check.objDecl(obj, nil)
+ 	}
++	// phase 3: all other declarations
++	for _, obj := range othersList {
++		check.objDecl(obj, nil)
++	}
+ 
+ 	// At this point we may have a non-empty check.methods map; this means that not all
+ 	// entries were deleted at the end of typeDecl because the respective receiver base
+diff --git a/src/go/types/testdata/fixedbugs/issue25838.go b/src/go/types/testdata/fixedbugs/issue25838.go
+new file mode 100644
+index 0000000000..adbd138f16
+--- /dev/null
++++ b/src/go/types/testdata/fixedbugs/issue25838.go
+@@ -0,0 +1,26 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// examples from the issue
++
++type (
++	e = f
++	f = g
++	g = []h
++	h i
++	i = j
++	j = e
++)
++
++type (
++	e1 = []h1
++	h1 e1
++)
++
++type (
++	P = *T
++	T P
++)
+diff --git a/src/go/types/testdata/fixedbugs/issue50259.go2 b/src/go/types/testdata/fixedbugs/issue50259.go2
+index a2e65c4c15..6df8c64524 100644
+--- a/src/go/types/testdata/fixedbugs/issue50259.go2
++++ b/src/go/types/testdata/fixedbugs/issue50259.go2
+@@ -7,7 +7,7 @@ package p
+ var x T[B]
+ 
+ type T[_ any] struct{}
+-type A T[B /* ERROR invalid use of type alias */ ]
++type A T[B]
+ type B = T[A]
+ 
+ // test case from issue
+@@ -15,4 +15,4 @@ type B = T[A]
+ var v Box[Step]
+ type Box[T any] struct{}
+ type Step = Box[StepBox]
+-type StepBox Box[Step /* ERROR invalid use of type alias */ ]
++type StepBox Box[Step]
+diff --git a/src/go/types/testdata/fixedbugs/issue50276.go2 b/src/go/types/testdata/fixedbugs/issue50276.go2
+index 38a419d361..97e477e6fa 100644
+--- a/src/go/types/testdata/fixedbugs/issue50276.go2
++++ b/src/go/types/testdata/fixedbugs/issue50276.go2
+@@ -11,7 +11,7 @@ type pair[S any] struct {}
+ 
+ var _ transform[step]
+ 
+-type box transform[step /* ERROR invalid use of type alias */ ]
++type box transform[step]
+ type step = pair[box]
+ 
+ // test case from issue
+@@ -27,7 +27,7 @@ var first Transform[Step]
+ // This line doesn't use the Step alias, and it compiles fine if you uncomment it.
+ var second Transform[Pair[Box, interface{}]]
+ 
+-type Box *Transform[Step /* ERROR invalid use of type alias */ ]
++type Box *Transform[Step]
+ 
+ // This line is the same as the `first` line, but it comes after the Box declaration and
+ // does not break the compile.
+diff --git a/test/typeparam/issue50259.go b/test/typeparam/issue50259.go
+index 6987ebf790..59611ef3ab 100644
+--- a/test/typeparam/issue50259.go
++++ b/test/typeparam/issue50259.go
+@@ -1,4 +1,4 @@
+-// errorcheck -G=3
++// compile -G=3
+ 
+ // Copyright 2022 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+@@ -9,5 +9,5 @@ package p
+ var x T[B]
+ 
+ type T[_ any] struct{}
+-type A T[B] // ERROR "invalid use of type alias B in recursive type"
++type A T[B]
+ type B = T[A]

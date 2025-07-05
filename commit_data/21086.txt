@@ -8,6 +8,37 @@ Date:   Wed Nov 12 17:19:02 2014 -0500
     R=rsc, dave
     CC=golang-codereviews
     https://golang.org/cl/169460043
-
+---
  include/link.h | 11 +++++++----
  1 file changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/include/link.h b/include/link.h
+index c80f467580..06f3ebb489 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -54,7 +54,7 @@ struct	Addr
+ 	{
+ 		char	sval[8];
+ 		float64	dval;
+-		Prog*	branch;	// for 5g, 6g, 8g
++		Prog*	branch;	// for 5g, 6g, 8g, 9g
+ 	} u;
+ 
+ 	LSym*	sym;
+@@ -89,10 +89,13 @@ struct	Prog
+ 	int32	lineno;
+ 	Prog*	link;
+ 	short	as;
+-	uchar	reg; // arm, power64 only
+-	uchar	scond; // arm only
++	uchar	scond; // arm only; condition codes
++
++	// operands
+ 	Addr	from;
+-	Addr	from3; // power64 only, fma and rlwm
++	uchar	reg; // arm, power64 only (e.g., ADD from, reg, to);
++		     // also used for ADATA width on arm, power64
++	Addr	from3; // power64 only (e.g., RLWM/FMADD from, reg, from3, to)
+ 	Addr	to;
+ 	
+ 	// for 5g, 6g, 8g internal use

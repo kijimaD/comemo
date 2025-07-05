@@ -7,7 +7,32 @@ Date:   Wed Jun 30 23:31:41 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1693046
-
+---
  AUTHORS      | 1 +
  CONTRIBUTORS | 1 +
  2 files changed, 2 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 3577cd92b6..b41da7dc96 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -37,6 +37,7 @@ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Giles Lean <giles.lean@pobox.com>
+ Google Inc.
++Gustavo Niemeyer <gustavo@niemeyer.net>
+ Hector Chu <hectorchu@gmail.com>
+ Icarus Sparry <golang@icarus.freeuk.com>
+ Isaac Wagner <ibw@isaacwagner.me>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 68c5934137..caa4fb3583 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -65,6 +65,7 @@ Fazlul Shahriar <fshahriar@gmail.com>
+ Firmansyah Adiputra <frm.adiputra@gmail.com>
+ Fumitoshi Ukai <ukai@google.com>
+ Giles Lean <giles.lean@pobox.com>
++Gustavo Niemeyer <gustavo@niemeyer.net> <n13m3y3r@gmail.com>
+ Hector Chu <hectorchu@gmail.com>
+ Ian Lance Taylor <iant@golang.org>
+ Icarus Sparry <golang@icarus.freeuk.com>

@@ -11,10 +11,111 @@ Date:   Wed Oct 26 22:23:32 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
-
+---
  src/cmd/compile/internal/gc/dcl.go         |  2 +-
  src/cmd/compile/internal/gc/esc.go         |  6 +++---
  src/cmd/compile/internal/gc/sizeof_test.go |  2 +-
  src/cmd/compile/internal/gc/subr.go        |  2 +-
  src/cmd/compile/internal/gc/syntax.go      | 12 ++++++------
  5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/dcl.go b/src/cmd/compile/internal/gc/dcl.go
+index afe044acd6..c4b9ad0d92 100644
+--- a/src/cmd/compile/internal/gc/dcl.go
++++ b/src/cmd/compile/internal/gc/dcl.go
+@@ -347,7 +347,7 @@ func newname(s *Sym) *Node {
+ func newfuncname(s *Sym) *Node {
+ 	n := newname(s)
+ 	n.Func = new(Func)
+-	n.Func.FCurfn = Curfn
++	n.Func.IsHiddenClosure = Curfn != nil
+ 	return n
+ }
+ 
+diff --git a/src/cmd/compile/internal/gc/esc.go b/src/cmd/compile/internal/gc/esc.go
+index 45c0d789d1..5e1c06cbe7 100644
+--- a/src/cmd/compile/internal/gc/esc.go
++++ b/src/cmd/compile/internal/gc/esc.go
+@@ -18,7 +18,7 @@ import (
+ // The algorithm (known as Tarjan's algorithm) for doing that is taken from
+ // Sedgewick, Algorithms, Second Edition, p. 482, with two adaptations.
+ //
+-// First, a hidden closure function (n.Func.FCurfn != nil) cannot be the
++// First, a hidden closure function (n.Func.IsHiddenClosure) cannot be the
+ // root of a connected component. Refusing to use it as a root
+ // forces it into the component of the function in which it appears.
+ // This is more convenient for escape analysis.
+@@ -58,7 +58,7 @@ func visitBottomUp(list []*Node, analyze func(list []*Node, recursive bool)) {
+ 	v.analyze = analyze
+ 	v.nodeID = make(map[*Node]uint32)
+ 	for _, n := range list {
+-		if n.Op == ODCLFUNC && n.Func.FCurfn == nil {
++		if n.Op == ODCLFUNC && !n.Func.IsHiddenClosure {
+ 			v.visit(n)
+ 		}
+ 	}
+@@ -78,7 +78,7 @@ func (v *bottomUpVisitor) visit(n *Node) uint32 {
+ 
+ 	v.stack = append(v.stack, n)
+ 	min = v.visitcodelist(n.Nbody, min)
+-	if (min == id || min == id+1) && n.Func.FCurfn == nil {
++	if (min == id || min == id+1) && !n.Func.IsHiddenClosure {
+ 		// This node is the root of a strongly connected component.
+ 
+ 		// The original min passed to visitcodelist was v.nodeID[n]+1.
+diff --git a/src/cmd/compile/internal/gc/sizeof_test.go b/src/cmd/compile/internal/gc/sizeof_test.go
+index 185b19135a..2488ec9157 100644
+--- a/src/cmd/compile/internal/gc/sizeof_test.go
++++ b/src/cmd/compile/internal/gc/sizeof_test.go
+@@ -22,7 +22,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 96, 168},
++		{Func{}, 92, 160},
+ 		{Name{}, 52, 80},
+ 		{Node{}, 92, 144},
+ 		{Sym{}, 60, 112},
+diff --git a/src/cmd/compile/internal/gc/subr.go b/src/cmd/compile/internal/gc/subr.go
+index 4e908b2367..fafb8ffc1e 100644
+--- a/src/cmd/compile/internal/gc/subr.go
++++ b/src/cmd/compile/internal/gc/subr.go
+@@ -361,7 +361,7 @@ func nod(op Op, nleft *Node, nright *Node) *Node {
+ 	switch op {
+ 	case OCLOSURE, ODCLFUNC:
+ 		n.Func = new(Func)
+-		n.Func.FCurfn = Curfn
++		n.Func.IsHiddenClosure = Curfn != nil
+ 	case ONAME:
+ 		n.Name = new(Name)
+ 		n.Name.Param = new(Param)
+diff --git a/src/cmd/compile/internal/gc/syntax.go b/src/cmd/compile/internal/gc/syntax.go
+index 74492fd853..4d4ec4f24d 100644
+--- a/src/cmd/compile/internal/gc/syntax.go
++++ b/src/cmd/compile/internal/gc/syntax.go
+@@ -284,7 +284,6 @@ type Func struct {
+ 	Ntype      *Node // signature
+ 	Top        int   // top context (Ecall, Eproc, etc)
+ 	Closure    *Node // OCLOSURE <-> ODCLFUNC
+-	FCurfn     *Node
+ 	Nname      *Node
+ 
+ 	Inl     Nodes // copy of the body for use in inlining
+@@ -296,11 +295,12 @@ type Func struct {
+ 	Endlineno int32
+ 	WBLineno  int32 // line number of first write barrier
+ 
+-	Pragma        Pragma // go:xxx function annotations
+-	Dupok         bool   // duplicate definitions ok
+-	Wrapper       bool   // is method wrapper
+-	Needctxt      bool   // function uses context register (has closure variables)
+-	ReflectMethod bool   // function calls reflect.Type.Method or MethodByName
++	Pragma          Pragma // go:xxx function annotations
++	Dupok           bool   // duplicate definitions ok
++	Wrapper         bool   // is method wrapper
++	Needctxt        bool   // function uses context register (has closure variables)
++	ReflectMethod   bool   // function calls reflect.Type.Method or MethodByName
++	IsHiddenClosure bool
+ }
+ 
+ type Op uint8

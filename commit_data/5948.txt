@@ -7,7 +7,47 @@ Date:   Tue Aug 3 17:04:54 2010 -0700
     R=adg
     CC=golang-dev
     https://golang.org/cl/1689061
-
+---
  AUTHORS      | 2 ++
  CONTRIBUTORS | 2 ++
  2 files changed, 4 insertions(+)
+
+diff --git a/AUTHORS b/AUTHORS
+index 104bcd80c4..57ac099ab4 100644
+--- a/AUTHORS
++++ b/AUTHORS
+@@ -17,12 +17,14 @@ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
++Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+ Ben Olive <sionide21@gmail.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Lennert <calennert@gmail.com>
++Christian Himpel <chressie@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>
+diff --git a/CONTRIBUTORS b/CONTRIBUTORS
+index 0bb9ba982d..3a0f21fd52 100644
+--- a/CONTRIBUTORS
++++ b/CONTRIBUTORS
+@@ -42,6 +42,7 @@ Andrew Skiba <skibaa@gmail.com>
+ Andrey Mirtchovski <mirtchovski@gmail.com>
+ Andy Davis <andy@bigandian.com>
+ Anh Hai Trinh <anh.hai.trinh@gmail.com>
++Anthony Martin <ality@pbrane.org>
+ Anthony Starks <ajstarks@gmail.com>
+ Aron Nopanen <aron.nopanen@gmail.com>
+ Arvindh Rajesh Tamilmani <art@a-30.net>
+@@ -54,6 +55,7 @@ Brendan O'Dea <bod@golang.org>
+ Cary Hull <chull@google.com>
+ Charles L. Dorian <cldorian@gmail.com>
+ Chris Lennert <calennert@gmail.com>
++Christian Himpel <chressie@gmail.com>
+ Christopher Wedgwood <cw@f00f.org>
+ Conrad Meyer <cemeyer@cs.washington.edu>
+ Daniel Fleischman <danielfleischman@gmail.com>

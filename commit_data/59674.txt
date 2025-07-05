@@ -56,7 +56,7 @@ Date:   Wed Apr 3 15:51:42 2024 +0000
     Reviewed-on: https://go-review.googlesource.com/c/go/+/575415
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Cherry Mui <cherryyz@google.com>
-
+---
  src/cmd/compile/internal/base/debug.go             |   4 +
  src/cmd/compile/internal/base/flag.go              |   3 +
  src/cmd/compile/internal/base/hashdebug.go         |   7 +-
@@ -72,3 +72,1963 @@ Date:   Wed Apr 3 15:51:42 2024 +0000
  src/cmd/compile/internal/walk/temp.go              |   4 +-
  test/fixedbugs/bug385_64.go                        | 625 ++++++++++++-------
  14 files changed, 1511 insertions(+), 222 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 420ad1305e..08ccef3065 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -41,6 +41,10 @@ type DebugFlags struct {
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+ 	LocationLists         int    `help:"print information about DWARF location list creation"`
+ 	MaxShapeLen           int    `help:"hash shape names longer than this threshold (default 500)" concurrent:"ok"`
++	MergeLocals           int    `help:"merge together non-interfering local stack slots" concurrent:"ok"`
++	MergeLocalsDumpFunc   string `help:"dump specified func in merge locals"`
++	MergeLocalsHash       string `help:"hash value for debugging stack slot merging of local variables" concurrent:"ok"`
++	MergeLocalsTrace      int    `help:"trace debug output for locals merging"`
+ 	Nil                   int    `help:"print information about nil checks"`
+ 	NoOpenDefer           int    `help:"disable open-coded defers" concurrent:"ok"`
+ 	NoRefName             int    `help:"do not include referenced symbol names in object file" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 5b3c3ad8c6..0889c37b0d 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -260,6 +260,9 @@ func ParseFlags() {
+ 	if Debug.PGOHash != "" {
+ 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+ 	}
++	if Debug.MergeLocalsHash != "" {
++		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
++	}
+ 
+ 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 4e36c8d549..7a5cc42578 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -53,9 +53,10 @@ func (d *HashDebug) SetInlineSuffixOnly(b bool) *HashDebug {
+ // The default compiler-debugging HashDebug, for "-d=gossahash=..."
+ var hashDebug *HashDebug
+ 
+-var FmaHash *HashDebug     // for debugging fused-multiply-add floating point changes
+-var LoopVarHash *HashDebug // for debugging shared/private loop variable changes
+-var PGOHash *HashDebug     // for debugging PGO optimization decisions
++var FmaHash *HashDebug         // for debugging fused-multiply-add floating point changes
++var LoopVarHash *HashDebug     // for debugging shared/private loop variable changes
++var PGOHash *HashDebug         // for debugging PGO optimization decisions
++var MergeLocalsHash *HashDebug // for debugging local stack slot merging changes
+ 
+ // DebugHashMatchPkgFunc reports whether debug variable Gossahash
+ //
+diff --git a/src/cmd/compile/internal/ir/name.go b/src/cmd/compile/internal/ir/name.go
+index 758158651e..1ce6e43d0b 100644
+--- a/src/cmd/compile/internal/ir/name.go
++++ b/src/cmd/compile/internal/ir/name.go
+@@ -194,6 +194,7 @@ const (
+ 	nameLibfuzzer8BitCounter     // if PEXTERN should be assigned to __sancov_cntrs section
+ 	nameCoverageAuxVar           // instrumentation counter var or pkg ID for cmd/cover
+ 	nameAlias                    // is type name an alias
++	nameNonMergeable             // not a candidate for stack slot merging
+ )
+ 
+ func (n *Name) Readonly() bool                 { return n.flags&nameReadonly != 0 }
+@@ -209,6 +210,7 @@ func (n *Name) InlLocal() bool                 { return n.flags&nameInlLocal !=
+ func (n *Name) OpenDeferSlot() bool            { return n.flags&nameOpenDeferSlot != 0 }
+ func (n *Name) Libfuzzer8BitCounter() bool     { return n.flags&nameLibfuzzer8BitCounter != 0 }
+ func (n *Name) CoverageAuxVar() bool           { return n.flags&nameCoverageAuxVar != 0 }
++func (n *Name) NonMergeable() bool             { return n.flags&nameNonMergeable != 0 }
+ 
+ func (n *Name) setReadonly(b bool)                 { n.flags.set(nameReadonly, b) }
+ func (n *Name) SetNeedzero(b bool)                 { n.flags.set(nameNeedzero, b) }
+@@ -223,6 +225,7 @@ func (n *Name) SetInlLocal(b bool)                 { n.flags.set(nameInlLocal, b
+ func (n *Name) SetOpenDeferSlot(b bool)            { n.flags.set(nameOpenDeferSlot, b) }
+ func (n *Name) SetLibfuzzer8BitCounter(b bool)     { n.flags.set(nameLibfuzzer8BitCounter, b) }
+ func (n *Name) SetCoverageAuxVar(b bool)           { n.flags.set(nameCoverageAuxVar, b) }
++func (n *Name) SetNonMergeable(b bool)             { n.flags.set(nameNonMergeable, b) }
+ 
+ // OnStack reports whether variable n may reside on the stack.
+ func (n *Name) OnStack() bool {
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+new file mode 100644
+index 0000000000..a1342efce6
+--- /dev/null
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -0,0 +1,691 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package liveness
++
++import (
++	"cmd/compile/internal/base"
++	"cmd/compile/internal/bitvec"
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/reflectdata"
++	"cmd/compile/internal/ssa"
++	"cmd/internal/obj"
++	"cmd/internal/src"
++	"fmt"
++	"os"
++	"path/filepath"
++	"sort"
++	"strings"
++)
++
++// MergeLocalsState encapsulates information about which AUTO
++// (stack-allocated) variables within a function can be safely
++// merged/overlapped, e.g. share a stack slot with some other auto).
++// An instance of MergeLocalsState is produced by MergeLocals() below
++// and then consumed in ssagen.AllocFrame. The map 'partition' contains
++// entries of the form <N,SL> where N is an *ir.Name and SL is a slice
++// holding the indices (within 'vars') of other variables that share the
++// same slot. For example, if a function contains five variables where
++// v1/v2/v3 are safe to overlap and v4/v5 are safe to overlap, the
++// MergeLocalsState content might look like
++//
++//	vars: [v1, v2, v3, v4, v5]
++//	partition: v1 -> [1, 0, 2], v2 -> [1, 0, 2], v3 -> [1, 0, 2]
++//	           v4 -> [3, 4], v5 -> [3, 4]
++//
++// A nil MergeLocalsState indicates that no local variables meet the
++// necessary criteria for overlap.
++type MergeLocalsState struct {
++	// contains auto vars that participate in overlapping
++	vars []*ir.Name
++	// maps auto variable to overlap partition
++	partition map[*ir.Name][]int
++}
++
++// candRegion is a sub-range (start, end) corresponding to an interval
++// [st,en] within the list of candidate variables.
++type candRegion struct {
++	st, en int
++}
++
++// MergeLocals analyzes the specified ssa function f to determine which
++// of its auto variables can safely share the same stack slot, returning
++// a state object that describes how the overlap should be done.
++func MergeLocals(fn *ir.Func, f *ssa.Func) *MergeLocalsState {
++	cands, idx, regions := collectMergeCandidates(fn)
++	if len(regions) == 0 {
++		return nil
++	}
++	lv := newliveness(fn, f, cands, idx, 0)
++
++	// If we have a local variable such as "r2" below that's written
++	// but then not read, something like:
++	//
++	//      vardef r1
++	//      r1.x = ...
++	//      vardef r2
++	//      r2.x = 0
++	//      r2.y = ...
++	//      <call foo>
++	//      // no subsequent use of r2
++	//      ... = r1.x
++	//
++	// then for the purpose of calculating stack maps at the call, we
++	// can ignore "r2" completely during liveness analysis for stack
++	// maps, however for stack slock merging we most definitely want
++	// to treat the writes as "uses".
++	lv.conservativeWrites = true
++
++	lv.prologue()
++	lv.solve()
++	cs := &cstate{
++		fn:        fn,
++		ibuilders: make([]IntervalsBuilder, len(cands)),
++	}
++	computeIntervals(lv, cs)
++	rv := performMerging(lv, cs, regions)
++	if err := rv.check(); err != nil {
++		base.FatalfAt(fn.Pos(), "invalid mergelocals state: %v", err)
++	}
++	return rv
++}
++
++// Subsumed returns whether variable n is subsumed, e.g. appears
++// in an overlap position but is not the leader in that partition.
++func (mls *MergeLocalsState) Subsumed(n *ir.Name) bool {
++	if sl, ok := mls.partition[n]; ok && mls.vars[sl[0]] != n {
++		return true
++	}
++	return false
++}
++
++// IsLeader returns whether a variable n is the leader (first element)
++// in a sharing partition.
++func (mls *MergeLocalsState) IsLeader(n *ir.Name) bool {
++	if sl, ok := mls.partition[n]; ok && mls.vars[sl[0]] == n {
++		return true
++	}
++	return false
++}
++
++// Leader returns the leader variable for subsumed var n.
++func (mls *MergeLocalsState) Leader(n *ir.Name) *ir.Name {
++	if sl, ok := mls.partition[n]; ok {
++		if mls.vars[sl[0]] == n {
++			panic("variable is not subsumed")
++		}
++		return mls.vars[sl[0]]
++	}
++	panic("not a merge candidate")
++}
++
++// Followers writes a list of the followers for leader n into the slice tmp.
++func (mls *MergeLocalsState) Followers(n *ir.Name, tmp []*ir.Name) []*ir.Name {
++	tmp = tmp[:0]
++	sl, ok := mls.partition[n]
++	if !ok {
++		panic("no entry for leader")
++	}
++	if mls.vars[sl[0]] != n {
++		panic("followers invoked on subsumed var")
++	}
++	for _, k := range sl[1:] {
++		tmp = append(tmp, mls.vars[k])
++	}
++	sort.SliceStable(tmp, func(i, j int) bool {
++		return tmp[i].Sym().Name < tmp[j].Sym().Name
++	})
++	return tmp
++}
++
++// EstSavings returns the estimated reduction in stack size for
++// the given merge locals state.
++func (mls *MergeLocalsState) EstSavings() int {
++	tot := 0
++	for n := range mls.partition {
++		if mls.Subsumed(n) {
++			tot += int(n.Type().Size())
++		}
++	}
++	return tot
++}
++
++// check tests for various inconsistencies and problems in mls,
++// returning an error if any problems are found.
++func (mls *MergeLocalsState) check() error {
++	if mls == nil {
++		return nil
++	}
++	used := make(map[int]bool)
++	seenv := make(map[*ir.Name]int)
++	for ii, v := range mls.vars {
++		if prev, ok := seenv[v]; ok {
++			return fmt.Errorf("duplicate var %q in vslots: %d and %d\n",
++				v.Sym().Name, ii, prev)
++		}
++		seenv[v] = ii
++	}
++	for k, sl := range mls.partition {
++		// length of slice value needs to be more than 1
++		if len(sl) < 2 {
++			return fmt.Errorf("k=%q v=%+v slice len %d invalid",
++				k.Sym().Name, sl, len(sl))
++		}
++		// values in the slice need to be var indices
++		for i, v := range sl {
++			if v < 0 || v > len(mls.vars)-1 {
++				return fmt.Errorf("k=%q v=+%v slpos %d vslot %d out of range of m.v", k.Sym().Name, sl, i, v)
++			}
++		}
++	}
++	for k, sl := range mls.partition {
++		foundk := false
++		for i, v := range sl {
++			vv := mls.vars[v]
++			if i == 0 {
++				if !mls.IsLeader(vv) {
++					return fmt.Errorf("k=%s v=+%v slpos 0 vslot %d IsLeader(%q) is false should be true", k.Sym().Name, sl, v, vv.Sym().Name)
++				}
++			} else {
++				if !mls.Subsumed(vv) {
++					return fmt.Errorf("k=%s v=+%v slpos %d vslot %d Subsumed(%q) is false should be true", k.Sym().Name, sl, i, v, vv.Sym().Name)
++				}
++				if mls.Leader(vv) != mls.vars[sl[0]] {
++					return fmt.Errorf("k=%s v=+%v slpos %d vslot %d Leader(%q) got %v want %v", k.Sym().Name, sl, i, v, vv.Sym().Name, mls.Leader(vv), mls.vars[sl[0]])
++				}
++			}
++			if vv == k {
++				foundk = true
++				if used[v] {
++					return fmt.Errorf("k=%s v=+%v val slice used violation at slpos %d vslot %d", k.Sym().Name, sl, i, v)
++				}
++				used[v] = true
++			}
++		}
++		if !foundk {
++			return fmt.Errorf("k=%s v=+%v slice value missing k", k.Sym().Name, sl)
++		}
++	}
++	for i := range used {
++		if !used[i] {
++			return fmt.Errorf("pos %d var %q unused", i, mls.vars[i])
++		}
++	}
++	return nil
++}
++
++func (mls *MergeLocalsState) String() string {
++	var leaders []*ir.Name
++	for n, sl := range mls.partition {
++		if n == mls.vars[sl[0]] {
++			leaders = append(leaders, n)
++		}
++	}
++	sort.Slice(leaders, func(i, j int) bool {
++		return leaders[i].Sym().Name < leaders[j].Sym().Name
++	})
++	var sb strings.Builder
++	for _, n := range leaders {
++		sb.WriteString(n.Sym().Name + ":")
++		sl := mls.partition[n]
++		for _, k := range sl[1:] {
++			n := mls.vars[k]
++			sb.WriteString(" " + n.Sym().Name)
++		}
++		sb.WriteString("\n")
++	}
++	return sb.String()
++}
++
++// collectMergeCandidates visits all of the AUTO vars declared in
++// function fn and returns a list of candidate variables for merging /
++// overlapping. Return values are: 1) a slice of ir.Name's
++// corresponding to the candidates, 2) a map that maps ir.Name to slot
++// in the slice, and 3) a slice containing regions (start/end pairs)
++// corresponding to variables that could be overlapped provided that
++// their lifetimes are disjoint.
++func collectMergeCandidates(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32, []candRegion) {
++	m := make(map[*ir.Name]int32)
++	var cands []*ir.Name
++	var regions []candRegion
++
++	// Collect up the available set of appropriate AUTOs in the
++	// function as a first step.
++	for _, n := range fn.Dcl {
++		if !n.Used() {
++			continue
++		}
++		if !ssa.IsMergeCandidate(n) {
++			continue
++		}
++		cands = append(cands, n)
++	}
++	if len(cands) < 2 {
++		return nil, nil, nil
++	}
++
++	// Sort by pointerness, size, and then name.
++	sort.SliceStable(cands, func(i, j int) bool {
++		ci, cj := cands[i], cands[j]
++		ihp, jhp := 0, 0
++		var ilsym, jlsym *obj.LSym
++		if ci.Type().HasPointers() {
++			ihp = 1
++			ilsym, _, _ = reflectdata.GCSym(ci.Type())
++		}
++		if cj.Type().HasPointers() {
++			jhp = 1
++			jlsym, _, _ = reflectdata.GCSym(cj.Type())
++		}
++		if ihp != jhp {
++			return ihp < jhp
++		}
++		if ci.Type().Size() != cj.Type().Size() {
++			return ci.Type().Size() < cj.Type().Size()
++		}
++		if ihp != 0 && jhp != 0 && ilsym != jlsym {
++			// FIXME: find less clunky way to do this
++			return fmt.Sprintf("%v", ilsym) < fmt.Sprintf("%v", jlsym)
++		}
++		if ci.Sym().Name != cj.Sym().Name {
++			return ci.Sym().Name < cj.Sym().Name
++		}
++		return fmt.Sprintf("%v", ci.Pos()) < fmt.Sprintf("%v", ci.Pos())
++	})
++
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= raw cand list for func %v:\n", fn)
++		for i := range cands {
++			dumpCand(cands[i], i)
++		}
++	}
++
++	// Now generate a pruned candidate list-- we only want to return a
++	// non-empty list if there is some possibility of overlapping two
++	// vars.
++	var pruned []*ir.Name
++	st := 0
++	for {
++		en := nextRegion(cands, st)
++		if en == -1 {
++			break
++		}
++		if st == en {
++			// region has just one element, we can skip it
++			st++
++			continue
++		}
++		pst := len(pruned)
++		pen := pst + (en - st)
++		if base.Debug.MergeLocalsTrace > 1 {
++			fmt.Fprintf(os.Stderr, "=-= add part %d -> %d\n", pst, pen)
++		}
++
++		// non-empty region, add to pruned
++		pruned = append(pruned, cands[st:en+1]...)
++		regions = append(regions, candRegion{st: pst, en: pen})
++		st = en + 1
++	}
++	if len(pruned) < 2 {
++		return nil, nil, nil
++	}
++	for i, n := range pruned {
++		m[n] = int32(i)
++	}
++
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= pruned candidate list for func %v:\n", fn)
++		for i := range pruned {
++			dumpCand(pruned[i], i)
++		}
++	}
++	return pruned, m, regions
++}
++
++// nextRegion starts at location idx and walks forward in the cands
++// slice looking for variables that are "compatible" (overlappable)
++// with the variable at position idx; it returns the end of the new
++// region (range of compatible variables starting at idx).
++func nextRegion(cands []*ir.Name, idx int) int {
++	n := len(cands)
++	if idx >= n {
++		return -1
++	}
++	c0 := cands[idx]
++	hp0 := c0.Type().HasPointers()
++	for j := idx + 1; j < n; j++ {
++		cj := cands[j]
++		hpj := cj.Type().HasPointers()
++		ok := true
++		if hp0 {
++			if !hpj || c0.Type().Size() != cj.Type().Size() {
++				return j - 1
++			}
++			// GC shape must match if both types have pointers.
++			gcsym0, _, _ := reflectdata.GCSym(c0.Type())
++			gcsymj, _, _ := reflectdata.GCSym(cj.Type())
++			if gcsym0 != gcsymj {
++				return j - 1
++			}
++		} else {
++			// If no pointers, match size only.
++			if !ok || hp0 != hpj || c0.Type().Size() != cj.Type().Size() {
++				return j - 1
++			}
++		}
++	}
++	return n - 1
++}
++
++type cstate struct {
++	fn        *ir.Func
++	ibuilders []IntervalsBuilder
++}
++
++// mergeVisitRegion tries to perform overlapping of variables with a
++// given subrange of cands described by st and en (indices into our
++// candidate var list), where the variables within this range have
++// already been determined to be compatible with respect to type,
++// size, etc. Overlapping is done in a a greedy fashion: we select the
++// first element in the st->en range, then walk the rest of the
++// elements adding in vars whose lifetimes don't overlap with the
++// first element, then repeat the process until we run out of work to do.
++func (mls *MergeLocalsState) mergeVisitRegion(lv *liveness, ivs []Intervals, st, en int) {
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= mergeVisitRegion(st=%d, en=%d)\n", st, en)
++	}
++	n := en - st + 1
++	used := bitvec.New(int32(n))
++
++	nxt := func(slot int) int {
++		for c := slot - st; c < n; c++ {
++			if used.Get(int32(c)) {
++				continue
++			}
++			return c + st
++		}
++		return -1
++	}
++
++	navail := n
++	cands := lv.vars
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "  =-= navail = %d\n", navail)
++	}
++	for navail >= 2 {
++		leader := nxt(st)
++		used.Set(int32(leader - st))
++		navail--
++
++		if base.Debug.MergeLocalsTrace > 1 {
++			fmt.Fprintf(os.Stderr, "  =-= begin leader %d used=%s\n", leader,
++				used.String())
++		}
++		elems := []int{leader}
++		lints := ivs[leader]
++
++		for succ := nxt(leader + 1); succ != -1; succ = nxt(succ + 1) {
++
++			// Skip if de-selected by merge locals hash.
++			if base.Debug.MergeLocalsHash != "" {
++				if !base.MergeLocalsHash.MatchPosWithInfo(cands[succ].Pos(), "mergelocals", nil) {
++					continue
++				}
++			}
++			// Skip if already used.
++			if used.Get(int32(succ - st)) {
++				continue
++			}
++			if base.Debug.MergeLocalsTrace > 1 {
++				fmt.Fprintf(os.Stderr, "  =-= overlap of %d[%v] {%s} with %d[%v] {%s} is: %v\n", leader, cands[leader], lints.String(), succ, cands[succ], ivs[succ].String(), lints.Overlaps(ivs[succ]))
++			}
++
++			// Can we overlap leader with this var?
++			if lints.Overlaps(ivs[succ]) {
++				continue
++			} else {
++				// Add to overlap set.
++				elems = append(elems, succ)
++				lints = lints.Merge(ivs[succ])
++			}
++		}
++		if len(elems) > 1 {
++			// We found some things to overlap with leader. Add the
++			// candidate elements to "vars" and update "partition".
++			off := len(mls.vars)
++			sl := make([]int, len(elems))
++			for i, candslot := range elems {
++				sl[i] = off + i
++				mls.vars = append(mls.vars, cands[candslot])
++				mls.partition[cands[candslot]] = sl
++			}
++			navail -= (len(elems) - 1)
++			for i := range elems {
++				used.Set(int32(elems[i] - st))
++			}
++			if base.Debug.MergeLocalsTrace > 1 {
++				fmt.Fprintf(os.Stderr, "=-= overlapping %+v:\n", sl)
++				for i := range sl {
++					dumpCand(mls.vars[sl[i]], sl[i])
++				}
++				for i, v := range elems {
++					fmt.Fprintf(os.Stderr, "=-= %d: sl=%d %s\n", i, v, ivs[v])
++				}
++			}
++		}
++	}
++}
++
++// performMerging carries out variable merging within each of the
++// candidate ranges in regions, returning a state object
++// that describes the variable overlaps.
++func performMerging(lv *liveness, cs *cstate, regions []candRegion) *MergeLocalsState {
++	cands := lv.vars
++	mls := &MergeLocalsState{
++		partition: make(map[*ir.Name][]int),
++	}
++
++	// Finish intervals construction.
++	ivs := make([]Intervals, len(cands))
++	for i := range cands {
++		var err error
++		ivs[i], err = cs.ibuilders[i].Finish()
++		if err != nil {
++			ninstr := 0
++			if base.Debug.MergeLocalsTrace != 0 {
++				iidx := 0
++				for k := 0; k < len(lv.f.Blocks); k++ {
++					b := lv.f.Blocks[k]
++					fmt.Fprintf(os.Stderr, "\n")
++					for _, v := range b.Values {
++						fmt.Fprintf(os.Stderr, " b%d %d: %s\n", k, iidx, v.LongString())
++						iidx++
++						ninstr++
++					}
++				}
++			}
++			base.FatalfAt(cands[i].Pos(), "interval construct error for var %q in func %q (%d instrs): %v", cands[i].Sym().Name, ir.FuncName(cs.fn), ninstr, err)
++			return nil
++		}
++	}
++
++	// Dump state before attempting overlap.
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= cands live before overlap:\n")
++		for i := range cands {
++			c := cands[i]
++			fmt.Fprintf(os.Stderr, "%d: %v sz=%d ivs=%s\n",
++				i, c.Sym().Name, c.Type().Size(), ivs[i].String())
++		}
++		fmt.Fprintf(os.Stderr, "=-= regions (%d): ", len(regions))
++		for _, cr := range regions {
++			fmt.Fprintf(os.Stderr, " [%d,%d]", cr.st, cr.en)
++		}
++		fmt.Fprintf(os.Stderr, "\n")
++	}
++
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= len(regions) = %d\n", len(regions))
++	}
++
++	// Apply a greedy merge/overlap strategy within each region
++	// of compatible variables.
++	for _, cr := range regions {
++		mls.mergeVisitRegion(lv, ivs, cr.st, cr.en)
++	}
++	if len(mls.vars) == 0 {
++		return nil
++	}
++	return mls
++}
++
++// computeIntervals performs a backwards sweep over the instructions
++// of the function we're compiling, building up an Intervals object
++// for each candidate variable by looking for upwards exposed uses
++// and kills.
++func computeIntervals(lv *liveness, cs *cstate) {
++	nvars := int32(len(lv.vars))
++	liveout := bitvec.New(nvars)
++
++	if base.Debug.MergeLocalsDumpFunc != "" &&
++		strings.HasSuffix(fmt.Sprintf("%v", cs.fn), base.Debug.MergeLocalsDumpFunc) {
++		fmt.Fprintf(os.Stderr, "=-= mergelocalsdumpfunc %v:\n", cs.fn)
++		ii := 0
++		for k, b := range lv.f.Blocks {
++			fmt.Fprintf(os.Stderr, "b%d:\n", k)
++			for _, v := range b.Values {
++				pos := base.Ctxt.PosTable.Pos(v.Pos)
++				fmt.Fprintf(os.Stderr, "=-= %d L%d|C%d %s\n", ii, pos.RelLine(), pos.RelCol(), v.LongString())
++				ii++
++			}
++		}
++	}
++
++	// Count instructions.
++	ninstr := 0
++	for _, b := range lv.f.Blocks {
++		ninstr += len(b.Values)
++	}
++	// current instruction index during backwards walk
++	iidx := ninstr - 1
++
++	// Make a backwards pass over all blocks
++	for k := len(lv.f.Blocks) - 1; k >= 0; k-- {
++		b := lv.f.Blocks[k]
++		be := lv.blockEffects(b)
++
++		if base.Debug.MergeLocalsTrace > 2 {
++			fmt.Fprintf(os.Stderr, "=-= liveout from tail of b%d: ", k)
++			for j := range lv.vars {
++				if be.liveout.Get(int32(j)) {
++					fmt.Fprintf(os.Stderr, " %q", lv.vars[j].Sym().Name)
++				}
++			}
++			fmt.Fprintf(os.Stderr, "\n")
++		}
++
++		// Take into account effects taking place at end of this basic
++		// block by comparing our current live set with liveout for
++		// the block. If a given var was not live before and is now
++		// becoming live we need to mark this transition with a
++		// builder "Live" call; similarly if a var was live before and
++		// is now no longer live, we need a "Kill" call.
++		for j := range lv.vars {
++			isLive := liveout.Get(int32(j))
++			blockLiveOut := be.liveout.Get(int32(j))
++			if isLive {
++				if !blockLiveOut {
++					if base.Debug.MergeLocalsTrace > 2 {
++						fmt.Fprintf(os.Stderr, "=+= at instr %d block boundary kill of %v\n", iidx, lv.vars[j])
++					}
++					cs.ibuilders[j].Kill(iidx)
++				}
++			} else if blockLiveOut {
++				if base.Debug.MergeLocalsTrace > 2 {
++					fmt.Fprintf(os.Stderr, "=+= at block-end instr %d %v becomes live\n",
++						iidx, lv.vars[j])
++				}
++				cs.ibuilders[j].Live(iidx)
++			}
++		}
++
++		// Set our working "currently live" set to the previously
++		// computed live out set for the block.
++		liveout.Copy(be.liveout)
++
++		// Now walk backwards through this block.
++		for i := len(b.Values) - 1; i >= 0; i-- {
++			v := b.Values[i]
++
++			if base.Debug.MergeLocalsTrace > 2 {
++				fmt.Fprintf(os.Stderr, "=-= b%d instr %d: %s\n", k, iidx, v.LongString())
++			}
++
++			// Update liveness based on what we see happening in this
++			// instruction.
++			pos, e := lv.valueEffects(v)
++			becomeslive := e&uevar != 0
++			iskilled := e&varkill != 0
++			if becomeslive && iskilled {
++				// we do not ever expect to see both a kill and an
++				// upwards exposed use given our size constraints.
++				panic("should never happen")
++			}
++			if iskilled && liveout.Get(pos) {
++				cs.ibuilders[pos].Kill(iidx)
++				liveout.Unset(pos)
++				if base.Debug.MergeLocalsTrace > 2 {
++					fmt.Fprintf(os.Stderr, "=+= at instr %d kill of %v\n",
++						iidx, lv.vars[pos])
++				}
++			} else if becomeslive && !liveout.Get(pos) {
++				cs.ibuilders[pos].Live(iidx)
++				liveout.Set(pos)
++				if base.Debug.MergeLocalsTrace > 2 {
++					fmt.Fprintf(os.Stderr, "=+= at instr %d upwards-exposed use of %v\n",
++						iidx, lv.vars[pos])
++				}
++			}
++			iidx--
++		}
++
++		if b == lv.f.Entry {
++			for j, v := range lv.vars {
++				if liveout.Get(int32(j)) {
++					lv.f.Fatalf("%v %L recorded as live on entry",
++						lv.fn.Nname, v)
++				}
++			}
++		}
++	}
++	if iidx != -1 {
++		panic("iidx underflow")
++	}
++}
++
++func dumpCand(c *ir.Name, i int) {
++	fmtFullPos := func(p src.XPos) string {
++		var sb strings.Builder
++		sep := ""
++		base.Ctxt.AllPos(p, func(pos src.Pos) {
++			fmt.Fprintf(&sb, sep)
++			sep = "|"
++			file := filepath.Base(pos.Filename())
++			fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
++		})
++		return sb.String()
++	}
++	fmt.Fprintf(os.Stderr, " %d: %s %q sz=%d hp=%v t=%v\n",
++		i, fmtFullPos(c.Pos()), c.Sym().Name, c.Type().Size(),
++		c.Type().HasPointers(), c.Type())
++}
++
++// for unit testing only.
++func MakeMergeLocalsState(partition map[*ir.Name][]int, vars []*ir.Name) (*MergeLocalsState, error) {
++	mls := &MergeLocalsState{partition: partition, vars: vars}
++	if err := mls.check(); err != nil {
++		return nil, err
++	}
++	return mls, nil
++}
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index e4dbfa9fa3..ab1a7df930 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -143,6 +143,11 @@ type liveness struct {
+ 
+ 	doClobber     bool // Whether to clobber dead stack slots in this function.
+ 	noClobberArgs bool // Do not clobber function arguments
++
++	// treat "dead" writes as equivalent to reads during the analysis;
++	// used only during liveness analysis for stack slot merging (doesn't
++	// make sense for stackmap analysis).
++	conservativeWrites bool
+ }
+ 
+ // Map maps from *ssa.Value to StackMapIndex.
+@@ -312,8 +317,12 @@ func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
+ 	if e&(ssa.SymRead|ssa.SymAddr) != 0 {
+ 		effect |= uevar
+ 	}
+-	if e&ssa.SymWrite != 0 && (!isfat(n.Type()) || v.Op == ssa.OpVarDef) {
+-		effect |= varkill
++	if e&ssa.SymWrite != 0 {
++		if !isfat(n.Type()) || v.Op == ssa.OpVarDef {
++			effect |= varkill
++		} else if lv.conservativeWrites {
++			effect |= uevar
++		}
+ 	}
+ 
+ 	if effect == 0 {
+@@ -450,6 +459,11 @@ func (lv *liveness) blockEffects(b *ssa.Block) *blockEffects {
+ // this argument and the in arguments are always assumed live. The vars
+ // argument is a slice of *Nodes.
+ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, locals bitvec.BitVec) {
++	var slotsSeen map[int64]*ir.Name
++	checkForDuplicateSlots := base.Debug.MergeLocals != 0
++	if checkForDuplicateSlots {
++		slotsSeen = make(map[int64]*ir.Name)
++	}
+ 	for i := int32(0); ; i++ {
+ 		i = liveout.Next(i)
+ 		if i < 0 {
+@@ -468,6 +482,12 @@ func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, loc
+ 			fallthrough // PPARAMOUT in registers acts memory-allocates like an AUTO
+ 		case ir.PAUTO:
+ 			typebits.Set(node.Type(), node.FrameOffset()+lv.stkptrsize, locals)
++			if checkForDuplicateSlots {
++				if prev, ok := slotsSeen[node.FrameOffset()]; ok {
++					base.FatalfAt(node.Pos(), "two vars live at pointerMap generation: %q and %q", prev.Sym().Name, node.Sym().Name)
++				}
++				slotsSeen[node.FrameOffset()] = node
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/check.go b/src/cmd/compile/internal/ssa/check.go
+index bbfdaceaad..cb6788cd95 100644
+--- a/src/cmd/compile/internal/ssa/check.go
++++ b/src/cmd/compile/internal/ssa/check.go
+@@ -314,8 +314,9 @@ func checkFunc(f *Func) {
+ 					f.Fatalf("bad arg 1 type to %s: want integer, have %s", v.Op, v.Args[1].LongString())
+ 				}
+ 			case OpVarDef:
+-				if !v.Aux.(*ir.Name).Type().HasPointers() {
+-					f.Fatalf("vardef must have pointer type %s", v.Aux.(*ir.Name).Type().String())
++				n := v.Aux.(*ir.Name)
++				if !n.Type().HasPointers() && !IsMergeCandidate(n) {
++					f.Fatalf("vardef must be merge candidate or have pointer type %s", v.Aux.(*ir.Name).Type().String())
+ 				}
+ 			case OpNilCheck:
+ 				// nil checks have pointer type before scheduling, and
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 031d94f90c..38b459a2ff 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -838,5 +838,25 @@ func (f *Func) useFMA(v *Value) bool {
+ 
+ // NewLocal returns a new anonymous local variable of the given type.
+ func (f *Func) NewLocal(pos src.XPos, typ *types.Type) *ir.Name {
+-	return typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
++	nn := typecheck.TempAt(pos, f.fe.Func(), typ) // Note: adds new auto to fn.Dcl list
++	nn.SetNonMergeable(true)
++	return nn
++}
++
++// IsMergeCandidate returns true if variable n could participate in
++// stack slot merging. For now we're restricting the set to things to
++// items larger than what CanSSA would allow (approximateky, we disallow things
++// marked as open defer slots so as to avoid complicating liveness
++// analysis.
++func IsMergeCandidate(n *ir.Name) bool {
++	if base.Debug.MergeLocals == 0 ||
++		base.Flag.N != 0 ||
++		n.Class != ir.PAUTO ||
++		n.Type().Size() <= int64(3*types.PtrSize) ||
++		n.Addrtaken() ||
++		n.NonMergeable() ||
++		n.OpenDeferSlot() {
++		return false
++	}
++	return true
+ }
+diff --git a/src/cmd/compile/internal/ssagen/pgen.go b/src/cmd/compile/internal/ssagen/pgen.go
+index c3d9ec3091..d0045e7ee3 100644
+--- a/src/cmd/compile/internal/ssagen/pgen.go
++++ b/src/cmd/compile/internal/ssagen/pgen.go
+@@ -13,6 +13,7 @@ import (
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/liveness"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/types"
+@@ -151,6 +152,18 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		}
+ 	}
+ 
++	var mls *liveness.MergeLocalsState
++	if base.Debug.MergeLocals != 0 {
++		mls = liveness.MergeLocals(fn, f)
++		if base.Debug.MergeLocalsTrace == 1 && mls != nil {
++			fmt.Fprintf(os.Stderr, "%s: %d bytes of stack space saved via stack slot merging\n", ir.FuncName(fn), mls.EstSavings())
++			if base.Debug.MergeLocalsTrace > 1 {
++				fmt.Fprintf(os.Stderr, "=-= merge locals state for %v:\n%v",
++					fn, mls)
++			}
++		}
++	}
++
+ 	// Use sort.SliceStable instead of sort.Slice so stack layout (and thus
+ 	// compiler output) is less sensitive to frontend changes that
+ 	// introduce or remove unused variables.
+@@ -158,6 +171,22 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 		return cmpstackvarlt(fn.Dcl[i], fn.Dcl[j])
+ 	})
+ 
++	if base.Debug.MergeLocalsTrace > 1 && mls != nil {
++		fmt.Fprintf(os.Stderr, "=-= sorted DCL for %v:\n", fn)
++		for i, v := range fn.Dcl {
++			if !ssa.IsMergeCandidate(v) {
++				continue
++			}
++			fmt.Fprintf(os.Stderr, " %d: %q isleader=%v subsumed=%v used=%v\n", i, v.Sym().Name, mls.IsLeader(v), mls.Subsumed(v), v.Used())
++
++		}
++	}
++
++	var leaders map[*ir.Name]int64
++	if mls != nil {
++		leaders = make(map[*ir.Name]int64)
++	}
++
+ 	// Reassign stack offsets of the locals that are used.
+ 	lastHasPtr := false
+ 	for i, n := range fn.Dcl {
+@@ -165,12 +194,14 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			// i.e., stack assign if AUTO, or if PARAMOUT in registers (which has no predefined spill locations)
+ 			continue
+ 		}
++		if mls != nil && mls.Subsumed(n) {
++			continue
++		}
+ 		if !n.Used() {
+ 			fn.DebugInfo.(*ssa.FuncDebug).OptDcl = fn.Dcl[i:]
+ 			fn.Dcl = fn.Dcl[:i]
+ 			break
+ 		}
+-
+ 		types.CalcSize(n.Type())
+ 		w := n.Type().Size()
+ 		if w >= types.MaxWidth || w < 0 {
+@@ -195,6 +226,42 @@ func (s *ssafn) AllocFrame(f *ssa.Func) {
+ 			lastHasPtr = false
+ 		}
+ 		n.SetFrameOffset(-s.stksize)
++		if mls != nil && mls.IsLeader(n) {
++			leaders[n] = -s.stksize
++		}
++	}
++
++	if mls != nil {
++		followers := []*ir.Name{}
++		newdcl := make([]*ir.Name, 0, len(fn.Dcl))
++		for i := 0; i < len(fn.Dcl); i++ {
++			n := fn.Dcl[i]
++			if mls.Subsumed(n) {
++				continue
++			}
++			newdcl = append(newdcl, n)
++			if off, ok := leaders[n]; ok {
++				followers = mls.Followers(n, followers)
++				for _, f := range followers {
++					// Set the stack offset for each follower to be
++					// the same as the leader.
++					f.SetFrameOffset(off)
++				}
++				// position followers immediately after leader
++				newdcl = append(newdcl, followers...)
++			}
++		}
++		fn.Dcl = newdcl
++	}
++
++	if base.Debug.MergeLocalsTrace > 1 {
++		fmt.Fprintf(os.Stderr, "=-= stack layout for %v:\n", fn)
++		for i, v := range fn.Dcl {
++			if v.Op() != ir.ONAME || (v.Class != ir.PAUTO && !(v.Class == ir.PPARAMOUT && v.IsOutputParamInRegisters())) {
++				continue
++			}
++			fmt.Fprintf(os.Stderr, " %d: %q frameoff %d used=%v\n", i, v.Sym().Name, v.FrameOffset(), v.Used())
++		}
+ 	}
+ 
+ 	s.stksize = types.RoundUp(s.stksize, s.stkalign)
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 59b4c88089..9e384fe016 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -633,7 +633,7 @@ func (s *state) zeroResults() {
+ 		if typ := n.Type(); ssa.CanSSA(typ) {
+ 			s.assign(n, s.zeroVal(typ), false, 0)
+ 		} else {
+-			if typ.HasPointers() {
++			if typ.HasPointers() || ssa.IsMergeCandidate(n) {
+ 				s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, n, s.mem())
+ 			}
+ 			s.zero(n.Type(), s.decladdrs[n])
+@@ -3949,7 +3949,7 @@ func (s *state) assignWhichMayOverlap(left ir.Node, right *ssa.Value, deref bool
+ 
+ 	// If this assignment clobbers an entire local variable, then emit
+ 	// OpVarDef so liveness analysis knows the variable is redefined.
+-	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 && t.HasPointers() {
++	if base, ok := clobberBase(left).(*ir.Name); ok && base.OnStack() && skip == 0 && (t.HasPointers() || ssa.IsMergeCandidate(base)) {
+ 		s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, base, s.mem(), !ir.IsAutoTmp(base))
+ 	}
+ 
+@@ -5389,7 +5389,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 		}
+ 		// Make a defer struct on the stack.
+ 		t := deferstruct()
+-		_, addr := s.temp(n.Pos(), t)
++		n, addr := s.temp(n.Pos(), t)
++		n.SetNonMergeable(true)
+ 		s.store(closure.Type,
+ 			s.newValue1I(ssa.OpOffPtr, closure.Type.PtrTo(), t.FieldOff(deferStructFnField), addr),
+ 			closure)
+@@ -6893,7 +6894,7 @@ func (s *state) dottype1(pos src.XPos, src, dst *types.Type, iface, source, targ
+ // temp allocates a temp of type t at position pos
+ func (s *state) temp(pos src.XPos, t *types.Type) (*ir.Name, *ssa.Value) {
+ 	tmp := typecheck.TempAt(pos, s.curfn, t)
+-	if t.HasPointers() {
++	if t.HasPointers() || (ssa.IsMergeCandidate(tmp) && t != deferstruct()) {
+ 		s.vars[memVar] = s.newValue1A(ssa.OpVarDef, types.TypeMem, tmp, s.mem())
+ 	}
+ 	addr := s.addr(tmp)
+diff --git a/src/cmd/compile/internal/test/mergelocals_test.go b/src/cmd/compile/internal/test/mergelocals_test.go
+new file mode 100644
+index 0000000000..f070197c80
+--- /dev/null
++++ b/src/cmd/compile/internal/test/mergelocals_test.go
+@@ -0,0 +1,184 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"cmd/compile/internal/ir"
++	"cmd/compile/internal/liveness"
++	"cmd/compile/internal/typecheck"
++	"cmd/compile/internal/types"
++	"cmd/internal/src"
++	"internal/testenv"
++	"path/filepath"
++	"slices"
++	"sort"
++	"strings"
++	"testing"
++)
++
++func TestMergeLocalState(t *testing.T) {
++	mkiv := func(name string) *ir.Name {
++		i32 := types.Types[types.TINT32]
++		s := typecheck.Lookup(name)
++		v := ir.NewNameAt(src.NoXPos, s, i32)
++		return v
++	}
++	v1 := mkiv("v1")
++	v2 := mkiv("v2")
++	v3 := mkiv("v3")
++
++	testcases := []struct {
++		vars      []*ir.Name
++		partition map[*ir.Name][]int
++		experr    bool
++	}{
++		{
++			vars: []*ir.Name{v1, v2, v3},
++			partition: map[*ir.Name][]int{
++				v1: []int{0, 1, 2},
++				v2: []int{0, 1, 2},
++				v3: []int{0, 1, 2},
++			},
++			experr: false,
++		},
++		{
++			// invalid mls.v slot -1
++			vars: []*ir.Name{v1, v2, v3},
++			partition: map[*ir.Name][]int{
++				v1: []int{-1, 0},
++				v2: []int{0, 1, 2},
++				v3: []int{0, 1, 2},
++			},
++			experr: true,
++		},
++		{
++			// duplicate var in v
++			vars: []*ir.Name{v1, v2, v2},
++			partition: map[*ir.Name][]int{
++				v1: []int{0, 1, 2},
++				v2: []int{0, 1, 2},
++				v3: []int{0, 1, 2},
++			},
++			experr: true,
++		},
++		{
++			// single element in partition
++			vars: []*ir.Name{v1, v2, v3},
++			partition: map[*ir.Name][]int{
++				v1: []int{0},
++				v2: []int{0, 1, 2},
++				v3: []int{0, 1, 2},
++			},
++			experr: true,
++		},
++		{
++			// missing element 2
++			vars: []*ir.Name{v1, v2, v3},
++			partition: map[*ir.Name][]int{
++				v1: []int{0, 1},
++				v2: []int{0, 1},
++				v3: []int{0, 1},
++			},
++			experr: true,
++		},
++		{
++			// partitions disagree for v1 vs v2
++			vars: []*ir.Name{v1, v2, v3},
++			partition: map[*ir.Name][]int{
++				v1: []int{0, 1, 2},
++				v2: []int{1, 0, 2},
++				v3: []int{0, 1, 2},
++			},
++			experr: true,
++		},
++	}
++
++	for k, testcase := range testcases {
++		mls, err := liveness.MakeMergeLocalsState(testcase.partition, testcase.vars)
++		t.Logf("tc %d err is %v\n", k, err)
++		if testcase.experr && err == nil {
++			t.Fatalf("tc:%d missing error mls %v", k, mls)
++		} else if !testcase.experr && err != nil {
++			t.Fatalf("tc:%d unexpected error mls %v", k, err)
++		}
++		if mls != nil {
++			t.Logf("tc %d: mls: %v\n", k, mls.String())
++		}
++	}
++}
++
++func TestMergeLocalsIntegration(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// This test does a build of a specific canned package to
++	// check whether merging of stack slots is taking place.
++	// The idea is to do the compile with a trace option turned
++	// on and then pick up on the frame offsets of specific
++	// variables.
++	//
++	// Stack slot merging is a greedy algorithm, and there can
++	// be many possible ways to overlap a given set of candidate
++	// variables, all of them legal. Rather than locking down
++	// a specific set of overlappings or frame offsets, this
++	// tests just verifies that there is one clump of 3 vars that
++	// get overlapped, then another clump of 2 that share the same
++	// frame offset.
++	//
++	// The expected output blob we're interested in looks like this:
++	//
++	// =-= stack layout for ABC:
++	//  2: "p1" frameoff -8200 used=true
++	//  3: "xp3" frameoff -8200 used=true
++	//  4: "xp4" frameoff -8200 used=true
++	//  5: "p2" frameoff -16400 used=true
++	//  6: "s" frameoff -24592 used=true
++	//  7: "v1" frameoff -32792 used=true
++	//  8: "v3" frameoff -32792 used=true
++	//  9: "v2" frameoff -40992 used=true
++	//
++	tmpdir := t.TempDir()
++	src := filepath.Join("testdata", "mergelocals", "integration.go")
++	obj := filepath.Join(tmpdir, "p.a")
++	out, err := testenv.Command(t, testenv.GoToolPath(t), "tool", "compile", "-p=p", "-c", "1", "-o", obj, "-d=mergelocalstrace=2,mergelocals=1", src).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to compile: %v\n%s", err, out)
++	}
++	vars := make(map[string]string)
++	lines := strings.Split(string(out), "\n")
++	prolog := true
++	varsAtFrameOffset := make(map[string]int)
++	for _, line := range lines {
++		if line == "=-= stack layout for ABC:" {
++			prolog = false
++			continue
++		} else if prolog || line == "" {
++			continue
++		}
++		fields := strings.Fields(line)
++		if len(fields) != 5 {
++			t.Fatalf("bad trace output line: %s", line)
++		}
++		vname := fields[1]
++		frameoff := fields[3]
++		varsAtFrameOffset[frameoff] = varsAtFrameOffset[frameoff] + 1
++		vars[vname] = frameoff
++	}
++	wantvnum := 8
++	gotvnum := len(vars)
++	if wantvnum != gotvnum {
++		t.Fatalf("expected trace output on %d vars got %d\n", wantvnum, gotvnum)
++	}
++
++	// We expect one clump of 3, another clump of 2, and the rest singletons.
++	expected := []int{1, 1, 1, 2, 3}
++	got := []int{}
++	for _, v := range varsAtFrameOffset {
++		got = append(got, v)
++	}
++	sort.Ints(got)
++	if !slices.Equal(got, expected) {
++		t.Fatalf("expected variable clumps %+v not equal to what we got: %+v", expected, got)
++	}
++}
+diff --git a/src/cmd/compile/internal/test/testdata/mergelocals/integration.go b/src/cmd/compile/internal/test/testdata/mergelocals/integration.go
+new file mode 100644
+index 0000000000..d640c6fce8
+--- /dev/null
++++ b/src/cmd/compile/internal/test/testdata/mergelocals/integration.go
+@@ -0,0 +1,83 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// This type and the following one will share the same GC shape and size.
++type Pointery struct {
++	p *Pointery
++	x [1024]int
++}
++
++type Pointery2 struct {
++	p *Pointery2
++	x [1024]int
++}
++
++// This type and the following one will have the same size.
++type Vanilla struct {
++	np uintptr
++	x  [1024]int
++}
++
++type Vanilla2 struct {
++	np uintptr
++	x  [1023]int
++	y  int
++}
++
++type Single struct {
++	np uintptr
++	x  [1023]int
++}
++
++func ABC(i, j int) int {
++	r := 0
++
++	// here v1 interferes with v2 but could be overlapped with v3.
++	// we can also overlap v1 with v3.
++	var v1 Vanilla
++	if i < 101 {
++		var v2 Vanilla
++		v1.x[i] = j
++		r += v1.x[j]
++		v2.x[i] = j
++		r += v2.x[j]
++	}
++
++	{
++		var v3 Vanilla2
++		v3.x[i] = j
++		r += v3.x[j]
++	}
++
++	var s Single
++	s.x[i] = j
++	r += s.x[j]
++
++	// Here p1 and p2 interfere, but p1 could be overlapped with xp3.
++	var p1, p2 Pointery
++	p1.x[i] = j
++	r += p1.x[j]
++	p2.x[i] = j
++	r += p2.x[j]
++	{
++		var xp3 Pointery2
++		xp3.x[i] = j
++		r += xp3.x[j]
++	}
++
++	if i == j*2 {
++		// p2 live on this path
++		p2.x[i] += j
++		r += p2.x[j]
++	} else {
++		// p2 not live on this path
++		var xp4 Pointery2
++		xp4.x[i] = j
++		r += xp4.x[j]
++	}
++
++	return r
++}
+diff --git a/src/cmd/compile/internal/walk/temp.go b/src/cmd/compile/internal/walk/temp.go
+index 886b5beec3..604ac17367 100644
+--- a/src/cmd/compile/internal/walk/temp.go
++++ b/src/cmd/compile/internal/walk/temp.go
+@@ -25,7 +25,9 @@ func initStackTemp(init *ir.Nodes, tmp *ir.Name, val ir.Node) *ir.AddrExpr {
+ // allocated temporary variable of the given type. Statements to
+ // zero-initialize tmp are appended to init.
+ func stackTempAddr(init *ir.Nodes, typ *types.Type) *ir.AddrExpr {
+-	return initStackTemp(init, typecheck.TempAt(base.Pos, ir.CurFunc, typ), nil)
++	n := typecheck.TempAt(base.Pos, ir.CurFunc, typ)
++	n.SetNonMergeable(true)
++	return initStackTemp(init, n, nil)
+ }
+ 
+ // stackBufAddr returns the expression &tmp, where tmp is a newly
+diff --git a/test/fixedbugs/bug385_64.go b/test/fixedbugs/bug385_64.go
+index 3240960f1a..deba9c9fae 100644
+--- a/test/fixedbugs/bug385_64.go
++++ b/test/fixedbugs/bug385_64.go
+@@ -11,214 +11,423 @@
+ 
+ package main
+ 
+-var z [10<<20]byte
++var z [10 << 20]byte
+ 
+ func main() { // GC_ERROR "stack frame too large"
+-	// seq 1 206 | sed 's/.*/	var x& [10<<20]byte; z = x&/'
+-	var x1 [10<<20]byte; z = x1
+-	var x2 [10<<20]byte; z = x2
+-	var x3 [10<<20]byte; z = x3
+-	var x4 [10<<20]byte; z = x4
+-	var x5 [10<<20]byte; z = x5
+-	var x6 [10<<20]byte; z = x6
+-	var x7 [10<<20]byte; z = x7
+-	var x8 [10<<20]byte; z = x8
+-	var x9 [10<<20]byte; z = x9
+-	var x10 [10<<20]byte; z = x10
+-	var x11 [10<<20]byte; z = x11
+-	var x12 [10<<20]byte; z = x12
+-	var x13 [10<<20]byte; z = x13
+-	var x14 [10<<20]byte; z = x14
+-	var x15 [10<<20]byte; z = x15
+-	var x16 [10<<20]byte; z = x16
+-	var x17 [10<<20]byte; z = x17
+-	var x18 [10<<20]byte; z = x18
+-	var x19 [10<<20]byte; z = x19
+-	var x20 [10<<20]byte; z = x20
+-	var x21 [10<<20]byte; z = x21
+-	var x22 [10<<20]byte; z = x22
+-	var x23 [10<<20]byte; z = x23
+-	var x24 [10<<20]byte; z = x24
+-	var x25 [10<<20]byte; z = x25
+-	var x26 [10<<20]byte; z = x26
+-	var x27 [10<<20]byte; z = x27
+-	var x28 [10<<20]byte; z = x28
+-	var x29 [10<<20]byte; z = x29
+-	var x30 [10<<20]byte; z = x30
+-	var x31 [10<<20]byte; z = x31
+-	var x32 [10<<20]byte; z = x32
+-	var x33 [10<<20]byte; z = x33
+-	var x34 [10<<20]byte; z = x34
+-	var x35 [10<<20]byte; z = x35
+-	var x36 [10<<20]byte; z = x36
+-	var x37 [10<<20]byte; z = x37
+-	var x38 [10<<20]byte; z = x38
+-	var x39 [10<<20]byte; z = x39
+-	var x40 [10<<20]byte; z = x40
+-	var x41 [10<<20]byte; z = x41
+-	var x42 [10<<20]byte; z = x42
+-	var x43 [10<<20]byte; z = x43
+-	var x44 [10<<20]byte; z = x44
+-	var x45 [10<<20]byte; z = x45
+-	var x46 [10<<20]byte; z = x46
+-	var x47 [10<<20]byte; z = x47
+-	var x48 [10<<20]byte; z = x48
+-	var x49 [10<<20]byte; z = x49
+-	var x50 [10<<20]byte; z = x50
+-	var x51 [10<<20]byte; z = x51
+-	var x52 [10<<20]byte; z = x52
+-	var x53 [10<<20]byte; z = x53
+-	var x54 [10<<20]byte; z = x54
+-	var x55 [10<<20]byte; z = x55
+-	var x56 [10<<20]byte; z = x56
+-	var x57 [10<<20]byte; z = x57
+-	var x58 [10<<20]byte; z = x58
+-	var x59 [10<<20]byte; z = x59
+-	var x60 [10<<20]byte; z = x60
+-	var x61 [10<<20]byte; z = x61
+-	var x62 [10<<20]byte; z = x62
+-	var x63 [10<<20]byte; z = x63
+-	var x64 [10<<20]byte; z = x64
+-	var x65 [10<<20]byte; z = x65
+-	var x66 [10<<20]byte; z = x66
+-	var x67 [10<<20]byte; z = x67
+-	var x68 [10<<20]byte; z = x68
+-	var x69 [10<<20]byte; z = x69
+-	var x70 [10<<20]byte; z = x70
+-	var x71 [10<<20]byte; z = x71
+-	var x72 [10<<20]byte; z = x72
+-	var x73 [10<<20]byte; z = x73
+-	var x74 [10<<20]byte; z = x74
+-	var x75 [10<<20]byte; z = x75
+-	var x76 [10<<20]byte; z = x76
+-	var x77 [10<<20]byte; z = x77
+-	var x78 [10<<20]byte; z = x78
+-	var x79 [10<<20]byte; z = x79
+-	var x80 [10<<20]byte; z = x80
+-	var x81 [10<<20]byte; z = x81
+-	var x82 [10<<20]byte; z = x82
+-	var x83 [10<<20]byte; z = x83
+-	var x84 [10<<20]byte; z = x84
+-	var x85 [10<<20]byte; z = x85
+-	var x86 [10<<20]byte; z = x86
+-	var x87 [10<<20]byte; z = x87
+-	var x88 [10<<20]byte; z = x88
+-	var x89 [10<<20]byte; z = x89
+-	var x90 [10<<20]byte; z = x90
+-	var x91 [10<<20]byte; z = x91
+-	var x92 [10<<20]byte; z = x92
+-	var x93 [10<<20]byte; z = x93
+-	var x94 [10<<20]byte; z = x94
+-	var x95 [10<<20]byte; z = x95
+-	var x96 [10<<20]byte; z = x96
+-	var x97 [10<<20]byte; z = x97
+-	var x98 [10<<20]byte; z = x98
+-	var x99 [10<<20]byte; z = x99
+-	var x100 [10<<20]byte; z = x100
+-	var x101 [10<<20]byte; z = x101
+-	var x102 [10<<20]byte; z = x102
+-	var x103 [10<<20]byte; z = x103
+-	var x104 [10<<20]byte; z = x104
+-	var x105 [10<<20]byte; z = x105
+-	var x106 [10<<20]byte; z = x106
+-	var x107 [10<<20]byte; z = x107
+-	var x108 [10<<20]byte; z = x108
+-	var x109 [10<<20]byte; z = x109
+-	var x110 [10<<20]byte; z = x110
+-	var x111 [10<<20]byte; z = x111
+-	var x112 [10<<20]byte; z = x112
+-	var x113 [10<<20]byte; z = x113
+-	var x114 [10<<20]byte; z = x114
+-	var x115 [10<<20]byte; z = x115
+-	var x116 [10<<20]byte; z = x116
+-	var x117 [10<<20]byte; z = x117
+-	var x118 [10<<20]byte; z = x118
+-	var x119 [10<<20]byte; z = x119
+-	var x120 [10<<20]byte; z = x120
+-	var x121 [10<<20]byte; z = x121
+-	var x122 [10<<20]byte; z = x122
+-	var x123 [10<<20]byte; z = x123
+-	var x124 [10<<20]byte; z = x124
+-	var x125 [10<<20]byte; z = x125
+-	var x126 [10<<20]byte; z = x126
+-	var x127 [10<<20]byte; z = x127
+-	var x128 [10<<20]byte; z = x128
+-	var x129 [10<<20]byte; z = x129
+-	var x130 [10<<20]byte; z = x130
+-	var x131 [10<<20]byte; z = x131
+-	var x132 [10<<20]byte; z = x132
+-	var x133 [10<<20]byte; z = x133
+-	var x134 [10<<20]byte; z = x134
+-	var x135 [10<<20]byte; z = x135
+-	var x136 [10<<20]byte; z = x136
+-	var x137 [10<<20]byte; z = x137
+-	var x138 [10<<20]byte; z = x138
+-	var x139 [10<<20]byte; z = x139
+-	var x140 [10<<20]byte; z = x140
+-	var x141 [10<<20]byte; z = x141
+-	var x142 [10<<20]byte; z = x142
+-	var x143 [10<<20]byte; z = x143
+-	var x144 [10<<20]byte; z = x144
+-	var x145 [10<<20]byte; z = x145
+-	var x146 [10<<20]byte; z = x146
+-	var x147 [10<<20]byte; z = x147
+-	var x148 [10<<20]byte; z = x148
+-	var x149 [10<<20]byte; z = x149
+-	var x150 [10<<20]byte; z = x150
+-	var x151 [10<<20]byte; z = x151
+-	var x152 [10<<20]byte; z = x152
+-	var x153 [10<<20]byte; z = x153
+-	var x154 [10<<20]byte; z = x154
+-	var x155 [10<<20]byte; z = x155
+-	var x156 [10<<20]byte; z = x156
+-	var x157 [10<<20]byte; z = x157
+-	var x158 [10<<20]byte; z = x158
+-	var x159 [10<<20]byte; z = x159
+-	var x160 [10<<20]byte; z = x160
+-	var x161 [10<<20]byte; z = x161
+-	var x162 [10<<20]byte; z = x162
+-	var x163 [10<<20]byte; z = x163
+-	var x164 [10<<20]byte; z = x164
+-	var x165 [10<<20]byte; z = x165
+-	var x166 [10<<20]byte; z = x166
+-	var x167 [10<<20]byte; z = x167
+-	var x168 [10<<20]byte; z = x168
+-	var x169 [10<<20]byte; z = x169
+-	var x170 [10<<20]byte; z = x170
+-	var x171 [10<<20]byte; z = x171
+-	var x172 [10<<20]byte; z = x172
+-	var x173 [10<<20]byte; z = x173
+-	var x174 [10<<20]byte; z = x174
+-	var x175 [10<<20]byte; z = x175
+-	var x176 [10<<20]byte; z = x176
+-	var x177 [10<<20]byte; z = x177
+-	var x178 [10<<20]byte; z = x178
+-	var x179 [10<<20]byte; z = x179
+-	var x180 [10<<20]byte; z = x180
+-	var x181 [10<<20]byte; z = x181
+-	var x182 [10<<20]byte; z = x182
+-	var x183 [10<<20]byte; z = x183
+-	var x184 [10<<20]byte; z = x184
+-	var x185 [10<<20]byte; z = x185
+-	var x186 [10<<20]byte; z = x186
+-	var x187 [10<<20]byte; z = x187
+-	var x188 [10<<20]byte; z = x188
+-	var x189 [10<<20]byte; z = x189
+-	var x190 [10<<20]byte; z = x190
+-	var x191 [10<<20]byte; z = x191
+-	var x192 [10<<20]byte; z = x192
+-	var x193 [10<<20]byte; z = x193
+-	var x194 [10<<20]byte; z = x194
+-	var x195 [10<<20]byte; z = x195
+-	var x196 [10<<20]byte; z = x196
+-	var x197 [10<<20]byte; z = x197
+-	var x198 [10<<20]byte; z = x198
+-	var x199 [10<<20]byte; z = x199
+-	var x200 [10<<20]byte; z = x200
+-	var x201 [10<<20]byte; z = x201
+-	var x202 [10<<20]byte; z = x202
+-	var x203 [10<<20]byte; z = x203
+-	var x204 [10<<20]byte; z = x204
+-	var x205 [10<<20]byte; z = x205
+-	var x206 [10<<20]byte; z = x206
++	// seq 1 206 | sed 's/.*/	var x& [10<<20]byte/'
++	// seq 1 206 | sed 's/.*/	z = x&/'
++	var x1 [10<<20]byte
++	var x2 [10<<20]byte
++	var x3 [10<<20]byte
++	var x4 [10<<20]byte
++	var x5 [10<<20]byte
++	var x6 [10<<20]byte
++	var x7 [10<<20]byte
++	var x8 [10<<20]byte
++	var x9 [10<<20]byte
++	var x10 [10<<20]byte
++	var x11 [10<<20]byte
++	var x12 [10<<20]byte
++	var x13 [10<<20]byte
++	var x14 [10<<20]byte
++	var x15 [10<<20]byte
++	var x16 [10<<20]byte
++	var x17 [10<<20]byte
++	var x18 [10<<20]byte
++	var x19 [10<<20]byte
++	var x20 [10<<20]byte
++	var x21 [10<<20]byte
++	var x22 [10<<20]byte
++	var x23 [10<<20]byte
++	var x24 [10<<20]byte
++	var x25 [10<<20]byte
++	var x26 [10<<20]byte
++	var x27 [10<<20]byte
++	var x28 [10<<20]byte
++	var x29 [10<<20]byte
++	var x30 [10<<20]byte
++	var x31 [10<<20]byte
++	var x32 [10<<20]byte
++	var x33 [10<<20]byte
++	var x34 [10<<20]byte
++	var x35 [10<<20]byte
++	var x36 [10<<20]byte
++	var x37 [10<<20]byte
++	var x38 [10<<20]byte
++	var x39 [10<<20]byte
++	var x40 [10<<20]byte
++	var x41 [10<<20]byte
++	var x42 [10<<20]byte
++	var x43 [10<<20]byte
++	var x44 [10<<20]byte
++	var x45 [10<<20]byte
++	var x46 [10<<20]byte
++	var x47 [10<<20]byte
++	var x48 [10<<20]byte
++	var x49 [10<<20]byte
++	var x50 [10<<20]byte
++	var x51 [10<<20]byte
++	var x52 [10<<20]byte
++	var x53 [10<<20]byte
++	var x54 [10<<20]byte
++	var x55 [10<<20]byte
++	var x56 [10<<20]byte
++	var x57 [10<<20]byte
++	var x58 [10<<20]byte
++	var x59 [10<<20]byte
++	var x60 [10<<20]byte
++	var x61 [10<<20]byte
++	var x62 [10<<20]byte
++	var x63 [10<<20]byte
++	var x64 [10<<20]byte
++	var x65 [10<<20]byte
++	var x66 [10<<20]byte
++	var x67 [10<<20]byte
++	var x68 [10<<20]byte
++	var x69 [10<<20]byte
++	var x70 [10<<20]byte
++	var x71 [10<<20]byte
++	var x72 [10<<20]byte
++	var x73 [10<<20]byte
++	var x74 [10<<20]byte
++	var x75 [10<<20]byte
++	var x76 [10<<20]byte
++	var x77 [10<<20]byte
++	var x78 [10<<20]byte
++	var x79 [10<<20]byte
++	var x80 [10<<20]byte
++	var x81 [10<<20]byte
++	var x82 [10<<20]byte
++	var x83 [10<<20]byte
++	var x84 [10<<20]byte
++	var x85 [10<<20]byte
++	var x86 [10<<20]byte
++	var x87 [10<<20]byte
++	var x88 [10<<20]byte
++	var x89 [10<<20]byte
++	var x90 [10<<20]byte
++	var x91 [10<<20]byte
++	var x92 [10<<20]byte
++	var x93 [10<<20]byte
++	var x94 [10<<20]byte
++	var x95 [10<<20]byte
++	var x96 [10<<20]byte
++	var x97 [10<<20]byte
++	var x98 [10<<20]byte
++	var x99 [10<<20]byte
++	var x100 [10<<20]byte
++	var x101 [10<<20]byte
++	var x102 [10<<20]byte
++	var x103 [10<<20]byte
++	var x104 [10<<20]byte
++	var x105 [10<<20]byte
++	var x106 [10<<20]byte
++	var x107 [10<<20]byte
++	var x108 [10<<20]byte
++	var x109 [10<<20]byte
++	var x110 [10<<20]byte
++	var x111 [10<<20]byte
++	var x112 [10<<20]byte
++	var x113 [10<<20]byte
++	var x114 [10<<20]byte
++	var x115 [10<<20]byte
++	var x116 [10<<20]byte
++	var x117 [10<<20]byte
++	var x118 [10<<20]byte
++	var x119 [10<<20]byte
++	var x120 [10<<20]byte
++	var x121 [10<<20]byte
++	var x122 [10<<20]byte
++	var x123 [10<<20]byte
++	var x124 [10<<20]byte
++	var x125 [10<<20]byte
++	var x126 [10<<20]byte
++	var x127 [10<<20]byte
++	var x128 [10<<20]byte
++	var x129 [10<<20]byte
++	var x130 [10<<20]byte
++	var x131 [10<<20]byte
++	var x132 [10<<20]byte
++	var x133 [10<<20]byte
++	var x134 [10<<20]byte
++	var x135 [10<<20]byte
++	var x136 [10<<20]byte
++	var x137 [10<<20]byte
++	var x138 [10<<20]byte
++	var x139 [10<<20]byte
++	var x140 [10<<20]byte
++	var x141 [10<<20]byte
++	var x142 [10<<20]byte
++	var x143 [10<<20]byte
++	var x144 [10<<20]byte
++	var x145 [10<<20]byte
++	var x146 [10<<20]byte
++	var x147 [10<<20]byte
++	var x148 [10<<20]byte
++	var x149 [10<<20]byte
++	var x150 [10<<20]byte
++	var x151 [10<<20]byte
++	var x152 [10<<20]byte
++	var x153 [10<<20]byte
++	var x154 [10<<20]byte
++	var x155 [10<<20]byte
++	var x156 [10<<20]byte
++	var x157 [10<<20]byte
++	var x158 [10<<20]byte
++	var x159 [10<<20]byte
++	var x160 [10<<20]byte
++	var x161 [10<<20]byte
++	var x162 [10<<20]byte
++	var x163 [10<<20]byte
++	var x164 [10<<20]byte
++	var x165 [10<<20]byte
++	var x166 [10<<20]byte
++	var x167 [10<<20]byte
++	var x168 [10<<20]byte
++	var x169 [10<<20]byte
++	var x170 [10<<20]byte
++	var x171 [10<<20]byte
++	var x172 [10<<20]byte
++	var x173 [10<<20]byte
++	var x174 [10<<20]byte
++	var x175 [10<<20]byte
++	var x176 [10<<20]byte
++	var x177 [10<<20]byte
++	var x178 [10<<20]byte
++	var x179 [10<<20]byte
++	var x180 [10<<20]byte
++	var x181 [10<<20]byte
++	var x182 [10<<20]byte
++	var x183 [10<<20]byte
++	var x184 [10<<20]byte
++	var x185 [10<<20]byte
++	var x186 [10<<20]byte
++	var x187 [10<<20]byte
++	var x188 [10<<20]byte
++	var x189 [10<<20]byte
++	var x190 [10<<20]byte
++	var x191 [10<<20]byte
++	var x192 [10<<20]byte
++	var x193 [10<<20]byte
++	var x194 [10<<20]byte
++	var x195 [10<<20]byte
++	var x196 [10<<20]byte
++	var x197 [10<<20]byte
++	var x198 [10<<20]byte
++	var x199 [10<<20]byte
++	var x200 [10<<20]byte
++	var x201 [10<<20]byte
++	var x202 [10<<20]byte
++	var x203 [10<<20]byte
++	var x204 [10<<20]byte
++	var x205 [10<<20]byte
++	var x206 [10<<20]byte
++	var x207 [10<<20]byte
++	z = x1
++	z = x2
++	z = x3
++	z = x4
++	z = x5
++	z = x6
++	z = x7
++	z = x8
++	z = x9
++	z = x10
++	z = x11
++	z = x12
++	z = x13
++	z = x14
++	z = x15
++	z = x16
++	z = x17
++	z = x18
++	z = x19
++	z = x20
++	z = x21
++	z = x22
++	z = x23
++	z = x24
++	z = x25
++	z = x26
++	z = x27
++	z = x28
++	z = x29
++	z = x30
++	z = x31
++	z = x32
++	z = x33
++	z = x34
++	z = x35
++	z = x36
++	z = x37
++	z = x38
++	z = x39
++	z = x40
++	z = x41
++	z = x42
++	z = x43
++	z = x44
++	z = x45
++	z = x46
++	z = x47
++	z = x48
++	z = x49
++	z = x50
++	z = x51
++	z = x52
++	z = x53
++	z = x54
++	z = x55
++	z = x56
++	z = x57
++	z = x58
++	z = x59
++	z = x60
++	z = x61
++	z = x62
++	z = x63
++	z = x64
++	z = x65
++	z = x66
++	z = x67
++	z = x68
++	z = x69
++	z = x70
++	z = x71
++	z = x72
++	z = x73
++	z = x74
++	z = x75
++	z = x76
++	z = x77
++	z = x78
++	z = x79
++	z = x80
++	z = x81
++	z = x82
++	z = x83
++	z = x84
++	z = x85
++	z = x86
++	z = x87
++	z = x88
++	z = x89
++	z = x90
++	z = x91
++	z = x92
++	z = x93
++	z = x94
++	z = x95
++	z = x96
++	z = x97
++	z = x98
++	z = x99
++	z = x100
++	z = x101
++	z = x102
++	z = x103
++	z = x104
++	z = x105
++	z = x106
++	z = x107
++	z = x108
++	z = x109
++	z = x110
++	z = x111
++	z = x112
++	z = x113
++	z = x114
++	z = x115
++	z = x116
++	z = x117
++	z = x118
++	z = x119
++	z = x120
++	z = x121
++	z = x122
++	z = x123
++	z = x124
++	z = x125
++	z = x126
++	z = x127
++	z = x128
++	z = x129
++	z = x130
++	z = x131
++	z = x132
++	z = x133
++	z = x134
++	z = x135
++	z = x136
++	z = x137
++	z = x138
++	z = x139
++	z = x140
++	z = x141
++	z = x142
++	z = x143
++	z = x144
++	z = x145
++	z = x146
++	z = x147
++	z = x148
++	z = x149
++	z = x150
++	z = x151
++	z = x152
++	z = x153
++	z = x154
++	z = x155
++	z = x156
++	z = x157
++	z = x158
++	z = x159
++	z = x160
++	z = x161
++	z = x162
++	z = x163
++	z = x164
++	z = x165
++	z = x166
++	z = x167
++	z = x168
++	z = x169
++	z = x170
++	z = x171
++	z = x172
++	z = x173
++	z = x174
++	z = x175
++	z = x176
++	z = x177
++	z = x178
++	z = x179
++	z = x180
++	z = x181
++	z = x182
++	z = x183
++	z = x184
++	z = x185
++	z = x186
++	z = x187
++	z = x188
++	z = x189
++	z = x190
++	z = x191
++	z = x192
++	z = x193
++	z = x194
++	z = x195
++	z = x196
++	z = x197
++	z = x198
++	z = x199
++	z = x200
++	z = x201
++	z = x202
++	z = x203
++	z = x204
++	z = x205
++	z = x206
++	z = x207
+ }

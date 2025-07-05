@@ -9,7 +9,97 @@ Date:   Wed Oct 17 09:41:00 2012 +1100
     R=bradfitz, mikioh.mikioh, iant, bsiegert
     CC=golang-dev
     https://golang.org/cl/6684054
-
+---
  src/pkg/net/fd_unix.go      | 10 +++-----
  src/pkg/net/fd_unix_test.go | 60 +++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 63 insertions(+), 7 deletions(-)
+
+diff --git a/src/pkg/net/fd_unix.go b/src/pkg/net/fd_unix.go
+index c55f3362f0..e231c3e212 100644
+--- a/src/pkg/net/fd_unix.go
++++ b/src/pkg/net/fd_unix.go
+@@ -97,15 +97,11 @@ func (s *pollServer) AddFD(fd *netFD, mode int) error {
+ 	}
+ 
+ 	wake, err := s.poll.AddFD(intfd, mode, false)
++	s.Unlock()
+ 	if err != nil {
+-		panic("pollServer AddFD " + err.Error())
+-	}
+-	if wake {
+-		doWakeup = true
++		return &OpError{"addfd", fd.net, fd.laddr, err}
+ 	}
+-	s.Unlock()
+-
+-	if doWakeup {
++	if wake || doWakeup {
+ 		s.Wakeup()
+ 	}
+ 	return nil
+diff --git a/src/pkg/net/fd_unix_test.go b/src/pkg/net/fd_unix_test.go
+new file mode 100644
+index 0000000000..50befac177
+--- /dev/null
++++ b/src/pkg/net/fd_unix_test.go
+@@ -0,0 +1,60 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd linux netbsd openbsd
++
++package net
++
++import (
++	"testing"
++)
++
++// Issue 3590. netFd.AddFD should return an error 
++// from the underlying pollster rather than panicing.
++func TestAddFDReturnsError(t *testing.T) {
++	l, err := Listen("tcp", "127.0.0.1:0")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer l.Close()
++
++	go func() {
++		for {
++			c, err := l.Accept()
++			if err != nil {
++				return
++			}
++			defer c.Close()
++		}
++	}()
++
++	c, err := Dial("tcp", l.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer c.Close()
++
++	// replace c's pollServer with a closed version.
++	ps, err := newPollServer()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ps.poll.Close()
++	c.(*TCPConn).conn.fd.pollServer = ps
++
++	var b [1]byte
++	_, err = c.Read(b[:])
++	if err, ok := err.(*OpError); ok {
++		if err.Op == "addfd" {
++			return
++		}
++		if err, ok := err.Err.(*OpError); ok {
++			// the err is sometimes wrapped by another OpError
++			if err.Op == "addfd" {
++				return
++			}
++		}
++	}
++	t.Error(err)
++}

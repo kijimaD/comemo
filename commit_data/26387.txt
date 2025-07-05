@@ -22,7 +22,37 @@ Date:   Fri Jan 15 13:28:41 2016 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Rick Hudson <rlh@golang.org>
-
+---
  src/runtime/mgc.go     | 4 ++++
  src/runtime/mgcmark.go | 3 ++-
  2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index c09f70423d..92b811830c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1121,6 +1121,10 @@ top:
+ 		// finalizers have been scanned.
+ 		work.finalizersDone = true
+ 
++		// Disable assists and background workers. We must do
++		// this before waking blocked assists.
++		atomic.Store(&gcBlackenEnabled, 0)
++
+ 		// Flush the gcWork caches. This must be done before
+ 		// endCycle since endCycle depends on statistics kept
+ 		// in these caches.
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 52545afa29..eac45ec168 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -491,7 +491,8 @@ retry:
+ }
+ 
+ // gcWakeAllAssists wakes all currently blocked assists. This is used
+-// at the end of a GC cycle.
++// at the end of a GC cycle. gcBlackenEnabled must be false to prevent
++// new assists from going to sleep after this point.
+ func gcWakeAllAssists() {
+ 	lock(&work.assistQueue.lock)
+ 	injectglist(work.assistQueue.head.ptr())

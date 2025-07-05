@@ -21,7 +21,38 @@ Date:   Fri Apr 29 11:54:13 2022 +0200
     Reviewed-by: Carlos Amedee <carlos@golang.org>
     Auto-Submit: Emmanuel Odeke <emmanuel@orijtech.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
-
+---
  src/strconv/ftoa.go      | 3 +++
  src/strconv/ftoa_test.go | 5 +++++
  2 files changed, 8 insertions(+)
+
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index eca04b851c..f602d0ffe6 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -138,6 +138,9 @@ func genericFtoa(dst []byte, val float64, fmt byte, prec, bitSize int) []byte {
+ 				prec = 1
+ 			}
+ 			digits = prec
++		default:
++			// Invalid mode.
++			digits = 1
+ 		}
+ 		var buf [24]byte
+ 		if bitSize == 32 && digits <= 9 {
+diff --git a/src/strconv/ftoa_test.go b/src/strconv/ftoa_test.go
+index 73008b1c62..3512ccf580 100644
+--- a/src/strconv/ftoa_test.go
++++ b/src/strconv/ftoa_test.go
+@@ -151,6 +151,11 @@ var ftoatests = []ftoaTest{
+ 	{498484681984085570, 'f', -1, "498484681984085570"},
+ 	{-5.8339553793802237e+23, 'g', -1, "-5.8339553793802237e+23"},
+ 
++	// Issue 52187
++	{123.45, '?', 0, "%?"},
++	{123.45, '?', 1, "%?"},
++	{123.45, '?', -1, "%?"},
++
+ 	// rounding
+ 	{2.275555555555555, 'x', -1, "0x1.23456789abcdep+01"},
+ 	{2.275555555555555, 'x', 0, "0x1p+01"},

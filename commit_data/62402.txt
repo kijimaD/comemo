@@ -10,6 +10,27 @@ Date:   Sun Feb 16 12:17:10 2025 -0500
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Russ Cox <rsc@golang.org>
-
+---
  src/math/big/nat_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/math/big/nat_test.go b/src/math/big/nat_test.go
+index 4722548fa9..46231f7976 100644
+--- a/src/math/big/nat_test.go
++++ b/src/math/big/nat_test.go
+@@ -228,6 +228,7 @@ func benchmarkNatMul(b *testing.B, nwords int) {
+ 	y := rndNat(nwords)
+ 	var z nat
+ 	b.ResetTimer()
++	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+ 		z.mul(x, y)
+ 	}
+@@ -738,6 +739,7 @@ func benchmarkNatSqr(b *testing.B, nwords int) {
+ 	x := rndNat(nwords)
+ 	var z nat
+ 	b.ResetTimer()
++	b.ReportAllocs()
+ 	for i := 0; i < b.N; i++ {
+ 		z.sqr(x)
+ 	}

@@ -32,7 +32,76 @@ Date:   Mon Dec 13 17:32:07 2021 -0500
     Trust: Michael Pratt <mpratt@google.com>
     Run-TryBot: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
-
+---
  src/cmd/dist/test.go              | 25 +++++++++++++++++++++++++
  src/cmd/internal/metadata/main.go | 19 +++++++++++++++++++
  2 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ab30089881..cd3c26ab3a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -218,6 +218,15 @@ func (t *tester) run() {
+ 		}
+ 	}
+ 
++	if err := t.maybeLogMetadata(); err != nil {
++		t.failed = true
++		if t.keepGoing {
++			log.Printf("Failed logging metadata: %v", err)
++		} else {
++			fatalf("Failed logging metadata: %v", err)
++		}
++	}
++
+ 	for _, dt := range t.tests {
+ 		if !t.shouldRunTest(dt.name) {
+ 			t.partial = true
+@@ -268,6 +277,22 @@ func (t *tester) shouldRunTest(name string) bool {
+ 	return false
+ }
+ 
++func (t *tester) maybeLogMetadata() error {
++	if t.compileOnly {
++		// We need to run a subprocess to log metadata. Don't do that
++		// on compile-only runs.
++		return nil
++	}
++	t.out("Test execution environment.")
++	// Helper binary to print system metadata (CPU model, etc). This is a
++	// separate binary from dist so it need not build with the bootstrap
++	// toolchain.
++	//
++	// TODO(prattmic): If we split dist bootstrap and dist test then this
++	// could be simplified to directly use internal/sysinfo here.
++	return t.dirCmd(filepath.Join(goroot, "src/cmd/internal/metadata"), "go", []string{"run", "."}).Run()
++}
++
+ // short returns a -short flag value to use with 'go test'
+ // or a test binary for tests intended to run in short mode.
+ // It returns "true", unless the environment variable
+diff --git a/src/cmd/internal/metadata/main.go b/src/cmd/internal/metadata/main.go
+new file mode 100644
+index 0000000000..2df048fad6
+--- /dev/null
++++ b/src/cmd/internal/metadata/main.go
+@@ -0,0 +1,19 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Metadata prints basic system metadata to include in test logs. This is
++// separate from cmd/dist so it does not need to build with the bootstrap
++// toolchain.
++package main
++
++import (
++	"fmt"
++	"internal/sysinfo"
++	"runtime"
++)
++
++func main() {
++	fmt.Printf("# GOARCH: %s\n", runtime.GOARCH)
++	fmt.Printf("# CPU: %s\n", sysinfo.CPU.Name())
++}

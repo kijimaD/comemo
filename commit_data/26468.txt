@@ -10,6 +10,33 @@ Date:   Tue Jan 26 22:56:08 2016 +0000
     Reviewed-on: https://go-review.googlesource.com/18937
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Rob Pike <r@golang.org>
-
+---
  doc/install-source.html | 15 +++++++++++++++
  1 file changed, 15 insertions(+)
+
+diff --git a/doc/install-source.html b/doc/install-source.html
+index 7c1194a22c..332c72097e 100644
+--- a/doc/install-source.html
++++ b/doc/install-source.html
+@@ -173,6 +173,21 @@ follow the instructions on the
+ <a href="http://git-scm.com/downloads">Git downloads</a> page.
+ </p>
+ 
++<h2 id="ccompiler">(Optional) Install a C compiler</h2>
++
++<p>
++To build a Go installation
++with <code><a href="/cmd/cgo">cgo</a></code> support, which permits Go
++programs to import C libraries, a C compiler such as <code>gcc</code>
++or <code>clang</code> must be installed first. Do this using whatever
++installation method is standard on the system.
++</p>
++
++<p>
++To build without <code>cgo</code>, set the environment variable
++<code>CGO_ENABLED=0</code> before running <code>all.bash</code> or
++<code>make.bash</code>.
++</p>
+ 
+ <h2 id="fetch">Fetch the repository</h2>
+ 

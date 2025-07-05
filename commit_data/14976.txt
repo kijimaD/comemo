@@ -19,6 +19,29 @@ Date:   Thu Jan 24 01:20:17 2013 +0800
     R=golang-dev, agl, snaury, minux.ma
     CC=golang-dev
     https://golang.org/cl/7185043
-
+---
  src/pkg/crypto/x509/verify_test.go | 4 +++-
  1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/pkg/crypto/x509/verify_test.go b/src/pkg/crypto/x509/verify_test.go
+index 1ed95fe628..0381752e8d 100644
+--- a/src/pkg/crypto/x509/verify_test.go
++++ b/src/pkg/crypto/x509/verify_test.go
+@@ -35,7 +35,6 @@ var verifyTests = []verifyTest{
+ 		currentTime:          1302726541,
+ 		dnsName:              "www.google.com",
+ 		testSystemRootsError: true,
+-		systemSkip:           true,
+ 
+ 		// Without any roots specified we should get a system roots
+ 		// error.
+@@ -214,6 +213,9 @@ func testVerify(t *testing.T, useSystemRoots bool) {
+ 		if useSystemRoots && test.systemSkip {
+ 			continue
+ 		}
++		if runtime.GOOS == "windows" && test.testSystemRootsError {
++			continue
++		}
+ 
+ 		opts := VerifyOptions{
+ 			Intermediates: NewCertPool(),

@@ -8,6 +8,29 @@ Date:   Thu Jul 30 16:57:46 2009 -0700
     DELTA=2  (0 added, 0 deleted, 2 changed)
     OCL=32540
     CL=32545
-
+---
  src/pkg/fmt/print.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/pkg/fmt/print.go b/src/pkg/fmt/print.go
+index 04323f7fd4..bd55de6825 100644
+--- a/src/pkg/fmt/print.go
++++ b/src/pkg/fmt/print.go
+@@ -64,7 +64,7 @@
+ 		fmt.Printf("%v\n", i);
+ 	will print 23.
+ 
+-	If an operand implements interface Format, that interface
++	If an operand implements interface Formatter, that interface
+ 	can be used for fine control of formatting.
+ 
+ 	If an operand implements method String() string that method
+@@ -96,7 +96,7 @@ type State interface {
+ 	Flag(int)	bool;
+ }
+ 
+-// Format is the interface implemented by objects with a custom formatter.
++// Formatter is the interface implemented by objects with a custom formatter.
+ // The implementation of Format may call Sprintf or Fprintf(f) etc.
+ // to generate its output.
+ type Formatter interface {

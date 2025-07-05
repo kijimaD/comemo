@@ -119,9 +119,133 @@ Date:   Sat Mar 4 07:09:33 2017 -0800
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/internal/obj/line.go      |  9 +++------
  src/cmd/internal/obj/line_test.go |  2 +-
  src/cmd/internal/src/pos.go       | 26 ++++++++++++++++++++++++--
  src/cmd/link/internal/ld/pcln.go  |  3 ++-
  4 files changed, 30 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/internal/obj/line.go b/src/cmd/internal/obj/line.go
+index be6b36da41..540d56460d 100644
+--- a/src/cmd/internal/obj/line.go
++++ b/src/cmd/internal/obj/line.go
+@@ -74,16 +74,13 @@ func (ctxt *Link) AddImport(pkg string) {
+ 	ctxt.Imports = append(ctxt.Imports, pkg)
+ }
+ 
+-const FileSymPrefix = "gofile.."
+-
+ func linkgetlineFromPos(ctxt *Link, xpos src.XPos) (f *LSym, l int32) {
+ 	pos := ctxt.PosTable.Pos(xpos)
+-	filename := pos.AbsFilename()
+-	if !pos.IsKnown() || filename == "" {
+-		return Linklookup(ctxt, FileSymPrefix+"??", 0), 0
++	if !pos.IsKnown() {
++		pos = src.Pos{}
+ 	}
+ 	// TODO(gri) Should this use relative or absolute line number?
+-	return Linklookup(ctxt, FileSymPrefix+filename, 0), int32(pos.RelLine())
++	return Linklookup(ctxt, pos.SymFilename(), 0), int32(pos.RelLine())
+ }
+ 
+ func fieldtrack(ctxt *Link, cursym *LSym) {
+diff --git a/src/cmd/internal/obj/line_test.go b/src/cmd/internal/obj/line_test.go
+index 928a008001..63cc29587c 100644
+--- a/src/cmd/internal/obj/line_test.go
++++ b/src/cmd/internal/obj/line_test.go
+@@ -32,7 +32,7 @@ func TestLinkgetlineFromPos(t *testing.T) {
+ 	for _, test := range tests {
+ 		f, l := linkgetlineFromPos(ctxt, ctxt.PosTable.XPos(test.pos))
+ 		got := fmt.Sprintf("%s:%d", f.Name, l)
+-		if got != FileSymPrefix+test.want {
++		if got != src.FileSymPrefix+test.want {
+ 			t.Errorf("linkgetline(%v) = %q, want %q", test.pos, got, test.want)
+ 		}
+ 	}
+diff --git a/src/cmd/internal/src/pos.go b/src/cmd/internal/src/pos.go
+index 35e213a6c5..198fdf7292 100644
+--- a/src/cmd/internal/src/pos.go
++++ b/src/cmd/internal/src/pos.go
+@@ -75,6 +75,10 @@ func (p Pos) RelLine() uint { b := p.base; return b.Line() + p.Line() - b.Pos().
+ // AbsFilename() returns the absolute filename recorded with the position's base.
+ func (p Pos) AbsFilename() string { return p.base.AbsFilename() }
+ 
++// SymFilename() returns the absolute filename recorded with the position's base,
++// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
++func (p Pos) SymFilename() string { return p.base.SymFilename() }
++
+ func (p Pos) String() string {
+ 	if !p.IsKnown() {
+ 		return "<unknown line number>"
+@@ -117,6 +121,7 @@ type PosBase struct {
+ 	pos         Pos
+ 	filename    string // file name used to open source file, for error messages
+ 	absFilename string // absolute file name, for PC-Line tables
++	symFilename string // cached symbol file name, to avoid repeated string concatenation
+ 	line        uint   // relative line number at pos
+ 	inl         int    // inlining index (see cmd/internal/obj/inl.go)
+ }
+@@ -125,7 +130,12 @@ type PosBase struct {
+ // absolute) filenames.
+ func NewFileBase(filename, absFilename string) *PosBase {
+ 	if filename != "" {
+-		base := &PosBase{filename: filename, absFilename: absFilename, inl: -1}
++		base := &PosBase{
++			filename:    filename,
++			absFilename: absFilename,
++			symFilename: FileSymPrefix + absFilename,
++			inl:         -1,
++		}
+ 		base.pos = MakePos(base, 0, 0)
+ 		return base
+ 	}
+@@ -136,7 +146,7 @@ func NewFileBase(filename, absFilename string) *PosBase {
+ //      //line filename:line
+ // at position pos.
+ func NewLinePragmaBase(pos Pos, filename string, line uint) *PosBase {
+-	return &PosBase{pos, filename, filename, line - 1, -1}
++	return &PosBase{pos, filename, filename, FileSymPrefix + filename, line - 1, -1}
+ }
+ 
+ // NewInliningBase returns a copy of the old PosBase with the given inlining
+@@ -185,6 +195,18 @@ func (b *PosBase) AbsFilename() string {
+ 	return ""
+ }
+ 
++const FileSymPrefix = "gofile.."
++
++// SymFilename returns the absolute filename recorded with the base,
++// prefixed by FileSymPrefix to make it appropriate for use as a linker symbol.
++// If b is nil, SymFilename returns FileSymPrefix + "??".
++func (b *PosBase) SymFilename() string {
++	if b != nil {
++		return b.symFilename
++	}
++	return FileSymPrefix + "??"
++}
++
+ // Line returns the line number recorded with the base.
+ // If b == nil, the result is 0.
+ func (b *PosBase) Line() uint {
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index c944da9f28..6df09bd817 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -6,6 +6,7 @@ package ld
+ 
+ import (
+ 	"cmd/internal/obj"
++	"cmd/internal/src"
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+@@ -114,7 +115,7 @@ func numberfile(ctxt *Link, file *Symbol) {
+ 		ctxt.Filesyms = append(ctxt.Filesyms, file)
+ 		file.Value = int64(len(ctxt.Filesyms))
+ 		file.Type = obj.SFILEPATH
+-		path := file.Name[len(obj.FileSymPrefix):]
++		path := file.Name[len(src.FileSymPrefix):]
+ 		file.Name = expandGoroot(path)
+ 	}
+ }

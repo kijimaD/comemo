@@ -15,7 +15,86 @@ Date:   Tue Mar 30 16:28:48 2021 -0400
     Trust: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Than McIntosh <thanm@google.com>
     Reviewed-by: David Chase <drchase@google.com>
-
+---
  src/cmd/compile/internal/ssa/expand_calls.go | 16 +++++++++++++++
  test/abi/store_reg_args.go                   | 29 ++++++++++++++++++++++++++++
  2 files changed, 45 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index 60eed37f1c..3444097ae3 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -1378,6 +1378,11 @@ func expandCalls(f *Func) {
+ // rewriteArgToMemOrRegs converts OpArg v in-place into the register version of v,
+ // if that is appropriate.
+ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
++	if x.debug {
++		x.indent(3)
++		defer x.indent(-3)
++		x.Printf("rewriteArgToMemOrRegs(%s)\n", v.LongString())
++	}
+ 	pa := x.prAssignForArg(v)
+ 	switch len(pa.Registers) {
+ 	case 0:
+@@ -1387,15 +1392,26 @@ func (x *expandState) rewriteArgToMemOrRegs(v *Value) *Value {
+ 				pa.Offset(), frameOff, v.LongString()))
+ 		}
+ 	case 1:
++		t := v.Type
++		key := selKey{v, 0, t.Width, t}
++		w := x.commonArgs[key]
++		if w != nil {
++			v.copyOf(w)
++			break
++		}
+ 		r := pa.Registers[0]
+ 		var i int64
+ 		v.Op, i = ArgOpAndRegisterFor(r, x.f.ABISelf)
+ 		v.Aux = &AuxNameOffset{v.Aux.(*ir.Name), 0}
+ 		v.AuxInt = i
++		x.commonArgs[key] = v
+ 
+ 	default:
+ 		panic(badVal("Saw unexpanded OpArg", v))
+ 	}
++	if x.debug {
++		x.Printf("-->%s\n", v.LongString())
++	}
+ 	return v
+ }
+ 
+diff --git a/test/abi/store_reg_args.go b/test/abi/store_reg_args.go
+new file mode 100644
+index 0000000000..df5e4e167c
+--- /dev/null
++++ b/test/abi/store_reg_args.go
+@@ -0,0 +1,29 @@
++// run
++
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// When the function Store an Arg and also use it in another place,
++// be sure not to generate duplicated OpArgXXXReg values, which confuses
++// the register allocator.
++
++package main
++
++//go:noinline
++//go:registerparams
++func F(x, y float32) {
++	if x < 0 {
++		panic("FAIL")
++	}
++	g = [4]float32{x, y, x, y}
++}
++
++var g [4]float32
++
++func main() {
++	F(1, 2)
++	if g[0] != 1 || g[1] != 2 || g[2] != 1 || g[3] != 2 {
++		panic("FAIL")
++	}
++}

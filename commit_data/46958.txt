@@ -49,7 +49,7 @@ Date:   Sat Jan 30 07:07:42 2021 -0500
     Trust: Jason A. Donenfeld <Jason@zx2c4.com>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
     Reviewed-by: Jason A. Donenfeld <Jason@zx2c4.com>
-
+---
  src/runtime/asm_386.s              | 16 ++++++++
  src/runtime/asm_amd64.s            | 17 ++++++++
  src/runtime/asm_arm.s              | 15 +++++++
@@ -81,3 +81,973 @@ Date:   Sat Jan 30 07:07:42 2021 -0500
  src/runtime/sys_windows_amd64.s    | 71 ++++----------------------------
  src/runtime/sys_windows_arm.s      | 84 ++++----------------------------------
  30 files changed, 254 insertions(+), 256 deletions(-)
+
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 471451df28..3030101f03 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -621,6 +621,22 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ 	POPL	AX
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
++	MOVL	fn+0(FP), AX
++	MOVL	arg+4(FP), BX
++	MOVL	SP, DX
++	SUBL	$32, SP
++	ANDL	$~15, SP	// alignment, perhaps unnecessary
++	MOVL	DX, 8(SP)	// save old SP
++	MOVL	BX, 0(SP)	// first argument in x86-32 ABI
++	CALL	AX
++	MOVL	8(SP), DX
++	MOVL	DX, SP
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 05422c9699..9362ce1213 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -679,6 +679,23 @@ TEXT gosave<>(SB),NOSPLIT,$0
+ 	CALL	runtime·badctxt(SB)
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
++	MOVQ	fn+0(FP), AX
++	MOVQ	arg+8(FP), BX
++	MOVQ	SP, DX
++	SUBQ	$32, SP
++	ANDQ	$~15, SP	// alignment
++	MOVQ	DX, 8(SP)
++	MOVQ	BX, DI		// DI = first argument in AMD64 ABI
++	MOVQ	BX, CX		// CX = first argument in Win64
++	CALL	AX
++	MOVQ	8(SP), DX
++	MOVQ	DX, SP
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 23619b1408..109030aada 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -552,6 +552,21 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	CALL	runtime·badctxt(SB)
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-8
++	MOVW	fn+0(FP), R1
++	MOVW	arg+4(FP), R0
++	MOVW	R13, R2
++	SUB	$32, R13
++	BIC	$0x7, R13	// alignment for gcc ABI
++	MOVW	R2, 8(R13)
++	BL	(R1)
++	MOVW	8(R13), R2
++	MOVW	R2, R13
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 0ab92be1e4..79efd4cb17 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -873,6 +873,17 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	CALL	runtime·badctxt(SB)
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
++	MOVD	fn+0(FP), R1
++	MOVD	arg+8(FP), R0
++	SUB	$16, RSP	// skip over saved frame pointer below RSP
++	BL	(R1)
++	ADD	$16, RSP	// skip over saved frame pointer below RSP
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+@@ -951,7 +962,7 @@ nosave:
+ 	BL	(R1)
+ 	// Restore stack pointer.
+ 	MOVD	8(RSP), R2
+-	MOVD	R2, RSP	
++	MOVD	R2, RSP
+ 	MOVD	R0, ret+16(FP)
+ 	RET
+ 
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 694950663a..6e1d25cd90 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -413,6 +413,15 @@ TEXT gosave<>(SB),NOSPLIT|NOFRAME,$0
+ 	JAL	runtime·badctxt(SB)
+ 	RET
+ 
++// func asmcgocall_no_g(fn, arg unsafe.Pointer)
++// Call fn(arg) aligned appropriately for the gcc ABI.
++// Called on a system stack, and there may be no g yet (during needm).
++TEXT ·asmcgocall_no_g(SB),NOSPLIT,$0-16
++	MOVV	fn+0(FP), R25
++	MOVV	arg+8(FP), R4
++	JAL	(R25)
++	RET
++
+ // func asmcgocall(fn, arg unsafe.Pointer) int32
+ // Call fn(arg) on the scheduler stack,
+ // aligned appropriately for the gcc ABI.
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index abd1010be9..4d77f0de6d 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -527,20 +527,17 @@ func internal_cpu_getsystemcfg(label uint) uint {
+ func usleep1(us uint32)
+ 
+ //go:nosplit
+-func usleep(us uint32) {
+-	_g_ := getg()
++func usleep_no_g(us uint32) {
++	usleep1(us)
++}
+ 
+-	// Check the validity of m because we might be called in cgo callback
+-	// path early enough where there isn't a g or a m available yet.
+-	if _g_ != nil && _g_.m != nil {
+-		r, err := syscall1(&libc_usleep, uintptr(us))
+-		if int32(r) == -1 {
+-			println("syscall usleep failed: ", hex(err))
+-			throw("syscall usleep")
+-		}
+-		return
++//go:nosplit
++func usleep(us uint32) {
++	r, err := syscall1(&libc_usleep, uintptr(us))
++	if int32(r) == -1 {
++		println("syscall usleep failed: ", hex(err))
++		throw("syscall usleep")
+ 	}
+-	usleep1(us)
+ }
+ 
+ //go:nosplit
+@@ -611,20 +608,17 @@ func raiseproc(sig uint32) {
+ func osyield1()
+ 
+ //go:nosplit
+-func osyield() {
+-	_g_ := getg()
++func osyield_no_g() {
++	osyield1()
++}
+ 
+-	// Check the validity of m because it might be called during a cgo
+-	// callback early enough where m isn't available yet.
+-	if _g_ != nil && _g_.m != nil {
+-		r, err := syscall0(&libc_sched_yield)
+-		if int32(r) == -1 {
+-			println("syscall osyield failed: ", hex(err))
+-			throw("syscall osyield")
+-		}
+-		return
++//go:nosplit
++func osyield() {
++	r, err := syscall0(&libc_sched_yield)
++	if int32(r) == -1 {
++		println("syscall osyield failed: ", hex(err))
++		throw("syscall osyield")
+ 	}
+-	osyield1()
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/os3_solaris.go b/src/runtime/os3_solaris.go
+index 6ba11afd93..4b65139eb8 100644
+--- a/src/runtime/os3_solaris.go
++++ b/src/runtime/os3_solaris.go
+@@ -521,6 +521,11 @@ func sysconf(name int32) int64 {
+ 
+ func usleep1(usec uint32)
+ 
++//go:nosplit
++func usleep_no_g(µs uint32) {
++	usleep1(µs)
++}
++
+ //go:nosplit
+ func usleep(µs uint32) {
+ 	usleep1(µs)
+@@ -569,18 +574,15 @@ func setNonblock(fd int32) {
+ func osyield1()
+ 
+ //go:nosplit
+-func osyield() {
+-	_g_ := getg()
+-
+-	// Check the validity of m because we might be called in cgo callback
+-	// path early enough where there isn't a m available yet.
+-	if _g_ != nil && _g_.m != nil {
+-		sysvicall0(&libc_sched_yield)
+-		return
+-	}
++func osyield_no_g() {
+ 	osyield1()
+ }
+ 
++//go:nosplit
++func osyield() {
++	sysvicall0(&libc_sched_yield)
++}
++
+ //go:linkname executablePath os.executablePath
+ var executablePath string
+ 
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 9ca17c20df..470698d0a3 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -330,6 +330,11 @@ func unminit() {
+ func mdestroy(mp *m) {
+ }
+ 
++//go:nosplit
++func osyield_no_g() {
++	usleep_no_g(1)
++}
++
+ //go:nosplit
+ func osyield() {
+ 	usleep(1)
+diff --git a/src/runtime/os_dragonfly.go b/src/runtime/os_dragonfly.go
+index 383df54bd4..b786c8ab5f 100644
+--- a/src/runtime/os_dragonfly.go
++++ b/src/runtime/os_dragonfly.go
+@@ -51,6 +51,11 @@ func sys_umtx_wakeup(addr *uint32, val int32) int32
+ 
+ func osyield()
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ func kqueue() int32
+ 
+ //go:noescape
+diff --git a/src/runtime/os_freebsd.go b/src/runtime/os_freebsd.go
+index 09065ccb68..09dd50ce59 100644
+--- a/src/runtime/os_freebsd.go
++++ b/src/runtime/os_freebsd.go
+@@ -36,6 +36,11 @@ func sys_umtx_op(addr *uint32, mode int32, val uint32, uaddr1 uintptr, ut *umtx_
+ 
+ func osyield()
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ func kqueue() int32
+ 
+ //go:noescape
+diff --git a/src/runtime/os_js.go b/src/runtime/os_js.go
+index 24261e88a2..5b2c53795a 100644
+--- a/src/runtime/os_js.go
++++ b/src/runtime/os_js.go
+@@ -30,12 +30,22 @@ func wasmWrite(fd uintptr, p unsafe.Pointer, n int32)
+ 
+ func usleep(usec uint32)
+ 
++//go:nosplit
++func usleep_no_g(usec uint32) {
++	usleep(usec)
++}
++
+ func exitThread(wait *uint32)
+ 
+ type mOS struct{}
+ 
+ func osyield()
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ const _SIGSEGV = 0xb
+ 
+ func sigpanic() {
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index 058c7daf9c..21d3ae653e 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -410,6 +410,11 @@ func raiseproc(sig uint32)
+ func sched_getaffinity(pid, len uintptr, buf *byte) int32
+ func osyield()
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ func pipe() (r, w int32, errno int32)
+ func pipe2(flags int32) (r, w int32, errno int32)
+ func setNonblock(fd int32)
+diff --git a/src/runtime/os_netbsd.go b/src/runtime/os_netbsd.go
+index 2b742a3711..0328fa57ae 100644
+--- a/src/runtime/os_netbsd.go
++++ b/src/runtime/os_netbsd.go
+@@ -67,6 +67,11 @@ func lwp_self() int32
+ 
+ func osyield()
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ func kqueue() int32
+ 
+ //go:noescape
+diff --git a/src/runtime/os_openbsd_syscall1.go b/src/runtime/os_openbsd_syscall1.go
+index b0bef4c504..f37da04194 100644
+--- a/src/runtime/os_openbsd_syscall1.go
++++ b/src/runtime/os_openbsd_syscall1.go
+@@ -13,3 +13,8 @@ func thrsleep(ident uintptr, clock_id int32, tsp *timespec, lock uintptr, abort
+ func thrwakeup(ident uintptr, n int32) int32
+ 
+ func osyield()
++
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
+diff --git a/src/runtime/os_openbsd_syscall2.go b/src/runtime/os_openbsd_syscall2.go
+index ab940510af..81cfb085aa 100644
+--- a/src/runtime/os_openbsd_syscall2.go
++++ b/src/runtime/os_openbsd_syscall2.go
+@@ -32,6 +32,11 @@ func closefd(fd int32) int32
+ func exit(code int32)
+ func usleep(usec uint32)
+ 
++//go:nosplit
++func usleep_no_g(usec uint32) {
++	usleep(usec)
++}
++
+ // write calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
+ //go:noescape
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2a84a73716..77665f461a 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -339,6 +339,11 @@ func osyield() {
+ 	sleep(0)
+ }
+ 
++//go:nosplit
++func osyield_no_g() {
++	osyield()
++}
++
+ //go:nosplit
+ func usleep(µs uint32) {
+ 	ms := int32(µs / 1000)
+@@ -348,6 +353,11 @@ func usleep(µs uint32) {
+ 	sleep(ms)
+ }
+ 
++//go:nosplit
++func usleep_no_g(usec uint32) {
++	usleep(usec)
++}
++
+ //go:nosplit
+ func nanotime1() int64 {
+ 	var scratch int64
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index e6b22e3167..1bf3309dfd 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -461,15 +461,12 @@ func initHighResTimer() {
+ 	h := createHighResTimer()
+ 	if h != 0 {
+ 		haveHighResTimer = true
+-		usleep2Addr = unsafe.Pointer(funcPC(usleep2HighRes))
+ 		stdcall1(_CloseHandle, h)
+ 	}
+ }
+ 
+ func osinit() {
+ 	asmstdcallAddr = unsafe.Pointer(funcPC(asmstdcall))
+-	usleep2Addr = unsafe.Pointer(funcPC(usleep2))
+-	switchtothreadAddr = unsafe.Pointer(funcPC(switchtothread))
+ 
+ 	setBadSignalMsg()
+ 
+@@ -1061,26 +1058,39 @@ func stdcall7(fn stdFunction, a0, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 	return stdcall(fn)
+ }
+ 
+-// In sys_windows_386.s and sys_windows_amd64.s.
+-func onosstack(fn unsafe.Pointer, arg uint32)
+-
+-// These are not callable functions. They should only be called via onosstack.
+-func usleep2(usec uint32)
+-func usleep2HighRes(usec uint32)
++// These must run on the system stack only.
++func usleep2(dt int32)
++func usleep2HighRes(dt int32)
+ func switchtothread()
+ 
+-var usleep2Addr unsafe.Pointer
+-var switchtothreadAddr unsafe.Pointer
++//go:nosplit
++func osyield_no_g() {
++	switchtothread()
++}
+ 
+ //go:nosplit
+ func osyield() {
+-	onosstack(switchtothreadAddr, 0)
++	systemstack(switchtothread)
++}
++
++//go:nosplit
++func usleep_no_g(us uint32) {
++	dt := -10 * int32(us) // relative sleep (negative), 100ns units
++	usleep2(dt)
+ }
+ 
+ //go:nosplit
+ func usleep(us uint32) {
+-	// Have 1us units; want 100ns units.
+-	onosstack(usleep2Addr, 10*us)
++	systemstack(func() {
++		dt := -10 * int32(us) // relative sleep (negative), 100ns units
++		// If the high-res timer is available and its handle has been allocated for this m, use it.
++		// Otherwise fall back to the low-res one, which doesn't need a handle.
++		if haveHighResTimer && getg().m.highResTimer != 0 {
++			usleep2HighRes(dt)
++		} else {
++			usleep2(dt)
++		}
++	})
+ }
+ 
+ func ctrlhandler1(_type uint32) uint32 {
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 73a789c189..4092dd55cb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2012,7 +2012,7 @@ func lockextra(nilokay bool) *m {
+ 	for {
+ 		old := atomic.Loaduintptr(&extram)
+ 		if old == locked {
+-			osyield()
++			osyield_no_g()
+ 			continue
+ 		}
+ 		if old == 0 && !nilokay {
+@@ -2023,13 +2023,13 @@ func lockextra(nilokay bool) *m {
+ 				atomic.Xadd(&extraMWaiters, 1)
+ 				incr = true
+ 			}
+-			usleep(1)
++			usleep_no_g(1)
+ 			continue
+ 		}
+ 		if atomic.Casuintptr(&extram, old, locked) {
+ 			return (*m)(unsafe.Pointer(old))
+ 		}
+-		osyield()
++		osyield_no_g()
+ 		continue
+ 	}
+ }
+diff --git a/src/runtime/stubs2.go b/src/runtime/stubs2.go
+index 85088b3ab9..96096d236b 100644
+--- a/src/runtime/stubs2.go
++++ b/src/runtime/stubs2.go
+@@ -23,6 +23,11 @@ func closefd(fd int32) int32
+ func exit(code int32)
+ func usleep(usec uint32)
+ 
++//go:nosplit
++func usleep_no_g(usec uint32) {
++	usleep(usec)
++}
++
+ // write calls the write system call.
+ // It returns a non-negative number of bytes written or a negative errno value.
+ //go:noescape
+diff --git a/src/runtime/stubs_386.go b/src/runtime/stubs_386.go
+index 5108294d83..300f167fff 100644
+--- a/src/runtime/stubs_386.go
++++ b/src/runtime/stubs_386.go
+@@ -15,3 +15,6 @@ func stackcheck()
+ // Called from assembly only; declared for go vet.
+ func setldt(slot uintptr, base unsafe.Pointer, size uintptr)
+ func emptyfunc()
++
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/stubs_amd64.go b/src/runtime/stubs_amd64.go
+index 8c14bc2271..bf98493e9d 100644
+--- a/src/runtime/stubs_amd64.go
++++ b/src/runtime/stubs_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Called from compiled code; declared for vet; do NOT call from Go.
+ func gcWriteBarrierCX()
+ func gcWriteBarrierDX()
+@@ -35,3 +37,6 @@ func retpolineR12()
+ func retpolineR13()
+ func retpolineR14()
+ func retpolineR15()
++
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/stubs_arm.go b/src/runtime/stubs_arm.go
+index c13bf16de2..52c32937ae 100644
+--- a/src/runtime/stubs_arm.go
++++ b/src/runtime/stubs_arm.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Called from compiler-generated code; declared for go vet.
+ func udiv()
+ func _div()
+@@ -18,3 +20,6 @@ func save_g()
+ func emptyfunc()
+ func _initcgo()
+ func read_tls_fallback()
++
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/stubs_arm64.go b/src/runtime/stubs_arm64.go
+index 44c566e602..6e6e7df6b8 100644
+--- a/src/runtime/stubs_arm64.go
++++ b/src/runtime/stubs_arm64.go
+@@ -4,6 +4,11 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Called from assembly only; declared for go vet.
+ func load_g()
+ func save_g()
++
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/stubs_mips64x.go b/src/runtime/stubs_mips64x.go
+index 4e62c1ce90..652e7a9e34 100644
+--- a/src/runtime/stubs_mips64x.go
++++ b/src/runtime/stubs_mips64x.go
+@@ -6,6 +6,11 @@
+ 
+ package runtime
+ 
++import "unsafe"
++
+ // Called from assembly only; declared for go vet.
+ func load_g()
+ func save_g()
++
++//go:noescape
++func asmcgocall_no_g(fn, arg unsafe.Pointer)
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 4a3f2fc453..dacce2ee1a 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -227,6 +227,12 @@ func usleep(usec uint32) {
+ }
+ func usleep_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func usleep_no_g(usec uint32) {
++	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
++}
++
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func write1(fd uintptr, p unsafe.Pointer, n int32) int32 {
+diff --git a/src/runtime/sys_openbsd1.go b/src/runtime/sys_openbsd1.go
+index e2886218db..44c7871ceb 100644
+--- a/src/runtime/sys_openbsd1.go
++++ b/src/runtime/sys_openbsd1.go
+@@ -27,6 +27,11 @@ func osyield() {
+ }
+ func sched_yield_trampoline()
+ 
++//go:nosplit
++func osyield_no_g() {
++	asmcgocall_no_g(unsafe.Pointer(funcPC(sched_yield_trampoline)), unsafe.Pointer(nil))
++}
++
+ //go:cgo_import_dynamic libc_thrsleep __thrsleep "libc.so"
+ //go:cgo_import_dynamic libc_thrwakeup __thrwakeup "libc.so"
+ //go:cgo_import_dynamic libc_sched_yield sched_yield "libc.so"
+diff --git a/src/runtime/sys_openbsd2.go b/src/runtime/sys_openbsd2.go
+index 474e7145e7..33032596c3 100644
+--- a/src/runtime/sys_openbsd2.go
++++ b/src/runtime/sys_openbsd2.go
+@@ -128,6 +128,12 @@ func usleep(usec uint32) {
+ }
+ func usleep_trampoline()
+ 
++//go:nosplit
++//go:cgo_unsafe_args
++func usleep_no_g(usec uint32) {
++	asmcgocall_no_g(unsafe.Pointer(funcPC(usleep_trampoline)), unsafe.Pointer(&usec))
++}
++
+ //go:nosplit
+ //go:cgo_unsafe_args
+ func sysctl(mib *uint32, miblen uint32, out *byte, size *uintptr, dst *byte, ndst uintptr) int32 {
+diff --git a/src/runtime/sys_windows_386.s b/src/runtime/sys_windows_386.s
+index ef8a3dd3c2..b3972ac78d 100644
+--- a/src/runtime/sys_windows_386.s
++++ b/src/runtime/sys_windows_386.s
+@@ -347,60 +347,11 @@ TEXT runtime·setldt(SB),NOSPLIT,$0
+ 	MOVL	CX, 0x14(FS)
+ 	RET
+ 
+-// onosstack calls fn on OS stack.
+-// func onosstack(fn unsafe.Pointer, arg uint32)
+-TEXT runtime·onosstack(SB),NOSPLIT,$0
+-	MOVL	fn+0(FP), AX		// to hide from 8l
+-	MOVL	arg+4(FP), BX
+-
+-	// Execute call on m->g0 stack, in case we are not actually
+-	// calling a system call wrapper, like when running under WINE.
+-	get_tls(CX)
+-	CMPL	CX, $0
+-	JNE	3(PC)
+-	// Not a Go-managed thread. Do not switch stack.
+-	CALL	AX
+-	RET
+-
+-	MOVL	g(CX), BP
+-	MOVL	g_m(BP), BP
+-
+-	// leave pc/sp for cpu profiler
+-	MOVL	(SP), SI
+-	MOVL	SI, m_libcallpc(BP)
+-	MOVL	g(CX), SI
+-	MOVL	SI, m_libcallg(BP)
+-	// sp must be the last, because once async cpu profiler finds
+-	// all three values to be non-zero, it will use them
+-	LEAL	fn+0(FP), SI
+-	MOVL	SI, m_libcallsp(BP)
+-
+-	MOVL	m_g0(BP), SI
+-	CMPL	g(CX), SI
+-	JNE	switch
+-	// executing on m->g0 already
+-	CALL	AX
+-	JMP	ret
+-
+-switch:
+-	// Switch to m->g0 stack and back.
+-	MOVL	(g_sched+gobuf_sp)(SI), SI
+-	MOVL	SP, -4(SI)
+-	LEAL	-4(SI), SP
+-	CALL	AX
+-	MOVL	0(SP), SP
+-
+-ret:
+-	get_tls(CX)
+-	MOVL	g(CX), BP
+-	MOVL	g_m(BP), BP
+-	MOVL	$0, m_libcallsp(BP)
+-	RET
+-
+-// Runs on OS stack. duration (in 100ns units) is in BX.
+-TEXT runtime·usleep2(SB),NOSPLIT,$20
+-	// Want negative 100ns units.
+-	NEGL	BX
++// Runs on OS stack.
++// duration (in -100ns units) is in dt+0(FP).
++// g may be nil.
++TEXT runtime·usleep2(SB),NOSPLIT,$20-4
++	MOVL	dt+0(FP), BX
+ 	MOVL	$-1, hi-4(SP)
+ 	MOVL	BX, lo-8(SP)
+ 	LEAL	lo-8(SP), BX
+@@ -413,17 +364,15 @@ TEXT runtime·usleep2(SB),NOSPLIT,$20
+ 	MOVL	BP, SP
+ 	RET
+ 
+-// Runs on OS stack. duration (in 100ns units) is in BX.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
+-	get_tls(CX)
+-	CMPL	CX, $0
+-	JE	gisnotset
+-
+-	// Want negative 100ns units.
+-	NEGL	BX
++// Runs on OS stack.
++// duration (in -100ns units) is in dt+0(FP).
++// g is valid.
++TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36-4
++	MOVL	dt+0(FP), BX
+ 	MOVL	$-1, hi-4(SP)
+ 	MOVL	BX, lo-8(SP)
+ 
++	get_tls(CX)
+ 	MOVL	g(CX), CX
+ 	MOVL	g_m(CX), CX
+ 	MOVL	(m_mOS+mOS_highResTimer)(CX), CX
+@@ -452,12 +401,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT,$36
+ 
+ 	RET
+ 
+-gisnotset:
+-	// TLS is not configured. Call usleep2 instead.
+-	MOVL	$runtime·usleep2(SB), AX
+-	CALL	AX
+-	RET
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT,$0
+ 	MOVL	SP, BP
+diff --git a/src/runtime/sys_windows_amd64.s b/src/runtime/sys_windows_amd64.s
+index d1690cad58..2bd7b74848 100644
+--- a/src/runtime/sys_windows_amd64.s
++++ b/src/runtime/sys_windows_amd64.s
+@@ -388,61 +388,16 @@ TEXT runtime·settls(SB),NOSPLIT,$0
+ 	MOVQ	DI, 0x28(GS)
+ 	RET
+ 
+-// func onosstack(fn unsafe.Pointer, arg uint32)
+-TEXT runtime·onosstack(SB),NOSPLIT,$0
+-	MOVQ	fn+0(FP), AX		// to hide from 6l
+-	MOVL	arg+8(FP), BX
+-
+-	// Execute call on m->g0 stack, in case we are not actually
+-	// calling a system call wrapper, like when running under WINE.
+-	get_tls(R15)
+-	CMPQ	R15, $0
+-	JNE	3(PC)
+-	// Not a Go-managed thread. Do not switch stack.
+-	CALL	AX
+-	RET
+-
+-	MOVQ	g(R15), R13
+-	MOVQ	g_m(R13), R13
+-
+-	// leave pc/sp for cpu profiler
+-	MOVQ	(SP), R12
+-	MOVQ	R12, m_libcallpc(R13)
+-	MOVQ	g(R15), R12
+-	MOVQ	R12, m_libcallg(R13)
+-	// sp must be the last, because once async cpu profiler finds
+-	// all three values to be non-zero, it will use them
+-	LEAQ	fn+0(FP), R12
+-	MOVQ	R12, m_libcallsp(R13)
+-
+-	MOVQ	m_g0(R13), R14
+-	CMPQ	g(R15), R14
+-	JNE	switch
+-	// executing on m->g0 already
+-	CALL	AX
+-	JMP	ret
+-
+-switch:
+-	// Switch to m->g0 stack and back.
+-	MOVQ	(g_sched+gobuf_sp)(R14), R14
+-	MOVQ	SP, -8(R14)
+-	LEAQ	-8(R14), SP
+-	CALL	AX
+-	MOVQ	0(SP), SP
+-
+-ret:
+-	MOVQ	$0, m_libcallsp(R13)
+-	RET
+-
+-// Runs on OS stack. duration (in 100ns units) is in BX.
++// Runs on OS stack.
++// duration (in -100ns units) is in dt+0(FP).
++// g may be nil.
+ // The function leaves room for 4 syscall parameters
+ // (as per windows amd64 calling convention).
+-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
++TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48-4
++	MOVLQSX	dt+0(FP), BX
+ 	MOVQ	SP, AX
+ 	ANDQ	$~15, SP	// alignment as per Windows requirement
+ 	MOVQ	AX, 40(SP)
+-	// Want negative 100ns units.
+-	NEGQ	BX
+ 	LEAQ	32(SP), R8  // ptime
+ 	MOVQ	BX, (R8)
+ 	MOVQ	$-1, CX // handle
+@@ -452,11 +407,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$48
+ 	MOVQ	40(SP), SP
+ 	RET
+ 
+-// Runs on OS stack. duration (in 100ns units) is in BX.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
++// Runs on OS stack. duration (in -100ns units) is in dt+0(FP).
++// g is valid.
++TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72-4
++	MOVLQSX	dt+0(FP), BX
+ 	get_tls(CX)
+-	CMPQ	CX, $0
+-	JE	gisnotset
+ 
+ 	MOVQ	SP, AX
+ 	ANDQ	$~15, SP	// alignment as per Windows requirement
+@@ -466,8 +421,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+ 	MOVQ	g_m(CX), CX
+ 	MOVQ	(m_mOS+mOS_highResTimer)(CX), CX	// hTimer
+ 	MOVQ	CX, 48(SP)				// save hTimer for later
+-	// Want negative 100ns units.
+-	NEGQ	BX
+ 	LEAQ	56(SP), DX				// lpDueTime
+ 	MOVQ	BX, (DX)
+ 	MOVQ	$0, R8					// lPeriod
+@@ -487,12 +440,6 @@ TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$72
+ 	MOVQ	64(SP), SP
+ 	RET
+ 
+-gisnotset:
+-	// TLS is not configured. Call usleep2 instead.
+-	MOVQ	$runtime·usleep2(SB), AX
+-	CALL	AX
+-	RET
+-
+ // Runs on OS stack.
+ TEXT runtime·switchtothread(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	SP, AX
+diff --git a/src/runtime/sys_windows_arm.s b/src/runtime/sys_windows_arm.s
+index fe267080cc..1d928a4f7d 100644
+--- a/src/runtime/sys_windows_arm.s
++++ b/src/runtime/sys_windows_arm.s
+@@ -377,79 +377,11 @@ TEXT runtime·tstart_stdcall(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	$0, R0
+ 	MOVM.IA.W (R13), [R4-R11, R15]		// pop {r4-r11, pc}
+ 
+-// onosstack calls fn on OS stack.
+-// adapted from asm_arm.s : systemstack
+-// func onosstack(fn unsafe.Pointer, arg uint32)
+-TEXT runtime·onosstack(SB),NOSPLIT,$0
+-	MOVW	fn+0(FP), R5		// R5 = fn
+-	MOVW	arg+4(FP), R6		// R6 = arg
+-
+-	// This function can be called when there is no g,
+-	// for example, when we are handling a callback on a non-go thread.
+-	// In this case we're already on the system stack.
+-	CMP	$0, g
+-	BEQ	noswitch
+-
+-	MOVW	g_m(g), R1		// R1 = m
+-
+-	MOVW	m_gsignal(R1), R2	// R2 = gsignal
+-	CMP	g, R2
+-	B.EQ	noswitch
+-
+-	MOVW	m_g0(R1), R2		// R2 = g0
+-	CMP	g, R2
+-	B.EQ	noswitch
+-
+-	MOVW	m_curg(R1), R3
+-	CMP	g, R3
+-	B.EQ	switch
+-
+-	// Bad: g is not gsignal, not g0, not curg. What is it?
+-	// Hide call from linker nosplit analysis.
+-	MOVW	$runtime·badsystemstack(SB), R0
+-	BL	(R0)
+-	B	runtime·abort(SB)
+-
+-switch:
+-	// save our state in g->sched. Pretend to
+-	// be systemstack_switch if the G stack is scanned.
+-	MOVW	$runtime·systemstack_switch(SB), R3
+-	ADD	$4, R3, R3 // get past push {lr}
+-	MOVW	R3, (g_sched+gobuf_pc)(g)
+-	MOVW	R13, (g_sched+gobuf_sp)(g)
+-	MOVW	LR, (g_sched+gobuf_lr)(g)
+-	MOVW	g, (g_sched+gobuf_g)(g)
+-
+-	// switch to g0
+-	MOVW	R2, g
+-	MOVW	(g_sched+gobuf_sp)(R2), R3
+-	// make it look like mstart called systemstack on g0, to stop traceback
+-	SUB	$4, R3, R3
+-	MOVW	$runtime·mstart(SB), R4
+-	MOVW	R4, 0(R3)
+-	MOVW	R3, R13
+-
+-	// call target function
+-	MOVW	R6, R0		// arg
+-	BL	(R5)
+-
+-	// switch back to g
+-	MOVW	g_m(g), R1
+-	MOVW	m_curg(R1), g
+-	MOVW	(g_sched+gobuf_sp)(g), R13
+-	MOVW	$0, R3
+-	MOVW	R3, (g_sched+gobuf_sp)(g)
+-	RET
+-
+-noswitch:
+-	// Using a tail call here cleans up tracebacks since we won't stop
+-	// at an intermediate systemstack.
+-	MOVW.P	4(R13), R14	// restore LR
+-	MOVW	R6, R0		// arg
+-	B	(R5)
+-
+-// Runs on OS stack. Duration (in 100ns units) is in R0.
+-TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
++// Runs on OS stack.
++// duration (in -100ns units) is in dt+0(FP).
++// g may be nil.
++TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0-4
++	MOVW	dt+0(FP), R0
+ 	MOVM.DB.W [R4, R14], (R13)	// push {r4, lr}
+ 	MOVW	R13, R4			// Save SP
+ 	SUB	$8, R13			// R13 = R13 - 8
+@@ -465,9 +397,11 @@ TEXT runtime·usleep2(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R4, R13			// Restore SP
+ 	MOVM.IA.W (R13), [R4, R15]	// pop {R4, pc}
+ 
+-// Runs on OS stack. Duration (in 100ns units) is in R0.
++// Runs on OS stack.
++// duration (in -100ns units) is in dt+0(FP).
++// g is valid.
+ // TODO: neeeds to be implemented properly.
+-TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0
++TEXT runtime·usleep2HighRes(SB),NOSPLIT|NOFRAME,$0-4
+ 	B	runtime·abort(SB)
+ 
+ // Runs on OS stack.

@@ -5,6 +5,11 @@ Date:   Thu Jul 3 15:16:17 2008 -0700
     fix typo in file name
     
     SVN=125964
-
+---
  test/{simasign.go => simassign.go} | 0
  1 file changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/test/simasign.go b/test/simassign.go
+similarity index 100%
+rename from test/simasign.go
+rename to test/simassign.go

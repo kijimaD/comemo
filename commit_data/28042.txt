@@ -9,6 +9,25 @@ Date:   Tue Apr 26 19:11:53 2016 -0700
     Run-TryBot: Josh Bleecher Snyder <josharian@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/cmd/compile/internal/gc/opnames.go | 8 ++++----
  1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/opnames.go b/src/cmd/compile/internal/gc/opnames.go
+index df0d8cb7fb..015baa2376 100644
+--- a/src/cmd/compile/internal/gc/opnames.go
++++ b/src/cmd/compile/internal/gc/opnames.go
+@@ -160,9 +160,9 @@ var opnames = []string{
+ 	OLROT:            "LROT",
+ 	ORROTC:           "RROTC",
+ 	ORETJMP:          "RETJMP",
+-	OPS:              "OPS",
+-	OPC:              "OPC",
+-	OSQRT:            "OSQRT",
+-	OGETG:            "OGETG",
++	OPS:              "PS",
++	OPC:              "PC",
++	OSQRT:            "SQRT",
++	OGETG:            "GETG",
+ 	OEND:             "END",
+ }

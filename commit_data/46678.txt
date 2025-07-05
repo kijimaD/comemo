@@ -16,10 +16,281 @@ Date:   Wed Jan 20 12:54:23 2021 -0800
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Robert Griesemer <gri@golang.org>
     TryBot-Result: Go Bot <gobot@golang.org>
-
+---
  src/cmd/compile/internal/noder/decl.go    |  4 +++
  src/cmd/compile/internal/noder/expr.go    | 55 ++++++++++++++++++++-----------
  src/cmd/compile/internal/noder/helpers.go | 52 +++++++++++++++++++----------
  src/cmd/compile/internal/noder/irgen.go   |  5 +++
  src/cmd/compile/internal/noder/types.go   |  7 ++++
  5 files changed, 87 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/decl.go b/src/cmd/compile/internal/noder/decl.go
+index ce5bad88f3..4d20f410bc 100644
+--- a/src/cmd/compile/internal/noder/decl.go
++++ b/src/cmd/compile/internal/noder/decl.go
+@@ -100,6 +100,9 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 		return
+ 	}
+ 
++	// Prevent size calculations until we set the underlying type.
++	types.DeferCheckSize()
++
+ 	name, obj := g.def(decl.Name)
+ 	ntyp, otyp := name.Type(), obj.Type()
+ 	if ir.CurFunc != nil {
+@@ -135,6 +138,7 @@ func (g *irgen) typeDecl(out *ir.Nodes, decl *syntax.TypeDecl) {
+ 	// [mdempsky: Subtleties like these are why I always vehemently
+ 	// object to new type pragmas.]
+ 	ntyp.SetUnderlying(g.typeExpr(decl.Type))
++	types.ResumeCheckSize()
+ 
+ 	if otyp, ok := otyp.(*types2.Named); ok && otyp.NumMethods() != 0 {
+ 		methods := make([]*types.Field, otyp.NumMethods())
+diff --git a/src/cmd/compile/internal/noder/expr.go b/src/cmd/compile/internal/noder/expr.go
+index d5177ead06..be592003e1 100644
+--- a/src/cmd/compile/internal/noder/expr.go
++++ b/src/cmd/compile/internal/noder/expr.go
+@@ -43,15 +43,36 @@ func (g *irgen) expr(expr syntax.Expr) ir.Node {
+ 		base.FatalfAt(g.pos(expr), "unrecognized type-checker result")
+ 	}
+ 
++	// The gc backend expects all expressions to have a concrete type, and
++	// types2 mostly satisfies this expectation already. But there are a few
++	// cases where the Go spec doesn't require converting to concrete type,
++	// and so types2 leaves them untyped. So we need to fix those up here.
++	typ := tv.Type
++	if basic, ok := typ.(*types2.Basic); ok && basic.Info()&types2.IsUntyped != 0 {
++		switch basic.Kind() {
++		case types2.UntypedNil:
++			// ok; can appear in type switch case clauses
++			// TODO(mdempsky): Handle as part of type switches instead?
++		case types2.UntypedBool:
++			typ = types2.Typ[types2.Bool] // expression in "if" or "for" condition
++		case types2.UntypedString:
++			typ = types2.Typ[types2.String] // argument to "append" or "copy" calls
++		default:
++			base.FatalfAt(g.pos(expr), "unexpected untyped type: %v", basic)
++		}
++	}
++
+ 	// Constant expression.
+ 	if tv.Value != nil {
+-		return Const(g.pos(expr), g.typ(tv.Type), tv.Value)
++		return Const(g.pos(expr), g.typ(typ), tv.Value)
+ 	}
+ 
+-	// TODO(mdempsky): Remove dependency on typecheck.Expr.
+-	n := typecheck.Expr(g.expr0(tv.Type, expr))
+-	if !g.match(n.Type(), tv.Type, tv.HasOk()) {
+-		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, tv.Type)
++	n := g.expr0(typ, expr)
++	if n.Typecheck() != 1 {
++		base.FatalfAt(g.pos(expr), "missed typecheck: %+v", n)
++	}
++	if !g.match(n.Type(), typ, tv.HasOk()) {
++		base.FatalfAt(g.pos(expr), "expected %L to have type %v", n, typ)
+ 	}
+ 	return n
+ }
+@@ -64,7 +85,8 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		if _, isNil := g.info.Uses[expr].(*types2.Nil); isNil {
+ 			return Nil(pos, g.typ(typ))
+ 		}
+-		return g.use(expr)
++		// TODO(mdempsky): Remove dependency on typecheck.Expr.
++		return typecheck.Expr(g.use(expr))
+ 
+ 	case *syntax.CompositeLit:
+ 		return g.compLit(typ, expr)
+@@ -83,13 +105,14 @@ func (g *irgen) expr0(typ types2.Type, expr syntax.Expr) ir.Node {
+ 		// Qualified identifier.
+ 		if name, ok := expr.X.(*syntax.Name); ok {
+ 			if _, ok := g.info.Uses[name].(*types2.PkgName); ok {
+-				return g.use(expr.Sel)
++				// TODO(mdempsky): Remove dependency on typecheck.Expr.
++				return typecheck.Expr(g.use(expr.Sel))
+ 			}
+ 		}
+ 
+ 		// TODO(mdempsky/danscales): Use g.info.Selections[expr]
+ 		// to resolve field/method selection. See CL 280633.
+-		return ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel))
++		return typecheck.Expr(ir.NewSelectorExpr(pos, ir.OXDOT, g.expr(expr.X), g.name(expr.Sel)))
+ 	case *syntax.SliceExpr:
+ 		return Slice(pos, g.expr(expr.X), g.expr(expr.Index[0]), g.expr(expr.Index[1]), g.expr(expr.Index[2]))
+ 
+@@ -131,16 +154,9 @@ func (g *irgen) exprs(exprs []syntax.Expr) []ir.Node {
+ 
+ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 	if ptr, ok := typ.Underlying().(*types2.Pointer); ok {
+-		if _, isNamed := typ.(*types2.Named); isNamed {
+-			// TODO(mdempsky): Questionable, but this is
+-			// currently allowed by cmd/compile, go/types,
+-			// and gccgo:
+-			//
+-			//	type T *struct{}
+-			//	var _ = []T{{}}
+-			base.FatalfAt(g.pos(lit), "defined-pointer composite literal")
+-		}
+-		return ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
++		n := ir.NewAddrExpr(g.pos(lit), g.compLit(ptr.Elem(), lit))
++		n.SetOp(ir.OPTRLIT)
++		return typed(g.typ(typ), n)
+ 	}
+ 
+ 	_, isStruct := typ.Underlying().(*types2.Struct)
+@@ -159,7 +175,8 @@ func (g *irgen) compLit(typ types2.Type, lit *syntax.CompositeLit) ir.Node {
+ 		}
+ 	}
+ 
+-	return ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs)
++	// TODO(mdempsky): Remove dependency on typecheck.Expr.
++	return typecheck.Expr(ir.NewCompLitExpr(g.pos(lit), ir.OCOMPLIT, ir.TypeNode(g.typ(typ)), exprs))
+ }
+ 
+ func (g *irgen) funcLit(typ types2.Type, expr *syntax.FuncLit) ir.Node {
+diff --git a/src/cmd/compile/internal/noder/helpers.go b/src/cmd/compile/internal/noder/helpers.go
+index 2139f16a6c..3c20f74d8b 100644
+--- a/src/cmd/compile/internal/noder/helpers.go
++++ b/src/cmd/compile/internal/noder/helpers.go
+@@ -21,32 +21,41 @@ import (
+ // results, rather than leaving the caller responsible for using
+ // typecheck.Expr or typecheck.Stmt.
+ 
++// typed returns n after setting its type to typ.
++func typed(typ *types.Type, n ir.Node) ir.Node {
++	n.SetType(typ)
++	n.SetTypecheck(1)
++	return n
++}
++
+ // Values
+ 
+ func Const(pos src.XPos, typ *types.Type, val constant.Value) ir.Node {
+-	n := ir.NewBasicLit(pos, val)
+-	n.SetType(typ)
+-	return n
++	return typed(typ, ir.NewBasicLit(pos, val))
+ }
+ 
+ func Nil(pos src.XPos, typ *types.Type) ir.Node {
+-	n := ir.NewNilExpr(pos)
+-	n.SetType(typ)
+-	return n
++	return typed(typ, ir.NewNilExpr(pos))
+ }
+ 
+ // Expressions
+ 
+ func Assert(pos src.XPos, x ir.Node, typ *types.Type) ir.Node {
+-	return typecheck.Expr(ir.NewTypeAssertExpr(pos, x, ir.TypeNode(typ)))
++	return typed(typ, ir.NewTypeAssertExpr(pos, x, nil))
+ }
+ 
+ func Binary(pos src.XPos, op ir.Op, x, y ir.Node) ir.Node {
+ 	switch op {
+ 	case ir.OANDAND, ir.OOROR:
+-		return ir.NewLogicalExpr(pos, op, x, y)
++		return typed(x.Type(), ir.NewLogicalExpr(pos, op, x, y))
++	case ir.OADD:
++		if x.Type().IsString() {
++			// TODO(mdempsky): Construct OADDSTR directly.
++			return typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
++		}
++		fallthrough
+ 	default:
+-		return ir.NewBinaryExpr(pos, op, x, y)
++		return typed(x.Type(), ir.NewBinaryExpr(pos, op, x, y))
+ 	}
+ }
+ 
+@@ -92,13 +101,17 @@ func Call(pos src.XPos, fun ir.Node, args []ir.Node, dots bool) ir.Node {
+ }
+ 
+ func Compare(pos src.XPos, typ *types.Type, op ir.Op, x, y ir.Node) ir.Node {
+-	n := typecheck.Expr(ir.NewBinaryExpr(pos, op, x, y))
+-	n.SetType(typ)
+-	return n
++	n := ir.NewBinaryExpr(pos, op, x, y)
++	if !types.Identical(x.Type(), y.Type()) {
++		// TODO(mdempsky): Handle subtleties of constructing mixed-typed comparisons.
++		n = typecheck.Expr(n).(*ir.BinaryExpr)
++	}
++	return typed(typ, n)
+ }
+ 
+ func Index(pos src.XPos, x, index ir.Node) ir.Node {
+-	return ir.NewIndexExpr(pos, x, index)
++	// TODO(mdempsky): Avoid typecheck.Expr.
++	return typecheck.Expr(ir.NewIndexExpr(pos, x, index))
+ }
+ 
+ func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
+@@ -106,17 +119,22 @@ func Slice(pos src.XPos, x, low, high, max ir.Node) ir.Node {
+ 	if max != nil {
+ 		op = ir.OSLICE3
+ 	}
+-	return ir.NewSliceExpr(pos, op, x, low, high, max)
++	// TODO(mdempsky): Avoid typecheck.Expr.
++	return typecheck.Expr(ir.NewSliceExpr(pos, op, x, low, high, max))
+ }
+ 
+ func Unary(pos src.XPos, op ir.Op, x ir.Node) ir.Node {
++	typ := x.Type()
+ 	switch op {
+ 	case ir.OADDR:
+-		return typecheck.NodAddrAt(pos, x)
++		// TODO(mdempsky): Avoid typecheck.Expr. Probably just need to set OPTRLIT as needed.
++		return typed(types.NewPtr(typ), typecheck.Expr(typecheck.NodAddrAt(pos, x)))
+ 	case ir.ODEREF:
+-		return ir.NewStarExpr(pos, x)
++		return typed(typ.Elem(), ir.NewStarExpr(pos, x))
++	case ir.ORECV:
++		return typed(typ.Elem(), ir.NewUnaryExpr(pos, op, x))
+ 	default:
+-		return ir.NewUnaryExpr(pos, op, x)
++		return typed(typ, ir.NewUnaryExpr(pos, op, x))
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index e127348482..5c779ab810 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -103,6 +103,10 @@ func (g *irgen) generate(noders []*noder) {
+ 	types.LocalPkg.Name = g.self.Name()
+ 	typecheck.TypecheckAllowed = true
+ 
++	// Prevent size calculations until we set the underlying type
++	// for all package-block defined types.
++	types.DeferCheckSize()
++
+ 	// At this point, types2 has already handled name resolution and
+ 	// type checking. We just need to map from its object and type
+ 	// representations to those currently used by the rest of the
+@@ -152,6 +156,7 @@ Outer:
+ 			}
+ 		}
+ 	}
++	types.ResumeCheckSize()
+ 
+ 	// 3. Process all remaining declarations.
+ 	for _, declList := range declLists {
+diff --git a/src/cmd/compile/internal/noder/types.go b/src/cmd/compile/internal/noder/types.go
+index aec1846619..e0ed5a3f99 100644
+--- a/src/cmd/compile/internal/noder/types.go
++++ b/src/cmd/compile/internal/noder/types.go
+@@ -35,6 +35,13 @@ func (g *irgen) typ(typ types2.Type) *types.Type {
+ 	if !ok {
+ 		res = g.typ0(typ)
+ 		g.typs[typ] = res
++
++		// Ensure we calculate the size for all concrete types seen by
++		// the frontend. This is another heavy hammer for something that
++		// should really be the backend's responsibility instead.
++		if !res.IsUntyped() {
++			types.CheckSize(res)
++		}
+ 	}
+ 	return res
+ }

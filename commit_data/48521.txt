@@ -19,10 +19,181 @@ Date:   Tue May 25 20:14:33 2021 -0700
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Go Bot <gobot@golang.org>
     Reviewed-by: Dan Scales <danscales@google.com>
-
+---
  src/cmd/compile/internal/inline/inl.go     | 51 +++---------------------------
  src/cmd/compile/internal/typecheck/func.go | 13 ++++----
  src/cmd/compile/internal/walk/convert.go   |  2 +-
  test/fixedbugs/issue30898.go               |  2 +-
  test/inline_variadic.go                    |  2 +-
  5 files changed, 14 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 263e0b310b..00f8447f05 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -793,6 +793,9 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	defer func() {
+ 		inlMap[fn] = false
+ 	}()
++
++	typecheck.FixVariadicCall(n)
++
+ 	if base.Debug.TypecheckInl == 0 {
+ 		typecheck.ImportedBody(fn)
+ 	}
+@@ -914,51 +917,17 @@ func mkinlcall(n *ir.CallExpr, fn *ir.Func, maxCost int32, inlMap map[*ir.Func]b
+ 	}
+ 	as.Rhs.Append(n.Args...)
+ 
+-	// For non-dotted calls to variadic functions, we assign the
+-	// variadic parameter's temp name separately.
+-	var vas *ir.AssignStmt
+-
+ 	if recv := fn.Type().Recv(); recv != nil {
+ 		as.Lhs.Append(inlParam(recv, as, inlvars))
+ 	}
+ 	for _, param := range fn.Type().Params().Fields().Slice() {
+-		// For ordinary parameters or variadic parameters in
+-		// dotted calls, just add the variable to the
+-		// assignment list, and we're done.
+-		if !param.IsDDD() || n.IsDDD {
+-			as.Lhs.Append(inlParam(param, as, inlvars))
+-			continue
+-		}
+-
+-		// Otherwise, we need to collect the remaining values
+-		// to pass as a slice.
+-
+-		x := len(as.Lhs)
+-		for len(as.Lhs) < len(as.Rhs) {
+-			as.Lhs.Append(argvar(param.Type, len(as.Lhs)))
+-		}
+-		varargs := as.Lhs[x:]
+-
+-		vas = ir.NewAssignStmt(base.Pos, nil, nil)
+-		vas.X = inlParam(param, vas, inlvars)
+-		if len(varargs) == 0 {
+-			vas.Y = typecheck.NodNil()
+-			vas.Y.SetType(param.Type)
+-		} else {
+-			lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(param.Type), nil)
+-			lit.List = varargs
+-			vas.Y = lit
+-		}
++		as.Lhs.Append(inlParam(param, as, inlvars))
+ 	}
+ 
+ 	if len(as.Rhs) != 0 {
+ 		ninit.Append(typecheck.Stmt(as))
+ 	}
+ 
+-	if vas != nil {
+-		ninit.Append(typecheck.Stmt(vas))
+-	}
+-
+ 	if !delayretvars {
+ 		// Zero the return parameters.
+ 		for _, n := range retvars {
+@@ -1078,18 +1047,6 @@ func retvar(t *types.Field, i int) *ir.Name {
+ 	return n
+ }
+ 
+-// Synthesize a variable to store the inlined function's arguments
+-// when they come from a multiple return call.
+-func argvar(t *types.Type, i int) ir.Node {
+-	n := typecheck.NewName(typecheck.LookupNum("~arg", i))
+-	n.SetType(t.Elem())
+-	n.Class = ir.PAUTO
+-	n.SetUsed(true)
+-	n.Curfn = ir.CurFunc // the calling function, not the called one
+-	ir.CurFunc.Dcl = append(ir.CurFunc.Dcl, n)
+-	return n
+-}
+-
+ // The inlsubst type implements the actual inlining of a single
+ // function call.
+ type inlsubst struct {
+diff --git a/src/cmd/compile/internal/typecheck/func.go b/src/cmd/compile/internal/typecheck/func.go
+index f381e1dbdc..760b8868ab 100644
+--- a/src/cmd/compile/internal/typecheck/func.go
++++ b/src/cmd/compile/internal/typecheck/func.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/src"
+ 
+ 	"fmt"
+ 	"go/constant"
+@@ -15,21 +16,21 @@ import (
+ )
+ 
+ // package all the arguments that match a ... T parameter into a []T.
+-func MakeDotArgs(typ *types.Type, args []ir.Node) ir.Node {
++func MakeDotArgs(pos src.XPos, typ *types.Type, args []ir.Node) ir.Node {
+ 	var n ir.Node
+ 	if len(args) == 0 {
+-		n = NodNil()
++		n = ir.NewNilExpr(pos)
+ 		n.SetType(typ)
+ 	} else {
+-		lit := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, ir.TypeNode(typ), nil)
+-		lit.List.Append(args...)
++		args = append([]ir.Node(nil), args...)
++		lit := ir.NewCompLitExpr(pos, ir.OCOMPLIT, ir.TypeNode(typ), args)
+ 		lit.SetImplicit(true)
+ 		n = lit
+ 	}
+ 
+ 	n = Expr(n)
+ 	if n.Type() == nil {
+-		base.Fatalf("mkdotargslice: typecheck failed")
++		base.FatalfAt(pos, "mkdotargslice: typecheck failed")
+ 	}
+ 	return n
+ }
+@@ -47,7 +48,7 @@ func FixVariadicCall(call *ir.CallExpr) {
+ 
+ 	args := call.Args
+ 	extra := args[vi:]
+-	slice := MakeDotArgs(vt, extra)
++	slice := MakeDotArgs(call.Pos(), vt, extra)
+ 	for i := range extra {
+ 		extra[i] = nil // allow GC
+ 	}
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 26e17a126f..5297332f6b 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -499,7 +499,7 @@ func walkCheckPtrArithmetic(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 
+ 	cheap := cheapExpr(n, init)
+ 
+-	slice := typecheck.MakeDotArgs(types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
++	slice := typecheck.MakeDotArgs(base.Pos, types.NewSlice(types.Types[types.TUNSAFEPTR]), originals)
+ 	slice.SetEsc(ir.EscNone)
+ 
+ 	init.Append(mkcall("checkptrArithmetic", nil, init, typecheck.ConvNop(cheap, types.Types[types.TUNSAFEPTR]), slice))
+diff --git a/test/fixedbugs/issue30898.go b/test/fixedbugs/issue30898.go
+index b6376d3f9e..c7f6f2d371 100644
+--- a/test/fixedbugs/issue30898.go
++++ b/test/fixedbugs/issue30898.go
+@@ -15,5 +15,5 @@ func debugf(format string, args ...interface{}) { // ERROR "can inline debugf" "
+ 
+ func bar() { // ERROR "can inline bar"
+ 	value := 10
+-	debugf("value is %d", value) // ERROR "inlining call to debugf" "value does not escape" "\[\]interface {}{...} does not escape"
++	debugf("value is %d", value) // ERROR "inlining call to debugf" "value does not escape" "\.\.\. argument does not escape"
+ }
+diff --git a/test/inline_variadic.go b/test/inline_variadic.go
+index 687048a192..49483d77f7 100644
+--- a/test/inline_variadic.go
++++ b/test/inline_variadic.go
+@@ -14,6 +14,6 @@ func head(xs ...string) string { // ERROR "can inline head" "leaking param: xs t
+ }
+ 
+ func f() string { // ERROR "can inline f"
+-	x := head("hello", "world") // ERROR "inlining call to head" "\[\]string{...} does not escape"
++	x := head("hello", "world") // ERROR "inlining call to head" "\.\.\. argument does not escape"
+ 	return x
+ }

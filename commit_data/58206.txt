@@ -23,7 +23,48 @@ Date:   Fri Sep 29 14:00:04 2023 -0400
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Reviewed-by: Michael Pratt <mpratt@google.com>
     Reviewed-by: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/crash_unix_test.go | 6 ++++++
  src/runtime/traceback.go       | 9 +++------
  2 files changed, 9 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index fbd7626225..123a462423 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -216,6 +216,12 @@ func TestPanicSystemstack(t *testing.T) {
+ 	if nUser != 2 || nSys != 2 {
+ 		t.Fatalf("want %d user stack frames in %s and %d system stack frames in %s, got %d and %d:\n%s", 2, userFunc, 2, sysFunc, nUser, nSys, string(tb))
+ 	}
++
++	// Traceback should not contain "unexpected SPWRITE" when
++	// unwinding the system stacks.
++	if bytes.Contains(tb, []byte("unexpected SPWRITE")) {
++		t.Errorf("unexpected \"unexpected SPWRITE\" in traceback:\n%s", tb)
++	}
+ }
+ 
+ func init() {
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 61bb5f57f4..57feefb4a6 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -356,15 +356,12 @@ func (u *unwinder) resolveInternal(innermost, isSyscall bool) {
+ 		//
+ 		// uSE uPE inn | action
+ 		//  T   _   _  | frame.lr = 0
+-		//  F   T   F  | frame.lr = 0; print
+-		//  F   T   T  | frame.lr = 0
++		//  F   T   _  | frame.lr = 0
+ 		//  F   F   F  | print; panic
+ 		//  F   F   T  | ignore SPWrite
+-		if u.flags&unwindSilentErrors == 0 && !innermost {
++		if u.flags&(unwindPrintErrors|unwindSilentErrors) == 0 && !innermost {
+ 			println("traceback: unexpected SPWRITE function", funcname(f))
+-			if u.flags&unwindPrintErrors == 0 {
+-				throw("traceback")
+-			}
++			throw("traceback")
+ 		}
+ 		frame.lr = 0
+ 	} else {

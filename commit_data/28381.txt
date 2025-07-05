@@ -10,6 +10,20 @@ Date:   Wed May 18 18:44:46 2016 -0700
     Reviewed-on: https://go-review.googlesource.com/23232
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/expvar/expvar.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index b7ea433014..d5465c518f 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -39,6 +39,8 @@ import (
+ // Var is an abstract type for all exported variables.
+ type Var interface {
+ 	// String returns a valid JSON value for the variable.
++	// Types with String methods that do not return valid JSON
++	// (such as time.Time) must not be used as a Var.
+ 	String() string
+ }
+ 

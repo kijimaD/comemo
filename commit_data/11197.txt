@@ -27,7 +27,7 @@ Date:   Tue Jan 17 00:49:05 2012 -0200
     R=rsc, bradfitz, gustavo
     CC=golang-dev
     https://golang.org/cl/5498076
-
+---
  src/pkg/net/http/cgi/host.go              |   2 +-
  src/pkg/net/http/client.go                |   5 +-
  src/pkg/net/http/httputil/dump.go         |  12 +-
@@ -42,3 +42,1307 @@ Date:   Tue Jan 17 00:49:05 2012 -0200
  src/pkg/websocket/hixie.go                |   8 +-
  src/pkg/websocket/hybi.go                 |   4 +-
  13 files changed, 382 insertions(+), 432 deletions(-)
+
+diff --git a/src/pkg/net/http/cgi/host.go b/src/pkg/net/http/cgi/host.go
+index 615d366aed..73a9b6ea68 100644
+--- a/src/pkg/net/http/cgi/host.go
++++ b/src/pkg/net/http/cgi/host.go
+@@ -124,7 +124,7 @@ func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+ 		"GATEWAY_INTERFACE=CGI/1.1",
+ 		"REQUEST_METHOD=" + req.Method,
+ 		"QUERY_STRING=" + req.URL.RawQuery,
+-		"REQUEST_URI=" + req.URL.RawPath,
++		"REQUEST_URI=" + req.URL.RequestURI(),
+ 		"PATH_INFO=" + pathInfo,
+ 		"SCRIPT_NAME=" + root,
+ 		"SCRIPT_FILENAME=" + h.Path,
+diff --git a/src/pkg/net/http/client.go b/src/pkg/net/http/client.go
+index 1f16fcf86d..3d36f30e32 100644
+--- a/src/pkg/net/http/client.go
++++ b/src/pkg/net/http/client.go
+@@ -121,9 +121,8 @@ func send(req *Request, t RoundTripper) (resp *Response, err error) {
+ 		req.Header = make(Header)
+ 	}
+ 
+-	info := req.URL.RawUserinfo
+-	if len(info) > 0 {
+-		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(info)))
++	if u := req.URL.User; u != nil {
++		req.Header.Set("Authorization", "Basic "+base64.URLEncoding.EncodeToString([]byte(u.String())))
+ 	}
+ 	return t.RoundTrip(req)
+ }
+diff --git a/src/pkg/net/http/httputil/dump.go b/src/pkg/net/http/httputil/dump.go
+index 31696aec86..61b18ffb1c 100644
+--- a/src/pkg/net/http/httputil/dump.go
++++ b/src/pkg/net/http/httputil/dump.go
+@@ -124,16 +124,8 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+ 
+ 	var b bytes.Buffer
+ 
+-	urlStr := req.URL.Raw
+-	if urlStr == "" {
+-		urlStr = valueOrDefault(req.URL.EncodedPath(), "/")
+-		if req.URL.RawQuery != "" {
+-			urlStr += "?" + req.URL.RawQuery
+-		}
+-	}
+-
+-	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"), urlStr,
+-		req.ProtoMajor, req.ProtoMinor)
++	fmt.Fprintf(&b, "%s %s HTTP/%d.%d\r\n", valueOrDefault(req.Method, "GET"),
++		req.URL.RequestURI(), req.ProtoMajor, req.ProtoMinor)
+ 
+ 	host := req.Host
+ 	if host == "" && req.URL != nil {
+diff --git a/src/pkg/net/http/httputil/reverseproxy.go b/src/pkg/net/http/httputil/reverseproxy.go
+index 1dc83e7d03..1072e2e342 100644
+--- a/src/pkg/net/http/httputil/reverseproxy.go
++++ b/src/pkg/net/http/httputil/reverseproxy.go
+@@ -59,11 +59,6 @@ func NewSingleHostReverseProxy(target *url.URL) *ReverseProxy {
+ 		req.URL.Scheme = target.Scheme
+ 		req.URL.Host = target.Host
+ 		req.URL.Path = singleJoiningSlash(target.Path, req.URL.Path)
+-		if q := req.URL.RawQuery; q != "" {
+-			req.URL.RawPath = req.URL.Path + "?" + q
+-		} else {
+-			req.URL.RawPath = req.URL.Path
+-		}
+ 		req.URL.RawQuery = target.RawQuery
+ 	}
+ 	return &ReverseProxy{Director: director}
+diff --git a/src/pkg/net/http/readrequest_test.go b/src/pkg/net/http/readrequest_test.go
+index ad7e3c02b0..da3e4050fe 100644
+--- a/src/pkg/net/http/readrequest_test.go
++++ b/src/pkg/net/http/readrequest_test.go
+@@ -44,15 +44,9 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Raw:          "http://www.techcrunch.com/",
+-				Scheme:       "http",
+-				RawPath:      "/",
+-				RawAuthority: "www.techcrunch.com",
+-				RawUserinfo:  "",
+-				Host:         "www.techcrunch.com",
+-				Path:         "/",
+-				RawQuery:     "",
+-				Fragment:     "",
++				Scheme: "http",
++				Host:   "www.techcrunch.com",
++				Path:   "/",
+ 			},
+ 			Proto:      "HTTP/1.1",
+ 			ProtoMajor: 1,
+@@ -86,9 +80,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Raw:     "/",
+-				Path:    "/",
+-				RawPath: "/",
++				Path: "/",
+ 			},
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+@@ -113,15 +105,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Raw:          "//user@host/is/actually/a/path/",
+-				Scheme:       "",
+-				RawPath:      "//user@host/is/actually/a/path/",
+-				RawAuthority: "",
+-				RawUserinfo:  "",
+-				Host:         "",
+-				Path:         "//user@host/is/actually/a/path/",
+-				RawQuery:     "",
+-				Fragment:     "",
++				Path: "//user@host/is/actually/a/path/",
+ 			},
+ 			Proto:         "HTTP/1.1",
+ 			ProtoMajor:    1,
+@@ -170,9 +154,7 @@ var reqTests = []reqTest{
+ 		&Request{
+ 			Method: "POST",
+ 			URL: &url.URL{
+-				Raw:     "/",
+-				Path:    "/",
+-				RawPath: "/",
++				Path: "/",
+ 			},
+ 			TransferEncoding: []string{"chunked"},
+ 			Proto:            "HTTP/1.1",
+diff --git a/src/pkg/net/http/request.go b/src/pkg/net/http/request.go
+index 260301005e..5a4e739073 100644
+--- a/src/pkg/net/http/request.go
++++ b/src/pkg/net/http/request.go
+@@ -302,26 +302,14 @@ func (req *Request) write(w io.Writer, usingProxy bool, extraHeaders Header) err
+ 		host = req.URL.Host
+ 	}
+ 
+-	urlStr := req.URL.RawPath
+-	if strings.HasPrefix(urlStr, "?") {
+-		urlStr = "/" + urlStr // Issue 2344
+-	}
+-	if urlStr == "" {
+-		urlStr = valueOrDefault(req.URL.RawPath, valueOrDefault(req.URL.EncodedPath(), "/"))
+-		if req.URL.RawQuery != "" {
+-			urlStr += "?" + req.URL.RawQuery
+-		}
+-		if usingProxy {
+-			if urlStr == "" || urlStr[0] != '/' {
+-				urlStr = "/" + urlStr
+-			}
+-			urlStr = req.URL.Scheme + "://" + host + urlStr
+-		}
++	ruri := req.URL.RequestURI()
++	if usingProxy && req.URL.Scheme != "" && req.URL.Opaque == "" {
++		ruri = req.URL.Scheme + "://" + host + ruri
+ 	}
+-	// TODO(bradfitz): escape at least newlines in urlStr?
++	// TODO(bradfitz): escape at least newlines in ruri?
+ 
+ 	bw := bufio.NewWriter(w)
+-	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), urlStr)
++	fmt.Fprintf(bw, "%s %s HTTP/1.1\r\n", valueOrDefault(req.Method, "GET"), ruri)
+ 
+ 	// Header lines
+ 	fmt.Fprintf(bw, "Host: %s\r\n", host)
+diff --git a/src/pkg/net/http/requestwrite_test.go b/src/pkg/net/http/requestwrite_test.go
+index 8081589f5f..fc3186f0c0 100644
+--- a/src/pkg/net/http/requestwrite_test.go
++++ b/src/pkg/net/http/requestwrite_test.go
+@@ -32,15 +32,9 @@ var reqWriteTests = []reqWriteTest{
+ 		Req: Request{
+ 			Method: "GET",
+ 			URL: &url.URL{
+-				Raw:          "http://www.techcrunch.com/",
+-				Scheme:       "http",
+-				RawPath:      "http://www.techcrunch.com/",
+-				RawAuthority: "www.techcrunch.com",
+-				RawUserinfo:  "",
+-				Host:         "www.techcrunch.com",
+-				Path:         "/",
+-				RawQuery:     "",
+-				Fragment:     "",
++				Scheme: "http",
++				Host:   "www.techcrunch.com",
++				Path:   "/",
+ 			},
+ 			Proto:      "HTTP/1.1",
+ 			ProtoMajor: 1,
+@@ -60,7 +54,7 @@ var reqWriteTests = []reqWriteTest{
+ 			Form:  map[string][]string{},
+ 		},
+ 
+-		WantWrite: "GET http://www.techcrunch.com/ HTTP/1.1\r\n" +
++		WantWrite: "GET / HTTP/1.1\r\n" +
+ 			"Host: www.techcrunch.com\r\n" +
+ 			"User-Agent: Fake\r\n" +
+ 			"Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\n" +
+@@ -198,7 +192,7 @@ var reqWriteTests = []reqWriteTest{
+ 			"\r\n" +
+ 			"abcdef",
+ 
+-		WantProxy: "POST / HTTP/1.1\r\n" +
++		WantProxy: "POST http://example.com/ HTTP/1.1\r\n" +
+ 			"Host: example.com\r\n" +
+ 			"User-Agent: Go http package\r\n" +
+ 			"Content-Length: 6\r\n" +
+diff --git a/src/pkg/net/http/serve_test.go b/src/pkg/net/http/serve_test.go
+index 24e6b50dab..265cb2761a 100644
+--- a/src/pkg/net/http/serve_test.go
++++ b/src/pkg/net/http/serve_test.go
+@@ -642,7 +642,7 @@ func TestServerExpect(t *testing.T) {
+ 		// Note using r.FormValue("readbody") because for POST
+ 		// requests that would read from r.Body, which we only
+ 		// conditionally want to do.
+-		if strings.Contains(r.URL.RawPath, "readbody=true") {
++		if strings.Contains(r.URL.RawQuery, "readbody=true") {
+ 			ioutil.ReadAll(r.Body)
+ 			w.Write([]byte("Hi"))
+ 		} else {
+diff --git a/src/pkg/net/http/transport.go b/src/pkg/net/http/transport.go
+index 33ad32861b..1b9ad1b85c 100644
+--- a/src/pkg/net/http/transport.go
++++ b/src/pkg/net/http/transport.go
+@@ -229,9 +229,8 @@ func (cm *connectMethod) proxyAuth() string {
+ 	if cm.proxyURL == nil {
+ 		return ""
+ 	}
+-	proxyInfo := cm.proxyURL.RawUserinfo
+-	if proxyInfo != "" {
+-		return "Basic " + base64.URLEncoding.EncodeToString([]byte(proxyInfo))
++	if u := cm.proxyURL.User; u != nil {
++		return "Basic " + base64.URLEncoding.EncodeToString([]byte(u.String()))
+ 	}
+ 	return ""
+ }
+@@ -332,7 +331,7 @@ func (t *Transport) getConn(cm *connectMethod) (*persistConn, error) {
+ 	case cm.targetScheme == "https":
+ 		connectReq := &Request{
+ 			Method: "CONNECT",
+-			URL:    &url.URL{RawPath: cm.targetAddr},
++			URL:    &url.URL{Opaque: cm.targetAddr},
+ 			Host:   cm.targetAddr,
+ 			Header: make(Header),
+ 		}
+diff --git a/src/pkg/net/url/url.go b/src/pkg/net/url/url.go
+index 11fa18961a..0068e98aff 100644
+--- a/src/pkg/net/url/url.go
++++ b/src/pkg/net/url/url.go
+@@ -52,7 +52,6 @@ const (
+ 	encodeUserPassword
+ 	encodeQueryComponent
+ 	encodeFragment
+-	encodeOpaque
+ )
+ 
+ type EscapeError string
+@@ -69,6 +68,7 @@ func shouldEscape(c byte, mode encoding) bool {
+ 	if 'A' <= c && c <= 'Z' || 'a' <= c && c <= 'z' || '0' <= c && c <= '9' {
+ 		return false
+ 	}
++	// TODO: Update the character sets after RFC 3986.
+ 	switch c {
+ 	case '-', '_', '.', '!', '~', '*', '\'', '(', ')': // §2.3 Unreserved characters (mark)
+ 		return false
+@@ -78,12 +78,10 @@ func shouldEscape(c byte, mode encoding) bool {
+ 		// the reserved characters to appear unescaped.
+ 		switch mode {
+ 		case encodePath: // §3.3
+-			// The RFC allows : @ & = + $ , but saves / ; for assigning
+-			// meaning to individual path segments.  This package
++			// The RFC allows : @ & = + $ but saves / ; , for assigning
++			// meaning to individual path segments. This package
+ 			// only manipulates the path as a whole, so we allow those
+-			// last two as well.  Clients that need to distinguish between
+-			// `/foo;y=z/bar` and `/foo%3by=z/bar` will have to re-decode RawPath.
+-			// That leaves only ? to escape.
++			// last two as well. That leaves only ? to escape.
+ 			return c == '?'
+ 
+ 		case encodeUserPassword: // §3.2.2
+@@ -99,12 +97,6 @@ func shouldEscape(c byte, mode encoding) bool {
+ 			// The RFC text is silent but the grammar allows
+ 			// everything, so escape nothing.
+ 			return false
+-
+-		case encodeOpaque: // §3 opaque_part
+-			// The RFC allows opaque_part to use all characters
+-			// except that the leading / must be escaped.
+-			// (We implement that case in String.)
+-			return false
+ 		}
+ 	}
+ 
+@@ -217,64 +209,73 @@ func escape(s string, mode encoding) string {
+ 	return string(t)
+ }
+ 
+-// UnescapeUserinfo parses the RawUserinfo field of a URL
+-// as the form user or user:password and unescapes and returns
+-// the two halves.
++// A URL represents a parsed URL (technically, a URI reference).
++// The general form represented is:
+ //
+-// This functionality should only be used with legacy web sites.
+-// RFC 2396 warns that interpreting Userinfo this way
+-// ``is NOT RECOMMENDED, because the passing of authentication
+-// information in clear text (such as URI) has proven to be a
+-// security risk in almost every case where it has been used.''
+-func UnescapeUserinfo(rawUserinfo string) (user, password string, err error) {
+-	u, p := split(rawUserinfo, ':', true)
+-	if user, err = unescape(u, encodeUserPassword); err != nil {
+-		return "", "", err
+-	}
+-	if password, err = unescape(p, encodeUserPassword); err != nil {
+-		return "", "", err
+-	}
+-	return
++//	scheme://[userinfo@]host/path[?query][#fragment]
++//
++// URLs that do not start with a slash after the scheme are interpreted as:
++//
++//	scheme:opaque[?query][#fragment]
++//
++type URL struct {
++	Scheme   string
++	Opaque   string    // encoded opaque data
++	User     *Userinfo // username and password information
++	Host     string
++	Path     string
++	RawQuery string // encoded query values, without '?'
++	Fragment string // fragment for references, without '#'
+ }
+ 
+-// EscapeUserinfo combines user and password in the form
+-// user:password (or just user if password is empty) and then
+-// escapes it for use as the URL.RawUserinfo field.
+-//
++// User returns a Userinfo containing the provided username
++// and no password set.
++func User(username string) *Userinfo {
++	return &Userinfo{username, "", false}
++}
++
++// UserPassword returns a Userinfo containing the provided username
++// and password.
+ // This functionality should only be used with legacy web sites.
+ // RFC 2396 warns that interpreting Userinfo this way
+ // ``is NOT RECOMMENDED, because the passing of authentication
+ // information in clear text (such as URI) has proven to be a
+ // security risk in almost every case where it has been used.''
+-func EscapeUserinfo(user, password string) string {
+-	raw := escape(user, encodeUserPassword)
+-	if password != "" {
+-		raw += ":" + escape(password, encodeUserPassword)
++func UserPassword(username, password string) *Userinfo {
++	return &Userinfo{username, password, true}
++}
++
++// The Userinfo type is an immutable encapsulation of username and
++// password details for a URL. An existing Userinfo value is guaranteed
++// to have a username set (potentially empty, as allowed by RFC 2396),
++// and optionally a password.
++type Userinfo struct {
++	username    string
++	password    string
++	passwordSet bool
++}
++
++// Username returns the username.
++func (u *Userinfo) Username() string {
++	return u.username
++}
++
++// Password returns the password in case it is set, and whether it is set.
++func (u *Userinfo) Password() (string, bool) {
++	if u.passwordSet {
++		return u.password, true
+ 	}
+-	return raw
++	return "", false
+ }
+ 
+-// A URL represents a parsed URL (technically, a URI reference).
+-// The general form represented is:
+-//	scheme://[userinfo@]host/path[?query][#fragment]
+-// The Raw, RawAuthority, RawPath, and RawQuery fields are in "wire format"
+-// (special characters must be hex-escaped if not meant to have special meaning).
+-// All other fields are logical values; '+' or '%' represent themselves.
+-//
+-// The various Raw values are supplied in wire format because
+-// clients typically have to split them into pieces before further
+-// decoding.
+-type URL struct {
+-	Raw          string // the original string
+-	Scheme       string // scheme
+-	RawAuthority string // [userinfo@]host
+-	RawUserinfo  string // userinfo
+-	Host         string // host
+-	RawPath      string // /path[?query][#fragment]
+-	Path         string // /path
+-	OpaquePath   bool   // path is opaque (unrooted when scheme is present)
+-	RawQuery     string // query
+-	Fragment     string // fragment
++// String returns the encoded userinfo information in the standard form
++// of "username[:password]".
++func (u *Userinfo) String() string {
++	s := escape(u.username, encodeUserPassword)
++	if u.passwordSet {
++		s += ":" + escape(u.password, encodeUserPassword)
++	}
++	return s
+ }
+ 
+ // Maybe rawurl is of the form scheme:path.
+@@ -341,136 +342,112 @@ func ParseRequest(rawurl string) (url *URL, err error) {
+ // in which case only absolute URLs or path-absolute relative URLs are allowed.
+ // If viaRequest is false, all forms of relative URLs are allowed.
+ func parse(rawurl string, viaRequest bool) (url *URL, err error) {
+-	var (
+-		leadingSlash bool
+-		path         string
+-	)
++	var rest string
+ 
+ 	if rawurl == "" {
+ 		err = errors.New("empty url")
+ 		goto Error
+ 	}
+ 	url = new(URL)
+-	url.Raw = rawurl
+ 
+ 	// Split off possible leading "http:", "mailto:", etc.
+ 	// Cannot contain escaped characters.
+-	if url.Scheme, path, err = getscheme(rawurl); err != nil {
++	if url.Scheme, rest, err = getscheme(rawurl); err != nil {
+ 		goto Error
+ 	}
+-	leadingSlash = strings.HasPrefix(path, "/")
+ 
+-	if url.Scheme != "" && !leadingSlash {
+-		// RFC 2396:
+-		// Absolute URI (has scheme) with non-rooted path
+-		// is uninterpreted.  It doesn't even have a ?query.
+-		// This is the case that handles mailto:name@example.com.
+-		url.RawPath = path
++	rest, url.RawQuery = split(rest, '?', true)
+ 
+-		if url.Path, err = unescape(path, encodeOpaque); err != nil {
+-			goto Error
++	if !strings.HasPrefix(rest, "/") {
++		if url.Scheme != "" {
++			// We consider rootless paths per RFC 3986 as opaque.
++			url.Opaque = rest
++			return url, nil
+ 		}
+-		url.OpaquePath = true
+-	} else {
+-		if viaRequest && !leadingSlash {
++		if viaRequest {
+ 			err = errors.New("invalid URI for request")
+ 			goto Error
+ 		}
++	}
+ 
+-		// Split off query before parsing path further.
+-		url.RawPath = path
+-		path, query := split(path, '?', false)
+-		if len(query) > 1 {
+-			url.RawQuery = query[1:]
+-		}
+-
+-		// Maybe path is //authority/path
+-		if (url.Scheme != "" || !viaRequest) &&
+-			strings.HasPrefix(path, "//") && !strings.HasPrefix(path, "///") {
+-			url.RawAuthority, path = split(path[2:], '/', false)
+-			url.RawPath = url.RawPath[2+len(url.RawAuthority):]
+-		}
+-
+-		// Split authority into userinfo@host.
+-		// If there's no @, split's default is wrong.  Check explicitly.
+-		var rawHost string
+-		if strings.Index(url.RawAuthority, "@") < 0 {
+-			rawHost = url.RawAuthority
+-		} else {
+-			url.RawUserinfo, rawHost = split(url.RawAuthority, '@', true)
+-		}
+-
+-		// We leave RawAuthority only in raw form because clients
+-		// of common protocols should be using Userinfo and Host
+-		// instead.  Clients that wish to use RawAuthority will have to
+-		// interpret it themselves: RFC 2396 does not define the meaning.
+-
+-		if strings.Contains(rawHost, "%") {
+-			// Host cannot contain escaped characters.
+-			err = errors.New("hexadecimal escape in host")
++	if (url.Scheme != "" || !viaRequest) && strings.HasPrefix(rest, "//") && !strings.HasPrefix(rest, "///") {
++		var authority string
++		authority, rest = split(rest[2:], '/', false)
++		url.User, url.Host, err = parseAuthority(authority)
++		if err != nil {
+ 			goto Error
+ 		}
+-		url.Host = rawHost
+-
+-		if url.Path, err = unescape(path, encodePath); err != nil {
++		if strings.Contains(url.Host, "%") {
++			err = errors.New("hexadecimal escape in host")
+ 			goto Error
+ 		}
+ 	}
++	if url.Path, err = unescape(rest, encodePath); err != nil {
++		goto Error
++	}
+ 	return url, nil
+ 
+ Error:
+ 	return nil, &Error{"parse", rawurl, err}
++}
+ 
++func parseAuthority(authority string) (user *Userinfo, host string, err error) {
++	if strings.Index(authority, "@") < 0 {
++		host = authority
++		return
++	}
++	userinfo, host := split(authority, '@', true)
++	if strings.Index(userinfo, ":") < 0 {
++		if userinfo, err = unescape(userinfo, encodeUserPassword); err != nil {
++			return
++		}
++		user = User(userinfo)
++	} else {
++		username, password := split(userinfo, ':', true)
++		if username, err = unescape(username, encodeUserPassword); err != nil {
++			return
++		}
++		if password, err = unescape(password, encodeUserPassword); err != nil {
++			return
++		}
++		user = UserPassword(username, password)
++	}
++	return
+ }
+ 
+ // ParseWithReference is like Parse but allows a trailing #fragment.
+ func ParseWithReference(rawurlref string) (url *URL, err error) {
+-	// Cut off #frag.
+-	rawurl, frag := split(rawurlref, '#', false)
++	// Cut off #frag
++	rawurl, frag := split(rawurlref, '#', true)
+ 	if url, err = Parse(rawurl); err != nil {
+ 		return nil, err
+ 	}
+-	url.Raw += frag
+-	url.RawPath += frag
+-	if len(frag) > 1 {
+-		frag = frag[1:]
+-		if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
+-			return nil, &Error{"parse", rawurl, err}
+-		}
++	if frag == "" {
++		return url, nil
++	}
++	if url.Fragment, err = unescape(frag, encodeFragment); err != nil {
++		return nil, &Error{"parse", rawurlref, err}
+ 	}
+ 	return url, nil
+ }
+ 
+ // String reassembles url into a valid URL string.
+-//
+-// There are redundant fields stored in the URL structure:
+-// the String method consults Scheme, Path, Host, RawUserinfo,
+-// RawQuery, and Fragment, but not Raw, RawPath or RawAuthority.
+ func (url *URL) String() string {
++	// TODO: Rewrite to use bytes.Buffer
+ 	result := ""
+ 	if url.Scheme != "" {
+ 		result += url.Scheme + ":"
+ 	}
+-	if url.Host != "" || url.RawUserinfo != "" {
+-		result += "//"
+-		if url.RawUserinfo != "" {
+-			// hide the password, if any
+-			info := url.RawUserinfo
+-			if i := strings.Index(info, ":"); i >= 0 {
+-				info = info[0:i] + ":******"
++	if url.Opaque != "" {
++		result += url.Opaque
++	} else {
++		if url.Host != "" || url.User != nil {
++			result += "//"
++			if u := url.User; u != nil {
++				result += u.String() + "@"
+ 			}
+-			result += info + "@"
+-		}
+-		result += url.Host
+-	}
+-	if url.OpaquePath {
+-		path := url.Path
+-		if strings.HasPrefix(path, "/") {
+-			result += "%2f"
+-			path = path[1:]
++			result += url.Host
+ 		}
+-		result += escape(path, encodeOpaque)
+-	} else {
+ 		result += escape(url.Path, encodePath)
+ 	}
+ 	if url.RawQuery != "" {
+@@ -630,47 +607,38 @@ func (base *URL) Parse(ref string) (*URL, error) {
+ // base or reference. If ref is an absolute URL, then ResolveReference
+ // ignores base and returns a copy of ref.
+ func (base *URL) ResolveReference(ref *URL) *URL {
+-	url := new(URL)
+-	switch {
+-	case ref.IsAbs():
+-		*url = *ref
+-	default:
+-		// relativeURI   = ( net_path | abs_path | rel_path ) [ "?" query ]
+-		*url = *base
+-		if ref.RawAuthority != "" {
+-			// The "net_path" case.
+-			url.RawAuthority = ref.RawAuthority
+-			url.Host = ref.Host
+-			url.RawUserinfo = ref.RawUserinfo
+-		}
+-		switch {
+-		case url.OpaquePath:
+-			url.Path = ref.Path
+-			url.RawPath = ref.RawPath
+-			url.RawQuery = ref.RawQuery
+-		case strings.HasPrefix(ref.Path, "/"):
+-			// The "abs_path" case.
+-			url.Path = ref.Path
+-			url.RawPath = ref.RawPath
+-			url.RawQuery = ref.RawQuery
+-		default:
+-			// The "rel_path" case.
+-			path := resolvePath(base.Path, ref.Path)
+-			if !strings.HasPrefix(path, "/") {
+-				path = "/" + path
+-			}
+-			url.Path = path
+-			url.RawPath = url.Path
+-			url.RawQuery = ref.RawQuery
+-			if ref.RawQuery != "" {
+-				url.RawPath += "?" + url.RawQuery
+-			}
++	if ref.IsAbs() {
++		url := *ref
++		return &url
++	}
++	// relativeURI = ( net_path | abs_path | rel_path ) [ "?" query ]
++	url := *base
++	url.RawQuery = ref.RawQuery
++	url.Fragment = ref.Fragment
++	if ref.Opaque != "" {
++		url.Opaque = ref.Opaque
++		url.User = nil
++		url.Host = ""
++		url.Path = ""
++		return &url
++	}
++	if ref.Host != "" || ref.User != nil {
++		// The "net_path" case.
++		url.Host = ref.Host
++		url.User = ref.User
++	}
++	if strings.HasPrefix(ref.Path, "/") {
++		// The "abs_path" case.
++		url.Path = ref.Path
++	} else {
++		// The "rel_path" case.
++		path := resolvePath(base.Path, ref.Path)
++		if !strings.HasPrefix(path, "/") {
++			path = "/" + path
+ 		}
+-
+-		url.Fragment = ref.Fragment
++		url.Path = path
+ 	}
+-	url.Raw = url.String()
+-	return url
++	return &url
+ }
+ 
+ // Query parses RawQuery and returns the corresponding values.
+@@ -679,7 +647,18 @@ func (u *URL) Query() Values {
+ 	return v
+ }
+ 
+-// EncodedPath returns the URL's path in "URL path encoded" form.
+-func (u *URL) EncodedPath() string {
+-	return escape(u.Path, encodePath)
++// RequestURI returns the encoded path?query or opaque?query
++// string that would be used in an HTTP request for u.
++func (u *URL) RequestURI() string {
++	result := u.Opaque
++	if result == "" {
++		result = escape(u.Path, encodePath)
++		if result == "" {
++			result = "/"
++		}
++	}
++	if u.RawQuery != "" {
++		result += "?" + u.RawQuery
++	}
++	return result
+ }
+diff --git a/src/pkg/net/url/url_test.go b/src/pkg/net/url/url_test.go
+index dab3bfa1bb..9fe5ff886b 100644
+--- a/src/pkg/net/url/url_test.go
++++ b/src/pkg/net/url/url_test.go
+@@ -21,10 +21,8 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com",
+ 		&URL{
+-			Raw:          "http://www.google.com",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
++			Scheme: "http",
++			Host:   "www.google.com",
+ 		},
+ 		"",
+ 	},
+@@ -32,12 +30,9 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/",
+ 		&URL{
+-			Raw:          "http://www.google.com/",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/",
+-			Path:         "/",
++			Scheme: "http",
++			Host:   "www.google.com",
++			Path:   "/",
+ 		},
+ 		"",
+ 	},
+@@ -45,12 +40,9 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/file%20one%26two",
+ 		&URL{
+-			Raw:          "http://www.google.com/file%20one%26two",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/file%20one%26two",
+-			Path:         "/file one&two",
++			Scheme: "http",
++			Host:   "www.google.com",
++			Path:   "/file one&two",
+ 		},
+ 		"http://www.google.com/file%20one&two",
+ 	},
+@@ -58,13 +50,10 @@ var urltests = []URLTest{
+ 	{
+ 		"ftp://webmaster@www.google.com/",
+ 		&URL{
+-			Raw:          "ftp://webmaster@www.google.com/",
+-			Scheme:       "ftp",
+-			RawAuthority: "webmaster@www.google.com",
+-			RawUserinfo:  "webmaster",
+-			Host:         "www.google.com",
+-			RawPath:      "/",
+-			Path:         "/",
++			Scheme: "ftp",
++			User:   User("webmaster"),
++			Host:   "www.google.com",
++			Path:   "/",
+ 		},
+ 		"",
+ 	},
+@@ -72,13 +61,10 @@ var urltests = []URLTest{
+ 	{
+ 		"ftp://john%20doe@www.google.com/",
+ 		&URL{
+-			Raw:          "ftp://john%20doe@www.google.com/",
+-			Scheme:       "ftp",
+-			RawAuthority: "john%20doe@www.google.com",
+-			RawUserinfo:  "john%20doe",
+-			Host:         "www.google.com",
+-			RawPath:      "/",
+-			Path:         "/",
++			Scheme: "ftp",
++			User:   User("john doe"),
++			Host:   "www.google.com",
++			Path:   "/",
+ 		},
+ 		"ftp://john%20doe@www.google.com/",
+ 	},
+@@ -86,13 +72,10 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/?q=go+language",
+ 		&URL{
+-			Raw:          "http://www.google.com/?q=go+language",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/?q=go+language",
+-			Path:         "/",
+-			RawQuery:     "q=go+language",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "q=go+language",
+ 		},
+ 		"",
+ 	},
+@@ -100,13 +83,10 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/?q=go%20language",
+ 		&URL{
+-			Raw:          "http://www.google.com/?q=go%20language",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/?q=go%20language",
+-			Path:         "/",
+-			RawQuery:     "q=go%20language",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "q=go%20language",
+ 		},
+ 		"",
+ 	},
+@@ -114,48 +94,39 @@ var urltests = []URLTest{
+ 	{
+ 		"http://www.google.com/a%20b?q=c+d",
+ 		&URL{
+-			Raw:          "http://www.google.com/a%20b?q=c+d",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/a%20b?q=c+d",
+-			Path:         "/a b",
+-			RawQuery:     "q=c+d",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/a b",
++			RawQuery: "q=c+d",
+ 		},
+ 		"",
+ 	},
+-	// path without leading /, so no query parsing
++	// path without leading /, so no parsing
+ 	{
+ 		"http:www.google.com/?q=go+language",
+ 		&URL{
+-			Raw:        "http:www.google.com/?q=go+language",
+-			Scheme:     "http",
+-			RawPath:    "www.google.com/?q=go+language",
+-			Path:       "www.google.com/?q=go+language",
+-			OpaquePath: true,
++			Scheme:   "http",
++			Opaque:   "www.google.com/",
++			RawQuery: "q=go+language",
+ 		},
+ 		"http:www.google.com/?q=go+language",
+ 	},
+-	// path without leading /, so no query parsing
++	// path without leading /, so no parsing
+ 	{
+ 		"http:%2f%2fwww.google.com/?q=go+language",
+ 		&URL{
+-			Raw:        "http:%2f%2fwww.google.com/?q=go+language",
+-			Scheme:     "http",
+-			RawPath:    "%2f%2fwww.google.com/?q=go+language",
+-			Path:       "//www.google.com/?q=go+language",
+-			OpaquePath: true,
++			Scheme:   "http",
++			Opaque:   "%2f%2fwww.google.com/",
++			RawQuery: "q=go+language",
+ 		},
+-		"http:%2f/www.google.com/?q=go+language",
++		"http:%2f%2fwww.google.com/?q=go+language",
+ 	},
+ 	// non-authority
+ 	{
+ 		"mailto:/webmaster@golang.org",
+ 		&URL{
+-			Raw:     "mailto:/webmaster@golang.org",
+-			Scheme:  "mailto",
+-			RawPath: "/webmaster@golang.org",
+-			Path:    "/webmaster@golang.org",
++			Scheme: "mailto",
++			Path:   "/webmaster@golang.org",
+ 		},
+ 		"",
+ 	},
+@@ -163,11 +134,8 @@ var urltests = []URLTest{
+ 	{
+ 		"mailto:webmaster@golang.org",
+ 		&URL{
+-			Raw:        "mailto:webmaster@golang.org",
+-			Scheme:     "mailto",
+-			RawPath:    "webmaster@golang.org",
+-			Path:       "webmaster@golang.org",
+-			OpaquePath: true,
++			Scheme: "mailto",
++			Opaque: "webmaster@golang.org",
+ 		},
+ 		"",
+ 	},
+@@ -175,8 +143,6 @@ var urltests = []URLTest{
+ 	{
+ 		"/foo?query=http://bad",
+ 		&URL{
+-			Raw:      "/foo?query=http://bad",
+-			RawPath:  "/foo?query=http://bad",
+ 			Path:     "/foo",
+ 			RawQuery: "query=http://bad",
+ 		},
+@@ -186,12 +152,7 @@ var urltests = []URLTest{
+ 	{
+ 		"//foo",
+ 		&URL{
+-			RawAuthority: "foo",
+-			Raw:          "//foo",
+-			Host:         "foo",
+-			Scheme:       "",
+-			RawPath:      "",
+-			Path:         "",
++			Host: "foo",
+ 		},
+ 		"",
+ 	},
+@@ -199,14 +160,10 @@ var urltests = []URLTest{
+ 	{
+ 		"//user@foo/path?a=b",
+ 		&URL{
+-			Raw:          "//user@foo/path?a=b",
+-			RawAuthority: "user@foo",
+-			RawUserinfo:  "user",
+-			Scheme:       "",
+-			RawPath:      "/path?a=b",
+-			Path:         "/path",
+-			RawQuery:     "a=b",
+-			Host:         "foo",
++			User:     User("user"),
++			Host:     "foo",
++			Path:     "/path",
++			RawQuery: "a=b",
+ 		},
+ 		"",
+ 	},
+@@ -218,36 +175,18 @@ var urltests = []URLTest{
+ 	{
+ 		"///threeslashes",
+ 		&URL{
+-			RawAuthority: "",
+-			Raw:          "///threeslashes",
+-			Host:         "",
+-			Scheme:       "",
+-			RawPath:      "///threeslashes",
+-			Path:         "///threeslashes",
++			Path: "///threeslashes",
+ 		},
+ 		"",
+ 	},
+ 	{
+ 		"http://user:password@google.com",
+ 		&URL{
+-			Raw:          "http://user:password@google.com",
+-			Scheme:       "http",
+-			RawAuthority: "user:password@google.com",
+-			RawUserinfo:  "user:password",
+-			Host:         "google.com",
+-		},
+-		"http://user:******@google.com",
+-	},
+-	{
+-		"http://user:longerpass@google.com",
+-		&URL{
+-			Raw:          "http://user:longerpass@google.com",
+-			Scheme:       "http",
+-			RawAuthority: "user:longerpass@google.com",
+-			RawUserinfo:  "user:longerpass",
+-			Host:         "google.com",
++			Scheme: "http",
++			User:   UserPassword("user", "password"),
++			Host:   "google.com",
+ 		},
+-		"http://user:******@google.com",
++		"http://user:password@google.com",
+ 	},
+ }
+ 
+@@ -255,13 +194,10 @@ var urlnofragtests = []URLTest{
+ 	{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+-			Raw:          "http://www.google.com/?q=go+language#foo",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/?q=go+language#foo",
+-			Path:         "/",
+-			RawQuery:     "q=go+language#foo",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "q=go+language#foo",
+ 		},
+ 		"",
+ 	},
+@@ -271,28 +207,22 @@ var urlfragtests = []URLTest{
+ 	{
+ 		"http://www.google.com/?q=go+language#foo",
+ 		&URL{
+-			Raw:          "http://www.google.com/?q=go+language#foo",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/?q=go+language#foo",
+-			Path:         "/",
+-			RawQuery:     "q=go+language",
+-			Fragment:     "foo",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "q=go+language",
++			Fragment: "foo",
+ 		},
+ 		"",
+ 	},
+ 	{
+ 		"http://www.google.com/?q=go+language#foo%26bar",
+ 		&URL{
+-			Raw:          "http://www.google.com/?q=go+language#foo%26bar",
+-			Scheme:       "http",
+-			RawAuthority: "www.google.com",
+-			Host:         "www.google.com",
+-			RawPath:      "/?q=go+language#foo%26bar",
+-			Path:         "/",
+-			RawQuery:     "q=go+language",
+-			Fragment:     "foo&bar",
++			Scheme:   "http",
++			Host:     "www.google.com",
++			Path:     "/",
++			RawQuery: "q=go+language",
++			Fragment: "foo&bar",
+ 		},
+ 		"http://www.google.com/?q=go+language#foo&bar",
+ 	},
+@@ -300,9 +230,15 @@ var urlfragtests = []URLTest{
+ 
+ // more useful string for debugging than fmt's struct printer
+ func ufmt(u *URL) string {
+-	return fmt.Sprintf("raw=%q, scheme=%q, rawpath=%q, auth=%q, userinfo=%q, host=%q, path=%q, rawq=%q, frag=%q",
+-		u.Raw, u.Scheme, u.RawPath, u.RawAuthority, u.RawUserinfo,
+-		u.Host, u.Path, u.RawQuery, u.Fragment)
++	var user, pass interface{}
++	if u.User != nil {
++		user = u.User.Username()
++		if p, ok := u.User.Password(); ok {
++			pass = p
++		}
++	}
++	return fmt.Sprintf("opaque=%q, scheme=%q, user=%#v, pass=%#v, host=%q, path=%q, rawq=%q, frag=%q",
++		u.Opaque, u.Scheme, user, pass, u.Host, u.Path, u.RawQuery, u.Fragment)
+ }
+ 
+ func DoTest(t *testing.T, parse func(string) (*URL, error), name string, tests []URLTest) {
+@@ -370,11 +306,11 @@ func DoTestString(t *testing.T, parse func(string) (*URL, error), name string, t
+ 			t.Errorf("%s(%q) returned error %s", name, tt.in, err)
+ 			continue
+ 		}
+-		s := u.String()
+ 		expected := tt.in
+ 		if len(tt.roundtrip) > 0 {
+ 			expected = tt.roundtrip
+ 		}
++		s := u.String()
+ 		if s != expected {
+ 			t.Errorf("%s(%q).String() == %q (expected %q)", name, tt.in, s, expected)
+ 		}
+@@ -504,33 +440,11 @@ func TestEscape(t *testing.T) {
+ 	}
+ }
+ 
+-type UserinfoTest struct {
+-	User     string
+-	Password string
+-	Raw      string
+-}
+-
+-var userinfoTests = []UserinfoTest{
+-	{"user", "password", "user:password"},
+-	{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",
+-		"foo%3Abar:~!%40%23$%25%5E&*()_+%7B%7D%7C%5B%5D%5C-=%60%3A;'%22%3C%3E?,.%2F"},
+-}
+-
+-func TestEscapeUserinfo(t *testing.T) {
+-	for _, tt := range userinfoTests {
+-		if raw := EscapeUserinfo(tt.User, tt.Password); raw != tt.Raw {
+-			t.Errorf("EscapeUserinfo(%q, %q) = %q, want %q", tt.User, tt.Password, raw, tt.Raw)
+-		}
+-	}
+-}
+-
+-func TestUnescapeUserinfo(t *testing.T) {
+-	for _, tt := range userinfoTests {
+-		if user, pass, err := UnescapeUserinfo(tt.Raw); user != tt.User || pass != tt.Password || err != nil {
+-			t.Errorf("UnescapeUserinfo(%q) = %q, %q, %v, want %q, %q, nil", tt.Raw, user, pass, err, tt.User, tt.Password)
+-		}
+-	}
+-}
++//var userinfoTests = []UserinfoTest{
++//	{"user", "password", "user:password"},
++//	{"foo:bar", "~!@#$%^&*()_+{}|[]\\-=`:;'\"<>?,./",
++//		"foo%3Abar:~!%40%23$%25%5E&*()_+%7B%7D%7C%5B%5D%5C-=%60%3A;'%22%3C%3E?,.%2F"},
++//}
+ 
+ type EncodeQueryTest struct {
+ 	m         Values
+@@ -664,6 +578,57 @@ func TestResolveReference(t *testing.T) {
+ 		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
+ 	}
+ 
++	// Ensure Opaque resets the URL.
++	base = mustParse("scheme://user@foo.com/bar")
++	abs = base.ResolveReference(&URL{Opaque: "opaque"})
++	want := mustParse("scheme:opaque")
++	if *abs != *want {
++		t.Errorf("ResolveReference failed to resolve opaque URL: want %#v, got %#v", abs, want)
++	}
++}
++
++func TestResolveReferenceOpaque(t *testing.T) {
++	mustParse := func(url string) *URL {
++		u, err := ParseWithReference(url)
++		if err != nil {
++			t.Fatalf("Expected URL to parse: %q, got error: %v", url, err)
++		}
++		return u
++	}
++	for _, test := range resolveReferenceTests {
++		base := mustParse(test.base)
++		rel := mustParse(test.rel)
++		url := base.ResolveReference(rel)
++		urlStr := url.String()
++		if urlStr != test.expected {
++			t.Errorf("Resolving %q + %q != %q; got %q", test.base, test.rel, test.expected, urlStr)
++		}
++	}
++
++	// Test that new instances are returned.
++	base := mustParse("http://foo.com/")
++	abs := base.ResolveReference(mustParse("."))
++	if base == abs {
++		t.Errorf("Expected no-op reference to return new URL instance.")
++	}
++	barRef := mustParse("http://bar.com/")
++	abs = base.ResolveReference(barRef)
++	if abs == barRef {
++		t.Errorf("Expected resolution of absolute reference to return new URL instance.")
++	}
++
++	// Test the convenience wrapper too
++	base = mustParse("http://foo.com/path/one/")
++	abs, _ = base.Parse("../two")
++	expected := "http://foo.com/path/two"
++	if abs.String() != expected {
++		t.Errorf("Parse wrapper got %q; expected %q", abs.String(), expected)
++	}
++	_, err := base.Parse("")
++	if err == nil {
++		t.Errorf("Expected an error from Parse wrapper parsing an empty string.")
++	}
++
+ }
+ 
+ func TestQueryValues(t *testing.T) {
+@@ -747,3 +712,60 @@ func TestParseQuery(t *testing.T) {
+ 		}
+ 	}
+ }
++
++type RequestURITest struct {
++	url *URL
++	out string
++}
++
++var requritests = []RequestURITest{
++	{
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Path:   "",
++		},
++		"/",
++	},
++	{
++		&URL{
++			Scheme: "http",
++			Host:   "example.com",
++			Path:   "/a b",
++		},
++		"/a%20b",
++	},
++	{
++		&URL{
++			Scheme:   "http",
++			Host:     "example.com",
++			Path:     "/a b",
++			RawQuery: "q=go+language",
++		},
++		"/a%20b?q=go+language",
++	},
++	{
++		&URL{
++			Scheme: "myschema",
++			Opaque: "opaque",
++		},
++		"opaque",
++	},
++	{
++		&URL{
++			Scheme:   "myschema",
++			Opaque:   "opaque",
++			RawQuery: "q=go+language",
++		},
++		"opaque?q=go+language",
++	},
++}
++
++func TestRequestURI(t *testing.T) {
++	for _, tt := range requritests {
++		s := tt.url.RequestURI()
++		if s != tt.out {
++			t.Errorf("%#v.RequestURI() == %q (expected %q)", tt.url, s, tt.out)
++		}
++	}
++}
+diff --git a/src/pkg/websocket/hixie.go b/src/pkg/websocket/hixie.go
+index d0ddbeeb48..22dbc1f8db 100644
+--- a/src/pkg/websocket/hixie.go
++++ b/src/pkg/websocket/hixie.go
+@@ -343,7 +343,7 @@ func hixie76ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer)
+ 	}
+ 	// 4.1. Opening handshake.
+ 	// Step 5.  send a request line.
+-	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
++	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
+ 
+ 	// Step 6-14. push request headers in fields.
+ 	fields := []string{
+@@ -456,7 +456,7 @@ func hixie75ClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer)
+ 	if config.Version != ProtocolVersionHixie75 {
+ 		panic("wrong protocol version.")
+ 	}
+-	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
++	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
+ 	bw.WriteString("Upgrade: WebSocket\r\n")
+ 	bw.WriteString("Connection: Upgrade\r\n")
+ 	bw.WriteString("Host: " + config.Location.Host + "\r\n")
+@@ -557,7 +557,7 @@ func (c *hixie76ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
+ 	} else {
+ 		scheme = "ws"
+ 	}
+-	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RawPath)
++	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RequestURI())
+ 	if err != nil {
+ 		return http.StatusBadRequest, err
+ 	}
+@@ -653,7 +653,7 @@ func (c *hixie75ServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Req
+ 	} else {
+ 		scheme = "ws"
+ 	}
+-	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RawPath)
++	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RequestURI())
+ 	if err != nil {
+ 		return http.StatusBadRequest, err
+ 	}
+diff --git a/src/pkg/websocket/hybi.go b/src/pkg/websocket/hybi.go
+index ff386dc7f2..6b0c5286f2 100644
+--- a/src/pkg/websocket/hybi.go
++++ b/src/pkg/websocket/hybi.go
+@@ -390,7 +390,7 @@ func hybiClientHandshake(config *Config, br *bufio.Reader, bw *bufio.Writer) (er
+ 		panic("wrong protocol version.")
+ 	}
+ 
+-	bw.WriteString("GET " + config.Location.RawPath + " HTTP/1.1\r\n")
++	bw.WriteString("GET " + config.Location.RequestURI() + " HTTP/1.1\r\n")
+ 
+ 	bw.WriteString("Host: " + config.Location.Host + "\r\n")
+ 	bw.WriteString("Upgrade: websocket\r\n")
+@@ -505,7 +505,7 @@ func (c *hybiServerHandshaker) ReadHandshake(buf *bufio.Reader, req *http.Reques
+ 	} else {
+ 		scheme = "ws"
+ 	}
+-	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RawPath)
++	c.Location, err = url.ParseRequest(scheme + "://" + req.Host + req.URL.RequestURI())
+ 	if err != nil {
+ 		return http.StatusBadRequest, err
+ 	}

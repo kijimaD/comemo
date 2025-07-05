@@ -14,6 +14,20 @@ Date:   Thu Jan 14 16:36:43 2016 -0500
     Reviewed-by: Mikio Hara <mikioh.mikioh@gmail.com>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/dnsclient_unix_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 5ef02a1477..934f25b2c9 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -80,7 +80,7 @@ func TestSpecialDomainName(t *testing.T) {
+ 
+ 	server := "8.8.8.8:53"
+ 	for _, tt := range specialDomainNameTests {
+-		msg, err := exchange(server, tt.name, tt.qtype, 0)
++		msg, err := exchange(server, tt.name, tt.qtype, 3*time.Second)
+ 		if err != nil {
+ 			t.Error(err)
+ 			continue

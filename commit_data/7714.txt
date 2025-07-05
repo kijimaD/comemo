@@ -10,6 +10,47 @@ Date:   Wed Mar 9 08:35:18 2011 -0800
     R=golang-dev, gri
     CC=golang-dev
     https://golang.org/cl/4240097
-
+---
  src/cmd/gc/go.h | 14 +++++++-------
  1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/gc/go.h b/src/cmd/gc/go.h
+index abc9e829c7..0df6558731 100644
+--- a/src/cmd/gc/go.h
++++ b/src/cmd/gc/go.h
+@@ -441,20 +441,20 @@ enum
+ 	TCOMPLEX64,		// 12
+ 	TCOMPLEX128,
+ 
+-	TFLOAT32,		// 15
++	TFLOAT32,		// 14
+ 	TFLOAT64,
+ 
+-	TBOOL,			// 18
++	TBOOL,			// 16
+ 
+-	TPTR32, TPTR64,		// 19
++	TPTR32, TPTR64,		// 17
+ 
+-	TFUNC,			// 21
++	TFUNC,			// 19
+ 	TARRAY,
+ 	T_old_DARRAY,
+-	TSTRUCT,		// 24
++	TSTRUCT,		// 22
+ 	TCHAN,
+ 	TMAP,
+-	TINTER,			// 27
++	TINTER,			// 25
+ 	TFORW,
+ 	TFIELD,
+ 	TANY,
+@@ -462,7 +462,7 @@ enum
+ 	TUNSAFEPTR,
+ 
+ 	// pseudo-types for literals
+-	TIDEAL,			// 33
++	TIDEAL,			// 31
+ 	TNIL,
+ 	TBLANK,
+ 

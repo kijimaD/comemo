@@ -17,9 +17,94 @@ Date:   Wed Apr 2 20:30:37 2025 +0000
     Reviewed-by: Michael Matloob <matloob@golang.org>
     LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
     Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
-
+---
  src/cmd/go/alldocs.go                 |  2 +-
  src/cmd/go/internal/auth/auth.go      |  9 +++++++--
  src/cmd/go/internal/auth/auth_test.go | 17 +++++++++++++++++
  src/cmd/go/internal/help/helpdoc.go   |  2 +-
  4 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index ace9899250..42076e4502 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2618,7 +2618,7 @@
+ //		BlankLine     = '\n' .
+ //
+ //	Example:
+-//		https://example.com/
++//		https://example.com
+ //		https://example.net/api/
+ //
+ //		Authorization: Basic <token>
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index 83c28d160c..8f2bded320 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -142,14 +142,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ // them to the request headers.
+ func loadCredential(req *http.Request, url string) bool {
+ 	currentPrefix := strings.TrimPrefix(url, "https://")
++	currentPrefix = strings.TrimSuffix(currentPrefix, "/")
++
+ 	// Iteratively try prefixes, moving up the path hierarchy.
++	// E.g. example.com/foo/bar, example.com/foo, example.com
+ 	for {
+ 		headers, ok := credentialCache.Load(currentPrefix)
+ 		if !ok {
+-			currentPrefix, _, ok = strings.Cut(currentPrefix, "/")
+-			if !ok {
++			lastSlash := strings.LastIndexByte(currentPrefix, '/')
++			if lastSlash == -1 {
+ 				return false
+ 			}
++			currentPrefix = currentPrefix[:lastSlash]
+ 			continue
+ 		}
+ 		for key, values := range headers.(http.Header) {
+@@ -166,6 +170,7 @@ func loadCredential(req *http.Request, url string) bool {
+ func storeCredential(prefix string, header http.Header) {
+ 	// Trim "https://" prefix to match the format used in .netrc files.
+ 	prefix = strings.TrimPrefix(prefix, "https://")
++	prefix = strings.TrimSuffix(prefix, "/")
+ 	if len(header) == 0 {
+ 		credentialCache.Delete(prefix)
+ 	} else {
+diff --git a/src/cmd/go/internal/auth/auth_test.go b/src/cmd/go/internal/auth/auth_test.go
+index c1bbf4b1a9..599030fd13 100644
+--- a/src/cmd/go/internal/auth/auth_test.go
++++ b/src/cmd/go/internal/auth/auth_test.go
+@@ -71,3 +71,20 @@ func TestCredentialCacheDelete(t *testing.T) {
+ 		t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
+ 	}
+ }
++
++func TestCredentialCacheTrailingSlash(t *testing.T) {
++	// Store a credential for api.github.com/foo/bar
++	want := http.Request{Header: make(http.Header)}
++	want.SetBasicAuth("user", "pwd")
++	storeCredential("api.github.com/foo", want.Header)
++	got := &http.Request{Header: make(http.Header)}
++	ok := loadCredential(got, "api.github.com/foo/bar")
++	if !ok || !reflect.DeepEqual(got.Header, want.Header) {
++		t.Errorf("parseNetrc:\nhave %q\nwant %q", got.Header, want.Header)
++	}
++	got2 := &http.Request{Header: make(http.Header)}
++	ok = loadCredential(got2, "https://api.github.com/foo/bar/")
++	if !ok || !reflect.DeepEqual(got2.Header, want.Header) {
++		t.Errorf("parseNetrc:\nhave %q\nwant %q", got2.Header, want.Header)
++	}
++}
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 6101a45829..47e5d73dd2 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -1027,7 +1027,7 @@ command
+ 		BlankLine     = '\n' .
+ 
+ 	Example:
+-		https://example.com/
++		https://example.com
+ 		https://example.net/api/
+ 
+ 		Authorization: Basic <token>

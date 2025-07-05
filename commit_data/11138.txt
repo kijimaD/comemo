@@ -9,7 +9,7 @@ Date:   Thu Jan 12 14:40:29 2012 -0800
     R=golang-dev, rsc
     CC=golang-dev
     https://golang.org/cl/5544045
-
+---
  src/buildscript_darwin_386.sh        | 60 ++++++++++++++++++------------------
  src/buildscript_darwin_amd64.sh      | 60 ++++++++++++++++++------------------
  src/buildscript_freebsd_386.sh       | 60 ++++++++++++++++++------------------
@@ -27,3 +27,1277 @@ Date:   Thu Jan 12 14:40:29 2012 -0800
  src/pkg/encoding/json/decode.go      | 35 ++++++++++++++++-----
  src/pkg/encoding/json/decode_test.go |  9 ++----
  16 files changed, 431 insertions(+), 413 deletions(-)
+
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript_darwin_386.sh
+index b913a7d9e7..e96ff4bc49 100755
+--- a/src/buildscript_darwin_386.sh
++++ b/src/buildscript_darwin_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/darwin_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/darwin_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/darwin_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/darwin_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/darwin_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/darwin_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/darwin_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/darwin_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index 48117dc051..c9ec0a0639 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -225,36 +225,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/darwin_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/darwin_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/darwin_amd64/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/darwin_amd64/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -286,6 +256,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/darwin_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/darwin_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -296,6 +276,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/darwin_amd64/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/darwin_amd64/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript_freebsd_386.sh
+index 515122ccd8..fbd6acd092 100755
+--- a/src/buildscript_freebsd_386.sh
++++ b/src/buildscript_freebsd_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/freebsd_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/freebsd_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index 143170bb10..f82c9f76f8 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -225,36 +225,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/freebsd_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/freebsd_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_amd64/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_amd64/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -286,6 +256,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/freebsd_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/freebsd_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -296,6 +276,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/freebsd_amd64/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/freebsd_amd64/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript_linux_386.sh
+index c792998740..70ce585e9e 100755
+--- a/src/buildscript_linux_386.sh
++++ b/src/buildscript_linux_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/linux_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/linux_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index 11050e7f15..dc1f395909 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -225,36 +225,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/linux_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_amd64/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_amd64/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -286,6 +256,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -296,6 +276,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/linux_amd64/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_amd64/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript_linux_arm.sh
+index a7ce1adc56..a1718a2bd2 100755
+--- a/src/buildscript_linux_arm.sh
++++ b/src/buildscript_linux_arm.sh
+@@ -229,36 +229,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.5
+ mkdir -p "$GOROOT"/pkg/linux_arm/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/linux_arm/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-5g -o "$WORK"/reflect/_obj/_go_.5 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.5
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_arm/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-5g -o "$WORK"/unicode/utf16/_obj/_go_.5 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.5
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_arm/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-5g -o "$WORK"/encoding/json/_obj/_go_.5 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.5
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_arm/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -290,6 +260,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.5
+ cp "$WORK"/os.a "$GOROOT"/pkg/linux_arm/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++5g -o "$WORK"/reflect/_obj/_go_.5 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.5
++cp "$WORK"/reflect.a "$GOROOT"/pkg/linux_arm/reflect.a
++
+ #
+ # fmt
+ #
+@@ -300,6 +280,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.5
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/linux_arm/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++5g -o "$WORK"/unicode/utf16/_obj/_go_.5 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.5
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/linux_arm/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++5g -o "$WORK"/encoding/json/_obj/_go_.5 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.5
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_arm/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript_netbsd_386.sh
+index c8df072ff7..01b62564de 100755
+--- a/src/buildscript_netbsd_386.sh
++++ b/src/buildscript_netbsd_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/netbsd_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/netbsd_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/netbsd_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/netbsd_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/netbsd_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/netbsd_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/netbsd_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/netbsd_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index f2fd68247c..3589e83974 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -225,36 +225,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/netbsd_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/netbsd_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/netbsd_amd64/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/netbsd_amd64/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -286,6 +256,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/netbsd_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/netbsd_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -296,6 +276,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/netbsd_amd64/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/netbsd_amd64/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript_openbsd_386.sh
+index 31dcc7f248..02f3f6f827 100755
+--- a/src/buildscript_openbsd_386.sh
++++ b/src/buildscript_openbsd_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/openbsd_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/openbsd_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/openbsd_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/openbsd_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/openbsd_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/openbsd_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/openbsd_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/openbsd_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index 89467dbe37..e3850ba009 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -225,36 +225,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/openbsd_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/openbsd_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/openbsd_amd64/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/openbsd_amd64/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -286,6 +256,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/openbsd_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/openbsd_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -296,6 +276,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/openbsd_amd64/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++6g -o "$WORK"/unicode/utf16/_obj/_go_.6 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/openbsd_amd64/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_plan9_386.sh b/src/buildscript_plan9_386.sh
+index d931e38954..0f6504d0dd 100755
+--- a/src/buildscript_plan9_386.sh
++++ b/src/buildscript_plan9_386.sh
+@@ -226,36 +226,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/plan9_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/plan9_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/plan9_386/reflect.a
+-
+-#
+-# unicode/utf16
+-#
+-
+-mkdir -p "$WORK"/unicode/utf16/_obj/
+-cd "$GOROOT"/src/pkg/unicode/utf16
+-8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
+-gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+-cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/plan9_386/unicode/utf16.a
+-
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/plan9_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -287,6 +257,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/plan9_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/plan9_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -297,6 +277,26 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/plan9_386/fmt.a
+ 
++#
++# unicode/utf16
++#
++
++mkdir -p "$WORK"/unicode/utf16/_obj/
++cd "$GOROOT"/src/pkg/unicode/utf16
++8g -o "$WORK"/unicode/utf16/_obj/_go_.8 -p unicode/utf16 -I "$WORK" ./utf16.go
++gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
++cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/plan9_386/unicode/utf16.a
++
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/plan9_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_windows_386.sh b/src/buildscript_windows_386.sh
+index 223f5c4e18..871d145462 100755
+--- a/src/buildscript_windows_386.sh
++++ b/src/buildscript_windows_386.sh
+@@ -228,16 +228,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.8
+ mkdir -p "$GOROOT"/pkg/windows_386/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/windows_386/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/windows_386/reflect.a
+-
+ #
+ # unicode/utf16
+ #
+@@ -248,16 +238,6 @@ cd "$GOROOT"/src/pkg/unicode/utf16
+ gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.8
+ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_386/unicode/utf16.a
+ 
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/windows_386/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -289,6 +269,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.8
+ cp "$WORK"/os.a "$GOROOT"/pkg/windows_386/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++8g -o "$WORK"/reflect/_obj/_go_.8 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.8
++cp "$WORK"/reflect.a "$GOROOT"/pkg/windows_386/reflect.a
++
+ #
+ # fmt
+ #
+@@ -299,6 +289,16 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.8
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/windows_386/fmt.a
+ 
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++8g -o "$WORK"/encoding/json/_obj/_go_.8 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.8
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/windows_386/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/buildscript_windows_amd64.sh b/src/buildscript_windows_amd64.sh
+index 89cf1100e5..cbabd0f9bb 100755
+--- a/src/buildscript_windows_amd64.sh
++++ b/src/buildscript_windows_amd64.sh
+@@ -227,16 +227,6 @@ gopack grc "$WORK"/encoding/base64.a "$WORK"/encoding/base64/_obj/_go_.6
+ mkdir -p "$GOROOT"/pkg/windows_amd64/encoding/
+ cp "$WORK"/encoding/base64.a "$GOROOT"/pkg/windows_amd64/encoding/base64.a
+ 
+-#
+-# reflect
+-#
+-
+-mkdir -p "$WORK"/reflect/_obj/
+-cd "$GOROOT"/src/pkg/reflect
+-6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
+-gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
+-cp "$WORK"/reflect.a "$GOROOT"/pkg/windows_amd64/reflect.a
+-
+ #
+ # unicode/utf16
+ #
+@@ -247,16 +237,6 @@ cd "$GOROOT"/src/pkg/unicode/utf16
+ gopack grc "$WORK"/unicode/utf16.a "$WORK"/unicode/utf16/_obj/_go_.6
+ cp "$WORK"/unicode/utf16.a "$GOROOT"/pkg/windows_amd64/unicode/utf16.a
+ 
+-#
+-# encoding/json
+-#
+-
+-mkdir -p "$WORK"/encoding/json/_obj/
+-cd "$GOROOT"/src/pkg/encoding/json
+-6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
+-gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
+-cp "$WORK"/encoding/json.a "$GOROOT"/pkg/windows_amd64/encoding/json.a
+-
+ #
+ # syscall
+ #
+@@ -288,6 +268,16 @@ cd "$GOROOT"/src/pkg/os
+ gopack grc "$WORK"/os.a "$WORK"/os/_obj/_go_.6
+ cp "$WORK"/os.a "$GOROOT"/pkg/windows_amd64/os.a
+ 
++#
++# reflect
++#
++
++mkdir -p "$WORK"/reflect/_obj/
++cd "$GOROOT"/src/pkg/reflect
++6g -o "$WORK"/reflect/_obj/_go_.6 -p reflect -I "$WORK" ./deepequal.go ./type.go ./value.go
++gopack grc "$WORK"/reflect.a "$WORK"/reflect/_obj/_go_.6
++cp "$WORK"/reflect.a "$GOROOT"/pkg/windows_amd64/reflect.a
++
+ #
+ # fmt
+ #
+@@ -298,6 +288,16 @@ cd "$GOROOT"/src/pkg/fmt
+ gopack grc "$WORK"/fmt.a "$WORK"/fmt/_obj/_go_.6
+ cp "$WORK"/fmt.a "$GOROOT"/pkg/windows_amd64/fmt.a
+ 
++#
++# encoding/json
++#
++
++mkdir -p "$WORK"/encoding/json/_obj/
++cd "$GOROOT"/src/pkg/encoding/json
++6g -o "$WORK"/encoding/json/_obj/_go_.6 -p encoding/json -I "$WORK" ./decode.go ./encode.go ./indent.go ./scanner.go ./stream.go ./tags.go
++gopack grc "$WORK"/encoding/json.a "$WORK"/encoding/json/_obj/_go_.6
++cp "$WORK"/encoding/json.a "$GOROOT"/pkg/windows_amd64/encoding/json.a
++
+ #
+ # flag
+ #
+diff --git a/src/pkg/encoding/json/decode.go b/src/pkg/encoding/json/decode.go
+index 8287b33003..87076b53dc 100644
+--- a/src/pkg/encoding/json/decode.go
++++ b/src/pkg/encoding/json/decode.go
+@@ -10,6 +10,7 @@ package json
+ import (
+ 	"encoding/base64"
+ 	"errors"
++	"fmt"
+ 	"reflect"
+ 	"runtime"
+ 	"strconv"
+@@ -538,7 +539,7 @@ func (d *decodeState) object(v reflect.Value) {
+ 		// Read value.
+ 		if destring {
+ 			d.value(reflect.ValueOf(&d.tempstr))
+-			d.literalStore([]byte(d.tempstr), subv)
++			d.literalStore([]byte(d.tempstr), subv, true)
+ 		} else {
+ 			d.value(subv)
+ 		}
+@@ -571,11 +572,15 @@ func (d *decodeState) literal(v reflect.Value) {
+ 	d.off--
+ 	d.scan.undo(op)
+ 
+-	d.literalStore(d.data[start:d.off], v)
++	d.literalStore(d.data[start:d.off], v, false)
+ }
+ 
+ // literalStore decodes a literal stored in item into v.
+-func (d *decodeState) literalStore(item []byte, v reflect.Value) {
++//
++// fromQuoted indicates whether this literal came from unwrapping a
++// string from the ",string" struct tag option. this is used only to
++// produce more helpful error messages.
++func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool) {
+ 	// Check for unmarshaler.
+ 	wantptr := item[0] == 'n' // null
+ 	unmarshaler, pv := d.indirect(v, wantptr)
+@@ -601,7 +606,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 		value := c == 't'
+ 		switch v.Kind() {
+ 		default:
+-			d.saveError(&UnmarshalTypeError{"bool", v.Type()})
++			if fromQuoted {
++				d.saveError(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
++			} else {
++				d.saveError(&UnmarshalTypeError{"bool", v.Type()})
++			}
+ 		case reflect.Bool:
+ 			v.SetBool(value)
+ 		case reflect.Interface:
+@@ -611,7 +620,11 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 	case '"': // string
+ 		s, ok := unquoteBytes(item)
+ 		if !ok {
+-			d.error(errPhase)
++			if fromQuoted {
++				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
++			} else {
++				d.error(errPhase)
++			}
+ 		}
+ 		switch v.Kind() {
+ 		default:
+@@ -636,12 +649,20 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value) {
+ 
+ 	default: // number
+ 		if c != '-' && (c < '0' || c > '9') {
+-			d.error(errPhase)
++			if fromQuoted {
++				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
++			} else {
++				d.error(errPhase)
++			}
+ 		}
+ 		s := string(item)
+ 		switch v.Kind() {
+ 		default:
+-			d.error(&UnmarshalTypeError{"number", v.Type()})
++			if fromQuoted {
++				d.error(fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal %q into %v", item, v.Type()))
++			} else {
++				d.error(&UnmarshalTypeError{"number", v.Type()})
++			}
+ 		case reflect.Interface:
+ 			n, err := strconv.ParseFloat(s, 64)
+ 			if err != nil {
+diff --git a/src/pkg/encoding/json/decode_test.go b/src/pkg/encoding/json/decode_test.go
+index 05c8a064a4..cc3103f032 100644
+--- a/src/pkg/encoding/json/decode_test.go
++++ b/src/pkg/encoding/json/decode_test.go
+@@ -258,13 +258,10 @@ type wrongStringTest struct {
+ 	in, err string
+ }
+ 
+-// TODO(bradfitz): as part of Issue 2331, fix these tests' expected
+-// error values to be helpful, rather than the confusing messages they
+-// are now.
+ var wrongStringTests = []wrongStringTest{
+-	{`{"result":"x"}`, "JSON decoder out of sync - data changing underfoot?"},
+-	{`{"result":"foo"}`, "json: cannot unmarshal bool into Go value of type string"},
+-	{`{"result":"123"}`, "json: cannot unmarshal number into Go value of type string"},
++	{`{"result":"x"}`, `json: invalid use of ,string struct tag, trying to unmarshal "x" into string`},
++	{`{"result":"foo"}`, `json: invalid use of ,string struct tag, trying to unmarshal "foo" into string`},
++	{`{"result":"123"}`, `json: invalid use of ,string struct tag, trying to unmarshal "123" into string`},
+ }
+ 
+ // If people misuse the ,string modifier, the error message should be

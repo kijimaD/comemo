@@ -14,6 +14,19 @@ Date:   Sun Feb 19 22:13:04 2012 -0500
     R=golang-dev, bradfitz, nigeltao
     CC=golang-dev
     https://golang.org/cl/5685046
-
+---
  src/pkg/strconv/itoa_test.go | 1 +
  1 file changed, 1 insertion(+)
+
+diff --git a/src/pkg/strconv/itoa_test.go b/src/pkg/strconv/itoa_test.go
+index 6687314d2f..1486ee214d 100644
+--- a/src/pkg/strconv/itoa_test.go
++++ b/src/pkg/strconv/itoa_test.go
+@@ -127,6 +127,7 @@ func TestUitoa(t *testing.T) {
+ }
+ 
+ func numAllocations(f func()) int {
++	runtime.GC()
+ 	memstats := new(runtime.MemStats)
+ 	runtime.ReadMemStats(memstats)
+ 	n0 := memstats.Mallocs

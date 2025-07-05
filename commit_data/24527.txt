@@ -13,7 +13,54 @@ Date:   Mon Aug 3 12:49:00 2015 -0700
     Change-Id: Ie5420445daa87f5aceec6ad743465d5d32d0a786
     Reviewed-on: https://go-review.googlesource.com/13080
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/cmd/go/alldocs.go | 8 ++++----
  src/cmd/go/help.go    | 8 ++++----
  2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 044e776ec0..0f610ddd9a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -781,14 +781,14 @@ are:
+ 	-buildmode=c-archive
+ 		Build the listed main package, plus all packages it imports,
+ 		into a C archive file. The only callable symbols will be those
+-		functions marked as exported. Requires exactly one main package
+-		to be listed.
++		functions marked as exported by the cgo tool. Requires exactly
++		one main package to be listed.
+ 
+ 	-buildmode=c-shared
+ 		Build the listed main packages, plus all packages that they
+ 		import, into C shared libraries. The only callable symbols will
+-		be those functions marked as exported. Non-main packages are
+-		ignored.
++		be those functions marked as exported by the cgo tool. Non-main
++		packages are ignored.
+ 
+ 	-buildmode=default
+ 		Listed main packages are built into executables and listed
+diff --git a/src/cmd/go/help.go b/src/cmd/go/help.go
+index 591c2f4a07..6142874e0b 100644
+--- a/src/cmd/go/help.go
++++ b/src/cmd/go/help.go
+@@ -548,14 +548,14 @@ are:
+ 	-buildmode=c-archive
+ 		Build the listed main package, plus all packages it imports,
+ 		into a C archive file. The only callable symbols will be those
+-		functions marked as exported. Requires exactly one main package
+-		to be listed.
++		functions marked as exported by the cgo tool. Requires exactly
++		one main package to be listed.
+ 
+ 	-buildmode=c-shared
+ 		Build the listed main packages, plus all packages that they
+ 		import, into C shared libraries. The only callable symbols will
+-		be those functions marked as exported. Non-main packages are
+-		ignored.
++		be those functions marked as exported by the cgo tool. Non-main
++		packages are ignored.
+ 
+ 	-buildmode=default
+ 		Listed main packages are built into executables and listed

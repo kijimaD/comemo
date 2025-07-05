@@ -14,9 +14,106 @@ Date:   Tue Feb 28 15:01:38 2017 -0800
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  src/os/exec/exec_posix_test.go | 38 ++++++++++++++++++++++++++++++++++++++
  src/os/exec/exec_test.go       |  3 +++
  src/os/wait_unimp.go           |  2 +-
  src/os/wait_waitid.go          |  5 ++++-
  4 files changed, 46 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/exec/exec_posix_test.go b/src/os/exec/exec_posix_test.go
+index b1f24d6c4e..865b6c3ced 100644
+--- a/src/os/exec/exec_posix_test.go
++++ b/src/os/exec/exec_posix_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"strconv"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+ func TestCredentialNoSetGroups(t *testing.T) {
+@@ -43,3 +44,40 @@ func TestCredentialNoSetGroups(t *testing.T) {
+ 		t.Errorf("Failed to run command: %v", err)
+ 	}
+ }
++
++// For issue #19314: make sure that SIGSTOP does not cause the process
++// to appear done.
++func TestWaitid(t *testing.T) {
++	t.Parallel()
++
++	cmd := helperCommand(t, "sleep")
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	// The sleeps here are unnecessary in the sense that the test
++	// should still pass, but they are useful to make it more
++	// likely that we are testing the expected state of the child.
++	time.Sleep(100 * time.Millisecond)
++
++	if err := cmd.Process.Signal(syscall.SIGSTOP); err != nil {
++		cmd.Process.Kill()
++		t.Fatal(err)
++	}
++
++	ch := make(chan error)
++	go func() {
++		ch <- cmd.Wait()
++	}()
++
++	time.Sleep(100 * time.Millisecond)
++
++	if err := cmd.Process.Signal(syscall.SIGCONT); err != nil {
++		t.Error(err)
++		syscall.Kill(cmd.Process.Pid, syscall.SIGCONT)
++	}
++
++	cmd.Process.Kill()
++
++	<-ch
++}
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 7b69db7c76..95af597f15 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -868,6 +868,9 @@ func TestHelperProcess(*testing.T) {
+ 	case "stderrfail":
+ 		fmt.Fprintf(os.Stderr, "some stderr text\n")
+ 		os.Exit(1)
++	case "sleep":
++		time.Sleep(3 * time.Second)
++		os.Exit(0)
+ 	default:
+ 		fmt.Fprintf(os.Stderr, "Unknown command %q\n", cmd)
+ 		os.Exit(2)
+diff --git a/src/os/wait_unimp.go b/src/os/wait_unimp.go
+index 7059e59ab2..b71e93f104 100644
+--- a/src/os/wait_unimp.go
++++ b/src/os/wait_unimp.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build dragonfly nacl netbsd openbsd solaris
++// +build darwin dragonfly nacl netbsd openbsd solaris
+ 
+ package os
+ 
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index 653fce9253..a6c5c729d2 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -2,7 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// +build darwin linux
++// We used to used this code for Darwin, but according to issue #19314
++// waitid returns if the process is stopped, even when using WEXITED.
++
++// +build linux
+ 
+ package os
+ 

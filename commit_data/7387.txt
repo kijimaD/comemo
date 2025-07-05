@@ -7,6 +7,31 @@ Date:   Mon Feb 7 17:49:45 2011 -0500
     R=r
     CC=golang-dev
     https://golang.org/cl/4105057
-
+---
  src/pkg/syscall/ztypes_linux_arm.go | 6 ++++++
  1 file changed, 6 insertions(+)
+
+diff --git a/src/pkg/syscall/ztypes_linux_arm.go b/src/pkg/syscall/ztypes_linux_arm.go
+index 450f2008b8..236155b208 100644
+--- a/src/pkg/syscall/ztypes_linux_arm.go
++++ b/src/pkg/syscall/ztypes_linux_arm.go
+@@ -23,6 +23,7 @@ const (
+ 	SizeofSockaddrUnix      = 0x6e
+ 	SizeofSockaddrLinklayer = 0x14
+ 	SizeofLinger            = 0x8
++	SizeofIpMreq            = 0x8
+ 	SizeofMsghdr            = 0x1c
+ 	SizeofCmsghdr           = 0xc
+ 	SizeofUcred             = 0xc
+@@ -221,6 +222,11 @@ type Iovec struct {
+ 	Len  uint32
+ }
+ 
++type IpMreq struct {
++	Multiaddr [4]byte /* in_addr */
++	Interface [4]byte /* in_addr */
++}
++
+ type Msghdr struct {
+ 	Name       *byte
+ 	Namelen    uint32

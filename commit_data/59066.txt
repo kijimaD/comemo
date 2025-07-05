@@ -18,7 +18,7 @@ Date:   Thu Feb 8 12:34:44 2024 -0500
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Run-TryBot: Michael Matloob <matloob@golang.org>
     Commit-Queue: Michael Matloob <matloob@golang.org>
-
+---
  src/cmd/go.mod                                     |  2 +-
  src/cmd/go.sum                                     |  4 +-
  .../golang.org/x/telemetry/counter/counter.go      |  2 +-
@@ -29,3 +29,360 @@ Date:   Thu Feb 8 12:34:44 2024 -0500
  .../x/telemetry/internal/telemetry/mode.go         | 15 ++++
  src/cmd/vendor/modules.txt                         |  2 +-
  9 files changed, 91 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index ee25bdbd5b..049371e59c 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.15.1-0.20240207185259-766dc5df63e3
+ 	golang.org/x/sync v0.6.0
+ 	golang.org/x/sys v0.17.0
+-	golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
++	golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
+ 	golang.org/x/term v0.16.0
+ 	golang.org/x/tools v0.17.1-0.20240119231502-e1555a36d006
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index d4c18669a1..7342b23f19 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+ golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.17.0 h1:25cE3gD+tdBA7lp7QfhuV+rJiE9YXTcS3VG1SqssI/Y=
+ golang.org/x/sys v0.17.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2 h1:FXbfUwJ0hJkKMC/Cj47x49pH41jylMW5eMiIrJgmv2E=
+-golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2/go.mod h1:ZthVHHkOi8rlMEsfFr3Ie42Ym1NonbFNNRKW3ci0UrU=
++golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804 h1:mLYQpgq+cJOnmn3pR2U9o5rzEuOVgnmw59GHPgypGeo=
++golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804/go.mod h1:KG1lNk5ZFNssSZLrpVb4sMXKMpGwGXOxSG3rnu2gZQQ=
+ golang.org/x/term v0.16.0 h1:m+B6fahuftsE9qjo0VWp2FW0mB3MTJvR0BaMQrq0pmE=
+ golang.org/x/term v0.16.0/go.mod h1:yn7UURbUtPyrVJPGPq404EukNFxcm/foM+bV/bfcDsY=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+index 4ae16b2578..9b80d46f84 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build go1.19
++//go:build go1.19 && !openbsd && !js && !wasip1 && !solaris && !android && !plan9 && !386
+ 
+ package counter
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go
+similarity index 82%
+rename from src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go
+rename to src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go
+index c073571549..c4b948d482 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter_go118.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter_disabled.go
+@@ -2,13 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !go1.19
++//go:build !go1.19 || openbsd || js || wasip1 || solaris || android || plan9 || 386
+ 
+ package counter
+ 
+ import (
+ 	"flag"
+-	"fmt"
+ )
+ 
+ func Add(string, int64)                         {}
+@@ -23,13 +22,6 @@ func (c *Counter) Add(n int64)  {}
+ func (c *Counter) Inc()         {}
+ func (c *Counter) Name() string { return c.name }
+ 
+-type File struct {
+-	Meta  map[string]string
+-	Count map[string]uint64
+-}
+-
+-func Parse(filename string, data []byte) (*File, error) { return nil, fmt.Errorf("unimplemented") }
+-
+ type StackCounter struct{ name string }
+ 
+ func NewStack(name string, _ int) *StackCounter { return &StackCounter{name} }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index f25dc2d144..6bdca5291e 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -8,7 +8,6 @@ import (
+ 	"bytes"
+ 	"errors"
+ 	"fmt"
+-	"log"
+ 	"math/rand"
+ 	"os"
+ 	"path"
+@@ -112,7 +111,7 @@ func (f *file) lookup(name string) counterPtr {
+ }
+ 
+ // ErrDisabled is the error returned when telemetry is disabled.
+-var ErrDisabled = errors.New("counter: disabled by GOTELEMETRY=off")
++var ErrDisabled = errors.New("counter: disabled as Go telemetry is off")
+ 
+ var (
+ 	errNoBuildInfo = errors.New("counter: missing build info")
+@@ -277,12 +276,8 @@ func (f *file) rotate1() (expire time.Time, cleanup func()) {
+ 			return
+ 		}
+ 		// now it is safe to clean up the old mapping
+-		if err := previous.f.Close(); err != nil {
+-			log.Print(err)
+-		}
+-		if err := munmap(previous.mapping); err != nil {
+-			log.Print(err)
+-		}
++		// Quim Montel pointed out the previous coeanup was incomplete
++		previous.close()
+ 	}
+ 
+ 	name, expire, err := f.filename(counterTime())
+@@ -373,8 +368,7 @@ func Open() func() {
+ 			// telemetry might have been off
+ 			return
+ 		}
+-		mmap.Munmap(mf.mapping)
+-		mf.f.Close() // best effort
++		mf.close()
+ 	}
+ }
+ 
+@@ -406,6 +400,7 @@ func openMapped(name string, meta string, existing *mappedFile) (_ *mappedFile,
+ 		f:    f,
+ 		meta: meta,
+ 	}
++	// without this files cannot be cleanedup on Windows (affects tests)
+ 	runtime.SetFinalizer(m, (*mappedFile).close)
+ 	defer func() {
+ 		if err != nil {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+index ee896a45eb..4280c1eca9 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/parse.go
+@@ -88,43 +88,10 @@ func Parse(filename string, data []byte) (*File, error) {
+ 			if _, ok := f.Count[string(ename)]; ok {
+ 				return corrupt()
+ 			}
+-			ctrName := expandName(ename)
++			ctrName := DecodeStack(string(ename))
+ 			f.Count[ctrName] = v.Load()
+ 			off = next
+ 		}
+ 	}
+ 	return f, nil
+ }
+-
+-func expandName(ename []byte) string {
+-	if !bytes.Contains(ename, []byte{'\n'}) {
+-		// not a stack counter
+-		return string(ename)
+-	}
+-	lines := bytes.Split(ename, []byte{'\n'})
+-	var lastPath []byte // empty or ends with .
+-	for i, line := range lines {
+-		path, rest := splitLine(line)
+-		if len(path) == 0 {
+-			continue // unchanged
+-		}
+-		if len(path) == 1 && path[0] == '"' {
+-			path = append([]byte{}, lastPath...) //need a deep copy
+-			lines[i] = append(path, rest...)
+-		} else {
+-			lastPath = append(path, '.')
+-			// line unchanged
+-		}
+-	}
+-	return string(bytes.Join(lines, []byte{'\n'})) // trailing \n?
+-}
+-
+-// input is <import path>.<function name>
+-// output is (import path, function name)
+-func splitLine(x []byte) ([]byte, []byte) {
+-	i := bytes.LastIndex(x, []byte{'.'})
+-	if i < 0 {
+-		return []byte{}, x
+-	}
+-	return x[:i], x[i+1:]
+-}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+index 25b37b3d61..3838715be6 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/stackcounter.go
+@@ -44,64 +44,101 @@ func (c *StackCounter) Inc() {
+ 	pcs := make([]uintptr, c.depth)
+ 	n := runtime.Callers(2, pcs) // caller of Inc
+ 	pcs = pcs[:n]
++
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
++
++	// Existing counter?
++	var ctr *Counter
+ 	for _, s := range c.stacks {
+ 		if eq(s.pcs, pcs) {
+ 			if s.counter != nil {
+-				s.counter.Inc()
++				ctr = s.counter
++				break
+ 			}
+-			return
+ 		}
+ 	}
+-	// have to create the new counter's name, and the new counter itself
+-	locs := make([]string, 0, c.depth)
++
++	if ctr == nil {
++		// Create new counter.
++		ctr = &Counter{
++			name: EncodeStack(pcs, c.name),
++			file: c.file,
++		}
++		c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
++	}
++
++	ctr.Inc()
++}
++
++// EncodeStack returns the name of the counter to
++// use for the given stack of program counters.
++// The name encodes the stack.
++func EncodeStack(pcs []uintptr, prefix string) string {
++	var locs []string
+ 	lastImport := ""
+ 	frs := runtime.CallersFrames(pcs)
+-	for i := 0; ; i++ {
++	for {
+ 		fr, more := frs.Next()
+-		pcline := fr.Line
+-		entryptr := fr.Entry
+-		var locline string
+-		path, fname := splitPath(fr.Function)
++		// TODO(adonovan): this CutLast(".") operation isn't
++		// appropriate for generic function symbols.
++		path, fname := cutLastDot(fr.Function)
+ 		if path == lastImport {
+-			path = "\""
++			path = `"` // (a ditto mark)
+ 		} else {
+ 			lastImport = path
+ 		}
++		var loc string
+ 		if fr.Func != nil {
+-			_, entryline := fr.Func.FileLine(entryptr)
+-			if pcline >= entryline {
+-				locline = fmt.Sprintf("%s.%s:%d", path, fname, pcline-entryline)
+-			} else {
+-				// unexpected
+-				locline = fmt.Sprintf("%s.%s:??%d", path, fname, pcline)
+-				lastImport = ""
+-			}
++			// Use function-relative line numbering.
++			// f:+2 means two lines into function f.
++			// f:-1 should never happen, but be conservative.
++			_, entryLine := fr.Func.FileLine(fr.Entry)
++			loc = fmt.Sprintf("%s.%s:%+d", path, fname, fr.Line-entryLine)
+ 		} else {
+-			// might happen if the function is non-Go code or is fully inlined.
+-			locline = fmt.Sprintf("%s.%s:?%d", path, fname, pcline)
+-			lastImport = ""
++			// The function is non-Go code or is fully inlined:
++			// use absolute line number within enclosing file.
++			loc = fmt.Sprintf("%s.%s:=%d", path, fname, fr.Line)
+ 		}
+-		locs = append(locs, locline)
++		locs = append(locs, loc)
+ 		if !more {
+ 			break
+ 		}
+ 	}
+ 
+-	name := c.name + "\n" + strings.Join(locs, "\n")
++	name := prefix + "\n" + strings.Join(locs, "\n")
+ 	if len(name) > maxNameLen {
+ 		const bad = "\ntruncated\n"
+ 		name = name[:maxNameLen-len(bad)] + bad
+ 	}
+-	ctr := &Counter{name: name, file: c.file}
+-	c.stacks = append(c.stacks, stack{pcs: pcs, counter: ctr})
+-	ctr.Inc()
++	return name
++}
++
++// DecodeStack expands the (compressed) stack encoded in the counter name.
++func DecodeStack(ename string) string {
++	if !strings.Contains(ename, "\n") {
++		return ename // not a stack counter
++	}
++	lines := strings.Split(ename, "\n")
++	var lastPath string // empty or ends with .
++	for i, line := range lines {
++		path, rest := cutLastDot(line)
++		if len(path) == 0 {
++			continue // unchanged
++		}
++		if len(path) == 1 && path[0] == '"' {
++			lines[i] = lastPath + rest
++		} else {
++			lastPath = path + "."
++			// line unchanged
++		}
++	}
++	return strings.Join(lines, "\n") // trailing \n?
+ }
+ 
+ // input is <import path>.<function name>
+ // output is (import path, function name)
+-func splitPath(x string) (string, string) {
++func cutLastDot(x string) (before, after string) {
+ 	i := strings.LastIndex(x, ".")
+ 	if i < 0 {
+ 		return "", x
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+index b461389049..52345ae328 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"time"
+ )
+@@ -115,3 +116,17 @@ func (m ModeFilePath) Mode() (string, time.Time) {
+ 
+ 	return mode, time.Time{}
+ }
++
++// DisabledOnPlatform indicates whether telemetry is disabled
++// due to bugs in the current platform.
++const DisabledOnPlatform = false ||
++	// The following platforms could potentially be supported in the future:
++	runtime.GOOS == "openbsd" || // #60614
++	runtime.GOOS == "solaris" || // #60968 #60970
++	runtime.GOOS == "android" || // #60967
++	// These platforms fundamentally can't be supported:
++	runtime.GOOS == "js" || // #60971
++	runtime.GOOS == "wasip1" || // #60971
++	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
++	// Work is in progress to support 386:
++	runtime.GOARCH == "386" // #60615 #60692 #60965 #60967
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index d98af7eb3c..9a130d7091 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240131160148-1cb064e7d4f2
++# golang.org/x/telemetry v0.0.0-20240208185543-e9b074dd3804
+ ## explicit; go 1.20
+ golang.org/x/telemetry/counter
+ golang.org/x/telemetry/internal/counter

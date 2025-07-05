@@ -8,10 +8,199 @@ Date:   Fri May 15 11:04:49 2009 -0700
     DELTA=61  (34 added, 0 deleted, 27 changed)
     OCL=28904
     CL=28906
-
+---
  src/lib/os/file.go              | 50 ++++++++++++++++++++++++-----------------
  src/lib/os/os_test.go           | 10 +++++++++
  src/lib/os/stat_amd64_darwin.go |  9 +++++++-
  src/lib/os/stat_amd64_linux.go  |  9 +++++++-
  src/lib/os/types.go             |  2 ++
  5 files changed, 57 insertions(+), 23 deletions(-)
+
+diff --git a/src/lib/os/file.go b/src/lib/os/file.go
+index 2c609e3183..19706e3df0 100644
+--- a/src/lib/os/file.go
++++ b/src/lib/os/file.go
+@@ -194,40 +194,48 @@ func Mkdir(name string, perm int) Error {
+ 	return ErrnoToError(e)
+ }
+ 
+-// Stat returns the Dir structure describing the named file. If the file
+-// is a symbolic link, it returns information about the file the link
+-// references.
+-// It returns the Dir and an error, if any.
++// Stat returns a Dir structure describing the named file and an error, if any.
++// If name names a valid symbolic link, the returned Dir describes
++// the file pointed at by the link and has dir.FollowedSymlink set to true.
++// If name names an invalid symbolic link, the returned Dir describes
++// the link itself and has dir.FollowedSymlink set to false.
+ func Stat(name string) (dir *Dir, err Error) {
+-	stat := new(syscall.Stat_t);
+-	r, e := syscall.Stat(name, stat);
++	var lstat, stat syscall.Stat_t;
++	r, e := syscall.Lstat(name, &lstat);
+ 	if e != 0 {
+-		return nil, ErrnoToError(e)
++		return nil, ErrnoToError(e);
+ 	}
+-	return dirFromStat(name, new(Dir), stat), nil
++	statp := &lstat;
++	if lstat.Mode & syscall.S_IFMT == syscall.S_IFLNK {
++		r, e := syscall.Stat(name, &stat);
++		if e == 0 {
++			statp = &stat;
++		}
++	}
++	return dirFromStat(name, new(Dir), &lstat, statp), nil
+ }
+ 
+ // Stat returns the Dir structure describing file.
+ // It returns the Dir and an error, if any.
+ func (file *File) Stat() (dir *Dir, err Error) {
+-	stat := new(syscall.Stat_t);
+-	r, e := syscall.Fstat(file.fd, stat);
++	var stat syscall.Stat_t;
++	r, e := syscall.Fstat(file.fd, &stat);
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e)
+ 	}
+-	return dirFromStat(file.name, new(Dir), stat), nil
++	return dirFromStat(file.name, new(Dir), &stat, &stat), nil
+ }
+ 
+-// Lstat returns the Dir structure describing the named file. If the file
+-// is a symbolic link, it returns information about the link itself.
+-// It returns the Dir and an error, if any.
++// Lstat returns the Dir structure describing the named file and an error, if any.
++// If the file is a symbolic link, the returned Dir describes the
++// symbolic link.  Lstat makes no attempt to follow the link.
+ func Lstat(name string) (dir *Dir, err Error) {
+-	stat := new(syscall.Stat_t);
+-	r, e := syscall.Lstat(name, stat);
++	var stat syscall.Stat_t;
++	r, e := syscall.Lstat(name, &stat);
+ 	if e != 0 {
+ 		return nil, ErrnoToError(e)
+ 	}
+-	return dirFromStat(name, new(Dir), stat), nil
++	return dirFromStat(name, new(Dir), &stat, &stat), nil
+ }
+ 
+ // Readdirnames has a non-portable implemenation so its code is separated into an
+@@ -238,16 +246,16 @@ func readdirnames(file *File, count int) (names []string, err Error)
+ // returns an array of up to count names, in directory order.  Subsequent
+ // calls on the same file will yield further names.
+ // A negative count means to read until EOF.
+-// It returns the array and an Error, if any.
++// Readdirnames returns the array and an Error, if any.
+ func (file *File) Readdirnames(count int) (names []string, err Error) {
+ 	return readdirnames(file, count);
+ }
+ 
+ // Readdir reads the contents of the directory associated with file and
+-// returns an array of up to count Dir structures, in directory order.  Subsequent
+-// calls on the same file will yield further Dirs.
++// returns an array of up to count Dir structures, as would be returned
++// by Stat, in directory order.  Subsequent calls on the same file will yield further Dirs.
+ // A negative count means to read until EOF.
+-// It returns the array and an Error, if any.
++// Readdir returns the array and an Error, if any.
+ func (file *File) Readdir(count int) (dirs []Dir, err Error) {
+ 	dirname := file.name;
+ 	if dirname == "" {
+diff --git a/src/lib/os/os_test.go b/src/lib/os/os_test.go
+index 7c503bfe62..5c2d68617a 100644
+--- a/src/lib/os/os_test.go
++++ b/src/lib/os/os_test.go
+@@ -255,6 +255,9 @@ func TestSymLink(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", to, err);
+ 	}
++	if tostat.FollowedSymlink {
++		t.Fatalf("stat %q claims to have followed a symlink", to);
++	}
+ 	fromstat, err := Stat(from);
+ 	if err != nil {
+ 		t.Fatalf("stat %q failed: %v", from, err);
+@@ -269,6 +272,13 @@ func TestSymLink(t *testing.T) {
+ 	if !fromstat.IsSymlink() {
+ 		t.Fatalf("symlink %q, %q did not create symlink", to, from);
+ 	}
++	fromstat, err = Stat(from);
++	if err != nil {
++		t.Fatalf("stat %q failed: %v", from, err);
++	}
++	if !fromstat.FollowedSymlink {
++		t.Fatalf("stat %q did not follow symlink");
++	}
+ 	s, err := Readlink(from);
+ 	if err != nil {
+ 		t.Fatalf("readlink %q failed: %v", from, err);
+diff --git a/src/lib/os/stat_amd64_darwin.go b/src/lib/os/stat_amd64_darwin.go
+index 0c811680a8..e72d76f917 100644
+--- a/src/lib/os/stat_amd64_darwin.go
++++ b/src/lib/os/stat_amd64_darwin.go
+@@ -9,7 +9,11 @@ package os
+ import syscall "syscall"
+ import os "os"
+ 
+-func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
++func isSymlink(stat *syscall.Stat_t) bool {
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Dev = uint64(stat.Dev);
+ 	dir.Ino = stat.Ino;
+ 	dir.Nlink = uint64(stat.Nlink);
+@@ -30,5 +34,8 @@ func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
+ 		}
+ 	}
+ 	dir.Name = name;
++	if isSymlink(lstat) && !isSymlink(stat) {
++		dir.FollowedSymlink = true;
++	}
+ 	return dir;
+ }
+diff --git a/src/lib/os/stat_amd64_linux.go b/src/lib/os/stat_amd64_linux.go
+index b39f8c2ad0..e1beb16667 100644
+--- a/src/lib/os/stat_amd64_linux.go
++++ b/src/lib/os/stat_amd64_linux.go
+@@ -9,7 +9,11 @@ package os
+ import syscall "syscall"
+ import os "os"
+ 
+-func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
++func isSymlink(stat *syscall.Stat_t) bool {
++	return stat.Mode & syscall.S_IFMT == syscall.S_IFLNK
++}
++
++func dirFromStat(name string, dir *Dir, lstat, stat *syscall.Stat_t) *Dir {
+ 	dir.Dev = stat.Dev;
+ 	dir.Ino = stat.Ino;
+ 	dir.Nlink = stat.Nlink;
+@@ -30,5 +34,8 @@ func dirFromStat(name string, dir *Dir, stat *syscall.Stat_t) *Dir {
+ 		}
+ 	}
+ 	dir.Name = name;
++	if isSymlink(lstat) && !isSymlink(stat) {
++		dir.FollowedSymlink = true;
++	}
+ 	return dir;
+ }
+diff --git a/src/lib/os/types.go b/src/lib/os/types.go
+index aba4631993..73363f4534 100644
+--- a/src/lib/os/types.go
++++ b/src/lib/os/types.go
+@@ -25,6 +25,7 @@ type Dir struct {
+ 	Mtime_ns	uint64;	// modified time; nanoseconds since epoch.
+ 	Ctime_ns	uint64;	// status change time; nanoseconds since epoch.
+ 	Name	string;	// name of file as presented to Open.
++	FollowedSymlink	bool;		// followed a symlink to get this information
+ }
+ 
+ // IsFifo reports whether the Dir describes a FIFO file.
+@@ -66,3 +67,4 @@ func (dir *Dir) IsSocket() bool {
+ func (dir *Dir) Permission() int {
+ 	return int(dir.Mode & 0777)
+ }
++

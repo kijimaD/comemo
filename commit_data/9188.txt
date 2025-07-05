@@ -12,10 +12,336 @@ Date:   Sat Jul 23 18:10:30 2011 +1000
     R=golang-dev, dsymonds
     CC=golang-dev
     https://golang.org/cl/4801052
-
+---
  src/pkg/exp/template/helper.go           | 147 +++++++++++++++++++++++++++++++
  src/pkg/exp/template/set.go              |  24 +++--
  src/pkg/exp/template/set_test.go         |  81 ++++++++++++++++-
  src/pkg/exp/template/testdata/tmpl1.tmpl |   1 +
  src/pkg/exp/template/testdata/tmpl2.tmpl |   1 +
  5 files changed, 245 insertions(+), 9 deletions(-)
+
+diff --git a/src/pkg/exp/template/helper.go b/src/pkg/exp/template/helper.go
+index b0d9ca7339..5eb46ee1df 100644
+--- a/src/pkg/exp/template/helper.go
++++ b/src/pkg/exp/template/helper.go
+@@ -13,6 +13,8 @@ import (
+ 	"path/filepath"
+ )
+ 
++// Functions and methods to parse a single template.
++
+ // MustParse parses the template definition string to construct an internal
+ // representation of the template for execution.
+ // It panics if the template cannot be parsed.
+@@ -57,6 +59,8 @@ func MustParseFile(filename string) *Template {
+ 	return New(filepath.Base(filename)).MustParseFile(filename)
+ }
+ 
++// Functions and methods to parse a set.
++
+ // MustParse parses a string into a set of named templates.
+ // It panics if the set cannot be parsed.
+ func (s *Set) MustParse(text string) *Set {
+@@ -160,3 +164,146 @@ func MustParseSetFiles(pattern string) *Set {
+ 	}
+ 	return set
+ }
++
++// Functions and methods to parse stand-alone template files into a set.
++
++// ParseTemplateFile parses the named template files and adds
++// them to the set. Each template will named the base name of
++// its file.
++// Unlike with ParseFile, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateFile is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func (s *Set) ParseTemplateFile(filenames ...string) os.Error {
++	for _, filename := range filenames {
++		t, err := ParseFile(filename)
++		if err != nil {
++			return err
++		}
++		if err := s.add(t); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// MustParseTemplateFile is like ParseTemplateFile but
++// panics if there is an error.
++func (s *Set) MustParseTemplateFile(filenames ...string) {
++	err := s.ParseTemplateFile(filenames...)
++	if err != nil {
++		panic(err)
++	}
++}
++
++// ParseTemplateFiles parses the template files matched by the
++// patern and adds them to the set. Each template will named
++// the base name of its file.
++// Unlike with ParseFiles, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateFiles is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func (s *Set) ParseTemplateFiles(pattern string) os.Error {
++	filenames, err := filepath.Glob(pattern)
++	if err != nil {
++		return err
++	}
++	for _, filename := range filenames {
++		t, err := ParseFile(filename)
++		if err != nil {
++			return err
++		}
++		if err := s.add(t); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++// MustParseTemplateFile is like ParseTemplateFiles but
++// panics if there is an error.
++func (s *Set) MustParseTemplateFiles(pattern string) {
++	err := s.ParseTemplateFiles(pattern)
++	if err != nil {
++		panic(err)
++	}
++}
++
++// ParseTemplateFile creates a set by parsing the named files,
++// each of which defines a single template. Each template will
++// named the base name of its file.
++// Unlike with ParseFile, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateFile is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func ParseTemplateFile(filenames ...string) (*Set, os.Error) {
++	set := new(Set)
++	for _, filename := range filenames {
++		t, err := ParseFile(filename)
++		if err != nil {
++			return nil, err
++		}
++		if err := set.add(t); err != nil {
++			return nil, err
++		}
++	}
++	return set, nil
++}
++
++// MustParseTemplateFile is like ParseTemplateFile but
++// panics if there is an error.
++func MustParseTemplateFile(filenames ...string) *Set {
++	set, err := ParseTemplateFile(filenames...)
++	if err != nil {
++		panic(err)
++	}
++	return set
++}
++
++// ParseTemplateFiles creates a set by parsing the files matched
++// by the pattern, each of which defines a single template. Each
++// template will named the base name of its file.
++// Unlike with ParseFiles, each file should be a stand-alone template
++// definition suitable for Template.Parse (not Set.Parse); that is, the
++// file does not contain {{define}} clauses. ParseTemplateFiles is
++// therefore equivalent to calling the ParseFile function to create
++// individual templates, which are then added to the set.
++// Each file must be parseable by itself. Parsing stops if an error is
++// encountered.
++func ParseTemplateFiles(pattern string) (*Set, os.Error) {
++	filenames, err := filepath.Glob(pattern)
++	if err != nil {
++		return nil, err
++	}
++	set := new(Set)
++	for _, filename := range filenames {
++		t, err := ParseFile(filename)
++		if err != nil {
++			return nil, err
++		}
++		if err := set.add(t); err != nil {
++			return nil, err
++		}
++	}
++	return set, nil
++}
++
++// MustParseTemplateFiles is like ParseTemplateFiles but
++// panics if there is a parse error or other problem
++// constructing the set.
++func MustParseTemplateFiles(pattern string) *Set {
++	set, err := ParseTemplateFiles(pattern)
++	if err != nil {
++		panic(err)
++	}
++	return set
++}
+diff --git a/src/pkg/exp/template/set.go b/src/pkg/exp/template/set.go
+index ddf024eaf4..dc64b4c9c3 100644
+--- a/src/pkg/exp/template/set.go
++++ b/src/pkg/exp/template/set.go
+@@ -43,20 +43,28 @@ func (s *Set) Funcs(funcMap FuncMap) *Set {
+ // a set.
+ // The return value is the set, so calls can be chained.
+ func (s *Set) Add(templates ...*Template) *Set {
+-	s.init()
+ 	for _, t := range templates {
+-		if t.set != nil {
+-			panic(fmt.Errorf("template: %q already in a set", t.name))
+-		}
+-		if _, ok := s.tmpl[t.name]; ok {
+-			panic(fmt.Errorf("template: %q already defined in set", t.name))
++		if err := s.add(t); err != nil {
++			panic(err)
+ 		}
+-		s.tmpl[t.name] = t
+-		t.set = s
+ 	}
+ 	return s
+ }
+ 
++// add adds the argument template to the set.
++func (s *Set) add(t *Template) os.Error {
++	s.init()
++	if t.set != nil {
++		return fmt.Errorf("template: %q already in a set", t.name)
++	}
++	if _, ok := s.tmpl[t.name]; ok {
++		return fmt.Errorf("template: %q already defined in set", t.name)
++	}
++	s.tmpl[t.name] = t
++	t.set = s
++	return nil
++}
++
+ // Template returns the template with the given name in the set,
+ // or nil if there is no such template.
+ func (s *Set) Template(name string) *Template {
+diff --git a/src/pkg/exp/template/set_test.go b/src/pkg/exp/template/set_test.go
+index f79663eb06..c42d97a07b 100644
+--- a/src/pkg/exp/template/set_test.go
++++ b/src/pkg/exp/template/set_test.go
+@@ -138,6 +138,23 @@ func TestParseSetFile(t *testing.T) {
+ 	testExecute(setExecTests, set, t)
+ }
+ 
++func TestSetParseFiles(t *testing.T) {
++	set := new(Set)
++	err := set.ParseFiles("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	err = set.ParseFiles("[x")
++	if err == nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++	err = set.ParseFiles("testdata/file*.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(setExecTests, set, t)
++}
++
+ func TestParseSetFiles(t *testing.T) {
+ 	set, err := ParseSetFiles("DOES NOT EXIST")
+ 	if err == nil {
+@@ -147,9 +164,71 @@ func TestParseSetFiles(t *testing.T) {
+ 	if err == nil {
+ 		t.Error("expected error for bad pattern; got none")
+ 	}
+-	set, err = ParseSetFiles("testdata/*.tmpl")
++	set, err = ParseSetFiles("testdata/file*.tmpl")
+ 	if err != nil {
+ 		t.Fatalf("error parsing files: %v", err)
+ 	}
+ 	testExecute(setExecTests, set, t)
+ }
++
++var templateFileExecTests = []execTest{
++	{"teset", `{{template "tmpl1.tmpl"}}{{template "tmpl2.tmpl"}}`, "template1\ntemplate2\n", 0, true},
++}
++
++func TestSetParseTemplateFile(t *testing.T) {
++	set := new(Set)
++	err := set.ParseTemplateFile("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	err = set.ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(templateFileExecTests, set, t)
++}
++
++func TestParseTemplateFile(t *testing.T) {
++	set, err := ParseTemplateFile("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	set, err = ParseTemplateFile("testdata/tmpl1.tmpl", "testdata/tmpl2.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(templateFileExecTests, set, t)
++}
++
++func TestSetParseTemplateFiles(t *testing.T) {
++	set := new(Set)
++	err := set.ParseTemplateFiles("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	err = set.ParseTemplateFiles("[x")
++	if err == nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++	err = set.ParseTemplateFiles("testdata/tmpl*.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(templateFileExecTests, set, t)
++}
++
++func TestParseTemplateFiles(t *testing.T) {
++	set, err := ParseTemplateFiles("DOES NOT EXIST")
++	if err == nil {
++		t.Error("expected error for non-existent file; got none")
++	}
++	set, err = ParseTemplateFiles("[x")
++	if err == nil {
++		t.Error("expected error for bad pattern; got none")
++	}
++	set, err = ParseTemplateFiles("testdata/tmpl*.tmpl")
++	if err != nil {
++		t.Fatalf("error parsing files: %v", err)
++	}
++	testExecute(templateFileExecTests, set, t)
++}
+diff --git a/src/pkg/exp/template/testdata/tmpl1.tmpl b/src/pkg/exp/template/testdata/tmpl1.tmpl
+new file mode 100644
+index 0000000000..3d15b81735
+--- /dev/null
++++ b/src/pkg/exp/template/testdata/tmpl1.tmpl
+@@ -0,0 +1 @@
++template1
+diff --git a/src/pkg/exp/template/testdata/tmpl2.tmpl b/src/pkg/exp/template/testdata/tmpl2.tmpl
+new file mode 100644
+index 0000000000..a374d2fe7f
+--- /dev/null
++++ b/src/pkg/exp/template/testdata/tmpl2.tmpl
+@@ -0,0 +1 @@
++template2

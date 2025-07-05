@@ -10,6 +10,22 @@ Date:   Tue Feb 14 01:23:25 2012 -0500
     R=alex.brainman
     CC=golang-dev
     https://golang.org/cl/5656053
-
+---
  misc/dashboard/builder/main.go | 4 +---
  1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/misc/dashboard/builder/main.go b/misc/dashboard/builder/main.go
+index 226958b3de..84f44a3b0a 100644
+--- a/misc/dashboard/builder/main.go
++++ b/misc/dashboard/builder/main.go
+@@ -493,9 +493,7 @@ func (b *Builder) envvWindows() []string {
+ 	start := map[string]string{
+ 		"GOOS":         b.goos,
+ 		"GOARCH":       b.goarch,
+-		"GOROOT_FINAL": "/c/go",
+-		// TODO(brainman): remove once we find make that does not hang.
+-		"MAKEFLAGS":   "-j1",
++		"GOROOT_FINAL": `c:\go`,
+ 		"GOBUILDEXIT": "1", // exit all.bat with completion status.
+ 	}
+ 	for _, name := range extraEnv {

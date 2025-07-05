@@ -13,7 +13,7 @@ Date:   Tue Mar 10 19:40:09 2015 +0300
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Keith Randall <khr@golang.org>
     Reviewed-by: Andrew Gerrand <adg@golang.org>
-
+---
  src/cmd/trace/goroutines.go           | 182 ++--------------------------------
  src/cmd/trace/trace.go                |   2 +-
  src/internal/trace/goroutines.go      | 180 +++++++++++++++++++++++++++++++++
@@ -21,3 +21,535 @@ Date:   Tue Mar 10 19:40:09 2015 +0300
  src/runtime/pprof/trace_stack_test.go |   2 +-
  src/runtime/pprof/trace_test.go       |  19 +++-
  6 files changed, 221 insertions(+), 183 deletions(-)
+
+diff --git a/src/cmd/trace/goroutines.go b/src/cmd/trace/goroutines.go
+index f8d1289c29..f5a4ddb056 100644
+--- a/src/cmd/trace/goroutines.go
++++ b/src/cmd/trace/goroutines.go
+@@ -13,6 +13,7 @@ import (
+ 	"net/http"
+ 	"sort"
+ 	"strconv"
++	"sync"
+ )
+ 
+ func init() {
+@@ -42,34 +43,7 @@ func (l gtypeList) Swap(i, j int) {
+ 	l[i], l[j] = l[j], l[i]
+ }
+ 
+-// gdesc desribes a single goroutine.
+-type gdesc struct {
+-	ID         uint64
+-	Name       string
+-	PC         uint64
+-	CreateTime int64
+-	StartTime  int64
+-	EndTime    int64
+-	LastStart  int64
+-
+-	ExecTime      int64
+-	SchedWaitTime int64
+-	IOTime        int64
+-	BlockTime     int64
+-	SyscallTime   int64
+-	GCTime        int64
+-	SweepTime     int64
+-	TotalTime     int64
+-
+-	blockNetTime     int64
+-	blockSyncTime    int64
+-	blockSyscallTime int64
+-	blockSweepTime   int64
+-	blockGCTime      int64
+-	blockSchedTime   int64
+-}
+-
+-type gdescList []*gdesc
++type gdescList []*trace.GDesc
+ 
+ func (l gdescList) Len() int {
+ 	return len(l)
+@@ -83,126 +57,16 @@ func (l gdescList) Swap(i, j int) {
+ 	l[i], l[j] = l[j], l[i]
+ }
+ 
+-var gs = make(map[uint64]*gdesc)
++var (
++	gsInit sync.Once
++	gs     map[uint64]*trace.GDesc
++)
+ 
+-// analyzeGoroutines generates list gdesc's from the trace and stores it in gs.
++// analyzeGoroutines generates statistics about execution of all goroutines and stores them in gs.
+ func analyzeGoroutines(events []*trace.Event) {
+-	if len(gs) > 0 { //!!! racy
+-		return
+-	}
+-	var lastTs int64
+-	var gcStartTime int64
+-	for _, ev := range events {
+-		lastTs = ev.Ts
+-		switch ev.Type {
+-		case trace.EvGoCreate:
+-			g := &gdesc{CreateTime: ev.Ts}
+-			g.blockSchedTime = ev.Ts
+-			gs[ev.Args[0]] = g
+-		case trace.EvGoStart:
+-			g := gs[ev.G]
+-			if g.PC == 0 {
+-				g.PC = ev.Stk[0].PC
+-				g.Name = ev.Stk[0].Fn
+-			}
+-			g.LastStart = ev.Ts
+-			if g.StartTime == 0 {
+-				g.StartTime = ev.Ts
+-			}
+-			if g.blockSchedTime != 0 {
+-				g.SchedWaitTime += ev.Ts - g.blockSchedTime
+-				g.blockSchedTime = 0
+-			}
+-		case trace.EvGoEnd, trace.EvGoStop:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-			g.TotalTime = ev.Ts - g.CreateTime
+-			g.EndTime = ev.Ts
+-		case trace.EvGoBlockSend, trace.EvGoBlockRecv, trace.EvGoBlockSelect,
+-			trace.EvGoBlockSync, trace.EvGoBlockCond:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-			g.blockSyncTime = ev.Ts
+-		case trace.EvGoSched, trace.EvGoPreempt:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-			g.blockSchedTime = ev.Ts
+-		case trace.EvGoSleep, trace.EvGoBlock:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-		case trace.EvGoBlockNet:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-			g.blockNetTime = ev.Ts
+-		case trace.EvGoUnblock:
+-			g := gs[ev.Args[0]]
+-			if g.blockNetTime != 0 {
+-				g.IOTime += ev.Ts - g.blockNetTime
+-				g.blockNetTime = 0
+-			}
+-			if g.blockSyncTime != 0 {
+-				g.BlockTime += ev.Ts - g.blockSyncTime
+-				g.blockSyncTime = 0
+-			}
+-			g.blockSchedTime = ev.Ts
+-		case trace.EvGoSysBlock:
+-			g := gs[ev.G]
+-			g.ExecTime += ev.Ts - g.LastStart
+-			g.blockSyscallTime = ev.Ts
+-		case trace.EvGoSysExit:
+-			g := gs[ev.G]
+-			if g.blockSyscallTime != 0 {
+-				g.SyscallTime += ev.Ts - g.blockSyscallTime
+-				g.blockSyscallTime = 0
+-			}
+-			g.blockSchedTime = ev.Ts
+-		case trace.EvGCSweepStart:
+-			g := gs[ev.G]
+-			if g != nil {
+-				// Sweep can happen during GC on system goroutine.
+-				g.blockSweepTime = ev.Ts
+-			}
+-		case trace.EvGCSweepDone:
+-			g := gs[ev.G]
+-			if g != nil && g.blockSweepTime != 0 {
+-				g.SweepTime += ev.Ts - g.blockSweepTime
+-				g.blockSweepTime = 0
+-			}
+-		case trace.EvGCStart:
+-			gcStartTime = ev.Ts
+-		case trace.EvGCDone:
+-			for _, g := range gs {
+-				if g.EndTime == 0 {
+-					g.GCTime += ev.Ts - gcStartTime
+-				}
+-			}
+-		}
+-	}
+-
+-	for _, g := range gs {
+-		if g.TotalTime == 0 {
+-			g.TotalTime = lastTs - g.CreateTime
+-		}
+-		if g.EndTime == 0 {
+-			g.EndTime = lastTs
+-		}
+-		if g.blockNetTime != 0 {
+-			g.IOTime += lastTs - g.blockNetTime
+-			g.blockNetTime = 0
+-		}
+-		if g.blockSyncTime != 0 {
+-			g.BlockTime += lastTs - g.blockSyncTime
+-			g.blockSyncTime = 0
+-		}
+-		if g.blockSyscallTime != 0 {
+-			g.SyscallTime += lastTs - g.blockSyscallTime
+-			g.blockSyscallTime = 0
+-		}
+-		if g.blockSchedTime != 0 {
+-			g.SchedWaitTime += lastTs - g.blockSchedTime
+-			g.blockSchedTime = 0
+-		}
+-	}
++	gsInit.Do(func() {
++		gs = trace.GoroutineStats(events)
++	})
+ }
+ 
+ // httpGoroutines serves list of goroutine groups.
+@@ -256,11 +120,10 @@ func httpGoroutine(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 	analyzeGoroutines(events)
+ 	var glist gdescList
+-	for gid, g := range gs {
++	for _, g := range gs {
+ 		if g.PC != pc || g.ExecTime == 0 {
+ 			continue
+ 		}
+-		g.ID = gid
+ 		glist = append(glist, g)
+ 	}
+ 	sort.Sort(glist)
+@@ -303,26 +166,3 @@ var templGoroutine = template.Must(template.New("").Parse(`
+ </body>
+ </html>
+ `))
+-
+-// relatedGoroutines finds set of related goroutines that we need to include
+-// into trace for goroutine goid.
+-func relatedGoroutines(events []*trace.Event, goid uint64) map[uint64]bool {
+-	// BFS of depth 2 over "unblock" edges
+-	// (what goroutines unblock goroutine goid?).
+-	gmap := make(map[uint64]bool)
+-	gmap[goid] = true
+-	for i := 0; i < 2; i++ {
+-		gmap1 := make(map[uint64]bool)
+-		for g := range gmap {
+-			gmap1[g] = true
+-		}
+-		for _, ev := range events {
+-			if ev.Type == trace.EvGoUnblock && gmap[ev.Args[0]] {
+-				gmap1[ev.G] = true
+-			}
+-		}
+-		gmap = gmap1
+-	}
+-	gmap[0] = true // for GC events
+-	return gmap
+-}
+diff --git a/src/cmd/trace/trace.go b/src/cmd/trace/trace.go
+index a572ed8f28..16a20aed07 100644
+--- a/src/cmd/trace/trace.go
++++ b/src/cmd/trace/trace.go
+@@ -90,7 +90,7 @@ func httpJsonTrace(w http.ResponseWriter, r *http.Request) {
+ 		params.startTime = g.StartTime
+ 		params.endTime = g.EndTime
+ 		params.maing = goid
+-		params.gs = relatedGoroutines(events, goid)
++		params.gs = trace.RelatedGoroutines(events, goid)
+ 	}
+ 
+ 	err = json.NewEncoder(w).Encode(generateTrace(params))
+diff --git a/src/internal/trace/goroutines.go b/src/internal/trace/goroutines.go
+new file mode 100644
+index 0000000000..f8673e20bc
+--- /dev/null
++++ b/src/internal/trace/goroutines.go
+@@ -0,0 +1,180 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++// GDesc contains statistics about execution of a single goroutine.
++type GDesc struct {
++	ID           uint64
++	Name         string
++	PC           uint64
++	CreationTime int64
++	StartTime    int64
++	EndTime      int64
++
++	ExecTime      int64
++	SchedWaitTime int64
++	IOTime        int64
++	BlockTime     int64
++	SyscallTime   int64
++	GCTime        int64
++	SweepTime     int64
++	TotalTime     int64
++
++	*gdesc // private part
++}
++
++// gdesc is a private part of GDesc that is required only during analysis.
++type gdesc struct {
++	lastStartTime    int64
++	blockNetTime     int64
++	blockSyncTime    int64
++	blockSyscallTime int64
++	blockSweepTime   int64
++	blockGCTime      int64
++	blockSchedTime   int64
++}
++
++// GoroutineStats generates statistics for all goroutines in the trace.
++func GoroutineStats(events []*Event) map[uint64]*GDesc {
++	gs := make(map[uint64]*GDesc)
++	var lastTs int64
++	var gcStartTime int64
++	for _, ev := range events {
++		lastTs = ev.Ts
++		switch ev.Type {
++		case EvGoCreate:
++			g := &GDesc{ID: ev.Args[0], CreationTime: ev.Ts, gdesc: new(gdesc)}
++			g.blockSchedTime = ev.Ts
++			gs[g.ID] = g
++		case EvGoStart:
++			g := gs[ev.G]
++			if g.PC == 0 {
++				g.PC = ev.Stk[0].PC
++				g.Name = ev.Stk[0].Fn
++			}
++			g.lastStartTime = ev.Ts
++			if g.StartTime == 0 {
++				g.StartTime = ev.Ts
++			}
++			if g.blockSchedTime != 0 {
++				g.SchedWaitTime += ev.Ts - g.blockSchedTime
++				g.blockSchedTime = 0
++			}
++		case EvGoEnd, EvGoStop:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.TotalTime = ev.Ts - g.CreationTime
++			g.EndTime = ev.Ts
++		case EvGoBlockSend, EvGoBlockRecv, EvGoBlockSelect,
++			EvGoBlockSync, EvGoBlockCond:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.blockSyncTime = ev.Ts
++		case EvGoSched, EvGoPreempt:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.blockSchedTime = ev.Ts
++		case EvGoSleep, EvGoBlock:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++		case EvGoBlockNet:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.blockNetTime = ev.Ts
++		case EvGoUnblock:
++			g := gs[ev.Args[0]]
++			if g.blockNetTime != 0 {
++				g.IOTime += ev.Ts - g.blockNetTime
++				g.blockNetTime = 0
++			}
++			if g.blockSyncTime != 0 {
++				g.BlockTime += ev.Ts - g.blockSyncTime
++				g.blockSyncTime = 0
++			}
++			g.blockSchedTime = ev.Ts
++		case EvGoSysBlock:
++			g := gs[ev.G]
++			g.ExecTime += ev.Ts - g.lastStartTime
++			g.blockSyscallTime = ev.Ts
++		case EvGoSysExit:
++			g := gs[ev.G]
++			if g.blockSyscallTime != 0 {
++				g.SyscallTime += ev.Ts - g.blockSyscallTime
++				g.blockSyscallTime = 0
++			}
++			g.blockSchedTime = ev.Ts
++		case EvGCSweepStart:
++			g := gs[ev.G]
++			if g != nil {
++				// Sweep can happen during GC on system goroutine.
++				g.blockSweepTime = ev.Ts
++			}
++		case EvGCSweepDone:
++			g := gs[ev.G]
++			if g != nil && g.blockSweepTime != 0 {
++				g.SweepTime += ev.Ts - g.blockSweepTime
++				g.blockSweepTime = 0
++			}
++		case EvGCStart:
++			gcStartTime = ev.Ts
++		case EvGCDone:
++			for _, g := range gs {
++				if g.EndTime == 0 {
++					g.GCTime += ev.Ts - gcStartTime
++				}
++			}
++		}
++	}
++
++	for _, g := range gs {
++		if g.TotalTime == 0 {
++			g.TotalTime = lastTs - g.CreationTime
++		}
++		if g.EndTime == 0 {
++			g.EndTime = lastTs
++		}
++		if g.blockNetTime != 0 {
++			g.IOTime += lastTs - g.blockNetTime
++			g.blockNetTime = 0
++		}
++		if g.blockSyncTime != 0 {
++			g.BlockTime += lastTs - g.blockSyncTime
++			g.blockSyncTime = 0
++		}
++		if g.blockSyscallTime != 0 {
++			g.SyscallTime += lastTs - g.blockSyscallTime
++			g.blockSyscallTime = 0
++		}
++		if g.blockSchedTime != 0 {
++			g.SchedWaitTime += lastTs - g.blockSchedTime
++			g.blockSchedTime = 0
++		}
++		g.gdesc = nil
++	}
++
++	return gs
++}
++
++// RelatedGoroutines finds a set of goroutines related to goroutine goid.
++func RelatedGoroutines(events []*Event, goid uint64) map[uint64]bool {
++	// BFS of depth 2 over "unblock" edges
++	// (what goroutines unblock goroutine goid?).
++	gmap := make(map[uint64]bool)
++	gmap[goid] = true
++	for i := 0; i < 2; i++ {
++		gmap1 := make(map[uint64]bool)
++		for g := range gmap {
++			gmap1[g] = true
++		}
++		for _, ev := range events {
++			if ev.Type == EvGoUnblock && gmap[ev.Args[0]] {
++				gmap1[ev.G] = true
++			}
++		}
++		gmap = gmap1
++	}
++	gmap[0] = true // for GC events
++	return gmap
++}
+diff --git a/src/internal/trace/parser.go b/src/internal/trace/parser.go
+index 44a2e66cfe..3c93e78a61 100644
+--- a/src/internal/trace/parser.go
++++ b/src/internal/trace/parser.go
+@@ -277,9 +277,10 @@ func postProcessTrace(events []*Event) error {
+ 		gWaiting
+ 	)
+ 	type gdesc struct {
+-		state   int
+-		ev      *Event
+-		evStart *Event
++		state    int
++		ev       *Event
++		evStart  *Event
++		evCreate *Event
+ 	}
+ 	type pdesc struct {
+ 		running bool
+@@ -371,7 +372,7 @@ func postProcessTrace(events []*Event) error {
+ 			if _, ok := gs[ev.Args[0]]; ok {
+ 				return fmt.Errorf("g %v already exists (offset %v, time %v)", ev.Args[0], ev.Off, ev.Ts)
+ 			}
+-			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev}
++			gs[ev.Args[0]] = gdesc{state: gRunnable, ev: ev, evCreate: ev}
+ 		case EvGoStart:
+ 			if g.state != gRunnable {
+ 				return fmt.Errorf("g %v is not runnable before start (offset %v, time %v)", ev.G, ev.Off, ev.Ts)
+@@ -382,11 +383,13 @@ func postProcessTrace(events []*Event) error {
+ 			g.state = gRunning
+ 			g.evStart = ev
+ 			p.g = ev.G
++			if g.evCreate != nil {
++				// +1 because symblizer expects return pc.
++				ev.Stk = []*Frame{&Frame{PC: g.evCreate.Args[1] + 1}}
++				g.evCreate = nil
++			}
++
+ 			if g.ev != nil {
+-				if g.ev.Type == EvGoCreate {
+-					// +1 because symblizer expects return pc.
+-					ev.Stk = []*Frame{&Frame{PC: g.ev.Args[1] + 1}}
+-				}
+ 				g.ev.Link = ev
+ 				g.ev = nil
+ 			}
+diff --git a/src/runtime/pprof/trace_stack_test.go b/src/runtime/pprof/trace_stack_test.go
+index ef55d52610..edb0a2438b 100644
+--- a/src/runtime/pprof/trace_stack_test.go
++++ b/src/runtime/pprof/trace_stack_test.go
+@@ -122,7 +122,7 @@ func TestTraceSymbolize(t *testing.T) {
+ 	wp.Write(data[:])
+ 
+ 	StopTrace()
+-	events, err := trace.Parse(buf)
++	events, _, err := parseTrace(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+ 	}
+diff --git a/src/runtime/pprof/trace_test.go b/src/runtime/pprof/trace_test.go
+index c57f4b8db1..3753e3c4dd 100644
+--- a/src/runtime/pprof/trace_test.go
++++ b/src/runtime/pprof/trace_test.go
+@@ -7,6 +7,7 @@ package pprof_test
+ import (
+ 	"bytes"
+ 	"internal/trace"
++	"io"
+ 	"net"
+ 	"os"
+ 	"runtime"
+@@ -72,6 +73,20 @@ func TestTrace(t *testing.T) {
+ 	}
+ }
+ 
++func parseTrace(r io.Reader) ([]*trace.Event, map[uint64]*trace.GDesc, error) {
++	events, err := trace.Parse(r)
++	if err != nil {
++		return nil, nil, err
++	}
++	gs := trace.GoroutineStats(events)
++	for goid := range gs {
++		// We don't do any particular checks on the result at the moment.
++		// But still check that RelatedGoroutines does not crash, hang, etc.
++		_ = trace.RelatedGoroutines(events, goid)
++	}
++	return events, gs, nil
++}
++
+ func TestTraceStress(t *testing.T) {
+ 	skipTraceTestsIfNeeded(t)
+ 
+@@ -199,7 +214,7 @@ func TestTraceStress(t *testing.T) {
+ 	runtime.GOMAXPROCS(procs)
+ 
+ 	StopTrace()
+-	_, err = trace.Parse(buf)
++	_, _, err = parseTrace(buf)
+ 	if err != nil {
+ 		t.Fatalf("failed to parse trace: %v", err)
+ 	}
+@@ -339,7 +354,7 @@ func TestTraceStressStartStop(t *testing.T) {
+ 		}
+ 		time.Sleep(time.Millisecond)
+ 		StopTrace()
+-		if _, err := trace.Parse(buf); err != nil {
++		if _, _, err := parseTrace(buf); err != nil {
+ 			t.Fatalf("failed to parse trace: %v", err)
+ 		}
+ 	}

@@ -18,7 +18,7 @@ Date:   Wed Feb 25 14:41:21 2015 +0900
     Run-TryBot: Matthew Dempsky <mdempsky@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
-
+---
  src/runtime/cpuprof.go       | 34 +++++++++++++++-------------------
  src/runtime/extern.go        |  4 ++--
  src/runtime/mprof.go         |  6 +++---
@@ -31,3 +31,408 @@ Date:   Wed Feb 25 14:41:21 2015 +0900
  src/runtime/trace.go         |  4 ++--
  src/runtime/traceback.go     | 18 +++++++++---------
  11 files changed, 50 insertions(+), 58 deletions(-)
+
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index d8e0ab7d40..055b2af018 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -30,8 +30,8 @@
+ // The state of this dance between the signal handler and the goroutine
+ // is encoded in the Profile.handoff field.  If handoff == 0, then the goroutine
+ // is not using either log half and is waiting (or will soon be waiting) for
+-// a new piece by calling notesleep(&p->wait).  If the signal handler
+-// changes handoff from 0 to non-zero, it must call notewakeup(&p->wait)
++// a new piece by calling notesleep(&p.wait).  If the signal handler
++// changes handoff from 0 to non-zero, it must call notewakeup(&p.wait)
+ // to wake the goroutine.  The value indicates the number of entries in the
+ // log half being handed off.  The goroutine leaves the non-zero value in
+ // place until it has finished processing the log half and then flips the number
+@@ -61,7 +61,7 @@ const (
+ 
+ type cpuprofEntry struct {
+ 	count uintptr
+-	depth uintptr
++	depth int
+ 	stack [maxCPUProfStack]uintptr
+ }
+ 
+@@ -81,7 +81,7 @@ type cpuProfile struct {
+ 	// Signal handler has filled log[toggle][:nlog].
+ 	// Goroutine is writing log[1-toggle][:handoff].
+ 	log     [2][logSize / 2]uintptr
+-	nlog    uintptr
++	nlog    int
+ 	toggle  int32
+ 	handoff uint32
+ 
+@@ -167,7 +167,7 @@ func SetCPUProfileRate(hz int) {
+ 		cpuprof.on = false
+ 
+ 		// Now add is not running anymore, and getprofile owns the entire log.
+-		// Set the high bit in prof->handoff to tell getprofile.
++		// Set the high bit in cpuprof.handoff to tell getprofile.
+ 		for {
+ 			n := cpuprof.handoff
+ 			if n&0x80000000 != 0 {
+@@ -185,20 +185,16 @@ func SetCPUProfileRate(hz int) {
+ 	unlock(&cpuprofLock)
+ }
+ 
+-func cpuproftick(pc *uintptr, n int32) {
+-	if n > maxCPUProfStack {
+-		n = maxCPUProfStack
+-	}
+-	s := (*[maxCPUProfStack]uintptr)(unsafe.Pointer(pc))[:n]
+-	cpuprof.add(s)
+-}
+-
+ // add adds the stack trace to the profile.
+ // It is called from signal handlers and other limited environments
+ // and cannot allocate memory or acquire locks that might be
+ // held at the time of the signal, nor can it use substantial amounts
+ // of stack.  It is allowed to call evict.
+ func (p *cpuProfile) add(pc []uintptr) {
++	if len(pc) > maxCPUProfStack {
++		pc = pc[:maxCPUProfStack]
++	}
++
+ 	// Compute hash.
+ 	h := uintptr(0)
+ 	for _, x := range pc {
+@@ -212,7 +208,7 @@ func (p *cpuProfile) add(pc []uintptr) {
+ Assoc:
+ 	for i := range b.entry {
+ 		e := &b.entry[i]
+-		if e.depth != uintptr(len(pc)) {
++		if e.depth != len(pc) {
+ 			continue
+ 		}
+ 		for j := range pc {
+@@ -241,7 +237,7 @@ Assoc:
+ 	}
+ 
+ 	// Reuse the newly evicted entry.
+-	e.depth = uintptr(len(pc))
++	e.depth = len(pc)
+ 	e.count = 1
+ 	copy(e.stack[:], pc)
+ }
+@@ -256,7 +252,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
+ 	d := e.depth
+ 	nslot := d + 2
+ 	log := &p.log[p.toggle]
+-	if p.nlog+nslot > uintptr(len(p.log[0])) {
++	if p.nlog+nslot > len(log) {
+ 		if !p.flushlog() {
+ 			return false
+ 		}
+@@ -266,7 +262,7 @@ func (p *cpuProfile) evict(e *cpuprofEntry) bool {
+ 	q := p.nlog
+ 	log[q] = e.count
+ 	q++
+-	log[q] = d
++	log[q] = uintptr(d)
+ 	q++
+ 	copy(log[q:], e.stack[:d])
+ 	q += d
+@@ -287,7 +283,7 @@ func (p *cpuProfile) flushlog() bool {
+ 
+ 	p.toggle = 1 - p.toggle
+ 	log := &p.log[p.toggle]
+-	q := uintptr(0)
++	q := 0
+ 	if p.lost > 0 {
+ 		lostPC := funcPC(lostProfileData)
+ 		log[0] = p.lost
+@@ -360,7 +356,7 @@ func (p *cpuProfile) getprofile() []byte {
+ 
+ 	// In flush mode.
+ 	// Add is no longer being called.  We own the log.
+-	// Also, p->handoff is non-zero, so flushlog will return false.
++	// Also, p.handoff is non-zero, so flushlog will return false.
+ 	// Evict the hash table into the log and return it.
+ Flush:
+ 	for i := range p.hash {
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index cd90390b34..540d7b5124 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -114,7 +114,7 @@ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	// and what it called, so that we can see if it
+ 	// "called" sigpanic.
+ 	var rpc [2]uintptr
+-	if callers(1+skip-1, &rpc[0], 2) < 2 {
++	if callers(1+skip-1, rpc[:]) < 2 {
+ 		return
+ 	}
+ 	f := findfunc(rpc[1])
+@@ -161,7 +161,7 @@ func Callers(skip int, pc []uintptr) int {
+ 	if len(pc) == 0 {
+ 		return 0
+ 	}
+-	return callers(skip, &pc[0], len(pc))
++	return callers(skip, pc)
+ }
+ 
+ // GOROOT returns the root of the Go tree.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index df7093a004..4544344780 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -232,7 +232,7 @@ func mProf_GC() {
+ // Called by malloc to record a profiled block.
+ func mProf_Malloc(p unsafe.Pointer, size uintptr) {
+ 	var stk [maxStack]uintptr
+-	nstk := callers(4, &stk[0], len(stk))
++	nstk := callers(4, stk[:])
+ 	lock(&proflock)
+ 	b := stkbucket(memProfile, size, stk[:nstk], true)
+ 	mp := b.mp()
+@@ -300,9 +300,9 @@ func blockevent(cycles int64, skip int) {
+ 	var nstk int
+ 	var stk [maxStack]uintptr
+ 	if gp.m.curg == nil || gp.m.curg == gp {
+-		nstk = callers(skip, &stk[0], len(stk))
++		nstk = callers(skip, stk[:])
+ 	} else {
+-		nstk = gcallers(gp.m.curg, skip, &stk[0], len(stk))
++		nstk = gcallers(gp.m.curg, skip, stk[:])
+ 	}
+ 	lock(&proflock)
+ 	b := stkbucket(blockProfile, 0, stk[:nstk], true)
+diff --git a/src/runtime/os1_windows.go b/src/runtime/os1_windows.go
+index 2de6b09343..744b1a9072 100644
+--- a/src/runtime/os1_windows.go
++++ b/src/runtime/os1_windows.go
+@@ -527,7 +527,7 @@ func profilem(mp *m) {
+ 	r = (*context)(unsafe.Pointer((uintptr(unsafe.Pointer(&rbuf[15]))) &^ 15))
+ 	r.contextflags = _CONTEXT_CONTROL
+ 	stdcall2(_GetThreadContext, mp.thread, uintptr(unsafe.Pointer(r)))
+-	sigprof((*byte)(unsafe.Pointer(r.ip())), (*byte)(unsafe.Pointer(r.sp())), nil, gp, mp)
++	sigprof(r.ip(), r.sp(), 0, gp, mp)
+ }
+ 
+ func profileloop1() {
+diff --git a/src/runtime/proc1.go b/src/runtime/proc1.go
+index 1eef1b8dcd..7b0d7fd497 100644
+--- a/src/runtime/proc1.go
++++ b/src/runtime/proc1.go
+@@ -100,7 +100,7 @@ func mcommoninit(mp *m) {
+ 
+ 	// g0 stack won't make sense for user (and is not necessary unwindable).
+ 	if _g_ != _g_.m.g0 {
+-		callers(1, &mp.createstack[0], len(mp.createstack))
++		callers(1, mp.createstack[:])
+ 	}
+ 
+ 	mp.fastrand = 0x49f6428a + uint32(mp.id) + uint32(cputicks())
+@@ -2286,11 +2286,7 @@ func _GC()           { _GC() }
+ var etext struct{}
+ 
+ // Called if we receive a SIGPROF signal.
+-func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+-	var n int32
+-	var traceback bool
+-	var stk [100]uintptr
+-
++func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	if prof.hz == 0 {
+ 		return
+ 	}
+@@ -2370,18 +2366,18 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ 	// To recap, there are no constraints on the assembly being used for the
+ 	// transition. We simply require that g and SP match and that the PC is not
+ 	// in gogo.
+-	traceback = true
+-	usp := uintptr(unsafe.Pointer(sp))
++	traceback := true
+ 	gogo := funcPC(gogo)
+ 	if gp == nil || gp != mp.curg ||
+-		usp < gp.stack.lo || gp.stack.hi < usp ||
+-		(gogo <= uintptr(unsafe.Pointer(pc)) && uintptr(unsafe.Pointer(pc)) < gogo+_RuntimeGogoBytes) {
++		sp < gp.stack.lo || gp.stack.hi < sp ||
++		(gogo <= pc && pc < gogo+_RuntimeGogoBytes) {
+ 		traceback = false
+ 	}
+ 
+-	n = 0
++	var stk [maxCPUProfStack]uintptr
++	n := 0
+ 	if traceback {
+-		n = int32(gentraceback(uintptr(unsafe.Pointer(pc)), uintptr(unsafe.Pointer(sp)), uintptr(unsafe.Pointer(lr)), gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap))
++		n = gentraceback(pc, sp, lr, gp, 0, &stk[0], len(stk), nil, nil, _TraceTrap)
+ 	}
+ 	if !traceback || n <= 0 {
+ 		// Normal traceback is impossible or has failed.
+@@ -2391,21 +2387,21 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ 			// Cgo, we can't unwind and symbolize arbitrary C code,
+ 			// so instead collect Go stack that leads to the cgo call.
+ 			// This is especially important on windows, since all syscalls are cgo calls.
+-			n = int32(gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0))
++			n = gentraceback(mp.curg.syscallpc, mp.curg.syscallsp, 0, mp.curg, 0, &stk[0], len(stk), nil, nil, 0)
+ 		}
+ 		if GOOS == "windows" && n == 0 && mp.libcallg != nil && mp.libcallpc != 0 && mp.libcallsp != 0 {
+ 			// Libcall, i.e. runtime syscall on windows.
+ 			// Collect Go stack that leads to the call.
+-			n = int32(gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg, 0, &stk[0], len(stk), nil, nil, 0))
++			n = gentraceback(mp.libcallpc, mp.libcallsp, 0, mp.libcallg, 0, &stk[0], len(stk), nil, nil, 0)
+ 		}
+ 		if n == 0 {
+ 			// If all of the above has failed, account it against abstract "System" or "GC".
+ 			n = 2
+ 			// "ExternalCode" is better than "etext".
+-			if uintptr(unsafe.Pointer(pc)) > uintptr(unsafe.Pointer(&etext)) {
+-				pc = (*uint8)(unsafe.Pointer(uintptr(funcPC(_ExternalCode) + _PCQuantum)))
++			if pc > uintptr(unsafe.Pointer(&etext)) {
++				pc = funcPC(_ExternalCode) + _PCQuantum
+ 			}
+-			stk[0] = uintptr(unsafe.Pointer(pc))
++			stk[0] = pc
+ 			if mp.preemptoff != "" || mp.helpgc != 0 {
+ 				stk[1] = funcPC(_GC) + _PCQuantum
+ 			} else {
+@@ -2420,7 +2416,7 @@ func sigprof(pc *uint8, sp *uint8, lr *uint8, gp *g, mp *m) {
+ 			osyield()
+ 		}
+ 		if prof.hz != 0 {
+-			cpuproftick(&stk[0], n)
++			cpuprof.add(stk[:n])
+ 		}
+ 		atomicstore(&prof.lock, 0)
+ 	}
+diff --git a/src/runtime/signal_386.go b/src/runtime/signal_386.go
+index 5336a4330a..0ca593de02 100644
+--- a/src/runtime/signal_386.go
++++ b/src/runtime/signal_386.go
+@@ -29,7 +29,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	c := &sigctxt{info, ctxt}
+ 
+ 	if sig == _SIGPROF {
+-		sigprof((*byte)(unsafe.Pointer(uintptr(c.eip()))), (*byte)(unsafe.Pointer(uintptr(c.esp()))), nil, gp, _g_.m)
++		sigprof(uintptr(c.eip()), uintptr(c.esp()), 0, gp, _g_.m)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_amd64x.go b/src/runtime/signal_amd64x.go
+index 50ecfbe4de..cd87d76a50 100644
+--- a/src/runtime/signal_amd64x.go
++++ b/src/runtime/signal_amd64x.go
+@@ -42,7 +42,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	c := &sigctxt{info, ctxt}
+ 
+ 	if sig == _SIGPROF {
+-		sigprof((*byte)(unsafe.Pointer(uintptr(c.rip()))), (*byte)(unsafe.Pointer(uintptr(c.rsp()))), nil, gp, _g_.m)
++		sigprof(uintptr(c.rip()), uintptr(c.rsp()), 0, gp, _g_.m)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_arm.go b/src/runtime/signal_arm.go
+index d224ce6459..c07b45ef18 100644
+--- a/src/runtime/signal_arm.go
++++ b/src/runtime/signal_arm.go
+@@ -37,7 +37,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	c := &sigctxt{info, ctxt}
+ 
+ 	if sig == _SIGPROF {
+-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.lr()))), gp, _g_.m)
++		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.lr()), gp, _g_.m)
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/signal_ppc64x.go b/src/runtime/signal_ppc64x.go
+index ab32300f3f..94b4708dd5 100644
+--- a/src/runtime/signal_ppc64x.go
++++ b/src/runtime/signal_ppc64x.go
+@@ -55,7 +55,7 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	c := &sigctxt{info, ctxt}
+ 
+ 	if sig == _SIGPROF {
+-		sigprof((*byte)(unsafe.Pointer(uintptr(c.pc()))), (*byte)(unsafe.Pointer(uintptr(c.sp()))), (*byte)(unsafe.Pointer(uintptr(c.link()))), gp, _g_.m)
++		sigprof(uintptr(c.pc()), uintptr(c.sp()), uintptr(c.link()), gp, _g_.m)
+ 		return
+ 	}
+ 	flags := int32(_SigThrow)
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 9804092da3..3a4421baca 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -468,9 +468,9 @@ func traceEvent(ev byte, stack bool, args ...uint64) {
+ 		}
+ 		var nstk int
+ 		if gp == _g_ {
+-			nstk = callers(1, &buf.stk[0], len(buf.stk))
++			nstk = callers(1, buf.stk[:])
+ 		} else if gp != nil {
+-			nstk = gcallers(mp.curg, 1, &buf.stk[0], len(buf.stk))
++			nstk = gcallers(mp.curg, 1, buf.stk[:])
+ 		}
+ 		id := trace.stackTab.put(buf.stk[:nstk])
+ 		data = traceAppend(data, uint64(id))
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 8c31c5abad..92dddfdb03 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -104,7 +104,7 @@ func tracebackdefers(gp *g, callback func(*stkframe, unsafe.Pointer) bool, v uns
+ // the runtime.Callers function (pcbuf != nil), as well as the garbage
+ // collector (callback != nil).  A little clunky to merge these, but avoids
+ // duplicating the code and all its subtlety.
+-func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
++func gentraceback(pc0, sp0, lr0 uintptr, gp *g, skip int, pcbuf *uintptr, max int, callback func(*stkframe, unsafe.Pointer) bool, v unsafe.Pointer, flags uint) int {
+ 	if goexitPC == 0 {
+ 		throw("gentraceback before goexitPC initialization")
+ 	}
+@@ -367,7 +367,7 @@ func gentraceback(pc0 uintptr, sp0 uintptr, lr0 uintptr, gp *g, skip int, pcbuf
+ 		}
+ 	}
+ 
+-	if pcbuf == nil && callback == nil {
++	if printing {
+ 		n = nprint
+ 	}
+ 
+@@ -474,7 +474,7 @@ func printcreatedby(gp *g) {
+ 	}
+ }
+ 
+-func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
++func traceback(pc, sp, lr uintptr, gp *g) {
+ 	traceback1(pc, sp, lr, gp, 0)
+ }
+ 
+@@ -484,11 +484,11 @@ func traceback(pc uintptr, sp uintptr, lr uintptr, gp *g) {
+ // the initial PC must not be rewound to the previous instruction.
+ // (All the saved pairs record a PC that is a return address, so we
+ // rewind it into the CALL instruction.)
+-func tracebacktrap(pc uintptr, sp uintptr, lr uintptr, gp *g) {
++func tracebacktrap(pc, sp, lr uintptr, gp *g) {
+ 	traceback1(pc, sp, lr, gp, _TraceTrap)
+ }
+ 
+-func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
++func traceback1(pc, sp, lr uintptr, gp *g, flags uint) {
+ 	var n int
+ 	if readgstatus(gp)&^_Gscan == _Gsyscall {
+ 		// Override registers if blocked in system call.
+@@ -508,18 +508,18 @@ func traceback1(pc uintptr, sp uintptr, lr uintptr, gp *g, flags uint) {
+ 	printcreatedby(gp)
+ }
+ 
+-func callers(skip int, pcbuf *uintptr, m int) int {
++func callers(skip int, pcbuf []uintptr) int {
+ 	sp := getcallersp(unsafe.Pointer(&skip))
+ 	pc := uintptr(getcallerpc(unsafe.Pointer(&skip)))
+ 	var n int
+ 	systemstack(func() {
+-		n = gentraceback(pc, sp, 0, getg(), skip, pcbuf, m, nil, nil, 0)
++		n = gentraceback(pc, sp, 0, getg(), skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
+ 	})
+ 	return n
+ }
+ 
+-func gcallers(gp *g, skip int, pcbuf *uintptr, m int) int {
+-	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, pcbuf, m, nil, nil, 0)
++func gcallers(gp *g, skip int, pcbuf []uintptr) int {
++	return gentraceback(^uintptr(0), ^uintptr(0), 0, gp, skip, &pcbuf[0], len(pcbuf), nil, nil, 0)
+ }
+ 
+ func showframe(f *_func, gp *g) bool {

@@ -12,6 +12,20 @@ Date:   Tue Aug 15 23:07:18 2023 +0800
     Run-TryBot: Ian Lance Taylor <iant@google.com>
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
-
+---
  src/errors/example_test.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/errors/example_test.go b/src/errors/example_test.go
+index beb5edcd2f..1976f05afa 100644
+--- a/src/errors/example_test.go
++++ b/src/errors/example_test.go
+@@ -105,7 +105,7 @@ func ExampleUnwrap() {
+ 	err2 := fmt.Errorf("error2: [%w]", err1)
+ 	fmt.Println(err2)
+ 	fmt.Println(errors.Unwrap(err2))
+-	// Output
++	// Output:
+ 	// error2: [error1]
+ 	// error1
+ }

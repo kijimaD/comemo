@@ -20,7 +20,45 @@ Date:   Thu Jul 21 12:38:51 2022 -0600
     Auto-Submit: Ian Lance Taylor <iant@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@google.com>
-
+---
  src/time/format.go      | 8 ++++----
  src/time/format_test.go | 7 +++++++
  2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 5f696189ff..8431ff89b4 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -53,10 +53,10 @@ import "errors"
+ // verbatim in the input to Parse.
+ //
+ //	Year: "2006" "06"
+-//	Month: "Jan" "January"
+-//	Textual day of the week: "Mon" "Monday"
+-//	Numeric day of the month: "2" "_2" "02"
+-//	Numeric day of the year: "__2" "002"
++//	Month: "Jan" "January" "01" "1"
++//	Day of the week: "Mon" "Monday"
++//	Day of the month: "2" "_2" "02"
++//	Day of the year: "__2" "002"
+ //	Hour: "15" "3" "03" (PM or AM)
+ //	Minute: "4" "04"
+ //	Second: "5" "05"
+diff --git a/src/time/format_test.go b/src/time/format_test.go
+index ab72fae323..9ae2b8017a 100644
+--- a/src/time/format_test.go
++++ b/src/time/format_test.go
+@@ -116,6 +116,13 @@ var formatTests = []FormatTest{
+ 	{"StampMicro", StampMicro, "Feb  4 21:00:57.012345"},
+ 	{"StampNano", StampNano, "Feb  4 21:00:57.012345600"},
+ 	{"YearDay", "Jan  2 002 __2 2", "Feb  4 035  35 4"},
++	{"Year", "2006 6 06 _6 __6 ___6", "2009 6 09 _6 __6 ___6"},
++	{"Month", "Jan January 1 01 _1", "Feb February 2 02 _2"},
++	{"DayOfMonth", "2 02 _2 __2", "4 04  4  35"},
++	{"DayOfWeek", "Mon Monday", "Wed Wednesday"},
++	{"Hour", "15 3 03 _3", "21 9 09 _9"},
++	{"Minute", "4 04 _4", "0 00 _0"},
++	{"Second", "5 05 _5", "57 57 _57"},
+ }
+ 
+ func TestFormat(t *testing.T) {

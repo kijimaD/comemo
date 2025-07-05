@@ -8,7 +8,7 @@ Date:   Wed Aug 12 14:40:47 2009 -0700
     DELTA=163  (1 added, 149 deleted, 13 changed)
     OCL=33106
     CL=33111
-
+---
  src/pkg/datafmt/datafmt.go  |  2 --
  src/pkg/flag/flag.go        |  9 ---------
  src/pkg/go/ast/ast.go       | 36 +++++++++++-------------------------
@@ -23,3 +23,228 @@ Date:   Wed Aug 12 14:40:47 2009 -0700
  test/interface/recursive.go |  2 --
  test/ken/rob2.go            |  6 ------
  13 files changed, 13 insertions(+), 61 deletions(-)
+
+diff --git a/src/pkg/datafmt/datafmt.go b/src/pkg/datafmt/datafmt.go
+index 60dde3bdbc..3a0fa08586 100644
+--- a/src/pkg/datafmt/datafmt.go
++++ b/src/pkg/datafmt/datafmt.go
+@@ -218,8 +218,6 @@ import (
+ // ----------------------------------------------------------------------------
+ // Format representation
+ 
+-type State struct
+-
+ // Custom formatters implement the Formatter function type.
+ // A formatter is invoked with the current formatting state, the
+ // value to format, and the rule name under which the formatter
+diff --git a/src/pkg/flag/flag.go b/src/pkg/flag/flag.go
+index 9927886435..b2509e6463 100644
+--- a/src/pkg/flag/flag.go
++++ b/src/pkg/flag/flag.go
+@@ -59,15 +59,6 @@ func atob(str string) (value bool, ok bool) {
+ 	return false, false
+ }
+ 
+-type (
+-	boolValue struct;
+-	intValue struct;
+-	int64Value struct;
+-	uintValue struct;
+-	uint64Value struct;
+-	stringValue struct;
+-)
+-
+ // -- Bool Value
+ type boolValue struct {
+ 	p *bool;
+diff --git a/src/pkg/go/ast/ast.go b/src/pkg/go/ast/ast.go
+index 9ab6dc9ce6..3c7b86818d 100644
+--- a/src/pkg/go/ast/ast.go
++++ b/src/pkg/go/ast/ast.go
+@@ -36,13 +36,6 @@ import (
+ // node sizes a bit.
+ 
+ 
+-type (
+-	ExprVisitor interface;
+-	StmtVisitor interface;
+-	DeclVisitor interface;
+-)
+-
+-
+ // All expression nodes implement the Expr interface.
+ type Expr interface {
+ 	// For a (dynamic) node type X, calling Visit with an expression
+@@ -101,24 +94,17 @@ type CommentGroup struct {
+ // ----------------------------------------------------------------------------
+ // Expressions and types
+ 
+-// Support types.
+-type (
+-	Ident struct;
+-	StringLit struct;
+-	FuncType struct;
+-	BlockStmt struct;
+-
+-	// A Field represents a Field declaration list in a struct type,
+-	// a method in an interface type, or a parameter/result declaration
+-	// in a signature.
+-	Field struct {
+-		Doc *CommentGroup;  // associated documentation; or nil
+-		Names []*Ident;  // field/method/parameter names; nil if anonymous field
+-		Type Expr;  // field/method/parameter type
+-		Tag []*StringLit;  // field tag; or nil
+-		Comment *CommentGroup;  // line comments; or nil
+-	};
+-)
++// A Field represents a Field declaration list in a struct type,
++// a method in an interface type, or a parameter/result declaration
++// in a signature.
++//
++type Field struct {
++	Doc *CommentGroup;  // associated documentation; or nil
++	Names []*Ident;  // field/method/parameter names; nil if anonymous field
++	Type Expr;  // field/method/parameter type
++	Tag []*StringLit;  // field tag; or nil
++	Comment *CommentGroup;  // line comments; or nil
++};
+ 
+ 
+ // An expression is represented by a tree consisting of one
+diff --git a/src/pkg/gob/decode.go b/src/pkg/gob/decode.go
+index ce4bc0b970..2c17aee40c 100644
+--- a/src/pkg/gob/decode.go
++++ b/src/pkg/gob/decode.go
+@@ -116,7 +116,6 @@ func decodeInt(state *decodeState) int64 {
+ 	return int64(x >> 1)
+ }
+ 
+-type decInstr struct
+ type decOp func(i *decInstr, state *decodeState, p unsafe.Pointer);
+ 
+ // The 'instructions' of the decoding machine
+diff --git a/src/pkg/gob/encode.go b/src/pkg/gob/encode.go
+index 332c3d6b8d..34e58466d3 100644
+--- a/src/pkg/gob/encode.go
++++ b/src/pkg/gob/encode.go
+@@ -66,7 +66,6 @@ func encodeInt(state *encoderState, i int64){
+ 	encodeUint(state, uint64(x))
+ }
+ 
+-type encInstr struct
+ type encOp func(i *encInstr, state *encoderState, p unsafe.Pointer)
+ 
+ // The 'instructions' of the encoding machine
+diff --git a/src/pkg/http/server.go b/src/pkg/http/server.go
+index 47f7d01e7c..4ffdc780be 100644
+--- a/src/pkg/http/server.go
++++ b/src/pkg/http/server.go
+@@ -29,8 +29,6 @@ var (
+ 	ErrHijacked = os.NewError("Conn has been hijacked");
+ )
+ 
+-type Conn struct
+-
+ // Objects implemeting the Handler interface can be
+ // registered to serve a particular path or subtree
+ // in the HTTP server.
+diff --git a/src/pkg/reflect/type.go b/src/pkg/reflect/type.go
+index 4bd2fc1214..4b9ada0390 100644
+--- a/src/pkg/reflect/type.go
++++ b/src/pkg/reflect/type.go
+@@ -24,8 +24,6 @@ import (
+  * copy in order to access the private fields.
+  */
+ 
+-type uncommonType struct
+-
+ type commonType struct {
+ 	size uintptr;
+ 	hash uint32;
+diff --git a/src/pkg/runtime/type.go b/src/pkg/runtime/type.go
+index 2a380e21f6..bd3d011a8f 100644
+--- a/src/pkg/runtime/type.go
++++ b/src/pkg/runtime/type.go
+@@ -23,8 +23,6 @@ import "unsafe"
+ // so that the compiler can lay out references as data.
+ type Type interface { }
+ 
+-type uncommonType struct
+-
+ // All types begin with a few common fields needed for
+ // the interface runtime.
+ type commonType struct {
+diff --git a/src/run.bash b/src/run.bash
+index 0210d9fb91..9ae1ece742 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -16,8 +16,8 @@ maketest() {
+ 	do
+ 		(
+ 			xcd $i
+-		#	make clean
+-		#	time make
++			make clean
++			time make
+ 			make install
+ 			make test
+ 		) || exit $?
+diff --git a/test/fixedbugs/bug066.go b/test/fixedbugs/bug066.go
+index 4f64152aec..2fa5048f1b 100644
+--- a/test/fixedbugs/bug066.go
++++ b/test/fixedbugs/bug066.go
+@@ -6,11 +6,6 @@
+ 
+ package main
+ 
+-type (
+-	Type struct;
+-	Object struct;
+-)
+-
+ type Scope struct {
+ 	entries map[string] *Object;
+ }
+diff --git a/test/interface/fail.go b/test/interface/fail.go
+index 1e3758069f..0e0c4d3ca5 100644
+--- a/test/interface/fail.go
++++ b/test/interface/fail.go
+@@ -8,8 +8,6 @@
+ 
+ package main
+ 
+-type S struct
+-
+ type I interface {
+ 	Foo()
+ }
+diff --git a/test/interface/recursive.go b/test/interface/recursive.go
+index 87509838f4..1eb56e9767 100644
+--- a/test/interface/recursive.go
++++ b/test/interface/recursive.go
+@@ -8,8 +8,6 @@
+ 
+ package main
+ 
+-type I2 interface
+-
+ type I1 interface {
+ 	foo() I2
+ }
+diff --git a/test/ken/rob2.go b/test/ken/rob2.go
+index 5098d93990..0e18b3b8a0 100644
+--- a/test/ken/rob2.go
++++ b/test/ken/rob2.go
+@@ -9,12 +9,6 @@ package main
+ 
+ const nilchar = 0;
+ 
+-type (
+-	Atom struct;
+-	List struct;
+-	Slist struct;
+-)
+-
+ type Atom struct {
+ 	str		string;
+ 	integer		int;

@@ -17,8 +17,65 @@ Date:   Wed Apr 22 19:38:30 2020 +0000
     Reviewed-by: Jay Conrod <jayconrod@google.com>
     Run-TryBot: Bryan C. Mills <bcmills@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/go/alldocs.go               | 8 +++++++-
  src/cmd/go/internal/help/helpdoc.go | 3 +++
  src/cmd/go/internal/modget/get.go   | 5 ++++-
  3 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index a20a92d03d..9eeea13041 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -657,7 +657,10 @@
+ // this automatically as well.
+ //
+ // The -insecure flag permits fetching from repositories and resolving
+-// custom domains using insecure schemes such as HTTP. Use with caution.
++// custom domains using insecure schemes such as HTTP. Use with caution. The
++// GOINSECURE environment variable is usually a better alternative, since it
++// provides control over which modules may be retrieved using an insecure scheme.
++// See 'go help environment' for details.
+ //
+ // The second step is to download (if needed), build, and install
+ // the named packages.
+@@ -1621,6 +1624,9 @@
+ // 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+ // 		of module path prefixes that should always be fetched in an insecure
+ // 		manner. Only applies to dependencies that are being fetched directly.
++// 		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
++// 		checksum database validation. GOPRIVATE or GONOSUMDB may be used
++// 		to achieve that.
+ // 	GOOS
+ // 		The operating system for which to compile code.
+ // 		Examples are linux, darwin, windows, netbsd.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 6a843f459a..4093e40f26 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -510,6 +510,9 @@ General-purpose environment variables:
+ 		Comma-separated list of glob patterns (in the syntax of Go's path.Match)
+ 		of module path prefixes that should always be fetched in an insecure
+ 		manner. Only applies to dependencies that are being fetched directly.
++		Unlike the -insecure flag on 'go get', GOINSECURE does not disable
++		checksum database validation. GOPRIVATE or GONOSUMDB may be used
++		to achieve that.
+ 	GOOS
+ 		The operating system for which to compile code.
+ 		Examples are linux, darwin, windows, netbsd.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 6ef64cb981..b1193dbfc4 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -114,7 +114,10 @@ require downgrading other dependencies, and 'go get' does
+ this automatically as well.
+ 
+ The -insecure flag permits fetching from repositories and resolving
+-custom domains using insecure schemes such as HTTP. Use with caution.
++custom domains using insecure schemes such as HTTP. Use with caution. The
++GOINSECURE environment variable is usually a better alternative, since it
++provides control over which modules may be retrieved using an insecure scheme.
++See 'go help environment' for details.
+ 
+ The second step is to download (if needed), build, and install
+ the named packages.

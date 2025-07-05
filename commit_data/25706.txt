@@ -25,6 +25,22 @@ Date:   Mon Nov 16 14:37:59 2015 -0500
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/runtime/malloc.go | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index ad1123be96..f9be28d6e6 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -392,8 +392,8 @@ func (h *mheap) sysAlloc(n uintptr) unsafe.Pointer {
+ 		// We are in 32-bit mode, maybe we didn't use all possible address space yet.
+ 		// Reserve some more space.
+ 		p_size := round(n+_PageSize, 256<<20)
+-		new_end := h.arena_end + p_size
+-		if new_end <= h.arena_start+_MaxArena32 {
++		new_end := h.arena_end + p_size // Careful: can overflow
++		if h.arena_end <= new_end && new_end <= h.arena_start+_MaxArena32 {
+ 			// TODO: It would be bad if part of the arena
+ 			// is reserved and part is not.
+ 			var reserved bool

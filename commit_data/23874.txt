@@ -10,7 +10,7 @@ Date:   Mon May 18 15:50:00 2015 -0400
     Reviewed-on: https://go-review.googlesource.com/10188
     Reviewed-by: Rob Pike <r@golang.org>
     Reviewed-by: Russ Cox <rsc@golang.org>
-
+---
  src/archive/zip/struct.go            |   4 +-
  src/cmd/internal/obj/textflag.go     |   4 +-
  src/cmd/link/internal/ld/objfile.go  |  96 +++++++++++++++++++++++++
@@ -24,3 +24,502 @@ Date:   Mon May 18 15:50:00 2015 -0400
  src/syscall/syscall_windows.go       |  13 ++--
  src/text/template/parse/node.go      |  10 +--
  12 files changed, 155 insertions(+), 147 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 793d5da48d..137d0495fd 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -81,8 +81,8 @@ type FileHeader struct {
+ 	ModifiedTime       uint16 // MS-DOS time
+ 	ModifiedDate       uint16 // MS-DOS date
+ 	CRC32              uint32
+-	CompressedSize     uint32 // deprecated; use CompressedSize64
+-	UncompressedSize   uint32 // deprecated; use UncompressedSize64
++	CompressedSize     uint32 // Deprecated: Use CompressedSize64 instead.
++	UncompressedSize   uint32 // Deprecated: Use UncompressedSize64 instead.
+ 	CompressedSize64   uint64
+ 	UncompressedSize64 uint64
+ 	Extra              []byte
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index b5d27a60ee..dbd1bc8a7b 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -9,7 +9,9 @@
+ package obj
+ 
+ const (
+-	// Don't profile the marked routine.  This flag is deprecated.
++	// Don't profile the marked routine.
++	//
++	// Deprecated: Not implemented, do not use.
+ 	NOPROF = 1
+ 
+ 	// It is ok for the linker to get multiple of these symbols.  It will
+diff --git a/src/cmd/link/internal/ld/objfile.go b/src/cmd/link/internal/ld/objfile.go
+index 613fcb2a40..f716ea43bb 100644
+--- a/src/cmd/link/internal/ld/objfile.go
++++ b/src/cmd/link/internal/ld/objfile.go
+@@ -4,6 +4,102 @@
+ 
+ package ld
+ 
++// Writing and reading of Go object files.
++//
++// Originally, Go object files were Plan 9 object files, but no longer.
++// Now they are more like standard object files, in that each symbol is defined
++// by an associated memory image (bytes) and a list of relocations to apply
++// during linking. We do not (yet?) use a standard file format, however.
++// For now, the format is chosen to be as simple as possible to read and write.
++// It may change for reasons of efficiency, or we may even switch to a
++// standard file format if there are compelling benefits to doing so.
++// See golang.org/s/go13linker for more background.
++//
++// The file format is:
++//
++//	- magic header: "\x00\x00go13ld"
++//	- byte 1 - version number
++//	- sequence of strings giving dependencies (imported packages)
++//	- empty string (marks end of sequence)
++//	- sequence of defined symbols
++//	- byte 0xff (marks end of sequence)
++//	- magic footer: "\xff\xffgo13ld"
++//
++// All integers are stored in a zigzag varint format.
++// See golang.org/s/go12symtab for a definition.
++//
++// Data blocks and strings are both stored as an integer
++// followed by that many bytes.
++//
++// A symbol reference is a string name followed by a version.
++// An empty name corresponds to a nil LSym* pointer.
++//
++// Each symbol is laid out as the following fields (taken from LSym*):
++//
++//	- byte 0xfe (sanity check for synchronization)
++//	- type [int]
++//	- name [string]
++//	- version [int]
++//	- flags [int]
++//		1 dupok
++//	- size [int]
++//	- gotype [symbol reference]
++//	- p [data block]
++//	- nr [int]
++//	- r [nr relocations, sorted by off]
++//
++// If type == STEXT, there are a few more fields:
++//
++//	- args [int]
++//	- locals [int]
++//	- nosplit [int]
++//	- flags [int]
++//		1 leaf
++//		2 C function
++//	- nlocal [int]
++//	- local [nlocal automatics]
++//	- pcln [pcln table]
++//
++// Each relocation has the encoding:
++//
++//	- off [int]
++//	- siz [int]
++//	- type [int]
++//	- add [int]
++//	- xadd [int]
++//	- sym [symbol reference]
++//	- xsym [symbol reference]
++//
++// Each local has the encoding:
++//
++//	- asym [symbol reference]
++//	- offset [int]
++//	- type [int]
++//	- gotype [symbol reference]
++//
++// The pcln table has the encoding:
++//
++//	- pcsp [data block]
++//	- pcfile [data block]
++//	- pcline [data block]
++//	- npcdata [int]
++//	- pcdata [npcdata data blocks]
++//	- nfuncdata [int]
++//	- funcdata [nfuncdata symbol references]
++//	- funcdatasym [nfuncdata ints]
++//	- nfile [int]
++//	- file [nfile symbol references]
++//
++// The file layout and meaning of type integers are architecture-independent.
++//
++// TODO(rsc): The file format is good for a first pass but needs work.
++//	- There are SymID in the object file that should really just be strings.
++//	- The actual symbol memory images are interlaced with the symbol
++//	  metadata. They should be separated, to reduce the I/O required to
++//	  load just the metadata.
++//	- The symbol references should be shortened, either with a symbol
++//	  table or by using a simple backward index to an earlier mentioned symbol.
++
+ import (
+ 	"bytes"
+ 	"cmd/internal/obj"
+diff --git a/src/cmd/link/internal/ld/textflag.go b/src/cmd/link/internal/ld/textflag.go
+index 335f20d21d..6457fda9dd 100644
+--- a/src/cmd/link/internal/ld/textflag.go
++++ b/src/cmd/link/internal/ld/textflag.go
+@@ -4,130 +4,26 @@
+ 
+ package ld
+ 
+-// Writing and reading of Go object files.
+-//
+-// Originally, Go object files were Plan 9 object files, but no longer.
+-// Now they are more like standard object files, in that each symbol is defined
+-// by an associated memory image (bytes) and a list of relocations to apply
+-// during linking. We do not (yet?) use a standard file format, however.
+-// For now, the format is chosen to be as simple as possible to read and write.
+-// It may change for reasons of efficiency, or we may even switch to a
+-// standard file format if there are compelling benefits to doing so.
+-// See golang.org/s/go13linker for more background.
+-//
+-// The file format is:
+-//
+-//	- magic header: "\x00\x00go13ld"
+-//	- byte 1 - version number
+-//	- sequence of strings giving dependencies (imported packages)
+-//	- empty string (marks end of sequence)
+-//	- sequence of defined symbols
+-//	- byte 0xff (marks end of sequence)
+-//	- magic footer: "\xff\xffgo13ld"
+-//
+-// All integers are stored in a zigzag varint format.
+-// See golang.org/s/go12symtab for a definition.
+-//
+-// Data blocks and strings are both stored as an integer
+-// followed by that many bytes.
+-//
+-// A symbol reference is a string name followed by a version.
+-// An empty name corresponds to a nil LSym* pointer.
+-//
+-// Each symbol is laid out as the following fields (taken from LSym*):
+-//
+-//	- byte 0xfe (sanity check for synchronization)
+-//	- type [int]
+-//	- name [string]
+-//	- version [int]
+-//	- flags [int]
+-//		1 dupok
+-//	- size [int]
+-//	- gotype [symbol reference]
+-//	- p [data block]
+-//	- nr [int]
+-//	- r [nr relocations, sorted by off]
+-//
+-// If type == STEXT, there are a few more fields:
+-//
+-//	- args [int]
+-//	- locals [int]
+-//	- nosplit [int]
+-//	- flags [int]
+-//		1 leaf
+-//		2 C function
+-//	- nlocal [int]
+-//	- local [nlocal automatics]
+-//	- pcln [pcln table]
+-//
+-// Each relocation has the encoding:
+-//
+-//	- off [int]
+-//	- siz [int]
+-//	- type [int]
+-//	- add [int]
+-//	- xadd [int]
+-//	- sym [symbol reference]
+-//	- xsym [symbol reference]
+-//
+-// Each local has the encoding:
+-//
+-//	- asym [symbol reference]
+-//	- offset [int]
+-//	- type [int]
+-//	- gotype [symbol reference]
+-//
+-// The pcln table has the encoding:
+-//
+-//	- pcsp [data block]
+-//	- pcfile [data block]
+-//	- pcline [data block]
+-//	- npcdata [int]
+-//	- pcdata [npcdata data blocks]
+-//	- nfuncdata [int]
+-//	- funcdata [nfuncdata symbol references]
+-//	- funcdatasym [nfuncdata ints]
+-//	- nfile [int]
+-//	- file [nfile symbol references]
+-//
+-// The file layout and meaning of type integers are architecture-independent.
+-//
+-// TODO(rsc): The file format is good for a first pass but needs work.
+-//	- There are SymID in the object file that should really just be strings.
+-//	- The actual symbol memory images are interlaced with the symbol
+-//	  metadata. They should be separated, to reduce the I/O required to
+-//	  load just the metadata.
+-//	- The symbol references should be shortened, either with a symbol
+-//	  table or by using a simple backward index to an earlier mentioned symbol.
+-
+-// Copyright 2013 The Go Authors.  All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ // This file defines flags attached to various functions
+ // and data objects.  The compilers, assemblers, and linker must
+ // all agree on these values.
+ 
+-// Don't profile the marked routine.  This flag is deprecated.
+-
+-// It is ok for the linker to get multiple of these symbols.  It will
+-// pick one of the duplicates to use.
+-
+-// Don't insert stack check preamble.
+-
+-// Put this data in a read-only section.
+-
+-// This data contains no pointers.
+-
+-// This is a wrapper function and should not count as disabling 'recover'.
+-
+-// This function uses its incoming context register.
+ const (
+-	NOPROF   = 1
+-	DUPOK    = 2
+-	NOSPLIT  = 4
+-	RODATA   = 8
+-	NOPTR    = 16
+-	WRAPPER  = 32
++	// Don't profile the marked routine.
++	//
++	// Deprecated: Not implemented, do not use.
++	NOPROF = 1
++	// It is ok for the linker to get multiple of these symbols.  It will
++	// pick one of the duplicates to use.
++	DUPOK = 2
++	// Don't insert stack check preamble.
++	NOSPLIT = 4
++	// Put this data in a read-only section.
++	RODATA = 8
++	// This data contains no pointers.
++	NOPTR = 16
++	// This is a wrapper function and should not count as disabling 'recover'.
++	WRAPPER = 32
++	// This function uses its incoming context register.
+ 	NEEDCTXT = 64
+ )
+diff --git a/src/go/doc/doc.go b/src/go/doc/doc.go
+index 4264940a0c..3c3e28d48f 100644
+--- a/src/go/doc/doc.go
++++ b/src/go/doc/doc.go
+@@ -18,7 +18,8 @@ type Package struct {
+ 	Imports    []string
+ 	Filenames  []string
+ 	Notes      map[string][]*Note
+-	// DEPRECATED. For backward compatibility Bugs is still populated,
++
++	// Deprecated: For backward compatibility Bugs is still populated,
+ 	// but all new code should use Notes instead.
+ 	Bugs []string
+ 
+diff --git a/src/image/jpeg/reader.go b/src/image/jpeg/reader.go
+index 7729532219..0fe57006bb 100644
+--- a/src/image/jpeg/reader.go
++++ b/src/image/jpeg/reader.go
+@@ -89,7 +89,7 @@ var unzig = [blockSize]int{
+ 	53, 60, 61, 54, 47, 55, 62, 63,
+ }
+ 
+-// Reader is deprecated.
++// Deprecated: Reader is deprecated.
+ type Reader interface {
+ 	io.ByteReader
+ 	io.Reader
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index c29b0a226a..ab12bffa6e 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -31,7 +31,7 @@ func PrintStack() {
+ // then attempts to discover, for Go functions, the calling function or
+ // method and the text of the line containing the invocation.
+ //
+-// This function is deprecated. Use package runtime's Stack instead.
++// Deprecated: Use package runtime's Stack instead.
+ func Stack() []byte {
+ 	return stack()
+ }
+diff --git a/src/syscall/exec_plan9.go b/src/syscall/exec_plan9.go
+index ed358385b9..7a415fd31e 100644
+--- a/src/syscall/exec_plan9.go
++++ b/src/syscall/exec_plan9.go
+@@ -61,9 +61,11 @@ import (
+ 
+ var ForkLock sync.RWMutex
+ 
+-// StringSlicePtr is deprecated. Use SlicePtrFromStrings instead.
+-// If any string contains a NUL byte this function panics instead
+-// of returning an error.
++// StringSlicePtr converts a slice of strings to a slice of pointers
++// to NUL-terminated byte arrays. If any string contains a NUL byte
++// this function panics instead of returning an error.
++//
++// Deprecated: Use SlicePtrFromStrings instead.
+ func StringSlicePtr(ss []string) []*byte {
+ 	bb := make([]*byte, len(ss)+1)
+ 	for i := 0; i < len(ss); i++ {
+@@ -74,7 +76,7 @@ func StringSlicePtr(ss []string) []*byte {
+ }
+ 
+ // SlicePtrFromStrings converts a slice of strings to a slice of
+-// pointers to NUL-terminated byte slices. If any string contains
++// pointers to NUL-terminated byte arrays. If any string contains
+ // a NUL byte, it returns (nil, EINVAL).
+ func SlicePtrFromStrings(ss []string) ([]*byte, error) {
+ 	var err error
+diff --git a/src/syscall/exec_unix.go b/src/syscall/exec_unix.go
+index 890bfdc227..565252cb4a 100644
+--- a/src/syscall/exec_unix.go
++++ b/src/syscall/exec_unix.go
+@@ -63,9 +63,11 @@ import (
+ 
+ var ForkLock sync.RWMutex
+ 
+-// StringSlicePtr is deprecated. Use SlicePtrFromStrings instead.
+-// If any string contains a NUL byte this function panics instead
+-// of returning an error.
++// StringSlicePtr converts a slice of strings to a slice of pointers
++// to NUL-terminated byte arrays. If any string contains a NUL byte
++// this function panics instead of returning an error.
++//
++// Deprecated: Use SlicePtrFromStrings instead.
+ func StringSlicePtr(ss []string) []*byte {
+ 	bb := make([]*byte, len(ss)+1)
+ 	for i := 0; i < len(ss); i++ {
+@@ -76,7 +78,7 @@ func StringSlicePtr(ss []string) []*byte {
+ }
+ 
+ // SlicePtrFromStrings converts a slice of strings to a slice of
+-// pointers to NUL-terminated byte slices. If any string contains
++// pointers to NUL-terminated byte arrays. If any string contains
+ // a NUL byte, it returns (nil, EINVAL).
+ func SlicePtrFromStrings(ss []string) ([]*byte, error) {
+ 	var err error
+diff --git a/src/syscall/syscall.go b/src/syscall/syscall.go
+index c7b0daab0f..791bcbbb67 100644
+--- a/src/syscall/syscall.go
++++ b/src/syscall/syscall.go
+@@ -28,9 +28,11 @@ package syscall
+ 
+ import "unsafe"
+ 
+-// StringByteSlice is deprecated. Use ByteSliceFromString instead.
++// StringByteSlice converts a string to a NUL-terminated []byte,
+ // If s contains a NUL byte this function panics instead of
+ // returning an error.
++//
++// Deprecated: Use ByteSliceFromString instead.
+ func StringByteSlice(s string) []byte {
+ 	a, err := ByteSliceFromString(s)
+ 	if err != nil {
+@@ -53,9 +55,11 @@ func ByteSliceFromString(s string) ([]byte, error) {
+ 	return a, nil
+ }
+ 
+-// StringBytePtr is deprecated. Use BytePtrFromString instead.
+-// If s contains a NUL byte this function panics instead of
+-// returning an error.
++// StringBytePtr returns a pointer to a NUL-terminated array of bytes.
++// If s contains a NUL byte this function panics instead of returning
++// an error.
++//
++// Deprecated: Use BytePtrFromString instead.
+ func StringBytePtr(s string) *byte { return &StringByteSlice(s)[0] }
+ 
+ // BytePtrFromString returns a pointer to a NUL-terminated array of
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 225946c03d..23035ac387 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -19,9 +19,11 @@ type Handle uintptr
+ 
+ const InvalidHandle = ^Handle(0)
+ 
+-// StringToUTF16 is deprecated. Use UTF16FromString instead.
+-// If s contains a NUL byte this function panics instead of
+-// returning an error.
++// StringToUTF16 returns the UTF-16 encoding of the UTF-8 string s,
++// with a terminating NUL added. If s contains a NUL byte this
++// function panics instead of returning an error.
++//
++// Deprecated: Use UTF16FromString instead.
+ func StringToUTF16(s string) []uint16 {
+ 	a, err := UTF16FromString(s)
+ 	if err != nil {
+@@ -54,9 +56,12 @@ func UTF16ToString(s []uint16) string {
+ 	return string(utf16.Decode(s))
+ }
+ 
+-// StringToUTF16Ptr is deprecated. Use UTF16PtrFromString instead.
++// StringToUTF16Ptr returns pointer to the UTF-16 encoding of
++// the UTF-8 string s, with a terminating NUL added. If s
+ // If s contains a NUL byte this function panics instead of
+ // returning an error.
++//
++// Deprecated: Use UTF16PtrFromString instead.
+ func StringToUTF16Ptr(s string) *uint16 { return &StringToUTF16(s)[0] }
+ 
+ // UTF16PtrFromString returns pointer to the UTF-16 encoding of
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 728181baae..55ff46c17a 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -145,7 +145,7 @@ type PipeNode struct {
+ 	NodeType
+ 	Pos
+ 	tr   *Tree
+-	Line int             // The line number in the input (deprecated; kept for compatibility)
++	Line int             // The line number in the input. Deprecated: Kept for compatibility.
+ 	Decl []*VariableNode // Variable declarations in lexical order.
+ 	Cmds []*CommandNode  // The commands in lexical order.
+ }
+@@ -208,7 +208,7 @@ type ActionNode struct {
+ 	NodeType
+ 	Pos
+ 	tr   *Tree
+-	Line int       // The line number in the input (deprecated; kept for compatibility)
++	Line int       // The line number in the input. Deprecated: Kept for compatibility.
+ 	Pipe *PipeNode // The pipeline in the action.
+ }
+ 
+@@ -701,7 +701,7 @@ type elseNode struct {
+ 	NodeType
+ 	Pos
+ 	tr   *Tree
+-	Line int // The line number in the input (deprecated; kept for compatibility)
++	Line int // The line number in the input. Deprecated: Kept for compatibility.
+ }
+ 
+ func (t *Tree) newElse(pos Pos, line int) *elseNode {
+@@ -729,7 +729,7 @@ type BranchNode struct {
+ 	NodeType
+ 	Pos
+ 	tr       *Tree
+-	Line     int       // The line number in the input (deprecated; kept for compatibility)
++	Line     int       // The line number in the input. Deprecated: Kept for compatibility.
+ 	Pipe     *PipeNode // The pipeline to be evaluated.
+ 	List     *ListNode // What to execute if the value is non-empty.
+ 	ElseList *ListNode // What to execute if the value is empty (nil if absent).
+@@ -814,7 +814,7 @@ type TemplateNode struct {
+ 	NodeType
+ 	Pos
+ 	tr   *Tree
+-	Line int       // The line number in the input (deprecated; kept for compatibility)
++	Line int       // The line number in the input. Deprecated: Kept for compatibility.
+ 	Name string    // The name of the template (unquoted).
+ 	Pipe *PipeNode // The command to evaluate as dot for the template.
+ }

@@ -24,6 +24,20 @@ Date:   Sun Sep 3 20:01:00 2017 +0200
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/cmd/dist/buildtool.go | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 8a3db32ad3..77cf41a3eb 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -190,7 +190,7 @@ func bootstrapBuildTools() {
+ 	xprintf("\n")
+ }
+ 
+-var ssaRewriteFileSubstring = filepath.ToSlash("src/cmd/compile/internal/ssa/rewrite")
++var ssaRewriteFileSubstring = filepath.FromSlash("src/cmd/compile/internal/ssa/rewrite")
+ 
+ // isUnneededSSARewriteFile reports whether srcFile is a
+ // src/cmd/compile/internal/ssa/rewriteARCHNAME.go file for an

@@ -9,6 +9,26 @@ Date:   Sun Apr 3 08:52:43 2011 -0700
     R=golang-dev, r
     CC=golang-dev
     https://golang.org/cl/4350047
-
+---
  src/pkg/os/error_plan9.go | 4 ++++
  1 file changed, 4 insertions(+)
+
+diff --git a/src/pkg/os/error_plan9.go b/src/pkg/os/error_plan9.go
+index 0f34f04a4d..d6575864e8 100644
+--- a/src/pkg/os/error_plan9.go
++++ b/src/pkg/os/error_plan9.go
+@@ -35,10 +35,14 @@ var (
+ 	Ebadarg    = NewError("bad arg in system call")
+ 	Enotdir    = NewError("not a directory")
+ 	Enonexist  = NewError("file does not exist")
++	Eexist     = NewError("file already exists")
++	Eio        = NewError("i/o error")
+ 
+ 	EINVAL  = Ebadarg
+ 	ENOTDIR = Enotdir
+ 	ENOENT  = Enonexist
++	EEXIST  = Eexist
++	EIO     = Eio
+ 
+ 	ENAMETOOLONG = NewError("file name too long")
+ 	ERANGE       = NewError("math result not representable")

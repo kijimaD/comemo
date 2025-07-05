@@ -64,7 +64,7 @@ Date:   Tue Mar 15 02:48:18 2022 +0000
     Reviewed-by: Michael Pratt <mpratt@google.com>
     TryBot-Result: Gopher Robot <gobot@golang.org>
     Run-TryBot: Michael Knyszek <mknyszek@google.com>
-
+---
  src/runtime/debuglog.go         |  8 ++++++--
  src/runtime/export_test.go      | 24 ++++++++++++++++++------
  src/runtime/malloc.go           | 25 +++++++++++++++++--------
@@ -75,3 +75,402 @@ Date:   Tue Mar 15 02:48:18 2022 +0000
  src/runtime/mpagealloc_64bit.go |  3 ++-
  src/runtime/mstats.go           | 24 ++++++++++++++++++------
  9 files changed, 98 insertions(+), 28 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 75b91c4216..7f92a6baf8 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -72,7 +72,9 @@ func dlog() *dlogger {
+ 
+ 	// If that failed, allocate a new logger.
+ 	if l == nil {
+-		l = (*dlogger)(sysAlloc(unsafe.Sizeof(dlogger{}), nil))
++		// Use sysAllocOS instead of sysAlloc because we want to interfere
++		// with the runtime as little as possible, and sysAlloc updates accounting.
++		l = (*dlogger)(sysAllocOS(unsafe.Sizeof(dlogger{})))
+ 		if l == nil {
+ 			throw("failed to allocate debug log")
+ 		}
+@@ -714,7 +716,9 @@ func printDebugLog() {
+ 		lost     uint64
+ 		nextTick uint64
+ 	}
+-	state1 := sysAlloc(unsafe.Sizeof(readState{})*uintptr(n), nil)
++	// Use sysAllocOS instead of sysAlloc because we want to interfere
++	// with the runtime as little as possible, and sysAlloc updates accounting.
++	state1 := sysAllocOS(unsafe.Sizeof(readState{}) * uintptr(n))
+ 	if state1 == nil {
+ 		println("failed to allocate read state for", n, "logs")
+ 		printunlock()
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 2925c1b0a6..4025ac3743 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -859,6 +859,12 @@ func (a AddrRange) Size() uintptr {
+ 	return a.addrRange.size()
+ }
+ 
++// testSysStat is the sysStat passed to test versions of various
++// runtime structures. We do actually have to keep track of this
++// because otherwise memstats.mappedReady won't actually line up
++// with other stats in the runtime during tests.
++var testSysStat = &memstats.other_sys
++
+ // AddrRanges is a wrapper around addrRanges for testing.
+ type AddrRanges struct {
+ 	addrRanges
+@@ -876,7 +882,7 @@ type AddrRanges struct {
+ // Add.
+ func NewAddrRanges() AddrRanges {
+ 	r := addrRanges{}
+-	r.init(new(sysMemStat))
++	r.init(testSysStat)
+ 	return AddrRanges{r, true}
+ }
+ 
+@@ -900,7 +906,7 @@ func MakeAddrRanges(a ...AddrRange) AddrRanges {
+ 	return AddrRanges{addrRanges{
+ 		ranges:     ranges,
+ 		totalBytes: total,
+-		sysStat:    new(sysMemStat),
++		sysStat:    testSysStat,
+ 	}, false}
+ }
+ 
+@@ -959,7 +965,7 @@ func NewPageAlloc(chunks, scav map[ChunkIdx][]BitRange) *PageAlloc {
+ 	p := new(pageAlloc)
+ 
+ 	// We've got an entry, so initialize the pageAlloc.
+-	p.init(new(mutex), nil)
++	p.init(new(mutex), testSysStat)
+ 	lockInit(p.mheapLock, lockRankMheap)
+ 	p.test = true
+ 
+@@ -1027,22 +1033,28 @@ func FreePageAlloc(pp *PageAlloc) {
+ 	// Free all the mapped space for the summary levels.
+ 	if pageAlloc64Bit != 0 {
+ 		for l := 0; l < summaryLevels; l++ {
+-			sysFree(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes, nil)
++			sysFreeOS(unsafe.Pointer(&p.summary[l][0]), uintptr(cap(p.summary[l]))*pallocSumBytes)
+ 		}
+ 	} else {
+ 		resSize := uintptr(0)
+ 		for _, s := range p.summary {
+ 			resSize += uintptr(cap(s)) * pallocSumBytes
+ 		}
+-		sysFree(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize), nil)
++		sysFreeOS(unsafe.Pointer(&p.summary[0][0]), alignUp(resSize, physPageSize))
+ 	}
++	// Subtract back out whatever we mapped for the summaries.
++	// sysUsed adds to p.sysStat and memstats.mappedReady no matter what
++	// (and in anger should actually be accounted for), and there's no other
++	// way to figure out how much we actually mapped.
++	memstats.mappedReady.Add(-int64(p.summaryMappedReady))
++	testSysStat.add(-int64(p.summaryMappedReady))
+ 
+ 	// Free the mapped space for chunks.
+ 	for i := range p.chunks {
+ 		if x := p.chunks[i]; x != nil {
+ 			p.chunks[i] = nil
+ 			// This memory comes from sysAlloc and will always be page-aligned.
+-			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), nil)
++			sysFree(unsafe.Pointer(x), unsafe.Sizeof(*p.chunks[0]), testSysStat)
+ 		}
+ 	}
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index c182197782..ae41da8764 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -603,7 +603,7 @@ func (h *mheap) sysAlloc(n uintptr) (v unsafe.Pointer, size uintptr) {
+ 		// particular, this is already how Windows behaves, so
+ 		// it would simplify things there.
+ 		if v != nil {
+-			sysFree(v, n, nil)
++			sysFreeOS(v, n)
+ 		}
+ 		h.arenaHints = hint.next
+ 		h.arenaHintAlloc.free(unsafe.Pointer(hint))
+@@ -664,7 +664,14 @@ mapped:
+ 		l2 := h.arenas[ri.l1()]
+ 		if l2 == nil {
+ 			// Allocate an L2 arena map.
+-			l2 = (*[1 << arenaL2Bits]*heapArena)(persistentalloc(unsafe.Sizeof(*l2), goarch.PtrSize, nil))
++			//
++			// Use sysAllocOS instead of sysAlloc or persistentalloc because there's no
++			// statistic we can comfortably account for this space in. With this structure,
++			// we rely on demand paging to avoid large overheads, but tracking which memory
++			// is paged in is too expensive. Trying to account for the whole region means
++			// that it will appear like an enormous memory overhead in statistics, even though
++			// it is not.
++			l2 = (*[1 << arenaL2Bits]*heapArena)(sysAllocOS(unsafe.Sizeof(*l2)))
+ 			if l2 == nil {
+ 				throw("out of memory allocating heap arena map")
+ 			}
+@@ -741,12 +748,12 @@ retry:
+ 		// reservation, so we release the whole thing and
+ 		// re-reserve the aligned sub-region. This may race,
+ 		// so we may have to try again.
+-		sysFree(unsafe.Pointer(p), size+align, nil)
++		sysFreeOS(unsafe.Pointer(p), size+align)
+ 		p = alignUp(p, align)
+ 		p2 := sysReserve(unsafe.Pointer(p), size)
+ 		if p != uintptr(p2) {
+ 			// Must have raced. Try again.
+-			sysFree(p2, size, nil)
++			sysFreeOS(p2, size)
+ 			if retries++; retries == 100 {
+ 				throw("failed to allocate aligned heap memory; too many retries")
+ 			}
+@@ -757,11 +764,11 @@ retry:
+ 	default:
+ 		// Trim off the unaligned parts.
+ 		pAligned := alignUp(p, align)
+-		sysFree(unsafe.Pointer(p), pAligned-p, nil)
++		sysFreeOS(unsafe.Pointer(p), pAligned-p)
+ 		end := pAligned + size
+ 		endLen := (p + size + align) - end
+ 		if endLen > 0 {
+-			sysFree(unsafe.Pointer(end), endLen, nil)
++			sysFreeOS(unsafe.Pointer(end), endLen)
+ 		}
+ 		return unsafe.Pointer(pAligned), size
+ 	}
+@@ -1314,6 +1321,7 @@ var persistentChunks *notInHeap
+ // Intended for things like function/type/debug-related persistent data.
+ // If align is 0, uses default align (currently 8).
+ // The returned memory will be zeroed.
++// sysStat must be non-nil.
+ //
+ // Consider marking persistentalloc'd types go:notinheap.
+ func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+@@ -1444,8 +1452,9 @@ func (l *linearAlloc) alloc(size, align uintptr, sysStat *sysMemStat) unsafe.Poi
+ 	if pEnd := alignUp(l.next-1, physPageSize); pEnd > l.mapped {
+ 		if l.mapMemory {
+ 			// Transition from Reserved to Prepared to Ready.
+-			sysMap(unsafe.Pointer(l.mapped), pEnd-l.mapped, sysStat)
+-			sysUsed(unsafe.Pointer(l.mapped), pEnd-l.mapped)
++			n := pEnd - l.mapped
++			sysMap(unsafe.Pointer(l.mapped), n, sysStat)
++			sysUsed(unsafe.Pointer(l.mapped), n, n)
+ 		}
+ 		l.mapped = pEnd
+ 	}
+diff --git a/src/runtime/mem.go b/src/runtime/mem.go
+index 67af9c057f..f28e536760 100644
+--- a/src/runtime/mem.go
++++ b/src/runtime/mem.go
+@@ -40,11 +40,14 @@ import "unsafe"
+ // operating system, typically on the order of a hundred kilobytes
+ // or a megabyte. This memory is always immediately available for use.
+ //
++// sysStat must be non-nil.
++//
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	sysStat.add(int64(n))
++	memstats.mappedReady.Add(int64(n))
+ 	return sysAllocOS(n)
+ }
+ 
+@@ -54,6 +57,7 @@ func sysAlloc(n uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ // sysUnused memory region are considered forfeit and the region must not be
+ // accessed again until sysUsed is called.
+ func sysUnused(v unsafe.Pointer, n uintptr) {
++	memstats.mappedReady.Add(-int64(n))
+ 	sysUnusedOS(v, n)
+ }
+ 
+@@ -62,7 +66,13 @@ func sysUnused(v unsafe.Pointer, n uintptr) {
+ // may be safely accessed. This is typically a no-op on systems that don't have
+ // an explicit commit step and hard over-commit limits, but is critical on
+ // Windows, for example.
+-func sysUsed(v unsafe.Pointer, n uintptr) {
++//
++// This operation is idempotent for memory already in the Prepared state, so
++// it is safe to refer, with v and n, to a range of memory that includes both
++// Prepared and Ready memory. However, the caller must provide the exact amout
++// of Prepared memory for accounting purposes.
++func sysUsed(v unsafe.Pointer, n, prepared uintptr) {
++	memstats.mappedReady.Add(int64(prepared))
+ 	sysUsedOS(v, n)
+ }
+ 
+@@ -80,18 +90,28 @@ func sysHugePage(v unsafe.Pointer, n uintptr) {
+ // returns a memory region aligned to the heap allocator's alignment
+ // restrictions.
+ //
++// sysStat must be non-nil.
++//
+ // Don't split the stack as this function may be invoked without a valid G,
+ // which prevents us from allocating more stack.
+ //go:nosplit
+ func sysFree(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	sysStat.add(-int64(n))
++	memstats.mappedReady.Add(-int64(n))
+ 	sysFreeOS(v, n)
+ }
+ 
+-// sysFault transitions a memory region from Ready or Prepared to Reserved. It
++// sysFault transitions a memory region from Ready to Reserved. It
+ // marks a region such that it will always fault if accessed. Used only for
+ // debugging the runtime.
++//
++// TODO(mknyszek): Currently it's true that all uses of sysFault transition
++// memory from Ready to Reserved, but this may not be true in the future
++// since on every platform the operation is much more general than that.
++// If a transition from Prepared is ever introduced, create a new function
++// that elides the Ready state accounting.
+ func sysFault(v unsafe.Pointer, n uintptr) {
++	memstats.mappedReady.Add(-int64(n))
+ 	sysFaultOS(v, n)
+ }
+ 
+@@ -113,6 +133,8 @@ func sysReserve(v unsafe.Pointer, n uintptr) unsafe.Pointer {
+ 
+ // sysMap transitions a memory region from Reserved to Prepared. It ensures the
+ // memory region can be efficiently transitioned to Ready.
++//
++// sysStat must be non-nil.
+ func sysMap(v unsafe.Pointer, n uintptr, sysStat *sysMemStat) {
+ 	sysStat.add(int64(n))
+ 	sysMapOS(v, n)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 1c98afcfcc..49d1177005 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -80,7 +80,7 @@ type mheap struct {
+ 	// access (since that may free the backing store).
+ 	allspans []*mspan // all spans out there
+ 
+-	// _ uint32 // align uint64 fields on 32-bit for atomics
++	_ uint32 // align uint64 fields on 32-bit for atomics
+ 
+ 	// Proportional sweep
+ 	//
+@@ -1278,7 +1278,7 @@ HaveSpan:
+ 	if scav != 0 {
+ 		// sysUsed all the pages that are actually available
+ 		// in the span since some of them might be scavenged.
+-		sysUsed(unsafe.Pointer(base), nbytes)
++		sysUsed(unsafe.Pointer(base), nbytes, scav)
+ 		atomic.Xadd64(&memstats.heap_released, -int64(scav))
+ 	}
+ 	// Update stats.
+diff --git a/src/runtime/mpagealloc.go b/src/runtime/mpagealloc.go
+index 2725e3b7c7..c4ca2a5d61 100644
+--- a/src/runtime/mpagealloc.go
++++ b/src/runtime/mpagealloc.go
+@@ -309,6 +309,12 @@ type pageAlloc struct {
+ 	// memory is committed by the pageAlloc for allocation metadata.
+ 	sysStat *sysMemStat
+ 
++	// summaryMappedReady is the number of bytes mapped in the Ready state
++	// in the summary structure. Used only for testing currently.
++	//
++	// Protected by mheapLock.
++	summaryMappedReady uintptr
++
+ 	// Whether or not this struct is being used in tests.
+ 	test bool
+ }
+@@ -336,6 +342,9 @@ func (p *pageAlloc) init(mheapLock *mutex, sysStat *sysMemStat) {
+ 	// Set the mheapLock.
+ 	p.mheapLock = mheapLock
+ 
++	// Initialize p.scav.inUse.
++	p.scav.inUse.init(sysStat)
++
+ 	// Initialize scavenge tracking state.
+ 	p.scav.scavLWM = maxSearchAddr
+ }
+diff --git a/src/runtime/mpagealloc_32bit.go b/src/runtime/mpagealloc_32bit.go
+index 8c83b93412..e072f70cd7 100644
+--- a/src/runtime/mpagealloc_32bit.go
++++ b/src/runtime/mpagealloc_32bit.go
+@@ -71,7 +71,8 @@ func (p *pageAlloc) sysInit() {
+ 	}
+ 	// There isn't much. Just map it and mark it as used immediately.
+ 	sysMap(reservation, totalSize, p.sysStat)
+-	sysUsed(reservation, totalSize)
++	sysUsed(reservation, totalSize, totalSize)
++	p.summaryMappedReady += totalSize
+ 
+ 	// Iterate over the reservation and cut it up into slices.
+ 	//
+diff --git a/src/runtime/mpagealloc_64bit.go b/src/runtime/mpagealloc_64bit.go
+index 76b54baa55..0b99209d99 100644
+--- a/src/runtime/mpagealloc_64bit.go
++++ b/src/runtime/mpagealloc_64bit.go
+@@ -174,6 +174,7 @@ func (p *pageAlloc) sysGrow(base, limit uintptr) {
+ 
+ 		// Map and commit need.
+ 		sysMap(unsafe.Pointer(need.base.addr()), need.size(), p.sysStat)
+-		sysUsed(unsafe.Pointer(need.base.addr()), need.size())
++		sysUsed(unsafe.Pointer(need.base.addr()), need.size(), need.size())
++		p.summaryMappedReady += need.size()
+ 	}
+ }
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index e066ac0023..0843775553 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -20,6 +20,9 @@ import (
+ // Many of these fields are updated on the fly, while others are only
+ // updated when updatememstats is called.
+ type mstats struct {
++	// Total virtual memory in the Ready state (see mem.go).
++	mappedReady atomic.Uint64
++
+ 	// Statistics about malloc heap.
+ 
+ 	heapStats consistentHeapStats
+@@ -451,6 +454,10 @@ func readmemstats_m(stats *MemStats) {
+ 	gcWorkBufInUse := uint64(consStats.inWorkBufs)
+ 	gcProgPtrScalarBitsInUse := uint64(consStats.inPtrScalarBits)
+ 
++	totalMapped := memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
++		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
++		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
++
+ 	// The world is stopped, so the consistent stats (after aggregation)
+ 	// should be identical to some combination of memstats. In particular:
+ 	//
+@@ -492,14 +499,22 @@ func readmemstats_m(stats *MemStats) {
+ 		print("runtime: consistent value=", totalFree, "\n")
+ 		throw("totalFree and consistent stats are not equal")
+ 	}
++	// Also check that mappedReady lines up with totalMapped - released.
++	// This isn't really the same type of "make sure consistent stats line up" situation,
++	// but this is an opportune time to check.
++	if memstats.mappedReady.Load() != totalMapped-uint64(consStats.released) {
++		print("runtime: mappedReady=", memstats.mappedReady.Load(), "\n")
++		print("runtime: totalMapped=", totalMapped, "\n")
++		print("runtime: released=", uint64(consStats.released), "\n")
++		print("runtime: totalMapped-released=", totalMapped-uint64(consStats.released), "\n")
++		throw("mappedReady and other memstats are not equal")
++	}
+ 
+ 	// We've calculated all the values we need. Now, populate stats.
+ 
+ 	stats.Alloc = totalAlloc - totalFree
+ 	stats.TotalAlloc = totalAlloc
+-	stats.Sys = memstats.heap_sys.load() + memstats.stacks_sys.load() + memstats.mspan_sys.load() +
+-		memstats.mcache_sys.load() + memstats.buckhash_sys.load() + memstats.gcMiscSys.load() +
+-		memstats.other_sys.load() + stackInUse + gcWorkBufInUse + gcProgPtrScalarBitsInUse
++	stats.Sys = totalMapped
+ 	stats.Mallocs = nMalloc
+ 	stats.Frees = nFree
+ 	stats.HeapAlloc = totalAlloc - totalFree
+@@ -649,9 +664,6 @@ func (s *sysMemStat) load() uint64 {
+ //
+ //go:nosplit
+ func (s *sysMemStat) add(n int64) {
+-	if s == nil {
+-		return
+-	}
+ 	val := atomic.Xadd64((*uint64)(s), n)
+ 	if (n > 0 && int64(val) < n) || (n < 0 && int64(val)+n < n) {
+ 		print("runtime: val=", val, " n=", n, "\n")

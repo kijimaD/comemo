@@ -15,7 +15,7 @@ Date:   Mon Jan 9 21:37:46 2012 +0900
     R=rsc, dave, borman, iant, mikioh.mikioh
     CC=golang-dev
     https://golang.org/cl/5487061
-
+---
  src/buildscript_darwin_386.sh          |   2 +-
  src/buildscript_darwin_amd64.sh        |   2 +-
  src/buildscript_freebsd_386.sh         |   2 +-
@@ -36,3 +36,1109 @@ Date:   Mon Jan 9 21:37:46 2012 +0900
  src/pkg/syscall/zerrors_linux_amd64.go |  58 +++++++++
  src/pkg/syscall/zerrors_linux_arm.go   |  58 +++++++++
  19 files changed, 643 insertions(+), 221 deletions(-)
+
+diff --git a/src/buildscript_darwin_386.sh b/src/buildscript_darwin_386.sh
+index 77c09e6a26..44c33cef1f 100755
+--- a/src/buildscript_darwin_386.sh
++++ b/src/buildscript_darwin_386.sh
+@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_386/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_386.go ./syscall_unix.go ./zerrors_darwin_386.go ./zsyscall_darwin_386.go ./zsysnum_darwin_386.go ./ztypes_darwin_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_darwin_386.8 -DGOOS_darwin -DGOARCH_386 ./asm_darwin_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_darwin_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/darwin_386/syscall.a
+diff --git a/src/buildscript_darwin_amd64.sh b/src/buildscript_darwin_amd64.sh
+index ee4d868f26..fcc697552c 100755
+--- a/src/buildscript_darwin_amd64.sh
++++ b/src/buildscript_darwin_amd64.sh
+@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/darwin_amd64/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_amd64.go ./syscall_unix.go ./zerrors_darwin_amd64.go ./zsyscall_darwin_amd64.go ./zsysnum_darwin_amd64.go ./ztypes_darwin_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_darwin.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_darwin.go ./syscall_darwin_amd64.go ./syscall_unix.go ./zerrors_darwin_amd64.go ./zsyscall_darwin_amd64.go ./zsysnum_darwin_amd64.go ./ztypes_darwin_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_darwin_amd64.6 -DGOOS_darwin -DGOARCH_amd64 ./asm_darwin_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_darwin_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/darwin_amd64/syscall.a
+diff --git a/src/buildscript_freebsd_386.sh b/src/buildscript_freebsd_386.sh
+index 83ffb925ee..a444e94771 100755
+--- a/src/buildscript_freebsd_386.sh
++++ b/src/buildscript_freebsd_386.sh
+@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_386/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_386.go ./syscall_unix.go ./zerrors_freebsd_386.go ./zsyscall_freebsd_386.go ./zsysnum_freebsd_386.go ./ztypes_freebsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_386.8 -DGOOS_freebsd -DGOARCH_386 ./asm_freebsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_freebsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_386/syscall.a
+diff --git a/src/buildscript_freebsd_amd64.sh b/src/buildscript_freebsd_amd64.sh
+index c1608da070..d5dca47505 100755
+--- a/src/buildscript_freebsd_amd64.sh
++++ b/src/buildscript_freebsd_amd64.sh
+@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/freebsd_amd64/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_amd64.go ./syscall_unix.go ./zerrors_freebsd_amd64.go ./zsyscall_freebsd_amd64.go ./zsysnum_freebsd_amd64.go ./ztypes_freebsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_freebsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_freebsd.go ./syscall_freebsd_amd64.go ./syscall_unix.go ./zerrors_freebsd_amd64.go ./zsyscall_freebsd_amd64.go ./zsysnum_freebsd_amd64.go ./ztypes_freebsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_freebsd_amd64.6 -DGOOS_freebsd -DGOARCH_amd64 ./asm_freebsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_freebsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/freebsd_amd64/syscall.a
+diff --git a/src/buildscript_linux_386.sh b/src/buildscript_linux_386.sh
+index 15187621de..09260ae9b3 100755
+--- a/src/buildscript_linux_386.sh
++++ b/src/buildscript_linux_386.sh
+@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_386/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_unix.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_linux.go ./syscall_linux_386.go ./syscall_unix.go ./zerrors_linux_386.go ./zsyscall_linux_386.go ./zsysnum_linux_386.go ./ztypes_linux_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_linux.go ./syscall_linux_386.go ./syscall_unix.go ./zerrors_linux_386.go ./zsyscall_linux_386.go ./zsysnum_linux_386.go ./ztypes_linux_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_386.8 -DGOOS_linux -DGOARCH_386 ./asm_linux_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_linux_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_386/syscall.a
+diff --git a/src/buildscript_linux_amd64.sh b/src/buildscript_linux_amd64.sh
+index 850e6d5853..cc1ab834ea 100755
+--- a/src/buildscript_linux_amd64.sh
++++ b/src/buildscript_linux_amd64.sh
+@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_amd64/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_linux.go ./syscall_linux_amd64.go ./syscall_unix.go ./zerrors_linux_amd64.go ./zsyscall_linux_amd64.go ./zsysnum_linux_amd64.go ./ztypes_linux_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_amd64.6 -DGOOS_linux -DGOARCH_amd64 ./asm_linux_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_linux_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_amd64/syscall.a
+diff --git a/src/buildscript_linux_arm.sh b/src/buildscript_linux_arm.sh
+index d0722e207c..9e18fe6fdd 100755
+--- a/src/buildscript_linux_arm.sh
++++ b/src/buildscript_linux_arm.sh
+@@ -265,7 +265,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/linux_arm/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_arm.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
++5g -o "$WORK"/syscall/_obj/_go_.5 -p syscall -I "$WORK" ./env_unix.go ./exec_linux.go ./exec_unix.go ./lsf_linux.go ./netlink_linux.go ./sockcmsg_linux.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_arm.go ./syscall_linux.go ./syscall_linux_arm.go ./syscall_unix.go ./zerrors_linux_arm.go ./zsyscall_linux_arm.go ./zsysnum_linux_arm.go ./ztypes_linux_arm.go
+ 5a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_linux_arm.5 -DGOOS_linux -DGOARCH_arm ./asm_linux_arm.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.5 "$WORK"/syscall/_obj/asm_linux_arm.5
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/linux_arm/syscall.a
+diff --git a/src/buildscript_netbsd_386.sh b/src/buildscript_netbsd_386.sh
+index 69b4733075..4112d905e6 100755
+--- a/src/buildscript_netbsd_386.sh
++++ b/src/buildscript_netbsd_386.sh
+@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_386/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_386.go ./syscall_unix.go ./zerrors_netbsd_386.go ./zsyscall_netbsd_386.go ./zsysnum_netbsd_386.go ./ztypes_netbsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_386.go ./syscall_unix.go ./zerrors_netbsd_386.go ./zsyscall_netbsd_386.go ./zsysnum_netbsd_386.go ./ztypes_netbsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_netbsd_386.8 -DGOOS_netbsd -DGOARCH_386 ./asm_netbsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_netbsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/netbsd_386/syscall.a
+diff --git a/src/buildscript_netbsd_amd64.sh b/src/buildscript_netbsd_amd64.sh
+index b75992024c..c83a2dadf1 100755
+--- a/src/buildscript_netbsd_amd64.sh
++++ b/src/buildscript_netbsd_amd64.sh
+@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/netbsd_amd64/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_netbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_netbsd.go ./syscall_netbsd_amd64.go ./syscall_unix.go ./zerrors_netbsd_amd64.go ./zsyscall_netbsd_amd64.go ./zsysnum_netbsd_amd64.go ./ztypes_netbsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_netbsd_amd64.6 -DGOOS_netbsd -DGOARCH_amd64 ./asm_netbsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_netbsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/netbsd_amd64/syscall.a
+diff --git a/src/buildscript_openbsd_386.sh b/src/buildscript_openbsd_386.sh
+index 34aa4e35e3..e63b97aad6 100755
+--- a/src/buildscript_openbsd_386.sh
++++ b/src/buildscript_openbsd_386.sh
+@@ -262,7 +262,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_386/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_386.go ./syscall_unix.go ./zerrors_openbsd_386.go ./zsyscall_openbsd_386.go ./zsysctl_openbsd.go ./zsysnum_openbsd_386.go ./ztypes_openbsd_386.go
++8g -o "$WORK"/syscall/_obj/_go_.8 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_386.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_386.go ./syscall_unix.go ./zerrors_openbsd_386.go ./zsyscall_openbsd_386.go ./zsysctl_openbsd.go ./zsysnum_openbsd_386.go ./ztypes_openbsd_386.go
+ 8a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_openbsd_386.8 -DGOOS_openbsd -DGOARCH_386 ./asm_openbsd_386.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.8 "$WORK"/syscall/_obj/asm_openbsd_386.8
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/openbsd_386/syscall.a
+diff --git a/src/buildscript_openbsd_amd64.sh b/src/buildscript_openbsd_amd64.sh
+index 7837a0e726..8099e999a7 100755
+--- a/src/buildscript_openbsd_amd64.sh
++++ b/src/buildscript_openbsd_amd64.sh
+@@ -261,7 +261,7 @@ cp "$WORK"/encoding/json.a "$GOROOT"/pkg/openbsd_amd64/encoding/json.a
+ 
+ mkdir -p "$WORK"/syscall/_obj/
+ cd "$GOROOT"/src/pkg/syscall
+-6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_amd64.go ./syscall_unix.go ./zerrors_openbsd_amd64.go ./zsyscall_openbsd_amd64.go ./zsysctl_openbsd.go ./zsysnum_openbsd_amd64.go ./ztypes_openbsd_amd64.go
++6g -o "$WORK"/syscall/_obj/_go_.6 -p syscall -I "$WORK" ./bpf_bsd.go ./env_unix.go ./exec_bsd.go ./exec_unix.go ./route_bsd.go ./route_openbsd.go ./sockcmsg_unix.go ./str.go ./syscall.go ./syscall_amd64.go ./syscall_bsd.go ./syscall_openbsd.go ./syscall_openbsd_amd64.go ./syscall_unix.go ./zerrors_openbsd_amd64.go ./zsyscall_openbsd_amd64.go ./zsysctl_openbsd.go ./zsysnum_openbsd_amd64.go ./ztypes_openbsd_amd64.go
+ 6a -I "$WORK"/syscall/_obj/ -o "$WORK"/syscall/_obj/asm_openbsd_amd64.6 -DGOOS_openbsd -DGOARCH_amd64 ./asm_openbsd_amd64.s
+ gopack grc "$WORK"/syscall.a "$WORK"/syscall/_obj/_go_.6 "$WORK"/syscall/_obj/asm_openbsd_amd64.6
+ cp "$WORK"/syscall.a "$GOROOT"/pkg/openbsd_amd64/syscall.a
+diff --git a/src/pkg/syscall/Makefile b/src/pkg/syscall/Makefile
+index 0ca5d6ac9b..ed009d25ce 100644
+--- a/src/pkg/syscall/Makefile
++++ b/src/pkg/syscall/Makefile
+@@ -19,6 +19,7 @@ GOFILES=\
+ GOFILES_darwin=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
++	exec_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+ 	route_darwin.go\
+@@ -29,6 +30,7 @@ GOFILES_darwin=\
+ GOFILES_freebsd=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
++	exec_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+ 	route_freebsd.go\
+@@ -39,6 +41,7 @@ GOFILES_freebsd=\
+ GOFILES_linux=\
+ 	env_unix.go\
+ 	exec_unix.go\
++	exec_linux.go\
+ 	lsf_linux.go\
+ 	netlink_linux.go\
+ 	sockcmsg_linux.go\
+@@ -48,6 +51,7 @@ GOFILES_linux=\
+ GOFILES_netbsd=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
++	exec_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+ 	route_netbsd.go\
+@@ -58,6 +62,7 @@ GOFILES_netbsd=\
+ GOFILES_openbsd=\
+ 	bpf_bsd.go\
+ 	env_unix.go\
++	exec_bsd.go\
+ 	exec_unix.go\
+ 	route_bsd.go\
+ 	route_openbsd.go\
+diff --git a/src/pkg/syscall/exec_bsd.go b/src/pkg/syscall/exec_bsd.go
+new file mode 100644
+index 0000000000..2240727f14
+--- /dev/null
++++ b/src/pkg/syscall/exec_bsd.go
+@@ -0,0 +1,220 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build darwin freebsd netbsd openbsd
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++type SysProcAttr struct {
++	Chroot     string      // Chroot.
++	Credential *Credential // Credential.
++	Ptrace     bool        // Enable tracing.
++	Setsid     bool        // Create session.
++	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
++	Setctty    bool        // Set controlling terminal to fd 0
++	Noctty     bool        // Detach fd 0 from controlling terminal
++}
++
++// Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
++// If a dup or exec fails, write the errno error to pipe.
++// (Pipe is close-on-exec so if exec succeeds, it will be closed.)
++// In the child, this function must not acquire any locks, because
++// they might have been locked at the time of the fork.  This means
++// no rescheduling, no malloc calls, and no new stack segments.
++// The calls to RawSyscall are okay because they are assembly
++// functions that do not grow the stack.
++func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
++	// Declare all variables at top in case any
++	// declarations require heap allocation (e.g., err1).
++	var (
++		r1, r2 uintptr
++		err1   Errno
++		nextfd int
++		i      int
++	)
++
++	// guard against side effects of shuffling fds below.
++	fd := append([]int(nil), attr.Files...)
++
++	darwin := OS == "darwin"
++
++	// About to call fork.
++	// No more allocation or calls of non-assembly functions.
++	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
++	if err1 != 0 {
++		return 0, err1
++	}
++
++	// On Darwin:
++	//	r1 = child pid in both parent and child.
++	//	r2 = 0 in parent, 1 in child.
++	// Convert to normal Unix r1 = 0 in child.
++	if darwin && r2 == 1 {
++		r1 = 0
++	}
++
++	if r1 != 0 {
++		// parent; return PID
++		return int(r1), 0
++	}
++
++	// Fork succeeded, now in child.
++
++	// Enable tracing if requested.
++	if sys.Ptrace {
++		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Session ID
++	if sys.Setsid {
++		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set process group
++	if sys.Setpgid {
++		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chroot
++	if chroot != nil {
++		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// User and groups
++	if cred := sys.Credential; cred != nil {
++		ngroups := uintptr(len(cred.Groups))
++		groups := uintptr(0)
++		if ngroups > 0 {
++			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
++		}
++		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(cred.Uid), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chdir
++	if dir != nil {
++		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Pass 1: look for fd[i] < i and move those up above len(fd)
++	// so that pass 2 won't stomp on an fd it needs later.
++	nextfd = int(len(fd))
++	if pipe < nextfd {
++		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		pipe = nextfd
++		nextfd++
++	}
++	for i = 0; i < len(fd); i++ {
++		if fd[i] >= 0 && fd[i] < int(i) {
++			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			fd[i] = nextfd
++			nextfd++
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
++		}
++	}
++
++	// Pass 2: dup fd[i] down onto i.
++	for i = 0; i < len(fd); i++ {
++		if fd[i] == -1 {
++			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
++			continue
++		}
++		if fd[i] == int(i) {
++			// dup2(i, i) won't clear close-on-exec flag on Linux,
++			// probably not elsewhere either.
++			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			continue
++		}
++		// The new fd is created NOT close-on-exec,
++		// which is exactly what we want.
++		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// By convention, we don't close-on-exec the fds we are
++	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
++	// Programs that know they inherit fds >= 3 will need
++	// to set them close-on-exec.
++	for i = len(fd); i < 3; i++ {
++		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
++	}
++
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Make fd 0 the tty
++	if sys.Setctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Time to exec.
++	_, _, err1 = RawSyscall(SYS_EXECVE,
++		uintptr(unsafe.Pointer(argv0)),
++		uintptr(unsafe.Pointer(&argv[0])),
++		uintptr(unsafe.Pointer(&envv[0])))
++
++childerror:
++	// send error code on pipe
++	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
++	for {
++		RawSyscall(SYS_EXIT, 253, 0, 0)
++	}
++
++	// Calling panic is not actually safe,
++	// but the for loop above won't break
++	// and this shuts up the compiler.
++	panic("unreached")
++}
+diff --git a/src/pkg/syscall/exec_linux.go b/src/pkg/syscall/exec_linux.go
+new file mode 100644
+index 0000000000..38b8f9e357
+--- /dev/null
++++ b/src/pkg/syscall/exec_linux.go
+@@ -0,0 +1,231 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// +build linux
++
++package syscall
++
++import (
++	"unsafe"
++)
++
++type SysProcAttr struct {
++	Chroot     string      // Chroot.
++	Credential *Credential // Credential.
++	Ptrace     bool        // Enable tracing.
++	Setsid     bool        // Create session.
++	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
++	Setctty    bool        // Set controlling terminal to fd 0
++	Noctty     bool        // Detach fd 0 from controlling terminal
++	Pdeathsig  int         // Signal that the process will get when its parent dies (Linux only)
++}
++
++// Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
++// If a dup or exec fails, write the errno error to pipe.
++// (Pipe is close-on-exec so if exec succeeds, it will be closed.)
++// In the child, this function must not acquire any locks, because
++// they might have been locked at the time of the fork.  This means
++// no rescheduling, no malloc calls, and no new stack segments.
++// The calls to RawSyscall are okay because they are assembly
++// functions that do not grow the stack.
++func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
++	// Declare all variables at top in case any
++	// declarations require heap allocation (e.g., err1).
++	var (
++		r1     uintptr
++		err1   Errno
++		nextfd int
++		i      int
++	)
++
++	// guard against side effects of shuffling fds below.
++	fd := append([]int(nil), attr.Files...)
++
++	// About to call fork.
++	// No more allocation or calls of non-assembly functions.
++	r1, _, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
++	if err1 != 0 {
++		return 0, err1
++	}
++
++	if r1 != 0 {
++		// parent; return PID
++		return int(r1), 0
++	}
++
++	// Fork succeeded, now in child.
++
++	// Parent death signal
++	if sys.Pdeathsig != 0 {
++		_, _, err1 = RawSyscall6(SYS_PRCTL, PR_SET_PDEATHSIG, uintptr(sys.Pdeathsig), 0, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++
++		// Signal self if parent is already dead. This might cause a
++		// duplicate signal in rare cases, but it won't matter when
++		// using SIGKILL.
++		r1, _, _ = RawSyscall(SYS_GETPPID, 0, 0, 0)
++		if r1 == 1 {
++			pid, _, _ := RawSyscall(SYS_GETPID, 0, 0, 0)
++			_, _, err1 := RawSyscall(SYS_KILL, pid, uintptr(sys.Pdeathsig), 0)
++			if err1 != 0 {
++				goto childerror
++			}
++		}
++	}
++
++	// Enable tracing if requested.
++	if sys.Ptrace {
++		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Session ID
++	if sys.Setsid {
++		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Set process group
++	if sys.Setpgid {
++		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chroot
++	if chroot != nil {
++		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// User and groups
++	if cred := sys.Credential; cred != nil {
++		ngroups := uintptr(len(cred.Groups))
++		groups := uintptr(0)
++		if ngroups > 0 {
++			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
++		}
++		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(cred.Uid), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Chdir
++	if dir != nil {
++		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Pass 1: look for fd[i] < i and move those up above len(fd)
++	// so that pass 2 won't stomp on an fd it needs later.
++	nextfd = int(len(fd))
++	if pipe < nextfd {
++		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++		pipe = nextfd
++		nextfd++
++	}
++	for i = 0; i < len(fd); i++ {
++		if fd[i] >= 0 && fd[i] < int(i) {
++			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
++			fd[i] = nextfd
++			nextfd++
++			if nextfd == pipe { // don't stomp on pipe
++				nextfd++
++			}
++		}
++	}
++
++	// Pass 2: dup fd[i] down onto i.
++	for i = 0; i < len(fd); i++ {
++		if fd[i] == -1 {
++			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
++			continue
++		}
++		if fd[i] == int(i) {
++			// dup2(i, i) won't clear close-on-exec flag on Linux,
++			// probably not elsewhere either.
++			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
++			if err1 != 0 {
++				goto childerror
++			}
++			continue
++		}
++		// The new fd is created NOT close-on-exec,
++		// which is exactly what we want.
++		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// By convention, we don't close-on-exec the fds we are
++	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
++	// Programs that know they inherit fds >= 3 will need
++	// to set them close-on-exec.
++	for i = len(fd); i < 3; i++ {
++		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
++	}
++
++	// Detach fd 0 from tty
++	if sys.Noctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Make fd 0 the tty
++	if sys.Setctty {
++		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCSCTTY), 0)
++		if err1 != 0 {
++			goto childerror
++		}
++	}
++
++	// Time to exec.
++	_, _, err1 = RawSyscall(SYS_EXECVE,
++		uintptr(unsafe.Pointer(argv0)),
++		uintptr(unsafe.Pointer(&argv[0])),
++		uintptr(unsafe.Pointer(&envv[0])))
++
++childerror:
++	// send error code on pipe
++	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
++	for {
++		RawSyscall(SYS_EXIT, 253, 0, 0)
++	}
++
++	// Calling panic is not actually safe,
++	// but the for loop above won't break
++	// and this shuts up the compiler.
++	panic("unreached")
++}
+diff --git a/src/pkg/syscall/exec_unix.go b/src/pkg/syscall/exec_unix.go
+index 2c79619fad..59696732c5 100644
+--- a/src/pkg/syscall/exec_unix.go
++++ b/src/pkg/syscall/exec_unix.go
+@@ -89,205 +89,6 @@ func SetNonblock(fd int, nonblocking bool) (err error) {
+ 	return err
+ }
+ 
+-// Fork, dup fd onto 0..len(fd), and exec(argv0, argvv, envv) in child.
+-// If a dup or exec fails, write the errno error to pipe.
+-// (Pipe is close-on-exec so if exec succeeds, it will be closed.)
+-// In the child, this function must not acquire any locks, because
+-// they might have been locked at the time of the fork.  This means
+-// no rescheduling, no malloc calls, and no new stack segments.
+-// The calls to RawSyscall are okay because they are assembly
+-// functions that do not grow the stack.
+-func forkAndExecInChild(argv0 *byte, argv, envv []*byte, chroot, dir *byte, attr *ProcAttr, sys *SysProcAttr, pipe int) (pid int, err Errno) {
+-	// Declare all variables at top in case any
+-	// declarations require heap allocation (e.g., err1).
+-	var (
+-		r1, r2 uintptr
+-		err1   Errno
+-		nextfd int
+-		i      int
+-	)
+-
+-	// guard against side effects of shuffling fds below.
+-	fd := append([]int(nil), attr.Files...)
+-
+-	darwin := OS == "darwin"
+-
+-	// About to call fork.
+-	// No more allocation or calls of non-assembly functions.
+-	r1, r2, err1 = RawSyscall(SYS_FORK, 0, 0, 0)
+-	if err1 != 0 {
+-		return 0, err1
+-	}
+-
+-	// On Darwin:
+-	//	r1 = child pid in both parent and child.
+-	//	r2 = 0 in parent, 1 in child.
+-	// Convert to normal Unix r1 = 0 in child.
+-	if darwin && r2 == 1 {
+-		r1 = 0
+-	}
+-
+-	if r1 != 0 {
+-		// parent; return PID
+-		return int(r1), 0
+-	}
+-
+-	// Fork succeeded, now in child.
+-
+-	// Enable tracing if requested.
+-	if sys.Ptrace {
+-		_, _, err1 = RawSyscall(SYS_PTRACE, uintptr(PTRACE_TRACEME), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Session ID
+-	if sys.Setsid {
+-		_, _, err1 = RawSyscall(SYS_SETSID, 0, 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Set process group
+-	if sys.Setpgid {
+-		_, _, err1 = RawSyscall(SYS_SETPGID, 0, 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Chroot
+-	if chroot != nil {
+-		_, _, err1 = RawSyscall(SYS_CHROOT, uintptr(unsafe.Pointer(chroot)), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// User and groups
+-	if cred := sys.Credential; cred != nil {
+-		ngroups := uintptr(len(cred.Groups))
+-		groups := uintptr(0)
+-		if ngroups > 0 {
+-			groups = uintptr(unsafe.Pointer(&cred.Groups[0]))
+-		}
+-		_, _, err1 = RawSyscall(SYS_SETGROUPS, ngroups, groups, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-		_, _, err1 = RawSyscall(SYS_SETGID, uintptr(cred.Gid), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-		_, _, err1 = RawSyscall(SYS_SETUID, uintptr(cred.Uid), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Chdir
+-	if dir != nil {
+-		_, _, err1 = RawSyscall(SYS_CHDIR, uintptr(unsafe.Pointer(dir)), 0, 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Pass 1: look for fd[i] < i and move those up above len(fd)
+-	// so that pass 2 won't stomp on an fd it needs later.
+-	nextfd = int(len(fd))
+-	if pipe < nextfd {
+-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(pipe), uintptr(nextfd), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-		RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+-		pipe = nextfd
+-		nextfd++
+-	}
+-	for i = 0; i < len(fd); i++ {
+-		if fd[i] >= 0 && fd[i] < int(i) {
+-			_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(nextfd), 0)
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-			RawSyscall(SYS_FCNTL, uintptr(nextfd), F_SETFD, FD_CLOEXEC)
+-			fd[i] = nextfd
+-			nextfd++
+-			if nextfd == pipe { // don't stomp on pipe
+-				nextfd++
+-			}
+-		}
+-	}
+-
+-	// Pass 2: dup fd[i] down onto i.
+-	for i = 0; i < len(fd); i++ {
+-		if fd[i] == -1 {
+-			RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+-			continue
+-		}
+-		if fd[i] == int(i) {
+-			// dup2(i, i) won't clear close-on-exec flag on Linux,
+-			// probably not elsewhere either.
+-			_, _, err1 = RawSyscall(SYS_FCNTL, uintptr(fd[i]), F_SETFD, 0)
+-			if err1 != 0 {
+-				goto childerror
+-			}
+-			continue
+-		}
+-		// The new fd is created NOT close-on-exec,
+-		// which is exactly what we want.
+-		_, _, err1 = RawSyscall(SYS_DUP2, uintptr(fd[i]), uintptr(i), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// By convention, we don't close-on-exec the fds we are
+-	// started with, so if len(fd) < 3, close 0, 1, 2 as needed.
+-	// Programs that know they inherit fds >= 3 will need
+-	// to set them close-on-exec.
+-	for i = len(fd); i < 3; i++ {
+-		RawSyscall(SYS_CLOSE, uintptr(i), 0, 0)
+-	}
+-
+-	// Detach fd 0 from tty
+-	if sys.Noctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCNOTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Make fd 0 the tty
+-	if sys.Setctty {
+-		_, _, err1 = RawSyscall(SYS_IOCTL, 0, uintptr(TIOCSCTTY), 0)
+-		if err1 != 0 {
+-			goto childerror
+-		}
+-	}
+-
+-	// Time to exec.
+-	_, _, err1 = RawSyscall(SYS_EXECVE,
+-		uintptr(unsafe.Pointer(argv0)),
+-		uintptr(unsafe.Pointer(&argv[0])),
+-		uintptr(unsafe.Pointer(&envv[0])))
+-
+-childerror:
+-	// send error code on pipe
+-	RawSyscall(SYS_WRITE, uintptr(pipe), uintptr(unsafe.Pointer(&err1)), unsafe.Sizeof(err1))
+-	for {
+-		RawSyscall(SYS_EXIT, 253, 0, 0)
+-	}
+-
+-	// Calling panic is not actually safe,
+-	// but the for loop above won't break
+-	// and this shuts up the compiler.
+-	panic("unreached")
+-}
+-
+ // Credential holds user and group identities to be assumed
+ // by a child process started by StartProcess.
+ type Credential struct {
+@@ -305,16 +106,6 @@ type ProcAttr struct {
+ 	Sys   *SysProcAttr
+ }
+ 
+-type SysProcAttr struct {
+-	Chroot     string      // Chroot.
+-	Credential *Credential // Credential.
+-	Ptrace     bool        // Enable tracing.
+-	Setsid     bool        // Create session.
+-	Setpgid    bool        // Set process group ID to new pid (SYSV setpgrp)
+-	Setctty    bool        // Set controlling terminal to fd 0
+-	Noctty     bool        // Detach fd 0 from controlling terminal
+-}
+-
+ var zeroProcAttr ProcAttr
+ var zeroSysProcAttr SysProcAttr
+ 
+diff --git a/src/pkg/syscall/mkerrors.sh b/src/pkg/syscall/mkerrors.sh
+index 794d705ee8..cd7bcf86bd 100755
+--- a/src/pkg/syscall/mkerrors.sh
++++ b/src/pkg/syscall/mkerrors.sh
+@@ -67,6 +67,7 @@ includes_Linux='
+ #include <sys/ioctl.h>
+ #include <sys/mman.h>
+ #include <sys/mount.h>
++#include <sys/prctl.h>
+ #include <sys/stat.h>
+ #include <sys/types.h>
+ #include <linux/if_addr.h>
+@@ -176,7 +177,7 @@ ccflags="$@"
+ 		$2 ~ /^SIG[^_]/ ||
+ 		$2 ~ /^IN_/ ||
+ 		$2 ~ /^LOCK_(SH|EX|NB|UN)$/ ||
+-		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV)_/ ||
++		$2 ~ /^(AF|SOCK|SO|SOL|IPPROTO|IP|IPV6|TCP|EVFILT|EV|SHUT|PROT|MAP|PACKET|MSG|SCM|MCL|DT|MADV|PR)_/ ||
+ 		$2 == "SOMAXCONN" ||
+ 		$2 == "NAME_MAX" ||
+ 		$2 == "IFNAMSIZ" ||
+diff --git a/src/pkg/syscall/zerrors_linux_386.go b/src/pkg/syscall/zerrors_linux_386.go
+index 53ce2fab50..9c3ac9cea6 100644
+--- a/src/pkg/syscall/zerrors_linux_386.go
++++ b/src/pkg/syscall/zerrors_linux_386.go
+@@ -659,6 +659,64 @@ const (
+ 	PROT_NONE                        = 0x0
+ 	PROT_READ                        = 0x1
+ 	PROT_WRITE                       = 0x2
++	PR_CAPBSET_DROP                  = 0x18
++	PR_CAPBSET_READ                  = 0x17
++	PR_ENDIAN_BIG                    = 0x0
++	PR_ENDIAN_LITTLE                 = 0x1
++	PR_ENDIAN_PPC_LITTLE             = 0x2
++	PR_FPEMU_NOPRINT                 = 0x1
++	PR_FPEMU_SIGFPE                  = 0x2
++	PR_FP_EXC_ASYNC                  = 0x2
++	PR_FP_EXC_DISABLED               = 0x0
++	PR_FP_EXC_DIV                    = 0x10000
++	PR_FP_EXC_INV                    = 0x100000
++	PR_FP_EXC_NONRECOV               = 0x1
++	PR_FP_EXC_OVF                    = 0x20000
++	PR_FP_EXC_PRECISE                = 0x3
++	PR_FP_EXC_RES                    = 0x80000
++	PR_FP_EXC_SW_ENABLE              = 0x80
++	PR_FP_EXC_UND                    = 0x40000
++	PR_GET_DUMPABLE                  = 0x3
++	PR_GET_ENDIAN                    = 0x13
++	PR_GET_FPEMU                     = 0x9
++	PR_GET_FPEXC                     = 0xb
++	PR_GET_KEEPCAPS                  = 0x7
++	PR_GET_NAME                      = 0x10
++	PR_GET_PDEATHSIG                 = 0x2
++	PR_GET_SECCOMP                   = 0x15
++	PR_GET_SECUREBITS                = 0x1b
++	PR_GET_TIMERSLACK                = 0x1e
++	PR_GET_TIMING                    = 0xd
++	PR_GET_TSC                       = 0x19
++	PR_GET_UNALIGN                   = 0x5
++	PR_MCE_KILL                      = 0x21
++	PR_MCE_KILL_CLEAR                = 0x0
++	PR_MCE_KILL_DEFAULT              = 0x2
++	PR_MCE_KILL_EARLY                = 0x1
++	PR_MCE_KILL_GET                  = 0x22
++	PR_MCE_KILL_LATE                 = 0x0
++	PR_MCE_KILL_SET                  = 0x1
++	PR_SET_DUMPABLE                  = 0x4
++	PR_SET_ENDIAN                    = 0x14
++	PR_SET_FPEMU                     = 0xa
++	PR_SET_FPEXC                     = 0xc
++	PR_SET_KEEPCAPS                  = 0x8
++	PR_SET_NAME                      = 0xf
++	PR_SET_PDEATHSIG                 = 0x1
++	PR_SET_SECCOMP                   = 0x16
++	PR_SET_SECUREBITS                = 0x1c
++	PR_SET_TIMERSLACK                = 0x1d
++	PR_SET_TIMING                    = 0xe
++	PR_SET_TSC                       = 0x1a
++	PR_SET_UNALIGN                   = 0x6
++	PR_TASK_PERF_EVENTS_DISABLE      = 0x1f
++	PR_TASK_PERF_EVENTS_ENABLE       = 0x20
++	PR_TIMING_STATISTICAL            = 0x0
++	PR_TIMING_TIMESTAMP              = 0x1
++	PR_TSC_ENABLE                    = 0x1
++	PR_TSC_SIGSEGV                   = 0x2
++	PR_UNALIGN_NOPRINT               = 0x1
++	PR_UNALIGN_SIGBUS                = 0x2
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_CONT                      = 0x7
+ 	PTRACE_DETACH                    = 0x11
+diff --git a/src/pkg/syscall/zerrors_linux_amd64.go b/src/pkg/syscall/zerrors_linux_amd64.go
+index e37eb41422..22d062c121 100644
+--- a/src/pkg/syscall/zerrors_linux_amd64.go
++++ b/src/pkg/syscall/zerrors_linux_amd64.go
+@@ -659,6 +659,64 @@ const (
+ 	PROT_NONE                        = 0x0
+ 	PROT_READ                        = 0x1
+ 	PROT_WRITE                       = 0x2
++	PR_CAPBSET_DROP                  = 0x18
++	PR_CAPBSET_READ                  = 0x17
++	PR_ENDIAN_BIG                    = 0x0
++	PR_ENDIAN_LITTLE                 = 0x1
++	PR_ENDIAN_PPC_LITTLE             = 0x2
++	PR_FPEMU_NOPRINT                 = 0x1
++	PR_FPEMU_SIGFPE                  = 0x2
++	PR_FP_EXC_ASYNC                  = 0x2
++	PR_FP_EXC_DISABLED               = 0x0
++	PR_FP_EXC_DIV                    = 0x10000
++	PR_FP_EXC_INV                    = 0x100000
++	PR_FP_EXC_NONRECOV               = 0x1
++	PR_FP_EXC_OVF                    = 0x20000
++	PR_FP_EXC_PRECISE                = 0x3
++	PR_FP_EXC_RES                    = 0x80000
++	PR_FP_EXC_SW_ENABLE              = 0x80
++	PR_FP_EXC_UND                    = 0x40000
++	PR_GET_DUMPABLE                  = 0x3
++	PR_GET_ENDIAN                    = 0x13
++	PR_GET_FPEMU                     = 0x9
++	PR_GET_FPEXC                     = 0xb
++	PR_GET_KEEPCAPS                  = 0x7
++	PR_GET_NAME                      = 0x10
++	PR_GET_PDEATHSIG                 = 0x2
++	PR_GET_SECCOMP                   = 0x15
++	PR_GET_SECUREBITS                = 0x1b
++	PR_GET_TIMERSLACK                = 0x1e
++	PR_GET_TIMING                    = 0xd
++	PR_GET_TSC                       = 0x19
++	PR_GET_UNALIGN                   = 0x5
++	PR_MCE_KILL                      = 0x21
++	PR_MCE_KILL_CLEAR                = 0x0
++	PR_MCE_KILL_DEFAULT              = 0x2
++	PR_MCE_KILL_EARLY                = 0x1
++	PR_MCE_KILL_GET                  = 0x22
++	PR_MCE_KILL_LATE                 = 0x0
++	PR_MCE_KILL_SET                  = 0x1
++	PR_SET_DUMPABLE                  = 0x4
++	PR_SET_ENDIAN                    = 0x14
++	PR_SET_FPEMU                     = 0xa
++	PR_SET_FPEXC                     = 0xc
++	PR_SET_KEEPCAPS                  = 0x8
++	PR_SET_NAME                      = 0xf
++	PR_SET_PDEATHSIG                 = 0x1
++	PR_SET_SECCOMP                   = 0x16
++	PR_SET_SECUREBITS                = 0x1c
++	PR_SET_TIMERSLACK                = 0x1d
++	PR_SET_TIMING                    = 0xe
++	PR_SET_TSC                       = 0x1a
++	PR_SET_UNALIGN                   = 0x6
++	PR_TASK_PERF_EVENTS_DISABLE      = 0x1f
++	PR_TASK_PERF_EVENTS_ENABLE       = 0x20
++	PR_TIMING_STATISTICAL            = 0x0
++	PR_TIMING_TIMESTAMP              = 0x1
++	PR_TSC_ENABLE                    = 0x1
++	PR_TSC_SIGSEGV                   = 0x2
++	PR_UNALIGN_NOPRINT               = 0x1
++	PR_UNALIGN_SIGBUS                = 0x2
+ 	PTRACE_ARCH_PRCTL                = 0x1e
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_CONT                      = 0x7
+diff --git a/src/pkg/syscall/zerrors_linux_arm.go b/src/pkg/syscall/zerrors_linux_arm.go
+index 33abecb435..04834fa64e 100644
+--- a/src/pkg/syscall/zerrors_linux_arm.go
++++ b/src/pkg/syscall/zerrors_linux_arm.go
+@@ -623,6 +623,64 @@ const (
+ 	PROT_NONE                        = 0x0
+ 	PROT_READ                        = 0x1
+ 	PROT_WRITE                       = 0x2
++	PR_CAPBSET_DROP                  = 0x18
++	PR_CAPBSET_READ                  = 0x17
++	PR_ENDIAN_BIG                    = 0x0
++	PR_ENDIAN_LITTLE                 = 0x1
++	PR_ENDIAN_PPC_LITTLE             = 0x2
++	PR_FPEMU_NOPRINT                 = 0x1
++	PR_FPEMU_SIGFPE                  = 0x2
++	PR_FP_EXC_ASYNC                  = 0x2
++	PR_FP_EXC_DISABLED               = 0x0
++	PR_FP_EXC_DIV                    = 0x10000
++	PR_FP_EXC_INV                    = 0x100000
++	PR_FP_EXC_NONRECOV               = 0x1
++	PR_FP_EXC_OVF                    = 0x20000
++	PR_FP_EXC_PRECISE                = 0x3
++	PR_FP_EXC_RES                    = 0x80000
++	PR_FP_EXC_SW_ENABLE              = 0x80
++	PR_FP_EXC_UND                    = 0x40000
++	PR_GET_DUMPABLE                  = 0x3
++	PR_GET_ENDIAN                    = 0x13
++	PR_GET_FPEMU                     = 0x9
++	PR_GET_FPEXC                     = 0xb
++	PR_GET_KEEPCAPS                  = 0x7
++	PR_GET_NAME                      = 0x10
++	PR_GET_PDEATHSIG                 = 0x2
++	PR_GET_SECCOMP                   = 0x15
++	PR_GET_SECUREBITS                = 0x1b
++	PR_GET_TIMERSLACK                = 0x1e
++	PR_GET_TIMING                    = 0xd
++	PR_GET_TSC                       = 0x19
++	PR_GET_UNALIGN                   = 0x5
++	PR_MCE_KILL                      = 0x21
++	PR_MCE_KILL_CLEAR                = 0x0
++	PR_MCE_KILL_DEFAULT              = 0x2
++	PR_MCE_KILL_EARLY                = 0x1
++	PR_MCE_KILL_GET                  = 0x22
++	PR_MCE_KILL_LATE                 = 0x0
++	PR_MCE_KILL_SET                  = 0x1
++	PR_SET_DUMPABLE                  = 0x4
++	PR_SET_ENDIAN                    = 0x14
++	PR_SET_FPEMU                     = 0xa
++	PR_SET_FPEXC                     = 0xc
++	PR_SET_KEEPCAPS                  = 0x8
++	PR_SET_NAME                      = 0xf
++	PR_SET_PDEATHSIG                 = 0x1
++	PR_SET_SECCOMP                   = 0x16
++	PR_SET_SECUREBITS                = 0x1c
++	PR_SET_TIMERSLACK                = 0x1d
++	PR_SET_TIMING                    = 0xe
++	PR_SET_TSC                       = 0x1a
++	PR_SET_UNALIGN                   = 0x6
++	PR_TASK_PERF_EVENTS_DISABLE      = 0x1f
++	PR_TASK_PERF_EVENTS_ENABLE       = 0x20
++	PR_TIMING_STATISTICAL            = 0x0
++	PR_TIMING_TIMESTAMP              = 0x1
++	PR_TSC_ENABLE                    = 0x1
++	PR_TSC_SIGSEGV                   = 0x2
++	PR_UNALIGN_NOPRINT               = 0x1
++	PR_UNALIGN_SIGBUS                = 0x2
+ 	PTRACE_ATTACH                    = 0x10
+ 	PTRACE_CONT                      = 0x7
+ 	PTRACE_DETACH                    = 0x11

@@ -15,9 +15,83 @@ Date:   Wed Jun 13 15:49:52 2018 -0700
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  misc/cgo/test/issue23555.go    | 11 +++++++++++
  misc/cgo/test/issue23555a/a.go | 12 ++++++++++++
  misc/cgo/test/issue23555b/a.go | 12 ++++++++++++
  src/cmd/cgo/main.go            |  2 ++
  4 files changed, 37 insertions(+)
+
+diff --git a/misc/cgo/test/issue23555.go b/misc/cgo/test/issue23555.go
+new file mode 100644
+index 0000000000..5fa44e6355
+--- /dev/null
++++ b/misc/cgo/test/issue23555.go
+@@ -0,0 +1,11 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test that we can have two identical cgo packages in a single binary.
++// No runtime test; just make sure it compiles.
++
++package cgotest
++
++import _ "./issue23555a"
++import _ "./issue23555b"
+diff --git a/misc/cgo/test/issue23555a/a.go b/misc/cgo/test/issue23555a/a.go
+new file mode 100644
+index 0000000000..cb6626bb2b
+--- /dev/null
++++ b/misc/cgo/test/issue23555a/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue23555
++
++// #include <stdlib.h>
++import "C"
++
++func X() {
++	C.free(C.malloc(10))
++}
+diff --git a/misc/cgo/test/issue23555b/a.go b/misc/cgo/test/issue23555b/a.go
+new file mode 100644
+index 0000000000..cb6626bb2b
+--- /dev/null
++++ b/misc/cgo/test/issue23555b/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue23555
++
++// #include <stdlib.h>
++import "C"
++
++func X() {
++	C.free(C.malloc(10))
++}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index ce20948cbe..246898ab77 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -17,6 +17,7 @@ import (
+ 	"go/ast"
+ 	"go/printer"
+ 	"go/token"
++	"io"
+ 	"io/ioutil"
+ 	"os"
+ 	"path/filepath"
+@@ -279,6 +280,7 @@ func main() {
+ 	// concern is other cgo wrappers for the same functions.
+ 	// Use the beginning of the md5 of the input to disambiguate.
+ 	h := md5.New()
++	io.WriteString(h, *importPath)
+ 	fs := make([]*File, len(goFiles))
+ 	for i, input := range goFiles {
+ 		if *srcDir != "" {

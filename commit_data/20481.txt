@@ -22,8 +22,137 @@ Date:   Thu Sep 11 12:57:51 2014 -0700
     R=adonovan
     CC=golang-codereviews
     https://golang.org/cl/139430043
-
+---
  src/go/printer/nodes.go                     | 16 ++++++++++------
  src/go/printer/testdata/declarations.golden | 25 ++++++++++++++++++++++++-
  src/go/printer/testdata/declarations.input  | 25 +++++++++++++++++++++++++
  3 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 6e26f9a636..e52236ddc6 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -163,8 +163,8 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 	size := 0
+ 
+ 	// print all list elements
++	prevLine := prev.Line
+ 	for i, x := range list {
+-		prevLine := line
+ 		line = p.lineFor(x.Pos())
+ 
+ 		// determine if the next linebreak, if any, needs to use formfeed:
+@@ -207,8 +207,8 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 			}
+ 		}
+ 
++		needsLinebreak := 0 < prevLine && prevLine < line
+ 		if i > 0 {
+-			needsLinebreak := prevLine < line && prevLine > 0 && line > 0
+ 			// use position of expression following the comma as
+ 			// comma position for correct comment placement, but
+ 			// only if the expression is on the same line
+@@ -232,16 +232,20 @@ func (p *printer) exprList(prev0 token.Pos, list []ast.Expr, depth int, mode exp
+ 			}
+ 		}
+ 
+-		if isPair && size > 0 && len(list) > 1 {
+-			// we have a key:value expression that fits onto one line and
+-			// is in a list with more then one entry: use a column for the
+-			// key such that consecutive entries can align if possible
++		if len(list) > 1 && isPair && size > 0 && needsLinebreak {
++			// we have a key:value expression that fits onto one line
++			// and it's not on the same line as the prior expression:
++			// use a column for the key such that consecutive entries
++			// can align if possible
++			// (needsLinebreak is set if we started a new line before)
+ 			p.expr(pair.Key)
+ 			p.print(pair.Colon, token.COLON, vtab)
+ 			p.expr(pair.Value)
+ 		} else {
+ 			p.expr0(x, depth)
+ 		}
++
++		prevLine = line
+ 	}
+ 
+ 	if mode&commaTerm != 0 && next.IsValid() && p.pos.Line < next.Line {
+diff --git a/src/go/printer/testdata/declarations.golden b/src/go/printer/testdata/declarations.golden
+index a27f21fc8c..9acd41b7d2 100644
+--- a/src/go/printer/testdata/declarations.golden
++++ b/src/go/printer/testdata/declarations.golden
+@@ -593,7 +593,7 @@ var (
+ )
+ 
+ func _() {
+-	var privateKey2 = &Block{Type:	"RSA PRIVATE KEY",
++	var privateKey2 = &Block{Type: "RSA PRIVATE KEY",
+ 		Headers:	map[string]string{},
+ 		Bytes: []uint8{0x30, 0x82, 0x1, 0x3a, 0x2, 0x1, 0x0, 0x2,
+ 			0x41, 0x0, 0xb2, 0x99, 0xf, 0x49, 0xc4, 0x7d, 0xfa, 0x8c,
+@@ -698,6 +698,29 @@ var _ = T4{
+ 	c:	z,
+ }
+ 
++// no alignment of map composite entries if they are not the first entry on a line
++var _ = T{0: 0}	// not aligned
++var _ = T{0: 0,	// not aligned
++	1:	1,				// aligned
++	22:	22,				// aligned
++	333:	333, 1234: 12, 12345: 0,	// first on line aligned
++}
++
++// test cases form issue 8685
++// not aligned
++var _ = map[int]string{1: "spring", 2: "summer",
++	3:	"autumn", 4: "winter"}
++
++// not aligned
++var _ = map[string]string{"a": "spring", "b": "summer",
++	"c":	"autumn", "d": "winter"}
++
++// aligned
++var _ = map[string]string{"a": "spring",
++	"b":	"summer",
++	"c":	"autumn",
++	"d":	"winter"}
++
+ func _() {
+ 	var _ = T{
+ 		a,	// must introduce trailing comma
+diff --git a/src/go/printer/testdata/declarations.input b/src/go/printer/testdata/declarations.input
+index d9951d3865..45beec25fc 100644
+--- a/src/go/printer/testdata/declarations.input
++++ b/src/go/printer/testdata/declarations.input
+@@ -715,6 +715,31 @@ var _ = T4{
+ }
+ 
+ 
++// no alignment of map composite entries if they are not the first entry on a line
++var _ = T{0: 0} // not aligned
++var _ = T{0: 0, // not aligned
++	1: 1, // aligned
++	22: 22, // aligned
++	333: 333, 1234: 12, 12345: 0, // first on line aligned
++}
++
++
++// test cases form issue 8685
++// not aligned
++var _ = map[int]string{1: "spring", 2: "summer",
++					3:             "autumn", 4: "winter"}
++
++// not aligned
++var _ = map[string]string{"a": "spring", "b": "summer",
++	"c": "autumn", "d": "winter"}
++
++// aligned
++var _ = map[string]string{"a": "spring",
++"b": "summer",
++	"c": "autumn",
++"d": "winter"}
++
++
+ func _() {
+ 	var _ = T{
+ 		a,	// must introduce trailing comma

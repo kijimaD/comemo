@@ -8,7 +8,7 @@ Date:   Tue Aug 4 19:38:08 2009 -0700
     DELTA=324  (323 added, 0 deleted, 1 changed)
     OCL=32759
     CL=32768
-
+---
  test/bench/binary-tree-freelist.go | 130 +++++++++++++++++++++++++++++
  test/bench/binary-tree.c           | 165 +++++++++++++++++++++++++++++++++++++
  test/bench/binary-tree.go          |  93 +++++++++++++++++++++
@@ -16,3 +16,463 @@ Date:   Tue Aug 4 19:38:08 2009 -0700
  test/bench/timing.log              |   7 ++
  test/bench/timing.sh               |  11 ++-
  6 files changed, 413 insertions(+), 1 deletion(-)
+
+diff --git a/test/bench/binary-tree-freelist.go b/test/bench/binary-tree-freelist.go
+new file mode 100644
+index 0000000000..b1d3a32411
+--- /dev/null
++++ b/test/bench/binary-tree-freelist.go
+@@ -0,0 +1,130 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * based on C program by Kevin Carson
++ */
++
++package main
++
++import (
++	"flag";
++	"fmt";
++	"os";
++)
++
++var n = flag.Int("n", 20, "depth")
++
++type Node struct {
++	  item	int;
++	  left, right	*Node;
++}
++
++type Arena struct {
++	head	*Node
++}
++
++var arena Arena
++
++func (n *Node) free() {
++	if n.left != nil {
++		n.left.free()
++	}
++	if n.right != nil {
++		n.right.free()
++	}
++	n.left = arena.head;
++	arena.head = n;
++}
++
++func (a *Arena) New(item int, left, right *Node) *Node {
++	if a.head == nil {
++		nodes := make([]Node, 3 << uint(*n));
++		for i := 0; i < len(nodes)-1; i++ {
++			nodes[i].left = &nodes[i+1];
++		}
++		a.head = &nodes[0];
++	}
++	n := a.head;
++	a.head = a.head.left;
++	n.item = item;
++	n.left = left;
++	n.right = right;
++	return n;
++}
++
++func  bottomUpTree(item, depth int) *Node {
++	if depth <= 0 {
++		return arena.New(item, nil, nil)
++	}
++	return arena.New(item, bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1))
++}
++
++func (n *Node) itemCheck() int {
++	if n.left == nil {
++		return n.item
++	}
++	return n.item + n.left.itemCheck() - n.right.itemCheck();
++}
++
++const minDepth = 4;
++
++func main() {
++	flag.Parse();
++
++	maxDepth := *n;
++	if minDepth + 2 > *n {
++		maxDepth = minDepth + 2
++	}
++	stretchDepth := maxDepth + 1;
++
++	check := bottomUpTree(0, stretchDepth).itemCheck();
++	fmt.Println("stretch tree of depth ", stretchDepth, "\t check:", check);
++
++	longLivedTree := bottomUpTree(0, maxDepth);
++
++	for depth := minDepth; depth <= maxDepth; depth+=2 {
++		iterations := 1 << uint(maxDepth - depth + minDepth);
++		check = 0;
++
++		for i := 1; i <= iterations; i++ {
++			t := bottomUpTree(i,depth);
++			check += t.itemCheck();
++			t.free();
++			t = bottomUpTree(-i,depth);
++			check += t.itemCheck();
++			t.free();
++		}
++		fmt.Println(iterations*2, "\t trees of depth ", depth, "\t check: ", check);
++	}
++	fmt.Println("long lived tree of depth", maxDepth, "\t check:", longLivedTree.itemCheck());
++}
+diff --git a/test/bench/binary-tree.c b/test/bench/binary-tree.c
+new file mode 100644
+index 0000000000..1b4070406f
+--- /dev/null
++++ b/test/bench/binary-tree.c
+@@ -0,0 +1,165 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Shootout Benchmarks
++   http://shootout.alioth.debian.org/
++
++   contributed by Kevin Carson
++   compilation:
++       gcc -O3 -fomit-frame-pointer -funroll-loops -static binary-trees.c -lm
++       icc -O3 -ip -unroll -static binary-trees.c -lm
++*/
++
++#include <malloc.h>
++#include <math.h>
++#include <stdio.h>
++#include <stdlib.h>
++
++
++typedef struct tn {
++    struct tn*    left;
++    struct tn*    right;
++    long          item;
++} treeNode;
++
++
++treeNode* NewTreeNode(treeNode* left, treeNode* right, long item)
++{
++    treeNode*    new;
++
++    new = (treeNode*)malloc(sizeof(treeNode));
++
++    new->left = left;
++    new->right = right;
++    new->item = item;
++
++    return new;
++} /* NewTreeNode() */
++
++
++long ItemCheck(treeNode* tree)
++{
++    if (tree->left == NULL)
++        return tree->item;
++    else
++        return tree->item + ItemCheck(tree->left) - ItemCheck(tree->right);
++} /* ItemCheck() */
++
++
++treeNode* BottomUpTree(long item, unsigned depth)
++{
++    if (depth > 0)
++        return NewTreeNode
++        (
++            BottomUpTree(2 * item - 1, depth - 1),
++            BottomUpTree(2 * item, depth - 1),
++            item
++        );
++    else
++        return NewTreeNode(NULL, NULL, item);
++} /* BottomUpTree() */
++
++
++void DeleteTree(treeNode* tree)
++{
++    if (tree->left != NULL)
++    {
++        DeleteTree(tree->left);
++        DeleteTree(tree->right);
++    }
++
++    free(tree);
++} /* DeleteTree() */
++
++
++int main(int argc, char* argv[])
++{
++    unsigned   N, depth, minDepth, maxDepth, stretchDepth;
++    treeNode   *stretchTree, *longLivedTree, *tempTree;
++
++    N = atol(argv[1]);
++
++    minDepth = 4;
++
++    if ((minDepth + 2) > N)
++        maxDepth = minDepth + 2;
++    else
++        maxDepth = N;
++
++    stretchDepth = maxDepth + 1;
++
++    stretchTree = BottomUpTree(0, stretchDepth);
++    printf
++    (
++        "stretch tree of depth %u\t check: %li\n",
++        stretchDepth,
++        ItemCheck(stretchTree)
++    );
++
++    DeleteTree(stretchTree);
++
++    longLivedTree = BottomUpTree(0, maxDepth);
++
++    for (depth = minDepth; depth <= maxDepth; depth += 2)
++    {
++        long    i, iterations, check;
++
++        iterations = pow(2, maxDepth - depth + minDepth);
++
++        check = 0;
++
++        for (i = 1; i <= iterations; i++)
++        {
++            tempTree = BottomUpTree(i, depth);
++            check += ItemCheck(tempTree);
++            DeleteTree(tempTree);
++
++            tempTree = BottomUpTree(-i, depth);
++            check += ItemCheck(tempTree);
++            DeleteTree(tempTree);
++        } /* for(i = 1...) */
++
++        printf
++        (
++            "%li\t trees of depth %u\t check: %li\n",
++            iterations * 2,
++            depth,
++            check
++        );
++    } /* for(depth = minDepth...) */
++
++    printf
++    (
++        "long lived tree of depth %u\t check: %li\n",
++        maxDepth,
++        ItemCheck(longLivedTree)
++    );
++
++    return 0;
++} /* main() */
+diff --git a/test/bench/binary-tree.go b/test/bench/binary-tree.go
+new file mode 100644
+index 0000000000..030e6acb0b
+--- /dev/null
++++ b/test/bench/binary-tree.go
+@@ -0,0 +1,93 @@
++/*
++Redistribution and use in source and binary forms, with or without
++modification, are permitted provided that the following conditions are met:
++
++    * Redistributions of source code must retain the above copyright
++    notice, this list of conditions and the following disclaimer.
++
++    * Redistributions in binary form must reproduce the above copyright
++    notice, this list of conditions and the following disclaimer in the
++    documentation and/or other materials provided with the distribution.
++
++    * Neither the name of "The Computer Language Benchmarks Game" nor the
++    name of "The Computer Language Shootout Benchmarks" nor the names of
++    its contributors may be used to endorse or promote products derived
++    from this software without specific prior written permission.
++
++THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
++AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
++IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
++ARE DISCLAIMED.  IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
++LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
++CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
++SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
++INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
++CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
++ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
++POSSIBILITY OF SUCH DAMAGE.
++*/
++
++/* The Computer Language Benchmarks Game
++ * http://shootout.alioth.debian.org/
++ *
++ * contributed by The Go Authors.
++ * based on C program by Kevin Carson
++ */
++
++package main
++
++import (
++	"flag";
++	"fmt";
++	"os";
++)
++
++var n = flag.Int("n", 20, "depth")
++
++type Node struct {
++	  item	int;
++	  left, right	*Node;
++}
++
++func  bottomUpTree(item, depth int) *Node {
++	if depth <= 0 {
++		return &Node{item: item}
++	}
++	return &Node{ item, bottomUpTree(2*item-1, depth-1), bottomUpTree(2*item, depth-1) }
++}
++
++func (n *Node) itemCheck() int {
++	if n.left == nil {
++		return n.item
++	}
++	return n.item + n.left.itemCheck() - n.right.itemCheck();
++}
++
++const minDepth = 4;
++
++func main() {
++	flag.Parse();
++
++	maxDepth := *n;
++	if minDepth + 2 > *n {
++		maxDepth = minDepth + 2
++	}
++	stretchDepth := maxDepth + 1;
++
++	check := bottomUpTree(0, stretchDepth).itemCheck();
++	fmt.Println("stretch tree of depth ", stretchDepth, "\t check:", check);
++
++	longLivedTree := bottomUpTree(0, maxDepth);
++
++	for depth := minDepth; depth <= maxDepth; depth+=2 {
++		iterations := 1 << uint(maxDepth - depth + minDepth);
++		check = 0;
++
++		for i := 1; i <= iterations; i++ {
++			check += bottomUpTree(i,depth).itemCheck();
++			check += bottomUpTree(-i,depth).itemCheck();
++		}
++		fmt.Println(iterations*2, "\t trees of depth ", depth, "\t check: ", check);
++	}
++	fmt.Println("long lived tree of depth", maxDepth, "\t check:", longLivedTree.itemCheck());
++}
+diff --git a/test/bench/binary-tree.txt b/test/bench/binary-tree.txt
+new file mode 100644
+index 0000000000..f8286dd88b
+--- /dev/null
++++ b/test/bench/binary-tree.txt
+@@ -0,0 +1,8 @@
++stretch tree of depth 16	 check: -1
++65536	 trees of depth 4	 check: -65536
++16384	 trees of depth 6	 check: -16384
++4096	 trees of depth 8	 check: -4096
++1024	 trees of depth 10	 check: -1024
++256	 trees of depth 12	 check: -256
++64	 trees of depth 14	 check: -64
++long lived tree of depth 15	 check: -1
+diff --git a/test/bench/timing.log b/test/bench/timing.log
+index d7d921ea05..004b5682e5 100644
+--- a/test/bench/timing.log
++++ b/test/bench/timing.log
+@@ -38,3 +38,10 @@ nbody 50000000
+ hacked Sqrt in assembler
+ 	gc nbody	31.97u 0.00s 32.01r
+ ]
++
++binary-tree 15 # too slow to use 20
++	gcc -O2 binary-tree.c -lm	0.86u 0.00s 0.87r
++	gccgo -O2 binary-tree.go	1.69u 0.46s 2.15r
++	gccgo -O2 binary-tree-freelist.go	8.48u 0.00s 8.48r
++	gc binary-tree	9.60u 0.01s 9.62r
++	gc binary-tree-freelist	0.48u 0.01s 0.50r
+diff --git a/test/bench/timing.sh b/test/bench/timing.sh
+index 0c1127c95d..7e9d413b3f 100755
+--- a/test/bench/timing.sh
++++ b/test/bench/timing.sh
+@@ -48,9 +48,18 @@ nbody() {
+ 	run 'gc_B nbody' $O.out -n 50000000
+ }
+ 
++binarytree() {
++	echo 'binary-tree 15 # too slow to use 20'
++	run 'gcc -O2 binary-tree.c -lm' a.out 15
++	run 'gccgo -O2 binary-tree.go' a.out -n 15
++	run 'gccgo -O2 binary-tree-freelist.go' $O.out -n 15
++	run 'gc binary-tree' $O.out -n 15
++	run 'gc binary-tree-freelist' $O.out -n 15
++}
++
+ case $# in
+ 0)
+-	run="fasta revcom nbody"
++	run="fasta revcom nbody binarytree"
+ 	;;
+ *)
+ 	run=$*

@@ -19,7 +19,68 @@ Date:   Tue Oct 7 23:17:31 2014 -0400
     R=khr
     CC=golang-codereviews
     https://golang.org/cl/155080043
-
+---
  src/runtime/panic.c  | 2 ++
  src/runtime/panic.go | 8 ++++++++
  2 files changed, 10 insertions(+)
+
+diff --git a/src/runtime/panic.c b/src/runtime/panic.c
+index 55ad80e9bc..24eb6dbfe0 100644
+--- a/src/runtime/panic.c
++++ b/src/runtime/panic.c
+@@ -34,6 +34,8 @@ runtime·deferproc_m(void)
+ 	g->m->scalararg[1] = 0;
+ 
+ 	d = runtime·newdefer(siz);
++	if(d->panic != nil)
++		runtime·throw("deferproc: d->panic != nil after newdefer");
+ 	d->fn = fn;
+ 	d->pc = callerpc;
+ 	d->argp = argp;
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 7eb2d6055a..c78102f8a3 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -188,6 +188,10 @@ func newdefer(siz int32) *_defer {
+ // The defer cannot be used after this call.
+ //go:nosplit
+ func freedefer(d *_defer) {
++	if d._panic != nil {
++		// _panic must be cleared before d is unlinked from gp.
++		gothrow("freedefer with d._panic != nil")
++	}
+ 	sc := deferclass(uintptr(d.siz))
+ 	if sc < uintptr(len(p{}.deferpool)) {
+ 		mp := acquirem()
+@@ -258,6 +262,7 @@ func Goexit() {
+ 		if d.started {
+ 			if d._panic != nil {
+ 				d._panic.aborted = true
++				d._panic = nil
+ 			}
+ 			gp._defer = d.link
+ 			freedefer(d)
+@@ -268,6 +273,7 @@ func Goexit() {
+ 		if gp._defer != d {
+ 			gothrow("bad defer entry in Goexit")
+ 		}
++		d._panic = nil
+ 		gp._defer = d.link
+ 		freedefer(d)
+ 		// Note: we ignore recovers here because Goexit isn't a panic
+@@ -343,6 +349,7 @@ func gopanic(e interface{}) {
+ 			if d._panic != nil {
+ 				d._panic.aborted = true
+ 			}
++			d._panic = nil
+ 			gp._defer = d.link
+ 			freedefer(d)
+ 			continue
+@@ -366,6 +373,7 @@ func gopanic(e interface{}) {
+ 		if gp._defer != d {
+ 			gothrow("bad defer entry in panic")
+ 		}
++		d._panic = nil
+ 		gp._defer = d.link
+ 
+ 		// trigger shrinkage to test stack copy.  See stack_test.go:TestStackPanic

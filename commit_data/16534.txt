@@ -11,6 +11,29 @@ Date:   Mon Jun 10 16:13:25 2013 -0400
     R=ken2
     CC=golang-dev
     https://golang.org/cl/10167043
-
+---
  src/cmd/cc/lexbody | 4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cc/lexbody b/src/cmd/cc/lexbody
+index c5d51b8fb6..ccc0c405d0 100644
+--- a/src/cmd/cc/lexbody
++++ b/src/cmd/cc/lexbody
+@@ -665,7 +665,7 @@ loop:
+ 		goto pop;
+ 	}
+ 	fi.p = i->b + 1;
+-	return i->b[0];
++	return i->b[0] & 0xff;
+ 
+ pop:
+ 	iostack = i->link;
+@@ -678,7 +678,7 @@ pop:
+ 	fi.c = i->c;
+ 	if(--fi.c < 0)
+ 		goto loop;
+-	return *fi.p++;
++	return *fi.p++ & 0xff;
+ }
+ 
+ void

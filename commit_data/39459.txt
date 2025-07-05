@@ -24,7 +24,7 @@ Date:   Mon Feb 25 11:32:00 2019 +0100
     Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/cmd/dist/build.go           |  3 +++
  src/cmd/dist/buildruntime.go    |  1 +
  src/cmd/dist/test.go            |  9 +--------
@@ -32,3 +32,122 @@ Date:   Mon Feb 25 11:32:00 2019 +0100
  src/cmd/link/internal/ld/elf.go |  5 +++++
  src/make.bash                   | 12 ++++++++++++
  6 files changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 03f0f03657..87739a510d 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -48,6 +48,7 @@ var (
+ 	defaultcflags    string
+ 	defaultldflags   string
+ 	defaultpkgconfig string
++	defaultldso      string
+ 
+ 	rebuildall   bool
+ 	defaultclang bool
+@@ -207,6 +208,8 @@ func xinit() {
+ 	}
+ 	defaultpkgconfig = b
+ 
++	defaultldso = os.Getenv("GO_LDSO")
++
+ 	// For tools being invoked but also for os.ExpandEnv.
+ 	os.Setenv("GO386", go386)
+ 	os.Setenv("GOARCH", goarch)
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 5aadc8da67..d5462792f8 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -76,6 +76,7 @@ func mkzbootstrap(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+ 	fmt.Fprintf(&buf, "const defaultGO_EXTLINK_ENABLED = `%s`\n", goextlinkenabled)
++	fmt.Fprintf(&buf, "const defaultGO_LDSO = `%s`\n", defaultldso)
+ 	fmt.Fprintf(&buf, "const version = `%s`\n", findgoversion())
+ 	fmt.Fprintf(&buf, "const stackGuardMultiplierDefault = %d\n", stackGuardMultiplierDefault())
+ 	fmt.Fprintf(&buf, "const goexperiment = `%s`\n", os.Getenv("GOEXPERIMENT"))
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 68401e546b..8084e474a8 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -570,10 +570,7 @@ func (t *tester) registerTests() {
+ 	}
+ 
+ 	// Test internal linking of PIE binaries where it is supported.
+-	if goos == "linux" && goarch == "amd64" && !isAlpineLinux() {
+-		// Issue 18243: We don't have a way to set the default
+-		// dynamic linker used in internal linking mode. So
+-		// this test is skipped on Alpine.
++	if goos == "linux" && goarch == "amd64" {
+ 		t.tests = append(t.tests, distTest{
+ 			name:    "pie_internal",
+ 			heading: "internal linking of -buildmode=pie",
+@@ -899,10 +896,6 @@ func (t *tester) internalLink() bool {
+ 	if goarch == "arm64" || goarch == "mips64" || goarch == "mips64le" || goarch == "mips" || goarch == "mipsle" {
+ 		return false
+ 	}
+-	if isAlpineLinux() {
+-		// Issue 18243.
+-		return false
+-	}
+ 	return true
+ }
+ 
+diff --git a/src/cmd/internal/objabi/util.go b/src/cmd/internal/objabi/util.go
+index da49f706f6..907f75cb4f 100644
+--- a/src/cmd/internal/objabi/util.go
++++ b/src/cmd/internal/objabi/util.go
+@@ -28,6 +28,7 @@ var (
+ 	GOARM    = goarm()
+ 	GOMIPS   = gomips()
+ 	GOMIPS64 = gomips64()
++	GO_LDSO  = defaultGO_LDSO
+ 	Version  = version
+ )
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index c2a2b3a7ba..19bcbbb87a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1840,6 +1840,11 @@ func Asmbelf(ctxt *Link, symo int64) {
+ 		sh.type_ = SHT_PROGBITS
+ 		sh.flags = SHF_ALLOC
+ 		sh.addralign = 1
++
++		if interpreter == "" && objabi.GO_LDSO != "" {
++			interpreter = objabi.GO_LDSO
++		}
++
+ 		if interpreter == "" {
+ 			switch ctxt.HeadType {
+ 			case objabi.Hlinux:
+diff --git a/src/make.bash b/src/make.bash
+index 13497eb039..b0e33cf6a4 100755
+--- a/src/make.bash
++++ b/src/make.bash
+@@ -34,6 +34,9 @@
+ # controls the default behavior of the linker's -linkmode option.  The
+ # default value depends on the system.
+ #
++# GO_LDSO: Sets the default dynamic linker/loader (ld.so) to be used
++# by the internal linker.
++#
+ # CC: Command line to run to compile C code for GOHOSTARCH.
+ # Default is "gcc". Also supported: "clang".
+ #
+@@ -126,6 +129,15 @@ if [ "$(uname -s)" = "GNU/kFreeBSD" ]; then
+ 	export CGO_ENABLED=0
+ fi
+ 
++# On Alpine Linux, use the musl dynamic linker/loader
++if [ -f "/etc/alpine-release" ]; then
++	if type readelf >/dev/null 2>&1; then
++		echo "int main() { return 0; }" | ${CC:-gcc} -o ./test-alpine-ldso -x c -
++		export GO_LDSO=$(readelf -l ./test-alpine-ldso | grep 'interpreter:' | sed -e 's/^.*interpreter: \(.*\)[]]/\1/')
++		rm -f ./test-alpine-ldso
++	fi
++fi
++
+ # Clean old generated file that will cause problems in the build.
+ rm -f ./runtime/runtime_defs.go
+ 

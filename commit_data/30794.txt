@@ -21,10 +21,148 @@ Date:   Mon Dec 5 11:17:59 2016 -0800
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
-
+---
  misc/cgo/test/issue18146.go           | 18 +++++++++++++-----
  src/runtime/cgo/gcc_libinit_openbsd.c | 24 ++++++++++++++++++++++++
  src/runtime/cgo/gcc_openbsd_386.c     |  3 ++-
  src/runtime/cgo/gcc_openbsd_amd64.c   |  3 ++-
  src/runtime/cgo/libcgo_unix.h         |  9 ++++++++-
  5 files changed, 49 insertions(+), 8 deletions(-)
+
+diff --git a/misc/cgo/test/issue18146.go b/misc/cgo/test/issue18146.go
+index ee62fc6aff..5ced6ecc22 100644
+--- a/misc/cgo/test/issue18146.go
++++ b/misc/cgo/test/issue18146.go
+@@ -18,14 +18,10 @@ import (
+ 	"runtime"
+ 	"syscall"
+ 	"testing"
++	"time"
+ )
+ 
+ func test18146(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "darwin", "openbsd", "dragonfly":
+-		t.Skip("skipping on %s; issue 18146", runtime.GOOS)
+-	}
+-
+ 	attempts := 1000
+ 	threads := 4
+ 
+@@ -64,6 +60,18 @@ func test18146(t *testing.T) {
+ 		cmd.Stdout = buf
+ 		cmd.Stderr = buf
+ 		if err := cmd.Start(); err != nil {
++			// We are starting so many processes that on
++			// some systems (problem seen on Darwin,
++			// Dragonfly, OpenBSD) the fork call will fail
++			// with EAGAIN.
++			if pe, ok := err.(*os.PathError); ok {
++				err = pe.Err
++			}
++			if se, ok := err.(syscall.Errno); ok && se == syscall.EAGAIN {
++				time.Sleep(time.Millisecond)
++				continue
++			}
++
+ 			t.Error(err)
+ 			return
+ 		}
+diff --git a/src/runtime/cgo/gcc_libinit_openbsd.c b/src/runtime/cgo/gcc_libinit_openbsd.c
+index 626bf8adca..c8308e54c3 100644
+--- a/src/runtime/cgo/gcc_libinit_openbsd.c
++++ b/src/runtime/cgo/gcc_libinit_openbsd.c
+@@ -2,6 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++#include <sys/types.h>
++#include <errno.h>
++#include <pthread.h>
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include "libcgo.h"
+@@ -48,3 +51,24 @@ void x_cgo_set_context_function(void (*context)(struct context_arg*)) {
+ void (*(_cgo_get_context_function(void)))(struct context_arg*) {
+ 	return cgo_context_function;
+ }
++
++// _cgo_try_pthread_create retries sys_pthread_create if it fails with
++// EAGAIN.
++int
++_cgo_openbsd_try_pthread_create(int (*sys_pthread_create)(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*),
++	pthread_t* thread, const pthread_attr_t* attr, void* (*pfn)(void*), void* arg) {
++	int tries;
++	int err;
++	struct timespec ts;
++
++	for (tries = 0; tries < 100; tries++) {
++		err = sys_pthread_create(thread, attr, pfn, arg);
++		if (err != EAGAIN) {
++			return err;
++		}
++		ts.tv_sec = 0;
++		ts.tv_nsec = (tries + 1) * 1000 * 1000; // Milliseconds.
++		nanosleep(&ts, nil);
++	}
++	return EAGAIN;
++}
+diff --git a/src/runtime/cgo/gcc_openbsd_386.c b/src/runtime/cgo/gcc_openbsd_386.c
+index 1bc61ff708..0cac047ad3 100644
+--- a/src/runtime/cgo/gcc_openbsd_386.c
++++ b/src/runtime/cgo/gcc_openbsd_386.c
+@@ -9,6 +9,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -170,7 +171,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = sys_pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_openbsd_try_pthread_create(sys_pthread_create, &p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/gcc_openbsd_amd64.c b/src/runtime/cgo/gcc_openbsd_amd64.c
+index 4d4d14314c..86a9185a37 100644
+--- a/src/runtime/cgo/gcc_openbsd_amd64.c
++++ b/src/runtime/cgo/gcc_openbsd_amd64.c
+@@ -9,6 +9,7 @@
+ #include <signal.h>
+ #include <string.h>
+ #include "libcgo.h"
++#include "libcgo_unix.h"
+ 
+ static void* threadentry(void*);
+ static void (*setg_gcc)(void*);
+@@ -170,7 +171,7 @@ _cgo_sys_thread_start(ThreadStart *ts)
+ 
+ 	// Leave stacklo=0 and set stackhi=size; mstack will do the rest.
+ 	ts->g->stackhi = size;
+-	err = sys_pthread_create(&p, &attr, threadentry, ts);
++	err = _cgo_openbsd_try_pthread_create(sys_pthread_create, &p, &attr, threadentry, ts);
+ 
+ 	pthread_sigmask(SIG_SETMASK, &oset, nil);
+ 
+diff --git a/src/runtime/cgo/libcgo_unix.h b/src/runtime/cgo/libcgo_unix.h
+index 13c84ce131..a56a366f23 100644
+--- a/src/runtime/cgo/libcgo_unix.h
++++ b/src/runtime/cgo/libcgo_unix.h
+@@ -5,4 +5,11 @@
+ /*
+  * Call pthread_create, retrying on EAGAIN.
+  */
+-int _cgo_try_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*);
++extern int _cgo_try_pthread_create(pthread_t*, const pthread_attr_t*, void* (*)(void*), void*);
++
++/*
++ * Same as _cgo_try_pthread_create, but passing on the pthread_create function.
++ * Only defined on OpenBSD.
++ */
++extern int _cgo_openbsd_try_pthread_create(int (*)(pthread_t*, const pthread_attr_t*, void *(*pfn)(void*), void*),
++	pthread_t*, const pthread_attr_t*, void* (*)(void*), void* arg);

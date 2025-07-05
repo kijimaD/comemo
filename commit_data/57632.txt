@@ -16,7 +16,78 @@ Date:   Wed Aug 16 18:36:46 2023 -0600
     Reviewed-by: Matthew Dempsky <mdempsky@google.com>
     Reviewed-by: Bryan Mills <bcmills@google.com>
     Auto-Submit: Bryan Mills <bcmills@google.com>
-
+---
  misc/go_android_exec/main.go |  1 +
  src/os/os_test.go            | 47 ++++++++++++++++++++++++++++++++++++++++++++
  2 files changed, 48 insertions(+)
+
+diff --git a/misc/go_android_exec/main.go b/misc/go_android_exec/main.go
+index 554810c55d..33b669399c 100644
+--- a/misc/go_android_exec/main.go
++++ b/misc/go_android_exec/main.go
+@@ -204,6 +204,7 @@ func runMain() (int, error) {
+ 		`; export GOPROXY=` + os.Getenv("GOPROXY") +
+ 		`; export GOCACHE="` + deviceRoot + `/gocache"` +
+ 		`; export PATH="` + deviceGoroot + `/bin":$PATH` +
++		`; export HOME="` + deviceRoot + `/home"` +
+ 		`; cd "` + deviceCwd + `"` +
+ 		"; '" + deviceBin + "' " + strings.Join(os.Args[2:], " ")
+ 	code, err := adbRun(cmd)
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 94c3ad04f3..a9de3f1014 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2823,6 +2823,53 @@ func TestDoubleCloseError(t *testing.T) {
+ 	t.Run("dir", testDoubleCloseError(sfdir))
+ }
+ 
++func TestUserCacheDir(t *testing.T) {
++	t.Parallel()
++
++	dir, err := UserCacheDir()
++	if err != nil {
++		t.Skipf("skipping: %v", err)
++	}
++	if dir == "" {
++		t.Fatalf("UserCacheDir returned %q; want non-empty path or error", dir)
++	}
++
++	if err := MkdirAll(dir, 0777); err != nil {
++		t.Fatalf("could not create UserCacheDir: %v", err)
++	}
++	d, err := MkdirTemp(dir, "TestUserCacheDir")
++	if err != nil {
++		t.Fatalf("could not create a directory in UserCacheDir: %v", err)
++	}
++	if err := Remove(d); err != nil {
++		t.Fatal(err)
++	}
++}
++
++func TestUserConfigDir(t *testing.T) {
++	t.Parallel()
++
++	dir, err := UserConfigDir()
++	if err != nil {
++		t.Skipf("skipping: %v", err)
++	}
++	if dir == "" {
++		t.Fatalf("UserConfigDir returned %q; want non-empty path or error", dir)
++	}
++
++	if err := MkdirAll(dir, 0777); err != nil {
++		t.Fatalf("could not create UserConfigDir: %v", err)
++	}
++
++	d, err := MkdirTemp(dir, "TestUserConfigDir")
++	if err != nil {
++		t.Fatalf("could not create a directory in UserConfigDir: %v", err)
++	}
++	if err := Remove(d); err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func TestUserHomeDir(t *testing.T) {
+ 	t.Parallel()
+ 

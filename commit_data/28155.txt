@@ -26,10 +26,232 @@ Date:   Sat Apr 16 09:35:32 2016 -0700
     Reviewed-by: Andrew Gerrand <adg@golang.org>
     Run-TryBot: Brad Fitzpatrick <bradfitz@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/net/http/clientserver_test.go | 57 ++++++++++++++++++++++++++++++++++++---
  src/net/http/httputil/dump.go     | 13 ++++-----
  src/net/http/response.go          | 11 +++++++-
  src/net/http/response_test.go     | 26 ++++++++++++++++++
  src/net/http/transport.go         |  1 +
  5 files changed, 97 insertions(+), 11 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index f721382365..9c3949fc39 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"net"
+ 	. "net/http"
+ 	"net/http/httptest"
++	"net/http/httputil"
+ 	"net/url"
+ 	"os"
+ 	"reflect"
+@@ -147,10 +148,11 @@ type reqFunc func(c *Client, url string) (*Response, error)
+ // h12Compare is a test that compares HTTP/1 and HTTP/2 behavior
+ // against each other.
+ type h12Compare struct {
+-	Handler       func(ResponseWriter, *Request)    // required
+-	ReqFunc       reqFunc                           // optional
+-	CheckResponse func(proto string, res *Response) // optional
+-	Opts          []interface{}
++	Handler            func(ResponseWriter, *Request)    // required
++	ReqFunc            reqFunc                           // optional
++	CheckResponse      func(proto string, res *Response) // optional
++	EarlyCheckResponse func(proto string, res *Response) // optional; pre-normalize
++	Opts               []interface{}
+ }
+ 
+ func (tt h12Compare) reqFunc() reqFunc {
+@@ -176,6 +178,12 @@ func (tt h12Compare) run(t *testing.T) {
+ 		t.Errorf("HTTP/2 request: %v", err)
+ 		return
+ 	}
++
++	if fn := tt.EarlyCheckResponse; fn != nil {
++		fn("HTTP/1.1", res1)
++		fn("HTTP/2.0", res2)
++	}
++
+ 	tt.normalizeRes(t, res1, "HTTP/1.1")
+ 	tt.normalizeRes(t, res2, "HTTP/2.0")
+ 	res1body, res2body := res1.Body, res2.Body
+@@ -220,6 +228,12 @@ func (tt h12Compare) normalizeRes(t *testing.T, res *Response, wantProto string)
+ 		t.Errorf("got %q response; want %q", res.Proto, wantProto)
+ 	}
+ 	slurp, err := ioutil.ReadAll(res.Body)
++
++	// TODO(bradfitz): short-term hack. Fix the
++	// http2 side of golang.org/issue/15366 once
++	// the http1 part is submitted.
++	res.Uncompressed = false
++
+ 	res.Body.Close()
+ 	res.Body = slurpResult{
+ 		ReadCloser: ioutil.NopCloser(bytes.NewReader(slurp)),
+@@ -1151,6 +1165,41 @@ func testInterruptWithPanic(t *testing.T, h2 bool) {
+ 	}
+ }
+ 
++// Issue 15366
++func TestH12_AutoGzipWithDumpResponse(t *testing.T) {
++	h12Compare{
++		Handler: func(w ResponseWriter, r *Request) {
++			h := w.Header()
++			h.Set("Content-Encoding", "gzip")
++			h.Set("Content-Length", "23")
++			h.Set("Connection", "keep-alive")
++			io.WriteString(w, "\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00")
++		},
++		EarlyCheckResponse: func(proto string, res *Response) {
++			if proto == "HTTP/2.0" {
++				// TODO(bradfitz): Fix the http2 side
++				// of golang.org/issue/15366 once the
++				// http1 part is submitted.
++				return
++			}
++			if !res.Uncompressed {
++				t.Errorf("%s: expected Uncompressed to be set", proto)
++			}
++			dump, err := httputil.DumpResponse(res, true)
++			if err != nil {
++				t.Errorf("%s: DumpResponse: %v", proto, err)
++				return
++			}
++			if strings.Contains(string(dump), "Connection: close") {
++				t.Errorf("%s: should not see \"Connection: close\" in dump; got:\n%s", proto, dump)
++			}
++			if !strings.Contains(string(dump), "FOO") {
++				t.Errorf("%s: should see \"FOO\" in response; got:\n%s", proto, dump)
++			}
++		},
++	}.run(t)
++}
++
+ type noteCloseConn struct {
+ 	net.Conn
+ 	closeFunc func()
+diff --git a/src/net/http/httputil/dump.go b/src/net/http/httputil/dump.go
+index 692ab62c9b..1511681632 100644
+--- a/src/net/http/httputil/dump.go
++++ b/src/net/http/httputil/dump.go
+@@ -183,7 +183,8 @@ var reqWriteExcludeHeaderDump = map[string]bool{
+ //
+ // The documentation for http.Request.Write details which fields
+ // of req are included in the dump.
+-func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
++func DumpRequest(req *http.Request, body bool) ([]byte, error) {
++	var err error
+ 	save := req.Body
+ 	if !body || req.Body == nil {
+ 		req.Body = nil
+@@ -231,7 +232,7 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+ 
+ 	err = req.Header.WriteSubset(&b, reqWriteExcludeHeaderDump)
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+ 
+ 	io.WriteString(&b, "\r\n")
+@@ -250,10 +251,9 @@ func DumpRequest(req *http.Request, body bool) (dump []byte, err error) {
+ 
+ 	req.Body = save
+ 	if err != nil {
+-		return
++		return nil, err
+ 	}
+-	dump = b.Bytes()
+-	return
++	return b.Bytes(), nil
+ }
+ 
+ // errNoBody is a sentinel error value used by failureToReadBody so we
+@@ -273,8 +273,9 @@ func (failureToReadBody) Close() error             { return nil }
+ var emptyBody = ioutil.NopCloser(strings.NewReader(""))
+ 
+ // DumpResponse is like DumpRequest but dumps a response.
+-func DumpResponse(resp *http.Response, body bool) (dump []byte, err error) {
++func DumpResponse(resp *http.Response, body bool) ([]byte, error) {
+ 	var b bytes.Buffer
++	var err error
+ 	save := resp.Body
+ 	savecl := resp.ContentLength
+ 
+diff --git a/src/net/http/response.go b/src/net/http/response.go
+index 91d4ffb7ec..0164a09c6a 100644
+--- a/src/net/http/response.go
++++ b/src/net/http/response.go
+@@ -73,6 +73,15 @@ type Response struct {
+ 	// ReadResponse nor Response.Write ever closes a connection.
+ 	Close bool
+ 
++	// Uncompressed reports whether the response was sent compressed but
++	// was decompressed by the http package. When true, reading from
++	// Body yields the uncompressed content instead of the compressed
++	// content actually set from the server, ContentLength is set to -1,
++	// and the "Content-Length" and "Content-Encoding" fields are deleted
++	// from the responseHeader. To get the original response from
++	// the server, set Transport.DisableCompression to true.
++	Uncompressed bool
++
+ 	// Trailer maps trailer keys to values in the same
+ 	// format as Header.
+ 	//
+@@ -268,7 +277,7 @@ func (r *Response) Write(w io.Writer) error {
+ 	// content-length, the only way to do that is the old HTTP/1.0
+ 	// way, by noting the EOF with a connection close, so we need
+ 	// to set Close.
+-	if r1.ContentLength == -1 && !r1.Close && r1.ProtoAtLeast(1, 1) && !chunked(r1.TransferEncoding) {
++	if r1.ContentLength == -1 && !r1.Close && r1.ProtoAtLeast(1, 1) && !chunked(r1.TransferEncoding) && !r1.Uncompressed {
+ 		r1.Close = true
+ 	}
+ 
+diff --git a/src/net/http/response_test.go b/src/net/http/response_test.go
+index 2591e3ac81..126da92735 100644
+--- a/src/net/http/response_test.go
++++ b/src/net/http/response_test.go
+@@ -506,6 +506,32 @@ some body`,
+ 
+ 		"Body here\n",
+ 	},
++
++	{
++		"HTTP/1.1 200 OK\r\n" +
++			"Content-Encoding: gzip\r\n" +
++			"Content-Length: 23\r\n" +
++			"Connection: keep-alive\r\n" +
++			"Keep-Alive: timeout=7200\r\n\r\n" +
++			"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
++		Response{
++			Status:     "200 OK",
++			StatusCode: 200,
++			Proto:      "HTTP/1.1",
++			ProtoMajor: 1,
++			ProtoMinor: 1,
++			Request:    dummyReq("GET"),
++			Header: Header{
++				"Content-Length":   {"23"},
++				"Content-Encoding": {"gzip"},
++				"Connection":       {"keep-alive"},
++				"Keep-Alive":       {"timeout=7200"},
++			},
++			Close:         false,
++			ContentLength: 23,
++		},
++		"\x1f\x8b\b\x00\x00\x00\x00\x00\x00\x00s\xf3\xf7\a\x00\xab'\xd4\x1a\x03\x00\x00\x00",
++	},
+ }
+ 
+ // tests successful calls to ReadResponse, and inspects the returned Response.
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index f9cbd06a79..0f11676de6 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1392,6 +1392,7 @@ func (pc *persistConn) readLoop() {
+ 			resp.Header.Del("Content-Encoding")
+ 			resp.Header.Del("Content-Length")
+ 			resp.ContentLength = -1
++			resp.Uncompressed = true
+ 		}
+ 
+ 		select {

@@ -7,7 +7,161 @@ Date:   Fri Aug 28 15:56:43 2015 -0500
     Change-Id: I1453ba226376ccd4d79780fc0686876d6dde01ee
     Reviewed-on: https://go-review.googlesource.com/14027
     Reviewed-by: Keith Randall <khr@golang.org>
-
+---
  src/cmd/compile/internal/gc/ssa.go               | 34 +++++++----
  src/cmd/compile/internal/gc/testdata/chan_ssa.go | 76 ++++++++++++++++++++++++
  2 files changed, 97 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/ssa.go b/src/cmd/compile/internal/gc/ssa.go
+index 5614a6c3b9..c92c82da1d 100644
+--- a/src/cmd/compile/internal/gc/ssa.go
++++ b/src/cmd/compile/internal/gc/ssa.go
+@@ -1528,15 +1528,8 @@ func (s *state) expr(n *Node) *ssa.Value {
+ 			return s.newValue1(op, Types[TINT], s.expr(n.Left))
+ 		case n.Left.Type.IsString(): // string; not reachable for OCAP
+ 			return s.newValue1(ssa.OpStringLen, Types[TINT], s.expr(n.Left))
+-		case n.Left.Type.IsMap():
+-			return s.lenMap(n, s.expr(n.Left))
+-		case n.Left.Type.IsChan():
+-			if n.Op == OCAP {
+-				s.Unimplementedf("unhandled cap(chan)")
+-			} else {
+-				s.Unimplementedf("unhandled len(chan)")
+-			}
+-			return nil
++		case n.Left.Type.IsMap(), n.Left.Type.IsChan():
++			return s.referenceTypeBuiltin(n, s.expr(n.Left))
+ 		default: // array
+ 			return s.constInt(Types[TINT], n.Left.Type.Bound)
+ 		}
+@@ -2098,11 +2091,18 @@ func (s *state) uintTofloat(cvttab *u2fcvtTab, n *Node, x *ssa.Value, ft, tt *Ty
+ 	return s.variable(n, n.Type)
+ }
+ 
+-func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
++// referenceTypeBuiltin generates code for the len/cap builtins for maps and channels.
++func (s *state) referenceTypeBuiltin(n *Node, x *ssa.Value) *ssa.Value {
++	if !n.Left.Type.IsMap() && !n.Left.Type.IsChan() {
++		s.Fatalf("node must be a map or a channel")
++	}
+ 	// if n == nil {
+ 	//   return 0
+ 	// } else {
++	//   // len
+ 	//   return *((*int)n)
++	//   // cap
++	//   return *(((*int)n)+1)
+ 	// }
+ 	lenType := n.Type
+ 	nilValue := s.newValue0(ssa.OpConstNil, Types[TUINTPTR])
+@@ -2116,17 +2116,25 @@ func (s *state) lenMap(n *Node, x *ssa.Value) *ssa.Value {
+ 	bElse := s.f.NewBlock(ssa.BlockPlain)
+ 	bAfter := s.f.NewBlock(ssa.BlockPlain)
+ 
+-	// length of a nil map is zero
++	// length/capacity of a nil map/chan is zero
+ 	addEdge(b, bThen)
+ 	s.startBlock(bThen)
+ 	s.vars[n] = s.zeroVal(lenType)
+ 	s.endBlock()
+ 	addEdge(bThen, bAfter)
+ 
+-	// the length is stored in the first word
+ 	addEdge(b, bElse)
+ 	s.startBlock(bElse)
+-	s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
++	if n.Op == OLEN {
++		// length is stored in the first word for map/chan
++		s.vars[n] = s.newValue2(ssa.OpLoad, lenType, x, s.mem())
++	} else if n.Op == OCAP {
++		// capacity is stored in the second word for chan
++		sw := s.newValue1I(ssa.OpOffPtr, lenType.PtrTo(), lenType.Width, x)
++		s.vars[n] = s.newValue2(ssa.OpLoad, lenType, sw, s.mem())
++	} else {
++		s.Fatalf("op must be OLEN or OCAP")
++	}
+ 	s.endBlock()
+ 	addEdge(bElse, bAfter)
+ 
+diff --git a/src/cmd/compile/internal/gc/testdata/chan_ssa.go b/src/cmd/compile/internal/gc/testdata/chan_ssa.go
+new file mode 100644
+index 0000000000..c527ba95be
+--- /dev/null
++++ b/src/cmd/compile/internal/gc/testdata/chan_ssa.go
+@@ -0,0 +1,76 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// chan_ssa.go tests chan operations.
++package main
++
++import "fmt"
++
++var failed = false
++
++func lenChan_ssa(v chan int) int {
++	switch { // prevent inlining
++
++	}
++	return len(v)
++}
++func capChan_ssa(v chan int) int {
++	switch { // prevent inlining
++
++	}
++	return cap(v)
++}
++
++func testLenChan() {
++
++	v := make(chan int, 10)
++	v <- 1
++	v <- 1
++	v <- 1
++
++	if want, got := 3, lenChan_ssa(v); got != want {
++		fmt.Printf("expected len(chan) = %d, got %d", want, got)
++		failed = true
++	}
++}
++
++func testLenNilChan() {
++
++	var v chan int
++	if want, got := 0, lenChan_ssa(v); got != want {
++		fmt.Printf("expected len(nil) = %d, got %d", want, got)
++		failed = true
++	}
++}
++
++func testCapChan() {
++
++	v := make(chan int, 25)
++
++	if want, got := 25, capChan_ssa(v); got != want {
++		fmt.Printf("expected cap(chan) = %d, got %d", want, got)
++		failed = true
++	}
++}
++
++func testCapNilChan() {
++
++	var v chan int
++	if want, got := 0, capChan_ssa(v); got != want {
++		fmt.Printf("expected cap(nil) = %d, got %d", want, got)
++		failed = true
++	}
++}
++
++func main() {
++	testLenChan()
++	testLenNilChan()
++
++	testCapChan()
++	testCapNilChan()
++
++	if failed {
++		panic("failed")
++	}
++}

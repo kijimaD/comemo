@@ -16,6 +16,20 @@ Date:   Mon Mar 20 16:44:34 2017 +0000
     Change-Id: I11f889f86c932b51b11846560b68dbe5993cdfc3
     Reviewed-on: https://go-review.googlesource.com/38373
     Reviewed-by: Michael Munday <munday@ca.ibm.com>
-
+---
  src/net/http/serve_test.go | 2 ++
  1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 795bc207c6..451b3b6467 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -962,6 +962,8 @@ func TestServerAllowsBlockingRemoteAddr(t *testing.T) {
+ 
+ 	c := ts.Client()
+ 	c.Timeout = time.Second
++	// Force separate connection for each:
++	c.Transport.(*Transport).DisableKeepAlives = true
+ 
+ 	fetch := func(num int, response chan<- string) {
+ 		resp, err := c.Get(ts.URL)

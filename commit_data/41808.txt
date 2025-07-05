@@ -14,9 +14,75 @@ Date:   Fri Oct 4 18:54:00 2019 -0400
     Run-TryBot: Austin Clements <austin@google.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Cherry Zhang <cherryyz@google.com>
-
+---
  src/runtime/mgcwork.go | 10 +++++-----
  src/runtime/preempt.go |  9 +++++++++
  src/runtime/proc.go    |  2 +-
  src/runtime/stack.go   |  2 +-
  4 files changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index f2c16d7d8c..927b06c3f9 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -126,12 +126,12 @@ func (w *gcWork) checkPut(ptr uintptr, ptrs []uintptr) {
+ 	if debugCachedWork {
+ 		alreadyFailed := w.putGen == w.pauseGen
+ 		w.putGen = w.pauseGen
+-		if m := getg().m; m.locks > 0 || m.mallocing != 0 || m.preemptoff != "" || m.p.ptr().status != _Prunning {
++		if !canPreemptM(getg().m) {
+ 			// If we were to spin, the runtime may
+-			// deadlock: the condition above prevents
+-			// preemption (see newstack), which could
+-			// prevent gcMarkDone from finishing the
+-			// ragged barrier and releasing the spin.
++			// deadlock. Since we can't be preempted, the
++			// spin could prevent gcMarkDone from
++			// finishing the ragged barrier, which is what
++			// releases us from the spin.
+ 			return
+ 		}
+ 		for atomic.Load(&gcWorkPauseGen) == w.pauseGen {
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 0565fd6360..96eaa3488b 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -223,3 +223,12 @@ func resumeG(state suspendGState) {
+ 		ready(gp, 0, true)
+ 	}
+ }
++
++// canPreemptM reports whether mp is in a state that is safe to preempt.
++//
++// It is nosplit because it has nosplit callers.
++//
++//go:nosplit
++func canPreemptM(mp *m) bool {
++	return mp.locks == 0 && mp.mallocing == 0 && mp.preemptoff == "" && mp.p.ptr().status == _Prunning
++}
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 9a553a5f88..60a15c1e9c 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2703,7 +2703,7 @@ func gosched_m(gp *g) {
+ // goschedguarded is a forbidden-states-avoided version of gosched_m
+ func goschedguarded_m(gp *g) {
+ 
+-	if gp.m.locks != 0 || gp.m.mallocing != 0 || gp.m.preemptoff != "" || gp.m.p.ptr().status != _Prunning {
++	if !canPreemptM(gp.m) {
+ 		gogo(&gp.sched) // never return
+ 	}
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 825826cacd..ecefce1e32 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -975,7 +975,7 @@ func newstack() {
+ 	// it needs a lock held by the goroutine), that small preemption turns
+ 	// into a real deadlock.
+ 	if preempt {
+-		if thisg.m.locks != 0 || thisg.m.mallocing != 0 || thisg.m.preemptoff != "" || thisg.m.p.ptr().status != _Prunning {
++		if !canPreemptM(thisg.m) {
+ 			// Let the goroutine keep running for now.
+ 			// gp->preempt is set, so it will be preempted next time.
+ 			gp.stackguard0 = gp.stack.lo + _StackGuard

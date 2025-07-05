@@ -9,6 +9,19 @@ Date:   Sat Feb 22 11:42:19 2020 +0000
     GitHub-Pull-Request: golang/go#37375
     Reviewed-on: https://go-review.googlesource.com/c/go/+/220577
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  doc/cmd.html | 1 -
  1 file changed, 1 deletion(-)
+
+diff --git a/doc/cmd.html b/doc/cmd.html
+index e30684793a..c3bd918144 100644
+--- a/doc/cmd.html
++++ b/doc/cmd.html
+@@ -49,7 +49,6 @@ The <code>go</code> program manages Go source code and runs the other
+ commands listed here.
+ See the command docs for usage
+ details.
+-<br><br>
+ </td>
+ </tr>
+ 

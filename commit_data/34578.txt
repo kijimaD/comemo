@@ -20,7 +20,7 @@ Date:   Wed Nov 1 12:44:14 2017 -0400
     Run-TryBot: Ian Lance Taylor <iant@golang.org>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
     Reviewed-by: Ian Lance Taylor <iant@golang.org>
-
+---
  src/syscall/syscall_bsd.go       |  7 ++++++-
  src/syscall/syscall_darwin.go    | 30 ++++++++++++++++++++++++++++++
  src/syscall/syscall_dragonfly.go |  5 +++++
@@ -28,3 +28,134 @@ Date:   Wed Nov 1 12:44:14 2017 -0400
  src/syscall/syscall_netbsd.go    |  5 +++++
  src/syscall/syscall_openbsd.go   |  5 +++++
  6 files changed, 56 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/syscall_bsd.go b/src/syscall/syscall_bsd.go
+index a968562b73..d141a7de9d 100644
+--- a/src/syscall/syscall_bsd.go
++++ b/src/syscall/syscall_bsd.go
+@@ -510,7 +510,12 @@ func UtimesNano(path string, ts []Timespec) error {
+ 	if len(ts) != 2 {
+ 		return EINVAL
+ 	}
+-	err := utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
++	// Darwin setattrlist can set nanosecond timestamps
++	err := setattrlistTimes(path, ts)
++	if err != ENOSYS {
++		return err
++	}
++	err = utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ 	if err != ENOSYS {
+ 		return err
+ 	}
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 9845effb26..cf21ec4688 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -93,6 +93,8 @@ func PtraceDetach(pid int) (err error) { return ptrace(PT_DETACH, pid, 0, 0) }
+ 
+ const (
+ 	attrBitMapCount = 5
++	attrCmnModtime  = 0x00000400
++	attrCmnAcctime  = 0x00001000
+ 	attrCmnFullpath = 0x08000000
+ )
+ 
+@@ -186,6 +188,34 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
++func setattrlistTimes(path string, times []Timespec) error {
++	_p0, err := BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	var attrList attrList
++	attrList.bitmapCount = attrBitMapCount
++	attrList.CommonAttr = attrCmnModtime | attrCmnAcctime
++
++	// order is mtime, atime: the opposite of Chtimes
++	attributes := [2]Timespec{times[1], times[0]}
++	const options = 0
++	_, _, e1 := Syscall6(
++		SYS_SETATTRLIST,
++		uintptr(unsafe.Pointer(_p0)),
++		uintptr(unsafe.Pointer(&attrList)),
++		uintptr(unsafe.Pointer(&attributes)),
++		uintptr(unsafe.Sizeof(attributes)),
++		uintptr(options),
++		0,
++	)
++	if e1 != 0 {
++		return e1
++	}
++	return nil
++}
++
+ func utimensat(dirfd int, path string, times *[2]Timespec, flag int) error {
+ 	// Darwin doesn't support SYS_UTIMENSAT
+ 	return ENOSYS
+diff --git a/src/syscall/syscall_dragonfly.go b/src/syscall/syscall_dragonfly.go
+index 766d005bd3..fead9d9b48 100644
+--- a/src/syscall/syscall_dragonfly.go
++++ b/src/syscall/syscall_dragonfly.go
+@@ -125,6 +125,11 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
++func setattrlistTimes(path string, times []Timespec) error {
++	// used on Darwin for UtimesNano
++	return ENOSYS
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/syscall_freebsd.go b/src/syscall/syscall_freebsd.go
+index 85790b31d2..2c7533c157 100644
+--- a/src/syscall/syscall_freebsd.go
++++ b/src/syscall/syscall_freebsd.go
+@@ -134,6 +134,11 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
++func setattrlistTimes(path string, times []Timespec) error {
++	// used on Darwin for UtimesNano
++	return ENOSYS
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/syscall_netbsd.go b/src/syscall/syscall_netbsd.go
+index 21af0fa0de..c645b139b1 100644
+--- a/src/syscall/syscall_netbsd.go
++++ b/src/syscall/syscall_netbsd.go
+@@ -121,6 +121,11 @@ func sendfile(outfd int, infd int, offset *int64, count int) (written int, err e
+ 	return -1, ENOSYS
+ }
+ 
++func setattrlistTimes(path string, times []Timespec) error {
++	// used on Darwin for UtimesNano
++	return ENOSYS
++}
++
+ /*
+  * Exposed directly
+  */
+diff --git a/src/syscall/syscall_openbsd.go b/src/syscall/syscall_openbsd.go
+index 7ac8b2d040..a43d88bf7a 100644
+--- a/src/syscall/syscall_openbsd.go
++++ b/src/syscall/syscall_openbsd.go
+@@ -99,6 +99,11 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
+ 	return
+ }
+ 
++func setattrlistTimes(path string, times []Timespec) error {
++	// used on Darwin for UtimesNano
++	return ENOSYS
++}
++
+ /*
+  * Exposed directly
+  */

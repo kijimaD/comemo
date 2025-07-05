@@ -6,7 +6,52 @@ Date:   Mon Jun 30 16:30:53 2008 -0700
     fix a comment
     
     SVN=125405
-
+---
  src/runtime/runtime.c | 2 +-
  test/golden.out       | 6 +++---
  2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/runtime.c b/src/runtime/runtime.c
+index 1807e63f3f..c4ff5f245d 100644
+--- a/src/runtime/runtime.c
++++ b/src/runtime/runtime.c
+@@ -518,7 +518,7 @@ out:
+ 	FLUSH(&s);
+ }
+ 
+-//func envv(i) string;  // return argument i
++//func envv(i) string;  // return environment variable i
+ void
+ sys·envv(int32 i, string s)
+ {
+diff --git a/test/golden.out b/test/golden.out
+index f2ea7592a8..9f55668b6c 100644
+--- a/test/golden.out
++++ b/test/golden.out
+@@ -32,7 +32,7 @@ hello, world
+ =========== ./readfile.go
+ 
+ =========== ./sieve.go
+-sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(176)
++sieve.go:8: fatal error: walktype: switch 1 unknown op SEND l(201)
+ BUG: known to fail incorrectly
+ 
+ =========== ./simasign.go
+@@ -149,7 +149,7 @@ bugs/bug025.go:7: fatal error: dumpexportvar: oname nil: Foo
+ BUG: known to fail incorrectly or at least with a bad message
+ 
+ =========== bugs/bug026.go
+-initsig: main·sigs_I: not defined
++sys·printstring: main·sigs_I: not defined
+ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug027.go
+@@ -223,7 +223,7 @@ BUG: known to fail incorrectly
+ 
+ =========== bugs/bug050.go
+ bugs/bug050.go:3: package statement must be first
+-sys.6:1 bugs/bug050.go:2: syntax error
++sys.6:1 bugs/bug050.go:3: syntax error
+ BUG: segfault
+ 
+ =========== bugs/bug051.go

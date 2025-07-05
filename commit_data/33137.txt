@@ -11,6 +11,20 @@ Date:   Sun Jul 16 03:58:00 2017 +1000
     Reviewed-by: Joe Tsai <thebrokentoaster@gmail.com>
     Run-TryBot: Joe Tsai <thebrokentoaster@gmail.com>
     TryBot-Result: Gobot Gobot <gobot@golang.org>
-
+---
  src/archive/zip/writer.go | 2 --
  1 file changed, 2 deletions(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index f46a03c37e..9f4fceee84 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -14,8 +14,6 @@ import (
+ 	"unicode/utf8"
+ )
+ 
+-// TODO(adg): support zip file comments
+-
+ // Writer implements a zip file writer.
+ type Writer struct {
+ 	cw          *countWriter
